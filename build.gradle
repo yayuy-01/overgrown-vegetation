@@ -1,0 +1,139 @@
+plugins {
+    id 'java-library'
+    id 'eclipse'
+    id 'idea'
+    id 'net.neoforged.moddev' version '2.0.78'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+}
+
+neoForge {
+    version = project.neo_version
+
+    parchment {
+        mappingsVersion = project.parchment_mappings_version
+        minecraftVersion = project.parchment_minecraft_version
+    }
+
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+            programArgument '--nogui'
+        }
+        // GameTest(自動テスト)。src/main/java/.../gametest/ の @GameTestHolder クラスをヘッドレスサーバーで実行する。
+        //   gradlew.bat runGameTestServer
+        // 結果は run/gametest 以下ではなくコンソール(失敗なら非 0 で終了)。
+        gameTestServer {
+            type = "gameTestServer"
+            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+        }
+        configureEach {
+            systemProperty 'forge.logging.markers', ''
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+repositories {
+    mavenLocal()
+    maven {
+        name = "RedlanceMinecraft" // PAL (Player Animation Library)
+        url = "https://repo.redlance.org/public"
+        content {
+            includeGroupByRegex('com\\.zigythebird.*')
+        }
+    }
+    maven {
+        name = 'GeckoLib'
+        url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+        content {
+            includeGroupByRegex('software\\.bernie.*')
+            includeGroup('com.eliotlash.mclib')
+        }
+    }
+}
+
+// structure-grammar エンジンのゴールデンテスト(tools/structure-grammar/SPEC.md §9)専用の
+// 隔離クラスパス。エンジン中核(worldgen.grammar.*)は Minecraft 非依存なので、FML を起動する
+// moddev の test 統合ではなく素の JavaExec で回す。
+configurations {
+    grammarTest
+}
+
+dependencies {
+    // Blockbench製モデル/アニメーションを読み込むための GeckoLib
+    implementation "software.bernie.geckolib:geckolib-neoforge-${minecraft_version}:${geckolib_version}"
+    // プレイヤーの体を動かすアニメ(寄生植物装備の儀式)用の PAL
+    // transitive = false が必須: PAL の POM は Minecraft より新しい netty / fastutil / slf4j を要求していて、
+    // そのままだと runtimeClasspath の解決に失敗して runClient が起動できない(2026-09-18 に実際に起きた)。
+    // 必要なもの(Core / mochafloats / javassist)は PAL の jar に同梱(jar-in-jar)されているので切ってよい。
+    implementation("com.zigythebird.playeranim:PlayerAnimationLibNeo:${pal_version}") {
+        transitive = false
+    }
+
+    grammarTest 'com.google.code.gson:gson:2.10.1' // Minecraft 1.21.1 と同じ版
+}
+
+// tools/structure-grammar/fixtures/p1-baseline.json の SHA-256 に Java エンジンを一致させる。
+// 実行: ./gradlew grammarGoldenTest
+tasks.register('grammarGoldenTest', JavaExec) {
+    group = 'verification'
+    description = 'structure-grammar: ブラウザ側 P1 fixtures と Java エンジンの出力を照合'
+    dependsOn 'compileJava'
+    mainClass = 'com.yayuy.overgrownvegetation.worldgen.grammar.GrammarGoldenMain'
+    classpath = files(
+            sourceSets.main.output.classesDirs,
+            configurations.grammarTest
+    )
+    workingDir = projectDir
+    // fixtures/examples は tools/structure-grammar (ローカル専用、公開リポジトリには含めない) にある。
+    // 無い環境では check が落ちないようスキップする。
+    onlyIf { file('tools/structure-grammar').exists() }
+}
+check.dependsOn 'grammarGoldenTest'
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+tasks.withType(Javadoc).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes([
+                'Specification-Title'     : mod_id,
+                'Specification-Vendor'    : mod_authors,
+                'Specification-Version'   : '1',
+                'Implementation-Title'    : project.name,
+                'Implementation-Version'  : project.jar.archiveVersion,
+                'Implementation-Vendor'   : mod_authors
+        ])
+    }
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}

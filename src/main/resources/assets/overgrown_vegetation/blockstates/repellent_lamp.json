@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "covered=false": { "model": "overgrown_vegetation:block/repellent_lamp" },
+    "covered=true": { "model": "overgrown_vegetation:block/repellent_lamp_covered" }
+  }
+}

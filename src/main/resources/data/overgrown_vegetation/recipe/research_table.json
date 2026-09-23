@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " A ",
+    "BBB"
+  ],
+  "key": {
+    "A": {
+      "item": "minecraft:crafting_table"
+    },
+    "B": {
+      "item": "overgrown_vegetation:plant_fiber"
+    }
+  },
+  "result": {
+    "id": "overgrown_vegetation:research_table",
+    "count": 1
+  }
+}

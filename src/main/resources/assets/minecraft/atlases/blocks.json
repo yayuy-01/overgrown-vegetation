@@ -1,0 +1,9 @@
+{
+  "_comment": "ブロックアトラスへ焼き込ませる追加テクスチャ。バニラの blocks.json は textures/block/ と textures/item/ をディレクトリごと拾う(名前空間は問わない)ので、そこに置いてあるものは何も書かなくてよい。ここに要るのは『それ以外の場所にあるのに、ブロックモデルから参照されるテクスチャ』だけ。geo.json をブロックモデルとして焼き込む丸まったシダ(GeoStaticGeometry)がそれで、テクスチャが textures/entity/ にある。消すとシダのテクスチャが欠ける。このファイルは assets/minecraft/ に置くこと —— バニラは minecraft:blocks という1つのファイル名しか見ないので、自 MOD の名前空間に置いても読まれない(同じパスのファイルは全パックぶんが読まれて足し合わされる)。",
+  "sources": [
+    {
+      "type": "single",
+      "resource": "overgrown_vegetation:entity/overgrown_curled_fern"
+    }
+  ]
+}

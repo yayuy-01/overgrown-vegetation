@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:random_selector",
+  "config": {
+    "default": "overgrown_vegetation:overgrown_tree_swamp_main",
+    "features": [
+      {
+        "chance": 0.25,
+        "feature": "overgrown_vegetation:overgrown_tree_swamp_short"
+      },
+      {
+        "chance": 0.15,
+        "feature": "overgrown_vegetation:overgrown_tree_swamp_tall"
+      }
+    ]
+  }
+}

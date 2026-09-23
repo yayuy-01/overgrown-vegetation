@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:leaves",
+    "#overgrown_vegetation:phalangiotarbus_perch",
+    "overgrown_vegetation:overgrown_leaves"
+  ]
+}

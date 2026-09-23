@@ -1,0 +1,27 @@
+{
+  "type": "overgrown_vegetation:forced_tree",
+  "config": {
+    "trunk_state": {
+      "Name": "overgrown_vegetation:overgrown_swamp_log",
+      "Properties": {
+        "axis": "y"
+      }
+    },
+    "leaves_state": {
+      "Name": "overgrown_vegetation:overgrown_swamp_leaves"
+    },
+    "min_trunk_height": 22,
+    "max_trunk_height": 30,
+    "foliage_radius": 4,
+    "foliage_height": 4,
+    "trunk_width": 1,
+    "branch_count": 0,
+    "root_min_count": 3,
+    "root_max_count": 7,
+    "root_length": 3,
+    "glow_lichen_chance": 0.05,
+    "glow_lichen_state": {
+      "Name": "minecraft:glow_lichen"
+    }
+  }
+}

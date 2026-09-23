@@ -1,0 +1,11 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:overgrown_dirt",
+    "overgrown_vegetation:overgrown_mud",
+    "overgrown_vegetation:overgrown_mud_slab",
+    "overgrown_vegetation:overgrown_grass_block",
+    "overgrown_vegetation:overgrown_sand",
+    "overgrown_vegetation:overgrown_gravel"
+  ]
+}

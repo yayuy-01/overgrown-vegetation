@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:overgrown_shielder",
+    "overgrown_vegetation:blight_fern",
+    "overgrown_vegetation:blight_water_grass",
+    "overgrown_vegetation:arbora",
+    "overgrown_vegetation:arbora_queen",
+    "overgrown_vegetation:phyllosens",
+    "overgrown_vegetation:velophyll",
+    "overgrown_vegetation:sporophyll",
+    "overgrown_vegetation:overgrown_nexus"
+  ]
+}

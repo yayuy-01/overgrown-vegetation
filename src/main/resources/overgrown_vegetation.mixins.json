@@ -1,0 +1,32 @@
+{
+  "required": true,
+  "minVersion": "0.8.5",
+  "package": "com.yayuy.overgrownvegetation.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "AbstractFurnaceBlockEntityMixin",
+    "CraftingMenuMixin",
+    "FoodDataErosionMixin",
+    "ItemCombinerMenuMixin",
+    "PlayerEatErosionMixin",
+    "RangedAttributeMixin"
+  ],
+  "client": [
+    "client.CameraShakeMixin",
+    "client.HiveRitualCameraMixin",
+    "client.PlantArmorGlowMixin",
+    "client.DebugScreenBiomeColorMixin",
+    "client.GameRendererSwingThroughFoliageMixin",
+    "client.GuiFoodBarErosionMixin",
+    "client.GuiFoodBarSporeHungerMixin",
+    "client.EntityRendererFogCullMixin",
+    "client.LevelRendererFogCullMixin",
+    "client.LightTextureClimaxMixin",
+    "client.LocalPlayerQuietHealthCapMixin",
+    "client.PlayerRendererHandMixin",
+    "client.VideoSettingsScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "half=lower": {
+      "model": "overgrown_vegetation:block/overgrown_spore_reed_bottom"
+    },
+    "half=upper": {
+      "model": "overgrown_vegetation:block/overgrown_spore_reed_top"
+    }
+  }
+}

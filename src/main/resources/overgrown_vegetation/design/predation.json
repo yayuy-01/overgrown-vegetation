@@ -1,0 +1,4 @@
+{
+  "_comment": "捕食まわりで全種に共通する数値。「どの Mob を襲いに行くか」は mobs.json の preys へ移した(2026-09-21)。/ov design reload で即反映。",
+  "preyKillBonusPerKill": 0.05
+}

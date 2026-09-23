@@ -1,0 +1,6 @@
+{
+  "type": "overgrown_vegetation:grammar_structure",
+  "config": {
+    "grammar": "overgrown_vegetation:overgrown_tree_short"
+  }
+}

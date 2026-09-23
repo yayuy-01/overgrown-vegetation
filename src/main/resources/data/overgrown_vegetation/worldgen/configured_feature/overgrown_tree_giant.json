@@ -1,0 +1,27 @@
+{
+  "type": "overgrown_vegetation:giant_tree",
+  "config": {
+    "trunk_state": {
+      "Name": "overgrown_vegetation:giant_overgrown_log",
+      "Properties": {
+        "axis": "y"
+      }
+    },
+    "leaves_state": {
+      "Name": "overgrown_vegetation:overgrown_leaves"
+    },
+    "height": 120,
+    "base_radius": 11,
+    "top_radius": 2,
+    "root_count": 8,
+    "root_length": 100,
+    "root_thickness": 3,
+    "branch_min_count": 26,
+    "branch_max_count": 40,
+    "branch_thickness": 2,
+    "crown_drop": 18,
+    "crown_radius": 50,
+    "foliage_radius": 7,
+    "foliage_height": 5
+  }
+}

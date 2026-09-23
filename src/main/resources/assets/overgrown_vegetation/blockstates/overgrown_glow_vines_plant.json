@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "berries=false": { "model": "overgrown_vegetation:block/overgrown_glow_vines_plant" },
+    "berries=true": { "model": "overgrown_vegetation:block/overgrown_glow_vines_plant_lit" }
+  }
+}

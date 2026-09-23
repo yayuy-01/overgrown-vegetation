@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "top=false": { "model": "overgrown_vegetation:block/overgrown_water_column" },
+    "top=true":  { "model": "overgrown_vegetation:block/overgrown_water_column_top" }
+  }
+}

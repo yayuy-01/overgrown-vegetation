@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "overgrown_vegetation:chlorophyllite_alloy_block"
+    }
+  ],
+  "result": {
+    "id": "overgrown_vegetation:chlorophyllite_alloy",
+    "count": 9
+  }
+}

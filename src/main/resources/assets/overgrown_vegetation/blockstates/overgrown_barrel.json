@@ -1,0 +1,20 @@
+{
+  "_comment": "バニラの barrel と同じ向きの組み合わせ + overgrowth=1..3 で蔦・コケのオーバーレイ(回転不要)。",
+  "multipart": [
+    { "when": { "facing": "down", "open": "false" }, "apply": { "model": "overgrown_vegetation:block/overgrown_barrel", "x": 180 } },
+    { "when": { "facing": "down", "open": "true" }, "apply": { "model": "overgrown_vegetation:block/overgrown_barrel_open", "x": 180 } },
+    { "when": { "facing": "up", "open": "false" }, "apply": { "model": "overgrown_vegetation:block/overgrown_barrel" } },
+    { "when": { "facing": "up", "open": "true" }, "apply": { "model": "overgrown_vegetation:block/overgrown_barrel_open" } },
+    { "when": { "facing": "north", "open": "false" }, "apply": { "model": "overgrown_vegetation:block/overgrown_barrel", "x": 90 } },
+    { "when": { "facing": "north", "open": "true" }, "apply": { "model": "overgrown_vegetation:block/overgrown_barrel_open", "x": 90 } },
+    { "when": { "facing": "south", "open": "false" }, "apply": { "model": "overgrown_vegetation:block/overgrown_barrel", "x": 90, "y": 180 } },
+    { "when": { "facing": "south", "open": "true" }, "apply": { "model": "overgrown_vegetation:block/overgrown_barrel_open", "x": 90, "y": 180 } },
+    { "when": { "facing": "east", "open": "false" }, "apply": { "model": "overgrown_vegetation:block/overgrown_barrel", "x": 90, "y": 90 } },
+    { "when": { "facing": "east", "open": "true" }, "apply": { "model": "overgrown_vegetation:block/overgrown_barrel_open", "x": 90, "y": 90 } },
+    { "when": { "facing": "west", "open": "false" }, "apply": { "model": "overgrown_vegetation:block/overgrown_barrel", "x": 90, "y": 270 } },
+    { "when": { "facing": "west", "open": "true" }, "apply": { "model": "overgrown_vegetation:block/overgrown_barrel_open", "x": 90, "y": 270 } },
+    { "when": { "overgrowth": "1" }, "apply": { "model": "overgrown_vegetation:block/overgrowth_overlay_cube_1" } },
+    { "when": { "overgrowth": "2" }, "apply": { "model": "overgrown_vegetation:block/overgrowth_overlay_cube_2" } },
+    { "when": { "overgrowth": "3" }, "apply": { "model": "overgrown_vegetation:block/overgrowth_overlay_cube_3" } }
+  ]
+}

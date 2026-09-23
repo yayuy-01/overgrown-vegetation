@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "growth=0": { "model": "overgrown_vegetation:block/spore_vent_0" },
+    "growth=1": { "model": "overgrown_vegetation:block/spore_vent_1" },
+    "growth=2": { "model": "overgrown_vegetation:block/spore_vent_2" },
+    "growth=3": { "model": "overgrown_vegetation:block/spore_vent_3" }
+  }
+}

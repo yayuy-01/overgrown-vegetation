@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "": [
+      { "model": "overgrown_vegetation:block/overgrown_stone" },
+      { "model": "overgrown_vegetation:block/overgrown_stone_r90" },
+      { "model": "overgrown_vegetation:block/overgrown_stone_r180" },
+      { "model": "overgrown_vegetation:block/overgrown_stone_r270" }
+    ]
+  }
+}

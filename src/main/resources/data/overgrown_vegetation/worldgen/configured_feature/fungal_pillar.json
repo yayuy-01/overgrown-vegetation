@@ -1,0 +1,18 @@
+{
+  "type": "overgrown_vegetation:fungal_pillar",
+  "config": {
+    "pillar_state": {
+      "Name": "overgrown_vegetation:fungal_pillar",
+      "Properties": {
+        "axis": "y"
+      }
+    },
+    "min_height": 10,
+    "max_height": 60,
+    "base_radius": 2.0,
+    "top_radius": 0.4,
+    "flare_rows": 4,
+    "flare": 2.6,
+    "lean": 1
+  }
+}

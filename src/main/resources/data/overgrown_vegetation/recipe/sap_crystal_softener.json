@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "overgrown_vegetation:sap_crystal"
+    },
+    {
+      "item": "minecraft:slime_ball"
+    },
+    {
+      "item": "overgrown_vegetation:plant_fiber"
+    }
+  ],
+  "result": {
+    "id": "overgrown_vegetation:sap_crystal_softener",
+    "count": 1
+  }
+}

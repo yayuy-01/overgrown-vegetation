@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:blasting",
+  "ingredient": {
+    "item": "overgrown_vegetation:raw_chlorophyllite"
+  },
+  "result": {
+    "id": "overgrown_vegetation:chlorophyllite"
+  },
+  "experience": 0.7,
+  "cookingtime": 100
+}

@@ -1,0 +1,19 @@
+{
+  "type": "overgrown_vegetation:forced_tree",
+  "config": {
+    "trunk_state": {
+      "Name": "overgrown_vegetation:overgrown_log",
+      "Properties": {
+        "axis": "y"
+      }
+    },
+    "leaves_state": {
+      "Name": "overgrown_vegetation:overgrown_leaves"
+    },
+    "min_trunk_height": 1,
+    "max_trunk_height": 4,
+    "foliage_radius": 2,
+    "foliage_height": 2,
+    "trunk_width": 1
+  }
+}

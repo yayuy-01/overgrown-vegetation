@@ -1,0 +1,42 @@
+{
+  "format": "structure_grammar",
+  "version": 1,
+  "id": "overgrown_vegetation:overgrown_tree_short",
+
+  "settings": { "maxDepth": 4, "maxBlocks": 4000, "originMode": "sapling" },
+
+  "palette": {
+    "trunk": {
+      "block": "overgrown_vegetation:overgrown_log",
+      "properties": { "axis": "y" },
+      "protected": true
+    },
+    "leaves": { "block": "overgrown_vegetation:overgrown_leaves" }
+  },
+
+  "params": {
+    "height":      { "d": "uniformInt", "min": 1, "max": 4, "ui": { "min": 1, "max": 8, "label": "幹の高さ" } },
+    "leaf_radius": { "d": "uniformFloat", "min": 1.8, "max": 2.4, "ui": { "min": 1, "max": 5, "label": "葉の大きさ" } }
+  },
+
+  "axiom": [
+    { "op": "call", "rule": "stem", "args": { "len": "$height" } }
+  ],
+
+  "rules": {
+    "stem": {
+      "params": ["len"],
+      "steps": [
+        { "op": "set_width", "to": 0 },
+        { "op": "move", "dist": "$len", "block": "trunk" },
+        { "op": "stamp", "shape": "blob",
+          "block": "leaves",
+          "radiusH": "$leaf_radius",
+          "radiusV": { "d": "uniformFloat", "min": 1.2, "max": 1.8 },
+          "jitter": 0.2,
+          "overwrite": "keep_protected"
+        }
+      ]
+    }
+  }
+}

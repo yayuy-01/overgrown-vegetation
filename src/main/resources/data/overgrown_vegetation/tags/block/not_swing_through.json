@@ -1,0 +1,24 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:buttons",
+    "#minecraft:doors",
+    "#minecraft:all_signs",
+    "#minecraft:banners",
+    "#minecraft:rails",
+    "#minecraft:pressure_plates",
+    "#minecraft:cave_vines",
+    "minecraft:lever",
+    "minecraft:tripwire",
+    "minecraft:tripwire_hook",
+    "minecraft:redstone_wire",
+    "minecraft:sweet_berry_bush",
+    "minecraft:torch",
+    "minecraft:wall_torch",
+    "minecraft:soul_torch",
+    "minecraft:soul_wall_torch",
+    "minecraft:redstone_torch",
+    "minecraft:redstone_wall_torch",
+    "overgrown_vegetation:overgrown_door"
+  ]
+}

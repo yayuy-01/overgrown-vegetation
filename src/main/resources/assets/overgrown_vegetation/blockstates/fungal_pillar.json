@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=y": {
+      "model": "overgrown_vegetation:block/fungal_pillar"
+    },
+    "axis=z": {
+      "model": "overgrown_vegetation:block/fungal_pillar",
+      "x": 90
+    },
+    "axis=x": {
+      "model": "overgrown_vegetation:block/fungal_pillar",
+      "x": 90,
+      "y": 90
+    }
+  }
+}

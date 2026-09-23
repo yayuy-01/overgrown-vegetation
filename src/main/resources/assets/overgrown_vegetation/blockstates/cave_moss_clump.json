@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "face=floor,facing=north": { "model": "overgrown_vegetation:block/cave_moss_clump" },
+    "face=floor,facing=east": { "model": "overgrown_vegetation:block/cave_moss_clump", "y": 90 },
+    "face=floor,facing=south": { "model": "overgrown_vegetation:block/cave_moss_clump", "y": 180 },
+    "face=floor,facing=west": { "model": "overgrown_vegetation:block/cave_moss_clump", "y": 270 },
+    "face=wall,facing=north": { "model": "overgrown_vegetation:block/cave_moss_clump", "x": 90 },
+    "face=wall,facing=east": { "model": "overgrown_vegetation:block/cave_moss_clump", "x": 90, "y": 90 },
+    "face=wall,facing=south": { "model": "overgrown_vegetation:block/cave_moss_clump", "x": 90, "y": 180 },
+    "face=wall,facing=west": { "model": "overgrown_vegetation:block/cave_moss_clump", "x": 90, "y": 270 },
+    "face=ceiling,facing=north": { "model": "overgrown_vegetation:block/cave_moss_clump", "x": 180, "y": 180 },
+    "face=ceiling,facing=east": { "model": "overgrown_vegetation:block/cave_moss_clump", "x": 180, "y": 270 },
+    "face=ceiling,facing=south": { "model": "overgrown_vegetation:block/cave_moss_clump", "x": 180 },
+    "face=ceiling,facing=west": { "model": "overgrown_vegetation:block/cave_moss_clump", "x": 180, "y": 90 }
+  }
+}

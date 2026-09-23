@@ -1,0 +1,38 @@
+{
+  "_comment": "器官 —— 極相(engulfed)の地脈の上に育ち、世界そのものへ効くもの。普通の設備と違って効果に距離が無く、遠くに住んでも届く。だから『引っ越して逃げる』ができず、潰しに行くか、受け入れて暮らすかの選択になる。器官は必ず『節』(organ_node)から生え、台帳が覚えているのは節だけ。姿は節の位置から毎回計算する。姿は種類ごとに違うので、sporeGland.tower は胞子腺だけの形の値(次の器官は塔ですらない)。enabled を false にすると新しい器官が生えなくなる(既に生えているものは残る)。/ov design reload で即反映。ただし既に建っている器官は建て直らないので、tower を大きく動かすと枯らすときの形が食い違う。",
+  "enabled": true,
+
+  "sporeGland": {
+    "_comment": "胞子腺 —— 最初の器官。世界の胞子濃度に『下限』を作る。cellSizeChunks = 器官の間隔。世界をこの大きさの升目に切り、升目の中で地脈が通っているチャンクから1つだけ候補地を選ぶ(種と座標だけで決まるので、どこから開拓しても同じ場所に生える)。地脈が1本も通っていない升目には生えない。maturityDays = 育ちきるまでの日数。効果は育ち具合に比例するので、生えた直後は何も起きない —— 気付いたときにはもう効いている。worldFloorPercent = 育ちきった器官1つが世界の胞子濃度に作る下限(%)。世界のどこに居ても胞子濃度がこの値より下がらなくなる。worldFloorMaxPercent = 下限の頭打ち。器官が増え続けても世界が全部 100% にはならないようにするためのもの。localPercent / localReachChunks = 器官のまわりだけに乗る上乗せ(%)と、それが0になるまでの距離(チャンク)。距離に比例して直線的に減る。これが器官を探す唯一の手がかり —— 下限は世界のどこでも同じ値なので、それだけでは場所が分からない。胞子濃度計を持って極相を歩き、数字が上がる方へ進めば辿り着ける。witherBlocksPerTick = 節を潰されたあと1 tick に何マスずつ枯れるか。",
+    "cellSizeChunks": 24,
+    "maturityDays": 7,
+    "worldFloorPercent": 18,
+    "worldFloorMaxPercent": 45,
+    "localPercent": 40,
+    "localReachChunks": 12,
+    "witherBlocksPerTick": 16,
+
+    "tower": {
+      "_comment": "胞子腺の姿 —— 三つ編みの塔。器官の蔦と汚染ブロックを混ぜた筋が strands 本、互いに編み込まれながら立ち上がる。編み目に見せているのは braidAmplitude(各筋の軸からの距離を braidPeriod の周期で内外に揺らし、筋ごとに位相をずらす)で、0 にすると編み目が消えてただのねじれた柱になる。twistDegrees は1ブロック上がるごとに筋が回る角度。taper は先端へ向けての絞り(0.55 なら先端で 45% の太さ)。rootHeight / rootRadius は下端の塊 —— 節をこの中に埋めて『掘って辿り着くもの』にするためのもので、小さくすると節がむき出しになり近寄って殴るだけで終わる。vineRatio は器官の蔦の割合(残りは汚染ブロック)。glandChance は表面のマスが腺になる確率。形のつまみは tools/organ-preview/organ-preview.html で確かめられる。",
+      "height": 38,
+      "strands": 3,
+      "radius": 5.8,
+      "taper": 0.8,
+      "twistDegrees": 13,
+      "braidAmplitude": 2.5,
+      "braidPeriod": 13,
+      "weaveDegrees": 50,
+      "strandThickness": 2.4,
+      "rootHeight": 3,
+      "rootRadius": 6,
+      "vineRatio": 0.45,
+      "glandChance": 0.05
+    },
+
+    "glandPenalty": {
+      "_comment": "腺を壊したときの罰。毒・吐き気・盲目・空腹5・胞子感染2・採掘速度低下 の6つから effects 個を選んで掛ける(重複なし)。塔は腺だらけなので、削って進むと必ず何かを浴びる。effects を 0 にすると罰が無くなる。",
+      "effects": 2,
+      "durationSeconds": 20
+    }
+  }
+}

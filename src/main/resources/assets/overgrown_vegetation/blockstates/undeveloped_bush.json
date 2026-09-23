@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "berries=false": { "model": "overgrown_vegetation:block/undeveloped_bush" },
+    "berries=true": { "model": "overgrown_vegetation:block/undeveloped_bush_fruited" }
+  }
+}

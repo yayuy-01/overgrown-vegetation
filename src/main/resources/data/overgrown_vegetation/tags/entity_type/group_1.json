@@ -1,0 +1,11 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:parasitized_cow",
+    "overgrown_vegetation:parasitized_sheep",
+    "overgrown_vegetation:parasitized_pig",
+    "overgrown_vegetation:parasitized_zombie",
+    "overgrown_vegetation:parasitized_creeper",
+    "overgrown_vegetation:parasitized_spider"
+  ]
+}

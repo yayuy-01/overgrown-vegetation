@@ -1,0 +1,629 @@
+package com.yayuy.overgrownvegetation.data;
+
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * {@code mobs.json}(設計データ)から読み込んだ Mob ステータスの束。
+ *
+ * <p>現行のハードコード値は {@link #DEFAULTS} に写経してあり、これが常にフォールバックになる。
+ * {@code mobs.json} は起動時にこの既定値のコピーとして書き出され、ユーザーが編集する。
+ * {@link #forId(String)} は「既定値 + json での上書き」をマージした最終値を返す。
+ *
+ * @see DesignData
+ */
+public final class MobStats {
+
+    /** 現行ハードコード値(唯一の真実のフォールバック)。キーは {@code overgrown_vegetation} 名前空間内のパス。 */
+    public static final Map<String, MobStat> DEFAULTS = buildDefaults();
+
+    private final Map<String, MobStat> loaded;
+
+    MobStats(Map<String, MobStat> loaded) {
+        this.loaded = loaded != null ? loaded : Map.of();
+    }
+
+    /** {@code mobs.json} が読めなかったときのフォールバック(既定値のみ)。 */
+    public static MobStats defaultsOnly() {
+        return new MobStats(Map.of());
+    }
+
+    /** 既定値に json の上書きを重ねた最終ステータス。未知の id でも空の {@link MobStat} を返す(null にはならない)。 */
+    public MobStat forId(String path) {
+        MobStat def = DEFAULTS.getOrDefault(path, new MobStat());
+        return def.withOverrides(loaded.get(path));
+    }
+
+    /** json に載っている(=ユーザーが触りうる)id 一覧。既定値のキーと json のキーの和集合。 */
+    public java.util.Set<String> knownIds() {
+        java.util.Set<String> ids = new java.util.TreeSet<>(DEFAULTS.keySet());
+        ids.addAll(loaded.keySet());
+        return ids;
+    }
+
+    // --- 捕食関係 / 湧く条件 ---
+    // どちらも索敵やスポーン判定から何度も引かれるので、id → EntityType の解決結果を
+    // このインスタンスに貯める(design reload では MobStats ごと作り直されるので、
+    // キャッシュも一緒に捨てられる)。
+
+    private volatile Map<net.minecraft.world.entity.EntityType<?>,
+            java.util.Set<net.minecraft.world.entity.EntityType<?>>> resolvedPreys;
+    /** キー = フェーズ番号 × 場所。 */
+    private final Map<String, List<net.minecraft.world.entity.EntityType<?>>> pools =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** {@code predator} 種が {@code prey} 種を襲いに行く相手にしているか。 */
+    public boolean isPrey(net.minecraft.world.entity.EntityType<?> predator,
+                          net.minecraft.world.entity.EntityType<?> prey) {
+        Map<net.minecraft.world.entity.EntityType<?>,
+                java.util.Set<net.minecraft.world.entity.EntityType<?>>> map = resolvedPreys;
+        if (map == null) {
+            map = resolvePreys();
+            resolvedPreys = map;
+        }
+        java.util.Set<net.minecraft.world.entity.EntityType<?>> set = map.get(predator);
+        return set != null && set.contains(prey);
+    }
+
+    private Map<net.minecraft.world.entity.EntityType<?>,
+            java.util.Set<net.minecraft.world.entity.EntityType<?>>> resolvePreys() {
+        Map<net.minecraft.world.entity.EntityType<?>,
+                java.util.Set<net.minecraft.world.entity.EntityType<?>>> out =
+                new it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap<>();
+        for (String path : knownIds()) {
+            List<String> preys = forId(path).preys();
+            net.minecraft.world.entity.EntityType<?> predator = preys.isEmpty() ? null : typeOf(path);
+            if (predator == null) {
+                continue;
+            }
+            java.util.Set<net.minecraft.world.entity.EntityType<?>> set =
+                    new it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet<>();
+            for (String prey : preys) {
+                net.minecraft.world.entity.EntityType<?> t = typeOf(prey);
+                if (t != null) {
+                    set.add(t);
+                }
+            }
+            out.put(predator, set);
+        }
+        return out;
+    }
+
+    /** そのフェーズに、その場所で湧く種(mobs.json の {@code spawns})。 */
+    public List<net.minecraft.world.entity.EntityType<?>> pool(int phase, MobStat.SpawnPlace place) {
+        return pools.computeIfAbsent(phase + ":" + place.key(), k -> buildPool(phase, place));
+    }
+
+    /**
+     * そのフェーズに<b>過繫茂系バイオームのどこか</b>で湧く種(密林 / 湿地 / 海 の和集合)。
+     *
+     * <p><b>各枠の一覧は {@code computeIfAbsent} の外で先に引く</b>。{@link #pools} は
+     * {@code ConcurrentHashMap} なので、{@code computeIfAbsent} の中から同じ Map の
+     * {@code computeIfAbsent}({@link #pool})を呼ぶと
+     * {@code IllegalStateException: Recursive update} で落ちる(2026-09-21 に GameTest が検出)。
+     * 生態系スポーンは 3 秒ごとにここを通るので、ゲーム内でも同じように落ちる。
+     */
+    public List<net.minecraft.world.entity.EntityType<?>> overgrownPool(int phase) {
+        String key = phase + ":overgrown";
+        List<net.minecraft.world.entity.EntityType<?>> cached = pools.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        List<net.minecraft.world.entity.EntityType<?>> out = new java.util.ArrayList<>();
+        for (MobStat.SpawnPlace place : new MobStat.SpawnPlace[] {
+                MobStat.SpawnPlace.JUNGLE, MobStat.SpawnPlace.SWAMP, MobStat.SpawnPlace.OCEAN }) {
+            for (net.minecraft.world.entity.EntityType<?> type : pool(phase, place)) {
+                if (!out.contains(type)) {
+                    out.add(type);
+                }
+            }
+        }
+        List<net.minecraft.world.entity.EntityType<?>> union = List.copyOf(out);
+        List<net.minecraft.world.entity.EntityType<?>> raced = pools.putIfAbsent(key, union);
+        return raced != null ? raced : union;
+    }
+
+    private List<net.minecraft.world.entity.EntityType<?>> buildPool(int phase, MobStat.SpawnPlace place) {
+        List<net.minecraft.world.entity.EntityType<?>> out = new java.util.ArrayList<>();
+        for (String path : knownIds()) {
+            MobStat s = forId(path);
+            if (!s.naturalSpawn()) {
+                continue;   // テスト用に「湧かない」にした種は全経路から外す
+            }
+            if (!s.spawns().of(place).contains(phase)) {
+                continue;
+            }
+            net.minecraft.world.entity.EntityType<?> type = typeOf(path);
+            if (type != null && !out.contains(type)) {
+                out.add(type);
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /** "id" / "名前空間:id" → 登録済みの {@link net.minecraft.world.entity.EntityType}(無ければ null)。 */
+    private static net.minecraft.world.entity.EntityType<?> typeOf(String idOrPath) {
+        net.minecraft.resources.ResourceLocation rl =
+                net.minecraft.resources.ResourceLocation.tryParse(idOrPath);
+        if (rl == null) {
+            return null;
+        }
+        if (!idOrPath.contains(":")) {
+            rl = com.yayuy.overgrownvegetation.OvergrownVegetation.id(idOrPath);
+        }
+        return net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getOptional(rl).orElse(null);
+    }
+
+    /** {@link #isPrey} の static 版。 */
+    public static boolean preysOn(net.minecraft.world.entity.EntityType<?> predator,
+                                  net.minecraft.world.entity.EntityType<?> prey) {
+        return DesignData.mobs().isPrey(predator, prey);
+    }
+
+    /** {@link #overgrownPool} の static 版。 */
+    public static List<net.minecraft.world.entity.EntityType<?>> overgrownSpawnPool(int phase) {
+        return DesignData.mobs().overgrownPool(phase);
+    }
+
+    /** 過繫茂系バイオームの外に湧く種(static 版)。 */
+    public static List<net.minecraft.world.entity.EntityType<?>> outsideSpawnPool(int phase) {
+        return DesignData.mobs().pool(phase, MobStat.SpawnPlace.OUTSIDE);
+    }
+
+    /** その種がそのフェーズにその場所で湧くか。 */
+    public static boolean spawnsIn(net.minecraft.world.entity.EntityType<?> type, int phase,
+                                   MobStat.SpawnPlace place) {
+        return DesignData.mobs().pool(phase, place).contains(type);
+    }
+
+    // --- AttributeSupplier への適用 ---
+
+    /**
+     * {@code builder} に {@code path} の Mob の各属性を {@code .add(...)} する。
+     * 非 null のフィールドだけを追加するので、その Mob が本来持たない属性を勝手に生やさない
+     * (ただし json で明示的に値を入れれば追加される)。
+     */
+    public static AttributeSupplier.Builder apply(AttributeSupplier.Builder builder, String path) {
+        MobStat s = DesignData.mobs().forId(path);
+        addIf(builder, Attributes.MAX_HEALTH, s.maxHealth);
+        addIf(builder, Attributes.MOVEMENT_SPEED, s.movementSpeed);
+        addIf(builder, Attributes.ATTACK_DAMAGE, s.attackDamage);
+        addIf(builder, Attributes.ATTACK_KNOCKBACK, s.attackKnockback);
+        addIf(builder, Attributes.ARMOR, s.armor);
+        addIf(builder, Attributes.ARMOR_TOUGHNESS, s.armorToughness);
+        addIf(builder, Attributes.KNOCKBACK_RESISTANCE, s.knockbackResistance);
+        addIf(builder, Attributes.FOLLOW_RANGE, s.followRange);
+        addIf(builder, Attributes.STEP_HEIGHT, s.stepHeight);
+        addIf(builder, Attributes.FLYING_SPEED, s.flyingSpeed);
+        addIf(builder, Attributes.SCALE, s.scale);
+        return builder;
+    }
+
+    private static void addIf(AttributeSupplier.Builder builder,
+                              net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> attr,
+                              Double value) {
+        if (value != null) {
+            builder.add(attr, value);
+        }
+    }
+
+    /** その Mob のビーム設定(mobs.json の beam。未指定なら既定値)。 */
+    public static MobStat.Beam beam(String path) {
+        return DesignData.mobs().forId(path).beam();
+    }
+
+    /** その Mob の投下爆弾の設定(mobs.json の bomb。未指定なら既定値)。 */
+    public static MobStat.Bomb bomb(String path) {
+        return DesignData.mobs().forId(path).bomb();
+    }
+
+    /** {@code ModEntities} のヒットボックス指定用。 */
+    public static float width(String path, float fallback) {
+        return DesignData.mobs().forId(path).width(fallback);
+    }
+
+    public static float height(String path, float fallback) {
+        return DesignData.mobs().forId(path).height(fallback);
+    }
+
+    /**
+     * {@code ModEntities} の湧き判定の箱の倍率({@code EntityType.Builder#spawnDimensionsScale})。
+     * その種が<b>育ちうるいちばん大きな体</b> = mobs.json の {@code scale} × 個体差の上限 {@code scaleMax}。
+     *
+     * <p>SCALE 属性が当たり判定に掛かるのは湧いた後の<b>最初の tick の終わり</b>
+     * ({@code LivingEntity#tick} の {@code appliedScale} の比較)なので、湧く場所の空きを確かめる箱
+     * ({@code EntityType#getSpawnAABB})にも掛けておかないと、素の大きさの隙間に湧いてから育って丸太や壁に埋まる。
+     * 個体差({@link com.yayuy.overgrownvegetation.entity.MobSizeVariance})は湧かせる前にはまだ抽選していないので上限で見る。
+     * 1 未満には縮めない —— 最初の tick までは素の大きさの箱のまま世界にいるので(巣の核の 0.45 など)。
+     */
+    public static float spawnScale(String path) {
+        MobStat s = DesignData.mobs().forId(path);
+        double scale = s.scale != null ? s.scale : 1.0D;
+        return (float) Math.max(1.0D, scale * s.scaleMax());
+    }
+
+    /** エンティティのコンストラクタでの {@code this.xpReward} 上書き用。 */
+    public static int xpReward(String path, int fallback) {
+        return DesignData.mobs().forId(path).xpReward(fallback);
+    }
+
+    /**
+     * この Mob が自動で湧くか(`mobs.json` の {@code naturalSpawn}、未設定なら true)。
+     * 自然発生の経路だけが見る — スポーンエッグ・{@code /summon} は対象外。
+     */
+    public static boolean naturalSpawn(String path) {
+        return DesignData.mobs().forId(path).naturalSpawn();
+    }
+
+    /** {@link #naturalSpawn(String)} の EntityType 版。mod 以外の種は常に true。 */
+    public static boolean naturalSpawn(net.minecraft.world.entity.EntityType<?> type) {
+        net.minecraft.resources.ResourceLocation key =
+                net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(type);
+        if (!com.yayuy.overgrownvegetation.OvergrownVegetation.MODID.equals(key.getNamespace())) {
+            return true;
+        }
+        return naturalSpawn(key.getPath());
+    }
+
+    // --- 既定値表 ---
+
+    private static MobStat stat(java.util.function.Consumer<MobStat> init) {
+        MobStat s = new MobStat();
+        init.accept(s);
+        return s;
+    }
+
+    private static Map<String, MobStat> buildDefaults() {
+        Map<String, MobStat> m = new LinkedHashMap<>();
+
+        m.put("blight_fern", stat(s -> {
+            s.maxHealth = 80.0; s.movementSpeed = 0.0; s.knockbackResistance = 1.0;
+            s.armor = 4.0; s.followRange = 0.0; s.scale = 2.5;
+            s.width = 1.4; s.height = 2.6;
+            s.eggFit = 8.45;
+        }));
+        // 汚染水草は汚染シダとまったく同じ属性。モデルだけは別物なので eggFit(スポーンエッグの絵を
+        // 枠に収める大きさ)だけ上書きする。
+        m.put("blight_water_grass", m.get("blight_fern").withOverrides(stat(s -> s.eggFit = 6.56)));
+
+        // ハイヴノード — 蔦で吊られた球体。動かない。蔦を 7 割切るまでは 99% のダメージカットが
+        // かかっているので、体力 10000 は「直接殴っても倒せない」ことを表すための値。
+        m.put("hive_node", stat(s -> {
+            s.maxHealth = 10000.0; s.movementSpeed = 0.0; s.knockbackResistance = 1.0;
+            s.armor = 0.0; s.armorToughness = 0.0; s.followRange = 0.0;
+            s.width = 3.0; s.height = 3.0; s.xpReward = 200;
+            s.eggFit = 3.95;
+        }));
+
+        // 巣の蔦 — ハイヴノードを吊る蔦 1 本。プレイヤーが 1 本ずつ切り落とす。
+        m.put("hive_vine", stat(s -> {
+            s.maxHealth = 30.0; s.movementSpeed = 0.0; s.knockbackResistance = 1.0;
+            s.armor = 0.0; s.followRange = 0.0;
+            s.width = 1.2; s.height = 1.2; s.xpReward = 3;
+        }));
+
+        m.put("overgrown_shielder", stat(s -> {
+            s.maxHealth = 120.0; s.movementSpeed = 0.2; s.knockbackResistance = 0.9;
+            s.armor = 16.0; s.armorToughness = 6.0; s.attackDamage = 12.0; s.attackKnockback = 1.0;
+            s.followRange = 28.0; s.stepHeight = 1.5;
+            s.width = 2.5; s.height = 2.0;
+            s.eggFit = 4.7;
+        }));
+
+        // グループ5(適応種)。HP 50・攻撃 16・防御 14 はユーザー指定(2026-09-23)。
+        m.put("falcimnes", stat(s -> {
+            s.maxHealth = 50.0; s.attackDamage = 16.0; s.armor = 14.0; s.movementSpeed = 0.27;
+            s.knockbackResistance = 0.8; s.attackKnockback = 0.6; s.followRange = 32.0; s.stepHeight = 1.5;
+            // 体格 1.8 倍(ユーザー指定 2026-09-23: 1.5 倍 → さらに 1.2 倍)。SCALE は見た目と当たり判定の両方に
+            // 掛かるので、素の幅を 2.6 → 1.65 に下げて実効 2.97 に収める(3 を超えると経路探索が通らない。
+            // フィロセンスの注記と同じ)。実効 2.97 x 3.06、全長は 11.5 ブロック。首と尾は判定からはみ出す。
+            // eggFit は待機アニメ中の画面上の差し渡し(SpawnEggEntityItemRenderer#fitSizeOf の式で測った値、全長ではない)。
+            s.scale = 1.8;
+            s.width = 1.65; s.height = 1.7; s.xpReward = 40;
+            s.eggFit = 6.33;
+        }));
+
+        m.put("phalangiotarbus", stat(s -> {
+            s.maxHealth = 12.0; s.attackDamage = 8.0; s.movementSpeed = 0.39;
+            s.knockbackResistance = 0.3; s.attackKnockback = 0.0; s.followRange = 24.0; s.stepHeight = 1.0;
+            s.width = 1.0; s.height = 0.9; s.xpReward = 8;
+            s.scaleMin = 0.6; s.scaleMax = 1.0; // 湧いた個体ごとの体格の個体差
+            s.eggFit = 1.82;
+        }));
+
+        m.put("protophasma", stat(s -> {
+            s.maxHealth = 6.0; s.movementSpeed = 0.27; s.followRange = 12.0; s.stepHeight = 1.0;
+            s.width = 0.5; s.height = 0.5;
+            s.eggFit = 1.59;
+        }));
+
+        m.put("arthropleura", stat(s -> {
+            s.maxHealth = 34.0; s.movementSpeed = 0.17; s.armor = 16.0; s.armorToughness = 8.0;
+            s.knockbackResistance = 0.8; s.followRange = 16.0; s.stepHeight = 1.0;
+            s.width = 1.1; s.height = 0.55;
+            s.eggFit = 1.77;
+        }));
+
+        // 岩に擬態するヤスデ。アースロプレウラより小さく、殻はそこそこ硬い。
+        // 脱皮で抜け殻を落とすので、倒さなくても素材が採れる。
+        m.put("lithopleura", stat(s -> {
+            s.maxHealth = 16.0; s.movementSpeed = 0.16; s.armor = 10.0; s.armorToughness = 4.0;
+            s.knockbackResistance = 0.6; s.followRange = 14.0; s.stepHeight = 1.0;
+            s.width = 0.9; s.height = 0.5;
+            s.eggFit = 3.5;
+        }));
+
+        // 滑空する爬虫類。<b>地上は遅くていい</b> —— 移動の本体は滑空で、歩くのは木へ戻るときだけ。
+        // 体力はファランギオターブス(12)より少し上、攻撃力はメガネウラ(9)より下。
+        // 急降下の一撃で仕留める種ではなく、何度も降り直して削る側。
+        m.put("coelurosauravus", stat(s -> {
+            s.maxHealth = 14.0; s.attackDamage = 7.0; s.movementSpeed = 0.24;
+            s.knockbackResistance = 0.1; s.followRange = 20.0; s.stepHeight = 1.0;
+            s.width = 0.7; s.height = 0.4;
+            s.xpReward = 8; s.eggFit = 2.6;
+        }));
+
+        // 洞窟のヤスデ。アースロプレウラより細く、殻も薄い(armor 16 → 8)ぶん少し速い。
+        // 全長 2 ブロックだが当たり判定は幅 0.7 —— 狭い坑道を通れないと洞窟に棲めないので、
+        // 見た目の長さではなく<b>通れる太さ</b>に合わせてある(アースロプレウラと同じ考え方)。
+        m.put("spelaeopleura", stat(s -> {
+            s.maxHealth = 20.0; s.movementSpeed = 0.21; s.armor = 8.0; s.armorToughness = 3.0;
+            s.knockbackResistance = 0.4; s.followRange = 16.0; s.stepHeight = 1.0;
+            s.width = 0.7; s.height = 0.35;
+            s.eggFit = 2.15;
+        }));
+
+        m.put("stenodictya_lobata", stat(s -> {
+            s.maxHealth = 4.0; s.movementSpeed = 0.28; s.flyingSpeed = 0.8; s.followRange = 16.0;
+            s.width = 0.6; s.height = 0.4; s.xpReward = 3;
+            s.eggFit = 1.41;
+        }));
+
+        m.put("meganeura", stat(s -> {
+            s.maxHealth = 10.0; s.attackDamage = 9.0; s.movementSpeed = 0.32; s.flyingSpeed = 1.2;
+            s.armor = 0.0; s.followRange = 32.0; s.attackKnockback = 0.0;
+            s.width = 1.0; s.height = 0.5; s.xpReward = 8;
+            s.eggFit = 2.35;
+        }));
+
+        // グループ4(拡大種)。移動速度 0.36 は「プレイヤーのダッシュジャンプと同じくらい」(≒ 6.7 ブロック/秒)。
+        m.put("arbora", stat(s -> {
+            s.maxHealth = 22.0; s.attackDamage = 8.0; s.movementSpeed = 0.36; s.armor = 5.0;
+            s.knockbackResistance = 0.0; s.followRange = 32.0; s.stepHeight = 1.0;
+            // 当たり判定は<b>1 ブロックの隙間を通れる大きさ</b>(ユーザー要望 2026-09-17:
+            // 「アルボラを1マスの隙間も通れるようにしてほしい」)。1.0 ちょうどではなく 0.98 なのは、
+            // 経路探索が体の大きさを枡目に直すとき floor(大きさ + 1.0) を使うため ——
+            // 1.0 だと floor(2.0) = 2 で <b>2x2 の通路</b>を要求する。0.98 なら floor(1.98) = 1 で
+            // 1x1 の穴を通る経路が引ける。物理的にも 1 ブロックちょうどだと角で挟まるので、
+            // わずかに小さくしておく必要がある。
+            //
+            // 以前は 1.4 x 1.0(クモと同じ「胴体に合わせる」考え方)で、2 マス幅 2 マス高の
+            // 通路しか通れなかった。狭い洞窟や自分たちが掘った坑道の隅で詰まる原因になっていた。
+            // 攻撃の間合いは当たり判定 + 2.0(バニラ固定)なので、縮んだぶんは 0.2 ブロックだけ。
+            //
+            // モデルは脚を広げると 1.75 x 1.62 x 2.45(幅 x 高さ x 奥行き)あるので、
+            // 脚と体は当たり判定からはみ出す(クモと同じ)。
+            // eggFit は待機アニメーション中の「画面上の差し渡し」の実測値(2026-09-15 に測り直し)。
+            s.width = 0.98; s.height = 0.98; s.eggFit = 2.25; s.xpReward = 5;
+        }));
+
+        // フィロセンス — 索敵役。followRange 56 が phyllosensSightRange と対。戦うより見つける Mob なので
+        // 体力は高め・攻撃力は持たない(攻撃はビームで、ダメージは phyllosensBeamDamage 側)。
+        m.put("phyllosens", stat(s -> {
+            s.maxHealth = 60.0; s.movementSpeed = 0.20; s.armor = 6.0; s.armorToughness = 2.0;
+            s.knockbackResistance = 0.6; s.followRange = 56.0; s.stepHeight = 1.5;
+            // 大型 Mob(ユーザー要望 2026-09-14)。SCALE 属性は<b>見た目と当たり判定の両方</b>に掛かるので、
+            // width/height はここでは素の値のまま持ち、実効は 1.5 倍 = 2.7 x 5.25 になる。
+            // 大きさを変えるときは scale の 1 箇所だけでよい(eggFit だけ手で追従させる)。
+            // スポロフィルの 1.5 倍(ユーザー指定 2026-09-14)。スポロフィルが 1.35 なので
+            // 「素のモデルの高さ比」で逆算して 2.27。実効 7.06 x 10.99 x 30.10 の大物になる。
+            s.scale = 2.27;
+            // 素のモデルは 1.22 x 3.48 x 12.76(幅 x 高さ x 奥行き)。首から尾まで 12.8 ブロックある長物で、
+            // 当たり判定は正方形にしかできないので<b>見えている胴の太さ</b>に合わせる(首と尾ははみ出す)。
+            // 高さはモデルに合わせて 3.5 — 持ち上げた首にも矢やビームが当たるように。
+            // eggFit はスポーンエッグの絵を枠に収める基準。待機アニメーション中の<b>画面上の差し渡し</b>の
+            // 実測値で、scale 込みの値(2026-09-15 に測り直し)。scale を変えたらこれも測り直すこと。
+            // ⚠ 当たり判定は<b>わざとモデルに追従させていない</b>。scale を 1.5 → 2.27 に上げたので
+            // 素の 1.8 のままだと実効 4.09 ブロック幅になり、そんな幅の Mob は経路探索が通らず
+            // どこにも行けなくなる([[wide-mob-pathing-and-spawn-fit]])。実効 2.95 に収まるよう
+            // 素の幅だけ 1.8 → 1.3 へ下げてある(見た目より細い = 翼や首は判定からはみ出す)。
+            s.width = 1.3; s.height = 3.5; s.eggFit = 21.07; s.xpReward = 12;
+        }));
+
+        // スポロフィル — 支援役。体はフィロセンスの流用で、頭が花ではなくキノコの傘。
+        // 自分では攻撃せず(attackDamage を持たない)、半径 32 のバフ/デバフ/胞子濃度上昇で戦う
+        // (SporophyllAura)。居座られると厄介なので体力は高め。
+        m.put("sporophyll", stat(s -> {
+            s.maxHealth = 70.0; s.movementSpeed = 0.18; s.armor = 5.0; s.armorToughness = 2.0;
+            s.knockbackResistance = 0.5; s.followRange = 32.0; s.stepHeight = 1.5;
+            // 「今のフィロセンスくらいの大きさ」(ユーザー指定 2026-09-14)。素のモデルが
+            // 3.59 x 5.42 x 14.19 なので 1.35 倍で 4.85 x 7.32 x 19.16 ≒ 旧フィロセンス(4.67 x 7.26 x 19.89)。
+            s.scale = 1.35;
+            // 当たり判定は胴体に合わせる(首と尾ははみ出す)。実効 2.70 x 4.86。
+            // eggFit は待機アニメーション中の画面上の差し渡しの実測値(2026-09-15 に測り直し)。
+            s.width = 2.0; s.height = 3.6; s.eggFit = 13.78; s.xpReward = 14;
+        }));
+
+        // ヴェロフィル — 爆撃役。攻撃は落とす爆弾側なので attackDamage を持たない
+        // (ダメージは velophyllBombBlastDamage / velophyllBombDirectDamage)。
+        // movementSpeed は<b>地上で這うときの速さ</b>で、飛行の速さは flyingSpeed のほう。
+        // 翼で体を引きずる動きなので、地上は歩く Mob よりはっきり遅くしてある。
+        m.put("velophyll", stat(s -> {
+            // attackDamage は<噛みつき>(VelophyllBiteGoal、2026-09-17)のダメージ。
+            // 爆弾のほうは velophyllBombBlastDamage / velophyllBombDirectDamage で別管理。
+            // アルボラ(8)より軽いのは、当たり判定の重なりで何度でも噛めるのと、
+            // 飛ぶ相手にしか使わない手なので。
+            s.maxHealth = 40.0; s.attackDamage = 6.0;
+            s.movementSpeed = 0.12; s.flyingSpeed = 1.6; s.armor = 3.0;
+            s.knockbackResistance = 0.0; s.followRange = 64.0; s.stepHeight = 1.0;
+            // モデルは翼を広げて 5.75 x 1.28 x 5.02(幅 x 高さ x 奥行き)。
+            // width は<b>翼端まで</b>取ってある(ユーザー要望 2026-09-17:
+            // 「当たり判定が小さすぎるので翼の部分も含めた大きさに」)。
+            // 以前は胴体だけの 1.6 で、見えている翼を矢が素通りしていた。
+            //
+            // 広げたことの代償は 2 つ。どちらも<b>承知の上</b>:
+            //   1. 木立の中では体が引っ掛かりやすい。飛行は経路探索を使っておらず
+            //      (VelophyllFlightMoveControl が行き先へ直接舵を切る)、ぶつかったら
+            //      斜め後ろ上方へ離脱する仕掛けがあるので、詰まりはしない。
+            //   2. 地上へ降りて這うとき(VelophyllGroundSporeGoal)は 5.75 幅の通路が要る。
+            //      降りるのは「地面と天蓋の差が 3 以内 = 開けた場所」だけなので概ね通るが、
+            //      通れなければ這うのを諦めてその場で撒く(CRAWL_TIMEOUT)。
+            //
+            // eggFit は斜め 25 度から見たときの見かけの差し渡し(mob-must-ship-spawn-egg の式)。
+            // 滑空アニメーション中の実測値(2026-09-15 に測り直し)。地上の這い姿勢はこれより大きいが、
+            // スポーンエッグの絵に出るのは滑空のほう。
+            s.width = 5.75; s.height = 0.9; s.eggFit = 6.63; s.xpReward = 10;
+        }));
+
+        m.put("petrolacosaurus", stat(s -> {
+            s.maxHealth = 10.0; s.attackDamage = 4.0; s.movementSpeed = 0.34; s.armor = 1.0;
+            s.knockbackResistance = 0.0; s.followRange = 18.0; s.stepHeight = 1.0;
+            s.width = 0.6; s.height = 0.4; s.xpReward = 3;
+            s.eggFit = 1.29;
+        }));
+
+        m.put("ianthasaurus", stat(s -> {
+            s.maxHealth = 18.0; s.attackDamage = 5.0; s.movementSpeed = 0.24; s.armor = 3.0;
+            s.knockbackResistance = 0.2; s.followRange = 18.0; s.stepHeight = 1.0;
+            s.width = 0.7; s.height = 0.6; s.xpReward = 4;
+            s.eggFit = 1.41;
+        }));
+
+        m.put("hylonomus", stat(s -> {
+            s.maxHealth = 6.0; s.attackDamage = 3.0; s.movementSpeed = 0.3; s.armor = 0.0;
+            s.knockbackResistance = 0.0; s.followRange = 14.0; s.stepHeight = 1.0;
+            s.width = 0.4; s.height = 0.3; s.xpReward = 2;
+            s.eggFit = 0.64;
+        }));
+
+        m.put("rhizodus", stat(s -> {
+            s.maxHealth = 60.0; s.attackDamage = 4.0; s.movementSpeed = 0.6; s.armor = 4.0;
+            s.knockbackResistance = 0.6; s.followRange = 16.0;
+            s.width = 1.2; s.height = 1.2; s.xpReward = 5;
+            s.scaleMin = 0.8; s.scaleMax = 1.4;
+            s.eggFit = 2.12;
+        }));
+
+        m.put("xenacanthus", stat(s -> {
+            s.maxHealth = 14.0; s.movementSpeed = 1.0; s.followRange = 16.0;
+            s.width = 0.8; s.height = 0.7; s.xpReward = 3;
+            s.scaleMin = 0.85; s.scaleMax = 1.25;
+            s.eggFit = 1.64;
+        }));
+
+        m.put("orthacanthus", stat(s -> {
+            s.maxHealth = 30.0; s.attackDamage = 7.0; s.movementSpeed = 1.15; s.armor = 3.0;
+            s.knockbackResistance = 0.3; s.followRange = 26.0; s.attackKnockback = 0.0;
+            s.width = 1.0; s.height = 0.9; s.xpReward = 8;
+            s.scaleMin = 0.85; s.scaleMax = 1.3;
+            s.eggFit = 1.67;
+        }));
+
+        m.put("megarachne", stat(s -> {
+            s.maxHealth = 22.0; s.attackDamage = 6.0; s.movementSpeed = 0.9; s.armor = 6.0;
+            s.armorToughness = 2.0; s.knockbackResistance = 0.4; s.followRange = 22.0;
+            s.stepHeight = 1.0; s.width = 1.0; s.height = 0.7; s.xpReward = 6;
+            s.scaleMin = 0.85; s.scaleMax = 1.3;
+            s.eggFit = 1.63;
+        }));
+
+        m.put("overgrown_nexus", stat(s -> {
+            s.maxHealth = 400.0; s.movementSpeed = 0.0; s.knockbackResistance = 1.0; s.armor = 10.0;
+            s.attackDamage = 8.0; s.attackKnockback = 1.0; s.followRange = 40.0; s.scale = 3.0;
+            s.width = 3.0; s.height = 6.5; s.xpReward = 0;
+            s.eggFit = 29.18;
+        }));
+
+        // 「過繁茂した(MOB名)」— バニラ属性への上書き分のみ(牛/羊/豚は ATTACK_DAMAGE を明示追加)。
+        // グループ1(媒介種)は<b>もとの Mob より足が速い</b>(ユーザー指定 2026-09-21)。
+        // 寄生されて痛みも疲れも感じなくなった、という想定で一律 +0.05。
+        // それ以外(体力・攻撃力・防御)はバニラのまま —— 変えるのは足だけ。
+        m.put("parasitized_cow", stat(s -> { s.attackDamage = 3.0; s.movementSpeed = 0.25; s.width = 0.9; s.height = 1.4; s.eggFit = 2.1; }));
+        m.put("parasitized_sheep", stat(s -> { s.movementSpeed = 0.28; s.attackDamage = 3.0; s.width = 0.9; s.height = 1.3; s.eggFit = 2.0; }));
+        m.put("parasitized_pig", stat(s -> { s.movementSpeed = 0.30; s.attackDamage = 3.0; s.width = 0.9; s.height = 0.9; s.eggFit = 2.33; }));
+        m.put("parasitized_zombie", stat(s -> { s.movementSpeed = 0.28; s.width = 0.6; s.height = 1.95; s.eggFit = 2.07; }));
+        m.put("parasitized_creeper", stat(s -> { s.movementSpeed = 0.30; s.width = 0.6; s.height = 1.7; s.eggFit = 2.17; }));
+        m.put("parasitized_spider", stat(s -> { s.movementSpeed = 0.35; s.width = 1.4; s.height = 0.9; s.eggFit = 2.15; }));
+
+        // --- 襲いに行く相手(2026-09-21 に predation.json の table から移動)---
+        // グループ3(原生消費種)がグループ2(原生生産種)を狩る関係。1 体倒すごとの強化率は
+        // predation.json の preyKillBonusPerKill(全種共通)のまま。
+        preys(m, "phalangiotarbus", "protophasma", "arthropleura", "stenodictya_lobata");
+        preys(m, "meganeura", "stenodictya_lobata", "protophasma");
+        preys(m, "petrolacosaurus", "protophasma", "stenodictya_lobata");
+        preys(m, "ianthasaurus", "arthropleura", "protophasma");
+        preys(m, "hylonomus", "protophasma", "stenodictya_lobata");
+        // 水生。加えて「水中・水面にいるグループ2」は表に無くても襲う(Predation#isWaterborneTarget)。
+        preys(m, "orthacanthus", "megarachne", "rhizodus", "xenacanthus");
+        preys(m, "megarachne", "rhizodus", "xenacanthus");
+
+        // --- どのフェーズのどこに湧くか(2026-09-21 に phases.json の spawnGroups /
+        // outsideSpawns.types / carrierSpawns.types から移動)---
+        // 場所は 密林 / 湿地・菌湿地 / 海 / その外 の 4 枠(2026-09-21)。
+        // 既定は「湿地・菌湿地にはスペラエオプレウラだけ、他はみな密林」——
+        // 以前 OvergrownSpawnProfile にハードコードしていた環境フィルタをそのまま写したもの。
+        // 媒介種: 過繫茂バイオームにはフェーズ1〜3、その外にはフェーズ2〜6(汚染を運ぶ役)。
+        spawns(m, range(1, 3), null, null, range(2, 6),
+                "parasitized_cow", "parasitized_sheep", "parasitized_pig",
+                "parasitized_zombie", "parasitized_creeper", "parasitized_spider");
+        // 原生生産種(被食者)はフェーズ3から、原生消費種(捕食者)はフェーズ4から。
+        spawns(m, range(3, 10), null, null, null,
+                "protophasma", "arthropleura", "stenodictya_lobata");
+        // 地下の種。湿地・菌湿地でもここだけは湧く(静かな湿地の地下だけが光っている絵)。
+        spawns(m, range(3, 10), range(3, 10), null, null, "spelaeopleura");
+        // 水生の種は海にも(海は環境を持たないバイオームなので枠が別)。
+        spawns(m, range(3, 10), null, range(3, 10), null, "rhizodus", "xenacanthus");
+        spawns(m, range(4, 10), null, null, null,
+                "phalangiotarbus", "meganeura", "petrolacosaurus", "ianthasaurus", "hylonomus");
+        spawns(m, range(4, 10), null, range(4, 10), null, "orthacanthus", "megarachne");
+        // 拡大種はフェーズ5から。アルボラだけはフェーズ2〜4 にも「はぐれ」として外に出る。
+        spawns(m, range(5, 10), null, null, null,
+                "velophyll", "overgrown_shielder", "phyllosens", "sporophyll");
+        spawns(m, range(5, 10), null, null, range(2, 4), "arbora");
+        // 適応種はフェーズ7から(仮。G4 より少なく、OvergrownSpawnProfile の spawnChance で絞る)。
+        spawns(m, range(7, 10), null, null, null, "falcimnes");
+        // 汚染シダ・汚染水草・ハイヴノード・レイドビーコン・女王・ボスは生態系スポーンの対象外
+        // (それぞれ専用の出現経路があるので spawns を持たせない)。
+
+        return new HashMap<>(m);
+    }
+
+    /** {@code predator} が襲いに行く相手を既定値表に書き込む。 */
+    private static void preys(Map<String, MobStat> m, String predator, String... preys) {
+        MobStat s = m.get(predator);
+        if (s != null) {
+            s.preys = List.of(preys);
+        }
+    }
+
+    /** 既定値表の複数の種に、同じ「湧く条件」を書き込む({@code null} はその場所に湧かない)。 */
+    private static void spawns(Map<String, MobStat> m, List<Integer> jungle, List<Integer> swamp,
+                               List<Integer> ocean, List<Integer> outside, String... ids) {
+        for (String id : ids) {
+            MobStat s = m.get(id);
+            if (s == null) {
+                continue;
+            }
+            MobStat.Spawns sp = new MobStat.Spawns();
+            sp.jungle = jungle;
+            sp.swamp = swamp;
+            sp.ocean = ocean;
+            sp.outside = outside;
+            s.spawns = sp;
+        }
+    }
+
+    /** {@code from}〜{@code to} のフェーズ番号の一覧。 */
+    private static List<Integer> range(int from, int to) {
+        List<Integer> out = new java.util.ArrayList<>();
+        for (int n = from; n <= to; n++) {
+            out.add(n);
+        }
+        return List.copyOf(out);
+    }
+}

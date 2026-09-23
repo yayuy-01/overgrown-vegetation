@@ -1,0 +1,42 @@
+.gradle/
+build/
+run/
+runs/
+run-data/
+.idea/
+*.iml
+*.ipr
+*.iws
+.eclipse/
+.settings/
+.classpath
+.project
+bin/
+out/
+local.properties
+
+# ローカルの作業ログ・ツールのビルド成果物
+logs/
+tools/**/build/
+*.log
+.vscode/
+.DS_Store
+
+# ローカル専用(GitHub には公開しない)
+tools/
+docs/
+bbmodel_sources/
+DEV_NOTES.md
+/add-corrupted-block.bat
+/anim_bones.txt
+/spelaeopleura.animation.json
+/build-jar.bat
+/run-client.bat
+
+# 素材(テクスチャ・モデル・アニメーション・効果音)は非公開。ビルドには手元のものが使われる
+src/main/resources/assets/overgrown_vegetation/textures/
+src/main/resources/assets/overgrown_vegetation/models/
+src/main/resources/assets/overgrown_vegetation/geo/
+src/main/resources/assets/overgrown_vegetation/animations/
+src/main/resources/assets/overgrown_vegetation/player_animations/
+src/main/resources/assets/overgrown_vegetation/sounds/

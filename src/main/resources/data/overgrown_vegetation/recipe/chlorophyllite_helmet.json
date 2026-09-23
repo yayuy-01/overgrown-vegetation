@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AAA",
+    "ABA"
+  ],
+  "key": {
+    "A": {
+      "item": "overgrown_vegetation:chlorophyllite"
+    },
+    "B": {
+      "item": "minecraft:iron_helmet"
+    }
+  },
+  "result": {
+    "id": "overgrown_vegetation:chlorophyllite_helmet",
+    "count": 1
+  }
+}
