@@ -1,0 +1,107 @@
+plugins {
+    id 'java-library'
+    id 'idea'
+    id 'net.neoforged.moddev' version '2.0.78'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+}
+
+neoForge {
+    version = project.neo_version
+
+    parchment {
+        mappingsVersion = project.parchment_mappings_version
+        minecraftVersion = project.parchment_minecraft_version
+    }
+
+    runs {
+        // ユーザーが遊んで確かめるクライアント(ゲームフォルダ run/)
+        client {
+            client()
+        }
+        server {
+            server()
+            programArgument '--nogui'
+        }
+        // GameTest。gametest/ の @GameTestHolder クラスをヘッドレスサーバーで実行する。結果はコンソール(失敗なら非 0 で終了)。
+        //   gradlew.bat runGameTestServer
+        gameTestServer {
+            type = "gameTestServer"
+            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+        }
+        // Claude が自分で起動して確かめる用のクライアント(ゲームフォルダ runs/claude。ユーザーの run/ とぶつからない)。
+        // ov.devbridge で開発用の操作口(devbridge パッケージ)が動く。手順は ../tools/claude-client/README.md。
+        //   gradlew.bat runClaudeClient
+        claudeClient {
+            client()
+            gameDirectory = project.file('runs/claude')
+            systemProperty 'ov.devbridge', 'true'
+            programArguments.addAll('--width', '1280', '--height', '720')
+        }
+        configureEach {
+            systemProperty 'forge.logging.markers', ''
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+tasks.withType(Javadoc).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+// mods.toml の ${...} を gradle.properties の値で埋める
+tasks.named('processResources', ProcessResources).configure {
+    def props = [
+            mod_id: mod_id, mod_name: mod_name, mod_version: mod_version, mod_license: mod_license,
+            mod_authors: mod_authors, mod_description: mod_description,
+            minecraft_version_range: minecraft_version_range, neo_version_range: neo_version_range,
+            loader_version_range: loader_version_range
+    ]
+    inputs.properties props
+    filesMatching('META-INF/neoforge.mods.toml') {
+        expand props
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    // GameTest と Claude 用の操作口は開発用 —— 配布 jar には入れない。本体のコードはどちらも参照しない。
+    exclude 'com/yayuy/overgrownvegetation/gametest/**'
+    exclude 'com/yayuy/overgrownvegetation/devbridge/**'
+    exclude 'data/overgrown_vegetation/structure/gametest_*'
+    manifest {
+        attributes([
+                'Specification-Title'   : mod_id,
+                'Specification-Vendor'  : mod_authors,
+                'Specification-Version' : '1',
+                'Implementation-Title'  : project.name,
+                'Implementation-Version': project.jar.archiveVersion,
+                'Implementation-Vendor' : mod_authors
+        ])
+    }
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}

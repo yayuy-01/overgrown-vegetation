@@ -1,0 +1,28 @@
+# Gradle・IDE・起動フォルダ
+.gradle/
+/build/
+run/
+runs/
+.idea/
+*.iml
+*.ipr
+*.iws
+.eclipse/
+.settings/
+.classpath
+.project
+bin/
+out/
+local.properties
+.vscode/
+.DS_Store
+logs/
+*.log
+
+# 素材(テクスチャ・モデル・アニメーション・効果音・ガイドブックの絵)は非公開。ビルドには手元のものが使われる
+src/main/resources/assets/overgrown_vegetation/textures/
+src/main/resources/assets/overgrown_vegetation/models/
+src/main/resources/assets/overgrown_vegetation/geo/
+src/main/resources/assets/overgrown_vegetation/animations/
+src/main/resources/assets/overgrown_vegetation/sounds/
+src/main/resources/assets/overgrown_vegetation/guidebook/
