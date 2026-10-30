@@ -1,15 +1,13 @@
 {
-  "_comment": "胞子の場と風(2026-10-23 第 2 段)。チャンク 1 つ = 1 マスに浮遊・林床・降り積もり・発芽の回数(2 まで)を持ち、世界に 1 つの卓越風と拡散で運ぶ。5 秒(updateTicks)ごとに裏のスレッドで更新、睡眠で飛んだ分は maxStepsPerRun ずつ追いつく。field の値は見積もり器 tools/spread-measure/field(v7 + 軽量化)で、速さの目安(全方位 4〜6・風下 6〜8・強風 10〜16 チャンク/日 = ユーザー指定)に合わせた仮決め。secondThreshold 0.55 はユーザー指定(10-23 に 0.5 → 0.55)。daysToClimax は使わない(極相は台帳の印を見る)。sources はゲームだけの発生源・吸い込み口(仮決め。除去装置は動いている間は範囲内を抑え切り(purifierCapPerUpdate 0 = 上限なし。ユーザー指定 10-23)、取り出し口がいっぱい・フィルター切れ・燃料切れで止まると突破される。量は過繁茂 1 チャンクの 1 日の放出 emitOvergrown を物差しに)。sproutEmitBonus は萌芽体 1 体あたりの放出の上乗せ(10-22 追記 3 の決定 (1)、量は仮決め)。reading は濃度の読み(100% = 過繁茂のチャンクの晴れた午後の浮遊 + 林床 fullAt、下支え・地点の補正。仮決め)、exposure は暴露(濃度 × 秒、5% 未満は積まず外では 1 分で半分。maskPercent = 防護マスクの暴露の割合 = ユーザー指定 10-23 既定 25、0 でかからない・100 で効かない)、sprouts はブロック汚染の芽と萌芽体(仮決め)。仕様の正本は Vault「胞子の場と風による汚染の広がり」。",
+  "_comment": "胞子の場と風(2026-10-23 第 2 段)。チャンク 1 つ = 1 マスに浮遊・林床・降り積もり・発芽の回数(2 まで)を持ち、世界に 1 つの卓越風と拡散で運ぶ。5 秒(updateTicks)ごとに裏のスレッドで更新、睡眠で飛んだ分は maxStepsPerRun ずつ追いつく。field の値は見積もり器 tools/spread-measure/field(v7 + 軽量化)で、速さの目安(全方位 4〜6・風下 6〜8・強風 10〜16 チャンク/日 = ユーザー指定)に合わせた仮決め。secondThreshold 0.55 はユーザー指定(10-23 に 0.5 → 0.55)。sproutEmitBonus は萌芽体 1 体あたりの放出の上乗せ(10-22 追記 3 の決定 (1)、量は仮決め)。sources はゲームだけの発生源(巨大樹の朝・ポータル越しの染み出し・汚染の球。仮決め。量は過繁茂 1 チャンクの 1 日の放出 emitOvergrown を物差しに)、reading は濃度の読み(100% = 過繁茂のチャンクの晴れた午後の浮遊 + 林床 fullAt、下支え・地点の補正。仮決め)、sprouts はブロック汚染の芽と萌芽体(仮決め)。2026-10-30: 極相(emitClimax・daysToClimax・floorClimax)と、装置・感染と一緒に退避した除去装置・拡散装置・死体・暴露・警報器・ハイヴノードの感染・霧の視界・胞子嚢の値を消した。仕様の正本は Vault「胞子の場と風による汚染の広がり」。",
   "enabled": true,
   "updateTicks": 100,
   "maxStepsPerRun": 60,
   "field": {
     "emitThriving": 0.5,
     "emitOvergrown": 1.0,
-    "emitClimax": 2.0,
     "daysToThriving": 0.5,
     "daysToOvergrown": 2.0,
-    "daysToClimax": 1.0E9,
     "releaseRain": 0.2,
     "releaseStorm": 1.0,
     "releaseNight": 0.3,
@@ -32,7 +30,6 @@
     "sproutEmitBonus": 0.5,
     "eps": 1.0E-4,
     "loftFactor": 0.3,
-    "sacDensity": 0.0,
     "groundEmit": 4,
     "groundDiffusion": 30,
     "groundDep": 3,
@@ -53,20 +50,14 @@
     "half16": 1
   },
   "sources": {
-    "purifierRadiusChunks": 3.0,
-    "purifierCapPerUpdate": 0.0,
-    "purifierSporesPerUnit": 0.35,
-    "diffuserPerDay": 20.0,
     "canopyMorningPerDay": 100.0,
     "portalSeepPercent": 3.0,
-    "burstPerRadiusSq": 0.5,
-    "corpsePerDay": 1.0
+    "burstPerRadiusSq": 0.5
   },
   "reading": {
     "fullAt": 0.55,
     "floorThriving": 10.0,
     "floorOvergrown": 25.0,
-    "floorClimax": 50.0,
     "aboveCanopyFalloff": 16.0,
     "hollowFactor": 1.3,
     "roomFactor": 0.2,
@@ -74,11 +65,6 @@
     "deepCaveFactor": 0.5,
     "rainFactor": 0.7,
     "upwindShadeFactor": 0.85
-  },
-  "exposure": {
-    "minPercent": 5.0,
-    "halfLifeSeconds": 60.0,
-    "maskPercent": 25.0
   },
   "sprouts": {
     "pointsPerChunk": 10,
@@ -90,11 +76,6 @@
     "wanderTicksMin": 600,
     "wanderTicksMax": 2400,
     "stuckRootTicks": 200
-  },
-  "alarm": {
-    "risePerMinute": 20.0,
-    "minPercent": 15.0,
-    "cooldownTicks": 3600
   },
   "sweep": {
     "share": 0.0625,
@@ -108,14 +89,11 @@
     "matureDays": 3.0,
     "maxTrees": 24,
     "liftPerDay": 1.0,
-    "killRadius": 48.0,
-    "infectionRadius": 32.0,
-    "infectionSpeedMul": 5.0
+    "killRadius": 48.0
   },
   "look": {
     "fogStartPercent": 80.0,
     "fogFullPercent": 300.0,
-    "fogMinFar": 28.0,
     "fogR": 0.80,
     "fogG": 0.88,
     "fogB": 0.72,

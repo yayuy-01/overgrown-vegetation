@@ -25,9 +25,6 @@ public final class NetherLedgerData extends SavedData {
     private final LongOpenHashSet overgrown = new LongOpenHashSet();
     /** 台帳の広がりで印を付けたが、まだ読み込まれていなくて地面を塗っていないチャンク。 */
     private final LongLinkedOpenHashSet pending = new LongLinkedOpenHashSet();
-    private boolean started;
-    private long pendingPeriod;
-    private int periodTicks;
     private long markedTotal;
 
     private NetherLedgerData() {
@@ -41,9 +38,6 @@ public final class NetherLedgerData extends SavedData {
         for (long key : tag.getLongArray("pending")) {
             data.pending.add(key);
         }
-        data.started = tag.getBoolean("started") && tag.contains("pendingPeriod");
-        data.pendingPeriod = tag.getLong("pendingPeriod");
-        data.periodTicks = tag.getInt("periodTicks");
         data.markedTotal = tag.getLong("markedTotal");
         return data;
     }
@@ -52,9 +46,6 @@ public final class NetherLedgerData extends SavedData {
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.putLongArray("overgrown", overgrown.toLongArray());
         tag.putLongArray("pending", pending.toLongArray());
-        tag.putBoolean("started", started);
-        tag.putLong("pendingPeriod", pendingPeriod);
-        tag.putInt("periodTicks", periodTicks);
         tag.putLong("markedTotal", markedTotal);
         return tag;
     }
@@ -117,34 +108,4 @@ public final class NetherLedgerData extends SavedData {
         return markedTotal;
     }
 
-    boolean started() {
-        return started;
-    }
-
-    long pendingPeriod() {
-        return pendingPeriod;
-    }
-
-    int periodTicks() {
-        return periodTicks;
-    }
-
-    void start(long period, int intervalTicks) {
-        started = true;
-        pendingPeriod = period;
-        periodTicks = intervalTicks;
-        setDirty();
-    }
-
-    void stop() {
-        if (started) {
-            started = false;
-            setDirty();
-        }
-    }
-
-    void finishPeriod() {
-        pendingPeriod++;
-        setDirty();
-    }
 }

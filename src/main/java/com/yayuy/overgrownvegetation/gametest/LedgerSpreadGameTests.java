@@ -29,23 +29,19 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
 /**
- * <b>台帳の広がり</b>・<b>フェーズの日数</b>・<b>極相の齢</b>のテスト(2026-09-26、2026-09-28 に台帳の広がりの規則変更へ追従)。
+ * <b>台帳の書き換え待ち</b>・<b>睡眠の暦</b>のテスト(2026-09-26。2026-10-30 に止まっていた縁ぬりと極相のテストを消した)。
  *
  * <p>守りたいのは次のもの。
  * <ul>
- *     <li><b>ユーザー指定の数値</b> —— 5 分(6000 tick)おきに、縁のチャンクが接している面の数 × 25%(1 面 25%・2 面 50%・3 面 75%・
- *     4 面 100%)の確率で過繁茂になる、F1→F10 の日数から逆算したしきい値(この規則で実際に回した平均の増え方と合う)、
- *     極相は F5 以降で「齢 − F1→F5 の日数 ≥ 14 日」。</li>
  *     <li><b>寝た夜も 1 日に数える</b> —— 睡眠で飛ばした時間が汚染の暦に入る。</li>
- *     <li><b>胞子除去装置の範囲には印を付けない</b>。</li>
  *     <li><b>読み込まれたチャンクの書き換え</b> —— バイオームが過繁茂になり、地表は模様が塗ると決めた列だけ汚染される
  *     (模様が全体でおおよそ決めた割合を塗ることは計算のテストで見る)。</li>
- *     <li><b>同梱の json と Java の既定値が食い違わない</b>(spread.json・phases.json のしきい値・climax.json の minPhase)。</li>
+ *     <li><b>同梱の json と Java の既定値が食い違わない</b>(spread.json)。</li>
  * </ul>
  *
  * <p>計算のテストは世界に触らない。世界(台帳・睡眠の累計・遠くのチャンク)を触るテストは自分だけのバッチ
  * ({@code ledger_spread_world})に入れてある —— 同じバッチは並列に走り、睡眠の累計を動かしている間に
- * 極相の台帳のテストが「今」を取ると狂うので、バッチを分けて順番に走らせる。
+ * ほかの台帳のテストが「今」を取ると狂うので、バッチを分けて順番に走らせる。
  */
 @GameTestHolder(OvergrownVegetation.MODID)
 @PrefixGameTestTemplate(false)
@@ -67,63 +63,6 @@ public final class LedgerSpreadGameTests {
     /** 実行をまたいで台帳の座標がかぶらないように(台帳は消せず、GameTest のワールドは残る)。 */
     private static final int RUN_SALT = new java.util.Random().nextInt(1 << 20);
     private static final java.util.concurrent.atomic.AtomicInteger NEXT = new java.util.concurrent.atomic.AtomicInteger();
-
-    /**
-     * 判定は 5 分(6000 tick)おき = 1 日 4 回。接している面の数ごとの確率は 1 面 25%・2 面 50%・3 面 75%・4 面 100%、
-     * 接していなければ 0。
-     */
-    @GameTest(template = "gametest_empty7")
-    public static void chanceGrowsWithTouchingFaces(GameTestHelper helper) {
-        int interval = SpreadTable.DEFAULT.intervalTicks();
-        expectInt(helper, interval, 6000, "判定の間隔(5 分)");
-        double[] c = SpreadTable.DEFAULT.chanceByContacts();
-        expect(helper, LedgerSpreadMath.chanceFor(1, c), 0.25D, "1 面");
-        expect(helper, LedgerSpreadMath.chanceFor(2, c), 0.50D, "2 面");
-        expect(helper, LedgerSpreadMath.chanceFor(3, c), 0.75D, "3 面");
-        expect(helper, LedgerSpreadMath.chanceFor(4, c), 1.00D, "4 面");
-        expect(helper, LedgerSpreadMath.chanceFor(0, c), 0.00D, "接していない(斜めだけ)");
-        expect(helper, LedgerSpreadMath.periodOf(interval - 1, interval), 0.0D, "最初の区切りの最後の tick");
-        expect(helper, LedgerSpreadMath.periodOf(interval, interval), 1.0D, "6000 tick で次の回");
-        expect(helper, LedgerSpreadMath.periodOf(DAY, interval), 4.0D, "1 日で 4 回");
-        helper.succeed();
-    }
-
-    /**
-     * 1 回の判定: 1 面・2 面・3 面のチャンクがそれぞれ 25%・50%・75% の割合で選ばれ、4 面は全部、
-     * 除いたもの(除去装置の範囲など)は 1 つも選ばれない。同じ乱数の種なら同じ結果。
-     */
-    @GameTest(template = "gametest_empty7")
-    public static void rollFollowsTheChances(GameTestHelper helper) {
-        double[] c = SpreadTable.DEFAULT.chanceByContacts();
-        int each = 20000;
-        int[] contacts = new int[each * 3 + 2000 + 2000];
-        boolean[] excluded = new boolean[contacts.length];
-        for (int i = 0; i < contacts.length; i++) {
-            contacts[i] = i < each ? 1 : i < each * 2 ? 2 : i < each * 3 ? 3 : 4;
-            excluded[i] = i >= each * 3 + 2000; // 最後の 2000 は 4 面でも除く
-        }
-        int[] chosen = LedgerSpreadMath.roll(contacts, excluded, c, RandomSource.create(2026L));
-        int[] picked = new int[5];
-        int excludedPicked = 0;
-        for (int i : chosen) {
-            if (excluded[i]) {
-                excludedPicked++;
-            } else {
-                picked[contacts[i]]++;
-            }
-        }
-        for (int k = 1; k <= 3; k++) {
-            double share = picked[k] / (double) each;
-            expectTrue(helper, Math.abs(share - 0.25D * k) < 0.015D, k + " 面の選ばれた割合 " + share + "(期待 " + 0.25D * k + ")");
-        }
-        expectInt(helper, picked[4], 2000, "4 面は全部選ばれる");
-        expectInt(helper, excludedPicked, 0, "除いたチャンクが選ばれた");
-        int[] again = LedgerSpreadMath.roll(contacts, excluded, c, RandomSource.create(2026L));
-        expectTrue(helper, java.util.Arrays.equals(chosen, again), "同じ乱数の種で結果が変わった");
-        helper.succeed();
-    }
-
-
     /** 地表の塗り残しの模様: 決めた割合(既定 75%)だけ塗る。模様は連続(隣の列でほとんど変わらない)。 */
     @GameTest(template = "gametest_empty7")
     public static void surfacePatchCoversTheChosenShare(GameTestHelper helper) {
@@ -150,56 +89,6 @@ public final class LedgerSpreadGameTests {
         helper.succeed();
     }
 
-    // 新しい場では閾値を後で引き直す(10-23)。
-    /**
-     * フェーズのしきい値はユーザー指定の日数(F1→F2〜F4→F5 各 5 日、F5→F6・F6→F7 各 20 日、F7→F8〜F9→F10 各 10 日)から
-     * 逆算したもの。台帳の広がりの規則(5 分おきに面の数 × 25%)を、地割れに似た 16×3 チャンクの帯から実際に回した
-     * 平均の増え方で計算し直して 4% 以内に収まること、F7 以降も自動で上がること。確率や間隔を変えたらしきい値も直す、の見張り。
-     */
-    // 2026-10-23 外した(胞子の場と風 第 2 段): 広がりは「5 分おきに縁を面の数 × 25%」の規則から胞子の場の発芽に替わり、
-    // しきい値はもう旧規則の平均から逆算した値と結び付かない。しきい値と日数はユーザーが後で見直す(触らない指定)ので、
-    // それまでこの見張りは外しておく(新しい運び方の見積もりは tools/spread-measure/field の表)。
-    // @GameTest(template = "gametest_empty7", timeoutTicks = 400)
-    public static void phaseThresholdsMatchTheDaySchedule(GameTestHelper helper) {
-        PhaseTable t = PhaseTable.DEFAULT;
-        int[] days = {0, 0, 5, 5, 5, 5, 20, 20, 10, 10, 10}; // 添字 n = F(n-1)→Fn の日数
-        int interval = SpreadTable.DEFAULT.intervalTicks();
-        int stepsPerDay = (int) (DAY / interval);
-        double[] area = meanArea(6, 90 * stepsPerDay, SpreadTable.DEFAULT.chanceByContacts()); // 添字 = 判定の回数
-        expectTrue(helper, Math.abs(area[20 * stepsPerDay] - 4956.0D) / 4956.0D < 0.08D,
-                "20 日目の過繁茂 " + area[20 * stepsPerDay] + "(見積もり 4956)");
-        expectTrue(helper, Math.abs(area[40 * stepsPerDay] - 18094.0D) / 18094.0D < 0.08D,
-                "40 日目の過繁茂 " + area[40 * stepsPerDay] + "(見積もり 18094)");
-        int start = 0;
-        for (int n = 2; n <= PhaseTable.MAX_PHASE; n++) {
-            int end = start + days[n];
-            double modelled = 0.0D;
-            for (int s = start * stepsPerDay; s < end * stepsPerDay; s++) {
-                modelled += interval * t.pointsPerTickWithChunks((long) area[s]) + t.pointsPerOvergrownChunk() * (area[s + 1] - area[s]);
-            }
-            long need = t.pointsToAdvance(n);
-            expectTrue(helper, need != Long.MAX_VALUE, "フェーズ " + n + " へ自動で上がらない");
-            expectTrue(helper, Math.abs(need - modelled) / modelled < 0.04D,
-                    "フェーズ " + n + " のしきい値 " + need + " が台帳の広がりからの計算 " + Math.round(modelled) + " と合わない");
-            start = end;
-        }
-        PhaseTable bundled;
-        try (InputStream in = LedgerSpreadGameTests.class.getResourceAsStream("/overgrown_vegetation/design/phases.json")) {
-            if (in == null) {
-                helper.fail("design/phases.json が同梱されていない");
-                return;
-            }
-            bundled = PhaseTable.fromJson(new Gson().fromJson(new InputStreamReader(in, StandardCharsets.UTF_8), PhaseTable.Json.class));
-        } catch (Exception e) {
-            helper.fail("design/phases.json が読めない: " + e);
-            return;
-        }
-        for (int n = 2; n <= PhaseTable.MAX_PHASE; n++) {
-            expect(helper, bundled.pointsToAdvance(n), t.pointsToAdvance(n), "phases.json のフェーズ " + n + " のしきい値");
-        }
-        helper.succeed();
-    }
-
     /** spread.json と Java の既定値が同じ。 */
     @GameTest(template = "gametest_empty7")
     public static void bundledJsonMatchesDefault(GameTestHelper helper) {
@@ -223,25 +112,6 @@ public final class LedgerSpreadGameTests {
 
 
     // ------------------------------------------------------------------ 世界を触るテスト(自分だけのバッチ)
-
-    /** 台帳の縁は「台帳に無い・辺で接している」チャンクで、接している数を数える(L 字の切れ込みは 2)。 */
-    @GameTest(template = "gametest_empty7", batch = WORLD_BATCH)
-    public static void frontierCountsEdgeContacts(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        PhaseData data = PhaseData.get(level);
-        ChunkPos c = freshCenter();
-        // L 字: (0,0) (1,0) (0,1)。切れ込み (1,1) は 2 つと接する。
-        data.adoptOvergrownChunk(level, new ChunkPos(c.x, c.z));
-        data.adoptOvergrownChunk(level, new ChunkPos(c.x + 1, c.z));
-        data.adoptOvergrownChunk(level, new ChunkPos(c.x, c.z + 1));
-        Long2IntOpenHashMap contacts = LedgerSpreadTestHooks.frontier(data);
-        expectInt(helper, contacts.get(ChunkPos.asLong(c.x + 1, c.z + 1)), 2, "L 字の切れ込み");
-        expectInt(helper, contacts.get(ChunkPos.asLong(c.x + 2, c.z)), 1, "東の端の外");
-        expectInt(helper, contacts.get(ChunkPos.asLong(c.x - 1, c.z)), 1, "西の端の外");
-        expectTrue(helper, !contacts.containsKey(ChunkPos.asLong(c.x, c.z)), "台帳にあるチャンクが縁に入った");
-        expectTrue(helper, !contacts.containsKey(ChunkPos.asLong(c.x + 2, c.z + 2)), "斜めにしか接していないチャンクが縁に入った");
-        helper.succeed();
-    }
 
     /** 睡眠で飛ばした時間は汚染の暦に入る(台帳の時刻も極相の齢も、寝た夜を 1 日に数える)。 */
     @GameTest(template = "gametest_empty7", batch = WORLD_BATCH)
@@ -317,61 +187,6 @@ public final class LedgerSpreadGameTests {
             }
         }
         return out;
-    }
-
-    /**
-     * 台帳の広がりの規則を、地割れに似た 16×3 チャンクの帯から {@code runs} 回・{@code steps} 回の判定ぶん回した平均の過繁茂チャンク数
-     * (添字 = 判定の回数、0 は最初)。判定は本物と同じ {@link LedgerSpreadMath#roll}(除くものは無し)。
-     * 縁は差分で持つ(塗ったチャンクを縁から外し、4 方向の隣の接している数を足す)ので、1 回の判定は縁の数に比例するだけ。
-     */
-    private static double[] meanArea(int runs, int steps, double[] chances) {
-        double[] mean = new double[steps + 1];
-        for (int run = 0; run < runs; run++) {
-            RandomSource random = RandomSource.create(1000L + run);
-            it.unimi.dsi.fastutil.longs.LongOpenHashSet over = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
-            Long2IntOpenHashMap frontier = new Long2IntOpenHashMap();
-            for (int x = 0; x < 16; x++) {
-                for (int z = 0; z < 3; z++) {
-                    markForSimulation(over, frontier, ChunkPos.asLong(x, z));
-                }
-            }
-            mean[0] += over.size();
-            for (int s = 1; s <= steps; s++) {
-                long[] keys = new long[frontier.size()];
-                int[] counts = new int[frontier.size()];
-                int i = 0;
-                for (it.unimi.dsi.fastutil.longs.Long2IntMap.Entry e
-                        : it.unimi.dsi.fastutil.longs.Long2IntMaps.fastIterable(frontier)) {
-                    keys[i] = e.getLongKey();
-                    counts[i] = e.getIntValue();
-                    i++;
-                }
-                for (int index : LedgerSpreadMath.roll(counts, null, chances, random)) {
-                    markForSimulation(over, frontier, keys[index]);
-                }
-                mean[s] += over.size();
-            }
-        }
-        for (int s = 0; s <= steps; s++) {
-            mean[s] /= runs;
-        }
-        return mean;
-    }
-
-    private static void markForSimulation(it.unimi.dsi.fastutil.longs.LongOpenHashSet over, Long2IntOpenHashMap frontier, long key) {
-        if (!over.add(key)) {
-            return;
-        }
-        frontier.remove(key);
-        int x = ChunkPos.getX(key);
-        int z = ChunkPos.getZ(key);
-        int[][] sides = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        for (int[] d : sides) {
-            long n = ChunkPos.asLong(x + d[0], z + d[1]);
-            if (!over.contains(n)) {
-                frontier.addTo(n, 1);
-            }
-        }
     }
 
     private static ChunkPos freshCenter() {

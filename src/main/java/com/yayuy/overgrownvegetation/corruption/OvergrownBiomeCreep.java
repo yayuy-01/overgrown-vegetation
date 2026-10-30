@@ -997,7 +997,7 @@ public final class OvergrownBiomeCreep {
      * 置き換える<b>前</b>に呼ぶこと。
      *
      * <p>近隣通知でやることは 3 つ —— 6 近傍の {@code neighborChanged}、NeoForge の近隣通知イベント
-     * (この MOD は聞いていない。極相の全層置換 {@link ClimaxDeepConverter} はもともと出していない)、
+     * (この MOD は聞いていない)、
      * 置いたブロックが比較器の入力になるときの比較器への通知。次のときは省いても何も変わらない:
      * <ul>
      *     <li>6 近傍がどれも読み込み済みで、不透明な立方体({@code isSolidRender})で、BlockEntity を持たない

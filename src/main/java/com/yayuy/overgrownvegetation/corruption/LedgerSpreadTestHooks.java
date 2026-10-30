@@ -1,8 +1,6 @@
 package com.yayuy.overgrownvegetation.corruption;
 
 import com.yayuy.overgrownvegetation.data.SpreadTable;
-import com.yayuy.overgrownvegetation.phase.PhaseData;
-import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 
@@ -11,11 +9,6 @@ import net.minecraft.world.level.ChunkPos;
  * {@code gametest} パッケージのテストから叩くためのもの。ゲームの中からは呼ばない。
  */
 public final class LedgerSpreadTestHooks {
-
-    /** 台帳の縁(台帳に無いチャンク → 辺で接している台帳のチャンクの数)。 */
-    public static Long2IntOpenHashMap frontier(PhaseData data) {
-        return LedgerSpread.frontier(data);
-    }
 
     /**
      * 睡眠で {@code ticks} 飛ばしたことにする。<b>フェーズのポイントは入れない</b> —— GameTest のワールドが

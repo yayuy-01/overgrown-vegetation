@@ -7,8 +7,6 @@ import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.data.SporeFieldTable;
 import com.yayuy.overgrownvegetation.perf.BackgroundTask;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
-import com.yayuy.overgrownvegetation.spore.SporeDeviceData;
-import it.unimi.dsi.fastutil.longs.Long2DoubleOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import net.minecraft.core.BlockPos;
@@ -43,10 +41,10 @@ import java.util.function.Consumer;
  * <h2>流れ</h2>
  * <ol>
  *     <li>オーバーワールドの tick で、汚染の暦({@link PhaseData#clock})が場の暦より {@code updateTicks}(5 秒)進んでいたら、
- *     その時点の入力(天気の印・稼働中の装置・器官・巨大樹)の写しを作り、{@link BackgroundTask} で裏のスレッドへ</li>
- *     <li>裏のスレッドは場の鍵を持って、溜まった入力(点の放出・台帳に載ったチャンク・極相)を取り込み、遅れた分の更新を
+ *     その時点の入力(天気の印・巨大樹・噴出中の地割れ)の写しを作り、{@link BackgroundTask} で裏のスレッドへ</li>
+ *     <li>裏のスレッドは場の鍵を持って、溜まった入力(点の放出・台帳に載ったチャンク)を取り込み、遅れた分の更新を
  *     {@code maxStepsPerRun} 回まで進める(睡眠で暦が飛んだ分はここで追いつく)</li>
- *     <li>答え(初めて発芽したチャンク・除去装置が抜いた量)を次の tick の頭にサーバースレッドで当てはめる。
+ *     <li>答え(初めて発芽したチャンク・2 体目の萌芽体)を次の tick の頭にサーバースレッドで当てはめる。
  *     発芽したチャンクは {@link LedgerSpread#acceptFieldSprouts} で台帳(フェーズに数える)と書き換え待ちへ —— 読み込まれたら今までどおり
  *     {@code OvergrownBiomeConverter} の流れで過繁茂になる</li>
  * </ol>
@@ -62,8 +60,6 @@ public final class SporeFieldServer {
     /** ほかの所からの入力(どのスレッドからでも積める。裏のスレッドが計算の頭で取り込む)。 */
     private static final ConcurrentLinkedQueue<Consumer<SporeField>> INPUTS = new ConcurrentLinkedQueue<>();
     private static final BackgroundTask<Result> TASK = new BackgroundTask<>("胞子の場");
-    /** 除去装置ごとの、まだ産出に使っていない抜いた量(装置の BlockPos#asLong → 量)。サーバースレッドだけ。 */
-    private static final Long2DoubleOpenHashMap EXTRACTED = new Long2DoubleOpenHashMap();
 
     private static SporeField field;
     /** 場がどの暦まで進んだか(サーバースレッドが持つ)。 */
@@ -196,21 +192,10 @@ public final class SporeFieldServer {
         INPUTS.add(f -> f.removeOneSprout(cx, cz));
     }
 
-    /** 極相になった → 放出が極相に。 */
-    public static void onClimax(long chunkKey, long now) {
-        int cx = ChunkPos.getX(chunkKey), cz = ChunkPos.getZ(chunkKey);
-        INPUTS.add(f -> f.setClimax(cx, cz, now));
-    }
-
     /** 台帳から外れた(焼けた荒地)→ 場でも汚染を取り消す。 */
     public static void onLedgerRemoved(long chunkKey) {
         int cx = ChunkPos.getX(chunkKey), cz = ChunkPos.getZ(chunkKey);
         INPUTS.add(f -> f.unsprout(cx, cz));
-    }
-
-    /** 除去装置がまだ産出に使っていない、抜いた量を受け取って 0 にする(サーバースレッド。装置の産出サイクルから)。 */
-    public static double takeExtracted(BlockPos device) {
-        return EXTRACTED.remove(device.asLong());
     }
 
     /** 場が回っているか(設計データで有効)。 */
@@ -225,7 +210,6 @@ public final class SporeFieldServer {
         MinecraftServer server = event.getServer();
         current = server;
         INPUTS.clear();
-        EXTRACTED.clear();
         ServerLevel overworld = server.overworld();
         SporeField f = new SporeField(WindWeatherData.windSeed(server), DesignData.sporeField().field());
         f.ground = new BiomeGround(overworld);
@@ -239,7 +223,6 @@ public final class SporeFieldServer {
             phase.forEachOvergrownChunk(key -> {
                 int cx = ChunkPos.getX(key), cz = ChunkPos.getZ(key);
                 if (!f.isCorrupted(cx, cz)) f.setCorrupted(cx, cz, phase.overgrownSinceTick(new ChunkPos(key)));
-                if (phase.isClimaxChunk(new ChunkPos(key))) f.setClimax(cx, cz, 0);
             });
             field = f;
             fieldClock = clock[0];
@@ -271,7 +254,6 @@ public final class SporeFieldServer {
         com.yayuy.overgrownvegetation.quake.EarthquakeData.clearCache();
         SporeDustSync.clear();
         INPUTS.clear();
-        EXTRACTED.clear();
     }
 
     @SubscribeEvent
@@ -383,7 +365,7 @@ public final class SporeFieldServer {
     /** サーバースレッドで作る入力の写し。 */
     private record Inputs(long fromClock, int steps, int stepTicks, long dayTimeNow, long clockNow, long seed,
                           PrevailingWind.Weather weather, long lastRainEnd,
-                          long[] purifiers, long[] diffusers, long[] canopyChunks, double[] canopyRate, long[] eruptions,
+                          long[] canopyChunks, double[] canopyRate, long[] eruptions,
                           long[] watchTiles, SporeFieldTable table) {
     }
 
@@ -410,13 +392,12 @@ public final class SporeFieldServer {
         double[] canopyRate = cr.toDoubleArray();
         return new Inputs(fieldClock, steps, table.updateTicks(), level.getDayTime(), clock, field.seed,
                 wx.weather(), wx.lastRainEnd(),
-                SporeDeviceData.activePurifiers(level), SporeDeviceData.activeDiffusers(level),
                 canopy, canopyRate, com.yayuy.overgrownvegetation.quake.EarthquakeData.get(level).eruptingChunks(level.getGameTime()),
                 watchTiles(level), table);
     }
 
     /** 計算の答え。 */
-    private record Result(long toClock, int steps, long[] sprouts, long[] devices, double[] extracted, long nanos,
+    private record Result(long toClock, int steps, long[] sprouts, long nanos,
                           int tiles, long corrupted, int parcels, it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<Readout> readout, long[] seconds) {
     }
 
@@ -426,8 +407,6 @@ public final class SporeFieldServer {
         LongArrayList sprouts = new LongArrayList();
         LongArrayList seconds = new LongArrayList();
         int frontCells = 0;
-        int nd = in.purifiers.length;
-        double[] extracted = new double[nd];
         LOCK.lock();
         try {
             Consumer<SporeField> input;
@@ -445,7 +424,6 @@ public final class SporeFieldServer {
                 boolean after = !raining && in.lastRainEnd != PrevailingWind.NONE && dayT - in.lastRainEnd < f.p.afterRainTicks;
                 PrevailingWind.sample(in.seed, dayT, in.weather, s);
                 // ゲームの発生源
-                for (long d : in.diffusers) f.emitPoint(BlockPos.getX(d) >> 4, BlockPos.getZ(d) >> 4, table.diffuserPerDay() * dt);
                 long tod = Math.floorMod(dayT, PrevailingWind.DAY);
                 double liftFrac = 1.0D - Math.exp(-table.giantTreeLiftPerDay() * dt);
                 for (int i = 0; i < in.canopyChunks.length; i++) {
@@ -474,16 +452,7 @@ public final class SporeFieldServer {
                     if (ns[3] == 1) sprouts.add(ChunkPos.asLong(ns[0], ns[1]));
                     else seconds.add(ChunkPos.asLong(ns[0], ns[1]));
                 }
-                // 吸い込み口: 除去装置は 1 回の更新で上限まで抜く
-                // (【決定】10-23 追記 11: 動いている間は範囲内を抑え切る。上限 0 = 無し。降り積もりも捨てて発芽させない。
-                // 突破は装置が止まったとき = 取り出し口がいっぱい・フィルター切れ・燃料切れ)
-                double cap = table.purifierCapPerUpdate() <= 0 ? Double.POSITIVE_INFINITY : table.purifierCapPerUpdate();
-                for (int i = 0; i < nd; i++) {
-                    long d = in.purifiers[i];
-                    int pcx = BlockPos.getX(d) >> 4, pcz = BlockPos.getZ(d) >> 4;
-                    extracted[i] += f.extractAround(pcx, pcz, table.purifierRadiusChunks(), cap);
-                    f.clearDepositAround(pcx, pcz, table.purifierRadiusChunks());
-                }
+                // 除去装置・拡散装置(吸い込み口・発生源)は装置と一緒に 2026-10-30 に parked/ へ(戻すときは parked の写しから)
             }
             lastFrontCells = frontCells;
             lastFronts = f.fronts.size();
@@ -498,7 +467,7 @@ public final class SporeFieldServer {
                 fr[i * 5 + 4] = (int) Math.min(Integer.MAX_VALUE, Math.round(stop * 16.0D));
             }
             FRONTS = fr;
-            return new Result(in.fromClock + (long) in.steps * in.stepTicks, in.steps, sprouts.toLongArray(), in.purifiers, extracted,
+            return new Result(in.fromClock + (long) in.steps * in.stepTicks, in.steps, sprouts.toLongArray(),
                     System.nanoTime() - t0, f.tileCount(), f.corruptedCount, f.parcels.size(), readout(f, in), seconds.toLongArray());
         } finally {
             LOCK.unlock();
@@ -522,9 +491,6 @@ public final class SporeFieldServer {
                 WAITING.add(key);
             }
         }
-        for (int i = 0; i < r.devices.length; i++) {
-            if (r.extracted[i] > 0) EXTRACTED.addTo(r.devices[i], r.extracted[i]);
-        }
         // 2 体目の萌芽体(読み込まれていれば歩く萌芽体を出す。読み込まれていなければ読み込んだときに根付いた姿で)
         if (r.seconds.length > 0 && !CorruptionSwitch.isOff() && !discardSproutsForTests && keepOnlyForTests == null) {
             for (long key : r.seconds) SporeSprouts.onSecondSprout(level, key);
@@ -540,7 +506,7 @@ public final class SporeFieldServer {
 
     /**
      * 区画 1 つの読みの写し(裏のスレッドが計算の終わりに作り、サーバースレッドは鍵なしで読む)。
-     * conc = 浮遊 + 林床(濃度のもと)、dep = 降り積もり、stage = 0 汚染なし・1 繁茂(発芽から過繁茂まで)・2 過繁茂・3 極相、
+     * conc = 浮遊 + 林床(濃度のもと)、dep = 降り積もり、stage = 0 汚染なし・1 繁茂(発芽から過繁茂まで)・2 過繁茂、
      * age = 発芽からの日数(汚染なしは -1)、count = 発芽の回数(萌芽体の数)。
      */
     public static final class Readout {
@@ -595,12 +561,6 @@ public final class SporeFieldServer {
         return WIND_NOW;
     }
 
-    /** 浮遊 + 林床だけ(濃度の計算から多く呼ぶので Cell を作らない)。写しが無ければ NaN。 */
-    public static double concAt(int cx, int cz) {
-        Readout r = READOUT.get(SporeField.key(cx >> SporeField.TB, cz >> SporeField.TB));
-        return r == null ? Double.NaN : r.conc[SporeField.idx(cx, cz)];
-    }
-
     /** 浮遊だけ(G1 の作り直し 第 1 段: Mob の感染は空の下の浮遊 × 秒)。写しが無ければ NaN。サーバースレッドから。 */
     public static double airAt(int cx, int cz) {
         Readout r = READOUT.get(SporeField.key(cx >> SporeField.TB, cz >> SporeField.TB));
@@ -614,7 +574,6 @@ public final class SporeFieldServer {
             for (int dz = -WATCH_TILES; dz <= WATCH_TILES; dz++)
                 for (int dx = -WATCH_TILES; dx <= WATCH_TILES; dx++) set.add(SporeField.key(tx + dx, tz + dz));
         }
-        for (long d : SporeDeviceData.activePurifiers(level)) set.add(SporeField.key((BlockPos.getX(d) >> 4) >> SporeField.TB, (BlockPos.getZ(d) >> 4) >> SporeField.TB));
         for (long d : WATCH_EXTRA) set.add(d);
         return set.toLongArray();
     }
@@ -667,7 +626,7 @@ public final class SporeFieldServer {
                     }
                     double age = (now - sp) / (double) PrevailingWind.DAY;
                     r.age[i] = (float) age;
-                    r.stage[i] = (byte) ((t.flags[i] & 1) != 0 ? 3 : age < f.p.daysToOvergrown ? 1 : 2);
+                    r.stage[i] = (byte) (age < f.p.daysToOvergrown ? 1 : 2);
                 }
             } else {
                 java.util.Arrays.fill(r.age, -1f);
@@ -747,11 +706,6 @@ public final class SporeFieldServer {
         } finally {
             LOCK.unlock();
         }
-    }
-
-    /** テスト用: 場の暦を置く(追いつきのテスト)。 */
-    public static void setFieldClockForTests(long clock) {
-        fieldClock = clock;
     }
 
     public static long fieldClockForTests() {

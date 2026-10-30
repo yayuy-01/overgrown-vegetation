@@ -8,7 +8,6 @@ import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.data.SporeFieldTable;
 import com.yayuy.overgrownvegetation.perf.BackgroundTask;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
-import com.yayuy.overgrownvegetation.spore.SporeDeviceData;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -57,7 +56,6 @@ public final class NetherSporeFieldServer {
     private static final ReentrantLock LOCK = new ReentrantLock();
     static final ConcurrentLinkedQueue<Consumer<SporeField>> INPUTS = new ConcurrentLinkedQueue<>();
     private static final BackgroundTask<Result> TASK = new BackgroundTask<>("胞子の場(ネザー)");
-    private static final it.unimi.dsi.fastutil.longs.Long2DoubleOpenHashMap EXTRACTED = new it.unimi.dsi.fastutil.longs.Long2DoubleOpenHashMap();
     private static SporeField field;
     private static long fieldClock = Long.MIN_VALUE;
     private static volatile Long2ObjectOpenHashMap<SporeFieldServer.Readout> READOUT = new Long2ObjectOpenHashMap<>();
@@ -95,7 +93,6 @@ public final class NetherSporeFieldServer {
         MinecraftServer server = event.getServer();
         ServerLevel nether = server.getLevel(Level.NETHER);
         INPUTS.clear();
-        EXTRACTED.clear();
         WATCH_EXTRA.clear();
         if (nether == null) return;
         SporeField f = new SporeField(WindWeatherData.windSeed(server) ^ SEED_SALT, DesignData.sporeField().field());
@@ -134,7 +131,6 @@ public final class NetherSporeFieldServer {
         READOUT = new Long2ObjectOpenHashMap<>();
         WATCH_EXTRA.clear();
         INPUTS.clear();
-        EXTRACTED.clear();
         LAVA.clear();
     }
 
@@ -202,11 +198,11 @@ public final class NetherSporeFieldServer {
         }
     }
 
-    private record Inputs(long fromClock, int steps, int stepTicks, long dayTimeNow, long clockNow, long[] purifiers, long[] diffusers, long[] watchTiles,
+    private record Inputs(long fromClock, int steps, int stepTicks, long dayTimeNow, long clockNow, long[] watchTiles,
                           SporeFieldTable table) {
     }
 
-    private record Result(long toClock, int steps, long[] sprouts, long[] seconds, long[] devices, double[] extracted, long nanos, int tiles,
+    private record Result(long toClock, int steps, long[] sprouts, long[] seconds, long nanos, int tiles,
                           long corrupted, Long2ObjectOpenHashMap<SporeFieldServer.Readout> readout) {
     }
 
@@ -216,7 +212,7 @@ public final class NetherSporeFieldServer {
         if (behind < u) return 0;
         int steps = (int) Math.min(table.maxStepsPerRun(), behind / u);
         // 昼夜はオーバーワールドの時計で回す(2026-10-23 相談セッションの答え: ネザーだけ常に速い・遅いにならないように)
-        Inputs in = new Inputs(fieldClock, steps, u, nether.getServer().overworld().getDayTime(), clock, SporeDeviceData.activePurifiers(nether), SporeDeviceData.activeDiffusers(nether),
+        Inputs in = new Inputs(fieldClock, steps, u, nether.getServer().overworld().getDayTime(), clock,
                 watchTiles(nether), table);
         SporeField f = field;
         TASK.start(nether.getServer(), () -> compute(f, in), r -> apply(nether, r));
@@ -227,34 +223,22 @@ public final class NetherSporeFieldServer {
         long t0 = System.nanoTime();
         LongArrayList sprouts = new LongArrayList();
         LongArrayList seconds = new LongArrayList();
-        int nd = in.purifiers.length;
-        double[] extracted = new double[nd];
         LOCK.lock();
         try {
             Consumer<SporeField> input;
             while ((input = INPUTS.poll()) != null) input.accept(f);
-            SporeFieldTable table = in.table;
-            double dt = in.stepTicks / (double) PrevailingWind.DAY;
             PrevailingWind.Sample calm = new PrevailingWind.Sample(); // 風 0・嵐なし
-            double cap = table.purifierCapPerUpdate() <= 0 ? Double.POSITIVE_INFINITY : table.purifierCapPerUpdate();
             for (int k = 1; k <= in.steps; k++) {
                 long t = in.fromClock + (long) k * in.stepTicks;
-                for (long d : in.diffusers) f.emitPoint(BlockPos.getX(d) >> 4, BlockPos.getZ(d) >> 4, table.diffuserPerDay() * dt);
                 long dayT = in.dayTimeNow - (in.clockNow - t);
                 f.step(new SporeField.Conditions(t, dayT, false, false, false), calm);
                 for (int[] ns : f.newSprouts) {
                     if (ns[3] == 1) sprouts.add(ChunkPos.asLong(ns[0], ns[1]));
                     else seconds.add(ChunkPos.asLong(ns[0], ns[1]));
                 }
-                for (int i = 0; i < nd; i++) {
-                    long d = in.purifiers[i];
-                    int pcx = BlockPos.getX(d) >> 4, pcz = BlockPos.getZ(d) >> 4;
-                    extracted[i] += f.extractAround(pcx, pcz, table.purifierRadiusChunks(), cap);
-                    f.clearDepositAround(pcx, pcz, table.purifierRadiusChunks());
-                }
             }
             long now = in.fromClock + (long) in.steps * in.stepTicks;
-            return new Result(now, in.steps, sprouts.toLongArray(), seconds.toLongArray(), in.purifiers, extracted, System.nanoTime() - t0, f.tileCount(),
+            return new Result(now, in.steps, sprouts.toLongArray(), seconds.toLongArray(), System.nanoTime() - t0, f.tileCount(),
                     f.corruptedCount, SporeFieldServer.readoutOf(f, in.watchTiles, now));
         } finally {
             LOCK.unlock();
@@ -271,19 +255,11 @@ public final class NetherSporeFieldServer {
         if (r.seconds.length > 0 && !CorruptionSwitch.isOff() && !discardSproutsForTests) {
             for (long key : r.seconds) SporeSprouts.onSecondSprout(nether, key);
         }
-        for (int i = 0; i < r.devices.length; i++) {
-            if (r.extracted[i] > 0) EXTRACTED.addTo(r.devices[i], r.extracted[i]);
-        }
         READOUT = r.readout;
         lastSummary = String.format("更新 %d 回 / %.1f ms・区画 %d・汚染されたチャンク %d・発芽 %d",
                 r.steps, r.nanos / 1e6, r.tiles, r.corrupted, r.sprouts.length);
         PortalSeepage.afterUpdate(nether.getServer());
         SporeDustSync.send(nether); // 粉・浮遊・プレイヤーの所の濃度(粉の見た目・緑の霧・プルーム)
-    }
-
-    /** 除去装置(ネザーに置いたもの)が抜いた量を取り出す。 */
-    public static double takeExtracted(BlockPos device) {
-        return EXTRACTED.remove(device.asLong());
     }
 
     private static long[] watchTiles(ServerLevel nether) {
@@ -293,7 +269,6 @@ public final class NetherSporeFieldServer {
             for (int dz = -1; dz <= 1; dz++)
                 for (int dx = -1; dx <= 1; dx++) set.add(SporeField.key(tx + dx, tz + dz));
         }
-        for (long d : SporeDeviceData.activePurifiers(nether)) set.add(SporeField.key((BlockPos.getX(d) >> 4) >> SporeField.TB, (BlockPos.getZ(d) >> 4) >> SporeField.TB));
         set.addAll(WATCH_EXTRA);
         return set.toLongArray();
     }

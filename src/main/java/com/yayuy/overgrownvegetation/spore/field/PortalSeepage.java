@@ -43,9 +43,4 @@ public final class PortalSeepage {
             }
         }
     }
-
-    /** テスト用: 1 回分の染み出しをすぐ積む。 */
-    public static void seepNowForTests(MinecraftServer server) {
-        afterUpdate(server);
-    }
 }

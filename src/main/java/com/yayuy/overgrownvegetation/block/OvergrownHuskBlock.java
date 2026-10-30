@@ -75,7 +75,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>「BlockEntity を汚染するか」({@code corruptBlockEntities}、既定 false)は
  * <b>チェストなどが中身ごと消えるのを防ぐための設定</b>。こちらは<b>消さない</b> ——
  * 見た目も中身も残して機能だけ止めるので、別の設定
- * ({@code climax.json} の {@code overgrownLayer.encase}、既定 true)で切り替える。
+ * ({@code OvergrownLayerField#ENCASE}、既定 true。もとは climax.json)で切り替える。
  *
  * <h2>形</h2>
  * <p>当たり判定と遮蔽は<b>元のブロックの形をそのまま借りる</b>。ただし元のブロックのコードに

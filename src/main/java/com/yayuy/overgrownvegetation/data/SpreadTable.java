@@ -1,34 +1,22 @@
 package com.yayuy.overgrownvegetation.data;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * 台帳の広がり({@code spread.json}、2026-09-26、2026-09-28 に規則を変更)の設計値。
+ * 台帳の書き換え待ちと睡眠({@code spread.json}、2026-09-26)の設計値。
  *
- * <p>過繁茂バイオームを<b>台帳だけで</b>広げる({@code corruption/LedgerSpread})。<b>{@code intervalTicks} ごとに</b>
- * (汚染の暦がその倍数の境目を越えるたびに。既定 6000 tick = 実時間 5 分 = ゲーム内 1/4 日)、過繁茂と<b>辺で接している</b>
- * チャンクごとに、接している面の数に応じた確率({@code chanceByContacts}、1 面 25%・2 面 50%・3 面 75%・4 面 100%)で過繁茂の印を付ける。
- * 読み込まれていないチャンクは台帳の印だけで、読み込まれたとき(または読み込まれていればすぐ)にバイオームと地表を書き換える。
+ * <p>広がりそのものは 2026-10-23 から胞子の場の発芽が担う({@code spore/field/})。発芽したチャンクは台帳に載り、読み込まれたとき
+ * (または読み込まれていればすぐ)に {@code corruption/LedgerSpreadCatchUp} がバイオームを書き換える。
+ * 止まっていた「5 分おきに縁を面の数 × 25%」の値({@code enabled}・{@code intervalTicks}・{@code chanceByContacts}・
+ * {@code includeLoadedChunks})は 2026-10-30 に消した(古い json に残っていても読み飛ばす)。
  *
- * <p><b>ユーザー指定</b>: 5 分おき(2026-09-28、1 日 1 回では遅すぎた)/ 過繁茂に隣接するチャンクへ、1 面 25%・2 面 50%・3 面 75%・
- * 4 面 100% の確率で印 / 胞子除去装置の効果範囲には印を付けない / 読み込まれている範囲も対象 / 寝たときは飛ばした夜のぶんも広げる /
- * 広がった分もフェーズ進行に数える。
- * <b>仮決め</b>: 睡眠でポイントも入れる・地表の塗り方。
- * 2026-09-26〜27 は「1 日 190〜380 チャンクの予定表」、2026-09-28 の午前は「1 日 1 回(日付が変わるとき)」だった。
+ * <p><b>ユーザー指定</b>: 寝たときは飛ばした夜のぶんも汚染の暦を進める。
+ * <b>仮決め</b>: 睡眠でポイントも入れる・地表の塗り方・1 tick の予算。
  */
 public final class SpreadTable {
 
     public static final class Json {
-        public Boolean enabled;
-        /** 判定の間隔(汚染の暦の tick)。既定 6000 = 実時間 5 分。 */
-        public Integer intervalTicks;
-        /** 辺で接している過繁茂の数 1〜4 ごとの、1 回の判定で過繁茂になる確率(0〜1)。 */
-        public List<Double> chanceByContacts;
-        /** 読み込まれているチャンクにも印を付けるか。 */
-        public Boolean includeLoadedChunks;
         public Boolean sleepAdvancesClock;
         public Boolean sleepGivesPhasePoints;
         public CatchUp catchUp;
@@ -48,10 +36,6 @@ public final class SpreadTable {
         public Integer columnsPerTick;
     }
 
-    private final boolean enabled;
-    private final int intervalTicks;
-    private final double[] chanceByContacts;
-    private final boolean includeLoadedChunks;
     private final boolean sleepAdvancesClock;
     private final boolean sleepGivesPhasePoints;
     private final double surfaceCoverage;
@@ -64,10 +48,6 @@ public final class SpreadTable {
         Json src = j != null ? j : new Json();
         CatchUp c = src.catchUp != null ? src.catchUp : new CatchUp();
 
-        this.enabled = src.enabled == null || src.enabled;
-        this.intervalTicks = src.intervalTicks != null ? Math.max(20, src.intervalTicks) : 6000;
-        this.chanceByContacts = chances(src.chanceByContacts, new double[]{0.25D, 0.5D, 0.75D, 1.0D});
-        this.includeLoadedChunks = src.includeLoadedChunks == null || src.includeLoadedChunks;
         this.sleepAdvancesClock = src.sleepAdvancesClock == null || src.sleepAdvancesClock;
         this.sleepGivesPhasePoints = src.sleepGivesPhasePoints == null || src.sleepGivesPhasePoints;
         this.surfaceCoverage = c.surfaceCoverage != null ? Math.max(0.0D, Math.min(1.0D, c.surfaceCoverage)) : 0.75D;
@@ -77,42 +57,7 @@ public final class SpreadTable {
         this.columnsPerTick = c.columnsPerTick != null ? Math.max(1, c.columnsPerTick) : 2048;
     }
 
-    private static double[] chances(List<Double> list, double[] fallback) {
-        if (list == null || list.isEmpty()) {
-            return fallback;
-        }
-        double[] out = new double[Math.min(4, list.size())];
-        for (int i = 0; i < out.length; i++) {
-            Double v = list.get(i);
-            out[i] = v != null ? Math.max(0.0D, Math.min(1.0D, v)) : 0.0D;
-        }
-        return out;
-    }
-
-    /** 台帳の広がりを動かすか。 */
-    public boolean enabled() {
-        return enabled;
-    }
-
-    /** 判定の間隔(汚染の暦の tick)。ユーザー指定 6000 = 実時間 5 分(ゲーム内 1/4 日、1 日 4 回)。 */
-    public int intervalTicks() {
-        return intervalTicks;
-    }
-
-    /**
-     * 辺で接している過繁茂の数 1〜4 ごとの、1 回の判定で過繁茂になる確率。
-     * ユーザー指定 1 面 0.25 / 2 面 0.5 / 3 面 0.75 / 4 面 1.0。
-     */
-    public double[] chanceByContacts() {
-        return chanceByContacts;
-    }
-
-    /** 読み込まれているチャンクにも印を付けるか(ユーザー指定 true)。 */
-    public boolean includeLoadedChunks() {
-        return includeLoadedChunks;
-    }
-
-    /** 睡眠で飛ばした夜を汚染の暦に足すか(ユーザー指定)。飛ばした時間に入っていた判定のぶん、起きた直後に広がる。 */
+    /** 睡眠で飛ばした夜を汚染の暦に足すか(ユーザー指定)。 */
     public boolean sleepAdvancesClock() {
         return sleepAdvancesClock;
     }
@@ -150,10 +95,6 @@ public final class SpreadTable {
     /** 全部の値を決まった順に並べた文字列(同梱の json と Java の既定値を比べるテスト用)。 */
     public String describe() {
         Map<String, Object> out = new TreeMap<>();
-        out.put("enabled", enabled);
-        out.put("intervalTicks", intervalTicks);
-        out.put("chanceByContacts", Arrays.toString(chanceByContacts));
-        out.put("includeLoadedChunks", includeLoadedChunks);
         out.put("sleepAdvancesClock", sleepAdvancesClock);
         out.put("sleepGivesPhasePoints", sleepGivesPhasePoints);
         out.put("surfaceCoverage", surfaceCoverage);

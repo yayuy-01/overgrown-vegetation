@@ -111,18 +111,6 @@ public final class WindWeatherData extends SavedData {
         return changed;
     }
 
-    /** テスト用: 印を直に置く。 */
-    public void setForTests(boolean raining, boolean thundering, long ls, long le, long ps, long pe) {
-        this.seen = true;
-        this.raining = raining;
-        this.thundering = thundering;
-        this.lastRainStart = ls;
-        this.lastRainEnd = le;
-        this.prevRainStart = ps;
-        this.prevRainEnd = pe;
-        setDirty();
-    }
-
     PrevailingWindPayload payload(MinecraftServer server) {
         return new PrevailingWindPayload(windSeed(server), raining, thundering, lastRainStart, lastRainEnd, prevRainStart, prevRainEnd);
     }

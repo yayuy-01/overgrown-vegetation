@@ -891,42 +891,6 @@ public final class OvergrownVegetationConfig {
         //  phase2Group1HealthMultiplier / phase2Group1AttackMultiplier / phase2Group1FleeCorruption)。
         // → com.yayuy.overgrownvegetation.data.PhaseTable
 
-        // --- 胞子濃度 ---
-        /**
-         * 「胞子濃度」の割合成分を計算する正方領域の半径(チャンク)。既定 3(7x7=49 チャンク)。
-         * {@link com.yayuy.overgrownvegetation.spore.SporeConcentration} 参照。
-         */
-        public final ModConfigSpec.IntValue sporeConcentrationRadiusChunks;
-        /**
-         * 上記領域のうち過繁茂バイオームが占める割合がこの値に達したら、割合成分を 100% とする
-         * (それ以上は上がらない)。既定 0.8 = 8 割。
-         */
-        public final ModConfigSpec.DoubleValue sporeConcentrationFullRatio;
-        /**
-         * 最寄りの過繁茂バイオームチャンクと「密接」(隣接・斜め隣接)しているときに、割合に関係なく
-         * 胞子濃度へ加算する値(%)。既定 50。
-         */
-        public final ModConfigSpec.DoubleValue sporeConcentrationBiomeAdjacentPercent;
-        /** 最寄りの過繁茂バイオームチャンクとの間に 1 チャンク挟まっているときの加算値(%)。既定 25。 */
-        public final ModConfigSpec.DoubleValue sporeConcentrationBiomeGap1Percent;
-        /** 最寄りの過繁茂バイオームチャンクとの間に 2 チャンク挟まっているときの加算値(%)。既定 5。 */
-        public final ModConfigSpec.DoubleValue sporeConcentrationBiomeGap2Percent;
-        /**
-         * そのチャンクの 16x16=256 列のうち「地面(またはその上に生えた植物)が汚染ブロック」な列 1 つあたり、
-         * 胞子濃度へ加算する値(%)。既定 1.0(100 列で +100% = 上限)。葉・原木・蔦・下草は貫通して
-         * 地面を見る。バイオームがまだ書き換わっていない(=過繁茂バイオームではない)チャンクでも、
-         * 汚染が進むほど胞子濃度が上がる。0 でこの成分を無効化(走査自体も省略)。
-         */
-        public final ModConfigSpec.DoubleValue sporeConcentrationPerCorruptedBlockPercent;
-        /**
-         * 汚染ブロック成分の 256 列走査を、何ブロック間隔のグリッドで間引きサンプリングするか。
-         * 既定 2(64 列だけ調べて 256 列全体へ外挿。負荷約 1/4)。1 で全 256 列を厳密に走査。大きいほど軽いが粗い。
-         */
-        public final ModConfigSpec.IntValue sporeConcentrationCorruptedScanStride;
-        /** 胞子濃度の計算結果を次元ごと・チャンクごとにキャッシュする時間(tick)。既定 200(10 秒)。 */
-        public final ModConfigSpec.IntValue sporeConcentrationCacheTtlTicks;
-        // sporeInfectionConcentrationThreshold は effects.json(sporeInfection.concentrationThreshold)へ移行。
-
         // --- 性能(2026-10-06、perf/) ---
         /** 予算の番人({@code perf/TickBudget})を使うか。 */
         public final ModConfigSpec.BooleanValue tickBudgetEnabled;
@@ -974,10 +938,8 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.IntValue quakeEruptDurationTicks;
         /** 胞子噴出パーティクルを出す間隔(tick)。小さいほど濃い。既定 3。 */
         public final ModConfigSpec.IntValue quakeEruptIntervalTicks;
-        /** 胞子噴出中、噴出点からこのチャンク半径以内の Mob を確定で「胞子感染1」にする + ランダムに汚染シダを湧かせる。0 で無効。 */
+        /** 胞子噴出中、噴出点からこのチャンク半径以内にランダムに汚染シダを湧かせる。0 で無効。 */
         public final ModConfigSpec.IntValue quakeEruptHazardRadiusChunks;
-        /** 噴出点周囲の Mob を確定感染させる処理の実行間隔(tick)。 */
-        public final ModConfigSpec.IntValue quakeEruptInfectionIntervalTicks;
         /** 噴出点周囲にランダムな汚染シダを湧かせる処理の実行間隔(tick)。 */
         public final ModConfigSpec.IntValue quakeEruptFernIntervalTicks;
         /** 上記1回あたりの汚染シダ出現の試行回数。 */
@@ -2459,60 +2421,6 @@ public final class OvergrownVegetationConfig {
 
             b.pop();
 
-            b.comment("OvergrownVegetation — 胞子濃度の設定",
-                    "胞子濃度はチャンクごとに決まる 0〜100(%)の値で、過繁茂バイオームにどれだけ",
-                    "近い/囲まれているかを表す。チャンク自身が過繁茂バイオームなら必ず 100%。",
-                    "そうでなければ「半径内の過繁茂バイオーム割合」＋「隣接する過繁茂バイオームの面数×25%」。").push("spore_concentration");
-
-            sporeConcentrationRadiusChunks = b
-                    .comment("胞子濃度の割合成分を計算する正方領域の半径(チャンク)。既定 3 = 7x7=49 チャンク。",
-                            "未ロードのチャンクは分母・分子どちらからも除外される。")
-                    .defineInRange("sporeConcentrationRadiusChunks", 3, 1, 16);
-
-            sporeConcentrationFullRatio = b
-                    .comment("上記領域のうち過繁茂バイオームが占める割合がこの値に達したら割合成分を 100% とし、",
-                            "それ以上は上がらない。既定 0.8 = 8 割で最大。")
-                    .defineInRange("sporeConcentrationFullRatio", 0.8D, 0.05D, 1.0D);
-
-            sporeConcentrationBiomeAdjacentPercent = b
-                    .comment("最寄りの過繁茂バイオームチャンクと「密接」(隣接・斜め隣接)しているときに、",
-                            "割合に関係なく胞子濃度へ加算する値(%)。既定 50。",
-                            "判定範囲は sporeConcentrationRadiusChunks(既定 3)と共通。")
-                    .defineInRange("sporeConcentrationBiomeAdjacentPercent", 50.0D, 0.0D, 100.0D);
-
-            sporeConcentrationBiomeGap1Percent = b
-                    .comment("最寄りの過繁茂バイオームチャンクとの間に 1 チャンク挟まっているときの加算値(%)。既定 25。")
-                    .defineInRange("sporeConcentrationBiomeGap1Percent", 25.0D, 0.0D, 100.0D);
-
-            sporeConcentrationBiomeGap2Percent = b
-                    .comment("最寄りの過繁茂バイオームチャンクとの間に 2 チャンク挟まっているときの加算値(%)。既定 5。",
-                            "これより遠い(3 チャンク以上離れている)場合は距離成分は 0。")
-                    .defineInRange("sporeConcentrationBiomeGap2Percent", 5.0D, 0.0D, 100.0D);
-
-            sporeConcentrationPerCorruptedBlockPercent = b
-                    .comment("そのチャンクの 16x16=256 列のうち「地面(またはその上に生えた植物)が汚染ブロック」な",
-                            "列 1 つあたり、胞子濃度へ加算する値(%)。既定 1.0(100 列が汚染で +100% = 上限)。",
-                            "葉の天蓋・原木・蔦・下草は貫通して地面を見るので、密林でも地面の汚染が正しく数えられる。",
-                            "バイオームがまだ書き換わっていないチャンクでも、汚染が進むほど胞子濃度が上がる。",
-                            "0 でこの成分を無効化(列の走査自体も省略される)。")
-                    .defineInRange("sporeConcentrationPerCorruptedBlockPercent", 1.0D, 0.0D, 10.0D);
-
-            sporeConcentrationCorruptedScanStride = b
-                    .comment("汚染ブロック成分の 256 列走査を、何ブロック間隔のグリッドで間引きサンプリングするか。",
-                            "既定 2(64 列だけ調べて 256 列全体へ外挿。負荷を約 1/4 に)。1 で全 256 列を厳密走査。",
-                            "大きいほど軽いが、まだらな汚染では推定がぶれる。")
-                    .defineInRange("sporeConcentrationCorruptedScanStride", 2, 1, 8);
-
-            sporeConcentrationCacheTtlTicks = b
-                    .comment("胞子濃度の計算結果を次元ごと・チャンクごとにキャッシュする時間(tick)。",
-                            "高頻度で参照されるため、小さくしすぎると重くなる。胞子濃度はゆっくりしか変化しないので",
-                            "長めで問題ない。既定 200(10 秒)。")
-                    .defineInRange("sporeConcentrationCacheTtlTicks", 200, 1, 12000);
-
-            // sporeInfectionConcentrationThreshold は effects.json(sporeInfection.concentrationThreshold)へ移行。
-
-            b.pop();
-
             b.comment("OvergrownVegetation — フェーズシステムの設定",
                     "フェーズ1 はワールド 3 日経過 かつ 実績 6 個で始まり、そこからは「ポイント」だけで進む",
                     "(直前のフェーズ開始時点からの増分。チャンク数による昇格は 2026-09-15 に廃止)。",
@@ -2632,14 +2540,9 @@ public final class OvergrownVegetationConfig {
                     .defineInRange("quakeEruptIntervalTicks", 3, 1, 200);
 
             quakeEruptHazardRadiusChunks = b
-                    .comment("胞子噴出中、噴出エフェクトの中心からこのチャンク半径以内(水平)にいる Mob を",
-                            "一定間隔で確定「胞子感染1」にし、同じ範囲のランダムな地表に汚染シダ(水中なら汚染水草)を",
-                            "湧かせる。既定 3(= 半径 48 ブロック)。0 でこのハザードを無効化。")
+                    .comment("胞子噴出中、噴出エフェクトの中心からこのチャンク半径以内(水平)のランダムな地表に",
+                            "汚染シダ(水中なら汚染水草)を湧かせる。既定 3(= 半径 48 ブロック)。0 でこのハザードを無効化。")
                     .defineInRange("quakeEruptHazardRadiusChunks", 3, 0, 16);
-
-            quakeEruptInfectionIntervalTicks = b
-                    .comment("噴出点周囲の Mob を確定感染させる判定の実行間隔(tick)。既定 40 = 2 秒。")
-                    .defineInRange("quakeEruptInfectionIntervalTicks", 40, 1, 1200);
 
             quakeEruptFernIntervalTicks = b
                     .comment("噴出点周囲にランダムな汚染シダを湧かせる判定の実行間隔(tick)。既定 80 = 4 秒。")

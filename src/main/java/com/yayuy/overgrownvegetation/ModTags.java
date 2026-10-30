@@ -154,17 +154,6 @@ public final class ModTags {
     public static final TagKey<Block> LEY_VEIN_REPLACEABLE =
             BlockTags.create(OvergrownVegetation.id("ley_vein_replaceable"));
 
-    /**
-     * 極相の地下の鉱石(フロエマイト・チラコイト)の<b>y 0 以上の版</b>が置き換えてよい石
-     * ({@code corruption/ClimaxOrePlacer}、2026-10-03)。苔石系が主。他の鉱石は入れない(潰すと資源が消える)。
-     */
-    public static final TagKey<Block> CLIMAX_ORE_REPLACEABLE =
-            BlockTags.create(OvergrownVegetation.id("climax_ore_replaceable"));
-
-    /** {@link #CLIMAX_ORE_REPLACEABLE} の<b>深層岩版</b>が置き換えてよい石(苔深層岩)。 */
-    public static final TagKey<Block> CLIMAX_DEEPSLATE_ORE_REPLACEABLE =
-            BlockTags.create(OvergrownVegetation.id("climax_deepslate_ore_replaceable"));
-
     public static final TagKey<Block> CORRUPTION_IMMUNE = BlockTags.create(OvergrownVegetation.id("corruption_immune"));
 
     /**

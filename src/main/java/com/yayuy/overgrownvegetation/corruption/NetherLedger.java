@@ -53,7 +53,6 @@ import java.util.List;
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class NetherLedger {
 
-    private static final int[][] SIDES = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
     // ---- 読み込まれているチャンクの広がり(仮決め) ----
     /** 這い出しの間隔。 */
@@ -151,7 +150,6 @@ public final class NetherLedger {
         drainLoaded(data);
         if (CorruptionSwitch.isOff()) {
             // /ov corruption false(2026-10-10 ユーザー指定): オーバーワールドの台帳と同じく、印も塗りも縁の広がりも止める(順番待ちは残る)。
-            data.stop();
             return;
         }
         tickCatchUp(level, data, table);
@@ -162,9 +160,6 @@ public final class NetherLedger {
         }
     }
 
-    // ------------------------------------------------------------------------------------------
-    // 台帳の広がり(留守中も進む)
-    // ------------------------------------------------------------------------------------------
 
     /**
      * 読み込まれたばかりのチャンクと、その周り 8 チャンクのうち、書き換え待ちのものを列へ。書き換えは周りまで読み込まれるのを
@@ -186,109 +181,6 @@ public final class NetherLedger {
         }
     }
 
-    /** オーバーワールドの台帳の広がりと同じ回の数え方(汚染の暦 ÷ 間隔)。 */
-    static int tickPeriods(ServerLevel level, NetherLedgerData data, SpreadTable table) {
-        PhaseData phase = PhaseData.get(level);
-        if (phase.getPhase() < 1 || phase.isFrozen()) {
-            data.stop();
-            return 0;
-        }
-        int interval = table.intervalTicks();
-        long current = LedgerSpreadMath.periodOf(phase.clock(level.getServer()), interval);
-        if (!data.started() || data.periodTicks() != interval) {
-            data.start(current, interval);
-            return 0;
-        }
-        if (current <= data.pendingPeriod() || FRONTIER_TASK.running()) {
-            return 0;
-        }
-        // 台帳の縁は台帳の写しから別スレッドで数え、次の tick の頭に当てはめる(オーバーワールドの LedgerSpread と同じ、2026-10-06、④)。
-        long period = data.pendingPeriod();
-        it.unimi.dsi.fastutil.longs.LongOpenHashSet snapshot = data.overgrownKeys().clone();
-        int[] marked = {0};
-        FRONTIER_TASK.start(level.getServer(), () -> frontier(snapshot), contacts -> {
-            if (!data.started() || data.pendingPeriod() != period) {
-                return; // 数えているあいだに止まった・やり直した
-            }
-            if (contacts.keySet().longStream().anyMatch(data::isOvergrown)) {
-                contacts.keySet().removeIf(data::isOvergrown); // 写してから台帳に入ったチャンクはもう縁ではない
-            }
-            // オーバーワールドと同じ回でも別の乱数にする(同じ座標の縁が同じ当たり方をしないよう)。
-            long seed = LedgerSpreadMath.periodSeed(level.getSeed() ^ 0x4E45544845524CL, period);
-            marked[0] = spreadWith(level, data, table, seed, contacts);
-            data.finishPeriod();
-        });
-        return marked[0];
-    }
-
-    /** ネザーの台帳の縁を数える仕事(別スレッド、2026-10-06)。 */
-    private static final com.yayuy.overgrownvegetation.perf.BackgroundTask<Long2IntOpenHashMap> FRONTIER_TASK =
-            new com.yayuy.overgrownvegetation.perf.BackgroundTask<>("台帳の縁(ネザー)");
-
-    /** 台帳の縁: 台帳に載っていないチャンク → 辺で接している台帳のチャンクの数。写しからも数えられる(別スレッドから呼ぶ)。 */
-    static Long2IntOpenHashMap frontier(it.unimi.dsi.fastutil.longs.LongOpenHashSet ledger) {
-        Long2IntOpenHashMap contacts = new Long2IntOpenHashMap();
-        ledger.forEach(key -> {
-            int x = ChunkPos.getX(key);
-            int z = ChunkPos.getZ(key);
-            for (int[] d : SIDES) {
-                long n = ChunkPos.asLong(x + d[0], z + d[1]);
-                if (!ledger.contains(n)) {
-                    contacts.addTo(n, 1);
-                }
-            }
-        });
-        return contacts;
-    }
-
-    /** 台帳の縁(過繁茂に辺で接しているチャンク)へ、接している面の数に応じた確率で印を付ける。付けた数を返す。 */
-    public static int spreadOnce(ServerLevel level, NetherLedgerData data, SpreadTable table, long seed) {
-        return spreadWith(level, data, table, seed, frontier(data.overgrownKeys()));
-    }
-
-    /** {@link #spreadOnce} の後半: 数えた縁 {@code contacts} に印を付ける。 */
-    private static int spreadWith(ServerLevel level, NetherLedgerData data, SpreadTable table, long seed,
-                                  Long2IntOpenHashMap contacts) {
-        if (contacts.isEmpty()) {
-            return 0;
-        }
-        int size = contacts.size();
-        long[] keys = new long[size];
-        int[] counts = new int[size];
-        boolean[] excluded = new boolean[size];
-        long[] guards = SporeDeviceData.ledgerGuards(level);
-        WorldBorder border = level.getWorldBorder();
-        boolean includeLoaded = table.includeLoadedChunks();
-        boolean unloadedAllowed = com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.unloadedSpread(level.getServer());
-        int i = 0;
-        for (var e : contacts.long2IntEntrySet()) {
-            long key = e.getLongKey();
-            int x = ChunkPos.getX(key);
-            int z = ChunkPos.getZ(key);
-            keys[i] = key;
-            counts[i] = e.getIntValue();
-            excluded[i] = !border.isWithinBounds(new ChunkPos(x, z))
-                    || SporeDeviceData.guards(guards, x, z)
-                    || (!includeLoaded && level.getChunkSource().getChunkNow(x, z) != null)
-                    // ワールドの設定「読み込まれていない範囲への侵食」(2026-10-10)。
-                    || LedgerSpread.unloadedBlocked(level, unloadedAllowed, x, z);
-            i++;
-        }
-        int[] chosen = LedgerSpreadMath.roll(counts, excluded, table.chanceByContacts(), RandomSource.create(seed));
-        List<ChunkPos> picked = new ArrayList<>(chosen.length);
-        for (int index : chosen) {
-            picked.add(new ChunkPos(keys[index]));
-        }
-        record(level, picked);
-        for (ChunkPos pos : picked) {
-            long key = pos.toLong();
-            data.addPending(key);
-            if (level.getChunkSource().getChunkNow(pos.x, pos.z) != null) {
-                CATCH_UP.add(key);
-            }
-        }
-        return picked.size();
-    }
 
     /** 印の付いたチャンクが読み込まれたら、バイオームを書き換えて床をまだらに汚染する(1 tick にチャンク 1 つまで)。 */
     private static void tickCatchUp(ServerLevel level, NetherLedgerData data, SpreadTable table) {

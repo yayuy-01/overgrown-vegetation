@@ -131,7 +131,6 @@ final class SporeFieldStore {
         floats(tag, "air", t.air);
         floats(tag, "low", t.low);
         floats(tag, "dep", t.dep);
-        floats(tag, "under", t.under);
         long[] sp = tag.getLongArray("sprout");
         if (sp.length == SporeField.TN) System.arraycopy(sp, 0, t.sprout, 0, SporeField.TN);
         byte[] cnt = tag.getByteArray("count");
@@ -166,7 +165,6 @@ final class SporeFieldStore {
         h = h * 31 + java.util.Arrays.hashCode(t.air);
         h = h * 31 + java.util.Arrays.hashCode(t.low);
         h = h * 31 + java.util.Arrays.hashCode(t.dep);
-        h = h * 31 + java.util.Arrays.hashCode(t.under);
         h = h * 31 + java.util.Arrays.hashCode(t.sprout);
         h = h * 31 + java.util.Arrays.hashCode(t.count);
         h = h * 31 + java.util.Arrays.hashCode(t.flags);
@@ -196,7 +194,6 @@ final class SporeFieldStore {
             tag.putIntArray("air", bits(t.air));
             tag.putIntArray("low", bits(t.low));
             tag.putIntArray("dep", bits(t.dep));
-            tag.putIntArray("under", bits(t.under));
             tag.putLongArray("sprout", t.sprout.clone());
             tag.putByteArray("count", t.count.clone());
             tag.putByteArray("flags", t.flags.clone());

@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * <ul>
  *     <li><b>別スレッドの計算</b>({@link BackgroundTask}): 計算はサーバーのスレッドの外で走り、答えはサーバースレッドで当てはめる</li>
  *     <li><b>台帳の写し</b>({@link PhaseData#snapshotLedger} の {@code clone}): 反復の順番が元と同じ —— 別スレッドで数えた
- *     台帳の縁・極相の判定が、サーバースレッドで数えたときと同じ答えになる前提</li>
+ *     台帳の縁が、サーバースレッドで数えたときと同じ答えになる前提</li>
  *     <li>汚染から逃げる Goal の「近くに繁茂系でないチャンクがあるか」({@link CorruptionProximity#hasOpenChunkWithin})</li>
  *     <li>水の広がりの近道({@link FluidSpreadShortcut}、10-06 夜)が省いたマスには本当に流れ込めない(検算)</li>
  * </ul>
@@ -75,7 +75,7 @@ public final class PerfGameTests {
         });
     }
 
-    /** 台帳の写し(clone)は反復の順番まで元と同じ。別スレッドで数えた縁・極相の判定が同じ答えになる前提。 */
+    /** 台帳の写し(clone)は反復の順番まで元と同じ。別スレッドで数えた縁が同じ答えになる前提。 */
     @GameTest(template = "gametest_empty7")
     public static void ledgerSnapshotKeepsIterationOrder(GameTestHelper helper) {
         Long2LongOpenHashMap ledger = new Long2LongOpenHashMap();
@@ -93,9 +93,6 @@ public final class PerfGameTests {
         expectTrue(helper, live.equals(fromCopy), "写しで数えた縁が元と違う");
         expectTrue(helper, order(live.keySet().iterator()).equals(order(fromCopy.keySet().iterator())),
                 "写しで数えた縁の並びが元と違う(印の付き方が変わる)");
-        PhaseData.ClimaxScan a = PhaseData.scanClimaxPromotions(ledger, 17, 1, 1_000L, 200_000L, 64, 8);
-        PhaseData.ClimaxScan b = PhaseData.scanClimaxPromotions(copy, 17, 1, 1_000L, 200_000L, 64, 8);
-        expectTrue(helper, a.found().equals(b.found()) && a.nextCursor() == b.nextCursor(), "写しで判定した極相が元と違う");
         helper.succeed();
     }
 

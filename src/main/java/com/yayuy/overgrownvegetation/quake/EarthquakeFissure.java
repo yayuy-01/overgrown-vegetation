@@ -518,15 +518,6 @@ final class EarthquakeFissure {
     }
 
     /**
-     * 噴出エフェクトの中心から水平半径 {@code quakeEruptHazardRadiusChunks} チャンク以内の Mob を、
-     * すべて確定で「胞子感染1」にする(プレイヤー・{@link BlightFernEntity}・{@link OvergrownNexusEntity}・
-     * 既に感染しきった進化型は除外)。範囲内に居続ける限り再付与で感染状態が保たれる。
-     */
-    void infectNearbyMobs() {
-        // 胞子感染の効果(effect/SporeInfectionEffects)は 2026-10-30 に parked/ へ。戻すときは parked の写しの中身へ
-    }
-
-    /**
      * 噴出エフェクトの中心の周囲、水平半径 {@code quakeEruptHazardRadiusChunks} チャンク以内の
      * ランダムな地表(水中なら海底)に汚染シダ / 汚染水草を湧かせる。過繁茂ブロックの上や
      * 塞がった場所は避け、範囲内の汚染シダが {@code quakeEruptFernMaxNearby} に達したら打ち止め。

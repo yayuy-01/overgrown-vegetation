@@ -27,7 +27,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * <p>書き換えるのは<b>周り 8 チャンクまで読み込まれているチャンクだけ</b>({@link #neighbourhoodLoaded}、2026-10-06)。
  * 読み込み範囲のいちばん外側のチャンクは、その外が読み込まれるまで待つ。
  * 途中で読み込まれなくなったら、書き換え待ちに残したまま手を離す(次に読み込まれたら最初の列からやり直す。
- * 汚染済みのマスは飛ばすので二重にはならない)。極相の印が付いたチャンクは {@code ClimaxTicker} が岩盤まで書き換えるので任せる。
+ * 汚染済みのマスは飛ばすので二重にはならない)。
  * 除去装置の範囲に入ったチャンク(印を付けた後に置かれた)は書き換えずに外す。
  */
 final class LedgerSpreadCatchUp {
@@ -93,7 +93,7 @@ final class LedgerSpreadCatchUp {
                 continue;
             }
             if (cursor == 0) {
-                if (PhaseData.get(level).isClimaxChunk(pos) || SporeDeviceData.guardsChunkFromLedger(level, pos.x, pos.z)) {
+                if (SporeDeviceData.guardsChunkFromLedger(level, pos.x, pos.z)) {
                     data.removePending(key);
                     currentKey = Long.MIN_VALUE;
                     continue;
@@ -132,7 +132,7 @@ final class LedgerSpreadCatchUp {
      * 自分と周り 8 チャンクが読み込み済み(FULL)か(2026-10-06)。地表は {@code UPDATE_ALL} で置くので、チャンクの縁の列は
      * 隣のチャンクのブロックへ近隣更新を出す。隣が読み込みの途中(または読み込み範囲のすぐ外)だと、その
      * {@code getBlockState} でサーバースレッドが隣の読み込み・生成を待って止まっていた(計測でサーバースレッドの半分、
-     * 1 tick 最大 1.2 秒。{@code /ov climax age} の後や飛んで移動したときに書き換え待ちが一斉に並ぶ)。
+     * 1 tick 最大 1.2 秒。睡眠の後や飛んで移動したときに書き換え待ちが一斉に並ぶ)。
      */
     static boolean neighbourhoodLoaded(ServerLevel level, int cx, int cz) {
         return LoadedChunks.neighbourhoodLoaded(level, cx, cz);

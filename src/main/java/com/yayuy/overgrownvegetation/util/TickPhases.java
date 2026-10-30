@@ -25,8 +25,6 @@ public final class TickPhases {
     public static final int SWAMP_FLOODER = 29;
     /** 降り積もりによる繁茂バイオーム化({@code DepositBiomeSweep}、もとは SporeBiomeSweep)。仮決め 2026-09-24。 */
     public static final int SPORE_BIOME_SWEEP = 41;
-    /** 極相への昇格判定({@code ClimaxTicker#promote})。仮決め 2026-09-24。 */
-    public static final int CLIMAX_PROMOTE = 71;
     /**
      * 過繁茂バイオームの外の侵攻種の湧き({@code OutsideInvaderSpawner})。同じ間隔の設定
      * ({@code overgrownSpawnIntervalTicks})を使う過繁茂バイオームの湧き({@code OvergrownBiomeSpawner}、位相 0)と

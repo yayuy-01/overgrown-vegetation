@@ -62,11 +62,11 @@ public final class OvergrownHuskGameTests {
         }
     }
 
-    /** {@link ClimaxDeepGameTests} と同じ列の続き。テストごとに 1 チャンクずつ。 */
+    /** 遠くの列(もとは極相の全層置換のテストの続き)。テストごとに 1 チャンクずつ。 */
     private static final int TEST_CHUNK_X = 30_100;
 
     /** かまどを覆うと、見た目はかまどのまま機能を失い、中のアイテムが残る。 */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 200, batch = "climaxDeep")
+    @GameTest(template = "gametest_empty7", timeoutTicks = 200, batch = "huskDeep")
     public static void machineBecomesHusk(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos pos = coveredSpot(level, 0);
@@ -117,7 +117,7 @@ public final class OvergrownHuskGameTests {
      * {@code getEntitiesOfClass} に<b>見えない</b>(エンティティの区画が「追跡中」にならないため)。
      * ドロップを数えるテストは、必ずプレイヤー(テスト場)の近くでやること。
      */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 200, batch = "climaxDeep")
+    @GameTest(template = "gametest_empty7", timeoutTicks = 200, batch = "huskDeep")
     public static void huskDropsContentsWhenBroken(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos pos = coveredSpotInArena(helper);
@@ -161,7 +161,7 @@ public final class OvergrownHuskGameTests {
      * 中身を持つブロックで同じことをすると<b>中のアイテムごと消える</b>。どの座標でも必ず
      * 「覆われたブロック」になること。
      */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 200, batch = "climaxDeep")
+    @GameTest(template = "gametest_empty7", timeoutTicks = 200, batch = "huskDeep")
     public static void machinesAreNeverLeftToChance(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ChunkPos chunk = new ChunkPos(TEST_CHUNK_X + 8, TEST_CHUNK_X);
@@ -204,7 +204,7 @@ public final class OvergrownHuskGameTests {
      * <b>先に空気へ戻して覆った記録を切らす</b>こと —— 残っていると「既に覆われていた」扱いになり、
      * 狙いどおり 1 本も生えない。
      */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 400, batch = "climaxDeep")
+    @GameTest(template = "gametest_empty7", timeoutTicks = 400, batch = "huskDeep")
     public static void coveredBlocksGrowPlants(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ChunkPos chunk = new ChunkPos(TEST_CHUNK_X + 16, TEST_CHUNK_X);
@@ -275,7 +275,7 @@ public final class OvergrownHuskGameTests {
      * <p>もう 1 つ大事なのが<b>古い記録を引きずらないこと</b>。プレイヤーが覆われた金床を壊して
      * 石を置いたら、その石は覆われていない扱いにならなければいけない。
      */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 200, batch = "climaxDeep")
+    @GameTest(template = "gametest_empty7", timeoutTicks = 200, batch = "huskDeep")
     public static void coverageRecordSurvivesAndExpires(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ChunkPos chunk = new ChunkPos(TEST_CHUNK_X + 12, TEST_CHUNK_X);
@@ -320,7 +320,7 @@ public final class OvergrownHuskGameTests {
      * <p>床は金床(立方体でないので抽選に掛からず<b>必ず</b>覆われる)。下はバリア(汚染できない)、
      * 上は空気なので、触手はこの 1 枚の床の中しか進めない。修正前は 5 マス前後で止まっていた。
      */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 200, batch = "climaxDeep")
+    @GameTest(template = "gametest_empty7", timeoutTicks = 200, batch = "huskDeep")
     public static void spreaderCrossesCoveredBlocks(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ChunkPos chunk = new ChunkPos(TEST_CHUNK_X + 16, TEST_CHUNK_X);
@@ -385,7 +385,7 @@ public final class OvergrownHuskGameTests {
      * 進めない。以前は 4 本とも起点を引くと(約 6%)その場で全滅していた。同じ床で 40 回回し、
      * 1 回も種だけで終わらないこと(修正前なら 40 回のどこかで止まる確率は約 92%)。
      */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 200, batch = "climaxDeep")
+    @GameTest(template = "gametest_empty7", timeoutTicks = 200, batch = "huskDeep")
     public static void coreRadiusZeroSpreaderNeverStopsAtSeed(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ChunkPos chunk = new ChunkPos(TEST_CHUNK_X + 20, TEST_CHUNK_X);
@@ -420,7 +420,7 @@ public final class OvergrownHuskGameTests {
     }
 
     /** 覆う/覆わないの抽選が、描画側と同じ「座標だけの決定的な関数」であること。 */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 100, batch = "climaxDeep")
+    @GameTest(template = "gametest_empty7", timeoutTicks = 100, batch = "huskDeep")
     public static void coverageIsDeterministicAndSane(GameTestHelper helper) {
         int covered = 0;
         for (int i = 0; i < 4096; i++) {

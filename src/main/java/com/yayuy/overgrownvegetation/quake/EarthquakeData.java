@@ -398,9 +398,6 @@ public final class EarthquakeData extends SavedData {
             if (er % Math.max(1, cfg.quakeEruptIntervalTicks.get()) == 0L) {
                 f.eruptSpores();
             }
-            if (er % Math.max(1, cfg.quakeEruptInfectionIntervalTicks.get()) == 0L) {
-                f.infectNearbyMobs();
-            }
             if (er % Math.max(1, cfg.quakeEruptFernIntervalTicks.get()) == 0L) {
                 f.spawnRandomFerns();
             }

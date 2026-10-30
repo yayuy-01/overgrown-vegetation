@@ -672,7 +672,7 @@ public final class CorruptionRegistry {
             // ただし<b>対応表に無い BlockEntity ブロック(= 他 MOD の機械)は別扱い</b>(2026-09-22)。
             // corruptBlockEntities は「チェストが中身ごと消えるのを防ぐ」ための設定だが、
             // 覆われたブロック(OvergrownHuskBlock)は<b>消さない</b> —— 見た目も中身も残して
-            // 機能だけ止めるので、専用の設定(climax.json の overgrownLayer.encaseBlockEntities)で切り替える。
+            // 機能だけ止めるので、専用の値(OvergrownLayerField#ENCASE。もとは climax.json)で切り替える。
             return false;
         }
         if (checkDevices && level instanceof ServerLevel serverLevel

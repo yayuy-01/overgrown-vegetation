@@ -384,11 +384,4 @@ public final class SporeSprouts {
     public static void onServerStopped(ServerStoppedEvent event) {
         DIMS.clear();
     }
-
-    /** 走っている芽の点の数(/ov perf spore)。 */
-    public static int activePoints() {
-        int n = 0;
-        for (Dim d : DIMS.values()) n += d.active.size();
-        return n;
-    }
 }

@@ -866,22 +866,17 @@ public final class DevBridge {
                 });
             }
             case "biomeconv" -> {
-                // そのブロックを含むチャンクのバイオームを本来の判定で書き換える。例: biomeconv 100 -200 / biomeconv 100 -200 climax。
-                // 無印 = 地表の汚染割合で過繁茂か(maybeConvert)、climax = 極相へ(forceClimax)。2026-10-23 湿地・結晶地帯の封印の確かめ
+                // そのブロックを含むチャンクのバイオームを本来の判定(地表の汚染割合で過繁茂か = maybeConvert)で書き換える。
+                // 例: biomeconv 100 -200。2026-10-23 湿地の封印の確かめ(極相の climax は 2026-10-30 に消した)
                 IntegratedServer server = mc.getSingleplayerServer();
                 if (mc.level == null || server == null) return "ワールドの中";
                 String[] b = arg.trim().split("\\s+");
                 var chunk = new net.minecraft.world.level.ChunkPos(Integer.parseInt(b[0]) >> 4, Integer.parseInt(b[1]) >> 4);
-                boolean climax = b.length > 2 && b[2].equals("climax");
                 var dimension = mc.level.dimension();
                 server.execute(() -> {
                     net.minecraft.server.level.ServerLevel level = server.getLevel(dimension);
                     if (level == null) return;
-                    if (climax) {
-                        com.yayuy.overgrownvegetation.corruption.OvergrownBiomeConverter.forceClimax(level, chunk);
-                    } else {
-                        com.yayuy.overgrownvegetation.corruption.OvergrownBiomeConverter.maybeConvert(level, chunk);
-                    }
+                    com.yayuy.overgrownvegetation.corruption.OvergrownBiomeConverter.maybeConvert(level, chunk);
                     log("BIOMECONV " + chunk + " → " + level.getBiome(chunk.getMiddleBlockPosition(64)).unwrapKey()
                             .map(k -> k.location().toString()).orElse("?"));
                 });

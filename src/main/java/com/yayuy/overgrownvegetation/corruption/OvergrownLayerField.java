@@ -14,8 +14,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * 「このマスは植物に覆われたか」を決める場(2026-09-22)。
  *
  * <h2>記録を持たない</h2>
- * <p>覆ったかどうかは<b>どこにも保存していない</b>。{@code climax.json} の
- * {@code overgrownLayer.chance}(既定 70%)の抽選を<b>座標のハッシュ</b>で行うので、
+ * <p>覆ったかどうかは<b>どこにも保存していない</b>。{@link #CHANCE}(もとは climax.json の
+ * {@code overgrownLayer.chance}、既定 70%)の抽選を<b>座標のハッシュ</b>で行うので、
  * サーバーとクライアントが何も同期せずに同じ答えを出す。セーブデータも増えない。
  *
  * <p>これを乱数にすると、サーバーだけが答えを知ることになり、

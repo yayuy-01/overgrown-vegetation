@@ -194,8 +194,6 @@ public final class PerfCommand {
         int frontier = LedgerSpread.frontier(snapshot).size();
         long tFrontier = System.nanoTime() - t0;
         t0 = System.nanoTime();
-        long tClimax = System.nanoTime() - t0;
-        t0 = System.nanoTime();
         long tIncome = System.nanoTime() - t0;
         return 1;
     }

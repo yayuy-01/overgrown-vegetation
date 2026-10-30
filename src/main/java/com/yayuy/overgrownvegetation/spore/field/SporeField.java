@@ -25,10 +25,10 @@ public final class SporeField {
     public static final class Params {
         /** 1 回の更新の間隔(tick)。 */
         public int stepTicks = 100;
-        /** 段階ごとの放出(1 升・1 日あたり、乾いた午後の山で): 繁茂・過繁茂・極相。 */
-        public double emitThriving = 0.5, emitOvergrown = 1.0, emitClimax = 2.0;
-        /** 発芽から繁茂・過繁茂・極相になるまでの日数(繁茂までは放出しない)。極相は今の規則の近似(F5 の 20 日 + 14 日)。 */
-        public double daysToThriving = 0.5, daysToOvergrown = 2.0, daysToClimax = 34.0;
+        /** 段階ごとの放出(1 升・1 日あたり、乾いた午後の山で): 繁茂・過繁茂(極相は 2026-10-30 に消した)。 */
+        public double emitThriving = 0.5, emitOvergrown = 1.0;
+        /** 発芽から繁茂・過繁茂になるまでの日数(繁茂までは放出しない)。 */
+        public double daysToThriving = 0.5, daysToOvergrown = 2.0;
         /** 放出の倍率: 雨の間・雷雨・夜。昼は午後(14 時)に 1 まで上がる。 */
         public double releaseRain = 0.2, releaseStorm = 1.0, releaseNight = 0.3;
         /** 風が胞子を巻き上げる分: 放出 × (1 − windLift + windLift × 強さ)(強さは 3 で頭打ち)。 */
@@ -58,8 +58,6 @@ public final class SporeField {
         public double eps = 1e-4;
         /** 強風・嵐の間の沈着と死滅の倍率(小さいほど長く浮く)。 */
         public double loftFactor = 0.3;
-        /** 胞子嚢(見積もり器の仮の点の発生源): 過繁茂以上の升に置く割合、1 回の破裂の量(過繁茂 1 升の放出の何日分か)、熟すまでの日数。 */
-        public double sacDensity = 0.01, sacAmount = 20, sacDaysMin = 3, sacDaysMax = 6;
         /** 林床の低い層: 低い層への放出(浮遊への放出とは別、同じ放出量に対する倍率)、拡散(1 日に隣 1 升へ。土地の倍率が掛かる)、沈着・死滅(1 日あたり)。 */
         public double groundEmit = 4, groundDiffusion = 30, groundDep = 3, groundDecay = 1;
         /** 嵐の上空の層: 浮遊胞子を持ち上げる速さ(1 日あたり)、塊にまとめる間隔(tick)、1 回にまとめる塊の上限、上空の速さの倍率。 */
@@ -100,12 +98,9 @@ public final class SporeField {
         final long[] sprout = new long[TN];
         /** 発芽した回数(萌芽体の数。上限 {@link Params#maxSprouts})。 */
         final byte[] count = new byte[TN];
-        /** 印(bit0 = 極相。ゲームでは台帳の極相 PhaseData#isClimaxChunk を写す)。 */
+        /** 印(bit1 = 読み込まれるまで発芽を待つ {@link #WAIT}。bit0 は 2026-10-30 まで極相の印で、今は読まない)。 */
         final byte[] flags = new byte[TN];
-        /** 地下の層(第 2 段では値だけ。地上からの染み込み・地下どうしの伝わりは区切り 2 以降)。 */
-        final float[] under = new float[TN];
         int corrupted;
-        boolean[] blocked; // 吸い込み口(除去装置)などで発芽しない升。null = なし
         float[] germ; // 土地の発芽しやすさ({@link Ground})。null = どこも 1
         float[] spread; // 土地の林床の広がりやすさ。null = どこも 1
         boolean[] wet; // 水辺(昼でも湿っている)
@@ -197,21 +192,7 @@ public final class SporeField {
         long k = key(tx, tz);
         Tile t = tiles.get(k);
         if (t == null && create) {
-            t = new Tile(tx, tz);
-            if (ground != null) {
-                t.germ = new float[TN];
-                t.spread = new float[TN];
-                t.wet = new boolean[TN];
-                t.airEmit = new float[TN];
-                for (int i = 0; i < TN; i++) {
-                    int x = (tx << TB) + (i & (TS - 1)), z = (tz << TB) + (i >> TB);
-                    t.germ[i] = ground.germFactor(x, z);
-                    t.spread[i] = (float) Math.min(MAX_SPREAD, ground.spreadFactor(x, z));
-                    t.wet[i] = ground.wet(x, z);
-                    t.airEmit[i] = ground.airEmitFactor(x, z);
-                    if (t.germ[i] == 0) t.never++;
-                }
-            }
+            t = newTile(tx, tz);
             tiles.put(k, t);
         }
         return t;
@@ -291,20 +272,6 @@ public final class SporeField {
         if (t != null) t.dep[idx(cx, cz)] *= (float) (1.0D - share);
     }
 
-    /** 発芽しない升(除去装置の範囲など)。 */
-    public void block(int cx, int cz) {
-        Tile t = tile(cx, cz, true);
-        if (t.blocked == null) t.blocked = new boolean[TN];
-        t.blocked[idx(cx, cz)] = true;
-    }
-
-    /** 極相の印を付ける(放出が {@link Params#emitClimax} になる)。汚染されていなければ今の時刻で汚染済みにする。 */
-    public void setClimax(int cx, int cz, long now) {
-        if (!isCorrupted(cx, cz)) setCorrupted(cx, cz, now);
-        Tile t = tile(cx, cz, true);
-        t.flags[idx(cx, cz)] |= 1;
-    }
-
     /** 汚染を取り消す(ゲームが発芽を受け取らなかった升・焼けて台帳から外れた升)。降り積もりも捨てる。 */
     public void unsprout(int cx, int cz) {
         Tile t = tile(cx, cz, false);
@@ -370,12 +337,6 @@ public final class SporeField {
         int i = idx(cx, cz);
         if (t.count[i] > 0) t.count[i]--;
     }
-
-    /** 萌芽体の数(1 チャンクの発芽の回数)。 */
-    public int sproutCountAt(int cx, int cz) {
-        return sproutCount(cx, cz);
-    }
-
     /** 林床の値(/ov の表示)。 */
     public double low(int cx, int cz) {
         Tile t = tile(cx, cz, false);
@@ -413,12 +374,6 @@ public final class SporeField {
         }
         return t;
     }
-
-    /** 汚染された升を全部たどる(cx, cz, 発芽した時刻)。 */
-    public interface CorruptedVisitor {
-        void visit(int cx, int cz, long sprout);
-    }
-
     /**
      * 地割れの圧の前線(2026-10-24 追記 19): 中心から全方位へ速さ speed(チャンク/日)で広がる輪。輪が通った升の浮遊へ
      * strength / 距離^falloff を 1 回だけ配る(風を無視)。配る量が minAir を割る半径で止まる。前線の円の中は嵐の沈着になる。
@@ -580,22 +535,8 @@ public final class SporeField {
                 if ((tl.flags[i] & WAIT) != 0) v.accept(chunkKey((tl.tx << TB) + (i & (TS - 1)), (tl.tz << TB) + (i >> TB)));
     }
 
-    public void forEachCorrupted(CorruptedVisitor v) {
-        for (Tile tl : tiles.values()) {
-            if (tl.corrupted == 0) continue;
-            for (int i = 0; i < TN; i++) {
-                if (tl.sprout[i] != NOT) v.visit((tl.tx << TB) + (i & (TS - 1)), (tl.tz << TB) + (i >> TB), tl.sprout[i]);
-            }
-        }
-    }
-
     public int tileCount() {
         return tiles.size();
-    }
-
-    /** 1 升あたりのおおよそのメモリ(バイト): 浮遊 2・低い層 2・降り積もり 1 の float、発芽の時刻 long、回数 byte、土地 2 float + boolean。 */
-    public static int bytesPerCell(boolean withGround) {
-        return 7 * 4 + 2 * 2 + 8 + 1 + (withGround ? 4 + 4 + 1 : 0);
     }
 
     /**
@@ -736,9 +677,7 @@ public final class SporeField {
                 long sp = tl.sprout[i];
                 if (sp != NOT) {
                     double age = (t - sp) / (double) PrevailingWind.DAY;
-                    double e = (tl.flags[i] & 1) != 0 ? p.emitClimax
-                            : age < p.daysToThriving ? 0 : age < p.daysToOvergrown ? p.emitThriving
-                            : age < p.daysToClimax ? p.emitOvergrown : p.emitClimax;
+                    double e = age < p.daysToThriving ? 0 : age < p.daysToOvergrown ? p.emitThriving : p.emitOvergrown;
                     if (p.sproutEmitBonus > 0) e *= 1 + p.sproutEmitBonus * tl.count[i];
                     if (doAir) a += e * release * dtAir * (tl.airEmit == null ? 1f : tl.airEmit[i]);
                     if (lowHere) lo += e * releaseLow * dtLow * p.groundEmit;
@@ -759,7 +698,6 @@ public final class SporeField {
                     if ((tl.flags[i] & WAIT) != 0 && dd * g < p.germThreshold) tl.flags[i] &= ~WAIT;
                     if (g > 0 && (tl.flags[i] & WAIT) == 0 && dd * g >= need && (first || t - sp >= secondGap)
                             && (moist || (tl.wet != null && tl.wet[i]))
-                            && (tl.blocked == null || !tl.blocked[i])
                             && PrevailingWind.unit(PrevailingWind.hash(seed ^ t, ((long) (bx + (i & 31)) << 32) ^ (bz + (i >> TB)))) < germP) {
                         int cx = bx + (i & (TS - 1)), cz = bz + (i >> TB);
                         if (first) {
@@ -835,7 +773,7 @@ public final class SporeField {
                 System.arraycopy(tl.inLowNext, 0, tl.inLowF, 0, TN);
                 java.util.Arrays.fill(tl.inLowNext, 0f);
             }
-            if (tl.corrupted == 0 && tl.blocked == null && tl.lifted == 0 && isEmpty(tl, eps)) {
+            if (tl.corrupted == 0 && tl.lifted == 0 && isEmpty(tl, eps)) {
                 if (empty == null) empty = new ArrayList<>();
                 empty.add(en.getKey());
             }
@@ -997,24 +935,5 @@ public final class SporeField {
                 if ((dx != 0 || dz != 0) && isCorrupted(cx + dx, cz + dz)) return false;
             }
         return true;
-    }
-
-    /** 全体の浮遊胞子の量(保存の点検用)。 */
-    public double totalAir() {
-        double s = 0;
-        for (Tile tl : tiles.values()) for (float f : tl.air) s += f;
-        return s;
-    }
-
-    /** 持っている升の範囲 {minCx, minCz, maxCx, maxCz}。 */
-    public int[] bounds() {
-        int[] b = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE};
-        for (Tile tl : tiles.values()) {
-            b[0] = Math.min(b[0], tl.tx << TB);
-            b[1] = Math.min(b[1], tl.tz << TB);
-            b[2] = Math.max(b[2], (tl.tx << TB) + TS - 1);
-            b[3] = Math.max(b[3], (tl.tz << TB) + TS - 1);
-        }
-        return b;
     }
 }

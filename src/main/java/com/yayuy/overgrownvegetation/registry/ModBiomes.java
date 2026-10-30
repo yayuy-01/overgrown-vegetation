@@ -41,7 +41,7 @@ public final class ModBiomes {
     /**
      * 焼けた荒地(順 2 の着手順 9、2026-10-08)。{@code worldgen/biome/burnt_wasteland.json}。火炎放射器で汚染の地面が半分を下回ったチャンクを
      * これに塗り、3 日で世界生成のときのバイオームへ戻す({@code purify/BurntLand})。繁茂系ではない(どの集合にも入れない)ので、
-     * 繁茂系を見る湧き・胞子濃度・極相の拾い直しからは外れる。
+     * 繁茂系を見る湧き・胞子濃度からは外れる。
      */
     public static final ResourceKey<Biome> BURNT_WASTELAND = key("burnt_wasteland");
 
@@ -72,43 +72,21 @@ public final class ModBiomes {
     /** 繁茂した菌湿地帯の川。 */
     public static final ResourceKey<Biome> OVERGROWTH_FUNGAL_SWAMP_RIVER = OvergrowthVariant.FUNGAL_SWAMP.overgrowthRiver();
 
-    /** 陸の極相バイオーム(密林)。{@code worldgen/biome/engulfed.json}。 */
-    public static final ResourceKey<Biome> ENGULFED = OvergrowthVariant.JUNGLE.climax();
-    /** 川の極相バイオーム(密林)。 */
-    public static final ResourceKey<Biome> ENGULFED_RIVER = OvergrowthVariant.JUNGLE.climaxRiver();
-    /** 海の極相バイオーム(環境を問わず統一)。 */
-    public static final ResourceKey<Biome> ENGULFED_OCEAN = key("engulfed_ocean");
     /**
      * 過繫茂したエンド(2026-10-02)。森がエンドに着くと本島をまるごとこれにする({@code corruption/EndOvergrowth})。
-     * 段階は 1 つだけ(繁茂・極相は無い)。湧く Mob は後で作る(今はバニラのエンドと同じエンダーマンだけ)。
+     * 段階は 1 つだけ(繁茂は無い)。湧く Mob は後で作る(今はバニラのエンドと同じエンダーマンだけ)。
      */
     public static final ResourceKey<Biome> OVERGROWN_END = key("overgrown_end");
-    /** 極相の湿地。 */
-    public static final ResourceKey<Biome> ENGULFED_SWAMP = OvergrowthVariant.SWAMP.climax();
-    /** 極相の湿地の川。 */
-    public static final ResourceKey<Biome> ENGULFED_SWAMP_RIVER = OvergrowthVariant.SWAMP.climaxRiver();
-    /** 極相の菌湿地帯。 */
-    public static final ResourceKey<Biome> ENGULFED_FUNGAL_SWAMP = OvergrowthVariant.FUNGAL_SWAMP.climax();
-    /** 極相の菌湿地帯の川。 */
-    public static final ResourceKey<Biome> ENGULFED_FUNGAL_SWAMP_RIVER = OvergrowthVariant.FUNGAL_SWAMP.climaxRiver();
-    /**
-     * 極相の<b>結晶地帯</b>(順 1、2026-10-03)。密林の地域の一部が極相になるとこれになる(陸だけ。川・海は普通の極相)。
-     * 地脈に沿ってエネルギー結晶が突き出し、地下にチラコイトができる。密林の環境に属する
-     * ({@link OvergrowthVariant#CRYSTAL_CLIMAX})。
-     */
-    public static final ResourceKey<Biome> ENGULFED_CRYSTAL = OvergrowthVariant.CRYSTAL_CLIMAX;
 
-    /** 全繁茂系バイオーム(オーバーワールド 22 種 = 3 環境 × 3 段階 × (陸 + 川) + 海 3 段階 + 結晶地帯、ネザー 10 種、エンド 1 種)。 */
+    /** 全繁茂系バイオーム(オーバーワールド 14 種 = 3 環境 × 2 段階 × (陸 + 川) + 海 2 段階。極相は 2026-10-30 に消した、ネザー 10 種、エンド 1 種)。 */
     public static final List<ResourceKey<Biome>> ALL = List.of(
-            OVERGROWN, OVERGROWTH, ENGULFED,
-            OVERGROWN_RIVER, OVERGROWTH_RIVER, ENGULFED_RIVER,
-            OVERGROWN_OCEAN, OVERGROWTH_OCEAN, ENGULFED_OCEAN,
-            OVERGROWN_SWAMP, OVERGROWTH_SWAMP, ENGULFED_SWAMP,
-            OVERGROWN_SWAMP_RIVER, OVERGROWTH_SWAMP_RIVER, ENGULFED_SWAMP_RIVER,
-            OVERGROWN_FUNGAL_SWAMP, OVERGROWTH_FUNGAL_SWAMP, ENGULFED_FUNGAL_SWAMP,
-            OVERGROWN_FUNGAL_SWAMP_RIVER, OVERGROWTH_FUNGAL_SWAMP_RIVER, ENGULFED_FUNGAL_SWAMP_RIVER,
-            // 結晶地帯(2026-10-03): 極相だけ。
-            ENGULFED_CRYSTAL,
+            OVERGROWN, OVERGROWTH,
+            OVERGROWN_RIVER, OVERGROWTH_RIVER,
+            OVERGROWN_OCEAN, OVERGROWTH_OCEAN,
+            OVERGROWN_SWAMP, OVERGROWTH_SWAMP,
+            OVERGROWN_SWAMP_RIVER, OVERGROWTH_SWAMP_RIVER,
+            OVERGROWN_FUNGAL_SWAMP, OVERGROWTH_FUNGAL_SWAMP,
+            OVERGROWN_FUNGAL_SWAMP_RIVER, OVERGROWTH_FUNGAL_SWAMP_RIVER,
             // ネザー(2026-10-02): 5 種 × 繁茂・過繁茂。{@link NetherOvergrowthVariant}
             NetherOvergrowthVariant.WASTES.overgrown(), NetherOvergrowthVariant.WASTES.overgrowth(),
             NetherOvergrowthVariant.CRIMSON.overgrown(), NetherOvergrowthVariant.CRIMSON.overgrowth(),
@@ -118,36 +96,15 @@ public final class ModBiomes {
             // エンド(2026-10-02): 過繁茂だけ。
             OVERGROWN_END);
 
-    /**
-     * 「過繁茂<b>以上</b>」段階のキー —— 過繁茂 7 種 <b>と極相 7 種</b>(2026-09-22)。
-     *
-     * <p>極相をここに含めるのは意図的。{@link #isFullyOvergrown} は
-     * 「もう繁茂段階へ戻す必要がない / 胞子の発生源として数える / 昇格の走査は要らない」の意味で
-     * 使われているので、極相を外すと
-     * {@link com.yayuy.overgrownvegetation.corruption.OvergrownBiomeConverter#maybeConvert} が
-     * <b>極相チャンクを過繁茂へ引き戻す</b>。
-     *
-     * <p>「極相だけ」を見たいところ(通常 Mob を湧かせない判定など)は {@link #isClimax} を使う。
-     */
+    /** 「過繁茂」段階のキー(陸・川・海、全環境とネザー・エンド)。 */
     private static final Set<ResourceKey<Biome>> FULLY_OVERGROWN = Set.of(
             OVERGROWN, OVERGROWN_RIVER, OVERGROWN_OCEAN,
             OVERGROWN_SWAMP, OVERGROWN_SWAMP_RIVER,
             OVERGROWN_FUNGAL_SWAMP, OVERGROWN_FUNGAL_SWAMP_RIVER,
-            ENGULFED, ENGULFED_RIVER, ENGULFED_OCEAN,
-            ENGULFED_SWAMP, ENGULFED_SWAMP_RIVER,
-            ENGULFED_FUNGAL_SWAMP, ENGULFED_FUNGAL_SWAMP_RIVER,
-            ENGULFED_CRYSTAL,
             NetherOvergrowthVariant.WASTES.overgrown(), NetherOvergrowthVariant.CRIMSON.overgrown(),
             NetherOvergrowthVariant.WARPED.overgrown(), NetherOvergrowthVariant.SOUL_VALLEY.overgrown(),
             NetherOvergrowthVariant.BASALT.overgrown(),
             OVERGROWN_END);
-
-    /** 「極相」段階のキーだけ(陸 3 環境 + 川 3 環境 + 海 + 結晶地帯)。 */
-    private static final Set<ResourceKey<Biome>> CLIMAX_STAGE = Set.of(
-            ENGULFED, ENGULFED_RIVER, ENGULFED_OCEAN,
-            ENGULFED_SWAMP, ENGULFED_SWAMP_RIVER,
-            ENGULFED_FUNGAL_SWAMP, ENGULFED_FUNGAL_SWAMP_RIVER,
-            ENGULFED_CRYSTAL);
 
     /** 「繁茂」段階のキー。 */
     private static final Set<ResourceKey<Biome>> OVERGROWTH_STAGE = Set.of(
@@ -158,11 +115,11 @@ public final class ModBiomes {
             NetherOvergrowthVariant.WARPED.overgrowth(), NetherOvergrowthVariant.SOUL_VALLEY.overgrowth(),
             NetherOvergrowthVariant.BASALT.overgrowth());
 
-    /** 川側のキー(3 環境 × 3 段階)。 */
+    /** 川側のキー(3 環境 × 2 段階)。 */
     private static final Set<ResourceKey<Biome>> RIVER = Set.of(
-            OVERGROWN_RIVER, OVERGROWTH_RIVER, ENGULFED_RIVER,
-            OVERGROWN_SWAMP_RIVER, OVERGROWTH_SWAMP_RIVER, ENGULFED_SWAMP_RIVER,
-            OVERGROWN_FUNGAL_SWAMP_RIVER, OVERGROWTH_FUNGAL_SWAMP_RIVER, ENGULFED_FUNGAL_SWAMP_RIVER);
+            OVERGROWN_RIVER, OVERGROWTH_RIVER,
+            OVERGROWN_SWAMP_RIVER, OVERGROWTH_SWAMP_RIVER,
+            OVERGROWN_FUNGAL_SWAMP_RIVER, OVERGROWTH_FUNGAL_SWAMP_RIVER);
 
     private static final Set<ResourceKey<Biome>> ALL_SET = Set.copyOf(ALL);
 
@@ -195,7 +152,7 @@ public final class ModBiomes {
         return key != null && ALL_SET.contains(key);
     }
 
-    /** 「過繁茂<b>以上</b>」(過繁茂 or 極相、陸 or 海 or 川、全環境)のバイオームか。繁茂段階は含まない。極相だけを見たいときは {@link #isClimax}。 */
+    /** 「過繁茂」(陸 or 海 or 川、全環境)のバイオームか。繁茂段階は含まない。 */
     public static boolean isFullyOvergrown(Holder<Biome> biome) {
         ResourceKey<Biome> key = keyOf(biome);
         return key != null && FULLY_OVERGROWN.contains(key);
@@ -206,27 +163,12 @@ public final class ModBiomes {
         return ALL_SET.contains(key);
     }
 
-    /** {@link #isFullyOvergrown(Holder)} の {@link ResourceKey} 版(極相も true)。 */
+    /** {@link #isFullyOvergrown(Holder)} の {@link ResourceKey} 版。 */
     public static boolean isFullyOvergrownKey(ResourceKey<Biome> key) {
         return FULLY_OVERGROWN.contains(key);
     }
 
-    /**
-     * 「極相」段階(陸 or 海 or 川、全環境)のバイオームか。過繁茂・繁茂段階は含まない。
-     *
-     * <p>{@link #isFullyOvergrown} は極相も {@code true} を返す(「過繁茂以上」の意味)ので、
-     * <b>極相だけを別扱いしたいところは必ずこちらを使う</b>。いまのところ:
-     * 通常 Mob を湧かせない判定、浸食度の増加、器官の生成。
-     */
-    public static boolean isClimax(Holder<Biome> biome) {
-        ResourceKey<Biome> key = keyOf(biome);
-        return key != null && CLIMAX_STAGE.contains(key);
-    }
 
-    /** {@link #isClimax(Holder)} の {@link ResourceKey} 版。 */
-    public static boolean isClimaxKey(ResourceKey<Biome> key) {
-        return CLIMAX_STAGE.contains(key);
-    }
     /** 「繁茂」段階(陸 or 海 or 川)のバイオームか。過繁茂段階は含まない。 */
     public static boolean isOvergrowthStage(Holder<Biome> biome) {
         ResourceKey<Biome> key = keyOf(biome);
@@ -235,7 +177,7 @@ public final class ModBiomes {
 
     /** 「海」側の繁茂系バイオーム(過繁茂した海 or 繁茂した海)か。 */
     public static boolean isOvergrownOcean(Holder<Biome> biome) {
-        return biome.is(OVERGROWN_OCEAN) || biome.is(OVERGROWTH_OCEAN) || biome.is(ENGULFED_OCEAN);
+        return biome.is(OVERGROWN_OCEAN) || biome.is(OVERGROWTH_OCEAN);
     }
 
     /** 「川」側の繁茂系バイオーム(全環境の 過繁茂した川 / 繁茂した川)か。 */

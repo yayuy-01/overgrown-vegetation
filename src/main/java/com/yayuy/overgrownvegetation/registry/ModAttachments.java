@@ -8,8 +8,6 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
 
-import com.yayuy.overgrownvegetation.spore.SporeExposure;
-
 /**
  * エンティティに付随させる一時データ({@link net.neoforged.neoforge.attachment.IAttachmentHolder}経由)。
  */
@@ -19,18 +17,8 @@ public final class ModAttachments {
             DeferredRegister.create(NeoForgeRegistries.Keys.ATTACHMENT_TYPES, OvergrownVegetation.MODID);
 
     /**
-     * 胞子への曝露カウンタ(胞子濃度帯への連続滞在 tick / 過繫茂バイオームへの連続滞在 tick など)。
-     * {@link com.yayuy.overgrownvegetation.effect.SporeInfectionTracker} が「胞子感染」の
-     * 付与判定にのみ使う一時カウンタで、ログアウトやワールド再読み込みをまたいで保持する必要が
-     * 無いため serialize() しない(セーブされず、再ログイン後は 0 から数え直しになる)。
-     */
-    public static final DeferredHolder<AttachmentType<?>, AttachmentType<SporeExposure>> SPORE_EXPOSURE =
-            ATTACHMENT_TYPES.register("spore_exposure",
-                    () -> AttachmentType.builder(SporeExposure::new).build());
-
-    /**
      * 水への連続滞在 tick 数。{@link com.yayuy.overgrownvegetation.effect.WaterRotTracker} が
-     * 「水ぐされ」の発症までの 30 秒を数えるためだけに使う。{@link #SPORE_EXPOSURE} と同じく
+     * 「水ぐされ」の発症までの 30 秒を数えるためだけに使う。
      * ログアウトをまたいで保つ必要が無いので serialize() しない(再読み込み後は 0 から数え直し)。
      */
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<Integer>> WATER_SOAK =
@@ -114,7 +102,7 @@ public final class ModAttachments {
      * 0 になった瞬間にバニラの「空腹」を付ける。
      *
      * <p>6 分という長さはログアウトやワールド再読み込みをまたぐのが普通なので<b>セーブする</b>
-     * ({@link #SPORE_EXPOSURE} などの一時カウンタと違う点)。ただし {@code copyOnDeath} はしない ——
+     * ({@link #WATER_SOAK} などの一時カウンタと違う点)。ただし {@code copyOnDeath} はしない ——
      * 死ねば効果も予約も帳消し、というのが自然だし、この果実で死んだ直後の復活を罰にしないため。
      */
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<Integer>> DELAYED_HUNGER =

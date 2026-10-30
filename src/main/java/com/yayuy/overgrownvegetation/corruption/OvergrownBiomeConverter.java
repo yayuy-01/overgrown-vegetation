@@ -229,71 +229,8 @@ public final class OvergrownBiomeConverter {
         if (thresholdReached) {
             convertTo(level, chunk, targetKey(level, chunkPos, terrain, OvergrowthVariant.Stage.OVERGROWN));
         }
+
     }
-
-    // ------------------------------------------------------------------------------------------------------
-    // 焼けた荒地(順 2 の着手順 9、2026-10-08。purify/BurntLand から呼ぶ)
-    // ------------------------------------------------------------------------------------------------------
-
-    /**
-     * 焼けた荒地にしてよいか: 陸のチャンクで、地面の汚染が森がチャンクを取るときと同じ物差しを下回ったか。
-     * 列の数え方は {@link #maybeConvert} と同じ(流体を除いた最上部が {@code #corrupted} の列を数え、陸では未汚染の水底を分母から除く。
-     * 残る列が {@link #MIN_LAND_COLUMNS} 未満なら全列で割る)、閾値も同じ {@code overgrownBiomeThreshold}。海・川のチャンクは偽。
-     */
-    public static boolean burnable(ServerLevel level, LevelChunk chunk) {
-        ChunkPos chunkPos = chunk.getPos();
-        Holder<Biome> currentBiome = level.getBiome(chunkPos.getMiddleBlockPosition(level.getMinBuildHeight()));
-        if (classifyTerrain(currentBiome) != Terrain.LAND) {
-            return false;
-        }
-        double threshold = OvergrownVegetationConfig.COMMON.overgrownBiomeThreshold.get();
-        int corrupted = 0;
-        int counted = 0;
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        for (int x = 0; x < 16; x++) {
-            for (int z = 0; z < 16; z++) {
-                int surfaceY = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR, x, z);
-                cursor.set(chunkPos.getMinBlockX() + x, surfaceY, chunkPos.getMinBlockZ() + z);
-                if (chunk.getBlockState(cursor).is(ModTags.CORRUPTED)) {
-                    corrupted++;
-                    counted++;
-                } else {
-                    cursor.setY(surfaceY + 1);
-                    if (!chunk.getBlockState(cursor).getFluidState().is(net.minecraft.tags.FluidTags.WATER)) {
-                        counted++;
-                    }
-                }
-            }
-        }
-        int required = counted >= MIN_LAND_COLUMNS
-                ? (int) Math.ceil(threshold * counted)
-                : (int) Math.ceil(threshold * COLUMNS);
-        return corrupted < required;
-    }
-
-    /**
-     * チャンクの全高を焼けた荒地のバイオームに塗り、クライアントへ送る(縁のなだらか化はしない = チャンクの辺でまっすぐ切れる)。
-     * 読み込まれているチャンクにだけ呼ぶ。
-     */
-    public static void paintBurnt(ServerLevel level, LevelChunk chunk) {
-        Holder<Biome> burnt = level.registryAccess().registryOrThrow(Registries.BIOME).getHolderOrThrow(ModBiomes.BURNT_WASTELAND);
-        chunk.fillBiomesFromNoise((qx, qy, qz, sampler) -> burnt, level.getChunkSource().randomState().sampler());
-        chunk.setUnsaved(true);
-        finishResend(level, List.<ChunkAccess>of(chunk));
-    }
-
-    /**
-     * チャンクの全高を世界生成のときのバイオームへ戻し、クライアントへ送る。元のバイオームは記録していない ——
-     * 世界の生成器(バイオームの源)に同じ座標を聞けば決定的に同じものが返る(ワールド生成と同じ経路。洞窟のバイオームも戻る)。
-     * 読み込まれているチャンクにだけ呼ぶ。
-     */
-    public static void restoreOriginal(ServerLevel level, LevelChunk chunk) {
-        chunk.fillBiomesFromNoise(level.getChunkSource().getGenerator().getBiomeSource(),
-                level.getChunkSource().randomState().sampler());
-        chunk.setUnsaved(true);
-        finishResend(level, List.<ChunkAccess>of(chunk));
-    }
-
     /** ネザーのチャンクの閾値判定を、同じチャンクで何度も繰り返さない間隔(仮決め)。 */
     private static final long NETHER_RESCAN_TICKS = 100L;
     /** ネザーのチャンク → 最後に閾値を判定したゲーム時刻。 */
@@ -380,15 +317,9 @@ public final class OvergrownBiomeConverter {
             return switch (stage) {
                 case OVERGROWTH -> ModBiomes.OVERGROWTH_OCEAN;
                 case OVERGROWN -> ModBiomes.OVERGROWN_OCEAN;
-                case CLIMAX -> ModBiomes.ENGULFED_OCEAN;
             };
         }
         OvergrowthVariant variant = OvergrowthRegionMap.variantAt(level, chunkPos);
-        if (stage == OvergrowthVariant.Stage.CLIMAX && terrain == Terrain.LAND
-                && variant == OvergrowthVariant.JUNGLE && OvergrowthRegionMap.isCrystalRegion(level, chunkPos)) {
-            // 結晶地帯(順 1、2026-10-03)。密林の地域の一部が、極相になったときだけこれになる(陸だけ)。
-            return ModBiomes.ENGULFED_CRYSTAL;
-        }
         return variant.key(terrain == Terrain.RIVER, stage);
     }
 
@@ -452,8 +383,8 @@ public final class OvergrownBiomeConverter {
             if (cell == null || !(cell.dep() >= half || cell.stage() == 1)) {
                 return;
             }
-        } else if (SporeConcentration.lastingPercentAt(level, chunkPos) < 100.0D - 1.0e-6D) {
-            // 上空のペディキュラがいる間だけの 100% では繁茂化しない(SporeConcentration#lastingPercentAt)。
+        } else {
+            // 場が止まっている(spore_field.json の enabled=false・場の無い次元)間は繁茂にしない(2026-10-30)
             return;
         }
 
@@ -478,33 +409,6 @@ public final class OvergrownBiomeConverter {
             return;
         }
         ResourceKey<Biome> target = targetKey(level, chunkPos, classifyTerrain(currentBiome), OvergrowthVariant.Stage.OVERGROWN);
-        flowConvert(level, chunkPos, target, null);
-        recordOvergrownChunk(level, chunkPos, target);
-    }
-
-    /**
-     * 指定チャンクのバイオームを「極相」段階({@code engulfed} 系)へ書き換える。
-     * 昇格の可否は判定しない —— <b>呼ぶ側({@code ClimaxTicker})が台帳で判定済み</b>のものだけを渡すこと。
-     *
-     * <p><b>読み込まれているチャンクにだけ呼ぶこと。</b> {@link ServerLevel#getBiome} は
-     * 読み込まれていなければチャンクを読み込んでしまうので、遠くのチャンクにこれを呼ぶと
-     * 「プレイヤーが居なくても進むが、世界は触らない」という極相化の前提が崩れる
-     * (読み込んでいないチャンクは台帳にだけ印を付け、次に読み込まれたときにここへ来る)。
-     *
-     * <p>既に極相なら何もしない。{@link OvergrownVegetationConfig.Common#convertToOvergrownBiome}
-     * 設定には従わない({@link #forceOvergrown} と同じ扱い)。
-     */
-    public static void forceClimax(ServerLevel level, ChunkPos chunkPos) {
-        if (CorruptionSwitch.isOff()) {
-            return; // /ov corruption false(2026-10-10 ユーザー指定): バイオームも書き換えない
-        }
-        BlockPos samplePos = chunkPos.getMiddleBlockPosition(level.getMinBuildHeight());
-        Holder<Biome> currentBiome = level.getBiome(samplePos);
-        if (ModBiomes.isClimax(currentBiome)) {
-            return;
-        }
-        ResourceKey<Biome> target =
-                targetKey(level, chunkPos, classifyTerrain(currentBiome), OvergrowthVariant.Stage.CLIMAX);
         flowConvert(level, chunkPos, target, null);
         recordOvergrownChunk(level, chunkPos, target);
     }
@@ -575,21 +479,17 @@ public final class OvergrownBiomeConverter {
      * 進行の目安として許容する(既定値 8 では起こらない)。
      *
      * <p><b>オーバーワールド以外の次元は台帳へ書かない</b>(2026-10-02)。台帳のキーはチャンクの座標だけなので、
-     * ネザーの過繁茂チャンクを書くと同じ座標のオーバーワールドのチャンクとして数えられ、{@link ClimaxTicker} が
-     * バイオームを確かめ直さずにオーバーワールドのその場所を極相化・全層置換してしまう。面積とポイントは
+     * ネザーの過繁茂チャンクを書くと同じ座標のオーバーワールドのチャンクとして数えられてしまう。面積とポイントは
      * 次元をまたいで共通(フェーズはワールド単位)なので、{@link PhaseData#addOvergrownChunks} で今までどおり数える。
      */
     private static void recordOvergrownChunk(ServerLevel level, ChunkPos chunkPos, ResourceKey<Biome> targetKey) {
         if (level.dimension() != Level.OVERWORLD) {
-            if (!ModBiomes.isClimaxKey(targetKey) && ModBiomes.isFullyOvergrownKey(targetKey)) {
+            if (ModBiomes.isFullyOvergrownKey(targetKey)) {
                 NetherLedger.record(level, java.util.List.of(chunkPos));
             }
             return;
         }
-        if (ModBiomes.isClimaxKey(targetKey)) {
-            // 極相は「過繁茂以上」なので台帳には残すが、面積とポイントは過繁茂になったときに数え済み。
-            PhaseData.get(level).markClimaxChunk(level, chunkPos);
-        } else if (ModBiomes.isFullyOvergrownKey(targetKey)) {
+        if (ModBiomes.isFullyOvergrownKey(targetKey)) {
             PhaseData.get(level).markOvergrownChunk(level, chunkPos);
         }
     }
@@ -674,8 +574,6 @@ public final class OvergrownBiomeConverter {
                 key -> new LongLinkedOpenHashSet());
         for (ChunkAccess chunk : changed) {
             pending.add(chunk.getPos().toLong());
-            // バイオームが変わったので、この周辺チャンクの胞子濃度キャッシュを捨てる。
-            SporeConcentration.invalidateAround(level, chunk.getPos());
         }
     }
 
@@ -900,14 +798,10 @@ public final class OvergrownBiomeConverter {
         return targetHolder;
     }
 
-    /** 繁茂系バイオームの「汚染度」。極相 = 3 / 過繁茂 = 2 / 繁茂 = 1 / それ以外 = 0。 */
+    /** 繁茂系バイオームの「汚染度」。過繁茂 = 2 / 繁茂 = 1 / それ以外 = 0。 */
     private static int rankOf(@Nullable ResourceKey<Biome> key) {
         if (key == null) {
             return 0;
-        }
-        // isFullyOvergrownKey は極相にも true を返すので、極相を先に見ること。
-        if (ModBiomes.isClimaxKey(key)) {
-            return 3;
         }
         if (ModBiomes.isFullyOvergrownKey(key)) {
             return 2;
