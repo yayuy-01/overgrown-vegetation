@@ -7,7 +7,6 @@ import com.yayuy.overgrownvegetation.corruption.OvergrownBiomeConverter;
 import com.yayuy.overgrownvegetation.entity.BlightFernEntity;
 import com.yayuy.overgrownvegetation.entity.BlightFernPlacement;
 import com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder;
-import com.yayuy.overgrownvegetation.registry.ModParticles;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -426,81 +425,14 @@ final class EarthquakeFissure {
     }
 
     /**
-     * 裂け目の中央の底から、専用の緑の胞子({@link com.yayuy.overgrownvegetation.registry.ModParticles#OVERGROWN_SPORE})を
-     * 花火のように噴き上げる。噴出点で一気に加速 → 毎 tick の摩擦で徐々に減速 → 地表を越えて上空まで
-     * 届き、広範囲に散る(動きの設定は {@code quakeSpore*})。
+     * 噴出の音(ときどき)。前は裂け目の底から緑の胞子の粒を花火のように噴き上げていたが、粒は画面の演出と一緒に
+     * 2026-10-30 に parked/ へ退避した(環境の演出は作り直す)。
      */
     void eruptSpores() {
         RandomSource r = level.getRandom();
-        OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
-        double speed = cfg.quakeSporeSpeed.get();
-        double coneRad = Math.toRadians(cfg.quakeSporeConeDeg.get());
-        double density = cfg.quakeSporeDensity.get();
-
-        // 噴出は必ず「裂け目のいちばん深く掘れた点」から(完成時に記録済み)。
-        int wx;
-        int wz;
-        int fy;
-        if (qEruptY != Integer.MIN_VALUE) {
-            wx = qEruptX;
-            wz = qEruptZ;
-            fy = qEruptY;
-        } else {
-            wx = Mth.floor(ex);
-            wz = Mth.floor(ez);
-            fy = level.getHeight(Heightmap.Types.MOTION_BLOCKING, wx, wz);
-        }
-        double bx = wx + 0.5D;
-        double by = fy + 1.0D;
-        double bz = wz + 0.5D;
-
-        // 連続噴出 + たまに大きなパルス(花火の破裂)。数は quakeSporeDensity 倍。
-        boolean burst = r.nextInt(3) == 0;
-        int base = Math.max(1, Mth.ceil(22.0D * density));
-        int extra = burst ? Math.max(1, Mth.ceil(70.0D * density)) : 0;
-        for (int i = 0; i < base + extra; i++) {
-            double a = (r.nextDouble() * 2.0D - 1.0D) * coneRad;
-            double roll = r.nextDouble() * TAU;
-            double power = (i >= base ? 1.0D : 0.82D) * (0.72D + r.nextDouble() * 0.5D);
-            double sp = speed * power;
-            double horiz = Math.sin(a) * sp;
-            farSpore(bx + (r.nextDouble() - 0.5D) * 3.0D, by, bz + (r.nextDouble() - 0.5D) * 3.0D,
-                    horiz * Math.cos(roll), Math.cos(a) * sp, horiz * Math.sin(roll));
-        }
-
-        // 遠くからのシルエット用: 地表からほぼ真上へ、ゆっくり太く立ちのぼる筋(長持ち)。
-        int pillar = Math.max(1, Mth.ceil(6.0D * density));
-        for (int p = 0; p < pillar; p++) {
-            double a = r.nextDouble() * TAU;
-            double rr = r.nextDouble() * 2.5D;
-            farSpore(bx + Math.cos(a) * rr, ey + 1.0D, bz + Math.sin(a) * rr,
-                    (r.nextDouble() - 0.5D) * 0.3D, 2.2D + r.nextDouble() * 1.8D, (r.nextDouble() - 0.5D) * 0.3D);
-        }
-
-        // 上空に漂う本物の胞子(散ったあとゆっくり降ってくる仕上げ)
-        double topSpread = 4.0D + width * 0.5D;
-        int haze = Math.max(1, Mth.ceil(3.0D * density));
-        for (int p = 0; p < haze; p++) {
-            double a = r.nextDouble() * TAU;
-            double rad = 1.0D + r.nextDouble() * topSpread;
-            double hx = bx + Math.cos(a) * rad;
-            double hy = ey + 6.0D + r.nextDouble() * 28.0D;
-            double hz = bz + Math.sin(a) * rad;
-            for (ServerPlayer pl : level.players()) {
-                level.sendParticles(pl, ParticleTypes.SPORE_BLOSSOM_AIR, true, hx, hy, hz, 1, 0.5D, 0.4D, 0.5D, 0.0D);
-            }
-        }
-
         if (r.nextInt(12) == 0) {
             level.playSound(null, BlockPos.containing(ex, ey, ez), SoundEvents.SCULK_CATALYST_BLOOM,
                     SoundSource.AMBIENT, 2.0F, 0.6F);
-        }
-    }
-
-    /** 過繁茂の胞子パーティクルを、全プレイヤーへ「遠距離」({@code longDistance} = 512 ブロック)で送る。 */
-    private void farSpore(double x, double y, double z, double vx, double vy, double vz) {
-        for (ServerPlayer pl : level.players()) {
-            level.sendParticles(pl, ModParticles.OVERGROWN_SPORE.get(), true, x, y, z, 0, vx, vy, vz, 1.0D);
         }
     }
 

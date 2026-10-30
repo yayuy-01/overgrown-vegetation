@@ -1,24 +1,20 @@
 package com.yayuy.overgrownvegetation.spore.field;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.network.PrevailingWindPayload;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
  * 卓越風の入力になる天気の印(2026-10-23 第 2 段 B)。直近 2 回の雨の始まりと終わり(オーバーワールドの {@code getDayTime})を覚え、
- * 雨・雷が切り替わったときと、プレイヤーが入ったときに {@link PrevailingWindPayload} で送る。サーバーとクライアントは同じ式
- * ({@link PrevailingWind#sample})で同じ向きを得る(【決定】マルチで向きと広がり方がそろう)。
+ * 前は雨・雷が切り替わったときと、プレイヤーが入ったときにクライアントへ送っていた(画面の風の演出用。2026-10-30 に通信ごと parked/ へ退避)。
+ * 向きはサーバーの {@link PrevailingWind#sample} だけが使う。
  *
  * <p>風の種({@link #windSeed})はワールドのシードそのものではなく、シードを混ぜた値(クライアントへシードを渡さない)。
  */
@@ -111,11 +107,7 @@ public final class WindWeatherData extends SavedData {
         return changed;
     }
 
-    PrevailingWindPayload payload(MinecraftServer server) {
-        return new PrevailingWindPayload(windSeed(server), raining, thundering, lastRainStart, lastRainEnd, prevRainStart, prevRainEnd);
-    }
-
-    // ---------------------------------------------------------------- 見張りと送信
+    // ---------------------------------------------------------------- 見張り
 
     @SubscribeEvent
     public static void onLevelTick(LevelTickEvent.Post event) {
@@ -126,29 +118,6 @@ public final class WindWeatherData extends SavedData {
         // isThundering は雨の間だけ(バニラ: 雷の時計は雨と別だが、見えるのは雨のときだけ)
         boolean rain = level.isRaining();
         boolean thunder = rain && level.isThundering();
-        if (data.observe(rain, thunder, level.getDayTime())) {
-            PacketDistributor.sendToAllPlayers(data.payload(level.getServer()));
-        }
-    }
-
-    @SubscribeEvent
-    public static void onLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
-        send(event.getEntity());
-    }
-
-    @SubscribeEvent
-    public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
-        send(event.getEntity());
-    }
-
-    @SubscribeEvent
-    public static void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
-        send(event.getEntity());
-    }
-
-    private static void send(net.minecraft.world.entity.player.Player player) {
-        if (player instanceof ServerPlayer sp) {
-            PacketDistributor.sendToPlayer(sp, get(sp.server).payload(sp.server));
-        }
+        data.observe(rain, thunder, level.getDayTime());
     }
 }

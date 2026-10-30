@@ -1,17 +1,6 @@
 {
   "replace": false,
   "values": [
-    "overgrown_vegetation:overgrown_slab",
-    "overgrown_vegetation:covered_oak_slab",
-    "overgrown_vegetation:covered_spruce_slab",
-    "overgrown_vegetation:covered_birch_slab",
-    "overgrown_vegetation:covered_jungle_slab",
-    "overgrown_vegetation:covered_acacia_slab",
-    "overgrown_vegetation:covered_dark_oak_slab",
-    "overgrown_vegetation:covered_mangrove_slab",
-    "overgrown_vegetation:covered_cherry_slab",
-    "overgrown_vegetation:covered_bamboo_slab",
-    "overgrown_vegetation:covered_crimson_slab",
-    "overgrown_vegetation:covered_warped_slab"
+    "overgrown_vegetation:overgrown_slab"
   ]
 }

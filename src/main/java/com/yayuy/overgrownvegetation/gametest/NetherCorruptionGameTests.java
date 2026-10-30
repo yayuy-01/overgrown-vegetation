@@ -112,8 +112,10 @@ public final class NetherCorruptionGameTests {
 
         NoisyCorruptionBurst.single(level, flowing);
         BlockState solid = level.getBlockState(source);
-        if (!solid.is(com.yayuy.overgrownvegetation.covered.CoveredBlocks.coveredOf(Blocks.BASALT))
-                && !solid.is(ModBlocks.OVERGROWN_BLOCK.get())) {
+        // 2026-10-30 から覆われた玄武岩 = 玄武岩 + 覆いの記録
+        boolean coveredBasalt = solid.is(Blocks.BASALT)
+                && com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.isCovered(level, source);
+        if (!coveredBasalt && !solid.is(ModBlocks.OVERGROWN_BLOCK.get())) {
             helper.fail("源泉が覆われた玄武岩(か過繁茂しているブロック)になっていない: " + solid);
             return;
         }

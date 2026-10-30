@@ -30,8 +30,8 @@ import java.util.Map;
  * <p>汚染の対応表に変換先が無いブロックのうち、<b>中身を持たないもの</b>(金床・砥石・作業台・
  * コンクリート・ガラスなど)は<b>置き換えない</b>。元のブロックをその場に残したまま、
  * <ul>
- *     <li>見た目に苔を被せ({@code client/OvergrownLayerRenderer})</li>
- *     <li>右クリックを受け付けなくする({@link OvergrownLayerInteraction})</li>
+ *     <li>見た目に苔を被せ({@code client/CoverRenderer})</li>
+ *     <li>右クリックを受け付けなくする・扉やボタンを時々動かなくする({@link CoveredInteractions})</li>
  * </ul>
  * この 2 つをやるには「このマスは覆われた」をどこかに持っていなければならない。
  * それがこの記録。<b>チャンクに付く {@code LongOpenHashSet}</b> で、チャンクと一緒に保存され、
@@ -143,7 +143,8 @@ public final class OvergrownLayerData {
             // 氷は覆わずに溶かす(2026-10-16)。前に覆った氷の記録はここで資格を失い、苔が消えて次に汚染が来たとき溶ける。
             return false;
         }
-        return CorruptionRegistry.hasNoCorruptedForm(state);
+        // 建築タブのブロック(板材・原木・階段など対応表にあるものも)は 2026-10-30 から元のまま記録で覆う(CorruptionRegistry#coversInPlace)
+        return CorruptionRegistry.hasNoCorruptedForm(state) || CorruptionRegistry.coversInPlace(state);
     }
 
     // --- 書く(サーバー) ---

@@ -54,7 +54,7 @@ import javax.annotation.Nullable;
  * <h2>汚染による変換</h2>
  * <p>木のドア({@link BlockTags#WOODEN_DOORS})・チェスト({@link Blocks#CHEST})・樽({@link Blocks#BARREL})が
  * 汚染されると、対応する過繫茂ブロックへ変換される({@link #corruptedStateFor})。<b>バニラの扉は 2026-10-05 から
- * 覆われた扉</b>(同じ木の扉に苔。{@code covered/CoveredInteractables} が同じ「時々開かない」を持つ)になり、
+ * 覆われた扉</b>(同じ木の扉に苔。2026-10-30 からは元の扉 + 覆いの記録。{@code corruption/CoveredInteractions} が同じ「時々開かない」を持つ)になり、
  * 過繫茂したドアになるのは覆われた版の無い他 MOD の木のドアだけ。チェスト・樽は
  * {@code corruptBlockEntities}(既定 false)に関係なく変換され、<b>中身・名前・ロック・未開封のルートテーブルは
  * そのまま引き継ぐ</b>({@link #placeConverted}: 変換前の BlockEntity を NBT に退避 → 中身を空にしてから置き換え
@@ -294,7 +294,7 @@ public final class OvergrownContainers {
 
     /**
      * ハサミで剥がしたときの消耗と演出(ハサミの耐久 1・音・苔の破片・ゲームイベント)。サーバー側で呼ぶ。
-     * 覆われた扉などを元のブロックへ戻すとき({@code covered/CoveredInteractables}、2026-10-05 夜)も同じものを出す。
+     * 覆われた扉などを元のブロックへ戻すとき(2026-10-05 夜〜10-30 の covered/CoveredInteractables。今は corruption/CoverPeel が自前で出す)も同じものを出した。
      */
     public static void shearEffects(ItemStack stack, Level level, BlockPos pos, Player player, InteractionHand hand) {
         stack.hurtAndBreak(1, player, LivingEntity.getSlotForHand(hand));

@@ -38,7 +38,7 @@ import java.util.Map;
  *
  * <h2>作り</h2>
  * <p>ブロックは置き換えない(湧き方・試練の報酬などバニラの仕組みをそのまま使う)。覆われたマスの記録
- * ({@link OvergrownLayerData#cover})に入れ、苔は覆われたブロックと同じ描き方で付く({@code client/OvergrownLayerRenderer} が
+ * ({@link OvergrownLayerData#cover})に入れ、苔は覆われたブロックと同じ描き方で付く({@code client/CoverRenderer} が
  * スポナーの模型をなぞる)。覆った瞬間に、ブロックエンティティの「湧く Mob の登録」の中の Mob の id を寄生体へ書き換え、
  * 元の登録をブロックエンティティに覚えさせる({@link ModAttachments#SPAWNER_ORIGINAL})。覆いが剥がれたら
  * ({@link OvergrownLayerData#uncover}: 火の浄化・工兵の整備)覚えた登録へ戻す。

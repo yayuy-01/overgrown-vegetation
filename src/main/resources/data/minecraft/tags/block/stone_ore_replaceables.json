@@ -1,9 +1,0 @@
-{
-  "replace": false,
-  "values": [
-    "overgrown_vegetation:covered_stone",
-    "overgrown_vegetation:covered_granite",
-    "overgrown_vegetation:covered_diorite",
-    "overgrown_vegetation:covered_andesite"
-  ]
-}

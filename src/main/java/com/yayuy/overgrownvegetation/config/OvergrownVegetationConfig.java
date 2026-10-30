@@ -377,8 +377,6 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.BooleanValue jungleTreeFall;
         /** 密林で木を倒木にする確率(残りは消滅)。 */
         public final ModConfigSpec.DoubleValue jungleFallenTreeChance;
-        /** 湿地系バイオームの霧の濃さ(密林 = 1.0 に対する割合)。 */
-        public final ModConfigSpec.DoubleValue swampFogFactor;
         /** 湿地系の場所では茂み(overgrown_bush の塊)を生やさないか。 */
         public final ModConfigSpec.BooleanValue swampNoBushes;
         /** 水中・水面をまたぐ根のアーチの生成確率に掛ける倍率(陸のアーチ = corruptionArchChance に対して)。 */
@@ -946,70 +944,12 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.IntValue quakeEruptFernAttemptsPerInterval;
         /** 噴出点周囲(ハザード半径内)の汚染シダがこの数に達したら、それ以上は湧かせない。 */
         public final ModConfigSpec.IntValue quakeEruptFernMaxNearby;
-        /** 胞子噴出の初速(ブロック/tick)。噴出の瞬間の速さ。 */
-        public final ModConfigSpec.DoubleValue quakeSporeSpeed;
-        /** 胞子パーティクルの毎 tick の速度倍率(摩擦)。1 に近いほど長く伸び、小さいほど急減速。 */
-        public final ModConfigSpec.DoubleValue quakeSporeFriction;
-        /** 胞子パーティクルに掛かる重力(ブロック/tick^2)。徐々に落ちてくる強さ。 */
-        public final ModConfigSpec.DoubleValue quakeSporeGravity;
-        /** 胞子噴出の円錐の半角(度)。大きいほど横に広がる。 */
-        public final ModConfigSpec.DoubleValue quakeSporeConeDeg;
-        /** 胞子パーティクル 1 粒の大きさ(ブロック目安)。大きいほど遠くからでも見える。 */
-        public final ModConfigSpec.DoubleValue quakeSporeSize;
-        /** 胞子噴出パーティクルの量(密度)の倍率。大きいほど濃くなるが負荷も上がる。 */
-        public final ModConfigSpec.DoubleValue quakeSporeDensity;
-        /** 胞子パーティクルが噴出点から何ブロック上昇すると完全に透明になるか(上ほど薄くなって消える)。 */
-        public final ModConfigSpec.DoubleValue quakeSporeRiseFade;
         /** 胞子噴出エフェクトが出ている間、汚染シダなどによる侵食速度に掛かる倍率。 */
         public final ModConfigSpec.DoubleValue quakeEruptionCorruptionMultiplier;
         /** (クライアント描画)画面の揺れの最大強度。0 で揺れなし、1.0 が既定。 */
         public final ModConfigSpec.DoubleValue quakeShakeIntensity;
         /** (クライアント描画)震央からこの距離(ブロック)離れるほど揺れが弱まる(下限あり)。既定 512。 */
         public final ModConfigSpec.IntValue quakeShakeRadius;
-        /** 過繁茂バイオームの霧の演出が目標の状態へ到達するまでにかける秒数(入るとき・出るとき共通)。 */
-        public final ModConfigSpec.DoubleValue fogFadeSeconds;
-        /**
-         * (クライアント描画)汚染地域の林冠の隙間から差す光の筋と、その中で光る胞子を描くか
-         * ({@link com.yayuy.overgrownvegetation.client.CanopyLight}、2026-10-15 試作)。シェーダー(Iris)と二重になるときに切る。
-         */
-        public final ModConfigSpec.BooleanValue canopyLightEnabled;
-        /** 光の筋と光る胞子の明るさ(1 = 既定)。 */
-        public final ModConfigSpec.DoubleValue canopyLightIntensity;
-        /**
-         * (クライアント描画)汚染地域の風の強さの倍率({@link com.yayuy.overgrownvegetation.client.CanopyWind}、2026-10-15 夜)。
-         * 木漏れ日の明滅とずれ・光の筋の揺れ・胞子の流れ・落ち葉がこの風で動く。0 で無風(前の止まった見た目)。
-         */
-        public final ModConfigSpec.DoubleValue canopyWindStrength;
-        /** (クライアント描画)汚染地域で葉が落ちる粒を出すか({@link com.yayuy.overgrownvegetation.client.CanopyLeaves})。 */
-        public final ModConfigSpec.BooleanValue canopyFallingLeaves;
-        /**
-         * (クライアント描画)霧の向こうの巨大樹をシルエットで見せるか({@link com.yayuy.overgrownvegetation.client.GiantTreeSilhouettes}、2026-10-15 夜)。
-         */
-        public final ModConfigSpec.BooleanValue giantTreeSilhouette;
-        /**
-         * (クライアント描画)過繁茂の葉・茂み・シダ・蔦・垂れ苔・太い蔓を風で揺らす大きさの倍率({@link com.yayuy.overgrownvegetation.client.LeafSway}・
-         * {@link com.yayuy.overgrownvegetation.client.SwayModels}、2026-10-15 夜)。0 で揺らさない。揺れるのは風の音が鳴っている間だけ(2026-10-16)。
-         */
-        public final ModConfigSpec.DoubleValue canopyLeafSway;
-        /**
-         * (クライアント描画)林冠の影を地面以外の面(草・シダ・幹・葉)にも落とす強さ
-         * ({@link com.yayuy.overgrownvegetation.client.CanopySunMap}、風の案 C、2026-10-16)。0 で地面の上面だけ。
-         */
-        public final ModConfigSpec.DoubleValue canopySurfaceShade;
-        /** (クライアント描画)林冠の影を青緑に寄せる強さ({@link com.yayuy.overgrownvegetation.client.CanopySunMap#shadeColor}、2026-10-16)。0 で灰色。 */
-        public final ModConfigSpec.DoubleValue canopyShadeTint;
-        /** (クライアント描画)過繁茂の森の中では日向以外をいつも青緑に寄せる強さ({@link com.yayuy.overgrownvegetation.client.CanopySunMap}、2026-10-16)。0 で林冠の影だけ。 */
-        public final ModConfigSpec.DoubleValue canopyForestTint;
-        /** (クライアント描画)過繁茂の森の中で、葉に削られた空の光を持ち上げる割合({@link com.yayuy.overgrownvegetation.client.CanopyLight#skyLift}、2026-10-17)。 */
-        public final ModConfigSpec.DoubleValue canopySkyLift;
-        /** (クライアント描画)葉の色の揺らぎの強さ({@link com.yayuy.overgrownvegetation.client.LeafColors}、2026-10-17)。 */
-        public final ModConfigSpec.DoubleValue leafColorVariation;
-        /** (クライアント描画)黄緑の若葉の房の強さ({@link com.yayuy.overgrownvegetation.client.LeafColors}、2026-10-17)。 */
-        public final ModConfigSpec.DoubleValue youngLeaves;
-        /** (クライアント描画)高空の晴天の強さと高さ({@link com.yayuy.overgrownvegetation.client.HighSky}、2026-10-17)。 */
-        public final ModConfigSpec.DoubleValue highSkyClarity;
-        public final ModConfigSpec.DoubleValue highSkyClearFrom;
-        public final ModConfigSpec.DoubleValue highSkyClearTo;
 
         /**
          * (クライアント操作)剣・斧などの武器を持っている間、<b>当たり判定の無いブロック</b>
@@ -1675,11 +1615,6 @@ public final class OvergrownVegetationConfig {
             jungleFallenTreeChance = b
                     .comment("密林で木を切り株 + 倒木にする確率(残りは消滅)。既定 0.6。")
                     .defineInRange("jungleFallenTreeChance", 0.6D, 0.0D, 1.0D);
-
-            swampFogFactor = b
-                    .comment("湿地・菌湿地帯バイオームの霧の濃さ。密林(過繁茂バイオーム)の霧を 1.0 としたときの割合で、",
-                            "霧の距離の詰め方と霧色の暗さの両方に効く。0 でバニラの霧のまま。既定 0.45。")
-                    .defineInRange("swampFogFactor", 0.45D, 0.0D, 1.0D);
 
             swampNoBushes = b
                     .comment("湿地・菌湿地帯になる場所では茂み(overgrown_bush の塊)を一切生やさないか。既定 true。")
@@ -2556,46 +2491,11 @@ public final class OvergrownVegetationConfig {
                     .comment("ハザード半径内の汚染シダがこの数に達したら、それ以上は湧かせない(積み上がり防止)。既定 48。")
                     .defineInRange("quakeEruptFernMaxNearby", 48, 0, 4000);
 
-            quakeSporeSpeed = b
-                    .comment("胞子噴出の初速(ブロック/tick)。噴出の瞬間の速さ。既定 6.5。",
-                            "この速さで裂け目の底から飛び出し、摩擦で減速しながら地表を越えて上空まで届く。")
-                    .defineInRange("quakeSporeSpeed", 6.5D, 0.5D, 30.0D);
-
-            quakeSporeFriction = b
-                    .comment("胞子パーティクルの毎 tick の速度倍率(摩擦)。既定 0.955。",
-                            "1 に近いほど長く伸び、小さいほど急に減速する。")
-                    .defineInRange("quakeSporeFriction", 0.955D, 0.80D, 0.999D);
-
-            quakeSporeGravity = b
-                    .comment("胞子パーティクルに掛かる重力(ブロック/tick^2)。既定 0.006。徐々に落ちてくる強さ。")
-                    .defineInRange("quakeSporeGravity", 0.006D, 0.0D, 0.2D);
-
-            quakeSporeConeDeg = b
-                    .comment("胞子噴出の円錐の半角(度)。既定 34。大きいほど横に広く散る。")
-                    .defineInRange("quakeSporeConeDeg", 34.0D, 0.0D, 89.0D);
-
-            quakeSporeSize = b
-                    .comment("胞子パーティクル 1 粒の大きさ(ブロック目安)。既定 0.35。",
-                            "大きいほど遠くからでも噴出の柱が見える。近くで見て粒が大きすぎるなら下げる。")
-                    .defineInRange("quakeSporeSize", 0.35D, 0.05D, 5.0D);
-
-            quakeSporeRiseFade = b
-                    .comment("胞子パーティクルが噴出点から何ブロック上昇すると完全に透明になるか。既定 180。",
-                            "噴出点(裂け目の底)からの上昇量に応じて線形に薄くなり、上に行くほど消えていく。",
-                            "小さくすると地表付近で消え、大きくすると空高くまで見える。")
-                    .defineInRange("quakeSporeRiseFade", 180.0D, 8.0D, 2000.0D);
-
             quakeEruptionCorruptionMultiplier = b
                     .comment("胞子噴出エフェクトが出ている間(噴出開始〜quakeEruptDurationTicks)、汚染シダ・汚染死体などの",
                             "侵食速度(1サイクルの置き換えブロック数)に掛かる倍率。既定 5.0。1.0 で効果なし。",
                             "corruptionSpeedMultiplier とは別枠で、この期間だけ上乗せで掛かる。")
                     .defineInRange("quakeEruptionCorruptionMultiplier", 5.0D, 0.0D, 100.0D);
-
-            quakeSporeDensity = b
-                    .comment("胞子噴出パーティクルの量(密度)の倍率。既定 1.0。",
-                            "大きいほど噴出が濃くなる。上げすぎるとパーティクル数の上限に達して",
-                            "クライアントの FPS が落ちたり古い粒が消えたりする(目安 3.0 くらいまで)。")
-                    .defineInRange("quakeSporeDensity", 1.0D, 0.1D, 10.0D);
 
             quakeShakeIntensity = b
                     .comment("(クライアント描画)画面の揺れの最大強度。0 で揺れなし、既定 1.0。")
@@ -2638,85 +2538,6 @@ public final class OvergrownVegetationConfig {
             b.pop();
 
             b.comment("OvergrownVegetation — クライアント描画の設定(サーバーには影響しない)").push("client");
-
-            fogFadeSeconds = b
-                    .comment("(クライアント描画)過繁茂バイオームに入った・出たとき、霧の濃さと色が目標の状態へ到達するまでに",
-                            "かける秒数(実時間)。大きいほどゆっくり霧が立ち込める/晴れる。既定 10。0 で即時。")
-                    .defineInRange("fogFadeSeconds", 10.0D, 0.0D, 120.0D);
-
-            // 2026-10-15 ユーザー「ジャングルの中のライティングにこだわる: 茂った森でも光が入る・胞子が光に当たって光る・木漏れ日」。
-            // 試作。明るさの既定 1 は仮決め。
-            canopyLightEnabled = b
-                    .comment("(クライアント描画)汚染地域(繁茂・過繁茂・極相)で、林冠の隙間から差す光の筋と、その中で光る胞子を描く。",
-                            "昼だけ・雨では弱まる。シェーダー(Iris など)で同じ演出が出るときは false で切る。")
-                    .define("canopyLightEnabled", true);
-            canopyLightIntensity = b
-                    .comment("(クライアント描画)光の筋と光る胞子の明るさ。1 が既定、0 で見えない。")
-                    .defineInRange("canopyLightIntensity", 1.0D, 0.0D, 3.0D);
-            // 2026-10-15 夜 ユーザー「葉が風に揺られないので、木漏れ日や差し込む光がずっと同じ場所にい続けておかしく見える。
-            // ランダムに風が吹いて葉を揺らしているような感じに」→ 案 A(風の場で光と粒を一緒に動かす)。倍率 1 は仮決め。
-            canopyWindStrength = b
-                    .comment("(クライアント描画)汚染地域の風の強さの倍率。ランダムな突風が林を渡り、木漏れ日の明滅とずれ・光の筋の揺れ・",
-                            "胞子の流れ・落ち葉・風の音がその風で動く。0 で無風。既定 1。")
-                    .defineInRange("canopyWindStrength", 1.0D, 0.0D, 2.0D);
-            canopyFallingLeaves = b
-                    .comment("(クライアント描画)汚染地域で、林冠の葉が風に吹かれて落ちる粒を出すか(突風のときに多い)。既定 true。")
-                    .define("canopyFallingLeaves", true);
-            // 2026-10-15 夜 ユーザー「巨大樹は大きすぎて、霧に隠れて木全体が見えなくなる。シルエットだけでも見えるように」。
-            giantTreeSilhouette = b
-                    .comment("(クライアント描画)汚染地域の霧の向こうの巨大樹を、霞んだシルエットで見せるか。",
-                            "本物の木が霧で 6 割ほど隠れる距離から先を、木の形を写した影に入れ替えて描く。シェーダーパックと重なって変に見えるなら false。既定 true。")
-                    .define("giantTreeSilhouette", true);
-            // 2026-10-15 夜、風の案 B(ユーザー「A から順番に」)。大きさ 1 は仮決め。
-            canopyLeafSway = b
-                    .comment("(クライアント描画)過繁茂の葉・湿地の葉・茂み・シダ・蔦・垂れ苔・太い蔓を、木漏れ日・胞子・風の音と同じ風で揺らす大きさの倍率。0 で揺らさない。",
-                            "揺れるのは突風の風の音が鳴っている間だけ。",
-                            "バニラの描画のときだけ揺れる(Sodium・Iris のシェーダーパック・「軽量」グラフィックでは揺れない)。既定 1。")
-                    .defineInRange("canopyLeafSway", 1.0D, 0.0D, 2.0D);
-            // 2026-10-16 風の案 C(ユーザー「風の案 C の実装を」)。強さ 1 は仮決め。
-            canopySurfaceShade = b
-                    .comment("(クライアント描画)汚染地域の林冠の影を、地面だけでなく草・シダ・幹・葉にも落とす強さ(0〜1)。0 なら地面の上面だけに落とす(前の形)。",
-                            "バニラの描画のときだけ(Sodium・Iris が入っていると地面だけ)。既定 1。")
-                    .defineInRange("canopySurfaceShade", 1.0D, 0.0D, 1.0D);
-            // 2026-10-16 ユーザー選択「昼の光の改善案 (3) 影を青緑に寄せ、筋と胞子の暖色を浮かせる」。色は仮決め。
-            canopyShadeTint = b
-                    .comment("(クライアント描画)汚染地域の林冠の影を青緑に寄せる強さ(0〜2)。影の明るさは変えず色だけ寄せ、光の筋・木漏れ日・胞子の金色を浮かせる。",
-                            "0 で前の灰色の影、2 で倍の強さ。既定 1。")
-                    .defineInRange("canopyShadeTint", 1.0D, 0.0D, 2.0D);
-            // 2026-10-16 ユーザー「日光が差す場所以外でも、過繁茂の森の中にいるときは常に(青緑の影のように)」。夜・朝夕も含める・松明の明かりは除く は Claude の仮決め。
-            canopyForestTint = b
-                    .comment("(クライアント描画)過繁茂の森の中にいる間、日向以外の面をいつも青緑に寄せる強さ(0〜1)。",
-                            "昼は林冠の影の中だけ、太陽の低い朝夕・夜・影の地図の外は全部の面を寄せる(明るさは変えない)。松明などの明かりで照らされた面は寄せない。",
-                            "色の強さは canopyShadeTint。0 で林冠の影だけ(前の形)。バニラの描画のときだけ。既定 1。")
-                    .defineInRange("canopyForestTint", 1.0D, 0.0D, 1.0D);
-            // 2026-10-17 ユーザー「木の密度を少しだけ上げて、その状態で木漏れ日や差し込む光が美しく見えれば完璧」。林床がバニラの空の光の減り(葉 1 枚ごと)と
-            // 林冠の影の両方で暗くなり、木漏れ日・光の筋が闇に沈むので、空の光の減りの方を戻す。値は仮決め。
-            canopySkyLift = b
-                    .comment("(クライアント描画)過繁茂の森の中にいる間、葉に削られた空の光をこの割合だけ明るい方へ戻す(0〜1)。林床の暗さは林冠の影が受け持ち、",
-                            "木漏れ日・光の筋が闇に沈まないようにする。空の光がほとんど届かない所は少しだけ(0 段で半分弱)、洞窟・家の中にいる間は持ち上げない。見た目だけ(湧き・作物は変わらない)。",
-                            "Sodium でも効く。0 でバニラのまま。既定 0.6。")
-                    .defineInRange("canopySkyLift", 0.6D, 0.0D, 1.0D);
-            // 水面のきらめき(waterGlitter・client/WaterGlitter)は 2026-10-22 ユーザー指定で削除。
-            // 2026-10-17(10-16 の「密林をさらに美しく見せる案」(5) 色の揺らぎ。10-16 の採用外だったが作って見せ、ユーザーが了承)。色はユーザー指定(若葉は黄緑・成葉は少しだけ青緑、元の色に近く)、割合と色の量は仮決め。
-            leafColorVariation = b
-                    .comment("(クライアント描画)葉の色の揺らぎの強さ(0〜1): 過繁茂の葉を樹冠くらいのまとまりごとに、元の色から少しだけ青緑へ寄せる(成長しきった葉)。",
-                            "葉の層のシェーダーで塗り替えるので、Sodium などや「軽量」グラフィックでは効かない。書き換えてすぐ効く。0 で無し。既定 1。")
-                    .defineInRange("leafColorVariation", 1.0D, 0.0D, 1.0D);
-            youngLeaves = b
-                    .comment("(クライアント描画)若葉の房の強さ(0〜1): 過繁茂の森の一部の樹冠の外側に、元の色より少し明るい黄緑の若葉の房を混ぜる(胞子で増える木の新芽)。",
-                            "葉を光らせはしない(暗い所では暗い)。書き換えてすぐ効く。0 で無し。既定 1。")
-                    .defineInRange("youngLeaves", 1.0D, 0.0D, 1.0D);
-            // 2026-10-17 ユーザー指定「どんな過繁茂したバイオームであっても高度 300〜350 辺りから神秘的なレベルで奇麗な晴天に(空の巨大生物とのバトルフィールド・空の移動の目玉)」。
-            highSkyClarity = b
-                    .comment("(クライアント描画)高空の晴天の強さ(0〜1): カメラが下の高さから上の高さへ上がるにつれて、過繁茂・極相の霧・空の色・暗さ・漂う胞子を外し、",
-                            "晴れた空と遠くまで見える空気にする。0 で無し。既定 1。")
-                    .defineInRange("highSkyClarity", 1.0D, 0.0D, 1.0D);
-            highSkyClearFrom = b
-                    .comment("(クライアント描画)高空の晴天が始まる高さ(y)。既定 300(ユーザー指定)。")
-                    .defineInRange("highSkyClearFrom", 300.0D, 64.0D, 2000.0D);
-            highSkyClearTo = b
-                    .comment("(クライアント描画)高空の晴天になりきる高さ(y)。既定 350(ユーザー指定)。")
-                    .defineInRange("highSkyClearTo", 350.0D, 65.0D, 2100.0D);
 
             // 巻きシダの精細さ curledFernDetail は 2026-10-23 にクライアント設定(OvergrownClientConfig)へ移した(品質の段階で変えるため)。
 

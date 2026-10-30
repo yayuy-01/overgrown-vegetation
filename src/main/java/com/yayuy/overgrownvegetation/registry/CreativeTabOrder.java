@@ -80,8 +80,6 @@ public final class CreativeTabOrder {
     /** このイベントが作っているタブの鍵({@code items.json} の {@code tabs} のキー)。3 つ以外なら null。 */
     @javax.annotation.Nullable
     private static String tabKeyOf(BuildCreativeModeTabContentsEvent event) {
-        if (event.getTabKey() == ModCreativeTabs.COVERED.getKey()) {
-        }
         if (event.getTabKey() == ModCreativeTabs.PLANTS.getKey()) {
         }
         return null;

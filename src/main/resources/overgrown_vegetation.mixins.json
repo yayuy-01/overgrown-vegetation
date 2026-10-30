@@ -12,18 +12,19 @@
     "FlowingFluidSpreadMixin",
     "FluidTypeNetherWaterMixin",
     "LevelChunkTickerInvoker",
-    "MobThinkThrottleMixin"
+    "MobThinkThrottleMixin",
+    "DoorSetOpenCoveredMixin"
   ],
   "client": [
     "client.DebugScreenBiomeColorMixin",
     "client.GameRendererSwingThroughFoliageMixin",
-    "client.LightTextureCanopyLiftMixin",
-    "client.SpriteContentsMossMipMixin",
+    "client.SpriteContentsCoverMipMixin",
     "client.VideoSettingsScreenMixin",
     "client.LevelRendererLeafCullMixin",
+    "client.LightTextureCanopyLiftMixin",
     "client.ShaderInstanceSamplerAccessor",
-    "client.sodium.SodiumShaderLoaderMixin",
-    "client.sodium.SodiumShaderInterfaceMixin"
+    "client.sodium.SodiumShaderInterfaceMixin",
+    "client.sodium.SodiumShaderLoaderMixin"
   ],
   "injectors": {
     "defaultRequire": 1

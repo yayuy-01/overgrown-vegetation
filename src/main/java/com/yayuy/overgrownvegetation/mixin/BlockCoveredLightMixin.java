@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.mixin;
 
-import com.yayuy.overgrownvegetation.covered.CoveredLight;
+import com.yayuy.overgrownvegetation.corruption.CoveredLight;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;

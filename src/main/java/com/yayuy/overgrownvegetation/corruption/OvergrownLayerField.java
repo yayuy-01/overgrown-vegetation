@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 「このマスは植物に覆われたか」を決める場(2026-09-22)。
  *
  * <h2>記録を持たない</h2>
- * <p>覆ったかどうかは<b>どこにも保存していない</b>。{@link #CHANCE}(もとは climax.json の
+ * <p>覆ったかどうかは<b>どこにも保存していない</b>。{@link #chance()}(もとは climax.json の
  * {@code overgrownLayer.chance}、既定 70%)の抽選を<b>座標のハッシュ</b>で行うので、
  * サーバーとクライアントが何も同期せずに同じ答えを出す。セーブデータも増えない。
  *
@@ -91,16 +91,21 @@ public final class OvergrownLayerField {
     private static final Map<BlockState, Boolean> PLAIN_CUBE = new ConcurrentHashMap<>();
 
     /**
-     * 覆う確率(climax.json の {@code overgrownLayer.chance} の値)。2026-10-30 の整理(退避)で極相の表 ClimaxTable を
-     * parked/ へ外したので、ここに既定値を置いた(仮。設計データへ戻すなら spread.json などへ)。
+     * 覆う確率({@code cover.json} の {@code chance}、既定 0.7)。もとは climax.json の {@code overgrownLayer.chance} —— 2026-10-30 の整理で
+     * 極相の表を parked/ へ外したときはここに定数で置き、覆いの作り直し(同日)で {@code cover.json} へ移した。
      */
-    public static final double CHANCE = 0.7D;
-    /** 覆われたブロックを機能の無いブロック(overgrown_husk)へ差し替えるか(climax.json の {@code overgrownLayer.encase})。 */
-    public static final boolean ENCASE = true;
+    public static double chance() {
+        return com.yayuy.overgrownvegetation.data.DesignData.cover().chance();
+    }
 
-    /** そのマスが抽選に当たっているか。{@link #CHANCE} で引く。 */
+    /** 中身を持つブロックを機能の無いブロック(overgrown_husk)へ差し替えるか({@code cover.json} の {@code encase}。もとは climax.json)。 */
+    public static boolean encase() {
+        return com.yayuy.overgrownvegetation.data.DesignData.cover().encase();
+    }
+
+    /** そのマスが抽選に当たっているか。{@link #chance()} で引く。 */
     public static boolean covered(BlockPos pos) {
-        return covered(pos, CHANCE);
+        return covered(pos, chance());
     }
 
     /** 確率を外から渡す版(描画側が毎ブロック設定を引き直さないため)。 */

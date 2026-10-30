@@ -94,7 +94,6 @@
     "overgrown_vegetation:overgrown_slab",
     "overgrown_vegetation:overgrown_block_slab",
     "overgrown_vegetation:extinguished_torch",
-    "overgrown_vegetation:extinguished_wall_torch",
-    "#overgrown_vegetation:covered"
+    "overgrown_vegetation:extinguished_wall_torch"
   ]
 }

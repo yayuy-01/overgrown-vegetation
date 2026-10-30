@@ -12,7 +12,6 @@ import com.yayuy.overgrownvegetation.registry.ModFeatures;
 import com.yayuy.overgrownvegetation.registry.ModItems;
 import com.yayuy.overgrownvegetation.registry.ModMenus;
 import com.yayuy.overgrownvegetation.registry.ModMobEffects;
-import com.yayuy.overgrownvegetation.registry.ModParticles;
 import com.yayuy.overgrownvegetation.registry.ModRecipes;
 import com.yayuy.overgrownvegetation.registry.ModSounds;
 import net.minecraft.world.item.crafting.ShapedRecipePattern;
@@ -49,8 +48,6 @@ public class OvergrownVegetation {
         // ロードできるよう、定形レシピパターンの上限を 5×5 に広げる(バニラの作業台は 3×3 のまま)。
         ShapedRecipePattern.setCraftingSize(5, 5);
 
-        // 覆われたブロック(バニラの建築タブの全ブロックの覆われた版、2026-10-05)。同じく ModBlocks / ModItems へ。
-        com.yayuy.overgrownvegetation.covered.CoveredBlocks.init();
         ModBlocks.register(modBus);
         ModBlockEntities.register(modBus);
         ModItems.register(modBus);
@@ -61,7 +58,6 @@ public class OvergrownVegetation {
         ModMenus.register(modBus);
         ModRecipes.register(modBus);
         ModSounds.register(modBus);
-        ModParticles.register(modBus);
         ModAttachments.register(modBus);
         ModDataComponents.register(modBus);
 

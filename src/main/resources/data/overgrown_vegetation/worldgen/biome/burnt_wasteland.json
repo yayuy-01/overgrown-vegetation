@@ -4,10 +4,10 @@
   "has_precipitation": false,
   "temperature": 2.0,
   "effects": {
-    "sky_color": 9145227,
-    "fog_color": 6579300,
-    "water_color": 4807758,
-    "water_fog_color": 2896172,
+    "sky_color": 7254527,
+    "fog_color": 12638463,
+    "water_color": 4159204,
+    "water_fog_color": 329011,
     "grass_color": 7563364,
     "foliage_color": 6644070,
     "mood_sound": {
@@ -15,12 +15,6 @@
       "offset": 2.0,
       "sound": "minecraft:ambient.cave",
       "tick_delay": 6000
-    },
-    "particle": {
-      "probability": 0.012,
-      "options": {
-        "type": "minecraft:white_ash"
-      }
     }
   },
   "features": [

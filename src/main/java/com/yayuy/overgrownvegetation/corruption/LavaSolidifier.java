@@ -84,9 +84,13 @@ public final class LavaSolidifier {
             FluidState fluid = state.getFluidState();
             if (fluid.isSource()) {
                 if (CorruptionRegistry.canCorrupt(level, cursor, state)) {
-                    // 覆われた玄武岩(3 割は過繁茂しているブロック)。2026-10-05 夜まではバニラの玄武岩だった(植物が素の玄武岩に生えて違和感)。
+                    // 記録で覆った玄武岩(3 割は過繁茂しているブロック)。2026-10-05 夜まではバニラの玄武岩だった(植物が素の玄武岩に生えて違和感)。
                     BlockPos at = cursor.immutable();
-                    CorruptionRegistry.placeCorrupted(level, at, state, CorruptionRegistry.solidifiedLava(at), Block.UPDATE_ALL);
+                    BlockState basalt = CorruptionRegistry.solidifiedLava(at);
+                    CorruptionRegistry.placeCorrupted(level, at, state, basalt, Block.UPDATE_ALL);
+                    if (CorruptionRegistry.coversInPlace(basalt)) {
+                        CorruptionRegistry.coverInPlace(level, at, basalt); // 2026-10-30 から覆われた玄武岩 = 玄武岩 + 記録
+                    }
                     solidified++;
                 }
                 continue; // 源泉より上流は無い

@@ -202,14 +202,6 @@ public final class ModTags {
     public static final TagKey<Block> CONCEALING = BlockTags.create(OvergrownVegetation.id("conceals_entities"));
 
     /**
-     * 歩いて抜けると光る胞子を吹く下草(2026-10-16 ユーザー指定「シダの茂みを歩いて抜けると胞子がばら撒かれる」)。
-     * 既定はシダ 3 種(ゼンマイ・大きなシダ・丸まったシダ)と胞子キノコ・胞子の穂の葦(Claude の仮決め)。茂み
-     * ({@link #CONCEALING})は隠れる場所なので入れない。見た目は {@code client/FernSporePuffs}、走ると Mob に気付かれやすいのは
-     * {@link com.yayuy.overgrownvegetation.effect.FernRustle}。
-     */
-    public static final TagKey<Block> SPORE_PUFF_PLANTS = BlockTags.create(OvergrownVegetation.id("spore_puff_plants"));
-
-    /**
      * 「ファランギオターブス」({@link com.yayuy.overgrownvegetation.entity.PhalangiotarbusEntity})が
      * 擬態のために張り付ける「木の幹」ブロック。既定では巨大樹の原木・過繁茂した木/原木・
      * バニラの {@code #minecraft:logs}。データパックで追加可能。近くにこのタグのブロックがあり、

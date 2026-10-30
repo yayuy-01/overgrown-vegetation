@@ -8,7 +8,6 @@ import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import com.yayuy.overgrownvegetation.registry.ModEntities;
 import com.yayuy.overgrownvegetation.registry.ModItems;
 import com.yayuy.overgrownvegetation.registry.ModMenus;
-import com.yayuy.overgrownvegetation.registry.ModParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.builders.CubeDeformation;
@@ -29,7 +28,6 @@ import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
-import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -137,15 +135,6 @@ public final class OvergrownVegetationClient {
     }
 
     @SubscribeEvent
-    public static void registerParticleProviders(RegisterParticleProvidersEvent event) {
-        event.registerSpriteSet(ModParticles.OVERGROWN_SPORE.get(), OvergrownSporeParticle.Provider::new);
-        event.registerSpriteSet(ModParticles.OVERGROWN_SPORE_SHORT.get(), OvergrownSporeParticle.Provider::shortLived);
-        event.registerSpriteSet(ModParticles.FINE_SPORE.get(), FineSporeParticle.Provider::new);
-        event.registerSpriteSet(ModParticles.SPORE_JET.get(), SporeJetParticle.Provider::new);
-        event.registerSpriteSet(ModParticles.DRIFTING_SPORE.get(), DriftingSporeParticle.Provider::new);
-    }
-
-    @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.BLIGHT_FERN.get(), BlightFernRenderer::new);
         event.registerEntityRenderer(ModEntities.HIVE_NODE.get(), HiveNodeRenderer::new);
@@ -210,12 +199,6 @@ public final class OvergrownVegetationClient {
     public static void registerBlockColors(RegisterColorHandlersEvent.Block event) {
         event.register((state, level, pos, tintIndex) -> OVERGROWN_CONTAINER_TINT,
                 ModBlocks.OVERGROWN_DOOR.get(), ModBlocks.OVERGROWN_BARREL.get());
-    }
-
-    /** 過繁茂の葉の色の揺らぎ・赤い若葉(色の番号を色付けの色の比に書く。{@link LeafColors}、2026-10-17)。 */
-    @SubscribeEvent
-    public static void registerLeafColors(RegisterColorHandlersEvent.Block event) {
-        event.register(LeafColors::color, ModBlocks.OVERGROWN_LEAVES.get());
     }
 
     @SubscribeEvent

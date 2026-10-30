@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.yayuy.overgrownvegetation.registry.ModParticles;
 import com.yayuy.overgrownvegetation.spore.field.SporeFieldServer;
 import com.yayuy.overgrownvegetation.spore.field.SporeSprouts;
 import net.minecraft.core.BlockPos;
@@ -99,7 +98,7 @@ public class BlightFernRootedBlock extends Block implements net.minecraft.world.
         return super.playerWillDestroy(level, pos, state, player);
     }
 
-    // 胞子の噴き出しは胞子嚢がしぼむ瞬間に描画側から(BlightFernRootedPuffs)。前の animateTick の上へ吹く粒は無くした(10-23)
+    // 胞子の噴き出し(胞子嚢がしぼむ瞬間に描画側から、BlightFernRootedPuffs)は画面の演出と一緒に 2026-10-30 に parked/ へ
 
     @Override
     public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(BlockPos pos, BlockState state) {

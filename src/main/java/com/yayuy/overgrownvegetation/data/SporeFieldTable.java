@@ -30,7 +30,6 @@ public final class SporeFieldTable {
         public Sprouts sprouts;
         public Sweep sweep;
         public GiantTree giantTree;
-        public Look look;
         public Rift rift;
         public Valley valley;
         public Fissure fissure;
@@ -74,19 +73,6 @@ public final class SporeFieldTable {
      */
     public static final class Rift {
         public Double eruptTreeMultiple, liftPerDay, frontSpeedChunksPerSec, frontFullRadiusChunks, frontFalloff, frontMinPercent, floorPercent, floorRadiusChunks, frontRadiusChunks;
-    }
-
-    /**
-     * 緑の霧とプルームの見た目(2026-10-23 G、仮決め。クライアントも読む)。濃度が startPercent を越えると霧が色づき始め、
-     * fullPercent で霧の距離が minFar まで縮む(100% でうっすら・200% で白緑・300% 超えで視界数十ブロック)。色は雰囲気強化の LUT と後で揃える。
-     * プルームは浮遊が plumeMinPercent を越えた升から、風下へ薄い帯を上空 10〜30 ブロックに浮かべる(不透明度の上限 plumeAlpha)。
-     */
-    public static final class Look {
-        public Double fogStartPercent, fogFullPercent, fogR, fogG, fogB, plumeMinPercent, plumeAlpha, treePlumeAlpha;
-        /** 粉の濃さ(2026-10-24): 胞子計の「降り積もり %」と同じ物差し。これ未満は描かない・100% の不透明度・曲がり具合(1 = 直線、大きいほど薄い所が薄い)・葉の上の倍率。 */
-        public Double dustMinPercent, dustMaxAlpha, dustGamma, dustLeafFactor;
-        /** 水面の粉の倍率(水面は地面より強く見えるので。2026-10-24 仮 0.7)。 */
-        public Double dustWaterFactor;
     }
 
     /**
@@ -163,8 +149,6 @@ public final class SporeFieldTable {
     private final int sweepDropMin, sweepDropMax;
     private final double gtYoung, gtMature, gtMatureDays, gtLift, gtKillRadius;
     private final int gtMaxTrees;
-    private final double fogStart, fogFull, fogR, fogG, fogB, plumeMin, plumeAlpha, treePlumeAlpha;
-    private final double dustMinPercent, dustMaxAlpha, dustGamma, dustLeafFactor, dustWaterFactor;
     private final double riftTreeMultiple, riftLift, riftFrontSpeed, riftFrontFull, riftFrontFalloff, riftFrontMin, riftFloor, riftFloorRadius, riftFrontRadius;
 
     private SporeFieldTable(Json j) {
@@ -247,20 +231,6 @@ public final class SporeFieldTable {
         this.riftFrontRadius = Math.max(1.0D, orElse(rf.frontRadiusChunks, 14.0D));
         this.riftFloor = Math.max(0.0D, orElse(rf.floorPercent, 100.0D));
         this.riftFloorRadius = Math.max(0.0D, orElse(rf.floorRadiusChunks, 3.0D));
-        Look lk = src.look != null ? src.look : new Look();
-        this.fogStart = orElse(lk.fogStartPercent, 80.0D);
-        this.fogFull = Math.max(this.fogStart + 1.0D, orElse(lk.fogFullPercent, 300.0D));
-        this.fogR = orElse(lk.fogR, 0.80D);
-        this.fogG = orElse(lk.fogG, 0.88D);
-        this.fogB = orElse(lk.fogB, 0.72D);
-        this.plumeMin = Math.max(0.0D, orElse(lk.plumeMinPercent, 20.0D));
-        this.plumeAlpha = Math.max(0.0D, Math.min(1.0D, orElse(lk.plumeAlpha, 0.30D)));
-        this.treePlumeAlpha = Math.max(0.0D, Math.min(1.0D, orElse(lk.treePlumeAlpha, 0.35D)));
-        this.dustMinPercent = Math.max(0.0D, orElse(lk.dustMinPercent, 1.0D));
-        this.dustMaxAlpha = Math.max(0.0D, Math.min(1.0D, orElse(lk.dustMaxAlpha, 0.42D)));
-        this.dustGamma = Math.max(0.1D, Math.min(5.0D, orElse(lk.dustGamma, 1.2D)));
-        this.dustLeafFactor = Math.max(0.0D, Math.min(1.0D, orElse(lk.dustLeafFactor, 0.6D)));
-        this.dustWaterFactor = Math.max(0.0D, Math.min(1.0D, orElse(lk.dustWaterFactor, 0.4D)));
     }
 
     /** ゲームの既定({@link SporeField.Params} の既定そのまま。2026-10-30 まで極相の日数だけ変えていた)。 */
@@ -405,22 +375,7 @@ public final class SporeFieldTable {
         return gtYoung + (gtMature - gtYoung) * t;
     }
 
-    public double fogStartPercent() { return fogStart; }
-
-    public double fogFullPercent() { return fogFull; }
-
-    public float[] fogColor() { return new float[]{(float) fogR, (float) fogG, (float) fogB}; }
-
-    public double plumeMinPercent() { return plumeMin; }
-
-    public double plumeAlpha() { return plumeAlpha; }
-
-    public double treePlumeAlpha() { return treePlumeAlpha; }
-    public double dustMinPercent() { return dustMinPercent; }
-    public double dustMaxAlpha() { return dustMaxAlpha; }
-    public double dustGamma() { return dustGamma; }
-    public double dustLeafFactor() { return dustLeafFactor; }
-    public double dustWaterFactor() { return dustWaterFactor; }
+    // 緑の霧・プルーム・粉の見た目(look 節)は画面の演出と一緒に 2026-10-30 に parked/ へ退避した(値は parked/PARKED.md の U9)
     public double riftTreeMultiple() { return riftTreeMultiple; }
     public double riftLiftPerDay() { return riftLift; }
     public double riftFrontSpeed() { return riftFrontSpeed; }

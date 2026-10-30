@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.mixin.client.sodium;
 
-import com.yayuy.overgrownvegetation.client.SodiumTerrain;
+import com.yayuy.overgrownvegetation.client.shader.SodiumTerrain;
 import net.minecraft.resources.ResourceLocation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;

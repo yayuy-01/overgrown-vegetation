@@ -29,7 +29,7 @@ import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
  *
  * <p>粉のある上面(列のいちばん上のブロックの上面)をシャベルで右クリックすると、そのブロックを含む 4×4 ブロックの升に
  * 「払った」印を付け({@link ModAttachments#SWEPT_DUST})、チャンクの降り積もりを升の分(既定 1/16)だけ減らし、「胞子」を落とす。
- * 印の付いた升は粉を描かない。降り積もりが払う直前の値まで戻れば印は消える({@link SporeDustSync})。
+ * 降り積もりが払う直前の値まで戻れば印は消える({@link #refresh})。粉の見た目(画面に粉を描く・払った升を描かない)は 2026-10-30 に parked/ へ退避した。
  * 「払った升でしばらく発芽しない」効果は無い(値を減らすだけ)。音・耐久はバニラの土ならしと同じ。
  * 払える升では土ならし(草 → 土の道)より先に払う(粉が無い・もう払った升では今までどおり土ならし)。
  */
@@ -57,7 +57,7 @@ public final class SporeSweeping {
 
     /**
      * 降り積もりが払う直前の値まで戻った・汚染された・粉が無くなったチャンクの印を消す(また粉が出る)。
-     * 読み込まれていないチャンクは見張りから外す(読み込んだときに入れ直す)。場の更新ごと({@link SporeDustSync#send})。
+     * 読み込まれていないチャンクは見張りから外す(読み込んだときに入れ直す)。場の更新ごと(SporeFieldServer・NetherSporeFieldServer が呼ぶ)。
      */
     static void refresh(ServerLevel level) {
         it.unimi.dsi.fastutil.longs.LongOpenHashSet set = marked(level);
@@ -74,7 +74,7 @@ public final class SporeSweeping {
             SporeFieldServer.Cell c = SporeFieldServer.cell(level, cx, cz);
             if (c == null) continue; // 写しがまだ無い: 待つ
             // 「戻った」は払う直前の値を超えたとき(払った直後は写しがまだ古く同じ値なので、以上だとすぐ消えてしまう)
-            if (SporeDustSync.dustLevel(c) <= 0 || c.dep() > chunk.getData(ModAttachments.SWEPT_DUST_REFILL)) {
+            if (dustLevel(c) <= 0 || c.dep() > chunk.getData(ModAttachments.SWEPT_DUST_REFILL)) {
                 chunk.removeData(ModAttachments.SWEPT_DUST);
                 chunk.removeData(ModAttachments.SWEPT_DUST_REFILL);
                 chunk.setUnsaved(true);
@@ -85,6 +85,16 @@ public final class SporeSweeping {
 
     static void clear() {
         MARKED.clear();
+    }
+
+    /**
+     * 粉の濃さ = 胞子計の「降り積もり %」(発芽のしきい値 = 100、0〜100 で頭打ち)。汚染済み・写しの無いチャンクは 0。
+     * 2026-10-30 に粉の見た目の送信(SporeDustSync)を parked/ へ退避したとき、ここへ移した。
+     */
+    static int dustLevel(SporeFieldServer.Cell c) {
+        if (c == null || c.stage() > 0) return 0;
+        double threshold = DesignData.sporeField().field().germThreshold;
+        return (int) Math.max(0, Math.min(100, Math.round(c.dep() / threshold * 100.0D)));
     }
 
     /** チャンクの中の升の番号(0〜15)。 */
@@ -106,14 +116,7 @@ public final class SporeSweeping {
                 || level.getHeight(Heightmap.Types.MOTION_BLOCKING, pos.getX(), pos.getZ()) - 1 != pos.getY()) {
             return; // オーバーワールドは列のいちばん上だけ
         }
-        if (level.isClientSide()) {
-            // 画面側: 粉が見えている升なら土ならしの予測をさせずに腕を振るだけ(本当の処理はサーバー)
-            if (com.yayuy.overgrownvegetation.client.ClientSporeDust.hasDustAt(pos)) {
-                event.setCanceled(true);
-                event.setCancellationResult(InteractionResult.SUCCESS);
-            }
-            return;
-        }
+        if (level.isClientSide()) return; // 画面側の「粉が見えている升なら土ならしの予測をさせない」は粉の見た目と一緒に 2026-10-30 に parked/ へ
         if (!(level instanceof ServerLevel server) || !SporeFieldServer.enabled()) return;
         if (sweep(server, pos, event.getEntity(), stack, event.getHand() == net.minecraft.world.InteractionHand.MAIN_HAND
                 ? net.minecraft.world.entity.EquipmentSlot.MAINHAND : net.minecraft.world.entity.EquipmentSlot.OFFHAND)) {
@@ -142,7 +145,7 @@ public final class SporeSweeping {
                                 net.minecraft.world.entity.EquipmentSlot slot) {
         int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
         SporeFieldServer.Cell c = SporeFieldServer.cell(level, cx, cz);
-        if (SporeDustSync.dustLevel(c) <= 0) return false;
+        if (dustLevel(c) <= 0) return false;
         LevelChunk chunk = level.getChunkSource().getChunkNow(cx, cz);
         if (chunk == null) return false;
         if (!dustSurface(level, chunk, pos)) return false; // 汚染済みの地面・過繁茂のチャンクには粉が無い(2026-10-24)
@@ -168,7 +171,6 @@ public final class SporeSweeping {
             level.playSound(null, pos, SoundEvents.SHOVEL_FLATTEN, SoundSource.BLOCKS, 1.0F, 1.0F);
             stack.hurtAndBreak(1, player, slot);
         }
-        SporeDustSync.send(level); // 払った升の粉をすぐ消す
         return true;
     }
 

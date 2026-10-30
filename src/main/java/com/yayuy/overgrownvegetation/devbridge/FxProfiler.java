@@ -63,12 +63,7 @@ import org.lwjgl.opengl.GLCapabilities;
 public final class FxProfiler {
     private static final boolean ENABLED = Boolean.getBoolean("ov.devbridge");
 
-    static {
-        // 描画の中の細かい区切り(mixin.client.LevelRendererPhaseMarkMixin → client.RenderPhaseHook)を区間に入れる(2026-10-20)
-        if (ENABLED) {
-            com.yayuy.overgrownvegetation.client.RenderPhaseHook.mark = FxProfiler::phaseMark;
-        }
-    }
+    // 描画の中の細かい区切り(mixin.client.LevelRendererPhaseMarkMixin → client.RenderPhaseHook)は 2026-10-30 に parked/ へ(Mixin は 10-30 の昼に退避済み)
 
     private static void phaseMark(String name) {
         if (segPrev != null && (on || benchState != BenchState.IDLE) && !benchNoGpu) {

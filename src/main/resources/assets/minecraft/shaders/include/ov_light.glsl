@@ -1,6 +1,6 @@
 #version 150
 
-// Overgrown Vegetation: canopy shade and sunflecks on every surface (wind plan C; client/CanopySunMap.java holds the
+// Overgrown Vegetation: canopy shade and sunflecks on every surface (client/atmosphere/CanopySunMap.java holds the
 // explanation). Keep this file ASCII-only.
 //
 // The CPU traces the sun direction through the world and writes a small "sun-space" map: every texel is one line along
@@ -13,7 +13,7 @@
 // of a trunk: lines that just graze the trunk), a leaf more than one block above it, or (solid and cutout_mipped layers)
 // when it faces away from the sun.
 // Under thin foliage (1 to 3 leaves, no solid block) small sunflecks break through on everything but the top of the
-// ground (the ground has its own spots drawn by client/CanopyDapple.java). The fleck pattern lives in sun space, so a
+// ground (the ground has its own spots drawn by client/atmosphere/CanopyDapple.java). The fleck pattern lives in sun space, so a
 // fleck lands on a fern frond and a trunk behind it along the same beam, and is stretched along the sun on slopes.
 //
 // OvSunA     = (sun.x / sun.y, sun.z / sun.y, shade strength; 0 = map off, how much the map decides sun or shade (daylight))
@@ -33,10 +33,8 @@ uniform vec4 OvMapA;
 uniform vec4 OvShadeColor;
 uniform vec4 OvTint;
 uniform vec4 OvFleck;
-// OvCave     = (teal added to dark faces underground, as a multiple of the face colour; strength, 0 = off). See client/CaveLight.java.
-uniform vec4 OvCave;
 
-// How much ovCanopyLight found this fragment in canopy shade (0 to 1); the cloud shadow (ov_cloud.glsl) does not shade it again.
+// How much ovCanopyLight found this fragment in canopy shade (0 to 1), for later effects (the cloud shadow must not shade it again).
 float ovCanopyShade = 0.0;
 
 // Block light (0 to 1) from which a face counts as torch-lit and keeps its warm colour (fully at OV_TORCH_FULL).
@@ -73,16 +71,6 @@ float ovNoise(vec2 p) {
     float c = ovHash(i + vec2(0.0, 1.0));
     float d = ovHash(i + vec2(1.0, 1.0));
     return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-}
-
-// Underground in the overgrown area, faces lit by neither block light nor sky light get a little teal light (the dark is kept,
-// only lifted). albedo = texture colour x vertex tint, without the lightmap.
-vec3 ovCaveFloor(vec3 color, vec3 albedo, vec2 light) {
-    if (OvCave.w <= 0.0) {
-        return color;
-    }
-    float dark = 1.0 - smoothstep(0.0, 0.4, max(light.x, light.y));
-    return color + albedo * OvCave.rgb * (OvCave.w * dark);
 }
 
 // Colour of a terrain fragment at camera-relative position pos with world normal n. facing > 0 also darkens faces that

@@ -67,7 +67,7 @@ public final class OvergrownMixinPlugin implements IMixinConfigPlugin {
         if (SKIP_CLIENT && name.startsWith("client.") && !name.endsWith("Accessor") && !name.endsWith("Invoker")) {
             return false;
         }
-        // Sodium の中へ刺すもの(client.sodium.*)は、Sodium 本家がいるときだけ(Embeddium はクラスもシェーダーも別物。2026-10-22)。
+        // Sodium の中へ刺すもの(client.sodium.*)は、Sodium 本家がいるときだけ(Embeddium はクラスもシェーダーも別物。2026-10-22、10-30 に地形のシェーダーと一緒に戻した)。
         if (name.startsWith("client.sodium.")) {
             LoadingModList mods = LoadingModList.get();
             return mods != null && mods.getModFileById("sodium") != null && mods.getModFileById("embeddium") == null;

@@ -91,21 +91,6 @@
     "liftPerDay": 1.0,
     "killRadius": 48.0
   },
-  "look": {
-    "fogStartPercent": 80.0,
-    "fogFullPercent": 300.0,
-    "fogR": 0.80,
-    "fogG": 0.88,
-    "fogB": 0.72,
-    "plumeMinPercent": 20.0,
-    "plumeAlpha": 0.30,
-    "treePlumeAlpha": 0.35,
-    "dustMinPercent": 1.0,
-    "dustMaxAlpha": 0.42,
-    "dustGamma": 1.2,
-    "dustLeafFactor": 0.6,
-    "dustWaterFactor": 0.4
-  },
   "rift": {
     "eruptTreeMultiple": 30.0,
     "liftPerDay": 4.0,

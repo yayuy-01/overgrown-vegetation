@@ -767,6 +767,25 @@ public final class ModBlocks {
                     .mapColor(MapColor.COLOR_GREEN)
                     .strength(1.5F, 6.0F));
 
+    /**
+     * 原木から化けた過繁茂しているブロック(2026-10-05 夜、{@link com.yayuy.overgrownvegetation.block.OvergrownTrunkBlock})。見た目は
+     * 過繁茂しているブロックと同じで、{@code #logs} に入っているので木の一部として片付く(幹の途中に残って宙に浮かない)。アイテムは無い。
+     * 性質は過繁茂しているブロックの写しなので、その登録より後ろに置く。2026-10-30 に退避した covered/CoveredBlocks から移した。
+     */
+    public static final DeferredBlock<Block> OVERGROWN_TRUNK_BLOCK = BLOCKS.register("overgrown_trunk_block",
+            () -> new com.yayuy.overgrownvegetation.block.OvergrownTrunkBlock(BlockBehaviour.Properties.ofFullCopy(OVERGROWN_BLOCK.get())));
+
+    /**
+     * 火の消えた松明(2026-10-05、{@link com.yayuy.overgrownvegetation.block.ExtinguishedTorchBlock})。汚染が松明に届くとこれになる。
+     * 光らない・炎も煙も出ない。アイテムは無い(壊すと棒)。壁の松明は向きを引き継ぐ。2026-10-30 に covered/CoveredBlocks から移した。
+     */
+    public static final DeferredBlock<Block> EXTINGUISHED_TORCH = BLOCKS.register("extinguished_torch",
+            () -> new com.yayuy.overgrownvegetation.block.ExtinguishedTorchBlock(
+                    BlockBehaviour.Properties.ofFullCopy(Blocks.TORCH).lightLevel(state -> 0)));
+    public static final DeferredBlock<Block> EXTINGUISHED_WALL_TORCH = BLOCKS.register("extinguished_wall_torch",
+            () -> new com.yayuy.overgrownvegetation.block.ExtinguishedTorchBlock.Wall(
+                    BlockBehaviour.Properties.ofFullCopy(Blocks.WALL_TORCH).lightLevel(state -> 0)));
+
     /** 過繁茂しているブロックのハーフブロック(2026-10-05、ユーザー要望)。硬さ・道具は過繁茂しているブロックと同じ。 */
     public static final DeferredBlock<Block> OVERGROWN_BLOCK_SLAB = BLOCKS.registerBlock(
             "overgrown_block_slab",

@@ -45,7 +45,9 @@ public final class DesignData {
     private static volatile PhaseTable phases = PhaseTable.DEFAULT;
     private static volatile SpreadTable spread = SpreadTable.DEFAULT;
     private static volatile PortalTable portal = PortalTable.DEFAULT;
+    private static volatile CoverTable cover = CoverTable.DEFAULT;
     private static volatile SporeFieldTable sporeField = SporeFieldTable.DEFAULT;
+    private static volatile AtmosphereTable atmosphere = AtmosphereTable.DEFAULT;
 
     private static volatile boolean loaded;
 
@@ -73,8 +75,18 @@ public final class DesignData {
         sporeField = table;
     }
 
+    /** 過繁茂の密林の雰囲気の設計値({@code atmosphere.json}、2026-10-30)。クライアントの描画だけが読む。 */
+    public static AtmosphereTable atmosphere() {
+        return atmosphere;
+    }
+
     public static PortalTable portal() {
         return portal;
+    }
+
+    /** 覆いの設計値({@code cover.json}、2026-10-30)。 */
+    public static CoverTable cover() {
+        return cover;
     }
 
     /** 起動時に一度だけ({@code OvergrownVegetation} コンストラクタから)。 */
@@ -99,7 +111,9 @@ public final class DesignData {
         phases = PhaseTable.fromJson(read(dir, "phases.json", PhaseTable.Json.class));
         spread = SpreadTable.fromJson(read(dir, "spread.json", SpreadTable.Json.class));
         portal = PortalTable.fromJson(read(dir, "portal.json", PortalTable.Json.class));
+        cover = CoverTable.fromJson(read(dir, "cover.json", CoverTable.Json.class));
         sporeField = SporeFieldTable.fromJson(read(dir, "spore_field.json", SporeFieldTable.Json.class));
+        atmosphere = AtmosphereTable.fromJson(read(dir, "atmosphere.json", AtmosphereTable.Json.class));
 
         OvergrownVegetation.LOGGER.info("設計データを読み込みました({})", dir);
     }

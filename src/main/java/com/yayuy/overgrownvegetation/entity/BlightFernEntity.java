@@ -107,14 +107,8 @@ public class BlightFernEntity extends PathfinderMob implements GeoEntity {
             }
             return state.setAndContinue(IDLE_ANIM);
         }));
-        controllers.add(new AnimationController<>(this, "sacs", 0, state -> state.setAndContinue(SACS_ANIM))
-                .setCustomInstructionKeyframeHandler(event -> {
-                    // 胞子嚢がしぼむ瞬間に小さく噴く(timeline の puff:<番号>。根付いた姿より少なめ)
-                    if (this.level().isClientSide() && !isRooting()) {
-                        com.yayuy.overgrownvegetation.block.BlightFernRootedPuffs.puffWalking(this, this.yBodyRot,
-                                event.getKeyframeData().getInstructions());
-                    }
-                }));
+        // 胞子嚢がしぼむ瞬間の小さな噴き出しは画面の演出と一緒に 2026-10-30 に parked/ へ(BlightFernRootedPuffs)
+        controllers.add(new AnimationController<>(this, "sacs", 0, state -> state.setAndContinue(SACS_ANIM)));
     }
 
     @Override

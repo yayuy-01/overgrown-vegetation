@@ -12,6 +12,7 @@
         { "name": "CamLeft", "type": "float", "count": 4, "values": [ 1.0, 0.0, 0.0, 0.0 ] },
         { "name": "CamUp", "type": "float", "count": 4, "values": [ 0.0, 1.0, 0.0, 0.0 ] },
         { "name": "Sun", "type": "float", "count": 4, "values": [ 0.0, 1.0, 0.0, 0.0 ] },
-        { "name": "Glow", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 1.0 ] }
+        { "name": "Glow", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 1.0 ] },
+        { "name": "Phase", "type": "float", "count": 4, "values": [ 0.06, 2.94, 2.2, 0.0 ] }
     ]
 }

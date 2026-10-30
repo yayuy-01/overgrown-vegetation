@@ -3,7 +3,6 @@ package com.yayuy.overgrownvegetation.client;
 import com.mojang.logging.LogUtils;
 import com.mojang.math.Transformation;
 import com.yayuy.overgrownvegetation.block.OvergrownHuskBlockEntity;
-import com.yayuy.overgrownvegetation.corruption.OvergrownLayerField;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
@@ -68,7 +67,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>持ち物の模型には<b>blockstate の回転が掛かっていない</b>ので、こちらで向きを付け直す
  * ({@link #turnFor})。面を焼き直すのは 1 回だけで、あとは覚えておく ——
- * 毎回作り直すと {@link OvergrownLayerQuads} が面ごとに覚えている苔が際限なく増える。
+ * 毎回作り直すと面ごとに覚えている苔が際限なく増えた(2026-10-30 までの OvergrownLayerQuads)。
  *
  * <p>それでも駄目なら blockstate が指している普通の模型(苔の立方体)に落とす。
  * 見た目が立方体に化けても<b>元のブロックは壊せば返る</b>ので失うものは無い。
@@ -114,16 +113,22 @@ public class OvergrownHuskModel implements IDynamicBakedModel {
         if (borrowed.isEmpty()) {
             return borrowed;
         }
-        // 立方体でなければテクスチャの形に切り抜く(松明のような空白に苔を乗せない)。
-        // 元の面と同じ並びの後ろ・同じ cutoutMipped に積むので、押し出さずに重ねる(遠くのちらつき止め、OvergrownLayerQuads#PUSH)。
-        boolean mask = !OvergrownLayerField.isPlainCube(mimic);
-        if (source.stable) {
-            // 借りる並びが毎回同じなら、出来上がりを覚えて使い回す(2026-10-10、CoveredBlockModels.DressedLists。中身は下と同じ)。
-            return CoveredBlockModels.DressedLists.of(borrowed, mask, true);
+        // 覆いの絵を面全体に重ねる(2026-10-30 から。記録で覆ったブロックと同じ client/CoverRenderer の作り)。
+        // 元の面と同じ cutoutMipped の後ろに積むので、押し出さずに重ねる。絵と回転は位置で選ぶ(位置が無ければ原点)。
+        CoverSprites.Set sprites = CoverSprites.current();
+        if (sprites == null) {
+            return borrowed;
         }
+        net.minecraft.core.BlockPos pos = data.get(OvergrownHuskBlockEntity.POS);
+        int x = pos != null ? pos.getX() : 0;
+        int y = pos != null ? pos.getY() : 0;
+        int z = pos != null ? pos.getZ() : 0;
+        com.yayuy.overgrownvegetation.data.CoverTable design = com.yayuy.overgrownvegetation.data.DesignData.cover();
         List<BakedQuad> out = new ArrayList<>(borrowed.size() * 2);
         out.addAll(borrowed);
-        OvergrownLayerQuads.dressAll(borrowed, mask, true, out);
+        for (BakedQuad quad : borrowed) {
+            out.add(CoverQuads.overlay(quad, true, x, y, z, sprites, design));
+        }
         return out;
     }
 
@@ -248,7 +253,7 @@ public class OvergrownHuskModel implements IDynamicBakedModel {
      *
      * <p>頂点の位置・法線・面の向きの 3 つを揃えて回すこと。
      * 面の向きを忘れると<b>陰の付き方が合わず</b>、苔の貼り方も狂う
-     * ({@link OvergrownLayerQuads} は面の向きで貼る軸を決めている)。
+     * ({@link CoverQuads} は面の向きで貼る軸を決めている)。
      */
     private static List<BakedQuad> rotate(List<BakedQuad> quads, BlockModelRotation turn) {
         Transformation transformation = turn.getRotation();
@@ -296,7 +301,7 @@ public class OvergrownHuskModel implements IDynamicBakedModel {
      * 面を借りる先 1 つぶん。
      *
      * <p>回した面は<b>覚えておく</b>。毎回作り直すと、面ごとに苔を覚えている
-     * {@link OvergrownLayerQuads} の表が際限なく増える。
+     * 表が際限なく増える(2026-10-30 までの OvergrownLayerQuads)。
      * 回さないとき(ブロックの模型を借りるとき)は覚えない ——
      * 模型が乱数で見た目を選ぶことがあり、固めてしまうと 1 種類に揃ってしまう。
      */
@@ -311,7 +316,7 @@ public class OvergrownHuskModel implements IDynamicBakedModel {
         private final Map<Integer, List<BakedQuad>> turned = new ConcurrentHashMap<>();
         /**
          * {@link #quads} が同じ並びを返し続けるか(苔を足した出来上がりを覚えてよいか、2026-10-10)。
-         * 回した面は覚えた並びを返す。回さないときは借りる模型しだい({@code CoveredBlockModels.DressedLists#stableLists})。
+         * 回した面は覚えた並びを返す。回さないときは覚えない(2026-10-30 まで CoveredBlockModels.DressedLists で使い回していた。今は使っていない)。
          */
         final boolean stable;
 
@@ -319,7 +324,7 @@ public class OvergrownHuskModel implements IDynamicBakedModel {
             this.model = model;
             this.state = state;
             this.turn = turn;
-            this.stable = turn != null || CoveredBlockModels.DressedLists.stableLists(model);
+            this.stable = turn != null;
         }
 
         List<BakedQuad> quads(@Nullable Direction side, RandomSource random) {

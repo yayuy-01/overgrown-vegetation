@@ -4,7 +4,6 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.block.CorruptedLianaBlock;
 import com.yayuy.overgrownvegetation.block.CorruptedLianaBlockEntity;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
-import com.yayuy.overgrownvegetation.covered.CoveredBlocks;
 import com.yayuy.overgrownvegetation.perf.PerfJob;
 import com.yayuy.overgrownvegetation.perf.TickBudget;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
@@ -436,20 +435,27 @@ public final class SwampTreeFall {
 
     /**
      * 倒木の原木: 元の木の<b>覆われた原木</b>(2026-10-05 夜から、汚染された幹は同じ木の覆われた原木になる。オークの木はオークの倒木)。
+     * 2026-10-30 から覆われた原木 = 元の原木 + 覆いの記録({@link #layFallenTrunk} が並べたあと記録を書く)。
      * 元が分からない(前のセーブで過繁茂した原木になっていた幹など)ときは過繁茂した原木。
      */
     private static BlockState fallenLog(BlockState stump) {
-        Block block = stump.getBlock();
-        Block covered = CoveredBlocks.vanillaOf(block) != null ? block : CoveredBlocks.coveredOf(block);
-        if (covered != null && covered.defaultBlockState().hasProperty(RotatedPillarBlock.AXIS)) {
-            return covered.defaultBlockState();
+        if (CorruptionRegistry.coversInPlace(stump) && stump.hasProperty(RotatedPillarBlock.AXIS)) {
+            return stump.getBlock().defaultBlockState();
         }
         return ModBlocks.OVERGROWN_LOG.get().defaultBlockState();
+    }
+
+    /** 並べた元の木の原木を記録で覆う(2026-10-30 から覆われた原木 = 原木 + 記録)。過繁茂した原木は何もしない。 */
+    private static void coverIfInPlace(ServerLevel level, BlockPos pos, BlockState log) {
+        if (CorruptionRegistry.coversInPlace(log)) {
+            OvergrownLayerData.cover(level, pos);
+        }
     }
 
     /** 切り株 1 個を残し、幹の長さぶんの原木を横倒しに並べる。 */
     private static void layFallenTrunk(ServerLevel level, BlockPos stump, BlockState upright, int trunkLength, RandomSource random) {
         level.setBlock(stump, upright, FLAGS);
+        coverIfInPlace(level, stump, upright);
 
         int length = Math.min(MAX_FALLEN_LENGTH, Math.max(MIN_FALLEN_LENGTH, trunkLength - 1));
         Direction dir = Direction.Plane.HORIZONTAL.getRandomDirection(random);
@@ -477,6 +483,7 @@ public final class SwampTreeFall {
                 break;
             }
             level.setBlock(at, lying, FLAGS);
+            coverIfInPlace(level, at, lying);
             placed.add(at.asLong());
             y = logY;
         }
@@ -533,9 +540,12 @@ public final class SwampTreeFall {
         return BuiltInRegistries.BLOCK.getKey(coveredToVanilla(state).getBlock()).getPath().startsWith("stripped_");
     }
 
-    /** 覆われたブロック(汚染された建物の一部)は元のブロックとして見る —— 覆われた樹皮を剥いだ原木・石レンガも建物のしるし。 */
+    /**
+     * 覆われたブロック(汚染された建物の一部)は元のブロックとして見る —— 覆われた樹皮を剥いだ原木・石レンガも建物のしるし。
+     * 2026-10-30 から覆われたブロックは元のブロックのまま(記録で覆う)なので、そのまま返す。
+     */
     private static BlockState coveredToVanilla(BlockState state) {
-        return CoveredBlocks.vanillaOf(state.getBlock()) != null ? CoveredBlocks.vanillaState(state) : state;
+        return state;
     }
 
     /** 建築に使われるブロック(木材・柵・階段・ハーフブロック・ドア・トラップドア・壁・ガラス・松明など)か。 */

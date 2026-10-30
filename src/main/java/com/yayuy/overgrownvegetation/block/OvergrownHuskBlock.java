@@ -75,7 +75,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>「BlockEntity を汚染するか」({@code corruptBlockEntities}、既定 false)は
  * <b>チェストなどが中身ごと消えるのを防ぐための設定</b>。こちらは<b>消さない</b> ——
  * 見た目も中身も残して機能だけ止めるので、別の設定
- * ({@code OvergrownLayerField#ENCASE}、既定 true。もとは climax.json)で切り替える。
+ * ({@code OvergrownLayerField#encase}、既定 true。もとは climax.json)で切り替える。
  *
  * <h2>形</h2>
  * <p>当たり判定と遮蔽は<b>元のブロックの形をそのまま借りる</b>。ただし元のブロックのコードに
@@ -114,7 +114,7 @@ public class OvergrownHuskBlock extends Block implements EntityBlock {
      * ブロックが毎回抽選を無駄打ちする。
      */
     public static boolean canEncase(BlockState state) {
-        if (!com.yayuy.overgrownvegetation.corruption.OvergrownLayerField.ENCASE) {
+        if (!com.yayuy.overgrownvegetation.corruption.OvergrownLayerField.encase()) {
             return false;
         }
         if (!state.hasBlockEntity()) {
@@ -155,7 +155,7 @@ public class OvergrownHuskBlock extends Block implements EntityBlock {
     public static void encase(LevelAccessor level, BlockPos pos, BlockState previous, int flags) {
         List<ItemStack> items = takeContents(level, pos);
         level.setBlock(pos, ModBlocks.OVERGROWN_HUSK.get().defaultBlockState()
-                .setValue(LIGHT, com.yayuy.overgrownvegetation.covered.CoveredLight.dim(previous.getLightEmission())), flags);
+                .setValue(LIGHT, com.yayuy.overgrownvegetation.corruption.CoveredLight.dim(previous.getLightEmission())), flags);
         if (level.getBlockEntity(pos) instanceof OvergrownHuskBlockEntity husk) {
             husk.capture(previous, items);
         }

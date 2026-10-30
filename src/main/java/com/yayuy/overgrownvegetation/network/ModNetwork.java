@@ -23,6 +23,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
  *   <li>{@link ErosionPayload} — 浸食度の % (S2C、整数 % が変わったとき・追跡開始時)</li>
  *   <li>{@link ExtraArmorPayload} — 追加防具の 4 枠の中身(S2C、枠が変わったとき・追跡開始時。見た目用)</li>
  *   <li>{@link OvergrownLayerPayload} — 植物に覆われたマスの記録 (S2C、チャンクを見始めたとき・覆われたとき)</li>
+ *   <li>{@link SporeAirPayload} — プレイヤーの所の胞子濃度(S2C、5 秒ごと。密林の雰囲気の光の筋の濃さ)</li>
  *   <li>{@link ResearchUnlockPayload} — 研究ノードの開放要求(C2S)</li>
  *   <li>{@link PoweredArmorCraftPayload} — パワードアーマー作成テーブルの「作成」(C2S、レシピ id)</li>
  *   <li>{@link CannonControlPayload} — 砲台に乗っている間の発射・装薬(C2S)</li>
@@ -53,17 +54,9 @@ public final class ModNetwork {
         // 2026-10-23 に 14 へ(胞子の粉の見た目を足した)。
         // 2026-10-23 に 15 へ(胞子の粉にシャベルで払った升の印を足した)。
         // 2026-10-23 に 16 へ(胞子の粉に浮遊の濃度・プレイヤーの所の濃度・巨大樹の梢を足した。緑の霧とプルーム)。
-        PayloadRegistrar registrar = event.registrar("18");
-        // 胞子の粉の見た目(場の更新ごと、変わっていれば。2026-10-23)。
-        registrar.playToClient(
-                SporeDustPayload.TYPE,
-                SporeDustPayload.STREAM_CODEC,
-                (payload, context) -> context.enqueueWork(() -> com.yayuy.overgrownvegetation.client.ClientSporeDust.accept(payload)));
-        // 卓越風の入力(入ったとき・雨と雷が切り替わったとき。2026-10-23)。
-        registrar.playToClient(
-                PrevailingWindPayload.TYPE,
-                PrevailingWindPayload.STREAM_CODEC,
-                (payload, context) -> context.enqueueWork(() -> com.yayuy.overgrownvegetation.client.ClientPrevailingWind.accept(payload)));
+        // 2026-10-30 に 19 へ(胞子の粉の見た目と卓越風の入力の通信を画面の演出と一緒に parked/ へ退避)。
+        // 2026-10-30 夜に 20 へ(プレイヤーの所の胞子濃度を足した。密林の雰囲気の光の筋の濃さ)。
+        PayloadRegistrar registrar = event.registrar("20");
         registrar.playToClient(
                 EarthquakeShakePayload.TYPE,
                 EarthquakeShakePayload.STREAM_CODEC,
@@ -74,6 +67,12 @@ public final class ModNetwork {
                 OvergrownLayerPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(
                         () -> com.yayuy.overgrownvegetation.client.ClientOvergrownLayer.accept(payload)));
+
+        registrar.playToClient(
+                SporeAirPayload.TYPE,
+                SporeAirPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(
+                        () -> com.yayuy.overgrownvegetation.client.atmosphere.AirHaze.setSporePercent(payload.percent())));
 
     }
 

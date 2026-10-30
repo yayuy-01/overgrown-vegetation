@@ -1,14 +1,14 @@
 #version 150
 
 // Overgrown Vegetation: glowing spores inside the light shafts, drawn as one static vertex buffer
-// (client/GpuSpores.java and CanopyLight.java hold the explanation; the CPU version is CanopyLight#tickMotes). Keep this file ASCII-only.
+// (client/atmosphere/ShaftMotes.java and LightShafts.java hold the explanation). Keep this file ASCII-only.
 //
 // Each vertex is (slot, corner, 0). Slot / 64 is the shaft group; each group gets 3 vec4 in Groups:
 //   (top - camera, spawn half width), (bottom - camera, presence), (tMin, share of slots shown, lit half width scale, thin)
 // CamMod  = (camera x mod 2048, camera y, camera z mod 2048, -)
-// Clock   = (time in ticks, wind row now, climax suck 0..1, -)
+// Clock   = (time in ticks, wind row now, -, -)
 // CamLeft / CamUp = camera vectors.  Sun = (light direction, daylight).  Glow = (r, g, b, intensity)
-// WindHist = the same wind history as gpu_spores.vsh (how far the wind has pushed a spore at each 8-block column).
+// WindHist = how far the wind has pushed a spore at each 8-block column (client/atmosphere/WindHistory.java; still air = 0).
 
 in vec3 Position;
 
@@ -22,6 +22,8 @@ uniform vec4 CamLeft;
 uniform vec4 CamUp;
 uniform vec4 Sun;
 uniform vec4 Glow;
+// Phase = (light seen from behind, extra toward the light, power, -) of SunLight#phase.
+uniform vec4 Phase;
 uniform vec4 Groups[42];
 uniform int GroupCount;
 
@@ -97,14 +99,8 @@ void main() {
     rel.x += a * sin(0.37 * q.y + 0.23 * q.z + 0.043 * tm + 1.3) * cos(0.19 * q.x - 0.031 * tm);
     rel.y += 0.6 * a * sin(0.29 * q.x + 0.17 * q.z - 0.037 * tm + 2.1) * cos(0.21 * q.y + 0.027 * tm);
     rel.z += a * sin(0.31 * q.x + 0.41 * q.y - 0.039 * tm + 0.7) * cos(0.23 * q.z + 0.033 * tm);
-    // Climax jungle: the spores are sucked up into the leaves and vanish above the hole.
-    rel.y += 0.045 * Clock.z * age;
-    if (Clock.z > 0.0 && rel.y > g0.y) {
-        hide();
-        return;
-    }
 
-    // Lit only while inside its own shaft (CanopyLight.Shaft#litAt).
+    // Lit only while inside its own shaft (LightShafts.Shaft).
     vec3 ax = g1.xyz - g0.xyz;
     float len2 = dot(ax, ax);
     float st = len2 <= 1.0e-6 ? 0.0 : dot(rel - g0.xyz, ax) / len2;
@@ -114,17 +110,19 @@ void main() {
         float half2 = g2.z * (0.75 + 0.5 * st);
         lit = clamp(1.0 - (d - half2) / 0.6, 0.0, 1.0) * g1.w;
     }
-    // Brighter looking toward the light (CanopyLight#phase).
+    // Brighter looking toward the light (SunLight#phase).
     float dist = length(rel);
     float ph = 1.0;
     if (lit > 0.0 && dist > 1.0e-5) {
         float cs = dot(rel, Sun.xyz) / dist;
         float qq = clamp((1.0 + cs) * 0.5, 0.0, 1.0);
-        ph = 0.06 + 2.94 * pow(qq, 2.2);
+        ph = Phase.x + Phase.y * pow(qq, Phase.z);
     }
     float fade = min(1.0, age / 15.0) * min(1.0, (life - age) / 30.0);
     float twinkle = 0.7 + 0.3 * sin(tm * 0.25 + phase);
     float glow = (0.04 + 0.96 * lit * ph) * fade * twinkle * Glow.w * max(Sun.w, 0.15) * shown;
+    // A spore right in front of the eye would be a huge out-of-focus blob: fade it out closer than 1.5 blocks.
+    glow *= smoothstep(0.6, 1.5, dist);
     if (glow <= 0.01 || dist > 40.0) {
         hide();
         return;

@@ -17,9 +17,6 @@
     "overgrown_vegetation:overgrown_barrel",
     "overgrown_vegetation:fungal_cap",
     "overgrown_vegetation:glowing_mycelium",
-    "overgrown_vegetation:overgrown_slab",
-    "overgrown_vegetation:covered_bamboo_mosaic",
-    "overgrown_vegetation:covered_bamboo_mosaic_stairs",
-    "overgrown_vegetation:covered_bamboo_mosaic_slab"
+    "overgrown_vegetation:overgrown_slab"
   ]
 }

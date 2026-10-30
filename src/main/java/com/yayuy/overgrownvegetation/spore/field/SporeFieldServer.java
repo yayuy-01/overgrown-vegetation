@@ -68,12 +68,7 @@ public final class SporeFieldServer {
     /** 直近の計算の要約(/ov perf spore)。 */
     private static volatile String lastSummary = "まだ回っていない";
     private static volatile int lastFrontCells, lastFronts;
-    private static volatile int[] FRONTS = new int[0];
 
-    /** 画面へ送る地割れの圧の前線 {中心 x, z, 半径, 速さ × 100(ブロック/秒), 止まる半径}(ブロック)。 */
-    static int[] frontsForClient() {
-        return FRONTS;
-    }
     /** テスト用: 発芽を台帳へ渡さない(テストの世界を過繁茂にしない)。 */
     private static boolean discardSproutsForTests;
 
@@ -159,36 +154,6 @@ public final class SporeFieldServer {
         long[] out = new long[rifts.length];
         for (int i = 0; i < rifts.length; i++) out[i] = ChunkPos.asLong(BlockPos.getX(rifts[i]) >> 4, BlockPos.getZ(rifts[i]) >> 4);
         return out;
-    }
-
-    /** テレポート・次元移動のあった次元(次の tick に送り直す)。 */
-    private static final java.util.Set<net.minecraft.resources.ResourceKey<Level>> RESEND = new java.util.HashSet<>();
-
-    /**
-     * テレポート・次元移動の直後は、次の場の更新(最大 5 秒)を待たずに新しい位置の窓(粉・浮遊・ここの濃度)を送る(2026-10-24。
-     * 前はテレポートの後しばらく前の位置の窓のまま描いていた)。位置が変わってから送るので次の tick に。
-     */
-    @SubscribeEvent
-    public static void onTeleport(net.neoforged.neoforge.event.entity.EntityTeleportEvent event) {
-        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer p) RESEND.add(p.level().dimension());
-    }
-
-    @SubscribeEvent
-    public static void onChangedDimension(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent event) {
-        RESEND.add(event.getTo());
-    }
-
-    @SubscribeEvent
-    public static void onServerTickResend(net.neoforged.neoforge.event.tick.ServerTickEvent.Post event) {
-        if (RESEND.isEmpty()) return;
-        for (net.minecraft.resources.ResourceKey<Level> dim : RESEND) {
-            ServerLevel level = event.getServer().getLevel(dim);
-            if (level == null) continue;
-            if (dim == Level.OVERWORLD ? field != null : dim == Level.NETHER && NetherSporeFieldServer.running()) {
-                SporeDustSync.send(level);
-            }
-        }
-        RESEND.clear();
     }
 
     /**
@@ -283,9 +248,8 @@ public final class SporeFieldServer {
         READOUT = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
         WATCH_EXTRA.clear();
         WAITING.clear();
-        FRONTS = new int[0];
         com.yayuy.overgrownvegetation.quake.EarthquakeData.clearCache();
-        SporeDustSync.clear();
+        SporeSweeping.clear();
         INPUTS.clear();
     }
 
@@ -491,17 +455,6 @@ public final class SporeFieldServer {
             }
             lastFrontCells = frontCells;
             lastFronts = f.fronts.size();
-            int[] fr = new int[f.fronts.size() * 5];
-            for (int i = 0; i < f.fronts.size(); i++) {
-                SporeField.RiftFront rf = f.fronts.get(i);
-                double stop = Math.min(rf.maxRadius, rf.minAir <= 0 ? 1e6 : Math.pow(rf.strength / rf.minAir, 1.0D / rf.falloff));
-                fr[i * 5] = rf.cx * 16 + 8;
-                fr[i * 5 + 1] = rf.cz * 16 + 8;
-                fr[i * 5 + 2] = (int) Math.round(rf.radius * 16.0D);
-                fr[i * 5 + 3] = (int) Math.round(rf.speed * 16.0D / (PrevailingWind.DAY / 20.0D) * 100.0D);
-                fr[i * 5 + 4] = (int) Math.min(Integer.MAX_VALUE, Math.round(stop * 16.0D));
-            }
-            FRONTS = fr;
             return new Result(in.fromClock + (long) in.steps * in.stepTicks, in.steps, sprouts.toLongArray(),
                     System.nanoTime() - t0, f.tileCount(), f.corruptedCount, f.parcels.size(), readout(f, in), seconds.toLongArray());
         } finally {
@@ -531,7 +484,7 @@ public final class SporeFieldServer {
             for (long key : r.seconds) SporeSprouts.onSecondSprout(level, key);
         }
         READOUT = r.readout;
-        SporeDustSync.send(level);
+        SporeSweeping.refresh(level); // 払った升の印を消すか見る(粉の見た目の送信は 2026-10-30 に parked/ へ)
         lastSummary = String.format("更新 %d 回 / %.1f ms・区画 %d・汚染されたチャンク %d・発芽 %d・上空の塊 %d",
                 r.steps, r.nanos / 1e6, r.tiles, r.corrupted, r.sprouts.length, r.parcels)
                 + (lastFronts > 0 || lastFrontCells > 0 ? String.format("・地割れの前線 %d 本(配った升 %d)", lastFronts, lastFrontCells) : "");

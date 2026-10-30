@@ -385,25 +385,11 @@ public final class DevBridge {
                 return "そのキーの名前は無い: " + name;
             }
             case "wind" -> {
-                // 汚染地域の風(CanopyWind): gust = カメラの風上に強い突風を 1 つ / calm = 突風を消して 1 分凪 / status = 今の風。2026-10-15
+                // 汚染地域の風(CanopyWind)の gust / calm / hide / leafhist / lookshaft と状態の表示は、林冠の光と風と一緒に 2026-10-30 に parked/ へ退避した
                 LocalPlayer player = mc.player;
                 if (player == null) return "ワールドの中";
                 String what = arg.trim().toLowerCase(java.util.Locale.ROOT);
-                if (what.equals("gust")) {
-                    com.yayuy.overgrownvegetation.client.CanopyWind.forceGust(player.getX(), player.getZ());
-                } else if (what.equals("calm")) {
-                    com.yayuy.overgrownvegetation.client.CanopyWind.calm();
-                } else if (what.startsWith("hide")) {
-                    // 光の部品を隠して撮り比べる(2026-10-16): 1 = 筋の芯・2 = 筋のにじみ・4 = 筋の足元のにじみ・8 = 光る胞子・16 = 木漏れ日の筋・32 = 木漏れ日の斑点・64 = 全部の面の林冠の影(案 C。切ると地面の影の板に戻る)・128 = 草・幹の斑点(案 C)・4096 = 最高で加算の光を粒の層へ(前の描き先、2026-10-24)。0 で全部出す。
-                    com.yayuy.overgrownvegetation.client.CanopyLight.debugHide = Integer.parseInt(what.substring(4).trim());
-                    log("WIND hide " + com.yayuy.overgrownvegetation.client.CanopyLight.debugHide);
-                    return null;
-                } else if (what.startsWith("omen")) {
-                    return null;
-                } else if (what.startsWith("leafhist")) {
-                    // 周りの地面から太陽へたどった葉のブロックの数と樹冠の層の数の分布(2026-10-16、濃い森の光の数値決め)。既定は半径 16。
-                    String r = what.substring(8).trim();
-                    log("WIND leafhist " + com.yayuy.overgrownvegetation.client.CanopyLight.leafHistogram(r.isEmpty() ? 16 : Integer.parseInt(r)));
+                if (what.startsWith("omen")) {
                     return null;
                 } else if (what.startsWith("column") || what.startsWith("bulge") || what.startsWith("dive")) {
                     // 雲の面(2026-10-19、sky.CloudSky#columnAt・sky.CloudSurface): column <x> <z> = 雲の柱を書く / bulge <x> <z> <半径> <盛り上がる tick> <保つ tick>
@@ -661,56 +647,7 @@ public final class DevBridge {
                         log("WIND gotoley: 24 チャンク以内に過繁茂を通る線が無い");
                     });
                     return null;
-                } else if (what.equals("lookshaft") || what.equals("gotoshaft") || what.equals("undershaft")) {
-                    // いちばん近い光の筋の中ほどへカメラを向ける(動きを撮るとき、筋が画面に入るように)。
-                    // gotoshaft は、筋の中ほどから水平に 10〜14 ブロック離れて(横から見る)、筋までの間に何も無い所へ先に動く(観戦モードで)。
-                    net.minecraft.world.phys.Vec3 eye = player.getEyePosition();
-                    net.minecraft.world.phys.Vec3[] ends = com.yayuy.overgrownvegetation.client.CanopyLight.nearestShaftEnds(eye);
-                    if (ends == null) {
-                        log("WIND 光の筋が無い");
-                        return null;
-                    }
-                    net.minecraft.world.phys.Vec3 mid = ends[0].add(ends[1]).scale(0.5);
-                    if (what.equals("undershaft")) {
-                        // 筋の落ちる所のすぐ脇(1 ブロック)から見上げる(筋の軸に沿って見たときのちらつきの確かめ)。
-                        net.minecraft.world.phys.Vec3 under = ends[1].add(0.8, 1.7, 0.0);
-                        player.setPos(under.x, under.y - player.getEyeHeight(), under.z);
-                        eye = under;
-                    }
-                    if (what.equals("gotoshaft") && mc.level != null) {
-                        net.minecraft.world.phys.Vec3 chosen = null;
-                        for (int ring = 10; ring <= 14 && chosen == null; ring += 2) {
-                            for (int k = 0; k < 16 && chosen == null; k++) {
-                                double a = k * Math.PI / 8.0;
-                                net.minecraft.world.phys.Vec3 cand = new net.minecraft.world.phys.Vec3(
-                                        mid.x + Math.cos(a) * ring, ends[1].y + 1.7, mid.z + Math.sin(a) * ring);
-                                var hitMid = mc.level.clip(new net.minecraft.world.level.ClipContext(cand, mid,
-                                        net.minecraft.world.level.ClipContext.Block.VISUAL, net.minecraft.world.level.ClipContext.Fluid.NONE, player));
-                                var hitLow = mc.level.clip(new net.minecraft.world.level.ClipContext(cand, ends[1].add(0, 0.5, 0),
-                                        net.minecraft.world.level.ClipContext.Block.VISUAL, net.minecraft.world.level.ClipContext.Fluid.NONE, player));
-                                if (hitMid.getType() == net.minecraft.world.phys.HitResult.Type.MISS
-                                        && hitLow.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
-                                    chosen = cand;
-                                }
-                            }
-                        }
-                        if (chosen == null) {
-                            log("WIND 筋の見える場所が無い");
-                            return null;
-                        }
-                        player.setPos(chosen.x, chosen.y - player.getEyeHeight(), chosen.z);
-                        eye = chosen;
-                    }
-                    net.minecraft.world.phys.Vec3 d = mid.subtract(eye);
-                    float yaw = (float) (Math.toDegrees(Math.atan2(d.z, d.x)) - 90.0);
-                    float pitch = (float) -Math.toDegrees(Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)));
-                    player.setYRot(yaw);
-                    player.setXRot(pitch);
-                    player.yRotO = yaw;
-                    player.xRotO = pitch;
-                    log(String.format("WIND 筋へ向けた yaw %.0f pitch %.0f 距離 %.1f", yaw, pitch, d.length()));
                 }
-                log("WIND " + com.yayuy.overgrownvegetation.client.CanopyWind.describe(player.getX(), player.getZ()));
             }
             case "look" -> {
                 LocalPlayer player = mc.player;
@@ -1001,7 +938,7 @@ public final class DevBridge {
                 });
             }
             case "creative" -> {
-                // クリエイティブのインベントリを開いてタブを選ぶ。2 つ目は下へのスクロール(0〜1)。例: creative overgrown_vegetation:covered 0.5
+                // クリエイティブのインベントリを開いてタブを選ぶ。2 つ目は下へのスクロール(0〜1)。例: creative overgrown_vegetation:plants 0.5
                 LocalPlayer player = mc.player;
                 if (player == null || mc.level == null) return "ワールドの中";
                 String[] a = arg.split("\\s+");
@@ -1043,13 +980,6 @@ public final class DevBridge {
             case "echo" -> log("ECHO " + arg);
             // 重さを測る(2026-10-18、FxProfiler)。bench は終わるまで次の命令へ進まない。
             case "fxprof" -> log(FxProfiler.command(arg));
-            // 漂う胞子の束の入り切り(2026-10-23、GpuSpores)。on / off / 空 = 状態だけ。
-            case "gpuspores" -> {
-                if (arg.equals("on") || arg.equals("off")) {
-                    com.yayuy.overgrownvegetation.client.GpuSpores.enabled = arg.equals("on");
-                }
-                log(com.yayuy.overgrownvegetation.client.GpuSpores.describe());
-            }
             case "winsize" -> log(FxProfiler.winsize(mc, arg));
             // 資源パックの入り切り(2026-10-23、バニラの地形のシェーダーと比べる)。rpack <フォルダ名> on|off。読み直しが終わると RPACK 終わり
             case "rpack" -> {
@@ -1092,12 +1022,6 @@ public final class DevBridge {
                 } else if (arg.equalsIgnoreCase("on")) {
                 }
             }
-            case "sunmapcheck" -> log("SUNMAPCHECK " + com.yayuy.overgrownvegetation.client.CanopySunMap.debugCheckSync());
-            // 葉の層の重ね塗りを数える(2026-10-24、LeafLayerProbe)。leafprobe <フレーム数> [equal|always|plain]。leafcull 0|1|2 = 候補 F5 の試し
-            case "leafprobe" -> {
-                return LeafLayerProbe.command(arg, DevBridge::log);
-            }
-            case "leafcull" -> log(LeafLayerProbe.cull(arg));
             case "depthat" -> {
                 return FxProfiler.depthAt(arg, DevBridge::log);
             }

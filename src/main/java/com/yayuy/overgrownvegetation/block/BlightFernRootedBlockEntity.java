@@ -79,11 +79,8 @@ public class BlightFernRootedBlockEntity extends BlockEntity implements GeoBlock
                 this.chosen = fresh ? UNFURL_THEN_IDLE : IDLE;
             }
             return state.setAndContinue(this.chosen);
-        }).setCustomInstructionKeyframeHandler(event -> {
-            if (this.level != null && this.level.isClientSide()) {
-                BlightFernRootedPuffs.puff(this, event.getKeyframeData().getInstructions());
-            }
         }));
+        // 胞子嚢がしぼむ瞬間の噴き出し(timeline の puff:<番号>)は画面の演出と一緒に 2026-10-30 に parked/ へ(BlightFernRootedPuffs)
     }
 
     @Override
