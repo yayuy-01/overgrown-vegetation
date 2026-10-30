@@ -292,7 +292,16 @@ public final class CanopySunMap {
     }
 
     /** 空を描いた後・地形を描く前に({@link Atmosphere} から)、地図と太陽の向きを地形のシェーダー(固い・草・葉の 3 つ)へ渡す。描かない間は強さ 0 を渡す。 */
+    /**
+     * 環境の胞子({@link AmbientSpores})が日向かを見るための、今のフレームの地図の受け渡し(10-30 夜 提案 3)。
+     * {@code sporeTexture} は地図のテクスチャ(使えないとき −1)、{@code SPORE_SUN_A}・{@code SPORE_MAP_A} は地形のシェーダーの OvSunA・OvMapA と同じ値。
+     */
+    static int sporeTexture = -1;
+    static final float[] SPORE_SUN_A = new float[4];
+    static final float[] SPORE_MAP_A = new float[4];
+
     static void upload(RenderLevelStageEvent event, boolean enabled) {
+        sporeTexture = -1;
         ShaderInstance[] shaders = {GameRenderer.getRendertypeSolidShader(), GameRenderer.getRendertypeCutoutShader(),
                 GameRenderer.getRendertypeCutoutMippedShader()};
         try {
@@ -354,6 +363,15 @@ public final class CanopySunMap {
             double fleckV = wrap64((camV + branch * wind.dirZ()) * FLECK_SCALE);
             float seconds = (float) ((windTime / 20.0) % 1000.0);
             float level = shadeLevel();
+            sporeTexture = texture.getId();
+            SPORE_SUN_A[0] = (float) kx;
+            SPORE_SUN_A[1] = (float) kz;
+            SPORE_SUN_A[2] = amount;
+            SPORE_SUN_A[3] = mapDay;
+            SPORE_MAP_A[0] = (float) (m.originU - camU);
+            SPORE_MAP_A[1] = (float) (m.originV - camV);
+            SPORE_MAP_A[2] = (float) SIZE;
+            SPORE_MAP_A[3] = (float) (m.baseY - cam.y);
             for (ShaderInstance shader : shaders) {
                 if (shader == null) {
                     continue;
@@ -369,6 +387,7 @@ public final class CanopySunMap {
             }
         } catch (RuntimeException e) {
             broken = true;
+            sporeTexture = -1;
             for (ShaderInstance shader : shaders) {
                 if (shader != null) {
                     shader.safeGetUniform("OvSunA").set(0.0F, 0.0F, 0.0F, 0.0F);

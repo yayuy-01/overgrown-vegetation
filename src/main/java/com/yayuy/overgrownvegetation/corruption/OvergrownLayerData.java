@@ -277,4 +277,55 @@ public final class OvergrownLayerData {
         LongOpenHashSet set = chunk.getExistingData(ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
         return set == null ? 0 : set.size();
     }
+
+    // --- 汚染済みの判定(2026-10-30 夜、覆いの作り直しの続き) ---
+
+    /**
+     * そのマスは<b>汚染済み</b>か —— {@code #corrupted} のブロックか、記録で覆われたマス。2026-10-30 に建築タブのブロックも
+     * 置き換えずに覆うようになった(covered_ を退避)ので、タグだけ見ると汚染された建物を汚染済みに数えない
+     * (メモリ covered-cells-not-corrupted-tag)。数え・「もう汚染済みなら飛ばす」はこちらを使う。サーバーの本スレッドから。
+     */
+    public static boolean isCorruptedCell(BlockGetter level, BlockPos pos, BlockState state) {
+        return state.is(ModTags.CORRUPTED) || !state.isAir() && isCovered(level, pos);
+    }
+
+    /** チャンクを既に持っているとき用({@link #isCorruptedCell(BlockGetter, BlockPos, BlockState)} と同じ答え)。 */
+    public static boolean isCorruptedCell(LevelChunk chunk, BlockPos pos, BlockState state) {
+        return state.is(ModTags.CORRUPTED) || !state.isAir() && isCovered(chunk, pos, state);
+    }
+
+    /**
+     * そのチャンクの区画(区画の y = {@code sectionY}、ブロックの y >> 4)に覆いの記録が 1 つでもあるか。パレットで区画を丸ごと飛ばす近道
+     * ({@code BuildCorrosion})が、覆ったマスを見落とさないように。資格の見直しはしない(多めに「ある」に倒す)。
+     */
+    public static boolean hasAnyInSection(LevelChunk chunk, int sectionY) {
+        LongOpenHashSet set = chunk.getExistingData(ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
+        if (set == null || set.isEmpty()) {
+            return false;
+        }
+        for (long packed : set) {
+            if (BlockPos.getY(packed) >> 4 == sectionY) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 区画の中の覆いの記録の位置(区画の中の添え字 {@code (y << 8) | (z << 4) | x})を {@code out} へ流す。資格は {@code state} で見直す。
+     * {@code BuildCorrosion} が 4096 マスの種類表へ「汚染済み」を書き足すため。
+     */
+    public static void forEachInSection(LevelChunk chunk, int sectionY, java.util.function.IntConsumer out) {
+        LongOpenHashSet set = chunk.getExistingData(ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
+        if (set == null || set.isEmpty()) {
+            return;
+        }
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (long packed : set) {
+            p.set(packed);
+            if (p.getY() >> 4 == sectionY && canCover(chunk.getBlockState(p))) {
+                out.accept(((p.getY() & 15) << 8) | ((p.getZ() & 15) << 4) | (p.getX() & 15));
+            }
+        }
+    }
 }

@@ -55,6 +55,10 @@ public final class Atmosphere {
     }
 
     private static void clearAll() {
+        WindGate.clear();
+        FallingLeaves.clear();
+        AmbientSpores.clear();
+        com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestWindSound.stop();
         CanopySunMap.clear();
         LightShafts.clear();
         CanopyDapple.clear();
@@ -71,6 +75,9 @@ public final class Atmosphere {
             ticks = 0;
             clearAll();
             WindHistory.reset();
+            GustField.INSTANCE.reset();
+            GustField.INSTANCE.setParams(com.yayuy.overgrownvegetation.data.DesignData.atmosphere().wind());
+            Wind.use(GustField.INSTANCE);
             AirHaze.clear();
         }
         if (now == null || player == null || mc.isPaused()) {
@@ -81,18 +88,26 @@ public final class Atmosphere {
             return;
         }
         ticks++;
+        guard("wind", () -> {
+            GustField.INSTANCE.setPrevailing(PrevailingWindClient.angle(now), PrevailingWindClient.strength(now));
+            GustField.INSTANCE.tick(time(0.0F), player.getX(), player.getZ());
+        });
+        guard("gate", () -> WindGate.tick(player.getX(), player.getZ(), time(0.0F)));
+        guard("leaves", () -> FallingLeaves.tick(mc, now, player));
+        guard("sound", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestWindSound.tick(mc, now, player, time(0.0F)));
         guard("haze", () -> AirHaze.tick(now));
         guard("sunmap", () -> CanopySunMap.tick(now, ticks));
         guard("shafts", () -> LightShafts.tick(now, player));
         guard("dapple", () -> CanopyDapple.tick(now, player));
         guard("shade", () -> CanopyShade.tick(now, player));
+        guard("spores", () -> AmbientSpores.tick(now, player));
         guard("motes", () -> ShaftMotes.tick(mc.gameRenderer.getMainCamera().getPosition()));
         if (DEV_LOG && ticks % 100 == 0) {
             BlockPos feet = player.blockPosition();
             OvergrownVegetation.LOGGER.info("Atmosphere 森 {} 地下 {} 持ち上げ {} 霞み {} 足元の光 空 {} ブロック {} 筋 {} 木漏れ日 {} 影の地図 {}",
                     String.format("%.2f", ForestPresence.forestFactor()), String.format("%.2f", ForestPresence.underground()),
                     String.format("%.2f", CanopyLift.skyLift()), String.format("%.2f", AirHaze.haze()) + " 胞子 " + Math.round(AirHaze.sporePercent()) + "%", now.getBrightness(LightLayer.SKY, feet), now.getBrightness(LightLayer.BLOCK, feet),
-                    LightShafts.count(), CanopyDapple.count(), CanopySunMap.active());
+                    LightShafts.count(), CanopyDapple.count(), CanopySunMap.active() + " " + GustField.INSTANCE.describe(player.getX(), player.getZ()));
         }
     }
 
@@ -104,6 +119,8 @@ public final class Atmosphere {
             boolean on = lvl != null && lvl == level && enabled(lvl);
             SunLight.update(event);
             guard("sunmap", () -> CanopySunMap.upload(event, on));
+            guard("sway", () -> LeafSway.upload(event, on));
+            guard("tones", () -> LeafTones.upload(on));
             return;
         }
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES || lvl == null || lvl != level || !enabled(lvl)) {
@@ -117,6 +134,7 @@ public final class Atmosphere {
         if (!CanopySunMap.active()) {
             guard("shade", () -> CanopyShade.render(event));
         }
+        guard("spores", () -> AmbientSpores.render(event));
         boolean main = AddLight.drawToMainTarget();
         try {
             guard("dapple", () -> CanopyDapple.render(event));

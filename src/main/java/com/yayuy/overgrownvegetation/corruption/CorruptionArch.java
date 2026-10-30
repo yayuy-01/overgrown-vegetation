@@ -154,7 +154,7 @@ public final class CorruptionArch {
                         continue;
                     }
                     BlockState current = level.getBlockState(cursor);
-                    if (current.is(ModTags.CORRUPTED)) {
+                    if (OvergrownLayerData.isCorruptedCell(level, cursor, current)) {
                         // 既にある汚染ブロック(自分の他の部分や別の筋)は上書きしない。
                         continue;
                     }

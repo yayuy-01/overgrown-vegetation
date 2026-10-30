@@ -26,6 +26,13 @@ public final class ModShaders {
         return gpuMotes;
     }
 
+    /** 過繁茂のバイオームに漂う環境の胞子の束({@code client/atmosphere/AmbientSpores}、2026-10-30 夜)。読み込めなかったら null(描かない)。 */
+    private static ShaderInstance ambientSpores;
+
+    public static ShaderInstance ambientSpores() {
+        return ambientSpores;
+    }
+
     @SubscribeEvent
     public static void onRegisterShaders(RegisterShadersEvent event) {
         try {
@@ -36,6 +43,15 @@ public final class ModShaders {
         } catch (IOException e) {
             OvergrownVegetation.LOGGER.error("光る胞子の束のシェーダーを読み込めなかったので、光る胞子は描かない", e);
             gpuMotes = null;
+        }
+        try {
+            event.registerShader(new OwnShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "ambient_spores"),
+                            DefaultVertexFormat.POSITION),
+                    shader -> ambientSpores = shader);
+        } catch (IOException e) {
+            OvergrownVegetation.LOGGER.error("環境の胞子のシェーダーを読み込めなかったので、環境の胞子は描かない", e);
+            ambientSpores = null;
         }
     }
 

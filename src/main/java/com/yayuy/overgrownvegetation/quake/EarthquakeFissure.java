@@ -495,7 +495,7 @@ final class EarthquakeFissure {
     /** {@code pos}(植物本体のマス)に汚染シダ / 汚染水草を置けるか。足場は固体・非汚染、本体+頭上が空き。 */
     private boolean fernSpotOk(BlockPos pos) {
         BlockState ground = level.getBlockState(pos.below());
-        if (!ground.blocksMotion() || ground.is(ModTags.CORRUPTED)) {
+        if (!ground.blocksMotion() || com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.isCorruptedCell(level, pos.below(), ground)) {
             return false;
         }
         BlockState at = level.getBlockState(pos);

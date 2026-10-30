@@ -389,6 +389,37 @@ public final class DevBridge {
                 LocalPlayer player = mc.player;
                 if (player == null) return "ワールドの中";
                 String what = arg.trim().toLowerCase(java.util.Locale.ROOT);
+                // 林の風の場(2026-10-30 夜 第 2 段で client/atmosphere/GustField として戻した): gust = カメラの風上に強い突風の前線
+                // (約 10 秒後に届く)/ calm = 突風を消して 1 分凪 / status = 今の風。返事は WIND …
+                com.yayuy.overgrownvegetation.client.atmosphere.GustField field = com.yayuy.overgrownvegetation.client.atmosphere.GustField.INSTANCE;
+                if (what.equals("gust")) {
+                    field.forceGust(player.getX(), player.getZ());
+                    log("WIND gust " + field.describe(player.getX(), player.getZ()));
+                    return null;
+                } else if (what.equals("calm")) {
+                    field.calm();
+                    log("WIND calm");
+                    return null;
+                } else if (what.startsWith("spores ")) {
+                    // 環境の胞子の梢より上の出し方を切り替えて撮り比べる(0 = 梢の高さで切る / 1 = 森の度合いで薄く / 2 = 両方 / 3 = なし)
+                    com.yayuy.overgrownvegetation.client.atmosphere.AtmosphereDev.sporeCeilingMode(Integer.parseInt(what.substring(7).trim()));
+                    log("WIND spores " + what.substring(7).trim());
+                    return null;
+                } else if (what.startsWith("sporelit ")) {
+                    // 環境の胞子が日向で明るくなる割合をこのセッションだけ替える(負で設計値)
+                    com.yayuy.overgrownvegetation.client.atmosphere.AtmosphereDev.sporeLit(Float.parseFloat(what.substring(9).trim()));
+                    log("WIND sporelit " + what.substring(9).trim());
+                    return null;
+                } else if (what.startsWith("afterglow ")) {
+                    // 前線が過ぎたあとの粒の余韻の長さ(秒)をこのセッションだけ替える(負で設計値に戻す)
+                    com.yayuy.overgrownvegetation.client.atmosphere.AtmosphereDev.afterglow(Double.parseDouble(what.substring(10).trim()));
+                    log("WIND afterglow " + what.substring(10).trim());
+                    return null;
+                } else if (what.equals("status")) {
+                    log("WIND " + field.describe(player.getX(), player.getZ()) + " 揺れ "
+                            + String.format("%.2f", com.yayuy.overgrownvegetation.client.atmosphere.WindGate.value(0.0F)));
+                    return null;
+                }
                 if (what.startsWith("omen")) {
                     return null;
                 } else if (what.startsWith("column") || what.startsWith("bulge") || what.startsWith("dive")) {

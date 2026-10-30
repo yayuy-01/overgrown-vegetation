@@ -53,9 +53,12 @@ final class ShaftMotes {
     private static int locGroups = -1;
     private static int locGroupCount = -1;
 
-    /** 毎 tick({@link Atmosphere} から)。筋があれば風の履歴を進める。 */
+    /**
+     * 毎 tick({@link Atmosphere} から)。風の履歴は筋や環境の胞子が無い所(森の外)でも進める —— 止めると、森へ戻ったとき
+     * 粒が「生まれた時の押された量」として古い行を読み、位置が一度だけ飛んだ(10-30 夜 提案 5)。
+     */
     static void tick(Vec3 cam) {
-        if (ModShaders.gpuMotes() != null && LightShafts.count() > 0) {
+        if (ModShaders.gpuMotes() != null || ModShaders.ambientSpores() != null) {
             WindHistory.tick(cam, Atmosphere.time(0.0F));
         }
     }

@@ -12,7 +12,8 @@ import java.nio.FloatBuffer;
  * GPU で動かす粒のための<b>風に押された量の履歴</b>(2026-10-23 の漂う胞子の束の作り、10-30 作り直しで光る胞子用に分けた。元は parked の {@code client/GpuSpores})。
  * カメラのまわり 16 × 16 升(8 ブロック)ごとに、胞子が風({@link Wind#current()})で流される速さを毎 tick 積み、{@link #HISTORY} tick ぶんの履歴を
  * 3D テクスチャに置く。粒は「今の押された量 − 生まれた時の押された量」だけ流れる(生まれた升の風で動くので、近くの粒は突風で一斉に流れる)。
- * 第 1 段は風なしなので中身は 0 のまま(粒はシェーダーの渦だけで漂う)。第 2 段の環境の胞子(一覧 28)も同じ履歴を読む。
+ * 成分は (押された量 x, z, 今の風の強さ, 余韻)。余韻は前線が過ぎたあとの風の強さの残りで、粒の渦はこれで強まり {@code afterglowSeconds} かけて
+ * ゆっくり落ち着く(提案 6、10-30 夜)。光る胞子({@link ShaftMotes})と環境の胞子({@link AmbientSpores})が同じ履歴を読む。
  *
  * <p>流される速さ: 凪(0.2)で毎秒 0.3 ブロック、0.5 で 0.9、突風のさなか(1.0)で 3.3、いちばん強い所(1.2)で 5 ブロック(風の強さの 1 乗と 3 乗の和。
  * 2026-10-15 夜 ユーザー「突風が吹く際はもっと速くしてもよい」)。描画のスレッドだけが触る。
@@ -30,6 +31,8 @@ final class WindHistory {
     private static final int[] keyZ = new int[N * N];
     private static final double[] accX = new double[N * N];
     private static final double[] accZ = new double[N * N];
+    /** 前線が過ぎたあとの余韻(風の強さの残り。{@code afterglowSeconds} で減る)。 */
+    private static final double[] residual = new double[N * N];
     private static final double[] WIND = new double[2];
     /** テクスチャと同じ中身([時刻][z][x][4])。 */
     private static float[] mirror;
@@ -37,6 +40,8 @@ final class WindHistory {
     private static FloatBuffer columnUpload;
     private static int texture = -1;
     private static long ticks;
+    /** 開発用: 余韻の長さ(秒)をこのセッションだけ替える(負なら設計値)。 */
+    static double afterglowOverride = -1.0;
 
     /** 今の行(時刻)。 */
     static long ticks() {
@@ -54,6 +59,7 @@ final class WindHistory {
         java.util.Arrays.fill(keyZ, Integer.MIN_VALUE);
         java.util.Arrays.fill(accX, 0.0);
         java.util.Arrays.fill(accZ, 0.0);
+        java.util.Arrays.fill(residual, 0.0);
         if (mirror != null) {
             java.util.Arrays.fill(mirror, 0.0F);
             uploadAll();
@@ -73,6 +79,9 @@ final class WindHistory {
         double startX = camKnown ? accX[camIndex] : 0.0;
         double startZ = camKnown ? accZ[camIndex] : 0.0;
         Wind wind = Wind.current();
+        double afterglow = afterglowOverride >= 0.0 ? afterglowOverride
+                : com.yayuy.overgrownvegetation.data.DesignData.atmosphere().wind().afterglowSeconds();
+        double decay = afterglow > 0.0 ? Math.exp(-1.0 / (afterglow * 20.0)) : 0.0;
         for (int i = 0; i < N; i++) {
             for (int k = 0; k < N; k++) {
                 int wx = c0x + i;
@@ -83,6 +92,7 @@ final class WindHistory {
                     keyZ[idx] = wz;
                     accX[idx] = startX;
                     accZ[idx] = startZ;
+                    residual[idx] = 0.0;
                     fillColumn(idx);
                 }
                 wind.velocity((wx + 0.5) * CELL, (wz + 0.5) * CELL, time, WIND);
@@ -97,6 +107,8 @@ final class WindHistory {
                 mirror[m] = (float) accX[idx];
                 mirror[m + 1] = (float) accZ[idx];
                 mirror[m + 2] = (float) w;
+                residual[idx] = Math.max(w, residual[idx] * decay);
+                mirror[m + 3] = (float) residual[idx];
             }
         }
         // 押された量が大きくなりすぎたら(float の精度)、全部を同じだけずらす。差は変わらない。

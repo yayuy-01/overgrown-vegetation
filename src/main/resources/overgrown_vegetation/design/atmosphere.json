@@ -1,5 +1,5 @@
 {
-  "_comment": "過繁茂の密林の雰囲気(2026-10-30 作り直しの第 1 段「光の土台」+ 自然さの提案 1〜5)。読むのはクライアントの描画だけ。反映は再起動。オン/オフと重さの段はクライアント設定(overgrown_vegetation-client.toml の atmosphere*)。正本は Vault「過繁茂の密林の雰囲気づくり(作り直しの一覧)」。ユーザー了承済み: skyLift 0.6・skyLiftDark 0.45・shade 0.75・shadeBacklit 0.58・shadeTint 1(昼の影の色の比 0.80:1.00:1.06)・forestTint 1(森の中は日なた以外いつも・夜も)・phaseMin 0.06 / phaseMax 3(真横 0.7)。正午のぼかしを弱く(noonSoftness)は向きだけ了承で 0.4 は仮決め。提案 1〜5 は向きがユーザー採用で数値はすべて仮決め: 森の度合い = 頭上の覆い(coverStart・coverFull・presenceSmoothSeconds)/ 筋の色と長さ(noonShaftStrength・noonShaftShorten)/ 空気の霞み(hazeDry・afterRainMinutes・sporeHazeFrom・sporeHazeFull)/ 木漏れ日の大きさとぼけ(dappleLowScale・dappleHighScale・dappleHighRise・dappleLowSharpness)/ 影の色の時刻(duskTint・nightTint・nightTintStrength)。そのほか(swampPresence・phasePower・intensity・moonStrength・surfaceShade・上限の数)も仮決め。",
+  "_comment": "過繁茂の密林の雰囲気(2026-10-30 作り直しの第 1 段「光の土台」+ 自然さの提案 1〜5)。読むのはクライアントの描画だけ。反映は再起動。オン/オフと重さの段はクライアント設定(overgrown_vegetation-client.toml の atmosphere*)。正本は Vault「過繁茂の密林の雰囲気づくり(作り直しの一覧)」。ユーザー了承済み: skyLift 0.6・skyLiftDark 0.45・shade 0.75・shadeBacklit 0.58・shadeTint 1(昼の影の色の比 0.80:1.00:1.06)・forestTint 1(森の中は日なた以外いつも・夜も)・phaseMin 0.06 / phaseMax 3(真横 0.7)。正午のぼかしを弱く(noonSoftness)は向きだけ了承で 0.4 は仮決め。提案 1〜5 は向きがユーザー採用で数値はすべて仮決め: 森の度合い = 頭上の覆い(coverStart・coverFull・presenceSmoothSeconds)/ 筋の色と長さ(noonShaftStrength・noonShaftShorten)/ 空気の霞み(hazeDry・afterRainMinutes・sporeHazeFrom・sporeHazeFull)/ 木漏れ日の大きさとぼけ(dappleLowScale・dappleHighScale・dappleHighRise・dappleLowSharpness)/ 影の色の時刻(duskTint・nightTint・nightTintStrength)。そのほか(swampPresence・phasePower・intensity・moonStrength・surfaceShade・上限の数)も仮決め。 第 2 段「動き」(10-30 夜): wind・sway・leaves・sound・spores。ユーザー了承済み: 突風の間隔 gustIntervalMin/Max 60〜120 秒・凪は無音(calmThreshold 0.22 より下では鳴らず揺れない)・揺れは風の音が鳴っている間だけ・突風で粒は速く(WindHistory の速さの式)・葉の色は元の近く(toneStrength・youngStrength 1)・音は v3 の合成・粒の数 counts は 10-30 夜の相談で仮決めとして了承。前線の形(frontHalfWidth・frontAhead・frontBehind・spawnDistance)・余韻 afterglowSeconds・雷雨の凪 stormCalm・stormVolume・落ち葉の数・粒の大きさと箱と明るさは仮決め。凪・突風の強さ・揺れの振幅は parked の値を引き継いだ(仮決めのまま)。",
   "light": {
     "coverStart": 0.15,
     "coverFull": 0.7,
@@ -34,5 +34,59 @@
     "maxShafts": 14,
     "maxMotes": 420,
     "maxDapples": 420
+  },
+  "wind": {
+    "gustIntervalMin": 60.0,
+    "gustIntervalMax": 120.0,
+    "stormIntervalScale": 0.7,
+    "calmMin": 0.07,
+    "calmMax": 0.17,
+    "gustStrengthMin": 0.3,
+    "gustStrengthMax": 0.75,
+    "frontSpeedMin": 3.0,
+    "frontSpeedMax": 6.0,
+    "frontHalfWidthMin": 40.0,
+    "frontHalfWidthMax": 70.0,
+    "frontAheadMin": 4.0,
+    "frontAheadMax": 6.0,
+    "frontBehindMin": 12.0,
+    "frontBehindMax": 20.0,
+    "spawnDistanceMin": 45.0,
+    "spawnDistanceMax": 60.0,
+    "stormCalm": 0.45,
+    "afterglowSeconds": 10.0,
+    "strength": 1.0
+  },
+  "sway": {
+    "amount": 1.0,
+    "gateFullLevel": 0.15,
+    "riseSeconds": 0.6,
+    "fallSeconds": 1.3,
+    "push": 0.05,
+    "branchCalm": 0.012,
+    "branchGust": 0.04,
+    "flutter": 0.015
+  },
+  "leaves": {
+    "radius": 16.0,
+    "maxAlive": 90,
+    "perSecondGust": 24.0,
+    "perSecondCalm": 0.3,
+    "toneStrength": 1.0,
+    "youngStrength": 1.0
+  },
+  "sound": {
+    "volume": 1.0,
+    "calmThreshold": 0.22,
+    "stormVolume": 1.5
+  },
+  "spores": {
+    "counts": [1500, 900, 400],
+    "size": 0.045,
+    "boxHalf": 16.0,
+    "boxHeight": 14.0,
+    "undergroundKeep": 0.25,
+    "nightBrightness": 0.35,
+    "litBoost": 0.5
   }
 }

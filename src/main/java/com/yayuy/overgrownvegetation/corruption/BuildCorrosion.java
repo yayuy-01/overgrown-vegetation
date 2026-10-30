@@ -278,6 +278,7 @@ public final class BuildCorrosion {
         int baseX = chunkPos.getMinBlockX();
         int baseZ = chunkPos.getMinBlockZ();
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        BlockPos.MutableBlockPos neighbor = new BlockPos.MutableBlockPos(); // 区画をはみ出す隣の面の記録を引く
         // 隣接 6 面の読みは大半が同じチャンク内なので、チャンクキャッシュ付きの読み
         // (結果は Level#getBlockState と同じ)で毎回のチャンク検索を省く。
         ChunkCachedReader reader = new ChunkCachedReader(level);
@@ -290,6 +291,10 @@ public final class BuildCorrosion {
         // 装置の判定で乱数を引くかもしれないチャンクでは飛ばさない(引く回数が変わるため)。
         boolean skipSealed = !devicesNear && buriedNeighbors > 0 && !level.isDebug();
         LevelChunk[] sideChunks = skipSealed ? loadedSideChunks(level, chunkPos) : null;
+        if (skipSealed && hasCoverRecords(chunk, sideChunks)) {
+            // 記録で覆ったマス(汚染済み)はパレットに出ないので、このチャンクか隣に記録があれば区画を丸ごと飛ばさない(2026-10-30 夜)
+            skipSealed = false;
+        }
 
         // 1. 非空セクションを走査し、フロンティア候補 {x, y, z, 汚染源数} と、種候補(露出しているが
         //    汚染に接していないブロック)を集める。上限に達したら打ち切り(残りは次回)。
@@ -322,6 +327,8 @@ public final class BuildCorrosion {
             // 以前は 1 マスごとに自分と隣 6 面でタグを引き直していて、タグの判定だけで建物の侵食の時間の 6 割(1 回 35 ms)だった。
             // 区画の中の隣はこの表を引き、区画をはみ出す面だけ今までどおり読む。読むブロックも判定も同じなので結果は変わらない。
             fillKinds(section, kinds);
+            // 記録で覆ったマスも汚染済み(2026-10-30 夜。タグに入らないので表に書き足す)
+            OvergrownLayerData.forEachInSection(chunk, chunk.getSectionYFromSectionIndex(si), i -> kinds[i] = KIND_CORRUPTED);
             for (int ly = 15; ly >= 0; ly--) {
                 for (int lx = 0; lx < 16; lx++) {
                     for (int lz = 0; lz < 16; lz++) {
@@ -358,7 +365,7 @@ public final class BuildCorrosion {
                                 continue;
                             }
                             BlockState n = reader.getBlockState(baseX + nlx, sectionY + nly, baseZ + nlz);
-                            if (n.is(ModTags.CORRUPTED)) {
+                            if (OvergrownLayerData.isCorruptedCell(level, neighbor.set(baseX + nlx, sectionY + nly, baseZ + nlz), n)) {
                                 corruptedFaces++;
                             } else if (n.isAir()) {
                                 exposed = true;
@@ -499,6 +506,21 @@ public final class BuildCorrosion {
             }
         }
         return true;
+    }
+
+    /** このチャンクか隣(読み込まれているもの)に覆いの記録があるか(2026-10-30 夜)。 */
+    private static boolean hasCoverRecords(LevelChunk chunk, @Nullable LevelChunk[] sideChunks) {
+        if (OvergrownLayerData.size(chunk) > 0) {
+            return true;
+        }
+        if (sideChunks != null) {
+            for (LevelChunk side : sideChunks) {
+                if (side != null && OvergrownLayerData.size(side) > 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** 隣のセクションを読むと空気か汚染ブロックが出てくる<b>かもしれない</b>か。 */

@@ -183,7 +183,8 @@ public final class LedgerSpreadGameTests {
             int z = pos.getMinBlockZ() + (c >> 4);
             int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
             for (int k = 0; k < 3 && !out[c]; k++) {
-                out[c] = level.getBlockState(new BlockPos(x, y - k, z)).is(ModTags.CORRUPTED);
+                BlockPos at = new BlockPos(x, y - k, z); // 記録で覆ったマスも汚染済み(本体と同じ数え方、2026-10-30 夜)
+                out[c] = com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.isCorruptedCell(level, at, level.getBlockState(at));
             }
         }
         return out;

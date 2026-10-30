@@ -2,12 +2,14 @@
 
 // Overgrown Vegetation: Sodium's terrain vertex shader (sodium:blocks/block_layer_opaque.vsh, Sodium 0.8.x) with the same
 // additions as our vanilla rendertype_*.vsh: the camera-relative position and the light levels for the canopy light
-// (ov_light.glsl). client/shader/SodiumTerrain.java swaps this in for Sodium's file and expands the #ov_import lines.
+// (ov_light.glsl), and the wind sway of marked vertices (ov_sway.glsl). client/shader/SodiumTerrain.java swaps this in for Sodium's file and expands the #ov_import lines.
 // Keep this file ASCII-only.
 
 #import <sodium:include/fog.glsl>
 #import <sodium:include/chunk_vertex.glsl>
 #import <sodium:include/chunk_matrices.glsl>
+#ov_import <ov_sway.glsl>
+#ov_import <ov_leaf.glsl>
 
 out vec4 v_Color;
 out vec2 v_TexCoord;
@@ -20,6 +22,7 @@ out float v_FragDistance;
 
 out vec3 ovPos;
 out vec2 ovLight;
+out vec4 ovLeaf;
 
 uniform int u_FogShape;
 uniform vec3 u_RegionOffset;
@@ -47,6 +50,14 @@ void main() {
     // Transform the chunk-local vertex position into world model space (camera-relative, like vanilla Position + ChunkOffset)
     vec3 translation = u_RegionOffset + _get_draw_translation(_draw_id);
     vec3 position = _vert_position + translation;
+    // Plants sway in the wind (ov_sway.glsl). Sodium has no vertex normal; planar sway takes its axis from the marker code.
+    vec4 color = _vert_color;
+    // The overgrown leaves carry a colour code in their tint (ov_leaf.glsl). Vanilla decodes it in the cutout_mipped layer only;
+    // Sodium merges the layers, so tell them apart by the material alpha cutoff (2 = cutout_mipped). Before the sway resets alpha.
+    vec3 tint = color.rgb;
+    ovLeaf = ((_material_params >> 1u) & 3u) == 2u ? ovLeafDecode(color, tint) : vec4(0.0);
+    color.rgb = tint;
+    position += ovDisplace(position, vec3(0.0), color.a);
 
 #ifdef USE_FOG
     v_FragDistance = getFragDistance(u_FogShape, position);
@@ -56,7 +67,7 @@ void main() {
     gl_Position = u_ProjectionMatrix * u_ModelViewMatrix * vec4(position, 1.0);
 
     // Add the light color to the vertex color, and pass the texture coordinates to the fragment shader
-    v_Color = _vert_color * texture(u_LightTex, _vert_tex_light_coord);
+    v_Color = color * texture(u_LightTex, _vert_tex_light_coord);
     v_TexCoord = (_vert_tex_diffuse_coord_bias * u_TexCoordShrink) + _vert_tex_diffuse_coord; // FMA for precision
 
     v_Material = _material_params;

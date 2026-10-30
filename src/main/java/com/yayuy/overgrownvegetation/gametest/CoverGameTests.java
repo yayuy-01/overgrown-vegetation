@@ -777,6 +777,74 @@ public final class CoverGameTests {
         helper.succeed();
     }
 
+    /**
+     * 記録で覆ったマスは<b>汚染済み</b>として数える(2026-10-30 夜、ユーザー指定「覆ったマスを汚染済みに数える」)。
+     * タグには入らないが {@code isCorruptedCell} は真、区画に記録があることも分かり、区画の添え字も正しい。資格の無いブロックへ置き換えたら偽。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void coveredCellsCountAsCorrupted(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        clear(helper);
+        BlockPos at = helper.absolutePos(new BlockPos(3, 3, 3));
+        level.setBlock(at, Blocks.STONE_BRICKS.defaultBlockState(), Block.UPDATE_CLIENTS);
+        net.minecraft.world.level.chunk.LevelChunk chunk = level.getChunkAt(at);
+        int sectionY = at.getY() >> 4;
+        if (OvergrownLayerData.isCorruptedCell(level, at, level.getBlockState(at))) {
+            helper.fail("覆っていない石レンガが汚染済みになった");
+            return;
+        }
+        OvergrownLayerData.cover(level, at);
+        BlockState s = level.getBlockState(at);
+        if (s.is(ModTags.CORRUPTED) || !OvergrownLayerData.isCorruptedCell(level, at, s) || !OvergrownLayerData.isCorruptedCell(chunk, at, s)) {
+            helper.fail("覆った石レンガが汚染済みに数えられない(タグには入らないはず)");
+            return;
+        }
+        if (!OvergrownLayerData.hasAnyInSection(chunk, sectionY)) {
+            helper.fail("覆ったマスの区画に記録が無いことになっている");
+            return;
+        }
+        int want = ((at.getY() & 15) << 8) | ((at.getZ() & 15) << 4) | (at.getX() & 15);
+        int[] found = {0};
+        OvergrownLayerData.forEachInSection(chunk, sectionY, i -> {
+            if (i == want) {
+                found[0]++;
+            }
+        });
+        if (found[0] != 1) {
+            helper.fail("区画の中の添え字に覆ったマスが出ない");
+            return;
+        }
+        level.setBlock(at, Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS); // 覆う資格の無い(専用の過繁茂ブロックがある)石
+        if (OvergrownLayerData.isCorruptedCell(level, at, level.getBlockState(at))) {
+            helper.fail("石に置き換えたのに汚染済みのまま");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** 触手以外の経路で新しく覆ったマスも段階の数に入る(前に覆ったマスをもう一度訪ねても増えない)。他のテストと混ざらないよう別の組で流す。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20, batch = "cover_counter")
+    public static void newlyCoveredCellsAddToPhaseCount(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        clear(helper);
+        BlockPos at = helper.absolutePos(new BlockPos(3, 2, 3));
+        BlockState plate = Blocks.OAK_PRESSURE_PLATE.defaultBlockState(); // 同じ形の過繁茂ブロックが無いので必ず覆う
+        level.setBlock(at, plate, Block.UPDATE_CLIENTS);
+        com.yayuy.overgrownvegetation.phase.PhaseData phase = com.yayuy.overgrownvegetation.phase.PhaseData.get(level);
+        long before = phase.getCorruptedBlocks();
+        CorruptionRegistry.corrupt(level, at, plate, RandomSource.create(1));
+        com.yayuy.overgrownvegetation.corruption.CorruptionSpreader.growPlantsIfNewlyCovered(level, at, plate);
+        long once = phase.getCorruptedBlocks();
+        CorruptionRegistry.corrupt(level, at, plate, RandomSource.create(2));
+        com.yayuy.overgrownvegetation.corruption.CorruptionSpreader.growPlantsIfNewlyCovered(level, at, plate);
+        long twice = phase.getCorruptedBlocks();
+        if (once != before + 1 || twice != once) {
+            helper.fail("覆ったマスの段階の数がおかしい: 前 " + before + " → 覆った " + once + " → もう一度 " + twice);
+            return;
+        }
+        helper.succeed();
+    }
+
     // ---- 小物 ----
 
     /** テスト場の記録を消す(前の回の記録がワールドに残っている)。 */

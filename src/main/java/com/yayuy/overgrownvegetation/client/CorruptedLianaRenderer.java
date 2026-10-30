@@ -6,6 +6,8 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.block.CorruptedLianaBlockEntity;
+import com.yayuy.overgrownvegetation.client.atmosphere.Atmosphere;
+import com.yayuy.overgrownvegetation.client.atmosphere.LeafSway;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -207,7 +209,7 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
     }
 
     /**
-     * 風で揺れる大きさの倍率(葉の揺れ {@code LeafSway#displacement} の何倍か。LeafSway は 2026-10-30 に parked/ へ退避し、今は揺れない)。長い縄は葉より大きく揺れる(最大 0.2 ブロックほど)。
+     * 風で揺れる大きさの倍率(葉の揺れ {@link LeafSway#displacement} の何倍か)。長い縄は葉より大きく揺れる(最大 0.2 ブロックほど)。
      * 描画範囲の箱は 0.5 ブロック広げてあるので、垂れ蔦の先と合わせてもそれを超えない。仮決め。
      */
     private static final float ROPE_SWAY = 2.0F;
@@ -219,6 +221,7 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
     private static final float[] SWAY_X = new float[SEGMENTS + 1];
     private static final float[] SWAY_Y = new float[SEGMENTS + 1];
     private static final float[] SWAY_Z = new float[SEGMENTS + 1];
+    private static final double[] SWAY_TMP = new double[3];
 
     /** なめらかな 0 → 1(前は林冠の光 CanopyLight の同じ式を借りていた。2026-10-30 に林冠の光を parked/ へ退避したのでここへ)。 */
     private static float smooth(float t) {
@@ -409,8 +412,35 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
             SCRATCH_LIGHT[i] = lightAt(i, sourceBlockLight, targetBlockLight, sourceSkyLight, targetSkyLight);
         }
 
-        // 風の揺れ(2026-10-16、ユーザー「垂れ苔と太い蔦も揺れるように」)は、葉の揺れ(LeafSway)・汚染地域の風(CanopyWind)と一緒に
-        // 2026-10-30 に parked/ へ退避した。SWAY_X/Y/Z はいつも 0(戻すときは parked の LeafSway と git の 4d2df2b のこの場所を見る)。
+        // 風の揺れ(2026-10-16、ユーザー「垂れ苔と太い蔦も揺れるように」。2026-10-30 夜 第 2 段「動き」で戻した)。葉・草と同じ風で、
+        // 風の音が鳴っている間だけ({@link LeafSway#amount})。揺れは世界の位置だけで決まるので、親の蔦の上に端を置いたぶら下がり蔦も
+        // 親と一緒に動き、離れない。幹に刺さった端の近くだけ動きを抑える(swayWeight)。凪では何も計算しない。
+        float swayAmount = LeafSway.amount(partialTick);
+        float[] weights = cache.swayWeight();
+        if (swayAmount > 0.0F) {
+            BlockPos self = blockEntity.getBlockPos();
+            double ox = self.getX() + cache.sx();
+            double oy = self.getY() + cache.sy();
+            double oz = self.getZ() + cache.sz();
+            double time = Atmosphere.time(partialTick);
+            for (int i = 0; i <= SEGMENTS; i++) {
+                if (weights[i] <= 0.0F) {
+                    SWAY_X[i] = 0.0F;
+                    SWAY_Y[i] = 0.0F;
+                    SWAY_Z[i] = 0.0F;
+                    continue;
+                }
+                LeafSway.displacement(ox + cache.x()[i], oy + cache.y()[i], oz + cache.z()[i], time, swayAmount, SWAY_TMP);
+                float k = ROPE_SWAY * weights[i];
+                SWAY_X[i] = (float) SWAY_TMP[0] * k;
+                SWAY_Y[i] = (float) SWAY_TMP[1] * k;
+                SWAY_Z[i] = (float) SWAY_TMP[2] * k;
+            }
+        } else {
+            java.util.Arrays.fill(SWAY_X, 0.0F);
+            java.util.Arrays.fill(SWAY_Y, 0.0F);
+            java.util.Arrays.fill(SWAY_Z, 0.0F);
+        }
 
         poseStack.pushPose();
         poseStack.translate(cache.sx(), cache.sy(), cache.sz());

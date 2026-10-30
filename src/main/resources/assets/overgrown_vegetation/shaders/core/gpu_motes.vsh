@@ -8,7 +8,8 @@
 // CamMod  = (camera x mod 2048, camera y, camera z mod 2048, -)
 // Clock   = (time in ticks, wind row now, -, -)
 // CamLeft / CamUp = camera vectors.  Sun = (light direction, daylight).  Glow = (r, g, b, intensity)
-// WindHist = how far the wind has pushed a spore at each 8-block column (client/atmosphere/WindHistory.java; still air = 0).
+// WindHist = (how far the wind has pushed a spore x, z, wind strength now, what is left after a gust) at each 8-block column
+// (client/atmosphere/WindHistory.java).
 
 in vec3 Position;
 
@@ -92,7 +93,8 @@ void main() {
     vec4 dn = texture(WindHist, vec3(wuv, (Clock.y + 0.5) / 1024.0));
     vec4 db = texture(WindHist, vec3(wuv, (mod(Clock.y - age, 1024.0) + 0.5) / 1024.0));
     vec3 rel = born + vec3(dn.x - db.x, -0.0012 * age, dn.y - db.y);
-    float wc = min(dn.z, 1.2);
+    // The swirls follow the wind now, and after a gust front has passed they calm down slowly (dn.w = what is left of it).
+    float wc = min(max(dn.z, 0.7 * dn.w), 1.2);
     float tm = Clock.x;
     float a = 25.0 * (0.003 + 0.03 * wc);
     vec3 q = home;

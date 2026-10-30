@@ -185,7 +185,7 @@ public final class OvergrownBiomeConverter {
                             || below.getFluidState().is(net.minecraft.tags.FluidTags.WATER) && !below.blocksMotion()));
                 }
                 // cursor は必ずこのチャンクの中なので、Level 経由(毎回チャンク検索)ではなくチャンクから直接読む。
-                if (chunk.getBlockState(cursor).is(ModTags.CORRUPTED)) {
+                if (OvergrownLayerData.isCorruptedCell(chunk, cursor, chunk.getBlockState(cursor))) { // 記録で覆ったマスも(2026-10-30 夜)
                     corrupted++;
                     counted++;
                 } else if (!terrain.isWatery()) {
@@ -272,7 +272,7 @@ public final class OvergrownBiomeConverter {
                 }
                 counted++;
                 for (int i = 0; i < n; i++) {
-                    if (chunk.getBlockState(cursor.set(wx, floors[i], wz)).is(ModTags.CORRUPTED)) {
+                    if (OvergrownLayerData.isCorruptedCell(chunk, cursor.set(wx, floors[i], wz), chunk.getBlockState(cursor))) { // 記録で覆ったマスも
                         corrupted++;
                         break;
                     }

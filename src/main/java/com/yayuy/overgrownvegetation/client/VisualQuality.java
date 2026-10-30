@@ -44,6 +44,15 @@ public final class VisualQuality {
         return Math.max(1, Math.round(max * quality().shafts / 100.0F));
     }
 
+    /** 重さの段の番号(0 = 高、1 = 中、2 = 低)。段ごとに数を決めてある演出(環境の胞子)が使う。 */
+    public static int atmosphereTier() {
+        return switch (quality()) {
+            case HIGH -> 0;
+            case MEDIUM -> 1;
+            case LOW -> 2;
+        };
+    }
+
     /** Iris のシェーダーパック使用中もこの MOD の演出を描くか。 */
     public static boolean effectsWithShaderPack() {
         return loaded() ? OvergrownClientConfig.CLIENT.effectsWithShaderPack.get() : false;

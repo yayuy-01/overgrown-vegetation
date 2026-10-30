@@ -2,6 +2,7 @@
 
 #moj_import <light.glsl>
 #moj_import <fog.glsl>
+#moj_import <ov_sway.glsl>
 
 in vec3 Position;
 in vec4 Color;
@@ -24,13 +25,16 @@ out vec3 ovNormal;
 out vec2 ovLight;
 
 // Overgrown Vegetation: the same as vanilla, plus the camera-relative position, the normal and the light levels for the
-// canopy light (ov_light.glsl). Keep this file ASCII-only.
+// canopy light (ov_light.glsl), and plants swaying in the wind (ov_sway.glsl). Keep this file ASCII-only.
 void main() {
+    // Plants sway in the wind (ov_sway.glsl); marked vertices get their alpha back to 1.
+    vec4 color = Color;
     vec3 pos = Position + ChunkOffset;
+    pos += ovDisplace(pos, Normal, color.a);
     gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);
 
     vertexDistance = fog_distance(pos, FogShape);
-    vertexColor = Color * minecraft_sample_lightmap(Sampler2, UV2);
+    vertexColor = color * minecraft_sample_lightmap(Sampler2, UV2);
     texCoord0 = UV0;
     ovPos = pos;
     ovNormal = Normal;

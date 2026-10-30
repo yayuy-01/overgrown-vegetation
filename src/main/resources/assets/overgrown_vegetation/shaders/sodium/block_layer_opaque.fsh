@@ -11,6 +11,7 @@
 #import <sodium:include/fog.glsl>
 #import <sodium:include/chunk_material.glsl>
 #ov_import <ov_light.glsl>
+#ov_import <ov_leaf.glsl>
 
 in vec4 v_Color; // The interpolated vertex color
 in vec2 v_TexCoord; // The interpolated block texture coordinates
@@ -20,6 +21,7 @@ flat in uint v_Material;
 
 in vec3 ovPos;
 in vec2 ovLight;
+in vec4 ovLeaf;
 
 uniform sampler2D u_BlockTex; // The block texture
 
@@ -43,6 +45,8 @@ void main() {
     float lodBias = _material_use_mips(v_Material) ? 0.0 : float(-MAX_TEXTURE_LOD_BIAS);
 
     vec4 color = texture(u_BlockTex, v_TexCoord, lodBias);
+    // The overgrown leaves are repainted by their colour code first (ov_leaf.glsl; keeps the alpha).
+    color.rgb = ovLeafRecolor(color.rgb, ovLeaf);
     color *= v_Color; // Apply per-vertex color modulator
 
 #ifdef USE_FRAGMENT_DISCARD

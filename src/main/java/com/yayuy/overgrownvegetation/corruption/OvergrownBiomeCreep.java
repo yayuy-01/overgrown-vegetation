@@ -430,7 +430,7 @@ public final class OvergrownBiomeCreep {
             if (state.isAir()) {
                 continue;
             }
-            if (state.is(ModTags.CORRUPTED)) {
+            if (OvergrownLayerData.isCorruptedCell(level, cursor, state)) {
                 return true;
             }
             if (state.isCollisionShapeFullBlock(level, cursor)) {
@@ -683,7 +683,7 @@ public final class OvergrownBiomeCreep {
             }
             for (int dy = 1; dy >= -2; dy--) {
                 cursor.set(x, y + dy, z);
-                if (level.getBlockState(cursor).is(ModTags.CORRUPTED)) {
+                if (OvergrownLayerData.isCorruptedCell(level, cursor, level.getBlockState(cursor))) {
                     return true;
                 }
             }

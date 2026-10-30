@@ -309,7 +309,7 @@ public final class NetherLedger {
                 for (Direction dir : Direction.Plane.HORIZONTAL) {
                     for (int dy = -1; dy <= 1; dy++) {
                         probe.set(x + dir.getStepX(), y + dy, z + dir.getStepZ());
-                        if (level.isLoaded(probe) && level.getBlockState(probe).is(ModTags.CORRUPTED)) {
+                        if (level.isLoaded(probe) && OvergrownLayerData.isCorruptedCell(level, probe, level.getBlockState(probe))) {
                             sources++;
                             break;
                         }

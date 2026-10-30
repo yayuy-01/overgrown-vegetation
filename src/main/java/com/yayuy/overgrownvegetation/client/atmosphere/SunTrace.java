@@ -231,7 +231,7 @@ public final class SunTrace {
     }
 
     /** (x, y, z) を含む区画(16×16×16)が空気だけか。読み込まれていない所・高さの外も空気とみなす。 */
-    static boolean sectionIsAir(ClientLevel level, int x, int y, int z) {
+    public static boolean sectionIsAir(ClientLevel level, int x, int y, int z) {
         int index = level.getSectionIndex(y);
         if (index < 0 || index >= level.getSectionsCount()) {
             return true;

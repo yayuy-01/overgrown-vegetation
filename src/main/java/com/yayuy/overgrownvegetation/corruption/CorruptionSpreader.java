@@ -1269,6 +1269,9 @@ public class CorruptionSpreader {
     public static void growPlantsIfNewlyCovered(ServerLevel level, BlockPos pos, BlockState hostState) {
         if (OvergrownLayerData.takeNewlyCovered(pos)) {
             growPlantsOnCovered(level, pos.immutable(), hostState);
+            // 新しく覆ったマスも段階の数に入れる(2026-10-30 夜。建築タブのブロックを覆うようになり、前は covered_ への置き換えとして
+            // 数えていた分が抜けていた)。ここを呼ぶのは触手以外の経路だけ(触手は自分の corruptedCount で数える)なので二重にならない。
+            com.yayuy.overgrownvegetation.phase.CorruptionCounter.record(level, 1);
         }
     }
 

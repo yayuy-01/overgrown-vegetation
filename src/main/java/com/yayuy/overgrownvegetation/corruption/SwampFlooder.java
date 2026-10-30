@@ -228,7 +228,7 @@ public final class SwampFlooder {
             for (int z = 0; z < 16; z++) {
                 int y = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR, x, z); // ChunkAccess#getHeight は最上部ブロックの Y
                 cursor.set((cx << 4) + x, y, (cz << 4) + z);
-                if (chunk.getBlockState(cursor).is(ModTags.CORRUPTED)) {
+                if (OvergrownLayerData.isCorruptedCell(chunk, cursor, chunk.getBlockState(cursor))) { // 記録で覆ったマスも(2026-10-30 夜)
                     count++;
                 }
             }
@@ -995,7 +995,7 @@ public final class SwampFlooder {
             return;
         }
         // まだ汚染されていない自然の地面は触らない(汚染が届いた列から順に水・棚田になっていく)。
-        if (!state.is(ModTags.CORRUPTED)) {
+        if (!OvergrownLayerData.isCorruptedCell(level, cursor, state)) { // 記録で覆った地面も汚染済み(2026-10-30 夜)
             kind[i] = KIND_CLEAN;
             return;
         }

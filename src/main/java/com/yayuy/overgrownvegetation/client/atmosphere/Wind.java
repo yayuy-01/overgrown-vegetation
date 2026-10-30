@@ -2,8 +2,8 @@ package com.yayuy.overgrownvegetation.client.atmosphere;
 
 /**
  * <b>風を差し込む口</b>(2026-10-30 作り直しの第 1 段)。光の筋の揺れ・木漏れ日の明滅とずれ・光る胞子の流れ・林冠の日向の斑点の揺れは、
- * どれも {@link #current()} の風だけを読む。第 1 段は {@link #STILL}(風なし。弱いゆらぎだけ)で、第 2 段で時折の突風の風の場
- * (元は parked の {@code CanopyWind}・{@code CanopyWindDriver})を作ったら {@link #use} で差し替える(落ち葉・葉の揺れ・風の音・環境の胞子も同じ風を読む)。
+ * どれも {@link #current()} の風だけを読む。第 1 段は {@link #STILL}(風なし)だった。2026-10-30 夜の第 2 段「動き」から、ワールドに入ると
+ * {@link Atmosphere} が時折の突風の前線の風の場 {@link GustField} を {@link #use} で差し込む(落ち葉・葉の揺れ・風の音・環境の胞子も同じ風を読む)。
  *
  * <p>時刻 {@code time} は {@link Atmosphere#time}(ワールドに入ってからの tick + 部分 tick)。強さの尺度は前の風と同じ
  * (凪 0.1〜0.3・突風のさなか 0.6〜1・いちばん強い所 1.2)。
