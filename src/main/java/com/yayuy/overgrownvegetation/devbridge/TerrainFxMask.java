@@ -18,7 +18,7 @@ import java.util.function.Supplier;
  * Sodium の差し込みはバニラのシェーダーの値を写すので、こちらも 0 になる。シェーダーの中の早抜け(強さ 0 なら return)がそのまま効く。
  *
  * <p>ビット: 1 揺れ(OvBase.w)・2 葉の色(OvLeafTone.xy)・4 林冠の光(OvSunA.z・OvTint.w・OvFleck.w)・8 雲の影(OvCloudA.w)・16 洞窟の床(OvCave.w)・
- * 32 極相の照り返し(OvClimax.w)・64 朝霧(OvMistB.x)・128 洞窟の霧(OvCaveB.x)・256 高さの霧 = 二色の霧(OvAerialA.w)。511 で全部。
+ * 32 は空き(極相の照り返し OvClimax は 2026-10-30 に消した)・64 朝霧(OvMistB.x)・128 洞窟の霧(OvCaveB.x)・256 高さの霧 = 二色の霧(OvAerialA.w)。511 で全部。
  */
 final class TerrainFxMask {
 
@@ -82,7 +82,6 @@ final class TerrainFxMask {
             }
             if ((m & 8) != 0) zero(shader, "OvCloudA", 3);
             if ((m & 16) != 0) zero(shader, "OvCave", 3);
-            if ((m & 32) != 0) zero(shader, "OvClimax", 3);
             if ((m & 64) != 0) zero(shader, "OvMistB", 0);
             if ((m & 128) != 0) zero(shader, "OvCaveB", 0);
             if ((m & 256) != 0) zero(shader, "OvAerialA", 3);

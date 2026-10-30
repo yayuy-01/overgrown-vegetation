@@ -1,5 +1,5 @@
 {
-  "_comment": "胞子の場と風(2026-10-23 第 2 段)。チャンク 1 つ = 1 マスに浮遊・林床・降り積もり・発芽の回数(2 まで)を持ち、世界に 1 つの卓越風と拡散で運ぶ。5 秒(updateTicks)ごとに裏のスレッドで更新、睡眠で飛んだ分は maxStepsPerRun ずつ追いつく。field の値は見積もり器 tools/spread-measure/field(v7 + 軽量化)で、速さの目安(全方位 4〜6・風下 6〜8・強風 10〜16 チャンク/日 = ユーザー指定)に合わせた仮決め。secondThreshold 0.55 はユーザー指定(10-23 に 0.5 → 0.55)。sproutEmitBonus は萌芽体 1 体あたりの放出の上乗せ(10-22 追記 3 の決定 (1)、量は仮決め)。sources はゲームだけの発生源(巨大樹の朝・ポータル越しの染み出し・汚染の球。仮決め。量は過繁茂 1 チャンクの 1 日の放出 emitOvergrown を物差しに)、reading は濃度の読み(100% = 過繁茂のチャンクの晴れた午後の浮遊 + 林床 fullAt、下支え・地点の補正。仮決め)、sprouts はブロック汚染の芽と萌芽体(仮決め)。2026-10-30: 極相(emitClimax・daysToClimax・floorClimax)と、装置・感染と一緒に退避した除去装置・拡散装置・死体・暴露・警報器・ハイヴノードの感染・霧の視界・胞子嚢の値を消した。仕様の正本は Vault「胞子の場と風による汚染の広がり」。",
+  "_comment": "胞子の場と風(2026-10-23 第 2 段)。チャンク 1 つ = 1 マスに浮遊・林床・降り積もり・発芽の回数(2 まで)を持ち、世界に 1 つの卓越風と拡散で運ぶ。5 秒(updateTicks)ごとに裏のスレッドで更新、睡眠で飛んだ分は maxStepsPerRun ずつ追いつく。field の値は見積もり器 tools/spread-measure/field(v7 + 軽量化)で、速さの目安(全方位 4〜6・風下 6〜8・強風 10〜16 チャンク/日 = ユーザー指定)に合わせた仮決め。secondThreshold 0.55 はユーザー指定(10-23 に 0.5 → 0.55)。sproutEmitBonus は萌芽体 1 体あたりの放出の上乗せ(10-22 追記 3 の決定 (1)、量は仮決め)。sources はゲームだけの発生源(巨大樹の朝・ポータル越しの染み出し・汚染の球。仮決め。量は過繁茂 1 チャンクの 1 日の放出 emitOvergrown を物差しに)、reading は濃度の読み(100% = 過繁茂のチャンクの晴れた午後の浮遊 + 林床 fullAt、下支え・地点の補正。仮決め)、sprouts はブロック汚染の芽と萌芽体(仮決め)。2026-10-30: 極相(emitClimax・daysToClimax・floorClimax)と、装置・感染と一緒に退避した除去装置・拡散装置・死体・暴露・警報器・ハイヴノードの感染・霧の視界・胞子嚢の値を消した。 2026-10-30 夜(作り直し側から、数はすべて仮決め): valley = 谷風(昼は高い隣へ・夜は低い隣へ。半日 0.15 を 1 日あたりに)・逆転層 y 200 ± 10(日ごと。より上へ地上の浮遊は入らない)・山 y 120 以上は昼だけ沈着 × 2.5、fissure = 息をする地割れ(昼に浮遊へ exhalePerDay を吐き、夜 tod 13000〜23000 に半径 6 チャンクの浮遊を inhalePerDay の速さで吸う。夜 1 回で約 60%)、terrain = 土地の倍率(湿った・川沿い ×3、乾いた ×0.15、高い山 ×0.08。発芽のしきい値と林床の広がりの両方)。見積もり器で前線の目安(全方位 4〜6・風下 6〜8・強風 10〜16)を下回らないことを確かめた。仕様の正本は Vault「胞子の場と風による汚染の広がり」。",
   "enabled": true,
   "updateTicks": 100,
   "maxStepsPerRun": 60,
@@ -116,5 +116,27 @@
     "frontRadiusChunks": 14.0,
     "floorPercent": 100.0,
     "floorRadiusChunks": 3.0
+  },
+  "valley": {
+    "upPerDay": 0.325,
+    "downPerDay": 0.325,
+    "inversionY": 200.0,
+    "inversionJitter": 10.0,
+    "mountainY": 120.0,
+    "mountTrap": 2.5
+  },
+  "fissure": {
+    "exhalePerDay": 50.0,
+    "inhalePerDay": 2.2,
+    "inhaleRadius": 6.0
+  },
+  "terrain": {
+    "wetMul": 3.0,
+    "riverMul": 3.0,
+    "dryMul": 0.15,
+    "mountMul": 0.08,
+    "wetDownfall": 0.85,
+    "dryDownfall": 0.2,
+    "heightStride": 8
   }
 }

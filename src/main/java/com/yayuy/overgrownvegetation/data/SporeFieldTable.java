@@ -32,6 +32,37 @@ public final class SporeFieldTable {
         public GiantTree giantTree;
         public Look look;
         public Rift rift;
+        public Valley valley;
+        public Fissure fissure;
+        public Terrain terrain;
+    }
+
+    /**
+     * 谷風・山風と逆転層・山の壁(2026-10-30、作り直し側の valley を今の場へ。数はすべて仮決め、見積もり器で合わせた値)。
+     * 書いた値は {@link SporeField.Params} の同じ名前へ入る: 昼は高い隣へ upPerDay・夜は低い隣へ downPerDay(1 日あたり)、
+     * 逆転層 inversionY ± inversionJitter(ブロック。日ごとに上下。より上の升へ地上の浮遊は入らない)、
+     * 山 mountainY(ブロック)以上は昼だけ沈着 × mountTrap。
+     */
+    public static final class Valley {
+        public Double upPerDay, downPerDay, inversionY, inversionJitter, mountainY, mountTrap;
+    }
+
+    /**
+     * 息をする地割れ(2026-10-30、作り直し側の fissure を今の場へ。仮決め): 噴出の後も地割れの中心(EarthquakeData の rifts)は
+     * 昼に浮遊へ exhalePerDay(1 日あたり)を吐き、夜(tod 13000〜23000)に半径 inhaleRadius チャンクの浮遊を inhalePerDay の速さで吸う。
+     */
+    public static final class Fissure {
+        public Double exhalePerDay, inhalePerDay, inhaleRadius;
+    }
+
+    /**
+     * 土地の倍率(2026-10-30、作り直し側の sprout の幅。仮決め): 発芽のしきい値と林床の広がりの両方に掛かる。
+     * 湿った土地(降水量 ≥ wetDownfall)・川沿い・乾いた土地(≤ dryDownfall)・高い山(地表 ≥ valley.mountainY)。
+     * 高さは生成器の式を heightStride チャンクおきに引いて補間(読み込まれたチャンクは本物の高さ)。
+     */
+    public static final class Terrain {
+        public Double wetMul, riverMul, dryMul, mountMul, wetDownfall, dryDownfall;
+        public Integer heightStride;
     }
 
     /**
@@ -143,6 +174,31 @@ public final class SporeFieldTable {
         this.maxStepsPerRun = src.maxStepsPerRun != null ? Math.max(1, Math.min(2400, src.maxStepsPerRun)) : 60;
         SporeField.Params p = src.field != null ? src.field : gameDefaults();
         p.stepTicks = this.updateTicks;
+        if (src.valley != null) {
+            Valley v = src.valley;
+            p.valleyUpPerDay = orElse(v.upPerDay, p.valleyUpPerDay);
+            p.valleyDownPerDay = orElse(v.downPerDay, p.valleyDownPerDay);
+            p.inversionY = v.inversionY != null && Double.isFinite(v.inversionY) ? v.inversionY : p.inversionY;
+            p.inversionJitter = orElse(v.inversionJitter, p.inversionJitter);
+            p.mountainY = v.mountainY != null && Double.isFinite(v.mountainY) ? v.mountainY : p.mountainY;
+            p.mountTrap = orElse(v.mountTrap, p.mountTrap);
+        }
+        if (src.fissure != null) {
+            Fissure fs = src.fissure;
+            p.exhalePerDay = orElse(fs.exhalePerDay, p.exhalePerDay);
+            p.inhalePerDay = orElse(fs.inhalePerDay, p.inhalePerDay);
+            p.inhaleRadius = orElse(fs.inhaleRadius, p.inhaleRadius);
+        }
+        if (src.terrain != null) {
+            Terrain tr = src.terrain;
+            p.wetMul = orElse(tr.wetMul, p.wetMul);
+            p.riverMul = orElse(tr.riverMul, p.riverMul);
+            p.dryMul = orElse(tr.dryMul, p.dryMul);
+            p.mountMul = orElse(tr.mountMul, p.mountMul);
+            p.wetDownfall = orElse(tr.wetDownfall, p.wetDownfall);
+            p.dryDownfall = orElse(tr.dryDownfall, p.dryDownfall);
+            if (tr.heightStride != null) p.heightStride = Math.max(1, Math.min(32, tr.heightStride));
+        }
         this.field = p;
         Sources s = src.sources != null ? src.sources : new Sources();
         this.canopyMorningPerDay = orElse(s.canopyMorningPerDay, 100.0D);

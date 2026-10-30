@@ -30,6 +30,8 @@ import java.util.concurrent.Executors;
  */
 final class SporeFieldStore {
     static final String DIR = "overgrown_vegetation_spore_field";
+    /** 区画ファイルの版。2 = 地表の高さ height を持つ(2026-10-30 谷風・逆転層・山の壁)。1(ver が無い)= 高さなし、読み込みで引き直す。 */
+    static final int VERSION = 2;
 
     private static final ExecutorService IO = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "Overgrown Vegetation spore field IO");
@@ -126,8 +128,28 @@ final class SporeFieldStore {
         return n;
     }
 
-    private static SporeField.Tile readTile(SporeField field, int tx, int tz, CompoundTag tag) {
-        SporeField.Tile t = field.newTile(tx, tz);
+    /** 区画 1 つの保存の形(サーバースレッド、場の鍵を持って)。 */
+    static CompoundTag tileTag(SporeField.Tile t) {
+        CompoundTag tag = new CompoundTag();
+        tag.putIntArray("air", bits(t.air));
+        tag.putIntArray("low", bits(t.low));
+        tag.putIntArray("dep", bits(t.dep));
+        tag.putLongArray("sprout", t.sprout.clone());
+        tag.putByteArray("count", t.count.clone());
+        tag.putByteArray("flags", t.flags.clone());
+        tag.putInt("ver", VERSION);
+        if (t.height != null) tag.putIntArray("height", bits(t.height));
+        return tag;
+    }
+
+    static SporeField.Tile readTile(SporeField field, int tx, int tz, CompoundTag tag) {
+        // 地表の高さ(2026-10-30、版 2 から)。無ければ(前のセーブ)土地から引き直す
+        float[] height = null;
+        if (tag.getInt("ver") >= 2 && tag.contains("height")) {
+            height = new float[SporeField.TN];
+            floats(tag, "height", height);
+        }
+        SporeField.Tile t = field.newTile(tx, tz, height);
         floats(tag, "air", t.air);
         floats(tag, "low", t.low);
         floats(tag, "dep", t.dep);
@@ -168,6 +190,7 @@ final class SporeFieldStore {
         h = h * 31 + java.util.Arrays.hashCode(t.sprout);
         h = h * 31 + java.util.Arrays.hashCode(t.count);
         h = h * 31 + java.util.Arrays.hashCode(t.flags);
+        h = h * 31 + java.util.Arrays.hashCode(t.height);
         return h;
     }
 
@@ -190,14 +213,7 @@ final class SporeFieldStore {
                 tiles.add(new Object[]{name, null});
                 continue;
             }
-            CompoundTag tag = new CompoundTag();
-            tag.putIntArray("air", bits(t.air));
-            tag.putIntArray("low", bits(t.low));
-            tag.putIntArray("dep", bits(t.dep));
-            tag.putLongArray("sprout", t.sprout.clone());
-            tag.putByteArray("count", t.count.clone());
-            tag.putByteArray("flags", t.flags.clone());
-            tiles.add(new Object[]{name, tag});
+            tiles.add(new Object[]{name, tileTag(t)});
         }
         CompoundTag meta = new CompoundTag();
         meta.putLong("clock", clock);

@@ -18,8 +18,8 @@ import java.util.List;
 public final class SporeField {
     public static final int TB = 5, TS = 1 << TB, TN = TS * TS;
     static final long NOT = Long.MIN_VALUE;
-    /** 土地の広がりの倍率の上限(刻みの計算に使う)。 */
-    static final double MAX_SPREAD = 2.5;
+    /** 土地の広がりの倍率の上限(刻みの計算に使う。2026-10-30 に湿った土地 ×3 に合わせて 2.5 → 3)。 */
+    static final double MAX_SPREAD = 3.0;
 
     /** 調整できる数値。すべて仮決め(速さだけはユーザー指定に合わせる)。 */
     public static final class Params {
@@ -67,6 +67,26 @@ public final class SporeField {
         public double highSpeedMul = 1.5, highMinStrength = 1.0;
         /** 塊が落ちるまでの距離(本体の外へ出てからのチャンク、対数で一様): 最小・最大。途中で 1 チャンクごとに落とす割合。落ちる円の半径(チャンク)。最長の滞空(日)。落ちる前に半径 dropMin の中に汚染があれば、dropMin の 1/4 ずつ先へ延ばす(近い飛び地を出さない)。 */
         public double dropMin = 100, dropMax = 800, pathLoss = 0.002, dumpRadius = 2, maxAloftDays = 8;
+        /**
+         * 谷風・山風(2026-10-30、作り直し側の valley を写した): 昼(日の出〜日の入り)は浮遊が<b>いちばん高い隣</b>へ、夜は<b>いちばん低い隣</b>へ
+         * 移る速さ(1 日あたり。作り直し側の半日に 0.15 が移る = 1 − e^(−k/2) = 0.15 から k = −2 ln 0.85 ≈ 0.325)。
+         */
+        public double valleyUpPerDay = 0.325, valleyDownPerDay = 0.325;
+        /** 逆転層の高さ(ブロック)と日ごとのゆれ(± ブロック)。これ以上の高さの升へは地上の浮遊が入らない(上空の塊の落ちは入る)。 */
+        public double inversionY = 200, inversionJitter = 10;
+        /** 山(地表の高さ ≥ mountainY): 昼だけ浮遊の沈着が mountTrap 倍(地上の胞子の壁。夜は効かない)。 */
+        public double mountainY = 120, mountTrap = 2.5;
+        /**
+         * 息をする地割れ(2026-10-30、作り直し側の fissure を写した): 昼に浮遊へ吐く量(1 日あたり。日の出〜日の入りに sin で配る)、
+         * 夜(tod 13000〜23000)に半径 inhaleRadius チャンクの浮遊を吸い込む速さ(1 日あたり)。
+         */
+        public double exhalePerDay = 50, inhalePerDay = 2.2, inhaleRadius = 6;
+        /**
+         * 土地の倍率(2026-10-30、作り直し側の sprout の幅): 湿った土地・川沿い・乾いた土地・高い山(地表 ≥ mountainY)。発芽のしきい値と
+         * 林床の広がりの両方に掛かる。湿った・乾いたはバイオームの降水量 ≥ wetDownfall / ≤ dryDownfall。高さは heightStride チャンクおきに引いて補間。
+         */
+        public double wetMul = 3, riverMul = 3, dryMul = 0.15, mountMul = 0.08, wetDownfall = 0.85, dryDownfall = 0.2;
+        public int heightStride = 8;
 
         public void set(String k, double v) {
             try {
@@ -105,6 +125,8 @@ public final class SporeField {
         float[] spread; // 土地の林床の広がりやすさ。null = どこも 1
         boolean[] wet; // 水辺(昼でも湿っている)
         float[] airEmit; // 土地の空気への放出の倍率({@link Ground#airEmitFactor}。水の下の株は小さい)。null = どこも 1
+        /** 地表の高さ(ブロック。2026-10-30 谷風・逆転層・山の壁)。null = 高さを持たない(平らな合成の世界)。保存する。 */
+        float[] height;
         /** 嵐の間に持ち上げた量と、その重心を求める和(塊にまとめるまで)。 */
         double lifted, liftX, liftZ;
 
@@ -161,6 +183,16 @@ public final class SporeField {
 
         /** 空気への放出の倍率(海の升は水の下の株なので小さい。2026-10-24 追記 18、仮 0.3)。林床への放出は変えない。 */
         default float airEmitFactor(int cx, int cz) {
+            return 1;
+        }
+
+        /** 地表の高さ(ブロック)。NaN = 高さを持たない(谷風・逆転層・山の壁が効かない)。区画を作るときに 1 回だけ呼ぶ。 */
+        default float height(int cx, int cz) {
+            return Float.NaN;
+        }
+
+        /** 土地の倍率(湿った・川沿い・乾いた・山。発芽しやすさと林床の広がりやすさに掛ける)。高さは {@link #height} の値。 */
+        default float terrainMul(int cx, int cz, float height) {
             return 1;
         }
     }
@@ -357,23 +389,114 @@ public final class SporeField {
 
     /** 新しい空の区画(保存係が読み込みに使う。土地の表はここで埋める)。 */
     Tile newTile(int tx, int tz) {
+        return newTile(tx, tz, null);
+    }
+
+    /** {@code savedHeight} = 保存してあった地表の高さ(無ければ null で、土地から引く。2026-10-30 より前のセーブも null)。 */
+    Tile newTile(int tx, int tz, float[] savedHeight) {
         Tile t = new Tile(tx, tz);
         if (ground != null) {
             t.germ = new float[TN];
             t.spread = new float[TN];
             t.wet = new boolean[TN];
             t.airEmit = new float[TN];
+            boolean saved = savedHeight != null && savedHeight.length == TN;
+            float[] h = saved ? savedHeight.clone() : null;
             for (int i = 0; i < TN; i++) {
                 int x = (tx << TB) + (i & (TS - 1)), z = (tz << TB) + (i >> TB);
-                t.germ[i] = ground.germFactor(x, z);
-                t.spread[i] = (float) Math.min(MAX_SPREAD, ground.spreadFactor(x, z));
+                float hy = saved ? h[i] : ground.height(x, z);
+                if (!Float.isNaN(hy)) {
+                    if (h == null) {
+                        h = new float[TN];
+                        java.util.Arrays.fill(h, Float.NaN);
+                    }
+                    h[i] = hy;
+                }
+                fillGround(t, i, x, z, hy, true);
                 t.wet[i] = ground.wet(x, z);
                 t.airEmit[i] = ground.airEmitFactor(x, z);
-                if (t.germ[i] == 0) t.never++;
             }
+            t.height = h;
         }
         return t;
     }
+
+    /** 升 i の発芽しやすさと林床の広がりやすさ(土地の倍率込み)を埋め直す。発芽しない升の数も合わせる。 */
+    private void fillGround(Tile t, int i, int x, int z, float hy, boolean fresh) {
+        boolean wasNever = !fresh && t.germ[i] == 0;
+        float mul = ground.terrainMul(x, z, hy);
+        t.germ[i] = ground.germFactor(x, z) * mul;
+        t.spread[i] = (float) Math.min(MAX_SPREAD, ground.spreadFactor(x, z) * mul);
+        boolean never = t.germ[i] == 0;
+        if (never && !wasNever) t.never++;
+        else if (!never && wasNever) t.never--;
+    }
+
+    /**
+     * 読み込まれたチャンクの本物の地表の高さ(2026-10-30。区画を作るときは生成器の式を {@link Params#heightStride} おきに引いて
+     * 補間した値なので、山頂などがずれる)。区画が無ければ何もしない。土地の倍率も高さで変わるので埋め直す。
+     */
+    public void setExactHeight(int cx, int cz, float y) {
+        Tile t = tile(cx, cz, false);
+        if (t == null || ground == null) return;
+        int i = idx(cx, cz);
+        if (t.height == null) {
+            t.height = new float[TN];
+            java.util.Arrays.fill(t.height, Float.NaN);
+        }
+        t.height[i] = y;
+        fillGround(t, i, cx, cz, y, false);
+    }
+
+    /** 地表の高さ(区画が無い・高さを持たないなら NaN)。 */
+    public float heightAt(int cx, int cz) {
+        Tile t = tile(cx, cz, false);
+        return t == null || t.height == null ? Float.NaN : t.height[idx(cx, cz)];
+    }
+
+    // ---------------------------------------------------------------- 息をする地割れ・逆転層(2026-10-30)
+
+    /** 息をする地割れの升({@link #chunkKey})。サーバーが更新ごとに入れる(保存しない。地割れの中心は EarthquakeData が持つ)。 */
+    public long[] breathers = new long[0];
+    /** この更新の日の逆転層の高さ(ブロック)。{@link #step} の頭で決める。 */
+    double inversionNow = Double.POSITIVE_INFINITY;
+
+    /** その日の逆転層の高さ: inversionY ± inversionJitter(seed と日のハッシュ。小さい種の Random は使わない)。 */
+    public double inversionY(long day) {
+        double u = PrevailingWind.unit(PrevailingWind.hash(seed ^ 0x1A5E0F17L, day));
+        return p.inversionY + p.inversionJitter * (2 * u - 1);
+    }
+
+    /** 逆転層より上の升か(地上の浮遊が入らない)。 */
+    private boolean aboveInversion(Tile t, int i) {
+        return t.height != null && t.height[i] >= inversionNow;
+    }
+
+    /**
+     * 息をする地割れ(1 回の更新ぶん): 昼(sin > 0)は浮遊へ exhalePerDay × π × sin × dt を吐き(昼の半日で 1 日ぶん)、
+     * 夜(tod 13000〜23000)は半径 inhaleRadius の浮遊を exp(−inhalePerDay × dt) に減らす(吸い込んだ分は地下へ消える)。
+     */
+    private void breathe(long dayTime, double dt) {
+        if (breathers.length == 0) return;
+        double tod = Math.floorMod(dayTime, PrevailingWind.DAY);
+        double s = Math.sin(2 * Math.PI * tod / PrevailingWind.DAY);
+        boolean night = tod >= 13000 && tod < 23000;
+        double keep = Math.exp(-p.inhalePerDay * dt);
+        int r = (int) Math.ceil(p.inhaleRadius);
+        double r2 = p.inhaleRadius * p.inhaleRadius;
+        for (long k : breathers) {
+            int cx = (int) k, cz = (int) (k >> 32);
+            if (s > 0 && p.exhalePerDay > 0) emitPoint(cx, cz, p.exhalePerDay * Math.PI * s * dt);
+            if (!night || p.inhalePerDay <= 0) continue;
+            for (int dz = -r; dz <= r; dz++)
+                for (int dx = -r; dx <= r; dx++) {
+                    if (dx * dx + dz * dz > r2) continue;
+                    Tile t = tile(cx + dx, cz + dz, false);
+                    if (t != null) t.air[idx(cx + dx, cz + dz)] *= (float) keep;
+                }
+        }
+    }
+
     /**
      * 地割れの圧の前線(2026-10-24 追記 19): 中心から全方位へ速さ speed(チャンク/日)で広がる輪。輪が通った升の浮遊へ
      * strength / 距離^falloff を 1 回だけ配る(風を無視)。配る量が minAir を割る半径で止まる。前線の円の中は嵐の沈着になる。
@@ -551,6 +674,8 @@ public final class SporeField {
         newLandings.clear();
         double full = p.stepTicks / (double) PrevailingWind.DAY; // 日
         advanceFronts(full);
+        inversionNow = inversionY(Math.floorDiv(c.dayTime(), (long) PrevailingWind.DAY));
+        breathe(c.dayTime(), full);
         // 1 回で升の外へ出す割合が 0.5 を超えないように刻む(押し出しの安定と、間隔に依らない答えのため)
         double gmax = ground == null ? 1 : MAX_SPREAD;
         double moveAir = (4 * p.diffusionPerDay + wind.strength * p.windSpeed * (Math.abs(wind.dirX) + Math.abs(wind.dirZ))) * full;
@@ -645,6 +770,12 @@ public final class SporeField {
         // 地割れの圧の前線の中(噴出中・前線の通過中)は嵐の沈着(2026-10-24 追記 19)
         double kS = p.depStorm + decay + lift, keepS = Math.exp(-kS * dtAir);
         double toDepS = (1 - keepS) * p.depStorm / kS, toLiftS = (1 - keepS) * lift / kS;
+        // 谷風と山の壁(2026-10-30): 昼(日の出〜日の入り)は高い隣へ・夜は低い隣へ。山(高さ ≥ mountainY)は昼だけ沈着 × mountTrap
+        boolean daytime = Math.sin(2 * Math.PI * tod / PrevailingWind.DAY) > 0;
+        double fValley = 1 - Math.exp(-(daytime ? p.valleyUpPerDay : p.valleyDownPerDay) * dtAir);
+        double depM = dep * p.mountTrap, kM = depM + decay + lift, keepM = Math.exp(-kM * dtAir);
+        double toDepM = (1 - keepM) * depM / kM, toLiftM = (1 - keepM) * lift / kM;
+        boolean wall = daytime && p.mountTrap != 1;
         double depKeep = Math.exp(-p.depDecay * dtSub);
         double kl = p.groundDep + p.groundDecay;
         double keepLow = Math.exp(-kl * dtLow), toDepLow = (1 - keepLow) * p.groundDep / kl;
@@ -674,6 +805,12 @@ public final class SporeField {
                 double a = tl.air[i], lo = tl.low[i];
                 boolean rz = riftTile && inFront(bx + (i & (TS - 1)), bz + (i >> TB));
                 double tDep = rz ? toDepS : toDep, tKeep = rz ? keepS : keep, tLift = rz ? toLiftS : toLift;
+                float hy = tl.height == null ? Float.NaN : tl.height[i];
+                if (!rz && wall && hy >= p.mountainY) {
+                    tDep = toDepM;
+                    tKeep = keepM;
+                    tLift = toLiftM;
+                }
                 long sp = tl.sprout[i];
                 if (sp != NOT) {
                     double age = (t - sp) / (double) PrevailingWind.DAY;
@@ -738,16 +875,39 @@ public final class SporeField {
                     tl.liftZ += lifted * (cz + 0.5);
                 }
                 if (a < eps) continue;
+                if (fValley > 0 && !Float.isNaN(hy)) {
+                    // 谷風・山風: いちばん高い(夜は低い)隣へ。逆転層より上の隣へは行かない
+                    int bestX = 0, bestZ = 0;
+                    float bh = hy;
+                    for (int dir = 0; dir < 4; dir++) {
+                        int nx = cx + (dir == 0 ? 1 : dir == 1 ? -1 : 0), nz = cz + (dir == 2 ? 1 : dir == 3 ? -1 : 0);
+                        Tile nt = (nx >> TB) == tl.tx && (nz >> TB) == tl.tz ? tl : tile(nx, nz, true);
+                        if (nt.height == null) continue;
+                        int ni = idx(nx, nz);
+                        float nh = nt.height[ni];
+                        if (Float.isNaN(nh) || aboveInversion(nt, ni)) continue;
+                        if (daytime ? nh > bh : nh < bh) {
+                            bh = nh;
+                            bestX = nx - cx;
+                            bestZ = nz - cz;
+                        }
+                    }
+                    if (bestX != 0 || bestZ != 0) {
+                        double m = a * fValley;
+                        a -= m;
+                        add(tl, i, cx + bestX, cz + bestZ, (float) m);
+                    }
+                }
                 tl.next[i] += (float) (a * stay);
                 if (d > 0) {
                     float q = (float) (a * d);
-                    add(tl, cx + 1, cz, q);
-                    add(tl, cx - 1, cz, q);
-                    add(tl, cx, cz + 1, q);
-                    add(tl, cx, cz - 1, q);
+                    add(tl, i, cx + 1, cz, q);
+                    add(tl, i, cx - 1, cz, q);
+                    add(tl, i, cx, cz + 1, q);
+                    add(tl, i, cx, cz - 1, q);
                 }
-                if (fx > 0) add(tl, cx + sx, cz, (float) (a * fx));
-                if (fz > 0) add(tl, cx, cz + sz, (float) (a * fz));
+                if (fx > 0) add(tl, i, cx + sx, cz, (float) (a * fx));
+                if (fz > 0) add(tl, i, cx, cz + sz, (float) (a * fz));
             }
         }
         // 入れ替え(進めた層だけ)と、空の区画の片付け
@@ -796,9 +956,9 @@ public final class SporeField {
 
     private float spreadAt(Tile from, int cx, int cz) {
         if ((cx >> TB) == from.tx && (cz >> TB) == from.tz) return from.spread[idx(cx, cz)];
-        Tile t = tile(cx, cz, false);
-        if (t != null && t.spread != null) return t.spread[idx(cx, cz)];
-        return (float) Math.min(MAX_SPREAD, ground.spreadFactor(cx, cz));
+        // 区画が無ければ作る(どのみち直後の pushLow が作る。土地の倍率は高さ込みで区画を作るときに決まる。2026-10-30)
+        Tile t = tile(cx, cz, true);
+        return t.spread != null ? t.spread[idx(cx, cz)] : 1f;
     }
 
     /**
@@ -923,10 +1083,16 @@ public final class SporeField {
         return true;
     }
 
-    private void add(Tile from, int cx, int cz, float q) {
+    /** 升 {@code fromIdx} の浮遊 q を隣 (cx, cz) へ押し出す。隣が逆転層より上なら入れず、その場(送り元)に降り積もらせる(2026-10-30)。 */
+    private void add(Tile from, int fromIdx, int cx, int cz, float q) {
         Tile t = (cx >> TB) == from.tx && (cz >> TB) == from.tz ? from : tile(cx, cz, true);
-        t.next[idx(cx, cz)] += q;
-        t.inAirNext[idx(cx, cz)] += q;
+        int i = idx(cx, cz);
+        if (aboveInversion(t, i)) {
+            from.dep[fromIdx] += q;
+            return;
+        }
+        t.next[i] += q;
+        t.inAirNext[i] += q;
     }
 
     private boolean isolated(int cx, int cz) {

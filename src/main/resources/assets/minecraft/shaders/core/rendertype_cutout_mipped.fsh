@@ -35,7 +35,6 @@ void main() {
     color.rgb = ovCanopyLight(color.rgb, ovPosC.xyz, normal, facing, light);
     color.rgb = ovCloudShadowApply(color.rgb, ovPosC.w, normal, facing, ovCanopyShade);
     color.rgb = ovCaveFloor(color.rgb, tex.rgb * ovAlbedo, light);
-    color.rgb = ovClimaxUplight(color.rgb, tex.rgb * ovAlbedo, normal);
     // Both mists and the fog, computed per vertex (rendertype_cutout_mipped.vsh ovMix).
     color.rgb = color.rgb * ovMix.a + ovMix.rgb;
     fragColor = color;

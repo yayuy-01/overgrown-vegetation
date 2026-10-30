@@ -128,6 +128,39 @@ public final class SporeFieldServer {
         return WAITING.contains(key);
     }
 
+    /** 本物の高さを見る列(作り直し側 LevelTerrain と同じ 5 本。葉・木を拾わないよう水の底の高さのいちばん低いもの)。 */
+    private static final int[][] HEIGHT_COLUMNS = {{8, 8}, {3, 3}, {12, 3}, {3, 12}, {12, 12}};
+
+    /**
+     * チャンクが読み込まれた: 本物の地表の高さを場へ渡す(2026-10-30 谷風・逆転層・山の壁。場の区画を作るときは生成器の式の補間)。
+     * 区画が無ければ場は何もしない(区画を作るときは式の値)。チャンクを読み込み直すたびに同じ値が入るだけ。
+     */
+    @SubscribeEvent
+    public static void onChunkLoadHeight(net.neoforged.neoforge.event.level.ChunkEvent.Load event) {
+        if (field == null || !(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
+        if (!(event.getChunk() instanceof net.minecraft.world.level.chunk.LevelChunk chunk)) return;
+        float y = exactGroundY(chunk);
+        int cx = chunk.getPos().x, cz = chunk.getPos().z;
+        INPUTS.add(f -> f.setExactHeight(cx, cz, y));
+    }
+
+    /** 読み込まれたチャンクの地表の高さ(5 本の列の水の底の高さのいちばん低いもの)。 */
+    public static float exactGroundY(net.minecraft.world.level.chunk.ChunkAccess chunk) {
+        int y = Integer.MAX_VALUE;
+        for (int[] c : HEIGHT_COLUMNS) {
+            y = Math.min(y, chunk.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.OCEAN_FLOOR, c[0], c[1]));
+        }
+        return y;
+    }
+
+    /** 息をする地割れのチャンク(噴出した地割れの中心。2026-10-30)。 */
+    private static long[] breathingChunks() {
+        long[] rifts = com.yayuy.overgrownvegetation.quake.EarthquakeData.riftCenters();
+        long[] out = new long[rifts.length];
+        for (int i = 0; i < rifts.length; i++) out[i] = ChunkPos.asLong(BlockPos.getX(rifts[i]) >> 4, BlockPos.getZ(rifts[i]) >> 4);
+        return out;
+    }
+
     /** テレポート・次元移動のあった次元(次の tick に送り直す)。 */
     private static final java.util.Set<net.minecraft.resources.ResourceKey<Level>> RESEND = new java.util.HashSet<>();
 
@@ -212,7 +245,7 @@ public final class SporeFieldServer {
         INPUTS.clear();
         ServerLevel overworld = server.overworld();
         SporeField f = new SporeField(WindWeatherData.windSeed(server), DesignData.sporeField().field());
-        f.ground = new BiomeGround(overworld);
+        f.ground = new BiomeGround(overworld, f.p);
         long[] clock = new long[1];
         int tiles;
         LOCK.lock();
@@ -365,7 +398,7 @@ public final class SporeFieldServer {
     /** サーバースレッドで作る入力の写し。 */
     private record Inputs(long fromClock, int steps, int stepTicks, long dayTimeNow, long clockNow, long seed,
                           PrevailingWind.Weather weather, long lastRainEnd,
-                          long[] canopyChunks, double[] canopyRate, long[] eruptions,
+                          long[] canopyChunks, double[] canopyRate, long[] eruptions, long[] breathers,
                           long[] watchTiles, SporeFieldTable table) {
     }
 
@@ -393,6 +426,7 @@ public final class SporeFieldServer {
         return new Inputs(fieldClock, steps, table.updateTicks(), level.getDayTime(), clock, field.seed,
                 wx.weather(), wx.lastRainEnd(),
                 canopy, canopyRate, com.yayuy.overgrownvegetation.quake.EarthquakeData.get(level).eruptingChunks(level.getGameTime()),
+                breathingChunks(),
                 watchTiles(level), table);
     }
 
@@ -411,6 +445,7 @@ public final class SporeFieldServer {
         try {
             Consumer<SporeField> input;
             while ((input = INPUTS.poll()) != null) input.accept(f);
+            f.breathers = in.breathers; // 息をする地割れ(2026-10-30)
             f.sproutDep.clear(); // 前の答えの発芽の直前の値は、断られた分を戻し終えたので捨てる
             for (long k : f.released) sprouts.add(k); // 読み込まれて待ちが解けた発芽
             f.released.clear();
@@ -708,6 +743,17 @@ public final class SporeFieldServer {
         }
     }
 
+    /** テスト用: 場の区画 (tx, tz) を保存の形にする(区画が無ければ null)。 */
+    public static net.minecraft.nbt.CompoundTag tileTagForTests(SporeField f, int tx, int tz) {
+        SporeField.Tile t = f.tiles.get(SporeField.key(tx, tz));
+        return t == null ? null : SporeFieldStore.tileTag(t);
+    }
+
+    /** テスト用: 保存の形から区画 (tx, tz) を読み込む(保存係と同じ読み方。高さが無ければ土地から引く)。 */
+    public static void loadTileForTests(SporeField f, int tx, int tz, net.minecraft.nbt.CompoundTag tag) {
+        f.putLoadedTile(SporeFieldStore.readTile(f, tx, tz, tag));
+    }
+
     public static long fieldClockForTests() {
         return fieldClock;
     }
@@ -716,7 +762,8 @@ public final class SporeFieldServer {
 
     /**
      * 升の土地をバイオームの元(世界生成のノイズ。チャンクを読み込まずに引ける)から決める(仮決め):
-     * 海 = 発芽する・いつも湿っている・空気への放出 0.3 倍(水の下の株。深い海は沈むのに時間がかかるので発芽の速さ 0.7 倍。2026-10-24 追記 18、倍率は仮決め) / 川・沼・マングローブ・ジャングル = 林床の広がり 2・湿り / 砂漠・荒野・サバンナ = 0.3 / 山 = 0.5 倍。
+     * 海 = 発芽する・いつも湿っている・空気への放出 0.3 倍(水の下の株。深い海は沈むのに時間がかかるので発芽の速さ 0.7 倍。2026-10-24 追記 18、倍率は仮決め) /
+     * 川・沼・マングローブ・海辺 = 昼でも湿る / 土地の倍率(湿った・川沿い ×3、乾いた ×0.15、高い山 ×0.08。2026-10-30)は {@link #terrainMul}。
      */
     public static final class BiomeGround implements SporeField.Ground {
         /** 深い海の発芽の速さ(沈むのに時間がかかる)と、海の升の空気への放出(水の下の株)。どちらも仮決め(2026-10-24)。 */
@@ -725,10 +772,62 @@ public final class SporeFieldServer {
         private final Climate.Sampler sampler;
         private final int qy;
 
-        BiomeGround(ServerLevel level) {
-            this.source = level.getChunkSource().getGenerator().getBiomeSource();
-            this.sampler = level.getChunkSource().randomState().sampler();
-            this.qy = level.getSeaLevel() >> 2;
+        private final net.minecraft.world.level.chunk.ChunkGenerator generator;
+        private final net.minecraft.world.level.levelgen.RandomState randomState;
+        private final net.minecraft.world.level.LevelHeightAccessor heightAccessor;
+        private final int seaLevel;
+        private final SporeField.Params p;
+        /** 生成器の式で引いた地表の高さ(heightStride おきの格子の点 → y)。場の鍵を持った所からだけ呼ぶ。 */
+        private final it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap gridHeights = new it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap();
+
+        BiomeGround(ServerLevel level, SporeField.Params p) {
+            this.generator = level.getChunkSource().getGenerator();
+            this.source = generator.getBiomeSource();
+            this.randomState = level.getChunkSource().randomState();
+            this.sampler = randomState.sampler();
+            this.heightAccessor = net.minecraft.world.level.LevelHeightAccessor.create(level.getMinBuildHeight(), level.getHeight());
+            this.seaLevel = generator.getSeaLevel();
+            this.qy = seaLevel >> 2;
+            this.p = p;
+        }
+
+        /**
+         * 地表の高さ(2026-10-30 谷風・逆転層・山の壁)。生成器の式(getFirstOccupiedHeight。1 回 数 ms)を heightStride チャンクおきの格子で引き、
+         * 間は双線形に補間する(作り直し側 LevelTerrain / SporeTerrain と同じ。チャンクを読み込まない・生成しない)。
+         * 読み込まれたチャンクの本物の高さは、サーバースレッドで {@link SporeField#setExactHeight} へ入れる。
+         */
+        @Override
+        public float height(int cx, int cz) {
+            int s = Math.max(1, p.heightStride);
+            int x0 = Math.floorDiv(cx, s) * s, z0 = Math.floorDiv(cz, s) * s;
+            double fx = (cx - x0) / (double) s, fz = (cz - z0) / (double) s;
+            double a = gridHeight(x0, z0), b = gridHeight(x0 + s, z0), c = gridHeight(x0, z0 + s), d = gridHeight(x0 + s, z0 + s);
+            return (float) ((a * (1 - fx) + b * fx) * (1 - fz) + (c * (1 - fx) + d * fx) * fz);
+        }
+
+        private int gridHeight(int cx, int cz) {
+            long k = ChunkPos.asLong(cx, cz);
+            if (gridHeights.containsKey(k)) return gridHeights.get(k);
+            int y = generator.getFirstOccupiedHeight((cx << 4) + 8, (cz << 4) + 8,
+                    net.minecraft.world.level.levelgen.Heightmap.Types.OCEAN_FLOOR_WG, heightAccessor, randomState);
+            gridHeights.put(k, y);
+            return y;
+        }
+
+        /**
+         * 土地の倍率(2026-10-30、作り直し側 SporeTerrain#kindOf の幅): 川 → riverMul、海・海面より 2 下 → 1(水)、高さ ≥ mountainY → mountMul、
+         * 降水量 ≥ wetDownfall → wetMul、≤ dryDownfall → dryMul、ほか 1。
+         */
+        @Override
+        public float terrainMul(int cx, int cz, float height) {
+            Holder<Biome> b = at(cx, cz);
+            if (b.is(BiomeTags.IS_RIVER)) return (float) p.riverMul;
+            if (b.is(BiomeTags.IS_OCEAN) || b.is(BiomeTags.IS_DEEP_OCEAN) || height < seaLevel - 2) return 1f;
+            if (height >= p.mountainY) return (float) p.mountMul;
+            float downfall = b.value().getModifiedClimateSettings().downfall();
+            if (downfall >= p.wetDownfall) return (float) p.wetMul;
+            if (downfall <= p.dryDownfall) return (float) p.dryMul;
+            return 1f;
         }
 
         private Holder<Biome> at(int cx, int cz) {
@@ -764,14 +863,7 @@ public final class SporeFieldServer {
             return b.is(BiomeTags.IS_OCEAN) || b.is(BiomeTags.IS_DEEP_OCEAN) ? OCEAN_AIR_EMIT : 1f;
         }
 
-        @Override
-        public float spreadFactor(int cx, int cz) {
-            Holder<Biome> b = at(cx, cz);
-            double f = 1;
-            if (b.is(BiomeTags.IS_RIVER) || b.is(Tags.Biomes.IS_SWAMP) || b.is(BiomeTags.IS_JUNGLE) || b.is(Biomes.MANGROVE_SWAMP)) f = 2;
-            else if (b.is(Biomes.DESERT) || b.is(BiomeTags.IS_BADLANDS) || b.is(BiomeTags.IS_SAVANNA)) f = 0.3;
-            if (b.is(BiomeTags.IS_MOUNTAIN)) f *= 0.5;
-            return (float) f;
-        }
+        // 林床の広がりやすさの元(spreadFactor)は 1。土地の差は terrainMul が発芽と林床の両方に掛ける(2026-10-30。前はここで
+        // 川・湿地・密林 ×2、砂漠・荒野・サバンナ ×0.3、山のタグ ×0.5)
     }
 }

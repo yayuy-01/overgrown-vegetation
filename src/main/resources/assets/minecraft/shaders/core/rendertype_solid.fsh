@@ -29,7 +29,6 @@ void main() {
     color.rgb = ovCanopyLight(color.rgb, ovPos, ovNormal, 1.0, ovLight);
     color.rgb = ovCloudShadowApply(color.rgb, ovFog.w, ovNormal, 1.0, ovCanopyShade);
     color.rgb = ovCaveFloor(color.rgb, texture(Sampler0, texCoord0).rgb * ovAlbedo, ovLight);
-    color.rgb = ovClimaxUplight(color.rgb, texture(Sampler0, texCoord0).rgb * ovAlbedo, ovNormal);
     // Both mists, computed per vertex (rendertype_*.vsh ovHaze).
     color.rgb = color.rgb * ovHaze.a + ovHaze.rgb;
     fragColor = linear_fog(color, vertexDistance, FogStart, FogEnd, vec4(ovFog.rgb, FogColor.a));

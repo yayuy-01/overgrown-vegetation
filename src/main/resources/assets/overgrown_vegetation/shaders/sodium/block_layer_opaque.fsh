@@ -71,7 +71,6 @@ void main() {
         color.rgb = ovCanopyLight(color.rgb, ovPos, n, facing, ovLight);
         color.rgb = ovCloudShadowApply(color.rgb, ovFog.w, n, facing, ovCanopyShade);
         color.rgb = ovCaveFloor(color.rgb, albedo, ovLight);
-        color.rgb = ovClimaxUplight(color.rgb, albedo, n);
     }
     // Both mists, computed per vertex (block_layer_opaque.vsh ovHaze).
     color.rgb = color.rgb * ovHaze.a + ovHaze.rgb;

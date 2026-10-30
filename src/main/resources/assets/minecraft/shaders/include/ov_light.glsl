@@ -35,8 +35,6 @@ uniform vec4 OvTint;
 uniform vec4 OvFleck;
 // OvCave     = (teal added to dark faces underground, as a multiple of the face colour; strength, 0 = off). See client/CaveLight.java.
 uniform vec4 OvCave;
-// OvClimax   = (teal light from below rgb, strength in the jungle climax; 0 = off). See client/ClimaxJungle.java.
-uniform vec4 OvClimax;
 
 // How much ovCanopyLight found this fragment in canopy shade (0 to 1); the cloud shadow (ov_cloud.glsl) does not shade it again.
 float ovCanopyShade = 0.0;
@@ -85,16 +83,6 @@ vec3 ovCaveFloor(vec3 color, vec3 albedo, vec2 light) {
     }
     float dark = 1.0 - smoothstep(0.0, 0.4, max(light.x, light.y));
     return color + albedo * OvCave.rgb * (OvCave.w * dark);
-}
-
-// Light from below in the jungle climax: the canopy takes the light, and the ley veins, crystals and the ground give some back.
-// Faces looking down glow teal, side faces a little. albedo = texture colour x vertex tint.
-vec3 ovClimaxUplight(vec3 color, vec3 albedo, vec3 n) {
-    if (OvClimax.w <= 0.0) {
-        return color;
-    }
-    float up = clamp(-n.y, 0.0, 1.0) + 0.25 * (1.0 - abs(n.y));
-    return color + albedo * OvClimax.rgb * (OvClimax.w * up);
 }
 
 // Colour of a terrain fragment at camera-relative position pos with world normal n. facing > 0 also darkens faces that

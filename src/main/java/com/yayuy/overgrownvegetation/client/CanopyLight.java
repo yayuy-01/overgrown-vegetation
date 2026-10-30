@@ -1087,15 +1087,6 @@ public final class CanopyLight {
             m.x += m.v[0];
             m.y += m.v[1];
             m.z += m.v[2];
-            // (1) 極相の密林: 筋の中の胞子は上の葉へ吸い上げられる(上端より上へ出たら消える)。
-            float suck = 0.0F;
-            if (suck > 0.0F) {
-                m.y += 0.045 * suck;
-                if (m.y > m.shaft.top.y) {
-                    it.remove();
-                    continue;
-                }
-            }
             m.lit = m.shaft.litAt(m.x, m.y, m.z) * m.shaft.presence();
         }
     }
@@ -1322,9 +1313,7 @@ public final class CanopyLight {
             side = side.scale(half / len);
             float a = alpha * facing * smooth(Mth.clamp(t / emerge, 0.0F, 1.0F)) * (1.0F - sink * smooth(Mth.clamp((t - 0.6F) / 0.4F, 0.0F, 1.0F)))
                     * longFade(p, eye, fogEnd)
-                    * phase(-toEye.x, -toEye.y, -toEye.z, sun)
-                    // (1) 光の吸い込み(極相の密林): 地面に届く前に薄れて消える(差した光が林冠へ吸われていく)。
-                    * (1.0F - ABSORB * 0.0F * smooth(Mth.clamp((t - 0.25F) / 0.45F, 0.0F, 1.0F)));
+                    * phase(-toEye.x, -toEye.y, -toEye.z, sun);
             // 1 を超えると頂点の色の 1 バイトがあふれて暗くなる(太陽の方では芯 0.28 × 3 倍で超える)。
             a = Math.min(a, 1.0F);
             float cx = (float) (p.x - eye.x);
@@ -1520,9 +1509,6 @@ public final class CanopyLight {
         float rain = level.getRainLevel(partialTick);
         return height * MOON_STRENGTH * phase * (1.0F - 0.9F * rain);
     }
-
-    /** 極相の密林で、筋が下の方で吸われて消える割合(1 = 下端で 0)。仮決め。 */
-    static final float ABSORB = 0.95F;
 
     /** 月光の筋の強さ(満月で昼の何倍か)・新月の夜の残り・色(青白)。仮決め。 */
     static final float MOON_STRENGTH = 0.5F;

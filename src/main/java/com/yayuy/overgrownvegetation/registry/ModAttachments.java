@@ -156,13 +156,9 @@ public final class ModAttachments {
                     () -> AttachmentType.builder(() -> 0).serialize(Codec.INT, v -> false).build());
 
     /**
-     * プレイヤーの<b>浸食度</b>(0〜100 %、2026-09-22)。極相({@code engulfed})バイオームに居ると
-     * 増え、外へ出ると減る({@code spore/Erosion})。最大体力・食料ゲージの上限・経験値の取得量・
-     * 装備の汚染速度に、この % に比例して効く。
-     *
-     * <p>ログアウトをまたいで<b>保つ</b>(serialize する) —— 極相へ潜った代償は寝て消えては困るため。
-     * 他人のプレイヤーも苔むして見える必要があるので、値が動いたら
-     * {@code network/ErosionPayload} で周りへ配る。
+     * プレイヤーの<b>浸食度</b>(0〜100 %、2026-09-22)。増やす仕組み(極相のバイオームに居ると増える {@code spore/Erosion})は
+     * 2026-10-14 に止め、極相は 2026-10-30 に消した。今は値を足す所も読む所も無い。セーブに残った値を読み捨てないよう
+     * 登録だけ残す(浸食度を作り直すか消すかは後で決める)。
      */
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<Float>> EROSION =
             ATTACHMENT_TYPES.register("erosion",
