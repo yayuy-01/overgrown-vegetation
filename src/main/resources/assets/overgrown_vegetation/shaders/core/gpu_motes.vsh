@@ -1,5 +1,9 @@
 #version 150
 
+#moj_import <fog.glsl>
+#moj_import <ov_drift.glsl>
+#moj_import <ov_fog.glsl>
+
 // Overgrown Vegetation: glowing spores inside the light shafts, drawn as one static vertex buffer
 // (client/atmosphere/ShaftMotes.java and LightShafts.java hold the explanation). Keep this file ASCII-only.
 //
@@ -17,6 +21,7 @@ uniform sampler3D WindHist;
 
 uniform mat4 ModelViewMat;
 uniform mat4 ProjMat;
+uniform int FogShape;
 uniform vec4 CamMod;
 uniform vec4 Clock;
 uniform vec4 CamLeft;
@@ -30,6 +35,8 @@ uniform int GroupCount;
 
 out vec2 local;
 out vec4 vertexColor;
+out float vertexDistance;
+out vec4 ovFog;
 
 uint hashU(uint x) {
     x ^= x >> 16;
@@ -49,6 +56,8 @@ void hide() {
     gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
     local = vec2(0.0);
     vertexColor = vec4(0.0);
+    vertexDistance = 0.0;
+    ovFog = vec4(0.0);
 }
 
 void main() {
@@ -101,6 +110,9 @@ void main() {
     rel.x += a * sin(0.37 * q.y + 0.23 * q.z + 0.043 * tm + 1.3) * cos(0.19 * q.x - 0.031 * tm);
     rel.y += 0.6 * a * sin(0.29 * q.x + 0.17 * q.z - 0.037 * tm + 2.1) * cos(0.21 * q.y + 0.027 * tm);
     rel.z += a * sin(0.31 * q.x + 0.41 * q.y - 0.039 * tm + 0.7) * cos(0.23 * q.z + 0.033 * tm);
+    // Tossed about by the air like the ambient spores: swaying across the flow, surging in gusts (ov_drift.glsl).
+    vec4 before = texture(WindHist, vec3(wuv, (mod(Clock.y - 10.0, 1024.0) + 0.5) / 1024.0));
+    rel += ovDriftOffset(tm / 20.0, wc, ovFlowDir(dn, before), vec4(rnd(c), rnd(c), rnd(c), rnd(c)));
 
     // Lit only while inside its own shaft (LightShafts.Shaft).
     vec3 ax = g1.xyz - g0.xyz;
@@ -143,6 +155,9 @@ void main() {
     }
     vec3 pos = rel + (CamLeft.xyz * cxy.x + CamUp.xyz * cxy.y) * size;
     gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);
+    // The height fog of the overgrown forest (ov_fog.glsl, the whole ray: these do not write depth for the near ray march) and vanilla fog.
+    vertexDistance = fog_distance(pos, FogShape);
+    ovFog = ovFogShaded(pos, 1.0);
     local = cxy;
     vertexColor = vec4(Glow.rgb, min(1.0, 0.95 * glow));
 }

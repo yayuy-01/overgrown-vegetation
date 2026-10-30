@@ -384,6 +384,11 @@ public final class DevBridge {
                 }
                 return "そのキーの名前は無い: " + name;
             }
+            case "fog" -> {
+                // 霧(2026-10-30 夜 第 3 段、client/atmosphere/MistDev): status / march on|off / time on|off / stat。返事は FOG …
+                log(com.yayuy.overgrownvegetation.client.atmosphere.MistDev.command(arg));
+                return null;
+            }
             case "wind" -> {
                 // 汚染地域の風(CanopyWind)の gust / calm / hide / leafhist / lookshaft と状態の表示は、林冠の光と風と一緒に 2026-10-30 に parked/ へ退避した
                 LocalPlayer player = mc.player;

@@ -21,6 +21,7 @@ flat in uint v_Material;
 
 in vec3 ovPos;
 in vec2 ovLight;
+in vec4 ovFog;
 in vec4 ovLeaf;
 
 uniform sampler2D u_BlockTex; // The block texture
@@ -28,6 +29,8 @@ uniform sampler2D u_BlockTex; // The block texture
 uniform vec4 u_FogColor; // The color of the shader fog
 uniform float u_FogStart; // The starting position of the shader fog
 uniform float u_FogEnd; // The ending position of the shader fog
+// OvFogI = (far desaturation, from, to, -) of the overgrown forest (ov_fog.glsl).
+uniform vec4 OvFogI;
 
 // 1 while Sodium draws the translucent pass (set by client/shader/SodiumTerrain.java; Sodium has no define for it).
 uniform int ovSodiumPass;
@@ -61,6 +64,10 @@ void main() {
         float facing = ((v_Material >> 1u) & 3u) == 1u ? 0.0 : 1.0;
         color.rgb = ovCanopyLight(color.rgb, ovPos, n, facing, ovLight);
     }
+
+    // The height fog (ov_fog.glsl, computed per vertex) on every pass, water included.
+    color.rgb = mix(color.rgb, ovFog.rgb, ovFog.a);
+    color.rgb = mix(color.rgb, vec3(dot(color.rgb, vec3(0.299, 0.587, 0.114))), OvFogI.x * smoothstep(OvFogI.y, OvFogI.z, v_FragDistance));
 
     fragColor = _linearFog(color, v_FragDistance, u_FogColor, u_FogStart, u_FogEnd);
 }

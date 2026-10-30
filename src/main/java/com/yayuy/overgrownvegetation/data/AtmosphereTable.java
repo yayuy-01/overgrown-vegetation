@@ -21,6 +21,90 @@ public final class AtmosphereTable {
         public LeavesJson leaves;
         public SoundJson sound;
         public SporesJson spores;
+        public FogJson fog;
+        public MarchJson fogMarch;
+    }
+
+    /**
+     * 節 {@code fogMarch}(第 3 段「霧」の細部 = 品質 HIGH だけの半解像度のレイマーチ、10-30 夜)。近く distance ブロックまでを steps 歩で積み、
+     * fadeFrom〜distance で土台(解析)と受け渡す。3D の濃淡 noise(noiseScale ブロックの升、風で流れる)・霧の中の光の筋(林冠の日向の地図で日の当たる所だけ、
+     * 前方散乱 Henyey-Greenstein の g = scatterG、強さ sunScatter)・描く大きさ resolution(画面に対する割合)。
+     */
+    public static final class MarchJson {
+        public Integer steps;
+        public Double distance, fadeFrom, noise, noiseScale, sunScatter, scatterG, resolution, shaftYield;
+    }
+
+    /** 霧の細部の値。 */
+    public record MarchParams(int steps, float distance, float fadeFrom, float noise, float noiseScale, float sunScatter, float scatterG,
+                              float resolution, float shaftYield) {
+        static MarchParams of(MarchJson m) {
+            MarchJson v = m != null ? m : new MarchJson();
+            float distance = clamp(v.distance, 48.0, 8.0, 128.0);
+            return new MarchParams(v.steps != null ? Math.max(4, Math.min(32, v.steps)) : 10, distance,
+                    Math.min(distance - 1.0F, clamp(v.fadeFrom, 40.0, 0.0, 128.0)), clamp(v.noise, 0.7, 0.0, 1.0),
+                    clamp(v.noiseScale, 10.0, 1.0, 100.0), clamp(v.sunScatter, 1.2, 0.0, 5.0), clamp(v.scatterG, 0.6, 0.0, 0.95),
+                    clamp(v.resolution, 0.5, 0.25, 1.0), clamp(v.shaftYield, 0.5, 0.0, 1.0));
+        }
+    }
+
+    /**
+     * 節 {@code fog}(第 3 段「霧」の土台 = 高さの霧の解析積分、10-30 夜)。層の中の濃さ(1 ブロックあたり)と天井の柔らかさ(k)・
+     * 層の厚さ(薄い朝 depthMin 〜 濃い朝 + depthRange)・層の底の取り方(梢から測った高さ地図の低い方から lowPercentile)・
+     * 林冠の雲海(梢 = canopyPercentile と高い方 highPercentile の小さい方 + seaAbove)・上から見る倍率(aboveRamp ブロック上で aboveBoost 倍)・
+     * 中にいるときのバニラの霧(insideFogEnd = 10-16 了承の 64、始まりは × insideNearFraction、てっぺんから insideSoft 下で全部)・
+     * 昼の霞(朝の濃さの noonDensity 倍、厚さ noonDepth)・雨上がり(濃さ × afterRainDensity、厚さ + afterRainDepth)・薄い朝の濃さ weakMorning・
+     * 二色(近い暖かい色 nearColor → 遠い青緑 farColor を colorDistance で混ぜる。夜は nightColor)・太陽の方の明るさ sunLobe・
+     * くぼみのまだら(noise の強さ、noiseScale ブロックの升)・過繁茂の地域からはみ出す格子の数(谷へ流れ落ちる所 proxCells、平地 proxCellsFlat)。
+     * 雨上がりの霧が残る時間 mistAfterRainMinutes と、そのとき昼でも残る層の強さ afterRainLinger・雷雨(濃さ × stormDensity、厚さ + stormDepth、
+     * 色 × stormDarken)・胞子濃度で地面近くの霞に足す分 sporeHaze(光の節の sporeHazeFrom〜Full で 0 → 1)・
+     * 森の中の霧の色の暗さ forestFogDark(遠い色とバニラの霧の色に、森の度合いで掛ける)・林冠の陰の霧の暗さの下限 shadeFloor。
+     * 色味(10-30 夜 ユーザー採用 A1・A5、参考画像「霧は白〜灰緑で青くない」): 朝霧の近い色 nearColor は白・遠い色 farColor は明るい灰緑、昼の霞は hazeColor(薄い黄緑がかった灰)。
+     * 森の中では林冠の隙間の空とバニラの霧の色を forestSkyColor(明るい白)へ forestSky の強さで飛ばす(朝霧の中にいる間は除く)。
+     */
+    public static final class FogJson {
+        public Double density, falloff, depthMin, depthRange, lowPercentile, canopyPercentile, highPercentile, seaAbove;
+        public Double aboveBoost, aboveRamp, insideFogEnd, insideNearFraction, insideSoft, noonDensity, noonDepth;
+        public Double afterRainDensity, afterRainDepth, weakMorning, colorDistance, sunLobe, noise, noiseScale, proxCells;
+        public Double proxCellsFlat, mistAfterRainMinutes, afterRainLinger, stormDensity, stormDepth, stormDarken, sporeHaze;
+        public Double forestFogDark, shadeFloor, forestSky, stormFogEnd, sunGlow, farDesat, desatFrom, desatTo;
+        public double[] nearColor, farColor, nightColor, hazeColor, forestSkyColor;
+    }
+
+    /** 霧の土台の値。 */
+    public record FogParams(float density, float falloff, float depthMin, float depthRange, float lowPercentile, float canopyPercentile,
+                            float highPercentile, float seaAbove, float aboveBoost, float aboveRamp, float insideFogEnd,
+                            float insideNearFraction, float insideSoft, float noonDensity, float noonDepth, float afterRainDensity,
+                            float afterRainDepth, float weakMorning, float colorDistance, float sunLobe, float noise, float noiseScale,
+                            float proxCells, float proxCellsFlat, float mistAfterRainMinutes, float afterRainLinger, float stormDensity,
+                            float stormDepth, float stormDarken, float sporeHaze, float forestFogDark, float shadeFloor, float forestSky,
+                            float stormFogEnd, float sunGlow, float farDesat, float desatFrom, float desatTo,
+                            float[] nearColor, float[] farColor, float[] nightColor, float[] hazeColor, float[] forestSkyColor) {
+        static FogParams of(FogJson f) {
+            FogJson v = f != null ? f : new FogJson();
+            return new FogParams(clamp(v.density, 0.0045, 0.0, 0.2), clamp(v.falloff, 0.35, 0.02, 5.0),
+                    clamp(v.depthMin, 5.0, 0.5, 40.0), clamp(v.depthRange, 5.0, 0.0, 40.0),
+                    clamp(v.lowPercentile, 0.4, 0.0, 1.0), clamp(v.canopyPercentile, 0.75, 0.0, 1.0), clamp(v.highPercentile, 0.9, 0.0, 1.0),
+                    clamp(v.seaAbove, 3.0, -10.0, 20.0), clamp(v.aboveBoost, 8.0, 1.0, 40.0), clamp(v.aboveRamp, 24.0, 1.0, 200.0),
+                    clamp(v.insideFogEnd, 64.0, 8.0, 1024.0), clamp(v.insideNearFraction, 0.3, 0.0, 1.0), clamp(v.insideSoft, 3.0, 0.1, 20.0),
+                    clamp(v.noonDensity, 0.25, 0.0, 1.0), clamp(v.noonDepth, 2.5, 0.0, 40.0),
+                    clamp(v.afterRainDensity, 1.4, 0.0, 5.0), clamp(v.afterRainDepth, 3.0, 0.0, 40.0), clamp(v.weakMorning, 0.45, 0.0, 1.0),
+                    clamp(v.colorDistance, 60.0, 1.0, 1000.0), clamp(v.sunLobe, 0.6, 0.0, 3.0), clamp(v.noise, 0.6, 0.0, 1.0),
+                    clamp(v.noiseScale, 24.0, 2.0, 400.0), clamp(v.proxCells, 5.0, 0.0, 16.0), clamp(v.proxCellsFlat, 1.5, 0.0, 16.0),
+                    clamp(v.mistAfterRainMinutes, 20.0, 0.0, 240.0), clamp(v.afterRainLinger, 0.6, 0.0, 1.0),
+                    clamp(v.stormDensity, 1.3, 1.0, 10.0), clamp(v.stormDepth, 4.0, 0.0, 40.0), clamp(v.stormDarken, 0.5, 0.0, 1.0),
+                    clamp(v.sporeHaze, 0.35, 0.0, 2.0), clamp(v.forestFogDark, 1.0, 0.0, 1.0), clamp(v.shadeFloor, 0.3, 0.0, 1.0), clamp(v.forestSky, 1.0, 0.0, 1.0),
+                    clamp(v.stormFogEnd, 40.0, 8.0, 1024.0), clamp(v.sunGlow, 0.8, 0.0, 3.0), clamp(v.farDesat, 0.25, 0.0, 1.0),
+                    clamp(v.desatFrom, 48.0, 0.0, 1024.0), clamp(v.desatTo, 192.0, 1.0, 2048.0),
+                    color(v.nearColor, 0.96, 0.96, 0.92), color(v.farColor, 0.80, 0.86, 0.80), color(v.nightColor, 0.10, 0.15, 0.10),
+                    color(v.hazeColor, 0.84, 0.87, 0.74), color(v.forestSkyColor, 0.94, 0.96, 0.90));
+        }
+
+        private static float[] color(double[] c, double r, double g, double b) {
+            double[] x = c != null && c.length == 3 ? c : new double[]{r, g, b};
+            return new float[]{(float) Math.max(0.0, Math.min(1.0, x[0])), (float) Math.max(0.0, Math.min(1.0, x[1])),
+                    (float) Math.max(0.0, Math.min(1.0, x[2]))};
+        }
     }
 
     /** 節 {@code light}。 */
@@ -51,6 +135,12 @@ public final class AtmosphereTable {
         /** 提案 4(10-30): 夕方・夜の影の色の比(R, G, B。明るさはそろえる)と、夜の青緑(銀青)の強さ。 */
         public double[] duskTint, nightTint;
         public Double nightTintStrength;
+        /** 色味(10-30 夜 ユーザー採用 A2・A4。見本で決める仮決め): 昼の影の色の比 shadeHue(明るさはそろえる。前の青緑 0.80:1.00:1.06 から緑寄りへ)と、
+         *  日なたの暖かい白〜金 sunWarm(日の当たる面に掛ける比。木漏れ日の斑点もこの色)・その強さ sunWarmStrength。 */
+        public double[] shadeHue, sunWarm;
+        public Double sunWarmStrength;
+        /** 緑の照り返し(A3、10-30 夜 ユーザー採用): 森の中でライトマップの中ほどの明るさに緑を足す強さ(仮決め)。 */
+        public Double greenBounce;
     }
 
     /**
@@ -90,6 +180,13 @@ public final class AtmosphereTable {
     public static final class SporesJson {
         public int[] counts;
         public Double size, boxHalf, boxHeight, undergroundKeep, nightBrightness, litBoost;
+        /**
+         * 粒の揺られ方(10-30 夜 ユーザー「上下に揺れたりランダムな方に回転したりと風に揺られている感じに」。環境の胞子と光る胞子の両方)。
+         * 風の向きを軸にした左右のふらつきの幅(上下の揺れは 10-31 ユーザー「上下の揺れを無くしましょう」で外した)
+         * (凪 wobbleCalm + 風の強さあたり wobbleGust ブロック)、立方体の転がり(凪の回転 spinCalm ラジアン/秒 + 風に流された 1 ブロックあたり
+         * spinPerBlock ラジアン)。
+         */
+        public Double wobbleCalm, wobbleGust, spinCalm, spinPerBlock;
     }
 
     /** 風の場の値(秒・ブロックの単位のまま)。 */
@@ -152,7 +249,7 @@ public final class AtmosphereTable {
 
     /** 環境の胞子の値。{@code counts} は 高・中・低 の順。 */
     public record SporesParams(int[] counts, float size, float boxHalf, float boxHeight, float undergroundKeep, float nightBrightness,
-                               float litBoost) {
+                               float litBoost, float wobbleCalm, float wobbleGust, float spinCalm, float spinPerBlock) {
         static SporesParams of(SporesJson s) {
             SporesJson v = s != null ? s : new SporesJson();
             int[] def = {1500, 900, 400};
@@ -162,7 +259,8 @@ public final class AtmosphereTable {
             }
             return new SporesParams(c, clamp(v.size, 0.045, 0.01, 0.3), clamp(v.boxHalf, 20.0, 4.0, 64.0),
                     clamp(v.boxHeight, 14.0, 4.0, 48.0), clamp(v.undergroundKeep, 0.25, 0.0, 1.0), clamp(v.nightBrightness, 0.35, 0.0, 1.0),
-                    clamp(v.litBoost, 0.5, 0.0, 2.0));
+                    clamp(v.litBoost, 0.5, 0.0, 2.0), clamp(v.wobbleCalm, 0.05, 0.0, 2.0), clamp(v.wobbleGust, 0.15, 0.0, 4.0), clamp(v.spinCalm, 0.06, 0.0, 10.0),
+                    clamp(v.spinPerBlock, 0.15, 0.0, 10.0));
         }
     }
 
@@ -170,6 +268,9 @@ public final class AtmosphereTable {
     private final float noonShaftStrength, noonShaftShorten, hazeDry, afterRainMinutes, sporeHazeFrom, sporeHazeFull;
     private final float dappleLowScale, dappleHighScale, dappleHighRise, dappleLowSharpness, nightTintStrength;
     private final float[] duskTint, nightTint;
+    private final float[] shadeHue, sunWarm;
+    private final float sunWarmStrength;
+    private final float greenBounce;
     private final float skyLift, skyLiftDark;
     private final float shade, shadeBacklit, shadeTint, forestTint, surfaceShade;
     private final float phaseMin, phaseMax, phasePower;
@@ -180,6 +281,8 @@ public final class AtmosphereTable {
     private final LeavesParams leaves;
     private final SoundParams sound;
     private final SporesParams spores;
+    private final FogParams fog;
+    private final MarchParams fogMarch;
 
     private AtmosphereTable(Json j) {
         Light l = j != null && j.light != null ? j.light : new Light();
@@ -199,6 +302,11 @@ public final class AtmosphereTable {
         this.duskTint = ratio(l.duskTint, 0.98, 0.90, 1.10);
         this.nightTint = ratio(l.nightTint, 0.86, 0.96, 1.12);
         this.nightTintStrength = clamp(l.nightTintStrength, 0.6, 0.0, 1.0);
+        this.shadeHue = ratio(l.shadeHue, 0.78, 1.00, 0.92);
+        this.sunWarm = l.sunWarm != null && l.sunWarm.length == 3
+                ? new float[]{(float) l.sunWarm[0], (float) l.sunWarm[1], (float) l.sunWarm[2]} : new float[]{1.18F, 1.08F, 0.80F};
+        this.sunWarmStrength = clamp(l.sunWarmStrength, 1.0, 0.0, 2.0);
+        this.greenBounce = clamp(l.greenBounce, 0.06, 0.0, 0.5);
         this.swampPresence = clamp(l.swampPresence, 0.45, 0.0, 1.0);
         this.skyLift = clamp(l.skyLift, 0.6, 0.0, 1.0);
         this.skyLiftDark = clamp(l.skyLiftDark, 0.45, 0.0, 1.0);
@@ -221,6 +329,8 @@ public final class AtmosphereTable {
         this.leaves = LeavesParams.of(j != null ? j.leaves : null);
         this.sound = SoundParams.of(j != null ? j.sound : null);
         this.spores = SporesParams.of(j != null ? j.spores : null);
+        this.fog = FogParams.of(j != null ? j.fog : null);
+        this.fogMarch = MarchParams.of(j != null ? j.fogMarch : null);
     }
 
     /** 色の比を、明るさ 0.3R + 0.59G + 0.11B が 1 になるようそろえる。 */
@@ -299,6 +409,25 @@ public final class AtmosphereTable {
     /** 夜の影の色の比(明るさ 1)。 */
     public float[] nightTint() {
         return nightTint;
+    }
+
+    /** 昼の影の色の比(明るさ 1)。 */
+    public float[] shadeHue() {
+        return shadeHue;
+    }
+
+    /** 日なたの暖かい白〜金(掛け算の比)。 */
+    public float[] sunWarm() {
+        return sunWarm;
+    }
+
+    public float sunWarmStrength() {
+        return sunWarmStrength;
+    }
+
+    /** 緑の照り返しの強さ(A3)。 */
+    public float greenBounce() {
+        return greenBounce;
     }
 
     public float nightTintStrength() {
@@ -396,5 +525,15 @@ public final class AtmosphereTable {
     /** 環境の胞子(節 {@code spores})。 */
     public SporesParams spores() {
         return spores;
+    }
+
+    /** 霧の土台(節 {@code fog})。 */
+    public FogParams fog() {
+        return fog;
+    }
+
+    /** 霧の細部(節 {@code fogMarch})。 */
+    public MarchParams fogMarch() {
+        return fogMarch;
     }
 }

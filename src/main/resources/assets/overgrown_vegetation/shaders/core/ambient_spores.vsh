@@ -1,5 +1,9 @@
 #version 150
 
+#moj_import <fog.glsl>
+#moj_import <ov_drift.glsl>
+#moj_import <ov_fog.glsl>
+
 // Overgrown Vegetation: the ambient spores of the overgrown biomes, tiny floating cubes (client/atmosphere/AmbientSpores.java
 // holds the explanation). They move like the glowing spores in the light shafts (gpu_motes.vsh): pushed by the wind since
 // birth (WindHist), the same swirls, which calm down slowly after a gust front has passed. Keep this file ASCII-only.
@@ -24,6 +28,7 @@ uniform sampler2D SunMap;
 
 uniform mat4 ModelViewMat;
 uniform mat4 ProjMat;
+uniform int FogShape;
 uniform vec4 CamMod;
 uniform vec4 Clock;
 uniform vec4 Box;
@@ -33,6 +38,8 @@ uniform vec4 SunA;
 uniform vec4 MapA;
 
 out vec4 vertexColor;
+out float vertexDistance;
+out vec4 ovFog;
 
 uint hashU(uint x) {
     x ^= x >> 16;
@@ -51,6 +58,8 @@ float rnd(inout uint s) {
 void hide() {
     gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
     vertexColor = vec4(0.0);
+    vertexDistance = 0.0;
+    ovFog = vec4(0.0);
 }
 
 // 1 when the spore at camera-relative pos is in the sun (light shaft, sunfleck, open sky), 0 in the canopy shade.
@@ -109,7 +118,9 @@ void main() {
     vec2 wuv = home.xz / 128.0;
     vec4 dn = texture(WindHist, vec3(wuv, (Clock.y + 0.5) / 1024.0));
     vec4 db = texture(WindHist, vec3(wuv, (mod(Clock.y - age, 1024.0) + 0.5) / 1024.0));
-    rel += vec3(dn.x - db.x, -0.0012 * age, dn.y - db.y);
+    vec2 pushXZ = dn.xy - db.xy;
+    float pushed = length(pushXZ);
+    rel += vec3(pushXZ.x, -0.0012 * age, pushXZ.y);
     float wc = min(max(dn.z, 0.7 * dn.w), 1.2);
     float tm = Clock.x;
     float a = 25.0 * (0.003 + 0.03 * wc);
@@ -117,6 +128,11 @@ void main() {
     rel.x += a * sin(0.37 * q.y + 0.23 * q.z + 0.043 * tm + 1.3) * cos(0.19 * q.x - 0.031 * tm);
     rel.y += 0.6 * a * sin(0.29 * q.x + 0.17 * q.z - 0.037 * tm + 2.1) * cos(0.21 * q.y + 0.027 * tm);
     rel.z += a * sin(0.31 * q.x + 0.41 * q.y - 0.039 * tm + 0.7) * cos(0.23 * q.z + 0.033 * tm);
+    // Tossed about by the air: swaying across the flow, surging in gusts (ov_drift.glsl).
+    vec4 before = texture(WindHist, vec3(wuv, (mod(Clock.y - 10.0, 1024.0) + 0.5) / 1024.0));
+    vec4 driftR = vec4(rnd(c), rnd(c), rnd(c), rnd(c));
+    vec4 spinR = vec4(rnd(c), rnd(c), rnd(c), rnd(c));
+    rel += ovDriftOffset(tm / 20.0, wc, ovFlowDir(dn, before), driftR);
     // A spore blown off the tile comes back on the other side (far away, where it is faded out).
     rel = wrapNear(rel, tile, centre);
 
@@ -137,12 +153,10 @@ void main() {
         return;
     }
 
-    // The face of the cube on this axis that looks at the camera; a little turning so the cubes do not all line up.
+    // The face of the cube on this axis that looks at the camera. Each cube tumbles about its own random axis, faster the
+    // faster the wind carries it (ov_drift.glsl).
     float edge = Clock.w * (0.7 + 0.6 * rnd(c));
-    float spin = rnd(c) * 6.2831853 + age * (rnd(c) - 0.5) * 0.04;
-    float cs = cos(spin);
-    float sn = sin(spin);
-    mat3 turn = mat3(cs, 0.0, -sn, 0.0, 1.0, 0.0, sn, 0.0, cs);
+    mat3 turn = ovTumble(spinR, age / 20.0, pushed);
     vec3 toCam = transpose(turn) * (-rel);
     vec3 n = vec3(0.0);
     vec3 u = vec3(0.0);
@@ -164,10 +178,16 @@ void main() {
         v = vec3(0.0, 1.0, 0.0);
         shade = 0.8;
     }
+    // The face shade follows the face as it tumbles (top lit, bottom dark, like block faces).
+    vec3 wn = turn * n;
+    shade = 0.72 + 0.28 * wn.y - 0.1 * abs(wn.x);
     vec2 cxy = corner == 0 ? vec2(-1.0, -1.0) : (corner == 1 ? vec2(-1.0, 1.0) : (corner == 2 ? vec2(1.0, 1.0) : vec2(1.0, -1.0)));
     vec3 local = (n + u * cxy.x + v * cxy.y) * (0.5 * edge);
     vec3 pos = rel + turn * local;
     gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);
+    // The height fog of the overgrown forest (ov_fog.glsl, the whole ray: these do not write depth for the near ray march) and vanilla fog.
+    vertexDistance = fog_distance(pos, FogShape);
+    ovFog = ovFogShaded(pos, 1.0);
     // In a light shaft or a sunfleck a little brighter and warmer (far less than the glowing spores of gpu_motes.vsh).
     float sun = sunAt(rel) * Sky.y;
     vec3 rgb = Look.rgb * (shade * Look.w) * (1.0 + sun) + vec3(0.05, 0.04, 0.0) * sun;

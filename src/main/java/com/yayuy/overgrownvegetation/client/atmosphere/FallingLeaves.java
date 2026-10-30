@@ -5,6 +5,8 @@ import com.yayuy.overgrownvegetation.data.AtmosphereTable;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.registry.ModBiomes;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleRenderType;
@@ -16,6 +18,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
+import org.joml.Quaternionf;
 
 /**
  * 過繁茂の森の<b>落ち葉</b>(2026-10-30 夜 第 2 段「動き」。元は parked の {@code CanopyLeaves}、2026-10-15 夜 案 A「風の場で光と粒を一緒に動かす」の 1 つ)。
@@ -153,6 +156,11 @@ final class FallingLeaves {
         private final float v0;
         private final float rotSpeed;
         private final float swingPhase;
+        /** 葉の傾き(はためき)の速さと位相、今の風の強さ(なめらかに寄せた値。傾きの幅に使う)。 */
+        private final float tiltSpeed;
+        private final float tiltPhase;
+        private float tiltWind;
+        private float oTiltWind;
         private int landedAge = -1;
         /** 生まれたゲーム時刻(一覧から外す目安。粒が外から消されて tick されなくなっても数え続けないように)。 */
         private final long bornAt;
@@ -178,6 +186,8 @@ final class FallingLeaves {
             this.oRoll = this.roll;
             this.rotSpeed = (this.random.nextBoolean() ? 1.0F : -1.0F) * (0.04F + this.random.nextFloat() * 0.1F);
             this.swingPhase = this.random.nextFloat() * Mth.TWO_PI;
+            this.tiltSpeed = 0.12F + this.random.nextFloat() * 0.1F;
+            this.tiltPhase = this.random.nextFloat() * Mth.TWO_PI;
             float shade = 0.85F + this.random.nextFloat() * 0.15F;
             this.setColor(shade, shade, shade);
             this.xd = 0.0;
@@ -233,7 +243,26 @@ final class FallingLeaves {
             double fall = -(0.028 + 0.012 * Math.sin(this.age * 0.3 + this.swingPhase * 2.0)) + 0.012 * w * Math.sin(this.age * 0.11);
             this.yd += (fall - this.yd) * 0.1;
             this.roll += this.rotSpeed * (float) (0.6 + w);
+            this.oTiltWind = this.tiltWind;
+            this.tiltWind += ((float) Math.min(w, 1.2) - this.tiltWind) * 0.05F;
             this.move(this.xd, this.yd, this.zd);
+        }
+
+        /**
+         * 葉が宙で傾いてはためく(10-30 夜 ユーザー「風に揺られている感じに」)。カメラを向く板を、くるくる回る向き(roll)に加えて
+         * 横と縦の軸で揺らす。凪では 0.25 ラジアンほど、突風では 0.6 ラジアンほど(10-30 夜「ちょっと激しすぎる」で半分に。裏返るほどは傾けない)。仮決め。
+         */
+        @Override
+        public void render(VertexConsumer buffer, Camera camera, float partialTicks) {
+            Quaternionf q = new Quaternionf();
+            this.getFacingCameraMode().setRotation(q, camera, partialTicks);
+            q.rotateZ(Mth.lerp(partialTicks, this.oRoll, this.roll));
+            float t = this.age + partialTicks;
+            // 地面に着いた葉は傾けない。
+            float amp = this.landedAge >= 0 ? 0.0F : 0.25F + 0.35F * Mth.lerp(partialTicks, this.oTiltWind, this.tiltWind);
+            q.rotateX(amp * Mth.sin(t * this.tiltSpeed + this.tiltPhase));
+            q.rotateY(0.6F * amp * Mth.sin(t * this.tiltSpeed * 0.7F + this.tiltPhase * 2.0F));
+            this.renderRotatedQuad(buffer, camera, q, partialTicks);
         }
 
         @Override

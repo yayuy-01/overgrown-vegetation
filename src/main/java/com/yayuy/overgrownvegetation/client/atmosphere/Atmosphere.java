@@ -16,6 +16,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.client.event.ViewportEvent;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -63,6 +64,7 @@ public final class Atmosphere {
         LightShafts.clear();
         CanopyDapple.clear();
         CanopyShade.clear();
+        MistFog.clear();
     }
 
     @SubscribeEvent
@@ -96,6 +98,7 @@ public final class Atmosphere {
         guard("leaves", () -> FallingLeaves.tick(mc, now, player));
         guard("sound", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestWindSound.tick(mc, now, player, time(0.0F)));
         guard("haze", () -> AirHaze.tick(now));
+        guard("mist", () -> MistFog.tick(now, mc.gameRenderer.getMainCamera().getPosition(), ticks));
         guard("sunmap", () -> CanopySunMap.tick(now, ticks));
         guard("shafts", () -> LightShafts.tick(now, player));
         guard("dapple", () -> CanopyDapple.tick(now, player));
@@ -103,6 +106,7 @@ public final class Atmosphere {
         guard("spores", () -> AmbientSpores.tick(now, player));
         guard("motes", () -> ShaftMotes.tick(mc.gameRenderer.getMainCamera().getPosition()));
         if (DEV_LOG && ticks % 100 == 0) {
+            OvergrownVegetation.LOGGER.info("Atmosphere {}", MistFog.describe());
             BlockPos feet = player.blockPosition();
             OvergrownVegetation.LOGGER.info("Atmosphere 森 {} 地下 {} 持ち上げ {} 霞み {} 足元の光 空 {} ブロック {} 筋 {} 木漏れ日 {} 影の地図 {}",
                     String.format("%.2f", ForestPresence.forestFactor()), String.format("%.2f", ForestPresence.underground()),
@@ -121,6 +125,17 @@ public final class Atmosphere {
             guard("sunmap", () -> CanopySunMap.upload(event, on));
             guard("sway", () -> LeafSway.upload(event, on));
             guard("tones", () -> LeafTones.upload(on));
+            guard("march", () -> MistMarch.prepare(on && event.getCamera().getFluidInCamera() == FogType.NONE));
+            guard("mist", () -> MistFog.upload(event, on));
+            return;
+        }
+        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_WEATHER) {
+            // 霧の細部(品質 HIGH、{@link MistMarch})。水の中・盲目の間は描かない。
+            Camera cam = event.getCamera();
+            if (lvl != null && lvl == level && enabled(lvl) && cam.getFluidInCamera() == FogType.NONE && !(mc.player != null
+                    && (mc.player.hasEffect(MobEffects.BLINDNESS) || mc.player.hasEffect(MobEffects.DARKNESS)))) {
+                guard("march", () -> MistMarch.render(event));
+            }
             return;
         }
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES || lvl == null || lvl != level || !enabled(lvl)) {
@@ -142,6 +157,24 @@ public final class Atmosphere {
             guard("motes", () -> ShaftMotes.render(event));
         } finally {
             AddLight.restoreTarget(main);
+        }
+    }
+
+    /** 霧の色(朝霧の中は霧の遠い色へ、{@link MistView})。 */
+    @SubscribeEvent
+    public static void onComputeFogColor(ViewportEvent.ComputeFogColor event) {
+        ClientLevel lvl = Minecraft.getInstance().level;
+        if (lvl != null && lvl == level && enabled(lvl)) {
+            guard("mistview", () -> MistView.computeFogColor(event));
+        }
+    }
+
+    /** 霧の距離(朝霧の中は 64 ブロック、{@link MistView})。 */
+    @SubscribeEvent
+    public static void onRenderFog(ViewportEvent.RenderFog event) {
+        ClientLevel lvl = Minecraft.getInstance().level;
+        if (lvl != null && lvl == level && enabled(lvl)) {
+            guard("mistview", () -> MistView.renderFog(event));
         }
     }
 

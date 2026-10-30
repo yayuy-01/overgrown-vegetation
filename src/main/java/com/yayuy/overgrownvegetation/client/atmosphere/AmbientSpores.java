@@ -215,6 +215,7 @@ final class AmbientSpores {
         shader.safeGetUniform("Clock").set((float) Atmosphere.time(partialTick), (float) windRow, (float) shown, p.size());
         shader.safeGetUniform("Box").set(half, p.boxHeight(), p.boxHeight() * 0.2F, half - 1.0F);
         shader.safeGetUniform("Look").set(R, G, B, bright);
+        setDrift(shader, p);
         // 梢の高さで箱を切るか(提案 1)と、光の筋・木漏れ日の日向で少し明るく(提案 3。林冠の日向の地図 {@link CanopySunMap} を読む)。
         boolean sunMap = CanopySunMap.sporeTexture >= 0;
         shader.safeGetUniform("Sky").set(ceilingMode == 0 || ceilingMode == 2 ? 1.0F : 0.0F, litOverride >= 0.0F ? litOverride : p.litBoost(), sunMap ? 1.0F : 0.0F, 0.0F);
@@ -229,9 +230,12 @@ final class AmbientSpores {
         RenderSystem.depthMask(false);
         RenderSystem.disableCull();
 
+        // 霧(第 3 段 {@link MistFog}): 地形と同じ高さの霧とバニラの霧で霞ませる。
+        MistFog.setParticleUniforms(shader, event.getCamera().getPosition());
         vbo.bind();
         shader.setDefaultUniforms(VertexFormat.Mode.QUADS, event.getModelViewMatrix(), event.getProjectionMatrix(), mc.getWindow());
         shader.apply();
+        MistFog.bindParticleMap(shader);
         // 自前の sampler3D と升の濃さは json に書かず、ここで場所を引いて渡す(光る胞子と同じ 7 番に風の履歴、6 番に升の濃さ)。
         if (locShader != shader) {
             locShader = shader;
@@ -255,6 +259,7 @@ final class AmbientSpores {
         vbo.draw();
 
         shader.clear();
+        MistFog.unbindParticleMap();
         RenderSystem.activeTexture(GL13.GL_TEXTURE7);
         GL11.glBindTexture(GL12.GL_TEXTURE_3D, 0);
         RenderSystem.activeTexture(GL13.GL_TEXTURE6);
@@ -267,6 +272,12 @@ final class AmbientSpores {
         RenderSystem.depthMask(true);
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
+    }
+
+    /** 粒の揺られ方(左右のふらつき・転がり、{@code shaders/include/ov_drift.glsl})の数値を渡す。光る胞子({@link ShaftMotes})も使う。 */
+    static void setDrift(ShaderInstance shader, AtmosphereTable.SporesParams p) {
+        shader.safeGetUniform("Drift").set(0.0F, 0.0F, p.wobbleCalm(), p.wobbleGust());
+        shader.safeGetUniform("Drift2").set(0.0F, 0.0F, p.spinCalm(), p.spinPerBlock());
     }
 
     private static void uploadDensity() {

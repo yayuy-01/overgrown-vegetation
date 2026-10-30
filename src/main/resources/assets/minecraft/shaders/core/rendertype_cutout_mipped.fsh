@@ -10,6 +10,8 @@ uniform vec4 ColorModulator;
 uniform float FogStart;
 uniform float FogEnd;
 uniform vec4 FogColor;
+// OvFogI = (far desaturation, from, to, -) of the overgrown forest (ov_fog.glsl).
+uniform vec4 OvFogI;
 
 in float vertexDistance;
 in vec4 vertexColor;
@@ -17,6 +19,7 @@ in vec2 texCoord0;
 in vec3 ovPos;
 in vec3 ovNormal;
 in vec2 ovLight;
+in vec4 ovFog;
 in vec4 ovLeaf;
 
 out vec4 fragColor;
@@ -32,5 +35,8 @@ void main() {
         discard;
     }
     color.rgb = ovCanopyLight(color.rgb, ovPos, ovNormal, 1.0, ovLight);
+    color.rgb = mix(color.rgb, ovFog.rgb, ovFog.a);
+    // The far forest loses a little saturation (A6; aerial perspective).
+    color.rgb = mix(color.rgb, vec3(dot(color.rgb, vec3(0.299, 0.587, 0.114))), OvFogI.x * smoothstep(OvFogI.y, OvFogI.z, vertexDistance));
     fragColor = linear_fog(color, vertexDistance, FogStart, FogEnd, FogColor);
 }

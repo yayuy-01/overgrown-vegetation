@@ -99,6 +99,7 @@ final class ShaftMotes {
         // 光る粒は筋より少し緑と青を足して、淡い金の中で胞子の色に見せる。
         shader.safeGetUniform("Glow").set(RGB[0], Math.min(1.0F, RGB[1] + 0.05F), RGB[2] + 0.1F, intensity);
         shader.safeGetUniform("Phase").set(t.phaseMin(), t.phaseMax() - t.phaseMin(), t.phasePower(), 0.0F);
+        AmbientSpores.setDrift(shader, t.spores());
 
         RenderSystem.enableBlend();
         RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
@@ -106,9 +107,12 @@ final class ShaftMotes {
         RenderSystem.depthMask(false);
         RenderSystem.disableCull();
 
+        // 霧(第 3 段 {@link MistFog}): 地形と同じ高さの霧とバニラの霧で霞ませる。
+        MistFog.setParticleUniforms(shader, event.getCamera().getPosition());
         vbo.bind();
         shader.setDefaultUniforms(VertexFormat.Mode.QUADS, event.getModelViewMatrix(), event.getProjectionMatrix(), mc.getWindow());
         shader.apply();
+        MistFog.bindParticleMap(shader);
         // 自前の sampler3D と配列の uniform は json に書かず、ここで場所を引いて渡す(apply は json の samplers を並び順の unit に結ぶ)。
         if (locShader != shader) {
             locShader = shader;
@@ -130,6 +134,7 @@ final class ShaftMotes {
         vbo.draw();
 
         shader.clear();
+        MistFog.unbindParticleMap();
         RenderSystem.activeTexture(GL13.GL_TEXTURE7);
         GL11.glBindTexture(GL12.GL_TEXTURE_3D, 0);
         RenderSystem.activeTexture(previous);

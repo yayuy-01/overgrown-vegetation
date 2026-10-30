@@ -9,6 +9,7 @@
 #import <sodium:include/chunk_vertex.glsl>
 #import <sodium:include/chunk_matrices.glsl>
 #ov_import <ov_sway.glsl>
+#ov_import <ov_fog.glsl>
 #ov_import <ov_leaf.glsl>
 
 out vec4 v_Color;
@@ -22,6 +23,7 @@ out float v_FragDistance;
 
 out vec3 ovPos;
 out vec2 ovLight;
+out vec4 ovFog;
 out vec4 ovLeaf;
 
 uniform int u_FogShape;
@@ -75,4 +77,5 @@ void main() {
     ovPos = position;
     vec2 rawLight = _vert_tex_light_coord * 256.0;
     ovLight = vec2(ovLightLevel(rawLight.x), ovLightLevel(rawLight.y));
+    ovFog = ovFogShaded(position, ovLight.y);
 }

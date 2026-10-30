@@ -2,6 +2,7 @@
 
 #moj_import <light.glsl>
 #moj_import <fog.glsl>
+#moj_import <ov_fog.glsl>
 #moj_import <ov_sway.glsl>
 #moj_import <ov_leaf.glsl>
 
@@ -24,6 +25,7 @@ out vec2 texCoord0;
 out vec3 ovPos;
 out vec3 ovNormal;
 out vec2 ovLight;
+out vec4 ovFog;
 out vec4 ovLeaf;
 
 // Overgrown Vegetation: the same as vanilla, plus the camera-relative position, the normal and the light levels for the
@@ -45,4 +47,5 @@ void main() {
     ovPos = pos;
     ovNormal = Normal;
     ovLight = clamp(vec2(UV2) / 240.0, 0.0, 1.0);
+    ovFog = ovFogShaded(pos, ovLight.y);
 }

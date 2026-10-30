@@ -35,6 +35,30 @@ public final class CanopyLift {
         return Mth.lerp(dimension.ambientLight(), f / (4.0F - 3.0F * f), 1.0F);
     }
 
+    /**
+     * 緑の照り返し(A3、10-30 夜 ユーザー採用。参考画像「影は深いが緑を帯びる」): 森の中では、ライトマップの 1 画素(ABGR)の中ほどの明るさに
+     * 緑を少し足す(明るさ L の 4L(1 − L) で、真っ暗と真っ白には足さない)。強さは {@code light.greenBounce}(仮 0.06)× 森の中で空の下にいる度合い。
+     * 見た目だけ(サーバーの明るさ・湧きは変わらない)。読み手は {@code LightTextureCanopyLiftMixin}。
+     */
+    public static int greenBounce(int abgr) {
+        if (!VisualQuality.atmosphere()) {
+            return abgr;
+        }
+        float k = DesignData.atmosphere().greenBounce() * ForestPresence.openForest();
+        if (k <= 0.001F) {
+            return abgr;
+        }
+        int r = abgr & 255;
+        int g = abgr >> 8 & 255;
+        int b = abgr >> 16 & 255;
+        float l = (0.299F * r + 0.587F * g + 0.114F * b) / 255.0F;
+        float w = 4.0F * l * (1.0F - l) * k * 255.0F;
+        r = Mth.clamp(Math.round(r - 0.4F * w), 0, 255);
+        g = Mth.clamp(Math.round(g + w), 0, 255);
+        b = Mth.clamp(Math.round(b - 0.4F * w), 0, 255);
+        return abgr & 0xFF000000 | b << 16 | g << 8 | r;
+    }
+
     private CanopyLift() {
     }
 }

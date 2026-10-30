@@ -317,7 +317,8 @@ final class LightShafts {
         if (SHAFTS.isEmpty() || level == null) {
             return;
         }
-        float intensity = DesignData.atmosphere().intensity() * ForestPresence.openForest();
+        // 霧の濃い朝は霧の細部の筋に任せて弱める(提案 1、{@link MistFog#shaftScale})。
+        float intensity = DesignData.atmosphere().intensity() * ForestPresence.openForest() * MistFog.shaftScale();
         if (intensity <= 0.0F) {
             return;
         }

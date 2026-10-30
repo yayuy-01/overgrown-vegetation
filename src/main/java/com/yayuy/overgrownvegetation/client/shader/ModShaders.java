@@ -33,8 +33,34 @@ public final class ModShaders {
         return ambientSpores;
     }
 
+    /** 霧の細部のレイマーチと重ね({@code client/atmosphere/MistMarch}、2026-10-30 夜)。読み込めなかったら null(細部は描かない)。 */
+    private static ShaderInstance mistMarch;
+    private static ShaderInstance mistComposite;
+
+    public static ShaderInstance mistMarch() {
+        return mistMarch;
+    }
+
+    public static ShaderInstance mistComposite() {
+        return mistComposite;
+    }
+
     @SubscribeEvent
     public static void onRegisterShaders(RegisterShadersEvent event) {
+        try {
+            event.registerShader(new OwnShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "mist_march"),
+                            DefaultVertexFormat.POSITION),
+                    shader -> mistMarch = shader);
+            event.registerShader(new OwnShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "mist_composite"),
+                            DefaultVertexFormat.POSITION),
+                    shader -> mistComposite = shader);
+        } catch (IOException e) {
+            OvergrownVegetation.LOGGER.error("霧の細部のシェーダーを読み込めなかったので、細部は描かない(土台の霧だけ)", e);
+            mistMarch = null;
+            mistComposite = null;
+        }
         try {
             event.registerShader(new OwnShaderInstance(event.getResourceProvider(),
                             ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "gpu_motes"),

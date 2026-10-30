@@ -33,6 +33,8 @@ uniform vec4 OvMapA;
 uniform vec4 OvShadeColor;
 uniform vec4 OvTint;
 uniform vec4 OvFleck;
+// OvSunTint = (warm white to gold multiplier rgb of the sunlit faces and the sunflecks, strength; 0 = off). Only where the map knows the sun.
+uniform vec4 OvSunTint;
 
 // How much ovCanopyLight found this fragment in canopy shade (0 to 1), for later effects (the cloud shadow must not shade it again).
 float ovCanopyShade = 0.0;
@@ -138,6 +140,10 @@ vec3 ovCanopyLight(vec3 color, vec3 pos, vec3 n, float facing, vec2 light) {
     float hue = max(OvTint.w * notLit * (1.0 - outside), shadeAmount);
     hue *= 1.0 - smoothstep(OV_TORCH_FROM, OV_TORCH_FULL, light.x);
     vec3 lit = color * mix(vec3(1.0), OvShadeColor.rgb, shadeAmount) * mix(vec3(1.0), OvTint.rgb, hue);
-    // A fleck is warm sunlight: a little brighter and golden (grass and fronds glow yellow-green where it lands).
-    return lit * (1.0 + fleck * max(OvSunA.z, 0.0) * vec3(0.3, 0.26, 0.08));
+    // Sunlit faces are warm white to gold (where the map knows they are in the sun): more contrast with the green shade.
+    float sunlit = (1.0 - clamp(shade, 0.0, 1.0)) * known * clamp(OvSunTint.w, 0.0, 2.0);
+    lit *= mix(vec3(1.0), OvSunTint.rgb, min(sunlit, 1.0));
+    // A fleck is warm sunlight: a little brighter and golden (grass and fronds glow yellow-green where it lands), the same colour.
+    vec3 fleckColor = mix(vec3(0.3, 0.26, 0.08), max(OvSunTint.rgb - vec3(0.8), vec3(0.0)), clamp(OvSunTint.w, 0.0, 1.0));
+    return lit * (1.0 + fleck * max(OvSunA.z, 0.0) * fleckColor);
 }

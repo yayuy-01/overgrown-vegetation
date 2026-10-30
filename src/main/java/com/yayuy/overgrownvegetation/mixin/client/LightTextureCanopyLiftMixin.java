@@ -2,6 +2,7 @@ package com.yayuy.overgrownvegetation.mixin.client;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.mojang.blaze3d.platform.NativeImage;
 import com.yayuy.overgrownvegetation.client.atmosphere.CanopyLift;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.world.level.dimension.DimensionType;
@@ -29,5 +30,13 @@ public class LightTextureCanopyLiftMixin {
             return original.call(dimension, level);
         }
         return CanopyLift.liftedSkyBrightness(dimension, level, lift);
+    }
+
+    /** 森の中ではライトマップの中ほどの明るさに緑を少し足す(緑の照り返し A3、{@link CanopyLift#greenBounce})。 */
+    @WrapOperation(
+            method = "updateLightTexture",
+            at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/NativeImage;setPixelRGBA(III)V"))
+    private void overgrown_vegetation$greenBounce(NativeImage image, int x, int y, int abgr, Operation<Void> original) {
+        original.call(image, x, y, CanopyLift.greenBounce(abgr));
     }
 }

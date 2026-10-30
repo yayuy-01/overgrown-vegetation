@@ -55,10 +55,6 @@ public final class CanopySunMap {
     private static final int REBUILD_TICKS = 64;
     /** これより太陽が低いと影を落とさない(線が長くなりすぎる)。 */
     private static final float MIN_SUN_Y = 0.2F;
-    /** 青緑の影の色の比(生の比 0.80 : 1.00 : 1.06 を、明るさ 0.3R + 0.59G + 0.11B が 1 になるようそろえた)。 */
-    private static final float TINT_R = 0.845F;
-    private static final float TINT_G = 1.056F;
-    private static final float TINT_B = 1.120F;
     /** 斑点の模様の細かさ(シェーダーの {@code uvRel * 1.7} と同じ値)。 */
     private static final double FLECK_SCALE = 1.7;
 
@@ -126,9 +122,11 @@ public final class CanopySunMap {
         float tint = t.shadeTint();
         float sunY = sunHeight();
         float[] dusk = t.duskTint();
-        float r = TINT_R;
-        float g = TINT_G;
-        float b = TINT_B;
+        // 昼の影の色の比(A2、10-30 夜 ユーザー採用: 青緑から緑寄りへ。atmosphere.json の light.shadeHue、見本で決める)。
+        float[] day = t.shadeHue();
+        float r = day[0];
+        float g = day[1];
+        float b = day[2];
         if (sunY >= 0.0F) {
             float w = SunLight.smooth(Mth.clamp((sunY - 0.05F) / 0.35F, 0.0F, 1.0F));
             r = Mth.lerp(w, dusk[0], r);
@@ -322,6 +320,9 @@ public final class CanopySunMap {
             for (ShaderInstance shader : shaders) {
                 if (shader != null) {
                     shader.safeGetUniform("OvTint").set(RGB[0], RGB[1], RGB[2], forest);
+                    // 日なたの暖かい白〜金(A4、10-30 夜 ユーザー採用)。日の当たる面と木漏れ日の斑点に掛ける(森の中だけ)。
+                    float[] warm = DesignData.atmosphere().sunWarm();
+                    shader.safeGetUniform("OvSunTint").set(warm[0], warm[1], warm[2], DesignData.atmosphere().sunWarmStrength() * (forest > 0.0F ? 1.0F : 0.0F));
                 }
             }
             if (amount <= 0.0F || sun == null) {
