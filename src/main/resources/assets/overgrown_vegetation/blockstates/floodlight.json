@@ -1,8 +1,0 @@
-{
-  "variants": {
-    "facing=north": { "model": "overgrown_vegetation:block/floodlight" },
-    "facing=east":  { "model": "overgrown_vegetation:block/floodlight", "y": 90 },
-    "facing=south": { "model": "overgrown_vegetation:block/floodlight", "y": 180 },
-    "facing=west":  { "model": "overgrown_vegetation:block/floodlight", "y": 270 }
-  }
-}

@@ -239,9 +239,6 @@ public final class OvergrownContainers {
         if (!state.hasProperty(OVERGROWTH)) {
             return true;
         }
-        if (com.yayuy.overgrownvegetation.item.PlantArmor.canForceOpen(player)) {
-            return true; // 寄生植物装備の 3 段階目は蔦に覆われていても開けられる(仕様 2026-09-18)。
-        }
         double chance = stuckChance(state.getValue(OVERGROWTH));
         if (chance <= 0.0D || level.random.nextDouble() >= chance) {
             return true;

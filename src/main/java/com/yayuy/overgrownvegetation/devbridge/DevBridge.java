@@ -311,49 +311,6 @@ public final class DevBridge {
         }
     }
 
-    /** 1 命令を実行する。前提がまだなら、その理由を返して待つ(行は進めない)。 */
-    /** skyboss break …(サーバーの側で)。 */
-    private static void skybossBreak(net.minecraft.server.level.ServerLevel level, com.yayuy.overgrownvegetation.skyboss.SkyBossData data,
-                                     com.yayuy.overgrownvegetation.skyboss.SkyBossShapes s, String[] a) {
-        if (!data.isActive() || s == null) {
-            log("SKYBOSS BREAK 居ない・形が無い");
-            return;
-        }
-        com.yayuy.overgrownvegetation.skyboss.SkyBossFlight f = data.flight();
-        com.yayuy.overgrownvegetation.skyboss.SkyBossPose ps = new com.yayuy.overgrownvegetation.skyboss.SkyBossPose();
-        ps.parts = data.parts();
-        ps.compute(f, f.x, f.y, f.z, f.bank, f.tick, true);
-        java.util.List<Integer> buds = new java.util.ArrayList<>();
-        boolean rod = a[1].equals("rod");
-        if (a[1].equals("buds") && a.length >= 3) {
-            int n = Integer.parseInt(a[2]);
-            for (int i = 0; i < s.budCount && buds.size() < n; i++) {
-                if (data.parts().budSolid(i)) {
-                    buds.add(i);
-                }
-            }
-        } else if (!rod) {
-            buds.add(a[1].matches("\\d+") ? Integer.parseInt(a[1]) : s.budIndex(a[1]));
-        }
-        StringBuilder done = new StringBuilder();
-        if (rod) {
-            int ci = ps.rodFirstCapsule() + (s.rodPts.length - 1) / 2;
-            boolean ok = data.breakPart(level, com.yayuy.overgrownvegetation.skyboss.SkyBossPose.PART_ROD, -1,
-                    (ps.cA[ci * 3] + ps.cB[ci * 3]) * 0.5, (ps.cA[ci * 3 + 1] + ps.cB[ci * 3 + 1]) * 0.5, (ps.cA[ci * 3 + 2] + ps.cB[ci * 3 + 2]) * 0.5);
-            done.append(ok ? " rod" : " rod(もう壊れている)");
-        }
-        for (int i : buds) {
-            if (i < 0 || i >= s.budCount) {
-                done.append(" 蕾の名前が違う");
-                continue;
-            }
-            boolean ok = data.breakPart(level, com.yayuy.overgrownvegetation.skyboss.SkyBossPose.PART_BUD, i, ps.spC[i * 3], ps.spC[i * 3 + 1], ps.spC[i * 3 + 2]);
-            done.append(' ').append(s.budName[i]).append(ok ? "" : "(もう壊れている)");
-        }
-        log(String.format(Locale.ROOT, "SKYBOSS BREAK%s → 体力 %.0f・壊れた蕾 %d・避雷針 %s (tick %d)", done, data.health(), data.parts().brokenBuds(),
-                data.parts().rodSolid() ? "元どおり" : "壊れている", level.getGameTime()));
-    }
-
     private static String run(Minecraft mc, String line) throws IOException {
         String[] parts = line.split("\\s+", 2);
         String op = parts[0].toLowerCase(Locale.ROOT);
@@ -442,9 +399,6 @@ public final class DevBridge {
                     log("WIND hide " + com.yayuy.overgrownvegetation.client.CanopyLight.debugHide);
                     return null;
                 } else if (what.startsWith("omen")) {
-                    // 前触れ(TD の群れが近づくと発光が遠くから消える)の強さを直に決める(2026-10-16)。群れが無ければ 45 秒保ってから戻る。
-                    com.yayuy.overgrownvegetation.client.TdOmen.forceForDev(Float.parseFloat(what.substring(4).trim()));
-                    log("WIND omen " + com.yayuy.overgrownvegetation.client.TdOmen.strength());
                     return null;
                 } else if (what.startsWith("leafhist")) {
                     // 周りの地面から太陽へたどった葉のブロックの数と樹冠の層の数の分布(2026-10-16、濃い森の光の数値決め)。既定は半径 16。
@@ -462,14 +416,8 @@ public final class DevBridge {
                     server.execute(() -> {
                         net.minecraft.server.level.ServerLevel level = server.overworld();
                         if (p[0].equals("column")) {
-                            com.yayuy.overgrownvegetation.sky.CloudSky.CloudColumn c = com.yayuy.overgrownvegetation.sky.CloudSky.columnAt(level, px, pz, 0.0F);
-                            log("WIND column " + (c == null ? "雲なし" : "底 " + c.bottom() + " 天辺 " + c.top() + " 厚さ " + c.thickness() + " 雲海 " + c.seaBottom() + "〜" + c.seaTop()));
                         } else if (p[0].equals("bulge")) {
-                            log("WIND bulge " + com.yayuy.overgrownvegetation.sky.CloudSurface.bulge(level, px, pz, Float.parseFloat(p[3]),
-                                    Integer.parseInt(p[4]), Integer.parseInt(p[5])));
                         } else {
-                            log("WIND dive " + com.yayuy.overgrownvegetation.sky.CloudSurface.hole(level, px, pz, Double.NaN, Double.NaN, Float.parseFloat(p[3]), 10,
-                                    Integer.parseInt(p[4]), Integer.parseInt(p[5])));
                         }
                     });
                     return null;
@@ -484,7 +432,6 @@ public final class DevBridge {
                     float pr = Float.parseFloat(p[3]);
                     float ph = Float.parseFloat(p[4]);
                     int pl = Integer.parseInt(p[5]);
-                    server.execute(() -> log("WIND puff " + com.yayuy.overgrownvegetation.sky.CloudPuffs.puff(server.overworld(), px, py, pz, pr, ph, pl)));
                     return null;
                 } else if (what.startsWith("bolt")) {
                     // 決めた 2 点の間の雷(2026-10-19、CloudLightning#strikeBetween): bolt <x1> <y1> <z1> <x2> <y2> <z2> [1 = 即死]。返事は前兆の tick。
@@ -494,7 +441,6 @@ public final class DevBridge {
                     Vec3 from = new Vec3(Double.parseDouble(p[0]), Double.parseDouble(p[1]), Double.parseDouble(p[2]));
                     Vec3 to = new Vec3(Double.parseDouble(p[3]), Double.parseDouble(p[4]), Double.parseDouble(p[5]));
                     boolean harmful = p.length > 6 && p[6].equals("1");
-                    server.execute(() -> log("WIND bolt 前兆 " + com.yayuy.overgrownvegetation.sky.CloudLightning.strikeBetween(server.overworld(), from, to, harmful)));
                     return null;
                 } else if (what.startsWith("holeshot")) {
                     // 雲の穴(2026-10-18): プレイヤーの所から本物の砲弾(攻城砲)をほぼ真上へ撃つ(着弾しても地形は壊れない)。
@@ -506,7 +452,6 @@ public final class DevBridge {
                         net.minecraft.server.level.ServerLevel level = server.overworld();
                         double h = 1.2;
                         Vec3 v = new Vec3(-Math.sin(Math.toRadians(yaw)) * h, 9.0, Math.cos(Math.toRadians(yaw)) * h);
-                        com.yayuy.overgrownvegetation.siege.ShellTracker.get(level).fire(level, at.add(0.0, 2.0, 0.0), v);
                     });
                     log("WIND holeshot " + Math.round(at.x) + " " + Math.round(at.y) + " " + Math.round(at.z));
                     return null;
@@ -517,14 +462,8 @@ public final class DevBridge {
                     double hy = Double.parseDouble(p[1]);
                     double hz = Double.parseDouble(p[2]);
                     float hr = p.length > 3 ? Float.parseFloat(p[3]) : 24.0F;
-                    com.yayuy.overgrownvegetation.client.CloudHoles.devPunch(hx, hy, hz, hr);
-                    log("WIND hole " + com.yayuy.overgrownvegetation.client.CloudHoles.count());
                     return null;
                 } else if (what.equals("leyflow")) {
-                    // 地脈の流れをすぐに起こす(2026-10-16)。
-                    com.yayuy.overgrownvegetation.client.LeyFlow.startNow();
-                    int[] near = com.yayuy.overgrownvegetation.client.LeyFlow.nearestCell(player.getX(), player.getZ());
-                    log("WIND leyflow いちばん近い線のマス " + (near == null ? "無し" : near[0] + " " + near[1]) + " " + com.yayuy.overgrownvegetation.client.LeyFlow.describeChunks(player.chunkPosition().x, player.chunkPosition().z));
                     return null;
                 } else if (what.equals("gaps")) {
                     // 近くの林冠の穴(木を植えない輪、TreeSpacing#canopyGap)の中心と半径を、近い順に 6 つまで書く(2026-10-16)。
@@ -573,11 +512,7 @@ public final class DevBridge {
                         int placed = 0;
                         for (int x = px - radius; x <= px + radius; x++) {
                             for (int z = pz - radius; z <= pz + radius; z++) {
-                                if (!com.yayuy.overgrownvegetation.corruption.LeyVeinField.flowAt(seed, x, z, flow) || flow[0] < 0.5) {
-                                    continue;
-                                }
                                 int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
-                                level.setBlock(new net.minecraft.core.BlockPos(x, y, z), com.yayuy.overgrownvegetation.registry.ModBlocks.LEY_VEIN.get().defaultBlockState(), 3);
                                 placed++;
                             }
                         }
@@ -594,7 +529,6 @@ public final class DevBridge {
                     server.execute(() -> {
                         net.minecraft.server.level.ServerLevel level = server.overworld();
                         for (int dy = 0; dy < 5; dy++) {
-                            level.setBlock(base.above(dy), com.yayuy.overgrownvegetation.registry.ModBlocks.ENERGY_CRYSTAL.get().defaultBlockState(), 3);
                         }
                         log("WIND crystal " + base.getX() + " " + base.getY() + " " + base.getZ());
                     });
@@ -609,9 +543,6 @@ public final class DevBridge {
                     net.minecraft.core.BlockPos from = player.blockPosition();
                     server.execute(() -> {
                         net.minecraft.server.level.ServerLevel level = server.overworld();
-                        int[] p = com.yayuy.overgrownvegetation.corruption.LeyVeinField.nearestLinePoint(level.getSeed(), from.getX(), from.getZ(), 256);
-                        net.minecraft.core.BlockPos t = com.yayuy.overgrownvegetation.item.LeyCompassItem.target(level, from);
-                        log("WIND leynear " + (p == null ? "なし" : p[0] + " " + p[1]) + " 針の先 " + (t == null ? "なし" : t.getX() + " " + t.getZ()));
                     });
                     return null;
                 } else if (what.startsWith("findblock ")) {
@@ -674,15 +605,6 @@ public final class DevBridge {
                                     }
                                     int x = from.getX() + dx;
                                     int z = from.getZ() + dz;
-                                    int[] p = com.yayuy.overgrownvegetation.corruption.LeyVeinField.nearestLinePoint(seed, x, z, 16);
-                                    if (p == null || Math.abs(p[0] - x) > 6 || Math.abs(p[1] - z) > 6) {
-                                        continue;
-                                    }
-                                    var b = gen.getBiomeSource().getNoiseBiome(p[0] >> 2, 64 >> 2, p[1] >> 2, sampler);
-                                    if (b.unwrapKey().map(k -> k.location().toString().equals(biomeId)).orElse(false)) {
-                                        log("WIND leybiome " + p[0] + " " + p[1]);
-                                        return;
-                                    }
                                 }
                             }
                         }
@@ -711,15 +633,9 @@ public final class DevBridge {
                                     }
                                     int cx = pcx + dx;
                                     int cz = pcz + dz;
-                                    if (!com.yayuy.overgrownvegetation.corruption.LeyVeinField.hasVeinInChunk(seed, cx, cz)) {
-                                        continue;
-                                    }
                                     for (int i = 0; i < 256; i++) {
                                         int x = (cx << 4) + (i & 15);
                                         int z = (cz << 4) + (i >> 4);
-                                        if (!com.yayuy.overgrownvegetation.corruption.LeyVeinField.flowAt(seed, x, z, flow) || flow[0] < 0.8) {
-                                            continue;
-                                        }
                                         int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
                                         // 巨大樹の枝の上などへ行かないよう、地面の高さはプレイヤーの高さの近くから下へ探す。
                                         int startY = Math.min(y, (int) player.getY() + 8);
@@ -1086,8 +1002,6 @@ public final class DevBridge {
                 server.execute(() -> {
                     net.minecraft.server.level.ServerPlayer sp = server.getPlayerList().getPlayer(id);
                     if (sp == null) return;
-                    sp.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.RESEARCH).unlock(arg.trim());
-                    com.yayuy.overgrownvegetation.research.ResearchLogic.sync(sp);
                     log("RESEARCH " + arg.trim());
                 });
             }
@@ -1132,10 +1046,6 @@ public final class DevBridge {
             case "chunkdump" -> log(ChunkDump.dump(mc, dir, arg.isEmpty() ? "chunkdump" : arg));
             case "chunkwatch" -> log(ChunkDump.watch(mc, dir));
             case "echo" -> log("ECHO " + arg);
-            // 画面の色の調子の試作(2026-10-21、client/light/MoodState)。mood [all|lightmap|lut|vignette on|off] / mood stage <-1|0..3> / mood time on|off / mood stat
-            case "mood" -> log(com.yayuy.overgrownvegetation.client.light.MoodState.devCommand(arg));
-            // 霧と空の色の詰めの試作(2026-10-23、client/FogMood)。fogmood [all|curve|color|sun|wet on|off]
-            case "fogmood" -> log(com.yayuy.overgrownvegetation.client.FogMood.devCommand(arg));
             // 重さを測る(2026-10-18、FxProfiler)。bench は終わるまで次の命令へ進まない。
             case "fxprof" -> log(FxProfiler.command(arg));
             // 漂う胞子の束の入り切り(2026-10-23、GpuSpores)。on / off / 空 = 状態だけ。
@@ -1146,54 +1056,6 @@ public final class DevBridge {
                 log(com.yayuy.overgrownvegetation.client.GpuSpores.describe());
             }
             case "winsize" -> log(FxProfiler.winsize(mc, arg));
-            // 描画解像度(2026-10-23、client.RenderScale)。rscale 0.5 / 2.0(4K の塗りつぶしを 1080p の窓で)/ off = 設定の値へ戻す
-            case "rscale" -> {
-                if (!arg.isBlank()) {
-                    com.yayuy.overgrownvegetation.client.RenderScale.devScale = arg.trim().equalsIgnoreCase("off") ? 0.0F : Float.parseFloat(arg.trim());
-                }
-                log(com.yayuy.overgrownvegetation.client.RenderScale.status(mc));
-            }
-            // グラフィックの設定(2026-10-23、描画解像度の縮小をファビュラスで確かめる)。graphics fast|fancy|fabulous
-            case "graphics" -> {
-                mc.options.graphicsMode().set(net.minecraft.client.GraphicsStatus.valueOf(arg.trim().toUpperCase(java.util.Locale.ROOT)));
-                mc.levelRenderer.allChanged();
-                log("GRAPHICS " + mc.options.graphicsMode().get());
-            }
-            // 植物の cutout_mipped への寄せ(2026-10-23、client.PlantLayers)。plantmip on|off(設定を書き換えて資源を読み直す。終わると PLANTMIP 終わり)
-            case "plantmip" -> {
-                com.yayuy.overgrownvegetation.config.OvergrownClientConfig.CLIENT.plantMipmaps.set(!arg.trim().equalsIgnoreCase("off"));
-                log("PLANTMIP " + com.yayuy.overgrownvegetation.config.OvergrownClientConfig.CLIENT.plantMipmaps.get());
-                mc.reloadResourcePacks().thenRun(() -> mc.execute(() -> log("PLANTMIP 終わり")));
-            }
-            // 夜だけ灯る面の発光の入り切り(2026-10-24、client.NightGlow。off = 前と同じに一日中光る)
-            case "nightglow" -> {
-                com.yayuy.overgrownvegetation.client.NightGlow.devEnabled = !arg.trim().equalsIgnoreCase("off");
-                log("NIGHTGLOW " + com.yayuy.overgrownvegetation.client.NightGlow.devEnabled);
-            }
-            // 下草を描く距離(2026-10-23、client.PlantLayers。0 = 縮めない)
-            case "undergrowth" -> {
-                com.yayuy.overgrownvegetation.config.OvergrownClientConfig.CLIENT.undergrowthDistance.set(Integer.parseInt(arg.trim()));
-                log("UNDERGROWTH " + com.yayuy.overgrownvegetation.config.OvergrownClientConfig.CLIENT.undergrowthDistance.get());
-            }
-            // 朝霧の板の「多い」の枚数を差し替える(2026-10-24、前の 5+3 と撮り比べる)。mistsheets <朝霧> <雲海> / off
-            case "mistsheets" -> {
-                String[] ms = arg.trim().split("\\s+");
-                if (ms[0].equals("off")) {
-                    com.yayuy.overgrownvegetation.client.MorningMistView.devSetSheets(0, 0);
-                } else {
-                    com.yayuy.overgrownvegetation.client.MorningMistView.devSetSheets(Integer.parseInt(ms[0]), Integer.parseInt(ms[1]));
-                }
-                log("MISTSHEETS " + arg.trim());
-            }
-            // 胞子の帯(2026-10-24、SporePlumes#devCommand): old / new = 前の描き方と直した描き方 / density <k> / green <0〜1>
-            case "plume" -> log(com.yayuy.overgrownvegetation.client.SporePlumes.devCommand(arg));
-            // 遠くの雲の描き方(2026-10-24): old = 空と一緒に地形より先 / new = 森の霧の中は地形の後に空の画素だけ
-            case "farclouds" -> {
-                com.yayuy.overgrownvegetation.client.VoxelClouds.devOldFarPass(arg.trim().equals("old"));
-                log("FARCLOUDS " + arg.trim());
-            }
-            // 地形のシェーダーの演出を uniform の強さ 0 で消す(2026-10-23、TerrainFxMask。511 = 全部 / off)
-            case "fxmask" -> log(TerrainFxMask.command(arg));
             // 資源パックの入り切り(2026-10-23、バニラの地形のシェーダーと比べる)。rpack <フォルダ名> on|off。読み直しが終わると RPACK 終わり
             case "rpack" -> {
                 String[] rp = arg.trim().split("\\s+");
@@ -1226,24 +1088,14 @@ public final class DevBridge {
             case "fastcull" -> {
                 // 見える区画の選び直しの近道(client.SectionFrustumCache)を入り切りする。撮り比べ用(2026-10-20)
                 if (arg.equalsIgnoreCase("off")) {
-                    com.yayuy.overgrownvegetation.client.SectionFrustumCache.enabled = false;
                 } else if (arg.equalsIgnoreCase("on")) {
-                    com.yayuy.overgrownvegetation.client.SectionFrustumCache.enabled = true;
                 }
-                log("FASTCULL " + com.yayuy.overgrownvegetation.client.SectionFrustumCache.enabled + "・グラフの区画 "
-                        + com.yayuy.overgrownvegetation.client.SectionFrustumCache.cachedSize() + "・作り直し "
-                        + com.yayuy.overgrownvegetation.client.SectionFrustumCache.rebuilds + " 回・足し "
-                        + com.yayuy.overgrownvegetation.client.SectionFrustumCache.appends + " 回・見える区画 "
-                        + ((com.yayuy.overgrownvegetation.mixin.client.LevelRendererVisibleAccessor) mc.levelRenderer).overgrown_vegetation$visibleSections().size());
             }
             case "shortlists" -> {
                 // 見える区画の短い一覧(mixin.client.LevelRendererSectionListsMixin)を入り切りする。撮り比べ用(2026-10-20)
                 if (arg.equalsIgnoreCase("off")) {
-                    com.yayuy.overgrownvegetation.client.SectionFrustumCache.shortLists = false;
                 } else if (arg.equalsIgnoreCase("on")) {
-                    com.yayuy.overgrownvegetation.client.SectionFrustumCache.shortLists = true;
                 }
-                log("SHORTLISTS " + com.yayuy.overgrownvegetation.client.SectionFrustumCache.shortLists);
             }
             case "sunmapcheck" -> log("SUNMAPCHECK " + com.yayuy.overgrownvegetation.client.CanopySunMap.debugCheckSync());
             // 葉の層の重ね塗りを数える(2026-10-24、LeafLayerProbe)。leafprobe <フレーム数> [equal|always|plain]。leafcull 0|1|2 = 候補 F5 の試し
@@ -1257,43 +1109,26 @@ public final class DevBridge {
             case "uploadbudget" -> {
                 // 区画の送り込みを 1 フレーム 2 ms までに(client.SectionUploadBudget)を入り切りする。撮り比べ用(2026-10-20)
                 if (arg.equalsIgnoreCase("off")) {
-                    com.yayuy.overgrownvegetation.client.SectionUploadBudget.enabled = false;
                 } else if (arg.equalsIgnoreCase("on")) {
-                    com.yayuy.overgrownvegetation.client.SectionUploadBudget.enabled = true;
                 }
-                log("UPLOADBUDGET " + com.yayuy.overgrownvegetation.client.SectionUploadBudget.enabled + "・次のフレームへ回した回数 "
-                        + com.yayuy.overgrownvegetation.client.SectionUploadBudget.deferred);
             }
             case "fogbacklog" -> {
                 // 霧で描かずにいる区画を裏で組み立てておく(client.FogCullBacklog)を入り切りする。撮り比べ用(2026-10-20)
                 if (arg.equalsIgnoreCase("off")) {
-                    com.yayuy.overgrownvegetation.client.FogCullBacklog.enabled = false;
                 } else if (arg.equalsIgnoreCase("on")) {
-                    com.yayuy.overgrownvegetation.client.FogCullBacklog.enabled = true;
                 }
-                log("FOGBACKLOG " + com.yayuy.overgrownvegetation.client.FogCullBacklog.enabled + "・霧で外した区画 "
-                        + com.yayuy.overgrownvegetation.client.FogCullBacklog.size() + "・組み立てへ回した数 "
-                        + com.yayuy.overgrownvegetation.client.FogCullBacklog.scheduled);
             }
             case "lazycopy" -> {
                 // 区画を組み立てる前の写しを上下 1 区画だけに(client.LazySectionCopy)を入り切りする。撮り比べ用(2026-10-20)
                 if (arg.equalsIgnoreCase("off")) {
-                    com.yayuy.overgrownvegetation.client.LazySectionCopy.enabled = false;
                 } else if (arg.equalsIgnoreCase("on")) {
-                    com.yayuy.overgrownvegetation.client.LazySectionCopy.enabled = true;
                 }
-                log("LAZYCOPY " + com.yayuy.overgrownvegetation.client.LazySectionCopy.enabled);
             }
             case "fastdraw" -> {
                 // 地形の区画を決まった器で描く(client.FastChunkDraw)を入り切りする。撮り比べ用(2026-10-20)
                 if (arg.equalsIgnoreCase("off")) {
-                    com.yayuy.overgrownvegetation.client.FastChunkDraw.enabled = false;
                 } else if (arg.equalsIgnoreCase("on")) {
-                    com.yayuy.overgrownvegetation.client.FastChunkDraw.enabled = true;
                 }
-                log("FASTDRAW " + com.yayuy.overgrownvegetation.client.FastChunkDraw.enabled + "・差し替え "
-                        + com.yayuy.overgrownvegetation.client.FastChunkDraw.fastBinds + " 回・バニラ "
-                        + com.yayuy.overgrownvegetation.client.FastChunkDraw.vanillaBinds + " 回");
             }
             case "bench" -> {
                 return FxProfiler.bench(mc, arg, DevBridge::log, dir);
@@ -1369,23 +1204,17 @@ public final class DevBridge {
                 String[] a = worldSide ? new String[]{a0[1], a0[2], a0[3]} : a0;
                 // 10-19: skyboss hang(背の垂れ草の板が世界の真下から何度か。描いた最後のフレームで)・skyboss lines on|off(確かめ用の線)
                 if (a[0].equals("hang")) {
-                    log("SKYBOSS HANG " + com.yayuy.overgrownvegetation.client.skyboss.SkyBossModel.hangReport());
                     return null;
                 }
                 if (a[0].equals("arcs")) {
-                    log("SKYBOSS ARCS " + com.yayuy.overgrownvegetation.client.skyboss.SkyBossModel.arcReport());
                     return null;
                 }
                 if (a[0].equals("lines")) {
                     boolean on = !(a.length >= 2 && a[1].equals("off"));
-                    com.yayuy.overgrownvegetation.client.skyboss.SkyBossModel.debugLines(on);
                     log("SKYBOSS LINES " + (on ? "on" : "off"));
                     return null;
                 }
                 if (a[0].equals("eyes")) {
-                    // 10-19 夕方: skyboss eyes <x> <y> | off(瞳を決めた向きへ。目の局所の x = 後ろ・y。符号の確かめ用)
-                    com.yayuy.overgrownvegetation.client.skyboss.SkyBossModel.eyeForce = a.length >= 3
-                            ? new float[]{Float.parseFloat(a[1]), Float.parseFloat(a[2])} : null;
                     log("SKYBOSS EYES " + (a.length >= 3 ? a[1] + " " + a[2] : "off"));
                     return null;
                 }
@@ -1404,135 +1233,46 @@ public final class DevBridge {
                 double up = brk || info ? 0.0 : Double.parseDouble(a[2]);
                 server.execute(() -> {
                     net.minecraft.server.level.ServerLevel level = server.overworld();
-                    com.yayuy.overgrownvegetation.skyboss.SkyBossData data = com.yayuy.overgrownvegetation.skyboss.SkyBossData.get(level);
-                    com.yayuy.overgrownvegetation.skyboss.SkyBossShapes s = com.yayuy.overgrownvegetation.skyboss.SkyBossShapes.get();
                     net.minecraft.server.level.ServerPlayer p = server.getPlayerList().getPlayer(me);
                     if (brk) {
-                        skybossBreak(level, data, s, a);
                         return;
                     }
                     if (info) {
-                        if (!data.isActive()) {
-                            log("SKYBOSS 居ない");
-                            return;
-                        }
                         if (a[0].equals("seek")) {
                             double range = a.length >= 2 ? Double.parseDouble(a[1]) : 20000.0;
-                            log("SKYBOSS SEEK " + (data.debugSeek(level, range) ? "寄り始めた" : "範囲の中に巨大な積乱雲が無い"));
                         }
                         if (a[0].equals("roll") && a.length >= 2) {
-                            data.debugRoll(Float.parseFloat(a[1]));
                             log("SKYBOSS ROLL " + a[1] + " へ転がり始めた");
                         }
                         if (a[0].equals("charge") && a.length >= 2) {
-                            data.debugCharge(level, Float.parseFloat(a[1]));
                             log("SKYBOSS CHARGE " + a[1]);
                         }
                         if (a[0].equals("attack") && a.length >= 2) {
                             long gtA = level.getGameTime();
-                            data.markCombat(gtA);
-                            log("SKYBOSS ATTACK " + a[1] + " " + (data.attacks().forceNext(a[1], gtA) ? "次の tick に出す" : "知らない技"));
                         }
                         if (a[0].equals("tentgrab") && p != null) {
                             // skyboss tentgrab [触手 0〜7]: 次の tick に絡め取るを始め、捕まえる間(56 tick 後)に触手の先の方が来る所へ移って待つ
                             int tn = a.length >= 2 ? Integer.parseInt(a[1]) : 0;
-                            double[] at = data.debugGrabSpot(level, tn, 56);
-                            if (at != null) {
-                                p.teleportTo(at[0], at[1] - p.getBbHeight() * 0.5, at[2]);
-                                p.setDeltaMovement(0.0, 0.0, 0.0);
-                            }
-                            log("SKYBOSS TENTGRAB " + (at == null ? "形が無い" : String.format(Locale.ROOT, "(%.0f, %.0f, %.0f) で待つ", at[0], at[1], at[2])));
                         }
                         if (a[0].equals("sea") && a.length >= 2) {
-                            // 10-19 夕方: skyboss sea dive|breach(雲海に潜ろうとする・今すぐ飛び出す)
-                            log("SKYBOSS SEA " + a[1] + " " + data.debugSea(level, a[1]));
                         }
                         if (a[0].equals("shiver")) {
-                            // skyboss shiver: 次の tick にときどきの身震い(10-19 夕方。戦いの外で渡っているときだけ)
-                            data.rhythm().debugShiverNow(level.getGameTime());
                             log("SKYBOSS SHIVER 次の tick に");
                         }
                         if (a[0].equals("light") && a.length >= 2) {
-                            data.debugLight(level, Float.parseFloat(a[1]));
                             log("SKYBOSS LIGHT " + a[1]);
                         }
                         if (a[0].equals("discharge")) {
-                            log("SKYBOSS DISCHARGE " + (data.debugDischarge(level) ? "始めた" : "始められない(転がっている途中か、もう放電中)"));
                         }
                         long gt = level.getGameTime();
-                        log("SKYBOSS DSTATUS " + data.dischargeStatus(gt));
-                        log("SKYBOSS STATUS " + data.feedingStatus(gt) + String.format(Locale.ROOT, " 体力 %.0f 頭(世界の座標)(%.0f, %.0f, %.0f)",
-                                data.health(), com.yayuy.overgrownvegetation.skyboss.SkyBossWorld.worldX(data.flight().x, gt), data.flight().y,
-                                com.yayuy.overgrownvegetation.skyboss.SkyBossWorld.worldZ(data.flight().z, gt)));
                         return;
                     }
-                    if (data.isActive() && s != null && p != null && a[0].matches("fan[0-7]")) {
-                        // skyboss fanN <横> <下>: 扇 N(0〜3 = 左の腕 1〜4、4〜7 = 右)の付け根から、世界の真下へ <下> ブロックの所へ移って真上を見る(<横> は使わない)
-                        com.yayuy.overgrownvegetation.skyboss.SkyBossFlight ff = data.flight();
-                        com.yayuy.overgrownvegetation.skyboss.SkyBossPose pf = new com.yayuy.overgrownvegetation.skyboss.SkyBossPose();
-                        pf.compute(ff, ff.x, ff.y, ff.z, ff.bank, ff.tick, true);
-                        int arm = a[0].charAt(3) - '0';
-                        int ci = arm * (s.armPoints - 1) + (s.armPoints - 2);
-                        double fx = pf.cB[ci * 3];
-                        double fy = pf.cB[ci * 3 + 1];
-                        double fz = pf.cB[ci * 3 + 2];
-                        p.teleportTo(level, fx, fy - up - p.getEyeHeight(), fz, java.util.Set.of(), p.getYRot(), -90.0F);
-                        log(String.format(java.util.Locale.ROOT, "SKYBOSS %s 付け根 (%.1f, %.1f, %.1f) → 真下 %.0f 傾き %.1f 扇 %d", a[0], fx, fy, fz, up, ff.bank, ff.fanMode));
-                        return;
-                    }
-                    int bud = s == null ? -1 : s.budIndex(a[0]);
                     boolean rodT = a[0].equals("rod");
-                    if (!data.isActive() || s == null || p == null || (s.bodyIndex(a[0]) < 0 && bud < 0 && !rodT)) {
-                        log("SKYBOSS 居ない・形が無い・骨の名前が違う");
-                        return;
-                    }
-                    com.yayuy.overgrownvegetation.skyboss.SkyBossFlight f = data.flight();
-                    com.yayuy.overgrownvegetation.skyboss.SkyBossPose ps = new com.yayuy.overgrownvegetation.skyboss.SkyBossPose();
-                    ps.parts = data.parts();
-                    ps.compute(f, f.x, f.y, f.z, f.bank, f.tick, true);
-                    // 避雷針・蕾は、持ち主の体の骨の横の向きで、その点から
-                    int b = rodT ? s.rodOwner : bud >= 0 ? s.budOwner[bud] : s.bodyIndex(a[0]);
                     int idx = 0;
-                    for (int i = 0; i < b; i++) {
-                        idx += s.bodySlices[i].length;
-                    }
-                    idx += s.bodySlices[b].length / 2;
                     int o = idx * 3;
-                    double half = ps.sLen[idx] * 0.5;
-                    double cx = ps.sA[o] + ps.sEz[o] * half;
-                    double cy = ps.sA[o + 1] + ps.sEz[o + 1] * half;
-                    double cz = ps.sA[o + 2] + ps.sEz[o + 2] * half;
                     if (rodT) {
-                        int ci = ps.rodFirstCapsule() + (s.rodPts.length - 1) / 2;
-                        cx = (ps.cA[ci * 3] + ps.cB[ci * 3]) * 0.5;
-                        cy = (ps.cA[ci * 3 + 1] + ps.cB[ci * 3 + 1]) * 0.5;
-                        cz = (ps.cA[ci * 3 + 2] + ps.cB[ci * 3 + 2]) * 0.5;
-                    } else if (bud >= 0) {
-                        cx = ps.spC[bud * 3];
-                        cy = ps.spC[bud * 3 + 1];
-                        cz = ps.spC[bud * 3 + 2];
+                    }                     if (worldSide) {
                     }
-                    double ex = ps.sEx[o];
-                    double ey = ps.sEx[o + 1];
-                    double ez = ps.sEx[o + 2];
-                    if (worldSide) {
-                        // 体の軸(sEz)に直角な水平の向き
-                        double hl = Math.max(1.0E-9, Math.hypot(ps.sEz[o], ps.sEz[o + 2]));
-                        ex = -ps.sEz[o + 2] / hl;
-                        ey = 0.0;
-                        ez = ps.sEz[o] / hl;
-                    }
-                    double x = cx + ex * side;
-                    double y = cy + ey * side + up;
-                    double z = cz + ez * side;
-                    double dx = cx - x;
-                    double dy = cy - y;
-                    double dz = cz - z;
-                    float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
-                    float pitch = (float) -Math.toDegrees(Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)));
-                    p.teleportTo(level, x, y - p.getEyeHeight(), z, java.util.Set.of(), yaw, pitch);
-                    log(String.format(java.util.Locale.ROOT, "SKYBOSS %s 中心 (%.1f, %.1f, %.1f) 横の半径 %.1f 縦 %.1f → 目 (%.1f, %.1f, %.1f) 体力 %.0f 傾き %.1f 扇 %d",
-                            a[0], cx, cy, cz, ps.sRx[idx], ps.sRy[idx], x, y, z, data.health(), f.bank, f.fanMode));
                 });
             }
             case "reloadres" -> {

@@ -114,7 +114,7 @@ public class OvergrownHuskBlock extends Block implements EntityBlock {
      * ブロックが毎回抽選を無駄打ちする。
      */
     public static boolean canEncase(BlockState state) {
-        if (!DesignData.climax().encase()) {
+        if (!com.yayuy.overgrownvegetation.corruption.OvergrownLayerField.ENCASE) {
             return false;
         }
         if (!state.hasBlockEntity()) {

@@ -211,7 +211,6 @@ public final class ModBiomes {
         return FULLY_OVERGROWN.contains(key);
     }
 
-
     /**
      * 「極相」段階(陸 or 海 or 川、全環境)のバイオームか。過繁茂・繁茂段階は含まない。
      *

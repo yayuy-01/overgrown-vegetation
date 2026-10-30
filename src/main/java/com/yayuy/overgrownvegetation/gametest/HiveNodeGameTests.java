@@ -144,32 +144,4 @@ public final class HiveNodeGameTests {
         helper.succeed();
     }
 
-    /** バイオマスの貯蓄上限は 基本 + 生きている巨大樹 1 本分ずつ。ハイヴノードを倒すとその 1 本分が減る(2026-10-23 追記 14)。 */
-    @GameTest(template = "gametest_empty7")
-    public static void killingHiveNodeLowersBiomassCap(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        PhaseData pd = PhaseData.get(level);
-        BlockPos center = helper.absolutePos(new BlockPos(3, 2, 3));
-        long packed = ((long) center.getX() << 32) | (center.getZ() & 0xFFFFFFFFL);
-        com.yayuy.overgrownvegetation.data.EcosystemTable eco = DesignData.ecosystem();
-        int before = pd.livingGiantTreeCount();
-        pd.recordGiantTreeOrigin(center.getX(), center.getZ());
-        int withTree = pd.livingGiantTreeCount();
-        double capWith = eco.biomassCap(withTree);
-        HiveNodeEntity node = helper.spawn(ModEntities.HIVE_NODE.get(), new BlockPos(3, 2, 3));
-        node.hurt(level.damageSources().generic(), 100000.0F);
-        int afterKill = pd.livingGiantTreeCount();
-        double capAfter = eco.biomassCap(afterKill);
-        node.discard();
-        pd.forgetGiantTreeForTests(packed);
-        if (withTree != before + 1 || afterKill != before) {
-            helper.fail("生きている巨大樹の数が合わない: " + before + " → " + withTree + " → " + afterKill);
-            return;
-        }
-        if (!(capAfter < capWith) || eco.biomassCap(0) <= DesignData.td().startBiomass()) {
-            helper.fail("上限が減らない、または基本が TD の開始量以下: " + capWith + " → " + capAfter + "(基本 " + eco.biomassCap(0) + ")");
-            return;
-        }
-        helper.succeed();
-    }
 }

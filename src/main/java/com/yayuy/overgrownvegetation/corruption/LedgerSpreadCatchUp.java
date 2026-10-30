@@ -93,8 +93,7 @@ final class LedgerSpreadCatchUp {
                 continue;
             }
             if (cursor == 0) {
-                if (PhaseData.get(level).isClimaxChunk(pos) || SporeDeviceData.guardsChunkFromLedger(level, pos.x, pos.z)
-                        || com.yayuy.overgrownvegetation.purify.BurntLand.isBurntKey(level.getServer(), key)) {
+                if (PhaseData.get(level).isClimaxChunk(pos) || SporeDeviceData.guardsChunkFromLedger(level, pos.x, pos.z)) {
                     data.removePending(key);
                     currentKey = Long.MIN_VALUE;
                     continue;

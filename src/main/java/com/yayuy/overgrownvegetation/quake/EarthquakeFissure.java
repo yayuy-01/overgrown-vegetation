@@ -4,10 +4,8 @@ import com.yayuy.overgrownvegetation.ModTags;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.corruption.CorruptionRegistry;
 import com.yayuy.overgrownvegetation.corruption.OvergrownBiomeConverter;
-import com.yayuy.overgrownvegetation.effect.SporeInfectionEffects;
 import com.yayuy.overgrownvegetation.entity.BlightFernEntity;
 import com.yayuy.overgrownvegetation.entity.BlightFernPlacement;
-import com.yayuy.overgrownvegetation.entity.OvergrownNexusEntity;
 import com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder;
 import com.yayuy.overgrownvegetation.registry.ModParticles;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
@@ -525,24 +523,7 @@ final class EarthquakeFissure {
      * 既に感染しきった進化型は除外)。範囲内に居続ける限り再付与で感染状態が保たれる。
      */
     void infectNearbyMobs() {
-        int radius = hazardRadius();
-        if (radius <= 0) {
-            return;
-        }
-        double[] c = hazardCenter();
-        double r2 = (double) radius * radius;
-        AABB box = new AABB(c[0] - radius, level.getMinBuildHeight(), c[1] - radius,
-                c[0] + radius, level.getMaxBuildHeight(), c[1] + radius);
-        for (Mob mob : level.getEntitiesOfClass(Mob.class, box, Mob::isAlive)) {
-            if (mob instanceof BlightFernEntity || mob instanceof OvergrownNexusEntity) {
-                continue;
-            }
-            double dx = mob.getX() - c[0];
-            double dz = mob.getZ() - c[1];
-            if (dx * dx + dz * dz <= r2) {
-                SporeInfectionEffects.infect(mob, 0);
-            }
-        }
+        // 胞子感染の効果(effect/SporeInfectionEffects)は 2026-10-30 に parked/ へ。戻すときは parked の写しの中身へ
     }
 
     /**

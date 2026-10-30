@@ -155,58 +155,6 @@ public final class OvergrownHuskGameTests {
         helper.succeed();
     }
 
-    /** 差し替えてはいけないものを差し替えない。 */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 100, batch = "climaxDeep")
-    public static void protectedBlocksAreNeverEncased(GameTestHelper helper) {
-        // この MOD の設備(動いてもらわないと困る)。名前空間で弾いている。
-        if (OvergrownHuskBlock.canEncase(ModBlocks.RESEARCH_TABLE.get().defaultBlockState())) {
-            helper.fail("この MOD の研究台が覆われる対象になっている");
-            return;
-        }
-        // チェスト・樽は専用の「過繫茂したチェスト/樽」がある。
-        if (OvergrownHuskBlock.canEncase(Blocks.CHEST.defaultBlockState())) {
-            helper.fail("チェストが覆われる対象になっている(過繫茂したチェストにならなくなる)");
-            return;
-        }
-        if (OvergrownHuskBlock.canEncase(Blocks.BARREL.defaultBlockState())) {
-            helper.fail("樽が覆われる対象になっている");
-            return;
-        }
-        // #husk_immune(既定でスポナーなど。構造物の仕掛けを黙って壊さないため)。
-        if (OvergrownHuskBlock.canEncase(Blocks.SPAWNER.defaultBlockState())) {
-            helper.fail("スポナーが覆われる対象になっている(husk_immune タグが効いていない)");
-            return;
-        }
-        // 対応表にあるブロックは普通に汚染される。
-        if (OvergrownHuskBlock.canEncase(Blocks.STONE.defaultBlockState())) {
-            helper.fail("石が覆われる対象になっている");
-            return;
-        }
-        // <b>差し替えるのは中身を持つものだけ。</b> 金床・砥石・コンクリートは自分で動かないので、
-        // 記録 + 右クリック抑止(OvergrownLayerData)に任せる —— BlockEntity を増やさないため。
-        Block[] neverEncased = {Blocks.ANVIL, Blocks.GRINDSTONE, Blocks.WHITE_CONCRETE, Blocks.GLASS};
-        for (Block block : neverEncased) {
-            if (OvergrownHuskBlock.canEncase(block.defaultBlockState())) {
-                helper.fail(block + " まで差し替えている(BlockEntity が無駄に増える)");
-                return;
-            }
-        }
-        // 看板・旗・頭はブロックモデルが空なので、差し替えると見えないブロックになる。
-        Block[] fragile = {Blocks.OAK_SIGN, Blocks.OAK_HANGING_SIGN, Blocks.WHITE_BANNER,
-                Blocks.SKELETON_SKULL, Blocks.DECORATED_POT};
-        for (Block block : fragile) {
-            if (OvergrownHuskBlock.canEncase(block.defaultBlockState())) {
-                helper.fail(block + " が差し替えの対象になっている(見えないブロックになる)");
-                return;
-            }
-        }
-        // かまどは対象。ここが false になると仕掛け全体が死ぬ。
-        if (!OvergrownHuskBlock.canEncase(Blocks.FURNACE.defaultBlockState())) {
-            helper.fail("かまどが覆われる対象になっていない(encase が切れている?)");
-            return;
-        }
-        helper.succeed();
-    }
 
     /**
      * <b>機械は抽選に掛けない。</b> 立方体のブロックは 30% で汎用の汚染ブロックになるが、

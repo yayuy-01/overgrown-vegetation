@@ -55,15 +55,6 @@ public final class ModParticles {
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> DRIFTING_SPORE =
             PARTICLE_TYPES.register("drifting_spore", () -> new SimpleParticleType(false));
 
-    /**
-     * 空の巨大生物の大きな爆発・煙(2026-10-18 夜、仮)。バニラの爆発・焚き火の煙の絵で、大きさ(ブロック)と現れるまでの遅れ(tick)を速さの x・y で受け取る
-     * ({@link com.yayuy.overgrownvegetation.client.skyboss.SkyBossParticles})。粒の設定を減らしていても出す。
-     */
-    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SKY_BOSS_BLAST =
-            PARTICLE_TYPES.register("sky_boss_blast", () -> new SimpleParticleType(true));
-    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SKY_BOSS_SMOKE =
-            PARTICLE_TYPES.register("sky_boss_smoke", () -> new SimpleParticleType(true));
-
     public static void register(IEventBus modBus) {
         PARTICLE_TYPES.register(modBus);
     }

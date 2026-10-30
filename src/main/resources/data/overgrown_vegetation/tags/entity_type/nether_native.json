@@ -1,14 +1,5 @@
 {
   "replace": false,
   "values": [
-    "overgrown_vegetation:parasitized_piglin",
-    "overgrown_vegetation:parasitized_piglin_brute",
-    "overgrown_vegetation:parasitized_zombified_piglin",
-    "overgrown_vegetation:parasitized_wither_skeleton",
-    "overgrown_vegetation:parasitized_hoglin",
-    "overgrown_vegetation:parasitized_zoglin",
-    "overgrown_vegetation:parasitized_strider",
-    "overgrown_vegetation:parasitized_ghast",
-    "overgrown_vegetation:parasitized_blaze"
   ]
 }

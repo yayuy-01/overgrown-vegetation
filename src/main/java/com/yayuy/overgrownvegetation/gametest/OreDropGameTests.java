@@ -54,42 +54,6 @@ public final class OreDropGameTests {
         }
     }
 
-    /** 鉱石と、シルクタッチ無しで落ちるはずの原石。 */
-    private static final String[][] ORES = {
-            {"chlorophyllite_ore", "raw_chlorophyllite"},
-            {"hardened_sap_crystal_ore", "raw_hardened_sap_crystal"},
-            {"phloemite_ore", "raw_phloemite"},
-            {"deepslate_phloemite_ore", "raw_phloemite"},
-            {"thylakite_ore", "raw_thylakite"},
-            {"deepslate_thylakite_ore", "raw_thylakite"},
-    };
-
-    /** 普通のツルハシなら原石、シルクタッチなら鉱石ブロックそのもの。 */
-    @GameTest(template = "gametest_empty7")
-    public static void modOresDropRawWithPickaxeAndBlockWithSilkTouch(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos pos = helper.absolutePos(new BlockPos(1, 2, 1));
-        ItemStack pickaxe = new ItemStack(Items.NETHERITE_PICKAXE);
-        ItemStack silk = new ItemStack(Items.NETHERITE_PICKAXE);
-        Holder<Enchantment> silkTouch = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH);
-        silk.enchant(silkTouch, 1);
-        for (String[] pair : ORES) {
-            Block ore = BuiltInRegistries.BLOCK.get(OvergrownVegetation.id(pair[0]));
-            Item raw = BuiltInRegistries.ITEM.get(OvergrownVegetation.id(pair[1]));
-            BlockState state = ore.defaultBlockState();
-            List<ItemStack> plain = Block.getDrops(state, level, pos, null, null, pickaxe);
-            if (plain.isEmpty() || plain.stream().anyMatch(stack -> !stack.is(raw))) {
-                helper.fail(pair[0] + " をツルハシで掘ると " + pair[1] + " が落ちるはずが " + plain);
-                return;
-            }
-            List<ItemStack> silked = Block.getDrops(state, level, pos, null, null, silk);
-            if (silked.size() != 1 || !silked.get(0).is(ore.asItem())) {
-                helper.fail(pair[0] + " をシルクタッチで掘ると鉱石そのものが落ちるはずが " + silked);
-                return;
-            }
-        }
-        helper.succeed();
-    }
 
     /** 過繁茂しているバニラの鉱石 16 種(汚染が置き換える先。元のバニラの鉱石は名前から {@code overgrown_} を外したもの)。 */
     private static final String[] OVERGROWN_VANILLA_ORES = {

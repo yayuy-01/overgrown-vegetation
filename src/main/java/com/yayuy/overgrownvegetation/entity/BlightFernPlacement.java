@@ -49,9 +49,6 @@ public final class BlightFernPlacement {
         if (com.yayuy.overgrownvegetation.corruption.CorruptionSwitch.isOff()) {
             return null; // /ov corruption false(2026-10-10 ユーザー指定): 新しい汚染シダは生まれない(死・感染・胞子濃度・自己増殖・地割れ・爆弾の全部がここを通る)
         }
-        if (com.yayuy.overgrownvegetation.defense.StakeWards.protects(level, pos)) {
-            return null; // 受け流しの杭で囲った四角の中には汚染シダも生まれない(2026-10-16)
-        }
         if (SporeDeviceData.inhibits(level, pos, SporeDeviceData.Inhibit.FERN_SPAWN)) {
             // 稼働中の胞子除去装置の効果範囲内: 装置のチャンクでは必ず、末端では変化量 % の確率で湧きが不発になる。
             return null;

@@ -1,5 +1,0 @@
-{
-  "type": "overgrown_vegetation:grinding",
-  "ingredient": { "item": "overgrown_vegetation:pungent_herb" },
-  "result": { "id": "overgrown_vegetation:pungent_powder" }
-}

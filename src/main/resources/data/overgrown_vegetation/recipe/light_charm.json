@@ -1,9 +1,0 @@
-{
-  "type": "minecraft:crafting_shapeless",
-  "category": "misc",
-  "ingredients": [
-    { "item": "minecraft:paper" },
-    { "item": "overgrown_vegetation:ley_drop" }
-  ],
-  "result": { "id": "overgrown_vegetation:light_charm", "count": 2 }
-}

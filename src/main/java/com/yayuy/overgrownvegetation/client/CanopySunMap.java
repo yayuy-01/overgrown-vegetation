@@ -103,7 +103,7 @@ public final class CanopySunMap {
     /** 青緑の色合い(明るさ 1 の掛け算。設定 {@code canopyShadeTint} の強さ。開発用の 2048 で灰色 = 1, 1, 1)。 */
     private static void hue(float[] out) {
         // 画面の色の調子(2026-10-21、client/light/MoodState)が効いている間は、色はライトマップと LUT が持つ(ここは明暗だけ。Sodium でも同じ色味に)。
-        float tint = (CanopyLight.debugHide & 2048) != 0 || com.yayuy.overgrownvegetation.client.light.MoodState.colorOwned() ? 0.0F
+        float tint = (CanopyLight.debugHide & 2048) != 0 || false ? 0.0F
                 : OvergrownVegetationConfig.COMMON.canopyShadeTint.get().floatValue();
         out[0] = Mth.lerp(tint, 1.0F, TINT_R);
         out[1] = Mth.lerp(tint, 1.0F, TINT_G);
@@ -118,10 +118,10 @@ public final class CanopySunMap {
      * 松明などのブロックの明かりで照らされた面は寄せない(人類の魔法の琥珀色を残す。{@code ov_light.glsl})。開発用の 2048 で 0。
      */
     private static float forestTint() {
-        if ((CanopyLight.debugHide & 2048) != 0 || com.yayuy.overgrownvegetation.client.light.MoodState.colorOwned()) {
+        if ((CanopyLight.debugHide & 2048) != 0 || false) {
             return 0.0F;
         }
-        return CorruptionAtmosphere.forestFactor() * OvergrownVegetationConfig.COMMON.canopyForestTint.get().floatValue();
+        return ForestPresence.forestFactor() * OvergrownVegetationConfig.COMMON.canopyForestTint.get().floatValue();
     }
 
     private static final float[] SHADE_RGB = new float[3];
@@ -444,7 +444,7 @@ public final class CanopySunMap {
             double branch = (0.02 + 0.22 * gust) * CanopyWind.branch(windTime, 0.0);
             double fleckU = wrap64((camU + branch * CanopyWind.dirX()) * FLECK_SCALE);
             double fleckV = wrap64((camV + branch * CanopyWind.dirZ()) * FLECK_SCALE);
-            float fleckOn = (CanopyLight.debugHide & 128) != 0 ? 0.0F : CloudShadows.sunVisibility();  // 雲が太陽を隠している間は弱める(CloudShadows、2026-10-17)
+            float fleckOn = (CanopyLight.debugHide & 128) != 0 ? 0.0F : 1.0F;  // 雲が太陽を隠している間は弱める(CloudShadows、2026-10-17)
             float seconds = (float) ((windTime / 20.0) % 1000.0);
             // 影の明るさ: 逆光(太陽の方を向いている)の間は深く(明るい筋に目が慣れた見え方)。色合い(青緑)は OvTint で別に掛ける。
             float level = shadeLevel();

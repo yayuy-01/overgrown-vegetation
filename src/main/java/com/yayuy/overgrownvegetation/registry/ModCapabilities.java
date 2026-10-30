@@ -23,11 +23,6 @@ public final class ModCapabilities {
                 (be, side) -> new InvWrapper(be));
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.OVERGROWN_BARREL.get(),
                 (be, side) -> new InvWrapper(be));
-        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.SPORE_DEVICE.get(),
-                (be, side) -> side == null ? new InvWrapper(be) : new net.neoforged.neoforge.items.wrapper.SidedInvWrapper(be, side));
-        // ターゲットブロックの収納(2026-09-25。攻め手のドロップが溜まる。ホッパーで運び出せるように)。
-        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.TARGET_BLOCK.get(),
-                (be, side) -> new InvWrapper(be.storage()));
     }
 
     private ModCapabilities() {

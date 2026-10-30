@@ -2,8 +2,6 @@
   "replace": false,
   "values": [
     "overgrown_vegetation:overgrown_stone_stairs",
-    "overgrown_vegetation:asphalt_stairs",
-    "overgrown_vegetation:reinforced_concrete_stairs",
     "overgrown_vegetation:covered_bamboo_mosaic_stairs",
     "overgrown_vegetation:covered_stone_stairs",
     "overgrown_vegetation:covered_cobblestone_stairs",

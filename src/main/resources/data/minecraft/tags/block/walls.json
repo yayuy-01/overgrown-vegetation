@@ -2,7 +2,6 @@
   "replace": false,
   "values": [
     "overgrown_vegetation:overgrown_wall",
-    "overgrown_vegetation:reinforced_concrete_wall",
     "overgrown_vegetation:covered_cobblestone_wall",
     "overgrown_vegetation:covered_mossy_cobblestone_wall",
     "overgrown_vegetation:covered_stone_brick_wall",

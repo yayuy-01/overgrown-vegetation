@@ -26,10 +26,6 @@ public abstract class LodGeoModel<T extends Entity & GeoAnimatable> extends GeoM
 
     @Override
     public void handleAnimations(T animatable, long instanceId, AnimationState<T> animationState, float partialTick) {
-        if (MobRenderLod.shouldStopAnimation(animatable)) {
-            restPose();
-            return;
-        }
         super.handleAnimations(animatable, instanceId, animationState, partialTick);
     }
 

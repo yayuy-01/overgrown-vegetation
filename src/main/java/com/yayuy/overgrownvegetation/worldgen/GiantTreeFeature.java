@@ -4,7 +4,6 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
-import com.yayuy.overgrownvegetation.td.TdEvents;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
@@ -174,7 +173,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
      * ({@link com.yayuy.overgrownvegetation.block.GiantOvergrownSaplingBlock#advanceTree})。サーバースレッドから呼ぶこと。
      */
     public static boolean pausedByTd(ServerLevel level) {
-        return TdEvents.activeTarget(level) != null;
+        return false; // TD は parked/ へ退避(2026-10-30)。戻すときは TdEvents.activeTarget(level) != null
     }
 
     public GiantTreeFeature(Codec<Config> codec) {
@@ -349,8 +348,9 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             this.level = level;
             this.trunkState = trunkState;
             this.cambiumState = ModBlocks.GIANT_OVERGROWN_CAMBIUM.get().defaultBlockState();
-            this.chlorophylliteOreState = ModBlocks.CHLOROPHYLLITE_ORE.get().defaultBlockState();
-            this.hardenedSapCrystalOreState = ModBlocks.HARDENED_SAP_CRYSTAL_ORE.get().defaultBlockState();
+            // 幹の中の鉱石(クロロフィライト・硬化樹液結晶)は装備の素材として 2026-10-30 に parked/ へ。その場所は形成層になる(ユーザー決定)
+            this.chlorophylliteOreState = this.cambiumState;
+            this.hardenedSapCrystalOreState = this.cambiumState;
             this.hiveShellState = ModBlocks.HARDENED_GIANT_TRUNK.get().defaultBlockState();
             this.hiveBarkState = ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState();
             this.leafState = leafState;

@@ -109,42 +109,11 @@ public final class ModDataComponents {
                     .persistent(GlobalPos.CODEC)
                     .networkSynchronized(GlobalPos.STREAM_CODEC));
 
-    /**
-     * パワードアーマー 1 部位のスキルツリー(順 1 の着手順 6)。何も上げていない装備には載せない
-     * ({@link com.yayuy.overgrownvegetation.item.PoweredArmorTree#NONE} として読む)。
-     * ツールチップと耐久の表示に使うのでクライアントにも同期する。
-     */
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<com.yayuy.overgrownvegetation.item.PoweredArmorTree>> POWERED_ARMOR_TREE =
-            COMPONENTS.registerComponentType("powered_armor_tree", builder -> builder
-                    .persistent(com.yayuy.overgrownvegetation.item.PoweredArmorTree.CODEC)
-                    .networkSynchronized(com.yayuy.overgrownvegetation.item.PoweredArmorTree.STREAM_CODEC));
-
     /** パワードアーマーの Mk(1.0.0 は 1 だけ。載っていなければ 1)。名前の後ろに付く。 */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> POWERED_ARMOR_MK =
             COMPONENTS.registerComponentType("powered_armor_mk", builder -> builder
                     .persistent(Codec.INT)
                     .networkSynchronized(ByteBufCodecs.VAR_INT));
-
-    /** 設計図に写したパワードアーマー(部位・Mk・ツリー)。白紙の設計図には載せない。 */
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<com.yayuy.overgrownvegetation.item.PoweredArmorBlueprint>> POWERED_ARMOR_BLUEPRINT =
-            COMPONENTS.registerComponentType("powered_armor_blueprint", builder -> builder
-                    .persistent(com.yayuy.overgrownvegetation.item.PoweredArmorBlueprint.CODEC)
-                    .networkSynchronized(com.yayuy.overgrownvegetation.item.PoweredArmorBlueprint.STREAM_CODEC));
-
-    /** カートリッジのアイテムの中身(因子の種類 → 個数。順 1 の着手順 8)。空のカートリッジには載せない。 */
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<com.yayuy.overgrownvegetation.item.CartridgeContents>> CARTRIDGE_FACTORS =
-            COMPONENTS.registerComponentType("cartridge_factors", builder -> builder
-                    .persistent(com.yayuy.overgrownvegetation.item.CartridgeContents.CODEC)
-                    .networkSynchronized(com.yayuy.overgrownvegetation.item.CartridgeContents.STREAM_CODEC));
-
-    /**
-     * パワードアーマー 1 部位に付いているカートリッジの中身。載っていればカートリッジが付いている(中身が 0 でも)。
-     * 外すと同じ中身のカートリッジのアイテムに戻る。
-     */
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<com.yayuy.overgrownvegetation.item.CartridgeContents>> POWERED_ARMOR_CARTRIDGE =
-            COMPONENTS.registerComponentType("powered_armor_cartridge", builder -> builder
-                    .persistent(com.yayuy.overgrownvegetation.item.CartridgeContents.CODEC)
-                    .networkSynchronized(com.yayuy.overgrownvegetation.item.CartridgeContents.STREAM_CODEC));
 
     /**
      * 防具に付いている<b>装飾品</b>の id(順 1 の着手順 9。{@link com.yayuy.overgrownvegetation.item.ArmorAccessory})。

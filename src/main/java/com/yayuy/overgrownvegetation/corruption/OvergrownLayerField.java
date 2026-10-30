@@ -90,9 +90,17 @@ public final class OvergrownLayerField {
     /** {@link #isPlainCube(BlockState)} の答え。毎フレーム他 MOD のコードを呼ばないため。 */
     private static final Map<BlockState, Boolean> PLAIN_CUBE = new ConcurrentHashMap<>();
 
-    /** そのマスが抽選に当たっているか。設定の確率({@code overgrownLayer.chance})で引く。 */
+    /**
+     * 覆う確率(climax.json の {@code overgrownLayer.chance} の値)。2026-10-30 の整理(退避)で極相の表 ClimaxTable を
+     * parked/ へ外したので、ここに既定値を置いた(仮。設計データへ戻すなら spread.json などへ)。
+     */
+    public static final double CHANCE = 0.7D;
+    /** 覆われたブロックを機能の無いブロック(overgrown_husk)へ差し替えるか(climax.json の {@code overgrownLayer.encase})。 */
+    public static final boolean ENCASE = true;
+
+    /** そのマスが抽選に当たっているか。{@link #CHANCE} で引く。 */
     public static boolean covered(BlockPos pos) {
-        return covered(pos, DesignData.climax().overgrownLayerChance());
+        return covered(pos, CHANCE);
     }
 
     /** 確率を外から渡す版(描画側が毎ブロック設定を引き直さないため)。 */

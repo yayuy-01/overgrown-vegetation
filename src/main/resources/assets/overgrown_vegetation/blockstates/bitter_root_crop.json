@@ -1,8 +1,0 @@
-{
-  "multipart": [
-    { "when": { "age": "0" }, "apply": { "model": "overgrown_vegetation:block/bitter_root_stage0" } },
-    { "when": { "age": "1" }, "apply": { "model": "overgrown_vegetation:block/bitter_root_stage1" } },
-    { "when": { "age": "2" }, "apply": { "model": "overgrown_vegetation:block/bitter_root_stage2" } },
-    { "when": { "age": "3" }, "apply": { "model": "overgrown_vegetation:block/bitter_root_stage3" } }
-  ]
-}

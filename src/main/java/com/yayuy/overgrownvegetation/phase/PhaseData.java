@@ -1272,24 +1272,7 @@ public final class PhaseData extends SavedData {
      * 達したら、胞子警報器のあるところへ「移行が近い」と 1 回だけ警告する(2026-09-19)。
      */
     private void warnIfPhaseNear(ServerLevel overworld) {
-        if (phaseWarned || phase < 1) {
-            return;
-        }
-        long need = DesignData.phases().pointsToAdvance(phase + 1);
-        if (need == Long.MAX_VALUE) {
-            return;
-        }
-        double fraction = DesignData.defense().alarmPhaseWarnFraction();
-        if (fraction <= 0.0D || points < (long) (need * fraction)) {
-            return;
-        }
-        phaseWarned = true;
-        setDirty();
-        com.yayuy.overgrownvegetation.defense.SporeAlarms.warn(overworld,
-                Component.translatable("message.overgrown_vegetation.alarm.phase_near",
-                        Component.translatableWithFallback(
-                                "message.overgrown_vegetation.phase_name." + (phase + 1), "Phase " + (phase + 1)),
-                        (int) Math.round(fraction * 100.0D)), null);
+        // 胞子警報器(defense/SporeAlarms)は 2026-10-30 に parked/ へ。戻すときは parked の写しの中身へ
     }
 
     /**
@@ -1399,9 +1382,6 @@ public final class PhaseData extends SavedData {
         // 書いていなければ言語ファイルのフェーズ名(「フェーズ3-拡大」など)。
         Component name = phaseAnnouncement(newPhase);
         overworld.getServer().getPlayerList().broadcastSystemMessage(name, false);
-        // 胞子警報器(2026-09-19): 近くのプレイヤーへ。
-        com.yayuy.overgrownvegetation.defense.SporeAlarms.warn(overworld,
-                Component.translatable("message.overgrown_vegetation.alarm.phase_changed", name), null);
 
         if (newPhase == 1) {
             // フェーズ1突入時の演出: 全プレイヤーから離れた地表で地震が起き、大地が裂けて胞子が噴き出す。
@@ -1409,12 +1389,6 @@ public final class PhaseData extends SavedData {
             // 実績ゲートの記録はもう使わないので捨てる(個数だけ startAdvancementCount に残す)。
             startAdvancementIds.clear();
         }
-        // フェーズ2の「グループ1の体力・攻撃力強化」をロード済みの該当 Mob へ即座に反映/解除する。
-        GroupPhaseBehavior.onPhaseChanged(overworld.getServer());
-        // フェーズ5以降は、昇格した瞬間にレイドを1回確定で発生させる(失敗しても RaidTicker が再挑戦する)。
-        com.yayuy.overgrownvegetation.raid.RaidData.onPhaseAdvanced(overworld, newPhase);
-        // フェーズ7以降は、昇格した瞬間に攻城戦(遠距離ボス)を始める(同じく失敗しても再挑戦する)。
-        com.yayuy.overgrownvegetation.siege.SiegeData.onPhaseAdvanced(overworld, newPhase);
     }
 
     /**
@@ -1431,6 +1405,5 @@ public final class PhaseData extends SavedData {
         if (enteringPhase1) {
             com.yayuy.overgrownvegetation.quake.EarthquakeEvent.onEnterPhase1(overworld);
         }
-        GroupPhaseBehavior.onPhaseChanged(overworld.getServer());
     }
 }

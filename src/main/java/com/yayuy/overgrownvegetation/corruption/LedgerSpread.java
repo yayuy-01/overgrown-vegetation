@@ -239,9 +239,7 @@ public final class LedgerSpread {
             excluded[i] = !border.isWithinBounds(new ChunkPos(x, z))
                     || SporeDeviceData.guards(guards, x, z)
                     || (!includeLoaded && level.getChunkSource().getChunkNow(x, z) != null)
-                    || unloadedBlocked(level, unloadedAllowed, x, z)
-                    // 焼けた荒地は焼けている間は飲み込まない(順 2 の着手順 9、ユーザー指定 2026-10-08「焼けている間は入らない」)。
-                    || com.yayuy.overgrownvegetation.purify.BurntLand.isBurntKey(level.getServer(), key);
+                    || unloadedBlocked(level, unloadedAllowed, x, z);
             i++;
         }
         int[] chosen = LedgerSpreadMath.roll(counts, excluded, table.chanceByContacts(), RandomSource.create(seed));
@@ -295,13 +293,11 @@ public final class LedgerSpread {
             if (phase.isOvergrownKey(key)) {
                 continue; // ほかの経路で既に載っている
             }
-            if (waiting != null && border.isWithinBounds(pos) && unloadedBlocked(level, unloadedAllowed, x, z)
-                    && !com.yayuy.overgrownvegetation.purify.BurntLand.isBurntKey(level.getServer(), key)) {
+            if (waiting != null && border.isWithinBounds(pos) && unloadedBlocked(level, unloadedAllowed, x, z)) {
                 waiting.add(key);
                 continue;
             }
-            if (!border.isWithinBounds(pos) || unloadedBlocked(level, unloadedAllowed, x, z)
-                    || com.yayuy.overgrownvegetation.purify.BurntLand.isBurntKey(level.getServer(), key)) {
+            if (!border.isWithinBounds(pos) || unloadedBlocked(level, unloadedAllowed, x, z)) {
                 rejected.add(key);
                 continue;
             }

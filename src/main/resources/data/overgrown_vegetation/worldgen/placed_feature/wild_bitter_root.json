@@ -1,9 +1,0 @@
-{
-  "feature": "overgrown_vegetation:wild_bitter_root",
-  "placement": [
-    { "type": "minecraft:rarity_filter", "chance": 6 },
-    { "type": "minecraft:in_square" },
-    { "type": "minecraft:heightmap", "heightmap": "MOTION_BLOCKING" },
-    { "type": "minecraft:biome" }
-  ]
-}

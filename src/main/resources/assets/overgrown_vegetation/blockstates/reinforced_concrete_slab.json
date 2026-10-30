@@ -1,7 +1,0 @@
-{
-  "variants": {
-    "type=bottom": { "model": "overgrown_vegetation:block/reinforced_concrete_slab" },
-    "type=double": { "model": "overgrown_vegetation:block/reinforced_concrete" },
-    "type=top":    { "model": "overgrown_vegetation:block/reinforced_concrete_slab_top" }
-  }
-}

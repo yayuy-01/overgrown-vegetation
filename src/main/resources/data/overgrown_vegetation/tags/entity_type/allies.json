@@ -1,9 +1,5 @@
 {
   "replace": false,
   "values": [
-    "overgrown_vegetation:soldier_rifleman",
-    "overgrown_vegetation:soldier_artillery",
-    "overgrown_vegetation:soldier_engineer",
-    "overgrown_vegetation:soldier_elite"
   ]
 }

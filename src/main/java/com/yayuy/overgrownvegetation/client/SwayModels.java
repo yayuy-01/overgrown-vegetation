@@ -162,7 +162,7 @@ public final class SwayModels {
             float weight = weight(mode, x, y, z);
             int code = mode == Mode.PLANAR ? planarCode : 1 + Math.round(weight * 31.0F);
             // 先に付いた植物の層の段(PlantLayers、64 / 128)は残す(2026-10-23)
-            int alpha = 255 - (code + PlantLayers.groupOf(v[at + 3] >>> 24));
+            int alpha = 255 - (code);
             v[at + 3] = (v[at + 3] & 0x00FFFFFF) | (alpha << 24);
         }
         return new BakedQuad(v, quad.getTintIndex(), quad.getDirection(), quad.getSprite(), quad.isShade(), quad.hasAmbientOcclusion());

@@ -1,5 +1,0 @@
-{
-  "type": "overgrown_vegetation:grinding",
-  "ingredient": { "item": "minecraft:charcoal" },
-  "result": { "id": "overgrown_vegetation:charcoal_powder" }
-}

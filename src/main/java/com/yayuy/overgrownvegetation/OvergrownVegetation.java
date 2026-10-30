@@ -2,7 +2,6 @@ package com.yayuy.overgrownvegetation;
 
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.data.DesignData;
-import com.yayuy.overgrownvegetation.registry.ModArmorMaterials;
 import com.yayuy.overgrownvegetation.registry.ModAttachments;
 import com.yayuy.overgrownvegetation.registry.ModBlockEntities;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
@@ -50,22 +49,13 @@ public class OvergrownVegetation {
         // ロードできるよう、定形レシピパターンの上限を 5×5 に広げる(バニラの作業台は 3×3 のまま)。
         ShapedRecipePattern.setCraftingSize(5, 5);
 
-        // 基地の建材(2026-10-01)。ModBlocks / ModItems / ModBlockEntities の DeferredRegister へ静的初期化で足す。
-        com.yayuy.overgrownvegetation.base.BaseBlocks.init();
-        // 同盟軍の持ち物(HK416 など、2026-10-01)。同じく ModItems の DeferredRegister へ。
-        com.yayuy.overgrownvegetation.ally.AllyItems.init();
-        // 浄化の火炎放射器と焼けた土(2026-10-08、順 2 の着手順 9)。同じく ModBlocks / ModItems / ModDataComponents へ。
-        com.yayuy.overgrownvegetation.purify.PurifyRegistry.init();
         // 覆われたブロック(バニラの建築タブの全ブロックの覆われた版、2026-10-05)。同じく ModBlocks / ModItems へ。
         com.yayuy.overgrownvegetation.covered.CoveredBlocks.init();
         ModBlocks.register(modBus);
         ModBlockEntities.register(modBus);
-        ModArmorMaterials.register(modBus);
         ModItems.register(modBus);
         ModEntities.register(modBus);
         ModFeatures.register(modBus);
-        // 世界生成の同盟軍の基地の構造物の型・部品の型(2026-10-04、順 2 の着手順 2)
-        com.yayuy.overgrownvegetation.base.gen.BaseStructures.register(modBus);
         ModCreativeTabs.register(modBus);
         ModMobEffects.register(modBus);
         ModMenus.register(modBus);

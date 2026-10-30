@@ -2407,11 +2407,6 @@ public class CorruptionSpreader {
             return;
         }
 
-        // 役に立つ植物(炸裂の実・粘り蔦・浮き袋草・道しるべの花。蓄電の実は 2026-10-22 に削除)がまれに混じる(2026-10-16、UsefulPlants)。
-        if (random.nextDouble() < UsefulPlants.CHANCE && UsefulPlants.tryPlace(level, pos, random)) {
-            return;
-        }
-
         // 「未発達の茂み」は苗木と違って地面の種類を選ばない(下草の一種なので、
         // 石や砂の上でも他の下草が生えられる場所なら生える)。
         if (OvergrownVegetationConfig.COMMON.spawnUndevelopedBush.get()

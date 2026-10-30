@@ -1,6 +1,0 @@
-{
-  "variants": {
-    "powered=false": { "model": "overgrown_vegetation:block/ley_updraft" },
-    "powered=true": { "model": "overgrown_vegetation:block/ley_updraft_on" }
-  }
-}

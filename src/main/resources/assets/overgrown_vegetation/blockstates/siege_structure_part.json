@@ -1,6 +1,0 @@
-{
-  "_comment": "本体からの相対座標を持つだけの見えない部品ブロック。全ての状態で同じ(面の無い)モデルを使うので multipart。",
-  "multipart": [
-    { "apply": { "model": "overgrown_vegetation:block/siege_structure_part" } }
-  ]
-}

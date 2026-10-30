@@ -242,7 +242,7 @@ public final class OvergrowthRegionMap {
         if (SealedBiomes.swampAndCrystalSealed()) {
             return false; // 結晶地帯は 0.2.0 まで封印(2026-10-23 ユーザー決定)
         }
-        double chance = com.yayuy.overgrownvegetation.data.DesignData.climax().crystal().regionChance();
+        double chance = 0.0D; // 結晶地帯は極相と一緒に parked/ へ退避(2026-10-30)。戻すときは climax.json の crystal.regionChance
         if (chance <= 0.0D || forcedJungle(seed, blockX, blockZ)) {
             return false;
         }

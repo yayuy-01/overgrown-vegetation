@@ -3,7 +3,6 @@ package com.yayuy.overgrownvegetation.corruption;
 import com.yayuy.overgrownvegetation.ModTags;
 import com.yayuy.overgrownvegetation.block.OvergrownContainers;
 import com.yayuy.overgrownvegetation.block.OvergrownHuskBlock;
-import com.yayuy.overgrownvegetation.block.SiegeStructurePartBlock;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.covered.CoveredBlocks;
 import com.yayuy.overgrownvegetation.data.DesignData;
@@ -461,10 +460,6 @@ public final class CorruptionRegistry {
         if (level instanceof ServerLevel && CorruptionSwitch.isOff()) {
             return; // /ov corruption false(2026-10-10)。corrupt() が元のまま返すので普通はここまで来ない
         }
-        if (previous.is(ModTags.ROAD_BLOCKS)) {
-            // 汚染で置き換わった道は途切れる(順 2 の着手順 7)。置いた後のブロックを tick の終わりに確かめる
-            com.yayuy.overgrownvegetation.base.road.BaseRoads.onReplaced(level, pos);
-        }
         CorruptionDropSuppressor.enter();
         try {
             placeCorruptedInScope(level, pos, previous, corrupted, flags);
@@ -650,26 +645,6 @@ public final class CorruptionRegistry {
         if (state.is(ModTags.CORRUPTED) || state.is(ModTags.CORRUPTION_IMMUNE)) {
             return false;
         }
-        if (level instanceof ServerLevel serverLevel && com.yayuy.overgrownvegetation.purify.BurntLand.isBurnt(serverLevel, pos)) {
-            // 焼けた荒地(順 2 の着手順 9): 焼けている間はどの経路の汚染も入らない(ユーザー指定 2026-10-08)。全汚染経路の共通の関門。
-            return false;
-        }
-        if (level instanceof ServerLevel serverLevel && com.yayuy.overgrownvegetation.defense.StakeWards.blocks(serverLevel, pos)) {
-            // 受け流しの杭で囲った四角の中(2026-10-16、ユーザー指定)。止めた数で杭がすり減る。
-            return false;
-        }
-        if (state.getBlock() instanceof SiegeStructurePartBlock) {
-            // 砲台・遮蔽盾の見えない部品ブロック。部品は本体の一部でしかないので、
-            // <b>本体と同じ可否に従わせる</b>。そうしないと本体(BlockEntity 持ち = 既定では
-            // corruptBlockEntities=false で汚染されない)は無事なのに、代わりに部品 1 マスが汚染されて
-            // その onRemove が本体を道連れにする、という形で結局まるごと壊れてしまう
-            // (実際に攻城戦中、過繫茂バイオームの深部汚染で砲台と盾が壊れた)。
-            BlockPos corePos = SiegeStructurePartBlock.corePos(state, pos);
-            BlockState coreState = level.getBlockState(corePos);
-            // 本体が見つからない孤児の部品は触らない(掃除は本体側の責務)。
-            return !coreState.isAir() && !(coreState.getBlock() instanceof SiegeStructurePartBlock)
-                    && canCorrupt(level, corePos, coreState);
-        }
         if (state.is(BlockTags.LEAVES) && state.hasProperty(BlockStateProperties.PERSISTENT)
                 && !state.getValue(BlockStateProperties.PERSISTENT)) {
             // 自然に生成された葉(ワールド生成の木が置いた葉)は PERSISTENT=false のまま。
@@ -685,18 +660,6 @@ public final class CorruptionRegistry {
         if (state.getBlock().defaultDestroyTime() < 0.0F) {
             // 岩盤・バリアなど破壊不能ブロック
             return false;
-        }
-        if (state.is(ModBlocks.GUN_TURRET.get())) {
-            // 機関砲台(2026-09-21)は BlockEntity を持つが、普通のブロックと同じように汚染される
-            // (覆われると止まる。ユーザー指定)。既に覆われていればもう何もしない。
-            if (state.getValue(com.yayuy.overgrownvegetation.block.GunTurretBlock.OVERGROWN)) {
-                return false;
-            }
-            // 稼働中の胞子除去装置の圏内なら覆われない(ユーザー指定 2026-09-26)。
-            // 下の共通の関門は<b>縁では 10% しか止めない</b>確率判定なので、ここで「圏内なら必ず守る」を先に通す
-            // —— 砲台は覆われると止まってしまうので、縁で付いたり消えたりされると守りの計算が立たない。
-            return !(checkDevices && level instanceof ServerLevel serverLevel
-                    && SporeDeviceData.protectsFromCorruption(serverLevel, pos));
         }
         if (state.hasBlockEntity() && !OvergrownVegetationConfig.COMMON.corruptBlockEntities.get()
                 && !OvergrownContainers.isConvertibleContainer(state)
@@ -833,7 +796,7 @@ public final class CorruptionRegistry {
                     ? ModBlocks.OVERGROWN_HUSK.get().defaultBlockState()
                     : state;
         }
-        double chance = DesignData.climax().overgrownLayerChance();
+        double chance = OvergrownLayerField.CHANCE;
         if (!OvergrownLayerField.covered(level, pos, state, chance)) {
             // 立方体が抽選に外れた。壁が一面まるごと同じ苔柄になるのを防ぐための混ざり。
             return ModBlocks.OVERGROWN_BLOCK.get().defaultBlockState();
@@ -890,12 +853,6 @@ public final class CorruptionRegistry {
         if (extinguished != null) {
             return extinguished;
         }
-        if (state.is(ModBlocks.GUN_TURRET.get())) {
-            // 機関砲台は別のブロックにならず、テクスチャだけが「過繫茂した機関砲台」に変わる
-            // (ユーザー指定 2026-09-21)。中身(弾)も向きもそのまま —— 同じブロックなので
-            // BlockEntity は生き残る。
-            return state.setValue(com.yayuy.overgrownvegetation.block.GunTurretBlock.OVERGROWN, true);
-        }
         // 覆われた版のあるバニラのブロックは、その版へ(向き・形・開閉・水没などを引き継ぐ。2026-10-05 夜、ユーザー指定)。
         // ただし 3 割(対応表に無い立方体と同じ overgrownLayer.chance の外れ)は同じ形の過繁茂ブロックへ(同じく夜、ユーザー指定
         // 「すべてのブロックで 3 割で過繁茂しているブロックに」→ 形のあるものは同じ形で)。同じ形が無いもの(扉・ボタンなど)は必ず覆われた版。
@@ -916,7 +873,7 @@ public final class CorruptionRegistry {
                     }
                     u = (u - WOOD_SHARE) / (1.0D - WOOD_SHARE);
                 }
-                if (counterpart != null && u >= DesignData.climax().overgrownLayerChance()) {
+                if (counterpart != null && u >= OvergrownLayerField.CHANCE) {
                     return counterpart;
                 }
             }

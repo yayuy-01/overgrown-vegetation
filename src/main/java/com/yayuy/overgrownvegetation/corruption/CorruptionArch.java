@@ -153,9 +153,6 @@ public final class CorruptionArch {
                     if (!level.isLoaded(cursor)) {
                         continue;
                     }
-                    if (com.yayuy.overgrownvegetation.defense.StakeWards.protects(level, cursor)) {
-                        continue; // 受け流しの杭で囲った四角の中(2026-10-16)
-                    }
                     BlockState current = level.getBlockState(cursor);
                     if (current.is(ModTags.CORRUPTED)) {
                         // 既にある汚染ブロック(自分の他の部分や別の筋)は上書きしない。

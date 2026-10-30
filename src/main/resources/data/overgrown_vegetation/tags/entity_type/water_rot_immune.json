@@ -1,15 +1,5 @@
 {
   "replace": false,
   "values": [
-    "overgrown_vegetation:rhizodus",
-    "overgrown_vegetation:xenacanthus",
-    "overgrown_vegetation:orthacanthus",
-    "overgrown_vegetation:megarachne",
-    "overgrown_vegetation:dorga_archelaus_titanica",
-    "overgrown_vegetation:overgrown_nexus",
-    "overgrown_vegetation:diplocaulus",
-    "overgrown_vegetation:lungfish",
-    "overgrown_vegetation:hibbertopterus",
-    "overgrown_vegetation:crassigyrinus"
   ]
 }

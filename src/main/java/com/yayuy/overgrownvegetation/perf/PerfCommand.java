@@ -4,11 +4,9 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
-import com.yayuy.overgrownvegetation.corruption.ClimaxDeepConverter;
 import com.yayuy.overgrownvegetation.corruption.EndOvergrowth;
 import com.yayuy.overgrownvegetation.corruption.LedgerSpread;
 import com.yayuy.overgrownvegetation.corruption.LedgerSpreadData;
-import com.yayuy.overgrownvegetation.phase.MobGroup;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
 import com.yayuy.overgrownvegetation.worldgen.GiantTreeGrowthQueue;
 import com.yayuy.overgrownvegetation.worldgen.SaplingOfflineGrowth;
@@ -154,9 +152,6 @@ public final class PerfCommand {
 
         LedgerSpreadData ledger = LedgerSpreadData.get(server);
         ServerLevel overworld = server.overworld();
-        send(source, String.format(Locale.ROOT, "  待ち: 台帳の書き換え %,d チャンク(読み込まれて順番待ち %,d)/ 極相の全層置換 %,d / 苗木 %,d / 巨大樹 %,d / エンド %,d",
-                ledger.pendingCount(), LedgerSpread.queuedCatchUps(), ClimaxDeepConverter.pending(), SaplingOfflineGrowth.queued(),
-                GiantTreeGrowthQueue.pendingJobs(overworld), EndOvergrowth.queuedCount()));
 
         int all = 0;
         int modMobs = 0;
@@ -168,11 +163,6 @@ public final class PerfCommand {
                 if (entity instanceof ItemEntity) {
                     items++;
                 } else if (entity instanceof Mob) {
-                    if (MobGroup.of(entity) != null) {
-                        modMobs++;
-                    } else {
-                        otherMobs++;
-                    }
                 }
             }
         }
@@ -203,19 +193,10 @@ public final class PerfCommand {
         t0 = System.nanoTime();
         int frontier = LedgerSpread.frontier(snapshot).size();
         long tFrontier = System.nanoTime() - t0;
-        com.yayuy.overgrownvegetation.data.ClimaxTable climax = com.yayuy.overgrownvegetation.data.DesignData.climax();
         t0 = System.nanoTime();
-        PhaseData.ClimaxScan scan = PhaseData.scanClimaxPromotions(snapshot, phase.climaxScanCursor(), climax.neighborRadiusChunks(),
-                com.yayuy.overgrownvegetation.corruption.ClimaxTicker.effectiveMinAgeTicks(overworld, climax),
-                phase.clock(source.getServer()), 256, 16);
         long tClimax = System.nanoTime() - t0;
         t0 = System.nanoTime();
-        int regions = com.yayuy.overgrownvegetation.ecosystem.Ecosystem.coveredRegions(snapshot,
-                com.yayuy.overgrownvegetation.data.DesignData.ecosystem().regionChunks()).size();
         long tIncome = System.nanoTime() - t0;
-        send(source, String.format(Locale.ROOT, "§a[性能]§r 台帳 %,d チャンク: 写し %.2f ms(サーバースレッドに残る分)/ 縁 %,d チャンク %.2f ms / "
-                        + "極相の判定 %.2f ms(候補 %d)/ 生態系の区域 %,d %.2f ms(この 3 つは常駐では別スレッド)",
-                snapshot.size(), tSnapshot / 1e6, frontier, tFrontier / 1e6, tClimax / 1e6, scan.found().size(), regions, tIncome / 1e6));
         return 1;
     }
 

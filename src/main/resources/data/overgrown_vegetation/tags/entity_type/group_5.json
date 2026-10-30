@@ -1,14 +1,5 @@
 {
   "replace": false,
   "values": [
-    "overgrown_vegetation:falcimnes",
-    "overgrown_vegetation:scutimnes",
-    "overgrown_vegetation:acumnes",
-    "overgrown_vegetation:bathymnes",
-    "overgrown_vegetation:erebomnes",
-    "overgrown_vegetation:voramnes",
-    "overgrown_vegetation:fodimnes",
-    "overgrown_vegetation:vine_executioner",
-    "overgrown_vegetation:root_striker"
   ]
 }

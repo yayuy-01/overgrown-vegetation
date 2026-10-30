@@ -450,9 +450,9 @@ public final class GpuSpores {
                 (float) cam.y,
                 (float) Math.floorMod((long) Math.floor(cam.z), (long) WRAP) + (float) (cam.z - Math.floor(cam.z)), 0.0F);
         double windRow = (ticks - 1 + partialTick) % HISTORY;
-        shader.safeGetUniform("Clock").set((float) (ticks + partialTick), (float) windRow, (float) count, CaveLight.underground());
+        shader.safeGetUniform("Clock").set((float) (ticks + partialTick), (float) windRow, (float) count, ForestPresence.underground());
         shader.safeGetUniform("CamLeft").set(left.x(), left.y(), left.z(), CanopyLight.daylightNow());
-        shader.safeGetUniform("CamUp").set(up.x(), up.y(), up.z(), HighSky.from());
+        shader.safeGetUniform("CamUp").set(up.x(), up.y(), up.z(), ForestPresence.highSkyFrom());
         shader.safeGetUniform("Sprite").set(sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1());
 
         RenderSystem.setShaderTexture(0, TextureAtlas.LOCATION_PARTICLES);
@@ -531,7 +531,7 @@ public final class GpuSpores {
                 (float) cam.y,
                 (float) Math.floorMod((long) Math.floor(cam.z), (long) WRAP) + (float) (cam.z - Math.floor(cam.z)), 0.0F);
         double windRow = (ticks - 1 + partialTick) % HISTORY;
-        shader.safeGetUniform("Clock").set((float) (ticks + partialTick), (float) windRow, ClimaxJungle.strength(), 0.0F);
+        shader.safeGetUniform("Clock").set((float) (ticks + partialTick), (float) windRow, 0.0F, 0.0F);
         shader.safeGetUniform("CamLeft").set(left.x(), left.y(), left.z(), 0.0F);
         shader.safeGetUniform("CamUp").set(up.x(), up.y(), up.z(), 0.0F);
         shader.safeGetUniform("Sun").set(MOTE_LIGHT[0], MOTE_LIGHT[1], MOTE_LIGHT[2], MOTE_LIGHT[3]);

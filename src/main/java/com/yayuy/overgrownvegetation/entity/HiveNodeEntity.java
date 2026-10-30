@@ -68,7 +68,7 @@ import java.util.List;
  * (球体のみ。2026-10-23 に巣の蔦 hive_vine を削除し、ノードは小部屋に据わって殴って倒す。体力 1000・防御 20)。
  */
 public class HiveNodeEntity extends PathfinderMob
-        implements GeoEntity, com.yayuy.overgrownvegetation.phase.ParasitizedMob {
+        implements GeoEntity {
 
     private static final RawAnimation IDLE_ANIM = RawAnimation.begin().thenLoop("idle");
 
@@ -157,10 +157,6 @@ public class HiveNodeEntity extends PathfinderMob
         }
         if (this.level().isClientSide()) {
             return InteractionResult.SUCCESS;
-        }
-        if (player instanceof ServerPlayer serverPlayer && this.level() instanceof ServerLevel serverLevel
-                && HiveRitualEntity.start(serverLevel, this, serverPlayer)) {
-            return InteractionResult.CONSUME;
         }
         return InteractionResult.PASS;
     }

@@ -902,13 +902,6 @@ public final class FxProfiler {
         out.append(String.format(Locale.ROOT, "GL: デバッグの文脈 %s・デバッグ出力 %s・glDebugVerbosity %d%n",
                 (GL11.glGetInteger(org.lwjgl.opengl.GL30.GL_CONTEXT_FLAGS) & org.lwjgl.opengl.GL43.GL_CONTEXT_FLAG_DEBUG_BIT) != 0,
                 GL11.glIsEnabled(org.lwjgl.opengl.GL43.GL_DEBUG_OUTPUT), mc.options.glDebugVerbosity));
-        out.append(String.format(Locale.ROOT,
-                "霧(終わった時): 区画を打ち切る距離 %.0f(負 = 打ち切らない)・地形の霧の終端 %.0f・森の度合い %.2f・林冠の雲海を見下ろしている度合い %.2f・朝霧の中 %.2f%n",
-                com.yayuy.overgrownvegetation.client.CorruptionAtmosphere.terrainFogCullFarPlane(),
-                com.yayuy.overgrownvegetation.client.CorruptionAtmosphere.terrainFogFar(),
-                com.yayuy.overgrownvegetation.client.CorruptionAtmosphere.forestFactor(),
-                com.yayuy.overgrownvegetation.client.MorningMistView.cloudSeaView(),
-                com.yayuy.overgrownvegetation.client.MorningMistView.cameraFog()));
         out.append(String.format(Locale.ROOT, "窓 %dx%d・描画距離 %d・グラフィック %s・FPS の上限 %d・垂直同期 %s・雲 %s・GPU %s%n",
                 mc.getWindow().getWidth(), mc.getWindow().getHeight(), mc.options.renderDistance().get(), mc.options.graphicsMode().get(),
                 mc.options.framerateLimit().get(), mc.options.enableVsync().get(), mc.options.cloudStatus().get(),

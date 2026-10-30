@@ -1,8 +1,0 @@
-{
-  "type": "minecraft:crafting_shapeless",
-  "category": "misc",
-  "ingredients": [
-    { "item": "minecraft:gravel" }
-  ],
-  "result": { "id": "overgrown_vegetation:pebble", "count": 3 }
-}

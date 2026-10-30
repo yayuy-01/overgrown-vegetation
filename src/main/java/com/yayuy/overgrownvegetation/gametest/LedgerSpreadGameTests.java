@@ -5,7 +5,6 @@ import com.yayuy.overgrownvegetation.ModTags;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.corruption.LedgerSpreadMath;
 import com.yayuy.overgrownvegetation.corruption.LedgerSpreadTestHooks;
-import com.yayuy.overgrownvegetation.data.ClimaxTable;
 import com.yayuy.overgrownvegetation.data.PhaseTable;
 import com.yayuy.overgrownvegetation.data.SpreadTable;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
@@ -124,31 +123,6 @@ public final class LedgerSpreadGameTests {
         helper.succeed();
     }
 
-    /**
-     * 極相の齢: 「過繁茂になってからの日数 − F1→F5 の日数」が 14 日で届く。F1 開始のころに過繁茂になったチャンクは
-     * F5 の 14 日後、10 日目に過繁茂になったチャンクはその 10 日後 —— 古い順に極相になる。
-     */
-    @GameTest(template = "gametest_empty7")
-    public static void climaxWaitsFourteenDaysAfterSubtractingDaysToPhase5(GameTestHelper helper) {
-        long minAge = ClimaxTable.DEFAULT.minAgeTicks();
-        expect(helper, minAge, 14 * DAY, "齢のしきい値は 14 日");
-        expectInt(helper, ClimaxTable.DEFAULT.minPhase(), 5, "極相化はフェーズ 5 から");
-        long phase1 = 3 * DAY;
-        long phase5 = 23 * DAY; // F1→F5 に 20 日
-        long oldest = 3 * DAY;
-        expectTrue(helper, !LedgerSpreadMath.climaxAgeReached(oldest, phase5, minAge, phase1, phase5),
-                "F5 になった瞬間に古いチャンクが極相になった");
-        expectTrue(helper, !LedgerSpreadMath.climaxAgeReached(oldest, phase5 + 14 * DAY - 1, minAge, phase1, phase5),
-                "F5 の 14 日後より前に極相になった");
-        expectTrue(helper, LedgerSpreadMath.climaxAgeReached(oldest, phase5 + 14 * DAY, minAge, phase1, phase5),
-                "いちばん古いチャンクが F5 の 14 日後に極相にならない");
-        long younger = phase1 + 10 * DAY;
-        expectTrue(helper, !LedgerSpreadMath.climaxAgeReached(younger, phase5 + 14 * DAY, minAge, phase1, phase5),
-                "10 日遅く過繁茂になったチャンクまで同時に極相になった");
-        expectTrue(helper, LedgerSpreadMath.climaxAgeReached(younger, phase5 + 24 * DAY, minAge, phase1, phase5),
-                "10 日遅く過繁茂になったチャンクが 10 日遅れで極相にならない");
-        helper.succeed();
-    }
 
     /** 地表の塗り残しの模様: 決めた割合(既定 75%)だけ塗る。模様は連続(隣の列でほとんど変わらない)。 */
     @GameTest(template = "gametest_empty7")
@@ -226,7 +200,7 @@ public final class LedgerSpreadGameTests {
         helper.succeed();
     }
 
-    /** spread.json と Java の既定値が同じ。climax.json の minPhase も 5。 */
+    /** spread.json と Java の既定値が同じ。 */
     @GameTest(template = "gametest_empty7")
     public static void bundledJsonMatchesDefault(GameTestHelper helper) {
         try (InputStream in = LedgerSpreadGameTests.class.getResourceAsStream("/overgrown_vegetation/design/spread.json")) {
@@ -244,35 +218,9 @@ public final class LedgerSpreadGameTests {
             helper.fail("design/spread.json が読めない: " + e);
             return;
         }
-        try (InputStream in = LedgerSpreadGameTests.class.getResourceAsStream("/overgrown_vegetation/design/climax.json")) {
-            ClimaxTable climax = ClimaxTable.fromJson(new Gson().fromJson(
-                    new InputStreamReader(in, StandardCharsets.UTF_8), ClimaxTable.Json.class));
-            expectInt(helper, climax.minPhase(), ClimaxTable.DEFAULT.minPhase(), "climax.json の minPhase");
-            // 順 1 の着手順 10(2026-10-03): 極相化の半径 12(= 縁からの深さ d の上限)と、深さの重みの下限 0.15
-            expectInt(helper, climax.neighborRadiusChunks(), ClimaxTable.DEFAULT.neighborRadiusChunks(),
-                    "climax.json の neighborRadiusChunks");
-            if (Math.abs(climax.depthSpawnFloor() - ClimaxTable.DEFAULT.depthSpawnFloor()) > 1e-9) {
-                helper.fail("climax.json の depthSpawnFloor が Java の既定値と違う: " + climax.depthSpawnFloor()
-                        + " / " + ClimaxTable.DEFAULT.depthSpawnFloor());
-                return;
-            }
-        } catch (Exception e) {
-            helper.fail("design/climax.json が読めない: " + e);
-            return;
-        }
         helper.succeed();
     }
 
-    /** 胞子除去装置の範囲(既定 48 ブロック)のチャンクは守られ、遠くのチャンクは守られない。 */
-    @GameTest(template = "gametest_empty7")
-    public static void purifierRangeIsGuarded(GameTestHelper helper) {
-        long[] device = {BlockPos.asLong(8, 64, 8)}; // チャンク (0,0) の真ん中
-        expectTrue(helper, SporeDeviceData.guards(device, 0, 0), "装置のあるチャンクが守られない");
-        expectTrue(helper, SporeDeviceData.guards(device, 2, 0), "32 ブロック先のチャンクが守られない");
-        expectTrue(helper, !SporeDeviceData.guards(device, 6, 0), "96 ブロック先のチャンクまで守られた");
-        expectTrue(helper, !SporeDeviceData.guards(new long[0], 0, 0), "装置が無いのに守られた");
-        helper.succeed();
-    }
 
     // ------------------------------------------------------------------ 世界を触るテスト(自分だけのバッチ)
 

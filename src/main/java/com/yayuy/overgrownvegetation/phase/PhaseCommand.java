@@ -36,42 +36,8 @@ public final class PhaseCommand {
                         // 自動進行の有効・無効(2026-10-10 ユーザー指定: true = 進む、false = 止める。旧 freeze <bool> は逆向きだった)。
                         .then(Commands.literal("true").executes(ctx -> setFreeze(ctx, false)))
                         .then(Commands.literal("false").executes(ctx -> setFreeze(ctx, true)))
-                        // F1 の前の前兆を開発用に強制する(2026-10-24 地脈技術の 4 段目): true = 強制オン、false = 強制オフ、auto = 経過とフェーズで決める。
-                        .then(Commands.literal("omen")
-                                .executes(PhaseCommand::showOmen)
-                                .then(Commands.literal("true").executes(ctx -> setOmen(ctx, LeyOmen.Mode.ON)))
-                                .then(Commands.literal("false").executes(ctx -> setOmen(ctx, LeyOmen.Mode.OFF)))
-                                .then(Commands.literal("auto").executes(ctx -> setOmen(ctx, LeyOmen.Mode.AUTO)))
-                                // 軽い地鳴りを今すぐ(撮影・確かめ用)
-                                .then(Commands.literal("quake").executes(PhaseCommand::omenQuake)))));
-    }
-
-    private static int omenQuake(com.mojang.brigadier.context.CommandContext<CommandSourceStack> ctx) {
-        ServerLevel overworld = ctx.getSource().getServer().overworld();
-        int n = LeyOmen.lightQuake(overworld, DesignData.phases().omen());
-        ctx.getSource().sendSuccess(() -> Component.translatable("commands.overgrown_vegetation.phase.omen.quake", n), true);
-        return n;
-    }
-
-    private static int showOmen(com.mojang.brigadier.context.CommandContext<CommandSourceStack> ctx) {
-        ServerLevel overworld = ctx.getSource().getServer().overworld();
-        boolean active = LeyOmen.computeActive(overworld);
-        ctx.getSource().sendSuccess(() -> Component.translatable("commands.overgrown_vegetation.phase.omen.status",
-                Component.translatable(active ? "commands.overgrown_vegetation.phase.omen.on" : "commands.overgrown_vegetation.phase.omen.off"),
-                LeyOmen.override(overworld).name().toLowerCase(java.util.Locale.ROOT),
-                LeyOmen.startTicks(overworld.getServer()), LeyOmen.sampleStartTicks(overworld.getServer()),
-                overworld.getGameTime()), false);
-        return active ? 1 : 0;
-    }
-
-    private static int setOmen(com.mojang.brigadier.context.CommandContext<CommandSourceStack> ctx, LeyOmen.Mode mode) {
-        ServerLevel overworld = ctx.getSource().getServer().overworld();
-        LeyOmen.setOverride(overworld, mode);
-        boolean active = LeyOmen.computeActive(overworld);
-        ctx.getSource().sendSuccess(() -> Component.translatable("commands.overgrown_vegetation.phase.omen.set",
-                mode.name().toLowerCase(java.util.Locale.ROOT),
-                Component.translatable(active ? "commands.overgrown_vegetation.phase.omen.on" : "commands.overgrown_vegetation.phase.omen.off")), true);
-        return active ? 1 : 0;
+                        // F1 の前の前兆(地脈の予兆 LeyOmen の omen)は 2026-10-30 に地脈と一緒に parked/ へ。
+                        ));
     }
 
     private static int showStatus(com.mojang.brigadier.context.CommandContext<CommandSourceStack> ctx) {

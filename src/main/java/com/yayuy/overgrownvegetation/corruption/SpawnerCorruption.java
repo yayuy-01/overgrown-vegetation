@@ -1,14 +1,8 @@
 package com.yayuy.overgrownvegetation.corruption;
 
-import com.yayuy.overgrownvegetation.ModTags;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.block.CorpseHatchTable;
-import com.yayuy.overgrownvegetation.corpse.NetherReanimation;
-import com.yayuy.overgrownvegetation.data.MobStats;
-import com.yayuy.overgrownvegetation.effect.SpeciesCorpses;
-import com.yayuy.overgrownvegetation.phase.MobGroup;
-import com.yayuy.overgrownvegetation.phase.OvergrownSpawnProfile;
 import com.yayuy.overgrownvegetation.registry.ModAttachments;
+import com.yayuy.overgrownvegetation.registry.ModEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -191,53 +185,16 @@ public final class SpawnerCorruption {
         return target == null ? null : BuiltInRegistries.ENTITY_TYPE.getKey(target).toString();
     }
 
-    /** 汚染したスポナーで {@code type} の代わりに湧かせる種。 */
+    /**
+     * 汚染したスポナーで {@code type} の代わりに湧かせる種。
+     * 2026-10-30 の整理(退避)で寄生体・死体の表(G1・ネザーの蘇生)を外したので、この MOD 以外の Mob は
+     * 萌芽体に書き換える(仮決め。寄生体を作り直したらここを戻す。前の中身は parked/ の写し)。
+     */
     @Nullable
     public static EntityType<?> targetFor(ServerLevel level, EntityType<?> type) {
-        if (MobGroup.of(type) != null) {
+        if (OvergrownVegetation.MODID.equals(BuiltInRegistries.ENTITY_TYPE.getKey(type).getNamespace())) {
             return type; // もうこの MOD の Mob
         }
-        EntityType<?> parasitized = parasitizedFor(level, type);
-        return parasitized != null ? parasitized : randomG1(level);
-    }
-
-    /** {@code type} の寄生されたバージョン。無ければ null。 */
-    @Nullable
-    public static EntityType<?> parasitizedFor(ServerLevel level, EntityType<?> type) {
-        Entity sample;
-        try {
-            sample = type.create(level); // 表はクラスで引くので、ワールドに入れない見本を作る
-        } catch (RuntimeException e) {
-            OvergrownVegetation.LOGGER.warn("汚染したスポナー: {} の見本を作れなかった", type, e);
-            return null;
-        }
-        if (!(sample instanceof LivingEntity living)) {
-            return null;
-        }
-        EntityType<?> flyer = NetherReanimation.parasitizedTypeFor(living);
-        if (flyer != null) {
-            return flyer;
-        }
-        BlockState corpse = SpeciesCorpses.corpseStateFor(living);
-        return corpse == null ? null : CorpseHatchTable.hatchTypeFor(corpse.getBlock());
-    }
-
-    /** その次元に自然に湧く G1 のうち 1 種(ランダム)。 */
-    @Nullable
-    public static EntityType<?> randomG1(ServerLevel level) {
-        List<EntityType<?>> pool = g1For(level);
-        return pool.isEmpty() ? null : pool.get(level.random.nextInt(pool.size()));
-    }
-
-    /** その次元に自然に湧く G1(ネザーはネザーの種、それ以外は地上の種)。 */
-    public static List<EntityType<?>> g1For(ServerLevel level) {
-        boolean nether = NetherSurface.applies(level);
-        List<EntityType<?>> pool = new ArrayList<>();
-        for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
-            if (type.is(ModTags.GROUP_1) && MobStats.naturalSpawn(type) && OvergrownSpawnProfile.netherRuleAllows(nether, type)) {
-                pool.add(type);
-            }
-        }
-        return pool;
+        return ModEntities.BLIGHT_FERN.get();
     }
 }

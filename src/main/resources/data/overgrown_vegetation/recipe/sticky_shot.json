@@ -1,9 +1,0 @@
-{
-  "type": "minecraft:crafting_shapeless",
-  "category": "misc",
-  "ingredients": [
-    { "item": "overgrown_vegetation:sticky_fruit" },
-    { "item": "overgrown_vegetation:pebble" }
-  ],
-  "result": { "id": "overgrown_vegetation:sticky_shot", "count": 2 }
-}

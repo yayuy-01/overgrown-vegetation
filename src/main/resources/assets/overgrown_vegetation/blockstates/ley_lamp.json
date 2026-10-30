@@ -1,8 +1,0 @@
-{
-  "variants": {
-    "hanging=false,lit=false": { "model": "overgrown_vegetation:block/ley_lamp" },
-    "hanging=false,lit=true": { "model": "overgrown_vegetation:block/ley_lamp_on" },
-    "hanging=true,lit=false": { "model": "overgrown_vegetation:block/ley_lamp_hanging" },
-    "hanging=true,lit=true": { "model": "overgrown_vegetation:block/ley_lamp_hanging_on" }
-  }
-}

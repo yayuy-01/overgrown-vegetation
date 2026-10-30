@@ -1,9 +1,5 @@
 {
   "replace": false,
   "values": [
-    "overgrown_vegetation:phyllosens",
-    "overgrown_vegetation:velophyll",
-    "overgrown_vegetation:parasitized_ghast",
-    "overgrown_vegetation:parasitized_blaze"
   ]
 }

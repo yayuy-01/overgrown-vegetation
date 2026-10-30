@@ -89,7 +89,7 @@ public class DriftingSporeParticle extends TextureSheetParticle {
         this.bCol = Mth.lerp(l, BASE_B, LIT_B);
         // 地下では光の届かない粒を見せない(2026-10-16): 暗い洞窟の中の粒は真っ黒になり、地下の霧({@link CaveMist})の明るい面に
         // 黒い四角の影絵になって浮いた。明かり(光る植物・松明・洞窟の口)の近くの粒だけ見える。
-        float underground = CaveLight.underground();
+        float underground = ForestPresence.underground();
         if (underground > 0.0F) {
             int packed = this.getLightColor(partialTick);
             float seen = Mth.clamp(Math.max(LightTexture.block(packed), LightTexture.sky(packed)) / DARK_LIGHT, 0.0F, 1.0F);
@@ -142,7 +142,7 @@ public class DriftingSporeParticle extends TextureSheetParticle {
                 return null;
             }
             // 高空の晴天(HighSky、2026-10-17): 晴天の高さより上では漂う胞子を出さない(少しばらつかせて境目を見せない)。
-            if (y > HighSky.from() + level.random.nextFloat() * 30.0F) {
+            if (y > ForestPresence.highSkyFrom() + level.random.nextFloat() * 30.0F) {
                 return null;
             }
             return new DriftingSporeParticle(level, x, y, z, this.sprites);

@@ -1,6 +1,0 @@
-{
-  "type": "neoforge:add_features",
-  "biomes": "#c:is_plains",
-  "features": "overgrown_vegetation:wild_pungent_herb",
-  "step": "vegetal_decoration"
-}

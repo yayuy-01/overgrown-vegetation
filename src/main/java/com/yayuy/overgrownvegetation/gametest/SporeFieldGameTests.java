@@ -176,33 +176,6 @@ public final class SporeFieldGameTests {
         helper.succeed();
     }
 
-    /** 暴露は 濃度 × 秒 を積み、しきい値で感染。マスクは暴露を maskPercent に減らす(第 2 段 D、10-23 ユーザー指定 25%)。 */
-    @GameTest(template = "gametest_empty7")
-    public static void exposureAccumulatesAndMaskReduces(GameTestHelper helper) {
-        net.minecraft.world.entity.animal.Pig a = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.PIG, new net.minecraft.core.BlockPos(2, 2, 2));
-        net.minecraft.world.entity.animal.Pig b = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.PIG, new net.minecraft.core.BlockPos(4, 2, 4));
-        double threshold = 1500.0D; // 50% に 30 秒
-        int fullSteps = 0, maskedSteps = 0;
-        double mask = DesignData.sporeField().maskFactor();
-        // 50% の所に 1 秒ずつ
-        for (int i = 1; i <= 400 && fullSteps == 0; i++) {
-            if (com.yayuy.overgrownvegetation.effect.SporeInfectionTracker.accumulateDoseForTests(a, 50.0D, 1.0D, 20, threshold)) fullSteps = i;
-        }
-        for (int i = 1; i <= 400 && maskedSteps == 0; i++) {
-            if (com.yayuy.overgrownvegetation.effect.SporeInfectionTracker.accumulateDoseForTests(b, 50.0D, mask, 20, threshold)) maskedSteps = i;
-        }
-        a.discard();
-        b.discard();
-        if (fullSteps != 30) {
-            helper.fail("50% で 30 秒で感染しない: " + fullSteps + " 秒");
-            return;
-        }
-        if (mask > 0.0D && Math.abs(maskedSteps - 30.0D / mask) > 1.0D) {
-            helper.fail("マスクの割合どおりに遅くならない: " + maskedSteps + " 秒(期待 " + (30.0D / mask) + ")");
-            return;
-        }
-        helper.succeed();
-    }
 
     /** 動いている除去装置は範囲の浮遊・林床・降り積もりを空にする(上限なし。10-23 追記 11)。 */
     @GameTest(template = "gametest_empty7")

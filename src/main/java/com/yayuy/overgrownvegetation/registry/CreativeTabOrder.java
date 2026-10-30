@@ -1,12 +1,7 @@
 package com.yayuy.overgrownvegetation.registry;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.ally.AllyItems;
 import com.yayuy.overgrownvegetation.data.DesignData;
-import com.yayuy.overgrownvegetation.data.ItemTable;
-import com.yayuy.overgrownvegetation.difficulty.ExperimentalFeatures;
-import com.yayuy.overgrownvegetation.base.BaseBlocks;
-import com.yayuy.overgrownvegetation.purify.PurifyRegistry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ArmorItem;
@@ -65,18 +60,6 @@ public final class CreativeTabOrder {
         BLOCK, MACHINE, PLANT, MATERIAL, SPAWN_EGG, GEAR, OTHER
     }
 
-    /**
-     * 機械(置けるもの)。<b>足したら壊し方もそろえる</b>: {@code #minecraft:mineable/pickaxe}・{@code #minecraft:needs_stone_tool}・
-     * {@code requiresCorrectToolForDrops}・自分を落とすルートテーブル(2026-10-10 ユーザー指定「適正ツールはつるはし、石以上で回収」。
-     * {@code gametest/MachineDropGameTests} が見張る。基地の管理端末だけは落ちないまま)。
-     */
-    private static final List<Supplier<? extends ItemLike>> MACHINES = List.of(
-            ModItems.RESEARCH_TABLE_ITEM, ModItems.POWERED_ARMOR_TABLE_ITEM, ModItems.FACTOR_EXTRACTOR_ITEM,
-            ModItems.SPORE_PURIFIER_ITEM, ModItems.SPORE_DIFFUSER_ITEM, ModItems.DECONTAMINATOR_ITEM,
-            ModItems.REPELLENT_LAMP_ITEM, ModItems.BARBED_WIRE_ITEM, ModItems.PHASE_RECORDER_ITEM, ModItems.SPORE_ALARM_ITEM,
-            ModItems.TARGET_BLOCK, ModItems.GUN_TURRET_ITEM, ModItems.SIEGE_CANNON_ITEM, ModItems.BEAM_SHIELD_ITEM,
-            BaseBlocks.AMMO_CRATE, BaseBlocks.FLOODLIGHT, BaseBlocks.JAMMING_LAMP, BaseBlocks.BASE_TERMINAL);
-
     /** 植物(植物のブロックの種類で拾えないもの)。 */
     private static final List<Supplier<? extends ItemLike>> PLANTS = List.of(
             ModBlocks.OVERGROWN_GROWTH, ModBlocks.OVERGROWN_SPORE_BLOOM, ModBlocks.OVERGROWN_ZENMAI, ModBlocks.UNDEVELOPED_BUSH,
@@ -91,18 +74,6 @@ public final class CreativeTabOrder {
     /** 置けるがドロップ・素材として扱うもの(実った大きな未熟果)。 */
     private static final List<Supplier<? extends ItemLike>> MATERIALS = List.of(ModItems.LARGE_UNDEVELOPED_FRUIT_ITEM);
 
-    private static final List<Supplier<? extends ItemLike>> GEAR = List.of(
-            AllyItems.HK416, PurifyRegistry.FLAMETHROWER, ModItems.PLANT_ARMOR, ModItems.PROTECTIVE_MASK,
-            ModItems.POWERED_ARMOR_BLUEPRINT, ModItems.CARTRIDGE,
-            ModItems.FACTOR_IMPACT, ModItems.FACTOR_PIERCE, ModItems.FACTOR_BLAST, ModItems.FACTOR_TOXIN, ModItems.FACTOR_SPORE,
-            ModItems.NIGHT_VISION_ACCESSORY, ModItems.ENEMY_SENSE_ACCESSORY, ModItems.SWIFT_ACCESSORY, ModItems.CUSHION_ACCESSORY,
-            ModItems.MINING_EXTENSION, ModItems.ANCHOR_EXTENSION);
-
-    private static final List<Supplier<? extends ItemLike>> OTHER = List.of(
-            ModItems.SPORE_INFECTION_SYRINGE_1, ModItems.SPORE_INFECTION_SYRINGE_2, ModItems.SPORE_INFECTION_SYRINGE_3,
-            ModItems.SPORE_METER, ModItems.PHASE_METER, ModItems.GUIDEBOOK, ModItems.PACK_SCANNER, ModItems.SPORE_FILTER, ModItems.SPORE_MEMBRANE,
-            AllyItems.MILITARY_SCRIP, ModItems.AUTOCANNON_ROUND, ModItems.SIEGE_SHELL);
-
     private CreativeTabOrder() {
     }
 
@@ -110,13 +81,8 @@ public final class CreativeTabOrder {
     @javax.annotation.Nullable
     private static String tabKeyOf(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == ModCreativeTabs.COVERED.getKey()) {
-            return ItemTable.COVERED;
         }
         if (event.getTabKey() == ModCreativeTabs.PLANTS.getKey()) {
-            return ItemTable.PLANTS;
-        }
-        if (event.getTabKey() == ModCreativeTabs.HUMANITY.getKey()) {
-            return ItemTable.HUMANITY;
         }
         return null;
     }
@@ -127,48 +93,15 @@ public final class CreativeTabOrder {
         if (tab == null) {
             return;
         }
-        ItemTable table = DesignData.items();
-        // 覆われたブロックのタブはブロックだけなので区分で並べ直さない。items.json に並びを書いたときだけ触る。
-        boolean sortBySection = !ItemTable.COVERED.equals(tab);
-        if (!sortBySection && !table.hasOrder()) {
-            return;
-        }
 
         List<ItemStack> entries = new ArrayList<>(event.getParentEntries());
-        // items.json が別のタブへ回したアイテムは、このタブからは外す。
-        entries.removeIf(stack -> {
-            String want = table.tabOf(idOf(stack.getItem()));
-            return want != null && !want.equals(tab);
-        });
         // 逆に、このタブへ回すと書いてあるのにまだ居ないアイテムは連れてくる。
         Set<Item> present = new HashSet<>();
         for (ItemStack stack : entries) {
             present.add(stack.getItem());
         }
-        // 実験的要素がオフのときは、外されたアイテムを連れ戻さない。この処理と
-        // ExperimentalFeatures.Tabs はどちらも LOWEST で、どちらが先に走るかは決まっていないため
-        // (先に外された物をここで足し直すと、オフなのにタブに出る。2026-10-15 に
-        // offworldhidesalliedarmy が落ちて気づいた)。
-        boolean experimental = ExperimentalFeatures.Tabs.shownInTabs();
-        for (ResourceLocation id : table.order(tab)) {
-            Item item = BuiltInRegistries.ITEM.getOptional(id).orElse(null);
-            if (item == null || item == Items.AIR || !present.add(item)) {
-                continue;
-            }
-            if (!experimental && ExperimentalFeatures.isExperimentalItem(item)) {
-                continue;
-            }
-            entries.add(new ItemStack(item));
-        }
 
         List<ItemStack> sorted = new ArrayList<>(entries);
-        Lookup lookup = sortBySection ? new Lookup() : null;
-        // 並べ方: items.json に書いたものが書いた順で先、書いていないものは今までどおり区分の順で後ろ
-        // (区分の中も、このタブへ積まれた元の順のまま = 安定な並べ替え)。
-        // こうしておくと、Java へ新しいアイテムを足しても消えず、ユーザーが並べた所も動かない。
-        sorted.sort(Comparator
-                .comparingInt((ItemStack stack) -> table.indexIn(tab, idOf(stack.getItem())))
-                .thenComparingInt(stack -> lookup == null ? 0 : lookup.section(stack.getItem()).ordinal()));
         if (sorted.equals(new ArrayList<>(event.getParentEntries()))) {
             return;
         }
@@ -192,25 +125,12 @@ public final class CreativeTabOrder {
 
     /** 一覧を Item の集合にしたもの(タブを作るたびに作る。登録が済んでからしか引けないため)。 */
     private static final class Lookup {
-        private final Set<Item> machines = items(MACHINES);
         private final Set<Item> plants = items(PLANTS);
         private final Set<Item> materials = items(MATERIALS);
-        private final Set<Item> gear = items(GEAR);
-        private final Set<Item> other = items(OTHER);
 
         Section section(Item item) {
             if (item instanceof SpawnEggItem) {
                 return Section.SPAWN_EGG;
-            }
-            if (gear.contains(item) || item instanceof ArmorItem || item instanceof TieredItem
-                    || item instanceof ProjectileWeaponItem || item instanceof ShieldItem) {
-                return Section.GEAR;
-            }
-            if (other.contains(item)) {
-                return Section.OTHER;
-            }
-            if (machines.contains(item)) {
-                return Section.MACHINE;
             }
             if (plants.contains(item)) {
                 return Section.PLANT;

@@ -1,8 +1,0 @@
-{
-  "variants": {
-    "facing=north": { "model": "overgrown_vegetation:block/lithopleura_husk" },
-    "facing=south": { "model": "overgrown_vegetation:block/lithopleura_husk" },
-    "facing=west":  { "model": "overgrown_vegetation:block/lithopleura_husk" },
-    "facing=east":  { "model": "overgrown_vegetation:block/lithopleura_husk" }
-  }
-}

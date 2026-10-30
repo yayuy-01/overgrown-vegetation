@@ -1,9 +1,0 @@
-{
-  "type": "overgrown_vegetation:mortar_mixing",
-  "ingredients": [
-    { "item": "overgrown_vegetation:pungent_powder" },
-    { "item": "overgrown_vegetation:pungent_powder" },
-    { "item": "minecraft:bone_meal" }
-  ],
-  "result": { "id": "overgrown_vegetation:smelling_salts" }
-}

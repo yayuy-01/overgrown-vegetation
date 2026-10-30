@@ -146,7 +146,7 @@ public final class CanopyDapple {
         }
         ticks++;
         Vec3 sun = CanopyLight.sunDirection(level, 1.0F);
-        float day = CanopyLight.daylight(level, sun, 1.0F) * CloudShadows.sunVisibility();  // 雲が太陽を隠している間は弱める(CloudShadows、2026-10-17)
+        float day = CanopyLight.daylight(level, sun, 1.0F);  // 雲が太陽を隠している間は弱める(CloudShadows、2026-10-17)
 
         for (Iterator<Patch> it = PATCHES.iterator(); it.hasNext(); ) {
             Patch p = it.next();
@@ -317,7 +317,7 @@ public final class CanopyDapple {
         }
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         Vec3 sun = CanopyLight.sunDirection(level, partialTick);
-        float day = CanopyLight.daylight(level, sun, partialTick) * CloudShadows.sunVisibility();  // 雲が太陽を隠している間は弱める(CloudShadows、2026-10-17)
+        float day = CanopyLight.daylight(level, sun, partialTick);  // 雲が太陽を隠している間は弱める(CloudShadows、2026-10-17)
         float intensity = OvergrownVegetationConfig.COMMON.canopyLightIntensity.get().floatValue();
         if (intensity <= 0.0F || day <= 0.0F) {
             return;
@@ -355,14 +355,13 @@ public final class CanopyDapple {
         // 雲が太陽を隠しているかは斑点の地面の所で引く(地面の雲の影と同じ)。カメラの所の値(day)で引くと、カメラを上下に動かすだけで
         // 雲の層で引く点が横へずれ、下りると斑点が一斉に消え・上ると戻った(2026-10-22、DH 入りのユーザーの runClient)。
         float sunlight = CanopyLight.daylight(level, sun, partialTick);
-        CloudShadows.GroundSun groundSun = CloudShadows.groundSun(level, partialTick);
         for (Patch p : PATCHES) {
             double cx = p.x + 0.5 - eye.x;
             double cy = p.y + 0.02 - eye.y;
             double cz = p.z + 0.5 - eye.z;
             double dist = Math.sqrt(cx * cx + cy * cy + cz * cz);
             float fade = 1.0F - CanopyLight.smooth(Mth.clamp((float) ((dist - far * 0.6) / (far * 0.4)), 0.0F, 1.0F));
-            float patchDay = sunlight * groundSun.at(p.x + 0.5, p.y, p.z + 0.5);
+            float patchDay = sunlight;
             float base = 0.55F * p.brightness * p.presence() * patchDay * intensity * fade;
             if (base <= 0.003F) {
                 continue;

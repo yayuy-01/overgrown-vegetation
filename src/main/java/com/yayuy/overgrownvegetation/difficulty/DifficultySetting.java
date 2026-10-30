@@ -134,7 +134,7 @@ public enum DifficultySetting {
             case UNLOADED_SPREAD -> 1.0D; // オン(今までどおり)
             case QUAKE_DAY -> DesignData.phases().startWorldAgeTicks() / (double) TICKS_PER_DAY;
             case QUAKE_ADVANCEMENTS -> DesignData.phases().startAdvancements();
-            case TD_MAX_MOBS -> DesignData.td().concurrentCap();
+            case TD_MAX_MOBS -> 0.0D; // TD は 2026-10-30 に parked/ へ(前は DesignData.td().concurrentCap())
             case EXPERIMENTAL -> 0.0D; // オフ(GameTest のサーバーだけはオン扱い —— ExperimentalFeatures#enabled)
         };
     }

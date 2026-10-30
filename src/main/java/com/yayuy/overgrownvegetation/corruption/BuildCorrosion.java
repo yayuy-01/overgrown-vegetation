@@ -2,7 +2,6 @@ package com.yayuy.overgrownvegetation.corruption;
 
 import com.yayuy.overgrownvegetation.ModTags;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.block.SiegeStructurePartBlock;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.perf.PerfJob;
 import com.yayuy.overgrownvegetation.perf.TickBudget;
@@ -337,7 +336,7 @@ public final class BuildCorrosion {
                         // 大半を占める「埋まった石」が、タグ判定の束を払わずに隣接面だけで落ちる。
                         // 装置が届くチャンク(canCorrupt が乱数を引きうる)と、本体の位置で装置まで見る攻城戦の部品ブロックは
                         // 今までどおり先に判定する(判定する回数が変わると乱数の引き方が変わるため)。
-                        boolean canCorruptFirst = devicesNear || state.getBlock() instanceof SiegeStructurePartBlock;
+                        boolean canCorruptFirst = devicesNear;
                         if (canCorruptFirst && !CorruptionRegistry.canCorrupt(level, cursor, state, devicesNear)) {
                             continue;
                         }
@@ -481,8 +480,7 @@ public final class BuildCorrosion {
      * ありうる(canCorrupt が本体の位置で装置の判定をして乱数を引くことがあるので、飛ばすと引く回数が変わる)。
      */
     private static boolean sealedSection(LevelChunkSection[] sections, int si, LevelChunk[] sideChunks) {
-        if (sections[si].maybeHas(s -> s.isAir() || s.is(ModTags.CORRUPTED)
-                || s.getBlock() instanceof SiegeStructurePartBlock)) {
+        if (sections[si].maybeHas(s -> s.isAir() || s.is(ModTags.CORRUPTED))) {
             return false;
         }
         if (si + 1 >= sections.length || mayTouchAirOrCorrupted(sections[si + 1])) {

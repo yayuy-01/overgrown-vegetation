@@ -161,11 +161,7 @@ public final class SporeConcentration {
             // 立ち去ればすぐ元に戻るよう、キャッシュの外で足す(2026-09-23)。
             base = withDrifters(level, key, base);
         }
-        // 「寄生植物装備」を着けたプレイヤーが隣接チャンク以内に居れば、その段階ぶん(+15% / +30%)を上乗せする
-        // (キャッシュには入れない: プレイヤーは動くので)。
-        double host = com.yayuy.overgrownvegetation.item.PlantArmor.concentrationBonus(level, ChunkPos.getX(key), ChunkPos.getZ(key));
-        Result withHost = host > 0.0D ? base.withHostBonus(host) : base;
-        return withHost;
+        return base; // 寄生植物装備の上乗せ(PlantArmor)は 2026-10-30 に parked/ へ
     }
 
     private static Result atCached(ServerLevel level, long key, @Nullable ChunkPos chunk) {
@@ -207,9 +203,6 @@ public final class SporeConcentration {
 
     /** {@code pos} を含むチャンクの胞子濃度(0〜100)。 */
     public static double percentAt(ServerLevel level, BlockPos pos) {
-        if (TentShelters.covers(level, pos)) {
-            return 0.0D; // 防胞子の天幕の半径 3(2026-10-16、ユーザー指定)
-        }
         if (useField(level)) {
             return fieldPercentAt(level, pos);
         }
@@ -246,8 +239,7 @@ public final class SporeConcentration {
      */
     private static double withCarrier(ServerLevel level, long chunkKey, boolean drifters) {
         double base = at(level, chunkKey, null, drifters).percent();
-        double bonus = ErosionCarrier.concentrationBonusAt(level, chunkKey);
-        return bonus <= 0.0D ? base : base + bonus;
+        return base; // 浸食度の持ち出し(ErosionCarrier)は 2026-10-30 に parked/ へ
     }
 
     /**
@@ -258,13 +250,12 @@ public final class SporeConcentration {
      * <b>いるときだけ</b>計算し直す。ペディキュラは数が少ないので、この分岐に入ること自体がまれ。
      */
     private static Result withDrifters(ServerLevel level, long key, Result base) {
-        double cover = PediculaCover.percentAt(level, key);
+        double cover = 0.0D; // ペディキュラ(PediculaCover)は 2026-10-30 に parked/ へ
         if (cover <= base.percentBeforeDevices() || base.selfOvergrown()) {
             return base;
         }
         ChunkPos chunk = new ChunkPos(key);
-        double delta = SporeDeviceData.deltaAt(level, chunk)
-                + com.yayuy.overgrownvegetation.entity.SporophyllAura.concentrationBoostAt(level, chunk);
+        double delta = SporeDeviceData.deltaAt(level, chunk);
         return base.withDrifter(cover, delta);
     }
 
@@ -309,15 +300,14 @@ public final class SporeConcentration {
         if (useField(level)) {
             // 胞子の場を読む(2026-10-23 第 2 段 D)。除去装置・拡散装置は場そのものに効いている(抜く・出す)ので足さない。
             // スポロフィルの傘だけは今までどおり足す
-            return fieldBase(level, chunk).withDevices(com.yayuy.overgrownvegetation.entity.SporophyllAura.concentrationBoostAt(level, chunk));
+            return fieldBase(level, chunk).withDevices(0.0D);
         }
         Result base = computeBase(level, chunk);
         if (base.selfOvergrown()) {
             return base;
         }
         // 胞子装置(除去/拡散)と、生きているスポロフィルの傘は同じ扱いで足し合わせる。
-        return base.withDevices(SporeDeviceData.deltaAt(level, chunk)
-                + com.yayuy.overgrownvegetation.entity.SporophyllAura.concentrationBoostAt(level, chunk));
+        return base.withDevices(SporeDeviceData.deltaAt(level, chunk));
     }
 
     // ---------------------------------------------------------------- 胞子の場を読む(2026-10-23 第 2 段 D)

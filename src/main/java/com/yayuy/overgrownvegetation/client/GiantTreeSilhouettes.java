@@ -1123,7 +1123,7 @@ public final class GiantTreeSilhouettes {
             return;
         }
         // 空の光が届かない閉じた洞窟の中では描かない(空と同じ。地上の幹が、まだ描かれていない範囲から霧の中へのぞかないように。2026-10-16)。
-        if (CaveMist.hideSky()) {
+        if (false) {
             return;
         }
         float fogStart = RenderSystem.getShaderFogStart();
@@ -1134,7 +1134,7 @@ public final class GiantTreeSilhouettes {
         float cutEnd = fogStart + CUT_AT * (fogEnd - fogStart);
         float fogAtCut = CUT_AT * CUT_AT * (3.0F - 2.0F * CUT_AT);
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
-        float brightness = CorruptionAtmosphere.climaxSkyDarken(level.getSkyDarken(partialTick));
+        float brightness = level.getSkyDarken(partialTick);
         Vec3 cam = camera.getPosition();
         Matrix4f modelView = new Matrix4f(event.getModelViewMatrix()).scale(PULL);
         Matrix4f projection = event.getProjectionMatrix();

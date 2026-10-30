@@ -4,7 +4,6 @@ import com.yayuy.overgrownvegetation.ModTags;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
-import com.yayuy.overgrownvegetation.purify.BurntLand;
 import com.yayuy.overgrownvegetation.registry.ModBiomes;
 import com.yayuy.overgrownvegetation.registry.NetherOvergrowthVariant;
 import com.yayuy.overgrownvegetation.registry.OvergrowthVariant;
@@ -117,10 +116,6 @@ public final class OvergrownBiomeConverter {
             return; // /ov corruption false(2026-10-10 ユーザー指定): バイオームも書き換えない
         }
         if (!OvergrownVegetationConfig.COMMON.convertToOvergrownBiome.get()) {
-            return;
-        }
-        if (BurntLand.isBurntChunk(level, chunkPos)) {
-            // 焼けた荒地(順 2 の着手順 9): 焼けている間は汚染が入らない(ユーザー指定 2026-10-08)。
             return;
         }
 
@@ -438,10 +433,6 @@ public final class OvergrownBiomeConverter {
                 || !OvergrownVegetationConfig.COMMON.convertToOvergrowthBiome.get()) {
             return;
         }
-        if (BurntLand.isBurntChunk(level, chunkPos)) {
-            // 焼けた荒地は森の真ん中でも胞子濃度が 100% になるが、焼けている間は繁茂にもしない(順 2 の着手順 9)。
-            return;
-        }
 
         BlockPos samplePos = chunkPos.getMiddleBlockPosition(level.getMinBuildHeight());
         Holder<Biome> currentBiome = level.getBiome(samplePos);
@@ -516,8 +507,6 @@ public final class OvergrownBiomeConverter {
                 targetKey(level, chunkPos, classifyTerrain(currentBiome), OvergrowthVariant.Stage.CLIMAX);
         flowConvert(level, chunkPos, target, null);
         recordOvergrownChunk(level, chunkPos, target);
-        // 地脈を敷く。場は座標だけの決定的な関数なので、チャンクごとに敷いても境目で繋がる。
-        LeyVeinPlacer.place(level, chunkPos);
     }
 
     /**

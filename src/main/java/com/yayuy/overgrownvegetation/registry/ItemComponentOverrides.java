@@ -2,7 +2,6 @@ package com.yayuy.overgrownvegetation.registry;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.data.DesignData;
-import com.yayuy.overgrownvegetation.data.ItemTable;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -32,31 +31,5 @@ public final class ItemComponentOverrides {
 
     @SubscribeEvent
     public static void onModifyComponents(ModifyDefaultComponentsEvent event) {
-        ItemTable table = DesignData.items();
-        for (ResourceLocation id : table.tweakedItems()) {
-            Item item = BuiltInRegistries.ITEM.getOptional(id).orElse(null);
-            if (item == null) {
-                OvergrownVegetation.LOGGER.warn("items.json: 知らないアイテム {} の指定は飛ばしました", id);
-                continue;
-            }
-            Integer stack = table.stackSize(id);
-            Rarity rarity = table.rarity(id);
-            if (stack == null && rarity == null) {
-                continue;
-            }
-            // 耐久のあるアイテムはスタックできない(バニラが例外を投げる)ので、上限の指定は捨てる。
-            boolean damageable = item.components().has(DataComponents.MAX_DAMAGE);
-            event.modify(item, builder -> {
-                if (stack != null && !damageable) {
-                    builder.set(DataComponents.MAX_STACK_SIZE, stack);
-                }
-                if (rarity != null) {
-                    builder.set(DataComponents.RARITY, rarity);
-                }
-            });
-            if (stack != null && damageable) {
-                OvergrownVegetation.LOGGER.warn("items.json: {} は耐久があるのでスタック上限は効きません", id);
-            }
-        }
     }
 }

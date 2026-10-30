@@ -51,49 +51,20 @@ public final class SpawnerCorruptionGameTests {
 
     private static final BlockPos AT = new BlockPos(3, 2, 3);
 
-    /** ゾンビのスポナー → 寄生されたゾンビ。剥がすとゾンビへ戻る。 */
-    @GameTest(template = "gametest_empty7")
-    public static void zombieSpawnerBecomesParasitizedAndReverts(GameTestHelper helper) {
-        BlockPos pos = placeSpawner(helper, EntityType.ZOMBIE);
-        String error = corrupt(helper, pos);
-        if (error == null && !spawnerIds(helper, pos).equals(List.of(id(ModEntities.PARASITIZED_ZOMBIE.get())))) {
-            error = "汚染したゾンビのスポナーが寄生されたゾンビを湧かせない: " + spawnerIds(helper, pos);
-        }
-        if (error == null && !OvergrownLayerData.isCovered(helper.getLevel(), pos)) {
-            error = "汚染したスポナーが覆われていない(苔が付かない)";
-        }
-        OvergrownLayerData.uncover(helper.getLevel(), pos);
-        if (error == null && !spawnerIds(helper, pos).equals(List.of("minecraft:zombie"))) {
-            error = "覆いを剥がしてもゾンビへ戻らない: " + spawnerIds(helper, pos);
-        }
-        if (error == null && helper.getLevel().getBlockEntity(pos).hasData(ModAttachments.SPAWNER_ORIGINAL)) {
-            error = "戻した後も元の登録の記録が残っている";
-        }
-        finish(helper, error);
-    }
 
-    /** ブレイズのスポナー → 寄生されたブレイズ(ガスト・ブレイズの入れ替え表)。 */
-    @GameTest(template = "gametest_empty7")
-    public static void blazeSpawnerUsesNetherTable(GameTestHelper helper) {
-        BlockPos pos = placeSpawner(helper, EntityType.BLAZE);
-        String error = corrupt(helper, pos);
-        if (error == null && !spawnerIds(helper, pos).equals(List.of(id(ModEntities.PARASITIZED_BLAZE.get())))) {
-            error = "汚染したブレイズのスポナーが寄生されたブレイズを湧かせない: " + spawnerIds(helper, pos);
-        }
-        OvergrownLayerData.uncover(helper.getLevel(), pos);
-        finish(helper, error);
-    }
 
-    /** 洞窟グモ(寄生体が無い)→ この次元(地上)の G1 のどれか。ネザーの種にはならない。 */
+    /**
+     * 洞窟グモ → 萌芽体(2026-10-30 の整理(退避)で寄生体・G1 を外したので、この MOD 以外の Mob は萌芽体に書き換える。仮決め)。
+     * 剥がすと元へ戻る。
+     */
     @GameTest(template = "gametest_empty7")
-    public static void caveSpiderSpawnerFallsBackToDimensionG1(GameTestHelper helper) {
+    public static void caveSpiderSpawnerBecomesBlightFern(GameTestHelper helper) {
         BlockPos pos = placeSpawner(helper, EntityType.CAVE_SPIDER);
         String error = corrupt(helper, pos);
         if (error == null) {
             List<String> ids = spawnerIds(helper, pos);
-            EntityType<?> type = ids.size() == 1 ? EntityType.byString(ids.get(0)).orElse(null) : null;
-            if (type == null || !type.is(ModTags.GROUP_1) || type.is(ModTags.NETHER_NATIVE)) {
-                error = "洞窟グモのスポナーが地上の G1 にならない: " + ids;
+            if (!ids.equals(List.of("overgrown_vegetation:blight_fern"))) {
+                error = "洞窟グモのスポナーが萌芽体にならない: " + ids;
             }
         }
         OvergrownLayerData.uncover(helper.getLevel(), pos);
@@ -103,35 +74,6 @@ public final class SpawnerCorruptionGameTests {
         finish(helper, error);
     }
 
-    /** 試練のスポナー: 通常・不吉の両方の一覧が寄生体になり、剥がすと戻る。 */
-    @GameTest(template = "gametest_empty7")
-    public static void trialSpawnerConfigsBecomeParasitized(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos pos = helper.absolutePos(AT);
-        helper.setBlock(AT, Blocks.TRIAL_SPAWNER);
-        BlockEntity be = level.getBlockEntity(pos);
-        try {
-            CompoundTag tag = be.saveWithoutMetadata(level.registryAccess());
-            tag.put("normal_config", TagParser.parseTag(
-                    "{spawn_potentials:[{data:{entity:{id:\"minecraft:skeleton\"}},weight:1}]}"));
-            tag.put("ominous_config", TagParser.parseTag(
-                    "{spawn_potentials:[{data:{entity:{id:\"minecraft:zombie\"}},weight:1}]}"));
-            be.loadWithComponents(tag, level.registryAccess());
-        } catch (com.mojang.brigadier.exceptions.CommandSyntaxException e) {
-            helper.fail("NBT が読めない: " + e.getMessage());
-            return;
-        }
-        String error = corrupt(helper, pos);
-        List<String> parasitized = List.of(id(ModEntities.PARASITIZED_SKELETON.get()), id(ModEntities.PARASITIZED_ZOMBIE.get()));
-        if (error == null && !trialIds(helper, pos).equals(parasitized)) {
-            error = "汚染した試練のスポナーが寄生体にならない(通常・不吉): " + trialIds(helper, pos);
-        }
-        OvergrownLayerData.uncover(level, pos);
-        if (error == null && !trialIds(helper, pos).equals(List.of("minecraft:skeleton", "minecraft:zombie"))) {
-            error = "覆いを剥がしても試練のスポナーが元へ戻らない(通常・不吉): " + trialIds(helper, pos);
-        }
-        finish(helper, error);
-    }
 
     // ------------------------------------------------------------------
 

@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.difficulty;
 
 import com.yayuy.overgrownvegetation.data.DesignData;
-import com.yayuy.overgrownvegetation.td.TdTable;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.nbt.CompoundTag;
@@ -98,15 +97,6 @@ public final class WorldDifficultyData extends SavedData {
      */
     public static boolean unloadedSpread(MinecraftServer server) {
         return get(server).value(DifficultySetting.UNLOADED_SPREAD) >= 0.5D;
-    }
-
-    /**
-     * TD で同時に出ている攻め手の上限。ワールドの値が無ければ渡された表の {@code concurrentCap}
-     * (GameTest が差し替えた表を使えるよう、{@code DesignData.td()} ではなく呼び出し側の表を見る)。
-     */
-    public static int tdConcurrentCap(MinecraftServer server, TdTable table) {
-        OptionalDouble cap = get(server).override(DifficultySetting.TD_MAX_MOBS);
-        return cap.isPresent() ? (int) Math.round(cap.getAsDouble()) : table.concurrentCap();
     }
 
     /**

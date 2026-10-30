@@ -2,7 +2,6 @@ package com.yayuy.overgrownvegetation.block;
 
 import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
-import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -54,14 +53,6 @@ public class OvergrownBushBlock extends Block {
     @Override
     protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
         if (!(entity instanceof LivingEntity)) {
-            return;
-        }
-        if (com.yayuy.overgrownvegetation.item.PlantArmor.isHost(entity)) {
-            return; // 寄生植物装備を着けたプレイヤーも茂みで減速しない(仕様 2026-09-18)。
-        }
-        if (entity instanceof ParasitizedMob) {
-            // 「過繁茂した(MOB名)」や「過繁茂したスカトゥリウム」(いずれも {@link ParasitizedMob})は
-            // 侵食植物側 — 茂みでは減速しない(ユーザー要望／スカトゥリウムが自分の茂みで足止めされないため)。
             return;
         }
         double horizontal = OvergrownVegetationConfig.COMMON.bushSlowMultiplier.get();

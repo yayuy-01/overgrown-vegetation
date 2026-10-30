@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.perf;
 
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
-import com.yayuy.overgrownvegetation.phase.MobGroup;
 import net.minecraft.gametest.framework.GameTestServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
@@ -46,7 +45,8 @@ public final class MobThinkThrottle {
         if (phase % 2 != 0 || mob.tickCount <= 1) {
             return false; // バニラが選び直さない tick
         }
-        if (MobGroup.of(mob) == null || mob.getTarget() != null) {
+        if (!com.yayuy.overgrownvegetation.OvergrownVegetation.MODID.equals(net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).getNamespace())
+                || mob.getTarget() != null) { // 前は MobGroup.of(mob) == null(グループは 2026-10-30 に parked/ へ)
             return false;
         }
         return holdBack(mob, phase);

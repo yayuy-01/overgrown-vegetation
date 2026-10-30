@@ -1,5 +1,0 @@
-{
-  "type": "overgrown_vegetation:grinding",
-  "ingredient": { "item": "overgrown_vegetation:warmbloom" },
-  "result": { "id": "overgrown_vegetation:warmbloom_powder" }
-}

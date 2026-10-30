@@ -8,7 +8,6 @@ import com.yayuy.overgrownvegetation.corruption.NetherSurface;
 import com.yayuy.overgrownvegetation.corruption.NoisyCorruptionBurst;
 import com.yayuy.overgrownvegetation.corruption.OvergrownBiomeConverter;
 import com.yayuy.overgrownvegetation.data.MobStat;
-import com.yayuy.overgrownvegetation.phase.OvergrownSpawnProfile;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import com.yayuy.overgrownvegetation.registry.ModEntities;
 import com.yayuy.overgrownvegetation.registry.NetherOvergrowthVariant;
@@ -194,23 +193,6 @@ public final class NetherCorruptionGameTests {
         helper.succeed();
     }
 
-    /** ネザーの過繁茂バイオームは密林の枠で湧く。媒介種(G1)は湧かない。 */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 100, batch = "nether_corruption")
-    public static void netherOvergrowthUsesJungleSlotWithoutCarriers(GameTestHelper helper) {
-        Holder<Biome> biome = helper.getLevel().registryAccess().registryOrThrow(Registries.BIOME)
-                .getHolderOrThrow(NetherOvergrowthVariant.CRIMSON.overgrown());
-        if (OvergrownSpawnProfile.placeOf(biome) != MobStat.SpawnPlace.JUNGLE) {
-            helper.fail("密林の枠になっていない: " + OvergrownSpawnProfile.placeOf(biome));
-            return;
-        }
-        for (int phase = 1; phase <= 10; phase++) {
-            if (OvergrownSpawnProfile.allowedIn(biome, phase, ModEntities.PARASITIZED_COW.get())) {
-                helper.fail("フェーズ " + phase + " で寄生された牛がネザーに湧く");
-                return;
-            }
-        }
-        helper.succeed();
-    }
 
     /** 過繁茂したネザーでは水バケツの水が蒸発せずに置ける。ふつうのネザーでは今までどおり蒸発する。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 200, batch = "nether_corruption")

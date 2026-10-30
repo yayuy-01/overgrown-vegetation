@@ -38,20 +38,11 @@ public final class CommandTreeGameTests {
      * 2026-10-17 ユーザー依頼で積乱雲を探す storm を足した。2026-10-18 ユーザー了承で空の巨大生物を確かめる sky を足した)と、その下の枝。
      */
     private static final Map<String, Set<String>> EXPECTED = Map.ofEntries(
+            // 2026-10-30 の整理(退避)で、汚染に関係ない系統(raid・td・bench・biomass・age・base・siege・storm・sky)と
+            // phase の omen・perf の g1 は parked/ へ。前の一覧は git の before-park-2026-10-30 に残る。
             Map.entry("corruption", Set.of("speed", "true", "false")),
-            Map.entry("raid", Set.of("start", "stop")),
-            Map.entry("phase", Set.of("set", "true", "false", "omen")), // omen = F1 の前の前兆の開発用(2026-10-24 地脈技術の 4 段目)
-            Map.entry("td", Set.of("start", "stop")),
-            // g1 は 10-22 G1 の作り直し 第 1 段(依頼「既存の系統 perf か corpse の下に付けてよい」)
-            Map.entry("perf", Set.of("bench", "fluid", "record", "spore", "g1")),
-            Map.entry("bench", Set.of("horde")),
-            Map.entry("biomass", Set.of("amount")),
-            Map.entry("age", Set.of("days")),
-            Map.entry("base", Set.of("place")),
-            Map.entry("siege", Set.of("start", "stop")),
-            Map.entry("storm", Set.of("tp")),
-            // health は 10-18 夜 ユーザー了承(空の巨大生物の体力を割合で決める。確かめ用)
-            Map.entry("sky", Set.of("summon", "remove", "tp", "health", "charge", "discharge")));
+            Map.entry("phase", Set.of("set", "true", "false")),
+            Map.entry("perf", Set.of("bench", "fluid", "record", "spore")));
 
     @GameTest(template = "gametest_empty7")
     public static void ovCommandTreeMatchesAgreedList(GameTestHelper helper) {

@@ -1,6 +1,0 @@
-{
-  "variants": {
-    "lit=false": { "model": "overgrown_vegetation:block/lure_lantern" },
-    "lit=true": { "model": "overgrown_vegetation:block/lure_lantern_lit" }
-  }
-}

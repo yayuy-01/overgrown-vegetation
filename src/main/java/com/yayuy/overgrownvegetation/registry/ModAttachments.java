@@ -2,7 +2,6 @@ package com.yayuy.overgrownvegetation.registry;
 
 import com.mojang.serialization.Codec;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.data.ResearchState;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -28,11 +27,6 @@ public final class ModAttachments {
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<SporeExposure>> SPORE_EXPOSURE =
             ATTACHMENT_TYPES.register("spore_exposure",
                     () -> AttachmentType.builder(SporeExposure::new).build());
-
-    /** G1 の一生(段階 0 の時計・司令塔の決めた道・根付きの汚染・進化の時計)。G1 の作り直し 第 1 段(2026-10-22)。セーブする。 */
-    public static final DeferredHolder<AttachmentType<?>, AttachmentType<com.yayuy.overgrownvegetation.g1.G1Life>> G1_LIFE =
-            ATTACHMENT_TYPES.register("g1_life",
-                    () -> AttachmentType.serializable(com.yayuy.overgrownvegetation.g1.G1Life::new).build());
 
     /**
      * 水への連続滞在 tick 数。{@link com.yayuy.overgrownvegetation.effect.WaterRotTracker} が
@@ -103,17 +97,6 @@ public final class ModAttachments {
                     () -> AttachmentType.builder(() -> 0.0F).serialize(Codec.FLOAT).build());
 
     /**
-     * プレイヤーごとの研究の進捗(研究ポイント + 開放済みノード)。ワールドセーブに保存し、
-     * 死亡しても引き継ぐ({@code copyOnDeath})。
-     */
-    public static final DeferredHolder<AttachmentType<?>, AttachmentType<ResearchState>> RESEARCH =
-            ATTACHMENT_TYPES.register("research",
-                    () -> AttachmentType.builder(ResearchState::new)
-                            .serialize(ResearchState.CODEC)
-                            .copyOnDeath()
-                            .build());
-
-    /**
      * チャンクごとの「汚染された苗木の設置時刻」の表({@link com.yayuy.overgrownvegetation.worldgen.SaplingRecords})。
      * 読み込まれていない間に育つはずだった苗木を、チャンク読み込み時に追いつかせる
      * ({@link com.yayuy.overgrownvegetation.worldgen.SaplingOfflineGrowth})。苗木の無いチャンクは持たない。
@@ -146,11 +129,6 @@ public final class ModAttachments {
             ATTACHMENT_TYPES.register("plant_armor_ticks",
                     () -> AttachmentType.builder(() -> 0).serialize(Codec.INT).copyOnDeath().build());
 
-    /** 「寄生植物装備」の一時状態(直前の疲労値・最後に踏んだ位置・光合成中か)。セーブしない。 */
-    public static final DeferredHolder<AttachmentType<?>, AttachmentType<com.yayuy.overgrownvegetation.item.PlantArmorEvents.PlantArmorState>> PLANT_ARMOR_STATE =
-            ATTACHMENT_TYPES.register("plant_armor_state",
-                    () -> AttachmentType.builder(com.yayuy.overgrownvegetation.item.PlantArmorEvents.PlantArmorState::new).build());
-
     /**
      * 死んだときに体から外れなかった「寄生植物装備」(ユーザー指定 2026-09-18: 死んでもアイテムとして落とさない)。
      * {@link com.yayuy.overgrownvegetation.item.PlantArmorEvents#onDrops} でドロップから抜いてここへ入れ、
@@ -160,7 +138,6 @@ public final class ModAttachments {
             ATTACHMENT_TYPES.register("plant_armor_kept",
                     () -> AttachmentType.builder(() -> net.minecraft.world.item.ItemStack.EMPTY)
                             .serialize(net.minecraft.world.item.ItemStack.OPTIONAL_CODEC).copyOnDeath().build());
-
 
     /**
      * 亜種の種別(2026-09-19、{@code variant/MobVariants})。0 = 未抽選、1 以降 = {@code MobVariant#code()}。
@@ -191,18 +168,6 @@ public final class ModAttachments {
                     () -> AttachmentType.builder(() -> 0).serialize(Codec.INT, v -> false).build());
 
     /**
-     * G4 の<b>群れの所属</b>(群れ v2、2026-09-25、{@code swarm/SwarmManager})。
-     * {id, slot, origin, eventId, peak} を保存し、群れそのものは読み込まれた個体から組み直す。
-     * 読むときは必ず {@code getExistingData}(既定値 {@code NONE} を作らない)。万一既定値が作られても保存しない。
-     */
-    public static final DeferredHolder<AttachmentType<?>, AttachmentType<com.yayuy.overgrownvegetation.swarm.SwarmMembership>> SWARM =
-            ATTACHMENT_TYPES.register("swarm",
-                    () -> AttachmentType.builder(() -> com.yayuy.overgrownvegetation.swarm.SwarmMembership.NONE)
-                            .serialize(com.yayuy.overgrownvegetation.swarm.SwarmMembership.CODEC, m -> !m.isNone())
-                            .build());
-
-
-    /**
      * プレイヤーの<b>浸食度</b>(0〜100 %、2026-09-22)。極相({@code engulfed})バイオームに居ると
      * 増え、外へ出ると減る({@code spore/Erosion})。最大体力・食料ゲージの上限・経験値の取得量・
      * 装備の汚染速度に、この % に比例して効く。
@@ -214,19 +179,6 @@ public final class ModAttachments {
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<Float>> EROSION =
             ATTACHMENT_TYPES.register("erosion",
                     () -> AttachmentType.builder(() -> 0.0F).serialize(Codec.FLOAT).copyOnDeath().build());
-    /**
-     * プレイヤーの胞子感染が<b>今の段階に入ってから進んだ tick</b>(2026-10-14、{@code effect/SporeInfectionEffects})。
-     * {@code stageTicks}(10 分)に届くと 1 段上がる。ログアウトをまたいで保つ(serialize する)。死ねば感染ごと消えるので
-     * 死をまたいでは写さない。
-     */
-    /**
-     * プレイヤーの<b>追加防具の 4 枠</b>(頭・体・腰・足。2026-10-15、{@code item/ExtraArmor})。保存する。死をまたいでは写さない
-     * (死ぬと落とし、keepInventory のときだけ {@code item/ExtraArmorEvents} が写す)。
-     */
-    public static final DeferredHolder<AttachmentType<?>, AttachmentType<com.yayuy.overgrownvegetation.item.ExtraArmor>> EXTRA_ARMOR =
-            ATTACHMENT_TYPES.register("extra_armor",
-                    () -> AttachmentType.builder(com.yayuy.overgrownvegetation.item.ExtraArmor::new)
-                            .serialize(com.yayuy.overgrownvegetation.item.ExtraArmor.CODEC).build());
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<Integer>> SPORE_STAGE_TICKS =
             ATTACHMENT_TYPES.register("spore_stage_ticks",
                     () -> AttachmentType.builder(() -> 0).serialize(Codec.INT).build());

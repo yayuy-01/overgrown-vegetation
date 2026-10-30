@@ -178,8 +178,6 @@ public final class OvergrownLayerData {
         lastNewlyCovered = pos.asLong();
         relightIfLit(level, pos);
         SpawnerCorruption.onCovered(level, pos); // スポナーなら湧く Mob を寄生体へ(2026-10-09)
-        // 苔に覆われた道はつながりに数えない(順 2 の着手順 7。研究「舗装」の「汚染に覆われると途切れる」)
-        com.yayuy.overgrownvegetation.base.road.BaseRoads.onCover(level, pos, true);
         return true;
     }
 
@@ -219,7 +217,6 @@ public final class OvergrownLayerData {
                 .computeIfAbsent(chunk.getPos(), k -> new LongOpenHashSet()).add(pos.asLong());
         relightIfLit(level, pos);
         SpawnerCorruption.onUncovered(level, pos); // 汚染したスポナーなら元の Mob へ戻す(2026-10-09)
-        com.yayuy.overgrownvegetation.base.road.BaseRoads.onCover(level, pos, false);
         return true;
     }
 

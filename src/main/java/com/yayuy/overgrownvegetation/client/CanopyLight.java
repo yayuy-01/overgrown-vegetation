@@ -253,7 +253,7 @@ public final class CanopyLight {
         // 風は CanopyWindDriver が tick の初めに進めている(木漏れ日・落ち葉・環境の胞子・風の音も同じ風を読む)。
         // 光の向きと強さ: 昼は太陽、夜は月(月光の筋、2026-10-16 ユーザー指定)。名前は sun のまま(夜は月の向きが入る)。
         Vec3 sun = lightDirection(level, 1.0F);
-        float day = lightStrength(level, sun, 1.0F) * CloudShadows.sunVisibility();  // 雲が太陽を隠している間は弱める(CloudShadows、2026-10-17)
+        float day = lightStrength(level, sun, 1.0F);  // 雲が太陽を隠している間は弱める(CloudShadows、2026-10-17)
         lastDay = day;
         softness = softness(sun);
 
@@ -278,7 +278,7 @@ public final class CanopyLight {
 
         if (day > 0.0F) {
             // 岩の天井の下(洞窟)では、洞窟の口・天井の穴から床へ差す筋を探す(地下の光、2026-10-16 ユーザー指定)。
-            boolean underground = CaveLight.underground() > 0.5F;
+            boolean underground = ForestPresence.underground() > 0.5F;
             for (int i = 0; i < SCAN_PER_TICK && SHAFTS.size() < VisualQuality.shaftCap(MAX_SHAFTS); i++) {
                 if (underground) {
                     tryFindCaveShaft(level, player, sun);
@@ -298,7 +298,7 @@ public final class CanopyLight {
             BlockPos feet = player.blockPosition();
             OvergrownVegetation.LOGGER.info("CanopyLight 足元の光 空 {} ブロック {} 森 {} 地下 {} 持ち上げ {}",
                     player.level().getBrightness(LightLayer.SKY, feet), player.level().getBrightness(LightLayer.BLOCK, feet),
-                    CorruptionAtmosphere.forestFactor(), CaveLight.underground(), skyLift());
+                    ForestPresence.forestFactor(), ForestPresence.underground(), skyLift());
         }
     }
 
@@ -364,7 +364,7 @@ public final class CanopyLight {
             }
         }
         net.minecraft.client.multiplayer.ClientLevel airLevel = Minecraft.getInstance().level;
-        float airSpores = airLevel == null ? 1.0F : MorningMistView.airSpores(airLevel, 1.0F);
+        float airSpores = airLevel == null ? 1.0F : 1.0F;
         float ws = widthScale(softness);
         float total = 0.0F;
         int top = 0;
@@ -432,7 +432,7 @@ public final class CanopyLight {
         out[0] = (float) sun.x;
         out[1] = (float) sun.y;
         out[2] = (float) sun.z;
-        out[3] = lightStrength(level, sun, partialTick) * CloudShadows.sunVisibility();
+        out[3] = lightStrength(level, sun, partialTick);
         out[4] = moon ? MOON_R : 1.0F;
         out[5] = Math.min(1.0F, (moon ? MOON_G : Mth.lerp(warm, 0.95F, 0.72F)) + 0.05F);
         out[6] = (moon ? MOON_B : Mth.lerp(warm, 0.68F, 0.42F)) + 0.1F;
@@ -1041,7 +1041,7 @@ public final class CanopyLight {
             return;
         }
         net.minecraft.client.multiplayer.ClientLevel airLevel = Minecraft.getInstance().level;
-        float airSpores = airLevel == null ? 1.0F : MorningMistView.airSpores(airLevel, 1.0F);
+        float airSpores = airLevel == null ? 1.0F : 1.0F;
         // 筋の中に湧く。長い筋ほど多い。ただし下の 30 ブロックまで(巨大樹の傘から落ちる 100 ブロックを超える筋では、
         // 上の方は霧の奥で見えないので湧かせない)。
         for (Shaft s : SHAFTS) {
@@ -1088,7 +1088,7 @@ public final class CanopyLight {
             m.y += m.v[1];
             m.z += m.v[2];
             // (1) 極相の密林: 筋の中の胞子は上の葉へ吸い上げられる(上端より上へ出たら消える)。
-            float suck = ClimaxJungle.strength();
+            float suck = 0.0F;
             if (suck > 0.0F) {
                 m.y += 0.045 * suck;
                 if (m.y > m.shaft.top.y) {
@@ -1204,7 +1204,7 @@ public final class CanopyLight {
         }
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         Vec3 sun = lightDirection(level, partialTick);
-        float day = lightStrength(level, sun, partialTick) * CloudShadows.sunVisibility();  // 雲が太陽を隠している間は弱める(CloudShadows、2026-10-17)
+        float day = lightStrength(level, sun, partialTick);  // 雲が太陽を隠している間は弱める(CloudShadows、2026-10-17)
         boolean moon = isMoonlight(level, partialTick);
         float intensity = OvergrownVegetationConfig.COMMON.canopyLightIntensity.get().floatValue();
         if (intensity <= 0.0F) {
@@ -1221,7 +1221,7 @@ public final class CanopyLight {
         float fogEnd = RenderSystem.getShaderFogEnd();
         double time = ticks + partialTick;
         // 空気中の胞子の量(朝霧の朝は濃く、乾いた真昼は薄い。{@link MorningMistView#airSpores}、ユーザーの (4))。
-        float air = MorningMistView.airSpores(level, partialTick);
+        float air = 1.0F;
 
         MultiBufferSource.BufferSource buffers = immediateBuffers();  // Iris のまとめ描きを避ける(immediateBuffers の説明)
         VertexConsumer consumer = buffers.getBuffer(renderType());
@@ -1264,7 +1264,7 @@ public final class CanopyLight {
                 ribbon(consumer, s, bottom, view, sun, haloWidth, haloAlpha * alpha, soft, fogEnd, r, g, b);
             }
             if ((hide & 4) == 0) {
-                groundGlow(consumer, level, s, bottom, view, 1.0F + 0.8F * soft, 0.30F * (1.0F - 0.4F * soft) * alpha * scatter * (1.0F - ClimaxJungle.strength()), r, g, b);
+                groundGlow(consumer, level, s, bottom, view, 1.0F + 0.8F * soft, 0.30F * (1.0F - 0.4F * soft) * alpha * scatter * (1.0F - 0.0F), r, g, b);
             }
         }
         if ((debugHide & 8) != 0) {
@@ -1324,7 +1324,7 @@ public final class CanopyLight {
                     * longFade(p, eye, fogEnd)
                     * phase(-toEye.x, -toEye.y, -toEye.z, sun)
                     // (1) 光の吸い込み(極相の密林): 地面に届く前に薄れて消える(差した光が林冠へ吸われていく)。
-                    * (1.0F - ABSORB * ClimaxJungle.strength() * smooth(Mth.clamp((t - 0.25F) / 0.45F, 0.0F, 1.0F)));
+                    * (1.0F - ABSORB * 0.0F * smooth(Mth.clamp((t - 0.25F) / 0.45F, 0.0F, 1.0F)));
             // 1 を超えると頂点の色の 1 バイトがあふれて暗くなる(太陽の方では芯 0.28 × 3 倍で超える)。
             a = Math.min(a, 1.0F);
             float cx = (float) (p.x - eye.x);
@@ -1563,7 +1563,7 @@ public final class CanopyLight {
         if (lift <= 0.0F) {
             return 0.0F;
         }
-        return lift * CorruptionAtmosphere.forestFactor() * (1.0F - CaveLight.underground());
+        return lift * ForestPresence.forestFactor() * (1.0F - ForestPresence.underground());
     }
 
     /**

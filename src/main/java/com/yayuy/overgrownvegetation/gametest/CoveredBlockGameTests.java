@@ -502,7 +502,7 @@ public final class CoveredBlockGameTests {
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
     public static void threeInTenBecomeOvergrownByPosition(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        double chance = com.yayuy.overgrownvegetation.data.DesignData.climax().overgrownLayerChance();
+        double chance = com.yayuy.overgrownvegetation.corruption.OvergrownLayerField.CHANCE;
         if (chance != 0.7D) {
             helper.succeed(); // 区切りの数字はこの値で書いてある(設定を変えたら書き直す)
             return;
@@ -688,65 +688,6 @@ public final class CoveredBlockGameTests {
         });
     }
 
-    /**
-     * 溶岩を固めると<b>覆われた玄武岩</b>(3 割は過繁茂しているブロック)になり、素の玄武岩も汚染される
-     * (2026-10-05 夜、ユーザー指定「溶岩を玄武岩に変換した後、さらに玄武岩も汚染するように」)。どちらも座標で決まる。
-     */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
-    public static void lavaAndBasaltBecomeCoveredBasalt(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos at = helper.absolutePos(new BlockPos(3, 2, 3));
-        BlockState basalt = Blocks.BASALT.defaultBlockState();
-        // 見たいのは玄武岩の行き先だけなので、除去装置の台帳を外して確かめる(同じ呼び出しの中で戻すので、ほかのテストからは見えない)。
-        // 外さないと、隣のテスト場で動いている除去装置(効果半径 48 = 4 列・3 行先まで)の圏内で汚染の関門が確率で止まる
-        // —— 2026-10-18 に SporeFilterGameTests の装置が 30 ブロック先(強さ 0.44)から止めていた
-        long[][] devices = com.yayuy.overgrownvegetation.spore.SporeDeviceData.isolateForTests(level);
-        try {
-            if (!CorruptionRegistry.canCorrupt(level, at, basalt)) {
-                // 周り(効果半径ぶんのチャンク)の読み込まれている、稼働中の除去装置の at からの相対位置
-                List<String> near = new java.util.ArrayList<>();
-                int r = (com.yayuy.overgrownvegetation.block.SporeDeviceKind.PURIFIER.spec().radiusBlocks() >> 4) + 1;
-                for (int cx = (at.getX() >> 4) - r; cx <= (at.getX() >> 4) + r; cx++) {
-                    for (int cz = (at.getZ() >> 4) - r; cz <= (at.getZ() >> 4) + r; cz++) {
-                        net.minecraft.world.level.chunk.LevelChunk chunk = level.getChunkSource().getChunkNow(cx, cz);
-                        if (chunk == null) {
-                            continue;
-                        }
-                        for (net.minecraft.world.level.block.entity.BlockEntity be : chunk.getBlockEntities().values()) {
-                            if (be instanceof com.yayuy.overgrownvegetation.block.SporeDeviceBlockEntity d && d.isActive()
-                                    && d.kind() == com.yayuy.overgrownvegetation.block.SporeDeviceKind.PURIFIER) {
-                                near.add(be.getBlockPos().subtract(at).toShortString() + (level.isPositionEntityTicking(be.getBlockPos()) ? "" : "(止まったチャンク)"));
-                            }
-                        }
-                    }
-                }
-                helper.fail("素の玄武岩が汚染できない: オフ " + com.yayuy.overgrownvegetation.corruption.CorruptionSwitch.isOff()
-                        + " / タグ " + (basalt.is(com.yayuy.overgrownvegetation.ModTags.CORRUPTED) || basalt.is(com.yayuy.overgrownvegetation.ModTags.CORRUPTION_IMMUNE))
-                        + " / 焼けた荒地 " + com.yayuy.overgrownvegetation.purify.BurntLand.isBurnt(level, at)
-                        + " / 杭の囲い " + com.yayuy.overgrownvegetation.defense.StakeWards.protects(level, at)
-                        + " / 除去装置の強さ " + com.yayuy.overgrownvegetation.spore.SporeDeviceData.purifierStrengthAt(level, at)
-                        + " / 近くの稼働中の除去装置(相対) " + near);
-                return;
-            }
-            Block coveredBasalt = covered("basalt");
-            for (int x = 0; x < 7; x++) {
-                BlockPos cell = helper.absolutePos(new BlockPos(x, 2, 3));
-                BlockState fromBasalt = CorruptionRegistry.corrupt(level, cell, basalt, RandomSource.create(x));
-                BlockState fromLava = CorruptionRegistry.solidifiedLava(cell);
-                if (!(fromBasalt.is(coveredBasalt) || fromBasalt.is(ModBlocks.OVERGROWN_BLOCK.get()))) {
-                    helper.fail("玄武岩が覆われた玄武岩(か過繁茂しているブロック)にならない: " + fromBasalt);
-                    return;
-                }
-                if (fromLava != fromBasalt) {
-                    helper.fail("固めた溶岩と汚染した玄武岩の行き先が同じマスで違う: " + fromLava + " / " + fromBasalt);
-                    return;
-                }
-            }
-            helper.succeed();
-        } finally {
-            com.yayuy.overgrownvegetation.spore.SporeDeviceData.restoreForTests(level, devices);
-        }
-    }
 
     /**
      * 踏まれていた感圧板を汚染しても、降りれば戻る。「戻るか確かめる」予定は元のブロックの種類に付いているので、覆われた版に入れ直す
@@ -805,58 +746,6 @@ public final class CoveredBlockGameTests {
         });
     }
 
-    /**
-     * クリエイティブタブの振り分け(ユーザー指定): 覆われたブロックは覆われたブロックのタブ、寄生植物装備は植物、
-     * 機関砲台・基地の建材は人類。3 つのタブで同じアイテムが二重に出ない。
-     */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
-    public static void creativeTabsSplitAsSpecified(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        CreativeModeTab.ItemDisplayParameters params =
-                new CreativeModeTab.ItemDisplayParameters(level.enabledFeatures(), true, level.registryAccess());
-        Map<String, Set<Item>> tabs = new HashMap<>();
-        tabs.put("covered", items(ModCreativeTabs.COVERED.get(), params));
-        tabs.put("plants", items(ModCreativeTabs.PLANTS.get(), params));
-        tabs.put("humanity", items(ModCreativeTabs.HUMANITY.get(), params));
-        Set<Item> seen = new HashSet<>();
-        for (Map.Entry<String, Set<Item>> tab : tabs.entrySet()) {
-            for (Item item : tab.getValue()) {
-                if (!seen.add(item)) {
-                    helper.fail(id(item) + " が 2 つのタブに出ている");
-                    return;
-                }
-            }
-        }
-        for (CoveredBlocks.Entry entry : CoveredBlocks.entries()) {
-            if (!tabs.get("covered").contains(entry.item().get())) {
-                helper.fail(entry.block().getId() + " が覆われたブロックのタブに無い");
-                return;
-            }
-        }
-        for (Item item : List.of(ModBlocks.OVERGROWN_SLAB.get().asItem(), ModBlocks.OVERGROWN_BLOCK_SLAB.get().asItem(),
-                ModItems.OVERGROWN_DOOR_ITEM.get(), covered("lever").asItem())) {
-            if (!tabs.get("covered").contains(item)) {
-                helper.fail(id(item) + " が覆われたブロックのタブに無い");
-                return;
-            }
-        }
-        Map<Item, String> expected = Map.of(
-                ModItems.PLANT_ARMOR.get(), "plants",
-                ModBlocks.OVERGROWN_STONE.get().asItem(), "covered",
-                ModBlocks.OVERGROWN_TALL_FERN.get().asItem(), "plants",
-                ModItems.FALCIMNES_SPAWN_EGG.get(), "plants",
-                ModItems.GUN_TURRET_ITEM.get(), "humanity",
-                ModItems.POWERED_ARMOR_HELMET.get(), "humanity",
-                ModItems.CHLOROPHYLLITE_PICKAXE.get(), "humanity",
-                com.yayuy.overgrownvegetation.base.BaseBlocks.ASPHALT.get().asItem(), "humanity");
-        for (Map.Entry<Item, String> e : expected.entrySet()) {
-            if (!tabs.get(e.getValue()).contains(e.getKey())) {
-                helper.fail(id(e.getKey()) + " が " + e.getValue() + " のタブに無い");
-                return;
-            }
-        }
-        helper.succeed();
-    }
 
     /**
      * 覆われた扉・トラップドア・フェンスゲート・ボタン・レバーは、覆われ具合 3 で時々動かない(過繫茂したドアと同じ確率)。

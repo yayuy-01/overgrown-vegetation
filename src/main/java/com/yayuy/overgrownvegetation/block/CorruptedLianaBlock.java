@@ -155,9 +155,7 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
         if (level instanceof ServerLevel serverLevel) {
             Vec3 dropAt = primary.harvestDroop(serverLevel, droopIndex);
             BlockPos dropPos = BlockPos.containing(dropAt);
-            // 寄生植物装備の 2 段階目以降は実が倍。
-            Block.popResource(serverLevel, dropPos, new ItemStack(ModItems.VINE_FRUIT.get(),
-                    com.yayuy.overgrownvegetation.item.PlantArmor.fruitCount(player, 1)));
+            Block.popResource(serverLevel, dropPos, new ItemStack(ModItems.VINE_FRUIT.get(), 1));
             float pitch = Mth.randomBetween(serverLevel.random, 0.8F, 1.2F);
             serverLevel.playSound(null, dropPos, SoundEvents.CAVE_VINES_PICK_BERRIES, SoundSource.BLOCKS, 1.0F, pitch);
         }

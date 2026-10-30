@@ -62,11 +62,6 @@ public final class ModFeatures {
     public static final DeferredHolder<Feature<?>, FungalPillarFeature> FUNGAL_PILLAR =
             FEATURES.register("fungal_pillar", () -> new FungalPillarFeature(FungalPillarFeature.Config.CODEC));
 
-    /** 地脈の線に沿って地表に地脈の花と結晶を生やす(2026-10-22。{@link com.yayuy.overgrownvegetation.worldgen.LeyVeinPlantsFeature})。 */
-    public static final DeferredHolder<Feature<?>, com.yayuy.overgrownvegetation.worldgen.LeyVeinPlantsFeature> LEY_VEIN_PLANTS =
-            FEATURES.register("ley_vein_plants", () -> new com.yayuy.overgrownvegetation.worldgen.LeyVeinPlantsFeature(
-                    com.yayuy.overgrownvegetation.worldgen.LeyVeinPlantsFeature.Config.CODEC));
-
     public static void register(IEventBus modBus) {
         FEATURES.register(modBus);
     }

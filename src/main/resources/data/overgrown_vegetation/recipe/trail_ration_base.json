@@ -1,9 +1,0 @@
-{
-  "type": "minecraft:crafting_shapeless",
-  "category": "misc",
-  "ingredients": [
-    { "tag": "c:foods/raw_meat" },
-    { "tag": "overgrown_vegetation:herbs" }
-  ],
-  "result": { "id": "overgrown_vegetation:trail_ration_base", "count": 1 }
-}
