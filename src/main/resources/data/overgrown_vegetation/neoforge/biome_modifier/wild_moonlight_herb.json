@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#minecraft:is_forest",
+  "features": "overgrown_vegetation:wild_moonlight_herb",
+  "step": "vegetal_decoration"
+}

@@ -2,7 +2,6 @@ package com.yayuy.overgrownvegetation.variant;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.data.DesignData;
-import com.yayuy.overgrownvegetation.nest.NestData;
 import com.yayuy.overgrownvegetation.data.VariantTable;
 import com.yayuy.overgrownvegetation.network.MobVariantPayload;
 import com.yayuy.overgrownvegetation.phase.MobGroup;
@@ -99,51 +98,29 @@ public final class MobVariants {
         applyPassive(mob, variant);
     }
 
-    /** 解禁を調べ直す間隔(tick)。湧くたびに巣を数えると無駄が多い。 */
+    /** 解禁を調べ直す間隔(tick)。湧くたびに保存データを引きに行くと無駄が多い。 */
     private static final int GATE_RECHECK_TICKS = 100;
     private static long gateCheckedAt = Long.MIN_VALUE;
     private static boolean gateOpen;
 
     /**
-     * 亜種が解禁されているか(2026-09-20)。<b>孵化室が世界に 1 室でもあれば解禁</b>、
-     * それまでは全部通常個体(ユーザー指定 2026-09-19)。解禁は<b>世界全体</b>で、
-     * 孵化室が壊されても巣の記録は残るので戻らない。
+     * 亜種が解禁されているか。解禁は<b>世界全体</b>の旗({@link VariantUnlockData})で、
+     * 閉じているあいだは全部通常個体(抽選しない)。2026-09-24 までは「アルボラの巣の孵化室が
+     * 1 室でもあれば解禁」だったが、巣を消したので旗にした。開けるのは将来の器官の予定。
+     * 孵化室があった古いワールドは旗を作るときに開いた状態で引き継ぐ({@link VariantUnlockData#get})。
      */
     public static boolean isUnlocked(ServerLevel level) {
         long now = level.getGameTime();
         if (gateCheckedAt == Long.MIN_VALUE || now - gateCheckedAt >= GATE_RECHECK_TICKS || now < gateCheckedAt) {
             gateCheckedAt = now;
-            gateOpen = NestData.get(level).hatcheryCount() > 0;
+            gateOpen = VariantUnlockData.isUnlocked(level);
         }
         return gateOpen;
     }
 
-    /**
-     * 通常個体を除いて 1 つ引く。アルボラの卵から孵る個体は<b>必ず亜種</b>という決まりに使う
-     * (ユーザー指定 2026-09-19)。
-     */
-    public static MobVariant rollVariantOnly(RandomSource random, VariantTable table) {
-        double hardened = table.hardenedWeight();
-        double toxic = table.toxicWeight();
-        double fireproof = table.fireproofWeight();
-        double total = hardened + toxic + fireproof;
-        if (total <= 0.0D) {
-            return MobVariant.HARDENED;
-        }
-        double r = random.nextDouble() * total;
-        if ((r -= hardened) < 0.0D) {
-            return MobVariant.HARDENED;
-        }
-        if ((r -= toxic) < 0.0D) {
-            return MobVariant.TOXIC;
-        }
-        return MobVariant.FIREPROOF;
-    }
-
-    /** 抽選の結果を上書きする(卵から孵った個体など、通常の抽選を通したくないとき)。 */
-    public static void force(Mob mob, MobVariant variant) {
-        mob.setData(ModAttachments.MOB_VARIANT, variant.code());
-        applyPassive(mob, variant);
+    /** {@link #isUnlocked} の控えを捨てる(旗を書き換えたとき、{@link VariantUnlockData#setUnlocked} から)。 */
+    static void forgetUnlockCache() {
+        gateCheckedAt = Long.MIN_VALUE;
     }
 
     /** 抽選の対象になる Mob か(グループ・除外リスト・動けるか)。 */
@@ -217,7 +194,10 @@ public final class MobVariants {
         }
         Entity target = event.getTarget();
         Integer code = target.getExistingData(ModAttachments.MOB_VARIANT).orElse(null);
-        if (code != null && code > 0) {
+        // 2026-09-24 軽量化(監査 2121): 通常個体(code 1)は送らない。クライアントで種別を読むのは
+        // テクスチャの解決(client/MobVariantTextures)だけで、値が無いときも通常のときも接尾辞なしの
+        // png を返すので見た目は同じ。種別は湧いたときに 1 回決まるだけで、追跡中に変わる経路は無い。
+        if (code != null && code > MobVariant.NORMAL.code()) {
             PacketDistributor.sendToPlayer(player, new MobVariantPayload(target.getId(), code));
         }
     }

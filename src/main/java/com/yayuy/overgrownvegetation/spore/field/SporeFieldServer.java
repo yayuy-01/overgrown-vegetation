@@ -1,0 +1,823 @@
+package com.yayuy.overgrownvegetation.spore.field;
+
+import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.corruption.CorruptionSwitch;
+import com.yayuy.overgrownvegetation.corruption.LedgerSpread;
+import com.yayuy.overgrownvegetation.data.DesignData;
+import com.yayuy.overgrownvegetation.data.SporeFieldTable;
+import com.yayuy.overgrownvegetation.perf.BackgroundTask;
+import com.yayuy.overgrownvegetation.phase.PhaseData;
+import com.yayuy.overgrownvegetation.spore.SporeDeviceData;
+import it.unimi.dsi.fastutil.longs.Long2DoubleOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.BiomeTags;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.BiomeSource;
+import net.minecraft.world.level.biome.Biomes;
+import net.minecraft.world.level.biome.Climate;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.common.Tags;
+import net.neoforged.neoforge.event.level.LevelEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.neoforged.neoforge.event.tick.LevelTickEvent;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
+
+/**
+ * 胞子の場をゲームで回す所(2026-10-23 胞子の場と風 第 2 段 A・C)。仕様の正本は Vault「胞子の場と風による汚染の広がり」。
+ *
+ * <h2>流れ</h2>
+ * <ol>
+ *     <li>オーバーワールドの tick で、汚染の暦({@link PhaseData#clock})が場の暦より {@code updateTicks}(5 秒)進んでいたら、
+ *     その時点の入力(天気の印・稼働中の装置・器官・巨大樹)の写しを作り、{@link BackgroundTask} で裏のスレッドへ</li>
+ *     <li>裏のスレッドは場の鍵を持って、溜まった入力(点の放出・台帳に載ったチャンク・極相)を取り込み、遅れた分の更新を
+ *     {@code maxStepsPerRun} 回まで進める(睡眠で暦が飛んだ分はここで追いつく)</li>
+ *     <li>答え(初めて発芽したチャンク・除去装置が抜いた量)を次の tick の頭にサーバースレッドで当てはめる。
+ *     発芽したチャンクは {@link LedgerSpread#acceptFieldSprouts} で台帳(フェーズに数える)と書き換え待ちへ —— 読み込まれたら今までどおり
+ *     {@code OvergrownBiomeConverter} の流れで過繁茂になる</li>
+ * </ol>
+ * 場そのものは裏のスレッドと、鍵を持ったサーバースレッド(保存・/ov の表示)しか触らない。ほかの所からの入力は列 {@link #INPUTS} に積む。
+ *
+ * <p>止まるとき: {@code /ov corruption false}・フェーズ 0・フェーズの凍結・{@code spore_field.json} の enabled=false。
+ * 止まっている間の時間は取り戻さない(台帳の広がりと同じ)。
+ */
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+public final class SporeFieldServer {
+
+    private static final ReentrantLock LOCK = new ReentrantLock();
+    /** ほかの所からの入力(どのスレッドからでも積める。裏のスレッドが計算の頭で取り込む)。 */
+    private static final ConcurrentLinkedQueue<Consumer<SporeField>> INPUTS = new ConcurrentLinkedQueue<>();
+    private static final BackgroundTask<Result> TASK = new BackgroundTask<>("胞子の場");
+    /** 除去装置ごとの、まだ産出に使っていない抜いた量(装置の BlockPos#asLong → 量)。サーバースレッドだけ。 */
+    private static final Long2DoubleOpenHashMap EXTRACTED = new Long2DoubleOpenHashMap();
+
+    private static SporeField field;
+    /** 場がどの暦まで進んだか(サーバースレッドが持つ)。 */
+    private static long fieldClock = Long.MIN_VALUE;
+    private static MinecraftServer current;
+    /** 直近の計算の要約(/ov perf spore)。 */
+    private static volatile String lastSummary = "まだ回っていない";
+    private static volatile int lastFrontCells, lastFronts;
+    private static volatile int[] FRONTS = new int[0];
+
+    /** 画面へ送る地割れの圧の前線 {中心 x, z, 半径, 速さ × 100(ブロック/秒), 止まる半径}(ブロック)。 */
+    static int[] frontsForClient() {
+        return FRONTS;
+    }
+    /** テスト用: 発芽を台帳へ渡さない(テストの世界を過繁茂にしない)。 */
+    private static boolean discardSproutsForTests;
+
+    private SporeFieldServer() {
+    }
+
+    // ---------------------------------------------------------------- ほかの所からの入力
+
+    /** 点の放出(汚染の球・G1/G4 の死・寄生クリーパーなど)。量は過繁茂 1 チャンクの 1 日の放出が 1。オーバーワールドだけ。 */
+    public static void emitPoint(ServerLevel level, BlockPos pos, double amount) {
+        if (amount <= 0 || level.dimension() != Level.OVERWORLD) return;
+        int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
+        INPUTS.add(f -> f.emitPoint(cx, cz, amount));
+    }
+
+    /** 点の降り積もり(歩く胞子嚢の破裂など。G1 の作り直し 第 1 段)。量は場の降り積もりの単位。オーバーワールドだけ。 */
+    public static void depositPoint(ServerLevel level, BlockPos pos, double amount) {
+        if (amount <= 0 || level.dimension() != Level.OVERWORLD) return;
+        int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
+        INPUTS.add(f -> f.depositPoint(cx, cz, amount));
+    }
+
+    /** 台帳に載った(どの経路でも。{@link PhaseData#markOvergrownChunks} など)→ 場でも汚染済み・放出中に。 */
+    public static void onLedgerAdded(long chunkKey, long since) {
+        int cx = ChunkPos.getX(chunkKey), cz = ChunkPos.getZ(chunkKey);
+        INPUTS.add(f -> {
+            if (!f.isCorrupted(cx, cz)) f.setCorrupted(cx, cz, since);
+        });
+    }
+
+    /** シャベルで粉を払った(SporeSweeping)。そのチャンクの降り積もりを share だけ減らす。 */
+    public static void sweep(BlockPos pos, double share) {
+        int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
+        INPUTS.add(f -> f.sweep(cx, cz, share));
+    }
+
+    /** 読み込まれるまで発芽を待っているチャンク(場の flags の写し。読み込まれたら場へ解くよう頼む)。サーバースレッド。 */
+    private static final it.unimi.dsi.fastutil.longs.LongOpenHashSet WAITING = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+
+    @SubscribeEvent
+    public static void onChunkLoadRelease(net.neoforged.neoforge.event.level.ChunkEvent.Load event) {
+        if (WAITING.isEmpty() || !(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
+        long key = event.getChunk().getPos().toLong();
+        if (!WAITING.remove(key)) return;
+        int cx = ChunkPos.getX(key), cz = ChunkPos.getZ(key);
+        long now = fieldClock;
+        INPUTS.add(f -> f.releaseWaiting(cx, cz, now));
+    }
+
+    /** テスト用: 待ちの見張りを見る。 */
+    public static boolean waitingForTests(long key) {
+        return WAITING.contains(key);
+    }
+
+    /** テレポート・次元移動のあった次元(次の tick に送り直す)。 */
+    private static final java.util.Set<net.minecraft.resources.ResourceKey<Level>> RESEND = new java.util.HashSet<>();
+
+    /**
+     * テレポート・次元移動の直後は、次の場の更新(最大 5 秒)を待たずに新しい位置の窓(粉・浮遊・ここの濃度)を送る(2026-10-24。
+     * 前はテレポートの後しばらく前の位置の窓のまま描いていた)。位置が変わってから送るので次の tick に。
+     */
+    @SubscribeEvent
+    public static void onTeleport(net.neoforged.neoforge.event.entity.EntityTeleportEvent event) {
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer p) RESEND.add(p.level().dimension());
+    }
+
+    @SubscribeEvent
+    public static void onChangedDimension(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent event) {
+        RESEND.add(event.getTo());
+    }
+
+    @SubscribeEvent
+    public static void onServerTickResend(net.neoforged.neoforge.event.tick.ServerTickEvent.Post event) {
+        if (RESEND.isEmpty()) return;
+        for (net.minecraft.resources.ResourceKey<Level> dim : RESEND) {
+            ServerLevel level = event.getServer().getLevel(dim);
+            if (level == null) continue;
+            if (dim == Level.OVERWORLD ? field != null : dim == Level.NETHER && NetherSporeFieldServer.running()) {
+                SporeDustSync.send(level);
+            }
+        }
+        RESEND.clear();
+    }
+
+    /**
+     * 地割れが噴き出した(2026-10-24 追記 19): 中心から全方位へ広がる圧の前線を出す。濃さは frontFullRadiusChunks で濃度 100%、
+     * 距離^frontFalloff に反比例で薄まり、frontMinPercent を割る所で止まる。速さは frontSpeedChunksPerSec(ゲームの 1 秒 = 20 tick)。
+     */
+    public static void onRiftErupt(int cx, int cz) {
+        SporeFieldTable t = DesignData.sporeField();
+        double full = t.fullAt();
+        double strength = full * Math.pow(t.riftFrontFullRadius(), t.riftFrontFalloff());
+        double perDay = t.riftFrontSpeed() * (PrevailingWind.DAY / 20.0D);
+        double minAir = full * t.riftFrontMinPercent() / 100.0D;
+        SporeField.RiftFront rf = new SporeField.RiftFront(cx, cz, strength, t.riftFrontFalloff(), perDay, minAir);
+        rf.maxRadius = t.riftFrontRadius(); // 2026-10-24 ユーザー指定: 半径 12〜16 チャンクで止める
+        INPUTS.add(f -> f.addRiftFront(rf));
+    }
+
+    /** 開発用(/ov perf spore deposit): まわり 3×3 チャンクの降り積もりを発芽のしきい値の percent % にする。オーバーワールドだけ。 */
+    public static void setDepositForCommand(ServerLevel level, int cx, int cz, double percent) {
+        if (level.dimension() != Level.OVERWORLD) return;
+        double v = DesignData.sporeField().field().germThreshold * percent / 100.0D;
+        INPUTS.add(f -> {
+            for (int dx = -1; dx <= 1; dx++)
+                for (int dz = -1; dz <= 1; dz++) {
+                    f.clearDepositAround(cx + dx, cz + dz, 0.0D);
+                    f.depositPoint(cx + dx, cz + dz, v);
+                }
+        });
+    }
+
+    /** 根付いた萌芽体が 1 体壊された → その升の萌芽体の数を 1 減らす。 */
+    public static void onSproutRemoved(BlockPos pos) {
+        int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
+        INPUTS.add(f -> f.removeOneSprout(cx, cz));
+    }
+
+    /** 極相になった → 放出が極相に。 */
+    public static void onClimax(long chunkKey, long now) {
+        int cx = ChunkPos.getX(chunkKey), cz = ChunkPos.getZ(chunkKey);
+        INPUTS.add(f -> f.setClimax(cx, cz, now));
+    }
+
+    /** 台帳から外れた(焼けた荒地)→ 場でも汚染を取り消す。 */
+    public static void onLedgerRemoved(long chunkKey) {
+        int cx = ChunkPos.getX(chunkKey), cz = ChunkPos.getZ(chunkKey);
+        INPUTS.add(f -> f.unsprout(cx, cz));
+    }
+
+    /** 除去装置がまだ産出に使っていない、抜いた量を受け取って 0 にする(サーバースレッド。装置の産出サイクルから)。 */
+    public static double takeExtracted(BlockPos device) {
+        return EXTRACTED.remove(device.asLong());
+    }
+
+    /** 場が回っているか(設計データで有効)。 */
+    public static boolean enabled() {
+        return DesignData.sporeField().enabled();
+    }
+
+    // ---------------------------------------------------------------- 始まりと終わり
+
+    @SubscribeEvent
+    public static void onServerStarted(ServerStartedEvent event) {
+        MinecraftServer server = event.getServer();
+        current = server;
+        INPUTS.clear();
+        EXTRACTED.clear();
+        ServerLevel overworld = server.overworld();
+        SporeField f = new SporeField(WindWeatherData.windSeed(server), DesignData.sporeField().field());
+        f.ground = new BiomeGround(overworld);
+        long[] clock = new long[1];
+        int tiles;
+        LOCK.lock();
+        try {
+            tiles = SporeFieldStore.load(server, f, clock);
+            // 台帳と照らし合わせる(台帳にあって場に無いチャンクは汚染済みとして入れる。新しいワールドの地割れなど)
+            PhaseData phase = PhaseData.get(overworld);
+            phase.forEachOvergrownChunk(key -> {
+                int cx = ChunkPos.getX(key), cz = ChunkPos.getZ(key);
+                if (!f.isCorrupted(cx, cz)) f.setCorrupted(cx, cz, phase.overgrownSinceTick(new ChunkPos(key)));
+                if (phase.isClimaxChunk(new ChunkPos(key))) f.setClimax(cx, cz, 0);
+            });
+            field = f;
+            fieldClock = clock[0];
+            WAITING.clear();
+            f.forEachWaiting(WAITING::add);
+            com.yayuy.overgrownvegetation.quake.EarthquakeData.get(overworld); // 地割れの中心(下支え)を読み込んでおく
+        } finally {
+            LOCK.unlock();
+        }
+        OvergrownVegetation.LOGGER.info("胞子の場: 区画 {} 個・汚染されたチャンク {} を読み込みました", tiles, f.corruptedCount);
+    }
+
+    @SubscribeEvent
+    public static void onServerStopping(ServerStoppingEvent event) {
+        save(event.getServer(), true);
+        LOCK.lock();
+        try {
+            field = null;
+        } finally {
+            LOCK.unlock();
+        }
+        fieldClock = Long.MIN_VALUE;
+        lastSummary = "まだ回っていない"; // 次に開くワールドへ前のワールドの要約を見せない
+        current = null;
+        READOUT = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
+        WATCH_EXTRA.clear();
+        WAITING.clear();
+        FRONTS = new int[0];
+        com.yayuy.overgrownvegetation.quake.EarthquakeData.clearCache();
+        SporeDustSync.clear();
+        INPUTS.clear();
+        EXTRACTED.clear();
+    }
+
+    @SubscribeEvent
+    public static void onLevelSave(LevelEvent.Save event) {
+        if (event.getLevel() instanceof ServerLevel level && level.dimension() == Level.OVERWORLD && current != null) {
+            save(level.getServer(), false);
+        }
+    }
+
+    private static void save(MinecraftServer server, boolean wait) {
+        SporeFieldStore.Snapshot snap;
+        try {
+            // 裏で計算中なら終わるのを待つ(閉じるときは必ず、自動保存は 2 秒まで)
+            if (wait) LOCK.lock();
+            else if (!LOCK.tryLock(2, TimeUnit.SECONDS)) return;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
+        try {
+            if (field == null) return;
+            snap = SporeFieldStore.snapshot(field, fieldClock);
+        } finally {
+            LOCK.unlock();
+        }
+        SporeFieldStore.write(server, snap, wait);
+    }
+
+    // ---------------------------------------------------------------- 回す
+
+    @SubscribeEvent
+    public static void onLevelTick(LevelTickEvent.Post event) {
+        if (!(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD || field == null) {
+            return;
+        }
+        // GameTest のサーバーでは自分では回さない(ほかのテストが残した台帳から発芽が広がり、無関係なテスト場を過繁茂にしないため)。
+        // 場のテストは tick / catchUpForTests を直に呼ぶ
+        if (level.getServer() instanceof net.minecraft.gametest.framework.GameTestServer) {
+            return;
+        }
+        tick(level);
+    }
+
+    /** 1 tick 分(テストからも呼ぶ)。計算を始めたら true。 */
+    public static boolean tick(ServerLevel level) {
+        MinecraftServer server = level.getServer();
+        SporeFieldTable table = DesignData.sporeField();
+        PhaseData phase = PhaseData.get(level);
+        long clock = phase.clock(server);
+        if (!table.enabled() || CorruptionSwitch.isOff() || phase.getPhase() < 1 || phase.isFrozen()) {
+            fieldClock = clock; // 止まっている間の時間は取り戻さない
+            return false;
+        }
+        if (TASK.running()) return false;
+        if (fieldClock == Long.MIN_VALUE) {
+            fieldClock = clock;
+            return false;
+        }
+        return startRun(level, table, clock) > 0;
+    }
+
+    /** 遅れていれば計算を始める。進める更新の回数を返す(0 = 始めない)。 */
+    private static int startRun(ServerLevel level, SporeFieldTable table, long clock) {
+        int u = table.updateTicks();
+        long behind = clock - fieldClock;
+        if (behind < u) return 0;
+        int steps = (int) Math.min(table.maxStepsPerRun(), behind / u);
+        Inputs in = gatherInputs(level, table, clock, steps);
+        SporeField f = field;
+        TASK.start(level.getServer(), () -> compute(f, in), r -> apply(level, r));
+        return steps;
+    }
+
+    /**
+     * テスト用: 場の暦を {@code behindTicks} 遅らせて 1 回分の計算を回す(フェーズ・凍結の判定を飛ばす。GameTest ではその場で当てはめる)。
+     * 進めた更新の回数を返す。
+     */
+    public static int catchUpForTests(ServerLevel level, long behindTicks) {
+        return catchUpForTests(level, behindTicks, false);
+    }
+
+    /** このチャンクの発芽だけ台帳へ渡す(読み込まれるまで待つ升のテスト。ほかのテストの升は今までどおり捨てる)。 */
+    public static int catchUpForTests(ServerLevel level, long behindTicks, long keepOnlyKey) {
+        if (field == null) return 0;
+        long clock = PhaseData.get(level).clock(level.getServer());
+        fieldClock = clock - behindTicks;
+        keepOnlyForTests = keepOnlyKey;
+        try {
+            return startRun(level, DesignData.sporeField(), clock);
+        } finally {
+            keepOnlyForTests = null;
+        }
+    }
+
+    private static Long keepOnlyForTests;
+
+    public static int catchUpForTests(ServerLevel level, long behindTicks, boolean keepSprouts) {
+        if (field == null) return 0;
+        long clock = PhaseData.get(level).clock(level.getServer());
+        fieldClock = clock - behindTicks;
+        discardSproutsForTests = !keepSprouts; // GameTest ではその場で当てはめるので、この呼び出しの中だけ
+        try {
+            return startRun(level, DesignData.sporeField(), clock);
+        } finally {
+            discardSproutsForTests = false;
+        }
+    }
+
+    /** サーバースレッドで作る入力の写し。 */
+    private record Inputs(long fromClock, int steps, int stepTicks, long dayTimeNow, long clockNow, long seed,
+                          PrevailingWind.Weather weather, long lastRainEnd,
+                          long[] purifiers, long[] diffusers, long[] canopyChunks, double[] canopyRate, long[] eruptions,
+                          long[] watchTiles, SporeFieldTable table) {
+    }
+
+    private static Inputs gatherInputs(ServerLevel level, SporeFieldTable table, long clock, int steps) {
+        MinecraftServer server = level.getServer();
+        WindWeatherData wx = WindWeatherData.get(server);
+        // 巨大樹の梢(中心)= 第二の胞子の震源(2026-10-23 D)。ハイヴノードを倒された木は外す。記録の古い順に maxTrees 本まで
+        PhaseData pd = PhaseData.get(level);
+        long[] trees = pd.giantTreeOriginSnapshot();
+        long now = level.getGameTime();
+        int max = table.giantTreeMaxTrees() > 0 ? table.giantTreeMaxTrees() : Integer.MAX_VALUE;
+        LongArrayList cl = new LongArrayList();
+        it.unimi.dsi.fastutil.doubles.DoubleArrayList cr = new it.unimi.dsi.fastutil.doubles.DoubleArrayList();
+        for (long tr : trees) {
+            if (cl.size() >= max) break;
+            if (pd.isGiantTreeDead(tr)) continue;
+            int x = (int) (tr >> 32), z = (int) tr;
+            long born = pd.giantTreeBorn(tr);
+            double ageDays = born == Long.MIN_VALUE ? Double.MAX_VALUE : (now - born) / 24000.0D;
+            cl.add(ChunkPos.asLong(x >> 4, z >> 4));
+            cr.add(table.giantTreePerDay(ageDays));
+        }
+        long[] canopy = cl.toLongArray();
+        double[] canopyRate = cr.toDoubleArray();
+        return new Inputs(fieldClock, steps, table.updateTicks(), level.getDayTime(), clock, field.seed,
+                wx.weather(), wx.lastRainEnd(),
+                SporeDeviceData.activePurifiers(level), SporeDeviceData.activeDiffusers(level),
+                canopy, canopyRate, com.yayuy.overgrownvegetation.quake.EarthquakeData.get(level).eruptingChunks(level.getGameTime()),
+                watchTiles(level), table);
+    }
+
+    /** 計算の答え。 */
+    private record Result(long toClock, int steps, long[] sprouts, long[] devices, double[] extracted, long nanos,
+                          int tiles, long corrupted, int parcels, it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<Readout> readout, long[] seconds) {
+    }
+
+    /** 裏のスレッド(GameTest ではその場)。場の鍵を持って入力を取り込み、更新を進める。 */
+    private static Result compute(SporeField f, Inputs in) {
+        long t0 = System.nanoTime();
+        LongArrayList sprouts = new LongArrayList();
+        LongArrayList seconds = new LongArrayList();
+        int frontCells = 0;
+        int nd = in.purifiers.length;
+        double[] extracted = new double[nd];
+        LOCK.lock();
+        try {
+            Consumer<SporeField> input;
+            while ((input = INPUTS.poll()) != null) input.accept(f);
+            f.sproutDep.clear(); // 前の答えの発芽の直前の値は、断られた分を戻し終えたので捨てる
+            for (long k : f.released) sprouts.add(k); // 読み込まれて待ちが解けた発芽
+            f.released.clear();
+            SporeFieldTable table = in.table;
+            double dt = in.stepTicks / (double) PrevailingWind.DAY;
+            PrevailingWind.Sample s = new PrevailingWind.Sample();
+            for (int k = 1; k <= in.steps; k++) {
+                long t = in.fromClock + (long) k * in.stepTicks;
+                long dayT = in.dayTimeNow - (in.clockNow - t);
+                boolean raining = in.weather.raining(), thundering = in.weather.thundering();
+                boolean after = !raining && in.lastRainEnd != PrevailingWind.NONE && dayT - in.lastRainEnd < f.p.afterRainTicks;
+                PrevailingWind.sample(in.seed, dayT, in.weather, s);
+                // ゲームの発生源
+                for (long d : in.diffusers) f.emitPoint(BlockPos.getX(d) >> 4, BlockPos.getZ(d) >> 4, table.diffuserPerDay() * dt);
+                long tod = Math.floorMod(dayT, PrevailingWind.DAY);
+                double liftFrac = 1.0D - Math.exp(-table.giantTreeLiftPerDay() * dt);
+                for (int i = 0; i < in.canopyChunks.length; i++) {
+                    long c = in.canopyChunks[i];
+                    int ccx = ChunkPos.getX(c), ccz = ChunkPos.getZ(c);
+                    // 一日中(育ち具合で増える)。朝(6〜9 時)はさらに上乗せ(1 日の量を朝の 1/8 日に寄せる)
+                    double perDay = in.canopyRate[i] + (tod < 3000 ? table.canopyMorningPerDay() * 8 : 0.0D);
+                    f.emitPoint(ccx, ccz, perDay * dt);
+                    // 嵐が無くても梢の浮遊を上空の層へ持ち上げる(晴れの日も塊になって飛び地を作る)
+                    if (liftFrac > 0) f.liftAt(ccx, ccz, liftFrac);
+                }
+                // 地割れの噴出(2026-10-24 追記 19): 巨大樹の成木の何倍もの 1 日分を噴出の長さに詰めて放出し、上空の塊へ持ち上げる
+                if (in.eruptions.length > 0) {
+                    double eruptDays = Math.max(1, com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.quakeEruptDurationTicks.get())
+                            / (double) PrevailingWind.DAY;
+                    double rate = table.riftTreeMultiple() * table.giantTreePerDay(Double.MAX_VALUE) / eruptDays;
+                    double riftLift = 1.0D - Math.exp(-table.riftLiftPerDay() * dt);
+                    for (long c : in.eruptions) {
+                        f.emitPoint(ChunkPos.getX(c), ChunkPos.getZ(c), rate * dt);
+                        if (riftLift > 0) f.liftAt(ChunkPos.getX(c), ChunkPos.getZ(c), riftLift);
+                    }
+                }
+                f.step(new SporeField.Conditions(t, dayT, raining, thundering, after), s);
+                frontCells += f.frontCells;
+                for (int[] ns : f.newSprouts) {
+                    if (ns[3] == 1) sprouts.add(ChunkPos.asLong(ns[0], ns[1]));
+                    else seconds.add(ChunkPos.asLong(ns[0], ns[1]));
+                }
+                // 吸い込み口: 除去装置は 1 回の更新で上限まで抜く
+                // (【決定】10-23 追記 11: 動いている間は範囲内を抑え切る。上限 0 = 無し。降り積もりも捨てて発芽させない。
+                // 突破は装置が止まったとき = 取り出し口がいっぱい・フィルター切れ・燃料切れ)
+                double cap = table.purifierCapPerUpdate() <= 0 ? Double.POSITIVE_INFINITY : table.purifierCapPerUpdate();
+                for (int i = 0; i < nd; i++) {
+                    long d = in.purifiers[i];
+                    int pcx = BlockPos.getX(d) >> 4, pcz = BlockPos.getZ(d) >> 4;
+                    extracted[i] += f.extractAround(pcx, pcz, table.purifierRadiusChunks(), cap);
+                    f.clearDepositAround(pcx, pcz, table.purifierRadiusChunks());
+                }
+            }
+            lastFrontCells = frontCells;
+            lastFronts = f.fronts.size();
+            int[] fr = new int[f.fronts.size() * 5];
+            for (int i = 0; i < f.fronts.size(); i++) {
+                SporeField.RiftFront rf = f.fronts.get(i);
+                double stop = Math.min(rf.maxRadius, rf.minAir <= 0 ? 1e6 : Math.pow(rf.strength / rf.minAir, 1.0D / rf.falloff));
+                fr[i * 5] = rf.cx * 16 + 8;
+                fr[i * 5 + 1] = rf.cz * 16 + 8;
+                fr[i * 5 + 2] = (int) Math.round(rf.radius * 16.0D);
+                fr[i * 5 + 3] = (int) Math.round(rf.speed * 16.0D / (PrevailingWind.DAY / 20.0D) * 100.0D);
+                fr[i * 5 + 4] = (int) Math.min(Integer.MAX_VALUE, Math.round(stop * 16.0D));
+            }
+            FRONTS = fr;
+            return new Result(in.fromClock + (long) in.steps * in.stepTicks, in.steps, sprouts.toLongArray(), in.purifiers, extracted,
+                    System.nanoTime() - t0, f.tileCount(), f.corruptedCount, f.parcels.size(), readout(f, in), seconds.toLongArray());
+        } finally {
+            LOCK.unlock();
+        }
+    }
+
+    /** サーバースレッドで答えを当てはめる。 */
+    private static void apply(ServerLevel level, Result r) {
+        if (field == null) return;
+        fieldClock = Math.max(fieldClock, r.toClock);
+        long[] sproutKeys = keepOnlyForTests == null ? r.sprouts
+                : java.util.Arrays.stream(r.sprouts).filter(k -> k == keepOnlyForTests).toArray();
+        if (sproutKeys.length > 0 && !CorruptionSwitch.isOff() && !discardSproutsForTests) {
+            LongArrayList waiting = new LongArrayList();
+            long[] rejected = LedgerSpread.acceptFieldSprouts(level, sproutKeys, waiting);
+            for (long key : rejected) onLedgerRemoved(key);
+            // 読み込まれていないので断られた: 取り消さずに読み込まれるまで待たせる(降り積もりは残す。2026-10-24)
+            for (long key : waiting) {
+                int wcx = ChunkPos.getX(key), wcz = ChunkPos.getZ(key);
+                INPUTS.add(f -> f.waitForLoad(wcx, wcz));
+                WAITING.add(key);
+            }
+        }
+        for (int i = 0; i < r.devices.length; i++) {
+            if (r.extracted[i] > 0) EXTRACTED.addTo(r.devices[i], r.extracted[i]);
+        }
+        // 2 体目の萌芽体(読み込まれていれば歩く萌芽体を出す。読み込まれていなければ読み込んだときに根付いた姿で)
+        if (r.seconds.length > 0 && !CorruptionSwitch.isOff() && !discardSproutsForTests && keepOnlyForTests == null) {
+            for (long key : r.seconds) SporeSprouts.onSecondSprout(level, key);
+        }
+        READOUT = r.readout;
+        SporeDustSync.send(level);
+        lastSummary = String.format("更新 %d 回 / %.1f ms・区画 %d・汚染されたチャンク %d・発芽 %d・上空の塊 %d",
+                r.steps, r.nanos / 1e6, r.tiles, r.corrupted, r.sprouts.length, r.parcels)
+                + (lastFronts > 0 || lastFrontCells > 0 ? String.format("・地割れの前線 %d 本(配った升 %d)", lastFronts, lastFrontCells) : "");
+    }
+
+    // ---------------------------------------------------------------- 読み(濃度・計測機・粉の見た目)
+
+    /**
+     * 区画 1 つの読みの写し(裏のスレッドが計算の終わりに作り、サーバースレッドは鍵なしで読む)。
+     * conc = 浮遊 + 林床(濃度のもと)、dep = 降り積もり、stage = 0 汚染なし・1 繁茂(発芽から過繁茂まで)・2 過繁茂・3 極相、
+     * age = 発芽からの日数(汚染なしは -1)、count = 発芽の回数(萌芽体の数)。
+     */
+    public static final class Readout {
+        final float[] conc = new float[SporeField.TN], dep = new float[SporeField.TN], age = new float[SporeField.TN], air = new float[SporeField.TN];
+        final byte[] stage = new byte[SporeField.TN], count = new byte[SporeField.TN];
+    }
+
+    /** 1 チャンクの読み(写しに無ければ null)。 */
+    public record Cell(double conc, double dep, int stage, double ageDays, int count) {
+    }
+
+    private static volatile it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<Readout> READOUT = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
+    /** プレイヤーのまわり ±この数の区画(32 チャンク)を写す。 */
+    private static final int WATCH_TILES = 1;
+
+    /**
+     * 次元ごとの読み(2026-10-23 F): オーバーワールド = この場、ネザー = ネザーの場、エンドなど = null。
+     * ネザーでも動く所はこちらを使う(次元を見ない {@link #cell(int, int)} はオーバーワールドの値を返す)。
+     */
+    public static Cell cell(ServerLevel level, int cx, int cz) {
+        if (level.dimension() == Level.OVERWORLD) return cell(cx, cz);
+        if (level.dimension() == Level.NETHER) return NetherSporeFieldServer.cell(cx, cz);
+        return null;
+    }
+
+    /** 次元ごとの浮遊(2026-10-23 F)。 */
+    public static double airAt(ServerLevel level, int cx, int cz) {
+        if (level.dimension() == Level.OVERWORLD) return airAt(cx, cz);
+        if (level.dimension() == Level.NETHER) return NetherSporeFieldServer.airAt(cx, cz);
+        return 0.0D;
+    }
+
+    /** 写しのある所の読み。無ければ null(遠い・場がまだ回っていない)。サーバースレッドから。 */
+    public static Cell cell(int cx, int cz) {
+        Readout r = READOUT.get(SporeField.key(cx >> SporeField.TB, cz >> SporeField.TB));
+        if (r == null) return null;
+        int i = SporeField.idx(cx, cz);
+        return new Cell(r.conc[i], r.dep[i], r.stage[i], r.age[i], r.count[i]);
+    }
+
+    private static final PrevailingWind.Sample WIND_NOW = new PrevailingWind.Sample();
+    private static long windNowTick = Long.MIN_VALUE;
+
+    /** 今の卓越風(同じ tick の中は覚えておく)。場がまだ無ければ null。サーバースレッドから。 */
+    public static PrevailingWind.Sample windNow(ServerLevel level) {
+        if (field == null) return null;
+        long now = level.getGameTime();
+        if (now != windNowTick) {
+            PrevailingWind.sample(field.seed, level.getDayTime(), WindWeatherData.get(level.getServer()).weather(), WIND_NOW);
+            windNowTick = now;
+        }
+        return WIND_NOW;
+    }
+
+    /** 浮遊 + 林床だけ(濃度の計算から多く呼ぶので Cell を作らない)。写しが無ければ NaN。 */
+    public static double concAt(int cx, int cz) {
+        Readout r = READOUT.get(SporeField.key(cx >> SporeField.TB, cz >> SporeField.TB));
+        return r == null ? Double.NaN : r.conc[SporeField.idx(cx, cz)];
+    }
+
+    /** 浮遊だけ(G1 の作り直し 第 1 段: Mob の感染は空の下の浮遊 × 秒)。写しが無ければ NaN。サーバースレッドから。 */
+    public static double airAt(int cx, int cz) {
+        Readout r = READOUT.get(SporeField.key(cx >> SporeField.TB, cz >> SporeField.TB));
+        return r == null ? Double.NaN : r.air[SporeField.idx(cx, cz)];
+    }
+
+    private static long[] watchTiles(ServerLevel level) {
+        it.unimi.dsi.fastutil.longs.LongOpenHashSet set = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+        for (net.minecraft.server.level.ServerPlayer p : level.players()) {
+            int tx = (p.getBlockX() >> 4) >> SporeField.TB, tz = (p.getBlockZ() >> 4) >> SporeField.TB;
+            for (int dz = -WATCH_TILES; dz <= WATCH_TILES; dz++)
+                for (int dx = -WATCH_TILES; dx <= WATCH_TILES; dx++) set.add(SporeField.key(tx + dx, tz + dz));
+        }
+        for (long d : SporeDeviceData.activePurifiers(level)) set.add(SporeField.key((BlockPos.getX(d) >> 4) >> SporeField.TB, (BlockPos.getZ(d) >> 4) >> SporeField.TB));
+        for (long d : WATCH_EXTRA) set.add(d);
+        return set.toLongArray();
+    }
+
+    /** テスト・強制読み込みの所など、プレイヤーがいなくても写したい区画。 */
+    private static final it.unimi.dsi.fastutil.longs.LongArrayList WATCH_EXTRA = new it.unimi.dsi.fastutil.longs.LongArrayList();
+
+    /** ポータルなど: このチャンクを含む区画をいつも写す(同じ区画は 1 回だけ、2026-10-23 F)。 */
+    static void watch(int cx, int cz) {
+        long k = SporeField.key(cx >> SporeField.TB, cz >> SporeField.TB);
+        if (!WATCH_EXTRA.contains(k)) WATCH_EXTRA.add(k);
+    }
+
+    /** ポータル越しの染み出し: その升の浮遊 + 林床から amount を抜く(次の計算の頭で)。 */
+    static void extractCell(int cx, int cz, double amount) {
+        if (amount > 0) INPUTS.add(f -> f.extractAround(cx, cz, 0.0D, amount));
+    }
+
+    /** ポータル越しの染み出し: その升の浮遊へ amount を足す。 */
+    static void emitCell(int cx, int cz, double amount) {
+        if (amount > 0) INPUTS.add(f -> f.emitPoint(cx, cz, amount));
+    }
+
+    /** テスト用: このチャンクを含む区画も写す。 */
+    public static void watchForTests(int cx, int cz) {
+        WATCH_EXTRA.add(SporeField.key(cx >> SporeField.TB, cz >> SporeField.TB));
+    }
+
+    /** 裏のスレッド(鍵を持って): 見たい区画の写しを作る。 */
+    private static it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<Readout> readout(SporeField f, Inputs in) {
+        return readoutOf(f, in.watchTiles, in.fromClock + (long) in.steps * in.stepTicks);
+    }
+
+    /** 区画の写しを作る(ネザーの場と共用、2026-10-23 F)。 */
+    static it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<Readout> readoutOf(SporeField f, long[] watchTiles, long now) {
+        it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<Readout> out = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
+        for (long key : watchTiles) {
+            SporeField.Tile t = f.tiles.get(key);
+            Readout r = new Readout();
+            if (t != null) {
+                for (int i = 0; i < SporeField.TN; i++) {
+                    r.conc[i] = t.air[i] + t.low[i];
+                    r.air[i] = t.air[i];
+                    r.dep[i] = t.dep[i];
+                    r.count[i] = t.count[i];
+                    long sp = t.sprout[i];
+                    if (sp == SporeField.NOT) {
+                        r.age[i] = -1;
+                        continue;
+                    }
+                    double age = (now - sp) / (double) PrevailingWind.DAY;
+                    r.age[i] = (float) age;
+                    r.stage[i] = (byte) ((t.flags[i] & 1) != 0 ? 3 : age < f.p.daysToOvergrown ? 1 : 2);
+                }
+            } else {
+                java.util.Arrays.fill(r.age, -1f);
+            }
+            out.put(key, r);
+        }
+        return out;
+    }
+
+    // ---------------------------------------------------------------- 見る口(/ov perf spore)
+
+    /** 今いるチャンクの場の値と風(コマンドの表示)。鍵が取れなければ「更新中」。 */
+    public static List<String> describe(ServerLevel level, BlockPos pos) {
+        List<String> out = new ArrayList<>();
+        if (level.dimension() == Level.NETHER) {
+            // ネザーの場(2026-10-23 F): 風は無い。写しの値だけ
+            int ncx = pos.getX() >> 4, ncz = pos.getZ() >> 4;
+            Cell c = NetherSporeFieldServer.cell(ncx, ncz);
+            out.add("ネザーの場(風なし)");
+            out.add(c == null ? String.format("チャンク (%d, %d): 写しが無い", ncx, ncz)
+                    : String.format("チャンク (%d, %d): 浮遊 + 林床 %.4f・浮遊 %.4f・降り積もり %.4f・段階 %d・萌芽体 %d", ncx, ncz, c.conc(),
+                    NetherSporeFieldServer.airAt(ncx, ncz), c.dep(), c.stage(), c.count()));
+            out.add("ここの濃度 " + String.format("%.0f%%", com.yayuy.overgrownvegetation.spore.SporeConcentration.percentAt(level, pos)));
+            out.add("直近の計算: " + NetherSporeFieldServer.summary());
+            return out;
+        }
+        if (field == null) {
+            out.add("胞子の場はまだ動いていない(オーバーワールドで読み込み後に始まる)");
+            return out;
+        }
+        MinecraftServer server = level.getServer();
+        WindWeatherData wx = WindWeatherData.get(server);
+        PrevailingWind.Sample s = new PrevailingWind.Sample();
+        long dayTime = level.getDayTime();
+        PrevailingWind.Weather w = wx.weather();
+        PrevailingWind.sample(field.seed, dayTime, w, s);
+        String kind = s.storm ? "嵐(雷雨)" : s.strongDay ? "風の強い日" : w.raining() ? "雨" : "晴れ・曇り";
+        out.add(String.format("風: %s へ %.0f 度・強さ %.2f・%s", compass(s.angleDeg()), s.angleDeg(), s.strength, kind));
+        out.add("ここの濃度 " + String.format("%.0f%%", com.yayuy.overgrownvegetation.spore.SporeConcentration.percentAt(level, pos)));
+        int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
+        try {
+            if (!LOCK.tryLock(500, TimeUnit.MILLISECONDS)) {
+                out.add("場は更新中(もう一度)");
+                return out;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return out;
+        }
+        try {
+            long sp = field.sproutTick(cx, cz);
+            out.add(String.format("チャンク (%d, %d): 浮遊 %.4f・林床 %.4f・降り積もり %.4f(発芽のしきい値 %.2f)", cx, cz,
+                    field.air(cx, cz), field.low(cx, cz), field.deposited(cx, cz), field.p.germThreshold));
+            out.add(sp == SporeField.NOT ? "まだ発芽していない"
+                    : String.format("発芽済み(萌芽体 %d 体・%.1f 日前)", field.sproutCount(cx, cz),
+                    (PhaseData.get(level).clock(server) - sp) / (double) PrevailingWind.DAY));
+            out.add(String.format("場の全体: 区画 %d・汚染されたチャンク %d・上空の塊 %d", field.tileCount(), field.corruptedCount, field.parcels.size()));
+        } finally {
+            LOCK.unlock();
+        }
+        out.add("直近の計算: " + lastSummary);
+        return out;
+    }
+
+    private static String compass(double deg) {
+        String[] n = {"東", "南東", "南", "南西", "西", "北西", "北", "北東"};
+        return n[(int) Math.round(deg / 45.0) & 7];
+    }
+
+    // ---------------------------------------------------------------- テスト用
+
+    /** テスト用: 場の値を鍵を持って読む・書く。 */
+    public static <T> T withFieldForTests(java.util.function.Function<SporeField, T> fn) {
+        LOCK.lock();
+        try {
+            return field == null ? null : fn.apply(field);
+        } finally {
+            LOCK.unlock();
+        }
+    }
+
+    /** テスト用: 場の暦を置く(追いつきのテスト)。 */
+    public static void setFieldClockForTests(long clock) {
+        fieldClock = clock;
+    }
+
+    public static long fieldClockForTests() {
+        return fieldClock;
+    }
+
+    // ---------------------------------------------------------------- 土地
+
+    /**
+     * 升の土地をバイオームの元(世界生成のノイズ。チャンクを読み込まずに引ける)から決める(仮決め):
+     * 海 = 発芽する・いつも湿っている・空気への放出 0.3 倍(水の下の株。深い海は沈むのに時間がかかるので発芽の速さ 0.7 倍。2026-10-24 追記 18、倍率は仮決め) / 川・沼・マングローブ・ジャングル = 林床の広がり 2・湿り / 砂漠・荒野・サバンナ = 0.3 / 山 = 0.5 倍。
+     */
+    public static final class BiomeGround implements SporeField.Ground {
+        /** 深い海の発芽の速さ(沈むのに時間がかかる)と、海の升の空気への放出(水の下の株)。どちらも仮決め(2026-10-24)。 */
+        static final float DEEP_OCEAN_GERM = 0.7f, OCEAN_AIR_EMIT = 0.3f;
+        private final BiomeSource source;
+        private final Climate.Sampler sampler;
+        private final int qy;
+
+        BiomeGround(ServerLevel level) {
+            this.source = level.getChunkSource().getGenerator().getBiomeSource();
+            this.sampler = level.getChunkSource().randomState().sampler();
+            this.qy = level.getSeaLevel() >> 2;
+        }
+
+        private Holder<Biome> at(int cx, int cz) {
+            return source.getNoiseBiome((cx << 2) + 2, qy, (cz << 2) + 2, sampler);
+        }
+
+        @Override
+        public float germFactor(int cx, int cz) {
+            return germOf(at(cx, cz));
+        }
+
+        /** 2026-10-24 追記 18【決定】胞子は水にも沈んで芽吹く(前は海 = 発芽しない)。 */
+        public static float germOf(Holder<Biome> b) {
+            return b.is(BiomeTags.IS_DEEP_OCEAN) ? DEEP_OCEAN_GERM : 1f;
+        }
+
+        @Override
+        public boolean wet(int cx, int cz) {
+            return wetOf(at(cx, cz));
+        }
+
+        public static boolean wetOf(Holder<Biome> b) {
+            return b.is(BiomeTags.IS_RIVER) || b.is(Tags.Biomes.IS_SWAMP) || b.is(BiomeTags.IS_BEACH) || b.is(Biomes.MANGROVE_SWAMP)
+                    || b.is(BiomeTags.IS_OCEAN) || b.is(BiomeTags.IS_DEEP_OCEAN);
+        }
+
+        @Override
+        public float airEmitFactor(int cx, int cz) {
+            return airEmitOf(at(cx, cz));
+        }
+
+        public static float airEmitOf(Holder<Biome> b) {
+            return b.is(BiomeTags.IS_OCEAN) || b.is(BiomeTags.IS_DEEP_OCEAN) ? OCEAN_AIR_EMIT : 1f;
+        }
+
+        @Override
+        public float spreadFactor(int cx, int cz) {
+            Holder<Biome> b = at(cx, cz);
+            double f = 1;
+            if (b.is(BiomeTags.IS_RIVER) || b.is(Tags.Biomes.IS_SWAMP) || b.is(BiomeTags.IS_JUNGLE) || b.is(Biomes.MANGROVE_SWAMP)) f = 2;
+            else if (b.is(Biomes.DESERT) || b.is(BiomeTags.IS_BADLANDS) || b.is(BiomeTags.IS_SAVANNA)) f = 0.3;
+            if (b.is(BiomeTags.IS_MOUNTAIN)) f *= 0.5;
+            return (float) f;
+        }
+    }
+}

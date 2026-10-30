@@ -6,6 +6,7 @@ import com.yayuy.overgrownvegetation.entity.SpelaeopleuraEntity;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.cache.object.GeoBone;
@@ -47,6 +48,21 @@ public class SpelaeopleuraGlowLayer extends GeoRenderLayer<SpelaeopleuraEntity> 
                        @Nullable VertexConsumer buffer, float partialTick, int packedLight, int packedOverlay) {
     }
 
+    /*
+     * 2026-09-24 軽量化(監査 490)。
+     * - 発光の RenderType は骨ごとに AutoGlowingTexture.getRenderType で引き直していた(ResourceLocation の生成と
+     *   TextureManager の検索を含む)ので、テクスチャが同じ間は 1 つを使い回す(GeckoLib 側も同じ物を memoize で返す)。
+     * - 面を 1 枚も描かない骨(非表示・直方体なし)では getBuffer を呼ばない。呼ぶと本体のバッファが確定して
+     *   描画命令が増えるだけで、描く中身も順番も同じ。
+     * 全身を 1 回の reRender で重ねる案は入れていない: GeckoLib は発光の画素を本体のテクスチャから抜く(穴になる)ので、
+     * 骨ごとに重ねる今の順番だと穴の奥に「後から描く骨」は写らない。まとめて重ねるとそれが写り、見た目が変わる。
+     * 描くのはレンダースレッドだけなので、控えは素のフィールドでよい。
+     */
+    @Nullable
+    private static ResourceLocation cachedTexture;
+    @Nullable
+    private static RenderType cachedEmissive;
+
     @Override
     public void renderForBone(PoseStack poseStack, SpelaeopleuraEntity animatable, GeoBone bone,
                               RenderType renderType, MultiBufferSource bufferSource, VertexConsumer buffer,
@@ -55,7 +71,16 @@ public class SpelaeopleuraGlowLayer extends GeoRenderLayer<SpelaeopleuraEntity> 
         if (glow < MIN_VISIBLE) {
             return;
         }
-        RenderType emissive = AutoGlowingTexture.getRenderType(getTextureResource(animatable));
+        if (bone.isHidden() || bone.getCubes().isEmpty()) {
+            return; // renderCubesOfBone が何も描かない骨
+        }
+        ResourceLocation texture = getTextureResource(animatable);
+        RenderType emissive = cachedEmissive;
+        if (emissive == null || !texture.equals(cachedTexture)) {
+            emissive = AutoGlowingTexture.getRenderType(texture);
+            cachedTexture = texture;
+            cachedEmissive = emissive;
+        }
         if (emissive == null) {
             return;
         }

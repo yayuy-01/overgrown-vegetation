@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "minecraft:book"
+    },
+    {
+      "item": "overgrown_vegetation:plant_fiber"
+    }
+  ],
+  "result": {
+    "id": "overgrown_vegetation:guidebook",
+    "count": 1
+  }
+}

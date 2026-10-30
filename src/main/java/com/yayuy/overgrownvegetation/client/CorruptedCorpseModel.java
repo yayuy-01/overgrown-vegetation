@@ -9,6 +9,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import software.bernie.geckolib.model.GeoModel;
 
 import javax.annotation.Nullable;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -29,39 +30,66 @@ public class CorruptedCorpseModel extends GeoModel<CorruptedCorpseBlockEntity> {
     private record Assets(ResourceLocation geo, ResourceLocation texture) {
     }
 
-    /** geo モデルを持つ死体ブロック → geo/テクスチャ。ここに無いブロックは通常のブロックモデル描画。 */
-    private static final Map<Block, Assets> ASSETS = Map.of(
-            ModBlocks.OVERGROWN_SHEEP_CORPSE.get(), new Assets(
-                    OvergrownVegetation.id("geo/overgrown_sheep_corpse.geo.json"),
-                    OvergrownVegetation.id("textures/entity/overgrown_sheep.png")),
-            ModBlocks.OVERGROWN_PIG_CORPSE.get(), new Assets(
-                    OvergrownVegetation.id("geo/overgrown_pig_corpse.geo.json"),
-                    OvergrownVegetation.id("textures/entity/overgrown_pig.png")),
-            ModBlocks.OVERGROWN_CREEPER_CORPSE.get(), new Assets(
-                    OvergrownVegetation.id("geo/overgrown_creeper_corpse.geo.json"),
-                    OvergrownVegetation.id("textures/entity/overgrown_creeper.png")),
-            ModBlocks.OVERGROWN_SPIDER_CORPSE.get(), new Assets(
-                    OvergrownVegetation.id("geo/overgrown_spider_corpse.geo.json"),
-                    OvergrownVegetation.id("textures/entity/overgrown_spider.png"))
-    );
+    /**
+     * geo モデルを持つ死体の種(2026-10-09 から: 死体は {@code geo/<種>_corpse.geo.json}、絵は感染体の {@code textures/entity/<種>.png})。
+     * ブロックは {@code <種>_corpse}。ここに無いブロックは通常のブロックモデル描画。種を足すときはここに 1 つ足す(Map.of の 10 組の上限があったので名前の並びにした)。
+     */
+    private static final String[] GEO_SPECIES = {
+            "overgrown_sheep", "overgrown_pig", "overgrown_creeper", "overgrown_spider", "overgrown_villager", "overgrown_cow",
+            "overgrown_zombie", "overgrown_baby_zombie", "overgrown_skeleton", "overgrown_enderman", "overgrown_chicken",
+            "overgrown_piglin", "overgrown_piglin_brute", "overgrown_zombified_piglin", "overgrown_wither_skeleton",
+            "overgrown_hoglin", "overgrown_zoglin", "overgrown_strider",
+            "overgrown_iron_golem", "overgrown_warden"};
+
+    private static Map<Block, Assets> assetsMap;
+
+    /** geo モデルを持つ死体ブロック → geo/テクスチャ(初めて使うときに作る。ブロックの登録より後)。 */
+    private static Map<Block, Assets> assets() {
+        if (assetsMap == null) {
+            Map<Block, Assets> m = new java.util.HashMap<>();
+            for (String id : GEO_SPECIES) {
+                Block b = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(OvergrownVegetation.id(id + "_corpse"));
+                m.put(b, new Assets(OvergrownVegetation.id("geo/" + id + "_corpse.geo.json"), textureOf(id)));
+            }
+            assetsMap = m;
+        }
+        return assetsMap;
+    }
+
+    /** 種 {@code id} の死体の絵(= 同名の過繁茂した Mob のもの)。 */
+    private static ResourceLocation textureOf(String id) {
+        return OvergrownVegetation.id("textures/entity/" + id + ".png");
+    }
+
+    /**
+     * geo モデルを持つ死体の絵を全部({@link #GEO_SPECIES} の順)。ブロックを引かずに名前だけで作るので、描画の溜め場所を
+     * 登録するとき({@link CorruptedCorpseRenderer#BATCHED_TYPES})にも使える(2026-10-10)。
+     */
+    static List<ResourceLocation> textures() {
+        List<ResourceLocation> out = new java.util.ArrayList<>(GEO_SPECIES.length);
+        for (String id : GEO_SPECIES) {
+            out.add(textureOf(id));
+        }
+        return out;
+    }
 
     private static final ResourceLocation ANIMATION = OvergrownVegetation.id("animations/overgrown_corpse.animation.json");
 
     /** この死体ブロックに専用 geo モデルがあるか(= GeoBlockRenderer で描画すべきか)。 */
     public static boolean hasGeoModel(Block block) {
-        return ASSETS.containsKey(block);
+        return assets().containsKey(block);
     }
 
     /** {@code block} の geo モデル。専用モデルが無い場合は羊の geo(フォールバック)。 */
     public static ResourceLocation geoFor(Block block) {
-        Assets assets = ASSETS.get(block);
-        return assets != null ? assets.geo() : ASSETS.get(ModBlocks.OVERGROWN_SHEEP_CORPSE.get()).geo();
+        Assets assets = assets().get(block);
+        return assets != null ? assets.geo() : assets().get(ModBlocks.OVERGROWN_SHEEP_CORPSE.get()).geo();
     }
 
     /** {@code block} のテクスチャ(= 同名の過繁茂した Mob のもの)。無い場合は羊のもの。 */
     public static ResourceLocation textureFor(Block block) {
-        Assets assets = ASSETS.get(block);
-        return assets != null ? assets.texture() : ASSETS.get(ModBlocks.OVERGROWN_SHEEP_CORPSE.get()).texture();
+        Assets assets = assets().get(block);
+        return assets != null ? assets.texture() : assets().get(ModBlocks.OVERGROWN_SHEEP_CORPSE.get()).texture();
     }
 
     /** 死体アイテムのモデルも同じ空アニメーションを共用する。 */
@@ -72,19 +100,19 @@ public class CorruptedCorpseModel extends GeoModel<CorruptedCorpseBlockEntity> {
     @Nullable
     private static Assets assetsFor(CorruptedCorpseBlockEntity animatable) {
         BlockState state = animatable.getBlockState();
-        return ASSETS.get(state.getBlock());
+        return assets().get(state.getBlock());
     }
 
     @Override
     public ResourceLocation getModelResource(CorruptedCorpseBlockEntity animatable) {
         Assets assets = assetsFor(animatable);
-        return assets != null ? assets.geo() : ASSETS.get(ModBlocks.OVERGROWN_SHEEP_CORPSE.get()).geo();
+        return assets != null ? assets.geo() : assets().get(ModBlocks.OVERGROWN_SHEEP_CORPSE.get()).geo();
     }
 
     @Override
     public ResourceLocation getTextureResource(CorruptedCorpseBlockEntity animatable) {
         Assets assets = assetsFor(animatable);
-        return assets != null ? assets.texture() : ASSETS.get(ModBlocks.OVERGROWN_SHEEP_CORPSE.get()).texture();
+        return assets != null ? assets.texture() : assets().get(ModBlocks.OVERGROWN_SHEEP_CORPSE.get()).texture();
     }
 
     @Override

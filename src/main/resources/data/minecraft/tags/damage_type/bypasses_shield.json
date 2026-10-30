@@ -2,6 +2,9 @@
   "replace": false,
   "values": [
     "overgrown_vegetation:falcimnes_bite",
-    "overgrown_vegetation:falcimnes_execution"
+    "overgrown_vegetation:falcimnes_execution",
+    "overgrown_vegetation:scutimnes_shockwave",
+    "overgrown_vegetation:voramnes_digest",
+    "overgrown_vegetation:soldier_bullet"
   ]
 }

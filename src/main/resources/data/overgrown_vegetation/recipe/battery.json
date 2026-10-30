@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "B",
+    "C",
+    "B"
+  ],
+  "key": {
+    "B": { "tag": "c:ingots/brass" },
+    "C": { "item": "overgrown_vegetation:ley_crystal_shard" }
+  },
+  "result": { "id": "overgrown_vegetation:empty_battery", "count": 1 }
+}

@@ -36,10 +36,12 @@ public enum MobVariant {
         return ordinal() + 1;
     }
 
+    /** {@link #values()} は呼ぶたびに配列を複製するので 1 回だけ取っておく(2026-09-24 軽量化、監査 2110)。 */
+    private static final MobVariant[] VALUES = values();
+
     @Nullable
     public static MobVariant byCode(int code) {
         int index = code - 1;
-        MobVariant[] values = values();
-        return index >= 0 && index < values.length ? values[index] : null;
+        return index >= 0 && index < VALUES.length ? VALUES[index] : null;
     }
 }

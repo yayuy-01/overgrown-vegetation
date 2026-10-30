@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AAA",
+    "ABA",
+    "AAA"
+  ],
+  "key": {
+    "A": {
+      "item": "minecraft:gravel"
+    },
+    "B": {
+      "tag": "minecraft:coals"
+    }
+  },
+  "result": {
+    "id": "overgrown_vegetation:asphalt",
+    "count": 8
+  }
+}

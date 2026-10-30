@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": {
+    "item": "overgrown_vegetation:reinforced_concrete"
+  },
+  "result": {
+    "id": "overgrown_vegetation:reinforced_concrete_stairs",
+    "count": 1
+  }
+}

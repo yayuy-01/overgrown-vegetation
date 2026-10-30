@@ -4,9 +4,11 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
+import com.yayuy.overgrownvegetation.td.TdEvents;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -58,6 +60,8 @@ import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfigur
  *
  * <p>幹・枝・根は {@code trunkState}(既定 {@code giant_overgrown_log} — 蔦がつながらないように
  * {@code overgrown_log} とは別ブロック)を使う。
+ *
+ * <p><b>TD の侵攻の間は生やさない</b>({@link #pausedByTd}。ユーザー指定 2026-09-26「TD 時のみ苗木が巨大樹にならないように」)。
  */
 public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
 
@@ -162,6 +166,17 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                         .giantTreeSaplingForceGrowth.get();
     }
 
+    /**
+     * そのワールドで TD の侵攻が進行中(予告中・侵攻中)で、巨大樹を生やさないか(ユーザー指定 2026-09-26
+     * 「TD 時のみ苗木が巨大樹にならないように」。予告中も含めるのは仮決め —— 予告の間に育つと、侵攻が始まる前に拠点が幹と根に埋まる)。
+     * 汚染された苗木の抽選で巨大樹の目(0.25%)が出ても {@link #place} が false を返すので、苗木は苗木のまま残り
+     * (バニラの {@code TreeGrower#growTree} が戻す)、次の成長の抽選でふつうの木になる。「巨大樹の苗木」は侵攻が終わるまで苗木のまま待つ
+     * ({@link com.yayuy.overgrownvegetation.block.GiantOvergrownSaplingBlock#advanceTree})。サーバースレッドから呼ぶこと。
+     */
+    public static boolean pausedByTd(ServerLevel level) {
+        return TdEvents.activeTarget(level) != null;
+    }
+
     public GiantTreeFeature(Codec<Config> codec) {
         super(codec);
     }
@@ -171,6 +186,13 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         WorldGenLevel level = context.level();
         Config config = context.config();
         BlockPos origin = context.origin();
+
+        // TD の侵攻の間は生やさない(苗木は苗木のまま次の抽選へ。ユーザー指定 2026-09-26)。見るのは生きたワールドへ直接置くとき
+        // (苗木・/place)だけ —— ワールド生成の並列スレッド(WorldGenRegion)からは TD の台帳を読まない。
+        if (level instanceof ServerLevel serverLevel && pausedByTd(serverLevel)) {
+            OvergrownVegetation.LOGGER.info("GiantTree at {}: 生成中止 —— TD の侵攻が進行中です。", origin);
+            return false;
+        }
 
         // 巨大樹同士が近すぎないようにする。既存の巨大樹(このワールドでこれまでに生成された
         // 古代樹の核の位置)が giantTreeMinSpacing の水平距離以内にあれば、ここには生やさない。
@@ -200,6 +222,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         }
         GiantTreeGrowthQueue.enqueue(level.getLevel(), plan);
         phaseData.recordGiantTreeOrigin(origin.getX(), origin.getZ());
+        phaseData.recordGiantTreeBorn(origin.getX(), origin.getZ(), level.getLevel().getGameTime()); // 梢の胞子の育ち具合(胞子の場 D)
         if (plan.hiveCenter != Long.MIN_VALUE) {
             // 幹の真下の「巣の広間」の中心。ここに湧く「ハイヴノード」が旧「古代樹の核」の役割
             // (胞子感染3 の強制ゾーンの中心)を引き継ぐ。ゾーンの登録は mob 自身が行う。

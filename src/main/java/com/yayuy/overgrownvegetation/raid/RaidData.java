@@ -12,6 +12,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.saveddata.SavedData;
 
 import javax.annotation.Nullable;
@@ -109,8 +110,12 @@ public final class RaidData extends SavedData {
     /**
      * 苗床エンティティが討伐 / discard されたときに {@link com.yayuy.overgrownvegetation.entity.OvergrownNexusEntity}
      * から呼ばれる。該当レイドを一覧から外す。
+     *
+     * <p>そのビーコンのウェーブで湧いた個体の永続もここで外す(2026-09-24、{@link EventMobs})。
+     * 台帳に載っていないビーコン(コマンドで直に出したもの)のウェーブも同じ。
      */
     public void onNexusRemoved(ServerLevel overworld, UUID nexusId, boolean killed) {
+        EventMobs.releaseOrigin(overworld.getServer(), EventMobs.Kind.NEXUS, nexusId.toString());
         boolean removed = false;
         for (var it = activeRaids.iterator(); it.hasNext(); ) {
             ActiveRaid raid = it.next();
@@ -135,11 +140,25 @@ public final class RaidData extends SavedData {
      */
     public void tick(ServerLevel overworld) {
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
+        // 終わったレイドの掃除(強制ロードとウェーブの個体の永続の解除)は、レイドを設定で切っていても行う
+        // (2026-09-24、報告 1967)。以前は raidEnabled の判定より後ろにあったので、切ると解除されずに残った。
+        pruneFinishedRaids(overworld);
+        // 強制ロードの範囲を今の設定まで縮める(2026-09-25、報告 1097)。これもレイドを切っていても行う。
+        shrinkForcedAreas(overworld);
+        if (com.yayuy.overgrownvegetation.difficulty.Peaceful.is(overworld)) {
+            // ピースフル(difficulty/Peaceful、2026-09-26): 新しいレイドは始めず、周期レイドの時計も止める(進めたままだと、
+            // ピースフルを抜けた途端に溜まったレイドが始まる)。進行中のレイドはビーコンが Peaceful に消され、onNexusRemoved が
+            // 台帳から外す。ここで stopAllRaids は呼ばない —— まだ読み込まれていないビーコンの台帳を捨てると強制ロードが外れ、
+            // ビーコンだけがチャンクに取り残される(強制ロードのままなら、読み込まれた tick に Peaceful が消す)。
+            if (nextPeriodicGameTime > overworld.getGameTime()) {
+                nextPeriodicGameTime += RaidTicker.INTERVAL;
+                setDirty();
+            }
+            return;
+        }
         if (!cfg.raidEnabled.get()) {
             return;
         }
-
-        pruneFinishedRaids(overworld);
 
         int phase = PhaseData.get(overworld).getPhase();
         if (phase < com.yayuy.overgrownvegetation.data.DesignData.phases().raidMinPhase()) {
@@ -192,24 +211,6 @@ public final class RaidData extends SavedData {
     }
 
     /**
-     * そのフェーズの昇格レイドを<b>発生させずに済ませる</b>(2026-09-17)。
-     * {@code lastRaidPhase} だけを進めるので、{@link #tick} も {@link RaidTicker} も
-     * 「このフェーズの昇格レイドは処理済み」とみなして何も出さない。
-     *
-     * <p>用途: {@code /siege} でフェーズ7へ上げて攻城戦を始めるとき。ボス戦と苗床レイドが
-     * 同時に始まらないようにする({@code SiegeCommand#enterPhase7})。
-     *
-     * <p>止めるのは<b>昇格レイドだけ</b>。周期レイドは従来どおり予約どおりに発生する。
-     */
-    public static void skipPromotionRaid(ServerLevel overworld, int phase) {
-        RaidData data = get(overworld);
-        if (data.lastRaidPhase < phase) {
-            data.lastRaidPhase = phase;
-            data.setDirty();
-        }
-    }
-
-    /**
      * 昇格レイドを 1 回試す。成功したら {@code lastRaidPhase} を進めて次の周期レイドを予約し、
      * 失敗したら {@code lastRaidPhase} を据え置いたまま少し後に再挑戦させる。
      */
@@ -237,6 +238,10 @@ public final class RaidData extends SavedData {
      * 苗床エンティティが実在しなくなった(討伐されたが {@link #onNexusRemoved} を経由できなかった等)
      * レイドを掃除する。エンティティが見つからなくても出現チャンクが未ロードなら「一時的にアンロード
      * されているだけ」とみなして残す。
+     *
+     * <p>チャンクが読み込まれていても、<b>エンティティの読み込みはその数 tick 後</b>(別スレッドで読んでから入る)。
+     * ワールドを開いた直後はその間に苗床がまだ居ないので、エンティティまで読み込み終わるまでは残す
+     * (消すと強制ロードが外れ、生きている苗床が台帳から消えて 2 つ目のレイドが始まりうる)。
      */
     private void pruneFinishedRaids(ServerLevel overworld) {
         boolean changed = activeRaids.removeIf(raid -> {
@@ -244,12 +249,38 @@ public final class RaidData extends SavedData {
             if (nexus != null && nexus.isAlive()) {
                 return false;
             }
-            if (!overworld.hasChunkAt(raid.origin())) {
+            if (!overworld.hasChunkAt(raid.origin())
+                    || !overworld.areEntitiesLoaded(ChunkPos.asLong(raid.origin()))) {
                 return false;
             }
             RaidChunkLoader.release(overworld, raid.forcedChunks());
+            EventMobs.releaseOrigin(overworld.getServer(), EventMobs.Kind.NEXUS, raid.nexusId().toString());
             return true;
         });
+        if (changed) {
+            setDirty();
+        }
+    }
+
+    /**
+     * 進行中のレイドの強制ロードを {@code raidForceLoadRadius} の正方形まで縮める(2026-09-25、ユーザー承認
+     * 「レイドの見直し」、報告 1097)。既定を 7(225 チャンク)から 2(25 チャンク)へ下げる前に始まったレイドは、
+     * 放っておくと苗床が倒されるまで 225 チャンクを動かし続けるので、ここで外側を解除する。
+     * 途中で設定を下げたときも同じ。広げたときは次のレイドから(ここでは足さない)。
+     * 何も外さない回は配列をそのまま使い回すので、100 tick ごとに呼んでも記録の比較だけで終わる。
+     */
+    private void shrinkForcedAreas(ServerLevel overworld) {
+        int radius = OvergrownVegetationConfig.COMMON.raidForceLoadRadius.get();
+        boolean changed = false;
+        for (int i = 0; i < activeRaids.size(); i++) {
+            ActiveRaid raid = activeRaids.get(i);
+            long[] kept = RaidChunkLoader.releaseOutside(overworld, raid.forcedChunks(),
+                    new ChunkPos(raid.origin()), radius);
+            if (kept != raid.forcedChunks()) {
+                activeRaids.set(i, new ActiveRaid(raid.nexusId(), raid.origin(), raid.startGameTime(), kept));
+                changed = true;
+            }
+        }
         if (changed) {
             setDirty();
         }
@@ -282,6 +313,7 @@ public final class RaidData extends SavedData {
         if (!activeRaids.isEmpty()) {
             for (ActiveRaid raid : activeRaids) {
                 RaidChunkLoader.release(overworld, raid.forcedChunks());
+                EventMobs.releaseOrigin(overworld.getServer(), EventMobs.Kind.NEXUS, raid.nexusId().toString());
             }
             activeRaids.clear();
             setDirty();

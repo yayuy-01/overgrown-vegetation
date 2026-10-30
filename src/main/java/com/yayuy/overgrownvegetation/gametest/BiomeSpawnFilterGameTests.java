@@ -124,6 +124,40 @@ public final class BiomeSpawnFilterGameTests {
         helper.succeed();
     }
 
+    /**
+     * 地上 / 地下({@code spawns.depth})が<b>仕組みとして</b>効いているか(2026-09-26)。
+     * 中身(どの種が地下か)は {@code mobs.json} で変わるので値は固定しない。見るのは 3 つ:
+     * <ul>
+     *     <li>書いていない種は地上(既定に落ちる)。</li>
+     *     <li>{@code isCave} =「地下にしか湧かない」—— 両方に湧く種を地表の処理から外さない
+     *     (外すと、地上にも湧くはずの種が地表に出なくなる)。</li>
+     *     <li>どちらか一方は必ず true(両方 false = どこにも湧けない種を作らない)。</li>
+     * </ul>
+     */
+    @GameTest(template = "gametest_empty7")
+    public static void depthDecidesSurfaceOrCave(GameTestHelper helper) {
+        for (EntityType<?> type : MobStats.overgrownSpawnPool(10)) {
+            boolean surface = MobStats.spawnsOnSurface(type);
+            boolean cave = MobStats.spawnsInCaves(type);
+            String id = String.valueOf(BuiltInRegistries.ENTITY_TYPE.getKey(type));
+            if (!surface && !cave) {
+                helper.fail(id + ": 地上にも地下にも湧けない(depth の既定が効いていない)");
+                return;
+            }
+            if (OvergrownSpawnProfile.isCave(type) != (cave && !surface)) {
+                helper.fail(id + ": isCave が「地下にしか湧かない」になっていない");
+                return;
+            }
+        }
+        // 書いていない種は地上(spawns ごと無い種でも落ちないこと)。
+        if (!MobStats.spawnsOnSurface(ModEntities.HIVE_NODE.get())
+                || MobStats.spawnsInCaves(ModEntities.HIVE_NODE.get())) {
+            helper.fail("depth を書いていない種の既定が「地上だけ」になっていない");
+            return;
+        }
+        helper.succeed();
+    }
+
     private BiomeSpawnFilterGameTests() {
     }
 }

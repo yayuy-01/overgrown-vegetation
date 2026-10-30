@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:covered_warped_stem",
+    "overgrown_vegetation:covered_stripped_warped_stem",
+    "overgrown_vegetation:covered_warped_hyphae",
+    "overgrown_vegetation:covered_stripped_warped_hyphae"
+  ]
+}

@@ -1,9 +1,11 @@
 package com.yayuy.overgrownvegetation.block;
 
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
+import com.yayuy.overgrownvegetation.mixin.LevelChunkTickerInvoker;
 import com.yayuy.overgrownvegetation.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.SectionPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.network.protocol.Packet;
@@ -17,6 +19,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LightBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
@@ -325,11 +328,22 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
     private static final int DROOP_SEGMENTS = 24;
 
     /**
+     * {@link #detachTicker} でティッカーを外したかどうか。外したあとで主アンカーに変わったときに
+     * {@link #loadAdditional} が付け直すための目印。サーバー側だけのフィールドで、保存はしない
+     * (チャンクを読み込み直すとバニラが {@code getTicker} から付け直し、この目印も新しいインスタンスで false に戻る)。
+     */
+    private boolean tickerDetached;
+
+    /**
      * 主アンカーのサーバーティック。{@link com.yayuy.overgrownvegetation.block.CorruptedLianaBlock#getTicker}
      * から呼ばれる。副アンカー・垂れ蔦を1本も持たない蔦では即座に何もしない。
+     * 副アンカーは最初の 1 tick で自分のティッカーを外す({@link #detachTicker})。
      */
     public static void serverTick(Level level, BlockPos pos, BlockState state, CorruptedLianaBlockEntity be) {
         if (be.primaryPos != null || be.droopIndices.length == 0) {
+            if (be.primaryPos != null) {
+                be.detachTicker(level);
+            }
             return;
         }
         int interval = OvergrownVegetationConfig.COMMON.vineFruitRipenIntervalTicks.get();
@@ -347,6 +361,33 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
         }
         if (level instanceof ServerLevel serverLevel) {
             be.ripenRandomDroop(serverLevel, level.getRandom());
+        }
+    }
+
+    /**
+     * 副アンカーのティッカーを外し、以後このブロックエンティティを毎 tick 回さないようにする(2026-09-24、軽量化)。
+     *
+     * <p>{@code getTicker} はブロックの状態しか見られないので主アンカーと副アンカーを見分けられず、
+     * 蔦のブロックエンティティの 9 割を占める副アンカーまで毎 tick 回っては {@link #serverTick} の先頭で
+     * return していた。副アンカーの {@link #primaryPos} が null に戻る道は NBT の読み直ししか無い
+     * ({@link #setPrimaryPos} は生成時に非 null で 1 回呼ばれるだけ)ので、最初の 1 tick でバニラの
+     * 「ティッカーを持たないブロックエンティティ」と同じ扱いに移す({@code LevelChunk#removeBlockEntityTicker}。
+     * 包みが {@code NULL_TICKER} に差し替わり、次の周回で {@code Level#tickBlockEntities} がリストから外す)。
+     * 外すのはサーバーのティッカーだけで、ブロックエンティティ・保存内容・同期・描画・切断は何も変わらない。
+     *
+     * <ul>
+     *     <li>チャンクを読み込み直すとバニラが {@code getTicker} から付け直し、また最初の 1 tick で外れる。</li>
+     *     <li>垂れ蔦の無い主アンカーは外さない(今までどおり回しておく)。</li>
+     *     <li>外したあとで主アンカーに変わった(/data などで "Primary" を消した)ときは {@link #loadAdditional} が付け直す。</li>
+     * </ul>
+     */
+    private void detachTicker(Level level) {
+        // getChunkAt ではなく getChunkNow: tick 中のチャンクは必ず読み込み済みで、チケットを足す副作用も無い。
+        LevelChunk chunk = level.getChunkSource().getChunkNow(
+                SectionPos.blockToSectionCoord(worldPosition.getX()), SectionPos.blockToSectionCoord(worldPosition.getZ()));
+        if (chunk != null) {
+            ((LevelChunkTickerInvoker) chunk).overgrown_vegetation$removeBlockEntityTicker(worldPosition);
+            tickerDetached = true;
         }
     }
 
@@ -627,6 +668,18 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
             droopIsLight[i] = packedIsLight[i] != 0;
         }
         lightBlockPositions = readPositionList(tag, "LightBlocks");
+
+        // detachTicker で外したティッカーを、主アンカーに変わったときだけ付け直す(元は付けっぱなしだったので、
+        // 元どおり熟成させる)。チャンク読み込み時は新しいインスタンス(tickerDetached=false・level 未設定)なので素通り。
+        // ここに来るのは /data などで副アンカーの "Primary" を消したときだけ。
+        if (tickerDetached && primaryPos == null && level instanceof ServerLevel serverLevel && !isRemoved()) {
+            LevelChunk chunk = serverLevel.getChunkSource().getChunkNow(
+                    SectionPos.blockToSectionCoord(worldPosition.getX()), SectionPos.blockToSectionCoord(worldPosition.getZ()));
+            if (chunk != null) {
+                ((LevelChunkTickerInvoker) chunk).overgrown_vegetation$updateBlockEntityTicker(this);
+                tickerDetached = false;
+            }
+        }
     }
 
     /** {@code key} の long 配列(座標ぶんパック済み)を {@link BlockPos} のリストへ復元する。 */
@@ -639,9 +692,23 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
         return positions;
     }
 
+    /**
+     * クライアントへ送る分(チャンク送信と {@link #syncToClient})。
+     *
+     * <p>2026-09-24 軽量化(監査 1252): 副アンカー・親子・光源ブロックの座標一覧はサーバーだけが使う
+     * (切ったときの撤去 {@code CorruptedLianaBlock#cut}。クライアントでは早々に return する)ので送らない。
+     * 描画と右クリックの判定が読む Source / Target / Sag / Swag* / Primary / Droop* はそのまま送る。
+     * 保存と同じ形から 4 つを抜くだけにしてあるので、それ以外(NeoForge の付随データなど)は前と同じ。
+     * クライアントの {@link #loadAdditional} では抜いたキーが空の一覧になるだけ。
+     */
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-        return saveWithoutMetadata(registries);
+        CompoundTag tag = saveWithoutMetadata(registries);
+        tag.remove("Secondaries");
+        tag.remove("Parents");
+        tag.remove("Children");
+        tag.remove("LightBlocks");
+        return tag;
     }
 
     @Nullable

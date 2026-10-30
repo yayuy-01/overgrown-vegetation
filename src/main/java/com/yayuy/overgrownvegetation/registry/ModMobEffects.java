@@ -31,7 +31,7 @@ public final class ModMobEffects {
                     () -> new SporeInfectionMobEffect(MobEffectCategory.HARMFUL, 0x6C4A82));
 
     /**
-     * 「Philosense is watching you」— フィロセンスに見られ、汚染側に居場所を知られている<b>プレイヤー</b>の印。
+     * 「フィロセンスの視線 / Phyllosens' Gaze」— フィロセンスに見られ、汚染側に居場所を知られている<b>プレイヤー</b>の印。
      * これが付いている間、{@link #PHYLLOSENS_GUIDANCE 誘導}を受けた Mob が距離を問わず襲いに来る。
      * 付与は {@link com.yayuy.overgrownvegetation.entity.PhyllosensInfluence} の一箇所。
      */
@@ -49,7 +49,7 @@ public final class ModMobEffects {
 
     /**
      * 「スポロフィルの胞子」— スポロフィルの傘の下にいる<b>味方</b>のバフ。
-     * 攻撃が相手の防御力を半分無視し、防具の耐久値を大きく削る
+     * 攻撃が相手の防御力を一部(既定 20%)無視し、防具の耐久値を大きく削る
      * ({@link com.yayuy.overgrownvegetation.effect.SporophyllCombatHandler})。
      */
     public static final DeferredHolder<MobEffect, SporophyllSporesEffect> SPOROPHYLL_SPORES =
@@ -94,6 +94,21 @@ public final class ModMobEffects {
     public static final DeferredHolder<MobEffect, SavoryScentEffect> SAVORY_SCENT =
             MOB_EFFECTS.register("savory_scent",
                     () -> new SavoryScentEffect(MobEffectCategory.HARMFUL, 0xE1DF23));
+
+    // --- 乳鉢の薬でしか得られない効果(2026-10-16、ユーザー指定。効き目は effect/MedicineEffects) ---
+
+    /** 「胞子除け」— 胞子除けの粉薬。胞子濃度でかかるまでの時間が延びる。 */
+    public static final DeferredHolder<MobEffect, com.yayuy.overgrownvegetation.effect.MedicineMobEffect> SPORE_WARD =
+            MOB_EFFECTS.register("spore_ward", () -> new com.yayuy.overgrownvegetation.effect.MedicineMobEffect(0x8E9AB8));
+    /** 「気付け」— 気付け薬。胞子感染の段階の症状を治さずに抑える。 */
+    public static final DeferredHolder<MobEffect, com.yayuy.overgrownvegetation.effect.MedicineMobEffect> ALERTNESS =
+            MOB_EFFECTS.register("alertness", () -> new com.yayuy.overgrownvegetation.effect.MedicineMobEffect(0x7FA36A));
+    /** 「進行止め」— 進行止めの丸薬。胞子感染の進行が止まる。 */
+    public static final DeferredHolder<MobEffect, com.yayuy.overgrownvegetation.effect.MedicineMobEffect> STASIS =
+            MOB_EFFECTS.register("stasis", () -> new com.yayuy.overgrownvegetation.effect.MedicineMobEffect(0x9C8A6E));
+    /** 「段階の守り」— 暖花の丸薬。次に段階が上がるときのダメージを 1 回防ぎ、最大体力も減らさない。 */
+    public static final DeferredHolder<MobEffect, com.yayuy.overgrownvegetation.effect.MedicineMobEffect> STAGE_GUARD =
+            MOB_EFFECTS.register("stage_guard", () -> new com.yayuy.overgrownvegetation.effect.MedicineMobEffect(0xC98A3C));
 
     public static void register(IEventBus modBus) {
         MOB_EFFECTS.register(modBus);

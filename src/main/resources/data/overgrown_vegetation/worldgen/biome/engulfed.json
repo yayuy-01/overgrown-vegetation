@@ -4,8 +4,8 @@
   "has_precipitation": true,
   "temperature": 2.0,
   "effects": {
-    "sky_color": 2107960,
-    "fog_color": 923166,
+    "sky_color": 8298436,
+    "fog_color": 3826800,
     "water_color": 2636350,
     "water_fog_color": 922646,
     "grass_color": 1319454,
@@ -19,7 +19,7 @@
     "particle": {
       "probability": 0.04,
       "options": {
-        "type": "minecraft:spore_blossom_air"
+        "type": "overgrown_vegetation:drifting_spore"
       }
     }
   },

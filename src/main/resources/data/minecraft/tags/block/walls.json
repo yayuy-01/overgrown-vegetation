@@ -1,6 +1,32 @@
 {
   "replace": false,
   "values": [
-    "overgrown_vegetation:overgrown_wall"
+    "overgrown_vegetation:overgrown_wall",
+    "overgrown_vegetation:reinforced_concrete_wall",
+    "overgrown_vegetation:covered_cobblestone_wall",
+    "overgrown_vegetation:covered_mossy_cobblestone_wall",
+    "overgrown_vegetation:covered_stone_brick_wall",
+    "overgrown_vegetation:covered_mossy_stone_brick_wall",
+    "overgrown_vegetation:covered_granite_wall",
+    "overgrown_vegetation:covered_diorite_wall",
+    "overgrown_vegetation:covered_andesite_wall",
+    "overgrown_vegetation:covered_cobbled_deepslate_wall",
+    "overgrown_vegetation:covered_polished_deepslate_wall",
+    "overgrown_vegetation:covered_deepslate_brick_wall",
+    "overgrown_vegetation:covered_deepslate_tile_wall",
+    "overgrown_vegetation:covered_tuff_wall",
+    "overgrown_vegetation:covered_polished_tuff_wall",
+    "overgrown_vegetation:covered_tuff_brick_wall",
+    "overgrown_vegetation:covered_brick_wall",
+    "overgrown_vegetation:covered_mud_brick_wall",
+    "overgrown_vegetation:covered_sandstone_wall",
+    "overgrown_vegetation:covered_red_sandstone_wall",
+    "overgrown_vegetation:covered_prismarine_wall",
+    "overgrown_vegetation:covered_nether_brick_wall",
+    "overgrown_vegetation:covered_red_nether_brick_wall",
+    "overgrown_vegetation:covered_blackstone_wall",
+    "overgrown_vegetation:covered_polished_blackstone_wall",
+    "overgrown_vegetation:covered_polished_blackstone_brick_wall",
+    "overgrown_vegetation:covered_end_stone_brick_wall"
   ]
 }

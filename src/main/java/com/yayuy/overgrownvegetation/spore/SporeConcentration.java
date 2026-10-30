@@ -1,8 +1,8 @@
 package com.yayuy.overgrownvegetation.spore;
 
 import com.yayuy.overgrownvegetation.ModTags;
+import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
-import com.yayuy.overgrownvegetation.organ.OrganInfluence;
 import com.yayuy.overgrownvegetation.registry.ModBiomes;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -17,6 +17,9 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
@@ -56,6 +59,7 @@ import java.util.Map;
  *     間引きサンプリングし、結果を全体へ外挿する。さらに「もう 100% に届くと確定した」時点で打ち切る。</li>
  * </ul>
  */
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class SporeConcentration {
 
     /**
@@ -67,57 +71,51 @@ public final class SporeConcentration {
      * @param distanceComponent {@code biomeGap} から決まる加算値(%)。
      * @param corruptedColumns  汚染ブロックだった列数の推定値(間引きサンプリングからの外挿。0〜256)。
      * @param bonusComponent    感染加算成分(%)。プレイヤーがそのチャンクで胞子感染にかかるたびに積まれる
-     *                          ({@link SporeChunkBonus}。胞子感染1 = +1%、胞子感染2 = +5% …)。チャンクと一緒にセーブされる。
+     *                          (2026-10-23 に無くした。いつも 0)。
      * @param deviceComponent   稼働中の胞子装置による変化量 %(除去装置は負、拡散装置は正。{@link SporeDeviceData#deltaAt})。
      *                          過繫茂バイオームのチャンク(必ず 100%)には効かない(常に 0)。
      * @param percentBeforeDevices 装置の影響を除いた胞子濃度(0〜100)。除去装置の「胞子」産出量の基準。
-     * @param organLocalComponent  器官({@link com.yayuy.overgrownvegetation.organ.OrganInfluence})の
-     *                             <b>まわりだけ</b>の上乗せ(%)。器官に近いほど大きい。
-     * @param organFloorComponent  器官が世界に作っている<b>下限</b>(%)。次元のどこに居ても同じ値。
-     *                             {@code percent} がこれを下回ることはない。
-     *                             <b>効いているとは限らない</b> —— 元の濃度が既に上ならそのまま。
+     * @param drifterComponent     上空のペディキュラ({@link PediculaCover})が<b>いる間だけ</b>押し上げている分(%)。
+     *                             装置の前の値({@code percentBeforeDevices})をこの分だけ上げてある。0 = いない。
      */
     public record Result(double percent, boolean selfOvergrown, int biomeGap, double distanceComponent,
                          double ratioComponent, double corruptedComponent, int corruptedColumns,
                          double bonusComponent, double deviceComponent, double percentBeforeDevices,
-                         double organLocalComponent, double organFloorComponent) {
+                         double drifterComponent) {
 
         /** 装置の影響を {@code delta} だけ加えた結果(最終値は 0〜100 に丸める)。 */
         /** 寄生植物装備のプレイヤーぶん {@code delta} % を最終値に足した結果(0〜100 に丸める)。 */
         Result withHostBonus(double delta) {
-            double clamped = Math.max(0.0D, Math.min(100.0D, percent + delta));
+            // 中身は上限なし(2026-10-23 胞子の場 第 2 段 D。表示する側が 0〜100 に丸める)
+            double clamped = Math.max(0.0D, percent + delta);
             return new Result(clamped, selfOvergrown, biomeGap, distanceComponent, ratioComponent,
                     corruptedComponent, corruptedColumns, bonusComponent, deviceComponent, percentBeforeDevices,
-                    organLocalComponent, organFloorComponent);
+                    drifterComponent);
         }
 
         Result withDevices(double delta) {
             if (delta == 0.0D) {
                 return this;
             }
-            double clamped = Math.max(0.0D, Math.min(100.0D, percentBeforeDevices + delta));
+            double clamped = Math.max(0.0D, percentBeforeDevices + delta);
             return new Result(clamped, selfOvergrown, biomeGap, distanceComponent, ratioComponent,
                     corruptedComponent, corruptedColumns, bonusComponent, clamped - percentBeforeDevices,
-                    percentBeforeDevices, organLocalComponent, organFloorComponent);
+                    percentBeforeDevices, drifterComponent);
         }
 
         /**
-         * 器官のぶんを足した結果。<b>上乗せは足し算・下限は下支え</b>。
-         *
-         * <p>下限を足し算にすると器官が増えるたびに世界中が 100% へ張り付き、
-         * 濃度の差が意味を失う。「ここから下には行かない」だけにしておくと、
-         * 拠点の手入れ(除去装置・汚染ブロックの除去)は<b>下限までは効く</b>ので無駄にならない。
+         * 上空のペディキュラが<b>いる間</b>の結果(2026-09-23)。装置の前の値を {@code cover}(既定 100)まで
+         * 引き上げ、そこから装置の変化量 {@code delta} を足し直す —— 胞子除去装置は<b>いつもどおり効く</b>
+         * (中心なら下げきり、縁では下げきれない)。呼ぶ側で {@code cover} が今の値より大きいことを確かめてある。
          */
-        Result withOrgans(double local, double floor) {
-            if (local <= 0.0D && floor <= 0.0D) {
-                return this;
-            }
-            double raised = Math.min(100.0D, percent + local);
-            double clamped = Math.max(raised, Math.min(100.0D, floor));
+        Result withDrifter(double cover, double delta) {
+            double before = cover;
+            double clamped = Math.max(0.0D, before + delta);
             return new Result(clamped, selfOvergrown, biomeGap, distanceComponent, ratioComponent,
-                    corruptedComponent, corruptedColumns, bonusComponent, deviceComponent, percentBeforeDevices,
-                    local, floor);
+                    corruptedComponent, corruptedColumns, bonusComponent, clamped - before,
+                    before, before - percentBeforeDevices);
         }
+
     }
 
     private record Cached(Result result, long computedGameTime) {
@@ -129,30 +127,51 @@ public final class SporeConcentration {
     /** 1 列あたり、一番上のブロックから下方向へ何ブロックまで潜って地面を探すか(木の幹の下など)。 */
     private static final int GROUND_SCAN_DEPTH = 32;
 
-    /** {@code chunk} の胞子濃度の内訳を返す(キャッシュ付き)。 */
+    /**
+     * ワールドを閉じたらキャッシュを空にする(キーはディメンションだけなので、次に同じワールドや時刻の近い
+     * 別のワールドを開くと、TTL の間は前のワールドの計算結果が返る。起動し直したときと同じ状態に戻す)。
+     */
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        CACHE.clear();
+        // 濃度の計算に使う残り 2 つの static キャッシュも同じ理由で捨てる(2026-09-24、監査 2088)。
+        // 稼働中の胞子装置の位置(TTL 40 tick)は次元だけがキーなので(器官の下限は 10-23 に器官ごと削除)、
+        // 時刻の近い別のワールドを開くと TTL の間は前のワールドの値を返しうる。
+        SporeDeviceData.invalidateInhibitionAll();
+    }
+
+    /**
+     * {@code chunk} の胞子濃度の内訳を返す(キャッシュ付き)。上空のペディキュラが<b>いる間だけ</b>の
+     * 100% も含む(計測機が見るのはこれ)。
+     */
     public static Result at(ServerLevel level, ChunkPos chunk) {
-        return at(level, chunk.toLong(), chunk);
+        return at(level, chunk.toLong(), chunk, true);
     }
 
     /**
      * {@link #at(ServerLevel, ChunkPos)} の本体。{@code chunk} はキャッシュミス時にだけ必要なので、
      * ブロック座標から呼ぶ側({@link #percentAt(ServerLevel, BlockPos)})は {@code null} を渡して
      * ヒット時の {@link ChunkPos} 生成を省く。
+     *
+     * @param drifters 上空のペディキュラがいる間の 100% を含めるか({@link #lastingPercentAt} だけが false)
      */
-    private static Result at(ServerLevel level, long key, @Nullable ChunkPos chunk) {
+    private static Result at(ServerLevel level, long key, @Nullable ChunkPos chunk, boolean drifters) {
         Result base = atCached(level, key, chunk);
+        if (drifters) {
+            // 立ち去ればすぐ元に戻るよう、キャッシュの外で足す(2026-09-23)。
+            base = withDrifters(level, key, base);
+        }
         // 「寄生植物装備」を着けたプレイヤーが隣接チャンク以内に居れば、その段階ぶん(+15% / +30%)を上乗せする
         // (キャッシュには入れない: プレイヤーは動くので)。
         double host = com.yayuy.overgrownvegetation.item.PlantArmor.concentrationBonus(level, ChunkPos.getX(key), ChunkPos.getZ(key));
         Result withHost = host > 0.0D ? base.withHostBonus(host) : base;
-        // 器官(2026-09-23)。台帳が変わると即座に効き方が変わるので、こちらもキャッシュの外で足す。
-        // 器官が 1 つも無い世界では両方とも 0 を返して終わる(ChunkPos も作らない)。
-        return withHost.withOrgans(OrganInfluence.localPercentAt(level, key),
-                OrganInfluence.worldFloorPercent(level));
+        return withHost;
     }
 
     private static Result atCached(ServerLevel level, long key, @Nullable ChunkPos chunk) {
-        long ttl = OvergrownVegetationConfig.COMMON.sporeConcentrationCacheTtlTicks.get();
+        long cfgTtl = OvergrownVegetationConfig.COMMON.sporeConcentrationCacheTtlTicks.get();
+        // 場は 5 秒ごとに変わる
+        final long ttl = useField(level) ? Math.min(cfgTtl, com.yayuy.overgrownvegetation.data.DesignData.sporeField().updateTicks()) : cfgTtl;
         Long2ObjectOpenHashMap<Cached> perDim = CACHE.computeIfAbsent(level.dimension(), k -> new Long2ObjectOpenHashMap<>());
         long now = level.getGameTime();
 
@@ -165,8 +184,22 @@ public final class SporeConcentration {
         }
 
         Result result = compute(level, chunk != null ? chunk : new ChunkPos(key));
+        if (!level.hasChunk(ChunkPos.getX(key), ChunkPos.getZ(key))) {
+            // 2026-09-24(監査 2099): 自分のチャンクが読み込まれていないときは汚染列を数えずに出した値なので、
+            // 覚えない(読み込まれたあとの呼び出しで数え直す)。本番の呼び出し元は読み込み済みの位置しか渡さない。
+            return result;
+        }
         if (perDim.size() >= MAX_CACHE_PER_DIM) {
-            perDim.clear();
+            // 2026-09-24 軽量化(監査 2077): 期限切れのエントリは参照されない限り残るので、上限に達したら
+            // まず期限切れだけを捨てる(次に引かれたとき計算し直すのは前と同じ)。丸ごと捨てると、いま
+            // 使われているチャンクまで一斉にキャッシュミスになる。それでも上限なら従来どおり丸ごと捨てる。
+            perDim.values().removeIf(c -> {
+                long age = now - c.computedGameTime();
+                return age < 0 || age >= ttl;
+            });
+            if (perDim.size() >= MAX_CACHE_PER_DIM) {
+                perDim.clear();
+            }
         }
         perDim.put(key, new Cached(result, now));
         return result;
@@ -174,13 +207,35 @@ public final class SporeConcentration {
 
     /** {@code pos} を含むチャンクの胞子濃度(0〜100)。 */
     public static double percentAt(ServerLevel level, BlockPos pos) {
+        if (TentShelters.covers(level, pos)) {
+            return 0.0D; // 防胞子の天幕の半径 3(2026-10-16、ユーザー指定)
+        }
+        if (useField(level)) {
+            return fieldPercentAt(level, pos);
+        }
         // 全 Mob から 20 tick ごとに呼ばれる。キャッシュヒット時は ChunkPos を作らない。
-        return withCarrier(level, ChunkPos.asLong(pos.getX() >> 4, pos.getZ() >> 4));
+        return withCarrier(level, ChunkPos.asLong(pos.getX() >> 4, pos.getZ() >> 4), true);
     }
 
     /** {@code chunk} の胞子濃度(0〜100)。 */
     public static double percentAt(ServerLevel level, ChunkPos chunk) {
-        return withCarrier(level, chunk.toLong());
+        return withCarrier(level, chunk.toLong(), true);
+    }
+
+    /**
+     * <b>繁茂バイオーム化</b>({@code OvergrownBiomeConverter#maybeConvertToOvergrowth})が見る胞子濃度。
+     * {@link #percentAt} から、上空のペディキュラが<b>いる間だけ</b>の 100% を除いたもの。
+     *
+     * <p>ユーザー指定(2026-09-23)「いる時だけ 100% にしてほしい」。いる間の 100% で繁茂バイオーム化が走ると、
+     * 立ち去ったあとに<b>通り道が点々と繁茂バイオームのまま残る</b>(見回りは 1 チャンクあたり数分に 1 回なので、
+     * 通り過ぎる十数秒の間に当たる確率は 1 割弱 —— 当たったチャンクは戻らない)。
+     *
+     * <p><b>汚染シダの自然発生はこちらを使わない</b>(ユーザー指定 2026-09-23「シダの自然発生は残してほしい」)。
+     * 真下にときどきシダが湧くのは、胞子の塊が通った跡として残してよい、という判断。
+     * 生き物の感染・装備の汚染・除去装置の稼働・計測機の表示も、いる間は 100% のまま。
+     */
+    public static double lastingPercentAt(ServerLevel level, ChunkPos chunk) {
+        return withCarrier(level, chunk.toLong(), false);
     }
 
     /**
@@ -189,10 +244,28 @@ public final class SporeConcentration {
      * <p>上乗せを<b>キャッシュの外で</b>足しているのは、濃度がチャンクごとにキャッシュされているから ——
      * 中へ混ぜると、プレイヤーが立ち去ったあとも上乗せが残る。
      */
-    private static double withCarrier(ServerLevel level, long chunkKey) {
-        double base = at(level, chunkKey, null).percent();
+    private static double withCarrier(ServerLevel level, long chunkKey, boolean drifters) {
+        double base = at(level, chunkKey, null, drifters).percent();
         double bonus = ErosionCarrier.concentrationBonusAt(level, chunkKey);
-        return bonus <= 0.0D ? base : Math.min(100.0D, base + bonus);
+        return bonus <= 0.0D ? base : base + bonus;
+    }
+
+    /**
+     * 上空のペディキュラ({@link PediculaCover})が<b>いま</b>いれば、装置の前の値をその間の濃度(既定 100)まで
+     * 引き上げる。過繫茂バイオームのチャンクは元から 100% なので触らない。
+     *
+     * <p>装置の変化量はキャッシュ済みの結果からは戻せない(0〜100 に丸めた後の差しか残っていない)ので、
+     * <b>いるときだけ</b>計算し直す。ペディキュラは数が少ないので、この分岐に入ること自体がまれ。
+     */
+    private static Result withDrifters(ServerLevel level, long key, Result base) {
+        double cover = PediculaCover.percentAt(level, key);
+        if (cover <= base.percentBeforeDevices() || base.selfOvergrown()) {
+            return base;
+        }
+        ChunkPos chunk = new ChunkPos(key);
+        double delta = SporeDeviceData.deltaAt(level, chunk)
+                + com.yayuy.overgrownvegetation.entity.SporophyllAura.concentrationBoostAt(level, chunk);
+        return base.withDrifter(cover, delta);
     }
 
     /**
@@ -219,7 +292,7 @@ public final class SporeConcentration {
         }
     }
 
-    /** 1 チャンクぶんのキャッシュだけ捨てる({@link SporeChunkBonus#add} から)。 */
+    /** 1 チャンクぶんのキャッシュだけ捨てる(バイオームの書き換え・装置から)。 */
     public static void invalidate(ServerLevel level, ChunkPos chunk) {
         Long2ObjectOpenHashMap<Cached> perDim = CACHE.get(level.dimension());
         if (perDim != null) {
@@ -233,6 +306,11 @@ public final class SporeConcentration {
      * (ユーザー仕様 2026-09-10)。
      */
     private static Result compute(ServerLevel level, ChunkPos chunk) {
+        if (useField(level)) {
+            // 胞子の場を読む(2026-10-23 第 2 段 D)。除去装置・拡散装置は場そのものに効いている(抜く・出す)ので足さない。
+            // スポロフィルの傘だけは今までどおり足す
+            return fieldBase(level, chunk).withDevices(com.yayuy.overgrownvegetation.entity.SporophyllAura.concentrationBoostAt(level, chunk));
+        }
         Result base = computeBase(level, chunk);
         if (base.selfOvergrown()) {
             return base;
@@ -242,11 +320,150 @@ public final class SporeConcentration {
                 + com.yayuy.overgrownvegetation.entity.SporophyllAura.concentrationBoostAt(level, chunk));
     }
 
+    // ---------------------------------------------------------------- 胞子の場を読む(2026-10-23 第 2 段 D)
+
+    /**
+     * 胞子の場が有効なら場を読む。2026-10-23 F からネザー(ネザーの場)とエンド(場は無く、塗られたチャンクを過繁茂の下支えで)も。
+     */
+    public static boolean useField(ServerLevel level) {
+        if (!com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.enabled()) return false;
+        return level.dimension() == Level.OVERWORLD || level.dimension() == Level.END
+                || (level.dimension() == Level.NETHER && com.yayuy.overgrownvegetation.spore.field.NetherSporeFieldServer.running());
+    }
+
+    /**
+     * チャンクの濃度 = 場の浮遊 + 林床を「過繁茂のチャンクの晴れた午後 = 100%」で割った値(上限なし)。
+     * 下支え: 汚染されたチャンクは段階ごとの下限より下がらない(発生源の放出が下限。除去装置もここまで)。
+     * 写しが無い所(プレイヤーから遠い)は台帳の段階の下限だけ。
+     */
+    private static Result fieldBase(ServerLevel level, ChunkPos chunk) {
+        com.yayuy.overgrownvegetation.data.SporeFieldTable t = com.yayuy.overgrownvegetation.data.DesignData.sporeField();
+        com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.Cell cell =
+                com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.cell(level, chunk.x, chunk.z);
+        int stage;
+        double raw;
+        if (level.dimension() == Level.END) {
+            // エンドは場に乗せない: 過繫茂したエンドへ塗られたチャンクを「発芽済み・過繁茂」として下支えだけ(2026-10-23 F)
+            stage = com.yayuy.overgrownvegetation.corruption.PortalCorruptionData.get(level.getServer()).isEndIslandDone(chunk.toLong()) ? 2 : 0;
+            raw = 0.0D;
+        } else if (level.dimension() == Level.NETHER && cell == null) {
+            stage = com.yayuy.overgrownvegetation.corruption.NetherLedgerData.get(level).isOvergrown(chunk.toLong()) ? 2 : 0;
+            raw = 0.0D;
+        } else if (cell != null) {
+            stage = cell.stage();
+            raw = cell.conc() / t.fullAt() * 100.0D;
+            // 台帳の段階も見る(2026-10-24 ユーザーの指摘: 発芽したばかりのチャンクは台帳・バイオームではもう過繁茂なのに、
+            // 場では発芽から 2 日まで「繁茂」で下支えが 10% のまま、浮遊 8〜12% と読めていた)
+            if (level.dimension() == Level.OVERWORLD) {
+                com.yayuy.overgrownvegetation.phase.PhaseData phase = com.yayuy.overgrownvegetation.phase.PhaseData.get(level);
+                stage = Math.max(stage, phase.isClimaxChunk(chunk) ? 3 : phase.isOvergrownChunk(chunk) ? 2 : 0);
+            }
+        } else {
+            com.yayuy.overgrownvegetation.phase.PhaseData phase = com.yayuy.overgrownvegetation.phase.PhaseData.get(level);
+            stage = phase.isClimaxChunk(chunk) ? 3 : phase.isOvergrownChunk(chunk) ? 2 : 0;
+            raw = 0.0D;
+        }
+        double percent = Math.max(raw, t.floorFor(stage));
+        return new Result(percent, stage >= 2, -1, 0.0D, 0.0D, 0.0D, 0, 0.0D, 0.0D, percent, 0.0D);
+    }
+
+    /**
+     * 地点の濃度: まわり 4 つのチャンクの中心の値をなめらかに混ぜ(チャンクの境で段差を作らない)、地点の補正を掛ける。
+     */
+    private static double fieldPercentAt(ServerLevel level, BlockPos pos) {
+        double fx = pos.getX() / 16.0D - 0.5D, fz = pos.getZ() / 16.0D - 0.5D;
+        int x0 = Mth.floor(fx), z0 = Mth.floor(fz);
+        double tx = fx - x0, tz = fz - z0;
+        double v00 = withCarrier(level, ChunkPos.asLong(x0, z0), true);
+        double v10 = withCarrier(level, ChunkPos.asLong(x0 + 1, z0), true);
+        double v01 = withCarrier(level, ChunkPos.asLong(x0, z0 + 1), true);
+        double v11 = withCarrier(level, ChunkPos.asLong(x0 + 1, z0 + 1), true);
+        double v = (v00 * (1 - tx) + v10 * tx) * (1 - tz) + (v01 * (1 - tx) + v11 * tx) * tz;
+        return (v + riftFloorPercent(level, pos)) * pointFactor(level, pos);
+    }
+
+    /**
+     * 地割れの周りの下支え(%、2026-10-24 追記 19【決定】): 噴出の後も地割れの中心から rift.floorRadiusChunks の内側は
+     * 濃度の読みに rift.floorPercent を足す。半径の半分までは満額、そこから縁へなだらかに 0。地割れが複数ならいちばん近いもの。
+     * オーバーワールドだけ。
+     */
+    public static double riftFloorPercent(ServerLevel level, BlockPos pos) {
+        if (level.dimension() != net.minecraft.world.level.Level.OVERWORLD) return 0.0D;
+        long[] rifts = com.yayuy.overgrownvegetation.quake.EarthquakeData.riftCenters();
+        if (rifts.length == 0) return 0.0D;
+        com.yayuy.overgrownvegetation.data.SporeFieldTable t = com.yayuy.overgrownvegetation.data.DesignData.sporeField();
+        double r = t.riftFloorRadius() * 16.0D;
+        if (r <= 0.0D || t.riftFloorPercent() <= 0.0D) return 0.0D;
+        double best = 0.0D;
+        for (long c : rifts) {
+            double dx = pos.getX() - BlockPos.getX(c), dz = pos.getZ() - BlockPos.getZ(c);
+            double d = Math.sqrt(dx * dx + dz * dz);
+            if (d >= r) continue;
+            double f = d <= r * 0.5D ? 1.0D : 1.0D - Mth.smoothstep((d - r * 0.5D) / (r * 0.5D));
+            best = Math.max(best, f);
+        }
+        return best * t.riftFloorPercent();
+    }
+
+    /**
+     * 地点の補正(粗くてよい。【決定】閉じた部屋は厳密でなくてよい・屋根付きの廊下も閉じ扱いで可):
+     * 梢より上は薄い / 空が少し見える地下(洞窟の口・窪地)は濃い / 空の光 0 で地面から浅い所は屋根の下(周り 4 方が塞がれば閉じた部屋)/
+     * 深い洞窟 / 雨の最中 / 風上のすぐ隣が塞がっていれば壁の陰。
+     */
+    static double pointFactor(ServerLevel level, BlockPos pos) {
+        com.yayuy.overgrownvegetation.data.SporeFieldTable t = com.yayuy.overgrownvegetation.data.DesignData.sporeField();
+        if (level.dimension() == Level.NETHER) {
+            // ネザー: 天井の岩盤の下はどこも「地表」扱い(高さ地図は天井を指すので使わない)。雨も風も無い。閉じた部屋だけ薄い(2026-10-23 F)
+            return enclosed(level, pos.above()) && level.getBlockState(pos.above(2)).isCollisionShapeFullBlock(level, pos.above(2)) ? t.roomFactor() : 1.0D;
+        }
+        int x = pos.getX(), z = pos.getZ(), y = pos.getY();
+        double f = 1.0D;
+        int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
+        int ground = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        if (y > top + 2) {
+            f *= Math.exp(-(y - top - 2) / t.aboveCanopyFalloff());
+        } else if (y < ground - 1) {
+            int sky = level.getBrightness(net.minecraft.world.level.LightLayer.SKY, pos.above());
+            int depth = ground - y;
+            if (sky == 0) {
+                f *= depth > 12 ? t.deepCaveFactor() : enclosed(level, pos.above()) ? t.roomFactor() : t.roofFactor();
+            } else if (sky < 15) {
+                f *= t.hollowFactor();
+            }
+        }
+        if (level.isRainingAt(pos.above(2)) || (level.isRaining() && y >= ground - 1 && level.canSeeSky(pos.above()))) {
+            f *= t.rainFactor();
+        }
+        com.yayuy.overgrownvegetation.spore.field.PrevailingWind.Sample w = level.dimension() == Level.OVERWORLD
+                ? com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.windNow(level) : null;
+        if (w != null && w.strength > 0.3D) {
+            BlockPos up = pos.offset(-(int) Math.round(w.dirX), 1, -(int) Math.round(w.dirZ));
+            if (level.getBlockState(up).isCollisionShapeFullBlock(level, up)) {
+                f *= t.upwindShadeFactor();
+            }
+        }
+        return f;
+    }
+
+    /** 頭の高さで東西南北それぞれ 6 ブロック以内に塞ぐブロックがあるか。 */
+    private static boolean enclosed(ServerLevel level, BlockPos head) {
+        BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
+        for (net.minecraft.core.Direction d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+            boolean hit = false;
+            for (int i = 1; i <= 6 && !hit; i++) {
+                m.set(head.getX() + d.getStepX() * i, head.getY(), head.getZ() + d.getStepZ() * i);
+                hit = level.getBlockState(m).isCollisionShapeFullBlock(level, m);
+            }
+            if (!hit) return false;
+        }
+        return true;
+    }
+
     private static Result computeBase(ServerLevel level, ChunkPos chunk) {
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
 
         if (overgrownState(level, chunk.x, chunk.z) == 1) {
-            return new Result(100.0, true, 0, 0.0, 0.0, 0.0, 256, 0.0, 0.0, 100.0, 0.0, 0.0);
+            return new Result(100.0, true, 0, 0.0, 0.0, 0.0, 256, 0.0, 0.0, 100.0, 0.0);
         }
         // 繁茂バイオーム(overgrown_vegetation:overgrowth 系)は「胞子濃度 100%」に達した時点で
         // 割り当てられるが、その後もチャンク自身の胞子濃度は下の通常計算で毎回求め直す
@@ -296,7 +513,7 @@ public final class SporeConcentration {
         };
 
         // プレイヤーの感染で積まれたチャンク固有の加算(SporeChunkBonus)。
-        double bonusComponent = SporeChunkBonus.get(level, chunk);
+        double bonusComponent = 0.0D; // SporeChunkBonus は無くした(2026-10-23 第 2 段 G)
 
         double base = distanceComponent + ratioComponent + bonusComponent;
         double perCol = cfg.sporeConcentrationPerCorruptedBlockPercent.get();
@@ -312,7 +529,7 @@ public final class SporeConcentration {
 
         double percent = Math.min(100.0, base + corruptedComponent);
         return new Result(percent, false, biomeGap, distanceComponent, ratioComponent, corruptedComponent,
-                corruptedColumns, bonusComponent, 0.0, percent, 0.0, 0.0);
+                corruptedColumns, bonusComponent, 0.0, percent, 0.0);
     }
 
     /**
@@ -327,6 +544,13 @@ public final class SporeConcentration {
      * ロード済みなのは確認済み。
      */
     private static int countCorruptedSurface(ServerLevel level, ChunkPos chunkPos, int stride, int maxUsefulColumns) {
+        // 2026-09-24(監査 2099): チケットの無いチャンクをここで同期ロード(未生成なら生成)しない。
+        // 本番の呼び出し元はどれもロード済みの位置(Mob・プレイヤーの居場所、hasChunk を確かめたチャンク)
+        // なので結果は変わらない。hasChunk はチケットだけを見るので、読み込み途中のチャンクは従来どおり
+        // getChunk で待って数える(getChunkNow にすると、その間だけ 0 列になって値が変わる)。
+        if (!level.hasChunk(chunkPos.x, chunkPos.z)) {
+            return 0;
+        }
         LevelChunk chunk = level.getChunk(chunkPos.x, chunkPos.z);
         int minY = level.getMinBuildHeight();
 
@@ -352,10 +576,14 @@ public final class SporeConcentration {
     /** 1 列の地面(または上に生えた植物)が汚染ブロックか。 */
     private static boolean columnGroundIsCorrupted(ServerLevel level, LevelChunk chunk, int wx, int wz,
                                                   int localX, int localZ, int minY, BlockPos.MutableBlockPos cursor) {
-        int startY = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, localX, localZ) - 1;
+        // チャンクの getHeight はもういちばん上のブロックの高さ(-1 済み)。前はさらに -1 していて、いちばん上の 1 段(汚染された草など)を
+        // 見ずに下から探していた(2026-10-23 直した。今これを使うのは胞子の場を使わない読み = ネザー・エンドだけ)
+        int startY = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, localX, localZ);
         for (int dy = 0; dy < GROUND_SCAN_DEPTH && startY - dy > minY; dy++) {
             cursor.set(wx, startY - dy, wz);
-            BlockState state = level.getBlockState(cursor);
+            // 列は必ずこのチャンクの中・高さの範囲内なので、Level を経由せずチャンクから直接読む
+            // (Level#getBlockState は高さの確認とチャンクの引き直しをするだけで、同じ値を返す。2026-09-24、監査 2077)。
+            BlockState state = chunk.getBlockState(cursor);
             if (state.is(ModTags.CORRUPTED)) {
                 return true;
             }

@@ -25,7 +25,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  *
  * <p>{@link #isStationary()} の間は自力移動しない(枝に止まっている/休んでいる)。
  */
-public abstract class OvergrownFlyerEntity extends PathfinderMob implements GeoEntity, ParasitizedMob {
+public abstract class OvergrownFlyerEntity extends PathfinderMob implements GeoEntity, CritterAction.Holder, ParasitizedMob {
 
     /** 飛行中(移動状態で fly / hover を切替)。 */
     public static final int STATE_FLY = 0;
@@ -98,10 +98,41 @@ public abstract class OvergrownFlyerEntity extends PathfinderMob implements GeoE
         return navigation;
     }
 
+    /** 今している行動(食べる・休む・驚いて逃げ出す など)。アニメの再生の口だけ(行動の Goal は後の段)。2026-10-22。 */
+    private static final EntityDataAccessor<Byte> DATA_CRITTER_ACTION =
+            SynchedEntityData.defineId(OvergrownFlyerEntity.class, EntityDataSerializers.BYTE);
+
+    @Override
+    public CritterAction getCritterAction() {
+        return CritterAction.byId(this.entityData.get(DATA_CRITTER_ACTION));
+    }
+
+    @Override
+    public void setCritterAction(CritterAction action) {
+        this.entityData.set(DATA_CRITTER_ACTION, (byte) action.ordinal());
+    }
+
+    @Override
+    public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        if (getCritterAction() != CritterAction.NONE) {
+            tag.putString(CritterAction.NBT, getCritterAction().name().toLowerCase(java.util.Locale.ROOT));
+        }
+    }
+
+    @Override
+    public void readAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        if (tag.contains(CritterAction.NBT)) {
+            setCritterAction(CritterAction.byName(tag.getString(CritterAction.NBT)));
+        }
+    }
+
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(DATA_ACTION_STATE, STATE_FLY);
+        builder.define(DATA_CRITTER_ACTION, (byte) 0);
     }
 
     public int getActionState() {

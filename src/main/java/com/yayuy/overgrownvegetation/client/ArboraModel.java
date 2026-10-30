@@ -10,9 +10,13 @@ import net.minecraft.resources.ResourceLocation;
  */
 public class ArboraModel extends LodGeoModel<ArboraEntity> {
 
+    // 2026-09-24 軽量化(監査 1318): 描画のたびに ResourceLocation を作り直さないよう定数にする(中身は同じ)。
+    private static final ResourceLocation MODEL = OvergrownVegetation.id("geo/arbora.geo.json");
+    private static final ResourceLocation ANIMATION = OvergrownVegetation.id("animations/arbora.animation.json");
+
     @Override
     public ResourceLocation getModelResource(ArboraEntity animatable) {
-        return OvergrownVegetation.id("geo/arbora.geo.json");
+        return MODEL;
     }
 
     @Override
@@ -22,6 +26,6 @@ public class ArboraModel extends LodGeoModel<ArboraEntity> {
 
     @Override
     public ResourceLocation getAnimationResource(ArboraEntity animatable) {
-        return OvergrownVegetation.id("animations/arbora.animation.json");
+        return ANIMATION;
     }
 }

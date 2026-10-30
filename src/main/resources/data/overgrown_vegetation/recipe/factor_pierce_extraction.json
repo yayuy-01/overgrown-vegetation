@@ -1,0 +1,12 @@
+{
+  "type": "overgrown_vegetation:factor_extraction",
+  "ingredient": {
+    "item": "overgrown_vegetation:phalangiotarbus_fang"
+  },
+  "count": 4,
+  "time": 200,
+  "result": {
+    "id": "overgrown_vegetation:factor_pierce",
+    "count": 1
+  }
+}

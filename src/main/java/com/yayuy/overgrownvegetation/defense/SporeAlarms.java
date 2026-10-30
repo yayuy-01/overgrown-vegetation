@@ -31,7 +31,6 @@ import java.util.concurrent.ConcurrentHashMap;
  *     <li>フェーズの移り変わり(上がった瞬間 + 次のフェーズまでの達成率が {@code phaseWarnFraction} に達したとき)
  *     — {@code phase/PhaseData}</li>
  *     <li>レイド(レイドビーコンの出現。方角と距離つき)— {@code raid/RaidController}</li>
- *     <li>小規模レイド(一団が湧いた瞬間。方角と距離つき)— {@code raid/SmallRaidController}</li>
  * </ul>
  * 警報器が 1 台も無ければ何も出ない(= 警報器を作る動機)。
  */

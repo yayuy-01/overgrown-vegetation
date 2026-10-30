@@ -31,7 +31,7 @@ public final class EffectTable {
         public SporophyllSpores sporophyllSpores;
         /** スポロフィルが敵に付ける「纏わりついた胞子」(デバフ)。 */
         public ClingingSpores clingingSpores;
-        /** フィロセンスに見つかっている「Philosense is watching you」(デバフ)。 */
+        /** フィロセンスに見つかっている「フィロセンスの視線 / Phyllosens' Gaze」(デバフ)。 */
         public SimpleEffect phyllosensWatch;
         /** フィロセンスが味方に配る「フィロセンスの誘導」(バフ)。 */
         public SimpleEffect phyllosensGuidance;
@@ -43,6 +43,8 @@ public final class EffectTable {
         public UndevelopedSeed undevelopedSeed;
         /** 「大きな未発達な果実」を食べると付く効果一式(強力なバフ + 胞子感染の進行 + 遅れてくる空腹)。 */
         public LargeUndevelopedFruit largeUndevelopedFruit;
+        /** 乳鉢の薬の効き目(2026-10-16)。 */
+        public Medicine medicine;
     }
 
     /** 持続だけを持つ効果。 */
@@ -51,11 +53,21 @@ public final class EffectTable {
         public Integer durationTicks;
     }
 
-    /** 「スポロフィルの胞子」(バフ)。 */
+    /**
+     * 「スポロフィルの胞子」(バフ)。一緒に配るバニラの効果の段階もここに持つ。
+     *
+     * <p>段階は種類ごと(2026-09-26 まではひとつの {@code amplifier} で 3 つとも II だった)。
+     * ユーザー指定 2026-09-26: 耐性はやめる・再生は I・攻撃力上昇は II のまま。
+     * 古い json に残った {@code amplifier} は読まない。
+     */
     public static final class SporophyllSpores {
         public Integer durationTicks;
-        /** 効果の段階(0 = I)。 */
-        public Integer amplifier;
+        /** 一緒に配る再生の段階(0 = I、-1 = 配らない)。 */
+        public Integer regenerationAmplifier;
+        /** 一緒に配る攻撃力上昇の段階(0 = I、-1 = 配らない)。 */
+        public Integer strengthAmplifier;
+        /** 一緒に配る耐性の段階(0 = I、-1 = 配らない)。 */
+        public Integer resistanceAmplifier;
         /** 攻撃時に相手の防御力を無視する割合(0〜1)。 */
         public Double armorPiercing;
         /** 攻撃時に相手の防具の耐久を削る量 = 与ダメージ × これ。 */
@@ -110,6 +122,21 @@ public final class EffectTable {
      * <p>強力なバフ(再生III・耐性II・栄養満点)と引き換えに、<b>胞子感染が一段進み</b>
      * ({@code escalateInfection})、{@code hungerDelayTicks} 経ってから激しい空腹が来る。
      */
+    /**
+     * 乳鉢の薬(2026-10-16、サバイバル用アイテム)。効き目の割り当てはユーザー指定、数値は仮決め:
+     * 胞子除けの粉薬 = かかるまでの時間を延ばす / 気付け薬 = 段階の症状を抑える / 進行止めの丸薬 = 進行を止める /
+     * 暖花の丸薬 = 次の段階のダメージを 1 回防ぎ最大体力も減らさない / 胞子止めの霊薬 = 段階を下げる。
+     */
+    public static final class Medicine {
+        public Integer sporeWardTicks;
+        public Double sporeWardDwellFactor;
+        public Integer alertnessTicks;
+        public Integer stasisTicks;
+        public Integer stageGuardTicks;
+        public Integer elixirStages;
+        public Integer grindTicks;
+    }
+
     public static final class LargeUndevelopedFruit {
         /** バニラ「再生」の持続 tick(600 = 30 秒)。0 で付けない。 */
         public Integer regenerationTicks;
@@ -269,6 +296,23 @@ public final class EffectTable {
         public Integer decontaminationTicksPerPercent;
         /** 樹液結晶で処理した装備の、汚染の進みに掛ける倍率(既定 0.1 = 10 分の 1 の速さ)。 */
         public Double sapCrystalRateFactor;
+        // --- 種類ごとの下がり方(2026-10-14 ユーザー指定)。どれも汚染 100% のときの値で、途中は steps の形に合わせて縮める。 ---
+        /** 武器: 攻撃力の低下の最大(既定 0.35)。 */
+        public Double weaponAttackDamageMax;
+        /** 武器: 攻撃速度の低下の最大(既定 0.20)。 */
+        public Double weaponAttackSpeedMax;
+        /** 武器: 1 回の使用で減る耐久値の倍率の最大(既定 3 = 1 回で 3 減る)。 */
+        public Double weaponDurabilityMultiplierMax;
+        /** 道具: 採掘速度の低下の最大(既定 0.35)。 */
+        public Double toolMiningSpeedMax;
+        /** 道具: 1 回の使用で減る耐久値の倍率の最大(既定 3)。 */
+        public Double toolDurabilityMultiplierMax;
+        /** 盾: 防いだときに減る耐久値の倍率の最大(既定 2)。 */
+        public Double shieldDurabilityMultiplierMax;
+        /** 弓・クロスボウ: 矢の飛距離の低下の最大(既定 0.70)。 */
+        public Double bowRangeMax;
+        /** 弓・クロスボウ: 矢の攻撃力の低下の最大(既定 0.35)。 */
+        public Double bowDamageMax;
     }
 
     /** {@link GearContamination#steps} の 1 段。 */
@@ -287,7 +331,11 @@ public final class EffectTable {
     public record GearContaminationSpec(boolean enabled, double minConcentrationPercent, int ticksToFullAtMin,
                                         int ticksToFullAtMax, int checkIntervalTicks, boolean wholeInventory,
                                         java.util.List<StepSpec> steps, int decontaminationTicksPerPercent,
-                                        double sapCrystalRateFactor) {
+                                        double sapCrystalRateFactor,
+                                        double weaponAttackDamageMax, double weaponAttackSpeedMax,
+                                        double weaponDurabilityMultiplierMax, double toolMiningSpeedMax,
+                                        double toolDurabilityMultiplierMax, double shieldDurabilityMultiplierMax,
+                                        double bowRangeMax, double bowDamageMax) {
 
         /**
          * 胞子濃度 {@code concentration}(%)の場所で 1 tick に進む汚染度(%)。
@@ -314,13 +362,111 @@ public final class EffectTable {
             }
             return Math.max(0.0D, Math.min(1.0D, best));
         }
+
+        /**
+         * 汚染度 {@code percent}(%)のときの「効きの強さ」(0〜1)。最後の段で 1。
+         * 武器・道具・盾・弓は、種類ごとの最大値にこれを掛ける(既定の段なら 25% で 0.08、50% で 0.38、75% で 0.69)。
+         */
+        public double severityAt(double percent) {
+            double max = 0.0D;
+            for (StepSpec s : steps) {
+                max = Math.max(max, s.performanceReduction());
+            }
+            return max <= 0.0D ? 0.0D : Math.min(1.0D, reductionAt(percent) / max);
+        }
     }
 
     public static final class SporeInfection {
         public Exposure exposure;
+        /** 2026-10-14 からは <b>Mob の</b>感染だけが使う(プレイヤーは {@link #player})。 */
         public Level level1;
         public Level level2;
         public Level level3;
+        /** プレイヤーの 10 段階の胞子感染(2026-10-14 ユーザー指定)。 */
+        public PlayerInfection player;
+    }
+
+    /**
+     * <b>プレイヤーの胞子感染</b>(2026-10-14 ユーザー指定で作り直し)。治さなければ {@code stageTicks}(10 分)ごとに 1 段上がり、
+     * 感染10 からさらに 10 分で死んで汚染シダになる。段階が上がるたびに {@code damagePerStage} のダメージと、
+     * 治るまで最大体力が {@code maxHealthPerStage} ずつ減る。牛乳では治らない。
+     */
+    public static final class PlayerInfection {
+        /** 1 段上がるまでの tick(既定 12000 = 10 分)。 */
+        public Integer stageTicks;
+        /** この胞子濃度 % 以上の場所に {@code infectDwellTicks} いるとかかる(既定 50%・600 = 30 秒)。 */
+        public Double infectPercent;
+        public Integer infectDwellTicks;
+        /** 過繁茂した Mob の攻撃でかかる確率(既定 0.3)。 */
+        public Double attackInfectChance;
+        /** 胞子濃度がこの % 以上の場所では進行が {@code concentrationSpeedBonus} 速くなる(既定 50%・+0.05)。 */
+        public Double speedUpPercent;
+        public Double concentrationSpeedBonus;
+        /** 過繁茂したバイオーム(スポロフィルの傘の下を含む)では進行が速くなる(既定 +0.10)。 */
+        public Double overgrownBiomeSpeedBonus;
+        /** 敵の攻撃を受けると、この確率で進行が {@code attackAdvanceTicks} 進む(既定 0.05・200 = 10 秒)。 */
+        public Double attackAdvanceChance;
+        public Integer attackAdvanceTicks;
+        /** 感染中は {@code xpDrainIntervalTicks} ごとに経験値を {@code xpDrainPoints} 吸われる(既定 200 = 10 秒・1)。 */
+        public Integer xpDrainIntervalTicks;
+        public Integer xpDrainPoints;
+        /** 段階が上がるたびのダメージ(既定 1)と、減る最大体力(既定 1)。 */
+        public Double damagePerStage;
+        public Double maxHealthPerStage;
+        /** かかった瞬間、いるチャンクの胞子濃度へ足す %(既定 1。前の胞子感染1 と同じ)。 */
+        public Double chunkSporeBonusPercent;
+        /** 段階ごとの症状(1〜10 の順)。 */
+        public java.util.List<Stage> stages;
+        /** 濾し布の呼吸覆い(追加防具・頭)を付けていると、かかるまでの時間がこの倍(既定 2 = 30 秒 → 60 秒。2026-10-15 ユーザー指定)。 */
+        public Double breathingClothDwellFactor;
+        /** 濾し布の呼吸覆いは、胞子濃度 infectPercent 以上の場所にいる間この tick ごとに耐久が 1 減る(既定 100 = 5 秒。耐久 240 で 20 分。仮決め)。 */
+        public Integer breathingClothWearIntervalTicks;
+        /** 布鎧(追加防具・体)を着ている間、過繁茂した Mob の攻撃でかかる確率をこれに置き換える(既定 0.15。2026-10-15 ユーザー指定)。 */
+        public Double gambesonAttackInfectChance;
+        /** 朝霧の中(深さ 1・濃い朝)では進行がこれだけ速くなる(既定 +0.15。2026-10-16 ユーザー指定「霧の中は感染が進みやすく」、量は仮決め)。 */
+        public Double mistSpeedBonus;
+        /** 朝霧の中(深さ 1・濃い朝)では、かかるまでの時間がこの倍(既定 0.5 = 30 秒 → 15 秒。仮決め)。 */
+        public Double mistDwellFactor;
+    }
+
+    /** プレイヤーの胞子感染 1 段ぶんの症状。 */
+    public static final class Stage {
+        /** 空腹の強さ(1 = バニラの空腹 I と同じ消耗)。 */
+        public Integer hunger;
+        /** 過繁茂した Mob からの被検知距離の増加(ブロック)。 */
+        public Double detectionRangeBonus;
+        /** 防御力の低下(0〜1)。 */
+        public Double armorReduction;
+        /** 攻撃力の低下(0〜1)。 */
+        public Double attackDamageReduction;
+    }
+
+    /** {@link Stage} の確定値。 */
+    public record StageSpec(int hunger, double detectionRangeBonus, double armorReduction, double attackDamageReduction) {
+        /** 毎 tick の満腹度消耗(バニラの空腹は 1 段 0.005)。 */
+        public double hungerExhaustionPerTick() {
+            return 0.005D * Math.max(0, hunger);
+        }
+    }
+
+    /** {@link PlayerInfection} の確定値。 */
+    public record PlayerInfectionSpec(int stageTicks, double infectPercent, int infectDwellTicks, double attackInfectChance,
+                                      double speedUpPercent, double concentrationSpeedBonus, double overgrownBiomeSpeedBonus,
+                                      double attackAdvanceChance, int attackAdvanceTicks, int xpDrainIntervalTicks,
+                                      int xpDrainPoints, double damagePerStage, double maxHealthPerStage,
+                                      double chunkSporeBonusPercent, java.util.List<StageSpec> stages,
+                                      double breathingClothDwellFactor, int breathingClothWearIntervalTicks,
+                                      double gambesonAttackInfectChance,
+                                      double mistSpeedBonus, double mistDwellFactor) {
+        /** 段階の数(10)。 */
+        public int maxStage() {
+            return stages.size();
+        }
+
+        /** 段階 {@code stage}(1〜)の症状。範囲外は端に丸める。 */
+        public StageSpec stage(int stage) {
+            return stages.get(Math.max(1, Math.min(stages.size(), stage)) - 1);
+        }
     }
 
     /** 胞子濃度による感染判定。 */
@@ -401,6 +547,7 @@ public final class EffectTable {
     private final int mobDwellTicks;
     private final LevelSpec[] levels = new LevelSpec[MAX_LEVEL_INDEX + 1];
     private final double maxDetectionRangeBonus;
+    private final PlayerInfectionSpec playerInfection;
     private final DeviceSpec purifier;
     private final GearContaminationSpec gearContamination;
     private final DeviceSpec diffuser;
@@ -414,11 +561,18 @@ public final class EffectTable {
     private final GlowFruit glowFruit;
     private final UndevelopedSeed undevelopedSeed;
     private final LargeUndevelopedFruit largeFruit;
+    private final Medicine medicine;
 
     /** 「スポロフィルの胞子」(バフ)。 */
     public int sporophyllBuffTicks() { return orElse(sporophyllSpores.durationTicks, 1200); }
-    public int sporophyllBuffAmplifier() { return orElse(sporophyllSpores.amplifier, 1); }
-    public double sporophyllArmorPiercing() { return orElse(sporophyllSpores.armorPiercing, 0.5D); }
+    /** 再生の段階。-1 = 配らない(既定 0 = I、ユーザー指定 2026-09-26)。 */
+    public int sporophyllRegenerationAmplifier() { return orElse(sporophyllSpores.regenerationAmplifier, 0); }
+    /** 攻撃力上昇の段階。-1 = 配らない(既定 1 = II)。 */
+    public int sporophyllStrengthAmplifier() { return orElse(sporophyllSpores.strengthAmplifier, 1); }
+    /** 耐性の段階。-1 = 配らない(既定 -1、ユーザー指定 2026-09-26「耐性バフを配るのをやめ」)。 */
+    public int sporophyllResistanceAmplifier() { return orElse(sporophyllSpores.resistanceAmplifier, -1); }
+    /** 防御力を無視する割合。既定 0.2 は effects.json の値に揃えたもの(2026-09-26 まで Java だけ 0.5 だった)。 */
+    public double sporophyllArmorPiercing() { return orElse(sporophyllSpores.armorPiercing, 0.2D); }
     public double sporophyllArmorDurabilityFactor() { return orElse(sporophyllSpores.armorDurabilityFactor, 1.0D); }
 
     /** 「纏わりついた胞子」(デバフ)。 */
@@ -462,11 +616,20 @@ public final class EffectTable {
     public int largeFruitHungerTicks() { return orElse(largeFruit.hungerTicks, 3600); }
     public int largeFruitHungerAmplifier() { return orElse(largeFruit.hungerAmplifier, 2); }
 
+    // --- 乳鉢の薬(2026-10-16) ---
+    public int medicineSporeWardTicks() { return orElse(medicine.sporeWardTicks, 2400); }
+    public double medicineSporeWardDwellFactor() { return Math.max(1.0D, orElse(medicine.sporeWardDwellFactor, 2.0D)); }
+    public int medicineAlertnessTicks() { return orElse(medicine.alertnessTicks, 2400); }
+    public int medicineStasisTicks() { return orElse(medicine.stasisTicks, 3600); }
+    public int medicineStageGuardTicks() { return orElse(medicine.stageGuardTicks, 12000); }
+    public int medicineElixirStages() { return Math.max(1, orElse(medicine.elixirStages, 1)); }
+    public int medicineGrindTicks() { return Math.max(4, orElse(medicine.grindTicks, 40)); }
+
     private EffectTable(SporeInfection s, SporeDevices dv, GearContamination gc,
                         SporophyllSpores sporophyllSpores, ClingingSpores clingingSpores,
                         SimpleEffect phyllosensWatch, SimpleEffect phyllosensGuidance,
                         WaterRot waterRot, GlowFruit glowFruit, UndevelopedSeed undevelopedSeed,
-                        LargeUndevelopedFruit largeFruit) {
+                        LargeUndevelopedFruit largeFruit, Medicine medicine) {
         SporeInfection d = DEFAULT_SPORE;
         SporeDevices dd = DEFAULT_DEVICES;
         this.purifier = mergeDevice(dv != null ? dv.purifier : null, dd.purifier);
@@ -480,6 +643,7 @@ public final class EffectTable {
         this.glowFruit = glowFruit != null ? glowFruit : new GlowFruit();
         this.undevelopedSeed = undevelopedSeed != null ? undevelopedSeed : new UndevelopedSeed();
         this.largeFruit = largeFruit != null ? largeFruit : new LargeUndevelopedFruit();
+        this.medicine = medicine != null ? medicine : new Medicine();
         Exposure e = s.exposure != null ? s.exposure : new Exposure();
         this.playerLowMinPercent = orElse(e.playerLowMinPercent, d.exposure.playerLowMinPercent);
         this.playerLowRollIntervalTicks = orElse(e.playerLowRollIntervalTicks, d.exposure.playerLowRollIntervalTicks);
@@ -490,11 +654,48 @@ public final class EffectTable {
         this.levels[0] = merge(s.level1, d.level1);
         this.levels[1] = merge(s.level2, d.level2);
         this.levels[2] = merge(s.level3, d.level3);
+        this.playerInfection = mergePlayer(s.player, d.player);
         double maxBonus = 0.0D;
         for (LevelSpec spec : levels) {
             maxBonus = Math.max(maxBonus, spec.detectionRangeBonus());
         }
+        for (StageSpec stage : playerInfection.stages()) {
+            maxBonus = Math.max(maxBonus, stage.detectionRangeBonus());
+        }
         this.maxDetectionRangeBonus = maxBonus;
+    }
+
+    private static PlayerInfectionSpec mergePlayer(PlayerInfection l, PlayerInfection d) {
+        PlayerInfection v = l != null ? l : new PlayerInfection();
+        java.util.List<Stage> src = v.stages != null && !v.stages.isEmpty() ? v.stages : d.stages;
+        java.util.List<StageSpec> stages = new java.util.ArrayList<>(src.size());
+        for (int i = 0; i < src.size(); i++) {
+            Stage s = src.get(i) != null ? src.get(i) : new Stage();
+            Stage def = d.stages.get(Math.min(i, d.stages.size() - 1));
+            stages.add(new StageSpec(orElse(s.hunger, def.hunger), orElse(s.detectionRangeBonus, def.detectionRangeBonus),
+                    orElse(s.armorReduction, def.armorReduction), orElse(s.attackDamageReduction, def.attackDamageReduction)));
+        }
+        return new PlayerInfectionSpec(
+                Math.max(20, orElse(v.stageTicks, d.stageTicks)),
+                orElse(v.infectPercent, d.infectPercent),
+                orElse(v.infectDwellTicks, d.infectDwellTicks),
+                orElse(v.attackInfectChance, d.attackInfectChance),
+                orElse(v.speedUpPercent, d.speedUpPercent),
+                orElse(v.concentrationSpeedBonus, d.concentrationSpeedBonus),
+                orElse(v.overgrownBiomeSpeedBonus, d.overgrownBiomeSpeedBonus),
+                orElse(v.attackAdvanceChance, d.attackAdvanceChance),
+                orElse(v.attackAdvanceTicks, d.attackAdvanceTicks),
+                Math.max(1, orElse(v.xpDrainIntervalTicks, d.xpDrainIntervalTicks)),
+                orElse(v.xpDrainPoints, d.xpDrainPoints),
+                orElse(v.damagePerStage, d.damagePerStage),
+                orElse(v.maxHealthPerStage, d.maxHealthPerStage),
+                orElse(v.chunkSporeBonusPercent, d.chunkSporeBonusPercent),
+                java.util.List.copyOf(stages),
+                Math.max(1.0D, orElse(v.breathingClothDwellFactor, d.breathingClothDwellFactor)),
+                Math.max(1, orElse(v.breathingClothWearIntervalTicks, d.breathingClothWearIntervalTicks)),
+                orElse(v.gambesonAttackInfectChance, d.gambesonAttackInfectChance),
+                Math.max(0.0D, orElse(v.mistSpeedBonus, d.mistSpeedBonus)),
+                net.minecraft.util.Mth.clamp(orElse(v.mistDwellFactor, d.mistDwellFactor), 0.05D, 1.0D));
     }
 
     private static LevelSpec merge(Level l, Level d) {
@@ -549,7 +750,15 @@ public final class EffectTable {
                 orElse(v.wholeInventory, d.wholeInventory),
                 java.util.List.copyOf(steps),
                 orElse(v.decontaminationTicksPerPercent, d.decontaminationTicksPerPercent),
-                orElse(v.sapCrystalRateFactor, orElse(d.sapCrystalRateFactor, 0.1D)));
+                orElse(v.sapCrystalRateFactor, orElse(d.sapCrystalRateFactor, 0.1D)),
+                orElse(v.weaponAttackDamageMax, d.weaponAttackDamageMax),
+                orElse(v.weaponAttackSpeedMax, d.weaponAttackSpeedMax),
+                orElse(v.weaponDurabilityMultiplierMax, d.weaponDurabilityMultiplierMax),
+                orElse(v.toolMiningSpeedMax, d.toolMiningSpeedMax),
+                orElse(v.toolDurabilityMultiplierMax, d.toolDurabilityMultiplierMax),
+                orElse(v.shieldDurabilityMultiplierMax, d.shieldDurabilityMultiplierMax),
+                orElse(v.bowRangeMax, d.bowRangeMax),
+                orElse(v.bowDamageMax, d.bowDamageMax));
     }
 
     private static DeviceSpec mergeDevice(Device l, Device d) {
@@ -581,7 +790,8 @@ public final class EffectTable {
                 j != null ? j.phyllosensWatch : null, j != null ? j.phyllosensGuidance : null,
                 j != null ? j.waterRot : null, j != null ? j.glowFruit : null,
                 j != null ? j.undevelopedSeed : null,
-                j != null ? j.largeUndevelopedFruit : null);
+                j != null ? j.largeUndevelopedFruit : null,
+                j != null ? j.medicine : null);
     }
 
     /** 「装備の胞子汚染」。 */
@@ -635,6 +845,11 @@ public final class EffectTable {
         return levels[i];
     }
 
+    /** プレイヤーの 10 段階の胞子感染(2026-10-14)。 */
+    public PlayerInfectionSpec playerInfection() {
+        return playerInfection;
+    }
+
     /** 全段階の中で最大の被検知距離ボーナス(索敵 AABB を広めに取るため)。 */
     public double maxDetectionRangeBonus() {
         return maxDetectionRangeBonus;
@@ -658,7 +873,7 @@ public final class EffectTable {
     private static final SporeDevices DEFAULT_DEVICES = buildDefaultDevices();
     private static final GearContamination DEFAULT_GEAR = buildDefaultGear();
     public static final EffectTable DEFAULT = new EffectTable(DEFAULT_SPORE, DEFAULT_DEVICES, DEFAULT_GEAR,
-            null, null, null, null, null, null, null, null);
+            null, null, null, null, null, null, null, null, null);
 
     private static GearContamination buildDefaultGear() {
         GearContamination g = new GearContamination();
@@ -674,6 +889,15 @@ public final class EffectTable {
                 step(50.0D, 0.25D),
                 step(75.0D, 0.45D),
                 step(100.0D, 0.65D));
+        // 種類ごとの最大(2026-10-14 ユーザー指定)。
+        g.weaponAttackDamageMax = 0.35D;
+        g.weaponAttackSpeedMax = 0.20D;
+        g.weaponDurabilityMultiplierMax = 3.0D;
+        g.toolMiningSpeedMax = 0.35D;
+        g.toolDurabilityMultiplierMax = 3.0D;
+        g.shieldDurabilityMultiplierMax = 2.0D;
+        g.bowRangeMax = 0.70D;
+        g.bowDamageMax = 0.35D;
         return g;
     }
 
@@ -792,6 +1016,49 @@ public final class EffectTable {
         l3.revealInFoliage = true;
         l3.killPlayerOnExpiry = true;
         s.level3 = l3;
+
+        // プレイヤーの 10 段階(2026-10-14 ユーザー指定。経験値の量 1 だけ Claude の仮決め)。
+        PlayerInfection p = new PlayerInfection();
+        p.stageTicks = 12000;               // 10 分ごとに 1 段
+        p.infectPercent = 50.0D;            // 胞子濃度 50% 以上に
+        p.infectDwellTicks = 600;           // 30 秒いるとかかる
+        p.attackInfectChance = 0.30D;       // 過繁茂した Mob の攻撃で 30%
+        p.speedUpPercent = 50.0D;
+        p.concentrationSpeedBonus = 0.05D;  // 濃度 50% 以上の場所で進行 +5%
+        p.overgrownBiomeSpeedBonus = 0.10D; // 過繁茂したバイオームで進行 +10%
+        p.attackAdvanceChance = 0.05D;      // 敵の攻撃で 5% の確率で
+        p.attackAdvanceTicks = 200;         // 10 秒進む
+        p.xpDrainIntervalTicks = 200;       // 10 秒に 1 回
+        p.xpDrainPoints = 1;                // 経験値 1(仮決め)
+        p.damagePerStage = 1.0D;
+        p.maxHealthPerStage = 1.0D;
+        p.chunkSporeBonusPercent = 1.0D;
+        p.breathingClothDwellFactor = 2.0D;       // 濾し布の呼吸覆い: 30 秒 → 60 秒(10-15 ユーザー指定)
+        p.breathingClothWearIntervalTicks = 100;  // 濃い胞子の中で 5 秒に 1 減る(仮決め)
+        p.gambesonAttackInfectChance = 0.15D;      // 布鎧を着ている間は攻撃でかかる確率 30% → 15%(10-15 ユーザー指定)
+        p.mistSpeedBonus = 0.15D;                 // 朝霧の中は進行 +15%(10-16 ユーザー指定「霧の中は感染が進みやすく」、量は仮決め)
+        p.mistDwellFactor = 0.5D;                 // 朝霧の中はかかるまで半分の時間(仮決め)
+        p.stages = java.util.List.of(
+                stage(1, 0, 0.0D, 0.0D),
+                stage(1, 5, 0.0D, 0.0D),
+                stage(2, 5, 0.0D, 0.0D),
+                stage(2, 10, 0.10D, 0.0D),
+                stage(3, 10, 0.10D, 0.0D),
+                stage(3, 15, 0.20D, 0.0D),
+                stage(4, 15, 0.20D, 0.0D),
+                stage(4, 20, 0.20D, 0.10D),
+                stage(5, 20, 0.20D, 0.10D),
+                stage(5, 20, 0.20D, 0.15D));
+        s.player = p;
+        return s;
+    }
+
+    private static Stage stage(int hunger, double detection, double armor, double attack) {
+        Stage s = new Stage();
+        s.hunger = hunger;
+        s.detectionRangeBonus = detection;
+        s.armorReduction = armor;
+        s.attackDamageReduction = attack;
         return s;
     }
 }

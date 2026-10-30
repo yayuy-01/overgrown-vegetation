@@ -42,7 +42,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * {@link ParasitizedMob} 実装で「胞子感染」に一切かからない。魚と同じ遊泳挙動。
  */
 public abstract class AbstractOvergrownAquaticPredatorEntity extends PathfinderMob
-        implements GeoEntity, ParasitizedMob, PredatorMob, AquaticOvergrownMob {
+        implements GeoEntity, CritterAction.Holder, ParasitizedMob, PredatorMob, AquaticOvergrownMob {
 
     public static final int STATE_IDLE = 0;
     public static final int STATE_SPECIAL = 1;
@@ -79,10 +79,25 @@ public abstract class AbstractOvergrownAquaticPredatorEntity extends PathfinderM
         return new WaterBoundPathNavigation(this, level);
     }
 
+    /** 今している行動(食べる・休む・驚いて逃げ出す など)。アニメの再生の口だけ(行動の Goal は後の段)。2026-10-22。 */
+    private static final EntityDataAccessor<Byte> DATA_CRITTER_ACTION =
+            SynchedEntityData.defineId(AbstractOvergrownAquaticPredatorEntity.class, EntityDataSerializers.BYTE);
+
+    @Override
+    public CritterAction getCritterAction() {
+        return CritterAction.byId(this.entityData.get(DATA_CRITTER_ACTION));
+    }
+
+    @Override
+    public void setCritterAction(CritterAction action) {
+        this.entityData.set(DATA_CRITTER_ACTION, (byte) action.ordinal());
+    }
+
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(DATA_ACTION_STATE, STATE_IDLE);
+        builder.define(DATA_CRITTER_ACTION, (byte) 0);
     }
 
     public int getActionState() {
@@ -156,12 +171,18 @@ public abstract class AbstractOvergrownAquaticPredatorEntity extends PathfinderM
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
+        if (getCritterAction() != CritterAction.NONE) {
+            tag.putString(CritterAction.NBT, getCritterAction().name().toLowerCase(java.util.Locale.ROOT));
+        }
         tag.putInt("PreyKills", this.preyKillCount);
     }
 
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        if (tag.contains(CritterAction.NBT)) {
+            setCritterAction(CritterAction.byName(tag.getString(CritterAction.NBT)));
+        }
         this.preyKillCount = tag.getInt("PreyKills");
         PredatorMob.applyPreyKillBonus(this, this.preyKillCount);
     }

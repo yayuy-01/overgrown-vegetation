@@ -26,6 +26,9 @@ public class FineSporeParticle extends TextureSheetParticle {
     /** 粒の大きさの下限・上限。過繁茂の胞子(0.21〜0.49)の 1/5 程度。 */
     private static final float MIN_SIZE = 0.035F;
     private static final float MAX_SIZE = 0.075F;
+    /** 寿命(tick)の下限・上限。上限は {@link ParticleThrottle} が「生きている数」を数える窓にも使う。 */
+    static final int MIN_LIFETIME = 16;
+    static final int MAX_LIFETIME = 34;
 
     protected FineSporeParticle(ClientLevel level, double x, double y, double z,
                                 double xd, double yd, double zd, SpriteSet sprites) {
@@ -37,7 +40,7 @@ public class FineSporeParticle extends TextureSheetParticle {
         this.xd = xd;
         this.yd = yd;
         this.zd = zd;
-        this.lifetime = Mth.randomBetweenInclusive(this.random, 16, 34);
+        this.lifetime = Mth.randomBetweenInclusive(this.random, MIN_LIFETIME, MAX_LIFETIME);
         this.quadSize = Mth.lerp(this.random.nextFloat(), MIN_SIZE, MAX_SIZE);
         this.setColor(0.34F, 0.72F, 0.27F);
         this.pickSprite(sprites);
@@ -58,6 +61,13 @@ public class FineSporeParticle extends TextureSheetParticle {
         return ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT;
     }
 
+    /**
+     * ここでは何も捨てず、何も数えない。間引きも数えるのも粒を出す側(スポロフィルの傘・ヴェロフィルの航跡が
+     * 呼ぶ {@link ParticleThrottle#allowFineSpore})で行う。ここで捨てると、同じ粒を使うフィロセンスの索敵
+     * (遠くからでも見えることがユーザー指定)まで減ってしまう。ここで数えると、そのフィロセンスが
+     * 512 ブロック先から強制表示で送ってくる粒(窓 35 tick で約 830 粒)だけで上限が埋まり、
+     * 近くの傘や航跡がほぼ全部止まる(最初はここで数えていた。2026-09-25 のレビューで直した)。
+     */
     @OnlyIn(Dist.CLIENT)
     public static final class Provider implements ParticleProvider<SimpleParticleType> {
         private final SpriteSet sprites;

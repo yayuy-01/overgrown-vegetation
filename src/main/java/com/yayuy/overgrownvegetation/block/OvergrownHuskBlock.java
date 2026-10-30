@@ -21,6 +21,8 @@ import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -86,8 +88,20 @@ public class OvergrownHuskBlock extends Block implements EntityBlock {
     /** 元のブロック状態 → 借りた形。毎フレーム他 MOD のコードを呼ばないためのキャッシュ。 */
     private static final Map<BlockState, VoxelShape> SHAPE_CACHE = new ConcurrentHashMap<>();
 
+    /**
+     * 覆う前の明るさの 4 割(2026-10-05、覆われた光源は −60%、{@code covered/CoveredLight})。火の付いたかまど 13 → 5、
+     * 焚き火 15 → 6。中身ごと止めるので、覆ったときの明るさのまま変わらない。古いセーブの覆われたブロックは 0(今までどおり暗い)。
+     */
+    public static final IntegerProperty LIGHT = IntegerProperty.create("light", 0, 15);
+
     public OvergrownHuskBlock(Properties properties) {
-        super(properties);
+        super(properties.lightLevel(state -> state.getValue(LIGHT)));
+        registerDefaultState(stateDefinition.any().setValue(LIGHT, 0));
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(LIGHT);
     }
 
     // --- 覆う側(サーバー) ---
@@ -140,7 +154,8 @@ public class OvergrownHuskBlock extends Block implements EntityBlock {
      */
     public static void encase(LevelAccessor level, BlockPos pos, BlockState previous, int flags) {
         List<ItemStack> items = takeContents(level, pos);
-        level.setBlock(pos, ModBlocks.OVERGROWN_HUSK.get().defaultBlockState(), flags);
+        level.setBlock(pos, ModBlocks.OVERGROWN_HUSK.get().defaultBlockState()
+                .setValue(LIGHT, com.yayuy.overgrownvegetation.covered.CoveredLight.dim(previous.getLightEmission())), flags);
         if (level.getBlockEntity(pos) instanceof OvergrownHuskBlockEntity husk) {
             husk.capture(previous, items);
         }

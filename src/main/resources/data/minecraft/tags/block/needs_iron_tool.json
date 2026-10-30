@@ -1,6 +1,25 @@
 {
   "replace": false,
   "values": [
-    "overgrown_vegetation:hardened_sap_crystal_ore"
+    "overgrown_vegetation:overgrown_diamond_ore",
+    "overgrown_vegetation:overgrown_deepslate_diamond_ore",
+    "overgrown_vegetation:overgrown_emerald_ore",
+    "overgrown_vegetation:overgrown_deepslate_emerald_ore",
+    "overgrown_vegetation:overgrown_gold_ore",
+    "overgrown_vegetation:overgrown_deepslate_gold_ore",
+    "overgrown_vegetation:overgrown_redstone_ore",
+    "overgrown_vegetation:overgrown_deepslate_redstone_ore",
+    "overgrown_vegetation:hardened_sap_crystal_ore",
+    "overgrown_vegetation:phloemite_ore",
+    "overgrown_vegetation:deepslate_phloemite_ore",
+    "overgrown_vegetation:thylakite_ore",
+    "overgrown_vegetation:deepslate_thylakite_ore",
+    "overgrown_vegetation:reinforced_concrete",
+    "overgrown_vegetation:reinforced_concrete_slab",
+    "overgrown_vegetation:reinforced_concrete_stairs",
+    "overgrown_vegetation:reinforced_concrete_wall",
+    "overgrown_vegetation:covered_gold_block",
+    "overgrown_vegetation:covered_emerald_block",
+    "overgrown_vegetation:covered_diamond_block"
   ]
 }

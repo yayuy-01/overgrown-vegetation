@@ -14,6 +14,14 @@ public final class TreePlacementRules {
     /** この幹の高さ<b>まで</b>の木なら洞窟内でも生えてよい。これを超える木は空が見える場所限定。 */
     public static final int CAVE_MAX_TREE_HEIGHT = 6;
 
+    /**
+     * 木(幹・根・葉)が置き換えないブロック(2026-10-23 胞子の場 A2: 根付いた萌芽体が周りに生えた木の根に消されていた)。
+     * 木は「何があっても置き換える」作りなので、ここに挙げたものだけ避ける。
+     */
+    public static boolean treeKeeps(net.minecraft.world.level.block.state.BlockState state) {
+        return state.is(com.yayuy.overgrownvegetation.registry.ModBlocks.BLIGHT_FERN_ROOTED.get());
+    }
+
     /** {@link #isEnclosed} で「上に地形がある」とみなす、地表からの最小の潜り込み量。 */
     private static final int ENCLOSED_MARGIN = 5;
 

@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    " S ",
+    "CCC",
+    "C C"
+  ],
+  "key": {
+    "S": { "item": "overgrown_vegetation:sap_crystal" },
+    "C": { "item": "overgrown_vegetation:plant_fiber" }
+  },
+  "result": { "id": "overgrown_vegetation:spore_tent", "count": 1 }
+}

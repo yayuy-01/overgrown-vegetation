@@ -1,0 +1,12 @@
+{
+    "vertex": "overgrown_vegetation:mood_grade",
+    "fragment": "overgrown_vegetation:mood_grade",
+    "samplers": [
+        { "name": "Scene" },
+        { "name": "Lut" }
+    ],
+    "uniforms": [
+        { "name": "Weights", "type": "float", "count": 4, "values": [ 1.0, 0.0, 0.0, 0.0 ] },
+        { "name": "Grade", "type": "float", "count": 4, "values": [ 1.0, 0.0, 1.0, 1.0 ] }
+    ]
+}

@@ -27,6 +27,57 @@ public final class ModBlockEntities {
     // 「unknown block entity」の警告付きで捨てられるだけで、ブロック自体はそのまま残る。
 
     /** {@link com.yayuy.overgrownvegetation.block.CorruptedLianaBlock} の中身。 */
+    /** 乳鉢の中身(2026-10-16)。 */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.block.MortarBlockEntity>> MORTAR =
+            BLOCK_ENTITY_TYPES.register("mortar", () -> BlockEntityType.Builder.of(
+                    com.yayuy.overgrownvegetation.block.MortarBlockEntity::new,
+                    ModBlocks.MORTAR.get()).build(null));
+    /** 地脈の汲み上げ器とおとりの灯籠(2026-10-16)。 */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.block.LeyPumpBlockEntity>> LEY_PUMP =
+            BLOCK_ENTITY_TYPES.register("ley_pump", () -> BlockEntityType.Builder.of(
+                    com.yayuy.overgrownvegetation.block.LeyPumpBlockEntity::new,
+                    ModBlocks.LEY_PUMP.get()).build(null));
+    /** 地脈技術の 2 段目の機械(2026-10-22)。 */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.block.LeyFurnaceBlockEntity>> LEY_FURNACE =
+            BLOCK_ENTITY_TYPES.register("ley_furnace", () -> BlockEntityType.Builder.of(
+                    com.yayuy.overgrownvegetation.block.LeyFurnaceBlockEntity::new,
+                    ModBlocks.LEY_FURNACE.get()).build(null));
+    /** 風見(2026-10-23 胞子の場と風 第 2 段 H)。羽根の描画だけ。 */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.block.WindVaneBlockEntity>> WIND_VANE =
+            BLOCK_ENTITY_TYPES.register("wind_vane", () -> BlockEntityType.Builder.of(
+                    com.yayuy.overgrownvegetation.block.WindVaneBlockEntity::new,
+                    ModBlocks.WIND_VANE.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.block.LeyLampBlockEntity>> LEY_LAMP =
+            BLOCK_ENTITY_TYPES.register("ley_lamp", () -> BlockEntityType.Builder.of(
+                    com.yayuy.overgrownvegetation.block.LeyLampBlockEntity::new,
+                    ModBlocks.LEY_LAMP.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.block.LeyUpdraftBlockEntity>> LEY_UPDRAFT =
+            BLOCK_ENTITY_TYPES.register("ley_updraft", () -> BlockEntityType.Builder.of(
+                    com.yayuy.overgrownvegetation.block.LeyUpdraftBlockEntity::new,
+                    ModBlocks.LEY_UPDRAFT.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.block.LeyMeterBlockEntity>> LEY_METER =
+            BLOCK_ENTITY_TYPES.register("ley_meter", () -> BlockEntityType.Builder.of(
+                    com.yayuy.overgrownvegetation.block.LeyMeterBlockEntity::new,
+                    ModBlocks.LEY_METER.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.block.LureLanternBlockEntity>> LURE_LANTERN =
+            BLOCK_ENTITY_TYPES.register("lure_lantern", () -> BlockEntityType.Builder.of(
+                    com.yayuy.overgrownvegetation.block.LureLanternBlockEntity::new,
+                    ModBlocks.LURE_LANTERN.get()).build(null));
+    /** 受け流しの杭と防胞子の天幕の登録係(2026-10-16)。 */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.block.DeflectingStakeBlockEntity>> DEFLECTING_STAKE =
+            BLOCK_ENTITY_TYPES.register("deflecting_stake", () -> BlockEntityType.Builder.of(
+                    com.yayuy.overgrownvegetation.block.DeflectingStakeBlockEntity::new,
+                    ModBlocks.DEFLECTING_STAKE.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.block.SporeTentBlock.SporeTentBlockEntity>> SPORE_TENT =
+            BLOCK_ENTITY_TYPES.register("spore_tent", () -> BlockEntityType.Builder.of(
+                    com.yayuy.overgrownvegetation.block.SporeTentBlock.SporeTentBlockEntity::new,
+                    ModBlocks.SPORE_TENT.get()).build(null));
+    /** 鳴子の紐 1 本(2026-10-15)。 */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.defense.ClapperRopeBlockEntity>> CLAPPER_ROPE =
+            BLOCK_ENTITY_TYPES.register("clapper_rope", () -> BlockEntityType.Builder.of(
+                    com.yayuy.overgrownvegetation.defense.ClapperRopeBlockEntity::new,
+                    ModBlocks.CLAPPER_ROPE.get()).build(null));
+
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<CorruptedLianaBlockEntity>> OVERGROWN_LIANA =
             BLOCK_ENTITY_TYPES.register("overgrown_liana", () -> BlockEntityType.Builder.of(
                     CorruptedLianaBlockEntity::new,
@@ -45,13 +96,34 @@ public final class ModBlockEntities {
                     ModBlocks.OVERGROWN_PIG_CORPSE.get(),
                     ModBlocks.OVERGROWN_SHEEP_CORPSE.get(),
                     ModBlocks.OVERGROWN_CREEPER_CORPSE.get(),
-                    ModBlocks.OVERGROWN_SPIDER_CORPSE.get()).build(null));
+                    ModBlocks.OVERGROWN_SPIDER_CORPSE.get(),
+                    ModBlocks.OVERGROWN_VILLAGER_CORPSE.get(),
+                    ModBlocks.OVERGROWN_ZOMBIE_CORPSE.get(),
+                    ModBlocks.OVERGROWN_BABY_ZOMBIE_CORPSE.get(),
+                    ModBlocks.OVERGROWN_SKELETON_CORPSE.get(),
+                    ModBlocks.OVERGROWN_ENDERMAN_CORPSE.get(),
+                    ModBlocks.OVERGROWN_CHICKEN_CORPSE.get(),
+                    ModBlocks.OVERGROWN_PIGLIN_CORPSE.get(),
+                    ModBlocks.OVERGROWN_PIGLIN_BRUTE_CORPSE.get(),
+                    ModBlocks.OVERGROWN_ZOMBIFIED_PIGLIN_CORPSE.get(),
+                    ModBlocks.OVERGROWN_WITHER_SKELETON_CORPSE.get(),
+                    ModBlocks.OVERGROWN_HOGLIN_CORPSE.get(),
+                    ModBlocks.OVERGROWN_ZOGLIN_CORPSE.get(),
+                    ModBlocks.OVERGROWN_STRIDER_CORPSE.get(),
+                    ModBlocks.OVERGROWN_IRON_GOLEM_CORPSE.get(),
+                    ModBlocks.OVERGROWN_WARDEN_CORPSE.get()).build(null));
 
     /** リトプレウラの抜け殻。GeckoLib で描くためだけの中身(状態は持たない)。 */
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<LithopleuraHuskBlockEntity>> LITHOPLEURA_HUSK =
             BLOCK_ENTITY_TYPES.register("lithopleura_husk", () -> BlockEntityType.Builder.of(
                     LithopleuraHuskBlockEntity::new,
                     ModBlocks.LITHOPLEURA_HUSK.get()).build(null));
+
+    /** 根付いた萌芽体(2026-10-23 萌芽体のモデル)。歩く萌芽体と同じ模型を GeckoLib で描くための中身(向きと根付いた時刻だけ)。 */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.block.BlightFernRootedBlockEntity>> BLIGHT_FERN_ROOTED =
+            BLOCK_ENTITY_TYPES.register("blight_fern_rooted", () -> BlockEntityType.Builder.of(
+                    com.yayuy.overgrownvegetation.block.BlightFernRootedBlockEntity::new,
+                    ModBlocks.BLIGHT_FERN_ROOTED.get()).build(null));
 
     /**
      * <b>覆われて動かなくなったブロック</b>の中身(2026-09-22)。化けている元のブロック状態と、
@@ -99,10 +171,22 @@ public final class ModBlockEntities {
                     com.yayuy.overgrownvegetation.block.SporeAlarmBlockEntity::new,
                     ModBlocks.SPORE_ALARM.get()).build(null));
 
+    /** ターゲットブロック({@link com.yayuy.overgrownvegetation.td.TargetBlock})。耐久(HP)を持つ。TD イベント(2026-09-25)。 */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.td.TargetBlockEntity>> TARGET_BLOCK =
+            BLOCK_ENTITY_TYPES.register("target_block", () -> BlockEntityType.Builder.of(
+                    com.yayuy.overgrownvegetation.td.TargetBlockEntity::new,
+                    ModBlocks.TARGET_BLOCK.get()).build(null));
+
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DecontaminatorBlockEntity>> DECONTAMINATOR =
             BLOCK_ENTITY_TYPES.register("decontaminator", () -> BlockEntityType.Builder.of(
                     DecontaminatorBlockEntity::new,
                     ModBlocks.DECONTAMINATOR.get()).build(null));
+
+    /** 因子の抽出設備(順 1 の着手順 7)。 */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.block.FactorExtractorBlockEntity>> FACTOR_EXTRACTOR =
+            BLOCK_ENTITY_TYPES.register("factor_extractor", () -> BlockEntityType.Builder.of(
+                    com.yayuy.overgrownvegetation.block.FactorExtractorBlockEntity::new,
+                    ModBlocks.FACTOR_EXTRACTOR.get()).build(null));
 
     /** {@link com.yayuy.overgrownvegetation.block.OvergrownChestBlock} の中身(バニラのチェストと同じ)。 */
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<OvergrownChestBlockEntity>> OVERGROWN_CHEST =
@@ -128,29 +212,11 @@ public final class ModBlockEntities {
                     BeamShieldBlockEntity::new,
                     ModBlocks.BEAM_SHIELD.get()).build(null));
 
-    /** アルボラの卵({@link com.yayuy.overgrownvegetation.block.ArboraEggBlock})。孵化までの時計。 */
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.block.ArboraEggBlockEntity>> ARBORA_EGG =
-            BLOCK_ENTITY_TYPES.register("arbora_egg", () -> BlockEntityType.Builder.of(
-                    com.yayuy.overgrownvegetation.block.ArboraEggBlockEntity::new,
-                    ModBlocks.ARBORA_EGG.get()).build(null));
-
-    /** アルボラの貯蔵胞({@link com.yayuy.overgrownvegetation.block.ArboraStoragePodBlock})。27 スロット。 */
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.block.ArboraStoragePodBlockEntity>> ARBORA_STORAGE_POD =
-            BLOCK_ENTITY_TYPES.register("arbora_storage_pod", () -> BlockEntityType.Builder.of(
-                    com.yayuy.overgrownvegetation.block.ArboraStoragePodBlockEntity::new,
-                    ModBlocks.ARBORA_STORAGE_POD.get()).build(null));
-
-    /** 胞子ノード({@link com.yayuy.overgrownvegetation.block.SporeNodeBlock})。噴出孔の育ち具合。 */
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.block.SporeNodeBlockEntity>> SPORE_NODE =
-            BLOCK_ENTITY_TYPES.register("spore_node", () -> BlockEntityType.Builder.of(
-                    com.yayuy.overgrownvegetation.block.SporeNodeBlockEntity::new,
-                    ModBlocks.SPORE_NODE.get()).build(null));
-
-    /** 胞子の噴出孔({@link com.yayuy.overgrownvegetation.block.SporeVentBlock})。上乗せ %。 */
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.block.SporeVentBlockEntity>> SPORE_VENT =
-            BLOCK_ENTITY_TYPES.register("spore_vent", () -> BlockEntityType.Builder.of(
-                    com.yayuy.overgrownvegetation.block.SporeVentBlockEntity::new,
-                    ModBlocks.SPORE_VENT.get()).build(null));
+    /** {@link com.yayuy.overgrownvegetation.block.ParasiteNurseryBlock} の中身(萌芽体を生む時計。G1 の作り直し 第 1 段)。 */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.yayuy.overgrownvegetation.block.ParasiteNurseryBlockEntity>> PARASITE_NURSERY =
+            BLOCK_ENTITY_TYPES.register("parasite_nursery", () -> BlockEntityType.Builder.of(
+                    com.yayuy.overgrownvegetation.block.ParasiteNurseryBlockEntity::new,
+                    ModBlocks.PARASITE_NURSERY.get()).build(null));
 
     public static void register(IEventBus modBus) {
         BLOCK_ENTITY_TYPES.register(modBus);

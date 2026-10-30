@@ -4,13 +4,19 @@ import com.yayuy.overgrownvegetation.ModTags;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.data.EffectTable;
 import com.yayuy.overgrownvegetation.registry.ModDataComponents;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ArmorItem;
+import net.minecraft.world.item.DiggerItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.MaceItem;
 import net.minecraft.world.item.ProjectileWeaponItem;
 import net.minecraft.world.item.ShieldItem;
+import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.item.TieredItem;
 import net.minecraft.world.item.TridentItem;
+import net.neoforged.neoforge.common.ItemAbilities;
 
 /**
  * 「装備の胞子汚染」— 武器・道具・防具が、胞子濃度({@link SporeConcentration})の高い場所に
@@ -24,14 +30,19 @@ import net.minecraft.world.item.TridentItem;
  * 実際に進めるのは {@link GearContaminationTracker}。
  *
  * <h2>効き方</h2>
- * <p>汚染度が {@code steps} の段(既定 25% で −5%、50% で −25%、75% で −45%、100% で −65%)に達するごとに
- * 性能が落ちる。落ちるのは {@link GearContaminationEffects} が担当:
+ * <p>汚染度が {@code steps} の段(既定 25% / 50% / 75% / 100%)に達するごとに性能が落ちる。
+ * 落ち方は装備の種類({@link Kind})ごとに違う(2026-10-14 ユーザー指定。前は全部を一律に下げていて、
+ * 汚染された盾が攻撃を防がなくなった)。数値は汚染 100% のときの最大で、途中の段は
+ * {@link EffectTable.GearContaminationSpec#severityAt} の割合に縮める:
  * <ul>
- *     <li>属性修飾(攻撃力・防御力・防具強度など、正の加算値すべて)</li>
- *     <li>採掘速度</li>
- *     <li>盾で防げるダメージ量</li>
- *     <li>弓・クロスボウ・トライデントで撃った矢のダメージ</li>
+ *     <li>武器(剣・トライデント・メイス) — 攻撃力 −35%・攻撃速度 −20%・耐久値の減り 3 倍</li>
+ *     <li>道具(つるはし・斧・シャベル・クワ) — 採掘速度 −35%・耐久値の減り 3 倍</li>
+ *     <li>盾 — 耐久値の減り 2 倍(防ぐ力は落ちない)</li>
+ *     <li>弓・クロスボウ — 矢の飛距離 −70%・矢の攻撃力 −35%</li>
+ *     <li>防具・その他 — 今までどおり、正の属性修飾を steps の低下率ぶん減らす</li>
  * </ul>
+ * 落とすのは {@link GearContaminationEffects}(属性・採掘速度・矢)と
+ * {@link com.yayuy.overgrownvegetation.mixin.ItemStackDurabilityMixin}(耐久値)。
  *
  * <h2>戻し方</h2>
  * <p>除染機({@link com.yayuy.overgrownvegetation.block.DecontaminatorBlock})に入れておくと、
@@ -153,6 +164,67 @@ public final class GearContamination {
     /** 性能に掛ける倍率(float 版)。 */
     public static float factorF(ItemStack stack) {
         return (float) factor(stack);
+    }
+
+    /** 汚染の効き方を分ける、装備の種類。 */
+    public enum Kind { WEAPON, TOOL, SHIELD, BOW, OTHER }
+
+    /** 装備の種類。盾・弓を先に見る(剣と道具はどちらも TieredItem なので型で分ける)。 */
+    public static Kind kindOf(ItemStack stack) {
+        Item item = stack.getItem();
+        if (item instanceof ShieldItem || stack.canPerformAction(ItemAbilities.SHIELD_BLOCK)) {
+            return Kind.SHIELD;
+        }
+        if (item instanceof ProjectileWeaponItem) {
+            return Kind.BOW;
+        }
+        if (item instanceof SwordItem || item instanceof TridentItem || item instanceof MaceItem
+                || stack.is(ItemTags.SWORDS)) {
+            return Kind.WEAPON;
+        }
+        if (item instanceof DiggerItem) {
+            return Kind.TOOL;
+        }
+        return Kind.OTHER;
+    }
+
+    /** 今の汚染度での効きの強さ(0〜1。汚染 100% で 1)。 */
+    public static double severity(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return 0.0D;
+        }
+        float percent = percent(stack);
+        return percent <= 0.0F ? 0.0D : spec().severityAt(percent);
+    }
+
+    /**
+     * 1 回の使用で減る耐久値に掛ける倍率。武器・道具は最大 3 倍、盾は最大 2 倍、それ以外は 1。
+     * 途中の段は {@link #severity} で 1 との間を直線に縮める。
+     */
+    public static double durabilityMultiplier(ItemStack stack) {
+        double s = severity(stack);
+        if (s <= 0.0D) {
+            return 1.0D;
+        }
+        double max = switch (kindOf(stack)) {
+            case WEAPON -> spec().weaponDurabilityMultiplierMax();
+            case TOOL -> spec().toolDurabilityMultiplierMax();
+            case SHIELD -> spec().shieldDurabilityMultiplierMax();
+            default -> 1.0D;
+        };
+        return Math.max(1.0D, 1.0D + (max - 1.0D) * s);
+    }
+
+    /**
+     * 耐久値の減りを汚染ぶん増やす。端数は確率で切り上げる(2.3 倍なら 7 割で 2、3 割で 3)。
+     */
+    public static int scaleDurabilityDamage(ItemStack stack, int amount, RandomSource random) {
+        if (amount <= 0) {
+            return amount;
+        }
+        double scaled = amount * durabilityMultiplier(stack);
+        int whole = (int) Math.floor(scaled);
+        return whole + (random.nextDouble() < scaled - whole ? 1 : 0);
     }
 
     private GearContamination() {

@@ -1,11 +1,13 @@
 package com.yayuy.overgrownvegetation.block;
 
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
+import com.yayuy.overgrownvegetation.defense.BeamShields;
 import com.yayuy.overgrownvegetation.registry.ModBlockEntities;
 import com.yayuy.overgrownvegetation.siege.BeamShieldGeometry;
 import com.yayuy.overgrownvegetation.siege.CannonBallistics;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.SectionPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
@@ -40,7 +42,7 @@ import javax.annotation.Nullable;
  * どれかの盾に遮られていればダメージを飛ばす。盾を探す範囲は被害者の周り
  * {@code shieldSearchRadius} ブロック — 遠くの盾は影が届かないので見る必要がない。
  */
-public class BeamShieldBlockEntity extends BlockEntity implements GeoBlockEntity, SiegeStructureCore {
+public class BeamShieldBlockEntity extends BlockEntity implements GeoBlockEntity, SiegeStructureCore, com.yayuy.overgrownvegetation.defense.MachineBattery.Holder {
 
     /** 方位(0.1 度単位、0 = 北、[0, 3600))。 */
     private int azimuthTenths;
@@ -50,6 +52,9 @@ public class BeamShieldBlockEntity extends BlockEntity implements GeoBlockEntity
     private boolean deploying;
     /** レッドストーンの前回の状態(立ち上がりで展開・立ち下がりでたたむ)。 */
     private boolean powered;
+    /** 地脈電池(2026-10-16、㉔。10-22 に蓄電の実の電池から改名)。展開している間だけ減り、尽きるとたたむ。 */
+    private int batteryCharge;
+    private boolean hasBattery;
     /** ハンドルを回した時刻(描画でハンドルをくるっと回すため)。 */
     private long lastHandleGameTime = Long.MIN_VALUE;
 
@@ -120,15 +125,51 @@ public class BeamShieldBlockEntity extends BlockEntity implements GeoBlockEntity
         }
     }
 
+    @Override
+    public int batteryCharge() {
+        return batteryCharge;
+    }
+
+    @Override
+    public void setBatteryCharge(int charge) {
+        batteryCharge = charge;
+    }
+
+    @Override
+    public boolean hasBattery() {
+        return hasBattery;
+    }
+
+    @Override
+    public void setHasBattery(boolean has) {
+        hasBattery = has;
+    }
+
+    @Override
+    public void batteryChanged() {
+        setChanged();
+        // 信号が来ている間に電池を入れたら、その場で展開する。
+        if (level != null && !level.isClientSide && powered && !deploying && com.yayuy.overgrownvegetation.defense.MachineBattery.hasEnergy(this)) {
+            setDeploying(true);
+        }
+    }
+
     /** レッドストーン: 立ち上がりで展開、立ち下がりでたたむ。 */
     public void setPowered(boolean nowPowered) {
         if (nowPowered != powered) {
             powered = nowPowered;
-            setDeploying(nowPowered);
+            setDeploying(nowPowered && com.yayuy.overgrownvegetation.defense.MachineBattery.hasEnergy(this));
         }
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, BeamShieldBlockEntity be) {
+        // 電池が無いと動かない・展開している間だけ減る(2026-10-16 ユーザー指定)。
+        if (!level.isClientSide && be.deployTicks > 0) {
+            com.yayuy.overgrownvegetation.defense.MachineBattery.drain(be, 1);
+            if (be.deploying && !com.yayuy.overgrownvegetation.defense.MachineBattery.hasEnergy(be)) {
+                be.setDeploying(false);
+            }
+        }
         int total = Math.max(1, OvergrownVegetationConfig.COMMON.shieldDeployTicks.get());
         int next = Mth.clamp(be.deployTicks + (be.deploying ? 1 : -1), 0, total);
         if (next != be.deployTicks) {
@@ -163,21 +204,52 @@ public class BeamShieldBlockEntity extends BlockEntity implements GeoBlockEntity
         int maxX = Mth.floor((to.x + radius) / 16.0D);
         int minZ = Mth.floor((to.z - radius) / 16.0D);
         int maxZ = Mth.floor((to.z + radius) / 16.0D);
-        for (int cx = minX; cx <= maxX; cx++) {
-            for (int cz = minZ; cz <= maxZ; cz++) {
-                LevelChunk chunk = level.getChunkSource().getChunkNow(cx, cz);
-                if (chunk == null) {
-                    continue;
-                }
-                for (BlockEntity be : chunk.getBlockEntities().values()) {
-                    if (be instanceof BeamShieldBlockEntity shield && shield.isDeployed()
-                            && BeamShieldGeometry.blocks(shield.getBlockPos(), shield.azimuth(), from, to)) {
-                        return true;
-                    }
-                }
+        // 2026-09-24 軽量化(監査 1230): 5×5 チャンクの全ブロックエンティティを総なめせず、盾の台帳
+        // ({@link BeamShields})の座標のうち同じチャンク範囲に入るものだけを、チャンクの表で引き直して調べる。
+        // 見る盾の顔ぶれ(読み込み済みチャンクの表にある盾)は前と同じで、結果は「どれか 1 つでも遮るか」なので順番にもよらない。
+        for (BlockPos pos : BeamShields.positions(level)) {
+            int cx = SectionPos.blockToSectionCoord(pos.getX());
+            int cz = SectionPos.blockToSectionCoord(pos.getZ());
+            if (cx < minX || cx > maxX || cz < minZ || cz > maxZ) {
+                continue;
+            }
+            LevelChunk chunk = level.getChunkSource().getChunkNow(cx, cz);
+            if (chunk == null) {
+                continue;
+            }
+            BlockEntity be = chunk.getBlockEntities().get(pos);
+            if (!(be instanceof BeamShieldBlockEntity shield)) {
+                BeamShields.forget(level, pos); // 壊された盾(台帳の余り)
+                continue;
+            }
+            if (shield.isDeployed() && BeamShieldGeometry.blocks(shield.getBlockPos(), shield.azimuth(), from, to)) {
+                return true;
             }
         }
         return false;
+    }
+
+    // ------------------------------------------------------------------ 台帳(遮蔽の判定用)
+
+    /**
+     * チャンクのブロックエンティティ表に入るときに呼ばれる({@code LevelChunk#setBlockEntity})。
+     * 盾の台帳({@link BeamShields})にはここで載せる —— {@code onLoad} は次の tick まで遅れるので、
+     * その間に {@link #shielded} が表にある盾を見落とさないように。
+     */
+    @Override
+    public void setLevel(Level level) {
+        super.setLevel(level);
+        if (level != null && !level.isClientSide()) {
+            BeamShields.add(level, this);
+        }
+    }
+
+    @Override
+    public void onChunkUnloaded() {
+        super.onChunkUnloaded();
+        if (this.level != null && !this.level.isClientSide()) {
+            BeamShields.remove(this.level, this.worldPosition, this);
+        }
     }
 
     /** デバッグ・演出用: この盾の遮蔽面の中心(下端)。 */
@@ -275,6 +347,7 @@ public class BeamShieldBlockEntity extends BlockEntity implements GeoBlockEntity
         }
         if (tag.contains("Powered")) {
             powered = tag.getBoolean("Powered");
+            com.yayuy.overgrownvegetation.defense.MachineBattery.load(this, tag);
         }
         if (tag.contains("Handle")) {
             lastHandleGameTime = tag.getLong("Handle");
@@ -288,6 +361,7 @@ public class BeamShieldBlockEntity extends BlockEntity implements GeoBlockEntity
         tag.putInt("Deploy", deployTicks);
         tag.putBoolean("Deploying", deploying);
         tag.putBoolean("Powered", powered);
+        com.yayuy.overgrownvegetation.defense.MachineBattery.save(this, tag);
         tag.putLong("Handle", lastHandleGameTime);
     }
 }

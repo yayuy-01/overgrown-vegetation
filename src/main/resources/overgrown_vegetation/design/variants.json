@@ -5,6 +5,6 @@
   "toxic": { "weight": 0.1, "poisonTicks": 40 },
   "fireproof": { "weight": 0.1, "fireDamageMultiplier": 0.7 },
   "eligibleGroups": [1, 2, 3, 4],
-  "excluded": ["blight_fern", "blight_water_grass", "overgrown_nexus"],
+  "excluded": ["blight_fern", "overgrown_nexus", "pedicula"],
   "fireWeaknessMultiplier": 1.5
 }

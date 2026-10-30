@@ -81,9 +81,22 @@ public class LithopleuraEntity extends AbstractOvergrownCritterEntity {
     /** 1 回の判定で脱皮する確率。0.15 なら平均 6.7 分に 1 回。 */
     private static final double MOLT_CHANCE = 0.15;
 
-    /** 脱皮の進み具合(0 = していない)。描画側が {@code kara} を出すかの判定にも使う。 */
+    /**
+     * 脱皮中か(0 = していない、1 = している)。描画側が {@code kara} を出すかの判定に使う。
+     *
+     * <p>2026-09-24 軽量化(監査 1714 / 1802): 以前は進み具合そのもの(1〜{@link #MOLT_TICKS})をここに入れて
+     * 脱皮中は毎 tick 同期していたが、クライアントが見るのは「0 より大きいか」だけ。
+     * 進み具合はサーバー側の {@link #moltProgress} へ移し、ここは始めたときに 1、終わったときに 0 だけを書く
+     * (0 と 0 より大きいが切り替わる tick は以前と同じ)。
+     */
     private static final EntityDataAccessor<Integer> DATA_MOLT =
             SynchedEntityData.defineId(LithopleuraEntity.class, EntityDataSerializers.INT);
+
+    /**
+     * 脱皮の経過 tick(0 = していない)。<b>サーバー側だけ</b>が進める。
+     * 以前の DATA_MOLT と同じく保存はしない(読み込み直すと脱皮していない状態から始まる)。
+     */
+    private int moltProgress;
 
     /**
      * 次の判定まで(tick)。0 になった瞬間に抽選し、外れたらまた {@link #MOLT_CHECK_INTERVAL} 待つ。
@@ -116,14 +129,14 @@ public class LithopleuraEntity extends AbstractOvergrownCritterEntity {
         this.goalSelector.addGoal(3, new MoltGoal(this));
     }
 
-    /** 脱皮の経過 tick。0 なら脱皮していない。 */
+    /** 脱皮の経過 tick。0 なら脱皮していない。<b>サーバー側だけ</b>の値(クライアントでは常に 0)。 */
     public int getMoltProgress() {
-        return this.entityData.get(DATA_MOLT);
+        return this.moltProgress;
     }
 
-    /** 脱皮中か。{@code kara} を描くかどうかの判定。 */
+    /** 脱皮中か。{@code kara} を描くかどうかの判定(同期した値を見るのでクライアントでも使える)。 */
     public boolean isMolting() {
-        return getMoltProgress() > 0;
+        return this.entityData.get(DATA_MOLT) > 0;
     }
 
     boolean readyToMolt() {
@@ -131,6 +144,7 @@ public class LithopleuraEntity extends AbstractOvergrownCritterEntity {
     }
 
     void beginMolt() {
+        this.moltProgress = 1;
         this.entityData.set(DATA_MOLT, 1);
         setActionState(STATE_MOLT);
     }
@@ -148,11 +162,17 @@ public class LithopleuraEntity extends AbstractOvergrownCritterEntity {
             endMolt();
             return true;
         }
-        this.entityData.set(DATA_MOLT, at + 1);
+        // 進み具合はサーバー側だけで数える(DATA_MOLT は 1 のまま = 毎 tick の同期をしない)。
+        this.moltProgress = at + 1;
+        if (at == 0) {
+            // 脱皮していないのに進められた(以前は DATA_MOLT が 0 → 1 になって脱皮中になった)。同じにする。
+            this.entityData.set(DATA_MOLT, 1);
+        }
         return false;
     }
 
     void endMolt() {
+        this.moltProgress = 0;
         this.entityData.set(DATA_MOLT, 0);
         setActionState(STATE_IDLE);
         this.moltCheck = MOLT_CHECK_INTERVAL;
@@ -216,6 +236,12 @@ public class LithopleuraEntity extends AbstractOvergrownCritterEntity {
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(this, "main", TRANSITION_TICKS, state -> {
+            // 今している行動(食べる・休む・驚いて逃げ出す など)があればそのアニメ(CritterAction、2026-10-22)
+            RawAnimation critterAct = CritterAction.animation(this);
+            if (critterAct != null) {
+                state.getController().setAnimationSpeed(1.0D);
+                return state.setAndContinue(critterAct);
+            }
             state.getController().setAnimationSpeed(1.0D);
             if (isMolting()) {
                 return state.setAndContinue(MOLT_ANIM);

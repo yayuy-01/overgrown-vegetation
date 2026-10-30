@@ -18,8 +18,10 @@ import javax.annotation.Nullable;
  * 砲台を黙らせてから本隊が寄る、という手順が成立する。狙いに行く距離は {@code defense.json} の
  * {@code gunTurret.shielderDetectRange}(既定 40 = 迫撃砲の射程)。
  *
- * <p>胞子爆弾が {@code gunTurret.corruptRadius} 以内で炸裂すると砲台は胞子に覆われて止まり
+ * <p>弾が {@code gunTurret.corruptRadius} 以内で炸裂すると、<b>1 発ごとに {@code mortarDisableChance}
+ * (既定 0.15、ユーザー指定: 2026-09-24 に 35% → 2026-09-25 に 15%)の確率で</b>砲台は胞子に覆われて止まり
  * ({@code VelophyllBombEntity} → {@link GunTurrets#corruptNear})、台帳から外れてこの Goal も終わる。
+ * 外れれば砲台は動き続け、この Goal が残りの弾・次の斉射で撃ち続ける。
  * プレイヤーが右クリックで拭えば、また動き出して再び狙われる。
  *
  * <p>優先度は生き物への迫撃砲・突進と同じ 1 で、<b>先に登録してある</b>ので「砲台が見えているなら砲台が先」。

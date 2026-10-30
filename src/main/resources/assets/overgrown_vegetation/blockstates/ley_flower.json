@@ -1,0 +1,4 @@
+{ "variants": {
+  "wilted=false": { "model": "overgrown_vegetation:block/ley_flower" },
+  "wilted=true": { "model": "overgrown_vegetation:block/ley_flower_wilted" }
+} }

@@ -1,0 +1,16 @@
+{
+  "_comment": "台帳の広がり(2026-09-26、2026-09-28 に規則を変更)。過繁茂バイオームを台帳だけで広げる。intervalTicks ごとに(汚染の暦 = gameTime + 睡眠で飛ばした夜 が intervalTicks の倍数の境目を越えるたびに 1 回。ユーザー指定 6000 tick = 実時間 5 分 = ゲーム内 1/4 日)、過繁茂と辺で接しているチャンクごとに、接している面の数 1〜4 に応じた chanceByContacts の確率で過繁茂の印を付ける(ユーザー指定 1 面 25%・2 面 50%・3 面 75%・4 面 100%)。斜めだけで接しているチャンクは対象外。縁は全部その回の初めの台帳から一斉に判定する。胞子除去装置の効果範囲には付けない(装置のチャンクが読み込まれていなくても、最後に止まっていたと分かっている装置以外は守る)。includeLoadedChunks が true なら読み込まれているチャンクも対象(ユーザー指定)。読み込まれていないチャンクは印だけで、読み込まれたとき(読み込まれていればすぐ)にバイオームを過繁茂へ書き換え、地表の surfaceCoverage をまだらに汚染する。印はフェーズ進行に数える(新しい過繁茂 1 チャンク 5 点 + 毎 tick 0.005 点。昇格ポイントはこの規則の平均の増え方から逆算してあるので、間隔や確率を変えたら phases.json も直す)。寝て飛ばした時間に入っていた回は、起きた直後から 1 tick に 1 回ずつ判定する(sleepAdvancesClock)。sleepGivesPhasePoints は飛ばした夜ぶんの時間経過ポイントも入れるか(仮決め)。/ov climax age などで暦がまとめて進んだときも 1 tick に 1 回ずつ。catchUp はすべて仮決め。/ov design reload で即反映(intervalTicks を変えるとその回から数え直す)。確認は /ov spread status、区切りを待たずに 1 回ぶん回すのは /ov spread step。",
+  "enabled": true,
+  "intervalTicks": 6000,
+  "chanceByContacts": [0.25, 0.5, 0.75, 1.0],
+  "includeLoadedChunks": true,
+  "sleepAdvancesClock": true,
+  "sleepGivesPhasePoints": true,
+  "catchUp": {
+    "surfaceCoverage": 0.75,
+    "patchSize": 6.0,
+    "surfaceDepth": 4,
+    "placementsPerTick": 512,
+    "columnsPerTick": 2048
+  }
+}

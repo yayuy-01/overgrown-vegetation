@@ -142,7 +142,7 @@ public class NexusSporeBurstGoal extends Goal {
             if (victim.distanceToSqr(nexus) > radius * radius) {
                 continue;
             }
-            SporeInfectionEffects.infect(victim, 1);
+            SporeInfectionEffects.plantAttack(victim, 1);
         }
     }
 }

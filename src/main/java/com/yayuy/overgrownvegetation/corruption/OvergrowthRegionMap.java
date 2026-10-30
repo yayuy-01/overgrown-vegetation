@@ -216,6 +216,48 @@ public final class OvergrowthRegionMap {
         double limit = radius * (1.0D + wobble);
         return distSq <= limit * limit;
     }
+    /** 結晶地帯のくじの塩。環境のくじ({@link #pickVariant} の 7)と同じ乱数を使うと、結晶地帯が環境の偏りに引きずられる。 */
+    private static final int CRYSTAL_SALT = 11;
+
+    /**
+     * そのチャンクが<b>結晶地帯</b>の地域か(順 1、2026-10-03 ユーザー指定「地域ごとの 4 つ目の環境」)。
+     * {@link #variantAt(ServerLevel, ChunkPos)} と同じくチャンクの中心で判定する。
+     *
+     * <h2>環境のくじとは別に引く</h2>
+     * <p>結晶地帯を {@link #pickVariant} の 4 つ目の重みにすると、重みの合計が変わって<b>すべての地域のくじがずれ</b>、
+     * 既存のワールドの密林・湿地・菌湿地が入れ替わる(過繁茂済みの所と、これから過繁茂になる所で環境が食い違う)。
+     * だから環境はそのままに、<b>密林と決まった地域の中から</b>別の乱数で {@code climax.json} の
+     * {@code crystal.regionChance} の割合を選ぶ。湿地・菌湿地は対象外(浸水・菌の柱とぶつかるため。Claude 仮決め)。
+     * ワールドのスポーン周りの「必ず密林」の円も対象外(始まりの場所は今までどおりの密林にする)。
+     *
+     * <p>結晶地帯になるのは<b>極相になったときだけ</b>({@code OvergrownBiomeConverter#targetKey})。
+     * 繁茂・過繁茂のうちは普通の密林のまま。
+     */
+    public static boolean isCrystalRegion(ServerLevel level, ChunkPos chunkPos) {
+        return isCrystalRegion(level.getSeed(), (chunkPos.x << 4) + 8, (chunkPos.z << 4) + 8);
+    }
+
+    /** {@link #isCrystalRegion(ServerLevel, ChunkPos)} のシードと座標だけの版(決定的)。 */
+    public static boolean isCrystalRegion(long seed, int blockX, int blockZ) {
+        if (SealedBiomes.swampAndCrystalSealed()) {
+            return false; // 結晶地帯は 0.2.0 まで封印(2026-10-23 ユーザー決定)
+        }
+        double chance = com.yayuy.overgrownvegetation.data.DesignData.climax().crystal().regionChance();
+        if (chance <= 0.0D || forcedJungle(seed, blockX, blockZ)) {
+            return false;
+        }
+        OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
+        double[] warped = warp(seed, blockX, blockZ, cfg);
+        double regionSize = warped[2];
+        double[] cells = nearestCells(seed, warped[0] / regionSize, warped[1] / regionSize);
+        // セル ID は variantAt と同じ取り出し方にする(double を経由するので、同じ式でないと別の ID になる)。
+        long cellId = (long) cells[0];
+        if (pickVariant(seed, cellId, cfg) != OvergrowthVariant.JUNGLE) {
+            return false;
+        }
+        return unit(hash(seed, (int) (cellId >>> 32), (int) cellId, CRYSTAL_SALT)) < chance;
+    }
+
     /** ワールドシードと座標だけから環境を決める(決定的)。 */
     public static OvergrowthVariant variantAt(long seed, int blockX, int blockZ) {
         if (forcedJungle(seed, blockX, blockZ)) {
@@ -363,6 +405,9 @@ public final class OvergrowthRegionMap {
     }
 
     private static OvergrowthVariant pickVariant(long seed, long cellId, OvergrownVegetationConfig.Common cfg) {
+        if (SealedBiomes.swampAndCrystalSealed()) {
+            return OvergrowthVariant.JUNGLE; // 湿地・菌湿地は 0.2.0 まで封印(2026-10-23 ユーザー決定)
+        }
         double jungle = Math.max(0.0D, cfg.overgrowthVariantWeightJungle.get());
         double swamp = Math.max(0.0D, cfg.overgrowthVariantWeightSwamp.get());
         double fungal = Math.max(0.0D, cfg.overgrowthVariantWeightFungalSwamp.get());

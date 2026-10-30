@@ -13,8 +13,11 @@ import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -30,6 +33,9 @@ import org.jetbrains.annotations.Nullable;
  * 灯りは胞子と蔦に覆われて止まる({@link #COVERED})。右クリックで蔦を剥がせば復活する。
  *
  * <p>点いている灯りの一覧は {@link RepellentLamps}(ブロックエンティティがロード/アンロードで登録・解除)。
+ *
+ * <p>2026-10-24(地脈技術の 3 段目)から地脈電池で点く({@link #LIT}、中身 {@link RepellentLampBlockEntity})。電池が切れると消える。
+ * 地脈灯 + 忌避の精油 + 真鍮で作る(研究「転用」)。子の妨害灯(同盟軍の基地の物)は電池なしで点いたまま(既定の状態が {@code lit=true})。
  */
 public class RepellentLampBlock extends BaseEntityBlock {
 
@@ -37,12 +43,14 @@ public class RepellentLampBlock extends BaseEntityBlock {
 
     /** 蔦と胞子に覆われて止まっているか。 */
     public static final BooleanProperty COVERED = BooleanProperty.create("covered");
+    /** 電池が残っていて点いているか(2026-10-24)。覆われていても電池が残っていれば true(剥がすとすぐ点く)。 */
+    public static final BooleanProperty LIT = BlockStateProperties.LIT;
 
     private static final VoxelShape SHAPE = Block.box(4.0D, 0.0D, 4.0D, 12.0D, 12.0D, 12.0D);
 
     public RepellentLampBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(COVERED, false));
+        registerDefaultState(stateDefinition.any().setValue(COVERED, false).setValue(LIT, false));
     }
 
     @Override
@@ -52,7 +60,7 @@ public class RepellentLampBlock extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(COVERED);
+        builder.add(COVERED, LIT);
     }
 
     @Override
@@ -71,9 +79,19 @@ public class RepellentLampBlock extends BaseEntityBlock {
         return new RepellentLampBlockEntity(pos, state);
     }
 
-    /** 点いているか(蔦に覆われていない)。 */
+    @Nullable
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        if (level.isClientSide() || type != com.yayuy.overgrownvegetation.registry.ModBlockEntities.REPELLENT_LAMP.get()) {
+            return null;
+        }
+        return (BlockEntityTicker<T>) (BlockEntityTicker<RepellentLampBlockEntity>) RepellentLampBlockEntity::serverTick;
+    }
+
+    /** 点いているか(電池が残っていて、蔦に覆われていない)。 */
     public static boolean isActive(BlockState state) {
-        return state.is(state.getBlock()) && state.hasProperty(COVERED) && !state.getValue(COVERED);
+        return state.hasProperty(COVERED) && !state.getValue(COVERED) && state.hasProperty(LIT) && state.getValue(LIT);
     }
 
     /** 覆う/剥がす。台帳({@link RepellentLamps})も同時に更新する。 */
@@ -86,7 +104,9 @@ public class RepellentLampBlock extends BaseEntityBlock {
             RepellentLamps.unregister(level, pos);
             level.playSound(null, pos, SoundEvents.SPORE_BLOSSOM_PLACE, SoundSource.BLOCKS, 1.0F, 0.6F);
         } else {
-            RepellentLamps.register(level, pos);
+            if (state.getValue(LIT)) {
+                RepellentLamps.register(level, pos); // 電池の切れた灯りは剥がしても点かない
+            }
             level.playSound(null, pos, SoundEvents.VINE_BREAK, SoundSource.BLOCKS, 1.0F, 1.0F);
         }
     }

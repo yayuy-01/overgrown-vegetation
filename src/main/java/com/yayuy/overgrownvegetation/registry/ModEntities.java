@@ -3,15 +3,12 @@ package com.yayuy.overgrownvegetation.registry;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.data.MobStats;
 import com.yayuy.overgrownvegetation.entity.BlightFernEntity;
-import com.yayuy.overgrownvegetation.entity.BlightWaterGrassEntity;
 import com.yayuy.overgrownvegetation.entity.DorgaArchelausTitanicaEntity;
 import com.yayuy.overgrownvegetation.entity.TitanicaHitboxEntity;
 import com.yayuy.overgrownvegetation.entity.SiegeBombEntity;
 import com.yayuy.overgrownvegetation.entity.SiegeCannonSeatEntity;
 import com.yayuy.overgrownvegetation.entity.OvergrownNexusEntity;
 import com.yayuy.overgrownvegetation.entity.ArboraEntity;
-import com.yayuy.overgrownvegetation.entity.ArboraQueenEntity;
-import com.yayuy.overgrownvegetation.entity.NestCoreEntity;
 import com.yayuy.overgrownvegetation.entity.ArthropleuraEntity;
 import com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity;
 import com.yayuy.overgrownvegetation.entity.LithopleuraEntity;
@@ -19,14 +16,22 @@ import com.yayuy.overgrownvegetation.entity.SpelaeopleuraEntity;
 import com.yayuy.overgrownvegetation.entity.HiveNodeEntity;
 import com.yayuy.overgrownvegetation.entity.HiveRitualEntity;
 import com.yayuy.overgrownvegetation.entity.HiveRitualSeatEntity;
-import com.yayuy.overgrownvegetation.entity.HiveVineEntity;
 import com.yayuy.overgrownvegetation.entity.HylonomusEntity;
 import com.yayuy.overgrownvegetation.entity.IanthasaurusEntity;
 import com.yayuy.overgrownvegetation.entity.MeganeuraEntity;
 import com.yayuy.overgrownvegetation.entity.MegarachneEntity;
 import com.yayuy.overgrownvegetation.entity.OrthacanthusEntity;
+import com.yayuy.overgrownvegetation.entity.AcumnesEntity;
+import com.yayuy.overgrownvegetation.entity.AcumnesSpine;
+import com.yayuy.overgrownvegetation.entity.BathymnesEntity;
+import com.yayuy.overgrownvegetation.entity.ErebomnesEntity;
+import com.yayuy.overgrownvegetation.entity.FodimnesEntity;
+import com.yayuy.overgrownvegetation.entity.VoramnesEntity;
 import com.yayuy.overgrownvegetation.entity.FalcimnesEntity;
+import com.yayuy.overgrownvegetation.entity.ScutimnesEntity;
+import com.yayuy.overgrownvegetation.entity.ScutimnesShockwave;
 import com.yayuy.overgrownvegetation.entity.OvergrownShielderEntity;
+import com.yayuy.overgrownvegetation.entity.PediculaEntity;
 import com.yayuy.overgrownvegetation.entity.PetrolacosaurusEntity;
 import com.yayuy.overgrownvegetation.entity.PhyllosensEntity;
 import com.yayuy.overgrownvegetation.entity.SporophyllEntity;
@@ -41,6 +46,14 @@ import com.yayuy.overgrownvegetation.entity.ParasitizedCow;
 import com.yayuy.overgrownvegetation.entity.ParasitizedCreeper;
 import com.yayuy.overgrownvegetation.entity.ParasitizedPig;
 import com.yayuy.overgrownvegetation.entity.ParasitizedSheep;
+import com.yayuy.overgrownvegetation.entity.CrassigyrinusEntity;
+import com.yayuy.overgrownvegetation.entity.DiplocaulusEntity;
+import com.yayuy.overgrownvegetation.entity.EryopsEntity;
+import com.yayuy.overgrownvegetation.entity.GiantSnailEntity;
+import com.yayuy.overgrownvegetation.entity.HibbertopterusEntity;
+import com.yayuy.overgrownvegetation.entity.LungfishEntity;
+import com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity;
+import com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity;
 import com.yayuy.overgrownvegetation.entity.ParasitizedSpider;
 import com.yayuy.overgrownvegetation.entity.ParasitizedZombie;
 import net.minecraft.core.registries.Registries;
@@ -114,43 +127,15 @@ public final class ModEntities {
                     .noSave()
                     .build("hive_ritual_seat"));
 
-    /**
-     * 「巣の蔦」— ハイヴノードを広間の殻から吊っている蔦 1 本ぶん
-     * ({@link com.yayuy.overgrownvegetation.entity.HiveVineEntity})。7 割を切り落とすとノードが落ちる。
-     */
-    public static final DeferredHolder<EntityType<?>, EntityType<HiveVineEntity>> HIVE_VINE =
-            ENTITY_TYPES.register("hive_vine", () -> EntityType.Builder
-                    .of(HiveVineEntity::new, MobCategory.MONSTER)
-                    .sized(MobStats.width("hive_vine", 1.2F), MobStats.height("hive_vine", 1.2F))
-                    .spawnDimensionsScale(MobStats.spawnScale("hive_vine"))
-                    .clientTrackingRange(16)
-                    .updateInterval(3)
-                    .fireImmune()
-                    .build("hive_vine"));
-
     /** 巨大シダの寄生植物。侵食の起点。 */
     public static final DeferredHolder<EntityType<?>, EntityType<BlightFernEntity>> BLIGHT_FERN =
             ENTITY_TYPES.register("blight_fern", () -> EntityType.Builder
                     .of(BlightFernEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width("blight_fern", 1.4F), MobStats.height("blight_fern", 2.6F))
-                    // spawnDimensionsScale は付けない(当たり判定から SCALE を打ち消しているので、素の箱のほうが大きいか同じ。クラス javadoc)
+                    .spawnDimensionsScale(MobStats.spawnScale("blight_fern")) // 10-23 萌芽体は体格 1・当たり判定 1 × 2(見た目は 3.65。描画の箱は BlightFernEntity#getBoundingBoxForCulling で広げる)
                     .clientTrackingRange(12)
                     .updateInterval(3)
                     .build("blight_fern"));
-
-    /**
-     * 汚染水草 — {@link BlightFernEntity} の水中版。仕様はすべて汚染シダと同じで、違いは湧いた場所が
-     * 水中か地上かだけ({@link com.yayuy.overgrownvegetation.entity.BlightWaterGrassEntity} /
-     * {@link com.yayuy.overgrownvegetation.entity.BlightFernPlacement})。
-     */
-    public static final DeferredHolder<EntityType<?>, EntityType<BlightWaterGrassEntity>> BLIGHT_WATER_GRASS =
-            ENTITY_TYPES.register("blight_water_grass", () -> EntityType.Builder
-                    .of(BlightWaterGrassEntity::new, MobCategory.MONSTER)
-                    .sized(MobStats.width("blight_water_grass", 1.4F), MobStats.height("blight_water_grass", 2.6F))
-                    // spawnDimensionsScale は付けない(当たり判定から SCALE を打ち消しているので、素の箱のほうが大きいか同じ。クラス javadoc)
-                    .clientTrackingRange(12)
-                    .updateInterval(3)
-                    .build("blight_water_grass"));
 
     /*
      * 「寄生された(MOB名)」— フェーズ4の進化型感染 Mob(仮実装)。
@@ -189,6 +174,186 @@ public final class ModEntities {
                     .spawnDimensionsScale(MobStats.spawnScale("parasitized_zombie"))
                     .clientTrackingRange(8)
                     .build("parasitized_zombie"));
+
+    // 寄生された村人(G1、2026-10-09)。死体ブロックから起き上がる。
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ParasitizedVillager>> PARASITIZED_VILLAGER =
+            ENTITY_TYPES.register("parasitized_villager", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.ParasitizedVillager::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("parasitized_villager", 0.6F), MobStats.height("parasitized_villager", 1.95F))
+                    .spawnDimensionsScale(MobStats.spawnScale("parasitized_villager"))
+                    .clientTrackingRange(8)
+                    .build("parasitized_villager"));
+
+    // 寄生された鶏・スケルトン・エンダーマン・チビゾンビ(G1、2026-10-09)。死体ブロックから起き上がる。
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ParasitizedChicken>> PARASITIZED_CHICKEN =
+            ENTITY_TYPES.register("parasitized_chicken", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.ParasitizedChicken::new, MobCategory.CREATURE)
+                    .sized(MobStats.width("parasitized_chicken", 0.4F), MobStats.height("parasitized_chicken", 0.7F))
+                    .spawnDimensionsScale(MobStats.spawnScale("parasitized_chicken"))
+                    .clientTrackingRange(10)
+                    .build("parasitized_chicken"));
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ParasitizedSkeleton>> PARASITIZED_SKELETON =
+            ENTITY_TYPES.register("parasitized_skeleton", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.ParasitizedSkeleton::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("parasitized_skeleton", 0.6F), MobStats.height("parasitized_skeleton", 1.99F))
+                    .spawnDimensionsScale(MobStats.spawnScale("parasitized_skeleton"))
+                    .clientTrackingRange(8)
+                    .build("parasitized_skeleton"));
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ParasitizedEnderman>> PARASITIZED_ENDERMAN =
+            ENTITY_TYPES.register("parasitized_enderman", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.ParasitizedEnderman::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("parasitized_enderman", 0.6F), MobStats.height("parasitized_enderman", 2.9F))
+                    .spawnDimensionsScale(MobStats.spawnScale("parasitized_enderman"))
+                    .clientTrackingRange(8)
+                    .build("parasitized_enderman"));
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ParasitizedBabyZombie>> PARASITIZED_BABY_ZOMBIE =
+            ENTITY_TYPES.register("parasitized_baby_zombie", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.ParasitizedBabyZombie::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("parasitized_baby_zombie", 0.3F), MobStats.height("parasitized_baby_zombie", 0.975F))
+                    .spawnDimensionsScale(MobStats.spawnScale("parasitized_baby_zombie"))
+                    .clientTrackingRange(8)
+                    .build("parasitized_baby_zombie"));
+
+    // ネザーの媒介種(2026-10-09)。ネザーにだけ湧く(タグ nether_native)。全種燃える(ユーザー指定)ので fireImmune は付けない。
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ParasitizedPiglin>> PARASITIZED_PIGLIN =
+            ENTITY_TYPES.register("parasitized_piglin", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.ParasitizedPiglin::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("parasitized_piglin", 0.6F), MobStats.height("parasitized_piglin", 1.95F))
+                    .spawnDimensionsScale(MobStats.spawnScale("parasitized_piglin"))
+                    .clientTrackingRange(8)
+                    .build("parasitized_piglin"));
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ParasitizedPiglinBrute>> PARASITIZED_PIGLIN_BRUTE =
+            ENTITY_TYPES.register("parasitized_piglin_brute", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.ParasitizedPiglinBrute::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("parasitized_piglin_brute", 0.6F), MobStats.height("parasitized_piglin_brute", 1.95F))
+                    .spawnDimensionsScale(MobStats.spawnScale("parasitized_piglin_brute"))
+                    .clientTrackingRange(8)
+                    .build("parasitized_piglin_brute"));
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ParasitizedZombifiedPiglin>> PARASITIZED_ZOMBIFIED_PIGLIN =
+            ENTITY_TYPES.register("parasitized_zombified_piglin", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.ParasitizedZombifiedPiglin::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("parasitized_zombified_piglin", 0.6F), MobStats.height("parasitized_zombified_piglin", 1.95F))
+                    .spawnDimensionsScale(MobStats.spawnScale("parasitized_zombified_piglin"))
+                    .clientTrackingRange(8)
+                    .build("parasitized_zombified_piglin"));
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ParasitizedWitherSkeleton>> PARASITIZED_WITHER_SKELETON =
+            ENTITY_TYPES.register("parasitized_wither_skeleton", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.ParasitizedWitherSkeleton::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("parasitized_wither_skeleton", 0.7F), MobStats.height("parasitized_wither_skeleton", 2.4F))
+                    .spawnDimensionsScale(MobStats.spawnScale("parasitized_wither_skeleton"))
+                    .clientTrackingRange(8)
+                    .build("parasitized_wither_skeleton"));
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ParasitizedHoglin>> PARASITIZED_HOGLIN =
+            ENTITY_TYPES.register("parasitized_hoglin", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.ParasitizedHoglin::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("parasitized_hoglin", 1.3964844F), MobStats.height("parasitized_hoglin", 1.4F))
+                    .spawnDimensionsScale(MobStats.spawnScale("parasitized_hoglin"))
+                    .clientTrackingRange(8)
+                    .build("parasitized_hoglin"));
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ParasitizedZoglin>> PARASITIZED_ZOGLIN =
+            ENTITY_TYPES.register("parasitized_zoglin", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.ParasitizedZoglin::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("parasitized_zoglin", 1.3964844F), MobStats.height("parasitized_zoglin", 1.4F))
+                    .spawnDimensionsScale(MobStats.spawnScale("parasitized_zoglin"))
+                    .clientTrackingRange(8)
+                    .build("parasitized_zoglin"));
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ParasitizedStrider>> PARASITIZED_STRIDER =
+            ENTITY_TYPES.register("parasitized_strider", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.ParasitizedStrider::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("parasitized_strider", 0.9F), MobStats.height("parasitized_strider", 1.7F))
+                    .spawnDimensionsScale(MobStats.spawnScale("parasitized_strider"))
+                    .clientTrackingRange(10)
+                    .build("parasitized_strider"));
+    // 死体を作らず、死んだガスト・ブレイズがその場で入れ替わる(corpse/NetherReanimation)。
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ParasitizedGhast>> PARASITIZED_GHAST =
+            ENTITY_TYPES.register("parasitized_ghast", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.ParasitizedGhast::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("parasitized_ghast", 4.0F), MobStats.height("parasitized_ghast", 4.0F))
+                    .eyeHeight(2.6F)
+                    .spawnDimensionsScale(MobStats.spawnScale("parasitized_ghast"))
+                    .clientTrackingRange(10)
+                    .build("parasitized_ghast"));
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ParasitizedBlaze>> PARASITIZED_BLAZE =
+            ENTITY_TYPES.register("parasitized_blaze", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.ParasitizedBlaze::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("parasitized_blaze", 0.6F), MobStats.height("parasitized_blaze", 1.8F))
+                    .spawnDimensionsScale(MobStats.spawnScale("parasitized_blaze"))
+                    .clientTrackingRange(8)
+                    .build("parasitized_blaze"));
+    // 2026-10-10: アイアンゴーレム・ウォーデン。自然には湧かず、胞子感染で死んだ元の Mob の死体からだけ起き上がる(ユーザー指定)。
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ParasitizedIronGolem>> PARASITIZED_IRON_GOLEM =
+            ENTITY_TYPES.register("parasitized_iron_golem", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.ParasitizedIronGolem::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("parasitized_iron_golem", 1.4F), MobStats.height("parasitized_iron_golem", 2.7F))
+                    .spawnDimensionsScale(MobStats.spawnScale("parasitized_iron_golem"))
+                    .clientTrackingRange(10)
+                    .build("parasitized_iron_golem"));
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ParasitizedWarden>> PARASITIZED_WARDEN =
+            ENTITY_TYPES.register("parasitized_warden", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.ParasitizedWarden::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("parasitized_warden", 0.9F), MobStats.height("parasitized_warden", 2.9F))
+                    .spawnDimensionsScale(MobStats.spawnScale("parasitized_warden"))
+                    .clientTrackingRange(16)
+                    .build("parasitized_warden"));
+
+    // G1 の作り直し 第 1 段(2026-10-22): 進化 1 段目(G1)。司令塔が「進化」を選んだ段階 0 が 2 日で変わる(g1/G1Evolutions)。
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.VinearmZombie>> VINEARM_ZOMBIE =
+            ENTITY_TYPES.register("vinearm_zombie", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.VinearmZombie::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("vinearm_zombie", 0.6F), MobStats.height("vinearm_zombie", 1.95F))
+                    .spawnDimensionsScale(MobStats.spawnScale("vinearm_zombie"))
+                    .clientTrackingRange(8)
+                    .build("vinearm_zombie"));
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.HollowVillager>> HOLLOW_VILLAGER =
+            ENTITY_TYPES.register("hollow_villager", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.HollowVillager::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("hollow_villager", 0.6F), MobStats.height("hollow_villager", 1.95F))
+                    .spawnDimensionsScale(MobStats.spawnScale("hollow_villager"))
+                    .clientTrackingRange(8)
+                    .build("hollow_villager"));
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.SporesacCow>> SPORESAC_COW =
+            ENTITY_TYPES.register("sporesac_cow", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.SporesacCow::new, MobCategory.CREATURE)
+                    .sized(MobStats.width("sporesac_cow", 0.9F), MobStats.height("sporesac_cow", 1.4F))
+                    .spawnDimensionsScale(MobStats.spawnScale("sporesac_cow"))
+                    .clientTrackingRange(10)
+                    .build("sporesac_cow"));
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.PoddedCreeper>> PODDED_CREEPER =
+            ENTITY_TYPES.register("podded_creeper", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.PoddedCreeper::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("podded_creeper", 0.6F), MobStats.height("podded_creeper", 1.7F))
+                    .spawnDimensionsScale(MobStats.spawnScale("podded_creeper"))
+                    .clientTrackingRange(8)
+                    .build("podded_creeper"));
+    // 進化 2 段目(1 段目からさらに 5 日)。能力で分類: 蔦の処刑者・根の打ち手 = G5、歩く胞子嚢・破裂莢 = G4(タグ group_N.json)。
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.VineExecutioner>> VINE_EXECUTIONER =
+            ENTITY_TYPES.register("vine_executioner", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.VineExecutioner::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("vine_executioner", 0.7F), MobStats.height("vine_executioner", 2.2F))
+                    .spawnDimensionsScale(MobStats.spawnScale("vine_executioner"))
+                    .clientTrackingRange(10)
+                    .build("vine_executioner"));
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.RootStriker>> ROOT_STRIKER =
+            ENTITY_TYPES.register("root_striker", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.RootStriker::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("root_striker", 0.7F), MobStats.height("root_striker", 2.2F))
+                    .spawnDimensionsScale(MobStats.spawnScale("root_striker"))
+                    .clientTrackingRange(10)
+                    .build("root_striker"));
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.WalkingSporangium>> WALKING_SPORANGIUM =
+            ENTITY_TYPES.register("walking_sporangium", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.WalkingSporangium::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("walking_sporangium", 1.3F), MobStats.height("walking_sporangium", 2.0F))
+                    .spawnDimensionsScale(MobStats.spawnScale("walking_sporangium"))
+                    .clientTrackingRange(10)
+                    .build("walking_sporangium"));
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.BurstPod>> BURST_POD =
+            ENTITY_TYPES.register("burst_pod", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.BurstPod::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("burst_pod", 0.8F), MobStats.height("burst_pod", 1.6F))
+                    .spawnDimensionsScale(MobStats.spawnScale("burst_pod"))
+                    .clientTrackingRange(10)
+                    .build("burst_pod"));
 
     public static final DeferredHolder<EntityType<?>, EntityType<ParasitizedCreeper>> PARASITIZED_CREEPER =
             ENTITY_TYPES.register("parasitized_creeper", () -> EntityType.Builder
@@ -231,6 +396,135 @@ public final class ModEntities {
                     .clientTrackingRange(12)
                     .updateInterval(2)
                     .build("falcimnes"));
+
+    /**
+     * 「スクティムネス」— 甲殻の盾を 2 枚構えた 8 本脚の生き物。グループ5(適応種)の陸の盾役(2026-09-23)。
+     * 体格 1.6 倍で全長 7.3 ブロック。当たり判定は脚の幅(実効 2.88 x 1.44)だけを覆い、尾は外へ出る。
+     * 向きの同期は毎 tick(ゆっくり回るのが売りの Mob なので、2 tick おきの補間だと回り方がかくつく)。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<ScutimnesEntity>> SCUTIMNES =
+            ENTITY_TYPES.register("scutimnes", () -> EntityType.Builder
+                    .of(ScutimnesEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("scutimnes", 1.8F), MobStats.height("scutimnes", 0.9F))
+                    .spawnDimensionsScale(MobStats.spawnScale("scutimnes"))
+                    .clientTrackingRange(12)
+                    .updateInterval(1)
+                    .build("scutimnes"));
+
+    /**
+     * スクティムネスの叩きつけの衝撃波({@link ScutimnesShockwave})。軽いエンティティ 1 体で、ブロックが持ち上がって
+     * 波打つのは描画だけ(地形は変えない)。約 1 秒で消え、保存しない。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<ScutimnesShockwave>> SCUTIMNES_SHOCKWAVE =
+            ENTITY_TYPES.register("scutimnes_shockwave", () -> EntityType.Builder
+                    .<ScutimnesShockwave>of(ScutimnesShockwave::new, MobCategory.MISC)
+                    .sized(0.5F, 0.5F)
+                    .clientTrackingRange(8)
+                    .updateInterval(1)
+                    .build("scutimnes_shockwave"));
+
+    /**
+     * 「アクムネス」— ヒメバチの姿の、グループ5(適応種)の空の狙撃役(2026-09-28)。体格 1.8 倍で全長 10.6 ブロック(針込み)。
+     * 当たり判定は胸・腹の前半・垂らした脚(実効 2.52 x 3.24)。針・翅・触角は外へ出る。
+     * 向きの同期は毎 tick(長い針が回るのを滑らかに見せる)。上空から撃つので追跡の範囲は広め。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<AcumnesEntity>> ACUMNES =
+            ENTITY_TYPES.register("acumnes", () -> EntityType.Builder
+                    .of(AcumnesEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("acumnes", 1.4F), MobStats.height("acumnes", 1.8F))
+                    .eyeHeight(1.42F)
+                    .spawnDimensionsScale(MobStats.spawnScale("acumnes"))
+                    .clientTrackingRange(16)
+                    .updateInterval(1)
+                    .build("acumnes"));
+
+    /** アクムネスが撃つ棘({@link AcumnesSpine})。まっすぐ速く飛ぶので位置の同期は毎 tick。保存しない。 */
+    /** パチンコの弾(2026-10-16、⑯)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.SlingshotShot>> SLINGSHOT_SHOT =
+            ENTITY_TYPES.register("slingshot_shot", () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.SlingshotShot>of(com.yayuy.overgrownvegetation.entity.SlingshotShot::new, MobCategory.MISC)
+                    .sized(0.25F, 0.25F).clientTrackingRange(4).updateInterval(10).build("slingshot_shot"));
+    /** 粘りの投網(2026-10-16、⑳)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.StickyNet>> STICKY_NET =
+            ENTITY_TYPES.register("sticky_net", () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.StickyNet>of(com.yayuy.overgrownvegetation.entity.StickyNet::new, MobCategory.MISC)
+                    .sized(0.25F, 0.25F).clientTrackingRange(4).updateInterval(10).build("sticky_net"));
+    /** ⑪ 灰煙玉(2026-10-16)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.AshSmokeBomb>> ASH_SMOKE_BOMB =
+            ENTITY_TYPES.register("ash_smoke_bomb", () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.AshSmokeBomb>of(com.yayuy.overgrownvegetation.entity.AshSmokeBomb::new, MobCategory.MISC)
+                    .sized(0.25F, 0.25F).clientTrackingRange(4).updateInterval(10).build("ash_smoke_bomb"));
+    /** ⑧ 焼夷瓶(2026-10-16)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.purify.IncendiaryFlask>> INCENDIARY_FLASK =
+            ENTITY_TYPES.register("incendiary_flask", () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.purify.IncendiaryFlask>of(com.yayuy.overgrownvegetation.purify.IncendiaryFlask::new, MobCategory.MISC)
+                    .sized(0.25F, 0.25F).clientTrackingRange(4).updateInterval(10).build("incendiary_flask"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<AcumnesSpine>> ACUMNES_SPINE =
+            ENTITY_TYPES.register("acumnes_spine", () -> EntityType.Builder
+                    .<AcumnesSpine>of(AcumnesSpine::new, MobCategory.MISC)
+                    .sized(0.3F, 0.3F)
+                    .clientTrackingRange(8)
+                    .updateInterval(1)
+                    .fireImmune()
+                    .noSummon()
+                    .build("acumnes_spine"));
+
+    // --- G5 の低キューブ 4 種(2026-10-01 足場)。素の判定の大きさ・同期の間隔は仮決め(実装係が変えてよい)。
+    //     描画倍率(NOTES の「描画倍率」)は mobs.json の scale で掛かり、判定も一緒に拡大される。
+
+    /**
+     * 「バティムネス」— 海のカメロケラス(長さ 11 ブロック)。体格 2 倍で素の判定 1.25 x 1.25 → 実効 2.5 x 2.5
+     * (本体だけ。頭と殻の後ろ半分は部位の判定を足す案。NOTES)。長い体が回るので向きの同期は毎 tick。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<BathymnesEntity>> BATHYMNES =
+            ENTITY_TYPES.register("bathymnes", () -> EntityType.Builder
+                    .of(BathymnesEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("bathymnes", 1.25F), MobStats.height("bathymnes", 1.25F))
+                    .spawnDimensionsScale(MobStats.spawnScale("bathymnes"))
+                    .clientTrackingRange(16)
+                    .updateInterval(1)
+                    .build("bathymnes"));
+
+    /**
+     * 「エレボムネス」— 巨大な洞窟の空中を泳ぐアノマロカリス類(長さ 8.6 ブロック)。体格 2 倍で素の判定 1.75 x 1.05 → 実効 3.5 x 2.1、
+     * 目の高さ 0.8 → 1.6(NOTES の目安)。頭は判定の外(前 2.4〜4.8)。長い体が回るので向きの同期は毎 tick。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<ErebomnesEntity>> EREBOMNES =
+            ENTITY_TYPES.register("erebomnes", () -> EntityType.Builder
+                    .of(ErebomnesEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("erebomnes", 1.75F), MobStats.height("erebomnes", 1.05F))
+                    .eyeHeight(0.8F)
+                    .spawnDimensionsScale(MobStats.spawnScale("erebomnes"))
+                    .clientTrackingRange(12)
+                    .updateInterval(1)
+                    .build("erebomnes"));
+
+    /**
+     * 「ヴォラムネス」— 地中を泳ぐ大型の蠕虫(地上に出ると高さ 8.7 ブロック)。体格 2 倍で素の判定 1.25 x 4.25 → 実効 2.5 x 8.5
+     * (地上に出た姿。NOTES)。地面から素早く出入りするので同期は毎 tick。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<VoramnesEntity>> VORAMNES =
+            ENTITY_TYPES.register("voramnes", () -> EntityType.Builder
+                    .of(VoramnesEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("voramnes", 1.25F), MobStats.height("voramnes", 4.25F))
+                    .spawnDimensionsScale(MobStats.spawnScale("voramnes"))
+                    .clientTrackingRange(12)
+                    .updateInterval(1)
+                    .build("voramnes"));
+
+    /**
+     * 「フォディムネス」— 地中の砂虫型のワームの<b>頭</b>(節と尾は PartEntity)。体格 1、判定 0.65 x 0.66(頭の目安。NOTES)。
+     * 節の位置は頭の通った道から両側で同じ式で出す(ユーザー指定)ので、頭の位置の同期は毎 tick。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<FodimnesEntity>> FODIMNES =
+            ENTITY_TYPES.register("fodimnes", () -> EntityType.Builder
+                    .of(FodimnesEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("fodimnes", 0.65F), MobStats.height("fodimnes", 0.66F))
+                    .spawnDimensionsScale(MobStats.spawnScale("fodimnes"))
+                    .clientTrackingRange(10)
+                    .updateInterval(1)
+                    .build("fodimnes"));
 
     /**
      * 「ファランギオターブス」— 8 本脚の大型寄生節足動物。過繁茂バイオームの原木に
@@ -346,33 +640,6 @@ public final class ModEntities {
                     .build("arbora"));
 
     /**
-     * 「アルボラの女王」(2026-09-20)— 巣の女王室の主。アルボラの 2 倍の大きさで、
-     * 移動が遅く、とびかかりを持たない。地面を叩く衝撃波と溜めてからの広範囲の鎌を持ち、
-     * 戦闘中にアルボラを産む({@link ArboraQueenEntity})。巣から出ず、離れても消えない。
-     */
-    public static final DeferredHolder<EntityType<?>, EntityType<ArboraQueenEntity>> ARBORA_QUEEN =
-            ENTITY_TYPES.register("arbora_queen", () -> EntityType.Builder
-                    .of(ArboraQueenEntity::new, MobCategory.MONSTER)
-                    .sized(MobStats.width("arbora_queen", 2.0F), MobStats.height("arbora_queen", 2.0F))
-                    .spawnDimensionsScale(MobStats.spawnScale("arbora_queen"))
-                    .clientTrackingRange(16)
-                    .build("arbora_queen"));
-
-    /**
-     * 「巣の核」(2026-09-20)— 女王室の奥。生きているあいだ、世界全体で新しく湧いた過繫茂 Mob を
-     * 永続強化する({@link com.yayuy.overgrownvegetation.nest.NestBuffs})。倒すとその巣の噴出孔も止まる。
-     */
-    public static final DeferredHolder<EntityType<?>, EntityType<NestCoreEntity>> NEST_CORE =
-            ENTITY_TYPES.register("nest_core", () -> EntityType.Builder
-                    .of(NestCoreEntity::new, MobCategory.MONSTER)
-                    .sized(MobStats.width("nest_core", 1.4F), MobStats.height("nest_core", 1.4F))
-                    .spawnDimensionsScale(MobStats.spawnScale("nest_core"))
-                    .clientTrackingRange(16)
-                    .updateInterval(3)
-                    .fireImmune()
-                    .build("nest_core"));
-
-    /**
      * 「フィロセンス」— グループ4(拡大種)の索敵役。長い首の先に花を持つ多脚の植物型。
      * ふだんは周囲 32 ブロックのプレイヤーに「視線」を、味方に「誘導」を配り、
      * 1 分プレイヤーが来なければ首を上げて花を開き、512/256 ブロックへ一気にばら撒く
@@ -421,6 +688,23 @@ public final class ModEntities {
                     .spawnDimensionsScale(MobStats.spawnScale("sporophyll"))
                     .clientTrackingRange(16)
                     .build("sporophyll"));
+
+    /**
+     * 「ペディキュラ」— グループ4(拡大種)の漂流種(2026-09-23)。上空を漂う巨大な胞子の塊で、
+     * 過繫茂バイオームの無い方へ流れながら、いるチャンクの胞子濃度を 100% にしていく。
+     * 撃ち落とすと小さな胞子爆弾を散らし、着弾点に汚染シダが湧く({@link PediculaEntity})。
+     *
+     * <p>当たり判定は main の大きな立方体がどの向きに回っても収まる立方体(一辺 3.6、中心の高さ 1.8 =
+     * 描画の回転の中心)。まわりの塊(sub)ははみ出す。経路探索は使わないので、幅 3 超えの制約は関係ない。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<PediculaEntity>> PEDICULA =
+            ENTITY_TYPES.register("pedicula", () -> EntityType.Builder
+                    .of(PediculaEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("pedicula", 3.6F), MobStats.height("pedicula", 3.6F))
+                    .spawnDimensionsScale(MobStats.spawnScale("pedicula"))
+                    // 上空に浮かんでいるので、遠くから見えていてほしい(ヴェロフィルと同じ)。
+                    .clientTrackingRange(16)
+                    .build("pedicula"));
 
     /** ヴェロフィルが落とす胞子爆弾({@link VelophyllBombEntity})。地形は一切壊さない。 */
     public static final DeferredHolder<EntityType<?>, EntityType<VelophyllBombEntity>> VELOPHYLL_BOMB =
@@ -516,6 +800,80 @@ public final class ModEntities {
                     .clientTrackingRange(10)
                     .build("megarachne"));
 
+    // --- G2・G3 の新しい 8 種(2026-10-22)。生成器 tools/g5-models/mobs/G23N*。大きさは仮決め(ユーザー了承「仮の大きさのままでよい」) ---
+
+    /** 「ディプロカウルス」— ブーメラン形の頭の両生類(グループ2・水生)。浅瀬の群れ。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<DiplocaulusEntity>> DIPLOCAULUS =
+            ENTITY_TYPES.register("diplocaulus", () -> EntityType.Builder
+                    .of(DiplocaulusEntity::new, MobCategory.WATER_CREATURE)
+                    .sized(MobStats.width("diplocaulus", 0.9F), MobStats.height("diplocaulus", 0.3F))
+                    .spawnDimensionsScale(MobStats.spawnScale("diplocaulus"))
+                    .clientTrackingRange(8)
+                    .build("diplocaulus"));
+
+    /** 「肺魚」— 川底の泥に潜み、雨の日に陸へ這い出す(グループ2・水生、陸でも息ができる)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<LungfishEntity>> LUNGFISH =
+            ENTITY_TYPES.register("lungfish", () -> EntityType.Builder
+                    .of(LungfishEntity::new, MobCategory.WATER_CREATURE)
+                    .sized(MobStats.width("lungfish", 0.6F), MobStats.height("lungfish", 0.4F))
+                    .spawnDimensionsScale(MobStats.spawnScale("lungfish"))
+                    .clientTrackingRange(8)
+                    .build("lungfish"));
+
+    /** 「ヒベルトプテルス」— 湖底を掃く大型のウミサソリ(グループ2・水陸両生)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<HibbertopterusEntity>> HIBBERTOPTERUS =
+            ENTITY_TYPES.register("hibbertopterus", () -> EntityType.Builder
+                    .of(HibbertopterusEntity::new, MobCategory.WATER_CREATURE)
+                    .sized(MobStats.width("hibbertopterus", 1.3F), MobStats.height("hibbertopterus", 0.5F))
+                    .spawnDimensionsScale(MobStats.spawnScale("hibbertopterus"))
+                    .clientTrackingRange(10)
+                    .build("hibbertopterus"));
+
+    /** 「巨大な陸生カタツムリ」(グループ2)。地上の大型の草食の群れ。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<GiantSnailEntity>> GIANT_SNAIL =
+            ENTITY_TYPES.register("giant_snail", () -> EntityType.Builder
+                    .of(GiantSnailEntity::new, MobCategory.CREATURE)
+                    .sized(MobStats.width("giant_snail", 0.7F), MobStats.height("giant_snail", 0.9F))
+                    .spawnDimensionsScale(MobStats.spawnScale("giant_snail"))
+                    .clientTrackingRange(8)
+                    .build("giant_snail"));
+
+    /** 「梢の巨大な幼虫」— ステノディクティアの幼虫(グループ2)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<StenodictyaNymphEntity>> STENODICTYA_NYMPH =
+            ENTITY_TYPES.register("stenodictya_nymph", () -> EntityType.Builder
+                    .of(StenodictyaNymphEntity::new, MobCategory.CREATURE)
+                    .sized(MobStats.width("stenodictya_nymph", 0.6F), MobStats.height("stenodictya_nymph", 0.45F))
+                    .spawnDimensionsScale(MobStats.spawnScale("stenodictya_nymph"))
+                    .clientTrackingRange(8)
+                    .build("stenodictya_nymph"));
+
+    /** 「エリオプス」— 岸で待ち伏せる大型の両生類(グループ3)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<EryopsEntity>> ERYOPS =
+            ENTITY_TYPES.register("eryops", () -> EntityType.Builder
+                    .of(EryopsEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("eryops", 1.2F), MobStats.height("eryops", 0.5F))
+                    .spawnDimensionsScale(MobStats.spawnScale("eryops"))
+                    .clientTrackingRange(10)
+                    .build("eryops"));
+
+    /** 「プルモノスコルピウス」— 夜に倒木の下から出る巨大サソリ(グループ3)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<PulmonoscorpiusEntity>> PULMONOSCORPIUS =
+            ENTITY_TYPES.register("pulmonoscorpius", () -> EntityType.Builder
+                    .of(PulmonoscorpiusEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("pulmonoscorpius", 1.0F), MobStats.height("pulmonoscorpius", 0.6F))
+                    .spawnDimensionsScale(MobStats.spawnScale("pulmonoscorpius"))
+                    .clientTrackingRange(9)
+                    .build("pulmonoscorpius"));
+
+    /** 「クラッシギリヌス」— 濁った水で待ち伏せるウナギ型の四肢動物(グループ3・水生)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<CrassigyrinusEntity>> CRASSIGYRINUS =
+            ENTITY_TYPES.register("crassigyrinus", () -> EntityType.Builder
+                    .of(CrassigyrinusEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("crassigyrinus", 1.0F), MobStats.height("crassigyrinus", 0.45F))
+                    .spawnDimensionsScale(MobStats.spawnScale("crassigyrinus"))
+                    .clientTrackingRange(10)
+                    .build("crassigyrinus"));
+
     /** レイドイベントの中核「過繫茂の苗床」(ボス)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<OvergrownNexusEntity>> OVERGROWN_NEXUS =
             ENTITY_TYPES.register("overgrown_nexus", () -> EntityType.Builder
@@ -568,6 +926,21 @@ public final class ModEntities {
                     .noSummon()
                     .noSave()
                     .build("titanica_hitbox"));
+
+    /**
+     * 空の巨大生物の<b>当たりの受け手</b>({@link com.yayuy.overgrownvegetation.skyboss.SkyBossHitboxEntity})。飛び道具が当たる所・剣が届く所へだけ置く見えない小さな箱。
+     * {@code noSave}(毎 tick 置き直す)、追跡は近くだけ。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.skyboss.SkyBossHitboxEntity>> SKY_BOSS_HITBOX =
+            ENTITY_TYPES.register("sky_boss_hitbox", () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.skyboss.SkyBossHitboxEntity>of(com.yayuy.overgrownvegetation.skyboss.SkyBossHitboxEntity::new, MobCategory.MISC)
+                    .sized(1.0F, 1.0F)
+                    .clientTrackingRange(4)
+                    .updateInterval(2)
+                    .fireImmune()
+                    .noSummon()
+                    .noSave()
+                    .build("sky_boss_hitbox"));
 
     /** 攻城戦ボスが真下へ落とす爆弾({@link SiegeBombEntity})。地形破壊は既定でゼロ。 */
     public static final DeferredHolder<EntityType<?>, EntityType<SiegeBombEntity>> SIEGE_BOMB =

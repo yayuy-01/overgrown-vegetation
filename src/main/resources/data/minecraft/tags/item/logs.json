@@ -1,0 +1,17 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:overgrown_log",
+    "overgrown_vegetation:overgrown_wood",
+    "overgrown_vegetation:giant_overgrown_log",
+    "overgrown_vegetation:giant_overgrown_cambium",
+    "overgrown_vegetation:covered_crimson_stem",
+    "overgrown_vegetation:covered_crimson_hyphae",
+    "overgrown_vegetation:covered_stripped_crimson_stem",
+    "overgrown_vegetation:covered_stripped_crimson_hyphae",
+    "overgrown_vegetation:covered_warped_stem",
+    "overgrown_vegetation:covered_warped_hyphae",
+    "overgrown_vegetation:covered_stripped_warped_stem",
+    "overgrown_vegetation:covered_stripped_warped_hyphae"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:is_projectile",
+    "overgrown_vegetation:phyllosens_beam",
+    "overgrown_vegetation:siege_beam"
+  ]
+}

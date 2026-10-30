@@ -6,6 +6,10 @@ import com.yayuy.overgrownvegetation.phase.MobGroup;
 import com.yayuy.overgrownvegetation.registry.ModEntities;
 import com.yayuy.overgrownvegetation.registry.ModParticles;
 import com.yayuy.overgrownvegetation.spore.SporeConcentration;
+import com.yayuy.overgrownvegetation.swarm.Swarm;
+import com.yayuy.overgrownvegetation.swarm.SwarmManager;
+import com.yayuy.overgrownvegetation.swarm.SwarmOrigin;
+import com.yayuy.overgrownvegetation.swarm.SwarmSpawner;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
@@ -27,25 +31,30 @@ import software.bernie.geckolib.animation.AnimatableManager;
 import software.bernie.geckolib.animation.AnimationController;
 import software.bernie.geckolib.animation.RawAnimation;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * 「スポロフィル」({@code sporophyll}) — グループ4(拡大種)の<b>支援役</b>。
  *
- * <p>頭のキノコの傘から胞子を撒き続け、<b>半径 {@code sporophyllAuraRange}(既定 32)を
+ * <p>頭のキノコの傘から胞子を撒き続け、<b>半径 {@code sporophyllAuraRange}(既定 64。2026-09-26 に 32 から倍に)を
  * 丸ごと「汚染側に都合のいい場所」に変える</b>。中身はすべて {@link SporophyllAura}:
  * <ul>
- *     <li>味方に 再生・攻撃力上昇・耐性(既定 II)+ 独自バフ「スポロフィルの胞子」</li>
- *     <li>敵に 移動速度低下・攻撃力低下 + 独自デバフ「纏わりついた胞子」+ 5 秒ごとに装備の胞子汚染 +1%</li>
+ *     <li>味方(グループ4 以上)に 再生 I・攻撃力上昇 II + 独自バフ「スポロフィルの胞子」
+ *     (2026-09-26 に耐性をやめ、再生を II → I。撒いている本人には掛からない)</li>
+ *     <li>敵に 独自デバフ「纏わりついた胞子」(移動速度低下・攻撃力低下を含む)+ 5 秒ごとに装備の胞子汚染 +1%</li>
  *     <li>足元の胞子濃度を大きく引き上げる</li>
  *     <li>その範囲を<b>過繫茂バイオームと同じ扱い</b>にする(胞子感染が 1 → 2 → 3 と上がっていく)</li>
  * </ul>
  * <b>自分では攻撃しない。</b> 戦うのは、この傘の下で強化された仲間のほう。
- * <b>標的も掴まない</b>({@link #useTargetGoals()})—— 掴めば群れへの合流も前進も止まり、
- * その場をうろつくだけになる。
+ * <b>標的も掴まない</b>({@link #useTargetGoals()})—— 掴んでも何もできず、相手を抱えたまま動けなくなる。
+ * 群れの中でも司令塔は支援役に標的を渡さない(ユーザー指定 2026-09-25「スポロフィルは標的を持たない」)。
  *
- * <h2>群れの中での立ち位置</h2>
- * グループ4 の群れ({@link InvaderPack})では<b>いちばん中央</b>に居る
- * ({@link #packCohesionDistance()} が既定の {@value #PACK_CENTRE_FACTOR} 倍)。
- * オーラの半径 32 から仲間がこぼれないためで、結果として前線に出ず狙われにくくもなる。
+ * <h2>群れの中での立ち位置(v2、2026-09-25)</h2>
+ * 群れでは支援役(SUPPORT)として前衛の<b>後ろの列</b>を歩く(ユーザー指定「スポロフィル・フィロセンスを後方に」。
+ * 並びは群れの司令塔が役割で決める)。フィロセンスより前なので、オーラの半径(既定 64)に前衛が収まる。
+ * 群れが止まって汚すときは自分の場所に立っているだけ(傘の胞子がいつも汚している)。
+ * 旧い群れの「重心へ寄る倍率」は 2026-09-25 に消えた。
  *
  * <h2>体はフィロセンスの流用</h2>
  * ボーン構成は {@link PhyllosensEntity} と完全に一致する(花 {@code flower}+{@code bone10〜13} が
@@ -77,9 +86,6 @@ public class SporophyllEntity extends AbstractOvergrownInvaderEntity {
     private static final double CAP_RADIUS = 1.6D;
     /** 1 tick に傘から出す粒の数。 */
     private static final int CAP_SPORES_PER_TICK = 2;
-
-    /** 群れの中で許す「重心からの距離」の倍率。1 未満 = ほかの種より中央寄りに立つ。 */
-    private static final double PACK_CENTRE_FACTOR = 0.6D;
 
     /**
      * 汚染の中心を張り直すまでの待ち(tick)。汚し尽くした / 胞子除去装置に阻まれたあと、
@@ -147,19 +153,19 @@ public class SporophyllEntity extends AbstractOvergrownInvaderEntity {
 
     /**
      * <b>標的を掴まない</b>。殴る手も撃つ手も持たないので、掴んでも何も起きないどころか、
-     * 群れへの合流({@link InvaderPackGoal})と前進({@link InvaderAdvanceGoal})が止まって
-     * <b>相手を抱えたままその場をうろつくだけ</b>になる(2026-09-15、群れの実装で判明)。
-     * 反撃も同じ理由で持たせない —— 殴られたら群れの仲間が代わりに反応する。
+     * <b>相手を抱えたままその場をうろつくだけ</b>になる(2026-09-15、旧い群れの実装で判明)。
+     * 反撃も同じ理由で持たせない —— 殴られたら群れの仲間が代わりに反応する(群れ v2 では司令塔が、殴った相手へ群れの標的を
+     * 替えるかを決める。スポロフィル自身には渡さない)。
      */
     @Override
     public boolean useTargetGoals() {
         return false;
     }
 
-    /** 仲間から標的を回されても受け取らない({@link #useTargetGoals()} と同じ理由)。 */
+    /** 群れが止まって全員で汚すとき、スポロフィルは自分の場所に立っているだけ(傘の胞子がいつも汚している)。 */
     @Override
-    public boolean acceptsPackTarget(LivingEntity target) {
-        return false;
+    protected com.yayuy.overgrownvegetation.swarm.goal.SwarmSpreadGoal.Action createSpreadAction() {
+        return null;
     }
 
     /**
@@ -170,25 +176,6 @@ public class SporophyllEntity extends AbstractOvergrownInvaderEntity {
     @Override
     public int sporeCorruptionRadius() {
         return OvergrownVegetationConfig.COMMON.sporophyllCorruptionRadius.get();
-    }
-
-    /**
-     * 群れの中では<b>中央に寄る</b>(既定の {@value #PACK_CENTRE_FACTOR} 倍)。
-     * 支援役なので、傘のオーラ(半径 {@code sporophyllAuraRange})から仲間がこぼれないよう
-     * いちばん内側に居たい。前に出ないので狙われにくい、という副作用もそのまま望ましい。
-     */
-    @Override
-    public double packCohesionDistance() {
-        return super.packCohesionDistance() * PACK_CENTRE_FACTOR;
-    }
-
-    /**
-     * 陣形では<b>後方</b>。前に出ると狙われ、下がりすぎると傘のオーラ(半径 32)から
-     * 先頭のアルボラがこぼれるので、後衛の中では前寄り。
-     */
-    @Override
-    public double packFormationOffset() {
-        return -OvergrownVegetationConfig.COMMON.invaderPackFormationRear.get() * 0.7D;
     }
 
     // --- 胞子を撒く ---
@@ -207,15 +194,19 @@ public class SporophyllEntity extends AbstractOvergrownInvaderEntity {
         // (濃度は 200 tick キャッシュされるので、そうしないと効果が置き去りになる)。
         long chunk = ChunkPos.asLong(pos);
         if (chunk != this.lastChunk) {
+            int r = boostInvalidateRadius();
             if (this.lastChunk != Long.MIN_VALUE) {
-                SporeConcentration.invalidateAround(level, new ChunkPos(this.lastChunk));
+                SporeConcentration.invalidateAround(level, new ChunkPos(this.lastChunk), r);
             }
-            SporeConcentration.invalidateAround(level, new ChunkPos(chunk));
+            SporeConcentration.invalidateAround(level, new ChunkPos(chunk), r);
             this.lastChunk = chunk;
         }
 
         int interval = Math.max(1, OvergrownVegetationConfig.COMMON.sporophyllAuraIntervalTicks.get());
-        if (this.tickCount % interval != 0) {
+        // 2026-09-24 軽量化(監査 940): 配る tick を個体ごとにずらす。tickCount は保存されないので、
+        // 同じ tick に湧いた・読み込まれた個体がそろって同じ tick に傘の半径を走査していた。
+        // ずれるのは配る tick だけ(間隔は同じ、初回が最大 interval - 1 tick 前後する)。
+        if (Math.floorMod(this.tickCount + this.getId(), interval) != 0) {
             return;
         }
         boolean gearTick = this.tickCount >= this.nextGearTick;
@@ -224,6 +215,25 @@ public class SporophyllEntity extends AbstractOvergrownInvaderEntity {
                     + OvergrownVegetationConfig.COMMON.sporophyllGearContaminationIntervalTicks.get();
         }
         SporophyllAura.apply(level, this, gearTick);
+    }
+
+    /**
+     * チャンクをまたいだときに濃度キャッシュを捨てる半径(チャンク)。
+     *
+     * <p>2026-09-24 軽量化(監査 1813): 以前は濃度の計算半径 + 1(既定 4 = 周り 81 チャンク × 2)を捨てていたが、
+     * 傘の上乗せ({@link SporophyllAura#concentrationBoostAt})が効くのは「チャンクの中心が足跡から
+     * {@code sporophyllAuraRange} 未満」のチャンクだけで、足跡のチャンクから見て
+     * {@code (range + 7.5) / 16} チャンク未満(既定 64 なら 4 チャンク先)まで。
+     * 1 つ余裕を持たせた {@code ceil(range / 16) + 1} にし、以前の半径は超えない
+     * (既定 64 では 5 → 以前の半径 4 で頭打ち。4 チャンク先まで届くので足りている。
+     * 範囲を 72 より広げると、外周のチャンクは下の寿命まで古い濃度のままになる)。
+     * 上乗せの届かない外側のキャッシュは、ふだんどおり寿命(既定 200 tick)で計算し直される。
+     */
+    private static int boostInvalidateRadius() {
+        OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
+        int concentrationRadius = cfg.sporeConcentrationRadiusChunks.get() + 1;
+        int boostReach = Mth.ceil(cfg.sporophyllAuraRange.get() / 16.0D) + 1;
+        return Math.min(concentrationRadius, boostReach);
     }
 
     /**
@@ -272,12 +282,15 @@ public class SporophyllEntity extends AbstractOvergrownInvaderEntity {
      * <b>{@code sporophyllSummonDamage} ダメージ受けるごとに、アルボラを
      * {@code sporophyllSummonCount} 体呼ぶ</b>(ユーザー要望 2026-09-15)。
      *
-     * <p>数えるのは<b>実際に減った体力</b>(防具・耐性・吸収を通したあとの値)であって、
-     * 攻撃側の生ダメージではない。自分の傘のオーラで耐性IIが掛かっているので、
-     * <b>見た目の攻撃力より呼ぶ回数は少なくなる</b>。
+     * <p>数えるのは<b>実際に減った体力</b>(防具・吸収などを通したあとの値)であって、
+     * 攻撃側の生ダメージではない。自分の傘のバフは自分には掛からない({@link SporophyllAura#apply} が本人を飛ばす)。
+     * 2026-09-26 に傘のバフから耐性が外れたので、近くの別のスポロフィルから耐性をもらうことも無くなった。
      *
      * <p>しきい値を 2 回ぶん超える大きな一撃なら、その場で 2 回ぶん呼ぶ(端数は繰り越す)。
      * 倒される一撃でも呼ぶ —— 散り際に仲間を残していく形になる。
+     *
+     * <p>呼んだアルボラは<b>群れに入る</b>(群れ v2、2026-09-25): 自分の群れに空きがあればそこへ、無ければ新しい群れで。
+     * {@link #summonGroup} を参照。
      */
     @Override
     public boolean hurt(DamageSource source, float amount) {
@@ -287,13 +300,13 @@ public class SporophyllEntity extends AbstractOvergrownInvaderEntity {
             float taken = before - this.getHealth();
             if (taken > 0.0F) {
                 this.damageSinceSummon += taken;
-                trySummonGuards(level);
+                trySummonGuards(level, source);
             }
         }
         return hurt;
     }
 
-    private void trySummonGuards(ServerLevel level) {
+    private void trySummonGuards(ServerLevel level, DamageSource source) {
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
         double threshold = cfg.sporophyllSummonDamage.get();
         int count = cfg.sporophyllSummonCount.get();
@@ -306,12 +319,7 @@ public class SporophyllEntity extends AbstractOvergrownInvaderEntity {
             if (nearbyCrowded(level, cfg.sporophyllSummonNearbyCap.get())) {
                 continue;
             }
-            int placed = 0;
-            for (int i = 0; i < count; i++) {
-                if (summonArbora(level)) {
-                    placed++;
-                }
-            }
+            int placed = summonGroup(level, count, source);
             if (placed > 0) {
                 level.sendParticles(ModParticles.FINE_SPORE.get(),
                         this.getX(), this.getY(this.getBbHeight() * 0.7D), this.getZ(),
@@ -340,33 +348,75 @@ public class SporophyllEntity extends AbstractOvergrownInvaderEntity {
         return false;
     }
 
-    /** アルボラを 1 体、足元の周りの地表へ置く。置ける場所が無ければ {@code false}。 */
-    private boolean summonArbora(ServerLevel level) {
+    /**
+     * アルボラを {@code count} 体呼んで群れに入れる(群れ v2、2026-09-25。swarm-api の「Sporophyll summons」)。
+     * 「呼ばれた以上は、呼んだ相手を襲っているものへ加勢させる」(ユーザー要望 2026-09-15)は群れの規則で守る:
+     * <ul>
+     *     <li>自分が地上の群れの一員で、その群れに {@code count} 体の空きがある({@link SwarmManager#hasRoom}: 上限・組み直した直後・
+     *     読み込み外れた一員が戻っていない、を見る)なら、足元の周り ±{@value #SUMMON_SPREAD} に置いて同じ群れへ入れる
+     *     ({@link SwarmManager#join})。殴った相手へは、殴られた一員と同じ規則で反撃させる({@link SwarmManager#onMemberHurt} に
+     *     同じダメージの出どころを渡す: 役割の距離にいれば 100 tick その一員が反撃、群れの標的を替えるかは優先順で)。</li>
+     *     <li>そうでなければ(群れに居ない・満員・組み直した直後)、呼んだ数で<b>新しい群れ</b>(出どころ SUMMON)を作り、
+     *     殴った相手を群れの標的に指定する({@link SwarmSpawner#spawn} → {@code Swarm#commandTarget}。プレイヤーなら
+     *     小規模レイドの狙いと同じ扱いで、見失い・死亡・観戦・クリエイティブで諦める)。</li>
+     * </ul>
+     *
+     * @return 実際に置けた数
+     */
+    private int summonGroup(ServerLevel level, int count, DamageSource source) {
+        LivingEntity threat = this.getLastHurtByMob();
+        boolean validThreat = threat != null && threat.isAlive() && Predation.isInvaderTarget(this, threat);
+        Swarm swarm = SwarmManager.get(this);
+        if (swarm != null && swarm.kind() == Swarm.Kind.GROUND && SwarmManager.hasRoom(swarm, count)) {
+            int placed = 0;
+            for (int i = 0; i < count; i++) {
+                ArboraEntity arbora = summonArbora(level);
+                if (arbora == null) {
+                    continue;
+                }
+                placed++;
+                if (SwarmManager.join(arbora, swarm) == null) {
+                    // 入れなかった(同じ tick にほかの一員が入って満員になった)。以前と同じく個体として加勢させる。
+                    if (validThreat && Predation.isInvaderTarget(arbora, threat)) {
+                        arbora.setTarget(threat);
+                    }
+                } else if (validThreat && source.getEntity() == threat) {
+                    SwarmManager.onMemberHurt(arbora, source);
+                }
+            }
+            return placed;
+        }
+        List<EntityType<?>> types = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            types.add(ModEntities.ARBORA.get());
+        }
+        SwarmSpawner.Result result = SwarmSpawner.spawn(level, this.blockPosition(), types, SwarmOrigin.SUMMON, "",
+                validThreat ? threat : null);
+        return result.members().size();
+    }
+
+    /** アルボラを 1 体、足元の周りの地表へ置く(ワールドへ足すところまで)。置ける場所が無ければ null。 */
+    @Nullable
+    private ArboraEntity summonArbora(ServerLevel level) {
         BlockPos at = this.blockPosition();
         int x = at.getX() + this.random.nextInt(SUMMON_SPREAD * 2 + 1) - SUMMON_SPREAD;
         int z = at.getZ() + this.random.nextInt(SUMMON_SPREAD * 2 + 1) - SUMMON_SPREAD;
         int surface = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
         // 崖の上や真下の洞窟へ落とさない。
         if (Math.abs(surface - at.getY()) > 4) {
-            return false;
+            return null;
         }
         BlockPos spot = new BlockPos(x, surface, z);
         // 体がまるごと入る場所にだけ湧かせる(地面や壁へ埋まらないように)。
         if (!SpawnFit.fits(level, ModEntities.ARBORA.get(), spot)) {
-            return false;
+            return null;
         }
         ArboraEntity arbora = ModEntities.ARBORA.get()
                 .create(level, null, spot, MobSpawnType.MOB_SUMMONED, false, false);
-        if (arbora == null) {
-            return false;
+        if (arbora == null || !level.addFreshEntity(arbora)) {
+            return null;
         }
-        // 呼ばれた以上は、呼んだ相手を襲っているものへ加勢させる(群れの標的共有と同じ扱い)。
-        LivingEntity threat = this.getLastHurtByMob();
-        if (threat != null && threat.isAlive() && Predation.isInvaderTarget(arbora, threat)) {
-            arbora.setTarget(threat);
-        }
-        level.addFreshEntity(arbora);
-        return true;
+        return arbora;
     }
 
     @Override
@@ -409,11 +459,14 @@ public class SporophyllEntity extends AbstractOvergrownInvaderEntity {
             // 傘は円盤なので、縁寄りを濃くするために平方根で散らす。
             double angle = this.random.nextDouble() * Math.PI * 2.0D;
             double r = Math.sqrt(this.random.nextDouble()) * radius;
-            this.level().addParticle(ModParticles.FINE_SPORE.get(),
-                    centerX + Math.cos(angle) * r,
-                    y - this.random.nextDouble() * 0.3D,
-                    centerZ + Math.sin(angle) * r,
-                    0.0D, -0.01D, 0.0D);
+            double px = centerX + Math.cos(angle) * r;
+            double py = y - this.random.nextDouble() * 0.3D;
+            double pz = centerZ + Math.sin(angle) * r;
+            // 遠い粒と、細かい胞子が溜まりすぎているときは間引く(2026-09-25、全体監査 #468)。
+            if (!com.yayuy.overgrownvegetation.client.ParticleThrottle.allowFineSpore(px, py, pz, this.random)) {
+                continue;
+            }
+            this.level().addParticle(ModParticles.FINE_SPORE.get(), px, py, pz, 0.0D, -0.01D, 0.0D);
         }
     }
 

@@ -3,6 +3,7 @@ package com.yayuy.overgrownvegetation.client;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
+import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.entity.MeganeuraEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -12,13 +13,21 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.renderer.GeoRenderer;
 import software.bernie.geckolib.renderer.layer.GeoRenderLayer;
 
 import javax.annotation.Nullable;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 /**
  * 仕留めた獲物の Mob モデルを、メガネウラの口元に咥えさせて描く描画レイヤー。
@@ -65,8 +74,48 @@ public class MeganeuraPreyLayer extends GeoRenderLayer<MeganeuraEntity> {
     private final Map<EntityType<?>, Entity> preyCache = new HashMap<>();
     private Level cachedLevel;
 
+    /**
+     * 作ったレイヤー(メガネウラの描画器 1 つにつき 1 つ。資源の読み直しで描画器ごと作り直される)。
+     * 切断・次元の移動のときに {@link ForgetLevel} が中身を空にする(2026-10-10)。弱参照なので、
+     * 古い描画器のぶんは捨てられればここからも消える。触るのはメインスレッドだけ。
+     */
+    private static final Set<MeganeuraPreyLayer> INSTANCES = Collections.newSetFromMap(new WeakHashMap<>());
+
     public MeganeuraPreyLayer(GeoRenderer<MeganeuraEntity> renderer) {
         super(renderer);
+        INSTANCES.add(this);
+    }
+
+    /** 描画用の獲物を全部手放す(次に咥えたときに、そのときのワールドで作り直す)。メインスレッドから呼ぶこと。 */
+    private static void forgetAll() {
+        for (MeganeuraPreyLayer layer : INSTANCES) {
+            layer.preyCache.clear();
+            layer.cachedLevel = null;
+        }
+    }
+
+    /**
+     * 捨てられる ClientLevel を描画用の獲物ごと手放す(ゲームバス・クライアント、2026-10-10)。今までは次に獲物を
+     * 描くまで、前のワールドが丸ごと残っていた。統合サーバーのワールドの Unload はサーバーのスレッドから来るので、
+     * クライアントのワールドのときだけ空にする。
+     */
+    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+    public static final class ForgetLevel {
+
+        @SubscribeEvent
+        public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+            forgetAll();
+        }
+
+        @SubscribeEvent
+        public static void onLevelUnload(LevelEvent.Unload event) {
+            if (event.getLevel().isClientSide()) {
+                forgetAll();
+            }
+        }
+
+        private ForgetLevel() {
+        }
     }
 
     @Override

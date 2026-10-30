@@ -213,9 +213,13 @@ public final class CannonShellRenderer {
         float previousRadius = TRAIL_RADIUS * shellScale;
         for (int k = 1; k <= steps; k++) {
             double back = t - k;
-            Vec3 point = drawSpace(shell.positionAt(back), camera);
+            // 2026-09-24 軽量化(監査 1340): 軌跡の位置と縮尺は 1 区間につき 1 回だけ出す
+            // (以前は positionAt と shrinkAt を 2 回ずつ計算していた。式は drawSpace と同じなので値も同じ)。
+            Vec3 world = shell.positionAt(back);
+            double shrink = shrinkAt(world, camera);
+            Vec3 point = world.subtract(camera).scale(shrink);
             float fade = 1.0F - (float) k / (TRAIL_TICKS + 1);
-            float radius = TRAIL_RADIUS * shellScale * (0.35F + 0.65F * fade) * (float) shrinkAt(shell.positionAt(back), camera);
+            float radius = TRAIL_RADIUS * shellScale * (0.35F + 0.65F * fade) * (float) shrink;
             float alpha = maxAlpha * fade * fade;
             cone(buffer, matrix, previous, point, previousRadius, radius, color, alpha, (float) k / TRAIL_TICKS);
             previous = point;
@@ -246,10 +250,11 @@ public final class CannonShellRenderer {
         poseStack.translate(drawAt.x, drawAt.y, drawAt.z);
         poseStack.mulPose(event.getCamera().rotation());
         Matrix4f m = poseStack.last().pose();
-        vertex(buffer, m, new Vec3(-size, -size, 0.0D), color, alpha, 0.0F, 1.0F);
-        vertex(buffer, m, new Vec3(size, -size, 0.0D), color, alpha, 1.0F, 1.0F);
-        vertex(buffer, m, new Vec3(size, size, 0.0D), color, alpha, 1.0F, 0.0F);
-        vertex(buffer, m, new Vec3(-size, size, 0.0D), color, alpha, 0.0F, 0.0F);
+        // 4 隅は Vec3 を作らず成分で渡す(float → double → float は元の値に戻るので頂点は同じ。2026-09-24 軽量化、監査 1340)。
+        vertex(buffer, m, -size, -size, 0.0D, color, alpha, 0.0F, 1.0F);
+        vertex(buffer, m, size, -size, 0.0D, color, alpha, 1.0F, 1.0F);
+        vertex(buffer, m, size, size, 0.0D, color, alpha, 1.0F, 0.0F);
+        vertex(buffer, m, -size, size, 0.0D, color, alpha, 0.0F, 0.0F);
         poseStack.popPose();
     }
 
@@ -275,22 +280,53 @@ public final class CannonShellRenderer {
         Vec3 u = axis.cross(helper).normalize();
         Vec3 v = axis.cross(u).normalize();
         float v1 = v0 + 1.0F / TRAIL_TICKS;
+        // 2026-09-24 軽量化(監査 1340): 1 発 1 フレームに数千個の Vec3 と三角関数を作っていたので、
+        // cos / sin は作り置きの表から引き、頂点は成分ごとに計算する。演算の中身と順番は
+        // 以前の u.scale(cos).add(v.scale(sin)) と a.add(d.scale(r)) のままなので、頂点は同じ値になる。
+        double ux = u.x;
+        double uy = u.y;
+        double uz = u.z;
+        double vx = v.x;
+        double vy = v.y;
+        double vz = v.z;
         for (int i = 0; i < TRAIL_SIDES; i++) {
-            double t0 = (Math.PI * 2.0D) * i / TRAIL_SIDES;
-            double t1 = (Math.PI * 2.0D) * (i + 1) / TRAIL_SIDES;
-            Vec3 d0 = u.scale(Math.cos(t0)).add(v.scale(Math.sin(t0)));
-            Vec3 d1 = u.scale(Math.cos(t1)).add(v.scale(Math.sin(t1)));
+            double c0 = TRAIL_COS[i];
+            double s0 = TRAIL_SIN[i];
+            double c1 = TRAIL_COS[i + 1];
+            double s1 = TRAIL_SIN[i + 1];
+            double d0x = ux * c0 + vx * s0;
+            double d0y = uy * c0 + vy * s0;
+            double d0z = uz * c0 + vz * s0;
+            double d1x = ux * c1 + vx * s1;
+            double d1y = uy * c1 + vy * s1;
+            double d1z = uz * c1 + vz * s1;
             float u0 = (float) i / TRAIL_SIDES;
             float u1 = (float) (i + 1) / TRAIL_SIDES;
-            vertex(buffer, matrix, a.add(d0.scale(ra)), rgb, alpha, u0, v0);
-            vertex(buffer, matrix, a.add(d1.scale(ra)), rgb, alpha, u1, v0);
-            vertex(buffer, matrix, b.add(d1.scale(rb)), rgb, alpha, u1, v1);
-            vertex(buffer, matrix, b.add(d0.scale(rb)), rgb, alpha, u0, v1);
+            vertex(buffer, matrix, a.x + d0x * ra, a.y + d0y * ra, a.z + d0z * ra, rgb, alpha, u0, v0);
+            vertex(buffer, matrix, a.x + d1x * ra, a.y + d1y * ra, a.z + d1z * ra, rgb, alpha, u1, v0);
+            vertex(buffer, matrix, b.x + d1x * rb, b.y + d1y * rb, b.z + d1z * rb, rgb, alpha, u1, v1);
+            vertex(buffer, matrix, b.x + d0x * rb, b.y + d0y * rb, b.z + d0z * rb, rgb, alpha, u0, v1);
         }
     }
 
-    private static void vertex(VertexConsumer buffer, Matrix4f matrix, Vec3 p, float[] rgb, float a, float u, float v) {
-        buffer.addVertex(matrix, (float) p.x, (float) p.y, (float) p.z)
+    /**
+     * 円周を {@link #TRAIL_SIDES} 等分した角の cos / sin(添字 0〜TRAIL_SIDES)。角の式は以前 {@link #cone} の中で
+     * 毎回計算していた {@code (Math.PI * 2.0D) * i / TRAIL_SIDES} と同じ(2026-09-24 軽量化、監査 1340)。
+     */
+    private static final double[] TRAIL_COS = new double[TRAIL_SIDES + 1];
+    private static final double[] TRAIL_SIN = new double[TRAIL_SIDES + 1];
+
+    static {
+        for (int i = 0; i <= TRAIL_SIDES; i++) {
+            double angle = (Math.PI * 2.0D) * i / TRAIL_SIDES;
+            TRAIL_COS[i] = Math.cos(angle);
+            TRAIL_SIN[i] = Math.sin(angle);
+        }
+    }
+
+    private static void vertex(VertexConsumer buffer, Matrix4f matrix, double x, double y, double z,
+                               float[] rgb, float a, float u, float v) {
+        buffer.addVertex(matrix, (float) x, (float) y, (float) z)
                 .setColor(rgb[0], rgb[1], rgb[2], a)
                 .setUv(u, v)
                 .setOverlay(OverlayTexture.NO_OVERLAY)

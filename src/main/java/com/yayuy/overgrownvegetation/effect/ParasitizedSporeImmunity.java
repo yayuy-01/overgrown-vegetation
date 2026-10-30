@@ -3,6 +3,7 @@ package com.yayuy.overgrownvegetation.effect;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.entity.DorgaArchelausTitanicaEntity;
 import com.yayuy.overgrownvegetation.entity.OvergrownNexusEntity;
+import com.yayuy.overgrownvegetation.entity.PediculaEntity;
 import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
 import com.yayuy.overgrownvegetation.registry.ModMobEffects;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -26,6 +27,11 @@ import net.neoforged.neoforge.event.entity.living.MobEffectEvent;
  * {@code entity.kill()} を呼ぶ。{@code kill()} は {@code fellOutOfWorld} なので
  * {@code siegeArmor} のしきい値も素通りし、そのまま {@code die()} → 攻城戦が「討伐」で終了する)。
  *
+ * <p>ペディキュラ({@link PediculaEntity})も同じ理由で 2026-09-24 に足した。いるチャンクの胞子濃度を
+ * 自分で 100% にする({@link com.yayuy.overgrownvegetation.spore.PediculaCover})ので、湧いてからおよそ 90 秒で
+ * 自分の胞子に感染して死に、<b>撃たれてもいないのに</b>弾けて汚染シダを撒いていた(仕様は「撃ち落とすと弾ける」)。
+ * {@link ParasitizedMob} にはしない —— あちらは狙われ方まで変わる。真下にいる生き物は今までどおり感染する。
+ *
  * <p>{@link SporeInfectionEffects#infect} 側にも同じ除外はあるが、そちらを通らない付与経路
  * (バニラのクリーパー爆発が残す {@code AreaEffectCloud}、コマンド、他 MOD など)もあり得るため、
  * {@code LivingEntity#canBeAffected} が呼ばれるたびに発火する {@link MobEffectEvent.Applicable} で
@@ -45,6 +51,7 @@ public final class ParasitizedSporeImmunity {
         boolean overgrownSide = entity instanceof ParasitizedMob
                 || entity instanceof OvergrownNexusEntity
                 || entity instanceof DorgaArchelausTitanicaEntity
+                || entity instanceof PediculaEntity
                 || com.yayuy.overgrownvegetation.item.PlantArmor.isHost(entity);
         if (overgrownSide && instance.is(ModMobEffects.SPORE_INFECTION)) {
             event.setResult(MobEffectEvent.Applicable.Result.DO_NOT_APPLY);

@@ -13,7 +13,6 @@ import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.pathfinder.PathType;
 import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationController;
 import software.bernie.geckolib.animation.RawAnimation;
 
 /**
@@ -37,6 +36,12 @@ public class MegarachneEntity extends AbstractOvergrownAquaticPredatorEntity {
     private static final RawAnimation SWIM_ANIM = RawAnimation.begin().thenLoop("swim");
     private static final RawAnimation WALK_ANIM = RawAnimation.begin().thenLoop("walk");
     private static final RawAnimation ATTACK_ANIM = RawAnimation.begin().thenLoop("attack");
+
+    /**
+     * 陸の walk のアニメで足が滑らない速さ(体格 1 あたり、ブロック/tick)。生成器 MegarachneAnims は個体差の平均の体(1.075 倍)で
+     * 水へ戻るときの陸の速さ 0.26 ブロック/tick に合わせてある(2026-10-10)→ 体格 1 では 0.26 ÷ 1.075。
+     */
+    private static final double WALK_ANIM_REF = 0.26D / 1.075D;
 
     public MegarachneEntity(EntityType<? extends MegarachneEntity> type, Level level) {
         super(type, level);
@@ -76,14 +81,26 @@ public class MegarachneEntity extends AbstractOvergrownAquaticPredatorEntity {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "main", TRANSITION_TICKS, state -> {
+        // 陸の歩きの再生速度は実際に進んだ量に合わせる(2026-10-10、モデル作り直し。追うときは水へ戻るときより 4 割速い)。
+        // 攻撃・泳ぎは速さ 1 のまま(攻撃の当たりは attackAnimationTicks と結びついている)。
+        controllers.add(new PhaseKeepingAnimationController<>(this, "main", TRANSITION_TICKS, state -> {
+            // 今している行動(食べる・休む・驚いて逃げ出す など)があればそのアニメ(CritterAction、2026-10-22)
+            RawAnimation critterAct = CritterAction.animation(this);
+            if (critterAct != null) {
+                state.getController().setAnimationSpeed(1.0D);
+                return state.setAndContinue(critterAct);
+            }
             state.getController().setAnimationSpeed(1.0D);
             // swinging と getTarget() では選ばない(前者は降りない、後者はクライアントでは常に null)。
             if (getActionState() == STATE_ATTACK) {
                 return state.setAndContinue(ATTACK_ANIM);
             }
             if (MobAnimation.isWalking(state)) {
-                return state.setAndContinue(this.isInWater() ? SWIM_ANIM : WALK_ANIM);
+                if (this.isInWater()) {
+                    return state.setAndContinue(SWIM_ANIM);
+                }
+                state.getController().setAnimationSpeed(MobAnimation.walkSpeedFor(this, WALK_ANIM_REF));
+                return state.setAndContinue(WALK_ANIM);
             }
             return state.setAndContinue(IDLE_ANIM);
         }));

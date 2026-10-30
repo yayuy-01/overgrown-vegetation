@@ -1,6 +1,17 @@
 {
   "replace": false,
   "values": [
-    "overgrown_vegetation:overgrown_stairs"
+    "overgrown_vegetation:overgrown_stairs",
+    "overgrown_vegetation:covered_oak_stairs",
+    "overgrown_vegetation:covered_spruce_stairs",
+    "overgrown_vegetation:covered_birch_stairs",
+    "overgrown_vegetation:covered_jungle_stairs",
+    "overgrown_vegetation:covered_acacia_stairs",
+    "overgrown_vegetation:covered_dark_oak_stairs",
+    "overgrown_vegetation:covered_mangrove_stairs",
+    "overgrown_vegetation:covered_cherry_stairs",
+    "overgrown_vegetation:covered_bamboo_stairs",
+    "overgrown_vegetation:covered_crimson_stairs",
+    "overgrown_vegetation:covered_warped_stairs"
   ]
 }

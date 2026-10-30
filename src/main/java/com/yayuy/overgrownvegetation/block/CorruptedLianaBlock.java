@@ -117,6 +117,9 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
      * 主アンカーだけがサーバーティックで動く({@link CorruptedLianaBlockEntity#serverTick} が
      * 副アンカー・垂れ蔦なしの蔦では即座に何もしない)。「蔦の実」の熟成(発光していない垂れ蔦を
      * 時間経過で発光させる)にだけ使う。
+     *
+     * <p>ここではブロックの状態しか見られないので副アンカーにもティッカーを返すが、副アンカーは
+     * 最初の 1 tick で自分のティッカーを外す({@code CorruptedLianaBlockEntity#detachTicker})。
      */
     @Nullable
     @Override
@@ -220,6 +223,41 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
         Block.dropResources(state, level, pos, blockEntity, player, tool);
         level.removeBlock(pos, false);
         tool.hurtAndBreak(1, player, slot);
+    }
+
+    /**
+     * 蔦 1 本(主アンカー {@code primaryPos})を、副アンカー・光源ブロック・依存している蔦ごと<b>静かに</b>消す
+     * (2026-10-16、ユーザー報告「木を消す処理の後に垂れ蔦が空中に浮いてしまう」)。{@link #cut} から
+     * 破壊演出・ドロップ・道具の消耗を除いたもの。近隣更新・形状更新も出さない(周りの植物を巻き込んで壊さない)。
+     * 端の木が消えたときに {@code corruption.SwampTreeFall} が呼ぶ。
+     */
+    public static void removeQuietly(Level level, BlockPos primaryPos) {
+        if (!(level.getBlockEntity(primaryPos) instanceof CorruptedLianaBlockEntity primaryLiana)) {
+            return;
+        }
+        int flags = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS;
+        BlockState air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+        Set<BlockPos> visited = new HashSet<>();
+        ArrayDeque<BlockPos> queue = new ArrayDeque<>();
+        queue.add(primaryPos);
+        while (!queue.isEmpty()) {
+            BlockPos pos = queue.poll();
+            if (!visited.add(pos) || !(level.getBlockEntity(pos) instanceof CorruptedLianaBlockEntity liana)) {
+                continue;
+            }
+            for (BlockPos secondaryPos : liana.getSecondaryPositions()) {
+                if (level.getBlockState(secondaryPos).getBlock() instanceof CorruptedLianaBlock) {
+                    level.setBlock(secondaryPos, air, flags);
+                }
+            }
+            for (BlockPos lightPos : liana.getLightBlockPositions()) {
+                if (level.getBlockState(lightPos).is(net.minecraft.world.level.block.Blocks.LIGHT)) {
+                    level.setBlock(lightPos, air, flags);
+                }
+            }
+            queue.addAll(liana.getChildPositions());
+            level.setBlock(pos, air, flags);
+        }
     }
 
     /**

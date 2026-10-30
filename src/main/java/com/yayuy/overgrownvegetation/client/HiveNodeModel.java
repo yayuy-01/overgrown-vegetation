@@ -27,18 +27,23 @@ import net.minecraft.resources.ResourceLocation;
  */
 public class HiveNodeModel extends LodGeoModel<HiveNodeEntity> {
 
+    // 2026-09-24 軽量化(監査 1318): 描画のたびに ResourceLocation を作り直さないよう定数にする(中身は同じ)。
+    private static final ResourceLocation MODEL = OvergrownVegetation.id("geo/hive_node.geo.json");
+    private static final ResourceLocation TEXTURE = OvergrownVegetation.id("textures/entity/hive_node.png");
+    private static final ResourceLocation ANIMATION = OvergrownVegetation.id("animations/hive_node.animation.json");
+
     @Override
     public ResourceLocation getModelResource(HiveNodeEntity animatable) {
-        return OvergrownVegetation.id("geo/hive_node.geo.json");
+        return MODEL;
     }
 
     @Override
     public ResourceLocation getTextureResource(HiveNodeEntity animatable) {
-        return OvergrownVegetation.id("textures/entity/hive_node.png");
+        return TEXTURE;
     }
 
     @Override
     public ResourceLocation getAnimationResource(HiveNodeEntity animatable) {
-        return OvergrownVegetation.id("animations/hive_node.animation.json");
+        return ANIMATION;
     }
 }

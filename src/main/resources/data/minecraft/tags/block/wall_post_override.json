@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:extinguished_torch",
+    "overgrown_vegetation:extinguished_wall_torch"
+  ]
+}

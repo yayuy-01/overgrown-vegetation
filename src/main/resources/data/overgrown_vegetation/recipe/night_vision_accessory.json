@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "overgrown_vegetation:meganeura_compound_eye"
+    },
+    {
+      "item": "overgrown_vegetation:meganeura_compound_eye"
+    },
+    {
+      "item": "minecraft:iron_ingot"
+    },
+    {
+      "item": "minecraft:iron_ingot"
+    },
+    {
+      "item": "minecraft:glass_pane"
+    }
+  ],
+  "result": {
+    "id": "overgrown_vegetation:night_vision_accessory",
+    "count": 1
+  }
+}

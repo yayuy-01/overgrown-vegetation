@@ -1,6 +1,7 @@
 package com.yayuy.overgrownvegetation.entity;
 
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
+import com.yayuy.overgrownvegetation.phase.MobGroup;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -20,6 +21,11 @@ import java.util.EnumSet;
  * を分け合っている。どちらを出すかは {@link OvergrownShielderEntity#shouldMortarNext()} が持つ札で
  * 交互に切り替わり、<b>見通しが無いときは必ず迫撃砲</b>になる(突進は壁越しには届かないが、
  * 弾は山なりに越えていく)。タンクが前線を張ったまま、遠い相手にも手が出せるようにするための分担。
+ *
+ * <p><b>グループ1〜3(狩りの獲物)には撃たない</b>(ユーザー要望 2026-09-24)。獲物を狩るときの
+ * 遠距離の手は突進だけになる —— 札が迫撃砲の番のまま突進が譲り続けないよう、
+ * {@link OvergrownShielderEntity#shouldMortarNext()} も獲物が相手のときは false を返す。
+ * 機関砲台を狙う {@link ShielderTurretMortarGoal} はブロックを撃つので関係しない。
  *
  * <h2>撃ち方</h2>
  * <ol>
@@ -123,10 +129,10 @@ public class ShielderMortarGoal extends Goal {
 
     // --- 狙う相手。ここだけ差し替えれば別のものを撃てる(ShielderTurretMortarGoal) ---
 
-    /** 狙う相手を決める。見つからなければ false。既定は「いまの攻撃目標」。 */
+    /** 狙う相手を決める。見つからなければ false。既定は「いまの攻撃目標」(グループ1〜3 の獲物は除く)。 */
     protected boolean acquireTarget() {
         LivingEntity target = this.mob.getTarget();
-        if (target == null || !target.isAlive()) {
+        if (target == null || !target.isAlive() || isSparedFromMortar(target)) {
             return false;
         }
         this.quarry = target;
@@ -135,7 +141,19 @@ public class ShielderMortarGoal extends Goal {
 
     /** 構えを続けてよいか。 */
     protected boolean targetStillValid() {
-        return this.quarry != null && this.quarry.isAlive();
+        return this.quarry != null && this.quarry.isAlive() && !isSparedFromMortar(this.quarry);
+    }
+
+    /**
+     * {@code target} には迫撃砲を使わないか —— グループ1〜3(狩りの獲物)なら true
+     * (ユーザー要望 2026-09-24)。{@link OvergrownShielderEntity#shouldMortarNext()} も見る。
+     */
+    static boolean isSparedFromMortar(@Nullable LivingEntity target) {
+        if (target == null) {
+            return false;
+        }
+        MobGroup group = MobGroup.of(target);
+        return group == MobGroup.GROUP_1 || group == MobGroup.GROUP_2 || group == MobGroup.GROUP_3;
     }
 
     /** 狙うのをやめる。 */
@@ -231,8 +249,9 @@ public class ShielderMortarGoal extends Goal {
         if (shot == null) {
             shot = first;
         }
+        // 迫撃砲の弾の印: 機関砲台を止める確率がヴェロフィルの爆弾と違う(15%、2026-09-25)。
         this.mob.level().addFreshEntity(
-                new VelophyllBombEntity(this.mob.level(), origin, shot.velocity(), this.mob));
+                new VelophyllBombEntity(this.mob.level(), origin, shot.velocity(), this.mob).asMortarShell());
         this.mob.level().playSound(null, origin.x, origin.y, origin.z, SoundEvents.SHULKER_SHOOT,
                 SoundSource.HOSTILE, 1.4F, 0.5F);
     }

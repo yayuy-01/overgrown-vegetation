@@ -42,6 +42,9 @@ import net.minecraft.world.level.block.state.BlockState;
  *       {@link GiantTreeFeature#beginSaplingGrowth()} でその判定を飛ばす
  *       (config {@code giantTreeSaplingForceGrowth} で従来どおりに戻せる)。</li>
  * </ul>
+ *
+ * <p>ただし <b>TD の侵攻の間(予告中も)は育たず</b>、苗木のまま侵攻が終わるのを待つ
+ * ({@link GiantTreeFeature#pausedByTd}。ユーザー指定 2026-09-26「TD 時のみ苗木が巨大樹にならないように」)。
  */
 public class GiantOvergrownSaplingBlock extends CorruptedSaplingBlock {
 
@@ -81,6 +84,11 @@ public class GiantOvergrownSaplingBlock extends CorruptedSaplingBlock {
         if (state.getValue(STAGE) == 0) {
             // まだ 1 段目 —— STAGE を進めるだけ(巨大樹の生成には入らない)。
             super.advanceTree(level, pos, state, random);
+            return;
+        }
+        if (GiantTreeFeature.pausedByTd(level)) {
+            // TD の侵攻の間は育たずに苗木のまま待つ(ユーザー指定 2026-09-26)。終わってからの抽選・骨粉で育つ。
+            // 育たなかった警告も出さない(理由は分かっている)。
             return;
         }
         GiantTreeFeature.beginSaplingGrowth();

@@ -10,9 +10,13 @@ import net.minecraft.resources.ResourceLocation;
  */
 public class PhyllosensModel extends LodGeoModel<PhyllosensEntity> {
 
+    // 2026-09-24 軽量化(監査 1318): 描画のたびに ResourceLocation を作り直さないよう定数にする(中身は同じ)。
+    private static final ResourceLocation MODEL = OvergrownVegetation.id("geo/phyllosens.geo.json");
+    private static final ResourceLocation ANIMATION = OvergrownVegetation.id("animations/phyllosens.animation.json");
+
     @Override
     public ResourceLocation getModelResource(PhyllosensEntity animatable) {
-        return OvergrownVegetation.id("geo/phyllosens.geo.json");
+        return MODEL;
     }
 
     @Override
@@ -22,6 +26,6 @@ public class PhyllosensModel extends LodGeoModel<PhyllosensEntity> {
 
     @Override
     public ResourceLocation getAnimationResource(PhyllosensEntity animatable) {
-        return OvergrownVegetation.id("animations/phyllosens.animation.json");
+        return ANIMATION;
     }
 }

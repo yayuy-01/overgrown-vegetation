@@ -1,6 +1,7 @@
 package com.yayuy.overgrownvegetation.registry;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.crafting.PoweredArmorTableRecipe;
 import com.yayuy.overgrownvegetation.crafting.SapCrystalTreatmentRecipe;
 import com.yayuy.overgrownvegetation.crafting.SizedCraftingRecipe;
 import net.minecraft.core.registries.Registries;
@@ -32,6 +33,34 @@ public final class ModRecipes {
 
     public static final DeferredHolder<RecipeSerializer<?>, SapCrystalTreatmentRecipe.Serializer> SAP_CRYSTAL_TREATMENT_SERIALIZER =
             SERIALIZERS.register("sap_crystal_treatment", SapCrystalTreatmentRecipe.Serializer::new);
+
+    /** パワードアーマー作成テーブルの「作成」タブ(素材の種類と数だけ。順 1 の着手順 5)。 */
+    public static final DeferredHolder<RecipeSerializer<?>, PoweredArmorTableRecipe.Serializer> POWERED_ARMOR_TABLE_SERIALIZER =
+            SERIALIZERS.register("powered_armor_table", PoweredArmorTableRecipe.Serializer::new);
+
+    public static final DeferredHolder<RecipeType<?>, RecipeType<PoweredArmorTableRecipe>> POWERED_ARMOR_TABLE_TYPE =
+            TYPES.register("powered_armor_table", () -> RecipeType.simple(OvergrownVegetation.id("powered_armor_table")));
+
+    /** 因子の抽出設備(ドロップ N 個 → 因子 1 個を時間をかけて。順 1 の着手順 7)。 */
+    public static final DeferredHolder<RecipeSerializer<?>, com.yayuy.overgrownvegetation.crafting.FactorExtractionRecipe.Serializer> FACTOR_EXTRACTION_SERIALIZER =
+            SERIALIZERS.register("factor_extraction", com.yayuy.overgrownvegetation.crafting.FactorExtractionRecipe.Serializer::new);
+
+    public static final DeferredHolder<RecipeType<?>, RecipeType<com.yayuy.overgrownvegetation.crafting.FactorExtractionRecipe>> FACTOR_EXTRACTION_TYPE =
+            TYPES.register("factor_extraction", () -> RecipeType.simple(OvergrownVegetation.id("factor_extraction")));
+
+    /** 乳鉢ですりつぶす(2026-10-16)。 */
+    public static final DeferredHolder<RecipeSerializer<?>, com.yayuy.overgrownvegetation.crafting.GrindingRecipe.Serializer> GRINDING_SERIALIZER =
+            SERIALIZERS.register("grinding", com.yayuy.overgrownvegetation.crafting.GrindingRecipe.Serializer::new);
+
+    public static final DeferredHolder<RecipeType<?>, RecipeType<com.yayuy.overgrownvegetation.crafting.GrindingRecipe>> GRINDING_TYPE =
+            TYPES.register("grinding", () -> RecipeType.simple(OvergrownVegetation.id("grinding")));
+
+    /** 乳鉢の中の組み合わせを紙で回収して薬に(2026-10-16)。 */
+    public static final DeferredHolder<RecipeSerializer<?>, com.yayuy.overgrownvegetation.crafting.MortarMixingRecipe.Serializer> MORTAR_MIXING_SERIALIZER =
+            SERIALIZERS.register("mortar_mixing", com.yayuy.overgrownvegetation.crafting.MortarMixingRecipe.Serializer::new);
+
+    public static final DeferredHolder<RecipeType<?>, RecipeType<com.yayuy.overgrownvegetation.crafting.MortarMixingRecipe>> MORTAR_MIXING_TYPE =
+            TYPES.register("mortar_mixing", () -> RecipeType.simple(OvergrownVegetation.id("mortar_mixing")));
 
     public static void register(IEventBus modBus) {
         SERIALIZERS.register(modBus);

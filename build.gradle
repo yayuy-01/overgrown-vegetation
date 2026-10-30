@@ -1,3 +1,13 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        // 配布 jar を縮める後処理(下の jar タスク・JarShrink)で、クラスの局所変数の表を外すのに使う
+        classpath 'org.ow2.asm:asm:9.7'
+    }
+}
+
 plugins {
     id 'java-library'
     id 'eclipse'
@@ -39,6 +49,25 @@ neoForge {
             type = "gameTestServer"
             systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
         }
+        // Claude が自分で起動して確かめる用のクライアント(2026-10-02、ユーザー了承)。
+        //   gradlew.bat runClaudeClient
+        // ゲームフォルダは runs/claude(ユーザーの run/ とログ・設定・ワールドがぶつからない)。
+        // ov.devbridge で開発用の操作口(devbridge パッケージ。配布 jar には入らない)が動く。手順は tools/claude-client/README.md。
+        claudeClient {
+            client()
+            gameDirectory = project.file('runs/claude')
+            systemProperty 'ov.devbridge', 'true'
+            programArguments.addAll('--width', '1280', '--height', '720')
+        }
+        // 他の MOD(Sodium・Iris・Distant Horizons など)と並べて確かめる用(2026-10-20)。runClaudeClient と同じ操作口(devbridge)で、
+        // ゲームフォルダだけ runs/compat に分ける(runs/claude の mods に入れると、そこを使う別のセッションの確かめが狂う)。
+        //   gradlew.bat runCompatClient
+        compatClient {
+            client()
+            gameDirectory = project.file('runs/compat')
+            systemProperty 'ov.devbridge', 'true'
+            programArguments.addAll('--width', '1280', '--height', '720')
+        }
         configureEach {
             systemProperty 'forge.logging.markers', ''
             logLevel = org.slf4j.event.Level.DEBUG
@@ -48,6 +77,45 @@ neoForge {
     mods {
         "${mod_id}" {
             sourceSet(sourceSets.main)
+        }
+    }
+}
+
+// この MOD を入れない素の NeoForge で FPS を測る開発用の小さな MOD(2026-10-19。ソースは非公開の tools/vanilla-bench)。
+//   gradlew.bat runVanillaClient  → runs/vanilla/vbench.txt。配布 jar には入らない(別のソースセット)。
+sourceSets {
+    vanillabench {
+        java.srcDir 'tools/vanilla-bench/java'
+        resources.srcDir 'tools/vanilla-bench/resources'
+    }
+}
+
+neoForge {
+    addModdingDependenciesTo(sourceSets.vanillabench)
+    mods {
+        vbench {
+            sourceSet(sourceSets.vanillabench)
+        }
+    }
+    runs {
+        vanillaClient {
+            client()
+            gameDirectory = project.file('runs/vanilla')
+            sourceSet = sourceSets.vanillabench
+            loadedMods = [mods.vbench]
+            programArguments.addAll('--width', '1920', '--height', '1080')
+        }
+        // 同じ手順をこの MOD を入れて測る(素の NeoForge との差を見る)。runs/moddedbench/vbench.txt。設定は runs/moddedbench/config。
+        moddedBenchClient {
+            client()
+            gameDirectory = project.file('runs/moddedbench')
+            loadedMods = [mods."${mod_id}", mods.vbench]
+            programArguments.addAll('--width', '1920', '--height', '1080')
+        }
+        // ほかの起動(ユーザーの runClient・runClaudeClient・GameTest・サーバー)には計る MOD を載せない。
+        // 載せると、タイトル画面で勝手にワールドを作って測り、ゲームを閉じてしまう(2026-10-19 にテストクライアントで起きた)。
+        matching { it.name != 'vanillaClient' && it.name != 'moddedBenchClient' }.configureEach {
+            loadedMods = [mods."${mod_id}"]
         }
     }
 }
@@ -119,6 +187,12 @@ tasks.withType(Javadoc).configureEach {
 }
 
 tasks.named('jar', Jar).configure {
+    // GameTest は開発用 —— 遊ぶ人には要らないので配布 jar から外す(2026-09-29)。
+    // runGameTestServer は jar ではなく classes から動くので影響しない。本体のコードは gametest を参照していない。
+    exclude 'com/yayuy/overgrownvegetation/gametest/**'
+    exclude 'data/overgrown_vegetation/structure/gametest_*'
+    // Claude が起動したクライアントを操作する口(runClaudeClient 専用)も開発用なので外す。
+    exclude 'com/yayuy/overgrownvegetation/devbridge/**'
     manifest {
         attributes([
                 'Specification-Title'     : mod_id,
@@ -128,6 +202,157 @@ tasks.named('jar', Jar).configure {
                 'Implementation-Version'  : project.jar.archiveVersion,
                 'Implementation-Vendor'   : mod_authors
         ])
+    }
+    // 配布 jar を縮める後処理(2026-09-29)。見た目と動作は変えない。中身は下の JarShrink。
+    //   クラス: 局所変数の表を外す。行番号は残るのでクラッシュレポートの行は今まで通り。
+    //           runClient・GameTest・デバッガは jar ではなく classes を使うので影響しない。
+    //   PNG: 画素が 1 つも変わらないことを確かめたうえで、強く圧縮し直す。
+    doLast {
+        File jarFile = archiveFile.get().asFile
+        File tmp = new File(jarFile.parentFile, jarFile.name + '.shrinking')
+        long before = jarFile.length()
+        def zin = new java.util.zip.ZipFile(jarFile)
+        try {
+            tmp.withOutputStream { os ->
+                def zout = new java.util.zip.ZipOutputStream(os)
+                zout.setLevel(java.util.zip.Deflater.BEST_COMPRESSION)
+                for (java.util.zip.ZipEntry e in java.util.Collections.list(zin.entries())) {
+                    byte[] bytes = zin.getInputStream(e).bytes
+                    if (e.name.endsWith('.class')) bytes = JarShrink.stripLocals(bytes)
+                    else if (e.name.endsWith('.png')) bytes = JarShrink.recompressPng(bytes)
+                    def out = new java.util.zip.ZipEntry(e.name)
+                    out.time = e.time
+                    zout.putNextEntry(out)
+                    zout.write(bytes)
+                    zout.closeEntry()
+                }
+                zout.finish()
+            }
+        } finally {
+            zin.close()
+        }
+        java.nio.file.Files.move(tmp.toPath(), jarFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        logger.lifecycle("jar shrink: ${(long) (before / 1024)} KB -> ${(long) (jarFile.length() / 1024)} KB")
+    }
+}
+
+// 配布 jar を縮める後処理の中身(上の jar タスクの doLast から呼ぶ)。
+@groovy.transform.CompileStatic
+class JarShrink {
+    /** 局所変数の表(LocalVariableTable / LocalVariableTypeTable)だけを外す。命令・行番号・フレームはそのまま。 */
+    static byte[] stripLocals(byte[] cls) {
+        def reader = new org.objectweb.asm.ClassReader(cls)
+        def writer = new org.objectweb.asm.ClassWriter(0)
+        reader.accept(new LocalsStripper(writer), 0)
+        return writer.toByteArray()
+    }
+
+    /**
+     * 8 bit RGBA の PNG を強く圧縮し直す。256 色以下で透明を含むならパレットにする
+     * (透明を含むパレットは読み込み側で今まで通り RGBA になる)。画素が 1 つでも変わるなら元のまま返す。
+     * RGBA 以外の形式は、読み込み側の形式(RGB・グレー)が変わりうるので触らない。
+     */
+    static byte[] recompressPng(byte[] orig) {
+        if (orig.length < 33 || orig[24] != (byte) 8 || orig[25] != (byte) 6) return orig
+        java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(new ByteArrayInputStream(orig))
+        if (img == null) return orig
+        int w = img.width
+        int h = img.height
+        int[] px = img.getRGB(0, 0, w, h, null, 0, w)
+        def argb = new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        argb.setRGB(0, 0, w, h, px, 0, w)
+        byte[] best = orig
+        byte[] candidate = writePng(argb)
+        if (candidate.length < best.length) best = candidate
+        java.awt.image.BufferedImage indexed = toIndexed(px, w, h)
+        if (indexed != null) {
+            candidate = writePng(indexed)
+            if (candidate.length < best.length) best = candidate
+        }
+        if (best.is(orig)) return orig
+        java.awt.image.BufferedImage back = javax.imageio.ImageIO.read(new ByteArrayInputStream(best))
+        return Arrays.equals(px, back.getRGB(0, 0, w, h, null, 0, w)) ? best : orig
+    }
+
+    private static byte[] writePng(java.awt.image.RenderedImage img) {
+        javax.imageio.ImageWriter writer = javax.imageio.ImageIO.getImageWritersByFormatName('png').next()
+        javax.imageio.ImageWriteParam param = writer.defaultWriteParam
+        param.compressionMode = javax.imageio.ImageWriteParam.MODE_EXPLICIT
+        param.compressionQuality = 0.0f
+        def bytes = new ByteArrayOutputStream()
+        def out = javax.imageio.ImageIO.createImageOutputStream(bytes)
+        try {
+            writer.output = out
+            writer.write(null, new javax.imageio.IIOImage(img, null, null), param)
+        } finally {
+            out.close()
+            writer.dispose()
+        }
+        return bytes.toByteArray()
+    }
+
+    private static java.awt.image.BufferedImage toIndexed(int[] px, int w, int h) {
+        Map<Integer, Integer> index = new LinkedHashMap<>()
+        boolean alpha = false
+        for (int c in px) {
+            if ((c >>> 24) != 0xFF) alpha = true
+            if (!index.containsKey(c)) {
+                if (index.size() == 256) return null
+                index.put(c, index.size())
+            }
+        }
+        if (!alpha) return null
+        int n = index.size()
+        byte[] r = new byte[n]
+        byte[] g = new byte[n]
+        byte[] b = new byte[n]
+        byte[] a = new byte[n]
+        for (Map.Entry<Integer, Integer> e in index.entrySet()) {
+            int c = e.key.intValue()
+            int i = e.value.intValue()
+            a[i] = (byte) (c >>> 24)
+            r[i] = (byte) (c >> 16)
+            g[i] = (byte) (c >> 8)
+            b[i] = (byte) c
+        }
+        def cm = new java.awt.image.IndexColorModel(8, n, r, g, b, a)
+        def out = new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_BYTE_INDEXED, cm)
+        java.awt.image.WritableRaster raster = out.raster
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) raster.setSample(x, y, 0, index.get(px[y * w + x]).intValue())
+        }
+        return out
+    }
+}
+
+@groovy.transform.CompileStatic
+class LocalsStripper extends org.objectweb.asm.ClassVisitor {
+    LocalsStripper(org.objectweb.asm.ClassVisitor next) {
+        super(org.objectweb.asm.Opcodes.ASM9, next)
+    }
+
+    @Override
+    org.objectweb.asm.MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+        return new LocalsDropper(super.visitMethod(access, name, descriptor, signature, exceptions))
+    }
+}
+
+@groovy.transform.CompileStatic
+class LocalsDropper extends org.objectweb.asm.MethodVisitor {
+    LocalsDropper(org.objectweb.asm.MethodVisitor next) {
+        super(org.objectweb.asm.Opcodes.ASM9, next)
+    }
+
+    @Override
+    void visitLocalVariable(String name, String descriptor, String signature,
+                            org.objectweb.asm.Label start, org.objectweb.asm.Label end, int index) {
+    }
+
+    @Override
+    org.objectweb.asm.AnnotationVisitor visitLocalVariableAnnotation(int typeRef, org.objectweb.asm.TypePath typePath,
+                                                                     org.objectweb.asm.Label[] start, org.objectweb.asm.Label[] end,
+                                                                     int[] index, String descriptor, boolean visible) {
+        return null
     }
 }
 

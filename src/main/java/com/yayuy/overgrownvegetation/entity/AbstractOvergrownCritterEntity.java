@@ -31,7 +31,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * <p>{@link ParasitizedMob} を実装しているので「胞子感染」に一切かからず、他の過繁茂 Mob からも
  * 標的にされない({@link com.yayuy.overgrownvegetation.effect.ParasitizedTargetGoal})。
  */
-public abstract class AbstractOvergrownCritterEntity extends PathfinderMob implements GeoEntity, ParasitizedMob {
+public abstract class AbstractOvergrownCritterEntity extends PathfinderMob implements GeoEntity, CritterAction.Holder, ParasitizedMob {
 
     /** 通常(idle / walk を移動状態で切替)。 */
     public static final int STATE_IDLE = 0;
@@ -69,10 +69,41 @@ public abstract class AbstractOvergrownCritterEntity extends PathfinderMob imple
         };
     }
 
+    /** 今している行動(食べる・休む・驚いて逃げ出す など)。アニメの再生の口だけ(行動の Goal は後の段)。2026-10-22。 */
+    private static final EntityDataAccessor<Byte> DATA_CRITTER_ACTION =
+            SynchedEntityData.defineId(AbstractOvergrownCritterEntity.class, EntityDataSerializers.BYTE);
+
+    @Override
+    public CritterAction getCritterAction() {
+        return CritterAction.byId(this.entityData.get(DATA_CRITTER_ACTION));
+    }
+
+    @Override
+    public void setCritterAction(CritterAction action) {
+        this.entityData.set(DATA_CRITTER_ACTION, (byte) action.ordinal());
+    }
+
+    @Override
+    public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        if (getCritterAction() != CritterAction.NONE) {
+            tag.putString(CritterAction.NBT, getCritterAction().name().toLowerCase(java.util.Locale.ROOT));
+        }
+    }
+
+    @Override
+    public void readAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        if (tag.contains(CritterAction.NBT)) {
+            setCritterAction(CritterAction.byName(tag.getString(CritterAction.NBT)));
+        }
+    }
+
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(DATA_ACTION_STATE, STATE_IDLE);
+        builder.define(DATA_CRITTER_ACTION, (byte) 0);
     }
 
     public int getActionState() {

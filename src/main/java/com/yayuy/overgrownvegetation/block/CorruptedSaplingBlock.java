@@ -51,6 +51,9 @@ import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
  * バニラの苗木(オークの苗木など)が汚染された際の変換先にもなっている
  * ({@link com.yayuy.overgrownvegetation.corruption.CorruptionRegistry} 参照)。
  * 侵食が既存の森を飲み込むと、そこに生えていた苗木も汚染された木へ育っていく。
+ *
+ * <p>抽選で巨大樹の目(0.25%)が出ても、TD の侵攻の間は巨大樹にならず苗木のまま残り、次の抽選でふつうの木になる
+ * ({@link com.yayuy.overgrownvegetation.worldgen.GiantTreeFeature#pausedByTd}。ユーザー指定 2026-09-26)。
  */
 public class CorruptedSaplingBlock extends SaplingBlock {
 
@@ -70,7 +73,18 @@ public class CorruptedSaplingBlock extends SaplingBlock {
     @Override
     protected boolean mayPlaceOn(BlockState state, BlockGetter level, BlockPos pos) {
         return state.is(ModBlocks.OVERGROWN_GRASS_BLOCK.get()) || state.is(ModBlocks.OVERGROWN_DIRT.get())
-                || state.is(ModBlocks.OVERGROWN_SAND.get()) || state.is(ModBlocks.OVERGROWN_MUD.get());
+                || state.is(ModBlocks.OVERGROWN_SAND.get()) || state.is(ModBlocks.OVERGROWN_MUD.get())
+                || isCoveredGround(level, pos, state);
+    }
+
+    /**
+     * 汚染の対応表に無く、苔で覆っただけのブロック(コンクリート・鉄ブロックなど)で、上の面が固いか(2026-10-10、ユーザー指定
+     * 「対応していないブロックを汚染した際にもその上に植物や苗木が生えるように」)。苗木はここにも植わる。
+     * この MOD の木は根元の下を土に置き換えないので、育っても覆ったブロックはそのまま残る。
+     */
+    public static boolean isCoveredGround(BlockGetter level, BlockPos pos, BlockState state) {
+        return state.isFaceSturdy(level, pos, net.minecraft.core.Direction.UP)
+                && com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.isCovered(level, pos);
     }
 
     /**

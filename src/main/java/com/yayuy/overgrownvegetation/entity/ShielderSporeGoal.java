@@ -1,15 +1,11 @@
 package com.yayuy.overgrownvegetation.entity;
 
-import com.yayuy.overgrownvegetation.ModTags;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
-import com.yayuy.overgrownvegetation.effect.SporeInfectionEffects;
-import com.yayuy.overgrownvegetation.registry.ModParticles;
-import net.minecraft.core.BlockPos;
+import com.yayuy.overgrownvegetation.swarm.SwarmMember;
+import com.yayuy.overgrownvegetation.swarm.goal.SwarmSpreadGoal;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.goal.Goal;
-import net.minecraft.world.phys.AABB;
 
 import java.util.EnumSet;
 
@@ -34,22 +30,19 @@ import java.util.EnumSet;
  * </ul>
  * を満たしたとき。立つのは<b>相手を見つけたか、届く範囲を汚し尽くしたか</b>のどちらか
  * ——「汚す物が多い場所ほど長く座っている」ことになる。
+ *
+ * <h2>群れ(v2、2026-09-25)</h2>
+ * 群れの一員は<b>この Goal を使わない</b>。いつ座るかは司令塔が決め、群れごと止まって全員で汚す
+ * ({@link SwarmSpreadGoal}、ユーザー指定 2026-09-25)。座って汚す中身は {@link SporeSpreadSession}(型 {@code SIT})に
+ * 切り出して、ここと群れの汚染とで同じものを使う。
  */
 public class ShielderSporeGoal extends Goal {
 
-    /** 粒子を出す間隔(tick)。 */
-    private static final int PARTICLE_INTERVAL = 4;
-    /** 1 回に出す粒の数。 */
-    private static final int PARTICLES = 6;
-    /** 胞子感染を配り直す間隔(tick)。 */
-    private static final int INFECT_INTERVAL = 40;
-
     private final OvergrownShielderEntity mob;
 
-    private InvaderSporeField field;
+    /** 座って汚す中身(粒子・感染・汚染の場。群れの汚染と共通)。 */
+    private SporeSpreadSession session;
     private int nextAllowedTick;
-    private int particleTimer;
-    private int infectTimer;
 
     public ShielderSporeGoal(OvergrownShielderEntity mob) {
         this.mob = mob;
@@ -61,19 +54,17 @@ public class ShielderSporeGoal extends Goal {
         if (this.mob.isBusy() || this.mob.tickCount < this.nextAllowedTick) {
             return false;
         }
+        // 群れの一員は群れごと止まって汚す(SwarmSpreadGoal)。
+        if (SwarmMember.isInSwarm(this.mob)) {
+            return false;
+        }
         LivingEntity target = this.mob.getTarget();
         if (target != null && target.isAlive()) {
             return false;
         }
         // 既に汚染された地面の上では座らない（アルボラのうずくまりと同じ足切り）。
-        // これが無いと、汚染し尽くした縄張りの真ん中で座り直しを繰り返して、
-        // 群れの「外へ出ていく」歩き（InvaderAdvanceGoal）がいつまでも始まらない。
-        return this.mob.onGround() && !this.mob.isInWater() && !onCorruptedGround();
-    }
-
-    /** 足元が既に汚染ブロックか。 */
-    private boolean onCorruptedGround() {
-        return this.mob.level().getBlockState(this.mob.blockPosition().below()).is(ModTags.CORRUPTED);
+        // これが無いと、汚染し尽くした縄張りの真ん中で座り直しを繰り返して、ほかの行動がいつまでも始まらない。
+        return this.mob.onGround() && !this.mob.isInWater() && !SporeSpreadSession.onCorruptedGround(this.mob);
     }
 
     @Override
@@ -86,23 +77,22 @@ public class ShielderSporeGoal extends Goal {
             // 横取りされた。立ち上がって相手をする。
             return false;
         }
-        return this.field != null && !this.field.isFinished();
+        return this.session != null && !this.session.isExhausted();
     }
 
     @Override
     public void start() {
         this.mob.setActionState(OvergrownShielderEntity.STATE_SIT);
         this.mob.getNavigation().stop();
-        this.field = new InvaderSporeField(this.mob.blockPosition(), this.mob.sporeCorruptionRadius(),
-                InvaderSporeField.defaultInterval(), this.mob.getRandom());
-        this.particleTimer = 0;
-        this.infectTimer = 0;
-        this.mob.playSound(SoundEvents.SCULK_CATALYST_BLOOM, 1.0F, 0.6F);
+        this.session = new SporeSpreadSession(this.mob, this.mob.sporeCorruptionRadius(), SporeSpreadSession.Style.SIT);
+        if (this.mob.level() instanceof ServerLevel level) {
+            this.session.begin(level);
+        }
     }
 
     @Override
     public void stop() {
-        this.field = null;
+        this.session = null;
         if (this.mob.getActionState() == OvergrownShielderEntity.STATE_SIT) {
             this.mob.setActionState(OvergrownShielderEntity.STATE_NONE);
         }
@@ -120,42 +110,9 @@ public class ShielderSporeGoal extends Goal {
 
     @Override
     public void tick() {
-        // 座っている間は一歩も動かない。
-        this.mob.getNavigation().stop();
-        if (!(this.mob.level() instanceof ServerLevel level)) {
-            return;
-        }
-        if (this.field != null) {
-            this.field.spread(level, this.mob.blockPosition());
-        }
-        if (--this.particleTimer <= 0) {
-            this.particleTimer = PARTICLE_INTERVAL;
-            spawnSpores(level);
-        }
-        if (--this.infectTimer <= 0) {
-            this.infectTimer = INFECT_INTERVAL;
-            infectNearby(level);
-        }
-    }
-
-    private void spawnSpores(ServerLevel level) {
-        double radius = Math.max(1.0D, this.mob.getBbWidth());
-        level.sendParticles(ModParticles.FINE_SPORE.get(),
-                this.mob.getX(), this.mob.getY() + this.mob.getBbHeight() * 0.8D, this.mob.getZ(),
-                PARTICLES, radius, 0.4D, radius, 0.01D);
-    }
-
-    /** 周りの Mob に「胞子感染1」を付ける。プレイヤーとグループ1〜10 は対象外。 */
-    private void infectNearby(ServerLevel level) {
-        double radius = OvergrownVegetationConfig.COMMON.invaderSporeInfectRadius.get();
-        if (radius <= 0.0D) {
-            return;
-        }
-        AABB box = this.mob.getBoundingBox().inflate(radius);
-        for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, box)) {
-            if (AbstractOvergrownInvaderEntity.isSporeVictim(this.mob, entity)) {
-                SporeInfectionEffects.infect(entity, 0);
-            }
+        // 座っている間は一歩も動かない(SporeSpreadSession#tick が経路を止める。速度は travel が STATE_SIT で潰す)。
+        if (this.session != null && this.mob.level() instanceof ServerLevel level) {
+            this.session.tick(level);
         }
     }
 }

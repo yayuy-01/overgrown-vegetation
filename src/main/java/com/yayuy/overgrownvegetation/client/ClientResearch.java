@@ -24,6 +24,9 @@ public final class ClientResearch {
     public static void accept(ResearchSyncPayload payload) {
         points = payload.points();
         unlocked = new HashSet<>(payload.unlocked());
+        if (!payload.hasTree()) {
+            return; // 進捗だけの回(2026-09-24 軽量化、監査 2033)。ツリーの定義は前に受け取ったものを使う。
+        }
         nodes = List.copyOf(payload.nodes());
         nodeWidth = payload.nodeWidth();
         nodeHeight = payload.nodeHeight();

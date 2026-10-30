@@ -19,7 +19,7 @@ import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
  * スポロフィルの傘の下で強化された味方が殴ったときだけ働く。
  *
  * <ol>
- *     <li><b>防御力を {@code sporophyllArmorPiercing}(既定 50%)無視する</b> —
+ *     <li><b>防御力を {@code sporophyllArmorPiercing}(effects.json の既定 20%)無視する</b> —
  *         ダメージ計算に入る<b>直前</b>に、殴られた側の {@code ARMOR} と {@code ARMOR_TOUGHNESS} を
  *         一時的な修飾子で削り、計算が終わったら外す。</li>
  *     <li><b>防具の耐久値を「与ダメージ × {@code sporophyllArmorDurabilityFactor}」だけ削る</b> —

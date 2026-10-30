@@ -91,7 +91,7 @@ public final class SiegeBeamRenderer {
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
         Matrix4f matrix = poseStack.last().pose();
-        MultiBufferSource.BufferSource bufferSource = minecraft.renderBuffers().bufferSource();
+        MultiBufferSource.BufferSource bufferSource = CanopyLight.immediateBuffers();  // Iris のまとめ描きを避ける(CanopyLight#immediateBuffers、2026-10-22)
         RenderType renderType = RenderType.entityTranslucent(BeamGeometry.TEXTURE);
         VertexConsumer buffer = bufferSource.getBuffer(renderType);
 

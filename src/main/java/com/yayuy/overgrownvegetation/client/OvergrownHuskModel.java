@@ -114,10 +114,16 @@ public class OvergrownHuskModel implements IDynamicBakedModel {
         if (borrowed.isEmpty()) {
             return borrowed;
         }
+        // 立方体でなければテクスチャの形に切り抜く(松明のような空白に苔を乗せない)。
+        // 元の面と同じ並びの後ろ・同じ cutoutMipped に積むので、押し出さずに重ねる(遠くのちらつき止め、OvergrownLayerQuads#PUSH)。
+        boolean mask = !OvergrownLayerField.isPlainCube(mimic);
+        if (source.stable) {
+            // 借りる並びが毎回同じなら、出来上がりを覚えて使い回す(2026-10-10、CoveredBlockModels.DressedLists。中身は下と同じ)。
+            return CoveredBlockModels.DressedLists.of(borrowed, mask, true);
+        }
         List<BakedQuad> out = new ArrayList<>(borrowed.size() * 2);
         out.addAll(borrowed);
-        // 立方体でなければテクスチャの形に切り抜く(松明のような空白に苔を乗せない)。
-        OvergrownLayerQuads.dressAll(borrowed, !OvergrownLayerField.isPlainCube(mimic), out);
+        OvergrownLayerQuads.dressAll(borrowed, mask, true, out);
         return out;
     }
 
@@ -303,11 +309,17 @@ public class OvergrownHuskModel implements IDynamicBakedModel {
         private final BlockModelRotation turn;
         /** 向きごとの回した面。添字 6 は「向きを持たない面」。 */
         private final Map<Integer, List<BakedQuad>> turned = new ConcurrentHashMap<>();
+        /**
+         * {@link #quads} が同じ並びを返し続けるか(苔を足した出来上がりを覚えてよいか、2026-10-10)。
+         * 回した面は覚えた並びを返す。回さないときは借りる模型しだい({@code CoveredBlockModels.DressedLists#stableLists})。
+         */
+        final boolean stable;
 
         Source(BakedModel model, @Nullable BlockState state, @Nullable BlockModelRotation turn) {
             this.model = model;
             this.state = state;
             this.turn = turn;
+            this.stable = turn != null || CoveredBlockModels.DressedLists.stableLists(model);
         }
 
         List<BakedQuad> quads(@Nullable Direction side, RandomSource random) {

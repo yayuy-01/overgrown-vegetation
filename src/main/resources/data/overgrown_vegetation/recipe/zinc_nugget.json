@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "overgrown_vegetation:zinc_ingot"
+    }
+  ],
+  "result": {
+    "id": "overgrown_vegetation:zinc_nugget",
+    "count": 9
+  }
+}

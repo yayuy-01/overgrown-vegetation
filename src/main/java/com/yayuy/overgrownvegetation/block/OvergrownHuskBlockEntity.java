@@ -70,6 +70,17 @@ public class OvergrownHuskBlockEntity extends BlockEntity {
         return mimic;
     }
 
+    /**
+     * 焼けて元のブロックへ戻すとき(浄化の炎、2026-10-08 夜): 元のブロック状態を返し、自分では忘れる —— 続く置き換えで
+     * {@link #dropSalvage} が元のブロックをアイテムでも落として、機械が 2 つにならないように(中身は残すので置き換えで落ちる)。
+     */
+    public BlockState releaseMimic() {
+        BlockState out = mimic;
+        mimic = Blocks.AIR.defaultBlockState();
+        setChanged();
+        return out;
+    }
+
     /** 覆った瞬間に、元のブロック状態と取り出した中身を預ける。 */
     public void capture(BlockState previous, List<ItemStack> items) {
         this.mimic = previous == null ? Blocks.AIR.defaultBlockState() : previous;

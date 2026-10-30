@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "P P",
+    " F ",
+    "P P"
+  ],
+  "key": {
+    "P": { "item": "overgrown_vegetation:plant_fiber" },
+    "F": { "item": "overgrown_vegetation:sticky_fruit" }
+  },
+  "result": { "id": "overgrown_vegetation:sticky_net", "count": 1 }
+}

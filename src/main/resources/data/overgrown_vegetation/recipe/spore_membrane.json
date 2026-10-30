@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "overgrown_vegetation:breathing_cloth" },
+    { "item": "overgrown_vegetation:spore_sac" }
+  ],
+  "result": { "id": "overgrown_vegetation:spore_membrane", "count": 2 }
+}

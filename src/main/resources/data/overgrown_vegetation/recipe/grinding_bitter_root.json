@@ -1,0 +1,5 @@
+{
+  "type": "overgrown_vegetation:grinding",
+  "ingredient": { "item": "overgrown_vegetation:bitter_root" },
+  "result": { "id": "overgrown_vegetation:bitter_root_powder" }
+}

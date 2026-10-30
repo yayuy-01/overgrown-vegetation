@@ -2,6 +2,10 @@ package com.yayuy.overgrownvegetation.item;
 
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.data.PhaseTable;
+import com.yayuy.overgrownvegetation.difficulty.DifficultySetting;
+import com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData;
+import com.yayuy.overgrownvegetation.ecosystem.Ecosystem;
+import com.yayuy.overgrownvegetation.ecosystem.EcosystemData;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -54,11 +58,14 @@ public class PhaseMeterItem extends Item {
             PhaseData data = PhaseData.get(serverLevel);
             PhaseTable phases = DesignData.phases();
             int phase = data.getPhase();
+            // ワールドの難易度「フェーズ進行のポイント量」(2026-09-25)。収入と残り時間の目安に掛ける。
+            double pointMultiplier = WorldDifficultyData.phasePointMultiplier(serverLevel.getServer());
 
             if (phase < 1) {
                 showPhase1Gate(player, overworld, data, phases);
             } else {
-                showAdvanceProgress(player, data, phases, phase);
+                showAdvanceProgress(player, data, phases, phase, pointMultiplier);
+                showEcosystem(player, serverLevel);
             }
 
             if (data.isFrozen()) {
@@ -66,7 +73,7 @@ public class PhaseMeterItem extends Item {
                         "item.overgrown_vegetation.phase_meter.frozen").withStyle(ChatFormatting.AQUA), false);
             }
             if (player.isShiftKeyDown()) {
-                showBreakdown(player, data, phases);
+                showBreakdown(player, data, phases, pointMultiplier);
             }
 
             serverLevel.playSound(null, player.getX(), player.getY(), player.getZ(),
@@ -78,9 +85,10 @@ public class PhaseMeterItem extends Item {
     /** フェーズ0: フェーズ1 の 2 つのゲート(時刻・実績)の進み具合。 */
     private static void showPhase1Gate(Player player, ServerLevel overworld, PhaseData data, PhaseTable phases) {
         long age = overworld.getGameTime();
-        int needTicks = phases.startWorldAgeTicks();
+        // ワールドの難易度「地割れの発生日時」(2026-09-25)。ワールドの値が無ければ startWorldAgeTicks。
+        long needTicks = WorldDifficultyData.phase1StartTicks(overworld.getServer());
         int adv = data.getStartAdvancementCount();
-        int needAdv = phases.startAdvancements();
+        int needAdv = WorldDifficultyData.phase1Advancements(overworld.getServer()); // 「地割れに要る実績の数」(2026-10-10)
         boolean timeOk = age >= needTicks;
         boolean advOk = adv >= needAdv;
 
@@ -98,7 +106,8 @@ public class PhaseMeterItem extends Item {
     }
 
     /** フェーズ1 以降: 次のフェーズの必要ポイントと、その進み具合。 */
-    private static void showAdvanceProgress(Player player, PhaseData data, PhaseTable phases, int phase) {
+    private static void showAdvanceProgress(Player player, PhaseData data, PhaseTable phases, int phase,
+                                            double pointMultiplier) {
         int next = phase + 1;
         long points = data.getPoints();
         long chunksTotal = data.getOvergrownChunks();
@@ -133,7 +142,7 @@ public class PhaseMeterItem extends Item {
 
         // 今の収入と、そのまま推移した場合の残り時間。汚染がさらに広がれば収入も増えるので、
         // 実際にはこの目安より早くなる。
-        double perTick = phases.pointsPerTickWithChunks(chunksTotal);
+        double perTick = phases.pointsPerTickWithChunks(chunksTotal) * pointMultiplier;
         double perMinute = perTick * TICKS_PER_MINUTE;
         Component income = points < needPoints && perMinute > 0.0D
                 ? Component.translatable("item.overgrown_vegetation.phase_meter.income_eta",
@@ -144,14 +153,40 @@ public class PhaseMeterItem extends Item {
         player.displayClientMessage(income.copy().withStyle(ChatFormatting.DARK_GRAY), false);
     }
 
+    /**
+     * 生態系の台帳(2026-09-24): ワールドの多様性・防衛の段階と、植物側のバイオマス。
+     */
+    private static void showEcosystem(Player player, ServerLevel level) {
+        // 多様性はワールドで 1 つ(2026-10-14 ユーザー指定。前は立っている区域の豊かさと繁茂率)。
+        int tier = Ecosystem.tier(level);
+        String health = pct(Ecosystem.health(level));
+        player.displayClientMessage((tier > 0
+                ? Component.translatable("item.overgrown_vegetation.phase_meter.ecosystem_defense",
+                        health, tier).withStyle(ChatFormatting.RED)
+                : Component.translatable("item.overgrown_vegetation.phase_meter.ecosystem",
+                        health).withStyle(ChatFormatting.GRAY)), false);
+        EcosystemData eco = EcosystemData.get(level.getServer());
+        player.displayClientMessage(Component.translatable("item.overgrown_vegetation.phase_meter.biomass",
+                num(Math.round(eco.biomass())),
+                String.format("%,.1f", Ecosystem.incomePerSecond(level.getServer().overworld())))
+                .withStyle(ChatFormatting.DARK_GRAY), false);
+    }
+
     /** Shift + 右クリック: ポイントの獲得内訳と、その他の累計。 */
-    private static void showBreakdown(Player player, PhaseData data, PhaseTable phases) {
+    private static void showBreakdown(Player player, PhaseData data, PhaseTable phases, double pointMultiplier) {
         player.displayClientMessage(Component.translatable(
                 "item.overgrown_vegetation.phase_meter.breakdown",
                 trim(phases.pointsPerTick()), trim(phases.pointsPerTickPerOvergrownChunk()),
                 phases.pointsPerAdvancement(), phases.pointsPerGroupMobDeath(),
                 phases.pointsPerGroupMobKill(), phases.pointsPerOvergrownChunk())
                 .withStyle(ChatFormatting.DARK_GRAY), false);
+        if (pointMultiplier != 1.0D) {
+            // 上の内訳は phases.json の値そのもの。実際に入るのはこの倍率を掛けた量。
+            player.displayClientMessage(Component.translatable(
+                    "item.overgrown_vegetation.phase_meter.point_multiplier",
+                    DifficultySetting.PHASE_POINTS.format(pointMultiplier))
+                    .withStyle(ChatFormatting.DARK_GRAY), false);
+        }
         player.displayClientMessage(Component.translatable(
                 "item.overgrown_vegetation.phase_meter.totals",
                 num(data.getOvergrownChunks()), num(data.getCorruptedBlocks()))

@@ -3,6 +3,8 @@ package com.yayuy.overgrownvegetation.worldgen;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.corruption.CorruptionSpreader;
+import com.yayuy.overgrownvegetation.perf.PerfJob;
+import com.yayuy.overgrownvegetation.perf.TickBudget;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
 import com.yayuy.overgrownvegetation.entity.HiveNodeEntity;
 import com.yayuy.overgrownvegetation.registry.ModEntities;
@@ -220,7 +222,6 @@ public final class GiantTreeGrowthQueue {
         }
         // 広間の方を向いて据わる(向きは以後固定。儀式中のプレイヤーと向かい合う)。
         node.moveTo(cx + 0.5D, y - node.getBbHeight() * 0.5D, cz + 0.5D, job.hiveNodeYaw, 0.0F);
-        node.setVineTotal(0);
         if (job.hiveRitualCenter != Long.MIN_VALUE) {
             node.setRitual(BlockPos.of(job.hiveRitualCenter), job.hiveRitualYaw);
         }
@@ -242,13 +243,52 @@ public final class GiantTreeGrowthQueue {
         PhaseData.get(level).markGiantTreeGrown();
     }
 
+    /** そのワールドで設置待ち・設置中の巨大樹の数(GameTest から)。 */
+    public static int pendingJobs(ServerLevel level) {
+        int n = 0;
+        for (Job job : JOBS) {
+            if (job.level == level) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /**
+     * そのワールドの設置待ち・設置中の巨大樹を捨てる(GameTest から: 誤って積まれた巨大樹をテストのワールドへ生やさない。
+     * 積まれた同じ tick のうちに捨てれば 1 ブロックも置かれない)。
+     *
+     * @return 捨てた数
+     */
+    public static int discardJobsForTests(ServerLevel level) {
+        int before = JOBS.size();
+        JOBS.removeIf(job -> job.level == level);
+        return before - JOBS.size();
+    }
+
     @SubscribeEvent
     public static void onLevelTick(LevelTickEvent.Post event) {
         if (JOBS.isEmpty() || !(event.getLevel() instanceof ServerLevel serverLevel)) {
             return;
         }
+        // サーバーが重いときは予算の番人が次の tick へ回す(2026-10-06。結果は同じで遅れるだけ)。番人に聞くのはこの次元に仕事があるときだけ。
+        if (pendingJobs(serverLevel) == 0 || !TickBudget.mayStart(PerfJob.GIANT_TREE)) {
+            return;
+        }
+        long start = TickBudget.begin();
+        int perTick = OvergrownVegetationConfig.COMMON.giantTreeBlocksPerTick.get();
+        int left = perTick;
+        try {
+            left = tickJobs(serverLevel, perTick);
+        } finally {
+            TickBudget.end(PerfJob.GIANT_TREE, start, perTick - left);
+        }
+    }
+
+    /** 1 tick ぶん進める。戻り値は使い残した予算。 */
+    private static int tickJobs(ServerLevel serverLevel, int perTick) {
         // 同時に複数本の生成中でも、1ティックあたりの合計がこの数を超えないよう配分する。
-        int budget = OvergrownVegetationConfig.COMMON.giantTreeBlocksPerTick.get();
+        int budget = perTick;
         BlockPos.MutableBlockPos cursorPos = new BlockPos.MutableBlockPos();
 
         Iterator<Job> it = JOBS.iterator();
@@ -312,11 +352,11 @@ public final class GiantTreeGrowthQueue {
                 }
                 cursorPos.set(BlockPos.getX(packed), BlockPos.getY(packed), BlockPos.getZ(packed));
                 // 途中でチャンクがアンロードされた場合はそのブロックは諦める(同期生成を避ける)。
-                if (serverLevel.isLoaded(cursorPos)) {
+                if (serverLevel.isLoaded(cursorPos) && !TreePlacementRules.treeKeeps(serverLevel.getBlockState(cursorPos))) { // 根付いた萌芽体は残す
                     serverLevel.setBlock(cursorPos.immutable(), state, UPDATE_FLAGS);
                 }
                 job.cursor++;
-                budget--;
+                budget = TickBudget.spend(budget);
             }
             // フェーズ2: 設置し終えたら、外殻・葉の露出面に装飾植物 + 原木にヒカリゴケを生やす。
             // 1面の判定は setBlock より軽いので、予算1あたり DECOR_PER_BUDGET 個ずつ進める。
@@ -362,7 +402,7 @@ public final class GiantTreeGrowthQueue {
                     }
                     job.decorCursor++;
                 }
-                budget--;
+                budget = TickBudget.spend(budget);
             }
             // フェーズ3: フェーズ2まで終えたら、根の足元座標をたどって盛り上がりの頂上に
             // 汚染時と同じ下草(シダ・苔・背高植物)を生やす。根が地面と一体化して苔むして見える。
@@ -375,13 +415,14 @@ public final class GiantTreeGrowthQueue {
                             job.trunkState.getBlock(), job.rootPlantChance);
                     job.rootCursor++;
                 }
-                budget--;
+                budget = TickBudget.spend(budget);
             }
             if (job.done()) {
                 spawnHiveNode(serverLevel, job);
                 it.remove();
             }
         }
+        return Math.max(0, budget);
     }
 
     /**

@@ -15,7 +15,7 @@ import net.minecraft.world.entity.LivingEntity;
  * </ul>
  *
  * <p>実装 Mob はエンティティタイプタグ {@code #minecraft:can_breathe_under_water} にも入れること
- * ({@code canBreatheUnderwater()} がバニラで final のため。{@link BlightWaterGrassEntity} と同じ)。
+ * ({@code canBreatheUnderwater()} がバニラで final のため。削除した汚染水草と同じ)。
  */
 public interface AquaticOvergrownMob {
 

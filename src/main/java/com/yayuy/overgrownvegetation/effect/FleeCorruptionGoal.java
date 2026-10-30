@@ -2,6 +2,7 @@ package com.yayuy.overgrownvegetation.effect;
 
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.corruption.CorruptionProximity;
+import com.yayuy.overgrownvegetation.perf.MobThinkThrottle;
 import com.yayuy.overgrownvegetation.registry.ModBiomes;
 import com.yayuy.overgrownvegetation.registry.ModMobEffects;
 import net.minecraft.core.BlockPos;
@@ -39,10 +40,20 @@ public class FleeCorruptionGoal extends Goal {
     /** 「必要な距離だけ汚染ブロックから離れた着地点」を何回まで試すか。尽きたら離脱方向へのフォールバックに切り替える。 */
     private static final int ESCAPE_ATTEMPTS = 8;
     private static final double SPEED_MODIFIER = 1.0D;
+    /**
+     * 逃げ先か経路が見つからなかったあと、探し直すまで待つ tick(2026-09-24 軽量化、報告 1033 行。仮決め 2026-09-24)。
+     * 空中にいる・周りに立てる場所が無いときは、次の評価(2 tick 後)でも同じ理由で失敗しやすいのに、
+     * 汚染の球走査・着地点の候補 8 回・離脱方向・経路探索を毎回やり直していた。逃げ始めが最大この分だけ遅れる。
+     */
+    private static final int FAILED_SEARCH_RETRY_TICKS = 10;
+    /** 周りに繁茂系でないチャンクが無かったあと、見直すまで待つ tick(5 秒。仮決め 2026-10-06)。 */
+    private static final int NO_EXIT_RETRY_TICKS = 100;
 
     private final PathfinderMob mob;
     private final PathNavigation pathNav;
     private Path path;
+    /** 失敗した探索をやり直してよい {@code tickCount}({@link #FAILED_SEARCH_RETRY_TICKS})。 */
+    private int retryTick;
 
     public FleeCorruptionGoal(PathfinderMob mob) {
         this.mob = mob;
@@ -58,6 +69,21 @@ public class FleeCorruptionGoal extends Goal {
         if (!(mob.level() instanceof ServerLevel)) {
             return false;
         }
+        if (mob.tickCount < retryTick) {
+            // 直前の探索が失敗した。しばらく探し直さない(FAILED_SEARCH_RETRY_TICKS)。
+            return false;
+        }
+        if (MobThinkThrottle.holdCostlyCheck(mob)) {
+            // プレイヤーから遠い。逃げ先探しは数 tick に 1 回だけ(遠くの Mob の思考の間引き、2026-10-06)。
+            return false;
+        }
+        if (mob.level() instanceof ServerLevel serverLevel
+                && !CorruptionProximity.hasOpenChunkWithin(serverLevel, mob.blockPosition(), SEARCH_RADIUS)) {
+            // 逃げ先の候補が届く範囲に繁茂系でないチャンクが無い(過繁茂域の奥)。探しても必ず失敗し、ランダムな方向へ
+            // 歩くだけなので逃げない(2026-10-06 ユーザー指定。グループ1の同じ Goal と同じ)。しばらく見直さない。
+            retryTick = mob.tickCount + NO_EXIT_RETRY_TICKS;
+            return false;
+        }
         if (hasClearance(mob.blockPosition())) {
             // 既に汚染ブロックから十分離れているなら、わざわざ逃げ回る必要は無い
             return false;
@@ -65,10 +91,15 @@ public class FleeCorruptionGoal extends Goal {
 
         Vec3 escapePos = findEscapePos();
         if (escapePos == null) {
+            retryTick = mob.tickCount + FAILED_SEARCH_RETRY_TICKS;
             return false;
         }
         path = pathNav.createPath(escapePos.x, escapePos.y, escapePos.z, 0);
-        return path != null;
+        if (path == null) {
+            retryTick = mob.tickCount + FAILED_SEARCH_RETRY_TICKS;
+            return false;
+        }
+        return true;
     }
 
     @Override

@@ -11,7 +11,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationController;
 import software.bernie.geckolib.animation.RawAnimation;
 
 /**
@@ -42,14 +41,28 @@ public class ArthropleuraEntity extends AbstractOvergrownCritterEntity {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "main", 4, state -> {
+        // 歩きの再生速度は実際に進んだ量に合わせる(逃げるときは散歩の約 2.8 倍で、そのままだと足が滑る。2026-10-10)。
+        controllers.add(new PhaseKeepingAnimationController<>(this, "main", 4, state -> {
+            // 今している行動(食べる・休む・驚いて逃げ出す など)があればそのアニメ(CritterAction、2026-10-22)
+            RawAnimation critterAct = CritterAction.animation(this);
+            if (critterAct != null) {
+                state.getController().setAnimationSpeed(1.0D);
+                return state.setAndContinue(critterAct);
+            }
             state.getController().setAnimationSpeed(1.0D);
             if (MobAnimation.isWalking(state)) {
+                state.getController().setAnimationSpeed(MobAnimation.walkSpeedFor(this, WALK_ANIM_REF));
                 return state.setAndContinue(WALK_ANIM);
             }
             return state.setAndContinue(IDLE_ANIM);
         }));
     }
+
+    /**
+     * walk のアニメで足が滑らない速さ(体格 1 あたり、ブロック/tick)。生成器 ArthropleuraAnims は個体差の平均の体(1.2 倍)で
+     * 散歩 0.0505 ブロック/tick に合わせてある(2026-10-10)→ 体格 1 では 0.0505 ÷ 1.2。
+     */
+    private static final double WALK_ANIM_REF = 0.0505D / 1.2D;
 
     @Override
     protected SoundEvent getAmbientSound() {

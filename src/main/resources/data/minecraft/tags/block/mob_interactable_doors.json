@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:covered_copper_door",
+    "overgrown_vegetation:covered_exposed_copper_door",
+    "overgrown_vegetation:covered_weathered_copper_door",
+    "overgrown_vegetation:covered_oxidized_copper_door"
+  ]
+}

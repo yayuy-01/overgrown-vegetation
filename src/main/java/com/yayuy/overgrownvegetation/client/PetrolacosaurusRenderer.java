@@ -8,6 +8,6 @@ public class PetrolacosaurusRenderer extends GeoEntityRenderer<PetrolacosaurusEn
 
     public PetrolacosaurusRenderer(EntityRendererProvider.Context context) {
         super(context, new PetrolacosaurusModel());
-        this.shadowRadius = 0.4F;
+        this.shadowRadius = 0.8F; // 体格 2 倍に合わせて(GeoEntityRenderer は SCALE で影を広げない。2026-10-10)
     }
 }

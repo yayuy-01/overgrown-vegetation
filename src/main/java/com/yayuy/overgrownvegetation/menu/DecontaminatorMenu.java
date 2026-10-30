@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.menu;
 
+import com.yayuy.overgrownvegetation.registry.ModItems;
 import com.yayuy.overgrownvegetation.block.DecontaminatorBlockEntity;
 import com.yayuy.overgrownvegetation.registry.ModMenus;
 import com.yayuy.overgrownvegetation.spore.GearContamination;
@@ -24,19 +25,24 @@ public class DecontaminatorMenu extends AbstractContainerMenu {
     public static final int SLOT_Y = 35;
     public static final int SLOT_SPACING = 18;
 
+    public static final int BATTERY_X = 152;
+    public static final int BATTERY_Y = 35;
+
     private static final int SLOTS = DecontaminatorBlockEntity.SLOT_COUNT;
+    /** 除染機の枠の数(洗う物 + 電池)。プレイヤーの持ち物はこの後ろ。 */
+    private static final int MACHINE = DecontaminatorBlockEntity.CONTAINER_SIZE;
 
     private final Container container;
     private final ContainerData data;
 
     /** クライアント側。 */
     public DecontaminatorMenu(int containerId, Inventory inventory) {
-        this(containerId, inventory, new SimpleContainer(SLOTS), new SimpleContainerData(DecontaminatorBlockEntity.DATA_COUNT));
+        this(containerId, inventory, new SimpleContainer(MACHINE), new SimpleContainerData(DecontaminatorBlockEntity.DATA_COUNT));
     }
 
     public DecontaminatorMenu(int containerId, Inventory inventory, Container container, ContainerData data) {
         super(ModMenus.DECONTAMINATOR.get(), containerId);
-        checkContainerSize(container, SLOTS);
+        checkContainerSize(container, MACHINE);
         checkContainerDataCount(data, DecontaminatorBlockEntity.DATA_COUNT);
         this.container = container;
         this.data = data;
@@ -56,6 +62,18 @@ public class DecontaminatorMenu extends AbstractContainerMenu {
                 }
             });
         }
+        // 地脈電池の枠(2026-10-24)
+        addSlot(new Slot(container, DecontaminatorBlockEntity.SLOT_BATTERY, BATTERY_X, BATTERY_Y) {
+            @Override
+            public boolean mayPlace(ItemStack stack) {
+                return stack.is(ModItems.BATTERY.get()) || stack.is(ModItems.EMPTY_BATTERY.get());
+            }
+
+            @Override
+            public int getMaxStackSize() {
+                return 1;
+            }
+        });
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 addSlot(new Slot(inventory, col + row * 9 + 9, 8 + col * 18, 84 + row * 18));
@@ -73,6 +91,16 @@ public class DecontaminatorMenu extends AbstractContainerMenu {
 
     public int cycleLength() {
         return data.get(DecontaminatorBlockEntity.DATA_CYCLE_LENGTH);
+    }
+
+    /** 電池の残り(秒)。 */
+    public int chargeSeconds() {
+        return data.get(DecontaminatorBlockEntity.DATA_CHARGE);
+    }
+
+    /** 電池の満タン(秒)。 */
+    public int capacitySeconds() {
+        return data.get(DecontaminatorBlockEntity.DATA_CAPACITY);
     }
 
     /** 今入っているものの中で一番高い汚染度(%)。画面の見出しに使う。 */
@@ -93,23 +121,27 @@ public class DecontaminatorMenu extends AbstractContainerMenu {
         }
         ItemStack stack = slot.getItem();
         result = stack.copy();
-        if (index < SLOTS) {
+        if (index < MACHINE) {
             // 除染機 → プレイヤーインベントリ
-            if (!moveItemStackTo(stack, SLOTS, slots.size(), true)) {
+            if (!moveItemStackTo(stack, MACHINE, slots.size(), true)) {
                 return ItemStack.EMPTY;
             }
         } else {
-            // プレイヤーインベントリ → 除染機(汚染されうる装備だけ)
-            if (GearContamination.isContaminable(stack)
+            // プレイヤーインベントリ → 除染機(電池と、汚染されうる装備だけ)
+            if (stack.is(ModItems.BATTERY.get()) || stack.is(ModItems.EMPTY_BATTERY.get())) {
+                if (!moveItemStackTo(stack, DecontaminatorBlockEntity.SLOT_BATTERY, DecontaminatorBlockEntity.SLOT_BATTERY + 1, false)) {
+                    return ItemStack.EMPTY;
+                }
+            } else if (GearContamination.isContaminable(stack)
                     || com.yayuy.overgrownvegetation.spore.SporeFilters.is(stack)) {
                 if (!moveItemStackTo(stack, 0, SLOTS, false)) {
                     return ItemStack.EMPTY;
                 }
-            } else if (index < SLOTS + 27) {
-                if (!moveItemStackTo(stack, SLOTS + 27, slots.size(), false)) {
+            } else if (index < MACHINE + 27) {
+                if (!moveItemStackTo(stack, MACHINE + 27, slots.size(), false)) {
                     return ItemStack.EMPTY;
                 }
-            } else if (!moveItemStackTo(stack, SLOTS, SLOTS + 27, false)) {
+            } else if (!moveItemStackTo(stack, MACHINE, MACHINE + 27, false)) {
                 return ItemStack.EMPTY;
             }
         }

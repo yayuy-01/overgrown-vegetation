@@ -1,0 +1,9 @@
+{
+  "type": "overgrown_vegetation:mortar_mixing",
+  "ingredients": [
+    { "item": "overgrown_vegetation:bitter_root_powder" },
+    { "item": "overgrown_vegetation:bitter_root_powder" },
+    { "item": "overgrown_vegetation:sap_crystal_powder" }
+  ],
+  "result": { "id": "overgrown_vegetation:spore_stopping_elixir" }
+}

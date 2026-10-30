@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:blasting",
+  "ingredient": {
+    "item": "overgrown_vegetation:raw_phloemite"
+  },
+  "result": {
+    "id": "overgrown_vegetation:phloemite"
+  },
+  "experience": 1,
+  "cookingtime": 100
+}

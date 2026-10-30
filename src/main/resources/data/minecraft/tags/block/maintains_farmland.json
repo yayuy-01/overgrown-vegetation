@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:moonlight_herb_crop",
+    "overgrown_vegetation:pungent_herb_crop",
+    "overgrown_vegetation:bitter_root_crop",
+    "overgrown_vegetation:warmbloom_crop",
+    "overgrown_vegetation:fiber_grass_crop"
+  ]
+}

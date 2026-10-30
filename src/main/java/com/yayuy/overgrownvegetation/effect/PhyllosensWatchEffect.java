@@ -4,7 +4,7 @@ import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
 
 /**
- * 「Philosense is watching you」— フィロセンス
+ * 「フィロセンスの視線 / Phyllosens' Gaze」— フィロセンス
  * ({@link com.yayuy.overgrownvegetation.entity.PhyllosensEntity})に見つかり、
  * <b>周りの汚染側へ居場所を共有されている</b>あいだ付くデバフ(ユーザー要望 2026-09-14)。
  *

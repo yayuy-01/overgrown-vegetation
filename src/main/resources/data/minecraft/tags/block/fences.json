@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "overgrown_vegetation:overgrown_fence"
+    "overgrown_vegetation:overgrown_fence",
+    "overgrown_vegetation:covered_nether_brick_fence"
   ]
 }

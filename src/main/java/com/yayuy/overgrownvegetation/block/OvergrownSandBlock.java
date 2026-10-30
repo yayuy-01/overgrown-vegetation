@@ -1,6 +1,7 @@
 package com.yayuy.overgrownvegetation.block;
 
 import com.mojang.serialization.MapCodec;
+import com.yayuy.overgrownvegetation.corruption.CorruptionDropSuppressor;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -63,7 +64,8 @@ public class OvergrownSandBlock extends Block {
         Block decayTarget = canBecomeGrass(level, pos)
                 ? ModBlocks.OVERGROWN_GRASS_BLOCK.get()
                 : ModBlocks.OVERGROWN_DIRT.get();
-        level.setBlockAndUpdate(pos, decayTarget.defaultBlockState());
+        // 上に取り残された植物がこの更新で壊れても、アイテムは落とさない(CorruptionDropSuppressor)
+        CorruptionDropSuppressor.run(() -> level.setBlockAndUpdate(pos, decayTarget.defaultBlockState()));
     }
 
     /**

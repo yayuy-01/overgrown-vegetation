@@ -37,6 +37,6 @@ public abstract class GuiFoodBarSporeHungerMixin {
         }
         MobEffectInstance infection = player.getEffect(ModMobEffects.SPORE_INFECTION);
         return infection != null
-                && DesignData.effects().level(infection.getAmplifier()).hungerExhaustionPerTick() > 0.0D;
+                && DesignData.effects().playerInfection().stage(infection.getAmplifier() + 1).hungerExhaustionPerTick() > 0.0D;
     }
 }

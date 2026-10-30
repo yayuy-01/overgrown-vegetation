@@ -27,6 +27,8 @@ public class MeganeuraHuntGoal extends Goal {
     private int attackCooldown;
     private int biteTicksLeft;
     private int repathCooldown;
+    /** 届かない相手(葉の下・家の中)へ、同じマス同士の飛行の経路探索を 10 tick ごとにやり直さない(2026-09-24)。 */
+    private final PathRetryMemo pathMemo = new PathRetryMemo();
 
     public MeganeuraHuntGoal(MeganeuraEntity mob) {
         this.mob = mob;
@@ -90,7 +92,8 @@ public class MeganeuraHuntGoal extends Goal {
                 this.repathCooldown--;
             } else {
                 this.repathCooldown = 10;
-                this.mob.getNavigation().moveTo(target, 1.4D);
+                // 前回届かなかったのと同じマス同士なら探索を省く(下の直進はそのまま効く)。
+                this.pathMemo.moveTo(this.mob, target, 1.4D);
             }
             if (this.mob.getNavigation().isDone()) {
                 this.mob.getMoveControl().setWantedPosition(aim.x, aim.y, aim.z, 1.6D);

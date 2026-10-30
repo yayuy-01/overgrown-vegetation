@@ -77,7 +77,7 @@ public class MeganeuraEntity extends OvergrownFlyerEntity implements PredatorMob
     /** 枝に降りて羽を下ろす {@code relax}(1回)→ そのまま獲物を咀嚼する {@code chew}(ループ)。 */
     private static final RawAnimation FEED_ANIM = RawAnimation.begin().thenPlay("relax").thenLoop("chew");
     /** 咀嚼が終わったあとの休息ループ。{@code relax} の終わりの姿勢から続くように作ってある。 */
-    private static final RawAnimation REST_ANIM = RawAnimation.begin().thenLoop("relax2");
+    private static final RawAnimation REST_ANIM = RawAnimation.begin().thenLoop("rest"); // 2026-10-22: relax2 → 夜に枝で休む rest(翅を少し垂らして止める)
 
     private int preyKillCount;
     /**
@@ -227,6 +227,12 @@ public class MeganeuraEntity extends OvergrownFlyerEntity implements PredatorMob
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(this, "main", TRANSITION_TICKS, state -> {
+            // 今している行動(食べる・休む・驚いて逃げ出す など)があればそのアニメ(CritterAction、2026-10-22)
+            RawAnimation critterAct = CritterAction.animation(this);
+            if (critterAct != null) {
+                state.getController().setAnimationSpeed(1.0D);
+                return state.setAndContinue(critterAct);
+            }
             AnimationController<MeganeuraEntity> c = state.getController();
             c.setAnimationSpeed(1.0D);
             RawAnimation next = switch (getActionState()) {

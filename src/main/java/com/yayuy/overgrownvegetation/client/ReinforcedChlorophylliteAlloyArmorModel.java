@@ -14,18 +14,26 @@ import software.bernie.geckolib.model.GeoModel;
  */
 public class ReinforcedChlorophylliteAlloyArmorModel extends GeoModel<ReinforcedChlorophylliteAlloyArmorItem> {
 
+    // 2026-09-24 軽量化(監査 1318): 描画のたびに ResourceLocation を作り直さないよう定数にする(中身は同じ)。
+    private static final ResourceLocation MODEL =
+            OvergrownVegetation.id("geo/armor/reinforced_chlorophyllite_alloy.geo.json");
+    private static final ResourceLocation TEXTURE =
+            OvergrownVegetation.id("textures/armor/reinforced_chlorophyllite_alloy.png");
+    private static final ResourceLocation ANIMATION =
+            OvergrownVegetation.id("animations/armor/reinforced_chlorophyllite_alloy.animation.json");
+
     @Override
     public ResourceLocation getModelResource(ReinforcedChlorophylliteAlloyArmorItem animatable) {
-        return OvergrownVegetation.id("geo/armor/reinforced_chlorophyllite_alloy.geo.json");
+        return MODEL;
     }
 
     @Override
     public ResourceLocation getTextureResource(ReinforcedChlorophylliteAlloyArmorItem animatable) {
-        return OvergrownVegetation.id("textures/armor/reinforced_chlorophyllite_alloy.png");
+        return TEXTURE;
     }
 
     @Override
     public ResourceLocation getAnimationResource(ReinforcedChlorophylliteAlloyArmorItem animatable) {
-        return OvergrownVegetation.id("animations/armor/reinforced_chlorophyllite_alloy.animation.json");
+        return ANIMATION;
     }
 }

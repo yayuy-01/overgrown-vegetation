@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "tag": "overgrown_vegetation:overgrown_logs"
+    }
+  ],
+  "result": {
+    "id": "overgrown_vegetation:overgrown_planks",
+    "count": 4
+  }
+}

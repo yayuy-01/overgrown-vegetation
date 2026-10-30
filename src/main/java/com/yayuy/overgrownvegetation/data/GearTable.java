@@ -20,11 +20,11 @@ import java.util.Map;
  * <p>キー(=装備セット/ツールセットの識別子)は {@code overgrown_vegetation} 名前空間内のパス:
  * <ul>
   *   <li>防具: {@code exoskeleton} / {@code chlorophyllite} / {@code chlorophyllite_alloy}</li>
- *   <li>ツール: {@code chlorophyllite} / {@code chlorophyllite_alloy}</li>
+ *   <li>ツール: {@code chlorophyllite} / {@code chlorophyllite_alloy} / {@code sunlight_alloy}(今はツヴァイヘンダーとエストックだけ)</li>
  * </ul>
  *
  * <p>防具は部位({@code helmet}/{@code chestplate}/{@code leggings}/{@code boots})ごとに耐久を、
- * ツールは種別({@code axe}/{@code pickaxe}/{@code shovel}/{@code hoe}/{@code sword})ごとに
+ * ツールは種別({@code axe}/{@code pickaxe}/{@code shovel}/{@code hoe}/{@code sword}/{@code zweihander}/{@code estoc})ごとに
  * 耐久・攻撃力・攻撃速度を個別に上書きできる(未指定はセット共通値へフォールバック)。
  *
  * @see DesignData
@@ -32,13 +32,194 @@ import java.util.Map;
 public final class GearTable {
 
     public static final String[] ARMOR_PIECES = {"helmet", "chestplate", "leggings", "boots"};
-    public static final String[] TOOL_TYPES = {"axe", "pickaxe", "shovel", "hoe", "sword"};
+    public static final String[] TOOL_TYPES = {"axe", "pickaxe", "shovel", "hoe", "sword", "zweihander", "estoc"};
 
     // ─────────────────────────────────────────────────────────────── DTO(Gson)
 
     public static final class Json {
         public Map<String, ArmorJson> armor;
         public Map<String, ToolJson> tools;
+        /** パワードアーマーのスキルツリー(順 1 の着手順 6)。無ければ {@link #DEFAULT_POWERED_ARMOR}。 */
+        public PoweredArmorJson poweredArmor;
+        /** 装飾品・拡張パーツの効き目(順 1 の着手順 9)。無ければ {@link #DEFAULT_ACCESSORIES}。 */
+        public AccessoriesJson accessories;
+    }
+
+    /**
+     * 装飾品・拡張パーツの効き目の生値({@code com.yayuy.overgrownvegetation.item.ArmorAccessory})。{@code null} は既定値へ。
+     * 数値は全部 Claude 仮決め(2026-10-03、{@code docs/ORDER1_IMPL.md} の 5 節)。
+     */
+    public static final class AccessoriesJson {
+        /** 暗視の装飾品: 暗視の効果の何割の明るさにするか(1.0 = 暗視と同じ)。 */
+        public Double nightVision;
+        /** 索敵の装飾品: 敵が光って見える半径(マス)。 */
+        public Double enemySenseRadius;
+        /** 俊足の装飾品: 移動速度を増やす割合。 */
+        public Double swiftSpeed;
+        /** 緩衝の装飾品: 落下ダメージを減らす割合。 */
+        public Double cushionFall;
+        /** 採掘の拡張パーツ: 採掘速度を増やす割合。 */
+        public Double miningSpeed;
+        /** 踏ん張りの拡張パーツ: ノックバック耐性に足す値(0.25 = ノックバック 25% 減)。 */
+        public Double anchorKnockback;
+    }
+
+    /** 解決済みの装飾品・拡張パーツの値。 */
+    public record Accessories(double nightVision, double enemySenseRadius, double swiftSpeed, double cushionFall,
+                              double miningSpeed, double anchorKnockback) {
+    }
+
+    public static final Accessories DEFAULT_ACCESSORIES = new Accessories(0.3D, 16.0D, 0.10D, 0.5D, 0.25D, 0.25D);
+
+    private static Accessories resolveAccessories(AccessoriesJson j) {
+        Accessories d = DEFAULT_ACCESSORIES;
+        if (j == null) {
+            return d;
+        }
+        return new Accessories(
+                j.nightVision != null ? Math.max(0.0D, Math.min(1.0D, j.nightVision)) : d.nightVision(),
+                j.enemySenseRadius != null ? Math.max(0.0D, j.enemySenseRadius) : d.enemySenseRadius(),
+                j.swiftSpeed != null ? j.swiftSpeed : d.swiftSpeed(),
+                j.cushionFall != null ? Math.max(0.0D, Math.min(1.0D, j.cushionFall)) : d.cushionFall(),
+                j.miningSpeed != null ? j.miningSpeed : d.miningSpeed(),
+                j.anchorKnockback != null ? j.anchorKnockback : d.anchorKnockback());
+    }
+
+    /**
+     * パワードアーマーのスキルツリーの生値。効き目は 1 段あたり・部位ごと(4 部位の段を足して掛ける)。
+     * {@code null} は既定値へ。数値は全部 Claude 仮決め(2026-10-03、{@code docs/ORDER1_IMPL.md} の 3 節)。
+     */
+    public static final class PoweredArmorJson {
+        /** 防御: 1 段ごとに受ける被害を減らす割合(防具の計算の後に掛ける)。 */
+        public Double defensePerLevel;
+        /** 強靭: 1 段ごとに防具を貫通する攻撃({@code #overgrown_vegetation:armor_piercing})を減らす割合。 */
+        public Double piercingPerLevel;
+        /** 耐久: 1 段ごとに最大耐久を増やす割合。 */
+        public Double durabilityPerLevel;
+        /** 段ごとの支払い(並びの長さ = 段の数)。素材は本ごとの「適応の記録」(着手順 11。{@link LevelCostJson#branches})。 */
+        public java.util.List<LevelCostJson> levels;
+        /** カートリッジ: 因子 1 個で、その種類の攻撃を減らす割合(着手順 8)。 */
+        public Double factorPerItem;
+        /** カートリッジ 1 つに入る因子の数。 */
+        public Integer cartridgeCapacity;
+    }
+
+    public static final class LevelCostJson {
+        /** 研究ポイント。 */
+        public Integer points;
+        /** どの本でも払う素材。 */
+        public java.util.List<ItemCostJson> items;
+        /**
+         * 本ごとに足して払う素材(順 1 の着手順 11、2026-10-04)。キーは {@code defense} / {@code toughness} / {@code durability}。
+         * 適応の記録は本ごとに決まっている(ユーザー指定)ので、{@code #overgrown_vegetation:adaptation_records/<本>} のタグで書く。
+         * 無ければ {@code items} だけ(前の形の gear.json もそのまま読める)。
+         */
+        public Map<String, java.util.List<ItemCostJson>> branches;
+    }
+
+    public static final class ItemCostJson {
+        /** アイテムの id か、{@code #} で始めたアイテムのタグ。 */
+        public String item;
+        public Integer count;
+    }
+
+    /** 解決済みのスキルツリーの値。 */
+    public record PoweredArmor(double defensePerLevel, double piercingPerLevel, double durabilityPerLevel,
+                               java.util.List<LevelCost> levels, double factorPerItem, int cartridgeCapacity) {
+        /** 段の数(1.0.0 は 3)。 */
+        public int maxLevel() {
+            return levels.size();
+        }
+
+        /** {@code level}(1 始まり)に上げる支払い。範囲外は null。 */
+        public LevelCost cost(int level) {
+            return level >= 1 && level <= levels.size() ? levels.get(level - 1) : null;
+        }
+    }
+
+    /**
+     * 1 段の支払い。{@code items} はどの本でも払う素材、{@code branchItems} は本(0 = 防御 / 1 = 強靭 / 2 = 耐久)ごとに足す素材。
+     */
+    public record LevelCost(int points, java.util.List<ItemCost> items, Map<Integer, java.util.List<ItemCost>> branchItems) {
+        public LevelCost(int points, java.util.List<ItemCost> items) {
+            this(points, items, Map.of());
+        }
+
+        /** 本 {@code branch} を上げるときに払う素材(どの本でも払うもの + その本のもの)。 */
+        public java.util.List<ItemCost> items(int branch) {
+            java.util.List<ItemCost> extra = branchItems.getOrDefault(branch, java.util.List.of());
+            if (extra.isEmpty()) {
+                return items;
+            }
+            java.util.List<ItemCost> all = new java.util.ArrayList<>(items);
+            all.addAll(extra);
+            return all;
+        }
+    }
+
+    /** {@code item} はアイテムの id か、{@code #} で始めたアイテムのタグ。 */
+    public record ItemCost(String item, int count) {
+    }
+
+    /** 本の名前(gear.json のキー)→ 番号。 */
+    public static final java.util.List<String> BRANCH_KEYS = java.util.List.of("defense", "toughness", "durability");
+
+    /** 段 {@code level}(1〜3)の既定の支払い: 研究ポイント + その本の適応の記録 {@code records} 個(順 1 の着手順 11)。 */
+    private static LevelCost recordCost(int points, int records) {
+        Map<Integer, java.util.List<ItemCost>> byBranch = new java.util.HashMap<>();
+        for (int b = 0; b < BRANCH_KEYS.size(); b++) {
+            byBranch.put(b, java.util.List.of(
+                    new ItemCost("#overgrown_vegetation:adaptation_records/" + BRANCH_KEYS.get(b), records)));
+        }
+        return new LevelCost(points, java.util.List.of(), Map.copyOf(byBranch));
+    }
+
+    public static final PoweredArmor DEFAULT_POWERED_ARMOR = new PoweredArmor(0.02D, 0.05D, 0.25D, java.util.List.of(
+            recordCost(20, 1), recordCost(40, 2), recordCost(60, 3)),
+            0.02D, 10);
+
+    private static java.util.List<ItemCost> itemCosts(java.util.List<ItemCostJson> raw) {
+        java.util.List<ItemCost> items = new java.util.ArrayList<>();
+        if (raw != null) {
+            for (ItemCostJson c : raw) {
+                if (c != null && c.item != null && c.count != null && c.count > 0) {
+                    items.add(new ItemCost(c.item, c.count));
+                }
+            }
+        }
+        return java.util.List.copyOf(items);
+    }
+
+    private static PoweredArmor resolvePoweredArmor(PoweredArmorJson j) {
+        PoweredArmor d = DEFAULT_POWERED_ARMOR;
+        if (j == null) {
+            return d;
+        }
+        java.util.List<LevelCost> levels = d.levels();
+        if (j.levels != null && !j.levels.isEmpty()) {
+            java.util.List<LevelCost> list = new java.util.ArrayList<>();
+            for (LevelCostJson l : j.levels) {
+                java.util.List<ItemCost> items = itemCosts(l != null ? l.items : null);
+                Map<Integer, java.util.List<ItemCost>> byBranch = new java.util.HashMap<>();
+                if (l != null && l.branches != null) {
+                    for (Map.Entry<String, java.util.List<ItemCostJson>> e : l.branches.entrySet()) {
+                        int b = BRANCH_KEYS.indexOf(e.getKey());
+                        if (b >= 0) {
+                            byBranch.put(b, itemCosts(e.getValue()));
+                        }
+                    }
+                }
+                list.add(new LevelCost(l != null && l.points != null ? Math.max(0, l.points) : 0, items, Map.copyOf(byBranch)));
+            }
+            levels = java.util.List.copyOf(list);
+        }
+        return new PoweredArmor(
+                j.defensePerLevel != null ? j.defensePerLevel : d.defensePerLevel(),
+                j.piercingPerLevel != null ? j.piercingPerLevel : d.piercingPerLevel(),
+                j.durabilityPerLevel != null ? j.durabilityPerLevel : d.durabilityPerLevel(),
+                levels,
+                j.factorPerItem != null ? j.factorPerItem : d.factorPerItem(),
+                j.cartridgeCapacity != null ? Math.max(1, j.cartridgeCapacity) : d.cartridgeCapacity());
     }
 
     /** 1 防具セットの生値。{@code null} フィールドは既定値へフォールバックする。 */
@@ -213,19 +394,36 @@ public final class GearTable {
     }
 
     // 現行 ModItems に固定されていたバニラ準拠の種別ごとの基準攻撃力 / 攻撃速度(json 未指定時のフォールバック)。
+    // ツヴァイヘンダーとエストックはバニラに無いので Claude 仮決め: ツヴァイヘンダー(10-09)は剣より 4 重く 1 秒に 1 回(斧の -3.1 より少し速い)、
+    // エストック(10-10)はクロロフィライトで 1 秒あたりの攻撃力がツヴァイヘンダーとそろう 4.0・1 秒に 1.4 回。
     private static final Map<String, Float> DEFAULT_TOOL_DAMAGE = Map.of(
-            "axe", 6.0F, "pickaxe", 1.0F, "shovel", 1.5F, "hoe", -2.0F, "sword", 3.0F);
+            "axe", 6.0F, "pickaxe", 1.0F, "shovel", 1.5F, "hoe", -2.0F, "sword", 3.0F, "zweihander", 7.0F, "estoc", 4.0F);
     private static final Map<String, Float> DEFAULT_TOOL_SPEED = Map.of(
-            "axe", -3.1F, "pickaxe", -2.8F, "shovel", -3.0F, "hoe", -1.0F, "sword", -2.4F);
+            "axe", -3.1F, "pickaxe", -2.8F, "shovel", -3.0F, "hoe", -1.0F, "sword", -2.4F, "zweihander", -3.0F, "estoc", -2.6F);
 
     // ─────────────────────────────────────────────────────────────────── 本体
 
     private final Map<String, ArmorSpec> armor;
     private final Map<String, ToolSpec> tools;
+    private final PoweredArmor poweredArmor;
+    private final Accessories accessories;
 
-    private GearTable(Map<String, ArmorSpec> armor, Map<String, ToolSpec> tools) {
+    private GearTable(Map<String, ArmorSpec> armor, Map<String, ToolSpec> tools, PoweredArmor poweredArmor,
+                      Accessories accessories) {
         this.armor = armor;
         this.tools = tools;
+        this.poweredArmor = poweredArmor;
+        this.accessories = accessories;
+    }
+
+    /** パワードアーマーのスキルツリーの値(実行時に読むので {@code /ov design reload} で変わる)。 */
+    public PoweredArmor poweredArmor() {
+        return poweredArmor;
+    }
+
+    /** 装飾品・拡張パーツの効き目(実行時に読むので {@code /ov design reload} で変わる)。 */
+    public Accessories accessories() {
+        return accessories;
     }
 
     /** 未知のキーでも安全に汎用の既定値を返す(null にはならない)。 */
@@ -239,7 +437,7 @@ public final class GearTable {
         return s != null ? s : GENERIC_TOOL;
     }
 
-    static GearTable fromJson(Json j) {
+    public static GearTable fromJson(Json j) {
         Map<String, ArmorSpec> a = new LinkedHashMap<>();
         Map<String, ToolSpec> t = new LinkedHashMap<>();
         for (Map.Entry<String, ArmorJson> e : DEFAULT_ARMOR_JSON.entrySet()) {
@@ -261,7 +459,8 @@ public final class GearTable {
                 t.putIfAbsent(e.getKey(), resolveTool(DEFAULT_TOOL_JSON.get("chlorophyllite"), e.getValue()));
             }
         }
-        return new GearTable(a, t);
+        return new GearTable(a, t, resolvePoweredArmor(j != null ? j.poweredArmor : null),
+                resolveAccessories(j != null ? j.accessories : null));
     }
 
     private static ArmorSpec resolveArmor(ArmorJson def, ArmorJson over) {
@@ -368,6 +567,8 @@ public final class GearTable {
         m.put("chlorophyllite_alloy",     armorJson(3, 8, 6, 3, 2.0D, 0.0D, 10, 18));
         // ネザライト(3/8/6/3、靭性3、KB0.1、耐久係数37)の 1.5 倍。0.5 は兜を上げて合計 30 に合わせている。
         m.put("reinforced_chlorophyllite_alloy", armorJson(5, 12, 9, 4, 4.5D, 0.15D, 15, 56));
+        // パワードアーマー Mk.1(順 1 の着手順 6)。防御点 30・強靭 20 はバニラの属性の上限。上積みはスキルツリー(poweredArmor)で。
+        m.put("powered_armor",            armorJson(5, 12, 9, 4, 5.0D, 0.15D, 15, 56));
         return m;
     }
 
@@ -375,7 +576,24 @@ public final class GearTable {
         Map<String, ToolJson> m = new LinkedHashMap<>();
         //                             uses  speed  dmgBonus ench
         m.put("chlorophyllite",       toolJson(250, 7.0D, 2.5D, 12));
-        m.put("chlorophyllite_alloy", toolJson(320, 8.0D, 3.0D, 10));
+        // ツヴァイヘンダーの攻撃力はユーザー指定(2026-10-10): 手に持ったとき合金 16・サンライト合金 22(= 1 + 基準 + 攻撃力ボーナス)。
+        // クロロフィライトは種別の既定 7 のまま(10.5)。
+        // エストック(2026-10-10、Claude 仮決め)は同じ素材のツヴァイヘンダーと 1 秒あたりの攻撃力をそろえ、1 秒に 1.4 回: 手に持ったとき 7.5 / 11.5 / 16。
+        m.put("chlorophyllite_alloy", withPerTool(toolJson(320, 8.0D, 3.0D, 10), 12.0D, 7.5D));
+        // サンライト合金(2026-10-09、今はツヴァイヘンダーとエストックだけ)。耐久・採掘・攻撃力ボーナスはネザライトと同じ値(Claude 仮決め)。
+        m.put("sunlight_alloy",       withPerTool(toolJson(2031, 9.0D, 4.0D, 15), 17.0D, 11.0D));
         return m;
+    }
+
+    /** セットの {@code perTool} に、ツヴァイヘンダーとエストックの基準攻撃力を書く(種別の既定と違うセットだけ)。 */
+    private static ToolJson withPerTool(ToolJson t, double zweihanderDamage, double estocDamage) {
+        PerToolJson zweihander = new PerToolJson();
+        zweihander.attackDamage = zweihanderDamage;
+        PerToolJson estoc = new PerToolJson();
+        estoc.attackDamage = estocDamage;
+        t.perTool = new LinkedHashMap<>();
+        t.perTool.put("zweihander", zweihander);
+        t.perTool.put("estoc", estoc);
+        return t;
     }
 }

@@ -101,7 +101,8 @@ public final class ClimaxDeepGameTests {
     /**
      * <b>対応表に無いブロックの行き先</b>(2026-09-22 の仕様変更)。
      *
-     * <p><b>6 面の実の立方体</b>(鉄ブロック)は、抽選に当たれば<b>覆われたブロック</b>に、
+     * <p><b>6 面の実の立方体</b>(白いコンクリート。2026-10-05 までは鉄ブロックだったが、建築タブのブロックは
+     * 汚染で覆われたブロックに置き換わるようになった)は、抽選に当たれば<b>覆われたブロック</b>に、
      * 外れれば<b>汎用の汚染ブロック</b>になる —— 壁が一面まるごと同じ苔柄になるのを防ぐための混ざり。
      * <b>元のまま残ることは無い</b>のが肝。
      *
@@ -116,7 +117,7 @@ public final class ClimaxDeepGameTests {
         int baseY = 60;
 
         for (int i = 0; i < count; i++) {
-            level.setBlock(cubeAt(pos, baseY, i), Blocks.IRON_BLOCK.defaultBlockState(), Block.UPDATE_CLIENTS);
+            level.setBlock(cubeAt(pos, baseY, i), Blocks.WHITE_CONCRETE.defaultBlockState(), Block.UPDATE_CLIENTS);
             level.setBlock(cubeAt(pos, baseY, i).south(2),
                     Blocks.POINTED_DRIPSTONE.defaultBlockState(), Block.UPDATE_CLIENTS);
         }
@@ -127,9 +128,9 @@ public final class ClimaxDeepGameTests {
         for (int i = 0; i < count; i++) {
             BlockPos at = cubeAt(pos, baseY, i);
             BlockState after = level.getBlockState(at);
-            if (after.is(Blocks.IRON_BLOCK)) {
+            if (after.is(Blocks.WHITE_CONCRETE)) {
                 if (!OvergrownLayerData.isCovered(level, at)) {
-                    helper.fail("鉄ブロックが残っているのに『覆われた』記録が無い(苔も出ないし UI も止まらない)");
+                    helper.fail("コンクリートが残っているのに『覆われた』記録が無い(苔も出ないし UI も止まらない)");
                     return;
                 }
                 covered++;
@@ -359,11 +360,12 @@ public final class ClimaxDeepGameTests {
             }
         }
         // 対応表に無いブロックは corrupt() がそのまま返す(呼び出し元は noChange で素通りする)。
-        BlockState iron = Blocks.IRON_BLOCK.defaultBlockState();
+        // 鉄ブロックは対応表には無いが、2026-10-05 から特別扱いで覆われた鉄ブロックになるので、ここは建築タブの外のコンクリートで見る。
+        BlockState concrete = Blocks.WHITE_CONCRETE.defaultBlockState();
         int unchanged = 0;
         for (int i = 0; i < 200; i++) {
-            BlockState result = CorruptionRegistry.corrupt(iron, net.minecraft.util.RandomSource.create(i));
-            if (CorruptionRegistry.noChange(iron, result)) {
+            BlockState result = CorruptionRegistry.corrupt(concrete, net.minecraft.util.RandomSource.create(i));
+            if (CorruptionRegistry.noChange(concrete, result)) {
                 unchanged++;
             } else if (!result.is(ModBlocks.OVERGROWN_BLOCK.get())) {
                 helper.fail("対応表に無いブロックが想定外の変換先になった: " + result);
@@ -400,6 +402,81 @@ public final class ClimaxDeepGameTests {
                 helper.fail("いちばん近い地脈のはずが遠すぎる: " + distance + " ブロック");
                 return;
             }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * <b>全層置換は植物も生やす</b>(2026-09-28、要望)。地下にくり抜いた空洞の面へ、
+     * 通常の汚染と同じ経路({@code CorruptionSpreader#growSurfacePlants})で植物が付く。
+     *
+     * <p>これが無いと、極相の地下は<b>のっぺりした過繫茂ブロックの空洞</b>になる ——
+     * 地表の汚染や深部浸食で汚染された洞窟には植物が生えるので、同じ極相の中で姿が食い違っていた。
+     *
+     * <p>「1 つ以上生えたか」だけを見る(抽選なので本数は決め打てない)。同時に
+     * <b>空洞が埋まっていないこと</b>も見る —— 露出面の判定を間違えて空気まで置き換えると、
+     * 洞窟がまるごと塞がる。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 600, batch = "climaxDeep")
+    public static void deepConversionGrowsPlantsInCaves(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ChunkPos pos = testChunk(level, 24);
+        int floorY = 20;
+
+        // 石の塊を積んで、その中を空洞にする(地表よりずっと下なので洞窟として扱われる)。
+        for (int dx = 0; dx < 16; dx++) {
+            for (int dz = 0; dz < 16; dz++) {
+                for (int y = floorY - 1; y <= floorY + 6; y++) {
+                    level.setBlock(new BlockPos(pos.getMinBlockX() + dx, y, pos.getMinBlockZ() + dz),
+                            Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS);
+                }
+            }
+        }
+        int hollow = 0;
+        for (int dx = 3; dx <= 12; dx++) {
+            for (int dz = 3; dz <= 12; dz++) {
+                for (int y = floorY + 1; y <= floorY + 4; y++) {
+                    level.setBlock(new BlockPos(pos.getMinBlockX() + dx, y, pos.getMinBlockZ() + dz),
+                            Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+                    hollow++;
+                }
+            }
+        }
+
+        ClimaxDeepConverter.convertNow(level, pos);
+
+        int grown = 0;
+        int blocking = 0;
+        java.util.Set<String> kinds = new java.util.LinkedHashSet<>();
+        for (int dx = 3; dx <= 12; dx++) {
+            for (int dz = 3; dz <= 12; dz++) {
+                for (int y = floorY + 1; y <= floorY + 4; y++) {
+                    BlockPos at = new BlockPos(pos.getMinBlockX() + dx, y, pos.getMinBlockZ() + dz);
+                    BlockState state = level.getBlockState(at);
+                    if (state.isAir()) {
+                        continue;
+                    }
+                    grown++;
+                    if (kinds.size() < 8) {
+                        kinds.add(state.getBlock().builtInRegistryHolder().key().location().getPath());
+                    }
+                    // 通れるかどうかで見る。苔・下草・胞子嚢は当たり判定が無いので、
+                    // マスが埋まっていても洞窟は歩ける —— そこを「塞がった」と数えては意味がない。
+                    if (!state.getCollisionShape(level, at).isEmpty()) {
+                        blocking++;
+                    }
+                }
+            }
+        }
+        if (grown == 0) {
+            helper.fail("空洞の中に何も生えていない(全層置換が露出面の装飾を通っていない)");
+            return;
+        }
+        // 菌の柱や天井のアーチは当たり判定を持つが、空洞を塞ぐほどは建たない。
+        if (blocking > hollow / 4) {
+            helper.fail("空洞が塞がった: 通れないマス " + blocking + " / " + hollow
+                    + "(生えたのは " + grown + " マス: " + kinds + ")");
+            return;
         }
         helper.succeed();
     }

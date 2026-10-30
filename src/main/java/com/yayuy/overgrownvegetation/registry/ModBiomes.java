@@ -38,6 +38,13 @@ public final class ModBiomes {
     /** 陸の繁茂バイオーム(密林)。{@code worldgen/biome/overgrowth.json}。汚染が進むと {@link #OVERGROWN} へ昇格。 */
     public static final ResourceKey<Biome> OVERGROWTH = OvergrowthVariant.JUNGLE.overgrowth();
 
+    /**
+     * 焼けた荒地(順 2 の着手順 9、2026-10-08)。{@code worldgen/biome/burnt_wasteland.json}。火炎放射器で汚染の地面が半分を下回ったチャンクを
+     * これに塗り、3 日で世界生成のときのバイオームへ戻す({@code purify/BurntLand})。繁茂系ではない(どの集合にも入れない)ので、
+     * 繁茂系を見る湧き・胞子濃度・極相の拾い直しからは外れる。
+     */
+    public static final ResourceKey<Biome> BURNT_WASTELAND = key("burnt_wasteland");
+
     /** 海の繁茂バイオーム。{@code worldgen/biome/overgrowth_ocean.json}。汚染が進むと {@link #OVERGROWN_OCEAN} へ昇格。 */
     public static final ResourceKey<Biome> OVERGROWTH_OCEAN = key("overgrowth_ocean");
 
@@ -71,6 +78,11 @@ public final class ModBiomes {
     public static final ResourceKey<Biome> ENGULFED_RIVER = OvergrowthVariant.JUNGLE.climaxRiver();
     /** 海の極相バイオーム(環境を問わず統一)。 */
     public static final ResourceKey<Biome> ENGULFED_OCEAN = key("engulfed_ocean");
+    /**
+     * 過繫茂したエンド(2026-10-02)。森がエンドに着くと本島をまるごとこれにする({@code corruption/EndOvergrowth})。
+     * 段階は 1 つだけ(繁茂・極相は無い)。湧く Mob は後で作る(今はバニラのエンドと同じエンダーマンだけ)。
+     */
+    public static final ResourceKey<Biome> OVERGROWN_END = key("overgrown_end");
     /** 極相の湿地。 */
     public static final ResourceKey<Biome> ENGULFED_SWAMP = OvergrowthVariant.SWAMP.climax();
     /** 極相の湿地の川。 */
@@ -79,8 +91,14 @@ public final class ModBiomes {
     public static final ResourceKey<Biome> ENGULFED_FUNGAL_SWAMP = OvergrowthVariant.FUNGAL_SWAMP.climax();
     /** 極相の菌湿地帯の川。 */
     public static final ResourceKey<Biome> ENGULFED_FUNGAL_SWAMP_RIVER = OvergrowthVariant.FUNGAL_SWAMP.climaxRiver();
+    /**
+     * 極相の<b>結晶地帯</b>(順 1、2026-10-03)。密林の地域の一部が極相になるとこれになる(陸だけ。川・海は普通の極相)。
+     * 地脈に沿ってエネルギー結晶が突き出し、地下にチラコイトができる。密林の環境に属する
+     * ({@link OvergrowthVariant#CRYSTAL_CLIMAX})。
+     */
+    public static final ResourceKey<Biome> ENGULFED_CRYSTAL = OvergrowthVariant.CRYSTAL_CLIMAX;
 
-    /** 全繁茂系バイオーム(21 種 = 3 環境 × 3 段階 × (陸 + 川) + 海 3 段階)。 */
+    /** 全繁茂系バイオーム(オーバーワールド 22 種 = 3 環境 × 3 段階 × (陸 + 川) + 海 3 段階 + 結晶地帯、ネザー 10 種、エンド 1 種)。 */
     public static final List<ResourceKey<Biome>> ALL = List.of(
             OVERGROWN, OVERGROWTH, ENGULFED,
             OVERGROWN_RIVER, OVERGROWTH_RIVER, ENGULFED_RIVER,
@@ -88,7 +106,17 @@ public final class ModBiomes {
             OVERGROWN_SWAMP, OVERGROWTH_SWAMP, ENGULFED_SWAMP,
             OVERGROWN_SWAMP_RIVER, OVERGROWTH_SWAMP_RIVER, ENGULFED_SWAMP_RIVER,
             OVERGROWN_FUNGAL_SWAMP, OVERGROWTH_FUNGAL_SWAMP, ENGULFED_FUNGAL_SWAMP,
-            OVERGROWN_FUNGAL_SWAMP_RIVER, OVERGROWTH_FUNGAL_SWAMP_RIVER, ENGULFED_FUNGAL_SWAMP_RIVER);
+            OVERGROWN_FUNGAL_SWAMP_RIVER, OVERGROWTH_FUNGAL_SWAMP_RIVER, ENGULFED_FUNGAL_SWAMP_RIVER,
+            // 結晶地帯(2026-10-03): 極相だけ。
+            ENGULFED_CRYSTAL,
+            // ネザー(2026-10-02): 5 種 × 繁茂・過繁茂。{@link NetherOvergrowthVariant}
+            NetherOvergrowthVariant.WASTES.overgrown(), NetherOvergrowthVariant.WASTES.overgrowth(),
+            NetherOvergrowthVariant.CRIMSON.overgrown(), NetherOvergrowthVariant.CRIMSON.overgrowth(),
+            NetherOvergrowthVariant.WARPED.overgrown(), NetherOvergrowthVariant.WARPED.overgrowth(),
+            NetherOvergrowthVariant.SOUL_VALLEY.overgrown(), NetherOvergrowthVariant.SOUL_VALLEY.overgrowth(),
+            NetherOvergrowthVariant.BASALT.overgrown(), NetherOvergrowthVariant.BASALT.overgrowth(),
+            // エンド(2026-10-02): 過繁茂だけ。
+            OVERGROWN_END);
 
     /**
      * 「過繁茂<b>以上</b>」段階のキー —— 過繁茂 7 種 <b>と極相 7 種</b>(2026-09-22)。
@@ -107,19 +135,28 @@ public final class ModBiomes {
             OVERGROWN_FUNGAL_SWAMP, OVERGROWN_FUNGAL_SWAMP_RIVER,
             ENGULFED, ENGULFED_RIVER, ENGULFED_OCEAN,
             ENGULFED_SWAMP, ENGULFED_SWAMP_RIVER,
-            ENGULFED_FUNGAL_SWAMP, ENGULFED_FUNGAL_SWAMP_RIVER);
+            ENGULFED_FUNGAL_SWAMP, ENGULFED_FUNGAL_SWAMP_RIVER,
+            ENGULFED_CRYSTAL,
+            NetherOvergrowthVariant.WASTES.overgrown(), NetherOvergrowthVariant.CRIMSON.overgrown(),
+            NetherOvergrowthVariant.WARPED.overgrown(), NetherOvergrowthVariant.SOUL_VALLEY.overgrown(),
+            NetherOvergrowthVariant.BASALT.overgrown(),
+            OVERGROWN_END);
 
-    /** 「極相」段階のキーだけ(陸 3 環境 + 川 3 環境 + 海)。 */
+    /** 「極相」段階のキーだけ(陸 3 環境 + 川 3 環境 + 海 + 結晶地帯)。 */
     private static final Set<ResourceKey<Biome>> CLIMAX_STAGE = Set.of(
             ENGULFED, ENGULFED_RIVER, ENGULFED_OCEAN,
             ENGULFED_SWAMP, ENGULFED_SWAMP_RIVER,
-            ENGULFED_FUNGAL_SWAMP, ENGULFED_FUNGAL_SWAMP_RIVER);
+            ENGULFED_FUNGAL_SWAMP, ENGULFED_FUNGAL_SWAMP_RIVER,
+            ENGULFED_CRYSTAL);
 
     /** 「繁茂」段階のキー。 */
     private static final Set<ResourceKey<Biome>> OVERGROWTH_STAGE = Set.of(
             OVERGROWTH, OVERGROWTH_RIVER, OVERGROWTH_OCEAN,
             OVERGROWTH_SWAMP, OVERGROWTH_SWAMP_RIVER,
-            OVERGROWTH_FUNGAL_SWAMP, OVERGROWTH_FUNGAL_SWAMP_RIVER);
+            OVERGROWTH_FUNGAL_SWAMP, OVERGROWTH_FUNGAL_SWAMP_RIVER,
+            NetherOvergrowthVariant.WASTES.overgrowth(), NetherOvergrowthVariant.CRIMSON.overgrowth(),
+            NetherOvergrowthVariant.WARPED.overgrowth(), NetherOvergrowthVariant.SOUL_VALLEY.overgrowth(),
+            NetherOvergrowthVariant.BASALT.overgrowth());
 
     /** 川側のキー(3 環境 × 3 段階)。 */
     private static final Set<ResourceKey<Biome>> RIVER = Set.of(

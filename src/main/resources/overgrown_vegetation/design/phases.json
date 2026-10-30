@@ -10,32 +10,56 @@
       "perGroupMobDeath": 1,
       "perGroupMobKill": 1,
       "perOvergrownChunk": 5
+    },
+    "omen": {
+      "_comment": "F1 の前の前兆(2026-10-24 地脈技術の 4 段目、全部仮)。leadTicks = 地割れの発生日時の何 tick 前から前兆か、sampleLeadTicks = 何 tick 前から汲み上げ器の雫に未知の試料が混じるか。",
+      "leadTicks": 12000,
+      "sampleLeadTicks": 24000,
+      "sampleChance": 0.05,
+      "pumpJitter": 0.4,
+      "pumpJitterTicks": 100,
+      "noticeTicks": 12000,
+      "noticeRadius": 32,
+      "quakeMinTicks": 12000,
+      "quakeMaxTicks": 24000,
+      "quakeMinDistance": 16,
+      "quakeMaxDistance": 48,
+      "quakeIntensity": 0.4,
+      "quakeTicks": 100,
+      "flowerWiltChance": 0.1,
+      "flowerRecoverChance": 0.15,
+      "animalAvoidExtra": 6
     }
+
   },
   "phases": {
     "1": {
       "raidWaveGroups": [
         4
       ],
-      "group1": {
-        "buffed": false,
-        "healthMultiplier": 2,
-        "attackMultiplier": 1.5,
-        "fleeCorruption": false
+      "groups": {
+        "1": {
+          "buffed": false,
+          "fleeCorruption": true,
+          "healthMultiplier": 1,
+          "attackMultiplier": 1
+        }
       },
       "raidEnabled": false,
       "notes": "ワールド 3 日経過 かつ 実績 6 個で突入。グループ1が過繫茂バイオームに湧き始める。突入時に地割れ演出。"
     },
     "2": {
-      "pointsToAdvance": 360000,
+      "pointsToAdvance": 263000,
       "raidWaveGroups": [
         4
       ],
-      "group1": {
-        "buffed": true,
-        "healthMultiplier": 2,
-        "attackMultiplier": 1.5,
-        "fleeCorruption": true
+      "groups": {
+        "1": {
+          "buffed": false,
+          "healthMultiplier": 1,
+          "attackMultiplier": 1,
+          "fleeCorruption": true
+        }
       },
       "outsideSpawns": {
         "maxNearby": 2,
@@ -50,18 +74,20 @@
         "minDistance": 32,
         "maxDistance": 80
       },
-      "notes": "フェーズ1からさらに 360000 ポイントで突入。アルボラが過繫茂バイオームの外にも少数だけ湧き始める(outsideSpawns)。グループ1が汚染地形から離れて他 Mob を襲い、体力2倍・攻撃力1.5倍に強化される。"
+      "notes": "フェーズ1からさらに 360000 ポイントで突入。アルボラが過繫茂バイオームの外にも少数だけ湧き始める(outsideSpawns)。グループ2(原生生産種)が過繫茂バイオームに湧き始める。グループ1は汚染地形から離れて他 Mob を襲う(体力・攻撃力の強化は 2026-10-10 ユーザー指定で無し)。"
     },
     "3": {
-      "pointsToAdvance": 800000,
+      "pointsToAdvance": 696000,
       "raidWaveGroups": [
         4
       ],
-      "group1": {
-        "buffed": true,
-        "healthMultiplier": 2,
-        "attackMultiplier": 1.5,
-        "fleeCorruption": true
+      "groups": {
+        "1": {
+          "buffed": false,
+          "healthMultiplier": 1,
+          "attackMultiplier": 1,
+          "fleeCorruption": true
+        }
       },
       "outsideSpawns": {
         "maxNearby": 2,
@@ -76,33 +102,20 @@
         "minDistance": 32,
         "maxDistance": 80
       },
-      "smallRaid": {
-        "enabled": true,
-        "minIntervalTicks": 36000,
-        "maxIntervalTicks": 72000,
-        "minDistance": 96,
-        "maxDistance": 144,
-        "composition": {
-          "arbora": 8,
-          "phyllosens": 1,
-          "velophyll": 1,
-          "sporophyll": 1,
-          "overgrown_shielder": 1
-        }
-      },
-      "notes": "フェーズ2からさらに 800000 ポイントで突入。アルボラの外湧きは継続。グループ2も過繫茂バイオームに湧き始める。"
+      "notes": "フェーズ2からさらに 800000 ポイントで突入。アルボラの外湧きは継続。グループ3(原生消費種)が湧き始める。"
     },
     "4": {
-      "pointsToAdvance": 1400000,
+      "pointsToAdvance": 1421000,
       "raidWaveGroups": [
-        2,
         4
       ],
-      "group1": {
-        "buffed": true,
-        "healthMultiplier": 2,
-        "attackMultiplier": 1.5,
-        "fleeCorruption": true
+      "groups": {
+        "1": {
+          "buffed": false,
+          "healthMultiplier": 1,
+          "attackMultiplier": 1,
+          "fleeCorruption": true
+        }
       },
       "outsideSpawns": {
         "maxNearby": 2,
@@ -117,67 +130,43 @@
         "minDistance": 32,
         "maxDistance": 80
       },
-      "smallRaid": {
-        "enabled": true,
-        "minIntervalTicks": 36000,
-        "maxIntervalTicks": 72000,
-        "minDistance": 96,
-        "maxDistance": 144,
-        "composition": {
-          "arbora": 8,
-          "phyllosens": 1,
-          "velophyll": 1,
-          "sporophyll": 1,
-          "overgrown_shielder": 1
-        }
-      },
-      "notes": "フェーズ3からさらに 1400000 ポイントで突入。アルボラの外湧きはこのフェーズまで(F5 以降は過繫茂バイオームの中に湧く)。グループ3も湧き始める。過繫茂バイオームの直接スポーンからグループ1が外れる。"
+      "notes": "フェーズ3からさらに 1400000 ポイントで突入。アルボラの外湧きはこのフェーズまで(F5 以降は過繫茂バイオームの中に湧く)。グループ4(拡大種)が過繫茂バイオームに湧き始める(2026-10-10 ユーザー指定で F5 から 1 つ前へ)。過繫茂バイオームの直接スポーンからグループ1が外れる。"
     },
     "5": {
-      "pointsToAdvance": 2800000,
+      "pointsToAdvance": 2452000,
       "raidWaveGroups": [
-        3,
         4
       ],
-      "group1": {
-        "buffed": true,
-        "healthMultiplier": 2,
-        "attackMultiplier": 1.5,
-        "fleeCorruption": true
+      "groups": {
+        "1": {
+          "buffed": false,
+          "healthMultiplier": 1,
+          "attackMultiplier": 1,
+          "fleeCorruption": true
+        }
       },
       "raidEnabled": true,
+      "tdEnabled": false,
       "carrierSpawns": {
         "maxNearby": 4,
         "chance": 0.15,
         "minDistance": 32,
         "maxDistance": 80
       },
-      "smallRaid": {
-        "enabled": true,
-        "minIntervalTicks": 36000,
-        "maxIntervalTicks": 72000,
-        "minDistance": 96,
-        "maxDistance": 144,
-        "composition": {
-          "arbora": 8,
-          "phyllosens": 1,
-          "velophyll": 1,
-          "sporophyll": 1,
-          "overgrown_shielder": 1
-        }
-      },
-      "notes": "フェーズ4からさらに 2800000 ポイントで突入。突入した瞬間にレイド(過繫茂の苗床)が確定で1回発生し、以降は周期レイドも起きる。過繫茂バイオームにグループ4(拡大種)が湧き始める。"
+      "notes": "フェーズ4からさらに 2800000 ポイントで突入。突入した瞬間にレイド(過繫茂の苗床)が確定で1回発生し、以降は周期レイドも起きる。グループ5(適応種)が湧き始める(2026-10-10 ユーザー指定で F6 から 1 つ前へ)。"
     },
     "6": {
-      "pointsToAdvance": 5800000,
+      "pointsToAdvance": 26329000,
       "raidWaveGroups": [
         4
       ],
-      "group1": {
-        "buffed": true,
-        "healthMultiplier": 2,
-        "attackMultiplier": 1.5,
-        "fleeCorruption": true
+      "groups": {
+        "1": {
+          "buffed": false,
+          "healthMultiplier": 1,
+          "attackMultiplier": 1,
+          "fleeCorruption": true
+        }
       },
       "mixedPacks": {
         "groups": [
@@ -187,39 +176,28 @@
         "max": 5
       },
       "raidEnabled": true,
+      "tdEnabled": false,
       "carrierSpawns": {
         "maxNearby": 4,
         "chance": 0.15,
         "minDistance": 32,
         "maxDistance": 80
-      },
-      "smallRaid": {
-        "enabled": true,
-        "minIntervalTicks": 36000,
-        "maxIntervalTicks": 72000,
-        "minDistance": 96,
-        "maxDistance": 144,
-        "composition": {
-          "arbora": 8,
-          "phyllosens": 1,
-          "velophyll": 1,
-          "sporophyll": 1,
-          "overgrown_shielder": 1
-        }
       },
       "notes": "フェーズ5からさらに 5800000 ポイントで突入。グループ4が「種のばらばらな 3〜5 体の群れ」で湧くようになる。"
     },
     "7": {
+      "pointsToAdvance": 67841000,
       "raidWaveGroups": [
-        3,
         4,
         5
       ],
-      "group1": {
-        "buffed": true,
-        "healthMultiplier": 2,
-        "attackMultiplier": 1.5,
-        "fleeCorruption": true
+      "groups": {
+        "1": {
+          "buffed": false,
+          "healthMultiplier": 1,
+          "attackMultiplier": 1,
+          "fleeCorruption": true
+        }
       },
       "mixedPacks": {
         "groups": [
@@ -229,35 +207,24 @@
         "max": 5
       },
       "raidEnabled": true,
-      "siegeEnabled": true,
-      "smallRaid": {
-        "enabled": true,
-        "minIntervalTicks": 36000,
-        "maxIntervalTicks": 72000,
-        "minDistance": 96,
-        "maxDistance": 144,
-        "composition": {
-          "arbora": 8,
-          "phyllosens": 1,
-          "velophyll": 1,
-          "sporophyll": 1,
-          "overgrown_shielder": 1
-        }
-      },
-      "notes": "【仮】突入した瞬間に攻城戦(ドルガ=アーケロウス・ティタニカ)が始まる。昇格条件は未設定で、フェーズ6のときに /siege と打つと突入する(仮トリガー)。"
+      "tdEnabled": true,
+      "siegeEnabled": false,
+      "notes": "昇格条件はユーザー指定の日数から逆算(F6→F7 は 20 日、2026-09-28 に台帳の広がりの新しい規則で計算し直した)。攻城戦(ドルガ=アーケロウス・ティタニカ)が始まるかは siegeEnabled。以前の仮トリガー /siege は 2026-09-26 に削除。"
     },
     "8": {
+      "pointsToAdvance": 55816000,
       "raidWaveGroups": [
-        2,
         3,
         4,
         5
       ],
-      "group1": {
-        "buffed": true,
-        "healthMultiplier": 2,
-        "attackMultiplier": 1.5,
-        "fleeCorruption": true
+      "groups": {
+        "1": {
+          "buffed": false,
+          "healthMultiplier": 1,
+          "attackMultiplier": 1,
+          "fleeCorruption": true
+        }
       },
       "mixedPacks": {
         "groups": [
@@ -267,35 +234,27 @@
         "max": 5
       },
       "raidEnabled": true,
-      "siegeEnabled": true,
-      "smallRaid": {
-        "enabled": true,
-        "minIntervalTicks": 36000,
-        "maxIntervalTicks": 72000,
-        "minDistance": 96,
-        "maxDistance": 144,
-        "composition": {
-          "arbora": 8,
-          "phyllosens": 1,
-          "velophyll": 1,
-          "sporophyll": 1,
-          "overgrown_shielder": 1
-        }
-      },
-      "notes": "内容未定。昇格条件は未設定 = 自動では到達しない。"
+      "tdEnabled": true,
+      "siegeEnabled": false,
+      "notes": "内容未定。昇格条件は未設定 = 自動では到達しない。",
+      "autoAdvance": false
     },
     "9": {
+      "pointsToAdvance": 73784000,
       "raidWaveGroups": [
         2,
         3,
         4,
+        5,
         6
       ],
-      "group1": {
-        "buffed": true,
-        "healthMultiplier": 2,
-        "attackMultiplier": 1.5,
-        "fleeCorruption": true
+      "groups": {
+        "1": {
+          "buffed": false,
+          "healthMultiplier": 1,
+          "attackMultiplier": 1,
+          "fleeCorruption": true
+        }
       },
       "mixedPacks": {
         "groups": [
@@ -305,36 +264,28 @@
         "max": 5
       },
       "raidEnabled": true,
-      "siegeEnabled": true,
-      "smallRaid": {
-        "enabled": true,
-        "minIntervalTicks": 36000,
-        "maxIntervalTicks": 72000,
-        "minDistance": 96,
-        "maxDistance": 144,
-        "composition": {
-          "arbora": 8,
-          "phyllosens": 1,
-          "velophyll": 1,
-          "sporophyll": 1,
-          "overgrown_shielder": 1
-        }
-      },
-      "notes": "内容未定。昇格条件は未設定 = 自動では到達しない。"
+      "tdEnabled": true,
+      "siegeEnabled": false,
+      "notes": "内容未定。昇格条件は未設定 = 自動では到達しない。",
+      "autoAdvance": false
     },
     "10": {
+      "pointsToAdvance": 94305000,
       "raidWaveGroups": [
         1,
         2,
         3,
         4,
-        5
+        5,
+        6
       ],
-      "group1": {
-        "buffed": true,
-        "healthMultiplier": 2,
-        "attackMultiplier": 1.5,
-        "fleeCorruption": true
+      "groups": {
+        "1": {
+          "buffed": false,
+          "healthMultiplier": 1,
+          "attackMultiplier": 1,
+          "fleeCorruption": true
+        }
       },
       "mixedPacks": {
         "groups": [
@@ -344,22 +295,11 @@
         "max": 5
       },
       "raidEnabled": true,
+      "tdEnabled": true,
       "siegeEnabled": true,
-      "smallRaid": {
-        "enabled": true,
-        "minIntervalTicks": 36000,
-        "maxIntervalTicks": 72000,
-        "minDistance": 96,
-        "maxDistance": 144,
-        "composition": {
-          "arbora": 8,
-          "phyllosens": 1,
-          "velophyll": 1,
-          "sporophyll": 1,
-          "overgrown_shielder": 1
-        }
-      },
-      "notes": "内容未定、最終フェーズ。昇格条件は未設定 = 自動では到達しない。"
+      "notes": "内容未定、最終フェーズ。昇格条件は未設定 = 自動では到達しない。",
+      "siegeDelayTicks": 3600,
+      "autoAdvance": false
     }
   }
 }

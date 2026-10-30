@@ -1,5 +1,5 @@
 {
-  "_comment": "向きは置いたときの初期方位としてブロックエンティティに入るだけで、見た目はボーンの回転で決まる。overgrown は汚染されたときのテクスチャ差し替え(GunTurretGeoModel)で、モデル自体は同じ。",
+  "_comment": "向きは置いたときの初期方位としてブロックエンティティに入るだけで、見た目はボーンの回転で決まる。overgrown は汚染されたときのテクスチャ差し替え(GunTurretGeoModel)で、モデル自体は同じ。mode(射撃モード)は見た目に出ないので、この表では見ない —— 変種の鍵はプロパティの部分集合でよい。",
   "variants": {
     "facing=north,overgrown=false": { "model": "overgrown_vegetation:block/gun_turret" },
     "facing=east,overgrown=false":  { "model": "overgrown_vegetation:block/gun_turret" },

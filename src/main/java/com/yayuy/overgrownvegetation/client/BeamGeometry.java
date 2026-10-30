@@ -49,17 +49,37 @@ public final class BeamGeometry {
         Vec3 v = axis.cross(u).normalize();
         float v0 = -time * TEXTURE_SCROLL * scroll;
         float v1 = v0 + (float) (length / tileLength);
+        // 2026-09-24 軽量化(監査 1329): 面ごとに Vec3 を十数個作っていたのを成分ごとの計算にし、
+        // 次の面の t0 は今の面の t1 と同じ式なので cos / sin を使い回す(三角関数が半分になる)。
+        // 角の式・演算の中身と順番は以前の u.scale(cos).add(v.scale(sin)) と a.add(d.scale(r)) のままなので、
+        // 頂点は同じ値になる(spin を基底の回転に畳み込む案は丸めが変わるので入れていない)。
+        double ux = u.x;
+        double uy = u.y;
+        double uz = u.z;
+        double vx = v.x;
+        double vy = v.y;
+        double vz = v.z;
+        double first = (Math.PI * 2.0D) * 0 / SIDES + spin;
+        double c0 = Math.cos(first);
+        double s0 = Math.sin(first);
         for (int i = 0; i < SIDES; i++) {
-            double t0 = (Math.PI * 2.0D) * i / SIDES + spin;
             double t1 = (Math.PI * 2.0D) * (i + 1) / SIDES + spin;
-            Vec3 d0 = u.scale(Math.cos(t0)).add(v.scale(Math.sin(t0)));
-            Vec3 d1 = u.scale(Math.cos(t1)).add(v.scale(Math.sin(t1)));
+            double c1 = Math.cos(t1);
+            double s1 = Math.sin(t1);
+            double d0x = ux * c0 + vx * s0;
+            double d0y = uy * c0 + vy * s0;
+            double d0z = uz * c0 + vz * s0;
+            double d1x = ux * c1 + vx * s1;
+            double d1y = uy * c1 + vy * s1;
+            double d1z = uz * c1 + vz * s1;
             float u0 = (float) i / SIDES;
             float u1 = (float) (i + 1) / SIDES;
-            vertex(buffer, matrix, a.add(d0.scale(ra)), rgb, alpha, u0, v0);
-            vertex(buffer, matrix, a.add(d1.scale(ra)), rgb, alpha, u1, v0);
-            vertex(buffer, matrix, b.add(d1.scale(rb)), rgb, alpha, u1, v1);
-            vertex(buffer, matrix, b.add(d0.scale(rb)), rgb, alpha, u0, v1);
+            vertex(buffer, matrix, a.x + d0x * ra, a.y + d0y * ra, a.z + d0z * ra, rgb, alpha, u0, v0);
+            vertex(buffer, matrix, a.x + d1x * ra, a.y + d1y * ra, a.z + d1z * ra, rgb, alpha, u1, v0);
+            vertex(buffer, matrix, b.x + d1x * rb, b.y + d1y * rb, b.z + d1z * rb, rgb, alpha, u1, v1);
+            vertex(buffer, matrix, b.x + d0x * rb, b.y + d0y * rb, b.z + d0z * rb, rgb, alpha, u0, v1);
+            c0 = c1;
+            s0 = s1;
         }
     }
 
@@ -77,20 +97,37 @@ public final class BeamGeometry {
         }
         int segments = 24;
         double spin = time * 0.02D;
+        // 2026-09-24 軽量化(監査 1329): cone と同じく、次の分割の t0 = 今の t1 の cos / sin を使い回し、
+        // 縁の点は Vec3 を作らず成分で出す(center.add(cos * r, 0, sin * r) と同じ演算)。
+        double cx = center.x;
+        double cy = center.y + 0.0D;
+        double cz = center.z;
+        double first = (Math.PI * 2.0D) * 0 / segments + spin;
+        double c0 = Math.cos(first);
+        double s0 = Math.sin(first);
         for (int i = 0; i < segments; i++) {
-            double t0 = (Math.PI * 2.0D) * i / segments + spin;
             double t1 = (Math.PI * 2.0D) * (i + 1) / segments + spin;
-            Vec3 p0 = center.add(Math.cos(t0) * radius, 0.0D, Math.sin(t0) * radius);
-            Vec3 p1 = center.add(Math.cos(t1) * radius, 0.0D, Math.sin(t1) * radius);
+            double c1 = Math.cos(t1);
+            double s1 = Math.sin(t1);
             vertex(buffer, matrix, center, rgb, alpha, 0.5F, 0.5F);
             vertex(buffer, matrix, center, rgb, alpha, 0.5F, 0.5F);
-            vertex(buffer, matrix, p1, rgb, 0.0F, (float) (0.5D + 0.5D * Math.cos(t1)), (float) (0.5D + 0.5D * Math.sin(t1)));
-            vertex(buffer, matrix, p0, rgb, 0.0F, (float) (0.5D + 0.5D * Math.cos(t0)), (float) (0.5D + 0.5D * Math.sin(t0)));
+            vertex(buffer, matrix, cx + c1 * radius, cy, cz + s1 * radius, rgb, 0.0F,
+                    (float) (0.5D + 0.5D * c1), (float) (0.5D + 0.5D * s1));
+            vertex(buffer, matrix, cx + c0 * radius, cy, cz + s0 * radius, rgb, 0.0F,
+                    (float) (0.5D + 0.5D * c0), (float) (0.5D + 0.5D * s0));
+            c0 = c1;
+            s0 = s1;
         }
     }
 
     public static void vertex(VertexConsumer buffer, Matrix4f matrix, Vec3 p, float[] rgb, float a, float u, float v) {
-        buffer.addVertex(matrix, (float) p.x, (float) p.y, (float) p.z)
+        vertex(buffer, matrix, p.x, p.y, p.z, rgb, a, u, v);
+    }
+
+    /** 座標を成分で受け取る版(Vec3 を作らずに済む。2026-09-24 軽量化、監査 1329)。 */
+    public static void vertex(VertexConsumer buffer, Matrix4f matrix, double x, double y, double z,
+                              float[] rgb, float a, float u, float v) {
+        buffer.addVertex(matrix, (float) x, (float) y, (float) z)
                 .setColor(rgb[0], rgb[1], rgb[2], a)
                 .setUv(u, v)
                 .setOverlay(OverlayTexture.NO_OVERLAY)

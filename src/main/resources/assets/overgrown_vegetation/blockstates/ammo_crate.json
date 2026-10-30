@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "overgrown_vegetation:block/ammo_crate" },
+    "facing=east":  { "model": "overgrown_vegetation:block/ammo_crate", "y": 90 },
+    "facing=south": { "model": "overgrown_vegetation:block/ammo_crate", "y": 180 },
+    "facing=west":  { "model": "overgrown_vegetation:block/ammo_crate", "y": 270 }
+  }
+}

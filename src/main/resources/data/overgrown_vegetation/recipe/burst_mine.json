@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "overgrown_vegetation:burst_fruit" },
+    { "item": "overgrown_vegetation:burst_fruit" },
+    { "tag": "minecraft:wooden_pressure_plates" }
+  ],
+  "result": { "id": "overgrown_vegetation:burst_mine", "count": 1 }
+}

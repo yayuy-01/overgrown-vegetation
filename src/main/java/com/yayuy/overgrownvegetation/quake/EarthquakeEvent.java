@@ -19,8 +19,8 @@ import java.util.List;
  *
  * <p>発生地点は「ランダムに選んだ 1 人のプレイヤーから {@code quakeDistanceMin}〜{@code quakeDistanceMax}
  * の距離」— そのプレイヤーが必ず演出を体験できる近さに保ちつつ、その帯の中で全プレイヤーからできる限り
- * 遠い方向を選ぶ。ロード状況は問わず、決めた地点の周囲を強制ロードしてから {@link EarthquakeData} に
- * 登録する(Y の確定・掘削は {@link EarthquakeData} が次 tick 以降に行う)。
+ * 遠い方向を選ぶ。ロード状況は問わず、裂け目の足跡が掛かるチャンクを強制ロードしてから {@link EarthquakeData} に
+ * 登録する(Y の確定・掘削は {@link EarthquakeData} が、読み込みが済んだ次 tick 以降に行う)。
  */
 public final class EarthquakeEvent {
 
@@ -79,8 +79,14 @@ public final class EarthquakeEvent {
         q.seed = random.nextLong();
         q.startGameTime = -1L;
 
-        BlockPos center = new BlockPos(Mth.floor(q.ex), overworld.getSeaLevel(), Mth.floor(q.ez));
-        q.forcedChunks = RaidChunkLoader.force(overworld, center, cfg.quakeForceLoadRadius.get());
+        // 2026-09-24 軽量化(報告 1064): 印とチケットだけ付け、この tick に同期で読み込まない
+        // (以前はここで全部 FULL まで読み込み、未生成なら生成まで待っていた)。
+        // 2026-09-25(ユーザー承認「レイドの見直し」、報告 1450): 固定するのは裂け目の足跡が掛かるチャンクだけ
+        // (以前は震央を中心に quakeForceLoadRadius = 8 の 17x17 = 289 チャンク。長い裂け目の両端はその外に
+        // はみ出し、掘るときにその場で読み込んでいた)。足跡の形は震央の高さに依らないので、ここで先に求められる。
+        // EarthquakeData#advance は足跡のチャンクが裏で読み込み終わってから演出を始める。
+        q.forcedChunks = RaidChunkLoader.forceKeysWithoutLoading(overworld,
+                new EarthquakeFissure(overworld, q, EarthquakeData.carveSpan()).footprintChunks());
 
         EarthquakeData.get(overworld).begin(q);
         OvergrownVegetation.LOGGER.info("地割れ演出: 震央 ({}, {}) / 長さ {} / 幅 {}",

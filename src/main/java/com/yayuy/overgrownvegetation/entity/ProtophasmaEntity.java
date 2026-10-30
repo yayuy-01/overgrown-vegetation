@@ -12,7 +12,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationController;
 import software.bernie.geckolib.animation.RawAnimation;
 
 /**
@@ -59,7 +58,15 @@ public class ProtophasmaEntity extends AbstractOvergrownCritterEntity {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "main", TRANSITION_TICKS, state -> {
+        // 歩きの再生速度は実際に進んだ量に合わせる(逃げるときは散歩の 1.5 倍で、そのままだと足が滑る)。
+        // 速さを毎フレーム変えても位相が戻らないコントローラ(2026-10-10、モデル作り直しのとき)。
+        controllers.add(new PhaseKeepingAnimationController<>(this, "main", TRANSITION_TICKS, state -> {
+            // 今している行動(食べる・休む・驚いて逃げ出す など)があればそのアニメ(CritterAction、2026-10-22)
+            RawAnimation critterAct = CritterAction.animation(this);
+            if (critterAct != null) {
+                state.getController().setAnimationSpeed(1.0D);
+                return state.setAndContinue(critterAct);
+            }
             state.getController().setAnimationSpeed(1.0D);
             if (getActionState() == STATE_HIDE) {
                 return state.setAndContinue(HIDE_ANIM);
@@ -68,11 +75,15 @@ public class ProtophasmaEntity extends AbstractOvergrownCritterEntity {
                 return state.setAndContinue(SING_ANIM);
             }
             if (MobAnimation.isWalking(state)) {
+                state.getController().setAnimationSpeed(MobAnimation.walkSpeedFor(this, WALK_ANIM_REF));
                 return state.setAndContinue(WALK_ANIM);
             }
             return state.setAndContinue(IDLE_ANIM);
         }));
     }
+
+    /** walk のアニメで足が滑らない速さ(体格 1、ブロック/tick)。散歩 0.27 × 0.9 を地上の移動に直した値(生成器 ProtophasmaAnims、2026-10-10)。 */
+    private static final double WALK_ANIM_REF = 0.13D;
 
     @Override
     protected SoundEvent getAmbientSound() {

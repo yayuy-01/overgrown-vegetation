@@ -55,6 +55,12 @@ public final class Erosion {
     /** 最大体力を下げる属性修飾の id。 */
     private static final ResourceLocation MAX_HEALTH_ID = OvergrownVegetation.id("erosion_max_health");
 
+    /**
+     * 極相で浸食度が溜まるか。<b>2026-10-14 ユーザー指定で一時的に止めた</b>(「極相の身体への汚染は一時的に削除。
+     * 後々また別の仕様に変更する」)。止めている間はプレイヤーの浸食度を 0 に保つ。仕組みのコードと GameTest(計算だけ)は残してある。
+     */
+    public static final boolean ENABLED = false;
+
     /** 値の比較に使う許容差。float の丸めで毎 tick 書き換えないため。 */
     private static final float EPSILON = 1.0e-4F;
 
@@ -111,6 +117,13 @@ public final class Erosion {
             return;
         }
         ErosionFood.clamp(player);
+        if (!ENABLED) {
+            // 止めている間は溜まらず、前のセーブで溜まっていた分も 0 に戻す(最大体力・食料・経験値の効き目もこれで消える)。
+            if (percent(player) > 0.0F) {
+                set(player, 0.0F);
+            }
+            return;
+        }
         ClimaxTable table = DesignData.climax();
         long time = player.level().getGameTime();
         Holder<net.minecraft.world.level.biome.Biome> biome = player.level().getBiome(player.blockPosition());
@@ -152,7 +165,7 @@ public final class Erosion {
 
     /**
      * {@code amount} が 0 なら修飾を外し、そうでなければ張り直す
-     * ({@code Group1PhaseBehavior#applyModifier} と同じ作り)。
+     * ({@code GroupPhaseBehavior#applyModifier} と同じ作り)。
      */
     private static void applyModifier(LivingEntity entity, Holder<Attribute> attribute, ResourceLocation id,
                                       double amount) {

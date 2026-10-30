@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "BBB",
+    "BFB",
+    "SCS"
+  ],
+  "key": {
+    "B": { "tag": "c:ingots/brass" },
+    "F": { "item": "minecraft:furnace" },
+    "C": { "item": "overgrown_vegetation:ley_crystal_shard" },
+    "S": { "item": "minecraft:smooth_stone" }
+  },
+  "result": { "id": "overgrown_vegetation:ley_furnace", "count": 1 }
+}

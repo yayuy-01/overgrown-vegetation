@@ -68,7 +68,7 @@ import javax.annotation.Nullable;
  * ({@link #setPowered})。砲弾の飛行以降は {@link ShellTracker}。
  */
 public class SiegeCannonBlockEntity extends BaseContainerBlockEntity
-        implements WorldlyContainer, GeoBlockEntity, SiegeStructureCore {
+        implements WorldlyContainer, GeoBlockEntity, SiegeStructureCore, com.yayuy.overgrownvegetation.defense.MachineBattery.Holder {
 
     public static final int SLOT_SHELL = 0;
     public static final int SLOT_POWDER = 1;
@@ -99,6 +99,9 @@ public class SiegeCannonBlockEntity extends BaseContainerBlockEntity
     private long lastFiredGameTime = Long.MIN_VALUE;
     /** レッドストーンの前回の状態(立ち上がり検出用)。 */
     private boolean powered;
+    /** 地脈電池(2026-10-16、㉔。10-22 に蓄電の実の電池から改名)。1 発ごとに MachineBattery.SHOT_COST 減る。 */
+    private int batteryCharge;
+    private boolean hasBattery;
 
     /**
      * 照準器(騎乗中の HUD)に出すための弾薬数。サーバーでは {@link #serverTick} が中身から更新し、
@@ -376,6 +379,11 @@ public class SiegeCannonBlockEntity extends BaseContainerBlockEntity
             notify(player, "gui.overgrown_vegetation.cannon.no_shell");
             return false;
         }
+        // 電池が無いと動かない(2026-10-16 ユーザー指定)。
+        if (!com.yayuy.overgrownvegetation.defense.MachineBattery.hasEnergy(this, com.yayuy.overgrownvegetation.defense.MachineBattery.SHOT_COST)) {
+            notify(player, "message.overgrown_vegetation.battery.needed");
+            return false;
+        }
         int charge = charge();
         if (powderCount() < charge) {
             notify(player, "gui.overgrown_vegetation.cannon.no_powder", charge);
@@ -383,6 +391,7 @@ public class SiegeCannonBlockEntity extends BaseContainerBlockEntity
         }
         items.get(SLOT_SHELL).shrink(1);
         items.get(SLOT_POWDER).shrink(charge);
+        com.yayuy.overgrownvegetation.defense.MachineBattery.drain(this, com.yayuy.overgrownvegetation.defense.MachineBattery.SHOT_COST);
 
         double dispersion = cfg.cannonDispersion.get();
         double elevation = aimElevation(1.0F) + level.random.nextGaussian() * dispersion;
@@ -405,6 +414,31 @@ public class SiegeCannonBlockEntity extends BaseContainerBlockEntity
         setChanged();
         broadcast();
         return true;
+    }
+
+    @Override
+    public int batteryCharge() {
+        return batteryCharge;
+    }
+
+    @Override
+    public void setBatteryCharge(int charge) {
+        batteryCharge = charge;
+    }
+
+    @Override
+    public boolean hasBattery() {
+        return hasBattery;
+    }
+
+    @Override
+    public void setHasBattery(boolean has) {
+        hasBattery = has;
+    }
+
+    @Override
+    public void batteryChanged() {
+        setChanged();
     }
 
     /** レッドストーン信号の変化。立ち上がり(off → on)で撃つ。 */
@@ -609,6 +643,7 @@ public class SiegeCannonBlockEntity extends BaseContainerBlockEntity
         }
         if (tag.contains("Powered")) {
             powered = tag.getBoolean("Powered");
+            com.yayuy.overgrownvegetation.defense.MachineBattery.load(this, tag);
         }
         if (tag.contains("Shells")) {
             shellsForDisplay = tag.getInt("Shells");
@@ -628,5 +663,6 @@ public class SiegeCannonBlockEntity extends BaseContainerBlockEntity
         tag.putInt("Reload", reloadTicks);
         tag.putLong("LastFired", lastFiredGameTime);
         tag.putBoolean("Powered", powered);
+        com.yayuy.overgrownvegetation.defense.MachineBattery.save(this, tag);
     }
 }

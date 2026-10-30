@@ -1,6 +1,8 @@
 package com.yayuy.overgrownvegetation.block;
 
 import com.yayuy.overgrownvegetation.data.EffectTable;
+import com.yayuy.overgrownvegetation.defense.MachineBattery;
+import com.yayuy.overgrownvegetation.item.BatteryItem;
 import com.yayuy.overgrownvegetation.menu.SporeDeviceMenu;
 import com.yayuy.overgrownvegetation.registry.ModBlockEntities;
 import com.yayuy.overgrownvegetation.registry.ModItems;
@@ -36,7 +38,8 @@ import java.util.List;
 /**
  * {@link SporeDeviceBlock} の中身。スロットは 2 つ:
  * <ul>
- *     <li>{@link #SLOT_FUEL}(0): レッドストーンダスト。1 個で {@code ticksPerRedstone}(既定 5 分)稼働。</li>
+ *     <li>{@link #SLOT_BATTERY}(0): 地脈電池(2026-10-24 からレッドストーンダストの代わり)。働いている間 1 tick に 1 減る(満タンで 1 時間。地脈灯と同じ・仮)。
+ *     電池を持って右クリックでも入れ替えられる({@link MachineBattery})。同盟軍の基地の装置({@link #baseSupplied()})は電池なしで動く。</li>
  *     <li>{@link #SLOT_SPORE}(1): 除去装置では産出した「胞子」の取り出し口、拡散装置では消費する「胞子」の投入口。</li>
  * </ul>
  * 稼働中({@link #isActive()})の間だけ胞子濃度に効く({@link com.yayuy.overgrownvegetation.spore.SporeDeviceData#deltaAt})。
@@ -44,13 +47,14 @@ import java.util.List;
  * <p>除去装置は稼働中 {@code sporeIntervalTicks}(既定 30 秒)ごとに「胞子」を産出する。個数は
  * 「装置のあるチャンクの<b>装置の影響を除いた</b>胞子濃度」({@link SporeConcentration.Result#percentBeforeDevices})に
  * 比例し、100% で {@code sporesPerCycleAtFull}(既定 4)個。端数は確率で切り上げる。
- * 拡散装置は燃料投入のたびにレッドストーンダストと一緒に「胞子」を {@code sporesPerRedstone}(既定 1)個消費する。
+ * 拡散装置は {@code ticksPerRedstone}(既定 5 分。名前はレッドストーンの頃のまま)ごとに「胞子」を {@code sporesPerRedstone}(既定 1)個消費する。
  *
- * <p>ホッパー対応: 燃料は上下左右どこからでも投入でき、除去装置の「胞子」はどの面からでも取り出せる。
+ * <p>ホッパー対応: 電池はどの面からでも投入でき、空の電池と除去装置の「胞子」はどの面からでも取り出せる。
+ * 前のワールドの装置は電池なし(止まっている)で読み込まれる。電池の枠に残ったレッドストーンは窓から取り出せる。
  */
-public class SporeDeviceBlockEntity extends BaseContainerBlockEntity implements WorldlyContainer {
+public class SporeDeviceBlockEntity extends BaseContainerBlockEntity implements WorldlyContainer, MachineBattery.Holder {
 
-    public static final int SLOT_FUEL = 0;
+    public static final int SLOT_BATTERY = 0;
     public static final int SLOT_SPORE = 1;
     /**
      * 胞子フィルター(除去装置の消耗品、2026-09-21 のユーザー指定)。
@@ -58,13 +62,17 @@ public class SporeDeviceBlockEntity extends BaseContainerBlockEntity implements 
      */
     public static final int SLOT_FILTER = 2;
     public static final int SLOT_COUNT = 3;
-    private static final int[] ALL_SLOTS = {SLOT_FUEL, SLOT_SPORE, SLOT_FILTER};
+    private static final int[] ALL_SLOTS = {SLOT_BATTERY, SLOT_SPORE, SLOT_FILTER};
 
-    public static final int DATA_REMAINING = 0;
-    public static final int DATA_TICKS_PER_FUEL = 1;
+    /** 電池の残り(秒。窓へ送る値は short なので tick のままだと 1 時間 = 72000 が溢れる)。 */
+    public static final int DATA_CHARGE = 0;
+    /** 電池の満タン(秒)。 */
+    public static final int DATA_CAPACITY = 1;
     public static final int DATA_CYCLE = 2;
     public static final int DATA_CYCLE_LENGTH = 3;
-    public static final int DATA_COUNT = 4;
+    /** 動いているか(1 / 0)。 */
+    public static final int DATA_RUNNING = 4;
+    public static final int DATA_COUNT = 5;
 
     /**
      * 胞子爆弾の汚染範囲に入っているとみなす高さの差(ブロック)。
@@ -74,8 +82,12 @@ public class SporeDeviceBlockEntity extends BaseContainerBlockEntity implements 
     private static final double JAM_VERTICAL_REACH = 24.0D;
 
     private NonNullList<ItemStack> items = NonNullList.withSize(SLOT_COUNT, ItemStack.EMPTY);
-    /** 残り稼働 tick。0 なら停止中(燃料があれば次の tick で再点火)。 */
+    /** 拡散装置: 今の「胞子」1 個ぶんの残り tick(0 なら次に動くとき胞子を食べる)。除去装置では使わない。 */
     private int remainingTicks;
+    /** 働いているか(電池があり、詰まり・フィルター切れでなく、拡散装置なら胞子がある)。 */
+    private boolean running;
+    /** 同盟軍の基地が置いた装置(電池なしで動く。機関砲台と同じ)。 */
+    private boolean baseSupplied;
     /** 除去装置の「胞子」産出サイクルの進行 tick。 */
     private int cycleTicks;
 
@@ -84,19 +96,18 @@ public class SporeDeviceBlockEntity extends BaseContainerBlockEntity implements 
         public int get(int index) {
             EffectTable.DeviceSpec spec = kind().spec();
             return switch (index) {
-                case DATA_REMAINING -> remainingTicks;
-                case DATA_TICKS_PER_FUEL -> spec.ticksPerRedstone();
+                case DATA_CHARGE -> baseSupplied ? BatteryItem.CAPACITY / 20 : (batteryCharge() + 19) / 20;
+                case DATA_CAPACITY -> BatteryItem.CAPACITY / 20;
                 case DATA_CYCLE -> cycleTicks;
                 case DATA_CYCLE_LENGTH -> spec.sporeIntervalTicks();
+                case DATA_RUNNING -> running ? 1 : 0;
                 default -> 0;
             };
         }
 
         @Override
         public void set(int index, int value) {
-            if (index == DATA_REMAINING) {
-                remainingTicks = value;
-            } else if (index == DATA_CYCLE) {
+            if (index == DATA_CYCLE) {
                 cycleTicks = value;
             }
         }
@@ -115,9 +126,9 @@ public class SporeDeviceBlockEntity extends BaseContainerBlockEntity implements 
         return getBlockState().getBlock() instanceof SporeDeviceBlock block ? block.kind() : SporeDeviceKind.PURIFIER;
     }
 
-    /** 稼働中(燃料が燃えている)か。胞子濃度への効果はこの間だけ。 */
+    /** 稼働中か(電池で動いている)。胞子濃度への効果はこの間だけ。 */
     public boolean isActive() {
-        return remainingTicks > 0;
+        return running;
     }
 
     /**
@@ -159,19 +170,29 @@ public class SporeDeviceBlockEntity extends BaseContainerBlockEntity implements 
         }
         SporeDeviceKind kind = be.kind();
         EffectTable.DeviceSpec spec = kind.spec();
-        boolean wasActive = be.remainingTicks > 0;
+        boolean wasActive = be.running;
 
-        // 詰まり(取り出し口が満杯)/ フィルター切れ = 強制停止。
-        // 残り稼働 tick は捨て、直るまで燃料も食わない。
+        // 詰まり(取り出し口が満杯)/ フィルター切れ = 強制停止。直るまで電池も減らない。
         boolean jammed = be.isJammed() || be.needsFilter();
-        if (jammed) {
-            if (be.remainingTicks != 0 || be.cycleTicks != 0) {
-                be.remainingTicks = 0;
-                be.cycleTicks = 0;
-                be.setChanged();
+        boolean run = !jammed && MachineBattery.hasEnergy(be);
+        if (jammed && (be.remainingTicks != 0 || be.cycleTicks != 0)) {
+            be.remainingTicks = 0;
+            be.cycleTicks = 0;
+            be.setChanged();
+        }
+        if (run && kind == SporeDeviceKind.DIFFUSER && be.remainingTicks <= 0) {
+            // 拡散装置は胞子 1 個ぶんずつ動く(電池があっても胞子が無ければ止まる)
+            if (be.tryConsumeSpores(spec)) {
+                be.remainingTicks = Math.max(1, spec.ticksPerRedstone());
+            } else {
+                run = false;
             }
-        } else if (be.remainingTicks > 0) {
-            be.remainingTicks--;
+        }
+        if (run) {
+            MachineBattery.drain(be, 1);
+            if (be.remainingTicks > 0) {
+                be.remainingTicks--;
+            }
             if (kind == SporeDeviceKind.PURIFIER && spec.sporeIntervalTicks() > 0) {
                 be.cycleTicks++;
                 if (be.cycleTicks >= spec.sporeIntervalTicks()) {
@@ -182,12 +203,12 @@ public class SporeDeviceBlockEntity extends BaseContainerBlockEntity implements 
             }
             be.setChanged();
         }
-        if (!jammed && be.remainingTicks <= 0 && be.tryConsumeFuel(kind, spec)) {
-            be.remainingTicks = Math.max(1, spec.ticksPerRedstone());
+        if (run != be.running) {
+            be.running = run;
             be.setChanged();
         }
 
-        boolean active = be.remainingTicks > 0;
+        boolean active = run;
         if (state.getValue(SporeDeviceBlock.LIT) != active) {
             level.setBlock(pos, state.setValue(SporeDeviceBlock.LIT, active), 3);
         }
@@ -302,22 +323,16 @@ public class SporeDeviceBlockEntity extends BaseContainerBlockEntity implements 
         setChanged();
     }
 
-    private boolean tryConsumeFuel(SporeDeviceKind kind, EffectTable.DeviceSpec spec) {
-        ItemStack fuel = items.get(SLOT_FUEL);
-        if (!fuel.is(Items.REDSTONE)) {
+    /** 拡散装置が次の {@code ticksPerRedstone} ぶん動くための「胞子」を食べる(2026-10-24 から燃料は電池。胞子だけ今までどおり)。 */
+    private boolean tryConsumeSpores(EffectTable.DeviceSpec spec) {
+        int need = spec.sporesPerRedstone();
+        ItemStack spore = items.get(SLOT_SPORE);
+        if (need > 0 && (!spore.is(ModItems.SPORE.get()) || spore.getCount() < need)) {
             return false;
         }
-        if (kind == SporeDeviceKind.DIFFUSER) {
-            int need = spec.sporesPerRedstone();
-            ItemStack spore = items.get(SLOT_SPORE);
-            if (need > 0 && (!spore.is(ModItems.SPORE.get()) || spore.getCount() < need)) {
-                return false;
-            }
-            if (need > 0) {
-                spore.shrink(need);
-            }
+        if (need > 0) {
+            spore.shrink(need);
         }
-        fuel.shrink(1);
         return true;
     }
 
@@ -333,8 +348,18 @@ public class SporeDeviceBlockEntity extends BaseContainerBlockEntity implements 
         if (!out.isEmpty() && !out.is(ModItems.SPORE.get())) {
             return 0;
         }
-        double base = SporeConcentration.at(level, new ChunkPos(worldPosition)).percentBeforeDevices();
-        double expected = spec.sporesPerCycleAtFull() * Math.max(0.0D, Math.min(100.0D, base)) / 100.0D;
+        double expected;
+        if (com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.enabled()) {
+            // 胞子の場から抜いた量から(2026-10-23 胞子の場と風 第 2 段 C)。1 サイクルの上限は無し(【決定】10-23 追記 11:
+            // 嵐では取り出し口がすぐ埋まり、埋まると装置が止まって範囲が突破される = 取り出し続ければ守れる)
+            double taken = level.dimension() == net.minecraft.world.level.Level.NETHER
+                    ? com.yayuy.overgrownvegetation.spore.field.NetherSporeFieldServer.takeExtracted(worldPosition)
+                    : com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.takeExtracted(worldPosition);
+            expected = taken * com.yayuy.overgrownvegetation.data.DesignData.sporeField().purifierSporesPerUnit();
+        } else {
+            double base = SporeConcentration.at(level, new ChunkPos(worldPosition)).percentBeforeDevices();
+            expected = spec.sporesPerCycleAtFull() * Math.max(0.0D, Math.min(100.0D, base)) / 100.0D;
+        }
         int count = (int) Math.floor(expected);
         if (level.getRandom().nextDouble() < expected - count) {
             count++;
@@ -380,8 +405,8 @@ public class SporeDeviceBlockEntity extends BaseContainerBlockEntity implements 
 
     @Override
     public boolean canPlaceItem(int slot, ItemStack stack) {
-        if (slot == SLOT_FUEL) {
-            return stack.is(Items.REDSTONE);
+        if (slot == SLOT_BATTERY) {
+            return isBattery(stack);
         }
         return kind() == SporeDeviceKind.DIFFUSER && stack.is(ModItems.SPORE.get());
     }
@@ -398,7 +423,63 @@ public class SporeDeviceBlockEntity extends BaseContainerBlockEntity implements 
 
     @Override
     public boolean canTakeItemThroughFace(int slot, ItemStack stack, Direction direction) {
+        if (slot == SLOT_BATTERY) {
+            return stack.is(ModItems.EMPTY_BATTERY.get()); // 使い切った電池だけ抜ける
+        }
         return slot == SLOT_SPORE && kind() == SporeDeviceKind.PURIFIER;
+    }
+
+    // --- 電池(0 の枠の品そのもの。地脈炉と同じ) ---
+
+    private static boolean isBattery(ItemStack stack) {
+        return stack.is(ModItems.BATTERY.get()) || stack.is(ModItems.EMPTY_BATTERY.get());
+    }
+
+    @Override
+    public int batteryCharge() {
+        ItemStack s = items.get(SLOT_BATTERY);
+        return s.is(ModItems.BATTERY.get()) ? BatteryItem.charge(s) : 0;
+    }
+
+    @Override
+    public void setBatteryCharge(int charge) {
+        items.set(SLOT_BATTERY, BatteryItem.stackFor(charge));
+    }
+
+    @Override
+    public boolean hasBattery() {
+        return isBattery(items.get(SLOT_BATTERY));
+    }
+
+    /** 電池の枠に電池以外(前のワールドのレッドストーンなど)があれば入れ替えない(窓を開いて取り出す)。 */
+    @Override
+    public boolean canSwapBattery() {
+        return items.get(SLOT_BATTERY).isEmpty() || hasBattery();
+    }
+
+    @Override
+    public void setHasBattery(boolean has) {
+        if (!has) {
+            items.set(SLOT_BATTERY, ItemStack.EMPTY);
+        }
+    }
+
+    @Override
+    public void batteryChanged() {
+        setChanged();
+    }
+
+    @Override
+    public boolean baseSupplied() {
+        return baseSupplied;
+    }
+
+    /** 同盟軍の基地の装置にする(電池なしで動く)。 */
+    public void setBaseSupplied(boolean supplied) {
+        if (baseSupplied != supplied) {
+            baseSupplied = supplied;
+            setChanged();
+        }
     }
 
     // --- NBT ---
@@ -410,6 +491,8 @@ public class SporeDeviceBlockEntity extends BaseContainerBlockEntity implements 
         ContainerHelper.loadAllItems(tag, items, registries);
         remainingTicks = tag.getInt("RemainingTicks");
         cycleTicks = tag.getInt("CycleTicks");
+        running = tag.getBoolean("Running");
+        baseSupplied = tag.getBoolean("BaseSupplied");
     }
 
     @Override
@@ -418,5 +501,7 @@ public class SporeDeviceBlockEntity extends BaseContainerBlockEntity implements 
         ContainerHelper.saveAllItems(tag, items, registries);
         tag.putInt("RemainingTicks", remainingTicks);
         tag.putInt("CycleTicks", cycleTicks);
+        tag.putBoolean("Running", running);
+        tag.putBoolean("BaseSupplied", baseSupplied);
     }
 }

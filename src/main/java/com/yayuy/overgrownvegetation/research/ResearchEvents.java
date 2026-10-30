@@ -12,10 +12,11 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class ResearchEvents {
 
+    /** ログインだけツリーの定義も送る(リスポーン・次元移動は進捗だけ。2026-09-24 軽量化、監査 2033)。 */
     @SubscribeEvent
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer sp) {
-            ResearchLogic.sync(sp);
+            ResearchLogic.syncWithTree(sp);
         }
     }
 

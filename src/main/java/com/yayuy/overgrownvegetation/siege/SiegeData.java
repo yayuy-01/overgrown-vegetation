@@ -15,6 +15,9 @@ import com.yayuy.overgrownvegetation.phase.MobGroup;
 import com.yayuy.overgrownvegetation.raid.RaidChunkLoader;
 import com.yayuy.overgrownvegetation.registry.ModDamageTypes;
 import com.yayuy.overgrownvegetation.registry.ModEntities;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.core.HolderLookup;
@@ -288,11 +291,13 @@ public final class SiegeData extends SavedData {
      */
     private int lastSiegePhase;
     /**
-     * 次にフェーズ昇格で攻城戦を始めるときの中心座標のヒント(保存しない)。{@code /siege} は
-     * 打った本人の位置を包囲されたい場所として渡す。null ならオンラインのプレイヤーから選ぶ。
+     * 待ち時間({@code phases.json} の {@code siegeDelayTicks})を数えているフェーズと、その期限
+     * (ワールド時刻、2026-09-25 ユーザー指定「攻城戦がいつ起きるかを変えられるように」)。
+     * 待ち時間が 0 のフェーズでは使わない(突入した瞬間に始まる)。セーブに残すので、
+     * 待っている途中でワールドを閉じても数え直しにならない。
      */
-    @Nullable
-    private transient BlockPos nextCenterHint;
+    private int siegeDuePhase;
+    private long siegeDueTick;
 
     /**
      * ボスバー。{@link SavedData} には保存しない(サーバー起動ごとに作り直す)。
@@ -315,6 +320,8 @@ public final class SiegeData extends SavedData {
         SiegeData data = new SiegeData();
         data.active = tag.getBoolean("active");
         data.lastSiegePhase = tag.getInt("lastSiegePhase");
+        data.siegeDuePhase = tag.getInt("siegeDuePhase");
+        data.siegeDueTick = tag.getLong("siegeDueTick");
         data.centerX = tag.getDouble("centerX");
         data.centerY = tag.getDouble("centerY");
         data.centerZ = tag.getDouble("centerZ");
@@ -373,6 +380,8 @@ public final class SiegeData extends SavedData {
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.putBoolean("active", active);
         tag.putInt("lastSiegePhase", lastSiegePhase);
+        tag.putInt("siegeDuePhase", siegeDuePhase);
+        tag.putLong("siegeDueTick", siegeDueTick);
         tag.putDouble("centerX", centerX);
         tag.putDouble("centerY", centerY);
         tag.putDouble("centerZ", centerZ);
@@ -432,6 +441,14 @@ public final class SiegeData extends SavedData {
 
     public boolean isActive() {
         return active;
+    }
+
+    /**
+     * いまの攻城戦を始めたゲーム内時刻。攻城戦ごとに違うので、反撃の増援に付ける出どころの印に使う
+     * ({@link com.yayuy.overgrownvegetation.raid.EventMobs}、2026-09-24)。
+     */
+    public long startGameTime() {
+        return startGameTime;
     }
 
     public SiegeBossMotion motion() {
@@ -519,41 +536,58 @@ public final class SiegeData extends SavedData {
      * 手動変更でも、同じ再挑戦で始まる。
      */
     public static void onPhaseAdvanced(ServerLevel overworld, int newPhase) {
-        get(overworld).tryStartForPhase(overworld, newPhase, false);
-    }
-
-    /**
-     * {@code /siege}(フェーズ7突入の仮トリガー)から呼ぶ、その場で始める版。
-     * 「このフェーズでは既に 1 回始めた」という記録({@code lastSiegePhase})を<b>無視する</b>ので、
-     * ボスを倒したあと同じフェーズでもう一度試せる(テスト用の入口なので回数を絞らない)。
-     *
-     * @return 攻城戦を始められたら true
-     */
-    public static boolean startForPhase(ServerLevel overworld, int phase, BlockPos center) {
         SiegeData data = get(overworld);
-        data.setNextCenterHint(center);
-        return data.tryStartForPhase(overworld, phase, true);
-    }
-
-    /**
-     * {@code /siege} が「包囲される場所」として打った本人の位置を渡すためのヒント。
-     * 次にフェーズ昇格で攻城戦を始めるときに 1 回だけ使う(保存しない)。
-     */
-    public void setNextCenterHint(@Nullable BlockPos center) {
-        this.nextCenterHint = center;
+        // 待ち時間(siegeDelayTicks)が設定してあれば、ここでは数え始めるだけ。時間が来たら tickPhaseTrigger が始める。
+        if (data.siegeDue(overworld, newPhase)) {
+            data.tryStartForPhase(overworld, newPhase);
+        }
     }
 
     /**
      * 現在フェーズが攻城戦の対象({@code siegeEnabled})で、まだそのフェーズで始めていなければ始める。
+     * 包囲の中心はオンラインのプレイヤーから 1 人選ぶ。
      *
      * @return 攻城戦を始めた(またはこのフェーズぶんの処理が済んだ)なら true
      */
-    private boolean tryStartForPhase(ServerLevel overworld, int phase, boolean force) {
+    /**
+     * {@code /ov design reload} のときに、<b>今のフェーズのティタニカ戦をもう一度武装する</b>
+     * (2026-09-29 ユーザー報告「マネージャーで変えても反映されない」の修正)。
+     *
+     * <p>{@code lastSiegePhase} は「このフェーズぶんは済んだ」という一方通行の印なので、いちど始まった
+     * (あるいは別の戦いが進行中で飛ばした)フェーズでは、{@code phases.json} の {@code siegeEnabled} /
+     * {@code siegeDelayTicks} をあとから変えても効かなかった。design を読み直したときだけ印を 1 つ戻し、
+     * 新しい設定で {@link #tickPhaseTrigger} に判定し直させる。
+     *
+     * <p>進行中のときは何もしない(戦っている最中に設定を読み直しても、その戦いは壊さない)。
+     * 読み直した結果 {@code siegeEnabled} が false なら、当然また始まりはしない。
+     */
+    public static void onDesignReload(net.minecraft.server.MinecraftServer server) {
+        ServerLevel overworld = server != null ? server.overworld() : null;
+        if (overworld == null) {
+            return;
+        }
+        SiegeData data = get(overworld);
+        if (data.active) {
+            return;
+        }
+        int phase = com.yayuy.overgrownvegetation.phase.PhaseData.get(overworld).getPhase();
+        if (data.lastSiegePhase < phase && data.siegeDuePhase != phase) {
+            return; // まだこのフェーズぶんを使っていない = 戻すものが無い
+        }
+        data.lastSiegePhase = Math.min(data.lastSiegePhase, phase - 1);
+        data.siegeDuePhase = 0;
+        data.siegeDueTick = 0L;
+        data.setDirty();
+        OvergrownVegetation.LOGGER.info("ティタニカ戦: design を読み直したので、フェーズ {} の判定をやり直す(siegeEnabled = {})",
+                phase, DesignData.phases().siegeEnabled(phase));
+    }
+
+    private boolean tryStartForPhase(ServerLevel overworld, int phase) {
         if (!OvergrownVegetationConfig.COMMON.siegeEnabled.get()) {
             // toml で攻城戦そのものを切ってある。始めても tick が即座に止めるので、始めない。
             return false;
         }
-        if ((!force && phase <= lastSiegePhase) || !DesignData.phases().siegeEnabled(phase)) {
+        if (phase <= lastSiegePhase || !DesignData.phases().siegeEnabled(phase)) {
             return false;
         }
         if (active) {
@@ -563,19 +597,15 @@ public final class SiegeData extends SavedData {
             return true;
         }
 
-        BlockPos center = nextCenterHint;
-        if (center == null) {
-            // 包囲する相手が要る。オンラインのプレイヤーから 1 人選ぶ(居なければ次の判定へ持ち越し)。
-            java.util.List<ServerPlayer> players = overworld.players();
-            if (players.isEmpty()) {
-                return false;
-            }
-            center = players.get(overworld.random.nextInt(players.size())).blockPosition();
+        // 包囲する相手が要る。オンラインのプレイヤーから 1 人選ぶ(居なければ次の判定へ持ち越し)。
+        java.util.List<ServerPlayer> players = overworld.players();
+        if (players.isEmpty()) {
+            return false;
         }
+        BlockPos center = players.get(overworld.random.nextInt(players.size())).blockPosition();
         if (!start(overworld, center)) {
             return false;
         }
-        nextCenterHint = null;
         lastSiegePhase = phase;
         setDirty();
         return true;
@@ -590,13 +620,39 @@ public final class SiegeData extends SavedData {
             return;
         }
         int phase = com.yayuy.overgrownvegetation.phase.PhaseData.get(overworld).getPhase();
-        if (phase > lastSiegePhase) {
-            tryStartForPhase(overworld, phase, false);
+        if (phase > lastSiegePhase && siegeDue(overworld, phase)) {
+            tryStartForPhase(overworld, phase);
         }
     }
 
+    /**
+     * そのフェーズの攻城戦を始めてよい時刻になったか({@code phases.json} の {@code siegeDelayTicks})。
+     * 待ち時間が 0 なら常に true(= 突入した瞬間に始まる、2026-09-25 までの挙動)。
+     * 待ち時間があるフェーズでは、はじめて呼ばれたときに期限を決めて保存し、そこへ届くまで false を返す。
+     */
+    private boolean siegeDue(ServerLevel overworld, int phase) {
+        if (!DesignData.phases().siegeEnabled(phase)) {
+            return false;
+        }
+        int delay = DesignData.phases().siegeDelayTicks(phase);
+        if (delay <= 0) {
+            return true;
+        }
+        long now = overworld.getGameTime();
+        if (siegeDuePhase != phase) {
+            siegeDuePhase = phase;
+            siegeDueTick = now + delay;
+            setDirty();
+            OvergrownVegetation.LOGGER.info("攻城戦: フェーズ {} の待ち時間 {} tick を数え始めた(開始予定 {})",
+                    phase, delay, siegeDueTick);
+            return false;
+        }
+        return now >= siegeDueTick;
+    }
+
+    /** 攻城戦を始める。進行中・難易度がピースフル({@link #tickPeaceful})なら始めずに false。 */
     public boolean start(ServerLevel level, BlockPos center) {
-        if (active) {
+        if (active || com.yayuy.overgrownvegetation.difficulty.Peaceful.is(level)) {
             return false;
         }
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
@@ -661,6 +717,10 @@ public final class SiegeData extends SavedData {
         this.barrageActive = false;
         this.retaliationShotsLeft = 0;
         setDirty();
+        // 反撃の増援の永続を外す(2026-09-24、ユーザー承認)。以後はグループ4 の普段の規則で消える。
+        // 読み込まれていない個体は、読み込まれたときに EventMobs が同じように外す。
+        com.yayuy.overgrownvegetation.raid.EventMobs.releaseOrigin(level.getServer(),
+                com.yayuy.overgrownvegetation.raid.EventMobs.Kind.SIEGE, null);
         this.bossEvent.removeAllPlayers();
         this.bossEvent.setVisible(false);
         if (killed) {
@@ -818,6 +878,11 @@ public final class SiegeData extends SavedData {
      * 実エンティティの出し入れ・攻撃の段階進行・ボスバー・クライアントへの定期再送だけを行う。
      */
     public void tick(ServerLevel level) {
+        // 倒されて落ちている最中(dying)だけは、ピースフルでも最後まで見せる(演出だけで誰も傷つけない。撃破を無かったことにしない)。
+        if (com.yayuy.overgrownvegetation.difficulty.Peaceful.is(level) && !dying) {
+            tickPeaceful(level);
+            return;
+        }
         // フェーズ昇格による開始待ち(プレイヤー不在で始められなかったぶん)の再挑戦。
         // 進行中でなくても見る必要があるので、active の早期リターンより先に置く。
         if (OvergrownVegetationConfig.COMMON.siegeEnabled.get()) {
@@ -867,6 +932,27 @@ public final class SiegeData extends SavedData {
         int interval = Math.max(1, OvergrownVegetationConfig.COMMON.siegeSyncIntervalTicks.get());
         if (level.getGameTime() % interval == 0L) {
             sync(level);
+        }
+    }
+
+    /**
+     * 難易度ピースフルの間の {@link #tick}({@code difficulty/Peaceful}、2026-09-26)。
+     * <ul>
+     *     <li>進行中の攻城戦は止める(ボスは {@code checkDespawn} を通らないので Peaceful では消えない。反撃の増援は敵なので
+     *     Peaceful が消す)。止めた攻城戦はやり直さない(バニラのレイドがピースフルで止まるのと同じ。仮決め)。</li>
+     *     <li>まだ始まっていないフェーズ昇格の攻城戦は {@link #start} が断る → {@code lastSiegePhase} が進まないので、
+     *     ピースフルを抜けてから {@link #tickPhaseTrigger} が始める。</li>
+     *     <li>待ち時間({@code siegeDelayTicks})を数えている最中なら、期限を 1 tick ずつ後ろへずらして時計を止める
+     *     (ピースフルを抜けた途端に始まらないように)。</li>
+     * </ul>
+     */
+    private void tickPeaceful(ServerLevel level) {
+        if (active) {
+            stop(level, false);
+        }
+        if (siegeDuePhase > 0 && siegeDueTick > level.getGameTime()) {
+            siegeDueTick++;
+            setDirty();
         }
     }
 
@@ -969,6 +1055,10 @@ public final class SiegeData extends SavedData {
             }
             boolean wanted = distance <= closeRange;
             updateAnchor(level, position, wanted);
+            // 2026-09-24 軽量化(報告 1150)の見直し: 湧かせる条件は元の hasChunkAt のまま。updateAnchor が中心の
+            // チャンクだけは今までどおりその場で読み込むので、wanted になったその tick に湧いて entityId が立つ。
+            // entityId は近距離モードの印(closeRange・花のビームの待機判定)も兼ねるので、湧くのを「動けるようになるまで」
+            // 待たせると、その数 tick〜数秒のあいだ遠距離モードのまま(花のビームが近くのプレイヤーを狙う等)になっていた。
             if (wanted && level.hasChunkAt(BlockPos.containing(position))) {
                 spawnBossEntity(level, position);
             }
@@ -1013,8 +1103,38 @@ public final class SiegeData extends SavedData {
         if (anchorChunks.length > 0 && anchorChunkPos == chunk) {
             return;
         }
-        releaseAnchor(level);
-        anchorChunks = RaidChunkLoader.force(level, center, ANCHOR_RADIUS_CHUNKS);
+        // 2026-09-24 軽量化(報告 1150): 以前は 9 チャンクを全部外してから張り直し、新しく入るチャンクを
+        // setChunkForced の中で同期ロード(未生成なら生成まで待つ)していた。今は新しい 3×3 から外れた分だけを外し、
+        // 新しく入る分だけを読み込みを待たずに固定する。最後に「自分が固定している」チャンクの組は張り直していた頃と
+        // 同じになる。ただし<b>中心のチャンクだけは今までどおりその場で読み込む</b>(下の getChunk)。実エンティティは
+        // 中心に湧き、湧いた tick から近距離モードになる(entityId が印)ので、ここを待たせるとモードの切り替えが遅れる。
+        // 同期ロードは最初の 9 → 1 に減る(中心が隣のチャンクへ移るときは、移った先は前の 3×3 の中なので読み込み済み)。
+        int centerX = center.getX() >> 4;
+        int centerZ = center.getZ() >> 4;
+        LongSet forcedNow = level.getForcedChunks();
+        LongArrayList kept = new LongArrayList(anchorChunks.length);
+        LongArrayList dropped = new LongArrayList(anchorChunks.length);
+        for (long key : anchorChunks) {
+            boolean insideNew = Math.abs(ChunkPos.getX(key) - centerX) <= ANCHOR_RADIUS_CHUNKS
+                    && Math.abs(ChunkPos.getZ(key) - centerZ) <= ANCHOR_RADIUS_CHUNKS;
+            // 誰かが /forceload remove で外していたものは自分の分として持ち越さない(下で固定し直す。
+            // 全部外して張り直していた頃と同じ結果)。
+            if (insideNew && forcedNow.contains(key)) {
+                kept.add(key);
+            } else {
+                dropped.add(key);
+            }
+        }
+        RaidChunkLoader.release(level, dropped.toLongArray());
+        // 持ち越した分は固定済みなので forceWithoutLoading は飛ばし、新しく入った分だけが返る。
+        for (long key : RaidChunkLoader.forceWithoutLoading(level, center, ANCHOR_RADIUS_CHUNKS)) {
+            kept.add(key);
+        }
+        // 中心だけ同期で FULL まで読み込む(以前の setChunkForced の getChunk と同じ。読み込み済みならすぐ返る)。
+        // 固定の印を付けた後に呼ぶので、中心が未ロードならこの中でチケットがまとめて反映され、周りの 8 チャンクも
+        // 裏で読み込みが走り出す。これで updateBossEntity の hasChunkAt と爆撃の hasChunkAt が以前と同じ tick に真になる。
+        level.getChunk(centerX, centerZ);
+        anchorChunks = kept.toLongArray();
         anchorChunkPos = chunk;
         setDirty();
     }
@@ -1219,6 +1339,11 @@ public final class SiegeData extends SavedData {
         List<ServerPlayer> candidates = new ArrayList<>();
         for (ServerPlayer player : level.players()) {
             if (player.isSpectator() || !player.isAlive()) {
+                continue;
+            }
+            // 寄生植物装備のプレイヤーは過繁茂側(グループ 6)なので狙わない(2026-10-03)。
+            // ダメージは MobGroupFriendlyFire がすでに落としていたので、直したのは「狙いが向く」ところ。
+            if (com.yayuy.overgrownvegetation.item.PlantArmor.isHost(player)) {
                 continue;
             }
             if (player.position().distanceTo(position) >= minRange) {
@@ -1974,6 +2099,7 @@ public final class SiegeData extends SavedData {
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
         int radius = cfg.siegeTargetMobRadius.get();
         List<LivingEntity> candidates = new ArrayList<>();
+        ObjectOpenHashSet<LivingEntity> seenMobs = new ObjectOpenHashSet<>();
         for (ServerPlayer player : level.players()) {
             if (player.isSpectator() || !player.isAlive()) {
                 continue;
@@ -1989,7 +2115,9 @@ public final class SiegeData extends SavedData {
             for (LivingEntity mob : level.getEntitiesOfClass(LivingEntity.class,
                     player.getBoundingBox().inflate(radius),
                     e -> e.isAlive() && !(e instanceof Player) && canBeHitByBoss(e))) {
-                if (!candidates.contains(mob)) {
+                // 2026-09-24 軽量化(報告 2055): 重複の確認を List#contains(線形)から集合へ。どちらも
+                // Entity#equals / hashCode(エンティティ id)で比べるので結果は同じ。並び順も同じなので、下のシャッフルの乱数も同じ。
+                if (seenMobs.add(mob)) {
                     candidates.add(mob);
                 }
             }

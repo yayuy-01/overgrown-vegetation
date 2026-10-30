@@ -1,6 +1,7 @@
 package com.yayuy.overgrownvegetation.entity;
 
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
+import com.yayuy.overgrownvegetation.swarm.SwarmMember;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.util.DefaultRandomPos;
 import net.minecraft.world.entity.ai.util.LandRandomPos;
@@ -60,6 +61,11 @@ public class InvaderUnstickGoal extends Goal {
         if (!this.mob.isStuck() || this.mob.tickCount < this.nextAllowedTick) {
             return false;
         }
+        // 群れの後続は回り道しない(群れ v2、2026-09-25)。後続の立て直しは足跡のカーソルへの 1 本だけ
+        // (SwarmFollowGoal が札の入れ物を通して引く)。本体の詰まり検知も後続では数えない。
+        if (SwarmMember.isFollower(this.mob)) {
+            return false;
+        }
         if (this.mob.prefersDiggingWhenStuck()) {
             // 掘って抜けるほうが確実(アルボラ)。回り道は譲る。
             return false;
@@ -82,7 +88,8 @@ public class InvaderUnstickGoal extends Goal {
     public boolean canContinueToUse() {
         return this.ticks <= MAX_TICKS
                 && !this.mob.getNavigation().isDone()
-                && this.mob.getActionState() == AbstractOvergrownInvaderEntity.STATE_IDLE;
+                && this.mob.getActionState() == AbstractOvergrownInvaderEntity.STATE_IDLE
+                && !SwarmMember.isFollower(this.mob);
     }
 
     @Override

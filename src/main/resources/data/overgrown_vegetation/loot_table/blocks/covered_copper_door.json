@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "bonus_rolls": 0.0,
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "conditions": [
+            {
+              "block": "overgrown_vegetation:covered_copper_door",
+              "condition": "minecraft:block_state_property",
+              "properties": {
+                "half": "lower"
+              }
+            }
+          ],
+          "name": "overgrown_vegetation:covered_copper_door"
+        }
+      ],
+      "rolls": 1.0
+    }
+  ],
+  "random_sequence": "overgrown_vegetation:blocks/covered_copper_door"
+}

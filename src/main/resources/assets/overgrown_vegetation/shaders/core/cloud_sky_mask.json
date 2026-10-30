@@ -1,0 +1,9 @@
+{
+    "vertex": "overgrown_vegetation:cloud_sky_mask",
+    "fragment": "overgrown_vegetation:cloud_sky_mask",
+    "samplers": [
+        { "name": "MainDepth" }
+    ],
+    "uniforms": [
+    ]
+}

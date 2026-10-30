@@ -28,21 +28,84 @@ public final class ClimaxTable {
         public OvergrownLayer overgrownLayer;
         public DeepConversion deepConversion;
         public Erosion erosion;
+        public CrystalJson crystal;
+        public OresJson ores;
+    }
+
+    /** {@code crystal} 節の生の形(結晶地帯、順 1、2026-10-03)。 */
+    public static final class CrystalJson {
+        public Double regionChance;
+        public Integer spireSpacing;
+        public Double spireChance;
+        public Integer spireMinHeight;
+        public Integer spireMaxHeight;
+        public Double spireMaxRadius;
+        public Double spireMaxTiltDegrees;
+    }
+
+    /**
+     * 結晶地帯の設計値。{@code corruption/OvergrowthRegionMap#isCrystalRegion} と
+     * {@code corruption/EnergyCrystalPlacer} が読む。
+     *
+     * @param regionChance        密林の地域のうち結晶地帯になる割合(0〜1)。地域のくじ(密林・湿地・菌湿地)とは
+     *                            別の乱数で引くので、この値を変えても既存の地域の環境は入れ替わらない
+     * @param spireSpacing        地脈に沿った結晶の候補点の間隔(ブロック)。この大きさの格子に 1 点ずつ候補を置く
+     * @param spireChance         候補点が地脈の上にあったとき、そこに結晶を立てる確率
+     * @param spireMinHeight      結晶の高さの下限(ブロック)
+     * @param spireMaxHeight      結晶の高さの上限(ブロック)。地脈の中心に近いほど高くなる
+     * @param spireMaxRadius      結晶の根元の半径の上限(ブロック)
+     * @param spireMaxTiltDegrees 結晶の傾きの上限(度)
+     */
+    public record Crystal(double regionChance, int spireSpacing, double spireChance, int spireMinHeight,
+                          int spireMaxHeight, double spireMaxRadius, double spireMaxTiltDegrees) {
+    }
+
+    /** {@code ores} 節の生の形(極相の地下の鉱石、順 1、2026-10-03)。 */
+    public static final class OresJson {
+        public OreJson phloemite;
+        public OreJson thylakite;
+        public Integer phloemiteChunkRadius;
+    }
+
+    /** 鉱石 1 種の生の形。 */
+    public static final class OreJson {
+        public Integer veinsPerChunk;
+        public Integer veinSize;
+        public Integer minY;
+        public Integer maxY;
+        public Double peakY;
+    }
+
+    /**
+     * 極相の地下の鉱石 1 種の設計値。{@code corruption/ClimaxOrePlacer} が読む。
+     *
+     * @param veinsPerChunk 1 チャンクに置く鉱脈の数
+     * @param veinSize      鉱脈 1 つの大きさ(置こうとするマス数)
+     * @param minY          高さの下限
+     * @param maxY          高さの上限
+     * @param peakY         いちばん多く出る高さ(三角分布の頂点)
+     */
+    public record Ore(int veinsPerChunk, int veinSize, int minY, int maxY, double peakY) {
     }
 
     public static final class Biome {
         public Integer neighborRadiusChunks;
         public Double minAgeDays;
+        /** 極相化が起き始めるフェーズ(2026-09-26 ユーザー指定 5)。齢からは F1 開始からこのフェーズまでの日数を差し引く。 */
+        public Integer minPhase;
         public Integer checkIntervalTicks;
         public Double daylightBrightness;
         public String plantTint;
         public Boolean naturalSpawns;
+        /** 縁からの深さ d で湧きの重みを変えるときの下限(順 1 の着手順 10。{@code phase/OvergrowthDepth})。 */
+        public Double depthSpawnFloor;
     }
 
     /** {@code deepConversion} 節の生の形。 */
     public static final class DeepConversion {
         public Boolean enabled;
         public Integer blocksPerTick;
+        public Boolean plants;
     }
 
     /** {@code overgrownLayer} 節の生の形。 */
@@ -105,15 +168,22 @@ public final class ClimaxTable {
 
     private final int neighborRadiusChunks;
     private final long minAgeTicks;
+    private final int minPhase;
     private final int checkIntervalTicks;
     private final boolean naturalSpawns;
+    private final double depthSpawnFloor;
     private final float daylightBrightness;
     private final LeyVein leyVein;
     private final double overgrownLayerChance;
     private final boolean encase;
     private final boolean deepConversion;
     private final int deepConversionBlocksPerTick;
+    private final boolean deepConversionPlants;
     private final int plantTint;
+    private final Crystal crystal;
+    private final Ore phloemiteOre;
+    private final Ore thylakiteOre;
+    private final int phloemiteChunkRadius;
 
     private final int gainIntervalTicks;
     private final double gainPerInterval;
@@ -145,13 +215,16 @@ public final class ClimaxTable {
         Carrier carrier = deep.carrier != null ? deep.carrier : new Carrier();
         Render render = deep.render != null ? deep.render : new Render();
 
+        // 12(順 1 の着手順 10 で 8 → 12、正方形 → 円。ユーザー指定 2026-10-03)。縁からの深さ d の上限も同じ数
         this.neighborRadiusChunks = biome.neighborRadiusChunks != null
-                ? Math.max(0, Math.min(32, biome.neighborRadiusChunks)) : 8;
+                ? Math.max(0, Math.min(32, biome.neighborRadiusChunks)) : 12;
         double days = biome.minAgeDays != null ? Math.max(0.0D, biome.minAgeDays) : 14.0D;
         this.minAgeTicks = (long) (days * 24000.0D);
+        this.minPhase = biome.minPhase != null ? Math.max(0, Math.min(PhaseTable.MAX_PHASE, biome.minPhase)) : 5;
         this.checkIntervalTicks = biome.checkIntervalTicks != null
                 ? Math.max(1, biome.checkIntervalTicks) : 200;
         this.naturalSpawns = biome.naturalSpawns != null && biome.naturalSpawns;
+        this.depthSpawnFloor = clamp01(biome.depthSpawnFloor, 0.15D);
         this.daylightBrightness = (float) clamp01(biome.daylightBrightness, 0.2D);
         this.plantTint = parseHex(biome.plantTint, 0xAEBDB6);
 
@@ -170,6 +243,25 @@ public final class ClimaxTable {
         this.deepConversion = deepConv.enabled == null || deepConv.enabled;
         this.deepConversionBlocksPerTick = deepConv.blocksPerTick != null
                 ? Math.max(256, Math.min(65536, deepConv.blocksPerTick)) : 4096;
+        this.deepConversionPlants = deepConv.plants == null || deepConv.plants;
+
+        // 結晶地帯と極相の地下の鉱石(順 1、2026-10-03)。既定値は design/climax.json と揃えること
+        // (run/config の写しには古い climax.json が残るので、そこに無い節はここの既定値がそのまま効く)。
+        CrystalJson cry = src.crystal != null ? src.crystal : new CrystalJson();
+        int minH = cry.spireMinHeight != null ? Math.max(2, Math.min(48, cry.spireMinHeight)) : 6;
+        int maxH = cry.spireMaxHeight != null ? Math.max(minH, Math.min(48, cry.spireMaxHeight)) : Math.max(minH, 20);
+        this.crystal = new Crystal(
+                clamp01(cry.regionChance, 0.25D),
+                cry.spireSpacing != null ? Math.max(3, Math.min(32, cry.spireSpacing)) : 7,
+                clamp01(cry.spireChance, 0.55D),
+                minH, maxH,
+                cry.spireMaxRadius != null ? Math.max(0.6D, Math.min(6.0D, cry.spireMaxRadius)) : 2.5D,
+                cry.spireMaxTiltDegrees != null ? Math.max(0.0D, Math.min(60.0D, cry.spireMaxTiltDegrees)) : 25.0D);
+        OresJson ores = src.ores != null ? src.ores : new OresJson();
+        this.phloemiteOre = ore(ores.phloemite);
+        this.thylakiteOre = ore(ores.thylakite);
+        this.phloemiteChunkRadius = ores.phloemiteChunkRadius != null
+                ? Math.max(0, Math.min(4, ores.phloemiteChunkRadius)) : 1;
 
         this.gainIntervalTicks = deep.gainIntervalTicks != null ? Math.max(1, deep.gainIntervalTicks) : 1200;
         this.gainPerInterval = deep.gainPerInterval != null ? Math.max(0.0D, deep.gainPerInterval) : 1.0D;
@@ -199,6 +291,18 @@ public final class ClimaxTable {
                 ? Math.max(1.0D, Math.min(1.5D, render.overlayScale)) : 1.02D;
     }
 
+    /** 鉱石 1 種。既定は「鉄と同じくらい」(ユーザー指定)= 1 チャンク 10 脈 × 9 マス、y −30〜40、y 17.5 が最多。 */
+    private static Ore ore(OreJson o) {
+        OreJson src = o != null ? o : new OreJson();
+        int minY = src.minY != null ? Math.max(-64, Math.min(319, src.minY)) : -30;
+        int maxY = src.maxY != null ? Math.max(minY, Math.min(319, src.maxY)) : Math.max(minY, 40);
+        double peak = src.peakY != null ? src.peakY : 17.5D;
+        return new Ore(
+                src.veinsPerChunk != null ? Math.max(0, Math.min(64, src.veinsPerChunk)) : 10,
+                src.veinSize != null ? Math.max(1, Math.min(32, src.veinSize)) : 9,
+                minY, maxY, Math.max(minY, Math.min(maxY, peak)));
+    }
+
     private static double clamp01(Double value, double fallback) {
         return value != null ? Math.max(0.0D, Math.min(1.0D, value)) : fallback;
     }
@@ -218,14 +322,29 @@ public final class ClimaxTable {
 
     // --- biome ---
 
-    /** 極相になるために「周囲がすべて過繁茂以上」である必要のある半径(チャンク)。既定 8 = 17×17。 */
+    /**
+     * 極相になるために「周囲がすべて過繁茂以上」である必要のある半径(チャンク)。既定 12。<b>円で測る</b>
+     * ({@code dx² + dz² <= 半径²}。12 なら自分を含めて 441 チャンク)。縁からの深さ d の上限も同じ数。
+     */
     public int neighborRadiusChunks() {
         return neighborRadiusChunks;
     }
 
-    /** 過繁茂になってから極相になるまでに必要な時間(tick)。既定 14 日 = 336000。 */
+    /**
+     * 過繁茂になってから極相になるまでに必要な時間(tick)。既定 14 日 = 336000。
+     * 実際の判定では、ここに「F1 開始から {@link #minPhase} に着くまでの日数」が足される
+     * ({@code PhaseData#climaxAgeOffsetTicks}、2026-09-26)。
+     */
     public long minAgeTicks() {
         return minAgeTicks;
+    }
+
+    /**
+     * 極相化が起き始めるフェーズ。既定 5(2026-09-26 ユーザー指定)。1 以下にすると差し引きも無くなり、以前と同じ
+     * 「過繁茂になってから {@link #minAgeTicks}」になる。
+     */
+    public int minPhase() {
+        return minPhase;
     }
 
     /** 極相化の判定を回す間隔(tick)。 */
@@ -238,9 +357,40 @@ public final class ClimaxTable {
         return naturalSpawns;
     }
 
+    /**
+     * 縁からの深さ d による湧きの重みの下限(0〜1、既定 0.15。ユーザー承認 2026-10-03)。
+     * 0 にすると縁が「侵略者だけの土地」、奥が「環境生物だけの土地」になる。{@code phase/OvergrowthDepth}。
+     */
+    public double depthSpawnFloor() {
+        return depthSpawnFloor;
+    }
+
     /** 地脈の場の設計値。 */
     public LeyVein leyVein() {
         return leyVein;
+    }
+
+    /** 結晶地帯の設計値(順 1、2026-10-03)。 */
+    public Crystal crystal() {
+        return crystal;
+    }
+
+    /** フロエマイト(地脈の鉱石)の設計値。 */
+    public Ore phloemiteOre() {
+        return phloemiteOre;
+    }
+
+    /** チラコイト(結晶地帯の鉱石)の設計値。 */
+    public Ore thylakiteOre() {
+        return thylakiteOre;
+    }
+
+    /**
+     * フロエマイトを置く範囲: 地脈のあるチャンクから何チャンク以内か(既定 1 = 地脈のチャンクを中心に 3×3、
+     * ユーザー指定)。
+     */
+    public int phloemiteChunkRadius() {
+        return phloemiteChunkRadius;
     }
 
     /**
@@ -283,6 +433,18 @@ public final class ClimaxTable {
      */
     public int deepConversionBlocksPerTick() {
         return deepConversionBlocksPerTick;
+    }
+
+    /**
+     * 全層置換で<b>植物も生やす</b>か(2026-09-28、要望)。置き換えたブロックのうち空気に接している面へ、
+     * 通常の汚染とまったく同じ経路({@code CorruptionSpreader#growSurfacePlants})で下草・蔦・苔、
+     * 洞窟なら洞窟植物と構造物を生やす。
+     *
+     * <p>これが無いと、地下の洞窟が<b>のっぺりした過繫茂ブロックの空洞</b>になる ——
+     * 地表の汚染や深部浸食で汚染された洞窟には植物が生えるので、同じ極相の地下で見た目が食い違っていた。
+     */
+    public boolean deepConversionPlants() {
+        return deepConversionPlants;
     }
 
     /**
@@ -412,7 +574,7 @@ public final class ClimaxTable {
         return overlayScale;
     }
 
-    static ClimaxTable fromJson(Json j) {
+    public static ClimaxTable fromJson(Json j) {
         return new ClimaxTable(j);
     }
 

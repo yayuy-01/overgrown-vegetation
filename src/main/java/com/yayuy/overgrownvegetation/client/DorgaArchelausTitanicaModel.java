@@ -65,6 +65,30 @@ public class DorgaArchelausTitanicaModel<T extends TitanicaAnimatable> extends G
     private static final String[] DORSAL_TENTACLE = {"bone104", "bone92", "bone93", "bone94", "bone95", "bone96", "bone97"};
     private static final int TENTACLE_LINKS = 7;
 
+    /*
+     * 2026-09-24 軽量化(監査 1373): 骨の名前は毎フレーム "hida" + k / "bone" + 番号 で組み立てていた
+     * (1 フレーム約 140 回の文字列連結)ので、同じ名前を最初に 1 回だけ作っておく。骨そのものは
+     * 今までどおり毎フレーム名前で引く(モデルを焼き直すと骨が入れ替わるので、参照は持たない)。
+     */
+    /** ヒレ k 対目(添字 k-1)の +X 側の骨名。 */
+    private static final String[] FIN_RIGHT = new String[FIN_PAIRS];
+    /** ヒレ k 対目(添字 k-1)の -X 側の骨名。 */
+    private static final String[] FIN_LEFT = new String[FIN_PAIRS];
+    /** 触手 c 本目の k 節目の骨名。 */
+    private static final String[][] TENTACLE_NAMES = new String[TENTACLE_BASES.length][TENTACLE_LINKS];
+
+    static {
+        for (int k = 1; k <= FIN_PAIRS; k++) {
+            FIN_RIGHT[k - 1] = k == 1 ? "hida" : "hida" + k;
+            FIN_LEFT[k - 1] = "hida" + (21 - k);
+        }
+        for (int c = 0; c < TENTACLE_BASES.length; c++) {
+            for (int k = 0; k < TENTACLE_LINKS; k++) {
+                TENTACLE_NAMES[c][k] = "bone" + (TENTACLE_BASES[c] + k);
+            }
+        }
+    }
+
     /** ヒレの羽ばたきの振幅(rad)。 */
     private static final float FIN_AMPLITUDE = 0.22F;
     /** 胴のうねり(1 節あたり rad)。 */
@@ -105,12 +129,18 @@ public class DorgaArchelausTitanicaModel<T extends TitanicaAnimatable> extends G
         float yawStep = (float) Math.toRadians(ClientSiegeBoss.neckYaw(partialTick) / TitanicaKinematics.NECK_LINKS);
         float pitchStep = (float) Math.toRadians(ClientSiegeBoss.neckPitch(partialTick) / TitanicaKinematics.NECK_LINKS);
         for (String name : NECK) {
-            getBone(name).ifPresent(bone -> {
+            GeoBone bone = bone(name);
+            if (bone != null) {
                 BoneSnapshot rest = bone.getInitialSnapshot();
                 bone.setRotY(rest.getRotY() - yawStep);
                 bone.setRotX(rest.getRotX() - pitchStep);
-            });
+            }
         }
+    }
+
+    /** 名前で骨を引く({@link #getBone} と同じだが Optional とラムダを作らない。無ければ {@code null})。 */
+    private GeoBone bone(String name) {
+        return getAnimationProcessor().getBone(name);
     }
 
     /**
@@ -121,26 +151,34 @@ public class DorgaArchelausTitanicaModel<T extends TitanicaAnimatable> extends G
     private void applyFins(float t) {
         for (int k = 1; k <= FIN_PAIRS; k++) {
             float flap = (float) Math.sin(t * 0.085F - k * 0.55F) * FIN_AMPLITUDE;
-            String right = k == 1 ? "hida" : "hida" + k;
-            String left = "hida" + (21 - k);
-            getBone(right).ifPresent(bone -> bone.setRotZ(bone.getInitialSnapshot().getRotZ() + flap));
-            getBone(left).ifPresent(bone -> bone.setRotZ(bone.getInitialSnapshot().getRotZ() - flap));
+            GeoBone right = bone(FIN_RIGHT[k - 1]);
+            if (right != null) {
+                right.setRotZ(right.getInitialSnapshot().getRotZ() + flap);
+            }
+            GeoBone left = bone(FIN_LEFT[k - 1]);
+            if (left != null) {
+                left.setRotZ(left.getInitialSnapshot().getRotZ() - flap);
+            }
         }
     }
 
     private void applySpineAndTail(float t) {
         for (int i = 0; i < SPINE.length; i++) {
             float yaw = (float) Math.sin(t * 0.030F - i * 0.35F) * SPINE_AMPLITUDE;
-            getBone(SPINE[i]).ifPresent(bone -> bone.setRotY(bone.getInitialSnapshot().getRotY() + yaw));
+            GeoBone bone = bone(SPINE[i]);
+            if (bone != null) {
+                bone.setRotY(bone.getInitialSnapshot().getRotY() + yaw);
+            }
         }
         for (int i = 0; i < TAIL.length; i++) {
             float yaw = (float) Math.sin(t * 0.045F - i * 0.45F) * TAIL_AMPLITUDE;
             float pitch = (float) Math.sin(t * 0.032F - i * 0.30F + 1.1F) * TAIL_AMPLITUDE * 0.35F;
-            getBone(TAIL[i]).ifPresent(bone -> {
+            GeoBone bone = bone(TAIL[i]);
+            if (bone != null) {
                 BoneSnapshot rest = bone.getInitialSnapshot();
                 bone.setRotY(rest.getRotY() + yaw);
                 bone.setRotX(rest.getRotX() + pitch);
-            });
+            }
         }
     }
 
@@ -148,8 +186,9 @@ public class DorgaArchelausTitanicaModel<T extends TitanicaAnimatable> extends G
     private void applyTentacles(float t) {
         for (int c = 0; c < TENTACLE_BASES.length; c++) {
             float chainPhase = c * 0.9F;
+            String[] names = TENTACLE_NAMES[c];
             for (int k = 0; k < TENTACLE_LINKS; k++) {
-                swayLink("bone" + (TENTACLE_BASES[c] + k), t, chainPhase, k);
+                swayLink(names[k], t, chainPhase, k);
             }
         }
         for (int k = 0; k < DORSAL_TENTACLE.length; k++) {
@@ -160,10 +199,11 @@ public class DorgaArchelausTitanicaModel<T extends TitanicaAnimatable> extends G
     private void swayLink(String name, float t, float chainPhase, int k) {
         float x = (float) Math.sin(t * 0.07F + chainPhase + k * 0.6F) * TENTACLE_AMPLITUDE;
         float z = (float) Math.sin(t * 0.05F + chainPhase * 1.3F + k * 0.5F) * TENTACLE_AMPLITUDE * 0.7F;
-        getBone(name).ifPresent(bone -> {
+        GeoBone bone = bone(name);
+        if (bone != null) {
             BoneSnapshot rest = bone.getInitialSnapshot();
             bone.setRotX(rest.getRotX() + x);
             bone.setRotZ(rest.getRotZ() + z);
-        });
+        }
     }
 }

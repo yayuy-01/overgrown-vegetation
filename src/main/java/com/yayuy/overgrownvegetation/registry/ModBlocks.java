@@ -19,8 +19,7 @@ import com.yayuy.overgrownvegetation.block.CorruptedWaterColumnBlock;
 import com.yayuy.overgrownvegetation.block.CorruptedWaterColumnFlowerBlock;
 import com.yayuy.overgrownvegetation.block.CorruptedWaterGrowthBlock;
 import com.yayuy.overgrownvegetation.block.GeoCorruptedCorpseBlock;
-import com.yayuy.overgrownvegetation.block.OrganNodeBlock;
-import com.yayuy.overgrownvegetation.block.SporeGlandBlock;
+import com.yayuy.overgrownvegetation.block.InertBlock;
 import com.yayuy.overgrownvegetation.block.LithopleuraHuskBlock;
 import com.yayuy.overgrownvegetation.block.GiantOvergrownSaplingBlock;
 import com.yayuy.overgrownvegetation.block.OvergrownBushBlock;
@@ -37,7 +36,9 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.util.valueproviders.UniformInt;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.DropExperienceBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.FenceBlock;
 import net.minecraft.world.level.block.RotatedPillarBlock;
@@ -172,14 +173,16 @@ public final class ModBlocks {
     // ------------------------------------------------------------------
 
     /** ダイヤモンド鉱石 → 苔に覆われたダイヤモンド鉱石。 */
-    public static final DeferredBlock<Block> OVERGROWN_DIAMOND_ORE = BLOCKS.registerSimpleBlock(
+    public static final DeferredBlock<Block> OVERGROWN_DIAMOND_ORE = BLOCKS.registerBlock(
             "overgrown_diamond_ore",
+            props -> new DropExperienceBlock(UniformInt.of(3, 7), props),
             BlockBehaviour.Properties.ofFullCopy(Blocks.DIAMOND_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** 深層岩の石炭鉱石 → 苔に覆われた深層岩の石炭鉱石。 */
-    public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_COAL_ORE = BLOCKS.registerSimpleBlock(
+    public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_COAL_ORE = BLOCKS.registerBlock(
             "overgrown_deepslate_coal_ore",
+            props -> new DropExperienceBlock(UniformInt.of(0, 2), props),
             BlockBehaviour.Properties.ofFullCopy(Blocks.DEEPSLATE_COAL_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
@@ -190,14 +193,16 @@ public final class ModBlocks {
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** 深層岩のダイヤモンド鉱石 → 苔に覆われた深層岩のダイヤモンド鉱石。 */
-    public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_DIAMOND_ORE = BLOCKS.registerSimpleBlock(
+    public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_DIAMOND_ORE = BLOCKS.registerBlock(
             "overgrown_deepslate_diamond_ore",
+            props -> new DropExperienceBlock(UniformInt.of(3, 7), props),
             BlockBehaviour.Properties.ofFullCopy(Blocks.DEEPSLATE_DIAMOND_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** 深層岩のエメラルド鉱石 → 苔に覆われた深層岩のエメラルド鉱石。 */
-    public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_EMERALD_ORE = BLOCKS.registerSimpleBlock(
+    public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_EMERALD_ORE = BLOCKS.registerBlock(
             "overgrown_deepslate_emerald_ore",
+            props -> new DropExperienceBlock(UniformInt.of(3, 7), props),
             BlockBehaviour.Properties.ofFullCopy(Blocks.DEEPSLATE_EMERALD_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
@@ -214,8 +219,9 @@ public final class ModBlocks {
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** 深層岩のラピスラズリ鉱石 → 苔に覆われた深層岩のラピスラズリ鉱石。 */
-    public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_LAPIS_ORE = BLOCKS.registerSimpleBlock(
+    public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_LAPIS_ORE = BLOCKS.registerBlock(
             "overgrown_deepslate_lapis_ore",
+            props -> new DropExperienceBlock(UniformInt.of(2, 5), props),
             BlockBehaviour.Properties.ofFullCopy(Blocks.DEEPSLATE_LAPIS_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
@@ -226,9 +232,13 @@ public final class ModBlocks {
      * このブロックはそのプロパティを持たない単純な Block なので、
      * ofFullCopy で引き継がれる発光関数を明示的に上書き(常時消灯)しないと
      * ブロック状態生成時に IllegalArgumentException で起動クラッシュする。
+     *
+     * <p>同じく写ってくる「ランダムティックを受ける」印は {@link InertBlock} で外す
+     * (randomTick は空なので何も変わらない。2026-09-24 軽量化、報告 2022)。
      */
-    public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_REDSTONE_ORE = BLOCKS.registerSimpleBlock(
+    public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_REDSTONE_ORE = BLOCKS.registerBlock(
             "overgrown_deepslate_redstone_ore",
+            props -> new InertBlock(props, UniformInt.of(1, 5)),
             BlockBehaviour.Properties.ofFullCopy(Blocks.DEEPSLATE_REDSTONE_ORE)
                     .mapColor(MapColor.COLOR_GREEN)
                     .lightLevel((BlockState state) -> 0));
@@ -238,8 +248,9 @@ public final class ModBlocks {
     // ------------------------------------------------------------------
 
     /** 石炭鉱石 → 苔に覆われた石炭鉱石。 */
-    public static final DeferredBlock<Block> OVERGROWN_COAL_ORE = BLOCKS.registerSimpleBlock(
+    public static final DeferredBlock<Block> OVERGROWN_COAL_ORE = BLOCKS.registerBlock(
             "overgrown_coal_ore",
+            props -> new DropExperienceBlock(UniformInt.of(0, 2), props),
             BlockBehaviour.Properties.ofFullCopy(Blocks.COAL_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
@@ -250,8 +261,9 @@ public final class ModBlocks {
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** エメラルド鉱石 → 苔に覆われたエメラルド鉱石。 */
-    public static final DeferredBlock<Block> OVERGROWN_EMERALD_ORE = BLOCKS.registerSimpleBlock(
+    public static final DeferredBlock<Block> OVERGROWN_EMERALD_ORE = BLOCKS.registerBlock(
             "overgrown_emerald_ore",
+            props -> new DropExperienceBlock(UniformInt.of(3, 7), props),
             BlockBehaviour.Properties.ofFullCopy(Blocks.EMERALD_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
@@ -268,8 +280,9 @@ public final class ModBlocks {
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** ラピスラズリ鉱石 → 苔に覆われたラピスラズリ鉱石。 */
-    public static final DeferredBlock<Block> OVERGROWN_LAPIS_ORE = BLOCKS.registerSimpleBlock(
+    public static final DeferredBlock<Block> OVERGROWN_LAPIS_ORE = BLOCKS.registerBlock(
             "overgrown_lapis_ore",
+            props -> new DropExperienceBlock(UniformInt.of(2, 5), props),
             BlockBehaviour.Properties.ofFullCopy(Blocks.LAPIS_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
@@ -278,9 +291,11 @@ public final class ModBlocks {
      *
      * <p>OVERGROWN_DEEPSLATE_REDSTONE_ORE と同じ理由で、
      * LIT プロパティに依存する発光ロジックを明示的に上書きする必要がある。
+     * ランダムティックの印も同じ理由で {@link InertBlock} が外す(2026-09-24 軽量化、報告 2022)。
      */
-    public static final DeferredBlock<Block> OVERGROWN_REDSTONE_ORE = BLOCKS.registerSimpleBlock(
+    public static final DeferredBlock<Block> OVERGROWN_REDSTONE_ORE = BLOCKS.registerBlock(
             "overgrown_redstone_ore",
+            props -> new InertBlock(props, UniformInt.of(1, 5)),
             BlockBehaviour.Properties.ofFullCopy(Blocks.REDSTONE_ORE)
                     .mapColor(MapColor.COLOR_GREEN)
                     .lightLevel((BlockState state) -> 0));
@@ -297,6 +312,54 @@ public final class ModBlocks {
             OvergrownSandBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.SAND)
                     .mapColor(MapColor.COLOR_GREEN));
+
+    /**
+     * ネザーラック・真紅/歪んだナイリウム → 過繁茂しているネザーラック(2026-10-02 ユーザー指定:
+     * ナイリウムのようにネザーラックに草が生えたもの)。ポータルを越えてネザーへ広がった侵食の地面。
+     */
+    public static final DeferredBlock<Block> OVERGROWN_NETHERRACK = BLOCKS.registerSimpleBlock(
+            "overgrown_netherrack",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.NETHERRACK)
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .sound(SoundType.NYLIUM));
+
+    /**
+     * ソウルサンド → 植物の生えたソウルサンド(2026-10-02 ユーザー指定)。ソウルサンドのような減速は無く、普通のブロックと同じ扱い
+     * (ユーザー指定: 足が遅くならない・ソウルスピードやソウルファイアの対象にもしない)。形も普通の立方体。
+     */
+    public static final DeferredBlock<Block> OVERGROWN_SOUL_SAND = BLOCKS.registerSimpleBlock(
+            "overgrown_soul_sand",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.SOUL_SAND)
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .speedFactor(1.0F));
+
+    /**
+     * エンドストーン → 植物の生えたエンドストーン(2026-10-02)。森がエンドへ着いたときに本島の地面になる({@code corruption/EndOvergrowth})。
+     * エンダードラゴンが削れないよう {@code #minecraft:dragon_immune} に入れてある(エンドストーンと同じ)。
+     */
+    public static final DeferredBlock<Block> OVERGROWN_END_STONE = BLOCKS.registerSimpleBlock(
+            "overgrown_end_stone",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.END_STONE)
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .sound(SoundType.NYLIUM));
+
+    /** ソウルソイル → 植物の生えたソウルソイル(2026-10-02 ユーザー指定)。 */
+    public static final DeferredBlock<Block> OVERGROWN_SOUL_SOIL = BLOCKS.registerSimpleBlock(
+            "overgrown_soul_soil",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.SOUL_SOIL)
+                    .mapColor(MapColor.COLOR_GREEN));
+
+    /**
+     * 汚染されたエンドポータルの枠(2026-10-02 ユーザー指定)。目の代わりに光る植物の腫瘍がはまっていて、
+     * ポータルを無理やり開いている。壊せない(元の枠と同じ)。手に入らないので BlockItem は作らない
+     * ({@code displayOrder()} に入れない)。
+     */
+    public static final DeferredBlock<Block> OVERGROWN_END_PORTAL_FRAME = BLOCKS.registerBlock(
+            "overgrown_end_portal_frame",
+            com.yayuy.overgrownvegetation.block.OvergrownEndPortalFrameBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.END_PORTAL_FRAME)
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .lightLevel(state -> 0)); // 光は模型の面の発光だけ(2026-10-23、光の更新を増やさない)
 
     /** 砂利 → 汚染された砂利。 */
     public static final DeferredBlock<Block> OVERGROWN_GRAVEL = BLOCKS.registerSimpleBlock(
@@ -361,58 +424,53 @@ public final class ModBlocks {
                     // 光量は 0 のまま。光って見えるのはモデルの自己発光だけで、周りは照らさない。
                     .sound(SoundType.STONE));
 
-    /**
-     * <b>器官の節</b>(2026-09-23、要望)。器官はここから生える。
-     * <b>節が器官そのもの</b>で、立ち上がる塔はその体にすぎない ——
-     * 世界への効きも、潰したときの手応えも、すべてこのブロックが握っている。
-     *
-     * <p><b>硬い。</b> 器官を潰すのは遠征であってほしいので、正しい道具でもしばらくかかる。
-     * 爆発耐性を高くしてあるのは、TNT を投げ込んで遠くから終わらせられないようにするため。
-     * 節は体の根元の塊に埋まっているので、辿り着くには掘る必要がある
-     * (その途中で腺に触る)。
-     */
-    public static final DeferredBlock<Block> ORGAN_NODE = BLOCKS.registerBlock(
-            "organ_node",
-            OrganNodeBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.STONE)
-                    .mapColor(MapColor.COLOR_PURPLE)
+    /** <b>風見</b>(2026-10-23 胞子の場と風 第 2 段 H)。羽根が卓越風の吹いてくる方を指す。人類側の道具(つるはし・石以上)。 */
+    public static final DeferredBlock<Block> WIND_VANE = BLOCKS.registerBlock(
+            "wind_vane",
+            com.yayuy.overgrownvegetation.block.WindVaneBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .strength(2.0F, 6.0F)
                     .requiresCorrectToolForDrops()
-                    .strength(18.0F, 1200.0F)
-                    // 光量は 0 のまま。光って見えるのはモデルの自己発光だけ(地脈と同じ)。
-                    .sound(SoundType.SCULK));
+                    .noOcclusion()
+                    .sound(SoundType.LANTERN));
 
     /**
-     * <b>器官の蔦</b>(2026-09-23、要望)。器官の体を編んでいる主材。
-     * 汚染ブロックと混ぜて三つ編みの筋になる({@code organ/shape/SporeGlandTower})。
-     *
-     * <p>体は<b>節より柔らかい</b> —— 削って節まで掘り進めるようにするため。
-     * 時間が掛かるのは掘る手間ではなく、表面に点在する腺
-     * ({@link com.yayuy.overgrownvegetation.block.SporeGlandBlock})のほう。
+     * <b>根付いた萌芽体</b>(2026-10-23 胞子の場と風 第 2 段 F)。萌芽体が湿った所で根を下ろした姿。胞子を噴き、まわりへ汚染の根を伸ばす。
+     * 柔らかい(素手ですぐ壊せる)。壊すとその升の萌芽体の数が 1 減る。
      */
-    public static final DeferredBlock<Block> ORGAN_VINE = BLOCKS.registerBlock(
-            "organ_vine",
-            Block::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.STONE)
-                    .mapColor(MapColor.PLANT)
-                    .strength(2.5F, 6.0F)
-                    .sound(SoundType.VINE));
+    public static final DeferredBlock<Block> BLIGHT_FERN_ROOTED = BLOCKS.registerBlock(
+            "blight_fern_rooted",
+            com.yayuy.overgrownvegetation.block.BlightFernRootedBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .noCollission()
+                    .instabreak()
+                    .noOcclusion()
+                    .sound(SoundType.WET_GRASS)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
 
-    /**
-     * <b>胞子腺</b> —— 器官の表面に点在する腺(2026-09-23、要望)。
-     * 器官そのものではなく、体の表面に浮いた吹き出し口。塔の先端のものが胞子を噴く。
-     *
-     * <p><b>壊すと浴びる。</b> 毒・吐き気・盲目・空腹5・胞子感染2・採掘速度低下 の
-     * 6 つから重複なしで 2 つ(既定)が掛かる —— 節まで掘る道のりに値段を付けるもの。
-     * 柔らかいのはわざと。硬いと「避けて通る」しか答えが無くなる。
-     */
-    public static final DeferredBlock<Block> SPORE_GLAND = BLOCKS.registerBlock(
-            "spore_gland",
-            SporeGlandBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.STONE)
-                    .mapColor(MapColor.COLOR_PURPLE)
-                    .strength(1.5F, 6.0F)
-                    // 光量は 0 のまま。光って見えるのはモデルの自己発光だけ(地脈と同じ)。
-                    .sound(SoundType.SCULK));
+    /** <b>根付いた寄生体</b>(G1 の作り直し 第 1 段、2026-10-22)。司令塔が「根付き」を選んだ G1 が汚染し終えた後の姿。 */
+    public static final DeferredBlock<Block> ROOTED_PARASITE = BLOCKS.registerBlock(
+            "rooted_parasite",
+            com.yayuy.overgrownvegetation.block.RootedParasiteBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BROWN)
+                    .strength(0.8F)
+                    .noOcclusion()
+                    .sound(SoundType.ROOTED_DIRT)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+
+    /** <b>苗床</b>(G1 の作り直し 第 1 段、2026-10-22)。司令塔が「苗床」を選んだ G1 が湿った暗い場所で変わった姿。萌芽体を生む。 */
+    public static final DeferredBlock<Block> PARASITE_NURSERY = BLOCKS.registerBlock(
+            "parasite_nursery",
+            com.yayuy.overgrownvegetation.block.ParasiteNurseryBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .strength(1.0F)
+                    .noOcclusion()
+                    .sound(SoundType.WET_GRASS)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
 
     /**
      * <b>覆われて動かなくなったブロック</b>(2026-09-22、要望)。汚染の対応表に無い
@@ -491,8 +549,64 @@ public final class ModBlocks {
                     .mapColor(MapColor.TERRACOTTA_ORANGE)
                     .requiresCorrectToolForDrops()
                     .strength(4.5F, 4.5F)
-                    .lightLevel(state -> 4)
+                    .lightLevel(state -> 0) // 結晶の筋は模型の面の発光(2026-10-23)
                     .isValidSpawn(ModBlocks::noGiantTreeSpawn));
+
+    // ------------------------------------------------------------------
+    // 極相の地下にだけ生まれる鉱石(順 1、2026-10-03 ユーザー指定)。
+    // ワールド生成では置かない —— 極相の全層置換を終えたチャンクへ
+    // {@code corruption/ClimaxOrePlacer} が置く。だから地は苔石・苔深層岩で、
+    // 深さで 2 種に分けてある(y 0 より下は深層岩版)。
+    // ------------------------------------------------------------------
+
+    /** 「フロエマイト鉱石」。地脈のあるチャンクを中心に 3×3 チャンクの極相の地下にできる。掘ると原石。 */
+    public static final DeferredBlock<Block> PHLOEMITE_ORE = BLOCKS.registerSimpleBlock(
+            "phloemite_ore",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.STONE)
+                    .mapColor(MapColor.COLOR_CYAN)
+                    .requiresCorrectToolForDrops()
+                    .strength(3.5F, 3.5F));
+
+    /** 「深層岩フロエマイト鉱石」。{@link #PHLOEMITE_ORE} の y 0 より下の版。 */
+    public static final DeferredBlock<Block> DEEPSLATE_PHLOEMITE_ORE = BLOCKS.registerSimpleBlock(
+            "deepslate_phloemite_ore",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.DEEPSLATE)
+                    .mapColor(MapColor.COLOR_CYAN)
+                    .requiresCorrectToolForDrops()
+                    .strength(5.0F, 3.5F));
+
+    /** 「チラコイト鉱石」。結晶地帯(極相の密林の一部)の地下にだけできる。掘ると原石。 */
+    public static final DeferredBlock<Block> THYLAKITE_ORE = BLOCKS.registerSimpleBlock(
+            "thylakite_ore",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.STONE)
+                    .mapColor(MapColor.EMERALD)
+                    .requiresCorrectToolForDrops()
+                    .strength(3.5F, 3.5F)
+                    .lightLevel(state -> 0)); // 結晶の筋は模型の面の発光(2026-10-23)
+
+    /** 「深層岩チラコイト鉱石」。{@link #THYLAKITE_ORE} の y 0 より下の版。 */
+    public static final DeferredBlock<Block> DEEPSLATE_THYLAKITE_ORE = BLOCKS.registerSimpleBlock(
+            "deepslate_thylakite_ore",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.DEEPSLATE)
+                    .mapColor(MapColor.EMERALD)
+                    .requiresCorrectToolForDrops()
+                    .strength(5.0F, 3.5F)
+                    .lightLevel(state -> 0)); // 結晶の筋は模型の面の発光(2026-10-23)
+
+    /**
+     * 「エネルギー結晶」(順 1、2026-10-03)。結晶地帯の極相で、地脈に沿って突き出す大きな結晶の体
+     * ({@code corruption/EnergyCrystalPlacer})。<b>飾り</b>で、掘るとそのまま落ちる
+     * (素材のチラコイトは地下の鉱石から採る)。
+     *
+     * <p>光量は 0。光って見えるのはモデルの自己発光だけで周りは照らさない —— 地脈と同じ扱いで、
+     * 極相の暗さ({@code climax.json} の {@code daylightBrightness})を壊さないため。
+     */
+    public static final DeferredBlock<Block> ENERGY_CRYSTAL = BLOCKS.registerSimpleBlock(
+            "energy_crystal",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.AMETHYST_BLOCK)
+                    .mapColor(MapColor.EMERALD)
+                    .requiresCorrectToolForDrops()
+                    .strength(1.5F, 6.0F));
 
     // ------------------------------------------------------------------
     // 素材の保管ブロック(9 個 ⇄ 1 ブロック)。汚染ブロックではないので
@@ -515,15 +629,63 @@ public final class ModBlocks {
             BlockBehaviour.Properties.ofFullCopy(Blocks.AMETHYST_BLOCK)
                     .mapColor(MapColor.COLOR_ORANGE));
 
+    // ─── 亜鉛・真鍮(2026-10-15、サバイバル用アイテムの前提の素材。ユーザー指定「亜鉛を新鉱石に、Create の亜鉛もタグで使える」)───
+    // 汚染の前から採れるふつうの鉱石(世界生成は data/overgrown_vegetation/neoforge/biome_modifier/zinc_ore.json)。
+    // c: タグ(c:ores/zinc など)に入れてあるので、Create の亜鉛と行き来できる。
+
+    /** 「亜鉛鉱石」。掘ると亜鉛の原石。石のつるはし以上。 */
+    public static final DeferredBlock<Block> ZINC_ORE = BLOCKS.registerSimpleBlock(
+            "zinc_ore",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.COPPER_ORE));
+
+    /** 「深層岩亜鉛鉱石」。 */
+    public static final DeferredBlock<Block> DEEPSLATE_ZINC_ORE = BLOCKS.registerSimpleBlock(
+            "deepslate_zinc_ore",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.DEEPSLATE_COPPER_ORE));
+
+    /** 「亜鉛の原石のブロック」。 */
+    public static final DeferredBlock<Block> RAW_ZINC_BLOCK = BLOCKS.registerSimpleBlock(
+            "raw_zinc_block",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.RAW_IRON_BLOCK).mapColor(MapColor.COLOR_LIGHT_GRAY));
+
+    /** 「亜鉛のブロック」。 */
+    public static final DeferredBlock<Block> ZINC_BLOCK = BLOCKS.registerSimpleBlock(
+            "zinc_block",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK).mapColor(MapColor.COLOR_LIGHT_GRAY));
+
+    /** 「真鍮のブロック」。 */
+    public static final DeferredBlock<Block> BRASS_BLOCK = BLOCKS.registerSimpleBlock(
+            "brass_block",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK).mapColor(MapColor.GOLD));
+
+    /** 鳴子の紐の目印のブロック(2026-10-15、サバイバル用アイテム ㊵。{@code defense/ClapperRopeBlock})。見えない小さな箱。アイテムは「鳴子の紐」。 */
+    public static final DeferredBlock<Block> CLAPPER_ROPE = BLOCKS.registerBlock(
+            "clapper_rope",
+            com.yayuy.overgrownvegetation.defense.ClapperRopeBlock::new,
+            BlockBehaviour.Properties.of().noCollission().noOcclusion().instabreak().noLootTable()
+                    .sound(net.minecraft.world.level.block.SoundType.WOOL).pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+
+    /** 「琥珀の角灯」を置いたもの(2026-10-15、サバイバル用アイテム ㊳)。バニラのランタンと同じく床にも天井にも。明るさ 15。 */
+    public static final DeferredBlock<Block> AMBER_LANTERN = BLOCKS.registerBlock(
+            "amber_lantern",
+            net.minecraft.world.level.block.LanternBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.LANTERN).mapColor(MapColor.GOLD).lightLevel(state -> 15));
+
     /** 「クロロフィライト合金のブロック」。{@code chlorophyllite_alloy} 9 個の保管用。見た目は鉄ブロック。 */
     public static final DeferredBlock<Block> CHLOROPHYLLITE_ALLOY_BLOCK = BLOCKS.registerSimpleBlock(
             "chlorophyllite_alloy_block",
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
                     .mapColor(MapColor.COLOR_GREEN));
 
-    /** 葉 → 汚染された葉。 */
-    public static final DeferredBlock<Block> OVERGROWN_LEAVES = BLOCKS.registerSimpleBlock(
+    /**
+     * 葉 → 汚染された葉。
+     *
+     * <p>バニラの葉から写ってくる「ランダムティックを受ける」印は {@link InertBlock} で外す(素の Block なので
+     * randomTick は空。巨大樹の樹冠のセクションが丸ごと抽選対象になっていた。2026-09-24 軽量化、報告 2022)。
+     */
+    public static final DeferredBlock<Block> OVERGROWN_LEAVES = BLOCKS.registerBlock(
             "overgrown_leaves",
+            com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
                     .mapColor(MapColor.COLOR_GREEN)
                     .isValidSpawn((state, getter, pos, type) -> false));
@@ -548,9 +710,10 @@ public final class ModBlocks {
             BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_WOOD)
                     .mapColor(MapColor.COLOR_LIGHT_GREEN));
 
-    /** 湿地の木の葉(羽状の薄い黄緑のシダ葉)。 */
-    public static final DeferredBlock<Block> OVERGROWN_SWAMP_LEAVES = BLOCKS.registerSimpleBlock(
+    /** 湿地の木の葉(羽状の薄い黄緑のシダ葉)。ランダムティックの印は {@link #OVERGROWN_LEAVES} と同じく外す。 */
+    public static final DeferredBlock<Block> OVERGROWN_SWAMP_LEAVES = BLOCKS.registerBlock(
             "overgrown_swamp_leaves",
+            com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
                     .mapColor(MapColor.COLOR_LIGHT_GREEN)
                     .isValidSpawn((state, getter, pos, type) -> false));
@@ -681,7 +844,33 @@ public final class ModBlocks {
             "research_table",
             com.yayuy.overgrownvegetation.block.ResearchTableBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.CRAFTING_TABLE)
-                    .mapColor(MapColor.COLOR_GREEN));
+                    .mapColor(MapColor.COLOR_GREEN)
+                    // 機械はつるはしが適正・石以上で回収(2026-10-10 ユーザー指定。元の作業台は斧・素手でも落ちる)
+                    .requiresCorrectToolForDrops());
+
+    /**
+     * 「パワードアーマー作成テーブル」(順 1 の着手順 5、2026-10-03)。作成・設計図・スキルツリー・装着をタブで切り替える。
+     * 研究台と同じく {@code displayOrder()} には入れず、{@link ModItems#POWERED_ARMOR_TABLE_ITEM} を個別登録。
+     * 硬さ・音は鍛冶台の写し(見た目も鍛冶台の絵の仮置き)。
+     */
+    public static final DeferredBlock<Block> POWERED_ARMOR_TABLE = BLOCKS.registerBlock(
+            "powered_armor_table",
+            com.yayuy.overgrownvegetation.block.PoweredArmorTableBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.SMITHING_TABLE)
+                    .mapColor(MapColor.COLOR_GRAY)
+                    // 機械はつるはしが適正・石以上で回収(2026-10-10 ユーザー指定。元の鍛冶台は斧・素手でも落ちる)
+                    .requiresCorrectToolForDrops());
+
+    /**
+     * 「因子の抽出設備」(順 1 の着手順 7、2026-10-03)。ドロップから因子を時間をかけて取り出す。
+     * {@code displayOrder()} には入れず、{@link ModItems#FACTOR_EXTRACTOR_ITEM} を個別登録。硬さ・音・見た目は燻製器の写し(仮)。
+     */
+    public static final DeferredBlock<Block> FACTOR_EXTRACTOR = BLOCKS.registerBlock(
+            "factor_extractor",
+            com.yayuy.overgrownvegetation.block.FactorExtractorBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.SMOKER)
+                    .mapColor(MapColor.METAL)
+                    .lightLevel(state -> state.getValue(com.yayuy.overgrownvegetation.block.FactorExtractorBlock.LIT) ? 7 : 0));
 
     /**
      * 「胞子除去装置」({@link com.yayuy.overgrownvegetation.block.SporeDeviceBlock} / {@code PURIFIER})。
@@ -719,14 +908,15 @@ public final class ModBlocks {
      * 「胞子汚染」を時間をかけて落とす。汚染ブロックではないので {@code displayOrder()} には乗せず、
      * {@link ModItems#DECONTAMINATOR_ITEM} を個別登録。
      */
-    /** 忌避灯(2026-09-19)。点いているあいだグループ1〜4 が近寄らない。ヴェロフィルの爆撃で蔦に覆われて止まる。 */
+    /** 忌避灯(2026-09-19)。点いているあいだグループ1〜4 が近寄らない。ヴェロフィルの爆撃で蔦に覆われて止まる。 10-24 から地脈電池で点く(電池なしは光 0)。 */
     public static final DeferredBlock<Block> REPELLENT_LAMP = BLOCKS.registerBlock(
             "repellent_lamp",
             com.yayuy.overgrownvegetation.block.RepellentLampBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.LANTERN)
                     .mapColor(MapColor.COLOR_LIGHT_GREEN)
                     .noOcclusion()
-                    .lightLevel(state -> state.getValue(com.yayuy.overgrownvegetation.block.RepellentLampBlock.COVERED) ? 3 : 15));
+                    .lightLevel(state -> state.getValue(com.yayuy.overgrownvegetation.block.RepellentLampBlock.COVERED) ? 3
+                            : state.getValue(com.yayuy.overgrownvegetation.block.RepellentLampBlock.LIT) ? 15 : 0));
 
     /** 有刺鉄線(2026-09-19)。当たり判定なし。踏み込んだ生き物を減速させて傷つける。 */
     public static final DeferredBlock<Block> BARBED_WIRE = BLOCKS.registerBlock(
@@ -737,6 +927,249 @@ public final class ModBlocks {
                     .noCollission()
                     .noOcclusion()
                     .strength(2.0F, 6.0F));
+
+    /** 逆茂木(2026-10-16、サバイバル用アイテム ㊶)。当たり判定なし。踏み込んだ生き物を減速させて傷つけ、刺すたびに傷む。 */
+    public static final DeferredBlock<Block> ABATIS = BLOCKS.registerBlock(
+            "abatis",
+            com.yayuy.overgrownvegetation.block.AbatisBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.WOOD)
+                    .noCollission()
+                    .noOcclusion()
+                    .strength(0.8F)
+                    .sound(net.minecraft.world.level.block.SoundType.WOOD)
+                    .ignitedByLava()
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+
+    // --- 乳鉢と薬草(2026-10-16、サバイバル用アイテム。ユーザー指定) ---
+
+    /** 乳鉢。入れた物を長押しですりつぶし、組み合わせを紙で回収すると薬になる。 */
+    public static final DeferredBlock<Block> MORTAR = BLOCKS.registerBlock(
+            "mortar",
+            com.yayuy.overgrownvegetation.block.MortarBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE)
+                    .strength(1.5F, 6.0F)
+                    .requiresCorrectToolForDrops()
+                    .sound(net.minecraft.world.level.block.SoundType.STONE)
+                    .noOcclusion());
+    /** 月光草(夜だけ咲く薬草)。 */
+    public static final DeferredBlock<Block> MOONLIGHT_HERB_CROP = BLOCKS.registerBlock(
+            "moonlight_herb_crop",
+            props -> new com.yayuy.overgrownvegetation.block.HerbCropBlock(
+                    com.yayuy.overgrownvegetation.block.HerbCropBlock.Kind.MOONLIGHT, ModItems.MOONLIGHT_HERB_SEEDS, props),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.WHEAT).mapColor(MapColor.COLOR_LIGHT_BLUE));
+    /** つんと草(鼻をつく匂いの薬草)。 */
+    public static final DeferredBlock<Block> PUNGENT_HERB_CROP = BLOCKS.registerBlock(
+            "pungent_herb_crop",
+            props -> new com.yayuy.overgrownvegetation.block.HerbCropBlock(
+                    com.yayuy.overgrownvegetation.block.HerbCropBlock.Kind.PUNGENT, ModItems.PUNGENT_HERB_SEEDS, props),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.WHEAT).mapColor(MapColor.PLANT));
+    /** 苦根(胞子が養分にできない苦い根)。 */
+    public static final DeferredBlock<Block> BITTER_ROOT_CROP = BLOCKS.registerBlock(
+            "bitter_root_crop",
+            props -> new com.yayuy.overgrownvegetation.block.HerbCropBlock(
+                    com.yayuy.overgrownvegetation.block.HerbCropBlock.Kind.BITTER_ROOT, ModItems.BITTER_ROOT_SEEDS, props),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.WHEAT).mapColor(MapColor.PLANT));
+    /** 暖花(日の当たる所に咲く、あたたかな花)。 */
+    public static final DeferredBlock<Block> WARMBLOOM_CROP = BLOCKS.registerBlock(
+            "warmbloom_crop",
+            props -> new com.yayuy.overgrownvegetation.block.HerbCropBlock(
+                    com.yayuy.overgrownvegetation.block.HerbCropBlock.Kind.WARMBLOOM, ModItems.WARMBLOOM_SEEDS, props),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.WHEAT).mapColor(MapColor.COLOR_ORANGE));
+
+    // --- 役に立つ植物と罠(2026-10-16、サバイバル用アイテム。ユーザー指定) ---
+
+    /** 繊維草(畑で育てる。包帯・外套・天幕の繊維)。 */
+    public static final DeferredBlock<Block> FIBER_GRASS_CROP = BLOCKS.registerBlock(
+            "fiber_grass_crop",
+            props -> new com.yayuy.overgrownvegetation.block.HerbCropBlock(
+                    com.yayuy.overgrownvegetation.block.HerbCropBlock.Kind.FIBER, ModItems.FIBER_GRASS_SEEDS, props),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.WHEAT).mapColor(MapColor.PLANT));
+    /** 炸裂の実の茂み(過繁茂のバイオーム)。 */
+    public static final DeferredBlock<Block> BURST_FRUIT_BUSH = BLOCKS.registerBlock(
+            "burst_fruit_bush",
+            props -> new com.yayuy.overgrownvegetation.block.OvergrownFruitPlantBlock(
+                    com.yayuy.overgrownvegetation.block.OvergrownFruitPlantBlock.Kind.BURST, ModItems.BURST_FRUIT, props),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.SWEET_BERRY_BUSH).mapColor(MapColor.PLANT).randomTicks());
+    /** 粘り蔦(過繁茂のバイオーム)。 */
+    public static final DeferredBlock<Block> STICKY_VINE = BLOCKS.registerBlock(
+            "sticky_vine",
+            props -> new com.yayuy.overgrownvegetation.block.OvergrownFruitPlantBlock(
+                    com.yayuy.overgrownvegetation.block.OvergrownFruitPlantBlock.Kind.STICKY, ModItems.STICKY_FRUIT, props),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.SWEET_BERRY_BUSH).mapColor(MapColor.PLANT).randomTicks());
+    /** 浮き袋草(過繁茂のバイオーム)。 */
+    public static final DeferredBlock<Block> FLOAT_SAC_GRASS = BLOCKS.registerBlock(
+            "float_sac_grass",
+            props -> new com.yayuy.overgrownvegetation.block.OvergrownFruitPlantBlock(
+                    com.yayuy.overgrownvegetation.block.OvergrownFruitPlantBlock.Kind.FLOAT_SAC, ModItems.FLOAT_SAC, props),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.SWEET_BERRY_BUSH).mapColor(MapColor.PLANT).randomTicks());
+    /** 道しるべの花(過繁茂のバイオーム。いちばん近いハイヴノードを向く)。 */
+    public static final DeferredBlock<Block> WAYMARK_FLOWER = BLOCKS.registerBlock(
+            "waymark_flower",
+            com.yayuy.overgrownvegetation.block.WaymarkFlowerBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.POPPY).mapColor(MapColor.COLOR_LIGHT_BLUE).randomTicks());
+    /** 炸裂の実の地雷(植物側の Mob が踏むと爆ぜる)。 */
+    public static final DeferredBlock<Block> BURST_MINE = BLOCKS.registerBlock(
+            "burst_mine",
+            com.yayuy.overgrownvegetation.block.BurstMineBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.WOOD)
+                    .noCollission()
+                    .noOcclusion()
+                    .strength(0.5F)
+                    .sound(net.minecraft.world.level.block.SoundType.WOOD)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+
+    // --- 地脈の花と結晶(2026-10-22、序盤の作り直し。地脈の線に沿って世界生成で生える。光源は 0、光るのは模型の自己発光だけ) ---
+
+    /** 地脈の花(研究ポイントの素材・地脈探しの材料)。 */
+    public static final DeferredBlock<Block> LEY_FLOWER = BLOCKS.registerBlock(
+            "ley_flower",
+            com.yayuy.overgrownvegetation.block.LeyFlowerBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.POPPY).mapColor(MapColor.COLOR_CYAN).randomTicks()); // 前兆でしおれる(2026-10-24)
+    /** 芽吹く地脈の結晶(芽を育てる。壊すと何も落ちない)。 */
+    public static final DeferredBlock<Block> BUDDING_LEY_CRYSTAL = BLOCKS.registerBlock(
+            "budding_ley_crystal",
+            com.yayuy.overgrownvegetation.block.BuddingLeyCrystalBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.BUDDING_AMETHYST).mapColor(MapColor.COLOR_CYAN));
+    /** 地脈の結晶の小さな芽・中くらいの芽・大きな芽・塊(バニラのアメジストと同じ寸法)。 */
+    public static final DeferredBlock<Block> SMALL_LEY_CRYSTAL_BUD = BLOCKS.registerBlock(
+            "small_ley_crystal_bud",
+            props -> new net.minecraft.world.level.block.AmethystClusterBlock(3.0F, 4.0F, props),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.SMALL_AMETHYST_BUD).mapColor(MapColor.COLOR_CYAN).lightLevel(s -> 0));
+    public static final DeferredBlock<Block> MEDIUM_LEY_CRYSTAL_BUD = BLOCKS.registerBlock(
+            "medium_ley_crystal_bud",
+            props -> new net.minecraft.world.level.block.AmethystClusterBlock(4.0F, 3.0F, props),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.MEDIUM_AMETHYST_BUD).mapColor(MapColor.COLOR_CYAN).lightLevel(s -> 0));
+    public static final DeferredBlock<Block> LARGE_LEY_CRYSTAL_BUD = BLOCKS.registerBlock(
+            "large_ley_crystal_bud",
+            props -> new net.minecraft.world.level.block.AmethystClusterBlock(5.0F, 3.0F, props),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.LARGE_AMETHYST_BUD).mapColor(MapColor.COLOR_CYAN).lightLevel(s -> 0));
+    public static final DeferredBlock<Block> LEY_CRYSTAL = BLOCKS.registerBlock(
+            "ley_crystal",
+            props -> new net.minecraft.world.level.block.AmethystClusterBlock(7.0F, 3.0F, props),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.AMETHYST_CLUSTER).mapColor(MapColor.COLOR_CYAN).lightLevel(s -> 0));
+
+    // --- 地脈の燃料で動く道具(2026-10-16、クラスター 3。ユーザー指定) ---
+
+    /** ㉙ 地脈の汲み上げ器(地脈の雫をためる。地脈に近いほど速い)。 */
+    public static final DeferredBlock<Block> LEY_PUMP = BLOCKS.registerBlock(
+            "ley_pump",
+            com.yayuy.overgrownvegetation.block.LeyPumpBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .strength(3.5F)
+                    .requiresCorrectToolForDrops()
+                    .noOcclusion()
+                    .sound(net.minecraft.world.level.block.SoundType.COPPER)
+                    .lightLevel(s -> s.getValue(com.yayuy.overgrownvegetation.block.LeyPumpBlock.FILLED) ? 6 : 0));
+
+    // --- 地脈技術の 2 段目: 生活用の機械(2026-10-22、地脈電池で動く。ユーザー指定) ---
+
+    /** 地脈炉(精錬・溶鉱・燻製のレシピを 2 倍の速さで焼く)。 */
+    public static final DeferredBlock<Block> LEY_FURNACE = BLOCKS.registerBlock(
+            "ley_furnace",
+            com.yayuy.overgrownvegetation.block.LeyFurnaceBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .strength(3.5F)
+                    .requiresCorrectToolForDrops()
+                    .sound(net.minecraft.world.level.block.SoundType.COPPER)
+                    .lightLevel(s -> s.getValue(net.minecraft.world.level.block.AbstractFurnaceBlock.LIT) ? 9 : 0));
+    /** 地脈灯(光源 15・周り 8 ブロックで敵対 Mob が湧かない)。 */
+    public static final DeferredBlock<Block> LEY_LAMP = BLOCKS.registerBlock(
+            "ley_lamp",
+            com.yayuy.overgrownvegetation.block.LeyLampBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.LANTERN)
+                    .mapColor(MapColor.COLOR_CYAN)
+                    .requiresCorrectToolForDrops()
+                    .lightLevel(s -> s.getValue(com.yayuy.overgrownvegetation.block.LeyLampBlock.LIT) ? 15 : 0));
+    /** 上昇気流機(真上へ気流の柱を作り、柱の中の物を持ち上げる。2026-10-22 に送風機から作り替え)。 */
+    public static final DeferredBlock<Block> LEY_UPDRAFT = BLOCKS.registerBlock(
+            "ley_updraft",
+            com.yayuy.overgrownvegetation.block.LeyUpdraftBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .strength(3.0F)
+                    .requiresCorrectToolForDrops()
+                    .sound(net.minecraft.world.level.block.SoundType.COPPER));
+    /** 地脈計(2026-10-24 地脈技術の 4 段目。電池の要らない計器。その場の地脈の流れの強さを針で示す)。 */
+    public static final DeferredBlock<Block> LEY_METER = BLOCKS.registerBlock(
+            "ley_meter",
+            com.yayuy.overgrownvegetation.block.LeyMeterBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .strength(2.5F)
+                    .requiresCorrectToolForDrops()
+                    .noOcclusion()
+                    .sound(net.minecraft.world.level.block.SoundType.COPPER));
+    /** ⑩ 対の石(地脈渡りの石が帰ってくる先)。 */
+    public static final DeferredBlock<Block> WAYSTONE_ANCHOR = BLOCKS.registerBlock(
+            "waystone_anchor",
+            com.yayuy.overgrownvegetation.block.WaystoneAnchorBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE)
+                    .strength(3.0F, 9.0F)
+                    .requiresCorrectToolForDrops()
+                    .noOcclusion()
+                    .lightLevel(s -> 0) // 結晶は模型の面の発光(2026-10-23)
+                    .sound(net.minecraft.world.level.block.SoundType.DEEPSLATE_BRICKS));
+    /** ㉗ 灯りの呪符の明かり(見えない・1 分で消える)。 */
+    public static final DeferredBlock<Block> CHARM_LIGHT = BLOCKS.registerBlock(
+            "charm_light",
+            com.yayuy.overgrownvegetation.block.CharmLightBlock::new,
+            BlockBehaviour.Properties.of()
+                    .replaceable()
+                    .noCollission()
+                    .noOcclusion()
+                    .noLootTable()
+                    .instabreak()
+                    .lightLevel(s -> 14)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+    /** ㉘ おとりの灯籠(石炭で灯り、G1 と小さな敵を呼び寄せる)。 */
+    public static final DeferredBlock<Block> LURE_LANTERN = BLOCKS.registerBlock(
+            "lure_lantern",
+            com.yayuy.overgrownvegetation.block.LureLanternBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .strength(2.5F)
+                    .requiresCorrectToolForDrops()
+                    .noOcclusion()
+                    .sound(net.minecraft.world.level.block.SoundType.LANTERN)
+                    .lightLevel(s -> s.getValue(com.yayuy.overgrownvegetation.block.LureLanternBlock.LIT) ? 10 : 0));
+
+    // --- 野営の道具(2026-10-16、クラスター 4。ユーザー指定) ---
+
+    /** ㊹ 寝袋(敵がいても寝られる・復活地点は変えない)。 */
+    public static final DeferredBlock<Block> BEDROLL = BLOCKS.registerBlock(
+            "bedroll",
+            com.yayuy.overgrownvegetation.block.BedrollBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_RED)
+                    .strength(0.2F)
+                    .noOcclusion()
+                    .sound(net.minecraft.world.level.block.SoundType.WOOL)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+    /** ⑮ 防胞子の天幕(寝られる・復活地点・周り半径 3 の胞子を払う)。 */
+    public static final DeferredBlock<Block> SPORE_TENT = BLOCKS.registerBlock(
+            "spore_tent",
+            com.yayuy.overgrownvegetation.block.SporeTentBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.SAND)
+                    .strength(0.4F)
+                    .noOcclusion()
+                    .sound(net.minecraft.world.level.block.SoundType.WOOL)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+    /** ⑭ 受け流しの杭(4 本で囲った四角を汚染と G1 から守る)。 */
+    public static final DeferredBlock<Block> DEFLECTING_STAKE = BLOCKS.registerBlock(
+            "deflecting_stake",
+            com.yayuy.overgrownvegetation.block.DeflectingStakeBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.WOOD)
+                    .strength(1.0F)
+                    .noOcclusion()
+                    .sound(net.minecraft.world.level.block.SoundType.WOOD));
 
     /** フェーズ計測機(2026-09-19)。紙を入れるとフェーズ記録紙が出る。 */
     public static final DeferredBlock<Block> PHASE_RECORDER = BLOCKS.registerBlock(
@@ -755,6 +1188,19 @@ public final class ModBlocks {
                     .noOcclusion());
 
     /**
+     * ターゲットブロック(TD イベント、2026-09-25)。森の侵攻が狙う拠点の核で、耐久(HP)を持つ
+     * ({@link com.yayuy.overgrownvegetation.td.TargetBlock})。汚染ブロックではないので {@code displayOrder()} には
+     * 乗せず、{@link ModItems#TARGET_BLOCK} を個別登録。ロードストーンの性質(ツルハシ必須・ピストンで動かない)を借り、
+     * 爆発耐性は黒曜石並み(クリーパー 1 匹の爆発で侵攻が「撤去」扱いで打ち切られないように。仮決め 2026-09-25)。
+     */
+    public static final DeferredBlock<Block> TARGET_BLOCK = BLOCKS.registerBlock(
+            "target_block",
+            com.yayuy.overgrownvegetation.td.TargetBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.LODESTONE)
+                    .mapColor(MapColor.COLOR_RED)
+                    .strength(5.0F, 1200.0F));
+
+    /**
      * 機関砲台(2026-09-21)。弾({@link ModItems#AUTOCANNON_ROUND})を入れておくと、半径 32 ブロックに
      * 入った敵を自動で撃つ。ヴェロフィル・落下中の胞子爆弾・攻城戦ボスの曲射を優先して落とす。
      * 見た目は丸ごと GeckoLib が描くので、ブロックモデルには面が無い。
@@ -766,47 +1212,6 @@ public final class ModBlocks {
                     .mapColor(MapColor.METAL)
                     .noOcclusion()
                     .strength(4.0F, 10.0F));
-
-    // --- アルボラの巣の中身(2026-09-20)。掘った巣に nest/NestContents が置く。 ---
-
-    /** アルボラの卵。孵化室の床に並ぶ。孵る個体は必ず亜種。 */
-    public static final DeferredBlock<Block> ARBORA_EGG = BLOCKS.registerBlock(
-            "arbora_egg",
-            com.yayuy.overgrownvegetation.block.ArboraEggBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.TURTLE_EGG)
-                    .mapColor(MapColor.TERRACOTTA_LIGHT_GREEN)
-                    .noOcclusion()
-                    .strength(0.5F));
-
-    /** アルボラの貯蔵胞。貯蔵室に並ぶ 27 スロットの入れ物。巣の中で死んだ持ち物もここへ移る。 */
-    public static final DeferredBlock<Block> ARBORA_STORAGE_POD = BLOCKS.registerBlock(
-            "arbora_storage_pod",
-            com.yayuy.overgrownvegetation.block.ArboraStoragePodBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.SHROOMLIGHT)
-                    .mapColor(MapColor.COLOR_GREEN)
-                    .noOcclusion()
-                    .lightLevel(state -> 4)
-                    .strength(2.0F));
-
-    /** 胞子ノード。噴気室の中心。噴出孔を育て、世界の汚染速度を上げる。 */
-    public static final DeferredBlock<Block> SPORE_NODE = BLOCKS.registerBlock(
-            "spore_node",
-            com.yayuy.overgrownvegetation.block.SporeNodeBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.SCULK_CATALYST)
-                    .mapColor(MapColor.COLOR_PURPLE)
-                    .noOcclusion()
-                    .lightLevel(state -> 7)
-                    .strength(3.0F));
-
-    /** 胞子の噴出孔。地上へ抜けた煙突の口。半径 16 に胞子濃度の上乗せとデバフを配る。 */
-    public static final DeferredBlock<Block> SPORE_VENT = BLOCKS.registerBlock(
-            "spore_vent",
-            com.yayuy.overgrownvegetation.block.SporeVentBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.SCULK_SHRIEKER)
-                    .mapColor(MapColor.COLOR_PURPLE)
-                    .noOcclusion()
-                    .lightLevel(state -> 5)
-                    .strength(2.5F));
 
     public static final DeferredBlock<Block> DECONTAMINATOR = BLOCKS.registerBlock(
             "decontaminator",
@@ -923,6 +1328,16 @@ public final class ModBlocks {
                     .mapColor(MapColor.COLOR_GREEN));
 
     /**
+     * 過繁茂したハーフブロック(2026-10-05、ユーザー要望: 過繁茂している板材からハーフ・階段・扉を作れるように)。
+     * 見た目は過繁茂している板材と同じテクスチャ。汚染の対応表には載せていない(木のハーフは今までどおり苔で覆う)。
+     */
+    public static final DeferredBlock<Block> OVERGROWN_SLAB = BLOCKS.registerBlock(
+            "overgrown_slab",
+            SlabBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_SLAB)
+                    .mapColor(MapColor.COLOR_GREEN));
+
+    /**
      * 木以外の階段(石・深層岩・ネザーレンガなど、{@link BlockTags#STAIRS} のうち
      * {@link BlockTags#WOODEN_STAIRS} でないもの) → 苔に覆われた石の階段。
      */
@@ -1002,6 +1417,14 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_BLOCK = BLOCKS.registerSimpleBlock(
             "overgrown_block",
             BlockBehaviour.Properties.ofFullCopy(Blocks.STONE)
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .strength(1.5F, 6.0F));
+
+    /** 過繁茂しているブロックのハーフブロック(2026-10-05、ユーザー要望)。硬さ・道具は過繁茂しているブロックと同じ。 */
+    public static final DeferredBlock<Block> OVERGROWN_BLOCK_SLAB = BLOCKS.registerBlock(
+            "overgrown_block_slab",
+            SlabBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.STONE_SLAB)
                     .mapColor(MapColor.COLOR_GREEN)
                     .strength(1.5F, 6.0F));
 
@@ -1355,7 +1778,7 @@ public final class ModBlocks {
 
     /** 牛の死体(種族専用モデル)。対応: {@link net.minecraft.world.entity.animal.Cow}(MushroomCow は対象外)。 */
     public static final DeferredBlock<Block> OVERGROWN_COW_CORPSE = BLOCKS.registerBlock(
-            "overgrown_cow_corpse", CorruptedCorpseBlock::new, CORPSE_PROPERTIES);
+            "overgrown_cow_corpse", GeoCorruptedCorpseBlock::new, CORPSE_PROPERTIES);
 
     /** 豚の死体。対応: {@link net.minecraft.world.entity.animal.Pig}。GeckoLib 立体モデル。 */
     public static final DeferredBlock<Block> OVERGROWN_PIG_CORPSE = BLOCKS.registerBlock(
@@ -1372,6 +1795,43 @@ public final class ModBlocks {
     /** クモの死体。対応: {@link net.minecraft.world.entity.monster.Spider}(CaveSpider は対象外)。GeckoLib 立体モデル。 */
     public static final DeferredBlock<Block> OVERGROWN_SPIDER_CORPSE = BLOCKS.registerBlock(
             "overgrown_spider_corpse", GeoCorruptedCorpseBlock::new, CORPSE_PROPERTIES);
+
+    /** 村人の死体(2026-10-09)。対応: {@link net.minecraft.world.entity.npc.Villager} ちょうど(行商人・ゾンビ村人は対象外)。GeckoLib 立体モデル(うつ伏せ)。
+     *  感染村人の Mob はまだ無いので、侵食が終わると汚染シダが生える({@link com.yayuy.overgrownvegetation.block.CorpseHatchTable} に行が無い)。 */
+    public static final DeferredBlock<Block> OVERGROWN_VILLAGER_CORPSE = BLOCKS.registerBlock(
+            "overgrown_villager_corpse", GeoCorruptedCorpseBlock::new, CORPSE_PROPERTIES);
+
+    /** ゾンビ・チビゾンビ・スケルトン・エンダーマン・鶏の死体(2026-10-09、G1 の作り直し)。GeckoLib 立体モデル。崩れ落ちから置かれ、起き上がる。 */
+    public static final DeferredBlock<Block> OVERGROWN_ZOMBIE_CORPSE = BLOCKS.registerBlock(
+            "overgrown_zombie_corpse", GeoCorruptedCorpseBlock::new, CORPSE_PROPERTIES);
+    public static final DeferredBlock<Block> OVERGROWN_BABY_ZOMBIE_CORPSE = BLOCKS.registerBlock(
+            "overgrown_baby_zombie_corpse", GeoCorruptedCorpseBlock::new, CORPSE_PROPERTIES);
+    public static final DeferredBlock<Block> OVERGROWN_SKELETON_CORPSE = BLOCKS.registerBlock(
+            "overgrown_skeleton_corpse", GeoCorruptedCorpseBlock::new, CORPSE_PROPERTIES);
+    public static final DeferredBlock<Block> OVERGROWN_ENDERMAN_CORPSE = BLOCKS.registerBlock(
+            "overgrown_enderman_corpse", GeoCorruptedCorpseBlock::new, CORPSE_PROPERTIES);
+    public static final DeferredBlock<Block> OVERGROWN_CHICKEN_CORPSE = BLOCKS.registerBlock(
+            "overgrown_chicken_corpse", GeoCorruptedCorpseBlock::new, CORPSE_PROPERTIES);
+    // ネザーの媒介種の死体(2026-10-09)。ガスト・ブレイズは死体を作らない(corpse/NetherReanimation)。
+    public static final DeferredBlock<Block> OVERGROWN_PIGLIN_CORPSE = BLOCKS.registerBlock(
+            "overgrown_piglin_corpse", GeoCorruptedCorpseBlock::new, CORPSE_PROPERTIES);
+    public static final DeferredBlock<Block> OVERGROWN_PIGLIN_BRUTE_CORPSE = BLOCKS.registerBlock(
+            "overgrown_piglin_brute_corpse", GeoCorruptedCorpseBlock::new, CORPSE_PROPERTIES);
+    public static final DeferredBlock<Block> OVERGROWN_ZOMBIFIED_PIGLIN_CORPSE = BLOCKS.registerBlock(
+            "overgrown_zombified_piglin_corpse", GeoCorruptedCorpseBlock::new, CORPSE_PROPERTIES);
+    public static final DeferredBlock<Block> OVERGROWN_WITHER_SKELETON_CORPSE = BLOCKS.registerBlock(
+            "overgrown_wither_skeleton_corpse", GeoCorruptedCorpseBlock::new, CORPSE_PROPERTIES);
+    public static final DeferredBlock<Block> OVERGROWN_HOGLIN_CORPSE = BLOCKS.registerBlock(
+            "overgrown_hoglin_corpse", GeoCorruptedCorpseBlock::new, CORPSE_PROPERTIES);
+    public static final DeferredBlock<Block> OVERGROWN_ZOGLIN_CORPSE = BLOCKS.registerBlock(
+            "overgrown_zoglin_corpse", GeoCorruptedCorpseBlock::new, CORPSE_PROPERTIES);
+    public static final DeferredBlock<Block> OVERGROWN_STRIDER_CORPSE = BLOCKS.registerBlock(
+            "overgrown_strider_corpse", GeoCorruptedCorpseBlock::new, CORPSE_PROPERTIES);
+    // アイアンゴーレム・ウォーデンの死体(2026-10-10)。寄生体はここからだけ起き上がる(自然には湧かない、ユーザー指定)。
+    public static final DeferredBlock<Block> OVERGROWN_IRON_GOLEM_CORPSE = BLOCKS.registerBlock(
+            "overgrown_iron_golem_corpse", GeoCorruptedCorpseBlock::new, CORPSE_PROPERTIES);
+    public static final DeferredBlock<Block> OVERGROWN_WARDEN_CORPSE = BLOCKS.registerBlock(
+            "overgrown_warden_corpse", GeoCorruptedCorpseBlock::new, CORPSE_PROPERTIES);
 
     /** クリエイティブタブ表示用の並び順。 */
     public static List<DeferredBlock<Block>> displayOrder() {
@@ -1406,6 +1866,10 @@ public final class ModBlocks {
                 OVERGROWN_LAPIS_ORE,
                 OVERGROWN_REDSTONE_ORE,
                 OVERGROWN_SAND,
+                OVERGROWN_NETHERRACK,
+                OVERGROWN_SOUL_SAND,
+                OVERGROWN_SOUL_SOIL,
+                OVERGROWN_END_STONE,
                 OVERGROWN_GRAVEL,
                 OVERGROWN_LOG,
                 OVERGROWN_WOOD,
@@ -1413,11 +1877,13 @@ public final class ModBlocks {
                 GIANT_OVERGROWN_CAMBIUM,
                 HARDENED_GIANT_TRUNK,
                 LEY_VEIN,
-                ORGAN_NODE,
-                ORGAN_VINE,
-                SPORE_GLAND,
                 CHLOROPHYLLITE_ORE,
                 HARDENED_SAP_CRYSTAL_ORE,
+                PHLOEMITE_ORE,
+                DEEPSLATE_PHLOEMITE_ORE,
+                THYLAKITE_ORE,
+                DEEPSLATE_THYLAKITE_ORE,
+                ENERGY_CRYSTAL,
                 OVERGROWN_LEAVES,
                 OVERGROWN_SWAMP_LOG,
                 OVERGROWN_SWAMP_WOOD,
@@ -1429,11 +1895,13 @@ public final class ModBlocks {
                 OVERGROWN_SAPLING,
                 OVERGROWN_PLANKS,
                 OVERGROWN_STAIRS,
+                OVERGROWN_SLAB,
                 OVERGROWN_STONE_STAIRS,
                 OVERGROWN_FENCE,
                 OVERGROWN_WALL,
                 OVERGROWN_GROWTH,
                 OVERGROWN_BLOCK,
+                OVERGROWN_BLOCK_SLAB,
                 OVERGROWN_SPORE_BLOOM,
                 OVERGROWN_ZENMAI,
                 UNDEVELOPED_BUSH,
@@ -1462,6 +1930,21 @@ public final class ModBlocks {
                 OVERGROWN_SHEEP_CORPSE,
                 OVERGROWN_CREEPER_CORPSE,
                 OVERGROWN_SPIDER_CORPSE,
+                OVERGROWN_VILLAGER_CORPSE,
+                OVERGROWN_ZOMBIE_CORPSE,
+                OVERGROWN_BABY_ZOMBIE_CORPSE,
+                OVERGROWN_SKELETON_CORPSE,
+                OVERGROWN_ENDERMAN_CORPSE,
+                OVERGROWN_CHICKEN_CORPSE,
+                OVERGROWN_PIGLIN_CORPSE,
+                OVERGROWN_PIGLIN_BRUTE_CORPSE,
+                OVERGROWN_ZOMBIFIED_PIGLIN_CORPSE,
+                OVERGROWN_WITHER_SKELETON_CORPSE,
+                OVERGROWN_HOGLIN_CORPSE,
+                OVERGROWN_ZOGLIN_CORPSE,
+                OVERGROWN_STRIDER_CORPSE,
+                OVERGROWN_IRON_GOLEM_CORPSE,
+                OVERGROWN_WARDEN_CORPSE,
                 LITHOPLEURA_HUSK);
     }
 

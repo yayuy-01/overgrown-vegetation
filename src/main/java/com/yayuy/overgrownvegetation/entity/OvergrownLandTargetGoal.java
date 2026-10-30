@@ -26,17 +26,23 @@ import java.util.function.Predicate;
  *
  * <p>反撃({@link OvergrownHurtByTargetGoal})には掛からない。水中・地下から攻撃してきた相手には
  * 従来どおり反撃する。
+ *
+ * <p>G4 の群れの一員では動かない(群れ v2、2026-09-25。親の {@link OvergrownHunterTargetGoal#canUse} が群れを見て落とす。
+ * 一員の標的は群れの司令塔が同じ条件 —— 水・深さ —— で探して渡す)。
  */
 public class OvergrownLandTargetGoal extends OvergrownHunterTargetGoal {
 
+    // selector を先に見る(2026-09-24、軽量化)。種類・グループの判定で落ちる相手には、
+    // reachable の水・地表の高さの読み取りを引かない。どちらも副作用の無い判定なので結果は同じ。
+
     /** {@code selector}(自分, 候補)→ 対象にするか。 */
     public OvergrownLandTargetGoal(Mob mob, BiPredicate<LivingEntity, LivingEntity> selector) {
-        super(mob, candidate -> reachable(mob, candidate) && selector.test(mob, candidate));
+        super(mob, candidate -> selector.test(mob, candidate) && reachable(mob, candidate));
     }
 
     /** {@code selector}(候補)→ 対象にするか。 */
     public OvergrownLandTargetGoal(Mob mob, Predicate<LivingEntity> selector) {
-        super(mob, candidate -> reachable(mob, candidate) && selector.test(candidate));
+        super(mob, candidate -> selector.test(candidate) && reachable(mob, candidate));
     }
 
     /** 陸生の足で届く相手か —— 水に入っておらず、自分よりずっと深く潜ってもいない。 */

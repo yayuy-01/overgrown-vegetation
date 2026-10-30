@@ -3,27 +3,13 @@ package com.yayuy.overgrownvegetation.entity;
 import com.yayuy.overgrownvegetation.ModTags;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.effect.SporeInfectionEffects;
-import com.yayuy.overgrownvegetation.phase.MobGroup;
-import com.yayuy.overgrownvegetation.phase.OvergrownBiomeSpawner;
-import com.yayuy.overgrownvegetation.phase.OvergrownSpawnProfile;
-import com.yayuy.overgrownvegetation.phase.PhaseData;
 import com.yayuy.overgrownvegetation.registry.ModParticles;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
+import com.yayuy.overgrownvegetation.swarm.SwarmMember;
+import com.yayuy.overgrownvegetation.swarm.goal.SwarmSpreadGoal;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.ai.goal.Goal;
-import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.phys.AABB;
 
-import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.List;
 
 /**
  * グループ4(拡大種)が<b>汚れていない土地でその場にうずくまり、周囲へ胞子をばらまいて汚染する</b> Goal
@@ -67,17 +53,19 @@ import java.util.List;
  * (ユーザー指示 2026-09-14)。腹や尾を大きく脈動させる「踏ん張り」に見える動きは避け、
  * 周期を長く(8 秒程度)・振幅を小さく取り、上下の脈動ではなく左右のゆったりした揺れで見せる。
  * <b>これから追加するグループ4 の mob もすべて同じ方向で作ること。</b>
+ *
+ * <h2>群れ(v2、2026-09-25)</h2>
+ * <p>群れの一員は<b>この Goal を使わない</b>(1 体ずつしゃがまない)。いつ汚すかは司令塔が決め、群れごと止まって
+ * 全員で汚す({@link SwarmSpreadGoal}、ユーザー指定 2026-09-25「暇なら止まって全員で」)。汚し方・見た目・芽吹きは
+ * {@link SporeSpreadSession} に切り出して、この Goal と群れの汚染とで同じものを使う。
  */
 public class InvaderSporeCrouchGoal extends Goal {
 
-    /** 「過繁茂 Mob を増やす」判定で、周囲のグループ Mob を数える半径(ブロック)。 */
-    private static final double NEARBY_RADIUS = 24.0D;
     private final AbstractOvergrownInvaderEntity mob;
 
-    private int ticks;
     private int nextTime;
-    /** 汚染の広がり方そのもの(候補の数え上げと 1 マスずつの進行)。 */
-    private InvaderSporeField field;
+    /** 汚染の広がり方・粒子・感染・芽吹き(群れの汚染と共通)。 */
+    private SporeSpreadSession session;
 
     public InvaderSporeCrouchGoal(AbstractOvergrownInvaderEntity mob) {
         this.mob = mob;
@@ -91,6 +79,10 @@ public class InvaderSporeCrouchGoal extends Goal {
         if (this.mob.tickCount < this.nextTime) {
             return false;
         }
+        // 群れの一員は群れごと止まって汚す(SwarmSpreadGoal)。
+        if (SwarmMember.isInSwarm(this.mob)) {
+            return false;
+        }
         if (this.mob.getTarget() != null && this.mob.getTarget().isAlive()) {
             return false;
         }
@@ -101,27 +93,24 @@ public class InvaderSporeCrouchGoal extends Goal {
             return false;
         }
         // 既に汚染された地面の上ではやらない(汚れていない土地でだけ腰を落ち着ける)。
-        return !onCorruptedGround();
+        return !SporeSpreadSession.onCorruptedGround(this.mob);
     }
 
     /** 終わるのは「相手を見つけた」か「汚し尽くした」ときだけ。時間では終わらない。 */
     @Override
     public boolean canContinueToUse() {
-        return (this.field == null || !this.field.isFinished())
+        return (this.session == null || !this.session.isExhausted())
                 && (this.mob.getTarget() == null || !this.mob.getTarget().isAlive())
                 && !this.mob.isInWater();
     }
 
     @Override
     public void start() {
-        this.ticks = 0;
-        this.field = new InvaderSporeField(this.mob.blockPosition(),
-                this.mob.sporeCorruptionRadius(), InvaderSporeField.defaultInterval(), this.mob.getRandom());
+        this.session = new SporeSpreadSession(this.mob, this.mob.sporeCorruptionRadius(), SporeSpreadSession.Style.CROUCH);
         this.mob.getNavigation().stop();
         this.mob.setActionState(AbstractOvergrownInvaderEntity.STATE_SPORE);
         if (this.mob.level() instanceof ServerLevel level) {
-            level.playSound(null, this.mob.getX(), this.mob.getY(), this.mob.getZ(),
-                    SoundEvents.SCULK_CATALYST_BLOOM, SoundSource.HOSTILE, 0.7F, 1.3F);
+            this.session.begin(level);
         }
     }
 
@@ -134,13 +123,11 @@ public class InvaderSporeCrouchGoal extends Goal {
         if (this.mob.getActionState() == AbstractOvergrownInvaderEntity.STATE_SPORE) {
             this.mob.setActionState(AbstractOvergrownInvaderEntity.STATE_IDLE);
         }
-        boolean exhausted = this.field != null && this.field.isFinished();
-        this.field = null;
-        // 芽吹くのは「汚し尽くして終わった」ときだけ。相手を見つけて中断したときは何も残さない。
-        if (exhausted && this.mob.level() instanceof ServerLevel level) {
-            trySpawnFern(level);
-            trySpawnOvergrownMob(level);
+        // 芽吹くのは「汚し尽くして終わった」ときだけ(SporeSpreadSession#finish が見る)。相手を見つけて中断したときは何も残さない。
+        if (this.session != null && this.mob.level() instanceof ServerLevel level) {
+            this.session.finish(level);
         }
+        this.session = null;
     }
 
     @Override
@@ -150,123 +137,11 @@ public class InvaderSporeCrouchGoal extends Goal {
 
     @Override
     public void tick() {
-        this.ticks++;
-        // 一歩も動かない。経路を止めるだけでは MoveControl が押し続けるので、速度と入力も潰す。
-        this.mob.getNavigation().stop();
-        this.mob.setZza(0.0F);
-        this.mob.setXxa(0.0F);
-        this.mob.setDeltaMovement(0.0D, this.mob.getDeltaMovement().y, 0.0D);
-        if (!(this.mob.level() instanceof ServerLevel level)) {
+        if (this.session == null) {
             return;
         }
-        if (this.ticks % 4 == 0) {
-            scatterParticles(level);
-        }
-        if (this.ticks % 20 == 0) {
-            infectNearby();
-        }
-        if (this.field != null) {
-            this.field.spread(level, this.mob.blockPosition());
-        }
-    }
-
-    /** 立っている地面が既に汚染ブロックか。 */
-    private boolean onCorruptedGround() {
-        BlockPos below = this.mob.blockPosition().below();
-        return this.mob.level().getBlockState(below).is(ModTags.CORRUPTED);
-    }
-
-    private void scatterParticles(ServerLevel level) {
-        double x = this.mob.getX();
-        double y = this.mob.getY() + 0.3D;
-        double z = this.mob.getZ();
-        level.sendParticles(ModParticles.FINE_SPORE.get(), x, y, z, 24, 0.9D, 0.25D, 0.9D, 0.01D);
-        level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, x, y, z, 4, 1.2D, 0.4D, 1.2D, 0.0D);
-    }
-
-    private void infectNearby() {
-        double radius = OvergrownVegetationConfig.COMMON.invaderSporeInfectRadius.get();
-        if (radius <= 0.0D) {
-            return;
-        }
-        AABB box = this.mob.getBoundingBox().inflate(radius);
-        for (LivingEntity entity : this.mob.level().getEntitiesOfClass(LivingEntity.class, box)) {
-            if (AbstractOvergrownInvaderEntity.isSporeVictim(this.mob, entity)) {
-                SporeInfectionEffects.infect(entity, 0);
-            }
-        }
-    }
-
-    /** 終わりぎわの汚染シダ。地表に置く(埋まらないように {@link Heightmap} で高さを取り直す)。 */
-    private void trySpawnFern(ServerLevel level) {
-        double chance = OvergrownVegetationConfig.COMMON.invaderFernSpawnChance.get();
-        if (chance <= 0.0D || this.mob.getRandom().nextDouble() >= chance) {
-            return;
-        }
-        BlockPos at = this.mob.blockPosition();
-        int surface = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, at.getX(), at.getZ());
-        BlockPos spot = new BlockPos(at.getX(), surface, at.getZ());
-        if (Math.abs(surface - at.getY()) > 4) {
-            // 洞窟の中など、地表が遠すぎるところでは芽吹かせない。
-            return;
-        }
-        BlightFernPlacement.spawn(level, spot, MobSpawnType.MOB_SUMMONED);
-    }
-
-    /**
-     * 終わりぎわに過繁茂 Mob を 1 体だけ増やす({@code invaderMobSpawnChance})—
-     * 「拡大種が過繁茂 Mob を増やす」経路。
-     *
-     * <p>増やす相手は<b>今のフェーズで過繁茂バイオームに湧ける種</b>
-     * ({@link OvergrownBiomeSpawner#spawnPoolFor})から選ぶ。ただし:
-     * <ul>
-     *   <li>グループ4(自分と同じ拡大種)は<b>選ばない</b> — 自己増殖で無限に増えるのを避けるため。</li>
-     *   <li>水生の種は選ばない(陸の上に湧かせても仕方がない)。</li>
-     *   <li>周囲 {@link #NEARBY_RADIUS} ブロックに既にグループ所属の Mob が
-     *   {@code invaderMobSpawnNearbyCap} 体以上いるときは増やさない。</li>
-     * </ul>
-     */
-    private void trySpawnOvergrownMob(ServerLevel level) {
-        double chance = OvergrownVegetationConfig.COMMON.invaderMobSpawnChance.get();
-        if (chance <= 0.0D || this.mob.getRandom().nextDouble() >= chance) {
-            return;
-        }
-        int cap = OvergrownVegetationConfig.COMMON.invaderMobSpawnNearbyCap.get();
-        AABB near = this.mob.getBoundingBox().inflate(NEARBY_RADIUS);
-        int existing = 0;
-        for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, near)) {
-            if (MobGroup.of(entity.getType()) != null && ++existing >= cap) {
-                return;
-            }
-        }
-
-        List<EntityType<?>> pool = new ArrayList<>();
-        for (EntityType<?> type : OvergrownBiomeSpawner.spawnPoolFor(PhaseData.get(level).getPhase())) {
-            if (MobGroup.of(type) == MobGroup.GROUP_4 || OvergrownSpawnProfile.isAquatic(type)) {
-                continue;
-            }
-            pool.add(type);
-        }
-        if (pool.isEmpty()) {
-            return;
-        }
-
-        EntityType<?> chosen = pool.get(this.mob.getRandom().nextInt(pool.size()));
-        BlockPos at = this.mob.blockPosition();
-        int x = at.getX() + this.mob.getRandom().nextInt(5) - 2;
-        int z = at.getZ() + this.mob.getRandom().nextInt(5) - 2;
-        int surface = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-        if (Math.abs(surface - at.getY()) > 4) {
-            return;
-        }
-        BlockPos spot = new BlockPos(x, surface, z);
-        // 体がまるごと入る場所にだけ湧かせる(幅 1 を超える種が地面や壁へ埋まらないように)。
-        if (!SpawnFit.fits(level, chosen, spot)) {
-            return;
-        }
-        Entity spawned = chosen.create(level, null, spot, MobSpawnType.MOB_SUMMONED, false, false);
-        if (spawned != null) {
-            level.addFreshEntity(spawned);
+        if (this.mob.level() instanceof ServerLevel level) {
+            this.session.tick(level);
         }
     }
 }

@@ -17,7 +17,7 @@ import java.util.function.Supplier;
  * {@link GearTable}(= {@code config/overgrown_vegetation/gear.json})から読む。
  *
  * <p>{@code getIncorrectBlocksForDrops()} はバニラの「この階層では正しく採掘できないブロック」タグを
- * 流用している(クロロフィライト=鉄ツール相当、合金=ダイヤツール相当)。
+ * 流用している(クロロフィライト=鉄ツール相当、合金=ダイヤツール相当、サンライト合金=ネザライト相当)。
  */
 public enum ModTiers implements Tier {
 
@@ -25,9 +25,16 @@ public enum ModTiers implements Tier {
     CHLOROPHYLLITE("chlorophyllite", BlockTags.INCORRECT_FOR_IRON_TOOL,
             () -> ModItems.CHLOROPHYLLITE),
 
-    /** 「クロロフィライト合金ツール」— 採掘・攻撃はダイヤ相当。ただし耐久は鉄より少し上どまりの最上位。 */
+    /** 「クロロフィライト合金ツール」— 採掘・攻撃はダイヤ相当。ただし耐久は鉄より少し上どまり。 */
     CHLOROPHYLLITE_ALLOY("chlorophyllite_alloy", BlockTags.INCORRECT_FOR_DIAMOND_TOOL,
-            () -> ModItems.CHLOROPHYLLITE_ALLOY);
+            () -> ModItems.CHLOROPHYLLITE_ALLOY),
+
+    /**
+     * 「サンライト合金の武器」(2026-10-09)— 攻撃・耐久ともネザライト相当(Claude 仮決め)。今はツヴァイヘンダーだけ。
+     * 修理素材は「サンライト合金」。
+     */
+    SUNLIGHT_ALLOY("sunlight_alloy", BlockTags.INCORRECT_FOR_NETHERITE_TOOL,
+            () -> ModItems.SUNLIGHT_ALLOY);
 
     private final String key;
     private final TagKey<Block> incorrectForDrops;
@@ -49,7 +56,7 @@ public enum ModTiers implements Tier {
     }
 
     /**
-     * ツール種別({@code axe}/{@code pickaxe}/{@code shovel}/{@code hoe}/{@code sword}/{@code shield})
+     * ツール種別({@code axe}/{@code pickaxe}/{@code shovel}/{@code hoe}/{@code sword}/{@code zweihander}/{@code shield})
      * ごとの {@link Tier} ビュー。耐久だけを {@code gear.json} の種別別の値に差し替える
      * (採掘速度・攻撃力ボーナス・エンチャント適性・修理素材はセット共通のまま)。
      */

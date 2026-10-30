@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "NNN",
+    "NCN",
+    "NNN"
+  ],
+  "key": {
+    "N": {
+      "tag": "c:nuggets/brass"
+    },
+    "C": {
+      "item": "overgrown_vegetation:medium_crystal"
+    }
+  },
+  "result": {
+    "id": "overgrown_vegetation:amber_lantern",
+    "count": 1
+  }
+}

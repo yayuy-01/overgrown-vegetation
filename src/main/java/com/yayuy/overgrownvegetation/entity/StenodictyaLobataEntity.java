@@ -60,6 +60,12 @@ public class StenodictyaLobataEntity extends OvergrownFlyerEntity {
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(this, "main", TRANSITION_TICKS, state -> {
+            // 今している行動(食べる・休む・驚いて逃げ出す など)があればそのアニメ(CritterAction、2026-10-22)
+            RawAnimation critterAct = CritterAction.animation(this);
+            if (critterAct != null) {
+                state.getController().setAnimationSpeed(1.0D);
+                return state.setAndContinue(critterAct);
+            }
             state.getController().setAnimationSpeed(1.0D);
             switch (getActionState()) {
                 case STATE_PERCH:

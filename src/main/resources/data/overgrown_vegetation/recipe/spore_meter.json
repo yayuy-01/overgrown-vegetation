@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " G ",
+    "BCB",
+    " F "
+  ],
+  "key": {
+    "B": { "tag": "c:ingots/brass" },
+    "G": { "tag": "c:glass_panes" },
+    "C": { "item": "overgrown_vegetation:ley_crystal_shard" },
+    "F": { "item": "overgrown_vegetation:breathing_cloth" }
+  },
+  "result": { "id": "overgrown_vegetation:spore_meter", "count": 1 }
+}

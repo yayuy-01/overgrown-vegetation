@@ -9,7 +9,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MobSpawnType;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
@@ -64,7 +63,9 @@ public final class Group1OvergrownExposure {
         BlockPos pos = entity.blockPosition();
         entity.kill();
         if (entity.isDeadOrDying() || !entity.isAlive()) {
-            BlightFernPlacement.spawn(level, pos, MobSpawnType.MOB_SUMMONED);
+            // 近くに汚染シダがもう十分いれば生やさない(2026-09-25、密度の上限)。過繁茂の中で
+            // 群れが次々に限界を迎えると、同じ場所に起点が何本も重なっていた。
+            BlightFernPlacement.spawnFromDeath(level, pos);
         }
     }
 

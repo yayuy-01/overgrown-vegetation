@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:covered_iron_trapdoor",
+    "overgrown_vegetation:covered_copper_trapdoor",
+    "overgrown_vegetation:covered_exposed_copper_trapdoor",
+    "overgrown_vegetation:covered_weathered_copper_trapdoor",
+    "overgrown_vegetation:covered_oxidized_copper_trapdoor"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+    "vertex": "overgrown_vegetation:cloud_wake",
+    "fragment": "overgrown_vegetation:cloud_wake",
+    "samplers": [
+    ],
+    "uniforms": [
+        { "name": "ModelViewMat", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "ProjMat", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "ColorModulator", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 1.0 ] },
+        { "name": "Split", "type": "float", "count": 4, "values": [ 0.0, 0.0, 64.0, 28000.0 ] },
+        { "name": "Curve", "type": "float", "count": 4, "values": [ 0.0, 1200.0, 0.0, 0.0 ] },
+        { "name": "Haze", "type": "float", "count": 4, "values": [ 0.6, 0.75, 1.0, 0.0 ] },
+        { "name": "Fade", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+        { "name": "Squeeze", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] }
+    ]
+}

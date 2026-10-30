@@ -1,0 +1,78 @@
+package com.yayuy.overgrownvegetation.corruption;
+
+import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.level.BlockDropsEvent;
+
+/**
+ * 汚染の処理が<b>その場で</b>引き起こした破壊のドロップを消す(要望: 汚染でアイテムをばらまかない)。
+ *
+ * <p>{@link net.minecraft.world.level.block.Block#UPDATE_SUPPRESS_DROPS} を立てても、
+ * バニラの {@code Level#markAndNotifyBlock} は形状更新の連鎖へ渡すフラグからこのビットを落とす
+ * ({@code flags & -34})。そのため汚染の処理が隣を {@code UPDATE_ALL} で書き換えると、連鎖の先で支えを失った
+ * バニラの植物は {@code Block#updateOrDestroy} → {@code Level#destroyBlock(pos, true)} でアイテムを落とす。
+ * フラグでは届かないこの連鎖を、{@link #enter}〜{@link #exit} の間だけ {@link BlockDropsEvent} を
+ * 取り消すことで止める。
+ *
+ * <p>{@link CorruptionRegistry#placeCorrupted} 自身は {@code UPDATE_KNOWN_SHAPE} で形状更新の連鎖を
+ * 打ち切るので、その中でこの範囲が効くのは近隣通知({@code neighborChanged})で壊れるもの
+ * (支えを失ったレール・レッドストーンなど)だけ。過繁茂した地面の上に取り残された植物が<b>あとで</b>
+ * 壊れる分は、それを引き起こす処理(汚染直後の装飾植物の設置など)を呼び出し側で包まないと止まらない。
+ *
+ * <p>変わるのは<b>アイテムと経験値が出ないことだけ</b>。壊れる・壊れないの判定、近隣更新、
+ * 破壊パーティクルと音({@code destroyBlock} の {@code levelEvent 2001})はそのまま。
+ * ルートの抽選と落下位置の乱数はイベントより前に引かれるので、乱数を引く順番も変わらない。
+ * 取り消すと {@code spawnAfterBreak}(虫食いブロックのシルバーフィッシュなど)も呼ばれない。
+ *
+ * <p>範囲は<b>入れ子の深さ</b>で数え、スレッドごとに持つ({@link ThreadLocal})。ブロックの更新は
+ * サーバースレッドで同期的に走るので、範囲の中で始まった連鎖は範囲が閉じる前に同じスレッドで終わる。
+ * 予約 tick で 1 tick 後に壊れるもの(サトウキビ・サボテン・昆布など)は範囲の外なので対象外。
+ *
+ * <p><b>必ず try/finally で対にする</b>(閉じ忘れるとそのスレッドのドロップがすべて消える)。
+ * 手軽に包むなら {@link #run}。
+ */
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+public final class CorruptionDropSuppressor {
+
+    /** 今の範囲の深さ(スレッドごと)。長さ 1 の配列にして、出入りのたびに箱詰めしない。 */
+    private static final ThreadLocal<int[]> DEPTH = ThreadLocal.withInitial(() -> new int[1]);
+
+    /** 範囲に入る。必ず {@link #exit} と try/finally で対にすること。 */
+    public static void enter() {
+        DEPTH.get()[0]++;
+    }
+
+    /** 範囲を出る。 */
+    public static void exit() {
+        int[] depth = DEPTH.get();
+        if (depth[0] > 0) {
+            depth[0]--;
+        }
+    }
+
+    /** {@code action} を範囲の中で走らせる。 */
+    public static void run(Runnable action) {
+        enter();
+        try {
+            action.run();
+        } finally {
+            exit();
+        }
+    }
+
+    /** このスレッドが今、範囲の中にいるか。 */
+    public static boolean isActive() {
+        return DEPTH.get()[0] > 0;
+    }
+
+    @SubscribeEvent
+    public static void onBlockDrops(BlockDropsEvent event) {
+        if (isActive()) {
+            event.setCanceled(true);
+        }
+    }
+
+    private CorruptionDropSuppressor() {
+    }
+}

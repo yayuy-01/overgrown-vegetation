@@ -53,6 +53,8 @@ public class ResearchTableMenu extends AbstractContainerMenu {
     private final Player player;
     private final int analyzeCount;
     private final int invStart;
+    /** 画面の「作業」タブを開いている間だけ true(クライアントだけが切り替える。サーバーは常に true)。研究のタブではスロットを描かず当たりも取らない。 */
+    private boolean workSlotsShown = true;
 
     public ResearchTableMenu(int containerId, Inventory playerInventory, RegistryFriendlyByteBuf buf) {
         this(containerId, playerInventory, ContainerLevelAccess.NULL,
@@ -68,12 +70,22 @@ public class ResearchTableMenu extends AbstractContainerMenu {
         this.invStart = 1 + GRID * GRID + this.analyzeCount;
 
         this.addSlot(new ResultSlot(playerInventory.player, this.craftSlots, this.resultSlots, 0,
-                ResearchUi.RESULT_X, ResearchUi.RESULT_Y));
+                ResearchUi.RESULT_X, ResearchUi.RESULT_Y) {
+            @Override
+            public boolean isActive() {
+                return workSlotsShown;
+            }
+        });
         for (int row = 0; row < GRID; row++) {
             for (int col = 0; col < GRID; col++) {
                 this.addSlot(new Slot(this.craftSlots, col + row * GRID,
                         ResearchUi.GRID_X + col * ResearchUi.SLOT,
-                        ResearchUi.GRID_Y + row * ResearchUi.SLOT));
+                        ResearchUi.GRID_Y + row * ResearchUi.SLOT) {
+                    @Override
+                    public boolean isActive() {
+                        return workSlotsShown;
+                    }
+                });
             }
         }
         for (int i = 0; i < this.analyzeCount; i++) {
@@ -83,23 +95,43 @@ public class ResearchTableMenu extends AbstractContainerMenu {
                 public boolean mayPlace(ItemStack stack) {
                     return DesignData.research().pointsFor(stack) > 0;
                 }
+
+                @Override
+                public boolean isActive() {
+                    return workSlotsShown;
+                }
             });
         }
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 this.addSlot(new Slot(playerInventory, col + row * 9 + 9,
                         ResearchUi.INV_X + col * ResearchUi.SLOT,
-                        ResearchUi.INV_Y + row * ResearchUi.SLOT));
+                        ResearchUi.INV_Y + row * ResearchUi.SLOT) {
+                    @Override
+                    public boolean isActive() {
+                        return workSlotsShown;
+                    }
+                });
             }
         }
         for (int col = 0; col < 9; col++) {
             this.addSlot(new Slot(playerInventory, col,
-                    ResearchUi.INV_X + col * ResearchUi.SLOT, ResearchUi.HOTBAR_Y));
+                    ResearchUi.INV_X + col * ResearchUi.SLOT, ResearchUi.HOTBAR_Y) {
+                @Override
+                public boolean isActive() {
+                    return workSlotsShown;
+                }
+            });
         }
     }
 
     public int analyzeCount() {
         return analyzeCount;
+    }
+
+    /** 画面のタブに合わせてスロットを出し入れする(クライアントだけ)。 */
+    public void setWorkSlotsShown(boolean shown) {
+        this.workSlotsShown = shown;
     }
 
     // --- 5×5 作業台の結果 ---

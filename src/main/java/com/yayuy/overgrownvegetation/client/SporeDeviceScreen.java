@@ -55,11 +55,11 @@ public class SporeDeviceScreen extends AbstractContainerScreen<SporeDeviceMenu> 
             graphics.fill(sx + 1, sy + 1, sx + 17, sy + 17, SLOT_DARK);
         }
 
-        // 稼働ゲージ(燃料 → 胞子 の間)。
-        int gx = x + SporeDeviceMenu.FUEL_X + 22;
-        int gy = y + SporeDeviceMenu.FUEL_Y + 4;
-        int gw = SporeDeviceMenu.SPORE_X - SporeDeviceMenu.FUEL_X - 26;
-        drawGauge(graphics, gx, gy, gw, 8, menu.remainingTicks(), menu.ticksPerFuel(),
+        // 電池のゲージ(電池 → 胞子 の間。2026-10-24 から残り稼働の代わりに電池の残り)。
+        int gx = x + SporeDeviceMenu.BATTERY_X + 22;
+        int gy = y + SporeDeviceMenu.BATTERY_Y + 4;
+        int gw = SporeDeviceMenu.SPORE_X - SporeDeviceMenu.BATTERY_X - 26;
+        drawGauge(graphics, gx, gy, gw, 8, menu.chargeSeconds(), menu.capacitySeconds(),
                 menu.kind() == SporeDeviceKind.PURIFIER ? 0xFF3FB8D8 : 0xFFC050D0);
 
         if (menu.kind() == SporeDeviceKind.PURIFIER) {
@@ -78,8 +78,8 @@ public class SporeDeviceScreen extends AbstractContainerScreen<SporeDeviceMenu> 
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
         super.renderLabels(graphics, mouseX, mouseY);
-        int seconds = menu.remainingTicks() / 20;
-        // 詰まり(除去装置の取り出し口が満杯)は「停止中」と区別して出す —— レッドストーンを
+        int seconds = menu.chargeSeconds();
+        // 詰まり(除去装置の取り出し口が満杯)は「停止中」と区別して出す —— 電池を
         // 足しても直らないので、何をすれば動くのかが分からないと詰まる。
         Component status;
         int color = 0xFF404040;
@@ -90,9 +90,11 @@ public class SporeDeviceScreen extends AbstractContainerScreen<SporeDeviceMenu> 
         } else if (menu.isJammed()) {
             status = Component.translatable("gui.overgrown_vegetation.spore_device.jammed");
             color = 0xFFA03030;
-        } else if (menu.remainingTicks() > 0) {
+        } else if (menu.running()) {
             status = Component.translatable("gui.overgrown_vegetation.spore_device.running",
                     seconds / 60, seconds % 60);
+        } else if (seconds > 0) {
+            status = Component.translatable("gui.overgrown_vegetation.spore_device.no_spores"); // 拡散装置の胞子切れ
         } else {
             status = Component.translatable("gui.overgrown_vegetation.spore_device.idle");
         }

@@ -56,6 +56,13 @@ public final class ModArmorMaterials {
                     () -> ModItems.CHLOROPHYLLITE_ALLOY);
 
     /**
+     * 「パワードアーマー」(順 1 の着手順 6)の土台。防御点 30・強靭 20 はバニラの属性の上限で、上積みはスキルツリー
+     * ({@link com.yayuy.overgrownvegetation.item.PoweredArmorItem})。修理素材はサンライト合金。
+     */
+    public static final DeferredHolder<ArmorMaterial, ArmorMaterial> POWERED_ARMOR =
+            register("powered_armor", SoundEvents.ARMOR_EQUIP_NETHERITE, () -> ModItems.SUNLIGHT_ALLOY);
+
+    /**
      * 「防護マスク」({@link com.yayuy.overgrownvegetation.item.ProtectiveMaskItem})専用。防具値は
      * {@code gear.json} に {@code armor.protective_mask} が無ければ汎用値。修理素材は革。
      */

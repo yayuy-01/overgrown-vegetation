@@ -26,11 +26,14 @@ public final class SporeInfectionCombatModifier {
             return;
         }
         MobEffectInstance infection = attacker.getEffect(ModMobEffects.SPORE_INFECTION);
-        if (infection == null) {
+        if (infection == null || MedicineEffects.symptomsSuppressed(attacker)) { // 気付け薬で抑える(2026-10-16)
             return;
         }
 
-        double reduction = DesignData.effects().level(infection.getAmplifier()).attackDamageReduction();
+        // プレイヤーは 10 段階の表(2026-10-14)、Mob は今までどおり level1〜3。
+        double reduction = attacker instanceof net.minecraft.world.entity.player.Player
+                ? SporeInfectionMobEffect.playerStage(infection.getAmplifier()).attackDamageReduction()
+                : DesignData.effects().level(infection.getAmplifier()).attackDamageReduction();
         if (reduction <= 0.0D) {
             return;
         }

@@ -7,6 +7,9 @@ import com.yayuy.overgrownvegetation.entity.SpawnFit;
 import com.yayuy.overgrownvegetation.phase.MobGroup;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
 import com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder;
+import com.yayuy.overgrownvegetation.swarm.Swarm;
+import com.yayuy.overgrownvegetation.swarm.SwarmOrigin;
+import com.yayuy.overgrownvegetation.swarm.SwarmSpawner;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -19,7 +22,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
-import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -35,10 +38,23 @@ import java.util.Map;
  * 重み 0 = ウェーブには出ない。過繫茂バイオームの内外を問わずビーコンの周囲に直接湧かせる点が
  * 生態系スポーン({@link com.yayuy.overgrownvegetation.phase.OvergrownBiomeSpawner})との違いで、
  * 湧いた Mob には近くのプレイヤーを初期ターゲットに設定して、ビーコンへ向かってくるプレイヤーへ差し向ける。
+ *
+ * <h2>群れで湧かせる(群れ v2、2026-09-25)</h2>
+ * 1 ウェーブの頭数と編成の抽選は今までどおり。抽選した G4 は、地上の種・ヴェロフィル(空)ごとに上限
+ * ({@code swarm.json} の {@code maxSize}、地上 12 / 空 6)以下の<b>群れ</b>にまとめ、群れごとにビーコンの輪
+ * (8〜{@code raidWaveSpawnRadius})の 1 点を中心に湧かせる({@link SwarmSpawner}、出どころ {@code RAID}、
+ * イベント ID = ビーコンの UUID で {@link EventMobs} の NEXUS の印も addFreshEntity の前に付く)。
+ * 以前は 1 体ずつ輪のあちこちに散らしていた —— 群れにすると後続は経路を引かずに先導役の足跡を追うので、
+ * 最初から固まって湧かせる。近くのプレイヤーは群れの<b>ふつうの</b>標的として指定する({@code Swarm#offerTarget}:
+ * 追う距離はふつうのプレイヤーと同じ。狙い {@code commandTarget} にすると、永続の群れが苗床を離れて 1 人をどこまでも追う。
+ * 仮決め 2026-09-25、レビュー指摘)。
+ * 群れに入らない種(表に足した場合)は今までどおり 1 体ずつ散らして湧かせる。
  */
 public final class RaidWaveSpawner {
 
     private static final double TAU = Math.PI * 2.0D;
+    /** 1 つの群れの中心を探す回数(水・未ロードで空振りするため)。置ききれなかった残りは次の中心で別の群れになる。 */
+    private static final int CENTER_ATTEMPTS = 4;
 
     /**
      * ウェーブの<b>編成</b>(種 → 相対的な重み)。ユーザー指定 2026-09-17:
@@ -64,7 +80,32 @@ public final class RaidWaveSpawner {
     private record Candidate(EntityType<?> type, double cumulative) {
     }
 
-    /** {@link OvergrownNexusEntity} の serverTick から、{@code raidWaveIntervalTicks} 間隔で呼ばれる。 */
+    /**
+     * ウェーブの時計を進めてよいか = {@code pos}(苗床)から {@code raidWavePlayerRadius} 以内に、生きている
+     * サバイバル / アドベンチャーのプレイヤーが 1 人でも居るか(2026-09-25、ユーザー承認「レイドの見直し」、報告 410)。
+     *
+     * <p>苗床は強制ロードの中で誰も居なくても動くので、以前は 1 分ごとのウェーブが誰にも向かわずに湧き続け、
+     * 永続の個体が上限({@code raidWaveMaxNearby})まで溜まっていた。居ない間は時計ごと止め、戻ってきたら続きから数える
+     * ({@link OvergrownNexusEntity} の {@code waveClock})。止まっていた間のウェーブは出さない。
+     */
+    public static boolean hasWavePlayerNearby(ServerLevel level, Vec3 pos) {
+        double radius = OvergrownVegetationConfig.COMMON.raidWavePlayerRadius.get();
+        double radiusSq = radius * radius;
+        for (ServerPlayer player : level.players()) {
+            if (player.isSpectator() || player.isCreative() || !player.isAlive()) {
+                continue;
+            }
+            if (player.distanceToSqr(pos) <= radiusSq) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * {@link OvergrownNexusEntity} の serverTick から、ウェーブの時計が {@code raidWaveIntervalTicks} に達するたびに呼ばれる
+     * (時計は {@link #hasWavePlayerNearby} の間だけ進む)。
+     */
     public static void tryWave(ServerLevel level, OvergrownNexusEntity nexus) {
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
 
@@ -78,8 +119,11 @@ public final class RaidWaveSpawner {
         int spawnRadius = cfg.raidWaveSpawnRadius.get();
         int maxNearby = cfg.raidWaveMaxNearby.get();
 
-        AABB countArea = new AABB(origin).inflate(spawnRadius * 2.0D + 16.0D);
-        int nearby = level.getEntitiesOfClass(Mob.class, countArea, m -> MobGroup.of(m) != null).size();
+        // 数えるのは「このビーコンのウェーブで湧いて、いま読み込まれている個体」(2026-09-24、ユーザー承認)。
+        // 以前は苗床のまわりの箱(約 64 ブロック)の過繫茂 Mob を数えていたので、プレイヤーを追って
+        // 箱の外へ出たウェーブの個体が数に入らず、上限を超えて湧き足されていた。
+        String nexusId = nexus.getUUID().toString();
+        int nearby = EventMobs.count(level, EventMobs.Kind.NEXUS, nexusId);
         if (nearby > maxNearby) {
             return;
         }
@@ -94,21 +138,83 @@ public final class RaidWaveSpawner {
 
         ServerPlayer targetPlayer = nearestPlayer(level, origin, cfg.raidBossBarRadius.get());
 
+        // 編成は今までどおり 1 体ずつ重みで抽選し、群れに入る種は群れにまとめる。
+        List<EntityType<?>> planned = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            planned.add(pick(pool, random));
+        }
+        EventSwarms.Split split = EventSwarms.split(planned);
         int spawned = 0;
-        int attempts = size * 4;
-        for (int i = 0; i < attempts && spawned < size; i++) {
-            double angle = random.nextDouble() * TAU;
-            int dist = 8 + random.nextInt(Math.max(1, spawnRadius - 7));
-            int x = origin.getX() + (int) Math.round(Math.cos(angle) * dist);
-            int z = origin.getZ() + (int) Math.round(Math.sin(angle) * dist);
-            if (spawnOne(level, pool, x, z, targetPlayer, random)) {
-                spawned++;
+        for (List<EntityType<?>> batch : EventSwarms.batches(split.ground(), Swarm.Kind.GROUND)) {
+            spawned += spawnSwarm(level, origin, spawnRadius, batch, targetPlayer, random, nexusId);
+        }
+        for (List<EntityType<?>> batch : EventSwarms.batches(split.air(), Swarm.Kind.AIR)) {
+            spawned += spawnSwarm(level, origin, spawnRadius, batch, targetPlayer, random, nexusId);
+        }
+        // 群れに入らない種は今までどおり 1 体ずつ散らす(1 体あたり 4 回まで)。
+        for (EntityType<?> type : split.individuals()) {
+            for (int attempt = 0; attempt < 4; attempt++) {
+                int[] xz = ringPoint(origin, spawnRadius, random);
+                if (spawnOne(level, type, xz[0], xz[1], targetPlayer, nexusId)) {
+                    spawned++;
+                    break;
+                }
             }
         }
 
         if (spawned > 0) {
             level.playSound(null, origin, SoundEvents.WITHER_AMBIENT, SoundSource.HOSTILE, 3.0F, 0.5F);
         }
+    }
+
+    /** ビーコンから 8〜{@code spawnRadius} の輪の 1 点(以前の散らし方と同じ分布)。 */
+    private static int[] ringPoint(BlockPos origin, int spawnRadius, RandomSource random) {
+        double angle = random.nextDouble() * TAU;
+        int dist = 8 + random.nextInt(Math.max(1, spawnRadius - 7));
+        return new int[] {origin.getX() + (int) Math.round(Math.cos(angle) * dist),
+                origin.getZ() + (int) Math.round(Math.sin(angle) * dist)};
+    }
+
+    /**
+     * {@code batch}(同じ種類・上限以下)を 1 つの群れとして、輪の 1 点を中心に湧かせる。中心が水・未ロードなら別の点を試し
+     * ({@link #CENTER_ATTEMPTS} 回まで)、置ききれなかった残りは次の点で別の群れにする(頭数を減らさない)。
+     *
+     * @return 湧いた頭数
+     */
+    private static int spawnSwarm(ServerLevel level, BlockPos origin, int spawnRadius, List<EntityType<?>> batch,
+                                  @Nullable ServerPlayer targetPlayer, RandomSource random, String nexusId) {
+        List<EntityType<?>> remaining = new ArrayList<>(batch);
+        int spawned = 0;
+        for (int attempt = 0; attempt < CENTER_ATTEMPTS && !remaining.isEmpty(); attempt++) {
+            int[] xz = ringPoint(origin, spawnRadius, random);
+            BlockPos center = swarmCenter(level, xz[0], xz[1]);
+            if (center == null) {
+                continue;
+            }
+            SwarmSpawner.Result result = SwarmSpawner.spawn(level, center, remaining, SwarmOrigin.RAID, nexusId,
+                    targetPlayer);
+            for (Mob mob : result.members()) {
+                remaining.remove(mob.getType());
+                spawned++;
+            }
+        }
+        return spawned;
+    }
+
+    /**
+     * 群れの中心にする地表(読み込み済みのチャンク・木の天蓋の下の地面・足元と頭が乾いている)。使えなければ null。
+     * 体が入るかは群れを置くときに 1 体ずつ見る({@link SwarmSpawner})。
+     */
+    @Nullable
+    private static BlockPos swarmCenter(ServerLevel level, int x, int z) {
+        if (level.getChunkSource().getChunkNow(x >> 4, z >> 4) == null) {
+            return null;
+        }
+        BlockPos pos = TreeCanopyGroundFinder.findSpawnSurface(level, x, z);
+        if (pos == null || !level.getFluidState(pos).isEmpty() || !level.getFluidState(pos.above()).isEmpty()) {
+            return null;
+        }
+        return pos;
     }
 
     /**
@@ -160,8 +266,12 @@ public final class RaidWaveSpawner {
         return pool.get(pool.size() - 1).type();
     }
 
-    private static boolean spawnOne(ServerLevel level, List<Candidate> pool, int x, int z,
-                                    @Nullable ServerPlayer targetPlayer, RandomSource random) {
+    /** 群れに入らない種を {@code (x, z)} 列に 1 体湧かせる(以前の 1 体ずつの湧かせ方。印は addFreshEntity の前に付ける)。 */
+    private static boolean spawnOne(ServerLevel level, EntityType<?> type, int x, int z,
+                                    @Nullable ServerPlayer targetPlayer, String nexusId) {
+        if (level.getChunkSource().getChunkNow(x >> 4, z >> 4) == null) {
+            return false;
+        }
         // 苗床は巨大樹の近くに立つことが多く、地表が木の天蓋・幹ならその下の本物の地面まで潜る
         // (詳細は TreeCanopyGroundFinder 参照。これが無いと Mob が木の上に湧いてしまっていた)。
         BlockPos spawnPos = TreeCanopyGroundFinder.findSpawnSurface(level, x, z);
@@ -171,23 +281,26 @@ public final class RaidWaveSpawner {
         if (!level.getFluidState(spawnPos).isEmpty() || !level.getFluidState(spawnPos.above()).isEmpty()) {
             return false;
         }
-        EntityType<?> type = pick(pool, random);
         // 体がまるごと入るか(幅 1 を超える種・背の高い種が地面や壁へ埋まらないように。SpawnFit 参照)。
         if (!SpawnFit.fits(level, type, spawnPos)) {
             return false;
         }
         Entity spawned = type.create(level, null, spawnPos, MobSpawnType.EVENT, false, false);
-        if (spawned == null) {
+        if (!(spawned instanceof Mob mob)) {
+            if (spawned != null) {
+                spawned.discard();
+            }
             return false;
         }
-        level.addFreshEntity(spawned);
-        if (spawned instanceof Mob mob) {
-            // レイドのウェーブは、プレイヤーが少し離れても消えないよう永続化する
-            // (生態系スポーンの個体と違い、レイド中は苗床の周りに留まらせたい)。
-            mob.setPersistenceRequired();
-            if (targetPlayer != null) {
-                mob.setTarget(targetPlayer);
-            }
+        // レイドのウェーブは、プレイヤーが少し離れても消えないよう永続化する
+        // (生態系スポーンの個体と違い、レイド中は苗床の周りに留まらせたい)。
+        // ビーコンの印も付け、レイドが終わったら永続を外す(2026-09-24、EventMobs)。
+        EventMobs.tag(mob, EventMobs.Kind.NEXUS, nexusId);
+        if (!level.addFreshEntity(mob)) {
+            return false;
+        }
+        if (targetPlayer != null) {
+            mob.setTarget(targetPlayer);
         }
         return true;
     }

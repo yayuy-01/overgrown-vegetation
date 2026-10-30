@@ -1,0 +1,38 @@
+{
+  "_comment": "生態系の台帳(兵站、2026-09-24。2026-10-14 にユーザー指定で作り直し)。「多様性」(豊かさ)はワールド全体で 1 つ。グループ2・3 がどこでもプレイヤーか防衛設備に倒されると減り(healthLoss)、recoveryDays で 0→100% に戻る。多様性が下がるとグループ2・3 が湧きにくくなり、defense.thresholds を下回るとプレイヤーの近くにグループ4 以降が防衛に湧く(1 体ごとに defense.cost のバイオマスを使う。regionChunks は「プレイヤーの近くに過繁茂があるか」を見る升目の一辺)。バイオマスは毎秒 biomassPerSecond、過繁茂のチャンク biomassChunksPerStep ごとに biomassPerStep ずつ増え、多様性を掛ける。incomeIntervalTicks ごとに足す。反映は再起動。",
+  "regionChunks": 8,
+  "recoveryDays": 5.0,
+  "healthLoss": {
+    "group_2": 0.02,
+    "group_3": 0.05
+  },
+  "speciesLoss": {},
+  "countedDamageTypes": [
+    "overgrown_vegetation:autocannon",
+    "overgrown_vegetation:barbed_wire"
+  ],
+  "biomassPerSecond": 1.0,
+  "biomassPerStep": 1.0,
+  "biomassChunksPerStep": 100,
+  "biomassCapBase": 10000.0,
+  "biomassCapPerTree": 2000.0,
+  "incomeIntervalTicks": 20,
+  "defense": {
+    "thresholds": [0.70, 0.40, 0.15],
+    "hysteresis": 0.05,
+    "intervalTicks": 200,
+    "minDistance": 24,
+    "maxDistance": 48,
+    "countRadius": 64,
+    "defenders": {
+      "group_4": [3, 4, 5],
+      "group_5": [0, 1, 2],
+      "group_6": [0, 0, 1]
+    },
+    "cost": {
+      "group_4": 100,
+      "group_5": 1500,
+      "group_6": 4500
+    }
+  }
+}

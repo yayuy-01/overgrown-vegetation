@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "overgrown_vegetation:reinforced_concrete"
+    },
+    {
+      "item": "overgrown_vegetation:reinforced_concrete"
+    },
+    {
+      "item": "minecraft:iron_ingot"
+    }
+  ],
+  "result": {
+    "id": "overgrown_vegetation:repair_material",
+    "count": 4
+  }
+}

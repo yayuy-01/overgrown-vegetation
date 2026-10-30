@@ -12,6 +12,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import java.util.HashMap;
@@ -49,6 +50,15 @@ public final class ErosionCarrier {
 
     /** 次元 → 「持ち主が立っているチャンク」。空のときは {@link #CHUNKS} 自体が空になる。 */
     private static final Map<ResourceKey<Level>, LongOpenHashSet> CHUNKS = new HashMap<>();
+
+    /**
+     * ワールドを閉じたら一覧を空にする(キーはディメンションだけなので、次に別のワールドを開くと
+     * 最初の作り直しまで前のワールドのチャンクに上乗せが残る。起動し直したときと同じ状態に戻す)。
+     */
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        CHUNKS.clear();
+    }
 
     /** そのプレイヤーが副作用を出す状態か(浸食度がしきい値より上)。 */
     public static boolean isCarrier(ServerPlayer player) {

@@ -86,6 +86,8 @@ public class ShielderChargeGoal extends Goal {
         // 引き離された相手への手は「突進」と「迫撃砲」の 2 つ（ユーザー要望 2026-09-15）。
         // 札が迫撃砲の順番なら譲る。ただし<b>迫撃砲がクールタイム中なら譲らない</b> ——
         // 譲ったまま両方出せない時間ができると、遠い相手にただ歩み寄るだけになってしまう。
+        // G1〜3 の獲物には迫撃砲を使わない(ユーザー指定 2026-09-24)ので、その相手には shouldMortarNext が
+        // false を返し、ここでは譲らない。
         if (mob.shouldMortarNext() && mob.canMortarNow()) {
             return false;
         }

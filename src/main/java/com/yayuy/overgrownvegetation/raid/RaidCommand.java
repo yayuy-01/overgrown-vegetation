@@ -31,23 +31,26 @@ public final class RaidCommand {
                 .then(Commands.literal("raid")
                         .requires(source -> source.hasPermission(2))
                         .then(Commands.literal("start")
-                                .executes(ctx -> start(ctx, false))
-                                .then(Commands.literal("near").executes(ctx -> start(ctx, true)))
-                                .then(Commands.literal("far").executes(ctx -> start(ctx, false))))
-                        .then(Commands.literal("stop").executes(RaidCommand::stop))
-                        .then(Commands.literal("list").executes(RaidCommand::list))));
+                                .executes(ctx -> start(ctx, false)))
+                        .then(Commands.literal("stop").executes(RaidCommand::stop))));
     }
 
     private static int start(CommandContext<CommandSourceStack> ctx, boolean near) {
         CommandSourceStack source = ctx.getSource();
         ServerLevel overworld = source.getServer().overworld();
+        if (com.yayuy.overgrownvegetation.difficulty.Peaceful.is(overworld)) {
+            source.sendFailure(Component.translatable("commands.overgrown_vegetation.peaceful_blocked"));
+            return 0;
+        }
 
         BlockPos forced = null;
         if (near && source.getEntity() != null) {
             BlockPos p = source.getEntity().blockPosition();
-            int surfaceY = overworld.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
-                    p.getX() + 24, p.getZ());
-            forced = new BlockPos(p.getX() + 24, surfaceY, p.getZ());
+            forced = RaidLocationPicker.groundAt(overworld, p.getX() + 24, p.getZ());
+            if (forced == null) {
+                source.sendFailure(Component.translatable("commands.overgrown_vegetation.raid.start_failed"));
+                return 0;
+            }
         }
 
         boolean ok = RaidController.tryStartRaid(overworld, forced);
@@ -65,24 +68,6 @@ public final class RaidCommand {
         RaidData.get(overworld).stopAllRaids(overworld);
         ctx.getSource().sendSuccess(() -> Component.translatable("commands.overgrown_vegetation.raid.stopped", count), true);
         return count;
-    }
-
-    private static int list(CommandContext<CommandSourceStack> ctx) {
-        ServerLevel overworld = ctx.getSource().getServer().overworld();
-        List<RaidData.ActiveRaid> raids = RaidData.get(overworld).getActiveRaids();
-        if (raids.isEmpty()) {
-            ctx.getSource().sendSuccess(() -> Component.translatable("commands.overgrown_vegetation.raid.list_empty"), false);
-            return 0;
-        }
-        long now = overworld.getGameTime();
-        for (RaidData.ActiveRaid raid : raids) {
-            BlockPos o = raid.origin();
-            long ageTicks = now - raid.startGameTime();
-            ctx.getSource().sendSuccess(() -> Component.translatable(
-                    "commands.overgrown_vegetation.raid.list_entry",
-                    o.getX(), o.getY(), o.getZ(), ageTicks / 20L), false);
-        }
-        return raids.size();
     }
 
     private RaidCommand() {

@@ -89,6 +89,18 @@ public final class CorruptionAtmosphere {
 
     /** 極相バイオームに居る度合い(0〜1)。霧と同じ速さで寄せる。ライトマップの暗さに使う。 */
     private static float climaxFactor;
+    /** 極相の密林(結晶地帯・川・海を含む)に居る度合い(0〜1)。極相の密林の演出({@link ClimaxJungle})が使う。 */
+    private static float jungleClimaxFactor;
+
+    /** 極相に居る度合い(0〜1)。 */
+    public static float climaxFactor() {
+        return climaxFactor;
+    }
+
+    /** 極相の密林に居る度合い(0〜1)。 */
+    public static float jungleClimax() {
+        return jungleClimaxFactor * (1.0F - HighSky.clarity());
+    }
 
     /** 現在の霧の終端距離(ブロック)。過繁茂 ↔ 極相の境目で霧が一段飛ばないよう、補間係数と同じ速さで寄せる。 */
     private static float fogDistance = MAX_FOG_DISTANCE;
@@ -107,6 +119,23 @@ public final class CorruptionAtmosphere {
     /** 毎フレーム最初に呼ばれる {@link ViewportEvent.ComputeFogColor} で補間係数を進め、霧色の下限を適用する。 */
     @SubscribeEvent
     public static void onComputeFogColor(ViewportEvent.ComputeFogColor event) {
+        FogMood.frame(Minecraft.getInstance().level, (float) event.getPartialTick());  // 霧と空の色の詰め(2026-10-23 試作)
+        computeForestFogColor(event);
+        // 緑の霧(2026-10-23 胞子の場 G): 濃度が上がると霧を白緑へ(200% でほぼその色)。森の外でも。嵐の間は最大(H)
+        long nowNs = System.nanoTime();
+        ClientSporeAir.advance(lastSporeFrameNs == 0L ? 0.0F : (nowNs - lastSporeFrameNs) / 1.0e9F);
+        lastSporeFrameNs = nowNs;
+        float spore = ClientSporeAir.fogStrength();
+        if (spore > 0.001F) {
+            float[] sc = com.yayuy.overgrownvegetation.data.DesignData.sporeField().fogColor();
+            float a = Math.min(1.0F, spore / 0.55F) * 0.85F;
+            event.setRed(Mth.lerp(a, event.getRed(), sc[0]));
+            event.setGreen(Mth.lerp(a, event.getGreen(), sc[1]));
+            event.setBlue(Mth.lerp(a, event.getBlue(), sc[2]));
+        }
+    }
+
+    private static void computeForestFogColor(ViewportEvent.ComputeFogColor event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         ClientLevel level = mc.level;
@@ -123,16 +152,93 @@ public final class CorruptionAtmosphere {
                     : 1.0F;
         }
         boolean climax = ModBiomes.isClimax(biome);
+        boolean jungle = climax && (biome.is(ModBiomes.ENGULFED) || biome.is(ModBiomes.ENGULFED_RIVER) || biome.is(ModBiomes.ENGULFED_OCEAN)
+                || biome.is(ModBiomes.ENGULFED_CRYSTAL));
         advanceFactor(target, climax ? CLIMAX_FOG_DISTANCE : MAX_FOG_DISTANCE, climax ? 1.0F : 0.0F);
+        jungleClimaxFactor = Mth.lerp(Math.min(1.0F, (Util.getMillis() - lastMillis + 50.0F) / fadeMillis()), jungleClimaxFactor, jungle ? 1.0F : 0.0F);
+        // 高空の晴天(HighSky、2026-10-17): 高さ 300〜350 から上では森の霧と色の演出を外す(10 秒の寄せとは別に、高さですぐ効く)。
+        float ff = fogFactor * (1.0F - HighSky.clarity());
 
-        if (fogFactor <= 0.001F) {
+        float mist = MorningMistView.fogColorBlend();
+        if (ff <= 0.001F && mist <= 0.001F) {
+            return;
+        }
+        if (ff <= 0.001F) {
+            // 森の外の谷の朝霧(霧は森からはみ出す)。
+            float[] c = MorningMistView.fogColor();
+            event.setRed(Mth.lerp(mist, event.getRed(), c[0]));
+            event.setGreen(Mth.lerp(mist, event.getGreen(), c[1]));
+            event.setBlue(Mth.lerp(mist, event.getBlue(), c[2]));
             return;
         }
 
-        event.setRed(liftToFloor(event.getRed(), FLOOR_R, fogFactor));
-        event.setGreen(liftToFloor(event.getGreen(), FLOOR_G, fogFactor));
-        event.setBlue(liftToFloor(event.getBlue(), FLOOR_B, fogFactor));
+        float[] floor = FogMood.floor(FLOOR_R, FLOOR_G, FLOOR_B, climaxFactor);
+        float red = liftToFloor(event.getRed(), floor[0], ff);
+        float green = liftToFloor(event.getGreen(), floor[1], ff);
+        float blue = liftToFloor(event.getBlue(), floor[2], ff);
+
+        float cool = AerialFog.coolAmount(level, (float) event.getPartialTick());
+        if (cool > 0.001F) {
+            // 二色の霧の遠い側: 霧の色(= 空の背景・遠くの地形の色)を明るさのまま青緑へ回す。近い側は地形のシェーダーが暖かくする(AerialFog)。
+            // 太陽の方の暖かい光(下)より先に回す(後に回すと朝夕の金色の霧まで青緑に戻った)。
+            float luma = 0.299F * red + 0.587F * green + 0.114F * blue;
+            red = Mth.lerp(cool, red, Math.min(1.0F, luma * AerialFog.COOL_R));
+            green = Mth.lerp(cool, green, Math.min(1.0F, luma * AerialFog.COOL_G));
+            blue = Mth.lerp(cool, blue, Math.min(1.0F, luma * AerialFog.COOL_B));
+        }
+
+        // 太陽の方を向くと霧が明るく暖かい色になる(光が霧に散る: 前へ強く散るので、太陽に近い向きほど明るい)。
+        // 2026-10-16、ユーザー「霧の色を実装する」(storyline の案「太陽の方を向くと霧が明るく暖かい色に」)。
+        // バニラの朝焼けの霧(太陽の方を向くと霧が夕焼け色へ寄る)と同じ作りを、昼まで・過繁茂の霧で行う。霧の色は 1 つなので、
+        // Mob・粒・巨大樹のシルエットも同じ色になる。極相(暗い空と霧、ユーザー検討中)では足さない。
+        float glowSetting = OvergrownVegetationConfig.COMMON.canopyFogGlow.get().floatValue();
+        if (glowSetting > 0.0F && level.dimensionType().hasSkyLight()) {
+            float partialTick = (float) event.getPartialTick();
+            net.minecraft.world.phys.Vec3 sun = CanopyLight.sunDirection(level, partialTick);
+            float day = CanopyLight.daylight(level, sun, partialTick) * CloudShadows.sunVisibility();  // 雲が太陽を隠している間は弱める(CloudShadows、2026-10-17)
+            org.joml.Vector3f look = event.getCamera().getLookVector();
+            float toward = Math.max(0.0F, look.x() * (float) sun.x + look.y() * (float) sun.y + look.z() * (float) sun.z);
+            // 正面から 30° で 0.56、60° で 0.06(太陽の方の広い範囲だけ)。
+            float lobe = toward * toward * toward * toward;
+            float glow = Math.min(1.0F, FOG_GLOW * glowSetting) * lobe * day * ff * (1.0F - climaxFactor);
+            if (glow > 0.001F) {
+                // 色は光の筋と同じ流れ(朝夕は橙、昼は葉を透かした淡い金)。霧の明るさに合わせて、霧の色の 1.6 倍ほどの明るさへ寄せる。
+                float warm = 1.0F - Mth.clamp((float) sun.y / 0.5F, 0.0F, 1.0F);
+                float luma = Math.max(0.25F, 0.3F * red + 0.59F * green + 0.11F * blue) * 1.6F;
+                red = Mth.lerp(glow, red, Math.min(1.0F, luma * 1.25F));
+                green = Mth.lerp(glow, green, Math.min(1.0F, luma * Mth.lerp(warm, 1.12F, 0.9F)));
+                blue = Mth.lerp(glow, blue, Math.min(1.0F, luma * Mth.lerp(warm, 0.78F, 0.55F)));
+            }
+        }
+        float[] tinted = FogMood.tint(level, event.getCamera().getLookVector(), (float) event.getPartialTick(), red, green, blue, ff, climaxFactor, mist);
+        red = tinted[0];
+        green = tinted[1];
+        blue = tinted[2];
+        if (mist > 0.001F) {
+            // 朝霧の中: 霧の色(夜明け前は暗い青灰、日が昇ると白)へ寄せる。
+            float[] c = MorningMistView.fogColor();
+            red = Mth.lerp(mist, red, c[0]);
+            green = Mth.lerp(mist, green, c[1]);
+            blue = Mth.lerp(mist, blue, c[2]);
+        }
+        float cave = CaveMist.fogColorBlend();
+        if (cave > 0.001F) {
+            // 地下の霧の中: 霧の色(と背景の色)を地下の霧の暗がりの色へ寄せる。まだ描かれていない範囲から見える背景が霧に溶ける
+            // (2026-10-16 ユーザー指摘「読み込まれていない範囲が奈落や空と同じ描画になり、霧に穴が開いて見える」。LevelRendererCaveSkyMixin も参照)。
+            float[] c = CaveMist.fogColor();
+            red = Mth.lerp(cave, red, c[0]);
+            green = Mth.lerp(cave, green, c[1]);
+            blue = Mth.lerp(cave, blue, c[2]);
+        }
+        event.setRed(red);
+        event.setGreen(green);
+        event.setBlue(blue);
     }
+
+    private static long lastSporeFrameNs;
+
+    /** 太陽の方を向いたときに霧を暖かい色へ寄せる最大の割合(設定 {@code canopyFogGlow} 1 のとき)。仮決め。 */
+    private static final float FOG_GLOW = 0.45F;
 
     /** 地形霧の終端・始端距離を 6 チャンク以内へ制限する。 */
     @SubscribeEvent
@@ -141,7 +247,11 @@ public final class CorruptionAtmosphere {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null || fogFactor <= 0.001F) {
+        float mist = MorningMistView.cameraFog();
+        // 高空の晴天(HighSky): 霧の距離もバニラ(描画距離の端)へ戻す。
+        float ff = fogFactor * (1.0F - HighSky.clarity());
+        float spore = ClientSporeAir.fogStrength();
+        if (mc.player == null || mc.level == null || ff <= 0.001F && mist <= 0.001F && spore <= 0.001F) {
             appliedTerrainFogFar = -1.0F;
             return;
         }
@@ -150,15 +260,36 @@ public final class CorruptionAtmosphere {
         float vanillaFar = event.getFarPlaneDistance();
 
         float cappedFar = Math.min(vanillaFar, fogDistance);
-        float cappedNear = Math.min(vanillaNear, cappedFar * FOG_NEAR_FRACTION);
+        float cappedNear = Math.min(vanillaNear, cappedFar * FogMood.nearFraction(FOG_NEAR_FRACTION));
 
-        float appliedFar = Mth.lerp(fogFactor, vanillaFar, cappedFar);
-        event.setNearPlaneDistance(Mth.lerp(fogFactor, vanillaNear, cappedNear));
-        event.setFarPlaneDistance(appliedFar);
+        float appliedFar = Mth.lerp(ff, vanillaFar, cappedFar);
+        float appliedNear = Mth.lerp(ff, vanillaNear, cappedNear);
+        float sea = MorningMistView.cloudSeaView();
+        if (sea > 0.001F) {
+            // 林冠の雲海を高い所から見下ろしている: 霧の海の上の空気は澄んでいるので、森の霧をバニラの距離へ戻す(雲海が森の霧に隠れないように)。
+            appliedFar = Mth.lerp(sea, appliedFar, vanillaFar);
+            appliedNear = Mth.lerp(sea, appliedNear, vanillaNear);
+        }
+        if (mist > 0.001F) {
+            // 朝霧の中: 近くは澄んだまま、設定の距離から先を隠す(地形も Mob も。霧に紛れる Mob)。
+            float mistFar = Math.min(appliedFar, OvergrownVegetationConfig.COMMON.morningMistFogDistance.get().floatValue());
+            appliedFar = Mth.lerp(mist, appliedFar, mistFar);
+            appliedNear = Mth.lerp(mist, appliedNear, Math.min(appliedNear, appliedFar * MorningMistView.MIST_NEAR_FRACTION));
+        }
+        if (spore > 0.001F) {
+            // 緑の霧: 濃度が満ちる値で視界 fogMinFar(仮 28)まで。地形も Mob も隠れる
+            float sporeFar = (float) com.yayuy.overgrownvegetation.data.DesignData.sporeField().fogMinFar();
+            float k = (float) Math.pow(spore, 0.8D);
+            appliedFar = Mth.lerp(k, appliedFar, Math.min(appliedFar, sporeFar));
+            appliedNear = Mth.lerp(k, appliedNear, Math.min(appliedNear, appliedFar * 0.15F));
+        }
+        event.setNearPlaneDistance(FogMood.wetNear(appliedNear));
+        event.setFarPlaneDistance(FogMood.wetFar(appliedFar));
         event.setCanceled(true);
 
         appliedTerrainFogFar = appliedFar;
     }
+
 
     /**
      * 霧の奥のチャンクセクション・エンティティを描画対象から外してよい場合、その基準距離
@@ -170,6 +301,12 @@ public final class CorruptionAtmosphere {
      * {@link com.yayuy.overgrownvegetation.mixin.client.LevelRendererFogCullMixin}、
      * エンティティは {@link EntityFogCull}。
      */
+    /** 過繁茂の地域にいる度合い(0〜1。霧の演出と同じ係数で、10 秒かけて寄せる)。森の中の青緑の影({@link CanopySunMap})が使う。 */
+    public static float forestFactor() {
+        // 高空の晴天(HighSky): 高さ 300〜350 から上では森の演出を外す。
+        return fogFactor * (1.0F - HighSky.clarity());
+    }
+
     public static float terrainFogCullFarPlane() {
         if (!OvergrownVegetationConfig.COMMON.fogCullEnabled.get()) {
             return -1.0F;
@@ -177,6 +314,15 @@ public final class CorruptionAtmosphere {
         if (fogFactor < CULL_MIN_FOG_FACTOR) {
             return -1.0F;
         }
+        return appliedTerrainFogFar;
+    }
+
+    /**
+     * 直近フレームで地形霧に実際に設定した終端距離(ブロック)。霧を上書きしていなければ負(バニラの霧 = 描画距離の端)。
+     * 設定の {@code fogCullEnabled} に関係なく返す。TD の群れを霧の外で生ませるための見える距離に使う
+     * ({@link com.yayuy.overgrownvegetation.client.horde.HordeSight}、2026-09-26)。
+     */
+    public static float terrainFogFar() {
         return appliedTerrainFogFar;
     }
 
@@ -200,7 +346,8 @@ public final class CorruptionAtmosphere {
             return vanilla;
         }
         float dark = Math.min(vanilla, DesignData.climax().daylightBrightness());
-        return Mth.lerp(climaxFactor, vanilla, dark);
+        // 高空の晴天(HighSky): 雲の上は極相でも暗くしない。
+        return Mth.lerp(climaxFactor * (1.0F - HighSky.clarity()), vanilla, dark);
     }
     private static void advanceFactor(float target, float targetDistance, float climaxTarget) {
         long now = Util.getMillis();

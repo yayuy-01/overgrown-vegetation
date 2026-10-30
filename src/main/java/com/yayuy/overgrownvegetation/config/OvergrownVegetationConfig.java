@@ -35,10 +35,11 @@ public final class OvergrownVegetationConfig {
          */
         public final ModConfigSpec.IntValue blocksPerCycleGrowthPer;
         /**
-         * 実効 {@code blocksPerCycle}(上記の伸び分を含めた後)にさらに掛ける倍率。侵食速度を
-         * ゲーム内から一時的に(あるいは恒久的に)上げ下げするための値で、
-         * {@code /ov corruption speed <倍率>} コマンドが書き換える
-         * ({@link com.yayuy.overgrownvegetation.corruption.CorruptionSpeedCommand} 参照)。
+         * 実効 {@code blocksPerCycle}(上記の伸び分を含めた後)にさらに掛ける倍率の<b>全ワールド共通の既定値</b>。
+         * 2026-09-25 から倍率はワールドごと(ワールドの難易度「汚染シダの汚染速度」、
+         * {@link com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData})で、この値は<b>ワールドに値が無いときだけ</b>使う。
+         * {@code /ov corruption speed <倍率>}・{@code /ov difficulty}・葉っぱのボタンの画面はワールドの値を書き換えるので、
+         * この値は変わらない(それまでは {@code /ov corruption speed} がこの値を書き換えていた)。
          * blight_fern・汚染死体ブロックの両方に効く({@link com.yayuy.overgrownvegetation.corruption.CorruptionSpreader#effectiveBlocksPerCycle}
          * で一括して掛かる)。1.0 で無効(旧仕様と同じ)。
          */
@@ -173,63 +174,19 @@ public final class OvergrownVegetationConfig {
         /** 1 個体(blight_fern・汚染死体ブロック)が架けられる橋の最大本数。水辺に橋が並びすぎないための上限。 */
         public final ModConfigSpec.IntValue corruptionBridgeMaxCount;
         /**
-         * 汚染シダ(blight_fern)が自分の担当半径を汚染し終えて消える瞬間に、汚染し終えた範囲の
-         * 外周付近へ次世代の汚染シダを湧かせる抽選を行う確率(0.0〜1.0)。0.0 で無効(従来どおり
-         * 何も残さず消えるだけ)。当たると
-         * {@link #blightFernFinishSpawnMinCount}〜{@link #blightFernFinishSpawnMaxCount} 体を
-         * スポーンさせようとする。1 体の汚染シダが役目を終えるたびに汚染域がひと回り外へ
-         * 広がっていく({@link com.yayuy.overgrownvegetation.corruption.BlightFernSelfSpread} 参照)。
-         *
-         * <p>注意: 期待値(chance × 平均本数)が 1.0 を超えると汚染シダの総数が指数的に
-         * 増えていくので、サーバー負荷と相談して調整すること。
+         * 死に由来する汚染シダ(胞子感染死・G1 の過繁茂滞在死・胞子感染3 の期限切れで死んだプレイヤー)の
+         * 間隔(2026-09-25、ユーザー承認の密度上限)。死んだ地点からこの距離(ブロック、箱)以内に
+         * 汚染シダ / 汚染水草が 1 体でもいれば湧かせない。0 で無効。
+         * {@link com.yayuy.overgrownvegetation.entity.BlightFernPlacement#spawnFromDeath} 参照。
          */
-        public final ModConfigSpec.DoubleValue blightFernFinishSpawnChance;
-        /** 上記の抽選に当たったとき、次世代の汚染シダを最低何体スポーンさせようとするか。 */
-        public final ModConfigSpec.IntValue blightFernFinishSpawnMinCount;
-        /** 上記の抽選に当たったとき、次世代の汚染シダを最大何体スポーンさせようとするか。 */
-        public final ModConfigSpec.IntValue blightFernFinishSpawnMaxCount;
+        public final ModConfigSpec.IntValue blightFernDeathSpawnMinSeparation;
         /**
-         * 次世代の汚染シダをスポーンさせる距離の下限を、枯れた汚染シダが使っていた汚染半径
-         * ({@code corruptionRadius})に対する割合で指定する(0.0〜1.0)。既定 0.7 なら
-         * 半径の 70%〜100% の距離(＝外周寄り)にスポーン地点を探す。1.0 に近づけるほど
-         * きっちり外周だけを狙い、0.0 にすると起点周辺も含めた範囲全体から探す。
+         * 死に由来する汚染シダの密度の上限。死んだ地点の周囲 {@link #blightFernDeathSpawnNearbyRadius}
+         * 以内に既にこの数以上いれば湧かせない。0 で無効。
          */
-        public final ModConfigSpec.DoubleValue blightFernFinishSpawnPerimeterFraction;
-        /**
-         * 次世代の汚染シダ 1 体につき、スポーン可能な地点(地表の足場が汚染ブロックで、
-         * 液体や障害物が無い)を何回まで探すか。この回数ぶん試して見つからなければその 1 体は
-         * 湧かない(汚染がまだそこまで届いていない等)。
-         */
-        public final ModConfigSpec.IntValue blightFernFinishSpawnAttempts;
-        /**
-         * 次世代の汚染シダのスポーン候補地点の周囲この距離(ブロック)内に既に別の汚染シダが
-         * いる場合、その候補地点は使わない。汚染シダが 1 か所に固まらず、まだ手つかずの外縁へ
-         * 散らばって広がっていくようにするための間隔。0 で無効(間隔チェックなし)。
-         */
-        public final ModConfigSpec.IntValue blightFernFinishSpawnMinSeparation;
-        /**
-         * スポーン候補地点の地表の足場が汚染ブロックでなかった場合に、水平何ブロック以内まで
-         * 汚染ブロックの足場を探してそこへスナップするか。0 なら候補地点ちょうどの列しか見ない。
-         * まばらな汚染の筋の上に運悪く乗れなくても、近くに筋があれば拾えるようにして
-         * 次世代のスポーン成功率を上げるための緩和幅。
-         */
-        public final ModConfigSpec.IntValue blightFernFinishSpawnCorruptedGroundSearch;
-        /**
-         * 次世代の汚染シダを残すために、その汚染シダ自身が最低でも新規に汚染していなければ
-         * ならないブロック数。これ未満しか汚染しなかった個体(＝既に汚染済みの領域の内側で
-         * 生まれ、やることが無いまま即座に完了しただけの汚染シダ)は次世代を残さない。
-         * 汚染済み領域の中で一瞬で完了しては増える汚染シダが指数的に湧き続け、あちこちで
-         * 点滅するバグを防ぐための、この機能の暴走防止装置。0 で無効。
-         */
-        public final ModConfigSpec.IntValue blightFernFinishSpawnMinCorrupted;
-        /**
-         * スポーン起点の周囲 {@link #blightFernFinishSpawnNearbyRadius} ブロック以内に既にこの数
-         * 以上の汚染シダがいる場合、次世代を湧かせない(汚染シダの密度の上限)。0 で無効。
-         * 完了間際の汚染シダ自身もこの数に含まれる。
-         */
-        public final ModConfigSpec.IntValue blightFernFinishSpawnMaxNearby;
-        /** {@link #blightFernFinishSpawnMaxNearby} の判定に使う、スポーン起点からの半径(ブロック)。 */
-        public final ModConfigSpec.IntValue blightFernFinishSpawnNearbyRadius;
+        public final ModConfigSpec.IntValue blightFernDeathSpawnMaxNearby;
+        /** {@link #blightFernDeathSpawnMaxNearby} の判定に使う、死んだ地点からの半径(ブロック、箱)。 */
+        public final ModConfigSpec.IntValue blightFernDeathSpawnNearbyRadius;
         /** 汚染時に露出面へシダ・苔・蔦などの装飾植物を生やすか。 */
         public final ModConfigSpec.BooleanValue spawnGrowthPlants;
         /** 露出面 1 つあたりに装飾植物を生やす確率(0.0〜1.0)。 */
@@ -240,6 +197,18 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.BooleanValue spawnTrees;
         /** 上面が草・土だった場合に苗木を植える確率(0.0〜1.0)。growthChance にさらに掛かる。 */
         public final ModConfigSpec.DoubleValue treeChance;
+        /**
+         * 木の間隔(ブロック)。この大きさの格子 1 マスに木は 1 本まで(位置はシードで決まる)。0 で前の挙動(treeChance の確率だけ)。
+         * {@link com.yayuy.overgrownvegetation.corruption.TreeSpacing}。
+         */
+        public final ModConfigSpec.IntValue treeSpacing;
+        /** 格子のマスが木の無い空き地になる確率。 */
+        public final ModConfigSpec.DoubleValue treeClearingChance;
+        /** 林冠の穴(木を植えない輪)を置く確率({@link com.yayuy.overgrownvegetation.corruption.TreeSpacing#inCanopyGap})。 */
+        public final ModConfigSpec.DoubleValue treeCanopyGapChance;
+        /** 樹冠の譲り合い(クラウン・シャイネス)の隙間(ブロック。0 で無し。{@link com.yayuy.overgrownvegetation.worldgen.ForcedTreeFeature}、2026-10-17)。 */
+        public final ModConfigSpec.IntValue crownShynessGap;
+        public final ModConfigSpec.IntValue crownShynessHeight;
         /** 汚染した上面に「未発達の茂み」({@code undeveloped_bush})を生やすことがあるか。 */
         public final ModConfigSpec.BooleanValue spawnUndevelopedBush;
         /** 上面に「未発達の茂み」を生やす確率(0.0〜1.0)。growthChance にさらに掛かる。 */
@@ -817,34 +786,8 @@ public final class OvergrownVegetationConfig {
          */
         public final ModConfigSpec.IntValue invaderDespawnRange;
 
-        // --- グループ4 の群れ(InvaderPack。ユーザー要望 2026-09-15「グループ4 同士で集団行動」)---
-
-        /** 仲間(動けるグループ4)を探す半径(ブロック)。汚染シダなど根を張る種は数えない。 */
-        public final ModConfigSpec.DoubleValue invaderPackScanRange;
-        /**
-         * 仲間の重心からこれ以上離れたら歩いて戻る(ブロック)。
-         * 種ごとに倍率が掛かる —— スポロフィルは 0.6 倍(中央寄り)、フィロセンスは 1.3 倍(後ろ寄り)。
-         * 0 にすると合流をやめる(散らばったまま動く)。
-         */
-        public final ModConfigSpec.DoubleValue invaderPackCohesionDistance;
-        /** 掴んだ標的を仲間へ回すときに声が届く半径(ブロック)。0 で「回さない」。 */
-        public final ModConfigSpec.DoubleValue invaderPackCallRange;
-        /** 標的を回す間隔(tick)。個体ごとに位相をずらしてある。 */
-        public final ModConfigSpec.IntValue invaderPackCallIntervalTicks;
-
-        // --- 群れの編成(InvaderPackComposition。ユーザー指定 2026-09-15)---
-        // いずれも「最低数」であって上限ではない。揃ったあとに近くへ来た個体もそのまま群れに入る。
-
-        /** 群れに欲しいアルボラの数(最低)。 */
-        public final ModConfigSpec.IntValue invaderPackMinArbora;
-        /** 群れに欲しいスポロフィルの数(最低)。 */
-        public final ModConfigSpec.IntValue invaderPackMinSporophyll;
-        /** 群れに欲しいフィロセンスの数(最低)。 */
-        public final ModConfigSpec.IntValue invaderPackMinPhyllosens;
-        /** 群れに欲しいヴェロフィルの数(最低)。 */
-        public final ModConfigSpec.IntValue invaderPackMinVelophyll;
-        /** 群れに欲しいスカトゥリウムの数(最低)。 */
-        public final ModConfigSpec.IntValue invaderPackMinShielder;
+        // 旧いグループ4 の群れ(InvaderPack 系)の設定 invaderPack* 28 個・invaderPreyIntel* 2 個・velophyllPackLeash は
+        // 2026-09-25 に群れ v2(swarm/、数値は design/swarm.json)へ置き換えて消した。toml に残った行は NeoForge が直すときに消える。
 
         // --- 過繁茂したスカトゥリウム: 迫撃砲と座り込み(ユーザー要望 2026-09-15)---
 
@@ -864,32 +807,6 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.DoubleValue shielderMortarScatter;
         /** 座って汚染を広げるときの水平半径(ブロック)。 */
         public final ModConfigSpec.IntValue shielderCorruptionRadius;
-        /** 編成が足りないときだけ使う「迎えに行く」半径(ブロック)。 */
-        public final ModConfigSpec.DoubleValue invaderPackRecruitRange;
-        /** 迎えに歩き続けてよい上限(tick)。過ぎたら諦めて、いる分だけで動き出す。 */
-        public final ModConfigSpec.IntValue invaderPackRecruitMaxTicks;
-        /** 迎えを諦めたあと、次に迎えに行けるようになるまで(tick)。 */
-        public final ModConfigSpec.IntValue invaderPackRecruitRestTicks;
-
-        // --- 隊列(先遣隊アルボラに付いていく。ユーザー要望 2026-09-15)---
-
-        /** 先遣隊(アルボラ)に付くときの最短距離(ブロック)。役割ごとの立ち位置はこの値以上になる。 */
-        public final ModConfigSpec.DoubleValue invaderPackFollowMin;
-        /**
-         * 先遣隊からこれ以上離れたら付いていく(ブロック)。
-         * <b>先遣隊の側もこの値を見ている</b> —— 後続がこれより離れているあいだは前へ進まない。
-         */
-        public final ModConfigSpec.DoubleValue invaderPackFollowMax;
-        /** 先遣隊からこれ以上離されたら走って追いつく(ブロック)。 */
-        public final ModConfigSpec.DoubleValue invaderPackDashDistance;
-        /** 走って追いつくときの速度倍率。 */
-        public final ModConfigSpec.DoubleValue invaderPackDashSpeed;
-        /** 先遣隊どうしが横に広がってよい距離(ブロック)。 */
-        public final ModConfigSpec.DoubleValue invaderPackTetherDistance;
-        /** 先遣隊が後続を待つ上限(tick)。過ぎたら追いつけない仲間を置いて先へ進む。 */
-        public final ModConfigSpec.IntValue invaderPackLeadWaitTicks;
-        /** はぐれた個体が同じ群れを探しに行く半径(ブロック)。ふだんの輪より遥かに広い。 */
-        public final ModConfigSpec.DoubleValue invaderPackRallyRange;
 
         // --- 経路探索(InvaderNavigation。ユーザー報告 2026-09-17「壁につっかえる」)---
 
@@ -937,33 +854,9 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.IntValue arboraDigMaxDescent;
         /** 経路探索で壁を 1 マス登る辺に乗せる重み。大きいほど登らず遠回りする。 */
         public final ModConfigSpec.DoubleValue arboraClimbPathMalus;
-        /** 陣形で前衛(スカトゥリウム)が先遣隊より前に出る距離(ブロック)。 */
-        public final ModConfigSpec.DoubleValue invaderPackFormationFront;
-        /** 陣形で後衛(フィロセンス)が先遣隊より後ろに下がる距離(ブロック)。スポロフィルはこの 0.7 倍。 */
-        public final ModConfigSpec.DoubleValue invaderPackFormationRear;
-        /** 陣形の自分の位置からこれだけ以内なら動かない(ブロック)。 */
-        public final ModConfigSpec.DoubleValue invaderPackFormationTolerance;
 
-        // --- 群れの所属(InvaderPackBonds。ユーザー要望 2026-09-15)---
+        // --- うずくまって胞子を撒く(InvaderSporeCrouchGoal・群れの SPREAD)---
 
-        /** 自分の所属を見直す間隔(tick)。作る・入る・合流する・抜ける、の判定。 */
-        public final ModConfigSpec.IntValue invaderPackBondIntervalTicks;
-        /** 無所属が近くにこの数そろったら、その場で新しい群れを作る(自分を含む)。 */
-        public final ModConfigSpec.IntValue invaderPackFormMinMembers;
-        /** 同じ群れの仲間をこの時間ひとりも見かけなければ、群れはもう無いものとして所属を捨てる(tick)。 */
-        public final ModConfigSpec.IntValue invaderPackDisbandTicks;
-        /**
-         * 編成が揃った群れの一員が<b>消えなくなる</b>時間(tick)。編成を確認するたびに延長される。
-         * 0 にするとこの仕組みごと無効(揃っても今までどおり消える)。
-         */
-        public final ModConfigSpec.IntValue invaderPackCompleteGraceTicks;
-
-        // --- 群れで縄張りの外へ出る(InvaderPackMarch。ユーザー要望 2026-09-15)---
-
-        /** 群れが「どちらが外か」を測るとき、8 方向へ探しに行く最大距離(ブロック)。 */
-        public final ModConfigSpec.DoubleValue invaderPackMarchRange;
-        /** 見つけたバイオームの境目から、更に何ブロック外まで進むか。 */
-        public final ModConfigSpec.DoubleValue invaderPackMarchMargin;
         /** うずくまっている間、何 tick に 1 マス汚染するか。範囲を汚し尽くすまで続く。 */
         public final ModConfigSpec.IntValue invaderSporeCorruptionIntervalTicks;
         /** グループ4 が次にうずくまれるようになるまでの間隔(tick)。実際は ±25% ばらつく。 */
@@ -977,12 +870,6 @@ public final class OvergrownVegetationConfig {
          * 増えるのは今のフェーズで過繁茂バイオームに湧ける種のうち、陸生でグループ4 以外のもの。
          */
         public final ModConfigSpec.DoubleValue invaderMobSpawnChance;
-        // --- グループ4 の捕食(グループ1〜3 を狩る。ユーザー要望 2026-09-15)---
-
-        /** 索敵役(フィロセンス)が獲物を探して狩り手へ配る半径(ブロック)。0 で配らない。 */
-        public final ModConfigSpec.DoubleValue invaderPreyIntelRange;
-        /** 獲物の居場所を配り直す間隔(tick)。 */
-        public final ModConfigSpec.IntValue invaderPreyIntelIntervalTicks;
 
         /** 周囲 24 ブロックにグループ所属の Mob がこの数以上いるときは、上の増殖を行わない。 */
         public final ModConfigSpec.IntValue invaderMobSpawnNearbyCap;
@@ -1046,13 +933,6 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.IntValue velophyllBiteBreakOffTicks;
         /** ふだん飛ぶ高さ(地表からのブロック数)。 */
         public final ModConfigSpec.IntValue velophyllCruiseAltitude;
-        /**
-         * 地上のグループ4(群れ)の重心から、飛び回ってよい水平距離(ブロック)。
-         * これを超える行き先は選ばず、群れの上空を旋回し続ける。仲間が居ないときは効かない。
-         * {@code VelophyllWanderGoal} の行き先が最短 40 ブロック先なので、
-         * <b>60 より小さくすると旋回が小刻みになる</b>。
-         */
-        public final ModConfigSpec.DoubleValue velophyllPackLeash;
         /** 爆弾を落とす高さ(標的の頭上からのブロック数)。 */
         public final ModConfigSpec.IntValue velophyllDropAltitude;
         /** 1 回の爆撃で落とす爆弾の数。1 発ずつ順に落とす。 */
@@ -1253,30 +1133,6 @@ public final class OvergrownVegetationConfig {
         /** 通路の出口を開ける仰角の上限(度)。 */
         public final ModConfigSpec.IntValue hiveTunnelEntranceElevationMax;
 
-        /** ハイヴノードを吊る蔦の本数。 */
-        public final ModConfigSpec.IntValue hiveNodeVineCount;
-
-        /** 蔦が殻に取り付く高さの上限(度)。+90 = 真上の天井 / 0 = 真横の壁 / -90 = 真下の床。 */
-        public final ModConfigSpec.IntValue hiveNodeVineElevationMax;
-
-        /** 蔦が殻に取り付く高さの下限(度)。 */
-        public final ModConfigSpec.IntValue hiveNodeVineElevationMin;
-
-        /** 蔦のたわみ(中間点を何ブロック下げるか)。0 で直線。 */
-        public final ModConfigSpec.DoubleValue hiveNodeVineSag;
-
-        /** 蔦の見た目の太さ。1 でほぼ 1 ブロック分。 */
-        public final ModConfigSpec.IntValue hiveNodeVineThickness;
-
-        /** 蔦の取り付き位置のばらつき(0 = 完全に均等、1 = 大きく乱れる)。 */
-        public final ModConfigSpec.DoubleValue hiveNodeVineJitter;
-
-        /** 蔦を何割切り落とすとハイヴノードが落下するか(0.7 = 7 割)。 */
-        public final ModConfigSpec.DoubleValue hiveNodeFallThreshold;
-
-        /** ハイヴノードのダメージカット(0.99 = 99% カット)。落下即死とは別の、殴り倒す用の保険。 */
-        public final ModConfigSpec.DoubleValue hiveNodeDamageReduction;
-
 
         /**
          * 巨大樹が生えきったあと、その表面(原木)と葉の露出面に、汚染ブロックと同じ装飾植物
@@ -1421,46 +1277,6 @@ public final class OvergrownVegetationConfig {
          */
         public final ModConfigSpec.IntValue sporeInfectionCheckIntervalTicks;
         // sporeInfectionConcentrationThreshold は effects.json(sporeInfection.concentrationThreshold)へ移行。
-        /** 胞子濃度が高いほど、過繁茂したブロック以外の地表に汚染シダ(blight_fern)が自然発生するか。 */
-        public final ModConfigSpec.BooleanValue sporeConcentrationFernSpawnEnabled;
-        /** 上記の自然発生判定の間隔(tick)。既定 200(10 秒)。 */
-        public final ModConfigSpec.IntValue sporeConcentrationFernSpawnIntervalTicks;
-        /** 判定 1 回あたり、各プレイヤーの周囲で汚染シダの発生を試みる回数。既定 4。 */
-        public final ModConfigSpec.IntValue sporeConcentrationFernSpawnAttempts;
-        /** 汚染シダの自然発生を狙う、プレイヤーからの水平半径(ブロック)。既定 64。 */
-        public final ModConfigSpec.IntValue sporeConcentrationFernSpawnRadius;
-        /**
-         * この胞子濃度(%)未満のチャンクでは汚染シダは自然発生しない。既定 10。
-         * この濃度ちょうどのとき湧く確率が {@link #sporeConcentrationFernSpawnChanceAtMin}(既定 0.001)、
-         * 濃度 100% で {@link #sporeConcentrationFernSpawnChanceAtFull}(既定 0.8)。
-         */
-        public final ModConfigSpec.DoubleValue sporeConcentrationFernSpawnMinConcentration;
-        /**
-         * 胞子濃度が {@link #sporeConcentrationFernSpawnMinConcentration}(既定 10%)ちょうどのチャンクで、
-         * 発生を試みた 1 回あたりに実際に汚染シダが湧く確率。既定 0.001(= 0.1%)。
-         */
-        public final ModConfigSpec.DoubleValue sporeConcentrationFernSpawnChanceAtMin;
-        /**
-         * 胞子濃度 100% のチャンクで、発生を試みた 1 回あたりに実際に汚染シダが湧く確率。既定 0.8(= 80%)。
-         * 下限濃度〜100% の間の確率は {@link #sporeConcentrationFernSpawnChanceLogInterpolation} に従って
-         * なめらかに補間される。期待値(この確率 × 試行回数 × プレイヤー数)が高すぎると汚染シダが増えすぎる。
-         */
-        public final ModConfigSpec.DoubleValue sporeConcentrationFernSpawnChanceAtFull;
-        /**
-         * 下限濃度〜100% の間で湧く確率を補間する方法。
-         * true(既定): 対数(等比)補間 — 0.1%→80% のように桁が大きく違う 2 点を「倍率が一定の割合で
-         * 増えていく」なめらかな曲線でつなぐ。中間濃度でも確率が跳ね上がりにくい。
-         * false: 単純な線形補間(2 点を直線でつなぐ。中間濃度で確率が一気に上がる)。
-         */
-        public final ModConfigSpec.BooleanValue sporeConcentrationFernSpawnChanceLogInterpolation;
-        /** 発生候補地点の周囲 {@link #sporeConcentrationFernSpawnRadius} 内に既にこの数以上の汚染シダがいたら湧かせない。既定 3。 */
-        public final ModConfigSpec.IntValue sporeConcentrationFernSpawnMaxNearby;
-        /**
-         * 汚染シダの自然発生の試行 1 回あたり、地上の地表ではなく「地下(洞窟)」を狙う確率(0.0〜1.0)。
-         * 既定 0.5。0 で地上のみ(従来どおり)、1.0 で常に地下狙い。地下狙いのときは天井が閉じた
-         * (空が見えない)空洞の床にのみ湧く。この発生経路だけが地下にも湧く。
-         */
-        public final ModConfigSpec.DoubleValue sporeConcentrationFernSpawnUndergroundChance;
 
         // --- レイド(過繫茂の苗床) ---
         /** レイドイベント(「過繫茂の苗床」)全体の有効/無効。発生フェーズは phases.json の raidEnabled。 */
@@ -1483,7 +1299,7 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.DoubleValue raidNexusHealth;
         /** 苗床のボスバーが表示されるプレイヤーの範囲(ブロック)。 */
         public final ModConfigSpec.IntValue raidBossBarRadius;
-        /** レイド発生時に苗床の周囲を常時強制ロードする半径(チャンク)。この範囲で汚染・根が止まらず進む。 */
+        /** レイド発生時に苗床の周囲を常時強制ロードする半径(チャンク)。誰も居なくても苗床が止まらない範囲。 */
         public final ModConfigSpec.IntValue raidForceLoadRadius;
         // --- 徐々に伸びる根 ---
         /** 根の先端を1ブロック進める間隔(tick)。小さいほど根が速く伸びる。 */
@@ -1543,6 +1359,8 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.IntValue raidWaveMaxNearby;
         /** ウェーブ Mob を湧かせる、苗床からの水平半径(ブロック)。 */
         public final ModConfigSpec.IntValue raidWaveSpawnRadius;
+        /** 苗床からこの距離(ブロック)以内に狙えるプレイヤーが居ない間は、ウェーブの時計を止める。 */
+        public final ModConfigSpec.IntValue raidWavePlayerRadius;
         // --- 苗床の攻撃 ---
         /** この距離以内にプレイヤーが入ると苗床が衝撃波(ウォーデンと同じ)を狙い始める(ブロック)。 */
         public final ModConfigSpec.IntValue raidNexusSonicRange;
@@ -1792,6 +1610,18 @@ public final class OvergrownVegetationConfig {
         /** 盾が花のビームを遮るか。 */
         public final ModConfigSpec.BooleanValue shieldBlocksBeam;
 
+        // --- 性能(2026-10-06、perf/) ---
+        /** 予算の番人({@code perf/TickBudget})を使うか。 */
+        public final ModConfigSpec.BooleanValue tickBudgetEnabled;
+        /** 予算の番人が守る 1 tick の目標(ミリ秒)。 */
+        public final ModConfigSpec.DoubleValue tickBudgetTargetMspt;
+        /** 遠くの Mob の思考の間引き({@code perf/MobThinkThrottle})を使うか。 */
+        public final ModConfigSpec.BooleanValue mobThinkThrottleEnabled;
+        /** 間引きを始める、いちばん近いプレイヤーからの距離(ブロック)。 */
+        public final ModConfigSpec.IntValue mobThinkThrottleDistance;
+        /** 遠くの Mob が行動を選び直す間隔(tick)。 */
+        public final ModConfigSpec.IntValue mobThinkThrottleInterval;
+
         // --- 地割れ(フェーズ1開始演出) ---
         /** フェーズ1開始時の「地割れ・胞子噴出」演出を有効にするか。 */
         public final ModConfigSpec.BooleanValue quakeEnabled;
@@ -1799,8 +1629,6 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.IntValue quakeDistanceMin;
         /** 地割れの発生地点の、プレイヤーからの目標距離の上限(ブロック)。実際の距離は min〜max。 */
         public final ModConfigSpec.IntValue quakeDistanceMax;
-        /** 地割れ地点の周囲を強制ロードする半径(チャンク)。演出・胞子噴出の間だけ。 */
-        public final ModConfigSpec.IntValue quakeForceLoadRadius;
         /** 裂け目の長さ(長軸)の最小値(ブロック)。 */
         public final ModConfigSpec.IntValue quakeFissureMinLength;
         /** 裂け目の長さ(長軸)の最大値(ブロック)。 */
@@ -1902,13 +1730,158 @@ public final class OvergrownVegetationConfig {
          * それより外の Mob はレストポーズで固まる。3 = 自分のチャンクを中心に 7×7 チャンク。
          */
         public final ModConfigSpec.IntValue mobRenderLodAnimateChunkRadius;
-
         /**
-         * (クライアント描画)巻きシダ({@code overgrown_curled_fern})の立体モデルの精細さ
-         * ({@link com.yayuy.overgrownvegetation.client.GeoStaticGeometry} が焼き込むときに参照する)。
-         * 値を変えるとリソースを再読み込みしてモデルを焼き直す。サーバーには影響しない。
+         * 上記の半径の中でも、画面に映っている Mob のうち<b>カメラに近い順にこの体数だけ</b>動かす
+         * ({@link com.yayuy.overgrownvegetation.client.MobRenderLod} の「動かす体数の予算」)。
+         * 半径の外・予算の外のどちらかに当たればレストポーズ。0 で予算なし(半径だけで決める)。
+         * 攻城戦ボス・フィロセンス・スクティムネスは予算を使わず常に動く。
+         * 大群が近くに集まったときに、全員の骨を毎フレーム計算しないための上限(ユーザー承認 2026-09-24、既定 64 は仮決め 2026-09-25)。
          */
-        public final ModConfigSpec.EnumValue<CurledFernDetail> curledFernDetail;
+        public final ModConfigSpec.IntValue mobRenderLodAnimateBudget;
+        /**
+         * (クライアント描画)遠くて描かれない G4〜G9 の Mob(と、TD の行進中の群れ)を、1 枚の絵の<b>身代わり</b>で描くか
+         * ({@link com.yayuy.overgrownvegetation.client.horde.HordeRenderer}。2026-09-25、ユーザー指定「大群が迫ってくる演出を TD に」)。
+         */
+        public final ModConfigSpec.BooleanValue hordeSpritesEnabled;
+        /** 身代わりを 1 フレームに描く数の上限(超えたらカメラに近い順)。 */
+        public final ModConfigSpec.IntValue hordeSpriteMaxCount;
+        /**
+         * (クライアント描画)描画距離・霧の外の TD の行進中の群れを、地平線の胞子の嵐(地上の群れ)と空の影(空の群れ)で描くか
+         * ({@link com.yayuy.overgrownvegetation.client.horde.HordeStormRenderer}。遠景の身代わりの 4 段目、2026-09-25)。
+         */
+        public final ModConfigSpec.BooleanValue hordeStormsEnabled;
+        /** 地平線の胞子の嵐の濃さ(壁の濃さと群れの柱の濃さに掛ける。1 = 群れが全方位にいれば地平線が隠れる)。 */
+        public final ModConfigSpec.DoubleValue hordeStormDensity;
+        /**
+         * (クライアント描画)汚染地域の林冠の隙間から差す光の筋と、その中で光る胞子を描くか
+         * ({@link com.yayuy.overgrownvegetation.client.CanopyLight}、2026-10-15 試作)。シェーダー(Iris)と二重になるときに切る。
+         */
+        public final ModConfigSpec.BooleanValue canopyLightEnabled;
+        /** 光の筋と光る胞子の明るさ(1 = 既定)。 */
+        public final ModConfigSpec.DoubleValue canopyLightIntensity;
+        /**
+         * (クライアント描画)汚染地域の風の強さの倍率({@link com.yayuy.overgrownvegetation.client.CanopyWind}、2026-10-15 夜)。
+         * 木漏れ日の明滅とずれ・光の筋の揺れ・胞子の流れ・落ち葉がこの風で動く。0 で無風(前の止まった見た目)。
+         */
+        public final ModConfigSpec.DoubleValue canopyWindStrength;
+        /** (クライアント描画)汚染地域で葉が落ちる粒を出すか({@link com.yayuy.overgrownvegetation.client.CanopyLeaves})。 */
+        public final ModConfigSpec.BooleanValue canopyFallingLeaves;
+        /**
+         * (クライアントの音)汚染地域の風の音の大きさ({@link com.yayuy.overgrownvegetation.client.sound.CanopyWindSound}、2026-10-15 夜)。
+         * 葉擦れと、林を渡ってくる突風の音。0 で鳴らさない。バニラの音量の「環境音」も掛かる。
+         */
+        public final ModConfigSpec.DoubleValue canopyWindSoundVolume;
+        /**
+         * (クライアント描画)霧の向こうの巨大樹をシルエットで見せるか({@link com.yayuy.overgrownvegetation.client.GiantTreeSilhouettes}、2026-10-15 夜)。
+         */
+        public final ModConfigSpec.BooleanValue giantTreeSilhouette;
+        /**
+         * (クライアント描画)過繁茂の葉・茂み・シダ・蔦・垂れ苔・太い蔓を風で揺らす大きさの倍率({@link com.yayuy.overgrownvegetation.client.LeafSway}・
+         * {@link com.yayuy.overgrownvegetation.client.SwayModels}、2026-10-15 夜)。0 で揺らさない。揺れるのは風の音が鳴っている間だけ(2026-10-16)。
+         */
+        public final ModConfigSpec.DoubleValue canopyLeafSway;
+        /**
+         * (クライアント描画)太陽の方を向いたときに霧を明るく暖かい色へ寄せる強さの倍率
+         * ({@link com.yayuy.overgrownvegetation.client.CorruptionAtmosphere}、2026-10-16)。0 で寄せない。
+         */
+        public final ModConfigSpec.DoubleValue canopyFogGlow;
+        /**
+         * (クライアント描画)林冠の影を地面以外の面(草・シダ・幹・葉)にも落とす強さ
+         * ({@link com.yayuy.overgrownvegetation.client.CanopySunMap}、風の案 C、2026-10-16)。0 で地面の上面だけ。
+         */
+        public final ModConfigSpec.DoubleValue canopySurfaceShade;
+        /** (クライアント描画)林冠の影を青緑に寄せる強さ({@link com.yayuy.overgrownvegetation.client.CanopySunMap#shadeColor}、2026-10-16)。0 で灰色。 */
+        public final ModConfigSpec.DoubleValue canopyShadeTint;
+        /** (クライアント描画)過繁茂の森の中では日向以外をいつも青緑に寄せる強さ({@link com.yayuy.overgrownvegetation.client.CanopySunMap}、2026-10-16)。0 で林冠の影だけ。 */
+        public final ModConfigSpec.DoubleValue canopyForestTint;
+        /** (クライアント描画)過繁茂の森の中で、葉に削られた空の光を持ち上げる割合({@link com.yayuy.overgrownvegetation.client.CanopyLight#skyLift}、2026-10-17)。 */
+        public final ModConfigSpec.DoubleValue canopySkyLift;
+        /** (クライアント描画)二色の霧(空気遠近法)の強さ({@link com.yayuy.overgrownvegetation.client.AerialFog}、2026-10-17)。 */
+        public final ModConfigSpec.DoubleValue aerialFog;
+        /** (クライアント描画)雨上がりの森(葉先の滴・きらめき・湯気)の強さ({@link com.yayuy.overgrownvegetation.client.AfterRain}、2026-10-17)。 */
+        public final ModConfigSpec.DoubleValue afterRain;
+        /** (クライアント描画)葉の色の揺らぎの強さ({@link com.yayuy.overgrownvegetation.client.LeafColors}、2026-10-17)。 */
+        public final ModConfigSpec.DoubleValue leafColorVariation;
+        /** (クライアント描画)黄緑の若葉の房の強さ({@link com.yayuy.overgrownvegetation.client.LeafColors}、2026-10-17)。 */
+        public final ModConfigSpec.DoubleValue youngLeaves;
+        /** (クライアント描画)ボクセルの雲を描くか({@link com.yayuy.overgrownvegetation.client.VoxelClouds}、2026-10-17)。 */
+        public final ModConfigSpec.BooleanValue voxelClouds;
+        /** (クライアント描画)雲の量を固定する(−1 = 日ごとに変わる。{@link com.yayuy.overgrownvegetation.sky.CloudField}、2026-10-17)。 */
+        public final ModConfigSpec.DoubleValue cloudCoverage;
+        /** (クライアント描画)流れる雲の影の強さ({@link com.yayuy.overgrownvegetation.client.CloudShadows}、2026-10-17)。 */
+        public final ModConfigSpec.DoubleValue cloudShadows;
+        /** (クライアント描画)薄明光線(天使の梯子)の強さ({@link com.yayuy.overgrownvegetation.client.CrepuscularRays}、2026-10-17)。 */
+        public final ModConfigSpec.DoubleValue crepuscularRays;
+        /** (クライアント描画)積乱雲を立てるか(0 で立てない)({@link com.yayuy.overgrownvegetation.sky.CloudField.Storm}、2026-10-17)。 */
+        public final ModConfigSpec.DoubleValue cumulonimbus;
+        /** (クライアント描画)積乱雲が 1 升(1280 ブロック四方)に立つ確率を固定する(−1 = 雲の量と雷雨で決まる)。 */
+        public final ModConfigSpec.DoubleValue cumulonimbusChance;
+        /** (クライアント描画)積乱雲の雷の光る頻度の倍率({@link com.yayuy.overgrownvegetation.client.Thunderstorms}、2026-10-17)。 */
+        public final ModConfigSpec.DoubleValue lightningRate;
+        /** (クライアント描画)立つ積乱雲のうち巨大(まわりに雲海)になる割合を固定する(−1 = 既定 0.12)。 */
+        public final ModConfigSpec.DoubleValue giantStormChance;
+        /** (クライアント描画)積乱雲の並び方(1 群れ・2 谷・3 壁と橋。10-17 夜の案出し中)。 */
+        public final ModConfigSpec.IntValue cumulonimbusStyle;
+        /** (クライアント描画)高空の晴天の強さと高さ({@link com.yayuy.overgrownvegetation.client.HighSky}、2026-10-17)。 */
+        public final ModConfigSpec.DoubleValue highSkyClarity;
+        public final ModConfigSpec.DoubleValue highSkyClearFrom;
+        public final ModConfigSpec.DoubleValue highSkyClearTo;
+        /** (クライアント描画)雲の中の演出の強さ(白い霧・もや・ちぎれ雲・画面の水滴・霧の向こうの影。{@link com.yayuy.overgrownvegetation.client.CloudInterior}、2026-10-17)。 */
+        public final ModConfigSpec.DoubleValue cloudInterior;
+        /** (クライアント)乱気流の強さ(積乱雲の中で視点が揺れ、気流に押される。{@link com.yayuy.overgrownvegetation.client.CloudTurbulence}、2026-10-17)。 */
+        public final ModConfigSpec.DoubleValue cloudTurbulence;
+        /** (クライアント)雲の中の風の音の大きさ({@link com.yayuy.overgrownvegetation.client.sound.CloudWindSound}、2026-10-17)。 */
+        public final ModConfigSpec.DoubleValue cloudWindSound;
+        /** (ゲームの決まり)雷雨の積乱雲の中を走る雷(触れたら即死。{@link com.yayuy.overgrownvegetation.sky.CloudLightning}、2026-10-17)。 */
+        public final ModConfigSpec.BooleanValue cloudLightning;
+        public final ModConfigSpec.DoubleValue cloudLightningRate;
+        /** (クライアント描画)雲のセル画調の陰影・輪郭のやわらかさ・雲が雲に落とす影の強さ({@link com.yayuy.overgrownvegetation.client.VoxelClouds}、2026-10-17)。 */
+        public final ModConfigSpec.DoubleValue cloudCelShading;
+        public final ModConfigSpec.DoubleValue cloudSoftEdges;
+        public final ModConfigSpec.DoubleValue cloudSelfShadows;
+        /** (クライアント描画)参考画像に寄せた荒天の雲・風の筋・青い霞の強さ({@link com.yayuy.overgrownvegetation.client.VoxelClouds}、2026-10-18)。 */
+        public final ModConfigSpec.DoubleValue cloudRoughWeather;
+        public final ModConfigSpec.DoubleValue cloudWindStreaks;
+        public final ModConfigSpec.DoubleValue cloudBlueHaze;
+        /** (クライアント描画)巻雲の濃さと量({@link com.yayuy.overgrownvegetation.client.Cirrus}、2026-10-18)。 */
+        public final ModConfigSpec.DoubleValue cirrus;
+        public final ModConfigSpec.DoubleValue cirrusAmount;
+        /** (クライアント描画)雲に穴が開く演出({@link com.yayuy.overgrownvegetation.client.CloudHoles}、2026-10-18)。 */
+        public final ModConfigSpec.DoubleValue cloudHoles;
+        /** (クライアント描画)雲の質感(筆のムラ・雲の海の段差・積乱雲の底・遠くの輪郭。{@link com.yayuy.overgrownvegetation.client.VoxelClouds}、2026-10-18)。 */
+        public final ModConfigSpec.DoubleValue cloudTexture;
+        /** (クライアント描画)空の光({@link com.yayuy.overgrownvegetation.client.SkyDome}・{@link com.yayuy.overgrownvegetation.client.SkyLight}、2026-10-18)。 */
+        public final ModConfigSpec.DoubleValue skyLight;
+        public final ModConfigSpec.DoubleValue sunGlare;
+        public final ModConfigSpec.DoubleValue highStars;
+        public final ModConfigSpec.DoubleValue nightClouds;
+        public final ModConfigSpec.DoubleValue skyRays;
+        /** (クライアント描画)雲の上から見る遠くの雲({@link com.yayuy.overgrownvegetation.client.VoxelClouds} の遠景・{@link com.yayuy.overgrownvegetation.client.SkyDome} の書き割り、2026-10-18)。 */
+        public final ModConfigSpec.DoubleValue farClouds;
+        public final ModConfigSpec.DoubleValue cloudCurvature;
+        public final ModConfigSpec.DoubleValue cloudHorizon;
+        /** (クライアント描画)風の流れの白い帯({@link com.yayuy.overgrownvegetation.client.WindRibbons}、2026-10-18)。 */
+        public final ModConfigSpec.DoubleValue windRibbons;
+        /** 尾流雲(金床と雲の底から垂れて消える筋。{@link com.yayuy.overgrownvegetation.client.Virga}、2026-10-18)。 */
+        public final ModConfigSpec.DoubleValue virga;
+        /** 雲を引く(雲から出た速いもの・空の巨大生物が後ろに雲のかけらを残す。{@link com.yayuy.overgrownvegetation.client.CloudWake}、2026-10-19)。 */
+        public final ModConfigSpec.DoubleValue cloudWake;
+        /** 空の気流(上昇・下降気流と突風。{@link com.yayuy.overgrownvegetation.client.SkyAir}、2026-10-18)。 */
+        public final ModConfigSpec.DoubleValue skyAir;
+        /** (クライアント描画)雲の海の切れ目の下の霞んだ地面({@link com.yayuy.overgrownvegetation.client.FarGround}、2026-10-18)。 */
+        public final ModConfigSpec.DoubleValue farGround;
+        public final ModConfigSpec.BooleanValue morningMist;
+        public final ModConfigSpec.DoubleValue morningMistDensity;
+        public final ModConfigSpec.DoubleValue morningMistFogDistance;
+        public final ModConfigSpec.DoubleValue caveLightFloor;
+        public final ModConfigSpec.BooleanValue caveMist;
+        public final ModConfigSpec.DoubleValue caveMistDensity;
+        public final ModConfigSpec.DoubleValue caveMistHeight;
+        public final ModConfigSpec.BooleanValue climaxJungleEffects;
+        /** (クライアント描画)過繁茂の森で時々、地脈になる線に沿って光が流れるか({@link com.yayuy.overgrownvegetation.client.LeyFlow}、2026-10-16)。 */
+        public final ModConfigSpec.BooleanValue leyFlowEnabled;
+        /** (クライアント描画)夜、地脈ブロックとエネルギー結晶のまわりに光のにじみと粒を描くか(2026-10-16)。 */
+        public final ModConfigSpec.BooleanValue leyNightGlow;
 
         /**
          * (クライアント操作)剣・斧などの武器を持っている間、<b>当たり判定の無いブロック</b>
@@ -1963,9 +1936,10 @@ public final class OvergrownVegetationConfig {
                     .defineInRange("blocksPerCycleGrowthPer", 50, 0, 1000000);
 
             corruptionSpeedMultiplier = b
-                    .comment("実効 blocksPerCycle にさらに掛ける倍率。",
-                            "/ov corruption speed <倍率> コマンド(OP専用)で",
-                            "ゲーム内から書き換えられる値 — 手でこの値を編集する必要は基本的にない。",
+                    .comment("実効 blocksPerCycle にさらに掛ける倍率の、全ワールド共通の既定値。",
+                            "倍率はワールドごと(ワールドの難易度「汚染シダの汚染速度」)で、この値はワールドに値が無いときだけ使う。",
+                            "/ov corruption speed・/ov difficulty・ワールド作成画面やポーズ画面の葉っぱのボタンは",
+                            "ワールドの値を書き換えるので、この値は変わらない。",
                             "1.0 で無効(常に等倍)。")
                     .defineInRange("corruptionSpeedMultiplier", 1.0D, 0.01D, 100.0D);
 
@@ -2069,8 +2043,8 @@ public final class OvergrownVegetationConfig {
                     .defineInRange("saplingOfflineGrowthPerTick", 2, 1, 64);
 
             convertLavaToBasalt = b
-                    .comment("汚染が溶岩の源泉 (minecraft:lava の source ブロック) に達したとき、玄武岩 (minecraft:basalt)",
-                            "へ固めるか。流れている溶岩は対象外(源泉が固まれば流れは自然に消える)。",
+                    .comment("汚染が溶岩の源泉 (minecraft:lava の source ブロック) に達したとき、玄武岩",
+                            "へ固めるか(2026-10-05 から覆われた玄武岩。3 割は過繁茂しているブロック)。流れている溶岩は上流の源泉を固める。",
                             "false なら溶岩は汚染できない障害物のままで、そこで筋が途切れる。",
                             "水その他の液体は常に対象外。")
                     .define("convertLavaToBasalt", true);
@@ -2157,67 +2131,24 @@ public final class OvergrownVegetationConfig {
                     .comment("1 個体(blight_fern・汚染死体ブロック)が架けられる橋の最大本数。水辺に橋が並びすぎないための上限。")
                     .defineInRange("corruptionBridgeMaxCount", 3, 0, 64);
 
-            blightFernFinishSpawnChance = b
-                    .comment("汚染シダ(blight_fern)が自分の担当半径を汚染し終えて消える瞬間に、汚染し終えた",
-                            "範囲の外周付近へ次世代の汚染シダを湧かせる抽選を行う確率。0.0 で無効",
-                            "(従来どおり何も残さず消えるだけ)。当たると blightFernFinishSpawnMinCount〜",
-                            "blightFernFinishSpawnMaxCount 体をスポーンさせようとする。1 体の汚染シダが",
-                            "役目を終えるたびに汚染域がひと回り外へ広がっていく。",
-                            "注意: 確率×平均本数が 1.0 を超えると汚染シダの総数が指数的に増える。")
-                    .defineInRange("blightFernFinishSpawnChance", 0.85D, 0.0D, 1.0D);
+            // 死に由来する汚染シダの密度の上限(2026-09-25、ユーザー承認。値は仮決め 2026-09-25)。
+            // 大量死の地点で 1 体ごとに 1 本ずつ湧き、同じ場所を汚染する起点が重なっていたため。
+            blightFernDeathSpawnMinSeparation = b
+                    .comment("死に由来する汚染シダ(胞子感染死・グループ1の過繁茂滞在死・胞子感染3の期限切れで",
+                            "死んだプレイヤー)は、死んだ地点からこの距離(ブロック)以内に汚染シダ/汚染水草が",
+                            "1 体でもいれば湧かない。大量死の地点に起点が固まるのを防ぐ間隔。0 で無効。",
+                            "攻城戦ボスに殺された Mob・死体ブロックの孵化・次世代の湧きには効かない。")
+                    .defineInRange("blightFernDeathSpawnMinSeparation", 8, 0, 128);
 
-            blightFernFinishSpawnMinCount = b
-                    .comment("上記の抽選に当たったとき、次世代の汚染シダを最低何体スポーンさせようとするか。")
-                    .defineInRange("blightFernFinishSpawnMinCount", 1, 0, 16);
+            blightFernDeathSpawnMaxNearby = b
+                    .comment("死に由来する汚染シダの密度の上限。死んだ地点の周囲 blightFernDeathSpawnNearbyRadius",
+                            "ブロック以内に既にこの数以上の汚染シダ/汚染水草がいれば湧かない。0 で無効。",
+                            "既定 10 は blightFernFinishSpawnMaxNearby(半径 64 で 40)と同じ面積あたりの密度。")
+                    .defineInRange("blightFernDeathSpawnMaxNearby", 10, 0, 1000);
 
-            blightFernFinishSpawnMaxCount = b
-                    .comment("上記の抽選に当たったとき、次世代の汚染シダを最大何体スポーンさせようとするか。",
-                            "もっと勢いよく汚染域を広げたい場合はここを上げる(3〜4 でかなり加速する)。")
-                    .defineInRange("blightFernFinishSpawnMaxCount", 2, 0, 16);
-
-            blightFernFinishSpawnPerimeterFraction = b
-                    .comment("次世代の汚染シダをスポーンさせる距離の下限を、枯れた汚染シダの汚染半径(radius)に",
-                            "対する割合で指定する。既定 0.55 なら半径の 55%〜100% の距離を(外周寄りに偏らせて)",
-                            "探す。1.0 に近づけるほどきっちり外周だけを狙うが、外周は汚染がまばらで足場が",
-                            "見つかりにくくスポーンが失敗しやすくなる。下げると内側の濃い汚染の上に湧きやすくなる。")
-                    .defineInRange("blightFernFinishSpawnPerimeterFraction", 0.55D, 0.0D, 1.0D);
-
-            blightFernFinishSpawnCorruptedGroundSearch = b
-                    .comment("スポーン候補地点の地表の足場が汚染ブロックでなかった場合に、水平何ブロック以内まで",
-                            "汚染ブロックの足場を探してそこへスナップするか。0 なら候補地点ちょうどの列しか見ない。",
-                            "まばらな汚染の筋の上に運悪く乗れなくても近くに筋があれば拾えるようにして、",
-                            "次世代のスポーン成功率を上げるための緩和幅。上げるほど湧きやすくなる。")
-                    .defineInRange("blightFernFinishSpawnCorruptedGroundSearch", 4, 0, 16);
-
-            blightFernFinishSpawnAttempts = b
-                    .comment("次世代の汚染シダ 1 体につき、スポーン可能な地点(地表の足場が汚染ブロックで",
-                            "液体や障害物が無い)を何回まで探すか。試して見つからなければその 1 体は湧かない。")
-                    .defineInRange("blightFernFinishSpawnAttempts", 40, 1, 256);
-
-            blightFernFinishSpawnMinSeparation = b
-                    .comment("次世代の汚染シダのスポーン候補地点の周囲この距離(ブロック)内に既に別の汚染シダが",
-                            "いる場合、その候補地点は使わない。汚染シダが 1 か所に固まらず、まだ手つかずの",
-                            "外縁へ散らばって広がるようにするための間隔。0 で無効(間隔チェックなし)。")
-                    .defineInRange("blightFernFinishSpawnMinSeparation", 4, 0, 128);
-
-            blightFernFinishSpawnMinCorrupted = b
-                    .comment("次世代の汚染シダを残すために、その汚染シダ自身が最低でも新規に汚染していなければ",
-                            "ならないブロック数。これ未満しか汚染しなかった個体(=既に汚染済みの領域の内側で",
-                            "生まれ、やることが無いまま即座に完了しただけの汚染シダ)は次世代を残さない。",
-                            "汚染済み領域の中で一瞬で完了しては増える汚染シダが指数的に湧き続け、あちこちで",
-                            "点滅するバグを防ぐための暴走防止装置。既定 32 は「本当に汚染フロンティアで",
-                            "働いた個体」だけを通すのに十分低い値。0 で無効(完了した汚染シダは全て増殖しうる)。")
-                    .defineInRange("blightFernFinishSpawnMinCorrupted", 32, 0, 1000000);
-
-            blightFernFinishSpawnMaxNearby = b
-                    .comment("スポーン起点の周囲 blightFernFinishSpawnNearbyRadius ブロック以内に既にこの数以上の",
-                            "汚染シダがいる場合、次世代を湧かせない(汚染シダの密度の上限)。0 で無効。",
-                            "完了間際の汚染シダ自身もこの数に含まれる。もっと密に増やしたい場合は上げる。")
-                    .defineInRange("blightFernFinishSpawnMaxNearby", 40, 0, 1000);
-
-            blightFernFinishSpawnNearbyRadius = b
-                    .comment("上記 blightFernFinishSpawnMaxNearby の判定に使う、スポーン起点からの半径(ブロック)。")
-                    .defineInRange("blightFernFinishSpawnNearbyRadius", 64, 8, 256);
+            blightFernDeathSpawnNearbyRadius = b
+                    .comment("上記 blightFernDeathSpawnMaxNearby の判定に使う、死んだ地点からの半径(ブロック)。")
+                    .defineInRange("blightFernDeathSpawnNearbyRadius", 32, 8, 256);
 
             spawnGrowthPlants = b
                     .comment("汚染したブロックの露出面(上/側面/下)にシダ・苔・蔦などの装飾植物を生やすか。")
@@ -2245,6 +2176,35 @@ public final class OvergrownVegetationConfig {
                             "実際に苗木が植わる確率は growthChance × treeChance になる(既定値では約 10%)。",
                             "密林をもっと濃くしたいときはここを上げる。既定 0.12(2026-09-20 に 0.1 から 1.2 倍へ引き上げ)。")
                     .defineInRange("treeChance", 0.12D, 0.0D, 1.0D);
+
+            // 2026-10-15 ユーザー指定「木の密度を下げる」(日が差す演出・木漏れ日を見やすく。葉が何層も重なると暗く、
+            // その下で下草が育つのはおかしい)。間隔 8・空き地 15% で試したら疎らすぎた(ユーザー「上から見て地面が見えなくなるくらい」)→ 6・8% に。値は仮決め。
+            // 2026-10-17 ユーザー「木の密度を今よりも少しだけ上げてほしい」→ 6 → 5(木の数は約 1.4 倍。値は仮決め。4 は林床がほぼ真っ暗だった)。
+            treeSpacing = b
+                    .comment("汚染で生える木の間隔(ブロック)。この大きさの格子 1 マスに木は 1 本まで(マスの中の位置はワールドのシードで決まる)。",
+                            "大きくするほど森がまばらになり、林床に光が届く。0 で前の挙動(上面ごとに treeChance の確率で苗木。木がとても密になる)。",
+                            "菌湿地帯(菌の柱)には効かない(もともと疎ら)。既に生えた木は減らない。既定 5。")
+                    .defineInRange("treeSpacing", 5, 0, 64);
+            // 2026-10-17 ユーザー「木の生えないエリアを少なくしても良い」「森の中に入った時、空が見える割合を減らして」→ 0.08 → 0.03(値は仮決め)。
+            treeClearingChance = b
+                    .comment("treeSpacing の格子のマスが、木の無い空き地になる確率。森の中に日だまりができる。既定 0.03。")
+                    .defineInRange("treeClearingChance", 0.03D, 0.0D, 1.0D);
+            // 2026-10-16 ユーザー選択「濃い森の光 = 森に穴を残す + 葉を樹冠の数で数える」の前者。値は仮決め。
+            treeCanopyGapChance = b
+                    .comment("林冠の穴: 36 ブロックの格子のマスごとに、この確率で半径 8〜11 ブロックの「木を植えない輪」を置く。",
+                            "木の枝と葉は幹から 6〜7 ブロック広がるので、空き地 1 マス(treeClearingChance)では上がふさがるが、",
+                            "この輪の上には林冠の穴が開き、森を濃くしても光の筋が地面まで差し込む。0 で無し。既に生えた木は減らない。既定 0.25。")
+                    .defineInRange("treeCanopyGapChance", 0.25D, 0.0D, 1.0D);
+            // 2026-10-17 ユーザー「一度試しでクラウン・シャイネスを実装してみたい」→ 試した後「切って、空を減らす方を優先」で既定 0。隙間 1・見る高さ ±32 は仮決め(±4 では下から見えなかった)。
+            crownShynessGap = b
+                    .comment("樹冠の譲り合い(クラウン・シャイネス): 汚染で育つ木の葉を、ほかの木の葉からこのブロック数だけ離して止める(後から育つ木が譲る)。",
+                            "見上げると樹冠と樹冠の間に細い空の切れ目ができる。見る上下の幅は crownShynessHeight。",
+                            "0 で無し(後から育つ木の葉が前の木の葉を上書きして樹冠がつながる)。既に生えた木は変わらない。既定 0(試しで 1 にしたが、空が増えるのでユーザーが切った)。")
+                    .defineInRange("crownShynessGap", 0, 0, 3);
+            crownShynessHeight = b
+                    .comment("樹冠の譲り合いで見る上下の幅(ブロック)。この高さの差より離れたほかの木の葉は見ない(高さの違う樹冠は重なってよい)。",
+                            "小さい(4 など)と下から見上げたとき隙間がほかの高さの樹冠で埋まって見えない。大きいと縦に抜けた空の切れ目が見える。既定 32。")
+                    .defineInRange("crownShynessHeight", 32, 1, 64);
 
             spawnUndevelopedBush = b
                     .comment("汚染した露出上面に「未発達の茂み」(undeveloped_bush)を生やすことがあるか。",
@@ -3241,16 +3201,6 @@ public final class OvergrownVegetationConfig {
                             "0 にすると parasitizedCreeperCorruptionRadius ちょうどの綺麗な球になる。")
                     .defineInRange("parasitizedCreeperCorruptionNoise", 2.0D, 0.0D, 16.0D);
 
-            invaderPreyIntelRange = b
-                    .comment("フィロセンスがグループ1〜3 の獲物を探して、群れの狩り手へ居場所を配る半径(ブロック)。",
-                            "渡す相手は同じ群れのアルボラとスカトゥリウム(ステータスが上がる 2 種)のうち、",
-                            "いま手が空いている個体だけ。0 にすると配らない。")
-                    .defineInRange("invaderPreyIntelRange", 48.0D, 0.0D, 256.0D);
-
-            invaderPreyIntelIntervalTicks = b
-                    .comment("獲物の居場所を配り直す間隔(tick)。既定 60 = 3 秒。")
-                    .defineInRange("invaderPreyIntelIntervalTicks", 60, 1, 1200);
-
             invaderCorruptionRadius = b
                     .comment("グループ4(拡大種)がうずくまって胞子をばらまいている間に汚染する範囲の半径(ブロック、水平)。",
                             "汚染が広がるのはうずくまりの最中だけで、歩いているだけでは何も汚さない。")
@@ -3262,51 +3212,6 @@ public final class OvergrownVegetationConfig {
                             "真上を飛ぶヴェロフィルや、時間が経ってから動き出すフィロセンスの索敵が成立しない。",
                             "小さくすると数は抑えられるが、それらの行動もまた発動しなくなる。")
                     .defineInRange("invaderDespawnRange", 128, 32, 512);
-
-            invaderPackScanRange = b
-                    .comment("グループ4 が仲間を探す半径(ブロック)。この中に居るグループ4 が「いまの群れ」。",
-                            "汚染シダのように根を張って動かない種は数えない。")
-                    .defineInRange("invaderPackScanRange", 48.0D, 0.0D, 256.0D);
-
-            invaderPackCohesionDistance = b
-                    .comment("グループ4 が仲間の重心からこれ以上離れたら、歩いて群れへ戻る(ブロック)。",
-                            "種ごとに倍率が掛かる: スポロフィル 0.6倍(中央寄り)/フィロセンス 1.3倍(後ろ寄り)。",
-                            "0 にすると合流をやめ、めいめいに散らばって動く。")
-                    .defineInRange("invaderPackCohesionDistance", 12.0D, 0.0D, 128.0D);
-
-            invaderPackCallRange = b
-                    .comment("グループ4 が掴んだ標的を仲間へ回すときに声が届く半径(ブロック)。",
-                            "受け取った側もまた回すので、警報は群れの外側へ波のように伝わる。0 で回さない。",
-                            "ヴェロフィルだけは上空から地上へ届くよう velophyllCruiseAltitude のぶん広い。")
-                    .defineInRange("invaderPackCallRange", 24.0D, 0.0D, 128.0D);
-
-            invaderPackCallIntervalTicks = b
-                    .comment("標的を仲間へ回す間隔(tick)。既定 20 = 1秒に1回。",
-                            "個体ごとに位相をずらしてあるので、同じ tick に群れ全員が周囲を探すことはない。")
-                    .defineInRange("invaderPackCallIntervalTicks", 20, 1, 600);
-
-            invaderPackMinArbora = b
-                    .comment("群れに欲しいアルボラの数。これは最低数であって上限ではない。",
-                            "足りないあいだは invaderPackRecruitRange まで見て迎えに行き、揃ってからそろって動き出す。",
-                            "揃ったあとに近くへ来た個体もそのまま群れに入る(追い出しはしない)。",
-                            "0 にするとアルボラは「揃うのを待つ対象」から外れる。")
-                    .defineInRange("invaderPackMinArbora", 8, 0, 64);
-
-            invaderPackMinSporophyll = b
-                    .comment("群れに欲しいスポロフィルの数(最低)。0 で待たない。")
-                    .defineInRange("invaderPackMinSporophyll", 2, 0, 64);
-
-            invaderPackMinPhyllosens = b
-                    .comment("群れに欲しいフィロセンスの数(最低)。0 で待たない。")
-                    .defineInRange("invaderPackMinPhyllosens", 1, 0, 64);
-
-            invaderPackMinVelophyll = b
-                    .comment("群れに欲しいヴェロフィルの数(最低)。0 で待たない。")
-                    .defineInRange("invaderPackMinVelophyll", 3, 0, 64);
-
-            invaderPackMinShielder = b
-                    .comment("群れに欲しい過繁茂したスカトゥリウムの数(最低)。前線を張るタンク役。0 で待たない。")
-                    .defineInRange("invaderPackMinShielder", 2, 0, 64);
 
             shielderMortarMinRange = b
                     .comment("スカトゥリウムが迫撃砲を撃ち始める最短距離(ブロック)。これより近ければ殴るか突進する。")
@@ -3334,8 +3239,9 @@ public final class OvergrownVegetationConfig {
                     .defineInRange("shielderMortarShotIntervalTicks", 20, 1, 100);
 
             shielderMortarCooldownTicks = b
-                    .comment("撃ち切ってから次の斉射までの間隔(tick)。既定 300 = 15 秒。")
-                    .defineInRange("shielderMortarCooldownTicks", 300, 20, 6000);
+                    .comment("撃ち切ってから次の斉射までの間隔(tick)。既定 750 = 37.5 秒。",
+                            "ユーザー指定(2026-09-25): それまでの 300(15 秒)の 2.5 倍。機関砲台を狙う斉射も同じ間隔。")
+                    .defineInRange("shielderMortarCooldownTicks", 750, 20, 6000);
 
             shielderMortarScatter = b
                     .comment("着弾点の散らばり(ブロック、±)。0 にすると狙いが正確になりすぎて避けようがなくなる。")
@@ -3345,60 +3251,6 @@ public final class OvergrownVegetationConfig {
                     .comment("スカトゥリウムが座って汚染を広げるときの水平半径(ブロック)。",
                             "体が大きいぶんアルボラの invaderCorruptionRadius より広く取ってある。")
                     .defineInRange("shielderCorruptionRadius", 7, 0, 64);
-
-            invaderPackRecruitRange = b
-                    .comment("編成が足りないときだけ使う「迎えに行く」半径(ブロック)。",
-                            "ふだんの群れの範囲(invaderPackScanRange)より広く取ることで、",
-                            "半端な群れ同士が互いに足りない種を目指して合流する。")
-                    .defineInRange("invaderPackRecruitRange", 96.0D, 0.0D, 256.0D);
-
-            invaderPackRecruitMaxTicks = b
-                    .comment("迎えに歩き続けてよい上限(tick)。既定 1200 = 1 分。",
-                            "世界にそもそも頭数が居なければ編成は永久に埋まらないので、",
-                            "これを過ぎたら諦めて、いる分だけで外へ出ていく。0 で無制限(非推奨)。")
-                    .defineInRange("invaderPackRecruitMaxTicks", 1200, 0, 24000);
-
-            invaderPackRecruitRestTicks = b
-                    .comment("迎えを諦めたあと、次に迎えに行けるようになるまで(tick)。既定 1200 = 1 分。")
-                    .defineInRange("invaderPackRecruitRestTicks", 1200, 0, 24000);
-
-            invaderPackFollowMin = b
-                    .comment("先遣隊(アルボラ)に付くときの最短距離(ブロック)。",
-                            "役割ごとの立ち位置はこの値から invaderPackFollowMax の間に丸められる。",
-                            "スカトゥリウム=この値(前線)/スポロフィル=中間/フィロセンス=最大(後方)。")
-                    .defineInRange("invaderPackFollowMin", 12.0D, 1.0D, 64.0D);
-
-            invaderPackFollowMax = b
-                    .comment("先遣隊からこれ以上離れたら付いていく(ブロック)。",
-                            "先遣隊の側もこの値を見ていて、後続がこれより離れているあいだは前へ進まない",
-                            "(アルボラが単独で飛び出さないようにするための歯止め)。")
-                    .defineInRange("invaderPackFollowMax", 18.0D, 2.0D, 64.0D);
-
-            invaderPackDashDistance = b
-                    .comment("先遣隊からこれ以上離されたら走って追いつく(ブロック)。",
-                            "アルボラは足が速いので、等速だと一度離されると二度と追いつけない。")
-                    .defineInRange("invaderPackDashDistance", 26.0D, 2.0D, 128.0D);
-
-            invaderPackDashSpeed = b
-                    .comment("走って追いつくときの速度倍率。1.0 で走らない。")
-                    .defineInRange("invaderPackDashSpeed", 1.45D, 1.0D, 3.0D);
-
-            invaderPackTetherDistance = b
-                    .comment("先遣隊どうしが横に広がってよい距離(ブロック)。アルボラ同士の間隔。")
-                    .defineInRange("invaderPackTetherDistance", 16.0D, 1.0D, 64.0D);
-
-            invaderPackLeadWaitTicks = b
-                    .comment("先遣隊が後続を待つ上限(tick)。既定 300 = 15 秒。",
-                            "追いつけない仲間(詰まっている・水の向こう)がいると群れ全体が止まってしまうので、",
-                            "これを過ぎたら置いて先へ進む。後続が近づけば待ちはその時点で解ける。")
-                    .defineInRange("invaderPackLeadWaitTicks", 300, 0, 12000);
-
-            invaderPackRallyRange = b
-                    .comment("はぐれた個体が同じ群れを探しに行く半径(ブロック)。既定 160。",
-                            "ふだんの群れの輪(invaderPackScanRange)から外れた個体は、この範囲まで",
-                            "同じ群れの ID を探して走って戻る。群れに ID が付いているので、",
-                            "距離で群れを決める必要が無く、ここは広く取ってよい。0 で「はぐれたら戻らない」。")
-                    .defineInRange("invaderPackRallyRange", 160.0D, 0.0D, 256.0D);
 
             invaderPathRange = b
                     .comment("グループ4 の経路探索にだけ使う射程(ブロック)。既定 48。",
@@ -3450,7 +3302,7 @@ public final class OvergrownVegetationConfig {
                             "見るのは絶対の高さではなく「地表からの深さの差」:",
                             "  相手の深さ - 自分の深さ > この値  →  狙わない",
                             "・崖の上から崖下の地表にいる相手 → 相手の深さは 0 なので狙う(歩いて降りられる)",
-                            "・自分が巣の中(深さ20)で相手も同じ坑道 → 差が小さいので狙う(巣の防衛)",
+                            "・自分が坑道の中(深さ20)で相手も同じ坑道 → 差が小さいので狙う",
                             "・自分が地表で相手が洞窟(深さ20) → 狙わない",
                             "これが無いと、地表に立ったまま洞窟の中の相手を睨み続け、",
                             "アルボラの場合はそこから坑道を掘り始めて地面を掘り続ける",
@@ -3539,60 +3391,6 @@ public final class OvergrownVegetationConfig {
                             "0 にすると歩くのと同じ扱いになって何でも登る。",
                             "負の値にすると縦の辺を作らない(= 2026-09-20 より前の、登れない経路探索に戻る)。")
                     .defineInRange("arboraClimbPathMalus", 2.0D, -1.0D, 32.0D);
-
-            invaderPackFormationFront = b
-                    .comment("陣形で前衛(スカトゥリウム)が先遣隊アルボラより前に出る距離(ブロック)。")
-                    .defineInRange("invaderPackFormationFront", 4.0D, 0.0D, 64.0D);
-
-            invaderPackFormationRear = b
-                    .comment("陣形で後衛(フィロセンス)が先遣隊より後ろに下がる距離(ブロック)。",
-                            "スポロフィルはこの 0.7 倍の位置(後衛の中では前寄り)。")
-                    .defineInRange("invaderPackFormationRear", 14.0D, 0.0D, 64.0D);
-
-            invaderPackFormationTolerance = b
-                    .comment("陣形の自分の位置からこれだけ以内なら動かない(ブロック)。",
-                            "小さくすると隊列は綺麗になるが、先遣隊が 1 歩動くたびに全員が経路を引き直す。")
-                    .defineInRange("invaderPackFormationTolerance", 6.0D, 1.0D, 32.0D);
-
-            invaderPackBondIntervalTicks = b
-                    .comment("群れの所属を見直す間隔(tick)。既定 100 = 5 秒。",
-                            "作る・入る・合流する・抜ける の判定をこの間隔で 1 回だけ行う。",
-                            "個体ごとに位相をずらしてあるので、同じ tick に全員が走査することはない。")
-                    .defineInRange("invaderPackBondIntervalTicks", 100, 1, 1200);
-
-            invaderPackFormMinMembers = b
-                    .comment("無所属のグループ4 が近く(invaderPackScanRange 以内)にこの数そろったら、",
-                            "その場で新しい群れを作る(自分を含む)。既定 2 =「2 体いれば群れ」。")
-                    .defineInRange("invaderPackFormMinMembers", 2, 2, 32);
-
-            invaderPackDisbandTicks = b
-                    .comment("同じ群れの仲間をこの時間ひとりも見かけなければ所属を捨てる(tick)。既定 6000 = 5 分。",
-                            "所属が切れるのは距離ではなく<時間>なので、戦いで散っても・迎えに行っている最中でも、",
-                            "少し離れたくらいでは群れは壊れない。短くすると群れが解けやすくなる。")
-                    .defineInRange("invaderPackDisbandTicks", 6000, 200, 72000);
-
-            invaderPackCompleteGraceTicks = b
-                    .comment("編成が揃った群れの一員が消えなくなる時間(tick)。既定 1200 = 1 分。",
-                            "編成の確認(invaderPackBondIntervalTicks ごと)のたびに延長されるので、",
-                            "揃っているあいだは実質ずっと消えない。猶予を持たせてあるのは、",
-                            "確認した瞬間にたまたま 1 体が離れていただけで永続性が落ちてちらつくのを防ぐため。",
-                            "0 にするとこの仕組みごと無効(揃っても今までどおり消える)。",
-                            "※揃った群れは永久に残るので、増えすぎるようならここを 0 にするか湧きを絞ること。")
-                    .defineInRange("invaderPackCompleteGraceTicks", 1200, 0, 24000);
-
-            invaderPackMarchRange = b
-                    .comment("群れが過繁茂バイオームの外へ出るとき、「どちらが外か」を測る最大距離(ブロック)。既定 192。",
-                            "群れの居る場所から8方向へ16ブロック刻みでバイオームを見て、",
-                            "いちばん早く繁茂系が途切れる向きへ全員で進む。",
-                            "未ロードのチャンクはその場で生成が走ってしまうので読まず、そこで走査を打ち切る",
-                            "(= 描画距離より先は見えない。ここを大きくしてもそれ以上は測れない)。",
-                            "0 にすると向きを測らず、群れごとに決まった一方向へまっすぐ進む。")
-                    .defineInRange("invaderPackMarchRange", 192.0D, 0.0D, 512.0D);
-
-            invaderPackMarchMargin = b
-                    .comment("見つけたバイオームの境目から、更に何ブロック外まで進むか(ブロック)。既定 32。",
-                            "0 にすると境目でちょうど止まるので、汚染が広がるとすぐまたバイオームの中に戻る。")
-                    .defineInRange("invaderPackMarchMargin", 32.0D, 0.0D, 256.0D);
 
             invaderSporeCorruptionIntervalTicks = b
                     .comment("うずくまっている間、何 tick に1マス汚染するか(既定 5 = 1秒に4マス)。",
@@ -3734,13 +3532,6 @@ public final class OvergrownVegetationConfig {
                     .comment("ふだん飛ぶ高さ(地表からのブロック数)。旋回もこの高さで行う。")
                     .defineInRange("velophyllCruiseAltitude", 28, 2, 128);
 
-            velophyllPackLeash = b
-                    .comment("地上のグループ4(群れ)の重心から、ヴェロフィルが飛び回ってよい水平距離(ブロック)。",
-                            "これを超える行き先は選ばないので、群れの上空を大きく旋回し続ける。",
-                            "近くに仲間が居ないときは効かず、今までどおり好きに流す。0 で綱なし。",
-                            "60 を下回ると行き先が近くなりすぎ、選び直しが増えて旋回が小刻みになる。")
-                    .defineInRange("velophyllPackLeash", 80.0D, 0.0D, 256.0D);
-
             velophyllDropAltitude = b
                     .comment("爆弾を落とす高さ(標的の頭上からのブロック数)。既定 8。",
                             "急降下してこの高さまで降りてから 1 発ずつ落とす。")
@@ -3808,9 +3599,10 @@ public final class OvergrownVegetationConfig {
 
 
             sporophyllAuraRange = b
-                    .comment("スポロフィルの傘の胞子が届く半径(ブロック)。既定 32。",
-                            "バフ・デバフ・胞子濃度の上昇・胞子感染の進行、すべてこの半径で効く。")
-                    .defineInRange("sporophyllAuraRange", 32.0D, 1.0D, 256.0D);
+                    .comment("スポロフィルの傘の胞子が届く半径(ブロック)。既定 64。",
+                            "バフ・デバフ・胞子濃度の上昇・胞子感染の進行、すべてこの半径で効く。",
+                            "ユーザー指定(2026-09-26): 32 から倍に。代わりにバフの耐性をやめ、再生を II → I にした(effects.json)。")
+                    .defineInRange("sporophyllAuraRange", 64.0D, 1.0D, 256.0D);
 
             sporophyllAuraIntervalTicks = b
                     .comment("効果を配り直す間隔(tick)。既定 20 = 1 秒。",
@@ -3844,7 +3636,7 @@ public final class OvergrownVegetationConfig {
             sporophyllPurifierClearsAura = b
                     .comment("稼働中の胞子除去装置の効果範囲内で、スポロフィルの効果が消えるか。既定 true。",
                             "true だと、範囲に入った時点で",
-                            "  味方のバフ  : 再生・攻撃力上昇・耐性・「スポロフィルの胞子」",
+                            "  味方のバフ  : 配っているバニラの効果(既定は再生・攻撃力上昇)と「スポロフィルの胞子」",
                             "  敵のデバフ  : 「纏わりついた胞子」(移動速度低下と攻撃力低下を含む)",
                             "がどちらも剥がれ、範囲内にいるあいだは配り直されない(出れば再び掛かる)。",
                             "消えるのは胞子由来のぶんだけで、鈍化のポーションなど他所から掛かった効果は残る。",
@@ -3871,8 +3663,8 @@ public final class OvergrownVegetationConfig {
 
             sporophyllSummonDamage = b
                     .comment("スポロフィルがこれだけダメージを受けるごとにアルボラを呼ぶ。0 で呼ばない。",
-                            "数えるのは実際に減った体力(防具・耐性・吸収を通したあとの値)。",
-                            "自分の傘のオーラで耐性が掛かっているぶん、見た目の攻撃力より呼ぶ回数は少なくなる。")
+                            "数えるのは実際に減った体力(防具・吸収などを通したあとの値)。",
+                            "傘のバフは撒いている本人には掛からない(耐性も 2026-09-26 に配るのをやめた)。")
                     .defineInRange("sporophyllSummonDamage", 15.0D, 0.0D, 1000.0D);
 
             sporophyllSummonCount = b
@@ -4053,43 +3845,6 @@ public final class OvergrownVegetationConfig {
                     .comment("通路の出口を開ける仰角の上限(度)。既定 35。大きくすると幹の裾に隠れやすくなる。")
                     .defineInRange("hiveTunnelEntranceElevationMax", 35, 0, 80);
 
-            hiveNodeVineCount = b
-                    .comment("(2026-09-18 から未使用。ハイヴノードは吊られず小部屋に据わる)ハイヴノードを吊る蔦の本数。")
-                    .defineInRange("hiveNodeVineCount", 16, 0, 64);
-
-            hiveNodeVineElevationMax = b
-                    .comment("蔦が殻に取り付く高さの上限(度)。+90 = 真上の天井 / 0 = 真横の壁 / -90 = 真下の床。既定 90。")
-                    .defineInRange("hiveNodeVineElevationMax", 90, -90, 90);
-
-            hiveNodeVineElevationMin = b
-                    .comment("蔦が殻に取り付く高さの下限(度)。既定 20(= 上半分だけに取り付き、吊り下がって見える)。",
-                            "下限を負にすると横や下からも蔦が伸びて、球を挟み込むような形になる。")
-                    .defineInRange("hiveNodeVineElevationMin", 20, -90, 90);
-
-            hiveNodeVineSag = b
-                    .comment("蔦のたわみ。1本ごとに中間点をこのブロック数だけ下げて、重力で垂れた曲線にする。既定 2.0。0 で直線。")
-                    .defineInRange("hiveNodeVineSag", 2.0D, 0.0D, 16.0D);
-
-            hiveNodeVineThickness = b
-                    .comment("蔦の見た目の太さ。既定 1 で<ほぼ 1 ブロック分>の太さの角柱として描かれる。",
-                            "2 で 2 ブロック分…と倍々になる(見た目だけ。当たり判定は曲線の中点のまま)。")
-                    .defineInRange("hiveNodeVineThickness", 1, 1, 5);
-
-            hiveNodeVineJitter = b
-                    .comment("蔦の取り付き位置のばらつき。0 = 完全に均等、1 = 大きく乱れる。既定 0.45。")
-                    .defineInRange("hiveNodeVineJitter", 0.45D, 0.0D, 1.0D);
-
-            hiveNodeFallThreshold = b
-                    .comment("蔦を何割切り落とすとハイヴノードが落下するか。既定 0.7 = 7 割(16 本なら 12 本)。",
-                            "落ちて床に当たった瞬間にノードは即死する。")
-                    .defineInRange("hiveNodeFallThreshold", 0.7D, 0.0D, 1.0D);
-
-            hiveNodeDamageReduction = b
-                    .comment("ハイヴノードのダメージカット。既定 0.99 = 99% カット。体力 10000(mobs.json の hive_node)と",
-                            "合わせて「殴って倒すのは事実上不可能」を表す。本来の倒し方は蔦を切って落下させること",
-                            "(落ちて床に当たった瞬間に即死する。このカットとは無関係に必ず死ぬ)。")
-                    .defineInRange("hiveNodeDamageReduction", 0.99D, 0.0D, 1.0D);
-
             giantTreePlantChance = b
                     .comment("巨大樹が生えきったあと、その原木・葉の露出面に汚染ブロックと同じ装飾植物",
                             "(シダ・苔・蔦・垂れ植物)を生やす1面あたりの確率。0 で無効。",
@@ -4203,59 +3958,6 @@ public final class OvergrownVegetationConfig {
                     .defineInRange("sporeInfectionCheckIntervalTicks", 20, 1, 200);
 
             // sporeInfectionConcentrationThreshold は effects.json(sporeInfection.concentrationThreshold)へ移行。
-
-            sporeConcentrationFernSpawnEnabled = b
-                    .comment("胞子濃度が高いほど、過繁茂したブロック以外の地表に汚染シダ(blight_fern)が",
-                            "自然発生するようにするか。")
-                    .define("sporeConcentrationFernSpawnEnabled", true);
-
-            sporeConcentrationFernSpawnIntervalTicks = b
-                    .comment("汚染シダの自然発生判定の間隔(tick)。既定 200(10 秒)。")
-                    .defineInRange("sporeConcentrationFernSpawnIntervalTicks", 200, 1, 24000);
-
-            sporeConcentrationFernSpawnAttempts = b
-                    .comment("判定 1 回あたり、各プレイヤーの周囲で汚染シダの発生を試みる回数。既定 4。")
-                    .defineInRange("sporeConcentrationFernSpawnAttempts", 4, 0, 64);
-
-            sporeConcentrationFernSpawnRadius = b
-                    .comment("汚染シダの自然発生を狙う、プレイヤーからの水平半径(ブロック)。既定 64。")
-                    .defineInRange("sporeConcentrationFernSpawnRadius", 64, 16, 256);
-
-            sporeConcentrationFernSpawnMinConcentration = b
-                    .comment("この胞子濃度(%)未満のチャンクでは汚染シダは自然発生しない。既定 10。",
-                            "この濃度ちょうどで湧く確率が sporeConcentrationFernSpawnChanceAtMin、",
-                            "濃度 100% で sporeConcentrationFernSpawnChanceAtFull。")
-                    .defineInRange("sporeConcentrationFernSpawnMinConcentration", 10.0D, 0.0D, 100.0D);
-
-            sporeConcentrationFernSpawnChanceAtMin = b
-                    .comment("胞子濃度が下限(sporeConcentrationFernSpawnMinConcentration、既定 10%)ちょうどのチャンクで、",
-                            "発生を試みた 1 回あたりに実際に汚染シダが湧く確率。既定 0.001(= 0.1%)。")
-                    .defineInRange("sporeConcentrationFernSpawnChanceAtMin", 0.001D, 0.0D, 1.0D);
-
-            sporeConcentrationFernSpawnChanceAtFull = b
-                    .comment("胞子濃度 100% のチャンクで、発生を試みた 1 回あたりに実際に汚染シダが湧く確率。既定 0.8(= 80%)。",
-                            "下限濃度〜100% の間はなめらかに補間される(sporeConcentrationFernSpawnChanceLogInterpolation)。",
-                            "期待値(この確率 × 試行回数 × プレイヤー数)が高すぎると汚染シダが増えすぎる。")
-                    .defineInRange("sporeConcentrationFernSpawnChanceAtFull", 0.8D, 0.0D, 1.0D);
-
-            sporeConcentrationFernSpawnChanceLogInterpolation = b
-                    .comment("下限濃度〜100% の間で湧く確率を補間する方法。",
-                            "true(既定): 対数(等比)補間 — 0.1%→80% のように桁が違う 2 点を、倍率が一定割合で",
-                            "  増えるなめらかな曲線でつなぐ。中間濃度でも確率が跳ね上がりにくい。",
-                            "false: 単純な線形補間(2 点を直線でつなぐ。中間濃度で確率が一気に上がる)。")
-                    .define("sporeConcentrationFernSpawnChanceLogInterpolation", true);
-
-            sporeConcentrationFernSpawnMaxNearby = b
-                    .comment("発生候補地点の周囲 sporeConcentrationFernSpawnRadius 内に既にこの数以上の",
-                            "汚染シダがいたら湧かせない。既定 3。")
-                    .defineInRange("sporeConcentrationFernSpawnMaxNearby", 3, 0, 64);
-
-            sporeConcentrationFernSpawnUndergroundChance = b
-                    .comment("汚染シダの自然発生の試行 1 回あたり、地上の地表ではなく「地下(洞窟)」を狙う確率。",
-                            "既定 0.5。0 で地上のみ(従来どおり)、1.0 で常に地下狙い。",
-                            "地下狙いのときはランダムな Y から下方向へ走査し、天井が閉じた(空が見えない)",
-                            "空洞の床で足場が汚染ブロックでない地点にのみ湧く。汚染シダのこの発生経路だけが地下に湧く。")
-                    .defineInRange("sporeConcentrationFernSpawnUndergroundChance", 0.5D, 0.0D, 1.0D);
 
             b.pop();
 
@@ -4376,17 +4078,16 @@ public final class OvergrownVegetationConfig {
                     .defineInRange("raidBossBarRadius", 96, 16, 512);
 
             raidForceLoadRadius = b
-                    .comment("レイド発生時に苗床の周囲を常時強制ロードする半径(チャンク)。この範囲では",
-                            "プレイヤーが居なくても根が伸び・汚染が広がり続ける(プレイヤーが近くに居れば",
-                            "その先のチャンクも読み込まれ、根と汚染はさらに外へ伸びる)。レイド終了時に解除。",
-                            "大きくするほど汚染が遠くまで自走するが、その分の常時ロードチャンクが増える。",
-                            "既定 7(= ビーコン中心の 15x15 = 225 チャンク ≒ 半径 112 ブロック)。",
-                            "根の限界距離 raidRootMaxDistance と面汚染の半径 raidAreaCorruptionRadius",
-                            "(どちらも既定100ブロック)をちょうど覆う値。以前の 4(≒64ブロック)のままだと",
-                            "外周が未ロードで飛ばされてしまい、raidAreaCorruptionSweepMinutes で塗りきれない。",
-                            "常時ロードが重い場合はここを下げてよいが、そのぶん外周はプレイヤーが",
-                            "近くに居るあいだしか汚染されない。")
-                    .defineInRange("raidForceLoadRadius", 7, 2, 24);
+                    .comment("レイド発生時に苗床の周囲を常時強制ロードする半径(チャンク)。この正方形の中は",
+                            "プレイヤーが居なくても Mob まで動き、さらに外側 2 チャンクまでが読み込まれる",
+                            "(ブロックは書き換わるが Mob は止まる)。苗床が止まらず、読み込まれた範囲の根と汚染は",
+                            "誰も居なくても進む。その外の根と汚染は、プレイヤーが近くに来て読み込まれている間だけ進む",
+                            "(読み込まれていない間は捨てずに待ち、読み込まれたら止まったところから続ける)。",
+                            "レイド終了時に解除。途中で下げると、進行中のレイドもその範囲まで縮む。",
+                            "既定 2(2026-09-25 仮決め。5x5 = 25 チャンクが動き、9x9 が読み込まれる ≒ 苗床から 64 ブロック)。",
+                            "ウェーブの湧く輪(raidWaveSpawnRadius、既定 24 ブロック)がまるごと動く最小の値。",
+                            "以前の既定は 7(15x15 = 225 チャンクを常に動かし、面汚染の半径 100 を覆っていた)。")
+                    .defineInRange("raidForceLoadRadius", 2, 0, 24);
 
             raidRootGrowthIntervalTicks = b
                     .comment("根の先端を1ブロック進める間隔(tick)。既定 60(以前は150、1200、300、50と",
@@ -4519,13 +4220,19 @@ public final class OvergrownVegetationConfig {
                     .defineInRange("raidWaveMaxSize", 20, 0, 256);
 
             raidWaveMaxNearby = b
-                    .comment("苗床の周囲(raidWaveSpawnRadius の約2倍)の過繫茂した Mob 総数がこれを超えたら、",
-                            "そのウェーブはスキップ。既定 100。")
+                    .comment("この苗床のウェーブで湧き、今も生きている(読み込まれている)Mob の数がこれを超えたら、",
+                            "そのウェーブはスキップ。攻城戦の報復増援の上限にも使う。既定 100。")
                     .defineInRange("raidWaveMaxNearby", 100, 0, 1000);
 
             raidWaveSpawnRadius = b
                     .comment("ウェーブ Mob を湧かせる、苗床からの水平半径(ブロック)。既定 24。")
                     .defineInRange("raidWaveSpawnRadius", 24, 8, 128);
+
+            raidWavePlayerRadius = b
+                    .comment("苗床からこの距離(ブロック)以内に、生きているサバイバル/アドベンチャーのプレイヤーが",
+                            "1 人も居ない間は、ウェーブの時計(raidWaveIntervalTicks)を止める。戻ってきたら止めたところの",
+                            "続きから数える(居なかった間のウェーブは出ない)。既定 128(2026-09-25 仮決め)。")
+                    .defineInRange("raidWavePlayerRadius", 128, 16, 512);
 
             raidNexusSonicRange = b
                     .comment("この距離以内にプレイヤーが入ると、苗床がつぼみをその方へ曲げて衝撃波",
@@ -4613,12 +4320,9 @@ public final class OvergrownVegetationConfig {
                             "下限が上がった場合(長い裂け目)は、上限も min+64 まで自動で引き上げられる。")
                     .defineInRange("quakeDistanceMax", 192, 48, 8192);
 
-            quakeForceLoadRadius = b
-                    .comment("地割れの掘削中に地点の周囲を強制ロードする半径(チャンク)。裂け目の全長の半分+周囲の",
-                            "ひびが収まるくらいが目安。掘削が終わったら中心付近だけの小さな範囲へ縮小し、",
-                            "胞子噴出が終わったら完全に解除する。既定 8(= 17x17 チャンク)。",
-                            "これより外の端は必要時に読み込まれる。")
-                    .defineInRange("quakeForceLoadRadius", 8, 2, 24);
+            // quakeForceLoadRadius(地割れの強制ロードの半径、既定 8 = 17x17)は 2026-09-25 に廃止(報告 1450)。
+            // 掘削中は裂け目の足跡が掛かるチャンクだけを固定し(EarthquakeFissure#footprintChunks)、
+            // 胞子噴出中は quakeEruptHazardRadiusChunks の正方形だけを固定する。
 
             quakeFissureMinLength = b
                     .comment("裂け目の長さ(長軸)の最小値(ブロック)。既定 112。")
@@ -4687,7 +4391,7 @@ public final class OvergrownVegetationConfig {
 
             quakeEruptDurationTicks = b
                     .comment("胞子を噴出し続ける時間(tick)。既定 3600 = 3 分(噴出開始からの時間)。",
-                            "この間、地割れ地点は強制ロードされたままになる。")
+                            "この間、噴出点から quakeEruptHazardRadiusChunks の範囲は強制ロードされたままになる。")
                     .defineInRange("quakeEruptDurationTicks", 3600, 0, 240000);
 
             quakeEruptIntervalTicks = b
@@ -5355,6 +5059,35 @@ public final class OvergrownVegetationConfig {
 
             b.pop();
 
+            b.comment("OvergrownVegetation — 性能の設定(2026-10-06)。いまの重さは /ov perf で見られる。").push("performance");
+
+            tickBudgetEnabled = b
+                    .comment("予算の番人。サーバーが重いとき、後回しにできる処理(台帳の書き換え・極相の全層置換・巨大樹の成長など)を",
+                            "次の tick へ回して 1 tick を目標の時間に収める。結果は同じで、遅れるだけ。",
+                            "サーバーが軽いときは何も変わらない。既定 true。")
+                    .define("tickBudgetEnabled", true);
+
+            tickBudgetTargetMspt = b
+                    .comment("予算の番人が守る 1 tick の目標(ミリ秒)。50 を超えると TPS が 20 を割る。",
+                            "mod の後回しにできる処理は「目標 − ほかの処理の重さ」の範囲でだけ動く。既定 40(仮決め)。")
+                    .defineInRange("tickBudgetTargetMspt", 40.0D, 10.0D, 50.0D);
+
+            mobThinkThrottleEnabled = b
+                    .comment("遠くの Mob の思考の間引き。プレイヤーから離れたこの mod の Mob は、行動を選び直す(標的・逃げ先を探す)のを",
+                            "数 tick に 1 回にする。歩く・戦うなどの今している行動は毎 tick 続く。",
+                            "遠くでの反応が少し遅くなる(汚染の広がりも少し遅れる)。既定 true。")
+                    .define("mobThinkThrottleEnabled", true);
+
+            mobThinkThrottleDistance = b
+                    .comment("間引きを始める、いちばん近いプレイヤーからの距離(ブロック)。既定 48(仮決め)。")
+                    .defineInRange("mobThinkThrottleDistance", 48, 16, 512);
+
+            mobThinkThrottleInterval = b
+                    .comment("遠くの Mob が行動を選び直す間隔(tick)。バニラは 2。既定 8 = 0.4 秒(仮決め)。")
+                    .defineInRange("mobThinkThrottleInterval", 8, 2, 40);
+
+            b.pop();
+
             b.comment("OvergrownVegetation — クライアント描画の設定(サーバーには影響しない)").push("client");
 
             fogCullEnabled = b
@@ -5401,22 +5134,325 @@ public final class OvergrownVegetationConfig {
                             "0 にすると自分のいるチャンクの中だけ動く。")
                     .defineInRange("mobRenderLodAnimateChunkRadius", 3, 0, 32);
 
-            curledFernDetail = b
-                    .comment("(クライアント描画)巻きシダ(overgrown_curled_fern)の立体モデルの精細さ。",
-                            "FULL と REDUCED の切り替えは、バニラのビデオ設定にある",
-                            "「シダをすべて表示する」からも行える(ON = FULL / OFF = REDUCED。同じ設定)。",
-                            "巻きシダは geo.json 由来の立体モデルで、バニラのクロス型の草(4面)より面数が多く、",
-                            "しかも地表に生える下草の約半分を占めるため、非力な環境では面数を落とせるようにしている。",
-                            "括弧内は1本あたりの面数の目安(透明な面・面積ゼロの面を捨てたあとの実数)。",
-                            "FULL    = geo.json のまま(86面)。見た目は一番よいが、汚染された地表のマスの",
-                            "          約2割が巻きシダになるため、1チャンク列あたり約4,600面を占める",
-                            "          (描画距離12チャンクでバニラの地形全体の2〜3倍のポリゴン)。",
-                            "REDUCED = 6本ある葉のうち3本だけ残す(48面)。背丈と形はほぼそのまま、密度だけ半分。既定。",
-                            "          どの3本かは草ごとにランダムで、必ず低・中・高が1本ずつそろう(8通り)。",
-                            "SIMPLE  = バニラの草と同じ十字の板(4面)。一番軽いが立体感は無くなる。",
-                            "変更するとモデルを焼き直すためリソースの再読み込みが走る(数秒固まる)。",
-                            "描画のみに影響する設定で、common config にあるがサーバーには影響しない。")
-                    .defineEnum("curledFernDetail", CurledFernDetail.REDUCED);
+            // 2026-09-25: 「近い数十体だけアニメ」(ユーザー承認 2026-09-24)。既定 64 は仮決め 2026-09-25。
+            mobRenderLodAnimateBudget = b
+                    .comment("(クライアント描画)上記の半径の中でも、画面に映っている Mob のうちカメラに近い順にこの体数だけ動かす。",
+                            "それより遠い Mob は半径の中でもレストポーズで固まる(大群が近くに集まったときの描画負荷対策)。",
+                            "半径の外・この体数の外のどちらかに当たれば止まる。0 で体数の上限なし(半径だけで決める)。既定 64。",
+                            "攻城戦ボス・フィロセンス・スクティムネスはこの体数に数えず、いつでも動く。")
+                    .defineInRange("mobRenderLodAnimateBudget", 64, 0, 1024);
+
+            // 2026-09-25: 遠景の身代わり(ユーザー指定「大群が迫ってくる演出を TD に組み込みたい」)。上限 2000 は仮決め。
+            hordeSpritesEnabled = b
+                    .comment("(クライアント描画)遠くて描かれない G4〜G9 の Mob を、1 枚の絵の身代わりで描く。",
+                            "バニラは小さい Mob を「体の大きさ × 64 × エンティティ描画距離」より先で描かない(アルボラは約 63 ブロック)ので、",
+                            "その先から描画距離の霧まで、その Mob のモデルから起動後に作った 8 方向の絵を立てて描く。",
+                            "全部まとめて 1 回で描くので軽い(1 体あたり三角形 2 枚)。false で描かない(バニラと同じ見え方)。")
+                    .define("hordeSpritesEnabled", true);
+
+            hordeSpriteMaxCount = b
+                    .comment("(クライアント描画)身代わりを 1 フレームに描く数の上限。超えたらカメラに近い順に描く。既定 2000。")
+                    .defineInRange("hordeSpriteMaxCount", 2000, 0, 20000);
+
+            // 2026-09-25: 遠景の身代わりの 4 段目(描画距離の外は地平線に胞子の嵐)。見た目の数値は仮決め。
+            hordeStormsEnabled = b
+                    .comment("(クライアント描画)描画距離・霧の外にいる TD の行進中の群れを、その方角の地平線の胞子の嵐(地上の群れ)と",
+                            "空の影(ヴェロフィルの群れ)で描く。描画距離が短い・過繁茂の霧の中でも、遠くから迫る大群が見える。",
+                            "hordeSpritesEnabled が false なら描かない。false で描かない(霧の外は何も見えない)。")
+                    .define("hordeStormsEnabled", true);
+
+            // 2026-09-25 ユーザー「地平線の胞子の嵐の量を増やせますか?地平線が見えないレベルにまで上げてもらって構わない」。既定 1 は仮決め。
+            hordeStormDensity = b
+                    .comment("(クライアント描画)地平線の胞子の嵐の濃さ。嵐の壁(群れのいる方角ほど濃く高い)と群れごとの土ぼこりの柱に掛ける。",
+                            "1 で、群れが全方位にいれば地平線がぐるりと隠れる。小さくすると薄く低く、大きくすると少ない群れでも濃くなる。既定 1。")
+                    .defineInRange("hordeStormDensity", 1.0D, 0.0D, 3.0D);
+
+            // 2026-10-15 ユーザー「ジャングルの中のライティングにこだわる: 茂った森でも光が入る・胞子が光に当たって光る・木漏れ日」。
+            // 試作。明るさの既定 1 は仮決め。
+            canopyLightEnabled = b
+                    .comment("(クライアント描画)汚染地域(繁茂・過繁茂・極相)で、林冠の隙間から差す光の筋と、その中で光る胞子を描く。",
+                            "昼だけ・雨では弱まる。シェーダー(Iris など)で同じ演出が出るときは false で切る。")
+                    .define("canopyLightEnabled", true);
+            canopyLightIntensity = b
+                    .comment("(クライアント描画)光の筋と光る胞子の明るさ。1 が既定、0 で見えない。")
+                    .defineInRange("canopyLightIntensity", 1.0D, 0.0D, 3.0D);
+            // 2026-10-15 夜 ユーザー「葉が風に揺られないので、木漏れ日や差し込む光がずっと同じ場所にい続けておかしく見える。
+            // ランダムに風が吹いて葉を揺らしているような感じに」→ 案 A(風の場で光と粒を一緒に動かす)。倍率 1 は仮決め。
+            canopyWindStrength = b
+                    .comment("(クライアント描画)汚染地域の風の強さの倍率。ランダムな突風が林を渡り、木漏れ日の明滅とずれ・光の筋の揺れ・",
+                            "胞子の流れ・落ち葉・風の音がその風で動く。0 で無風。既定 1。")
+                    .defineInRange("canopyWindStrength", 1.0D, 0.0D, 2.0D);
+            canopyFallingLeaves = b
+                    .comment("(クライアント描画)汚染地域で、林冠の葉が風に吹かれて落ちる粒を出すか(突風のときに多い)。既定 true。")
+                    .define("canopyFallingLeaves", true);
+            // 2026-10-15 夜 ユーザー「突風が吹いた際に風の音が鳴るように。現実の音を参考に、しっかりリアリティのある環境音に」。
+            // 録音ではなくその場で合成する(風の場と同じ突風で鳴る)。大きさ 1 は仮決め。
+            canopyWindSoundVolume = b
+                    .comment("(クライアントの音)汚染地域の風の音(葉擦れ・林を渡ってくる突風)の大きさ。0 で鳴らさない。",
+                            "バニラの音量の「環境音」も掛かる。光の筋(canopyLightEnabled)を切っても鳴る。既定 1。")
+                    .defineInRange("canopyWindSoundVolume", 1.0D, 0.0D, 2.0D);
+            // 2026-10-15 夜 ユーザー「巨大樹は大きすぎて、霧に隠れて木全体が見えなくなる。シルエットだけでも見えるように」。
+            giantTreeSilhouette = b
+                    .comment("(クライアント描画)汚染地域の霧の向こうの巨大樹を、霞んだシルエットで見せるか。",
+                            "本物の木が霧で 6 割ほど隠れる距離から先を、木の形を写した影に入れ替えて描く。シェーダーパックと重なって変に見えるなら false。既定 true。")
+                    .define("giantTreeSilhouette", true);
+            // 2026-10-15 夜、風の案 B(ユーザー「A から順番に」)。大きさ 1 は仮決め。
+            canopyLeafSway = b
+                    .comment("(クライアント描画)過繁茂の葉・湿地の葉・茂み・シダ・蔦・垂れ苔・太い蔓を、木漏れ日・胞子・風の音と同じ風で揺らす大きさの倍率。0 で揺らさない。",
+                            "揺れるのは突風の風の音が鳴っている間だけ。",
+                            "バニラの描画のときだけ揺れる(Sodium・Iris のシェーダーパック・「軽量」グラフィックでは揺れない)。既定 1。")
+                    .defineInRange("canopyLeafSway", 1.0D, 0.0D, 2.0D);
+            // 2026-10-16 ユーザー「霧の色を実装する」。大きさ 1 は仮決め。
+            canopyFogGlow = b
+                    .comment("(クライアント描画)汚染地域で太陽の方を向いたとき、霧を明るく暖かい色(朝夕は橙、昼は淡い金)へ寄せる強さの倍率。0 で寄せない。既定 1。")
+                    .defineInRange("canopyFogGlow", 1.0D, 0.0D, 2.0D);
+            // 2026-10-16 風の案 C(ユーザー「風の案 C の実装を」)。強さ 1 は仮決め。
+            canopySurfaceShade = b
+                    .comment("(クライアント描画)汚染地域の林冠の影を、地面だけでなく草・シダ・幹・葉にも落とす強さ(0〜1)。0 なら地面の上面だけに落とす(前の形)。",
+                            "バニラの描画のときだけ(Sodium・Iris が入っていると地面だけ)。既定 1。")
+                    .defineInRange("canopySurfaceShade", 1.0D, 0.0D, 1.0D);
+            // 2026-10-16 ユーザー選択「昼の光の改善案 (3) 影を青緑に寄せ、筋と胞子の暖色を浮かせる」。色は仮決め。
+            canopyShadeTint = b
+                    .comment("(クライアント描画)汚染地域の林冠の影を青緑に寄せる強さ(0〜2)。影の明るさは変えず色だけ寄せ、光の筋・木漏れ日・胞子の金色を浮かせる。",
+                            "0 で前の灰色の影、2 で倍の強さ。既定 1。")
+                    .defineInRange("canopyShadeTint", 1.0D, 0.0D, 2.0D);
+            // 2026-10-16 ユーザー「日光が差す場所以外でも、過繁茂の森の中にいるときは常に(青緑の影のように)」。夜・朝夕も含める・松明の明かりは除く は Claude の仮決め。
+            canopyForestTint = b
+                    .comment("(クライアント描画)過繁茂の森の中にいる間、日向以外の面をいつも青緑に寄せる強さ(0〜1)。",
+                            "昼は林冠の影の中だけ、太陽の低い朝夕・夜・影の地図の外は全部の面を寄せる(明るさは変えない)。松明などの明かりで照らされた面は寄せない。",
+                            "色の強さは canopyShadeTint。0 で林冠の影だけ(前の形)。バニラの描画のときだけ。既定 1。")
+                    .defineInRange("canopyForestTint", 1.0D, 0.0D, 1.0D);
+            // 2026-10-17 ユーザー「木の密度を少しだけ上げて、その状態で木漏れ日や差し込む光が美しく見えれば完璧」。林床がバニラの空の光の減り(葉 1 枚ごと)と
+            // 林冠の影の両方で暗くなり、木漏れ日・光の筋が闇に沈むので、空の光の減りの方を戻す。値は仮決め。
+            canopySkyLift = b
+                    .comment("(クライアント描画)過繁茂の森の中にいる間、葉に削られた空の光をこの割合だけ明るい方へ戻す(0〜1)。林床の暗さは林冠の影が受け持ち、",
+                            "木漏れ日・光の筋が闇に沈まないようにする。空の光がほとんど届かない所は少しだけ(0 段で半分弱)、洞窟・家の中にいる間は持ち上げない。見た目だけ(湧き・作物は変わらない)。",
+                            "Sodium でも効く。0 でバニラのまま。既定 0.6。")
+                    .defineInRange("canopySkyLift", 0.6D, 0.0D, 1.0D);
+            // 2026-10-17 ユーザー選択(10-16 の「密林をさらに美しく見せる案」(2) 二色の霧)。強さ・色は仮決め。
+            aerialFog = b
+                    .comment("(クライアント描画)二色の霧(空気遠近法): 過繁茂の森の中で、昼、近くの霧を日に照らされた暖かい色に寄せる強さ(0〜1)。",
+                            "遠くは今の青緑の霧のまま(空と同じ)なので、近くは暖かく遠くは青緑になり奥行きが出る。太陽の方ほど暖かい。地形だけ(Mob・粒はバニラの霧)。",
+                            "バニラの描画のときだけ。0 で無し。既定 0.7。")
+                    .defineInRange("aerialFog", 0.7D, 0.0D, 1.0D);
+            // 2026-10-17 ユーザー選択(10-16 の「密林をさらに美しく見せる案」(4) 雨上がりの水滴)。数・時間は仮決め。
+            afterRain = b
+                    .comment("(クライアント描画)雨上がりの森の強さ(0〜1): 過繁茂の森で雨が降ると濡れ、止んでから 2 分かけて乾く。濡れている間は葉の下から滴が垂れ(雨の最中も)、",
+                            "昼の雨上がりには日の当たる地面で水がきらめき、湯気が立ちのぼる。葉そのものは光らせない。0 で無し。既定 1。")
+                    .defineInRange("afterRain", 1.0D, 0.0D, 1.0D);
+            // 水面のきらめき(waterGlitter・client/WaterGlitter)は 2026-10-22 ユーザー指定で削除。
+            // 2026-10-17(10-16 の「密林をさらに美しく見せる案」(5) 色の揺らぎ。10-16 の採用外だったが作って見せ、ユーザーが了承)。色はユーザー指定(若葉は黄緑・成葉は少しだけ青緑、元の色に近く)、割合と色の量は仮決め。
+            leafColorVariation = b
+                    .comment("(クライアント描画)葉の色の揺らぎの強さ(0〜1): 過繁茂の葉を樹冠くらいのまとまりごとに、元の色から少しだけ青緑へ寄せる(成長しきった葉)。",
+                            "葉の層のシェーダーで塗り替えるので、Sodium などや「軽量」グラフィックでは効かない。書き換えてすぐ効く。0 で無し。既定 1。")
+                    .defineInRange("leafColorVariation", 1.0D, 0.0D, 1.0D);
+            youngLeaves = b
+                    .comment("(クライアント描画)若葉の房の強さ(0〜1): 過繁茂の森の一部の樹冠の外側に、元の色より少し明るい黄緑の若葉の房を混ぜる(胞子で増える木の新芽)。",
+                            "葉を光らせはしない(暗い所では暗い)。書き換えてすぐ効く。0 で無し。既定 1。")
+                    .defineInRange("youngLeaves", 1.0D, 0.0D, 1.0D);
+            // 2026-10-17 ユーザー指定(ideas.voxel_clouds: 雲は世界中・建築の上限より上・量は日によって変わり雲が無い日もある・下の層は y 300〜350)。箱の大きさ・範囲・風は仮決め。
+            voxelClouds = b
+                    .comment("(クライアント描画)バニラの雲の代わりに、y 300〜350 のボクセル調の雲(8 × 4 × 8 ブロックの箱の柱)を描くか。雲は世界中で、量は日によって変わる(雲が無い日もある)。",
+                            "光は今の太陽・月の向きで付ける(下面は灰色、朝夕は日の当たる面が橙、太陽の方を向くと縁が光る)。バニラの雲の設定が「オフ」だと描かない。false でバニラの雲。既定 true。")
+                    .define("voxelClouds", true);
+            cloudCoverage = b
+                    .comment("(クライアント描画)雲の量を固定する(0 = 快晴 〜 1 = 一面の雲)。−1 で日ごとに変わる(既定)。確かめる・撮るとき用。")
+                    .defineInRange("cloudCoverage", -1.0D, -1.0D, 1.0D);
+            // 2026-10-17 ユーザー採用(10-16 の「密林をさらに美しく見せる案」(3) 流れる雲の影)。濃さ・色は仮決め。
+            cloudShadows = b
+                    .comment("(クライアント描画)流れる雲の影の強さ(0〜1): ボクセルの雲の影が地面・森・水面を風で流れていく。カメラが雲の影に入ると光の筋・木漏れ日・水のきらめきも弱まる。",
+                            "昼だけ。ボクセルの雲を描いていないときは出ない。地形のシェーダーで描くので Sodium などでは効かない。0 で無し。既定 1。")
+                    .defineInRange("cloudShadows", 1.0D, 0.0D, 1.0D);
+            // 2026-10-17 ユーザー指定(10-16「雨や曇りの後に薄明光線(天使の梯子)が出るような」、10-17「次は薄明光線を進めて」)。数・濃さは仮決め。
+            crepuscularRays = b
+                    .comment("(クライアント描画)薄明光線(天使の梯子)の強さ(0〜1): ボクセルの雲の切れ目から、日の光の向きに地面まで大きな光の筋が差す。",
+                            "雨が止んだ後の数分・朝・雲の多い日ほど濃い。太陽の方を向くほど明るい。森の中(林冠の下)では弱い。昼だけ。0 で無し。既定 1。")
+                    .defineInRange("crepuscularRays", 1.0D, 0.0D, 1.0D);
+            // 2026-10-17 ユーザー指定(10-16「積乱雲を用意し」「積乱雲は最大 y 600」、10-17「次は積乱雲と雷を進めてください」)。形・数・頻度は仮決め。
+            cumulonimbus = b
+                    .comment("(クライアント描画)積乱雲を立てるか(0 で立てない、0 より大きければ立てる)。どの日・どの時刻にも、雲ごとにばらばらの時刻に湧いて育ち、長く立ってから崩れる(雲の多い日ほど多い)。",
+                            "y 300 から最大 1500 まで塔が伸び、一部は天辺に金床が広がる。雷雨の間は数が増え、ほぼ必ず近くに立つ。中で雷が光って雲を照らし、ときどき稲妻が地面へ落ち(見た目と音だけ)、塔の下に雨の柱が下りる。既定 1。")
+                    .defineInRange("cumulonimbus", 1.0D, 0.0D, 1.0D);
+            cumulonimbusChance = b
+                    .comment("(クライアント描画)積乱雲が 1280 ブロック四方に 1 つ立つ確率を固定する(0〜1)。−1 で雲の量と雷雨で決まる(既定)。確かめる・撮るとき用。")
+                    .defineInRange("cumulonimbusChance", -1.0D, -1.0D, 1.0D);
+            lightningRate = b
+                    .comment("(クライアント描画)積乱雲の中で雷が光る頻度の倍率(0〜10)。1 でふだんは 1 つの雲で 20 秒に 1 回ほど、雷雨の間は 4 秒に 1 回ほど。0 で光らない。既定 1。")
+                    .defineInRange("lightningRate", 1.0D, 0.0D, 10.0D);
+            // 2026-10-17 ユーザー指定「稀に積乱雲の周りに雲海を、とびっきり巨大なもの(空の巨大生物がすっぽり収まるくらい)」。割合・大きさは仮決め。
+            giantStormChance = b
+                    .comment("(クライアント描画)立つ積乱雲のうち、巨大な積乱雲(2 倍ほどの大きさ・天辺 y 1000 超え。まわり 1800 ブロックに厚さ 100 ほどの雲海を作り、",
+                            "近くのほかの積乱雲を消す)になる割合(0〜1)。−1 で既定(0.12)。確かめる・撮るときは 1 に。")
+                    .defineInRange("giantStormChance", -1.0D, -1.0D, 1.0D);
+            // 2026-10-17 夜、ユーザー「積乱雲は一つだけでなく複数がそこら中に。空に雲の迷宮のような空間を」の受け取り方の案(ユーザーが選ぶまでの仮)。
+            cumulonimbusStyle = b
+                    .comment("(クライアント描画)積乱雲の並び方(案出し中)。1 = 群れ(中くらいの塔があちこちに、間は青空)/ 2 = 谷(雲の床から塔が密に立ち、間が谷の通路)/",
+                            "3 = 壁と橋(2 に加えて、塔が並んだ雲の壁と宙に架かる雲の橋)。書き換えて 10 秒ほどで形が替わる。既定 2(10-17 ユーザーが B を選んだ。雲の海に山と谷)。")
+                    .defineInRange("cumulonimbusStyle", 2, 1, 3);
+            // 2026-10-17 ユーザー指定「どんな過繁茂したバイオームであっても高度 300〜350 辺りから神秘的なレベルで奇麗な晴天に(空の巨大生物とのバトルフィールド・空の移動の目玉)」。
+            highSkyClarity = b
+                    .comment("(クライアント描画)高空の晴天の強さ(0〜1): カメラが下の高さから上の高さへ上がるにつれて、過繁茂・極相の霧・空の色・暗さ・漂う胞子を外し、",
+                            "晴れた空と遠くまで見える空気にする。0 で無し。既定 1。")
+                    .defineInRange("highSkyClarity", 1.0D, 0.0D, 1.0D);
+            highSkyClearFrom = b
+                    .comment("(クライアント描画)高空の晴天が始まる高さ(y)。既定 300(ユーザー指定)。")
+                    .defineInRange("highSkyClearFrom", 300.0D, 64.0D, 2000.0D);
+            highSkyClearTo = b
+                    .comment("(クライアント描画)高空の晴天になりきる高さ(y)。既定 350(ユーザー指定)。")
+                    .defineInRange("highSkyClearTo", 350.0D, 65.0D, 2100.0D);
+            // 2026-10-17 深夜ユーザー選択(雲の中の演出: 白い霧・流れるちぎれ雲・画面の端の水滴・抜けるときのもや・霧の中の巨大な影)。距離・濃さは仮決め。
+            cloudInterior = b
+                    .comment("(クライアント描画)雲の中の演出の強さ(0〜1): ボクセルの雲の中に入ると白い霧に包まれ(積乱雲の中は灰色)、出入りのときはもやが濃く・薄くなる。",
+                            "中ではちぎれ雲が流れ、画面の端に水滴がつき、霧の向こうに積乱雲の影がぼんやり見える。0 で無し(雲の中もこれまで通り)。既定 1。")
+                    .defineInRange("cloudInterior", 1.0D, 0.0D, 1.0D);
+            cloudTurbulence = b
+                    .comment("(クライアント描画)乱気流の強さ(0〜1): 積乱雲の中で視点が揺れ(画面のゆがみ効果の設定も掛かる)、上昇気流・下降気流に押される(エリトラは強く)。0 で無し。既定 1。")
+                    .defineInRange("cloudTurbulence", 1.0D, 0.0D, 1.0D);
+            cloudWindSound = b
+                    .comment("(クライアント音)雲の中の風の音の大きさ(0〜1): 雲の中で突風のときだけ、こもった風の音(速く飛ぶと空気を切る音も)。音量の「環境音」も掛かる。0 で無し。既定 1。")
+                    .defineInRange("cloudWindSound", 1.0D, 0.0D, 1.0D);
+            // 2026-10-17 深夜ユーザー指定「雷雨の際の積乱雲のみで、雲の中に雷が走る。触れたら即死」。頻度・前触れの長さ・当たりの太さは仮決め。
+            cloudLightning = b
+                    .comment("(ゲームの決まり)雷雨の間、積乱雲の中にいるプレイヤーのまわりを雷が走る。光って音がした後に走り、触れると即死(防具・効果では防げない。不死のトーテムは効く)。",
+                            "積乱雲の中だけ(下の層・雲の海・雷雨でないときは走らない)。false で走らない。既定 true。")
+                    .define("cloudLightning", true);
+            cloudLightningRate = b
+                    .comment("(ゲームの決まり)積乱雲の中を走る雷の頻度の倍率(0〜5)。1 で 1 人のまわりに 2〜5 秒に 1 本、そのうち 3 割はその人を通る。既定 1。")
+                    .defineInRange("cloudLightningRate", 1.0D, 0.0D, 5.0D);
+            // 2026-10-17 深夜ユーザー選択(アニメ調の陰影 = 「Minecraft に合うように調整したセル画チックな感じ」・輪郭のやわらかさ・雲が雲に落とす影)。色と段の位置は仮決め。
+            cloudCelShading = b
+                    .comment("(クライアント描画)雲のセル画調の陰影の強さ(0〜1): 明るい所・中間・影の 3 つの平らな色にくっきり分ける(段は箱の境に来る)。影は青みのある灰色。0 でなめらかな陰影。既定 1。")
+                    .defineInRange("cloudCelShading", 1.0D, 0.0D, 1.0D);
+            cloudSoftEdges = b
+                    .comment("(クライアント描画)雲の輪郭のやわらかさ(0〜1): 箱の出っ張った角・辺の近くを透かして、角張った輪郭をやわらかく見せる(逆光では縁が光る)。0 でくっきりした箱。既定 1。")
+                    .defineInRange("cloudSoftEdges", 1.0D, 0.0D, 1.0D);
+            cloudSelfShadows = b
+                    .comment("(クライアント描画)雲が雲に落とす影の強さ(0〜1): 積乱雲の影が雲の海と積乱雲の日の当たらない側に落ちる(昼だけ)。0 で無し。既定 1。")
+                    .defineInRange("cloudSelfShadows", 1.0D, 0.0D, 1.0D);
+            // 2026-10-18 ユーザー依頼(参考画像 = 王立宇宙軍 オネアミスの翼の空): 荒天の雲を濃い青灰に・切れ目を水色に / 雲の海の上の風に流れた筋 / 遠くの雲の青い霞。色・濃さは仮決め。
+            cloudRoughWeather = b
+                    .comment("(クライアント描画)荒天の雲の強さ(0〜1): 雨・雷雨の間、雲を濃い青灰(スレート色)にし、雲の切れ目(輪郭の縁)を水色に光らせる。雲の中の霧も青灰に。0 でバニラの雨の灰色。既定 1。")
+                    .defineInRange("cloudRoughWeather", 1.0D, 0.0D, 1.0D);
+            cloudWindStreaks = b
+                    .comment("(クライアント描画)雲の海の上の風に流れた筋の強さ(0〜1): 風の向きに長い筆の跡のような濃淡(雲と一緒に流れる)。積乱雲には弱く、遠くでは消える。0 で無し。既定 1。")
+                    .defineInRange("cloudWindStreaks", 1.0D, 0.0D, 1.0D);
+            cloudBlueHaze = b
+                    .comment("(クライアント描画)遠くの雲の青い霞の強さ(0〜1): 遠くの雲ほど空の青に寄って淡くなる(空気遠近)。0 で無し。既定 1。")
+                    .defineInRange("cloudBlueHaze", 1.0D, 0.0D, 1.0D);
+            // 2026-10-16 ユーザー指定「現実の高い空の筋のような細い雲(巻雲)」、10-18「巻雲は y 1600 あたりに変更」。模様・量・色は仮決め。
+            cirrus = b
+                    .comment("(クライアント描画)巻雲の濃さ(0〜1): y 1600 に、風の向きに長い細い筋の雲が下の雲より速く流れる(朝夕は強く染まる)。量は日ごとに変わり、無い日もある。",
+                            "ボクセルの雲を描いていないときは出ない。0 で無し。既定 1。")
+                    .defineInRange("cirrus", 1.0D, 0.0D, 1.0D);
+            cirrusAmount = b
+                    .comment("(クライアント描画)巻雲の量を固定する(0〜1)。−1 で日ごとに変わる(既定)。確かめる・撮る用。")
+                    .defineInRange("cirrusAmount", -1.0D, -1.0D, 1.0D);
+            // 2026-10-16 ユーザー指定「ティタニカの極太ビームや攻城砲の砲弾などが雲に入ったとき、円形にぼこっと穴が開く演出」、10-18「巻雲の後に」。大きさ・時間は仮決め。
+            cloudHoles = b
+                    .comment("(クライアント描画)雲に穴が開く演出(0〜1): 攻城砲の砲弾・ティタニカの胞子爆弾・花のビームが雲を通ると、通った道に丸い穴が開き(縁がしばらく光り、",
+                            "入口に水蒸気の輪が広がる)、1 分後から埋まり始めて 3 分で元に戻る。値は縁の光の強さ。0 で無し。既定 1。")
+                    .defineInRange("cloudHoles", 1.0D, 0.0D, 1.0D);
+            // 2026-10-18 ユーザー選択(雲の質感: 面の中の筆のムラ・雲の海の段差を目立たせない・積乱雲の底を暗く平らに・遠くの雲の輪郭を丸く)。濃さは仮決め。
+            cloudTexture = b
+                    .comment("(クライアント描画)雲の質感の強さ(0〜1): 平らな面に筆で塗ったような弱いムラ、雲の海の段差の色の差を小さく、積乱雲の下の方を雨雲のように暗く平らに、",
+                            "遠くの雲ほど箱の角を溶かして丸い輪郭に。0 で前の見た目。既定 1。")
+                    .defineInRange("cloudTexture", 1.0D, 0.0D, 1.0D);
+            // 2026-10-18 ユーザー選択(空の光: 天頂の深い青・太陽の光輪とまぶしさ・雲の上の光芒・月明かりの夜の雲・雲の上の星空・朝焼けの空の色の帯・夜明け前の青い時間)。濃さ・色は仮決め。
+            skyLight = b
+                    .comment("(クライアント描画)空の色の強さ(0〜1): 昼は天頂ほど深い群青に、朝夕は地平の空に広い橙の帯とその上の薄紫、日の入りの後・日の出の前は空が深い青に(青い時間)。",
+                            "雲の上(高空の晴天)で全部、その下は森の霧の分だけ弱い。雨では出ない。0 で無し。既定 1。")
+                    .defineInRange("skyLight", 1.0D, 0.0D, 1.0D);
+            sunGlare = b
+                    .comment("(クライアント描画)太陽の光輪とまぶしさ(0〜1): 太陽のまわりの光の輪と、太陽が画面に入ったときのまぶしさ(雲・地形に隠れると消える)。0 で無し。既定 1。")
+                    .defineInRange("sunGlare", 1.0D, 0.0D, 1.0D);
+            highStars = b
+                    .comment("(クライアント描画)雲の上の星空(0〜1): 雲より高い所で、夜空に細かな星と淡い天の川を足す(空と一緒に回る)。0 で無し。既定 1。")
+                    .defineInRange("highStars", 1.0D, 0.0D, 1.0D);
+            nightClouds = b
+                    .comment("(クライアント描画)夜と青い時間の雲(0〜1): 夜の雲を真っ黒でなく月明かりの深い青に(満月ほど明るい)、日の入りの後・日の出の前は雲も深い青に。0 でバニラの色。既定 1。")
+                    .defineInRange("nightClouds", 1.0D, 0.0D, 1.0D);
+            skyRays = b
+                    .comment("(クライアント描画)雲の上の光芒(0〜1): 雲の上の昼、積乱雲の上のこぶの縁から日の光の進む向きへ淡い光の筋(太陽の方を見るほど明るい)。0 で無し。既定 1。")
+                    .defineInRange("skyRays", 1.0D, 0.0D, 1.0D);
+            // 2026-10-18 ユーザー選択「A+E と D」(高度 400 を超えて雲より上に入ったとき、読み込み範囲の外の雲も見えるように)。距離・強さは仮決め。
+            farClouds = b
+                    .comment("(クライアント描画)雲の上から見る遠くの雲(0〜1): 高度 400 より上で、近くの雲の外(約 1344 ブロック)から 7680 ブロックまで(高度 950 より上は 18432 ブロックまで)、遠いほど大きな箱で雲の海と積乱雲を描く。",
+                            "0 で無し(近くの雲だけ)。既定 1。")
+                    .defineInRange("farClouds", 1.0D, 0.0D, 1.0D);
+            cloudCurvature = b
+                    .comment("(クライアント描画)雲の海の丸み(0〜1): 1200 ブロックより遠い雲ほど下げて(星の丸みのように)、雲の海の端を地平線の下へ沈める。0 で平ら。既定 1。")
+                    .defineInRange("cloudCurvature", 1.0D, 0.0D, 1.0D);
+            cloudHorizon = b
+                    .comment("(クライアント描画)地平線の雲の書き割り(0〜1): 高度 400 より上で、遠くの雲の先の地平線に、描いた雲の海と遠くの積乱雲の頭の帯を置く。0 で無し。既定 1。")
+                    .defineInRange("cloudHorizon", 1.0D, 0.0D, 1.0D);
+            // 2026-10-18 ユーザー「風の流れを表現するように白い帯のようなエフェクトが漂っているとよい」(空の世界の順番 2)。数・長さ・速さは仮決め。
+            windRibbons = b
+                    .comment("(クライアント描画)風の流れの白い帯(0〜1): 雲の上の空で、世界の風の向きに伸びる細長い白い帯がうねりながら流れて現れては消える。風が強いほど多い。0 で無し。既定 1。")
+                    .defineInRange("windRibbons", 1.0D, 0.0D, 1.0D);
+            // 2026-10-18 ユーザー選択「乳房雲・尾流雲・入道雲」(空の世界の順番 4)。濃さ・長さは仮決め。
+            virga = b
+                    .comment("(クライアント)尾流雲の濃さ(0〜1): 育った金床の下と、育ちかけの積乱雲・入道雲の底から垂れて、地面に届く前に消える雨の筋。0 で無し。既定 1。",
+                            "(乳房雲 = 金床の下に垂れる丸い袋と、入道雲 = 金床も雷も無い中くらいの塔は、積乱雲の一部なので cumulonimbus で一緒に消える)")
+                    .defineInRange("virga", 1.0D, 0.0D, 1.0D);
+            // 2026-10-19 ユーザー「ボスによる雲引き(ボス以外もある程度速度が出ている状態で雲から出た際、雲を引くように)」(空の世界の順番 7)。数・大きさ・長さは仮決め。
+            cloudWake = b
+                    .comment("(クライアント)雲を引く(0〜1): 雲から出たもの(ボス以外は秒速 8 ブロック以上で動くもの。観戦モードは除く)と空の巨大生物が、",
+                            "出てから数秒、後ろに雲のかけらを残す(かけらは少し追いかけてから空気に止まり、膨らみながら薄れる)。0 で無し。既定 1。")
+                    .defineInRange("cloudWake", 1.0D, 0.0D, 1.0D);
+            // 2026-10-18 ユーザー選択「上昇気流と下降気流」、空のギミックは「突風や気流に乱気流」(空の世界の順番 3)。強さ・場所は仮決め。
+            skyAir = b
+                    .comment("(クライアント)空の気流(0〜1): 雲の上で、育った積乱雲の脇は上昇気流で持ち上げ、風下側は下降気流で沈め、ときどき世界の風の向きへ突風で押す",
+                            "(手元のプレイヤーだけ。地面に立っている・観戦・クリエイティブで飛んでいる・乗り物の中は押さない。エリトラは 1.6 倍)。突風のときは雲の上の風の音も鳴る。0 で無し。既定 1。")
+                    .defineInRange("skyAir", 1.0D, 0.0D, 1.0D);
+            // 2026-10-18 雲の上から見下ろすと、雲の海の切れ目の下が描画距離の外で霧の色の平らな面になる(夕方は橙で溶岩のよう)。距離・色は仮決め。
+            farGround = b
+                    .comment("(クライアント描画)雲の海の切れ目の下の地面(0〜1): 雲より上(高度 340〜400 で現れる)で、描画距離の外に霞んだ森の地面の身代わり(半径 1 万ブロック)を描く。",
+                            "描画距離の中は本物の地形が上に描かれる。0 で無し(切れ目の下は霧の色)。既定 1。")
+                    .defineInRange("farGround", 1.0D, 0.0D, 1.0D);
+            // 2026-10-16 ユーザー指定「朝霧の谷に胞子がたまる」「山の上から森を見たとき森が霧がかって見えるように(下に行くと薄い)」。数値は仮決め。
+            morningMist = b
+                    .comment("(クライアント描画)夜明けに汚染地域とそのまわりの低い所へたまる朝霧の霞を描くか。霧がどこにあるかはサーバーと同じ式(感染の進み・胞子の露はこの設定と関係なく働く)。",
+                            "地形と水のシェーダーで描くので、Sodium・Iris では霞は出ない(霧の中にいるときのバニラの霧は出る)。既定 true。")
+                    .define("morningMist", true);
+            morningMistDensity = b
+                    .comment("(クライアント描画)朝霧の霞の濃さの倍率(0〜3)。既定 1。")
+                    .defineInRange("morningMistDensity", 1.0D, 0.0D, 3.0D);
+            morningMistFogDistance = b
+                    .comment("(クライアント描画)朝霧の中にいるとき、ここから先(ブロック)はバニラの霧で隠す(遠くの地形も Mob も見えない)。近くはほとんど澄んだまま。既定 64。")
+                    .defineInRange("morningMistFogDistance", 64.0D, 16.0D, 256.0D);
+            // 2026-10-16 ユーザー指定「地下の光: 弱い光を青緑にする明るさの調整」。色と量は仮決め。
+            caveLightFloor = b
+                    .comment("(クライアント描画)汚染地域の地下(岩の天井の下)で、ブロックの光も空の光も届かない真っ暗な面を、その面の色のごく少しの青緑で底上げする強さ(0〜3)。",
+                            "0 でバニラと同じ真っ暗。暗がりは残る(1 で面の色の 3〜7%)。バニラの描画のときだけ。既定 1。")
+                    .defineInRange("caveLightFloor", 1.0D, 0.0D, 3.0D);
+            // 2026-10-16 ユーザー「4 の案(地下の霧と深さの色)のような、環境を美しく見せる感じが良い」。厚さ・色・濃さは仮決め。
+            caveMist = b
+                    .comment("(クライアント描画)汚染地域の地下の大きな洞窟で、床の低い所に溜まる薄い霧(青緑の雲の板)を描くか。",
+                            "光る植物・松明・洞窟の口から差す光の近くでは霧が照らされて明るく見える。深さで色が変わる(浅い = 緑・中 = 青緑・深い = 淡い水色)。既定 true。")
+                    .define("caveMist", true);
+            caveMistDensity = b
+                    .comment("(クライアント描画)地下の霧の濃さの倍率(0〜3)。既定 1。")
+                    .defineInRange("caveMistDensity", 1.0D, 0.0D, 3.0D);
+            // 2026-10-16 ユーザー「霧の位置がブロックに近すぎて霧があまり見えない」。1.3 → 2.8 は仮決め。
+            caveMistHeight = b
+                    .comment("(クライアント描画)地下の霧の層の高さ: まわりの床の真ん中の高さから霧のてっぺんまで(ブロック、0.8〜6)。",
+                            "大きいほど霧が床から浮いて厚くなり、立っていると霧に包まれる。ゲーム中に書き換えると数秒後(霧の作り直し)に反映。既定 2.8。")
+                    .defineInRange("caveMistHeight", 2.8D, 0.8D, 6.0D);
+            // 2026-10-16 ユーザー指定「極相の 8 案を全て実装」「とりあえず密林のみ」。数値は仮決め。
+            climaxJungleEffects = b
+                    .comment("(クライアント描画)極相の密林(結晶地帯を含む)の演出: 下からの光・真昼の星と霞んだ太陽・地脈のまわりに浮く胞子と葉と小石・",
+                            "林冠の下の光る滴・光の筋が地面に届く前に吸われる・地脈・結晶の光が昼も・結晶の共鳴・地脈を流れる光。既定 true。")
+                    .define("climaxJungleEffects", true);
+            // 2026-10-16 ユーザー選択「地面から透ける光の帯」「光のにじみを足す」。
+            leyFlowEnabled = b
+                    .comment("(クライアント描画)過繁茂の森で時々(2〜4 分おき)、地脈になる線に沿って青緑の光の帯が地面に浮かび、光の粒が流れるか。見た目だけ。既定 true。")
+                    .define("leyFlowEnabled", true);
+            leyNightGlow = b
+                    .comment("(クライアント描画)夜、地脈ブロックとエネルギー結晶のまわりに柔らかい光のにじみと、立ちのぼる光の粒を描くか。",
+                            "周りの明るさ(ブロックの光)は変えない。既定 true。")
+                    .define("leyNightGlow", true);
+
+            // 巻きシダの精細さ curledFernDetail は 2026-10-23 にクライアント設定(OvergrownClientConfig)へ移した(品質の段階で変えるため)。
 
             swingThroughFoliage = b
                     .comment("(クライアント操作)剣・斧・トライデント・メイス(および",

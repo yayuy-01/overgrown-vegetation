@@ -10,6 +10,8 @@ import com.yayuy.overgrownvegetation.registry.ModDamageTypes;
 import com.yayuy.overgrownvegetation.registry.ModEntities;
 import com.yayuy.overgrownvegetation.registry.ModParticles;
 import com.yayuy.overgrownvegetation.spore.SporeDeviceData;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -26,10 +28,19 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseFireBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.gameevent.GameEvent;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.function.Predicate;
 
 
 /**
@@ -73,16 +84,58 @@ public class VelophyllBombEntity extends Entity {
     private static final double SHATTER_PROBE = 0.2D;
     /** 葉を撃ち抜くとき、通り道として開ける穴の半径(ブロック)。 */
     private static final double SHATTER_HOLE_RADIUS = 1.4D;
+    /**
+     * 爆発時の葉の薙ぎ払い({@link #clearCanopyAround})1 回で出す、葉の破壊演出
+     * (levelEvent 2001 = 破壊パーティクル 64 粒 + 破壊音)の上限。消す葉がこれより多ければ等間隔で間引く。
+     * 仮決め(2026-09-24): 天蓋の下で炸裂すると 1 発で数百回の破壊演出が一度に届き、重かったため。
+     */
+    private static final int BOMB_LEAF_EFFECT_MAX = 20;
 
     /**
      * 爆弾の大きさ(1.0 = ヴェロフィルが落とす通常の爆弾)。威力・各種半径・見た目がまとめてこの倍率になる。
      *
      * <p>1.0 未満になるのは、機関砲台({@code block/GunTurretBlockEntity})が<b>増援を運ぶ胞子弾</b>を
-     * 撃ち落としたときに散る小さな爆弾({@link com.yayuy.overgrownvegetation.siege.ShellTracker#intercept})だけ。
+     * 撃ち落としたときに散る小さな爆弾({@link com.yayuy.overgrownvegetation.siege.ShellTracker#intercept})と、
+     * 撃ち落とされたペディキュラが散らす爆弾({@link PediculaEntity}、2026-09-23)。
      * 描画にも使うので同期する。
      */
     private static final EntityDataAccessor<Float> DATA_SIZE =
             SynchedEntityData.defineId(VelophyllBombEntity.class, EntityDataSerializers.FLOAT);
+
+    /**
+     * 着弾点に汚染シダを 1 株湧かせるか(2026-09-23)。
+     *
+     * <p>true になるのは、撃ち落とされたペディキュラ({@link PediculaEntity})が散らす小さな爆弾だけ
+     * (ユーザー指定:「周囲に小さな胞子爆弾を 4 つ散らばらせ、着弾地点に汚染シダを湧かせる」)。
+     * <b>地面に着いて炸裂したときだけ</b>湧く —— 空中で撃ち抜かれた爆弾は、真下の地面が
+     * {@value #FERN_GROUND_REACH} ブロックより遠いので湧かない(機関砲台で迎撃すれば防げる)。
+     * 描画には関係しないので同期はしない。
+     */
+    private boolean plantsFern;
+
+    /** 着弾点から何ブロック下まで、汚染シダを植える地面を探すか。 */
+    private static final int FERN_GROUND_REACH = 3;
+
+    /**
+     * 過繫茂したスカトゥリウムの<b>迫撃砲の弾</b>か(2026-09-24)。機関砲台を止める確率がこれで変わる
+     * ({@code defense.json} の {@code gunTurret.mortarDisableChance} = 既定 0.15、それ以外の爆弾は
+     * {@code bombDisableChance} = 既定 1.0)。ユーザー指定「迫撃砲が当たって 35% で無効化」→ 2026-09-25 に 15%。
+     *
+     * <p>落とした本人({@link #owner})で見分けないのは、本人への参照がセーブを挟むと切れるから。
+     * 飛んでいる途中でワールドを閉じても迫撃砲の弾のままでいるよう、印として持って保存する。
+     */
+    private boolean mortarShell;
+
+    /**
+     * 撃った種の爆弾の数値の id({@code mobs.json} のその種の {@code bomb})。{@code null} = ヴェロフィルの爆弾の数値 × 大きさ(今までどおり)。
+     *
+     * <p>ネザーの媒介種(寄生されたガスト・ブレイズ、2026-10-09)が撃つ爆弾だけが持つ。ユーザー指定「火球の代わりに胞子爆弾と同じものを飛ばす。
+     * ダメージはもともとの攻撃と同じくらい、燃える代わりに毒が乗る」→ 威力・半径はその種の表の値そのまま(大きさを掛けない。
+     * 大きさは見た目だけ)、毒を乗せる、死亡メッセージは「撃った」。撃った本人は G1 なので、獲物(G1〜3)の扱いもしない。
+     * 本人の参照はセーブを挟むと切れるので、印として保存する。
+     */
+    @Nullable
+    private String statsId;
 
     /** 描画時の回転に使う、生成時に決まる乱数の位相。 */
     private float spinSeed;
@@ -126,6 +179,59 @@ public class VelophyllBombEntity extends Entity {
         return this.entityData.get(DATA_SIZE);
     }
 
+    /** 着弾点に汚染シダを湧かせる爆弾にする({@link #plantsFern})。 */
+    public VelophyllBombEntity plantingFern() {
+        this.plantsFern = true;
+        return this;
+    }
+
+    /** 着弾点に汚染シダを湧かせる爆弾か。 */
+    public boolean plantsFern() {
+        return this.plantsFern;
+    }
+
+    /** 撃った種の爆弾の数値で効く爆弾にする({@link #statsId})。 */
+    public VelophyllBombEntity withStats(String id) {
+        this.statsId = id;
+        return this;
+    }
+
+    /** 撃った種の爆弾の数値の id。ヴェロフィルの爆弾の数値 × 大きさで効くなら {@code null}。 */
+    @Nullable
+    public String statsId() {
+        return this.statsId;
+    }
+
+    /** この爆弾の数値(撃った種の表、無ければヴェロフィルの表)。{@code /ov design reload} ですぐ変わるよう、毎回読む。 */
+    private com.yayuy.overgrownvegetation.data.MobStat.Bomb cfg() {
+        return com.yayuy.overgrownvegetation.data.MobStats.bomb(this.statsId != null ? this.statsId : "velophyll");
+    }
+
+    /** 威力・半径に掛ける倍率。ヴェロフィルの表なら大きさ、撃った種の表なら 1(表の値そのまま)。 */
+    private float statScale() {
+        return this.statsId != null ? 1.0F : size();
+    }
+
+    /** スカトゥリウムの迫撃砲の弾にする({@link #mortarShell})。 */
+    public VelophyllBombEntity asMortarShell() {
+        this.mortarShell = true;
+        return this;
+    }
+
+    /** スカトゥリウムの迫撃砲の弾か。 */
+    public boolean isMortarShell() {
+        return this.mortarShell;
+    }
+
+    /**
+     * 近くで炸裂したとき、機関砲台が止まる確率(0〜1)。迫撃砲の弾は {@code gunTurret.mortarDisableChance}、
+     * それ以外は {@code bombDisableChance}。{@code /ov design reload} ですぐ変わるよう、毎回読む。
+     */
+    public double turretDisableChance() {
+        com.yayuy.overgrownvegetation.data.DefenseTable defense = com.yayuy.overgrownvegetation.data.DesignData.defense();
+        return this.mortarShell ? defense.turretMortarDisableChance() : defense.turretBombDisableChance();
+    }
+
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(DATA_SIZE, 1.0F);
@@ -140,7 +246,8 @@ public class VelophyllBombEntity extends Entity {
         this.move(MoverType.SELF, velocity);
 
         if (this.level().isClientSide()) {
-            this.level().addParticle(ModParticles.OVERGROWN_SPORE.get(),
+            // 航跡は短命版(地面に落ちた粒が 10 秒近く残らないように。2026-09-25、全体監査 #479)。
+            this.level().addParticle(ModParticles.OVERGROWN_SPORE_SHORT.get(),
                     this.getX(), this.getY() + this.getBbHeight() * 0.5D, this.getZ(),
                     0.0D, 0.0D, 0.0D);
             return;
@@ -223,6 +330,114 @@ public class VelophyllBombEntity extends Entity {
         }
     }
 
+    /**
+     * 爆発時の葉の薙ぎ払い。{@link #clearFoliageAround} と同じ葉を同じ順に、同じやり方で消すが、
+     * 破壊の演出(levelEvent 2001)だけは最大 {@value #BOMB_LEAF_EFFECT_MAX} 枚ぶん、消した順に等間隔で出す
+     * (2026-09-24。半径 5 の球で天蓋の葉を数百枚消すと、1 枚ごとの演出が一度に数百回届いて重かった)。
+     *
+     * <p>1 枚ずつの処理は {@code Level#destroyBlock(pos, false)} の中身をそのまま写したもの(演出だけを後回しにした):
+     * 空気なら何もしない → 火でなければ演出 → (ドロップ無しなので dropResources は呼ばない) →
+     * 液体の元ブロックへ置き換え(フラグ 3・再帰 512)→ 置き換えられたら {@code BLOCK_DESTROY} の GameEvent
+     * (起こした Entity は無し)。消えるブロック・更新・振動は destroyBlock のときと変わらない。
+     * 間引きに乱数は使わない。
+     */
+    private static void clearCanopyAround(ServerLevel level, BlockPos center, double radius) {
+        int r = Mth.ceil(radius);
+        // 2026-09-24 軽量化(監査 1846): 葉がありえない場所(開けた拠点など)では球の走査ごと省く。
+        // 候補が 1 つも無ければ下のループは何もしないので、消える葉・更新・演出は同じ。
+        if (noShatterableAround(level, center, r)) {
+            return;
+        }
+        double radiusSq = radius * radius;
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        // 演出を出すはずだった葉の位置と状態 id(後でまとめて間引いて出す)。
+        LongArrayList effectPos = new LongArrayList();
+        IntArrayList effectStateId = new IntArrayList();
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dy = -r; dy <= r; dy++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (dx * dx + dy * dy + dz * dz > radiusSq) {
+                        continue;
+                    }
+                    pos.set(center.getX() + dx, center.getY() + dy, center.getZ() + dz);
+                    if (!level.isLoaded(pos)) {
+                        continue;
+                    }
+                    BlockState state = level.getBlockState(pos);
+                    if (!state.is(ModTags.BOMB_SHATTERS)) {
+                        continue;
+                    }
+                    // ここから Level#destroyBlock(pos, false) と同じ(演出だけ effectPos へ回す)。
+                    if (state.isAir()) {
+                        continue;
+                    }
+                    FluidState fluid = level.getFluidState(pos);
+                    if (!(state.getBlock() instanceof BaseFireBlock)) {
+                        effectPos.add(pos.asLong());
+                        effectStateId.add(Block.getId(state));
+                    }
+                    if (level.setBlock(pos, fluid.createLegacyBlock(), Block.UPDATE_ALL, 512)) {
+                        level.gameEvent(GameEvent.BLOCK_DESTROY, pos, GameEvent.Context.of((Entity) null, state));
+                    }
+                }
+            }
+        }
+        // 消した順に等間隔で最大 BOMB_LEAF_EFFECT_MAX 枚(それ以下なら全部)。
+        int candidates = effectPos.size();
+        int effects = Math.min(candidates, BOMB_LEAF_EFFECT_MAX);
+        for (int k = 0; k < effects; k++) {
+            int index = (int) ((long) k * candidates / effects);
+            level.levelEvent(2001, BlockPos.of(effectPos.getLong(index)), effectStateId.getInt(index));
+        }
+    }
+
+    /** パレットの状態が爆弾で消える葉か(マスごとの判定と同じタグ)。 */
+    private static final Predicate<BlockState> IS_SHATTERABLE = state -> state.is(ModTags.BOMB_SHATTERS);
+
+    /**
+     * {@code center} から各軸 {@code r} マスの直方体にかかるチャンクセクションの<b>どれにも</b>
+     * {@link ModTags#BOMB_SHATTERS} の葉がありえないか。true なら {@link #clearCanopyAround} の走査は何も消さない
+     * (2026-09-24 軽量化、監査 1846。{@code corruption/CorruptionProximity} と同じ手法)。
+     *
+     * <p>パレット({@link LevelChunkSection#maybeHas})はそのセクションに置かれうる状態の上位集合
+     * (使われなくなった状態が残ることはあっても、置かれている状態が漏れることはない)なので、載っていなければ本当に無い。
+     * 次のときは確かめずに false を返し、いつもの走査に任せる:
+     * <ul>
+     *     <li>チャンクがまだ読み込まれていない —— ここでは読み込まない({@code getChunkNow})。</li>
+     *     <li>デバッグワールド —— ブロックがセクションではなく座標から決まる。</li>
+     *     <li>空気そのものがタグに入っている —— 空気だけのセクションは中身を見ずに空気を返すので、パレットが答えにならない。</li>
+     * </ul>
+     */
+    private static boolean noShatterableAround(ServerLevel level, BlockPos center, int r) {
+        if (level.isDebug()
+                || Blocks.AIR.defaultBlockState().is(ModTags.BOMB_SHATTERS)
+                || Blocks.VOID_AIR.defaultBlockState().is(ModTags.BOMB_SHATTERS)) {
+            return false;
+        }
+        // 高さ範囲の外のマスは走査でも isLoaded が false で飛ばされるので、範囲内のセクションだけ見ればよい。
+        int minSectionY = Math.max(level.getMinSection(), (center.getY() - r) >> 4);
+        int maxSectionY = Math.min(level.getMaxSection() - 1, (center.getY() + r) >> 4);
+        if (minSectionY > maxSectionY) {
+            return true;
+        }
+        for (int chunkX = (center.getX() - r) >> 4; chunkX <= (center.getX() + r) >> 4; chunkX++) {
+            for (int chunkZ = (center.getZ() - r) >> 4; chunkZ <= (center.getZ() + r) >> 4; chunkZ++) {
+                LevelChunk chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
+                if (chunk == null) {
+                    return false;
+                }
+                for (int sy = minSectionY; sy <= maxSectionY; sy++) {
+                    LevelChunkSection section = chunk.getSection(chunk.getSectionIndexFromSectionY(sy));
+                    // 空気だけのセクションは読むと AIR(上で葉でないと確かめた)なのでパレットは見ない。
+                    if (!section.hasOnlyAir() && section.maybeHas(IS_SHATTERABLE)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
     /** 爆弾の当たり判定に触れている、巻き込んでよい生き物のうち最初の 1 体。 */
     @Nullable
     private LivingEntity firstStruck() {
@@ -275,6 +490,10 @@ public class VelophyllBombEntity extends Entity {
      * スカトゥリウムの迫撃砲)ので、襲う側を確かめる意味がない。
      */
     private boolean isPrey(LivingEntity entity) {
+        if (this.statsId != null) {
+            // 撃ったのは G1(ネザーの媒介種)。G1 には獲物が無い(G4 の獲物の線引きを当てない。本人の参照が切れた後も同じ)。
+            return false;
+        }
         return this.owner != null
                 ? Predation.isInvaderPrey(this.owner, entity)
                 : Predation.isInvaderPreyGroup(entity);
@@ -296,33 +515,76 @@ public class VelophyllBombEntity extends Entity {
         com.yayuy.overgrownvegetation.defense.RepellentLamps.coverNear(level, center,
                 com.yayuy.overgrownvegetation.data.DesignData.defense().lampCoverRadius() * size());
         // 機関砲台(2026-09-21): 同じく胞子で覆って止める。スカトゥリウムの迫撃砲はこれが狙い。
+        // 止まるかどうかは砲台ごとに確率で振る(迫撃砲は 15%、2026-09-25)。
         com.yayuy.overgrownvegetation.defense.GunTurrets.corruptNear(level, center,
-                com.yayuy.overgrownvegetation.data.DesignData.defense().turretCorruptRadius() * size());
+                com.yayuy.overgrownvegetation.data.DesignData.defense().turretCorruptRadius() * size(),
+                turretDisableChance(), level.random);
         // 爆風で天蓋に穴を開ける。次に落ちてくる爆弾がそこを通れるようになる。
-        double leafRadius = com.yayuy.overgrownvegetation.data.MobStats.bomb("velophyll").leafClearRadius() * size();
+        double leafRadius = cfg().leafClearRadius() * statScale();
         if (leafRadius > 0.0D) {
-            clearFoliageAround(level, this.blockPosition(), leafRadius);
+            // 数百枚になりうるので、破壊の演出だけ間引く版を使う(消える葉は同じ)。
+            clearCanopyAround(level, this.blockPosition(), leafRadius);
         }
         corrupt(level, center);
+        if (this.plantsFern) {
+            plantFern(level, center);
+        }
         playEffects(level, center);
         this.discard();
     }
 
+    /**
+     * 着弾点の地面に汚染シダを 1 株({@link #plantsFern})。
+     *
+     * <p>地面は<b>高さマップではなく真下へ数えて</b>探す。高さマップは屋根・張り出し・木の幹の上を
+     * 返すので、軒下や洞窟の入口に落ちた爆弾が屋根の上に植えてしまう。
+     * 水の底に落ちれば {@link BlightFernPlacement} が汚染水草に差し替える。
+     * 除去装置の圏内で湧かないのも {@link BlightFernPlacement#spawn} 側の判定。
+     */
+    private static void plantFern(ServerLevel level, Vec3 center) {
+        BlockPos spot = groundSpot(level, BlockPos.containing(center));
+        if (spot != null) {
+            BlightFernPlacement.spawn(level, spot, net.minecraft.world.entity.MobSpawnType.MOB_SUMMONED);
+        }
+    }
+
+    /**
+     * {@code from} から {@value #FERN_GROUND_REACH} ブロック下までで、<b>足場の上の空いたマス</b>
+     * (植物の本体が入るマス)。見つからなければ {@code null} —— 空中で炸裂した。
+     */
+    @Nullable
+    private static BlockPos groundSpot(ServerLevel level, BlockPos from) {
+        BlockPos.MutableBlockPos cursor = from.mutable();
+        for (int depth = 0; depth <= FERN_GROUND_REACH; depth++) {
+            cursor.set(from.getX(), from.getY() - depth, from.getZ());
+            if (!level.isLoaded(cursor) || level.getBlockState(cursor).blocksMotion()) {
+                continue;
+            }
+            if (level.getBlockState(cursor.below()).blocksMotion()) {
+                return cursor.immutable();
+            }
+        }
+        return null;
+    }
+
     /** 爆風のダメージ・ノックバック・胞子感染。距離では減衰しない。 */
     private void applyBlast(ServerLevel level, Vec3 center, @Nullable LivingEntity direct) {
-        // 爆弾の数値は mobs.json の velophyll.bomb(mod マネージャーの Mob ステータス)。
-        com.yayuy.overgrownvegetation.data.MobStat.Bomb cfg = com.yayuy.overgrownvegetation.data.MobStats.bomb("velophyll");
+        // 爆弾の数値は mobs.json の velophyll.bomb(mod マネージャーの Mob ステータス)。撃った種の爆弾はその種の bomb({@link #statsId})。
+        com.yayuy.overgrownvegetation.data.MobStat.Bomb cfg = cfg();
         // 小さい爆弾(機関砲台が撃ち落とした胞子弾の破片)は、威力も半径もそのぶん小さい。
-        float size = size();
+        float size = statScale();
         double radius = cfg.blastRadius() * size;
         float blast = (float) cfg.blastDamage() * size;
         float directBonus = (float) cfg.directDamage() * size;
         double knockback = cfg.knockback() * size;
         double infectRadius = cfg.infectRadius() * size;
-        DamageSource source = ModDamageTypes.velophyllBomb(level, this, this.owner);
+        DamageSource source = this.statsId != null
+                ? ModDamageTypes.sporeBombShot(level, this, this.owner)
+                : ModDamageTypes.velophyllBomb(level, this, this.owner);
 
         if (direct != null && directBonus > 0.0F) {
             direct.hurt(source, directBonus);
+            poison(direct, cfg);
         }
         if (radius <= 0.0D) {
             return;
@@ -338,7 +600,7 @@ public class VelophyllBombEntity extends Entity {
             }
             if (infectRadius > 0.0D && distSq <= infectSq
                     && AbstractOvergrownInvaderEntity.isSporeVictim(this.owner, entity)) {
-                SporeInfectionEffects.infect(entity, 0);
+                SporeInfectionEffects.plantAttack(entity, 0);
             }
             if (!canHarm(entity)) {
                 continue;
@@ -346,6 +608,7 @@ public class VelophyllBombEntity extends Entity {
             // 直撃した相手は上で 45 を受けているので、爆風ぶんは重ねない。
             if (entity != direct && blast > 0.0F) {
                 entity.hurt(source, blast);
+                poison(entity, cfg);
             }
             if (knockback > 0.0D) {
                 Vec3 push = entity.position().subtract(center);
@@ -361,10 +624,22 @@ public class VelophyllBombEntity extends Entity {
         }
     }
 
+    /**
+     * 毒を乗せる(撃った種の表の {@code poisonSeconds} が 0 より大きいときだけ。ネザーの媒介種の爆弾、2026-10-09 ユーザー指定
+     * 「ガストやブレイズの攻撃で体が燃えた代わりに、寄生されたガストやブレイズの攻撃には毒が乗る」)。
+     */
+    private void poison(LivingEntity entity, com.yayuy.overgrownvegetation.data.MobStat.Bomb cfg) {
+        int ticks = (int) Math.round(cfg.poisonSeconds() * 20.0D);
+        if (ticks > 0 && entity.isAlive()) {
+            entity.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                    net.minecraft.world.effect.MobEffects.POISON, ticks, cfg.poisonAmplifier()), this.owner);
+        }
+    }
+
     /** 着弾点の地表を円形に汚染する。輪郭は波打たせる(半径は爆風よりずっと狭い)。 */
     private void corrupt(ServerLevel level, Vec3 center) {
-        com.yayuy.overgrownvegetation.data.MobStat.Bomb cfg = com.yayuy.overgrownvegetation.data.MobStats.bomb("velophyll");
-        double radius = cfg.corruptionRadius() * size();
+        com.yayuy.overgrownvegetation.data.MobStat.Bomb cfg = cfg();
+        double radius = cfg.corruptionRadius() * statScale();
         if (radius <= 0.0D
                 || SporeDeviceData.inhibits(level, this.blockPosition(), SporeDeviceData.Inhibit.CORRUPTION)) {
             return;
@@ -374,11 +649,12 @@ public class VelophyllBombEntity extends Entity {
     }
 
     private void playEffects(ServerLevel level, Vec3 center) {
-        double radius = com.yayuy.overgrownvegetation.data.MobStats.bomb("velophyll").blastRadius() * size();
-        level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, center.x, center.y, center.z, 1,
-                0.0D, 0.0D, 0.0D, 0.0D);
-        // 爆風の広さが目で分かるように、胞子を半径いっぱいへ撒く。
-        level.sendParticles(ModParticles.OVERGROWN_SPORE.get(), center.x, center.y + 0.5D, center.z,
+        double radius = cfg().blastRadius() * statScale();
+        // 撃った種の小さい爆弾(ガスト・ブレイズ)は大きな爆発の煙を出さない(爆風の広さに合わせる)。
+        level.sendParticles(this.statsId != null ? ParticleTypes.EXPLOSION : ParticleTypes.EXPLOSION_EMITTER,
+                center.x, center.y, center.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+        // 爆風の広さが目で分かるように、胞子を半径いっぱいへ撒く。粒は短命版(2026-09-25、全体監査 #991)。
+        level.sendParticles(ModParticles.OVERGROWN_SPORE_SHORT.get(), center.x, center.y + 0.5D, center.z,
                 80, radius * 0.4D, radius * 0.25D, radius * 0.4D, 0.05D);
         level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, center.x, center.y + 0.8D, center.z,
                 30, radius * 0.4D, radius * 0.3D, radius * 0.4D, 0.0D);
@@ -418,12 +694,24 @@ public class VelophyllBombEntity extends Entity {
         this.spinSeed = tag.getFloat("SpinSeed");
         // 古いセーブには Size が無い(= 通常の大きさ)。
         this.entityData.set(DATA_SIZE, tag.contains("Size") ? Math.max(0.05F, tag.getFloat("Size")) : 1.0F);
+        this.plantsFern = tag.getBoolean("PlantsFern");
+        this.mortarShell = tag.getBoolean("Mortar");
+        this.statsId = tag.contains("StatsId") ? tag.getString("StatsId") : null;
     }
 
     @Override
     protected void addAdditionalSaveData(CompoundTag tag) {
         tag.putFloat("SpinSeed", this.spinSeed);
         tag.putFloat("Size", size());
+        if (this.plantsFern) {
+            tag.putBoolean("PlantsFern", true);
+        }
+        if (this.mortarShell) {
+            tag.putBoolean("Mortar", true);
+        }
+        if (this.statsId != null) {
+            tag.putString("StatsId", this.statsId);
+        }
     }
 
     /** 上空から落ちてくるので、遠くからでも見えてほしい。 */

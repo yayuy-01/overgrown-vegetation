@@ -1,0 +1,5 @@
+{
+  "type": "overgrown_vegetation:grinding",
+  "ingredient": { "tag": "overgrown_vegetation:minor_herbs" },
+  "result": { "id": "overgrown_vegetation:ground_herb" }
+}

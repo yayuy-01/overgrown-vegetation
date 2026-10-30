@@ -24,9 +24,13 @@ import software.bernie.geckolib.model.GeoModel;
  */
 public class ParasitizedSpiderModel extends LodGeoModel<ParasitizedSpider> {
 
+    // 2026-09-24 軽量化(監査 1318): 描画のたびに ResourceLocation を作り直さないよう定数にする(中身は同じ)。
+    private static final ResourceLocation MODEL = OvergrownVegetation.id("geo/overgrown_spider.geo.json");
+    private static final ResourceLocation ANIMATION = OvergrownVegetation.id("animations/overgrown_spider.animation.json");
+
     @Override
     public ResourceLocation getModelResource(ParasitizedSpider animatable) {
-        return OvergrownVegetation.id("geo/overgrown_spider.geo.json");
+        return MODEL;
     }
 
     @Override
@@ -36,6 +40,6 @@ public class ParasitizedSpiderModel extends LodGeoModel<ParasitizedSpider> {
 
     @Override
     public ResourceLocation getAnimationResource(ParasitizedSpider animatable) {
-        return OvergrownVegetation.id("animations/overgrown_spider.animation.json");
+        return ANIMATION;
     }
 }

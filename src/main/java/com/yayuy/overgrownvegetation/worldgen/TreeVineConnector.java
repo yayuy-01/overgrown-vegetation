@@ -3,9 +3,12 @@ package com.yayuy.overgrownvegetation.worldgen;
 import com.yayuy.overgrownvegetation.block.CorruptedLianaBlockEntity;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
+import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -13,6 +16,8 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LightBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
@@ -20,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 /**
  * 木が生え終わった直後に、近くにある別の木との間へ密林のツル植物のような
@@ -359,14 +365,18 @@ public final class TreeVineConnector {
         if (targets.isEmpty()) {
             return;
         }
-        List<BlockPos> eligibleTargets = filterByGroundClearance(level, targets, minGroundClearance, maxGroundClearance);
+        // 測った地面からの高さを控えておき、すぐ下の高さ帯の振り分けで使い回す(2026-09-24 軽量化、報告 421。
+        // 以前は同じ候補を 2 回、真下へ数えていた。間でブロックは変わらないので値は同じ)。
+        Long2IntOpenHashMap clearances = new Long2IntOpenHashMap();
+        List<BlockPos> eligibleTargets = filterByGroundClearance(level, targets, minGroundClearance, maxGroundClearance,
+                clearances);
         if (eligibleTargets.isEmpty()) {
             return;
         }
         // 単純なシャッフルではなく、地面からの高さ帯(低・中・高)に重みを付けた順序で並べ替える
         // ことで、蔦の生える高さの分布(既定 50:30:20)を実現する。
-        List<BlockPos> orderedTargets = weightedOrderByHeightBand(level, eligibleTargets,
-                maxGroundClearance, bandLowMax, bandMidMax, weightLow, weightMid, weightHigh, random);
+        List<BlockPos> orderedTargets = weightedOrderByHeightBand(eligibleTargets, clearances,
+                bandLowMax, bandMidMax, weightLow, weightMid, weightHigh, random);
 
         int placed = 0;
         for (BlockPos target : orderedTargets) {
@@ -551,6 +561,15 @@ public final class TreeVineConnector {
      * (=高い場所に絶対に蔦が生えなくなる)実害のある偏りがあった。貯水池サンプリングなら
      * 走査した範囲全体からほぼ均等な確率で選ばれるため、この偏りが起きない。
      *
+     * <p>読み込み済みかの判定は、以前はマスごとに {@code level.isLoaded} を呼んでいたが、Y は
+     * 建築高さの範囲に切り詰め済みなので結果は列(x, z)ごとに同じ——列ごとに1回
+     * {@code hasChunk} を見るだけにした。さらに、16 段ぶんのセクションのパレットに原木(と
+     * {@code collectLianas} なら蔦)の状態が1つも無ければ、そのセクションには候補が絶対に無いので
+     * 丸ごと読み飛ばす(地中・空のセクションがほとんどこれで消える)。候補になりうるマスは
+     * 従来どおり x → z → y(下から上)の同じ順で同じように判定し、{@code random} を引くのも
+     * 候補が見つかったときだけなので、{@code logsOut}・{@code lianasOut} と乱数の引き方は
+     * 従来と完全に同一(挙動は変わらない)。
+     *
      * @param collectLianas 蔦の主アンカーも一緒に探すか。呼び出し側で
      *                      {@code vineExistingVineTargetChance <= 0} など、その結果を使う予定が
      *                      無いと分かっている場合は false にすることで、判定そのもの
@@ -572,14 +591,39 @@ public final class TreeVineConnector {
         int maxY = Math.min(level.getMaxBuildHeight() - 1, ownMaxY + radius);
         int radiusSq = radius * radius;
 
+        ServerChunkCache chunkSource = level.getChunkSource();
+        // デバッグワールドは LevelChunk#getBlockState がセクションを見ずに固定の状態を返すので、
+        // パレットによる読み飛ばしは使わない(従来どおり1マスずつ読む)。
+        boolean debugWorld = level.isDebug();
+        // セクションのパレットにこれを満たす状態が1つも無ければ、そのセクションに候補は無い。
+        Predicate<BlockState> mayMatch = collectLianas
+                ? s -> s.is(logBlock) || s.is(lianaBlock)
+                : s -> s.is(logBlock);
+
         BlockPos.MutableBlockPos scratch = new BlockPos.MutableBlockPos();
         for (int x = -radius; x <= radius; x++) {
             // この x の列で実際に円の内側に収まる z の範囲を事前に1回だけ計算し、
             // その範囲だけを走査する(円の外側になる正方形の四隅ぶんの反復・比較を省く)。
             int zRadius = Mth.floor(Math.sqrt(radiusSq - x * x));
             int worldX = center.getX() + x;
+            int chunkX = SectionPos.blockToSectionCoord(worldX);
             for (int z = -zRadius; z <= zRadius; z++) {
                 int worldZ = center.getZ() + z;
+                int chunkZ = SectionPos.blockToSectionCoord(worldZ);
+                // Level#isLoaded は「建築高さの外なら false、それ以外は chunkSource.hasChunk」。Y は
+                // 建築高さの範囲に切り詰め済みなので、列ごとに1回見れば従来のマスごとの判定と同じ。
+                // (getChunkNow は使わない——読み込み途中のチャンクで null を返し、従来は同期で
+                // 読み込んで走査していた列を飛ばしてしまう。チャンクのキャッシュも書き換える)
+                if (!chunkSource.hasChunk(chunkX, chunkZ)) {
+                    continue;
+                }
+                // チャンク本体は、従来 getBlockState が初めて呼ばれていた位置(自分の原木でない
+                // 最初の y)で取る。getChunk がチケット追加・読み込み待ちをする時機を従来と揃えるため。
+                LevelChunk chunk = null;
+                // セクションごとの判定は列ごとに、そのセクションに入ったときに取り直す(列をまたいで
+                // 使い回さない——読み込み待ちの間に走る処理が、走査済みのチャンクを書き換えうるため)。
+                int cachedSection = Integer.MIN_VALUE;
+                boolean sectionMayMatch = true;
                 for (int y = minY; y <= maxY; y++) {
                     scratch.set(worldX, y, worldZ);
                     if (ownLogPositions.contains(scratch.asLong())) {
@@ -587,10 +631,27 @@ public final class TreeVineConnector {
                         // なり得ない座標なので、ブロック状態すら読まずまとめてスキップできる。
                         continue;
                     }
-                    if (!level.isLoaded(scratch)) {
-                        continue;
+                    if (chunk == null) {
+                        // Level#getBlockState が内部で呼んでいたのと同じ呼び出し。
+                        chunk = level.getChunk(chunkX, chunkZ);
                     }
-                    BlockState state = level.getBlockState(scratch);
+                    if (!debugWorld) {
+                        int sectionIndex = chunk.getSectionIndex(y);
+                        if (sectionIndex != cachedSection) {
+                            cachedSection = sectionIndex;
+                            LevelChunkSection section = chunk.getSection(sectionIndex);
+                            // 空気だけのセクションは getBlockState が常に空気を返す。パレットには
+                            // セクション内にある状態が全部載っているので、無ければ原木も蔦も無い。
+                            sectionMayMatch = !section.hasOnlyAir() && section.maybeHas(mayMatch);
+                        }
+                        if (!sectionMayMatch) {
+                            // このセクションの最上段へ飛ぶ(次の y++ で次のセクションの最下段)。
+                            y = SectionPos.sectionToBlockCoord(SectionPos.blockToSectionCoord(y)) + 15;
+                            continue;
+                        }
+                    }
+                    // Level#getBlockState が委譲していた先(Y は建築高さの範囲内なので同じ結果)。
+                    BlockState state = chunk.getBlockState(scratch);
                     if (state.is(logBlock)) {
                         logSeen++;
                         if (logsOut.size() < MAX_CANDIDATES) {
@@ -650,11 +711,23 @@ public final class TreeVineConnector {
      */
     private static List<BlockPos> filterByGroundClearance(ServerLevel level, List<BlockPos> positions,
             int minClearance, int maxClearance) {
+        return filterByGroundClearance(level, positions, minClearance, maxClearance, null);
+    }
+
+    /**
+     * {@link #filterByGroundClearance(ServerLevel, List, int, int)} と同じ。{@code measured} を渡すと、残した候補の
+     * 測った高さを {@code pos.asLong()} → 高さで入れておく({@link #weightedOrderByHeightBand} が使い回す)。
+     */
+    private static List<BlockPos> filterByGroundClearance(ServerLevel level, List<BlockPos> positions,
+            int minClearance, int maxClearance, @Nullable Long2IntOpenHashMap measured) {
         List<BlockPos> result = new ArrayList<>(positions.size());
         for (BlockPos pos : positions) {
             int clearance = measureGroundClearance(level, pos, maxClearance);
             if (clearance >= minClearance && clearance <= maxClearance) {
                 result.add(pos);
+                if (measured != null) {
+                    measured.put(pos.asLong(), clearance);
+                }
             }
         }
         return result;
@@ -690,14 +763,15 @@ public final class TreeVineConnector {
      * <p>戻り値の並び順を先頭から使う({@link #tryConnect} の呼び出し元がそうしている)ことで、
      * 結果的に「どの高さ帯からどれだけ蔦が生えやすいか」がこの重みの比に従うようになる。
      */
-    private static List<BlockPos> weightedOrderByHeightBand(ServerLevel level, List<BlockPos> positions,
-            int maxClearance, int bandLowMax, int bandMidMax,
+    private static List<BlockPos> weightedOrderByHeightBand(List<BlockPos> positions, Long2IntOpenHashMap clearances,
+            int bandLowMax, int bandMidMax,
             double weightLow, double weightMid, double weightHigh, RandomSource random) {
         List<BlockPos> low = new ArrayList<>();
         List<BlockPos> mid = new ArrayList<>();
         List<BlockPos> high = new ArrayList<>();
         for (BlockPos pos : positions) {
-            int clearance = measureGroundClearance(level, pos, maxClearance);
+            // filterByGroundClearance が同じ maxClearance で測った値(2026-09-24 軽量化 報告 421)。
+            int clearance = clearances.get(pos.asLong());
             if (clearance <= bandLowMax) {
                 low.add(pos);
             } else if (clearance <= bandMidMax) {

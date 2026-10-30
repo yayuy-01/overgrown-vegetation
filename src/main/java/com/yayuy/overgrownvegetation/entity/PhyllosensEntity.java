@@ -37,7 +37,7 @@ import software.bernie.geckolib.animation.RawAnimation;
  * ワールド側にメモ帳を持たず、<b>効果そのものが共有状態</b>になっているのが肝
  * (ユーザー要望 2026-09-14、索敵システム作り直し)。
  * <ul>
- *     <li><b>視線</b>({@code phyllosens_watch}、「Philosense is watching you」)を
+ *     <li><b>視線</b>({@code phyllosens_watch}、「フィロセンスの視線 / Phyllosens' Gaze」)を
  *     <b>プレイヤー</b>に付ける。</li>
  *     <li><b>誘導</b>({@code phyllosens_guidance}、「フィロセンスの誘導」)を
  *     <b>味方(グループ1〜10)</b>に付ける。</li>
@@ -142,16 +142,12 @@ public class PhyllosensEntity extends AbstractOvergrownInvaderEntity {
     private Vec3 headTipPosition;
     /** 次に印を配り直すまでの残り tick(毎 tick 走査すると重いので間引く)。 */
     private int auraTimer;
-    /** 次に獲物の居場所を配り直すまでの残り tick({@link InvaderPreyIntel})。 */
-    private int preyIntelTimer;
 
     // --- 向きの変え方(2026-09-14: 「大きいモデルなので、その場でぐるぐるしないように」) ---
 
     /** 立ち止まっているとき、体が 1 tick に回れる角度(度)。バニラは 10 tick で全部回る。 */
     private static final float BODY_TURN_STEP = 3.0F;
 
-    /** 群れの中で許す「重心からの距離」の倍率。1 超 = ほかの種より後ろに構える。 */
-    private static final double PACK_REAR_FACTOR = 1.3D;
     /** 歩いているとき、進行方向を 1 tick に変えられる角度(度)。バニラは 90。 */
     private static final float MOVE_TURN_STEP = 12.0F;
     /** 首が 1 tick に回れる角度(度)。バニラは 10。 */
@@ -244,19 +240,21 @@ public class PhyllosensEntity extends AbstractOvergrownInvaderEntity {
         return false;
     }
 
+    /*
+     * 群れの中の立ち位置(ユーザー指定 2026-09-15「フィロセンスは後方」)は、群れの司令塔が役割(RANGED_SCOUT = いちばん後ろの列)で
+     * 決める(swarm/SwarmRole の並び順)。旧い群れの「重心からの距離の倍率」「陣形の後ろ寄せ」は 2026-09-25 に消えた。
+     */
+
     /**
-     * 群れの中では<b>後ろ寄りに構える</b>(既定の {@value #PACK_REAR_FACTOR} 倍)。
-     * ビームで撃ち合う種なので、仲間と同じ位置まで詰めてしまうと間合いが無くなる。
+     * 群れが止まって全員で汚すとき({@link com.yayuy.overgrownvegetation.swarm.goal.SwarmSpreadGoal})は<b>索敵する</b>
+     * (個体の索敵と同じ中身 {@link PhyllosensScoutAction}。根を張るのはこのときだけ期待どおり。群れ v2、2026-09-25)。
+     * 群れの一員は、群れが歩いている間には索敵しない({@link PhyllosensScoutGoal} が一員では動かない)。
+     * 索敵で配った視線は、群れが汚染を広げ終えてから拾う(SPREAD の間は司令塔が視線持ちを新しく標的にしない。
+     * 仮決め 2026-09-25、{@code swarm/SwarmTargeting#think} の b)。
      */
     @Override
-    public double packCohesionDistance() {
-        return super.packCohesionDistance() * PACK_REAR_FACTOR;
-    }
-
-    /** 陣形では<b>いちばん後ろ</b>({ invaderPackFormationRear})。撃ち合う間合いを確保するため。 */
-    @Override
-    public double packFormationOffset() {
-        return -OvergrownVegetationConfig.COMMON.invaderPackFormationRear.get();
+    protected com.yayuy.overgrownvegetation.swarm.goal.SwarmSpreadGoal.Action createSpreadAction() {
+        return new PhyllosensScoutAction(this);
     }
 
     /** 索敵中に広げる汚染の半径。アルボラより広い(ユーザー要望 2026-09-14)。 */
@@ -397,6 +395,13 @@ public class PhyllosensEntity extends AbstractOvergrownInvaderEntity {
      */
     private void tickAura() {
         int interval = Math.max(1, OvergrownVegetationConfig.COMMON.phyllosensAuraIntervalTicks.get());
+        if (this.auraTimer == 0) {
+            // 2026-09-24 軽量化(監査 867): 初回だけ個体ごとにずらす。auraTimer は保存されず 0 から始まるので、
+            // 同じ tick に湧いた・読み込まれた個体がそろって同じ tick に走査していた。
+            // 0 になるのは初回だけ(配ったあとは interval に戻り、1 以上で次の回を迎える)。
+            // ずれるのは初回の配布が最大 interval - 1 tick 遅れるだけで、間隔は同じ。
+            this.auraTimer = 1 + Math.floorMod(this.getId(), interval);
+        }
         if (--this.auraTimer > 0) {
             return;
         }
@@ -404,13 +409,9 @@ public class PhyllosensEntity extends AbstractOvergrownInvaderEntity {
         if (!(this.level() instanceof ServerLevel level)) {
             return;
         }
-        // 獲物(グループ1〜3)を探して群れの狩り手へ渡す(ユーザー要望 2026-09-15)。
-        // プレイヤー向けの「視線」とは別枠 —— あちらは群れ全体を遠くのプレイヤーへ差し向ける
-        // 戦略の仕掛け、こちらはアルボラとスカトゥリウムへ目の前の獲物を渡す戦術の仕掛け。
-        if (--this.preyIntelTimer <= 0) {
-            this.preyIntelTimer = Math.max(1, InvaderPreyIntel.interval());
-            InvaderPreyIntel.report(level, this, InvaderPreyIntel.searchRange());
-        }
+        // 獲物(グループ1〜3)を探して群れの狩り手へ渡す役(ユーザー要望 2026-09-15、旧 InvaderPreyIntel)は、
+        // 2026-09-25 から群れの司令塔の標的探し(先導役から半径 48 の箱、40 tick に 1 回)に入った。
+        // 旧い配り方は間引きの数え違いで 3 秒のはずが 60 秒おきになっていた(それもこれで消える)。
 
         double range = OvergrownVegetationConfig.COMMON.phyllosensAuraRange.get();
         int marked = PhyllosensInfluence.markPlayers(level, this, range);

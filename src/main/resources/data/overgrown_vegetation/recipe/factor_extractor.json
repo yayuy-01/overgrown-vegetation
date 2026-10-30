@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "CDC",
+    "AAA"
+  ],
+  "key": {
+    "A": {
+      "item": "minecraft:iron_ingot"
+    },
+    "B": {
+      "item": "minecraft:glass"
+    },
+    "C": {
+      "item": "overgrown_vegetation:phloemite"
+    },
+    "D": {
+      "item": "minecraft:smoker"
+    }
+  },
+  "result": {
+    "id": "overgrown_vegetation:factor_extractor",
+    "count": 1
+  }
+}

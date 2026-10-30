@@ -82,6 +82,11 @@ public final class RaidLocationPicker {
                 // 既に繁茂系バイオーム化した場所には出現させない(汚染を新たに広げる意味が無い)。
                 continue;
             }
+            if (com.yayuy.overgrownvegetation.base.build.BaseRefuge.covers(level, x + 0.5D, z + 0.5D)) {
+                // 同盟軍の基地の壁の中には置かない(避難場所、順 2 の着手順 3。苗床は湧きを取り消すと「レイドが始まった」だけが残るので、
+                // 取り消しの対象から外して、ここで避ける)。
+                continue;
+            }
 
             // スコア = 最寄りプレイヤーまでの距離。遠いほど良い(ただし帯の中で)。
             if (nearestSq > bestScore) {
@@ -91,6 +96,22 @@ public final class RaidLocationPicker {
         }
 
         return best;
+    }
+
+    /**
+     * {@code (x, z)} の列の本物の地面の 1 つ上({@code /ov raid start near} 用。2026-10-02)。チャンクが無ければ
+     * 作って(読み込んで)から読む —— テレポートの直後などでまだ無いチャンクの高さマップは最低の高さ(y −64)を返し、
+     * 苗床が岩盤の下に置かれていた。地面が見つからない・水の底など苗床を置けない場所なら null。
+     */
+    @Nullable
+    public static BlockPos groundAt(ServerLevel level, int x, int z) {
+        level.getChunk(x >> 4, z >> 4);
+        int groundY = descendToGround(level, x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
+        if (groundY == Integer.MIN_VALUE) {
+            return null;
+        }
+        BlockPos pos = new BlockPos(x, groundY, z);
+        return isValidSurface(level, pos) ? pos : null; // 水の底などは遠いレイドと同じく断る
     }
 
     /**

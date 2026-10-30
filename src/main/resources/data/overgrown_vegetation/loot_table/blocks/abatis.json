@@ -1,0 +1,28 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:alternatives",
+          "children": [
+            {
+              "type": "minecraft:item",
+              "name": "overgrown_vegetation:abatis",
+              "conditions": [
+                { "condition": "minecraft:block_state_property", "block": "overgrown_vegetation:abatis", "properties": { "stage": "0", "hits": "0" } }
+              ]
+            },
+            {
+              "type": "minecraft:item",
+              "name": "minecraft:stick",
+              "functions": [ { "function": "minecraft:set_count", "count": 2 } ]
+            }
+          ]
+        }
+      ],
+      "conditions": [ { "condition": "minecraft:survives_explosion" } ]
+    }
+  ]
+}

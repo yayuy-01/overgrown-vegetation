@@ -11,18 +11,23 @@ import net.minecraft.resources.ResourceLocation;
  */
 public class FalcimnesModel extends LodGeoModel<FalcimnesEntity> {
 
+    // 2026-09-24 軽量化(監査 1318): 描画のたびに ResourceLocation を作り直さないよう定数にする(中身は同じ)。
+    private static final ResourceLocation MODEL = OvergrownVegetation.id("geo/falcimnes.geo.json");
+    private static final ResourceLocation TEXTURE = OvergrownVegetation.id("textures/entity/falcimnes.png");
+    private static final ResourceLocation ANIMATION = OvergrownVegetation.id("animations/falcimnes.animation.json");
+
     @Override
     public ResourceLocation getModelResource(FalcimnesEntity animatable) {
-        return OvergrownVegetation.id("geo/falcimnes.geo.json");
+        return MODEL;
     }
 
     @Override
     public ResourceLocation getTextureResource(FalcimnesEntity animatable) {
-        return OvergrownVegetation.id("textures/entity/falcimnes.png");
+        return TEXTURE;
     }
 
     @Override
     public ResourceLocation getAnimationResource(FalcimnesEntity animatable) {
-        return OvergrownVegetation.id("animations/falcimnes.animation.json");
+        return ANIMATION;
     }
 }

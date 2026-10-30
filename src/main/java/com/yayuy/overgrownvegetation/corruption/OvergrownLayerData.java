@@ -1,6 +1,7 @@
 package com.yayuy.overgrownvegetation.corruption;
 
 import com.yayuy.overgrownvegetation.ModTags;
+import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.network.OvergrownLayerPayload;
 import com.yayuy.overgrownvegetation.registry.ModAttachments;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -14,6 +15,9 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.HashMap;
@@ -49,10 +53,33 @@ import java.util.Map;
  * まだ覆われる資格があるか」を見直す</b>({@link #isCovered})。資格が無ければ覆われていない扱いにし、
  * サーバー側ではついでに記録も捨てる。
  */
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class OvergrownLayerData {
 
-    /** チャンクごとの「今 tick で新しく覆われたマス」。tick の終わりにまとめて送る。 */
+    /**
+     * チャンクごとの「今 tick で新しく覆われたマス」。tick の終わりにまとめて送る。
+     *
+     * <p><b>既知の食い違い(2026-09-24 軽量化の監査 1351 / 512(a)、ユーザー確認待ちで未修正)</b>:
+     * キーがチャンク座標だけなので、ある次元の {@link #flush} より後(同じ LevelTickEvent.Post に
+     * ぶら下がる汚染の処理。クラス間の順番は登録順任せ)に覆った分は、次に tick した<b>別の次元</b>の
+     * flush で、同じ座標のチャンクを見ているプレイヤーへ送られる。本来の次元のプレイヤーには
+     * チャンクを送り直すまで苔が見えない。次元をキーに足せば直る
+     * ({@code Map<ResourceKey<Level>, Map<ChunkPos, LongOpenHashSet>>} にして flush は自分の次元だけ送る)が、
+     * 苔の見え方がプレイヤーに分かる形で変わる(軽くはならない)ので、軽量化の作業では元のままにした。
+     * 直すならユーザーの了承を取り、DEV_NOTES に「見た目が変わる修正」として書く。
+     */
     private static final Map<ChunkPos, LongOpenHashSet> PENDING = new HashMap<>();
+
+    /**
+     * ワールドを閉じたら送り残しを捨てる(キーはチャンク座標だけなので、残すと次に開いたワールドで
+     * 最初の送信に混ざり、同じ座標のチャンクで覆われていないマスに苔が見えることがある。起動し直したときと同じ状態に戻す)。
+     * {@link #PENDING} はサーバーのスレッドしか触らない(クライアントが触るのはチャンクに付いた記録だけ)。
+     */
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        PENDING.clear();
+        REMOVED.clear();
+    }
 
     private OvergrownLayerData() {
     }
@@ -98,10 +125,12 @@ public final class OvergrownLayerData {
      * そのブロックは「覆われたまま残す」対象か。
      *
      * <p>中身を持つブロックはここでは扱わない —— 自分で動くので
-     * {@code OvergrownHuskBlock} へ差し替えて止める必要がある。
+     * {@code OvergrownHuskBlock} へ差し替えて止める必要がある。例外はスポナー・試練のスポナー(2026-10-09、ユーザー指定):
+     * 覆っても止めず、湧く Mob を寄生体に替える({@link SpawnerCorruption})。
      */
     public static boolean canCover(BlockState state) {
-        if (state.isAir() || state.hasBlockEntity() || state.getRenderShape() != RenderShape.MODEL) {
+        if (state.isAir() || state.hasBlockEntity() && !SpawnerCorruption.isSpawner(state)
+                || state.getRenderShape() != RenderShape.MODEL) {
             return false;
         }
         if (state.is(ModTags.CORRUPTED) || state.is(ModTags.CORRUPTION_IMMUNE)) {
@@ -110,10 +139,28 @@ public final class OvergrownLayerData {
         if (state.getBlock().defaultDestroyTime() < 0.0F) {
             return false;
         }
+        if (MeltedIce.isIce(state)) {
+            // 氷は覆わずに溶かす(2026-10-16)。前に覆った氷の記録はここで資格を失い、苔が消えて次に汚染が来たとき溶ける。
+            return false;
+        }
         return CorruptionRegistry.hasNoCorruptedForm(state);
     }
 
     // --- 書く(サーバー) ---
+
+    /** 直前の {@link #cover} で新しく覆ったマス(サーバーのスレッドだけが触る)。{@link #takeNewlyCovered} が読んで消す。 */
+    private static long lastNewlyCovered = Long.MIN_VALUE;
+
+    /**
+     * 直前の {@link #cover} が {@code pos} を<b>新しく</b>覆ったか(読んだら忘れる)。汚染の呼び出し元が、置き換えの無かった
+     * ({@code CorruptionRegistry#noChange})マスで「今覆ったのか、前から覆われていたのか」を安く聞くため(2026-10-10)。
+     * 覆ったマスは {@code #corrupted} に入らないので何度でも訪ね直される —— 前から覆われていたマスで植物を生やし直すと生い茂る。
+     */
+    public static boolean takeNewlyCovered(BlockPos pos) {
+        boolean hit = lastNewlyCovered == pos.asLong();
+        lastNewlyCovered = Long.MIN_VALUE;
+        return hit;
+    }
 
     /**
      * そのマスを覆ったことにする。
@@ -128,11 +175,71 @@ public final class OvergrownLayerData {
         }
         chunk.setUnsaved(true);
         PENDING.computeIfAbsent(chunk.getPos(), key -> new LongOpenHashSet()).add(pos.asLong());
+        lastNewlyCovered = pos.asLong();
+        relightIfLit(level, pos);
+        SpawnerCorruption.onCovered(level, pos); // スポナーなら湧く Mob を寄生体へ(2026-10-09)
+        // 苔に覆われた道はつながりに数えない(順 2 の着手順 7。研究「舗装」の「汚染に覆われると途切れる」)
+        com.yayuy.overgrownvegetation.base.road.BaseRoads.onCover(level, pos, true);
         return true;
     }
 
+    /**
+     * 覆った・剥がした光源の明かりを計算し直させる(覆った光源は 4 割の明るさ、{@code covered/CoveredLight}、2026-10-05)。
+     * ブロックは置き換えないので、言わないと明かりは前のまま残る。結果はいつもの明かりの更新でクライアントへ届く。
+     */
+    private static void relightIfLit(ServerLevel level, BlockPos pos) {
+        if (level.getBlockState(pos).getLightEmission() > 0) {
+            level.getChunkSource().getLightEngine().checkBlock(pos);
+        }
+    }
+
+    /**
+     * そのマスの覆いを剥がす(同盟軍の工兵の整備、順 2 の着手順 4、2026-10-04)。記録から消し、そのチャンクを見ているプレイヤーへ
+     * 剥がしたマスを「消す」で送る(tick の終わりにまとめて。2026-10-10 までは記録をまるごと送り直していた)。読み込まれていないチャンクは触らない。
+     *
+     * @return 覆われていて剥がしたら {@code true}
+     */
+    public static boolean uncover(ServerLevel level, BlockPos pos) {
+        LevelChunk chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
+        if (chunk == null) {
+            return false;
+        }
+        LongOpenHashSet set = chunk.getExistingData(ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
+        if (set == null || !set.remove(pos.asLong())) {
+            return false;
+        }
+        chunk.setUnsaved(true);
+        LongOpenHashSet pending = PENDING.get(chunk.getPos());
+        if (pending != null) {
+            pending.remove(pos.asLong());
+        }
+        // 剥がしたマスは tick の終わりにチャンクごとまとめて「消す」で送る(2026-10-10 から。前は記録をまるごと送り直し、
+        // クライアントが列のセクションを全部積み直していた —— 火事・工兵の整備のたびに起きていた)
+        REMOVED.computeIfAbsent(level.dimension(), k -> new HashMap<>())
+                .computeIfAbsent(chunk.getPos(), k -> new LongOpenHashSet()).add(pos.asLong());
+        relightIfLit(level, pos);
+        SpawnerCorruption.onUncovered(level, pos); // 汚染したスポナーなら元の Mob へ戻す(2026-10-09)
+        com.yayuy.overgrownvegetation.base.road.BaseRoads.onCover(level, pos, false);
+        return true;
+    }
+
+    /** 覆いを剥がしたチャンク(次元ごと)。tick の終わりに記録をまるごと送り直す。 */
+    /** 剥がしたマス(次元 → チャンク → マス)。tick の終わりの {@link #flush} で、足した分より先に送る(同じ tick に剥がして覆い直したマスは覆われたまま届く)。 */
+    private static final Map<net.minecraft.resources.ResourceKey<Level>, Map<ChunkPos, LongOpenHashSet>> REMOVED = new HashMap<>();
+
     /** この tick で覆ったぶんを、そのチャンクを見ているプレイヤーへ送る。 */
     public static void flush(ServerLevel level) {
+        Map<ChunkPos, LongOpenHashSet> removed = REMOVED.remove(level.dimension());
+        if (removed != null) {
+            for (Map.Entry<ChunkPos, LongOpenHashSet> entry : removed.entrySet()) {
+                ChunkPos cp = entry.getKey();
+                if (level.getChunkSource().getChunkNow(cp.x, cp.z) == null) {
+                    continue; // もう読み込まれていない(見ているプレイヤーもいない。見始めたらまるごと届く)
+                }
+                PacketDistributor.sendToPlayersTrackingChunk(level, cp,
+                        new OvergrownLayerPayload(cp, entry.getValue().toLongArray(), false, true));
+            }
+        }
         if (PENDING.isEmpty()) {
             return;
         }

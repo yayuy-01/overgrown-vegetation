@@ -39,10 +39,13 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * 逆算するため、後から子供補正が乗ると追跡速度が想定を大きく超えてしまう。GeckoLib モデルは
  * 子供でも縮小表示しないので、見た目は大人と区別が付かないまま急に俊足になる — これを防ぐため。
  */
-public class ParasitizedZombie extends Zombie implements ParasitizedMob, GeoEntity {
+public class ParasitizedZombie extends Zombie implements ParasitizedMob, GeoEntity, com.yayuy.overgrownvegetation.corpse.RisingMob {
 
     private static final RawAnimation IDLE_ANIM = RawAnimation.begin().thenLoop("idle");
     private static final RawAnimation WALK_ANIM = RawAnimation.begin().thenLoop("walk");
+    /** 死体から起き上がる残り tick(2026-10-09、corpse.RisingMob)。 */
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Integer> RISING =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(ParasitizedZombie.class, net.minecraft.network.syncher.EntityDataSerializers.INT);
 
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
@@ -69,12 +72,52 @@ public class ParasitizedZombie extends Zombie implements ParasitizedMob, GeoEnti
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "move", 5,
-                state -> state.setAndContinue(MobAnimation.isWalking(state) ? WALK_ANIM : IDLE_ANIM)));
+        controllers.add(com.yayuy.overgrownvegetation.corpse.RisingSupport.moveController(this, IDLE_ANIM, WALK_ANIM));
     }
 
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {
         return this.geoCache;
+    }
+
+    // ------------------------------------------------------------------ 死体から起き上がる(2026-10-09)
+    @Override
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(RISING, 0);
+    }
+
+    @Override
+    public void startRising(int ticks) {
+        this.entityData.set(RISING, ticks);
+    }
+
+    @Override
+    public boolean isRising() {
+        return this.entityData.get(RISING) > 0;
+    }
+
+    /** 起き上がりの間は AI を止める。 */
+    @Override
+    public boolean isNoAi() {
+        return super.isNoAi() || isRising();
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        com.yayuy.overgrownvegetation.corpse.RisingSupport.tick(this, RISING);
+    }
+
+    @Override
+    public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putInt("Rising", com.yayuy.overgrownvegetation.corpse.RisingSupport.remaining(this, RISING)); // 正確な残り(RISING は段階だけ、2026-10-10)
+    }
+
+    @Override
+    public void readAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        this.entityData.set(RISING, tag.getInt("Rising"));
     }
 }

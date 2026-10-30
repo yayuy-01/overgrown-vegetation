@@ -98,7 +98,10 @@ public class InvaderLeapGoal extends Goal {
             return false;
         }
         double dist = this.mob.distanceTo(target);
-        return dist >= MIN && dist <= this.maxRange && this.mob.hasLineOfSight(target);
+        // 視線は Sensing 経由(2026-09-24 軽量化、報告 1692)。同じ tick の中で同じ相手への答えを覚えているだけで、
+        // 中身は同じ hasLineOfSight(毎 tick の AI の頭で忘れる)。索敵の Goal が同じ tick にもう聞いていれば、
+        // 壁越しの相手へ 2 tick ごとにレイキャストし直さずに済む。
+        return dist >= MIN && dist <= this.maxRange && this.mob.getSensing().hasLineOfSight(target);
     }
 
     @Override

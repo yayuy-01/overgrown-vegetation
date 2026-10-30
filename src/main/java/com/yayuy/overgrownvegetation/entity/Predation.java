@@ -43,11 +43,25 @@ public final class Predation {
 
     /**
      * {@code candidate} が {@code self}(グループ3の捕食者)にとっての「侵入者」か —
-     * 縄張りに入ってきたプレイヤー、またはバニラの敵対 Mob({@link Enemy})。
+     * 縄張りに入ってきた同盟軍の兵士(タグ {@code overgrown_vegetation:allies}、2026-10-01)、
+     * またはバニラの敵対 Mob({@link Enemy})。
      *
      * <p>捕食者は捕食対象({@link #isPredatorOf})に加えてこれらにも先制攻撃する
      * (ユーザー決定 2026-09-08: 「捕食者は侵入者とも戦う」)。被食者(グループ2)や
-     * 他の過繁茂 Mob・苗床・汚染シダ・クリエイティブ/観戦のプレイヤーは対象外。
+     * 他の過繁茂 Mob・苗床・汚染シダは対象外。
+     *
+     * <h2>プレイヤーは侵入者にしない(ユーザー指定 2026-10-03)</h2>
+     * <p>グループ2・3 は<b>環境生物</b> —— 不思議な生態をしているだけで、プレイヤーを襲わない
+     * (ユーザー指定 2026-09-21「最近の感染系 MOD は player を苦しめることしか考えていない気がする」)。
+     * <b>殴られたら反撃する</b>のは別口で、優先度 1 の {@link OvergrownHurtByTargetGoal} が受け持つ
+     * (ユーザー指定 2026-10-03「反撃はする」)。
+     *
+     * <p><b>兵士とバニラの敵対 Mob は侵入者のまま</b>(ユーザー指定 2026-10-03)。
+     * この種族は「縄張りに入ったものを襲う」生き物のままで、プレイヤーだけが例外になる。
+     *
+     * <p>寄生植物装備のプレイヤーを除く分岐はここから消えた —— プレイヤーを一律で外すので要らない。
+     * 装備による「過繁茂側(グループ 6)扱い」は {@link #isInvaderTarget} と
+     * {@code MobGroup#of(Entity)} に残っている(そちらはプレイヤーを狙う側なので今も要る)。
      */
     public static boolean isIntruder(LivingEntity self, LivingEntity candidate) {
         if (candidate == self || !candidate.isAlive()) {
@@ -58,10 +72,11 @@ public final class Predation {
                 || candidate instanceof OvergrownNexusEntity) {
             return false;
         }
-        if (candidate instanceof Player player) {
-            // 「寄生植物装備」を着けたプレイヤーは過繫茂側(グループ 6)なので狙わない。
-            return !player.isCreative() && !player.isSpectator()
-                    && !com.yayuy.overgrownvegetation.item.PlantArmor.isHost(player);
+        if (candidate instanceof Player) {
+            return false;
+        }
+        if (candidate.getType().is(com.yayuy.overgrownvegetation.ally.AllyEntities.ALLIES)) {
+            return true;
         }
         return candidate instanceof Enemy;
     }
@@ -107,7 +122,7 @@ public final class Predation {
      *
      * <p>ステータスが上がるのは<b>アルボラとスカトゥリウムだけ</b>
      * ({@link PredatorMob} を実装しているのがこの 2 種)。ほかのグループ4 も獲物を狙うが、
-     * それは<b>この 2 種のための地ならし</b>({@link InvaderPreyIntel} / {@link SporophyllAura})。
+     * それは<b>この 2 種のための地ならし</b>(群れの司令塔の獲物探し —— 旧 {@code InvaderPreyIntel} —— / {@link SporophyllAura})。
      *
      * <p>グループ4 同士・グループ5〜7・プレイヤー・グループ外は対象外
      * (プレイヤーとグループ外は {@link #isInvaderTarget} のほうで拾う)。
@@ -173,8 +188,8 @@ public final class Predation {
      * <ul>
      *     <li>崖の上に立っていて相手が崖下の<b>地表</b>にいる場合 —— 相手の深さは 0 なので狙う。
      *     高さの差だけで切ると、歩いて降りられる相手を見逃してしまう。</li>
-     *     <li>自分が<b>巣の中</b>(深さ 20)にいて相手も同じ坑道にいる場合 —— 差が小さいので狙う。
-     *     絶対の深さで切ると、巣の防衛が成り立たなくなる。</li>
+     *     <li>自分が<b>坑道の中</b>(深さ 20)にいて相手も同じ坑道にいる場合 —— 差が小さいので狙う。
+     *     絶対の深さで切ると、地下で鉢合わせした相手とも戦えなくなる。</li>
      *     <li>自分が地表(深さ 0)で相手が洞窟(深さ 20)—— 差が 20 なので狙わない。これが直したかった形。</li>
      * </ul>
      *

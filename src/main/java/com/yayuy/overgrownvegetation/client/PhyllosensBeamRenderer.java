@@ -12,9 +12,14 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import org.joml.Matrix4f;
 
 /**
@@ -65,6 +70,50 @@ public final class PhyllosensBeamRenderer {
      */
     private static final java.util.List<PhyllosensEntity> ACTIVE = new java.util.ArrayList<>();
 
+    /**
+     * クライアントのレベルにいるフィロセンス全員(撃っていないものも)。
+     *
+     * <p>2026-09-24 軽量化(監査 1439): 以前は撃っている個体を探すため、毎フレーム
+     * {@code entitiesForRendering()} の全エンティティを回していた。ClientLevel#addEntity が出す
+     * {@link EntityJoinLevelEvent} で足し、取り除くときの {@link EntityLeaveLevelEvent} で外す。
+     * 入る順番は {@code entitiesForRendering()} と同じ(追加順)なので、描く順番も変わらない。
+     * 次元の移動や切断では古い ClientLevel の個体に Leave が来ないので、描画側で今のレベルの個体か
+     * 確かめて外し、ログアウトでも空にする。触るのはクライアントのメインスレッドだけ。
+     * 遠距離でもアニメを続ける例外(意図した仕様)とは無関係 —— 対象の個体も描く内容も同じ。
+     */
+    private static final java.util.Set<PhyllosensEntity> PRESENT =
+            new it.unimi.dsi.fastutil.objects.ReferenceLinkedOpenHashSet<>();
+
+    /** 取り消された追加を拾わないよう最後に聞く(取り消されたら届かない)。 */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onEntityJoin(EntityJoinLevelEvent event) {
+        if (event.getLevel().isClientSide() && event.getEntity() instanceof PhyllosensEntity phyllosens) {
+            PRESENT.add(phyllosens);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onEntityLeave(EntityLeaveLevelEvent event) {
+        if (event.getLevel().isClientSide() && event.getEntity() instanceof PhyllosensEntity phyllosens) {
+            PRESENT.remove(phyllosens);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        PRESENT.clear();
+        ACTIVE.clear();
+    }
+
+    /** 次元の移動・切断で ClientLevel が捨てられる(シングルではサーバー側の Unload も来るので、クライアントのものだけ)。 */
+    @SubscribeEvent
+    public static void onLevelUnload(LevelEvent.Unload event) {
+        if (event.getLevel().isClientSide()) {
+            PRESENT.clear();
+            ACTIVE.clear();
+        }
+    }
+
     @SubscribeEvent
     public static void onRenderLevel(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
@@ -76,9 +125,13 @@ public final class PhyllosensBeamRenderer {
         }
         java.util.List<PhyllosensEntity> active = ACTIVE;
         active.clear();
-        for (var entity : minecraft.level.entitiesForRendering()) {
-            if (entity instanceof PhyllosensEntity phyllosens
-                    && phyllosens.getBeamPhase() != PhyllosensEntity.BEAM_NONE) {
+        for (java.util.Iterator<PhyllosensEntity> it = PRESENT.iterator(); it.hasNext(); ) {
+            PhyllosensEntity phyllosens = it.next();
+            if (phyllosens.level() != minecraft.level) {
+                it.remove(); // 前の ClientLevel(次元の移動・切断)の取り残し。今のレベルには居ない
+                continue;
+            }
+            if (phyllosens.getBeamPhase() != PhyllosensEntity.BEAM_NONE) {
                 active.add(phyllosens);
             }
         }
@@ -95,7 +148,7 @@ public final class PhyllosensBeamRenderer {
 
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
-        MultiBufferSource.BufferSource bufferSource = minecraft.renderBuffers().bufferSource();
+        MultiBufferSource.BufferSource bufferSource = CanopyLight.immediateBuffers();  // Iris のまとめ描きを避ける(CanopyLight#immediateBuffers、2026-10-22)
         RenderType renderType = RenderType.entityTranslucent(BeamGeometry.TEXTURE);
         VertexConsumer buffer = bufferSource.getBuffer(renderType);
         Matrix4f matrix = poseStack.last().pose();

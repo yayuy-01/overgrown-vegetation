@@ -35,13 +35,21 @@ public final class GuidedHuntInjector {
 
     @SubscribeEvent
     public static void onJoin(EntityJoinLevelEvent event) {
-        if (event.getEntity() instanceof PathfinderMob mob && MobGroup.of(mob) != null) {
+        // クライアント側の Mob は Goal を一度も回さないので積まない(2026-09-24 軽量化、報告 1670 行)。
+        if (event.getLevel().isClientSide()) {
+            return;
+        }
+        if (!(event.getEntity() instanceof PathfinderMob mob)) {
+            return;
+        }
+        // グループは 1 回だけ引いて使い回す(2026-09-24、報告 1670 行。同じ相手を続けて引くだけなので答えは同じ)。
+        MobGroup group = MobGroup.of(mob);
+        if (group != null) {
             mob.goalSelector.addGoal(PRIORITY, new GuidedHuntGoal(mob, 1.0D));
             // 小規模レイドの狙い(2026-09-19)。誘導と同じ優先度で、誘導が無いときだけ動く(canUse が排他)。
             mob.goalSelector.addGoal(PRIORITY, new com.yayuy.overgrownvegetation.raid.SmallRaidHuntGoal(mob, 1.0D));
             // 忌避灯(2026-09-19)。グループ1〜4 は点いている灯りの半径から追い出される。ヴェロフィルは灯りを爆撃する側なので除く。
-            MobGroup group = MobGroup.of(mob);
-            if (group != null && group.number() <= 4 && !(mob instanceof VelophyllEntity)) {
+            if (group.number() <= 4 && !(mob instanceof VelophyllEntity)) {
                 mob.goalSelector.addGoal(1, new RepellentAvoidGoal(mob, 1.1D));
             }
         }

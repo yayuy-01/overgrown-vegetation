@@ -3,14 +3,20 @@ package com.yayuy.overgrownvegetation.corruption;
 import com.yayuy.overgrownvegetation.ModTags;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
+import com.yayuy.overgrownvegetation.perf.PerfJob;
+import com.yayuy.overgrownvegetation.perf.TickBudget;
 import com.yayuy.overgrownvegetation.phase.CorruptionCounter;
 import com.yayuy.overgrownvegetation.registry.ModBiomes;
+import com.yayuy.overgrownvegetation.spore.SporeDeviceData;
+import com.yayuy.overgrownvegetation.util.TickPhases;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -21,11 +27,14 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SnowLayerBlock;
+import net.minecraft.world.level.block.piston.PistonBaseBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.level.LevelEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
 
 import javax.annotation.Nullable;
@@ -100,23 +109,113 @@ public final class OvergrownBiomeCreep {
      */
     private static final Map<ResourceKey<Level>, Long2IntOpenHashMap> DEEPEN_CURSOR = new HashMap<>();
 
+    /**
+     * パス3(深部浸食)で「選んだが、まだ回していない」チャンク(ディメンションごと)
+     * (2026-09-24 軽量化、報告 1505 / 600)。
+     *
+     * <p>以前は 1 回のパスで選んだ最大 {@code overgrownBiomeCreepDeepChunksPerTick}(既定 8)チャンクを、
+     * その tick のうちに全部回していた(1 チャンク最大 128 マスの置き換え × 8 が 1 tick に集まる)。
+     * 選び方・回す順番・クールダウンは元のまま、回すのだけを選んだ tick から {@link #DEEPEN_SPREAD_TICKS} tick に
+     * 分ける(既定の 8 チャンクなら 1 tick に 2 チャンク)。パスの間隔(20 tick 以上)より十分短いので、
+     * 次のパスまでに必ず回し終わる。
+     */
+    private static final Map<ResourceKey<Level>, DeepenBatch> DEEPEN_PENDING = new HashMap<>();
+
+    /** 1 回のパスで選んだ深部浸食を何 tick に分けて回すか。仮決め 2026-09-24。 */
+    private static final int DEEPEN_SPREAD_TICKS = 4;
+
+    /** 選んだ順のチャンクと、1 tick に回す数。回すときの設定値は選んだときのもの(元は選んだ tick に回していたので)。 */
+    private static final class DeepenBatch {
+        final LongArrayFIFOQueue keys = new LongArrayFIFOQueue();
+        int perTick = 1;
+        int blocksPerChunk;
+        int layersPerVisit;
+        double deepChance;
+        double growthChance;
+    }
+
+    /**
+     * ワールドを閉じたらクールダウン表と深部浸食のカーソルを空にする(キーはディメンションだけなので、
+     * 次に別のワールドを開くと前のワールドの時刻・進捗が残り、同じ座標のチャンクが待たされる。
+     * 起動し直したときと同じ状態に戻す)。
+     */
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        NEXT_SWEEP.clear();
+        NEXT_DEEPEN.clear();
+        DEEPEN_CURSOR.clear();
+        DEEPEN_PENDING.clear();
+    }
+
+    /** 次元が閉じたら、その次元で選んだまま回していない深部浸食を捨てる(2026-09-24、報告 1505 の待ち行列)。 */
+    @SubscribeEvent
+    public static void onLevelUnload(LevelEvent.Unload event) {
+        if (event.getLevel() instanceof ServerLevel level) {
+            DEEPEN_PENDING.remove(level.dimension());
+        }
+    }
+
     @SubscribeEvent
     public static void onLevelTick(LevelTickEvent.Post event) {
+        if (CorruptionSwitch.isOff()) {
+            return; // /ov corruption false(2026-10-10 ユーザー指定): 止める(順番待ちは残り、オンで続きから)
+        }
         if (!(event.getLevel() instanceof ServerLevel level)) {
             return;
         }
+        // サーバーが重いときは予算の番人が次の tick(パスは次の周回)へ回す(2026-10-06。結果は同じで遅れるだけ)。
+        // 番人に聞くのは仕事がある tick だけ(何も無い tick を「止めた」と数えないため)。
+        if (!hasWork(level) || !TickBudget.mayStart(PerfJob.BIOME_CREEP)) {
+            return;
+        }
+        long start = TickBudget.begin();
+        try {
+            runPasses(level);
+            // 選んである深部浸食を、この tick のぶんだけ回す(選んだ tick から数 tick に分ける。報告 1505)。
+            // 選んだ時点で回すことは決まっているので、設定を切り替えても回し切る(元は選んだ tick のうちに全部回していた)。
+            drainDeepen(level);
+        } finally {
+            TickBudget.end(PerfJob.BIOME_CREEP, start, 1);
+        }
+    }
+
+    /** この tick に回すパスがあるか、選んである深部浸食が残っているか({@link #runPasses}・{@link #drainDeepen} と同じ条件)。 */
+    private static boolean hasWork(ServerLevel level) {
+        DeepenBatch batch = DEEPEN_PENDING.get(level.dimension());
+        if (batch != null && !batch.keys.isEmpty()) {
+            return true;
+        }
+        OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
+        if (!cfg.overgrownBiomeCreep.get() || !cfg.convertToOvergrownBiome.get()) {
+            return false;
+        }
+        int interval = Math.max(1, cfg.overgrownBiomeCreepIntervalTicks.get());
+        long offset = TickPhases.offsetInCycle(level.getGameTime(), TickPhases.BIOME_CREEP, interval);
+        long third = interval / 3;
+        return offset == 0L || offset == third || offset == third * 2L;
+    }
+
+    private static void runPasses(ServerLevel level) {
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
         if (!cfg.overgrownBiomeCreep.get() || !cfg.convertToOvergrownBiome.get()) {
             return;
         }
         int interval = Math.max(1, cfg.overgrownBiomeCreepIntervalTicks.get());
-        if (level.getGameTime() % interval != 0L) {
-            return;
+        // 2026-09-24 軽量化(報告 589 / 1516 / 600): 3 つのパスを同じ tick に続けて回していたのを、周期の 1/3 ずつ
+        // ずらした別々の tick に分ける(どのパスも間隔は同じで、走る tick が周期の中でずれるだけ)。周期全体の位相は
+        // TickPhases で、建築浸食・湿地化などの周期処理とも重ならないようにしてある。
+        // 間隔が 3 tick 未満なら 3 つとも同じ tick になり、今までどおりこの順に回る。
+        long offset = TickPhases.offsetInCycle(level.getGameTime(), TickPhases.BIOME_CREEP, interval);
+        long third = interval / 3;
+        if (offset == 0L) {
+            sweepInterior(level, cfg);
         }
-
-        sweepInterior(level, cfg);
-        bleedEdges(level, cfg);
-        deepenInterior(level, cfg);
+        if (offset == third) {
+            bleedEdges(level, cfg);
+        }
+        if (offset == third * 2L) {
+            deepenInterior(level, cfg);
+        }
     }
 
     // ------------------------------------------------------------------------------------------
@@ -168,6 +267,9 @@ public final class OvergrownBiomeCreep {
                     if (!level.hasChunk(cx, cz)) {
                         continue;
                     }
+                    if (!neighbourhoodReady(level, cx, cz)) {
+                        continue; // 周りが読み込みの途中。読み込まれていないときと同じく次の周回で。
+                    }
                     if (!isOvergrownChunk(level, cx, cz)) {
                         continue;
                     }
@@ -182,7 +284,8 @@ public final class OvergrownBiomeCreep {
         // 偏りなく順に片付けていくため、対象をシャッフルしてから予算ぶんだけ処理する。
         shuffle(eligible, level.random);
         int limit = Math.min(chunkBudget, eligible.size());
-        for (int i = 0; i < limit; i++) {
+        // 予算の番人に止められたら残りは次の周回(クールダウンを付けないので、また候補に入る)。
+        for (int i = 0; i < limit && (i == 0 || TickBudget.timeLeft()); i++) {
             ChunkPos chunkPos = new ChunkPos(eligible.getLong(i));
             int converted = growChunkFrontier(level, chunkPos, maxPerChunk, surfaceDepth, growthChance,
                     frontierBaseChance, frontierChancePerNeighbor);
@@ -294,6 +397,7 @@ public final class OvergrownBiomeCreep {
             }
             BlockState corrupted = CorruptionRegistry.corrupt(level, at, state, random);
             if (CorruptionRegistry.noChange(state, corrupted)) {
+                CorruptionSpreader.growPlantsIfNewlyCovered(level, at, state); // 覆っただけのマスにも植物(2026-10-10)
                 continue;
             }
 
@@ -350,7 +454,7 @@ public final class OvergrownBiomeCreep {
      * </ul>
      */
     @Nullable
-    private static BlockPos findCorruptibleInColumn(ServerLevel level, BlockPos.MutableBlockPos cursor,
+    static BlockPos findCorruptibleInColumn(ServerLevel level, BlockPos.MutableBlockPos cursor,
                                                     int x, int topY, int z, int minY, int depth) {
         int limitY = Math.max(minY, topY - depth + 1);
         for (int y = topY; y >= limitY; y--) {
@@ -375,10 +479,21 @@ public final class OvergrownBiomeCreep {
 
     /**
      * {@code (x, z)} 列の地表付近({@code topY + 2} 〜 {@code topY - 1})にある「積もった雪」「氷」を剥がす。
-     * 雪の層は空気に、氷・薄氷は水源に戻す(氷は元々水面にできるため)。パックされた氷・青氷は
-     * 構造物的なので触らない。1 ブロックでも消したら true。
+     * 過繁茂バイオームは常夏なので、元バイオームの凍結面は残さない。1 ブロックでも消したら true。
+     *
+     * <ul>
+     *     <li>積もった雪の層({@link SnowLayerBlock})は空気。雪の塊・粉雪は対応表で {@code overgrown_dirt} に
+     *     なるのでここでは触らない。</li>
+     *     <li>氷({@code #minecraft:ice} = 氷・薄氷・<b>パックされた氷・青氷</b>)は
+     *     {@link MeltedIce#stateAt}(水に接していれば水源、そうでなければ空気)。</li>
+     * </ul>
+     *
+     * <p>以前はパックされた氷・青氷を「構造物的なので触らない」として残していたが、熱帯なのに氷山・
+     * 氷柱・氷河が残るとの指摘で 2026-09-29 に溶かす対象へ変えた。剥がすのは 1 回の走査で上から
+     * 数段までなので、氷山のような厚い塊は走査のたびに上から溶けていく(剥がした列はその回の
+     * 浸食候補から外れ、次の走査で改めて拾われる)。
      */
-    private static boolean stripFrozenSurface(ServerLevel level, BlockPos.MutableBlockPos cursor,
+    static boolean stripFrozenSurface(ServerLevel level, BlockPos.MutableBlockPos cursor,
                                               int x, int topY, int z) {
         boolean removedAny = false;
         for (int y = topY + 2; y >= topY - 1; y--) {
@@ -387,8 +502,9 @@ public final class OvergrownBiomeCreep {
             if (state.getBlock() instanceof SnowLayerBlock) {
                 level.setBlock(cursor.immutable(), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
                 removedAny = true;
-            } else if (state.is(Blocks.ICE) || state.is(Blocks.FROSTED_ICE)) {
-                level.setBlock(cursor.immutable(), Blocks.WATER.defaultBlockState(), Block.UPDATE_ALL);
+            } else if (MeltedIce.isIce(state)) {
+                BlockPos at = cursor.immutable();
+                level.setBlock(at, MeltedIce.stateAt(level, at), Block.UPDATE_ALL);
                 removedAny = true;
             }
         }
@@ -404,6 +520,25 @@ public final class OvergrownBiomeCreep {
     private static boolean isOvergrownChunk(ServerLevel level, int cx, int cz) {
         BlockPos sample = new BlockPos((cx << 4) + 8, level.getSeaLevel(), (cz << 4) + 8);
         return ModBiomes.isOvergrownLike(level.getBiome(sample));
+    }
+
+    /**
+     * チャンクとその周り 3x3 に「読み込みの途中」(hasChunk は true だがまだ FULL になっていない)のものが無いか。
+     * フロンティア浸食・深部浸食は周りのチャンクも読むので、途中のものをそのまま読むと生成・読み込みが
+     * 終わるまでサーバースレッドが止まる。1 つでもあればチャンクごと今回は見送る(クールダウンは書かない
+     * ので、次の周回で同じ処理になる。列だけ飛ばすと結果が変わるのでやらない)。
+     * hasChunk が false の隣はこれまでどおりの扱い(フロンティア浸食ならその列を飛ばす)なので、ここでは待たない。
+     */
+    private static boolean neighbourhoodReady(ServerLevel level, int cx, int cz) {
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (level.hasChunk(cx + dx, cz + dz)
+                        && level.getChunkSource().getChunkNow(cx + dx, cz + dz) == null) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     private static Long2LongOpenHashMap newSweepMap() {
@@ -486,6 +621,7 @@ public final class OvergrownBiomeCreep {
         BlockState state = level.getBlockState(surface);
         BlockState corrupted = CorruptionRegistry.corrupt(level, surface, state, random);
         if (CorruptionRegistry.noChange(state, corrupted)) {
+            CorruptionSpreader.growPlantsIfNewlyCovered(level, surface, state); // 覆っただけのマスにも植物(2026-10-10)
             return;
         }
 
@@ -500,7 +636,7 @@ public final class OvergrownBiomeCreep {
      * ({@link Heightmap.Types#OCEAN_FLOOR})を返すので、海バイオームでも浸食・にじみが働く。
      * 葉に覆われた列などは従来どおり {@code MOTION_BLOCKING_NO_LEAVES}(葉の下の本体)を返す。
      */
-    private static int surfaceTopY(ServerLevel level, int x, int z) {
+    static int surfaceTopY(ServerLevel level, int x, int z) {
         int motionBlocking = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
         int oceanFloor = level.getHeight(Heightmap.Types.OCEAN_FLOOR, x, z) - 1;
         // 水中の列だけ oceanFloor(< motionBlocking)。陸(葉の天蓋を含む)は motionBlocking のまま。
@@ -639,6 +775,9 @@ public final class OvergrownBiomeCreep {
                     if (!level.hasChunk(cx, cz)) {
                         continue;
                     }
+                    if (!neighbourhoodReady(level, cx, cz)) {
+                        continue; // 周りが読み込みの途中。読み込まれていないときと同じく次の周回で。
+                    }
                     if (!isFullyOvergrownChunk(level, cx, cz)) {
                         continue; // 深部浸食は「過繁茂」段階のみ(「繁茂」段階では走らせない)
                     }
@@ -652,16 +791,54 @@ public final class OvergrownBiomeCreep {
 
         shuffle(eligible, level.random);
         int limit = Math.min(chunkBudget, eligible.size());
+        // 選んだチャンクはこの場では回さず、選んだ順に積んで drainDeepen が数 tick に分けて回す
+        // (2026-09-24 軽量化、報告 1505 / 600)。クールダウンは元と同じく選んだ tick の時刻で書く。
+        // クールダウン表とカーソルの肥大化の掃除も、元どおり「全部回し終えたあと」に drainDeepen で行う。
+        DeepenBatch batch = DEEPEN_PENDING.computeIfAbsent(level.dimension(), key -> new DeepenBatch());
         for (int i = 0; i < limit; i++) {
             long key = eligible.getLong(i);
-            deepenChunk(level, new ChunkPos(key), cursors, key,
-                    blocksPerChunk, layersPerVisit, deepChance, growthChance);
+            batch.keys.enqueue(key);
             nextDeepen.put(key, now + rescanTicks);
         }
+        batch.perTick = Math.max(1, (batch.keys.size() + DEEPEN_SPREAD_TICKS - 1) / DEEPEN_SPREAD_TICKS);
+        batch.blocksPerChunk = blocksPerChunk;
+        batch.layersPerVisit = layersPerVisit;
+        batch.deepChance = deepChance;
+        batch.growthChance = growthChance;
+    }
 
-        if (nextDeepen.size() > SWEEP_MAP_MAX_ENTRIES) {
-            nextDeepen.clear();
-            cursors.clear();
+    /**
+     * {@link #deepenInterior} が選んで積んだチャンクを、この tick のぶん({@link DeepenBatch#perTick} 個)だけ
+     * 選んだ順に {@link #deepenChunk} で回す(2026-09-24 軽量化、報告 1505 / 600)。選んだ tick にも呼ぶので、
+     * 最初のぶんは今までどおり選んだ tick のうちに回る。
+     *
+     * <p>選んでから数 tick のうちに読み込みが外れた・読み込みの途中になったチャンクは回さない
+     * (そのまま読むと同期で読み込むため。選んだときの条件と同じ)。クールダウンは選んだときに書いてあるので、
+     * 切れたら次のパスで選び直される。
+     */
+    private static void drainDeepen(ServerLevel level) {
+        DeepenBatch batch = DEEPEN_PENDING.get(level.dimension());
+        if (batch == null || batch.keys.isEmpty()) {
+            return;
+        }
+        Long2IntOpenHashMap cursors =
+                DEEPEN_CURSOR.computeIfAbsent(level.dimension(), key -> newCursorMap());
+        for (int n = 0; n < batch.perTick && !batch.keys.isEmpty() && (n == 0 || TickBudget.timeLeft()); n++) {
+            long key = batch.keys.dequeueLong();
+            int cx = ChunkPos.getX(key);
+            int cz = ChunkPos.getZ(key);
+            if (!level.hasChunk(cx, cz) || !neighbourhoodReady(level, cx, cz)) {
+                continue;
+            }
+            deepenChunk(level, new ChunkPos(key), cursors, key,
+                    batch.blocksPerChunk, batch.layersPerVisit, batch.deepChance, batch.growthChance);
+        }
+        if (batch.keys.isEmpty()) {
+            Long2LongOpenHashMap nextDeepen = NEXT_DEEPEN.get(level.dimension());
+            if (nextDeepen != null && nextDeepen.size() > SWEEP_MAP_MAX_ENTRIES) {
+                nextDeepen.clear();
+                cursors.clear();
+            }
         }
     }
 
@@ -686,7 +863,15 @@ public final class OvergrownBiomeCreep {
         int minY = level.getMinBuildHeight();
         int baseX = chunkPos.getMinBlockX();
         int baseZ = chunkPos.getMinBlockZ();
+        // 2026-09-24 軽量化(報告 1472): 稼働中の胞子除去装置がこのチャンクに届かなければ、1 マスごとの
+        // canCorrupt で装置の判定を省く(届かないチャンクでは装置の判定は乱数を引かずに false を返すだけなので、
+        // 汚染されるマスも乱数の引き方も同じ)。装置の稼働が切り替わるのは装置自身の tick で、装置のブロックは
+        // 汚染で置き換わらないので、このチャンクの処理の間は答えを使い回してよい。
+        boolean devicesNear = SporeDeviceData.mayInhibitBlocksIn(level, chunkPos, SporeDeviceData.Inhibit.CORRUPTION);
 
+        // ネザー(天井のある次元)も深部まで汚染する(2026-10-02 ユーザー指定。溶岩の海も玄武岩になる)。
+        // 高さマップは天井の岩盤を返すので、下の 1. は全列「汚染できない地表 = 済み」になり、チャンクが過繁茂になった時点で
+        // 天井の岩盤の下から下へ向かって全部を置き換え始める(床の表面が汚染しきるのは待たない)。
         // 1. 地表(葉を除いた最上部。水中なら海底)が全 256 列で汚染しきっているか。
         //    そもそも汚染できない地表(岩盤など)の列は「済み」扱いにして待たない。
         BlockPos.MutableBlockPos probe = new BlockPos.MutableBlockPos();
@@ -700,7 +885,7 @@ public final class OvergrownBiomeCreep {
                 }
                 probe.set(x, topY, z);
                 BlockState state = level.getBlockState(probe);
-                if (state.is(ModTags.CORRUPTED) || !CorruptionRegistry.canCorrupt(level, probe, state)) {
+                if (state.is(ModTags.CORRUPTED) || !CorruptionRegistry.canCorrupt(level, probe, state, devicesNear)) {
                     continue;
                 }
                 // 未汚染の地表が残っている。深部浸食はまだ始めない。
@@ -740,7 +925,7 @@ public final class OvergrownBiomeCreep {
                     if (state.isAir() || state.is(ModTags.CORRUPTED)) {
                         continue;
                     }
-                    if (!CorruptionRegistry.canCorrupt(level, cursor, state)) {
+                    if (!CorruptionRegistry.canCorrupt(level, cursor, state, devicesNear)) {
                         continue;
                     }
                     corruptibleLeft++;
@@ -753,14 +938,22 @@ public final class OvergrownBiomeCreep {
                     }
                     BlockState corrupted = CorruptionRegistry.corrupt(level, cursor, state, random);
                     if (CorruptionRegistry.noChange(state, corrupted)) {
+                        CorruptionSpreader.growPlantsIfNewlyCovered(level, cursor, state); // 覆っただけのマスにも植物(2026-10-10)
                         corruptibleLeft--; // 変換先が同じ = 実質何もしないブロック。層を止めない。
                         continue;
                     }
                     BlockPos hit = cursor.immutable();
-                    CorruptionRegistry.placeCorrupted(level, hit, state, corrupted, Block.UPDATE_ALL);
+                    // 2026-09-24 軽量化(報告 1505 / 600): 6 面とも不透明な立方体に囲まれ、置き換えで信号も変わらない
+                    // マスは、隣への近隣通知を省く(UPDATE_CLIENTS。placeCorrupted が KNOWN_SHAPE を足すので形状更新は
+                    // もともと無い)。そういう隣は通知を受けても何も起きないので、置かれるものも隣の状態も同じ
+                    // ({@link #neighbourUpdateIsNoop})。地下の石の一括置換は大半がこれで、1 マスごとの 6 回の通知が消える。
+                    boolean sealed = neighbourUpdateIsNoop(level, hit, state, corrupted, neighbour);
+                    CorruptionRegistry.placeCorrupted(level, hit, state, corrupted,
+                            sealed ? Block.UPDATE_CLIENTS : Block.UPDATE_ALL);
                     // 完全に埋まったブロックには装飾植物を生やさない(抽選が無駄なので事前に弾く)。
                     // 洞窟や空洞に面したブロックだけ、露出面へ苔・蔦などを生やす。
-                    if (hasAirNeighbour(level, hit, neighbour)) {
+                    // sealed なら 6 面とも空気ではないので、hasAirNeighbour は必ず false(読まずに済ませる)。
+                    if (!sealed && hasAirNeighbour(level, hit, neighbour)) {
                         CorruptionSpreader.growSurfacePlants(level, hit, corrupted, growthChance);
                     }
                     converted++;
@@ -798,8 +991,61 @@ public final class OvergrownBiomeCreep {
         return ModBiomes.isFullyOvergrown(level.getBiome(sample));
     }
 
+    /**
+     * {@code pos} を {@code before} から {@code after} へ置き換えるとき、隣への近隣通知
+     * ({@link Block#UPDATE_NEIGHBORS})が<b>何も起こさない</b>と言い切れるか(2026-09-24 軽量化、報告 1505 / 600)。
+     * 置き換える<b>前</b>に呼ぶこと。
+     *
+     * <p>近隣通知でやることは 3 つ —— 6 近傍の {@code neighborChanged}、NeoForge の近隣通知イベント
+     * (この MOD は聞いていない。極相の全層置換 {@link ClimaxDeepConverter} はもともと出していない)、
+     * 置いたブロックが比較器の入力になるときの比較器への通知。次のときは省いても何も変わらない:
+     * <ul>
+     *     <li>6 近傍がどれも読み込み済みで、不透明な立方体({@code isSolidRender})で、BlockEntity を持たない
+     *     バニラかこの MOD のブロック。そういうバニラのブロックの {@code neighborChanged} は、どれも「受けている信号が
+     *     変わったか」だけを見る(ランプ・音符ブロック・TNT など)。例外のピストン(押す先が押せるかも見直す)は
+     *     隣にあれば省かない。この MOD の {@code neighborChanged} を持つブロック(砲台・遮蔽盾・攻城砲)は立方体ではない。</li>
+     *     <li>置き換えの前後で BlockEntity を持たず、信号を出さず({@code isSignalSource})、信号を通すかどうか
+     *     ({@code isRedstoneConductor})も同じ —— 隣が受ける信号は変わらない。</li>
+     *     <li>前後どちらのブロックも比較器の入力にならない({@code hasAnalogOutputSignal})。</li>
+     * </ul>
+     * 迷うものはすべて false(= 今までどおり {@link Block#UPDATE_ALL})。読み込まれていない隣も読まずに false にする。
+     */
+    private static boolean neighbourUpdateIsNoop(ServerLevel level, BlockPos pos, BlockState before, BlockState after,
+                                                 BlockPos.MutableBlockPos scratch) {
+        if (before.hasBlockEntity() || after.hasBlockEntity()
+                || before.isSignalSource() || after.isSignalSource()
+                || before.hasAnalogOutputSignal() || after.hasAnalogOutputSignal()
+                || before.isRedstoneConductor(level, pos) != after.isRedstoneConductor(level, pos)) {
+            return false;
+        }
+        for (Direction dir : DIRECTIONS) {
+            scratch.setWithOffset(pos, dir);
+            if (!level.isLoaded(scratch)) {
+                return false;
+            }
+            BlockState neighbour = level.getBlockState(scratch);
+            // ピストンは信号のほかに「押す先が押せるか」も見直すので、隣にあれば省かない。
+            // BlockEntity を持つもの(機械など)と他 MOD のブロックは、通知で何をするか確かめようがないので省かない。
+            if (!neighbour.isSolidRender(level, scratch) || neighbour.hasBlockEntity()
+                    || neighbour.getBlock() instanceof PistonBaseBlock
+                    || !neighbourReactionKnown(neighbour.getBlock())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** 近隣通知への反応を確かめてあるブロック(バニラとこの MOD のもの)か({@link #neighbourUpdateIsNoop})。 */
+    private static boolean neighbourReactionKnown(Block block) {
+        String namespace = BuiltInRegistries.BLOCK.getKey(block).getNamespace();
+        return "minecraft".equals(namespace) || OvergrownVegetation.MODID.equals(namespace);
+    }
+
+    /** 隣接 6 面の向き({@code Direction.values()} は呼ぶたびに配列を複製するので 1 つを使い回す。順番は同じ)。 */
+    private static final Direction[] DIRECTIONS = Direction.values();
+
     private static boolean hasAirNeighbour(ServerLevel level, BlockPos pos, BlockPos.MutableBlockPos scratch) {
-        for (Direction dir : Direction.values()) {
+        for (Direction dir : DIRECTIONS) {
             scratch.setWithOffset(pos, dir);
             if (level.getBlockState(scratch).isAir()) {
                 return true;

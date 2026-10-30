@@ -52,6 +52,16 @@ public class CorruptedCorpseBlock extends BaseEntityBlock {
         return new CorruptedCorpseBlockEntity(pos, state);
     }
 
+    /** 手で置いた死体は、置いた人が向いている方へ倒れた向きにする(頭が向こう側。2026-10-09)。 */
+    @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable net.minecraft.world.entity.LivingEntity placer,
+                            net.minecraft.world.item.ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        if (placer != null && level.getBlockEntity(pos) instanceof CorruptedCorpseBlockEntity be) {
+            be.setPlacedYaw(placer.getYRot());
+        }
+    }
+
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {

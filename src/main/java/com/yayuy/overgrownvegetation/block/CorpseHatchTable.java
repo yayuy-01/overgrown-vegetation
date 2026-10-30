@@ -16,12 +16,29 @@ import java.util.function.Supplier;
  */
 public final class CorpseHatchTable {
 
-    private static final Map<Block, Supplier<EntityType<?>>> MAP = Map.of(
-            ModBlocks.OVERGROWN_COW_CORPSE.get(), ModEntities.PARASITIZED_COW::get,
-            ModBlocks.OVERGROWN_PIG_CORPSE.get(), ModEntities.PARASITIZED_PIG::get,
-            ModBlocks.OVERGROWN_SHEEP_CORPSE.get(), ModEntities.PARASITIZED_SHEEP::get,
-            ModBlocks.OVERGROWN_CREEPER_CORPSE.get(), ModEntities.PARASITIZED_CREEPER::get,
-            ModBlocks.OVERGROWN_SPIDER_CORPSE.get(), ModEntities.PARASITIZED_SPIDER::get
+    private static final Map<Block, Supplier<EntityType<?>>> MAP = Map.ofEntries(
+            Map.entry(ModBlocks.OVERGROWN_COW_CORPSE.get(), ModEntities.PARASITIZED_COW::get),
+            Map.entry(ModBlocks.OVERGROWN_PIG_CORPSE.get(), ModEntities.PARASITIZED_PIG::get),
+            Map.entry(ModBlocks.OVERGROWN_SHEEP_CORPSE.get(), ModEntities.PARASITIZED_SHEEP::get),
+            Map.entry(ModBlocks.OVERGROWN_CHICKEN_CORPSE.get(), ModEntities.PARASITIZED_CHICKEN::get),
+            Map.entry(ModBlocks.OVERGROWN_CREEPER_CORPSE.get(), ModEntities.PARASITIZED_CREEPER::get),
+            Map.entry(ModBlocks.OVERGROWN_SPIDER_CORPSE.get(), ModEntities.PARASITIZED_SPIDER::get),
+            Map.entry(ModBlocks.OVERGROWN_VILLAGER_CORPSE.get(), ModEntities.PARASITIZED_VILLAGER::get),
+            Map.entry(ModBlocks.OVERGROWN_ZOMBIE_CORPSE.get(), ModEntities.PARASITIZED_ZOMBIE::get),
+            Map.entry(ModBlocks.OVERGROWN_BABY_ZOMBIE_CORPSE.get(), ModEntities.PARASITIZED_BABY_ZOMBIE::get),
+            Map.entry(ModBlocks.OVERGROWN_SKELETON_CORPSE.get(), ModEntities.PARASITIZED_SKELETON::get),
+            Map.entry(ModBlocks.OVERGROWN_ENDERMAN_CORPSE.get(), ModEntities.PARASITIZED_ENDERMAN::get),
+            // ネザーの媒介種(2026-10-09)
+            Map.entry(ModBlocks.OVERGROWN_PIGLIN_CORPSE.get(), ModEntities.PARASITIZED_PIGLIN::get),
+            Map.entry(ModBlocks.OVERGROWN_PIGLIN_BRUTE_CORPSE.get(), ModEntities.PARASITIZED_PIGLIN_BRUTE::get),
+            Map.entry(ModBlocks.OVERGROWN_ZOMBIFIED_PIGLIN_CORPSE.get(), ModEntities.PARASITIZED_ZOMBIFIED_PIGLIN::get),
+            Map.entry(ModBlocks.OVERGROWN_WITHER_SKELETON_CORPSE.get(), ModEntities.PARASITIZED_WITHER_SKELETON::get),
+            Map.entry(ModBlocks.OVERGROWN_HOGLIN_CORPSE.get(), ModEntities.PARASITIZED_HOGLIN::get),
+            Map.entry(ModBlocks.OVERGROWN_ZOGLIN_CORPSE.get(), ModEntities.PARASITIZED_ZOGLIN::get),
+            Map.entry(ModBlocks.OVERGROWN_STRIDER_CORPSE.get(), ModEntities.PARASITIZED_STRIDER::get),
+            // アイアンゴーレム・ウォーデン(2026-10-10)。寄生体はこの死体からだけ現れる(自然には湧かない)
+            Map.entry(ModBlocks.OVERGROWN_IRON_GOLEM_CORPSE.get(), ModEntities.PARASITIZED_IRON_GOLEM::get),
+            Map.entry(ModBlocks.OVERGROWN_WARDEN_CORPSE.get(), ModEntities.PARASITIZED_WARDEN::get)
     );
 
     /** {@code corpseBlock} が孵化させる「過繁茂した(MOB名)」の {@link EntityType}。対応が無ければ {@code null}。 */

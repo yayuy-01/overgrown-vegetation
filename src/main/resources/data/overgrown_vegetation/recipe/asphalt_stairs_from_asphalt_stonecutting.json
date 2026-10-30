@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": {
+    "item": "overgrown_vegetation:asphalt"
+  },
+  "result": {
+    "id": "overgrown_vegetation:asphalt_stairs",
+    "count": 1
+  }
+}

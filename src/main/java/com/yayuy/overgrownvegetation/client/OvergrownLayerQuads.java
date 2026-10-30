@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.client;
 
+import com.google.common.collect.MapMaker;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.model.BakedQuad;
@@ -12,7 +13,6 @@ import net.minecraft.world.inventory.InventoryMenu;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <b>面 1 枚を「苔の面」に作り替える</b>ための共通処理(2026-09-22)。
@@ -43,13 +43,31 @@ import java.util.concurrent.ConcurrentHashMap;
  * 貼り直しているので、世界のどこに置かれた何番目のブロックかに左右されない。
  * だから元の面({@link BakedQuad} のインスタンス)をそのまま鍵にして覚えておける。
  * 透明画素の判定は 1 面につき 1 回で済む。
+ *
+ * <p><b>鍵は弱参照で持つ</b>(2026-09-24)。他 MOD の模型には {@code getQuads} のたびに
+ * 新しい面を作って返すものがあり(つながるテクスチャなど)、強く持つとチャンクを積み直すたびに
+ * 表が際限なく増える。弱参照なら、誰も持っていない面(= 二度と引かれない面)の分だけが消える。
+ * 模型が持ち続けている面は今までどおり覚えたまま。{@link BakedQuad} は equals を持たないので、
+ * 鍵は以前から同一性で比べていた({@code weakKeys} も同一性で比べる)。
  */
 public final class OvergrownLayerQuads {
 
     /** 覆うのに使うテクスチャ(ユーザー提供)。 */
     public static final ResourceLocation LAYER_TEXTURE = OvergrownVegetation.id("block/overgrown_layer");
 
-    /** 面を法線方向へ押し出す量(ブロック)。元のテクスチャとの z ファイティング除け。 */
+    /**
+     * 面を法線方向へ押し出す量(ブロック)。元のテクスチャとの z ファイティング除け。
+     *
+     * <p><b>押し出しは遠くで効かない</b>(2026-10-07、ユーザー報告「覆われたブロックを遠くから見るとちかちかする」): 奥行きの精度は
+     * 距離の 2 乗で粗くなり(近くの面 0.05・24 ビットで、1 目盛り ≒ 距離² / 84 万ブロック)、0.002 は約 40 ブロックより遠いと見分けられない。
+     * そこで元の面とまったく同じ位置に重ねられるところは押し出さない({@code flush})—— 同じ頂点の面は同じ奥行きになり、
+     * 後から描いた方が勝つ(深さの比べ方が「以下」)。バニラの草ブロックの側面の色付けと同じやり方。
+     * 押し出すのは、元の面を後から描く場合(元のブロックが {@code cutout}・{@code translucent} の描画層)と、
+     * 切り抜いた小さい面({@link Patch#slice}。頂点が違うので同じ平面でも奥行きが 1 目盛りずれうる)だけ。
+     * なお、このときテスト用クライアントで目に見えたちらつきの本体はこちらではなく、苔のテクスチャを縮小した絵に残る穴だった
+     * ({@link com.yayuy.overgrownvegetation.mixin.client.SpriteContentsMossMipMixin})。押し出しをやめたのは、
+     * 浅い角度で見る床や画面の端など、精度がもっと粗くなる所でも苔が必ず上に出るようにするため。
+     */
     private static final float PUSH = 0.002F;
 
     /** 透明画素を抜くときの目の細かさの上限(縦横のマス数)。16x16 のテクスチャなら画素そのまま。 */
@@ -58,7 +76,9 @@ public final class OvergrownLayerQuads {
     /** 覚えておいた出来上がりの面。アトラスが焼き直されたら({@code sprite} が変わったら)捨てる。 */
     private record Cache(TextureAtlasSprite sprite,
                          Map<BakedQuad, List<BakedQuad>> plain,
-                         Map<BakedQuad, List<BakedQuad>> masked) {
+                         Map<BakedQuad, List<BakedQuad>> masked,
+                         Map<BakedQuad, List<BakedQuad>> plainFlush,
+                         Map<BakedQuad, List<BakedQuad>> maskedFlush) {
     }
 
     private static volatile Cache cache;
@@ -88,25 +108,35 @@ public final class OvergrownLayerQuads {
      * @return 0 枚以上の面。{@code mask} を立てて元のテクスチャが<b>全部透明</b>だったときは空。
      */
     public static List<BakedQuad> dress(BakedQuad quad, boolean mask) {
-        return dress(cache(), quad, mask);
+        return dress(cache(), quad, mask, false);
     }
 
-    /** 面の並びをまとめて苔の面に作り替え、{@code out} へ足す。 */
+    /** 面の並びをまとめて苔の面に作り替え、{@code out} へ足す(押し出す。{@link #PUSH})。 */
     public static void dressAll(List<BakedQuad> quads, boolean mask, List<BakedQuad> out) {
+        dressAll(quads, mask, false, out);
+    }
+
+    /**
+     * 面の並びをまとめて苔の面に作り替え、{@code out} へ足す。
+     *
+     * @param flush 元の面と同じ位置に重ねる(押し出さない)か。元の面が<b>同じ描画層の先か、先に描かれる層</b>
+     *              ({@code solid}・{@code cutoutMipped})にあるときだけ立てる。切り抜いた小さい面は立てても押し出す。
+     */
+    public static void dressAll(List<BakedQuad> quads, boolean mask, boolean flush, List<BakedQuad> out) {
         if (quads.isEmpty()) {
             return;
         }
         Cache c = cache();
         for (BakedQuad quad : quads) {
-            out.addAll(dress(c, quad, mask));
+            out.addAll(dress(c, quad, mask, flush));
         }
     }
 
-    private static List<BakedQuad> dress(Cache c, BakedQuad quad, boolean mask) {
-        Map<BakedQuad, List<BakedQuad>> map = mask ? c.masked() : c.plain();
+    private static List<BakedQuad> dress(Cache c, BakedQuad quad, boolean mask, boolean flush) {
+        Map<BakedQuad, List<BakedQuad>> map = flush ? (mask ? c.maskedFlush() : c.plainFlush()) : (mask ? c.masked() : c.plain());
         List<BakedQuad> done = map.get(quad);
         if (done == null) {
-            done = build(quad, c.sprite(), mask);
+            done = build(quad, c.sprite(), mask, flush);
             map.put(quad, done);
         }
         return done;
@@ -116,25 +146,34 @@ public final class OvergrownLayerQuads {
         TextureAtlasSprite sprite = sprite();
         Cache c = cache;
         if (c == null || c.sprite() != sprite) {
-            c = new Cache(sprite, new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
+            c = new Cache(sprite, weakQuadMap(), weakQuadMap(), weakQuadMap(), weakQuadMap());
             cache = c;
         }
         return c;
     }
 
+    /**
+     * 元の面 → 出来上がりの面の表。ワーカースレッドから同時に引かれるので並行に使える表にする。
+     * 鍵は弱参照・同一性で比べる。値(作った苔の面)は元の面を指していないので、鍵を生かし続けることは無い。
+     */
+    private static Map<BakedQuad, List<BakedQuad>> weakQuadMap() {
+        return new MapMaker().weakKeys().makeMap();
+    }
+
     // --- 面を作る ---
 
-    private static List<BakedQuad> build(BakedQuad quad, TextureAtlasSprite sprite, boolean mask) {
+    private static List<BakedQuad> build(BakedQuad quad, TextureAtlasSprite sprite, boolean mask, boolean flush) {
+        float push = flush ? 0.0F : PUSH;
         if (!mask) {
-            return List.of(whole(quad, sprite));
+            return List.of(whole(quad, sprite, push));
         }
         Patch patch = Patch.of(quad);
         if (patch == null) {
-            return List.of(whole(quad, sprite)); // UV が読めない面。そのまま覆う。
+            return List.of(whole(quad, sprite, push)); // UV が読めない面。そのまま覆う。
         }
         List<int[]> rects = silhouette(patch);
         if (rects == null) {
-            return List.of(whole(quad, sprite)); // 全部不透明。切り分ける意味が無い。
+            return List.of(whole(quad, sprite, push)); // 全部不透明。切り分ける意味が無い。
         }
         if (rects.isEmpty()) {
             return List.of();                    // 全部透明。苔を置く場所が無い。
@@ -146,8 +185,8 @@ public final class OvergrownLayerQuads {
         return List.copyOf(out);
     }
 
-    /** 元の面をまるごと 1 枚の苔の面にする(これまでの振る舞い)。 */
-    private static BakedQuad whole(BakedQuad quad, TextureAtlasSprite sprite) {
+    /** 元の面をまるごと 1 枚の苔の面にする({@code push} = 法線方向へ押し出す量。0 なら元の面と同じ頂点)。 */
+    private static BakedQuad whole(BakedQuad quad, TextureAtlasSprite sprite, float push) {
         int[] src = quad.getVertices();
         int[] out = src.clone();
         int stride = out.length / 4;
@@ -158,7 +197,7 @@ public final class OvergrownLayerQuads {
             float x = Float.intBitsToFloat(src[base]);
             float y = Float.intBitsToFloat(src[base + 1]);
             float z = Float.intBitsToFloat(src[base + 2]);
-            write(out, base, direction, sprite, x, y, z);
+            write(out, base, direction, sprite, x, y, z, push);
         }
         return new BakedQuad(out, -1, direction, sprite, quad.isShade(), quad.hasAmbientOcclusion());
     }
@@ -173,14 +212,14 @@ public final class OvergrownLayerQuads {
      *     切り分けた小さい面でも、位置から引くので隣の面と模様がつながる。</li>
      *     <li><b>色は捨てる</b>(白に戻す) —— 草ブロックの側面のような色付けの面を借りると、
      *     苔まで一緒にバイオーム色に染まってしまう。{@code tintIndex} も -1 にする。</li>
-     *     <li><b>法線方向へ押し出す</b> —— 元の面とぴったり重なると z ファイティングする。</li>
+     *     <li><b>法線方向へ {@code push} だけ押し出す</b>({@link #PUSH} の説明。0 なら位置はそのまま)。</li>
      * </ul>
      */
     private static void write(int[] out, int base, Direction direction, TextureAtlasSprite sprite,
-                              float x, float y, float z) {
-        out[base] = Float.floatToRawIntBits(x + direction.getStepX() * PUSH);
-        out[base + 1] = Float.floatToRawIntBits(y + direction.getStepY() * PUSH);
-        out[base + 2] = Float.floatToRawIntBits(z + direction.getStepZ() * PUSH);
+                              float x, float y, float z, float push) {
+        out[base] = Float.floatToRawIntBits(push == 0.0F ? x : x + direction.getStepX() * push);
+        out[base + 1] = Float.floatToRawIntBits(push == 0.0F ? y : y + direction.getStepY() * push);
+        out[base + 2] = Float.floatToRawIntBits(push == 0.0F ? z : z + direction.getStepZ() * push);
         out[base + 3] = 0xFFFFFFFF;
 
         float u;
@@ -405,7 +444,7 @@ public final class OvergrownLayerQuads {
                 write(out, i * stride, direction, sprite,
                         origin[0] + du * dPdU[0] + dv * dPdV[0],
                         origin[1] + du * dPdU[1] + dv * dPdV[1],
-                        origin[2] + du * dPdU[2] + dv * dPdV[2]);
+                        origin[2] + du * dPdU[2] + dv * dPdV[2], PUSH);
             }
             return new BakedQuad(out, -1, direction, sprite, quad.isShade(), quad.hasAmbientOcclusion());
         }

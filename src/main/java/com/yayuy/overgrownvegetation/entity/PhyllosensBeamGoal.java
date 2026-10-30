@@ -4,6 +4,7 @@ import com.yayuy.overgrownvegetation.data.MobStat;
 import com.yayuy.overgrownvegetation.data.MobStats;
 import com.yayuy.overgrownvegetation.phase.MobGroup;
 import com.yayuy.overgrownvegetation.registry.ModDamageTypes;
+import com.yayuy.overgrownvegetation.swarm.SwarmMember;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -49,6 +50,10 @@ import java.util.EnumSet;
  * <p>グループ1〜10 には当たらない({@link #canBeHit}) — 線の近くに居るだけの味方を
  * 巻き添えにしないため。取りこぼしても
  * {@link com.yayuy.overgrownvegetation.phase.MobGroupFriendlyFire} が最後に落とす。
+ *
+ * <p><b>群れの一員(v2、2026-09-25)</b>: 標的は司令塔がビームの射程の内側・視線が通るときだけ渡す。
+ * 射程の外の相手へは歩いて近づかない(後続は経路を引かない。撃てない間は群れに付いていく)。
+ * 司令塔が標的を替えた・取り上げたら、発射の前ならやめる。溜めの間に根を張るのは群れの中でも同じ(ユーザー指定)。
  */
 public class PhyllosensBeamGoal extends Goal {
 
@@ -92,7 +97,12 @@ public class PhyllosensBeamGoal extends Goal {
             return false;
         }
         LivingEntity target = this.mob.getTarget();
-        return target != null && target.isAlive() && canBeHit(target);
+        if (target == null || !target.isAlive() || !canBeHit(target)) {
+            return false;
+        }
+        // 群れの一員は射程の外の相手へ歩いて近づかない(群れ v2、2026-09-25。後続は経路を引かない)。
+        // 司令塔は射程の内側で視線が通る相手しか渡さないので、ふつうはここで落ちない(相手が離れた直後だけ)。
+        return !SwarmMember.isInSwarm(this.mob) || withinRange(target);
     }
 
     @Override
@@ -104,7 +114,21 @@ public class PhyllosensBeamGoal extends Goal {
         if (this.mob.getBeamPhase() == PhyllosensEntity.BEAM_FIRE) {
             return this.fireTicks < FIRE_TICKS;
         }
+        if (SwarmMember.isInSwarm(this.mob)) {
+            // 群れの一員: 司令塔が標的を替えた・取り上げたらやめる(撃ち終えるまで古い相手を睨み続けない)。
+            // 溜めの間に射程の外へ出られたら、歩いて追わずにやめる(後続は経路を引かない)。
+            if (this.mob.getTarget() != this.victim) {
+                return false;
+            }
+            return this.mob.getBeamPhase() != PhyllosensEntity.BEAM_CHARGE || withinRange(this.victim);
+        }
         return true;
+    }
+
+    /** ビームの射程の内側か。 */
+    private boolean withinRange(LivingEntity target) {
+        double range = MobStats.beam("phyllosens").range();
+        return this.mob.distanceToSqr(target) <= range * range;
     }
 
     @Override
@@ -156,6 +180,11 @@ public class PhyllosensBeamGoal extends Goal {
         switch (this.mob.getBeamPhase()) {
             case PhyllosensEntity.BEAM_CHARGE -> {
                 // 射程の外なら近づく。溜めの時間は射程内に入ってから数える。
+                // 群れの一員は近づかない(canContinueToUse が次の tick で止める。ここでは経路を引かない)。
+                if (this.mob.distanceTo(this.victim) > range && SwarmMember.isInSwarm(this.mob)) {
+                    this.phaseTicks = 0;
+                    return;
+                }
                 if (this.mob.distanceTo(this.victim) > range) {
                     this.mob.setBeamApproaching(true);
                     approach();

@@ -1,6 +1,7 @@
 package com.yayuy.overgrownvegetation.block;
 
 import com.mojang.serialization.MapCodec;
+import com.yayuy.overgrownvegetation.corruption.CorruptionDropSuppressor;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -34,12 +35,15 @@ public class OvergrownGrassBlock extends Block {
 
     @Override
     protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
-        if (!level.isAreaLoaded(pos, 3)) {
-            // 周囲が読み込まれていない状態でチャンク境界を跨いだ判定をしない(バニラ準拠)
-            return;
-        }
+        // 明るさを先に見る。深部変換で地下にも大量にあり、そこでは必ずここで帰るため、
+        // 安い明るさの判定を先にして isAreaLoaded(チャンクを最大 4 つ引く)を省く。
+        // どちらも読むだけで乱数も引かずに帰るので、順番を入れ替えても結果は同じ。
         if (level.getMaxLocalRawBrightness(pos.above()) < 9) {
             // 自分自身の頭上が暗すぎる場合は今回は広がらない
+            return;
+        }
+        if (!level.isAreaLoaded(pos, 3)) {
+            // 周囲が読み込まれていない状態でチャンク境界を跨いだ判定をしない(バニラ準拠)
             return;
         }
 
@@ -49,7 +53,8 @@ public class OvergrownGrassBlock extends Block {
         for (int i = 0; i < 4; i++) {
             BlockPos targetPos = pos.offset(random.nextInt(3) - 1, random.nextInt(5) - 3, random.nextInt(3) - 1);
             if (level.getBlockState(targetPos).is(dirt) && canSpreadTo(level, targetPos)) {
-                level.setBlockAndUpdate(targetPos, grassState);
+                // 上に取り残された植物がこの更新で壊れても、アイテムは落とさない(CorruptionDropSuppressor)
+                CorruptionDropSuppressor.run(() -> level.setBlockAndUpdate(targetPos, grassState));
             }
         }
     }

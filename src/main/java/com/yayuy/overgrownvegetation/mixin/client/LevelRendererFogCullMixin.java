@@ -1,8 +1,10 @@
 package com.yayuy.overgrownvegetation.mixin.client;
 
 import com.yayuy.overgrownvegetation.client.CorruptionAtmosphere;
+import com.yayuy.overgrownvegetation.client.FogCullBacklog;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
@@ -12,6 +14,7 @@ import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -39,9 +42,33 @@ public abstract class LevelRendererFogCullMixin {
     @Final
     private ObjectArrayList<SectionRenderDispatcher.RenderSection> visibleSections;
 
+    @Shadow
+    private double prevCamRotX;
+
+    /** 直近の applyFrustum で切った基準の霧の距離(負 = 切らなかった)。 */
+    @Unique
+    private float overgrownvegetation$cullFar = -1.0F;
+
+    /**
+     * 霧の距離が変わったら、視点が止まっていても切り直す(2026-10-18)。バニラは視点が動いたとき(2° ごと)しか見える区画を
+     * 作り直さないので、テレポートした後に霧が 10 秒かけて濃くなっても、止まっている間は霧の奥の区画を全部描き続けていた
+     * (巨大樹の傘の中で 2394 区画・26 FPS。動けば 431 区画・161 FPS)。向きの記録を壊して、次の setupRender で作り直させる。
+     */
+    @Inject(method = "setupRender", at = @At("HEAD"))
+    private void overgrownvegetation$recullWhenFogMoves(Camera camera, Frustum frustum, boolean hasCapturedFrustum, boolean isSpectator,
+                                                       CallbackInfo ci) {
+        float far = CorruptionAtmosphere.terrainFogCullFarPlane();
+        float last = this.overgrownvegetation$cullFar;
+        if ((far < 0.0F) != (last < 0.0F) || far >= 0.0F && Math.abs(far - last) > 8.0F) {
+            this.prevCamRotX = Double.NaN;
+        }
+    }
+
     @Inject(method = "applyFrustum", at = @At("TAIL"))
     private void overgrownvegetation$cullFoggedSections(Frustum frustum, CallbackInfo ci) {
         float far = CorruptionAtmosphere.terrainFogCullFarPlane();
+        this.overgrownvegetation$cullFar = far;
+        FogCullBacklog.clear();
         if (far < 0.0F) {
             return;
         }
@@ -67,7 +94,11 @@ public abstract class LevelRendererFogCullMixin {
             double dx = Math.max(0.0, Math.max(bb.minX - cam.x, cam.x - bb.maxX));
             double dy = Math.max(0.0, Math.max(bb.minY - cam.y, cam.y - bb.maxY));
             double dz = Math.max(0.0, Math.max(bb.minZ - cam.z, cam.z - bb.maxZ));
-            return dx * dx + dy * dy + dz * dz > limitSq;
+            if (dx * dx + dy * dy + dz * dz > limitSq) {
+                FogCullBacklog.add(section); // 描かないが、変わったら裏で組み立てておく(2026-10-20)
+                return true;
+            }
+            return false;
         });
     }
 }

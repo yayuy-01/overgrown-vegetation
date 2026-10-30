@@ -49,10 +49,18 @@ public final class DesignData {
     private static volatile ResearchTable research = ResearchTable.DEFAULT;
     private static volatile VariantTable variants = VariantTable.DEFAULT;
     private static volatile DefenseTable defense = DefenseTable.DEFAULT;
-    private static volatile NestTable nest = NestTable.DEFAULT;
     private static volatile ClimaxTable climax = ClimaxTable.DEFAULT;
-    private static volatile OrganTable organs = OrganTable.DEFAULT;
     private static volatile AdaptationTable adaptation = AdaptationTable.DEFAULT;
+    private static volatile EcosystemTable ecosystem = EcosystemTable.DEFAULT;
+    private static volatile SpreadTable spread = SpreadTable.DEFAULT;
+    private static volatile ItemTable items = ItemTable.DEFAULT;
+    private static volatile PortalTable portal = PortalTable.DEFAULT;
+    private static volatile SporeFieldTable sporeField = SporeFieldTable.DEFAULT;
+    private static volatile G1Table g1 = G1Table.DEFAULT;
+    private static volatile com.yayuy.overgrownvegetation.swarm.SwarmTable swarm =
+            com.yayuy.overgrownvegetation.swarm.SwarmTable.DEFAULT;
+    private static volatile com.yayuy.overgrownvegetation.td.TdTable td =
+            com.yayuy.overgrownvegetation.td.TdTable.DEFAULT;
 
     private static volatile boolean loaded;
 
@@ -90,24 +98,73 @@ public final class DesignData {
         return defense;
     }
 
-    /** アルボラの巣の設計値({@code nest.json}、2026-09-19)。 */
-    public static NestTable nest() {
-        return nest;
-    }
-
     /** 極相バイオームと浸食度の設計値({@code climax.json}、2026-09-22)。 */
     public static ClimaxTable climax() {
         return climax;
     }
 
-    /** 器官の設計値({@code organs.json}、2026-09-23)。 */
-    public static OrganTable organs() {
-        return organs;
-    }
-
     /** グループ5(適応種)の武器への適応({@code adaptation.json}、2026-09-23)。 */
     public static AdaptationTable adaptation() {
         return adaptation;
+    }
+
+    /** 生態系の台帳(兵站)の設計値({@code ecosystem.json}、2026-09-24)。 */
+    public static EcosystemTable ecosystem() {
+        return ecosystem;
+    }
+
+    /** 台帳の広がりの設計値({@code spread.json}、2026-09-26)。 */
+    public static SpreadTable spread() {
+        return spread;
+    }
+
+    /** クリエイティブタブの所属と並び・アイテムの性質({@code items.json}、2026-10-15)。 */
+    public static ItemTable items() {
+        return items;
+    }
+
+    /** ポータルからネザー・エンドへの侵食の設計値({@code portal.json}、2026-10-02)。 */
+    /** 胞子の場と風の設計値({@code spore_field.json}、2026-10-23)。 */
+    public static SporeFieldTable sporeField() {
+        return sporeField;
+    }
+
+    /** G1 の作り直し 第 1 段の設計値({@code g1.json}、2026-10-22)。 */
+    public static G1Table g1() {
+        return g1;
+    }
+
+    /** テスト用: G1 の設計値を差し替える(戻すのは呼んだ側)。 */
+    public static void setG1ForTests(G1Table table) {
+        g1 = table;
+    }
+
+    /** テスト用: 胞子の場の設計値を差し替える。 */
+    public static void setSporeFieldForTests(SporeFieldTable table) {
+        sporeField = table;
+    }
+
+    public static PortalTable portal() {
+        return portal;
+    }
+
+    /** G4 の群れ v2 の設計値({@code swarm.json}、2026-09-25)。 */
+    public static com.yayuy.overgrownvegetation.swarm.SwarmTable swarm() {
+        return swarm;
+    }
+
+    /** TD イベント(森の侵攻)の設計値({@code td.json}、2026-09-25)。 */
+    public static com.yayuy.overgrownvegetation.td.TdTable td() {
+        return td;
+    }
+
+    /**
+     * GameTest 専用: TD の設計値を一時的に差し替える({@code gametest/TdGameTests})。戻すのは呼んだ側
+     * ({@code /ov design reload} でもファイルの値に戻る)。取りやめ({@code abandonTicks} = 3 日)のように、テストの間に
+     * 待てない長さの値を短くするためだけに使う(2026-09-25)。
+     */
+    public static void setTdForTests(com.yayuy.overgrownvegetation.td.TdTable table) {
+        td = table;
     }
 
     /** 起動時に一度だけ({@code OvergrownVegetation} コンストラクタから)。 */
@@ -136,10 +193,18 @@ public final class DesignData {
         research = ResearchTable.fromJson(read(dir, "research.json", ResearchTable.Json.class));
         variants = VariantTable.fromJson(read(dir, "variants.json", VariantTable.Json.class));
         defense = DefenseTable.fromJson(read(dir, "defense.json", DefenseTable.Json.class));
-        nest = NestTable.fromJson(read(dir, "nest.json", NestTable.Json.class));
         climax = ClimaxTable.fromJson(read(dir, "climax.json", ClimaxTable.Json.class));
-        organs = OrganTable.fromJson(read(dir, "organs.json", OrganTable.Json.class));
         adaptation = AdaptationTable.fromJson(read(dir, "adaptation.json", AdaptationTable.Json.class));
+        ecosystem = EcosystemTable.fromJson(read(dir, "ecosystem.json", EcosystemTable.Json.class));
+        spread = SpreadTable.fromJson(read(dir, "spread.json", SpreadTable.Json.class));
+        items = ItemTable.fromJson(read(dir, "items.json", ItemTable.Json.class));
+        portal = PortalTable.fromJson(read(dir, "portal.json", PortalTable.Json.class));
+        sporeField = SporeFieldTable.fromJson(read(dir, "spore_field.json", SporeFieldTable.Json.class));
+        g1 = G1Table.fromJson(read(dir, "g1.json", G1Table.Json.class));
+        swarm =com.yayuy.overgrownvegetation.swarm.SwarmTable.fromJson(
+                read(dir, "swarm.json", com.yayuy.overgrownvegetation.swarm.SwarmTable.Json.class));
+        td = com.yayuy.overgrownvegetation.td.TdTable.fromJson(
+                read(dir, "td.json", com.yayuy.overgrownvegetation.td.TdTable.Json.class));
 
         OvergrownVegetation.LOGGER.info("設計データを読み込みました({})", dir);
     }

@@ -1,0 +1,33 @@
+{
+  "type": "minecraft:block",
+  "functions": [ { "function": "minecraft:explosion_decay" } ],
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:alternatives",
+          "children": [
+            {
+              "type": "minecraft:item",
+              "name": "overgrown_vegetation:bitter_root",
+              "conditions": [ { "condition": "minecraft:block_state_property", "block": "overgrown_vegetation:bitter_root_crop", "properties": { "age": "3" } } ]
+            },
+            { "type": "minecraft:item", "name": "overgrown_vegetation:bitter_root_seeds" }
+          ]
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "overgrown_vegetation:bitter_root_seeds",
+          "functions": [ { "function": "minecraft:apply_bonus", "enchantment": "minecraft:fortune", "formula": "minecraft:binomial_with_bonus_count", "parameters": { "extra": 2, "probability": 0.5 } } ]
+        }
+      ],
+      "conditions": [ { "condition": "minecraft:block_state_property", "block": "overgrown_vegetation:bitter_root_crop", "properties": { "age": "3" } } ]
+    }
+  ]
+}

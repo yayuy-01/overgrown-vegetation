@@ -7,49 +7,45 @@ import com.yayuy.overgrownvegetation.data.EffectTable;
 import com.yayuy.overgrownvegetation.entity.BlightFernEntity;
 import com.yayuy.overgrownvegetation.entity.OvergrownNexusEntity;
 import com.yayuy.overgrownvegetation.entity.SporophyllAura;
+import com.yayuy.overgrownvegetation.item.ProtectiveMaskItem;
 import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
-import com.yayuy.overgrownvegetation.phase.PhaseData;
 import com.yayuy.overgrownvegetation.registry.ModAttachments;
 import com.yayuy.overgrownvegetation.registry.ModBiomes;
 import com.yayuy.overgrownvegetation.registry.ModMobEffects;
+import com.yayuy.overgrownvegetation.spore.MorningMist;
 import com.yayuy.overgrownvegetation.spore.SporeConcentration;
 import com.yayuy.overgrownvegetation.spore.SporeExposure;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
 /**
- * 胞子濃度({@link SporeConcentration})・過繫茂バイオーム滞在・巨大樹の核への接近による
- * 「胞子感染」({@link ModMobEffects#SPORE_INFECTION})の付与/進行/継続の判定。
+ * 胞子濃度・過繁茂したバイオームによる「胞子感染」({@link ModMobEffects#SPORE_INFECTION})の付与と進行。
  * 数値はすべて {@code effects.json}({@link EffectTable})。
  *
- * <h2>プレイヤー</h2>
+ * <h2>プレイヤー(2026-10-14 ユーザー指定で作り直し)</h2>
  * <ul>
- *     <li><b>未感染</b>: 胞子濃度が {@code playerHighMinPercent}(51%)以上なら {@code playerHighDwellTicks}(20 秒)の
- *     連続滞在で胞子感染1 が確定。{@code playerLowMinPercent}(1%)〜51% 未満なら {@code playerLowRollIntervalTicks}
- *     (30 秒)滞在するごとに「胞子濃度 % と同じ確率」で胞子感染1。1% 未満で滞在カウントはリセット。</li>
- *     <li><b>継続</b>(残り時間が次の判定までに尽きるとき):
- *     胞子感染1 → 濃度が {@code level1.continuePercent}(51%)以上なら途切れず再付与。
- *     胞子感染2/3 → 過繫茂バイオーム内なら途切れず再付与、外なら一段下げる(2 → 1)。
- *     胞子感染3 は外でも下げない — 自然満了で死亡させる({@link SporeInfectionExpiryHandler})。</li>
- *     <li><b>過繫茂バイオーム滞在</b>: 感染状態を問わず {@code level2.overgrownBiomeDwellTicks}(5 分)で胞子感染2。
- *     胞子感染2 を持った状態でさらに {@code level3.overgrownBiomeDwellTicks}(10 分)で胞子感染3。</li>
- *     <li><b>ハイヴノード</b>: 胞子感染2 を持った状態でハイヴノードから {@code level3.giantTreeCoreRadius}(60 ブロック)以内に入ると胞子感染3。</li>
+ *     <li><b>未感染</b>: 胞子濃度 {@code infectPercent}(50%)以上の場所に {@code infectDwellTicks}(30 秒)続けているとかかる。
+ *     防護マスクをかぶっていればかからない。</li>
+ *     <li><b>感染中</b>: 判定のたびに進みを足し、{@code stageTicks}(10 分)で 1 段上がる({@link SporeInfectionEffects#advance})。
+ *     濃度 {@code speedUpPercent}(50%)以上の場所で +5%、過繁茂したバイオーム(スポロフィルの傘の下を含む)で +10% 速い。
+ *     マスクをかぶっていれば加速しない。{@code xpDrainIntervalTicks}(10 秒)ごとに経験値を吸われる。</li>
+ *     <li>前の仕組み(低濃度での確率・過繁茂バイオームに 5 分で 2・ハイヴノードの近くで 3・スポロフィルの傘で満了ごとに 1 段)は消した。</li>
  * </ul>
  *
  * <h2>Mob</h2>
- * <p>胞子濃度が {@code mobMinPercent}(50%)以上のチャンクに {@code mobDwellTicks}(30 秒)連続滞在で胞子感染1。
- * 感染中は計測しない(1 分後の死亡は効果の満了が担う)。
+ * <p>胞子の場が有効なオーバーワールドでは、空の下(繁茂・過繁茂のバイオームでは屋根の下も)にいる間だけその升の浮遊 × 秒を積み、
+ * g1.json の infection(浮遊 50% に 30 秒相当)で胞子感染1(G1 の作り直し 第 1 段、2026-10-22 ユーザー決定)。
+ * それ以外(ネザー・エンド・場が無効)は前のとおり、胞子濃度が {@code mobMinPercent}(50%)以上のチャンクに {@code mobDwellTicks}(30 秒)連続滞在で胞子感染1。
  *
  * <p>負荷対策として、各エンティティにつき {@link OvergrownVegetationConfig.Common#sporeInfectionCheckIntervalTicks}
- * (既定 20)tick に 1 回だけ判定し、その 1 回で各カウントを間隔ぶん進める/0 に戻す
- * (「合計」ではなく「連続」滞在)。{@link BlightFernEntity}・{@link ParasitizedMob}・{@link OvergrownNexusEntity} は除外。
+ * (既定 20)tick に 1 回だけ判定し、その 1 回で各カウントを間隔ぶん進める。{@link BlightFernEntity}・{@link ParasitizedMob}・
+ * {@link OvergrownNexusEntity}・攻城戦ボス・ペディキュラは除外。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class SporeInfectionTracker {
@@ -71,9 +67,11 @@ public final class SporeInfectionTracker {
         if (entity instanceof BlightFernEntity || entity instanceof ParasitizedMob
                 || entity instanceof OvergrownNexusEntity
                 || entity instanceof com.yayuy.overgrownvegetation.entity.DorgaArchelausTitanicaEntity
+                || entity instanceof com.yayuy.overgrownvegetation.entity.PediculaEntity
                 || !entity.isAlive()) {
             // ボス 2 種は自分が広げた汚染地形の上に居座るのが通常動作なので、そもそも測らない
             // (付与自体は ParasitizedSporeImmunity が全経路で弾いている。ここは無駄な濃度参照を省くだけ)。
+            // ペディキュラも同じ —— いるチャンクを自分で 100% にするので、測ると自分の胞子で感染して死ぬ。
             return;
         }
         if (entity instanceof Player player) {
@@ -87,97 +85,96 @@ public final class SporeInfectionTracker {
         }
     }
 
-    private static void tickPlayer(ServerLevel level, Player player, int interval) {
-        EffectTable fx = DesignData.effects();
-        SporeExposure exposure = player.getData(ModAttachments.SPORE_EXPOSURE);
+    /** プレイヤー 1 人ぶんの判定({@code interval} tick ぶん進める)。GameTest からも呼ぶ(偽プレイヤーは tick しないため)。 */
+    public static void tickPlayer(ServerLevel level, Player player, int interval) {
+        EffectTable.PlayerInfectionSpec spec = DesignData.effects().playerInfection();
         BlockPos pos = player.blockPosition();
         double concentration = SporeConcentration.percentAt(level, pos);
-        // スポロフィルの傘の下は過繫茂バイオームと同じ扱い(ユーザー指定 2026-09-14)。
-        // 感染が満了したとき、途切れずに 1 → 2 → 3 と上がっていくのはこの判定のため。
-        boolean inFullyOvergrown = ModBiomes.isFullyOvergrown(level.getBiome(pos))
-                || SporophyllAura.isInside(level, pos);
-        MobEffectInstance current = player.getEffect(ModMobEffects.SPORE_INFECTION);
-        int currentLevel = current == null ? -1 : current.getAmplifier();
+        boolean masked = ProtectiveMaskItem.isWearing(player);
+        if (concentration >= spec.infectPercent()) {
+            // 濾し布の呼吸覆いは濃い胞子の中でだけすり減る(かかっていてもいなくても。2026-10-15)。
+            com.yayuy.overgrownvegetation.item.BreathingClothItem.wear(level, player,
+                    player.getData(ModAttachments.SPORE_EXPOSURE), interval);
+        }
 
-        // --- A. 未感染: 胞子濃度による胞子感染1 ---
-        if (current == null) {
-            if (concentration >= fx.playerHighMinPercent()) {
-                exposure.concentrationTicks += interval;
-                if (exposure.concentrationTicks >= fx.playerHighDwellTicks()) {
-                    exposure.concentrationTicks = 0;
-                    SporeInfectionEffects.infect(player, 0);
+        if (SporeInfectionEffects.stageOf(player) == 0) {
+            // 治った・死んだ後の残り(属性と進み)を片付ける。
+            SporeInfectionEffects.syncModifiers(player);
+            if (player.hasData(ModAttachments.SPORE_STAGE_TICKS) && player.getData(ModAttachments.SPORE_STAGE_TICKS) != 0) {
+                player.setData(ModAttachments.SPORE_STAGE_TICKS, 0);
+            }
+            if (com.yayuy.overgrownvegetation.spore.SporeConcentration.useField(level)) { // 2026-10-23 F からネザー・エンドも
+                // 暴露(2026-10-23 胞子の場 第 2 段 D): 濃度 × 秒を積み、「50% に 30 秒」と同じ量で感染。
+                // マスクは暴露を maskPercent(既定 25%、10-23 ユーザー指定)に減らす。0% = かからない
+                double dwell = spec.infectDwellTicks() * com.yayuy.overgrownvegetation.item.BreathingClothItem.dwellFactor(player)
+                        * MedicineEffects.dwellFactor(player)
+                        * Mth.lerp(MorningMist.exposureAt(level, player.getX(), player.getEyeY(), player.getZ()), 1.0D, spec.mistDwellFactor());
+                double factor = masked ? DesignData.sporeField().maskFactor() : 1.0D;
+                if (accumulateDose(player, concentration, factor, interval, spec.infectPercent() * dwell / 20.0D)) {
+                    SporeInfectionEffects.startPlayer(player);
                 }
-            } else if (concentration >= fx.playerLowMinPercent()) {
-                exposure.concentrationTicks += interval;
-                if (exposure.concentrationTicks >= fx.playerLowRollIntervalTicks()) {
-                    exposure.concentrationTicks = 0;
-                    if (player.getRandom().nextDouble() * 100.0D < concentration) {
-                        SporeInfectionEffects.infect(player, 0);
-                    }
-                }
-            } else {
+                return;
+            }
+            if (masked || concentration < spec.infectPercent()) {
+                resetConcentration(player);
+                return;
+            }
+            SporeExposure exposure = player.getData(ModAttachments.SPORE_EXPOSURE);
+            exposure.concentrationTicks += interval;
+            // 濾し布の呼吸覆いを付けていれば 30 秒 → 60 秒(2026-10-15 ユーザー指定)。
+            // 朝霧の中は胞子が濃く、早くかかる(2026-10-16 ユーザー指定。濃い朝の霧の底で mistDwellFactor 倍)。
+            double mist = MorningMist.exposureAt(level, player.getX(), player.getEyeY(), player.getZ());
+            // 胞子除けの粉薬を飲んでいればさらに延びる(2026-10-16、MedicineEffects)。
+            double dwell = spec.infectDwellTicks() * com.yayuy.overgrownvegetation.item.BreathingClothItem.dwellFactor(player)
+                    * MedicineEffects.dwellFactor(player)
+                    * Mth.lerp(mist, 1.0D, spec.mistDwellFactor());
+            if (exposure.concentrationTicks >= dwell) {
                 exposure.concentrationTicks = 0;
+                SporeInfectionEffects.startPlayer(player);
             }
-        } else {
-            exposure.concentrationTicks = 0;
-            // --- B. 継続 / 段階の引き下げ(残り時間が次の判定までに尽きるとき) ---
-            if (current.getDuration() <= interval) {
-                if (currentLevel < 2 && SporophyllAura.isInside(level, pos)) {
-                    // スポロフィルの傘の下だけは<b>満了のたびに 1 段階上がる</b>
-                    // (ユーザー指定 2026-09-14:「胞子感染1 が切れると 2 に、2 が切れると 3 に」)。
-                    // 過繫茂バイオームは満了しても同じ段階を張り直すだけなので、ここが一番きつい場所になる。
-                    SporeInfectionEffects.infect(player, currentLevel + 1);
-                } else if (currentLevel == 0) {
-                    if (concentration >= fx.level(0).continuePercent()) {
-                        SporeInfectionEffects.infect(player, 0);
-                    }
-                } else if (currentLevel == 1) {
-                    if (inFullyOvergrown) {
-                        SporeInfectionEffects.infect(player, 1);
-                    } else {
-                        SporeInfectionEffects.downgrade(player, 0);
-                    }
-                } else if (inFullyOvergrown && !fx.level(currentLevel).killPlayerOnExpiry()) {
-                    // 胞子感染3 は満了で死亡する設定が既定なので、通常ここには来ない。
-                    SporeInfectionEffects.infect(player, currentLevel);
-                }
+            return;
+        }
+
+        SporeExposure exposure = player.getData(ModAttachments.SPORE_EXPOSURE);
+        exposure.concentrationTicks = 0;
+
+        // --- 経験値を吸う(10 秒に 1 回) ---
+        exposure.xpDrainTicks += interval;
+        if (exposure.xpDrainTicks >= spec.xpDrainIntervalTicks()) {
+            exposure.xpDrainTicks -= spec.xpDrainIntervalTicks();
+            if (spec.xpDrainPoints() > 0 && (player.totalExperience > 0 || player.experienceLevel > 0
+                    || player.experienceProgress > 0.0F)) {
+                player.giveExperiencePoints(-spec.xpDrainPoints());
             }
         }
 
-        // --- C. 過繫茂バイオーム滞在による進行 ---
-        if (inFullyOvergrown) {
-            exposure.overgrownBiomeTicks += interval;
-            int toLevel2 = fx.level(1).overgrownBiomeDwellTicks();
-            if (toLevel2 > 0 && currentLevel < 1 && exposure.overgrownBiomeTicks >= toLevel2) {
-                exposure.overgrownBiomeTicks = 0;
-                if (SporeInfectionEffects.infect(player, 1)) {
-                    currentLevel = 1;
-                }
+        // --- 進行(場所による加速。マスクをかぶっていれば加速しない) ---
+        double rate = 1.0D;
+        if (!masked) {
+            if (concentration >= spec.speedUpPercent()) {
+                rate += spec.concentrationSpeedBonus();
             }
-            if (currentLevel == 1) {
-                exposure.level2BiomeTicks += interval;
-                int toLevel3 = fx.level(2).overgrownBiomeDwellTicks();
-                if (toLevel3 > 0 && exposure.level2BiomeTicks >= toLevel3) {
-                    exposure.level2BiomeTicks = 0;
-                    if (SporeInfectionEffects.infect(player, 2)) {
-                        currentLevel = 2;
-                    }
-                }
-            } else {
-                exposure.level2BiomeTicks = 0;
+            if (ModBiomes.isFullyOvergrown(level.getBiome(pos)) || SporophyllAura.isInside(level, pos)) {
+                rate += spec.overgrownBiomeSpeedBonus();
             }
-        } else {
-            exposure.overgrownBiomeTicks = 0;
-            exposure.level2BiomeTicks = 0;
+            // 朝霧の中(2026-10-16 ユーザー指定)。霧の深さと濃さに比例。
+            rate += spec.mistSpeedBonus() * MorningMist.exposureAt(level, player.getX(), player.getEyeY(), player.getZ());
         }
-
-        // --- D. 巨大樹の核への接近(胞子感染2 → 3) ---
-        if (currentLevel == 1) {
-            double radius = fx.level(2).giantTreeCoreRadius();
-            if (radius > 0.0D && level.dimension() == Level.OVERWORLD
-                    && PhaseData.get(level).hasHiveNodeWithin(pos, radius)) {
-                SporeInfectionEffects.infect(player, 2);
-            }
+        // ハイヴノードの周り(2026-10-23 E4、ユーザー決定「5 分の 1」。読み方を確認中なので倍率は設計データ
+        // spore_field.json giantTree.infectionSpeedMul、既定 5.0 = 5 倍速)。マスクで防げる(10-23 追記 16【決定】):
+        // 上乗せ分(倍率 − 1)にマスクの暴露の割合(exposure.maskPercent、既定 25%)を掛ける = マスクありなら 1 + 4 × 0.25 = 2 倍
+        com.yayuy.overgrownvegetation.data.SporeFieldTable gt = com.yayuy.overgrownvegetation.data.DesignData.sporeField();
+        if (gt.hiveNodeInfectionRadius() > 0.0D
+                && com.yayuy.overgrownvegetation.phase.PhaseData.get(level).hasHiveNodeWithin(pos, gt.hiveNodeInfectionRadius())) {
+            double extra = gt.hiveNodeInfectionSpeedMul() - 1.0D;
+            rate *= 1.0D + (masked ? extra * gt.maskFactor() : extra);
+        }
+        double exact = interval * rate + exposure.rateCarry;
+        int ticks = (int) Math.floor(exact);
+        exposure.rateCarry = exact - ticks;
+        SporeInfectionEffects.advance(player, ticks);
+        if (player.isAlive()) {
+            SporeInfectionEffects.syncModifiers(player);
         }
     }
 
@@ -186,13 +183,24 @@ public final class SporeInfectionTracker {
      * {@code getData} は付いていなければその場で作って貼り付けるので、頭で呼ぶと
      * <b>世界中の全エンティティ</b>が —— 胞子とは一生無縁な個体まで —— カウンタを 1 つずつ抱える。
      */
-    private static void tickMob(ServerLevel level, LivingEntity mob, int interval) {
+    public static void tickMob(ServerLevel level, LivingEntity mob, int interval) {
         if (mob.hasEffect(ModMobEffects.SPORE_INFECTION)) {
             // 感染中は計測不要(1 分後の死亡は効果の満了が担う)。
             resetConcentration(mob);
             return;
         }
         EffectTable fx = DesignData.effects();
+        if (com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.enabled() && (level.dimension() == net.minecraft.world.level.Level.OVERWORLD
+                || level.dimension() == net.minecraft.world.level.Level.NETHER)) { // 2026-10-23 F からネザーも
+            // G1 の作り直し 第 1 段(2026-10-22 ユーザー決定): 空の下にいる間だけ、その升の浮遊 × 秒を積み、
+            // 浮遊 50% に 30 秒相当(g1.json infection)で感染。屋根の下では積まない(半減期で減っていく)。
+            // ただしそこが繁茂・過繁茂のバイオームなら、周り中から胞子が出るので屋根の下でも積む。噛まれて感染する経路は別(今までどおり)。
+            com.yayuy.overgrownvegetation.data.G1Table g = DesignData.g1();
+            if (accumulateDose(mob, mobAirPercent(level, mob), 1.0D, interval, g.infectPercent * g.infectSeconds)) {
+                SporeInfectionEffects.infect(mob, 0);
+            }
+            return;
+        }
         double concentration = SporeConcentration.percentAt(level, mob.blockPosition());
         if (concentration < fx.mobMinPercent()) {
             resetConcentration(mob);
@@ -204,6 +212,85 @@ public final class SporeInfectionTracker {
             exposure.concentrationTicks = 0;
             SporeInfectionEffects.infect(mob, 0);
         }
+    }
+
+    /**
+     * Mob が浴びている浮遊胞子(%)。その升の浮遊({@code SporeFieldServer#airAt})を g1.json の airFullAt(0 なら reading.fullAt)で割る。
+     * 空の下でなく(目の高さが「葉以外の動きを止めるブロック」の天辺より下 = 屋根の下。木の葉は屋根にしない、仮決め)、
+     * かつ繁茂・過繁茂のバイオームでもなければ 0。写しが無い所(プレイヤーから遠い)も 0。
+     */
+    public static double mobAirPercent(ServerLevel level, LivingEntity mob) {
+        com.yayuy.overgrownvegetation.data.G1Table g = DesignData.g1();
+        BlockPos pos = mob.blockPosition();
+        if (g.underSkyOnly && !underSky(level, mob) && !ModBiomes.isOvergrownLike(level.getBiome(pos))) {
+            return 0.0D;
+        }
+        double air = com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.airAt(level, pos.getX() >> 4, pos.getZ() >> 4);
+        if (Double.isNaN(air)) {
+            return 0.0D;
+        }
+        double full = g.airFullAt > 0.0D ? g.airFullAt : DesignData.sporeField().fullAt();
+        // 地割れの周りの下支え(2026-10-24 追記 19。感染の上限は設けない)
+        return air / full * 100.0D + com.yayuy.overgrownvegetation.spore.SporeConcentration.riftFloorPercent(level, pos);
+    }
+
+    /**
+     * 空の下か(目の高さより上に、葉を除いた動きを止めるブロック・水が無い)。高さの地図で引き、地図の天辺が目より上なら
+     * 間を数える(48 ブロックより深ければ屋根の下)—— 高さの地図はバリア(テスト場の天井など)も屋根に数えるので、バリアは飛ばす。
+     */
+    public static boolean underSky(ServerLevel level, LivingEntity mob) {
+        int x = mob.getBlockX(), z = mob.getBlockZ();
+        int top = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        int eye = Mth.floor(mob.getEyeY());
+        if (eye >= top) {
+            return true;
+        }
+        if (top - eye > 48) {
+            return false;
+        }
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int y = eye; y < top; y++) {
+            net.minecraft.world.level.block.state.BlockState s = level.getBlockState(p.set(x, y, z));
+            if (s.is(net.minecraft.world.level.block.Blocks.BARRIER) || s.is(net.minecraft.tags.BlockTags.LEAVES)) {
+                continue;
+            }
+            if (s.blocksMotion() || !s.getFluidState().isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 暴露を積む(2026-10-23 胞子の場 第 2 段 D)。濃度が exposure.minPercent 以上なら 濃度 × 倍率 × 秒 を足し、
+     * それ未満なら半減期で減らす。{@code threshold}(%秒)に届いたら 0 に戻して true。
+     * まだカウンタを持っていない個体には、積むときまで作らない。
+     */
+    private static boolean accumulateDose(LivingEntity entity, double concentration, double factor, int interval, double threshold) {
+        com.yayuy.overgrownvegetation.data.SporeFieldTable t = DesignData.sporeField();
+        double seconds = interval / 20.0D;
+        if (concentration >= t.exposureMinPercent() && factor > 0.0D) {
+            SporeExposure exposure = entity.getData(ModAttachments.SPORE_EXPOSURE);
+            exposure.dose += concentration * factor * seconds;
+            if (exposure.dose >= threshold) {
+                exposure.dose = 0.0D;
+                return true;
+            }
+            return false;
+        }
+        if (entity.hasData(ModAttachments.SPORE_EXPOSURE)) {
+            SporeExposure exposure = entity.getData(ModAttachments.SPORE_EXPOSURE);
+            if (exposure.dose > 0.0D) {
+                exposure.dose *= Math.pow(0.5D, seconds / t.exposureHalfLifeSeconds());
+                if (exposure.dose < 1.0D) exposure.dose = 0.0D;
+            }
+        }
+        return false;
+    }
+
+    /** テスト用: 暴露を 1 回積む(届いたら true)。 */
+    public static boolean accumulateDoseForTests(LivingEntity entity, double concentration, double factor, int interval, double threshold) {
+        return accumulateDose(entity, concentration, factor, interval, threshold);
     }
 
     /** 濃度の連続滞在カウントを 0 に戻す。まだカウンタを持っていない個体には作らない。 */

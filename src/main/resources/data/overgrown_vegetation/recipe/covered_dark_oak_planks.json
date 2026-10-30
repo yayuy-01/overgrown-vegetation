@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "tag": "overgrown_vegetation:covered_dark_oak_logs"
+    }
+  ],
+  "result": {
+    "id": "overgrown_vegetation:covered_dark_oak_planks",
+    "count": 4
+  }
+}

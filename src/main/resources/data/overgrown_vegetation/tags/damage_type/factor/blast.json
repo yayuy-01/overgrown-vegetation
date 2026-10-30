@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:is_explosion",
+    "overgrown_vegetation:velophyll_bomb",
+    "overgrown_vegetation:siege_bomb",
+    "overgrown_vegetation:spore_bomb_shot"
+  ]
+}

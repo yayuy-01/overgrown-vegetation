@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "BCB",
+    "ABA"
+  ],
+  "key": {
+    "A": {
+      "item": "minecraft:iron_ingot"
+    },
+    "B": {
+      "item": "overgrown_vegetation:overgrown_exoskeleton"
+    },
+    "C": {
+      "item": "minecraft:target"
+    }
+  },
+  "result": {
+    "id": "overgrown_vegetation:target_block",
+    "count": 1
+  }
+}

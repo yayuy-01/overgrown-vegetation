@@ -6,6 +6,7 @@ import com.yayuy.overgrownvegetation.registry.ModBlockEntities;
 import com.yayuy.overgrownvegetation.registry.ModItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -32,6 +33,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -45,6 +47,7 @@ import org.jetbrains.annotations.Nullable;
  * <ul>
  *   <li><b>機関砲弾を持って右クリック</b> — そのまま弾倉へ押し込む。</li>
  *   <li><b>右クリック</b> — 弾倉(3×3 = 9 スタック)を開く。覆われているときは、まず胞子を拭う。</li>
+ *   <li><b>スニーク + 右クリック</b> — 射撃モードを切り替える(両用 → 防空 → 対地)。</li>
  *   <li><b>レッドストーン信号</b> — 来ているあいだは撃たない(安全装置)。</li>
  * </ul>
  * 撃つ中身は {@link GunTurretBlockEntity}、目標選びは
@@ -78,11 +81,18 @@ public class GunTurretBlock extends BaseEntityBlock {
      */
     private static final VoxelShape SHAPE = Shapes.block();
 
+    /**
+     * 射撃モード(ユーザー要望 2026-09-26)。<b>スニーク + 右クリック</b>で切り替える。
+     * 何を狙うかだけが変わる({@link GunTurretMode}、{@code defense/GunTurretTargeting#wants})。
+     */
+    public static final EnumProperty<GunTurretMode> MODE = EnumProperty.create("mode", GunTurretMode.class);
+
     public GunTurretBlock(Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any()
                 .setValue(FACING, Direction.NORTH)
-                .setValue(OVERGROWN, false));
+                .setValue(OVERGROWN, false)
+                .setValue(MODE, GunTurretMode.DUAL));
     }
 
     @Override
@@ -92,7 +102,7 @@ public class GunTurretBlock extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, OVERGROWN);
+        builder.add(FACING, OVERGROWN, MODE);
     }
 
     /** 銃口はプレイヤーの向いている方(= プレイヤーから離れる向き)。 */
@@ -208,6 +218,15 @@ public class GunTurretBlock extends BaseEntityBlock {
         }
         if (level.isClientSide) {
             return InteractionResult.SUCCESS;
+        }
+        // スニーク + 右クリックは射撃モードの切り替え(覆われていても先に受ける —— 拭う前に決めておける)。
+        if (player.isSecondaryUseActive()) {
+            GunTurretMode next = state.getValue(MODE).next();
+            level.setBlock(pos, state.setValue(MODE, next), Block.UPDATE_ALL);
+            player.displayClientMessage(
+                    Component.translatable("gui.overgrown_vegetation.gun_turret.mode_set", next.label()), true);
+            level.playSound(null, pos, SoundEvents.DISPENSER_FAIL, SoundSource.BLOCKS, 0.8F, 1.6F);
+            return InteractionResult.CONSUME;
         }
         if (state.getValue(OVERGROWN)) {
             setOvergrown(level, pos, state, false);

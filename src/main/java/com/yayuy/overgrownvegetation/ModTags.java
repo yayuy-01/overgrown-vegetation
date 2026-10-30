@@ -21,6 +21,16 @@ public final class ModTags {
                     OvergrownVegetation.id("siege_boss_attack"));
 
     /**
+     * 防具を貫通する攻撃(順 1 の着手順 6、2026-10-03)。パワードアーマーの<b>強靭</b>のツリーが減らす対象
+     * ({@link com.yayuy.overgrownvegetation.item.PoweredArmorEffects})。中身は {@code #minecraft:bypasses_armor} に
+     * この MOD が入れている攻撃と同じ 6 種(ファルキムネスの噛みつき・処刑、アクムネスの棘、ヴォラムネスの消化、
+     * 胞子感染、水の腐敗)。<b>防具を貫通する攻撃を新しく足したら、ここにも入れる。</b>
+     */
+    public static final TagKey<DamageType> ARMOR_PIERCING =
+            TagKey.create(net.minecraft.core.registries.Registries.DAMAGE_TYPE,
+                    OvergrownVegetation.id("armor_piercing"));
+
+    /**
      * 既定(道具・武器・防具)のほかに「装備の胞子汚染」
      * ({@link com.yayuy.overgrownvegetation.spore.GearContamination})を受けるアイテム。
      * データパックで追加できるよう空のタグを切ってある。
@@ -35,16 +45,38 @@ public final class ModTags {
             net.minecraft.tags.ItemTags.create(OvergrownVegetation.id("spore_contamination_immune"));
 
     /**
+     * G5 の「適応の記録」7 種(順 1 の着手順 11)と、パワードアーマーのスキルツリーの本ごとの支払いに使える記録
+     * (ユーザー指定 2026-10-04: 防御 ← 盾・喰らい / 強靭 ← 狙い・掴み / 耐久 ← 水・闇・掘削)。
+     * 支払いは {@code gear.json} の {@code poweredArmor.levels[].branches} から {@code #overgrown_vegetation:adaptation_records/<本>} で引く。
+     */
+    public static final TagKey<net.minecraft.world.item.Item> ADAPTATION_RECORDS =
+            net.minecraft.tags.ItemTags.create(OvergrownVegetation.id("adaptation_records"));
+    public static final TagKey<net.minecraft.world.item.Item> ADAPTATION_RECORDS_DEFENSE =
+            net.minecraft.tags.ItemTags.create(OvergrownVegetation.id("adaptation_records/defense"));
+    public static final TagKey<net.minecraft.world.item.Item> ADAPTATION_RECORDS_TOUGHNESS =
+            net.minecraft.tags.ItemTags.create(OvergrownVegetation.id("adaptation_records/toughness"));
+    public static final TagKey<net.minecraft.world.item.Item> ADAPTATION_RECORDS_DURABILITY =
+            net.minecraft.tags.ItemTags.create(OvergrownVegetation.id("adaptation_records/durability"));
+
+    /**
      * <b>汚染特効</b>の武器。このタグのアイテムで殴ると、グループ1〜10 の Mob に入るダメージが
      * {@code overgrowthBaneMultiplier}(既定 1.5)倍になる
      * ({@link com.yayuy.overgrownvegetation.phase.OvergrowthBaneDamage})。
      *
-     * <p>既定の中身はクロロフィライトとクロロフィライト合金の剣・斧
+     * <p>既定の中身はクロロフィライトとクロロフィライト合金の剣・斧と、ツヴァイヘンダー 3 本(2026-10-09)
      * ({@code data/overgrown_vegetation/tags/item/overgrowth_bane.json})。
      * 対象を足したい/外したいときは Java ではなくこの json を触る。
      */
     public static final TagKey<net.minecraft.world.item.Item> OVERGROWTH_BANE =
             net.minecraft.tags.ItemTags.create(OvergrownVegetation.id("overgrowth_bane"));
+
+    /**
+     * <b>両手持ち</b>の武器(2026-10-10、ユーザー指定「左手のアイテムを使えないようにする」)。利き手に持っている間、
+     * もう片方の手の物は使えない({@link com.yayuy.overgrownvegetation.item.TwoHandedRules})。今はツヴァイヘンダー 3 本
+     * ({@code data/overgrown_vegetation/tags/item/two_handed.json})。両手持ちの武器を足したらここへ。
+     */
+    public static final TagKey<net.minecraft.world.item.Item> TWO_HANDED =
+            net.minecraft.tags.ItemTags.create(OvergrownVegetation.id("two_handed"));
 
     /**
      * 武器を持っている間、当たり判定の無いブロックを透かして奥の Mob を狙う処理
@@ -121,7 +153,25 @@ public final class ModTags {
      */
     public static final TagKey<Block> LEY_VEIN_REPLACEABLE =
             BlockTags.create(OvergrownVegetation.id("ley_vein_replaceable"));
+
+    /**
+     * 極相の地下の鉱石(フロエマイト・チラコイト)の<b>y 0 以上の版</b>が置き換えてよい石
+     * ({@code corruption/ClimaxOrePlacer}、2026-10-03)。苔石系が主。他の鉱石は入れない(潰すと資源が消える)。
+     */
+    public static final TagKey<Block> CLIMAX_ORE_REPLACEABLE =
+            BlockTags.create(OvergrownVegetation.id("climax_ore_replaceable"));
+
+    /** {@link #CLIMAX_ORE_REPLACEABLE} の<b>深層岩版</b>が置き換えてよい石(苔深層岩)。 */
+    public static final TagKey<Block> CLIMAX_DEEPSLATE_ORE_REPLACEABLE =
+            BlockTags.create(OvergrownVegetation.id("climax_deepslate_ore_replaceable"));
+
     public static final TagKey<Block> CORRUPTION_IMMUNE = BlockTags.create(OvergrownVegetation.id("corruption_immune"));
+
+    /**
+     * 道のブロック(アスファルト・ハーフ・階段)。プレイヤーが置いたものを道の台帳がマスとして数える
+     * ({@code base/road/BaseRoads}、順 2 の着手順 7、2026-10-08)。
+     */
+    public static final TagKey<Block> ROAD_BLOCKS = BlockTags.create(OvergrownVegetation.id("road_blocks"));
 
     /**
      * ヴェロフィルの胞子爆弾が<b>撃ち抜いて砕く</b>薄い天蓋ブロック(既定: 葉ブロック各種)。
@@ -135,26 +185,6 @@ public final class ModTags {
      * @see com.yayuy.overgrownvegetation.entity.VelophyllBombEntity
      */
     public static final TagKey<Block> BOMB_SHATTERS = BlockTags.create(OvergrownVegetation.id("bomb_shatters"));
-
-    /**
-     * アルボラの巣が<b>掘ってよい</b>ブロック(2026-09-19)。自然の地形とこの MOD の汚染地形だけを入れる。
-     * ここに無いブロック(丸石・板材・チェスト・ベッドロックなど)に当たると掘削点はそのマスを飛ばすので、
-     * <b>誰が置いたかを記録しなくてもプレイヤーの建築物が守られる</b>。
-     */
-    public static final TagKey<Block> NEST_DIGGABLE = BlockTags.create(OvergrownVegetation.id("nest_diggable"));
-
-    /**
-     * 巣の<b>壁として残す</b>ブロック(2026-09-19)。鉱石を入れてあるので、坑道は掘り抜きつつ
-     * 壁には鉱脈の断面が残る。潜る動機のひとつ。
-     */
-    public static final TagKey<Block> NEST_LINING_KEEP = BlockTags.create(OvergrownVegetation.id("nest_lining_keep"));
-
-    /**
-     * 巣を掘るときに<b>一緒に消す飾り</b>(2026-09-19)。草・蔦・葉・苔の絨毯など、地形ではないので
-     * {@link #NEST_DIGGABLE} には入らないが、残すと支えを失って<b>空中に浮いたまま取り残される</b> ——
-     * 繫茂した洞窟を掘り抜いたときに実際に発生した。鉱石や建材は入れないこと。
-     */
-    public static final TagKey<Block> NEST_CLEARABLE = BlockTags.create(OvergrownVegetation.id("nest_clearable"));
 
     /**
      * 葉ブロックなど「上に乗る/横から生やす」のが不自然な薄い天蓋ブロック。
@@ -181,6 +211,14 @@ public final class ModTags {
      * ブロックの中にいる相手を新規ターゲットにしない/追跡中でも即座に見失う判定に使う。
      */
     public static final TagKey<Block> CONCEALING = BlockTags.create(OvergrownVegetation.id("conceals_entities"));
+
+    /**
+     * 歩いて抜けると光る胞子を吹く下草(2026-10-16 ユーザー指定「シダの茂みを歩いて抜けると胞子がばら撒かれる」)。
+     * 既定はシダ 3 種(ゼンマイ・大きなシダ・丸まったシダ)と胞子キノコ・胞子の穂の葦(Claude の仮決め)。茂み
+     * ({@link #CONCEALING})は隠れる場所なので入れない。見た目は {@code client/FernSporePuffs}、走ると Mob に気付かれやすいのは
+     * {@link com.yayuy.overgrownvegetation.effect.FernRustle}。
+     */
+    public static final TagKey<Block> SPORE_PUFF_PLANTS = BlockTags.create(OvergrownVegetation.id("spore_puff_plants"));
 
     /**
      * 「ファランギオターブス」({@link com.yayuy.overgrownvegetation.entity.PhalangiotarbusEntity})が
@@ -231,8 +269,8 @@ public final class ModTags {
      *     2026-09-17 にここへ入れた)。</li>
      *     <li>{@link #GROUP_5}: 適応種 — 未実装(枠のみ)。</li>
      *     <li>{@link #GROUP_6}: 進化種 — 未実装(枠のみ)。</li>
-     *     <li>{@link #GROUP_7}: 変異種 — 未実装(枠のみ)。</li>
- *     <li>{@link #GROUP_8}: 脅威種 — 未実装(枠のみ)。</li>
+     *     <li>{@link #GROUP_7}: 脅威種 — 未実装(枠のみ)。</li>
+ *     <li>{@link #GROUP_8}: 守護種 — 未実装(枠のみ)。</li>
  *     <li>{@link #GROUP_9}: 侵略級 — 未実装(枠のみ。ハイヴノードの出現条件にする予定)。</li>
  *     <li>{@link #GROUP_10}: 災害級 — {@code dorga_archelaus_titanica}(攻城戦ボス。
  *     2026-09-19 にグループ7 から移動)。</li>
@@ -257,7 +295,7 @@ public final class ModTags {
      * Mob(リゾドゥス・ゼナカンサス・オルタカンサス・メガラクネ)が自動で除外される。
      * このタグが受け持つのは:
      * <ul>
-     *     <li><b>マーカーを持たない水生種</b> —— {@code blight_water_grass} は {@code BlightFernEntity}
+     *     <li><b>マーカーを持たない水生種</b> —— (削除した汚染水草 blight_water_grass は {@code BlightFernEntity}
      *     派生なのでマーカーを持たない。</li>
      *     <li><b>攻城戦ボス</b> {@code dorga_archelaus_titanica}(ユーザー指定 2026-09-16)。
      *     水生ではないが、自分で広げた地形の上に居座るのが通常動作で、しかも水ぐされのダメージは
@@ -283,6 +321,33 @@ public final class ModTags {
      * 結局そのまま川へ入ってしまう。
      */
     public static final TagKey<EntityType<?>> RANGED_ATTACKER = entityTag("ranged_attacker");
+
+    /**
+     * 難易度ピースフルでも<b>消さない・湧かせてよい</b>グループの種(2026-09-26)。グループ 1〜10 の種のうち、ここに無いものは
+     * ピースフルで敵として消える({@link com.yayuy.overgrownvegetation.difficulty.Peaceful})。
+     * 既定は<b>環境生物</b>(グループ 2 の原生生産種・グループ 3 の原生消費種。どちらもプレイヤーを襲わない)と
+     * 汚染シダ・汚染水草(動かない植物)
+     * ({@code data/overgrown_vegetation/tags/entity_type/peaceful_allowed.json})。
+     * グループ 3 は 2026-10-03 に足した(プレイヤーを襲わなくなったので)。
+     */
+    public static final TagKey<EntityType<?>> PEACEFUL_ALLOWED = entityTag("peaceful_allowed");
+
+    /**
+     * 同盟軍の基地の壁の中でも湧きを止めない種(順 2 の着手順 3、2026-10-04、{@code base/build/BaseRefuge})。汚染シダ・汚染水草
+     * (侵食で生える植物。除去装置の守りで別に止まる)・レイドの苗床(湧きを取り消すと「レイドが始まった」だけが残る。置き場所は先に基地を避ける)・
+     * ティタニカ(攻城戦のボス。取り消すと毎 tick 作り直す)
+     * ({@code data/overgrown_vegetation/tags/entity_type/refuge_exempt.json})。
+     */
+    public static final TagKey<EntityType<?>> REFUGE_EXEMPT = entityTag("refuge_exempt");
+
+    /**
+     * ネザー専用の種(2026-10-09、ネザーの媒介種 9 種)。ネザーにだけ湧き、ネザーの外には湧かない。
+     * 逆に、ここに無い G1(オーバーワールド産の媒介種)はネザーに湧かない(10-02 ユーザー指定)。
+     * 判定は {@link com.yayuy.overgrownvegetation.phase.OvergrownSpawnProfile#allowedIn} と
+     * {@link com.yayuy.overgrownvegetation.phase.OutsideInvaderSpawner}
+     * ({@code data/overgrown_vegetation/tags/entity_type/nether_native.json})。
+     */
+    public static final TagKey<EntityType<?>> NETHER_NATIVE = entityTag("nether_native");
 
     private static TagKey<EntityType<?>> entityTag(String path) {
         return TagKey.create(net.minecraft.core.registries.Registries.ENTITY_TYPE, OvergrownVegetation.id(path));

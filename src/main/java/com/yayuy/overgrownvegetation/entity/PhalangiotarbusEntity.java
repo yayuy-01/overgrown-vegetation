@@ -9,6 +9,7 @@ import com.yayuy.overgrownvegetation.registry.ModBiomes;
 import com.yayuy.overgrownvegetation.registry.ModSounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.SectionPos;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -29,7 +30,9 @@ import net.minecraft.world.entity.ai.navigation.WallClimberNavigation;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.pathfinder.PathFinder;
 import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.phys.Vec3;
@@ -39,6 +42,10 @@ import software.bernie.geckolib.animation.AnimatableManager;
 import software.bernie.geckolib.animation.AnimationController;
 import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 /**
  * 「ファランギオターブス」— 8 本脚の大型寄生節足動物。背中の樹皮模様を活かして
@@ -79,7 +86,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * {@code animations/phalangiotarbus.animation.json} / {@code textures/entity/phalangiotarbus.png}
  * の上書きだけで見た目を差し替えられる(Java 変更不要)。
  */
-public class PhalangiotarbusEntity extends Monster implements GeoEntity, ParasitizedMob, PredatorMob {
+public class PhalangiotarbusEntity extends Monster implements GeoEntity, CritterAction.Holder, ParasitizedMob, PredatorMob {
 
     /** 通常(idle / walk / run を移動状態で切替)。 */
     public static final int STATE_NONE = 0;
@@ -198,10 +205,25 @@ public class PhalangiotarbusEntity extends Monster implements GeoEntity, Parasit
     // {@link com.yayuy.overgrownvegetation.entity.MobSizeVariance} へ移行し、
     // mobs.json の scaleMin / scaleMax(既定 0.6 / 1.0)で調整できる。
 
+    /** 今している行動(食べる・休む・驚いて逃げ出す など)。アニメの再生の口だけ(行動の Goal は後の段)。2026-10-22。 */
+    private static final EntityDataAccessor<Byte> DATA_CRITTER_ACTION =
+            SynchedEntityData.defineId(PhalangiotarbusEntity.class, EntityDataSerializers.BYTE);
+
+    @Override
+    public CritterAction getCritterAction() {
+        return CritterAction.byId(this.entityData.get(DATA_CRITTER_ACTION));
+    }
+
+    @Override
+    public void setCritterAction(CritterAction action) {
+        this.entityData.set(DATA_CRITTER_ACTION, (byte) action.ordinal());
+    }
+
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(DATA_ACTION_STATE, STATE_NONE);
+        builder.define(DATA_CRITTER_ACTION, (byte) 0);
         builder.define(DATA_CLIMBING, false);
         builder.define(DATA_CLIMB_FACING, (byte) Direction.NORTH.get3DDataValue());
         builder.define(DATA_ON_CEILING, false);
@@ -273,7 +295,53 @@ public class PhalangiotarbusEntity extends Monster implements GeoEntity, Parasit
         if (!ModBiomes.isOvergrownLike(this.level().getBiome(this.blockPosition()))) {
             return false;
         }
-        return findPerchLog() != null;
+        return hasPerchLog();
+    }
+
+    /**
+     * {@link #findPerchLog()} が {@code null} 以外を返すか(= 範囲に原木が 1 つでもあるか)。
+     * 擬態の判定には場所が要らないので、<b>最初の 1 つが見つかった時点でブロックを読むのを打ち切る</b>(2026-09-24、重さ対策)。
+     * 走査の範囲・順番・判定は findPerchLog と同じ(見つかるまでの読みは 1 マスずつ {@link Level#getBlockState} で)。
+     *
+     * <p>findPerchLog は見つけた後も残りのマスを読み続け、その読みがチャンクを引く
+     * ({@link Level#getChunk}: 未ロードなら同期ロード、チャンクソースのキャッシュ更新と一時チケット)。
+     * それを変えないよう、見つけた後はブロックは読まずに<b>チャンクを引く呼び出しだけ</b>を同じ順番で続ける。
+     * 同じチャンクが続く分は 1 回にまとめる(続けて引いても 2 回目以降は何も起きないので)。
+     */
+    private boolean hasPerchLog() {
+        int r = PhalangiotarbusAmbushGoal.PERCH_SEARCH_RADIUS;
+        BlockPos origin = this.blockPosition();
+        Level level = this.level();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        boolean found = false;
+        // 直前にチャンクを引いた(= 高さ範囲内のマスを読んだ)列のチャンク座標。
+        boolean touched = false;
+        int lastCx = 0;
+        int lastCz = 0;
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
+                int x = origin.getX() + dx;
+                int z = origin.getZ() + dz;
+                int cx = SectionPos.blockToSectionCoord(x);
+                int cz = SectionPos.blockToSectionCoord(z);
+                for (int dy = -2; dy <= r; dy++) {
+                    int y = origin.getY() + dy;
+                    // 高さ範囲外のマスは Level#getBlockState がチャンクを引かずに VOID_AIR を返す。
+                    boolean inHeight = !level.isOutsideBuildHeight(y);
+                    if (!found) {
+                        found = level.getBlockState(cursor.set(x, y, z)).is(ModTags.PHALANGIOTARBUS_PERCH);
+                    } else if (inHeight && (!touched || cx != lastCx || cz != lastCz)) {
+                        level.getChunk(cx, cz);
+                    }
+                    if (inHeight) {
+                        touched = true;
+                        lastCx = cx;
+                        lastCz = cz;
+                    }
+                }
+            }
+        }
+        return found;
     }
 
     /**
@@ -281,27 +349,83 @@ public class PhalangiotarbusEntity extends Monster implements GeoEntity, Parasit
      * {@link ModTags#PHALANGIOTARBUS_PERCH} ブロック(原木類)。無ければ {@code null}。
      */
     BlockPos findPerchLog() {
+        // 2026-09-24 軽量化(報告 1725)。元は 13×13×9 を dx → dz → dy の順に全部読み、距離の 2 乗が<b>真に</b>小さいときだけ
+        // 入れ替えていた = 答えは「いちばん近く、同じ距離なら走査順で先」の原木。マスを PERCH_SCAN(距離 → 走査順)の順に読めば
+        // 最初に当たったものがその答えなので、そこで打ち切る。
+        // チャンクを引く呼び出し(未ロードなら同期ロード、チャンクソースのキャッシュ更新と一時チケット)は、hasPerchLog と同じく
+        // 元の走査順のまま先に済ませる(同じチャンクが続く分は 1 回にまとめる —— 続けて引いても 2 回目以降は何も起きない)。
         int r = PhalangiotarbusAmbushGoal.PERCH_SEARCH_RADIUS;
         BlockPos origin = this.blockPosition();
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        BlockPos best = null;
-        double bestSq = Double.MAX_VALUE;
+        Level level = this.level();
+        int minCx = SectionPos.blockToSectionCoord(origin.getX() - r);
+        int minCz = SectionPos.blockToSectionCoord(origin.getZ() - r);
+        int spanZ = SectionPos.blockToSectionCoord(origin.getZ() + r) - minCz + 1;
+        int spanX = SectionPos.blockToSectionCoord(origin.getX() + r) - minCx + 1;
+        LevelChunk[] chunks = new LevelChunk[spanX * spanZ];
+        boolean touched = false;
+        int lastCx = 0;
+        int lastCz = 0;
         for (int dx = -r; dx <= r; dx++) {
             for (int dz = -r; dz <= r; dz++) {
+                int cx = SectionPos.blockToSectionCoord(origin.getX() + dx);
+                int cz = SectionPos.blockToSectionCoord(origin.getZ() + dz);
                 for (int dy = -2; dy <= r; dy++) {
-                    cursor.set(origin.getX() + dx, origin.getY() + dy, origin.getZ() + dz);
-                    if (!this.level().getBlockState(cursor).is(ModTags.PHALANGIOTARBUS_PERCH)) {
+                    // 高さ範囲外のマスは Level#getBlockState がチャンクを引かずに VOID_AIR を返す。
+                    if (level.isOutsideBuildHeight(origin.getY() + dy)) {
                         continue;
                     }
-                    double distSq = cursor.distSqr(origin);
-                    if (distSq < bestSq) {
-                        bestSq = distSq;
-                        best = cursor.immutable();
+                    if (!touched || cx != lastCx || cz != lastCz) {
+                        chunks[(cx - minCx) * spanZ + (cz - minCz)] = level.getChunk(cx, cz);
+                        touched = true;
+                        lastCx = cx;
+                        lastCz = cz;
                     }
                 }
             }
         }
-        return best;
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int i = 0; i < PERCH_SCAN.length; i += 3) {
+            int x = origin.getX() + PERCH_SCAN[i];
+            int y = origin.getY() + PERCH_SCAN[i + 1];
+            int z = origin.getZ() + PERCH_SCAN[i + 2];
+            // Level#getBlockState と同じ読み方(高さ範囲外は VOID_AIR、それ以外はそのマスのチャンクから)。
+            BlockState state = level.isOutsideBuildHeight(y)
+                    ? Blocks.VOID_AIR.defaultBlockState()
+                    : chunks[(SectionPos.blockToSectionCoord(x) - minCx) * spanZ
+                            + (SectionPos.blockToSectionCoord(z) - minCz)].getBlockState(cursor.set(x, y, z));
+            if (state.is(ModTags.PHALANGIOTARBUS_PERCH)) {
+                return new BlockPos(x, y, z);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * {@link #findPerchLog} が読むマスのずらし(dx, dy, dz の 3 つ組)を、<b>距離の 2 乗の小さい順、同じなら元の走査順
+     * (dx 昇順 → dz 昇順 → dy 昇順)</b>に並べた表(2026-09-24 軽量化、報告 1725)。クラスを読み込むときに 1 回だけ作る。
+     */
+    private static final int[] PERCH_SCAN = buildPerchScan();
+
+    private static int[] buildPerchScan() {
+        int r = PhalangiotarbusAmbushGoal.PERCH_SEARCH_RADIUS;
+        List<int[]> cells = new ArrayList<>();
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
+                for (int dy = -2; dy <= r; dy++) {
+                    // {dx, dy, dz, 距離の 2 乗, 元の走査順の番号}
+                    cells.add(new int[] {dx, dy, dz, dx * dx + dy * dy + dz * dz, cells.size()});
+                }
+            }
+        }
+        cells.sort(Comparator.<int[]>comparingInt(c -> c[3]).thenComparingInt(c -> c[4]));
+        int[] scan = new int[cells.size() * 3];
+        for (int i = 0; i < cells.size(); i++) {
+            int[] c = cells.get(i);
+            scan[i * 3] = c[0];
+            scan[i * 3 + 1] = c[1];
+            scan[i * 3 + 2] = c[2];
+        }
+        return scan;
     }
 
     /**
@@ -352,12 +476,18 @@ public class PhalangiotarbusEntity extends Monster implements GeoEntity, Parasit
     @Override
     public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
         super.addAdditionalSaveData(tag);
+        if (getCritterAction() != CritterAction.NONE) {
+            tag.putString(CritterAction.NBT, getCritterAction().name().toLowerCase(java.util.Locale.ROOT));
+        }
         tag.putInt("PreyKills", this.preyKillCount);
     }
 
     @Override
     public void readAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        if (tag.contains(CritterAction.NBT)) {
+            setCritterAction(CritterAction.byName(tag.getString(CritterAction.NBT)));
+        }
         this.preyKillCount = tag.getInt("PreyKills");
         PredatorMob.applyPreyKillBonus(this, this.preyKillCount);
     }
@@ -684,6 +814,12 @@ public class PhalangiotarbusEntity extends Monster implements GeoEntity, Parasit
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(this, "action", TRANSITION_TICKS, state -> {
+            // 今している行動(食べる・休む・驚いて逃げ出す など)があればそのアニメ(CritterAction、2026-10-22)
+            RawAnimation critterAct = CritterAction.animation(this);
+            if (critterAct != null) {
+                state.getController().setAnimationSpeed(1.0D);
+                return state.setAndContinue(critterAct);
+            }
             state.getController().setAnimationSpeed(1.0D);
             switch (getActionState()) {
                 case STATE_LATCH:

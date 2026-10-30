@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "overgrown_vegetation:megarachne_pincer"
+    },
+    {
+      "item": "overgrown_vegetation:megarachne_pincer"
+    },
+    {
+      "item": "overgrown_vegetation:sunlight_alloy"
+    },
+    {
+      "item": "overgrown_vegetation:phloemite"
+    },
+    {
+      "item": "overgrown_vegetation:phloemite"
+    }
+  ],
+  "result": {
+    "id": "overgrown_vegetation:anchor_extension",
+    "count": 1
+  }
+}

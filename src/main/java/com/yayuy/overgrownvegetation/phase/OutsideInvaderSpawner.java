@@ -64,7 +64,10 @@ public final class OutsideInvaderSpawner {
             return;
         }
         int interval = Math.max(1, OvergrownVegetationConfig.COMMON.overgrownSpawnIntervalTicks.get());
-        if (level.getGameTime() % interval != 0L) {
+        // 同じ間隔の OvergrownBiomeSpawner と同じ tick に重ならないよう、位相をずらす(2026-09-24 軽量化、報告 1516。
+        // 湧かせる頻度と 1 回の数は同じで、走る tick が周期の中でずれるだけ)。
+        if (!com.yayuy.overgrownvegetation.util.TickPhases.isDue(level.getGameTime(),
+                com.yayuy.overgrownvegetation.util.TickPhases.OUTSIDE_INVADER_SPAWN, interval)) {
             return;
         }
         int phase = PhaseData.get(level).getPhase();
@@ -78,16 +81,26 @@ public final class OutsideInvaderSpawner {
         // 頭数の枠を分けて数えるので、ここでプールを 2 つに割る。
         List<EntityType<?>> outside = new ArrayList<>();
         List<EntityType<?>> carriers = new ArrayList<>();
+        // ネザーにはネザーの媒介種だけ、ネザーの外にはオーバーワールド産の媒介種だけ(10-02・10-09 ユーザー指定、
+        // OvergrownSpawnProfile#netherRuleAllows。前は「ネザーでは媒介種の枠を回さない」だった)。
+        boolean nether = com.yayuy.overgrownvegetation.corruption.NetherSurface.applies(level);
         for (EntityType<?> type : MobStats.outsideSpawnPool(phase)) {
+            if (!OvergrownSpawnProfile.netherRuleAllows(nether, type)) {
+                continue;
+            }
             MobGroup group = MobGroup.of(type);
             (group == MobGroup.GROUP_1 ? carriers : outside).add(type);
         }
-        runPool(level, phases.outsideSpawns(phase), outside);
-        runPool(level, phases.carrierSpawns(phase), carriers);
+        runPool(level, phases.outsideSpawns(phase), outside, false);
+        runPool(level, phases.carrierSpawns(phase), carriers, true);
     }
 
+    /**
+     * @param countToGround 頭数を数える箱の縦を、足元から湧かせる地面まで伸ばすか
+     *                      ({@link OvergrownBiomeSpawner#countBox}。媒介種だけ、2026-09-24 ユーザー承認)
+     */
     private static void runPool(ServerLevel level, PhaseTable.OutsideSpawnSettings settings,
-                                List<EntityType<?>> pool) {
+                                List<EntityType<?>> pool, boolean countToGround) {
         if (!settings.enabled() || pool.isEmpty()) {
             return;
         }
@@ -106,12 +119,24 @@ public final class OutsideInvaderSpawner {
             }
             // プレイヤー周辺に既に居る対象種を数える(湧かせる範囲と同じ広さ)。
             // 確率判定を先に通しているので、この検索が走るのは既定で 8 回に 1 回ほど。
-            AABB area = new AABB(player.blockPosition()).inflate(maxDistance);
+            // 媒介種は縦を足元から湧かせる地面まで伸ばす —— 家畜ベースの媒介種は消えないので、
+            // 地下や高所に居る間に地表へ置いたぶんを数え漏らすと、湧かせるたびに増え続ける。
+            BlockPos feet = player.blockPosition();
+            EntityType<?> type = pool.get(random.nextInt(pool.size()));
+            if (com.yayuy.overgrownvegetation.td.TdHostiles.blocksSpawn(level, type, feet)) {
+                // TD の侵攻の間は G4 以降でない種(媒介種)を湧かせない(td/TdHostiles)。数える前に外す(2026-09-25)。
+                continue;
+            }
+            if (com.yayuy.overgrownvegetation.difficulty.Peaceful.blocksSpawn(level, type)) {
+                continue; // ピースフルでは敵の種を湧かせない(difficulty/Peaceful。2026-09-26)
+            }
+            AABB area = countToGround
+                    ? OvergrownBiomeSpawner.countBox(feet, OvergrownBiomeSpawner.countGroundY(level, feet), maxDistance)
+                    : new AABB(feet).inflate(maxDistance);
             int nearby = level.getEntitiesOfClass(Mob.class, area, m -> pool.contains(m.getType())).size();
             if (nearby >= maxNearby) {
                 continue;
             }
-            EntityType<?> type = pool.get(random.nextInt(pool.size()));
             trySpawnOutside(level, player, type, minDistance, maxDistance, random);
         }
     }
@@ -156,8 +181,8 @@ public final class OutsideInvaderSpawner {
             int distance = minDistance + random.nextInt(maxDistance - minDistance + 1);
             int x = player.getBlockX() + (int) Math.round(Math.cos(angle) * distance);
             int z = player.getBlockZ() + (int) Math.round(Math.sin(angle) * distance);
-            if (!level.hasChunkAt(new BlockPos(x, level.getSeaLevel(), z))) {
-                continue; // 未ロードのチャンクには湧かせない(地形の読み込みを誘発しない)
+            if (!com.yayuy.overgrownvegetation.util.LoadedChunks.loaded(level, x >> 4, z >> 4)) {
+                continue; // 未ロードのチャンクには湧かせない(地形の読み込みを誘発しない)。読み込み途中のチャンクを読んで止まらないよう、hasChunk ではなく読み込み済みかで見る(2026-10-10、0.1.9 の前)
             }
 
             BlockPos spawnPos = TreeCanopyGroundFinder.findSpawnSurface(level, x, z);

@@ -31,10 +31,13 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * 差し替え時はこのクラスの変更は不要（アニメーション名を変える場合は下の
  * {@code IDLE_ANIM}/{@code WALK_ANIM} だけ合わせる）。
  */
-public class ParasitizedSheep extends Sheep implements ParasitizedMob, GeoEntity {
+public class ParasitizedSheep extends Sheep implements ParasitizedMob, GeoEntity, com.yayuy.overgrownvegetation.corpse.RisingMob {
 
     private static final RawAnimation IDLE_ANIM = RawAnimation.begin().thenLoop("idle");
     private static final RawAnimation WALK_ANIM = RawAnimation.begin().thenLoop("walk");
+    /** 死体から起き上がる残り tick(2026-10-09、corpse.RisingMob)。 */
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Integer> RISING =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(ParasitizedSheep.class, net.minecraft.network.syncher.EntityDataSerializers.INT);
 
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
@@ -46,12 +49,62 @@ public class ParasitizedSheep extends Sheep implements ParasitizedMob, GeoEntity
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "move", 5,
-                state -> state.setAndContinue(MobAnimation.isWalking(state) ? WALK_ANIM : IDLE_ANIM)));
+        controllers.add(com.yayuy.overgrownvegetation.corpse.RisingSupport.moveController(this, IDLE_ANIM, WALK_ANIM));
     }
 
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {
         return this.geoCache;
+    }
+
+    /**
+     * 毛を刈られていなくても自分のドロップ表({@code loot_table/entities/parasitized_sheep.json})を使う(順 1 の着手順 11)。
+     * バニラの羊は、刈られていないと毛の色ごとのバニラの表(羊毛 + 羊肉)に切り替えるので、汚染された羊毛・肉が落ちなかった。
+     * 刈ったときに落ちる羊毛はバニラのまま({@code shear} は触らない)。
+     */
+    @Override
+    public net.minecraft.resources.ResourceKey<net.minecraft.world.level.storage.loot.LootTable> getDefaultLootTable() {
+        return this.getType().getDefaultLootTable();
+    }
+
+    // ------------------------------------------------------------------ 死体から起き上がる(2026-10-09)
+    @Override
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(RISING, 0);
+    }
+
+    @Override
+    public void startRising(int ticks) {
+        this.entityData.set(RISING, ticks);
+    }
+
+    @Override
+    public boolean isRising() {
+        return this.entityData.get(RISING) > 0;
+    }
+
+    /** 起き上がりの間は AI を止める。 */
+    @Override
+    public boolean isNoAi() {
+        return super.isNoAi() || isRising();
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        com.yayuy.overgrownvegetation.corpse.RisingSupport.tick(this, RISING);
+    }
+
+    @Override
+    public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putInt("Rising", com.yayuy.overgrownvegetation.corpse.RisingSupport.remaining(this, RISING)); // 正確な残り(RISING は段階だけ、2026-10-10)
+    }
+
+    @Override
+    public void readAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        this.entityData.set(RISING, tag.getInt("Rising"));
     }
 }

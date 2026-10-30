@@ -11,8 +11,10 @@ import net.minecraft.world.phys.Vec3;
  *
  * <p>乱射は 1 発ずつ向きが違うので、{@link SiegeBossStatePayload} の段階(溜め→照射)には乗せられない。
  * かわりに撃つたびにこの 1 通を送り、クライアントは数 tick だけ光線を描いて消す
- * ({@link com.yayuy.overgrownvegetation.client.ClientSiegeBarrage})。1 発あたり 1 パケットだが、
- * 中身は 50 バイト足らずで、撃つのは既定で 3 tick に 1 発なので負荷にはならない。
+ * ({@link com.yayuy.overgrownvegetation.client.ClientSiegeBarrage})。1 発あたり 1 パケットで、
+ * 中身は 60 バイトほど。撃つのは既定で毎 tick 1 発({@code siegeBarrageShotIntervalTicks} = 1、
+ * {@code siegeBarrageShotsPerStep} = 1)なので、乱射の間だけ 1 人あたり毎秒 1〜2 KB ほど —— 負荷にはならない
+ * (2026-09-24 の監査で確認。以前ここは「3 tick に 1 発」と書いていたが、既定値が変わっていた)。
  *
  * <p>撃った瞬間の触手の先端の<b>ワールド座標</b>をそのまま送る。ボスは 0.08 ブロック/tick でしか
  * 動かないので、描いている数 tick のあいだに根元がずれて見えることはない。

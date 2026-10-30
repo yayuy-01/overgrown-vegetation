@@ -30,6 +30,16 @@ import net.minecraft.world.phys.Vec3;
  *
  * <p>壁にぶつかったら向きを大きく変えて離れる(ファントムと同じ。経路探索をしていないので、
  * これが唯一の障害物対策)。
+ *
+ * <h2>群れの速さの指示(空の群れ、2026-09-25)</h2>
+ * 空の群れ({@code swarm/}、ヴェロフィルだけの群れ)で隊形を保つための口が {@link #setFormationSpeed}。
+ * この機体は<b>行き先までの距離では速さを変えない</b>(直進なら巡航まで上げるだけ)ので、先頭の横に並ぶ点を行き先にしても
+ * 追い越すか置いて行かれるかのどちらかで、隊形にならない(レビュー指摘: 最低速度 0.6・旋回 3 度/tick で旋回半径は
+ * 巡航でおよそ 25 ブロック、近い点を指すと輪を描いて回るだけ)。そこで後続は行き先を先頭の<b>ずっと先</b>に置いて並んで飛び
+ * ({@link SwarmAirFollowGoal})、前後のずれはこの指示で<b>速さ</b>として直す。先頭は同じ口で自分の速さを巡航より少し落とし、
+ * 遅れた後続が追いつけるようにする({@link VelophyllWanderGoal})。
+ * 指示は {@code [MIN_SPEED, 巡航]} に丸め、期限({@code ttlTicks})が切れたら今までどおり巡航まで上げる
+ * (指示を出した Goal が止まっても残り続けないように)。旋回中の失速はそのまま(物理は変えない)。
  */
 public class VelophyllFlightMoveControl extends MoveControl {
 
@@ -69,9 +79,39 @@ public class VelophyllFlightMoveControl extends MoveControl {
     /** 離脱の向き(コンパス角、度)。ぶつかった瞬間に決めて、離脱の間は変えない。 */
     private float avoidHeading;
 
+    /** 群れの速さの指示(直進中に目指す速さ)。NaN なら指示なし = 巡航まで上げる。 */
+    private double formationSpeed = Double.NaN;
+    /** 指示が切れる {@code tickCount}。 */
+    private int formationUntil;
+
     public VelophyllFlightMoveControl(VelophyllEntity mob) {
         super(mob);
         this.velophyll = mob;
+    }
+
+    /**
+     * 直進中に目指す速さを指示する(空の群れの隊形用。上の「群れの速さの指示」参照)。
+     * {@code [MIN_SPEED, velophyllCruiseSpeed]} に丸めて使い、{@code ttlTicks} tick 後に切れる。
+     * 単位はこのクラスの速さ({@link #currentSpeed} と同じ。実際の移動量はおよそその 0.55〜0.7 倍)。
+     */
+    public void setFormationSpeed(double speed, int ttlTicks) {
+        this.formationSpeed = speed;
+        this.formationUntil = this.velophyll.tickCount + Math.max(1, ttlTicks);
+    }
+
+    /** 速さの指示を取り消す(巡航まで上げる元の飛び方に戻る)。 */
+    public void clearFormationSpeed() {
+        this.formationSpeed = Double.NaN;
+    }
+
+    /** いまの速さ(指示・旋回の失速を反映した値。後続が先頭の速さを知るのに使う)。 */
+    public float currentSpeed() {
+        return this.speed;
+    }
+
+    /** 失速したときの下限速度(= 速さの指示の下限)。 */
+    public static float minSpeed() {
+        return MIN_SPEED;
     }
 
     /**
@@ -136,7 +176,16 @@ public class VelophyllFlightMoveControl extends MoveControl {
         this.velophyll.yBodyRot = this.velophyll.getYRot();
 
         if (Mth.degreesDifferenceAbs(previousYRot, this.velophyll.getYRot()) < turnRate * STRAIGHT_FRACTION) {
-            this.speed = Mth.approach(this.speed, cruiseSpeed, ACCELERATION);
+            // 群れの速さの指示があれば、巡航ではなくその速さへ寄せる(下げるときは失速と同じ速さで落とす)。
+            float wanted = cruiseSpeed;
+            if (!Double.isNaN(this.formationSpeed)) {
+                if (this.velophyll.tickCount < this.formationUntil) {
+                    wanted = (float) Math.min(Math.max(this.formationSpeed, MIN_SPEED), cruiseSpeed);
+                } else {
+                    this.formationSpeed = Double.NaN;
+                }
+            }
+            this.speed = Mth.approach(this.speed, wanted, this.speed < wanted ? ACCELERATION : STALL);
         } else {
             this.speed = Mth.approach(this.speed, MIN_SPEED, STALL);
         }

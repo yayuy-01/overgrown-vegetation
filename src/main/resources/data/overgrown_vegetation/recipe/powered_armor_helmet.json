@@ -1,0 +1,31 @@
+{
+  "type": "overgrown_vegetation:powered_armor_table",
+  "label": "gui.overgrown_vegetation.powered_armor_table.part.helmet",
+  "sort": 0,
+  "ingredients": [
+    {
+      "ingredient": {
+        "item": "overgrown_vegetation:reinforced_chlorophyllite_alloy_helmet"
+      },
+      "count": 1
+    },
+    {
+      "ingredient": {
+        "item": "overgrown_vegetation:sunlight_alloy"
+      },
+      "count": 3
+    }
+  ],
+  "rebuild_extra": [
+    {
+      "ingredient": {
+        "item": "overgrown_vegetation:sunlight_alloy"
+      },
+      "count": 2
+    }
+  ],
+  "result": {
+    "id": "overgrown_vegetation:powered_armor_helmet",
+    "count": 1
+  }
+}

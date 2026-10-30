@@ -103,9 +103,17 @@ public final class OvergrownLayerField {
         if (chance <= 0.0D) {
             return false;
         }
+        return roll(pos) < chance;
+    }
+
+    /**
+     * そのマスの抽選の値([0, 1)、座標だけで決まる)。{@link #covered(BlockPos, double)} は {@code roll < chance}。
+     * 3 つ以上に分けるとき(木材の「過繁茂した木材・覆われた版・過繁茂ブロック」、2026-10-05 夜)に同じ値をしきい値で切る。
+     */
+    public static double roll(BlockPos pos) {
         long h = hash(pos.getX(), pos.getY(), pos.getZ());
         // 上位 53 ビットを [0, 1) の実数にする(Random#nextDouble と同じ作り)。
-        return (h >>> 11) * 0x1.0p-53 < chance;
+        return (h >>> 11) * 0x1.0p-53;
     }
 
     private static long hash(int x, int y, int z) {

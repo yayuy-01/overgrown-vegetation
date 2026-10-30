@@ -11,7 +11,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationController;
 import software.bernie.geckolib.animation.RawAnimation;
 
 /**
@@ -45,18 +44,31 @@ public class HylonomusEntity extends AbstractOvergrownPredatorEntity {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "main", 3, state -> {
+        // 歩き・走りの再生速度は実際に進んだ量に合わせる(2026-10-10、モデル作り直し)。短い脚の走りは 0.108 ブロック/tick までしか
+        // 足が滑らずに回せず、散歩 0.16・追跡 0.19 ではそのままだと足が前へ滑る。跳びかかりは速さ 1 のまま(着地に合わせてある)。
+        controllers.add(new PhaseKeepingAnimationController<>(this, "main", 3, state -> {
+            // 今している行動(食べる・休む・驚いて逃げ出す など)があればそのアニメ(CritterAction、2026-10-22)
+            RawAnimation critterAct = CritterAction.animation(this);
+            if (critterAct != null) {
+                state.getController().setAnimationSpeed(1.0D);
+                return state.setAndContinue(critterAct);
+            }
             state.getController().setAnimationSpeed(1.0D);
             if (getActionState() == STATE_SPECIAL) {
                 return state.setAndContinue(POUNCE_ANIM);
             }
             if (MobAnimation.isWalking(state)) {
-                return state.setAndContinue(
-                        MobAnimation.isFasterThan(state, 0.14D) ? RUN_ANIM : WALK_ANIM);
+                boolean run = MobAnimation.isFasterThan(state, 0.14D);
+                state.getController().setAnimationSpeed(MobAnimation.walkSpeedFor(this, run ? RUN_ANIM_REF : WALK_ANIM_REF));
+                return state.setAndContinue(run ? RUN_ANIM : WALK_ANIM);
             }
             return state.setAndContinue(IDLE_ANIM);
         }));
     }
+
+    /** walk・run のアニメで足が滑らない速さ(体格 1、ブロック/tick。生成器 HylonomusAnims、2026-10-10)。 */
+    private static final double WALK_ANIM_REF = 0.061D;
+    private static final double RUN_ANIM_REF = 0.108D;
 
     @Override
     protected SoundEvent getAmbientSound() {

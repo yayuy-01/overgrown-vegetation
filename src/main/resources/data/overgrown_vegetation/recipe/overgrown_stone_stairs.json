@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "A  ",
+    "AA ",
+    "AAA"
+  ],
+  "key": {
+    "A": {
+      "item": "overgrown_vegetation:overgrown_block"
+    }
+  },
+  "result": {
+    "id": "overgrown_vegetation:overgrown_stone_stairs",
+    "count": 4
+  }
+}

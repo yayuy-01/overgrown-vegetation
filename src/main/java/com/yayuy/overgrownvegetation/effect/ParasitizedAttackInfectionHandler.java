@@ -1,8 +1,6 @@
 package com.yayuy.overgrownvegetation.effect;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.data.DesignData;
-import com.yayuy.overgrownvegetation.data.EffectTable;
 import com.yayuy.overgrownvegetation.phase.MobGroup;
 import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
 import com.yayuy.overgrownvegetation.registry.ModMobEffects;
@@ -19,9 +17,8 @@ import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
  * ダメージ源がその Mob であれば攻撃手段(近接・クリーパーの爆発など)を問わない。
  *
  * <ul>
- *     <li><b>プレイヤー</b>: 胞子感染 N を持っていれば、{@code effects.json} の {@code level(N+1).upgradeChanceOnAttack}
- *     (既定 5%)の確率で一段悪化(1 → 2、2 → 3)。未感染のプレイヤーは攻撃では感染しない
- *     (胞子濃度による滞在感染のみ)。</li>
+ *     <li><b>プレイヤー</b>(2026-10-14 ユーザー指定): 未感染なら 30% でかかり、感染中なら 5% の確率で進行が 10 秒進む
+ *     ({@link SporeInfectionEffects#plantAttack})。防護マスクをかぶっていればどちらも起きない。</li>
  *     <li><b>Mob(非プレイヤー)</b>: 未感染なら「過繁茂した(MOB名)」({@link ParasitizedMob})に攻撃されたときだけ
  *     胞子感染1 を付与(グループ1 が汚染地形の外で他の Mob を襲い、死体/汚染シダに変える経路)。
  *     Mob は胞子感染1 で 1 分後に死亡するので、それ以上の段階へは進めない。</li>
@@ -49,17 +46,7 @@ public final class ParasitizedAttackInfectionHandler {
 
         MobEffectInstance current = victim.getEffect(ModMobEffects.SPORE_INFECTION);
         if (victim instanceof Player) {
-            if (current == null) {
-                return;
-            }
-            int next = current.getAmplifier() + 1;
-            if (next > EffectTable.MAX_LEVEL_INDEX) {
-                return;
-            }
-            double chance = DesignData.effects().level(next).upgradeChanceOnAttack();
-            if (chance > 0.0D && victim.getRandom().nextDouble() < chance) {
-                SporeInfectionEffects.infect(victim, next);
-            }
+            SporeInfectionEffects.plantAttack(victim, 0);
             return;
         }
 

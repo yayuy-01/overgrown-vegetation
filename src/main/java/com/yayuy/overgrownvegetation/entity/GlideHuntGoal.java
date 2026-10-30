@@ -2,12 +2,18 @@ package com.yayuy.overgrownvegetation.entity;
 
 import com.yayuy.overgrownvegetation.ModTags;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 
@@ -33,6 +39,10 @@ public class GlideHuntGoal extends Goal {
 
     /** 幹を探す半径。 */
     private static final int TRUNK_SEARCH = 12;
+    /** 幹を探す上下の幅(足元 ±この値)。 */
+    private static final int TRUNK_VERTICAL = 3;
+    /** 登る意味のある幹か:見つけた幹のこの高さ上も幹であること。 */
+    private static final int TRUNK_MIN_HEIGHT = 8;
     /** 1 本の幹を登れる高さの上限。 */
     private static final int MAX_CLIMB = 42;
     /** 登る速さ(ブロック/tick)。 */
@@ -49,6 +59,11 @@ public class GlideHuntGoal extends Goal {
     private static final int REST_TICKS = 100;
     /** 幹が見つからなかったときに探し直すまでの間。 */
     private static final int RETRY_TICKS = 200;
+    /**
+     * {@link #canUse} で高さも幹も無かったとき、同じマスに居る間は測り直さない時間(tick)。
+     * 仮決め 2026-09-24(軽量化、報告 288)。足元のブロックが変われば待たずに探す。
+     */
+    private static final int NO_TRUNK_RECHECK_TICKS = 20;
     /** 周りの地面よりこれだけ高ければ、幹を登らずその場から飛び出す。 */
     private static final int MIN_LAUNCH_HEIGHT = 12;
     /** 周りの高さを測る輪の半径と点の数。 */
@@ -75,6 +90,15 @@ public class GlideHuntGoal extends Goal {
     /** 飛び出したときの高さ。ここから降りて初めて着地を数える。 */
     private double glideStartY;
     private int grace;
+    /** 行けない幹の足元で、同じマス同士の経路探索をやり直さない(2026-09-24)。 */
+    private final PathRetryMemo pathMemo = new PathRetryMemo();
+    /**
+     * {@link #canUse} が最後に「その場から飛び出す高さも、登れる幹も無い」と出したか、そのときの足元({@link BlockPos#asLong})と
+     * ゲーム時刻(2026-09-24 軽量化、報告 288。見つかるまで 2 tick ごとに幹を探し直していた)。
+     */
+    private boolean noTrunkHeld;
+    private long noTrunkFrom;
+    private long noTrunkAt;
 
     public GlideHuntGoal(CoelurosauravusEntity glider) {
         this.glider = glider;
@@ -94,13 +118,26 @@ public class GlideHuntGoal extends Goal {
         if (this.glider.getTarget() != null && this.glider.distanceToSqr(this.glider.getTarget()) < 36.0D) {
             return false;
         }
+        // 同じマスで「高さも幹も無い」と出たばかりなら、測り直さない(2026-09-24 軽量化、報告 288)。
+        // どちらの答えも足元のブロックと周りの地形だけで決まる(高さの比べは整数どうしなので、同じマスの中で動いても変わらない)。
+        // 違いが出るのは、その間に近くへ木が生えた・置かれたときだけで、それも NO_TRUNK_RECHECK_TICKS 以内に拾う。
+        long now = this.glider.level().getGameTime();
+        long here = this.glider.blockPosition().asLong();
+        if (this.noTrunkHeld && here == this.noTrunkFrom && now - this.noTrunkAt < NO_TRUNK_RECHECK_TICKS) {
+            this.trunk = null;
+            return false;
+        }
         // <b>すでに高いなら登らない</b>(ユーザー指定 2026-09-21)。
         // 葉の天蓋の上に降りたときなど、幹が見つからず立ち往生していた。
         if (highEnoughToLaunch()) {
             this.trunk = null;
+            this.noTrunkHeld = false;
             return true;
         }
         this.trunk = findTrunk();
+        this.noTrunkHeld = this.trunk == null;
+        this.noTrunkFrom = here;
+        this.noTrunkAt = now;
         return this.trunk != null;
     }
 
@@ -194,8 +231,9 @@ public class GlideHuntGoal extends Goal {
             return;
         }
         if (this.glider.getNavigation().isDone()) {
-            boolean ok = this.glider.getNavigation().moveTo(this.trunk.getX() + 0.5D,
-                    this.trunk.getY(), this.trunk.getZ() + 0.5D, 1.0D);
+            // moveTo(幹の中心, 1.0) と同じ(目標のマスは幹そのもの)。途中までしか行けない幹の足元で同じ探索を
+            // 繰り返すだけのときは探索を省き、同じ探索で返るはずの false を受け取る(諦め方は元のまま)。
+            boolean ok = this.pathMemo.moveTo(this.glider, this.trunk, 1, 1.0D);
             if (!ok) {
                 this.trunk = null;   // 行けない幹は諦める
             }
@@ -345,18 +383,25 @@ public class GlideHuntGoal extends Goal {
     /** 近くでいちばん近い幹。登れる高さがあるものだけ。 */
     private BlockPos findTrunk() {
         BlockPos origin = this.glider.blockPosition();
+        Level level = this.glider.level();
+        // 読む高さ(足元 ±3 と、その 8 上)がすべて高さ範囲の中なら、同じ結果を速く出す版へ。
+        // ワールドの上下の端と、デバッグワールド(getBlockState がセクションの中身を見ない)は下の元の走査のまま。
+        if (!level.isDebug() && !level.isOutsideBuildHeight(origin.getY() - TRUNK_VERTICAL)
+                && !level.isOutsideBuildHeight(origin.getY() + TRUNK_VERTICAL + TRUNK_MIN_HEIGHT)) {
+            return findTrunkBySection(level, origin);
+        }
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         BlockPos best = null;
         double bestSq = Double.MAX_VALUE;
         for (int dx = -TRUNK_SEARCH; dx <= TRUNK_SEARCH; dx++) {
             for (int dz = -TRUNK_SEARCH; dz <= TRUNK_SEARCH; dz++) {
-                for (int dy = -3; dy <= 3; dy++) {
+                for (int dy = -TRUNK_VERTICAL; dy <= TRUNK_VERTICAL; dy++) {
                     cursor.set(origin.getX() + dx, origin.getY() + dy, origin.getZ() + dz);
                     if (!this.glider.level().getBlockState(cursor).is(ModTags.CLIMBABLE_TRUNK)) {
                         continue;
                     }
                     // 登る意味がない低い幹は捨てる(滑空の高さが稼げない)。
-                    if (!this.glider.level().getBlockState(cursor.above(8)).is(ModTags.CLIMBABLE_TRUNK)) {
+                    if (!this.glider.level().getBlockState(cursor.above(TRUNK_MIN_HEIGHT)).is(ModTags.CLIMBABLE_TRUNK)) {
                         continue;
                     }
                     double sq = this.glider.distanceToSqr(cursor.getX() + 0.5D, cursor.getY(),
@@ -369,5 +414,84 @@ public class GlideHuntGoal extends Goal {
             }
         }
         return best;
+    }
+
+    /**
+     * {@link #findTrunk()} と<b>同じ結果</b>を、読むマスを減らして出す(2026-09-24、重さ対策)。
+     * 幹の無い平地や川辺に降りると、見つかるまで 2 tick ごとに 4375 マスを読み直していた。
+     *
+     * <ul>
+     *   <li>走査の順番(dx → dz → dy)と、距離が<b>真に</b>小さいときだけ入れ替える比べ方は元のまま。
+     *       同じ距離の幹が複数あっても、選ばれる幹は変わらない。</li>
+     *   <li>チャンクは、元の走査が 1 マスごとに {@link Level#getBlockState} の中で引くのと同じ順番で
+     *       {@link Level#getChunk} から引く(同じチャンクが続く分は 1 回にまとめる —— 続けて引いても
+     *       2 回目以降は何も起きないので)。未ロードなら同期ロードされるのも元と同じ。
+     *       読むのはそのチャンクから直接。</li>
+     *   <li>セクションのパレットに幹の状態が 1 つも無ければ、そのセクションのマスは読まずに飛ばす。
+     *       パレットは実際に置かれている状態を必ず含むので、飛ばしたマスが幹だったことはない。</li>
+     * </ul>
+     */
+    private BlockPos findTrunkBySection(Level level, BlockPos origin) {
+        int minSectionY = SectionPos.blockToSectionCoord(origin.getY() - TRUNK_VERTICAL);
+        // 今のチャンクの、読む高さにかかるセクションごとに「幹がありうるか」。0 = 未確認、1 = ありうる、-1 = 無い。
+        byte[] trunkInSection = new byte[SectionPos.blockToSectionCoord(
+                origin.getY() + TRUNK_VERTICAL + TRUNK_MIN_HEIGHT) - minSectionY + 1];
+        LevelChunk chunk = null;
+        int chunkX = 0;
+        int chunkZ = 0;
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        BlockPos best = null;
+        double bestSq = Double.MAX_VALUE;
+        for (int dx = -TRUNK_SEARCH; dx <= TRUNK_SEARCH; dx++) {
+            for (int dz = -TRUNK_SEARCH; dz <= TRUNK_SEARCH; dz++) {
+                int x = origin.getX() + dx;
+                int z = origin.getZ() + dz;
+                if (chunk == null || SectionPos.blockToSectionCoord(x) != chunkX
+                        || SectionPos.blockToSectionCoord(z) != chunkZ) {
+                    chunkX = SectionPos.blockToSectionCoord(x);
+                    chunkZ = SectionPos.blockToSectionCoord(z);
+                    chunk = level.getChunk(chunkX, chunkZ);
+                    // チャンクを引くたびに確認し直す(同期ロードの間に他のチャンクが変わることもありうるので、
+                    // 前のチャンクで確かめた結果は持ち越さない)。
+                    Arrays.fill(trunkInSection, (byte) 0);
+                }
+                for (int dy = -TRUNK_VERTICAL; dy <= TRUNK_VERTICAL; dy++) {
+                    int y = origin.getY() + dy;
+                    if (!mayHoldTrunk(chunk, y, trunkInSection, minSectionY)
+                            || !chunk.getBlockState(cursor.set(x, y, z)).is(ModTags.CLIMBABLE_TRUNK)) {
+                        continue;
+                    }
+                    // 登る意味がない低い幹は捨てる(滑空の高さが稼げない)。
+                    int top = y + TRUNK_MIN_HEIGHT;
+                    if (!mayHoldTrunk(chunk, top, trunkInSection, minSectionY)
+                            || !chunk.getBlockState(cursor.set(x, top, z)).is(ModTags.CLIMBABLE_TRUNK)) {
+                        continue;
+                    }
+                    double sq = this.glider.distanceToSqr(x + 0.5D, y, z + 0.5D);
+                    if (sq < bestSq) {
+                        bestSq = sq;
+                        best = new BlockPos(x, y, z);
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
+    /**
+     * このチャンクの高さ {@code y} のセクションを読んだとき、幹が返りうるか({@code cache} に覚える)。
+     * {@code false} なら確実に幹は無い。空気だけのセクションは {@link LevelChunk#getBlockState} が
+     * 中身を見ずに空気を返すので、それに合わせる。
+     */
+    private static boolean mayHoldTrunk(LevelChunk chunk, int y, byte[] cache, int minSectionY) {
+        int i = SectionPos.blockToSectionCoord(y) - minSectionY;
+        if (cache[i] == 0) {
+            LevelChunkSection section = chunk.getSection(chunk.getSectionIndex(y));
+            boolean may = section.hasOnlyAir()
+                    ? Blocks.AIR.defaultBlockState().is(ModTags.CLIMBABLE_TRUNK)
+                    : section.maybeHas(state -> state.is(ModTags.CLIMBABLE_TRUNK));
+            cache[i] = may ? (byte) 1 : (byte) -1;
+        }
+        return cache[i] > 0;
     }
 }

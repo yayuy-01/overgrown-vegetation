@@ -291,6 +291,8 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
         int layers = Math.max(1, config.foliageHeight());
         int baseRadius = Math.max(1, config.foliageRadius());
         int reach = baseRadius + (trunkWidth - 1);
+        int shyGap = OvergrownVegetationConfig.COMMON.crownShynessGap.get();
+        int shyHeight = OvergrownVegetationConfig.COMMON.crownShynessHeight.get();
 
         for (int dy = 0; dy < layers; dy++) {
             int y = canopyTop.getY() - dy;
@@ -318,9 +320,17 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
                     }
 
                     BlockPos leafPos = new BlockPos(canopyTop.getX() + dx, y, canopyTop.getZ() + dz);
-                    if (level.getBlockState(leafPos).is(config.trunkState().getBlock())) {
+                    BlockState here = level.getBlockState(leafPos);
+                    if (here.is(config.trunkState().getBlock())) {
                         // 幹・枝そのものの位置には上書きしない。
                         continue;
+                    }
+                    if (shyGap > 0) {
+                        // 樹冠の譲り合い: ほかの木の葉は上書きせず、そのそばにも葉を出さない(塊の芯は残す)。
+                        if (isOtherTreesLeaf(here, leafPos, leafPositions)
+                                || distSq > SHY_CORE_SQ && nearOtherCrown(level, leafPos, shyGap, shyHeight, leafPositions)) {
+                            continue;
+                        }
                     }
                     setForced(level, leafPos, config.leavesState());
                     leafPositions.add(leafPos.asLong());
@@ -329,7 +339,41 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
         }
     }
 
+    /**
+     * <b>樹冠の譲り合い(クラウン・シャイネス)</b>(2026-10-17 ユーザー「一度試しでクラウン・シャイネスを実装してみたい」。設定 {@code crownShynessGap}):
+     * 葉を置く所の水平 {@code gap} ブロック以内・上下 {@code height}(設定 {@code crownShynessHeight})ブロック以内に、ほかの木(今回の成長で置いていない)の葉があれば置かない。
+     * 後から育つ木が前の木に譲るので、同じくらいの高さの樹冠の間に幅 {@code gap} の空の筋が残る。高さの違う樹冠は重なってよい
+     * (上下 {@code height} より離れた葉は見ない)。塊の芯(中心から {@code √}{@value #SHY_CORE_SQ} 以内)は譲らない
+     * —— 間隔 5 では樹冠の直径(7〜9)が木の間隔より大きく、三方を囲まれた木が葉の無い棒になるので。
+     */
+    private static boolean nearOtherCrown(WorldGenLevel level, BlockPos pos, int gap, int height, LongOpenHashSet ownLeaves) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int oy = -height; oy <= height; oy++) {
+            for (int ox = -gap; ox <= gap; ox++) {
+                for (int oz = -gap; oz <= gap; oz++) {
+                    if (ox == 0 && oy == 0 && oz == 0) {
+                        continue;
+                    }
+                    p.set(pos.getX() + ox, pos.getY() + oy, pos.getZ() + oz);
+                    if (isOtherTreesLeaf(level.getBlockState(p), p, ownLeaves)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean isOtherTreesLeaf(BlockState state, BlockPos pos, LongOpenHashSet ownLeaves) {
+        return (state.is(ModBlocks.OVERGROWN_LEAVES.get()) || state.is(ModBlocks.OVERGROWN_SWAMP_LEAVES.get()) || state.is(BlockTags.LEAVES))
+                && !ownLeaves.contains(pos.asLong());
+    }
+
+    /** 譲り合いでも残す塊の芯(中心からの水平距離の 2 乗)。仮決め。 */
+    private static final double SHY_CORE_SQ = 2.0;
+
     private static void setForced(WorldGenLevel level, BlockPos pos, BlockState state) {
+        if (TreePlacementRules.treeKeeps(level.getBlockState(pos))) return; // 根付いた萌芽体は残す
         level.setBlock(pos, state, Block.UPDATE_ALL);
     }
 

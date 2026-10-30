@@ -19,7 +19,7 @@
     "particle": {
       "probability": 0.02,
       "options": {
-        "type": "minecraft:spore_blossom_air"
+        "type": "overgrown_vegetation:drifting_spore"
       }
     }
   },

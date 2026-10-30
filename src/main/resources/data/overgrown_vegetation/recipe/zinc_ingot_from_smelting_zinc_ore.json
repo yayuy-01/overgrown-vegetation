@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:smelting",
+  "ingredient": [
+    {
+      "item": "overgrown_vegetation:zinc_ore"
+    },
+    {
+      "item": "overgrown_vegetation:deepslate_zinc_ore"
+    }
+  ],
+  "result": {
+    "id": "overgrown_vegetation:zinc_ingot"
+  },
+  "experience": 0.7,
+  "cookingtime": 200
+}

@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:covered_gilded_blackstone",
+    "overgrown_vegetation:covered_gold_block",
+    "overgrown_vegetation:covered_light_weighted_pressure_plate"
+  ]
+}

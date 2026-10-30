@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:covered_netherrack",
+    "overgrown_vegetation:covered_basalt",
+    "overgrown_vegetation:covered_blackstone"
+  ]
+}

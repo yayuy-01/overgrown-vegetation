@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    " B ",
+    "GTG",
+    "BBB"
+  ],
+  "key": {
+    "B": { "tag": "c:ingots/brass" },
+    "G": { "item": "minecraft:glass_pane" },
+    "T": { "item": "overgrown_vegetation:thylakite" }
+  },
+  "result": { "id": "overgrown_vegetation:sunlit_lantern", "count": 1 }
+}

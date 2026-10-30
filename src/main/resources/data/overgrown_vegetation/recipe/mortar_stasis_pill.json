@@ -1,0 +1,9 @@
+{
+  "type": "overgrown_vegetation:mortar_mixing",
+  "ingredients": [
+    { "item": "overgrown_vegetation:moonlight_powder" },
+    { "item": "overgrown_vegetation:bitter_root_powder" },
+    { "item": "minecraft:honeycomb" }
+  ],
+  "result": { "id": "overgrown_vegetation:stasis_pill" }
+}

@@ -1,20 +1,20 @@
 package com.yayuy.overgrownvegetation.client;
 
 import com.yayuy.overgrownvegetation.config.CurledFernDetail;
-import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
+import com.yayuy.overgrownvegetation.config.OvergrownClientConfig;
 import net.minecraft.client.OptionInstance;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * バニラの<b>ビデオ設定</b>画面に足す「シダをすべて表示する」のトグル
+ * バニラの<b>ビデオ設定</b>画面に足す「シダの葉を立体で描く」のトグル
  * ({@link com.yayuy.overgrownvegetation.mixin.client.VideoSettingsScreenMixin} が画面へ差し込む)。
  *
  * <ul>
- *     <li><b>ON</b> — 巻きシダの葉 6 本すべてを描く({@link CurledFernDetail#FULL}、昔の見た目)。
+ *     <li><b>ON</b> — 巻きシダの葉 6 本を、中央の筋で折れた立体の形(葉 1 枚に板 2 枚)で描く({@link CurledFernDetail#FULL}、昔の見た目)。
  *     1 本あたり 86 面。</li>
- *     <li><b>OFF</b> — 葉 3 本だけを草ごとにランダムに選んで描く({@link CurledFernDetail#REDUCED})。
- *     1 本あたり 48 面。既定。</li>
+ *     <li><b>OFF</b> — 葉 6 本を、折れ目の無い 1 枚の板の軽い形で描く({@link CurledFernDetail#REDUCED}。2026-10-15 夜まで「葉 3 本だけを草ごとにランダムに選んで描く」)。
+ *     1 本あたり 42 面(前は 48 面)。既定。</li>
  * </ul>
  *
  * <h2>値の置き場は config({@code curledFernDetail})で、options.txt ではない</h2>
@@ -74,7 +74,7 @@ public final class CurledFernOption {
     }
 
     private static void apply(boolean showAll) {
-        if (!OvergrownVegetationConfig.SPEC.isLoaded()) {
+        if (!OvergrownClientConfig.SPEC.isLoaded()) {
             return;
         }
         CurledFernDetail next = showAll ? CurledFernDetail.FULL : offDetail;
@@ -82,8 +82,8 @@ public final class CurledFernOption {
             return;
         }
         // set() 自体はイベントを投げずディスクにも書かないので、save() と反映を自分で呼ぶ。
-        OvergrownVegetationConfig.COMMON.curledFernDetail.set(next);
-        OvergrownVegetationConfig.COMMON.curledFernDetail.save();
+        OvergrownClientConfig.CLIENT.curledFernDetail.set(next);
+        OvergrownClientConfig.CLIENT.curledFernDetail.save();
         GeoStaticGeometry.applyDetailChange();
     }
 

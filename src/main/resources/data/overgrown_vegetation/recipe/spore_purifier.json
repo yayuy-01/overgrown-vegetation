@@ -1,26 +1,14 @@
 {
   "type": "minecraft:crafting_shaped",
+  "category": "misc",
   "pattern": [
-    "ABA",
-    "BCB",
-    "ADA"
+    "MUM",
+    "B B"
   ],
   "key": {
-    "A": {
-      "item": "minecraft:iron_ingot"
-    },
-    "B": {
-      "item": "minecraft:glass"
-    },
-    "C": {
-      "item": "minecraft:hopper"
-    },
-    "D": {
-      "item": "minecraft:redstone"
-    }
+    "M": { "item": "overgrown_vegetation:spore_membrane" },
+    "B": { "tag": "c:ingots/brass" },
+    "U": { "item": "overgrown_vegetation:ley_updraft" }
   },
-  "result": {
-    "id": "overgrown_vegetation:spore_purifier",
-    "count": 1
-  }
+  "result": { "id": "overgrown_vegetation:spore_purifier", "count": 1 }
 }

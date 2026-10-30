@@ -7,6 +7,7 @@ import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import com.yayuy.overgrownvegetation.registry.OvergrowthVariant;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -17,6 +18,8 @@ import net.minecraft.world.level.block.MultifaceBlock;
 import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 import java.util.ArrayList;
@@ -172,19 +175,60 @@ public final class CaveGrowth {
      * 見つからなければ {@link Integer#MIN_VALUE}。
      */
     private static int realRoofY(LevelReader level, BlockPos pos, int surface, int roofScanLimit) {
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         int bottom = Math.max(pos.getY(), surface - roofScanLimit);
+        LevelChunk chunk = level instanceof ServerLevel server
+                ? server.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4) : null;
+        if (chunk != null) {
+            return realRoofYBySection(chunk, pos.getX(), pos.getZ(), surface, bottom);
+        }
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int y = surface - 1; y > bottom; y--) {
             cursor.set(pos.getX(), y, pos.getZ());
-            BlockState state = level.getBlockState(cursor);
-            // 木(NOT_CAVE_ROOF)・空気に加えて、すり抜けられるもの(下草・蔦・垂れ植物・水など)も
-            // 天井ではない。樹冠から垂れた植物 1 マスで「屋根がある」と誤判定しないため。
-            if (state.isAir() || state.is(ModTags.NOT_CAVE_ROOF) || !state.blocksMotion()) {
-                continue;
+            if (isRealRoof(level.getBlockState(cursor))) {
+                return y + 1;
             }
-            return y + 1;
         }
         return Integer.MIN_VALUE;
+    }
+
+    /**
+     * {@link #realRoofY} の、読み込み済みのチャンクを<b>区画(16×16×16 のセクション)単位</b>で下る版(2026-10-06、③)。結果は 1 マスずつ読むのと同じ。
+     *
+     * <p>天井探しは木の下の列で樹冠を最大 48 段読み下ろす。地表の書き換えで植物を生やすたびに走り、計測で植物を生やす時間の半分を占めていた。
+     * 区画の<b>ブロックの種類表(パレット)に天井になれるものが 1 つも無ければ</b>(空・葉・幹・空気だけの区画)、その区画は 1 マスも読まずに飛ばす。
+     * 種類表に候補があるときだけ、その区画の中を 1 マスずつ見る(区画を直に読むので、マスごとにチャンクを引き直さない)。
+     */
+    private static int realRoofYBySection(LevelChunk chunk, int x, int z, int surface, int bottom) {
+        int lx = x & 15;
+        int lz = z & 15;
+        int y = surface - 1;
+        while (y > bottom) {
+            int index = chunk.getSectionIndex(y);
+            if (index < 0 || index >= chunk.getSectionsCount()) {
+                y--; // 高さの外(地表の高さ地図が上端のとき)。空気と同じ
+                continue;
+            }
+            LevelChunkSection section = chunk.getSection(index);
+            int sectionBottom = SectionPos.sectionToBlockCoord(chunk.getSectionYFromSectionIndex(index));
+            if (section.hasOnlyAir() || !section.maybeHas(CaveGrowth::isRealRoof)) {
+                y = sectionBottom - 1;
+                continue;
+            }
+            for (; y >= sectionBottom && y > bottom; y--) {
+                if (isRealRoof(section.getBlockState(lx, y & 15, lz))) {
+                    return y + 1;
+                }
+            }
+        }
+        return Integer.MIN_VALUE;
+    }
+
+    /**
+     * 天井になれるブロックか。木(NOT_CAVE_ROOF)・空気に加えて、すり抜けられるもの(下草・蔦・垂れ植物・水など)も
+     * 天井ではない。樹冠から垂れた植物 1 マスで「屋根がある」と誤判定しないため。
+     */
+    private static boolean isRealRoof(BlockState state) {
+        return !state.isAir() && !state.is(ModTags.NOT_CAVE_ROOF) && state.blocksMotion();
     }
 
     // ------------------------------------------------------------------
@@ -395,6 +439,10 @@ public final class CaveGrowth {
      * @return 建てられたら true
      */
     public static boolean buildCeilingArch(ServerLevel level, BlockPos host, RandomSource random, Mode mode) {
+        // アーチの代わりに天井から斜めに垂れる根の先端(2026-10-09、ユーザー指定「アーチ:根の先端 = 7:3、合計は今のアーチと同じ」)。
+        if (random.nextDouble() < CorruptionRootTip.SHARE) {
+            return buildHangingRootTip(level, host, random, mode);
+        }
         double vineShare = OvergrownVegetationConfig.COMMON.caveVineArchShare.get();
         ArchStyle style = vineShare > 0.0D && random.nextDouble() < vineShare ? ArchStyle.VINE : ArchStyle.ROOT;
         return buildCeilingArch(level, host, random, mode, style);
@@ -422,7 +470,10 @@ public final class CaveGrowth {
         int minSpan = Math.max(2, cfg.caveArchMinSpan.get());
         int maxSpan = Math.max(minSpan, cfg.caveArchMaxSpan.get());
         int span = minSpan + random.nextInt(maxSpan - minSpan + 1);
-        Direction dir = Direction.Plane.HORIZONTAL.getRandomDirection(random);
+        // 向きはどの水平の角度でも(2026-10-09、ユーザー指定。それまでは東西南北のどれか)。
+        double angle = random.nextDouble() * Math.PI * 2.0D;
+        double ux = Math.cos(angle);
+        double uz = Math.sin(angle);
         int minT = Math.max(0, cfg.caveArchMinThickness.get());
         int maxT = Math.max(minT, cfg.caveArchMaxThickness.get());
         double dip = span * Math.max(0.0D, (vine ? cfg.caveVineArchDip : cfg.caveArchDip).get());
@@ -431,8 +482,15 @@ public final class CaveGrowth {
         int ax = host.getX();
         int ay = host.getY();
         int az = host.getZ();
-        int bx = ax + dir.getStepX() * span;
-        int bz = az + dir.getStepZ() * span;
+        int bx = ax + (int) Math.round(ux * span);
+        int bz = az + (int) Math.round(uz * span);
+        int dx = bx - ax;
+        int dz = bz - az;
+        // 縦横の長い方の軸で 1 マスずつ進む(南北・東西なら今までと同じ歩み)。
+        int steps = Math.max(Math.abs(dx), Math.abs(dz));
+        if (steps < 2) {
+            return false;
+        }
         int by = findCeilingY(level, bx, bz, ay);
         if (by == Integer.MIN_VALUE) {
             return false;
@@ -440,31 +498,40 @@ public final class CaveGrowth {
 
         // 経路上に空間があるか(数点サンプル)。最下点の下も空いていること(床に着いた根・蔦にしない)。
         for (double s : new double[]{0.15D, 0.3D, 0.5D, 0.7D, 0.85D}) {
-            int x = ax + (int) Math.round(dir.getStepX() * span * s);
-            int z = az + (int) Math.round(dir.getStepZ() * span * s);
+            int x = ax + (int) Math.round(dx * s);
+            int z = az + (int) Math.round(dz * s);
             int y = archY(s, ay, by, dip);
             if (!isAirLike(level, new BlockPos(x, y, z))) {
                 return false;
             }
         }
-        int midX = ax + dir.getStepX() * (span / 2);
-        int midZ = az + dir.getStepZ() * (span / 2);
+        int midX = ax + (int) Math.round(dx * 0.5D);
+        int midZ = az + (int) Math.round(dz * 0.5D);
         if (!isAirLike(level, new BlockPos(midX, archY(0.5D, ay, by, dip) - maxT - leafR - 1, midZ))) {
             return false;
         }
 
+        Direction.Axis axis = Math.abs(dx) >= Math.abs(dz) ? Direction.Axis.X : Direction.Axis.Z;
         BlockState core = vine
                 ? (mode == Mode.SWAMP ? ModBlocks.OVERGROWN_SWAMP_WOOD : ModBlocks.OVERGROWN_WOOD).get()
-                        .defaultBlockState().setValue(RotatedPillarBlock.AXIS, dir.getAxis())
+                        .defaultBlockState().setValue(RotatedPillarBlock.AXIS, axis)
                 : ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState();
         List<BlockPos> shell = new ArrayList<>();
-        for (int i = 0; i <= span; i++) {
-            double s = (double) i / span;
-            int cx = ax + dir.getStepX() * i;
-            int cz = az + dir.getStepZ() * i;
+        int px = ax;
+        int pz = az;
+        for (int i = 0; i <= steps; i++) {
+            double s = (double) i / steps;
+            int cx = ax + (int) Math.round(dx * s);
+            int cz = az + (int) Math.round(dz * s);
             int cy = archY(s, ay, by, dip);
             int r = (int) Math.round(maxT + (minT - maxT) * Math.sin(Math.PI * s));
+            if (r == 0 && i > 0 && cx != px && cz != pz) {
+                // 1 マスの細さで斜めに 1 歩 —— 角だけで接すると隙間に見えるので間に 1 マス足して面でつなぐ。
+                blob(level, cx, cy, pz, 0, core, shell);
+            }
             blob(level, cx, cy, cz, r, core, shell);
+            px = cx;
+            pz = cz;
         }
         if (shell.isEmpty()) {
             return false;
@@ -474,10 +541,10 @@ public final class CaveGrowth {
             BlockState leaves = (mode == Mode.SWAMP ? ModBlocks.OVERGROWN_SWAMP_LEAVES : ModBlocks.OVERGROWN_LEAVES)
                     .get().defaultBlockState();
             double leafChance = cfg.caveVineArchLeafChance.get();
-            for (int i = 0; i <= span; i++) {
-                double s = (double) i / span;
-                int cx = ax + dir.getStepX() * i;
-                int cz = az + dir.getStepZ() * i;
+            for (int i = 0; i <= steps; i++) {
+                double s = (double) i / steps;
+                int cx = ax + (int) Math.round(dx * s);
+                int cz = az + (int) Math.round(dz * s);
                 int cy = archY(s, ay, by, dip);
                 int r = (int) Math.round(maxT + (minT - maxT) * Math.sin(Math.PI * s));
                 blob(level, cx, cy, cz, r + leafR, leaves, shell, random, leafChance);
@@ -486,6 +553,29 @@ public final class CaveGrowth {
         // 両端の天井ブロックを芯のブロックに(岩から根・蔦が生えている見た目)。
         replaceAnchor(level, host, core);
         replaceAnchor(level, new BlockPos(bx, by, bz), core);
+        decorateShell(level, shell, random, mode, false);
+        return true;
+    }
+
+    /**
+     * 天井から斜めに垂れ下がる根の先端を 1 本({@link CorruptionRootTip}、2026-10-09 ユーザー指定)。宿主 {@code host}(天井のブロック)に
+     * 根元を埋め、どの水平の向きへでも斜めに垂れて、先ほど下を向く。経路が空いていなければ(床・壁・水に当たる)建てない。
+     * 天井のブロックは根のブロックに変える(アーチの両端と同じ、岩から生えている見た目)。
+     *
+     * @return 建てられたら true
+     */
+    public static boolean buildHangingRootTip(ServerLevel level, BlockPos host, RandomSource random, Mode mode) {
+        CorruptionRootTip.Shape shape = CorruptionRootTip.rollHanging(random);
+        List<CorruptionRootTip.Cell> cells = CorruptionRootTip.plan(host.getX() + 0.5D, host.getY() + 0.5D, host.getZ() + 0.5D, shape);
+        if (!CorruptionRootTip.pathIsOpen(cells, pos -> isAirLike(level, pos))) {
+            return false;
+        }
+        BlockState log = ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState();
+        List<BlockPos> shell = new ArrayList<>();
+        if (!CorruptionRootTip.place(level, cells, log, new it.unimi.dsi.fastutil.longs.LongOpenHashSet(), shell)) {
+            return false;
+        }
+        replaceAnchor(level, host, log);
         decorateShell(level, shell, random, mode, false);
         return true;
     }

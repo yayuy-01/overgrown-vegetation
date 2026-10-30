@@ -15,18 +15,24 @@ import software.bernie.geckolib.model.GeoModel;
  */
 public class ScaturiumExoskeletonArmorModel extends GeoModel<ScaturiumExoskeletonArmorItem> {
 
+    // 2026-09-24 軽量化(監査 1318): 描画のたびに ResourceLocation を作り直さないよう定数にする(中身は同じ)。
+    private static final ResourceLocation MODEL = OvergrownVegetation.id("geo/armor/scaturium_exoskeleton.geo.json");
+    private static final ResourceLocation TEXTURE = OvergrownVegetation.id("textures/armor/scaturium_exoskeleton.png");
+    private static final ResourceLocation ANIMATION =
+            OvergrownVegetation.id("animations/armor/scaturium_exoskeleton.animation.json");
+
     @Override
     public ResourceLocation getModelResource(ScaturiumExoskeletonArmorItem animatable) {
-        return OvergrownVegetation.id("geo/armor/scaturium_exoskeleton.geo.json");
+        return MODEL;
     }
 
     @Override
     public ResourceLocation getTextureResource(ScaturiumExoskeletonArmorItem animatable) {
-        return OvergrownVegetation.id("textures/armor/scaturium_exoskeleton.png");
+        return TEXTURE;
     }
 
     @Override
     public ResourceLocation getAnimationResource(ScaturiumExoskeletonArmorItem animatable) {
-        return OvergrownVegetation.id("animations/armor/scaturium_exoskeleton.animation.json");
+        return ANIMATION;
     }
 }

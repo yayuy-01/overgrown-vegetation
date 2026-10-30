@@ -132,9 +132,11 @@ public abstract class GeoArmorIconRenderer<T extends ArmorItem & GeoItem> extend
         float[] box = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE,
                 -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
         PoseStack scratch = new PoseStack();
+        // 頂点を移す入れ物は 1 回の測定で 1 つを使い回す(2026-10-10、頂点ごとに作っていた。呼ぶたびに作るので入れ子で呼ばれても混ざらない)。
+        Vector4f point = new Vector4f();
         boolean any = false;
         for (GeoBone bone : model.topLevelBones()) {
-            any |= accumulate(scratch, bone, box);
+            any |= accumulate(scratch, bone, box, point);
         }
         return any ? box : null;
     }
@@ -144,7 +146,7 @@ public abstract class GeoArmorIconRenderer<T extends ArmorItem & GeoItem> extend
      * (ボーン: {@code prepMatrixForBone} / キューブ: ピボットへ移動 → 回転 → 戻す)。
      * 隠れているかの判定も描画側と同じで、キューブは {@code isHidden}、子は {@code isHidingChildren} を見る。
      */
-    private static boolean accumulate(PoseStack poseStack, GeoBone bone, float[] box) {
+    private static boolean accumulate(PoseStack poseStack, GeoBone bone, float[] box, Vector4f point) {
         poseStack.pushPose();
         RenderUtil.prepMatrixForBone(poseStack, bone);
         boolean any = false;
@@ -162,7 +164,7 @@ public abstract class GeoArmorIconRenderer<T extends ArmorItem & GeoItem> extend
                     }
                     for (GeoVertex vertex : quad.vertices()) {
                         Vector3f p = vertex.position();
-                        Vector4f moved = pose.transform(new Vector4f(p.x(), p.y(), p.z(), 1.0F));
+                        Vector4f moved = pose.transform(point.set(p.x(), p.y(), p.z(), 1.0F));
                         box[0] = Math.min(box[0], moved.x());
                         box[1] = Math.min(box[1], moved.y());
                         box[2] = Math.min(box[2], moved.z());
@@ -178,7 +180,7 @@ public abstract class GeoArmorIconRenderer<T extends ArmorItem & GeoItem> extend
 
         if (!bone.isHidingChildren()) {
             for (GeoBone child : bone.getChildBones()) {
-                any |= accumulate(poseStack, child, box);
+                any |= accumulate(poseStack, child, box, point);
             }
         }
         poseStack.popPose();

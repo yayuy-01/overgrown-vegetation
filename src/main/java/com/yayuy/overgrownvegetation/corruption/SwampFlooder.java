@@ -3,6 +3,8 @@ package com.yayuy.overgrownvegetation.corruption;
 import com.yayuy.overgrownvegetation.ModTags;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
+import com.yayuy.overgrownvegetation.perf.PerfJob;
+import com.yayuy.overgrownvegetation.perf.TickBudget;
 import com.yayuy.overgrownvegetation.registry.ModBiomes;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import com.yayuy.overgrownvegetation.registry.OvergrowthVariant;
@@ -32,6 +34,7 @@ import net.minecraft.world.level.levelgen.structure.StructureStart;
 import net.minecraft.world.level.levelgen.synth.SimplexNoise;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
 
 import java.util.ArrayList;
@@ -98,9 +101,32 @@ public final class SwampFlooder {
 
     private static final Map<ResourceKey<Level>, Long2LongOpenHashMap> NEXT = new HashMap<>();
     private static final Map<Long, SimplexNoise> NOISE = new ConcurrentHashMap<>();
+    /**
+     * {@link #NEXT} がこの件数を超えたら、期限切れの項目を掃除する(2026-09-24 軽量化、報告 1527)。仮決め 2026-09-24。
+     * 以前はサーバー停止まで消えず、歩き回ったぶんだけ増え続けていた。
+     */
+    private static final int NEXT_PRUNE_SIZE = 20000;
+    /**
+     * 処理済み段階の記録が無いチャンク用の「全列 0」(読むだけ。<b>書き込まない</b>)。書くときは
+     * {@link SwampFloodProgress#columns} で本物の配列を作る(2026-09-24 軽量化 報告 1527)。
+     */
+    private static final byte[] NO_PROGRESS = new byte[256];
+
+    /**
+     * ワールドを閉じたら再走査時刻の表を空にする(キーはディメンションだけなので、次に別のワールドを開くと
+     * 前のワールドの時刻が残り、そのぶん待たされる。起動し直したときと同じ状態に戻す)。
+     * {@link #NOISE} はシードごとなので残してよい。
+     */
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        NEXT.clear();
+    }
 
     @SubscribeEvent
     public static void onLevelTick(LevelTickEvent.Post event) {
+        if (CorruptionSwitch.isOff()) {
+            return; // /ov corruption false(2026-10-10 ユーザー指定): 止める(順番待ちは残り、オンで続きから)
+        }
         if (!(event.getLevel() instanceof ServerLevel level)) {
             return;
         }
@@ -109,12 +135,30 @@ public final class SwampFlooder {
             return;
         }
         int interval = Math.max(1, cfg.swampFloodIntervalTicks.get());
-        if (level.getGameTime() % interval != 0L) {
+        // 位相をずらして、ほかの地形の周期処理と同じ tick に重ならないようにする(2026-09-24 軽量化、報告 589 / 1516。
+        // 間隔は同じで、走る tick が周期の中でずれるだけ)。
+        if (!com.yayuy.overgrownvegetation.util.TickPhases.isDue(level.getGameTime(),
+                com.yayuy.overgrownvegetation.util.TickPhases.SWAMP_FLOODER, interval)) {
             return;
         }
+        // サーバーが重いときは予算の番人が次の周回へ回す(2026-10-06。結果は同じで遅れるだけ)。
+        if (!TickBudget.mayStart(PerfJob.SWAMP_FLOOD)) {
+            return;
+        }
+        long start = TickBudget.begin();
+        int done = 0;
+        try {
+            done = floodPass(level, cfg);
+        } finally {
+            TickBudget.end(PerfJob.SWAMP_FLOOD, start, done);
+        }
+    }
 
+    /** 1 回ぶん水没させる。戻り値は処理したチャンク数。 */
+    private static int floodPass(ServerLevel level, OvergrownVegetationConfig.Common cfg) {
         int radiusChunks = Math.max(1, Mth.ceil(cfg.overgrownBiomeCreepRadius.get() / 16.0F));
-        int budget = cfg.swampFloodChunksPerPass.get();
+        int perPass = cfg.swampFloodChunksPerPass.get();
+        int budget = perPass;
         long now = level.getGameTime();
         long rescan = cfg.swampFloodRescanTicks.get();
         Long2LongOpenHashMap next = NEXT.computeIfAbsent(level.dimension(), k -> {
@@ -122,6 +166,11 @@ public final class SwampFlooder {
             map.defaultReturnValue(0L);
             return map;
         });
+        // 期限切れ(値 <= now)の項目は、下の「now < next.get(key)」で項目が無いとき(既定値 0)と同じく偽になるので、
+        // 消しても結果は変わらない。表が大きくなったときだけ掃除する(2026-09-24 軽量化 報告 1527)。
+        if (next.size() > NEXT_PRUNE_SIZE) {
+            next.long2LongEntrySet().removeIf(e -> e.getLongValue() <= now);
+        }
 
         LongOpenHashSet seen = new LongOpenHashSet();
         for (ServerPlayer player : level.players()) {
@@ -167,6 +216,7 @@ public final class SwampFlooder {
                 }
             }
         }
+        return perPass - budget;
     }
 
     /** チャンク地表(流体を除いた最上部)のうち汚染ブロックの列数。 */
@@ -210,10 +260,16 @@ public final class SwampFlooder {
         return false;
     }
 
+    /**
+     * 周り 3x3 チャンクが読み込み済みか。hasChunk は「読み込み予定」(生成・読み込みの途中)でも true になり、
+     * そのまま読むと終わるまでサーバースレッドが止まるので、FULL まで済んでいるか({@code getChunkNow})も見る。
+     * 途中のものがあれば読み込まれていないときと同じく今回は見送る(再走査時刻は書かないので、次の周回で同じ処理になる)。
+     */
     private static boolean neighbourhoodLoaded(ServerLevel level, int cx, int cz) {
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
-                if (!level.hasChunk(cx + dx, cz + dz)) {
+                if (!level.hasChunk(cx + dx, cz + dz)
+                        || level.getChunkSource().getChunkNow(cx + dx, cz + dz) == null) {
                     return false;
                 }
             }
@@ -243,6 +299,34 @@ public final class SwampFlooder {
         byte[] kind = new byte[SIZE * SIZE];
         boolean[] shallow = new boolean[SIZE * SIZE]; // 深さ 1 の水(棚田の水面・水たまり)を頭に載せた列
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+
+        // 列ごとの処理済み段階。記録が無ければ全列 0 として読むだけにし、初めて書く列で作る(2026-09-24 軽量化
+        // 報告 1527: 以前は読むだけでも空の記録を台帳に足していた)。
+        SwampFloodProgress progress = SwampFloodProgress.get(level);
+        byte[] done = progress.peek(cp);
+        if (done == null) {
+            done = NO_PROGRESS;
+        }
+
+        // 先に自チャンクの 16×16 列だけを読む(2026-09-24 軽量化 報告 1527)。この段階で書き換えうるのは
+        // 「自然の汚染地面(KIND_NATURAL)で、まだこの段階を済ませていない列」だけで、下で種類が変わるのは
+        // NATURAL → 人工物 / 触らない地面 の向きだけ。1 列も無ければ、水たまり段階(stage 1)は何も書かずに
+        // 終わる(以前は 32×32 列を全部読んでから全部弾いていた)。過繁茂段階(stage 2)は、処理済みの列にも
+        // 水際の泥を足しうるので今までどおり最後まで回す。
+        boolean anyTodo = false;
+        for (int lx = 0; lx < 16; lx++) {
+            for (int lz = 0; lz < 16; lz++) {
+                int i = (lx + PAD) * SIZE + (lz + PAD);
+                scanColumn(level, originX + lx + PAD, originZ + lz + PAD, cursor, ground, kind, shallow, i, skipArtificial);
+                if (kind[i] == KIND_NATURAL && done[lx * 16 + lz] < stage) {
+                    anyTodo = true;
+                }
+            }
+        }
+        if (!anyTodo && stage < 2) {
+            return;
+        }
+
         // 生成ストラクチャー(村の民家・道など)のピースの範囲(+margin)は建築物として扱い、一切触らない。
         List<BoundingBox> protectedBoxes = cfg.swampFloodProtectStructures.get()
                 ? collectStructurePieces(level, cp, cfg.swampFloodStructureMargin.get())
@@ -250,7 +334,11 @@ public final class SwampFlooder {
         for (int ix = 0; ix < SIZE; ix++) {
             for (int iz = 0; iz < SIZE; iz++) {
                 int i = ix * SIZE + iz;
-                scanColumn(level, originX + ix, originZ + iz, cursor, ground, kind, shallow, i, skipArtificial);
+                boolean ownChunk = ix >= PAD && ix < PAD + 16 && iz >= PAD && iz < PAD + 16;
+                if (!ownChunk) {
+                    // 自チャンクの列は上で読み済み(読むだけで世界を変えないので、読む順番は結果に関係しない)。
+                    scanColumn(level, originX + ix, originZ + iz, cursor, ground, kind, shallow, i, skipArtificial);
+                }
                 if (kind[i] == KIND_NATURAL && !protectedBoxes.isEmpty()
                         && insideAnyXZ(protectedBoxes, originX + ix, originZ + iz)) {
                     kind[i] = KIND_ARTIFICIAL;
@@ -456,8 +544,6 @@ public final class SwampFlooder {
             }
         }
 
-        SwampFloodProgress progress = SwampFloodProgress.get(level);
-        byte[] done = progress.columns(cp);
         boolean dirty = false;
 
         // 「今回のこの処理で実際に書き換える列」。畦・漏れの判定で予測(段の水面)を使ってよいのはこの列だけ。
@@ -525,6 +611,9 @@ public final class SwampFlooder {
                 }
                 if (stage >= 2 && !ready[i]) {
                     continue; // 周囲の汚染が届いてから(処理済みにはしない)。
+                }
+                if (done == NO_PROGRESS) {
+                    done = progress.columns(cp); // このチャンクで初めて書く列。ここで記録を作る(共有の 0 配列には書かない)。
                 }
                 done[col] = (byte) stage;
                 dirty = true;
@@ -609,6 +698,15 @@ public final class SwampFlooder {
                     if (unit(hash(seed, wx, wz, 11)) >= spillChance) {
                         continue;
                     }
+                    // 角の畦は下の段のほかにも低い面(下の段の畦・低い地面)に接していることがある。そこへも溢れると
+                    // 縁の無い水源が滝の脇へ流れ出す(2026-10-09 ユーザー報告)ので、空いてよいのは下の段へ落ちる向きだけ。
+                    final int self = i;
+                    if (!rimHoldsWater(level, new BlockPos(wx, t + 1, wz), d -> {
+                        int j = neighbourIndex(self, d);
+                        return becameWater[j] && mode[j] == MODE_TERRACE && terrace[j] < t;
+                    })) {
+                        continue;
+                    }
                     cursor.set(wx, t + 1, wz);
                     if (level.getBlockState(cursor).is(ModBlocks.OVERGROWN_MUD.get())) {
                         level.setBlock(cursor, water, FLAGS);
@@ -657,6 +755,10 @@ public final class SwampFlooder {
                         }
                         var beyond = level.getBlockState(cursor).getFluidState();
                         if (!beyond.is(net.minecraft.tags.FluidTags.WATER) || !beyond.isSource()) {
+                            continue;
+                        }
+                        // この畦が横(並びと直角の向き)の低い段のための畦でもあれば残す(水にすると横へ流れ出す)。
+                        if (!rimHoldsWater(level, new BlockPos(nx, t + 1, nz), side -> false)) {
                             continue;
                         }
                         cursor.set(nx, t + 1, nz);
@@ -746,6 +848,33 @@ public final class SwampFlooder {
             level.setBlock(cursor, terraceSurfaceState(), FLAGS);
             becameWater[i] = true;
         }
+    }
+
+    /**
+     * 畦 {@code pos} を水源にしても横へ流れ出さないか。4 方向の隣の同じ高さを<b>実際のブロック</b>で見る
+     * (予測の {@code ground}/{@code terrace} ではなく。溶岩で飛ばした列など、予測どおりに置かれていない列がある)。
+     * 動きを止めるブロック(壁・畦の泥)か水源(水没ハーフを含む)なら漏れない。それ以外(空気・流れている水・読み込まれていない)は、
+     * {@code fallOk} がその向き({@link #neighbourIndex} と同じ番号)を許すときだけ空いていてよい(溢れ口の、下の段へ落ちる向き)。
+     *
+     * <p>2026-10-09: 角の畦を溢れ口にしたとき・縫い目の修復で畦を水に戻したとき、1 方向しか見ていなかったので、
+     * 縁の無い水源が段の角から流れ出していた(ユーザー報告)。
+     */
+    public static boolean rimHoldsWater(ServerLevel level, BlockPos pos, java.util.function.IntPredicate fallOk) {
+        BlockPos.MutableBlockPos side = new BlockPos.MutableBlockPos();
+        for (int d = 0; d < 4; d++) {
+            side.set(pos.getX() + (d == 0 ? 1 : d == 1 ? -1 : 0), pos.getY(), pos.getZ() + (d == 2 ? 1 : d == 3 ? -1 : 0));
+            if (level.isLoaded(side)) {
+                BlockState state = level.getBlockState(side);
+                var fluid = state.getFluidState();
+                if (state.blocksMotion() || fluid.is(net.minecraft.tags.FluidTags.WATER) && fluid.isSource()) {
+                    continue;
+                }
+            }
+            if (!fallOk.test(d)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

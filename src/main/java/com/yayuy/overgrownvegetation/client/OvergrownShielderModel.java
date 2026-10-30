@@ -16,9 +16,13 @@ import software.bernie.geckolib.model.GeoModel;
  */
 public class OvergrownShielderModel extends LodGeoModel<OvergrownShielderEntity> {
 
+    // 2026-09-24 軽量化(監査 1318): 描画のたびに ResourceLocation を作り直さないよう定数にする(中身は同じ)。
+    private static final ResourceLocation MODEL = OvergrownVegetation.id("geo/overgrown_shielder.geo.json");
+    private static final ResourceLocation ANIMATION = OvergrownVegetation.id("animations/overgrown_shielder.animation.json");
+
     @Override
     public ResourceLocation getModelResource(OvergrownShielderEntity animatable) {
-        return OvergrownVegetation.id("geo/overgrown_shielder.geo.json");
+        return MODEL;
     }
 
     @Override
@@ -28,6 +32,6 @@ public class OvergrownShielderModel extends LodGeoModel<OvergrownShielderEntity>
 
     @Override
     public ResourceLocation getAnimationResource(OvergrownShielderEntity animatable) {
-        return OvergrownVegetation.id("animations/overgrown_shielder.animation.json");
+        return ANIMATION;
     }
 }

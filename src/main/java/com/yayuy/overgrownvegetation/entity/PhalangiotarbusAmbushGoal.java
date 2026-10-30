@@ -409,7 +409,8 @@ public class PhalangiotarbusAmbushGoal extends Goal {
         double bestSq = POUNCE_DETECT_RADIUS * POUNCE_DETECT_RADIUS;
         for (LivingEntity e : candidates) {
             double d = mob.distanceToSqr(e);
-            if (d < bestSq && mob.hasLineOfSight(e)) {
+            // 視線は Sensing 経由(2026-09-24 軽量化、報告 1725 の (2))。同じ tick の中で同じ相手への答えを覚えるだけで、中身は同じ。
+            if (d < bestSq && mob.getSensing().hasLineOfSight(e)) {
                 bestSq = d;
                 best = e;
             }

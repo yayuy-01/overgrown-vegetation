@@ -10,12 +10,6 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
-import net.minecraft.world.entity.ai.goal.FloatGoal;
-import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
-import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
-import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.animation.AnimatableManager;
@@ -38,10 +32,9 @@ import software.bernie.geckolib.animation.RawAnimation;
  * 地面を歩いて木へ戻る姿が見られる —— この種の「観察して面白い」はそこにある。
  *
  * <h2>プレイヤーは襲わない</h2>
- * <p>{@link AbstractOvergrownPredatorEntity} の既定では「縄張りに入った侵入者」として
- * プレイヤーにも先制攻撃するが、<b>この種はその目標を積まない</b>
- * (ユーザー指定 2026-09-21「グループ2〜3は環境生物として扱う」)。殴られれば反撃する。
- * 既存のグループ3 を一括で中立にする改修が入ったら、{@link #registerGoals()} の上書きは外せる。
+ * <p>グループ2・3 は環境生物なのでプレイヤーに先制攻撃しない(ユーザー指定 2026-09-21)。殴られれば反撃する。
+ * <b>2026-10-03 にグループ3 を一括で中立にしたので、この種だけの上書きは外した</b>
+ * ({@code Predation#isIntruder} がプレイヤーを返さなくなった)。
  *
  * <h2>アニメーション名(GeckoLib、差し替え用)</h2>
  * {@code idle} / {@code walk} / {@code climb} / {@code glide} / {@code dive}。
@@ -122,20 +115,15 @@ public class CoelurosauravusEntity extends AbstractOvergrownPredatorEntity {
     }
 
     /**
-     * {@link AbstractOvergrownPredatorEntity#registerGoals()} を<b>呼ばずに</b>組み直す。
-     * 違いは 1 点だけ —— <b>侵入者(プレイヤー)を狙う目標を積まない</b>。
+     * 滑空して狩る({@link GlideHuntGoal})。
+     *
+     * <p>2026-10-03 まではここで {@link AbstractOvergrownPredatorEntity#registerGoals()} を
+     * <b>呼ばずに</b>組み直していた —— この種だけ侵入者(プレイヤー)の目標を積まないため。
+     * グループ3 を一括で中立にしたので上書きは外し、種族固有の口に戻した。
      */
     @Override
-    protected void registerGoals() {
-        this.goalSelector.addGoal(0, new FloatGoal(this));
+    protected void registerSpeciesGoals() {
         this.goalSelector.addGoal(1, new GlideHuntGoal(this));
-        this.goalSelector.addGoal(4, new MeleeAttackGoal(this, 1.0D, true));
-        this.goalSelector.addGoal(6, new WaterAvoidingRandomStrollGoal(this, 0.9D));
-        this.goalSelector.addGoal(7, new LookAtPlayerGoal(this, Player.class, 6.0F));
-        this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
-
-        this.targetSelector.addGoal(1, new OvergrownHurtByTargetGoal(this));
-        this.targetSelector.addGoal(2, new OvergrownLandTargetGoal(this, Predation::isPredatorOf));
     }
 
     public int getFlightState() {
@@ -212,7 +200,13 @@ public class CoelurosauravusEntity extends AbstractOvergrownPredatorEntity {
         this.entityData.set(DATA_PITCH, (float) Math.toDegrees(Math.atan2(vertical, horizontal)));
         // 旋回した向きへ体を倒す。<b>この tick に実際に回った角度</b>から出すので、
         // ゆるい旋回でも獲物を追う急な向き直りでも、同じ式でそれらしく傾く。
-        double turned = net.minecraft.util.Mth.wrapDegrees(this.getYRot() - yawBefore);
+        // 2026-09-24 軽量化(監査 1648): 旋回だけの tick(towards == null)は、回った角度が drift そのもの。
+        // float の向きの差から求め直すと丸め誤差で毎 tick わずかに違う値になり、DATA_ROLL が毎 tick 同期されていた。
+        // drift は振り直すまで(40〜110 tick)一定なので、そのまま使えば傾きも一定になる
+        // (差は丸め誤差ぶん = 傾きで 1/100 度未満。見た目は同じ)。
+        double turned = towards == null
+                ? this.drift
+                : net.minecraft.util.Mth.wrapDegrees(this.getYRot() - yawBefore);
         double bank = Math.max(-BANK_MAX, Math.min(BANK_MAX, turned * BANK_PER_TURN));
         this.entityData.set(DATA_ROLL, (float) bank);
     }
@@ -252,6 +246,12 @@ public class CoelurosauravusEntity extends AbstractOvergrownPredatorEntity {
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(this, "main", 3, state -> {
+            // 今している行動(食べる・休む・驚いて逃げ出す など)があればそのアニメ(CritterAction、2026-10-22)
+            RawAnimation critterAct = CritterAction.animation(this);
+            if (critterAct != null) {
+                state.getController().setAnimationSpeed(1.0D);
+                return state.setAndContinue(critterAct);
+            }
             state.getController().setAnimationSpeed(1.0D);
             return switch (getFlightState()) {
                 case STATE_DIVE -> state.setAndContinue(DIVE_ANIM);

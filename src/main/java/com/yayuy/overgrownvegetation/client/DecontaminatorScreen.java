@@ -60,13 +60,23 @@ public class DecontaminatorScreen extends AbstractContainerScreen<Decontaminator
             int filled = Math.max(1, Math.min(gw, (int) ((long) gw * value / max)));
             graphics.fill(gx, gy, gx + filled, gy + 5, GAUGE_FILL);
         }
+        // 電池の残り(電池の枠の下。2026-10-24)
+        int bx = x + DecontaminatorMenu.BATTERY_X;
+        int by = y + DecontaminatorMenu.BATTERY_Y + 20;
+        graphics.fill(bx, by, bx + 16, by + 5, GAUGE_BG);
+        if (menu.capacitySeconds() > 0 && menu.chargeSeconds() > 0) {
+            int bf = Math.max(1, Math.min(16, (int) (16L * menu.chargeSeconds() / menu.capacitySeconds())));
+            graphics.fill(bx, by, bx + bf, by + 5, 0xFF3FB8D8);
+        }
     }
 
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
         super.renderLabels(graphics, mouseX, mouseY);
         float worst = menu.worstContamination();
-        Component status = worst > 0.0F
+        Component status = worst > 0.0F && menu.chargeSeconds() <= 0
+                ? Component.translatable("gui.overgrown_vegetation.decontaminator.no_battery") // 洗う物はあるのに電池が無い
+                : worst > 0.0F
                 ? Component.translatable("gui.overgrown_vegetation.decontaminator.working", String.format("%.0f", worst))
                 : Component.translatable("gui.overgrown_vegetation.decontaminator.idle");
         graphics.drawString(font, status, 8, 62, 0xFF404040, false);

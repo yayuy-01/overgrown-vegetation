@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:block",
+  "functions": [ { "function": "minecraft:explosion_decay" } ],
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [ { "type": "minecraft:item", "name": "overgrown_vegetation:burst_fruit" } ],
+      "conditions": [ { "condition": "minecraft:block_state_property", "block": "overgrown_vegetation:burst_fruit_bush", "properties": { "age": "2" } } ]
+    }
+  ]
+}

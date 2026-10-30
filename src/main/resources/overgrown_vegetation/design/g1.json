@@ -1,0 +1,94 @@
+{
+  "_comment": "G1(寄生された動物)の作り直し 第 1 段(2026-10-22)。仕様の正本は Vault「G1 媒介種(寄生された動物)」の「作り直し」と「森の知性(司令塔)」。ユーザー指定: 感染の目安 = 空の下にいる間だけ その升の浮遊 × 秒 を積み、浮遊 50% に 30 秒相当で感染(屋根の下では積まない。繁茂・過繁茂のバイオームでは屋根の下でも積む)。時計(死体 10 分・判断まで 1 日・1 段目 2 日・2 段目 +5 日)は Claude の案をユーザーが了承した仮の値。airFullAt 0 = spore_field.json の reading.fullAt を浮遊の 100% にする。死体の放出量は spore_field.json の sources.corpsePerDay。rooted.radius 0 = 汚染シダと同じ半径。nursery・director・abilities の数値はすべて Claude の仮決め。director の cost*(バイオマスの値段)はユーザーが後で決める(今は 0 = 払わない、点 = 効き ÷ (1 + 値段))。speciesBias は id → [根付き, 苗床, 進化] に足す点(元の種の性向)。nursery.g4Chance・g4Types は苗床から G4 以上を生む枠(今は生まない)。",
+  "infection": {
+    "underSkyOnly": true,
+    "percent": 50.0,
+    "seconds": 30.0,
+    "airFullAt": 0.0
+  },
+  "corpse": {
+    "emitTicks": 6000,
+    "emitEveryTicks": 100
+  },
+  "life": {
+    "branchAfterDays": 1.0,
+    "evolve1Days": 2.0,
+    "evolve2Days": 5.0
+  },
+  "rooted": {
+    "radius": 0,
+    "maxTicks": 24000
+  },
+  "nursery": {
+    "searchRadius": 16,
+    "walkTimeoutTicks": 2400,
+    "minMoisture": 0.8,
+    "maxSkyLight": 7,
+    "intervalTicks": 6000,
+    "maxAlive": 3,
+    "aliveRadius": 16,
+    "maxTotal": 8,
+    "g4Chance": 0.0,
+    "g4Types": []
+  },
+  "director": {
+    "jitter": 0.2,
+    "rootedBase": 0.3,
+    "rootedThinDeposit": 0.6,
+    "rootedFrontNear": 0.4,
+    "rootedFewPeople": 0.3,
+    "nurseryBase": 0.3,
+    "nurseryFarFront": 0.6,
+    "nurseryFewPeople": 0.3,
+    "evolveBase": 0.2,
+    "evolvePlayerNear": 0.6,
+    "evolveKills": 0.6,
+    "depositRef": 0.1,
+    "frontNearChunks": 8,
+    "frontFarChunks": 24,
+    "frontSearchChunks": 32,
+    "playerNearBlocks": 64,
+    "fewPeopleBlocks": 48,
+    "killsRef": 5.0,
+    "killsHalfLifeDays": 3.0,
+    "costRooted": 0.0,
+    "costNursery": 0.0,
+    "costEvolve1": 0.0,
+    "costEvolve2": 0.0,
+    "speciesBias": {
+      "parasitized_zombie": [0, 0, 0.5],
+      "parasitized_villager": [0, 0, 0.5],
+      "parasitized_skeleton": [0, 0, 0.5],
+      "parasitized_creeper": [0, 0, 0.5],
+      "parasitized_cow": [0, 0.5, 0],
+      "parasitized_pig": [0, 0.5, 0],
+      "parasitized_sheep": [0, 0.5, 0],
+      "parasitized_hoglin": [0, 0.5, 0],
+      "parasitized_chicken": [0.5, 0, 0],
+      "parasitized_baby_zombie": [0.5, 0, 0],
+      "parasitized_spider": [0.5, 0, 0]
+    }
+  },
+  "abilities": {
+    "vineArmRange": 4.0,
+    "vineArmPull": 0.9,
+    "vineArmCooldownTicks": 80,
+    "sporesacCowPerDay": 0.5,
+    "podCreeperFuseTicks": 45,
+    "podCreeperBurst": 0.5,
+    "executionerWhipRange": 7.0,
+    "executionerWhipPull": 1.1,
+    "executionerWhipCooldownTicks": 60,
+    "executionerThornDamage": 6.0,
+    "executionerThornCooldownTicks": 70,
+    "sporangiumChargeSpeed": 1.8,
+    "sporangiumChargeCooldownTicks": 120,
+    "sporangiumBurstAir": 1.0,
+    "sporangiumBurstDeposit": 0.1,
+    "sporangiumBurstBelowHealth": 0.25,
+    "sporangiumBurstFerns": 3,
+    "burstPodSearchRadius": 24,
+    "burstPodBurst": 0.8,
+    "burstPodFerns": 2
+  }
+}

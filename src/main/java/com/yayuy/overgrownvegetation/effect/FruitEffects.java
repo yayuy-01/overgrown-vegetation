@@ -81,7 +81,10 @@ public final class FruitEffects {
         apply(entity, ModMobEffects.WELL_FED, fx.largeFruitWellFedTicks(), 0);
         apply(entity, ModMobEffects.SAVORY_SCENT, fx.largeFruitSavoryScentTicks(), 0);
 
-        if (fx.largeFruitEscalatesInfection() && entity.level() instanceof ServerLevel level) {
+        if (fx.largeFruitEscalatesInfection() && entity instanceof Player eater) {
+            // プレイヤーは 10 段階(2026-10-14)。1 段上がり、感染10 なら死ぬ。
+            SporeInfectionEffects.raisePlayerStage(eater);
+        } else if (fx.largeFruitEscalatesInfection() && entity.level() instanceof ServerLevel level) {
             MobEffectInstance infection = entity.getEffect(ModMobEffects.SPORE_INFECTION);
             int next = infection == null ? 0 : infection.getAmplifier() + 1;
             if (next > EffectTable.MAX_LEVEL_INDEX) {

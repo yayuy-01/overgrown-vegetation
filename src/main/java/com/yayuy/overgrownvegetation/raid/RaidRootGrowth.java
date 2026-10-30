@@ -4,6 +4,7 @@ import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.corruption.CorruptionSpreader;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -34,6 +35,14 @@ import java.util.List;
  * <p>先端はレイドビーコンから水平距離 {@code raidRootMaxDistance}(既定100)まで来たらその場で止まり、
  * その先端は捨てられる。全ての先端が止まると {@link #isFinished()} が true になり、レイドは
  * 根の伸長から<b>面汚染</b>({@link RaidAreaCorruption})へ切り替わる。
+ *
+ * <h2>読み込まれていないチャンクの手前では「待つ」(捨てない)</h2>
+ * <p>この先のチャンクが読み込まれていない先端は、その場で待つ。{@value #STALL_LIMIT} サイクル続けて進めなかった先端は
+ * 「待機中」とみなし、残りの先端が全部待機中なら {@link #isFinished()} を立てて面汚染へ進ませる
+ * (一度立てたら戻さない)。待機中の先端も捨てずに持っておき、毎サイクル進めるかだけ見る —— プレイヤーが近くに来て
+ * その先が読み込まれたら、止まったところから伸び直す(2026-09-25、ユーザー承認「レイドの見直し」の
+ * 「読み込まれている間だけ進む」を守るため。以前は待機中の先端を捨てていたので、強制ロードを縮めたあとは
+ * 約 64 ブロックより外の根が、誰も来ないまま 30 分たつと二度と伸びなかった)。
  *
  * <h2>太さ(2つの軸で決まる)</h2>
  * <p>ある1点の太さは <b>ビーコンからの距離</b>で決まる — 足元がいちばん太く、限界距離
@@ -71,14 +80,24 @@ public final class RaidRootGrowth {
     private static final int RETHICKEN_EVERY_N_GROWTHS = 6;
 
     /**
-     * 未ロードのチャンクに阻まれて何サイクル進めなかったら先端を諦めるか
-     * (既定の {@code raidRootGrowthIntervalTicks}=60 で約 30 分)。レイドが強制ロードするのは
-     * {@code raidForceLoadRadius} ぶん(既定でチャンク4枚=約64ブロック)なので、
+     * 未ロードのチャンクに阻まれて何サイクル進めなかったら、先端を「待機中」とみなすか
+     * (既定の {@code raidRootGrowthIntervalTicks}=60 で約 30 分)。レイドが自分で読み込んでおくのは
+     * 苗床のチャンクから {@code raidForceLoadRadius} + 2 チャンクまで(既定 2 → 4 チャンク ≒ 64 ブロック。
+     * 強制ロードは周囲 2 チャンクも読み込む。2026-09-25 に既定を 7 から下げた)なので、
      * {@code raidRootMaxDistance}(既定100)まで伸ばすには途中からプレイヤーが近くに要る。
-     * 誰も来ないまま止まった先端をいつまでも抱えていると {@link #isFinished()} が立たず、
-     * 面汚染({@link RaidAreaCorruption})へ切り替わらないので、ここで打ち切る。
+     * 待機中の先端しか残っていないのに {@link #isFinished()} を待たせると、誰も来ない間は
+     * 面汚染({@link RaidAreaCorruption})へいつまでも切り替わらないので、ここで区切る。
+     * 待機中の先端は捨てない(2026-09-25。以前はここで捨てていたので、外周の根が二度と伸びなかった)。
      */
     private static final int STALL_LIMIT = 600;
+
+    /**
+     * 1 歩進める前に「本当に読み込み終わっている」ことを確かめる幅(ブロック、先端の列から水平に)に足す分。
+     * 実際の幅は {@code raidRootThicknessMax} + これ(既定 3 + 5 = 8。上限 15)で、かまぼこの半径・
+     * 先読み {@value #LOOKAHEAD}・汚染の起点を置く脇(先端の半径 + 最大 5、{@link #corruptionNodePos})が収まる。
+     * 仮決め 2026-09-25。
+     */
+    private static final int READY_MARGIN_EXTRA = 5;
 
     /**
      * 根本側の「育つにつれて太くなる」再計算のために覚えておく、通過済みの1点。
@@ -114,13 +133,19 @@ public final class RaidRootGrowth {
         double waveFreq;
         double wavePhase;
         /**
-         * 「進めなかった」({@link #stepTip} が false を返した = この先のチャンクが未ロード)回数。
-         * 1歩でも進めたら 0 に戻る。{@value #STALL_LIMIT} 回続いたらこの先端は諦めて捨てる
-         * (捨てないと、誰も居ない方角へ伸びた先端のせいで {@link #isFinished()} が永久に false のままになり、
-         * 面汚染へ切り替わらない)。NBT には保存しない —— 読み直せば猶予がリセットされるだけで害が無い。
+         * 続けて「進めなかった」({@link #stepTip} が false を返した = この先のチャンクがまだ読み込まれていない)回数。
+         * 1歩でも進めたら 0 に戻る。{@value #STALL_LIMIT} で頭打ちにし、そこに達した先端は待機中
+         * ({@link #isParked()})—— 捨てずに毎サイクル進めるかだけ見る。待機中の先端しか残っていなければ
+         * {@link #isFinished()} が立つ(待たせ続けると、誰も居ない方角へ伸びた先端のせいで面汚染へ切り替わらない)。
+         * NBT に保存する(2026-09-25〜。読み直すたびに 30 分の猶予をやり直すと、再起動の多いサーバーで面汚染が始まらない)。
          */
         int stalled;
         final List<Waypoint> baseWaypoints = new ArrayList<>();
+
+        /** 読み込まれていないチャンクの手前で {@value #STALL_LIMIT} サイクル以上待っている先端か。 */
+        boolean isParked() {
+            return stalled >= STALL_LIMIT;
+        }
 
         CompoundTag save() {
             CompoundTag t = new CompoundTag();
@@ -134,6 +159,7 @@ public final class RaidRootGrowth {
             t.putInt("lastBranchStep", lastBranchStep);
             t.putDouble("waveFreq", waveFreq);
             t.putDouble("wavePhase", wavePhase);
+            t.putInt("stalled", stalled);
             return t;
         }
 
@@ -149,6 +175,7 @@ public final class RaidRootGrowth {
             tip.lastBranchStep = t.contains("lastBranchStep") ? t.getInt("lastBranchStep") : -100;
             tip.waveFreq = t.getDouble("waveFreq");
             tip.wavePhase = t.getDouble("wavePhase");
+            tip.stalled = Mth.clamp(t.getInt("stalled"), 0, STALL_LIMIT); // 古いセーブは 0(猶予をやり直す)
             return tip;
         }
     }
@@ -158,12 +185,28 @@ public final class RaidRootGrowth {
     private int rethickenCounter;
 
     /**
-     * 根の伸長が終わっているか。株を敷いたあと({@code initialized})に先端が1本も残っていない
-     * = 全ての先端が {@code raidRootMaxDistance} まで到達して止まった、という意味。
-     * {@link com.yayuy.overgrownvegetation.entity.OvergrownNexusEntity} はこれを見て
-     * 面汚染({@link RaidAreaCorruption})へ切り替える。
+     * 残りの先端が全部待機中({@link Tip#isParked()})になった、または 1 本も無くなったことがあるか。
+     * 一度立てたら戻さない(NBT {@code settled})—— 待機中の先端がプレイヤーの接近で伸び直しても、
+     * 始まった面汚染を止めないため。
+     */
+    private boolean settled;
+
+    /**
+     * 根の伸長が一段落したか = 面汚染({@link RaidAreaCorruption})へ切り替えてよいか。
+     * 株を敷いたあと({@code initialized})に、全ての先端が {@code raidRootMaxDistance} まで到達して止まったか、
+     * 残りの先端が全部、読み込まれていないチャンクの手前で待機中になった(一度そうなったら以後ずっと true)。
+     * {@link com.yayuy.overgrownvegetation.entity.OvergrownNexusEntity} はこれを見て面汚染を始める。
+     * 待機中の先端がまだ残っていることがあるので、{@link #grow} は {@link #isFullyGrown()} まで呼び続けること。
      */
     public boolean isFinished() {
+        return initialized && (settled || tips.isEmpty());
+    }
+
+    /**
+     * 全ての先端が {@code raidRootMaxDistance} まで伸びきって無くなった(待機中の先端も残っていない)か。
+     * これが立つまで {@link #grow} を呼び続ける —— 待機中の先端は、その先が読み込まれたら伸び直す。
+     */
+    public boolean isFullyGrown() {
         return initialized && tips.isEmpty();
     }
 
@@ -179,8 +222,11 @@ public final class RaidRootGrowth {
         BlockState rootState = ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState();
 
         if (!initialized) {
-            if (!level.isAreaLoaded(nexusOrigin, CROWN_RADIUS + 4)) {
-                return nodes; // 周辺チャンクが揃うまで待つ
+            if (!level.isAreaLoaded(nexusOrigin, CROWN_RADIUS + 4)
+                    || !chunksReady(level, nexusOrigin.getX(), nexusOrigin.getZ(), CROWN_RADIUS + 4)) {
+                // 周辺チャンクが揃うまで待つ。開始時に同期で読むのは苗床のチャンクだけで、周りは裏で読み込み中のことがある
+                // (isAreaLoaded はチケットしか見ないので、読み込み途中のチャンクへ株を敷くとメインスレッドが待つ)。
+                return nodes;
             }
             initialized = true;
             buildCrown(level, nexusOrigin, rootState, cfg.raidRootThicknessMax.get(), random);
@@ -214,10 +260,10 @@ public final class RaidRootGrowth {
                 continue;
             }
             if (!stepTip(level, nexusOrigin, tip, rootState, cfg)) {
-                // 進めなかった = この先が未ロード。長く続くようなら諦めて捨てる(STALL_LIMIT 参照)。
-                if (++tip.stalled >= STALL_LIMIT) {
-                    rethickenBase(level, nexusOrigin, tip, rootState, cfg);
-                    it.remove();
+                // 進めなかった = この先がまだ読み込まれていない。捨てずに待つ(長く続いたら待機中。STALL_LIMIT 参照)。
+                // 根本の太さは止まってからも 6 サイクルごとに決め直してあるので、待機に入るときに改めて置き直す必要は無い。
+                if (tip.stalled < STALL_LIMIT) {
+                    tip.stalled++;
                 }
                 continue;
             }
@@ -253,12 +299,20 @@ public final class RaidRootGrowth {
         }
         tips.addAll(newborn);
 
+        // 残りの先端が全部待機中(または 1 本も無い)なら、面汚染へ切り替えてよい。一度立てたら戻さない。
+        if (!settled && tips.stream().allMatch(Tip::isParked)) {
+            settled = true;
+        }
+
         // 根本側の「育つにつれて太くなる」再計算は重いので間引く(呼び出しのたびにやらない)。
+        // 待機中の先端は全長が変わらず、太さも決め直し済みなので飛ばす(以前は捨てていたので、掛けていなかったのと同じ)。
         rethickenCounter++;
         if (rethickenCounter >= RETHICKEN_EVERY_N_GROWTHS) {
             rethickenCounter = 0;
             for (Tip tip : tips) {
-                rethickenBase(level, nexusOrigin, tip, rootState, cfg);
+                if (!tip.isParked()) {
+                    rethickenBase(level, nexusOrigin, tip, rootState, cfg);
+                }
             }
         }
 
@@ -398,7 +452,10 @@ public final class RaidRootGrowth {
         }
     }
 
-    /** 先端を1ブロック前進させて根を置く。進めた場合 true。チャンク未ロードなら false。 */
+    /**
+     * 先端を1ブロック前進させて根を置く。進めた場合 true。行き先の周り({@link #chunksReady})のチャンクが
+     * まだ読み込み終わっていなければ何も置かずに false。
+     */
     private boolean stepTip(ServerLevel level, BlockPos nexusOrigin, Tip tip, BlockState rootState,
                             OvergrownVegetationConfig.Common cfg) {
         // 外向きへゆるく寄せ直してから、うねりを加えて1マス進む。
@@ -413,7 +470,8 @@ public final class RaidRootGrowth {
         double nz = tip.z + dirZ + dirX * wobble * 0.3D;
         int ix = Mth.floor(nx);
         int iz = Mth.floor(nz);
-        if (!level.isLoaded(new BlockPos(ix, tip.y, iz))) {
+        int readyMargin = Math.min(15, cfg.raidRootThicknessMax.get() + READY_MARGIN_EXTRA);
+        if (!level.isLoaded(new BlockPos(ix, tip.y, iz)) || !chunksReady(level, ix, iz, readyMargin)) {
             return false;
         }
 
@@ -454,6 +512,28 @@ public final class RaidRootGrowth {
         tip.x = nx;
         tip.z = nz;
         tip.y = groundY;
+        return true;
+    }
+
+    /**
+     * {@code (x, z)} から水平 {@code margin} ブロック以内に掛かるチャンクが、すべて本当に読み込み終わっているか
+     * ({@code getChunkNow} が返す = FULL まで済んでいる)。{@link ServerLevel#isLoaded} はチケットの距離しか見ないので、
+     * 読み込み・生成の途中でも true になり、そのまま getBlockState / setBlock するとメインスレッドがそのチャンクを待って止まる。
+     * 待機中の先端はプレイヤーが近づいて周りを読み込み始めたところで伸び直すので、その途中のチャンクへ踏み込まないよう
+     * ここで確かめる(2026-09-25)。{@code margin} は 15 以下なので、見るチャンクは各軸 3 枚まで。
+     */
+    private static boolean chunksReady(ServerLevel level, int x, int z, int margin) {
+        int minCx = SectionPos.blockToSectionCoord(x - margin);
+        int maxCx = SectionPos.blockToSectionCoord(x + margin);
+        int minCz = SectionPos.blockToSectionCoord(z - margin);
+        int maxCz = SectionPos.blockToSectionCoord(z + margin);
+        for (int cx = minCx; cx <= maxCx; cx++) {
+            for (int cz = minCz; cz <= maxCz; cz++) {
+                if (level.getChunkSource().getChunkNow(cx, cz) == null) {
+                    return false;
+                }
+            }
+        }
         return true;
     }
 
@@ -531,7 +611,11 @@ public final class RaidRootGrowth {
                 int topDy = (int) Math.round(Math.sqrt(Math.max(0.0D, edgeSq - horizSq)));
                 for (int dy = -1; dy <= topDy; dy++) {
                     p.set(cx + dx, gy + dy, cz + dz);
-                    if (level.isLoaded(p)) {
+                    // 既に同じ状態なら置かない(2026-09-24 軽量化、報告 1108)。rethickenBase は 360 tick ごとに
+                    // 根本の全点を置き直すが、太さが頭打ちになったあとはほぼ全マスが同じ状態の上書きだった。
+                    // 同じ状態の setBlock はもともと LevelChunk#setBlockState が null を返して何も起きないので、
+                    // 結果は同じ(プレイヤーが削ったマスは今までどおり埋め直される)。
+                    if (level.isLoaded(p) && level.getBlockState(p) != state) {
                         level.setBlock(p, state, UPDATE_FLAGS);
                     }
                 }
@@ -572,6 +656,7 @@ public final class RaidRootGrowth {
     public CompoundTag save() {
         CompoundTag tag = new CompoundTag();
         tag.putBoolean("initialized", initialized);
+        tag.putBoolean("settled", settled);
         ListTag list = new ListTag();
         for (Tip tip : tips) {
             list.add(tip.save());
@@ -587,5 +672,7 @@ public final class RaidRootGrowth {
         for (int i = 0; i < list.size(); i++) {
             tips.add(Tip.load(list.getCompound(i)));
         }
+        // 古いセーブ(settled が無い)は、先端が残っていれば次の grow で決め直す(先端が無ければ isFinished は tips から立つ)。
+        settled = tag.getBoolean("settled");
     }
 }

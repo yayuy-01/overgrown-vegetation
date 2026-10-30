@@ -53,7 +53,9 @@ import javax.annotation.Nullable;
  *
  * <h2>汚染による変換</h2>
  * <p>木のドア({@link BlockTags#WOODEN_DOORS})・チェスト({@link Blocks#CHEST})・樽({@link Blocks#BARREL})が
- * 汚染されると、対応する過繫茂ブロックへ変換される({@link #corruptedStateFor})。チェスト・樽は
+ * 汚染されると、対応する過繫茂ブロックへ変換される({@link #corruptedStateFor})。<b>バニラの扉は 2026-10-05 から
+ * 覆われた扉</b>(同じ木の扉に苔。{@code covered/CoveredInteractables} が同じ「時々開かない」を持つ)になり、
+ * 過繫茂したドアになるのは覆われた版の無い他 MOD の木のドアだけ。チェスト・樽は
  * {@code corruptBlockEntities}(既定 false)に関係なく変換され、<b>中身・名前・ロック・未開封のルートテーブルは
  * そのまま引き継ぐ</b>({@link #placeConverted}: 変換前の BlockEntity を NBT に退避 → 中身を空にしてから置き換え
  * (置き換え時のドロップ防止)→ 新しい BlockEntity へ読み戻す)。ドアは上下 2 マス、ラージチェストは 2 マスを
@@ -112,7 +114,8 @@ public final class OvergrownContainers {
      */
     public static boolean placeConverted(LevelAccessor level, BlockPos pos, BlockState previous,
                                          BlockState corrupted, int flags) {
-        if (corrupted.is(ModBlocks.OVERGROWN_DOOR.get())) {
+        if (corrupted.getBlock() instanceof DoorBlock && previous.getBlock() instanceof DoorBlock) {
+            // 過繫茂したドアと、覆われた扉(バニラの扉は全部これになる。2026-10-05)。どちらも上下 2 マスいっしょに。
             placeDoor(level, pos, previous, corrupted, flags);
             return true;
         }
@@ -139,9 +142,12 @@ public final class OvergrownContainers {
         if (other.getBlock() == previous.getBlock() && other.hasProperty(DoorBlock.HALF)
                 && other.getValue(DoorBlock.HALF) != half) {
             // もう片方の半分も同じ向き・開閉状態で同時に変換する(蝶番・電源状態は元の半分のものを引き継ぐ)。
+            // 覆われた鉄の扉は手で開かないので覆われ具合を持たない。
             BlockState otherCorrupted = CorruptionRegistry.copyMatchingProperties(other, corrupted)
-                    .setValue(DoorBlock.HALF, other.getValue(DoorBlock.HALF))
-                    .setValue(OVERGROWTH, MAX_LEVEL);
+                    .setValue(DoorBlock.HALF, other.getValue(DoorBlock.HALF));
+            if (otherCorrupted.hasProperty(OVERGROWTH)) {
+                otherCorrupted = otherCorrupted.setValue(OVERGROWTH, MAX_LEVEL);
+            }
             level.setBlock(otherPos, otherCorrupted, flags);
         }
     }
@@ -221,6 +227,15 @@ public final class OvergrownContainers {
      * @return true = 開けてよい。false = 蔦に絡まって開かなかった(音・パーティクル・メッセージは出し終えている)
      */
     public static boolean tryOpen(Level level, BlockPos pos, BlockState state, @Nullable Player player) {
+        return tryOpen(level, pos, state, player, STUCK_MESSAGE);
+    }
+
+    /** アクションバーの文言。開くものは「開かない」、ボタン・レバー(覆われたブロック、2026-10-05)は「動かない」。 */
+    public static final String STUCK_MESSAGE = "message.overgrown_vegetation.overgrown_container.stuck";
+    public static final String STUCK_MOVE_MESSAGE = "message.overgrown_vegetation.overgrown_container.stuck_move";
+
+    /** {@link #tryOpen(Level, BlockPos, BlockState, Player)} の文言を選べる版。 */
+    public static boolean tryOpen(Level level, BlockPos pos, BlockState state, @Nullable Player player, String messageKey) {
         if (!state.hasProperty(OVERGROWTH)) {
             return true;
         }
@@ -231,7 +246,7 @@ public final class OvergrownContainers {
         if (chance <= 0.0D || level.random.nextDouble() >= chance) {
             return true;
         }
-        stuckFeedback(level, pos, player);
+        stuckFeedback(level, pos, player, messageKey);
         return false;
     }
 
@@ -241,6 +256,11 @@ public final class OvergrownContainers {
      * きしむ」音になる。2026-09-11: 以前の蔦を壊す草っぽい音から変更)。
      */
     public static void stuckFeedback(Level level, BlockPos pos, @Nullable Player player) {
+        stuckFeedback(level, pos, player, STUCK_MESSAGE);
+    }
+
+    /** {@link #stuckFeedback(Level, BlockPos, Player)} の文言を選べる版。 */
+    public static void stuckFeedback(Level level, BlockPos pos, @Nullable Player player, String messageKey) {
         level.playSound(null, pos, SoundEvents.WOODEN_DOOR_OPEN, SoundSource.BLOCKS, 1.0F,
                 0.45F + level.random.nextFloat() * 0.1F);
         if (level instanceof ServerLevel serverLevel) {
@@ -248,7 +268,7 @@ public final class OvergrownContainers {
                     pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D, 8, 0.3D, 0.3D, 0.3D, 0.0D);
         }
         if (player != null) {
-            player.displayClientMessage(Component.translatable("message.overgrown_vegetation.overgrown_container.stuck"), true);
+            player.displayClientMessage(Component.translatable(messageKey), true);
         }
     }
 
@@ -271,6 +291,15 @@ public final class OvergrownContainers {
             return ItemInteractionResult.SUCCESS;
         }
         setter.set(level, pos, state, 0);
+        shearEffects(stack, level, pos, player, hand);
+        return ItemInteractionResult.CONSUME;
+    }
+
+    /**
+     * ハサミで剥がしたときの消耗と演出(ハサミの耐久 1・音・苔の破片・ゲームイベント)。サーバー側で呼ぶ。
+     * 覆われた扉などを元のブロックへ戻すとき({@code covered/CoveredInteractables}、2026-10-05 夜)も同じものを出す。
+     */
+    public static void shearEffects(ItemStack stack, Level level, BlockPos pos, Player player, InteractionHand hand) {
         stack.hurtAndBreak(1, player, LivingEntity.getSlotForHand(hand));
         level.playSound(null, pos, SoundEvents.GROWING_PLANT_CROP, SoundSource.BLOCKS, 1.0F, 1.0F);
         if (level instanceof ServerLevel serverLevel) {
@@ -278,7 +307,6 @@ public final class OvergrownContainers {
                     pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D, 16, 0.35D, 0.35D, 0.35D, 0.0D);
         }
         level.gameEvent(player, net.minecraft.world.level.gameevent.GameEvent.SHEAR, pos);
-        return ItemInteractionResult.CONSUME;
     }
 
     /**

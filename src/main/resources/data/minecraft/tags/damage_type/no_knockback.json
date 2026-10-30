@@ -1,6 +1,8 @@
 {
   "replace": false,
   "values": [
-    "overgrown_vegetation:water_rot"
+    "overgrown_vegetation:water_rot",
+    "overgrown_vegetation:scutimnes_shockwave",
+    "overgrown_vegetation:voramnes_digest"
   ]
 }

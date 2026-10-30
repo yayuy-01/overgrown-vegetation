@@ -152,6 +152,11 @@ public class BeamShieldBlock extends BaseEntityBlock {
             player.displayClientMessage(Component.translatable("gui.overgrown_vegetation.shield.needs_ground"), true);
             return InteractionResult.CONSUME;
         }
+        if (deploy && !com.yayuy.overgrownvegetation.defense.MachineBattery.hasEnergy(shield)) {
+            // 電池が無いと動かない(2026-10-16、㉔)
+            player.displayClientMessage(Component.translatable("message.overgrown_vegetation.battery.needed"), true);
+            return InteractionResult.CONSUME;
+        }
         shield.setDeploying(deploy);
         level.playSound(null, pos, deploy ? SoundEvents.PISTON_EXTEND : SoundEvents.PISTON_CONTRACT,
                 SoundSource.BLOCKS, 0.9F, 0.7F);

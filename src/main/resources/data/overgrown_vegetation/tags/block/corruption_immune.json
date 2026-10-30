@@ -1,10 +1,6 @@
 {
   "replace": false,
   "values": [
-    "overgrown_vegetation:spore_node",
-    "overgrown_vegetation:spore_vent",
-    "overgrown_vegetation:arbora_egg",
-    "overgrown_vegetation:arbora_storage_pod",
     "minecraft:bedrock",
     "minecraft:barrier",
     "minecraft:structure_void",
@@ -16,9 +12,12 @@
     "minecraft:light",
     "minecraft:end_portal",
     "minecraft:end_portal_frame",
+    "overgrown_vegetation:overgrown_end_portal_frame",
     "minecraft:end_gateway",
     "minecraft:nether_portal",
     "minecraft:reinforced_deepslate",
-    "minecraft:budding_amethyst"
+    "minecraft:budding_amethyst",
+    "overgrown_vegetation:target_block",
+    "overgrown_vegetation:burnt_soil"
   ]
 }

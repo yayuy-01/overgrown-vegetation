@@ -32,8 +32,10 @@ import java.util.Map;
  * 目標個体数は {@code max(1, round(weight / 合計 * overgrownSpawnTargetTotal))}(既定 18)なので、
  * <b>weight を少し動かすと体数が 1 段まるごと変わる</b>。逆に大きく動かしても同じ段に留まることがある。
  * 減らしたいときは「今どの段にいるか」を見てから決めること。フェーズごとの合計 weight は
- * {@code mobs.json} の {@code spawns.overgrown} 次第で、現状はフェーズ5(群2・3・4)が 95.6、
- * フェーズ6以降(群4のみ)が 21.6。
+ * {@code mobs.json} の {@code spawns} 次第で、2026-09-23 に run/config の mobs.json から数え直した値は
+ * フェーズ5(密林)が 114.9、フェーズ6(群4のみ)が 21.9(フェーズ7以降はグループ5 の種が足される)。
+ * このうち 0.3 は同日に足したペディキュラで、<b>足してもどの種の体数も 1 体も変わらない</b>ように選んだ値
+ * (0.32 以上にするとフェーズ6 のアルボラが 12 → 11 に落ちる)。
  *
  * <p>下限 1 があるので、<b>weight をいくら下げても「まったく湧かない」にはならない</b>
  * (逆に、{@code overgrownSpawnTargetTotal} を下げても少数種がまるごと消えることはない)。
@@ -94,7 +96,18 @@ public final class OvergrownSpawnProfile {
 
     /** そのバイオームがどの枠か。 */
     public static MobStat.SpawnPlace placeOf(net.minecraft.core.Holder<Biome> biome) {
+        if (isNetherOvergrowth(biome)) {
+            // ネザーの繁茂系は密林の枠(2026-10-02。専用の枠を作るまで。環境を持たない null は海の枠になってしまう)。
+            return MobStat.SpawnPlace.JUNGLE;
+        }
         return placeOf(OvergrowthVariant.fromBiome(biome));
+    }
+
+    /** ネザーの繁茂系バイオームか。 */
+    private static boolean isNetherOvergrowth(net.minecraft.core.Holder<Biome> biome) {
+        return biome.unwrapKey()
+                .map(key -> com.yayuy.overgrownvegetation.registry.NetherOvergrowthVariant.fromKey(key) != null)
+                .orElse(false);
     }
 
     /**
@@ -102,8 +115,8 @@ public final class OvergrownSpawnProfile {
      *
      * <p><b>極相バイオームには通常の Mob を一切湧かせない</b>(2026-09-22、{@code climax.json} の
      * {@code biome.naturalSpawns})。極相に湧くのは G-EX だけ、という設計のため。
-     * 判定をここに置いてあるのは、陸・水中・洞窟の 3 つの湧き経路が
-     * ({@code OvergrownBiomeSpawner} の 3 箇所)いずれもこのメソッドを通るから ——
+     * 判定をここに置いてあるのは、陸・水中・洞窟・上空(2026-09-23)の 4 つの湧き経路が
+     * ({@code OvergrownBiomeSpawner} の 4 箇所)いずれもこのメソッドを通るから ——
      * 経路ごとに書くと、どれか 1 つを直し忘れて「洞窟にだけ湧く」といった漏れ方をする。
      *
      * <p>{@code ModBiomes.isFullyOvergrown} は極相にも {@code true} を返すので、
@@ -113,7 +126,31 @@ public final class OvergrownSpawnProfile {
         if (ModBiomes.isClimax(biome) && !DesignData.climax().naturalSpawns()) {
             return false;
         }
+        if (biome.is(com.yayuy.overgrownvegetation.registry.ModBiomes.OVERGROWN_END)) {
+            // 過繫茂したエンドに湧く Mob は後で作る(2026-10-02 ユーザー)。それまでこの mod の Mob は湧かせない。
+            return false;
+        }
+        if (!netherRuleAllows(isNetherOvergrowth(biome), type)) {
+            return false;
+        }
         return MobStats.spawnsIn(type, phase, placeOf(biome));
+    }
+
+    /**
+     * ネザーと媒介種の決まり(湧く場所の判定。{@link #allowedIn} と {@link OutsideInvaderSpawner} が使う)。
+     * <ul>
+     *     <li>オーバーワールド産の媒介種(G1 のうちタグ {@code nether_native} に無いもの)はネザーに湧かせない(2026-10-02 ユーザー指定)。</li>
+     *     <li>ネザーの媒介種(タグ {@code nether_native}、2026-10-09)はネザーにだけ湧く。ネザーの外には湧かせない。</li>
+     * </ul>
+     *
+     * @param nether 湧かせる場所がネザーか
+     */
+    public static boolean netherRuleAllows(boolean nether, EntityType<?> type) {
+        boolean netherNative = type.is(com.yayuy.overgrownvegetation.ModTags.NETHER_NATIVE);
+        if (nether) {
+            return netherNative || MobGroup.of(type) != MobGroup.GROUP_1;
+        }
+        return !netherNative;
     }
 
     /** 表にもグループ既定にも無い種。生態系スポーンの対象外。 */
@@ -126,6 +163,14 @@ public final class OvergrownSpawnProfile {
      * 湧いた個体は非永続なので、移動しながら遊んでいる間は「ときどき出会う」密度になる。
      */
     private static final double RARE_CHANCE = 0.08D;
+
+    /**
+     * 空を漂う種(ペディキュラ)の {@code spawnChance}。{@link #RARE_CHANCE} のさらに半分 ——
+     * 1 体が通り道のチャンクをまるごと胞子濃度 100% にしていくので、<b>数より頻度が効く</b>。
+     * 目標個体数は 1 なので、近くに 1 体も居ないときに平均 80 秒ほどで次が湧く。
+     * 湧いた個体は外へ流れて行って 1〜2 分で数える範囲を出るので、およそ 3 分に 1 体流れてくる勘定。
+     */
+    private static final double SKY_CHANCE = 0.04D;
 
     /** id(overgrown_vegetation 名前空間内のパス)→ 特性。 */
     private static final Map<String, Profile> BY_ID = Map.ofEntries(
@@ -143,6 +188,12 @@ public final class OvergrownSpawnProfile {
             // --- グループ2 水生: 原生生産種(被食者)。海・川バイオームの水中に湧く。 ---
             Map.entry("xenacanthus", new Profile(12.0D, 3)),
             Map.entry("rhizodus", new Profile(3.0D, 1)),
+            // G2 の新しい種(2026-10-22、仮決め)。ディプロカウルス・カタツムリ・幼虫は群れ、肺魚・ヒベルトプテルスは少なめ。
+            Map.entry("diplocaulus", new Profile(8.0D, 3)),
+            Map.entry("lungfish", new Profile(4.0D, 1)),
+            Map.entry("hibbertopterus", new Profile(2.0D, 1)),
+            Map.entry("giant_snail", new Profile(8.0D, 3)),
+            Map.entry("stenodictya_nymph", new Profile(10.0D, 3)),
 
             // --- グループ3: 原生消費種(捕食者)。少ない。 ---
             Map.entry("petrolacosaurus", new Profile(4.0D, 3)),
@@ -165,16 +216,33 @@ public final class OvergrownSpawnProfile {
             Map.entry("overgrown_shielder", new Profile(2.0D, 1)),
             // グループ5(適応種)。G4 より湧きにくく数が出ない(ユーザー指定 2026-09-23): 1 体ずつ・レア枠。
             Map.entry("falcimnes", new Profile(0.6D, 1, RARE_CHANCE)),
+            // 同じくグループ5 の盾役。ファルキムネスと同じ扱い(仮)。
+            Map.entry("scutimnes", new Profile(0.6D, 1, RARE_CHANCE)),
+            // 同じくグループ5 の空の狙撃役(2026-09-28)。ファルキムネスと同じ扱い(仮)。
+            Map.entry("acumnes", new Profile(0.6D, 1, RARE_CHANCE)),
+            // 同じくグループ5 の低キューブ 4 種(2026-10-01)。ファルキムネスと同じ扱い(仮)。
+            // 海 / 地下 / 地表の振り分けは mobs.json の spawns と AQUATIC_IDS、置き場所は実体の OvergrownSpawnCheck。
+            Map.entry("bathymnes", new Profile(0.6D, 1, RARE_CHANCE)),
+            Map.entry("erebomnes", new Profile(0.6D, 1, RARE_CHANCE)),
+            Map.entry("voramnes", new Profile(0.6D, 1, RARE_CHANCE)),
+            Map.entry("fodimnes", new Profile(0.6D, 1, RARE_CHANCE)),
             // 索敵役。1 体で周囲全体を動かすので数は少なくてよい。フェーズ5以降は
             // 「たまに出てくる程度」にする(ユーザー要望 2026-09-19)ため、weight を 2.0 → 0.8 に下げ、
             // さらに spawnChance でパスごとの候補入りを絞っている。
             Map.entry("phyllosens", new Profile(0.8D, 1, RARE_CHANCE)),
             // 支援役。1 体で周囲全体を強化するので、こちらも同じ扱い(1.8 → 0.8 + レア化)。
             Map.entry("sporophyll", new Profile(0.8D, 1, RARE_CHANCE)),
+            // 漂流種(2026-09-23)。上空に 1 体ずつ。群れには混ぜない({@link #isSky})。
+            // weight 0.3 は「足しても他の種の体数が変わらない」値(クラスの説明)。
+            Map.entry("pedicula", new Profile(0.3D, 1, SKY_CHANCE)),
 
             // --- グループ3 水生: 水中の捕食者。 ---
             Map.entry("orthacanthus", new Profile(2.0D, 1)),
             Map.entry("megarachne", new Profile(2.0D, 2)),
+            // G3 の新しい種(2026-10-22、仮決め)。どれも 1 体ずつ。
+            Map.entry("eryops", new Profile(2.0D, 1)),
+            Map.entry("pulmonoscorpius", new Profile(2.0D, 1)),
+            Map.entry("crassigyrinus", new Profile(1.5D, 1)),
 
             // --- グループ1: 媒介種(フェーズ1〜3)。感染した家畜・モンスター。 ---
             Map.entry("parasitized_cow", new Profile(6.0D, 3)),
@@ -233,19 +301,35 @@ public final class OvergrownSpawnProfile {
     }
 
     private static final java.util.Set<String> AQUATIC_IDS =
-            java.util.Set.of("rhizodus", "xenacanthus", "orthacanthus", "megarachne");
+            java.util.Set.of("rhizodus", "xenacanthus", "orthacanthus", "megarachne",
+                    "bathymnes", // バティムネス(G5、2026-10-01)。深い水だけに絞るのは実体の OvergrownSpawnCheck
+                    "diplocaulus", "lungfish", "hibbertopterus", "crassigyrinus"); // G2・G3 の新しい水の種(2026-10-22)
 
     /**
-     * <b>洞窟にだけ湧く種</b>か。地表の湧き処理へ回すと、地下の生き物が地面の上に出てしまう。
-     * 「洞窟」の判定は地表の植物と同じ {@code caveDepthMargin}
+     * <b>洞窟にだけ湧く種</b>か({@code mobs.json} の {@code spawns.depth} が {@code ["cave"]} だけ)。
+     * 地表の湧き処理へ回すと地下の生き物が地面の上に出てしまうので、地表を当てにする処理
+     * (生態系防衛の守り手の選定など)はこれで外す。
+     *
+     * <p>2026-09-26 まではここにハードコードした表(スペラエオプレウラだけ)だったが、
+     * ユーザー指定で Mob ごとに選べるようにして {@code mobs.json} へ移した。
+     * <b>地上と地下の両方</b>に湧く種はここでは false —— 地表にも出るため。
+     * 「洞窟」の判定そのものは地表の植物と同じ {@code caveDepthMargin}
      * ({@link com.yayuy.overgrownvegetation.corruption.CaveGrowth#isCave})。
      */
     public static boolean isCave(EntityType<?> type) {
-        ResourceLocation key = BuiltInRegistries.ENTITY_TYPE.getKey(type);
-        return CAVE_IDS.contains(key.getPath());
+        return MobStats.spawnsInCaves(type) && !MobStats.spawnsOnSurface(type);
     }
 
-    private static final java.util.Set<String> CAVE_IDS = java.util.Set.of("spelaeopleura");
+    /**
+     * <b>上空に湧く種</b>か(2026-09-23)。地表ではなく、地表から {@code drift.cruiseAltitude} 上に湧かせる。
+     * 1 体で漂う種なので、混成の群れ(フェーズ6以降のグループ4)にも混ぜない。
+     */
+    public static boolean isSky(EntityType<?> type) {
+        ResourceLocation key = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+        return SKY_IDS.contains(key.getPath());
+    }
+
+    private static final java.util.Set<String> SKY_IDS = java.util.Set.of("pedicula");
 
     private OvergrownSpawnProfile() {
     }

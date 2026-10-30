@@ -1,0 +1,31 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:covered_crimson_stem",
+    "overgrown_vegetation:covered_crimson_hyphae",
+    "overgrown_vegetation:covered_stripped_crimson_stem",
+    "overgrown_vegetation:covered_stripped_crimson_hyphae",
+    "overgrown_vegetation:covered_crimson_planks",
+    "overgrown_vegetation:covered_crimson_stairs",
+    "overgrown_vegetation:covered_crimson_slab",
+    "overgrown_vegetation:covered_crimson_fence",
+    "overgrown_vegetation:covered_crimson_fence_gate",
+    "overgrown_vegetation:covered_crimson_door",
+    "overgrown_vegetation:covered_crimson_trapdoor",
+    "overgrown_vegetation:covered_crimson_pressure_plate",
+    "overgrown_vegetation:covered_crimson_button",
+    "overgrown_vegetation:covered_warped_stem",
+    "overgrown_vegetation:covered_warped_hyphae",
+    "overgrown_vegetation:covered_stripped_warped_stem",
+    "overgrown_vegetation:covered_stripped_warped_hyphae",
+    "overgrown_vegetation:covered_warped_planks",
+    "overgrown_vegetation:covered_warped_stairs",
+    "overgrown_vegetation:covered_warped_slab",
+    "overgrown_vegetation:covered_warped_fence",
+    "overgrown_vegetation:covered_warped_fence_gate",
+    "overgrown_vegetation:covered_warped_door",
+    "overgrown_vegetation:covered_warped_trapdoor",
+    "overgrown_vegetation:covered_warped_pressure_plate",
+    "overgrown_vegetation:covered_warped_button"
+  ]
+}

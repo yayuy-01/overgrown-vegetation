@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "tag": "overgrown_vegetation:covered_mangrove_logs"
+    }
+  ],
+  "result": {
+    "id": "overgrown_vegetation:covered_mangrove_planks",
+    "count": 4
+  }
+}

@@ -181,7 +181,9 @@ public final class ResearchTable {
             return 0;
         }
         ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        return itemPoints.getOrDefault(id.toString(), defaultPoints);
+        int points = itemPoints.getOrDefault(id.toString(), defaultPoints);
+        // しおれた地脈の花(2026-10-24、前兆)は半分(切り捨て)
+        return com.yayuy.overgrownvegetation.block.LeyFlowerBlock.isWilted(stack) ? points / 2 : points;
     }
 
     /** 基本 1 枠 + 開放済みノードの {@code analyzeSlots} 合計(呼び出し側で上限クランプ推奨)。 */
@@ -359,6 +361,20 @@ public final class ResearchTable {
         for (String s : new String[]{"phalangiotarbus_fang", "meganeura_compound_eye", "megarachne_pincer"}) {
             m.put(OvergrownVegetation.MODID + ":" + s, 4);
         }
+        // 順 1 の着手順 11(2026-10-04、Claude 仮決め): G1 の汚染されたバニラ素材 1 / グループ共通・胞子嚢 2 / 適応の記録 5
+        for (String s : new String[]{"contaminated_meat", "rotten_spore_flesh", "contaminated_wool", "contaminated_string"}) {
+            m.put(OvergrownVegetation.MODID + ":" + s, 1);
+        }
+        for (String s : new String[]{"parasitic_mycelium", "arthropod_shell", "predator_tendon", "spore_gland_tissue", "spore_sac"}) {
+            m.put(OvergrownVegetation.MODID + ":" + s, 2);
+        }
+        for (String s : new String[]{"grasp", "shield", "aim", "water", "dark", "devour", "dig"}) {
+            m.put(OvergrownVegetation.MODID + ":adaptation_record_" + s, 5);
+        }
+        // 序盤の作り直し(2026-10-22、仮決め): 地脈の花 2・地脈の結晶の欠片 8。F1 より前から研究を始められる素材。
+        m.put(OvergrownVegetation.MODID + ":ley_flower", 2);
+        m.put(OvergrownVegetation.MODID + ":ley_crystal_shard", 8);
+        m.put(OvergrownVegetation.MODID + ":unknown_sample", 5);
         return m;
     }
 
@@ -391,6 +407,23 @@ public final class ResearchTable {
 
     private static Map<String, Node> buildDefault() {
         Map<String, Node> m = new LinkedHashMap<>();
+
+        // 地脈技術の 2 段目(2026-10-22、仮のノード。コストは仮。研究ツリーの再編で系統に分ける)。design/research.json と同じ。
+        m.put("ley_technology", def("ley_technology", "地脈技術",
+                "大地を流れる地脈から取り出した力で、暮らしの機械を動かす。地脈炉・地脈灯・上昇気流機はどれも地脈電池で動く。(仮のノード。研究ツリーの再編で系統に分ける)",
+                "overgrown_vegetation:ley_furnace", 10, 1, 0.25, 2.5,
+                List.of(), List.of("ley_furnace", "ley_lamp", "ley_updraft", "glider", "ley_meter")));
+
+        // 地脈技術の 4 段目(2026-10-24、仮のノード): 前兆の頃から汲み上げ器の雫に混じる未知の試料を解析すると胞子濃度計が作れる。
+        m.put("unknown_sample", def("unknown_sample", "未知の試料",
+                "汲み上げ器の雫に混じっていた、見たことのない灰色の粒を調べる。粒は空気の中から降ってきたものらしい。空気に漂う細かな粒を測る計器が作れる。(仮のノード。研究ツリーの再編で動かす)",
+                "overgrown_vegetation:unknown_sample", 5, 1, 0.25, 5.0,
+                List.of(), List.of("spore_meter")));
+
+        m.put("ley_conversion", def("ley_conversion", "転用",
+                "暮らしの地脈の機械に植物側の素材を組み込み、森に向けた機械へ作り替える。地脈灯は忌避の精油で忌避灯に、上昇気流機は胞子の濾過膜で胞子除去装置になる。(仮のノード。研究ツリーの再編で動かす)",
+                "overgrown_vegetation:repellent_lamp", 10, 1, 0.25, 3.75,
+                List.of("ley_technology"), List.of("repellent_lamp", "spore_purifier", "mortar_repellent_oil", "spore_membrane")));
 
         m.put("composite_materials", def("composite_materials", "複合素材の加工",
                 "繊維・鱗・牙を加工して上位装備の素材にする。解析枠 +1。",

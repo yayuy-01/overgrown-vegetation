@@ -63,8 +63,17 @@ public class PerchOnBranchGoal extends Goal {
     public void start() {
         this.settled = false;
         this.perchTicksLeft = MIN_PERCH + this.mob.getRandom().nextInt(MAX_PERCH - MIN_PERCH + 1);
-        this.mob.getMoveControl().setWantedPosition(
-                this.perchPos.getX() + 0.5D, this.perchPos.getY() + 0.1D, this.perchPos.getZ() + 0.5D, this.approachSpeed);
+        Vec3 spot = perchSpot();
+        this.mob.getMoveControl().setWantedPosition(spot.x, spot.y, spot.z, this.approachSpeed);
+    }
+
+    /**
+     * 止まる位置: 当たり判定の上の端が枝の下面に着く高さ(2026-10-10。ステノディクティアのモデル作り直しで perch を逆さにぶら下がる形にした。
+     * 前は空きマスの底 +0.1 で、枝の下面まで 0.9 空いて宙に浮いて見えた)。
+     */
+    private Vec3 perchSpot() {
+        double top = this.perchPos.getY() + 1.0D - 0.02D;
+        return new Vec3(this.perchPos.getX() + 0.5D, top - this.mob.getBbHeight(), this.perchPos.getZ() + 0.5D);
     }
 
     @Override
@@ -84,7 +93,7 @@ public class PerchOnBranchGoal extends Goal {
 
     @Override
     public void tick() {
-        Vec3 spot = new Vec3(this.perchPos.getX() + 0.5D, this.perchPos.getY() + 0.1D, this.perchPos.getZ() + 0.5D);
+        Vec3 spot = perchSpot();
         double distSq = this.mob.position().distanceToSqr(spot);
         if (!this.settled) {
             if (distSq < 0.5D) {

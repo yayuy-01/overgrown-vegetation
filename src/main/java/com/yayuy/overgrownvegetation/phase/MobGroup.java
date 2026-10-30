@@ -1,6 +1,7 @@
 package com.yayuy.overgrownvegetation.phase;
 
 import com.yayuy.overgrownvegetation.ModTags;
+import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -8,11 +9,17 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.TagsUpdatedEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 「過繁茂した Mob」の 10 分類。所属はエンティティタイプタグ
@@ -36,8 +43,8 @@ import java.util.Optional;
  *     混成の群れ・増援ウェーブのどれにも現れない。</li>
  *     <li>{@link #GROUP_5}(適応種): ファルキムネス(2026-09-23)。倒された武器への適応
  *     ({@code adaptation/Adaptation})はこのグループだけの特性。</li>
- *     <li>{@link #GROUP_6}(進化種) / {@link #GROUP_7}(変異種) /
- *     {@link #GROUP_8}(脅威種) / {@link #GROUP_9}(侵略級): 未実装(枠のみ)。
+ *     <li>{@link #GROUP_6}(進化種) / {@link #GROUP_7}(脅威種) /
+ *     {@link #GROUP_8}(守護種) / {@link #GROUP_9}(侵略級): 未実装(枠のみ)。
  *     グループ9 は将来ハイヴノードの出現条件にする予定(2026-09-19)。</li>
  *     <li>{@link #GROUP_10}(災害級): {@code dorga_archelaus_titanica}(攻城戦ボス
  *     ドルガ=アーケロウス・ティタニカ)。<b>どのフェーズの湧きプールにも入っていない</b>ので、
@@ -49,7 +56,7 @@ import java.util.Optional;
  * <ul>
  *     <li>フェーズ1: グループ1が過繁茂バイオームに湧くようになる。</li>
  *     <li>フェーズ2: グループ1が汚染地形から離れて他の Mob を襲い、体力・攻撃力が強化される
- *     ({@link Group1PhaseBehavior} / {@link Group1FleeCorruptionGoal})。</li>
+ *     ({@link GroupPhaseBehavior} / {@link Group1FleeCorruptionGoal})。</li>
  *     <li>フェーズ3: グループ2も過繁茂バイオームに湧くようになる。</li>
  *     <li>フェーズ4: グループ3も過繁茂バイオームに湧くようになる。</li>
  *     <li>フェーズ5: グループ4も過繁茂バイオームに湧くようになる(突入時にレイドも確定で1回発生)。</li>
@@ -71,9 +78,9 @@ public enum MobGroup {
     GROUP_5(ModTags.GROUP_5),
     /** 進化種(未実装)。 */
     GROUP_6(ModTags.GROUP_6),
-    /** 変異種(未実装)。 */
-    GROUP_7(ModTags.GROUP_7),
     /** 脅威種(未実装)。 */
+    GROUP_7(ModTags.GROUP_7),
+    /** 守護種(未実装)。 */
     GROUP_8(ModTags.GROUP_8),
     /** 侵略級(未実装。ハイヴノードの出現条件にする予定)。 */
     GROUP_9(ModTags.GROUP_9),
@@ -118,6 +125,29 @@ public enum MobGroup {
      */
     @Nullable
     public static MobGroup of(EntityType<?> type) {
+        Optional<MobGroup> cached = BY_TYPE.get(type);
+        if (cached == null) {
+            // 作る側は BY_TYPE に触らないので、computeIfAbsent の入れ子(Recursive update)にはならない。
+            cached = BY_TYPE.computeIfAbsent(type, t -> Optional.ofNullable(lookup(t)));
+        }
+        return cached.orElse(null);
+    }
+
+    /**
+     * {@link #of(EntityType)} の答えの控え(どこにも属さない種は {@link Optional#empty()})。
+     * 索敵の絞り込みやダメージ処理から毎 tick 何百回と引かれ、グループ外の種(プレイヤー・バニラの Mob)だと
+     * 毎回 10 個のタグを全部見ることになるので、種ごとに 1 回だけ引いて使い回す。
+     *
+     * <p>所属はタグだけで決まり、タグの中身が変わるのは結び直したときだけ(データパックの {@code /reload}・
+     * ワールドを開いたとき・サーバーからタグを受け取ったとき)。バニラはどの経路でも結び直した直後に
+     * {@link TagsUpdatedEvent} を出すので、そこで控えを捨てる({@link Events})。
+     * サーバーとクライアントのスレッドから同時に引かれるので ConcurrentHashMap。
+     */
+    private static final Map<EntityType<?>, Optional<MobGroup>> BY_TYPE = new ConcurrentHashMap<>();
+
+    /** タグを直接見る版(控えを作るときだけ使う)。 */
+    @Nullable
+    private static MobGroup lookup(EntityType<?> type) {
         for (MobGroup group : VALUES) {
             if (type.is(group.tag)) {
                 return group;
@@ -165,5 +195,21 @@ public enum MobGroup {
             return null;
         }
         return holders.get().getRandomElement(random).map(Holder::value).orElse(null);
+    }
+
+    /**
+     * タグが結び直されたら {@link #BY_TYPE} を捨てる。サーバー側({@code SERVER_DATA_LOAD})でも
+     * クライアント側({@code CLIENT_PACKET_RECEIVED})でも、原因を問わず捨てる(余計に捨てても引き直すだけ)。
+     * 優先度を最高にして、ほかの受け手がこのイベントの中で {@link #of(EntityType)} を引いても古い答えを見ないようにする。
+     */
+    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+    public static final class Events {
+        @SubscribeEvent(priority = EventPriority.HIGHEST)
+        public static void onTagsUpdated(TagsUpdatedEvent event) {
+            BY_TYPE.clear();
+        }
+
+        private Events() {
+        }
     }
 }

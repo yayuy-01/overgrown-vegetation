@@ -11,7 +11,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationController;
 import software.bernie.geckolib.animation.RawAnimation;
 
 /**
@@ -44,17 +43,28 @@ public class IanthasaurusEntity extends AbstractOvergrownPredatorEntity {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "main", 3, state -> {
+        // 歩きの再生速度は実際に進んだ量に合わせる(2026-10-10、モデル作り直し。追跡では散歩より 2 割速く、そのままだと足が滑る)。
+        controllers.add(new PhaseKeepingAnimationController<>(this, "main", 3, state -> {
+            // 今している行動(食べる・休む・驚いて逃げ出す など)があればそのアニメ(CritterAction、2026-10-22)
+            RawAnimation critterAct = CritterAction.animation(this);
+            if (critterAct != null) {
+                state.getController().setAnimationSpeed(1.0D);
+                return state.setAndContinue(critterAct);
+            }
             state.getController().setAnimationSpeed(1.0D);
             if (getActionState() == STATE_SPECIAL) {
                 return state.setAndContinue(BASK_ANIM);
             }
             if (MobAnimation.isWalking(state)) {
+                state.getController().setAnimationSpeed(MobAnimation.walkSpeedFor(this, WALK_ANIM_REF));
                 return state.setAndContinue(WALK_ANIM);
             }
             return state.setAndContinue(IDLE_ANIM);
         }));
     }
+
+    /** walk のアニメで足が滑らない速さ(体格 1、ブロック/tick。散歩の速さ。生成器 IanthasaurusAnims、2026-10-10)。 */
+    private static final double WALK_ANIM_REF = 0.100D;
 
     @Override
     protected SoundEvent getAmbientSound() {

@@ -64,12 +64,14 @@ import java.util.List;
  *     {@code raidRootMaxDistance}(既定100)まで根を這わせ、沿道に汚染の起点
  *     ({@link RaidCorruptionNode})を落としていく。根は限界に近づくほど細くなる。</li>
  *     <li><b>面汚染</b>({@link RaidAreaCorruption})—— 全ての根が限界距離で止まったら
- *     ({@link RaidRootGrowth#isFinished()})そちらへ切り替え、ビーコンを中心とした
+ *     (残りが全部、読み込まれていないチャンクの手前で待っているときも。{@link RaidRootGrowth#isFinished()})
+ *     そちらへ切り替え、ビーコンを中心とした
  *     半径 {@code raidAreaCorruptionRadius} の球を、近い順に(地表も地下も)塗りつぶす。
  *     所要時間は {@code raidAreaCorruptionSweepMinutes}(既定20分)で、
  *     <b>遠い層ほど同時に処理する量が増える</b>。</li>
  * </ol>
- * 敵対 Mob の増援({@link RaidWaveSpawner})はどちらの段階でも並行して続く。
+ * 敵対 Mob の増援({@link RaidWaveSpawner})はどちらの段階でも並行して続く(ただし近くに狙えるプレイヤーが
+ * 居る間だけ。居ない間はウェーブの時計が止まる。2026-09-25)。
  *
  * <p>このビーコン自身は<b>グループ4(拡大種)</b>に属する({@code group_4} タグ)。
  * 入れていなかった頃は、グループ4 の索敵が「どのグループにも属さない = 野生の Mob」として
@@ -209,8 +211,22 @@ public class OvergrownNexusEntity extends PathfinderMob implements GeoEntity {
     /** このレイドが始まったゲーム内時刻(tick)。 */
     private long raidStartGameTime;
 
-    /** 直近で敵対 Mob のウェーブを湧かせたゲーム内時刻(tick)。-1 は未実施。 */
-    private long lastWaveGameTime = -1L;
+    /**
+     * ウェーブの時計(tick)。近くに狙えるプレイヤーが居る間だけ 1 tick ずつ進み、{@code raidWaveIntervalTicks} に
+     * 達したらウェーブを出して 0 に戻る(2026-09-25、ユーザー承認「レイドの見直し」、報告 410)。
+     * 以前はゲーム内時刻(最後のウェーブの時刻)で数えていたので、誰も居ない強制ロードの中でも 1 分ごとに
+     * ウェーブが湧き続けていた。居なかった間のぶんは取り戻さない(戻ってきたら、離れたときの続きから数える)。
+     */
+    private int waveClock;
+
+    /**
+     * 直近の見回り({@link #WAVE_PRESENCE_CHECK_TICKS} ごと)で、ウェーブの時計を進めてよいプレイヤーが近くに居たか
+     * ({@link RaidWaveSpawner#hasWavePlayerNearby})。保存しない —— 読み込み直後は「居ない」扱いで、最長 1 秒で見直す。
+     */
+    private boolean wavePlayerNearby;
+
+    /** {@link #wavePlayerNearby} を見直す間隔(tick)。1 秒ごとで足りる(ウェーブの間隔は既定 1 分)。 */
+    private static final int WAVE_PRESENCE_CHECK_TICKS = 20;
 
     public OvergrownNexusEntity(EntityType<? extends OvergrownNexusEntity> type, Level level) {
         super(type, level);
@@ -515,13 +531,31 @@ public class OvergrownNexusEntity extends PathfinderMob implements GeoEntity {
         }
     }
 
+    /**
+     * 足場の上で止まっている間は、動きの計算(当たり判定。体が大きく、約 9×19.5×9 ブロックの箱でブロックと Mob を調べる)を
+     * {@value #SETTLED_TRAVEL_INTERVAL} tick に 1 回にする(2026-10-10、ユーザー了承。0.1.9 の前の軽量化 —— ユーザーの記録で苗床の時間の 7 割がここだった)。
+     * 足元を掘られて落ち始めるのが最大 1 秒遅れる。押された・水や溶岩の中・宙に浮いている間は毎 tick 計算する。
+     */
+    private static final int SETTLED_TRAVEL_INTERVAL = 20;
+
+    @Override
+    public void travel(Vec3 travelVector) {
+        if (!this.level().isClientSide() && this.onGround()
+                && this.getDeltaMovement().horizontalDistanceSqr() < 1.0E-7D
+                && !this.isInWater() && !this.isInLava()
+                && (this.tickCount + this.getId()) % SETTLED_TRAVEL_INTERVAL != 0) {
+            return;
+        }
+        super.travel(travelVector);
+    }
+
     /** サーバー側の毎 tick 処理。 */
     private void serverTick(ServerLevel level) {
         updateBossBar(level);
         growRoots(level);
         tickCorruptionNodes(level);
-        // 根が限界距離まで伸びきったら、以降は地表と地下の汚染に集中する
-        // (ビーコンを中心とした球を、近い順に毎秒 30 ブロックずつ塗りつぶしていく)。
+        // 根が限界距離まで伸びきったら(残りが全部、読み込まれていないチャンクの手前で待っているときも)、
+        // 以降は地表と地下の汚染に集中する(ビーコンを中心とした球を、近い順に塗りつぶしていく)。
         if (roots.isFinished()) {
             areaCorruption.tick(level, this.blockPosition());
         }
@@ -533,14 +567,16 @@ public class OvergrownNexusEntity extends PathfinderMob implements GeoEntity {
         if (interval <= 0) {
             return;
         }
-        long now = level.getGameTime();
-        if (lastWaveGameTime < 0L) {
-            // 出現直後はウェーブなし。最初のウェーブは interval 経過後。
-            lastWaveGameTime = now;
-            return;
+        // 近くに狙えるプレイヤーが居るかは 1 秒に 1 回だけ見る(苗床ごとに位相をずらす)。
+        if (Math.floorMod(this.tickCount + this.getId(), WAVE_PRESENCE_CHECK_TICKS) == 0) {
+            this.wavePlayerNearby = RaidWaveSpawner.hasWavePlayerNearby(level, this.position());
         }
-        if (now - lastWaveGameTime >= interval) {
-            lastWaveGameTime = now;
+        if (!this.wavePlayerNearby) {
+            return; // 誰も居ない間は時計ごと止める(2026-09-25、報告 410)
+        }
+        // 出現直後はウェーブなし(時計は 0 から)。最初のウェーブは、プレイヤーが近くに居た時間が interval に達したとき。
+        if (++this.waveClock >= interval) {
+            this.waveClock = 0;
             RaidWaveSpawner.tryWave(level, this);
         }
     }
@@ -559,9 +595,14 @@ public class OvergrownNexusEntity extends PathfinderMob implements GeoEntity {
     }
 
     private void growRoots(ServerLevel level) {
-        if (roots.isFinished()) {
+        if (com.yayuy.overgrownvegetation.corruption.CorruptionSwitch.isOff()) {
+            return; // /ov corruption false(2026-10-10 ユーザー指定): 苗床の根も伸ばさない(ウェーブは止めない)
+        }
+        if (roots.isFullyGrown()) {
             return; // 全ての先端が raidRootMaxDistance まで到達済み。以降は面汚染に任せる。
         }
+        // isFinished(面汚染へ切り替え済み)でも、読み込まれていないチャンクの手前で待っている先端が残っていれば
+        // 呼び続ける —— プレイヤーが近くに来てその先が読み込まれたら、止まったところから伸び直す(2026-09-25)。
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
         int interval = Math.max(1, cfg.raidRootGrowthIntervalTicks.get());
         if (this.tickCount % interval != 0) {
@@ -676,7 +717,7 @@ public class OvergrownNexusEntity extends PathfinderMob implements GeoEntity {
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putLong("RaidStartGameTime", raidStartGameTime);
-        tag.putLong("LastWaveGameTime", lastWaveGameTime);
+        tag.putInt("WaveClock", waveClock);
         tag.putInt("NodeCursor", nodeCursor);
         tag.put("Roots", roots.save());
         tag.put("AreaCorruption", areaCorruption.save());
@@ -691,7 +732,16 @@ public class OvergrownNexusEntity extends PathfinderMob implements GeoEntity {
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         raidStartGameTime = tag.getLong("RaidStartGameTime");
-        lastWaveGameTime = tag.contains("LastWaveGameTime") ? tag.getLong("LastWaveGameTime") : -1L;
+        if (tag.contains("WaveClock")) {
+            waveClock = tag.getInt("WaveClock");
+        } else if (tag.contains("LastWaveGameTime") && tag.getLong("LastWaveGameTime") >= 0L) {
+            // 2026-09-25 より前のセーブ(最後のウェーブのゲーム内時刻)。経過を時計へ引き継ぐ(1 間隔を超えるぶんは切り捨て)。
+            long elapsed = this.level().getGameTime() - tag.getLong("LastWaveGameTime");
+            int interval = Math.max(0, OvergrownVegetationConfig.COMMON.raidWaveIntervalTicks.get());
+            waveClock = (int) Mth.clamp(elapsed, 0L, (long) interval);
+        } else {
+            waveClock = 0;
+        }
         nodeCursor = tag.getInt("NodeCursor");
         if (tag.contains("Roots")) {
             roots.load(tag.getCompound("Roots"));

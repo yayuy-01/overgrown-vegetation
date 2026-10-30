@@ -4,6 +4,12 @@
     "overgrown_vegetation:chlorophyllite_sword",
     "overgrown_vegetation:chlorophyllite_axe",
     "overgrown_vegetation:chlorophyllite_alloy_sword",
+    "overgrown_vegetation:chlorophyllite_zweihander",
+    "overgrown_vegetation:chlorophyllite_alloy_zweihander",
+    "overgrown_vegetation:sunlight_alloy_zweihander",
+    "overgrown_vegetation:chlorophyllite_estoc",
+    "overgrown_vegetation:chlorophyllite_alloy_estoc",
+    "overgrown_vegetation:sunlight_alloy_estoc",
     "overgrown_vegetation:chlorophyllite_alloy_axe"
   ]
 }

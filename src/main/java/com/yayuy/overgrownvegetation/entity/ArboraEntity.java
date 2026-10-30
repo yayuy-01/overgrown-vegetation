@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.entity;
 
-import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.data.MobStats;
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvent;
@@ -49,8 +48,8 @@ public class ArboraEntity extends AbstractOvergrownInvaderEntity implements Pred
      * {@code predation.json} の {@code preyKillBonusPerKill} ずつ複利で上がる。
      *
      * <p><b>この成長ができるのはアルボラとスカトゥリウムだけ</b>(ユーザー指定 2026-09-15)。
-     * ほかのグループ4 は獲物を追い込む側に回る —— フィロセンスが居場所を配り
-     * ({@link InvaderPreyIntel})、スポロフィルがバフから外してデバフを掛ける
+     * ほかのグループ4 は獲物を追い込む側に回る —— 群れの司令塔が獲物を探して前衛へ渡し
+     * (旧 {@code InvaderPreyIntel}。2026-09-25 に群れの標的探しへ統合)、スポロフィルがバフから外してデバフを掛ける
      * ({@link SporophyllAura})。
      */
     private int preyKillCount;
@@ -98,31 +97,18 @@ public class ArboraEntity extends AbstractOvergrownInvaderEntity implements Pred
         return true;
     }
 
-    /**
-     * <b>群れの先遣隊</b>(ユーザー要望 2026-09-15)。足が速く数も多いので、群れの先頭を歩いて
-     * ほかの種を引っ張る役。ほかの種はこの個体を目印に隊列を組む({@link InvaderPackGoal})。
-     *
-     * <p>そのぶん<b>自分は勝手に先へ行けない</b> —— 後続が {@code invaderPackFollowMax} より
-     * 離れているあいだは過繁茂バイオームの外へ進まない({@link InvaderAdvanceGoal})。
+    /*
+     * 群れの先導役(ユーザー要望 2026-09-15「アルボラを先遣隊に」、2026-09-25「1 匹が先導」)は、群れの司令塔が
+     * 前衛の中から<b>アルボラを先に</b>選ぶ(swarm/SwarmController の選び方)。旧い群れの「先遣隊」の印
+     * (isPackPointUnit)と、先遣隊どうしの広がり(invaderPackTetherDistance)は 2026-09-25 に消えた。
      */
-    @Override
-    public boolean isPackPointUnit() {
-        return true;
-    }
-
-    /** 先遣隊どうしは {@code invaderPackTetherDistance} までばらけてよい(横に広がって先行する)。 */
-    @Override
-    public double packCohesionDistance() {
-        return OvergrownVegetationConfig.COMMON.invaderPackTetherDistance.get();
-    }
 
     /**
-     * <b>うずくまって胞子をばらまく動きは取らない</b>(ユーザー指定 2026-09-20)。
+     * <b>1 体ずつうずくまって胞子をばらまく動きは取らない</b>(ユーザー指定 2026-09-20)。
      *
-     * <p>過繫茂バイオームの外での汚染の広げ方は「その場でばらまく」から
-     * 「<b>建設グループを組んで離れた土地に巣を作る</b>」
-     * ({@link com.yayuy.overgrownvegetation.nest.BuilderGroups})へ置き換わった。
-     * ほかのグループ4(スポロフィル・フィロセンスなど)は今までどおりばらまく。
+     * <p>アルボラの汚染の広げ方は、群れごと止まって汚染する形で受け持つ(2026-09-24、ユーザー指定「群れで止まって汚染」)。
+     * 群れの中では {@link com.yayuy.overgrownvegetation.swarm.goal.SwarmSpreadGoal} が、このうずくまりと同じ中身
+     * ({@link SporeSpreadSession})で汚す({@link #createSpreadAction} の既定)。群れに居ないアルボラは汚染を広げない。
      */
     @Override
     protected boolean useSporeCrouchGoal() {
@@ -131,11 +117,6 @@ public class ArboraEntity extends AbstractOvergrownInvaderEntity implements Pred
 
     @Override
     protected void registerSpeciesGoals() {
-        // 狩った獲物の落し物を巣の貯蔵胞へ運ぶ(2026-09-20)。
-        // <b>優先度は狩りと同じ 3</b> —— ここより後ろに置くと、誘導や小規模レイドの狙いに
-        // 割り込まれて運びかけのまま放置される(ユーザー報告)。同じ優先度なら先に登録した
-        // こちらが勝つ(狩りの Goal は EntityJoinLevelEvent であとから足される)。
-        this.goalSelector.addGoal(3, new ArboraHaulGoal(this));
         // 川や池は跳び越えて渡る(水を経路に使えないので、そのままだと岸で足踏みしてしまう)。
         // 勢い(横 2.44 / 上 0.91)から逆算して最大 24 ブロック先・5 ブロックの高さまで届く
         // (ユーザー指定 2026-09-14)。着地できる向こう岸を確かめてから跳ぶので、

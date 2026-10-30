@@ -2,20 +2,27 @@
   "replace": false,
   "values": [
     "overgrown_vegetation:overgrown_log",
+    "overgrown_vegetation:abatis",
+    "overgrown_vegetation:burst_mine",
+    "overgrown_vegetation:deflecting_stake",
     "overgrown_vegetation:overgrown_swamp_log",
     "overgrown_vegetation:overgrown_swamp_wood",
     "overgrown_vegetation:fungal_pillar",
     "overgrown_vegetation:overgrown_wood",
     "overgrown_vegetation:giant_overgrown_log",
     "overgrown_vegetation:hardened_giant_trunk",
-    "overgrown_vegetation:giant_overgrown_cambium",    "overgrown_vegetation:overgrown_planks",
+    "overgrown_vegetation:giant_overgrown_cambium",
+    "overgrown_vegetation:overgrown_planks",
     "overgrown_vegetation:overgrown_stairs",
     "overgrown_vegetation:overgrown_fence",
-    "overgrown_vegetation:research_table",
     "overgrown_vegetation:overgrown_door",
     "overgrown_vegetation:overgrown_chest",
     "overgrown_vegetation:overgrown_barrel",
     "overgrown_vegetation:fungal_cap",
-    "overgrown_vegetation:glowing_mycelium"
+    "overgrown_vegetation:glowing_mycelium",
+    "overgrown_vegetation:overgrown_slab",
+    "overgrown_vegetation:covered_bamboo_mosaic",
+    "overgrown_vegetation:covered_bamboo_mosaic_stairs",
+    "overgrown_vegetation:covered_bamboo_mosaic_slab"
   ]
 }

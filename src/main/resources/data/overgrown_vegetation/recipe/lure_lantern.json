@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    " N ",
+    "GFG",
+    "NNN"
+  ],
+  "key": {
+    "N": { "tag": "c:nuggets/brass" },
+    "G": { "item": "minecraft:glass_pane" },
+    "F": { "item": "minecraft:campfire" }
+  },
+  "result": { "id": "overgrown_vegetation:lure_lantern", "count": 1 }
+}

@@ -153,6 +153,9 @@ public final class ParasitizedCreeperDetonation {
                     }
                     BlockState corrupted = CorruptionRegistry.corrupt(level, pos, state, random);
                     if (CorruptionRegistry.noChange(state, corrupted)) {
+                        if (depth == 0) { // 覆っただけのマスにも植物(2026-10-10)
+                            com.yayuy.overgrownvegetation.corruption.CorruptionSpreader.growPlantsIfNewlyCovered(level, pos, state);
+                        }
                         continue;
                     }
                     BlockPos placed = pos.immutable();

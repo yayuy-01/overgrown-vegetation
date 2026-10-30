@@ -1,0 +1,5 @@
+{
+  "type": "overgrown_vegetation:grinding",
+  "ingredient": { "item": "overgrown_vegetation:sap_crystal" },
+  "result": { "id": "overgrown_vegetation:sap_crystal_powder" }
+}

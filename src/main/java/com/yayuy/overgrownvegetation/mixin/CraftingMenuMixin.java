@@ -50,6 +50,15 @@ public class CraftingMenuMixin {
         }
         ResourceLocation id = opt.get().id();
         if (!ResearchLogic.isRecipeLocked(player, id)) {
+            // 地脈灯 → 忌避灯の改造は、地脈灯の電池を出来上がりへ引き継ぐ(2026-10-24)
+            if (com.yayuy.overgrownvegetation.defense.MachineBattery.carryLampBattery(craftSlots, resultSlots.getItem(0))) {
+                ItemStack carried = resultSlots.getItem(0);
+                menu.setRemoteSlot(0, carried);
+                if (player instanceof ServerPlayer sp) {
+                    sp.connection.send(new ClientboundContainerSetSlotPacket(
+                            menu.containerId, menu.incrementStateId(), 0, carried));
+                }
+            }
             return;
         }
         resultSlots.setItem(0, ItemStack.EMPTY);

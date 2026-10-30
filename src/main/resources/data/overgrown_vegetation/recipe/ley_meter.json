@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " G ",
+    "BCB",
+    " S "
+  ],
+  "key": {
+    "B": { "tag": "c:ingots/brass" },
+    "G": { "tag": "c:glass_panes" },
+    "C": { "item": "overgrown_vegetation:ley_crystal_shard" },
+    "S": { "item": "minecraft:stick" }
+  },
+  "result": { "id": "overgrown_vegetation:ley_meter", "count": 1 }
+}

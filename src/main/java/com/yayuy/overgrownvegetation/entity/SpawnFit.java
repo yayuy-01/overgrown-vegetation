@@ -166,7 +166,12 @@ public final class SpawnFit {
     private static boolean isRooted(PathfinderMob mob) {
         return mob instanceof BlightFernEntity
                 || mob instanceof HiveNodeEntity
-                || mob instanceof HiveVineEntity
-                || mob instanceof OvergrownNexusEntity;
+                || mob instanceof OvergrownNexusEntity
+                // ヴォラムネス(2026-10-01): 地中をすり抜ける(noPhysics)。地上に出た体(2.5 × 8.5)で読み込まれると葉・天井に当たって
+                // 横や宙へ押し出されてしまう。置き場所は自分で地表へ合わせる(VoramnesEntity#tickStalk)。
+                || mob instanceof VoramnesEntity
+                // フォディムネス(2026-10-01): 岩の中で眠って聞くのが本来の居場所(湧きの関門で岩の中へ潜ってから世界に足す)。
+                // 押し出すと、湧いた直後・チャンクを読み込み直すたびに洞窟へ放り出される。地形をすり抜けるので窒息もしない
+                || mob instanceof FodimnesEntity;
     }
 }

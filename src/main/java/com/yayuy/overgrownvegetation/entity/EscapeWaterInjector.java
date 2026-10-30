@@ -28,6 +28,10 @@ public final class EscapeWaterInjector {
 
     @SubscribeEvent
     public static void onJoin(EntityJoinLevelEvent event) {
+        // クライアント側の Mob は Goal を一度も回さないので積まない(2026-09-24 軽量化、報告 1670 行)。
+        if (event.getLevel().isClientSide()) {
+            return;
+        }
         if (event.getEntity() instanceof PathfinderMob mob
                 && MobGroup.of(mob) != null
                 && !WaterRotTracker.isWaterRotImmune(mob)) {

@@ -19,9 +19,9 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
-import java.util.ArrayList;
+import javax.annotation.Nullable;
+import java.util.ArrayDeque;
 import java.util.Iterator;
-import java.util.List;
 
 /**
  * 機関砲台({@code block/GunTurretBlockEntity})の<b>見える弾</b>(ユーザー要望 2026-09-21
@@ -44,19 +44,39 @@ public final class GunTracerRenderer {
     /** 念のための寿命(tick)。着弾点に着けばそれより早く消える。 */
     private static final int MAX_TICKS = 60;
 
-    /** 飛んでいる 1 発。{@code from} から {@code to} へ一直線。 */
-    public record Tracer(Vec3 from, Vec3 to, long startGameTime) {
+    /**
+     * 飛んでいる 1 発。{@code from} から {@code to} へ一直線。
+     *
+     * <p>2026-09-24 軽量化(監査 1395): {@code from} と {@code to} は変わらないので、長さ・向き・角度は
+     * {@link #of} で 1 回だけ出しておく(以前は全弾について毎フレーム・毎 tick 出し直していた)。
+     * 式は以前の描画と同じなので値も同じ。{@code direction} は長さがほぼ 0 の弾(描かない)だけ {@code null}。
+     */
+    public record Tracer(Vec3 from, Vec3 to, long startGameTime, double length, @Nullable Vec3 direction,
+                         float yawDegrees, float pitchDegrees) {
+
+        static Tracer of(Vec3 from, Vec3 to, long startGameTime) {
+            Vec3 path = to.subtract(from);
+            double length = path.length();
+            if (length < 1.0E-4D) {
+                return new Tracer(from, to, startGameTime, length, null, 0.0F, 0.0F);
+            }
+            Vec3 direction = path.scale(1.0D / length);
+            return new Tracer(from, to, startGameTime, length, direction,
+                    (float) -CannonBallistics.azimuthOf(direction.x, direction.z),
+                    (float) CannonBallistics.elevationOf(direction));
+        }
     }
 
-    private static final List<Tracer> TRACERS = new ArrayList<>();
+    /** 古い順。上限を超えたら先頭から捨てる(ArrayList#remove(0) の詰め直しをしない。2026-09-24、監査 1395)。 */
+    private static final ArrayDeque<Tracer> TRACERS = new ArrayDeque<>();
 
     /** 機関砲台が 1 発撃った(クライアントの予測)。 */
     public static void add(Vec3 from, Vec3 to, long gameTime) {
         if (TRACERS.size() > 512) {
             // 砲台が何十台も並んでいるとき用の歯止め。古いものから捨てる。
-            TRACERS.remove(0);
+            TRACERS.pollFirst();
         }
-        TRACERS.add(new Tracer(from, to, gameTime));
+        TRACERS.addLast(Tracer.of(from, to, gameTime));
     }
 
     @SubscribeEvent
@@ -75,7 +95,8 @@ public final class GunTracerRenderer {
         while (iterator.hasNext()) {
             Tracer tracer = iterator.next();
             long age = now - tracer.startGameTime();
-            if (age > MAX_TICKS || age * speed >= tracer.from().distanceTo(tracer.to())) {
+            // length は from.distanceTo(to) と同じ値(Tracer#of で作り置き)。
+            if (age > MAX_TICKS || age * speed >= tracer.length()) {
                 iterator.remove();
             }
         }
@@ -109,20 +130,24 @@ public final class GunTracerRenderer {
             if (age < 0.0D) {
                 continue;
             }
-            Vec3 path = tracer.to().subtract(tracer.from());
-            double length = path.length();
+            double length = tracer.length();
             double travelled = age * speed;
             if (length < 1.0E-4D || travelled >= length) {
                 continue;
             }
-            Vec3 direction = path.scale(1.0D / length);
-            Vec3 pos = tracer.from().add(direction.scale(travelled));
-            Vec3 drawAt = pos.subtract(camera);
+            // 位置は from + direction * travelled をカメラ相対にしたもの(以前の Vec3 の演算と同じ順番)。
+            // 画面外の弾を視錐台で飛ばす案は入れていない: 被弾の揺れ・視点の揺れは描画の射影にだけ掛かり、
+            // 判定用の視錐台には掛からないので、画面の隅で弾が 1 フレーム消えることがある。
+            Vec3 from = tracer.from();
+            Vec3 direction = tracer.direction();
+            double drawX = (from.x + direction.x * travelled) - camera.x;
+            double drawY = (from.y + direction.y * travelled) - camera.y;
+            double drawZ = (from.z + direction.z * travelled) - camera.z;
 
             poseStack.pushPose();
-            poseStack.translate(drawAt.x, drawAt.y, drawAt.z);
-            poseStack.mulPose(Axis.YP.rotationDegrees((float) -CannonBallistics.azimuthOf(direction.x, direction.z)));
-            poseStack.mulPose(Axis.XP.rotationDegrees((float) CannonBallistics.elevationOf(direction)));
+            poseStack.translate(drawX, drawY, drawZ);
+            poseStack.mulPose(Axis.YP.rotationDegrees(tracer.yawDegrees()));
+            poseStack.mulPose(Axis.XP.rotationDegrees(tracer.pitchDegrees()));
             poseStack.scale(SCALE, SCALE, SCALE);
             // 曳光弾なので自分で光る(暗がりでも筋が見える)。
             CannonShellRenderer.shellModel().render(poseStack, buffer, LightTexture.FULL_BRIGHT,

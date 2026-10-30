@@ -2,6 +2,7 @@ package com.yayuy.overgrownvegetation.entity;
 
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.effect.SporeInfectionDetection;
+import com.yayuy.overgrownvegetation.swarm.SwarmMember;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -54,20 +55,50 @@ import java.util.function.BiPredicate;
  *     <li>それ以外の {@link #isBombable} な相手 —— 今までどおり {@link VelophyllBombGoal} が爆撃する。</li>
  * </ul>
  * 狙ってよいか({@link #isAttackable})は<b>どちらかに当てはまるか</b>。
+ *
+ * <h2>4. 群れの一員は自分で探さない(群れ v2、2026-09-25)</h2>
+ * ユーザー指定(2026-09-25)「後続は自分で標的を探さない」。空の群れ({@code swarm/})の一員は、先頭も含めて
+ * 標的を<b>司令塔から渡される</b>({@code SwarmController} が {@code setTarget}。探すときも上の {@link #isAttackable} で足切りする)。
+ * そこでこの Goal は一員の間は動かない({@code canUse} は親の探索より<b>前</b>に落とす = 箱の走査を引かない)。
+ * 一員になった時点で動いていた場合に<b>司令塔の渡した標的を消さない</b>よう、{@code stop} も一員の間は標的に触らない
+ * (バニラの {@code TargetGoal#stop} は {@code setTarget(null)} する)。群れに居ない個体は今までどおり。
  */
 public class VelophyllTargetGoal extends OvergrownLandTargetGoal {
 
     public VelophyllTargetGoal(Mob mob, BiPredicate<LivingEntity, LivingEntity> selector) {
-        super(mob, (self, candidate) -> isAttackable(self, candidate) && selector.test(self, candidate));
+        // selector を先に見る(2026-09-24、軽量化)。落ちる相手に地表の高さの読み取りを引かない。結果は同じ。
+        super(mob, (self, candidate) -> selector.test(self, candidate) && isAttackable(self, candidate));
+    }
+
+    @Override
+    public boolean canUse() {
+        // 群れの一員は司令塔が標的を渡す(上の 4)。探索の前に落とす。
+        if (SwarmMember.isInSwarm(this.mob)) {
+            return false;
+        }
+        return super.canUse();
     }
 
     @Override
     public boolean canContinueToUse() {
+        if (SwarmMember.isInSwarm(this.mob)) {
+            return false;
+        }
         if (!super.canContinueToUse()) {
             return false;
         }
         LivingEntity current = this.mob.getTarget();
         return current == null || isAttackable(this.mob, current);
+    }
+
+    @Override
+    public void stop() {
+        if (SwarmMember.isInSwarm(this.mob)) {
+            // 司令塔の渡した標的はそのまま。この Goal の控えだけ消す。
+            this.targetMob = null;
+            return;
+        }
+        super.stop();
     }
 
     @Override

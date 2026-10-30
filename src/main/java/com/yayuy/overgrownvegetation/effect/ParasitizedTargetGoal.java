@@ -94,6 +94,15 @@ public final class ParasitizedTargetGoal extends NearestAttackableTargetGoal<Liv
     private int pathCheckCooldown;
     /** 経路が見つからない状態が続いている合計tick数。{@link #isUnreachable} 参照。 */
     private int unreachableTicks;
+    /**
+     * たどり着けないと判断して見失った相手と、狙わない期限(ゲームの時刻)。見失ってもいちばん近い相手を選び直すので、
+     * 期限まで {@link #findTarget} の候補から外す(侵入者の {@code AbstractOvergrownInvaderEntity} と同じ 200 tick・3 ブロック以内に来たら忘れる。
+     * 2026-10-10、ユーザー了承。前は判定が途中までの経路でも「届く」になっていて、壁・溶岩の向こうの相手を追い続けていた)。
+     */
+    private LivingEntity ignoredTarget;
+    private long ignoreUntil;
+    private static final int GIVE_UP_TICKS = 200;
+    private static final double GIVE_UP_FORGET_DISTANCE = 3.0D;
 
     private ParasitizedTargetGoal(Mob mob) {
         // mustSee=false: 障害物越しでも新規に標的を発見・追跡できるようにする(ユーザー要望)。
@@ -111,6 +120,33 @@ public final class ParasitizedTargetGoal extends NearestAttackableTargetGoal<Liv
                 .range(baseRange + bonusRange)
                 .ignoreLineOfSight()
                 .selector(this::isValidTarget);
+    }
+
+    /**
+     * <b>G4 の群れの一員(過繁茂したスカトゥリウム)は自分で標的を探さない</b>(群れ v2、ユーザー指定 2026-09-25。
+     * 標的は群れの司令塔だけが決めて、役割の距離で渡す)。重い探索に入る前に落とす。
+     * この Goal は群れに入らない「過繁茂した(MOB名)」全種でも使うが、そちらは群れの所属を持たないので今までどおり。
+     */
+    @Override
+    public boolean canUse() {
+        if (com.yayuy.overgrownvegetation.swarm.SwarmMember.isInSwarm(this.mob)) {
+            return false;
+        }
+        return super.canUse();
+    }
+
+    /**
+     * 群れの一員では標的を消さない(司令塔が渡した標的を、止まったこの Goal が消さないように)。
+     * {@link #canContinueToUse} も群れの一員では false を返す —— 止めないと、司令塔が標的を外した次の tick に
+     * {@code TargetGoal#canContinueToUse} が覚えている相手を付け直してしまう。
+     */
+    @Override
+    public void stop() {
+        if (com.yayuy.overgrownvegetation.swarm.SwarmMember.isInSwarm(this.mob)) {
+            this.targetMob = null;
+            return;
+        }
+        super.stop();
     }
 
     /**
@@ -245,11 +281,47 @@ public final class ParasitizedTargetGoal extends NearestAttackableTargetGoal<Liv
     /**
      * 索敵(新規ターゲット探索)の際は常に「拡張後」の範囲でエンティティを収集する
      * (対象ごとの正確な距離判定は {@link #isValidTarget} が {@link #targetConditions} 経由で行うので、
-     * ここでは取りこぼしが無いよう広めに箱を取るだけでよい)。
+     * ここでは取りこぼしが無いよう広めに箱を取るだけでよい)。広げるぶんは{@link #searchBonus 自分に付きうる
+     * ボーナス}までに絞る(2026-09-24)。
      */
     @Override
     protected AABB getTargetSearchArea(double targetDistance) {
-        return super.getTargetSearchArea(baseRange + bonusRange);
+        AABB box = super.getTargetSearchArea(baseRange + searchBonus());
+        double extra = extraSearchHeight(mob);
+        return extra > 0.0D ? box.inflate(0.0D, extra, 0.0D) : box;
+    }
+
+    /**
+     * 索敵箱の上下に足す幅(ブロック。バニラの箱は上下 ±4 だけ)。空から撃つネザーの媒介種(寄生されたガスト・ブレイズ、2026-10-09)は下の相手も探す。
+     * 宙に浮く G5 も同じ(10-09): アクムネスは地面の 3〜8 上を漂い、エレボムネスは大きな空洞の空中を泳ぐので、±4 だと下の Mob・プレイヤーを
+     * 見つけられないことがあった(ユーザー「過繁茂 mob 以外に敵対していない場合がある」の調べで見つけた)。
+     */
+    public static double extraSearchHeight(Mob mob) {
+        return mob instanceof com.yayuy.overgrownvegetation.entity.AbstractParasitizedFlyer
+                || mob instanceof com.yayuy.overgrownvegetation.entity.AcumnesEntity
+                || mob instanceof com.yayuy.overgrownvegetation.entity.ErebomnesEntity ? 12.0D : 0.0D;
+    }
+
+    /**
+     * 索敵箱に足す被検知ボーナス。{@link #bonusRange}(全種類を足した最大)を上限に、
+     * <b>自分のグループで実際に付きうるぶん</b>だけに絞る(2026-09-24、軽量化)。
+     *
+     * <p>{@link SporeInfectionDetection#bonusFor(LivingEntity, LivingEntity)} は「纏わりついた胞子」のぶんを
+     * 探し手がグループ4 のときだけ、「香ばしいにおい」のぶんを探し手がどこかのグループに属するときだけ足す。
+     * 付きえないぶんまで箱を広げても、その外側の相手は {@link #isValidTarget} が距離で必ず落とすので、
+     * 絞っても選ばれる相手は変わらない(箱が小さいぶん、集める候補が減るだけ)。
+     * 絞り込みの中身は {@link SporeInfectionDetection#searchBonus} にある(捕食者の索敵と共通)。
+     *
+     * <p>設計データに負の(または数でない)ボーナスが入っていると上限の見積もりが成り立たないので、
+     * そのときは従来どおり {@link #bonusRange} を使う。
+     */
+    private double searchBonus() {
+        // 絞り込みの中身は SporeInfectionDetection#searchBonus に移した(2026-09-24 軽量化、報告 120 行で
+        // OvergrownHunterTargetGoal と共通にした。判定も足す順も以前と同じ)。
+        if (!SporeInfectionDetection.bonusesNonNegative()) {
+            return bonusRange;
+        }
+        return Math.min(bonusRange, SporeInfectionDetection.searchBonus(mob));
     }
 
     /**
@@ -263,6 +335,12 @@ public final class ParasitizedTargetGoal extends NearestAttackableTargetGoal<Liv
      * <p>{@code findTarget()} は {@code canUse()} からのみ呼ばれ、{@code canUse()} は
      * その Goal が非アクティブ(=今ターゲットを持っていない)ときにしか評価されないため、
      * 「追跡中の相手を未感染クリーパー出現で横取りしない」という挙動が自然に満たされる。
+     *
+     * <p>2026-09-24 軽量化(報告 98 行): {@code super.findTarget()} は箱の中の生き物を仲間ごと全部集めてから
+     * 1 体ずつ {@code targetConditions} にかけるので、群れの中では仲間の数だけ無駄な判定が走る。
+     * ここでは同じ検索を自前で書き、{@link #isExcluded 状態によらず必ず外れる相手}(自分・過繁茂 Mob など)を
+     * 集める段階で読み飛ばす。読み飛ばした相手は {@link #isValidTarget} が必ず落とすので
+     * {@code targetConditions} を通らず、残る候補の並び順も同じ —— 選ばれる相手は変わらない。
      */
     @Override
     protected void findTarget() {
@@ -271,14 +349,21 @@ public final class ParasitizedTargetGoal extends NearestAttackableTargetGoal<Liv
                     mob.level().getEntitiesOfClass(
                             Creeper.class,
                             getTargetSearchArea(getFollowDistance()),
-                            candidate -> !isSporeInfected(candidate)),
+                            // 過繁茂したクリーパー(自分を含む)も Creeper なのでここに入るが、必ず外れるので先に読み飛ばす。
+                            candidate -> !isExcluded(candidate) && !isIgnored(candidate) && !isSporeInfected(candidate)),
                     targetConditions, mob, mob.getX(), mob.getEyeY(), mob.getZ());
             if (creeper != null) {
                 this.target = creeper;
                 return;
             }
         }
-        super.findTarget();
+        // super.findTarget()(NearestAttackableTargetGoal)と同じ検索。違うのは読み飛ばしだけ(上の javadoc)。
+        this.target = mob.level().getNearestEntity(
+                mob.level().getEntitiesOfClass(
+                        LivingEntity.class,
+                        getTargetSearchArea(getFollowDistance()),
+                        candidate -> !isExcluded(candidate) && !isIgnored(candidate)),
+                targetConditions, mob, mob.getX(), mob.getEyeY(), mob.getZ());
     }
 
     private static boolean isSporeInfected(LivingEntity entity) {
@@ -305,12 +390,55 @@ public final class ParasitizedTargetGoal extends NearestAttackableTargetGoal<Liv
         return baseRange;
     }
 
-    private boolean isValidTarget(LivingEntity candidate) {
-        if (candidate == mob || !candidate.isAlive()) {
-            return false;
+    /**
+     * 状態によらず必ず標的にしない相手か —— 自分・死んでいる相手・他の過繁茂 Mob(同士討ちさせない)・
+     * 汚染シダ・レイドボス本体(クラス javadoc 参照)・<b>寄生植物装備を着けたプレイヤー</b>。
+     * {@link #isValidTarget} の最初の判定そのもので、
+     * {@link #findTarget} が候補を集める段階の読み飛ばしにも使う(2026-09-24 軽量化、報告 98 行)。
+     * どちらも同じこのメソッドを通すので、条件を変えても両者がずれることはない。
+     *
+     * <p>寄生植物装備のプレイヤーを足したのは 2026-10-03。
+     * {@code MobGroup#of(Entity)} がそのプレイヤーを<b>グループ 6</b> として返すので過繁茂側の味方であり、
+     * ここに無いと媒介種が追いかけて殴りに行く。ダメージは {@code MobGroupFriendlyFire} が
+     * 同士討ちとして落としていたので実害は無かったが、<b>見た目が「襲われている」</b>のは
+     * 「装備を着けると森が味方になる」という決まりと食い違う。
+     * {@code PlantSidePlayerGameTests} の柵が見つけた 2 件目。
+     */
+    private boolean isExcluded(LivingEntity candidate) {
+        return candidate == mob || isAlwaysExcluded(candidate);
+    }
+
+    /**
+     * 「自分自身かどうか」を除いた、個体によらない除外の判定。
+     * {@link #isExcluded} から呼ぶほか、{@code PlantSidePlayerGameTests} が
+     * Goal の個体を作らずに確かめるために直接呼ぶ(そのための公開)。
+     */
+    public static boolean isAlwaysExcluded(LivingEntity candidate) {
+        if (!candidate.isAlive()) {
+            return true;
+        }
+        if (com.yayuy.overgrownvegetation.item.PlantArmor.isHost(candidate)) {
+            return true;
         }
         if (candidate instanceof ParasitizedMob || candidate instanceof BlightFernEntity
                 || candidate instanceof OvergrownNexusEntity) {
+            return true;
+        }
+        // 2026-10-09: ParasitizedMob を名乗らない過繁茂側(ペディキュラ・ティタニカなど。どれかのグループに属する)と、
+        // 殴っても傷つかない防具立て(attackable が false)も外す —— 狙うと同士討ちの打ち消し・防具立ての無傷で
+        // いつまでも殴り続け、近くの本当の相手(村人・動物・プレイヤー)に向かわなかった。
+        return !candidate.attackable() || com.yayuy.overgrownvegetation.phase.MobGroup.of(candidate) != null;
+    }
+
+    private boolean isValidTarget(LivingEntity candidate) {
+        if (isExcluded(candidate)) {
+            return false;
+        }
+        // 距離を先に見る(2026-09-24、軽量化)。下の 2 つは足元のブロック・水を読むので、許容距離の外に
+        // いる相手(索敵箱の大半)には引かない。どれも副作用の無い判定の AND なので結果は同じ。
+        // 「<= でなければ外」と書くのは、元の最後の判定(数でない距離は外)とそろえるため。
+        double allowedRange = baseRange + SporeInfectionDetection.bonusFor(mob, candidate);
+        if (!(mob.distanceToSqr(candidate) <= allowedRange * allowedRange)) {
             return false;
         }
         if (FoliageConcealment.isConcealed(candidate)) {
@@ -321,9 +449,7 @@ public final class ParasitizedTargetGoal extends NearestAttackableTargetGoal<Liv
             // 水中・水面にいる相手は狙わない(自分が水に落ちている間も同じ。Predation#isLandTarget 参照)。
             return false;
         }
-
-        double allowedRange = baseRange + SporeInfectionDetection.bonusFor(mob, candidate);
-        return mob.distanceToSqr(candidate) <= allowedRange * allowedRange;
+        return true;
     }
 
     /**
@@ -344,6 +470,10 @@ public final class ParasitizedTargetGoal extends NearestAttackableTargetGoal<Liv
      */
     @Override
     public boolean canContinueToUse() {
+        if (com.yayuy.overgrownvegetation.swarm.SwarmMember.isInSwarm(mob)) {
+            // 群れに入った(G4 のスカトゥリウム)。標的は司令塔が渡す。stop() は標的を消さない。
+            return false;
+        }
         LivingEntity currentTarget = mob.getTarget();
         if (currentTarget == null) {
             return super.canContinueToUse();
@@ -362,6 +492,8 @@ public final class ParasitizedTargetGoal extends NearestAttackableTargetGoal<Liv
             return false;
         }
         if (isUnreachable(currentTarget)) {
+            ignoredTarget = currentTarget;
+            ignoreUntil = mob.level().getGameTime() + GIVE_UP_TICKS;
             return false;
         }
         return super.canContinueToUse();
@@ -389,12 +521,47 @@ public final class ParasitizedTargetGoal extends NearestAttackableTargetGoal<Liv
             pathCheckCooldown--;
         } else {
             pathCheckCooldown = PATH_CHECK_INTERVAL;
-            if (mob.getNavigation().createPath(target, 0) != null) {
+            // 空を漂う寄生体(ガスト・ブレイズ)は経路を使わずまっすぐ飛ぶので、経路探索ではなく「まっすぐ届くか」で測る
+            // (空の経路探索が重く、性能記録でサーバーの 38% を占めた。2026-10-09 ユーザー指定)。
+            boolean reachable = mob instanceof com.yayuy.overgrownvegetation.entity.AbstractParasitizedFlyer flyer
+                    ? flyer.canStillEngage(target)
+                    : reachesTarget(target);
+            if (reachable) {
                 unreachableTicks = 0;
             } else {
                 unreachableTicks += PATH_CHECK_INTERVAL;
             }
         }
         return unreachableTicks > OvergrownVegetationConfig.COMMON.unreachableTargetGraceTicks.get();
+    }
+
+    /**
+     * 地上の経路が相手のマスまでつながるか。バニラは届かないときも「途中までの経路」を返すので、null かどうかでは測れない
+     * (2026-10-10 に直した。前はいつも「届く」になっていた)。経路の引き方(誤差 0)は前と同じ。
+     */
+    private boolean reachesTarget(LivingEntity target) {
+        return pathReaches(mob.getNavigation().createPath(target, 0));
+    }
+
+    /**
+     * 経路が相手のところまでつながったか(テストからも呼ぶ)。経路の終わりが相手のマスから 1 マス以内なら届くとみなす ——
+     * カーペット・雪の層の上の相手は、相手の足のマスと経路の終わり(その上か下)が 1 マスずれて {@code canReach} が false になる
+     * (2026-10-10 に確かめた。ハーフブロック・階段はずれない)。壁の向こう(2 マス以上)・2 段の柱の上(3 マス)は届かないのまま。
+     */
+    public static boolean pathReaches(@javax.annotation.Nullable net.minecraft.world.level.pathfinder.Path path) {
+        return path != null && (path.canReach() || path.getDistToTarget() <= 1.0F);
+    }
+
+    /** 見失った相手で、まだ狙わない期限の中か(3 ブロック以内まで来たら忘れる)。 */
+    private boolean isIgnored(LivingEntity candidate) {
+        if (ignoredTarget == null || candidate != ignoredTarget) {
+            return false;
+        }
+        if (mob.level().getGameTime() >= ignoreUntil || !candidate.isAlive()
+                || mob.distanceToSqr(candidate) < GIVE_UP_FORGET_DISTANCE * GIVE_UP_FORGET_DISTANCE) {
+            ignoredTarget = null;
+            return false;
+        }
+        return true;
     }
 }

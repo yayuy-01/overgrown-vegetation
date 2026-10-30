@@ -53,6 +53,19 @@ public final class MobStat {
     public Boolean naturalSpawn;
 
     /**
+     * <b>TD(侵攻イベント)で 1 体出すのに使うバイオマスの量</b>(2026-09-25)。
+     * 侵攻は始まるときに世界のバイオマスをまるごと予算として切り出し、群れを組むたびに
+     * その種のぶんだけ減らす。予算が尽きて攻め手が全滅すれば防衛側の勝ち = <b>強い種ほど高くすると数が減る</b>。
+     * 省略時は 1(= 2026-09-24 までの「1 バイオマス = 1 体」と同じ)。0 にするとバイオマスを使わずに湧く。
+     *
+     * <p>生態系防衛(区域の守り手)のコストはこれとは別で、{@code ecosystem.json} の
+     * {@code defense.cost} にグループ単位で書く。
+     *
+     * @see com.yayuy.overgrownvegetation.td.TdTicker
+     */
+    public Double tdCost;
+
+    /**
      * ビーム攻撃の設定(今のところフィロセンスだけが使う)。
      * 以前は {@code overgrown_vegetation-common.toml} の {@code phyllosensBeam*} だったが、
      * 調整のたびに toml を手で開くのが面倒なので mobs.json 側へ移した(2026-09-16)。
@@ -91,6 +104,12 @@ public final class MobStat {
      * ビームと同じく mobs.json 側へ移した(2026-09-17)。
      */
     public Bomb bomb;
+
+    /**
+     * 上空を漂う種の設定(今のところペディキュラだけが使う、2026-09-23)。
+     * 漂い方・上にいる間の胞子濃度・撃ち落とされたときに散らす爆弾をまとめて持つ。
+     */
+    public Drift drift;
 
     /**
      * この種が<b>襲いに行く相手</b>の id(名前空間は省略可 = {@code overgrown_vegetation})。
@@ -153,6 +172,16 @@ public final class MobStat {
          */
         public java.util.List<Integer> outside;
 
+        /**
+         * <b>地上に湧くか・地下に湧くか</b>(2026-09-26 ユーザー指定)。{@code ["surface"]} / {@code ["cave"]} /
+         * {@code ["surface", "cave"]}。未設定・空なら {@code ["surface"]}(地上だけ)。
+         *
+         * <p>効くのは過繫茂バイオームの<b>中</b>の生態系スポーン({@code OvergrownBiomeSpawner})だけ。
+         * 水生種({@code isAquatic})と上空を漂う種({@code isSky})は専用の湧かせ方をするので、ここは見ない。
+         * 「地下」の判定は洞窟の植物と同じ {@code CaveGrowth#isCave}(空に開けた谷底は地下ではない)。
+         */
+        public java.util.List<String> depth;
+
         /** その場所に湧くフェーズ番号(未設定なら空)。 */
         public java.util.List<Integer> of(SpawnPlace place) {
             java.util.List<Integer> list = switch (place) {
@@ -163,7 +192,21 @@ public final class MobStat {
             };
             return list != null ? list : java.util.List.of();
         }
+
+        /** 地上に湧くか(未設定・空なら地上だけ = true)。 */
+        public boolean surface() {
+            return depth == null || depth.isEmpty() || depth.contains(SURFACE);
+        }
+
+        /** 地下(洞窟)に湧くか。 */
+        public boolean cave() {
+            return depth != null && depth.contains(CAVE);
+        }
     }
+
+    /** {@link Spawns#depth} に書ける値。 */
+    public static final String SURFACE = "surface";
+    public static final String CAVE = "cave";
 
     /** 投下爆弾の数値。null のフィールドは既定値になる。 */
     public static final class Bomb {
@@ -189,6 +232,19 @@ public final class MobStat {
         public Double corruptionNoise;
         /** 着弾で葉を吹き飛ばす半径(ブロック)。 */
         public Double leafClearRadius;
+        /**
+         * 爆風・直撃を受けた相手に乗せる毒の長さ(秒)。0 で無し。
+         * ネザーの媒介種(寄生されたガスト・ブレイズ)の爆弾だけ(2026-10-09 ユーザー指定「燃える代わりに毒が乗る」)。
+         */
+        public Double poisonSeconds;
+        /** 毒の強さ(0 = 毒 I)。 */
+        public Integer poisonAmplifier;
+        /** 撃つ爆弾の見た目の大きさ(1 = ヴェロフィルの爆弾)。撃つ種の爆弾だけ。威力・半径はこの表の値そのまま(大きさを掛けない)。 */
+        public Double bombSize;
+        /** 撃つ初速(ブロック/tick)。重さと空気抵抗はヴェロフィルの爆弾と同じなので、弧を描いて飛ぶ。 */
+        public Double launchSpeed;
+        /** 撃ち始める距離(ブロック)。 */
+        public Double range;
 
         public int perSalvo() { return perSalvo != null ? Math.max(1, perSalvo) : 4; }
         public int intervalTicks() { return intervalTicks != null ? Math.max(1, intervalTicks) : 4; }
@@ -201,6 +257,83 @@ public final class MobStat {
         public double corruptionRadius() { return corruptionRadius != null ? corruptionRadius : 2.0D; }
         public double corruptionNoise() { return corruptionNoise != null ? corruptionNoise : 0.7D; }
         public double leafClearRadius() { return leafClearRadius != null ? leafClearRadius : 5.0D; }
+        public double poisonSeconds() { return poisonSeconds != null ? Math.max(0.0D, poisonSeconds) : 0.0D; }
+        public int poisonAmplifier() { return poisonAmplifier != null ? Math.max(0, poisonAmplifier) : 0; }
+        public double bombSize() { return bombSize != null ? Math.max(0.05D, bombSize) : 0.5D; }
+        public double launchSpeed() { return launchSpeed != null ? Math.max(0.1D, launchSpeed) : 1.2D; }
+        public double range() { return range != null ? Math.max(1.0D, range) : 48.0D; }
+    }
+
+    /** 漂流の数値。null のフィールドは既定値になる。 */
+    public static final class Drift {
+        /** 地表(葉・水面を含む)から、どれだけ上を漂うか(ブロック)。 */
+        public Double cruiseAltitude;
+        /** 巡航高度の個体差(± ブロック)。 */
+        public Double altitudeJitter;
+        /** ふわふわと上下する幅(± ブロック)。 */
+        public Double bobAmplitude;
+        /** 漂う速さ(ブロック/tick)。 */
+        public Double driftSpeed;
+        /** 過繫茂の無い向きを測り直す間隔(tick)。 */
+        public Integer thinkIntervalTicks;
+        /** 見た目の回転の速さ(度/tick、3 軸の平均)。 */
+        public Double spinSpeed;
+        /**
+         * 上にいる間の、そのチャンクの胞子濃度(%)。立ち去れば元へ戻る(チャンクには何も積まない)。
+         * 100 = いる間は必ず 100%(除去装置のぶんは引かれる)。0 で何もしない。
+         */
+        public Double presencePercent;
+        /** モデルの sub / sub2 / sub3 がそれぞれ付いている確率(0〜1)。 */
+        public Double subChance;
+        /** 撃ち落とされたときに散らす胞子爆弾の数。 */
+        public Integer bomblets;
+        /** 散らす胞子爆弾の大きさ(1 = ヴェロフィルの爆弾)。威力と半径もこの倍率になる。 */
+        public Double bombletSize;
+        /** 散らす勢い(横向きの初速、ブロック/tick)。 */
+        public Double scatterSpeed;
+
+        public double cruiseAltitude() { return cruiseAltitude != null ? Math.max(0.0D, cruiseAltitude) : 30.0D; }
+        public double altitudeJitter() { return altitudeJitter != null ? Math.max(0.0D, altitudeJitter) : 4.0D; }
+        public double bobAmplitude() { return bobAmplitude != null ? Math.max(0.0D, bobAmplitude) : 1.5D; }
+        public double driftSpeed() { return driftSpeed != null ? Math.max(0.0D, driftSpeed) : 0.05D; }
+        public int thinkIntervalTicks() { return thinkIntervalTicks != null ? Math.max(1, thinkIntervalTicks) : 100; }
+        public double spinSpeed() { return spinSpeed != null ? Math.max(0.0D, spinSpeed) : 0.5D; }
+        public double presencePercent() { return presencePercent != null ? Math.min(100.0D, Math.max(0.0D, presencePercent)) : 100.0D; }
+        public double subChance() { return subChance != null ? Math.min(1.0D, Math.max(0.0D, subChance)) : 0.5D; }
+        public int bomblets() { return bomblets != null ? Math.max(0, bomblets) : 4; }
+        public double bombletSize() { return bombletSize != null ? Math.min(1.0D, Math.max(0.05D, bombletSize)) : 0.4D; }
+        public double scatterSpeed() { return scatterSpeed != null ? Math.max(0.0D, scatterSpeed) : 0.3D; }
+    }
+
+    /** {@code drift} が書かれていないときに使う既定値。 */
+    public static final Drift DEFAULT_DRIFT = new Drift();
+
+    /** このMobの漂流設定(未指定なら既定値)。 */
+    public Drift drift() {
+        return drift != null ? drift : DEFAULT_DRIFT;
+    }
+
+    /** 既定値の漂流設定に、json 側の非 null フィールドだけを重ねる。 */
+    private static Drift mergeDrift(Drift base, Drift over) {
+        if (over == null) {
+            return base;
+        }
+        if (base == null) {
+            return over;
+        }
+        Drift r = new Drift();
+        r.cruiseAltitude = pick(over.cruiseAltitude, base.cruiseAltitude);
+        r.altitudeJitter = pick(over.altitudeJitter, base.altitudeJitter);
+        r.bobAmplitude = pick(over.bobAmplitude, base.bobAmplitude);
+        r.driftSpeed = pick(over.driftSpeed, base.driftSpeed);
+        r.thinkIntervalTicks = over.thinkIntervalTicks != null ? over.thinkIntervalTicks : base.thinkIntervalTicks;
+        r.spinSpeed = pick(over.spinSpeed, base.spinSpeed);
+        r.presencePercent = pick(over.presencePercent, base.presencePercent);
+        r.subChance = pick(over.subChance, base.subChance);
+        r.bomblets = over.bomblets != null ? over.bomblets : base.bomblets;
+        r.bombletSize = pick(over.bombletSize, base.bombletSize);
+        r.scatterSpeed = pick(over.scatterSpeed, base.scatterSpeed);
+        return r;
     }
 
     /** {@code bomb} が書かれていないときに使う既定値。 */
@@ -231,6 +364,11 @@ public final class MobStat {
         r.corruptionRadius = pick(over.corruptionRadius, base.corruptionRadius);
         r.corruptionNoise = pick(over.corruptionNoise, base.corruptionNoise);
         r.leafClearRadius = pick(over.leafClearRadius, base.leafClearRadius);
+        r.poisonSeconds = pick(over.poisonSeconds, base.poisonSeconds);
+        r.poisonAmplifier = over.poisonAmplifier != null ? over.poisonAmplifier : base.poisonAmplifier;
+        r.bombSize = pick(over.bombSize, base.bombSize);
+        r.launchSpeed = pick(over.launchSpeed, base.launchSpeed);
+        r.range = pick(over.range, base.range);
         return r;
     }
 
@@ -291,8 +429,10 @@ public final class MobStat {
         r.xpReward = over.xpReward != null ? over.xpReward : xpReward;
         r.eggFit = pick(over.eggFit, eggFit);
         r.naturalSpawn = over.naturalSpawn != null ? over.naturalSpawn : naturalSpawn;
+        r.tdCost = pick(over.tdCost, tdCost);
         r.beam = mergeBeam(beam, over.beam);
         r.bomb = mergeBomb(bomb, over.bomb);
+        r.drift = mergeDrift(drift, over.drift);
         // 一覧は「差分」ではなく「書いてあればそれが全部」— 既定から 1 件だけ消したいときに
         // 消せなくなるため、要素単位のマージはしない。
         r.preys = over.preys != null ? over.preys : preys;
@@ -315,6 +455,11 @@ public final class MobStat {
     /** 自動で湧くか(未設定なら true = 湧く)。 */
     public boolean naturalSpawn() {
         return naturalSpawn == null || naturalSpawn;
+    }
+
+    /** TD で 1 体出すのに使うバイオマス(未設定なら 1、負の値は 0 に丸める)。 */
+    public double tdCost() {
+        return tdCost != null ? Math.max(0.0D, tdCost) : 1.0D;
     }
 
     /** スポーンエッグで枠に収める大きさ(ブロック)。未設定なら {@code fallback}(＝当たり判定の最大辺)。 */
@@ -356,6 +501,7 @@ public final class MobStat {
         r.swamp = over.swamp != null ? over.swamp : base.swamp;
         r.ocean = over.ocean != null ? over.ocean : base.ocean;
         r.outside = over.outside != null ? over.outside : base.outside;
+        r.depth = over.depth != null ? over.depth : base.depth;
         return r;
     }
 

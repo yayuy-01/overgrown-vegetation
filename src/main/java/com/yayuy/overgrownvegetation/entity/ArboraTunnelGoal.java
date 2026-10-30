@@ -2,13 +2,19 @@ package com.yayuy.overgrownvegetation.entity;
 
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.corruption.NoisyCorruptionBurst;
+import com.yayuy.overgrownvegetation.corruption.OvergrownBiomeConverter;
+import com.yayuy.overgrownvegetation.phase.CorruptionCounter;
+import com.yayuy.overgrownvegetation.raid.EventMobs;
 import com.yayuy.overgrownvegetation.spore.SporeDeviceData;
+import com.yayuy.overgrownvegetation.td.TdEvents;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.goal.Goal;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
@@ -42,6 +48,7 @@ import java.util.List;
  * 仲間(スカトゥリウム 2.5 幅は無理だが、アルボラ・フィロセンス・スポロフィル)が続けるように
  * 広げてある。1 マスあたり {@code arboraDigTicksPerBlock}(既定 25 = 1.25 秒)かけるので、
  * 1 歩ぶん(4 マス)進むのに 5 秒。「ゆっくり」掘る。
+ * <b>TD の侵攻中は 3 マス幅 × 3 マス高</b>(上りは 4。ユーザー指定 2026-09-25「G5 などの大型 mob も通れるように大きな穴を」)。
  *
  * <p><b>真下・真上の相手には螺旋階段を掘る</b>(ユーザー指定 2026-09-17)。直下掘りは
  * 見た目が単調なうえ、掘った穴に落ちて溶岩や空洞へ落ちる。半径
@@ -123,6 +130,11 @@ public class ArboraTunnelGoal extends Goal {
         }
         LivingEntity target = mob.getTarget();
         if (target == null || !target.isAlive()) {
+            return false;
+        }
+        // 群れの後続は掘らない(群れ v2、2026-09-25)。後続は先導役の足跡をなぞるだけで、塞がれたら立て直しの経路を 1 本引く。
+        // 掘るのは先導役と群れに居ない個体だけ(攻城の壁は TD が群れ単位で壊す)。
+        if (com.yayuy.overgrownvegetation.swarm.SwarmMember.isFollower(mob)) {
             return false;
         }
         if (mob.isInWater() || mob.isClimbing() || mob.isOnCeiling()) {
@@ -259,6 +271,9 @@ public class ArboraTunnelGoal extends Goal {
         }
         this.digTicks = 0;
         breakAndCorrupt(level, next);
+        // 自分で壁を抜いた。ナビの「届かなかった探索の控え」は地形が同じ前提なので捨てる
+        // (2026-09-24 軽量化、報告 109。掘った直後の到達確認・近接の経路探索を省かないように)。
+        InvaderNavigation.forgetFailedSearch(this.mob.getNavigation());
         this.plan.remove(0);
         this.dugBlocks++;
     }
@@ -289,7 +304,7 @@ public class ArboraTunnelGoal extends Goal {
     /**
      * 次の 1 歩。<b>真下・真上の相手には螺旋</b>、それ以外は標的の方角へまっすぐ。
      *
-     * <p>掘る断面は <b>2 マス幅 × 2 マス高</b>(上りだけ 3 マス高 —— 段を上がるのに要る)。
+     * <p>掘る断面は <b>2 マス幅 × 2 マス高</b>(上りだけ 3 マス高 —— 段を上がるのに要る)。TD の侵攻中は 3 × 3(上りは 4)。
      * 幅を 2 にしてあるのは<b>仲間を通すため</b>(ユーザー指定)。
      */
     private Step stepTo(LivingEntity target) {
@@ -310,15 +325,32 @@ public class ArboraTunnelGoal extends Goal {
         BlockPos ahead = from.relative(forward);
         BlockPos standing = ahead.above(rise);
         Direction side = forward.getClockWise();
+        // TD の侵攻中は 3 マス幅 × 3 マス高(上りは 4)。ユーザー指定 2026-09-25「自身だけが通れる穴を掘るのではなく、G5 などの大型 mob も
+        // 通れるように大きな穴を」(スクティムネスが通れる 3 × 3。TD の群れの穴 td/TdSiege.SWARM_HOLE_CELLS と同じ)。
+        boolean wide = siegeTunnel();
 
-        List<BlockPos> clear = new ArrayList<>(6);
+        List<BlockPos> clear = new ArrayList<>(wide ? 12 : 6);
         // 上るときは足元のマスも抜かないと段に乗れないので 3 マス高。
-        int top = rise > 0 ? 2 : 1;
+        int top = (rise > 0 ? 2 : 1) + (wide ? 1 : 0);
         for (int h = rise < 0 ? -1 : 0; h <= top; h++) {
             clear.add(ahead.above(h));
             clear.add(ahead.relative(side).above(h));
+            if (wide) {
+                clear.add(ahead.relative(side.getOpposite()).above(h));
+            }
         }
         return new Step(standing, clear);
+    }
+
+    /** TD の侵攻の攻め手として掘っているか(侵攻中のイベントの印を持つ)。 */
+    private boolean siegeTunnel() {
+        if (!(this.mob.level() instanceof ServerLevel level)) {
+            return false;
+        }
+        String eventId = TdEvents.activeEventId(level);
+        return eventId != null
+                && TdEvents.isSiegeLive(level, TdEvents.activeTarget(level))
+                && EventMobs.has(this.mob, EventMobs.Kind.TD, eventId);
     }
 
     /**
@@ -367,8 +399,11 @@ public class ArboraTunnelGoal extends Goal {
         return state.isAir() || state.canBeReplaced();
     }
 
-    /** 抜いてよいマスか。駄目なものが 1 つでもあれば坑道は諦める。 */
-    private boolean canDig(ServerLevel level, BlockPos pos) {
+    /**
+     * 抜いてよいマスか。駄目なものが 1 つでもあれば坑道は諦める。
+     * 張り付いたまま箱の壁を掘る({@link AbstractOvergrownInvaderEntity} の張り付きの掘り、2026-10-02)も同じ決まりを使う。
+     */
+    static boolean canDig(ServerLevel level, BlockPos pos) {
         if (level.isOutsideBuildHeight(pos)) {
             return false;
         }
@@ -393,8 +428,8 @@ public class ArboraTunnelGoal extends Goal {
         return true;
     }
 
-    /** 1 マス抜いて、そのまわりを汚染する。ドロップは出さない。 */
-    private void breakAndCorrupt(ServerLevel level, BlockPos pos) {
+    /** 1 マス抜いて、そのまわりを汚染する。ドロップは出さない。張り付きの掘りも使う。 */
+    static void breakAndCorrupt(ServerLevel level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
         level.playSound(null, pos, state.getSoundType().getBreakSound(), SoundSource.HOSTILE, 0.8F, 0.9F);
         level.levelEvent(2001, pos, net.minecraft.world.level.block.Block.getId(state));
@@ -406,12 +441,16 @@ public class ArboraTunnelGoal extends Goal {
      * 抜いたマスのまわりを汚染する(ユーザー指定:「掘った穴は必ず周囲のブロックが汚染される」)。
      * 稼働中の胞子除去装置の圏内では汚染できないので、そこだけ素の穴が残る。
      */
-    private void corruptAround(ServerLevel level, BlockPos pos) {
+    private static void corruptAround(ServerLevel level, BlockPos pos) {
         int radius = OvergrownVegetationConfig.COMMON.arboraDigCorruptRadius.get();
         if (radius <= 0 || SporeDeviceData.inhibits(level, pos, SporeDeviceData.Inhibit.CORRUPTION)) {
             return;
         }
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        // 汚染の記録とバイオーム変換の打診は、マスごとではなく最後にまとめて行う(2026-09-24 軽量化、報告 739)。
+        // 以前は球の 33 マスそれぞれが成功のたびに同じ 1〜2 チャンクへ打診していた。NoisyCorruptionBurst#sphere と同じ形。
+        LongOpenHashSet touchedChunks = new LongOpenHashSet();
+        int corrupted = 0;
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dy = -radius; dy <= radius; dy++) {
                 for (int dz = -radius; dz <= radius; dz++) {
@@ -419,9 +458,15 @@ public class ArboraTunnelGoal extends Goal {
                         continue;
                     }
                     cursor.set(pos.getX() + dx, pos.getY() + dy, pos.getZ() + dz);
-                    NoisyCorruptionBurst.single(level, cursor.immutable());
+                    if (NoisyCorruptionBurst.single(level, cursor.immutable(), touchedChunks)) {
+                        corrupted++;
+                    }
                 }
             }
+        }
+        CorruptionCounter.record(level, corrupted);
+        for (long packedChunk : touchedChunks) {
+            OvergrownBiomeConverter.maybeConvert(level, new ChunkPos(packedChunk));
         }
     }
 

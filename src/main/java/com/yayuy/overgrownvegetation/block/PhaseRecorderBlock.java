@@ -111,7 +111,9 @@ public class PhaseRecorderBlock extends Block {
                 .withStyle(ChatFormatting.GRAY));
         if (phase <= 0) {
             lore.add(Component.translatable("item.overgrown_vegetation.phase_report.phase0",
-                    data.getStartAdvancementCount(), phases.startAdvancements()).withStyle(ChatFormatting.GRAY));
+                    data.getStartAdvancementCount(),
+                    com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.phase1Advancements(level.getServer()))
+                    .withStyle(ChatFormatting.GRAY));
         } else {
             lore.add(Component.translatable("item.overgrown_vegetation.phase_report.phase",
                     Component.translatableWithFallback("message.overgrown_vegetation.phase_name." + phase, "Phase " + phase))
@@ -125,7 +127,9 @@ public class PhaseRecorderBlock extends Block {
                 lore.add(Component.translatable("item.overgrown_vegetation.phase_report.points_only",
                         String.format("%,d", points)).withStyle(ChatFormatting.GRAY));
             }
-            double perTick = phases.pointsPerTickWithChunks(chunks);
+            // ワールドの難易度「フェーズ進行のポイント量」を掛けた、実際に入る量(2026-09-25)。
+            double perTick = phases.pointsPerTickWithChunks(chunks)
+                    * com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.phasePointMultiplier(level.getServer());
             lore.add(Component.translatable("item.overgrown_vegetation.phase_report.income",
                     String.format("%,.0f", perTick * 1200.0D)).withStyle(ChatFormatting.GRAY));
         }

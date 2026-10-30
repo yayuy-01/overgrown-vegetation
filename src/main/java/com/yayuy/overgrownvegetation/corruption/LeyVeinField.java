@@ -62,6 +62,131 @@ public final class LeyVeinField {
     }
 
     /**
+     * いちばん近い地脈の線(セルの境界)までの水平の距離(ブロック、歪めた座標の上)。場は極相の外にも続いているので、どこでも測れる
+     * (2026-10-16、㉙ 地脈の汲み上げ器の効率。線が無い設定なら {@link Double#MAX_VALUE})。セルの真ん中でおよそ {@code cellSize / 2}。
+     */
+    public static double distanceToLine(long seed, int blockX, int blockZ) {
+        ClimaxTable.LeyVein spec = DesignData.climax().leyVein();
+        if (spec.cellSize() <= 0.0D) {
+            return Double.MAX_VALUE;
+        }
+        double[] warped = warp(seed, blockX, blockZ, spec);
+        return distanceToBorder(seed, warped[0] / spec.cellSize(), warped[1] / spec.cellSize()) * spec.cellSize();
+    }
+
+    /**
+     * 地脈の<b>流れ</b>(2026-10-16、ユーザー選択「地面から透ける光の帯」。過繁茂の森で時々、地脈になる線に沿って光が流れる)。
+     * {@code out} = {強さ(0〜1、{@link #strengthAt} と同じ), 線の向き x, 線の向き z, 線に沿った座標(ブロック)}。地脈の上でなければ false。
+     *
+     * <p>線の向きは、境界をはさむ 2 つの母点を結ぶ向きに直角。2 つの母点の順番(ハッシュの大小)で向きの符号を決めるので、
+     * 同じ境界の上ではどこでも同じ向きになる(光が線に沿って一方向へ流れる)。向きと沿った座標は歪めた座標の上のもので、
+     * 歪みはなめらかなので見た目にはほぼ線に沿う。網目の継ぎ目(3 つのセルが会う所)では向きが変わる。
+     * 場と同じくシードと座標だけで決まるので、クライアントへはサーバーが計算して送る(シードはクライアントへ送らない)。
+     */
+    public static boolean flowAt(long seed, int blockX, int blockZ, double[] out) {
+        ClimaxTable.LeyVein spec = DesignData.climax().leyVein();
+        if (spec.width() <= 0.0D || spec.cellSize() <= 0.0D) {
+            return false;
+        }
+        double[] warped = warp(seed, blockX, blockZ, spec);
+        double cx = warped[0] / spec.cellSize();
+        double cz = warped[1] / spec.cellSize();
+        int baseX = Mth.floor(cx);
+        int baseZ = Mth.floor(cz);
+        double bestSq = Double.MAX_VALUE;
+        double secondSq = Double.MAX_VALUE;
+        double bestX = 0.0D;
+        double bestZ = 0.0D;
+        double secondX = 0.0D;
+        double secondZ = 0.0D;
+        long bestHash = 0L;
+        long secondHash = 0L;
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                int gx = baseX + dx;
+                int gz = baseZ + dz;
+                long h = hash(seed, gx, gz);
+                double px = gx + ((h >>> 16) & 0xFFFF) / 65536.0D;
+                double pz = gz + ((h >>> 32) & 0xFFFF) / 65536.0D;
+                double dSq = (px - cx) * (px - cx) + (pz - cz) * (pz - cz);
+                if (dSq < bestSq) {
+                    secondSq = bestSq;
+                    secondX = bestX;
+                    secondZ = bestZ;
+                    secondHash = bestHash;
+                    bestSq = dSq;
+                    bestX = px;
+                    bestZ = pz;
+                    bestHash = h;
+                } else if (dSq < secondSq) {
+                    secondSq = dSq;
+                    secondX = px;
+                    secondZ = pz;
+                    secondHash = h;
+                }
+            }
+        }
+        if (secondSq == Double.MAX_VALUE) {
+            return false;
+        }
+        double sx = secondX - bestX;
+        double sz = secondZ - bestZ;
+        double siteDist = Math.sqrt(sx * sx + sz * sz);
+        if (siteDist < 1.0e-6D) {
+            return false;
+        }
+        double toBorder = (secondSq - bestSq) / (2.0D * siteDist) * spec.cellSize();
+        double half = spec.width() * 0.5D;
+        if (toBorder >= half) {
+            return false;
+        }
+        // 2 つの母点を結ぶ向きに直角 = 境界の向き。母点のハッシュの小さい方から大きい方への向きを基準に符号を揃える。
+        double tx = -sz / siteDist;
+        double tz = sx / siteDist;
+        if (Long.compareUnsigned(bestHash, secondHash) > 0) {
+            tx = -tx;
+            tz = -tz;
+        }
+        out[0] = 1.0D - toBorder / half;
+        out[1] = tx;
+        out[2] = tz;
+        out[3] = warped[0] * tx + warped[1] * tz;
+        return true;
+    }
+
+    /**
+     * そのチャンクに地脈が通っているか(順 1、2026-10-03。フロエマイトの「地脈のあるチャンクを中心に 3×3」の判定)。
+     * 場はシードと座標だけの関数なので、<b>チャンクを読み込まずに</b>隣のチャンクにも聞ける。
+     *
+     * <p>2 ブロックおきの格子に<b>最後の列・行(15)を足した</b> 9×9 = 81 点で見る。地脈の幅は既定 5 ブロックあるので、
+     * チャンクを横切る地脈は必ずどれかの点に掛かる。15 を足したのは、チャンクの縁に沿って
+     * <b>端の 1 列だけをかすめる地脈</b>を拾うため(0〜14 の偶数だけだと、15 列目に 8 マス掛かる地脈を見落とした。
+     * 2026-10-03 の GameTest)。それでも角を 1〜2 マスかすめるだけのものは拾わないことがあるが、そのときは隣のチャンクに
+     * 地脈の本体があるので、3×3 の判定の結果は変わらない。
+     * 2 おきの格子が斜めの帯を取りこぼさないのは幅が 2√2(≒ 2.83)以上のときなので、
+     * 幅を 3 未満にしたら 1 ブロックおきに見る。
+     */
+    public static boolean hasVeinInChunk(long seed, int chunkX, int chunkZ) {
+        ClimaxTable.LeyVein spec = DesignData.climax().leyVein();
+        if (spec.width() <= 0.0D || spec.cellSize() <= 0.0D) {
+            return false;
+        }
+        int step = spec.width() >= 3.0D ? 2 : 1;
+        int baseX = chunkX << 4;
+        int baseZ = chunkZ << 4;
+        for (int i = 0; i <= 16; i += step) {
+            int dz = Math.min(i, 15);
+            for (int j = 0; j <= 16; j += step) {
+                int dx = Math.min(j, 15);
+                if (isVeinAt(seed, baseX + dx, baseZ + dz)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * {@code (originX, originZ)} から<b>いちばん近い地脈の上の点</b>を探す(2026-09-22)。
      * {@code /ov climax ley} が「地脈が見つからない」ときのテレポート先に使う。
      *
@@ -92,6 +217,134 @@ public final class LeyVeinField {
         return null;
     }
 
+    /**
+     * {@code (originX, originZ)} からいちばん近い<b>地脈の線の真ん中</b>の点(2026-10-22、地脈探しの針の先)。読み込みは要らない。
+     *
+     * <p>歪めた座標の上で、いちばん近い母点と 2 番目の母点の垂直二等分線(= 線)までの向きと距離は式で出るので、
+     * その分だけ動いては測り直す(歪みはなめらかなので数回で線に着く)。ただし一歩が別の線へ飛ぶことがある(3 つのセルが会う所の近くや
+     * 歪みの強い所。2026-10-22 のテストクライアントで 135 ブロック先、GameTest で 19 のところ 46 を返した)ので、歩いて着いた距離を
+     * <b>上限</b>にして、その内側を輪で総当たりし(2 おき)、ユークリッド距離でいちばん近い線の点を取る。輪の半径 r より近い点は
+     * もう出ないので、見つけた最短の距離を r が越えたら止める。最後に半径 3 で線の真ん中(強さの最大)へ寄せる。
+     *
+     * @return {@code [x, z]}。線が無い設定か {@code maxRadius} の中に無ければ null
+     */
+    public static int[] nearestLinePoint(long seed, int originX, int originZ, int maxRadius) {
+        ClimaxTable.LeyVein spec = DesignData.climax().leyVein();
+        if (spec.width() <= 0.0D || spec.cellSize() <= 0.0D) {
+            return null;
+        }
+        if (strengthAt(seed, originX, originZ) > 0.0D) {
+            return strongestNear(seed, originX, originZ, 3); // もう線の帯の中: 近くのいちばん真ん中へ
+        }
+        // 1. 歩いて上限を得る
+        int[] best = null;
+        double bestD = Double.MAX_VALUE;
+        double px = originX;
+        double pz = originZ;
+        for (int i = 0; i < MAX_STEPS; i++) {
+            int bx = Mth.floor(px);
+            int bz = Mth.floor(pz);
+            if (strengthAt(seed, bx, bz) > 0.0D) {
+                best = new int[]{bx, bz};
+                bestD = Math.hypot(bx - originX, bz - originZ);
+                break;
+            }
+            double[] step = borderStep(seed, px + 0.5D, pz + 0.5D, spec);
+            if (step == null) {
+                break;
+            }
+            // 遠いうちは 8 割だけ進む(行き過ぎて向こうの線へ飛ばないように)
+            double k = Math.hypot(step[0], step[1]) > 4.0D ? 0.8D : 1.0D;
+            px += step[0] * k;
+            pz += step[1] * k;
+        }
+        // 2. 上限の内側を輪で総当たり
+        for (int r = 2; r <= maxRadius && r < bestD; r += 2) {
+            for (int d = -r; d <= r; d += 2) {
+                int[][] cands = {{originX + d, originZ - r}, {originX + d, originZ + r}, {originX - r, originZ + d}, {originX + r, originZ + d}};
+                for (int[] c : cands) {
+                    double dist = Math.hypot(c[0] - originX, c[1] - originZ);
+                    if (dist < bestD && isVeinAt(seed, c[0], c[1])) {
+                        best = c;
+                        bestD = dist;
+                    }
+                }
+            }
+        }
+        if (best == null) {
+            return null;
+        }
+        int[] hit = strongestNear(seed, best[0], best[1], 3);
+        return Math.abs(hit[0] - originX) <= maxRadius && Math.abs(hit[1] - originZ) <= maxRadius ? hit : null;
+    }
+
+    /** {@code (x, z)} から半径 {@code r} の中で、線の強さがいちばん大きい(線の真ん中に近い)マス。 */
+    private static int[] strongestNear(long seed, int x, int z, int r) {
+        int[] best = {x, z};
+        double bestS = strengthAt(seed, x, z);
+        for (int dz = -r; dz <= r; dz++) {
+            for (int dx = -r; dx <= r; dx++) {
+                double s = strengthAt(seed, x + dx, z + dz);
+                if (s > bestS + 1.0e-9D || (Math.abs(s - bestS) <= 1.0e-9D && dx * dx + dz * dz < Mth.square(best[0] - x) + Mth.square(best[1] - z))) {
+                    bestS = s;
+                    best = new int[]{x + dx, z + dz};
+                }
+            }
+        }
+        return best;
+    }
+
+    /** {@link #nearestLinePoint} の歩数の上限。 */
+    private static final int MAX_STEPS = 12;
+
+    /** 歪めた座標の上で、いちばん近い線(2 番目の母点との垂直二等分線)までの移動量(ブロック)。 */
+    private static double[] borderStep(long seed, double x, double z, ClimaxTable.LeyVein spec) {
+        double[] warped = warp(seed, x, z, spec);
+        double cx = warped[0] / spec.cellSize();
+        double cz = warped[1] / spec.cellSize();
+        int baseX = Mth.floor(cx);
+        int baseZ = Mth.floor(cz);
+        double bestSq = Double.MAX_VALUE;
+        double secondSq = Double.MAX_VALUE;
+        double bestX = 0.0D;
+        double bestZ = 0.0D;
+        double secondX = 0.0D;
+        double secondZ = 0.0D;
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                int gx = baseX + dx;
+                int gz = baseZ + dz;
+                long h = hash(seed, gx, gz);
+                double sx = gx + ((h >>> 16) & 0xFFFF) / 65536.0D;
+                double sz = gz + ((h >>> 32) & 0xFFFF) / 65536.0D;
+                double dSq = (sx - cx) * (sx - cx) + (sz - cz) * (sz - cz);
+                if (dSq < bestSq) {
+                    secondSq = bestSq;
+                    secondX = bestX;
+                    secondZ = bestZ;
+                    bestSq = dSq;
+                    bestX = sx;
+                    bestZ = sz;
+                } else if (dSq < secondSq) {
+                    secondSq = dSq;
+                    secondX = sx;
+                    secondZ = sz;
+                }
+            }
+        }
+        if (secondSq == Double.MAX_VALUE) {
+            return null;
+        }
+        double nx = secondX - bestX;
+        double nz = secondZ - bestZ;
+        double siteDist = Math.sqrt(nx * nx + nz * nz);
+        if (siteDist < 1.0e-6D) {
+            return null;
+        }
+        double toBorder = (secondSq - bestSq) / (2.0D * siteDist) * spec.cellSize();
+        return new double[]{nx / siteDist * toBorder, nz / siteDist * toBorder};
+    }
+
     /** 4 つの候補のうち、最初に地脈の上に載っているものを返す。 */
     private static int[] firstHit(long seed, int[] xs, int[] zs) {
         for (int i = 0; i < xs.length; i++) {
@@ -103,7 +356,7 @@ public final class LeyVeinField {
     }
 
     /** 座標をノイズで歪める(地脈をうねらせる)。戻りは {@code [x, z]}。 */
-    private static double[] warp(long seed, int blockX, int blockZ, ClimaxTable.LeyVein spec) {
+    private static double[] warp(long seed, double blockX, double blockZ, ClimaxTable.LeyVein spec) {
         double x = blockX;
         double z = blockZ;
         double amount = spec.warp();

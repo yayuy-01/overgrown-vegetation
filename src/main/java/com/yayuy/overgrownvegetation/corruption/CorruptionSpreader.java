@@ -1,6 +1,8 @@
 package com.yayuy.overgrownvegetation.corruption;
 
 import com.yayuy.overgrownvegetation.ModTags;
+import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.block.CorruptedSaplingBlock;
 import com.yayuy.overgrownvegetation.block.OvergrownGlowVines;
 import com.yayuy.overgrownvegetation.block.UndevelopedBushBlock;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
@@ -8,6 +10,7 @@ import com.yayuy.overgrownvegetation.phase.PhaseData;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import com.yayuy.overgrownvegetation.registry.OvergrowthVariant;
 import com.yayuy.overgrownvegetation.util.ChunkCachedReader;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -15,6 +18,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
@@ -28,6 +32,7 @@ import net.minecraft.world.level.block.SnowLayerBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.chunk.LevelChunk;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -210,12 +215,11 @@ public class CorruptionSpreader {
      * (開始値)から始まり、{@code blocksPerCycleGrowthPer} ブロック汚染するごとに1ずつ増え、
      * {@code blocksPerCycleMax} で頭打ちになる。{@code blocksPerCycleGrowthPer} が0なら
      * 常に開始値のまま(旧仕様)。汚染範囲が広がるほど同時に置き換わる数も増えていく効果を狙ったもの。
-     * 最後に {@code corruptionSpeedMultiplier}({@code /ov corruption speed}
-     * コマンドで書き換えられる、既定1.0の倍率)を掛ける — blight_fern・汚染死体ブロックの
+     * 最後にワールドの難易度「汚染シダの汚染速度」(2026-09-25 からワールドごと。ワールドの値が無ければ config の
+     * {@code corruptionSpeedMultiplier}、既定1.0。{@code /ov corruption speed}・{@code /ov difficulty}・葉っぱのボタンの画面で
+     * 変えられる)を掛ける — blight_fern・汚染死体ブロックの
      * どちらにもこの倍率が効く。さらに、フェーズ1開始の地割れの胞子噴出エフェクトが出ている間は
      * {@code quakeEruptionCorruptionMultiplier}(既定5.0)も上乗せで掛かる。
-     * 世界に胞子ノード(巣の噴気室)があると、その数ぶんの倍率も掛かる
-     * ({@link com.yayuy.overgrownvegetation.nest.NestNodes#corruptionMultiplier})。
      */
     private int effectiveBlocksPerCycle(ServerLevel level) {
         final int base = OvergrownVegetationConfig.COMMON.blocksPerCycle.get();
@@ -227,10 +231,7 @@ public class CorruptionSpreader {
             final int max = OvergrownVegetationConfig.COMMON.blocksPerCycleMax.get();
             grown = Math.min(max, base + (long) corruptedCount / growthPer);
         }
-        double multiplier = OvergrownVegetationConfig.COMMON.corruptionSpeedMultiplier.get();
-        // 胞子ノード(巣の噴気室)1 個につき nodeCorruptionPerNode だけ速くなる。10 個で打ち止め
-        // (ユーザー指定 2026-09-19)。ノードが無ければ 1.0 なので何も変わらない。
-        multiplier *= com.yayuy.overgrownvegetation.nest.NestNodes.corruptionMultiplier(level);
+        double multiplier = com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.corruptionSpeed(level.getServer());
         if (com.yayuy.overgrownvegetation.quake.EarthquakeData.isEruptionActive()) {
             multiplier *= OvergrownVegetationConfig.COMMON.quakeEruptionCorruptionMultiplier.get();
         }
@@ -276,6 +277,9 @@ public class CorruptionSpreader {
      * 持つブロックだった場合や、免疫・破壊不能・液体などで汚染できない場合は諦める。
      */
     public void seedGround(ServerLevel level, BlockPos origin) {
+        if (CorruptionSwitch.isOff()) {
+            return; // /ov corruption false(2026-10-10 ユーザー指定): 侵食しない(触手・終わったかどうかはそのまま残り、オンで続きから)
+        }
         if (groundSeeded) {
             return;
         }
@@ -304,13 +308,36 @@ public class CorruptionSpreader {
             return;
         }
 
+        // 覆っただけのマスは #corrupted に入らないので、既に覆われていても毎回ここへ来る。
+        // 植物を生やすのは「今 覆ったとき」だけにしないと、同じ壁に何度も抽選が走って生え続ける。
+        boolean coveredBefore = OvergrownLayerData.isCovered(level, targetPos);
         BlockState corrupted = CorruptionRegistry.corrupt(level, targetPos, state, level.random);
         if (CorruptionRegistry.noChange(state, corrupted)) {
+            if (OvergrownLayerData.isCovered(level, targetPos)) {
+                // 対応表に無いブロックを覆った(置き換えは無い)。tick() 側はこれを足場として扱う。
+                corruptedCount++;
+                if (!coveredBefore) {
+                    growPlantsOnCovered(level, targetPos.immutable(), state);
+                }
+            }
             return;
         }
 
         CorruptionRegistry.placeCorrupted(level, targetPos, state, corrupted, Block.UPDATE_ALL);
         corruptedCount++;
+    }
+
+    /**
+     * そのマスは<b>苔に覆われている</b>({@link OvergrownLayerData})か。
+     *
+     * <p>対応表に無いブロック(コンクリート・ガラス・金床など)は汚染されても置き換わらず、
+     * 覆った記録だけが付く。{@code #corrupted} タグでは見分けられないので、これを見ないと
+     * 触手もコアも覆ったマスを「汚染できない壁」とみなして止まり、未対応ブロックの床に湧いた
+     * 汚染シダが周りを覆っただけで完了扱いになって消えていた(2026-09-24)。
+     */
+    private boolean isCoveredCell(BlockPos pos, BlockState state) {
+        LevelChunk chunk = reader.chunkNow(pos.getX(), pos.getZ());
+        return chunk != null && OvergrownLayerData.isCovered(chunk, pos, state);
     }
 
     /**
@@ -361,6 +388,21 @@ public class CorruptionSpreader {
      */
     public void tick(ServerLevel level, BlockPos origin, int radius, int maxInteriorDepth, int coreRadius,
                       int initialCount, int maxActive) {
+        if (CorruptionSwitch.isOff()) {
+            return; // /ov corruption false(2026-10-10 ユーザー指定): 侵食しない(触手・終わったかどうかはそのまま残り、オンで続きから)
+        }
+        // この 1 サイクルが引き起こした破壊(取り残された植物など)はアイテムを落とさない。
+        // 変わるのはドロップだけで、置くブロック・乱数の順番はそのまま(CorruptionDropSuppressor)
+        CorruptionDropSuppressor.enter();
+        try {
+            tickInScope(level, origin, radius, maxInteriorDepth, coreRadius, initialCount, maxActive);
+        } finally {
+            CorruptionDropSuppressor.exit();
+        }
+    }
+
+    private void tickInScope(ServerLevel level, BlockPos origin, int radius, int maxInteriorDepth, int coreRadius,
+                             int initialCount, int maxActive) {
         if (finished) {
             return;
         }
@@ -544,6 +586,7 @@ public class CorruptionSpreader {
         // 全ての根が重複しない向きへ最初から散らばる(偶然同じ向きばかりに偏らない)。
         Direction[] directions = Direction.values();
         shuffle(directions, random);
+        int firstRoot = tendrils.size();
         for (int i = 0; i < initialCount; i++) {
             long offset = edgeCells.getLong(random.nextInt(edgeCells.size()));
             int x = BlockPos.getX(offset);
@@ -552,6 +595,43 @@ public class CorruptionSpreader {
             int depth = coreDepth.get(offset);
             Direction facing = directions[i % directions.length];
             tendrils.add(new Tendril(x, y, z, facing, depth, initialBacktrackBudget, true));
+        }
+        rescueRootsAllOnOrigin(edgeCells, firstRoot, initialBacktrackBudget);
+    }
+
+    /**
+     * 根が<b>全部</b>「起点そのもの」のマスから出ることになったときだけ、最後の 1 本を別の縁のマスから出し直す
+     * (2026-09-24、ユーザー承認)。
+     *
+     * <p>コアは近傍を積むとき半径だけで絞るので、コア半径 0 でも距離 0 の起点(汚染死体のブロック・汚染シダの足元)が
+     * 縁の候補に入る。平らな地面では起点の横も上も空気、下は踏み済みなので、そこから出た根は 1 歩も進めない。
+     * 汚染死体(コア半径 0・根 4 本・縁は起点と真下の 2 マス)は (1/2)^4 ≒ 6% の確率で全部の根が起点を引き、
+     * 真下の 1 マスだけ汚染して終わっていた。
+     *
+     * <p>救うのは<b>全滅するときだけ</b>。1 本でも起点以外から出ていれば何もしないので、それ以外の場合の
+     * 根の出方と乱数の引き方は今までと同じ(ここでは乱数を引かない)。差し替え先は縁の候補を並びの順に見て
+     * 起点でない最初のマス(コア半径 0 なら真下の地面)、向きはその根のまま。
+     */
+    private void rescueRootsAllOnOrigin(LongArrayList edgeCells, int firstRoot, int backtrackBudget) {
+        int last = tendrils.size() - 1;
+        if (last < firstRoot) {
+            return;
+        }
+        for (int i = firstRoot; i <= last; i++) {
+            TendrilNode start = tendrils.get(i).head();
+            if (start.x != 0 || start.y != 0 || start.z != 0) {
+                return;
+            }
+        }
+        long originOffset = BlockPos.asLong(0, 0, 0);
+        for (int i = 0; i < edgeCells.size(); i++) {
+            long offset = edgeCells.getLong(i);
+            if (offset != originOffset) {
+                Direction facing = tendrils.get(last).head().facing;
+                tendrils.set(last, new Tendril(BlockPos.getX(offset), BlockPos.getY(offset), BlockPos.getZ(offset),
+                        facing, coreDepth.get(offset), backtrackBudget, true));
+                return;
+            }
         }
     }
 
@@ -597,7 +677,7 @@ public class CorruptionSpreader {
             // 未ロード(Level#isLoaded が false になる条件と同じ)。
             return false;
         }
-        boolean alreadyCorrupted = state.is(ModTags.CORRUPTED);
+        boolean alreadyCorrupted = state.is(ModTags.CORRUPTED) || isCoveredCell(corePos, state);
         boolean placedNew = false;
 
         if (!alreadyCorrupted) {
@@ -615,22 +695,31 @@ public class CorruptionSpreader {
 
             BlockState corrupted = CorruptionRegistry.corrupt(level, targetPos, state, random);
             if (CorruptionRegistry.noChange(state, corrupted)) {
-                return false;
+                if (!isCoveredCell(targetPos, state)) {
+                    return false;
+                }
+                // 対応表に無いブロックを覆った。置き換えは無いが汚染の 1 歩として数え、
+                // 下の近傍の洗い出しへ進む(触手の stepTendril と同じ扱い)。
+                touchedChunks.add(new ChunkPos(targetPos).toLong());
+                // 覆ったマスの上にも装飾植物を生やす(2026-09-29 要望)。ここへ来るのは
+                // 上の alreadyCorrupted で弾かれなかったとき = 今 覆ったときだけ。
+                growPlantsOnCovered(level, targetPos.immutable(), state);
+                placedNew = true;
+            } else {
+                BlockPos target = targetPos.immutable();
+                CorruptionRegistry.placeCorrupted(level, target, state, corrupted, Block.UPDATE_ALL);
+                touchedChunks.add(new ChunkPos(target).toLong());
+
+                if (effectChance > 0.0D && random.nextDouble() < effectChance) {
+                    // 破壊パーティクル + 音
+                    level.levelEvent(2001, target, Block.getId(state));
+                }
+
+                growPlants(level, target, corrupted);
+                ensureGrassOnConvertedStone(level, target, state, corrupted, random);
+                decayNaturalTreeLeaves(level, target, state);
+                placedNew = true;
             }
-
-            BlockPos target = targetPos.immutable();
-            CorruptionRegistry.placeCorrupted(level, target, state, corrupted, Block.UPDATE_ALL);
-            touchedChunks.add(new ChunkPos(target).toLong());
-
-            if (effectChance > 0.0D && random.nextDouble() < effectChance) {
-                // 破壊パーティクル + 音
-                level.levelEvent(2001, target, Block.getId(state));
-            }
-
-            growPlants(level, target, corrupted);
-            ensureGrassOnConvertedStone(level, target, state, corrupted, random);
-            decayNaturalTreeLeaves(level, target, state);
-            placedNew = true;
         }
 
         // まず条件を満たす近傍(未踏・半径内・世界の縦範囲内・ロード済み・露出面や内部侵食の
@@ -766,7 +855,7 @@ public class CorruptionSpreader {
                 }
 
                 BlockState state = reader.getBlockState(wx, wy, wz);
-                boolean alreadyCorrupted = state.is(ModTags.CORRUPTED);
+                boolean alreadyCorrupted = state.is(ModTags.CORRUPTED) || isCoveredCell(neighbourPos, state);
 
                 if (alreadyCorrupted) {
                     // ワールド再読み込み直後などで、既に汚染済みの領域を踏み台にして先へ進む。
@@ -801,7 +890,19 @@ public class CorruptionSpreader {
 
                 BlockState corrupted = CorruptionRegistry.corrupt(level, targetPos, state, random);
                 if (CorruptionRegistry.noChange(state, corrupted)) {
-                    continue;
+                    if (!isCoveredCell(targetPos, state)) {
+                        // 置き換えも覆いもできなかった。他の方向を試す
+                        continue;
+                    }
+                    // 対応表に無いブロックを覆った(置き換えずに記録だけ付いた)。これも汚染の 1 歩として
+                    // 数え、そこを足場に先へ進む。元のブロックは残るが、その上にも装飾植物を生やす
+                    // (2026-09-29 要望。ここへ来るのは上の alreadyCorrupted で弾かれなかったとき
+                    // = 今 覆ったときだけ)。
+                    touchedChunks.add(new ChunkPos(targetPos).toLong());
+                    growPlantsOnCovered(level, targetPos.immutable(), state);
+                    claimed.add(offset);
+                    tendril.path.add(new TendrilNode(nx, ny, nz, direction, newDepth));
+                    return StepOutcome.MOVED_AND_PLACED;
                 }
 
                 BlockPos target = targetPos.immutable();
@@ -1057,6 +1158,19 @@ public class CorruptionSpreader {
      * @return 実際にブロックを置き換えたら true(空気・免疫・既に汚染済み・未ロードなら false)
      */
     public static boolean corruptSingle(ServerLevel level, BlockPos pos) {
+        if (CorruptionSwitch.isOff()) {
+            return false; // /ov corruption false(2026-10-10 ユーザー指定): 侵食しない(触手・終わったかどうかはそのまま残り、オンで続きから)
+        }
+        // 取り残された植物などの破壊でアイテムを落とさない(CorruptionDropSuppressor)
+        CorruptionDropSuppressor.enter();
+        try {
+            return corruptSingleInScope(level, pos);
+        } finally {
+            CorruptionDropSuppressor.exit();
+        }
+    }
+
+    private static boolean corruptSingleInScope(ServerLevel level, BlockPos pos) {
         if (!level.isLoaded(pos)) {
             return false;
         }
@@ -1068,8 +1182,15 @@ public class CorruptionSpreader {
             return false;
         }
         RandomSource random = level.random;
+        // 覆っただけのマスは #corrupted に入らないので、既に覆われていても毎回ここへ来る。
+        // 「今 覆ったのか」を見分けるために、置き換えの前の状態を控えておく。
+        boolean coveredBefore = OvergrownLayerData.isCovered(level, pos);
         BlockState corrupted = CorruptionRegistry.corrupt(level, pos, state, random);
         if (CorruptionRegistry.noChange(state, corrupted)) {
+            if (!coveredBefore && OvergrownLayerData.isCovered(level, pos)) {
+                // 今 覆った。ブロックは元のままだが、その上にも装飾植物を生やす(2026-09-29 要望)。
+                growPlantsOnCovered(level, pos.immutable(), state);
+            }
             return false;
         }
         BlockPos target = pos.immutable();
@@ -1115,8 +1236,44 @@ public class CorruptionSpreader {
      * (葉ブロックなど)の場合は、上に乗ったり横から生えたりするのが不自然なので
      * 下面の垂れ下がる植物しか生やさない。
      */
+    /**
+     * <b>覆っただけのマスの上にも装飾植物を生やす</b>(2026-09-29、要望)。
+     *
+     * <p>対応表に無いブロック(コンクリート・鉄ブロック・階段など)は汚染されても<b>置き換わらず</b>、
+     * 覆った記録が付くだけ({@link OvergrownLayerData})。その経路は
+     * {@link CorruptionRegistry#noChange} で早々に折り返していたので、
+     * <b>普通の汚染ブロックなら生えるはずの下草・蔦・苔が 1 本も生えていなかった</b> ——
+     * 覆われた壁だけが苔のテクスチャ 1 枚のまま、という食い違いになっていた。
+     *
+     * <p>ホストは<b>元のブロックそのもの</b>を渡す。下草・蔦・苔はどれも「足場の面が固いか」しか
+     * 見ていないので({@code isFaceSturdy})、コンクリートでも鉄ブロックでもそのまま生える。
+     * <b>ガラスには付かない</b>(面が固くない)—— 窓が塞がらないので都合がよい。
+     * 苗木だけは汚染された土の上にしか植わらないので、覆ったコンクリートから木は生えない。
+     *
+     * <p><b>覆った瞬間だけ呼ぶこと。</b> 覆ったマスは {@code #corrupted} に入らないので、
+     * 汚染は同じマスを何度でも訪ね直す。毎回呼ぶと同じ壁で抽選が走り続けて、
+     * 普通の汚染ブロックよりずっと濃く生い茂る(下草は描画がいちばん重い)。
+     */
+    private static void growPlantsOnCovered(ServerLevel level, BlockPos pos, BlockState hostState) {
+        if (!hasFreeNeighbour(level, pos)) {
+            return;
+        }
+        growPlants(level, pos, hostState);
+    }
+
+    /**
+     * ほかの汚染の経路(過繁茂の前進・台帳の広がり・建物の侵食・噴出・爆発)用: 置き換えの無かった({@link CorruptionRegistry#noChange})
+     * マスが<b>今</b>覆われたのなら、上に植物を生やす(2026-10-10、ユーザー指定「対応していないブロックを汚染した際にもその上に植物や苗木が生えるように」。
+     * それまでこの経路では覆っただけのマスで折り返し、植物が 1 本も生えなかった)。{@code corrupt} の直後に呼ぶこと。
+     */
+    public static void growPlantsIfNewlyCovered(ServerLevel level, BlockPos pos, BlockState hostState) {
+        if (OvergrownLayerData.takeNewlyCovered(pos)) {
+            growPlantsOnCovered(level, pos.immutable(), hostState);
+        }
+    }
+
     private static void growPlants(ServerLevel level, BlockPos pos, BlockState hostState) {
-        if (hostState.isAir()) {
+        if (hostState.isAir() || hostState.is(Blocks.WATER)) { // 溶けた氷の跡の水(2026-10-16)にも生やさない
             // 雪のように「汚染しても消えるだけ」のブロックは、その跡地(空気)に何も生やさない。
             return;
         }
@@ -1131,13 +1288,78 @@ public class CorruptionSpreader {
      * その場所での装飾植物の生成確率。湿地系の環境(地域マップ。バイオームが書き換わる前でも)では
      * {@code growthChance} に {@code swampGrowthChanceMultiplier} を掛けて草を少なくする。
      */
-    /** その場所で苗木を植える確率。菌湿地帯では {@code fungalSwampTreeChanceMultiplier} を掛ける。 */
+    /**
+     * その場所で苗木を植える確率。菌湿地帯では {@code fungalSwampTreeChanceMultiplier} を掛ける(菌の柱はもともと疎らなので間隔は見ない)。
+     * それ以外は {@code treeSpacing} が 0 でなければ {@link TreeSpacing} の格子で決める: 木を立てる列なら必ず、ほかの列には植えない
+     * (2026-10-15 ユーザー指定「木の密度を下げる」)。
+     */
     private static double treeChanceAt(ServerLevel level, BlockPos pos) {
         double chance = OvergrownVegetationConfig.COMMON.treeChance.get();
         if (OvergrowthRegionMap.blendedVariantAt(level, pos.getX(), pos.getZ(), 4) == OvergrowthVariant.FUNGAL_SWAMP) {
-            chance *= OvergrownVegetationConfig.COMMON.fungalSwampTreeChanceMultiplier.get();
+            return chance * OvergrownVegetationConfig.COMMON.fungalSwampTreeChanceMultiplier.get();
+        }
+        // 林冠の穴(木を植えない輪)の中には植えない(2026-10-16。格子の有る無しにかかわらず)。
+        if (TreeSpacing.inCanopyGap(level.getSeed(), pos.getX(), pos.getZ(), OvergrownVegetationConfig.COMMON.treeCanopyGapChance.get())) {
+            return 0.0;
+        }
+        int spacing = OvergrownVegetationConfig.COMMON.treeSpacing.get();
+        if (spacing > 1) {
+            return TreeSpacing.allowsTree(level.getSeed(), pos.getX(), pos.getZ(), spacing,
+                    OvergrownVegetationConfig.COMMON.treeClearingChance.get()) ? 1.0 : 0.0;
         }
         return chance;
+    }
+
+    /**
+     * {@link TreeSpacing} で木を立てる列なら、下草・苔の抽選より先に苗木を植える(植えたら true)。
+     * 抽選の後ろにあると、下草の確率(既定 0.85)と苔に先を越されて木の立つ列の約半分が外れ、格子を詰めても森が閉じなかった
+     * (2026-10-15 の撮影: 間隔 6 で 113 マス中 50 本)。菌湿地帯・{@code treeSpacing} 0 は今までどおり抽選の中で。
+     */
+    private static boolean tryAnchorTree(ServerLevel level, BlockPos hostPos, BlockState hostState) {
+        int spacing = OvergrownVegetationConfig.COMMON.treeSpacing.get();
+        if (spacing <= 1 || !OvergrownVegetationConfig.COMMON.spawnTrees.get()) {
+            return false;
+        }
+        BlockPos at = hostPos.above();
+        if (!TreeSpacing.allowsTree(level.getSeed(), at.getX(), at.getZ(), spacing,
+                OvergrownVegetationConfig.COMMON.treeClearingChance.get())
+                || TreeSpacing.inCanopyGap(level.getSeed(), at.getX(), at.getZ(), OvergrownVegetationConfig.COMMON.treeCanopyGapChance.get())) {
+            return false;
+        }
+        if (!(isTreeSoil(hostState) || CorruptedSaplingBlock.isCoveredGround(level, hostPos, hostState))
+                || !level.isLoaded(at)) {
+            return false;
+        }
+        if (!clearForAnchorTree(level, at, level.getBlockState(at))) {
+            return false;
+        }
+        if (OvergrowthRegionMap.blendedVariantAt(level, at.getX(), at.getZ(), 4) == OvergrowthVariant.FUNGAL_SWAMP) {
+            return false;
+        }
+        return growSapling(level, at);
+    }
+
+    /**
+     * 木を立てる列の地面の上に苗木を植えてよいか(そこにある物は苗木で置き換える)。空気・薄い苔・茂みの塊・置き換えられる草花
+     * ({@code canBeReplaced} / {@code #minecraft:replaceable_by_trees})・この MOD の当たり判定の無い下草(蔦・地衣類・シダ)はよい。
+     * 水・ブロックエンティティ・人の置いた物(松明・レールなど、この MOD 以外の当たり判定の無いブロック)は置き換えない。
+     *
+     * <p>最初は空気と苔だけにしていたので、地割れ・前進の経路で地面を汚染した瞬間に上へバニラの草や先に生えた下草が載っていた列が
+     * 外れ、自然の地形では木を立てる列の 4 割ほどしか木にならなかった(2026-10-15 のテストクライアント: 地割れの周り 81×81 の
+     * 160 列のうち木 66・上が空気なのに木が無い 17・下草や茂みが載っていた約 30)。
+     */
+    private static boolean clearForAnchorTree(ServerLevel level, BlockPos at, BlockState above) {
+        if (above.isAir() || above.is(ModBlocks.OVERGROWN_MOSS_LAYER.get()) || above.is(ModBlocks.OVERGROWN_BUSH.get())) {
+            return true;
+        }
+        if (!above.getFluidState().isEmpty() || above.hasBlockEntity() || above.is(ModBlocks.OVERGROWN_SAPLING.get())) {
+            return false;
+        }
+        if (above.canBeReplaced() || above.is(BlockTags.REPLACEABLE_BY_TREES)) {
+            return true;
+        }
+        return above.getCollisionShape(level, at).isEmpty()
+                && OvergrownVegetation.MODID.equals(BuiltInRegistries.BLOCK.getKey(above.getBlock()).getNamespace());
     }
 
     public static double surfaceGrowthChance(ServerLevel level, BlockPos pos) {
@@ -1159,7 +1381,7 @@ public class CorruptionSpreader {
      * {@code hostState} が {@link ModTags#GROWTH_HANGING_ONLY}(葉など)の場合は下面のみ。
      */
     private static void growUnderwaterPlants(ServerLevel level, BlockPos pos, BlockState hostState) {
-        if (hostState.isAir()) {
+        if (hostState.isAir() || hostState.is(Blocks.WATER)) {
             return;
         }
         if (!OvergrownVegetationConfig.COMMON.spawnUnderwaterPlants.get()) {
@@ -1402,6 +1624,13 @@ public class CorruptionSpreader {
     private static final int LEAF_DECAY_RANGE = 7;
 
     /**
+     * {@link #decayNaturalTreeLeaves} 1 回で出す葉の破壊演出(levelEvent 2001 = 破壊パーティクル 64 粒 + 破壊音)の上限。
+     * 消す葉がこれより多ければ、消した順に等間隔で間引いて出す(消える葉そのものは変わらない)。
+     * 仮決め(2026-09-24): 巨大な天蓋 1 つで数百回の破壊演出が一度に届き、重かったため。
+     */
+    private static final int LEAF_DECAY_EFFECT_MAX = 20;
+
+    /**
      * 既存の木の原木を汚染した直後に呼ぶ。汚染した原木の位置から、まだ汚染されていない
      * 自然生成の葉(プレイヤーが手で設置していない = {@code PERSISTENT=false} の葉)だけを
      * 6 近傍で幅優先にたどり、{@value #LEAF_DECAY_RANGE} 歩ぶんまでを空気へ置き換えて消す。
@@ -1410,6 +1639,9 @@ public class CorruptionSpreader {
      * <p>これで既存の木を汚染すると葉が宙に浮いたまま残らず、木を丸ごと枯らして新しい木の
      * 土壌にする、という見た目になる({@link OvergrownVegetationConfig.Common#decayCorruptedTreeLeaves})。
      * ドロップは一切出さない(枯れるので木材・苗木を落とさせない)。
+     *
+     * <p>破壊の演出は、たどり終えてから最大 {@value #LEAF_DECAY_EFFECT_MAX} 枚ぶんだけ、消した順に等間隔で出す。
+     * 間引きに乱数は使わない(汚染の乱数の並びを変えないため)。
      */
     private static void decayNaturalTreeLeaves(ServerLevel level, BlockPos logPos, BlockState logState) {
         if (!OvergrownVegetationConfig.COMMON.decayCorruptedTreeLeaves.get()) {
@@ -1424,6 +1656,9 @@ public class CorruptionSpreader {
         frontier.add(logPos.immutable());
         visited.add(logPos.asLong());
         BlockPos.MutableBlockPos scratch = new BlockPos.MutableBlockPos();
+        // 消した葉の位置と状態 id(破壊の演出を後でまとめて間引いて出すため)。
+        LongArrayList removedPos = new LongArrayList();
+        IntArrayList removedStateId = new IntArrayList();
 
         for (int dist = 0; dist < LEAF_DECAY_RANGE && !frontier.isEmpty(); dist++) {
             List<BlockPos> next = new ArrayList<>();
@@ -1438,13 +1673,22 @@ public class CorruptionSpreader {
                         continue;
                     }
                     BlockPos leafPos = scratch.immutable();
-                    // 破壊パーティクル + 音を出しつつ、ドロップ無しで消す。
-                    level.levelEvent(2001, leafPos, Block.getId(state));
+                    // ドロップ無しで消す。破壊パーティクル + 音は下でまとめて(間引いて)出す。
+                    removedPos.add(leafPos.asLong());
+                    removedStateId.add(Block.getId(state));
                     level.removeBlock(leafPos, false);
                     next.add(leafPos);
                 }
             }
             frontier = next;
+        }
+
+        // 消した順に等間隔で最大 LEAF_DECAY_EFFECT_MAX 枚(それ以下なら全部)。
+        int removed = removedPos.size();
+        int effects = Math.min(removed, LEAF_DECAY_EFFECT_MAX);
+        for (int k = 0; k < effects; k++) {
+            int index = (int) ((long) k * removed / effects);
+            level.levelEvent(2001, BlockPos.of(removedPos.getLong(index)), removedStateId.getInt(index));
         }
     }
 
@@ -1473,6 +1717,12 @@ public class CorruptionSpreader {
                                LongOpenHashSet touchedChunks) {
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
 
+        // アーチの代わりに地面から突き出す根の先端(2026-10-09、ユーザー指定「アーチ:根の先端 = 7:3、合計は今のアーチと同じ」)。
+        if (random.nextDouble() < CorruptionRootTip.SHARE) {
+            tryGroundRootTip(level, origin, head, random, touchedChunks);
+            return;
+        }
+
         // ごく低確率で、まず「溝(渓谷)をまたぐ上下逆のアーチ」を試す。溝が無ければ通常のアーチに回る
         // ので、溝の無い場所でのアーチの本数は変わらない。
         double ravineShare = cfg.corruptionRavineArchShare.get();
@@ -1481,9 +1731,8 @@ public class CorruptionSpreader {
             return;
         }
 
-        Direction dir = head.facing.getAxis().isHorizontal()
-                ? head.facing
-                : Direction.Plane.HORIZONTAL.getRandomDirection(random);
+        // 向きはどの水平の角度でも(2026-10-09、ユーザー指定。それまでは触手の向きか東西南北のどれか)。
+        double angle = random.nextDouble() * Math.PI * 2.0D;
 
         int minLen = cfg.corruptionArchMinLength.get();
         int maxLen = Math.max(minLen, cfg.corruptionArchMaxLength.get());
@@ -1506,8 +1755,8 @@ public class CorruptionSpreader {
         int hx = origin.getX() + head.x;
         int hy = origin.getY() + head.y;
         int hz = origin.getZ() + head.z;
-        int tx = hx + dir.getStepX() * span;
-        int tz = hz + dir.getStepZ() * span;
+        int tx = hx + (int) Math.round(Math.cos(angle) * span);
+        int tz = hz + (int) Math.round(Math.sin(angle) * span);
 
         // 起点側・終端側の地面の高さ。どちらか片方でも「乗れる地面」が無ければアーチは架けない。
         int fromY = findArchAnchorY(level, hx, hz, hy);
@@ -1529,6 +1778,37 @@ public class CorruptionSpreader {
         List<BlockPos> shell = new ArrayList<>();
         if (CorruptionArch.build(level, new BlockPos(hx, fromY, hz), new BlockPos(tx, toY, tz), peak,
                 thickness, ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState(), touchedChunks, null, shell)) {
+            decorateArchShell(level, shell, random, touchedChunks);
+        }
+    }
+
+    /**
+     * 地面から斜めに倒れて突き出す根の先端を 1 本({@link CorruptionRootTip}、2026-10-09 ユーザー指定)。触手の先の列の地面に根元を埋め、
+     * どの水平の向きへでも、斜めに立ち上がって先が少し反る。経路が水・家・木で塞がっていれば建てない。表面はアーチと同じく草・苔で飾る。
+     */
+    private void tryGroundRootTip(ServerLevel level, BlockPos origin, TendrilNode head, RandomSource random,
+                                  LongOpenHashSet touchedChunks) {
+        int hx = origin.getX() + head.x;
+        int hy = origin.getY() + head.y;
+        int hz = origin.getZ() + head.z;
+        int groundY = findArchAnchorY(level, hx, hz, hy);
+        if (groundY == Integer.MIN_VALUE) {
+            return;
+        }
+        CorruptionRootTip.Shape shape = CorruptionRootTip.rollGround(random);
+        // 根元の中心は地表のブロックの 1 つ下 —— 埋まった区間を進むうちに地面から出る。
+        List<CorruptionRootTip.Cell> cells = CorruptionRootTip.plan(hx + 0.5D, groundY - 0.5D, hz + 0.5D, shape);
+        if (!CorruptionRootTip.pathIsOpen(cells, pos -> {
+            if (!level.isLoaded(pos)) {
+                return false;
+            }
+            BlockState s = level.getBlockState(pos);
+            return s.getFluidState().isEmpty() && (s.isAir() || s.canBeReplaced());
+        })) {
+            return;
+        }
+        List<BlockPos> shell = new ArrayList<>();
+        if (CorruptionRootTip.place(level, cells, ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState(), touchedChunks, shell)) {
             decorateArchShell(level, shell, random, touchedChunks);
         }
     }
@@ -1575,20 +1855,18 @@ public class CorruptionSpreader {
         int minT = cfg.corruptionArchMinThickness.get();
         int maxT = Math.max(minT, cfg.corruptionArchMaxThickness.get());
 
-        Direction first = head.facing.getAxis().isHorizontal()
-                ? head.facing
-                : Direction.Plane.HORIZONTAL.getRandomDirection(random);
+        // 向きはどの水平の角度でも(2026-10-09、ユーザー指定)。最初の角度から 90 度ずつ回して 4 方向を試す。
+        double first = random.nextDouble() * Math.PI * 2.0D;
         for (int turn = 0; turn < 4; turn++) {
-            Direction dir = first;
-            for (int t = 0; t < turn; t++) {
-                dir = dir.getClockWise();
-            }
-            int span = findRavineSpan(level, hx, fromY, hz, dir, maxSpan, minDepth);
+            double angle = first + turn * Math.PI / 2.0D;
+            double ux = Math.cos(angle);
+            double uz = Math.sin(angle);
+            int span = findRavineSpan(level, hx, fromY, hz, ux, uz, maxSpan, minDepth);
             if (span <= 0) {
                 continue;
             }
-            int tx = hx + dir.getStepX() * span;
-            int tz = hz + dir.getStepZ() * span;
+            int tx = hx + (int) Math.round(ux * span);
+            int tz = hz + (int) Math.round(uz * span);
             int toY = findArchAnchorY(level, tx, tz, fromY);
             if (toY == Integer.MIN_VALUE) {
                 continue;
@@ -1602,8 +1880,8 @@ public class CorruptionSpreader {
 
             // 垂れ下がる深さ: 長さに比例。溝の底が近ければ底に着かない深さまで詰める。
             int dip = Math.min(RAVINE_ARCH_MAX_DIP, Math.max(1, Math.round(span * 0.45F)));
-            int mx = hx + dir.getStepX() * (span / 2);
-            int mz = hz + dir.getStepZ() * (span / 2);
+            int mx = hx + (int) Math.round(ux * (span / 2));
+            int mz = hz + (int) Math.round(uz * (span / 2));
             int floorDepth = gapFloorDepth(level, mx, mz, Math.min(fromY, toY));
             if (floorDepth > 0) {
                 dip = Math.min(dip, Math.max(1, floorDepth - 2 - thickness));
@@ -1622,15 +1900,15 @@ public class CorruptionSpreader {
     }
 
     /**
-     * {@code (x0, z0)}(手前の縁。地面の高さ {@code rimY})から {@code dir} へ、溝をまたいで
+     * {@code (x0, z0)}(手前の縁。地面の高さ {@code rimY})から水平の向き {@code (ux, uz)}(長さ 1)へ、溝をまたいで
      * 向こう岸の縁に届くまでの距離を返す。溝が無ければ 0。
      */
-    private static int findRavineSpan(ServerLevel level, int x0, int rimY, int z0, Direction dir,
+    private static int findRavineSpan(ServerLevel level, int x0, int rimY, int z0, double ux, double uz,
                                       int maxSpan, int minDepth) {
         int gapRun = 0;
         for (int k = 1; k <= maxSpan; k++) {
-            int x = x0 + dir.getStepX() * k;
-            int z = z0 + dir.getStepZ() * k;
+            int x = x0 + (int) Math.round(ux * k);
+            int z = z0 + (int) Math.round(uz * k);
             if (isGapColumn(level, x, z, rimY, minDepth)) {
                 gapRun++;
                 continue;
@@ -1755,6 +2033,10 @@ public class CorruptionSpreader {
      * 巨大樹の根のアーチと同じ形の橋を {@code head} からそこへ架け、着地点を汚染して足場を作り、
      * そこから汚染を続ける新しい触手を仕込む。
      *
+     * <p>橋はどの向きにも架かる(2026-10-10、ユーザー指定「水中のアーチも斜めに。角度は限定しない、対岸に行ければいい」):
+     * ランダムな水平の向きで対岸を探すのを {@value #BRIDGE_RANDOM_TRIES} 回まで試し(陸の側を向いた向きは水をまたがないのですぐ外れる)、
+     * どれも駄目なら今までどおり {@code dir} へまっすぐ探す(向きを散らしたぶん橋が減らないように)。対岸で汚染を続ける向きはどれでも {@code dir}。
+     *
      * @return 橋を架けられたら true
      */
     private boolean tryBridgeAcross(ServerLevel level, BlockPos origin, TendrilNode head, Direction dir,
@@ -1762,6 +2044,23 @@ public class CorruptionSpreader {
         if (bridgesBuilt >= OvergrownVegetationConfig.COMMON.corruptionBridgeMaxCount.get()) {
             return false;
         }
+        for (int i = 0; i < BRIDGE_RANDOM_TRIES; i++) {
+            double angle = random.nextDouble() * Math.PI * 2.0D;
+            if (tryBridgeAlong(level, origin, head, dir, Math.cos(angle), Math.sin(angle),
+                    backtrackBudget, random, touchedChunks)) {
+                return true;
+            }
+        }
+        return tryBridgeAlong(level, origin, head, dir, dir.getStepX(), dir.getStepZ(),
+                backtrackBudget, random, touchedChunks);
+    }
+
+    /** 川の橋でランダムな向きを試す回数(どれも対岸が無ければ触手の向きへまっすぐ)。Claude 仮決め。 */
+    private static final int BRIDGE_RANDOM_TRIES = 4;
+
+    /** {@link #tryBridgeAcross} の 1 方向ぶん。{@code (ux, uz)} は対岸を探す水平の向き(長さ 1)。 */
+    private boolean tryBridgeAlong(ServerLevel level, BlockPos origin, TendrilNode head, Direction dir, double ux, double uz,
+                                   int backtrackBudget, RandomSource random, LongOpenHashSet touchedChunks) {
         int maxSpan = OvergrownVegetationConfig.COMMON.corruptionBridgeMaxLength.get();
         int minT = OvergrownVegetationConfig.COMMON.corruptionArchMinThickness.get();
         int maxT = Math.max(minT, OvergrownVegetationConfig.COMMON.corruptionArchMaxThickness.get());
@@ -1773,8 +2072,8 @@ public class CorruptionSpreader {
 
         boolean sawWater = false;
         for (int k = 1; k <= maxSpan; k++) {
-            int wx = hx + dir.getStepX() * k;
-            int wz = hz + dir.getStepZ() * k;
+            int wx = hx + (int) Math.round(ux * k);
+            int wz = hz + (int) Math.round(uz * k);
 
             // head の高さ付近(+2 〜 -4)で、この列の「地表」に相当するブロックを探す。
             BlockState surface = null;
@@ -1889,7 +2188,17 @@ public class CorruptionSpreader {
      * ({@link com.yayuy.overgrownvegetation.worldgen.GiantTreeGrowthQueue})からも呼ばれる。
      */
     public static void growSurfacePlants(ServerLevel level, BlockPos pos, BlockState hostState, double chance) {
-        if (hostState.isAir()) {
+        // 外(巨大樹の装飾・過繁茂の前進・爆発の跡など)から呼ばれても、取り残された植物の破壊でアイテムを落とさない
+        CorruptionDropSuppressor.enter();
+        try {
+            growSurfacePlantsInScope(level, pos, hostState, chance);
+        } finally {
+            CorruptionDropSuppressor.exit();
+        }
+    }
+
+    private static void growSurfacePlantsInScope(ServerLevel level, BlockPos pos, BlockState hostState, double chance) {
+        if (hostState.isAir() || hostState.is(Blocks.WATER)) { // 溶けた氷の跡の水(2026-10-16)も
             // 雪のように汚染で消えるだけのブロックの跡地には装飾植物を生やさない。
             return;
         }
@@ -1925,6 +2234,9 @@ public class CorruptionSpreader {
 
         for (Direction direction : Direction.values()) {
             if (hangingOnly && direction != Direction.DOWN) {
+                continue;
+            }
+            if (direction == Direction.UP && !caveSwamp && tryAnchorTree(level, pos, hostState)) {
                 continue;
             }
             if (mudHost && direction == Direction.UP && !caveSwamp) {
@@ -2033,6 +2345,17 @@ public class CorruptionSpreader {
      *                {@code groundY + }{@value #TOP_UNDERGROWTH_SCAN_DEPTH} の高さを上限に頂上を探す。
      */
     public static void growTopUndergrowth(ServerLevel level, int x, int groundY, int z, Block hostBlock, double chance) {
+        // 取り残された植物などの破壊でアイテムを落とさない(CorruptionDropSuppressor)
+        CorruptionDropSuppressor.enter();
+        try {
+            growTopUndergrowthInScope(level, x, groundY, z, hostBlock, chance);
+        } finally {
+            CorruptionDropSuppressor.exit();
+        }
+    }
+
+    private static void growTopUndergrowthInScope(ServerLevel level, int x, int groundY, int z, Block hostBlock,
+                                                  double chance) {
         if (chance <= 0.0D || !OvergrownVegetationConfig.COMMON.spawnGrowthPlants.get()) {
             return;
         }
@@ -2077,10 +2400,15 @@ public class CorruptionSpreader {
      * (立体モデルの丸まったシダを含む。向き・大きさはブロック座標から決まるので設定不要)になる。
      */
     private static void growUp(ServerLevel level, BlockPos pos, RandomSource random, BlockState hostState) {
-        if (isTreeSoil(hostState)
+        if ((isTreeSoil(hostState) || CorruptedSaplingBlock.isCoveredGround(level, pos.below(), hostState))
                 && OvergrownVegetationConfig.COMMON.spawnTrees.get()
-                && random.nextDouble() < treeChanceAt(level, pos)) {
-            growSapling(level, pos);
+                && random.nextDouble() < treeChanceAt(level, pos)
+                && growSapling(level, pos)) {
+            return;
+        }
+
+        // 役に立つ植物(炸裂の実・粘り蔦・浮き袋草・道しるべの花。蓄電の実は 2026-10-22 に削除)がまれに混じる(2026-10-16、UsefulPlants)。
+        if (random.nextDouble() < UsefulPlants.CHANCE && UsefulPlants.tryPlace(level, pos, random)) {
             return;
         }
 
@@ -2121,8 +2449,8 @@ public class CorruptionSpreader {
             return;
         }
         if (!mossHere && OvergrownVegetationConfig.COMMON.spawnTrees.get()
-                && random.nextDouble() < treeChanceAt(level, pos)) {
-            growSapling(level, pos);
+                && random.nextDouble() < treeChanceAt(level, pos)
+                && growSapling(level, pos)) {
             return;
         }
         if (random.nextDouble() < OvergrownVegetationConfig.COMMON.swampMudMossShare.get()) {
@@ -2150,13 +2478,15 @@ public class CorruptionSpreader {
     /**
      * 汚染された苗木を植える。植えた後の成長(木になるまで)はバニラの苗木と同じく
      * ランダムティック任せで、ここでは関与しない({@link com.yayuy.overgrownvegetation.block.CorruptedSaplingBlock} 参照)。
+     * 植えられなかったら false(呼び手は下草の抽選へ進む。木が疎らになってから、植えられない列が裸のまま残らないように)。
      */
-    private static void growSapling(ServerLevel level, BlockPos pos) {
+    private static boolean growSapling(ServerLevel level, BlockPos pos) {
         BlockState sapling = ModBlocks.OVERGROWN_SAPLING.get().defaultBlockState();
         if (!sapling.canSurvive(level, pos)) {
-            return;
+            return false;
         }
         level.setBlock(pos, sapling, Block.UPDATE_ALL);
+        return true;
     }
 
     /**

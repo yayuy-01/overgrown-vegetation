@@ -90,6 +90,13 @@ public final class SporeDeviceData extends SavedData {
 
     private final LongArrayList purifiers = new LongArrayList();
     private final LongArrayList diffusers = new LongArrayList();
+    /**
+     * 最後にチャンクが読み込まれていたとき<b>止まっていた</b>除去装置の位置(2026-09-26)。
+     * 台帳の広がりは、読み込まれていない装置を「止まっていると分かっているもの以外は守る」扱いにする
+     * ({@link #guardsChunkFromLedger})。稼働状態は装置の BlockEntity にしか無く、読み込まないと読めないため。
+     */
+    private final it.unimi.dsi.fastutil.longs.LongOpenHashSet knownInactivePurifiers =
+            new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
 
     private SporeDeviceData() {
     }
@@ -102,6 +109,9 @@ public final class SporeDeviceData extends SavedData {
         for (long packed : tag.getLongArray("diffusers")) {
             data.diffusers.add(packed);
         }
+        for (long packed : tag.getLongArray("knownInactivePurifiers")) {
+            data.knownInactivePurifiers.add(packed);
+        }
         return data;
     }
 
@@ -109,6 +119,7 @@ public final class SporeDeviceData extends SavedData {
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.putLongArray("purifiers", purifiers.toLongArray());
         tag.putLongArray("diffusers", diffusers.toLongArray());
+        tag.putLongArray("knownInactivePurifiers", knownInactivePurifiers.toLongArray());
         return tag;
     }
 
@@ -132,10 +143,36 @@ public final class SporeDeviceData extends SavedData {
 
     public void remove(BlockPos pos) {
         long packed = pos.asLong();
+        knownInactivePurifiers.remove(packed);
         if (purifiers.rem(packed) | diffusers.rem(packed)) {
             setDirty();
             invalidateInhibitionAll();
         }
+    }
+
+    /**
+     * テスト用: 登録されている装置を全部外し、戻すための写し({@code [除去装置, 拡散装置]})を返す。TD の GameTest が、ほかのテストの
+     * テスト場に残った除去装置の阻害(負けの汚染の 16 ブロック先で阻害率 0.49)で揺れないように使う(2026-09-25)。
+     */
+    public static long[][] isolateForTests(ServerLevel level) {
+        SporeDeviceData data = get(level);
+        long[][] snapshot = {data.purifiers.toLongArray(), data.diffusers.toLongArray()};
+        data.purifiers.clear();
+        data.diffusers.clear();
+        data.setDirty();
+        invalidateInhibitionAll();
+        return snapshot;
+    }
+
+    /** テスト用: {@link #isolateForTests} の写しへ戻す。 */
+    public static void restoreForTests(ServerLevel level, long[][] snapshot) {
+        SporeDeviceData data = get(level);
+        data.purifiers.clear();
+        data.diffusers.clear();
+        data.purifiers.addElements(0, snapshot[0]);
+        data.diffusers.addElements(0, snapshot[1]);
+        data.setDirty();
+        invalidateInhibitionAll();
     }
 
     // ------------------------------------------------------------------
@@ -265,6 +302,44 @@ public final class SporeDeviceData extends SavedData {
     }
 
     /**
+     * {@code pos} が、稼働中の胞子除去装置に<b>汚染から確実に守られている</b>か(2026-09-26)。
+     *
+     * <p>{@link #inhibits} との違いは<b>縁の扱い</b> —— あちらは強さをそのまま確率にするので、
+     * 縁(10%)では 10 回に 9 回は汚染が通る。こちらは<b>圏内なら必ず守る</b>。
+     * 使うのは「汚染されると機能が止まる」もの(機関砲台。ユーザー指定 2026-09-26)——
+     * 縁で止まったり動いたりされると、守りとして当てにできないため。
+     * 設定({@code effects.json} の {@code purifier.inhibitCorruption})で汚染の阻害を切っていれば false。
+     */
+    public static boolean protectsFromCorruption(ServerLevel level, BlockPos pos) {
+        return inhibitEnabled(Inhibit.CORRUPTION) && insidePurifier(level, pos);
+    }
+
+    /**
+     * ブロック座標の長方形 {@code [minX, maxX] × [minZ, maxZ]} のどこかが、稼働中の除去装置の効果範囲に
+     * <b>入るかもしれない</b>か(2026-09-24 軽量化、監査 940)。
+     *
+     * <p>false なら、その長方形のどのマスでも {@link #insidePurifier} は必ず false。
+     * 判定は {@link #sumForBlock} の「外接正方形で弾く」と同じ幅(半径 + 1)で、長方形を外へ広げた範囲に
+     * 稼働中の除去装置が 1 台も無いかを見る。スポロフィルのオーラ({@link com.yayuy.overgrownvegetation.entity.SporophyllAura})が
+     * 候補ごとに {@link #insidePurifier} を呼ぶ前の足切りに使う。
+     */
+    public static boolean purifierMayReach(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
+        ActiveDevices active = activeDevices(level);
+        if (active.purifiers.length == 0) {
+            return false;
+        }
+        long reach = (long) SporeDeviceKind.PURIFIER.spec().radiusBlocks() + 1L;
+        for (long packed : active.purifiers) {
+            int x = BlockPos.getX(packed);
+            int z = BlockPos.getZ(packed);
+            if (x >= minX - reach && x <= maxX + reach && z >= minZ - reach && z <= maxZ + reach) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * {@code pos} での {@code what} を阻害するか(確率判定)。阻害率が 1 なら必ず true、0 なら必ず false。
      * {@link Inhibit#BIOME_CONVERSION} だけは確率ではなく「範囲内なら必ず阻害」。
      */
@@ -275,6 +350,46 @@ public final class SporeDeviceData extends SavedData {
     /** チャンク版({@link Inhibit#BIOME_CONVERSION} 向け)。 */
     public static boolean inhibits(ServerLevel level, ChunkPos chunk, Inhibit what) {
         return roll(level, inhibitionAt(level, chunk, what), what);
+    }
+
+    /**
+     * チャンク {@code chunk} の中のどこかのブロックで、{@link #inhibits(ServerLevel, BlockPos, Inhibit)} が
+     * true になる(または乱数を引く)<b>かもしれない</b>か(2026-09-24 軽量化、報告 1472)。
+     *
+     * <p>false なら、そのチャンクのどのブロックでも阻害率はちょうど 0 —— {@code inhibits} は乱数を引かずに
+     * false を返す。深部の一括置換のように 1 チャンクで数千回 {@code canCorrupt} を呼ぶ処理が、チャンクの先頭で
+     * 1 回だけこれを聞いて、false なら装置の判定を省く
+     * ({@link com.yayuy.overgrownvegetation.corruption.CorruptionRegistry#canCorrupt(net.minecraft.world.level.LevelReader,
+     * BlockPos, net.minecraft.world.level.block.state.BlockState, boolean)})。
+     *
+     * <p>判定は {@link #sumForBlock} の「外接正方形で弾く」と同じ幅(半径 + 1)で、チャンクの四辺から外へ広げた
+     * 長方形に稼働中の除去装置が 1 台も無いかを見る。迷うときは true(= いつもどおり 1 ブロックずつ判定)に倒す。
+     * 同じ tick の中で装置の一覧は変わらないので、チャンクの処理の間は答えを使い回してよい。
+     */
+    public static boolean mayInhibitBlocksIn(ServerLevel level, ChunkPos chunk, Inhibit what) {
+        if (!inhibitEnabled(what)) {
+            return false;
+        }
+        ActiveDevices active = activeDevices(level);
+        if (active.purifiers.length == 0) {
+            return false;
+        }
+        if (what == Inhibit.BIOME_CONVERSION) {
+            return true; // チャンク単位の判定(sumForChunk)なので、ここでは絞らない。
+        }
+        long reach = (long) SporeDeviceKind.PURIFIER.spec().radiusBlocks() + 1L;
+        long minX = chunk.getMinBlockX() - reach;
+        long maxX = chunk.getMaxBlockX() + reach;
+        long minZ = chunk.getMinBlockZ() - reach;
+        long maxZ = chunk.getMaxBlockZ() + reach;
+        for (long packed : active.purifiers) {
+            int x = BlockPos.getX(packed);
+            int z = BlockPos.getZ(packed);
+            if (x >= minX && x <= maxX && z >= minZ && z <= maxZ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean roll(ServerLevel level, double strength, Inhibit what) {
@@ -301,6 +416,16 @@ public final class SporeDeviceData extends SavedData {
     // ------------------------------------------------------------------
 
     /** 稼働中の装置の位置一覧(キャッシュ付き)。 */
+    /** 稼働中の除去装置の位置(BlockPos#asLong の写し。胞子の場の吸い込み口、2026-10-23)。 */
+    public static long[] activePurifiers(ServerLevel level) {
+        return activeDevices(level).purifiers().clone();
+    }
+
+    /** 稼働中の拡散装置の位置(BlockPos#asLong の写し。胞子の場の発生源、2026-10-23)。 */
+    public static long[] activeDiffusers(ServerLevel level) {
+        return activeDevices(level).diffusers().clone();
+    }
+
     private static ActiveDevices activeDevices(ServerLevel level) {
         SporeDeviceData data = get(level);
         if (data.purifiers.isEmpty() && data.diffusers.isEmpty()) {
@@ -330,11 +455,82 @@ public final class SporeDeviceData extends SavedData {
         LongArrayList active = new LongArrayList(list.size());
         for (int i = 0; i < list.size(); i++) {
             long packed = list.getLong(i);
-            if (isActive(level, packed)) {
+            boolean on = isActive(level, packed);
+            if (on) {
                 active.add(packed);
+            }
+            // 読み込まれている除去装置だけ、止まっているかを覚えておく(読み込まれていなければ前の記録のまま)。
+            if (kind == SporeDeviceKind.PURIFIER
+                    && level.getChunkSource().getChunkNow(BlockPos.getX(packed) >> 4, BlockPos.getZ(packed) >> 4) != null
+                    && (on ? knownInactivePurifiers.remove(packed) : knownInactivePurifiers.add(packed))) {
+                setDirty();
             }
         }
         return active.toLongArray();
+    }
+
+    /**
+     * 台帳の広がり({@code LedgerSpread}、2026-09-26)が印を付けてはいけないチャンクか。
+     * 除去装置の「バイオームを変えない」範囲({@link #inhibitionAt(ServerLevel, ChunkPos, Inhibit)} と同じく、
+     * チャンクの中心までの距離で見る)に入っていれば true。
+     *
+     * <p><b>装置のチャンクが読み込まれていなくても守る</b>(ユーザー指定: 胞子除去装置の効果が及んでいる範囲には
+     * 印を付けない。留守の間の拠点のため)。読み込まれていれば今の稼働状態で、読み込まれていなければ
+     * 「最後に見たとき止まっていた」装置({@link #knownInactivePurifiers})だけを外して判断する ——
+     * 更新前から置いてあってまだ一度も見ていない装置は守る側に倒す。
+     */
+    public static boolean guardsChunkFromLedger(ServerLevel level, int chunkX, int chunkZ) {
+        return guards(ledgerGuards(level), chunkX, chunkZ);
+    }
+
+    /**
+     * {@link #guardsChunkFromLedger} の前半: いま台帳から守っている除去装置の位置。1 回の抽選で何千もの候補を
+     * 見るときは、これを 1 度だけ作って {@link #guards} に渡す。守る装置が無ければ空。
+     */
+    public static long[] ledgerGuards(ServerLevel level) {
+        if (!inhibitEnabled(Inhibit.BIOME_CONVERSION)) {
+            return new long[0];
+        }
+        SporeDeviceData data = get(level);
+        if (data.purifiers.isEmpty()) {
+            return new long[0];
+        }
+        ActiveDevices active = activeDevices(level); // 読み込まれている装置の稼働状態(と止まっている記録)を新しくする
+        LongArrayList out = new LongArrayList();
+        for (int i = 0; i < data.purifiers.size(); i++) {
+            long packed = data.purifiers.getLong(i);
+            boolean loaded = level.getChunkSource().getChunkNow(BlockPos.getX(packed) >> 4, BlockPos.getZ(packed) >> 4) != null;
+            if (loaded ? contains(active.purifiers, packed) : !data.knownInactivePurifiers.contains(packed)) {
+                out.add(packed);
+            }
+        }
+        return out.toLongArray();
+    }
+
+    /** {@link #guardsChunkFromLedger} の後半: {@code guardDevices} のどれかの効果範囲にチャンクが入っているか。 */
+    public static boolean guards(long[] guardDevices, int chunkX, int chunkZ) {
+        if (guardDevices.length == 0) {
+            return false;
+        }
+        EffectTable.DeviceSpec spec = SporeDeviceKind.PURIFIER.spec();
+        ChunkPos chunk = new ChunkPos(chunkX, chunkZ);
+        long[] one = new long[1];
+        for (long packed : guardDevices) {
+            one[0] = packed;
+            if (sumForChunk(one, spec, chunk) > 0.0D) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean contains(long[] values, long value) {
+        for (long v : values) {
+            if (v == value) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

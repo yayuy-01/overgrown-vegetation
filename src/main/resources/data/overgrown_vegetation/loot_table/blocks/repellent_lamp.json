@@ -7,7 +7,14 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "overgrown_vegetation:repellent_lamp"
+          "name": "overgrown_vegetation:repellent_lamp",
+          "functions": [
+            {
+              "function": "minecraft:copy_components",
+              "source": "block_entity",
+              "include": [ "overgrown_vegetation:battery_charge" ]
+            }
+          ]
         }
       ],
       "conditions": [

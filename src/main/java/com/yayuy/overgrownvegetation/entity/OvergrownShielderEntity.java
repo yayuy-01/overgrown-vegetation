@@ -4,6 +4,14 @@ import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.data.MobStats;
 import com.yayuy.overgrownvegetation.effect.ParasitizedTargetGoal;
 import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
+import com.yayuy.overgrownvegetation.swarm.SwarmManager;
+import com.yayuy.overgrownvegetation.swarm.SwarmMember;
+import com.yayuy.overgrownvegetation.swarm.goal.SwarmAttacker;
+import com.yayuy.overgrownvegetation.swarm.goal.SwarmEngageGoal;
+import com.yayuy.overgrownvegetation.swarm.goal.SwarmFollowGoal;
+import com.yayuy.overgrownvegetation.swarm.goal.SwarmGoals;
+import com.yayuy.overgrownvegetation.swarm.goal.SwarmLeadGoal;
+import com.yayuy.overgrownvegetation.swarm.goal.SwarmSpreadGoal;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -48,8 +56,9 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * としての側面だけ（{@code PredatorMob} 実装・捕食数のボーナス・{@code predation.json} の項目）で、
  * <b>ステータスと既存の行動はそのまま</b>。代わりに拡大種の役割が 3 つ増えた:
  * <ul>
- *     <li><b>群れ</b>（{@link InvaderPack} / {@link InvaderPackGoal}）—— 編成の「最低 2 体」枠。
- *     {@link #packCohesionDistance()} をほかの種より広く取ってあるので<b>いちばん前に出る</b>。</li>
+ *     <li><b>群れ</b>（v2、2026-09-25。{@code swarm/}）—— 前衛(FRONT)。アルボラがいなければ先導役にもなる。
+ *     標的は群れの司令塔が迫撃砲の射程({@code shielderMortarMaxRange})で渡し、突進・迫撃砲・追跡は自分の Goal で行う
+ *     (相手を囲む輪には入らない。攻城の塊の輪には入る)。</li>
  *     <li><b>迫撃砲</b>（{@link ShielderMortarGoal}）—— 背中のポッドから胞子爆弾を撃ち上げる。</li>
  *     <li><b>座って汚染</b>（{@link ShielderSporeGoal}）—— 襲う相手が居なければその場に座り、
  *     周囲を汚染ブロックへ変えていく。</li>
@@ -112,35 +121,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * 上書きするだけで見た目を差し替えられる（Java 側の変更不要）。
  */
 public class OvergrownShielderEntity extends Monster
-        implements GeoEntity, ParasitizedMob, InvaderPackMember, PredatorMob {
-
-    /**
-     * 衛兵室に据えられたときの巣の入口。巣の中に居るあいだは、そこから
-     * {@code guardLeashRadius} より外の相手を狙わない
-     * ({@link com.yayuy.overgrownvegetation.nest.NestLeash})。巣と無関係な個体では null。
-     */
-    @javax.annotation.Nullable
-    private net.minecraft.core.BlockPos nestHome;
-
-    /** 衛兵室の主にする({@code nest/NestContents} から)。 */
-    public void setNestHome(@javax.annotation.Nullable net.minecraft.core.BlockPos home) {
-        this.nestHome = home == null ? null : home.immutable();
-    }
-
-    @javax.annotation.Nullable
-    public net.minecraft.core.BlockPos nestHome() {
-        return this.nestHome;
-    }
-
-    /** 巣の中に居るあいだは外の敵に釣られない(ユーザー指定 2026-09-20)。 */
-    @Override
-    public boolean canAttack(net.minecraft.world.entity.LivingEntity target) {
-        if (com.yayuy.overgrownvegetation.nest.NestLeash.blocks(this, this.nestHome, false, target)) {
-            return false;
-        }
-        return super.canAttack(target);
-    }
-
+        implements GeoEntity, ParasitizedMob, PredatorMob, SwarmAttacker {
 
     /** 通常（idle / walk を {@code MobAnimation.isWalking(state)} で切替）。 */
     public static final int STATE_NONE = 0;
@@ -175,14 +156,12 @@ public class OvergrownShielderEntity extends Monster
     private static final RawAnimation MORTAR_ANIM = RawAnimation.begin().thenLoop("mortar");
     private static final RawAnimation SIT_ANIM = RawAnimation.begin().thenLoop("sit");
 
-    /** 群れの中で許す「重心からの距離」の倍率。1 超 = 前に出る（タンクなので前線を張る）。 */
-    private static final double PACK_FRONT_FACTOR = 1.4D;
-
     /**
      * 移動速度が素の何倍を超えたら {@code run} に切り替えるか。
      *
-     * <p>これを超えるのは<b>群れの走り</b>（{@code invaderPackDashSpeed}、既定 1.45）だけ ——
+     * <p>これを超えるのは<b>群れの後続が追いつくとき</b>（{@code swarm.json} の {@code catchUpSpeed}、仮決め ×1.3）だけ ——
      * 追跡そのものは常に等速（{@link ShielderPursueGoal}。2026-09-15 に走行を削除）。
+     * 旧い群れの走り({@code invaderPackDashSpeed} 1.45)は 2026-09-25 に消えた。
      */
     private static final double RUN_SPEED_RATIO = 1.25D;
 
@@ -200,14 +179,10 @@ public class OvergrownShielderEntity extends Monster
     private static final float AXE_DAMAGE_MULTIPLIER = 1.2F;
 
     /**
-     * 群れの所属(2026-09-15)。同じ ID を持つ個体が 1 つの群れ。
-     * 決め方は {@link InvaderPackBonds}、置き場所の考え方は {@link InvaderPackBond}。
-     */
-    /**
      * 捕食したグループ1〜3 の累計({@link PredatorMob})。1 体ごとに最大体力と攻撃力が
      * {@code predation.json} の {@code preyKillBonusPerKill} ずつ複利で上がる。
      * <b>この成長ができるのはアルボラとスカトゥリウムだけ</b>(ユーザー指定 2026-09-15) ——
-     * ほかのグループ4 は獲物を追い込む側に回る({@link InvaderPreyIntel} / {@link SporophyllAura})。
+     * ほかのグループ4 は獲物を追い込む側に回る(群れの司令塔の獲物探し / {@link SporophyllAura})。
      */
     private int preyKillCount;
 
@@ -219,13 +194,6 @@ public class OvergrownShielderEntity extends Monster
     @Override
     public void setPreyKillCount(int count) {
         this.preyKillCount = count;
-    }
-
-    private final InvaderPackBond packBond = new InvaderPackBond();
-
-    @Override
-    public InvaderPackBond packBond() {
-        return this.packBond;
     }
 
     public OvergrownShielderEntity(EntityType<? extends OvergrownShielderEntity> type, Level level) {
@@ -249,17 +217,12 @@ public class OvergrownShielderEntity extends Monster
     /**
      * 幅 1 ブロック以上の Mob ではバニラが省略してしまう「段差の上に体が入るか」の確認を、
      * 自前の {@link OvergrownNodeEvaluator} で必ず行うようにする(登れない段差に挑み続けない)。
+     * 中身は {@link InvaderNavigation#createPlain}(2026-09-25: 群れの区間をブロックの変化で引き直すときに、
+     * 群れの体の包絡を掛け直せるよう名前つきのクラスへ移した。探索そのものは元の無名クラスと同じ)。
      */
     @Override
     protected PathNavigation createNavigation(Level level) {
-        return new GroundPathNavigation(this, level) {
-            @Override
-            protected PathFinder createPathFinder(int maxVisitedNodes) {
-                this.nodeEvaluator = new OvergrownNodeEvaluator();
-                this.nodeEvaluator.setCanPassDoors(true);
-                return new PathFinder(this.nodeEvaluator, maxVisitedNodes);
-            }
-        };
+        return InvaderNavigation.createPlain(this, level);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -282,18 +245,25 @@ public class OvergrownShielderEntity extends Monster
         this.goalSelector.addGoal(1, new ShielderMortarGoal(this));
         this.goalSelector.addGoal(1, new ShielderChargeGoal(this));
         this.goalSelector.addGoal(2, new ShielderPursueGoal(this));
-        // 襲う相手が居ないときは、その場に座って周囲を汚染する（グループ4 共通の役割）。
+        // 襲う相手が居ないときは、その場に座って周囲を汚染する（グループ4 共通の役割）。群れの一員では動かない
+        // (群れごと止まって汚す SwarmSpreadGoal が同じ座り込みを回す)。
         this.goalSelector.addGoal(3, new ShielderSporeGoal(this));
-        // 群れ（グループ4 同士の集団行動）。座るより後、ぶらつきより先。
-        this.goalSelector.addGoal(4, new InvaderPackGoal(this));
-        // 群れを組んだら、揃ったところで過繁茂バイオームの外へ出ていく(ユーザー要望 2026-09-15)。
-        // 群れづくり(4)より後 ——「まず集まって、それから一緒に出ていく」順。
-        this.goalSelector.addGoal(5, new InvaderAdvanceGoal(this));
+        // 群れ(v2、2026-09-25)。優先度の並びは AbstractOvergrownInvaderEntity#registerGoals と同じ
+        // (0 水・1〜2 種族・3 囲む/汚す・4 先導/後続・7 散歩)。囲むのは攻城の塊の輪だけ(相手は突進・迫撃砲・追跡で)。
+        this.goalSelector.addGoal(3, new SwarmEngageGoal(this));
+        this.goalSelector.addGoal(3, new SwarmSpreadGoal(this, () -> SporeSpreadSession.sitAction(this)));
+        this.goalSelector.addGoal(4, new SwarmLeadGoal(this));
+        this.goalSelector.addGoal(4, new SwarmFollowGoal(this));
         // 水を避けて歩く（LandMobWaterAvoidance と対。素の RandomStrollGoal は
-        // 水の上の点も行き先に選ぶので、経路が引けずに無駄足になる）。
-        this.goalSelector.addGoal(6, new WaterAvoidingRandomStrollGoal(this, 0.9D));
-        this.goalSelector.addGoal(7, new LookAtPlayerGoal(this, Player.class, 10.0F));
-        this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
+        // 水の上の点も行き先に選ぶので、経路が引けずに無駄足になる）。群れの一員はうろつかない(ユーザー指定 2026-09-25)。
+        this.goalSelector.addGoal(7, new WaterAvoidingRandomStrollGoal(this, 0.9D) {
+            @Override
+            public boolean canUse() {
+                return !SwarmMember.isInSwarm(OvergrownShielderEntity.this) && super.canUse();
+            }
+        });
+        this.goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 10.0F));
+        this.goalSelector.addGoal(9, new RandomLookAroundGoal(this));
 
         this.targetSelector.addGoal(1, new OvergrownHurtByTargetGoal(this));
         // 索敵ロジックそのものは他の「過繁茂した(MOB名)」全種と共通の ParasitizedTargetGoal に一本化
@@ -309,9 +279,13 @@ public class OvergrownShielderEntity extends Monster
 
     // --- 迫撃砲と突進の切り替え ---
 
-    /** 次の遠距離攻撃を迫撃砲にするか。{@link ShielderChargeGoal} / {@link ShielderMortarGoal} が見る。 */
+    /**
+     * 次の遠距離攻撃を迫撃砲にするか。{@link ShielderChargeGoal} / {@link ShielderMortarGoal} が見る。
+     * いまの攻撃目標がグループ1〜3(獲物)なら札に関わらず false —— 獲物には迫撃砲を撃たない
+     * (ユーザー要望 2026-09-24)ので、札が迫撃砲の番でも突進が譲らないようにする。札そのものは変えない。
+     */
     public boolean shouldMortarNext() {
-        return this.mortarNext;
+        return this.mortarNext && !ShielderMortarGoal.isSparedFromMortar(this.getTarget());
     }
 
     public void setMortarNext(boolean mortar) {
@@ -329,31 +303,15 @@ public class OvergrownShielderEntity extends Monster
                 + OvergrownVegetationConfig.COMMON.shielderMortarCooldownTicks.get();
     }
 
-    // --- 群れ（グループ4 同士の集団行動。2026-09-15） ---
+    // --- 群れ（v2、2026-09-25） ---
 
     /**
-     * 群れの重心からこれだけ離れてよい（ブロック）。<b>ほかの種より広い</b>
-     * （既定の {@value #PACK_FRONT_FACTOR} 倍）—— タンク役なので、
-     * 後ろのスポロフィル・フィロセンスより前に出て前線を張る。
+     * 攻撃アニメの代わり(群れ v2、{@link SwarmAttacker})。スカトゥリウムは近接の攻撃アニメを持たない
+     * (突進・迫撃砲・スタン・座り込みだけ)ので、攻城で塊・壁を叩いたときも見た目は変えない。
+     * 仮決め 2026-09-25 —— 専用のアニメを作るかはユーザーに確認すること。
      */
     @Override
-    public double packCohesionDistance() {
-        return OvergrownVegetationConfig.COMMON.invaderPackCohesionDistance.get() * PACK_FRONT_FACTOR;
-    }
-
-    /**
-     * 陣形では<b>先遣隊より前</b>({ invaderPackFormationFront})。
-     * タンク役なので、アルボラの一歩前で前線を張るのが仕事。
-     */
-    @Override
-    public double packFormationOffset() {
-        return OvergrownVegetationConfig.COMMON.invaderPackFormationFront.get();
-    }
-
-    /** 突進・スタン・迫撃砲・座り込みの最中は群れの動きに移らない。 */
-    @Override
-    public boolean isPackBusy() {
-        return isBusy();
+    public void playAttackAnimation() {
     }
 
     /**
@@ -366,21 +324,31 @@ public class OvergrownShielderEntity extends Monster
 
     /**
      * 「32 ブロックより遠くで 30 秒何も起きなければ抽選で消す」バニラの規則を止める
-     * （{@link InvaderDespawn}）。座って汚染を広げるのも、群れを組みに歩くのも、
-     * プレイヤーが近くに居ない時間が要る。
+     * （{@link InvaderDespawn}）。座って汚染を広げるのも、群れで歩くのも、プレイヤーが近くに居ない時間が要る。
+     * 群れの一員はバニラには消させない(消えるときは群れごと。ユーザー指定 2026-09-25)。
      */
     @Override
     public boolean removeWhenFarAway(double distanceToClosestPlayer) {
+        if (SwarmMember.hasSwarmAttachment(this)) {
+            return false;
+        }
         return InvaderDespawn.removeWhenFarAway(this, distanceToClosestPlayer);
+    }
+
+    /** 群れの一員・イベントの個体はポータルを使わない(AbstractOvergrownInvaderEntity と同じ理由)。 */
+    @Override
+    public boolean canUsePortal(boolean allowPassengers) {
+        if (SwarmGoals.blocksPortal(this)) {
+            return false;
+        }
+        return super.canUsePortal(allowPassengers);
     }
 
     @Override
     protected void customServerAiStep() {
         super.customServerAiStep();
-        // 掴んでいる相手を近くのグループ4 へ回して、群れで一緒に襲う（中で間引いている）。
-        // 近くの仲間と群れ(所属)を作る・入る・合流する・抜ける。これも中で間引いている。
-        InvaderPackBonds.tick(this);
-        InvaderPack.shareTarget(this);
+        // 群れの一員の自己修復(所属があるのに名簿に居なければ入り直す。中で 20 tick に 1 回へ間引いている)。
+        SwarmMember.tick(this);
     }
 
     @Override
@@ -429,7 +397,7 @@ public class OvergrownShielderEntity extends Monster
     @Override
     public boolean hurt(DamageSource source, float amount) {
         if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
-            return super.hurt(source, amount);
+            return noteHurt(super.hurt(source, amount), source);
         }
         if (isRangedAttack(source)) {
             playShieldBlockSound();
@@ -440,7 +408,18 @@ public class OvergrownShielderEntity extends Monster
                 && attacker.getMainHandItem().getItem() instanceof AxeItem) {
             amount *= AXE_DAMAGE_MULTIPLIER;
         }
-        return super.hurt(source, amount);
+        return noteHurt(super.hurt(source, amount), source);
+    }
+
+    /**
+     * 実際に効いたら群れの司令塔へ伝える(群れ v2、2026-09-25。{@link SwarmManager#onMemberHurt}: 役割の距離 = 迫撃砲の射程に
+     * いればこの一員だけ反撃、群れの標的を替えるかは優先順で)。弾いた遠距離攻撃は効いていないので伝えない。
+     */
+    private boolean noteHurt(boolean hurt, DamageSource source) {
+        if (hurt && !this.level().isClientSide()) {
+            SwarmManager.onMemberHurt(this, source);
+        }
+        return hurt;
     }
 
     /**
@@ -488,6 +467,28 @@ public class OvergrownShielderEntity extends Monster
         // 大型なので他 Mob には押されない
     }
 
+    /**
+     * 同じ群れの一員とは押し合わない(群れ v2、2026-09-25)。スカトゥリウム自身は押されない({@link #isPushable})が、
+     * ぶつかった相手のほうは弾かれる —— 群れの後続がスカトゥリウムに当たるたびに足跡から弾き出されないように。
+     */
+    @Override
+    public void push(Entity entity) {
+        if (SwarmGoals.sameSwarm(this, entity)) {
+            return;
+        }
+        super.push(entity);
+    }
+
+    /** 群れの後続は押し合いの走査を 2 tick に 1 回にする(AbstractOvergrownInvaderEntity と同じ。重なりの被ダメージの判定もここ)。 */
+    @Override
+    protected void pushEntities() {
+        if (!this.level().isClientSide() && Math.floorMod(this.tickCount + this.getId(), 2) != 0
+                && SwarmMember.isFollower(this)) {
+            return;
+        }
+        super.pushEntities();
+    }
+
     /** スタン中・溜め中は自力移動不可（押し出しや {@code travel} の水平慣性を止める）。 */
     @Override
     public void travel(net.minecraft.world.phys.Vec3 travelVector) {
@@ -527,7 +528,7 @@ public class OvergrownShielderEntity extends Monster
                     return state.setAndContinue(WINDUP_ANIM);
                 default:
                     if (MobAnimation.isWalking(state)) {
-                        // 群れの走り（invaderPackDashSpeed）には専用の run がある。
+                        // 速く歩くとき(群れの後続が追いつくとき)には専用の run がある。
                         // 以前は walk を最大 1.8 倍速で流していたが、歩幅も脚の上げ方も
                         // 歩きのままなので「早送り」にしか見えなかった（2026-09-15 に作り直し）。
                         // 速さは基礎移動速度の何倍かで見る（種の足の速さに合わせるため）。
@@ -571,20 +572,22 @@ public class OvergrownShielderEntity extends Monster
     @Override
     public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
         super.addAdditionalSaveData(tag);
-        if (this.nestHome != null) {
-            tag.putLong("NestHome", this.nestHome.asLong());
-        }
-        this.packBond.save(tag);
         tag.putInt("PreyKills", this.preyKillCount);
     }
 
     @Override
     public void readAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
         super.readAdditionalSaveData(tag);
-        this.nestHome = tag.contains("NestHome")
-                ? net.minecraft.core.BlockPos.of(tag.getLong("NestHome")) : null;
-        this.packBond.load(tag,
-                com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.invaderPackCompleteGraceTicks.get());
+        // 旧ワールドの後始末(2026-09-24)。アルボラの巣の衛兵(NestHome 付き)は永続にしていたので、
+        // 巣を消したあとも二度と消えない。永続を戻すだけで、NestHome は次の保存で消える。
+        if (tag.contains("NestHome")) {
+            com.yayuy.overgrownvegetation.raid.EventMobs.restorePersistence(this, false);
+        }
+        // 旧い群れ(2026-09-25 まで)の NBT の PackId を群れ ID として引き継ぐ(attachment は先に読まれている)。
+        // PackId・PackComplete のキーは次の保存で消える。
+        if (tag.hasUUID("PackId")) {
+            SwarmManager.adoptLegacyPack(this, tag.getUUID("PackId"));
+        }
         this.preyKillCount = tag.getInt("PreyKills");
         PredatorMob.applyPreyKillBonus(this, this.preyKillCount);
     }

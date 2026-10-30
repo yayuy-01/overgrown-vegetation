@@ -1,5 +1,8 @@
 package com.yayuy.overgrownvegetation.client;
 
+import com.yayuy.overgrownvegetation.client.critter.CritterMotion;
+import com.yayuy.overgrownvegetation.client.critter.CritterRig;
+import software.bernie.geckolib.animation.AnimationState;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.entity.IanthasaurusEntity;
 import net.minecraft.resources.ResourceLocation;
@@ -7,9 +10,13 @@ import software.bernie.geckolib.model.GeoModel;
 
 public class IanthasaurusModel extends LodGeoModel<IanthasaurusEntity> {
 
+    // 2026-09-24 軽量化(監査 1318): 描画のたびに ResourceLocation を作り直さないよう定数にする(中身は同じ)。
+    private static final ResourceLocation MODEL = OvergrownVegetation.id("geo/ianthasaurus.geo.json");
+    private static final ResourceLocation ANIMATION = OvergrownVegetation.id("animations/ianthasaurus.animation.json");
+
     @Override
     public ResourceLocation getModelResource(IanthasaurusEntity animatable) {
-        return OvergrownVegetation.id("geo/ianthasaurus.geo.json");
+        return MODEL;
     }
 
     @Override
@@ -19,6 +26,20 @@ public class IanthasaurusModel extends LodGeoModel<IanthasaurusEntity> {
 
     @Override
     public ResourceLocation getAnimationResource(IanthasaurusEntity animatable) {
-        return OvergrownVegetation.id("animations/ianthasaurus.animation.json");
+        return ANIMATION;
+    }
+
+    /** 動きの層(注視・坂と旋回で傾く・尾と体節が道をなぞる・触角の遅れ・脚。G2・G3 共通、2026-10-22)。 */
+    static final CritterRig RIG = CritterRig.create()
+            .terrain()
+            .look(40, 25, "neck", 0.4F, "head", 0.6F)
+            .body("body", 0.8F)
+            .roll("body", 0.5F, 8)
+            .chain(1.0F, 0.7F, "tail1", "tail2", "tail3");
+
+    @Override
+    public void setCustomAnimations(IanthasaurusEntity animatable, long instanceId, AnimationState<IanthasaurusEntity> animationState) {
+        super.setCustomAnimations(animatable, instanceId, animationState);
+        CritterMotion.apply(this, animatable, animationState, RIG);
     }
 }

@@ -1,15 +1,22 @@
 package com.yayuy.overgrownvegetation.entity;
 
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
+import com.yayuy.overgrownvegetation.swarm.Swarm;
+import com.yayuy.overgrownvegetation.swarm.SwarmManager;
+import com.yayuy.overgrownvegetation.swarm.Trail;
+import com.yayuy.overgrownvegetation.swarm.goal.SwarmGoals;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.pathfinder.Path;
+import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumSet;
 
@@ -38,6 +45,18 @@ import java.util.EnumSet;
  *
  * <p>着地地点は<b>体がまるごと入る</b>ことを確かめてから跳ぶので、向こう岸の壁にめり込まない。
  * 跳んでいる間の状態は {@link AbstractOvergrownInvaderEntity#STATE_LEAP}(= {@code leap} アニメ)。
+ *
+ * <h2>群れ(v2、2026-09-25)</h2>
+ * 群れの一員は「標的を追っていて陸路が無い」({@link #mustCross})では跳ばない(一員は詰まり検知の数えを使わないので
+ * そもそも成り立たない)。代わりに:
+ * <ul>
+ *     <li><b>先導役</b> … 群れの全員がアルボラのときだけ、狩り・攻城で、区間が水を泳ぐ(または区間が塞がれた)ときに、
+ *     群れの行き先の向きへ跳ぶ。跳んだら着地点を足跡へ LEAP の点として足す({@link Swarm#noteVanguardLeap})。
+ *     <b>混成の群れでは跳ばない</b>(ほかの種は跳べないので、区間ごと泳いで渡る)。暇なときは跳ばない
+ *     (個体と同じ「どうしても渡らないと相手に届かないときだけ」。暇な群れは水を避けて向きを変える)。</li>
+ *     <li><b>後続</b> … 足跡の次の点が LEAP なら、その点(先導役の着地点)へ向けて、手前の水際から同じ勢いで跳ぶ
+ *     (届くかは {@link LeapArc#canReach} で確かめる)。後続の Goal は水際で少し待つ。</li>
+ * </ul>
  */
 public class InvaderWaterLeapGoal extends Goal {
 
@@ -78,6 +97,11 @@ public class InvaderWaterLeapGoal extends Goal {
     /** 次に渡れる場所を探してよい tick(毎 tick 地形を舐めないための間引き)。 */
     private int nextScanTick;
     private Vec3 jumpDir;
+    /** {@link #findLanding} が見つけた着地点(群れの先導役が足跡へ LEAP として足す)。 */
+    @Nullable
+    private BlockPos landing;
+    /** 跳ぶのが群れの先導役か(跳んだら {@link Swarm#noteVanguardLeap})。 */
+    private boolean vanguardLeap;
 
     public InvaderWaterLeapGoal(AbstractOvergrownInvaderEntity mob, double horizontalSpeed, double lift,
                                 int cooldownTicks) {
@@ -101,6 +125,11 @@ public class InvaderWaterLeapGoal extends Goal {
         }
         if (!this.mob.onGround() || this.mob.isInWater() || this.mob.isClimbing() || this.mob.isOnCeiling()) {
             return false;
+        }
+        this.vanguardLeap = false;
+        Swarm swarm = SwarmManager.get(this.mob);
+        if (swarm != null) {
+            return canUseInSwarm(swarm);
         }
         if (!mustCross()) {
             return false;
@@ -155,6 +184,107 @@ public class InvaderWaterLeapGoal extends Goal {
                 >= OvergrownVegetationConfig.COMMON.invaderWaterLeapDelayTicks.get();
     }
 
+    /**
+     * 群れの一員として跳ぶか(群れ v2、2026-09-25)。接地・待機中などの足切りは済んでいる。
+     * <ul>
+     *     <li>後続: 足跡の次の点が LEAP(先導役が跳び越えた着地点)。その点の向きの数マス先が水で、
+     *     この勢いでその点へ届くときだけ。探す間隔は取らない(読むのは足元の数マスだけ。水へ歩いて入る前に跳ばせたい)。</li>
+     *     <li>先導役: 群れの全員がアルボラ・狩りか攻城・区間が水を泳ぐか塞がれている、のときだけ、群れの行き先の向きへ。
+     *     地形を舐めるのは個体と同じく {@value #SCAN_INTERVAL} tick おき。</li>
+     * </ul>
+     */
+    private boolean canUseInSwarm(Swarm swarm) {
+        if (swarm.kind() != Swarm.Kind.GROUND) {
+            return false;
+        }
+        if (swarm.isFollower(this.mob)) {
+            return canFollowerLeap(swarm);
+        }
+        if (!swarm.isVanguard(this.mob)) {
+            return false;
+        }
+        Swarm.Mode mode = swarm.mode();
+        Vec3 goal = swarm.leadGoal();
+        if ((mode != Swarm.Mode.HUNT && mode != Swarm.Mode.SIEGE) || goal == null) {
+            return false;
+        }
+        if (!legSwims() && swarm.consecutiveBlockedLegs() < 1) {
+            return false;
+        }
+        if (this.mob.tickCount < this.nextScanTick) {
+            return false;
+        }
+        this.nextScanTick = this.mob.tickCount + SCAN_INTERVAL;
+        if (!SwarmGoals.allArbora(swarm)) {
+            // 混成の群れの先導役は跳ばない(後続が跳べずに岸に取り残される。区間ごと泳いで渡る)。
+            return false;
+        }
+        Vec3 wanted = new Vec3(goal.x - this.mob.getX(), 0.0D, goal.z - this.mob.getZ());
+        if (wanted.lengthSqr() < 1.0E-4D) {
+            return false;
+        }
+        wanted = wanted.normalize();
+        if (!atWaterEdge() && !waterAhead(wanted)) {
+            return false;
+        }
+        this.jumpDir = findCrossing(wanted);
+        if (this.jumpDir == null) {
+            this.nextScanTick = this.mob.tickCount + FAILED_SCAN_INTERVAL;
+            return false;
+        }
+        this.vanguardLeap = true;
+        return true;
+    }
+
+    /** 後続が足跡の LEAP の点へ跳べるか。 */
+    private boolean canFollowerLeap(Swarm swarm) {
+        if (swarm.followerNextKind(this.mob) != Trail.Kind.LEAP) {
+            return false;
+        }
+        long cursor = swarm.followerCursor(this.mob);
+        if (!swarm.trail().has(cursor)) {
+            return false;
+        }
+        Vec3 target = swarm.trail().point(cursor);
+        double dx = target.x - this.mob.getX();
+        double dz = target.z - this.mob.getZ();
+        double distance = Math.sqrt(dx * dx + dz * dz);
+        if (distance < 1.0D || distance > this.maxRange) {
+            return false;
+        }
+        Vec3 dir = new Vec3(dx / distance, 0.0D, dz / distance);
+        // 着地点との間(の手前数マス)に水があるときだけ。周りを四角く見る atWaterEdge は使わない ——
+        // 跳び越えて着地点の少し手前(向こう岸)に落ちた個体が、背中側の水を見てもう一度跳んでしまう。
+        if (!waterAhead(this.mob, dir, Math.min(APPROACH_RANGE, Mth.floor(distance)))) {
+            return false;
+        }
+        if (!LeapArc.canReach(this.horizontalSpeed, this.lift, MAX_TICKS, distance, target.y - this.mob.getY())) {
+            return false;
+        }
+        this.jumpDir = dir;
+        this.landing = null;
+        return true;
+    }
+
+    /** 先導役が歩いている区間が、この先で水を泳ぐか(狩り・攻城で水だけに塞がれて、区間ごと泳ぐことにした)。 */
+    private boolean legSwims() {
+        Path path = this.mob.getNavigation().getPath();
+        if (path == null || path.isDone()) {
+            return false;
+        }
+        int from = Math.max(0, path.getNextNodeIndex());
+        int to = Math.min(path.getNodeCount(), from + LEG_SWIM_LOOKAHEAD);
+        for (int i = from; i < to; i++) {
+            if (path.getNode(i).type == PathType.WATER) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 区間の先の何ノードまで「泳ぐ」を探すか。仮決め 2026-09-25。 */
+    private static final int LEG_SWIM_LOOKAHEAD = 8;
+
     @Override
     public boolean canContinueToUse() {
         // 跳んだ直後の数 tick は接地判定が残るので終了しない。
@@ -172,11 +302,20 @@ public class InvaderWaterLeapGoal extends Goal {
         float yaw = (float) (Mth.atan2(this.jumpDir.z, this.jumpDir.x) * (180.0D / Math.PI)) - 90.0F;
         this.mob.setYRot(yaw);
         this.mob.yBodyRot = yaw;
+        if (this.vanguardLeap && this.landing != null) {
+            // 群れの先導役が跳んだ。着地の予定点を LEAP の点として足跡へ(後続は手前の水際から同じように跳ぶ)。
+            Swarm swarm = SwarmManager.get(this.mob);
+            if (swarm != null && swarm.isVanguard(this.mob)) {
+                swarm.noteVanguardLeap(Vec3.atBottomCenterOf(this.landing));
+            }
+        }
     }
 
     @Override
     public void stop() {
         this.jumpDir = null;
+        this.landing = null;
+        this.vanguardLeap = false;
         this.nextTime = this.mob.tickCount + this.cooldownTicks;
         if (this.mob.getActionState() == AbstractOvergrownInvaderEntity.STATE_LEAP) {
             this.mob.setActionState(AbstractOvergrownInvaderEntity.STATE_IDLE);
@@ -215,11 +354,19 @@ public class InvaderWaterLeapGoal extends Goal {
      * 周囲を四角く舐めるのに対して、こちらは 1 直線ぶんしか読まない(前判定なので安く保つ)。
      */
     private boolean waterAhead(Vec3 wanted) {
-        Level level = this.mob.level();
-        BlockPos foot = this.mob.blockPosition();
-        for (int d = 1; d <= APPROACH_RANGE; d++) {
-            if (isWaterColumn(level, foot.offset(Mth.floor(wanted.x * d + 0.5D), 0,
-                    Mth.floor(wanted.z * d + 0.5D)))) {
+        return waterAhead(this.mob, wanted, APPROACH_RANGE);
+    }
+
+    /**
+     * {@code mob} の足元から {@code dir}(水平の単位ベクトル)の向き {@code range} マス先までに水の柱があるか
+     * (群れの後続が「水際に着いたか」を見るのにも使う。1 直線ぶんしか読まないので安い)。
+     */
+    public static boolean waterAhead(Mob mob, Vec3 dir, int range) {
+        Level level = mob.level();
+        BlockPos foot = mob.blockPosition();
+        for (int d = 1; d <= range; d++) {
+            if (isWaterColumn(level, foot.offset(Mth.floor(dir.x * d + 0.5D), 0,
+                    Mth.floor(dir.z * d + 0.5D)))) {
                 return true;
             }
         }
@@ -294,6 +441,7 @@ public class InvaderWaterLeapGoal extends Goal {
                 // 放物線がその高さに届くか + 体がまるごと入るか。
                 if (LeapArc.canReach(this.horizontalSpeed, this.lift, MAX_TICKS, d, dy)
                         && canLandOn(ahead.above(dy))) {
+                    this.landing = ahead.above(dy).immutable();
                     return true;
                 }
             }
@@ -306,7 +454,7 @@ public class InvaderWaterLeapGoal extends Goal {
      * その柱が水か。足元の高さから下へ {@value #WATER_PROBE_DEPTH} マス見て、
      * <b>先に見つかったのが水なら水・固い地面なら陸</b>とみなす(岸が水面より高くても汀を拾える)。
      */
-    private boolean isWaterColumn(Level level, BlockPos pos) {
+    public static boolean isWaterColumn(Level level, BlockPos pos) {
         BlockPos.MutableBlockPos cursor = pos.mutable();
         for (int i = 0; i <= WATER_PROBE_DEPTH; i++) {
             if (!level.getFluidState(cursor).isEmpty()) {

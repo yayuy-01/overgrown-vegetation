@@ -49,11 +49,11 @@ public final class SporeFilterGameTests {
 
     private static final BlockPos AT = new BlockPos(2, 1, 2);
 
-    /** フィルターが無いあいだは動かず、燃料も減らない。 */
+    /** フィルターが無いあいだは動かず、電池も減らない。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 200)
     public static void purifierWithoutFilterStaysOff(GameTestHelper helper) {
         SporeDeviceBlockEntity device = place(helper);
-        device.setItem(SporeDeviceBlockEntity.SLOT_FUEL, new ItemStack(Items.REDSTONE, 8));
+        device.setItem(SporeDeviceBlockEntity.SLOT_BATTERY, com.yayuy.overgrownvegetation.item.BatteryItem.withCharge(com.yayuy.overgrownvegetation.item.BatteryItem.CAPACITY));
         helper.runAfterDelay(60L, () -> {
             if (device.isActive()) {
                 helper.fail("フィルターが無いのに動いている");
@@ -63,9 +63,9 @@ public final class SporeFilterGameTests {
                 helper.fail("フィルター切れとして扱われていない");
                 return;
             }
-            int left = device.getItem(SporeDeviceBlockEntity.SLOT_FUEL).getCount();
-            if (left != 8) {
-                helper.fail("止まっているのに燃料が減っている(残り " + left + "/8)");
+            int left = device.batteryCharge();
+            if (left != com.yayuy.overgrownvegetation.item.BatteryItem.CAPACITY) {
+                helper.fail("止まっているのに電池が減っている(残り " + left + "/" + com.yayuy.overgrownvegetation.item.BatteryItem.CAPACITY + ")");
                 return;
             }
             if (helper.getBlockState(AT).getValue(SporeDeviceBlock.LIT)) {
@@ -80,7 +80,7 @@ public final class SporeFilterGameTests {
     @GameTest(template = "gametest_empty7", timeoutTicks = 200)
     public static void purifierRunsOnceFiltered(GameTestHelper helper) {
         SporeDeviceBlockEntity device = place(helper);
-        device.setItem(SporeDeviceBlockEntity.SLOT_FUEL, new ItemStack(Items.REDSTONE, 8));
+        device.setItem(SporeDeviceBlockEntity.SLOT_BATTERY, com.yayuy.overgrownvegetation.item.BatteryItem.withCharge(com.yayuy.overgrownvegetation.item.BatteryItem.CAPACITY));
         device.setItem(SporeDeviceBlockEntity.SLOT_FILTER, new ItemStack(ModItems.SPORE_FILTER.get()));
         helper.runAfterDelay(60L, () -> {
             if (!device.isActive()) {
@@ -165,6 +165,12 @@ public final class SporeFilterGameTests {
             return;
         }
         washer.setItem(0, filter);
+        if (washer.isWorking()) {
+            helper.fail("電池が無いのに動いている");
+            return;
+        }
+        washer.setItem(DecontaminatorBlockEntity.SLOT_BATTERY,
+                com.yayuy.overgrownvegetation.item.BatteryItem.withCharge(com.yayuy.overgrownvegetation.item.BatteryItem.CAPACITY));
         if (!washer.isWorking()) {
             helper.fail("フィルターを入れたのに動いていない");
             return;
@@ -187,6 +193,10 @@ public final class SporeFilterGameTests {
 
     private static SporeDeviceBlockEntity place(GameTestHelper helper) {
         helper.setBlock(AT, ModBlocks.SPORE_PURIFIER.get().defaultBlockState());
+        // 台帳(SporeDeviceData)からは外す。見るのは装置そのもの(動くか・燃料・フィルター)で、台帳に載ると効果半径 48 ブロック =
+        // 隣のテスト場の汚染を確率で止め、片付けないのでバッチが終わっても効き続ける(2026-10-18、30 ブロック先の
+        // CoveredBlockGameTests#lavaAndBasaltBecomeCoveredBasalt が実行の 4 割ほどで落ちていた)
+        com.yayuy.overgrownvegetation.spore.SporeDeviceData.get(helper.getLevel()).remove(helper.absolutePos(AT));
         return (SporeDeviceBlockEntity) helper.getBlockEntity(AT);
     }
 

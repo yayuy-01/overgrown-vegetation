@@ -27,6 +27,7 @@ import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
  *     {@link ModAttachments#SIZE_VARIANCE}(serialize あり)へ記録する。</li>
  *     <li>ワールド再読み込みなどで再参加した個体は記録済みの値をそのまま適用するので、
  *     体格が抽選し直されない。</li>
+ *     <li>どちらの場合も当たり判定を体格込みに測り直す(最初の tick に育って沈まないように。2026-10-01)。</li>
  * </ul>
  *
  * <p>{@code scaleMin}/{@code scaleMax} は {@code config/overgrown_vegetation/mobs.json} で
@@ -68,8 +69,15 @@ public final class MobSizeVariance {
 
         if (Math.abs(scaleAttr.getBaseValue() - effectiveScale) > 1.0e-4) {
             scaleAttr.setBaseValue(effectiveScale);
-            mob.refreshDimensions();
         }
+        // 当たり判定は体格が変わらなくても毎回ここで体格込みに測り直す(2026-10-01)。作った直後の箱は素の大きさで、
+        // 最初の tick に SCALE が効いて育つと、バニラの fudgePositionAfterSizeChange が箱の中心を保つように足元を
+        // (育った高さ − 素の高さ) / 2 下げていた —— 湧くたび・チャンクを読み込むたびに、空中・水中の個体が抱えた物ごと沈む
+        // (ファルキムネス 0.68・スクティムネス 0.85 など。足場の上ではその上で止まる)。世界に入る前のここはまだ firstTick なので
+        // 育てても押し下げは起きない。読み込んだ個体は保存された SCALE が属性に先に入っているので、上の比較では拾えない
+        // (コンストラクタで体格を掛けるだけでは、保存された SCALE が基礎値と違う個体 = 個体差・mobs.json を変えた後の古い個体が漏れる)。
+        // 確かめは ScaledBodyGameTests。
+        mob.refreshDimensions();
     }
 
     /** 登録済みの属性サプライヤから、この種族の SCALE 基礎値(個体差を掛ける前の値)を得る。 */

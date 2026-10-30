@@ -71,7 +71,7 @@ public final class VariantTable {
         this.fireproofFireMultiplier = f.fireDamageMultiplier != null ? Math.max(0.0D, f.fireDamageMultiplier) : 0.7D;
         this.eligibleGroups = src.eligibleGroups != null ? List.copyOf(src.eligibleGroups) : List.of(1, 2, 3, 4);
         this.excluded = src.excluded != null ? List.copyOf(src.excluded)
-                : List.of("blight_fern", "blight_water_grass", "overgrown_nexus");
+                : List.of("blight_fern", "overgrown_nexus");
         this.fireWeaknessMultiplier = src.fireWeaknessMultiplier != null
                 ? Math.max(0.0D, src.fireWeaknessMultiplier) : 1.5D;
     }

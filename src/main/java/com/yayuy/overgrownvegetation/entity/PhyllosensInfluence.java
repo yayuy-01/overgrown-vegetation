@@ -22,7 +22,7 @@ import java.util.List;
  * <p>以前は見つけた相手をワールドごとのメモ帳({@code ScoutIntel})へ載せ、味方がそれを読む方式だった。
  * いまは<b>2 つの効果そのものが共有状態</b>になっている:
  * <ul>
- *     <li>{@link ModMobEffects#PHYLLOSENS_WATCH 「Philosense is watching you」} —
+ *     <li>{@link ModMobEffects#PHYLLOSENS_WATCH 「フィロセンスの視線 / Phyllosens' Gaze」} —
  *     <b>プレイヤー</b>に付く。「汚染側に居場所を知られている」印。</li>
  *     <li>{@link ModMobEffects#PHYLLOSENS_GUIDANCE 「フィロセンスの誘導」} —
  *     <b>味方(グループ1〜10)</b>に付く。「視線持ちのプレイヤーの居場所を知っている」印。</li>
@@ -63,8 +63,13 @@ public final class PhyllosensInfluence {
             if (!isWatchable(player) || source.distanceToSqr(player) > rangeSq) {
                 continue;
             }
-            player.addEffect(new MobEffectInstance(ModMobEffects.PHYLLOSENS_WATCH, duration, 0,
-                    true, false, true));
+            // 付け直すのは残りが 1 秒以上減ってから。狙っている間はバニラの「狙い続けるか」が 2 tick ごとに setTarget を呼ぶので、
+            // 毎回付け直すと効果の更新の通信とイベントが 2 tick ごとに出ていた(2026-10-10、0.1.9 の前の軽量化。切れるのが最大 1 秒早まるだけ)
+            MobEffectInstance current = player.getEffect(ModMobEffects.PHYLLOSENS_WATCH);
+            if (current == null || current.getDuration() < duration - 20) {
+                player.addEffect(new MobEffectInstance(ModMobEffects.PHYLLOSENS_WATCH, duration, 0,
+                        true, false, true));
+            }
             marked++;
         }
         return marked;
@@ -87,7 +92,9 @@ public final class PhyllosensInfluence {
         AABB box = source.getBoundingBox().inflate(range);
         int guided = 0;
         for (LivingEntity ally : level.getEntitiesOfClass(LivingEntity.class, box)) {
-            if (!canBeGuided(ally) || source.distanceToSqr(ally) > rangeSq) {
+            // 2026-09-24 軽量化(監査 867): 安い距離の判定を先に(どちらも副作用の無い判定なので、答えは同じ)。
+            // 箱は立方体なので、球の外になる角の個体は種族の判定まで行かずに落ちる。
+            if (source.distanceToSqr(ally) > rangeSq || !canBeGuided(ally)) {
                 continue;
             }
             ally.addEffect(new MobEffectInstance(ModMobEffects.PHYLLOSENS_GUIDANCE, duration, 0,

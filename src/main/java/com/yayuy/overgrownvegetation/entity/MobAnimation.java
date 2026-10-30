@@ -75,6 +75,21 @@ public final class MobAnimation {
         return state.getLimbSwingAmount() >= threshold;
     }
 
+    /**
+     * 歩きの再生速度 = 実際に 1 tick に進んだ水平の量 ÷ (アニメが足を滑らせない速さ × 体格)(2026-10-10、G2 のモデル作り直しで足した)。
+     * 体格(SCALE)が大きいほど歩幅も大きいので体格を掛ける。{@code limbSwingAmount} は 0.25 ブロック/tick で頭打ちなので位置の差で見る。
+     * 速さを毎フレーム変えるので、コントローラは {@link PhaseKeepingAnimationController}(位相が巻き戻らない)と組にする。
+     * 下限は 0.3(初めは 0.5。体格 2 倍にしたイアンタサウルスの散歩が 0.42 前後になり、0.5 で止めると足が 2 割前へ滑ったため。2026-10-10)。
+     *
+     * @param refPerScale 体格 1 でアニメの足が滑らない速さ(ブロック/tick)
+     */
+    public static double walkSpeedFor(net.minecraft.world.entity.LivingEntity entity, double refPerScale) {
+        double dx = entity.getX() - entity.xo;
+        double dz = entity.getZ() - entity.zo;
+        double moved = Math.sqrt(dx * dx + dz * dz);
+        return net.minecraft.util.Mth.clamp(moved / (refPerScale * entity.getScale()), 0.3D, 2.5D);
+    }
+
     private MobAnimation() {
     }
 }

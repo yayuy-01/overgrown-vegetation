@@ -5,10 +5,12 @@ import com.yayuy.overgrownvegetation.block.OvergrownContainers;
 import com.yayuy.overgrownvegetation.block.OvergrownHuskBlock;
 import com.yayuy.overgrownvegetation.block.SiegeStructurePartBlock;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
+import com.yayuy.overgrownvegetation.covered.CoveredBlocks;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import com.yayuy.overgrownvegetation.spore.SporeDeviceData;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.Direction;
 import net.minecraft.tags.BlockTags;
@@ -19,13 +21,26 @@ import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.BambooSaplingBlock;
 import net.minecraft.world.level.block.BambooStalkBlock;
+import net.minecraft.world.level.block.BigDripleafBlock;
+import net.minecraft.world.level.block.BigDripleafStemBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CaveVines;
 import net.minecraft.world.level.block.DoublePlantBlock;
+import net.minecraft.world.level.block.FenceBlock;
+import net.minecraft.world.level.block.HangingRootsBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.LiquidBlock;
+import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.SnowLayerBlock;
+import net.minecraft.world.level.block.SporeBlossomBlock;
+import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.world.level.block.TwistingVinesBlock;
+import net.minecraft.world.level.block.TwistingVinesPlantBlock;
 import net.minecraft.world.level.block.VineBlock;
+import net.minecraft.world.level.block.WallBlock;
+import net.minecraft.world.level.block.WeepingVinesBlock;
+import net.minecraft.world.level.block.WeepingVinesPlantBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
@@ -44,7 +59,8 @@ import java.util.Set;
  *
  * <p>判定は次の順序で行う。
  * <ol>
- *     <li>特別扱い({@link #specialCorrupt} —— チェスト・樽・ドア・機関砲台・竹・積もった雪)</li>
+ *     <li>特別扱い({@link #specialCorrupt} —— 竹・積もった雪・松明・機関砲台・<b>覆われた版のあるバニラのブロック</b>
+ *     ({@link #COVERED}: 扉・板材・階段・原木など建築タブのブロック)・チェスト・樽・他 MOD の木のドア)</li>
  *     <li>個別指定 ({@link #EXACT})</li>
  *     <li>タグによるルール ({@link #TAG_RULES})</li>
  *     <li>置換可能な薄い植物 → 汚染された下草</li>
@@ -65,13 +81,45 @@ public final class CorruptionRegistry {
     private static Map<Block, Block> EXACT;
     private static List<TagRule> TAG_RULES;
     /**
+     * バニラのブロック → 覆われたブロック(2026-10-05 夜、ユーザー指定「汚染された扉が対応した扉にならず過繁茂したドアになった。
+     * ほかにも対応したブロックにならないものがあれば直して」)。建築タブのブロックは汚染で<b>同じブロックの覆われた版</b>になる ——
+     * 以前は木の扉は全部「過繁茂したドア」、板材・階段・柵・塀・原木は木の種類を問わず 1 種類の過繁茂ブロック、
+     * 木のハーフは板材(形が消える)、石レンガ・砂岩などは苔石・過繁茂した砂、それ以外は苔の記録で覆うか汎用の汚染ブロックだった。
+     *
+     * <p><b>3 割は同じ形の過繁茂ブロック</b>({@link #overgrownCounterpart}、同じく夜のユーザー指定「すべてのブロックで 3 割で
+     * 過繁茂しているブロックに」→ 形のあるものは同じ形で)。抽選は対応表に無い立方体の混ざりと同じ {@code overgrownLayer.chance}
+     * (既定 0.7 = 3 割が外れ)を座標のハッシュで引く({@link OvergrownLayerField#covered(BlockPos, double)})。
+     * <b>木材は先に半分が過繁茂した木材</b>({@link #overgrownWoodCounterpart}、夜 3 のユーザー指定。過繁茂した木材 5:過繁茂ブロック 1.5:覆われた版 3.5)。
+     *
+     * <p><b>前から専用の「過繁茂している〜」があるもの</b>(個別指定で {@code overgrown_<同じ名前>} へ行く 10 個: 石・丸石・花崗岩・
+     * 閃緑岩・安山岩・深層岩・深層岩の丸石・レンガ・ネザーラック・エンドストーン)だけは入れず、今までどおりそちらへ({@link #build})。
+     * {@link #resolveTarget} には入れない —— 扉と同じく対応表の外の特別扱い。「対応表に無い」({@link #hasNoCorruptedForm})の答えを
+     * 変えると、前に苔の記録で覆ったブロックの記録が無効になって苔が消える({@link OvergrownLayerData#isCovered})。
+     */
+    private static Map<Block, Block> COVERED;
+    /**
      * 「石系」とみなす汚染ブロック(変換先)の集合。ここに含まれる変換先に落ち着いたブロックは、
      * {@link OvergrownVegetationConfig.Common#stoneToGrassChance} の抽選に当たると
      * {@code overgrown_grass_block} へ差し替えられる({@link #isStoneLike} でも同じ判定を使う)。
      */
     private static Set<Block> STONE_RESULTS;
 
-    private static synchronized void init() {
+    /**
+     * 3 つの表を組み終えたら立てる。{@link #init} はこれを見るだけで戻る ——
+     * 汚染の 1 マスごとに何度も呼ばれ、クライアントの描画スレッド({@link #hasNoCorruptedForm})からも
+     * 呼ばれるので、毎回ロックを取るとスレッド同士が取り合う。
+     * <b>表を全部入れてから最後に立てる</b>(volatile の書き込みより前の代入は、これを読んだ側から必ず見える)。
+     */
+    private static volatile boolean ready;
+
+    private static void init() {
+        if (ready) {
+            return;
+        }
+        build();
+    }
+
+    private static synchronized void build() {
         if (EXACT != null) {
             return;
         }
@@ -116,7 +164,14 @@ public final class CorruptionRegistry {
         put(exact, dirt,
                 Blocks.DIRT, Blocks.COARSE_DIRT, Blocks.ROOTED_DIRT, Blocks.DIRT_PATH, Blocks.FARMLAND,
                 Blocks.MUD, Blocks.PACKED_MUD, Blocks.MUD_BRICKS, Blocks.CLAY,
-                Blocks.SOUL_SAND, Blocks.SOUL_SOIL, Blocks.SNOW_BLOCK, Blocks.POWDER_SNOW);
+                Blocks.SNOW_BLOCK, Blocks.POWDER_SNOW);
+
+        // --- ネザー(2026-10-02 ユーザー指定。ポータルを越えた侵食の地面) ---
+        // ナイリウムも「草の生えたネザーラック」へまとめる。ソウルサンド・ソウルソイルは以前は汚染された土だった。
+        put(exact, ModBlocks.OVERGROWN_NETHERRACK.get(), Blocks.NETHERRACK, Blocks.CRIMSON_NYLIUM, Blocks.WARPED_NYLIUM);
+        put(exact, ModBlocks.OVERGROWN_SOUL_SAND.get(), Blocks.SOUL_SAND);
+        put(exact, ModBlocks.OVERGROWN_SOUL_SOIL.get(), Blocks.SOUL_SOIL);
+        put(exact, ModBlocks.OVERGROWN_END_STONE.get(), Blocks.END_STONE);
 
         // --- 石系(専用テクスチャの無い種類だけ汎用の「苔石」にまとめる) ---
         put(exact, stone,
@@ -169,8 +224,9 @@ public final class CorruptionRegistry {
 
         // --- 溶岩 → 玄武岩(汚染が溶岩を固める) ---
         // canCorrupt() 側で convertLavaToBasalt 設定と「溶岩の源泉かどうか」を判定してからここへ来る。
-        // 変換先は overgrown 系ではなくバニラの玄武岩そのもの。再汚染されないよう
-        // data/overgrown_vegetation/tags/block/corrupted.json に minecraft:basalt を入れてある。
+        // 2026-10-05 夜から実際の行き先は特別扱い(specialCorrupt)が先に決める —— 玄武岩を汚染したときと同じ覆われた玄武岩
+        // (3 割は過繁茂しているブロック)。素の玄武岩は #corrupted から外したので、それ自体も汚染される(ユーザー指定)。
+        // この行は「対応表にある」(hasNoCorruptedForm が false)の答えのために残している。
         put(exact, Blocks.BASALT, Blocks.LAVA);
 
         // --- 薄い植物 ---
@@ -220,8 +276,17 @@ public final class CorruptionRegistry {
         STONE_RESULTS = Set.of(stone, deepslate, andesite, diorite, granite,
                 cobblestone, cobbledDeepslate, dripstoneBlock);
 
+        Map<Block, Block> covered = new IdentityHashMap<>();
+        for (Map.Entry<Block, Block> entry : CoveredBlocks.coveredByVanilla().entrySet()) {
+            if (!hasOwnOvergrownForm(exact, entry.getKey())) {
+                covered.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        COVERED = covered;
         TAG_RULES = List.copyOf(rules);
         EXACT = exact;
+        ready = true;
     }
 
     /**
@@ -297,6 +362,10 @@ public final class CorruptionRegistry {
      *     (要望: 雪は過繁茂した下草などにせず、消すだけにする)。</li>
      *     <li>竹({@link #isColumnPlantClearedByCorruption})
      *     (要望: 竹はアイテムをドロップさせず、茎まるごと消す)。</li>
+     *     <li>グロウベリー(洞窟のツタ。同じ {@link #isColumnPlantClearedByCorruption}。2026-10-16 ユーザー指定「洞窟が汚染される際グロウベリーが
+     *     削除されずに残る」。以前は対応表に無いので苔で覆って残していた)。</li>
+     *     <li>垂れ根・胞子の花(1 マス)と、しだれツタ・ねじれツタ・大きなドリップリーフ(連なる段ごと。{@link #isColumnPlantClearedByCorruption})。
+     *     同じく 2026-10-16 ユーザー指定(グロウベリーの続き)。</li>
      * </ul>
      * {@link #corrupt} がこの場合 {@code Blocks.AIR} を返すので、呼び出し元の
      * {@code level.setBlock(pos, air)} がそのまま除去になる。竹については
@@ -304,7 +373,8 @@ public final class CorruptionRegistry {
      */
     public static boolean corruptsToAir(BlockState state) {
         return state.getBlock() instanceof SnowLayerBlock
-                || isColumnPlantClearedByCorruption(state);
+                || isColumnPlantClearedByCorruption(state)
+                || state.getBlock() instanceof HangingRootsBlock || state.getBlock() instanceof SporeBlossomBlock;
     }
 
     /**
@@ -315,7 +385,12 @@ public final class CorruptionRegistry {
      */
     public static boolean isColumnPlantClearedByCorruption(BlockState state) {
         Block block = state.getBlock();
-        return block instanceof BambooStalkBlock || block instanceof BambooSaplingBlock;
+        return block instanceof BambooStalkBlock || block instanceof BambooSaplingBlock
+                // グロウベリー(2026-10-16。この MOD の光る蔦は別の種類なので入らない)と、同日のしだれツタ・ねじれツタ・大きなドリップリーフ
+                || block instanceof CaveVines
+                || block instanceof WeepingVinesBlock || block instanceof WeepingVinesPlantBlock
+                || block instanceof TwistingVinesBlock || block instanceof TwistingVinesPlantBlock
+                || block instanceof BigDripleafBlock || block instanceof BigDripleafStemBlock;
     }
 
     /**
@@ -370,11 +445,37 @@ public final class CorruptionRegistry {
      * ドロップ抑制だけでは連鎖先の破壊ドロップは止まらない。{@code UPDATE_KNOWN_SHAPE} で
      * 連鎖自体を打ち切る(支えを失った植物は再評価されずその場に残る)。
      *
+     * <p>設置の間は {@link CorruptionDropSuppressor} の範囲に入り、設置がその場で引き起こした破壊
+     * (近隣通知で支えを失ったものなど)のドロップも消す。<b>その場に残った植物</b>(過繁茂した地面の上の
+     * バニラの花・草)は、以前はあとで<b>別の処理</b>が隣を {@code UPDATE_ALL} で書き換えたときに再評価されて壊れ、
+     * 隣り合う植物を連鎖で巻き込みながらアイテムと破壊音・粒子を出していた。2026-10-06 からは、置いた直後に
+     * {@link StrandedPlants#clearAround} が<b>生き残れない植物だけ</b>を音・粒子・ドロップ無しで消す(一般の設置の経路)。
+     * 読み込みの途中のチャンクにかかるものなど、そこで消せずに残ったものは従来どおりなので、
+     * 後で隣を書き換える呼び出し側は引き続き {@link CorruptionDropSuppressor} で包む。
+     *
      * @param previous  変換前のブロック状態(当たり判定の差分を求めるのに使う)
      * @param corrupted 実際に設置する変換後のブロック状態
      */
     public static void placeCorrupted(LevelAccessor level, BlockPos pos, BlockState previous,
                                       BlockState corrupted, int flags) {
+        if (level instanceof ServerLevel && CorruptionSwitch.isOff()) {
+            return; // /ov corruption false(2026-10-10)。corrupt() が元のまま返すので普通はここまで来ない
+        }
+        if (previous.is(ModTags.ROAD_BLOCKS)) {
+            // 汚染で置き換わった道は途切れる(順 2 の着手順 7)。置いた後のブロックを tick の終わりに確かめる
+            com.yayuy.overgrownvegetation.base.road.BaseRoads.onReplaced(level, pos);
+        }
+        CorruptionDropSuppressor.enter();
+        try {
+            placeCorruptedInScope(level, pos, previous, corrupted, flags);
+        } finally {
+            CorruptionDropSuppressor.exit();
+        }
+    }
+
+    /** {@link #placeCorrupted} の中身。ドロップを消す範囲の中から呼ぶ。 */
+    private static void placeCorruptedInScope(LevelAccessor level, BlockPos pos, BlockState previous,
+                                              BlockState corrupted, int flags) {
         int safeFlags = flags | Block.UPDATE_SUPPRESS_DROPS | Block.UPDATE_KNOWN_SHAPE;
 
         if (corrupted.isAir() && isColumnPlantClearedByCorruption(previous)) {
@@ -406,6 +507,20 @@ public final class CorruptionRegistry {
 
         Block.pushEntitiesUp(previous, corrupted, level, pos);
         level.setBlock(pos, corrupted, safeFlags);
+        carryScheduledTick(level, pos, previous, corrupted);
+        // 支えを失って生き残れなくなった周りの植物は、音・粒子・ドロップ無しでここで消す(2026-10-06。残すと後で一斉に壊れる)。
+        StrandedPlants.clearAround(level, pos);
+    }
+
+    /**
+     * 押されたボタン・踏まれた感圧板は「戻るか確かめる」予定の tick を持つ。予定は<b>元のブロックの種類</b>に付いているので、
+     * 覆われた版へ置き換えると消え、押されたまま固まる(感圧板は信号が 0 のときしか乗っているものを確かめ直さない ——
+     * 扉が開きっぱなしになる)。覆われた版にも予定を入れ直す(2026-10-05。ハサミで元へ戻すときも同じ —— {@link CoveredBlocks#carryScheduledTick})。
+     */
+    private static void carryScheduledTick(LevelAccessor level, BlockPos pos, BlockState previous, BlockState corrupted) {
+        if (CoveredBlocks.vanillaOf(corrupted.getBlock()) != null) {
+            CoveredBlocks.carryScheduledTick(level, pos, previous, corrupted);
+        }
     }
 
     /**
@@ -465,10 +580,10 @@ public final class CorruptionRegistry {
         }
 
         int flags = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS | Block.UPDATE_KNOWN_SHAPE;
-        BlockState air = Blocks.AIR.defaultBlockState();
         for (int y = topY; y >= bottomY; y--) {
             cursor.set(origin.getX(), y, origin.getZ());
-            level.setBlock(cursor, air, flags);
+            // 水に浸かった大きなドリップリーフは水に戻す(2026-10-16。竹・ツタは水を持たないので空気)。
+            level.setBlock(cursor, level.getBlockState(cursor).getFluidState().createLegacyBlock(), flags);
         }
     }
 
@@ -479,9 +594,38 @@ public final class CorruptionRegistry {
     }
 
     /**
+     * そのバニラのブロックは<b>前から専用の過繁茂ブロック</b>を持つか —— 個別指定の行き先が {@code overgrown_<同じ名前>}
+     * (石 → overgrown_stone など)。持つものは覆われたブロックにせず、今までどおりそちらへ({@link #COVERED})。
+     * 磨いた花崗岩 → overgrown_granite のような「似たものへまとめた」行き先は専用ではない。
+     */
+    private static boolean hasOwnOvergrownForm(Map<Block, Block> exact, Block vanilla) {
+        Block target = exact.get(vanilla);
+        return target != null && BuiltInRegistries.BLOCK.getKey(target).getPath()
+                .equals("overgrown_" + BuiltInRegistries.BLOCK.getKey(vanilla).getPath());
+    }
+
+    /**
      * このブロックを汚染してよいか。
      */
     public static boolean canCorrupt(LevelReader level, BlockPos pos, BlockState state) {
+        return canCorrupt(level, pos, state, true);
+    }
+
+    /**
+     * {@link #canCorrupt(LevelReader, BlockPos, BlockState)} の、<b>最後の胞子除去装置の判定を省ける</b>版
+     * (2026-09-24 軽量化、報告 1472)。
+     *
+     * <p>{@code checkDevices} を false にしてよいのは、呼ぶ側がチャンクの先頭で
+     * {@link SporeDeviceData#mayInhibitBlocksIn} を聞いて false だったとき(そのチャンクのどのブロックでも
+     * 阻害率がちょうど 0 = 装置の判定は乱数を引かずに false を返す)だけ。結果も乱数の引き方も元と同じになる。
+     * 深部の一括置換は 1 チャンクで数千回ここを通り、装置の判定が毎回 SavedData の表を引いていた。
+     * 攻城戦の部品ブロックの「本体に従う」判定は、本体が別のチャンクにあることがあるので常に装置まで見る。
+     */
+    public static boolean canCorrupt(LevelReader level, BlockPos pos, BlockState state, boolean checkDevices) {
+        if (level instanceof ServerLevel && CorruptionSwitch.isOff()) {
+            // /ov corruption false(2026-10-10 ユーザー指定): どの経路の汚染も入らない。世界生成(WorldGenRegion)は止めない。
+            return false;
+        }
         if (state.isAir()) {
             return false;
         }
@@ -490,8 +634,9 @@ public final class CorruptionRegistry {
             // 流れている溶岩(source でない = LEVEL > 0)は対象外——固めると流れの途中に穴が空いた
             // まま残り不自然なので、源泉が固まって流れが自然に消えるのに任せる。
             // 水その他の液体は常に汚染対象外。
+            // 2026-10-02 ユーザー指定: 流れている溶岩に汚染が来たら、その流れの源泉を固める(LavaSolidifier)。
+            // 流れている溶岩そのものは置き換えないので、ここは通して corrupt() の側で源泉を辿る。
             return state.is(Blocks.LAVA)
-                    && state.getFluidState().isSource()
                     && OvergrownVegetationConfig.COMMON.convertLavaToBasalt.get();
         }
         if (state.getFluidState().is(FluidTags.WATER) && !state.isCollisionShapeFullBlock(level, pos)) {
@@ -503,6 +648,14 @@ public final class CorruptionRegistry {
             return false;
         }
         if (state.is(ModTags.CORRUPTED) || state.is(ModTags.CORRUPTION_IMMUNE)) {
+            return false;
+        }
+        if (level instanceof ServerLevel serverLevel && com.yayuy.overgrownvegetation.purify.BurntLand.isBurnt(serverLevel, pos)) {
+            // 焼けた荒地(順 2 の着手順 9): 焼けている間はどの経路の汚染も入らない(ユーザー指定 2026-10-08)。全汚染経路の共通の関門。
+            return false;
+        }
+        if (level instanceof ServerLevel serverLevel && com.yayuy.overgrownvegetation.defense.StakeWards.blocks(serverLevel, pos)) {
+            // 受け流しの杭で囲った四角の中(2026-10-16、ユーザー指定)。止めた数で杭がすり減る。
             return false;
         }
         if (state.getBlock() instanceof SiegeStructurePartBlock) {
@@ -534,13 +687,22 @@ public final class CorruptionRegistry {
             return false;
         }
         if (state.is(ModBlocks.GUN_TURRET.get())) {
-            // 機関砲台(2026-09-21)は BlockEntity を持つが、汚染されても<b>テクスチャが変わるだけ</b>で
-            // 壊れも止まりもしない(ユーザー指定)。既に覆われていればもう何もしない。
-            return !state.getValue(com.yayuy.overgrownvegetation.block.GunTurretBlock.OVERGROWN);
+            // 機関砲台(2026-09-21)は BlockEntity を持つが、普通のブロックと同じように汚染される
+            // (覆われると止まる。ユーザー指定)。既に覆われていればもう何もしない。
+            if (state.getValue(com.yayuy.overgrownvegetation.block.GunTurretBlock.OVERGROWN)) {
+                return false;
+            }
+            // 稼働中の胞子除去装置の圏内なら覆われない(ユーザー指定 2026-09-26)。
+            // 下の共通の関門は<b>縁では 10% しか止めない</b>確率判定なので、ここで「圏内なら必ず守る」を先に通す
+            // —— 砲台は覆われると止まってしまうので、縁で付いたり消えたりされると守りの計算が立たない。
+            return !(checkDevices && level instanceof ServerLevel serverLevel
+                    && SporeDeviceData.protectsFromCorruption(serverLevel, pos));
         }
         if (state.hasBlockEntity() && !OvergrownVegetationConfig.COMMON.corruptBlockEntities.get()
                 && !OvergrownContainers.isConvertibleContainer(state)
-                && !OvergrownHuskBlock.canEncase(state)) {
+                && !OvergrownHuskBlock.canEncase(state)
+                && !SpawnerCorruption.isSpawner(state)) {
+            // スポナー・試練のスポナーは覆って湧く Mob を寄生体に替える(2026-10-09、ユーザー指定。SpawnerCorruption)。
             // チェスト・樽だけは corruptBlockEntities が false でも「過繫茂したチェスト/樽」へ中身を保ったまま
             // 変換できる(OvergrownContainers)。それ以外の BlockEntity は従来どおり設定に従う。
             //
@@ -550,7 +712,7 @@ public final class CorruptionRegistry {
             // 機能だけ止めるので、専用の設定(climax.json の overgrownLayer.encaseBlockEntities)で切り替える。
             return false;
         }
-        if (level instanceof ServerLevel serverLevel
+        if (checkDevices && level instanceof ServerLevel serverLevel
                 && SporeDeviceData.inhibits(serverLevel, pos, SporeDeviceData.Inhibit.CORRUPTION)) {
             // 稼働中の胞子除去装置の効果範囲内。装置のチャンク(変化量 100%)では汚染は完全に止まり、
             // 末端(10%)では 10% の確率で汚染が不発になる。ここは全汚染経路の共通の関門なので 1 か所で済む。
@@ -579,25 +741,57 @@ public final class CorruptionRegistry {
      * 湿地・菌湿地帯の地面は泥、というルール。
      */
     public static BlockState corrupt(ServerLevel level, BlockPos pos, BlockState state, RandomSource random) {
+        if (CorruptionSwitch.isOff()) {
+            // /ov corruption false(2026-10-10 ユーザー指定): 置き換え・苔の記録・スポナー・ポータル・溶岩・倒木の積み込みを全部止める。
+            return state;
+        }
         init();
-        // チェスト・樽・ドア・機関砲台・竹・積もった雪は対応表より先に決まる。
+        // エンドポータルの枠の隣が汚染されたら、森がエンドへ渡る(2026-10-02。枠そのものは免疫なので隣で気付く)。
+        PortalCorruption.noticeEndFrame(level, pos, state);
+        if (MeltedIce.isIce(state)) {
+            // 氷は覆わずに溶かす(水に接していれば水、なければ空気。2026-10-16 ユーザー指定「汚染地域に氷が残ってしまう」)。
+            // 以前は対応表に無いので苔で覆って残し、凍った湖の上を苔が渡っていた。
+            return MeltedIce.stateAt(level, pos);
+        }
+        if (LavaSolidifier.isFlowingLava(state)) {
+            // 流れている溶岩は置き換えず、上流の源泉を玄武岩へ固める(流れはバニラの更新で消える。2026-10-02)。
+            LavaSolidifier.solidifySourcesOf(level, pos);
+            return state;
+        }
+        if (state.is(BlockTags.LOGS)) {
+            // 元の森の木を残さない(消滅 or 倒木)。環境ごとの有効/無効と確率は tick 側(SwampTreeFall)で判定する。
+            // 特別扱いより先に積む —— バニラの原木は 2026-10-05 夜から特別扱いで覆われた原木になり、下まで来ない
+            // (以前は対応表の後ろで積んでいた。そのままだと湿地で元の森の木が片付かなくなる)。
+            SwampTreeFall.enqueue(level, pos);
+        }
+        // チェスト・樽・ドア・機関砲台・竹・積もった雪・覆われた版のあるブロックは対応表より先に決まる。
         // ここを飛ばすと、下の「対応表に無いブロック」がそれらを横取りしてしまう。
-        BlockState special = specialCorrupt(state);
+        // 覆われた版の代わりに過繁茂ブロック・過繁茂した木材にする抽選は、対応表に無い立方体と同じ座標のハッシュ(OvergrownLayerField)で引く。
+        BlockState special = specialCorrupt(state, () -> OvergrownLayerField.roll(pos));
         if (special != null) {
             return special;
         }
-        if (hasNoCorruptedForm(state)) {
+        // 対応表を引くのは 1 回だけにする(2026-09-24 軽量化、報告 1472)。以前は hasNoCorruptedForm と
+        // corrupt(state, random) がそれぞれ resolveTarget を呼び、EXACT に無いブロックでは TAG_RULES を 2 回舐めていた。
+        // resolveTarget はブロックとタグしか見ないので、先に引いた答えを渡しても結果も乱数の引き方も同じ。
+        Block target = resolveTarget(state);
+        if (target == null) {
             // 対応表に無いブロック(= 他 MOD のブロックと、バニラでも対応表に載せていないもの)。
             // randomBlockChance(どんなブロックでも 5% で汎用の汚染ブロックになる)より<b>先に</b>決める ——
             // 後にすると、形のあるブロックや中身を持つ機械が汎用ブロックに化けて消える。
+            if (PortalCorruption.interceptNetherFrame(level, pos, state)) {
+                // 火の付いたネザーポータルの枠(2026-10-02)。汎用の汚染ブロックへ置き換えるとポータルが消えるので、
+                // 抽選に掛けず必ず覆うだけにする。向こう側への侵食は PortalCorruption が tick の終わりに起こす。
+                if (OvergrownLayerData.canCover(state)) {
+                    OvergrownLayerData.cover(level, pos);
+                }
+                return state;
+            }
             return corruptUnmapped(level, pos, state);
         }
-        BlockState result = corrupt(state, random);
-        if (state.is(BlockTags.LOGS)) {
-            // 元の森の木を残さない(消滅 or 倒木)。環境ごとの有効/無効と確率は tick 側(SwampTreeFall)で判定する。
-            SwampTreeFall.enqueue(level, pos);
-        }
+        BlockState result = corruptMapped(state, random, target);
         if ((result.is(ModBlocks.OVERGROWN_DIRT.get()) || result.is(ModBlocks.OVERGROWN_GRASS_BLOCK.get()))
+                && level.dimension() == net.minecraft.world.level.Level.OVERWORLD
                 && OvergrowthRegionMap.isSwampAtBlended(level, pos.getX(), pos.getZ(), 2)) {
             return ModBlocks.OVERGROWN_MUD.get().defaultBlockState();
         }
@@ -627,6 +821,11 @@ public final class CorruptionRegistry {
      * 呼び出し元は既存の {@link #noChange} で素通りする。
      */
     private static BlockState corruptUnmapped(ServerLevel level, BlockPos pos, BlockState state) {
+        if (SpawnerCorruption.isSpawner(state)) {
+            // スポナー・試練のスポナーは置き換えず覆う。覆った瞬間に湧く Mob が寄生体に替わる(2026-10-09、SpawnerCorruption)。
+            OvergrownLayerData.cover(level, pos);
+            return state;
+        }
         if (state.hasBlockEntity()) {
             // 自分で動くもの(他 MOD の機械・かまどなど)は差し替えて完全に止める。抽選はしない ——
             // 外れたぶんを汎用ブロックに潰すと中のアイテムごと消える。
@@ -634,9 +833,18 @@ public final class CorruptionRegistry {
                     ? ModBlocks.OVERGROWN_HUSK.get().defaultBlockState()
                     : state;
         }
-        if (!OvergrownLayerField.covered(level, pos, state, DesignData.climax().overgrownLayerChance())) {
+        double chance = DesignData.climax().overgrownLayerChance();
+        if (!OvergrownLayerField.covered(level, pos, state, chance)) {
             // 立方体が抽選に外れた。壁が一面まるごと同じ苔柄になるのを防ぐための混ざり。
             return ModBlocks.OVERGROWN_BLOCK.get().defaultBlockState();
+        }
+        if (!OvergrownLayerField.covered(pos, chance)) {
+            // 形のあるもの(対応表に無い他 MOD のハーフなど)も、同じ抽選に外れたら同じ形の過繁茂ブロック
+            // (覆われた版と同じ規則、2026-10-05 夜。同じ形が無いものは下で覆う)。
+            BlockState counterpart = overgrownCounterpart(state);
+            if (counterpart != null) {
+                return counterpart;
+            }
         }
         // 覆われた。<b>ブロックは置き換えず</b>、覆ったことだけを記録する ——
         // 見た目の苔も右クリックの抑止もこの記録を見て動く(OvergrownLayerData)。
@@ -660,12 +868,27 @@ public final class CorruptionRegistry {
      * 位置付きの方は「対応表に無いブロック」を先に横取りするので、ここを通さないと
      * <b>チェスト・樽・機関砲台・竹・積もった雪が全部まとめて横取りされる</b>
      * (実際に一度やって 6 本のテストが落ちた)。
+     *
+     * @param roll 覆われた版の代わりに過繁茂ブロック・過繁茂した木材にするかの抽選の値([0, 1))。覆われた版のあるブロックで、
+     *             代わりのブロックがあるときだけ引く(位置付きは座標のハッシュ {@link OvergrownLayerField#roll}、位置無しは乱数)
      */
     @Nullable
-    private static BlockState specialCorrupt(BlockState state) {
+    private static BlockState specialCorrupt(BlockState state, java.util.function.DoubleSupplier roll) {
+        if (state.is(Blocks.LAVA)) {
+            // 固めた溶岩は、玄武岩を汚染したときと同じ行き先(覆われた玄武岩、3 割は過繁茂しているブロック)。2026-10-05 夜、ユーザー指定
+            // 「溶岩を玄武岩に変換した後、さらに玄武岩も汚染するように(玄武岩に植物が生えていて違和感)」。以前は素の玄武岩で止めていた。
+            // ここへ来るのは源泉だけ(流れている溶岩は corrupt() の頭で上流の源泉を固めに行く)。
+            state = Blocks.BASALT.defaultBlockState();
+        }
         if (corruptsToAir(state)) {
             // 積もった雪・竹は汚染しても何にもならず、ただ消える(空気になる)だけ(要望)。
             return Blocks.AIR.defaultBlockState();
+        }
+        // 松明は覆われると火が消える(光らない別のブロックへ。2026-10-05 ユーザー要望)。ほかの光源は覆って 4 割の明るさ
+        // (covered/CoveredLight)。覆う側(corruptUnmapped)より先に決めないと、松明が苔を被ったまま光り続ける。
+        BlockState extinguished = com.yayuy.overgrownvegetation.covered.ExtinguishedTorchBlock.extinguishedStateFor(state);
+        if (extinguished != null) {
+            return extinguished;
         }
         if (state.is(ModBlocks.GUN_TURRET.get())) {
             // 機関砲台は別のブロックにならず、テクスチャだけが「過繫茂した機関砲台」に変わる
@@ -673,20 +896,139 @@ public final class CorruptionRegistry {
             // BlockEntity は生き残る。
             return state.setValue(com.yayuy.overgrownvegetation.block.GunTurretBlock.OVERGROWN, true);
         }
-        // 木のドア・チェスト・樽は専用の過繫茂ブロックへ(向き・開閉状態を引き継ぐ)。
+        // 覆われた版のあるバニラのブロックは、その版へ(向き・形・開閉・水没などを引き継ぐ。2026-10-05 夜、ユーザー指定)。
+        // ただし 3 割(対応表に無い立方体と同じ overgrownLayer.chance の外れ)は同じ形の過繁茂ブロックへ(同じく夜、ユーザー指定
+        // 「すべてのブロックで 3 割で過繁茂しているブロックに」→ 形のあるものは同じ形で)。同じ形が無いもの(扉・ボタンなど)は必ず覆われた版。
+        // randomBlockChance(何でも 5% で汎用ブロック)には掛けない —— 扉や階段が立方体に化けると形が消える。
+        // 手で動かすもの(扉・ボタンなど)は覆われ具合が最大で来る。
+        // 木材(板材・木の階段・ハーフ・フェンス・原木・木)は先に半分を過繁茂した木材へ(同じく夜 3、ユーザー指定「木材の場合は 50% で
+        // 過繁茂した板材系に。木材の建物は過繁茂しているブロック・過繁茂した木材・覆われた木材が混ざった感じに」)。残りの半分は今までどおり
+        // 3:7 で過繁茂ブロックと覆われた版 —— 合わせて過繁茂した木材 5:過繁茂ブロック 1.5:覆われた版 3.5(割合はユーザーが選んだ)。
+        Block covered = COVERED.get(state.getBlock());
+        if (covered != null) {
+            BlockState wood = overgrownWoodCounterpart(state);
+            BlockState counterpart = overgrownCounterpart(state);
+            if (wood != null || counterpart != null) {
+                double u = roll.getAsDouble();
+                if (wood != null) {
+                    if (u < WOOD_SHARE) {
+                        return wood;
+                    }
+                    u = (u - WOOD_SHARE) / (1.0D - WOOD_SHARE);
+                }
+                if (counterpart != null && u >= DesignData.climax().overgrownLayerChance()) {
+                    return counterpart;
+                }
+            }
+            return copyMatchingProperties(state, covered.defaultBlockState());
+        }
+        // チェスト・樽は専用の過繫茂ブロックへ(向き・開閉状態を引き継ぐ)。木のドアはバニラなら上で覆われた扉になるので、
+        // ここへ来るのは他 MOD の木のドアだけ(覆われた版が無いので過繫茂したドアへ)。
         return OvergrownContainers.corruptedStateFor(state);
     }
+
+    /**
+     * 覆われた版の代わりに置く<b>同じ形の過繁茂ブロック</b>(2026-10-05 夜、ユーザー指定)。立方体 → 過繁茂しているブロック、
+     * ハーフ → そのハーフ、階段 → 過繁茂した石階段、塀 → 過繁茂した塀(この 3 つは過繁茂しているブロックと同じ見た目)、
+     * フェンス → 過繁茂したフェンス。向き・形・水没は引き継ぐ。同じ形の無いもの(扉・トラップドア・フェンスゲート・ボタン・
+     * レバー・感圧板・鉄格子・鎖)は {@code null}。立方体かどうかは対応表に無い立方体の抽選と同じ当たり判定で見る。
+     */
+    @Nullable
+    private static BlockState overgrownCounterpart(BlockState state) {
+        Block block = state.getBlock();
+        Block target;
+        if (block instanceof SlabBlock) {
+            target = ModBlocks.OVERGROWN_BLOCK_SLAB.get();
+        } else if (block instanceof StairBlock) {
+            target = ModBlocks.OVERGROWN_STONE_STAIRS.get();
+        } else if (block instanceof WallBlock) {
+            target = ModBlocks.OVERGROWN_WALL.get();
+        } else if (block instanceof FenceBlock) {
+            target = ModBlocks.OVERGROWN_FENCE.get();
+        } else if (OvergrownLayerField.isPlainCube(state)) {
+            return genericBlockFor(state);
+        } else {
+            return null;
+        }
+        return copyMatchingProperties(state, target.defaultBlockState());
+    }
+
+    /**
+     * 汎用の「過繁茂しているブロック」。<b>原木から化けるときは見た目が同じで {@code #logs} に入った版</b>
+     * ({@code covered/OvergrownTrunkBlock}、2026-10-05 夜、ユーザー報告「木が過繁茂しているブロックになって、倒木や木を消すときに空中に残る」)
+     * —— 普通の過繁茂しているブロックだと、木を片付ける処理(SwampTreeFall)が原木の繋がりをそこで見失い、幹の途中と上が宙に残っていた。
+     */
+    private static BlockState genericBlockFor(BlockState state) {
+        return (state.is(BlockTags.LOGS) ? CoveredBlocks.OVERGROWN_TRUNK_BLOCK.get() : ModBlocks.OVERGROWN_BLOCK.get())
+                .defaultBlockState();
+    }
+
+    /**
+     * 木材が覆われた版の代わりに過繁茂した木材になる割合(2026-10-05 夜 3、ユーザー指定「木材の場合は 50% で過繁茂した板材系に」)。
+     * 残りは {@code overgrownLayer.chance} で覆われた版と過繁茂ブロックに分ける(ユーザーが選んだ「過繁茂した木材 5:過繁茂ブロック 1.5:覆われた版 3.5」)。
+     */
+    private static final double WOOD_SHARE = 0.5D;
+
+    /**
+     * 木材の覆われた版の代わりに置く<b>過繁茂した木材</b>(2026-10-05 夜 3、ユーザー指定)。板材 → 過繁茂している板材、木の階段 → 過繁茂した階段、
+     * 木のハーフ → 過繁茂したハーフブロック、木のフェンス → 過繁茂したフェンス、原木・樹皮を剥いだ原木・幹 → 過繁茂している原木、
+     * 木・樹皮を剥いだ木・菌糸 → 過繁茂している木(原木・木を混ぜるのもユーザーが選んだ。元の森の幹も入る)。向き・形・水没は引き継ぐ。
+     * 扉は入れない(ユーザーが選ばなかった。木の扉は必ず覆われた扉)。トラップドア・フェンスゲート・ボタン・感圧板・竹ブロックも入れない。
+     * 木材かどうかはバニラのタグで見る({@code #planks}・{@code #wooden_stairs}・{@code #wooden_slabs}・{@code #wooden_fences}・{@code #logs})。
+     */
+    @Nullable
+    private static BlockState overgrownWoodCounterpart(BlockState state) {
+        Block target;
+        if (state.is(BlockTags.PLANKS)) {
+            target = ModBlocks.OVERGROWN_PLANKS.get();
+        } else if (state.is(BlockTags.WOODEN_STAIRS)) {
+            target = ModBlocks.OVERGROWN_STAIRS.get();
+        } else if (state.is(BlockTags.WOODEN_SLABS)) {
+            target = ModBlocks.OVERGROWN_SLAB.get();
+        } else if (state.is(BlockTags.WOODEN_FENCES)) {
+            target = ModBlocks.OVERGROWN_FENCE.get();
+        } else if (state.is(BlockTags.LOGS)) {
+            String path = BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
+            target = path.endsWith("_wood") || path.endsWith("_hyphae")
+                    ? ModBlocks.OVERGROWN_WOOD.get() : ModBlocks.OVERGROWN_LOG.get();
+        } else {
+            return null;
+        }
+        return copyMatchingProperties(state, target.defaultBlockState());
+    }
+
+    /**
+     * 汚染が固めた溶岩の源泉の行き先(上流の源泉を固める {@link LavaSolidifier} から)。源泉に直接汚染が来たときと同じ ——
+     * 覆われた玄武岩、3 割は過繁茂しているブロック(座標で決まる)。2026-10-05 夜。
+     */
+    public static BlockState solidifiedLava(BlockPos pos) {
+        init();
+        BlockState result = specialCorrupt(Blocks.LAVA.defaultBlockState(), () -> OvergrownLayerField.roll(pos));
+        return result != null ? result : Blocks.BASALT.defaultBlockState();
+    }
+
     public static BlockState corrupt(BlockState state, RandomSource random) {
         init();
 
-        BlockState special = specialCorrupt(state);
+        BlockState special = specialCorrupt(state, random::nextDouble);
         if (special != null) {
             return special;
         }
+        return corruptMapped(state, random, null);
+    }
 
+    /**
+     * {@link #corrupt(BlockState, RandomSource)} の特別扱いより後ろ(2026-09-24 に切り出した。中身と乱数を引く順番
+     * —— randomBlockChance → 蔦 → stoneToGrassChance —— は元のまま)。
+     *
+     * @param resolved 呼ぶ側が既に {@link #resolveTarget} で引いた変換先。{@code null} ならここで引く
+     *                 (対応表に無いブロックの {@code null} を渡したいときは、この経路を通らないこと)
+     */
+    private static BlockState corruptMapped(BlockState state, RandomSource random, @Nullable Block resolved) {
         double randomBlockChance = OvergrownVegetationConfig.COMMON.randomBlockChance.get();
         if (randomBlockChance > 0.0D && random.nextDouble() < randomBlockChance) {
-            return copyMatchingProperties(state, ModBlocks.OVERGROWN_BLOCK.get().defaultBlockState());
+            // 他 MOD の原木などは木の一部として片付くよう #logs の版(genericBlockFor)。
+            return genericBlockFor(state);
         }
 
         if (state.getBlock() instanceof VineBlock) {
@@ -698,7 +1040,7 @@ public final class CorruptionRegistry {
             // このあとの通常の変換処理(EXACT の Blocks.VINE → growth)に任せる。
         }
 
-        Block target = resolveTarget(state);
+        Block target = resolved != null ? resolved : resolveTarget(state);
         if (target == null) {
             // 対応表に無いブロック。置き換えずにその場へ残す —— 呼び出し元は noChange() で
             // 素通りする(2026-09-22)。覆う側は corruptUnmapped。

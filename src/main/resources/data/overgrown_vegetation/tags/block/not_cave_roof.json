@@ -15,6 +15,11 @@
     "overgrown_vegetation:giant_overgrown_cambium",
     "overgrown_vegetation:hardened_giant_trunk",    "overgrown_vegetation:chlorophyllite_ore",
     "overgrown_vegetation:hardened_sap_crystal_ore",
+"overgrown_vegetation:phloemite_ore",
+    "overgrown_vegetation:deepslate_phloemite_ore",
+    "overgrown_vegetation:thylakite_ore",
+    "overgrown_vegetation:deepslate_thylakite_ore",
+    "overgrown_vegetation:energy_crystal",
     "overgrown_vegetation:fungal_pillar",
     "overgrown_vegetation:fungal_cap",
     "overgrown_vegetation:glowing_mycelium"

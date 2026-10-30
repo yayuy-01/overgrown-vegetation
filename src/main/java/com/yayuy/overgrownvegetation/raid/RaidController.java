@@ -25,9 +25,14 @@ public final class RaidController {
      * レイドを1つ開始しようとする。
      *
      * @param forcedOrigin 出現座標を指定する(コマンド用)。{@code null} なら {@link RaidLocationPicker} で抽選。
-     * @return 実際に開始できたら true。適地が無い / エンティティ生成に失敗した場合は false。
+     * @return 実際に開始できたら true。難易度がピースフル / 適地が無い / エンティティ生成に失敗した場合は false。
      */
     public static boolean tryStartRaid(ServerLevel overworld, @Nullable BlockPos forcedOrigin) {
+        if (com.yayuy.overgrownvegetation.difficulty.Peaceful.is(overworld)) {
+            // ピースフルでは始めない(difficulty/Peaceful。2026-09-26)。昇格レイドは lastRaidPhase が進まないので、
+            // ピースフルを抜けてから RaidData#tick が起こす。
+            return false;
+        }
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
 
         BlockPos origin = forcedOrigin != null
@@ -37,8 +42,9 @@ public final class RaidController {
             return false;
         }
 
-        // 先に苗床の周囲を強制ロードしておく(生成直後から汚染が周辺チャンクへ広がれるように)。
-        long[] forcedChunks = RaidChunkLoader.force(overworld, origin, cfg.raidForceLoadRadius.get());
+        // 先に苗床の周囲を強制ロードしておく(誰も居なくても苗床が止まらないように)。
+        // 2026-09-25(報告 1097): 同期で読み込むのは苗床を置く中心のチャンクだけ。残りは印だけ付けて裏で読み込む。
+        long[] forcedChunks = RaidChunkLoader.forceLoadingCenter(overworld, origin, cfg.raidForceLoadRadius.get());
 
         EntityType<OvergrownNexusEntity> type = ModEntities.OVERGROWN_NEXUS.get();
         OvergrownNexusEntity nexus = type.create(overworld, null, origin, MobSpawnType.EVENT, false, false);

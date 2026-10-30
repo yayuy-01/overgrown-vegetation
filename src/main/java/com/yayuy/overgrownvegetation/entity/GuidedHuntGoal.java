@@ -2,16 +2,21 @@ package com.yayuy.overgrownvegetation.entity;
 
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.phase.MobGroup;
+import com.yayuy.overgrownvegetation.swarm.SwarmMember;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 
 /**
  * <b>「フィロセンスの誘導」を受けた Mob が、「視線」を持つプレイヤーへ向かう</b> Goal
@@ -52,7 +57,10 @@ public class GuidedHuntGoal extends Goal {
     private static final double RALLY_TIGHTNESS = 10.0D;
     /** ここまで近づいたら合流を待たずに標的として掴む(通常の戦闘 Goal へ引き継ぐ)。 */
     private static final double ENGAGE_DISTANCE = 20.0D;
-    /** 経路を引き直す間隔(tick)。相手は動くので追従し続ける。 */
+    /**
+     * 経路を引き直す間隔。相手は動くので追従し続ける。単位は {@link #tick()} の呼び出し回数 —— この Goal は毎 tick 更新を
+     * 求めないので tick() は 2 game tick に 1 回、実時間では約 40 game tick。個体ごとに ±2 ずらして使う(2026-09-24、報告 299)。
+     */
     private static final int REPATH_INTERVAL = 20;
     /** 経路探索が届く距離の目安。これより遠いときは「その方向のこのくらい先」を目指す。 */
     private static final double WAYPOINT_STEP = 24.0D;
@@ -61,6 +69,10 @@ public class GuidedHuntGoal extends Goal {
     private final double speedModifier;
 
     private Player quarry;
+    /**
+     * 合流を待った長さ。単位は {@link #tick()} の呼び出し回数(= 2 game tick)なので、{@code phyllosensRallyMaxTicks}
+     * の 200 は実時間では約 400 game tick(コメントだけの補足 2026-09-24、報告 299。値は変えていない)。
+     */
     private int rallyTicks;
     private int repathTimer;
 
@@ -76,6 +88,11 @@ public class GuidedHuntGoal extends Goal {
             return false;
         }
         if (!PhyllosensInfluence.isGuided(this.mob)) {
+            return false;
+        }
+        // G4 の群れの一員は動かない(群れ v2、2026-09-25)。視線持ちのプレイヤーは群れの司令塔が「距離を問わず優先」で追う
+        // (ユーザー指定「視線持ちのプレイヤー優先」はそちらで守る)。1 体ずつ歩き出すと群れの隊列が崩れる。
+        if (SwarmMember.isInSwarm(this.mob)) {
             return false;
         }
         if (busyWithOwnAction()) {
@@ -113,7 +130,8 @@ public class GuidedHuntGoal extends Goal {
             // 誘導か視線が切れた = もう知らない。今までどおりの行動へ戻る。
             return false;
         }
-        return !busyWithOwnAction();
+        // 途中で群れに入った(召喚・残党の合流など)。群れの司令塔に任せる。
+        return !busyWithOwnAction() && !SwarmMember.isInSwarm(this.mob);
     }
 
     /**
@@ -128,7 +146,10 @@ public class GuidedHuntGoal extends Goal {
     @Override
     public void start() {
         this.rallyTicks = 0;
-        this.repathTimer = 0;
+        // 最初の引き直しを個体ごとに 1〜4 回目の tick() へ散らす(2026-09-24 軽量化、報告 299)。
+        // 誘導は PhyllosensInfluence#guideAllies が範囲の味方へ同じ tick に配るので、0 のままだと
+        // 全員が同じ tick に経路探索と味方の走査を始め、その後も同じ位相で揃い続けていた。遅れは最大 8 game tick。
+        this.repathTimer = 1 + Math.floorMod(this.mob.getId(), 4);
     }
 
     @Override
@@ -155,7 +176,8 @@ public class GuidedHuntGoal extends Goal {
         }
 
         if (--this.repathTimer <= 0) {
-            this.repathTimer = REPATH_INTERVAL;
+            // 間隔も個体ごとに ±2 ずらし、揃った位相が自然にほどけるようにする(2026-09-24 軽量化、報告 299)。
+            this.repathTimer = REPATH_INTERVAL - 2 + Math.floorMod(this.mob.getId(), 5);
             // 行き先を決めるのは経路を引き直すこの tick だけ。以前はここより手前で毎 tick
             // 味方を数えていたが、その結果は経路を引くときにしか使わないので無駄だった
             // ({@link #rallyDestination} の javadoc 参照)。
@@ -177,7 +199,12 @@ public class GuidedHuntGoal extends Goal {
         if (distance > WAYPOINT_STEP) {
             goal = here.add(delta.scale(WAYPOINT_STEP / distance));
         }
-        if (!this.mob.getNavigation().moveTo(goal.x, goal.y, goal.z, this.speedModifier)) {
+        // 中継点へ引けなければ目的地へ引き直す。ただし目的地が近くて中継点 = 目的地のときは、同じ tick・同じ位置から
+        // まったく同じ探索をもう 1 回するだけなので呼ばない(2026-09-24 軽量化、報告 792)。バニラ系のナビでは
+        // 2 回目の結果もナビの状態も 1 回目と同じ。拡大種のナビ(InvaderNavigation)だけは失敗を数えるので呼び続ける
+        // —— そちらはナビの中の控えが同じ探索を省いて、失敗だけ同じように数える。
+        if (!this.mob.getNavigation().moveTo(goal.x, goal.y, goal.z, this.speedModifier)
+                && (goal != destination || this.mob instanceof AbstractOvergrownInvaderEntity)) {
             // そちらへは経路が引けなかった。次の引き直しでまた試す(地形が変わることもある)。
             this.mob.getNavigation().moveTo(destination.x, destination.y, destination.z, this.speedModifier);
         }
@@ -195,7 +222,7 @@ public class GuidedHuntGoal extends Goal {
      * 群れが動き出した瞬間に「頭数 × 毎 tick 2 回」の走査がサーバーに乗る。
      *
      * <p>いまは走査 1 回で頭数と重心を同時に求め、しかも<b>経路を引き直す tick
-     * ({@value #REPATH_INTERVAL} tick に 1 回)にしか呼ばない</b>。行き先はそもそも
+     * ({@link #tick()} の {@value #REPATH_INTERVAL} 回前後に 1 回 = 実時間で約 40 game tick)にしか呼ばない</b>。行き先はそもそも
      * その tick でしか使わないので、合流の挙動は以前とまったく同じまま、走査の回数だけが
      * 20〜40 分の 1 になる。
      */
@@ -211,14 +238,19 @@ public class GuidedHuntGoal extends Goal {
         }
 
         AABB box = this.mob.getBoundingBox().inflate(RALLY_SCAN);
+        // 味方だけを、必要数に届いた時点で打ち切って集める(2026-09-24 軽量化、報告 781)。
+        // 条件は元の getEntitiesOfClass(観戦者を除く)+ 下の足切りと同じで、並びも同じ。届いたら null を返すだけなので
+        // 数え切らなくてよい。届かなければ打ち切りは起きず全員が入るので、重心も元と同じ順で足した同じ値になる。
+        List<LivingEntity> allies = new ArrayList<>();
+        this.mob.level().getEntities(EntityTypeTest.forClass(LivingEntity.class), box,
+                entity -> EntitySelector.NO_SPECTATORS.test(entity)
+                        && entity != this.mob && entity.isAlive() && MobGroup.of(entity) != null,
+                allies, needed);
         int count = 0;
         double x = 0.0D;
         double y = 0.0D;
         double z = 0.0D;
-        for (LivingEntity entity : this.mob.level().getEntitiesOfClass(LivingEntity.class, box)) {
-            if (entity == this.mob || !entity.isAlive() || MobGroup.of(entity) == null) {
-                continue;
-            }
+        for (LivingEntity entity : allies) {
             count++;
             x += entity.getX();
             y += entity.getY();

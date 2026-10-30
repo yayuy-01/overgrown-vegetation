@@ -17,14 +17,14 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 /**
- * 胞子装置({@link SporeDeviceBlockEntity})の GUI。燃料スロット(レッドストーンダスト)と「胞子」スロット
- * (除去装置 = 取り出し口、拡散装置 = 投入口)+ プレイヤーインベントリ。稼働の残り時間と産出サイクルの
+ * 胞子装置({@link SporeDeviceBlockEntity})の GUI。電池の枠(地脈電池。2026-10-24 までレッドストーンダスト)と「胞子」スロット
+ * (除去装置 = 取り出し口、拡散装置 = 投入口)+ プレイヤーインベントリ。電池の残り(秒)と産出サイクルの
  * 進行は {@link ContainerData} で同期する。
  */
 public class SporeDeviceMenu extends AbstractContainerMenu {
 
-    public static final int FUEL_X = 56;
-    public static final int FUEL_Y = 35;
+    public static final int BATTERY_X = 56;
+    public static final int BATTERY_Y = 35;
     public static final int SPORE_X = 116;
     public static final int SPORE_Y = 35;
     /** 胞子フィルターのスロット(除去装置のみ使う)。 */
@@ -50,10 +50,15 @@ public class SporeDeviceMenu extends AbstractContainerMenu {
         this.data = data;
         this.kind = kind;
 
-        addSlot(new Slot(container, SporeDeviceBlockEntity.SLOT_FUEL, FUEL_X, FUEL_Y) {
+        addSlot(new Slot(container, SporeDeviceBlockEntity.SLOT_BATTERY, BATTERY_X, BATTERY_Y) {
             @Override
             public boolean mayPlace(ItemStack stack) {
-                return stack.is(Items.REDSTONE);
+                return stack.is(ModItems.BATTERY.get()) || stack.is(ModItems.EMPTY_BATTERY.get());
+            }
+
+            @Override
+            public int getMaxStackSize() {
+                return 1;
             }
         });
         addSlot(new Slot(container, SporeDeviceBlockEntity.SLOT_SPORE, SPORE_X, SPORE_Y) {
@@ -88,12 +93,19 @@ public class SporeDeviceMenu extends AbstractContainerMenu {
         return kind;
     }
 
-    public int remainingTicks() {
-        return data.get(SporeDeviceBlockEntity.DATA_REMAINING);
+    /** 電池の残り(秒)。 */
+    public int chargeSeconds() {
+        return data.get(SporeDeviceBlockEntity.DATA_CHARGE);
     }
 
-    public int ticksPerFuel() {
-        return data.get(SporeDeviceBlockEntity.DATA_TICKS_PER_FUEL);
+    /** 電池の満タン(秒)。 */
+    public int capacitySeconds() {
+        return data.get(SporeDeviceBlockEntity.DATA_CAPACITY);
+    }
+
+    /** 動いているか(電池・詰まり・フィルター・拡散装置の胞子を全部見た結果)。 */
+    public boolean running() {
+        return data.get(SporeDeviceBlockEntity.DATA_RUNNING) != 0;
     }
 
     public int cycleTicks() {
@@ -140,9 +152,9 @@ public class SporeDeviceMenu extends AbstractContainerMenu {
             }
         } else {
             // プレイヤーインベントリ → 装置(入る種類だけ)
-            if (stack.is(Items.REDSTONE)) {
-                if (!moveItemStackTo(stack, SporeDeviceBlockEntity.SLOT_FUEL,
-                        SporeDeviceBlockEntity.SLOT_FUEL + 1, false)) {
+            if (stack.is(ModItems.BATTERY.get()) || stack.is(ModItems.EMPTY_BATTERY.get())) {
+                if (!moveItemStackTo(stack, SporeDeviceBlockEntity.SLOT_BATTERY,
+                        SporeDeviceBlockEntity.SLOT_BATTERY + 1, false)) {
                     return ItemStack.EMPTY;
                 }
             } else if (kind == SporeDeviceKind.DIFFUSER && stack.is(ModItems.SPORE.get())) {

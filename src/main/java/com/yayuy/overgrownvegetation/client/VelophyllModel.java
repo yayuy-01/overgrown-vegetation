@@ -10,9 +10,13 @@ import net.minecraft.resources.ResourceLocation;
  */
 public class VelophyllModel extends LodGeoModel<VelophyllEntity> {
 
+    // 2026-09-24 軽量化(監査 1318): 描画のたびに ResourceLocation を作り直さないよう定数にする(中身は同じ)。
+    private static final ResourceLocation MODEL = OvergrownVegetation.id("geo/velophyll.geo.json");
+    private static final ResourceLocation ANIMATION = OvergrownVegetation.id("animations/velophyll.animation.json");
+
     @Override
     public ResourceLocation getModelResource(VelophyllEntity animatable) {
-        return OvergrownVegetation.id("geo/velophyll.geo.json");
+        return MODEL;
     }
 
     @Override
@@ -22,6 +26,6 @@ public class VelophyllModel extends LodGeoModel<VelophyllEntity> {
 
     @Override
     public ResourceLocation getAnimationResource(VelophyllEntity animatable) {
-        return OvergrownVegetation.id("animations/velophyll.animation.json");
+        return ANIMATION;
     }
 }

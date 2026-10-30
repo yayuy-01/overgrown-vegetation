@@ -44,10 +44,26 @@ public final class ModItems {
      * にして、手持ち/インベントリでもブロックと同じ立体モデルを描画する(平らなアイコンにしない)。
      */
     private static final Set<DeferredBlock<Block>> GEO_CORPSE_BLOCKS = Set.of(
+            ModBlocks.OVERGROWN_COW_CORPSE,
             ModBlocks.OVERGROWN_SHEEP_CORPSE,
             ModBlocks.OVERGROWN_PIG_CORPSE,
             ModBlocks.OVERGROWN_CREEPER_CORPSE,
-            ModBlocks.OVERGROWN_SPIDER_CORPSE);
+            ModBlocks.OVERGROWN_SPIDER_CORPSE,
+            ModBlocks.OVERGROWN_VILLAGER_CORPSE,
+            ModBlocks.OVERGROWN_ZOMBIE_CORPSE,
+            ModBlocks.OVERGROWN_BABY_ZOMBIE_CORPSE,
+            ModBlocks.OVERGROWN_SKELETON_CORPSE,
+            ModBlocks.OVERGROWN_ENDERMAN_CORPSE,
+            ModBlocks.OVERGROWN_CHICKEN_CORPSE,
+            ModBlocks.OVERGROWN_PIGLIN_CORPSE,
+            ModBlocks.OVERGROWN_PIGLIN_BRUTE_CORPSE,
+            ModBlocks.OVERGROWN_ZOMBIFIED_PIGLIN_CORPSE,
+            ModBlocks.OVERGROWN_WITHER_SKELETON_CORPSE,
+            ModBlocks.OVERGROWN_HOGLIN_CORPSE,
+            ModBlocks.OVERGROWN_ZOGLIN_CORPSE,
+            ModBlocks.OVERGROWN_STRIDER_CORPSE,
+            ModBlocks.OVERGROWN_IRON_GOLEM_CORPSE,
+            ModBlocks.OVERGROWN_WARDEN_CORPSE);
 
     static {
         // 全ての汚染ブロックに対応する BlockItem を自動登録する。
@@ -76,6 +92,18 @@ public final class ModItems {
             props -> new BlockItem(ModBlocks.RESEARCH_TABLE.get(), props),
             new Item.Properties());
 
+    /** 「パワードアーマー作成テーブル」の BlockItem(研究台と同じく個別登録)。 */
+    public static final DeferredItem<BlockItem> POWERED_ARMOR_TABLE_ITEM = ITEMS.registerItem(
+            "powered_armor_table",
+            props -> new BlockItem(ModBlocks.POWERED_ARMOR_TABLE.get(), props),
+            new Item.Properties());
+
+    /** 「因子の抽出設備」の BlockItem(順 1 の着手順 7)。 */
+    public static final DeferredItem<BlockItem> FACTOR_EXTRACTOR_ITEM = ITEMS.registerItem(
+            "factor_extractor",
+            props -> new BlockItem(ModBlocks.FACTOR_EXTRACTOR.get(), props),
+            new Item.Properties());
+
     /** 「ハイヴノード」のスポーンエッグ(テスト用。通常は巨大樹の生成で 1 体だけ湧く)。 */
     public static final DeferredItem<DeferredSpawnEggItem> HIVE_NODE_SPAWN_EGG = ITEMS.registerItem(
             "hive_node_spawn_egg",
@@ -88,12 +116,6 @@ public final class ModItems {
             props -> new DeferredSpawnEggItem(ModEntities.BLIGHT_FERN, 0x3F5A28, 0x7B2D8C, props),
             new Item.Properties());
 
-    /** blight_water_grass(汚染水草)のスポーンエッグ。 */
-    public static final DeferredItem<DeferredSpawnEggItem> BLIGHT_WATER_GRASS_SPAWN_EGG = ITEMS.registerItem(
-            "blight_water_grass_spawn_egg",
-            props -> new DeferredSpawnEggItem(ModEntities.BLIGHT_WATER_GRASS, 0x3F5A28, 0x2E6E8C, props),
-            new Item.Properties());
-
     /** 「過繁茂したスカトゥリウム」のスポーンエッグ。 */
     public static final DeferredItem<DeferredSpawnEggItem> OVERGROWN_SHIELDER_SPAWN_EGG = ITEMS.registerItem(
             "overgrown_shielder_spawn_egg",
@@ -104,6 +126,45 @@ public final class ModItems {
     public static final DeferredItem<DeferredSpawnEggItem> FALCIMNES_SPAWN_EGG = ITEMS.registerItem(
             "falcimnes_spawn_egg",
             props -> new DeferredSpawnEggItem(ModEntities.FALCIMNES, 0x2F3A14, 0x9C8A2E, props),
+            new Item.Properties());
+
+    /** 「スクティムネス」のスポーンエッグ。 */
+    public static final DeferredItem<DeferredSpawnEggItem> SCUTIMNES_SPAWN_EGG = ITEMS.registerItem(
+            "scutimnes_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.SCUTIMNES, 0x3B4A22, 0x7A6A3E, props),
+            new Item.Properties());
+
+    /** 「アクムネス」のスポーンエッグ(地の色は胴の苔、斑は目の黄緑)。 */
+    public static final DeferredItem<DeferredSpawnEggItem> ACUMNES_SPAWN_EGG = ITEMS.registerItem(
+            "acumnes_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.ACUMNES, 0x3A4620, 0xBAFF00, props),
+            new Item.Properties());
+
+    // G5 の低キューブ 4 種(2026-10-01)。色はテクスチャから拾った(地 = 不透明画素の明るさの中ほど半分の平均、
+    // 斑 = 発光マスクの平均。光の無いフォディムネスは明るい方 5% の平均 = 歯の色)。
+
+    /** 「バティムネス」のスポーンエッグ(地は殻の苔、斑は目の黄緑)。 */
+    public static final DeferredItem<DeferredSpawnEggItem> BATHYMNES_SPAWN_EGG = ITEMS.registerItem(
+            "bathymnes_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.BATHYMNES, 0x41441B, 0x8AD505, props),
+            new Item.Properties());
+
+    /** 「エレボムネス」のスポーンエッグ(地は胴の苔、斑は目のレンズの黄緑)。 */
+    public static final DeferredItem<DeferredSpawnEggItem> EREBOMNES_SPAWN_EGG = ITEMS.registerItem(
+            "erebomnes_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.EREBOMNES, 0x3D421A, 0xB1F400, props),
+            new Item.Properties());
+
+    /** 「ヴォラムネス」のスポーンエッグ(地は胴の苔、斑は光の黄緑)。 */
+    public static final DeferredItem<DeferredSpawnEggItem> VORAMNES_SPAWN_EGG = ITEMS.registerItem(
+            "voramnes_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.VORAMNES, 0x3D4119, 0xA4EA02, props),
+            new Item.Properties());
+
+    /** 「フォディムネス」のスポーンエッグ(地は頭の樹皮と苔、斑は歯の淡い色)。 */
+    public static final DeferredItem<DeferredSpawnEggItem> FODIMNES_SPAWN_EGG = ITEMS.registerItem(
+            "fodimnes_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.FODIMNES, 0x41441B, 0x787553, props),
             new Item.Properties());
 
     /** 「ファランギオターブス」のスポーンエッグ。 */
@@ -172,6 +233,12 @@ public final class ModItems {
             props -> new DeferredSpawnEggItem(ModEntities.VELOPHYLL, 0x3E4B26, 0x92A857, props),
             new Item.Properties());
 
+    /** 「ペディキュラ」(グループ4・漂流種)のスポーンエッグ。色はテクスチャのまだらと、もやの黄緑。 */
+    public static final DeferredItem<DeferredSpawnEggItem> PEDICULA_SPAWN_EGG = ITEMS.registerItem(
+            "pedicula_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PEDICULA, 0x2B3216, 0xBDFF00, props),
+            new Item.Properties());
+
     /** 「スポロフィル」(グループ4・支援役)のスポーンエッグ。 */
     public static final DeferredItem<DeferredSpawnEggItem> SPOROPHYLL_SPAWN_EGG = ITEMS.registerItem(
             "sporophyll_spawn_egg",
@@ -220,6 +287,40 @@ public final class ModItems {
             props -> new DeferredSpawnEggItem(ModEntities.MEGARACHNE, 0xB5A487, 0x6E5C46, props),
             new Item.Properties());
 
+    // G2・G3 の新しい 8 種のスポーンエッグ(2026-10-22。色は仮)。
+    public static final DeferredItem<DeferredSpawnEggItem> DIPLOCAULUS_SPAWN_EGG = ITEMS.registerItem(
+            "diplocaulus_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.DIPLOCAULUS, 0x6E6A4C, 0xC8B98A, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> LUNGFISH_SPAWN_EGG = ITEMS.registerItem(
+            "lungfish_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.LUNGFISH, 0x5A5238, 0x8C7A52, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> HIBBERTOPTERUS_SPAWN_EGG = ITEMS.registerItem(
+            "hibbertopterus_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.HIBBERTOPTERUS, 0x6B5A3A, 0x3C4A2E, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> GIANT_SNAIL_SPAWN_EGG = ITEMS.registerItem(
+            "giant_snail_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.GIANT_SNAIL, 0x7A6440, 0xC8B07A, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> STENODICTYA_NYMPH_SPAWN_EGG = ITEMS.registerItem(
+            "stenodictya_nymph_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.STENODICTYA_NYMPH, 0x5E7245, 0xA89A6A, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> ERYOPS_SPAWN_EGG = ITEMS.registerItem(
+            "eryops_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.ERYOPS, 0x4E5A36, 0x9A8A6A, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> PULMONOSCORPIUS_SPAWN_EGG = ITEMS.registerItem(
+            "pulmonoscorpius_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PULMONOSCORPIUS, 0x3E3A2C, 0x8A6E46, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> CRASSIGYRINUS_SPAWN_EGG = ITEMS.registerItem(
+            "crassigyrinus_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.CRASSIGYRINUS, 0x4A5438, 0x7A8A5E, props),
+            new Item.Properties());
+
     /** レイドの「過繫茂の苗床」のスポーンエッグ(動作確認用。通常のプレイでは raid コマンド/自然発生を使う)。 */
     public static final DeferredItem<DeferredSpawnEggItem> OVERGROWN_NEXUS_SPAWN_EGG = ITEMS.registerItem(
             "overgrown_nexus_spawn_egg",
@@ -242,6 +343,72 @@ public final class ModItems {
     public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_ZOMBIE_SPAWN_EGG = ITEMS.registerItem(
             "parasitized_zombie_spawn_egg",
             props -> new DeferredSpawnEggItem(ModEntities.PARASITIZED_ZOMBIE, 0x3B6642, 0x7B2D8C, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_VILLAGER_SPAWN_EGG = ITEMS.registerItem(
+            "parasitized_villager_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PARASITIZED_VILLAGER, 0x56603A, 0x7B2D8C, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_CHICKEN_SPAWN_EGG = ITEMS.registerItem(
+            "parasitized_chicken_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PARASITIZED_CHICKEN, 0x9A9A86, 0x7B2D8C, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_SKELETON_SPAWN_EGG = ITEMS.registerItem(
+            "parasitized_skeleton_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PARASITIZED_SKELETON, 0xA9A99A, 0x7B2D8C, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_ENDERMAN_SPAWN_EGG = ITEMS.registerItem(
+            "parasitized_enderman_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PARASITIZED_ENDERMAN, 0x1E2A1C, 0x7B2D8C, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_BABY_ZOMBIE_SPAWN_EGG = ITEMS.registerItem(
+            "parasitized_baby_zombie_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PARASITIZED_BABY_ZOMBIE, 0x3B6642, 0x7B2D8C, props),
+            new Item.Properties());
+    // ネザーの媒介種(2026-10-09)
+    public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_PIGLIN_SPAWN_EGG = ITEMS.registerItem(
+            "parasitized_piglin_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PARASITIZED_PIGLIN, 0x8E7262, 0x7B2D8C, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_PIGLIN_BRUTE_SPAWN_EGG = ITEMS.registerItem(
+            "parasitized_piglin_brute_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PARASITIZED_PIGLIN_BRUTE, 0x4A2A18, 0x7B2D8C, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_ZOMBIFIED_PIGLIN_SPAWN_EGG = ITEMS.registerItem(
+            "parasitized_zombified_piglin_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PARASITIZED_ZOMBIFIED_PIGLIN, 0x9E7070, 0x7B2D8C, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_WITHER_SKELETON_SPAWN_EGG = ITEMS.registerItem(
+            "parasitized_wither_skeleton_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PARASITIZED_WITHER_SKELETON, 0x1E211C, 0x7B2D8C, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_HOGLIN_SPAWN_EGG = ITEMS.registerItem(
+            "parasitized_hoglin_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PARASITIZED_HOGLIN, 0x8E5444, 0x7B2D8C, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_ZOGLIN_SPAWN_EGG = ITEMS.registerItem(
+            "parasitized_zoglin_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PARASITIZED_ZOGLIN, 0x9E7A70, 0x7B2D8C, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_STRIDER_SPAWN_EGG = ITEMS.registerItem(
+            "parasitized_strider_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PARASITIZED_STRIDER, 0x6A4A5A, 0x7B2D8C, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_GHAST_SPAWN_EGG = ITEMS.registerItem(
+            "parasitized_ghast_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PARASITIZED_GHAST, 0xB8B8A8, 0x7B2D8C, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_BLAZE_SPAWN_EGG = ITEMS.registerItem(
+            "parasitized_blaze_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PARASITIZED_BLAZE, 0x8E7A3A, 0x7B2D8C, props),
+            new Item.Properties());
+    // 2026-10-10: アイアンゴーレム・ウォーデン(自然には湧かない。卵はクリエイティブと確認用)
+    public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_IRON_GOLEM_SPAWN_EGG = ITEMS.registerItem(
+            "parasitized_iron_golem_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PARASITIZED_IRON_GOLEM, 0x8A8A7E, 0x7B2D8C, props),
+            new Item.Properties());
+    public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_WARDEN_SPAWN_EGG = ITEMS.registerItem(
+            "parasitized_warden_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.PARASITIZED_WARDEN, 0x0F2A2E, 0x7B2D8C, props),
             new Item.Properties());
     public static final DeferredItem<DeferredSpawnEggItem> PARASITIZED_CREEPER_SPAWN_EGG = ITEMS.registerItem(
             "parasitized_creeper_spawn_egg",
@@ -307,6 +474,12 @@ public final class ModItems {
             com.yayuy.overgrownvegetation.item.PhaseMeterItem::new,
             new Item.Properties().stacksTo(1));
 
+    /** ガイドブック(2026-10-15、ユーザー指定)。右クリックで開く羊皮紙の本。今は Mob の章だけ。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.GuidebookItem> GUIDEBOOK = ITEMS.registerItem(
+            "guidebook",
+            com.yayuy.overgrownvegetation.item.GuidebookItem::new,
+            new Item.Properties().stacksTo(1));
+
     /**
      * 「胞子」— 胞子除去装置({@link ModBlocks#SPORE_PURIFIER})が周囲のもともとの胞子濃度に応じて産出し、
      * 胞子拡散装置({@link ModBlocks#SPORE_DIFFUSER})がレッドストーンダストと一緒に燃料として消費する。
@@ -354,16 +527,23 @@ public final class ModItems {
 
     /** 忌避灯(2026-09-19)。 */
     public static final DeferredItem<BlockItem> REPELLENT_LAMP_ITEM = ITEMS.registerItem(
-            "repellent_lamp", props -> new BlockItem(ModBlocks.REPELLENT_LAMP.get(), props), new Item.Properties());
+            "repellent_lamp", props -> new com.yayuy.overgrownvegetation.item.RepellentLampItem(ModBlocks.REPELLENT_LAMP.get(), props), new Item.Properties());
     /** 有刺鉄線(2026-09-19)。 */
     public static final DeferredItem<BlockItem> BARBED_WIRE_ITEM = ITEMS.registerItem(
             "barbed_wire", props -> new BlockItem(ModBlocks.BARBED_WIRE.get(), props), new Item.Properties());
+    /** 逆茂木(2026-10-16)。 */
+    public static final DeferredItem<BlockItem> ABATIS_ITEM = ITEMS.registerItem(
+            "abatis", props -> new BlockItem(ModBlocks.ABATIS.get(), props), new Item.Properties());
     /** フェーズ計測機(2026-09-19)。 */
     public static final DeferredItem<BlockItem> PHASE_RECORDER_ITEM = ITEMS.registerItem(
             "phase_recorder", props -> new BlockItem(ModBlocks.PHASE_RECORDER.get(), props), new Item.Properties());
     /** 胞子警報器(2026-09-19)。 */
     public static final DeferredItem<BlockItem> SPORE_ALARM_ITEM = ITEMS.registerItem(
             "spore_alarm", props -> new BlockItem(ModBlocks.SPORE_ALARM.get(), props), new Item.Properties());
+
+    /** ターゲットブロック(TD イベント、2026-09-25)。研究で封印しない(最初から作れる。仮決め 2026-09-25)。 */
+    public static final DeferredItem<BlockItem> TARGET_BLOCK = ITEMS.registerItem(
+            "target_block", props -> new BlockItem(ModBlocks.TARGET_BLOCK.get(), props), new Item.Properties());
 
     /** 機関砲台(2026-09-21)。研究「対空火器」で開放。 */
     public static final DeferredItem<BlockItem> GUN_TURRET_ITEM = ITEMS.registerItem(
@@ -376,20 +556,6 @@ public final class ModItems {
      */
     public static final DeferredItem<Item> AUTOCANNON_ROUND = ITEMS.registerSimpleItem("autocannon_round",
             new Item.Properties());
-
-    // --- アルボラの巣の中身(2026-09-20)。作れないが、確認用にクリエイティブへは出す。 ---
-
-    public static final DeferredItem<BlockItem> ARBORA_EGG_ITEM = ITEMS.registerItem(
-            "arbora_egg", props -> new BlockItem(ModBlocks.ARBORA_EGG.get(), props), new Item.Properties());
-
-    public static final DeferredItem<BlockItem> ARBORA_STORAGE_POD_ITEM = ITEMS.registerItem(
-            "arbora_storage_pod", props -> new BlockItem(ModBlocks.ARBORA_STORAGE_POD.get(), props), new Item.Properties());
-
-    public static final DeferredItem<BlockItem> SPORE_NODE_ITEM = ITEMS.registerItem(
-            "spore_node", props -> new BlockItem(ModBlocks.SPORE_NODE.get(), props), new Item.Properties());
-
-    public static final DeferredItem<BlockItem> SPORE_VENT_ITEM = ITEMS.registerItem(
-            "spore_vent", props -> new BlockItem(ModBlocks.SPORE_VENT.get(), props), new Item.Properties());
 
     /** 「除染機」({@link ModBlocks#DECONTAMINATOR})の BlockItem。 */
     public static final DeferredItem<BlockItem> DECONTAMINATOR_ITEM = ITEMS.registerItem(
@@ -555,6 +721,70 @@ public final class ModItems {
     public static final DeferredItem<Item> MEGARACHNE_PINCER =
             ITEMS.registerSimpleItem("megarachne_pincer", new Item.Properties());
 
+    // ── グループ共通のドロップ(順 1 の着手順 11、2026-10-04)。そのグループを狩った証。名前・確率は仕様書 ORDER1_IMPL.md の 8 節 ──
+
+    /** 「寄生菌糸」— G1(寄生された家畜・獣)共通。寄生されていることがこのグループの定義。毒の因子の元。 */
+    public static final DeferredItem<Item> PARASITIC_MYCELIUM =
+            ITEMS.registerSimpleItem("parasitic_mycelium", new Item.Properties());
+
+    /** 「節足の殻」— G2 の節足動物 5 体の共通(魚の 2 体は落とさない。ユーザー指定)。 */
+    public static final DeferredItem<Item> ARTHROPOD_SHELL =
+            ITEMS.registerSimpleItem("arthropod_shell", new Item.Properties());
+
+    /** 「捕食者の腱」— G3(狩る側)共通。衝撃の因子の元。 */
+    public static final DeferredItem<Item> PREDATOR_TENDON =
+            ITEMS.registerSimpleItem("predator_tendon", new Item.Properties());
+
+    /** 「胞子腺の組織」— G4(汚染を広げる側)共通。胞子の因子の元。 */
+    public static final DeferredItem<Item> SPORE_GLAND_TISSUE =
+            ITEMS.registerSimpleItem("spore_gland_tissue", new Item.Properties());
+
+    /** 「胞子嚢」— 寄生されたクリーパーが落とす。爆発の因子の元(火薬はそのまま落とす)。 */
+    public static final DeferredItem<Item> SPORE_SAC =
+            ITEMS.registerSimpleItem("spore_sac", new Item.Properties());
+
+    /**
+     * 「適応の記録」7 種 — G5 がそれぞれ自分の記録を落とす。パワードアーマーのスキルツリーの支払い
+     * (どの本に使えるかはタグ {@code #overgrown_vegetation:adaptation_records/<本>})。
+     */
+    public static final DeferredItem<Item> ADAPTATION_RECORD_GRASP = adaptationRecord("grasp", "falcimnes");
+    public static final DeferredItem<Item> ADAPTATION_RECORD_SHIELD = adaptationRecord("shield", "scutimnes");
+    public static final DeferredItem<Item> ADAPTATION_RECORD_AIM = adaptationRecord("aim", "acumnes");
+    public static final DeferredItem<Item> ADAPTATION_RECORD_WATER = adaptationRecord("water", "bathymnes");
+    public static final DeferredItem<Item> ADAPTATION_RECORD_DARK = adaptationRecord("dark", "erebomnes");
+    public static final DeferredItem<Item> ADAPTATION_RECORD_DEVOUR = adaptationRecord("devour", "voramnes");
+    public static final DeferredItem<Item> ADAPTATION_RECORD_DIG = adaptationRecord("dig", "fodimnes");
+
+    private static DeferredItem<Item> adaptationRecord(String kind, String sourceEntity) {
+        return ITEMS.registerItem("adaptation_record_" + kind,
+                props -> new com.yayuy.overgrownvegetation.item.AdaptationRecordItem(
+                        "entity.overgrown_vegetation." + sourceEntity, props),
+                new Item.Properties());
+    }
+
+    // ── G1 の汚染されたバニラ素材(同)。「食べられるが代償がある」—— 食べると胞子感染の確率(仕様書の 8 節)──
+
+    /** 「汚染された肉」— 寄生された牛・豚・羊。生の牛肉と同じ満腹度、食べると 30% で胞子感染。 */
+    public static final DeferredItem<Item> CONTAMINATED_MEAT = ITEMS.registerItem("contaminated_meat",
+            props -> new com.yayuy.overgrownvegetation.item.ContaminatedFoodItem(0.3D, props),
+            new Item.Properties().food(new FoodProperties.Builder().nutrition(3).saturationModifier(0.3F).build()));
+
+    /** 「腐った胞子肉」— 寄生されたゾンビ。腐った肉と同じ(空腹 80%)、食べると 50% で胞子感染。 */
+    public static final DeferredItem<Item> ROTTEN_SPORE_FLESH = ITEMS.registerItem("rotten_spore_flesh",
+            props -> new com.yayuy.overgrownvegetation.item.ContaminatedFoodItem(0.5D, props),
+            new Item.Properties().food(new FoodProperties.Builder().nutrition(4).saturationModifier(0.1F)
+                    .effect(() -> new net.minecraft.world.effect.MobEffectInstance(
+                            net.minecraft.world.effect.MobEffects.HUNGER, 600, 0), 0.8F)
+                    .build()));
+
+    /** 「汚染された羊毛」— 寄生された羊が倒されると落とす(刈ったときはバニラの羊毛)。使い道は順 6.5。 */
+    public static final DeferredItem<Item> CONTAMINATED_WOOL =
+            ITEMS.registerSimpleItem("contaminated_wool", new Item.Properties());
+
+    /** 「汚染された糸」— 寄生されたクモ。使い道は順 6.5。 */
+    public static final DeferredItem<Item> CONTAMINATED_STRING =
+            ITEMS.registerSimpleItem("contaminated_string", new Item.Properties());
+
     // ─────────────────────────────────────────────────────────────────────
     //  巨大樹の形成層に埋まる鉱石ノードの原石。{@link ModBlocks#CHLOROPHYLLITE_ORE} /
     //  {@link ModBlocks#HARDENED_SAP_CRYSTAL_ORE} を(シルクタッチ無しで)掘ると得られる。
@@ -583,6 +813,27 @@ public final class ModItems {
             ITEMS.registerSimpleItem("sap_crystal", new Item.Properties());
 
     // ─────────────────────────────────────────────────────────────────────
+    //  極相の地下の鉱石の原石と精錬品(順 1、2026-10-03 ユーザー指定)。
+    //  精錬はかまどでも溶鉱炉でも。合金({@link #PHLOEMITE_ALLOY_BASE} → {@link #SUNLIGHT_ALLOY})の材料。
+    // ─────────────────────────────────────────────────────────────────────
+
+    /** 「フロエマイトの原石」— 地脈に沿った極相の地下で採れる、師管のような筋の走る鉱石の塊。 */
+    public static final DeferredItem<Item> RAW_PHLOEMITE =
+            ITEMS.registerSimpleItem("raw_phloemite", new Item.Properties());
+
+    /** 「フロエマイト」— {@link #RAW_PHLOEMITE フロエマイトの原石}を精錬した金属。 */
+    public static final DeferredItem<Item> PHLOEMITE =
+            ITEMS.registerSimpleItem("phloemite", new Item.Properties());
+
+    /** 「チラコイトの原石」— 結晶地帯の地下で採れる、光を溜め込んだ結晶の塊。 */
+    public static final DeferredItem<Item> RAW_THYLAKITE =
+            ITEMS.registerSimpleItem("raw_thylakite", new Item.Properties());
+
+    /** 「チラコイト」— {@link #RAW_THYLAKITE チラコイトの原石}を精錬した結晶。 */
+    public static final DeferredItem<Item> THYLAKITE =
+            ITEMS.registerSimpleItem("thylakite", new Item.Properties());
+
+    // ─────────────────────────────────────────────────────────────────────
     //  装備・ツールの加工素材。原石やドロップ素材を精製した中間素材。
     //  レシピ(何から作るか)は後々レシピ側で定義する。
     // ─────────────────────────────────────────────────────────────────────
@@ -594,6 +845,20 @@ public final class ModItems {
     /** 「クロロフィライト合金」— クロロフィライトを他素材と混ぜて鋳込んだ合金インゴット。最上位の装備・ツール素材。 */
     public static final DeferredItem<Item> CHLOROPHYLLITE_ALLOY =
             ITEMS.registerSimpleItem("chlorophyllite_alloy", new Item.Properties());
+
+    /**
+     * 「サンライト合金の元」(順 1、2026-10-03 ユーザー指定。10-09 にユーザー指定で「フロエマイト合金の元」から改名、id はそのまま)—
+     * フロエマイトとネザライトの破片から作る、まだ粗い合金塊。{@link #SUNLIGHT_ALLOY サンライト合金}の材料。作業台で作る。
+     */
+    public static final DeferredItem<Item> PHLOEMITE_ALLOY_BASE =
+            ITEMS.registerSimpleItem("phloemite_alloy_base", new Item.Properties().fireResistant());
+
+    /**
+     * 「サンライト合金」(順 1、2026-10-03 ユーザー指定)— サンライト合金の元にチラコイトと樹液結晶を
+     * 混ぜた合金。パワードアーマー(装備の 5 段目)とサンライト合金のツヴァイヘンダーの素材。作業台で作る。
+     */
+    public static final DeferredItem<Item> SUNLIGHT_ALLOY =
+            ITEMS.registerSimpleItem("sunlight_alloy", new Item.Properties().fireResistant());
 
     // ─────────────────────────────────────────────────────────────────────
     //  素材の保管ブロックの BlockItem。汚染ブロックではないので displayOrder() の
@@ -626,6 +891,244 @@ public final class ModItems {
     /** 「樹液結晶軟化剤」— 硬化樹液結晶を溶かして作る、金属の靭性を高める添加剤。 */
     public static final DeferredItem<Item> SAP_CRYSTAL_SOFTENER =
             ITEMS.registerSimpleItem("sap_crystal_softener", new Item.Properties());
+
+    // ─── 亜鉛・真鍮・媒介結晶(2026-10-15、サバイバル用アイテムの前提の素材)───
+    // 亜鉛を使うレシピは c: タグ(c:ingots/zinc など)で書く —— Create の亜鉛でも作れるように(ユーザー指定)。
+
+    /** 「亜鉛の原石」。 */
+    public static final DeferredItem<Item> RAW_ZINC = ITEMS.registerSimpleItem("raw_zinc", new Item.Properties());
+    /** 「亜鉛インゴット」。 */
+    public static final DeferredItem<Item> ZINC_INGOT = ITEMS.registerSimpleItem("zinc_ingot", new Item.Properties());
+    /** 「亜鉛の塊」。 */
+    public static final DeferredItem<Item> ZINC_NUGGET = ITEMS.registerSimpleItem("zinc_nugget", new Item.Properties());
+    /** 「真鍮インゴット」— 銅 + 亜鉛。人類側の灯具・計器・呼吸器の金具(デザイン方針: 真鍮と鋳鉄の機械)。 */
+    public static final DeferredItem<Item> BRASS_INGOT = ITEMS.registerSimpleItem("brass_ingot", new Item.Properties());
+    /** 「真鍮の塊」。 */
+    public static final DeferredItem<Item> BRASS_NUGGET = ITEMS.registerSimpleItem("brass_nugget", new Item.Properties());
+    /**
+     * 「媒介結晶」— アメジストの欠片 + グロウストーンダスト(ユーザー指定)。地脈から漏れたエネルギーを人が扱うための器で、
+     * 琥珀色に光る(人類の小さな魔法の色)。琥珀の角灯などの材料。
+     */
+    public static final DeferredItem<Item> MEDIUM_CRYSTAL = ITEMS.registerSimpleItem("medium_crystal", new Item.Properties());
+
+    /** 「濾し布の呼吸覆い」(2026-10-15、サバイバル用アイテム ㉞)。追加防具・頭の枠に付ける。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.BreathingClothItem> BREATHING_CLOTH = ITEMS.registerItem(
+            "breathing_cloth", com.yayuy.overgrownvegetation.item.BreathingClothItem::new,
+            new Item.Properties().durability(com.yayuy.overgrownvegetation.item.BreathingClothItem.DURABILITY));
+
+    /** 「布鎧(ギャンベゾン)」(2026-10-15、サバイバル用アイテム ㉟)。追加防具・体の枠に付ける。防御 2。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.GambesonItem> GAMBESON = ITEMS.registerItem(
+            "gambeson", com.yayuy.overgrownvegetation.item.GambesonItem::new,
+            new Item.Properties().durability(com.yayuy.overgrownvegetation.item.GambesonItem.DURABILITY));
+
+    /** 「鳴子の紐」(2026-10-15、サバイバル用アイテム ㊵)。2 回クリックで柵・塀・柱の間に張る。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.defense.ClapperRopeItem> CLAPPER_ROPE = ITEMS.registerItem(
+            "clapper_rope", com.yayuy.overgrownvegetation.defense.ClapperRopeItem::new, new Item.Properties());
+    /** 「鳴子の板」(2026-10-15)。持って紐を右クリックすると、その場所に吊る。 */
+    public static final DeferredItem<Item> CLAPPER_BOARD = ITEMS.registerSimpleItem("clapper_board", new Item.Properties());
+
+    /** 「琥珀の角灯」(2026-10-15、サバイバル用アイテム ㊳)。腰の追加防具の枠に下げると動く光、置けば灯り。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.AmberLanternItem> AMBER_LANTERN = ITEMS.registerItem(
+            "amber_lantern", props -> new com.yayuy.overgrownvegetation.item.AmberLanternItem(ModBlocks.AMBER_LANTERN.get(), props),
+            new Item.Properties());
+
+    /**
+     * 「燻製肉の元」(2026-10-16、サバイバル用アイテム ㊷)。どの生肉 1 + 薬草(タグ {@code #overgrown_vegetation:herbs})1 → 1(ユーザー指定)。
+     * 燻製器でだけ焼けて携行食になる。食べられない。
+     */
+    public static final DeferredItem<Item> TRAIL_RATION_BASE = ITEMS.registerItem("trail_ration_base", props -> new Item(props) {
+        @Override
+        public void appendHoverText(net.minecraft.world.item.ItemStack stack, TooltipContext context, java.util.List<net.minecraft.network.chat.Component> tooltip,
+                                    net.minecraft.world.item.TooltipFlag flag) {
+            tooltip.add(net.minecraft.network.chat.Component.translatable("tooltip.overgrown_vegetation.trail_ration_base")
+                    .withStyle(net.minecraft.ChatFormatting.GRAY));
+        }
+    }, new Item.Properties());
+
+    /**
+     * 「携行食」(2026-10-16、㊷)。満腹度 10・隠し満腹度 10・32 個まで・焼き昆布と同じ速さで食べられる(ユーザー指定)。
+     * 隠し満腹度 = 満腹度 × 係数 × 2 なので係数 0.5。
+     */
+    public static final DeferredItem<Item> TRAIL_RATION = ITEMS.registerSimpleItem("trail_ration",
+            new Item.Properties().stacksTo(32)
+                    .food(new FoodProperties.Builder().nutrition(10).saturationModifier(0.5F).fast().build()));
+
+    // --- 乳鉢・薬草・粉・薬(2026-10-16、サバイバル用アイテム。ユーザー指定) ---
+
+    public static final DeferredItem<BlockItem> MORTAR_ITEM = ITEMS.registerItem(
+            "mortar", props -> new BlockItem(ModBlocks.MORTAR.get(), props), new Item.Properties());
+    /** 薬草 4 つ(タグ #overgrown_vegetation:herbs)。種を耕した畑に蒔く。 */
+    public static final DeferredItem<Item> MOONLIGHT_HERB = ITEMS.registerSimpleItem("moonlight_herb", new Item.Properties());
+    public static final DeferredItem<Item> PUNGENT_HERB = ITEMS.registerSimpleItem("pungent_herb", new Item.Properties());
+    public static final DeferredItem<Item> BITTER_ROOT = ITEMS.registerSimpleItem("bitter_root", new Item.Properties());
+    public static final DeferredItem<Item> WARMBLOOM = ITEMS.registerSimpleItem("warmbloom", new Item.Properties());
+    public static final DeferredItem<ItemNameBlockItem> MOONLIGHT_HERB_SEEDS = ITEMS.registerItem("moonlight_herb_seeds",
+            props -> new ItemNameBlockItem(ModBlocks.MOONLIGHT_HERB_CROP.get(), props), new Item.Properties());
+    public static final DeferredItem<ItemNameBlockItem> PUNGENT_HERB_SEEDS = ITEMS.registerItem("pungent_herb_seeds",
+            props -> new ItemNameBlockItem(ModBlocks.PUNGENT_HERB_CROP.get(), props), new Item.Properties());
+    public static final DeferredItem<ItemNameBlockItem> BITTER_ROOT_SEEDS = ITEMS.registerItem("bitter_root_seeds",
+            props -> new ItemNameBlockItem(ModBlocks.BITTER_ROOT_CROP.get(), props), new Item.Properties());
+    public static final DeferredItem<ItemNameBlockItem> WARMBLOOM_SEEDS = ITEMS.registerItem("warmbloom_seeds",
+            props -> new ItemNameBlockItem(ModBlocks.WARMBLOOM_CROP.get(), props), new Item.Properties());
+    /** 乳鉢ですりつぶした物(4 つの薬草はそれぞれの粉。ほかの薬草タグの草花は「すりつぶした薬草」。ユーザー指定)。 */
+    public static final DeferredItem<Item> MOONLIGHT_POWDER = ITEMS.registerSimpleItem("moonlight_powder", new Item.Properties());
+    public static final DeferredItem<Item> PUNGENT_POWDER = ITEMS.registerSimpleItem("pungent_powder", new Item.Properties());
+    public static final DeferredItem<Item> BITTER_ROOT_POWDER = ITEMS.registerSimpleItem("bitter_root_powder", new Item.Properties());
+    public static final DeferredItem<Item> WARMBLOOM_POWDER = ITEMS.registerSimpleItem("warmbloom_powder", new Item.Properties());
+    public static final DeferredItem<Item> GROUND_HERB = ITEMS.registerSimpleItem("ground_herb", new Item.Properties());
+    public static final DeferredItem<Item> CHARCOAL_POWDER = ITEMS.registerSimpleItem("charcoal_powder", new Item.Properties());
+    public static final DeferredItem<Item> SAP_CRYSTAL_POWDER = ITEMS.registerSimpleItem("sap_crystal_powder", new Item.Properties());
+    /** 地脈技術の 3 段目の中間素材(2026-10-24。転用の改造レシピの「2 つ目の鍵」)。忌避の精油 = 乳鉢、胞子の濾過膜 = 作業台。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.DescribedItem> REPELLENT_OIL = ITEMS.registerItem("repellent_oil",
+            com.yayuy.overgrownvegetation.item.DescribedItem::new, new Item.Properties());
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.DescribedItem> SPORE_MEMBRANE = ITEMS.registerItem("spore_membrane",
+            com.yayuy.overgrownvegetation.item.DescribedItem::new, new Item.Properties());
+    /** 薬 5 つ(丸薬・粉薬。食べて使う)。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.MedicineItem> SPOREWARD_POWDER = ITEMS.registerItem("sporeward_powder",
+            props -> new com.yayuy.overgrownvegetation.item.MedicineItem(com.yayuy.overgrownvegetation.item.MedicineItem.Kind.SPORE_WARD, props),
+            new Item.Properties());
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.MedicineItem> SPORE_STOPPING_ELIXIR = ITEMS.registerItem("spore_stopping_elixir",
+            props -> new com.yayuy.overgrownvegetation.item.MedicineItem(com.yayuy.overgrownvegetation.item.MedicineItem.Kind.ELIXIR, props),
+            new Item.Properties());
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.MedicineItem> SMELLING_SALTS = ITEMS.registerItem("smelling_salts",
+            props -> new com.yayuy.overgrownvegetation.item.MedicineItem(com.yayuy.overgrownvegetation.item.MedicineItem.Kind.SMELLING_SALTS, props),
+            new Item.Properties());
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.MedicineItem> STASIS_PILL = ITEMS.registerItem("stasis_pill",
+            props -> new com.yayuy.overgrownvegetation.item.MedicineItem(com.yayuy.overgrownvegetation.item.MedicineItem.Kind.STASIS_PILL, props),
+            new Item.Properties());
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.MedicineItem> WARMBLOOM_PILL = ITEMS.registerItem("warmbloom_pill",
+            props -> new com.yayuy.overgrownvegetation.item.MedicineItem(com.yayuy.overgrownvegetation.item.MedicineItem.Kind.WARMBLOOM_PILL, props),
+            new Item.Properties());
+
+    // --- 役に立つ植物と、それを使う道具(2026-10-16、サバイバル用アイテム。ユーザー指定) ---
+
+    public static final DeferredItem<ItemNameBlockItem> FIBER_GRASS_SEEDS = ITEMS.registerItem("fiber_grass_seeds",
+            props -> new ItemNameBlockItem(ModBlocks.FIBER_GRASS_CROP.get(), props), new Item.Properties());
+    public static final DeferredItem<Item> BURST_FRUIT = ITEMS.registerSimpleItem("burst_fruit", new Item.Properties());
+    public static final DeferredItem<Item> STICKY_FRUIT = ITEMS.registerSimpleItem("sticky_fruit", new Item.Properties());
+    public static final DeferredItem<Item> FLOAT_SAC = ITEMS.registerSimpleItem("float_sac", new Item.Properties());
+    public static final DeferredItem<BlockItem> WAYMARK_FLOWER = ITEMS.registerItem(
+            "waymark_flower", props -> new BlockItem(ModBlocks.WAYMARK_FLOWER.get(), props), new Item.Properties());
+    /** ⑯ パチンコと弾(小石・⑰ 炸裂弾・粘り弾)。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.SlingshotItem> SLINGSHOT = ITEMS.registerItem("slingshot",
+            com.yayuy.overgrownvegetation.item.SlingshotItem::new, new Item.Properties().durability(256));
+    public static final DeferredItem<Item> PEBBLE = ITEMS.registerSimpleItem("pebble", new Item.Properties());
+    public static final DeferredItem<Item> BURST_SHOT = ITEMS.registerSimpleItem("burst_shot", new Item.Properties());
+    public static final DeferredItem<Item> STICKY_SHOT = ITEMS.registerSimpleItem("sticky_shot", new Item.Properties());
+    /** ⑱ 炸裂の実の地雷。 */
+    public static final DeferredItem<BlockItem> BURST_MINE = ITEMS.registerItem(
+            "burst_mine", props -> new BlockItem(ModBlocks.BURST_MINE.get(), props), new Item.Properties());
+    /** ⑳ 粘りの投網。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.StickyNetItem> STICKY_NET = ITEMS.registerItem("sticky_net",
+            com.yayuy.overgrownvegetation.item.StickyNetItem::new, new Item.Properties().stacksTo(16));
+    /** 布のグライダー(両手持ち。2026-10-22、浮き袋の落下傘を消してこれに統合)。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.GliderItem> GLIDER = ITEMS.registerItem(
+            "glider", com.yayuy.overgrownvegetation.item.GliderItem::new,
+            new Item.Properties().durability(com.yayuy.overgrownvegetation.item.GliderItem.DURABILITY));
+    /** ㉒ 包帯。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.BandageItem> BANDAGE = ITEMS.registerItem("bandage",
+            com.yayuy.overgrownvegetation.item.BandageItem::new, new Item.Properties());
+    /** ㉔ 地脈電池と空の地脈電池(2026-10-22 に蓄電の実の電池から改名。蓄電の実は削除)。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.BatteryItem> BATTERY = ITEMS.registerItem("battery",
+            com.yayuy.overgrownvegetation.item.BatteryItem::new, new Item.Properties());
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.EmptyBatteryItem> EMPTY_BATTERY = ITEMS.registerItem("empty_battery",
+            com.yayuy.overgrownvegetation.item.EmptyBatteryItem::new, new Item.Properties().stacksTo(16));
+    /** ⑦ 地脈の羅針盤。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.LeyCompassItem> LEY_COMPASS = ITEMS.registerItem("ley_compass",
+            com.yayuy.overgrownvegetation.item.LeyCompassItem::new, new Item.Properties());
+
+    // --- 地脈の燃料で動く道具(2026-10-16、クラスター 3。ユーザー指定) ---
+
+    /** 地脈の雫(魔法の道具の燃料。㉙ 地脈の汲み上げ器でたまる)。 */
+    public static final DeferredItem<Item> LEY_DROP = ITEMS.registerSimpleItem("ley_drop", new Item.Properties());
+    public static final DeferredItem<BlockItem> LEY_PUMP_ITEM = ITEMS.registerItem(
+            "ley_pump", props -> new BlockItem(ModBlocks.LEY_PUMP.get(), props), new Item.Properties());
+    /** 地脈技術の 2 段目: 生活用の機械(2026-10-22)。地脈灯は腰の枠にも付けられる。 */
+    public static final DeferredItem<BlockItem> LEY_FURNACE_ITEM = ITEMS.registerItem(
+            "ley_furnace", props -> new BlockItem(ModBlocks.LEY_FURNACE.get(), props), new Item.Properties());
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.LeyLampItem> LEY_LAMP = ITEMS.registerItem(
+            "ley_lamp", props -> new com.yayuy.overgrownvegetation.item.LeyLampItem(ModBlocks.LEY_LAMP.get(), props), new Item.Properties());
+    public static final DeferredItem<BlockItem> LEY_UPDRAFT_ITEM = ITEMS.registerItem(
+            "ley_updraft", props -> new BlockItem(ModBlocks.LEY_UPDRAFT.get(), props), new Item.Properties());
+    /** 地脈計と未知の試料(2026-10-24 地脈技術の 4 段目)。試料は前兆の頃から汲み上げ器の雫に混じる。 */
+    public static final DeferredItem<BlockItem> LEY_METER = ITEMS.registerItem(
+            "ley_meter", props -> new BlockItem(ModBlocks.LEY_METER.get(), props), new Item.Properties());
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.DescribedItem> UNKNOWN_SAMPLE = ITEMS.registerItem("unknown_sample",
+            com.yayuy.overgrownvegetation.item.DescribedItem::new, new Item.Properties());
+    /** 地脈の花と結晶(2026-10-22、序盤の作り直し)。結晶の欠片は塊を壊すと落ちる研究ポイントの素材。 */
+    public static final DeferredItem<BlockItem> LEY_FLOWER = ITEMS.registerItem(
+            "ley_flower", props -> new BlockItem(ModBlocks.LEY_FLOWER.get(), props), new Item.Properties());
+    public static final DeferredItem<BlockItem> BUDDING_LEY_CRYSTAL = ITEMS.registerItem(
+            "budding_ley_crystal", props -> new BlockItem(ModBlocks.BUDDING_LEY_CRYSTAL.get(), props), new Item.Properties());
+    public static final DeferredItem<BlockItem> SMALL_LEY_CRYSTAL_BUD = ITEMS.registerItem(
+            "small_ley_crystal_bud", props -> new BlockItem(ModBlocks.SMALL_LEY_CRYSTAL_BUD.get(), props), new Item.Properties());
+    public static final DeferredItem<BlockItem> MEDIUM_LEY_CRYSTAL_BUD = ITEMS.registerItem(
+            "medium_ley_crystal_bud", props -> new BlockItem(ModBlocks.MEDIUM_LEY_CRYSTAL_BUD.get(), props), new Item.Properties());
+    public static final DeferredItem<BlockItem> LARGE_LEY_CRYSTAL_BUD = ITEMS.registerItem(
+            "large_ley_crystal_bud", props -> new BlockItem(ModBlocks.LARGE_LEY_CRYSTAL_BUD.get(), props), new Item.Properties());
+    public static final DeferredItem<BlockItem> LEY_CRYSTAL = ITEMS.registerItem(
+            "ley_crystal", props -> new BlockItem(ModBlocks.LEY_CRYSTAL.get(), props), new Item.Properties());
+    public static final DeferredItem<Item> LEY_CRYSTAL_SHARD = ITEMS.registerSimpleItem("ley_crystal_shard", new Item.Properties());
+    /** ⑩ 対の石と、手の石(地脈渡りの石)。 */
+    public static final DeferredItem<BlockItem> WAYSTONE_ANCHOR_ITEM = ITEMS.registerItem(
+            "waystone_anchor", props -> new BlockItem(ModBlocks.WAYSTONE_ANCHOR.get(), props), new Item.Properties());
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.LeyWaystoneItem> LEY_WAYSTONE = ITEMS.registerItem("ley_waystone",
+            com.yayuy.overgrownvegetation.item.LeyWaystoneItem::new, new Item.Properties());
+    /** ① 陽溜まりのランタン(腰の追加防具)。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.SunlitLanternItem> SUNLIT_LANTERN = ITEMS.registerItem("sunlit_lantern",
+            com.yayuy.overgrownvegetation.item.SunlitLanternItem::new, new Item.Properties());
+    /** ㉗ 灯りの呪符(使い捨て)。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.LightCharmItem> LIGHT_CHARM = ITEMS.registerItem("light_charm",
+            com.yayuy.overgrownvegetation.item.LightCharmItem::new, new Item.Properties());
+    /** ㉘ おとりの灯籠。 */
+    public static final DeferredItem<BlockItem> LURE_LANTERN_ITEM = ITEMS.registerItem(
+            "lure_lantern", props -> new BlockItem(ModBlocks.LURE_LANTERN.get(), props), new Item.Properties());
+
+    // --- 野営の道具(2026-10-16、クラスター 4。ユーザー指定) ---
+
+    /** ㊱ 帆布の背嚢(体の追加防具・18 枠)。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.CanvasBackpackItem> CANVAS_BACKPACK = ITEMS.registerItem("canvas_backpack",
+            com.yayuy.overgrownvegetation.item.CanvasBackpackItem::new, new Item.Properties());
+    /** ㉜ 灰(焼けた土をシャベルで掘ると出る)と灰の肥料。 */
+    public static final DeferredItem<Item> ASH = ITEMS.registerSimpleItem("ash", new Item.Properties());
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.AshFertilizerItem> ASH_FERTILIZER = ITEMS.registerItem("ash_fertilizer",
+            com.yayuy.overgrownvegetation.item.AshFertilizerItem::new, new Item.Properties());
+    /** ② 胞子まといの外套(体の追加防具)。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.SporeCloakItem> SPORE_CLOAK = ITEMS.registerItem("spore_cloak",
+            com.yayuy.overgrownvegetation.item.SporeCloakItem::new, new Item.Properties());
+    /** ⑪ 灰煙玉。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.ThrowableGearItem> ASH_SMOKE_BOMB = ITEMS.registerItem("ash_smoke_bomb",
+            props -> new com.yayuy.overgrownvegetation.item.ThrowableGearItem(props.stacksTo(16), com.yayuy.overgrownvegetation.entity.AshSmokeBomb::new,
+                    "tooltip.overgrown_vegetation.ash_smoke_bomb"), new Item.Properties());
+    /** ⑧ 焼夷瓶。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.ThrowableGearItem> INCENDIARY_FLASK = ITEMS.registerItem("incendiary_flask",
+            props -> new com.yayuy.overgrownvegetation.item.ThrowableGearItem(props.stacksTo(16), com.yayuy.overgrownvegetation.purify.IncendiaryFlask::new,
+                    "tooltip.overgrown_vegetation.incendiary_flask"), new Item.Properties());
+    public static final DeferredItem<BlockItem> BEDROLL_ITEM = ITEMS.registerItem(
+            "bedroll", props -> new BlockItem(ModBlocks.BEDROLL.get(), props), new Item.Properties().stacksTo(1));
+    public static final DeferredItem<BlockItem> SPORE_TENT_ITEM = ITEMS.registerItem(
+            "spore_tent", props -> new BlockItem(ModBlocks.SPORE_TENT.get(), props), new Item.Properties().stacksTo(1));
+
+    /** 風見(2026-10-23 胞子の場 第 2 段 H)。 */
+    public static final DeferredItem<BlockItem> WIND_VANE_ITEM = ITEMS.registerItem(
+            "wind_vane", props -> new BlockItem(ModBlocks.WIND_VANE.get(), props), new Item.Properties());
+
+    /** 根付いた萌芽体(2026-10-23 胞子の場 第 2 段 F。クリエイティブ・確かめ用)。 */
+    public static final DeferredItem<BlockItem> BLIGHT_FERN_ROOTED_ITEM = ITEMS.registerItem(
+            "blight_fern_rooted", props -> new BlockItem(ModBlocks.BLIGHT_FERN_ROOTED.get(), props), new Item.Properties());
+    public static final DeferredItem<BlockItem> DEFLECTING_STAKE_ITEM = ITEMS.registerItem(
+            "deflecting_stake", props -> new BlockItem(ModBlocks.DEFLECTING_STAKE.get(), props), new Item.Properties());
+
+    public static final DeferredItem<BlockItem> ZINC_ORE_ITEM = ITEMS.registerItem("zinc_ore",
+            props -> new BlockItem(ModBlocks.ZINC_ORE.get(), props), new Item.Properties());
+    public static final DeferredItem<BlockItem> DEEPSLATE_ZINC_ORE_ITEM = ITEMS.registerItem("deepslate_zinc_ore",
+            props -> new BlockItem(ModBlocks.DEEPSLATE_ZINC_ORE.get(), props), new Item.Properties());
+    public static final DeferredItem<BlockItem> RAW_ZINC_BLOCK_ITEM = ITEMS.registerItem("raw_zinc_block",
+            props -> new BlockItem(ModBlocks.RAW_ZINC_BLOCK.get(), props), new Item.Properties());
+    public static final DeferredItem<BlockItem> ZINC_BLOCK_ITEM = ITEMS.registerItem("zinc_block",
+            props -> new BlockItem(ModBlocks.ZINC_BLOCK.get(), props), new Item.Properties());
+    public static final DeferredItem<BlockItem> BRASS_BLOCK_ITEM = ITEMS.registerItem("brass_block",
+            props -> new BlockItem(ModBlocks.BRASS_BLOCK.get(), props), new Item.Properties());
 
     // ─────────────────────────────────────────────────────────────────────
     //  防具一式(兜・胸当て・レギンス・ブーツ)。防具値・耐久などの数値は
@@ -682,6 +1185,67 @@ public final class ModItems {
     public static final DeferredItem<ArmorItem> REINFORCED_CHLOROPHYLLITE_ALLOY_BOOTS =
             reinforcedAlloyArmor(ArmorItem.Type.BOOTS);
 
+    /** 「パワードアーマー」(順 1 の着手順 6)。部位ごとに 1 個。Mk とスキルツリーはスタックが持つ。作るのは作成テーブル。 */
+    public static final DeferredItem<ArmorItem> POWERED_ARMOR_HELMET = poweredArmor(ArmorItem.Type.HELMET);
+    public static final DeferredItem<ArmorItem> POWERED_ARMOR_CHESTPLATE = poweredArmor(ArmorItem.Type.CHESTPLATE);
+    public static final DeferredItem<ArmorItem> POWERED_ARMOR_LEGGINGS = poweredArmor(ArmorItem.Type.LEGGINGS);
+    public static final DeferredItem<ArmorItem> POWERED_ARMOR_BOOTS = poweredArmor(ArmorItem.Type.BOOTS);
+
+    /** 「パワードアーマーの設計図」(救済措置)。白紙は 16 まで重なる(写すと中身で分かれる)。 */
+    public static final DeferredItem<Item> POWERED_ARMOR_BLUEPRINT = ITEMS.registerItem(
+            "powered_armor_blueprint",
+            com.yayuy.overgrownvegetation.item.PoweredArmorBlueprintItem::new,
+            new Item.Properties().stacksTo(16));
+
+    /** 「カートリッジ」(順 1 の着手順 8)。因子を入れてパワードアーマーに差す。中身ごとに 1 つずつ(重ならない)。 */
+    public static final DeferredItem<Item> CARTRIDGE = ITEMS.registerItem(
+            "cartridge",
+            com.yayuy.overgrownvegetation.item.CartridgeItem::new,
+            new Item.Properties().stacksTo(1));
+
+    /** 「因子」5 種(順 1 の着手順 8)。抽出設備でドロップから取り出す。 */
+    public static final DeferredItem<Item> FACTOR_IMPACT = factor("impact");
+    public static final DeferredItem<Item> FACTOR_PIERCE = factor("pierce");
+    public static final DeferredItem<Item> FACTOR_BLAST = factor("blast");
+    public static final DeferredItem<Item> FACTOR_TOXIN = factor("toxin");
+    public static final DeferredItem<Item> FACTOR_SPORE = factor("spore");
+
+    private static DeferredItem<Item> factor(String id) {
+        return ITEMS.registerItem("factor_" + id,
+                props -> new com.yayuy.overgrownvegetation.item.FactorItem(
+                        java.util.Objects.requireNonNull(com.yayuy.overgrownvegetation.item.CartridgeFactor.byId(id)), props),
+                new Item.Properties());
+    }
+
+    /**
+     * 「装飾品」4 種(どの防具にも)と「拡張パーツ」2 種(パワードアーマー専用)(順 1 の着手順 9)。
+     * 作成テーブルの装着タブで付ける。種類と付く部位は {@link com.yayuy.overgrownvegetation.item.ArmorAccessory}。
+     */
+    public static final DeferredItem<Item> NIGHT_VISION_ACCESSORY = accessory("night_vision_accessory", "night_vision");
+    public static final DeferredItem<Item> ENEMY_SENSE_ACCESSORY = accessory("enemy_sense_accessory", "enemy_sense");
+    public static final DeferredItem<Item> SWIFT_ACCESSORY = accessory("swift_accessory", "swift");
+    public static final DeferredItem<Item> CUSHION_ACCESSORY = accessory("cushion_accessory", "cushion");
+    public static final DeferredItem<Item> MINING_EXTENSION = accessory("mining_extension", "mining");
+    public static final DeferredItem<Item> ANCHOR_EXTENSION = accessory("anchor_extension", "anchor");
+
+    private static DeferredItem<Item> accessory(String itemId, String accessoryId) {
+        return ITEMS.registerItem(itemId,
+                props -> new com.yayuy.overgrownvegetation.item.ArmorAccessoryItem(java.util.Objects.requireNonNull(
+                        com.yayuy.overgrownvegetation.item.ArmorAccessory.byId(accessoryId)), props),
+                new Item.Properties().stacksTo(16));
+    }
+
+    /** 部位の型からパワードアーマーのアイテム。 */
+    public static Item poweredArmorItem(ArmorItem.Type type) {
+        return switch (type) {
+            case HELMET -> POWERED_ARMOR_HELMET.get();
+            case CHESTPLATE -> POWERED_ARMOR_CHESTPLATE.get();
+            case LEGGINGS -> POWERED_ARMOR_LEGGINGS.get();
+            case BOOTS -> POWERED_ARMOR_BOOTS.get();
+            default -> null;
+        };
+    }
+
     // ─────────────────────────────────────────────────────────────────────
     //  ツール一式(斧・つるはし・シャベル・鍬・剣)。数値は gear.json / ModTiers 側。
     //  各ツール種の基準攻撃力/攻撃速度はバニラ準拠でここに固定(階層の攻撃力ボーナスが加算される)。
@@ -698,6 +1262,21 @@ public final class ModItems {
     public static final DeferredItem<Item> CHLOROPHYLLITE_ALLOY_SHOVEL = shovel("chlorophyllite_alloy_shovel", ModTiers.CHLOROPHYLLITE_ALLOY);
     public static final DeferredItem<Item> CHLOROPHYLLITE_ALLOY_HOE = hoe("chlorophyllite_alloy_hoe", ModTiers.CHLOROPHYLLITE_ALLOY);
     public static final DeferredItem<Item> CHLOROPHYLLITE_ALLOY_SWORD = sword("chlorophyllite_alloy_sword", ModTiers.CHLOROPHYLLITE_ALLOY);
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  武器(2026-10-09〜、ユーザー指定「G6 の Mob ができるまでは武器を作る」)。数値は gear.json の perTool.<種別>。
+    // ─────────────────────────────────────────────────────────────────────
+
+    /** 「ツヴァイヘンダー」— 両手で振る大剣({@link com.yayuy.overgrownvegetation.item.ZweihanderItem})。絵はユーザー、合金 2 本の絵は塗り替えの仮。 */
+    public static final DeferredItem<Item> CHLOROPHYLLITE_ZWEIHANDER = zweihander("chlorophyllite_zweihander", ModTiers.CHLOROPHYLLITE, false);
+    public static final DeferredItem<Item> CHLOROPHYLLITE_ALLOY_ZWEIHANDER = zweihander("chlorophyllite_alloy_zweihander", ModTiers.CHLOROPHYLLITE_ALLOY, false);
+    /** 素材のサンライト合金と同じく燃えない。 */
+    public static final DeferredItem<Item> SUNLIGHT_ALLOY_ZWEIHANDER = zweihander("sunlight_alloy_zweihander", ModTiers.SUNLIGHT_ALLOY, true);
+
+    /** 「エストック」— 鎧の隙間を突く刺突剣({@link com.yayuy.overgrownvegetation.item.EstocItem}。2026-10-10)。絵は 3 本とも仮。 */
+    public static final DeferredItem<Item> CHLOROPHYLLITE_ESTOC = estoc("chlorophyllite_estoc", ModTiers.CHLOROPHYLLITE, false);
+    public static final DeferredItem<Item> CHLOROPHYLLITE_ALLOY_ESTOC = estoc("chlorophyllite_alloy_estoc", ModTiers.CHLOROPHYLLITE_ALLOY, false);
+    public static final DeferredItem<Item> SUNLIGHT_ALLOY_ESTOC = estoc("sunlight_alloy_estoc", ModTiers.SUNLIGHT_ALLOY, true);
 
     // --- 登録ヘルパー ---
 
@@ -716,6 +1295,16 @@ public final class ModItems {
                 props -> new com.yayuy.overgrownvegetation.item.ReinforcedChlorophylliteAlloyArmorItem(
                         ModArmorMaterials.REINFORCED_CHLOROPHYLLITE_ALLOY, type,
                         props.durability(ModArmorMaterials.durability(set, type))),
+                new Item.Properties());
+    }
+
+    /** 「パワードアーマー」。GeckoLib の立体モデル(仮。ユーザーが差し替える)で描く。燃えない(サンライト合金と同じ)。 */
+    private static DeferredItem<ArmorItem> poweredArmor(ArmorItem.Type type) {
+        String set = "powered_armor";
+        return ITEMS.registerItem(set + "_" + type.getName(),
+                props -> new com.yayuy.overgrownvegetation.item.PoweredArmorItem(
+                        ModArmorMaterials.POWERED_ARMOR, type,
+                        props.durability(ModArmorMaterials.durability(set, type)).fireResistant()),
                 new Item.Properties());
     }
 
@@ -763,6 +1352,32 @@ public final class ModItems {
             Tier t = tier.forTool("sword");
             return new SwordItem(t, p.attributes(
                     SwordItem.createAttributes(t, Math.round(s.attackDamage("sword")), s.attackSpeed("sword"))));
+        });
+    }
+
+    /** 攻撃力は剣と違って丸めない(gear.json の小数をそのまま)。 */
+    private static DeferredItem<Item> zweihander(String id, ModTiers tier, boolean fireResistant) {
+        return tool(id, p -> {
+            GearTable.ToolSpec s = DesignData.gear().tool(tier.key());
+            Tier t = tier.forTool("zweihander");
+            if (fireResistant) {
+                p.fireResistant();
+            }
+            return new com.yayuy.overgrownvegetation.item.ZweihanderItem(t, p.attributes(
+                    com.yayuy.overgrownvegetation.item.ZweihanderItem.createAttributes(
+                            t, s.attackDamage("zweihander"), s.attackSpeed("zweihander"))));
+        });
+    }
+
+    private static DeferredItem<Item> estoc(String id, ModTiers tier, boolean fireResistant) {
+        return tool(id, p -> {
+            GearTable.ToolSpec s = DesignData.gear().tool(tier.key());
+            Tier t = tier.forTool("estoc");
+            if (fireResistant) {
+                p.fireResistant();
+            }
+            return new com.yayuy.overgrownvegetation.item.EstocItem(t, p.attributes(
+                    com.yayuy.overgrownvegetation.item.EstocItem.createAttributes(t, s.attackDamage("estoc"), s.attackSpeed("estoc"))));
         });
     }
 

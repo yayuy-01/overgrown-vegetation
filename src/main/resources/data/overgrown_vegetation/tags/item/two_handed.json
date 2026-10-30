@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:chlorophyllite_zweihander",
+    "overgrown_vegetation:chlorophyllite_alloy_zweihander",
+    "overgrown_vegetation:sunlight_alloy_zweihander",
+    "overgrown_vegetation:glider"
+  ]
+}

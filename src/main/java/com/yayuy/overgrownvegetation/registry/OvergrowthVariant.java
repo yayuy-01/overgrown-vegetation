@@ -133,10 +133,22 @@ public enum OvergrowthVariant {
         return swamp;
     }
 
-    /** このバイオームキーがこの環境の 6 キーのいずれかか。 */
+    /**
+     * <b>結晶地帯</b>(順 1、2026-10-03)。密林の地域の一部が、極相になったときに
+     * ({@code engulfed} の代わりに)これになる —— 地脈が地表に出て初めて結晶が育つので、極相だけの姿。
+     * どの地域がそうなるかは {@code corruption/OvergrowthRegionMap#isCrystalRegion}。
+     *
+     * <p><b>密林の環境に属する</b>({@link #owns})。環境から引く処理(湧きの枠・苗木の木・湿地かどうか)が
+     * 結晶地帯でも密林として動くようにするため —— どの環境にも属さないと {@link #fromBiome} が
+     * {@code null} を返し、湧きの枠が海になる({@code phase/OvergrownSpawnProfile#placeOf})。
+     */
+    public static final ResourceKey<Biome> CRYSTAL_CLIMAX = biomeKey("engulfed_crystal");
+
+    /** このバイオームキーがこの環境の 6 キー(密林は結晶地帯を含めて 7 キー)のいずれかか。 */
     public boolean owns(ResourceKey<Biome> key) {
         return key == overgrown || key == overgrowth || key == climax
-                || key == overgrownRiver || key == overgrowthRiver || key == climaxRiver;
+                || key == overgrownRiver || key == overgrowthRiver || key == climaxRiver
+                || (this == JUNGLE && key == CRYSTAL_CLIMAX);
     }
 
     /**

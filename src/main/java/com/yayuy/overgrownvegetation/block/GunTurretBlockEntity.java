@@ -1,6 +1,7 @@
 package com.yayuy.overgrownvegetation.block;
 
 import com.yayuy.overgrownvegetation.data.DesignData;
+import com.yayuy.overgrownvegetation.defense.GunTurretClaims;
 import com.yayuy.overgrownvegetation.defense.GunTurretGeometry;
 import com.yayuy.overgrownvegetation.defense.GunTurretTargeting;
 import com.yayuy.overgrownvegetation.registry.ModBlockEntities;
@@ -51,8 +52,8 @@ import javax.annotation.Nullable;
  * <h2>何を狙うか</h2>
  * 優先するのは<b>落としに来るもの</b> —— ヴェロフィル、落下中の胞子爆弾、攻城戦ボスの曲射
  * (増援を運ぶ胞子弾を含む)。それが無ければ射程かつ仰俯角の可動域に入っている敵
- * ({@link GunTurretTargeting})。目標は {@code retargetIntervalTicks} ごと、
- * および目標を失ったときに選び直す。
+ * ({@link GunTurretTargeting})。目標を失ったときに選び直す。撃てる目標を持っている間は、
+ * {@code retargetIntervalTicks} ごとに「優先度が上の相手」だけを探して乗り換える(2026-09-25、{@link #STICK_TICKS})。
  *
  * <h2>撃ち方</h2>
  * 弾道は持たない(機関砲なので<b>即着弾</b>)。砲耳から目標まで地形で遮られていなければ命中
@@ -71,7 +72,7 @@ import javax.annotation.Nullable;
  *       両側で同じになり、隣り合う砲台の発砲がきれいに重ならない。</li>
  * </ul>
  */
-public class GunTurretBlockEntity extends BaseContainerBlockEntity implements WorldlyContainer, GeoBlockEntity {
+public class GunTurretBlockEntity extends BaseContainerBlockEntity implements WorldlyContainer, GeoBlockEntity, com.yayuy.overgrownvegetation.defense.MachineBattery.Holder {
 
     /** 弾倉のスロット数(ユーザー指定: 9 スタック)。 */
     public static final int SLOTS = 9;
@@ -89,6 +90,26 @@ public class GunTurretBlockEntity extends BaseContainerBlockEntity implements Wo
      * (0.18 ≒ 5 tick で 7 割)。小さいほど重く、動き出しと止まりがゆっくりになる。
      */
     private static final double SLEW_SMOOTHING = 0.18D;
+
+    /**
+     * 目標が無いあいだ({@code targetKind == 0})、次に探すまでの間隔(tick)。仮決め 2026-09-24。
+     *
+     * <p>2026-09-24 軽量化(監査 87): 前は目標が無いと毎 tick {@code retargetCooldown} を 0 に戻していたので、
+     * 待機中の砲台は<b>毎 tick</b> {@link GunTurretTargeting#pick}(索引引き 2 回・候補づくり・遮られた候補への clip)を走らせていた。
+     * いまは「見失った tick」「撃てるようになった tick」「射程に最優先の相手 —— 胞子弾・落下中の爆弾・ヴェロフィル ——
+     * がいる間」({@link GunTurretTargeting#interceptInRange})は前と同じく即座に探し、
+     * それ以外の待機中はこの間隔ごと(位相は座標から作る = 並べた砲台が同じ tick に探さない)。
+     * 待機中の砲台が新しく射程に入った<b>普通の敵</b>に気づくのが最大 {@code IDLE_PICK_INTERVAL - 1} tick 遅れるだけ
+     * (その数 tick に 2 体が入ってきたら、先に入った方ではなく pick の順位 = 近い方を先に狙うことがある。
+     * 前でも次の選び直し({@code retargetIntervalTicks} 後)にはその近い方へ移っていた)。
+     */
+    private static final int IDLE_PICK_INTERVAL = 4;
+
+    /**
+     * 目標を捕まえてから(最後に撃ってから)これだけ撃てずにいたら、同じ優先度の相手へも乗り換えてよい(tick)。
+     * 旋回(秒間 22.5 度)で 45 度ほど回る時間。仮決め 2026-09-25。
+     */
+    private static final long STICK_TICKS = 40L;
 
     /**
      * クライアントで飛行中の胞子弾の位置を引くための窓口。{@code OvergrownVegetationClient} が
@@ -144,10 +165,16 @@ public class GunTurretBlockEntity extends BaseContainerBlockEntity implements Wo
     private boolean armed;
     /** レッドストーン信号(来ていたら撃たない)。 */
     private boolean powered;
+    /** 地脈電池(2026-10-16、㉔。defense/MachineBattery。10-22 に改名)。基地が置いた砲台は電池なしで動く。 */
+    private int batteryCharge;
+    private boolean hasBattery;
+    private boolean baseSupplied;
     /** 目標を選び直すまでの残り tick。 */
     private int retargetCooldown;
     /** 最後に撃った時刻(描画の反動用)。クライアントは自分の予測で入れる。 */
     private long lastFiredGameTime = Long.MIN_VALUE;
+    /** いまの目標を捕まえた時刻(サーバーだけ。保存しない)。 */
+    private long acquiredGameTime = Long.MIN_VALUE;
 
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
@@ -268,6 +295,25 @@ public class GunTurretBlockEntity extends BaseContainerBlockEntity implements Wo
         elevationTenths = (int) Math.round(GunTurretGeometry.clampElevation(nextEl) * 10.0D);
     }
 
+    /**
+     * いまの目標が、いまのモードで狙ってよい相手か(ユーザー要望 2026-09-26 の射撃モード)。
+     * 飛んでくる胞子弾は「空の目標」なので、対地モードでは手放す。
+     */
+    private boolean wantsCurrentTarget(ServerLevel level, GunTurretMode mode) {
+        if (targetKind == GunTurretTargeting.KIND_SHELL) {
+            return mode.engagesAir();
+        }
+        Entity entity = level.getEntity(targetId);
+        return entity == null || GunTurretTargeting.wants(mode, entity);
+    }
+
+    /** いま立てている札({@link GunTurretClaims})を外す。目標を替える・失うときに呼ぶ。 */
+    private void releaseClaim(ServerLevel level) {
+        if (targetKind != 0) {
+            GunTurretClaims.release(level, worldPosition, targetKind, targetId);
+        }
+    }
+
     /** いま狙っている相手に使う射程。ヴェロフィルだけ長い({@code gunTurret.velophyllRange})。 */
     private double currentTargetRange() {
         if (level != null && targetKind == GunTurretTargeting.KIND_ENTITY) {
@@ -299,43 +345,101 @@ public class GunTurretBlockEntity extends BaseContainerBlockEntity implements Wo
         int wasId = targetId;
 
         // 過繫茂に覆われた砲台は動かない(ユーザー指定 2026-09-21)。弾はそのまま残る。
-        armed = !powered && !getBlockState().getValue(GunTurretBlock.OVERGROWN) && ammoCount() > 0;
+        // 電池が無いと動かない(プレイヤーが置いた砲台。2026-10-16 ユーザー指定)。
+        armed = !powered && !getBlockState().getValue(GunTurretBlock.OVERGROWN) && ammoCount() > 0
+                && com.yayuy.overgrownvegetation.defense.MachineBattery.hasEnergy(this);
         if (!armed) {
+            releaseClaim(level);
             targetKind = 0;
             targetId = -1;
+            // 撃てるようになった tick には(前と同じく)その場で探す。待機中の間引き(監査 87)を持ち越さない。
+            retargetCooldown = 0;
             advanceAim(null);
             syncIfChanged(wasArmed, wasKind, wasId);
             return;
         }
 
+        GunTurretMode mode = getBlockState().getValue(GunTurretBlock.MODE);
         Vec3 target = targetPoint(1.0F);
+        // モードに合わない相手は手放す(防空なら地上を、対地なら空を。ユーザー指定 2026-09-26)。
+        if (target != null && !wantsCurrentTarget(level, mode)) {
+            target = null;
+        }
         // いまの目標がまだ撃てるか(射程は相手による — ヴェロフィルだけ長い)。撃てないならその場で選び直す。
         if (target == null
                 || !GunTurretTargeting.canEngage(level, worldPosition, azimuth(), target, currentTargetRange())) {
+            // 2026-09-24 軽量化(監査 87): 選び直しを急ぐのは「この tick に見失った」ときと、
+            // 射程に最優先の相手(胞子弾・落下中の爆弾・ヴェロフィル)がいる間(迎撃の反応を前と同じにする)だけ。
+            // もともと目標が無い待機中は、下の pick の後で入れた間隔({@link #IDLE_PICK_INTERVAL})を守る —— 前は毎 tick 0 に戻していた。
+            if (targetKind != 0 || (retargetCooldown > 0
+                    && GunTurretTargeting.interceptInRange(level, worldPosition, azimuth(), mode))) {
+                retargetCooldown = 0;
+            }
             target = null;
+            releaseClaim(level);
             targetKind = 0;
             targetId = -1;
-            retargetCooldown = 0;
         }
         if (retargetCooldown > 0) {
             retargetCooldown--;
         } else {
-            retargetCooldown = DesignData.defense().turretRetargetIntervalTicks();
-            GunTurretTargeting.Target picked = GunTurretTargeting.pick(level, worldPosition, azimuth());
+            long now = level.getGameTime();
+            // 撃てる目標を持っていれば離さない: 乗り換えるのは優先度が上の相手(ヴェロフィル・爆弾・胞子弾)が出たときだけ。
+            // ただし捕まえてから(最後に撃ってから) STICK_TICKS 撃てていなければ(旋回が追いつかない相手)、同じ優先度でも選び直す。
+            // 2026-09-25 ユーザー報告「ずっと目標を切り替え続け、敵が近くにいるのに撃たない」(GunTurretTargeting#engageCost)。
+            boolean sticky = target != null
+                    && (acquiredGameTime >= now - STICK_TICKS || lastFiredGameTime >= now - STICK_TICKS);
+            GunTurretTargeting.Target picked;
+            if (sticky) {
+                int rank = GunTurretTargeting.rankOf(level, targetKind, targetId);
+                picked = rank > GunTurretTargeting.RANK_INTERCEPT
+                        && GunTurretTargeting.interceptInRange(level, worldPosition, azimuth(), mode)
+                        ? GunTurretTargeting.pick(level, worldPosition, azimuth(), elevation(), rank, mode) : null;
+            } else {
+                picked = GunTurretTargeting.pick(level, worldPosition, azimuth(), elevation(),
+                        Integer.MAX_VALUE, mode);
+            }
             if (picked != null && (picked.kind() != targetKind || picked.id() != targetId)) {
+                releaseClaim(level);
                 targetKind = picked.kind();
                 targetId = picked.id();
+                acquiredGameTime = now;
             }
             target = picked != null ? picked.point() : target;
+            // 目標を持っていれば前と同じ間隔、見つからなければ待機中の間隔(座標の位相に揃える)。
+            retargetCooldown = targetKind != 0
+                    ? DesignData.defense().turretRetargetIntervalTicks()
+                    : idleRetryCooldown(level.getGameTime());
         }
 
+        // ここまでで target(null でなければ)は、この向きの砲耳から「遮られていない」と確かめてある
+        // (canEngage か pick の中の canEngage)。旋回で方位が 0.1 度も動かなければ、発砲の線はそれとまったく同じ。
+        // 「いまこの相手は自分が撃っている」札を立て直す(ほかの砲台が同じ相手に寄らないように。2026-09-26)。
+        if (targetKind != 0) {
+            GunTurretClaims.claim(level, worldPosition, targetKind, targetId);
+        }
+
+        int checkedAzimuthTenths = azimuthTenths;
         advanceAim(target);
+        if (targetKind != 0) {
+            com.yayuy.overgrownvegetation.defense.MachineBattery.drain(this, 1); // 敵を狙っている間だけ減る
+        }
 
         if (target != null && isFireTick(level.getGameTime())
                 && aimError(target) <= DesignData.defense().turretAimTolerance()) {
-            fire(level, target);
+            fire(level, target, azimuthTenths == checkedAzimuthTenths);
         }
         syncIfChanged(wasArmed, wasKind, wasId);
+    }
+
+    /**
+     * 待機中(目標なし)に次に探すまでの残り tick。次の探索が
+     * {@code (時刻 + 座標の位相) % IDLE_PICK_INTERVAL == 0} の tick に来るように数える
+     * (カウンタが 0 の tick に探すので、次の探索は この値 + 1 tick 後)。
+     */
+    private int idleRetryCooldown(long gameTime) {
+        long phase = Math.floorMod(worldPosition.hashCode(), IDLE_PICK_INTERVAL);
+        return (int) Math.floorMod(-(gameTime + 1L + phase), (long) IDLE_PICK_INTERVAL);
     }
 
     private void tickClient(Level level) {
@@ -369,8 +473,13 @@ public class GunTurretBlockEntity extends BaseContainerBlockEntity implements Wo
 
     // ------------------------------------------------------------------ 発射
 
-    /** 1 発撃つ。弾は即着弾(機関砲なので弾道は持たない)。 */
-    private void fire(ServerLevel level, Vec3 target) {
+    /**
+     * 1 発撃つ。弾は即着弾(機関砲なので弾道は持たない)。
+     *
+     * @param lineChecked この tick にまったく同じ線(同じ方位の砲耳 → {@code target})を引いて、
+     *                    遮られていないと分かっているか。true なら引き直さない(2026-09-24 軽量化、監査 1263)。
+     */
+    private void fire(ServerLevel level, Vec3 target, boolean lineChecked) {
         if (!consumeRound()) {
             return;
         }
@@ -379,7 +488,8 @@ public class GunTurretBlockEntity extends BaseContainerBlockEntity implements Wo
 
         // 地形に遮られていたら壁に当たるだけ(命中しない)。線は砲耳から引く —— 銃口は倍率しだいで
         // 3 ブロック以上前に出るので、そこを起点にすると近い相手や見下ろす角度で話が合わなくなる。
-        Vec3 blocked = GunTurretTargeting.blockedAt(level, worldPosition, azimuth(), target);
+        // 同じ tick・同じ方位・同じ点で確かめ済みなら、結果も同じ(null)なので clip を省く。
+        Vec3 blocked = lineChecked ? null : GunTurretTargeting.blockedAt(level, worldPosition, azimuth(), target);
         if (blocked == null) {
             hit(level, target);
         }
@@ -401,7 +511,8 @@ public class GunTurretBlockEntity extends BaseContainerBlockEntity implements Wo
         }
         Entity entity = level.getEntity(targetId);
         if (entity != null && entity.isAlive()) {
-            entity.hurt(ModDamageTypes.autocannon(level), (float) DesignData.defense().turretDamage());
+            // 撃った点(砲耳)を添える。スクティムネスの盾が正面からの弾を弾くのに使うだけ(ノックバックは位置なしのまま。ModDamageTypes)。
+            entity.hurt(ModDamageTypes.autocannon(level, trunnion()), (float) DesignData.defense().turretDamage());
         }
     }
 
@@ -491,6 +602,44 @@ public class GunTurretBlockEntity extends BaseContainerBlockEntity implements Wo
         return moved;
     }
 
+    // --- 電池(MachineBattery.Holder) ---
+
+    @Override
+    public int batteryCharge() {
+        return batteryCharge;
+    }
+
+    @Override
+    public void setBatteryCharge(int charge) {
+        batteryCharge = charge;
+    }
+
+    @Override
+    public boolean hasBattery() {
+        return hasBattery;
+    }
+
+    @Override
+    public void setHasBattery(boolean has) {
+        hasBattery = has;
+    }
+
+    @Override
+    public boolean baseSupplied() {
+        return baseSupplied;
+    }
+
+    /** 同盟軍の基地が置いた砲台の印(電池なしで動く)。 */
+    public void setBaseSupplied(boolean supplied) {
+        baseSupplied = supplied;
+        setChanged();
+    }
+
+    @Override
+    public void batteryChanged() {
+        setChanged();
+    }
+
     /** レッドストーン信号(来ているあいだは撃たない)。 */
     public void setPowered(boolean nowPowered) {
         if (powered != nowPowered) {
@@ -506,6 +655,11 @@ public class GunTurretBlockEntity extends BaseContainerBlockEntity implements Wo
     /** 目標を狙っているか(描画で使う)。 */
     public boolean hasTarget() {
         return targetKind != 0;
+    }
+
+    /** いま狙っているエンティティの id(エンティティを狙っていなければ -1)。GameTest 用。 */
+    public int targetEntityId() {
+        return targetKind == GunTurretTargeting.KIND_ENTITY ? targetId : -1;
     }
 
     // ------------------------------------------------------------------ 同期
@@ -561,10 +715,21 @@ public class GunTurretBlockEntity extends BaseContainerBlockEntity implements Wo
         armed = tag.getBoolean("Armed");
     }
 
+    /**
+     * 目標が変わったときの更新パケット。2026-09-24 軽量化(監査 1285): {@link #onDataPacket} が読むのは
+     * 目標と「撃てる状態か」だけなので、向き(Elevation / Azimuth)は載せない。チャンクを送るときの
+     * {@link #getUpdateTag} / {@link #handleUpdateTag} は今までどおり向きも運ぶ。
+     */
     @Nullable
     @Override
     public Packet<ClientGamePacketListener> getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
+        return ClientboundBlockEntityDataPacket.create(this, (blockEntity, registries) -> {
+            CompoundTag tag = new CompoundTag();
+            tag.putInt("TargetKind", targetKind);
+            tag.putInt("TargetId", targetId);
+            tag.putBoolean("Armed", armed);
+            return tag;
+        });
     }
 
     // ------------------------------------------------------------------ 台帳(スカトゥリウムの狙い)
@@ -657,6 +822,8 @@ public class GunTurretBlockEntity extends BaseContainerBlockEntity implements Wo
         elevationTenths = tag.getInt("Elevation");
         azimuthTenths = tag.getInt("Azimuth");
         powered = tag.getBoolean("Powered");
+        com.yayuy.overgrownvegetation.defense.MachineBattery.load(this, tag);
+        baseSupplied = tag.getBoolean("BaseSupplied");
         prevElevation = elevation();
         prevAzimuth = azimuth();
     }
@@ -668,6 +835,8 @@ public class GunTurretBlockEntity extends BaseContainerBlockEntity implements Wo
         tag.putInt("Elevation", elevationTenths);
         tag.putInt("Azimuth", azimuthTenths);
         tag.putBoolean("Powered", powered);
+        com.yayuy.overgrownvegetation.defense.MachineBattery.save(this, tag);
+        tag.putBoolean("BaseSupplied", baseSupplied);
     }
 
     // ------------------------------------------------------------------ GeckoLib

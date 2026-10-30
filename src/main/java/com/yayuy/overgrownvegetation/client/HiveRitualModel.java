@@ -18,18 +18,23 @@ import software.bernie.geckolib.model.GeoModel;
  */
 public class HiveRitualModel extends GeoModel<HiveRitualEntity> {
 
+    // 2026-09-24 軽量化(監査 1318): 描画のたびに ResourceLocation を作り直さないよう定数にする(中身は同じ)。
+    private static final ResourceLocation MODEL = OvergrownVegetation.id("geo/hive_ritual_vines.geo.json");
+    private static final ResourceLocation TEXTURE = OvergrownVegetation.id("textures/entity/hive_ritual_vines.png");
+    private static final ResourceLocation ANIMATION = OvergrownVegetation.id("animations/hive_ritual_vines.animation.json");
+
     @Override
     public ResourceLocation getModelResource(HiveRitualEntity animatable) {
-        return OvergrownVegetation.id("geo/hive_ritual_vines.geo.json");
+        return MODEL;
     }
 
     @Override
     public ResourceLocation getTextureResource(HiveRitualEntity animatable) {
-        return OvergrownVegetation.id("textures/entity/hive_ritual_vines.png");
+        return TEXTURE;
     }
 
     @Override
     public ResourceLocation getAnimationResource(HiveRitualEntity animatable) {
-        return OvergrownVegetation.id("animations/hive_ritual_vines.animation.json");
+        return ANIMATION;
     }
 }

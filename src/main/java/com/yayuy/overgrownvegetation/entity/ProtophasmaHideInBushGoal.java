@@ -153,6 +153,10 @@ public class ProtophasmaHideInBushGoal extends Goal {
     }
 
     private LivingEntity findPredator() {
+        // 自分の種を preys に載せている種が無ければ、下の検索は必ず空になる(結果は同じ)。
+        if (!com.yayuy.overgrownvegetation.data.MobStats.hasAnyPredator(this.mob.getType())) {
+            return null;
+        }
         List<Mob> predators = this.mob.level().getEntitiesOfClass(Mob.class,
                 this.mob.getBoundingBox().inflate(PREDATOR_SEARCH_RADIUS),
                 candidate -> candidate.isAlive() && Predation.isPredatorOf(candidate, this.mob));

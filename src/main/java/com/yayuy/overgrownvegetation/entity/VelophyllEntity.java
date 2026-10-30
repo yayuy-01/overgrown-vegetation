@@ -6,6 +6,9 @@ import com.yayuy.overgrownvegetation.data.MobStats;
 import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
 import com.yayuy.overgrownvegetation.registry.ModParticles;
 import com.yayuy.overgrownvegetation.spore.SporeDeviceData;
+import com.yayuy.overgrownvegetation.swarm.SwarmManager;
+import com.yayuy.overgrownvegetation.swarm.SwarmMember;
+import com.yayuy.overgrownvegetation.swarm.goal.SwarmGoals;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -54,13 +57,14 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * ({@link VelophyllGroundSporeGoal})。グループ4 共通の「汚染を自分の足で運ぶ」役割を、
  * アルボラより遠くまで運べる形にしたのがこの Mob。
  *
- * <h2>群れの上空を飛ぶ(2026-09-15)</h2>
- * グループ4 の群れ({@link InvaderPack})の一員で、地上の仲間が居るあいだは
- * <b>その重心から {@code velophyllPackLeash} の内側</b>しか飛び回らない
- * ({@link VelophyllWanderGoal})。空から見つけた相手は仲間へ回し
- * ({@link InvaderPack#shareTarget})、逆に仲間が回してきた相手も受け取る —— ただし
- * <b>爆弾が届かない相手は断る</b>({@link #acceptsPackTarget})。
- * これで「上空の斥候が群れを引っ張る」形になる。
+ * <h2>空の群れ(群れ v2、2026-09-25)</h2>
+ * ユーザー指定(2026-09-25): ヴェロフィルは地上の群れとは<b>別に、ヴェロフィルだけの空の群れ</b>を作る
+ * ({@code swarm/}、種類 AIR)。先頭は {@link VelophyllWanderGoal} で司令塔の行き先へ飛び、後続は
+ * {@link SwarmAirFollowGoal} で先頭の横に V 字に並ぶ。標的は司令塔が探して渡す(爆弾・噛みつきが届く相手だけ。
+ * {@link VelophyllTargetGoal#isAttackable})ので、一員の間は自分の索敵を回さない。
+ * 旧い「地上の群れの重心から {@code velophyllPackLeash} の内側だけを飛ぶ・見つけた相手を地上へ回す」(2026-09-15)は廃止した。
+ * 群れの一員の側の約束(毎 tick の自己修復・殴られたら司令塔へ・同じ群れは押し合わない・ポータルを使わない・
+ * 旧 NBT の {@code PackId} の引き継ぎ)は地上の {@link AbstractOvergrownInvaderEntity} と同じ。
  *
  * <h2>なぜ {@link OvergrownFlyerEntity} を継承しないのか</h2>
  * あちらは「トンボ系(ステノデクティア・メガネウラ)」専用の土台で、行動状態も枝に止まる・
@@ -82,7 +86,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * 動きの確認は {@code tools/anim-preview}(モーションビューア)で。
  */
 public class VelophyllEntity extends PathfinderMob
-        implements GeoEntity, ParasitizedMob, InvaderPackMember {
+        implements GeoEntity, ParasitizedMob {
 
     /** 空を滑空している(翼はほぼ止めたまま)。 */
     public static final int STATE_GLIDE = 0;
@@ -140,7 +144,7 @@ public class VelophyllEntity extends PathfinderMob
 
     private final PathNavigation flyingNavigation;
     private final PathNavigation groundNavigation;
-    private final MoveControl flyingMoveControl;
+    private final VelophyllFlightMoveControl flyingMoveControl;
     private final MoveControl groundMoveControl;
 
     /**
@@ -174,17 +178,6 @@ public class VelophyllEntity extends PathfinderMob
     private double lastX;
     private double lastY;
     private double lastZ;
-
-    /**
-     * 群れの所属(2026-09-15)。同じ ID を持つ個体が 1 つの群れ。
-     * 決め方は {@link InvaderPackBonds}、置き場所の考え方は {@link InvaderPackBond}。
-     */
-    private final InvaderPackBond packBond = new InvaderPackBond();
-
-    @Override
-    public InvaderPackBond packBond() {
-        return this.packBond;
-    }
 
     public VelophyllEntity(EntityType<? extends VelophyllEntity> type, Level level) {
         super(type, level);
@@ -263,6 +256,14 @@ public class VelophyllEntity extends PathfinderMob
     /** 飛行中の行き先を置く。曲がり方と加減速は {@link VelophyllFlightMoveControl} 任せ。 */
     public void setMoveTargetPoint(@Nullable Vec3 point) {
         this.moveTargetPoint = point;
+    }
+
+    /**
+     * 飛行の移動コントロール(地上にいる間も同じ物を返す)。空の群れの Goal が速さの指示
+     * ({@link VelophyllFlightMoveControl#setFormationSpeed})を出すのに使う(群れ v2、2026-09-25)。
+     */
+    public VelophyllFlightMoveControl flightControl() {
+        return this.flyingMoveControl;
     }
 
     /** 地上モードか。 */
@@ -377,58 +378,66 @@ public class VelophyllEntity extends PathfinderMob
      * <p>この Mob では特に効く —— 巡航高度が {@code velophyllCruiseAltitude}(既定 28)＋ばらつきなので
      * <b>プレイヤーの真上を飛んでいるだけでバニラの「32 ブロック」を超える</b>。そのままだと
      * 見えている個体が 1 分ほどで消え、「3 分見つけられなかったら降りて汚染」にも永久に届かない。
-     * 詳しくは {@link InvaderDespawn}。
+     * 群れの一員は false(消えるのは群れごと。ユーザー指定 2026-09-25)。詳しくは {@link InvaderDespawn}。
      */
     @Override
     public boolean removeWhenFarAway(double distanceToClosestPlayer) {
         return InvaderDespawn.removeWhenFarAway(this, distanceToClosestPlayer);
     }
 
-    // --- 群れ(グループ4 同士の集団行動。2026-09-15) ---
+    // --- 空の群れ(群れ v2、2026-09-25) ---
 
     /**
-     * 地上の仲間の重心からこれだけ離れてよい(ブロック)。飛んでいる分ずっと広い
-     * ({@code velophyllPackLeash})—— 群れの真上を大きく回るための余裕。
-     * 実際に守らせているのは {@link VelophyllWanderGoal}(飛行中は経路探索を使わないので、
-     * {@link InvaderPackGoal} は使えない)。
+     * 実際に効いたら群れの司令塔へ伝える({@link SwarmManager#onMemberHurt}: 役割の距離(水平 64)にいればこの一員だけ反撃、
+     * 群れの標的を替えるかは優先順で)。群れに居なければ司令塔の側で何もしない。
      */
     @Override
-    public double packCohesionDistance() {
-        return OvergrownVegetationConfig.COMMON.velophyllPackLeash.get();
+    public boolean hurt(DamageSource source, float amount) {
+        boolean hurt = super.hurt(source, amount);
+        if (hurt && !this.level().isClientSide()) {
+            SwarmManager.onMemberHurt(this, source);
+        }
+        return hurt;
     }
 
     /**
-     * 見つけた相手を回すとき、声が届く距離。<b>巡航高度のぶん足す</b> —— 上空 28 ブロックから
-     * 地上の仲間へ伝えるので、地上同士と同じ {@code invaderPackCallRange} では真下にも届かない。
-     *
-     * <p>逆向き(地上の仲間 → 上空のヴェロフィル)は広げていない。ヴェロフィルの索敵は
-     * 上下も水平と同じだけ探す半径 {@code followRange}(既定 64)なので、
-     * 地上で始まった戦いは自分で見つけられる({@link VelophyllTargetGoal} 参照)。
+     * 群れの一員・イベントの個体はポータルを使わない(別のディメンションへ行くと群れの名簿からもイベントの数えからも外れ、
+     * 戻れないまま残る。{@link SwarmGoals#blocksPortal})。
      */
     @Override
-    public double packCallRange() {
-        return OvergrownVegetationConfig.COMMON.invaderPackCallRange.get()
-                + OvergrownVegetationConfig.COMMON.velophyllCruiseAltitude.get();
+    public boolean canUsePortal(boolean allowPassengers) {
+        if (SwarmGoals.blocksPortal(this)) {
+            return false;
+        }
+        return super.canUsePortal(allowPassengers);
     }
 
-    /**
-     * 仲間が回してきた標的のうち、<b>手の届かない相手は断る</b>(地下に潜っている相手)。
-     * 受け取ってしまうと、地下のプレイヤーを抱えたまま上空を旋回し続ける
-     * ({@link #hasAttackTarget()} と同じ理由)。空中の相手は噛みつきで襲えるので受け取る。
-     */
+    /** 同じ群れの一員どうしは押し合わない(V 字に並ぶ後続が、すれ違う仲間に弾かれて隊形を崩さないように)。 */
     @Override
-    public boolean acceptsPackTarget(LivingEntity target) {
-        return VelophyllTargetGoal.isAttackable(this, target);
+    public void push(net.minecraft.world.entity.Entity entity) {
+        if (SwarmGoals.sameSwarm(this, entity)) {
+            return;
+        }
+        super.push(entity);
     }
 
-    /**
-     * <b>飛んでいる間は群れの重心に数えない</b>。高度 30 ブロックの個体を混ぜると重心が空へ引かれ、
-     * 地上の仲間が全員「重心から離れている」ことになって集まり方が壊れる。
-     * 降りて胞子をまいている間は普通に数える。
-     */
+    /** {@link #push} と同じ(こちらは自分から押しに行く側)。 */
     @Override
-    public boolean countsInPackCentroid() {
-        return isGrounded();
+    protected void doPush(net.minecraft.world.entity.Entity entity) {
+        if (SwarmGoals.sameSwarm(this, entity)) {
+            return;
+        }
+        super.doPush(entity);
+    }
+
+    /** 群れの後続は押し合いの走査を 2 tick に 1 回にする(ID で位相をずらす。地上の一員と同じ)。 */
+    @Override
+    protected void pushEntities() {
+        if (!this.level().isClientSide() && Math.floorMod(this.tickCount + this.getId(), 2) != 0
+                && SwarmMember.isFollower(this)) {
+            return;
+        }
+        super.pushEntities();
     }
 
     // --- ゴール ---
@@ -442,6 +451,9 @@ public class VelophyllEntity extends PathfinderMob
         this.goalSelector.addGoal(2, new VelophyllLampBombGoal(this));
         this.goalSelector.addGoal(2, new VelophyllBombGoal(this));
         this.goalSelector.addGoal(3, new VelophyllGroundSporeGoal(this));
+        // 空の群れの後続(群れ v2、2026-09-25)。噛みつき・爆撃・胞子まきが先、先頭の飛び回り(6)とは役で入れ替わる
+        // (どちらも役が替わったら自分で止まる。SwarmAirFollowGoal の説明)。
+        this.goalSelector.addGoal(4, new SwarmAirFollowGoal(this));
         this.goalSelector.addGoal(6, new VelophyllWanderGoal(this));
         this.goalSelector.addGoal(7, new LookAtPlayerGoal(this, Player.class, 16.0F));
         this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
@@ -471,10 +483,8 @@ public class VelophyllEntity extends PathfinderMob
             tickTakeoff();
         }
         tickPlayerSearch();
-        // 空から見つけた相手を地上のグループ4 へ回す(群れで一緒に襲う)。中で間引いている。
-        // 近くの仲間と群れ(所属)を作る・入る・合流する・抜ける。これも中で間引いている。
-        InvaderPackBonds.tick(this);
-        InvaderPack.shareTarget(this);
+        // 群れの一員の自己修復(所属があるのに名簿に居なければ入り直す。中で 20 tick に 1 回へ間引いている)。
+        SwarmMember.tick(this);
     }
 
     /**
@@ -588,13 +598,14 @@ public class VelophyllEntity extends PathfinderMob
             for (int i = 0; i < TRAIL_PER_WING; i++) {
                 // 翼端寄りほど濃く出す(付け根側は薄い)。
                 double along = WING_TIP_OFFSET * (0.55D + 0.45D * this.random.nextDouble());
-                double x = this.getX() + sideX * along * side + backX;
-                double z = this.getZ() + sideZ * along * side + backZ;
-                this.level().addParticle(ModParticles.FINE_SPORE.get(),
-                        x + (this.random.nextDouble() - 0.5D) * 0.12D,
-                        y + (this.random.nextDouble() - 0.5D) * 0.12D,
-                        z + (this.random.nextDouble() - 0.5D) * 0.12D,
-                        0.0D, -0.005D, 0.0D);
+                double px = this.getX() + sideX * along * side + backX + (this.random.nextDouble() - 0.5D) * 0.12D;
+                double py = y + (this.random.nextDouble() - 0.5D) * 0.12D;
+                double pz = this.getZ() + sideZ * along * side + backZ + (this.random.nextDouble() - 0.5D) * 0.12D;
+                // 遠い粒と、細かい胞子が溜まりすぎているときは間引く(2026-09-25、全体監査 #468)。
+                if (!com.yayuy.overgrownvegetation.client.ParticleThrottle.allowFineSpore(px, py, pz, this.random)) {
+                    continue;
+                }
+                this.level().addParticle(ModParticles.FINE_SPORE.get(), px, py, pz, 0.0D, -0.005D, 0.0D);
             }
         }
     }
@@ -691,7 +702,9 @@ public class VelophyllEntity extends PathfinderMob
             double noise = OvergrownVegetationConfig.COMMON.invaderDeathCorruptionNoise.get();
             if (radius > 0
                     && !SporeDeviceData.inhibits(serverLevel, this.blockPosition(), SporeDeviceData.Inhibit.CORRUPTION)) {
-                NoisyCorruptionBurst.sphere(serverLevel, this.position(), radius, noise);
+                // 同じ tick にまとめて倒れたときは、決まった数を超えたぶんを次の tick 以降へ回す
+                // (2026-09-24 軽量化、報告 235。ふだんの 1〜3 体は今までどおりその場で汚染する)。
+                NoisyCorruptionBurst.deathSphere(serverLevel, this.position(), radius, noise);
             }
         }
         super.die(source);
@@ -755,16 +768,14 @@ public class VelophyllEntity extends PathfinderMob
         return 0.8F;
     }
     @Override
-    public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
-        super.addAdditionalSaveData(tag);
-        this.packBond.save(tag);
-    }
-
-    @Override
     public void readAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
         super.readAdditionalSaveData(tag);
-        this.packBond.load(tag,
-                com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.invaderPackCompleteGraceTicks.get());
+        // 旧い群れ(2026-09-25 まで)の NBT の PackId を引き継ぐ(ヴェロフィルは PackId から決まった空の群れの ID になる。
+        // SwarmManager#adoptLegacyPack)。attachment は Entity#load でこのメソッドより先に読まれている。
+        // PackId・PackComplete のキーは次の保存で消える(もう書かない)。
+        if (tag.hasUUID("PackId")) {
+            SwarmManager.adoptLegacyPack(this, tag.getUUID("PackId"));
+        }
     }
 
 }

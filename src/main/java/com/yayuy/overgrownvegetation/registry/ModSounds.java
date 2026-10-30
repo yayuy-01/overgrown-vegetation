@@ -58,6 +58,27 @@ public final class ModSounds {
     /** 掴みの突進を始めるときの金切り声。 */
     public static final DeferredHolder<SoundEvent, SoundEvent> FALCIMNES_SCREECH = register("entity.falcimnes.screech");
 
+    // --- スクティムネス(2026-09-23、tools/scutimnes-sound/ScutSound.java で合成) ---
+    public static final DeferredHolder<SoundEvent, SoundEvent> SCUTIMNES_IDLE = register("entity.scutimnes.idle");
+    public static final DeferredHolder<SoundEvent, SoundEvent> SCUTIMNES_HURT = register("entity.scutimnes.hurt");
+    public static final DeferredHolder<SoundEvent, SoundEvent> SCUTIMNES_DEATH = register("entity.scutimnes.death");
+    /** 攻撃の予兆の唸り(バッシュ・尾の薙ぎ払いの溜めの頭)。声の山は鳴らしてから 0.57 秒。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> SCUTIMNES_GROWL = register("entity.scutimnes.growl");
+    /** 叩きつけの振り上げの咆哮(slam の 0 秒で鳴らす)。声の山は鳴らしてから 0.5〜0.85 秒、0.9 秒で喉を閉じて黙る(叩きつけの 1.10 秒を覆わない)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> SCUTIMNES_ROAR = register("entity.scutimnes.roar");
+    /** ガード姿勢に入る踏ん張りの低い唸り。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> SCUTIMNES_GUARD = register("entity.scutimnes.guard");
+    /** 盾が当たる重い打撃(当たる tick に鳴らす。頭で立ち上がる)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> SCUTIMNES_BASH = register("entity.scutimnes.bash");
+    /** 尾が空を切る重い風切り。鳴らしてから 0.13 秒で山(振りの中央の 3 tick 前に鳴らす)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> SCUTIMNES_TAIL = register("entity.scutimnes.tail");
+    /** 盾が地面を叩く衝撃 + 衝撃波の地鳴り(当たる tick に鳴らす。頭で立ち上がる)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> SCUTIMNES_SLAM = register("entity.scutimnes.slam");
+    /** 盾の上げ下げで甲殻がこすれて噛み合う音。噛み合う「ごっ」は鳴らしてから 0.33 秒。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> SCUTIMNES_SHIELD = register("entity.scutimnes.shield");
+    /** 飛び道具を盾で弾く硬い音。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> SCUTIMNES_DEFLECT = register("entity.scutimnes.deflect");
+
     /**
      * フェーズ1開始の地割れ演出の土砂崩れの音(実尺 15.6 秒、末尾に2秒のフェードアウト)。
      * 裂け目の形成開始と同時にちょうど1回鳴らし、鳴り終わりと裂け目の完成が一致する。

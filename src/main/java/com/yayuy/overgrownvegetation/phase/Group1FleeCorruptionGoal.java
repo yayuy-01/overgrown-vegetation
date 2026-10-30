@@ -41,10 +41,20 @@ public final class Group1FleeCorruptionGoal extends Goal {
     private static final int SEARCH_VERTICAL_RANGE = 7;
     private static final int ESCAPE_ATTEMPTS = 8;
     private static final double SPEED_MODIFIER = 1.1D;
+    /**
+     * 逃げ先か経路が見つからなかったあと、探し直すまで待つ tick(2026-09-24 軽量化、報告 1033 行。仮決め 2026-09-24)。
+     * 空中にいる・周りに立てる場所が無いときは、次の評価(2 tick 後)でも同じ理由で失敗しやすいのに、
+     * 足元の汚染の球走査・着地点の候補 8 回・離脱方向・経路探索を毎回やり直していた。逃げ始めが最大この分だけ遅れる。
+     */
+    private static final int FAILED_SEARCH_RETRY_TICKS = 10;
+    /** 周りに繁茂系でないチャンクが無かったあと、見直すまで待つ tick(5 秒。仮決め 2026-10-06)。 */
+    private static final int NO_EXIT_RETRY_TICKS = 100;
 
     private final PathfinderMob mob;
     private final PathNavigation pathNav;
     private Path path;
+    /** 失敗した探索をやり直してよい {@code tickCount}({@link #FAILED_SEARCH_RETRY_TICKS})。 */
+    private int retryTick;
 
     public Group1FleeCorruptionGoal(PathfinderMob mob) {
         this.mob = mob;
@@ -63,14 +73,28 @@ public final class Group1FleeCorruptionGoal extends Goal {
         if (!(mob.level() instanceof ServerLevel serverLevel)) {
             return false;
         }
+        // 何かを襲っている / 反撃している間は逃げない(クラス javadoc 参照)。
+        // いちばん安いこの判定を先に見る(2026-09-24 軽量化、報告 1033 行)。下のグループ・フェーズの判定と
+        // どれも副作用の無い判定の AND なので、並べ替えても結果は同じ。グループの判定は消さない ——
+        // 所属はタグで決まり、データパックの /reload で変わりうるので、注入時の判定だけでは足りない。
+        if (mob.getTarget() != null && mob.getTarget().isAlive()) {
+            return false;
+        }
         if (MobGroup.of(mob) != MobGroup.GROUP_1) {
             return false;
         }
         if (!fleeCorruptionActive(serverLevel)) {
             return false;
         }
-        // 何かを襲っている / 反撃している間は逃げない(クラス javadoc 参照)。
-        if (mob.getTarget() != null && mob.getTarget().isAlive()) {
+        if (mob.tickCount < retryTick) {
+            // 直前の探索が失敗した。しばらく探し直さない(FAILED_SEARCH_RETRY_TICKS)。
+            return false;
+        }
+        if (!CorruptionProximity.hasOpenChunkWithin(serverLevel, mob.blockPosition(), SEARCH_RADIUS)) {
+            // 逃げ先の候補が届く範囲に繁茂系でないチャンクが無い(過繁茂域の奥)。探しても必ず失敗し、ランダムな方向へ
+            // 歩くだけなので逃げない(2026-10-06 ユーザー指定「過繁茂ではないチャンクが近くにある時だけ離れる」)。
+            // 縁に近づいた Mob は今までどおり外へ逃げる。しばらく見直さない。
+            retryTick = mob.tickCount + NO_EXIT_RETRY_TICKS;
             return false;
         }
         if (isClear(mob.blockPosition())) {
@@ -79,10 +103,15 @@ public final class Group1FleeCorruptionGoal extends Goal {
 
         Vec3 escapePos = findEscapePos();
         if (escapePos == null) {
+            retryTick = mob.tickCount + FAILED_SEARCH_RETRY_TICKS;
             return false;
         }
         path = pathNav.createPath(escapePos.x, escapePos.y, escapePos.z, 0);
-        return path != null;
+        if (path == null) {
+            retryTick = mob.tickCount + FAILED_SEARCH_RETRY_TICKS;
+            return false;
+        }
+        return true;
     }
 
     @Override

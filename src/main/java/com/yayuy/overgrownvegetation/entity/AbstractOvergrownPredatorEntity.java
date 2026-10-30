@@ -30,8 +30,9 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * <ol>
  *     <li>捕食対象 — {@code config/overgrown_vegetation/predation.json}({@link Predation})に
  *     載っている被食者を一方的に狩る({@link OvergrownHunterTargetGoal} + {@link MeleeAttackGoal})。</li>
- *     <li>侵入者 — 縄張りに入ってきたプレイヤー・バニラの敵対 Mob({@link Predation#isIntruder})にも
- *     先制攻撃する。被食者(グループ2)や他の過繁茂 Mob・村人・動物は襲わない。</li>
+ *     <li>侵入者 — 縄張りに入ってきた同盟軍の兵士・バニラの敵対 Mob({@link Predation#isIntruder})にも
+ *     先制攻撃する。被食者(グループ2)や他の過繁茂 Mob・村人・動物は襲わない。
+ *     <b>プレイヤーは侵入者に入らない</b>(ユーザー指定 2026-10-03。グループ2・3 は環境生物)。</li>
  *     <li>反撃 — 殴られたら相手に反撃する({@link OvergrownHurtByTargetGoal})。</li>
  * </ol>
  *
@@ -40,7 +41,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * 他の過繁茂 Mob からも標的にされない。
  */
 public abstract class AbstractOvergrownPredatorEntity extends PathfinderMob
-        implements GeoEntity, ParasitizedMob, PredatorMob {
+        implements GeoEntity, CritterAction.Holder, ParasitizedMob, PredatorMob {
 
     /** 通常(idle / walk を移動状態で切替)。 */
     public static final int STATE_IDLE = 0;
@@ -78,10 +79,25 @@ public abstract class AbstractOvergrownPredatorEntity extends PathfinderMob
         };
     }
 
+    /** 今している行動(食べる・休む・驚いて逃げ出す など)。アニメの再生の口だけ(行動の Goal は後の段)。2026-10-22。 */
+    private static final EntityDataAccessor<Byte> DATA_CRITTER_ACTION =
+            SynchedEntityData.defineId(AbstractOvergrownPredatorEntity.class, EntityDataSerializers.BYTE);
+
+    @Override
+    public CritterAction getCritterAction() {
+        return CritterAction.byId(this.entityData.get(DATA_CRITTER_ACTION));
+    }
+
+    @Override
+    public void setCritterAction(CritterAction action) {
+        this.entityData.set(DATA_CRITTER_ACTION, (byte) action.ordinal());
+    }
+
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(DATA_ACTION_STATE, STATE_IDLE);
+        builder.define(DATA_CRITTER_ACTION, (byte) 0);
     }
 
     public int getActionState() {
@@ -106,7 +122,8 @@ public abstract class AbstractOvergrownPredatorEntity extends PathfinderMob
         // 相手を見失わない。詳細は OvergrownHunterTargetGoal 参照)。
         // 水中・水面にいる相手は狙わない(OvergrownLandTargetGoal / Predation#isLandTarget)。
         this.targetSelector.addGoal(2, new OvergrownLandTargetGoal(this, Predation::isPredatorOf));
-        // 縄張りに入ってきた侵入者(プレイヤー・バニラの敵対 Mob)にも先制攻撃する。
+        // 縄張りに入ってきた侵入者(同盟軍の兵士・バニラの敵対 Mob)にも先制攻撃する。
+        // プレイヤーは入らない(2026-10-03。Predation#isIntruder 参照)。
         this.targetSelector.addGoal(3, new OvergrownLandTargetGoal(this, Predation::isIntruder));
     }
 
@@ -129,12 +146,18 @@ public abstract class AbstractOvergrownPredatorEntity extends PathfinderMob
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
+        if (getCritterAction() != CritterAction.NONE) {
+            tag.putString(CritterAction.NBT, getCritterAction().name().toLowerCase(java.util.Locale.ROOT));
+        }
         tag.putInt("PreyKills", this.preyKillCount);
     }
 
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        if (tag.contains(CritterAction.NBT)) {
+            setCritterAction(CritterAction.byName(tag.getString(CritterAction.NBT)));
+        }
         this.preyKillCount = tag.getInt("PreyKills");
         PredatorMob.applyPreyKillBonus(this, this.preyKillCount);
     }

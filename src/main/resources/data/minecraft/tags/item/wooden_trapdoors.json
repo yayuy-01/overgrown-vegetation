@@ -1,0 +1,16 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:covered_oak_trapdoor",
+    "overgrown_vegetation:covered_spruce_trapdoor",
+    "overgrown_vegetation:covered_birch_trapdoor",
+    "overgrown_vegetation:covered_jungle_trapdoor",
+    "overgrown_vegetation:covered_acacia_trapdoor",
+    "overgrown_vegetation:covered_dark_oak_trapdoor",
+    "overgrown_vegetation:covered_mangrove_trapdoor",
+    "overgrown_vegetation:covered_cherry_trapdoor",
+    "overgrown_vegetation:covered_bamboo_trapdoor",
+    "overgrown_vegetation:covered_crimson_trapdoor",
+    "overgrown_vegetation:covered_warped_trapdoor"
+  ]
+}

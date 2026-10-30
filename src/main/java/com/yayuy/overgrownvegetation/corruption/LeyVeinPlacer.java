@@ -89,7 +89,7 @@ public final class LeyVeinPlacer {
 
     /**
      * その列の<b>地面の高さ</b>({@link #findGround} の、チャンクを自分で引く版)。
-     * 器官を生やす場所({@code organ/OrganPlacer})など、1 列だけ知りたい側から呼ぶ。
+     * 1 列だけ知りたい側から呼ぶ。
      *
      * @return 見つからなければ {@link Integer#MIN_VALUE}
      */

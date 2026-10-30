@@ -10,14 +10,16 @@ import java.util.List;
  * <p>昇格は<b>ポイントだけ</b>で決まる({@code pointsToAdvance})。ポイントは<b>直前のフェーズが
  * 始まった時点からの増分</b>({@link com.yayuy.overgrownvegetation.phase.PhaseData} がフェーズ昇格の
  * たびに 0 へ戻す)。{@code pointsToAdvance} が無い(null / 0)フェーズへは<b>自動昇格しない</b>
- * — 既定ではフェーズ7以降がこれに当たり、自動進行はフェーズ6で止まる。
+ * (2026-09-26 からは既定でフェーズ10 まで全部に条件があり、F7 以降も自動で上がる)。
  *
  * <p>2026-09-15 に「過繫茂系チャンク数が一定に達したら昇格」({@code chunksToAdvance} /
  * {@code advanceMode})は<b>廃止した</b>。汚染の広がりは、時間経過ポイントの倍率
  * ({@code points.perTickPerOvergrownChunk})を通して<b>昇格を早める</b>形でだけ効く。
  *
- * <p>既定の条件: F2 = 360000 点 / F3 = 800000 点 / F4 = 1400000 点 / F5 = 2800000 点 /
- * F6 = 5800000 点(汚染が 20 チャンク/分で広がる実測ペースで F1→F6 がおよそゲーム内 22 日)。
+ * <p>既定の条件(2026-09-28、ユーザー指定の日数から逆算): F2 = 263000 / F3 = 696000 / F4 = 1421000 /
+ * F5 = 2452000 / F6 = 26329000 / F7 = 67841000 / F8 = 55816000 / F9 = 73784000 / F10 = 94305000 点。
+ * 台帳の広がり({@code corruption/LedgerSpread}、5 分おきに縁を面の数 × 25% の確率で塗る)の平均の増え方で、
+ * F1→F2〜F4→F5 が各 5 日、F5→F6・F6→F7 が各 20 日、F7→F8〜F9→F10 が各 10 日(F1→F10 で 90 日)。
  * フェーズ0→1 だけは別枠で、{@code global.startWorldAgeTicks}(既定 3 日)と
  * {@code global.startAdvancements}(既定 6 個の実績)の<b>両方</b>が条件。
  * 判定そのものは {@link #canAdvanceTo(int, long)} に集約してある。
@@ -28,7 +30,7 @@ import java.util.List;
  * ワールドに同時に存在できる群れの数({@code maxPacks})。
  *
  * <p>フェーズの内容の既定値は、現行の散在ロジック
- * ({@code OvergrownBiomeSpawner.spawnPoolFor} / {@code Group1PhaseBehavior} /
+ * ({@code OvergrownBiomeSpawner.spawnPoolFor} / {@code GroupPhaseBehavior} /
  * {@code Group1FleeCorruptionGoal} / {@code RaidData} / {@code RaidWaveSpawner.poolFor})を
  * 写経したもの({@link #DEFAULT})。
  */
@@ -55,6 +57,48 @@ public final class PhaseTable {
          */
         public Integer startAdvancements;
         public Points points;
+        /** フェーズ1の前の「前兆」(2026-10-24 地脈技術の 4 段目。数値はどれも仮)。 */
+        public OmenJson omen;
+    }
+
+    /**
+     * 前兆(F1 の前に「何かおかしい」と気付ける出来事)。どれも仮決め 2026-10-24。
+     * 始まりと未知の試料の解禁は「地割れの発生日時」からの引き算(既定 3 日 − 0.5 日 = 2.5 日、3 日 − 1 日 = 2 日)。
+     */
+    public static final class OmenJson {
+        /** F1 の時刻の条件のこれだけ前から前兆(既定 12000 = 0.5 日 → 2.5 日目)。 */
+        public Integer leadTicks;
+        /** F1 の時刻の条件のこれだけ前から、汲み上げ器の雫に未知の試料が混じる(既定 24000 = 1 日 → 2 日目)。 */
+        public Integer sampleLeadTicks;
+        /** 雫 1 つが試料になる確率(既定 0.05)。 */
+        public Double sampleChance;
+        /** 汲み上げ器の効率の揺れ幅(既定 0.4 = ±40%)。 */
+        public Double pumpJitter;
+        /** 揺れを引き直す間隔(既定 100 tick = 5 秒)。 */
+        public Integer pumpJitterTicks;
+        /** 汲み上げ器の近くのプレイヤーへの知らせの間隔(既定 12000 = 10 分)と範囲(既定 32)。 */
+        public Integer noticeTicks;
+        public Integer noticeRadius;
+        /** 軽い地鳴りの間隔(既定 12000〜24000 = 10〜20 分)と、プレイヤーからの距離(既定 16〜48)。 */
+        public Integer quakeMinTicks;
+        public Integer quakeMaxTicks;
+        public Integer quakeMinDistance;
+        public Integer quakeMaxDistance;
+        /** 揺れの強さの最大(地割れの既定 1.0 に対して。既定 0.4)と長さ(既定 100 tick)。 */
+        public Double quakeIntensity;
+        public Integer quakeTicks;
+        /** 地脈の花がランダム tick 1 回でしおれる確率(既定 0.1)・F1 の後に元に戻る確率(既定 0.15 ≒ 1 日で 9 割)。 */
+        public Double flowerWiltChance;
+        public Double flowerRecoverChance;
+        /** 家畜が線から離れる範囲 = 線の幅 + これ(既定 6)。 */
+        public Integer animalAvoidExtra;
+    }
+
+    /** 解決済みの前兆の値。 */
+    public record Omen(int leadTicks, int sampleLeadTicks, double sampleChance, double pumpJitter, int pumpJitterTicks,
+                       int noticeTicks, int noticeRadius, int quakeMinTicks, int quakeMaxTicks,
+                       int quakeMinDistance, int quakeMaxDistance, double quakeIntensity, int quakeTicks,
+                       double flowerWiltChance, double flowerRecoverChance, int animalAvoidExtra) {
     }
 
     /** ポイントの獲得条件。2026-09-13 の再編でこの 5 本だけになった。 */
@@ -94,25 +138,6 @@ public final class PhaseTable {
         public Integer maxDistance;
     }
 
-    /**
-     * 小規模レイドの設定。{@code composition} は「種の id → 体数」(既定: アルボラ 8 + 他のグループ4 の
-     * 移動できる種を 1 体ずつ)。間隔は前回の小規模レイドからの tick。
-     */
-    public static final class SmallRaid {
-        /** このフェーズで小規模レイドが起きるか。 */
-        public Boolean enabled;
-        /** 前回からの最短間隔(tick)。 */
-        public Integer minIntervalTicks;
-        /** 前回からの最長間隔(tick)。 */
-        public Integer maxIntervalTicks;
-        /** 狙われたプレイヤーからの最小距離(ブロック)。 */
-        public Integer minDistance;
-        /** 狙われたプレイヤーからの最大距離(ブロック)。ロード済みチャンクの中に収まる値にすること。 */
-        public Integer maxDistance;
-        /** 湧かせる編成: 種の id(名前空間省略可)→ 体数。 */
-        public java.util.Map<String, Integer> composition;
-    }
-
     /** 混成の群れで湧かせるグループと、1 群れの体数。 */
     public static final class MixedPacks {
         /** 混成の群れで湧かせる MobGroup 番号(空 / null で無効)。 */
@@ -123,12 +148,25 @@ public final class PhaseTable {
         public Integer max;
     }
 
-    public static final class Group1 {
+    /**
+     * 1 グループぶんのフェーズ強化。2026-09-25 まではグループ1 専用({@code group1})だったが、
+     * ユーザー指定でグループ 4〜9 も同じ形で強化できるようにした({@link Phase#groups})。
+     *
+     * <p>{@code fleeCorruption} は<b>グループ1 だけ</b>が見る({@code Group1FleeCorruptionGoal})。
+     * グループ4〜9 は過繫茂の中で暮らす種なので、汚染地形から逃げる意味がない。
+     */
+    public static final class GroupBuff {
         public Boolean buffed;
         public Double healthMultiplier;
         public Double attackMultiplier;
         public Boolean fleeCorruption;
     }
+
+    /**
+     * フェーズ強化を持てるグループ(ユーザー指定 2026-09-25)。
+     * グループ2・3 は兵站(戦わない)、グループ10 は攻城戦のボス1体なので外してある。
+     */
+    public static final List<Integer> BUFFABLE_GROUPS = List.of(1, 4, 5, 6, 7, 8, 9);
 
     public static final class Phase {
         /**
@@ -138,9 +176,22 @@ public final class PhaseTable {
          */
         public Integer pointsToAdvance;
         /**
+         * このフェーズへ<b>自然に昇格するか</b>(2026-09-29 ユーザー指定、既定 true)。
+         * false にするとポイントが足りていても上がらない —— {@code /ov phase set} だけで入れる。
+         * {@code pointsToAdvance} を 0 にしても同じことはできるが、それだと<b>数値を捨てる</b>ことになるので、
+         * 止めたいだけのときはこちらを使う。
+         */
+        public Boolean autoAdvance;
+        /**
+         * このフェーズへ上がったときに全員へ流す文(2026-09-29 ユーザー指定)。
+         * 空 / 未設定なら言語ファイルの {@code message.overgrown_vegetation.phase_name.<n>}
+         * (例「フェーズ3-拡大」)。胞子警報器が出す文にもこれが入る。
+         */
+        public String message;
+        /**
          * ワールドに同時に存在できる「群れ」の数(2026-09-21、0 / null = 無制限)。
-         * 生態系スポーンが 1 か所にまとめて湧かせたひとかたまりを 1 群れと数える
-         * ({@code phase/PackTracker})。上限に達している間は新しい群れを湧かせない。
+         * 群れ v2(2026-09-25)からは<b>読み込まれている G4 の群れ</b>の数({@code swarm/SwarmManager#budget})。
+         * 上限に達している間は生態系スポーンが新しい群れを湧かせない(種ごとのかたまりはもう数えない)。
          */
         public Integer maxPacks;
         /**
@@ -162,21 +213,34 @@ public final class PhaseTable {
          * 死体から汚染シダを生やす = 「汚染を運ぶ」役。{@code phase/OutsideInvaderSpawner} が使う。
          */
         public OutsideSpawns carrierSpawns;
-        /**
-         * 小規模レイド(2026-09-19、既定はフェーズ3以降)。プレイヤーの遠くに拡大種の一団が湧き、
-         * そのプレイヤーを目指して歩いてくる。{@code raid/SmallRaidData} が使う。
-         */
-        public SmallRaid smallRaid;
         /** レイドの増援ウェーブで湧く MobGroup 番号。{@code RaidWaveSpawner}。 */
         public List<Integer> raidWaveGroups;
-        public Group1 group1;
+        /**
+         * グループ番号("1" / "4" … {@link #BUFFABLE_GROUPS})→ そのフェーズでの強化。
+         * 書かれていないグループは強化なし(倍率 1.0)。2026-09-25 に {@code group1} から移した。
+         */
+        public java.util.Map<String, GroupBuff> groups;
         /** このフェーズでレイドイベントが発生しうるか。 */
         public Boolean raidEnabled;
+        /**
+         * このフェーズで <b>TD(森の侵攻)</b> が起きうるか(2026-09-29 ユーザー指定、既定はフェーズ5以降)。
+         * 2026-09-29 まで {@code td.json} の {@code minPhase} だったものを、レイド・ティタニカ戦と
+         * 同じくフェーズごとの可否へ移した(規則が 2 か所にならないよう {@code minPhase} は廃止)。
+         * 侵攻が始まる残りの条件(バイオマス・ターゲットの近さ・間隔)は {@code td.json} のまま。
+         * {@code td/TdTicker#tryTrigger} が見る。
+         */
+        public Boolean tdEnabled;
         /**
          * このフェーズへ上がったときに攻城戦(ドルガ=アーケロウス・ティタニカ)を始めるか
          * (2026-09-17、既定はフェーズ7以降)。{@code SiegeData#onPhaseAdvanced} が見る。
          */
         public Boolean siegeEnabled;
+        /**
+         * {@code siegeEnabled} のフェーズへ上がってから、攻城戦が実際に始まるまでの待ち時間(tick、
+         * 2026-09-25 ユーザー指定)。0 / null = 突入した瞬間(2026-09-25 までの挙動)。
+         * 24000 = ゲーム内 1 日。プレイヤーが誰も居なければ、居るようになるまでさらに待つ。
+         */
+        public Integer siegeDelayTicks;
         /** 自由記述の内容メモ(挙動には影響しない — マネージャー表示用)。 */
         public String notes;
     }
@@ -192,6 +256,7 @@ public final class PhaseTable {
     private final int pointsPerGroupMobKill;
     private final int pointsPerOvergrownChunk;
     private final Phase[] phases; // index 1..10
+    private final Omen omen;
 
     private PhaseTable(Json j) {
         Json d = DEFAULT_JSON;
@@ -208,6 +273,17 @@ public final class PhaseTable {
         this.pointsPerGroupMobDeath = orElse(p.perGroupMobDeath, dp.perGroupMobDeath);
         this.pointsPerGroupMobKill = orElse(p.perGroupMobKill, dp.perGroupMobKill);
         this.pointsPerOvergrownChunk = orElse(p.perOvergrownChunk, dp.perOvergrownChunk);
+        OmenJson o = g.omen != null ? g.omen : new OmenJson();
+        OmenJson od = dg.omen;
+        this.omen = new Omen(orElse(o.leadTicks, od.leadTicks), orElse(o.sampleLeadTicks, od.sampleLeadTicks),
+                orElse(o.sampleChance, od.sampleChance), orElse(o.pumpJitter, od.pumpJitter),
+                Math.max(1, orElse(o.pumpJitterTicks, od.pumpJitterTicks)),
+                Math.max(20, orElse(o.noticeTicks, od.noticeTicks)), orElse(o.noticeRadius, od.noticeRadius),
+                Math.max(20, orElse(o.quakeMinTicks, od.quakeMinTicks)), Math.max(20, orElse(o.quakeMaxTicks, od.quakeMaxTicks)),
+                orElse(o.quakeMinDistance, od.quakeMinDistance), orElse(o.quakeMaxDistance, od.quakeMaxDistance),
+                orElse(o.quakeIntensity, od.quakeIntensity), Math.max(20, orElse(o.quakeTicks, od.quakeTicks)),
+                orElse(o.flowerWiltChance, od.flowerWiltChance), orElse(o.flowerRecoverChance, od.flowerRecoverChance),
+                orElse(o.animalAvoidExtra, od.animalAvoidExtra));
 
         this.phases = new Phase[MAX_PHASE + 1];
         for (int n = MIN_PHASE; n <= MAX_PHASE; n++) {
@@ -217,12 +293,17 @@ public final class PhaseTable {
         }
     }
 
-    static PhaseTable fromJson(Json j) {
+    public static PhaseTable fromJson(Json j) {
         return new PhaseTable(j);
     }
 
     public int startWorldAgeTicks() {
         return startWorldAgeTicks;
+    }
+
+    /** F1 の前の前兆の値(2026-10-24)。 */
+    public Omen omen() {
+        return omen;
     }
 
     /** フェーズ1が始まるのに必要な「解除済み実績の種類数」(0 で実績ゲートなし)。 */
@@ -288,8 +369,27 @@ public final class PhaseTable {
      *         (= そこへは自動昇格しない)。
      */
     public boolean canAdvanceTo(int n, long points) {
+        if (!autoAdvance(n)) {
+            return false;
+        }
         long need = pointsToAdvance(n);
         return need != Long.MAX_VALUE && points >= need;
+    }
+
+    /** このフェーズへ自然に昇格するか({@code autoAdvance}、未設定なら true)。 */
+    public boolean autoAdvance(int n) {
+        Boolean v = phase(n).autoAdvance;
+        return v == null || v;
+    }
+
+    /**
+     * このフェーズへ上がったときに流す文({@code message})。空 / 未設定なら null =
+     * 言語ファイルのフェーズ名を使う({@code PhaseData#advanceToPhase})。
+     */
+    @javax.annotation.Nullable
+    public String message(int n) {
+        String s = phase(n).message;
+        return s != null && !s.isBlank() ? s : null;
     }
 
     /** 自動昇格の対象になりうるフェーズ番号か(フェーズ1は開始フェーズなので対象外)。 */
@@ -304,10 +404,10 @@ public final class PhaseTable {
 
     /**
      * このフェーズに、ワールドへ同時に存在できる「群れ」の数(0 / 未設定 = 無制限)。
-     * 1 群れ = 生態系スポーンが 1 か所にまとめて湧かせたひとかたまり(1 体でも 1 群れ)。
+     * 群れ v2(2026-09-25)からは読み込まれている G4 の群れの数で数える(旧: 生態系スポーンのひとかたまりごと)。
      * 上限に達している間は<b>新しい群れを湧かせない</b>だけで、既にいる群れは消えない。
      *
-     * @see com.yayuy.overgrownvegetation.phase.PackTracker
+     * @see com.yayuy.overgrownvegetation.swarm.SwarmManager#budget
      */
     public int maxPacks(int n) {
         Integer v = phase(n).maxPacks;
@@ -375,64 +475,6 @@ public final class PhaseTable {
         return resolve(phase(n).carrierSpawns, 4, 0.15D, 32, 80);
     }
 
-    // --- 小規模レイド(2026-09-19) ---
-
-    public boolean smallRaidEnabled(int n) {
-        SmallRaid s = phase(n).smallRaid;
-        return s != null && Boolean.TRUE.equals(s.enabled);
-    }
-
-    /** 小規模レイドが起き始める最小フェーズ。無ければ {@link #MAX_PHASE}+1。 */
-    public int smallRaidMinPhase() {
-        for (int n = MIN_PHASE; n <= MAX_PHASE; n++) {
-            if (smallRaidEnabled(n)) {
-                return n;
-            }
-        }
-        return MAX_PHASE + 1;
-    }
-
-    public int smallRaidMinIntervalTicks(int n) {
-        SmallRaid s = phase(n).smallRaid;
-        return s != null && s.minIntervalTicks != null ? Math.max(200, s.minIntervalTicks) : 36000;
-    }
-
-    public int smallRaidMaxIntervalTicks(int n) {
-        SmallRaid s = phase(n).smallRaid;
-        int max = s != null && s.maxIntervalTicks != null ? s.maxIntervalTicks : 72000;
-        return Math.max(smallRaidMinIntervalTicks(n), max);
-    }
-
-    public int smallRaidMinDistance(int n) {
-        SmallRaid s = phase(n).smallRaid;
-        return s != null && s.minDistance != null ? Math.max(16, s.minDistance) : 96;
-    }
-
-    public int smallRaidMaxDistance(int n) {
-        SmallRaid s = phase(n).smallRaid;
-        int max = s != null && s.maxDistance != null ? s.maxDistance : 144;
-        return Math.max(smallRaidMinDistance(n), max);
-    }
-
-    /** 小規模レイドの編成(種の id → 体数)。未設定なら既定の編成。 */
-    public java.util.Map<String, Integer> smallRaidComposition(int n) {
-        SmallRaid s = phase(n).smallRaid;
-        return s != null && s.composition != null && !s.composition.isEmpty()
-                ? s.composition : DEFAULT_SMALL_RAID_COMPOSITION;
-    }
-
-    /** 既定の編成: アルボラ 8 + 他のグループ4 の動ける種 1 体ずつ(ユーザー指定 2026-09-19)。 */
-    private static final java.util.Map<String, Integer> DEFAULT_SMALL_RAID_COMPOSITION;
-    static {
-        java.util.LinkedHashMap<String, Integer> m = new java.util.LinkedHashMap<>();
-        m.put("arbora", 8);
-        m.put("phyllosens", 1);
-        m.put("velophyll", 1);
-        m.put("sporophyll", 1);
-        m.put("overgrown_shielder", 1);
-        DEFAULT_SMALL_RAID_COMPOSITION = java.util.Collections.unmodifiableMap(m);
-    }
-
     /**
      * このフェーズで「混成の群れ」として湧かせるグループ番号(空なら従来どおり種ごとの群れ)。
      * 既定ではフェーズ6以降のグループ4。
@@ -465,14 +507,18 @@ public final class PhaseTable {
         return Boolean.TRUE.equals(phase(n).siegeEnabled);
     }
 
-    /** 攻城戦が始まる最小フェーズ(siegeEnabled が true の最小 n)。無ければ {@link #MAX_PHASE}+1。 */
-    public int siegeMinPhase() {
-        for (int n = MIN_PHASE; n <= MAX_PHASE; n++) {
-            if (Boolean.TRUE.equals(phases[n].siegeEnabled)) {
-                return n;
-            }
-        }
-        return MAX_PHASE + 1;
+    /**
+     * このフェーズへ上がってから攻城戦が始まるまでの待ち時間(tick、既定 0 = その瞬間)。
+     * {@code SiegeData#tickPhaseTrigger} が数える。
+     */
+    public int siegeDelayTicks(int n) {
+        Integer v = phase(n).siegeDelayTicks;
+        return v != null ? Math.max(0, v) : 0;
+    }
+
+    /** このフェーズで TD(森の侵攻)が起きうるか({@code tdEnabled})。 */
+    public boolean tdEnabled(int n) {
+        return Boolean.TRUE.equals(phase(n).tdEnabled);
     }
 
     /** レイドが発生し始める最小フェーズ(raidEnabled が true の最小 n)。無ければ {@link #MAX_PHASE}+1。 */
@@ -485,24 +531,35 @@ public final class PhaseTable {
         return MAX_PHASE + 1;
     }
 
-    public boolean group1Buffed(int n) {
-        Group1 g1 = phase(n).group1;
-        return g1 != null && Boolean.TRUE.equals(g1.buffed);
+    /** フェーズ {@code n} でのグループ {@code group} の強化(書かれていなければ null)。 */
+    @javax.annotation.Nullable
+    public GroupBuff groupBuff(int n, int group) {
+        java.util.Map<String, GroupBuff> map = phase(n).groups;
+        return map != null ? map.get(String.valueOf(group)) : null;
     }
 
-    public double group1HealthMultiplier(int n) {
-        Group1 g1 = phase(n).group1;
-        return g1 != null && g1.healthMultiplier != null ? g1.healthMultiplier : 1.0D;
+    /** そのフェーズでグループ {@code group} が強化されるか。 */
+    public boolean groupBuffed(int n, int group) {
+        GroupBuff g = groupBuff(n, group);
+        return g != null && Boolean.TRUE.equals(g.buffed);
     }
 
-    public double group1AttackMultiplier(int n) {
-        Group1 g1 = phase(n).group1;
-        return g1 != null && g1.attackMultiplier != null ? g1.attackMultiplier : 1.0D;
+    /** 強化中の体力倍率(強化していない / 未設定なら 1.0)。 */
+    public double groupHealthMultiplier(int n, int group) {
+        GroupBuff g = groupBuff(n, group);
+        return g != null && g.healthMultiplier != null ? g.healthMultiplier : 1.0D;
     }
 
+    /** 強化中の攻撃力倍率(強化していない / 未設定なら 1.0)。 */
+    public double groupAttackMultiplier(int n, int group) {
+        GroupBuff g = groupBuff(n, group);
+        return g != null && g.attackMultiplier != null ? g.attackMultiplier : 1.0D;
+    }
+
+    /** グループ1 が汚染地形から離れるか({@code Group1FleeCorruptionGoal} だけが見る)。 */
     public boolean group1FleeCorruption(int n) {
-        Group1 g1 = phase(n).group1;
-        return g1 != null && Boolean.TRUE.equals(g1.fleeCorruption);
+        GroupBuff g = groupBuff(n, 1);
+        return g != null && Boolean.TRUE.equals(g.fleeCorruption);
     }
 
     // --- merge helpers ---
@@ -510,6 +567,8 @@ public final class PhaseTable {
     private static Phase merge(Phase def, Phase over) {
         Phase r = new Phase();
         r.pointsToAdvance = over != null && over.pointsToAdvance != null ? over.pointsToAdvance : def.pointsToAdvance;
+        r.autoAdvance = over != null && over.autoAdvance != null ? over.autoAdvance : def.autoAdvance;
+        r.message = over != null && over.message != null ? over.message : def.message;
         r.maxPacks = over != null && over.maxPacks != null ? over.maxPacks : def.maxPacks;
         MixedPacks dmp = def.mixedPacks;
         MixedPacks omp = over != null ? over.mixedPacks : null;
@@ -522,30 +581,41 @@ public final class PhaseTable {
         }
         r.outsideSpawns = mergeOutside(def.outsideSpawns, over != null ? over.outsideSpawns : null);
         r.carrierSpawns = mergeOutside(def.carrierSpawns, over != null ? over.carrierSpawns : null);
-        SmallRaid dsr = def.smallRaid;
-        SmallRaid osr = over != null ? over.smallRaid : null;
-        if (dsr != null || osr != null) {
-            SmallRaid s = new SmallRaid();
-            s.enabled = osr != null && osr.enabled != null ? osr.enabled : (dsr != null ? dsr.enabled : null);
-            s.minIntervalTicks = osr != null && osr.minIntervalTicks != null ? osr.minIntervalTicks : (dsr != null ? dsr.minIntervalTicks : null);
-            s.maxIntervalTicks = osr != null && osr.maxIntervalTicks != null ? osr.maxIntervalTicks : (dsr != null ? dsr.maxIntervalTicks : null);
-            s.minDistance = osr != null && osr.minDistance != null ? osr.minDistance : (dsr != null ? dsr.minDistance : null);
-            s.maxDistance = osr != null && osr.maxDistance != null ? osr.maxDistance : (dsr != null ? dsr.maxDistance : null);
-            s.composition = osr != null && osr.composition != null ? osr.composition : (dsr != null ? dsr.composition : null);
-            r.smallRaid = s;
-        }
         r.raidWaveGroups = over != null && over.raidWaveGroups != null ? over.raidWaveGroups : def.raidWaveGroups;
         r.raidEnabled = over != null && over.raidEnabled != null ? over.raidEnabled : def.raidEnabled;
+        r.tdEnabled = over != null && over.tdEnabled != null ? over.tdEnabled : def.tdEnabled;
         r.siegeEnabled = over != null && over.siegeEnabled != null ? over.siegeEnabled : def.siegeEnabled;
+        r.siegeDelayTicks = over != null && over.siegeDelayTicks != null ? over.siegeDelayTicks : def.siegeDelayTicks;
         r.notes = over != null && over.notes != null ? over.notes : def.notes;
-        Group1 dg = def.group1 != null ? def.group1 : new Group1();
-        Group1 og = over != null ? over.group1 : null;
-        Group1 g = new Group1();
-        g.buffed = og != null && og.buffed != null ? og.buffed : dg.buffed;
-        g.healthMultiplier = og != null && og.healthMultiplier != null ? og.healthMultiplier : dg.healthMultiplier;
-        g.attackMultiplier = og != null && og.attackMultiplier != null ? og.attackMultiplier : dg.attackMultiplier;
-        g.fleeCorruption = og != null && og.fleeCorruption != null ? og.fleeCorruption : dg.fleeCorruption;
-        r.group1 = g;
+        r.groups = mergeGroups(def.groups, over != null ? over.groups : null);
+        return r;
+    }
+
+    /** グループ強化のマージ。既定と json の<b>両方に出てくるグループ</b>を集めて、項目ごとに json を優先する。 */
+    private static java.util.Map<String, GroupBuff> mergeGroups(
+            @javax.annotation.Nullable java.util.Map<String, GroupBuff> def,
+            @javax.annotation.Nullable java.util.Map<String, GroupBuff> over) {
+        java.util.Map<String, GroupBuff> r = new java.util.LinkedHashMap<>();
+        java.util.Set<String> keys = new java.util.LinkedHashSet<>();
+        if (def != null) {
+            keys.addAll(def.keySet());
+        }
+        if (over != null) {
+            keys.addAll(over.keySet());
+        }
+        for (String key : keys) {
+            GroupBuff d = def != null ? def.get(key) : null;
+            GroupBuff o = over != null ? over.get(key) : null;
+            GroupBuff g = new GroupBuff();
+            g.buffed = o != null && o.buffed != null ? o.buffed : (d != null ? d.buffed : null);
+            g.healthMultiplier = o != null && o.healthMultiplier != null
+                    ? o.healthMultiplier : (d != null ? d.healthMultiplier : null);
+            g.attackMultiplier = o != null && o.attackMultiplier != null
+                    ? o.attackMultiplier : (d != null ? d.attackMultiplier : null);
+            g.fleeCorruption = o != null && o.fleeCorruption != null
+                    ? o.fleeCorruption : (d != null ? d.fleeCorruption : null);
+            r.put(key, g);
+        }
         return r;
     }
 
@@ -587,12 +657,38 @@ public final class PhaseTable {
         j.global.points.perGroupMobDeath = 1;
         j.global.points.perGroupMobKill = 1;
         j.global.points.perOvergrownChunk = 5;
+        // 前兆(2026-10-24 地脈技術の 4 段目。全部仮決め)。
+        OmenJson o = new OmenJson();
+        o.leadTicks = 12000;
+        o.sampleLeadTicks = 24000;
+        o.sampleChance = 0.05D;
+        o.pumpJitter = 0.4D;
+        o.pumpJitterTicks = 100;
+        o.noticeTicks = 12000;
+        o.noticeRadius = 32;
+        o.quakeMinTicks = 12000;
+        o.quakeMaxTicks = 24000;
+        o.quakeMinDistance = 16;
+        o.quakeMaxDistance = 48;
+        o.quakeIntensity = 0.4D;
+        o.quakeTicks = 100;
+        o.flowerWiltChance = 0.1D;
+        o.flowerRecoverChance = 0.15D;
+        o.animalAvoidExtra = 6;
+        j.global.omen = o;
 
-        // 昇格条件(2026-09-15): ポイントのみ(チャンク数による昇格は廃止)。
-        //   F2 = 360000 / F3 = 800000 / F4 = 1400000 / F5 = 2800000 / F6 = 5800000
-        //   (F1→F6 でおよそゲーム内 64 日。汚染を積極的に広げれば 40 日ほど)
-        //   フェーズ7以降 = 条件なし(内容が未実装なので、自動進行はフェーズ6で止まる)
-        int[] pointsToAdvance = {0, 0, 360_000, 800_000, 1_400_000, 2_800_000, 5_800_000, 0, 0, 0, 0};
+        // 昇格条件: ポイントのみ(チャンク数による昇格は 2026-09-15 に廃止)。
+        //   ユーザー指定の日数: F1→F2〜F4→F5 は各 5 日、F5→F6・F6→F7 は各 20 日、F7→F8〜F9→F10 は各 10 日
+        //   (F1→F10 で 90 日)。F7 以降も自動で上がる。
+        //   2026-09-28 に台帳の広がりの規則(5 分 = 6000 tick おきに、縁のチャンクを接している面の数 × 25% の確率で過繁茂に)から
+        //   逆算し直した: 地割れに似た 16×3 チャンクの帯から 100 回回した平均で、過繁茂は 5 日目 529 / 20 日目 4956 /
+        //   40 日目 18094 / 60 日目 39633 / 90 日目 87822 チャンク。汚染シダが近くで広げた分は前倒しになる。
+        //   ポイント = 毎 tick (1 + 0.005 × 過繁茂チャンク数) + 新しい過繁茂 1 チャンク 5 点。撃破・実績は小さいので入れていない。
+        //   (2026-09-26〜27 は「1 日平均 285 チャンク」前提の 585000 / 1440000 / 2295000 / 3150000 / 21150000 /
+        //   34830000 / 22545000 / 25965000 / 29385000。2026-09-28 午前の「1 日 1 回」前提は 164000 / 217000 / 289000 /
+        //   377000 / 2768000 / 5679000 / 4310000 / 5495000 / 6832000)
+        int[] pointsToAdvance = {0, 0, 263_000, 696_000, 1_421_000, 2_452_000,
+                26_329_000, 67_841_000, 55_816_000, 73_784_000, 94_305_000};
 
         j.phases = new java.util.LinkedHashMap<>();
         for (int n = MIN_PHASE; n <= MAX_PHASE; n++) {
@@ -621,18 +717,6 @@ public final class PhaseTable {
                 p.carrierSpawns = carrier;
             }
 
-            // フェーズ3以降、小規模レイド(遠くに湧いた一団がプレイヤーを襲いに来る。2026-09-19)。
-            if (n >= 3) {
-                SmallRaid sr = new SmallRaid();
-                sr.enabled = true;
-                sr.minIntervalTicks = 36000;
-                sr.maxIntervalTicks = 72000;
-                sr.minDistance = 96;
-                sr.maxDistance = 144;
-                sr.composition = DEFAULT_SMALL_RAID_COMPOSITION;
-                p.smallRaid = sr;
-            }
-
             // フェーズ6以降、グループ4は「種がばらばらな 3〜5 体の群れ」で湧く(2026-09-15)。
             if (n >= 6) {
                 MixedPacks mp = new MixedPacks();
@@ -655,14 +739,20 @@ public final class PhaseTable {
             }
             p.raidWaveGroups = wave;
 
-            Group1 g1 = new Group1();
-            g1.buffed = n >= 2;
-            g1.healthMultiplier = 2.0D;
-            g1.attackMultiplier = 1.5D;
+            // 既定の強化はグループ1 だけ(2026-09-25 にグループ4〜9 の枠も作ったが、既定では強化しない
+            // = 書かなければ倍率 1.0。今の挙動を変えないため)。
+            // グループ1 の強化(F2〜 体力 2 倍・攻撃力 1.5 倍)は 2026-10-10 ユーザー指定で無し。
+            GroupBuff g1 = new GroupBuff();
+            g1.buffed = false;
+            g1.healthMultiplier = 1.0D;
+            g1.attackMultiplier = 1.0D;
             g1.fleeCorruption = n >= 2;
-            p.group1 = g1;
+            p.groups = new java.util.LinkedHashMap<>();
+            p.groups.put("1", g1);
 
             p.raidEnabled = n >= 5;
+            // TD(森の侵攻)。2026-09-29 まで td.json の minPhase 5 だった値をここへ移した。
+            p.tdEnabled = n >= 5;
             // フェーズ7以降は、上がった瞬間に攻城戦(遠距離ボス)が始まる(2026-09-17、内容は仮)。
             p.siegeEnabled = n >= 7;
             p.notes = "";

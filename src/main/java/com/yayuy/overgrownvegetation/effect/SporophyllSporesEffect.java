@@ -10,7 +10,7 @@ import net.minecraft.world.effect.MobEffectCategory;
  * <p>能力値そのものはいじらない。効くのは攻撃したときで、
  * {@link SporophyllCombatHandler} が 2 つのことをする:
  * <ul>
- *     <li>相手の<b>防御力を {@code sporophyllArmorPiercing}(既定 50%)無視する</b></li>
+ *     <li>相手の<b>防御力を {@code sporophyllArmorPiercing}(effects.json の既定 20%)無視する</b></li>
  *     <li>相手の<b>防具の耐久値を、与えたダメージ × {@code sporophyllArmorDurabilityFactor} だけ削る</b></li>
  * </ul>
  * 持続は {@code sporophyllBuffTicks}(既定 1 分)で、範囲内に居るあいだは配り直されて途切れない。
