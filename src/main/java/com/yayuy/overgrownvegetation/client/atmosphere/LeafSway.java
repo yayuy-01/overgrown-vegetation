@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.VisualQuality;
 import com.yayuy.overgrownvegetation.data.AtmosphereTable;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import net.minecraft.client.renderer.GameRenderer;
@@ -71,6 +72,7 @@ public final class LeafSway {
 
     /** AFTER_SKY(地形を描く前)に、葉と草のシェーダーへ今の風を渡す。{@code on} が false なら止める。 */
     static void upload(RenderLevelStageEvent event, boolean on) {
+        on = on && VisualQuality.leafSway();
         ShaderInstance mipped = GameRenderer.getRendertypeCutoutMippedShader();
         ShaderInstance cutout = GameRenderer.getRendertypeCutoutShader();
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);

@@ -1,10 +1,13 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.VisualQuality;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.client.shader.SodiumTerrain;
 import com.yayuy.overgrownvegetation.data.AtmosphereTable;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.chunk.RenderChunkRegion;
@@ -14,6 +17,7 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -161,7 +165,7 @@ public final class LeafTones {
         if (state.isAir()) {
             return true;
         }
-        if (state.is(ModBlocks.OVERGROWN_LEAVES.get()) || state.is(ModBlocks.OVERGROWN_SWAMP_LEAVES.get()) || state.is(BlockTags.LEAVES)) {
+        if (state.is(ModBlocks.OVERGROWN_LEAVES.get()) || state.is(BlockTags.LEAVES)) {
             return false;
         }
         return !state.canOcclude();
@@ -218,6 +222,7 @@ public final class LeafTones {
 
     /** AFTER_SKY に、葉の層のシェーダーへ強さを渡す({@code on} が false なら 0。Sodium へは SodiumTerrain が写す)。 */
     static void upload(boolean on) {
+        on = on && VisualQuality.canopyLight();
         ShaderInstance shader = GameRenderer.getRendertypeCutoutMippedShader();
         if (shader == null) {
             return;
@@ -225,6 +230,24 @@ public final class LeafTones {
         AtmosphereTable.LeavesParams p = DesignData.atmosphere().leaves();
         boolean use = on && !SodiumTerrain.unsupported();
         shader.safeGetUniform("OvLeafTone").set(use ? p.toneStrength() : 0.0F, use ? p.youngStrength() : 0.0F, 0.0F, 0.0F);
+        // 葉の裏の透け(36、10-31 見え方の段。設定: 熱帯の明るい森 = 日を背にした葉は黄緑に透ける。暗くせず明るく見せる決め手)。
+        // 太陽が地平線より上で、雨でないときだけ(雨の日は日が透けない)。
+        float back = 0.0F;
+        float sx = 0.0F;
+        float sy = 1.0F;
+        float sz = 0.0F;
+        ClientLevel level = Minecraft.getInstance().level;
+        if (use && level != null) {
+            Vec3 sun = SunLight.sunDirection(level, 1.0F);
+            sx = (float) sun.x;
+            sy = (float) sun.y;
+            sz = (float) sun.z;
+            back = p.backlight() * Mth.clamp(sy / 0.15F, 0.0F, 1.0F) * (1.0F - level.getRainLevel(1.0F));
+        }
+        float[] c = p.backlightColor();
+        float gain = p.backlightGain();
+        shader.safeGetUniform("OvLeafSun").set(sx, sy, sz, back);
+        shader.safeGetUniform("OvLeafBack").set(c[0] * gain, c[1] * gain, c[2] * gain, p.backlightFrom());
     }
 
     private LeafTones() {

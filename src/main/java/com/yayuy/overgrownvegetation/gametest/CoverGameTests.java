@@ -132,12 +132,11 @@ public final class CoverGameTests {
     /**
      * 汚染は建築タブのブロックを<b>元のまま</b>にする(呼び出し元は noChange で素通りし、位置付きなら記録で覆う)。ただし 3 割は同じ形の過繁茂
      * ブロック、木材は過繁茂した木材 5 : 過繁茂ブロック 1.5 : 覆う 3.5(2026-10-05 夜のユーザー指定。前の「覆われた版」の枠が記録になっただけ)。
-     * 前から専用の過繁茂ブロックがある 10 個はそちら。割合は 1 本の乱数で 200 回引いて見る。
+     * 前から専用の過繁茂ブロックがある 6 個はそちら(丸石・花崗岩・閃緑岩・安山岩の専用ブロックは 2026-10-31 に削除して覆う側へ。前は 10 個)。割合は 1 本の乱数で 200 回引いて見る。
      */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
     public static void corruptionLeavesBuildingBlocksInPlace(GameTestHelper helper) {
-        Set<String> dedicated = Set.of("stone", "cobblestone", "granite", "diorite", "andesite", "deepslate",
-                "cobbled_deepslate", "bricks", "netherrack", "end_stone");
+        Set<String> dedicated = Set.of("stone", "deepslate", "cobbled_deepslate", "bricks", "netherrack", "end_stone");
         Set<Block> table = CoverInPlace.blocks();
         if (table.size() != 367 + 36) { // 蝋引きの銅 36 個も
             helper.fail("記録で覆うブロックの一覧が 403 件でない: " + table.size());
@@ -955,5 +954,106 @@ public final class CoverGameTests {
             return null;
         }
         return vanilla.is(BlockTags.LOGS) ? ModBlocks.OVERGROWN_TRUNK_BLOCK.get() : ModBlocks.OVERGROWN_BLOCK.get();
+    }
+
+    /**
+     * 這い上がる苔(28)の記録(2026-11-01 ユーザー指定): 覆いに接して<b>置いた</b>ブロックだけに記録ができる。自然に置かれた(イベントの無い)ブロック・
+     * 覆いに接していないブロックにはできない。壊すと消える・そのマスが覆われると消える。帯を出す面と段階の決まりも見る。
+     */
+    @GameTest(template = "gametest_empty7")
+    public static void creepRecordOnlyForPlacedBlocks(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos covered = helper.absolutePos(new BlockPos(3, 2, 3));
+        BlockPos above = covered.above();
+        BlockPos side = covered.east();
+        BlockPos far = helper.absolutePos(new BlockPos(1, 2, 1));
+        helper.setBlock(new BlockPos(3, 2, 3), Blocks.OAK_PLANKS);
+        if (!OvergrownLayerData.cover(level, covered)) {
+            helper.fail("板材を覆えない");
+            return;
+        }
+        try {
+            // 自然のブロック(置いたイベントが無い)には記録ができない
+            helper.setBlock(new BlockPos(3, 3, 3), Blocks.OAK_PLANKS);
+            if (com.yayuy.overgrownvegetation.corruption.CoverCreepData.get(level, above) != Long.MIN_VALUE) {
+                helper.fail("自然に置かれたブロックに記録ができた");
+                return;
+            }
+            // 置いたブロック: 覆いに接していれば記録(接している向き)、接していなければ無し
+            helper.setBlock(new BlockPos(4, 2, 3), Blocks.STONE);
+            helper.setBlock(new BlockPos(1, 2, 1), Blocks.STONE);
+            boolean placedSide = com.yayuy.overgrownvegetation.corruption.CoverCreepData.placed(level, side, level.getBlockState(side));
+            boolean placedFar = com.yayuy.overgrownvegetation.corruption.CoverCreepData.placed(level, far, level.getBlockState(far));
+            long value = com.yayuy.overgrownvegetation.corruption.CoverCreepData.get(level, side);
+            if (!placedSide || placedFar || value == Long.MIN_VALUE
+                    || com.yayuy.overgrownvegetation.corruption.CoverCreepData.sides(value) != 1 << Direction.WEST.ordinal()
+                    || com.yayuy.overgrownvegetation.corruption.CoverCreepData.startTick(value) != level.getGameTime()) {
+                helper.fail("置いたときの記録: 横 " + placedSide + "・離れた所 " + placedFar + "・値 " + value);
+                return;
+            }
+            // 壊すと消える
+            helper.setBlock(new BlockPos(4, 2, 3), Blocks.AIR);
+            if (com.yayuy.overgrownvegetation.corruption.CoverCreepData.get(level, side) != Long.MIN_VALUE) {
+                helper.fail("壊しても記録が残った");
+                return;
+            }
+            // 覆われると消える
+            if (!com.yayuy.overgrownvegetation.corruption.CoverCreepData.placed(level, above, level.getBlockState(above))) {
+                helper.fail("上に置いた板材に記録ができない");
+                return;
+            }
+            OvergrownLayerData.cover(level, above);
+            if (com.yayuy.overgrownvegetation.corruption.CoverCreepData.get(level, above) != Long.MIN_VALUE) {
+                helper.fail("覆われても記録が残った");
+                return;
+            }
+            OvergrownLayerData.uncover(level, above);
+            // 帯を出す面: 下が覆われていれば側面 4 つ、西が覆われていれば上下と南北
+            for (Direction face : Direction.values()) {
+                if (com.yayuy.overgrownvegetation.corruption.CoverCreep.bandOnFace(Direction.DOWN, face) != face.getAxis().isHorizontal()
+                        || com.yayuy.overgrownvegetation.corruption.CoverCreep.bandOnFace(Direction.WEST, face) != (face.getAxis() != Direction.Axis.X)) {
+                    helper.fail("帯を出す面が違う: " + face);
+                    return;
+                }
+            }
+            // 段階: 置いた直後 1、creepSeconds の半分で 4、creepSeconds で 8
+            CoverTable design = DesignData.cover();
+            long full = Math.round(design.creepSeconds() * 20.0D);
+            int s0 = com.yayuy.overgrownvegetation.corruption.CoverCreep.stage(0L, design);
+            int sMid = com.yayuy.overgrownvegetation.corruption.CoverCreep.stage(full / 2, design);
+            int sEnd = com.yayuy.overgrownvegetation.corruption.CoverCreep.stage(full, design);
+            int sLate = com.yayuy.overgrownvegetation.corruption.CoverCreep.stage(full * 3, design);
+            int last = com.yayuy.overgrownvegetation.corruption.CoverCreep.STAGES;
+            if (s0 != 1 || sEnd != last || sLate != last || sMid != last / 2) {
+                helper.fail("段階: 始め " + s0 + "・半分 " + sMid + "・終わり " + sEnd + "・その後 " + sLate);
+                return;
+            }
+            helper.succeed();
+        } finally {
+            OvergrownLayerData.uncover(level, above);
+            OvergrownLayerData.uncover(level, covered);
+        }
+    }
+    /**
+     * 這い上がる苔の元は記録で覆ったマスだけでなく汚染ブロック全般(2026-11-01 ユーザー指定): overgrown_stone の上に置いた石には記録ができる。
+     * 葉のような非固体の汚染ブロックは元にしない(仮決め)。
+     */
+    @GameTest(template = "gametest_empty7")
+    public static void creepFromCorruptedBlocks(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        helper.setBlock(new BlockPos(5, 2, 5), ModBlocks.OVERGROWN_STONE.get());
+        helper.setBlock(new BlockPos(5, 3, 5), Blocks.STONE);
+        helper.setBlock(new BlockPos(1, 2, 5), ModBlocks.OVERGROWN_LEAVES.get());
+        helper.setBlock(new BlockPos(1, 3, 5), Blocks.STONE);
+        BlockPos onStone = helper.absolutePos(new BlockPos(5, 3, 5));
+        BlockPos onLeaves = helper.absolutePos(new BlockPos(1, 3, 5));
+        boolean stone = com.yayuy.overgrownvegetation.corruption.CoverCreepData.placed(level, onStone, level.getBlockState(onStone));
+        boolean leaves = com.yayuy.overgrownvegetation.corruption.CoverCreepData.placed(level, onLeaves, level.getBlockState(onLeaves));
+        long value = com.yayuy.overgrownvegetation.corruption.CoverCreepData.get(level, onStone);
+        if (!stone || leaves || com.yayuy.overgrownvegetation.corruption.CoverCreepData.sides(value) != 1 << Direction.DOWN.ordinal()) {
+            helper.fail("汚染ブロックの上: overgrown_stone " + stone + "・葉 " + leaves + "・値 " + value);
+            return;
+        }
+        helper.succeed();
     }
 }

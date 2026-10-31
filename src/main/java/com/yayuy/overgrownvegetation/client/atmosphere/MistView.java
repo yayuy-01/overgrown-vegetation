@@ -1,5 +1,7 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.yayuy.overgrownvegetation.client.VisualQuality;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import net.minecraft.client.renderer.FogRenderer;
 import net.minecraft.util.Mth;
@@ -18,6 +20,9 @@ import net.neoforged.neoforge.client.event.ViewportEvent;
  *     {@link ForestPresence#openForest})にいる間は、霧の色を明るい白({@code forestSkyColor})へ寄せ、空の霧をすぐ満ちるようにして
  *     空の丸天井まで霧の色にする。朝霧の中でも(10-30 夜 ユーザー「白い霧の中の幹の影絵」= 参考画像 4)。森の外では今まで通り。</li>
  *     <li><b>太陽の方の霧が光る</b>(B1): 霧の色を、見ている向きが太陽に近いほど暖かい白へ。</li>
+ *     <li><b>胞子の霧</b>(10-31 ユーザー「森の中にいるときだけ、描画距離 6 チャンクと同じくらい」): 森の中({@link ForestPresence#openForest})では
+ *     地形の霧を {@code forestFogStart}〜{@code forestFogEnd}(86.4〜96)へ、色を隙間の空の色へ。地形シェーダーの胞子の霧({@code ov_fog.glsl})と
+ *     同じ距離・同じ色なので、森の中では 2 つが重なり、Mob・粒・雲もこれで隠れる。森の外から縁越しに見る分は地形シェーダーだけ。</li>
  *     <li><b>嵐</b>(提案 2、10-30 夜 ユーザー採用): 雷雨の間、過繁茂の地域ではバニラの霧を {@code stormFogEnd}(仮 40)まで近づけて遠くを早く隠す。</li>
  * </ul>
  */
@@ -26,12 +31,83 @@ final class MistView {
     private MistView() {
     }
 
+    /** 森の中の胞子の霧の度合い(0〜1。頭上の覆い・地下は除く)。0 = 切った({@code forestFogEnd} 0)。 */
+    static float sporeFog() {
+        return DesignData.atmosphere().fog().forestFogEnd() > 0.0F && !MistFog.devForestOff ? ForestPresence.openForest() : 0.0F;
+    }
+
+    /** 地形を描いた後のバニラの霧が効いていたフレーム(Distant Horizons はふつうの霧を切ると、設定の後で値を 4e19 などの巨大な値に書き換える)。 */
+    private static long terrainFogSeen = -10L;
+
+    /** 地形を描いた後(AFTER_CUTOUT_BLOCKS、{@link Atmosphere} から)。 */
+    static void noteTerrainFog() {
+        if (RenderSystem.getShaderFogEnd() < 1.0E9F) {
+            terrainFogSeen = MistFog.frame();
+        }
+    }
+
+    /**
+     * バニラの地形の霧が今効いているか(直近のフレームで地形を描いた後の霧の値が普通だったか)。効いていなければ(DH がふつうの霧を切っている)、森の中の霞は
+     * 地形シェーダーの分を残す({@link MistFog#setUniforms})。そのとき Mob・粒には霞が掛からない。
+     */
+    static boolean vanillaTerrainFog() {
+        return MistFog.frame() - terrainFogSeen <= 2L;
+    }
+
+    /** 霞の印: バニラの霧の始まりがこれより小さければ、fog.glsl はそこから霞の濃さを読む。 */
+    private static final float HAZE_MARK = -1000.0F;
+    private static final float HAZE_SCALE = 100000.0F;
+
+    /** カメラの所の霞の濃さ(森 1 ブロックあたり。森の度合い {@code forest} を掛ける。0 = 霞なし)。 */
+    private static float hazeK(float forest, float reach) {
+        float density = MistFog.devForestDensity >= 0.0F ? MistFog.devForestDensity : DesignData.atmosphere().fog().forestFogDensity();
+        return forest > 0.001F ? density * forest * reach : 0.0F;
+    }
+
+    private static float encodeHaze(float k) {
+        return HAZE_MARK - k * HAZE_SCALE;
+    }
+
+    /**
+     * 今のバニラの霧の始まり(霞の印を入れているときは、壁の始まり = 終わり − clamp(終わり / 10, 4, 64))。霧の始まりを読む自前の描画
+     * (シルエット・光る藻・水の中の筋)は {@code RenderSystem.getShaderFogStart()} の代わりにこれを読む。
+     */
+    /** 森の中の霞を描いているか(バニラの霧の始まりに霞の印)。 */
+    static boolean hazeActive() {
+        return RenderSystem.getShaderFogStart() < HAZE_MARK;
+    }
+
+    static float fogStart() {
+        float start = RenderSystem.getShaderFogStart();
+        if (start >= HAZE_MARK) {
+            return start;
+        }
+        float end = RenderSystem.getShaderFogEnd();
+        return end - Mth.clamp(end / 10.0F, 4.0F, 64.0F);
+    }
+
+    /** 距離 {@code d} の所が今のバニラの霧で消える量(0〜1。fog.glsl と同じ式)。霧を受けない足し算の光が掛ける(1 − これ)。 */
+    static float fogAmount(float d) {
+        float start = RenderSystem.getShaderFogStart();
+        float end = RenderSystem.getShaderFogEnd();
+        if (start < HAZE_MARK) {
+            float k = (HAZE_MARK - start) / HAZE_SCALE;
+            float wallStart = end - Mth.clamp(end / 10.0F, 4.0F, 64.0F);
+            float wall = d <= wallStart ? 0.0F : d >= end ? 1.0F : SunLight.smooth((d - wallStart) / (end - wallStart));
+            return 1.0F - (1.0F - wall) * (float) Math.exp(-k * d);
+        }
+        return d <= start ? 0.0F : d >= end ? 1.0F : SunLight.smooth((d - start) / Math.max(end - start, 0.001F));
+    }
+
     /** 森の中で空を白く飛ばす度合い(0〜1)。 */
     private static float whiteSky() {
         return ForestPresence.openForest() * DesignData.atmosphere().fog().forestSky();
     }
 
     static void computeFogColor(ViewportEvent.ComputeFogColor event) {
+        if (!VisualQuality.fog()) {
+            return;
+        }
         float inside = MistFog.cameraInside();
         float r = event.getRed();
         float g = event.getGreen();
@@ -49,6 +125,14 @@ final class MistView {
             g = Mth.lerp(white, g, s[1]);
             b = Mth.lerp(white, b, s[2]);
         }
+        // 胞子の霧の中は胞子の色へ(地形シェーダーの胞子の霧と同じ色。昼は黄緑寄りの白・朝夕は白緑・夜は暗く、11-01 ユーザー)。
+        float spore = sporeFog();
+        if (spore > 0.001F) {
+            float[] s = MistFog.sporeColor();
+            r = Mth.lerp(spore, r, s[0]);
+            g = Mth.lerp(spore, g, s[1]);
+            b = Mth.lerp(spore, b, s[2]);
+        }
         float glow = MistFog.viewGlow(event.getCamera().getLookVector());
         if (glow > 0.001F) {
             float[] n = MistFog.nearColor();
@@ -62,7 +146,7 @@ final class MistView {
     }
 
     static void renderFog(ViewportEvent.RenderFog event) {
-        if (event.getType() != FogType.NONE) {
+        if (event.getType() != FogType.NONE || !VisualQuality.fog()) {
             return;
         }
         if (event.getMode() == FogRenderer.FogMode.FOG_SKY) {
@@ -77,15 +161,26 @@ final class MistView {
         }
         float inside = MistFog.cameraInside();
         float storm = MistFog.stormNear();
-        if (inside <= 0.001F && storm <= 0.001F || event.getMode() != FogRenderer.FogMode.FOG_TERRAIN) {
+        float forest = sporeFog();
+        if (inside <= 0.001F && storm <= 0.001F && forest <= 0.001F || event.getMode() != FogRenderer.FogMode.FOG_TERRAIN) {
             return;
         }
         var p = DesignData.atmosphere().fog();
         float vanillaFar = event.getFarPlaneDistance();
         float vanillaNear = event.getNearPlaneDistance();
-        float far = Mth.lerp(inside, vanillaFar, Math.min(vanillaFar, p.insideFogEnd()));
+        // 胞子の霧: 森の中は描画距離 6 チャンクと同じ 86.4〜96(胞子が濃いほど近く)。描画距離がそれより短ければバニラのまま。
+        float reach = MistFog.forestReach();
+        float forestFar = Mth.lerp(forest, vanillaFar, Math.min(vanillaFar, p.forestFogEnd() / reach));
+        float forestNear = Mth.lerp(forest, vanillaNear, Math.min(vanillaNear, Math.min(p.forestFogStart(), p.forestFogEnd()) / reach));
+        float far = Mth.lerp(inside, forestFar, Math.min(forestFar, p.insideFogEnd()));
         far = Mth.lerp(storm, far, Math.min(far, p.stormFogEnd()));
-        float near = Mth.lerp(Math.max(inside, storm), vanillaNear, Math.min(vanillaNear, far * p.insideNearFraction()));
+        float near = Mth.lerp(Math.max(inside, storm), forestNear, Math.min(forestNear, far * p.insideNearFraction()));
+        // 森の中の霞(11-01 ユーザー「Mob だけ霧が掛からず浮く」): バニラの霧の始まりに負の印を入れて、上書きした fog.glsl に
+        // 1 − (1 − 壁) × exp(−k × 距離) を描かせる。Mob・粒・雲・この MOD の粒も地形と同じ霞になる。
+        float k = hazeK(forest, reach);
+        if (k > 0.0F) {
+            near = encodeHaze(k);
+        }
         event.setFarPlaneDistance(far);
         event.setNearPlaneDistance(near);
         event.setCanceled(true);

@@ -179,6 +179,7 @@ public final class OvergrownLayerData {
         lastNewlyCovered = pos.asLong();
         relightIfLit(level, pos);
         SpawnerCorruption.onCovered(level, pos); // スポナーなら湧く Mob を寄生体へ(2026-10-09)
+        CoverCreepData.onCovered(level, pos); // 這い上がる苔の記録は覆われたら要らない(2026-11-01)
         return true;
     }
 

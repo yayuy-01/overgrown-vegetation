@@ -33,7 +33,8 @@ import java.util.concurrent.CompletableFuture;
  *     <li>作るのはカメラのまわり(足元と 80・160・240 ブロックの輪)に過繁茂の地域があるときだけ。汚染の外の丘からでも作る(10-16 ユーザー)。
  *     作るのは裏のスレッド({@link ScanThread})。読むだけ。</li>
  * </ul>
- * 画素(RGBA): r = 谷の層の底 − 基準の高さ(ブロック)、g = 雲海の床 − 基準、b = 過繁茂の近さ × 255、a = 読めたか。
+ * 画素(RGBA): r = 谷の層の底 − 基準の高さ(ブロック)、g = 雲海の床 − 基準、b = 過繁茂の近さ × 255(読めない画素は 0)、
+ * a = 胞子の霧の森の度合い × 255(林冠のある過繁茂の列の割合、10-31)。
  */
 final class MistMap {
 
@@ -54,6 +55,10 @@ final class MistMap {
     private static final long TTL_MISSING = 100L;
     /** 梢を本物の地面から何ブロック上までで切るか(ふつうの密林の木は 20〜30)。仮決め。 */
     private static final int CANOPY_CAP = 36;
+    /** 胞子の霧の森の列: 表面(梢)が本物の地面からこれだけ上(林冠がある)。森の度合いは 3×3 列の割合を FOREST_FROM〜FOREST_FULL で 0 → 1。仮決め。 */
+    private static final int FOREST_CANOPY = 4;
+    private static final double FOREST_FROM = 0.25;
+    private static final double FOREST_FULL = 0.7;
 
     /** 作った地図(1 枚)。 */
     private static final class Map {
@@ -62,6 +67,7 @@ final class MistMap {
         final float[] low = new float[SIZE * SIZE];
         final float[] sea = new float[SIZE * SIZE];
         final float[] prox = new float[SIZE * SIZE];
+        final float[] forest = new float[SIZE * SIZE];
         final boolean[] valid = new boolean[SIZE * SIZE];
 
         Map(int originX, int originZ) {
@@ -232,10 +238,12 @@ final class MistMap {
                     m.low[k] = Mth.lerp(t, a.low[ak], b.low[k]);
                     m.sea[k] = Mth.lerp(t, a.sea[ak], b.sea[k]);
                     m.prox[k] = Mth.lerp(t, a.prox[ak], b.prox[k]);
+                    m.forest[k] = Mth.lerp(t, a.forest[ak], b.forest[k]);
                 } else {
                     m.low[k] = b.low[k];
                     m.sea[k] = b.sea[k];
                     m.prox[k] = b.valid[k] ? b.prox[k] * t : 0.0F;
+                    m.forest[k] = b.valid[k] ? b.forest[k] * t : 0.0F;
                 }
             }
         }
@@ -246,7 +254,7 @@ final class MistMap {
 
     private static Map build(ClientLevel level, Cache c, int ox, int oz, long now, AtmosphereTable.FogParams p) {
         Map m = new Map(ox, oz);
-        double[] out = new double[3];
+        double[] out = new double[4];
         for (int index = 0; index < SIZE * SIZE; index++) {
             double x = ox + (index % SIZE) * TEXEL + TEXEL / 2.0;
             double z = oz + (index / SIZE) * TEXEL + TEXEL / 2.0;
@@ -254,6 +262,7 @@ final class MistMap {
                 m.low[index] = (float) out[0];
                 m.prox[index] = (float) out[1];
                 m.sea[index] = (float) out[2];
+                m.forest[index] = (float) out[3];
                 m.valid[index] = true;
             }
         }
@@ -276,6 +285,7 @@ final class MistMap {
         double tz = fz - gz;
         double low = 0.0;
         double sea = 0.0;
+        double forest = 0.0;
         double prox = 0.0;
         double weight = 0.0;
         for (int i = 0; i < 4; i++) {
@@ -292,6 +302,7 @@ final class MistMap {
             low += w * cell[0];
             prox += w * cell[1];
             sea += w * cell[2];
+            forest += w * cell[5];
             weight += w;
         }
         if (weight < 0.25) {
@@ -300,6 +311,7 @@ final class MistMap {
         out[0] = low / weight;
         out[1] = prox / weight * Math.min(1.0, weight * 1.5);
         out[2] = sea / weight;
+        out[3] = forest / weight * Math.min(1.0, weight * 1.5);
         return true;
     }
 
@@ -315,6 +327,7 @@ final class MistMap {
         int[] grounds = new int[size * size];
         int n = 0;
         int nn = 0;
+        int covered = 0;
         long[] own = column(level, c, gx, gz, now);
         for (int dz = -WINDOW; dz <= WINDOW; dz++) {
             for (int dx = -WINDOW; dx <= WINDOW; dx++) {
@@ -326,6 +339,9 @@ final class MistMap {
                 heights[n++] = (int) col[0];
                 if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1) {
                     near[nn++] = (int) col[0];
+                    if (col[4] != 0L) {
+                        covered++;
+                    }
                 }
             }
         }
@@ -356,7 +372,9 @@ final class MistMap {
             double canopy = nn > 0 ? percentile(near, nn, p.canopyPercentile()) : high;
             sea = Math.max(low, Math.min(high, canopy));
         }
-        cell = new double[]{low, prox, sea, now, n == size * size ? 1.0 : 0.0};
+        // 胞子の霧の森の度合い: まわり 3×3 列のうち林冠のある過繁茂の列の割合。
+        double forest = nn > 0 ? SunLight.smooth((float) Mth.clamp((covered / (double) nn - FOREST_FROM) / (FOREST_FULL - FOREST_FROM), 0.0, 1.0)) : 0.0;
+        cell = new double[]{low, prox, sea, now, n == size * size ? 1.0 : 0.0, forest};
         c.cells.put(key, cell);
         return cell;
     }
@@ -372,14 +390,16 @@ final class MistMap {
         long surface = MISSING;
         long ground = MISSING;
         long overgrown = 0L;
+        long covered = 0L;
         if (level.getChunkSource().getChunkNow(x >> 4, z >> 4) != null) {
             ground = groundOf(level, x, z);
             surface = Math.min(level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z), ground + CANOPY_CAP);
             if (ModBiomes.isOvergrownLike(level.getBiome(new BlockPos(x, (int) surface, z)))) {
                 overgrown = 1L;
+                covered = surface - ground >= FOREST_CANOPY ? 1L : 0L;
             }
         }
-        col = new long[]{surface, overgrown, now, ground};
+        col = new long[]{surface, overgrown, now, ground, covered};
         c.columns.put(key, col);
         return col;
     }
@@ -412,7 +432,7 @@ final class MistMap {
 
     // ------------------------------------------------------------------ カメラの所・テクスチャ(描画のスレッド)
 
-    /** カメラの所の {谷の底, 雲海の床, 近さ} を {@code out} へ(見せている地図から 2 次補間)。地図の外・分からなければ false。 */
+    /** カメラの所の {谷の底, 雲海の床, 近さ, 胞子の霧の森の度合い} を {@code out} へ(見せている地図から 2 次補間)。地図の外・分からなければ false。 */
     static boolean at(double x, double z, double[] out) {
         Map m = shown;
         if (m == null) {
@@ -429,6 +449,7 @@ final class MistMap {
         double tz = fz - j0;
         double low = 0.0;
         double sea = 0.0;
+        double forest = 0.0;
         double prox = 0.0;
         double weight = 0.0;
         for (int q = 0; q < 4; q++) {
@@ -440,6 +461,7 @@ final class MistMap {
             low += w * m.low[k];
             sea += w * m.sea[k];
             prox += w * m.prox[k];
+            forest += w * m.forest[k];
             weight += w;
         }
         if (weight < 0.25) {
@@ -448,6 +470,7 @@ final class MistMap {
         out[0] = low / weight;
         out[1] = sea / weight;
         out[2] = prox / weight * Math.min(1.0, weight * 1.5);
+        out[3] = forest / weight * Math.min(1.0, weight * 1.5);
         return true;
     }
 
@@ -493,7 +516,8 @@ final class MistMap {
                 int r = Mth.clamp(Math.round(low - base), 0, 255);
                 int g = Mth.clamp(Math.round(sea - base), 0, 255);
                 int b = m.valid[k] ? Mth.clamp(Math.round(m.prox[k] * 255.0F), 0, 255) : 0;
-                int a = m.valid[k] ? 255 : 0;
+                // a = 胞子の霧の森の度合い(10-31。前は「読めたか」だったが、読めない画素は b = 0 なので重さは b だけで足りる)。
+                int a = m.valid[k] ? Mth.clamp(Math.round(m.forest[k] * 255.0F), 0, 255) : 0;
                 // NativeImage の setPixelRGBA は ABGR の並び。
                 image.setPixelRGBA(i, j, a << 24 | b << 16 | g << 8 | r);
             }

@@ -1,6 +1,7 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.client.VisualQuality;
 import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -19,6 +20,7 @@ import java.lang.reflect.Method;
  *     DH の API でふつうの霧を有効にする。</li>
  *     <li>その間は DH の遠景の霧をいちばん濃くして({@code farFogMinThickness}・{@code farFogMaxThickness} を 1)、64 ブロックの霧の壁の向こうに
  *     DH の遠景がくっきり見えないようにする。</li>
+ *     <li>森の中の胞子の霧(10-31、{@link MistView} が地形の霧を 96 ブロックへ)の間も同じ: ふつうの霧を有効にして遠景を霧で隠し、森を出たら戻す。</li>
  *     <li><b>遠景のオン・オフ({@code renderingEnabled})は触らない</b>(API で触ると DH が設定ファイルに {@code rendererMode = "DISABLED"} を書き残す)。</li>
  *     <li>DH の遠景には地形シェーダーの高さの霧は掛からない(遠景は DH のシェーダー)。層の上から見下ろす朝の谷の霧は、描画距離の中だけ。</li>
  * </ul>
@@ -42,6 +44,8 @@ public final class DistantHorizonsFog {
     private static int fogSent = -1;
     private static int farFogMinSent = -1;
     private static int farFogMaxSent = -1;
+    /** 森の中の胞子の霧で DH を上書きしているか(森の縁で行き来して設定を書き続けないよう 0.6 で入り 0.4 で出る)。 */
+    private static boolean inForest;
 
     private DistantHorizonsFog() {
     }
@@ -54,10 +58,13 @@ public final class DistantHorizonsFog {
         if (!ready && !init()) {
             return;
         }
-        boolean inWorld = Minecraft.getInstance().level != null;
+        // 設定で霧を切っている間・雰囲気全体を切っている間は上書きを外す(2026-11-01)。
+        boolean inWorld = Minecraft.getInstance().level != null && VisualQuality.fog();
         float inside = inWorld ? MistFog.cameraInside() : 0.0F;
-        fogSent = send("ふつうの霧", vanillaFogValue, inside > 0.001F, Boolean.TRUE, fogSent);
-        boolean thick = inside > 0.5F;
+        float forest = inWorld ? MistView.sporeFog() : 0.0F;
+        inForest = inForest ? forest > 0.4F : forest >= 0.6F;
+        fogSent = send("ふつうの霧", vanillaFogValue, inside > 0.001F || inForest, Boolean.TRUE, fogSent);
+        boolean thick = inside > 0.5F || inForest;
         farFogMinSent = send("遠景の霧(薄い所)", farFogMinValue, thick, HIDDEN_FAR_FOG, farFogMinSent);
         farFogMaxSent = send("遠景の霧(濃い所)", farFogMaxValue, thick, HIDDEN_FAR_FOG, farFogMaxSent);
     }

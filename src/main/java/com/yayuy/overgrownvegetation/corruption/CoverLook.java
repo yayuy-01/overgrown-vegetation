@@ -4,8 +4,9 @@ import net.minecraft.core.Direction;
 
 /**
  * 覆いの見た目の選び方(D2)。ブロックと面ごとに、座標と面のハッシュで絵の番号と回転(4 向き)を選ぶ。同じ座標・面ならいつも同じ
- * (チャンクを作り直しても絵が変わらない)。絵の縁 2 px は全部の絵で共通・左右対称なので、どの絵をどの向きで隣に置いても繋がる
- * (作り直し側の {@code tools/cover-draft/README.md}。2026-10-30 に作り直し側 overgrown_vegetation/mod から持ってきた)。描画はクライアント({@code client/CoverRenderer})、ここはサーバーの GameTest でも確かめられるように共通に置く。
+ * (チャンクを作り直しても絵が変わらない)。どの絵もいちばん外の 1 行は全部不透明なので、どの絵をどの向きで隣に置いても繋がる
+ * (2026-10-31 から。前は縁 2 px を共通・左右対称にしていたが、縁の穴が継ぎ目に点線で並んだ。絵は {@code tools/cover-art} が描く)。
+ * 2026-10-30 に作り直し側 overgrown_vegetation/mod から持ってきた。描画はクライアント({@code client/CoverRenderer})、ここはサーバーの GameTest でも確かめられるように共通に置く。
  */
 public final class CoverLook {
 

@@ -384,6 +384,28 @@ public final class DevBridge {
                 }
                 return "そのキーの名前は無い: " + name;
             }
+            case "design" -> {
+                // 設計データ(config/overgrown_vegetation/*.json)を読み直す。見え方の色味の見本を起動し直さずに切り替える(2026-10-31)
+                if (!arg.trim().equals("reload")) return "design reload だけ";
+                com.yayuy.overgrownvegetation.data.DesignData.reload();
+                log("DESIGN 読み直した");
+                return null;
+            }
+            case "ripple" -> {
+                // 波紋の部品(client/atmosphere/Ripples)を決めた所に出す。ripple drop <x y z> / ripple rain <x y z> [直径] [秒](2026-10-31 見本撮り)
+                String[] p = arg.trim().split("\\s+");
+                if (p.length < 4 || mc.level == null) return "ripple drop|rain <x y z> [直径] [秒]";
+                double x = Double.parseDouble(p[1]), y = Double.parseDouble(p[2]), z = Double.parseDouble(p[3]);
+                if (p[0].equals("drop")) {
+                    com.yayuy.overgrownvegetation.client.atmosphere.Ripples.drop(mc.level, x, y, z, mc.level.getGameTime(), 1.0F);
+                } else {
+                    float size = p.length > 4 ? Float.parseFloat(p[4]) : 0.3F;
+                    float sec = p.length > 5 ? Float.parseFloat(p[5]) : 0.4F;
+                    com.yayuy.overgrownvegetation.client.atmosphere.Ripples.rain(mc.level, x, y, z, 0.0F, 1.0F, 0.0F, size, sec);
+                }
+                log("RIPPLE " + p[0]);
+                return null;
+            }
             case "fog" -> {
                 // 霧(2026-10-30 夜 第 3 段、client/atmosphere/MistDev): status / march on|off / time on|off / stat。返事は FOG …
                 log(com.yayuy.overgrownvegetation.client.atmosphere.MistDev.command(arg));

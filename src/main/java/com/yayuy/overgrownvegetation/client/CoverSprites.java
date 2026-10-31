@@ -24,8 +24,11 @@ import java.util.List;
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class CoverSprites {
 
-    /** 側面(と下面)・上面の絵。同じ番号どうしが対。 */
-    public record Set(TextureAtlasSprite[] side, TextureAtlasSprite[] top) {
+    /**
+     * 側面(と下面)・上面の絵。同じ番号どうしが対。{@code creep} は這い上がる苔の段階の絵 {@code block/cover/creep_<変種>_<段階>}
+     * ([変種 - 1][段階 - 1]、2026-11-01。無ければ null)。
+     */
+    public record Set(TextureAtlasSprite[] side, TextureAtlasSprite[] top, TextureAtlasSprite[][] creep) {
     }
 
     private static volatile @Nullable Set current;
@@ -55,7 +58,16 @@ public final class CoverSprites {
             side.add(s);
             top.add(t != null ? t : s);
         }
-        current = side.isEmpty() ? null : new Set(side.toArray(TextureAtlasSprite[]::new), top.toArray(TextureAtlasSprite[]::new));
+        TextureAtlasSprite[][] creep = new TextureAtlasSprite[com.yayuy.overgrownvegetation.corruption.CoverCreep.VARIANTS][com.yayuy.overgrownvegetation.corruption.CoverCreep.STAGES];
+        int creepCount = 0;
+        for (int v = 0; v < creep.length; v++) {
+            for (int s = 0; s < creep[v].length; s++) {
+                creep[v][s] = find(atlas, "creep_" + (v + 1) + "_" + (s + 1));
+                creepCount += creep[v][s] != null ? 1 : 0;
+            }
+        }
+        current = side.isEmpty() ? null : new Set(side.toArray(TextureAtlasSprite[]::new), top.toArray(TextureAtlasSprite[]::new), creep);
+        OvergrownVegetation.LOGGER.info("這い上がる苔の段階の絵 {} 枚", creepCount);
         OvergrownVegetation.LOGGER.info("覆いの絵 {} 枚", side.size());
     }
 

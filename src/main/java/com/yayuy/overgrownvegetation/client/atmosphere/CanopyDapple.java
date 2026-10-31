@@ -33,7 +33,8 @@ import java.util.List;
  * (葉の隙間が地面に映す太陽の像は、隙間の高さに比例して大きくぼやける)。低い茂みの隙間の斑点は小さくくっきり、高い梢ほど大きくぼける(提案 3)。
  *
  * <h2>描き方</h2>
- * 1 マスに斑点を 1〜3 個(周りが平らならマスをまたいで大きく)。太陽が低いほど太陽の向きに伸びた楕円になり、真上からは丸い。
+ * 1 マスに葉の隙間の雑音から光の小さな塊を 4〜9 個({@link #blobs}、10-31 ユーザー「円形で木漏れ日に見えない」で楕円 1〜3 個から替えた)。隣のマスと
+ * 同じ雑音なので塊が繋がって不揃いのまだらになる(周りが平らならマスをまたいでよい)。太陽が低いほど塊が太陽の向きに並び、少し伸びる。
  * 斑点ごとに葉のはためき({@link Wind#flutter})で明滅し、同じ枝の下の斑点はまとめて枝の揺れ({@link Wind#branch})で行き来する。
  * 太陽が動いて日が届かなくなったマスは 2.5 秒かけて消え、新しく届くマスに 3 秒かけて現れる。光の筋より金色寄りの加算({@link AddLight})。
  * 木漏れ日のマスの半分には、斑点から太陽の方へ葉までの細く薄い筋を立てる(2026-10-16 ユーザー「木漏れ日にも光の筋がうっすらと出るように」)。
@@ -57,6 +58,10 @@ final class CanopyDapple {
     private static final float RAY_RANGE = 16.0F;
     private static final double RAY_MAX_LENGTH = 24.0;
     private static final float RAY_ALPHA = 0.045F;
+    /** 光の塊: 残す葉の隙間の雑音の下限・1 マスの最少の数・塊 1 つの角の数。仮決め。 */
+    private static final double BLOB_KEEP = 0.5;
+    private static final int MIN_BLOBS = 4;
+    private static final int BLOB_SEGMENTS = 10;
 
     private static final List<Patch> PATCHES = new ArrayList<>();
     private static final LongSet TAKEN = new LongOpenHashSet();
@@ -67,7 +72,7 @@ final class CanopyDapple {
         final int z;
         final float y;
         final float brightness;
-        /** 斑点ごとの (u, v, 半径, 位相)。u・v はマスの中心からのずれ。 */
+        /** 光の塊ごとの (dx, dz, 半径, 位相, 強さ)。dx・dz はマスの中心からの世界の向きのずれ({@link #blobs})。 */
         final float[] spots;
         /** 斑点がマスの中心からはみ出してよい範囲(0.5 = マスの中だけ、1 = 平らな周りのマスまで)。 */
         final float bound;
@@ -111,6 +116,10 @@ final class CanopyDapple {
     }
 
     static void tick(ClientLevel level, LocalPlayer player) {
+        if (!VisualQuality.canopyDapple()) {
+            clear();
+            return;
+        }
         Vec3 sun = SunLight.sunDirection(level, 1.0F);
         float day = SunLight.daylight(level, sun, 1.0F);
         boolean inForest = ForestPresence.openForest() > 0.001F;
@@ -175,17 +184,10 @@ final class CanopyDapple {
         boolean flat = ground == SunTrace.findGround(level, x + 1, py, z) && ground == SunTrace.findGround(level, x - 1, py, z)
                 && ground == SunTrace.findGround(level, x, py, z + 1) && ground == SunTrace.findGround(level, x, py, z - 1);
         float bound = flat ? 1.0F : 0.5F;
-        int count = 1 + RANDOM.nextInt(3);
-        float[] spots = new float[count * 4];
+        float[] spots = blobs(x, z, sun, spotScale);
         float widest = 0.0F;
-        for (int i = 0; i < count; i++) {
-            float radius = Math.min(bound * 0.95F, (flat ? 0.22F + RANDOM.nextFloat() * 0.4F : 0.14F + RANDOM.nextFloat() * 0.24F) * spotScale);
-            float room = Math.max(0.0F, bound - radius);
-            spots[i * 4] = (RANDOM.nextFloat() * 2.0F - 1.0F) * room;
-            spots[i * 4 + 1] = (RANDOM.nextFloat() * 2.0F - 1.0F) * room;
-            spots[i * 4 + 2] = radius;
-            spots[i * 4 + 3] = RANDOM.nextFloat() * Mth.TWO_PI;
-            widest = Math.max(widest, radius);
+        for (int i = 0; i < spots.length; i += 5) {
+            widest = Math.max(widest, spots[i + 2]);
         }
         Patch patch = new Patch(x, z, ground, LAYER_BRIGHTNESS[layers - 1] * dim, spots, bound, 500 + RANDOM.nextInt(700));
         patch.sharp = t.dappleLowSharpness() * (1.0F - high);
@@ -197,7 +199,90 @@ final class CanopyDapple {
         TAKEN.add(key);
     }
 
+    /**
+     * マスの中の光の塊(4〜9 個)を {dx, dz(マスの中心からの世界の向きのずれ), 半径, 位相, 強さ} の並びで返す(10-31 ユーザー「光の跡が円形で木漏れ日に見えない」)。
+     * 現実の木漏れ日は葉の隙間の形が映った不揃いのまだら: 1 マスを 3×3 の点に分け(点は世界の格子に固定して少しずらす)、葉の隙間の雑音
+     * ({@link #gapNoise}、世界の座標で引く)が高い点ほど大きく明るい塊にし、低い点は捨てる。隣のマスも同じ雑音から取るので、塊は継ぎ目で
+     * 切れずに大きな斑へ繋がり、縁はぎざぎざに途切れる。太陽が低いときは雑音を太陽の向きへ引き伸ばして、塊が太陽の向きに並ぶようにする。
+     * 大きさは隙間の高さの倍率 {@code scale}(高い梢ほど大きくぼける)を掛ける。数値は仮決め。
+     */
+    private static float[] blobs(int x, int z, Vec3 sun, float scale) {
+        double hLen = Math.sqrt(sun.x * sun.x + sun.z * sun.z);
+        double ax = hLen > 1.0E-3 ? sun.x / hLen : 1.0;
+        double az = hLen > 1.0E-3 ? sun.z / hLen : 0.0;
+        double squash = Math.sqrt(Mth.clamp(1.0 / Math.max(sun.y, 0.05), 1.0, 2.2));
+        float[] all = new float[9 * 5];
+        double[] score = new double[9];
+        int n = 0;
+        for (int j = 0; j < 3; j++) {
+            for (int i = 0; i < 3; i++) {
+                int gi = x * 3 + i;
+                int gj = z * 3 + j;
+                double px = (gi + 0.5 + (hash(gi, gj, 1) - 0.5) * 0.9) / 3.0;
+                double pz = (gj + 0.5 + (hash(gi, gj, 2) - 0.5) * 0.9) / 3.0;
+                double g = gapNoise((px * ax + pz * az) / squash, -px * az + pz * ax);
+                double k = Mth.clamp((g - 0.35) / 0.45, 0.0, 1.0);
+                all[n * 5] = (float) (px - (x + 0.5));
+                all[n * 5 + 1] = (float) (pz - (z + 0.5));
+                // 雑音の高い点は隣の点(1/3 ブロック)と重なる大きさにして、塊どうしが繋がった斑にする。
+                all[n * 5 + 2] = (float) ((0.07 + 0.30 * k * Math.sqrt(k)) * scale);
+                all[n * 5 + 3] = (float) (hash(gi, gj, 3) * Mth.TWO_PI);
+                all[n * 5 + 4] = (float) (0.45 + 0.55 * k);
+                score[n++] = g;
+            }
+        }
+        // 雑音が 0.5 を超える点を残す。少なくとも 4 個(マスごとに光が無くならないように、高い順に)。
+        double[] sorted = score.clone();
+        java.util.Arrays.sort(sorted);
+        double cut = Math.min(BLOB_KEEP, sorted[9 - MIN_BLOBS]);
+        int kept = 0;
+        for (int i = 0; i < 9; i++) {
+            if (score[i] >= cut) {
+                kept++;
+            }
+        }
+        float[] out = new float[kept * 5];
+        int o = 0;
+        for (int i = 0; i < 9; i++) {
+            if (score[i] >= cut) {
+                System.arraycopy(all, i * 5, out, o, 5);
+                o += 5;
+            }
+        }
+        return out;
+    }
+
+    /** 葉の隙間の雑音(0〜1): 1.3 ブロックの塊と 0.55 ブロックの細かいぎざぎざの値雑音を重ねる。 */
+    private static double gapNoise(double u, double v) {
+        return 0.65 * valueNoise(u / 1.3, v / 1.3) + 0.35 * valueNoise(u / 0.55 + 17.3, v / 0.55 + 5.1);
+    }
+
+    private static double valueNoise(double u, double v) {
+        int iu = Mth.floor(u);
+        int iv = Mth.floor(v);
+        double fu = u - iu;
+        double fv = v - iv;
+        fu = fu * fu * (3.0 - 2.0 * fu);
+        fv = fv * fv * (3.0 - 2.0 * fv);
+        double a = hash(iu, iv, 7);
+        double b = hash(iu + 1, iv, 7);
+        double c = hash(iu, iv + 1, 7);
+        double d = hash(iu + 1, iv + 1, 7);
+        return Mth.lerp(fv, Mth.lerp(fu, a, b), Mth.lerp(fu, c, d));
+    }
+
+    /** 整数の格子点の決まった乱数(0〜1)。 */
+    private static double hash(int i, int j, int salt) {
+        long h = i * 0x9E3779B97F4A7C15L ^ j * 0xC2B2AE3D27D4EB4FL ^ salt * 0x165667B19E3779F9L;
+        h = (h ^ h >>> 31) * 0xBF58476D1CE4E5B9L;
+        h = (h ^ h >>> 29) * 0x94D049BB133111EBL;
+        return ((h ^ h >>> 32) >>> 11) * 0x1.0p-53;
+    }
+
     static void render(RenderLevelStageEvent event) {
+        if (!VisualQuality.canopyDapple()) {
+            return;
+        }
         ClientLevel level = Minecraft.getInstance().level;
         if (PATCHES.isEmpty() || level == null) {
             return;
@@ -214,6 +299,8 @@ final class CanopyDapple {
         float ax = hLen > 1.0E-3 ? (float) (sun.x / hLen) : 1.0F;
         float az = hLen > 1.0E-3 ? (float) (sun.z / hLen) : 0.0F;
         float stretch = Mth.clamp(1.0F / (float) Math.max(sun.y, 0.05), 1.0F, 2.2F);
+        // 伸びの半分は塊の並び(葉の隙間の雑音を太陽の向きに引き伸ばす、{@link #blobs})で出すので、塊 1 つは平方根だけ伸ばす。
+        float elongate = (float) Math.sqrt(stretch);
         float warm = 1.0F - Mth.clamp((float) sun.y / 0.5F, 0.0F, 1.0F);
         // 斑点は光の筋より金色寄り(白っぽいと緑の地面の上で色が抜けて見えた)。うっすらした筋は光の筋と同じ淡い金(空気の中の光)。
         float r = 1.0F;
@@ -225,9 +312,6 @@ final class CanopyDapple {
         float far = Math.max(12.0F, Math.min(RenderSystem.getShaderFogEnd(), RADIUS + 4.0F));
         Wind wind = Wind.current();
         double windTime = Atmosphere.time(partialTick);
-        // 風の向きを、斑点の座標(u = 太陽の向き、v = その直角)へ直したもの。
-        double windU = wind.dirX() * ax + wind.dirZ() * az;
-        double windV = -wind.dirX() * az + wind.dirZ() * ax;
 
         MultiBufferSource.BufferSource buffers = AddLight.buffers();
         VertexConsumer c = buffers.getBuffer(AddLight.renderType());
@@ -237,7 +321,7 @@ final class CanopyDapple {
             double cz = p.z + 0.5 - eye.z;
             double dist = Math.sqrt(cx * cx + cy * cy + cz * cz);
             float fade = 1.0F - SunLight.smooth(Mth.clamp((float) ((dist - far * 0.6) / (far * 0.4)), 0.0F, 1.0F));
-            float base = 0.55F * p.brightness * p.presence() * day * intensity * fade;
+            float base = 0.55F * p.brightness * p.presence() * day * intensity * fade * (1.0F - MistView.fogAmount((float) dist));
             if (base <= 0.003F) {
                 continue;
             }
@@ -245,19 +329,21 @@ final class CanopyDapple {
             double gust = Math.min(w, 1.0);
             double patchPhase = (p.x * 12.9898 + p.z * 78.233) % (Math.PI * 2.0);
             double branch = (0.02 + 0.22 * gust) * Wind.branch(windTime, patchPhase);
-            for (int i = 0; i < p.spots.length; i += 4) {
+            for (int i = 0; i < p.spots.length; i += 5) {
                 float phase = p.spots[i + 3];
                 float flicker = (float) Wind.flutter(windTime, phase + patchPhase, w);
                 double jitter = 0.06 * gust * Math.sin(2.0 * Math.PI * 1.3 * windTime / 20.0 + phase * 2.0);
-                float shiftU = (float) (branch * windU - jitter * windV);
-                float shiftV = (float) (branch * windV + jitter * windU);
-                float rad = p.spots[i + 2];
-                float major = Math.min(rad * stretch, p.bound);
-                float u = Mth.clamp(p.spots[i] + shiftU, -p.bound + major, p.bound - major);
-                float v = Mth.clamp(p.spots[i + 1] + shiftV, -p.bound + rad, p.bound - rad);
-                float sx = (float) cx + u * ax - v * az;
-                float sz = (float) cz + u * az + v * ax;
-                spot(c, sx, (float) cy, sz, major, rad, ax, az, p.sharp, base * Math.max(0.0F, flicker), r, g, b);
+                // 枝の揺れは風の向きへ、葉の小刻みな揺れはその直角へ(世界の向き)。
+                float shiftX = (float) (branch * wind.dirX() - jitter * wind.dirZ());
+                float shiftZ = (float) (branch * wind.dirZ() + jitter * wind.dirX());
+                float rad = Math.min(p.spots[i + 2], p.bound * 0.95F);
+                float major = Math.min(rad * elongate, p.bound);
+                float room = Math.max(0.0F, p.bound - major);
+                float dx = Mth.clamp(p.spots[i] + shiftX, -room, room);
+                float dz = Mth.clamp(p.spots[i + 1] + shiftZ, -room, room);
+                // 塊は縁を半分ぼかす(重なった所がなめらかに繋がり、硬貨を並べたように見えないように)。
+                spot(c, (float) cx + dx, (float) cy, (float) cz + dz, major, rad, ax, az, p.sharp * 0.5F,
+                        base * Math.max(0.0F, flicker) * p.spots[i + 4], r, g, b, BLOB_SEGMENTS);
             }
             if (!Float.isNaN(p.rayRise) && cx * cx + cz * cz < RAY_RANGE * RAY_RANGE) {
                 // 下端は枝の揺れで斑点と一緒に行き来し、明るさは斑点と一緒に明滅する。上端は今の太陽の向きで葉の高さまで。
@@ -337,15 +423,15 @@ final class CanopyDapple {
     }
 
     /**
-     * 地面に寝かせた楕円 1 つ。長い軸は (ax, az) の向き。半径の {@code sharp} 倍までは明るさ一定(16 枚の三角)、そこから縁で 0 へ(16 枚の帯。
-     * くっきりさせると 8 角では角が見えた)。
+     * 地面に寝かせた楕円 1 つ。長い軸は (ax, az) の向き。半径の {@code sharp} 倍までは明るさ一定({@code segments} 枚の三角)、そこから縁で 0 へ(同じ枚数の帯。
+     * 大きな楕円を 8 角でくっきりさせると角が見えた。光の塊は小さいので 10 枚)。
      * sharp 0 は中心から縁までなめらかにぼける(高い梢の隙間の像)。
      */
     private static void spot(VertexConsumer c, float x, float y, float z, float major, float minor, float ax, float az,
-                             float sharp, float alpha, float r, float g, float b) {
-        for (int i = 0; i < 16; i++) {
-            float a0 = i * Mth.TWO_PI / 16.0F;
-            float a1 = (i + 1) * Mth.TWO_PI / 16.0F;
+                             float sharp, float alpha, float r, float g, float b, int segments) {
+        for (int i = 0; i < segments; i++) {
+            float a0 = i * Mth.TWO_PI / segments;
+            float a1 = (i + 1) * Mth.TWO_PI / segments;
             float u0 = Mth.cos(a0) * major;
             float v0 = Mth.sin(a0) * minor;
             float u1 = Mth.cos(a1) * major;

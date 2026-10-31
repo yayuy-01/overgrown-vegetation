@@ -70,6 +70,13 @@ public final class Atmosphere {
         GiantSilhouettes.clear();
         RainDrops.clear();
         DuskMotes.clear();
+        SteamWisps.clear();
+        WaterSigns.clear();
+        GnatSwarms.clear();
+        GlowAlgae.clear();
+        WaterCaustics.clear();
+        UnderwaterShafts.clear();
+        HollowDwellers.clear();
     }
 
     @SubscribeEvent
@@ -115,9 +122,17 @@ public final class Atmosphere {
         guard("silhouette", () -> GiantSilhouettes.tick(now, player));
         guard("drops", () -> RainDrops.tick(now, player));
         guard("dusk", () -> DuskMotes.tick(now, player));
+        guard("steam", () -> SteamWisps.tick(now, player));
+        guard("watersigns", () -> WaterSigns.tick(now, player));
+        guard("gnats", () -> GnatSwarms.tick(now, player));
+        guard("algae", () -> GlowAlgae.tick(now, player));
+        guard("caustics", () -> WaterCaustics.tick(now, ticks));
+        guard("uwshafts", () -> UnderwaterShafts.tick(now));
         if (DEV_LOG && ticks % 100 == 0) {
             OvergrownVegetation.LOGGER.info("Atmosphere {}", MistFog.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere 小物 {} 滴 {}", DuskMotes.describe(player.getX(), player.getZ()), RainDrops.count());
+            OvergrownVegetation.LOGGER.info("Atmosphere 見え方 {} / {} / {} / {}", SteamWisps.describe(), WaterSigns.describe(), GnatSwarms.describe(), GlowAlgae.describe());
+            OvergrownVegetation.LOGGER.info("Atmosphere 水中の光 {} / {}", WaterCaustics.describe(), UnderwaterShafts.describe());
             BlockPos feet = player.blockPosition();
             OvergrownVegetation.LOGGER.info("Atmosphere 森 {} 地下 {} 持ち上げ {} 霞み {} 足元の光 空 {} ブロック {} 筋 {} 木漏れ日 {} 影の地図 {}",
                     String.format("%.2f", ForestPresence.forestFactor()), String.format("%.2f", ForestPresence.underground()),
@@ -136,14 +151,33 @@ public final class Atmosphere {
             guard("sunmap", () -> CanopySunMap.upload(event, on));
             guard("sway", () -> LeafSway.upload(event, on));
             guard("tones", () -> LeafTones.upload(on));
+            guard("wet", () -> WetSheen.upload(on));
             guard("march", () -> MistMarch.prepare(on && event.getCamera().getFluidInCamera() == FogType.NONE));
             guard("mist", () -> MistFog.upload(event, on));
+            guard("caustics", () -> WaterCaustics.upload(event, on));
             return;
         }
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_CUTOUT_BLOCKS) {
+            // 地形を描いた後の霧の値で、バニラの霧が効いているかを見る(Distant Horizons は霧を切ると値を巨大にする、{@link MistView#vanillaTerrainFog})。
+            MistView.noteTerrainFog();
             // 霧の向こうの巨大樹のシルエット({@link GiantSilhouettes})。奥行きを書くので霧の細部(AFTER_WEATHER)より前。
             if (lvl != null && lvl == level && enabled(lvl) && !hidden(mc, event.getCamera())) {
                 guard("silhouette", () -> GiantSilhouettes.render(event));
+            }
+            return;
+        }
+        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
+            // 夜の光る藻({@link GlowAlgae})。水の半透明より先に描き、水面越しに透かす。潜っている間も描く(10-31 夜: 水の中で消えていた)。
+            if (lvl != null && lvl == level && enabled(lvl) && !blinded(mc, event.getCamera())) {
+                guard("algae", () -> {
+                    LifeSprites.begin(event, true);
+                    try {
+                        GlowAlgae.render(lvl, event.getPartialTick().getGameTimeDeltaPartialTick(false), event.getCamera().getLeftVector(),
+                                event.getCamera().getUpVector());
+                    } finally {
+                        LifeSprites.end();
+                    }
+                });
             }
             return;
         }
@@ -160,6 +194,13 @@ public final class Atmosphere {
             return;
         }
         Camera camera = event.getCamera();
+        // 潜っている間は水中の光の筋({@link UnderwaterShafts})だけ。
+        if (camera.getFluidInCamera() == FogType.WATER) {
+            if (!blinded(mc, camera)) {
+                guard("uwshafts", () -> UnderwaterShafts.render(event));
+            }
+            return;
+        }
         if (camera.getFluidInCamera() != FogType.NONE || mc.player != null
                 && (mc.player.hasEffect(MobEffects.BLINDNESS) || mc.player.hasEffect(MobEffects.DARKNESS))) {
             return;
@@ -168,6 +209,18 @@ public final class Atmosphere {
             guard("shade", () -> CanopyShade.render(event));
         }
         guard("spores", () -> AmbientSpores.render(event));
+        guard("life", () -> renderLife(event));
+        if (HollowDwellers.hasEyes()) {
+            // 木の洞の目(43)。足し算で光らせる。
+            guard("hollow", () -> {
+                LifeSprites.begin(event, true);
+                try {
+                    HollowDwellers.renderGlow(event.getCamera().getLeftVector(), event.getCamera().getUpVector());
+                } finally {
+                    LifeSprites.end();
+                }
+            });
+        }
         boolean main = AddLight.drawToMainTarget();
         try {
             guard("dapple", () -> CanopyDapple.render(event));
@@ -176,6 +229,26 @@ public final class Atmosphere {
             guard("dusk", () -> DuskMotes.render(event));
         } finally {
             AddLight.restoreTarget(main);
+        }
+    }
+
+    /** 見え方の段(10-31)の小さな形: 湯気・水面の輪と泡・羽虫({@link LifeSprites} の 1 回の描画)。幹を伝う水は 2026-11-01 に parked へ退避(U12)。 */
+    private static void renderLife(RenderLevelStageEvent event) {
+        ClientLevel lvl = Minecraft.getInstance().level;
+        if (lvl == null) {
+            return;
+        }
+        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        org.joml.Vector3f left = event.getCamera().getLeftVector();
+        org.joml.Vector3f up = event.getCamera().getUpVector();
+        LifeSprites.begin(event);
+        try {
+            SteamWisps.render(lvl, partialTick, left, up);
+            WaterSigns.render(lvl, partialTick, left, up);
+            GnatSwarms.render(partialTick, left, up);
+            HollowDwellers.render(left, up); // 木の洞から飛び出す虫(43)
+        } finally {
+            LifeSprites.end();
         }
     }
 
@@ -198,6 +271,13 @@ public final class Atmosphere {
     }
 
     /** 水の中・溶岩の中・盲目・暗闇の間は描かない。 */
+    /** 水の中では描く物(光る藻・水中の光の筋)の止め: 溶岩の中・粉雪の中・盲目・暗闇。 */
+    private static boolean blinded(Minecraft mc, Camera cam) {
+        FogType fluid = cam.getFluidInCamera();
+        return fluid == FogType.LAVA || fluid == FogType.POWDER_SNOW || mc.player != null
+                && (mc.player.hasEffect(MobEffects.BLINDNESS) || mc.player.hasEffect(MobEffects.DARKNESS));
+    }
+
     private static boolean hidden(Minecraft mc, Camera cam) {
         return cam.getFluidInCamera() != FogType.NONE || mc.player != null
                 && (mc.player.hasEffect(MobEffects.BLINDNESS) || mc.player.hasEffect(MobEffects.DARKNESS));

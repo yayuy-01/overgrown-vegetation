@@ -7,15 +7,9 @@
     "overgrown_vegetation:overgrown_log",
     "overgrown_vegetation:overgrown_wood",
     "overgrown_vegetation:overgrown_leaves",
-    "overgrown_vegetation:overgrown_swamp_log",
-    "overgrown_vegetation:overgrown_swamp_wood",
-    "overgrown_vegetation:overgrown_swamp_leaves",
     "overgrown_vegetation:overgrown_bush",
     "overgrown_vegetation:giant_overgrown_log",
     "overgrown_vegetation:giant_overgrown_cambium",
-    "overgrown_vegetation:hardened_giant_trunk",
-    "overgrown_vegetation:fungal_pillar",
-    "overgrown_vegetation:fungal_cap",
-    "overgrown_vegetation:glowing_mycelium"
+    "overgrown_vegetation:hardened_giant_trunk"
   ]
 }

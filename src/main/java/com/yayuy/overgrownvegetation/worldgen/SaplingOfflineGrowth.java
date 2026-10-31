@@ -34,7 +34,7 @@ import java.util.List;
  *         苗木が壊れた/育ったとき({@code onRemove})に記録を消す。この機能より前から生えていた苗木は
  *         ランダムティックを受けたときに記録される({@link #ensureRecorded})。</li>
  *     <li>チャンクが読み込まれたとき({@link ChunkEvent.Load})、記録を舐めて「設置から
- *         {@code saplingOfflineGrowthTicks}(既定 9600 = 8 分)以上経った苗木」をキューに積む。
+ *         {@code saplingOfflineGrowthTicks}(既定 4800 = 4 分)以上経った苗木」をキューに積む。
  *         読み込みイベントの最中にブロックは触らない(隣のまだ読み込まれていないチャンクへ木の葉を書くと
  *         そのチャンクを引っ張り込んで詰まる)。</li>
  *     <li>次のサーバー tick から、1 tick あたり {@code saplingOfflineGrowthPerTick}(既定 2)本ずつ、

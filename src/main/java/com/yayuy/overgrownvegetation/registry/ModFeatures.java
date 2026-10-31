@@ -2,7 +2,6 @@ package com.yayuy.overgrownvegetation.registry;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.worldgen.ForcedTreeFeature;
-import com.yayuy.overgrownvegetation.worldgen.FungalPillarFeature;
 import com.yayuy.overgrownvegetation.worldgen.GiantTreeFeature;
 import com.yayuy.overgrownvegetation.worldgen.StructureTreeFeature;
 import com.yayuy.overgrownvegetation.worldgen.grammar.GrammarStructureFeature;
@@ -54,13 +53,6 @@ public final class ModFeatures {
     public static final DeferredHolder<Feature<?>, GrammarStructureFeature> GRAMMAR_STRUCTURE =
             FEATURES.register("grammar_structure",
                     () -> new GrammarStructureFeature(GrammarStructureFeature.Config.CODEC));
-
-    /**
-     * 菌湿地帯の「菌類の柱」。先細りの円柱を積み上げるだけの Feature。苗木がその位置の環境に
-     * 応じて {@code overgrown_tree_fungal_swamp} 経由で選ぶ。詳細は {@link FungalPillarFeature}。
-     */
-    public static final DeferredHolder<Feature<?>, FungalPillarFeature> FUNGAL_PILLAR =
-            FEATURES.register("fungal_pillar", () -> new FungalPillarFeature(FungalPillarFeature.Config.CODEC));
 
     public static void register(IEventBus modBus) {
         FEATURES.register(modBus);

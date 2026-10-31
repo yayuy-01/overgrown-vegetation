@@ -30,6 +30,8 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
  *     {@code forestFogDark} まで暗く、林冠の陰の霧はカメラと頂点の空の明るさの暗い方で {@code shadeFloor} まで暗く(葉を光らせない)。色は全部
  *     {@code atmosphere.json} で動かせる(色味は後で参考画像から詰める、10-30 ユーザー)。</li>
  *     <li><b>中にいるとき</b>: バニラの霧を 64 ブロックへ({@link MistView}。Mob・粒・空もこれで霞む)。</li>
+ *     <li><b>胞子の霧</b>(10-31 ユーザー): 森の列(地図の a)を通った視線の長さで、描画距離 6 チャンクと同じ 86.4〜96 ブロックで見えなくなる
+ *     ({@code ov_fog.glsl} の {@code ovForestFog}。林冠の陰でも暗くしない)。森の中ではバニラの霧も同じ距離へ({@link MistView})。</li>
  * </ul>
  * 品質 LOW はくぼみのまだら(ノイズ)なし。数値は {@code atmosphere.json} の節 {@code fog}(64 と 5〜9 時のほかは仮決め)。
  */
@@ -47,6 +49,8 @@ public final class MistFog {
     private static float cameraSky = 1.0F;
     /** 雨が止んでからの tick(雨の間は 0。一度も降っていなければ大きい値)。 */
     private static long sinceRain = Long.MAX_VALUE / 2;
+    /** 物の濡れの時計({@link #wetAfter})。雨が強い(0.9 より上)間だけ 0 に戻す —— 降り始めで湯気が立ったり照りが跳ねたりしないように。 */
+    private static long sinceSoaked = Long.MAX_VALUE / 2;
     private static float wetShown;
     private static float stormShown;
     private static float sporeShown;
@@ -60,7 +64,15 @@ public final class MistFog {
     private static final float[] AIR = new float[3];
     /** 森の中の林冠の隙間の空の色(A5。今の明るさを掛けた後)。 */
     private static final float[] SKY = {0.9F, 0.9F, 0.9F};
-    private static final double[] AT = new double[3];
+    /** 森の中の胞子の霧の色(11-01 ユーザー: 昼は黄緑寄りの白・朝夕は朝霧の白緑・夜は暗く。今の明るさを掛けた後)。 */
+    private static final float[] SPORE = {0.9F, 0.95F, 0.8F};
+    private static final double[] AT = new double[4];
+    /** 開発用: 胞子の霧を止める(撮り比べ、{@link MistDev})。 */
+    static boolean devForestOff;
+    /** 開発用: 胞子の霧の壁の手前の霞の濃さ(負 = 設計値)。 */
+    static float devForestDensity = -1.0F;
+    /** カメラの所の胞子の霧の森の度合い(地図の a。開発用のログ)。 */
+    private static float cameraForest;
 
     private MistFog() {
     }
@@ -70,6 +82,7 @@ public final class MistFog {
         cameraInside = 0.0F;
         cameraAbove = Double.POSITIVE_INFINITY;
         sinceRain = Long.MAX_VALUE / 2;
+        sinceSoaked = Long.MAX_VALUE / 2;
         MistMap.clear();
     }
 
@@ -100,9 +113,28 @@ public final class MistFog {
         return MistMarch.willDraw() ? 1.0F - DesignData.atmosphere().fogMarch().shaftYield() * mistLevel * cameraProx : 1.0F;
     }
 
-    /** 雨上がりの度合い(0〜1。雨が止んでから fog.mistAfterRainMinutes 分かけて 0 へ。雨の間は 0)。雨上がりの水滴 {@link RainDrops} が使う。 */
+    /**
+     * 胞子の霧の見える距離を縮める倍率(1 以上): 胞子濃度が高いほど昼の霞と同じ割合({@code sporeHaze})だけ濃い。
+     * 地形シェーダーは森を通った長さにこれを掛け、バニラの霧({@link MistView})は 86.4〜96 をこれで割る。
+     */
+    static float forestReach() {
+        return 1.0F + DesignData.atmosphere().fog().sporeHaze() * sporeShown;
+    }
+
+    /** 霧の雨上がりの度合い(0〜1。雨が止んでから fog.mistAfterRainMinutes 分かけて 0 へ。雨の間は 0)。 */
     static float afterRain() {
         return wetShown;
+    }
+
+    /**
+     * 物の濡れ(0〜1。雨の間は 1 か雨の強さ、止んでから {@code minutes} 分かけてなめらかに 0 へ)。照り {@link WetSheen}・水滴 {@link RainDrops}・
+     * 湯気 {@link SteamWisps} が使う(10-31 ユーザー「Minecraft の一日は短いから 3 分程度で良い」で霧の 20 分から切り離した)。
+     */
+    static float wetAfter(float minutes, float rain) {
+        if (minutes <= 0.0F || sinceSoaked >= Long.MAX_VALUE / 2) {
+            return rain;
+        }
+        return Math.max(rain, 1.0F - SunLight.smooth(Mth.clamp(sinceSoaked / (minutes * 1200.0F), 0.0F, 1.0F)));
     }
 
     /** 霧を出しているか(濃さ > 0 で地図がある)。 */
@@ -123,6 +155,11 @@ public final class MistFog {
     /** 森の中の林冠の隙間の空の色(A5、{@link MistView} が読む)。 */
     static float[] forestSkyColor() {
         return SKY;
+    }
+
+    /** 胞子の霧の色({@link MistView} と地形シェーダーが同じ色を使う)。 */
+    static float[] sporeColor() {
+        return SPORE;
     }
 
     static float[] nearColor() {
@@ -159,8 +196,19 @@ public final class MistFog {
         return driftZ;
     }
 
+    /** 設定で霧を切っている間か(切った最初の tick だけ片付ける。MistMap の片付けは器を作り直すので毎 tick はしない)。2026-11-01。 */
+    private static boolean switchedOff;
+
     /** 毎 tick({@link Atmosphere} から)。 */
     static void tick(ClientLevel level, Vec3 eye, long ticks) {
+        if (!VisualQuality.fog()) {
+            if (!switchedOff) {
+                clear();
+                switchedOff = true;
+            }
+            return;
+        }
+        switchedOff = false;
         AtmosphereTable.FogParams p = DesignData.atmosphere().fog();
         AtmosphereTable t = DesignData.atmosphere();
         long dayTime = level.getDayTime();
@@ -170,6 +218,11 @@ public final class MistFog {
             sinceRain = 0L;
         } else if (sinceRain < Long.MAX_VALUE / 2) {
             sinceRain++;
+        }
+        if (rain > 0.9F) {
+            sinceSoaked = 0L;
+        } else if (sinceSoaked < Long.MAX_VALUE / 2) {
+            sinceSoaked++;
         }
         float wetTarget = p.mistAfterRainMinutes() <= 0.0F || sinceRain >= Long.MAX_VALUE / 2 ? 0.0F
                 : (1.0F - SunLight.smooth(Mth.clamp(sinceRain / (p.mistAfterRainMinutes() * 1200.0F), 0.0F, 1.0F))) * (1.0F - rain);
@@ -203,11 +256,13 @@ public final class MistFog {
         float inside = 0.0F;
         cameraAbove = Double.POSITIVE_INFINITY;
         cameraProx = 0.0F;
+        cameraForest = 0.0F;
         if (density > 0.0F && MistMap.at(eye.x, eye.z, AT)) {
             double top = AT[0] + depth;
             top = Mth.lerp(seaWeight, top, Math.max(top, AT[1] + p.seaAbove()));
             cameraAbove = eye.y - top;
             cameraProx = (float) AT[2];
+            cameraForest = (float) AT[3];
             inside = (float) (MistLayer.inside(cameraAbove, p.insideSoft()) * AT[2]) * mistLevel * (1.0F - ForestPresence.underground());
         }
         cameraInside = inside > cameraInside ? Math.min(inside, cameraInside + 0.02F) : Math.max(inside, cameraInside - 0.02F);
@@ -228,6 +283,10 @@ public final class MistFog {
         float[] haze = p.hazeColor();
         float[] night = p.nightColor();
         float[] sky = p.forestSkyColor();
+        float[] sporeDay = p.forestFogDayColor();
+        float[] sporeDawn = p.forestFogDawnColor();
+        // 昼の色は太陽が高いほど(朝夕 = 太陽の高さ 0.1 から昼 = 0.4 で入れ替わる)。
+        float noon = SunLight.smooth(Mth.clamp((float) (sun.y - 0.1) / 0.3F, 0.0F, 1.0F));
         // 森の中では遠い色(地形の霧の奥)を暗く: 幹が明るい背景の影絵にならないように。
         float forestDark = Mth.lerp(ForestPresence.openForest(), 1.0F, p.forestFogDark());
         for (int i = 0; i < 3; i++) {
@@ -239,11 +298,13 @@ public final class MistFog {
             NEAR[i] = Mth.lerp(light, night[i], warm);
             FAR[i] = Mth.lerp(light, night[i] * 0.9F, far) * forestDark;
             SKY[i] = Mth.lerp(light, night[i], sky[i]);
+            SPORE[i] = Mth.lerp(light, night[i], Mth.lerp(noon, sporeDawn[i], sporeDay[i]));
         }
         // 嵐の霧は灰色へ半分寄せる(暗い空の下で緑の霧が光って見えないように。10-30 の「緑の霧」はユーザーが嫌った)。
         if (stormShown > 0.001F) {
             greyen(NEAR, 0.5F * stormShown);
             greyen(FAR, 0.5F * stormShown);
+            greyen(SPORE, 0.5F * stormShown);
         }
     }
 
@@ -254,8 +315,17 @@ public final class MistFog {
         }
     }
 
+    /** 描いたフレームの数(AFTER_SKY ごとに 1 つ)。 */
+    private static long frames;
+
+    static long frame() {
+        return frames;
+    }
+
     /** 地形シェーダーへ渡す(AFTER_SKY、{@link Atmosphere} から)。{@code on} が偽・霧が無いときは濃さ 0。 */
     static void upload(RenderLevelStageEvent event, boolean on) {
+        on = on && VisualQuality.fog();
+        frames++;
         ShaderInstance[] shaders = {GameRenderer.getRendertypeSolidShader(), GameRenderer.getRendertypeCutoutShader(),
                 GameRenderer.getRendertypeCutoutMippedShader(), GameRenderer.getRendertypeTranslucentShader()};
         boolean active = on && density > 0.0F;
@@ -267,6 +337,7 @@ public final class MistFog {
             for (ShaderInstance shader : shaders) {
                 if (shader != null) {
                     shader.safeGetUniform("OvFogB").set(0.0F, 0.35F, 0.0F, 0.0F);
+                    shader.safeGetUniform("OvFogJ").set(0.0F, 0.0F, 0.0F, 0.0F);
                 }
             }
             return;
@@ -306,6 +377,13 @@ public final class MistFog {
                 VisualQuality.atmosphereTier() == 1 ? p.noise() : 0.0F);
         // 遠くの彩度を少し落とす(A6)・太陽の方の霧が光る(B1)。
         shader.safeGetUniform("OvFogI").set(p.farDesat(), p.desatFrom(), p.desatTo(), p.sunGlow());
+        // 胞子の霧(10-31): 色は森の中のバニラの霧と同じ胞子の色にして、森の中で 2 色にならないように。地下では切る。
+        float forestEnd = ForestPresence.underground() > 0.5F || devForestOff ? 0.0F : p.forestFogEnd();
+        shader.safeGetUniform("OvFogJ").set(SPORE[0], SPORE[1], SPORE[2], forestEnd);
+        // カメラが森の中にいる分はバニラの霧(fog.glsl の霞)が地形にも Mob にも同じに掛けるので、ここの分はその残り(1 − 森の度合い)だけ。
+        shader.safeGetUniform("OvFogL").set(MistView.vanillaTerrainFog() ? 1.0F - MistView.sporeFog() : 1.0F, 0.0F, 0.0F, 0.0F);
+        shader.safeGetUniform("OvFogK").set(Math.min(p.forestFogStart(), forestEnd), p.forestFogAbove(), forestReach(),
+                devForestDensity >= 0.0F ? devForestDensity : p.forestFogDensity());
     }
 
     /** この mod の粒(環境の胞子・光る胞子)の霧の地図の unit。粒は 5〜7 番を使う。 */
@@ -350,7 +428,8 @@ public final class MistFog {
 
     /** 開発用のログ。 */
     static String describe() {
-        return String.format("霧 濃さ %.4f 厚さ %.1f 層 %.2f 雲海 %.2f 雨上がり %.2f 嵐 %.2f 胞子 %.2f 中 %.2f 層の上 %.1f 空 %.2f %s", density, depth,
-                mistLevel, seaWeight, wetShown, stormShown, sporeShown, cameraInside, cameraAbove, cameraSky, MistMap.describe());
+        return String.format("霧 濃さ %.4f 厚さ %.1f 層 %.2f 雲海 %.2f 雨上がり %.2f 嵐 %.2f 胞子 %.2f 中 %.2f 層の上 %.1f 空 %.2f 森(地図 %.2f 頭上 %.2f%s) %s", density, depth,
+                mistLevel, seaWeight, wetShown, stormShown, sporeShown, cameraInside, cameraAbove, cameraSky, cameraForest, MistView.sporeFog(),
+                devForestOff ? " 止めた" : "", MistMap.describe());
     }
 }

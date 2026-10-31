@@ -443,4 +443,24 @@ public final class SporeFieldGameTests {
             data.removeRiftForTests(c);
         }
     }
+
+    /** 萌芽体の湧く点が林冠の葉の上にならない(2026-10-31 不具合): 床の上に空気 2 段と mod の葉 3 段の柱。葉の上の点は床の 1 つ上へ降りる。 */
+    @GameTest(template = "gametest_empty7")
+    public static void sproutPointDropsBelowCanopy(GameTestHelper helper) {
+        net.minecraft.world.level.block.state.BlockState leaf = com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_LEAVES.get().defaultBlockState();
+        for (int y = 4; y <= 6; y++) helper.setBlock(new net.minecraft.core.BlockPos(3, y, 3), leaf);
+        net.minecraft.core.BlockPos top = helper.absolutePos(new net.minecraft.core.BlockPos(3, 7, 3));
+        net.minecraft.core.BlockPos ground = helper.absolutePos(new net.minecraft.core.BlockPos(3, 2, 3));
+        net.minecraft.core.BlockPos got = com.yayuy.overgrownvegetation.spore.field.SporeSprouts.belowCanopy(helper.getLevel(), top);
+        if (!ground.equals(got)) {
+            helper.fail("葉の上の点が床の 1 つ上へ降りない: " + got + "(期待 " + ground + ")");
+            return;
+        }
+        net.minecraft.core.BlockPos open = helper.absolutePos(new net.minecraft.core.BlockPos(1, 2, 1));
+        if (!open.equals(com.yayuy.overgrownvegetation.spore.field.SporeSprouts.belowCanopy(helper.getLevel(), open))) {
+            helper.fail("葉の無い列の点が動いた");
+            return;
+        }
+        helper.succeed();
+    }
 }

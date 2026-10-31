@@ -233,11 +233,15 @@ public final class SporeSprouts {
         for (int tries = 0; tries < 6; tries++) {
             int lx = random.nextInt(16), lz = random.nextInt(16);
             int y = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz) + 1; // チャンクの getHeight はいちばん上のブロック(-1 済み)。その 1 つ上
-            BlockPos p = new BlockPos(chunk.getPos().getMinBlockX() + lx, y, chunk.getPos().getMinBlockZ() + lz);
+            BlockPos p = belowCanopy(level, new BlockPos(chunk.getPos().getMinBlockX() + lx, y, chunk.getPos().getMinBlockZ() + lz));
+            if (p == null) continue;
             BlockState below = level.getBlockState(p.below());
             if (below.getFluidState().is(net.minecraft.tags.FluidTags.WATER)) {
-                // 水面だった: 水底の床へ(OCEAN_FLOOR = 水と海草をくぐった固い面。チャンクの getHeight は -1 済み)
+                // 水面だった: 水底の床へ(OCEAN_FLOOR = 水と海草をくぐった固い面。チャンクの getHeight は -1 済み)。
+                // 林冠の下の水(沼)では OCEAN_FLOOR も葉の上を答えるので、そのときは水を下へたどる
                 int fy = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR, lx, lz) + 1;
+                if (fy > p.getY()) fy = waterFloor(level, p);
+                if (fy == Integer.MIN_VALUE) continue;
                 p = new BlockPos(p.getX(), fy, p.getZ());
                 below = level.getBlockState(p.below());
                 if (!level.getFluidState(p).is(net.minecraft.tags.FluidTags.WATER)) continue;
@@ -245,6 +249,46 @@ public final class SporeSprouts {
             if (below.getFluidState().isEmpty() && !below.isAir()) return p;
         }
         return null;
+    }
+
+    /** 林冠の下へ降りる上限(段)。 */
+    static final int CANOPY_DESCENT = 32;
+
+    /** 葉か(バニラの {@code #minecraft:leaves} と mod の葉 {@link com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock}。mod の葉は InertBlock なので高さ地図の NO_LEAVES に固い面と数えられる)。 */
+    static boolean isLeaves(BlockState state) {
+        return state.is(net.minecraft.tags.BlockTags.LEAVES) || state.getBlock() instanceof com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock;
+    }
+
+    /**
+     * 地面の 1 つ上の候補 {@code p} が葉の上なら、葉・空気・通れる草(当たり判定が無く水の無いもの)の間を下へ降ろす(上限 {@link #CANOPY_DESCENT} 段。2026-10-31 不具合: 萌芽体が林冠の上に湧いた)。
+     * 足元が葉でなければ {@code p} のまま。降りた先の足元が幹・枝(葉でも通れる草でもない固い面のうち {@code #logs})か、上限まで降りきれなければ null。
+     * 降りた先の足元が水なら呼び手の水底の分岐へ。
+     */
+    @org.jetbrains.annotations.Nullable
+    public static BlockPos belowCanopy(net.minecraft.world.level.BlockGetter level, BlockPos p) {
+        if (!isLeaves(level.getBlockState(p.below()))) return p;
+        BlockPos.MutableBlockPos m = p.mutable();
+        for (int d = 0; d < CANOPY_DESCENT; d++) {
+            BlockPos under = m.below();
+            BlockState below = level.getBlockState(under);
+            boolean through = isLeaves(below) || below.getFluidState().isEmpty() && below.getCollisionShape(level, under).isEmpty();
+            if (!through) {
+                return below.is(net.minecraft.tags.BlockTags.LOGS) ? null : m.immutable();
+            }
+            m.move(Direction.DOWN);
+            if (m.getY() <= level.getMinBuildHeight()) return null;
+        }
+        return null;
+    }
+
+    /** 水面 {@code p} から水を下へたどった床の 1 つ上(水の中)。上限 64 段。見つからなければ {@link Integer#MIN_VALUE}。 */
+    private static int waterFloor(ServerLevel level, BlockPos p) {
+        BlockPos.MutableBlockPos m = p.mutable().move(Direction.DOWN);
+        for (int d = 0; d < 64 && m.getY() > level.getMinBuildHeight(); d++) {
+            if (!level.getFluidState(m.below()).is(net.minecraft.tags.FluidTags.WATER)) return m.getY();
+            m.move(Direction.DOWN);
+        }
+        return Integer.MIN_VALUE;
     }
 
     /** ネザーの空洞の床のランダムな 1 点(床の 1 つ上、上 2 マスが空いている。溶岩の上・溶岩の面は選ばない)。 */
@@ -277,7 +321,7 @@ public final class SporeSprouts {
             for (int d = 0; d < 24 && m.getY() > minY; d++, m.move(Direction.DOWN)) {
                 BlockState here = level.getBlockState(m);
                 BlockState below = level.getBlockState(m.below());
-                if (here.isAir() && !below.isAir() && below.getFluidState().isEmpty()
+                if (here.isAir() && !below.isAir() && below.getFluidState().isEmpty() && !isLeaves(below) // 濃い林冠の中の空気の泡(空の光 0)も洞窟に見える
                         && level.getBrightness(LightLayer.SKY, m) == 0) {
                     return m.immutable();
                 }

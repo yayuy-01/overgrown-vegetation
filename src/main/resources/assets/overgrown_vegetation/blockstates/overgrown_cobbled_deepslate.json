@@ -1,7 +1,9 @@
 {
   "variants": {
-    "": {
-      "model": "overgrown_vegetation:block/overgrown_cobbled_deepslate"
-    }
+    "": [
+      { "model": "overgrown_vegetation:block/overgrown_cobbled_deepslate" },
+      { "model": "overgrown_vegetation:block/overgrown_cobbled_deepslate_2" },
+      { "model": "overgrown_vegetation:block/overgrown_cobbled_deepslate_3" }
+    ]
   }
 }

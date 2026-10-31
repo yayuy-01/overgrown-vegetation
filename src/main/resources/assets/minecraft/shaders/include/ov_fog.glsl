@@ -8,7 +8,7 @@
 // per OvFogA.z blocks):
 //   r = bottom of the valley layer above the base OvFogB.z (blocks; the valley top is that plus the depth OvFogB.w)
 //   g = floor of the cloud sea over the canopy above the base (the sea top is that plus OvFogG.x, mixed in by OvFogC.w)
-//   b = how near the overgrown area is (0 to 1), a = 1 known, 0 unknown
+//   b = how near the overgrown area is (0 to 1; 0 where unknown), a = how much the column is forest under a canopy (the spore fog)
 // The mist a ray crosses is integrated in closed form over two straight pieces (camera to midpoint, midpoint to vertex), each with the
 // height above the top changing linearly. A camera above the layer sees it thicker (OvFogG.y, reached OvFogG.z blocks above the top of
 // each point): from a hill the valleys look misty, while down in the mist the near world stays clear enough. The colour goes from the warm
@@ -24,6 +24,16 @@
 // OvFogH = (darkest mist colour under the canopy, distance where the near ray march (MistMarch, quality HIGH) starts handing over,
 //           distance where it has handed over (0 = no march: integrate from the camera), fine near mottling for quality MEDIUM)
 // OvFogI = (far desaturation of the terrain (fragment shaders), from, to (blocks), glow of the mist toward the sun)
+// OvFogJ = (spore fog colour rgb, spore fog end in blocks of forest crossed (0 = off))
+// OvFogK = (spore fog start, how far above the canopy floor (map g) the spore fog reaches, multiplier of the forest length (spores),
+//           haze per block of forest crossed before the wall (0 = none))
+// OvFogL = (share of the spore fog drawn here: 1 - how much the camera is in the forest, -, -, -). Inside the forest vanilla fog
+//          (fog.glsl, marked by MistView) draws the same haze on everything, mobs included.
+//
+// The spore fog of the forest: inside the overgrown forest the air is thick with spores. A ray is hidden by the length of forest
+// (map a, below the canopy) it crosses, like vanilla linear fog at render distance 6 (start 86.4, end 96, smoothstep): inside the forest
+// everything past 96 blocks is hidden, from outside the edge the forest sinks into the fog 96 blocks deep, and rays that stay outside
+// the forest are untouched. Not darkened under the canopy (hidden by fog, not by darkness).
 uniform sampler2D OvFogMap;
 uniform vec4 OvFogA;
 uniform vec4 OvFogB;
@@ -34,6 +44,9 @@ uniform vec4 OvFogF;
 uniform vec4 OvFogG;
 uniform vec4 OvFogH;
 uniform vec4 OvFogI;
+uniform vec4 OvFogJ;
+uniform vec4 OvFogK;
+uniform vec4 OvFogL;
 
 float ovFogHash(vec2 p) {
     p = mod(p, 64.0);
@@ -63,7 +76,7 @@ vec2 ovFogTop(vec2 xz) {
     float sea = OvFogB.z + m.g * 255.0 + OvFogG.x;
     top = mix(top, max(top, sea), OvFogC.w);
     float edge = smoothstep(0.5, 4.0, min(min(uv.x, uv.y), min(size - uv.x, size - uv.y)));
-    return vec2(top, m.b * m.a * edge);
+    return vec2(top, m.b * edge);
 }
 
 float ovFogF(float h, float k) {
@@ -142,10 +155,50 @@ vec4 ovFogHaze(vec3 pos) {
     return vec4(color, haze);
 }
 
+// How much of the camera-relative position p is in the spore fog (forest under the canopy, map a; fading out above the canopy floor).
+float ovForestAt(vec3 p) {
+    vec2 uv = (p.xz - OvFogA.xy) / OvFogA.z;
+    float size = OvFogA.w;
+    if (uv.x < 0.5 || uv.y < 0.5 || uv.x > size - 0.5 || uv.y > size - 0.5) {
+        return 0.0;
+    }
+    vec4 m = textureLod(OvFogMap, uv / size, 0.0);
+    float h = p.y - (OvFogB.z + m.g * 255.0 + OvFogK.y);
+    float edge = smoothstep(0.5, 4.0, min(min(uv.x, uv.y), min(size - uv.x, size - uv.y)));
+    return m.a * edge * (h <= 0.0 ? 1.0 : exp(-OvFogB.y * h));
+}
+
+// The spore fog (0 to 1) at the camera-relative position pos: the length of forest the ray crosses (8 samples along it, measured with
+// the vanilla terrain fog distance, a cylinder) through the smoothstep of vanilla linear fog. Rays too short to reach the start skip the map.
+float ovForestFog(vec3 pos) {
+    if (OvFogJ.w <= 0.0) {
+        return 0.0;
+    }
+    float dist = max(length(pos.xz), abs(pos.y)) * OvFogK.z;
+    if (dist <= (OvFogK.w > 0.0 ? 2.0 : OvFogK.x)) {
+        return 0.0;
+    }
+    float sum = 0.0;
+    for (int i = 0; i < 8; i++) {
+        sum += ovForestAt(pos * ((float(i) + 0.5) / 8.0));
+    }
+    float len = dist * sum / 8.0;
+    float wall = len <= OvFogK.x ? 0.0 : (len < OvFogJ.w ? smoothstep(OvFogK.x, OvFogJ.w, len) : 1.0);
+    // A thin haze that thickens with the forest crossed (OvFogK.w per block; 0 = only the wall at 96).
+    return 1.0 - (1.0 - wall) * exp(-OvFogK.w * len);
+}
+
 // ovFogHaze with the colour darkened in the shade of the canopy: by the darker of the sky light at the vertex and at the camera,
 // down to OvFogH.x (the mist under the leaves is not lit; the leaves do not glow).
 vec4 ovFogShaded(vec3 pos, float vertexSky) {
     vec4 fog = ovFogHaze(pos);
     fog.rgb *= mix(OvFogH.x, 1.0, min(vertexSky, OvFogG.w));
+    // The spore fog over it (not darkened): the colour becomes mix(mix(colour, mist, a), spore colour, spore).
+    float spore = OvFogL.x > 0.0 ? ovForestFog(pos) * OvFogL.x : 0.0;
+    if (spore > 0.0) {
+        float a = 1.0 - (1.0 - fog.a) * (1.0 - spore);
+        fog.rgb = (fog.rgb * fog.a * (1.0 - spore) + OvFogJ.rgb * spore) / max(a, 0.0001);
+        fog.a = a;
+    }
     return fog;
 }

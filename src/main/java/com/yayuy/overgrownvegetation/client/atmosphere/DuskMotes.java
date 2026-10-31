@@ -101,6 +101,10 @@ final class DuskMotes {
 
     /** 毎 tick({@link Atmosphere} から)。8 ブロックの升を 16 升ずつ調べる(256 升を 16 tick で一回り)。 */
     static void tick(ClientLevel level, LocalPlayer player) {
+        if (!VisualQuality.motes()) {
+            clear();
+            return;
+        }
         AtmosphereTable.DuskParams p = DesignData.atmosphere().dusk();
         float target = timeWeight(level.getDayTime(), p) * (1.0F - level.getRainLevel(1.0F)) * ForestPresence.openForest();
         shown += (target - shown) * 0.02F;
@@ -139,7 +143,7 @@ final class DuskMotes {
         for (int y = top - 1; y > top - 64 && y > level.getMinBuildHeight(); y--) {
             net.minecraft.world.level.block.state.BlockState s = level.getBlockState(pos.set(x, y, z));
             if (s.blocksMotion() && !s.is(net.minecraft.tags.BlockTags.LEAVES) && !s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_LEAVES.get())
-                    && !s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_SWAMP_LEAVES.get()) && !s.is(net.minecraft.tags.BlockTags.LOGS)) {
+                    && !s.is(net.minecraft.tags.BlockTags.LOGS)) {
                 return y + 1;
             }
         }
@@ -153,6 +157,9 @@ final class DuskMotes {
 
     /** AFTER_PARTICLES({@link Atmosphere} から。加算の光の描き先を替えた中で)。 */
     static void render(RenderLevelStageEvent event) {
+        if (!VisualQuality.motes()) {
+            return;
+        }
         Minecraft mc = Minecraft.getInstance();
         ShaderInstance shader = ModShaders.duskMotes();
         int slots = count();

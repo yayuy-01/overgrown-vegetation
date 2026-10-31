@@ -655,12 +655,11 @@ public final class SwampTreeFall {
         return state.is(ModBlocks.OVERGROWN_TRUNK_BLOCK.get()) || (state.is(BlockTags.LOGS) && !isModTreeLog(state));
     }
 
-    /** このMODが生やす木(苗木の木・湿地の木・巨大樹・菌類の柱)の原木か。 */
+    /** このMODが生やす木(苗木の木・巨大樹)の原木か(湿地の木・菌類の柱は 2026-10-31 に parked へ退避)。 */
     private static boolean isModTreeLog(BlockState state) {
         return state.is(ModBlocks.OVERGROWN_LOG.get()) || state.is(ModBlocks.OVERGROWN_WOOD.get())
-                || state.is(ModBlocks.OVERGROWN_SWAMP_LOG.get()) || state.is(ModBlocks.OVERGROWN_SWAMP_WOOD.get())
                 || state.is(ModBlocks.GIANT_OVERGROWN_LOG.get()) || state.is(ModBlocks.GIANT_OVERGROWN_CAMBIUM.get())
-                || state.is(ModBlocks.HARDENED_GIANT_TRUNK.get()) || state.is(ModBlocks.FUNGAL_PILLAR.get());
+                || state.is(ModBlocks.HARDENED_GIANT_TRUNK.get());
     }
 
     private static boolean isTreeLeaves(BlockState state) {

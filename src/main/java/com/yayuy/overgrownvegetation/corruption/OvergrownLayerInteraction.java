@@ -27,6 +27,7 @@ public final class OvergrownLayerInteraction {
         ServerPlayer player = event.getPlayer();
         LevelChunk chunk = event.getChunk();
         OvergrownLayerData.sendAll(player, chunk);
+        CoverCreepData.sendAll(player, chunk); // 這い上がる苔の記録(2026-11-01)
     }
 
     /** この tick で新しく覆われたぶんを、まとめて送る。 */
@@ -34,6 +35,7 @@ public final class OvergrownLayerInteraction {
     public static void onLevelTick(LevelTickEvent.Post event) {
         if (event.getLevel() instanceof ServerLevel level) {
             OvergrownLayerData.flush(level);
+            CoverCreepData.flush(level);
         }
     }
 }

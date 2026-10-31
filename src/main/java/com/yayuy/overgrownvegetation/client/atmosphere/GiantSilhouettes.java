@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.VisualQuality;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
@@ -135,6 +136,10 @@ final class GiantSilhouettes {
 
     /** 毎 tick({@link Atmosphere} から)。見回り・まとめ・写し取り・できた形を GPU へ。 */
     static void tick(ClientLevel level, LocalPlayer player) {
+        if (!VisualQuality.fog()) {
+            clear();
+            return;
+        }
         if (level != trackedLevel) {
             clear();
             trackedLevel = level;
@@ -221,7 +226,7 @@ final class GiantSilhouettes {
     }
 
     static boolean isLeaf(BlockState state) {
-        return state.is(ModBlocks.OVERGROWN_LEAVES.get()) || state.is(ModBlocks.OVERGROWN_SWAMP_LEAVES.get());
+        return state.is(ModBlocks.OVERGROWN_LEAVES.get());
     }
 
     /** 地面・岩(木の一部でない不透明なブロック)。これが上にある木部は地中・洞窟の中。 */
@@ -1067,15 +1072,19 @@ final class GiantSilhouettes {
 
     /** AFTER_CUTOUT_BLOCKS({@link Atmosphere} から。水の中・盲目の間は呼ばれない)。 */
     static void render(RenderLevelStageEvent event) {
+        if (!VisualQuality.fog()) {
+            return;
+        }
         ShaderInstance shader = ModShaders.giantSilhouette();
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         if (devOff || shader == null || TREES.isEmpty() || level == null || level != trackedLevel || ShaderPacks.active()
-                || ForestPresence.underground() > 0.5F) {
+                || ForestPresence.underground() > 0.5F || MistView.hazeActive()) {
+            // 森の中の霞の間は出さない(霞の向こうは 96 ブロックで見えない。シルエットの切り替えの濃さが霞と合わないのもある)。
             return;
         }
         AtmosphereTable.SilhouetteParams p = DesignData.atmosphere().silhouette();
-        float fogStart = RenderSystem.getShaderFogStart();
+        float fogStart = MistView.fogStart(); // 森の中の霞の印を外した始まり
         float fogEnd = RenderSystem.getShaderFogEnd();
         if (fogEnd <= fogStart + 1.0F) {
             return;

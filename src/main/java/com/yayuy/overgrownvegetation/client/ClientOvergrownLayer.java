@@ -5,7 +5,14 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.corruption.OvergrownLayerData;
 import com.yayuy.overgrownvegetation.network.OvergrownLayerPayload;
 import com.yayuy.overgrownvegetation.registry.ModAttachments;
+import com.yayuy.overgrownvegetation.corruption.CoverCreep;
+import com.yayuy.overgrownvegetation.corruption.CoverCreepData;
+import com.yayuy.overgrownvegetation.network.CoverCreepPayload;
+import com.yayuy.overgrownvegetation.data.CoverTable;
+import com.yayuy.overgrownvegetation.data.DesignData;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongIterators;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -19,6 +26,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
@@ -79,6 +87,8 @@ public final class ClientOvergrownLayer {
             return;
         }
         int sizeBefore = before == null ? 0 : before.size();
+        // 入れ替えで消えるマスの隣の帯も消すため、入れ替え前のマスを控える(28)
+        long[] replaced = payload.replace() && before != null ? before.toLongArray() : null;
         OvergrownLayerData.accept(chunk, payload.positions(), payload.replace());
         updateSnapshot(before, sizeBefore, payload);
         if (payload.replace()) {
@@ -86,6 +96,10 @@ public final class ClientOvergrownLayer {
             // これまでどおり列のセクションを全部積み直す(チャンクが届くときはどのみち全部積み直される)。
             for (int section = level.getMinSection(); section < level.getMaxSection(); section++) {
                 Minecraft.getInstance().levelRenderer.setSectionDirty(payload.chunk().x, section, payload.chunk().z);
+            }
+            markCreepNeighborsDirty(level, payload.positions(), payload.chunk()); // 隣のチャンクの縁の帯(28)
+            if (replaced != null) {
+                markCreepNeighborsDirty(level, replaced, payload.chunk());
             }
             return;
         }
@@ -112,6 +126,120 @@ public final class ClientOvergrownLayer {
                 Minecraft.getInstance().levelRenderer.setSectionDirty(payload.chunk().x, section, payload.chunk().z);
             }
         }
+        markCreepNeighborsDirty(level, payload.positions(), null);
+    }
+
+    // ---------------------------------------------------------------- 這い上がる苔(28)
+
+    /**
+     * 伸びている途中の這い上がる苔(マス → 置いた時刻 = ゲーム時刻、2026-11-01 から。前はクライアントの時計で隣が覆われてからの時間だった)と、
+     * 最後に描かせた段階。段階が変わったときだけそのマスのセクションを積み直させる。最終段になったら忘れる。触るのはメインスレッドだけ。
+     */
+    private static final Long2LongOpenHashMap GROWING = new Long2LongOpenHashMap();
+    private static final Long2IntOpenHashMap SHOWN_STAGE = new Long2IntOpenHashMap();
+    private static int creepTick;
+
+    /** 這い上がる苔の記録を受け取る({@link CoverCreepData#accept} に渡し、伸びている途中のものを覚え、そのマスのセクションを積み直させる)。 */
+    public static void acceptCreep(CoverCreepPayload payload) {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level == null || !level.hasChunk(payload.chunk().x, payload.chunk().z)) {
+            return; // チャンクが届くときに ChunkWatchEvent.Sent でまるごと送り直される
+        }
+        LevelChunk chunk = level.getChunk(payload.chunk().x, payload.chunk().z);
+        CoverCreepData.accept(chunk, payload);
+        CoverTable design = DesignData.cover();
+        LongOpenHashSet sections = new LongOpenHashSet();
+        for (int i = 0; i < payload.positions().length; i++) {
+            long packed = payload.positions()[i];
+            if (payload.remove()) {
+                GROWING.remove(packed);
+                SHOWN_STAGE.remove(packed);
+            } else if (i < payload.values().length) {
+                long start = CoverCreepData.startTick(payload.values()[i]);
+                int stage = CoverCreep.stage(level.getGameTime() - start, design);
+                if (stage < CoverCreep.STAGES) {
+                    GROWING.put(packed, start);
+                    SHOWN_STAGE.put(packed, stage);
+                }
+            }
+            addSection(sections, null, BlockPos.getX(packed), BlockPos.getY(packed), BlockPos.getZ(packed));
+        }
+        dirty(level, sections);
+    }
+
+    /**
+     * チャンクのデータが届き直したら、前の這い上がる苔の記録を捨てる(読み込まれたままのチャンクへ送り直されると同じ物が使い回され、
+     * サーバーで記録が空になっていても前の記録が残る。Codex の指摘 11-01)。記録はこの後の {@code ChunkWatchEvent.Sent} でまるごと届く。
+     */
+    @SubscribeEvent
+    public static void onChunkLoad(net.neoforged.neoforge.event.level.ChunkEvent.Load event) {
+        if (event.getLevel() instanceof ClientLevel && event.getChunk() instanceof LevelChunk chunk) {
+            chunk.getExistingData(com.yayuy.overgrownvegetation.registry.ModAttachments.COVER_CREEP.get()).ifPresent(java.util.Map::clear);
+        }
+    }
+
+    private static void dirty(ClientLevel level, LongOpenHashSet sections) {
+        for (long s : sections) {
+            int sy = SectionPos.y(s);
+            if (sy >= level.getMinSection() && sy < level.getMaxSection()) {
+                Minecraft.getInstance().levelRenderer.setSectionDirty(SectionPos.x(s), sy, SectionPos.z(s));
+            }
+        }
+    }
+
+    /**
+     * 覆いが増えた・減ったマスの上と横 4 つのマスのセクションを積み直させる(帯は隣のマスの面に描くので、隣がセクション・チャンクの境の向こうにあると
+     * 自分のセクションを積み直しても帯が変わらない)。{@code skip} のチャンクは(入れ替えで全部積み直すので)飛ばす。
+     */
+    private static void markCreepNeighborsDirty(ClientLevel level, long[] positions, @Nullable ChunkPos skip) {
+        LongOpenHashSet sections = new LongOpenHashSet();
+        for (long packed : positions) {
+            int x = BlockPos.getX(packed);
+            int y = BlockPos.getY(packed);
+            int z = BlockPos.getZ(packed);
+            addSection(sections, skip, x, y + 1, z);
+            addSection(sections, skip, x + 1, y, z);
+            addSection(sections, skip, x - 1, y, z);
+            addSection(sections, skip, x, y, z + 1);
+            addSection(sections, skip, x, y, z - 1);
+        }
+        dirty(level, sections);
+    }
+
+    private static void addSection(LongOpenHashSet sections, @Nullable ChunkPos skip, int x, int y, int z) {
+        int sx = SectionPos.blockToSectionCoord(x);
+        int sz = SectionPos.blockToSectionCoord(z);
+        if (skip == null || sx != skip.x || sz != skip.z) {
+            sections.add(SectionPos.asLong(sx, SectionPos.blockToSectionCoord(y), sz));
+        }
+    }
+
+    /** 這い上がる苔の段階が変わったら、そのマスのセクションを積み直させる(0.5 秒ごと)。 */
+    @SubscribeEvent
+    public static void onClientTick(ClientTickEvent.Post event) {
+        if (GROWING.isEmpty() || ++creepTick % 10 != 0) {
+            return;
+        }
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level == null) {
+            return;
+        }
+        CoverTable design = DesignData.cover();
+        LongOpenHashSet sections = new LongOpenHashSet();
+        for (var it = GROWING.long2LongEntrySet().fastIterator(); it.hasNext(); ) {
+            var e = it.next();
+            long key = e.getLongKey(); // remove の後は e が別のマスを指すので先に取る
+            int stage = CoverCreep.stage(level.getGameTime() - e.getLongValue(), design);
+            if (stage != SHOWN_STAGE.get(key)) {
+                SHOWN_STAGE.put(key, stage);
+                addSection(sections, null, BlockPos.getX(key), BlockPos.getY(key), BlockPos.getZ(key));
+            }
+            if (stage >= CoverCreep.STAGES) {
+                it.remove();
+                SHOWN_STAGE.remove(key);
+            }
+        }
+        dirty(level, sections);
     }
 
     /**
@@ -162,6 +290,8 @@ public final class ClientOvergrownLayer {
     @SubscribeEvent
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         SNAPSHOTS.clear();
+        GROWING.clear();
+        SHOWN_STAGE.clear();
     }
 
     /**

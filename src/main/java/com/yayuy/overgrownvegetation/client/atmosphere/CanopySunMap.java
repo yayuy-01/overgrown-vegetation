@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.VisualQuality;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.client.shader.SodiumTerrain;
@@ -312,10 +313,10 @@ public final class CanopySunMap {
             if (m != null && mc.level != null) {
                 sun = SunLight.sunDirection(mc.level, partialTick);
                 mapDay = SunLight.daylight(mc.level, sun, partialTick);
-                amount = DesignData.atmosphere().surfaceShade() * mapDay * ForestPresence.openForest();
+                amount = VisualQuality.canopyLight() ? DesignData.atmosphere().surfaceShade() * mapDay * ForestPresence.openForest() : 0.0F;
             }
             hue(RGB);
-            float forest = enabled && mc.level != null ? ForestPresence.forestFactor() * DesignData.atmosphere().forestTint()
+            float forest = enabled && mc.level != null && VisualQuality.canopyLight() ? ForestPresence.forestFactor() * DesignData.atmosphere().forestTint()
                     * Mth.lerp(nightWeight(), 1.0F, DesignData.atmosphere().nightTintStrength()) : 0.0F;
             for (ShaderInstance shader : shaders) {
                 if (shader != null) {
@@ -384,7 +385,7 @@ public final class CanopySunMap {
                 shader.safeGetUniform("OvMapA").set((float) (m.originU - camU), (float) (m.originV - camV), (float) SIZE,
                         (float) (m.baseY - cam.y));
                 shader.safeGetUniform("OvShadeColor").set(level, level, level, 1.0F);
-                shader.safeGetUniform("OvFleck").set((float) fleckU, (float) fleckV, seconds, CanopyDapple.FLECKS_ON ? 1.0F : 0.0F);
+                shader.safeGetUniform("OvFleck").set((float) fleckU, (float) fleckV, seconds, CanopyDapple.FLECKS_ON && VisualQuality.canopyDapple() ? 1.0F : 0.0F);
             }
         } catch (RuntimeException e) {
             broken = true;

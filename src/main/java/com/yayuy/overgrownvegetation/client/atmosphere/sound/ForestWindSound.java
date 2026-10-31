@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.client.atmosphere.sound;
 
+import com.yayuy.overgrownvegetation.client.VisualQuality;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.client.atmosphere.GustField;
 import com.yayuy.overgrownvegetation.client.atmosphere.SunTrace;
@@ -151,6 +152,10 @@ public final class ForestWindSound {
 
     /** 毎 tick(風を進めた後)。{@code time} は {@link com.yayuy.overgrownvegetation.client.atmosphere.Atmosphere#time}。 */
     public static void tick(Minecraft mc, ClientLevel level, LocalPlayer player, double time) {
+        if (!VisualQuality.ambientWind()) {
+            stop();
+            return;
+        }
         ticks++;
         AtmosphereTable.SoundParams p = DesignData.atmosphere().sound();
         if (model == null) {

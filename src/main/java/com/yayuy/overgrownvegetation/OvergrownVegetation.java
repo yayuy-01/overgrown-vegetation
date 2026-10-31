@@ -12,6 +12,7 @@ import com.yayuy.overgrownvegetation.registry.ModFeatures;
 import com.yayuy.overgrownvegetation.registry.ModItems;
 import com.yayuy.overgrownvegetation.registry.ModMenus;
 import com.yayuy.overgrownvegetation.registry.ModMobEffects;
+import com.yayuy.overgrownvegetation.registry.ModParticles;
 import com.yayuy.overgrownvegetation.registry.ModRecipes;
 import com.yayuy.overgrownvegetation.registry.ModSounds;
 import net.minecraft.world.item.crafting.ShapedRecipePattern;
@@ -58,6 +59,7 @@ public class OvergrownVegetation {
         ModMenus.register(modBus);
         ModRecipes.register(modBus);
         ModSounds.register(modBus);
+        ModParticles.register(modBus);
         ModAttachments.register(modBus);
         ModDataComponents.register(modBus);
 

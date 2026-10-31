@@ -8,6 +8,7 @@ import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import com.yayuy.overgrownvegetation.registry.ModEntities;
 import com.yayuy.overgrownvegetation.registry.ModItems;
 import com.yayuy.overgrownvegetation.registry.ModMenus;
+import com.yayuy.overgrownvegetation.registry.ModParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.builders.CubeDeformation;
@@ -28,6 +29,7 @@ import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -221,6 +223,12 @@ public final class OvergrownVegetationClient {
             }
         }
     }
+    /** 萌芽体の噴き出しの粒({@link SporeJetParticle}。2026-10-31 に parked/ から戻した)。 */
+    @SubscribeEvent
+    public static void registerParticleProviders(RegisterParticleProvidersEvent event) {
+        event.registerSpriteSet(ModParticles.SPORE_JET.get(), SporeJetParticle.Provider::new);
+    }
+
     private OvergrownVegetationClient() {
     }
 }

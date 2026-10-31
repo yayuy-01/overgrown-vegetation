@@ -95,12 +95,15 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
 
         // 幹: 苗木があった位置から真上へ、既存のブロックが何であろうと必ず置き換える。
         // trunkWidth == 2 のときは 2x2 の太い幹にする(バニラのジャングルの巨木のイメージ)。
+        // 根元の skirt 段は苔の付いた幹の絵(案 H の 31、2026-10-31)。
+        int skirt = skirtSteps(config, random);
         for (int i = 0; i < trunkHeight; i++) {
             int y = origin.getY() + i;
+            BlockState trunk = i < skirt ? config.trunkState().setValue(com.yayuy.overgrownvegetation.block.OvergrownLogBlock.SKIRT, true) : config.trunkState();
             for (int dx = 0; dx < trunkWidth; dx++) {
                 for (int dz = 0; dz < trunkWidth; dz++) {
                     BlockPos trunkPos = new BlockPos(origin.getX() + dx, y, origin.getZ() + dz);
-                    setForced(level, trunkPos, config.trunkState());
+                    setForced(level, trunkPos, trunk);
                     logPositions.add(trunkPos.asLong());
                     // (枝ではなく)主幹にだけ、ごく低確率でヒカリゴケを1面貼り付ける。
                     maybeAddGlowLichen(level, random, trunkPos, config);
@@ -119,6 +122,9 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
         if (branchCount > 0) {
             placeBranches(level, random, origin, trunkHeight, trunkWidth, branchCount, config, logPositions, leafPositions);
         }
+
+        // 木の洞(案 H の 43、2026-10-31): 幹の何段目かの、空気に面した 1 面に小さな穴。
+        maybeHollow(level, random, origin, trunkHeight, trunkWidth, config);
 
         // 育ち終えた直後に、近くの別の木との間へ蔦を張れないか試す
         // (spawnConnectingVines / vineMaxPerTree を 0 にすれば無効化できる)。
@@ -244,9 +250,6 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
         BlockState wood;
         if (trunkState.is(ModBlocks.OVERGROWN_LOG.get())) {
             wood = ModBlocks.OVERGROWN_WOOD.get().defaultBlockState();
-        } else if (trunkState.is(ModBlocks.OVERGROWN_SWAMP_LOG.get())) {
-            // 湿地の木も同様に、根は樹皮だけの湿地の木ブロック。
-            wood = ModBlocks.OVERGROWN_SWAMP_WOOD.get().defaultBlockState();
         } else {
             return trunkState;
         }
@@ -271,7 +274,7 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
             BlockState state = level.getBlockState(cursor);
             // 葉(このMODの葉・バニラの葉)は根の支えにしない: 隣の木の天蓋の上を根が這うのを防ぐ。
             if (!state.isAir() && !state.canBeReplaced() && !state.is(BlockTags.LEAVES)
-                    && !state.is(ModBlocks.OVERGROWN_LEAVES.get()) && !state.is(ModBlocks.OVERGROWN_SWAMP_LEAVES.get())) {
+                    && !state.is(ModBlocks.OVERGROWN_LEAVES.get())) {
                 return y;
             }
         }
@@ -365,12 +368,56 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
     }
 
     private static boolean isOtherTreesLeaf(BlockState state, BlockPos pos, LongOpenHashSet ownLeaves) {
-        return (state.is(ModBlocks.OVERGROWN_LEAVES.get()) || state.is(ModBlocks.OVERGROWN_SWAMP_LEAVES.get()) || state.is(BlockTags.LEAVES))
+        return (state.is(ModBlocks.OVERGROWN_LEAVES.get()) || state.is(BlockTags.LEAVES))
                 && !ownLeaves.contains(pos.asLong());
     }
 
     /** 譲り合いでも残す塊の芯(中心からの水平距離の 2 乗)。仮決め。 */
     private static final double SHY_CORE_SQ = 2.0;
+
+    /** 幹の苔のスカートの段数(幹が overgrown_log のときだけ。{@code cover.json} の skirtHeight、skirtTallChance の木は 1 段高く。仮決め)。 */
+    private static int skirtSteps(Config config, RandomSource random) {
+        if (!config.trunkState().hasProperty(com.yayuy.overgrownvegetation.block.OvergrownLogBlock.SKIRT)
+                || config.trunkState().getValue(RotatedPillarBlock.AXIS) != Direction.Axis.Y) {
+            return 0;
+        }
+        com.yayuy.overgrownvegetation.data.CoverTable t = com.yayuy.overgrownvegetation.data.DesignData.cover();
+        if (t.skirtHeight() <= 0) {
+            return 0;
+        }
+        return t.skirtHeight() + (random.nextDouble() < t.skirtTallChance() ? 1 : 0);
+    }
+
+    /**
+     * 木の {@code hollowChance} に 1 本、幹の {@code hollowMinStep}〜{@code hollowMaxStep} 段目(根元が 1)の、空気に面した 1 面を洞にする(仮決め)。
+     * 面は 4 向きをばらばらの順に試し、隣が空気の最初の面(太い幹の内側・ヒカリゴケの付いた面は選ばれない)。
+     */
+    private static void maybeHollow(WorldGenLevel level, RandomSource random, BlockPos origin, int trunkHeight, int trunkWidth, Config config) {
+        com.yayuy.overgrownvegetation.data.CoverTable t = com.yayuy.overgrownvegetation.data.DesignData.cover();
+        if (!config.trunkState().hasProperty(com.yayuy.overgrownvegetation.block.OvergrownLogBlock.HOLLOW) || random.nextDouble() >= t.hollowChance()) {
+            return;
+        }
+        int lo = t.hollowMinStep() - 1;
+        int hi = Math.min(t.hollowMaxStep(), trunkHeight) - 1;
+        if (hi < lo) {
+            return;
+        }
+        BlockPos pos = origin.offset(trunkWidth > 1 ? random.nextInt(trunkWidth) : 0, lo + random.nextInt(hi - lo + 1),
+                trunkWidth > 1 ? random.nextInt(trunkWidth) : 0);
+        BlockState state = level.getBlockState(pos);
+        if (!state.is(config.trunkState().getBlock()) || state.getValue(RotatedPillarBlock.AXIS) != Direction.Axis.Y) {
+            return;
+        }
+        List<Direction> sides = new ArrayList<>(List.of(Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST));
+        net.minecraft.Util.shuffle(sides, random);
+        for (Direction d : sides) {
+            if (level.getBlockState(pos.relative(d)).isAir()) {
+                level.setBlock(pos, state.setValue(com.yayuy.overgrownvegetation.block.OvergrownLogBlock.HOLLOW,
+                        com.yayuy.overgrownvegetation.block.OvergrownLogBlock.Hollow.of(d)), Block.UPDATE_CLIENTS);
+                return;
+            }
+        }
+    }
 
     private static void setForced(WorldGenLevel level, BlockPos pos, BlockState state) {
         if (TreePlacementRules.treeKeeps(level.getBlockState(pos))) return; // 根付いた萌芽体は残す

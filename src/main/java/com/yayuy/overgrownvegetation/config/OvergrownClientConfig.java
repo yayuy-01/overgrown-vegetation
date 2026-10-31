@@ -5,7 +5,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * config/overgrown_vegetation-client.toml に出力される、この PC だけの設定(ワールドに関係しない見た目の好み)。2026-10-22 新設。
- * 画面は {@code client/difficulty/VisualSettingsScreen}(難易度の画面の一番下の幅広のボタンから)。項目を足すときは
+ * 画面は {@code client/difficulty/VisualSettingsScreen}(2026-11-01 から、バニラの「設定…」画面のボタンと Mods 画面の「設定」から)。項目を足すときは
  * ここに 1 つ足し、画面の {@code VisualSettingsScreen#settings()} に 1 行・言語ファイル 3 つに名前と説明を足す。
  *
  * <p>2026-10-30 夜: 画面の演出(色味・解像度・粒・光の筋・霧の板・雲の遠景・動く光・シェーダーパック中の演出・G1 の手続きの動き)の項目と
@@ -36,6 +36,33 @@ public final class OvergrownClientConfig {
         /** Iris のシェーダーパック使用中もこの MOD の演出を描くか(既定オフ。オンなら自前のシェーダーの書き込みの止めを外す)。2026-10-30 に戻した。 */
         public final ModConfigSpec.BooleanValue effectsWithShaderPack;
 
+        // 演出 1 つずつのオンオフ(2026-11-01、ユーザー指定「環境音とシェーダー(光などの演出)をオンオフ」。分け方は仮決め)。
+        // どれも atmosphereEnabled の子(親がオフなら全部オフ)。読み手は client/VisualQuality の同じ名前の口。
+        /** 虫・爬虫類の声。 */
+        public final ModConfigSpec.BooleanValue ambientInsects;
+        /** 風の音。 */
+        public final ModConfigSpec.BooleanValue ambientWind;
+        /** 光の筋と、その中を漂う粒。 */
+        public final ModConfigSpec.BooleanValue lightShafts;
+        /** 木漏れ日。 */
+        public final ModConfigSpec.BooleanValue canopyDapple;
+        /** 林床の持ち上げ・緑の照り返し・林冠の影と色・葉の透け。 */
+        public final ModConfigSpec.BooleanValue canopyLight;
+        /** 胞子の霧・朝霧(地形の霧・バニラの霧の上書き・Distant Horizons の霧の上書き・霧の向こうの巨大樹の影)。 */
+        public final ModConfigSpec.BooleanValue fog;
+        /** 霧の細部(レイマーチ。重さの段が高のときだけ描く)。 */
+        public final ModConfigSpec.BooleanValue fogDetail;
+        /** 落ち葉・光る胞子・夕暮れの粒・雨上がりの滴・湯気。 */
+        public final ModConfigSpec.BooleanValue motes;
+        /** 羽虫・木の洞の虫と目。 */
+        public final ModConfigSpec.BooleanValue critters;
+        /** 葉と草の揺れ。 */
+        public final ModConfigSpec.BooleanValue leafSway;
+        /** 水面の輪と泡・濡れた照り(幹を伝う水は 2026-11-01 に退避)。 */
+        public final ModConfigSpec.BooleanValue waterLife;
+        /** 水中の光の網・光の筋・夜の光る藻。 */
+        public final ModConfigSpec.BooleanValue underwater;
+
         Client(ModConfigSpec.Builder b) {
             b.push("visual");
             plantMipmaps = b.comment("Draws this mod's plants with mipmaps (less shimmer on distant grass, one terrain layer less). Changing it reloads resources.")
@@ -52,6 +79,20 @@ public final class OvergrownClientConfig {
                     .defineEnum("atmosphereQuality", AtmosphereQuality.HIGH);
             effectsWithShaderPack = b.comment("Also draws this mod's own effects while an Iris shader pack is in use (off by default; the pack draws its own light).")
                     .define("effectsWithShaderPack", false);
+            b.pop();
+            b.comment("Each part of the atmosphere on its own (2026-11-01). All of them need atmosphereEnabled in [visual].").push("atmosphere");
+            ambientInsects = b.comment("Insect and reptile calls in the forest.").define("ambientInsects", true);
+            ambientWind = b.comment("Wind in the canopy.").define("ambientWind", true);
+            lightShafts = b.comment("Light shafts through the canopy and the motes floating in them.").define("lightShafts", true);
+            canopyDapple = b.comment("Sunflecks on the forest floor.").define("canopyDapple", true);
+            canopyLight = b.comment("Lifted forest floor light, green bounce light, canopy shade and tint, light through leaves.").define("canopyLight", true);
+            fog = b.comment("Spore fog and morning mist (terrain fog, vanilla fog override, Distant Horizons fog override, giant tree silhouettes).").define("fog", true);
+            fogDetail = b.comment("Fine detail of the fog (ray marching; only at atmosphereQuality HIGH).").define("fogDetail", true);
+            motes = b.comment("Falling leaves, glowing spores, dusk motes, after-rain drops and steam.").define("motes", true);
+            critters = b.comment("Gnat swarms and the critters in tree hollows.").define("critters", true);
+            leafSway = b.comment("Leaves and grass swaying in the wind.").define("leafSway", true);
+            waterLife = b.comment("Rings and bubbles on water, wet sheen.").define("waterLife", true);
+            underwater = b.comment("Caustics and light shafts under water, glowing algae at night.").define("underwater", true);
             b.pop();
         }
     }

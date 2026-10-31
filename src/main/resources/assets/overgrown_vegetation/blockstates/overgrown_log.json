@@ -1,16 +1,34 @@
 {
   "variants": {
-    "axis=y": {
-      "model": "overgrown_vegetation:block/overgrown_log"
-    },
-    "axis=z": {
-      "model": "overgrown_vegetation:block/overgrown_log",
-      "x": 90
-    },
-    "axis=x": {
-      "model": "overgrown_vegetation:block/overgrown_log",
-      "x": 90,
-      "y": 90
-    }
+    "axis=y,hollow=none,skirt=false": { "model": "overgrown_vegetation:block/overgrown_log" },
+    "axis=y,hollow=north,skirt=false": { "model": "overgrown_vegetation:block/overgrown_log_hollow" },
+    "axis=y,hollow=south,skirt=false": { "model": "overgrown_vegetation:block/overgrown_log_hollow", "y": 180 },
+    "axis=y,hollow=west,skirt=false": { "model": "overgrown_vegetation:block/overgrown_log_hollow", "y": 270 },
+    "axis=y,hollow=east,skirt=false": { "model": "overgrown_vegetation:block/overgrown_log_hollow", "y": 90 },
+    "axis=y,hollow=none,skirt=true": { "model": "overgrown_vegetation:block/overgrown_log_skirt" },
+    "axis=y,hollow=north,skirt=true": { "model": "overgrown_vegetation:block/overgrown_log_hollow_skirt" },
+    "axis=y,hollow=south,skirt=true": { "model": "overgrown_vegetation:block/overgrown_log_hollow_skirt", "y": 180 },
+    "axis=y,hollow=west,skirt=true": { "model": "overgrown_vegetation:block/overgrown_log_hollow_skirt", "y": 270 },
+    "axis=y,hollow=east,skirt=true": { "model": "overgrown_vegetation:block/overgrown_log_hollow_skirt", "y": 90 },
+    "axis=z,hollow=none,skirt=false": { "model": "overgrown_vegetation:block/overgrown_log", "x": 90 },
+    "axis=z,hollow=north,skirt=false": { "model": "overgrown_vegetation:block/overgrown_log", "x": 90 },
+    "axis=z,hollow=south,skirt=false": { "model": "overgrown_vegetation:block/overgrown_log", "x": 90 },
+    "axis=z,hollow=west,skirt=false": { "model": "overgrown_vegetation:block/overgrown_log", "x": 90 },
+    "axis=z,hollow=east,skirt=false": { "model": "overgrown_vegetation:block/overgrown_log", "x": 90 },
+    "axis=z,hollow=none,skirt=true": { "model": "overgrown_vegetation:block/overgrown_log_skirt", "x": 90 },
+    "axis=z,hollow=north,skirt=true": { "model": "overgrown_vegetation:block/overgrown_log_skirt", "x": 90 },
+    "axis=z,hollow=south,skirt=true": { "model": "overgrown_vegetation:block/overgrown_log_skirt", "x": 90 },
+    "axis=z,hollow=west,skirt=true": { "model": "overgrown_vegetation:block/overgrown_log_skirt", "x": 90 },
+    "axis=z,hollow=east,skirt=true": { "model": "overgrown_vegetation:block/overgrown_log_skirt", "x": 90 },
+    "axis=x,hollow=none,skirt=false": { "model": "overgrown_vegetation:block/overgrown_log", "x": 90, "y": 90 },
+    "axis=x,hollow=north,skirt=false": { "model": "overgrown_vegetation:block/overgrown_log", "x": 90, "y": 90 },
+    "axis=x,hollow=south,skirt=false": { "model": "overgrown_vegetation:block/overgrown_log", "x": 90, "y": 90 },
+    "axis=x,hollow=west,skirt=false": { "model": "overgrown_vegetation:block/overgrown_log", "x": 90, "y": 90 },
+    "axis=x,hollow=east,skirt=false": { "model": "overgrown_vegetation:block/overgrown_log", "x": 90, "y": 90 },
+    "axis=x,hollow=none,skirt=true": { "model": "overgrown_vegetation:block/overgrown_log_skirt", "x": 90, "y": 90 },
+    "axis=x,hollow=north,skirt=true": { "model": "overgrown_vegetation:block/overgrown_log_skirt", "x": 90, "y": 90 },
+    "axis=x,hollow=south,skirt=true": { "model": "overgrown_vegetation:block/overgrown_log_skirt", "x": 90, "y": 90 },
+    "axis=x,hollow=west,skirt=true": { "model": "overgrown_vegetation:block/overgrown_log_skirt", "x": 90, "y": 90 },
+    "axis=x,hollow=east,skirt=true": { "model": "overgrown_vegetation:block/overgrown_log_skirt", "x": 90, "y": 90 }
   }
 }

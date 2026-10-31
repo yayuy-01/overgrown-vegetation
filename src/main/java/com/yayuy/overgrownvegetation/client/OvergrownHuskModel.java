@@ -125,7 +125,11 @@ public class OvergrownHuskModel implements IDynamicBakedModel {
         int z = pos != null ? pos.getZ() : 0;
         com.yayuy.overgrownvegetation.data.CoverTable design = com.yayuy.overgrownvegetation.data.DesignData.cover();
         List<BakedQuad> out = new ArrayList<>(borrowed.size() * 2);
-        out.addAll(borrowed);
+        for (BakedQuad quad : borrowed) {
+            // 元の面そのものを暗くして描く(覆いと同じく、苔の間から見える元の面を置き換えブロックの絵と揃える。2026-10-31 夜)
+            BakedQuad dark = CoverQuads.darkened(quad, net.minecraft.client.renderer.RenderType.cutoutMipped(), design);
+            out.add(dark != null ? dark : quad);
+        }
         for (BakedQuad quad : borrowed) {
             out.add(CoverQuads.overlay(quad, true, x, y, z, sprites, design));
         }

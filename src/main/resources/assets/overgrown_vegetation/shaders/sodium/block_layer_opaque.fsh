@@ -11,6 +11,8 @@
 #import <sodium:include/fog.glsl>
 #import <sodium:include/chunk_material.glsl>
 #ov_import <ov_light.glsl>
+#ov_import <ov_wet.glsl>
+#ov_import <ov_caustic.glsl>
 #ov_import <ov_leaf.glsl>
 
 in vec4 v_Color; // The interpolated vertex color
@@ -25,6 +27,23 @@ in vec4 ovFog;
 in vec4 ovLeaf;
 
 uniform sampler2D u_BlockTex; // The block texture
+
+// Sodium's linear fog, plus the spore haze of the overgrown forest: a fog start below -1000 is the mark MistView sends while the
+// camera is in the forest (the same formula as our minecraft:shaders/include/fog.glsl, which Sodium does not use).
+vec4 ovSodiumFog(vec4 color, float d, vec4 fogColor, float fogStart, float fogEnd) {
+#ifndef USE_FOG
+    return color;
+#else
+    if (fogStart >= -1000.0) {
+        return _linearFog(color, d, fogColor, fogStart, fogEnd);
+    }
+    float k = (-fogStart - 1000.0) / 100000.0;
+    float wallStart = fogEnd - clamp(fogEnd / 10.0, 4.0, 64.0);
+    float wall = d <= wallStart ? 0.0 : (d < fogEnd ? smoothstep(wallStart, fogEnd, d) : 1.0);
+    float v = 1.0 - (1.0 - wall) * exp(-k * d);
+    return vec4(mix(color.rgb, fogColor.rgb, v * fogColor.a), color.a);
+#endif
+}
 
 uniform vec4 u_FogColor; // The color of the shader fog
 uniform float u_FogStart; // The starting position of the shader fog
@@ -63,11 +82,16 @@ void main() {
         // Water and glass (the translucent pass) are left as they are, like vanilla's rendertype_translucent.
         float facing = ((v_Material >> 1u) & 3u) == 1u ? 0.0 : 1.0;
         color.rgb = ovCanopyLight(color.rgb, ovPos, n, facing, ovLight);
+        // The net of sunlight on faces under shallow water (ov_caustic.glsl).
+        color.rgb = ovCaustics(color.rgb, ovPos, n, ovLight);
+        color.rgb = ovWetSurface(color.rgb, ovPos, n, ovLight);
+        // Leaves with the sun behind them glow yellow-green (ov_leaf.glsl).
+        color.rgb = ovLeafBacklight(color.rgb, ovPos, ovLeaf);
     }
 
     // The height fog (ov_fog.glsl, computed per vertex) on every pass, water included.
     color.rgb = mix(color.rgb, ovFog.rgb, ovFog.a);
     color.rgb = mix(color.rgb, vec3(dot(color.rgb, vec3(0.299, 0.587, 0.114))), OvFogI.x * smoothstep(OvFogI.y, OvFogI.z, v_FragDistance));
 
-    fragColor = _linearFog(color, v_FragDistance, u_FogColor, u_FogStart, u_FogEnd);
+    fragColor = ovSodiumFog(color, v_FragDistance, u_FogColor, u_FogStart, u_FogEnd);
 }

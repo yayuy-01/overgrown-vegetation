@@ -36,16 +36,15 @@ import java.util.List;
  * <ul>
  *     <li><b>湿地・菌湿地帯</b>({@link Mode#SWAMP}) — 露出面の下草・蔦の抽選を丸ごと洞窟専用の植物に置き換える:
  *     微光を放つ胞子嚢({@code cave_spore_sac}、床・壁・天井どこにでも)と苔の塊({@code cave_moss_clump}、
- *     面に沿って数個の塊)。さらに構造物 3 種 — 壁から張り出す巨大なキノコの傘({@code fungal_cap})、
- *     天井から垂れて再び天井へ戻る太いアーチ、床から天井まで継ぐ菌の柱
- *     ({@code fungal_pillar} + 所々に微かに光る {@code glowing_mycelium})。</li>
+ *     面に沿って数個の塊)。構造物は天井から垂れて再び天井へ戻る太いアーチ(壁のキノコの傘 {@code fungal_cap}・
+ *     床の菌の柱 {@code fungal_pillar} + {@code glowing_mycelium} は 2026-10-31 に parked へ退避、U11)。</li>
  *     <li><b>密林</b>({@link Mode#JUNGLE}) — 植物はいつも通りで、天井のアーチだけを建てる
  *     ({@code caveRootArchInJungle}、既定 true)。</li>
  * </ul>
  *
  * <p>天井のアーチには 2 種類ある({@link ArchStyle})。{@code caveVineArchShare} の割合で
  * <b>蔦</b>のアーチ(樹皮だけの蔓 {@code overgrown_wood} を {@code overgrown_leaves} の葉が包む。
- * 湿地系では {@code overgrown_swamp_wood} / {@code overgrown_swamp_leaves})、残りが今までどおりの
+ * 湿地系の専用の木は 2026-10-31 に退避したので同じ)、残りが今までどおりの
  * <b>根</b>のアーチ({@code giant_overgrown_log})。蔦のほうが深く垂れる({@code caveVineArchDip})。
  * どちらも密林・湿地系のどちらの洞窟でも建つ。
  *
@@ -77,8 +76,6 @@ public final class CaveGrowth {
 
     /** 地域マップのぼかし用ソルト(用途ごとに違う値を使う)。 */
     private static final int SALT_VARIANT = 6;
-    /** 柱の根元を地面まで下へ伸ばす最大深さ。 */
-    private static final int ANCHOR_DEPTH = 4;
     /** 天井アーチの終端側の天井を探す上下の範囲。 */
     private static final int ARCH_CEILING_SEARCH = 4;
 
@@ -258,11 +255,6 @@ public final class CaveGrowth {
         if (!(block instanceof CaveSurfaceGrowthBlock growth)) {
             return false;
         }
-        // キノコの傘・菌の柱・発光菌糸には取り付かない(それらの表面は薄い苔・ヒカリゴケだけ)。
-        BlockPos support = pos.relative(exposed.getOpposite());
-        if (level.isLoaded(support) && isFungalStructure(level.getBlockState(support))) {
-            return false;
-        }
         BlockState state = growth.stateFor(exposed, Direction.Plane.HORIZONTAL.getRandomDirection(random));
         if (!state.canSurvive(level, pos)) {
             return false;
@@ -320,8 +312,7 @@ public final class CaveGrowth {
 
     /**
      * 汚染したばかりの洞窟のブロック {@code host} から、確率 {@code caveStructureChance} で構造物を 1 つ建てる。
-     * 露出している面で候補が決まる: 壁(水平の露出面)→ キノコの傘、床(上面が空気)→ 菌の柱、
-     * 天井(下面が空気)→ 根 / 蔦のアーチ。密林の洞窟はアーチのみ。
+     * 天井(下面が空気)→ 根 / 蔦のアーチ。湿地系の壁のキノコの傘・床の菌の柱は 2026-10-31 に parked へ退避(U11)。
      */
     public static void tryStructure(ServerLevel level, BlockPos host, BlockState hostState, RandomSource random, Mode mode) {
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
@@ -333,103 +324,13 @@ public final class CaveGrowth {
             return; // 葉などは宿主にしない
         }
 
-        boolean floor = isAirLike(level, host.above());
         boolean ceiling = isAirLike(level, host.below());
-        List<Direction> walls = new ArrayList<>(4);
-        for (Direction d : Direction.Plane.HORIZONTAL) {
-            if (isAirLike(level, host.relative(d))) {
-                walls.add(d);
-            }
-        }
-
         boolean swamp = mode == Mode.SWAMP;
-        int wCap = swamp && !walls.isEmpty() ? Math.max(0, cfg.caveCapWeight.get()) : 0;
-        int wPillar = swamp && floor ? Math.max(0, cfg.cavePillarWeight.get()) : 0;
         int wArch = ceiling && (swamp || cfg.caveRootArchInJungle.get()) ? Math.max(0, cfg.caveArchWeight.get()) : 0;
-        int total = wCap + wPillar + wArch;
-        if (total <= 0) {
+        if (wArch <= 0) {
             return;
         }
-        int roll = random.nextInt(total);
-        if (roll < wCap) {
-            buildWallCap(level, host, walls.get(random.nextInt(walls.size())), random, mode);
-        } else if (roll < wCap + wPillar) {
-            buildPillar(level, host.above(), random, mode);
-        } else {
-            buildCeilingArch(level, host, random, mode);
-        }
-    }
-
-    /**
-     * 壁から張り出す巨大なキノコの傘。宿主 {@code host}(壁のブロック)の {@code out} 側へ、壁に接した
-     * 半円(半径 {@code caveCapMinRadius}〜{@code caveCapMaxRadius})の傘を出す。中心ほど厚く
-     * ({@code caveCapThickness} 段)、縁へ向かって薄くなりながら {@code caveCapDroop} だけ垂れ下がる。
-     * 傘の下、壁との接点に短い柄({@code fungal_pillar})を添える。
-     *
-     * @return 建てられたら true
-     */
-    public static boolean buildWallCap(ServerLevel level, BlockPos host, Direction out, RandomSource random, Mode mode) {
-        OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
-        int minR = Math.max(1, cfg.caveCapMinRadius.get());
-        int maxR = Math.max(minR, cfg.caveCapMaxRadius.get());
-        int radius = minR + random.nextInt(maxR - minR + 1);
-        int thickness = Math.max(1, cfg.caveCapThickness.get());
-        double droop = Math.max(0.0D, cfg.caveCapDroop.get());
-        int sagMax = (int) Math.ceil(droop);
-
-        // 壁であること(上下も壁)と、張り出す空間があること(中心線が半径 +1 まで空気)。
-        if (!isSolid(level, host.above()) || !isSolid(level, host.below())) {
-            return false;
-        }
-        for (int v = 1; v <= radius + 1; v++) {
-            for (int dy = -sagMax; dy < thickness; dy++) {
-                if (!isAirLike(level, host.relative(out, v).above(dy))) {
-                    return false;
-                }
-            }
-        }
-
-        Direction side = out.getClockWise();
-        BlockState cap = ModBlocks.FUNGAL_CAP.get().defaultBlockState();
-        List<BlockPos> shell = new ArrayList<>();
-        for (int v = 1; v <= radius; v++) {
-            for (int u = -radius; u <= radius; u++) {
-                double d = Math.sqrt((double) (u * u + v * v)) / radius;
-                if (d > 1.0D) {
-                    continue;
-                }
-                int rows = (int) Math.round(thickness * (1.0D - d * d));
-                int sag = (int) Math.round(droop * d * d * d);
-                int yBottom = host.getY() - sag;
-                int yTop = yBottom + Math.max(0, rows - 1);
-                for (int y = yBottom; y <= yTop; y++) {
-                    BlockPos p = new BlockPos(host.getX() + out.getStepX() * v + side.getStepX() * u, y,
-                            host.getZ() + out.getStepZ() * v + side.getStepZ() * u);
-                    if (isAirLike(level, p)) {
-                        level.setBlock(p, cap, Block.UPDATE_ALL);
-                        shell.add(p);
-                    }
-                }
-            }
-        }
-        if (shell.isEmpty()) {
-            return false;
-        }
-
-        // 柄: 傘の下、壁との接点(v = 1〜2, |u| ≤ 1)を 1 段下まで菌の柱で埋めて壁につなぐ。
-        BlockState stem = ModBlocks.FUNGAL_PILLAR.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, out.getAxis());
-        int stemReach = Math.min(2, radius);
-        for (int v = 1; v <= stemReach; v++) {
-            for (int u = -1; u <= 1; u++) {
-                BlockPos p = new BlockPos(host.getX() + out.getStepX() * v + side.getStepX() * u, host.getY() - 1,
-                        host.getZ() + out.getStepZ() * v + side.getStepZ() * u);
-                if (isAirLike(level, p) && level.getBlockState(p.above()).is(ModBlocks.FUNGAL_CAP.get())) {
-                    level.setBlock(p, stem, Block.UPDATE_ALL);
-                }
-            }
-        }
-        decorateShell(level, shell, random, mode, true);
-        return true;
+        buildCeilingArch(level, host, random, mode);
     }
 
     /**
@@ -513,7 +414,7 @@ public final class CaveGrowth {
 
         Direction.Axis axis = Math.abs(dx) >= Math.abs(dz) ? Direction.Axis.X : Direction.Axis.Z;
         BlockState core = vine
-                ? (mode == Mode.SWAMP ? ModBlocks.OVERGROWN_SWAMP_WOOD : ModBlocks.OVERGROWN_WOOD).get()
+                ? ModBlocks.OVERGROWN_WOOD.get()
                         .defaultBlockState().setValue(RotatedPillarBlock.AXIS, axis)
                 : ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState();
         List<BlockPos> shell = new ArrayList<>();
@@ -538,8 +439,7 @@ public final class CaveGrowth {
         }
         // 蔦は芯の周りを葉が包む。芯はもう置いてあるので、空気になっているマスだけが葉になる。
         if (leafR > 0) {
-            BlockState leaves = (mode == Mode.SWAMP ? ModBlocks.OVERGROWN_SWAMP_LEAVES : ModBlocks.OVERGROWN_LEAVES)
-                    .get().defaultBlockState();
+            BlockState leaves = ModBlocks.OVERGROWN_LEAVES.get().defaultBlockState();
             double leafChance = cfg.caveVineArchLeafChance.get();
             for (int i = 0; i <= steps; i++) {
                 double s = (double) i / steps;
@@ -613,99 +513,6 @@ public final class CaveGrowth {
             return;
         }
         level.setBlock(pos, log, Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS);
-    }
-
-    /**
-     * 床から立つ菌の柱。必ず天井と床を継ぐ(高さの上限は無い)。{@code base}(床の上の空気マス)から
-     * 真上の天井までを 1 本の柱で埋め、根元と天井側の両方に裾の広がりを付けて岩に溶け込ませる。
-     * 真上が天井で終わっていない場所(ワールド上限まで空、未ロード、水などで埋まっている)や、
-     * 天井が {@code cavePillarMinHeight} より低い場所には立てない。
-     *
-     * <p>半径は根元 {@code cavePillarBaseRadius} → 先端 {@code cavePillarTopRadius} へ滑らかに
-     * 細くなり、上下 {@code cavePillarFlareRows} 段は裾 {@code cavePillarFlare} で広がる。各ブロックは
-     * {@code cavePillarGlowChance} で発光菌糸({@code glowing_mycelium})になる。根元の円盤は地面まで
-     * 下へ埋める({@link #anchorToGround})。
-     *
-     * @return 建てられたら true
-     */
-    public static boolean buildPillar(ServerLevel level, BlockPos base, RandomSource random, Mode mode) {
-        OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
-        int minH = Math.max(1, cfg.cavePillarMinHeight.get());
-
-        // 真上の天井までの空き高さ。高さの上限は設けず、天井(またはワールド上限)まで数える。
-        int free = 0;
-        int limit = level.getMaxBuildHeight() - base.getY();
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        while (free < limit) {
-            cursor.set(base.getX(), base.getY() + free, base.getZ());
-            if (!isAirLike(level, cursor)) {
-                break;
-            }
-            free++;
-        }
-        // 柱は必ず天井と床を継ぐので、真上が天井で終わっていない場所(ワールド上限まで空、
-        // 未ロード、水などで埋まっている)や、天井が minH より低い場所には立てない。
-        if (free >= limit || free < minH || !isSolid(level, cursor)) {
-            return false;
-        }
-        int height = free;
-
-        double baseR = Math.max(0.0D, cfg.cavePillarBaseRadius.get());
-        double topR = Math.max(0.0D, Math.min(baseR, cfg.cavePillarTopRadius.get()));
-        int flareRows = Math.max(0, cfg.cavePillarFlareRows.get());
-        double flare = Math.max(0.0D, cfg.cavePillarFlare.get());
-        double glow = cfg.cavePillarGlowChance.get();
-
-        BlockState pillar = ModBlocks.FUNGAL_PILLAR.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Y);
-        BlockState mycelium = ModBlocks.GLOWING_MYCELIUM.get().defaultBlockState();
-        List<BlockPos> shell = new ArrayList<>();
-        for (int i = 0; i < height; i++) {
-            double t = height <= 1 ? 1.0D : (double) i / (double) (height - 1);
-            double radius = baseR + (topR - baseR) * Math.pow(t, 0.8D);
-            if (i < flareRows) {
-                radius += flare * (1.0D - (double) i / Math.max(1, flareRows));
-            }
-            if (i >= height - flareRows) {
-                radius += flare * (1.0D - (double) (height - 1 - i) / Math.max(1, flareRows));
-            }
-            int y = base.getY() + i;
-            int ir = Mth.ceil(radius);
-            double edgeSq = (radius + 0.5D) * (radius + 0.5D);
-            for (int dx = -ir; dx <= ir; dx++) {
-                for (int dz = -ir; dz <= ir; dz++) {
-                    if (dx * dx + dz * dz > edgeSq) {
-                        continue;
-                    }
-                    BlockPos p = new BlockPos(base.getX() + dx, y, base.getZ() + dz);
-                    if (!isAirLike(level, p)) {
-                        continue;
-                    }
-                    BlockState state = glow > 0.0D && random.nextDouble() < glow ? mycelium : pillar;
-                    level.setBlock(p, state, Block.UPDATE_ALL);
-                    shell.add(p);
-                    if (i == 0) {
-                        anchorToGround(level, p, pillar);
-                    }
-                }
-            }
-        }
-        if (shell.isEmpty()) {
-            return false;
-        }
-        decorateShell(level, shell, random, mode, true);
-        return true;
-    }
-
-    /** 根元の円盤の各列を、地面に着くまで({@value #ANCHOR_DEPTH} まで)柱ブロックで下へ埋める。 */
-    private static void anchorToGround(ServerLevel level, BlockPos base, BlockState state) {
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        for (int d = 1; d <= ANCHOR_DEPTH; d++) {
-            cursor.set(base.getX(), base.getY() - d, base.getZ());
-            if (!isAirLike(level, cursor)) {
-                return;
-            }
-            level.setBlock(cursor, state, Block.UPDATE_ALL);
-        }
     }
 
     // ------------------------------------------------------------------
@@ -813,12 +620,6 @@ public final class CaveGrowth {
             return;
         }
         level.setBlock(pos, next, Block.UPDATE_ALL);
-    }
-
-    /** キノコの傘・菌の柱・発光菌糸(洞窟植物が取り付いてはいけないブロック)。 */
-    private static boolean isFungalStructure(BlockState state) {
-        return state.is(ModBlocks.FUNGAL_CAP.get()) || state.is(ModBlocks.FUNGAL_PILLAR.get())
-                || state.is(ModBlocks.GLOWING_MYCELIUM.get());
     }
 
     /** 空気、または草・下草のような上書き可能ブロック(液体は除く)。 */

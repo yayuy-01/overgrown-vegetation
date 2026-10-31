@@ -48,3 +48,19 @@ vec3 ovLeafRecolor(vec3 t, vec4 leaf) {
     }
     return t;
 }
+
+// Leaves lit from behind (36, 10-31): when the sun is behind a marked leaf as seen from the camera, the leaf glows a little
+// yellow-green (light through the blade). Applied after the canopy light, before the fog. Off in rain and with the sun down.
+// OvLeafSun  = (sun direction xyz, strength 0..1)
+// OvLeafBack = (colour multiplier rgb = colour ratio x gain, view-sun dot from which it starts)
+uniform vec4 OvLeafSun;
+uniform vec4 OvLeafBack;
+
+vec3 ovLeafBacklight(vec3 c, vec3 pos, vec4 leaf) {
+    if (leaf.w < 0.5 || OvLeafSun.w <= 0.0) {
+        return c;
+    }
+    float d = dot(normalize(pos), OvLeafSun.xyz);
+    float k = smoothstep(OvLeafBack.w, 1.0, d) * OvLeafSun.w;
+    return c * mix(vec3(1.0), OvLeafBack.rgb, k);
+}

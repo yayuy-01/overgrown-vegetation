@@ -18,7 +18,7 @@ public final class CanopyLift {
 
     /** 今の持ち上げの強さ(0〜1)。 */
     public static float skyLift() {
-        if (!VisualQuality.atmosphere()) {
+        if (!VisualQuality.canopyLight()) {
             return 0.0F;
         }
         return DesignData.atmosphere().skyLift() * ForestPresence.openForest();
@@ -41,7 +41,7 @@ public final class CanopyLift {
      * 見た目だけ(サーバーの明るさ・湧きは変わらない)。読み手は {@code LightTextureCanopyLiftMixin}。
      */
     public static int greenBounce(int abgr) {
-        if (!VisualQuality.atmosphere()) {
+        if (!VisualQuality.canopyLight()) {
             return abgr;
         }
         float k = DesignData.atmosphere().greenBounce() * ForestPresence.openForest();

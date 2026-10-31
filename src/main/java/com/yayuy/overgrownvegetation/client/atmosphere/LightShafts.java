@@ -144,6 +144,10 @@ final class LightShafts {
     }
 
     static void tick(ClientLevel level, LocalPlayer player) {
+        if (!VisualQuality.lightShafts()) {
+            clear();
+            return;
+        }
         Vec3 sun = SunLight.lightDirection(level, 1.0F);
         float day = SunLight.lightStrength(level, sun, 1.0F);
         lastDay = day;
@@ -313,6 +317,9 @@ final class LightShafts {
     }
 
     static void render(RenderLevelStageEvent event) {
+        if (!VisualQuality.lightShafts()) {
+            return;
+        }
         ClientLevel level = Minecraft.getInstance().level;
         if (SHAFTS.isEmpty() || level == null) {
             return;
@@ -355,7 +362,9 @@ final class LightShafts {
             double sway = (0.04 + 0.22 * gust) * Wind.branch(windTime, s.phase * 9.0)
                     + 0.06 * gust * Math.sin(2.0 * Math.PI * 0.9 * seconds + s.phase * 4.0);
             Vec3 view = eye.subtract(wind.dirX() * sway, 0.0, wind.dirZ() * sway);
-            float alpha = s.presence() * day * intensity * flicker * fade(bottom, eye, fogEnd) * (s.thin ? 0.6F : 1.0F);
+            // 足し算の光は霧を受けないので、森の中の霞(MistView)で足元までの距離の分だけ薄める(霞の向こうの筋が浮かないように)。
+            float alpha = s.presence() * day * intensity * flicker * fade(bottom, eye, fogEnd) * (s.thin ? 0.6F : 1.0F)
+                    * (1.0F - MistView.fogAmount((float) bottom.distanceTo(eye)));
             if (alpha <= 0.003F) {
                 continue;
             }

@@ -23,20 +23,17 @@ import java.util.concurrent.CompletableFuture;
 /**
  * 虫・爬虫類の声 1 つの音源(モノラル・その場所に置き、距離で線形に減る)。水音({@link WaterSoundInstance})と同じく、ファイルも {@code sounds.json} も無く、
  * 流す音の中身は {@link Stream} がその場で {@link InsectSynth} から作る(memory procedural-sound-stream)。大きさ・鳴く/黙るは {@link ForestInsectSound} が決める。
- * ヤモリの 1 回の鳴きは鳴き終えると流れを閉じ(read が null)、音源が止まる。
+ * 1 回きりの声(ヤモリ・合唱・キリギリス様・ガサガサ・爬虫類)は鳴き終えると流れを閉じ(read が null)、音源が止まる。
  */
 @OnlyIn(Dist.CLIENT)
 final class InsectSoundInstance extends AbstractTickableSoundInstance {
-
-    private static final ResourceLocation CRICKET = ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "forest_cricket");
-    private static final ResourceLocation GECKO = ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "forest_gecko");
 
     private final ForestInsectSound.Voice voice;
     /** 流れを作った(音のエンジンが鳴らし始めた)か。 */
     volatile boolean started;
 
     InsectSoundInstance(ForestInsectSound.Voice voice) {
-        super(SoundEvent.createVariableRangeEvent(voice.cricket != null ? CRICKET : GECKO), SoundSource.AMBIENT, SoundInstance.createUnseededRandom());
+        super(SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, voice.kind)), SoundSource.AMBIENT, SoundInstance.createUnseededRandom());
         this.voice = voice;
         this.looping = voice.cricket != null;
         this.delay = 0;
@@ -50,9 +47,9 @@ final class InsectSoundInstance extends AbstractTickableSoundInstance {
 
     @Override
     public WeighedSoundEvents resolve(SoundManager manager) {
-        ResourceLocation id = this.voice.cricket != null ? CRICKET : GECKO;
-        // 線形に減って 0 になる距離: コオロギ 32・ヤモリ 24 ブロック(仮決め。鳴らす距離の上限 20・12 より少し遠く)。
-        this.sound = new Sound(id, ConstantFloat.of(1.0F), ConstantFloat.of(1.0F), 1, Sound.Type.FILE, true, false, this.voice.cricket != null ? 32 : 24);
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, this.voice.kind);
+        // 線形に減って 0 になる距離は種類ごと(ForestInsectSound の Caller#range、コオロギ 32。仮決め。鳴らす距離の上限より少し遠く)。
+        this.sound = new Sound(id, ConstantFloat.of(1.0F), ConstantFloat.of(1.0F), 1, Sound.Type.FILE, true, false, this.voice.range);
         return new WeighedSoundEvents(id, null);
     }
 
@@ -99,10 +96,10 @@ final class InsectSoundInstance extends AbstractTickableSoundInstance {
                 this.voice.cricket.setSinging(this.voice.singing);
                 this.voice.cricket.render(this.scratch, 0, FRAMES, 1.0);
             } else {
-                if (this.voice.gecko.done()) {
+                if (this.voice.call.done()) {
                     return null;
                 }
-                this.voice.gecko.render(this.scratch, 0, FRAMES, 1.0);
+                this.voice.call.render(this.scratch, 0, FRAMES, 1.0);
             }
             ByteBuffer buffer = BufferUtils.createByteBuffer(FRAMES * 2);
             for (float v : this.scratch) {

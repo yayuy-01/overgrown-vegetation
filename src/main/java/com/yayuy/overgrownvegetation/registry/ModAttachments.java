@@ -75,6 +75,36 @@ public final class ModAttachments {
                             .build());
 
     /**
+     * 這い上がる苔の記録(案 H の 28、2026-11-01 ユーザー指定: 覆いに接して<b>新しく置かれた</b>ブロックだけに帯が出る)。
+     * マス({@code BlockPos#asLong}) → {@code (置いたときのゲーム時刻 << 6) | 置いたときに覆われていた隣の向きの印(ordinal のビット)}。
+     * {@link com.yayuy.overgrownvegetation.corruption.CoverCreepData} が書き、チャンクと一緒に保存し、見ているプレイヤーへ送る。
+     * 保存の形は [マス, 値, マス, 値, …] の LongArrayTag。
+     */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap>>
+            COVER_CREEP = ATTACHMENT_TYPES.register("cover_creep",
+                    () -> AttachmentType.<it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap>builder(
+                                    () -> new it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap())
+                            .serialize(Codec.LONG_STREAM.xmap(
+                                    stream -> {
+                                        long[] a = stream.toArray();
+                                        it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap map = new it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap();
+                                        for (int i = 0; i + 1 < a.length; i += 2) {
+                                            map.put(a[i], a[i + 1]);
+                                        }
+                                        return map;
+                                    },
+                                    map -> {
+                                        long[] a = new long[map.size() * 2];
+                                        int i = 0;
+                                        for (var e : map.long2LongEntrySet()) {
+                                            a[i++] = e.getLongKey();
+                                            a[i++] = e.getLongValue();
+                                        }
+                                        return java.util.Arrays.stream(a);
+                                    }))
+                            .build());
+
+    /**
      * この個体に確定した実効 {@code SCALE}(体格倍率)。0 なら「未決定」。
      * {@link com.yayuy.overgrownvegetation.entity.MobSizeVariance} が湧いた瞬間に
      * {@code scale × ランダム(scaleMin〜scaleMax)} を書き込み、ワールド再読み込み後もこの値を

@@ -111,11 +111,7 @@ public final class TreeCanopyGroundFinder {
         return block == ModBlocks.OVERGROWN_LOG.get()
                 || block == ModBlocks.GIANT_OVERGROWN_LOG.get()
                 || block == ModBlocks.GIANT_OVERGROWN_CAMBIUM.get()
-                || block == ModBlocks.OVERGROWN_LEAVES.get()
-                || block == ModBlocks.OVERGROWN_SWAMP_LEAVES.get()
-                || block == ModBlocks.OVERGROWN_SWAMP_LOG.get()
-                || block == ModBlocks.OVERGROWN_SWAMP_WOOD.get()
-                || block == ModBlocks.FUNGAL_PILLAR.get();
+                || block == ModBlocks.OVERGROWN_LEAVES.get();
     }
 
     private TreeCanopyGroundFinder() {

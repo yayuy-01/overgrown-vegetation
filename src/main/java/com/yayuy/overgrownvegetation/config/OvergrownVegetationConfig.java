@@ -1083,8 +1083,8 @@ public final class OvergrownVegetationConfig {
 
             saplingOfflineGrowthTicks = b
                     .comment("追いつき成長: 設置からこの tick 数以上経った苗木をチャンク読み込み時に育てる。",
-                            "既定 9600 = 8 分(randomTickSpeed=3 でのランダムティック成長の平均所要時間とほぼ同じ)。")
-                    .defineInRange("saplingOfflineGrowthTicks", 9600, 20, 72000000);
+                            "既定 4800 = 4 分(randomTickSpeed=3 でのランダムティック成長の平均所要時間とほぼ同じ。10-31 に成長を 2 倍にして 9600 から半分)。")
+                    .defineInRange("saplingOfflineGrowthTicks", 4800, 20, 72000000);
 
             saplingOfflineGrowthPerTick = b
                     .comment("追いつき成長: 1 tick に育てる本数の上限。長時間放置した場所に戻ったとき、",
@@ -1171,14 +1171,14 @@ public final class OvergrownVegetationConfig {
                     .defineInRange("corruptionRavineArchMinDepth", 6, 2, 64);
             corruptionBridgeChance = b
                     .comment("触手が水でブロックされたとき、対岸まで根のアーチと同じ形の橋を架けて渡ろうとする確率。",
-                            "0.0 で無効(従来どおり水で止まる)。川で汚染が止まらないようにするための機能。既定 0.04(2026-09-11 に 0.15 から引き下げ)。")
-                    .defineInRange("corruptionBridgeChance", 0.04D, 0.0D, 1.0D);
+                            "0.0 で無効(従来どおり水で止まる)。川で汚染が止まらないようにするための機能。既定 0.01(2026-09-11 に 0.15 から 0.04 へ、2026-10-31 に 0.01 へ引き下げ。ユーザー: 湖に橋と、その背に生えた木が多すぎる)。")
+                    .defineInRange("corruptionBridgeChance", 0.01D, 0.0D, 1.0D);
             corruptionBridgeMaxLength = b
                     .comment("橋で渡れる水面の最大の幅(ブロック)。これより広い水(海など)は渡らない。")
                     .defineInRange("corruptionBridgeMaxLength", 20, 2, 96);
             corruptionBridgeMaxCount = b
-                    .comment("1 個体(blight_fern・汚染死体ブロック)が架けられる橋の最大本数。水辺に橋が並びすぎないための上限。")
-                    .defineInRange("corruptionBridgeMaxCount", 3, 0, 64);
+                    .comment("1 個体(blight_fern・汚染死体ブロック)が架けられる橋の最大本数。水辺に橋が並びすぎないための上限。既定 1(2026-10-31 に 3 から。ユーザー指定)。")
+                    .defineInRange("corruptionBridgeMaxCount", 1, 0, 64);
 
             // 死に由来する汚染シダの密度の上限(2026-09-25、ユーザー承認。値は仮決め 2026-09-25)。
             // 大量死の地点で 1 体ごとに 1 本ずつ湧き、同じ場所を汚染する起点が重なっていたため。
@@ -1242,8 +1242,8 @@ public final class OvergrownVegetationConfig {
             treeCanopyGapChance = b
                     .comment("林冠の穴: 36 ブロックの格子のマスごとに、この確率で半径 8〜11 ブロックの「木を植えない輪」を置く。",
                             "木の枝と葉は幹から 6〜7 ブロック広がるので、空き地 1 マス(treeClearingChance)では上がふさがるが、",
-                            "この輪の上には林冠の穴が開き、森を濃くしても光の筋が地面まで差し込む。0 で無し。既に生えた木は減らない。既定 0.25。")
-                    .defineInRange("treeCanopyGapChance", 0.25D, 0.0D, 1.0D);
+                            "この輪の上には林冠の穴が開き、森を濃くしても光の筋が地面まで差し込む。0 で無し。既に生えた木は減らない。既定 0.2(2026-10-31 に 0.25 から。ユーザー「苗木の生えない場所が多い」)。")
+                    .defineInRange("treeCanopyGapChance", 0.2D, 0.0D, 1.0D);
             // 2026-10-17 ユーザー「一度試しでクラウン・シャイネスを実装してみたい」→ 試した後「切って、空を減らす方を優先」で既定 0。隙間 1・見る高さ ±32 は仮決め(±4 では下から見えなかった)。
             crownShynessGap = b
                     .comment("樹冠の譲り合い(クラウン・シャイネス): 汚染で育つ木の葉を、ほかの木の葉からこのブロック数だけ離して止める(後から育つ木が譲る)。",

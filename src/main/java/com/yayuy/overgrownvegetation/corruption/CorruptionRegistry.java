@@ -92,8 +92,8 @@ public final class CorruptionRegistry {
      * (既定 0.7 = 3 割が外れ)を座標のハッシュで引く({@link OvergrownLayerField#covered(BlockPos, double)})。
      * <b>木材は先に半分が過繁茂した木材</b>({@link #overgrownWoodCounterpart}、夜 3 のユーザー指定。過繁茂した木材 5:過繁茂ブロック 1.5:覆われた版 3.5)。
      *
-     * <p><b>前から専用の「過繁茂している〜」があるもの</b>(個別指定で {@code overgrown_<同じ名前>} へ行く 10 個: 石・丸石・花崗岩・
-     * 閃緑岩・安山岩・深層岩・深層岩の丸石・レンガ・ネザーラック・エンドストーン)だけは入れず、今までどおりそちらへ({@link #build})。
+     * <p><b>前から専用の「過繁茂している〜」があるもの</b>(個別指定で {@code overgrown_<同じ名前>} へ行く 6 個: 石・深層岩・深層岩の丸石・
+     * レンガ・ネザーラック・エンドストーン。丸石・花崗岩・閃緑岩・安山岩は 2026-10-31 に専用ブロックを消して覆う側へ)だけは入れず、今までどおりそちらへ({@link #build})。
      * {@link #resolveTarget} には入れない —— 扉と同じく対応表の外の特別扱い。「対応表に無い」({@link #hasNoCorruptedForm})の答えを
      * 変えると、前に苔の記録で覆ったブロックの記録が無効になって苔が消える({@link OvergrownLayerData#isCovered})。
      */
@@ -131,15 +131,8 @@ public final class CorruptionRegistry {
         Block dirt = ModBlocks.OVERGROWN_DIRT.get();
         Block stone = ModBlocks.OVERGROWN_STONE.get();
         Block deepslate = ModBlocks.OVERGROWN_DEEPSLATE.get();
-        Block sand = ModBlocks.OVERGROWN_SAND.get();
-        Block gravel = ModBlocks.OVERGROWN_GRAVEL.get();
         Block growth = ModBlocks.OVERGROWN_GROWTH.get();
-        Block andesite = ModBlocks.OVERGROWN_ANDESITE.get();
-        Block diorite = ModBlocks.OVERGROWN_DIORITE.get();
-        Block granite = ModBlocks.OVERGROWN_GRANITE.get();
-        Block cobblestone = ModBlocks.OVERGROWN_COBBLESTONE.get();
         Block cobbledDeepslate = ModBlocks.OVERGROWN_COBBLED_DEEPSLATE.get();
-        Block dripstoneBlock = ModBlocks.OVERGROWN_DRIPSTONE_BLOCK.get();
         Block bricks = ModBlocks.OVERGROWN_BRICKS.get();
         Block diamondOre = ModBlocks.OVERGROWN_DIAMOND_ORE.get();
         Block deepslateCoalOre = ModBlocks.OVERGROWN_DEEPSLATE_COAL_ORE.get();
@@ -181,11 +174,8 @@ public final class CorruptionRegistry {
                 Blocks.CHISELED_STONE_BRICKS);
 
         // --- 石系(色付き石。元テクスチャの色味を残した専用の苔テクスチャを持つ) ---
-        put(exact, andesite, Blocks.ANDESITE, Blocks.POLISHED_ANDESITE);
-        put(exact, diorite, Blocks.DIORITE, Blocks.POLISHED_DIORITE);
-        put(exact, granite, Blocks.GRANITE, Blocks.POLISHED_GRANITE);
-        put(exact, cobblestone, Blocks.COBBLESTONE, Blocks.MOSSY_COBBLESTONE);
-        put(exact, dripstoneBlock, Blocks.DRIPSTONE_BLOCK);
+        // 花崗岩・閃緑岩・安山岩・丸石(と磨いた版・苔むした丸石)・鍾乳石ブロックの専用ブロックは 2026-10-31 に削除(ユーザー指定)。
+        // 対応表から外したので、建築タブのもの(CoverInPlace)は特別扱いで元のまま覆われ、鍾乳石ブロックは「対応表に無いブロック」として覆われる。
         put(exact, bricks, Blocks.BRICKS);
 
         // --- 深層岩系(専用テクスチャの無い種類だけ汎用の「苔深層岩」にまとめる) ---
@@ -213,15 +203,8 @@ public final class CorruptionRegistry {
         put(exact, lapisOre, Blocks.LAPIS_ORE);
         put(exact, redstoneOre, Blocks.REDSTONE_ORE);
 
-        // --- 砂系 ---
-        put(exact, sand,
-                Blocks.SAND, Blocks.RED_SAND,
-                Blocks.SANDSTONE, Blocks.SMOOTH_SANDSTONE, Blocks.CUT_SANDSTONE, Blocks.CHISELED_SANDSTONE,
-                Blocks.RED_SANDSTONE, Blocks.SMOOTH_RED_SANDSTONE, Blocks.CUT_RED_SANDSTONE,
-                Blocks.CHISELED_RED_SANDSTONE);
-
-        // --- 砂利 ---
-        put(exact, gravel, Blocks.GRAVEL, Blocks.SUSPICIOUS_GRAVEL, Blocks.SUSPICIOUS_SAND);
+        // 砂・赤い砂・砂岩・砂利(と怪しげな砂・砂利)の専用ブロックも 2026-10-31 に削除(ユーザー指定)。砂岩は建築タブなので元のまま覆われ、
+        // 砂・砂利は「対応表に無いブロック」として覆われる(落下ブロックだが覆いは記録だけなので落ちない限りそのまま)。
 
         // --- 溶岩 → 玄武岩(汚染が溶岩を固める) ---
         // canCorrupt() 側で convertLavaToBasalt 設定と「溶岩の源泉かどうか」を判定してからここへ来る。
@@ -262,7 +245,6 @@ public final class CorruptionRegistry {
         rules.add(new TagRule(BlockTags.WALLS, ModBlocks.OVERGROWN_WALL));
         rules.add(new TagRule(BlockTags.FENCES, ModBlocks.OVERGROWN_FENCE));
         rules.add(new TagRule(BlockTags.DIRT, ModBlocks.OVERGROWN_DIRT));
-        rules.add(new TagRule(BlockTags.SAND, ModBlocks.OVERGROWN_SAND));
         rules.add(new TagRule(BlockTags.BASE_STONE_OVERWORLD, ModBlocks.OVERGROWN_STONE));
         rules.add(new TagRule(BlockTags.STONE_BRICKS, ModBlocks.OVERGROWN_STONE));
         rules.add(new TagRule(BlockTags.TERRACOTTA, ModBlocks.OVERGROWN_DIRT));
@@ -274,8 +256,7 @@ public final class CorruptionRegistry {
         rules.add(new TagRule(BlockTags.CROPS, ModBlocks.OVERGROWN_GROWTH));
         rules.add(new TagRule(BlockTags.CORAL_PLANTS, ModBlocks.OVERGROWN_GROWTH));
 
-        STONE_RESULTS = Set.of(stone, deepslate, andesite, diorite, granite,
-                cobblestone, cobbledDeepslate, dripstoneBlock);
+        STONE_RESULTS = Set.of(stone, deepslate, cobbledDeepslate);
 
         Set<Block> inPlace = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
         for (Block vanilla : CoverInPlace.blocks()) {
@@ -612,7 +593,7 @@ public final class CorruptionRegistry {
     /**
      * そのバニラのブロックは<b>前から専用の過繁茂ブロック</b>を持つか —— 個別指定の行き先が {@code overgrown_<同じ名前>}
      * (石 → overgrown_stone など)。持つものは覆われたブロックにせず、今までどおりそちらへ({@link #COVER_IN_PLACE})。
-     * 磨いた花崗岩 → overgrown_granite のような「似たものへまとめた」行き先は専用ではない。
+     * 磨いた深層岩 → overgrown_deepslate のような「似たものへまとめた」行き先は専用ではない。
      */
     private static boolean hasOwnOvergrownForm(Map<Block, Block> exact, Block vanilla) {
         Block target = exact.get(vanilla);
@@ -719,10 +700,8 @@ public final class CorruptionRegistry {
      * {@link ModBlocks#OVERGROWN_GRASS_BLOCK} へ差し替える。
      */
     /**
-     * {@link #corrupt(BlockState, RandomSource)} の位置付き版。汚染先が土・草({@link ModBlocks#OVERGROWN_DIRT} /
-     * {@link ModBlocks#OVERGROWN_GRASS_BLOCK})に落ち着き、かつその場所の環境(地域マップ、バイオームの
-     * 書き換えが済んでいなくてもよい)が湿地系なら {@link ModBlocks#OVERGROWN_MUD}(過繁茂している泥)にする。
-     * 湿地・菌湿地帯の地面は泥、というルール。
+     * {@link #corrupt(BlockState, RandomSource)} の位置付き版。
+     * (2026-10-31 まで: 土・草に落ち着いた先が湿地系なら過繁茂している泥にしていた。泥は U11 で parked へ退避)
      */
     public static BlockState corrupt(ServerLevel level, BlockPos pos, BlockState state, RandomSource random) {
         if (CorruptionSwitch.isOff()) {
@@ -778,13 +757,7 @@ public final class CorruptionRegistry {
             }
             return corruptUnmapped(level, pos, state);
         }
-        BlockState result = corruptMapped(state, random, target);
-        if ((result.is(ModBlocks.OVERGROWN_DIRT.get()) || result.is(ModBlocks.OVERGROWN_GRASS_BLOCK.get()))
-                && level.dimension() == net.minecraft.world.level.Level.OVERWORLD
-                && OvergrowthRegionMap.isSwampAtBlended(level, pos.getX(), pos.getZ(), 2)) {
-            return ModBlocks.OVERGROWN_MUD.get().defaultBlockState();
-        }
-        return result;
+        return corruptMapped(state, random, target);
     }
 
     /**

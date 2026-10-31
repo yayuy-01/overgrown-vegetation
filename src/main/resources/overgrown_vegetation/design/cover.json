@@ -1,6 +1,6 @@
 {
-  "_note": "覆い(2026-10-30。汚染が建築タブのブロックなどを置き換えずにチャンクの記録で覆う)。面全体に textures/block/cover/<名前>.png を重ねて描く(<名前>_top.png があれば上面だけそれ)。ブロックと面ごとに座標のハッシュで絵と回転(rotate true なら 4 向き)を選ぶ。mipCoverage は遠くの段(ミップの 1〜4 段目)の不透明の割合を、近く(0 段目)の割合の何倍にするか。1 = 近くと同じ割合(遠くでも緑に塗りつぶさない)、1 より小さくすると遠いほど薄くなる。push は元の面が cutout・半透明の層のときだけ面を外へ出す距離(固い層は同じ頂点に重ねる)。peelDamage はハサミで剥がすときの耐久の減り、peelParticles・peelSpread・peelSpeed は剥がしたときの粒の数・広がり・速さ(ここまで作り直し側の corruption.json の cover 節のまま)。lightKeep は覆われた光源の明るさの倍率(2026-10-05 ユーザー指定 −60%)、stuckChance は覆われた扉・トラップドア・フェンスゲート・ボタン・レバーが開ける・押す向きで動かない割合(Mob が扉を開けるときも)。chance は立方体・同じ形の過繁茂ブロックがあるものを覆う割合(外れは過繁茂ブロック。木材は先に半分が過繁茂した木材)、encase は中身を持つブロックを機能の無いブロックへ差し替えるか(この 2 つは前の climax.json の overgrownLayer)。反映は再起動",
-  "textures": ["cover_1", "cover_2", "cover_3", "cover_4", "cover_5"],
+  "_note": "覆い(2026-10-30。汚染が建築タブのブロックなどを置き換えずにチャンクの記録で覆う)。面全体に textures/block/cover/<名前>.png を重ねて描く(<名前>_top.png があれば上面だけそれ)。ブロックと面ごとに座標のハッシュで絵と回転(rotate true なら 4 向き)を選ぶ。mipCoverage は遠くの段(ミップの 1〜4 段目)の不透明の割合を、近く(0 段目)の割合の何倍にするか。1 = 近くと同じ割合(遠くでも緑に塗りつぶさない)、1 より小さくすると遠いほど薄くなる。push は元の面が cutout・半透明の層のときだけ面を外へ出す距離(固い層は同じ頂点に重ねる)。peelDamage はハサミで剥がすときの耐久の減り、peelParticles・peelSpread・peelSpeed は剥がしたときの粒の数・広がり・速さ(ここまで作り直し側の corruption.json の cover 節のまま)。lightKeep は覆われた光源の明るさの倍率(2026-10-05 ユーザー指定 −60%)、stuckChance は覆われた扉・トラップドア・フェンスゲート・ボタン・レバーが開ける・押す向きで動かない割合(Mob が扉を開けるときも)。chance は立方体・同じ形の過繁茂ブロックがあるものを覆う割合(外れは過繁茂ブロック。木材は先に半分が過繁茂した木材)、encase は中身を持つブロックを機能の無いブロックへ差し替えるか(この 2 つは前の climax.json の overgrownLayer)。 baseDarken は覆いの下に見える元の面の明るさの倍率(10-31 夜ユーザー決定、値は仮 0.7。置き換えブロックの絵は苔の間の元の面をこの倍率で暗く描くので、覆いも揃える。1 で暗くしない)。 這い上がる苔(28、10-31 仮決め): 帯が出るのは覆いに接して新しく置いたブロックだけ(11-01 ユーザー指定)。creepPush は苔の絵を面の外へ出す距離(ブロック、11-01 仮決め)、creepSeconds は置いてから 8 段階の最終段になるまでの秒(入り直しても置いた時刻から続く)。幹の苔のスカート(31、10-31 仮決め): skirtHeight は生成する木の根元から何段を苔の付いた幹にするか(0〜2)、skirtTallChance は 1 段高くする木の割合。木の洞(43、10-31 仮決め): hollowChance は洞のある木の割合、hollowMinStep・hollowMaxStep は幹の何段目(根元が 1)、hollowReach はプレイヤーがこの距離に入ると虫が飛び出す、hollowCooldownSeconds は飛び出したあと休む秒、hollowBugsMin・hollowBugsMax は虫の数、hollowEyesPerMinute・hollowEyesSeconds は穴の中で目が光る 1 分あたりの回数と長さ。反映は再起動",
+  "textures": ["cover_1", "cover_2", "cover_3", "cover_4", "cover_5", "cover_6", "cover_7", "cover_8", "cover_9", "cover_10", "cover_11", "cover_12", "cover_13", "cover_14", "cover_15", "cover_16", "cover_17", "cover_18", "cover_19", "cover_20", "cover_21", "cover_22", "cover_23", "cover_24", "cover_25"],
   "rotate": true,
   "mipCoverage": [1.0, 1.0, 1.0, 1.0],
   "push": 0.002,
@@ -11,5 +11,19 @@
   "lightKeep": 0.4,
   "stuckChance": 0.75,
   "chance": 0.7,
-  "encase": true
+  "encase": true,
+  "creepPush": 0.003,
+  "creepSeconds": 120,
+  "baseDarken": 0.7,
+  "skirtHeight": 2,
+  "skirtTallChance": 0.3,
+  "hollowChance": 0.125,
+  "hollowMinStep": 2,
+  "hollowMaxStep": 4,
+  "hollowReach": 4,
+  "hollowCooldownSeconds": 30,
+  "hollowBugsMin": 3,
+  "hollowBugsMax": 6,
+  "hollowEyesPerMinute": 1,
+  "hollowEyesSeconds": 0.5
 }

@@ -2215,7 +2215,6 @@ public class CorruptionSpreader {
 
         final boolean spawnMoss = OvergrownVegetationConfig.COMMON.spawnMossLayer.get();
         final double mossChance = OvergrownVegetationConfig.COMMON.mossLayerChance.get();
-        final boolean mudHost = hostState.is(ModBlocks.OVERGROWN_MUD.get());
 
         // 洞窟(地表より caveDepthMargin 以上深い場所)の露出面。湿地・菌湿地帯では下草・蔦の代わりに
         // 洞窟専用の植物(微光の胞子嚢・苔の塊)を生やし、まれに構造物(壁の傘・天井のアーチ・菌の柱)を建てる。
@@ -2240,11 +2239,6 @@ public class CorruptionSpreader {
                 continue;
             }
             if (direction == Direction.UP && !caveSwamp && tryAnchorTree(level, pos, hostState)) {
-                continue;
-            }
-            if (mudHost && direction == Direction.UP && !caveSwamp) {
-                // 泥の上面は専用ルール(薄い苔 / 胞子キノコ / まれに苗木)。
-                growMudTop(level, pos.above(), random, chance);
                 continue;
             }
 
@@ -2431,46 +2425,9 @@ public class CorruptionSpreader {
         level.setBlock(pos, growth, Block.UPDATE_ALL);
     }
 
-    /**
-     * 過繁茂している泥({@link ModBlocks#OVERGROWN_MUD})の上面。湿地の地面には薄い苔
-     * ({@code swampMudMossShare}、既定 8 割)と胞子キノコ(残り 2 割)しか生えず、
-     * 通常どおり {@code treeChance} でまれに苗木が植わる。抽選確率 {@code chance} は面ごとの
-     * 通常の下草の確率と同じ(湿地では {@code swampGrowthChanceMultiplier} で下げてある)。
-     */
-    private static void growMudTop(ServerLevel level, BlockPos pos, RandomSource random, double chance) {
-        if (random.nextDouble() >= chance || !level.isLoaded(pos)) {
-            return;
-        }
-        BlockState at = level.getBlockState(pos);
-        boolean mossHere = at.is(ModBlocks.OVERGROWN_MOSS_LAYER.get());
-        if (!at.isAir() && !mossHere) {
-            return;
-        }
-        if (!mossHere && OvergrownVegetationConfig.COMMON.spawnTrees.get()
-                && random.nextDouble() < treeChanceAt(level, pos)
-                && growSapling(level, pos)) {
-            return;
-        }
-        if (random.nextDouble() < OvergrownVegetationConfig.COMMON.swampMudMossShare.get()) {
-            if (OvergrownVegetationConfig.COMMON.spawnMossLayer.get()) {
-                tryGrowMossFace(level, pos, Direction.DOWN);
-            }
-            return;
-        }
-        if (mossHere) {
-            return;
-        }
-        BlockState bloom = ModBlocks.OVERGROWN_SPORE_BLOOM.get().defaultBlockState();
-        if (!bloom.canSurvive(level, pos)) {
-            return;
-        }
-        level.setBlock(pos, bloom, Block.UPDATE_ALL);
-    }
-
-    /** 苗木を植えられるのは汚染された草ブロック・土・砂・泥だけ(石・鉱石などの上には生やさない)。 */
+    /** 苗木を植えられるのは汚染された草ブロック・土だけ(砂・泥は 2026-10-31 に消した。石・鉱石などの上には生やさない)。 */
     private static boolean isTreeSoil(BlockState hostState) {
-        return hostState.is(ModBlocks.OVERGROWN_GRASS_BLOCK.get()) || hostState.is(ModBlocks.OVERGROWN_DIRT.get())
-                || hostState.is(ModBlocks.OVERGROWN_SAND.get()) || hostState.is(ModBlocks.OVERGROWN_MUD.get());
+        return hostState.is(ModBlocks.OVERGROWN_GRASS_BLOCK.get()) || hostState.is(ModBlocks.OVERGROWN_DIRT.get());
     }
 
     /**

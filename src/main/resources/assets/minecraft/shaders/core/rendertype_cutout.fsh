@@ -2,6 +2,8 @@
 
 #moj_import <fog.glsl>
 #moj_import <ov_light.glsl>
+#moj_import <ov_wet.glsl>
+#moj_import <ov_caustic.glsl>
 
 uniform sampler2D Sampler0;
 
@@ -30,6 +32,10 @@ void main() {
         discard;
     }
     color.rgb = ovCanopyLight(color.rgb, ovPos, ovNormal, 0.0, ovLight);
+    // The net of sunlight on faces under shallow water (ov_caustic.glsl).
+    color.rgb = ovCaustics(color.rgb, ovPos, ovNormal, ovLight);
+    // Wet faces in rain and after rain (ov_wet.glsl).
+    color.rgb = ovWetSurface(color.rgb, ovPos, ovNormal, ovLight);
     color.rgb = mix(color.rgb, ovFog.rgb, ovFog.a);
     // The far forest loses a little saturation (A6; aerial perspective).
     color.rgb = mix(color.rgb, vec3(dot(color.rgb, vec3(0.299, 0.587, 0.114))), OvFogI.x * smoothstep(OvFogI.y, OvFogI.z, vertexDistance));

@@ -5,7 +5,8 @@
         { "name": "Sampler0" },
         { "name": "Sampler2" },
         { "name": "OvSunMap" },
-        { "name": "OvFogMap" }
+        { "name": "OvFogMap" },
+        { "name": "OvWaterMap" }
     ],
     "uniforms": [
         { "name": "ModelViewMat", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
@@ -23,6 +24,14 @@
         { "name": "OvTint", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] },
         { "name": "OvFleck", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
         { "name": "OvSunTint", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] },
+        { "name": "OvWet", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 24.0 ] },
+        { "name": "OvWetDir", "type": "float", "count": 4, "values": [ 0.0, 1.0, 0.0, 0.0 ] },
+        { "name": "OvWetView", "type": "float", "count": 4, "values": [ 1.0, 1.0, 0.0, 0.0 ] },
+        { "name": "OvCaustic", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+        { "name": "OvCausticB", "type": "float", "count": 4, "values": [ 0.0, 0.0, 1.4, 4.0 ] },
+        { "name": "OvCausticMap", "type": "float", "count": 4, "values": [ 0.0, 0.0, 1.0, 0.0 ] },
+        { "name": "OvCausticC", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 1.5 ] },
+        { "name": "OvCausticD", "type": "float", "count": 4, "values": [ 0.3, 0.08, 40.0, 0.0 ] },
         { "name": "OvFogA", "type": "float", "count": 4, "values": [ 0.0, 0.0, 8.0, 64.0 ] },
         { "name": "OvFogB", "type": "float", "count": 4, "values": [ 0.0, 0.35, 0.0, 0.0 ] },
         { "name": "OvFogC", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] },
@@ -32,6 +41,9 @@
         { "name": "OvFogG", "type": "float", "count": 4, "values": [ 1.5, 1.0, 24.0, 0.0 ] },
         { "name": "OvFogH", "type": "float", "count": 4, "values": [ 0.3, 0.0, 0.0, 0.0 ] },
         { "name": "OvFogI", "type": "float", "count": 4, "values": [ 0.0, 48.0, 192.0, 0.0 ] },
+        { "name": "OvFogJ", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] },
+        { "name": "OvFogK", "type": "float", "count": 4, "values": [ 86.4, 4.0, 1.0, 0.0 ] },
+        { "name": "OvFogL", "type": "float", "count": 4, "values": [ 1.0, 0.0, 0.0, 0.0 ] },
         { "name": "OvBase", "type": "float", "count": 4, "values": [ 0.0, 1.0, 0.0, 0.0 ] },
         { "name": "OvPhase", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
         { "name": "OvOsc", "type": "float", "count": 4, "values": [ 0.0, 1.0, 0.0, 1.0 ] },
@@ -45,6 +57,8 @@
         { "name": "OvGustB1", "type": "float", "count": 4, "values": [ 0.0, 1.0, 1.0, 1.0 ] },
         { "name": "OvGustB2", "type": "float", "count": 4, "values": [ 0.0, 1.0, 1.0, 1.0 ] },
         { "name": "OvGustB3", "type": "float", "count": 4, "values": [ 0.0, 1.0, 1.0, 1.0 ] },
-        { "name": "OvLeafTone", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] }
+        { "name": "OvLeafTone", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+        { "name": "OvLeafSun", "type": "float", "count": 4, "values": [ 0.0, 1.0, 0.0, 0.0 ] },
+        { "name": "OvLeafBack", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.5 ] }
     ]
 }

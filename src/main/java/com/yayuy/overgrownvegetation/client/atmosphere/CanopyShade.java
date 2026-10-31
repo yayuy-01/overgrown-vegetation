@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.VisualQuality;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -58,6 +59,10 @@ final class CanopyShade {
     }
 
     static void tick(ClientLevel level, LocalPlayer player) {
+        if (!VisualQuality.canopyLight()) {
+            clear();
+            return;
+        }
         if (CanopySunMap.active() || ForestPresence.openForest() <= 0.001F) {
             CELLS.clear();
             return;
@@ -108,6 +113,9 @@ final class CanopyShade {
     }
 
     static void render(RenderLevelStageEvent event) {
+        if (!VisualQuality.canopyLight()) {
+            return;
+        }
         ClientLevel level = net.minecraft.client.Minecraft.getInstance().level;
         if (CELLS.isEmpty() || level == null) {
             return;

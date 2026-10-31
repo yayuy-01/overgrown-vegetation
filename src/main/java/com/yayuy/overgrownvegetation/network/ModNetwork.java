@@ -59,7 +59,8 @@ public final class ModNetwork {
         // 2026-10-30 夜に 20 へ(プレイヤーの所の胞子濃度を足した。密林の雰囲気の光の筋の濃さ)。
         // 2026-10-30 夜に 21 へ(胞子濃度の通信に卓越風の向きと強さを相乗りさせた。密林の雰囲気 第 2 段の風)。
         // 2026-10-31 に 22 へ(胞子の粉の見た目の通信を戻した。合間の小物 3)。
-        PayloadRegistrar registrar = event.registrar("22");
+        // 2026-11-01 に 23 へ(這い上がる苔の記録 CoverCreepPayload を足した)。
+        PayloadRegistrar registrar = event.registrar("23");
         registrar.playToClient(
                 EarthquakeShakePayload.TYPE,
                 EarthquakeShakePayload.STREAM_CODEC,
@@ -70,6 +71,12 @@ public final class ModNetwork {
                 OvergrownLayerPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(
                         () -> com.yayuy.overgrownvegetation.client.ClientOvergrownLayer.accept(payload)));
+
+        registrar.playToClient(
+                CoverCreepPayload.TYPE,
+                CoverCreepPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(
+                        () -> com.yayuy.overgrownvegetation.client.ClientOvergrownLayer.acceptCreep(payload)));
 
         registrar.playToClient(
                 SporeAirPayload.TYPE,

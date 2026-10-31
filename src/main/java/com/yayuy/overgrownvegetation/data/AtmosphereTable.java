@@ -29,6 +29,16 @@ public final class AtmosphereTable {
         public DuskJson dusk;
         public WaterJson water;
         public InsectsJson insects;
+        public AtmosphereLife.WetJson wet;
+        public AtmosphereLife.SteamJson steam;
+        public AtmosphereLife.RipplesJson ripples;
+        public AtmosphereLife.GnatsJson gnats;
+        public AtmosphereLife.DropRippleJson dropRipple;
+        public AtmosphereLife.RainRippleJson rainRipple;
+        public AtmosphereLife.AlgaeJson algae;
+        public AtmosphereLife.CreakJson creak;
+        public AtmosphereWater.CausticsJson caustics;
+        public AtmosphereWater.ShaftsJson underwaterShafts;
     }
 
     /**
@@ -40,10 +50,10 @@ public final class AtmosphereTable {
         public Double cutAt, cutBand, hazeStretch, mistStretch;
     }
 
-    /** 節 {@code drops}(雨上がりの水滴): 生きている数の上限(高・中・低)・1 秒に試す数・探す範囲(水平、ブロック)・雨の最中の強さ(雨上がりの最大を 1)。 */
+    /** 節 {@code drops}(雨上がりの水滴): 生きている数の上限(高・中・低)・1 秒に試す数・探す範囲(水平、ブロック)・雨の最中の強さ(perSecond に掛ける)・雨が止んでから 0 になるまでの分(10-31 雨中の量から減らす)。 */
     public static final class DropsJson {
         public int[] counts;
-        public Double perSecond, range, duringRain;
+        public Double perSecond, range, duringRain, afterMinutes;
     }
 
     /**
@@ -51,7 +61,7 @@ public final class AtmosphereTable {
      * 葉の上と水面の上の薄め・薄いとき / 濃いときの色。
      */
     public static final class DustJson {
-        public Double minPercent, gamma, leafFactor, waterFactor;
+        public Double minPercent, gamma, leafFactor, waterFactor, maxAlpha;
         public double[] thinColor, thickColor;
     }
 
@@ -81,6 +91,19 @@ public final class AtmosphereTable {
                 cricketQuietDistance, cricketResumeSeconds, cricketVolume;
         public Double geckoFromHour, geckoToHour, geckoIntervalMin, geckoIntervalMax, geckoClicksMin, geckoClicksMax,
                 geckoDistanceMin, geckoDistanceMax, geckoVolume;
+        // 10-31 夜 ユーザー採用の 4 種(昼の合唱・キリギリス様・下草のガサガサ・爬虫類)と、全種で同時に鳴る声の上限
+        public Double maxVoices;
+        public Double chorusFromHour, chorusToHour, chorusIntervalMin, chorusIntervalMax, chorusDistanceMin, chorusDistanceMax, chorusVolume;
+        public Double katydidFromHour, katydidToHour, katydidIntervalMin, katydidIntervalMax, katydidDistanceMin, katydidDistanceMax,
+                katydidPhrasesMin, katydidPhrasesMax, katydidVoicesMax, katydidVolume;
+        public Double rustleFromHour, rustleToHour, rustleIntervalMin, rustleIntervalMax, rustleDistanceMin, rustleDistanceMax, rustleVolume;
+        public Double reptileFromHour, reptileToHour, reptileIntervalMin, reptileIntervalMax, reptileDistanceMin, reptileDistanceMax, reptileVolume;
+        // 11-01 ユーザー採用の動く音 2 種(頭上の枝葉の揺れ・小枝の折れ)
+        public Double canopyFromHour, canopyToHour, canopyIntervalMin, canopyIntervalMax, canopyDistanceMin, canopyDistanceMax, canopyVolume;
+        public Double twigFromHour, twigToHour, twigIntervalMin, twigIntervalMax, twigDistanceMin, twigDistanceMax, twigVolume;
+        // 11-01 ユーザー「休憩なしに常に鳴り続けているのはおかしい」: 1 匹ごとの鳴く区間・黙る区間と、森全体の凪
+        public Double cricketSingMin, cricketSingMax, cricketRestMin, cricketRestMax, katydidSingMin, katydidSingMax;
+        public Double lullIntervalMin, lullIntervalMax, lullMin, lullMax;
     }
 
     /** 巨大樹のシルエットの値。 */
@@ -93,21 +116,22 @@ public final class AtmosphereTable {
     }
 
     /** 雨上がりの水滴の値。 */
-    public record DropsParams(int[] counts, float perSecond, float range, float duringRain) {
+    public record DropsParams(int[] counts, float perSecond, float range, float duringRain, float afterMinutes) {
         static DropsParams of(DropsJson d) {
             DropsJson v = d != null ? d : new DropsJson();
             return new DropsParams(tierCounts(v.counts, new int[]{200, 120, 50}, 1000), clamp(v.perSecond, 100.0, 0.0, 1000.0),
-                    clamp(v.range, 14.0, 4.0, 32.0), clamp(v.duringRain, 0.25, 0.0, 1.0));
+                    clamp(v.range, 14.0, 4.0, 32.0), clamp(v.duringRain, 0.25, 0.0, 1.0),
+                    clamp(v.afterMinutes, 3.0, 0.0, 60.0));
         }
     }
 
     /** 胞子の粉の見た目の値。 */
-    public record DustParams(float minPercent, float gamma, float leafFactor, float waterFactor, float[] thinColor,
+    public record DustParams(float minPercent, float gamma, float leafFactor, float waterFactor, float maxAlpha, float[] thinColor,
                              float[] thickColor) {
         static DustParams of(DustJson d) {
             DustJson v = d != null ? d : new DustJson();
             return new DustParams(clamp(v.minPercent, 1.0, 0.0, 100.0), clamp(v.gamma, 1.2, 0.1, 5.0),
-                    clamp(v.leafFactor, 0.6, 0.0, 1.0), clamp(v.waterFactor, 0.4, 0.0, 1.0), rgb(v.thinColor, 0.88, 0.92, 0.78),
+                    clamp(v.leafFactor, 0.6, 0.0, 1.0), clamp(v.waterFactor, 0.4, 0.0, 1.0), clamp(v.maxAlpha, 0.42, 0.0, 1.0), rgb(v.thinColor, 0.88, 0.92, 0.78),
                     rgb(v.thickColor, 0.76, 0.85, 0.50));
         }
     }
@@ -144,7 +168,16 @@ public final class AtmosphereTable {
                                 int cricketVoicesMax, float cricketDistanceMin, float cricketDistanceMax, float cricketQuietDistance,
                                 float cricketResumeSeconds, float cricketVolume, float geckoFromHour, float geckoToHour, float geckoIntervalMin,
                                 float geckoIntervalMax, int geckoClicksMin, int geckoClicksMax, float geckoDistanceMin, float geckoDistanceMax,
-                                float geckoVolume) {
+                                float geckoVolume, int maxVoices, CallParams chorus, CallParams katydid, int katydidPhrasesMin, int katydidPhrasesMax,
+                                int katydidVoicesMax, CallParams rustle, CallParams reptile, CallParams canopy, CallParams twig, float cricketSingMin, float cricketSingMax,
+                                float cricketRestMin, float cricketRestMax, float katydidSingMin, float katydidSingMax, float lullIntervalMin,
+                                float lullIntervalMax, float lullMin, float lullMax) {
+        /** ヤモリの値を 1 回きりの声の形で。 */
+        public CallParams gecko() {
+            return new CallParams(this.geckoFromHour, this.geckoToHour, this.geckoIntervalMin, this.geckoIntervalMax, this.geckoDistanceMin,
+                    this.geckoDistanceMax, this.geckoVolume);
+        }
+
         static InsectsParams of(InsectsJson i) {
             InsectsJson v = i != null ? i : new InsectsJson();
             int vMin = Math.round(clamp(v.cricketVoicesMin, 1.0, 0.0, 6.0));
@@ -152,6 +185,12 @@ public final class AtmosphereTable {
             float dMin = clamp(v.cricketDistanceMin, 8.0, 2.0, 48.0);
             float gMin = clamp(v.geckoDistanceMin, 6.0, 2.0, 48.0);
             float iMin = clamp(v.geckoIntervalMin, 120.0, 5.0, 3600.0);
+            int kMin = Math.round(clamp(v.katydidPhrasesMin, 3.0, 1.0, 40.0));
+            float sMin = clamp(v.cricketSingMin, 20.0, 1.0, 3600.0);
+            float rMin = clamp(v.cricketRestMin, 15.0, 0.0, 3600.0);
+            float kSMin = clamp(v.katydidSingMin, 10.0, 1.0, 3600.0);
+            float lIMin = clamp(v.lullIntervalMin, 180.0, 10.0, 7200.0);
+            float lMin = clamp(v.lullMin, 30.0, 0.0, 3600.0);
             return new InsectsParams(clamp(v.minForest, 0.3, 0.0, 1.0), clamp(v.hushRadius, 24.0, 0.0, 128.0),
                     clamp(v.cricketFromHour, 17.0, 0.0, 24.0), clamp(v.cricketToHour, 6.0, 0.0, 24.0), vMin,
                     Math.max(vMin, Math.round(clamp(v.cricketVoicesMax, 3.0, 0.0, 6.0))), dMin,
@@ -160,7 +199,35 @@ public final class AtmosphereTable {
                     clamp(v.geckoFromHour, 20.0, 0.0, 24.0), clamp(v.geckoToHour, 4.0, 0.0, 24.0), iMin,
                     Math.max(iMin, clamp(v.geckoIntervalMax, 300.0, 5.0, 3600.0)), cMin,
                     Math.max(cMin, Math.round(clamp(v.geckoClicksMax, 6.0, 1.0, 12.0))), gMin,
-                    Math.max(gMin, clamp(v.geckoDistanceMax, 12.0, 2.0, 64.0)), clamp(v.geckoVolume, 0.3, 0.0, 2.0));
+                    Math.max(gMin, clamp(v.geckoDistanceMax, 12.0, 2.0, 64.0)), clamp(v.geckoVolume, 0.3, 0.0, 2.0),
+                    Math.round(clamp(v.maxVoices, 4.0, 0.0, 12.0)),
+                    CallParams.of(v.chorusFromHour, v.chorusToHour, v.chorusIntervalMin, v.chorusIntervalMax, v.chorusDistanceMin, v.chorusDistanceMax,
+                            v.chorusVolume, new double[]{10.0, 16.0, 90.0, 240.0, 30.0, 60.0, 0.6}),
+                    CallParams.of(v.katydidFromHour, v.katydidToHour, v.katydidIntervalMin, v.katydidIntervalMax, v.katydidDistanceMin,
+                            v.katydidDistanceMax, v.katydidVolume, new double[]{19.0, 4.0, 20.0, 60.0, 10.0, 24.0, 0.5}),
+                    kMin, Math.max(kMin, Math.round(clamp(v.katydidPhrasesMax, 8.0, 1.0, 40.0))), Math.round(clamp(v.katydidVoicesMax, 2.0, 0.0, 6.0)),
+                    CallParams.of(v.rustleFromHour, v.rustleToHour, v.rustleIntervalMin, v.rustleIntervalMax, v.rustleDistanceMin, v.rustleDistanceMax,
+                            v.rustleVolume, new double[]{0.0, 24.0, 120.0, 360.0, 4.0, 8.0, 0.4}),
+                    CallParams.of(v.reptileFromHour, v.reptileToHour, v.reptileIntervalMin, v.reptileIntervalMax, v.reptileDistanceMin,
+                            v.reptileDistanceMax, v.reptileVolume, new double[]{17.0, 5.0, 240.0, 600.0, 6.0, 14.0, 0.5}),
+                    CallParams.of(v.canopyFromHour, v.canopyToHour, v.canopyIntervalMin, v.canopyIntervalMax, v.canopyDistanceMin, v.canopyDistanceMax,
+                            v.canopyVolume, new double[]{0.0, 24.0, 240.0, 600.0, 10.0, 20.0, 0.5}),
+                    CallParams.of(v.twigFromHour, v.twigToHour, v.twigIntervalMin, v.twigIntervalMax, v.twigDistanceMin, v.twigDistanceMax,
+                            v.twigVolume, new double[]{0.0, 24.0, 300.0, 720.0, 8.0, 24.0, 0.6}),
+                    sMin, Math.max(sMin, clamp(v.cricketSingMax, 60.0, 1.0, 3600.0)), rMin, Math.max(rMin, clamp(v.cricketRestMax, 40.0, 0.0, 3600.0)),
+                    kSMin, Math.max(kSMin, clamp(v.katydidSingMax, 30.0, 1.0, 3600.0)),
+                    lIMin, Math.max(lIMin, clamp(v.lullIntervalMax, 360.0, 10.0, 7200.0)), lMin, Math.max(lMin, clamp(v.lullMax, 90.0, 0.0, 3600.0)));
+        }
+    }
+
+    /** 1 回きりの声 1 種の値(時刻は 0〜24 時、from > to なら日をまたぐ・from 0 to 24 で一日中。間隔は秒、距離はブロック)。 */
+    public record CallParams(float fromHour, float toHour, float intervalMin, float intervalMax, float distanceMin, float distanceMax, float volume) {
+        /** def = 既定値 {from, to, intervalMin, intervalMax, distanceMin, distanceMax, volume}。 */
+        static CallParams of(Double from, Double to, Double iMin, Double iMax, Double dMin, Double dMax, Double volume, double[] def) {
+            float im = clamp(iMin, def[2], 5.0, 3600.0);
+            float dm = clamp(dMin, def[4], 2.0, 96.0);
+            return new CallParams(clamp(from, def[0], 0.0, 24.0), clamp(to, def[1], 0.0, 24.0), im, Math.max(im, clamp(iMax, def[3], 5.0, 3600.0)),
+                    dm, Math.max(dm, clamp(dMax, def[5], 2.0, 128.0)), clamp(volume, def[6], 0.0, 1.0));
         }
     }
 
@@ -214,6 +281,9 @@ public final class AtmosphereTable {
      * 森の中の霧の色の暗さ forestFogDark(遠い色とバニラの霧の色に、森の度合いで掛ける)・林冠の陰の霧の暗さの下限 shadeFloor。
      * 色味(10-30 夜 ユーザー採用 A1・A5、参考画像「霧は白〜灰緑で青くない」): 朝霧の近い色 nearColor は白・遠い色 farColor は明るい灰緑、昼の霞は hazeColor(薄い黄緑がかった灰)。
      * 森の中では林冠の隙間の空とバニラの霧の色を forestSkyColor(明るい白)へ forestSky の強さで飛ばす(朝霧の中にいる間は除く)。
+     * 胞子の霧(10-31 ユーザー「森の中にいるときだけ描画距離 6 チャンクくらい」): 森の列を通った視線の長さが forestFogStart〜forestFogEnd で見えなくなる
+     * (0 = 切る。バニラの 6 チャンクの霧と同じ 86.4〜96)。森の霧は林冠の床から forestFogAbove ブロック上まで。壁の手前の霞 forestFogDensity(森 1 ブロックあたり、0 = 壁だけ。カメラが森の中にいる間はバニラの霧の式を上書きして Mob・粒にも同じに掛ける)。
+     * 胞子の霧の色: 昼 forestFogDayColor(11-01 ユーザー「白〜黄緑の胞子」: #ace300 を白へ 75% 寄せた色)・朝夕 forestFogDawnColor(朝霧の白緑)・夜は nightColor。値は仮決め。
      */
     public static final class FogJson {
         public Double density, falloff, depthMin, depthRange, lowPercentile, canopyPercentile, highPercentile, seaAbove;
@@ -221,7 +291,8 @@ public final class AtmosphereTable {
         public Double afterRainDensity, afterRainDepth, weakMorning, colorDistance, sunLobe, noise, noiseScale, proxCells;
         public Double proxCellsFlat, mistAfterRainMinutes, afterRainLinger, stormDensity, stormDepth, stormDarken, sporeHaze;
         public Double forestFogDark, shadeFloor, forestSky, stormFogEnd, sunGlow, farDesat, desatFrom, desatTo;
-        public double[] nearColor, farColor, nightColor, hazeColor, forestSkyColor;
+        public Double forestFogEnd, forestFogStart, forestFogAbove, forestFogDensity;
+        public double[] nearColor, farColor, nightColor, hazeColor, forestSkyColor, forestFogDayColor, forestFogDawnColor;
     }
 
     /** 霧の土台の値。 */
@@ -231,8 +302,10 @@ public final class AtmosphereTable {
                             float afterRainDepth, float weakMorning, float colorDistance, float sunLobe, float noise, float noiseScale,
                             float proxCells, float proxCellsFlat, float mistAfterRainMinutes, float afterRainLinger, float stormDensity,
                             float stormDepth, float stormDarken, float sporeHaze, float forestFogDark, float shadeFloor, float forestSky,
-                            float stormFogEnd, float sunGlow, float farDesat, float desatFrom, float desatTo,
-                            float[] nearColor, float[] farColor, float[] nightColor, float[] hazeColor, float[] forestSkyColor) {
+                            float stormFogEnd, float sunGlow, float farDesat, float desatFrom, float desatTo, float forestFogEnd, float forestFogStart,
+                            float forestFogAbove, float forestFogDensity,
+                            float[] nearColor, float[] farColor, float[] nightColor, float[] hazeColor, float[] forestSkyColor,
+                            float[] forestFogDayColor, float[] forestFogDawnColor) {
         static FogParams of(FogJson f) {
             FogJson v = f != null ? f : new FogJson();
             return new FogParams(clamp(v.density, 0.0045, 0.0, 0.2), clamp(v.falloff, 0.35, 0.02, 5.0),
@@ -247,10 +320,12 @@ public final class AtmosphereTable {
                     clamp(v.mistAfterRainMinutes, 20.0, 0.0, 240.0), clamp(v.afterRainLinger, 0.6, 0.0, 1.0),
                     clamp(v.stormDensity, 1.3, 1.0, 10.0), clamp(v.stormDepth, 4.0, 0.0, 40.0), clamp(v.stormDarken, 0.5, 0.0, 1.0),
                     clamp(v.sporeHaze, 0.35, 0.0, 2.0), clamp(v.forestFogDark, 1.0, 0.0, 1.0), clamp(v.shadeFloor, 0.3, 0.0, 1.0), clamp(v.forestSky, 1.0, 0.0, 1.0),
-                    clamp(v.stormFogEnd, 40.0, 8.0, 1024.0), clamp(v.sunGlow, 0.8, 0.0, 3.0), clamp(v.farDesat, 0.25, 0.0, 1.0),
+                    clamp(v.stormFogEnd, 40.0, 8.0, 1024.0), clamp(v.sunGlow, 0.8, 0.0, 3.0), clamp(v.farDesat, 0.30, 0.0, 1.0),
                     clamp(v.desatFrom, 48.0, 0.0, 1024.0), clamp(v.desatTo, 192.0, 1.0, 2048.0),
-                    rgb(v.nearColor, 0.96, 0.96, 0.92), rgb(v.farColor, 0.80, 0.86, 0.80), rgb(v.nightColor, 0.10, 0.15, 0.10),
-                    rgb(v.hazeColor, 0.84, 0.87, 0.74), rgb(v.forestSkyColor, 0.94, 0.96, 0.90));
+                    clamp(v.forestFogEnd, 96.0, 0.0, 1024.0), clamp(v.forestFogStart, 86.4, 0.0, 1024.0), clamp(v.forestFogAbove, 4.0, -8.0, 40.0), clamp(v.forestFogDensity, 0.03, 0.0, 0.2),
+                    rgb(v.nearColor, 1.00, 1.00, 0.96), rgb(v.farColor, 0.90, 0.93, 0.88), rgb(v.nightColor, 0.10, 0.15, 0.10),
+                    rgb(v.hazeColor, 0.94, 0.96, 0.86), rgb(v.forestSkyColor, 1.00, 1.00, 0.96),
+                    rgb(v.forestFogDayColor, 0.92, 0.97, 0.75), rgb(v.forestFogDawnColor, 0.90, 0.93, 0.88));
         }
 
         private static float[] rgb(double[] c, double r, double g, double b) {
@@ -318,6 +393,9 @@ public final class AtmosphereTable {
      */
     public static final class LeavesJson {
         public Double radius, perSecondGust, perSecondCalm, toneStrength, youngStrength;
+        /** 葉の裏の透け(36、10-31 見え方の段): 強さ・始める向き(視線と太陽の向きの内積)・明るさの倍率・色の比(G = 1)。 */
+        public Double backlight, backlightFrom, backlightGain;
+        public double[] backlightColor;
         public Integer maxAlive;
     }
 
@@ -383,12 +461,15 @@ public final class AtmosphereTable {
 
     /** 落ち葉の値。 */
     public record LeavesParams(float radius, int maxAlive, float perSecondGust, float perSecondCalm, float toneStrength,
-                               float youngStrength) {
+                               float youngStrength, float backlight, float backlightFrom, float backlightGain,
+                               float[] backlightColor) {
         static LeavesParams of(LeavesJson l) {
             LeavesJson v = l != null ? l : new LeavesJson();
             return new LeavesParams(clamp(v.radius, 16.0, 4.0, 48.0), v.maxAlive != null ? Math.max(0, Math.min(400, v.maxAlive)) : 90,
                     clamp(v.perSecondGust, 24.0, 0.0, 200.0), clamp(v.perSecondCalm, 0.3, 0.0, 20.0),
-                    clamp(v.toneStrength, 1.0, 0.0, 1.0), clamp(v.youngStrength, 1.0, 0.0, 1.0));
+                    clamp(v.toneStrength, 1.0, 0.0, 1.0), clamp(v.youngStrength, 1.0, 0.0, 1.0),
+                    clamp(v.backlight, 0.8, 0.0, 1.0), clamp(v.backlightFrom, 0.5, -1.0, 0.99), clamp(v.backlightGain, 2.2, 1.0, 4.0),
+                    rgb(v.backlightColor, 0.82, 1.0, 0.42));
         }
     }
 
@@ -442,6 +523,16 @@ public final class AtmosphereTable {
     private final DuskParams dusk;
     private final WaterParams water;
     private final InsectsParams insects;
+    private final AtmosphereLife.WetParams wet;
+    private final AtmosphereLife.SteamParams steam;
+    private final AtmosphereLife.RipplesParams ripples;
+    private final AtmosphereLife.GnatsParams gnats;
+    private final AtmosphereLife.DropRippleParams dropRipple;
+    private final AtmosphereLife.RainRippleParams rainRipple;
+    private final AtmosphereLife.AlgaeParams algae;
+    private final AtmosphereLife.CreakParams creak;
+    private final AtmosphereWater.CausticsParams caustics;
+    private final AtmosphereWater.ShaftsParams underwaterShafts;
 
     private AtmosphereTable(Json j) {
         Light l = j != null && j.light != null ? j.light : new Light();
@@ -461,16 +552,16 @@ public final class AtmosphereTable {
         this.duskTint = ratio(l.duskTint, 0.98, 0.90, 1.10);
         this.nightTint = ratio(l.nightTint, 0.86, 0.96, 1.12);
         this.nightTintStrength = clamp(l.nightTintStrength, 0.6, 0.0, 1.0);
-        this.shadeHue = ratio(l.shadeHue, 0.78, 1.00, 0.92);
+        this.shadeHue = ratio(l.shadeHue, 0.92, 1.00, 0.78);
         this.sunWarm = l.sunWarm != null && l.sunWarm.length == 3
-                ? new float[]{(float) l.sunWarm[0], (float) l.sunWarm[1], (float) l.sunWarm[2]} : new float[]{1.18F, 1.08F, 0.80F};
+                ? new float[]{(float) l.sunWarm[0], (float) l.sunWarm[1], (float) l.sunWarm[2]} : new float[]{1.10F, 1.06F, 0.90F};
         this.sunWarmStrength = clamp(l.sunWarmStrength, 1.0, 0.0, 2.0);
-        this.greenBounce = clamp(l.greenBounce, 0.06, 0.0, 0.5);
+        this.greenBounce = clamp(l.greenBounce, 0.03, 0.0, 0.5);
         this.swampPresence = clamp(l.swampPresence, 0.45, 0.0, 1.0);
-        this.skyLift = clamp(l.skyLift, 0.6, 0.0, 1.0);
-        this.skyLiftDark = clamp(l.skyLiftDark, 0.45, 0.0, 1.0);
-        this.shade = clamp(l.shade, 0.75, 0.0, 1.0);
-        this.shadeBacklit = clamp(l.shadeBacklit, 0.58, 0.0, 1.0);
+        this.skyLift = clamp(l.skyLift, 0.95, 0.0, 1.0);
+        this.skyLiftDark = clamp(l.skyLiftDark, 0.8, 0.0, 1.0);
+        this.shade = clamp(l.shade, 0.92, 0.0, 1.0);
+        this.shadeBacklit = clamp(l.shadeBacklit, 0.78, 0.0, 1.0);
         this.shadeTint = clamp(l.shadeTint, 1.0, 0.0, 2.0);
         this.forestTint = clamp(l.forestTint, 1.0, 0.0, 1.0);
         this.surfaceShade = clamp(l.surfaceShade, 1.0, 0.0, 1.0);
@@ -496,6 +587,16 @@ public final class AtmosphereTable {
         this.dusk = DuskParams.of(j != null ? j.dusk : null);
         this.water = WaterParams.of(j != null ? j.water : null);
         this.insects = InsectsParams.of(j != null ? j.insects : null);
+        this.wet = AtmosphereLife.WetParams.of(j != null ? j.wet : null);
+        this.steam = AtmosphereLife.SteamParams.of(j != null ? j.steam : null);
+        this.ripples = AtmosphereLife.RipplesParams.of(j != null ? j.ripples : null);
+        this.gnats = AtmosphereLife.GnatsParams.of(j != null ? j.gnats : null);
+        this.dropRipple = AtmosphereLife.DropRippleParams.of(j != null ? j.dropRipple : null);
+        this.rainRipple = AtmosphereLife.RainRippleParams.of(j != null ? j.rainRipple : null);
+        this.algae = AtmosphereLife.AlgaeParams.of(j != null ? j.algae : null);
+        this.creak = AtmosphereLife.CreakParams.of(j != null ? j.creak : null);
+        this.caustics = AtmosphereWater.CausticsParams.of(j != null ? j.caustics : null);
+        this.underwaterShafts = AtmosphereWater.ShaftsParams.of(j != null ? j.underwaterShafts : null);
     }
 
     /** 色の比を、明るさ 0.3R + 0.59G + 0.11B が 1 になるようそろえる。 */
@@ -730,5 +831,46 @@ public final class AtmosphereTable {
     /** 虫・爬虫類の声(節 {@code insects})。 */
     public InsectsParams insects() {
         return insects;
+    }
+
+    /** 見え方の段(10-31)の値(節 wet・steam・ripples・gnats・creak。{@link AtmosphereLife})。 */
+    public AtmosphereLife.WetParams wet() {
+        return wet;
+    }
+
+    public AtmosphereLife.SteamParams steam() {
+        return steam;
+    }
+
+    public AtmosphereLife.RipplesParams ripples() {
+        return ripples;
+    }
+
+    public AtmosphereLife.GnatsParams gnats() {
+        return gnats;
+    }
+
+    public AtmosphereLife.DropRippleParams dropRipple() {
+        return dropRipple;
+    }
+
+    public AtmosphereLife.RainRippleParams rainRipple() {
+        return rainRipple;
+    }
+
+    public AtmosphereLife.AlgaeParams algae() {
+        return algae;
+    }
+
+    public AtmosphereLife.CreakParams creak() {
+        return creak;
+    }
+
+    public AtmosphereWater.CausticsParams caustics() {
+        return caustics;
+    }
+
+    public AtmosphereWater.ShaftsParams underwaterShafts() {
+        return underwaterShafts;
     }
 }

@@ -39,6 +39,16 @@ public final class CoverTable {
         public Double stuckChance;
         public Double chance;
         public Boolean encase;
+        public Double creepPush;
+        public Double creepSeconds;
+        public Double baseDarken;
+        public Integer skirtHeight;
+        public Double skirtTallChance;
+        public Double hollowChance;
+        public Integer hollowMinStep, hollowMaxStep;
+        public Double hollowReach, hollowCooldownSeconds;
+        public Integer hollowBugsMin, hollowBugsMax;
+        public Double hollowEyesPerMinute, hollowEyesSeconds;
     }
 
     private final List<String> textures;
@@ -53,11 +63,25 @@ public final class CoverTable {
     private final double stuckChance;
     private final double chance;
     private final boolean encase;
+    private final double creepPush;
+    private final double creepSeconds;
+    private final double baseDarken;
+    private final int skirtHeight;
+    private final double skirtTallChance;
+    private final double hollowChance;
+    private final int hollowMinStep;
+    private final int hollowMaxStep;
+    private final double hollowReach;
+    private final double hollowCooldownSeconds;
+    private final int hollowBugsMin;
+    private final int hollowBugsMax;
+    private final double hollowEyesPerMinute;
+    private final double hollowEyesSeconds;
 
     private CoverTable(Json j) {
         Json src = j != null ? j : new Json();
         this.textures = src.textures != null && !src.textures.isEmpty() ? List.copyOf(src.textures)
-                : List.of("cover_1", "cover_2", "cover_3", "cover_4", "cover_5");
+                : java.util.stream.IntStream.rangeClosed(1, 25).mapToObj(n -> "cover_" + n).toList(); // 10-31 に 25 枚へ(tools/cover-art)
         this.rotate = src.rotate == null || src.rotate;
         double[] mips = {1.0D, 1.0D, 1.0D, 1.0D};
         if (src.mipCoverage != null) {
@@ -76,6 +100,20 @@ public final class CoverTable {
         this.stuckChance = src.stuckChance != null ? Math.max(0.0D, Math.min(1.0D, src.stuckChance)) : 0.75D;
         this.chance = src.chance != null ? Math.max(0.0D, Math.min(1.0D, src.chance)) : 0.7D;
         this.encase = src.encase == null || src.encase;
+        this.creepPush = src.creepPush != null ? Math.max(0.0D, Math.min(0.02D, src.creepPush)) : 0.003D;
+        this.creepSeconds = src.creepSeconds != null ? Math.max(0.0D, src.creepSeconds) : 120.0D;
+        this.baseDarken = src.baseDarken != null ? Math.max(0.0D, Math.min(1.0D, src.baseDarken)) : 0.7D;
+        this.skirtHeight = src.skirtHeight != null ? Math.max(0, Math.min(2, src.skirtHeight)) : 2;
+        this.skirtTallChance = src.skirtTallChance != null ? Math.max(0.0D, Math.min(1.0D, src.skirtTallChance)) : 0.3D;
+        this.hollowChance = src.hollowChance != null ? Math.max(0.0D, Math.min(1.0D, src.hollowChance)) : 0.125D;
+        this.hollowMinStep = src.hollowMinStep != null ? Math.max(1, src.hollowMinStep) : 2;
+        this.hollowMaxStep = src.hollowMaxStep != null ? Math.max(this.hollowMinStep, src.hollowMaxStep) : Math.max(this.hollowMinStep, 4);
+        this.hollowReach = src.hollowReach != null ? Math.max(0.0D, src.hollowReach) : 4.0D;
+        this.hollowCooldownSeconds = src.hollowCooldownSeconds != null ? Math.max(0.0D, src.hollowCooldownSeconds) : 30.0D;
+        this.hollowBugsMin = src.hollowBugsMin != null ? Math.max(0, src.hollowBugsMin) : 3;
+        this.hollowBugsMax = src.hollowBugsMax != null ? Math.max(this.hollowBugsMin, src.hollowBugsMax) : Math.max(this.hollowBugsMin, 6);
+        this.hollowEyesPerMinute = src.hollowEyesPerMinute != null ? Math.max(0.0D, src.hollowEyesPerMinute) : 1.0D;
+        this.hollowEyesSeconds = src.hollowEyesSeconds != null ? Math.max(0.05D, src.hollowEyesSeconds) : 0.5D;
     }
 
     public static CoverTable fromJson(Json j) {
@@ -129,5 +167,65 @@ public final class CoverTable {
 
     public boolean encase() {
         return encase;
+    }
+
+    /** 這い上がる苔の絵を面の外へ出す距離(ブロック。28、11-01 仮決め 0.003。元の面と奥行きを競らせない)と、置いてから最終段までの秒(仮 120)。 */
+    public double creepPush() {
+        return creepPush;
+    }
+
+    public double creepSeconds() {
+        return creepSeconds;
+    }
+
+    /** 覆いの下に見える元の面の明るさの倍率(2026-10-31 夜ユーザー決定、仮 0.7。置き換えブロックの絵の「苔の間から見える元の面」と揃える。1 で暗くしない)。 */
+    public double baseDarken() {
+        return baseDarken;
+    }
+
+    /** 幹の苔のスカートの段数(31、10-31 仮決め 2。0 で無し)と、1 段高い木の割合(仮 0.3)。 */
+    public int skirtHeight() {
+        return skirtHeight;
+    }
+
+    public double skirtTallChance() {
+        return skirtTallChance;
+    }
+
+    /** 木の洞(43、10-31 仮決め): 洞のある木の割合・幹の何段目(根元が 1)・気配が出る距離・虫が出たあと休む秒・虫の数・目が光る 1 分あたりの回数と長さ(秒)。 */
+    public double hollowChance() {
+        return hollowChance;
+    }
+
+    public int hollowMinStep() {
+        return hollowMinStep;
+    }
+
+    public int hollowMaxStep() {
+        return hollowMaxStep;
+    }
+
+    public double hollowReach() {
+        return hollowReach;
+    }
+
+    public double hollowCooldownSeconds() {
+        return hollowCooldownSeconds;
+    }
+
+    public int hollowBugsMin() {
+        return hollowBugsMin;
+    }
+
+    public int hollowBugsMax() {
+        return hollowBugsMax;
+    }
+
+    public double hollowEyesPerMinute() {
+        return hollowEyesPerMinute;
+    }
+
+    public double hollowEyesSeconds() {
+        return hollowEyesSeconds;
     }
 }

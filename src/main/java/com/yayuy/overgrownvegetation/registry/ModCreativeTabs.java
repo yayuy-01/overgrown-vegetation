@@ -41,27 +41,18 @@ public final class ModCreativeTabs {
 
     // ---- 覆われたブロックのタブの並び(2026-10-05 にユーザー要望で整理。バニラのタブに近い順: 土 → 石 → 鉱石 → 木 → ネザー・エンド) ----
 
-    /** 土・砂・砂利。 */
+    /** 土(砂・砂利・泥は 2026-10-31 に外した)。 */
     private static final List<DeferredBlock<Block>> CORRUPTED_SOIL = List.of(
             ModBlocks.OVERGROWN_GRASS_BLOCK,
-            ModBlocks.OVERGROWN_DIRT,
-            ModBlocks.OVERGROWN_MUD,
-            ModBlocks.OVERGROWN_MUD_SLAB,
-            ModBlocks.OVERGROWN_GRAVEL,
-            ModBlocks.OVERGROWN_SAND);
+            ModBlocks.OVERGROWN_DIRT);
 
     /** 石とその加工品(汎用の汚染ブロックもここ)。 */
     private static final List<DeferredBlock<Block>> CORRUPTED_STONE = List.of(
             ModBlocks.OVERGROWN_STONE,
-            ModBlocks.OVERGROWN_COBBLESTONE,
             ModBlocks.OVERGROWN_STONE_STAIRS,
             ModBlocks.OVERGROWN_WALL,
-            ModBlocks.OVERGROWN_GRANITE,
-            ModBlocks.OVERGROWN_DIORITE,
-            ModBlocks.OVERGROWN_ANDESITE,
             ModBlocks.OVERGROWN_DEEPSLATE,
             ModBlocks.OVERGROWN_COBBLED_DEEPSLATE,
-            ModBlocks.OVERGROWN_DRIPSTONE_BLOCK,
             ModBlocks.OVERGROWN_BRICKS,
             ModBlocks.OVERGROWN_BLOCK,
             ModBlocks.OVERGROWN_BLOCK_SLAB);

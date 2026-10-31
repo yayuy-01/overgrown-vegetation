@@ -23,8 +23,9 @@ import net.minecraft.world.level.block.state.BlockState;
  * 粒の数の設定(パーティクルの「最小」など)はバニラの粒と同じく効く。
  *
  * <ul>
- *     <li>いつ: 霧の雨上がり({@link MistFog#afterRain}。雨が止んでから {@code fog.mistAfterRainMinutes} 分かけて弱まる)と、
- *     雨の最中に少し({@code drops.duringRain}。10-31 ユーザー採用「雨の最中にも少し」)。</li>
+ *     <li>いつ: 雨の最中に少し({@code drops.duringRain}。10-31 ユーザー採用「雨の最中にも少し」)と、雨上がり。雨上がりは雨の最中の量から始めて
+ *     {@code drops.afterMinutes} 分でなめらかに 0 へ(10-31 ユーザー「量が多すぎる、雨がやんでから徐々に減るように」。前は霧の 20 分で、止んだ途端に雨の最中の 4 倍に増えていた)。</li>
+ *     <li>真下が水面なら、落ちて着く頃にそこへ小さな輪を出す({@link WaterSigns#dropLanding}。10-31 ユーザー「波紋も水滴に連動して」)。</li>
  *     <li>どこに: 森の度合い({@link ForestPresence#openForest})× 上の強さ。頭の上 24 ブロックまでの葉(過繁茂の葉とバニラの葉)の、下が空気の所。</li>
  *     <li>数: 近く {@code drops.range} ブロックだけ。最近 3 秒に出した数(ぶら下がり 2 秒 + 落ちる間のおおよそ)を品質の段の {@code drops.counts} までに。</li>
  * </ul>
@@ -54,12 +55,15 @@ final class RainDrops {
 
     /** 毎 tick({@link Atmosphere} から)。 */
     static void tick(ClientLevel level, LocalPlayer player) {
+        if (!VisualQuality.motes()) {
+            clear();
+            return;
+        }
         slot = (slot + 1) % SPAWNED.length;
         recent -= SPAWNED[slot];
         SPAWNED[slot] = 0;
         AtmosphereTable.DropsParams p = DesignData.atmosphere().drops();
-        float rain = level.getRainLevel(1.0F) * p.duringRain();
-        float strength = Math.max(MistFog.afterRain(), rain) * ForestPresence.openForest();
+        float strength = p.duringRain() * MistFog.wetAfter(p.afterMinutes(), level.getRainLevel(1.0F)) * ForestPresence.openForest();
         int cap = p.counts()[Math.min(2, VisualQuality.atmosphereTier())];
         if (strength <= 0.01F || cap <= 0) {
             carry = 0.0F;
@@ -81,8 +85,10 @@ final class RainDrops {
                 }
                 if (level.getBlockState(pos.setY(y - 1)).isAir()) {
                     // 葉の下面のすぐ下(バニラの葉の雨の滴と同じ 0.05 下)。
-                    level.addParticle(ParticleTypes.DRIPPING_WATER, bx + 0.15 + RANDOM.nextDouble() * 0.7, y - 0.05,
-                            bz + 0.15 + RANDOM.nextDouble() * 0.7, 0.0, 0.0, 0.0);
+                    double dx = bx + 0.15 + RANDOM.nextDouble() * 0.7;
+                    double dz = bz + 0.15 + RANDOM.nextDouble() * 0.7;
+                    level.addParticle(ParticleTypes.DRIPPING_WATER, dx, y - 0.05, dz, 0.0, 0.0, 0.0);
+                    WaterSigns.dropLanding(level, dx, y - 1, dz);
                     SPAWNED[slot]++;
                     recent++;
                 }
@@ -92,6 +98,6 @@ final class RainDrops {
     }
 
     private static boolean isLeaf(BlockState state) {
-        return state.is(BlockTags.LEAVES) || state.is(ModBlocks.OVERGROWN_LEAVES.get()) || state.is(ModBlocks.OVERGROWN_SWAMP_LEAVES.get());
+        return state.is(BlockTags.LEAVES) || state.is(ModBlocks.OVERGROWN_LEAVES.get());
     }
 }

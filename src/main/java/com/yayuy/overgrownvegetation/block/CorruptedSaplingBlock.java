@@ -44,7 +44,7 @@ import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
  * <p>バニラの {@code SaplingBlock#mayPlaceOn} は {@code #minecraft:dirt} タグしか見ないため、
  * このままでは汚染された草・土({@link ModBlocks#OVERGROWN_GRASS_BLOCK} /
  * {@link ModBlocks#OVERGROWN_DIRT})の上に置けない。ここで上書きして許可する
- * (汚染された砂 {@link ModBlocks#OVERGROWN_SAND}、湿地の泥 {@link ModBlocks#OVERGROWN_MUD} も同様)。
+ * (汚染された砂・湿地の泥も同様だったが、2026-10-31 に砂は削除・泥は parked へ退避)。
  *
  * <p>{@link com.yayuy.overgrownvegetation.corruption.CorruptionSpreader} が汚染直後の
  * 草・土の露出した上面に確率で直接植えるほか、{@code #minecraft:saplings} タグに一致する
@@ -73,7 +73,6 @@ public class CorruptedSaplingBlock extends SaplingBlock {
     @Override
     protected boolean mayPlaceOn(BlockState state, BlockGetter level, BlockPos pos) {
         return state.is(ModBlocks.OVERGROWN_GRASS_BLOCK.get()) || state.is(ModBlocks.OVERGROWN_DIRT.get())
-                || state.is(ModBlocks.OVERGROWN_SAND.get()) || state.is(ModBlocks.OVERGROWN_MUD.get())
                 || isCoveredGround(level, pos, state);
     }
 
@@ -90,14 +89,16 @@ public class CorruptedSaplingBlock extends SaplingBlock {
     /**
      * バニラの {@code SaplingBlock#randomTick} から頭上の明るさ判定
      * ({@code getMaxLocalRawBrightness(pos.above()) >= 9})だけを取り除いたもの。
-     * 抽選確率はバニラの 7 分の 1 に対して 7 分の 2(2026-09-11: 「他の苗木の倍の速さで育つ」要望)。
+     * 抽選確率はバニラの 7 分の 1 に対して 7 分の 4(2026-09-11: 「他の苗木の倍の速さで育つ」要望で 7 分の 2、
+     * 10-31 ユーザー「成長速度を上げてほしい」でさらに 2 倍。倍率は仮決め)。randomTickSpeed 3 で 1 マスは平均 68 秒に 1 回選ばれ、
+     * 2 段(STAGE 0 → 1 → 木)なので、木になるまで平均 3.5 回 ≒ 4 分(前は 7 回 ≒ 8 分)。
      */
     @Override
     protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         // この機能より前から生えていた苗木も、ランダムティックを受けた時点で設置時刻を記録する
         // (追いつき成長 SaplingOfflineGrowth 用。記録済みなら map の参照 1 回で終わる)。
         SaplingOfflineGrowth.ensureRecorded(level, pos);
-        if (random.nextInt(7) < 2) {
+        if (random.nextInt(7) < 4) {
             this.advanceTree(level, pos, state, random);
         }
     }

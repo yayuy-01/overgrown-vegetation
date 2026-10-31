@@ -114,6 +114,10 @@ final class AmbientSpores {
      * ±3 ブロックの 4 か所の一番上(葉を含む)の高い方。
      */
     static void tick(ClientLevel level, LocalPlayer player) {
+        if (!VisualQuality.motes()) {
+            clear();
+            return;
+        }
         if (ModShaders.ambientSpores() == null) {
             return;
         }
@@ -179,6 +183,9 @@ final class AmbientSpores {
     }
 
     static void render(RenderLevelStageEvent event) {
+        if (!VisualQuality.motes()) {
+            return;
+        }
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         ShaderInstance shader = ModShaders.ambientSpores();

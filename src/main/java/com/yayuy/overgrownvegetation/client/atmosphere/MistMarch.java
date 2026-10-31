@@ -70,12 +70,16 @@ public final class MistMarch {
 
     /** AFTER_SKY で今フレーム描くかを決める。 */
     static void prepare(boolean on) {
+        on = on && VisualQuality.fogDetail();
         drawThisFrame = on && !broken && !devOff && VisualQuality.atmosphereTier() == 0 && !ShaderPacks.active()
                 && ModShaders.mistMarch() != null && ModShaders.mistComposite() != null && MistFog.active();
     }
 
     /** AFTER_WEATHER({@link Atmosphere} から)。 */
     static void render(RenderLevelStageEvent event) {
+        if (!VisualQuality.fogDetail()) {
+            return;
+        }
         if (!drawThisFrame) {
             return;
         }

@@ -3,6 +3,7 @@ package com.yayuy.overgrownvegetation.client;
 import com.yayuy.overgrownvegetation.config.AtmosphereQuality;
 import com.yayuy.overgrownvegetation.config.CurledFernDetail;
 import com.yayuy.overgrownvegetation.config.OvergrownClientConfig;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
 /**
  * クライアント設定の見た目の項目を、描く側が読む口(2026-10-23)。2026-10-30 夜に粒・光の筋・霧の板・雲の遠景・動く光・G1 の動きと
@@ -51,6 +52,71 @@ public final class VisualQuality {
             case MEDIUM -> 1;
             case LOW -> 2;
         };
+    }
+
+    /** 雰囲気の演出 1 つのオンオフ(2026-11-01)。親の {@link #atmosphere()} がオフなら、子はどれも偽。 */
+    private static boolean part(ModConfigSpec.BooleanValue value) {
+        return atmosphere() && (loaded() ? value.get() : value.getDefault());
+    }
+
+    /** 虫・爬虫類の声。 */
+    public static boolean ambientInsects() {
+        return part(OvergrownClientConfig.CLIENT.ambientInsects);
+    }
+
+    /** 風の音。 */
+    public static boolean ambientWind() {
+        return part(OvergrownClientConfig.CLIENT.ambientWind);
+    }
+
+    /** 光の筋とその中の粒。 */
+    public static boolean lightShafts() {
+        return part(OvergrownClientConfig.CLIENT.lightShafts);
+    }
+
+    /** 木漏れ日。 */
+    public static boolean canopyDapple() {
+        return part(OvergrownClientConfig.CLIENT.canopyDapple);
+    }
+
+    /** 林床の持ち上げ・緑の照り返し・林冠の影と色・葉の透け。 */
+    public static boolean canopyLight() {
+        return part(OvergrownClientConfig.CLIENT.canopyLight);
+    }
+
+    /** 胞子の霧・朝霧。 */
+    public static boolean fog() {
+        return part(OvergrownClientConfig.CLIENT.fog);
+    }
+
+    /** 霧の細部(レイマーチ)。霧がオフなら偽。 */
+    public static boolean fogDetail() {
+        return fog() && part(OvergrownClientConfig.CLIENT.fogDetail);
+    }
+
+    /** 落ち葉・光る胞子・夕暮れの粒・滴・湯気。 */
+    public static boolean motes() {
+        return part(OvergrownClientConfig.CLIENT.motes);
+    }
+
+    /** 羽虫・木の洞の虫。 */
+    public static boolean critters() {
+        return part(OvergrownClientConfig.CLIENT.critters);
+    }
+
+    /** 葉と草の揺れ。 */
+    public static boolean leafSway() {
+        return part(OvergrownClientConfig.CLIENT.leafSway);
+    }
+
+    /** 水面の輪と泡・濡れた照り(幹を伝う水は 2026-11-01 に退避)。 */
+    public static boolean waterLife() {
+        return part(OvergrownClientConfig.CLIENT.waterLife);
+    }
+
+    /** 水中の光・光る藻。 */
+    public static boolean underwater() {
+        return part(OvergrownClientConfig.CLIENT.underwater);
     }
 
     /** Iris のシェーダーパック使用中もこの MOD の演出を描くか。 */

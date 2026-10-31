@@ -27,7 +27,6 @@ import com.yayuy.overgrownvegetation.block.OvergrownDirtBlock;
 import com.yayuy.overgrownvegetation.block.OvergrownGrassBlock;
 import com.yayuy.overgrownvegetation.block.OvergrownMossLayerBlock;
 import com.yayuy.overgrownvegetation.block.OvergrownWaterMossLayerBlock;
-import com.yayuy.overgrownvegetation.block.OvergrownSandBlock;
 import com.yayuy.overgrownvegetation.block.UndevelopedBushBlock;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -114,46 +113,18 @@ public final class ModBlocks {
                     .mapColor(MapColor.COLOR_GREEN));
 
     // ------------------------------------------------------------------
-    // 石系の色付きバリエーション(花崗岩・閃緑岩・安山岩など)
+    // 石系の色付きバリエーション(深層岩の丸石・鉱石など)
+    // 花崗岩・閃緑岩・安山岩・丸石・鍾乳石ブロック(と砂・砂利)の専用ブロックは 2026-10-31 に削除(ユーザー指定)。
+    // 元のブロックは覆い(OvergrownLayerData の記録)になる。
     //
     // OVERGROWN_STONE / OVERGROWN_DEEPSLATE の汎用バケツにまとめず、
     // 元テクスチャの色味を保ったまま moss_template を乗算合成した専用テクスチャを持つ。
     // ------------------------------------------------------------------
 
-    /** 安山岩・磨かれた安山岩 → 苔に覆われた安山岩。 */
-    public static final DeferredBlock<Block> OVERGROWN_ANDESITE = BLOCKS.registerSimpleBlock(
-            "overgrown_andesite",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.ANDESITE)
-                    .mapColor(MapColor.COLOR_GREEN));
-
-    /** 閃緑岩・磨かれた閃緑岩 → 苔に覆われた閃緑岩。 */
-    public static final DeferredBlock<Block> OVERGROWN_DIORITE = BLOCKS.registerSimpleBlock(
-            "overgrown_diorite",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.DIORITE)
-                    .mapColor(MapColor.COLOR_GREEN));
-
-    /** 花崗岩・磨かれた花崗岩 → 苔に覆われた花崗岩。 */
-    public static final DeferredBlock<Block> OVERGROWN_GRANITE = BLOCKS.registerSimpleBlock(
-            "overgrown_granite",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.GRANITE)
-                    .mapColor(MapColor.COLOR_GREEN));
-
-    /** 丸石・苔むした丸石 → 苔に覆われた丸石。 */
-    public static final DeferredBlock<Block> OVERGROWN_COBBLESTONE = BLOCKS.registerSimpleBlock(
-            "overgrown_cobblestone",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.COBBLESTONE)
-                    .mapColor(MapColor.COLOR_GREEN));
-
     /** 深層岩の丸石 → 苔に覆われた深層岩の丸石。 */
     public static final DeferredBlock<Block> OVERGROWN_COBBLED_DEEPSLATE = BLOCKS.registerSimpleBlock(
             "overgrown_cobbled_deepslate",
             BlockBehaviour.Properties.ofFullCopy(Blocks.COBBLED_DEEPSLATE)
-                    .mapColor(MapColor.COLOR_GREEN));
-
-    /** 鍾乳石ブロック → 苔に覆われた鍾乳石ブロック。 */
-    public static final DeferredBlock<Block> OVERGROWN_DRIPSTONE_BLOCK = BLOCKS.registerSimpleBlock(
-            "overgrown_dripstone_block",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.DRIPSTONE_BLOCK)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** レンガ → 苔に覆われたレンガ。 */
@@ -298,19 +269,6 @@ public final class ModBlocks {
                     .lightLevel((BlockState state) -> 0));
 
     /**
-     * 砂・砂岩など → 菌糸に覆われた砂。
-     *
-     * <p>「広がる密林」のコンセプト上、砂地のままでは印象を損なうため、
-     * 置かれてからおよそ 20 秒で自動的に {@link #OVERGROWN_DIRT} へ変わる
-     * ({@link OvergrownSandBlock} 参照)。
-     */
-    public static final DeferredBlock<Block> OVERGROWN_SAND = BLOCKS.registerBlock(
-            "overgrown_sand",
-            OvergrownSandBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.SAND)
-                    .mapColor(MapColor.COLOR_GREEN));
-
-    /**
      * ネザーラック・真紅/歪んだナイリウム → 過繁茂しているネザーラック(2026-10-02 ユーザー指定:
      * ナイリウムのようにネザーラックに草が生えたもの)。ポータルを越えてネザーへ広がった侵食の地面。
      */
@@ -358,16 +316,10 @@ public final class ModBlocks {
                     .mapColor(MapColor.COLOR_GREEN)
                     .lightLevel(state -> 0)); // 光は模型の面の発光だけ(2026-10-23、光の更新を増やさない)
 
-    /** 砂利 → 汚染された砂利。 */
-    public static final DeferredBlock<Block> OVERGROWN_GRAVEL = BLOCKS.registerSimpleBlock(
-            "overgrown_gravel",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.GRAVEL)
-                    .mapColor(MapColor.COLOR_GREEN));
-
     /** 原木・樹皮を剥いだ原木など → 寄生された幹。 */
     public static final DeferredBlock<Block> OVERGROWN_LOG = BLOCKS.registerBlock(
             "overgrown_log",
-            RotatedPillarBlock::new,
+            com.yayuy.overgrownvegetation.block.OvergrownLogBlock::new, // 2026-10-31 から幹の苔のスカート・木の洞の変種を持つ
             BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
                     .mapColor(MapColor.COLOR_GREEN));
 
@@ -476,92 +428,6 @@ public final class ModBlocks {
             BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
                     .mapColor(MapColor.COLOR_GREEN)
                     .isValidSpawn((state, getter, pos, type) -> false));
-
-    // ------------------------------------------------------------------
-    // 湿地 / 菌湿地帯({@link OvergrowthVariant#SWAMP} / {@link OvergrowthVariant#FUNGAL_SWAMP})専用ブロック。
-    // 汚染で変換されるのではなく、湿地環境の苗木から育つ木・浸水処理(SwampFlooder)が直接置く。
-    // テクスチャは仮(TexGen で生成した 16x16)。ユーザーが後で差し替える。
-    // ------------------------------------------------------------------
-
-    /** 湿地の木(木生シダ / 蘆木のイメージ)の幹。節の入った淡い緑灰色の樹皮。 */
-    public static final DeferredBlock<Block> OVERGROWN_SWAMP_LOG = BLOCKS.registerBlock(
-            "overgrown_swamp_log",
-            RotatedPillarBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
-                    .mapColor(MapColor.COLOR_LIGHT_GREEN));
-
-    /** {@link #OVERGROWN_SWAMP_LOG} の樹皮だけ版。湿地の木の根に使う。 */
-    public static final DeferredBlock<Block> OVERGROWN_SWAMP_WOOD = BLOCKS.registerBlock(
-            "overgrown_swamp_wood",
-            RotatedPillarBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_WOOD)
-                    .mapColor(MapColor.COLOR_LIGHT_GREEN));
-
-    /** 湿地の木の葉(羽状の薄い黄緑のシダ葉)。ランダムティックの印は {@link #OVERGROWN_LEAVES} と同じく外す。 */
-    public static final DeferredBlock<Block> OVERGROWN_SWAMP_LEAVES = BLOCKS.registerBlock(
-            "overgrown_swamp_leaves",
-            com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
-                    .mapColor(MapColor.COLOR_LIGHT_GREEN)
-                    .isValidSpawn((state, getter, pos, type) -> false));
-
-    /**
-     * 菌類の柱。菌湿地帯に所々そびえる、先細りの暗い巨大菌類(プロトタキシテスのイメージ)。
-     * {@link com.yayuy.overgrownvegetation.worldgen.FungalPillarFeature} が積み上げる。
-     */
-    public static final DeferredBlock<Block> FUNGAL_PILLAR = BLOCKS.registerBlock(
-            "fungal_pillar",
-            RotatedPillarBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.MUSHROOM_STEM)
-                    .mapColor(MapColor.TERRACOTTA_BROWN)
-                    .strength(1.2F));
-
-    /**
-     * 菌類の傘。湿地・菌湿地帯の洞窟の壁から張り出す巨大なキノコの傘
-     * ({@link com.yayuy.overgrownvegetation.corruption.CaveGrowth#buildWallCap})。
-     * 上面が傘の皮、下面がヒダ、側面が縁。
-     */
-    public static final DeferredBlock<Block> FUNGAL_CAP = BLOCKS.registerSimpleBlock(
-            "fungal_cap",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.BROWN_MUSHROOM_BLOCK)
-                    .mapColor(MapColor.TERRACOTTA_ORANGE)
-                    .strength(0.6F));
-
-    /**
-     * 発光菌糸。洞窟の菌の柱({@link com.yayuy.overgrownvegetation.corruption.CaveGrowth#buildPillar})に
-     * 所々混ざる、微かに光る菌糸のブロック。
-     */
-    public static final DeferredBlock<Block> GLOWING_MYCELIUM = BLOCKS.registerSimpleBlock(
-            "glowing_mycelium",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.MUSHROOM_STEM)
-                    .mapColor(MapColor.COLOR_CYAN)
-                    .strength(1.0F)
-                    .lightLevel(state -> 6));
-
-    /**
-     * 過繁茂している泥。湿地の池・水路・棚田の底、水際の湿った地面。
-     * {@link com.yayuy.overgrownvegetation.corruption.SwampFlooder} だけが置く
-     * (「既に処理済みの列」の目印も兼ねる)。苗木を植えられる土の一種。
-     */
-    public static final DeferredBlock<Block> OVERGROWN_MUD = BLOCKS.registerSimpleBlock(
-            "overgrown_mud",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.DIRT)
-                    .mapColor(MapColor.TERRACOTTA_GREEN)
-                    .sound(SoundType.MUD)
-                    .strength(0.4F));
-
-    /**
-     * 過繁茂している泥のハーフブロック。棚田の水面(段の高さ + 1)に水没させた下付きハーフブロックを敷き、
-     * 水深 0.5 の浅い段にする({@link com.yayuy.overgrownvegetation.corruption.SwampFlooder})。
-     * バニラの {@link SlabBlock} なので水没(waterlogged)に対応。
-     */
-    public static final DeferredBlock<Block> OVERGROWN_MUD_SLAB = BLOCKS.registerBlock(
-            "overgrown_mud_slab",
-            SlabBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.DIRT)
-                    .mapColor(MapColor.TERRACOTTA_GREEN)
-                    .sound(SoundType.MUD)
-                    .strength(0.4F));
 
     /**
      * 汚染された木が育つ、汚染された草・土の上にだけ植えられる苗木。
@@ -1134,16 +1000,9 @@ public final class ModBlocks {
         return List.of(
                 OVERGROWN_GRASS_BLOCK,
                 OVERGROWN_DIRT,
-                OVERGROWN_MUD,
-                OVERGROWN_MUD_SLAB,
                 OVERGROWN_STONE,
                 OVERGROWN_DEEPSLATE,
-                OVERGROWN_ANDESITE,
-                OVERGROWN_DIORITE,
-                OVERGROWN_GRANITE,
-                OVERGROWN_COBBLESTONE,
                 OVERGROWN_COBBLED_DEEPSLATE,
-                OVERGROWN_DRIPSTONE_BLOCK,
                 OVERGROWN_BRICKS,
                 OVERGROWN_DIAMOND_ORE,
                 OVERGROWN_DEEPSLATE_COAL_ORE,
@@ -1161,24 +1020,16 @@ public final class ModBlocks {
                 OVERGROWN_IRON_ORE,
                 OVERGROWN_LAPIS_ORE,
                 OVERGROWN_REDSTONE_ORE,
-                OVERGROWN_SAND,
                 OVERGROWN_NETHERRACK,
                 OVERGROWN_SOUL_SAND,
                 OVERGROWN_SOUL_SOIL,
                 OVERGROWN_END_STONE,
-                OVERGROWN_GRAVEL,
                 OVERGROWN_LOG,
                 OVERGROWN_WOOD,
                 GIANT_OVERGROWN_LOG,
                 GIANT_OVERGROWN_CAMBIUM,
                 HARDENED_GIANT_TRUNK,
                 OVERGROWN_LEAVES,
-                OVERGROWN_SWAMP_LOG,
-                OVERGROWN_SWAMP_WOOD,
-                OVERGROWN_SWAMP_LEAVES,
-                FUNGAL_PILLAR,
-                FUNGAL_CAP,
-                GLOWING_MYCELIUM,
                 OVERGROWN_BUSH,
                 OVERGROWN_SAPLING,
                 OVERGROWN_PLANKS,

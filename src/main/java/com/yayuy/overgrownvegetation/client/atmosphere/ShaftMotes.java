@@ -64,6 +64,9 @@ final class ShaftMotes {
     }
 
     static void render(RenderLevelStageEvent event) {
+        if (!VisualQuality.lightShafts()) {
+            return;
+        }
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         ShaderInstance shader = ModShaders.gpuMotes();

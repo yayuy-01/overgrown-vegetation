@@ -16,6 +16,10 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.phys.Vec3;
+import com.yayuy.overgrownvegetation.data.AtmosphereLife;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import org.joml.Quaternionf;
@@ -45,12 +49,17 @@ final class FallingLeaves {
     private static double carry;
 
     static void clear() {
+        LEAVES.forEach(FallingLeaf::remove);
         LEAVES.clear();
         carry = 0.0;
     }
 
     /** 毎 tick({@link Atmosphere} から。風を進めた後)。 */
     static void tick(Minecraft mc, ClientLevel level, LocalPlayer player) {
+        if (!VisualQuality.motes()) {
+            clear();
+            return;
+        }
         LEAVES.removeIf(leaf -> !leaf.isAlive() || leaf.overdue());
         AtmosphereTable.LeavesParams p = DesignData.atmosphere().leaves();
         int cap = p.maxAlive() <= 0 ? 0 : VisualQuality.particleCap(p.maxAlive());
@@ -87,7 +96,7 @@ final class FallingLeaves {
     }
 
     private static boolean isCanopyLeaf(BlockState state) {
-        return state.is(ModBlocks.OVERGROWN_LEAVES.get()) || state.is(ModBlocks.OVERGROWN_SWAMP_LEAVES.get());
+        return state.is(ModBlocks.OVERGROWN_LEAVES.get());
     }
 
     /**
@@ -162,6 +171,9 @@ final class FallingLeaves {
         private float tiltWind;
         private float oTiltWind;
         private int landedAge = -1;
+        /** 水面に浮いてからの tick(浮いていなければ −1)と、浮いている長さ(40 水面に落ちて流れる葉)。 */
+        private int floatAge = -1;
+        private int floatLife;
         /** 生まれたゲーム時刻(一覧から外す目安。粒が外から消されて tick されなくなっても数え続けないように)。 */
         private final long bornAt;
         /** 落ちてくる途中に出した葉(巨大樹の傘の下)。湧き始めと、着地せずに寿命が来たときに薄れる。 */
@@ -214,6 +226,10 @@ final class FallingLeaves {
                 this.remove();
                 return;
             }
+            if (this.floatAge >= 0) {
+                this.floatTick();
+                return;
+            }
             if (this.onGround) {
                 // 地面に着いたら止まって、2 秒で薄れて消える。
                 if (this.landedAge < 0) {
@@ -246,6 +262,67 @@ final class FallingLeaves {
             this.oTiltWind = this.tiltWind;
             this.tiltWind += ((float) Math.min(w, 1.2) - this.tiltWind) * 0.05F;
             this.move(this.xd, this.yd, this.zd);
+            this.checkWater();
+        }
+
+        /**
+         * 葉が水面に着いたら(40、2026-10-31 見え方の段。設定: 森の葉は水に落ちても流れていく)、消さずに浮かべる。水の流れの向き
+         * (流れが無ければ風下)へ {@code ripples.floatSpeed} ブロック/秒で {@code floatSecondsMin}〜{@code floatSecondsMax} 秒漂ってから沈む。
+         */
+        private void checkWater() {
+            BlockPos pos = BlockPos.containing(this.x, this.y, this.z);
+            FluidState fluid = this.level.getFluidState(pos);
+            if (!fluid.is(FluidTags.WATER)) {
+                return;
+            }
+            double surface = pos.getY() + fluid.getHeight(this.level, pos);
+            if (this.y > surface + 0.05 || !this.level.getFluidState(pos.above()).isEmpty()) {
+                return;
+            }
+            AtmosphereLife.RipplesParams p = DesignData.atmosphere().ripples();
+            this.floatAge = 0;
+            this.floatLife = Math.round((p.floatSecondsMin() + this.random.nextFloat() * (p.floatSecondsMax() - p.floatSecondsMin())) * 20.0F);
+            this.lifetime = this.age + this.floatLife + 45;
+            this.hasPhysics = false;
+            this.y = surface + 0.01;
+            this.yo = this.y;
+            this.alpha = 1.0F;
+        }
+
+        private void floatTick() {
+            this.floatAge++;
+            AtmosphereLife.RipplesParams p = DesignData.atmosphere().ripples();
+            BlockPos pos = BlockPos.containing(this.x, this.y - 0.05, this.z);
+            FluidState fluid = this.level.getFluidState(pos);
+            double step = p.floatSpeed() / 20.0;
+            if (this.floatAge > this.floatLife || !fluid.is(FluidTags.WATER)) {
+                // 沈む(2 秒で薄れて少し下がる)。
+                this.alpha = Math.max(0.0F, this.alpha - 0.025F);
+                this.y -= 0.004;
+                if (this.alpha <= 0.0F) {
+                    this.remove();
+                }
+                return;
+            }
+            Vec3 flow = fluid.getFlow(this.level, pos);
+            double fx;
+            double fz;
+            if (flow.horizontalDistanceSqr() > 1.0E-4) {
+                Vec3 n = flow.normalize();
+                fx = n.x;
+                fz = n.z;
+            } else {
+                Wind wind = Wind.current();
+                wind.velocity(this.x, this.z, Atmosphere.time(0.0F), WIND);
+                double w = Math.sqrt(WIND[0] * WIND[0] + WIND[1] * WIND[1]);
+                fx = w > 1.0E-6 ? WIND[0] / w * Math.min(1.0, w + 0.2) : 0.0;
+                fz = w > 1.0E-6 ? WIND[1] / w * Math.min(1.0, w + 0.2) : 0.0;
+            }
+            this.x += fx * step;
+            this.z += fz * step;
+            this.y = pos.getY() + fluid.getHeight(this.level, pos) + 0.01;
+            this.roll += this.rotSpeed * 0.15F;
+            this.alpha = Math.min(1.0F, this.alpha + 0.05F);
         }
 
         /**
@@ -255,6 +332,12 @@ final class FallingLeaves {
         @Override
         public void render(VertexConsumer buffer, Camera camera, float partialTicks) {
             Quaternionf q = new Quaternionf();
+            if (this.floatAge >= 0) {
+                // 水面に寝かせる(上を向いた板)。
+                q.rotationX(-Mth.HALF_PI).rotateZ(Mth.lerp(partialTicks, this.oRoll, this.roll));
+                this.renderRotatedQuad(buffer, camera, q, partialTicks);
+                return;
+            }
             this.getFacingCameraMode().setRotation(q, camera, partialTicks);
             q.rotateZ(Mth.lerp(partialTicks, this.oRoll, this.roll));
             float t = this.age + partialTicks;
