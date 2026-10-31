@@ -259,7 +259,8 @@ public final class NetherSporeFieldServer {
         lastSummary = String.format("更新 %d 回 / %.1f ms・区画 %d・汚染されたチャンク %d・発芽 %d",
                 r.steps, r.nanos / 1e6, r.tiles, r.corrupted, r.sprouts.length);
         PortalSeepage.afterUpdate(nether.getServer());
-        SporeSweeping.refresh(nether); // 払った升の印を消すか見る(粉の見た目の送信は 2026-10-30 に parked/ へ)
+        SporeSweeping.refresh(nether); // 払った升の印を消すか見る
+        SporeDustSync.send(nether); // 粉の見た目(2026-10-31 に戻した)
     }
 
     private static long[] watchTiles(ServerLevel nether) {

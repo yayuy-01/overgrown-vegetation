@@ -49,12 +49,16 @@ import java.util.Map;
  * </ul>
  * どちらも元の葉はすべて消す(このMODの葉は自然に枯れないため)。ドロップは出ない。
  *
- * <p>木の判定はバニラの {@code #minecraft:logs} と、既にその木の一部が汚染されて
- * {@link ModBlocks#OVERGROWN_LOG} / {@link ModBlocks#OVERGROWN_WOOD} になっている原木を繋がりとして辿る
- * (2026-10-05 夜からは汚染された幹は同じ木の<b>覆われた原木</b>になる。これも {@code #logs} に入っているので辿れる。
- * 倒木もその覆われた原木で並べる —— {@link #fallenLog})。
- * 湿地地域で苗木から育つ木は湿地の原木({@link ModBlocks#OVERGROWN_SWAMP_LOG})や菌類の柱なので
- * 対象にならない。プレイヤーの建築(原木を使った家)も繋がりとして辿ってしまうので、繋がりが
+ * <p>木の判定は {@code #minecraft:logs} の原木と、汚染された幹({@link ModBlocks#OVERGROWN_TRUNK_BLOCK}。
+ * 覆いの記録が付いた元の原木はそのまま {@code #logs})を繋がりとして辿る。倒木は元の木の原木で並べる —— {@link #fallenLog}。
+ * <b>このMODが生やす木の原木は辿らない</b>({@link #isModTreeLog}。2026-10-31、ユーザー報告「既存の木を消す仕組みが
+ * 汚染地域に生えた mod の木も消している」)。{@link ModBlocks#OVERGROWN_LOG} / {@link ModBlocks#OVERGROWN_WOOD} は
+ * Create 互換のため {@code #logs} に入っているので(10-14)、タグとは別に名指しで外す。昔は元の木の汚染された部分が
+ * {@code OVERGROWN_LOG} に化けたのでそれも辿っていたが、mod の木の枝は幹から 6〜7 ブロック広がるので、元の木に斜めに
+ * 1 か所触れただけで mod の木が丸ごと同じ木として消えていた。
+ * 葉は元の木の葉も汚染されると {@link ModBlocks#OVERGROWN_LEAVES} になり mod の木の葉と見分けが付かないので、
+ * 集めた葉のうち mod の原木から葉づたいに同じか近い葉は mod の木のものとして残す({@link #releaseModTreeLeaves})。
+ * プレイヤーの建築(原木を使った家)も繋がりとして辿ってしまうので、繋がりが
  * {@code MAX_LOGS} を超えたら「木ではない」と見なして何もしない。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
@@ -401,6 +405,8 @@ public final class SwampTreeFall {
         if (leaves.isEmpty()) {
             return null;
         }
+        // 隣の mod の木の葉は残す(葉が全部 mod の木のものでも、葉の付いた原木なので木として消す)。
+        releaseModTreeLeaves(level, leaves, leafDist);
 
         // 3. 幹の長さ(切り株の列に積まれた原木の本数)を数えてから、全部消す(消すのは呼び出し側の removeSome)。
         int trunkLength = 0;
@@ -563,8 +569,98 @@ public final class SwampTreeFall {
                 || state.is(Blocks.SMOOTH_STONE) || state.is(Blocks.STONE_BRICKS) || state.is(Blocks.BRICKS);
     }
 
+    /**
+     * 集めた葉のうち、このMODの木の葉を外す(2026-10-31)。汚染された元の木の葉も mod の木の葉も同じ
+     * {@link ModBlocks#OVERGROWN_LEAVES} なので、近くの mod の原木から葉づたいの距離を測り、元の木の原木からの距離
+     * ({@code leafDist})と同じか近い葉は mod の木のものとして集合から外す(境目で同点の葉は mod の木に付ける。仮決め)。
+     * バニラの葉は汚染される前の元の木の葉なので、外さない。
+     *
+     * <p>mod の原木は、集めた mod の葉から mod の葉づたいに {@code LEAF_REACH - 1} 歩までの隣だけを探す
+     * (それより遠い mod の原木からの距離は {@code LEAF_REACH} を超え、どの葉の {@code leafDist} にも勝たない)。
+     * 集めた葉に mod の葉が無いか、近くに mod の原木が無ければ何もしない。
+     */
+    private static void releaseModTreeLeaves(ServerLevel level, LongOpenHashSet leaves, Long2IntOpenHashMap leafDist) {
+        Block modLeaf = ModBlocks.OVERGROWN_LEAVES.get();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        // 1. 近くの mod の原木を探す。
+        ArrayDeque<long[]> frontier = new ArrayDeque<>();
+        LongOpenHashSet seen = new LongOpenHashSet();
+        for (long l : leaves) {
+            if (level.getBlockState(cursor.set(l)).is(modLeaf)) {
+                frontier.add(new long[]{l, 0});
+                seen.add(l);
+            }
+        }
+        LongOpenHashSet modLogs = new LongOpenHashSet();
+        int pushed = 0; // 集めた葉の外へ広げた葉の数(上限は元の木の葉集めと同じ MAX_LEAVES)
+        while (!frontier.isEmpty() && pushed < MAX_LEAVES) {
+            long[] cur = frontier.poll();
+            int dist = (int) cur[1];
+            for (Direction dir : DIRECTIONS) {
+                cursor.set(cur[0]).move(dir);
+                long nl = cursor.asLong();
+                if (seen.contains(nl) || !level.isLoaded(cursor)) {
+                    continue;
+                }
+                seen.add(nl);
+                BlockState state = level.getBlockState(cursor);
+                if (isModTreeLog(state)) {
+                    modLogs.add(nl);
+                } else if (state.is(modLeaf) && dist + 1 < LEAF_REACH) {
+                    frontier.add(new long[]{nl, dist + 1});
+                    pushed++;
+                }
+            }
+        }
+        if (modLogs.isEmpty()) {
+            return;
+        }
+        // 2. mod の原木から葉づたいの距離を測り、同じか近い葉を外す。
+        frontier.clear(); // 1 が上限で止まったときの残り(1 の距離)を混ぜない
+        for (long l : modLogs) {
+            frontier.add(new long[]{l, 0});
+        }
+        LongOpenHashSet reached = new LongOpenHashSet(modLogs);
+        int walked = 0; // 辿った葉の数(上限は MAX_LEAVES)
+        while (!frontier.isEmpty() && walked < MAX_LEAVES) {
+            long[] cur = frontier.poll();
+            int dist = (int) cur[1];
+            if (dist >= LEAF_REACH) {
+                continue;
+            }
+            for (Direction dir : DIRECTIONS) {
+                cursor.set(cur[0]).move(dir);
+                long nl = cursor.asLong();
+                if (reached.contains(nl) || !level.isLoaded(cursor)) {
+                    continue;
+                }
+                reached.add(nl);
+                if (level.getBlockState(cursor).is(modLeaf)) {
+                    if (leaves.contains(nl) && dist + 1 <= leafDist.get(nl)) {
+                        leaves.remove(nl);
+                        leafDist.remove(nl);
+                    }
+                    frontier.add(new long[]{nl, dist + 1});
+                    walked++;
+                }
+            }
+        }
+    }
+
+    /**
+     * 元の木の原木か: {@code #logs} のうちこのMODが生やす木の原木を除いたもの、または汚染された幹(覆われた原木)。
+     * mod の原木は {@code #logs} に入っているものがある(Create 互換)ので名指しで外す。
+     */
     private static boolean isTreeLog(BlockState state) {
-        return state.is(BlockTags.LOGS) || state.is(ModBlocks.OVERGROWN_LOG.get()) || state.is(ModBlocks.OVERGROWN_WOOD.get());
+        return state.is(ModBlocks.OVERGROWN_TRUNK_BLOCK.get()) || (state.is(BlockTags.LOGS) && !isModTreeLog(state));
+    }
+
+    /** このMODが生やす木(苗木の木・湿地の木・巨大樹・菌類の柱)の原木か。 */
+    private static boolean isModTreeLog(BlockState state) {
+        return state.is(ModBlocks.OVERGROWN_LOG.get()) || state.is(ModBlocks.OVERGROWN_WOOD.get())
+                || state.is(ModBlocks.OVERGROWN_SWAMP_LOG.get()) || state.is(ModBlocks.OVERGROWN_SWAMP_WOOD.get())
+                || state.is(ModBlocks.GIANT_OVERGROWN_LOG.get()) || state.is(ModBlocks.GIANT_OVERGROWN_CAMBIUM.get())
+                || state.is(ModBlocks.HARDENED_GIANT_TRUNK.get()) || state.is(ModBlocks.FUNGAL_PILLAR.get());
     }
 
     private static boolean isTreeLeaves(BlockState state) {

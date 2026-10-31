@@ -24,6 +24,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
  *   <li>{@link ExtraArmorPayload} — 追加防具の 4 枠の中身(S2C、枠が変わったとき・追跡開始時。見た目用)</li>
  *   <li>{@link OvergrownLayerPayload} — 植物に覆われたマスの記録 (S2C、チャンクを見始めたとき・覆われたとき)</li>
  *   <li>{@link SporeAirPayload} — プレイヤーの所の胞子濃度(S2C、5 秒ごと。密林の雰囲気の光の筋の濃さ)</li>
+ *   <li>{@link SporeDustPayload} — 胞子の粉の降り積もり %と払った升の印(S2C、場の更新で変わったとき)</li>
  *   <li>{@link ResearchUnlockPayload} — 研究ノードの開放要求(C2S)</li>
  *   <li>{@link PoweredArmorCraftPayload} — パワードアーマー作成テーブルの「作成」(C2S、レシピ id)</li>
  *   <li>{@link CannonControlPayload} — 砲台に乗っている間の発射・装薬(C2S)</li>
@@ -57,7 +58,8 @@ public final class ModNetwork {
         // 2026-10-30 に 19 へ(胞子の粉の見た目と卓越風の入力の通信を画面の演出と一緒に parked/ へ退避)。
         // 2026-10-30 夜に 20 へ(プレイヤーの所の胞子濃度を足した。密林の雰囲気の光の筋の濃さ)。
         // 2026-10-30 夜に 21 へ(胞子濃度の通信に卓越風の向きと強さを相乗りさせた。密林の雰囲気 第 2 段の風)。
-        PayloadRegistrar registrar = event.registrar("21");
+        // 2026-10-31 に 22 へ(胞子の粉の見た目の通信を戻した。合間の小物 3)。
+        PayloadRegistrar registrar = event.registrar("22");
         registrar.playToClient(
                 EarthquakeShakePayload.TYPE,
                 EarthquakeShakePayload.STREAM_CODEC,
@@ -74,6 +76,12 @@ public final class ModNetwork {
                 SporeAirPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(
                         () -> com.yayuy.overgrownvegetation.client.atmosphere.PrevailingWindClient.accept(payload)));
+
+        registrar.playToClient(
+                SporeDustPayload.TYPE,
+                SporeDustPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(
+                        () -> com.yayuy.overgrownvegetation.client.ClientSporeDust.accept(payload)));
 
     }
 

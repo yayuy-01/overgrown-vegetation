@@ -250,6 +250,7 @@ public final class SporeFieldServer {
         WAITING.clear();
         com.yayuy.overgrownvegetation.quake.EarthquakeData.clearCache();
         SporeSweeping.clear();
+        SporeDustSync.clear();
         INPUTS.clear();
     }
 
@@ -484,7 +485,8 @@ public final class SporeFieldServer {
             for (long key : r.seconds) SporeSprouts.onSecondSprout(level, key);
         }
         READOUT = r.readout;
-        SporeSweeping.refresh(level); // 払った升の印を消すか見る(粉の見た目の送信は 2026-10-30 に parked/ へ)
+        SporeSweeping.refresh(level); // 払った升の印を消すか見る
+        SporeDustSync.send(level); // 粉の見た目(2026-10-31 に戻した)
         lastSummary = String.format("更新 %d 回 / %.1f ms・区画 %d・汚染されたチャンク %d・発芽 %d・上空の塊 %d",
                 r.steps, r.nanos / 1e6, r.tiles, r.corrupted, r.sprouts.length, r.parcels)
                 + (lastFronts > 0 || lastFrontCells > 0 ? String.format("・地割れの前線 %d 本(配った升 %d)", lastFronts, lastFrontCells) : "");

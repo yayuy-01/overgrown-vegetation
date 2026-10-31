@@ -154,5 +154,76 @@
     "scatterG": 0.6,
     "resolution": 0.5,
     "shaftYield": 0.5
+  },
+  "silhouette": {
+    "_comment": "合間の小物 巨大樹のシルエット(一覧 34、10-15 夜 了承・10-16 地下の根は対象外)。cutAt 0.55・cutBand 8・hazeStretch 3.2 は parked の値を引き継いだ(仮決めのまま)。mistStretch(高さの霧を入れ替えた先で薄める割合)は 10-31 仮決め。",
+    "cutAt": 0.55,
+    "cutBand": 8.0,
+    "hazeStretch": 3.2,
+    "mistStretch": 3.0
+  },
+  "drops": {
+    "_comment": "合間の小物 雨上がりの水滴(一覧 25、10-17 了承「水に見えて良い」)。10-31 ユーザー「minecraft に合わせるために水のテクスチャを」でバニラの水の滴りの粒(dripping_water → falling_water → splash)に替え、色・縁・真ん中・照りは外した。雨上がりの長さは fog.mistAfterRainMinutes に合わせる。1 秒の数・範囲は parked の値を引き継いだ(仮決めのまま)。数 counts(高・中・低、最近 3 秒に出した数)は 10-31 仮決め。雨の最中にも少し出す(10-31 ユーザー採用)の強さ duringRain 0.25(雨上がりの最大を 1)は仮決め。",
+    "counts": [200, 120, 50],
+    "perSecond": 100.0,
+    "range": 14.0,
+    "duringRain": 0.25
+  },
+  "dust": {
+    "_comment": "合間の小物 胞子の粉の見た目(一覧 29 の粉)。minPercent 1・gamma 1.2・leafFactor 0.6・waterFactor 0.4 は parked(10-24 ユーザーの不具合の直し)の値(parked の maxAlpha 0.42 は固い層の点の絵では使わないので外した)。点の数と点の色の混ぜ・色は 10-31 仮決め(白緑〜黄緑。霧の hazeColor に寄せ、青くしない)。",
+    "minPercent": 1.0,
+    "gamma": 1.2,
+    "leafFactor": 0.6,
+    "waterFactor": 0.4,
+    "thinColor": [0.88, 0.92, 0.78],
+    "thickColor": [0.76, 0.85, 0.50]
+  },
+  "dusk": {
+    "_comment": "合間の小物 夕方の光の粒(案 D1、10-31)。すべて仮決め: 数(高・中・低)60/35/15・17 時から出て 18 時に揃い 20 時から消えて 21 時に無し・林床の上 1〜3 ブロック・明滅 4 秒・色は青緑寄りの黄緑(植物のエネルギー)。",
+    "counts": [60, 35, 15],
+    "size": 0.06,
+    "fromHour": 17.0,
+    "fullHour": 18.0,
+    "fadeHour": 20.0,
+    "toHour": 21.0,
+    "heightMin": 1.0,
+    "heightMax": 3.0,
+    "boxHalf": 16.0,
+    "blinkSeconds": 4.0,
+    "brightness": 1.0,
+    "warmColor": [0.80, 0.95, 0.42],
+    "coolColor": [0.55, 0.95, 0.60]
+  },
+  "water": {
+    "_comment": "合間の小物 水音(案 E1、10-31)。すべて仮決め: 大きさ 0.35・半径 12 ブロックの水を数え、4 ブロックで鳴り始め 60 で最大・流れる水は 3 倍に数える。 10-31 ユーザー: 前の音は「場違い」、泡の作り直し(BubbleWaterSynth)も「まだ変に感じる。まだ実装しないでおきましょう」→ enabled false で一切鳴らさない(保留)。",
+    "enabled": false,
+    "volume": 0.35,
+    "radius": 12.0,
+    "minBlocks": 4.0,
+    "fullBlocks": 60.0,
+    "flowingWeight": 3.0
+  },
+  "insects": {
+    "_comment": "虫・爬虫類の声(鳥の代わり。過繁茂の森では鳥の声が消える設定、一覧 32)。10-31 ユーザー採用: a コオロギ系(夕〜夜。鳥のいない古い時代の森の夜を鳴く虫が埋める)と c ヤモリ系(夜・近く。小さな爬虫類が幹に隠れている気配)。b セミ系は入れない。鳴らし方の数値はすべて 10-31 仮決め(音はユーザー了承「良かった」、見本 final_crickets_25s・final_gecko_4・6)。大物の Mob が近いと黙る hushRadius は、Mob が退避中なので判定の入口だけ(今は常に鳴る)。",
+    "minForest": 0.3,
+    "hushRadius": 24.0,
+    "cricketFromHour": 17.0,
+    "cricketToHour": 6.0,
+    "cricketVoicesMin": 1,
+    "cricketVoicesMax": 3,
+    "cricketDistanceMin": 8.0,
+    "cricketDistanceMax": 20.0,
+    "cricketQuietDistance": 4.0,
+    "cricketResumeSeconds": 30.0,
+    "cricketVolume": 0.25,
+    "geckoFromHour": 20.0,
+    "geckoToHour": 4.0,
+    "geckoIntervalMin": 120.0,
+    "geckoIntervalMax": 300.0,
+    "geckoClicksMin": 3,
+    "geckoClicksMax": 6,
+    "geckoDistanceMin": 6.0,
+    "geckoDistanceMax": 12.0,
+    "geckoVolume": 0.3
   }
 }

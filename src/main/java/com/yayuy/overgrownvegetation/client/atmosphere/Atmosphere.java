@@ -60,11 +60,16 @@ public final class Atmosphere {
         FallingLeaves.clear();
         AmbientSpores.clear();
         com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestWindSound.stop();
+        com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestWaterSound.stop();
+        com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestInsectSound.stop();
         CanopySunMap.clear();
         LightShafts.clear();
         CanopyDapple.clear();
         CanopyShade.clear();
         MistFog.clear();
+        GiantSilhouettes.clear();
+        RainDrops.clear();
+        DuskMotes.clear();
     }
 
     @SubscribeEvent
@@ -97,6 +102,8 @@ public final class Atmosphere {
         guard("gate", () -> WindGate.tick(player.getX(), player.getZ(), time(0.0F)));
         guard("leaves", () -> FallingLeaves.tick(mc, now, player));
         guard("sound", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestWindSound.tick(mc, now, player, time(0.0F)));
+        guard("water", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestWaterSound.tick(mc, now, player));
+        guard("insects", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestInsectSound.tick(mc, now, player));
         guard("haze", () -> AirHaze.tick(now));
         guard("mist", () -> MistFog.tick(now, mc.gameRenderer.getMainCamera().getPosition(), ticks));
         guard("sunmap", () -> CanopySunMap.tick(now, ticks));
@@ -105,8 +112,12 @@ public final class Atmosphere {
         guard("shade", () -> CanopyShade.tick(now, player));
         guard("spores", () -> AmbientSpores.tick(now, player));
         guard("motes", () -> ShaftMotes.tick(mc.gameRenderer.getMainCamera().getPosition()));
+        guard("silhouette", () -> GiantSilhouettes.tick(now, player));
+        guard("drops", () -> RainDrops.tick(now, player));
+        guard("dusk", () -> DuskMotes.tick(now, player));
         if (DEV_LOG && ticks % 100 == 0) {
             OvergrownVegetation.LOGGER.info("Atmosphere {}", MistFog.describe());
+            OvergrownVegetation.LOGGER.info("Atmosphere 小物 {} 滴 {}", DuskMotes.describe(player.getX(), player.getZ()), RainDrops.count());
             BlockPos feet = player.blockPosition();
             OvergrownVegetation.LOGGER.info("Atmosphere 森 {} 地下 {} 持ち上げ {} 霞み {} 足元の光 空 {} ブロック {} 筋 {} 木漏れ日 {} 影の地図 {}",
                     String.format("%.2f", ForestPresence.forestFactor()), String.format("%.2f", ForestPresence.underground()),
@@ -127,6 +138,13 @@ public final class Atmosphere {
             guard("tones", () -> LeafTones.upload(on));
             guard("march", () -> MistMarch.prepare(on && event.getCamera().getFluidInCamera() == FogType.NONE));
             guard("mist", () -> MistFog.upload(event, on));
+            return;
+        }
+        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_CUTOUT_BLOCKS) {
+            // 霧の向こうの巨大樹のシルエット({@link GiantSilhouettes})。奥行きを書くので霧の細部(AFTER_WEATHER)より前。
+            if (lvl != null && lvl == level && enabled(lvl) && !hidden(mc, event.getCamera())) {
+                guard("silhouette", () -> GiantSilhouettes.render(event));
+            }
             return;
         }
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_WEATHER) {
@@ -155,6 +173,7 @@ public final class Atmosphere {
             guard("dapple", () -> CanopyDapple.render(event));
             guard("shafts", () -> LightShafts.render(event));
             guard("motes", () -> ShaftMotes.render(event));
+            guard("dusk", () -> DuskMotes.render(event));
         } finally {
             AddLight.restoreTarget(main);
         }
@@ -176,6 +195,12 @@ public final class Atmosphere {
         if (lvl != null && lvl == level && enabled(lvl)) {
             guard("mistview", () -> MistView.renderFog(event));
         }
+    }
+
+    /** 水の中・溶岩の中・盲目・暗闇の間は描かない。 */
+    private static boolean hidden(Minecraft mc, Camera cam) {
+        return cam.getFluidInCamera() != FogType.NONE || mc.player != null
+                && (mc.player.hasEffect(MobEffects.BLINDNESS) || mc.player.hasEffect(MobEffects.DARKNESS));
     }
 
     /** 演出 {@code name} を 1 つ動かす。例外が出たらこのセッションではその演出を止める。 */

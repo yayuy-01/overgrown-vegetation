@@ -29,7 +29,7 @@ import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
  *
  * <p>粉のある上面(列のいちばん上のブロックの上面)をシャベルで右クリックすると、そのブロックを含む 4×4 ブロックの升に
  * 「払った」印を付け({@link ModAttachments#SWEPT_DUST})、チャンクの降り積もりを升の分(既定 1/16)だけ減らし、「胞子」を落とす。
- * 降り積もりが払う直前の値まで戻れば印は消える({@link #refresh})。粉の見た目(画面に粉を描く・払った升を描かない)は 2026-10-30 に parked/ へ退避した。
+ * 降り積もりが払う直前の値まで戻れば印は消える({@link #refresh})。粉の見た目(画面に粉を描く・払った升を描かない)は {@code client/SporeDustRenderer}(2026-10-30 に退避、10-31 に固い層で戻した)。
  * 「払った升でしばらく発芽しない」効果は無い(値を減らすだけ)。音・耐久はバニラの土ならしと同じ。
  * 払える升では土ならし(草 → 土の道)より先に払う(粉が無い・もう払った升では今までどおり土ならし)。
  */
@@ -89,7 +89,7 @@ public final class SporeSweeping {
 
     /**
      * 粉の濃さ = 胞子計の「降り積もり %」(発芽のしきい値 = 100、0〜100 で頭打ち)。汚染済み・写しの無いチャンクは 0。
-     * 2026-10-30 に粉の見た目の送信(SporeDustSync)を parked/ へ退避したとき、ここへ移した。
+     * 2026-10-30 に粉の見た目の送信を退避したとき、ここへ移した(10-31 に戻した {@link SporeDustSync} もこれを使う)。
      */
     static int dustLevel(SporeFieldServer.Cell c) {
         if (c == null || c.stage() > 0) return 0;
@@ -116,7 +116,14 @@ public final class SporeSweeping {
                 || level.getHeight(Heightmap.Types.MOTION_BLOCKING, pos.getX(), pos.getZ()) - 1 != pos.getY()) {
             return; // オーバーワールドは列のいちばん上だけ
         }
-        if (level.isClientSide()) return; // 画面側の「粉が見えている升なら土ならしの予測をさせない」は粉の見た目と一緒に 2026-10-30 に parked/ へ
+        if (level.isClientSide()) {
+            // 画面側: 粉が見えている升なら土ならしの予測をさせずに腕を振るだけ(本当の処理はサーバー。2026-10-31 に粉の見た目と一緒に戻した)
+            if (com.yayuy.overgrownvegetation.client.ClientSporeDust.hasDustAt(pos)) {
+                event.setCanceled(true);
+                event.setCancellationResult(InteractionResult.SUCCESS);
+            }
+            return;
+        }
         if (!(level instanceof ServerLevel server) || !SporeFieldServer.enabled()) return;
         if (sweep(server, pos, event.getEntity(), stack, event.getHand() == net.minecraft.world.InteractionHand.MAIN_HAND
                 ? net.minecraft.world.entity.EquipmentSlot.MAINHAND : net.minecraft.world.entity.EquipmentSlot.OFFHAND)) {
@@ -126,7 +133,7 @@ public final class SporeSweeping {
     }
 
     /**
-     * その上面に粉を載せるか(画面の {@code ClientSporeDust} と同じ決まり): 台帳の過繁茂のチャンク・過繁茂か極相のバイオーム・
+     * その上面に粉を載せるか(画面の {@code client/ClientSporeDust} と同じ決まり): 台帳の過繁茂のチャンク・過繁茂か極相のバイオーム・
      * 汚染済み(#corrupted)か覆われた上面には載せない(2026-10-24)。
      */
     public static boolean dustSurface(Level level, LevelChunk chunk, BlockPos pos) {

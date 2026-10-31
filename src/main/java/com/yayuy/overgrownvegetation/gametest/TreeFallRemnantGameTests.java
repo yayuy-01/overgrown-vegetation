@@ -98,6 +98,80 @@ public final class TreeFallRemnantGameTests {
         });
     }
 
+    /**
+     * 元の木を消しても、枝が斜めに触れている隣の mod の木は消えない(2026-10-31、ユーザー報告「既存の木を消す仕組みが
+     * 汚染地域に生えた mod の木も消している」)。元の木の汚染された葉({@code overgrown_leaves})は元の木と一緒に消え、
+     * mod の木の葉(同じ {@code overgrown_leaves})は残る。倒木になってもよい(切り株は床の上の段、倒れた幹も同じ段)。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 200)
+    public static void removedTreeSparesTouchingModTree(GameTestHelper helper) {
+        OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
+        if (!cfg.swampTreeFall.get() || !cfg.jungleTreeFall.get()) {
+            helper.succeed(); // 設定で切ってある(木を消さない)
+            return;
+        }
+        ServerLevel level = helper.getLevel();
+        // 元の木: 原木 3 段 (1, 2..4, 3) + バニラの葉 5 枚 + 汚染された葉 2 枚。
+        List<BlockPos> vanillaLogs = List.of(new BlockPos(1, 2, 3), new BlockPos(1, 3, 3), new BlockPos(1, 4, 3));
+        for (BlockPos p : vanillaLogs) {
+            place(helper, p, Blocks.OAK_LOG.defaultBlockState());
+        }
+        BlockState oakLeaf = Blocks.OAK_LEAVES.defaultBlockState().setValue(LeavesBlock.DISTANCE, 1);
+        List<BlockPos> vanillaLeaves = List.of(new BlockPos(1, 5, 3), new BlockPos(0, 5, 3), new BlockPos(1, 5, 2),
+                new BlockPos(1, 5, 4), new BlockPos(0, 5, 2));
+        for (BlockPos p : vanillaLeaves) {
+            place(helper, p, oakLeaf);
+        }
+        BlockState modLeaf = ModBlocks.OVERGROWN_LEAVES.get().defaultBlockState();
+        List<BlockPos> corruptedLeaves = List.of(new BlockPos(1, 6, 3), new BlockPos(0, 6, 3));
+        for (BlockPos p : corruptedLeaves) {
+            place(helper, p, modLeaf);
+        }
+        // mod の木: 幹 (5, 2..5, 3)、枝 (4,5,3) → (3,5,3) → (2,5,4)。(2,5,4) は元の木のてっぺん (1,4,3) と斜めに触れる。
+        BlockState modLog = ModBlocks.OVERGROWN_LOG.get().defaultBlockState();
+        List<BlockPos> modLogs = List.of(new BlockPos(5, 2, 3), new BlockPos(5, 3, 3), new BlockPos(5, 4, 3),
+                new BlockPos(5, 5, 3), new BlockPos(4, 5, 3), new BlockPos(3, 5, 3), new BlockPos(2, 5, 4));
+        for (BlockPos p : modLogs) {
+            place(helper, p, modLog);
+        }
+        List<BlockPos> modLeaves = new java.util.ArrayList<>();
+        for (int x = 2; x <= 6; x++) {
+            for (int z = 2; z <= 4; z++) {
+                modLeaves.add(new BlockPos(x, 6, z));
+            }
+        }
+        modLeaves.addAll(List.of(new BlockPos(5, 5, 2), new BlockPos(5, 5, 4), new BlockPos(6, 5, 3),
+                new BlockPos(4, 5, 2), new BlockPos(4, 5, 4), new BlockPos(3, 5, 2), new BlockPos(3, 5, 4)));
+        for (BlockPos p : modLeaves) {
+            place(helper, p, modLeaf);
+        }
+
+        SwampTreeFall.enqueue(level, helper.absolutePos(vanillaLogs.get(0)));
+
+        helper.succeedWhen(() -> {
+            helper.assertBlockNotPresent(Blocks.OAK_LOG, vanillaLogs.get(2)); // 元の木が消えるまで待つ
+            helper.assertBlockNotPresent(Blocks.OAK_LOG, vanillaLogs.get(1));
+            for (BlockPos p : vanillaLeaves) {
+                helper.assertBlockNotPresent(Blocks.OAK_LEAVES, p);
+            }
+            for (BlockPos p : corruptedLeaves) {
+                helper.assertBlockNotPresent(ModBlocks.OVERGROWN_LEAVES.get(), p);
+            }
+            for (BlockPos p : modLogs) {
+                helper.assertBlockPresent(ModBlocks.OVERGROWN_LOG.get(), p);
+            }
+            int kept = 0;
+            for (BlockPos p : modLeaves) {
+                if (level.getBlockState(helper.absolutePos(p)).is(ModBlocks.OVERGROWN_LEAVES.get())) {
+                    kept++;
+                }
+            }
+            if (kept * 10 < modLeaves.size() * 8) {
+                helper.fail("mod の木の葉が残っていない: " + kept + " / " + modLeaves.size());
+            }
+        });
+    }
+
     private static void place(GameTestHelper helper, BlockPos rel, BlockState state) {
         helper.getLevel().setBlock(helper.absolutePos(rel), state, Block.UPDATE_CLIENTS);
     }

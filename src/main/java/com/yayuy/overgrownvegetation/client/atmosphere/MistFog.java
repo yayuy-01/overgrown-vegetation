@@ -100,6 +100,11 @@ public final class MistFog {
         return MistMarch.willDraw() ? 1.0F - DesignData.atmosphere().fogMarch().shaftYield() * mistLevel * cameraProx : 1.0F;
     }
 
+    /** 雨上がりの度合い(0〜1。雨が止んでから fog.mistAfterRainMinutes 分かけて 0 へ。雨の間は 0)。雨上がりの水滴 {@link RainDrops} が使う。 */
+    static float afterRain() {
+        return wetShown;
+    }
+
     /** 霧を出しているか(濃さ > 0 で地図がある)。 */
     static boolean active() {
         return density > 0.0F && MistMap.ready();

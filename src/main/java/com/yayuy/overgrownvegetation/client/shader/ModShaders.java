@@ -45,6 +45,20 @@ public final class ModShaders {
         return mistComposite;
     }
 
+    /** 霧の向こうの巨大樹のシルエット({@code client/atmosphere/GiantSilhouettes}、2026-10-31)。読み込めなかったら null(描かない)。 */
+    private static ShaderInstance giantSilhouette;
+
+    public static ShaderInstance giantSilhouette() {
+        return giantSilhouette;
+    }
+
+    /** 夕方の光の粒({@code client/atmosphere/DuskMotes}、2026-10-31)。読み込めなかったら null(描かない)。 */
+    private static ShaderInstance duskMotes;
+
+    public static ShaderInstance duskMotes() {
+        return duskMotes;
+    }
+
     @SubscribeEvent
     public static void onRegisterShaders(RegisterShadersEvent event) {
         try {
@@ -78,6 +92,24 @@ public final class ModShaders {
         } catch (IOException e) {
             OvergrownVegetation.LOGGER.error("環境の胞子のシェーダーを読み込めなかったので、環境の胞子は描かない", e);
             ambientSpores = null;
+        }
+        try {
+            event.registerShader(new OwnShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "giant_silhouette"),
+                            DefaultVertexFormat.POSITION_COLOR),
+                    shader -> giantSilhouette = shader);
+        } catch (IOException e) {
+            OvergrownVegetation.LOGGER.error("巨大樹のシルエットのシェーダーを読み込めなかったので、シルエットは描かない", e);
+            giantSilhouette = null;
+        }
+        try {
+            event.registerShader(new OwnShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "dusk_motes"),
+                            DefaultVertexFormat.POSITION),
+                    shader -> duskMotes = shader);
+        } catch (IOException e) {
+            OvergrownVegetation.LOGGER.error("夕方の光の粒のシェーダーを読み込めなかったので、光の粒は描かない", e);
+            duskMotes = null;
         }
     }
 
