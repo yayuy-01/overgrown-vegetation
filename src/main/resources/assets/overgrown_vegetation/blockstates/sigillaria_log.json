@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "axis=x": { "model": "overgrown_vegetation:block/sigillaria_log", "x": 90, "y": 90 },
+    "axis=y": { "model": "overgrown_vegetation:block/sigillaria_log" },
+    "axis=z": { "model": "overgrown_vegetation:block/sigillaria_log", "x": 90 }
+  }
+}

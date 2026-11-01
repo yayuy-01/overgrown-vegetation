@@ -1,0 +1,30 @@
+{
+  "type": "overgrown_vegetation:sigillaria_tree",
+  "config": {
+    "trunk_state": { "Name": "overgrown_vegetation:sigillaria_log", "Properties": { "axis": "y" } },
+    "leaves_state": { "Name": "overgrown_vegetation:sigillaria_leaves" },
+    "fringe_state": { "Name": "overgrown_vegetation:sigillaria_leaves_fringe" },
+    "cone_state": { "Name": "overgrown_vegetation:sigillaria_cone", "Properties": { "facing": "north" } },
+    "pillar_chance": 0.3,
+    "arm_min_height": 16,
+    "arm_max_height": 24,
+    "fork_min": 0.35,
+    "fork_max": 0.45,
+    "arm_min_count": 3,
+    "arm_max_count": 4,
+    "arm_min_rise": 2.0,
+    "arm_max_rise": 3.0,
+    "arm_min_length": 0.40,
+    "arm_max_length": 0.55,
+    "arm_cone_chance": 0.6,
+    "arm_cones_min": 2,
+    "arm_cones_max": 4,
+    "pillar_min_height": 16,
+    "pillar_max_height": 22,
+    "pillar_crown_min": 6,
+    "pillar_crown_max": 8,
+    "pillar_cones_min": 3,
+    "pillar_cones_max": 5,
+    "buttress_height": 2
+  }
+}

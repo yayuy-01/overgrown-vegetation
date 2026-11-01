@@ -324,6 +324,18 @@ public final class ModBlocks {
                     .mapColor(MapColor.COLOR_GREEN));
 
     /**
+     * 枝の継ぎ目(2026-11-01、{@link com.yayuy.overgrownvegetation.block.BranchJointBlock})。柵のように隣の原木へ腕を出し、
+     * 階段状の枝の隙間埋めと枝先の先細りに使う。{@code #logs} に入れて木の一部として辿られる(mod の木なので {@code SwampTreeFall} では名指しで外す)。
+     */
+    public static final DeferredBlock<Block> OVERGROWN_BRANCH = BLOCKS.registerBlock(
+            "overgrown_branch",
+            com.yayuy.overgrownvegetation.block.BranchJointBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .noOcclusion()
+                    .isValidSpawn((state, getter, pos, type) -> false));
+
+    /**
      * {@link #OVERGROWN_LOG} の側面(樹皮)テクスチャを6面すべてに使った「過繁茂した木」ブロック
      * (バニラの {@code oak_wood} 相当)。木口の年輪が見えない、樹皮だけの幹。
      * {@link com.yayuy.overgrownvegetation.worldgen.ForcedTreeFeature} の根はこのブロックで構成される。
@@ -428,6 +440,61 @@ public final class ModBlocks {
             BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
                     .mapColor(MapColor.COLOR_GREEN)
                     .isValidSpawn((state, getter, pos, type) -> false));
+
+    /**
+     * 封印木(シギラリア)の原木(2026-11-01)。石炭紀の小葉類の木で、太い幹が 3〜4 本の腕に分かれる(1881 年の復元図の右 = ユーザー指定)。
+     * 生やすのは {@link com.yayuy.overgrownvegetation.worldgen.SigillariaTreeFeature}。スカート・洞の変種は持たない。
+     * {@code #logs} に入れるので、木 1 本を辿る所({@code SwampTreeFall} など)では mod の原木として名指しで外す。
+     */
+    public static final DeferredBlock<Block> SIGILLARIA_LOG = BLOCKS.registerBlock(
+            "sigillaria_log",
+            RotatedPillarBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
+                    .mapColor(MapColor.TERRACOTTA_GREEN));
+
+    /**
+     * 封印木の枝(枝の継ぎ目 {@link com.yayuy.overgrownvegetation.block.BranchJointBlock}。2026-11-01 ユーザー決定「今の木と封印木の両方に使う」)。
+     * 腕の階段の隙間埋めと腕先の先細りに使う。絵は封印木の幹の側面を全部の面に。
+     */
+    public static final DeferredBlock<Block> SIGILLARIA_BRANCH = BLOCKS.registerBlock(
+            "sigillaria_branch",
+            com.yayuy.overgrownvegetation.block.BranchJointBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
+                    .mapColor(MapColor.TERRACOTTA_GREEN)
+                    .noOcclusion()
+                    .isValidSpawn((state, getter, pos, type) -> false));
+
+    /** 封印木の葉の芯(密な束)。中身は今の葉と同じ {@link com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock}。 */
+    public static final DeferredBlock<Block> SIGILLARIA_LEAVES = BLOCKS.registerBlock(
+            "sigillaria_leaves",
+            com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .isValidSpawn((state, getter, pos, type) -> false));
+
+    /** 封印木の葉の外側 1 層(細い葉が扇に開く・透けが多い。仮決め 2026-11-01)。 */
+    public static final DeferredBlock<Block> SIGILLARIA_LEAVES_FRINGE = BLOCKS.registerBlock(
+            "sigillaria_leaves_fringe",
+            com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .isValidSpawn((state, getter, pos, type) -> false));
+
+    /**
+     * 封印木の球果(垂れる胞子嚢。案 7)。原木の側面に付き、ときどき胞子を吐く({@link com.yayuy.overgrownvegetation.block.SigillariaConeBlock})。
+     * 当たり判定なし・すぐ壊せる。
+     */
+    public static final DeferredBlock<Block> SIGILLARIA_CONE = BLOCKS.registerBlock(
+            "sigillaria_cone",
+            com.yayuy.overgrownvegetation.block.SigillariaConeBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.TERRACOTTA_GREEN)
+                    .noCollission()
+                    .strength(0.2F)
+                    .noOcclusion()
+                    .randomTicks()
+                    .sound(SoundType.SWEET_BERRY_BUSH)
+                    .pushReaction(PushReaction.DESTROY));
 
     /**
      * 汚染された木が育つ、汚染された草・土の上にだけ植えられる苗木。
@@ -1026,10 +1093,16 @@ public final class ModBlocks {
                 OVERGROWN_END_STONE,
                 OVERGROWN_LOG,
                 OVERGROWN_WOOD,
+                OVERGROWN_BRANCH,
                 GIANT_OVERGROWN_LOG,
                 GIANT_OVERGROWN_CAMBIUM,
                 HARDENED_GIANT_TRUNK,
                 OVERGROWN_LEAVES,
+                SIGILLARIA_LOG,
+                SIGILLARIA_BRANCH,
+                SIGILLARIA_LEAVES,
+                SIGILLARIA_LEAVES_FRINGE,
+                SIGILLARIA_CONE,
                 OVERGROWN_BUSH,
                 OVERGROWN_SAPLING,
                 OVERGROWN_PLANKS,

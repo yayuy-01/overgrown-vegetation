@@ -2,6 +2,7 @@ package com.yayuy.overgrownvegetation.worldgen;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.yayuy.overgrownvegetation.block.BranchJointBlock;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -155,6 +156,7 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
         int maxLen = Math.max(minLen, Math.max(config.branchMinLength(), config.branchMaxLength()));
         // 枝の分岐点は幹の最上部から branchZoneHeight ぶん下までの範囲に散らす。
         int zone = Math.max(1, Math.min(config.branchZoneHeight(), trunkHeight));
+        List<BlockPos> joints = new ArrayList<>();
 
         for (int i = 0; i < branchCount; i++) {
             int startOffsetFromTop = random.nextInt(zone);
@@ -171,17 +173,46 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
             int y = startY;
             int z = origin.getZ() + cornerZ;
 
+            // 枝の列(先頭は幹のマス)を集めてから、枝の継ぎ目の計画(BranchJoints。2026-11-01)に従って置く。
+            List<BlockPos> path = new ArrayList<>(length + 1);
+            path.add(new BlockPos(x, y, z));
             for (int step = 0; step < length; step++) {
                 x += dir[0];
                 y += 1;
                 z += dir[1];
-                BlockPos branchPos = new BlockPos(x, y, z);
-                setForced(level, branchPos, config.trunkState());
-                logPositions.add(branchPos.asLong());
+                path.add(new BlockPos(x, y, z));
+            }
+            BlockState joint = jointStateFor(config.trunkState());
+            var cfg = OvergrownVegetationConfig.COMMON;
+            BranchJoints.Plan plan = BranchJoints.plan(path, joint != null && cfg.branchJointTaper.get(),
+                    joint != null && cfg.branchJointFill.get(),
+                    p -> isFreeForJoint(level.getBlockState(p), config),
+                    p -> BranchJointBlock.connectsTo(level.getBlockState(p)));
+            joints.addAll(BranchJoints.place(level, plan, config.trunkState(), joint, (p, s) -> setForced(level, p, s)));
+            for (BlockPos p : plan.logs()) {
+                logPositions.add(p.asLong());
             }
 
             placeCanopy(level, random, new BlockPos(x, y + 1, z), 1, config, leafPositions);
         }
+        // 腕は全部の枝と葉を置き終えてから組む(後の枝の原木が隣に来ることがある)。
+        BranchJoints.reconnect(level, joints);
+        // 後の枝が前の枝の原木を継ぎ目に置き換えることがある。蔦の端(原木の集合)に継ぎ目を残さない。
+        for (BlockPos p : joints) {
+            if (!level.getBlockState(p).is(config.trunkState().getBlock())) {
+                logPositions.remove(p.asLong());
+            }
+        }
+    }
+
+    /** 幹が {@code overgrown_log} なら枝の継ぎ目 {@code overgrown_branch}、それ以外の幹には継ぎ目を使わない(null)。 */
+    private static BlockState jointStateFor(BlockState trunkState) {
+        return trunkState.is(ModBlocks.OVERGROWN_LOG.get()) ? ModBlocks.OVERGROWN_BRANCH.get().defaultBlockState() : null;
+    }
+
+    /** 隙間埋めの継ぎ目を置いてよいマス(空気・置き換えられる物・葉)。 */
+    private static boolean isFreeForJoint(BlockState state, Config config) {
+        return state.isAir() || state.canBeReplaced() || state.is(config.leavesState().getBlock());
     }
 
     /** 根の1歩ごとに、直前の高さからこの範囲内で地表を探す(急な崖・穴での暴走を防ぐ)。 */
@@ -274,7 +305,7 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
             BlockState state = level.getBlockState(cursor);
             // 葉(このMODの葉・バニラの葉)は根の支えにしない: 隣の木の天蓋の上を根が這うのを防ぐ。
             if (!state.isAir() && !state.canBeReplaced() && !state.is(BlockTags.LEAVES)
-                    && !state.is(ModBlocks.OVERGROWN_LEAVES.get())) {
+                    && !(state.getBlock() instanceof com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock)) {
                 return y;
             }
         }
@@ -324,8 +355,10 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
 
                     BlockPos leafPos = new BlockPos(canopyTop.getX() + dx, y, canopyTop.getZ() + dz);
                     BlockState here = level.getBlockState(leafPos);
-                    if (here.is(config.trunkState().getBlock())) {
-                        // 幹・枝そのものの位置には上書きしない。
+                    if (here.is(config.trunkState().getBlock()) || here.is(ModBlocks.SIGILLARIA_LOG.get())
+                            || here.is(ModBlocks.SIGILLARIA_CONE.get())
+                            || here.getBlock() instanceof BranchJointBlock) {
+                        // 幹・枝そのものの位置と、隣の封印木の原木・球果、枝の継ぎ目には上書きしない。
                         continue;
                     }
                     if (shyGap > 0) {
@@ -368,7 +401,8 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
     }
 
     private static boolean isOtherTreesLeaf(BlockState state, BlockPos pos, LongOpenHashSet ownLeaves) {
-        return (state.is(ModBlocks.OVERGROWN_LEAVES.get()) || state.is(BlockTags.LEAVES))
+        // mod の葉は封印木の葉も(どれも OvergrownLeavesBlock)。
+        return (state.getBlock() instanceof com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock || state.is(BlockTags.LEAVES))
                 && !ownLeaves.contains(pos.asLong());
     }
 

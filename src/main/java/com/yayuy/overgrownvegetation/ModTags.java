@@ -129,6 +129,9 @@ public final class ModTags {
     /** 既に汚染済みのブロック。二重に汚染されないようにするためのタグ。 */
     public static final TagKey<Block> CORRUPTED = BlockTags.create(OvergrownVegetation.id("corrupted"));
 
+    /** 枝の継ぎ目({@code BranchJointBlock})が腕を出す相手(原木・継ぎ目・原木から化けた幹。2026-11-01)。葉は入れない。 */
+    public static final TagKey<Block> BRANCH_CONNECTABLE = BlockTags.create(OvergrownVegetation.id("branch_connectable"));
+
     /** 汚染を受け付けないブロック(岩盤・ポータルなど)。データパックで追加可能。 */
 
     /**

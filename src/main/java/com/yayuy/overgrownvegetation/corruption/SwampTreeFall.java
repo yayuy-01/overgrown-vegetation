@@ -223,7 +223,8 @@ public final class SwampTreeFall {
         while (budget > 0 && !fall.done()) {
             cursor.set(fall.blocks[fall.next++]);
             budget = TickBudget.spend(budget);
-            if (level.isLoaded(cursor)) {
+            // 集めた後に生えた封印木は消さない(2026-11-01。数 tick に分けて消す間に苗木が育つことがある)
+            if (level.isLoaded(cursor) && !isSigillariaPart(level.getBlockState(cursor))) {
                 level.setBlock(cursor, air, REMOVE_FLAGS);
                 StrandedPlants.clearAround(level, cursor);
             }
@@ -659,7 +660,17 @@ public final class SwampTreeFall {
     private static boolean isModTreeLog(BlockState state) {
         return state.is(ModBlocks.OVERGROWN_LOG.get()) || state.is(ModBlocks.OVERGROWN_WOOD.get())
                 || state.is(ModBlocks.GIANT_OVERGROWN_LOG.get()) || state.is(ModBlocks.GIANT_OVERGROWN_CAMBIUM.get())
-                || state.is(ModBlocks.HARDENED_GIANT_TRUNK.get());
+                || state.is(ModBlocks.HARDENED_GIANT_TRUNK.get())
+                // 封印木(2026-11-01)。#logs に入っているので名指しで外す。葉(sigillaria_leaves・_fringe)は isTreeLeaves に入れない = 元の木の葉として集めない
+                || state.is(ModBlocks.SIGILLARIA_LOG.get())
+                // 枝の継ぎ目(2026-11-01)。#logs に入っているので名指しで外す(数えないと枝先から mod の木が元の木として片付く)
+                || state.getBlock() instanceof com.yayuy.overgrownvegetation.block.BranchJointBlock;
+    }
+
+    /** 封印木の原木・枝・葉・球果(元の木の一部には決してならない)。 */
+    private static boolean isSigillariaPart(BlockState state) {
+        return state.is(ModBlocks.SIGILLARIA_LOG.get()) || state.is(ModBlocks.SIGILLARIA_BRANCH.get()) || state.is(ModBlocks.SIGILLARIA_LEAVES.get()) || state.is(ModBlocks.SIGILLARIA_LEAVES_FRINGE.get())
+                || state.is(ModBlocks.SIGILLARIA_CONE.get());
     }
 
     private static boolean isTreeLeaves(BlockState state) {

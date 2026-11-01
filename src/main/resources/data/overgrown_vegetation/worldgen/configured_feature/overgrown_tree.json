@@ -8,6 +8,10 @@
         "feature": "overgrown_vegetation:overgrown_tree_giant"
       },
       {
+        "chance": 0.25,
+        "feature": "overgrown_vegetation:sigillaria_tree"
+      },
+      {
         "chance": 0.13,
         "feature": "overgrown_vegetation:overgrown_tree_short"
       },

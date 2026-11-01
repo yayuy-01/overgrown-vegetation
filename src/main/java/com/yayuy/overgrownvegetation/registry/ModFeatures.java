@@ -37,6 +37,11 @@ public final class ModFeatures {
     public static final DeferredHolder<Feature<?>, ForcedTreeFeature> FORCED_TREE =
             FEATURES.register("forced_tree", () -> new ForcedTreeFeature(ForcedTreeFeature.Config.CODEC));
 
+    /** 封印木(シギラリア。腕の型と柱の型。2026-11-01)。{@code overgrown_tree} の random_selector から 25% で選ばれる(仮決め)。 */
+    public static final DeferredHolder<Feature<?>, com.yayuy.overgrownvegetation.worldgen.SigillariaTreeFeature> SIGILLARIA_TREE =
+            FEATURES.register("sigillaria_tree", () -> new com.yayuy.overgrownvegetation.worldgen.SigillariaTreeFeature(
+                    com.yayuy.overgrownvegetation.worldgen.SigillariaTreeFeature.Config.CODEC));
+
     /**
      * ごく低確率(0.0003%)でのみ生える巨大樹。円錐状の根元 + 直径7マスの円柱の幹 +
      * 5本の太い根 + 20本以上の枝 + 通常の約2倍の大きさの葉、全高80ブロック。

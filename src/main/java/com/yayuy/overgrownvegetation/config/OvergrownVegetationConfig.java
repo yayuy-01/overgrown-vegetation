@@ -209,6 +209,8 @@ public final class OvergrownVegetationConfig {
         /** 樹冠の譲り合い(クラウン・シャイネス)の隙間(ブロック。0 で無し。{@link com.yayuy.overgrownvegetation.worldgen.ForcedTreeFeature}、2026-10-17)。 */
         public final ModConfigSpec.IntValue crownShynessGap;
         public final ModConfigSpec.IntValue crownShynessHeight;
+        public final ModConfigSpec.BooleanValue branchJointTaper;
+        public final ModConfigSpec.BooleanValue branchJointFill;
         /** 汚染した上面に「未発達の茂み」({@code undeveloped_bush})を生やすことがあるか。 */
         public final ModConfigSpec.BooleanValue spawnUndevelopedBush;
         /** 上面に「未発達の茂み」を生やす確率(0.0〜1.0)。growthChance にさらに掛かる。 */
@@ -1254,6 +1256,15 @@ public final class OvergrownVegetationConfig {
                     .comment("樹冠の譲り合いで見る上下の幅(ブロック)。この高さの差より離れたほかの木の葉は見ない(高さの違う樹冠は重なってよい)。",
                             "小さい(4 など)と下から見上げたとき隙間がほかの高さの樹冠で埋まって見えない。大きいと縦に抜けた空の切れ目が見える。既定 32。")
                     .defineInRange("crownShynessHeight", 32, 1, 64);
+            // 2026-11-01 ユーザー決定「枝の継ぎ目を作る」(階段状の枝の隙間埋めと枝先の先細り)。既定 true は仮決め。
+            branchJointTaper = b
+                    .comment("汚染で育つ木の枝先の 1〜2 マスを、原木の代わりに枝の継ぎ目(overgrown_branch)にして先細りにする",
+                            "(3 マス以上の枝は最後から 2 番目が太い・最後が細い、2 マスの枝は最後だけ細い)。既に生えた木は変わらない。既定 true。")
+                    .define("branchJointTaper", true);
+            branchJointFill = b
+                    .comment("汚染で育つ木の斜めに進む枝の、辺か角でしか接していない原木の間を枝の継ぎ目(太い)で埋めて面で繋ぐ。",
+                            "空いたマスにだけ置き、低い方・根元に近い方を優先する。既に生えた木は変わらない。既定 true。")
+                    .define("branchJointFill", true);
 
             spawnUndevelopedBush = b
                     .comment("汚染した露出上面に「未発達の茂み」(undeveloped_bush)を生やすことがあるか。",

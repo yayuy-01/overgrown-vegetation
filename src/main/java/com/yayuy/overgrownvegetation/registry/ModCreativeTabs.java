@@ -80,7 +80,13 @@ public final class ModCreativeTabs {
     private static final List<DeferredBlock<Block>> CORRUPTED_WOOD = List.of(
             ModBlocks.OVERGROWN_LOG,
             ModBlocks.OVERGROWN_WOOD,
+            ModBlocks.OVERGROWN_BRANCH,
             ModBlocks.OVERGROWN_LEAVES,
+            ModBlocks.SIGILLARIA_LOG,
+            ModBlocks.SIGILLARIA_BRANCH,
+            ModBlocks.SIGILLARIA_LEAVES,
+            ModBlocks.SIGILLARIA_LEAVES_FRINGE,
+            ModBlocks.SIGILLARIA_CONE,
             ModBlocks.OVERGROWN_PLANKS,
             ModBlocks.OVERGROWN_STAIRS,
             ModBlocks.OVERGROWN_SLAB,

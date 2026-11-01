@@ -1021,7 +1021,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                 || state.is(ModBlocks.OVERGROWN_LOG.get())
                 || state.is(ModBlocks.GIANT_OVERGROWN_LOG.get())
                 || state.is(ModBlocks.GIANT_OVERGROWN_CAMBIUM.get())
-                || state.is(ModBlocks.OVERGROWN_LEAVES.get())
+                || state.getBlock() instanceof com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock // 封印木の葉も
                 || state.is(BlockTags.LOGS)
                 || state.is(BlockTags.LEAVES);
     }
