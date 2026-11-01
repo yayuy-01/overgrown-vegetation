@@ -215,6 +215,22 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.BooleanValue spawnUndevelopedBush;
         /** 上面に「未発達の茂み」を生やす確率(0.0〜1.0)。growthChance にさらに掛かる。 */
         public final ModConfigSpec.DoubleValue undevelopedBushChance;
+        /** 林床(2026-11-01、密林だけ): 下草の抽選の当たりのうち、小葉類の敷物を敷く割合。 */
+        public final ModConfigSpec.DoubleValue floorCarpetChance;
+        /** 林床: 敷物の上に小葉類の株(敷物付き)を立てる確率。 */
+        public final ModConfigSpec.DoubleValue floorCarpetPlantChance;
+        /** 林床: 敷物にならなかった下草の抽選で、小葉類の株(敷物なし)を立てる確率。 */
+        public final ModConfigSpec.DoubleValue floorLycopsidChance;
+        /** 林床: 小葉類の株のうち、2 段の立ち上がる小葉類にする割合。 */
+        public final ModConfigSpec.DoubleValue floorUprightShare;
+        /** 林床: 下草の抽選でメドゥロサ(高さ 2〜3)を立てる確率。 */
+        public final ModConfigSpec.DoubleValue floorMedullosaChance;
+        /** 林床: 1 チャンクの泥炭の斑の最大数(1〜この数。低地・水辺だけで実る)。 */
+        public final ModConfigSpec.IntValue floorPeatPatches;
+        /** 林床: 泥炭の斑の内側のマスを浅い水たまりにする確率。 */
+        public final ModConfigSpec.DoubleValue floorPeatPoolChance;
+        /** 林床: 倒木の枠(1 チャンクに 2 つ)それぞれに倒木を置く確率。 */
+        public final ModConfigSpec.DoubleValue floorFallenLogChance;
         /** 過繫茂した木の葉ブロック1個ごとに、真下へ「大きな未発達な果実」をぶら下げる確率。 */
         public final ModConfigSpec.DoubleValue undevelopedFruitChance;
         /** 巨大樹の葉ブロック1個ごとに、真下へ「大きな未発達な果実」をぶら下げる確率。 */
@@ -258,33 +274,10 @@ public final class OvergrownVegetationConfig {
          * 通常の下草・蔦の抽選とは独立(苔が付いても外れた面には別途通常の下草が抽選される)。
          */
         public final ModConfigSpec.DoubleValue mossLayerChance;
-        /** 水中を汚染したとき、露出した水の面へ汚染された海草・昆布・スイレンなどの水中植物を生やすか。 */
+        /** 水中を汚染したとき、露出した水の面へ水中の植物(シャジクモ・垂れる根・水面の膜・胞子昆布・浮き藻)を生やすか。 */
         public final ModConfigSpec.BooleanValue spawnUnderwaterPlants;
-        /** 水に接した露出<b>上面</b> 1 つあたりに水中植物(海草・背高海草・藻柱)を生やす確率(0.0〜1.0)。 */
+        /** 水に接した露出<b>上面</b> 1 つあたりにシャジクモ(川・池)を生やす確率(0.0〜1.0)。海の胞子昆布は格子の点だけ(UnderwaterPlants)。 */
         public final ModConfigSpec.DoubleValue underwaterGrowthChance;
-        /** 水に接した露出<b>下面</b>(天井)1 つあたりに水中垂れ蔓を生やす確率(0.0〜1.0)。上面とは別抽選。 */
-        public final ModConfigSpec.DoubleValue waterCeilingGrowthChance;
-        /** 汚染時に水中の露出<b>側面・上面</b>へ、薄く覆う藻({@code overgrown_water_moss_layer})を生やすか。薄い苔の水中版。 */
-        public final ModConfigSpec.BooleanValue spawnWaterMossLayer;
-        /**
-         * 汚染された水中の露出面(側面・上面)1 面につき、藻({@code overgrown_water_moss_layer})を 1 面ぶん
-         * 生やす確率(0.0〜1.0、既定 0.7)。多面ブロックなので、既に別方向の藻が付いているマスにも面を追加する。
-         * 上面・下面の水中植物の抽選({@link #underwaterGrowthChance})とは独立(藻が生えた面には海草類は生えない)。
-         */
-        public final ModConfigSpec.DoubleValue waterMossLayerChance;
-        /** 上面(水側)に水中植物を生やすと決まった際、高さ2マスの背高海草にする確率(0.0〜1.0)。 */
-        public final ModConfigSpec.DoubleValue underwaterTallChance;
-        /** 上面(水側)に水中植物を生やすと決まった際、昆布状に縦へ伸びる藻柱にする確率(0.0〜1.0)。 */
-        public final ModConfigSpec.DoubleValue waterColumnChance;
-        /** 藻柱を 1 段積むごとに、その段を「藻柱の花」にして成長を止める確率(0.0〜1.0)。 */
-        public final ModConfigSpec.DoubleValue waterColumnFlowerChance;
-        /** 藻柱の最小/最大の高さ(マス)。 */
-        public final ModConfigSpec.IntValue waterColumnMinHeight;
-        public final ModConfigSpec.IntValue waterColumnMaxHeight;
-        /** 上面(水側)を汚染した際、その真上の水面へスイレンを浮かべる確率(0.0〜1.0)。 */
-        public final ModConfigSpec.DoubleValue lilyChance;
-        /** 汚染した地面から水面までの水深がこのマス数以下のときだけスイレンを浮かべる。 */
-        public final ModConfigSpec.IntValue lilyMaxDepth;
         /** チャンクの地表が汚染ブロックだらけになったら、そのチャンクのバイオームを overgrown に書き換えるか。 */
         public final ModConfigSpec.BooleanValue convertToOvergrownBiome;
         /** バイオームを書き換える閾値。チャンク地表(16x16=256列)のうち汚染ブロックが占める割合がこれ以上で書き換える。 */
@@ -389,30 +382,14 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.BooleanValue caveGrowth;
         /** 地表(葉を除く)よりこの深さ以上低い場所を「洞窟」とみなす。 */
         public final ModConfigSpec.IntValue caveDepthMargin;
-        /** 湿地系の洞窟で、汚染ブロックの露出面 1 つあたりに洞窟植物が生える確率(通常の growthChance の代わり)。 */
-        public final ModConfigSpec.DoubleValue caveGrowthChance;
-        /** 洞窟植物のうち微光の胞子嚢になる割合(残りは苔の塊)。 */
-        public final ModConfigSpec.DoubleValue caveSporeSacShare;
-        /** 苔の塊 1 回の生成で面に沿って置く塊の数の下限・上限。 */
-        public final ModConfigSpec.IntValue caveMossClumpMinPatch;
-        public final ModConfigSpec.IntValue caveMossClumpMaxPatch;
         /** 洞窟の汚染ブロック 1 つあたりに構造物を 1 つ建てようとする確率。 */
         public final ModConfigSpec.DoubleValue caveStructureChance;
-        /** 構造物の種類の重み(壁のキノコの傘 / 天井の根のアーチ / 菌の柱)。露出面で候補に入らない種類は無視。 */
-        public final ModConfigSpec.IntValue caveCapWeight;
+        /** 構造物(天井の根 / 蔦のアーチ)の重み。0 で建てない。 */
         public final ModConfigSpec.IntValue caveArchWeight;
-        public final ModConfigSpec.IntValue cavePillarWeight;
-        /** 密林(ジャングル)の洞窟にも天井のアーチ(根 / 蔦)を建てるか(植物・傘・柱は湿地系のみ)。 */
+        /** 密林(ジャングル)の洞窟にも天井のアーチ(根 / 蔦)を建てるか(湿地系の洞窟ではいつも建つ)。 */
         public final ModConfigSpec.BooleanValue caveRootArchInJungle;
-        /** 建てた構造物の各ブロックの各面に何かを添える確率(傘・柱 = 薄い苔・ヒカリゴケ、根のアーチ = 洞窟植物 / 垂れ植物)。 */
+        /** 建てた構造物(根 / 蔦のアーチ)の各ブロックの下面に垂れ植物を添える確率。 */
         public final ModConfigSpec.DoubleValue caveStructurePlantChance;
-        /** 傘・柱の表面に添える多面ブロックのうちヒカリゴケの割合(残りは薄い苔)。 */
-        public final ModConfigSpec.DoubleValue caveStructureGlowLichenShare;
-        /** 壁のキノコの傘: 半径の下限・上限、中心の厚み(段)、縁の垂れ下がり(マス)。 */
-        public final ModConfigSpec.IntValue caveCapMinRadius;
-        public final ModConfigSpec.IntValue caveCapMaxRadius;
-        public final ModConfigSpec.IntValue caveCapThickness;
-        public final ModConfigSpec.DoubleValue caveCapDroop;
         /** 天井の根のアーチ: 水平の長さの下限・上限、垂れ下がり(長さに対する割合)、両端・中央の太さ(塊の半径)。 */
         public final ModConfigSpec.IntValue caveArchMinSpan;
         public final ModConfigSpec.IntValue caveArchMaxSpan;
@@ -424,13 +401,6 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.DoubleValue caveVineArchDip;
         public final ModConfigSpec.IntValue caveVineArchLeafRadius;
         public final ModConfigSpec.DoubleValue caveVineArchLeafChance;
-        /** 菌の柱: 立てるのに必要な最低の天井の高さ、根元・先端の半径、裾の段数・追加半径、発光菌糸の割合。 */
-        public final ModConfigSpec.IntValue cavePillarMinHeight;
-        public final ModConfigSpec.DoubleValue cavePillarBaseRadius;
-        public final ModConfigSpec.DoubleValue cavePillarTopRadius;
-        public final ModConfigSpec.IntValue cavePillarFlareRows;
-        public final ModConfigSpec.DoubleValue cavePillarFlare;
-        public final ModConfigSpec.DoubleValue cavePillarGlowChance;
         /**
          * 地表の汚染割合が {@link #overgrownBiomeThreshold} に届く前でも、胞子濃度が 100% に達した
          * チャンクを「繁茂バイオーム」({@link com.yayuy.overgrownvegetation.registry.ModBiomes#OVERGROWTH})
@@ -1208,8 +1178,9 @@ public final class OvergrownVegetationConfig {
             growthChance = b
                     .comment("露出面 1 つあたりに装飾植物を生やす確率。",
                             "6 面すべてが露出していても必ず 6 個生えるわけではなく、面ごとに毎回この確率で抽選する。",
-                            "密林の空を覆うくらい木・下草を密集させたい場合はここを上げる(treeChance も参照)。")
-                    .defineInRange("growthChance", 0.85D, 0.0D, 1.0D);
+                            "密林の空を覆うくらい木・下草を密集させたい場合はここを上げる(treeChance も参照)。",
+                            "既定 0.9(2026-11-01 夜に 0.85 から。何も生えない上面を減らす。値は仮決め)。")
+                    .defineInRange("growthChance", 0.9D, 0.0D, 1.0D);
 
             tallGrowthChance = b
                     .comment("上面(露出面が UP)に植物を生やすと決まった際、",
@@ -1276,6 +1247,33 @@ public final class OvergrownVegetationConfig {
                             "実際に生える確率は growthChance × undevelopedBushChance になる(既定値では約 6%)。",
                             "既定は treeChance(0.1)より少し低い 0.07 —— 苗木よりやや珍しい草、という位置づけ。")
                     .defineInRange("undevelopedBushChance", 0.07D, 0.0D, 1.0D);
+
+            // 林床(2026-11-01)。どれも密林だけ。値は仮決め(下絵の配置の図: 敷物 5〜6 割・小葉類の株 1 チャンク 20〜30・倒木 0〜2 本)
+            floorCarpetChance = b
+                    .comment("林床(密林): 上面の下草の抽選に当たったマスのうち、小葉類の敷物を敷く割合(苗木・木生シダの次に引く)。",
+                            "敷物を敷いたマスには、ほかの下草は生えない(小葉類の株だけ敷物付きで立つ)。仮決め 0.65(GameTest の平らな 1 チャンクで敷物 5 割強)。")
+                    .defineInRange("floorCarpetChance", 0.65D, 0.0D, 1.0D);
+            floorCarpetPlantChance = b
+                    .comment("林床: 敷物の上に小葉類の株(敷物付きの 1 ブロック)を立てる確率。仮決め 0.15。")
+                    .defineInRange("floorCarpetPlantChance", 0.15D, 0.0D, 1.0D);
+            floorLycopsidChance = b
+                    .comment("林床: 敷物にならなかったマスで、ほかの下草の代わりに小葉類の株(敷物なし)を立てる確率。仮決め 0.05。")
+                    .defineInRange("floorLycopsidChance", 0.05D, 0.0D, 1.0D);
+            floorUprightShare = b
+                    .comment("林床: 小葉類の株のうち、2 段の「立ち上がる小葉類」にする割合。仮決め 0.15。")
+                    .defineInRange("floorUprightShare", 0.15D, 0.0D, 1.0D);
+            floorMedullosaChance = b
+                    .comment("林床: 上面の下草の抽選でメドゥロサ(高さ 2〜3 のヤシに似た種子シダ)を立てる確率。0.02(11-02 ユーザー指定。前は仮の 0.03)。")
+                    .defineInRange("floorMedullosaChance", 0.02D, 0.0D, 1.0D);
+            floorPeatPatches = b
+                    .comment("林床: 1 チャンクの泥炭の斑の最大数(1〜この数、各 3〜8 マス)。低地(海面 +4 以下)か水辺(5 ブロック以内に水)のマスだけ泥炭になる。0 で無し。")
+                    .defineInRange("floorPeatPatches", 3, 0, 8);
+            floorPeatPoolChance = b
+                    .comment("林床: 泥炭の斑で、4 方を泥炭に囲まれた平らなマスを浅い水たまり(深さ 1〜2)にする確率。仮決め 0.6。")
+                    .defineInRange("floorPeatPoolChance", 0.6D, 0.0D, 1.0D);
+            floorFallenLogChance = b
+                    .comment("林床: 1 チャンクに 2 つある倒木の枠それぞれに倒木を置く確率(0〜2 本)。仮決め 0.4。")
+                    .defineInRange("floorFallenLogChance", 0.4D, 0.0D, 1.0D);
 
             undevelopedFruitChance = b
                     .comment("過繫茂した木が生え終わったとき、置いた葉ブロック1個ごとに真下へ",
@@ -1348,72 +1346,16 @@ public final class OvergrownVegetationConfig {
                     .defineInRange("mossLayerChance", 0.35D, 0.0D, 1.0D);
 
             spawnUnderwaterPlants = b
-                    .comment("水中を汚染したとき、露出した水の面へ汚染された水中植物(海草・背高海草・",
-                            "藻柱・藻・水中垂れ蔓・水面のスイレン)を生やすか。",
+                    .comment("水中を汚染したとき、露出した水の面へ水中の植物(シャジクモ・垂れる根・水面の膜・",
+                            "胞子昆布・浮き藻)を生やすか。水中の藻の覆いは覆いの絵(cover.json)。",
                             "陸上の装飾植物(spawnGrowthPlants)とは独立した設定。")
                     .define("spawnUnderwaterPlants", true);
 
             underwaterGrowthChance = b
-                    .comment("水に接した露出上面 1 つあたりに水中植物(海草・背高海草・藻柱)を生やす確率。",
-                            "陸上の growthChance に相当する。下面の垂れ蔓は waterCeilingGrowthChance、",
-                            "側面の藻は waterMossLayerChance の別抽選。",
+                    .comment("水に接した露出上面 1 つあたりにシャジクモ(川・池。群落の外は生えない)を生やす確率。",
+                            "陸上の growthChance に相当する。",
                             "既定 0.95(2026-09-22 に 0.85 から引き上げ。藻を減らしたぶん水草を増やす)。")
                     .defineInRange("underwaterGrowthChance", 0.95D, 0.0D, 1.0D);
-
-            waterCeilingGrowthChance = b
-                    .comment("水に接した露出下面(天井)1 つあたりに水中垂れ蔓",
-                            "(overgrown_water_ceiling_growth)を生やす確率。上面の水草・藻柱は",
-                            "underwaterGrowthChance、側面の藻は waterMossLayerChance の別抽選。",
-                            "既定 0.3(2026-09-22 に上面と共通の 0.95 から分離して引き下げ。",
-                            "岩の裏・オーバーハングの下が垂れ蔓で埋まりすぎるため)。0.0 で垂れ蔓を生やさない。")
-                    .defineInRange("waterCeilingGrowthChance", 0.3D, 0.0D, 1.0D);
-
-            spawnWaterMossLayer = b
-                    .comment("汚染時に水中の露出側面・上面へ、薄く覆う藻(overgrown_water_moss_layer)を生やすか。",
-                            "陸の薄い苔(overgrown_moss_layer)と同じ多面ブロックの水中版(常に水を含む)。")
-                    .define("spawnWaterMossLayer", true);
-
-            waterMossLayerChance = b
-                    .comment("汚染された水中の露出面(側面・上面)1 面につき、藻を 1 面ぶん生やす確率。",
-                            "上面・下面の水中植物(underwaterGrowthChance)とは独立して判定する",
-                            "(藻が生えた面には海草類は生えない)。",
-                            "既定 0.7(2026-09-22 に 0.9 → 0.3 → 0.7 と調整。藻が外れた上面には水草・藻柱が",
-                            "生えるので、下げるとそのぶん水草が増える)。")
-                    .defineInRange("waterMossLayerChance", 0.7D, 0.0D, 1.0D);
-
-            underwaterTallChance = b
-                    .comment("上面(水側)に水中植物を生やすと決まった際、高さ2マスの背高海草を選ぶ確率。")
-                    .defineInRange("underwaterTallChance", 0.25D, 0.0D, 1.0D);
-
-            waterColumnChance = b
-                    .comment("上面(水側)に水中植物を生やすと決まった際、昆布のように縦へ伸びる藻柱を選ぶ確率。",
-                            "スイレンの抽選に外れたあと、背高海草より先に判定する。",
-                            "既定 0.3(2026-09-22 に 0.18 から引き上げ)。")
-                    .defineInRange("waterColumnChance", 0.3D, 0.0D, 1.0D);
-
-            waterColumnFlowerChance = b
-                    .comment("藻柱を 2 段目以降に 1 段積むごとに、その段を柱ではなく「藻柱の花」",
-                            "(overgrown_water_column_flower)にする確率。花が咲いた時点でその藻柱の成長は止まる",
-                            "(花の上には積まない)。花も高さに数えるので waterColumnMaxHeight は超えない。",
-                            "0.0 で花を咲かせない(全部が伸びきるまで伸びる)。既定 0.15。")
-                    .defineInRange("waterColumnFlowerChance", 0.15D, 0.0D, 1.0D);
-
-            waterColumnMinHeight = b
-                    .comment("藻柱の最小の高さ(マス)。")
-                    .defineInRange("waterColumnMinHeight", 2, 1, 64);
-
-            waterColumnMaxHeight = b
-                    .comment("藻柱の最大の高さ(マス)。水面の手前で止まる。")
-                    .defineInRange("waterColumnMaxHeight", 6, 1, 64);
-
-            lilyChance = b
-                    .comment("上面(水側)を汚染した際、その真上の水面へスイレンを浮かべる確率。",
-                            "水深が lilyMaxDepth 以下のときだけ判定する。")
-                    .defineInRange("lilyChance", 0.25D, 0.0D, 1.0D);
-
-            lilyMaxDepth = b
-                    .comment("汚染した地面から水面までの水深がこのマス数以下のときだけスイレンを浮かべる。")
-                    .defineInRange("lilyMaxDepth", 10, 1, 64);
 
             convertToOvergrownBiome = b
                     .comment("チャンクの地表(16x16列)のうち一定割合が汚染ブロックになったら、",
@@ -1638,11 +1580,8 @@ public final class OvergrownVegetationConfig {
 
             // --- 洞窟の植物・構造物 ---
             caveGrowth = b
-                    .comment("洞窟(地表より caveDepthMargin 以上深い場所)専用の植物・構造物を有効にするか。",
-                            "湿地・菌湿地帯の洞窟では通常の下草・蔦の代わりに微光の胞子嚢(cave_spore_sac)と",
-                            "苔の塊(cave_moss_clump)が生え、まれに壁のキノコの傘(fungal_cap)・天井の根のアーチ",
-                            "(giant_overgrown_log)・菌の柱(fungal_pillar + glowing_mycelium)が建つ。",
-                            "密林(ジャングル)の洞窟では天井のアーチだけ(caveRootArchInJungle)。",
+                    .comment("洞窟(地表より caveDepthMargin 以上深い場所)専用の構造物(天井の根のアーチ = giant_overgrown_log)を有効にするか。",
+                            "密林(ジャングル)の洞窟では caveRootArchInJungle がオンのときだけ、湿地系の洞窟ではいつも建つ。",
                             "天井のアーチは caveVineArchShare の割合で、根ではなく葉に包まれた巨大な蔦になる。既定 true。")
                     .define("caveGrowth", true);
 
@@ -1651,70 +1590,24 @@ public final class OvergrownVegetationConfig {
                             "洞窟とみなす。空に開けた谷や崖の縁を洞窟扱いしないための余裕。既定 5。")
                     .defineInRange("caveDepthMargin", 5, 1, 64);
 
-            caveGrowthChance = b
-                    .comment("湿地系の洞窟で、汚染ブロックの露出面 1 つあたりに洞窟植物を生やす確率",
-                            "(通常の growthChance / swampGrowthChanceMultiplier の代わりに使う)。既定 0.04(2026-09-11 に 0.35 → 0.1 → 0.04 と引き下げ)。")
-                    .defineInRange("caveGrowthChance", 0.04D, 0.0D, 1.0D);
-
-            caveSporeSacShare = b
-                    .comment("洞窟植物のうち微光の胞子嚢になる割合。残りは苔の塊。既定 0.45。")
-                    .defineInRange("caveSporeSacShare", 0.45D, 0.0D, 1.0D);
-
-            caveMossClumpMinPatch = b
-                    .comment("苔の塊 1 回の生成で、面に沿って置く塊の数の下限。既定 1。")
-                    .defineInRange("caveMossClumpMinPatch", 1, 1, 32);
-
-            caveMossClumpMaxPatch = b
-                    .comment("苔の塊 1 回の生成で置く塊の数の上限。既定 3。")
-                    .defineInRange("caveMossClumpMaxPatch", 3, 1, 32);
-
             caveStructureChance = b
-                    .comment("洞窟の汚染ブロック 1 つあたりに構造物(壁の傘 / 天井の根 / 菌の柱)を建てようとする確率。",
-                            "露出面に応じて建てられる種類を重みで選び、空間が足りなければ何も建てない。",
+                    .comment("洞窟の汚染ブロック 1 つあたりに構造物(天井の根 / 蔦のアーチ)を建てようとする確率。",
+                            "下面が露出しているときだけ建て、空間が足りなければ何も建てない。",
                             "既定 0.004(洞窟の壁 250 ブロックに 1 つ程度)。0 で構造物無し。")
                     .defineInRange("caveStructureChance", 0.004D, 0.0D, 1.0D);
 
-            caveCapWeight = b
-                    .comment("構造物の種類の重み: 壁のキノコの傘(湿地系のみ、壁面が露出しているとき)。既定 3。")
-                    .defineInRange("caveCapWeight", 3, 0, 100);
-
             caveArchWeight = b
-                    .comment("構造物の種類の重み: 天井の根のアーチ(下面が露出しているとき)。既定 2。")
+                    .comment("構造物の重み: 天井の根 / 蔦のアーチ(下面が露出しているとき)。既定 2。")
                     .defineInRange("caveArchWeight", 2, 0, 100);
-
-            cavePillarWeight = b
-                    .comment("構造物の種類の重み: 菌の柱(湿地系のみ、上面が露出しているとき)。既定 2。")
-                    .defineInRange("cavePillarWeight", 2, 0, 100);
 
             caveRootArchInJungle = b
                     .comment("密林(ジャングル)の洞窟にも天井のアーチ(根 / 蔦)を建てるか。既定 true。",
-                            "植物・キノコの傘・菌の柱は湿地系の洞窟のみで、密林の洞窟はこのアーチだけが建つ。")
+                            "湿地系の洞窟ではこのキーに関わらず建つ。")
                     .define("caveRootArchInJungle", true);
 
             caveStructurePlantChance = b
-                    .comment("建てた構造物の各ブロックの各面に何かを添える確率。キノコの傘・菌の柱には薄い苔かヒカリゴケの面",
-                            "(胞子嚢・苔の塊は付かない)、天井の根のアーチには洞窟植物(密林では垂れ植物)。既定 0.12。")
+                    .comment("建てた構造物(天井の根 / 蔦のアーチ)の各ブロックの下面に垂れ植物を添える確率。既定 0.12。")
                     .defineInRange("caveStructurePlantChance", 0.12D, 0.0D, 1.0D);
-
-            caveStructureGlowLichenShare = b
-                    .comment("キノコの傘・菌の柱の表面に添える面のうち、ヒカリゴケ(minecraft:glow_lichen)の割合。残りは薄い苔。既定 0.3。")
-                    .defineInRange("caveStructureGlowLichenShare", 0.3D, 0.0D, 1.0D);
-
-            caveCapMinRadius = b
-                    .comment("壁のキノコの傘: 半径(壁からの張り出し)の下限。既定 3。")
-                    .defineInRange("caveCapMinRadius", 3, 1, 16);
-
-            caveCapMaxRadius = b
-                    .comment("壁のキノコの傘: 半径の上限。既定 9。")
-                    .defineInRange("caveCapMaxRadius", 9, 1, 16);
-
-            caveCapThickness = b
-                    .comment("壁のキノコの傘: 壁際(中心)の厚み(段)。縁へ向かって 1 段まで薄くなる。既定 1。")
-                    .defineInRange("caveCapThickness", 1, 1, 6);
-
-            caveCapDroop = b
-                    .comment("壁のキノコの傘: 縁の垂れ下がり(マス)。0 で平ら。既定 1.0。")
-                    .defineInRange("caveCapDroop", 1.0D, 0.0D, 6.0D);
 
             caveArchMinSpan = b
                     .comment("天井の根のアーチ: 両端の水平距離の下限(ブロック)。既定 13。")
@@ -1753,31 +1646,6 @@ public final class OvergrownVegetationConfig {
             caveVineArchLeafChance = b
                     .comment("蔦のアーチ: 葉の層の各マスが実際に葉になる確率。1 未満にすると房状にまばらになる。既定 0.65。")
                     .defineInRange("caveVineArchLeafChance", 0.65D, 0.0D, 1.0D);
-
-            cavePillarMinHeight = b
-                    .comment("菌の柱: 立てるのに必要な最低の天井の高さ。柱は必ず天井と床を継ぐので、",
-                            "天井がこれより低い場所には立てない(高さの上限は無い)。既定 10。")
-                    .defineInRange("cavePillarMinHeight", 10, 1, 64);
-
-            cavePillarBaseRadius = b
-                    .comment("菌の柱: 根元の半径(0 = 1 マス、1 = 十字 3x3、2 = 5x5 の円)。既定 2.0。")
-                    .defineInRange("cavePillarBaseRadius", 2.0D, 0.0D, 6.0D);
-
-            cavePillarTopRadius = b
-                    .comment("菌の柱: 先端の半径(根元以下)。既定 0.5。")
-                    .defineInRange("cavePillarTopRadius", 0.5D, 0.0D, 6.0D);
-
-            cavePillarFlareRows = b
-                    .comment("菌の柱: 裾を広げる段数(根元と天井側の両方を同じ段数広げる)。既定 2。")
-                    .defineInRange("cavePillarFlareRows", 2, 0, 8);
-
-            cavePillarFlare = b
-                    .comment("菌の柱: 裾の追加半径。既定 1.2。")
-                    .defineInRange("cavePillarFlare", 1.2D, 0.0D, 6.0D);
-
-            cavePillarGlowChance = b
-                    .comment("菌の柱: 各ブロックが発光菌糸(glowing_mycelium)になる割合。既定 0.06。")
-                    .defineInRange("cavePillarGlowChance", 0.06D, 0.0D, 1.0D);
 
             convertToOvergrowthBiome = b
                     .comment("地表の汚染割合が overgrownBiomeThreshold に届く前でも、胞子濃度が 100% に達した",

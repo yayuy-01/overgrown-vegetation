@@ -111,7 +111,8 @@ public final class TreeCanopyGroundFinder {
         return block == ModBlocks.OVERGROWN_LOG.get()
                 || block == ModBlocks.GIANT_OVERGROWN_LOG.get()
                 || block == ModBlocks.GIANT_OVERGROWN_CAMBIUM.get()
-                || block instanceof com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock; // 封印木の葉も(原木は #logs で拾う)
+                || block instanceof com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock // 封印木の葉も(原木は #logs で拾う)
+                || block instanceof com.yayuy.overgrownvegetation.block.TreeFernTrunkBlock; // 木生シダの幹(#logs でない)
     }
 
     private TreeCanopyGroundFinder() {

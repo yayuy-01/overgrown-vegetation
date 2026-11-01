@@ -15,6 +15,7 @@ import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
@@ -353,7 +354,7 @@ public final class OvergrownBiomeCreep {
                     continue;
                 }
 
-                BlockPos target = findCorruptibleInColumn(level, cursor, x, topY, z, minY, surfaceDepth);
+                BlockPos target = findTarget(level, cursor, x, topY, z, minY, surfaceDepth);
                 if (target == null) {
                     continue; // 既に片付いている / 岩盤・水で打ち切り
                 }
@@ -404,6 +405,7 @@ public final class OvergrownBiomeCreep {
             BlockPos hit = at.immutable();
             CorruptionRegistry.placeCorrupted(level, hit, state, corrupted, Block.UPDATE_ALL);
             CorruptionSpreader.growSurfacePlants(level, hit, corrupted, growthChance);
+            UnderwaterPlants.grow(level, hit, corrupted); // 水に接した面には水中の植物(触手の汚染と同じ。2026-11-01 夜)
             converted++;
         }
 
@@ -463,13 +465,105 @@ public final class OvergrownBiomeCreep {
             if (state.isAir()) {
                 continue;
             }
-            if (state.is(ModTags.CORRUPTED)) {
+            // 覆ったマス(砂・砂利・砂岩・安山岩などは 10-30/31 から置き換えずに覆う)も汚染済み。前は #corrupted だけを見ていたので、
+            // 覆った立方体を毎回また的にしていた(何も起きないが無駄。2026-11-01 夜)。
+            if (OvergrownLayerData.isCorruptedCell(level, cursor, state)) {
                 if (state.isCollisionShapeFullBlock(level, cursor)) {
                     return null;
                 }
                 continue;
             }
             if (!CorruptionRegistry.canCorrupt(level, cursor, state)) {
+                return null;
+            }
+            return cursor.immutable();
+        }
+        return null;
+    }
+
+    /**
+     * 列の浸食の的: {@link #findCorruptibleInColumn}(頂から {@code depth} 段)で無ければ、頂にかぶさった梢・幹・橋の下の床
+     * ({@link #findFloorUnderCover})。フロンティア浸食・縁のにじみ・台帳の塗りが同じものを使う。
+     */
+    @Nullable
+    static BlockPos findTarget(ServerLevel level, BlockPos.MutableBlockPos cursor, int x, int topY, int z, int minY, int depth) {
+        BlockPos target = findCorruptibleInColumn(level, cursor, x, topY, z, minY, depth);
+        return target != null ? target : findFloorUnderCover(level, cursor, x, topY, z, minY);
+    }
+
+    /** {@link #findFloorUnderCover} が水の中を下る最大の段数。 */
+    static final int WATER_FLOOR_SCAN = 48;
+    /**
+     * {@link #findFloorUnderCover} が床・水面より上(梢・幹・空気)をくぐる最大の段数。巨大樹は高さ 120(overgrown_tree_giant)で、
+     * 樹冠の下の林床は頂から 100 段以上下になる(初めは 48 で、ゲーム内で巨大樹の下の床が残った。2026-11-01 夜)。空気だけの区画は 16 段ずつ飛ばす。
+     */
+    static final int CANOPY_SCAN = 160;
+
+    /**
+     * 列の頂が<b>床の上にかぶさったもの</b>(林冠の葉・幹・枝、根のアーチ・橋、胞子昆布の柱)のとき、その下の床(水底でも陸でも。汚染済みなら null)。
+     * 2026-11-01 夜(ユーザー「川底で砂・土・粘土が素のまま残る」、続けて「草が生えている場所の下が汚染されない」)。
+     *
+     * <p>列の頂({@link #surfaceTopY})は動きを止めるブロックの一番上で、過繁茂の葉({@code OvergrownLeavesBlock})はバニラの葉
+     * ({@code LeavesBlock})でないので {@code MOTION_BLOCKING_NO_LEAVES} から外れない。梢が張り出した列・根のアーチが渡った列では頂が汚染済みの
+     * 葉や幹になり、{@link #findCorruptibleInColumn} は「片付いた列」と答えていた。胞子昆布の列は柱(水を含む・立方体でない)を
+     * {@code surfaceDepth}(4)段くだったところで尽きる。どれも<b>その下の川底・海底・林床は浸食の的にならなかった</b>(深部浸食が届くまで)。
+     * 林床の草・シダは下の地面と一緒に汚染されないまま残るので、ユーザーには「草の下が抜ける」と見えていた。
+     *
+     * <p>床より上でくぐるのは空気・動きを止めないもの(高さ地図と同じ判定。草・シダ・水面の膜も)・木の一部
+     * ({@link TreeCanopyGroundFinder#isTreePart}。汚染の原木と葉も)・汚染済みの立方体でないものだけ。水(水を含むブロック =
+     * シャジクモ・昆布・海草も)を下った最初の水でないマスが水底の床、水に入らず当たった動きを止めるマスが陸の床。
+     * 陸の床は真上が空いているとき(空気・草など)だけ的にする —— 幹の根元・葉が直に載った地面は表に出ていないので触らない(深部浸食が拾う)。
+     */
+    @Nullable
+    static BlockPos findFloorUnderCover(ServerLevel level, BlockPos.MutableBlockPos cursor, int x, int topY, int z, int minY) {
+        int limitY = Math.max(minY, topY - CANOPY_SCAN - WATER_FLOOR_SCAN);
+        int waterTop = Integer.MIN_VALUE;
+        boolean aboveOpen = false; // 1 つ上のマスが空いていたか(空気・動きを止めないもの)
+        LevelChunk chunk = level.getChunkAt(cursor.set(x, topY, z));
+        for (int y = topY; y >= limitY; y--) {
+            if (waterTop == Integer.MIN_VALUE) {
+                int sectionIndex = chunk.getSectionIndex(y);
+                if (sectionIndex >= 0 && sectionIndex < chunk.getSectionsCount() && chunk.getSection(sectionIndex).hasOnlyAir()) {
+                    aboveOpen = true;
+                    y = SectionPos.sectionToBlockCoord(SectionPos.blockToSectionCoord(y)); // 区画の底へ(for の y-- で 1 つ下の区画)
+                    continue;
+                }
+            }
+            cursor.set(x, y, z);
+            BlockState state = level.getBlockState(cursor);
+            if (state.getFluidState().is(net.minecraft.tags.FluidTags.WATER)) {
+                if (waterTop == Integer.MIN_VALUE) {
+                    waterTop = y;
+                } else if (waterTop - y > WATER_FLOOR_SCAN) {
+                    return null;
+                }
+                continue;
+            }
+            if (waterTop == Integer.MIN_VALUE) {
+                if (topY - y > CANOPY_SCAN) {
+                    return null;
+                }
+                if (state.isAir() || !state.blocksMotion()) {
+                    aboveOpen = true;
+                    continue;
+                }
+                if (com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder.isTreePart(state)) {
+                    aboveOpen = false;
+                    continue;
+                }
+                boolean corrupted = OvergrownLayerData.isCorruptedCell(level, cursor, state);
+                if (corrupted && !state.isCollisionShapeFullBlock(level, cursor)) {
+                    aboveOpen = true;
+                    continue; // 汚染済みの茂み・段など(findCorruptibleInColumn と同じくその下を見る)
+                }
+                // 陸の床
+                if (y == topY || !aboveOpen || corrupted || !CorruptionRegistry.canCorrupt(level, cursor, state)) {
+                    return null; // 頂そのもの(findCorruptibleInColumn の受け持ち)・表に出ていない・片付いた・汚染できない
+                }
+                return cursor.immutable();
+            }
+            // 水の下の最初の水でないマス = 水底の床
+            if (OvergrownLayerData.isCorruptedCell(level, cursor, state) || !CorruptionRegistry.canCorrupt(level, cursor, state)) {
                 return null;
             }
             return cursor.immutable();
@@ -628,6 +722,7 @@ public final class OvergrownBiomeCreep {
         CorruptionRegistry.placeCorrupted(level, surface, state, corrupted, Block.UPDATE_ALL);
         CorruptionCounter.record(level, 1);
         CorruptionSpreader.growSurfacePlants(level, surface, corrupted, growthChance);
+        UnderwaterPlants.grow(level, surface, corrupted); // 水に接した面には水中の植物(2026-11-01 夜)
         OvergrownBiomeConverter.maybeConvert(level, new ChunkPos(surface));
     }
 
@@ -655,8 +750,12 @@ public final class OvergrownBiomeCreep {
         }
         BlockPos pos = new BlockPos(x, y, z);
         BlockState state = level.getBlockState(pos);
-        if (state.isAir() || state.is(ModTags.CORRUPTED)) {
+        if (state.isAir()) {
             return null;
+        }
+        if (OvergrownLayerData.isCorruptedCell(level, pos, state)) { // 覆ったマスも(2026-11-01 夜)
+            // 頂が梢・幹なら、その下の林床・水底(2026-11-01 夜、草の下の汚染の抜け)
+            return findFloorUnderCover(level, new BlockPos.MutableBlockPos(), x, y, z, level.getMinBuildHeight());
         }
         if (!CorruptionRegistry.canCorrupt(level, pos, state)) {
             return null;
@@ -874,6 +973,8 @@ public final class OvergrownBiomeCreep {
         // 天井の岩盤の下から下へ向かって全部を置き換え始める(床の表面が汚染しきるのは待たない)。
         // 1. 地表(葉を除いた最上部。水中なら海底)が全 256 列で汚染しきっているか。
         //    そもそも汚染できない地表(岩盤など)の列は「済み」扱いにして待たない。
+        //    梢の下の林床まで読むのは始める前だけ(始まった後は深部浸食が上から拾う。梢の列を毎回 床まで読まないため)。
+        boolean started = cursors.get(key) != Integer.MAX_VALUE;
         BlockPos.MutableBlockPos probe = new BlockPos.MutableBlockPos();
         for (int lx = 0; lx < 16; lx++) {
             for (int lz = 0; lz < 16; lz++) {
@@ -885,7 +986,10 @@ public final class OvergrownBiomeCreep {
                 }
                 probe.set(x, topY, z);
                 BlockState state = level.getBlockState(probe);
-                if (state.is(ModTags.CORRUPTED) || !CorruptionRegistry.canCorrupt(level, probe, state, devicesNear)) {
+                // 覆ったマスも汚染済み(2026-11-01 夜)。前は #corrupted だけを見ていたので、砂・砂利・砂岩などを覆った地表(10-30/31 から)が
+                // 1 列でもあると「未汚染の地表が残っている」になり、川底・海底のチャンクで深部浸食がいつまでも始まらなかった
+                // (岸の水中の壁・段の横・張り出しや林冠の下の水底を最後に拾うのはこの深部浸食)。
+                if (surfaceDone(level, chunk, probe, state, devicesNear, !started)) {
                     continue;
                 }
                 // 未汚染の地表が残っている。深部浸食はまだ始めない。
@@ -922,7 +1026,7 @@ public final class OvergrownBiomeCreep {
                 for (int lz = 0; lz < 16; lz++) {
                     cursor.set(baseX + lx, y, baseZ + lz);
                     BlockState state = chunk.getBlockState(cursor);
-                    if (state.isAir() || state.is(ModTags.CORRUPTED)) {
+                    if (state.isAir() || state.is(ModTags.CORRUPTED) || OvergrownLayerData.isCovered(chunk, cursor, state)) {
                         continue;
                     }
                     if (!CorruptionRegistry.canCorrupt(level, cursor, state, devicesNear)) {
@@ -956,6 +1060,9 @@ public final class OvergrownBiomeCreep {
                     if (!sealed && hasAirNeighbour(level, hit, neighbour)) {
                         CorruptionSpreader.growSurfacePlants(level, hit, corrupted, growthChance);
                     }
+                    if (!sealed) {
+                        UnderwaterPlants.grow(level, hit, corrupted); // 水に接した面には水中の植物(2026-11-01 夜)
+                    }
                     converted++;
                     corruptibleLeft--;
                 }
@@ -972,6 +1079,51 @@ public final class OvergrownBiomeCreep {
         } else {
             cursors.put(key, y);
         }
+    }
+
+    /** 深部浸食の入口: 地表のマスが「済み」か(汚染済み・覆った・汚染できない)。 */
+    private static boolean surfaceDone(ServerLevel level, LevelChunk chunk, BlockPos pos, BlockState state, boolean devicesNear,
+                                      boolean lookUnderCover) {
+        if (OvergrownLayerData.isCorruptedCell(chunk, pos, state)) {
+            // 頂が汚染済みの梢・幹でも、その下の林床・水底が残っていれば「まだ」(2026-11-01 夜、草の下の汚染の抜け)
+            return !lookUnderCover || findFloorUnderCover(level, new BlockPos.MutableBlockPos(), pos.getX(), pos.getY(), pos.getZ(),
+                    level.getMinBuildHeight()) == null;
+        }
+        return !CorruptionRegistry.canCorrupt(level, pos, state, devicesNear);
+    }
+
+    /** GameTest 用: 深部浸食の入口で、その列の地表が「済み」と数えられるか({@link #deepenChunk} の 1. と同じ判定)。 */
+    public static boolean surfaceDoneForTest(ServerLevel level, int x, int z) {
+        BlockPos pos = new BlockPos(x, surfaceTopY(level, x, z), z);
+        return surfaceDone(level, level.getChunkAt(pos), pos, level.getBlockState(pos), true, true);
+    }
+
+    /**
+     * GameTest 用: 1 列ぶんのフロンティア浸食({@link #growChunkFrontier} の的の選び方・置き換え・覆い・植物は本物と同じ。
+     * 隣の汚染源の数と確率の抽選、上限、凍った面の剥がしだけ省く)。置き換えたか新しく覆ったら true。
+     */
+    public static boolean creepColumnForTest(ServerLevel level, int x, int z) {
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        int minY = level.getMinBuildHeight();
+        int topY = surfaceTopY(level, x, z);
+        BlockPos target = findTarget(level, cursor, x, topY, z, minY,
+                OvergrownVegetationConfig.COMMON.overgrownBiomeCreepSurfaceDepth.get());
+        if (target == null) {
+            return false;
+        }
+        BlockState state = level.getBlockState(target);
+        if (!CorruptionRegistry.canCorrupt(level, target, state)) {
+            return false;
+        }
+        boolean coveredBefore = OvergrownLayerData.isCovered(level, target);
+        BlockState corrupted = CorruptionRegistry.corrupt(level, target, state, level.random);
+        if (CorruptionRegistry.noChange(state, corrupted)) {
+            CorruptionSpreader.growPlantsIfNewlyCovered(level, target, state);
+            return !coveredBefore && OvergrownLayerData.isCovered(level, target);
+        }
+        CorruptionRegistry.placeCorrupted(level, target, state, corrupted, Block.UPDATE_ALL);
+        UnderwaterPlants.grow(level, target, corrupted);
+        return true;
     }
 
     /** チャンク内で最も高い「空気でない」ブロックの Y(建築物・浮遊ブロックを含む)。無ければ {@code minY - 1}。 */

@@ -219,6 +219,9 @@ public final class CoverRenderer {
                 BakedModel base = mc.getBlockRenderer().getBlockModel(state);
                 long seed = state.getSeed(p);
                 CoverModel model = new CoverModel(base, sprites, design, p.getX(), p.getY(), p.getZ(), seed);
+                model.waterMask = waterMask(region, p, state);
+                model.sea = model.waterMask != 0 && mc.level != null
+                        && com.yayuy.overgrownvegetation.corruption.UnderwaterPlants.isSea(mc.level.getBiome(p));
                 pose.pushPose();
                 pose.translate(p.getX() - origin.getX(), p.getY() - origin.getY(), p.getZ() - origin.getZ());
                 renderer.tesselateBlock(region, model, state, p, pose, out, true, random, seed, OverlayTexture.NO_OVERLAY,
@@ -226,6 +229,23 @@ public final class CoverRenderer {
                 pose.popPose();
             }
         }
+    }
+
+    /**
+     * 水に接した面の向きのビット(2026-11-01、水中の藻の覆い)。自分が水を含んでいれば全部の面、でなければ隣のマスが水の面。
+     */
+    private static int waterMask(BlockAndTintGetter region, BlockPos p, BlockState state) {
+        if (state.getFluidState().is(net.minecraft.tags.FluidTags.WATER)) {
+            return 0b111111;
+        }
+        int mask = 0;
+        BlockPos.MutableBlockPos n = new BlockPos.MutableBlockPos();
+        for (Direction d : Direction.values()) {
+            if (region.getFluidState(n.setWithOffset(p, d)).is(net.minecraft.tags.FluidTags.WATER)) {
+                mask |= 1 << d.ordinal();
+            }
+        }
+        return mask;
     }
 
     /**
@@ -326,6 +346,9 @@ public final class CoverRenderer {
         final int y;
         final int z;
         final long seed;
+        /** 水に接した面(1 << 向き)と、海か(水中の絵の組を選ぶ。2026-11-01)。 */
+        int waterMask;
+        boolean sea;
 
         CoverModel(BakedModel base, CoverSprites.Set sprites, CoverTable design, int x, int y, int z, long seed) {
             this.base = base;
@@ -349,7 +372,7 @@ public final class CoverRenderer {
                     if (dark != null) {
                         out.add(dark);
                     }
-                    out.add(CoverQuads.overlay(q, flush, x, y, z, sprites, design));
+                    out.add(CoverQuads.overlay(q, flush, x, y, z, sprites, design, waterMask, sea));
                 }
             }
             return out;

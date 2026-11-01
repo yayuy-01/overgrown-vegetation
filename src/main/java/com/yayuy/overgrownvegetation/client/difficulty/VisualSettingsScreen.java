@@ -82,6 +82,8 @@ public final class VisualSettingsScreen extends Screen {
                 new Toggle("effects_with_shader_pack", c.effectsWithShaderPack),
                 new Toggle("ambient_insects", c.ambientInsects, atmosphere).section("sound"),
                 new Toggle("ambient_wind", c.ambientWind, atmosphere),
+                new Toggle("ambient_cave", c.ambientCave, atmosphere),
+                new Toggle("ambient_underwater", c.ambientUnderwater, atmosphere),
                 new Toggle("light_shafts", c.lightShafts, atmosphere).section("light"),
                 new Toggle("canopy_dapple", c.canopyDapple, atmosphere),
                 new Toggle("canopy_light", c.canopyLight, atmosphere),
@@ -91,7 +93,8 @@ public final class VisualSettingsScreen extends Screen {
                 new Toggle("critters", c.critters, atmosphere),
                 new Toggle("leaf_sway", c.leafSway, atmosphere),
                 new Toggle("water_life", c.waterLife, atmosphere),
-                new Toggle("underwater", c.underwater, atmosphere).section("underwater"));
+                new Toggle("underwater", c.underwater, atmosphere).section("underwater"),
+                new Toggle("cave_light", c.caveLight, atmosphere).section("cave"));
     }
 
     /** 今の手元の値がどの段階と全部一致するか(どれとも違えば null = カスタム)。 */

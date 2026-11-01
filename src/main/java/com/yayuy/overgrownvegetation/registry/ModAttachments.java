@@ -75,6 +75,34 @@ public final class ModAttachments {
                             .build());
 
     /**
+     * 覆った砂・砂利が草ブロックになる時刻(2026-11-01 ユーザー指定)。マス({@code BlockPos#asLong}) → その時刻(ゲーム時刻)。
+     * {@link com.yayuy.overgrownvegetation.corruption.CoveredSandToGrass} が書く。サーバーだけ(送らない)。保存の形は COVER_CREEP と同じ。
+     */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap>>
+            COVER_SETTLE = ATTACHMENT_TYPES.register("cover_settle",
+                    () -> AttachmentType.<it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap>builder(
+                                    () -> new it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap())
+                            .serialize(Codec.LONG_STREAM.xmap(
+                                    stream -> {
+                                        long[] a = stream.toArray();
+                                        it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap map = new it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap();
+                                        for (int i = 0; i + 1 < a.length; i += 2) {
+                                            map.put(a[i], a[i + 1]);
+                                        }
+                                        return map;
+                                    },
+                                    map -> {
+                                        long[] a = new long[map.size() * 2];
+                                        int i = 0;
+                                        for (var e : map.long2LongEntrySet()) {
+                                            a[i++] = e.getLongKey();
+                                            a[i++] = e.getLongValue();
+                                        }
+                                        return java.util.Arrays.stream(a);
+                                    }))
+                            .build());
+
+    /**
      * 這い上がる苔の記録(案 H の 28、2026-11-01 ユーザー指定: 覆いに接して<b>新しく置かれた</b>ブロックだけに帯が出る)。
      * マス({@code BlockPos#asLong}) → {@code (置いたときのゲーム時刻 << 6) | 置いたときに覆われていた隣の向きの印(ordinal のビット)}。
      * {@link com.yayuy.overgrownvegetation.corruption.CoverCreepData} が書き、チャンクと一緒に保存し、見ているプレイヤーへ送る。

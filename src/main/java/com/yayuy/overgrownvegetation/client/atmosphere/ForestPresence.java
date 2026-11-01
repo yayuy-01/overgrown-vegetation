@@ -23,7 +23,9 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
  * 0.5 秒おきに、カメラのまわり({@link #RINGS} の 17 か所。真ん中ほど重く)の列で「目より上に何かある(林冠)か」を見て、過繁茂の地域の列の
  * 覆いの割合(湿地は {@code swampPresence} 倍)を出し、{@code coverStart}〜{@code coverFull} で 0 → 1 にする。外から歩いて入ると梢の下に
  * 入るにつれて少しずつ濃くなり、空き地では自然に薄れ、梢の上へ出ると消える。目標へは {@code presenceSmoothSeconds}(ちらつき止め)で寄る。
- * 地下の度合いは真上の岩の天井を探し、1 秒で寄る。霧(第 3 段)・空(第 4 段)もこの値を読む。
+ * 地下の度合いは真上の岩の天井を探し、時定数 {@code transitionCaveSeconds}(11-01 夜から 4 秒。前は 1 秒の直線)で寄る。霧(第 3 段)・空(第 4 段)もこの値を読む。
+ * バニラの霧が読む森の霧の度合い {@link #fogForest()} は、{@link #openForest()} をさらに {@code transitionForestSeconds}(4 秒)で寄せたもの
+ * (11-01 夜 ユーザー「シェーダーの変わり目をもっとゆっくり」。濃い霧の森から薄い所へ出たとき急に晴れないように)。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, value = Dist.CLIENT)
 public final class ForestPresence {
@@ -36,6 +38,7 @@ public final class ForestPresence {
 
     private static float forest;
     private static float underground;
+    private static float fogForest;
     private static boolean roofed;
     private static long ticks;
     private static long lastMillis;
@@ -55,6 +58,17 @@ public final class ForestPresence {
         return forest * (1.0F - underground);
     }
 
+    /** 森の胞子の霧の度合い(バニラの霧の距離と色が読む)。{@link #openForest()} を時定数 {@code transitionForestSeconds} で寄せたもの。 */
+    public static float fogForest() {
+        return fogForest;
+    }
+
+    /** {@code value} を {@code target} へ時定数 {@code seconds} の指数で {@code elapsed} 秒ぶん寄せる(0 秒なら即。ごく近ければ揃える)。 */
+    public static float approach(float value, float target, float elapsed, float seconds) {
+        float next = seconds <= 0.0F ? target : value + (target - value) * (1.0F - (float) Math.exp(-elapsed / seconds));
+        return Math.abs(next - target) < 0.002F ? target : next;
+    }
+
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
@@ -62,6 +76,7 @@ public final class ForestPresence {
         if (level == null || mc.player == null) {
             forest = 0.0F;
             underground = 0.0F;
+            fogForest = 0.0F;
             lastMillis = 0L;
             return;
         }
@@ -73,20 +88,20 @@ public final class ForestPresence {
         if (ticks % 10 == 0) {
             roofed = hasRockRoof(level, mc.gameRenderer.getMainCamera().getPosition());
         }
-        float roofTarget = roofed ? 1.0F : 0.0F;
-        underground = roofTarget > underground ? Math.min(roofTarget, underground + 0.05F) : Math.max(roofTarget, underground - 0.05F);
-
         if (ticks % 10 == 5) {
             target = coverTarget(level, mc.gameRenderer.getMainCamera().getPosition());
         }
         long now = Util.getMillis();
         float elapsed = lastMillis == 0L ? 0.0F : (now - lastMillis) / 1000.0F;
         lastMillis = now;
+        var fog = DesignData.atmosphere().fog();
+        underground = approach(underground, roofed ? 1.0F : 0.0F, Math.min(elapsed, 0.5F), fog.transitionCaveSeconds());
         float smooth = DesignData.atmosphere().presenceSmoothSeconds();
         forest = smooth <= 0.0F ? target : forest + (target - forest) * (1.0F - (float) Math.exp(-Math.min(elapsed, 0.5F) / smooth));
         if (Math.abs(forest - target) < 0.002F) {
             forest = target;
         }
+        fogForest = approach(fogForest, openForest(), Math.min(elapsed, 0.5F), fog.transitionForestSeconds());
     }
 
     /** 頭上の覆いの割合から森の度合いの目標を出す。 */

@@ -273,7 +273,7 @@ public final class SporeSprouts {
             BlockState below = level.getBlockState(under);
             boolean through = isLeaves(below) || below.getFluidState().isEmpty() && below.getCollisionShape(level, under).isEmpty();
             if (!through) {
-                return below.is(net.minecraft.tags.BlockTags.LOGS) ? null : m.immutable();
+                return below.is(net.minecraft.tags.BlockTags.LOGS) || below.getBlock() instanceof com.yayuy.overgrownvegetation.block.TreeFernTrunkBlock ? null : m.immutable();
             }
             m.move(Direction.DOWN);
             if (m.getY() <= level.getMinBuildHeight()) return null;

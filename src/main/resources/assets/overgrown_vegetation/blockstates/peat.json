@@ -1,0 +1,14 @@
+{
+  "variants": {
+    "": [
+      { "model": "overgrown_vegetation:block/peat", "weight": 2 },
+      { "model": "overgrown_vegetation:block/peat", "y": 90, "weight": 2 },
+      { "model": "overgrown_vegetation:block/peat", "y": 180, "weight": 2 },
+      { "model": "overgrown_vegetation:block/peat", "y": 270, "weight": 2 },
+      { "model": "overgrown_vegetation:block/peat_b" },
+      { "model": "overgrown_vegetation:block/peat_b", "y": 90 },
+      { "model": "overgrown_vegetation:block/peat_b", "y": 180 },
+      { "model": "overgrown_vegetation:block/peat_b", "y": 270 }
+    ]
+  }
+}

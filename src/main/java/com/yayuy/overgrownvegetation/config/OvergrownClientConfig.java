@@ -42,11 +42,15 @@ public final class OvergrownClientConfig {
         public final ModConfigSpec.BooleanValue ambientInsects;
         /** 風の音。 */
         public final ModConfigSpec.BooleanValue ambientWind;
+        /** 地下の音(滴・根の軋み・胞子の溜まりのうなり。2026-11-01)。 */
+        public final ModConfigSpec.BooleanValue ambientCave;
+        /** 水中の音(潜っている間のこもった低音と、過繁茂の水でバニラの水中の音を下げる。2026-11-01)。 */
+        public final ModConfigSpec.BooleanValue ambientUnderwater;
         /** 光の筋と、その中を漂う粒。 */
         public final ModConfigSpec.BooleanValue lightShafts;
         /** 木漏れ日。 */
         public final ModConfigSpec.BooleanValue canopyDapple;
-        /** 林床の持ち上げ・緑の照り返し・林冠の影と色・葉の透け。 */
+        /** 林床の持ち上げ・緑の照り返し・林冠の影と色。 */
         public final ModConfigSpec.BooleanValue canopyLight;
         /** 胞子の霧・朝霧(地形の霧・バニラの霧の上書き・Distant Horizons の霧の上書き・霧の向こうの巨大樹の影)。 */
         public final ModConfigSpec.BooleanValue fog;
@@ -62,6 +66,8 @@ public final class OvergrownClientConfig {
         public final ModConfigSpec.BooleanValue waterLife;
         /** 水中の光の網・光の筋・夜の光る藻。 */
         public final ModConfigSpec.BooleanValue underwater;
+        /** 地下モード(過繁茂の地下の黒い霧と植物の点光源・Mob の明るさ。11-01 試作)。 */
+        public final ModConfigSpec.BooleanValue caveLight;
 
         Client(ModConfigSpec.Builder b) {
             b.push("visual");
@@ -83,6 +89,8 @@ public final class OvergrownClientConfig {
             b.comment("Each part of the atmosphere on its own (2026-11-01). All of them need atmosphereEnabled in [visual].").push("atmosphere");
             ambientInsects = b.comment("Insect and reptile calls in the forest.").define("ambientInsects", true);
             ambientWind = b.comment("Wind in the canopy.").define("ambientWind", true);
+            ambientCave = b.comment("Sounds underground in the overgrown region: dripping water, creaking roots, the hum of spore pools.").define("ambientCave", true);
+            ambientUnderwater = b.comment("Muffled low sound while diving in overgrown water (also turns the vanilla underwater ambience down there).").define("ambientUnderwater", true);
             lightShafts = b.comment("Light shafts through the canopy and the motes floating in them.").define("lightShafts", true);
             canopyDapple = b.comment("Sunflecks on the forest floor.").define("canopyDapple", true);
             canopyLight = b.comment("Lifted forest floor light, green bounce light, canopy shade and tint, light through leaves.").define("canopyLight", true);
@@ -93,6 +101,7 @@ public final class OvergrownClientConfig {
             leafSway = b.comment("Leaves and grass swaying in the wind.").define("leafSway", true);
             waterLife = b.comment("Rings and bubbles on water, wet sheen.").define("waterLife", true);
             underwater = b.comment("Caustics and light shafts under water, glowing algae at night.").define("underwater", true);
+            caveLight = b.comment("Cave mode under the overgrown forest: black fog and the glow of cave plants (shader point lights, mobs lit too).").define("caveLight", true);
             b.pop();
         }
     }

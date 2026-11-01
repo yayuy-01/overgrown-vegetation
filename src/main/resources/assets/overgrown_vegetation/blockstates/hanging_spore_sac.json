@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "stage=small": { "model": "overgrown_vegetation:block/hanging_spore_sac_small" },
+    "stage=large": { "model": "overgrown_vegetation:block/hanging_spore_sac_large" },
+    "stage=burst": { "model": "overgrown_vegetation:block/hanging_spore_sac_burst" }
+  }
+}

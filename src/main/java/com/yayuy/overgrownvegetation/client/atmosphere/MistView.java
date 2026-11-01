@@ -34,7 +34,8 @@ import net.neoforged.neoforge.client.event.ViewportEvent;
  *     <li><b>嵐</b>(提案 2、10-30 夜 ユーザー採用): 雷雨の間、過繁茂の地域ではバニラの霧を {@code stormFogEnd}(仮 40)まで近づけて遠くを早く隠す。</li>
  *     <li><b>水中の濁り</b>(11-01 ユーザー「水中が透き通りすぎ」): 海・川の 4 バイオームで潜っている間は、霧の終わりを {@code waterFogOvergrownOcean} など
  *     (仮 8〜16 ブロック)に固定し、色をそのバイオームの {@code water_fog_color} に固定する。バニラは潜っている時間(waterVision)で霧を 96 まで伸ばし、
- *     色も明るく持ち上げるので、両方を上書きして澄んでいかないようにする。</li>
+ *     色も明るく持ち上げるので、両方を上書きして澄んでいかないようにする。11-01 夕方(ユーザー「川は真っ暗すぎ」、参考画像 水中-2026-11-01)から
+ *     森の池(バイオーム overgrown・overgrowth)も入れ、色は設計値の明るい黄緑(川・池)・青緑(海)、距離は 14〜24 ブロック(仮決め)。</li>
  * </ul>
  */
 final class MistView {
@@ -42,9 +43,12 @@ final class MistView {
     private MistView() {
     }
 
-    /** 森の中の胞子の霧の度合い(0〜1。頭上の覆い・地下は除く)。0 = 切った({@code forestFogEnd} 0)。 */
+    /**
+     * 森の中の胞子の霧の度合い(0〜1。頭上の覆い・地下は除く)。0 = 切った({@code forestFogEnd} 0)。11-01 夜から時間で寄せた
+     * {@link ForestPresence#fogForest()}(時定数 transitionForestSeconds)を読む —— 濃い霧の森から薄い所へ出ても霧の距離と色が急に変わらない。
+     */
     static float sporeFog() {
-        return DesignData.atmosphere().fog().forestFogEnd() > 0.0F && !MistFog.devForestOff ? ForestPresence.openForest() : 0.0F;
+        return DesignData.atmosphere().fog().forestFogEnd() > 0.0F && !MistFog.devForestOff ? ForestPresence.fogForest() : 0.0F;
     }
 
     /** 地形を描いた後のバニラの霧が効いていたフレーム(Distant Horizons はふつうの霧を切ると、設定の後で値を 4e19 などの巨大な値に書き換える)。 */
@@ -112,10 +116,10 @@ final class MistView {
 
     /** 森の中で空を白く飛ばす度合い(0〜1)。 */
     private static float whiteSky() {
-        return ForestPresence.openForest() * DesignData.atmosphere().fog().forestSky();
+        return ForestPresence.fogForest() * DesignData.atmosphere().fog().forestSky();
     }
 
-    /** 潜っている所のバイオーム(海・川の 4 つで、盲目・暗闇でないとき。ほかは null)。 */
+    /** 潜っている所のバイオーム(海・川・森の池の 6 つで、盲目・暗闇でないとき。ほかは null)。 */
     private static Holder<Biome> murkyWater(Camera cam) {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel lvl = mc.level;
@@ -125,6 +129,11 @@ final class MistView {
         }
         Holder<Biome> biome = lvl.getBiome(BlockPos.containing(cam.getPosition()));
         return waterFogEnd(biome) > 0.0F ? biome : null;
+    }
+
+    /** カメラが過繁茂の海・川・森の池の水の中にいるか(水中の光の筋を強める。{@link UnderwaterShafts})。 */
+    static boolean inMurkyWater(Camera cam) {
+        return VisualQuality.fog() && murkyWater(cam) != null;
     }
 
     /** そのバイオームの水中の霧の終わり(0 = バニラのまま)。 */
@@ -139,23 +148,119 @@ final class MistView {
         if (biome.is(ModBiomes.OVERGROWN_RIVER)) {
             return p.waterFogOvergrownRiver();
         }
-        return biome.is(ModBiomes.OVERGROWTH_RIVER) ? p.waterFogOvergrowthRiver() : 0.0F;
+        if (biome.is(ModBiomes.OVERGROWTH_RIVER)) {
+            return p.waterFogOvergrowthRiver();
+        }
+        if (biome.is(ModBiomes.OVERGROWN)) {
+            return p.waterFogOvergrown();
+        }
+        return biome.is(ModBiomes.OVERGROWTH) ? p.waterFogOvergrowth() : 0.0F;
+    }
+
+    /** そのバイオームの水中の霧の色(waterFogEnd が 0 でないバイオームだけ呼ぶ)。 */
+    private static float[] waterFogColor(Holder<Biome> biome) {
+        var p = DesignData.atmosphere().fog();
+        if (biome.is(ModBiomes.OVERGROWN_OCEAN)) {
+            return p.waterOvergrownOceanColor();
+        }
+        if (biome.is(ModBiomes.OVERGROWTH_OCEAN)) {
+            return p.waterOvergrowthOceanColor();
+        }
+        if (biome.is(ModBiomes.OVERGROWN_RIVER)) {
+            return p.waterOvergrownRiverColor();
+        }
+        if (biome.is(ModBiomes.OVERGROWTH_RIVER)) {
+            return p.waterOvergrowthRiverColor();
+        }
+        return biome.is(ModBiomes.OVERGROWN) ? p.waterOvergrownColor() : p.waterOvergrowthColor();
+    }
+
+    /**
+     * 水中の霧の終わりと色の今の値(11-01 夜 ユーザー「川 → 海 → 池で急に変わる」)。バイオームの値へ時定数 {@code transitionWaterSeconds}(5 秒、
+     * バニラの水の色の混ざりと同じ長さ)で寄せる。潜った瞬間(前のフレームで濁った水の外)は寄せずにそのバイオームの値から始める。
+     */
+    private static float waterEnd;
+    private static final float[] WATER_COLOR = new float[3];
+    private static boolean waterSeen;
+    private static long waterMillis;
+
+    /** 水面を探す上限(ブロック)。これより深ければこの深さとみなす。 */
+    private static final int DEPTH_SCAN = 96;
+
+    /**
+     * カメラの所の水面からの深さ(ブロック、水の外・水面より上は 0)。真上へ水の続く限りたどる(高さ地図は梢の下で当てにならない)。
+     * 11-01 夜 見え方の直し 5。
+     */
+    static float waterDepth(ClientLevel level, net.minecraft.world.phys.Vec3 cam) {
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(Mth.floor(cam.x), Mth.floor(cam.y), Mth.floor(cam.z));
+        if (!level.getFluidState(pos).is(net.minecraft.tags.FluidTags.WATER)) {
+            return 0.0F;
+        }
+        int y0 = pos.getY();
+        for (int i = 0; i < DEPTH_SCAN; i++) {
+            pos.setY(y0 + i + 1);
+            var fluid = level.getFluidState(pos);
+            if (!fluid.is(net.minecraft.tags.FluidTags.WATER)) {
+                pos.setY(y0 + i);
+                float surface = y0 + i + level.getFluidState(pos).getHeight(level, pos);
+                return Math.max(0.0F, surface - (float) cam.y);
+            }
+        }
+        return DEPTH_SCAN;
+    }
+
+    /** 水面からの深さで水中の霧の色・光の筋に掛ける倍率(深さ 0 で 1、waterDepthDarkenBlocks で waterDepthDarkenMin)。 */
+    static float depthFactor(ClientLevel level, net.minecraft.world.phys.Vec3 cam) {
+        var p = DesignData.atmosphere().fog();
+        if (p.waterDepthDarkenBlocks() <= 0.0F) {
+            return 1.0F;
+        }
+        float t = Mth.clamp(waterDepth(level, cam) / p.waterDepthDarkenBlocks(), 0.0F, 1.0F);
+        return Mth.lerp(t, 1.0F, p.waterDepthDarkenMin());
+    }
+
+    /** 濁った水の中の今の霧の値を、そのバイオームの値へ寄せる(フレームに 1 回、{@link #computeFogColor} から)。 */
+    private static void followWater(Holder<Biome> biome) {
+        float end = waterFogEnd(biome);
+        float[] c = waterFogColor(biome);
+        long now = net.minecraft.Util.getMillis();
+        if (!waterSeen) {
+            waterEnd = end;
+            System.arraycopy(c, 0, WATER_COLOR, 0, 3);
+        } else {
+            float elapsed = Math.min((now - waterMillis) / 1000.0F, 0.5F);
+            float seconds = DesignData.atmosphere().fog().transitionWaterSeconds();
+            waterEnd = ForestPresence.approach(waterEnd, end, elapsed, seconds);
+            for (int i = 0; i < 3; i++) {
+                WATER_COLOR[i] = ForestPresence.approach(WATER_COLOR[i], c[i], elapsed, seconds);
+            }
+        }
+        waterSeen = true;
+        waterMillis = now;
     }
 
     static void computeFogColor(ViewportEvent.ComputeFogColor event) {
         if (!VisualQuality.fog()) {
+            waterSeen = false;
             return;
         }
         Holder<Biome> water = murkyWater(event.getCamera());
+        if (water == null) {
+            waterSeen = false;
+        }
         if (water != null) {
-            // 水中の濁り: バニラの水の霧の色(water_fog_color)から、潜っている時間で明るくする分だけを外す。深い所の暗さ(空の色の暗さ)はバニラと同じ。
-            int c = water.value().getWaterFogColor();
+            // 水中の濁り: 設計値の色に固定する(バニラが潜っている時間で明るくする分を外す)。深い所の暗さ(空の色の暗さ)はバニラと同じ式。
+            // バイオームが替わったときは時間で寄せる(followWater)。
+            followWater(water);
+            float[] c = WATER_COLOR;
             ClientLevel lvl = Minecraft.getInstance().level;
             float dark = (float) (event.getCamera().getPosition().y - lvl.getMinBuildHeight()) * lvl.getLevelData().getClearColorScale();
             dark = dark < 1.0F ? Math.max(0.0F, dark) * Math.max(0.0F, dark) : 1.0F;
-            event.setRed((c >> 16 & 0xFF) / 255.0F * dark);
-            event.setGreen((c >> 8 & 0xFF) / 255.0F * dark);
-            event.setBlue((c & 0xFF) / 255.0F * dark);
+            // 11-01 夜(見え方の直し 5、参考画像 水中-2026-11-01 の海 5・6 = 上が明るく下が暗い): 水面からの深さでも暗くする。
+            dark *= depthFactor(lvl, event.getCamera().getPosition());
+            event.setRed(c[0] * dark);
+            event.setGreen(c[1] * dark);
+            event.setBlue(c[2] * dark);
             return;
         }
         float inside = MistFog.cameraInside();
@@ -190,6 +295,14 @@ final class MistView {
             g = Mth.lerp(glow, g, Math.min(1.0F, n[1] * 1.08F + 0.05F));
             b = Mth.lerp(glow, b, Math.min(1.0F, n[2] * 0.95F + 0.02F));
         }
+        // 地下モード(11-01 試作、{@link CaveLights}): 黒い霧(#050604 に近い黒、ユーザー指定)へ。
+        float cave = CaveLights.mix();
+        if (cave > 0.001F) {
+            var c = DesignData.atmosphere().cave();
+            r = Mth.lerp(cave, r, c.r());
+            g = Mth.lerp(cave, g, c.g());
+            b = Mth.lerp(cave, b, c.b());
+        }
         event.setRed(r);
         event.setGreen(g);
         event.setBlue(b);
@@ -199,7 +312,7 @@ final class MistView {
         Holder<Biome> water = VisualQuality.fog() ? murkyWater(event.getCamera()) : null;
         if (water != null) {
             // 水中の濁り: 霧の距離を潜っている時間によらず固定する(地形・空とも)。
-            float end = waterFogEnd(water);
+            float end = waterSeen ? waterEnd : waterFogEnd(water); // 色と一緒に寄せた値(followWater)
             event.setFarPlaneDistance(Math.min(event.getFarPlaneDistance(), end));
             event.setNearPlaneDistance(end * DesignData.atmosphere().fog().waterFogNearFraction());
             event.setCanceled(true);
@@ -210,7 +323,8 @@ final class MistView {
         }
         if (event.getMode() == FogRenderer.FogMode.FOG_SKY) {
             // 空の丸天井を霧の色(森の中は明るい白)で満たす: 空の霧の終わりを手前へ。
-            float white = whiteSky();
+            // 地下モード(11-01 試作)も同じに黒で満たす(洞窟の壁の継ぎ目や描かない区画の向こうに空が見えないように)。
+            float white = Math.max(whiteSky(), CaveLights.mix());
             if (white > 0.001F) {
                 event.setFarPlaneDistance(Mth.lerp(white, event.getFarPlaneDistance(), 1.0F));
                 event.setNearPlaneDistance(Mth.lerp(white, event.getNearPlaneDistance(), 0.0F));
@@ -221,7 +335,8 @@ final class MistView {
         float inside = MistFog.cameraInside();
         float storm = MistFog.stormNear();
         float forest = sporeFog();
-        if (inside <= 0.001F && storm <= 0.001F && forest <= 0.001F || event.getMode() != FogRenderer.FogMode.FOG_TERRAIN) {
+        float cave = CaveLights.mix();
+        if (inside <= 0.001F && storm <= 0.001F && forest <= 0.001F && cave <= 0.001F || event.getMode() != FogRenderer.FogMode.FOG_TERRAIN) {
             return;
         }
         var p = DesignData.atmosphere().fog();
@@ -236,6 +351,13 @@ final class MistView {
         float near = Mth.lerp(Math.max(inside, storm), forestNear, Math.min(forestNear, far * p.insideNearFraction()));
         // 森の中の霞(11-01 ユーザー「Mob だけ霧が掛からず浮く」): バニラの霧の始まりに負の印を入れて、上書きした fog.glsl に
         // 1 − (1 − 壁) × exp(−k × 距離) を描かせる。Mob・粒・雲・この MOD の粒も地形と同じ霞になる。
+        // 地下モード(11-01 試作、{@link CaveLights}): 黒い霧で見通し 12〜16(ユーザー指定)。霞の印が入っているときは壁の始まりが
+        // 終わり − clamp(終わり / 10, 4, 64) なので、終わり 16 で 12〜16 になる。
+        if (cave > 0.001F) {
+            var c = DesignData.atmosphere().cave();
+            far = Mth.lerp(cave, far, Math.min(far, c.fogEnd()));
+            near = Mth.lerp(cave, near, Math.min(near, c.fogStart()));
+        }
         float k = hazeK(forest, reach);
         if (k > 0.0F) {
             near = encodeHaze(k);
@@ -243,5 +365,11 @@ final class MistView {
         event.setFarPlaneDistance(far);
         event.setNearPlaneDistance(near);
         event.setCanceled(true);
+        if (cave > 0.001F) {
+            // Sodium は霧の色が不透明(透明度 1)なら霧の終わりより先の区画を描かない(fog occlusion)。地下モードの霧は 16 で終わるので、
+            // 天井の光る玉(20 ブロック先)まで消えて穴から空が見えた。透明度を 0.999 にしてこの間引きを止める(霧の効き目は 0.1% しか変わらない)。
+            float[] fc = com.mojang.blaze3d.systems.RenderSystem.getShaderFogColor();
+            com.mojang.blaze3d.systems.RenderSystem.setShaderFogColor(fc[0], fc[1], fc[2], Math.min(fc[3], 0.999F));
+        }
     }
 }

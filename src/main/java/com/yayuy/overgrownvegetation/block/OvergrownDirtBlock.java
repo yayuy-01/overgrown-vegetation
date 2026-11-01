@@ -60,9 +60,12 @@ public class OvergrownDirtBlock extends Block {
 
     /**
      * 直接草ブロックへ変わってよいか。{@link OvergrownGrassBlock} の伝染条件
-     * (頭上が深い水中でない・最低限の明るさがある)と揃えてある。
+     * (上がふさがっていない・頭上が深い水中でない・最低限の明るさがある)と揃えてある。
      */
     private static boolean canBecomeGrass(ServerLevel level, BlockPos pos) {
+        if (!OvergrownGrassBlock.canStayGrass(level, pos)) {
+            return false; // 上がふさがっている(草ブロックが土に戻る規則と同じ判定。11-02)
+        }
         BlockPos abovePos = pos.above();
         BlockState aboveState = level.getBlockState(abovePos);
         if (aboveState.getFluidState().getAmount() >= 8) {

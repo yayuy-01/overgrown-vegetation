@@ -81,7 +81,8 @@ final class UnderwaterShafts {
             }
             return;
         }
-        int cap = Math.round(p.counts()[Math.min(2, VisualQuality.atmosphereTier())]);
+        boolean murky = MistView.inMurkyWater(mc.gameRenderer.getMainCamera());
+        int cap = Math.round(p.counts()[Math.min(2, VisualQuality.atmosphereTier())] * (murky ? p.murkyCount() : 1.0F));
         for (int tries = 0; tries < 6 && SHAFTS.size() < cap; tries++) {
             int x = Mth.floor(eye.x + (RANDOM.nextDouble() * 2.0 - 1.0) * p.radius());
             int z = Mth.floor(eye.z + (RANDOM.nextDouble() * 2.0 - 1.0) * p.radius());
@@ -113,7 +114,11 @@ final class UnderwaterShafts {
         }
         AtmosphereWater.ShaftsParams p = DesignData.atmosphere().underwaterShafts();
         float high = SunLight.smooth(Mth.clamp(((float) sun.y - 0.03F) / 0.3F, 0.0F, 1.0F));
-        float strength = p.alpha() * SunLight.daylight(level, sun, partialTick) * high * under;
+        // 過繁茂の濁った水の中: 筋を濃く、霧で薄れる距離を伸ばす(霧が短くても水面からの筋が見えるように)。
+        boolean murky = MistView.inMurkyWater(event.getCamera());
+        float strength = p.alpha() * (murky ? p.murkyAlpha() : 1.0F) * SunLight.daylight(level, sun, partialTick) * high * under;
+        // 11-01 夜(見え方の直し 5): 深いほど弱く(水中の霧の色と同じ倍率)。
+        strength *= MistView.depthFactor(level, event.getCamera().getPosition());
         if (strength <= 0.002F) {
             return;
         }
@@ -124,6 +129,9 @@ final class UnderwaterShafts {
         Vec3 cam = event.getCamera().getPosition();
         float fogStart = MistView.fogStart(); // 森の中の霞の印を外した始まり
         float fogEnd = Math.max(fogStart + 1.0F, RenderSystem.getShaderFogEnd());
+        if (murky) {
+            fogEnd *= p.murkyFogReach();
+        }
         float[] fog = RenderSystem.getShaderFogColor();
         float cr = Mth.lerp(p.fogMix(), p.r(), Math.min(1.0F, fog[0] * 1.8F + 0.15F));
         float cg = Mth.lerp(p.fogMix(), p.g(), Math.min(1.0F, fog[1] * 1.8F + 0.15F));

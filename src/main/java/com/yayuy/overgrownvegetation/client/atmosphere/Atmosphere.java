@@ -62,6 +62,8 @@ public final class Atmosphere {
         com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestWindSound.stop();
         com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestWaterSound.stop();
         com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestInsectSound.stop();
+        com.yayuy.overgrownvegetation.client.atmosphere.sound.CaveSound.stop();
+        com.yayuy.overgrownvegetation.client.atmosphere.sound.UnderwaterSound.stop();
         CanopySunMap.clear();
         LightShafts.clear();
         CanopyDapple.clear();
@@ -71,12 +73,14 @@ public final class Atmosphere {
         RainDrops.clear();
         DuskMotes.clear();
         SteamWisps.clear();
+        TrunkRivulets.clear();
         WaterSigns.clear();
         GnatSwarms.clear();
         GlowAlgae.clear();
         WaterCaustics.clear();
         UnderwaterShafts.clear();
         HollowDwellers.clear();
+        CaveLights.clear();
     }
 
     @SubscribeEvent
@@ -111,6 +115,8 @@ public final class Atmosphere {
         guard("sound", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestWindSound.tick(mc, now, player, time(0.0F)));
         guard("water", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestWaterSound.tick(mc, now, player));
         guard("insects", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestInsectSound.tick(mc, now, player));
+        guard("cavesound", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.CaveSound.tick(mc, now, player));
+        guard("uwsound", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.UnderwaterSound.tick(mc, now, player));
         guard("haze", () -> AirHaze.tick(now));
         guard("mist", () -> MistFog.tick(now, mc.gameRenderer.getMainCamera().getPosition(), ticks));
         guard("sunmap", () -> CanopySunMap.tick(now, ticks));
@@ -123,16 +129,19 @@ public final class Atmosphere {
         guard("drops", () -> RainDrops.tick(now, player));
         guard("dusk", () -> DuskMotes.tick(now, player));
         guard("steam", () -> SteamWisps.tick(now, player));
+        guard("rivulets", () -> TrunkRivulets.tick(now, player)); // 幹を伝う水(41、11-01 に作り直して戻した)
         guard("watersigns", () -> WaterSigns.tick(now, player));
         guard("gnats", () -> GnatSwarms.tick(now, player));
         guard("algae", () -> GlowAlgae.tick(now, player));
         guard("caustics", () -> WaterCaustics.tick(now, ticks));
         guard("uwshafts", () -> UnderwaterShafts.tick(now));
+        guard("cave", () -> CaveLights.tick(now, mc.gameRenderer.getMainCamera().getPosition(), ticks));
         if (DEV_LOG && ticks % 100 == 0) {
             OvergrownVegetation.LOGGER.info("Atmosphere {}", MistFog.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere 小物 {} 滴 {}", DuskMotes.describe(player.getX(), player.getZ()), RainDrops.count());
-            OvergrownVegetation.LOGGER.info("Atmosphere 見え方 {} / {} / {} / {}", SteamWisps.describe(), WaterSigns.describe(), GnatSwarms.describe(), GlowAlgae.describe());
+            OvergrownVegetation.LOGGER.info("Atmosphere 見え方 {} / {} / {} / {} / {}", SteamWisps.describe(), WaterSigns.describe(), GnatSwarms.describe(), GlowAlgae.describe(), TrunkRivulets.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere 水中の光 {} / {}", WaterCaustics.describe(), UnderwaterShafts.describe());
+            OvergrownVegetation.LOGGER.info("Atmosphere {}", CaveLights.describe());
             BlockPos feet = player.blockPosition();
             OvergrownVegetation.LOGGER.info("Atmosphere 森 {} 地下 {} 持ち上げ {} 霞み {} 足元の光 空 {} ブロック {} 筋 {} 木漏れ日 {} 影の地図 {}",
                     String.format("%.2f", ForestPresence.forestFactor()), String.format("%.2f", ForestPresence.underground()),
@@ -155,6 +164,7 @@ public final class Atmosphere {
             guard("march", () -> MistMarch.prepare(on && event.getCamera().getFluidInCamera() == FogType.NONE));
             guard("mist", () -> MistFog.upload(event, on));
             guard("caustics", () -> WaterCaustics.upload(event, on));
+            guard("cave", () -> CaveLights.upload(event, on));
             return;
         }
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_CUTOUT_BLOCKS) {
@@ -210,6 +220,7 @@ public final class Atmosphere {
         }
         guard("spores", () -> AmbientSpores.render(event));
         guard("life", () -> renderLife(event));
+        guard("rivulets", () -> TrunkRivulets.render(event));
         if (HollowDwellers.hasEyes()) {
             // 木の洞の目(43)。足し算で光らせる。
             guard("hollow", () -> {

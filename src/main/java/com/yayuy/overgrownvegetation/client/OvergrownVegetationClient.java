@@ -227,6 +227,8 @@ public final class OvergrownVegetationClient {
     @SubscribeEvent
     public static void registerParticleProviders(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(ModParticles.SPORE_JET.get(), SporeJetParticle.Provider::new);
+        // バニラの水中の浮遊粒を置き換える(過繁茂の水では黄緑の微粒、W6 2026-11-01)。
+        event.registerSpriteSet(net.minecraft.core.particles.ParticleTypes.UNDERWATER, UnderwaterMoteParticle.Provider::new);
     }
 
     private OvergrownVegetationClient() {

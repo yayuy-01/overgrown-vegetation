@@ -136,12 +136,19 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
     /** テクスチャがワールド内で何ブロックの実長ごとに縦方向へ1回繰り返すか(主リボン・垂れ蔦共通)。 */
     private static final float TILE_LENGTH = 1.0F;
 
+    // 2026-11-01(側面・底面): 帯を下絵 a 案(2 本よじり)に替えた。前の絵 overgrown_liana_vine.png は残してある。
     private static final ResourceLocation MAIN_TEXTURE =
-            OvergrownVegetation.id("textures/entity/overgrown_liana_vine.png");
+            OvergrownVegetation.id("textures/entity/overgrown_liana_ribbon_a.png");
     private static final ResourceLocation DROOP_TEXTURE =
             OvergrownVegetation.id("textures/entity/overgrown_liana_droop.png");
     private static final ResourceLocation DROOP_LIGHT_TEXTURE =
             OvergrownVegetation.id("textures/entity/overgrown_liana_droop_light.png");
+    /**
+     * 節の葉と莢(2026-11-01、側面・底面の S8)。48×16 の 1 枚に 節の葉 | 莢 a(若い)| 莢 b(熟した)を並べ、1 つの RenderType で描く。
+     * どの分割点に何を吊るかはブロックの位置から決める(飾りだけなので同期しない。垂れ蔦・光る実とは別の分割点)。
+     */
+    private static final ResourceLocation TRIM_TEXTURE =
+            OvergrownVegetation.id("textures/entity/overgrown_liana_trim.png");
 
     /**
      * 垂れ蔦が取りうる最大の長さ(ブロック単位)。垂れ蔦自体の長さは
@@ -164,6 +171,8 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
             createRenderType("overgrown_vegetation_liana_droop", DROOP_TEXTURE);
     private static final RenderType DROOP_LIGHT_RENDER_TYPE =
             createRenderType("overgrown_vegetation_liana_droop_light", DROOP_LIGHT_TEXTURE);
+    private static final RenderType TRIM_RENDER_TYPE =
+            createRenderType("overgrown_vegetation_liana_trim", TRIM_TEXTURE);
 
     /**
      * 分割点(0..{@link #SEGMENTS})ごとのパック済み光量を使い回す再利用可能なスクラッチ配列。
@@ -205,7 +214,8 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
     private record CurveGeometryCache(float sx, float sy, float sz, float px, float pz, float dirX, float dirZ,
             float[] x, float[] y, float[] z, float[] length,
             BlockPos sourceLightPos, BlockPos targetLightPos,
-            int[] droopIndices, float[] droopLengths, boolean[] droopIsLight, float[] swayWeight) {
+            int[] droopIndices, float[] droopLengths, boolean[] droopIsLight, float[] swayWeight,
+            int[] trimIndices, int[] trimKinds) {
     }
 
     /**
@@ -275,6 +285,7 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
             event.registerRenderBuffer(MAIN_RENDER_TYPE);
             event.registerRenderBuffer(DROOP_RENDER_TYPE);
             event.registerRenderBuffer(DROOP_LIGHT_RENDER_TYPE);
+            event.registerRenderBuffer(TRIM_RENDER_TYPE);
         }
 
         private FixedBuffers() {
@@ -298,6 +309,7 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
             bufferSource.endBatch(MAIN_RENDER_TYPE);
             bufferSource.endBatch(DROOP_RENDER_TYPE);
             bufferSource.endBatch(DROOP_LIGHT_RENDER_TYPE);
+            bufferSource.endBatch(TRIM_RENDER_TYPE);
         }
 
         private AfterBlockEntities() {
@@ -502,6 +514,14 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
             addDroopingTendril(droopLightBuffer, pose, cache, droopIndices[i], droopLengths[i]);
         }
 
+        // 節の葉と莢(2026-11-01)。垂れ蔦の後に別のバッファで。
+        if (cache.trimIndices().length > 0) {
+            VertexConsumer trimBuffer = bufferSource.getBuffer(TRIM_RENDER_TYPE);
+            for (int i = 0; i < cache.trimIndices().length; i++) {
+                addTrim(trimBuffer, pose, cache, cache.trimIndices()[i], cache.trimKinds()[i], i);
+            }
+        }
+
         poseStack.popPose();
     }
 
@@ -640,9 +660,11 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
             }
             swayWeight[i] = w;
         }
+        int[][] trims = pickTrims(blockEntity);
         return new CurveGeometryCache(sx, sy, sz, px, pz, dirX, dirZ, x, y, z, length,
                 sourceLightPos, targetLightPos,
-                blockEntity.getDroopIndices(), blockEntity.getDroopLengths(), blockEntity.getDroopIsLight(), swayWeight);
+                blockEntity.getDroopIndices(), blockEntity.getDroopLengths(), blockEntity.getDroopIsLight(), swayWeight,
+                trims[0], trims[1]);
     }
 
     /**
@@ -747,6 +769,74 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
                 ox + px, oy, oz + pz, 1.0F, 0.0F, light,
                 ox + px + tipX, oy - length, oz + pz + tipZ, 1.0F, bottomV, light,
                 ox - px + tipX, oy - length, oz - pz + tipZ, 0.0F, bottomV, light);
+    }
+
+    /** 節の葉の数(1 本に 3〜5 枚)・莢の房の数(0〜2)。下絵の配置の図の目安(仮決め)。 */
+    private static final int TRIM_LEAVES_MIN = 3;
+    private static final int TRIM_LEAVES_MAX = 5;
+    private static final int TRIM_PODS_MAX = 2;
+    /** 節の葉・莢の板の大きさ(ブロック。正方形の絵を 1 回だけ)。 */
+    private static final float TRIM_LEAF_SIZE = 0.45F;
+    private static final float TRIM_POD_SIZE = 0.5F;
+
+    /**
+     * 節の葉と莢を吊る分割点と種類(0 = 節の葉、1 = 莢 a 若い、2 = 莢 b 熟した)を、ブロックの位置から決める(毎回同じ。同期しない)。
+     * 端の 2 点と垂れ蔦の分割点は避け、互いに 2 点以上離す。
+     */
+    private static int[][] pickTrims(CorruptedLianaBlockEntity blockEntity) {
+        net.minecraft.util.RandomSource random = net.minecraft.util.RandomSource.create(blockEntity.getBlockPos().asLong() * 0x9E3779B97F4A7C15L + 0x51ED);
+        int leaves = TRIM_LEAVES_MIN + random.nextInt(TRIM_LEAVES_MAX - TRIM_LEAVES_MIN + 1);
+        int pods = random.nextInt(TRIM_PODS_MAX + 1);
+        boolean[] used = new boolean[SEGMENTS + 1];
+        for (int d : blockEntity.getDroopIndices()) {
+            if (d >= 0 && d <= SEGMENTS) {
+                used[d] = true;
+            }
+        }
+        int[] indices = new int[leaves + pods];
+        int[] kinds = new int[leaves + pods];
+        int n = 0;
+        for (int k = 0; k < leaves + pods; k++) {
+            for (int tries = 0; tries < 12; tries++) {
+                int i = 2 + random.nextInt(SEGMENTS - 3);
+                if (used[i] || used[i - 1] || used[i + 1]) {
+                    continue;
+                }
+                used[i] = true;
+                indices[n] = i;
+                kinds[n] = k < leaves ? 0 : (random.nextBoolean() ? 1 : 2);
+                n++;
+                break;
+            }
+        }
+        return new int[][]{java.util.Arrays.copyOf(indices, n), java.util.Arrays.copyOf(kinds, n)};
+    }
+
+    /**
+     * 分割点 {@code index} から節の葉か莢を 1 枚吊る(垂れ蔦と同じく、上の辺を縄に付けて下へ垂らす正方形の板)。
+     * 葉は 1 枚おきに縄と直交する向きにして、どの向きから見ても何枚かは面で見えるようにする。先は風で縄より大きく振れる。
+     */
+    private static void addTrim(VertexConsumer buffer, Matrix4f pose, CurveGeometryCache cache, int index, int kind, int order) {
+        float size = kind == 0 ? TRIM_LEAF_SIZE : TRIM_POD_SIZE;
+        float ox = cache.x()[index] + SWAY_X[index];
+        float oy = cache.y()[index] + DROOP_ORIGIN_LIFT * 0.6F + SWAY_Y[index];
+        float oz = cache.z()[index] + SWAY_Z[index];
+        float tipX = SWAY_X[index] * (DROOP_SWAY - 1.0F);
+        float tipZ = SWAY_Z[index] * (DROOP_SWAY - 1.0F);
+        int light = SCRATCH_LIGHT[index];
+        float half = size / 2.0F;
+        boolean across = kind == 0 && order % 2 == 1;
+        float wx = across ? cache.px() / (WIDTH / 2.0F) : cache.dirX();
+        float wz = across ? cache.pz() / (WIDTH / 2.0F) : cache.dirZ();
+        float px = wx * half;
+        float pz = wz * half;
+        float u0 = kind / 3.0F;
+        float u1 = (kind + 1) / 3.0F;
+        addQuad(buffer, pose,
+                ox - px, oy, oz - pz, u0, 0.0F, light,
+                ox + px, oy, oz + pz, u1, 0.0F, light,
+                ox + px + tipX, oy - size, oz + pz + tipZ, u1, 1.0F, light,
+                ox - px + tipX, oy - size, oz - pz + tipZ, u0, 1.0F, light);
     }
 
     /** 4頂点(それぞれ座標・UV・パック済み光量)から、白色(=テクスチャの色をそのまま出す)の四角形を1枚積む。 */

@@ -1,0 +1,32 @@
+{
+  "variants": {
+    "axis=x,root=false": [
+      { "model": "overgrown_vegetation:block/fallen_log_0" },
+      { "model": "overgrown_vegetation:block/fallen_log_0", "y": 180 },
+      { "model": "overgrown_vegetation:block/fallen_log_1" },
+      { "model": "overgrown_vegetation:block/fallen_log_1", "y": 180 },
+      { "model": "overgrown_vegetation:block/fallen_log_2" },
+      { "model": "overgrown_vegetation:block/fallen_log_2", "y": 180 },
+      { "model": "overgrown_vegetation:block/fallen_log_3" },
+      { "model": "overgrown_vegetation:block/fallen_log_3", "y": 180 }
+    ],
+    "axis=z,root=false": [
+      { "model": "overgrown_vegetation:block/fallen_log_0", "y": 90 },
+      { "model": "overgrown_vegetation:block/fallen_log_0", "y": 270 },
+      { "model": "overgrown_vegetation:block/fallen_log_1", "y": 90 },
+      { "model": "overgrown_vegetation:block/fallen_log_1", "y": 270 },
+      { "model": "overgrown_vegetation:block/fallen_log_2", "y": 90 },
+      { "model": "overgrown_vegetation:block/fallen_log_2", "y": 270 },
+      { "model": "overgrown_vegetation:block/fallen_log_3", "y": 90 },
+      { "model": "overgrown_vegetation:block/fallen_log_3", "y": 270 }
+    ],
+    "axis=x,root=true": [
+      { "model": "overgrown_vegetation:block/fallen_log_root" },
+      { "model": "overgrown_vegetation:block/fallen_log_root", "y": 180 }
+    ],
+    "axis=z,root=true": [
+      { "model": "overgrown_vegetation:block/fallen_log_root", "y": 90 },
+      { "model": "overgrown_vegetation:block/fallen_log_root", "y": 270 }
+    ]
+  }
+}

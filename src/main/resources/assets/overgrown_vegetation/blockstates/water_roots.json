@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "tip=false": { "model": "overgrown_vegetation:block/water_roots" },
+    "tip=true": { "model": "overgrown_vegetation:block/water_roots_tip" }
+  }
+}

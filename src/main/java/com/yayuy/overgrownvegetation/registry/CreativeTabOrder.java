@@ -65,11 +65,15 @@ public final class CreativeTabOrder {
             ModBlocks.OVERGROWN_GROWTH, ModBlocks.OVERGROWN_SPORE_BLOOM, ModBlocks.OVERGROWN_ZENMAI, ModBlocks.UNDEVELOPED_BUSH,
             ModBlocks.OVERGROWN_BUSH, ModBlocks.OVERGROWN_SAPLING, ModItems.GIANT_OVERGROWN_SAPLING_ITEM,
             ModBlocks.OVERGROWN_CREEPING_VINE, ModBlocks.OVERGROWN_SHELF_LICHEN, ModBlocks.OVERGROWN_THORN_VINE,
+            ModBlocks.CLIMBING_SEEDFERN, ModBlocks.AERIAL_ROOT, ModBlocks.AERIAL_ROOT_PILLAR, ModBlocks.BEARD_LICHEN, ModBlocks.HANGING_SPORE_SAC,
             ModBlocks.OVERGROWN_WEEPING_TENDRIL, ModBlocks.OVERGROWN_DRIP_MOSS, ModBlocks.OVERGROWN_SPORE_TENDRIL,
             ModBlocks.OVERGROWN_TALL_FERN, ModBlocks.OVERGROWN_SPORE_REED, ModBlocks.OVERGROWN_CURLED_FERN, ModBlocks.OVERGROWN_MOSS_LAYER,
-            ModBlocks.CAVE_SPORE_SAC, ModBlocks.CAVE_MOSS_CLUMP, ModBlocks.OVERGROWN_WATER_GRASS, ModBlocks.OVERGROWN_TALL_WATER_GRASS,
-            ModBlocks.OVERGROWN_WATER_COLUMN, ModBlocks.OVERGROWN_WATER_COLUMN_FLOWER, ModBlocks.OVERGROWN_WATER_MOSS_LAYER,
-            ModBlocks.OVERGROWN_WATER_CEILING_GROWTH, ModBlocks.OVERGROWN_LILY, ModBlocks.OVERGROWN_LIANA);
+            ModBlocks.SELAGINELLA, ModBlocks.CLUBMOSS, ModBlocks.LYCOPSID_CARPET, ModBlocks.LYCOPSID_UPRIGHT,
+            ModBlocks.PEAT, ModBlocks.PEAT_POOL_BOTTOM, ModBlocks.PEAT_SPROUTS, ModBlocks.PEAT_LITTER,
+            ModBlocks.FALLEN_LOG, ModBlocks.BRACKET_FUNGUS, ModBlocks.MEDULLOSA_TRUNK, ModBlocks.MEDULLOSA_CROWN,
+            ModBlocks.CHARA, ModBlocks.WATER_ROOTS, ModBlocks.ALGAE_FILM, ModBlocks.SPORE_FILM, ModBlocks.SEA_SPORE_BAND,
+            ModBlocks.SPORE_KELP_STALK, ModBlocks.SPORE_KELP_FROND,
+            ModBlocks.OVERGROWN_LIANA);
 
     /** 置けるがドロップ・素材として扱うもの(実った大きな未熟果)。 */
     private static final List<Supplier<? extends ItemLike>> MATERIALS = List.of(ModItems.LARGE_UNDEVELOPED_FRUIT_ITEM);

@@ -179,7 +179,8 @@ final class LedgerSpreadCatchUp {
             if (OvergrownBiomeCreep.stripFrozenSurface(level, at, x, topY, z)) {
                 topY = OvergrownBiomeCreep.surfaceTopY(level, x, z);
             }
-            BlockPos target = OvergrownBiomeCreep.findCorruptibleInColumn(level, at, x, topY, z, minY, table.surfaceDepth());
+            // 梢・幹・橋の下の林床・水底も(2026-11-01 夜、草の下の汚染の抜け)
+            BlockPos target = OvergrownBiomeCreep.findTarget(level, at, x, topY, z, minY, table.surfaceDepth());
             if (target == null) {
                 continue; // 汚染済み / 岩盤・水で打ち切り / 除去装置の阻害
             }

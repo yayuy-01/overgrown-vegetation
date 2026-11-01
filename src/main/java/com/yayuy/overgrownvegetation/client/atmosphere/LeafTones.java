@@ -6,8 +6,6 @@ import com.yayuy.overgrownvegetation.client.shader.SodiumTerrain;
 import com.yayuy.overgrownvegetation.data.AtmosphereTable;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.chunk.RenderChunkRegion;
@@ -17,7 +15,6 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -73,7 +70,9 @@ public final class LeafTones {
     /** 過繁茂の葉の色のハンドラを登録する。 */
     @SubscribeEvent
     public static void registerColors(RegisterColorHandlersEvent.Block event) {
-        event.register(LeafTones::color, ModBlocks.OVERGROWN_LEAVES.get());
+        // 11-01 夜(見え方の直し 1): 封印木・木生シダの芯と板、胞子昆布の葉も(絵が違うので色は「絵からのずらし」で塗る。ov_leaf.glsl)。
+        event.register(LeafTones::color, ModBlocks.OVERGROWN_LEAVES.get(), ModBlocks.SIGILLARIA_LEAVES.get(), ModBlocks.SIGILLARIA_LEAVES_FRINGE.get(),
+                ModBlocks.TREE_FERN_LEAVES.get(), ModBlocks.TREE_FERN_FROND.get(), ModBlocks.SPORE_KELP_FROND.get());
     }
 
     /** チャンクの形を組むスレッドごとの「直前に色を出したブロック」(葉は 6 面とも色付けなので、同じブロックで 6 回呼ばれる)。 */
@@ -91,14 +90,14 @@ public final class LeafTones {
             return -1;
         }
         if (!(level instanceof RenderChunkRegion)) {
-            return code(level, pos);
+            return code(state, level, pos);
         }
         Memo memo = MEMO.get();
         long key = pos.asLong();
         if (memo.region.get() == level && memo.pos == key) {
             return memo.color;
         }
-        int color = code(level, pos);
+        int color = code(state, level, pos);
         if (memo.region.get() != level) {
             memo.region = new java.lang.ref.WeakReference<>(level);
         }
@@ -107,14 +106,21 @@ public final class LeafTones {
         return color;
     }
 
-    /** そのブロックの色の番号を色付けの色(0xRRGGBB、G = 255)にしたもの。 */
-    static int code(BlockAndTintGetter level, BlockPos pos) {
+    /**
+     * そのブロックの色の番号を色付けの色(0xRRGGBB、G = 255)にしたもの。過繁茂の葉でない葉(11-01 夜から)は k に 3 を足し(B/G = 0.4〜0)、
+     * シェーダーは絵の色を目標の色へ塗り替える代わりに、絵の色から同じだけずらす(絵の色合いを保つ)。胞子昆布の葉は若葉を付けない(水中)。
+     */
+    static int code(BlockState state, BlockAndTintGetter level, BlockPos pos) {
+        boolean relative = !state.is(ModBlocks.OVERGROWN_LEAVES.get());
+        boolean noYoung = state.is(ModBlocks.SPORE_KELP_FROND.get());
         long crown = nearestCrown(pos.getX(), pos.getY(), pos.getZ());
         long here = pos.asLong();
         int young = 0;
         int k;
         boolean openAbove = open(level.getBlockState(pos.above()));
-        if (hash01(crown, 1) < FLUSH_CROWNS) {
+        if (noYoung) {
+            // 若葉なし
+        } else if (hash01(crown, 1) < FLUSH_CROWNS) {
             float t = hash01(here, 2);
             boolean tip = openAbove ? t < TOP_TIPS : t < SIDE_TIPS && openSide(level, pos);
             if (tip) {
@@ -133,7 +139,7 @@ public final class LeafTones {
             }
         }
         int r = Math.round(255.0F * (1.0F - 0.2F * young));
-        int b = Math.round(255.0F * (1.0F - 0.2F * k));
+        int b = Math.round(255.0F * (1.0F - 0.2F * (k + (relative ? 3 : 0))));
         return (r << 16) | (255 << 8) | b;
     }
 
@@ -165,7 +171,7 @@ public final class LeafTones {
         if (state.isAir()) {
             return true;
         }
-        if (state.is(ModBlocks.OVERGROWN_LEAVES.get()) || state.is(BlockTags.LEAVES)) {
+        if (state.getBlock() instanceof com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock || state.is(BlockTags.LEAVES)) {
             return false;
         }
         return !state.canOcclude();
@@ -229,25 +235,8 @@ public final class LeafTones {
         }
         AtmosphereTable.LeavesParams p = DesignData.atmosphere().leaves();
         boolean use = on && !SodiumTerrain.unsupported();
+        // 葉の裏の透け(36、10-31)は 11-01 夜にユーザー決定で削除(太陽を葉越しに見ると葉が明るくなるのをやめる)。
         shader.safeGetUniform("OvLeafTone").set(use ? p.toneStrength() : 0.0F, use ? p.youngStrength() : 0.0F, 0.0F, 0.0F);
-        // 葉の裏の透け(36、10-31 見え方の段。設定: 熱帯の明るい森 = 日を背にした葉は黄緑に透ける。暗くせず明るく見せる決め手)。
-        // 太陽が地平線より上で、雨でないときだけ(雨の日は日が透けない)。
-        float back = 0.0F;
-        float sx = 0.0F;
-        float sy = 1.0F;
-        float sz = 0.0F;
-        ClientLevel level = Minecraft.getInstance().level;
-        if (use && level != null) {
-            Vec3 sun = SunLight.sunDirection(level, 1.0F);
-            sx = (float) sun.x;
-            sy = (float) sun.y;
-            sz = (float) sun.z;
-            back = p.backlight() * Mth.clamp(sy / 0.15F, 0.0F, 1.0F) * (1.0F - level.getRainLevel(1.0F));
-        }
-        float[] c = p.backlightColor();
-        float gain = p.backlightGain();
-        shader.safeGetUniform("OvLeafSun").set(sx, sy, sz, back);
-        shader.safeGetUniform("OvLeafBack").set(c[0] * gain, c[1] * gain, c[2] * gain, p.backlightFrom());
     }
 
     private LeafTones() {

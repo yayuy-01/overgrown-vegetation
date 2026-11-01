@@ -8,25 +8,29 @@
 // shade and ambient occlusion scale all three channels alike, so the ratios survive).
 // j = 0: mature leaf, k = tone (0 as drawn, 1 slightly blue-green, 2 a little more blue-green).
 // j = 1..3: young (flush) leaf, yellow-green, with amount 0.45 / 0.75 / 1.0.
+// k = 3..5 (11-01 evening): the same tones k - 3 on a leaf other than overgrown_leaves (Sigillaria, tree fern, spore kelp). Their
+// drawings differ, so the texel is shifted by the same amount instead of repainted (the drawing keeps its own greens).
 // Only vertices that carry the sway marker (code 1..63 in the alpha, client/atmosphere/SwayModels.java) are ours; others keep their tint.
 //
 // OvLeafTone = (tone strength, young strength, -, -)
 uniform vec4 OvLeafTone;
 
-// Vertex stage. Returns (tone, young amount, young colour, 1 when decoded) and replaces the tint by the plain shade.
+// Vertex stage. Returns (tone, young amount, 1 when the shift is relative, 1 when decoded) and replaces the tint by the plain shade.
 vec4 ovLeafDecode(vec4 color, inout vec3 tint) {
     float mark = floor((1.0 - color.a) * 255.0 + 0.5);
     if (mark < 1.0 || mark > 63.0 || color.g < 0.004) {
         return vec4(0.0);
     }
     float j = clamp(floor((1.0 - color.r / color.g) / 0.2 + 0.5), 0.0, 3.0);
-    float k = clamp(floor((1.0 - color.b / color.g) / 0.2 + 0.5), 0.0, 2.0);
+    float k = clamp(floor((1.0 - color.b / color.g) / 0.2 + 0.5), 0.0, 5.0);
+    float rel = k > 2.5 ? 1.0 : 0.0;
+    k -= 3.0 * rel;
     tint = vec3(color.g);
     if (j > 0.5) {
         float amount = j < 1.5 ? 0.45 : (j < 2.5 ? 0.75 : 1.0);
-        return vec4(0.0, amount, 0.0, 1.0);
+        return vec4(0.0, amount, rel, 1.0);
     }
-    return vec4(0.5 * k, 0.0, 0.0, 1.0);
+    return vec4(0.5 * k, 0.0, rel, 1.0);
 }
 
 // Fragment stage. Repaints the texel towards the coded colour, keeping its brightness pattern (relative to the mean
@@ -41,6 +45,11 @@ vec3 ovLeafRecolor(vec3 t, vec4 leaf) {
         return t;
     }
     float rel = dot(t, vec3(0.2126, 0.7152, 0.0722)) / 0.19;
+    if (leaf.z > 0.5) {
+        // Other leaves: the same shift as the mean of overgrown_leaves gets, scaled by the texel brightness.
+        t += (vec3(-0.026, -0.006, 0.039) * tone + vec3(0.044, 0.034, 0.005) * young) * rel;
+        return max(t, vec3(0.0));
+    }
     // drawn leaf: mean (0.116, 0.228, 0.023)
     t = mix(t, vec3(0.090, 0.222, 0.062) * rel, tone);
     if (young > 0.001) {
@@ -49,18 +58,3 @@ vec3 ovLeafRecolor(vec3 t, vec4 leaf) {
     return t;
 }
 
-// Leaves lit from behind (36, 10-31): when the sun is behind a marked leaf as seen from the camera, the leaf glows a little
-// yellow-green (light through the blade). Applied after the canopy light, before the fog. Off in rain and with the sun down.
-// OvLeafSun  = (sun direction xyz, strength 0..1)
-// OvLeafBack = (colour multiplier rgb = colour ratio x gain, view-sun dot from which it starts)
-uniform vec4 OvLeafSun;
-uniform vec4 OvLeafBack;
-
-vec3 ovLeafBacklight(vec3 c, vec3 pos, vec4 leaf) {
-    if (leaf.w < 0.5 || OvLeafSun.w <= 0.0) {
-        return c;
-    }
-    float d = dot(normalize(pos), OvLeafSun.xyz);
-    float k = smoothstep(OvLeafBack.w, 1.0, d) * OvLeafSun.w;
-    return c * mix(vec3(1.0), OvLeafBack.rgb, k);
-}

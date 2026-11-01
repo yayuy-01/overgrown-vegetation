@@ -78,23 +78,28 @@ public final class LeafSway {
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         float amount = on ? amount(partialTick) : 0.0F;
         if (mipped != null) {
-            update(event, mipped, amount, partialTick);
+            update(event, mipped, amount, partialTick, on);
         }
         if (cutout != null) {
-            update(event, cutout, amount, partialTick);
+            update(event, cutout, amount, partialTick, on);
         }
     }
 
-    private static void update(RenderLevelStageEvent event, ShaderInstance shader, float amount, float partialTick) {
+    private static void update(RenderLevelStageEvent event, ShaderInstance shader, float amount, float partialTick, boolean on) {
+        AtmosphereTable.SwayParams p = DesignData.atmosphere().sway();
+        Vec3 cam = event.getCamera().getPosition();
+        double time = Atmosphere.time(partialTick);
+        double seconds = time / 20.0;
+        // 11-01 夜(見え方の直し 1): 封印木・木生シダの板の葉の曲がりと上下、胞子昆布の葉の水の揺れ(風の音によらない。位相は倍精度で)。
+        shader.safeGetUniform("OvSwayF").set(p.fringeBend(), p.fringeLift(), p.kelpAmount(), on ? 1.0F : 0.0F);
+        double wa = wrap(TWO_PI * p.kelpHz() * seconds + cam.x * 0.31 + cam.z * 0.23 + cam.y * 0.17);
+        double wb = wrap(TWO_PI * p.kelpHz() * 0.73 * seconds + cam.x * 0.19 - cam.z * 0.29 + cam.y * 0.11);
+        shader.safeGetUniform("OvSwayW").set((float) Math.sin(wa), (float) Math.cos(wa), (float) Math.sin(wb), (float) Math.cos(wb));
         if (amount <= 0.0F) {
             shader.safeGetUniform("OvBase").set(0.0F, 1.0F, 0.0F, 0.0F);
             return;
         }
-        AtmosphereTable.SwayParams p = DesignData.atmosphere().sway();
         GustField field = GustField.INSTANCE;
-        Vec3 cam = event.getCamera().getPosition();
-        double time = Atmosphere.time(partialTick);
-        double seconds = time / 20.0;
         shader.safeGetUniform("OvBase").set((float) field.calmStrength(), (float) field.dirX(), (float) field.dirZ(), amount);
         shader.safeGetUniform("OvSwayK").set(p.push(), p.branchCalm(), p.branchGust(), p.flutter());
         shader.safeGetUniform("OvPhase").set(

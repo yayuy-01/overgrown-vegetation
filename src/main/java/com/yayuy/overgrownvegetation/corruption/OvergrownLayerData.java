@@ -180,6 +180,7 @@ public final class OvergrownLayerData {
         relightIfLit(level, pos);
         SpawnerCorruption.onCovered(level, pos); // スポナーなら湧く Mob を寄生体へ(2026-10-09)
         CoverCreepData.onCovered(level, pos); // 這い上がる苔の記録は覆われたら要らない(2026-11-01)
+        CoveredSandToGrass.onCovered(level, pos); // 砂・砂利は時間がたつと草ブロックへ(2026-11-01 ユーザー指定)
         return true;
     }
 
@@ -219,6 +220,7 @@ public final class OvergrownLayerData {
                 .computeIfAbsent(chunk.getPos(), k -> new LongOpenHashSet()).add(pos.asLong());
         relightIfLit(level, pos);
         SpawnerCorruption.onUncovered(level, pos); // 汚染したスポナーなら元の Mob へ戻す(2026-10-09)
+        CoveredSandToGrass.onUncovered(level, pos); // 剥がした砂・砂利は草ブロックにならない
         return true;
     }
 

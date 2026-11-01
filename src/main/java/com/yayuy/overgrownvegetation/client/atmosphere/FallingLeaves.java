@@ -95,8 +95,26 @@ final class FallingLeaves {
         }
     }
 
+    /**
+     * 落ち葉を出す葉か。11-01 夜(見え方の直し 1)から封印木・木生シダの芯の葉も(外側の板の葉からは出さない)。
+     * 種類ごとの出やすさは {@link #fallChance}。
+     */
     private static boolean isCanopyLeaf(BlockState state) {
-        return state.is(ModBlocks.OVERGROWN_LEAVES.get());
+        return state.is(ModBlocks.OVERGROWN_LEAVES.get()) || state.is(ModBlocks.SIGILLARIA_LEAVES.get()) || state.is(ModBlocks.TREE_FERN_LEAVES.get());
+    }
+
+    /** その葉から落とす割合(過繁茂の葉は 1、ほかは設計値 leaves.fallSigillaria・fallTreeFern。1 を超える分は 1)。 */
+    private static float fallChance(BlockState state) {
+        AtmosphereTable.LeavesParams p = DesignData.atmosphere().leaves();
+        if (state.is(ModBlocks.SIGILLARIA_LEAVES.get())) {
+            return p.fallSigillaria();
+        }
+        return state.is(ModBlocks.TREE_FERN_LEAVES.get()) ? p.fallTreeFern() : 1.0F;
+    }
+
+    /** 下から見上げたとき通り抜ける板の葉(垂れる板の上の芯からも落とす)。 */
+    private static boolean isPlate(BlockState state) {
+        return state.getBlock() instanceof com.yayuy.overgrownvegetation.block.SigillariaFringeBlock;
     }
 
     /**
@@ -124,8 +142,11 @@ final class FallingLeaves {
                 airBelow = true;
                 continue;
             }
+            if (airBelow && isPlate(state)) {
+                continue;
+            }
             if (airBelow && isCanopyLeaf(state)) {
-                if (!ModBiomes.isOvergrownLike(level.getBiome(pos))) {
+                if (!ModBiomes.isOvergrownLike(level.getBiome(pos)) || RANDOM.nextFloat() >= fallChance(state)) {
                     return false;
                 }
                 TextureAtlasSprite sprite = mc.getBlockRenderer().getBlockModelShaper().getParticleIcon(state);
@@ -144,7 +165,7 @@ final class FallingLeaves {
         }
         pos.setY(top);
         BlockState crown = level.getBlockState(pos);
-        if (!isCanopyLeaf(crown) || !ModBiomes.isOvergrownLike(level.getBiome(pos))) {
+        if (!isCanopyLeaf(crown) || !ModBiomes.isOvergrownLike(level.getBiome(pos)) || RANDOM.nextFloat() >= fallChance(crown)) {
             return false;
         }
         double y = player.getY() + 3.0 + RANDOM.nextDouble() * 14.0;

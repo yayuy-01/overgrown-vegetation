@@ -25,6 +25,7 @@ out vec3 ovPos;
 out vec2 ovLight;
 out vec4 ovFog;
 out vec4 ovLeaf;
+out vec3 ovTint;
 
 uniform int u_FogShape;
 uniform vec3 u_RegionOffset;
@@ -78,4 +79,6 @@ void main() {
     vec2 rawLight = _vert_tex_light_coord * 256.0;
     ovLight = vec2(ovLightLevel(rawLight.x), ovLightLevel(rawLight.y));
     ovFog = ovFogShaded(position, ovLight.y);
+    // The tint without the light, for the cave point lights (ov_cave.glsl).
+    ovTint = color.rgb;
 }

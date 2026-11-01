@@ -24,6 +24,7 @@ out vec3 ovPos;
 out vec3 ovNormal;
 out vec2 ovLight;
 out vec4 ovFog;
+out vec3 ovTint;
 
 // Overgrown Vegetation: the same as vanilla, plus the camera-relative position, the normal and the light levels for the
 // canopy light (ov_light.glsl). Keep this file ASCII-only.
@@ -38,4 +39,6 @@ void main() {
     ovNormal = Normal;
     ovLight = clamp(vec2(UV2) / 240.0, 0.0, 1.0);
     ovFog = ovFogShaded(pos, ovLight.y);
+    // The tint without the light, for the cave point lights (ov_cave.glsl).
+    ovTint = Color.rgb;
 }

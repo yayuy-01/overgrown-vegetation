@@ -39,6 +39,7 @@ public final class AtmosphereTable {
         public AtmosphereLife.CreakJson creak;
         public AtmosphereWater.CausticsJson caustics;
         public AtmosphereWater.ShaftsJson underwaterShafts;
+        public AtmosphereCave.CaveJson cave;
     }
 
     /**
@@ -283,9 +284,13 @@ public final class AtmosphereTable {
      * 森の中では林冠の隙間の空とバニラの霧の色を forestSkyColor(明るい白)へ forestSky の強さで飛ばす(朝霧の中にいる間は除く)。
      * 胞子の霧(10-31 ユーザー「森の中にいるときだけ描画距離 6 チャンクくらい」): 森の列を通った視線の長さが forestFogStart〜forestFogEnd で見えなくなる
      * (0 = 切る。バニラの 6 チャンクの霧と同じ 86.4〜96)。森の霧は林冠の床から forestFogAbove ブロック上まで。壁の手前の霞 forestFogDensity(森 1 ブロックあたり、0 = 壁だけ。カメラが森の中にいる間はバニラの霧の式を上書きして Mob・粒にも同じに掛ける)。
-     * 胞子の霧の色: 昼 forestFogDayColor(11-01 ユーザー「白〜黄緑の胞子」: #ace300 を白へ 75% 寄せた色)・朝夕 forestFogDawnColor(朝霧の白緑)・夜は nightColor。値は仮決め。
+     * 胞子の霧の色: 昼 forestFogDayColor(11-01 ユーザー「白〜黄緑の胞子」: #ace300 を白へ 75% 寄せた色 → 11-01 夜「若干明るい緑」で白へ 45% 程度の [0.74, 0.90, 0.52])・朝夕 forestFogDawnColor(朝霧の白緑)・夜は nightColor。値は仮決め。
      * 水中の濁り(11-01 ユーザー「水中が透き通りすぎ」): 海・川の 4 バイオームで潜っている間の霧の終わり waterFogOvergrownOcean ほか(ブロック、0 = バニラのまま)・
      * 始まり = 終わり × waterFogNearFraction。潜る時間で澄んでいかない。距離は仮決め。
+     * 11-01 夕方(ユーザー「川は真っ暗すぎ。川・池は明るい黄緑、海は青緑のもや」= 参考画像 水中-2026-11-01): 森の池(waterFogOvergrown・waterFogOvergrowth)も加え、
+     * 霧の色を 6 つのキー water*Color で持つ(海・川はバイオームの water_fog_color も同じ色。霧の品質を切ったときのバニラ用)。色・距離は仮決め。
+     * 11-01 夜(ユーザー「森の池と川の水を統一」): 池の距離・色の既定を川と同じに。境目の移り(ユーザー「変わり目をもっとゆっくり」): 目標へ指数で寄せる時定数
+     * transitionForestSeconds(森の胞子の霧)・transitionCaveSeconds(地上 ↔ 地下)・transitionWaterSeconds(水中の霧の距離と色。水に出入りした瞬間は寄せない)。秒は仮決め。
      */
     public static final class FogJson {
         public Double density, falloff, depthMin, depthRange, lowPercentile, canopyPercentile, highPercentile, seaAbove;
@@ -295,7 +300,18 @@ public final class AtmosphereTable {
         public Double forestFogDark, shadeFloor, forestSky, stormFogEnd, sunGlow, farDesat, desatFrom, desatTo;
         public Double forestFogEnd, forestFogStart, forestFogAbove, forestFogDensity;
         public Double waterFogOvergrownOcean, waterFogOvergrowthOcean, waterFogOvergrownRiver, waterFogOvergrowthRiver, waterFogNearFraction;
+        public Double waterFogOvergrown, waterFogOvergrowth;
+        public Double transitionForestSeconds, transitionCaveSeconds, transitionWaterSeconds;
+        /** 11-01 夜 見え方の直し 5(仮決め): 水中の霧の色を水面からの深さで暗くする。深さ waterDepthDarkenBlocks で waterDepthDarkenMin 倍(0 で切る)。光の筋も同じ倍率で弱める。 */
+        public Double waterDepthDarkenBlocks, waterDepthDarkenMin;
+        /**
+         * 11-01 夜 見え方の直し 6(ユーザー「森の中で昼でも白い靄、朝方のよう。胞子の霧と分かるよう若干明るい緑に」。値は仮決め): 森の中で、
+         * 隙間の空の色(バニラの霧の色)と昼の霞の色(地形の霧の層の近い色・遠い色)を昼の胞子の霧の色へ寄せる割合。朝(MistLayer の 4〜9 時)は寄せない。
+         */
+        public Double forestSkyGreen, forestHazeGreen;
         public double[] nearColor, farColor, nightColor, hazeColor, forestSkyColor, forestFogDayColor, forestFogDawnColor;
+        public double[] waterOvergrownOceanColor, waterOvergrowthOceanColor, waterOvergrownRiverColor, waterOvergrowthRiverColor,
+                waterOvergrownColor, waterOvergrowthColor;
     }
 
     /** 霧の土台の値。 */
@@ -310,7 +326,13 @@ public final class AtmosphereTable {
                             float waterFogOvergrownOcean, float waterFogOvergrowthOcean, float waterFogOvergrownRiver, float waterFogOvergrowthRiver,
                             float waterFogNearFraction,
                             float[] nearColor, float[] farColor, float[] nightColor, float[] hazeColor, float[] forestSkyColor,
-                            float[] forestFogDayColor, float[] forestFogDawnColor) {
+                            float[] forestFogDayColor, float[] forestFogDawnColor,
+                            float waterFogOvergrown, float waterFogOvergrowth,
+                            float[] waterOvergrownOceanColor, float[] waterOvergrowthOceanColor, float[] waterOvergrownRiverColor,
+                            float[] waterOvergrowthRiverColor, float[] waterOvergrownColor, float[] waterOvergrowthColor,
+                            float transitionForestSeconds, float transitionCaveSeconds, float transitionWaterSeconds,
+                            float waterDepthDarkenBlocks, float waterDepthDarkenMin,
+                            float forestSkyGreen, float forestHazeGreen) {
         static FogParams of(FogJson f) {
             FogJson v = f != null ? f : new FogJson();
             return new FogParams(clamp(v.density, 0.0045, 0.0, 0.2), clamp(v.falloff, 0.35, 0.02, 5.0),
@@ -328,12 +350,20 @@ public final class AtmosphereTable {
                     clamp(v.stormFogEnd, 40.0, 8.0, 1024.0), clamp(v.sunGlow, 0.8, 0.0, 3.0), clamp(v.farDesat, 0.30, 0.0, 1.0),
                     clamp(v.desatFrom, 48.0, 0.0, 1024.0), clamp(v.desatTo, 192.0, 1.0, 2048.0),
                     clamp(v.forestFogEnd, 96.0, 0.0, 1024.0), clamp(v.forestFogStart, 86.4, 0.0, 1024.0), clamp(v.forestFogAbove, 4.0, -8.0, 40.0), clamp(v.forestFogDensity, 0.03, 0.0, 0.2),
-                    clamp(v.waterFogOvergrownOcean, 10.0, 0.0, 256.0), clamp(v.waterFogOvergrowthOcean, 16.0, 0.0, 256.0),
-                    clamp(v.waterFogOvergrownRiver, 8.0, 0.0, 256.0), clamp(v.waterFogOvergrowthRiver, 12.0, 0.0, 256.0),
+                    clamp(v.waterFogOvergrownOcean, 14.0, 0.0, 256.0), clamp(v.waterFogOvergrowthOcean, 20.0, 0.0, 256.0),
+                    clamp(v.waterFogOvergrownRiver, 18.0, 0.0, 256.0), clamp(v.waterFogOvergrowthRiver, 24.0, 0.0, 256.0),
                     clamp(v.waterFogNearFraction, 0.2, 0.0, 1.0),
                     rgb(v.nearColor, 1.00, 1.00, 0.96), rgb(v.farColor, 0.90, 0.93, 0.88), rgb(v.nightColor, 0.10, 0.15, 0.10),
                     rgb(v.hazeColor, 0.94, 0.96, 0.86), rgb(v.forestSkyColor, 1.00, 1.00, 0.96),
-                    rgb(v.forestFogDayColor, 0.92, 0.97, 0.75), rgb(v.forestFogDawnColor, 0.90, 0.93, 0.88));
+                    rgb(v.forestFogDayColor, 0.74, 0.90, 0.52), rgb(v.forestFogDawnColor, 0.90, 0.93, 0.88),
+                    clamp(v.waterFogOvergrown, 18.0, 0.0, 256.0), clamp(v.waterFogOvergrowth, 24.0, 0.0, 256.0),
+                    rgb(v.waterOvergrownOceanColor, 0.184, 0.376, 0.345), rgb(v.waterOvergrowthOceanColor, 0.227, 0.439, 0.408),
+                    rgb(v.waterOvergrownRiverColor, 0.306, 0.478, 0.149), rgb(v.waterOvergrowthRiverColor, 0.353, 0.541, 0.188),
+                    rgb(v.waterOvergrownColor, 0.306, 0.478, 0.149), rgb(v.waterOvergrowthColor, 0.353, 0.541, 0.188),
+                    clamp(v.transitionForestSeconds, 4.0, 0.0, 60.0), clamp(v.transitionCaveSeconds, 4.0, 0.0, 60.0),
+                    clamp(v.transitionWaterSeconds, 5.0, 0.0, 60.0),
+                    clamp(v.waterDepthDarkenBlocks, 24.0, 0.0, 256.0), clamp(v.waterDepthDarkenMin, 0.4, 0.0, 1.0),
+                    clamp(v.forestSkyGreen, 0.6, 0.0, 1.0), clamp(v.forestHazeGreen, 0.6, 0.0, 1.0));
         }
 
         private static float[] rgb(double[] c, double r, double g, double b) {
@@ -393,6 +423,11 @@ public final class AtmosphereTable {
     /** 節 {@code sway}: 揺れの倍率・風の音がこの大きさで揺れが全開・揺れの立ち上がりと収まり(秒)・風下へ押される量・枝の揺れ・はためき(ブロック)。 */
     public static final class SwayJson {
         public Double amount, gateFullLevel, riseSeconds, fallSeconds, push, branchCalm, branchGust, flutter;
+        /**
+         * 新しい葉の板の揺れ(11-01 夜 見え方の直し 1、仮決め): 板の先が付け根より余分に揺れる倍率・横の板の先が上下する量(枝の揺れの倍率)・
+         * 胞子昆布の葉の水の揺れ(ブロック。風によらない)・その速さ(回/秒)。
+         */
+        public Double fringeBend, fringeLift, kelpAmount, kelpHz;
     }
 
     /**
@@ -401,15 +436,17 @@ public final class AtmosphereTable {
      */
     public static final class LeavesJson {
         public Double radius, perSecondGust, perSecondCalm, toneStrength, youngStrength;
-        /** 葉の裏の透け(36、10-31 見え方の段): 強さ・始める向き(視線と太陽の向きの内積)・明るさの倍率・色の比(G = 1)。 */
-        public Double backlight, backlightFrom, backlightGain;
-        public double[] backlightColor;
+        /** 落ち葉の出やすさの倍率(11-01 夜 見え方の直し 1、仮決め): 封印木・木生シダの芯から(過繁茂の葉は 1)。葉の裏の透け(36)は 11-01 夜にユーザー決定で削除。 */
+        public Double fallSigillaria, fallTreeFern;
         public Integer maxAlive;
     }
 
     /** 節 {@code sound}: 風の音の大きさ・鳴らし始める風の強さ(凪はこれ以下で無音)・雷雨で大きさに足す倍率(1 + stormVolume × 嵐の度合い)。 */
     public static final class SoundJson {
         public Double volume, calmThreshold, stormVolume;
+        /** 地下と水中の環境音(2026-11-01、{@link AtmosphereSound})。 */
+        public AtmosphereSound.CaveSoundJson cave;
+        public AtmosphereSound.WaterSoundJson water;
     }
 
     /**
@@ -458,34 +495,37 @@ public final class AtmosphereTable {
 
     /** 葉と草の揺れの値。 */
     public record SwayParams(float amount, float gateFullLevel, float riseSeconds, float fallSeconds, float push,
-                             float branchCalm, float branchGust, float flutter) {
+                             float branchCalm, float branchGust, float flutter, float fringeBend, float fringeLift,
+                             float kelpAmount, float kelpHz) {
         static SwayParams of(SwayJson s) {
             SwayJson v = s != null ? s : new SwayJson();
             return new SwayParams(clamp(v.amount, 1.0, 0.0, 3.0), clamp(v.gateFullLevel, 0.15, 0.01, 1.0),
                     clamp(v.riseSeconds, 0.6, 0.05, 10.0), clamp(v.fallSeconds, 1.3, 0.05, 10.0), clamp(v.push, 0.05, 0.0, 0.3),
-                    clamp(v.branchCalm, 0.012, 0.0, 0.2), clamp(v.branchGust, 0.04, 0.0, 0.3), clamp(v.flutter, 0.015, 0.0, 0.2));
+                    clamp(v.branchCalm, 0.012, 0.0, 0.2), clamp(v.branchGust, 0.04, 0.0, 0.3), clamp(v.flutter, 0.015, 0.0, 0.2),
+                    clamp(v.fringeBend, 1.5, 0.0, 4.0), clamp(v.fringeLift, 2.0, 0.0, 6.0), clamp(v.kelpAmount, 0.18, 0.0, 0.6),
+                    clamp(v.kelpHz, 0.2, 0.02, 1.0));
         }
     }
 
     /** 落ち葉の値。 */
     public record LeavesParams(float radius, int maxAlive, float perSecondGust, float perSecondCalm, float toneStrength,
-                               float youngStrength, float backlight, float backlightFrom, float backlightGain,
-                               float[] backlightColor) {
+                               float youngStrength, float fallSigillaria, float fallTreeFern) {
         static LeavesParams of(LeavesJson l) {
             LeavesJson v = l != null ? l : new LeavesJson();
             return new LeavesParams(clamp(v.radius, 16.0, 4.0, 48.0), v.maxAlive != null ? Math.max(0, Math.min(400, v.maxAlive)) : 90,
                     clamp(v.perSecondGust, 24.0, 0.0, 200.0), clamp(v.perSecondCalm, 0.3, 0.0, 20.0),
                     clamp(v.toneStrength, 1.0, 0.0, 1.0), clamp(v.youngStrength, 1.0, 0.0, 1.0),
-                    clamp(v.backlight, 0.8, 0.0, 1.0), clamp(v.backlightFrom, 0.5, -1.0, 0.99), clamp(v.backlightGain, 2.2, 1.0, 4.0),
-                    rgb(v.backlightColor, 0.82, 1.0, 0.42));
+                    clamp(v.fallSigillaria, 0.6, 0.0, 4.0), clamp(v.fallTreeFern, 0.4, 0.0, 4.0));
         }
     }
 
-    /** 風の音の値。 */
-    public record SoundParams(float volume, float calmThreshold, float stormVolume) {
+    /** 風の音の値と、地下・水中の環境音の値(cave・water)。 */
+    public record SoundParams(float volume, float calmThreshold, float stormVolume, AtmosphereSound.CaveSoundParams cave,
+                              AtmosphereSound.WaterSoundParams water) {
         static SoundParams of(SoundJson s) {
             SoundJson v = s != null ? s : new SoundJson();
-            return new SoundParams(clamp(v.volume, 1.0, 0.0, 2.0), clamp(v.calmThreshold, 0.22, 0.0, 1.0), clamp(v.stormVolume, 1.5, 0.0, 4.0));
+            return new SoundParams(clamp(v.volume, 1.0, 0.0, 2.0), clamp(v.calmThreshold, 0.22, 0.0, 1.0), clamp(v.stormVolume, 1.5, 0.0, 4.0),
+                    AtmosphereSound.CaveSoundParams.of(v.cave), AtmosphereSound.WaterSoundParams.of(v.water));
         }
     }
 
@@ -541,6 +581,7 @@ public final class AtmosphereTable {
     private final AtmosphereLife.CreakParams creak;
     private final AtmosphereWater.CausticsParams caustics;
     private final AtmosphereWater.ShaftsParams underwaterShafts;
+    private final AtmosphereCave.CaveParams cave;
 
     private AtmosphereTable(Json j) {
         Light l = j != null && j.light != null ? j.light : new Light();
@@ -605,6 +646,7 @@ public final class AtmosphereTable {
         this.creak = AtmosphereLife.CreakParams.of(j != null ? j.creak : null);
         this.caustics = AtmosphereWater.CausticsParams.of(j != null ? j.caustics : null);
         this.underwaterShafts = AtmosphereWater.ShaftsParams.of(j != null ? j.underwaterShafts : null);
+        this.cave = AtmosphereCave.CaveParams.of(j != null ? j.cave : null);
     }
 
     /** 色の比を、明るさ 0.3R + 0.59G + 0.11B が 1 になるようそろえる。 */
@@ -880,5 +922,10 @@ public final class AtmosphereTable {
 
     public AtmosphereWater.ShaftsParams underwaterShafts() {
         return underwaterShafts;
+    }
+
+    /** 地下モード(節 {@code cave}、11-01 試作。{@link AtmosphereCave})。 */
+    public AtmosphereCave.CaveParams cave() {
+        return cave;
     }
 }

@@ -670,7 +670,9 @@ public final class SwampTreeFall {
     /** 封印木の原木・枝・葉・球果(元の木の一部には決してならない)。 */
     private static boolean isSigillariaPart(BlockState state) {
         return state.is(ModBlocks.SIGILLARIA_LOG.get()) || state.is(ModBlocks.SIGILLARIA_BRANCH.get()) || state.is(ModBlocks.SIGILLARIA_LEAVES.get()) || state.is(ModBlocks.SIGILLARIA_LEAVES_FRINGE.get())
-                || state.is(ModBlocks.SIGILLARIA_CONE.get());
+                || state.is(ModBlocks.SIGILLARIA_CONE.get())
+                // 木生シダ(2026-11-01)も同じく消さない
+                || state.is(ModBlocks.TREE_FERN_TRUNK.get()) || state.is(ModBlocks.TREE_FERN_LEAVES.get()) || state.is(ModBlocks.TREE_FERN_FROND.get());
     }
 
     private static boolean isTreeLeaves(BlockState state) {

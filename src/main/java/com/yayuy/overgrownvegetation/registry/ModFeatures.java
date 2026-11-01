@@ -42,6 +42,11 @@ public final class ModFeatures {
             FEATURES.register("sigillaria_tree", () -> new com.yayuy.overgrownvegetation.worldgen.SigillariaTreeFeature(
                     com.yayuy.overgrownvegetation.worldgen.SigillariaTreeFeature.Config.CODEC));
 
+    /** 木生シダ(プサロニウス。一本幹と株立ち。2026-11-01)。苗木の selector には入れず、{@code CorruptionSpreader} が苗木の代わりに直接置く(仮決め 15%)。 */
+    public static final DeferredHolder<Feature<?>, com.yayuy.overgrownvegetation.worldgen.TreeFernFeature> TREE_FERN =
+            FEATURES.register("tree_fern", () -> new com.yayuy.overgrownvegetation.worldgen.TreeFernFeature(
+                    com.yayuy.overgrownvegetation.worldgen.TreeFernFeature.Config.CODEC));
+
     /**
      * ごく低確率(0.0003%)でのみ生える巨大樹。円錐状の根元 + 直径7マスの円柱の幹 +
      * 5本の太い根 + 20本以上の枝 + 通常の約2倍の大きさの葉、全高80ブロック。

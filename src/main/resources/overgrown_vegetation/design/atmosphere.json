@@ -69,7 +69,12 @@
     "push": 0.05,
     "branchCalm": 0.012,
     "branchGust": 0.04,
-    "flutter": 0.015
+    "flutter": 0.015,
+    "_fringe": "新しい葉の揺れ(11-01 夜 見え方の直し 1、仮決め): 封印木・木生シダの板の葉は付け根が芯と一緒に動き、先が fringeBend 倍だけ余分に揺れる。横の板の先は枝の揺れ × fringeLift で上下する。胞子昆布の葉は風でなく水で揺れる: 先が kelpAmount ブロック、kelpHz 回/秒(風の音が無くても動く)。",
+    "fringeBend": 1.5,
+    "fringeLift": 2.0,
+    "kelpAmount": 0.18,
+    "kelpHz": 0.2
   },
   "leaves": {
     "radius": 16.0,
@@ -78,16 +83,44 @@
     "perSecondCalm": 0.3,
     "toneStrength": 1.0,
     "youngStrength": 1.0,
-    "_backlight": "葉の裏の透け(36、10-31 見え方の段。数値はすべて仮決め): 太陽が葉の向こうにあるとき(視線と太陽の向きの内積が backlightFrom から 1 へ)、印の付いた葉を backlightColor(G = 1 の比)× backlightGain 倍に寄せる。強さ backlight。雨と夜は 0。",
-    "backlight": 0.8,
-    "backlightFrom": 0.5,
-    "backlightGain": 2.2,
-    "backlightColor": [0.82, 1.00, 0.42]
+    "_fall": "落ち葉の出やすさの倍率(11-01 夜 見え方の直し 1、仮決め): 封印木・木生シダの芯の葉から(過繁茂の葉は 1)。板の葉(外側)からは出さない。葉の裏の透け(36)は 11-01 夜にユーザー決定で削除。",
+    "fallSigillaria": 0.6,
+    "fallTreeFern": 0.4
   },
   "sound": {
     "volume": 1.0,
     "calmThreshold": 0.22,
-    "stormVolume": 1.5
+    "stormVolume": 1.5,
+    "cave": {
+      "_comment": "地下の環境音(2026-11-01、見本 C1 滴・C2 根の軋み・C3 胞子の溜まりのうなりをユーザー採用。合成は client/atmosphere/sound/CaveWaterSynth)。ユーザー指定: 滴の間隔「数秒〜数十秒」・軋みは 30〜90 秒に 1 回・うなりは 40〜80 Hz で近づくほど大きい。ほかは仮決め。minMix = 地下モードの係数(CaveLights.mix)がこれを超えたら滴・軋み。滴は dripDistance ブロック先の天井のある列の真下(水なら水面の滴・石なら岩の滴)、雨の最中は間隔 × dripRainScale。軋みは半径 creakRootRadius にタグ #overgrown_vegetation:cave_creak_roots があればその向き。うなりはタグ #overgrown_vegetation:spore_pool(今は空)の一番近いものから humRadius の中で 近さの 2 乗 × humVolume。Range = 線形に減って 0 になる距離。",
+      "minMix": 0.5,
+      "dripIntervalMin": 5.0,
+      "dripIntervalMax": 40.0,
+      "dripRainScale": 0.6,
+      "dripDistanceMin": 4.0,
+      "dripDistanceMax": 20.0,
+      "dripVolume": 0.4,
+      "dripRange": 24,
+      "creakIntervalMin": 30.0,
+      "creakIntervalMax": 90.0,
+      "creakDistanceMin": 20.0,
+      "creakDistanceMax": 40.0,
+      "creakVolume": 0.5,
+      "creakRange": 64,
+      "creakRootRadius": 40.0,
+      "humRadius": 12.0,
+      "humVolume": 0.6
+    },
+    "water": {
+      "_comment": "水中の環境音(2026-11-01、見本 W1 をユーザー採用)。過繁茂・繁茂の 6 バイオーム(陸・川・海)で目が水の中のとき、こもった低音(川・池 / 海は UnderwaterPlants#isSea)。潜るとき fadeIn 秒で入り浮かぶとき fadeOut 秒で消える。水深 depthFull で depthVolume 倍。同じ所でバニラの水中の環境音を vanillaScale 倍に下げる。すべて仮決め(depthVolume 0.7 = 深さ 24 で 0.7 倍は相談セッションの指示)。",
+      "volume": 0.5,
+      "fadeIn": 0.6,
+      "fadeOut": 0.8,
+      "depthFull": 24.0,
+      "depthVolume": 0.7,
+      "vanillaScale": 0.3
+    }
+
   },
   "spores": {
     "counts": [1500, 900, 400],
@@ -103,7 +136,7 @@
     "spinPerBlock": 0.15
   },
   "fog": {
-    "_comment": "第 3 段「霧」の土台(10-30 夜)。色味は 10-30 夜 ユーザー採用 A1・A5(参考画像: 霧は白〜灰緑で青くない・林冠の隙間の空は白く飛ぶ)で、値は見本で決める仮決め。了承値は insideFogEnd 64(10-16)と朝 5〜9 時(MistLayer の時刻の形)。ほかはすべて仮決め。色(nearColor・farColor・nightColor・forestFogDark・shadeFloor)は後で参考画像から詰める(10-30 ユーザー)。胞子の霧 forestFogEnd 96・forestFogStart 86.4(10-31 ユーザー「森の中だけ描画距離 6 チャンクくらい」の換算)・forestFogAbove 4・壁の手前の霞 forestFogDensity(10-31 の 0.012 はユーザーが残すと決め、11-01「昼も胞子が充満して遠くが見えない」で 0.03 に。値は見本から選ぶ仮決め)・胞子の霧の色 forestFogDayColor(#ace300 を白へ 75%)・forestFogDawnColor は仮決め。水中の濁り waterFog*(11-01 ユーザー「水中が透き通りすぎ」: 海・川の 4 バイオームで潜っている間の霧の終わりを固定し、潜る時間で澄ませない。距離 10・16・8・12 と始まり 0.2 倍は仮決め)。既定は熱帯版(日なたは金・影は青緑、冷たい青へ振りすぎない)。",
+    "_comment": "第 3 段「霧」の土台(10-30 夜)。色味は 10-30 夜 ユーザー採用 A1・A5(参考画像: 霧は白〜灰緑で青くない・林冠の隙間の空は白く飛ぶ)で、値は見本で決める仮決め。了承値は insideFogEnd 64(10-16)と朝 5〜9 時(MistLayer の時刻の形)。ほかはすべて仮決め。色(nearColor・farColor・nightColor・forestFogDark・shadeFloor)は後で参考画像から詰める(10-30 ユーザー)。胞子の霧 forestFogEnd 96・forestFogStart 86.4(10-31 ユーザー「森の中だけ描画距離 6 チャンクくらい」の換算)・forestFogAbove 4・壁の手前の霞 forestFogDensity(10-31 の 0.012 はユーザーが残すと決め、11-01「昼も胞子が充満して遠くが見えない」で 0.03 に。値は見本から選ぶ仮決め)・胞子の霧の色 forestFogDayColor(#ace300 を白へ 75%)・forestFogDawnColor は仮決め。水中の濁り waterFog*(11-01 ユーザー「水中が透き通りすぎ」: 海・川の 4 バイオームで潜っている間の霧の終わりを固定し、潜る時間で澄ませない。距離 10・16・8・12 と始まり 0.2 倍は仮決め。11-01 夕方 ユーザー「川は真っ暗すぎ。川・池は明るい黄緑・見通し 10〜20 m、海は青緑のもや・10 m 前後」(参考画像 水中-2026-11-01)で、森の池 waterFogOvergrown・waterFogOvergrowth を足し、距離を海 14・20・川 18・24・池 20・24 に、色を water*Color(川・池は明るい黄緑、海は青緑)に。値は仮決め)。11-01 夜 ユーザー「過繁茂したジャングル(森の池)と川の水を統一」で、池の距離・色を川と同じ値に(池 18・24、色は川の 2 色。キーは残す)。境目の移り(11-01 夜 ユーザー「シェーダーの変わり目をもっとゆっくり」): 目標へ指数で寄せる時定数 transitionForestSeconds(森の胞子の霧)・transitionCaveSeconds(地上 ↔ 地下)・transitionWaterSeconds(水中の霧の距離と色。水に出入りした瞬間は寄せない)。4・4・5 秒は仮決め。既定は熱帯版(日なたは金・影は青緑、冷たい青へ振りすぎない)。",
     "density": 0.0045,
     "falloff": 0.35,
     "depthMin": 5.0,
@@ -146,12 +179,29 @@
     "forestFogStart": 86.4,
     "forestFogAbove": 4.0,
     "forestFogDensity": 0.03,
-    "waterFogOvergrownOcean": 10.0,
-    "waterFogOvergrowthOcean": 16.0,
-    "waterFogOvergrownRiver": 8.0,
-    "waterFogOvergrowthRiver": 12.0,
+    "waterFogOvergrownOcean": 14.0,
+    "waterFogOvergrowthOcean": 20.0,
+    "waterFogOvergrownRiver": 18.0,
+    "waterFogOvergrowthRiver": 24.0,
     "waterFogNearFraction": 0.2,
-    "forestFogDayColor": [0.92, 0.97, 0.75],
+    "transitionForestSeconds": 4.0,
+    "transitionCaveSeconds": 4.0,
+    "transitionWaterSeconds": 5.0,
+    "_waterDepth": "11-01 夜 見え方の直し 5(仮決め。参考画像 水中-2026-11-01 の海 5・6 = 上が明るく下が暗い): 水中の霧の色を水面からの深さで暗くする。深さ 0 で今の色、waterDepthDarkenBlocks で waterDepthDarkenMin 倍の明るさ(その間は直線)。水中の光の筋も同じ倍率。川・池は浅いのでほぼ変わらない。waterDepthDarkenBlocks 0 で切る。",
+    "waterDepthDarkenBlocks": 24.0,
+    "waterDepthDarkenMin": 0.4,
+    "_forestGreen": "11-01 夜 見え方の直し 6(ユーザー「森の中で昼でも白い靄が出ていて朝方のよう。胞子の霧だと分かるよう若干明るい緑に」。値は仮決め): forestFogDayColor を [0.92, 0.97, 0.75](#ace300 を白へ 75%)→ [0.74, 0.90, 0.52](白へ 45% 程度)。forestFogDawnColor の白緑は朝(4〜9 時)だけで、夕方は昼の色のまま暗くなる。森の中では、隙間の空の色(バニラの霧の色)を forestSkyGreen、昼の霞の色(hazeColor)を forestHazeGreen の割合で昼の胞子の霧の色へ寄せる(朝は寄せない)。",
+    "forestSkyGreen": 0.6,
+    "forestHazeGreen": 0.6,
+    "waterFogOvergrown": 18.0,
+    "waterFogOvergrowth": 24.0,
+    "waterOvergrownOceanColor": [0.184, 0.376, 0.345],
+    "waterOvergrowthOceanColor": [0.227, 0.439, 0.408],
+    "waterOvergrownRiverColor": [0.306, 0.478, 0.149],
+    "waterOvergrowthRiverColor": [0.353, 0.541, 0.188],
+    "waterOvergrownColor": [0.306, 0.478, 0.149],
+    "waterOvergrowthColor": [0.353, 0.541, 0.188],
+    "forestFogDayColor": [0.74, 0.90, 0.52],
     "forestFogDawnColor": [0.90, 0.93, 0.88],
     "nearColor": [1.00, 1.00, 0.96],
     "farColor": [0.90, 0.93, 0.88],
@@ -408,7 +458,7 @@
     "color": [1.0, 0.97, 0.82]
   },
   "underwaterShafts": {
-    "_comment": "潜ったときの光の筋(10-31 夜 ユーザー「地上と全く同じにせず水中用に新しく」)。上に何も無い水面から、屈折した太陽の向きへ細い筋がたくさん斜めに降りる。水面のすぐ下が明るく下へ消える・1 本ずつ明滅し横に揺らぐ・遠い筋は水中の霧で薄れる。counts = 本数(重さの段 高・中・低)・radius = カメラのまわり・length = 長さ・widthMin/Max = 幅・alpha = 濃さ・lifeMin/Max = 1 本の寿命(秒)・sway = 横の揺れ(ブロック)・color = 色・fogMix = 水中の霧の色へ寄せる割合。値はすべて仮決め。",
+    "_comment": "潜ったときの光の筋(10-31 夜 ユーザー「地上と全く同じにせず水中用に新しく」)。上に何も無い水面から、屈折した太陽の向きへ細い筋がたくさん斜めに降りる。水面のすぐ下が明るく下へ消える・1 本ずつ明滅し横に揺らぐ・遠い筋は水中の霧で薄れる。counts = 本数(重さの段 高・中・低)・radius = カメラのまわり・length = 長さ・widthMin/Max = 幅・alpha = 濃さ・lifeMin/Max = 1 本の寿命(秒)・sway = 横の揺れ(ブロック)・color = 色・fogMix = 水中の霧の色へ寄せる割合。過繁茂の海・川・森の池の中(11-01 夕方 ユーザー「水面からの光の筋がはっきり」)では本数 × murkyCount・濃さ × murkyAlpha・霧で薄れる距離 × murkyFogReach。値はすべて仮決め。",
     "counts": [28, 18, 8],
     "radius": 12.0,
     "length": 9.0,
@@ -419,6 +469,31 @@
     "lifeMax": 10.0,
     "sway": 0.15,
     "color": [0.9, 1.0, 0.85],
-    "fogMix": 0.5
+    "fogMix": 0.5,
+    "murkyCount": 1.5,
+    "murkyAlpha": 1.3,
+    "murkyFogReach": 1.8
+  },
+  "cave": {
+    "_comment": "地下モード(11-01 試作。仕様は Vault の「地下モード(洞窟のシェーダーと光)」)。過繁茂の地域でカメラが岩の天井の下にいて空の光が暗いほど、黒い霧と点光源に切り替える。ユーザー指定: fogStart〜fogEnd = 見通し 12〜16 ブロック・fogColor = #050604 に近い黒・maxLights = 近い順に最大 24。ほかは仮決め: lightGain = 点光源が面の色(絵の色)に足す明るさの倍率・entityGain = Mob・手に持った物・粒のライトマップへ直すときの倍率・radius = 光源を集める半径・skyFrom/skyTo = カメラの所の空の光がこの値から下がり始めると地下モードに入り始め、skyTo 以下で全部・glowThreshold = 光源のブロックの中でこの明るさを超える画素は光る画素として霧で暗くしない。濡れた岩の照り・地脈の回廊・洞窟の口の光の筋は試作ではまだ無い。 11-01 夜 ユーザー「真っ暗すぎる」: 霧 12〜16 → 20〜28・色 #050604 → #0c100a(仮決め。ユーザー指定の値は前のもの)、ambient = 地下モードの間だけ面に足す最低の明るさ(絵の色 × これ、ライトマップの床の持ち上げ。仮 0.06)、clipKnee = 点光源で明るくなった面の色の最大がこれを超えたら 1.0 を超えないよう柔らかく抑える(色相は保つ。仮 0.8)。",
+    "fogStart": 20.0,
+    "fogEnd": 28.0,
+    "fogColor": [0.047, 0.063, 0.039],
+    "maxLights": 24,
+    "lightGain": 1.0,
+    "entityGain": 1.0,
+    "radius": 48.0,
+    "skyFrom": 12.0,
+    "skyTo": 4.0,
+    "glowThreshold": 0.35,
+    "ambient": 0.06,
+    "clipKnee": 0.7,
+    "_look": "11-01 夜 見え方の直し 3・4(ユーザー「概ねその通り」。値はすべて仮決め): lightWhiten = 点光源の色を白へ寄せる割合(房の真下の床がライム一色にならず、明るい所ほど白っぽい緑)・ambientColor = 床の持ち上げの色(灰緑)・ambientDesaturate = 持ち上げに使う絵の色の彩度を落とす割合・clipKnee 0.8 → 0.7・clipDesaturate = clipKnee を超えた分だけ彩度を落とす強さ。roofFrom〜roofTo = 断片(画面の点)の真上の岩の厚みがこの間で地下 0 → 1(カメラのまわり 64×64 列の地下の地図。外から洞窟をのぞいても中が黒く、中から口の外が明るく見える)。",
+    "lightWhiten": 0.25,
+    "ambientColor": [0.82, 0.95, 0.80],
+    "ambientDesaturate": 0.6,
+    "clipDesaturate": 0.5,
+    "roofFrom": 0.5,
+    "roofTo": 3.0
   }
 }

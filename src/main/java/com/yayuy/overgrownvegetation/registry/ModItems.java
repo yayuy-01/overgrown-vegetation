@@ -41,6 +41,10 @@ public final class ModItems {
                 // 蔦は1マス置いても見えないので、始点→終点の2回クリックで張る専用アイテム。
                 ITEMS.registerItem(block.getId().getPath(),
                         props -> new com.yayuy.overgrownvegetation.item.LianaItem(block.get(), props), new Item.Properties());
+            } else if (block == ModBlocks.ALGAE_FILM || block == ModBlocks.SPORE_FILM || block == ModBlocks.SEA_SPORE_BAND) {
+                // 水面の膜は睡蓮の葉と同じく水面を狙って置く(2026-11-01)。
+                ITEMS.registerItem(block.getId().getPath(),
+                        props -> new net.minecraft.world.item.PlaceOnWaterBlockItem(block.get(), props), new Item.Properties());
             } else {
                 ITEMS.registerSimpleBlockItem(block);
             }

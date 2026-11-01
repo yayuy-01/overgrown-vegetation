@@ -14,6 +14,7 @@
 #ov_import <ov_wet.glsl>
 #ov_import <ov_caustic.glsl>
 #ov_import <ov_leaf.glsl>
+#ov_import <ov_cave.glsl>
 
 in vec4 v_Color; // The interpolated vertex color
 in vec2 v_TexCoord; // The interpolated block texture coordinates
@@ -25,6 +26,7 @@ in vec3 ovPos;
 in vec2 ovLight;
 in vec4 ovFog;
 in vec4 ovLeaf;
+in vec3 ovTint;
 
 uniform sampler2D u_BlockTex; // The block texture
 
@@ -69,6 +71,9 @@ void main() {
     vec4 color = texture(u_BlockTex, v_TexCoord, lodBias);
     // The overgrown leaves are repainted by their colour code first (ov_leaf.glsl; keeps the alpha).
     color.rgb = ovLeafRecolor(color.rgb, ovLeaf);
+    // The texel and the lit-free colour for the cave point lights (ov_cave.glsl).
+    vec3 ovTexel = color.rgb;
+    vec3 ovAlbedo = color.rgb * ovTint;
     color *= v_Color; // Apply per-vertex color modulator
 
 #ifdef USE_FRAGMENT_DISCARD
@@ -77,6 +82,7 @@ void main() {
     }
 #endif
 
+    float ovUnder = 0.0;
     if (ovSodiumPass != 1) {
         // Grass and ferns (vanilla cutout layer, alpha cutoff 1) are thin: no facing-away shade, like rendertype_cutout.fsh.
         // Water and glass (the translucent pass) are left as they are, like vanilla's rendertype_translucent.
@@ -85,13 +91,25 @@ void main() {
         // The net of sunlight on faces under shallow water (ov_caustic.glsl).
         color.rgb = ovCaustics(color.rgb, ovPos, n, ovLight);
         color.rgb = ovWetSurface(color.rgb, ovPos, n, ovLight);
-        // Leaves with the sun behind them glow yellow-green (ov_leaf.glsl).
-        color.rgb = ovLeafBacklight(color.rgb, ovPos, ovLeaf);
+        // The point lights of glowing cave plants (ov_cave.glsl), before the fog.
+        // How much this fragment is underground (ov_cave.glsl, the cave map; 11-01 evening). Thin plants use their own column.
+        ovUnder = ovCaveUnder(ovPos, n * facing, ovLight.y);
+        color.rgb = ovCaveLight(color.rgb, ovAlbedo, ovPos, n, facing, ovUnder);
     }
+    vec3 ovLit = color.rgb;
 
     // The height fog (ov_fog.glsl, computed per vertex) on every pass, water included.
     color.rgb = mix(color.rgb, ovFog.rgb, ovFog.a);
+    vec3 ovSurface = color.rgb;
     color.rgb = mix(color.rgb, vec3(dot(color.rgb, vec3(0.299, 0.587, 0.114))), OvFogI.x * smoothstep(OvFogI.y, OvFogI.z, v_FragDistance));
 
     fragColor = ovSodiumFog(color, v_FragDistance, u_FogColor, u_FogStart, u_FogEnd);
+    // The fog by where the fragment is: caves seen from outside sink into black, the outside seen from a cave stays bright (ov_cave.glsl).
+    if (ovSodiumPass != 1) {
+        fragColor.rgb = ovCaveFog(fragColor.rgb, ovLit, ovSurface, v_FragDistance, ovUnder);
+    }
+    // The glowing pixels of the cave light blocks stay out of the fog (ov_cave.glsl).
+    if (ovSodiumPass != 1) {
+        fragColor.rgb = mix(fragColor.rgb, ovAlbedo, ovCaveGlow(ovTexel, ovPos, ovUnder));
+    }
 }

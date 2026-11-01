@@ -35,7 +35,16 @@ public final class CoverQuads {
      * @param x     ブロックの座標(絵と回転を選ぶ)
      */
     public static BakedQuad overlay(BakedQuad q, boolean flush, int x, int y, int z, CoverSprites.Set sprites, CoverTable design) {
-        return retexture(q, q.getVertices().clone(), flush, x, y, z, sprites, design);
+        return retexture(q, q.getVertices().clone(), flush, x, y, z, sprites, design, 0, false);
+    }
+
+    /**
+     * 水に接した面には水中の絵を貼る版(2026-11-01)。{@code waterMask} は水に接した面の向きのビット(1 << {@link Direction#ordinal})、
+     * {@code sea} なら海底の藻の丘の絵、でなければ川・池の水中の藻の覆いの絵。
+     */
+    public static BakedQuad overlay(BakedQuad q, boolean flush, int x, int y, int z, CoverSprites.Set sprites, CoverTable design,
+                                    int waterMask, boolean sea) {
+        return retexture(q, q.getVertices().clone(), flush, x, y, z, sprites, design, waterMask, sea);
     }
 
     /**
@@ -133,11 +142,20 @@ public final class CoverQuads {
         };
     }
 
-    private static BakedQuad retexture(BakedQuad q, int[] v, boolean flush, int x, int y, int z, CoverSprites.Set sprites, CoverTable design) {
+    private static BakedQuad retexture(BakedQuad q, int[] v, boolean flush, int x, int y, int z, CoverSprites.Set sprites, CoverTable design,
+                                       int waterMask, boolean sea) {
         Direction d = q.getDirection();
-        int picked = CoverLook.pick(x, y, z, d, sprites.side().length, design.rotate());
-        int index = CoverLook.index(picked);
-        TextureAtlasSprite sprite = d == Direction.UP ? sprites.top()[index] : sprites.side()[index];
+        TextureAtlasSprite[] wet = (waterMask & 1 << d.ordinal()) == 0 ? null : sea ? sprites.sea() : sprites.water();
+        TextureAtlasSprite sprite;
+        int picked;
+        if (wet != null && wet.length > 0) {
+            picked = CoverLook.pick(x, y, z, d, wet.length, design.rotate());
+            sprite = wet[CoverLook.index(picked)];
+        } else {
+            picked = CoverLook.pick(x, y, z, d, sprites.side().length, design.rotate());
+            int index = CoverLook.index(picked);
+            sprite = d == Direction.UP ? sprites.top()[index] : sprites.side()[index];
+        }
         int rot = CoverLook.rotation(picked);
         float push = flush ? 0 : (float) design.push();
         int stride = v.length / 4;

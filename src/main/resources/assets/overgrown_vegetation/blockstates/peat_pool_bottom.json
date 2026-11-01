@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "": [
+      { "model": "overgrown_vegetation:block/peat_pool_bottom" },
+      { "model": "overgrown_vegetation:block/peat_pool_bottom", "y": 90 },
+      { "model": "overgrown_vegetation:block/peat_pool_bottom", "y": 180 },
+      { "model": "overgrown_vegetation:block/peat_pool_bottom", "y": 270 }
+    ]
+  }
+}

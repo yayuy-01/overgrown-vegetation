@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "axis=x,base=false": { "model": "overgrown_vegetation:block/tree_fern_trunk", "x": 90, "y": 90 },
+    "axis=y,base=false": { "model": "overgrown_vegetation:block/tree_fern_trunk" },
+    "axis=z,base=false": { "model": "overgrown_vegetation:block/tree_fern_trunk", "x": 90 },
+    "axis=x,base=true": { "model": "overgrown_vegetation:block/tree_fern_trunk_base", "x": 90, "y": 90 },
+    "axis=y,base=true": { "model": "overgrown_vegetation:block/tree_fern_trunk_base" },
+    "axis=z,base=true": { "model": "overgrown_vegetation:block/tree_fern_trunk_base", "x": 90 }
+  }
+}

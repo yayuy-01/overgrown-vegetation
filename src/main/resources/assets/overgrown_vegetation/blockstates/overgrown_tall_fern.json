@@ -1,10 +1,12 @@
 {
   "variants": {
-    "half=lower": {
-      "model": "overgrown_vegetation:block/overgrown_tall_fern_bottom"
-    },
-    "half=upper": {
-      "model": "overgrown_vegetation:block/overgrown_tall_fern_top"
-    }
+    "half=lower": [
+      { "model": "overgrown_vegetation:block/overgrown_tall_fern_bottom" },
+      { "model": "overgrown_vegetation:block/overgrown_tall_fern_b_bottom" }
+    ],
+    "half=upper": [
+      { "model": "overgrown_vegetation:block/overgrown_tall_fern_top" },
+      { "model": "overgrown_vegetation:block/overgrown_tall_fern_b_top" }
+    ]
   }
 }

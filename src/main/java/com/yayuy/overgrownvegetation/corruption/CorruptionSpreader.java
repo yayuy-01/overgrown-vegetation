@@ -1280,6 +1280,11 @@ public class CorruptionSpreader {
             // 雪のように「汚染しても消えるだけ」のブロックは、その跡地(空気)に何も生やさない。
             return;
         }
+        // 林床の地面(泥炭の斑と水たまり・倒木。密林だけ、2026-11-01)。水たまりになったマスには何も生やさない
+        hostState = FloorGrowth.beforePlants(level, pos, hostState);
+        if (hostState.isAir() || hostState.is(Blocks.WATER)) {
+            return;
+        }
         // 茂み(overgrown_bush)の塊は装飾植物とは独立に生成する
         // (spawnGrowthPlants / growthChance の設定に左右されない)。
         LeafClumpGrowth.tryGrow(level, pos, level.random);
@@ -1374,225 +1379,15 @@ public class CorruptionSpreader {
     }
 
     /**
-     * 汚染し終えたばかりのブロックの周囲を見て、<b>水に接した</b>露出面へ確率で水中植物を生やす。
-     * 上面(水側)は海草(まれに背高海草・昆布状の藻柱)と、その真上の水面へまれにスイレン、
-     * 下面(水側)は水中の垂れ蔓になる。側面と上面には加えて、薄く覆う藻
-     * ({@code waterMossLayerChance}、既定 0.9)が海草類とは独立して生える(陸の薄い苔と同じ)。
+     * 汚染し終えたばかりのブロックの周囲を見て、<b>水に接した</b>露出面へ水中の植物を生やす(2026-11-01 から {@link UnderwaterPlants})。
+     * 川・池は上面にシャジクモと水面の膜(睡蓮)、海は胞子昆布と海面の浮き藻、岸の下面・壁から垂れる根、それ以外の下面は水中の垂れ蔓。
      *
      * <p>{@link #growSurfacePlants} が「空気に接した面」だけを見るのに対し、こちらは
      * 「水に接した面」だけを見るので、地上の植物と水中の植物が同じマスへ二重に生えることはない。
      * {@code hostState} が {@link ModTags#GROWTH_HANGING_ONLY}(葉など)の場合は下面のみ。
      */
     private static void growUnderwaterPlants(ServerLevel level, BlockPos pos, BlockState hostState) {
-        if (hostState.isAir() || hostState.is(Blocks.WATER)) {
-            return;
-        }
-        if (!OvergrownVegetationConfig.COMMON.spawnUnderwaterPlants.get()) {
-            return;
-        }
-        final double chance = OvergrownVegetationConfig.COMMON.underwaterGrowthChance.get();
-        final double ceilingChance = OvergrownVegetationConfig.COMMON.waterCeilingGrowthChance.get();
-        if (chance <= 0.0D && ceilingChance <= 0.0D) {
-            return;
-        }
-
-        RandomSource random = level.random;
-        final boolean hangingOnly = hostState.is(ModTags.GROWTH_HANGING_ONLY);
-        BlockPos.MutableBlockPos growthPos = new BlockPos.MutableBlockPos();
-
-        final boolean spawnWaterMoss = OvergrownVegetationConfig.COMMON.spawnWaterMossLayer.get();
-        final double waterMossChance = OvergrownVegetationConfig.COMMON.waterMossLayerChance.get();
-
-        for (Direction direction : Direction.values()) {
-            if (hangingOnly && direction != Direction.DOWN) {
-                continue;
-            }
-            final boolean side = direction.getAxis().isHorizontal();
-
-            // 藻(多面)は側面と上面に、通常の水中植物(上面の海草類・下面の垂れ蔓)とは
-            // 独立した確率で生える。陸の薄い苔と同じ考え方。
-            boolean mossFace = side || direction == Direction.UP;
-            boolean tryMoss = mossFace && spawnWaterMoss && waterMossChance > 0.0D
-                    && random.nextDouble() < waterMossChance;
-            // 上面(水草・藻柱)と下面(垂れ蔓)は別の確率で抽選する。下面のほうを低くして、
-            // 岩の裏・オーバーハングの下が垂れ蔓で埋まらないようにしている。
-            final double plantChance = direction == Direction.DOWN ? ceilingChance : chance;
-            boolean tryPlant = !side && plantChance > 0.0D && random.nextDouble() < plantChance;
-            if (!tryMoss && !tryPlant) {
-                continue;
-            }
-
-            growthPos.setWithOffset(pos, direction);
-            if (!level.isLoaded(growthPos)) {
-                continue;
-            }
-            BlockState atGrowth = level.getBlockState(growthPos);
-            boolean mossHere = atGrowth.is(ModBlocks.OVERGROWN_WATER_MOSS_LAYER.get());
-            // 汚染植物の足場になるのは「水源で満たされた」マスか、既に藻が付いているマス
-            // (藻は多面なので別方向の藻があるマスにも面を足せる)。海草・水没ブロックなどは対象外。
-            boolean waterCell = atGrowth.is(Blocks.WATER) && atGrowth.getFluidState().isSource();
-            if (!waterCell && !mossHere) {
-                continue;
-            }
-
-            BlockPos immutable = growthPos.immutable();
-            if (tryMoss) {
-                tryGrowWaterMossFace(level, immutable, direction.getOpposite());
-                mossHere = level.getBlockState(immutable).is(ModBlocks.OVERGROWN_WATER_MOSS_LAYER.get());
-            }
-
-            // マスが藻で埋まっているなら、同じマスに通常の水中植物は置けない。
-            if (!tryPlant || mossHere || !waterCell) {
-                continue;
-            }
-            switch (direction) {
-                case UP -> growWaterUp(level, immutable, random);
-                case DOWN -> growWaterDown(level, immutable);
-                default -> { /* 側面は藻のみ */ }
-            }
-        }
-    }
-
-    /**
-     * {@code pos}(host の水中露出面に隣接する水マス、または既に藻が付いているマス)へ、
-     * host のある方向 {@code attachDir} ぶんの藻({@link ModBlocks#OVERGROWN_WATER_MOSS_LAYER})の
-     * 面を 1 つ足す。{@link #tryGrowMossFace}(陸の薄い苔)の水中版。
-     */
-    private static void tryGrowWaterMossFace(ServerLevel level, BlockPos pos, Direction attachDir) {
-        Block moss = ModBlocks.OVERGROWN_WATER_MOSS_LAYER.get();
-        BlockState existing = level.getBlockState(pos);
-        BooleanProperty faceProp = MultifaceBlock.getFaceProperty(attachDir);
-
-        BlockState next;
-        if (existing.is(moss)) {
-            if (existing.getValue(faceProp)) {
-                return;
-            }
-            next = existing.setValue(faceProp, true);
-        } else if (existing.is(Blocks.WATER) && existing.getFluidState().isSource()) {
-            next = moss.defaultBlockState()
-                    .setValue(BlockStateProperties.WATERLOGGED, true)
-                    .setValue(faceProp, true);
-        } else {
-            return;
-        }
-
-        BlockPos supportPos = pos.relative(attachDir);
-        if (!MultifaceBlock.canAttachTo(level, attachDir, supportPos, level.getBlockState(supportPos))) {
-            return;
-        }
-        level.setBlock(pos, next, Block.UPDATE_ALL);
-    }
-
-    /**
-     * 上面(host の真上)の水マスへ水中植物を生やす。抽選順は
-     * スイレン(水面) → 藻柱(縦伸び) → 背高海草(高さ2) → 海草(高さ1)。
-     * 手前の抽選に外れた/生やせなかった場合は次の候補へ進む。
-     */
-    private static void growWaterUp(ServerLevel level, BlockPos pos, RandomSource random) {
-        if (random.nextDouble() < OvergrownVegetationConfig.COMMON.lilyChance.get()
-                && tryGrowLilyAtSurface(level, pos)) {
-            return;
-        }
-
-        if (random.nextDouble() < OvergrownVegetationConfig.COMMON.waterColumnChance.get()
-                && growWaterColumn(level, pos, random)) {
-            return;
-        }
-
-        if (random.nextDouble() < OvergrownVegetationConfig.COMMON.underwaterTallChance.get()
-                && level.getBlockState(pos.above()).is(Blocks.WATER)) {
-            BlockState tall = ModBlocks.OVERGROWN_TALL_WATER_GRASS.get().defaultBlockState();
-            if (tall.canSurvive(level, pos)) {
-                DoublePlantBlock.placeAt(level, tall, pos, Block.UPDATE_ALL);
-                return;
-            }
-        }
-
-        BlockState grass = ModBlocks.OVERGROWN_WATER_GRASS.get().defaultBlockState();
-        if (grass.canSurvive(level, pos)) {
-            level.setBlock(pos, grass, Block.UPDATE_ALL);
-        }
-    }
-
-    /**
-     * 藻柱を水面の手前まで縦に積む。1マスでも置けたら true。
-     *
-     * <p>1 段目を積んだあとは、1 段積むごとに {@code waterColumnFlowerChance} を引く。当たった段は
-     * 柱ではなく<b>藻柱の花</b>({@link ModBlocks#OVERGROWN_WATER_COLUMN_FLOWER})になり、そこで成長を
-     * 止める(花の上には積まない)。花も高さに数えるので、抽選した高さより高くはならない。外れ続けた
-     * 藻柱はこれまでどおり抽選した高さか水面まで伸びる。
-     */
-    private static boolean growWaterColumn(ServerLevel level, BlockPos base, RandomSource random) {
-        int min = OvergrownVegetationConfig.COMMON.waterColumnMinHeight.get();
-        int max = Math.max(min, OvergrownVegetationConfig.COMMON.waterColumnMaxHeight.get());
-        int height = min + random.nextInt(max - min + 1);
-        double flowerChance = OvergrownVegetationConfig.COMMON.waterColumnFlowerChance.get();
-
-        BlockState column = ModBlocks.OVERGROWN_WATER_COLUMN.get().defaultBlockState();
-        BlockState flower = ModBlocks.OVERGROWN_WATER_COLUMN_FLOWER.get().defaultBlockState();
-        BlockPos.MutableBlockPos cursor = base.mutable();
-        int placed = 0;
-        for (int i = 0; i < height; i++) {
-            if (!level.isLoaded(cursor)) {
-                break;
-            }
-            if (!level.getBlockState(cursor).is(Blocks.WATER)) {
-                break;
-            }
-            // 2 段目以降は、その段が花になって打ち止めになることがある。
-            if (placed >= 1 && flowerChance > 0.0D && random.nextDouble() < flowerChance) {
-                level.setBlock(cursor, flower, Block.UPDATE_ALL);
-                return true;
-            }
-            level.setBlock(cursor, column, Block.UPDATE_ALL);
-            placed++;
-            if (!level.getBlockState(cursor.above()).is(Blocks.WATER)) {
-                // 次のマスが水でない = 水面に達した。水面から突き出さないようここで止める。
-                break;
-            }
-            cursor.move(Direction.UP);
-        }
-        return placed > 0;
-    }
-
-    /** host の真上の水柱をたどって水面を探し、見つかればそこへスイレンを浮かべる。 */
-    private static boolean tryGrowLilyAtSurface(ServerLevel level, BlockPos startWaterPos) {
-        int maxDepth = OvergrownVegetationConfig.COMMON.lilyMaxDepth.get();
-        BlockPos.MutableBlockPos cursor = startWaterPos.mutable();
-        for (int depth = 0; depth <= maxDepth; depth++) {
-            if (!level.isLoaded(cursor)) {
-                return false;
-            }
-            BlockState state = level.getBlockState(cursor);
-            if (state.is(Blocks.WATER)) {
-                cursor.move(Direction.UP);
-                continue;
-            }
-            // 最初に見つかった非水マス。ここが空気で、真下が水なら水面。
-            if (!state.isAir()) {
-                return false;
-            }
-            if (!level.getBlockState(cursor.below()).is(Blocks.WATER)) {
-                return false;
-            }
-            BlockState lily = ModBlocks.OVERGROWN_LILY.get().defaultBlockState();
-            BlockPos surface = cursor.immutable();
-            if (!lily.canSurvive(level, surface)) {
-                return false;
-            }
-            level.setBlock(surface, lily, Block.UPDATE_ALL);
-            return true;
-        }
-        return false;
-    }
-
-    /** 下面(host の真下)の水マスへ、水中の垂れ蔓を生やす。 */
-    private static void growWaterDown(ServerLevel level, BlockPos pos) {
-        BlockState growth = ModBlocks.OVERGROWN_WATER_CEILING_GROWTH.get().defaultBlockState();
-        if (growth.canSurvive(level, pos)) {
-            level.setBlock(pos, growth, Block.UPDATE_ALL);
-        }
+        UnderwaterPlants.grow(level, pos, hostState);
     }
 
     /**
@@ -2216,12 +2011,11 @@ public class CorruptionSpreader {
         final boolean spawnMoss = OvergrownVegetationConfig.COMMON.spawnMossLayer.get();
         final double mossChance = OvergrownVegetationConfig.COMMON.mossLayerChance.get();
 
-        // 洞窟(地表より caveDepthMargin 以上深い場所)の露出面。湿地・菌湿地帯では下草・蔦の代わりに
-        // 洞窟専用の植物(微光の胞子嚢・苔の塊)を生やし、まれに構造物(壁の傘・天井のアーチ・菌の柱)を建てる。
-        // 密林の洞窟では天井のアーチだけが対象で、植物はいつも通り(CaveGrowth 参照)。
+        // 洞窟(地表より caveDepthMargin 以上深い場所)の露出面。まれに天井のアーチを建てる(CaveGrowth 参照)。
+        // 植物はいつも通り(湿地系の洞窟専用の植物 = 微光の胞子嚢・苔の塊は 2026-11-01 に削除。地下の植生は作り直す)。
         // 天井のアーチは caveVineArchShare の割合で、根ではなく葉に包まれた巨大な蔦になる。
-        // 密林の洞窟では、天井の垂れ植物が光るツタ(グロウベリー仕様)になる確率を地上よりかなり高くする
-        // (glowVinesCaveMultiplier)。湿地系の洞窟は洞窟植物に置き換わるので光るツタは生えない。
+        // 洞窟では、天井の垂れ植物が光るツタ(グロウベリー仕様)になる確率を地上よりかなり高くする
+        // (glowVinesCaveMultiplier)。
         final CaveGrowth.Mode cave = CaveGrowth.modeAt(level, pos, hostState);
         if (cave != CaveGrowth.Mode.NONE) {
             CaveGrowth.tryStructure(level, pos, hostState, random, cave);
@@ -2231,21 +2025,24 @@ public class CorruptionSpreader {
         final boolean underground = cave != CaveGrowth.Mode.NONE
                 || (!OvergrownVegetationConfig.COMMON.caveGrowth.get()
                         && CaveGrowth.isUnderground(level, pos, hostState));
-        final boolean caveSwamp = cave == CaveGrowth.Mode.SWAMP;
-        final double plantChance = caveSwamp ? OvergrownVegetationConfig.COMMON.caveGrowthChance.get() : chance;
 
         for (Direction direction : Direction.values()) {
             if (hangingOnly && direction != Direction.DOWN) {
                 continue;
             }
-            if (direction == Direction.UP && !caveSwamp && tryAnchorTree(level, pos, hostState)) {
+            if (direction == Direction.UP && tryAnchorTree(level, pos, hostState)) {
                 continue;
             }
 
             // 薄く広がる苔(多面)は通常の下草・蔦の抽選(chance)とは独立して判定する。
             // どちらも外れた面は、ブロック状態を読む前にここで安く打ち切る(負荷対策)。
             boolean tryMoss = spawnMoss && mossChance > 0.0D && random.nextDouble() < mossChance;
-            boolean tryPlant = random.nextDouble() < plantChance;
+            boolean tryPlant = random.nextDouble() < chance;
+            if (direction == Direction.UP && tryPlant) {
+                // 上面は下草を先に: 苔が先に付くとそのマスに下草が置けず、上面の 3 割が苔だけ(目線では地面と同じ)になっていた
+                // (2026-11-01 夜、平らな草地で下草 59%・苔だけ 32%)。苔は下草の抽選に外れた上面と、側面・下面に付く。
+                tryMoss = false;
+            }
             if (!tryMoss && !tryPlant) {
                 continue;
             }
@@ -2271,13 +2068,6 @@ public class CorruptionSpreader {
 
             // マスが苔で埋まっているなら、同じマスに通常の下草・蔦は置けない(苔を上書きしてしまう)。
             if (!tryPlant || mossHere) {
-                continue;
-            }
-
-            if (caveSwamp) {
-                // 湿地系の洞窟: 床・壁・天井のどの面も洞窟植物(胞子嚢 / 苔の塊)。
-                // 光るツタはここでは生やさない(菌の洞窟の明かりは胞子嚢と光る菌糸に任せる)。
-                CaveGrowth.placePlant(level, immutableGrowthPos, direction, random);
                 continue;
             }
 
@@ -2329,7 +2119,7 @@ public class CorruptionSpreader {
      * <ul>
      *     <li>真上が<b>空気</b> — 上面に陸の下草(シダ・苔・背高植物。宿主が原木なので苗木は生えない)、
      *         側面に苔・蔦({@link #growSurfacePlants})。</li>
-     *     <li>真上が<b>水源</b> — 上面に水中植物(海草・背高海草・藻柱・スイレン)、側面に藻
+     *     <li>真上が<b>水源</b> — 上面に水中の植物(シャジクモ・水面の膜・胞子昆布)、岸の壁に垂れる根
      *         ({@link #growUnderwaterPlants})。</li>
      * </ul>
      * 真上が空気でも水でもない(= 隣の盛り上がりの下に埋まっている)場合は何もしない。
@@ -2380,7 +2170,7 @@ public class CorruptionSpreader {
                 BlockPos crest = cursor.immutable();
                 double growthChance = surfaceGrowthChance(level, crest);
                 // 露出面すべてを飾る。地上側(空気に接する面)は growSurfacePlants が上面の下草も含めて、
-                // 水中側(水に接する面)は growUnderwaterPlants が上面の水草・側面の藻も含めて処理する。
+                // 水中側(水に接する面)は growUnderwaterPlants が上面の水中の植物・岸の根も含めて処理する。
                 growSurfacePlants(level, crest, state, growthChance);
                 growUnderwaterPlants(level, crest, state);
             }
@@ -2401,6 +2191,13 @@ public class CorruptionSpreader {
                 && OvergrownVegetationConfig.COMMON.spawnTrees.get()
                 && random.nextDouble() < treeChanceAt(level, pos)
                 && growSapling(level, pos)) {
+            return;
+        }
+        if (OvergrownVegetationConfig.COMMON.spawnTrees.get() && tryTreeFernBetweenTrees(level, pos, hostState)) {
+            return;
+        }
+        // 林床(密林だけ、2026-11-01): メドゥロサ・小葉類の敷物と株・泥炭の芽と屑
+        if (FloorGrowth.tryGrowUp(level, pos, random, hostState)) {
             return;
         }
 
@@ -2442,6 +2239,72 @@ public class CorruptionSpreader {
         }
         level.setBlock(pos, sapling, Block.UPDATE_ALL);
         return true;
+    }
+
+    /**
+     * 木生シダは林冠の木(苗木の列)の<b>間</b>に別枠で立てる(2026-11-01 夜、ユーザー観察「木の種類が増えて森の上側が葉で覆われなくなった」)。
+     * 前は苗木の列の 15% で苗木の代わりに立てていたので、高さ 8〜15 の中層にしか届かない木生シダが林冠の木の枠を奪っていた。
+     * 今は {@value #TREE_FERN_GRID} ブロックの格子の 1 列(苗木の格子と同じ決め方・別の塩)のうち、林冠の木の列から水平 {@value #TREE_FERN_TREE_CLEARANCE}
+     * ブロック以内でない所で、{@value #TREE_FERN_CHANCE} の確率。苗木の列あたりの数は前とおおよそ同じ(仮決め)。
+     */
+    private static final int TREE_FERN_GRID = 3;
+    private static final int TREE_FERN_TREE_CLEARANCE = 2;
+    private static final double TREE_FERN_CHANCE = 0.45;
+    private static final long TREE_FERN_SALT = 0x3C6EF372FE94F82BL;
+
+    /** {@code pos}(上面の上の空気)に木生シダを別枠で立てたら true。 */
+    private static boolean tryTreeFernBetweenTrees(ServerLevel level, BlockPos pos, BlockState hostState) {
+        if (!isTreeSoil(hostState) && !CorruptedSaplingBlock.isCoveredGround(level, pos.below(), hostState)) {
+            return false;
+        }
+        long seed = level.getSeed();
+        if (!TreeSpacing.allowsTree(seed ^ TREE_FERN_SALT, pos.getX(), pos.getZ(), TREE_FERN_GRID, 0.0)) {
+            return false;
+        }
+        int spacing = OvergrownVegetationConfig.COMMON.treeSpacing.get();
+        if (spacing > 1) {
+            double clearing = OvergrownVegetationConfig.COMMON.treeClearingChance.get();
+            for (int dx = -TREE_FERN_TREE_CLEARANCE; dx <= TREE_FERN_TREE_CLEARANCE; dx++) {
+                for (int dz = -TREE_FERN_TREE_CLEARANCE; dz <= TREE_FERN_TREE_CLEARANCE; dz++) {
+                    if (TreeSpacing.allowsTree(seed, pos.getX() + dx, pos.getZ() + dz, spacing, clearing)) {
+                        return false; // 林冠の木のすぐ脇
+                    }
+                }
+            }
+        }
+        if (level.random.nextDouble() >= TREE_FERN_CHANCE) {
+            return false;
+        }
+        return growTreeFern(level, pos);
+    }
+    private static final net.minecraft.resources.ResourceKey<net.minecraft.world.level.levelgen.feature.ConfiguredFeature<?, ?>> TREE_FERN_FEATURE =
+            net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.CONFIGURED_FEATURE,
+                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "tree_fern"));
+
+    /**
+     * 木生シダ(プサロニウス)を {@code pos} に直接立てる(苗木からは生えない。苗木の種類を増やさないため。2026-11-01)。
+     * 密林(と環境の分からない所)だけ。立てられなければ(上が塞がっている・洞窟)false で、呼び手は苗木を植える。
+     */
+    private static boolean growTreeFern(ServerLevel level, BlockPos pos) {
+        OvergrowthVariant variant = OvergrowthRegionMap.blendedVariantAt(level, pos.getX(), pos.getZ(), 1);
+        if (variant != null && variant != OvergrowthVariant.JUNGLE) {
+            return false;
+        }
+        var feature = level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.CONFIGURED_FEATURE).get(TREE_FERN_FEATURE);
+        if (feature == null) {
+            return false;
+        }
+        BlockState before = level.getBlockState(pos);
+        if (!before.isAir()) {
+            level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+        }
+        if (feature.place(level, level.getChunkSource().getGenerator(), level.random, pos)) {
+            return true;
+        }
+        if (!before.isAir()) {
+            level.setBlock(pos, before, Block.UPDATE_ALL);
+        }
+        return false;
     }
 
     /**
@@ -2507,6 +2370,10 @@ public class CorruptionSpreader {
     }
 
     private static void growSide(ServerLevel level, BlockPos pos, RandomSource random, Direction facing) {
+        // 幹(コルダイテス・封印木・巨大樹)の根元の面には、壁の下草の代わりに種子シダが巻き付くことがある(2026-11-01)。
+        if (com.yayuy.overgrownvegetation.worldgen.TreeSideGrowth.tryGrowOnTrunk(level, pos, random, facing)) {
+            return;
+        }
         BlockState growth = CorruptionGrowth.randomSide(random, facing);
         if (growth.canSurvive(level, pos)) {
             level.setBlock(pos, growth, Block.UPDATE_ALL);

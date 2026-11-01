@@ -69,6 +69,16 @@ public final class VisualQuality {
         return part(OvergrownClientConfig.CLIENT.ambientWind);
     }
 
+    /** 地下の音(滴・根の軋み・胞子の溜まりのうなり)。 */
+    public static boolean ambientCave() {
+        return part(OvergrownClientConfig.CLIENT.ambientCave);
+    }
+
+    /** 水中の音(こもった低音・バニラの水中の音を下げる)。 */
+    public static boolean ambientUnderwater() {
+        return part(OvergrownClientConfig.CLIENT.ambientUnderwater);
+    }
+
     /** 光の筋とその中の粒。 */
     public static boolean lightShafts() {
         return part(OvergrownClientConfig.CLIENT.lightShafts);
@@ -79,7 +89,7 @@ public final class VisualQuality {
         return part(OvergrownClientConfig.CLIENT.canopyDapple);
     }
 
-    /** 林床の持ち上げ・緑の照り返し・林冠の影と色・葉の透け。 */
+    /** 林床の持ち上げ・緑の照り返し・林冠の影と色。 */
     public static boolean canopyLight() {
         return part(OvergrownClientConfig.CLIENT.canopyLight);
     }
@@ -117,6 +127,11 @@ public final class VisualQuality {
     /** 水中の光・光る藻。 */
     public static boolean underwater() {
         return part(OvergrownClientConfig.CLIENT.underwater);
+    }
+
+    /** 地下モード(黒い霧・点光源・Mob の明るさ。11-01 試作)。 */
+    public static boolean caveLight() {
+        return part(OvergrownClientConfig.CLIENT.caveLight);
     }
 
     /** Iris のシェーダーパック使用中もこの MOD の演出を描くか。 */

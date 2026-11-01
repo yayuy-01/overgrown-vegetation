@@ -195,7 +195,9 @@ public final class ForestWindSound {
         }
         open += (openTarget - open) * 0.05F;
         float storm = (float) GustField.INSTANCE.storm();
-        float target = Math.min(2.0F, p.volume()) * Math.max(inside, storm * 0.7F) * open * (1.0F + p.stormVolume() * storm);
+        // 地下モードの分だけ下げる(1 − mix 倍。2026-11-01 地下と水中の環境音)。
+        float target = Math.min(2.0F, p.volume()) * Math.max(inside, storm * 0.7F) * open * (1.0F + p.stormVolume() * storm)
+                * (1.0F - com.yayuy.overgrownvegetation.client.atmosphere.CaveLights.mix());
         gain += (target - gain) * 0.05F;
 
         // 1.5 秒先までの風を並べる(音の流れが鳴る時刻の風を読む)。

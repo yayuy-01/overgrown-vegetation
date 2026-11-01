@@ -145,6 +145,12 @@ public final class ModTags {
      */
     public static final TagKey<Block> HUSK_IMMUNE = BlockTags.create(OvergrownVegetation.id("husk_immune"));
 
+    /** 胞子の溜まり(地下の植生 U6)。近づくと低いうなりが鳴る(client の CaveSound、2026-11-01)。今は空(溜まりのブロックを足したらここへ)。 */
+    public static final TagKey<Block> SPORE_POOL = BlockTags.create(OvergrownVegetation.id("spore_pool"));
+
+    /** 地下で根の軋みが聞こえてくる向きにするブロック(天井を貫く巨大樹の幹・根。client の CaveSound、2026-11-01)。 */
+    public static final TagKey<Block> CAVE_CREAK_ROOTS = BlockTags.create(OvergrownVegetation.id("cave_creak_roots"));
+
     /**
      * <b>地脈</b>({@code ley_vein})が置き換えてよいブロック(2026-09-22)。データパックで追加可能。
      *

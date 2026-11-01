@@ -1,11 +1,32 @@
 {
   "replace": false,
   "values": [
+    "overgrown_vegetation:climbing_seedfern",
+    "overgrown_vegetation:aerial_root",
+    "overgrown_vegetation:aerial_root_pillar",
+    "overgrown_vegetation:beard_lichen",
+    "overgrown_vegetation:hanging_spore_sac",
+    "overgrown_vegetation:selaginella",
+    "overgrown_vegetation:clubmoss",
+    "overgrown_vegetation:lycopsid_carpet",
+    "overgrown_vegetation:lycopsid_upright",
+    "overgrown_vegetation:peat",
+    "overgrown_vegetation:peat_pool_bottom",
+    "overgrown_vegetation:peat_sprouts",
+    "overgrown_vegetation:peat_litter",
+    "overgrown_vegetation:bracket_fungus",
+    "overgrown_vegetation:medullosa_crown",
     "overgrown_vegetation:overgrown_leaves",
     "overgrown_vegetation:sigillaria_leaves",
     "overgrown_vegetation:sigillaria_leaves_fringe",
-    "overgrown_vegetation:overgrown_bush",
-    "overgrown_vegetation:cave_spore_sac",
-    "overgrown_vegetation:cave_moss_clump"
+    "overgrown_vegetation:tree_fern_leaves",
+    "overgrown_vegetation:tree_fern_frond",
+    "overgrown_vegetation:chara",
+    "overgrown_vegetation:water_roots",
+    "overgrown_vegetation:algae_film",
+    "overgrown_vegetation:spore_film",
+    "overgrown_vegetation:sea_spore_band",
+    "overgrown_vegetation:spore_kelp_frond",
+    "overgrown_vegetation:overgrown_bush"
   ]
 }

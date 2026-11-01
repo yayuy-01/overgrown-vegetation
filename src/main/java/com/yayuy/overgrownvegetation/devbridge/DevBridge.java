@@ -437,6 +437,11 @@ public final class DevBridge {
                     com.yayuy.overgrownvegetation.client.atmosphere.AtmosphereDev.sporeLit(Float.parseFloat(what.substring(9).trim()));
                     log("WIND sporelit " + what.substring(9).trim());
                     return null;
+                } else if (what.startsWith("cave ")) {
+                    // 地下モードの点光源の数の上限をこのセッションだけ替える(負で設計値。F3 の ms を 0 個と 24 個で比べる、11-01)
+                    com.yayuy.overgrownvegetation.client.atmosphere.AtmosphereDev.caveMaxLights(Integer.parseInt(what.substring(5).trim()));
+                    log("WIND cave " + com.yayuy.overgrownvegetation.client.atmosphere.AtmosphereDev.caveStatus());
+                    return null;
                 } else if (what.startsWith("afterglow ")) {
                     // 前線が過ぎたあとの粒の余韻の長さ(秒)をこのセッションだけ替える(負で設計値に戻す)
                     com.yayuy.overgrownvegetation.client.atmosphere.AtmosphereDev.afterglow(Double.parseDouble(what.substring(10).trim()));
@@ -895,6 +900,63 @@ public final class DevBridge {
                     log("COUNT " + id + " " + n);
                 });
             }
+            case "coverscan" -> {
+                // 箱の中の砂・砂利(#minecraft:sand・砂利)を、覆われた / 素のままに分けて数え、素のものを 12 個まで上下と隣の様子つきで書く(2026-11-01 夜、海底の砂の抜けの切り分け)。
+                // 例: coverscan -40 30 -240 40 62 -170
+                IntegratedServer server = mc.getSingleplayerServer();
+                if (mc.level == null || server == null) return "ワールドの中";
+                int[] v = java.util.Arrays.stream(arg.trim().split("\\s+")).mapToInt(Integer::parseInt).toArray();
+                var dimension = mc.level.dimension();
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(dimension);
+                    if (level == null) return;
+                    int covered = 0;
+                    int bare = 0;
+                    int bareWet = 0;
+                    int hanging = 0;
+                    int plantTop = 0;
+                    int front = 0;
+                    StringBuilder list = new StringBuilder();
+                    int listed = 0;
+                    for (net.minecraft.core.BlockPos p : net.minecraft.core.BlockPos.betweenClosed(v[0], v[1], v[2], v[3], v[4], v[5])) {
+                        if (!level.isLoaded(p)) continue;
+                        var s = level.getBlockState(p);
+                        if (!s.is(net.minecraft.tags.BlockTags.SAND) && !s.is(net.minecraft.world.level.block.Blocks.GRAVEL)) continue;
+                        boolean exposed = false;
+                        boolean wet = false;
+                        int corruptedNear = 0;
+                        for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+                            var n = level.getBlockState(p.relative(d));
+                            if (!n.canOcclude()) exposed = true;
+                            if (n.getFluidState().is(net.minecraft.tags.FluidTags.WATER)) wet = true;
+                            if (com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.isCorruptedCell(level, p.relative(d), n)) corruptedNear++;
+                        }
+                        if (!exposed) continue;
+                        if (com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.isCovered(level, p)) {
+                            covered++;
+                            continue;
+                        }
+                        bare++;
+                        if (wet) bareWet++;
+                        var below = level.getBlockState(p.below());
+                        if (below.isAir() || below.getFluidState().is(net.minecraft.tags.FluidTags.WATER) && !below.blocksMotion()) hanging++;
+                        else if (!level.getBlockState(p.above()).isAir() && !level.getBlockState(p.above()).blocksMotion()
+                                && !level.getBlockState(p.above()).is(net.minecraft.world.level.block.Blocks.WATER)) plantTop++;
+                        if (corruptedNear == 0) front++;
+                        if (listed < 12) {
+                            listed++;
+                            list.append("\n   ").append(p.getX()).append(' ').append(p.getY()).append(' ').append(p.getZ()).append(' ')
+                                    .append(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(s.getBlock()).getPath())
+                                    .append(" 上=").append(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(p.above()).getBlock()).getPath())
+                                    .append(" 下=").append(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(p.below()).getBlock()).getPath())
+                                    .append(" 汚染済みの隣=").append(corruptedNear)
+                                    .append(" ").append(level.getBiome(p).unwrapKey().map(k -> k.location().getPath()).orElse("?"));
+                        }
+                    }
+                    log("COVERSCAN 覆われた " + covered + " 素のまま " + bare + "(うち水に接する " + bareWet + "・下が水か空気 " + hanging
+                            + "・上が植物 " + plantTop + "・汚染済みの隣なし " + front + ")" + list);
+                });
+            }
             case "anchors" -> {
                 // 木の間隔(TreeSpacing)で木を立てるはずの列に、今なにがあるかを集計する。例: anchors -310 13 -230 93(x1 z1 x2 z2)。2026-10-15
                 // 返事は ANCHOR 分類 数 の行。木が立たない理由(上の草・水・覆い・未汚染など)を数で見るため。
@@ -960,7 +1022,11 @@ public final class DevBridge {
                     for (int x = Math.min(v[0], v[3]); x <= Math.max(v[0], v[3]); x++) {
                         for (int z = Math.min(v[2], v[4]); z <= Math.max(v[2], v[4]); z++) {
                             net.minecraft.core.BlockPos at = new net.minecraft.core.BlockPos(x, v[1], z);
-                            com.yayuy.overgrownvegetation.corruption.CorruptionSpreader.growSurfacePlants(level, at, level.getBlockState(at),
+                            // 林床の地面(泥炭・倒木。2026-11-01)も汚染の本来の経路(growPlants)と同じく先に
+                            net.minecraft.world.level.block.state.BlockState host =
+                                    com.yayuy.overgrownvegetation.corruption.FloorGrowth.beforePlants(level, at, level.getBlockState(at));
+                            if (host.is(net.minecraft.world.level.block.Blocks.WATER)) continue;
+                            com.yayuy.overgrownvegetation.corruption.CorruptionSpreader.growSurfacePlants(level, at, host,
                                     com.yayuy.overgrownvegetation.corruption.CorruptionSpreader.surfaceGrowthChance(level, at));
                             if (level.getBlockState(at.above()).is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_SAPLING.get())) {
                                 saplings++;
@@ -968,6 +1034,131 @@ public final class DevBridge {
                         }
                     }
                     log("GROW 苗木 " + saplings + " 本");
+                });
+            }
+            case "vegstat" -> {
+                // 森の具合を数える(壊さない)。例: vegstat 0 0 63 63(x1 z1 x2 z2)。2026-11-01 夜、苗木と下草の確率の見直し。
+                // 林冠: 地面(木の一部でない動きを止めるブロック)の 3 段より上に木の一部(葉・原木・木生シダ)がある列の割合。
+                // 林床: 地面の真上のマスに何かある(下草・苔・苗木・幹)列の割合と、3×3 がどれも空の窓の割合。植物 = 地面の真上の木の一部でないもの(1 チャンクあたり)。
+                IntegratedServer server = mc.getSingleplayerServer();
+                if (mc.level == null || server == null) return "ワールドの中";
+                int[] v = java.util.Arrays.stream(arg.trim().split("\\s+")).mapToInt(Integer::parseInt).toArray();
+                var dimension = mc.level.dimension();
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(dimension);
+                    if (level == null) return;
+                    int x0 = Math.min(v[0], v[2]), z0 = Math.min(v[1], v[3]);
+                    int w = Math.abs(v[2] - v[0]) + 1, d = Math.abs(v[3] - v[1]) + 1;
+                    boolean[][] filled = new boolean[w][d];
+                    int canopy = 0, upper = 0, floor = 0, moss = 0, plants = 0, saplings = 0, columns = 0;
+                    long skyLight = 0;
+                    int spacing = com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.treeSpacing.get();
+                    double clearing = com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.treeClearingChance.get();
+                    double gapChance = com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.treeCanopyGapChance.get();
+                    java.util.TreeMap<String, Integer> anchors = new java.util.TreeMap<>();
+                    java.util.HashMap<String, Integer> bareGround = new java.util.HashMap<>();
+                    var cursor = new net.minecraft.core.BlockPos.MutableBlockPos();
+                    for (int i = 0; i < w; i++) {
+                        for (int j = 0; j < d; j++) {
+                            int x = x0 + i, z = z0 + j;
+                            int top = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, x, z) - 1;
+                            int ground = Integer.MIN_VALUE;
+                            boolean tree = false;
+                            for (int y = top; y > level.getMinBuildHeight(); y--) {
+                                var s = level.getBlockState(cursor.set(x, y, z));
+                                if (com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder.isTreePart(s)) {
+                                    tree = true;
+                                    continue;
+                                }
+                                if (s.blocksMotion() && s.getFluidState().isEmpty()) {
+                                    ground = y;
+                                    break;
+                                }
+                                if (!s.getFluidState().isEmpty()) {
+                                    break; // 水の列は数えない
+                                }
+                            }
+                            if (ground == Integer.MIN_VALUE) continue;
+                            columns++;
+                            boolean high = false;
+                            for (int y = top; y > ground + 3 && !high; y--) {
+                                high = com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder.isTreePart(level.getBlockState(cursor.set(x, y, z)));
+                            }
+                            if (tree && high) canopy++;
+                            if (tree && top >= ground + 16 && com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder.isTreePart(level.getBlockState(cursor.set(x, top, z)))) upper++; // 上層: 列の頂が地面の 16 段以上上の葉・木
+                            skyLight += level.getBrightness(net.minecraft.world.level.LightLayer.SKY, cursor.set(x, ground + 1, z));
+                            // 苗木の列(TreeSpacing の格子・林冠の穴の外)に木が立ったか。立っていなければ地面の種類で理由を分ける。
+                            if (com.yayuy.overgrownvegetation.corruption.TreeSpacing.allowsTree(level.getSeed(), x, z, spacing, clearing)
+                                    && !com.yayuy.overgrownvegetation.corruption.TreeSpacing.inCanopyGap(level.getSeed(), x, z, gapChance)) {
+                                var groundState = level.getBlockState(cursor.set(x, ground, z));
+                                var standState = level.getBlockState(cursor.set(x, ground + 1, z));
+                                String key;
+                                if (standState.getBlock() instanceof com.yayuy.overgrownvegetation.block.TreeFernTrunkBlock) key = "木生シダ";
+                                else if (com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder.isTreePart(standState)) key = "木";
+                                else if (standState.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_SAPLING.get())) key = "苗木";
+                                else if (groundState.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_GRASS_BLOCK.get())
+                                        || groundState.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_DIRT.get())) key = "無し:汚染した土(" + (standState.isAir() ? "上は空気" : "上に" + standState.getBlock().getDescriptionId().replace("block.", "")) + ")";
+                                else if (com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.isCovered(level, cursor.set(x, ground, z))) key = "無し:覆った " + groundState.getBlock().getDescriptionId().replace("block.", "");
+                                else if (groundState.is(com.yayuy.overgrownvegetation.ModTags.CORRUPTED)) key = "無し:汚染した " + groundState.getBlock().getDescriptionId().replace("block.", "");
+                                else key = "無し:未汚染 " + groundState.getBlock().getDescriptionId().replace("block.", "");
+                                anchors.merge(key, 1, Integer::sum);
+                            }
+                            var above = level.getBlockState(cursor.set(x, ground + 1, z));
+                            if (above.isAir() || above.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_MOSS_LAYER.get())) {
+                                var g = level.getBlockState(cursor.set(x, ground, z));
+                                String gk = g.getBlock().getDescriptionId().replace("block.", "") + (com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.isCovered(level, cursor) ? "(覆い)" : "");
+                                bareGround.merge(gk, 1, Integer::sum);
+                            }
+                            if (above.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_MOSS_LAYER.get())) {
+                                moss++; // 薄い苔だけのマスは目線では地面と変わらないので「空」に数える
+                            } else if (!above.isAir()) {
+                                floor++;
+                                filled[i][j] = true;
+                                if (above.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_SAPLING.get())) saplings++;
+                                if (!com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder.isTreePart(above)) plants++;
+                            }
+                        }
+                    }
+                    int windows = 0, empty = 0;
+                    for (int i = 1; i + 1 < w; i++) {
+                        for (int j = 1; j + 1 < d; j++) {
+                            windows++;
+                            boolean any = false;
+                            for (int a = -1; a <= 1 && !any; a++) for (int b = -1; b <= 1 && !any; b++) any = filled[i + a][j + b];
+                            if (!any) empty++;
+                        }
+                    }
+                    log(String.format(java.util.Locale.ROOT,
+                            "VEGSTAT 列 %d 林冠 %.1f%% 上層 %.1f%% 林床の空の光 %.2f 林床に植物 %.1f%% 苔だけ %.1f%% 3x3 が空 %.1f%% 植物 %.0f/チャンク 苗木 %d",
+                            columns, 100.0 * canopy / Math.max(1, columns), 100.0 * upper / Math.max(1, columns), (double) skyLight / Math.max(1, columns), 100.0 * floor / Math.max(1, columns), 100.0 * moss / Math.max(1, columns),
+                            100.0 * empty / Math.max(1, windows), plants * 256.0 / Math.max(1, w * d), saplings));
+                    log("VEGSTAT 苗木の列 " + anchors);
+                    log("VEGSTAT 植物の無い列の地面 " + bareGround.entrySet().stream().sorted(java.util.Map.Entry.<String, Integer>comparingByValue().reversed()).limit(8).toList());
+                });
+            }
+            case "wgrow" -> {
+                // 箱の中の水に接したブロックから、汚染の本来の経路(UnderwaterPlants#grow)で水中の植物を生やす。例: wgrow 0 40 0 63 62 63(2026-11-01)
+                IntegratedServer server = mc.getSingleplayerServer();
+                if (mc.level == null || server == null) return "ワールドの中";
+                int[] v = java.util.Arrays.stream(arg.split("\\s+")).mapToInt(Integer::parseInt).toArray();
+                var dimension = mc.level.dimension();
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(dimension);
+                    if (level == null) return;
+                    int hosts = 0;
+                    for (net.minecraft.core.BlockPos p : net.minecraft.core.BlockPos.betweenClosed(v[0], v[1], v[2], v[3], v[4], v[5])) {
+                        net.minecraft.core.BlockPos at = p.immutable();
+                        net.minecraft.world.level.block.state.BlockState s = level.getBlockState(at);
+                        if (s.isAir() || !s.getFluidState().isEmpty()) continue;
+                        boolean wet = false;
+                        for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+                            wet |= level.getBlockState(at.relative(d)).is(net.minecraft.world.level.block.Blocks.WATER);
+                        }
+                        if (!wet) continue;
+                        com.yayuy.overgrownvegetation.corruption.UnderwaterPlants.grow(level, at, s);
+                        hosts++;
+                    }
+                    log("WGROW 水に接したブロック " + hosts);
                 });
             }
             case "block" -> {

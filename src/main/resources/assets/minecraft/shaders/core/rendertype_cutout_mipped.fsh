@@ -4,6 +4,7 @@
 #moj_import <ov_light.glsl>
 #moj_import <ov_wet.glsl>
 #moj_import <ov_caustic.glsl>
+#moj_import <ov_cave.glsl>
 #moj_import <ov_leaf.glsl>
 
 uniform sampler2D Sampler0;
@@ -22,6 +23,7 @@ in vec3 ovPos;
 in vec3 ovNormal;
 in vec2 ovLight;
 in vec4 ovFog;
+in vec3 ovTint;
 in vec4 ovLeaf;
 
 out vec4 fragColor;
@@ -41,10 +43,18 @@ void main() {
     color.rgb = ovCaustics(color.rgb, ovPos, ovNormal, ovLight);
     // Wet faces in rain and after rain (ov_wet.glsl).
     color.rgb = ovWetSurface(color.rgb, ovPos, ovNormal, ovLight);
-    // Leaves with the sun behind them glow yellow-green (ov_leaf.glsl).
-    color.rgb = ovLeafBacklight(color.rgb, ovPos, ovLeaf);
+    // The point lights of glowing cave plants (ov_cave.glsl), before the fog.
+    // How much this fragment is underground (ov_cave.glsl, the cave map; 11-01 evening).
+    float ovUnder = ovCaveUnder(ovPos, ovNormal * 1.0, ovLight.y);
+    color.rgb = ovCaveLight(color.rgb, tex.rgb * ovTint, ovPos, ovNormal, 1.0, ovUnder);
+    vec3 ovLit = color.rgb;
     color.rgb = mix(color.rgb, ovFog.rgb, ovFog.a);
+    vec3 ovSurface = color.rgb;
     // The far forest loses a little saturation (A6; aerial perspective).
     color.rgb = mix(color.rgb, vec3(dot(color.rgb, vec3(0.299, 0.587, 0.114))), OvFogI.x * smoothstep(OvFogI.y, OvFogI.z, vertexDistance));
     fragColor = linear_fog(color, vertexDistance, FogStart, FogEnd, FogColor);
+    // The fog by where the fragment is: caves seen from outside sink into black, the outside seen from a cave stays bright (ov_cave.glsl).
+    fragColor.rgb = ovCaveFog(fragColor.rgb, ovLit, ovSurface, vertexDistance, ovUnder);
+    // The glowing pixels of the cave light blocks stay out of the fog (ov_cave.glsl).
+    fragColor.rgb = mix(fragColor.rgb, tex.rgb * ovTint, ovCaveGlow(tex.rgb, ovPos, ovUnder));
 }

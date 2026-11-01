@@ -130,6 +130,8 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
         // 育ち終えた直後に、近くの別の木との間へ蔦を張れないか試す
         // (spawnConnectingVines / vineMaxPerTree を 0 にすれば無効化できる)。
         TreeVineConnector.tryConnect(level.getLevel(), random, origin, logPositions);
+        // 側面・底面に生えるもの(2026-11-01): 幹に巻き付く種子シダ・気根・ひげ地衣・胞子嚢の袋。
+        TreeSideGrowth.decorate(level, random, logPositions, leafPositions, false);
 
         // 樹冠が出来上がってから、葉の下へ「大きな未発達な果実」を低確率でぶら下げる。
         double fruitChance = OvergrownVegetationConfig.COMMON.undevelopedFruitChance.get();
@@ -305,7 +307,8 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
             BlockState state = level.getBlockState(cursor);
             // 葉(このMODの葉・バニラの葉)は根の支えにしない: 隣の木の天蓋の上を根が這うのを防ぐ。
             if (!state.isAir() && !state.canBeReplaced() && !state.is(BlockTags.LEAVES)
-                    && !(state.getBlock() instanceof com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock)) {
+                    && !(state.getBlock() instanceof com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock)
+                    && !(state.getBlock() instanceof com.yayuy.overgrownvegetation.block.TreeFernTrunkBlock)) {
                 return y;
             }
         }
@@ -357,6 +360,7 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
                     BlockState here = level.getBlockState(leafPos);
                     if (here.is(config.trunkState().getBlock()) || here.is(ModBlocks.SIGILLARIA_LOG.get())
                             || here.is(ModBlocks.SIGILLARIA_CONE.get())
+                            || here.getBlock() instanceof com.yayuy.overgrownvegetation.block.TreeFernTrunkBlock // 木生シダの幹(#logs でない)
                             || here.getBlock() instanceof BranchJointBlock) {
                         // 幹・枝そのものの位置と、隣の封印木の原木・球果、枝の継ぎ目には上書きしない。
                         continue;

@@ -1,0 +1,40 @@
+{
+  "variants": {
+    "carpet=false": [
+      { "model": "overgrown_vegetation:block/clubmoss_o0" },
+      { "model": "overgrown_vegetation:block/clubmoss_o0", "y": 90 },
+      { "model": "overgrown_vegetation:block/clubmoss_o0", "y": 180 },
+      { "model": "overgrown_vegetation:block/clubmoss_o0", "y": 270 },
+      { "model": "overgrown_vegetation:block/clubmoss_o1" },
+      { "model": "overgrown_vegetation:block/clubmoss_o1", "y": 90 },
+      { "model": "overgrown_vegetation:block/clubmoss_o1", "y": 180 },
+      { "model": "overgrown_vegetation:block/clubmoss_o1", "y": 270 },
+      { "model": "overgrown_vegetation:block/clubmoss_o2" },
+      { "model": "overgrown_vegetation:block/clubmoss_o2", "y": 90 },
+      { "model": "overgrown_vegetation:block/clubmoss_o2", "y": 180 },
+      { "model": "overgrown_vegetation:block/clubmoss_o2", "y": 270 },
+      { "model": "overgrown_vegetation:block/clubmoss_o3" },
+      { "model": "overgrown_vegetation:block/clubmoss_o3", "y": 90 },
+      { "model": "overgrown_vegetation:block/clubmoss_o3", "y": 180 },
+      { "model": "overgrown_vegetation:block/clubmoss_o3", "y": 270 }
+    ],
+    "carpet=true": [
+      { "model": "overgrown_vegetation:block/clubmoss_carpet_o0" },
+      { "model": "overgrown_vegetation:block/clubmoss_carpet_o0", "y": 90 },
+      { "model": "overgrown_vegetation:block/clubmoss_carpet_o0", "y": 180 },
+      { "model": "overgrown_vegetation:block/clubmoss_carpet_o0", "y": 270 },
+      { "model": "overgrown_vegetation:block/clubmoss_carpet_o1" },
+      { "model": "overgrown_vegetation:block/clubmoss_carpet_o1", "y": 90 },
+      { "model": "overgrown_vegetation:block/clubmoss_carpet_o1", "y": 180 },
+      { "model": "overgrown_vegetation:block/clubmoss_carpet_o1", "y": 270 },
+      { "model": "overgrown_vegetation:block/clubmoss_carpet_o2" },
+      { "model": "overgrown_vegetation:block/clubmoss_carpet_o2", "y": 90 },
+      { "model": "overgrown_vegetation:block/clubmoss_carpet_o2", "y": 180 },
+      { "model": "overgrown_vegetation:block/clubmoss_carpet_o2", "y": 270 },
+      { "model": "overgrown_vegetation:block/clubmoss_carpet_o3" },
+      { "model": "overgrown_vegetation:block/clubmoss_carpet_o3", "y": 90 },
+      { "model": "overgrown_vegetation:block/clubmoss_carpet_o3", "y": 180 },
+      { "model": "overgrown_vegetation:block/clubmoss_carpet_o3", "y": 270 }
+    ]
+  }
+}

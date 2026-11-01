@@ -27,8 +27,10 @@ public final class CoverSprites {
     /**
      * 側面(と下面)・上面の絵。同じ番号どうしが対。{@code creep} は這い上がる苔の段階の絵 {@code block/cover/creep_<変種>_<段階>}
      * ([変種 - 1][段階 - 1]、2026-11-01。無ければ null)。
+     * {@code water}・{@code sea} は水に接した面の絵(川・池・海、2026-11-01。全部の面で同じ絵。無ければ空)。
      */
-    public record Set(TextureAtlasSprite[] side, TextureAtlasSprite[] top, TextureAtlasSprite[][] creep) {
+    public record Set(TextureAtlasSprite[] side, TextureAtlasSprite[] top, TextureAtlasSprite[][] creep, TextureAtlasSprite[] water,
+                      TextureAtlasSprite[] sea) {
     }
 
     private static volatile @Nullable Set current;
@@ -66,9 +68,26 @@ public final class CoverSprites {
                 creepCount += creep[v][s] != null ? 1 : 0;
             }
         }
-        current = side.isEmpty() ? null : new Set(side.toArray(TextureAtlasSprite[]::new), top.toArray(TextureAtlasSprite[]::new), creep);
+        TextureAtlasSprite[] water = load(atlas, DesignData.cover().waterTextures());
+        TextureAtlasSprite[] sea = load(atlas, DesignData.cover().seaTextures());
+        current = side.isEmpty() ? null : new Set(side.toArray(TextureAtlasSprite[]::new), top.toArray(TextureAtlasSprite[]::new), creep,
+                water, sea.length > 0 ? sea : water);
+        OvergrownVegetation.LOGGER.info("覆いの水中の絵 川・池 {} 枚・海 {} 枚", water.length, sea.length);
         OvergrownVegetation.LOGGER.info("這い上がる苔の段階の絵 {} 枚", creepCount);
         OvergrownVegetation.LOGGER.info("覆いの絵 {} 枚", side.size());
+    }
+
+    private static TextureAtlasSprite[] load(TextureAtlas atlas, List<String> names) {
+        List<TextureAtlasSprite> out = new ArrayList<>();
+        for (String name : names) {
+            TextureAtlasSprite s = find(atlas, name);
+            if (s == null) {
+                OvergrownVegetation.LOGGER.warn("覆いの水中の絵 textures/block/cover/{}.png がアトラスに無い(飛ばす)", name);
+            } else {
+                out.add(s);
+            }
+        }
+        return out.toArray(TextureAtlasSprite[]::new);
     }
 
     private static @Nullable TextureAtlasSprite find(TextureAtlas atlas, String name) {

@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.corruption;
 
 import com.yayuy.overgrownvegetation.ModTags;
-import com.yayuy.overgrownvegetation.block.CaveSurfaceGrowthBlock;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import com.yayuy.overgrownvegetation.registry.OvergrowthVariant;
@@ -13,11 +12,8 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.MultifaceBlock;
 import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -34,10 +30,9 @@ import java.util.List;
  *
  * <p>どの環境({@link OvergrowthVariant}、地域マップのぼかし付き)の洞窟かで内容が変わる:
  * <ul>
- *     <li><b>湿地・菌湿地帯</b>({@link Mode#SWAMP}) — 露出面の下草・蔦の抽選を丸ごと洞窟専用の植物に置き換える:
- *     微光を放つ胞子嚢({@code cave_spore_sac}、床・壁・天井どこにでも)と苔の塊({@code cave_moss_clump}、
- *     面に沿って数個の塊)。構造物は天井から垂れて再び天井へ戻る太いアーチ(壁のキノコの傘 {@code fungal_cap}・
- *     床の菌の柱 {@code fungal_pillar} + {@code glowing_mycelium} は 2026-10-31 に parked へ退避、U11)。</li>
+ *     <li><b>湿地・菌湿地帯</b>({@link Mode#SWAMP}) — 植物はいつも通りで、天井のアーチを
+ *     ({@code caveRootArchInJungle} に関わらず)建てる。壁のキノコの傘・床の菌の柱は 2026-10-31 に parked へ退避(U11)、
+ *     洞窟専用の植物(微光の胞子嚢・苔の塊)は 2026-11-01 に削除(地下の植生は作り直す)。</li>
  *     <li><b>密林</b>({@link Mode#JUNGLE}) — 植物はいつも通りで、天井のアーチだけを建てる
  *     ({@code caveRootArchInJungle}、既定 true)。</li>
  * </ul>
@@ -62,7 +57,7 @@ public final class CaveGrowth {
         NONE,
         /** 密林の洞窟: 天井のアーチのみ。 */
         JUNGLE,
-        /** 湿地・菌湿地帯の洞窟: 洞窟植物 + 構造物 3 種。 */
+        /** 湿地・菌湿地帯の洞窟: 天井のアーチ(caveRootArchInJungle に関わらず)。 */
         SWAMP
     }
 
@@ -229,84 +224,6 @@ public final class CaveGrowth {
     }
 
     // ------------------------------------------------------------------
-    // 植物
-    // ------------------------------------------------------------------
-
-    /**
-     * 湿地系の洞窟で、露出面に隣接する空気マス {@code pos} へ洞窟植物を 1 つ(苔の塊なら数個)生やす。
-     *
-     * @param exposed 宿主から見て {@code pos} がある方向(UP = 床の上、DOWN = 天井の下、水平 = 壁の横)
-     */
-    public static void placePlant(ServerLevel level, BlockPos pos, Direction exposed, RandomSource random) {
-        OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
-        if (random.nextDouble() < cfg.caveSporeSacShare.get()) {
-            placeSurfaceGrowth(level, pos, exposed, ModBlocks.CAVE_SPORE_SAC.get(), random);
-            return;
-        }
-        int min = Math.max(1, cfg.caveMossClumpMinPatch.get());
-        int max = Math.max(min, cfg.caveMossClumpMaxPatch.get());
-        int count = min + random.nextInt(max - min + 1);
-        placeMossPatch(level, pos, exposed, count, random);
-    }
-
-    /** 面に取り付く塊状の植物を 1 つ置く。取り付けなければ何もしない。 */
-    private static boolean placeSurfaceGrowth(ServerLevel level, BlockPos pos, Direction exposed, Block block,
-                                              RandomSource random) {
-        if (!(block instanceof CaveSurfaceGrowthBlock growth)) {
-            return false;
-        }
-        BlockState state = growth.stateFor(exposed, Direction.Plane.HORIZONTAL.getRandomDirection(random));
-        if (!state.canSurvive(level, pos)) {
-            return false;
-        }
-        level.setBlock(pos, state, Block.UPDATE_ALL);
-        return true;
-    }
-
-    /**
-     * 苔の塊を {@code pos} から面に沿って {@code count} 個まで広げる。面と平行な 4 方向へランダムに歩き、
-     * 1 段の段差(取り付き面側 / 反対側)までは面を追う。空気でない・支えが無いマスは飛ばす。
-     */
-    private static void placeMossPatch(ServerLevel level, BlockPos pos, Direction exposed, int count, RandomSource random) {
-        Block clump = ModBlocks.CAVE_MOSS_CLUMP.get();
-        if (!placeSurfaceGrowth(level, pos, exposed, clump, random)) {
-            return;
-        }
-        Direction attach = exposed.getOpposite();
-        Direction[] tangents = tangentsOf(exposed);
-        BlockPos current = pos;
-        int placed = 1;
-        for (int attempt = 0; attempt < count * 3 && placed < count; attempt++) {
-            BlockPos next = current.relative(tangents[random.nextInt(tangents.length)]);
-            BlockPos chosen = null;
-            for (BlockPos candidate : new BlockPos[]{next, next.relative(attach), next.relative(exposed)}) {
-                if (!level.isLoaded(candidate) || !level.getBlockState(candidate).isAir()) {
-                    continue;
-                }
-                if (placeSurfaceGrowth(level, candidate, exposed, clump, random)) {
-                    chosen = candidate;
-                    break;
-                }
-            }
-            if (chosen != null) {
-                placed++;
-                current = chosen;
-            } else if (level.isLoaded(next) && level.getBlockState(next).is(clump)) {
-                current = next; // 既に置いた塊の上を歩いて先へ
-            }
-        }
-    }
-
-    /** {@code exposed} に垂直な 4 方向(面に沿って歩く方向)。 */
-    private static Direction[] tangentsOf(Direction exposed) {
-        return switch (exposed.getAxis()) {
-            case Y -> new Direction[]{Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST};
-            case X -> new Direction[]{Direction.UP, Direction.DOWN, Direction.NORTH, Direction.SOUTH};
-            default -> new Direction[]{Direction.UP, Direction.DOWN, Direction.WEST, Direction.EAST};
-        };
-    }
-
-    // ------------------------------------------------------------------
     // 構造物
     // ------------------------------------------------------------------
 
@@ -453,7 +370,7 @@ public final class CaveGrowth {
         // 両端の天井ブロックを芯のブロックに(岩から根・蔦が生えている見た目)。
         replaceAnchor(level, host, core);
         replaceAnchor(level, new BlockPos(bx, by, bz), core);
-        decorateShell(level, shell, random, mode, false);
+        decorateShell(level, shell, random);
         return true;
     }
 
@@ -476,7 +393,7 @@ public final class CaveGrowth {
             return false;
         }
         replaceAnchor(level, host, log);
-        decorateShell(level, shell, random, mode, false);
+        decorateShell(level, shell, random);
         return true;
     }
 
@@ -552,74 +469,28 @@ public final class CaveGrowth {
     }
 
     /**
-     * 建てた構造物の表面に植物を添える。各ブロックの各面について確率 {@code caveStructurePlantChance} で:
-     * <ul>
-     *     <li>{@code fungal}(キノコの傘・菌の柱)— 薄い苔({@code overgrown_moss_layer})か、
-     *     {@code caveStructureGlowLichenShare} の割合でヒカリゴケ({@code minecraft:glow_lichen})の面を足す。
-     *     胞子嚢・苔の塊はキノコには付かない(要望)。</li>
-     *     <li>根・蔦のアーチ(蔦は葉の部分も含む)— 湿地系なら洞窟植物({@link #placePlant})、
-     *     密林なら下面の垂れ植物だけ。</li>
-     * </ul>
+     * 建てた構造物(根・蔦のアーチ。蔦は葉の部分も含む)の下面に垂れ植物を添える。
+     * 各ブロックの下面について確率 {@code caveStructurePlantChance} で。
+     * 湿地系の洞窟植物(胞子嚢・苔の塊)は 2026-11-01 に削除したので、どの洞窟でも同じ。
      */
-    private static void decorateShell(ServerLevel level, List<BlockPos> shell, RandomSource random, Mode mode,
-                                      boolean fungal) {
+    private static void decorateShell(ServerLevel level, List<BlockPos> shell, RandomSource random) {
         double chance = OvergrownVegetationConfig.COMMON.caveStructurePlantChance.get();
         if (chance <= 0.0D || !OvergrownVegetationConfig.COMMON.spawnGrowthPlants.get()) {
             return;
         }
-        double lichenShare = OvergrownVegetationConfig.COMMON.caveStructureGlowLichenShare.get();
         for (BlockPos pos : shell) {
-            for (Direction direction : Direction.values()) {
-                if (random.nextDouble() >= chance) {
-                    continue;
-                }
-                BlockPos target = pos.relative(direction);
-                if (!level.isLoaded(target)) {
-                    continue;
-                }
-                if (fungal) {
-                    Block face = random.nextDouble() < lichenShare ? Blocks.GLOW_LICHEN : ModBlocks.OVERGROWN_MOSS_LAYER.get();
-                    placeMultifaceFace(level, target, direction.getOpposite(), face);
-                    continue;
-                }
-                if (!level.getBlockState(target).isAir()) {
-                    continue;
-                }
-                if (mode == Mode.SWAMP) {
-                    placePlant(level, target, direction, random);
-                } else if (direction == Direction.DOWN) {
-                    BlockState hanging = CorruptionGrowth.randomHanging(random);
-                    if (hanging.canSurvive(level, target)) {
-                        level.setBlock(target, hanging, Block.UPDATE_ALL);
-                    }
-                }
+            if (random.nextDouble() >= chance) {
+                continue;
+            }
+            BlockPos target = pos.below();
+            if (!level.isLoaded(target) || !level.getBlockState(target).isAir()) {
+                continue;
+            }
+            BlockState hanging = CorruptionGrowth.randomHanging(random);
+            if (hanging.canSurvive(level, target)) {
+                level.setBlock(target, hanging, Block.UPDATE_ALL);
             }
         }
-    }
-
-    /**
-     * {@code pos}(空気、または既に同じ多面ブロックがあるマス)へ、{@code attachDir} 側の面を 1 つ足す
-     * ({@link CorruptionSpreader} の薄い苔の生やし方と同じ)。別種の多面ブロックが既にあるマスには何もしない。
-     */
-    private static void placeMultifaceFace(ServerLevel level, BlockPos pos, Direction attachDir, Block block) {
-        BlockState existing = level.getBlockState(pos);
-        BooleanProperty faceProp = MultifaceBlock.getFaceProperty(attachDir);
-        BlockState next;
-        if (existing.is(block)) {
-            if (existing.getValue(faceProp)) {
-                return;
-            }
-            next = existing.setValue(faceProp, true);
-        } else if (existing.isAir()) {
-            next = block.defaultBlockState().setValue(faceProp, true);
-        } else {
-            return;
-        }
-        BlockPos supportPos = pos.relative(attachDir);
-        if (!MultifaceBlock.canAttachTo(level, attachDir, supportPos, level.getBlockState(supportPos))) {
-            return;
-        }
-        level.setBlock(pos, next, Block.UPDATE_ALL);
     }
 
     /** 空気、または草・下草のような上書き可能ブロック(液体は除く)。 */

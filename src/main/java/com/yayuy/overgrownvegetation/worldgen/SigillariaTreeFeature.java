@@ -69,6 +69,8 @@ public class SigillariaTreeFeature extends Feature<SigillariaTreeFeature.Config>
         tree.placeCones(random);
         // 継ぎ目の腕は葉・球果まで置き終えてから組み直す(生成中は隣の updateShape が来ないことがある)
         BranchJoints.reconnect(level, tree.joints);
+        // 側面・底面に生えるもの(2026-11-01)。葉の座標は持たないので原木のまわりを探す。
+        TreeSideGrowth.decorate(level, random, tree.logs, null, false);
         return true;
     }
 
@@ -338,6 +340,7 @@ public class SigillariaTreeFeature extends Feature<SigillariaTreeFeature.Config>
         private boolean leaf(BlockPos pos, BlockState state, boolean forced) {
             BlockState here = level.getBlockState(pos);
             if (TreePlacementRules.treeKeeps(here) || here.is(BlockTags.LOGS) || here.is(ModBlocks.GIANT_OVERGROWN_LOG.get())
+                    || here.getBlock() instanceof com.yayuy.overgrownvegetation.block.TreeFernTrunkBlock
                     || here.is(ModBlocks.GIANT_OVERGROWN_CAMBIUM.get()) || here.getBlock() instanceof OvergrownLeavesBlock
                     || here.is(BlockTags.LEAVES) || here.getBlock() instanceof SigillariaConeBlock) {
                 return false;

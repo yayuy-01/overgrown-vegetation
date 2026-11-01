@@ -11,6 +11,7 @@ import java.util.List;
  * <ul>
  *     <li>{@code textures} … 面に貼る絵の名前({@code textures/block/cover/<名前>.png}。{@code <名前>_top.png} があれば上面だけそれ)。
  *     ユーザーが描いた 5 枚(作り直し側から)</li>
+ *     <li>{@code waterTextures}・{@code seaTextures} … 水に接した面に貼る絵(川・池の水中の藻の覆い 3 枚・海底の藻の丘 2 枚、2026-11-01 水中の植物。海かどうかはバイオーム)</li>
  *     <li>{@code rotate} … 面ごとに 4 向きに回すか(作り直し側の値)</li>
  *     <li>{@code mipCoverage} … 遠くの段(ミップの 1〜4 段目)の不透明の割合を、近くの割合の何倍にするか。1 = 近くと同じ(作り直し側の値)</li>
  *     <li>{@code push} … 元の面が cutout・半透明の層のときだけ外へ出す距離(固い層は同じ頂点に重ねる。作り直し側の値)</li>
@@ -28,6 +29,7 @@ public final class CoverTable {
     /** Gson の受け皿。null は既定値。 */
     public static final class Json {
         public List<String> textures;
+        public List<String> waterTextures, seaTextures;
         public Boolean rotate;
         public List<Double> mipCoverage;
         public Double push;
@@ -49,9 +51,12 @@ public final class CoverTable {
         public Double hollowReach, hollowCooldownSeconds;
         public Integer hollowBugsMin, hollowBugsMax;
         public Double hollowEyesPerMinute, hollowEyesSeconds;
+        public Double settleMinSeconds, settleMaxSeconds;
     }
 
     private final List<String> textures;
+    private final List<String> waterTextures;
+    private final List<String> seaTextures;
     private final boolean rotate;
     private final double[] mipCoverage;
     private final double push;
@@ -77,11 +82,16 @@ public final class CoverTable {
     private final int hollowBugsMax;
     private final double hollowEyesPerMinute;
     private final double hollowEyesSeconds;
+    private final double settleMinSeconds;
+    private final double settleMaxSeconds;
 
     private CoverTable(Json j) {
         Json src = j != null ? j : new Json();
         this.textures = src.textures != null && !src.textures.isEmpty() ? List.copyOf(src.textures)
                 : java.util.stream.IntStream.rangeClosed(1, 25).mapToObj(n -> "cover_" + n).toList(); // 10-31 に 25 枚へ(tools/cover-art)
+        this.waterTextures = src.waterTextures != null ? List.copyOf(src.waterTextures)
+                : List.of("water_algae_cover_a", "water_algae_cover_b", "water_algae_cover_c"); // 11-01 水中の植物(tools/water-plants)
+        this.seaTextures = src.seaTextures != null ? List.copyOf(src.seaTextures) : List.of("sea_algae_cover_a", "sea_algae_cover_b");
         this.rotate = src.rotate == null || src.rotate;
         double[] mips = {1.0D, 1.0D, 1.0D, 1.0D};
         if (src.mipCoverage != null) {
@@ -114,6 +124,9 @@ public final class CoverTable {
         this.hollowBugsMax = src.hollowBugsMax != null ? Math.max(this.hollowBugsMin, src.hollowBugsMax) : Math.max(this.hollowBugsMin, 6);
         this.hollowEyesPerMinute = src.hollowEyesPerMinute != null ? Math.max(0.0D, src.hollowEyesPerMinute) : 1.0D;
         this.hollowEyesSeconds = src.hollowEyesSeconds != null ? Math.max(0.05D, src.hollowEyesSeconds) : 0.5D;
+        // 覆った砂・砂利が草ブロックになるまで(11-01 ユーザー指定の仕組み、秒は仮決め 5〜15 分)
+        this.settleMinSeconds = src.settleMinSeconds != null ? Math.max(0.0D, src.settleMinSeconds) : 300.0D;
+        this.settleMaxSeconds = src.settleMaxSeconds != null ? Math.max(this.settleMinSeconds, src.settleMaxSeconds) : Math.max(this.settleMinSeconds, 900.0D);
     }
 
     public static CoverTable fromJson(Json j) {
@@ -122,6 +135,16 @@ public final class CoverTable {
 
     public List<String> textures() {
         return textures;
+    }
+
+    /** 水に接した面に貼る絵(川・池。海は {@link #seaTextures})。空なら陸の絵のまま。 */
+    public List<String> waterTextures() {
+        return waterTextures;
+    }
+
+    /** 海の水に接した面に貼る絵(海底の藻の丘)。空なら {@link #waterTextures}。 */
+    public List<String> seaTextures() {
+        return seaTextures;
     }
 
     public boolean rotate() {
@@ -227,5 +250,13 @@ public final class CoverTable {
 
     public double hollowEyesSeconds() {
         return hollowEyesSeconds;
+    }
+
+    public double settleMinSeconds() {
+        return settleMinSeconds;
+    }
+
+    public double settleMaxSeconds() {
+        return settleMaxSeconds;
     }
 }

@@ -32,15 +32,18 @@ public final class AtmosphereWater {
     /**
      * 節 {@code underwaterShafts}(潜ったときの光の筋): 本数(重さの段 高・中・低)・カメラのまわりの半径・長さ・幅・濃さ・1 本の寿命(秒)・
      * 横の揺れ(ブロック)・色・水中の霧の色へ寄せる割合。
+     * 過繁茂の海・川・森の池の濁った水の中(11-01 夕方 ユーザー「水面からの光の筋がはっきり」)では本数 × murkyCount・濃さ × murkyAlpha・
+     * 霧で薄れる距離 × murkyFogReach(霧が 14〜24 ブロックと短くても筋が見えるように)。
      */
     public static final class ShaftsJson {
-        public Double radius, length, widthMin, widthMax, alpha, lifeMin, lifeMax, sway, fogMix;
+        public Double radius, length, widthMin, widthMax, alpha, lifeMin, lifeMax, sway, fogMix, murkyCount, murkyAlpha, murkyFogReach;
         public int[] counts;
         public double[] color;
     }
 
     public record ShaftsParams(int[] counts, float radius, float length, float widthMin, float widthMax, float alpha, float lifeMin,
-                               float lifeMax, float sway, float r, float g, float b, float fogMix) {
+                               float lifeMax, float sway, float r, float g, float b, float fogMix, float murkyCount, float murkyAlpha,
+                               float murkyFogReach) {
         static ShaftsParams of(ShaftsJson s) {
             ShaftsJson v = s != null ? s : new ShaftsJson();
             double[] col = v.color != null && v.color.length >= 3 ? v.color : new double[]{0.9, 1.0, 0.85};
@@ -50,7 +53,9 @@ public final class AtmosphereWater {
                     AtmosphereLife.c(v.length, 9.0, 1.0, 48.0), wMin, Math.max(wMin, AtmosphereLife.c(v.widthMax, 0.8, 0.02, 6.0)),
                     AtmosphereLife.c(v.alpha, 0.22, 0.0, 1.0), lMin, Math.max(lMin, AtmosphereLife.c(v.lifeMax, 10.0, 0.5, 240.0)),
                     AtmosphereLife.c(v.sway, 0.15, 0.0, 2.0), AtmosphereLife.c(col[0], 0.9, 0.0, 2.0), AtmosphereLife.c(col[1], 1.0, 0.0, 2.0),
-                    AtmosphereLife.c(col[2], 0.85, 0.0, 2.0), AtmosphereLife.c(v.fogMix, 0.5, 0.0, 1.0));
+                    AtmosphereLife.c(col[2], 0.85, 0.0, 2.0), AtmosphereLife.c(v.fogMix, 0.5, 0.0, 1.0),
+                    AtmosphereLife.c(v.murkyCount, 1.5, 0.0, 4.0), AtmosphereLife.c(v.murkyAlpha, 1.3, 0.0, 4.0),
+                    AtmosphereLife.c(v.murkyFogReach, 1.8, 1.0, 8.0));
         }
     }
 

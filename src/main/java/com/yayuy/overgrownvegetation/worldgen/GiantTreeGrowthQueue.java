@@ -418,6 +418,9 @@ public final class GiantTreeGrowthQueue {
                 budget = TickBudget.spend(budget);
             }
             if (job.done()) {
+                // 側面・底面に生えるもの(2026-11-01)。巨大樹は数を増やし、幹の巻き付きは面の一部の列だけ。
+                TreeSideGrowth.decorate(serverLevel, serverLevel.random, new it.unimi.dsi.fastutil.longs.LongOpenHashSet(job.trunk),
+                        new it.unimi.dsi.fastutil.longs.LongOpenHashSet(job.leaves), true);
                 spawnHiveNode(serverLevel, job);
                 it.remove();
             }

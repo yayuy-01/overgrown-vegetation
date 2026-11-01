@@ -288,17 +288,24 @@ public final class MistFog {
         // 昼の色は太陽が高いほど(朝夕 = 太陽の高さ 0.1 から昼 = 0.4 で入れ替わる)。
         float noon = SunLight.smooth(Mth.clamp((float) (sun.y - 0.1) / 0.3F, 0.0F, 1.0F));
         // 森の中では遠い色(地形の霧の奥)を暗く: 幹が明るい背景の影絵にならないように。
-        float forestDark = Mth.lerp(ForestPresence.openForest(), 1.0F, p.forestFogDark());
+        float forestDark = Mth.lerp(ForestPresence.fogForest(), 1.0F, p.forestFogDark());
+        // 11-01 夜(見え方の直し 6、ユーザー「森の中で昼でも白い靄で朝方のよう。胞子の霧と分かるよう若干明るい緑に」):
+        // 朝夕の白緑は朝(MistLayer の 4〜9 時)だけ。夕方は昼の黄緑のまま暗くなる。森の中では隙間の空と昼の霞も同じ黄緑へ寄せる。
+        float dawn = (1.0F - noon) * (float) MistLayer.morning(level.getDayTime());
+        float green = 1.0F - dawn;
+        float skyGreen = p.forestSkyGreen() * green;
+        float hazeGreen = p.forestHazeGreen() * green * ForestPresence.fogForest();
         for (int i = 0; i < 3; i++) {
             // 層がある(朝霧・雨上がり・嵐)ときは白〜灰緑、昼の霞だけのときは薄い黄緑がかった灰(A1、参考画像)。
-            float near = Mth.lerp(mistLevel, haze[i], n[i]);
-            float far = Mth.lerp(mistLevel, haze[i], f[i]);
+            float hz = Mth.lerp(hazeGreen, haze[i], sporeDay[i]);
+            float near = Mth.lerp(mistLevel, hz, n[i]);
+            float far = Mth.lerp(mistLevel, hz, f[i]);
             // 近い側は日の色(朝夕は金・橙)を 2 割 5 分だけ映す(白い朝霧を保つ)。
             float warm = near * Mth.lerp(0.25F, 1.0F, AIR[i]);
             NEAR[i] = Mth.lerp(light, night[i], warm);
             FAR[i] = Mth.lerp(light, night[i] * 0.9F, far) * forestDark;
-            SKY[i] = Mth.lerp(light, night[i], sky[i]);
-            SPORE[i] = Mth.lerp(light, night[i], Mth.lerp(noon, sporeDawn[i], sporeDay[i]));
+            SKY[i] = Mth.lerp(light, night[i], Mth.lerp(skyGreen, sky[i], sporeDay[i]));
+            SPORE[i] = Mth.lerp(light, night[i], Mth.lerp(dawn, sporeDay[i], sporeDawn[i]));
         }
         // 嵐の霧は灰色へ半分寄せる(暗い空の下で緑の霧が光って見えないように。10-30 の「緑の霧」はユーザーが嫌った)。
         if (stormShown > 0.001F) {
@@ -365,7 +372,8 @@ public final class MistFog {
         shader.setSampler("OvFogMap", MistMap.textureId());
         shader.safeGetUniform("OvFogA").set((float) (MistMap.originX() - cam.x), (float) (MistMap.originZ() - cam.z),
                 (float) MistMap.TEXEL, (float) MistMap.SIZE);
-        shader.safeGetUniform("OvFogB").set(density, p.falloff(), (float) (MistMap.base() - cam.y), depth);
+        // 地下モード(CaveLights)の分だけ朝霧を引く(カメラが地表より下だと式の上では層の中 = 洞窟に朝霧が出るので)。
+        shader.safeGetUniform("OvFogB").set(density * (1.0F - CaveLights.mix()), p.falloff(), (float) (MistMap.base() - cam.y), depth);
         shader.safeGetUniform("OvFogC").set(NEAR[0], NEAR[1], NEAR[2], seaWeight);
         shader.safeGetUniform("OvFogD").set(FAR[0], FAR[1], FAR[2], p.colorDistance());
         shader.safeGetUniform("OvFogE").set((float) sun.x, (float) sun.y, (float) sun.z, lobe);
@@ -378,10 +386,11 @@ public final class MistFog {
         // 遠くの彩度を少し落とす(A6)・太陽の方の霧が光る(B1)。
         shader.safeGetUniform("OvFogI").set(p.farDesat(), p.desatFrom(), p.desatTo(), p.sunGlow());
         // 胞子の霧(10-31): 色は森の中のバニラの霧と同じ胞子の色にして、森の中で 2 色にならないように。地下では切る。
-        float forestEnd = ForestPresence.underground() > 0.5F || devForestOff ? 0.0F : p.forestFogEnd();
+        // 11-01 地下モードの試作: 岩の天井の下へ入る分だけ連続に薄める(前は underground 0.5 で段差に切っていた。洞窟の口で段が出ないように)。
+        float forestEnd = ForestPresence.underground() >= 0.999F || devForestOff ? 0.0F : p.forestFogEnd();
         shader.safeGetUniform("OvFogJ").set(SPORE[0], SPORE[1], SPORE[2], forestEnd);
         // カメラが森の中にいる分はバニラの霧(fog.glsl の霞)が地形にも Mob にも同じに掛けるので、ここの分はその残り(1 − 森の度合い)だけ。
-        shader.safeGetUniform("OvFogL").set(MistView.vanillaTerrainFog() ? 1.0F - MistView.sporeFog() : 1.0F, 0.0F, 0.0F, 0.0F);
+        shader.safeGetUniform("OvFogL").set((1.0F - ForestPresence.underground()) * (MistView.vanillaTerrainFog() ? 1.0F - MistView.sporeFog() : 1.0F), 0.0F, 0.0F, 0.0F);
         shader.safeGetUniform("OvFogK").set(Math.min(p.forestFogStart(), forestEnd), p.forestFogAbove(), forestReach(),
                 devForestDensity >= 0.0F ? devForestDensity : p.forestFogDensity());
     }

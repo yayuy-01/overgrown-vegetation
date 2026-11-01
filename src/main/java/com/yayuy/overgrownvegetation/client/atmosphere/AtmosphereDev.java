@@ -20,6 +20,16 @@ public final class AtmosphereDev {
         WindHistory.afterglowOverride = seconds;
     }
 
+    /** 地下モードの点光源の数の上限(負で設計値。11-01 試作の重さの比べ)。 */
+    public static void caveMaxLights(int max) {
+        CaveLights.devMaxLights = max;
+    }
+
+    /** 地下モードの今の状態(1 行)。 */
+    public static String caveStatus() {
+        return CaveLights.describe();
+    }
+
     private AtmosphereDev() {
     }
 }

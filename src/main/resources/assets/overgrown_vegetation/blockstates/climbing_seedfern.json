@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "facing=north,part=up": { "model": "overgrown_vegetation:block/climbing_seedfern_up" },
+    "facing=east,part=up": { "model": "overgrown_vegetation:block/climbing_seedfern_up", "y": 90 },
+    "facing=south,part=up": { "model": "overgrown_vegetation:block/climbing_seedfern_up", "y": 180 },
+    "facing=west,part=up": { "model": "overgrown_vegetation:block/climbing_seedfern_up", "y": 270 },
+    "facing=north,part=down": { "model": "overgrown_vegetation:block/climbing_seedfern_down" },
+    "facing=east,part=down": { "model": "overgrown_vegetation:block/climbing_seedfern_down", "y": 90 },
+    "facing=south,part=down": { "model": "overgrown_vegetation:block/climbing_seedfern_down", "y": 180 },
+    "facing=west,part=down": { "model": "overgrown_vegetation:block/climbing_seedfern_down", "y": 270 },
+    "facing=north,part=tip": { "model": "overgrown_vegetation:block/climbing_seedfern_tip" },
+    "facing=east,part=tip": { "model": "overgrown_vegetation:block/climbing_seedfern_tip", "y": 90 },
+    "facing=south,part=tip": { "model": "overgrown_vegetation:block/climbing_seedfern_tip", "y": 180 },
+    "facing=west,part=tip": { "model": "overgrown_vegetation:block/climbing_seedfern_tip", "y": 270 }
+  }
+}

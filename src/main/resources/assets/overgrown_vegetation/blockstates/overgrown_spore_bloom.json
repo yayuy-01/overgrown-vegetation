@@ -1,7 +1,8 @@
 {
   "variants": {
-    "": {
-      "model": "overgrown_vegetation:block/overgrown_spore_bloom"
-    }
+    "": [
+      { "model": "overgrown_vegetation:block/overgrown_spore_bloom" },
+      { "model": "overgrown_vegetation:block/overgrown_spore_bloom_b" }
+    ]
   }
 }
