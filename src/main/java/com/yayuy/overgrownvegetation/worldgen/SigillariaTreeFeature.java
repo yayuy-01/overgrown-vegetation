@@ -4,6 +4,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock;
 import com.yayuy.overgrownvegetation.block.SigillariaConeBlock;
+import com.yayuy.overgrownvegetation.block.SigillariaFringeBlock;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
@@ -57,7 +58,7 @@ public class SigillariaTreeFeature extends Feature<SigillariaTreeFeature.Config>
         if (height > TreePlacementRules.CAVE_MAX_TREE_HEIGHT && TreePlacementRules.isEnclosed(level, origin)) {
             return false;
         }
-        Tree tree = new Tree(level, config);
+        Tree tree = new Tree(level, config, origin);
         placeButtress(tree, origin);
         if (pillar) {
             placePillar(tree, random, origin, height);
@@ -151,14 +152,16 @@ public class SigillariaTreeFeature extends Feature<SigillariaTreeFeature.Config>
     private static final class Tree {
         final WorldGenLevel level;
         final Config config;
+        final BlockPos origin;
         final LongOpenHashSet logs = new LongOpenHashSet();
         final LongOpenHashSet core = new LongOpenHashSet();
         final List<BlockPos> coneLogs = new ArrayList<>();
         final List<BlockPos> joints = new ArrayList<>();
 
-        Tree(WorldGenLevel level, Config config) {
+        Tree(WorldGenLevel level, Config config, BlockPos origin) {
             this.level = level;
             this.config = config;
+            this.origin = origin;
         }
 
         void log(BlockPos pos) {
@@ -233,11 +236,11 @@ public class SigillariaTreeFeature extends Feature<SigillariaTreeFeature.Config>
                     placed.add(l);
                 }
             }
-            // 外の 1 層: 芯の横 4 つと上(透けた細い葉。2 割は抜いて輪郭を崩す)。
+            // 外の 1 層: 芯の上下と横 4 つ(芯から生える板の葉。2 割は抜いて輪郭を崩す)。下は 11-01 昼の試作から(垂れる葉)。
             LongOpenHashSet fringe = new LongOpenHashSet();
             for (long l : core) {
                 BlockPos c = BlockPos.of(l);
-                for (Direction d : new Direction[]{Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST, Direction.UP}) {
+                for (Direction d : Direction.values()) {
                     long n = c.relative(d).asLong();
                     if (!core.contains(n) && !logs.contains(n)) {
                         fringe.add(n);
@@ -247,9 +250,88 @@ public class SigillariaTreeFeature extends Feature<SigillariaTreeFeature.Config>
             for (long l : fringe) {
                 if (random.nextInt(5) != 0) {
                     p.set(l);
-                    leaf(p, config.fringeState(), false);
+                    Direction facing = fringeFacing(p, placed);
+                    if (facing != null) {
+                        leaf(p, fringeState(facing, false), false);
+                    }
                 }
             }
+            // 芯の角(平面で斜め・面で接する芯が無いマス): 芯の縦の辺から開く葉で、梢が四角い柱に見えるのを和らげる(2026-11-01 昼。抜く割合は横と同じ 2 割、仮決め)
+            LongOpenHashSet corners = new LongOpenHashSet();
+            for (long l : placed) {
+                BlockPos c = BlockPos.of(l);
+                for (Direction d : SIDES) {
+                    long n = c.relative(d).relative(d.getClockWise()).asLong();
+                    if (!core.contains(n) && !logs.contains(n) && !fringe.contains(n)) {
+                        corners.add(n);
+                    }
+                }
+            }
+            for (long l : corners) {
+                if (random.nextInt(5) != 0) {
+                    p.set(l);
+                    Direction facing = cornerFacing(p, placed);
+                    if (facing != null) {
+                        leaf(p, fringeState(facing, true), false);
+                    }
+                }
+            }
+        }
+
+        private BlockState fringeState(Direction facing, boolean corner) {
+            BlockState s = config.fringeState();
+            return s.hasProperty(SigillariaFringeBlock.FACING)
+                    ? s.setValue(SigillariaFringeBlock.FACING, facing).setValue(SigillariaFringeBlock.CORNER, corner) : s;
+        }
+
+        /**
+         * 角の葉の向き: 斜めに接する芯が {@code f} と {@code f} の左隣の間(north なら北西)にあるときの {@code f}。
+         * 芯が複数の斜めにあれば幹に近いもの。無ければ null。
+         */
+        private Direction cornerFacing(BlockPos pos, LongOpenHashSet placedCore) {
+            Direction best = null;
+            double bestDist = Double.MAX_VALUE;
+            for (Direction f : SIDES) {
+                BlockPos n = pos.relative(f).relative(f.getCounterClockWise());
+                if (placedCore.contains(n.asLong())) {
+                    double dx = n.getX() - origin.getX(), dz = n.getZ() - origin.getZ();
+                    if (dx * dx + dz * dz < bestDist) {
+                        bestDist = dx * dx + dz * dz;
+                        best = f;
+                    }
+                }
+            }
+            return best;
+        }
+
+        /**
+         * 外の葉の付け根の向き = 接している芯(置けた芯の葉・原木・枝)の向き。下 > 上 > 横(横が複数なら幹に近い向き)。接する芯が無ければ null(置かない)。
+         * 芯が下 = 立ち上がる房、上 = 垂れる葉、横 = 芯の面から開く V 字({@link SigillariaFringeBlock})。
+         */
+        private Direction fringeFacing(BlockPos pos, LongOpenHashSet placedCore) {
+            if (attaches(pos.below(), placedCore)) {
+                return Direction.DOWN;
+            }
+            if (attaches(pos.above(), placedCore)) {
+                return Direction.UP;
+            }
+            Direction best = null;
+            double bestDist = Double.MAX_VALUE;
+            for (Direction d : SIDES) {
+                BlockPos n = pos.relative(d);
+                if (attaches(n, placedCore)) {
+                    double dx = n.getX() - origin.getX(), dz = n.getZ() - origin.getZ();
+                    if (dx * dx + dz * dz < bestDist) {
+                        bestDist = dx * dx + dz * dz;
+                        best = d;
+                    }
+                }
+            }
+            return best;
+        }
+
+        private boolean attaches(BlockPos pos, LongOpenHashSet placedCore) {
+            return placedCore.contains(pos.asLong()) || logs.contains(pos.asLong());
         }
 
         /** 葉を置く。原木・ほかの木の葉・根付いた萌芽体は上書きしない。外の層は空気か置き換えられる所にだけ。 */

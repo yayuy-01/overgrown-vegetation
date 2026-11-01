@@ -472,12 +472,13 @@ public final class ModBlocks {
                     .mapColor(MapColor.COLOR_GREEN)
                     .isValidSpawn((state, getter, pos, type) -> false));
 
-    /** 封印木の葉の外側 1 層(細い葉が扇に開く・透けが多い。仮決め 2026-11-01)。 */
+    /** 封印木の葉の外側 1 層(試作 11-01 昼: 芯から生える向き付きの板 {@link com.yayuy.overgrownvegetation.block.SigillariaFringeBlock})。 */
     public static final DeferredBlock<Block> SIGILLARIA_LEAVES_FRINGE = BLOCKS.registerBlock(
             "sigillaria_leaves_fringe",
-            com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock::new,
+            com.yayuy.overgrownvegetation.block.SigillariaFringeBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
                     .mapColor(MapColor.COLOR_GREEN)
+                    .noCollission().noOcclusion()
                     .isValidSpawn((state, getter, pos, type) -> false));
 
     /**
