@@ -589,11 +589,47 @@ public final class ModBlocks {
                     .mapColor(MapColor.COLOR_GREEN)
                     .randomTicks());
 
-    /** 板材など加工木材 → 汚染された板材。 */
+    /**
+     * 板材など加工木材 → 覆われた板材(2026-11-01 に「過繁茂している板材」から改名。id はそのまま)。置き換えで得るもので、レシピは無い。
+     * 絵は 3 変種(blockstate で抽選)。
+     */
     public static final DeferredBlock<Block> OVERGROWN_PLANKS = BLOCKS.registerSimpleBlock(
             "overgrown_planks",
             BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_PLANKS)
                     .mapColor(MapColor.COLOR_GREEN));
+
+    /*
+     * 木ごとの板材(2026-11-01 ユーザー決定「木の名前と板材の作り分け」)。人の手で加工した材なので #corrupted には入れない。
+     * 性質・燃え方はオークの板材と同じ。階段・ハーフ・フェンス・ドアはまだ作らない(ユーザー決定: 板材だけ先に)。
+     */
+
+    /** コルダイテス(過繁茂した木 overgrown_log / overgrown_wood)の板材。 */
+    public static final DeferredBlock<Block> CORDAITES_PLANKS = BLOCKS.registerBlock(
+            "cordaites_planks",
+            com.yayuy.overgrownvegetation.block.WoodPlanksBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_PLANKS)
+                    .mapColor(MapColor.TERRACOTTA_GREEN));
+
+    /** 封印木(sigillaria_log)の板材。絵はユーザーの仮案のまま。 */
+    public static final DeferredBlock<Block> SIGILLARIA_PLANKS = BLOCKS.registerBlock(
+            "sigillaria_planks",
+            com.yayuy.overgrownvegetation.block.WoodPlanksBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_PLANKS)
+                    .mapColor(MapColor.TERRACOTTA_GREEN));
+
+    /** 巨大樹の外皮(giant_overgrown_log)の板材。 */
+    public static final DeferredBlock<Block> GIANT_BARK_PLANKS = BLOCKS.registerBlock(
+            "giant_bark_planks",
+            com.yayuy.overgrownvegetation.block.WoodPlanksBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_PLANKS)
+                    .mapColor(MapColor.TERRACOTTA_BROWN));
+
+    /** 巨大樹の板材(形成層 giant_overgrown_cambium から)。 */
+    public static final DeferredBlock<Block> GIANT_PLANKS = BLOCKS.registerBlock(
+            "giant_planks",
+            com.yayuy.overgrownvegetation.block.WoodPlanksBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_PLANKS)
+                    .mapColor(MapColor.WOOD));
 
     /**
      * 木の階段({@link BlockTags#WOODEN_STAIRS}) → 苔に覆われた階段。
@@ -1095,15 +1131,19 @@ public final class ModBlocks {
                 OVERGROWN_LOG,
                 OVERGROWN_WOOD,
                 OVERGROWN_BRANCH,
+                CORDAITES_PLANKS,
                 GIANT_OVERGROWN_LOG,
                 GIANT_OVERGROWN_CAMBIUM,
                 HARDENED_GIANT_TRUNK,
+                GIANT_BARK_PLANKS,
+                GIANT_PLANKS,
                 OVERGROWN_LEAVES,
                 SIGILLARIA_LOG,
                 SIGILLARIA_BRANCH,
                 SIGILLARIA_LEAVES,
                 SIGILLARIA_LEAVES_FRINGE,
                 SIGILLARIA_CONE,
+                SIGILLARIA_PLANKS,
                 OVERGROWN_BUSH,
                 OVERGROWN_SAPLING,
                 OVERGROWN_PLANKS,

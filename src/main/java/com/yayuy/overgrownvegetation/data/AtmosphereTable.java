@@ -284,6 +284,8 @@ public final class AtmosphereTable {
      * 胞子の霧(10-31 ユーザー「森の中にいるときだけ描画距離 6 チャンクくらい」): 森の列を通った視線の長さが forestFogStart〜forestFogEnd で見えなくなる
      * (0 = 切る。バニラの 6 チャンクの霧と同じ 86.4〜96)。森の霧は林冠の床から forestFogAbove ブロック上まで。壁の手前の霞 forestFogDensity(森 1 ブロックあたり、0 = 壁だけ。カメラが森の中にいる間はバニラの霧の式を上書きして Mob・粒にも同じに掛ける)。
      * 胞子の霧の色: 昼 forestFogDayColor(11-01 ユーザー「白〜黄緑の胞子」: #ace300 を白へ 75% 寄せた色)・朝夕 forestFogDawnColor(朝霧の白緑)・夜は nightColor。値は仮決め。
+     * 水中の濁り(11-01 ユーザー「水中が透き通りすぎ」): 海・川の 4 バイオームで潜っている間の霧の終わり waterFogOvergrownOcean ほか(ブロック、0 = バニラのまま)・
+     * 始まり = 終わり × waterFogNearFraction。潜る時間で澄んでいかない。距離は仮決め。
      */
     public static final class FogJson {
         public Double density, falloff, depthMin, depthRange, lowPercentile, canopyPercentile, highPercentile, seaAbove;
@@ -292,6 +294,7 @@ public final class AtmosphereTable {
         public Double proxCellsFlat, mistAfterRainMinutes, afterRainLinger, stormDensity, stormDepth, stormDarken, sporeHaze;
         public Double forestFogDark, shadeFloor, forestSky, stormFogEnd, sunGlow, farDesat, desatFrom, desatTo;
         public Double forestFogEnd, forestFogStart, forestFogAbove, forestFogDensity;
+        public Double waterFogOvergrownOcean, waterFogOvergrowthOcean, waterFogOvergrownRiver, waterFogOvergrowthRiver, waterFogNearFraction;
         public double[] nearColor, farColor, nightColor, hazeColor, forestSkyColor, forestFogDayColor, forestFogDawnColor;
     }
 
@@ -304,6 +307,8 @@ public final class AtmosphereTable {
                             float stormDepth, float stormDarken, float sporeHaze, float forestFogDark, float shadeFloor, float forestSky,
                             float stormFogEnd, float sunGlow, float farDesat, float desatFrom, float desatTo, float forestFogEnd, float forestFogStart,
                             float forestFogAbove, float forestFogDensity,
+                            float waterFogOvergrownOcean, float waterFogOvergrowthOcean, float waterFogOvergrownRiver, float waterFogOvergrowthRiver,
+                            float waterFogNearFraction,
                             float[] nearColor, float[] farColor, float[] nightColor, float[] hazeColor, float[] forestSkyColor,
                             float[] forestFogDayColor, float[] forestFogDawnColor) {
         static FogParams of(FogJson f) {
@@ -323,6 +328,9 @@ public final class AtmosphereTable {
                     clamp(v.stormFogEnd, 40.0, 8.0, 1024.0), clamp(v.sunGlow, 0.8, 0.0, 3.0), clamp(v.farDesat, 0.30, 0.0, 1.0),
                     clamp(v.desatFrom, 48.0, 0.0, 1024.0), clamp(v.desatTo, 192.0, 1.0, 2048.0),
                     clamp(v.forestFogEnd, 96.0, 0.0, 1024.0), clamp(v.forestFogStart, 86.4, 0.0, 1024.0), clamp(v.forestFogAbove, 4.0, -8.0, 40.0), clamp(v.forestFogDensity, 0.03, 0.0, 0.2),
+                    clamp(v.waterFogOvergrownOcean, 10.0, 0.0, 256.0), clamp(v.waterFogOvergrowthOcean, 16.0, 0.0, 256.0),
+                    clamp(v.waterFogOvergrownRiver, 8.0, 0.0, 256.0), clamp(v.waterFogOvergrowthRiver, 12.0, 0.0, 256.0),
+                    clamp(v.waterFogNearFraction, 0.2, 0.0, 1.0),
                     rgb(v.nearColor, 1.00, 1.00, 0.96), rgb(v.farColor, 0.90, 0.93, 0.88), rgb(v.nightColor, 0.10, 0.15, 0.10),
                     rgb(v.hazeColor, 0.94, 0.96, 0.86), rgb(v.forestSkyColor, 1.00, 1.00, 0.96),
                     rgb(v.forestFogDayColor, 0.92, 0.97, 0.75), rgb(v.forestFogDawnColor, 0.90, 0.93, 0.88));

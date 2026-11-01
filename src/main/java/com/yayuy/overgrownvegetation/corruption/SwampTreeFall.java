@@ -55,7 +55,7 @@ import java.util.Map;
  * 汚染地域に生えた mod の木も消している」)。{@link ModBlocks#OVERGROWN_LOG} / {@link ModBlocks#OVERGROWN_WOOD} は
  * Create 互換のため {@code #logs} に入っているので(10-14)、タグとは別に名指しで外す。昔は元の木の汚染された部分が
  * {@code OVERGROWN_LOG} に化けたのでそれも辿っていたが、mod の木の枝は幹から 6〜7 ブロック広がるので、元の木に斜めに
- * 1 か所触れただけで mod の木が丸ごと同じ木として消えていた。
+ * 1 か所触れただけで mod の木が丸ごと同じ木として消えていた(2026-11-01 からは元の原木が {@code OVERGROWN_LOG} に化けることも無い)。
  * 葉は元の木の葉も汚染されると {@link ModBlocks#OVERGROWN_LEAVES} になり mod の木の葉と見分けが付かないので、
  * 集めた葉のうち mod の原木から葉づたいに同じか近い葉は mod の木のものとして残す({@link #releaseModTreeLeaves})。
  * プレイヤーの建築(原木を使った家)も繋がりとして辿ってしまうので、繋がりが

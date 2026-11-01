@@ -231,7 +231,8 @@ public final class CorruptionRegistry {
                 Blocks.SEAGRASS, Blocks.TALL_SEAGRASS, Blocks.KELP, Blocks.KELP_PLANT);
 
         List<TagRule> rules = new ArrayList<>();
-        rules.add(new TagRule(BlockTags.LOGS, ModBlocks.OVERGROWN_LOG));
+        // 原木 → 過繁茂した原木(コルダイテス)の規則は 2026-11-01 に外した(ユーザー決定「バニラの原木・木の置き換えは覆いだけ」)。
+        // バニラの原木は特別扱い(COVER_IN_PLACE)で記録で覆う。他 MOD の原木は対応表に無いブロックとして覆う。
         // 自然生成の葉(PERSISTENT=false)はそもそも canCorrupt() で弾かれるので、
         // ここに到達する葉はプレイヤーが設置したもの(PERSISTENT=true)だけ。
         rules.add(new TagRule(BlockTags.LEAVES, ModBlocks.OVERGROWN_LEAVES));
@@ -860,6 +861,7 @@ public final class CorruptionRegistry {
         // 木材(板材・木の階段・ハーフ・フェンス・原木・木)は先に半分を過繁茂した木材へ(同じく夜 3、ユーザー指定「木材の場合は 50% で
         // 過繁茂した板材系に。木材の建物は過繁茂しているブロック・過繁茂した木材・覆われた木材が混ざった感じに」)。残りの半分は今までどおり
         // 3:7 で過繁茂ブロックと覆われた版 —— 合わせて過繁茂した木材 5:過繁茂ブロック 1.5:覆われた版 3.5(割合はユーザーが選んだ)。
+        // 原木・木は 2026-11-01 から過繁茂した木材に化けない(覆われた版 7:過繁茂ブロック 3)。
         // 2026-10-30 から「覆われた版」は元のまま記録で覆うこと —— ここでは元の状態をそのまま返し、位置付きの corrupt() が記録を書く
         // (呼び出し元は noChange で素通りし、対応表に無いブロックを覆ったときと同じ後処理になる)。
         if (COVER_IN_PLACE.contains(state.getBlock())) {
@@ -928,10 +930,12 @@ public final class CorruptionRegistry {
 
     /**
      * 木材の覆われた版の代わりに置く<b>過繁茂した木材</b>(2026-10-05 夜 3、ユーザー指定)。板材 → 過繁茂している板材、木の階段 → 過繁茂した階段、
-     * 木のハーフ → 過繁茂したハーフブロック、木のフェンス → 過繁茂したフェンス、原木・樹皮を剥いだ原木・幹 → 過繁茂している原木、
-     * 木・樹皮を剥いだ木・菌糸 → 過繁茂している木(原木・木を混ぜるのもユーザーが選んだ。元の森の幹も入る)。向き・形・水没は引き継ぐ。
+     * 木のハーフ → 過繁茂したハーフブロック、木のフェンス → 過繁茂したフェンス。向き・形・水没は引き継ぐ。
+     * 原木・木は 2026-11-01 から入れない(ユーザー決定「バニラの原木・木の置き換えは覆いだけ」。過繁茂している原木はコルダイテスという木の種になった)。
+     * それまでは原木・樹皮を剥いだ原木・幹 → 過繁茂している原木、木・樹皮を剥いだ木・菌糸 → 過繁茂している木だった。
+     * 原木に残るのは {@link #overgrownCounterpart} の 3 割(原木から化けた過繁茂しているブロック)だけ。
      * 扉は入れない(ユーザーが選ばなかった。木の扉は必ず覆われた扉)。トラップドア・フェンスゲート・ボタン・感圧板・竹ブロックも入れない。
-     * 木材かどうかはバニラのタグで見る({@code #planks}・{@code #wooden_stairs}・{@code #wooden_slabs}・{@code #wooden_fences}・{@code #logs})。
+     * 木材かどうかはバニラのタグで見る({@code #planks}・{@code #wooden_stairs}・{@code #wooden_slabs}・{@code #wooden_fences})。
      */
     @Nullable
     private static BlockState overgrownWoodCounterpart(BlockState state) {
@@ -944,10 +948,6 @@ public final class CorruptionRegistry {
             target = ModBlocks.OVERGROWN_SLAB.get();
         } else if (state.is(BlockTags.WOODEN_FENCES)) {
             target = ModBlocks.OVERGROWN_FENCE.get();
-        } else if (state.is(BlockTags.LOGS)) {
-            String path = BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
-            target = path.endsWith("_wood") || path.endsWith("_hyphae")
-                    ? ModBlocks.OVERGROWN_WOOD.get() : ModBlocks.OVERGROWN_LOG.get();
         } else {
             return null;
         }

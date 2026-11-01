@@ -3,8 +3,16 @@ package com.yayuy.overgrownvegetation.client.atmosphere;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.yayuy.overgrownvegetation.client.VisualQuality;
 import com.yayuy.overgrownvegetation.data.DesignData;
+import com.yayuy.overgrownvegetation.registry.ModBiomes;
+import net.minecraft.client.Camera;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.FogRenderer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.util.Mth;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.material.FogType;
 import net.neoforged.neoforge.client.event.ViewportEvent;
 
@@ -24,6 +32,9 @@ import net.neoforged.neoforge.client.event.ViewportEvent;
  *     地形の霧を {@code forestFogStart}〜{@code forestFogEnd}(86.4〜96)へ、色を隙間の空の色へ。地形シェーダーの胞子の霧({@code ov_fog.glsl})と
  *     同じ距離・同じ色なので、森の中では 2 つが重なり、Mob・粒・雲もこれで隠れる。森の外から縁越しに見る分は地形シェーダーだけ。</li>
  *     <li><b>嵐</b>(提案 2、10-30 夜 ユーザー採用): 雷雨の間、過繁茂の地域ではバニラの霧を {@code stormFogEnd}(仮 40)まで近づけて遠くを早く隠す。</li>
+ *     <li><b>水中の濁り</b>(11-01 ユーザー「水中が透き通りすぎ」): 海・川の 4 バイオームで潜っている間は、霧の終わりを {@code waterFogOvergrownOcean} など
+ *     (仮 8〜16 ブロック)に固定し、色をそのバイオームの {@code water_fog_color} に固定する。バニラは潜っている時間(waterVision)で霧を 96 まで伸ばし、
+ *     色も明るく持ち上げるので、両方を上書きして澄んでいかないようにする。</li>
  * </ul>
  */
 final class MistView {
@@ -104,8 +115,47 @@ final class MistView {
         return ForestPresence.openForest() * DesignData.atmosphere().fog().forestSky();
     }
 
+    /** 潜っている所のバイオーム(海・川の 4 つで、盲目・暗闇でないとき。ほかは null)。 */
+    private static Holder<Biome> murkyWater(Camera cam) {
+        Minecraft mc = Minecraft.getInstance();
+        ClientLevel lvl = mc.level;
+        if (cam.getFluidInCamera() != FogType.WATER || lvl == null || mc.player != null
+                && (mc.player.hasEffect(MobEffects.BLINDNESS) || mc.player.hasEffect(MobEffects.DARKNESS))) {
+            return null;
+        }
+        Holder<Biome> biome = lvl.getBiome(BlockPos.containing(cam.getPosition()));
+        return waterFogEnd(biome) > 0.0F ? biome : null;
+    }
+
+    /** そのバイオームの水中の霧の終わり(0 = バニラのまま)。 */
+    private static float waterFogEnd(Holder<Biome> biome) {
+        var p = DesignData.atmosphere().fog();
+        if (biome.is(ModBiomes.OVERGROWN_OCEAN)) {
+            return p.waterFogOvergrownOcean();
+        }
+        if (biome.is(ModBiomes.OVERGROWTH_OCEAN)) {
+            return p.waterFogOvergrowthOcean();
+        }
+        if (biome.is(ModBiomes.OVERGROWN_RIVER)) {
+            return p.waterFogOvergrownRiver();
+        }
+        return biome.is(ModBiomes.OVERGROWTH_RIVER) ? p.waterFogOvergrowthRiver() : 0.0F;
+    }
+
     static void computeFogColor(ViewportEvent.ComputeFogColor event) {
         if (!VisualQuality.fog()) {
+            return;
+        }
+        Holder<Biome> water = murkyWater(event.getCamera());
+        if (water != null) {
+            // 水中の濁り: バニラの水の霧の色(water_fog_color)から、潜っている時間で明るくする分だけを外す。深い所の暗さ(空の色の暗さ)はバニラと同じ。
+            int c = water.value().getWaterFogColor();
+            ClientLevel lvl = Minecraft.getInstance().level;
+            float dark = (float) (event.getCamera().getPosition().y - lvl.getMinBuildHeight()) * lvl.getLevelData().getClearColorScale();
+            dark = dark < 1.0F ? Math.max(0.0F, dark) * Math.max(0.0F, dark) : 1.0F;
+            event.setRed((c >> 16 & 0xFF) / 255.0F * dark);
+            event.setGreen((c >> 8 & 0xFF) / 255.0F * dark);
+            event.setBlue((c & 0xFF) / 255.0F * dark);
             return;
         }
         float inside = MistFog.cameraInside();
@@ -146,6 +196,15 @@ final class MistView {
     }
 
     static void renderFog(ViewportEvent.RenderFog event) {
+        Holder<Biome> water = VisualQuality.fog() ? murkyWater(event.getCamera()) : null;
+        if (water != null) {
+            // 水中の濁り: 霧の距離を潜っている時間によらず固定する(地形・空とも)。
+            float end = waterFogEnd(water);
+            event.setFarPlaneDistance(Math.min(event.getFarPlaneDistance(), end));
+            event.setNearPlaneDistance(end * DesignData.atmosphere().fog().waterFogNearFraction());
+            event.setCanceled(true);
+            return;
+        }
         if (event.getType() != FogType.NONE || !VisualQuality.fog()) {
             return;
         }

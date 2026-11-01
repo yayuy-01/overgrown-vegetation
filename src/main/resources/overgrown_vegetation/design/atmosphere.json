@@ -103,7 +103,7 @@
     "spinPerBlock": 0.15
   },
   "fog": {
-    "_comment": "第 3 段「霧」の土台(10-30 夜)。色味は 10-30 夜 ユーザー採用 A1・A5(参考画像: 霧は白〜灰緑で青くない・林冠の隙間の空は白く飛ぶ)で、値は見本で決める仮決め。了承値は insideFogEnd 64(10-16)と朝 5〜9 時(MistLayer の時刻の形)。ほかはすべて仮決め。色(nearColor・farColor・nightColor・forestFogDark・shadeFloor)は後で参考画像から詰める(10-30 ユーザー)。胞子の霧 forestFogEnd 96・forestFogStart 86.4(10-31 ユーザー「森の中だけ描画距離 6 チャンクくらい」の換算)・forestFogAbove 4・壁の手前の霞 forestFogDensity(10-31 の 0.012 はユーザーが残すと決め、11-01「昼も胞子が充満して遠くが見えない」で 0.03 に。値は見本から選ぶ仮決め)・胞子の霧の色 forestFogDayColor(#ace300 を白へ 75%)・forestFogDawnColor は仮決め。既定は熱帯版(日なたは金・影は青緑、冷たい青へ振りすぎない)。",
+    "_comment": "第 3 段「霧」の土台(10-30 夜)。色味は 10-30 夜 ユーザー採用 A1・A5(参考画像: 霧は白〜灰緑で青くない・林冠の隙間の空は白く飛ぶ)で、値は見本で決める仮決め。了承値は insideFogEnd 64(10-16)と朝 5〜9 時(MistLayer の時刻の形)。ほかはすべて仮決め。色(nearColor・farColor・nightColor・forestFogDark・shadeFloor)は後で参考画像から詰める(10-30 ユーザー)。胞子の霧 forestFogEnd 96・forestFogStart 86.4(10-31 ユーザー「森の中だけ描画距離 6 チャンクくらい」の換算)・forestFogAbove 4・壁の手前の霞 forestFogDensity(10-31 の 0.012 はユーザーが残すと決め、11-01「昼も胞子が充満して遠くが見えない」で 0.03 に。値は見本から選ぶ仮決め)・胞子の霧の色 forestFogDayColor(#ace300 を白へ 75%)・forestFogDawnColor は仮決め。水中の濁り waterFog*(11-01 ユーザー「水中が透き通りすぎ」: 海・川の 4 バイオームで潜っている間の霧の終わりを固定し、潜る時間で澄ませない。距離 10・16・8・12 と始まり 0.2 倍は仮決め)。既定は熱帯版(日なたは金・影は青緑、冷たい青へ振りすぎない)。",
     "density": 0.0045,
     "falloff": 0.35,
     "depthMin": 5.0,
@@ -146,6 +146,11 @@
     "forestFogStart": 86.4,
     "forestFogAbove": 4.0,
     "forestFogDensity": 0.03,
+    "waterFogOvergrownOcean": 10.0,
+    "waterFogOvergrowthOcean": 16.0,
+    "waterFogOvergrownRiver": 8.0,
+    "waterFogOvergrowthRiver": 12.0,
+    "waterFogNearFraction": 0.2,
     "forestFogDayColor": [0.92, 0.97, 0.75],
     "forestFogDawnColor": [0.90, 0.93, 0.88],
     "nearColor": [1.00, 1.00, 0.96],

@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "building",
+  "group": "planks",
+  "ingredients": [
+    [
+      {
+        "item": "overgrown_vegetation:overgrown_log"
+      },
+      {
+        "item": "overgrown_vegetation:overgrown_wood"
+      }
+    ]
+  ],
+  "result": {
+    "id": "overgrown_vegetation:cordaites_planks",
+    "count": 4
+  }
+}

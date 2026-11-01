@@ -203,7 +203,7 @@ public final class CoverGameTests {
                 return;
             }
         }
-        if (chance == 0.7D && woodKinds < 60) {
+        if (chance == 0.7D && woodKinds < 40) { // 板材・木の階段・ハーフ・フェンス(原木・木は 2026-11-01 から入らない)
             helper.fail("木材として扱われたブロックが少なすぎる: " + woodKinds);
             return;
         }
@@ -255,9 +255,10 @@ public final class CoverGameTests {
         BlockState oakLog = Blocks.OAK_LOG.defaultBlockState().setValue(BlockStateProperties.AXIS, Direction.Axis.X);
         Block keep = Blocks.AIR; // 「元のまま + 記録」の印
         Block[][] want = {
-                {ModBlocks.OVERGROWN_SLAB.get(), keep, ModBlocks.OVERGROWN_LOG.get()},
+                // 原木は 2026-11-01 から過繁茂した木材(過繁茂した原木)に化けない = 石のハーフと同じ 7:3
+                {ModBlocks.OVERGROWN_SLAB.get(), keep, keep},
                 {keep, keep, keep},
-                {keep, ModBlocks.OVERGROWN_BLOCK_SLAB.get(), keep},
+                {keep, ModBlocks.OVERGROWN_BLOCK_SLAB.get(), ModBlocks.OVERGROWN_TRUNK_BLOCK.get()},
                 {ModBlocks.OVERGROWN_BLOCK_SLAB.get(), ModBlocks.OVERGROWN_BLOCK_SLAB.get(), ModBlocks.OVERGROWN_TRUNK_BLOCK.get()}};
         BlockState[] inputs = {oakSlab, stoneSlab, oakLog};
         for (int k = 0; k < 4; k++) {
@@ -347,8 +348,8 @@ public final class CoverGameTests {
         BlockState oak = Blocks.OAK_LOG.defaultBlockState();
         level.setBlock(log, oak, Block.UPDATE_CLIENTS);
         BlockState corrupted = CorruptionRegistry.corrupt(level, log, oak, RandomSource.create(5));
-        if (corrupted != oak && !corrupted.is(ModBlocks.OVERGROWN_LOG.get()) && !corrupted.is(ModBlocks.OVERGROWN_TRUNK_BLOCK.get())) {
-            helper.fail("オークの原木が覆う・過繁茂している原木・過繁茂しているブロックのどれにもならない: " + corrupted);
+        if (corrupted != oak && !corrupted.is(ModBlocks.OVERGROWN_TRUNK_BLOCK.get())) {
+            helper.fail("オークの原木が覆う・過繁茂しているブロックのどちらにもならない: " + corrupted);
             return;
         }
         try {
@@ -928,10 +929,7 @@ public final class CoverGameTests {
         if (vanilla.is(BlockTags.WOODEN_FENCES)) {
             return ModBlocks.OVERGROWN_FENCE.get();
         }
-        if (vanilla.is(BlockTags.LOGS)) {
-            String path = BuiltInRegistries.BLOCK.getKey(vanilla.getBlock()).getPath();
-            return path.endsWith("_wood") || path.endsWith("_hyphae") ? ModBlocks.OVERGROWN_WOOD.get() : ModBlocks.OVERGROWN_LOG.get();
-        }
+        // 原木・木は 2026-11-01 から過繁茂した木材に化けない(覆いと 3 割の過繁茂しているブロックだけ)
         return null;
     }
 

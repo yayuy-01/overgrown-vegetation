@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "building",
+  "group": "planks",
+  "ingredients": [
+    {
+      "item": "overgrown_vegetation:sigillaria_log"
+    }
+  ],
+  "result": {
+    "id": "overgrown_vegetation:sigillaria_planks",
+    "count": 4
+  }
+}
