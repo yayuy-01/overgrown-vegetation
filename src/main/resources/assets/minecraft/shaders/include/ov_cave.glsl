@@ -13,10 +13,11 @@
 //               row 1 = (ambient desaturation, clip desaturation, 0, 0).
 // OvCave = (number of lights, camera cave mix 0..1, light gain, brightness above which a texel of a light block glows)
 // OvCaveMap: 64 x 64 float texture, one texel per block column around the camera: r = world y of the top of the highest rock
-//            (not tree, not air or plants) in the column, g = 1 when the column is in the overgrown area.
+//            (not tree, not air or plants) in the column that is at least 3 blocks thick (11-02: thinner layers, like soil on a
+//            giant trunk, are skipped), g = 1 when the column is in the overgrown area.
 // OvCaveMapA = (map origin x, map origin z relative to the camera, minus camera y, 1 when the map is ready)
 // OvCaveMapB = (rock above from which a fragment starts to be underground, rock above where it is fully, sky light from, sky light to (0..1))
-// OvCaveFog  = (cave fog colour rgb, -), OvCaveFogD = (cave fog start, end, 1 when the camera is in a fluid, -)
+// OvCaveFog  = (cave fog colour rgb, -), OvCaveFogD = (cave fog start, end, 1 when the camera is in a fluid, dev red tint)
 // OvCaveSurf = (spore haze colour of the forest rgb, haze per block): the haze an outside fragment gets while the camera is in a cave
 //              (the black camera fog is taken off it, and the outside would otherwise show its bare, dim lightmap)
 //
@@ -138,6 +139,10 @@ vec3 ovCaveFog(vec3 fogged, vec3 lit, vec3 surface, float dist, float under) {
     if (toSurface > 0.0) {
         vec3 hazed = mix(surface, OvCaveSurf.rgb, 1.0 - exp(-OvCaveSurf.w * dist));
         c = mix(c, hazed, toSurface);
+    }
+    // Dev only (OvCaveFogD.w, devbridge "wind cavedev tint on"): paint the cave factor red.
+    if (OvCaveFogD.w > 0.5) {
+        c = mix(c, vec3(1.0, 0.0, 0.0), 0.7 * under);
     }
     return c;
 }

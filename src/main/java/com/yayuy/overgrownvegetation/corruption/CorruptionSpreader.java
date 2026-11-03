@@ -1285,6 +1285,10 @@ public class CorruptionSpreader {
         if (hostState.isAir() || hostState.is(Blocks.WATER)) {
             return;
         }
+        // トクサの群れ(浅い淵の縁と深さ 1 の水の中。密林だけ、2026-11-02)。立てたマスにはほかの植物を生やさない
+        if (FloorGrowth.tryHorsetail(level, pos)) {
+            return;
+        }
         // 茂み(overgrown_bush)の塊は装飾植物とは独立に生成する
         // (spawnGrowthPlants / growthChance の設定に左右されない)。
         LeafClumpGrowth.tryGrow(level, pos, level.random);
@@ -2394,6 +2398,10 @@ public class CorruptionSpreader {
 
         BlockState tall = CorruptionGrowth.randomTall(random);
         if (!tall.canSurvive(level, lowerPos)) {
+            return;
+        }
+        // 水辺の胞子の葦はトクサの群れに置き換える(葦を立てない = 下草の数を増やさない。2026-11-02 ユーザー指定)
+        if (tall.is(ModBlocks.OVERGROWN_SPORE_REED.get()) && FloorGrowth.replacesReedAt(level, lowerPos)) {
             return;
         }
 

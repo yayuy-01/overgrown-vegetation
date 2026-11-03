@@ -71,7 +71,7 @@ public final class LeafTones {
     @SubscribeEvent
     public static void registerColors(RegisterColorHandlersEvent.Block event) {
         // 11-01 夜(見え方の直し 1): 封印木・木生シダの芯と板、胞子昆布の葉も(絵が違うので色は「絵からのずらし」で塗る。ov_leaf.glsl)。
-        event.register(LeafTones::color, ModBlocks.OVERGROWN_LEAVES.get(), ModBlocks.SIGILLARIA_LEAVES.get(), ModBlocks.SIGILLARIA_LEAVES_FRINGE.get(),
+        event.register(LeafTones::color, ModBlocks.OVERGROWN_LEAVES.get(), ModBlocks.OVERGROWN_LEAVES_TUFT.get(), ModBlocks.SIGILLARIA_LEAVES.get(), ModBlocks.SIGILLARIA_LEAVES_FRINGE.get(),
                 ModBlocks.TREE_FERN_LEAVES.get(), ModBlocks.TREE_FERN_FROND.get(), ModBlocks.SPORE_KELP_FROND.get());
     }
 

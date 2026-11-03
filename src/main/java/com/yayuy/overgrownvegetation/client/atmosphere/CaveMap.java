@@ -36,6 +36,13 @@ final class CaveMap {
     private static final int REBUILD_TICKS = 40;
     private static final double RECENTER = 8.0;
     private static final float NO_ROCK = -10000.0F;
+    /**
+     * 天井と見なす岩の厚み(縦に続く岩のブロックの数、仮決め 3)。これより薄い岩の層は読み飛ばしてその下を見る(11-02 霧の剥がれ: 巨大樹の幹の上に乗った
+     * 1 段の土・草・過繁茂ブロックが天井になり、その下の林床が地下扱い = 胞子の霞が外れて黒い霧の手前の澄んだ暗さになっていた)。
+     */
+    static final int MIN_ROOF = 3;
+    /** 確かめ用: 真なら前の数え方(1 段でも天井)。撮り比べのため。 */
+    static boolean devThinRoof;
 
     private record Built(int originX, int originZ, float[] data, boolean anyOvergrown) {
     }
@@ -119,7 +126,43 @@ final class CaveMap {
                 && !state.is(ModTags.NOT_CAVE_ROOF) && !TreeCanopyGroundFinder.isTreePart(state);
     }
 
-    /** 作業スレッド: 列ごとに上から木・空気・水・下草を読み飛ばして最初の岩を探す。 */
+    /** {@code y} から下へ続く岩の数({@link #MIN_ROOF} で打ち切り)。 */
+    private static int rockRun(net.minecraft.world.level.BlockGetter level, BlockPos.MutableBlockPos pos, int x, int y, int z, int minY) {
+        int run = 0;
+        while (run < MIN_ROOF && y - run >= minY && isRock(level.getBlockState(pos.set(x, y - run, z)))) {
+            run++;
+        }
+        return run;
+    }
+
+    /**
+     * カメラ側の天井({@link CaveLights} の地上と混ぜる係数): {@code (x, z)} の列で {@code y0} から上 {@code scan} 段のうちに、{@link #MIN_ROOF} 段以上続く岩があるか。
+     * 地図と同じ数え方(前は {@link ForestPresence#hasRockRoof} = 1 段の不透明なブロックでも天井)。空の無い次元は常に天井。
+     */
+    static boolean thickRoofAbove(ClientLevel level, int x, int y0, int z, int scan) {
+        if (!level.dimensionType().hasSkyLight()) {
+            return true;
+        }
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        int top = Math.min(level.getMaxBuildHeight() - 1, y0 + scan);
+        int minY = level.getMinBuildHeight();
+        for (int y = y0; y <= top; y++) {
+            if (isRock(level.getBlockState(pos.set(x, y, z)))) {
+                // 上へ続く岩を数える(下へ数える rockRun と向きだけ違う)。
+                int run = 0;
+                while (run < MIN_ROOF && y + run <= top && isRock(level.getBlockState(pos.set(x, y + run, z)))) {
+                    run++;
+                }
+                if (run >= MIN_ROOF || devThinRoof || y + run > top) {
+                    return true;
+                }
+                y += run;
+            }
+        }
+        return false;
+    }
+
+    /** 作業スレッド: 列ごとに上から木・空気・水・下草を読み飛ばし、{@link #MIN_ROOF} 段以上続く最初の岩を探す。 */
     private static Built build(ClientLevel level, int ox, int oz) {
         float[] data = new float[SIZE * SIZE * 4];
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -138,8 +181,12 @@ final class CaveMap {
                 int rockY = Integer.MIN_VALUE;
                 for (int y = top; y >= minY; y--) {
                     if (isRock(level.getBlockState(pos.set(wx, y, wz)))) {
-                        rockY = y;
-                        break;
+                        int run = rockRun(level, pos, wx, y, wz, minY);
+                        if (run >= MIN_ROOF || devThinRoof || y - run < minY) {
+                            rockY = y;
+                            break;
+                        }
+                        y -= run - 1;
                     }
                 }
                 if (rockY == Integer.MIN_VALUE) {

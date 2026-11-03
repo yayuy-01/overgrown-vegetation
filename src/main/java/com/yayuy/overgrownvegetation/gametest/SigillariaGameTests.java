@@ -88,8 +88,8 @@ public final class SigillariaGameTests {
                         if (s.is(ModBlocks.SIGILLARIA_LOG.get())) {
                             logs++;
                             maxY = Math.max(maxY, p.getY());
-                            // 根元の十字(2 段)より上で幹の列から外れた原木 = 腕
-                            if (dy >= 2 && (dx != 0 || dz != 0)) logsOffTrunk++;
+                            // 幹の列から外れた原木 = 腕(根元の十字の原木は 11-02 に外した)
+                            if (dx != 0 || dz != 0) logsOffTrunk++;
                         } else if (s.is(ModBlocks.SIGILLARIA_BRANCH.get())) {
                             branches++;
                             logsOffTrunk++;

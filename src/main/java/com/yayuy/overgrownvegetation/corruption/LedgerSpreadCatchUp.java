@@ -191,7 +191,10 @@ final class LedgerSpreadCatchUp {
                 continue;
             }
             CorruptionRegistry.placeCorrupted(level, target, state, corrupted, Block.UPDATE_ALL);
-            CorruptionSpreader.growSurfacePlants(level, target, corrupted, growth);
+            // トクサの群れ(水辺。2026-11-02): この経路でも立てる(水辺の胞子の葦は growSurfacePlants の中で立たなくなるので、代わりが要る)
+            if (!FloorGrowth.tryHorsetail(level, target)) {
+                CorruptionSpreader.growSurfacePlants(level, target, corrupted, growth);
+            }
             placed++;
         }
         if (placed > 0) {

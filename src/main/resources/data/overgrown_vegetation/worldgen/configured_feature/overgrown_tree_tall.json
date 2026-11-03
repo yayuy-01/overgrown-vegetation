@@ -19,8 +19,8 @@
     "branch_min_length": 2,
     "branch_max_length": 4,
     "branch_zone_height": 30,
-    "root_min_count": 2,
-    "root_max_count": 3,
+    "root_min_count": 4,
+    "root_max_count": 4,
     "root_length": 3,
     "glow_lichen_chance": 0.1,
     "glow_lichen_state": {

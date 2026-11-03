@@ -434,6 +434,36 @@ public final class ModBlocks {
                     .isValidSpawn((state, getter, pos, type) -> false));
 
     /**
+     * コルダイテスの中層の葉の房の板(2026-11-02、下絵 33 の案 B)。幹の中ほどの短い枝の先の葉 1 ブロックから生える向き付きの板で、
+     * 仕組みは封印木の板の葉 {@link com.yayuy.overgrownvegetation.block.SigillariaFringeBlock} のまま(絵だけ替えた別ブロック)。
+     */
+    public static final DeferredBlock<Block> OVERGROWN_LEAVES_TUFT = BLOCKS.registerBlock(
+            "overgrown_leaves_tuft",
+            com.yayuy.overgrownvegetation.block.SigillariaFringeBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .noCollission().noOcclusion()
+                    .isValidSpawn((state, getter, pos, type) -> false));
+
+    /** コルダイテスの板根(2026-11-02、下絵 32 の案 A)。幹の面から段で下がる板。{@code #logs} に入れない。 */
+    public static final DeferredBlock<Block> CORDAITES_BUTTRESS = BLOCKS.registerBlock(
+            "cordaites_buttress",
+            com.yayuy.overgrownvegetation.block.CordaitesButtressBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_WOOD)
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .noOcclusion()
+                    .isValidSpawn((state, getter, pos, type) -> false));
+
+    /** 封印木の根 = スティグマリア(2026-11-02、下絵 32 の案 B)。地面を這う太い根。{@code #logs} に入れない。 */
+    public static final DeferredBlock<Block> STIGMARIA = BLOCKS.registerBlock(
+            "stigmaria",
+            com.yayuy.overgrownvegetation.block.StigmariaBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_WOOD)
+                    .mapColor(MapColor.TERRACOTTA_GREEN)
+                    .noOcclusion()
+                    .isValidSpawn((state, getter, pos, type) -> false));
+
+    /**
      * 封印木(シギラリア)の原木(2026-11-01)。石炭紀の小葉類の木で、太い幹が 3〜4 本の腕に分かれる(1881 年の復元図の右 = ユーザー指定)。
      * 生やすのは {@link com.yayuy.overgrownvegetation.worldgen.SigillariaTreeFeature}。スカート・洞の変種は持たない。
      * {@code #logs} に入れるので、木 1 本を辿る所({@code SwampTreeFall} など)では mod の原木として名指しで外す。
@@ -1042,6 +1072,10 @@ public final class ModBlocks {
                     .sound(SoundType.AZALEA_LEAVES).pushReaction(PushReaction.DESTROY)
                     .isValidSpawn((state, getter, pos, type) -> false));
 
+    /** 浅い淵に群生するトクサ(2026-11-02、下絵 16 の案 A。cross の段重ね・水没できる)。 */
+    public static final DeferredBlock<Block> HORSETAIL = BLOCKS.registerBlock(
+            "horsetail", com.yayuy.overgrownvegetation.block.HorsetailBlock::new, crossGrowthProperties(SoundType.BAMBOO));
+
     // 洞窟の中にだけ生える汚染植物(湿地・菌湿地帯の洞窟の微光の胞子嚢・苔の塊)は 2026-11-01 に削除(地下の植生は作り直す)。
 
     // ------------------------------------------------------------------
@@ -1255,6 +1289,7 @@ public final class ModBlocks {
                 OVERGROWN_LOG,
                 OVERGROWN_WOOD,
                 OVERGROWN_BRANCH,
+                CORDAITES_BUTTRESS,
                 CORDAITES_PLANKS,
                 GIANT_OVERGROWN_LOG,
                 GIANT_OVERGROWN_CAMBIUM,
@@ -1262,8 +1297,10 @@ public final class ModBlocks {
                 GIANT_BARK_PLANKS,
                 GIANT_PLANKS,
                 OVERGROWN_LEAVES,
+                OVERGROWN_LEAVES_TUFT,
                 SIGILLARIA_LOG,
                 SIGILLARIA_BRANCH,
+                STIGMARIA,
                 SIGILLARIA_LEAVES,
                 SIGILLARIA_LEAVES_FRINGE,
                 SIGILLARIA_CONE,
@@ -1302,7 +1339,7 @@ public final class ModBlocks {
                 OVERGROWN_MOSS_LAYER,
                 SELAGINELLA, CLUBMOSS, LYCOPSID_CARPET, LYCOPSID_UPRIGHT,
                 PEAT, PEAT_POOL_BOTTOM, PEAT_SPROUTS, PEAT_LITTER,
-                FALLEN_LOG, BRACKET_FUNGUS, MEDULLOSA_TRUNK, MEDULLOSA_CROWN,
+                FALLEN_LOG, BRACKET_FUNGUS, MEDULLOSA_TRUNK, MEDULLOSA_CROWN, HORSETAIL,
                 CHARA,
                 WATER_ROOTS,
                 ALGAE_FILM,

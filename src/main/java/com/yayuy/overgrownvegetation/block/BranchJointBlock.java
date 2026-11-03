@@ -28,7 +28,7 @@ import java.util.Map;
 /**
  * <b>枝の継ぎ目</b>({@code overgrown_branch}。2026-11-01 ユーザー決定「作る」。形・太さ・繋がる相手は仮決め)。
  * 階段状に並ぶ枝の原木の隙間を埋め、枝先を先細りにして、木の輪郭を滑らかにする。柵と同じ仕組みで、面で接する隣が
- * {@code #overgrown_vegetation:branch_connectable}(原木・継ぎ目自身・原木から化けた幹)ならその向きへ腕を出す。葉には繋げない。
+ * {@code #overgrown_vegetation:branch_connectable}(原木・継ぎ目自身・原木から化けた幹)ならその向きへ腕を出す。葉には繋げない(例外: 中層の房の腕先は生成で芯の葉へ腕を出し、updateShape はそれを残す。11-02)。
  *
  * <p>形は中央の芯 + 芯から面までの腕。芯は腕と同じ太さ(太い 6、細い 4。11-01 ユーザー指定)で、継ぎ目は一本の棒に見える。当たり判定も同じ形。
  * 生成で置くときは {@link #connectedState} で 6 向きを見て組む(生成中は隣の {@code updateShape} が呼ばれないことがあるので)。
@@ -98,7 +98,11 @@ public class BranchJointBlock extends Block implements SimpleWaterloggedBlock {
         if (state.getValue(WATERLOGGED)) {
             level.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
         }
-        return state.setValue(PipeBlock.PROPERTY_BY_DIRECTION.get(direction), connectsTo(neighborState));
+        BooleanProperty arm = PipeBlock.PROPERTY_BY_DIRECTION.get(direction);
+        // 生成で葉へ出した腕(中層の房の芯に刺さる腕先。11-02)は、葉が葉のままなら残す
+        boolean keepLeafArm = state.getValue(arm)
+                && (neighborState.getBlock() instanceof OvergrownLeavesBlock || neighborState.is(net.minecraft.tags.BlockTags.LEAVES));
+        return state.setValue(arm, connectsTo(neighborState) || keepLeafArm);
     }
 
     @Override

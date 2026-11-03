@@ -117,6 +117,7 @@ public final class SwayModels {
         wrapped += wrap(models, ModBlocks.SIGILLARIA_LEAVES, state -> Mode.WHOLE);
         wrapped += wrap(models, ModBlocks.TREE_FERN_LEAVES, state -> Mode.WHOLE);
         wrapped += wrapFringe(models, ModBlocks.SIGILLARIA_LEAVES_FRINGE, false);
+        wrapped += wrapFringe(models, ModBlocks.OVERGROWN_LEAVES_TUFT, false);
         wrapped += wrapFringe(models, ModBlocks.TREE_FERN_FROND, false);
         wrapped += wrapFringe(models, ModBlocks.SPORE_KELP_FROND, true);
         // 側面・底面(2026-11-01): 気根の鎖と胞子嚢は光る蔦と同じ全体 1(段の境目が割れない。付け根の葉も揺れる)、ひげ地衣は付け根 0 → 先 1。

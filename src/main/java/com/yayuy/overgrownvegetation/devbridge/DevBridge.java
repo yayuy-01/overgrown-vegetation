@@ -442,6 +442,14 @@ public final class DevBridge {
                     com.yayuy.overgrownvegetation.client.atmosphere.AtmosphereDev.caveMaxLights(Integer.parseInt(what.substring(5).trim()));
                     log("WIND cave " + com.yayuy.overgrownvegetation.client.atmosphere.AtmosphereDev.caveStatus());
                     return null;
+                } else if (what.startsWith("cavedev ")) {
+                    // 地下の地図の確かめ(11-02): cavedev thin on|off(前の数え方)/ cavedev tint on|off(地下の係数を赤で)。返事は WIND cavedev …
+                    log("WIND cavedev " + com.yayuy.overgrownvegetation.client.atmosphere.AtmosphereDev.caveDev(what.substring(8)));
+                    return null;
+                } else if (what.equals("caveprobe")) {
+                    // 地下の地図の点検(11-02 霧の剥がれ): 宙に浮いた「岩」の列をブロックごとに数える。返事は WIND caveprobe …
+                    log("WIND caveprobe " + com.yayuy.overgrownvegetation.client.atmosphere.AtmosphereDev.caveProbe(mc.level, player.getEyePosition()));
+                    return null;
                 } else if (what.startsWith("afterglow ")) {
                     // 前線が過ぎたあとの粒の余韻の長さ(秒)をこのセッションだけ替える(負で設計値に戻す)
                     com.yayuy.overgrownvegetation.client.atmosphere.AtmosphereDev.afterglow(Double.parseDouble(what.substring(10).trim()));

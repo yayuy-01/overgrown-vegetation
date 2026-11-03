@@ -272,6 +272,106 @@ public final class FloorGrowth {
             level.setBlock(below, ModBlocks.PEAT_POOL_BOTTOM.get().defaultBlockState(), Block.UPDATE_ALL);
         }
         level.setBlock(c, water, Block.UPDATE_ALL);
+        if (!deep) {
+            tryHorsetail(level, below); // 深さ 1 の水たまりにトクサの群れ(2026-11-02)
+        }
+    }
+
+    // ======================= トクサの淵(2026-11-02、下絵 16 の案 A) =======================
+
+    private static final long HORSETAIL_SALT = 0x1F83D9ABFB41BD6BL;
+    /** 群れの中心はチャンクに 1 つ(この割合)。水辺から遠い中心は株が立たない = 水辺のチャンクだけ 0〜1 群。仮決め。 */
+    static final double HORSETAIL_STAND_CHANCE = 1.0;
+    /** 群れの広がり(中心からの距離の 2 乗。13 マス)と、その中で株が立つ割合。5〜13 本(平均 10)。仮決め。 */
+    static final int HORSETAIL_RADIUS_SQ = 4;
+    static final double HORSETAIL_DENSITY = 0.75;
+    /** 陸の株は水平にこの距離以内に水があるときだけ(淵の縁)。仮決め。 */
+    static final int HORSETAIL_WATER_RADIUS = 2;
+
+    /** チャンク {@code (cx, cz)} の群れの中心 {x, z}。無ければ null。 */
+    public static int[] horsetailAnchor(long seed, int cx, int cz) {
+        long h = mix(seed ^ HORSETAIL_SALT ^ (cx * K1) ^ (cz * K2));
+        if (unit(h) >= HORSETAIL_STAND_CHANCE) {
+            return null;
+        }
+        h = mix(h);
+        // チャンクの内側 4〜11 に置く: 群れ(半径 2)がチャンクをまたがず、隣のチャンクの群れと 9 以上離れる(重なると 1 か所に 20 本を超えた)
+        return new int[]{(cx << 4) + 4 + (int) (h & 7), (cz << 4) + 4 + (int) ((h >>> 3) & 7)};
+    }
+
+    /** 列 {@code (x, z)} に立つトクサの高さ(陸で 2〜4。水の中は呼び手が +1)。群れの外・抜けた所は 0。座標と種だけで決まる。 */
+    public static int horsetailHeightAt(long seed, int x, int z) {
+        int[] a = horsetailAnchor(seed, x >> 4, z >> 4); // 群れはチャンクをまたがない
+        if (a == null) {
+            return 0;
+        }
+        int dx = x - a[0], dz = z - a[1];
+        if (dx * dx + dz * dz > HORSETAIL_RADIUS_SQ) {
+            return 0;
+        }
+        long h = mix(seed ^ HORSETAIL_SALT ^ (x * K3) ^ (z * K1));
+        if (unit(h) >= HORSETAIL_DENSITY) {
+            return 0;
+        }
+        return 2 + (int) Math.floorMod(mix(h), 3L);
+    }
+
+    /**
+     * {@code ground}(汚染した地面・泥炭・水たまりの底・川底)の上にトクサを 1 本立てる(立てたら true)。群れの中の列だけ。
+     * 陸 = 上が空気で、水平 {@value #HORSETAIL_WATER_RADIUS} 以内に水がある所。水 = 上が深さ 1 の水源(その上が空気)で、根元の段が水没し 1 段高い。
+     * 地面が汚染されたとき({@code CorruptionSpreader.growPlants})と、泥炭の水たまりを掘ったとき({@link #tryDigPool})に呼ぶ。密林だけ。
+     */
+    public static boolean tryHorsetail(ServerLevel level, BlockPos ground) {
+        int height = horsetailHeightAt(level.getSeed(), ground.getX(), ground.getZ());
+        if (height <= 0 || !level.isLoaded(ground.above(height + 1)) || !isJungle(level, ground)) {
+            return false;
+        }
+        BlockState groundState = level.getBlockState(ground);
+        if (!groundState.isFaceSturdy(level, ground, Direction.UP) || CaveGrowth.isUnderground(level, ground, groundState)) {
+            return false; // 洞窟の床には立てない(群れの列は x, z だけで決まるので、真下の洞窟にも当たる)
+        }
+        BlockPos bottom = ground.above();
+        BlockState at = level.getBlockState(bottom);
+        int start;
+        if (at.isAir()) {
+            if (!nearWater(level, ground, HORSETAIL_WATER_RADIUS)) {
+                return false;
+            }
+            start = 1;
+        } else if (at.is(Blocks.WATER) && at.getFluidState().isSource() && level.getBlockState(bottom.above()).isAir()) {
+            height++;
+            start = 2;
+        } else {
+            return false;
+        }
+        for (int i = start; i < height; i++) {
+            if (!level.getBlockState(ground.above(i + 1)).isAir()) {
+                return false;
+            }
+        }
+        com.yayuy.overgrownvegetation.block.HorsetailBlock.placeStem(level, bottom, height, ModBlocks.HORSETAIL.get().defaultBlockState());
+        return true;
+    }
+
+    /** 水辺では林床の胞子の葦(トクサ)をトクサの群れに置き換える(葦を立てない。ユーザー指定)。密林で水平 {@value #WATERSIDE_RADIUS} 以内に水がある所。 */
+    public static boolean replacesReedAt(ServerLevel level, BlockPos plantPos) {
+        return isJungle(level, plantPos) && nearWater(level, plantPos.below(), WATERSIDE_RADIUS);
+    }
+
+    /** {@code ground} から水平 {@code radius} 以内(高さは地面の 1 段下〜1 段上)に水があるか。 */
+    static boolean nearWater(ServerLevel level, BlockPos ground, int radius) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    p.set(ground.getX() + dx, ground.getY() + dy, ground.getZ() + dz);
+                    if (level.isLoaded(p) && level.getFluidState(p).is(net.minecraft.tags.FluidTags.WATER)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /** 倒木の枠は 1 チャンクに 2 つ。それぞれ {@code floorFallenLogChance} で、起点の列は座標から決まる。 */

@@ -590,7 +590,7 @@ public final class CoverGameTests {
      * 覆われた光源は {@code lightKeep} 倍の明るさ(2026-10-05 ユーザー要望 −60%): 記録で覆った海のランタン(建築タブ。明かりも計算し直され、
      * 剥がすと戻る)と、汚染が中身ごと止めたブロック(火の付いたかまど)。
      */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 100)
+    @GameTest(template = "gametest_empty7", timeoutTicks = 200)
     public static void coveredLightSourcesDim(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         clear(helper);
@@ -613,22 +613,19 @@ public final class CoverGameTests {
             helper.fail("海のランタンを覆っても明るさが " + source.getLightEmission(level, at) + "(期待 " + CoveredLight.dim(base) + ")");
             return;
         }
-        helper.runAfterDelay(30, () -> {
-            int light = level.getBrightness(LightLayer.BLOCK, at);
-            if (light != CoveredLight.dim(base)) {
-                helper.fail("覆った海のランタンのまわりの明るさが計算し直されていない: " + light);
-                return;
-            }
-            OvergrownLayerData.uncover(level, at);
-            helper.runAfterDelay(30, () -> {
-                int restored = level.getBrightness(LightLayer.BLOCK, at);
-                if (restored != base) {
-                    helper.fail("剥がしたのに明るさが戻らない: " + restored + "(元は " + base + ")");
-                    return;
-                }
-                helper.succeed();
-            });
-        });
+        // 光の計算し直しは光エンジンの手が空いてから届く。同じ組で重いテスト(木の生成など)が走ると 30 tick では
+        // 間に合わないことがある(2026-11-02、144 本になってから落ちた)ので、決まった tick で読まず、期待の値になるまで待つ。
+        helper.startSequence()
+                .thenWaitUntil(() -> {
+                    int light = level.getBrightness(LightLayer.BLOCK, at);
+                    helper.assertTrue(light == CoveredLight.dim(base), "覆った海のランタンのまわりの明るさが計算し直されていない: " + light);
+                })
+                .thenExecute(() -> OvergrownLayerData.uncover(level, at))
+                .thenWaitUntil(() -> {
+                    int restored = level.getBrightness(LightLayer.BLOCK, at);
+                    helper.assertTrue(restored == base, "剥がしたのに明るさが戻らない: " + restored + "(元は " + base + ")");
+                })
+                .thenSucceed();
     }
 
     /** 踏まれていた感圧板を汚染しても(元のまま覆うので予定の tick は消えない)、降りれば戻る。 */

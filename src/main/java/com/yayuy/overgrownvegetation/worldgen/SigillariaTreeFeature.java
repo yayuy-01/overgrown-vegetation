@@ -5,6 +5,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock;
 import com.yayuy.overgrownvegetation.block.SigillariaConeBlock;
 import com.yayuy.overgrownvegetation.block.SigillariaFringeBlock;
+import com.yayuy.overgrownvegetation.block.StigmariaBlock;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
@@ -59,7 +60,7 @@ public class SigillariaTreeFeature extends Feature<SigillariaTreeFeature.Config>
             return false;
         }
         Tree tree = new Tree(level, config, origin);
-        placeButtress(tree, origin);
+        placeStigmaria(tree, random, origin);
         if (pillar) {
             placePillar(tree, random, origin, height);
         } else {
@@ -74,11 +75,39 @@ public class SigillariaTreeFeature extends Feature<SigillariaTreeFeature.Config>
         return true;
     }
 
-    /** 根元 2 段の十字(板根の気配。仮決め)。 */
-    private static void placeButtress(Tree tree, BlockPos origin) {
-        for (int dy = 0; dy < tree.config.buttressHeight(); dy++) {
-            for (Direction d : SIDES) {
-                tree.log(origin.above(dy).relative(d));
+    /**
+     * 根 = スティグマリア(2026-11-02、下絵 32 の案 B。ユーザー指定)。8 向きのうち {@code stigmaria_count} 向き(仮 5)へ、段 0 → 1 → 2(高さ 9 → 6 → 3.5 px、
+     * 段 2 は長さ半分 = 2.5 ブロック)の 3 マス。真っすぐの向きは幹の面のすぐ隣から、斜めは幹の角から(根元の十字の原木は 11-02 にユーザー了承で外した)。
+     * マスは地面の上。地面の段差は {@link ForcedTreeFeature#nextRootGround}: 段 0 は地面が幹の根元と同じ高さの向きだけ、
+     * 段 1・2 は真っすぐの向きなら 1 段下がる列で落ちる部品({@link StigmariaBlock#DROP})、斜めの向きは段差で止める。上がる・2 段以上・水・地面でない物でも止める。
+     */
+    /** GameTest 用: スティグマリアだけを置く(幹は置かない。段差の扱いを狭い台で見る)。 */
+    public static void placeStigmariaForTests(WorldGenLevel level, RandomSource random, BlockPos origin, Config config) {
+        placeStigmaria(new Tree(level, config, origin), random, origin);
+    }
+
+    private static void placeStigmaria(Tree tree, RandomSource random, BlockPos origin) {
+        int count = Math.min(8, Math.max(0, tree.config.stigmariaCount()));
+        if (count == 0) {
+            return;
+        }
+        List<Integer> dirs = new ArrayList<>(List.of(0, 1, 2, 3, 4, 5, 6, 7));
+        net.minecraft.Util.shuffle(dirs, random);
+        BlockState base = ModBlocks.STIGMARIA.get().defaultBlockState();
+        for (int i = 0; i < count; i++) {
+            int d = dirs.get(i);
+            int[] step = StigmariaBlock.step(d);
+            int y = origin.getY() - 1;
+            for (int stage = 0; stage < 3; stage++) {
+                int x = origin.getX() + step[0] * (1 + stage), z = origin.getZ() + step[1] * (1 + stage);
+                int ground = ForcedTreeFeature.nextRootGround(tree.level, x, y, z);
+                if (ground == Integer.MIN_VALUE || ground != y && (stage == 0 || d % 2 == 1)) {
+                    break;
+                }
+                boolean drop = ground < y;
+                y = ground;
+                tree.level.setBlock(new BlockPos(x, y + 1, z), base.setValue(StigmariaBlock.DIRECTION, d).setValue(StigmariaBlock.STAGE, stage)
+                        .setValue(StigmariaBlock.DROP, drop), Block.UPDATE_ALL);
             }
         }
     }
@@ -403,7 +432,7 @@ public class SigillariaTreeFeature extends Feature<SigillariaTreeFeature.Config>
             int pillarCrownMax,
             int pillarConesMin,
             int pillarConesMax,
-            int buttressHeight
+            int stigmariaCount
     ) implements FeatureConfiguration {
 
         // RecordCodecBuilder の group は 16 個までなので、腕と柱の数を 2 つの塊に分けて読む。
@@ -429,7 +458,7 @@ public class SigillariaTreeFeature extends Feature<SigillariaTreeFeature.Config>
         }
 
         private record Pillar(int pillarMinHeight, int pillarMaxHeight, int pillarCrownMin, int pillarCrownMax,
-                              int pillarConesMin, int pillarConesMax, int buttressHeight) {
+                              int pillarConesMin, int pillarConesMax, int stigmariaCount) {
             static final com.mojang.serialization.MapCodec<Pillar> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
                     Codec.INT.optionalFieldOf("pillar_min_height", 16).forGetter(Pillar::pillarMinHeight),
                     Codec.INT.optionalFieldOf("pillar_max_height", 22).forGetter(Pillar::pillarMaxHeight),
@@ -437,7 +466,7 @@ public class SigillariaTreeFeature extends Feature<SigillariaTreeFeature.Config>
                     Codec.INT.optionalFieldOf("pillar_crown_max", 8).forGetter(Pillar::pillarCrownMax),
                     Codec.INT.optionalFieldOf("pillar_cones_min", 3).forGetter(Pillar::pillarConesMin),
                     Codec.INT.optionalFieldOf("pillar_cones_max", 5).forGetter(Pillar::pillarConesMax),
-                    Codec.INT.optionalFieldOf("buttress_height", 2).forGetter(Pillar::buttressHeight)
+                    Codec.INT.optionalFieldOf("stigmaria_count", 5).forGetter(Pillar::stigmariaCount)
             ).apply(i, Pillar::new));
         }
 
@@ -450,17 +479,25 @@ public class SigillariaTreeFeature extends Feature<SigillariaTreeFeature.Config>
                         c.armMinCount, c.armMaxCount, c.armMinRise, c.armMaxRise, c.armMinLength, c.armMaxLength,
                         c.armConeChance, c.armConesMin, c.armConesMax)),
                 Pillar.CODEC.forGetter(c -> new Pillar(c.pillarMinHeight, c.pillarMaxHeight, c.pillarCrownMin, c.pillarCrownMax,
-                        c.pillarConesMin, c.pillarConesMax, c.buttressHeight))
+                        c.pillarConesMin, c.pillarConesMax, c.stigmariaCount))
         ).apply(instance, (t, l, f, c, a, p) -> new Config(t, l, f, c, a.pillarChance, a.armMinHeight, a.armMaxHeight, a.forkMin, a.forkMax,
                 a.armMinCount, a.armMaxCount, a.armMinRise, a.armMaxRise, a.armMinLength, a.armMaxLength, a.armConeChance,
                 a.armConesMin, a.armConesMax, p.pillarMinHeight, p.pillarMaxHeight, p.pillarCrownMin, p.pillarCrownMax,
-                p.pillarConesMin, p.pillarConesMax, p.buttressHeight)));
+                p.pillarConesMin, p.pillarConesMax, p.stigmariaCount)));
+
+        /** {@link #fixedForTests(boolean)} の根の本数を変えた写し(GameTest で 8 向きすべてに根を出す)。 */
+        public Config fixedForTests(boolean pillar, int stigmaria) {
+            Config c = fixedForTests(pillar);
+            return new Config(c.trunkState, c.leavesState, c.fringeState, c.coneState, c.pillarChance, c.armMinHeight, c.armMaxHeight, c.forkMin, c.forkMax,
+                    c.armMinCount, c.armMaxCount, c.armMinRise, c.armMaxRise, c.armMinLength, c.armMaxLength, c.armConeChance, c.armConesMin, c.armConesMax,
+                    c.pillarMinHeight, c.pillarMaxHeight, c.pillarCrownMin, c.pillarCrownMax, c.pillarConesMin, c.pillarConesMax, stigmaria);
+        }
 
         /** 型を決め、腕にも必ず球果を付ける写し(GameTest で腕の型・柱の型を確実に出す)。 */
         public Config fixedForTests(boolean pillar) {
             return new Config(trunkState, leavesState, fringeState, coneState, pillar ? 1.0 : 0.0, armMinHeight, armMaxHeight, forkMin, forkMax,
                     armMinCount, armMaxCount, armMinRise, armMaxRise, armMinLength, armMaxLength, 1.0, armConesMin, armConesMax,
-                    pillarMinHeight, pillarMaxHeight, pillarCrownMin, pillarCrownMax, pillarConesMin, pillarConesMax, buttressHeight);
+                    pillarMinHeight, pillarMaxHeight, pillarCrownMin, pillarCrownMax, pillarConesMin, pillarConesMax, stigmariaCount);
         }
     }
 }

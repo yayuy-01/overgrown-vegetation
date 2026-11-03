@@ -1251,8 +1251,8 @@ public final class OvergrownVegetationConfig {
             // 林床(2026-11-01)。どれも密林だけ。値は仮決め(下絵の配置の図: 敷物 5〜6 割・小葉類の株 1 チャンク 20〜30・倒木 0〜2 本)
             floorCarpetChance = b
                     .comment("林床(密林): 上面の下草の抽選に当たったマスのうち、小葉類の敷物を敷く割合(苗木・木生シダの次に引く)。",
-                            "敷物を敷いたマスには、ほかの下草は生えない(小葉類の株だけ敷物付きで立つ)。仮決め 0.65(GameTest の平らな 1 チャンクで敷物 5 割強)。")
-                    .defineInRange("floorCarpetChance", 0.65D, 0.0D, 1.0D);
+                            "敷物を敷いたマスには、ほかの下草は生えない(小葉類の株だけ敷物付きで立つ)。仮決め 0.50(11-02 ユーザー指定「少し減らす」で 0.65 から)。")
+                    .defineInRange("floorCarpetChance", 0.50D, 0.0D, 1.0D);
             floorCarpetPlantChance = b
                     .comment("林床: 敷物の上に小葉類の株(敷物付きの 1 ブロック)を立てる確率。仮決め 0.15。")
                     .defineInRange("floorCarpetPlantChance", 0.15D, 0.0D, 1.0D);

@@ -87,6 +87,8 @@ public final class CaveLights {
     private static volatile Light[] shown = new Light[0];
     /** 確かめ用: 渡す数の上限を上書き(-1 = 設計値)。 */
     static int devMaxLights = -1;
+    /** 確かめ用: 地下の係数を赤で塗る(シェーダーの OvCaveFogD.w)。 */
+    static boolean devTint;
 
     private static int texture;
     private static FloatBuffer buffer;
@@ -177,10 +179,10 @@ public final class CaveLights {
     private static final int[][] DIRS = {{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}};
 
     /**
-     * まわりの列のうち岩の天井がある割合(0〜1、真ん中ほど重く)。真上 1 列だけだと洞窟の口の 1 歩で 0 → 1 に跳んだ(11-01 撮影)ので、
+     * まわりの列のうち岩の天井({@link CaveMap#thickRoofAbove})がある割合(0〜1、真ん中ほど重く)。真上 1 列だけだと洞窟の口の 1 歩で 0 → 1 に跳んだ(11-01 撮影)ので、
      * 口から奥へ数ブロックかけて上がるようにまわりの 17 列で見る。
      */
-    private static float roofFraction(ClientLevel level, Vec3 eye) {
+    static float roofFraction(ClientLevel level, Vec3 eye) {
         float roofed = 0.0F;
         float total = 0.0F;
         for (float[] ring : RINGS) {
@@ -188,7 +190,8 @@ public final class CaveLights {
                 double len = DIRS[i][0] != 0 && DIRS[i][1] != 0 ? Math.sqrt(2.0) : 1.0;
                 Vec3 at = new Vec3(eye.x + DIRS[i][0] * ring[0] / len, eye.y, eye.z + DIRS[i][1] * ring[0] / len);
                 total += ring[1];
-                if (ForestPresence.hasRockRoof(level, at)) {
+                // 11-02: 地下の地図と同じ数え方(3 段以上続く岩)。1 段の不透明なブロック(巨大樹の幹の上の土など)では天井にしない。
+                if (CaveMap.thickRoofAbove(level, Mth.floor(at.x), Mth.floor(at.y) + 1, Mth.floor(at.z), 4096)) {
                     roofed += ring[1];
                 }
             }
@@ -360,7 +363,7 @@ public final class CaveLights {
             shader.safeGetUniform("OvCaveFog").set(p.r(), p.g(), p.b(), 0.0F);
             // z: カメラが水(など液体)の中なら 1。水中の霧が地下の霧に勝つ(11-01 ユーザー: 海から崖の洞窟を見ると中だけ澄んでいた。
             // 断片の所の地下の霧 20〜28 が、水の霧を掛けた色を差し替えていた)。
-            shader.safeGetUniform("OvCaveFogD").set(p.fogStart(), p.fogEnd(), inFluid ? 1.0F : 0.0F, 0.0F);
+            shader.safeGetUniform("OvCaveFogD").set(p.fogStart(), p.fogEnd(), inFluid ? 1.0F : 0.0F, devTint ? 1.0F : 0.0F);
             // 洞窟の中から見た口の外: カメラの黒い霧を外した代わりに森の胞子の霞(地上の霧と同じ色・濃さ)を距離で掛ける。
             shader.safeGetUniform("OvCaveSurf").set(surf[0], surf[1], surf[2], surfK);
         }
