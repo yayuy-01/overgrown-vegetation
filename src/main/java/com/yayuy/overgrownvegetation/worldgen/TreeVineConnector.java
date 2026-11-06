@@ -252,6 +252,18 @@ public final class TreeVineConnector {
         // 木ごとに、そもそも連結蔦の生成を試みるか(vineMinPerTree の下限保証より前に判定)。
         // これに外れた木からは蔦が一切生えない——全体の蔦の量をおよそこの確率倍に絞るためのゲート。
         double perTreeChance = OvergrownVegetationConfig.COMMON.vinePerTreeChance.get();
+        // 登る蔓(2026-11-03 採用): 掛け渡しの代わりに、地面から幹を登る蔓を 1〜2 本(ClimbingVine)。
+        // 林冠の細い蔓は別の関門 canopyVineChance(木の 7 割、ユーザー指定)。登る蔓が付かない木にも付く。
+        if (OvergrownVegetationConfig.COMMON.vineClimb.get()) {
+            if (perTreeChance > 0.0D && random.nextDouble() < perTreeChance) {
+                ClimbingVine.placeOnTree(level, searchCenter, 1 + random.nextInt(2), random);
+            }
+            double canopyChance = OvergrownVegetationConfig.COMMON.canopyVineChance.get();
+            if (canopyChance > 0.0D && random.nextDouble() < canopyChance) {
+                ClimbingVine.placeCanopyVines(level, searchCenter, random);
+            }
+            return;
+        }
         if (perTreeChance <= 0.0D || random.nextDouble() >= perTreeChance) {
             return;
         }
@@ -664,7 +676,7 @@ public final class TreeVineConnector {
                         }
                     } else if (collectLianas && state.is(lianaBlock)
                             && level.getBlockEntity(scratch) instanceof CorruptedLianaBlockEntity liana
-                            && liana.getPrimaryPos() == null
+                            && liana.getPrimaryPos() == null && !liana.hasClimb()
                             && liana.getSourcePos() != null && liana.getTargetPos() != null) {
                         lianaSeen++;
                         if (lianasOut.size() < MAX_CANDIDATES) {

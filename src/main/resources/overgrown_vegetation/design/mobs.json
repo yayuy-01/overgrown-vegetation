@@ -24,5 +24,33 @@
     "armor": 20.0,
     "naturalSpawn": false,
     "eggFit": 3.95
+  },
+  "falcimnes": {
+    "maxHealth": 50,
+    "attackDamage": 16,
+    "armor": 14,
+    "movementSpeed": 0.27,
+    "knockbackResistance": 0.8,
+    "attackKnockback": 0.6,
+    "followRange": 32,
+    "stepHeight": 1.5,
+    "scale": 1,
+    "width": 2.97,
+    "height": 3.06,
+    "xpReward": 40,
+    "eggFit": 6.33
+  },
+  "arbora": {
+    "maxHealth": 8,
+    "attackDamage": 8,
+    "armor": 4,
+    "movementSpeed": 0.36,
+    "knockbackResistance": 0,
+    "followRange": 32,
+    "stepHeight": 1,
+    "width": 0.98,
+    "height": 0.98,
+    "xpReward": 10,
+    "eggFit": 2.25
   }
 }

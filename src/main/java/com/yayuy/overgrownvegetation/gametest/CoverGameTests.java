@@ -138,8 +138,8 @@ public final class CoverGameTests {
     public static void corruptionLeavesBuildingBlocksInPlace(GameTestHelper helper) {
         Set<String> dedicated = Set.of("stone", "deepslate", "cobbled_deepslate", "bricks", "netherrack", "end_stone");
         Set<Block> table = CoverInPlace.blocks();
-        if (table.size() != 367 + 36) { // 蝋引きの銅 36 個も
-            helper.fail("記録で覆うブロックの一覧が 403 件でない: " + table.size());
+        if (table.size() != 367 + 36 + 49) { // 蝋引きの銅 36 個も。テラコッタ 17・色付きガラス 16・色付きガラス板 16(2026-11-03)
+            helper.fail("記録で覆うブロックの一覧が 452 件でない: " + table.size());
             return;
         }
         double chance = DesignData.cover().chance();

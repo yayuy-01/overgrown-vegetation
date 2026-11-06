@@ -155,6 +155,6 @@ public final class ForestWaterSound {
         float amount = Mth.clamp((float) ((total - p.minBlocks()) / (p.fullBlocks() - p.minBlocks())), 0.0F, 1.0F);
         amount = amount * amount * (3.0F - 2.0F * amount);
         float underwater = player.isUnderWater() ? 0.3F : 1.0F;
-        target = p.volume() * amount * ForestPresence.forestFactor() * underwater;
+        target = p.volume() * amount * ForestPresence.overgrown() * underwater;
     }
 }

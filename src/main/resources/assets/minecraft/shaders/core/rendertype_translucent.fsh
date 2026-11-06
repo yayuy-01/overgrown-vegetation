@@ -1,6 +1,8 @@
 #version 150
 
 #moj_import <fog.glsl>
+#moj_import <ov_cave.glsl>
+#moj_import <ov_water.glsl>
 
 uniform sampler2D Sampler0;
 
@@ -15,14 +17,49 @@ in float vertexDistance;
 in vec4 vertexColor;
 in vec2 texCoord0;
 in vec4 ovFog;
+in vec3 ovPos;
+in vec3 ovNormal;
+in vec2 ovLight;
+in vec3 ovTint;
 
 out vec4 fragColor;
 
-// Overgrown Vegetation: the same as vanilla, plus the height fog of the overgrown forest (ov_fog.glsl). Keep this file ASCII-only.
+// Overgrown Vegetation: the same as vanilla, plus the height fog of the overgrown forest (ov_fog.glsl) and (11-04) the cave point
+// lights and the cave fog by where the fragment is (ov_cave.glsl) on water and glass. Keep this file ASCII-only.
 void main() {
-    vec4 color = texture(Sampler0, texCoord0) * vertexColor * ColorModulator;
+    vec4 tex = texture(Sampler0, texCoord0);
+    vec4 color = tex * vertexColor * ColorModulator;
+    // The point lights of glowing cave plants (ov_cave.glsl), before the fog. Water's vertex normal is up on every face, so no
+    // facing-away shade (facing 0, like thin plants); the column above the face decides whether it is underground.
+    float ovUnder = ovCaveUnder(ovPos, ovNormal, ovLight.y);
+    // Water takes half the light of a solid face (11-04 provisional: at full strength the lake looked like it glowed).
+    ovCaveSink(ovPos, ovNormal, ovUnder);
+    color.rgb = ovCaveLight(color.rgb, tex.rgb * ovTint * OV_CAVE_WATER_GAIN, ovPos, ovNormal, 0.0, ovUnder, ovLight.x);
+    // The point lights mirrored on the cave water (11-06, light inspection 10). Water's vertex normal is up on every face, so the face
+    // normal comes from the position derivatives, turned towards the camera (seen from below while diving it points down: no mirror).
+    vec3 ovFace = normalize(cross(dFdx(ovPos), dFdy(ovPos)));
+    if (dot(ovFace, ovPos) > 0.0) {
+        ovFace = -ovFace;
+    }
+    if (color.a < 0.99) {
+        color.rgb += ovCaveWaterSpecular(ovPos, ovFace, ovUnder);
+    }
+    // The sun and the moon mirrored on open water (ov_water.glsl, 11-06). Without the canopy map here: the sky light alone keeps it out
+    // from under leaves and roofs.
+    // Opaque texels (alpha 1) never get it (11-06, see the Sodium shader).
+    vec4 ovGlint = color.a < 0.99 ? ovWaterGlint(ovPos, ovFace, ovLight.y, ovUnder, 0.0) : vec4(0.0);
+    color.rgb += ovGlint.rgb;
+    color.a = mix(color.a, 1.0, ovGlint.a);
+    vec3 ovLit = color.rgb;
     color.rgb = mix(color.rgb, ovFog.rgb, ovFog.a);
+    vec3 ovSurface = color.rgb;
     // The far forest loses a little saturation (A6; aerial perspective).
     color.rgb = mix(color.rgb, vec3(dot(color.rgb, vec3(0.299, 0.587, 0.114))), OvFogI.x * smoothstep(OvFogI.y, OvFogI.z, vertexDistance));
-    fragColor = linear_fog(color, vertexDistance, FogStart, FogEnd, FogColor);
+    fragColor = linear_fog(color, vertexDistance, FogStart, FogEnd, ovShadedFogColor(FogColor, FogStart, ovLight.y, vertexDistance, ovPos));
+    // The fog by where the fragment is: cave water seen from outside sinks into black, outside water seen from a cave stays bright.
+    // How far the usual fogs moved this fragment toward the haze, for the cave part of the view (ov_cave.glsl, 11-04).
+    float ovPathLen = ovCavePath(vertexDistance, ovUnder);
+    ovCaveSetHaze(ovFog, ovShadedFogColor(FogColor, FogStart, ovLight.y, vertexDistance, ovPos), vertexDistance, ovPathLen, linear_fog(vec4(0.0, 0.0, 0.0, 1.0), vertexDistance, FogStart, FogEnd, vec4(1.0)).r,
+                  linear_fog(vec4(0.0, 0.0, 0.0, 1.0), ovPathLen, FogStart, FogEnd, vec4(1.0)).r);
+    fragColor.rgb = ovCaveFog(fragColor.rgb, ovLit, ovSurface, vertexDistance, ovUnder);
 }

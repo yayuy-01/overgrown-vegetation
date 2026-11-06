@@ -4,8 +4,14 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -22,8 +28,11 @@ import javax.annotation.Nullable;
  * 芯が下 = 立ち上がる房(cross)、芯が上 = 垂れる葉(cross)、芯が横 = 芯の面から外へ開く V 字の 2 枚(付け根の板は 11-01 に不採用)、芯の角 = 芯の縦の辺から開く V 字({@link #CORNER})。
  *
  * <p>木の一部としての判定({@code instanceof OvergrownLeavesBlock})を変えないため {@link OvergrownLeavesBlock} を継ぐ。
- * 当たり判定は無く、支えの判定も持たない(置かれたまま残る)。手で置くとクリックした面の側に付く。
- * 板なので隣の面を隠さず、空の光も通す。
+ * 当たり判定は無い。手で置くとクリックした面の側に付く。板なので隣の面を隠さず、空の光も通す。
+ *
+ * <p>支え(2026-11-03、元の葉を壊しても板が浮くのを直した): 付け根の芯のマス({@link #supportPos}。角の葉は斜めの芯)が空気・流体になると崩れる
+ * (1 tick 後に {@code destroyBlock}。水中なら水に戻る)。角の葉の芯は面で接していないので、芯の葉が消えたとき {@link #checkCorners} で知らせる
+ * ({@link OvergrownLeavesBlock#onRemove})。芯の葉そのもの(腕の先の葉)は支えを見ない(バニラの葉の距離のような仕組みが無い)。
  */
 public class SigillariaFringeBlock extends OvergrownLeavesBlock {
 
@@ -74,6 +83,48 @@ public class SigillariaFringeBlock extends OvergrownLeavesBlock {
             case EAST -> EAST_SHAPE;
             default -> DOWN_SHAPE;
         };
+    }
+
+    /** 付け根の芯のマス。角の葉({@link #CORNER} かつ横向き)は {@link #FACING} とその左隣の向きの間の斜め。 */
+    public static BlockPos supportPos(BlockState state, BlockPos pos) {
+        Direction facing = state.getValue(FACING);
+        BlockPos core = pos.relative(facing);
+        return state.getValue(CORNER) && facing.getAxis().isHorizontal() ? core.relative(facing.getCounterClockWise()) : core;
+    }
+
+    @Override
+    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+        BlockState core = level.getBlockState(supportPos(state, pos));
+        return !core.isAir() && !(core.getBlock() instanceof LiquidBlock);
+    }
+
+    @Override
+    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+                                     LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
+        // どの向きの更新でも見る(角の葉の芯は面で接しないので、芯の横の板が消えた知らせでも確かめる)
+        if (!state.canSurvive(level, pos)) {
+            level.scheduleTick(pos, this, 1);
+        }
+        return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
+    }
+
+    @Override
+    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+        if (!state.canSurvive(level, pos)) {
+            level.destroyBlock(pos, true);
+        }
+    }
+
+    /** 芯 {@code removed} が消えたとき、それを斜めの芯にしている角の葉に崩れる tick を予約する(面で接しないので updateShape が来ない)。 */
+    public static void checkCorners(Level level, BlockPos removed) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (Direction d : Direction.Plane.HORIZONTAL) {
+            p.setWithOffset(removed, d.getStepX() + d.getClockWise().getStepX(), 0, d.getStepZ() + d.getClockWise().getStepZ());
+            BlockState s = level.getBlockState(p);
+            if (s.getBlock() instanceof SigillariaFringeBlock && s.getValue(CORNER) && !s.canSurvive(level, p)) {
+                level.scheduleTick(p.immutable(), s.getBlock(), 1);
+            }
+        }
     }
 
     @Override

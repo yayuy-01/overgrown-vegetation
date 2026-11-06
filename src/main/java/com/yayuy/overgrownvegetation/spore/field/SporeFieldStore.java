@@ -30,8 +30,12 @@ import java.util.concurrent.Executors;
  */
 final class SporeFieldStore {
     static final String DIR = "overgrown_vegetation_spore_field";
-    /** 区画ファイルの版。2 = 地表の高さ height を持つ(2026-10-30 谷風・逆転層・山の壁)。1(ver が無い)= 高さなし、読み込みで引き直す。 */
-    static final int VERSION = 2;
+    /**
+     * 区画ファイルの版。3 = 地下の層(地下の浮遊 under・地下の降り積もり underDep・洞窟の口の多さ mouth・洞窟の発芽の回数 cave。2026-11-04)。
+     * 2 = 地表の高さ height を持つ(2026-10-30 谷風・逆転層・山の壁)。1(ver が無い)= 高さなし、読み込みで引き直す。
+     * 3 より前は地下 0・口はまだ測っていない(読み込まれたら測り直す)。
+     */
+    static final int VERSION = 3;
 
     private static final ExecutorService IO = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "Overgrown Vegetation spore field IO");
@@ -139,6 +143,10 @@ final class SporeFieldStore {
         tag.putByteArray("flags", t.flags.clone());
         tag.putInt("ver", VERSION);
         if (t.height != null) tag.putIntArray("height", bits(t.height));
+        tag.putIntArray("under", bits(t.under));
+        tag.putIntArray("underDep", bits(t.underDep));
+        tag.putIntArray("mouth", bits(t.mouth));
+        tag.putByteArray("cave", t.caveCount.clone());
         return tag;
     }
 
@@ -159,6 +167,14 @@ final class SporeFieldStore {
         if (cnt.length == SporeField.TN) System.arraycopy(cnt, 0, t.count, 0, SporeField.TN);
         byte[] fl = tag.getByteArray("flags");
         if (fl.length == SporeField.TN) System.arraycopy(fl, 0, t.flags, 0, SporeField.TN);
+        // 地下の層(版 3 から)。前の版は地下 0・口は NaN(まだ測っていない)のまま
+        if (tag.getInt("ver") >= 3) {
+            floats(tag, "under", t.under);
+            floats(tag, "underDep", t.underDep);
+            floats(tag, "mouth", t.mouth);
+            byte[] cave = tag.getByteArray("cave");
+            if (cave.length == SporeField.TN) System.arraycopy(cave, 0, t.caveCount, 0, SporeField.TN);
+        }
         int c = 0;
         for (long v : t.sprout) if (v != SporeField.NOT) c++;
         t.corrupted = c;
@@ -191,6 +207,10 @@ final class SporeFieldStore {
         h = h * 31 + java.util.Arrays.hashCode(t.count);
         h = h * 31 + java.util.Arrays.hashCode(t.flags);
         h = h * 31 + java.util.Arrays.hashCode(t.height);
+        h = h * 31 + java.util.Arrays.hashCode(t.under);
+        h = h * 31 + java.util.Arrays.hashCode(t.underDep);
+        h = h * 31 + java.util.Arrays.hashCode(t.mouth);
+        h = h * 31 + java.util.Arrays.hashCode(t.caveCount);
         return h;
     }
 

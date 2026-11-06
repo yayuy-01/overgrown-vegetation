@@ -2,6 +2,7 @@ package com.yayuy.overgrownvegetation;
 
 import com.yayuy.overgrownvegetation.data.MobStats;
 import com.yayuy.overgrownvegetation.entity.BlightFernEntity;
+import com.yayuy.overgrownvegetation.entity.FalcimnesEntity;
 import com.yayuy.overgrownvegetation.entity.HiveNodeEntity;
 import com.yayuy.overgrownvegetation.registry.ModEntities;
 import net.minecraft.world.entity.animal.Cow;
@@ -22,6 +23,8 @@ public final class ModEvents {
     public static void onEntityAttributeCreation(EntityAttributeCreationEvent event) {
         event.put(ModEntities.BLIGHT_FERN.get(), BlightFernEntity.createAttributes().build());
         event.put(ModEntities.HIVE_NODE.get(), HiveNodeEntity.createAttributes().build());
+        event.put(ModEntities.FALCIMNES.get(), FalcimnesEntity.createAttributes().build());
+        event.put(ModEntities.ARBORA.get(), com.yayuy.overgrownvegetation.entity.ArboraEntity.createAttributes().build());
 
     }
 

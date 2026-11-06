@@ -121,8 +121,128 @@ public final class AtmosphereDev {
             CaveMap.devThinRoof = on;
         } else if (p[0].equals("tint")) {
             CaveLights.devTint = on;
+        } else if (p[0].equals("selfparticles")) {
+            // 11-06 一人称の胞子の粒: cavedev selfparticles on = 前の形(一人称でも自分の感染の粒を出す)。撮り比べ用
+            com.yayuy.overgrownvegetation.client.SelfEffectParticles.devShowAll = on;
+        } else if (p[0].equals("fade")) {
+            // 11-06 光が急に灯る: cavedev fade off = 前の形(表の出入りを寄せない・重み 1・光る画素は表の中の光源だけ)。撮り比べ用
+            CaveLights.devNoFade = !on;
+        } else if (p[0].equals("sinktint")) {
+            CaveLights.devTintSink = on;
+        } else if (p[0].equals("at") && p.length > 2) {
+            // 地下の地図の列の中身(11-04): cavedev at <x> <z>
+            try {
+                float[] t = CaveMap.texel(Integer.parseInt(p[1]), Integer.parseInt(p[2]));
+                return t == null ? "地図の外" : String.format("岩の上面 %.0f 過繁茂 %.0f 口まで %.1f 天井の下面 %.0f", t[0], t[1], t[2], t[3]);
+            } catch (NumberFormatException e) {
+                return "数でない";
+            }
+        } else if (p[0].equals("ray")) {
+            // 視線の先(64 ブロック、液体も当てる)の面と、その面の地下の判定に使う列(面の外へ半ブロック)の地図の値(11-05 点検 16)
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.level == null || mc.getCameraEntity() == null) {
+                return "ワールドなし";
+            }
+            net.minecraft.world.phys.Vec3 eye = mc.gameRenderer.getMainCamera().getPosition();
+            net.minecraft.world.phys.Vec3 to = eye.add(mc.getCameraEntity().getViewVector(1.0F).scale(64.0));
+            var hit = mc.level.clip(new net.minecraft.world.level.ClipContext(eye, to, net.minecraft.world.level.ClipContext.Block.VISUAL,
+                    net.minecraft.world.level.ClipContext.Fluid.ANY, mc.getCameraEntity()));
+            if (hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
+                return "当たらない";
+            }
+            net.minecraft.core.BlockPos bp = hit.getBlockPos();
+            net.minecraft.core.Direction d = hit.getDirection();
+            net.minecraft.world.phys.Vec3 at = hit.getLocation();
+            net.minecraft.world.phys.Vec3 q = at.add(d.getStepX() * 0.5, d.getStepY() * 0.5, d.getStepZ() * 0.5);
+            int sky = mc.level.getBrightness(net.minecraft.world.level.LightLayer.SKY, bp.relative(d));
+            float[] f = CaveMap.texel(net.minecraft.util.Mth.floor(q.x), net.minecraft.util.Mth.floor(q.z));
+            float[] c = CaveMap.coarseTexel(net.minecraft.util.Mth.floor(q.x), net.minecraft.util.Mth.floor(q.z));
+            // 受けている光(11-06 光の点検 11): 面の外のブロックの光・空の光、面の向きの係数(バニラの getShade)、地下の光源の強さの和、
+            // AO の目安(面の外の層の周り 8 マスのうち光を遮るブロックの数。バニラの AO はこれで暗くなる)。
+            net.minecraft.core.BlockPos out = bp.relative(d);
+            int blockLight = mc.level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, out);
+            int occluders = 0;
+            for (net.minecraft.core.Direction side : net.minecraft.core.Direction.values()) {
+                if (side.getAxis() == d.getAxis()) {
+                    continue;
+                }
+                for (net.minecraft.core.Direction side2 : net.minecraft.core.Direction.values()) {
+                    if (side2.getAxis() == d.getAxis() || side2.getAxis() == side.getAxis() || side2.ordinal() < side.ordinal()) {
+                        continue;
+                    }
+                    if (mc.level.getBlockState(out.relative(side).relative(side2)).isSolidRender(mc.level, out.relative(side).relative(side2))) {
+                        occluders++;
+                    }
+                }
+                if (mc.level.getBlockState(out.relative(side)).isSolidRender(mc.level, out.relative(side))) {
+                    occluders++;
+                }
+            }
+            String lightInfo = String.format(" / 光 ブロック %d 空 %d 面の向きの係数 %.2f 地下の光源の和 %.2f AO の目安 遮る %d/8", blockLight, sky,
+                    mc.level.getShade(d, true), CaveLights.intensityAt(at.x, at.y, at.z), occluders);
+            return CanopySunMap.debugAt(at.x, at.y, at.z) + lightInfo + " / " + String.format("当たり %s %s 面 %s 点 %.1f %.1f %.1f 距離 %.1f 面の外の空の光 %d / 見る列 %d %d: 細かい %s 粗い %s",
+                    net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(mc.level.getBlockState(bp).getBlock()), bp.toShortString(), d,
+                    at.x, at.y, at.z, at.distanceTo(eye), sky, net.minecraft.util.Mth.floor(q.x), net.minecraft.util.Mth.floor(q.z),
+                    f == null ? "外" : String.format("岩 %.0f 過繁茂 %.0f", f[0], f[1]), c == null ? "外" : String.format("岩 %.0f 過繁茂 %.0f", c[0], c[1]));
+        } else if (p[0].equals("puddleview") && p.length > 2) {
+            // 水たまりの見える視点(11-06 夜): cavedev puddleview trunk|rain <高さ> → "VIEW x y z yaw pitch"(tp の足の位置)
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            return mc.level == null ? "ワールドなし" : "VIEW " + TrunkRivulets.viewPoint(mc.level, p[1].equals("rain"), Double.parseDouble(p[2]));
+        } else if (p[0].equals("blendleak") || p[0].equals("passgl")) {
+            // 陸の日光の照りの確かめ(11-06): blendleak on = Sodium の層の描き始めで GL のブレンドを直に入れる / passgl on = 層の判定を前のブレンドの状態に戻す
+            if (p[0].equals("blendleak")) {
+                com.yayuy.overgrownvegetation.client.shader.SodiumTerrain.devBlendLeak = on;
+            } else {
+                com.yayuy.overgrownvegetation.client.shader.SodiumTerrain.devPassFromGl = on;
+            }
+            return "blendleak " + com.yayuy.overgrownvegetation.client.shader.SodiumTerrain.devBlendLeak + " passgl "
+                    + com.yayuy.overgrownvegetation.client.shader.SodiumTerrain.devPassFromGl;
+        } else if (p[0].equals("wet")) {
+            // 雨の濡れの状態(11-06 バニラ地域の光 5): cavedev wet
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.level == null) {
+                return "ワールドなし";
+            }
+            var cam = mc.gameRenderer.getMainCamera().getBlockPosition();
+            var biome = mc.level.getBiome(cam);
+            return String.format("外の濡れ %.2f 過繁茂 %.2f 胞子 %.0f%% %s %s 雨 %.2f 降り方 %s バイオーム %s", WetSheen.openWet(), ForestPresence.overgrown(),
+                    AirHaze.sporePercent(), RainLook.describe(), TrunkRivulets.describe(),
+                    mc.level.getRainLevel(1.0F), biome.value().getPrecipitationAt(cam), biome.unwrapKey().map(k -> k.location().toString()).orElse("?"));
+        } else if (p[0].equals("air")) {
+            // 胞子の空気(11-06): cavedev air [度合い 0〜1 | off] — カメラの所の濃度と度合い。数を渡すとカメラの所の度合いをその値に固定(撮り比べ)、off で戻す。
+            if (p.length > 1) {
+                SporeAir.devLevel = p[1].equals("off") ? -1.0F : Float.parseFloat(p[1]);
+            }
+            return SporeAir.describe() + String.format("・効き %.2f・森の霧 %.2f", MistView.airAmount(MistView.sporeFog(), CaveLights.mix()), ForestPresence.fogForest());
+        } else if (p[0].equals("cat") && p.length > 2) {
+            // 粗い地図の升の中身(11-05 点検 16): cavedev cat <x> <z>
+            try {
+                float[] t = CaveMap.coarseTexel(Integer.parseInt(p[1]), Integer.parseInt(p[2]));
+                return t == null ? "粗い地図の外" : String.format("粗い 升 %.0f %.0f 岩の上面 %.0f 過繁茂 %.0f 読めた %.0f", t[3], t[4], t[0], t[1], t[2]);
+            } catch (NumberFormatException e) {
+                return "数でない";
+            }
+        } else if (p.length > 1) {
+            // 11-04 地下の光の直し: 設計値をこのセッションだけ上書き(負で設計値)。falloff <倍> / ambient <値> / mouth <から> <まで> / lightsink <割合>
+            try {
+                float v = Float.parseFloat(p[1]);
+                switch (p[0]) {
+                    case "falloff" -> CaveLights.devFalloff = v;
+                    case "ambient" -> CaveLights.devAmbient = v;
+                    case "lightsink" -> CaveLights.devLightSink = v;
+                    case "mouth" -> {
+                        CaveLights.devMouthFrom = v;
+                        CaveLights.devMouthTo = p.length > 2 ? Float.parseFloat(p[2]) : -1.0F;
+                    }
+                    default -> {
+                    }
+                }
+            } catch (NumberFormatException ignored) {
+                // 数でなければ何もしない
+            }
         }
-        return "thin " + CaveMap.devThinRoof + " tint " + CaveLights.devTint;
+        return "thin " + CaveMap.devThinRoof + " tint " + CaveLights.devTint + " falloff " + CaveLights.devFalloff + " ambient " + CaveLights.devAmbient
+                + " mouth " + CaveLights.devMouthFrom + ".." + CaveLights.devMouthTo + " lightsink " + CaveLights.devLightSink;
     }
 
     private AtmosphereDev() {

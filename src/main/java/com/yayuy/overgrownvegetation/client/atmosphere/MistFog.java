@@ -281,7 +281,15 @@ public final class MistFog {
         float[] n = p.nearColor();
         float[] f = p.farColor();
         float[] haze = p.hazeColor();
-        float[] night = p.nightColor();
+        // 夜の色(11-05 光の点検 4): 夕方〜夜の入りは nightColor のまま、夜の度合いの分だけ月で変える
+        // (満月で月が高いと青灰 nightColorFull、新月・月の無い間はほぼ黒 nightColorNew)。
+        float moonW = SunLight.moonHeight(level, 1.0F) * level.getMoonBrightness() * (1.0F - 0.9F * rain);
+        float nightW = SunLight.night(level, 1.0F);
+        float[] night = NIGHT;
+        for (int i = 0; i < 3; i++) {
+            night[i] = Mth.lerp(nightW, p.nightColor()[i], Mth.lerp(moonW, p.nightColorNew()[i], p.nightColorFull()[i]));
+        }
+        hazeMoonWeight = SunLight.moonLight(level, 1.0F, 0.0F);
         float[] sky = p.forestSkyColor();
         float[] sporeDay = p.forestFogDayColor();
         float[] sporeDawn = p.forestFogDawnColor();
@@ -307,6 +315,16 @@ public final class MistFog {
             SKY[i] = Mth.lerp(light, night[i], Mth.lerp(skyGreen, sky[i], sporeDay[i]));
             SPORE[i] = Mth.lerp(light, night[i], Mth.lerp(dawn, sporeDay[i], sporeDawn[i]));
         }
+        // 11-05(光の点検 3): 霞の全体に空の光の色(SunLight.skyTint)を hazeTintMix だけ映す(夕方は少し暖かく、日没後は灰に近い青灰)。
+        // 太陽の方の色分けはシェーダー(ovHazeSunSide、OvHazeS)。SKY はバニラの霧の色 = 隙間の空の色にも使われる。
+        hazeSunWeight = SunLight.skyTint(level, sun, 1.0F, HAZE_TINT);
+        for (int i = 0; i < 3; i++) {
+            float k = Mth.lerp(p.hazeTintMix(), 1.0F, HAZE_TINT[i]);
+            NEAR[i] = Math.min(1.0F, NEAR[i] * k);
+            FAR[i] = Math.min(1.0F, FAR[i] * k);
+            SKY[i] = Math.min(1.0F, SKY[i] * k);
+            SPORE[i] = Math.min(1.0F, SPORE[i] * k);
+        }
         // 嵐の霧は灰色へ半分寄せる(暗い空の下で緑の霧が光って見えないように。10-30 の「緑の霧」はユーザーが嫌った)。
         if (stormShown > 0.001F) {
             greyen(NEAR, 0.5F * stormShown);
@@ -314,6 +332,13 @@ public final class MistFog {
             greyen(SPORE, 0.5F * stormShown);
         }
     }
+
+    private static final float[] HAZE_TINT = {1.0F, 1.0F, 1.0F};
+    private static final float[] NIGHT = new float[3];
+    /** 霞の月側の度合い(0〜1、11-05 光の点検 4。夜の度合い × 月の高さ × 月の満ち欠け。昼と夕方は 0)。 */
+    private static float hazeMoonWeight;
+    /** 霞の太陽側の色の度合い(0〜1、昼と夜は 0。{@link SunLight#skyTint} の返り値)。 */
+    private static float hazeSunWeight;
 
     private static void greyen(float[] c, float k) {
         float luma = 0.299F * c[0] + 0.587F * c[1] + 0.114F * c[2];
@@ -335,6 +360,18 @@ public final class MistFog {
         frames++;
         ShaderInstance[] shaders = {GameRenderer.getRendertypeSolidShader(), GameRenderer.getRendertypeCutoutShader(),
                 GameRenderer.getRendertypeCutoutMippedShader(), GameRenderer.getRendertypeTranslucentShader()};
+        // 胞子の空気の視線の先の霞(11-06、ov_fog.glsl の ovAirFog): 霧の地図の有無に関わらず(風下の平原には霧の地図が無い)。
+        {
+            Vec3 cam = event.getCamera().getPosition();
+            float airDensity = on ? DesignData.atmosphere().sporeAir().hazeDensity() * MistView.airGate(MistView.sporeFog(), CaveLights.mix()) : 0.0F;
+            float[] fc = com.mojang.blaze3d.systems.RenderSystem.getShaderFogColor();
+            float[] airColor = MistView.airColor(fc[0], fc[1], fc[2]);
+            for (ShaderInstance shader : shaders) {
+                if (shader != null) {
+                    SporeAir.setUniforms(shader, cam, airDensity, airColor);
+                }
+            }
+        }
         boolean active = on && density > 0.0F;
         if (active) {
             MistMap.upload();
@@ -345,6 +382,8 @@ public final class MistFog {
                 if (shader != null) {
                     shader.safeGetUniform("OvFogB").set(0.0F, 0.35F, 0.0F, 0.0F);
                     shader.safeGetUniform("OvFogJ").set(0.0F, 0.0F, 0.0F, 0.0F);
+                    // 霞の太陽側は霧の地図と関係なく(バニラの霧の色に掛かる分)。霧そのものが切られているときは 0。
+                    setHazeSun(shader, on);
                 }
             }
             return;
@@ -390,9 +429,35 @@ public final class MistFog {
         float forestEnd = ForestPresence.underground() >= 0.999F || devForestOff ? 0.0F : p.forestFogEnd();
         shader.safeGetUniform("OvFogJ").set(SPORE[0], SPORE[1], SPORE[2], forestEnd);
         // カメラが森の中にいる分はバニラの霧(fog.glsl の霞)が地形にも Mob にも同じに掛けるので、ここの分はその残り(1 − 森の度合い)だけ。
-        shader.safeGetUniform("OvFogL").set((1.0F - ForestPresence.underground()) * (MistView.vanillaTerrainFog() ? 1.0F - MistView.sporeFog() : 1.0F), 0.0F, 0.0F, 0.0F);
+        // y = 林冠の下の霞を近くの地形でさらに落とすか(ov_cave.glsl の ovShadedFogColor、design の fog.forestDim。11-05)。
+        shader.safeGetUniform("OvFogL").set((1.0F - ForestPresence.underground()) * (MistView.vanillaTerrainFog() ? 1.0F - MistView.sporeFog() : 1.0F),
+                p.forestDim() ? 1.0F : 0.0F, 0.0F, 0.0F);
+        // 11-05(光の点検 3): 霞の太陽の方を橙〜桃へ(ov_fog.glsl の ovHazeSunSide と ov_cave.glsl の ovHazeSunSideF。遠いほど強い)。
+        // 汚染地域の森の中だけ・地下では切る。昼と夜は度合い 0。
+        setHazeSun(shader, true);
         shader.safeGetUniform("OvFogK").set(Math.min(p.forestFogStart(), forestEnd), p.forestFogAbove(), forestReach(),
                 devForestDensity >= 0.0F ? devForestDensity : p.forestFogDensity());
+    }
+
+    /** 霞の太陽側(11-05 光の点検 3): OvHazeS = (色の比, 今の混ざり)・OvHazeD = (太陽の向き, 遠さの目安)。{@code on} が偽なら混ざり 0。 */
+    private static void setHazeSun(ShaderInstance shader, boolean on) {
+        AtmosphereTable.FogParams p = DesignData.atmosphere().fog();
+        ClientLevel level = Minecraft.getInstance().level;
+        Vec3 sun = level != null ? SunLight.sunDirection(level, 1.0F) : new Vec3(0.0, 1.0, 0.0);
+        float[] hs = p.hazeSunColor();
+        float place = on ? ForestPresence.openOvergrown() : 0.0F;
+        float sunMix = p.hazeSunMix() * hazeSunWeight;
+        float moonMix = p.hazeMoonMix() * hazeMoonWeight;
+        if (moonMix > sunMix) {
+            // 夜(11-05 光の点検 4): 同じ仕組みを月の向き・月の色で。色の比に hazeMoonBright を掛けて、月の方の霞を少し明るくする。
+            float[] hm = p.hazeMoonColor();
+            float b = p.hazeMoonBright();
+            shader.safeGetUniform("OvHazeS").set(hm[0] * b, hm[1] * b, hm[2] * b, moonMix * place);
+            shader.safeGetUniform("OvHazeD").set((float) -sun.x, (float) -sun.y, (float) -sun.z, p.hazeSunReach());
+            return;
+        }
+        shader.safeGetUniform("OvHazeS").set(hs[0], hs[1], hs[2], sunMix * place);
+        shader.safeGetUniform("OvHazeD").set((float) sun.x, (float) sun.y, (float) sun.z, p.hazeSunReach());
     }
 
     /** この mod の粒(環境の胞子・光る胞子)の霧の地図の unit。粒は 5〜7 番を使う。 */

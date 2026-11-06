@@ -2,7 +2,6 @@ package com.yayuy.overgrownvegetation.worldgen;
 
 import com.yayuy.overgrownvegetation.block.AerialRootBlock;
 import com.yayuy.overgrownvegetation.block.BeardLichenBlock;
-import com.yayuy.overgrownvegetation.block.ClimbingSeedfernBlock;
 import com.yayuy.overgrownvegetation.block.SporeSacBlock;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
@@ -11,7 +10,6 @@ import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.RandomSource;
@@ -28,7 +26,7 @@ import java.util.List;
  * 側面・底面に生えるもの(2026-11-01)を、木が生え終わった直後に置く({@link TreeVineConnector} と同じ時機)。
  * 呼ぶのはコルダイテス({@link ForcedTreeFeature})・封印木({@link SigillariaTreeFeature})・巨大樹({@link GiantTreeGrowthQueue} の最後)。
  * <ul>
- *     <li>S1 幹に巻き付く種子シダ: 木の {@link #CLIMBER_TREE_CHANCE} に、幹の下 3〜4 段の 4 面とも。いちばん上の段は先端。巻く向きは木ごと。</li>
+ *     <li>S1 幹に巻き付く種子シダは 2026-11-03 にユーザー指示で消した(登る蔓 {@link ClimbingVine} に置き換え)。</li>
  *     <li>S3 気根のカーテン: 林冠・腕の縁(下が空気で、横にも空気がある葉・枝)から 1 本の木に 1〜3 本、長さ 2〜6。
  *     地面まで届いて根付いた柱になるのは 1 本の木に 0〜1 本。</li>
  *     <li>S4 ひげ地衣: 腕・枝の下面の 2〜4 か所(1 段 7 割・2 段 3 割)。根元のまわりに水があれば倍。</li>
@@ -38,20 +36,12 @@ import java.util.List;
  */
 public final class TreeSideGrowth {
 
-    /** 幹に巻き付く種子シダが付く木の割合(仮決め・下絵の目安)。 */
-    public static final double CLIMBER_TREE_CHANCE = 0.3;
-    /** 巨大樹で巻き付く面の列の割合(仮決め)。 */
-    private static final double GIANT_CLIMBER_COLUMN_CHANCE = 0.25;
     /** 巨大樹の数の倍率(仮決め)。 */
     private static final int GIANT_SCALE = 4;
     /** 気根が地面まで届いて柱になる確率(1 本の木に 0〜1 本。仮決め)。 */
     private static final double PILLAR_CHANCE = 0.4;
     /** 柱にできる高さの上限(林冠の下から地面まで。これより高いと届かない)。 */
     private static final int PILLAR_MAX_DROP = 14;
-    /** 汚染の広がりで幹の面に巻き付く確率(壁の下草の代わりに。仮決め)。 */
-    public static final double SPREAD_CLIMBER_CHANCE = 0.25;
-    /** 汚染の広がりで巻き付くのは幹の根元から何段まで(下絵の「幹の下 3〜4 段」)。 */
-    private static final int SPREAD_CLIMBER_ROWS = 4;
 
     private static final Direction[] SIDES = {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST};
 
@@ -81,13 +71,6 @@ public final class TreeSideGrowth {
         LongOpenHashSet trunkColumns = new LongOpenHashSet();
         for (long[] c : trunk) {
             trunkColumns.add(column((int) c[0], (int) c[1]));
-        }
-
-        // S1
-        if (giant || random.nextDouble() < CLIMBER_TREE_CHANCE) {
-            int rows = 3 + random.nextInt(2);
-            ClimbingSeedfernBlock.Part winding = random.nextBoolean() ? ClimbingSeedfernBlock.Part.UP : ClimbingSeedfernBlock.Part.DOWN;
-            placeClimbers(level, random, trunk, base, rows, winding, giant ? GIANT_CLIMBER_COLUMN_CHANCE : 1.0);
         }
 
         // 下面の候補: 腕・枝(幹の列でない原木)と葉で、真下が空気のもの。縁 = 横のどこかも空気。
@@ -228,49 +211,6 @@ public final class TreeSideGrowth {
     }
 
     /**
-     * S1 を幹の列の 4 面に置く(根元から {@code rows} 段、いちばん上は先端)。{@code columnChance} は面の列ごとの確率(巨大樹は一部だけ)。
-     * 面の外が空気でないマスは飛ばす。置いた数を返す。
-     */
-    public static int placeClimbers(LevelAccessor level, RandomSource random, List<long[]> trunk, int base, int rows,
-                                    ClimbingSeedfernBlock.Part winding, double columnChance) {
-        int placed = 0;
-        BlockPos.MutableBlockPos log = new BlockPos.MutableBlockPos();
-        for (long[] c : trunk) {
-            for (Direction d : SIDES) {
-                if (columnChance < 1.0 && random.nextDouble() >= columnChance) {
-                    continue;
-                }
-                // 面が外に出る最初の段から(巨大樹は根元が地面の下・板根の陰になる。根元 3〜4 段 = 面が見え始めてから 3〜4 段)
-                int start = -1;
-                for (int r = 0; r < 24 && start < 0; r++) {
-                    log.set((int) c[0], base + r, (int) c[1]);
-                    if (isTrunkLike(level.getBlockState(log)) && level.getBlockState(log.relative(d)).isAir()) {
-                        start = r;
-                    }
-                }
-                if (start < 0) {
-                    continue;
-                }
-                for (int r = 0; r < rows; r++) {
-                    log.set((int) c[0], base + start + r, (int) c[1]);
-                    BlockPos at = log.relative(d);
-                    if (!level.getBlockState(at).isAir()) {
-                        continue;
-                    }
-                    BlockState state = ModBlocks.CLIMBING_SEEDFERN.get().defaultBlockState()
-                            .setValue(ClimbingSeedfernBlock.FACING, d)
-                            .setValue(ClimbingSeedfernBlock.PART, r == rows - 1 ? ClimbingSeedfernBlock.Part.TIP : winding);
-                    if (state.canSurvive(level, at)) {
-                        level.setBlock(at, state, Block.UPDATE_CLIENTS);
-                        placed++;
-                    }
-                }
-            }
-        }
-        return placed;
-    }
-
-    /**
      * {@code start}(林冠・腕の下の空気)から気根を {@code length} 段垂らす。{@code toGround} なら、地面まで {@link #PILLAR_MAX_DROP} 段以内のとき
      * 地面まで伸ばし、地面の上のマスを根付いた柱にする。置いた段の数を返す(置けなければ 0)。
      */
@@ -325,57 +265,6 @@ public final class TreeSideGrowth {
         }
         level.setBlock(at, sac, Block.UPDATE_CLIENTS);
         return true;
-    }
-
-    /**
-     * 汚染の広がりで幹の面に巻き付く({@code CorruptionSpreader#growSide} から)。{@code pos} は面の外の空気、{@code facing} は面の向き。
-     * 幹(コルダイテス・封印木・巨大樹の原木)の根元から {@link #SPREAD_CLIMBER_ROWS} 段までだけ。上下に同じ向きの蔓があれば巻き方を揃え、
-     * 上に続きが無ければ先端にする(下の先端は巻き方に戻す)。置いたら true。
-     */
-    public static boolean tryGrowOnTrunk(ServerLevel level, BlockPos pos, RandomSource random, Direction facing) {
-        if (!facing.getAxis().isHorizontal() || random.nextDouble() >= SPREAD_CLIMBER_CHANCE) {
-            return false;
-        }
-        BlockPos host = pos.relative(facing.getOpposite());
-        BlockState hostState = level.getBlockState(host);
-        if (!isTrunk(hostState)) {
-            return false;
-        }
-        int depth = 0;
-        BlockPos.MutableBlockPos m = host.mutable();
-        while (depth < SPREAD_CLIMBER_ROWS && isTrunk(level.getBlockState(m.move(Direction.DOWN)))) {
-            depth++;
-        }
-        if (depth >= SPREAD_CLIMBER_ROWS) {
-            return false;
-        }
-        BlockState below = level.getBlockState(pos.below());
-        BlockState above = level.getBlockState(pos.above());
-        ClimbingSeedfernBlock.Part winding = null;
-        for (BlockState n : new BlockState[]{below, above}) {
-            if (n.is(ModBlocks.CLIMBING_SEEDFERN.get()) && n.getValue(ClimbingSeedfernBlock.PART) != ClimbingSeedfernBlock.Part.TIP) {
-                winding = n.getValue(ClimbingSeedfernBlock.PART);
-            }
-        }
-        if (winding == null) {
-            winding = random.nextBoolean() ? ClimbingSeedfernBlock.Part.UP : ClimbingSeedfernBlock.Part.DOWN;
-        }
-        boolean top = !above.is(ModBlocks.CLIMBING_SEEDFERN.get());
-        BlockState state = ModBlocks.CLIMBING_SEEDFERN.get().defaultBlockState()
-                .setValue(ClimbingSeedfernBlock.FACING, facing)
-                .setValue(ClimbingSeedfernBlock.PART, top ? ClimbingSeedfernBlock.Part.TIP : winding);
-        if (!state.canSurvive(level, pos)) {
-            return false;
-        }
-        level.setBlock(pos, state, Block.UPDATE_ALL);
-        if (below.is(ModBlocks.CLIMBING_SEEDFERN.get()) && below.getValue(ClimbingSeedfernBlock.PART) == ClimbingSeedfernBlock.Part.TIP) {
-            level.setBlock(pos.below(), below.setValue(ClimbingSeedfernBlock.PART, winding), Block.UPDATE_ALL);
-        }
-        return true;
-    }
-
-    private static boolean isTrunkLike(BlockState state) {
-        return isTrunk(state) || state.is(BlockTags.LOGS);
     }
 
     /** 巻き付く幹(コルダイテス・封印木・巨大樹の原木)。 */

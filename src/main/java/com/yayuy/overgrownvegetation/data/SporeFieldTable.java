@@ -27,6 +27,8 @@ public final class SporeFieldTable {
         public SporeField.Params field;
         public Sources sources;
         public Reading reading;
+        /** 暴露量(2026-11-04 感染システムの第 1 段。null は既定値)。 */
+        public Exposure exposure;
         public Sprouts sprouts;
         public Sweep sweep;
         public GiantTree giantTree;
@@ -34,6 +36,44 @@ public final class SporeFieldTable {
         public Valley valley;
         public Fissure fissure;
         public Terrain terrain;
+        /** 地下の層と洞窟の口(2026-11-04)。 */
+        public Underground underground;
+        /** 逆転層より上の読み(2026-11-04)。 */
+        public High high;
+        /** 汚染の縁と穴(2026-11-04)。 */
+        public Edge edge;
+    }
+
+    /**
+     * 地下の層(2026-11-04 暴露量ノート 追記 6【決定】、数はすべて仮決め)。soakPerDay・decayPerDay・depPerDay・depDecayPerDay・mouthDefault は
+     * {@link SporeField.Params} の soakPerDay・underDecayPerDay・underDepPerDay・underDepDecayPerDay・mouthDefault へ入る。
+     * 洞窟の口の測り({@link com.yayuy.overgrownvegetation.spore.field.CaveMouths}): 読み込んで loadDelayTicks 後に測る・地面より下を
+     * scanDepth ブロックまで・空の光の差す空気 fullCells 個で口の多さ 1・プレイヤーのまわり remeasureRadius チャンクを remeasureTicks ごとに 1 チャンク測り直す。
+     */
+    public static final class Underground {
+        public Double soakPerDay, decayPerDay, depPerDay, depDecayPerDay, mouthDefault;
+        public Integer loadDelayTicks, scanDepth, fullCells, remeasureTicks, remeasureRadius;
+        /** 洞窟の壁を這う汚染(2026-11-04 b): 回す間隔(tick)・1 回に見る元の数・1 つの元が広げる確率・1 回にプレイヤーのまわりで見る列の数・その半径(ブロック)・元の上限。 */
+        public Integer creepIntervalTicks, creepSourcesPerPass, creepSamplesPerPass, creepRadius, creepMaxFrontier;
+        public Double creepChance;
+    }
+
+    /**
+     * 逆転層より上の読み(2026-11-04 追記 6【決定】): その日の逆転層から上 fadeBlocks ブロックで、地点の値を capPercent 以下へなめらかに寄せる。
+     * capPercent は暴露を積む下限(exposure.minPercent 5%、以上で積む)より下にする(仮決め 4)。生きている巨大樹の根元から水平 treeExemptChunks チャンク以内は切らない
+     * (field の treeExemptChunks へ入る。逆転層より上の発芽・飛び地の着地の例外と同じ距離)。
+     */
+    /**
+     * 地表の汚染の縁と穴(2026-11-04、数はすべて仮決め): 縁の浸食を動かすかを列ごとに「4 チャンクで混ぜた場の値(過繁茂・繁茂 = 1、それ以外は 降り積もり ÷ しきい値 × depositWeight)+ 雑音 ± noiseAmp(模様の大きさ noiseBlocks)> threshold」で決める。
+     * まわり 4 方のうち holeSides 以上が汚染された未汚染の列は確率と待ちを無視して埋め、変換できないものは覆う。
+     */
+    public static final class Edge {
+        public Double noiseAmp, noiseBlocks, depositWeight, threshold;
+        public Integer holeSides;
+    }
+
+    public static final class High {
+        public Double fadeBlocks, capPercent, treeExemptChunks;
     }
 
     /**
@@ -103,12 +143,16 @@ public final class SporeFieldTable {
      */
     public static final class Sprouts {
         public Integer pointsPerChunk;
-        public Double caveShare, wetMultiplier;
+        /** 洞窟の床から発芽したとき(地下の降り積もり。2026-11-04 に前の caveShare = 芽の点の 2 割を洞窟へ、を置き換えた)に置く芽の点の数。 */
+        public Integer cavePoints;
+        public Double wetMultiplier;
         public Integer radius, tickInterval, maxActivePoints;
         /** 萌芽体が歩き回る長さ(tick)。湿った所(水辺・雨・夜)では早く根付く。 */
         public Integer wanderTicksMin, wanderTicksMax;
         /** 行き先があるのにこの長さ(tick)位置が変わらなければ、その場で根付く(穴につっかえた萌芽体。2026-10-24 追記 18、仮 200 = 10 秒)。 */
         public Integer stuckRootTicks;
+        /** 走り待ちの芽の点の上限(同時に走る上限を超えた点・読み込まれていない点を後で走らせる。2026-11-04)。 */
+        public Integer waitingMax;
     }
 
     /**
@@ -120,9 +164,24 @@ public final class SporeFieldTable {
         /** 下支え(発生源の放出が下限): 繁茂・過繁茂のチャンクの濃度の下限(%)。除去装置もここまでしか下げられない。 */
         public Double floorThriving, floorOvergrown;
         /** 地点の補正: 梢(葉を含む一番上)より上はこのブロック数ごとに 1/e に薄く / 洞窟の口・窪地(空が少し見える地下)は濃く /
-         *  閉じた部屋(空の光 0・地面から浅い・周り 4 方が塞がる)は薄く / 塞がっていない屋根の下 / 深い洞窟(地下の層の流れ込みは後の段)/
-         *  雨の最中 / 風上 1 ブロックが塞がっている(壁の陰)。 */
-        public Double aboveCanopyFalloff, hollowFactor, roomFactor, roofFactor, deepCaveFactor, rainFactor, upwindShadeFactor;
+         *  閉じた部屋(空の光 0・地面から浅い・周り 4 方が塞がる)は薄く / 塞がっていない屋根の下 /
+         *  雨の最中 / 風上 1 ブロックが塞がっている(壁の陰)。深い洞窟の倍率 deepCaveFactor は 2026-11-04 に消した(地下は地下の層の値を読む)。 */
+        public Double aboveCanopyFalloff, hollowFactor, roomFactor, roofFactor, rainFactor, upwindShadeFactor;
+    }
+
+    /**
+     * 暴露量(2026-11-04 感染システムの第 1 段、{@link com.yayuy.overgrownvegetation.spore.SporeExposureTracker})。
+     * ユーザー指定(10-23 追記 2): 暴露 = 濃度 % × 秒・{@code infectDose} 1500 %秒が感染の量・{@code minPercent} 5% 未満は積まない・
+     * 濃い所を出ると {@code halfLifeSeconds} 60 秒で半分。
+     * 11-04 第 2 段(ユーザー決定): プレイヤーは 1500 で感染 1、Mob は 1500 で {@code mobDamage} 20 の防御無視のダメージ → 0 に戻す。
+     * 防護マスクは耐久のある間は暴露を積まない(10-23 の「25% に減らす」maskPercent はこれで消した)。耐久 = 吸い取れる量 {@code maskCapacity}
+     * (18000 %秒、仮決め)。毎秒 その場の濃度 % × 秒 減る(minPercent 未満では減らない)。
+     * にじみ(前触れ、11-04 ユーザー決定「画面のにじみだけ」): 暴露量が {@code warnFaintFraction}(0.5)を超えたら薄く、{@code warnStrongFraction}(0.8)で濃く(仮決め)。
+     * 仮決め: 判定の間隔 プレイヤー 20 tick・Mob 40 tick。
+     */
+    public static final class Exposure {
+        public Double minPercent, halfLifeSeconds, infectDose, maskCapacity, mobDamage, warnFaintFraction, warnStrongFraction;
+        public Integer playerIntervalTicks, mobIntervalTicks;
     }
 
     /** ゲームの発生源・吸い込み口(1 チャンクの過繁茂の放出 = field.emitOvergrown(1 日あたり)を物差しにした量)。 */
@@ -142,17 +201,34 @@ public final class SporeFieldTable {
     private final double portalSeepPercent;
     private final double canopyMorningPerDay, burstPerRadiusSq;
     private final double fullAt, floorThriving, floorOvergrown;
-    private final double aboveCanopyFalloff, hollowFactor, roomFactor, roofFactor, deepCaveFactor, rainFactor, upwindShadeFactor;
-    private final int sproutPoints, sproutRadius, sproutTickInterval, sproutMaxActive, wanderMin, wanderMax, stuckRootTicks;
-    private final double sproutCaveShare, sproutWetMultiplier;
+    private final double aboveCanopyFalloff, hollowFactor, roomFactor, roofFactor, rainFactor, upwindShadeFactor;
+    private final int sproutPoints, sproutCavePoints, sproutRadius, sproutTickInterval, sproutMaxActive, wanderMin, wanderMax, stuckRootTicks;
+    private final double sproutWetMultiplier;
+    private final int mouthLoadDelay, mouthScanDepth, mouthFullCells, mouthRemeasureTicks, mouthRemeasureRadius;
+    private final int creepInterval, creepSources, creepSamples, creepRadius, creepMaxFrontier, holeSides, sproutWaitingMax;
+    private final double creepChance, edgeNoiseAmp, edgeNoiseBlocks, edgeDepositWeight, edgeThreshold;
+    private final double highFadeBlocks, highCapPercent;
     private final double sweepShare, sweepThinChance;
     private final int sweepDropMin, sweepDropMax;
     private final double gtYoung, gtMature, gtMatureDays, gtLift, gtKillRadius;
     private final int gtMaxTrees;
     private final double riftTreeMultiple, riftLift, riftFrontSpeed, riftFrontFull, riftFrontFalloff, riftFrontMin, riftFloor, riftFloorRadius, riftFrontRadius;
 
+    private final double exposureMinPercent, exposureHalfLifeSeconds, infectDose, maskCapacity, mobExposureDamage, warnFaint, warnStrong;
+    private final int exposurePlayerInterval, exposureMobInterval;
+
     private SporeFieldTable(Json j) {
         Json src = j != null ? j : new Json();
+        Exposure ex = src.exposure != null ? src.exposure : new Exposure();
+        this.exposureMinPercent = Math.max(0.0D, orElse(ex.minPercent, 5.0D));
+        this.exposureHalfLifeSeconds = Math.max(1.0D, orElse(ex.halfLifeSeconds, 60.0D));
+        this.infectDose = Math.max(1.0D, orElse(ex.infectDose, 1500.0D));
+        this.maskCapacity = Math.max(0.0D, orElse(ex.maskCapacity, 18000.0D));
+        this.mobExposureDamage = Math.max(0.0D, orElse(ex.mobDamage, 20.0D));
+        this.warnFaint = Math.max(0.0D, Math.min(1.0D, orElse(ex.warnFaintFraction, 0.5D)));
+        this.warnStrong = Math.max(this.warnFaint, Math.min(1.0D, orElse(ex.warnStrongFraction, 0.8D)));
+        this.exposurePlayerInterval = ex.playerIntervalTicks != null ? Math.max(1, Math.min(200, ex.playerIntervalTicks)) : 20;
+        this.exposureMobInterval = ex.mobIntervalTicks != null ? Math.max(1, Math.min(200, ex.mobIntervalTicks)) : 40;
         this.enabled = src.enabled == null || src.enabled;
         this.updateTicks = src.updateTicks != null ? Math.max(20, Math.min(1200, src.updateTicks)) : 100;
         this.maxStepsPerRun = src.maxStepsPerRun != null ? Math.max(1, Math.min(2400, src.maxStepsPerRun)) : 60;
@@ -183,6 +259,33 @@ public final class SporeFieldTable {
             p.dryDownfall = orElse(tr.dryDownfall, p.dryDownfall);
             if (tr.heightStride != null) p.heightStride = Math.max(1, Math.min(32, tr.heightStride));
         }
+        Underground ug = src.underground != null ? src.underground : new Underground();
+        p.soakPerDay = orElse(ug.soakPerDay, p.soakPerDay);
+        p.underDecayPerDay = orElse(ug.decayPerDay, p.underDecayPerDay);
+        p.underDepPerDay = orElse(ug.depPerDay, p.underDepPerDay);
+        p.underDepDecayPerDay = orElse(ug.depDecayPerDay, p.underDepDecayPerDay);
+        p.mouthDefault = Math.min(1.0D, orElse(ug.mouthDefault, p.mouthDefault));
+        this.mouthLoadDelay = ug.loadDelayTicks != null ? Math.max(0, Math.min(1200, ug.loadDelayTicks)) : 40;
+        this.mouthScanDepth = ug.scanDepth != null ? Math.max(1, Math.min(128, ug.scanDepth)) : 48;
+        this.mouthFullCells = ug.fullCells != null ? Math.max(1, ug.fullCells) : 128;
+        this.mouthRemeasureTicks = ug.remeasureTicks != null ? Math.max(0, ug.remeasureTicks) : 100;
+        this.mouthRemeasureRadius = ug.remeasureRadius != null ? Math.max(0, Math.min(16, ug.remeasureRadius)) : 4;
+        this.creepInterval = ug.creepIntervalTicks != null ? Math.max(0, ug.creepIntervalTicks) : 40;
+        this.creepSources = ug.creepSourcesPerPass != null ? Math.max(1, ug.creepSourcesPerPass) : 32;
+        this.creepSamples = ug.creepSamplesPerPass != null ? Math.max(0, ug.creepSamplesPerPass) : 4;
+        this.creepRadius = ug.creepRadius != null ? Math.max(1, Math.min(128, ug.creepRadius)) : 48;
+        this.creepMaxFrontier = ug.creepMaxFrontier != null ? Math.max(1, ug.creepMaxFrontier) : 4096;
+        this.creepChance = Math.min(1.0D, orElse(ug.creepChance, 0.5D));
+        Edge eg = src.edge != null ? src.edge : new Edge();
+        this.edgeNoiseAmp = Math.min(1.0D, orElse(eg.noiseAmp, 0.35D));
+        this.edgeNoiseBlocks = Math.max(1.0D, orElse(eg.noiseBlocks, 6.0D));
+        this.edgeDepositWeight = Math.min(1.0D, orElse(eg.depositWeight, 0.6D));
+        this.edgeThreshold = Math.min(1.0D, orElse(eg.threshold, 0.35D));
+        this.holeSides = eg.holeSides != null ? Math.max(1, Math.min(4, eg.holeSides)) : 3;
+        High hi = src.high != null ? src.high : new High();
+        this.highFadeBlocks = Math.max(1.0D, orElse(hi.fadeBlocks, 20.0D));
+        this.highCapPercent = orElse(hi.capPercent, 4.0D);
+        p.treeExemptChunks = orElse(hi.treeExemptChunks, p.treeExemptChunks);
         this.field = p;
         Sources s = src.sources != null ? src.sources : new Sources();
         this.canopyMorningPerDay = orElse(s.canopyMorningPerDay, 100.0D);
@@ -196,7 +299,6 @@ public final class SporeFieldTable {
         this.hollowFactor = orElse(rd.hollowFactor, 1.3D);
         this.roomFactor = orElse(rd.roomFactor, 0.2D);
         this.roofFactor = orElse(rd.roofFactor, 0.6D);
-        this.deepCaveFactor = orElse(rd.deepCaveFactor, 0.5D);
         this.rainFactor = orElse(rd.rainFactor, 0.7D);
         this.upwindShadeFactor = orElse(rd.upwindShadeFactor, 0.85D);
         Sprouts sp = src.sprouts != null ? src.sprouts : new Sprouts();
@@ -204,11 +306,12 @@ public final class SporeFieldTable {
         this.sproutRadius = sp.radius != null ? Math.max(1, Math.min(8, sp.radius)) : 4;
         this.sproutTickInterval = sp.tickInterval != null ? Math.max(1, Math.min(200, sp.tickInterval)) : 10;
         this.sproutMaxActive = sp.maxActivePoints != null ? Math.max(1, sp.maxActivePoints) : 400;
-        this.sproutCaveShare = Math.min(1.0D, orElse(sp.caveShare, 0.2D));
+        this.sproutCavePoints = sp.cavePoints != null ? Math.max(0, Math.min(64, sp.cavePoints)) : 6;
         this.sproutWetMultiplier = orElse(sp.wetMultiplier, 1.3D);
         this.wanderMin = sp.wanderTicksMin != null ? Math.max(20, sp.wanderTicksMin) : 600;
         this.wanderMax = sp.wanderTicksMax != null ? Math.max(this.wanderMin, sp.wanderTicksMax) : 2400;
         this.stuckRootTicks = sp.stuckRootTicks != null ? Math.max(20, sp.stuckRootTicks) : 200;
+        this.sproutWaitingMax = sp.waitingMax != null ? Math.max(0, sp.waitingMax) : 4096;
         Sweep sw = src.sweep != null ? src.sweep : new Sweep();
         this.sweepShare = Math.max(0.0D, Math.min(1.0D, orElse(sw.share, 1.0D / 16.0D)));
         this.sweepDropMin = sw.dropMin != null ? Math.max(0, sw.dropMin) : 1;
@@ -276,6 +379,49 @@ public final class SporeFieldTable {
         return burstPerRadiusSq;
     }
 
+    /** 暴露を積む濃度の下限(%)。これ未満では減る。 */
+    public double exposureMinPercent() {
+        return exposureMinPercent;
+    }
+
+    /** 濃い所を出た後の暴露の半減期(秒)。 */
+    public double exposureHalfLifeSeconds() {
+        return exposureHalfLifeSeconds;
+    }
+
+    /** 感染の量(%秒)。今は届いたことを記録するだけ。 */
+    public double infectDose() {
+        return infectDose;
+    }
+
+    /** 防護マスクの吸い取れる量(%秒、11-04 仮決め 18000)。0 なら効かない。 */
+    public double maskCapacity() {
+        return maskCapacity;
+    }
+
+    /** Mob の暴露量が満ちたときの防御無視のダメージ(11-04 ユーザー指定 20)。 */
+    public double mobExposureDamage() {
+        return mobExposureDamage;
+    }
+
+    /** にじみが出始める暴露量の割合(0.5、仮決め)。 */
+    public double warnFaintFraction() {
+        return warnFaint;
+    }
+
+    /** にじみが濃くなりきる暴露量の割合(0.8、仮決め)。 */
+    public double warnStrongFraction() {
+        return warnStrong;
+    }
+
+    public int exposurePlayerIntervalTicks() {
+        return exposurePlayerInterval;
+    }
+
+    public int exposureMobIntervalTicks() {
+        return exposureMobInterval;
+    }
+
     public double fullAt() {
         return fullAt;
     }
@@ -305,8 +451,51 @@ public final class SporeFieldTable {
         return roofFactor;
     }
 
-    public double deepCaveFactor() {
-        return deepCaveFactor;
+    public int mouthLoadDelayTicks() {
+        return mouthLoadDelay;
+    }
+
+    public int mouthScanDepth() {
+        return mouthScanDepth;
+    }
+
+    public int mouthFullCells() {
+        return mouthFullCells;
+    }
+
+    public int mouthRemeasureTicks() {
+        return mouthRemeasureTicks;
+    }
+
+    public int creepIntervalTicks() { return creepInterval; }
+    public int creepSourcesPerPass() { return creepSources; }
+    public int creepSamplesPerPass() { return creepSamples; }
+    public int creepRadius() { return creepRadius; }
+    public int creepMaxFrontier() { return creepMaxFrontier; }
+    public double creepChance() { return creepChance; }
+    /** 縁の列ごとの判定の雑音の大きさ(±)・雑音の模様の大きさ(ブロック)・降り積もりの重み(2026-11-04 A)。 */
+    public double edgeNoiseAmp() { return edgeNoiseAmp; }
+    public double edgeNoiseBlocks() { return edgeNoiseBlocks; }
+    public double edgeDepositWeight() { return edgeDepositWeight; }
+    /** 縁の門のしきい値(混ぜた値 + 雑音 がこれを超える列だけ進む。0.5 = ちょうど境で半々)。 */
+    public double edgeThreshold() { return edgeThreshold; }
+    /** 穴埋め: 4 方のうちこの数以上が汚染された未汚染の列は確率と待ちを無視して埋める(2026-11-04 B)。 */
+    public int holeSides() { return holeSides; }
+    /** 走り待ちの芽の点の上限(2026-11-04 C)。 */
+    public int sproutWaitingMax() { return sproutWaitingMax; }
+
+    public int mouthRemeasureRadius() {
+        return mouthRemeasureRadius;
+    }
+
+    /** 逆転層から上、この高さ(ブロック)で {@link #highCapPercent} まで寄せきる。 */
+    public double highFadeBlocks() {
+        return highFadeBlocks;
+    }
+
+    /** 逆転層 + {@link #highFadeBlocks} より上の地点の値の上限(%)。 */
+    public double highCapPercent() {
+        return highCapPercent;
     }
 
     public double rainFactor() {
@@ -333,8 +522,9 @@ public final class SporeFieldTable {
         return sproutMaxActive;
     }
 
-    public double sproutCaveShare() {
-        return sproutCaveShare;
+    /** 洞窟の床から発芽したときに置く芽の点の数(2026-11-04)。 */
+    public int sproutCavePoints() {
+        return sproutCavePoints;
     }
 
     public double sproutWetMultiplier() {

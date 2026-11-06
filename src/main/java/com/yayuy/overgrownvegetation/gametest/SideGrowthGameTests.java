@@ -2,7 +2,6 @@ package com.yayuy.overgrownvegetation.gametest;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.block.AerialRootBlock;
-import com.yayuy.overgrownvegetation.block.ClimbingSeedfernBlock;
 import com.yayuy.overgrownvegetation.block.SporeSacBlock;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import com.yayuy.overgrownvegetation.worldgen.TreeSideGrowth;
@@ -24,7 +23,7 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import java.util.List;
 
 /**
- * 側面・底面に生えるもの(2026-11-01): S1 が幹の 4 面に付く(いちばん上は先端・幹を抜くと落ちる)/ S3 が垂れて地面で根付いた柱になる
+ * 側面・底面に生えるもの(2026-11-01): S3 が垂れて地面で根付いた柱になる
  * (届かない根は先で止まる・柱を抜くと上が先に戻る)/ S6 の小さな袋がランダムティックで大きく育ち、大のまま止まる。
  * テスト場(gametest_empty7)は床が相対 y=1、天井のバリアが y=8 あたり。
  */
@@ -41,48 +40,6 @@ public final class SideGrowthGameTests {
 
         private Registration() {
         }
-    }
-
-    private static final Direction[] SIDES = {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST};
-
-    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
-    public static void climbingSeedfernWrapsTrunkFourSides(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        for (int y = 2; y <= 6; y++) {
-            helper.setBlock(new BlockPos(3, y, 3), ModBlocks.OVERGROWN_LOG.get());
-        }
-        BlockPos base = helper.absolutePos(new BlockPos(3, 2, 3));
-        int rows = 4;
-        int placed = TreeSideGrowth.placeClimbers(level, RandomSource.create(7), List.of(new long[]{base.getX(), base.getZ()}), base.getY(), rows,
-                ClimbingSeedfernBlock.Part.UP, 1.0);
-        if (placed != 4 * rows) {
-            helper.fail("置いた数が 4 面 × " + rows + " 段でない: " + placed);
-            return;
-        }
-        for (Direction d : SIDES) {
-            for (int r = 0; r < rows; r++) {
-                BlockPos at = new BlockPos(3, 2 + r, 3).relative(d);
-                BlockState s = helper.getBlockState(at);
-                if (!s.is(ModBlocks.CLIMBING_SEEDFERN.get()) || s.getValue(ClimbingSeedfernBlock.FACING) != d) {
-                    helper.fail(d + " の " + r + " 段目に外向きの種子シダが無い: " + s);
-                    return;
-                }
-                ClimbingSeedfernBlock.Part want = r == rows - 1 ? ClimbingSeedfernBlock.Part.TIP : ClimbingSeedfernBlock.Part.UP;
-                if (s.getValue(ClimbingSeedfernBlock.PART) != want) {
-                    helper.fail(d + " の " + r + " 段目が " + want + " でない: " + s);
-                    return;
-                }
-            }
-        }
-        // 幹(2 段目)を抜くと、その段の 4 面の蔓は支えを失って消える
-        helper.setBlock(new BlockPos(3, 3, 3), Blocks.AIR);
-        for (Direction d : SIDES) {
-            if (!helper.getBlockState(new BlockPos(3, 3, 3).relative(d)).isAir()) {
-                helper.fail("幹を抜いても " + d + " の蔓が残った");
-                return;
-            }
-        }
-        helper.succeed();
     }
 
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)

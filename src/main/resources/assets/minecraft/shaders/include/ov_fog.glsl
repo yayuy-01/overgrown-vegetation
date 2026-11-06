@@ -47,6 +47,22 @@ uniform vec4 OvFogI;
 uniform vec4 OvFogJ;
 uniform vec4 OvFogK;
 uniform vec4 OvFogL;
+// 11-05 (light inspection 3): the haze toward the sun at dusk and dawn. OvHazeS = (sun side colour rgb, brightness 1; how much it
+// mixes in right now, 0 by day and at night), OvHazeD = (sun direction xyz, reach in blocks: near the camera less). The sun side keeps the
+// brightness of the haze and takes the hue of the colour (multiplying the grey-green by orange gave olive, not the peach of a dusk haze). The same rule in
+// ov_cave.glsl (ovHazeSunSideF) for the vanilla fog colour in the fragment shaders. Never toward blue (the haze stays white to grey-green).
+uniform vec4 OvHazeS;
+uniform vec4 OvHazeD;
+
+vec3 ovHazeSunSide(vec3 color, vec3 pos) {
+    if (OvHazeS.w <= 0.0) {
+        return color;
+    }
+    float len = length(pos);
+    float side = smoothstep(-0.2, 1.0, dot(pos / max(len, 0.001), OvHazeD.xyz));
+    float k = OvHazeS.w * side * side * (1.0 - exp(-len / max(OvHazeD.w, 1.0)));
+    return min(mix(color, vec3(dot(color, vec3(0.3, 0.59, 0.11))) * OvHazeS.rgb, k), vec3(1.0));
+}
 
 float ovFogHash(vec2 p) {
     p = mod(p, 64.0);
@@ -188,6 +204,44 @@ float ovForestFog(vec3 pos) {
     return 1.0 - (1.0 - wall) * exp(-OvFogK.w * len);
 }
 
+// The spore air (11-06; client/atmosphere/SporeAir.java holds the explanation): downwind of the overgrown forest the air carries a thin
+// pale yellow-green haze, so that the air tells of the forest before the forest is seen. OvAirMap = one texel per chunk around the camera
+// (linear filtering), r = how spore-laden the air of the chunk is (0 to 1). The haze around the camera is already in the vanilla fog (the
+// mark of MistView, k per block, on everything); here a ray adds the haze of the air it crosses that is thicker than the air at the camera:
+// 1 - exp(-density * distance * max(0, mean of 8 samples - camera value)). Inside the forest it gives way to the forest fog (density 0).
+// OvAirA = (map origin x, z relative to the camera, texel size in blocks, map size in texels)
+// OvAirB = (haze per block at full spore air, 0 = off; spore air at the camera 0 to 1; -; -)
+// OvAirC = (haze colour rgb, -)
+uniform sampler2D OvAirMap;
+uniform vec4 OvAirA;
+uniform vec4 OvAirB;
+uniform vec4 OvAirC;
+
+float ovAirAt(vec3 p) {
+    vec2 uv = (p.xz - OvAirA.xy) / OvAirA.z;
+    float size = OvAirA.w;
+    if (uv.x < 0.0 || uv.y < 0.0 || uv.x > size || uv.y > size) {
+        return 0.0;
+    }
+    return textureLod(OvAirMap, uv / size, 0.0).r;
+}
+
+float ovAirFog(vec3 pos) {
+    if (OvAirB.x <= 0.0) {
+        return 0.0;
+    }
+    float dist = length(pos);
+    if (dist < 2.0) {
+        return 0.0;
+    }
+    float sum = 0.0;
+    for (int i = 0; i < 8; i++) {
+        sum += ovAirAt(pos * ((float(i) + 0.5) / 8.0));
+    }
+    float extra = max(sum / 8.0 - OvAirB.y, 0.0);
+    return 1.0 - exp(-OvAirB.x * dist * extra);
+}
+
 // ovFogHaze with the colour darkened in the shade of the canopy: by the darker of the sky light at the vertex and at the camera,
 // down to OvFogH.x (the mist under the leaves is not lit; the leaves do not glow).
 vec4 ovFogShaded(vec3 pos, float vertexSky) {
@@ -200,5 +254,13 @@ vec4 ovFogShaded(vec3 pos, float vertexSky) {
         fog.rgb = (fog.rgb * fog.a * (1.0 - spore) + OvFogJ.rgb * spore) / max(a, 0.0001);
         fog.a = a;
     }
+    // The spore air over both (11-06): the same mix with the pale haze colour.
+    float air = ovAirFog(pos);
+    if (air > 0.0) {
+        float a = 1.0 - (1.0 - fog.a) * (1.0 - air);
+        fog.rgb = (fog.rgb * fog.a * (1.0 - air) + OvAirC.rgb * air) / max(a, 0.0001);
+        fog.a = a;
+    }
+    fog.rgb = ovHazeSunSide(fog.rgb, pos);
     return fog;
 }

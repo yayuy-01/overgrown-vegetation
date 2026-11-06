@@ -221,6 +221,7 @@ public final class OvergrownLayerData {
         relightIfLit(level, pos);
         SpawnerCorruption.onUncovered(level, pos); // 汚染したスポナーなら元の Mob へ戻す(2026-10-09)
         CoveredSandToGrass.onUncovered(level, pos); // 剥がした砂・砂利は草ブロックにならない
+        CoverCreepData.onUncovered(level, pos); // 剥がしたマスはしばらく這い上がる苔が付かない(2026-11-03 ユーザー指定)
         return true;
     }
 

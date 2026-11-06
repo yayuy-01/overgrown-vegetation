@@ -222,6 +222,14 @@ public final class CoverRenderer {
                 model.waterMask = waterMask(region, p, state);
                 model.sea = model.waterMask != 0 && mc.level != null
                         && com.yayuy.overgrownvegetation.corruption.UnderwaterPlants.isSea(mc.level.getBiome(p));
+                if (state.getBlock() instanceof net.minecraft.world.level.block.IronBarsBlock) {
+                    // 透けるブロックが下に何段重なっているか(0 = 窓の一番下。帯を一番下だけ厚くする、2026-11-03 ユーザー指定)。2 段目以上は 2 で打ち切り
+                    BlockPos.MutableBlockPos below = p.mutable();
+                    while (model.seeThroughDepth < 2
+                            && region.getBlockState(below.move(Direction.DOWN)).getBlock() instanceof net.minecraft.world.level.block.IronBarsBlock) {
+                        model.seeThroughDepth++;
+                    }
+                }
                 pose.pushPose();
                 pose.translate(p.getX() - origin.getX(), p.getY() - origin.getY(), p.getZ() - origin.getZ());
                 renderer.tesselateBlock(region, model, state, p, pose, out, true, random, seed, OverlayTexture.NO_OVERLAY,
@@ -349,6 +357,8 @@ public final class CoverRenderer {
         /** 水に接した面(1 << 向き)と、海か(水中の絵の組を選ぶ。2026-11-01)。 */
         int waterMask;
         boolean sea;
+        /** 透けるブロックが下に重なっている段数(0〜2、{@link com.yayuy.overgrownvegetation.corruption.CoverLook#seeThroughMossHeight})。 */
+        int seeThroughDepth;
 
         CoverModel(BakedModel base, CoverSprites.Set sprites, CoverTable design, int x, int y, int z, long seed) {
             this.base = base;
@@ -364,10 +374,17 @@ public final class CoverRenderer {
         public List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, RandomSource random, ModelData data,
                                         @Nullable RenderType renderType) {
             List<BakedQuad> out = new ArrayList<>();
+            // 透けるブロック(ガラス板・色付きガラス板・鉄格子 = IronBarsBlock)は面の下 5〜6 割だけ苔、上はガラスのまま(2026-11-03)
+            boolean seeThrough = state != null && state.getBlock() instanceof net.minecraft.world.level.block.IronBarsBlock;
+            float mossHeight = seeThrough ? com.yayuy.overgrownvegetation.corruption.CoverLook.seeThroughMossHeight(x, y, z, seeThroughDepth) : 1.0F;
             for (RenderType layer : base.getRenderTypes(state, random, data)) {
                 random.setSeed(seed);
                 boolean flush = CoverQuads.drawnBeforeCover(layer);
                 for (BakedQuad q : base.getQuads(state, side, random, data, layer)) {
+                    if (seeThrough) {
+                        out.add(CoverQuads.overlayLower(q, flush, x, y, z, sprites, design, mossHeight)); // ガラスは暗くしない
+                        continue;
+                    }
                     BakedQuad dark = CoverQuads.darkened(q, layer, design); // 苔の間から見える元の面を暗く(置き換えブロックの絵と揃える)
                     if (dark != null) {
                         out.add(dark);

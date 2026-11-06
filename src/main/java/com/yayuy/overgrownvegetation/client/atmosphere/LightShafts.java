@@ -152,7 +152,7 @@ final class LightShafts {
         float day = SunLight.lightStrength(level, sun, 1.0F);
         lastDay = day;
         softness = SunLight.softness(sun);
-        boolean inForest = ForestPresence.openForest() > 0.001F;
+        boolean inForest = ForestPresence.openOvergrown() > 0.001F;
 
         Vec3 center = player.position();
         for (Iterator<Shaft> it = SHAFTS.iterator(); it.hasNext(); ) {
@@ -325,7 +325,7 @@ final class LightShafts {
             return;
         }
         // 霧の濃い朝は霧の細部の筋に任せて弱める(提案 1、{@link MistFog#shaftScale})。
-        float intensity = DesignData.atmosphere().intensity() * ForestPresence.openForest() * MistFog.shaftScale();
+        float intensity = DesignData.atmosphere().intensity() * ForestPresence.openOvergrown() * MistFog.shaftScale();
         if (intensity <= 0.0F) {
             return;
         }

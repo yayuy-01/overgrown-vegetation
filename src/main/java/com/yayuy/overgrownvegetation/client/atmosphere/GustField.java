@@ -261,6 +261,11 @@ public final class GustField implements Wind {
         return Math.sin(this.baseAngle);
     }
 
+    /** 強さの上限(凪と突風が重なったときの頭打ち × 全体の倍率)。雨の傾きの「最も強い風」(11-06 雨の見え方)。 */
+    public double maxStrength() {
+        return MAX_STRENGTH * this.params.strength();
+    }
+
     /** 凪の空気の動きの強さ(場所ごとのむらの前、全体の倍率込み)。葉の揺れのシェーダーへ渡す。 */
     public double calmStrength() {
         return this.baseStrength * this.params.strength();

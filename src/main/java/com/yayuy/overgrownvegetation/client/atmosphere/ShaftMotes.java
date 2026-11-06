@@ -73,7 +73,7 @@ final class ShaftMotes {
         if (level == null || shader == null || LightShafts.count() == 0 || WindHistory.texture() < 0) {
             return;
         }
-        float intensity = DesignData.atmosphere().intensity() * ForestPresence.openForest();
+        float intensity = DesignData.atmosphere().intensity() * ForestPresence.openOvergrown();
         if (intensity <= 0.0F) {
             return;
         }

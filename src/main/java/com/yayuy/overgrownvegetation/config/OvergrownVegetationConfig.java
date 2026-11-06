@@ -501,6 +501,10 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.BooleanValue buildCorrosionInOvergrowthStage;
         /** 木が生えたとき、近くの別の木との間を蔦(リアナ)で繋ぐか。 */
         public final ModConfigSpec.BooleanValue spawnConnectingVines;
+        /** 登る蔓(2026-11-03 採用、既定 true)。true なら幹どうしの掛け渡しの代わりに、地面から幹を登って隣の木へ渡る蔓を置く。 */
+        public final ModConfigSpec.BooleanValue vineClimb;
+        /** 林冠の細い蔓(2026-11-03 採用)を付ける木の割合。登る蔓の vinePerTreeChance とは別の関門。 */
+        public final ModConfigSpec.DoubleValue canopyVineChance;
         /**
          * 木が1本生えたとき、そもそも連結蔦の生成処理を試みる確率(0.0〜1.0)。
          * これに外れた木からは蔦が一切生えない(vineMinPerTree の下限保証よりも前に判定される)。
@@ -1827,6 +1831,16 @@ public final class OvergrownVegetationConfig {
                     .comment("木が生えたとき、近くに別の木があれば幹の間を蔦(リアナ)で繋ぐか。",
                             "密林の木々が蔦で連結されているような見た目になる(ジャングルのツル植物のイメージ)。")
                     .define("spawnConnectingVines", true);
+
+            vineClimb = b
+                    .comment("登る蔓(2026-11-03 採用)。true(既定)なら、木が生えたときの蔦は、地面から幹を蛇行して登り、",
+                            "枝の高さで隣の木(水平 8 以内)へ渡る蔓になる(1 本の木に 1〜2 本)。false なら前の幹どうしの掛け渡し。")
+                    .define("vineClimb", true);
+
+            canopyVineChance = b
+                    .comment("林冠の細い蔓(葉から真下に垂れる蔓と、隣の木の葉へ渡る浅い U)を付ける木の割合(vineClimb が true のとき)。",
+                            "登る蔓の vinePerTreeChance とは別。1 本の木に 5〜10 本。重ければ下げる。")
+                    .defineInRange("canopyVineChance", 0.7D, 0.0D, 1.0D);
 
             vinePerTreeChance = b
                     .comment("木が1本生えたとき、そもそも連結蔦の生成処理を試みる確率。",

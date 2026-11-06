@@ -23,6 +23,7 @@ Minecraft **1.21.1** / **NeoForge** 用の MOD。「異常繁殖を繰り返す�
    - [GeckoLib](https://www.curseforge.com/minecraft/mc-mods/geckolib)
    - [Player Animation Library](https://docs.zigythebird.com/pal/)
 3. 本 MOD の jar を `mods` フォルダに入れる
+4. **[Sodium](https://modrinth.com/mod/sodium) の導入を強く勧めます**（必須ではありません）。光・霧・雰囲気の調整と確認は Sodium を入れた環境で行っています。Sodium 無しでも動きますが、FPS が大きく下がり、見え方の保証もしません
 
 ## コマンド
 

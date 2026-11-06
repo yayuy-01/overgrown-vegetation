@@ -143,9 +143,26 @@ public final class SporeFieldServer {
     public static float exactGroundY(net.minecraft.world.level.chunk.ChunkAccess chunk) {
         int y = Integer.MAX_VALUE;
         for (int[] c : HEIGHT_COLUMNS) {
-            y = Math.min(y, chunk.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.OCEAN_FLOOR, c[0], c[1]));
+            // 過繁茂の葉・幹は高さ地図に入るので、梢をくぐった本当の地面で(2026-11-04: 林冠が地表 y 186 と記録され、逆転層の判定に響いた)
+            int top = chunk.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.OCEAN_FLOOR, c[0], c[1]);
+            y = Math.min(y, CaveMouths.groundTop(chunk, chunk.getPos().getMinBlockX() + c[0], top, chunk.getPos().getMinBlockZ() + c[1], chunk.getMinBuildHeight()));
         }
         return y;
+    }
+
+    /** 洞窟の口の多さを測った({@link CaveMouths}。2026-11-04)。区画が無ければ場は何もしない。 */
+    static void onMouthMeasured(int cx, int cz, float mouth) {
+        if (field == null) return;
+        INPUTS.add(f -> f.setMouth(cx, cz, mouth));
+    }
+
+    /**
+     * 今日の逆転層の高さ(ブロック。2026-11-04 高所の読み)。場の seed と日から決まる式なので鍵は要らない。場がまだ無ければ +∞(切らない)。
+     */
+    public static double inversionNow(ServerLevel level) {
+        SporeField f = field;
+        if (f == null) return Double.POSITIVE_INFINITY;
+        return f.inversionY(Math.floorDiv(level.getDayTime(), (long) PrevailingWind.DAY));
     }
 
     /** 息をする地割れのチャンク(噴出した地割れの中心。2026-10-30)。 */
@@ -364,7 +381,7 @@ public final class SporeFieldServer {
     private record Inputs(long fromClock, int steps, int stepTicks, long dayTimeNow, long clockNow, long seed,
                           PrevailingWind.Weather weather, long lastRainEnd,
                           long[] canopyChunks, double[] canopyRate, long[] eruptions, long[] breathers,
-                          long[] watchTiles, SporeFieldTable table) {
+                          long[] watchTiles, SporeFieldTable table, long[] trees) {
     }
 
     private static Inputs gatherInputs(ServerLevel level, SporeFieldTable table, long clock, int steps) {
@@ -392,12 +409,25 @@ public final class SporeFieldServer {
                 wx.weather(), wx.lastRainEnd(),
                 canopy, canopyRate, com.yayuy.overgrownvegetation.quake.EarthquakeData.get(level).eruptingChunks(level.getGameTime()),
                 breathingChunks(),
-                watchTiles(level), table);
+                watchTiles(level), table, livingTreeChunks(pd));
+    }
+
+    /**
+     * 生きている巨大樹の根元のチャンク(本数の上限 maxTrees を掛けない。逆転層より上でも発芽・着地を許す例外に使う。2026-11-04)。
+     */
+    private static long[] livingTreeChunks(PhaseData pd) {
+        LongArrayList out = new LongArrayList();
+        for (long tr : pd.giantTreeOriginSnapshot()) {
+            if (pd.isGiantTreeDead(tr)) continue;
+            out.add(ChunkPos.asLong(((int) (tr >> 32)) >> 4, ((int) tr) >> 4));
+        }
+        return out.toLongArray();
     }
 
     /** 計算の答え。 */
     private record Result(long toClock, int steps, long[] sprouts, long nanos,
-                          int tiles, long corrupted, int parcels, it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<Readout> readout, long[] seconds) {
+                          int tiles, long corrupted, int parcels, it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<Readout> readout, long[] seconds,
+                          long[] caves) {
     }
 
     /** 裏のスレッド(GameTest ではその場)。場の鍵を持って入力を取り込み、更新を進める。 */
@@ -405,12 +435,14 @@ public final class SporeFieldServer {
         long t0 = System.nanoTime();
         LongArrayList sprouts = new LongArrayList();
         LongArrayList seconds = new LongArrayList();
+        LongArrayList caves = new LongArrayList();
         int frontCells = 0;
         LOCK.lock();
         try {
             Consumer<SporeField> input;
             while ((input = INPUTS.poll()) != null) input.accept(f);
             f.breathers = in.breathers; // 息をする地割れ(2026-10-30)
+            f.treeChunks = in.trees; // 逆転層より上の例外(生きている巨大樹の近く。2026-11-04)
             f.sproutDep.clear(); // 前の答えの発芽の直前の値は、断られた分を戻し終えたので捨てる
             for (long k : f.released) sprouts.add(k); // 読み込まれて待ちが解けた発芽
             f.released.clear();
@@ -448,6 +480,7 @@ public final class SporeFieldServer {
                 }
                 f.step(new SporeField.Conditions(t, dayT, raining, thundering, after), s);
                 frontCells += f.frontCells;
+                for (int[] cs : f.newCaveSprouts) caves.add(ChunkPos.asLong(cs[0], cs[1])); // 洞窟の床からの発芽(2026-11-04)
                 for (int[] ns : f.newSprouts) {
                     if (ns[3] == 1) sprouts.add(ChunkPos.asLong(ns[0], ns[1]));
                     else seconds.add(ChunkPos.asLong(ns[0], ns[1]));
@@ -457,7 +490,8 @@ public final class SporeFieldServer {
             lastFrontCells = frontCells;
             lastFronts = f.fronts.size();
             return new Result(in.fromClock + (long) in.steps * in.stepTicks, in.steps, sprouts.toLongArray(),
-                    System.nanoTime() - t0, f.tileCount(), f.corruptedCount, f.parcels.size(), readout(f, in), seconds.toLongArray());
+                    System.nanoTime() - t0, f.tileCount(), f.corruptedCount, f.parcels.size(), readout(f, in), seconds.toLongArray(),
+                    caves.toLongArray());
         } finally {
             LOCK.unlock();
         }
@@ -484,6 +518,10 @@ public final class SporeFieldServer {
         if (r.seconds.length > 0 && !CorruptionSwitch.isOff() && !discardSproutsForTests && keepOnlyForTests == null) {
             for (long key : r.seconds) SporeSprouts.onSecondSprout(level, key);
         }
+        // 洞窟の床からの発芽(2026-11-04): 読み込まれていれば次の tick から洞窟の床に芽の点を置く(読み込まれていなければ読み込んだときに)
+        if (r.caves.length > 0 && !CorruptionSwitch.isOff() && !discardSproutsForTests && keepOnlyForTests == null) {
+            for (long key : r.caves) SporeSprouts.onCaveSprout(level, key);
+        }
         READOUT = r.readout;
         SporeSweeping.refresh(level); // 払った升の印を消すか見る
         SporeDustSync.send(level); // 粉の見た目(2026-10-31 に戻した)
@@ -502,10 +540,16 @@ public final class SporeFieldServer {
     public static final class Readout {
         final float[] conc = new float[SporeField.TN], dep = new float[SporeField.TN], age = new float[SporeField.TN], air = new float[SporeField.TN];
         final byte[] stage = new byte[SporeField.TN], count = new byte[SporeField.TN];
+        /** 地下の浮遊と、洞窟の床から発芽した回数(2026-11-04)。 */
+        final float[] under = new float[SporeField.TN], underDep = new float[SporeField.TN];
+        final byte[] cave = new byte[SporeField.TN];
     }
 
-    /** 1 チャンクの読み(写しに無ければ null)。 */
-    public record Cell(double conc, double dep, int stage, double ageDays, int count) {
+    /** 1 チャンクの読み(写しに無ければ null)。under = 地下の浮遊、caveCount = 洞窟の床から発芽した回数(2026-11-04)。 */
+    public record Cell(double conc, double dep, int stage, double ageDays, int count, double under, int caveCount, double underDep) {
+        public Cell(double conc, double dep, int stage, double ageDays, int count) {
+            this(conc, dep, stage, ageDays, count, 0.0D, 0, 0.0D);
+        }
     }
 
     private static volatile it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<Readout> READOUT = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
@@ -534,7 +578,7 @@ public final class SporeFieldServer {
         Readout r = READOUT.get(SporeField.key(cx >> SporeField.TB, cz >> SporeField.TB));
         if (r == null) return null;
         int i = SporeField.idx(cx, cz);
-        return new Cell(r.conc[i], r.dep[i], r.stage[i], r.age[i], r.count[i]);
+        return new Cell(r.conc[i], r.dep[i], r.stage[i], r.age[i], r.count[i], r.under[i], r.cave[i], r.underDep[i]);
     }
 
     private static final PrevailingWind.Sample WIND_NOW = new PrevailingWind.Sample();
@@ -608,6 +652,9 @@ public final class SporeFieldServer {
                     r.conc[i] = t.air[i] + t.low[i];
                     r.air[i] = t.air[i];
                     r.dep[i] = t.dep[i];
+                    r.under[i] = t.under[i];
+                    r.underDep[i] = t.underDep[i];
+                    r.cave[i] = t.caveCount[i];
                     r.count[i] = t.count[i];
                     long sp = t.sprout[i];
                     if (sp == SporeField.NOT) {
@@ -670,6 +717,9 @@ public final class SporeFieldServer {
             long sp = field.sproutTick(cx, cz);
             out.add(String.format("チャンク (%d, %d): 浮遊 %.4f・林床 %.4f・降り積もり %.4f(発芽のしきい値 %.2f)", cx, cz,
                     field.air(cx, cz), field.low(cx, cz), field.deposited(cx, cz), field.p.germThreshold));
+            out.add(String.format("地下: 浮遊 %.4f・降り積もり %.4f・洞窟の口 %.2f・洞窟の発芽 %d 回・今日の逆転層 y %.0f(地表 y %.0f)",
+                    field.under(cx, cz), field.underDeposited(cx, cz), field.mouth(cx, cz), field.caveCount(cx, cz),
+                    inversionNow(level), field.heightAt(cx, cz)));
             out.add(sp == SporeField.NOT ? "まだ発芽していない"
                     : String.format("発芽済み(萌芽体 %d 体・%.1f 日前)", field.sproutCount(cx, cz),
                     (PhaseData.get(level).clock(server) - sp) / (double) PrevailingWind.DAY));

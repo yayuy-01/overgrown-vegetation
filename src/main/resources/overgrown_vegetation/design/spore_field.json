@@ -1,5 +1,5 @@
 {
-  "_comment": "胞子の場と風(2026-10-23 第 2 段)。チャンク 1 つ = 1 マスに浮遊・林床・降り積もり・発芽の回数(2 まで)を持ち、世界に 1 つの卓越風と拡散で運ぶ。5 秒(updateTicks)ごとに裏のスレッドで更新、睡眠で飛んだ分は maxStepsPerRun ずつ追いつく。field の値は見積もり器 tools/spread-measure/field(v7 + 軽量化)で、速さの目安(全方位 4〜6・風下 6〜8・強風 10〜16 チャンク/日 = ユーザー指定)に合わせた仮決め。secondThreshold 0.55 はユーザー指定(10-23 に 0.5 → 0.55)。sproutEmitBonus は萌芽体 1 体あたりの放出の上乗せ(10-22 追記 3 の決定 (1)、量は仮決め)。sources はゲームだけの発生源(巨大樹の朝・ポータル越しの染み出し・汚染の球。仮決め。量は過繁茂 1 チャンクの 1 日の放出 emitOvergrown を物差しに)、reading は濃度の読み(100% = 過繁茂のチャンクの晴れた午後の浮遊 + 林床 fullAt、下支え・地点の補正。仮決め)、sprouts はブロック汚染の芽と萌芽体(仮決め)。2026-10-30: 極相(emitClimax・daysToClimax・floorClimax)と、装置・感染と一緒に退避した除去装置・拡散装置・死体・暴露・警報器・ハイヴノードの感染・霧の視界・胞子嚢の値を消した。 2026-10-30 夜(作り直し側から、数はすべて仮決め): valley = 谷風(昼は高い隣へ・夜は低い隣へ。半日 0.15 を 1 日あたりに)・逆転層 y 200 ± 10(日ごと。より上へ地上の浮遊は入らない)・山 y 120 以上は昼だけ沈着 × 2.5、fissure = 息をする地割れ(昼に浮遊へ exhalePerDay を吐き、夜 tod 13000〜23000 に半径 6 チャンクの浮遊を inhalePerDay の速さで吸う。夜 1 回で約 60%)、terrain = 土地の倍率(湿った・川沿い ×3、乾いた ×0.15、高い山 ×0.08。発芽のしきい値と林床の広がりの両方)。見積もり器で前線の目安(全方位 4〜6・風下 6〜8・強風 10〜16)を下回らないことを確かめた。仕様の正本は Vault「胞子の場と風による汚染の広がり」。",
+  "_comment": "胞子の場と風(2026-10-23 第 2 段)。チャンク 1 つ = 1 マスに浮遊・林床・降り積もり・発芽の回数(2 まで)を持ち、世界に 1 つの卓越風と拡散で運ぶ。5 秒(updateTicks)ごとに裏のスレッドで更新、睡眠で飛んだ分は maxStepsPerRun ずつ追いつく。field の値は見積もり器 tools/spread-measure/field(v7 + 軽量化)で、速さの目安(全方位 4〜6・風下 6〜8・強風 10〜16 チャンク/日 = ユーザー指定)に合わせた仮決め。secondThreshold 0.55 はユーザー指定(10-23 に 0.5 → 0.55)。sproutEmitBonus は萌芽体 1 体あたりの放出の上乗せ(10-22 追記 3 の決定 (1)、量は仮決め)。sources はゲームだけの発生源(巨大樹の朝・ポータル越しの染み出し・汚染の球。仮決め。量は過繁茂 1 チャンクの 1 日の放出 emitOvergrown を物差しに)、reading は濃度の読み(100% = 過繁茂のチャンクの晴れた午後の浮遊 + 林床 fullAt、下支え・地点の補正。仮決め)、sprouts はブロック汚染の芽と萌芽体(仮決め)。2026-10-30: 極相(emitClimax・daysToClimax・floorClimax)と、装置・感染と一緒に退避した除去装置・拡散装置・死体・暴露・警報器・ハイヴノードの感染・霧の視界・胞子嚢の値を消した。 2026-10-30 夜(作り直し側から、数はすべて仮決め): valley = 谷風(昼は高い隣へ・夜は低い隣へ。半日 0.15 を 1 日あたりに)・逆転層 y 200 ± 10(日ごと。より上へ地上の浮遊は入らない)・山 y 120 以上は昼だけ沈着 × 2.5、fissure = 息をする地割れ(昼に浮遊へ exhalePerDay を吐き、夜 tod 13000〜23000 に半径 6 チャンクの浮遊を inhalePerDay の速さで吸う。夜 1 回で約 60%)、terrain = 土地の倍率(湿った・川沿い ×3、乾いた ×0.15、高い山 ×0.08。発芽のしきい値と林床の広がりの両方)。見積もり器で前線の目安(全方位 4〜6・風下 6〜8・強風 10〜16)を下回らないことを確かめた。仕様の正本は Vault「胞子の場と風による汚染の広がり」。 2026-11-04: exposure = 暴露量(感染システムの第 1 段)。minPercent 5・halfLifeSeconds 60・infectDose 1500・maskPercent 25 はユーザー指定(10-23)、判定の間隔 playerIntervalTicks 20・mobIntervalTicks 40 は仮決め。感染の効果はまだ無い(Mob はまだ感染しない、11-04 ユーザー決定)。 2026-11-04(暴露量ノート 追記 6): underground = 地下の層(チャンクごとに地下の浮遊・地下の降り積もり・洞窟の口の多さ。地上の浮遊が 口 × soakPerDay で染み込み、地下の減りは地上の 1/4、隣の地下へは伝えない。地下の降り積もりで洞窟の床から発芽 → 芽の点 sprouts.cavePoints 個。前の sprouts.caveShare と reading.deepCaveFactor は消した。口の多さは読み込んだチャンクで測る: 地面より下で空の光の差す空気を scanDepth まで数え fullCells 個で 1、測ったことの無いチャンクは mouthDefault)、high = 逆転層から上 fadeBlocks で地点の値を capPercent 以下へ(暴露の下限 5% より下)、逆転層より上は発芽も飛び地の着地も無し、生きている巨大樹の根元から treeExemptChunks チャンク以内は例外。決定はユーザー、数はすべて仮決め。 同日の追加(ユーザー決定): underground.creep* = 洞窟の壁を這う汚染(汚染された洞窟の壁から空気に面した隣の壁へ。間隔・1 回の元の数・確率・拾う列の数と半径・元の上限)、edge = 地表の汚染の縁を列ごとに(繁茂系でない隣のチャンクで、4 チャンクで混ぜた場の値 + 雑音 ± noiseAmp > threshold)・まわり holeSides 方以上が汚染された穴は確率と待ちを無視して埋め変換できないものは覆う、sprouts.waitingMax = 走り待ちの芽の点の上限(上限を超えた点・読み込まれていない点を捨てずに後で走らせる)。数はすべて仮決め。 2026-11-04(暴露量ノート 追記 7、感染システムの第 2 段): exposure の影響を入れた。プレイヤーは infectDose に届いたら胞子感染1(effects.json の sporeInfection.player の 10 段階)、Mob は届いたら mobDamage(20、ユーザー指定)の防御無視のダメージ → 暴露量を 0 に戻して繰り返す。防護マスクは maskCapacity(18000 %秒、仮決め)を吸い取るまで暴露を積まない(10-23 の maskPercent 25% はこれで消した)。前触れの画面のにじみは暴露量が warnFaintFraction(0.5)を超えたら薄く、warnStrongFraction(0.8)で濃く(仮決め)。",
   "enabled": true,
   "updateTicks": 100,
   "maxStepsPerRun": 60,
@@ -62,20 +62,31 @@
     "hollowFactor": 1.3,
     "roomFactor": 0.2,
     "roofFactor": 0.6,
-    "deepCaveFactor": 0.5,
     "rainFactor": 0.7,
     "upwindShadeFactor": 0.85
   },
+  "exposure": {
+    "minPercent": 5.0,
+    "halfLifeSeconds": 60.0,
+    "infectDose": 1500.0,
+    "maskCapacity": 18000.0,
+    "mobDamage": 20.0,
+    "warnFaintFraction": 0.5,
+    "warnStrongFraction": 0.8,
+    "playerIntervalTicks": 20,
+    "mobIntervalTicks": 40
+  },
   "sprouts": {
     "pointsPerChunk": 10,
-    "caveShare": 0.2,
+    "cavePoints": 6,
     "wetMultiplier": 1.3,
     "radius": 4,
     "tickInterval": 10,
     "maxActivePoints": 400,
     "wanderTicksMin": 600,
     "wanderTicksMax": 2400,
-    "stuckRootTicks": 200
+    "stuckRootTicks": 200,
+    "waitingMax": 4096
   },
   "sweep": {
     "share": 0.0625,
@@ -123,5 +134,35 @@
     "wetDownfall": 0.85,
     "dryDownfall": 0.2,
     "heightStride": 8
+  },
+  "underground": {
+    "soakPerDay": 4.0,
+    "decayPerDay": 0.175,
+    "depPerDay": 0.225,
+    "depDecayPerDay": 0.125,
+    "mouthDefault": 0.05,
+    "loadDelayTicks": 40,
+    "scanDepth": 48,
+    "fullCells": 128,
+    "remeasureTicks": 100,
+    "remeasureRadius": 4,
+    "creepIntervalTicks": 40,
+    "creepSourcesPerPass": 32,
+    "creepChance": 0.5,
+    "creepSamplesPerPass": 4,
+    "creepRadius": 48,
+    "creepMaxFrontier": 4096
+  },
+  "high": {
+    "fadeBlocks": 20.0,
+    "capPercent": 4.0,
+    "treeExemptChunks": 4.0
+  },
+  "edge": {
+    "noiseAmp": 0.35,
+    "noiseBlocks": 6.0,
+    "depositWeight": 0.6,
+    "threshold": 0.35,
+    "holeSides": 3
   }
 }

@@ -97,6 +97,7 @@ public final class NetherSporeFieldServer {
         if (nether == null) return;
         SporeField f = new SporeField(WindWeatherData.windSeed(server) ^ SEED_SALT, DesignData.sporeField().field());
         f.ground = new NetherGround(nether);
+        f.underground = false; // 地下の層はオーバーワールドだけ(2026-11-04)
         long[] clock = new long[1];
         int tiles;
         LOCK.lock();

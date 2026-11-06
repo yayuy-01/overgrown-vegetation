@@ -271,7 +271,8 @@ public final class OvergrownBiomeCreep {
                     if (!neighbourhoodReady(level, cx, cz)) {
                         continue; // 周りが読み込みの途中。読み込まれていないときと同じく次の周回で。
                     }
-                    if (!isOvergrownChunk(level, cx, cz)) {
+                    // 2026-11-04(縁を列ごとに): 繁茂系に接した隣のチャンクも対象(列ごとの門 EdgeGate が縁の形を決める)
+                    if (!isOvergrownChunk(level, cx, cz) && !EdgeGate.nearOvergrown(level, cx, cz)) {
                         continue;
                     }
                     eligible.add(key);
@@ -315,6 +316,10 @@ public final class OvergrownBiomeCreep {
         int baseX = chunkPos.getMinBlockX();
         int baseZ = chunkPos.getMinBlockZ();
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        EdgeGate gate = EdgeGate.of(level, chunkPos); // 縁を列ごとに(2026-11-04 A)
+        boolean ownOvergrown = isOvergrownChunk(level, chunkPos.x, chunkPos.z);
+        int holeSides = com.yayuy.overgrownvegetation.data.DesignData.sporeField().holeSides();
+        int covered = 0; // 穴のうち覆った数(2026-11-04 B)
 
         // 1. チャンク + 外周1リング(18x18)の各列に汚染ブロックがあるか事前計算する。
         //    index = ローカル座標 + 1(ローカル -1..16 → index 0..17)。
@@ -354,39 +359,50 @@ public final class OvergrownBiomeCreep {
                     continue;
                 }
 
+                int ix = lx + 1;
+                int iz = lz + 1;
+                // 4 方のうち汚染された列の数(穴埋めの判定。2026-11-04 B)
+                int sides = (corruptedColumn[ix - 1][iz] ? 1 : 0) + (corruptedColumn[ix + 1][iz] ? 1 : 0)
+                        + (corruptedColumn[ix][iz - 1] ? 1 : 0) + (corruptedColumn[ix][iz + 1] ? 1 : 0);
+                boolean hole = sides >= holeSides;
+
                 BlockPos target = findTarget(level, cursor, x, topY, z, minY, surfaceDepth);
                 if (target == null) {
+                    // 穴なのに変換の的が無い(汚染できないブロック): 覆えるものは覆う(2026-11-04 B)
+                    if (hole && !corruptedColumn[ix][iz] && coverHole(level, cursor, x, topY, z, minY)) {
+                        covered++;
+                    }
                     continue; // 既に片付いている / 岩盤・水で打ち切り
                 }
 
-                int ix = lx + 1;
-                int iz = lz + 1;
-                int sources = 0;
-                if (corruptedColumn[ix][iz]) sources++;       // 自列(汚染植物の下に埋もれた地面)
-                if (corruptedColumn[ix - 1][iz]) sources++;
-                if (corruptedColumn[ix + 1][iz]) sources++;
-                if (corruptedColumn[ix][iz - 1]) sources++;
-                if (corruptedColumn[ix][iz + 1]) sources++;
+                int sources = sides + (corruptedColumn[ix][iz] ? 1 : 0); // 自列(汚染植物の下に埋もれた地面)も数える
                 if (sources == 0) {
                     continue; // フロンティアではない = 孤立した未汚染列。触らない(矩形の湧きを防ぐ)。
                 }
+                // 縁の門(2026-11-04 A): 繁茂系でないチャンク(汚染に接した隣)だけ、4 チャンクで混ぜた場の値 + 雑音で列ごとに決める。
+                // 繁茂系のチャンクの中は今までどおり全部の列(内側に塗り残しを作らない)。穴は門を通さず必ず埋める
+                if (!hole && !ownOvergrown && !gate.open(x, z)) {
+                    continue;
+                }
 
-                frontier.add(new int[] {target.getX(), target.getY(), target.getZ(), sources});
+                frontier.add(new int[] {target.getX(), target.getY(), target.getZ(), hole ? 99 : sources});
             }
         }
         if (frontier.isEmpty()) {
-            return 0;
+            return covered;
         }
 
         // 3. シャッフルして、汚染源が多い列ほど高い確率で変換。上限は maxConversions。
+        // 穴(印 99)は先頭へ寄せ、確率を掛けずに埋める(2026-11-04 B。上限で後回しにされない)
         shuffle(frontier, random);
-        int converted = 0;
+        frontier.sort((a, b) -> Boolean.compare(b[3] == 99, a[3] == 99));
+        int converted = covered;
         BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
         for (int[] cell : frontier) {
             if (converted >= maxConversions) {
                 break;
             }
-            double chance = frontierBaseChance + (cell[3] - 1) * frontierChancePerNeighbor;
+            double chance = cell[3] == 99 ? 1.0D : frontierBaseChance + (cell[3] - 1) * frontierChancePerNeighbor;
             if (chance < 1.0D && random.nextDouble() >= chance) {
                 continue;
             }
@@ -416,6 +432,37 @@ public final class OvergrownBiomeCreep {
             OvergrownBiomeConverter.maybeConvert(level, chunkPos);
         }
         return converted;
+    }
+
+    /**
+     * 穴埋めの覆い(2026-11-04 B、仮決め): まわりが汚染された列の地面が汚染できないブロック({@link CorruptionRegistry#canCorrupt} が false)のとき、
+     * 覆いの記録で覆える種類(自然の葉・水に浸かった欠けたブロック)なら覆う。免疫タグ・ブロックエンティティ・壊せないもの(岩盤)・液体はそのまま残す。
+     * 地面 = 頂から木の一部・空気・動きを止めないものをくぐった最初のブロック。覆ったら true。
+     */
+    private static boolean coverHole(ServerLevel level, BlockPos.MutableBlockPos cursor, int x, int topY, int z, int minY) {
+        if (CorruptionSwitch.isOff()) {
+            return false;
+        }
+        for (int y = topY; y >= Math.max(minY, topY - 16); y--) {
+            cursor.set(x, y, z);
+            BlockState state = level.getBlockState(cursor);
+            if (state.isAir() || (!state.blocksMotion() && state.getFluidState().isEmpty())) {
+                continue;
+            }
+            if (OvergrownLayerData.isCorruptedCell(level, cursor, state)) {
+                return false;
+            }
+            boolean naturalLeaves = state.is(net.minecraft.tags.BlockTags.LEAVES);
+            boolean wetPartial = !state.getFluidState().isEmpty() && !(state.getBlock() instanceof net.minecraft.world.level.block.LiquidBlock);
+            if (!naturalLeaves && !wetPartial) {
+                return false;
+            }
+            if (state.is(ModTags.CORRUPTION_IMMUNE) || state.hasBlockEntity() || state.getBlock().defaultDestroyTime() < 0.0F) {
+                return false;
+            }
+            return OvergrownLayerData.cover(level, cursor.immutable());
+        }
+        return false;
     }
 
     /**
@@ -1102,6 +1149,13 @@ public final class OvergrownBiomeCreep {
      * GameTest 用: 1 列ぶんのフロンティア浸食({@link #growChunkFrontier} の的の選び方・置き換え・覆い・植物は本物と同じ。
      * 隣の汚染源の数と確率の抽選、上限、凍った面の剥がしだけ省く)。置き換えたか新しく覆ったら true。
      */
+    /** テスト用: そのチャンクのフロンティア浸食を 1 回(設定の値で。縁の門・穴埋め込み)。置き換え・覆った数を返す(2026-11-04)。 */
+    public static int frontierForTest(ServerLevel level, ChunkPos chunkPos) {
+        OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
+        return growChunkFrontier(level, chunkPos, cfg.overgrownBiomeCreepMaxConversionsPerChunk.get(), cfg.overgrownBiomeCreepSurfaceDepth.get(),
+                cfg.growthChance.get(), cfg.overgrownBiomeCreepFrontierBaseChance.get(), cfg.overgrownBiomeCreepFrontierChancePerNeighbor.get());
+    }
+
     public static boolean creepColumnForTest(ServerLevel level, int x, int z) {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         int minY = level.getMinBuildHeight();
@@ -1204,6 +1258,44 @@ public final class OvergrownBiomeCreep {
             }
         }
         return false;
+    }
+
+    /**
+     * 開発用(DevBridge の {@code deepwhy}、2026-11-03 村の覆いの切り分け): そのチャンクの深部浸食の様子 —— カーソル・次に選べるまでの tick・
+     * 過繁茂か・入口(地表 256 列が「済み」か、{@link #deepenChunk} の 1. と同じ判定)で済んでいない列の数と、はじめの 4 列。
+     */
+    public static String deepenStatusForDev(ServerLevel level, ChunkPos chunkPos) {
+        long key = chunkPos.toLong();
+        Long2IntOpenHashMap cursors = DEEPEN_CURSOR.get(level.dimension());
+        Long2LongOpenHashMap next = NEXT_DEEPEN.get(level.dimension());
+        int cursor = cursors == null ? Integer.MAX_VALUE : cursors.get(key);
+        boolean started = cursor != Integer.MAX_VALUE;
+        StringBuilder sb = new StringBuilder("カーソル=" + (started ? String.valueOf(cursor) : "未開始")
+                + " 次まで=" + (next == null || !next.containsKey(key) ? "-" : String.valueOf(next.get(key) - level.getGameTime()))
+                + " 過繁茂=" + isFullyOvergrownChunk(level, chunkPos.x, chunkPos.z));
+        LevelChunk chunk = level.getChunk(chunkPos.x, chunkPos.z);
+        BlockPos.MutableBlockPos probe = new BlockPos.MutableBlockPos();
+        int notDone = 0;
+        for (int lx = 0; lx < 16; lx++) {
+            for (int lz = 0; lz < 16; lz++) {
+                int x = chunkPos.getMinBlockX() + lx, z = chunkPos.getMinBlockZ() + lz;
+                int topY = surfaceTopY(level, x, z);
+                if (topY < level.getMinBuildHeight()) {
+                    continue;
+                }
+                probe.set(x, topY, z);
+                BlockState state = level.getBlockState(probe);
+                if (!surfaceDone(level, chunk, probe, state, true, !started)) {
+                    if (++notDone <= 4) {
+                        BlockPos under = OvergrownLayerData.isCorruptedCell(chunk, probe, state)
+                                ? findFloorUnderCover(level, new BlockPos.MutableBlockPos(), x, topY, z, level.getMinBuildHeight()) : null;
+                        sb.append(" | ").append(x).append(' ').append(topY).append(' ').append(z).append(' ').append(state)
+                                .append(under == null ? "" : " 下の床 " + under.toShortString() + " " + level.getBlockState(under));
+                    }
+                }
+            }
+        }
+        return sb.append(" | 済んでいない列 ").append(notDone).toString();
     }
 
     private static Long2IntOpenHashMap newCursorMap() {

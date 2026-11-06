@@ -81,6 +81,7 @@ public final class Atmosphere {
         UnderwaterShafts.clear();
         HollowDwellers.clear();
         CaveLights.clear();
+        SporePools.clear();
     }
 
     @SubscribeEvent
@@ -136,6 +137,7 @@ public final class Atmosphere {
         guard("caustics", () -> WaterCaustics.tick(now, ticks));
         guard("uwshafts", () -> UnderwaterShafts.tick(now));
         guard("cave", () -> CaveLights.tick(now, mc.gameRenderer.getMainCamera().getPosition(), ticks));
+        guard("sporepools", () -> SporePools.tick(now, player, ticks)); // 洞窟の胞子の溜まり(地下の植生 2・U6)
         if (DEV_LOG && ticks % 100 == 0) {
             OvergrownVegetation.LOGGER.info("Atmosphere {}", MistFog.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere 小物 {} 滴 {}", DuskMotes.describe(player.getX(), player.getZ()), RainDrops.count());
@@ -143,8 +145,8 @@ public final class Atmosphere {
             OvergrownVegetation.LOGGER.info("Atmosphere 水中の光 {} / {}", WaterCaustics.describe(), UnderwaterShafts.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere {}", CaveLights.describe());
             BlockPos feet = player.blockPosition();
-            OvergrownVegetation.LOGGER.info("Atmosphere 森 {} 地下 {} 持ち上げ {} 霞み {} 足元の光 空 {} ブロック {} 筋 {} 木漏れ日 {} 影の地図 {}",
-                    String.format("%.2f", ForestPresence.forestFactor()), String.format("%.2f", ForestPresence.underground()),
+            OvergrownVegetation.LOGGER.info("Atmosphere 覆い {} 地下 {} 持ち上げ {} 霞み {} 足元の光 空 {} ブロック {} 筋 {} 木漏れ日 {} 影の地図 {}",
+                    String.format("%.2f", ForestPresence.cover()) + " 過繁茂 " + String.format("%.2f", ForestPresence.overgrown()), String.format("%.2f", ForestPresence.underground()),
                     String.format("%.2f", CanopyLift.skyLift()), String.format("%.2f", AirHaze.haze()) + " 胞子 " + Math.round(AirHaze.sporePercent()) + "%", now.getBrightness(LightLayer.SKY, feet), now.getBrightness(LightLayer.BLOCK, feet),
                     LightShafts.count(), CanopyDapple.count(), CanopySunMap.active() + " " + GustField.INSTANCE.describe(player.getX(), player.getZ()));
         }
@@ -161,6 +163,8 @@ public final class Atmosphere {
             guard("sway", () -> LeafSway.upload(event, on));
             guard("tones", () -> LeafTones.upload(on));
             guard("wet", () -> WetSheen.upload(on));
+            guard("glint", () -> WaterGlint.upload(on));
+            guard("rainlook", () -> RainLook.upload(on));
             guard("march", () -> MistMarch.prepare(on && event.getCamera().getFluidInCamera() == FogType.NONE));
             guard("mist", () -> MistFog.upload(event, on));
             guard("caustics", () -> WaterCaustics.upload(event, on));
@@ -258,6 +262,8 @@ public final class Atmosphere {
             WaterSigns.render(lvl, partialTick, left, up);
             GnatSwarms.render(partialTick, left, up);
             HollowDwellers.render(left, up); // 木の洞から飛び出す虫(43)
+            net.minecraft.world.phys.Vec3 cam = event.getCamera().getPosition();
+            SporePools.render(lvl, partialTick, left, up, cam.x, cam.y, cam.z); // 洞窟の胞子の溜まり(地下の植生 2・U6)
         } finally {
             LifeSprites.end();
         }

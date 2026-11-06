@@ -28,7 +28,7 @@ public final class DynamicLights {
 
     /** 動く光が 1 つでもあるか(無ければ呼ぶ側で位置を作らずに済ませる)。 */
     public static boolean any() {
-        return CaveLights.mix() > 0.0F && (CaveLights.shown().length > 0 || DesignData.atmosphere().cave().ambient() > 0.0F);
+        return CaveLights.mix() > 0.0F && (CaveLights.shown().length > 0 || CaveLights.ambient() > 0.0F);
     }
 
     /**
@@ -39,7 +39,7 @@ public final class DynamicLights {
     public static int levelAt(Vec3 pos) {
         var p = DesignData.atmosphere().cave();
         float b = Mth.clamp(CaveLights.intensityAt(pos.x, pos.y, pos.z) * p.lightGain() * p.entityGain()
-                + p.ambient() * CaveLights.mix(), 0.0F, 1.0F);
+                + CaveLights.ambient() * CaveLights.mix(), 0.0F, 1.0F);
         return Mth.clamp(Math.round(15.0F * 4.0F * b / (1.0F + 3.0F * b)), 0, 15);
     }
 

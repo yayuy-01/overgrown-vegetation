@@ -6,6 +6,7 @@
         { "name": "Sampler2" },
         { "name": "OvSunMap" },
         { "name": "OvFogMap" },
+        { "name": "OvAirMap" },
         { "name": "OvCaveLights" },
         { "name": "OvCaveMap" },
         { "name": "OvWaterMap" }
@@ -26,9 +27,17 @@
         { "name": "OvTint", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] },
         { "name": "OvFleck", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
         { "name": "OvSunTint", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] },
+        { "name": "OvSkyTint", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] },
+        { "name": "OvSkyTintB", "type": "float", "count": 4, "values": [ 0.7, 0.0, 0.0, 0.0 ] },
+        { "name": "OvLift", "type": "float", "count": 4, "values": [ 0.0, 0.8, 0.0, 0.0 ] },
+        { "name": "OvTrunk", "type": "float", "count": 4, "values": [ 0.0, 12.0, 0.5, 0.0 ] },
+        { "name": "OvMoon", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.4, 0.0 ] },
+        { "name": "OvMoonB", "type": "float", "count": 4, "values": [ 0.8, 0.5, 0.35, 0.0 ] },
+        { "name": "OvMoonC", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] },
         { "name": "OvWet", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 24.0 ] },
         { "name": "OvWetDir", "type": "float", "count": 4, "values": [ 0.0, 1.0, 0.0, 0.0 ] },
         { "name": "OvWetView", "type": "float", "count": 4, "values": [ 1.0, 1.0, 0.0, 0.0 ] },
+        { "name": "OvWetB", "type": "float", "count": 4, "values": [ 0.25, 0.75, 0.0, 0.0 ] },
         { "name": "OvCaustic", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
         { "name": "OvCausticB", "type": "float", "count": 4, "values": [ 0.0, 0.0, 1.4, 4.0 ] },
         { "name": "OvCausticMap", "type": "float", "count": 4, "values": [ 0.0, 0.0, 1.0, 0.0 ] },
@@ -49,8 +58,14 @@
         { "name": "OvCaveFog", "type": "float", "count": 4, "values": [ 0.047, 0.063, 0.039, 0.0 ] },
         { "name": "OvCaveFogD", "type": "float", "count": 4, "values": [ 20.0, 28.0, 0.0, 0.0 ] },
         { "name": "OvCaveSurf", "type": "float", "count": 4, "values": [ 0.9, 0.95, 0.8, 0.0 ] },
+        { "name": "OvCaveMouth", "type": "float", "count": 4, "values": [ 2.0, 18.0, 0.6, 0.0 ] },
         { "name": "OvFogJ", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] },
         { "name": "OvFogK", "type": "float", "count": 4, "values": [ 86.4, 4.0, 1.0, 0.0 ] },
-        { "name": "OvFogL", "type": "float", "count": 4, "values": [ 1.0, 0.0, 0.0, 0.0 ] }
+        { "name": "OvHazeS", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] },
+        { "name": "OvHazeD", "type": "float", "count": 4, "values": [ 0.0, 1.0, 0.0, 10.0 ] },
+        { "name": "OvFogL", "type": "float", "count": 4, "values": [ 1.0, 1.0, 0.0, 0.0 ] },
+        { "name": "OvAirA", "type": "float", "count": 4, "values": [ 0.0, 0.0, 16.0, 49.0 ] },
+        { "name": "OvAirB", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+        { "name": "OvAirC", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] }
     ]
 }

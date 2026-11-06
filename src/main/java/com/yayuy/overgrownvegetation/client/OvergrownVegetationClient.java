@@ -140,6 +140,10 @@ public final class OvergrownVegetationClient {
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.BLIGHT_FERN.get(), BlightFernRenderer::new);
         event.registerEntityRenderer(ModEntities.HIVE_NODE.get(), HiveNodeRenderer::new);
+        event.registerEntityRenderer(ModEntities.FALCIMNES.get(), FalcimnesRenderer::new);
+        event.registerEntityRenderer(ModEntities.FALCIMNES_WAVE.get(), FalcimnesWaveRenderer::new);
+        event.registerEntityRenderer(ModEntities.FALCIMNES_RIFT.get(), FalcimnesRiftRenderer::new);
+        event.registerEntityRenderer(ModEntities.ARBORA.get(), ArboraRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.OVERGROWN_LIANA.get(), context -> new CorruptedLianaRenderer());
         event.registerBlockEntityRenderer(ModBlockEntities.BLIGHT_FERN_ROOTED.get(), context -> new BlightFernRootedRenderer());
         // 過繫茂したチェスト(バニラのチェストモデル + 緑の色味 + 蔦・コケのオーバーレイ)。

@@ -115,6 +115,21 @@ final class LifeSprites {
         }
     }
 
+    /** 水平なぼけた円盤(真ん中が {@code alpha}、ふちが 0。{@link #RIM} 角形で軽い)。胞子の溜まりの霧の層({@link SporePools})が使う(11-03)。 */
+    static void disc(double x, double y, double z, float radius, float r, float g, float b, float alpha) {
+        if (builder == null || alpha <= 0.002F) {
+            return;
+        }
+        any = true;
+        for (int i = 0; i < RIM; i++) {
+            float a0 = i * Mth.TWO_PI / RIM;
+            float a1 = (i + 1) * Mth.TWO_PI / RIM;
+            vertex(x, y, z, r, g, b, alpha);
+            vertex(x + Mth.cos(a0) * radius, y, z + Mth.sin(a0) * radius, r, g, b, 0.0F);
+            vertex(x + Mth.cos(a1) * radius, y, z + Mth.sin(a1) * radius, r, g, b, 0.0F);
+        }
+    }
+
     /** カメラを向いた小さな四角(羽虫の点)。 */
     static void dot(double x, double y, double z, float half, Vector3f left, Vector3f up, float r, float g, float b, float alpha) {
         if (builder == null || alpha <= 0.002F) {

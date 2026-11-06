@@ -8,7 +8,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.data.DesignData;
-import com.yayuy.overgrownvegetation.registry.ModBiomes;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -63,7 +62,7 @@ final class CanopyShade {
             clear();
             return;
         }
-        if (CanopySunMap.active() || ForestPresence.openForest() <= 0.001F) {
+        if (CanopySunMap.active() || ForestPresence.openCover() <= 0.001F) {
             CELLS.clear();
             return;
         }
@@ -91,7 +90,7 @@ final class CanopyShade {
             int z = pz - RADIUS + cursor / side;
             long key = BlockPos.asLong(x, 0, z);
             float ground = SunTrace.findGround(level, x, py, z);
-            if (Float.isNaN(ground) || !ModBiomes.isOvergrownLike(level.getBiome(new BlockPos(x, Mth.floor(ground), z)))) {
+            if (Float.isNaN(ground)) { // 11-06 から世界全体(バイオームを問わない)
                 Cell gone = CELLS.get(key);
                 if (gone != null) {
                     gone.target = 0.0F;
@@ -123,7 +122,7 @@ final class CanopyShade {
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         Vec3 sun = SunLight.sunDirection(level, partialTick);
         float amount = SunLight.daylight(level, sun, partialTick) * Math.min(1.0F, DesignData.atmosphere().intensity())
-                * ForestPresence.openForest();
+                * ForestPresence.openCover();
         if (amount <= 0.0F) {
             return;
         }

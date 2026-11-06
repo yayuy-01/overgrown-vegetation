@@ -1,0 +1,31 @@
+{
+  "_comment": "効果の設計値。数値の反映には再起動が必要。2026-11-04 にプレイヤーの胞子感染 10 段階だけの版として戻した(10-30 に退避した前の版は parked/。薬・装備の汚染・装置・Mob の 3 段階などは退避のまま)。",
+  "sporeInfection": {
+    "player": {
+      "_comment": "プレイヤーの胞子感染(2026-10-14 ユーザー指定。11-04 にかかり方と加速を作り直し)。かかるのは暴露量が spore_field.json の exposure.infectDose(1500 %秒)に届いたとき(11-04 ユーザー決定。前の「濃度 50% に 30 秒」は消した)か、過繁茂した Mob の攻撃で attackInfectChance。治さなければ stageTicks(12000 = 10 分)ごとに 1 段上がり、感染10 からさらに 10 分で死んで汚染シダになる。段階が上がるたびに damagePerStage のダメージ、治るまで最大体力が maxHealthPerStage × (段階 − 1) 減る。進みの加速は 濃度 speedUpMinPercent 以上で ×(1 + concentrationSpeedBonusPer100 × 濃度/100)(11-04 ユーザー決定「濃度に比例してなめらかに」、式と 5% は仮決め)、過繁茂したバイオームでさらに ×(1 + overgrownBiomeSpeedBonus)(10-14 ユーザー指定、重ねて掛ける)。敵の攻撃で attackAdvanceChance の確率で attackAdvanceTicks 進む。防護マスク(フィルターが残っている間): かからない・加速しない。感染中は xpDrainIntervalTicks ごとに経験値を xpDrainPoints 吸われる(量は仮決め)。牛乳では治らない。stages は感染1〜10 の症状(hunger = 空腹の強さ、detectionRangeBonus = 被検知距離 +ブロック(探す Mob が退避中で今は効かない)、armorReduction / attackDamageReduction = 防御力 / 攻撃力の低下)。",
+      "stageTicks": 12000,
+      "attackInfectChance": 0.3,
+      "speedUpMinPercent": 5,
+      "concentrationSpeedBonusPer100": 0.1,
+      "overgrownBiomeSpeedBonus": 0.1,
+      "attackAdvanceChance": 0.05,
+      "attackAdvanceTicks": 200,
+      "xpDrainIntervalTicks": 200,
+      "xpDrainPoints": 1,
+      "damagePerStage": 1,
+      "maxHealthPerStage": 1,
+      "stages": [
+        { "hunger": 1, "detectionRangeBonus": 0, "armorReduction": 0, "attackDamageReduction": 0 },
+        { "hunger": 1, "detectionRangeBonus": 5, "armorReduction": 0, "attackDamageReduction": 0 },
+        { "hunger": 2, "detectionRangeBonus": 5, "armorReduction": 0, "attackDamageReduction": 0 },
+        { "hunger": 2, "detectionRangeBonus": 10, "armorReduction": 0.1, "attackDamageReduction": 0 },
+        { "hunger": 3, "detectionRangeBonus": 10, "armorReduction": 0.1, "attackDamageReduction": 0 },
+        { "hunger": 3, "detectionRangeBonus": 15, "armorReduction": 0.2, "attackDamageReduction": 0 },
+        { "hunger": 4, "detectionRangeBonus": 15, "armorReduction": 0.2, "attackDamageReduction": 0 },
+        { "hunger": 4, "detectionRangeBonus": 20, "armorReduction": 0.2, "attackDamageReduction": 0.1 },
+        { "hunger": 5, "detectionRangeBonus": 20, "armorReduction": 0.2, "attackDamageReduction": 0.1 },
+        { "hunger": 5, "detectionRangeBonus": 20, "armorReduction": 0.2, "attackDamageReduction": 0.15 }
+      ]
+    }
+  }
+}

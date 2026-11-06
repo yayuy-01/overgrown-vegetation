@@ -49,7 +49,7 @@ final class GnatSwarms {
         AtmosphereLife.GnatsParams p = DesignData.atmosphere().gnats();
         float hour = (float) (Math.floorMod(level.getDayTime(), 24000L) / 1000.0 + 6.0) % 24.0F;
         float time = Mth.clamp((hour - p.fromHour()) / 0.5F, 0.0F, 1.0F) * Mth.clamp((p.toHour() - hour) / 0.5F, 0.0F, 1.0F);
-        float target = time * (1.0F - level.getRainLevel(1.0F)) * Mth.clamp(ForestPresence.openForest() / 0.3F, 0.0F, 1.0F);
+        float target = time * (1.0F - level.getRainLevel(1.0F)) * Mth.clamp(ForestPresence.openOvergrown() / 0.3F, 0.0F, 1.0F);
         shown += (target - shown) * 0.03F;
         if (shown <= 0.01F || !VisualQuality.atmosphere()) {
             return;

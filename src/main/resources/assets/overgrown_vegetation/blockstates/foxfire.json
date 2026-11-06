@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "wood=false": { "model": "overgrown_vegetation:block/foxfire_a" },
+    "wood=true": { "model": "overgrown_vegetation:block/foxfire_b" }
+  }
+}

@@ -88,6 +88,15 @@ public final class ModDataComponents {
                     .persistent(com.mojang.serialization.Codec.INT)
                     .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT));
 
+    /**
+     * 防護マスクのフィルターが吸い取った胞子の量(%秒、2026-11-04)。無い = 新品。spore_field.json の exposure.maskCapacity に届くと
+     * 効かなくなる(外れない・壊れない)。耐久のバーとツールチップに出すのでクライアントにも同期する。
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> MASK_FILTER_USED =
+            COMPONENTS.registerComponentType("mask_filter_used", builder -> builder
+                    .persistent(Codec.INT)
+                    .networkSynchronized(ByteBufCodecs.VAR_INT));
+
     /** 電池を入れて持ち運ぶ機械の、入っている電池の残り(2026-10-22、地脈灯。無い = 電池が入っていない)。 */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> BATTERY_CHARGE =
             COMPONENTS.registerComponentType("battery_charge", builder -> builder

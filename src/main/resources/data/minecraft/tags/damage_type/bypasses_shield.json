@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:spore_infection",
+    "overgrown_vegetation:falcimnes_bite",
+    "overgrown_vegetation:falcimnes_execution",
+    "overgrown_vegetation:falcimnes_rift"
+  ]
+}

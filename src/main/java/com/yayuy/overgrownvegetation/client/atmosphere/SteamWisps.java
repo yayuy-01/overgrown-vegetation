@@ -53,7 +53,7 @@ final class SteamWisps {
         float rain = level.getRainLevel(1.0F);
         Vec3 sun = SunLight.sunDirection(level, 1.0F);
         float day = Mth.clamp(((float) sun.y - 0.1F) / 0.25F, 0.0F, 1.0F);
-        float presence = ForestPresence.openForest();
+        float presence = ForestPresence.openOvergrown();
         float window = Mth.clamp((presence - p.presenceFrom()) / 0.1F, 0.0F, 1.0F) * Mth.clamp((p.presenceTo() + 0.1F - presence) / 0.1F, 0.0F, 1.0F);
         float target = MistFog.wetAfter(p.minutes(), 0.0F) * day * (1.0F - rain) * window;
         amount += (target - amount) * 0.05F;

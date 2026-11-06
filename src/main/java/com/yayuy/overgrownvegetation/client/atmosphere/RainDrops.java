@@ -63,7 +63,7 @@ final class RainDrops {
         recent -= SPAWNED[slot];
         SPAWNED[slot] = 0;
         AtmosphereTable.DropsParams p = DesignData.atmosphere().drops();
-        float strength = p.duringRain() * MistFog.wetAfter(p.afterMinutes(), level.getRainLevel(1.0F)) * ForestPresence.openForest();
+        float strength = p.duringRain() * MistFog.wetAfter(p.afterMinutes(), level.getRainLevel(1.0F)) * ForestPresence.openOvergrown();
         int cap = p.counts()[Math.min(2, VisualQuality.atmosphereTier())];
         if (strength <= 0.01F || cap <= 0) {
             carry = 0.0F;

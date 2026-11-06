@@ -137,6 +137,8 @@ public final class ModCreativeTabs {
                         // 植物側の Mob
                         output.accept(ModItems.HIVE_NODE_SPAWN_EGG.get());
                         output.accept(ModItems.BLIGHT_FERN_SPAWN_EGG.get());
+                        output.accept(ModItems.FALCIMNES_SPAWN_EGG.get());
+                        output.accept(ModItems.ARBORA_SPAWN_EGG.get());
 
                         // 植物から採れるもの
                         output.accept(ModItems.SPORE.get());
@@ -148,6 +150,8 @@ public final class ModCreativeTabs {
 
                         output.accept(ModItems.SPORE_GLAND_TISSUE.get());
                         output.accept(ModItems.SPORE_SAC.get());
+                        output.accept(ModItems.SPORE_METER.get());
+                        output.accept(ModItems.PROTECTIVE_MASK.get());
 
                     })
                     .build());

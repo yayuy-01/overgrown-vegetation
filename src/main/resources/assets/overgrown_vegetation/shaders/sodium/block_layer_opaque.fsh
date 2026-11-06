@@ -15,6 +15,7 @@
 #ov_import <ov_caustic.glsl>
 #ov_import <ov_leaf.glsl>
 #ov_import <ov_cave.glsl>
+#ov_import <ov_water.glsl>
 
 in vec4 v_Color; // The interpolated vertex color
 in vec2 v_TexCoord; // The interpolated block texture coordinates
@@ -39,10 +40,17 @@ vec4 ovSodiumFog(vec4 color, float d, vec4 fogColor, float fogStart, float fogEn
     if (fogStart >= -1000.0) {
         return _linearFog(color, d, fogColor, fogStart, fogEnd);
     }
-    float k = (-fogStart - 1000.0) / 100000.0;
+    // The mark carries the spore haze k and (11-06) the aerial perspective a from s (decoded as in fog.glsl).
+    float c = -fogStart - 1000.0;
+    float h = floor((c + 0.5) / 10000.0);
+    float k = (c - h * 10000.0) / 100000.0;
+    float s = floor((h + 0.5) / 51.0);
+    float a = (h - s * 51.0) / 50.0;
+    s /= 20.0;
     float wallStart = fogEnd - clamp(fogEnd / 10.0, 4.0, 64.0);
     float wall = d <= wallStart ? 0.0 : (d < fogEnd ? smoothstep(wallStart, fogEnd, d) : 1.0);
-    float v = 1.0 - (1.0 - wall) * exp(-k * d);
+    float q = clamp((d - s * fogEnd) / max(fogEnd * (1.0 - s), 1.0), 0.0, 1.0);
+    float v = 1.0 - (1.0 - wall) * exp(-k * d) * (1.0 - a * q * q);
     return vec4(mix(color.rgb, fogColor.rgb, v * fogColor.a), color.a);
 #endif
 }
@@ -57,6 +65,19 @@ uniform vec4 OvFogI;
 uniform int ovSodiumPass;
 
 out vec4 fragColor; // The output fragment for the color framebuffer
+
+// 1 where the sun map knows a water face is in the shade of the canopy or a solid block (by day; 0 where the map is off or does not
+// reach). For the sun on the water (ov_water.glsl, 11-06).
+float ovWaterSunShade(vec3 pos) {
+    if (OvSunA.z <= 0.0 || OvSunA.w <= 0.0) {
+        return 0.0;
+    }
+    vec2 uv = vec2(pos.x - pos.y * OvSunA.x, pos.z - pos.y * OvSunA.y) - OvMapA.xy - 0.5;
+    if (uv.x < 0.0 || uv.y < 0.0 || uv.x >= OvMapA.z - 1.0 || uv.y >= OvMapA.z - 1.0) {
+        return 0.0;
+    }
+    return ovShadowAt(ivec2(floor(uv + 0.5)), pos.y - OvMapA.w);
+}
 
 void main() {
     // Sodium's vertices carry no normal. Terrain faces are flat, so the face normal from the position derivatives is exact;
@@ -83,6 +104,8 @@ void main() {
 #endif
 
     float ovUnder = 0.0;
+    float ovGlow = 0.0;
+    float ovSink = 0.0;
     if (ovSodiumPass != 1) {
         // Grass and ferns (vanilla cutout layer, alpha cutoff 1) are thin: no facing-away shade, like rendertype_cutout.fsh.
         // Water and glass (the translucent pass) are left as they are, like vanilla's rendertype_translucent.
@@ -94,7 +117,27 @@ void main() {
         // The point lights of glowing cave plants (ov_cave.glsl), before the fog.
         // How much this fragment is underground (ov_cave.glsl, the cave map; 11-01 evening). Thin plants use their own column.
         ovUnder = ovCaveUnder(ovPos, n * facing, ovLight.y);
-        color.rgb = ovCaveLight(color.rgb, ovAlbedo, ovPos, n, facing, ovUnder);
+        ovSink = ovCaveSink(ovPos, n * facing, ovUnder);
+        color.rgb = ovCaveLight(color.rgb, ovAlbedo, ovPos, n, facing, ovUnder, ovLight.x);
+        // Faces under cave water get darker with the depth (ov_cave.glsl, 11-06 light inspection 10).
+        color.rgb = ovCaveWaterBottom(color.rgb, ovPos, n, ovUnder);
+        // The glowing pixels: while the camera is outside they go in before the forest haze, and deep in a cave they stay dim (11-04).
+        ovGlow = ovCaveGlow(ovTexel, ovPos, ovUnder);
+        color.rgb = mix(color.rgb, ovAlbedo, ovGlow * (1.0 - OvCave.y));
+    } else {
+        // Water and glass get the cave point lights too (11-04), with no facing-away shade, like vanilla's rendertype_translucent.fsh.
+        ovUnder = ovCaveUnder(ovPos, n, ovLight.y);
+        ovSink = ovCaveSink(ovPos, n, ovUnder);
+        color.rgb = ovCaveLight(color.rgb, ovAlbedo * OV_CAVE_WATER_GAIN, ovPos, n, 0.0, ovUnder, ovLight.x);
+        // The point lights mirrored on the cave water (ov_cave.glsl, 11-06 light inspection 10).
+        if (color.a < 0.99) {
+            color.rgb += ovCaveWaterSpecular(ovPos, n, ovUnder);
+        }
+        // The sun and the moon mirrored on open water (ov_water.glsl, 11-06), kept out of the canopy shade by the sun map.
+        // Opaque texels (alpha 1: grass, stone) never get it, whatever the pass flag says (11-06: the glint showed on a grass slope).
+        vec4 ovGlint = color.a < 0.99 ? ovWaterGlint(ovPos, n, ovLight.y, ovUnder, ovWaterSunShade(ovPos)) : vec4(0.0);
+        color.rgb += ovGlint.rgb;
+        color.a = mix(color.a, 1.0, ovGlint.a);
     }
     vec3 ovLit = color.rgb;
 
@@ -103,13 +146,16 @@ void main() {
     vec3 ovSurface = color.rgb;
     color.rgb = mix(color.rgb, vec3(dot(color.rgb, vec3(0.299, 0.587, 0.114))), OvFogI.x * smoothstep(OvFogI.y, OvFogI.z, v_FragDistance));
 
-    fragColor = ovSodiumFog(color, v_FragDistance, u_FogColor, u_FogStart, u_FogEnd);
+    fragColor = ovSodiumFog(color, v_FragDistance, ovShadedFogColor(u_FogColor, u_FogStart, ovLight.y, v_FragDistance, ovPos), u_FogStart, u_FogEnd);
     // The fog by where the fragment is: caves seen from outside sink into black, the outside seen from a cave stays bright (ov_cave.glsl).
-    if (ovSodiumPass != 1) {
-        fragColor.rgb = ovCaveFog(fragColor.rgb, ovLit, ovSurface, v_FragDistance, ovUnder);
-    }
+    // Every pass, water included (11-04).
+    // How far the usual fogs moved this fragment toward the haze, for the cave part of the view (ov_cave.glsl, 11-04).
+    float ovPathLen = ovCavePath(v_FragDistance, ovUnder);
+    ovCaveSetHaze(ovFog, ovShadedFogColor(u_FogColor, u_FogStart, ovLight.y, v_FragDistance, ovPos), v_FragDistance, ovPathLen, ovSodiumFog(vec4(0.0, 0.0, 0.0, 1.0), v_FragDistance, vec4(1.0), u_FogStart, u_FogEnd).r,
+                  ovSodiumFog(vec4(0.0, 0.0, 0.0, 1.0), ovPathLen, vec4(1.0), u_FogStart, u_FogEnd).r);
+    fragColor.rgb = ovCaveFog(fragColor.rgb, ovLit, ovSurface, v_FragDistance, ovUnder);
     // The glowing pixels of the cave light blocks stay out of the fog (ov_cave.glsl).
     if (ovSodiumPass != 1) {
-        fragColor.rgb = mix(fragColor.rgb, ovAlbedo, ovCaveGlow(ovTexel, ovPos, ovUnder));
+        fragColor.rgb = mix(fragColor.rgb, ovAlbedo * (1.0 - ovSink * OvCaveMouth.z), ovGlow * max(OvCave.y, ovSink));
     }
 }

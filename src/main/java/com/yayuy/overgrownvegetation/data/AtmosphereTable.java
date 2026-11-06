@@ -30,6 +30,10 @@ public final class AtmosphereTable {
         public WaterJson water;
         public InsectsJson insects;
         public AtmosphereLife.WetJson wet;
+        public AtmosphereLife.WaterGlintJson waterGlint;
+        public AtmosphereLife.RainLookJson rainLook;
+        /** 胞子の空気(11-06、{@link AtmosphereAir})。 */
+        public AtmosphereAir.SporeAirJson sporeAir;
         public AtmosphereLife.SteamJson steam;
         public AtmosphereLife.RipplesJson ripples;
         public AtmosphereLife.GnatsJson gnats;
@@ -309,6 +313,22 @@ public final class AtmosphereTable {
          * 隙間の空の色(バニラの霧の色)と昼の霞の色(地形の霧の層の近い色・遠い色)を昼の胞子の霧の色へ寄せる割合。朝(MistLayer の 4〜9 時)は寄せない。
          */
         public Double forestSkyGreen, forestHazeGreen;
+        /** 11-05 光の点検 2(ユーザー確定): カメラが森の中にいる間、霞の色を空の明るさで shadeFloor〜1 に落とす(false で切る)。 */
+        public Boolean forestDim;
+        /** 11-05 光の点検 3(仮決め): 霞の太陽側の色 hazeSunColor(比。明るさはそろえる)・その混ざりの最大 hazeSunMix・遠さの目安 hazeSunReach(ブロック。近くは弱く)・
+         *  霞の全体に空の光の色(light.skyTint*)を映す割合 hazeTintMix。 */
+        public double[] hazeSunColor;
+        public Double hazeSunMix, hazeSunReach, hazeTintMix;
+        /** 11-05 光の点検 4(仮決め): 夜の霧の色を月で変える。夕方〜夜の入りは今の nightColor のまま、夜の度合いの分だけ、満月で月が高いと nightColorFull(灰に近い青灰)、新月・月の無い間は nightColorNew(ほぼ黒)。
+         *  月の方の霞は hazeMoonColor(比。明るさはそろえる)へ hazeMoonMix だけ寄せ、明るさを hazeMoonBright 倍まで上げる(霞の太陽側と同じ仕組み)。 */
+        public double[] nightColorFull, nightColorNew, hazeMoonColor;
+        public Double hazeMoonMix, hazeMoonBright;
+        /**
+         * 空気遠近(11-06 バニラ地域の光 3、ユーザー決定。値は仮決め): 世界全体で遠くの地形を霧の色(その時刻の地平線の色)にわずかに溶かす。霧の終わりで aerialStrength、
+         * 霧の終わりの aerialStart 倍の所から 2 乗で濃くなる。夜は aerialNight 倍・雨と雷は aerialRain 倍。地下・水中・ネザー・エンドでは掛けない。
+         * 過繁茂の中は胞子の霞に譲る(森の霧の度合いの分だけ弱める)。0 で切る。
+         */
+        public Double aerialStrength, aerialStart, aerialNight, aerialRain;
         public double[] nearColor, farColor, nightColor, hazeColor, forestSkyColor, forestFogDayColor, forestFogDawnColor;
         public double[] waterOvergrownOceanColor, waterOvergrowthOceanColor, waterOvergrownRiverColor, waterOvergrowthRiverColor,
                 waterOvergrownColor, waterOvergrowthColor;
@@ -325,14 +345,17 @@ public final class AtmosphereTable {
                             float forestFogAbove, float forestFogDensity,
                             float waterFogOvergrownOcean, float waterFogOvergrowthOcean, float waterFogOvergrownRiver, float waterFogOvergrowthRiver,
                             float waterFogNearFraction,
-                            float[] nearColor, float[] farColor, float[] nightColor, float[] hazeColor, float[] forestSkyColor,
+                            float[] nearColor, float[] farColor, float[] nightColor, float[] nightColorFull, float[] nightColorNew, float[] hazeColor, float[] forestSkyColor,
                             float[] forestFogDayColor, float[] forestFogDawnColor,
                             float waterFogOvergrown, float waterFogOvergrowth,
                             float[] waterOvergrownOceanColor, float[] waterOvergrowthOceanColor, float[] waterOvergrownRiverColor,
                             float[] waterOvergrowthRiverColor, float[] waterOvergrownColor, float[] waterOvergrowthColor,
                             float transitionForestSeconds, float transitionCaveSeconds, float transitionWaterSeconds,
                             float waterDepthDarkenBlocks, float waterDepthDarkenMin,
-                            float forestSkyGreen, float forestHazeGreen) {
+                            float forestSkyGreen, float forestHazeGreen, boolean forestDim,
+                            float[] hazeSunColor, float hazeSunMix, float hazeSunReach, float hazeTintMix,
+                            float[] hazeMoonColor, float hazeMoonMix, float hazeMoonBright,
+                            float aerialStrength, float aerialStart, float aerialNight, float aerialRain) {
         static FogParams of(FogJson f) {
             FogJson v = f != null ? f : new FogJson();
             return new FogParams(clamp(v.density, 0.0045, 0.0, 0.2), clamp(v.falloff, 0.35, 0.02, 5.0),
@@ -354,6 +377,7 @@ public final class AtmosphereTable {
                     clamp(v.waterFogOvergrownRiver, 18.0, 0.0, 256.0), clamp(v.waterFogOvergrowthRiver, 24.0, 0.0, 256.0),
                     clamp(v.waterFogNearFraction, 0.2, 0.0, 1.0),
                     rgb(v.nearColor, 1.00, 1.00, 0.96), rgb(v.farColor, 0.90, 0.93, 0.88), rgb(v.nightColor, 0.10, 0.15, 0.10),
+                    rgb(v.nightColorFull, 0.11, 0.12, 0.13), rgb(v.nightColorNew, 0.03, 0.04, 0.03),
                     rgb(v.hazeColor, 0.94, 0.96, 0.86), rgb(v.forestSkyColor, 1.00, 1.00, 0.96),
                     rgb(v.forestFogDayColor, 0.74, 0.90, 0.52), rgb(v.forestFogDawnColor, 0.90, 0.93, 0.88),
                     clamp(v.waterFogOvergrown, 18.0, 0.0, 256.0), clamp(v.waterFogOvergrowth, 24.0, 0.0, 256.0),
@@ -363,7 +387,13 @@ public final class AtmosphereTable {
                     clamp(v.transitionForestSeconds, 4.0, 0.0, 60.0), clamp(v.transitionCaveSeconds, 4.0, 0.0, 60.0),
                     clamp(v.transitionWaterSeconds, 5.0, 0.0, 60.0),
                     clamp(v.waterDepthDarkenBlocks, 24.0, 0.0, 256.0), clamp(v.waterDepthDarkenMin, 0.4, 0.0, 1.0),
-                    clamp(v.forestSkyGreen, 0.6, 0.0, 1.0), clamp(v.forestHazeGreen, 0.6, 0.0, 1.0));
+                    clamp(v.forestSkyGreen, 0.6, 0.0, 1.0), clamp(v.forestHazeGreen, 0.6, 0.0, 1.0),
+                    v.forestDim == null || v.forestDim,
+                    ratio(v.hazeSunColor, 1.00, 0.72, 0.52), clamp(v.hazeSunMix, 0.8, 0.0, 1.0), clamp(v.hazeSunReach, 10.0, 1.0, 1024.0),
+                    clamp(v.hazeTintMix, 0.3, 0.0, 1.0),
+                    ratio(v.hazeMoonColor, 0.85, 0.92, 1.00), clamp(v.hazeMoonMix, 0.4, 0.0, 1.0), clamp(v.hazeMoonBright, 1.4, 1.0, 3.0),
+                    clamp(v.aerialStrength, 0.35, 0.0, 1.0), clamp(v.aerialStart, 0.35, 0.0, 0.95), clamp(v.aerialNight, 0.5, 0.0, 2.0),
+                    clamp(v.aerialRain, 1.3, 0.0, 3.0));
         }
 
         private static float[] rgb(double[] c, double r, double g, double b) {
@@ -407,6 +437,28 @@ public final class AtmosphereTable {
         public Double sunWarmStrength;
         /** 緑の照り返し(A3、10-30 夜 ユーザー採用): 森の中でライトマップの中ほどの明るさに緑を足す強さ(仮決め)。 */
         public Double greenBounce;
+        /** 空の光の色(11-05 光の点検 3、値は仮決め): 太陽の高さで 昼(白)→ 金 skyTintGold → 日の入り skyTintDusk → 日没後 skyTintTwilight → 夜(白 = 今の夜のまま)。
+         *  切り替わる太陽の高さ skyTintHeights(5 つ: 白の終わり・金・日の入り・青灰・夜の始まり)。色は比(明るさはそろえる)。
+         *  森の中の地形の全面に、林冠の開いた所(頂点の空の光が高い所)で skyTintStrength・傘の下はその skyTintShade 倍だけ掛ける。 */
+        public double[] skyTintGold, skyTintDusk, skyTintTwilight, skyTintHeights;
+        public Double skyTintStrength, skyTintShade;
+        /**
+         * 夜の暗さ(11-05 光の点検 4、値は仮決め): 夜の林床の持ち上げ(満月 skyLiftNightFull・新月 skyLiftNightNew を月の満ち欠けで寄せる)と、夜の 0〜3 段の寄せ方 skyLiftDarkNight。
+         * 月の向きの面の明暗(上向き 1・月の側 moonShadeSide・反対側 moonShadeBack・下向き moonShadeDown。頂点の面の明るさと合わせた比)とその強さ moonShadeStrength。
+         * 月の斑点(太陽の地図を月の向きで作る): 月の影の深さ moonMapStrength・月の当たる所の色 moonMapColor(比)・地図を作る月の満ち欠けの下限 moonMapPhaseMin。
+         * 夜の暗い所の彩度 nightDesaturate(月の当たらない所でこの倍まで落とす)。
+         */
+        public Double skyLiftNightFull, skyLiftNightNew, skyLiftDarkNight;
+        /** 過繁茂の外(バニラの森)の夜の林床の持ち上げ(11-06 2 層、ユーザー決定「普通の世界の夜は森より少しだけ明るく」。値は仮決め)。過繁茂の分で skyLiftNightFull・New へ寄せる。 */
+        public Double skyLiftNightFullOpen, skyLiftNightNewOpen;
+        /** 点検 21(11-06。値は仮決め): 過繁茂の外(バニラの森)の昼の林床の持ち上げ skyLiftOpen(過繁茂の分で skyLift へ寄せる)と、
+         *  幹・地形の影の濃さ trunkShadow・届く高さの差 terrainShadowReach(11-06 バニラ地域の光 1 で太陽の向きの長さから変えた)・縁のぼけ trunkShadowSoft(届く高さのうち薄れていく割合)。 */
+        public Double skyLiftOpen, trunkShadow, terrainShadowReach, trunkShadowSoft;
+        public Double moonShadeSide, moonShadeBack, moonShadeDown, moonShadeStrength;
+        public Double moonMapStrength, moonMapPhaseMin, nightDesaturate;
+        /** 夜の森の Mob を沈める(11-06、仮決め): 過繁茂の森の夜に Mob の明るさを満月 mobNightFull・新月 mobNightNew 倍へ(空の光の段で下げる。client/light/MobNightDim)。 */
+        public Double mobNightFull, mobNightNew;
+        public double[] moonMapColor;
     }
 
     /**
@@ -553,7 +605,16 @@ public final class AtmosphereTable {
     private final float[] shadeHue, sunWarm;
     private final float sunWarmStrength;
     private final float greenBounce;
+    private final float[] skyTintGold, skyTintDusk, skyTintTwilight, skyTintHeights;
+    private final float skyTintStrength, skyTintShade;
     private final float skyLift, skyLiftDark;
+    private final float skyLiftNightFull, skyLiftNightNew, skyLiftDarkNight;
+    private final float skyLiftNightFullOpen, skyLiftNightNewOpen;
+    private final float skyLiftOpen, trunkShadow, terrainShadowReach, trunkShadowSoft;
+    private final float moonShadeSide, moonShadeBack, moonShadeDown, moonShadeStrength;
+    private final float moonMapStrength, moonMapPhaseMin, nightDesaturate;
+    private final float mobNightFull, mobNightNew;
+    private final float[] moonMapColor;
     private final float shade, shadeBacklit, shadeTint, forestTint, surfaceShade;
     private final float phaseMin, phaseMax, phasePower;
     private final float intensity, noonSoftness, moonStrength;
@@ -572,6 +633,9 @@ public final class AtmosphereTable {
     private final WaterParams water;
     private final InsectsParams insects;
     private final AtmosphereLife.WetParams wet;
+    private final AtmosphereLife.WaterGlintParams waterGlint;
+    private final AtmosphereLife.RainLookParams rainLook;
+    private final AtmosphereAir.SporeAirParams sporeAir;
     private final AtmosphereLife.SteamParams steam;
     private final AtmosphereLife.RipplesParams ripples;
     private final AtmosphereLife.GnatsParams gnats;
@@ -606,11 +670,36 @@ public final class AtmosphereTable {
                 ? new float[]{(float) l.sunWarm[0], (float) l.sunWarm[1], (float) l.sunWarm[2]} : new float[]{1.10F, 1.06F, 0.90F};
         this.sunWarmStrength = clamp(l.sunWarmStrength, 1.0, 0.0, 2.0);
         this.greenBounce = clamp(l.greenBounce, 0.03, 0.0, 0.5);
+        this.skyTintGold = ratio(l.skyTintGold, 1.00, 0.88, 0.66);
+        this.skyTintDusk = ratio(l.skyTintDusk, 1.00, 0.74, 0.60);
+        this.skyTintTwilight = ratio(l.skyTintTwilight, 0.70, 0.85, 1.00);
+        this.skyTintHeights = descending(l.skyTintHeights, new float[]{0.35F, 0.15F, 0.0F, -0.15F, -0.35F});
+        this.skyTintStrength = clamp(l.skyTintStrength, 1.0, 0.0, 1.0);
+        this.skyTintShade = clamp(l.skyTintShade, 0.7, 0.0, 1.0);
         this.swampPresence = clamp(l.swampPresence, 0.45, 0.0, 1.0);
-        this.skyLift = clamp(l.skyLift, 0.95, 0.0, 1.0);
+        this.skyLift = clamp(l.skyLift, 1.0, 0.0, 1.0);
         this.skyLiftDark = clamp(l.skyLiftDark, 0.8, 0.0, 1.0);
-        this.shade = clamp(l.shade, 0.92, 0.0, 1.0);
-        this.shadeBacklit = clamp(l.shadeBacklit, 0.78, 0.0, 1.0);
+        this.skyLiftNightFull = clamp(l.skyLiftNightFull, 0.35, 0.0, 1.0);
+        this.skyLiftNightNew = clamp(l.skyLiftNightNew, 0.05, 0.0, 1.0);
+        this.skyLiftNightFullOpen = clamp(l.skyLiftNightFullOpen, 0.45, 0.0, 1.0);
+        this.skyLiftNightNewOpen = clamp(l.skyLiftNightNewOpen, 0.12, 0.0, 1.0);
+        this.skyLiftOpen = clamp(l.skyLiftOpen, 0.5, 0.0, 1.0);
+        this.trunkShadow = clamp(l.trunkShadow, 0.25, 0.0, 0.9);
+        this.terrainShadowReach = clamp(l.terrainShadowReach, 32.0, 2.0, 64.0);
+        this.trunkShadowSoft = clamp(l.trunkShadowSoft, 0.5, 0.0, 1.0);
+        this.skyLiftDarkNight = clamp(l.skyLiftDarkNight, 0.3, 0.0, 1.0);
+        this.moonShadeSide = clamp(l.moonShadeSide, 0.8, 0.0, 1.0);
+        this.moonShadeBack = clamp(l.moonShadeBack, 0.5, 0.0, 1.0);
+        this.moonShadeDown = clamp(l.moonShadeDown, 0.35, 0.0, 1.0);
+        this.moonShadeStrength = clamp(l.moonShadeStrength, 1.0, 0.0, 1.0);
+        this.moonMapStrength = clamp(l.moonMapStrength, 0.15, 0.0, 1.0);
+        this.moonMapPhaseMin = clamp(l.moonMapPhaseMin, 0.5, 0.0, 0.99);
+        this.nightDesaturate = clamp(l.nightDesaturate, 0.4, 0.0, 1.0);
+        this.mobNightFull = clamp(l.mobNightFull, 0.5, 0.0, 1.0);
+        this.mobNightNew = clamp(l.mobNightNew, 0.35, 0.0, 1.0);
+        this.moonMapColor = ratio(l.moonMapColor, 0.75, 0.85, 1.00);
+        this.shade = clamp(l.shade, 0.96, 0.0, 1.0);
+        this.shadeBacklit = clamp(l.shadeBacklit, 0.86, 0.0, 1.0);
         this.shadeTint = clamp(l.shadeTint, 1.0, 0.0, 2.0);
         this.forestTint = clamp(l.forestTint, 1.0, 0.0, 1.0);
         this.surfaceShade = clamp(l.surfaceShade, 1.0, 0.0, 1.0);
@@ -637,6 +726,9 @@ public final class AtmosphereTable {
         this.water = WaterParams.of(j != null ? j.water : null);
         this.insects = InsectsParams.of(j != null ? j.insects : null);
         this.wet = AtmosphereLife.WetParams.of(j != null ? j.wet : null);
+        this.waterGlint = AtmosphereLife.WaterGlintParams.of(j != null ? j.waterGlint : null);
+        this.rainLook = AtmosphereLife.RainLookParams.of(j != null ? j.rainLook : null);
+        this.sporeAir = AtmosphereAir.SporeAirParams.of(j != null ? j.sporeAir : null);
         this.steam = AtmosphereLife.SteamParams.of(j != null ? j.steam : null);
         this.ripples = AtmosphereLife.RipplesParams.of(j != null ? j.ripples : null);
         this.gnats = AtmosphereLife.GnatsParams.of(j != null ? j.gnats : null);
@@ -654,6 +746,21 @@ public final class AtmosphereTable {
         double[] c = v != null && v.length == 3 ? v : new double[]{r, g, b};
         double lum = Math.max(1.0E-3, 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]);
         return new float[]{(float) (c[0] / lum), (float) (c[1] / lum), (float) (c[2] / lum)};
+    }
+
+    /** 上から下へ並んだ高さ(5 つ)。数・順が合わなければ既定値。 */
+    private static float[] descending(double[] v, float[] def) {
+        if (v == null || v.length != def.length) {
+            return def;
+        }
+        float[] out = new float[v.length];
+        for (int i = 0; i < v.length; i++) {
+            out[i] = (float) Math.max(-1.0, Math.min(1.0, v[i]));
+            if (i > 0 && out[i] >= out[i - 1]) {
+                return def;
+            }
+        }
+        return out;
     }
 
     private static float clamp(Double v, double def, double min, double max) {
@@ -746,6 +853,32 @@ public final class AtmosphereTable {
         return greenBounce;
     }
 
+    /** 空の光の色(11-05 光の点検 3): 金・日の入り・日没後の色の比(明るさ 1 にそろえた)と、切り替わる太陽の高さ 5 つ(上から)。 */
+    public float[] skyTintGold() {
+        return skyTintGold;
+    }
+
+    public float[] skyTintDusk() {
+        return skyTintDusk;
+    }
+
+    public float[] skyTintTwilight() {
+        return skyTintTwilight;
+    }
+
+    public float[] skyTintHeights() {
+        return skyTintHeights;
+    }
+
+    /** 林冠の開いた所での強さと、傘の下でその何倍か。 */
+    public float skyTintStrength() {
+        return skyTintStrength;
+    }
+
+    public float skyTintShade() {
+        return skyTintShade;
+    }
+
     public float nightTintStrength() {
         return nightTintStrength;
     }
@@ -760,6 +893,88 @@ public final class AtmosphereTable {
 
     public float skyLiftDark() {
         return skyLiftDark;
+    }
+
+    public float skyLiftNightFull() {
+        return skyLiftNightFull;
+    }
+
+    public float skyLiftNightNew() {
+        return skyLiftNightNew;
+    }
+
+    /** 過繁茂の外の夜の林床の持ち上げ(満月・新月。11-06 2 層)。 */
+    public float skyLiftNightFullOpen() {
+        return skyLiftNightFullOpen;
+    }
+
+    public float skyLiftNightNewOpen() {
+        return skyLiftNightNewOpen;
+    }
+
+    /** 過繁茂の外の昼の林床の持ち上げ(点検 21)。 */
+    public float skyLiftOpen() {
+        return skyLiftOpen;
+    }
+
+    /** 幹の影の帯の濃さ(0 = 無し。点検 21)。 */
+    public float trunkShadow() {
+        return trunkShadow;
+    }
+
+    /** 地形の影(幹・岩・丘・崖・家)が届く、影を落とす物と面の高さの差(ブロック。バニラ地域の光 1、11-06)。 */
+    public float terrainShadowReach() {
+        return terrainShadowReach;
+    }
+
+    /** 幹の影の帯の縁のぼけ(届く長さのうち、薄れていく割合)。 */
+    public float trunkShadowSoft() {
+        return trunkShadowSoft;
+    }
+
+    public float skyLiftDarkNight() {
+        return skyLiftDarkNight;
+    }
+
+    public float moonShadeSide() {
+        return moonShadeSide;
+    }
+
+    public float moonShadeBack() {
+        return moonShadeBack;
+    }
+
+    public float moonShadeDown() {
+        return moonShadeDown;
+    }
+
+    public float moonShadeStrength() {
+        return moonShadeStrength;
+    }
+
+    public float moonMapStrength() {
+        return moonMapStrength;
+    }
+
+    public float moonMapPhaseMin() {
+        return moonMapPhaseMin;
+    }
+
+    public float mobNightFull() {
+        return mobNightFull;
+    }
+
+    public float mobNightNew() {
+        return mobNightNew;
+    }
+
+    public float nightDesaturate() {
+        return nightDesaturate;
+    }
+
+    /** 月の斑点の色(比。明るさ 1 にそろえる)。 */
+    public float[] moonMapColor() {
+        return moonMapColor;
     }
 
     public float shade() {
@@ -884,6 +1099,21 @@ public final class AtmosphereTable {
     }
 
     /** 見え方の段(10-31)の値(節 wet・steam・ripples・gnats・creak。{@link AtmosphereLife})。 */
+    /** 水面の太陽と月(節 waterGlint、11-06 バニラ地域の光 4)。 */
+    /** 雨の見え方(節 rainLook、11-06)。 */
+    /** 胞子の空気(節 sporeAir、11-06。{@link AtmosphereAir})。 */
+    public AtmosphereAir.SporeAirParams sporeAir() {
+        return sporeAir;
+    }
+
+    public AtmosphereLife.RainLookParams rainLook() {
+        return rainLook;
+    }
+
+    public AtmosphereLife.WaterGlintParams waterGlint() {
+        return waterGlint;
+    }
+
     public AtmosphereLife.WetParams wet() {
         return wet;
     }

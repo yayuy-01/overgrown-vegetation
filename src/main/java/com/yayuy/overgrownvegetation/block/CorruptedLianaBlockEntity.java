@@ -137,6 +137,24 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
      * ここに含まれる座標のブロックも一緒に取り除く。
      */
     private List<BlockPos> lightBlockPositions = List.of();
+    /**
+     * 登る蔓(2026-11-03 試作、設定 vineClimb)の経路。点ごとに {@link #CLIMB_STRIDE} 個の float
+     * (x, y, z = この印のマスの角からの相対座標、nx, nz = 幹の外向きの水平の向き)。空なら今までの蔦。
+     * 片端(添字 0)は地面か幹の根元。計算は {@code worldgen.ClimbingVine}、描くのは {@code client.ClimbingVineRenderer}。
+     */
+    private float[] climbPath = new float[0];
+    /** 登る蔓のうち、隣の木へ渡る(揺れる)区間の点の添字 [start, end]。渡らない蔓は -1。 */
+    private int climbBridgeStart = -1;
+    private int climbBridgeEnd = -1;
+    /** 登る蔓の太さの倍率(1 = 本体、束に添う細い蔓・垂れる綱は小さく)。 */
+    private float climbScale = 1.0F;
+    /** 垂れる綱なら、上の端の揺れの重み(渡りから垂れるなら渡りと同じ、林冠からなら 0)。垂れる綱でなければ -1。 */
+    private float climbHangTop = -1.0F;
+    /** 蔓の種類の印。bit0 = 本体、bit1 = 林冠の細い蔓(2026-11-03 4 回目の試作)。-1 = 2 回目までの印(太さ 0.6 以上を本体とみなす)。 */
+    private int climbFlags = -1;
+    public static final int CLIMB_MAIN = 1;
+    public static final int CLIMB_CANOPY = 2;
+    public static final int CLIMB_STRIDE = 5;
 
     public CorruptedLianaBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.OVERGROWN_LIANA.get(), pos, state);
@@ -216,6 +234,72 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
         this.sag = sag;
         this.swagStart = swagStart;
         this.swagEnd = swagEnd;
+        this.renderBoxCache = null;
+        syncToClient();
+    }
+
+    public boolean hasClimb() {
+        return climbPath.length >= CLIMB_STRIDE * 2;
+    }
+
+    public float[] getClimbPath() {
+        return climbPath;
+    }
+
+    public int getClimbBridgeStart() {
+        return climbBridgeStart;
+    }
+
+    public int getClimbBridgeEnd() {
+        return climbBridgeEnd;
+    }
+
+    public float getClimbScale() {
+        return climbScale;
+    }
+
+    public float getClimbHangTop() {
+        return climbHangTop;
+    }
+
+    public int getClimbFlags() {
+        return climbFlags;
+    }
+
+    /** 本体の蔓か(束に添う細い蔓・垂れる綱でない)。 */
+    public boolean isClimbMain() {
+        return climbFlags >= 0 ? (climbFlags & CLIMB_MAIN) != 0 : climbScale >= 0.6F && climbHangTop < 0.0F;
+    }
+
+    /** 林冠の細い蔓か(葉だけを付け、苔の房は付けない)。 */
+    public boolean isClimbCanopy() {
+        return climbFlags >= 0 && (climbFlags & CLIMB_CANOPY) != 0;
+    }
+
+    public boolean isClimbHanging() {
+        return climbHangTop >= 0.0F;
+    }
+
+    /** 太さの倍率と垂れる綱かどうか({@link #setClimb} の前に呼ぶ。同期は setClimb が出す)。 */
+    public void setClimbStyle(float scale, float hangTop, int flags) {
+        this.climbScale = scale;
+        this.climbHangTop = hangTop;
+        this.climbFlags = flags;
+    }
+
+    /**
+     * 登る蔓にする。{@code source} は登り始めた幹の根元の原木、{@code target} は最後に貼り付いた幹の原木
+     * (木を倒したときの片付け {@code SwampTreeFall} が両端の原木を見るので、今までの蔦と同じ意味で持たせる)。
+     */
+    public void setClimb(float[] path, int bridgeStart, int bridgeEnd, BlockPos source, BlockPos target) {
+        this.climbPath = path.clone();
+        this.climbBridgeStart = bridgeStart;
+        this.climbBridgeEnd = bridgeEnd;
+        this.sourcePos = source;
+        this.targetPos = target;
+        this.sag = 0.0F;
+        this.swagStart = null;
+        this.swagEnd = null;
         this.renderBoxCache = null;
         syncToClient();
     }
@@ -635,6 +719,18 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
             }
             tag.putLongArray("LightBlocks", packed);
         }
+        if (climbPath.length > 0) {
+            int[] packedClimb = new int[climbPath.length];
+            for (int i = 0; i < packedClimb.length; i++) {
+                packedClimb[i] = Float.floatToIntBits(climbPath[i]);
+            }
+            tag.putIntArray("ClimbPath", packedClimb);
+            tag.putInt("ClimbBridgeStart", climbBridgeStart);
+            tag.putInt("ClimbBridgeEnd", climbBridgeEnd);
+            tag.putFloat("ClimbScale", climbScale);
+            tag.putFloat("ClimbHang", climbHangTop);
+            tag.putInt("ClimbFlags", climbFlags);
+        }
     }
 
     @Override
@@ -668,6 +764,16 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
             droopIsLight[i] = packedIsLight[i] != 0;
         }
         lightBlockPositions = readPositionList(tag, "LightBlocks");
+        int[] packedClimb = tag.getIntArray("ClimbPath");
+        climbPath = new float[packedClimb.length];
+        for (int i = 0; i < packedClimb.length; i++) {
+            climbPath[i] = Float.intBitsToFloat(packedClimb[i]);
+        }
+        climbBridgeStart = tag.contains("ClimbBridgeStart") ? tag.getInt("ClimbBridgeStart") : -1;
+        climbBridgeEnd = tag.contains("ClimbBridgeEnd") ? tag.getInt("ClimbBridgeEnd") : -1;
+        climbScale = tag.contains("ClimbScale") ? tag.getFloat("ClimbScale") : 1.0F;
+        climbHangTop = tag.contains("ClimbHang") ? tag.getFloat("ClimbHang") : -1.0F;
+        climbFlags = tag.contains("ClimbFlags") ? tag.getInt("ClimbFlags") : -1;
 
         // detachTicker で外したティッカーを、主アンカーに変わったときだけ付け直す(元は付けっぱなしだったので、
         // 元どおり熟成させる)。チャンク読み込み時は新しいインスタンス(tickerDetached=false・level 未設定)なので素通り。

@@ -72,6 +72,8 @@ final class AmbientSpores {
     /** 升ごとの過繁茂のバイオームか(0 / 1)と、梢の高さ(その升と周りの列の一番上のブロックのすぐ上、ワールドの y)。 */
     private static final float[] DENSITY = new float[N * N];
     private static final int[] TOPS = new int[N * N];
+    /** 森でなく胞子の空気だけで粒を出す升(11-06。天井を上げる)。 */
+    private static final boolean[] AIR_ONLY = new boolean[N * N];
     private static final int[] CELL_X = new int[N * N];
     private static final int[] CELL_Z = new int[N * N];
     private static final float[] TEXELS = new float[N * N * 2];
@@ -136,7 +138,10 @@ final class AmbientSpores {
             pos.set(cx, y, cz);
             boolean loaded = level.hasChunkAt(pos);
             boolean overgrown = loaded && ModBiomes.isOvergrownLike(level.getBiome(pos));
-            DENSITY[idx] = overgrown ? 1.0F : 0.0F;
+            // 11-06 胞子の空気: 森の外の升も、風下の空気の度合い × airSpores(森の中の半分以下 = ユーザー決定)で薄く出す。
+            float air = !overgrown && loaded ? DesignData.atmosphere().sporeAir().spores() * SporeAir.levelAt(cx, cz) : 0.0F;
+            DENSITY[idx] = overgrown ? 1.0F : air;
+            AIR_ONLY[idx] = !overgrown && air > 0.0F;
             CELL_X[idx] = wx;
             CELL_Z[idx] = wz;
             int top = Integer.MIN_VALUE;
@@ -166,7 +171,8 @@ final class AmbientSpores {
             int wz = CELL_Z[idx];
             float ceiling = 1.0E6F;
             if (wx != Integer.MIN_VALUE && TOPS[idx] != Integer.MIN_VALUE) {
-                int best = TOPS[idx] + 3;
+                // 胞子の空気だけの升は、空気中を流れるよう天井を上げる(11-06、sporeCeiling)。
+                int best = TOPS[idx] + (AIR_ONLY[idx] ? Math.round(DesignData.atmosphere().sporeAir().sporeCeiling()) : 3);
                 for (int dz = -1; dz <= 1; dz++) {
                     for (int dx = -1; dx <= 1; dx++) {
                         int j = Math.floorMod(wz + dz, N) * N + Math.floorMod(wx + dx, N);
@@ -196,7 +202,7 @@ final class AmbientSpores {
         float under = ForestPresence.underground();
         float keep = 1.0F - under * (1.0F - p.undergroundKeep());
         if (ceilingMode == 1 || ceilingMode == 2) {
-            keep *= ForestPresence.forestFactor();
+            keep *= ForestPresence.overgrown();
         }
         int shown = Math.round(count() * keep);
         if (shown <= 0) {
@@ -210,7 +216,14 @@ final class AmbientSpores {
         float day = SunLight.daylight(level, SunLight.sunDirection(level, partialTick), partialTick);
         float sky = level.getBrightness(LightLayer.SKY, eye) / 15.0F * (p.nightBrightness() + (1.0F - p.nightBrightness()) * day);
         float block = level.getBrightness(LightLayer.BLOCK, eye) / 15.0F;
-        float bright = 0.25F + 0.75F * Math.max(sky, block * 0.8F);
+        // 地下モードの点光源と床の持ち上げ(11-04 地下の光の直し 9: 洞窟では目の所の空の光もブロックの光も 0 なので、照らされた岩の前で
+        // 胞子だけ黒い四角になっていた)。Mob・粒と同じ明るさ(DynamicLights)を目の所で 1 回だけ測る(粒はカメラのまわり十数ブロックだけ)。
+        float cave = 0.0F;
+        if (CaveLights.mix() > 0.0F) {
+            var cp = DesignData.atmosphere().cave();
+            cave = Mth.clamp(CaveLights.intensityAt(cam.x, cam.y, cam.z) * cp.lightGain() * cp.entityGain() + CaveLights.ambient() * CaveLights.mix(), 0.0F, 1.0F);
+        }
+        float bright = 0.25F + 0.75F * Math.max(Math.max(sky, block * 0.8F), cave);
 
         // 繰り返しの箱の幅は 2048(位置を折り返す幅)を割り切る 2 の冪に丸める(折り返しの所で粒が飛ばないように)。
         float half = Math.max(8.0F, Math.min(32.0F, Mth.smallestEncompassingPowerOfTwo(Math.round(p.boxHalf() * 2.0F)) / 2.0F));
@@ -224,7 +237,7 @@ final class AmbientSpores {
         shader.safeGetUniform("Look").set(R, G, B, bright);
         setDrift(shader, p);
         // 梢の高さで箱を切るか(提案 1)と、光の筋・木漏れ日の日向で少し明るく(提案 3。林冠の日向の地図 {@link CanopySunMap} を読む)。
-        boolean sunMap = CanopySunMap.sporeTexture >= 0;
+        boolean sunMap = CanopySunMap.sporeTexture >= 0 && ForestPresence.openOvergrown() > 0.001F; // 11-06 2 層: 胞子の日向は過繁茂の中だけ(前と同じ)
         shader.safeGetUniform("Sky").set(ceilingMode == 0 || ceilingMode == 2 ? 1.0F : 0.0F, litOverride >= 0.0F ? litOverride : p.litBoost(), sunMap ? 1.0F : 0.0F, 0.0F);
         float[] sa = CanopySunMap.SPORE_SUN_A;
         float[] ma = CanopySunMap.SPORE_MAP_A;

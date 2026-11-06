@@ -412,8 +412,9 @@ public final class MobStats {
             // 掛かるので、素の幅を 2.6 → 1.65 に下げて実効 2.97 に収める(3 を超えると経路探索が通らない。
             // フィロセンスの注記と同じ)。実効 2.97 x 3.06、全長は 11.5 ブロック。首と尾は判定からはみ出す。
             // eggFit は待機アニメ中の画面上の差し渡し(SpawnEggEntityItemRenderer#fitSizeOf の式で測った値、全長ではない)。
-            s.scale = 1.8;
-            s.width = 1.65; s.height = 1.7; s.xpReward = 40;
+            // 11-05: 描画倍率 1.8 を geo に焼き込んだので体格は 1、判定は焼き込む前の実効値をそのまま書く(1.65 x 1.7 の 1.8 倍)。
+            s.scale = 1.0;
+            s.width = 2.97; s.height = 3.06; s.xpReward = 40;
             s.eggFit = 6.33;
         }));
 
@@ -549,7 +550,8 @@ public final class MobStats {
 
         // グループ4(拡大種)。移動速度 0.36 は「プレイヤーのダッシュジャンプと同じくらい」(≒ 6.7 ブロック/秒)。
         m.put("arbora", stat(s -> {
-            s.maxHealth = 22.0; s.attackDamage = 8.0; s.movementSpeed = 0.36; s.armor = 5.0;
+            // 体力 8・防御 4(11-05 戻したとき design の値に揃えた。前の既定 22・5 は design に上書きされて使われていなかった)。
+            s.maxHealth = 8.0; s.attackDamage = 8.0; s.movementSpeed = 0.36; s.armor = 4.0;
             s.knockbackResistance = 0.0; s.followRange = 32.0; s.stepHeight = 1.0;
             // 当たり判定は<b>1 ブロックの隙間を通れる大きさ</b>(ユーザー要望 2026-09-17:
             // 「アルボラを1マスの隙間も通れるようにしてほしい」)。1.0 ちょうどではなく 0.98 なのは、
@@ -565,7 +567,7 @@ public final class MobStats {
             // モデルは脚を広げると 1.75 x 1.62 x 2.45(幅 x 高さ x 奥行き)あるので、
             // 脚と体は当たり判定からはみ出す(クモと同じ)。
             // eggFit は待機アニメーション中の「画面上の差し渡し」の実測値(2026-09-15 に測り直し)。
-            s.width = 0.98; s.height = 0.98; s.eggFit = 2.25; s.xpReward = 5;
+            s.width = 0.98; s.height = 0.98; s.eggFit = 2.25; s.xpReward = 10;
         }));
 
         // フィロセンス — 索敵役。followRange 56 が phyllosensSightRange と対。戦うより見つける Mob なので

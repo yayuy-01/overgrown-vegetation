@@ -3,6 +3,7 @@ package com.yayuy.overgrownvegetation.registry;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.data.MobStats;
 import com.yayuy.overgrownvegetation.entity.BlightFernEntity;
+import com.yayuy.overgrownvegetation.entity.FalcimnesEntity;
 import com.yayuy.overgrownvegetation.entity.HiveNodeEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;
@@ -54,6 +55,54 @@ public final class ModEntities {
                     .clientTrackingRange(12)
                     .updateInterval(3)
                     .build("blight_fern"));
+
+    /**
+     * 「ファルキムネス」— カマキリの姿をした爬虫類。グループ5(適応種)の陸の攻撃役(2026-09-23、11-05 に作り直して戻した)。
+     * 11-05 から描画倍率 1.8 を geo に焼き込み、体格(SCALE)は 1。当たり判定は前と同じ実効 2.97 x 3.06(胴だけを覆う。3 を超えると経路探索が通らない)。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<FalcimnesEntity>> FALCIMNES =
+            ENTITY_TYPES.register("falcimnes", () -> EntityType.Builder
+                    .of(FalcimnesEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("falcimnes", 2.97F), MobStats.height("falcimnes", 3.06F))
+                    .spawnDimensionsScale(MobStats.spawnScale("falcimnes"))
+                    .clientTrackingRange(12)
+                    .updateInterval(2)
+                    .build("falcimnes"));
+
+    /**
+     * 「アルボラ」— G4(拡大種)の地上の大群・前衛(11-05 に作り直して戻した)。全面に張り付いて動く({@code entity/cling})。
+     * 当たり判定は 1 マスの隙間を通れる 0.98(前と同じ)。張り付きの部品は体が 1 マスに収まる前提。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ArboraEntity>> ARBORA =
+            ENTITY_TYPES.register("arbora", () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.ArboraEntity>of(com.yayuy.overgrownvegetation.entity.ArboraEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("arbora", 0.98F), MobStats.height("arbora", 0.98F))
+                    .spawnDimensionsScale(MobStats.spawnScale("arbora"))
+                    .clientTrackingRange(10)
+                    .updateInterval(2)
+                    .build("arbora"));
+
+    /** ファルキムネスの飛ぶ斬撃(11-05)。当たり判定は斬撃が自分で引く(横 3 × 厚み 0.5)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.FalcimnesWaveEntity>> FALCIMNES_WAVE =
+            ENTITY_TYPES.register("falcimnes_wave", () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.FalcimnesWaveEntity>of(com.yayuy.overgrownvegetation.entity.FalcimnesWaveEntity::new, MobCategory.MISC)
+                    .sized(0.5F, 0.5F)
+                    .clientTrackingRange(8)
+                    .updateInterval(1)
+                    .noSave()
+                    .fireImmune()
+                    .build("falcimnes_wave"));
+
+    /** ファルキムネスの地走りの光の帯(11-05)。位置は鎌を刺した所、向きが筋の向き。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.FalcimnesRiftEntity>> FALCIMNES_RIFT =
+            ENTITY_TYPES.register("falcimnes_rift", () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.FalcimnesRiftEntity>of(com.yayuy.overgrownvegetation.entity.FalcimnesRiftEntity::new, MobCategory.MISC)
+                    .sized(0.5F, 0.5F)
+                    .clientTrackingRange(10)
+                    .updateInterval(20)
+                    .noSave()
+                    .fireImmune()
+                    .build("falcimnes_rift"));
 
     public static void register(IEventBus modBus) {
         ENTITY_TYPES.register(modBus);

@@ -161,6 +161,7 @@ final class LedgerSpreadCatchUp {
         RandomSource random = level.getRandom();
         BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
         int placed = 0;
+        java.util.List<BlockPos> grown = new java.util.ArrayList<>();
         int columns = 0;
         int c = start;
         while (c < 256 && placed < placeBudget && columns < columnBudget && (columns == 0 || TickBudget.timeLeft())) {
@@ -191,11 +192,15 @@ final class LedgerSpreadCatchUp {
                 continue;
             }
             CorruptionRegistry.placeCorrupted(level, target, state, corrupted, Block.UPDATE_ALL);
+            grown.add(target); // 植物は列を塗り終えてから(2026-11-04: 先の列に生えた木生シダの葉が後の列にかぶさり、後の列の床が塗られずに残っていた)
+            placed++;
+        }
+        for (BlockPos target : grown) {
+            BlockState corrupted = level.getBlockState(target);
             // トクサの群れ(水辺。2026-11-02): この経路でも立てる(水辺の胞子の葦は growSurfacePlants の中で立たなくなるので、代わりが要る)
             if (!FloorGrowth.tryHorsetail(level, target)) {
                 CorruptionSpreader.growSurfacePlants(level, target, corrupted, growth);
             }
-            placed++;
         }
         if (placed > 0) {
             CorruptionCounter.record(level, placed);

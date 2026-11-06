@@ -75,8 +75,8 @@ public final class OvergrownClientConfig {
                     .define("plantMipmaps", true);
             undergrowthDistance = b.comment("Distance in blocks beyond which the undergrowth sinks into the ground and is not drawn (it starts sinking at half the distance). 0 draws it at any distance.")
                     .defineInRange("undergrowthDistance", 48, 0, 256);
-            curledFernDetail = b.comment("Detail of the curled fern model: FULL (86 faces), REDUCED (42 faces, 6 flat fronds), SIMPLE (crossed planes, 4 faces).",
-                            "Same setting as 'Show all fern fronds' in Video Settings (ON = FULL). Changing to or from SIMPLE reloads resources.",
+            curledFernDetail = b.comment("Detail of the curled fern model: FULL (86 faces), REDUCED (42 faces, 6 flat fronds). SIMPLE was removed on 2026-11-03 (an old SIMPLE value is read as REDUCED).",
+                            "Same setting as 'Show all fern fronds' in Video Settings (ON = FULL).",
                             "Moved here from overgrown_vegetation-common.toml on 2026-10-23.")
                     .defineEnum("curledFernDetail", CurledFernDetail.REDUCED);
             atmosphereEnabled = b.comment("Draws the overgrown jungle atmosphere: the lifted forest floor, blue-green canopy shade, light shafts with glowing spores and sunflecks. Only inside the overgrown forest.")

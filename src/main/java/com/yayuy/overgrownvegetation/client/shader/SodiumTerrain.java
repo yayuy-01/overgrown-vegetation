@@ -362,6 +362,21 @@ public final class SodiumTerrain {
         }
     }
 
+    /**
+     * 今描いている Sodium の層が半透明か(Mixin {@code SodiumTerrainPassMixin} が層の描き始めに入れ、描き終わりに null に戻す。2026-11-06)。
+     * null(知らない)のときだけ GL のブレンドの状態で決める。
+     */
+    @Nullable
+    private static volatile Boolean passTranslucent;
+
+    /** 確かめ用(devbridge {@code wind cavedev blendleak on}・{@code passgl on}、11-06): 層の描き始めで GL のブレンドを直に入れる(ほかの MOD の漏れの再現)/ 前の決め方(ブレンドの状態)に戻す。 */
+    public static boolean devBlendLeak;
+    public static boolean devPassFromGl;
+
+    public static void notePass(@Nullable Boolean translucent) {
+        passTranslucent = translucent;
+    }
+
     /** 今結ばれている Sodium の地形のプログラムへ、この MOD の uniform とテクスチャを流す。 */
     public static void upload() {
         if (patchedVsh == null || failed) {
@@ -393,13 +408,25 @@ public final class SodiumTerrain {
                 GL20.glUniform1i(b.samplerLocations[i], unit);
                 int id = textureId(sources, b.samplers[i]);
                 if (id > 0) {
+                    // 11-05(林冠の影が地形に掛かっていなかった件): GlStateManager の覚えている結び先が実際と食い違うことがあり
+                    // (ユニット 4〜6 で覚えは「結んである」のに実際は 0)、そのときは _bindTexture が何もしないで終わっていた。
+                    // 覚えと実際をそろえたまま必ず結ぶ: 有効なユニットは GL でも直に選び、いったん 0 を結んでから結び直す。
                     GlStateManager._activeTexture(GL13.GL_TEXTURE0 + unit);
+                    GL13.glActiveTexture(GL13.GL_TEXTURE0 + unit);
+                    GlStateManager._bindTexture(0);
                     GlStateManager._bindTexture(id);
                 }
             }
             GlStateManager._activeTexture(previous);
+            GL13.glActiveTexture(previous);
             if (b.passLocation >= 0) {
-                GL20.glUniform1i(b.passLocation, GL11.glIsEnabled(GL11.GL_BLEND) ? 1 : 0);
+                // 層を知っていればそれで(ブレンドの状態はほかの MOD が GL を直に触ると食い違う。11-06 陸の日光の照り)。
+                if (devBlendLeak) {
+                    GL11.glEnable(GL11.GL_BLEND);
+                }
+                Boolean translucent = devPassFromGl ? null : passTranslucent;
+                boolean pass = translucent != null ? translucent : GL11.glIsEnabled(GL11.GL_BLEND);
+                GL20.glUniform1i(b.passLocation, pass ? 1 : 0);
             }
         } catch (RuntimeException e) {
             fail("Sodium の地形のシェーダーへ uniform を流せなかった", e);

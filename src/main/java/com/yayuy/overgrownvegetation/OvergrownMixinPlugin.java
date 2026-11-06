@@ -93,7 +93,43 @@ public final class OvergrownMixinPlugin implements IMixinConfigPlugin {
     public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
     }
 
+    /** {@code require = 0} で差す Mixin のうち、差せなかったら WARN を 1 回出すもの: Mixin の名前 → 手続きの名前の末尾(11-04)。 */
+    private static final java.util.Map<String, List<String>> OPTIONAL_HANDLERS = java.util.Map.of(
+            "client.LevelRendererCaveCloudsMixin",
+            List.of("overgrown_vegetation$surfaceFogForClouds", "overgrown_vegetation$caveFogAfterClouds"));
+
+    /**
+     * 当てた後: {@link #OPTIONAL_HANDLERS} の手続きが標的のクラスのどこからも呼ばれていなければ(差す所が見つからなかった)、WARN を 1 回出す。
+     * 11-04 ユーザー決定: 地下モードの雲の Mixin は、Iris・Distant Horizons などが呼び出しを差し替えていても起動を止めない({@code require = 0})。
+     * Mixin は手続きの名前に前置きを付けて写すので、名前の末尾で探す。
+     */
     @Override
     public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
+        if (!mixinClassName.startsWith(PREFIX)) {
+            return;
+        }
+        List<String> handlers = OPTIONAL_HANDLERS.get(mixinClassName.substring(PREFIX.length()));
+        if (handlers == null) {
+            return;
+        }
+        for (String handler : handlers) {
+            boolean called = false;
+            for (org.objectweb.asm.tree.MethodNode method : targetClass.methods) {
+                for (org.objectweb.asm.tree.AbstractInsnNode insn : method.instructions) {
+                    if (insn instanceof org.objectweb.asm.tree.MethodInsnNode call && call.name.endsWith(handler)) {
+                        called = true;
+                        break;
+                    }
+                }
+                if (called) {
+                    break;
+                }
+            }
+            if (!called) {
+                org.slf4j.LoggerFactory.getLogger("OvergrownVegetation").warn(
+                        "{} の {} を {} に差せなかった(ほかの MOD が呼び出しを差し替えている)。地下モードで洞窟の口から見える雲は黒い霧のままになる",
+                        mixinClassName, handler, targetClassName);
+            }
+        }
     }
 }

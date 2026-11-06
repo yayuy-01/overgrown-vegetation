@@ -156,22 +156,38 @@ public final class LedgerSpreadGameTests {
         int planned = 0;
         int missed = 0;
         int extra = 0;
+        StringBuilder extraWhat = new StringBuilder();
         for (int c = 0; c < 256; c++) {
             boolean paint = LedgerSpreadMath.patch(level.getSeed(), pos.getMinBlockX() + (c & 15),
                     pos.getMinBlockZ() + (c >> 4), table.patchSize()) < threshold;
             if (paint) {
                 planned++;
                 if (!after[c]) {
+                    if (missed < 4) {
+                        int mx = pos.getMinBlockX() + (c & 15), mz = pos.getMinBlockZ() + (c >> 4);
+                        int my = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, mx, mz) - 1;
+                        extraWhat.append(" 抜け[").append(c & 15).append(',').append(c >> 4).append(" y").append(my);
+                        for (int k = 0; k < 6; k++) extraWhat.append(' ').append(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(new BlockPos(mx, my - k, mz)).getBlock()).getPath());
+                        extraWhat.append(']');
+                    }
                     missed++;
                 }
             } else if (after[c] && !before[c]) {
+                if (extra < 4) { // 何が塗られたか(2026-11-04 の切り分け)
+                    int ex = pos.getMinBlockX() + (c & 15), ez = pos.getMinBlockZ() + (c >> 4);
+                    int ey = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, ex, ez) - 1;
+                    extraWhat.append(" [").append(c & 15).append(',').append(c >> 4).append(" y").append(ey).append(' ')
+                            .append(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(new BlockPos(ex, ey, ez)).getBlock()).getPath())
+                            .append('/').append(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(new BlockPos(ex, ey - 1, ez)).getBlock()).getPath())
+                            .append(']');
+                }
                 extra++;
             }
         }
         String where = "(チャンク " + pos + "・模様が塗る列 " + planned + " / 256・除去装置の圏内 "
                 + SporeDeviceData.mayInhibitBlocksIn(level, pos, SporeDeviceData.Inhibit.CORRUPTION) + ")";
-        expectTrue(helper, missed == 0, "模様が塗る列のうち " + missed + " 列が汚染されていない" + where);
-        expectTrue(helper, extra == 0, "塗り残すはずの列が " + extra + " 列汚染された" + where);
+        expectTrue(helper, missed == 0, "模様が塗る列のうち " + missed + " 列が汚染されていない" + where + extraWhat);
+        expectTrue(helper, extra == 0, "塗り残すはずの列が " + extra + " 列汚染された" + where + extraWhat);
         helper.succeed();
     }
 
@@ -182,6 +198,12 @@ public final class LedgerSpreadGameTests {
             int x = pos.getMinBlockX() + (c & 15);
             int z = pos.getMinBlockZ() + (c >> 4);
             int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
+            // 木生シダの幹・葉(隣の列から張り出したものも)はくぐって地面で数える(2026-11-04: 塗り残しの列に葉・幹が乗って「汚染された」と数えていた)
+            for (int d = 0; d < 32; d++) {
+                net.minecraft.world.level.block.state.BlockState s = level.getBlockState(new BlockPos(x, y, z));
+                if (!s.isAir() && !com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder.isTreePart(s)) break;
+                y--;
+            }
             for (int k = 0; k < 3 && !out[c]; k++) {
                 BlockPos at = new BlockPos(x, y - k, z); // 記録で覆ったマスも汚染済み(本体と同じ数え方、2026-10-30 夜)
                 out[c] = com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.isCorruptedCell(level, at, level.getBlockState(at));

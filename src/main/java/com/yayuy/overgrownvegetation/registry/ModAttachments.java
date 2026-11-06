@@ -26,12 +26,30 @@ public final class ModAttachments {
                     () -> AttachmentType.builder(() -> 0).build());
 
     /**
+     * 胞子の暴露量(%秒、2026-11-04 感染システムの第 1 段)。{@link com.yayuy.overgrownvegetation.spore.SporeExposureTracker} が
+     * 積むときに初めて付ける(胞子と無縁の個体には付かない)。11-04 第 2 段から保存する(感染と Mob の 20 ダメージに意味ができたため。
+     * プレイヤーも Mob も。仮決め)。死んだら引き継がない(復活は 0 から)。
+     */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<com.yayuy.overgrownvegetation.spore.SporeExposure>> SPORE_EXPOSURE =
+            ATTACHMENT_TYPES.register("spore_exposure",
+                    () -> AttachmentType.builder(com.yayuy.overgrownvegetation.spore.SporeExposure::new)
+                            .serialize(com.yayuy.overgrownvegetation.spore.SporeExposure.CODEC).build());
+
+    /**
      * チャンクごとの「このチャンクに出した萌芽体の数」(2026-10-23 胞子の場 第 2 段 E・F。胞子感染で積む濃度の加算
      * spore_chunk_bonus は無くした)。胞子の場の萌芽体の数(1〜2)より少なければ、読み込んだときに足りない分を根付いた姿で置く。
      * チャンクと一緒にセーブされる。
      */
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<Integer>> SPROUTS_PLACED =
             ATTACHMENT_TYPES.register("sprouts_placed",
+                    () -> AttachmentType.builder(() -> 0).serialize(Codec.INT).build());
+
+    /**
+     * チャンクごとの「洞窟の床に芽の点を置いた回数」(2026-11-04 胞子の場の地下の層)。場の洞窟の発芽の回数より少なければ、
+     * 読み込んだときに足りない分の点を洞窟の床に置く。チャンクと一緒にセーブされる。
+     */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<Integer>> CAVE_SPROUTS_PLACED =
+            ATTACHMENT_TYPES.register("cave_sprouts_placed",
                     () -> AttachmentType.builder(() -> 0).serialize(Codec.INT).build());
 
     /**
@@ -80,6 +98,34 @@ public final class ModAttachments {
      */
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap>>
             COVER_SETTLE = ATTACHMENT_TYPES.register("cover_settle",
+                    () -> AttachmentType.<it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap>builder(
+                                    () -> new it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap())
+                            .serialize(Codec.LONG_STREAM.xmap(
+                                    stream -> {
+                                        long[] a = stream.toArray();
+                                        it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap map = new it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap();
+                                        for (int i = 0; i + 1 < a.length; i += 2) {
+                                            map.put(a[i], a[i + 1]);
+                                        }
+                                        return map;
+                                    },
+                                    map -> {
+                                        long[] a = new long[map.size() * 2];
+                                        int i = 0;
+                                        for (var e : map.long2LongEntrySet()) {
+                                            a[i++] = e.getLongKey();
+                                            a[i++] = e.getLongValue();
+                                        }
+                                        return java.util.Arrays.stream(a);
+                                    }))
+                            .build());
+
+    /**
+     * 覆いを剥がした時刻(2026-11-03 ユーザー指定「剥がしたマスはしばらく這い上がる苔が付かない」)。マス → 剥がしたゲーム時刻。
+     * {@link com.yayuy.overgrownvegetation.corruption.CoverCreepData} が書き、猶予が過ぎたものは読むときに捨てる。サーバーだけ(送らない)。保存の形は COVER_SETTLE と同じ。
+     */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap>>
+            COVER_PEELED = ATTACHMENT_TYPES.register("cover_peeled",
                     () -> AttachmentType.<it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap>builder(
                                     () -> new it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap())
                             .serialize(Codec.LONG_STREAM.xmap(
@@ -221,6 +267,10 @@ public final class ModAttachments {
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<Float>> EROSION =
             ATTACHMENT_TYPES.register("erosion",
                     () -> AttachmentType.builder(() -> 0.0F).serialize(Codec.FLOAT).copyOnDeath().build());
+    /**
+     * プレイヤーの胞子感染の、今の段階に入ってから進んだ tick(10-14 の 10 段階。2026-11-04 から再び使う、
+     * {@code effect/SporeInfectionEffects})。10 分(effects.json の stageTicks)で 1 段上がる。保存する・死んだら引き継がない。
+     */
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<Integer>> SPORE_STAGE_TICKS =
             ATTACHMENT_TYPES.register("spore_stage_ticks",
                     () -> AttachmentType.builder(() -> 0).serialize(Codec.INT).build());

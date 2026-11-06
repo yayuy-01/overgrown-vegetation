@@ -48,6 +48,32 @@ public final class CoverQuads {
     }
 
     /**
+     * 透けるブロック(ガラス板・鉄格子)の覆い(2026-11-03): 横向きの面は下から {@code fraction} の高さまでだけ(上の頂点を下ろす。絵の座標は位置から
+     * 取り直すので切れた所で絵も切れる = 苔のふちがぎざぎざに出る)、上下の面はそのまま(板の細い上の縁・下の縁に苔)。
+     */
+    public static BakedQuad overlayLower(BakedQuad q, boolean flush, int x, int y, int z, CoverSprites.Set sprites, CoverTable design,
+                                         float fraction) {
+        int[] v = q.getVertices().clone();
+        if (q.getDirection().getAxis().isHorizontal()) {
+            int stride = v.length / 4;
+            float minY = Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+            for (int i = 0; i < 4; i++) {
+                float py = Float.intBitsToFloat(v[i * stride + 1]);
+                minY = Math.min(minY, py);
+                maxY = Math.max(maxY, py);
+            }
+            float top = CoverLook.clipTop(minY, maxY, fraction);
+            for (int i = 0; i < 4; i++) {
+                int o = i * stride + 1;
+                if (Float.intBitsToFloat(v[o]) > top) {
+                    v[o] = Float.floatToRawIntBits(top);
+                }
+            }
+        }
+        return retexture(q, v, flush, x, y, z, sprites, design, 0, false);
+    }
+
+    /**
      * 覆いの下の元の面を暗くした写し(2026-10-31 夜、ユーザー決定)。置き換えブロック(overgrown_stone など)は絵の中で「苔の間から見える元の面」を
      * {@code cover.json} の {@code baseDarken} 倍に暗くして描くので、覆い(元の面をゲームが描く)も同じ明るさに揃える。元の面と同じ sprite・UV・頂点・色付けで、
      * 頂点の色だけ倍率を掛ける。覆いの絵より先に同じ層へ足す(後から描くので「以下」の比べで元の面に勝ち、その上に覆いの絵が乗る)。

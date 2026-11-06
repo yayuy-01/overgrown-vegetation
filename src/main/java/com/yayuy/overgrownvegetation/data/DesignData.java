@@ -48,6 +48,9 @@ public final class DesignData {
     private static volatile CoverTable cover = CoverTable.DEFAULT;
     private static volatile SporeFieldTable sporeField = SporeFieldTable.DEFAULT;
     private static volatile AtmosphereTable atmosphere = AtmosphereTable.DEFAULT;
+    private static volatile EffectTable effects = EffectTable.DEFAULT;
+    private static volatile AdaptationTable adaptation = AdaptationTable.DEFAULT;
+    private static volatile ActionTable actions = ActionTable.DEFAULT;
 
     private static volatile boolean loaded;
 
@@ -75,6 +78,11 @@ public final class DesignData {
         sporeField = table;
     }
 
+    /** 効果の設計値({@code effects.json}、2026-11-04 にプレイヤーの胞子感染 10 段階だけで戻した)。 */
+    public static EffectTable effects() {
+        return effects;
+    }
+
     /** 過繁茂の密林の雰囲気の設計値({@code atmosphere.json}、2026-10-30)。クライアントの描画だけが読む。 */
     public static AtmosphereTable atmosphere() {
         return atmosphere;
@@ -87,6 +95,16 @@ public final class DesignData {
     /** 覆いの設計値({@code cover.json}、2026-10-30)。 */
     public static CoverTable cover() {
         return cover;
+    }
+
+    /** Mob の技の調整値({@code actions.json}、11-05。層 2 の共通部品)。 */
+    public static ActionTable actions() {
+        return actions;
+    }
+
+    /** グループ5(適応種)の武器への適応({@code adaptation.json}。11-05 にファルキムネスと一緒に戻した)。 */
+    public static AdaptationTable adaptation() {
+        return adaptation;
     }
 
     /** 起動時に一度だけ({@code OvergrownVegetation} コンストラクタから)。 */
@@ -114,6 +132,9 @@ public final class DesignData {
         cover = CoverTable.fromJson(read(dir, "cover.json", CoverTable.Json.class));
         sporeField = SporeFieldTable.fromJson(read(dir, "spore_field.json", SporeFieldTable.Json.class));
         atmosphere = AtmosphereTable.fromJson(read(dir, "atmosphere.json", AtmosphereTable.Json.class));
+        effects = EffectTable.fromJson(read(dir, "effects.json", EffectTable.Json.class));
+        adaptation = AdaptationTable.fromJson(read(dir, "adaptation.json", AdaptationTable.Json.class));
+        actions = ActionTable.fromJson(read(dir, "actions.json", ActionTable.Json.class));
 
         OvergrownVegetation.LOGGER.info("設計データを読み込みました({})", dir);
     }

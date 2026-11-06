@@ -4,6 +4,7 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -29,6 +30,15 @@ public class OvergrownLeavesBlock extends InertBlock {
     @Override
     protected MapCodec<? extends OvergrownLeavesBlock> codec() {
         return CODEC;
+    }
+
+    /** 芯の葉が消えたら、それを斜めの芯にしている角の板の葉に知らせる(面で接しないので updateShape が届かない。2026-11-03)。 */
+    @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+        if (!level.isClientSide && !newState.is(state.getBlock())) {
+            SigillariaFringeBlock.checkCorners(level, pos);
+        }
+        super.onRemove(state, level, pos, newState, movedByPiston);
     }
 
     /** 軽量グラフィックでは葉が固い層なので、NeoForge の既定では隣に面を隠させない。描画設定によらず省くため常に許す。 */

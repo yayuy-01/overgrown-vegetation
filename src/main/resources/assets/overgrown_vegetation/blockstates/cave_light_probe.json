@@ -1,9 +1,0 @@
-{
-  "variants": {
-    "kind=tassel": { "model": "overgrown_vegetation:block/cave_light_probe" },
-    "kind=foxfire": { "model": "overgrown_vegetation:block/cave_light_probe" },
-    "kind=ley_near": { "model": "overgrown_vegetation:block/cave_light_probe" },
-    "kind=ley_far": { "model": "overgrown_vegetation:block/cave_light_probe" },
-    "kind=vine": { "model": "overgrown_vegetation:block/cave_light_probe" }
-  }
-}

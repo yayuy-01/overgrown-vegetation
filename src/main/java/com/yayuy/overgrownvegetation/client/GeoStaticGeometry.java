@@ -119,7 +119,7 @@ import java.util.function.Function;
  *     <li><b>閉じた箱の裏面</b> — 6 面すべてが残る厚みのある直方体(茎など)は内側が見えないので表の 1 枚だけ。</li>
  * </ul>
  * <p>巻きシダの場合これで 1 本あたり 188 面 → 86 面になる(見た目は変わらない)。
- * さらに落としたいときは {@code curledFernDetail}({@link CurledFernDetail})で葉を間引く / 十字板にする。
+ * さらに落としたいときは {@code curledFernDetail}({@link CurledFernDetail})で葉を軽い形にする(十字板の SIMPLE は 2026-11-03 に削除)。
  * FULL と REDUCED の切り替えはバニラのビデオ設定「シダの葉を立体で描く」({@link CurledFernOption})
  * からも行える(同じ設定を触っている)。
  */
@@ -141,11 +141,6 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
      * 焼き直さず、{@code allChanged()} のあとにこの値だけ進める。
      */
     private static volatile CurledFernDetail lastBakedDetail = null;
-    /**
-     * SIMPLE との行き来で資源の読み直しを頼んで、まだ焼き直していない間は真(2026-10-23)。設定の画面で保存すると、
-     * 少し後に config のファイルの見張りが {@code ModConfigEvent.Reloading} を投げてここがもう一度呼ばれ、読み直しが 2 回走っていた。
-     */
-    private static volatile boolean reloadPending;
 
     /**
      * 葉を 1 本も省かずに描くか({@link CurledFernDetail#FULL} 相当)。
@@ -255,14 +250,10 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
      * ビデオ設定のトグル({@link CurledFernOption})と、config ファイルを直接編集したとき
      * ({@code OvergrownVegetationClient#reloadOnCurledFernDetailChange})の両方から来る。
      *
-     * <p>やることは変更の種類で 2 段階に分かれる。
-     * <ul>
-     *     <li><b>FULL ⇄ REDUCED</b> — {@link RandomBoneGroupModel} が両方の面を持っているので、
-     *     焼いたモデルはそのまま使える。<b>チャンクメッシュの焼き直しだけ</b>
-     *     ({@code levelRenderer.allChanged()}、バニラの「グラフィック描画」と同じ重さ)。</li>
-     *     <li><b>SIMPLE との行き来</b> — 十字の板は形そのものが別で、モデルを焼く時点で
-     *     決まっている。<b>リソース再読み込み</b>(数秒固まる)が要る。</li>
-     * </ul>
+     * <p>FULL ⇄ REDUCED は {@link RandomBoneGroupModel} が両方の面を持っているので、
+     * 焼いたモデルはそのまま使える。<b>チャンクメッシュの焼き直しだけ</b>
+     * ({@code levelRenderer.allChanged()}、バニラの「グラフィック描画」と同じ重さ)。
+     * (2026-11-03 までは十字の板の SIMPLE があり、その行き来だけはリソース再読み込みへ回していた。)
      *
      * <p>一度も焼いていない(= まだリソース読み込み前)なら、次の読み込みで新しい値が使われるので何もしない。
      */
@@ -274,14 +265,6 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
         }
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft == null) {
-            return;
-        }
-        if (baked == CurledFernDetail.SIMPLE || current == CurledFernDetail.SIMPLE) {
-            if (reloadPending) {
-                return; // 読み直しを頼んだばかり(焼き直しで今の値が使われる)
-            }
-            reloadPending = true;
-            minecraft.execute(minecraft::reloadResourcePacks);
             return;
         }
         // FULL ⇄ REDUCED。焼いたモデルは両方を持っているので、チャンクを積み直せばよい。
@@ -311,7 +294,6 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
                            ItemOverrides overrides) {
         CurledFernDetail detail = detail();
         lastBakedDetail = detail;
-        reloadPending = false;
         showAllFronds = detail == CurledFernDetail.FULL;
 
         TextureAtlasSprite sprite = spriteGetter.apply(context.getMaterial("texture"));
@@ -337,7 +319,7 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
 
         // reduced_geo があれば、FULL は元の模型・REDUCED はその軽い模型(どちらも葉を間引かない)を両方焼いて持つ。
         // 切り替えは RandomBoneGroupModel がどちらを返すかだけ(組み合わせは 1 通り)なので、焼き直しは要らない。
-        if (detail != CurledFernDetail.SIMPLE && reducedGeoLocation != null) {
+        if (reducedGeoLocation != null) {
             List<BakedQuad> full = new ArrayList<>();
             bakeAllBones(geoLocation, pose, sprite, stateRotation, ambientOcclusion, Set.of(), Map.of(), full);
             List<BakedQuad> light = new ArrayList<>();
@@ -355,9 +337,8 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
         // reduced_bone_groups が指定されていれば、FULL / REDUCED <b>両方</b>の面を持つモデルを返す。
         // ビデオ設定の「シダの葉を立体で描く」はどちらを返すかの分岐だけなので、
         // 切り替えてもモデルの焼き直しが要らない(CurledFernOption 参照)。
-        // SIMPLE は形そのものが別(十字の板)なので、ここには入らず下の従来の焼き方へ行く。
-        // 空が返るのはボーン名が geo.json に 1 つも無かったときだけで、その場合も下へ落ちる。
-        if (detail != CurledFernDetail.SIMPLE && !reducedBoneGroups.isEmpty()) {
+        // 空が返るのはボーン名が geo.json に 1 つも無かったときだけで、その場合は下へ落ちる。
+        if (!reducedBoneGroups.isEmpty()) {
             GroupBake groups = bakeGroupCombos(pose, sprite, stateRotation, ambientOcclusion);
             if (groups != null) {
                 // 1 通りしか作れなかった(グループがどれも 1 本)なら、わざわざ包む意味がない。
@@ -372,14 +353,9 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
         }
 
         List<BakedQuad> quads = new ArrayList<>();
-        if (detail == CurledFernDetail.SIMPLE) {
-            // 立体モデルをやめて、バニラの草と同じ十字の板 1 組(4面)だけにする。
-            bakeCross(pose, particle, stateRotation, ambientOcclusion, quads);
-        } else {
-            // REDUCED でグループ指定が無いモデルは、従来どおり固定のボーンを省く。
-            Set<String> skip = detail == CurledFernDetail.REDUCED ? reducedSkipBones : Set.of();
-            bakeAllBones(geoLocation, pose, sprite, stateRotation, ambientOcclusion, skip, Map.of(), quads);
-        }
+        // REDUCED でグループ指定が無いモデルは、従来どおり固定のボーンを省く。
+        Set<String> skip = detail == CurledFernDetail.REDUCED ? reducedSkipBones : Set.of();
+        bakeAllBones(geoLocation, pose, sprite, stateRotation, ambientOcclusion, skip, Map.of(), quads);
         return buildSimple(context, overrides, particle, renderTypes, quads);
     }
 
@@ -682,37 +658,6 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
             // 例: 葉(厚み 0 の直方体)の下面 UV は透明で、下から見えていたのは上面の裏側。
             // 同じ見た目にするため裏も焼く(頂点順を逆にしただけで、陰影・法線は表と同じ)。
             out.add(bakeOneSide(positions, us, vs, back, sprite, shadeDirection, shadingNormal, ambientOcclusion));
-        }
-    }
-
-    /** 品質 {@link CurledFernDetail#SIMPLE} 用。バニラの {@code block/cross} と同じ十字の板を焼く。 */
-    private static void bakeCross(PoseStack pose, TextureAtlasSprite sprite, Transformation stateRotation,
-                                  boolean ambientOcclusion, List<BakedQuad> out) {
-        // ブロック底面中央を原点とした、対角線上に立つ 2 枚の板(バニラの草と同じく縁を内側へ寄せる)。
-        float r = 0.45F;
-        float[][][] planes = {
-                {{-r, 1.0F, -r}, {-r, 0.0F, -r}, {r, 0.0F, r}, {r, 1.0F, r}},
-                {{r, 1.0F, -r}, {r, 0.0F, -r}, {-r, 0.0F, r}, {-r, 1.0F, r}},
-        };
-        float[] us = {0.0F, 0.0F, 1.0F, 1.0F};
-        float[] vs = {0.0F, 1.0F, 1.0F, 0.0F};
-
-        Matrix4f poseMatrix = pose.last().pose();
-        for (float[][] plane : planes) {
-            Vector3f[] positions = new Vector3f[4];
-            for (int i = 0; i < 4; i++) {
-                Vector3f position = new Vector3f(plane[i][0], plane[i][1], plane[i][2]);
-                poseMatrix.transformPosition(position);
-                applyStateRotation(position, stateRotation);
-                positions[i] = position;
-            }
-            Vector3f normal = new Vector3f(positions[2]).sub(positions[0])
-                    .cross(new Vector3f(positions[3]).sub(positions[1])).normalize();
-            Direction shadeDirection = Direction.getNearest(normal.x(), normal.y(), normal.z());
-            out.add(bakeOneSide(positions, us, vs, new int[] {0, 1, 2, 3},
-                    sprite, shadeDirection, normal, ambientOcclusion));
-            out.add(bakeOneSide(positions, us, vs, new int[] {0, 3, 2, 1},
-                    sprite, shadeDirection, normal, ambientOcclusion));
         }
     }
 

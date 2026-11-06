@@ -166,13 +166,24 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
      */
     private static final float DROOP_ORIGIN_LIFT = 0.15F;
 
-    private static final RenderType MAIN_RENDER_TYPE = createRenderType("overgrown_vegetation_liana", MAIN_TEXTURE);
+    /**
+     * 林冠の光のシェーダー(2026-11-05 光の点検 6 で登る蔓に、11-06 ユーザー「やりましょう」で今の蔦・垂れ蔦にも)。文字のシェーダーのままだと
+     * 地形の林冠の影・森の青緑・空の光の色・夜の色を通らず、蔦だけ夜に緑で浮いていた。地形の草・シダと同じ {@code ovCanopyLight}(背面の影なし)と、
+     * 幹の面と同じ向きの明暗を掛ける({@code shaders/core/liana_canopy_lit.fsh})。読み込めない・シェーダーパック使用中は文字のシェーダー。
+     */
+    static final RenderStateShard.ShaderStateShard CANOPY_LIT_SHADER = new RenderStateShard.ShaderStateShard(() -> {
+        net.minecraft.client.renderer.ShaderInstance lit = com.yayuy.overgrownvegetation.client.shader.ModShaders.lianaCanopyLit();
+        return lit != null && !com.yayuy.overgrownvegetation.client.shader.ShaderPacks.active() ? lit
+                : net.minecraft.client.renderer.GameRenderer.getRendertypeTextShader();
+    });
+
+    private static final RenderType MAIN_RENDER_TYPE = createRenderType("overgrown_vegetation_liana", MAIN_TEXTURE, CANOPY_LIT_SHADER);
     private static final RenderType DROOP_RENDER_TYPE =
-            createRenderType("overgrown_vegetation_liana_droop", DROOP_TEXTURE);
+            createRenderType("overgrown_vegetation_liana_droop", DROOP_TEXTURE, CANOPY_LIT_SHADER);
     private static final RenderType DROOP_LIGHT_RENDER_TYPE =
-            createRenderType("overgrown_vegetation_liana_droop_light", DROOP_LIGHT_TEXTURE);
+            createRenderType("overgrown_vegetation_liana_droop_light", DROOP_LIGHT_TEXTURE, CANOPY_LIT_SHADER);
     private static final RenderType TRIM_RENDER_TYPE =
-            createRenderType("overgrown_vegetation_liana_trim", TRIM_TEXTURE);
+            createRenderType("overgrown_vegetation_liana_trim", TRIM_TEXTURE, CANOPY_LIT_SHADER);
 
     /**
      * 分割点(0..{@link #SEGMENTS})ごとのパック済み光量を使い回す再利用可能なスクラッチ配列。
@@ -246,7 +257,12 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
      * 半透明合成({@code TRANSLUCENT_TRANSPARENCY})にしてあるので、テクスチャの縁を
      * 完全な不透明(アルファ0/255の2値)にする必要はなく、葉のような柔らかい輪郭も使える。
      */
-    private static RenderType createRenderType(String name, ResourceLocation texture) {
+    static RenderType createRenderType(String name, ResourceLocation texture) {
+        return createRenderType(name, texture, RenderStateShard.RENDERTYPE_TEXT_SHADER);
+    }
+
+    /** シェーダーを選べる版(登る蔓が林冠の光のシェーダー {@code liana_canopy_lit} で使う。2026-11-05 光の点検 6)。 */
+    static RenderType createRenderType(String name, ResourceLocation texture, RenderStateShard.ShaderStateShard shader) {
         return RenderType.create(
                 name,
                 DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP,
@@ -255,7 +271,7 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
                 false,
                 false,
                 RenderType.CompositeState.builder()
-                        .setShaderState(RenderStateShard.RENDERTYPE_TEXT_SHADER)
+                        .setShaderState(shader)
                         .setTextureState(new RenderStateShard.TextureStateShard(texture, false, false))
                         .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
                         .setLightmapState(RenderStateShard.LIGHTMAP)
@@ -286,6 +302,9 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
             event.registerRenderBuffer(DROOP_RENDER_TYPE);
             event.registerRenderBuffer(DROOP_LIGHT_RENDER_TYPE);
             event.registerRenderBuffer(TRIM_RENDER_TYPE);
+            event.registerRenderBuffer(ClimbingVineRenderer.BODY_RENDER_TYPE);
+            event.registerRenderBuffer(ClimbingVineRenderer.TRIM_RENDER_TYPE);
+            event.registerRenderBuffer(ClimbingVineRenderer.CANOPY_LEAF_RENDER_TYPE);
         }
 
         private FixedBuffers() {
@@ -310,6 +329,9 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
             bufferSource.endBatch(DROOP_RENDER_TYPE);
             bufferSource.endBatch(DROOP_LIGHT_RENDER_TYPE);
             bufferSource.endBatch(TRIM_RENDER_TYPE);
+            bufferSource.endBatch(ClimbingVineRenderer.BODY_RENDER_TYPE);
+            bufferSource.endBatch(ClimbingVineRenderer.TRIM_RENDER_TYPE);
+            bufferSource.endBatch(ClimbingVineRenderer.CANOPY_LEAF_RENDER_TYPE);
         }
 
         private AfterBlockEntities() {
@@ -325,6 +347,9 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
      */
     @Override
     public AABB getRenderBoundingBox(CorruptedLianaBlockEntity blockEntity) {
+        if (blockEntity.hasClimb()) {
+            return ClimbingVineRenderer.box(blockEntity); // 登る蔓(2026-11-03 試作)
+        }
         AABB cached = blockEntity.getRenderBoxCache();
         if (cached != null) {
             return cached;
@@ -386,7 +411,9 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
         // 距離の判定の後ろに足した条件は、render() が何も描かずに return する条件(ジオメトリキャッシュ無し
         // かつ buildGeometryCache が null を返す)の否定そのもの。何も描かないなら tryRender / getLightColor /
         // render 呼び出しごと省く(副アンカーは毎フレームここで落ちる)。
-        return dx * dx + dy * dy + dz * dz <= (double) VIEW_DISTANCE * VIEW_DISTANCE
+        // 林冠の細い蔓は 20 ブロックまで(ClimbingVineRenderer#CANOPY_VIEW_DISTANCE)
+        double limit = blockEntity.isClimbCanopy() ? ClimbingVineRenderer.CANOPY_VIEW_DISTANCE : VIEW_DISTANCE;
+        return dx * dx + dy * dy + dz * dz <= limit * limit
                 && (blockEntity.hasSwag()
                         || (blockEntity.getSourcePos() != null && blockEntity.getTargetPos() != null)
                         || GEOMETRY_CACHE.containsKey(blockEntity));
@@ -395,6 +422,10 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
     @Override
     public void render(CorruptedLianaBlockEntity blockEntity, float partialTick, PoseStack poseStack,
             MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
+        if (blockEntity.hasClimb()) {
+            ClimbingVineRenderer.render(blockEntity, partialTick, poseStack, bufferSource); // 登る蔓(2026-11-03 試作)
+            return;
+        }
         Level level = blockEntity.getLevel();
         if (level == null) {
             return;

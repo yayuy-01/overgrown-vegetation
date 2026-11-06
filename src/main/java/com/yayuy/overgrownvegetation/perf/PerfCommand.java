@@ -56,7 +56,25 @@ public final class PerfCommand {
                                             com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.setDepositForCommand(ctx.getSource().getLevel(), p.getX() >> 4, p.getZ() >> 4, pct);
                                             ctx.getSource().sendSuccess(() -> Component.literal("降り積もり " + pct + "%(次の場の更新で)"), false);
                                             return 1;
-                                        }))))
+                                        })))
+                                // 暴露量(2026-11-04 感染システムの第 1 段): 自分とまわり 32 ブロックのバニラの Mob の暴露量 / 0 に戻す / 自分の値を決める
+                                .then(Commands.literal("exposure").executes(PerfCommand::exposure)
+                                        .then(Commands.literal("reset").executes(ctx -> {
+                                            int n = forExposureTargets(ctx.getSource(), e -> com.yayuy.overgrownvegetation.spore.SporeExposureTracker.setDose(e, 0.0D, 0L));
+                                            ctx.getSource().sendSuccess(() -> Component.literal("暴露量を 0 に戻した: " + n + " 体(自分とまわり 32 ブロック)"), false);
+                                            return n;
+                                        }))
+                                        .then(Commands.literal("set").then(Commands.argument("dose", com.mojang.brigadier.arguments.DoubleArgumentType.doubleArg(0.0D, 100000.0D))
+                                                .executes(ctx -> {
+                                                    double dose = com.mojang.brigadier.arguments.DoubleArgumentType.getDouble(ctx, "dose");
+                                                    net.minecraft.world.entity.Entity self = ctx.getSource().getEntity();
+                                                    if (!(self instanceof net.minecraft.world.entity.LivingEntity living)) {
+                                                        ctx.getSource().sendFailure(Component.literal("生き物として実行して"));
+                                                        return 0;
+                                                    }
+                                                    com.yayuy.overgrownvegetation.spore.SporeExposureTracker.setDose(living, dose, ctx.getSource().getLevel().getGameTime());
+                                                    return exposure(ctx);
+                                                })))))
                         .then(Commands.literal("fluid").executes(PerfCommand::fluid)
                                 .then(Commands.literal("on").executes(ctx -> {
                                     FluidSpreadShortcut.setEnabled(true);
@@ -93,6 +111,61 @@ public final class PerfCommand {
             source.sendSuccess(() -> Component.literal(line), false);
         }
         return 1;
+    }
+
+    /** 自分(生き物なら)と、まわり 32 ブロックの暴露量を測るバニラの Mob に {@code action}。数を返す。 */
+    private static int forExposureTargets(CommandSourceStack source, java.util.function.Consumer<net.minecraft.world.entity.LivingEntity> action) {
+        int n = 0;
+        if (source.getEntity() instanceof net.minecraft.world.entity.LivingEntity self) {
+            action.accept(self);
+            n++;
+        }
+        net.minecraft.world.phys.AABB box = net.minecraft.world.phys.AABB.ofSize(source.getPosition(), 64, 64, 64);
+        for (net.minecraft.world.entity.LivingEntity e : source.getLevel().getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class, box,
+                com.yayuy.overgrownvegetation.spore.SporeExposureTracker::isMeasuredMob)) {
+            action.accept(e);
+            n++;
+        }
+        return n;
+    }
+
+    private static int exposure(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        net.minecraft.server.level.ServerLevel level = source.getLevel();
+        com.yayuy.overgrownvegetation.data.SporeFieldTable t = com.yayuy.overgrownvegetation.data.DesignData.sporeField();
+        double here = com.yayuy.overgrownvegetation.spore.SporeConcentration.percentAt(level, net.minecraft.core.BlockPos.containing(source.getPosition()));
+        source.sendSuccess(() -> Component.literal(String.format("暴露量: 感染の量 %.0f %%秒・%.0f%% 未満は積まない・半減期 %.0f 秒(今ここの濃度 %.1f%%)",
+                t.infectDose(), t.exposureMinPercent(), t.exposureHalfLifeSeconds(), here)), false);
+        if (source.getEntity() instanceof net.minecraft.world.entity.LivingEntity self) {
+            source.sendSuccess(() -> Component.literal(describeExposure("自分", self, t)), false);
+        }
+        net.minecraft.world.phys.AABB box = net.minecraft.world.phys.AABB.ofSize(source.getPosition(), 64, 64, 64);
+        java.util.List<net.minecraft.world.entity.LivingEntity> mobs = level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class, box,
+                com.yayuy.overgrownvegetation.spore.SporeExposureTracker::isMeasuredMob);
+        int exposed = 0, reached = 0;
+        net.minecraft.world.entity.LivingEntity top = null;
+        for (net.minecraft.world.entity.LivingEntity e : mobs) {
+            double d = com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(e);
+            if (d > 0.0D) exposed++;
+            if (e.hasData(com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_EXPOSURE)
+                    && e.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_EXPOSURE).reachedCount > 0) reached++;
+            if (top == null || d > com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(top)) top = e;
+        }
+        int fExposed = exposed, fReached = reached;
+        source.sendSuccess(() -> Component.literal("まわり 32 ブロックの Mob: " + mobs.size() + " 体・暴露あり " + fExposed + "・感染の量に届いたことがある " + fReached
+                + "(届くたびに防御無視の 20 ダメージ)"), false);
+        if (top != null && com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(top) > 0.0D) {
+            net.minecraft.world.entity.LivingEntity fTop = top;
+            source.sendSuccess(() -> Component.literal(describeExposure("いちばん多い " + fTop.getType().getDescription().getString(), fTop, t)), false);
+        }
+        return 1;
+    }
+
+    private static String describeExposure(String who, net.minecraft.world.entity.LivingEntity e, com.yayuy.overgrownvegetation.data.SporeFieldTable t) {
+        double d = com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(e);
+        int reached = e.hasData(com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_EXPOSURE)
+                ? e.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_EXPOSURE).reachedCount : 0;
+        return String.format("%s: %.0f / %.0f %%秒(%.0f%%)・届いた回数 %d", who, d, t.infectDose(), d / t.infectDose() * 100.0D, reached);
     }
 
     private static int status(CommandContext<CommandSourceStack> ctx) {

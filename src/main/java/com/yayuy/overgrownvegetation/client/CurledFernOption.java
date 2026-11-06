@@ -23,30 +23,17 @@ import org.jetbrains.annotations.Nullable;
  * こうしてあるのは、設定が 2 か所にあって食い違うのを避けるため —— ビデオ設定で切り替えても
  * config を直接編集しても、行き先は同じ 1 つの値。
  *
- * <p><b>{@link CurledFernDetail#SIMPLE} を消さない</b>: この設定は 3 値で、トグルでは
- * FULL と「それ以外」しか表せない。OFF に戻したときは<b>トグルを触る前の値</b>
- * ({@link #offDetail})へ戻すので、config で SIMPLE にしている人が ON→OFF しても
- * REDUCED に落とされない。
+ * <p>この設定は FULL と REDUCED の 2 値なので、トグルの ON / OFF がそのまま対応する
+ * (2026-11-03 に 3 つ目の SIMPLE を削除。それまでは OFF に戻すときトグルを触る前の値を覚えていた)。
  *
  * <h2>切り替えにリソース再読み込みが要らない理由</h2>
  * <p>{@link RandomBoneGroupModel} が「葉 6 本ぜんぶ」と「3 本の組み合わせ 8 通り」の
  * <b>両方を焼いて持っている</b>ので、切り替えはどちらを返すかの分岐だけ。
- * チャンクメッシュの焼き直し({@code levelRenderer.allChanged()})だけで反映される
- * (SIMPLE との行き来だけは焼き直しが要るので、そこは {@link GeoStaticGeometry#applyDetailChange}
- * がリソース再読み込みへ回す)。
+ * チャンクメッシュの焼き直し({@code levelRenderer.allChanged()})だけで反映される。
  */
 public final class CurledFernOption {
 
     private static final String KEY = "options.overgrown_vegetation.show_all_ferns";
-
-    /**
-     * OFF のときに戻す値。ビデオ設定を開いたときの値が FULL 以外なら、それを覚えておく。
-     *
-     * <p>覚えているのは<b>そのセッションの間だけ</b>。config で SIMPLE にしている状態で
-     * ゲームを再起動し、一度も設定画面を開かずに ON→OFF した場合は REDUCED になる
-     * (設定画面を開けば {@link #get()} が SIMPLE を読み直すので、そちらが普通の経路)。
-     */
-    private static CurledFernDetail offDetail = CurledFernDetail.REDUCED;
 
     @Nullable
     private static OptionInstance<Boolean> instance;
@@ -57,9 +44,6 @@ public final class CurledFernOption {
      */
     public static OptionInstance<Boolean> get() {
         CurledFernDetail current = GeoStaticGeometry.detail();
-        if (current != CurledFernDetail.FULL) {
-            offDetail = current;
-        }
         if (instance == null) {
             instance = OptionInstance.createBoolean(
                     KEY,
@@ -77,7 +61,7 @@ public final class CurledFernOption {
         if (!OvergrownClientConfig.SPEC.isLoaded()) {
             return;
         }
-        CurledFernDetail next = showAll ? CurledFernDetail.FULL : offDetail;
+        CurledFernDetail next = showAll ? CurledFernDetail.FULL : CurledFernDetail.REDUCED;
         if (GeoStaticGeometry.detail() == next) {
             return;
         }

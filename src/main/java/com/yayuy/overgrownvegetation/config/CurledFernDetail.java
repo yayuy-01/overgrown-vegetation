@@ -35,7 +35,7 @@ public enum CurledFernDetail {
      * 8通り × blockstate の64通りで512通りの見え方になる。面数は変わらない
      * (詳しくは {@link com.yayuy.overgrownvegetation.client.RandomBoneGroupModel})。
      */
-    REDUCED,
-    /** バニラの草と同じ十字の板。4面。一番軽いが立体感は無くなる。 */
-    SIMPLE
+    REDUCED
+    // 2026-11-03 に SIMPLE(バニラの草と同じ十字の板・4 面)を削除。ユーザー「cross の絵用のテクスチャを用意していないので表示がおかしなことになっていた」。
+    // config に SIMPLE が残っていても、defineEnum が既定値(REDUCED)に直して読む。
 }

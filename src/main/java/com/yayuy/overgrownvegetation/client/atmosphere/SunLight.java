@@ -54,6 +54,30 @@ public final class SunLight {
         return sunDirection(level, partialTick).y < 0.0;
     }
 
+    /**
+     * 夜の度合い(0〜1、11-05 光の点検 4)。太陽が地平線の下 0〜0.2 で 0 → 1({@code CanopySunMap} の夜の影の色と同じ寄せ方)。
+     * 太陽が地平線より上(夕方 12500 も)は 0 なので、夜の分の直しは昼と夕方を変えない。
+     */
+    public static float night(ClientLevel level, float partialTick) {
+        float sunY = (float) sunDirection(level, partialTick).y;
+        return sunY >= 0.0F ? 0.0F : smooth(Mth.clamp(-sunY / 0.2F, 0.0F, 1.0F));
+    }
+
+    /** 月の高さの度合い(0〜1)。月の向きの y が 0.06 で 0・0.36 で 1(光の筋 {@link #lightStrength} と同じ)。 */
+    public static float moonHeight(ClientLevel level, float partialTick) {
+        Vec3 moon = sunDirection(level, partialTick).scale(-1.0);
+        return smooth(Mth.clamp(((float) moon.y - 0.06F) / 0.3F, 0.0F, 1.0F));
+    }
+
+    /**
+     * 夜の月の光の強さ(0〜1、11-05 光の点検 4)= 夜の度合い × 月の高さ × 月の満ち欠け(満月 1、新月で {@code floor})× 雨で弱める。
+     * 地形の面の明暗(月の向き)・月の斑点・霞の月側が使う。
+     */
+    public static float moonLight(ClientLevel level, float partialTick, float floor) {
+        float phase = floor + (1.0F - floor) * level.getMoonBrightness();
+        return night(level, partialTick) * moonHeight(level, partialTick) * phase * (1.0F - 0.9F * level.getRainLevel(partialTick));
+    }
+
     /** 昼の強さ(0〜1)。太陽の高さで寄せ、雨・雷雨で弱める。 */
     public static float daylight(ClientLevel level, Vec3 sun, float partialTick) {
         float height = smooth(Mth.clamp(((float) sun.y - 0.06F) / 0.3F, 0.0F, 1.0F));
@@ -94,6 +118,53 @@ public final class SunLight {
         out[1] = Mth.lerp(noon, out[1], 0.97F);
         out[2] = Mth.lerp(noon, out[2], 0.88F);
     }
+
+    /**
+     * 空の光の色(11-05 光の点検 3。森の中の地形の全面と霞に掛ける)。{@code out} = 明るさ(0.3:0.59:0.11)を 1 にそろえた色の比。
+     * 太陽の高さで 昼(白)→ 金 → 日の入り → 日没後の青灰 → 夜(白 = 今の夜のまま)と寄せ、朝は同じ高さで逆順になる。雨はその分だけ白へ戻す。
+     * 切り替わりの高さと色は design の {@code light.skyTint*}。返り値は霞の太陽側の色の度合い(昼 0・金 0.6・日の入り 1・青灰 0.35・夜 0)。
+     */
+    public static float skyTint(ClientLevel level, Vec3 sun, float partialTick, float[] out) {
+        var t = DesignData.atmosphere();
+        float[] h = t.skyTintHeights();
+        float y = (float) sun.y;
+        float[] a = WHITE;
+        float[] b = WHITE;
+        float wa = 0.0F;
+        float wb = 0.0F;
+        float k = 0.0F;
+        if (y < h[0] && y > h[4]) {
+            if (y >= h[1]) {
+                b = t.skyTintGold();
+                wb = 0.6F;
+                k = (h[0] - y) / (h[0] - h[1]);
+            } else if (y >= h[2]) {
+                a = t.skyTintGold();
+                b = t.skyTintDusk();
+                wa = 0.6F;
+                wb = 1.0F;
+                k = (h[1] - y) / (h[1] - h[2]);
+            } else if (y >= h[3]) {
+                a = t.skyTintDusk();
+                b = t.skyTintTwilight();
+                wa = 1.0F;
+                wb = 0.35F;
+                k = (h[2] - y) / (h[2] - h[3]);
+            } else {
+                a = t.skyTintTwilight();
+                wa = 0.35F;
+                k = (h[3] - y) / (h[3] - h[4]);
+            }
+        }
+        k = smooth(Mth.clamp(k, 0.0F, 1.0F));
+        float clear = 1.0F - 0.75F * level.getRainLevel(partialTick);
+        for (int i = 0; i < 3; i++) {
+            out[i] = Mth.lerp(clear, 1.0F, Mth.lerp(k, a[i], b[i]));
+        }
+        return Mth.lerp(k, wa, wb) * clear;
+    }
+
+    private static final float[] WHITE = {1.0F, 1.0F, 1.0F};
 
     /**
      * 空気の中の光の向きの差。{@code (dx, dy, dz)} は目からその点への向き。c = 太陽の向きとの cos、q = (1 + c) / 2 として

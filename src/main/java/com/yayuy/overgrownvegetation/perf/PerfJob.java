@@ -12,6 +12,12 @@ package com.yayuy.overgrownvegetation.perf;
 public enum PerfJob {
     LEDGER_CATCH_UP("台帳の書き換え(地表)", true),
     SPORE_SPROUTS("胞子の芽(発芽したチャンクの汚染)", true),
+    /** 洞窟の口の多さを測る(胞子の場の地下の層、2026-11-04)。 */
+    SPORE_CAVE_MOUTHS("洞窟の口の測り(胞子の地下の層)", true),
+    /** 洞窟の壁を這う汚染(2026-11-04)。 */
+    CAVE_WALL_CREEP("洞窟の壁を這う汚染", true),
+    /** 走り待ちの芽の点(上限超え・読み込まれていない点を後で走らせる。2026-11-04)。 */
+    SPORE_SPROUT_QUEUE("芽の点の待ち行列", true),
     SPORE_DEPOSIT_SWEEP("降り積もりによる繁茂化", true),
     BIOME_CREEP("過繁茂バイオームの浸食", true),
     GIANT_TREE("巨大樹の成長", true),
@@ -20,6 +26,8 @@ public enum PerfJob {
     SWAMP_TREE_FALL("湿地・密林の木の片付け", true),
     SWAMP_FLOOD("湿地の水没", true),
     BUILD_CORROSION("建物の侵食", true),
+    /** 這い上がる苔が最終段を過ぎたら覆う(CoverCreepChain、2026-11-03)。 */
+    COVER_CREEP("這い上がる苔の連鎖", true),
     END_OVERGROWTH("エンドの侵食", true),
     NETHER_LEDGER("ネザーの書き換え", true),
     BASE_CONSTRUCTION("基地の工事", true),

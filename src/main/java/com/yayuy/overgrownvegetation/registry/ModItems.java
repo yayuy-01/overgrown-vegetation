@@ -57,6 +57,18 @@ public final class ModItems {
             props -> new DeferredSpawnEggItem(ModEntities.HIVE_NODE, 0x2B1D14, 0x4CE05A, props),
             new Item.Properties());
 
+    /** ファルキムネスのスポーンエッグ。 */
+    public static final DeferredItem<DeferredSpawnEggItem> FALCIMNES_SPAWN_EGG = ITEMS.registerItem(
+            "falcimnes_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.FALCIMNES, 0x2F3A14, 0x9C8A2E, props),
+            new Item.Properties());
+
+    /** アルボラのスポーンエッグ(11-05 戻した。色は前と同じ)。 */
+    public static final DeferredItem<DeferredSpawnEggItem> ARBORA_SPAWN_EGG = ITEMS.registerItem(
+            "arbora_spawn_egg",
+            props -> new DeferredSpawnEggItem(ModEntities.ARBORA, 0x4A5A2C, 0x8FA34C, props),
+            new Item.Properties());
+
     /** blight_fern のスポーンエッグ。 */
     public static final DeferredItem<DeferredSpawnEggItem> BLIGHT_FERN_SPAWN_EGG = ITEMS.registerItem(
             "blight_fern_spawn_egg",
@@ -191,6 +203,14 @@ public final class ModItems {
     /** 根付いた萌芽体(2026-10-23 胞子の場 第 2 段 F。クリエイティブ・確かめ用)。 */
     public static final DeferredItem<BlockItem> BLIGHT_FERN_ROOTED_ITEM = ITEMS.registerItem(
             "blight_fern_rooted", props -> new BlockItem(ModBlocks.BLIGHT_FERN_ROOTED.get(), props), new Item.Properties());
+
+    /** 「胞子濃度計」— 浮遊・降り積もり・自分の暴露量の 3 本の針(2026-11-04 parked から戻した。レシピは材料が退避中なので無い)。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.SporeMeterItem> SPORE_METER = ITEMS.registerItem(
+            "spore_meter", com.yayuy.overgrownvegetation.item.SporeMeterItem::new, new Item.Properties().stacksTo(1));
+
+    /** 「防護マスク」— フィルターが残っている間は胞子感染にかからない(2026-11-04 parked から戻した。レシピは革・植物繊維・紙)。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.ProtectiveMaskItem> PROTECTIVE_MASK = ITEMS.registerItem(
+            "protective_mask", com.yayuy.overgrownvegetation.item.ProtectiveMaskItem::new, new Item.Properties().stacksTo(1));
 
     public static void register(IEventBus modBus) {
         ITEMS.register(modBus);

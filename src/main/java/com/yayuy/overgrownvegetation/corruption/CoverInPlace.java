@@ -394,6 +394,13 @@ public final class CoverInPlace {
             "oxidized_copper_bulb",
             "lever");
 
+    /**
+     * 色ごとにあるブロック(2026-11-03 相談役の仮決め: 家の壁が土になるのは変なので、テラコッタは overgrown_dirt への置き換えをやめて覆う。
+     * 色付きガラス・色付きガラス板も同じく建築ブロックとして覆う)。{@code <色>_<名前>} の 16 色と、テラコッタは色無しも。
+     * 既存のワールドで前に置き換わった分はそのまま。
+     */
+    public static final List<String> DYED_SUFFIXES = List.of("terracotta", "stained_glass", "stained_glass_pane");
+
     private static volatile Set<Block> blocks;
 
     private CoverInPlace() {
@@ -414,6 +421,15 @@ public final class CoverInPlace {
                 ResourceLocation waxed = ResourceLocation.withDefaultNamespace("waxed_" + id);
                 if (BuiltInRegistries.BLOCK.containsKey(waxed)) {
                     set.add(BuiltInRegistries.BLOCK.get(waxed));
+                }
+            }
+            set.add(Blocks.TERRACOTTA);
+            for (net.minecraft.world.item.DyeColor color : net.minecraft.world.item.DyeColor.values()) {
+                for (String suffix : DYED_SUFFIXES) {
+                    ResourceLocation id = ResourceLocation.withDefaultNamespace(color.getName() + "_" + suffix);
+                    if (BuiltInRegistries.BLOCK.containsKey(id)) {
+                        set.add(BuiltInRegistries.BLOCK.get(id));
+                    }
                 }
             }
             set = Collections.unmodifiableSet(set);

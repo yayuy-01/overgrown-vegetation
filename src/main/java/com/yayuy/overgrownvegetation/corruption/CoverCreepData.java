@@ -34,6 +34,8 @@ import java.util.Map;
  *     チャンクの記録({@link ModAttachments#COVER_CREEP})に「置いた時刻 + そのとき覆われていた向き」を書く。後から隣が覆われても足さない(仮決め)</li>
  *     <li>消すのは、そのマスが覆われたとき({@link OvergrownLayerData#cover} から)・壊された / 置き換わったとき(そのマスの更新の知らせ
  *     {@link BlockEvent.NeighborNotifyEvent} で、もう帯を描く資格が無ければ)</li>
+ *     <li>2026-11-03 ユーザー指定から、覆われた・汚染ブロックになったマスの上と横の<b>既にある</b>建築ブロックにも付ける({@link #spreadFrom})。
+ *     最終段の時間が過ぎたら覆いになり({@link CoverCreepChain})、そこからまた隣へ連鎖する</li>
  *     <li>送り方は覆いの記録と同じ(見始めたらまるごと・増減は tick の終わりにまとめて。{@link CoverCreepPayload})。クライアントは置いた時刻からの経過で段階を決める
  *     (入り直しても途中から続く)</li>
  * </ul>
@@ -85,7 +87,8 @@ public final class CoverCreepData {
      * @return 記録したら true
      */
     public static boolean placed(ServerLevel level, BlockPos pos, BlockState state) {
-        if (!eligible(state) || OvergrownLayerData.isCovered(level, pos)) {
+        if (!eligible(state) || OvergrownLayerData.isCovered(level, pos)
+                || inPeelGrace(level, level.getChunk(pos.getX() >> 4, pos.getZ() >> 4), pos)) {
             return false;
         }
         int sides = 0;
@@ -103,7 +106,62 @@ public final class CoverCreepData {
         chunk.getData(ModAttachments.COVER_CREEP.get()).put(pos.asLong(), value);
         chunk.setUnsaved(true);
         pending(level, chunk.getPos()).put(pos.asLong(), value);
+        CoverCreepChain.track(level, chunk.getPos().toLong(), level.getGameTime() + CoverCreepChain.durationTicks());
         return true;
+    }
+
+    /**
+     * 連鎖で記録を付けるブロックか(2026-11-03): 帯を描く資格があり({@link #eligible})、建築タブのブロック({@link CorruptionRegistry#coversInPlace}:
+     * 板材・丸石・石レンガ・階段・ハーフ・原木など)。砂・砂利・土・石などの地形と他 MOD のブロックは連鎖しない(仮決め。砂漠や地下を
+     * 覆いが際限なく渡っていかないように。地形は今までどおり汚染の置き換え・深部浸食が受け持つ)。
+     */
+    public static boolean chains(BlockState state) {
+        return eligible(state) && CorruptionRegistry.coversInPlace(state);
+    }
+
+    /**
+     * {@code pos} が覆われた・不透明な汚染ブロックになった(2026-11-03 ユーザー指定「覆われたブロックに隣接する既存のブロックにも付ける」)。
+     * {@code pos} を下か横({@link CoverCreep#FROM})に持つマス(= {@code pos} の上と横 4 つ)のうち、連鎖するブロック({@link #chains})で、
+     * まだ覆われておらず、汚染してよい({@link CorruptionRegistry#canCorrupt}: 胞子除去装置・水没・汚染のオフ)ものに記録を付ける。
+     * 時刻は今(段階 1 から)。もう記録があれば時刻はそのままで向きだけ足す(帯がその辺にも出る)。
+     * 段階が尽きたら {@link CoverCreepChain} が覆いにし、そこからまた隣へ —— 建物が接した所から 1 マスずつ覆われていく。
+     *
+     * <p>読み込まれていないチャンクのマスは見ない(チャンクの縁を越える連鎖は、隣が読み込まれている間だけ)。
+     */
+    public static void spreadFrom(ServerLevel level, BlockPos pos) {
+        if (CorruptionSwitch.isOff()) {
+            return;
+        }
+        long now = level.getGameTime();
+        for (Direction d : CoverCreep.FROM) {
+            BlockPos n = pos.relative(d.getOpposite());
+            LevelChunk chunk = level.getChunkSource().getChunkNow(n.getX() >> 4, n.getZ() >> 4);
+            if (chunk == null || level.isOutsideBuildHeight(n)) {
+                continue;
+            }
+            BlockState state = chunk.getBlockState(n);
+            if (!chains(state) || OvergrownLayerData.isCovered(chunk, n, state) || inPeelGrace(level, chunk, n)
+                    || !CorruptionRegistry.canCorrupt(level, n, state)) {
+                continue;
+            }
+            Long2LongOpenHashMap map = chunk.getData(ModAttachments.COVER_CREEP.get());
+            long key = n.asLong();
+            int bit = 1 << d.ordinal();
+            long value;
+            if (!map.containsKey(key)) {
+                value = now << 6 | bit;
+                CoverCreepChain.track(level, chunk.getPos().toLong(), now + CoverCreepChain.durationTicks());
+            } else {
+                long old = map.get(key);
+                if ((old & bit) != 0) {
+                    continue;
+                }
+                value = old | bit;
+            }
+            map.put(key, value);
+            chunk.setUnsaved(true);
+            pending(level, chunk.getPos()).put(key, value);
+        }
     }
 
     /** そのマスの記録(無ければ {@link Long#MIN_VALUE})。 */
@@ -116,9 +174,52 @@ public final class CoverCreepData {
         return map == null ? Long.MIN_VALUE : map.getOrDefault(pos.asLong(), Long.MIN_VALUE);
     }
 
-    /** そのマスが覆われた({@link OvergrownLayerData#cover} から)。記録を消す。 */
+    /** 剥がしたマスに這い上がる苔を付けない猶予(2026-11-03 ユーザー指定。10 分は仮決め)。 */
+    public static final long PEEL_GRACE_TICKS = 12000L;
+
+    /**
+     * そのマスの覆いが剥がされた({@link OvergrownLayerData#uncover} から、2026-11-03 ユーザー指定)。そのマスの記録を消し、
+     * 剥がした時刻を書く —— {@link #PEEL_GRACE_TICKS} の間は連鎖({@link #spreadFrom})でも置いたとき({@link #placed})でも記録を付けない
+     * (付けると隣が覆われた拍子に 2 分で覆われ直し、剥がしても戻ってしまう)。
+     */
+    public static void onUncovered(ServerLevel level, BlockPos pos) {
+        remove(level, pos);
+        LevelChunk chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
+        if (chunk != null) {
+            chunk.getData(ModAttachments.COVER_PEELED.get()).put(pos.asLong(), level.getGameTime());
+            chunk.setUnsaved(true);
+        }
+    }
+
+    /** 剥がしてから猶予の間か。過ぎた印はここで捨てる。 */
+    public static boolean inPeelGrace(ServerLevel level, LevelChunk chunk, BlockPos pos) {
+        Long2LongOpenHashMap peeled = chunk.getExistingData(ModAttachments.COVER_PEELED.get()).orElse(null);
+        if (peeled == null || !peeled.containsKey(pos.asLong())) {
+            return false;
+        }
+        if (level.getGameTime() - peeled.get(pos.asLong()) < PEEL_GRACE_TICKS) {
+            return true;
+        }
+        peeled.remove(pos.asLong());
+        chunk.setUnsaved(true);
+        return false;
+    }
+
+    /** GameTest 用: そのマスの記録の時刻を {@code ticks} 前へずらし、次の {@link CoverCreepChain#sweep} で見させる(時間を進める代わり)。 */
+    public static void ageForTest(ServerLevel level, BlockPos pos, long ticks) {
+        LevelChunk chunk = level.getChunk(pos.getX() >> 4, pos.getZ() >> 4);
+        Long2LongOpenHashMap map = chunk.getData(ModAttachments.COVER_CREEP.get());
+        if (map.containsKey(pos.asLong())) {
+            long v = map.get(pos.asLong());
+            map.put(pos.asLong(), (startTick(v) - ticks) << 6 | sides(v));
+            CoverCreepChain.track(level, chunk.getPos().toLong(), Long.MIN_VALUE);
+        }
+    }
+
+    /** そのマスが覆われた({@link OvergrownLayerData#cover} から)。記録を消し、隣へ連鎖させる({@link #spreadFrom}、2026-11-03)。 */
     public static void onCovered(ServerLevel level, BlockPos pos) {
         remove(level, pos);
+        spreadFrom(level, pos);
     }
 
     /** そのマスが変わった: もう帯を描く資格が無ければ記録を消す(壊された・汚染で置き換わった・別の物に替わった)。 */
@@ -133,7 +234,7 @@ public final class CoverCreepData {
         }
     }
 
-    private static void remove(ServerLevel level, BlockPos pos) {
+    static void remove(ServerLevel level, BlockPos pos) {
         LevelChunk chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
         if (chunk == null) {
             return;

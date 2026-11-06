@@ -2023,6 +2023,11 @@ public class CorruptionSpreader {
         final CaveGrowth.Mode cave = CaveGrowth.modeAt(level, pos, hostState);
         if (cave != CaveGrowth.Mode.NONE) {
             CaveGrowth.tryStructure(level, pos, hostState, random, cave);
+            // 地下の植生(11-03): 天井の光源 A・地脈の根・狐火茸。下の面ごとの植物より先に置く(置いたマスには蔦が重ならない)。
+            CaveFlora.decorate(level, pos, hostState, random);
+        } else {
+            // 洞窟の口(11-04): 天井が薄くて洞窟と判定されない口の帯にも根の簾だけ垂らす(ほかの地下の植生は置かない)。
+            CaveFlora.decorateMouth(level, pos, hostState, random);
         }
         // 地下(洞窟)かどうか。光るツタの増量に使う。modeAt が洞窟と判定していればそれを流用し、
         // caveGrowth をオフにしているときだけ深さを単独で見る(天井探しを二重に走らせない)。
@@ -2374,10 +2379,6 @@ public class CorruptionSpreader {
     }
 
     private static void growSide(ServerLevel level, BlockPos pos, RandomSource random, Direction facing) {
-        // 幹(コルダイテス・封印木・巨大樹)の根元の面には、壁の下草の代わりに種子シダが巻き付くことがある(2026-11-01)。
-        if (com.yayuy.overgrownvegetation.worldgen.TreeSideGrowth.tryGrowOnTrunk(level, pos, random, facing)) {
-            return;
-        }
         BlockState growth = CorruptionGrowth.randomSide(random, facing);
         if (growth.canSurvive(level, pos)) {
             level.setBlock(pos, growth, Block.UPDATE_ALL);

@@ -39,8 +39,9 @@ import java.util.concurrent.CompletableFuture;
  * 知らない所(地図の外・太陽の低い朝夕・夜)では全部の面を、森の中にいる度合い × {@code forestTint} で寄せる。松明の明かりで照らされた面は寄せない。
  *
  * <h2>出し入れ</h2>
- * 影の強さは {@code surfaceShade} × 昼の強さ × 森の中で空の下にいる度合い({@link ForestPresence#openForest})、青緑は森の中にいる度合いで、
- * どちらも森の縁でなめらかに出入りする。森の外(度合い 0)では地図を作らない。Sodium 0.8 には {@link SodiumTerrain} が同じ uniform を写す。
+ * 影の強さは {@code surfaceShade} × 昼の強さ × 覆いの下で空の下にいる度合い({@link ForestPresence#openCover}。11-06 から世界全体 = バニラの森でも影が落ちる)、
+ * 青緑・日なたの金は過繁茂の森の中にいる度合い({@link ForestPresence#overgrown})で、どちらも森の縁でなめらかに出入りする。覆いの無い所(度合い 0)では地図を作らない。
+ * 地図の a(過繁茂の列 255・外 128)は、シェーダーでは青緑と日なたの金だけを分ける(影・斑点・透過光・月の地図は外でも効く)。Sodium 0.8 には {@link SodiumTerrain} が同じ uniform を写す。
  * Sodium が使えない・Embeddium・シェーダーパック使用中は {@link #active()} が false で、地面の上面だけに落とす({@link CanopyShade})。
  *
  * <h2>草・シダ・幹の斑点</h2>
@@ -157,6 +158,18 @@ public final class CanopySunMap {
         return sunY >= 0.0F ? 0.0F : SunLight.smooth(Mth.clamp(-sunY / 0.2F, 0.0F, 1.0F));
     }
 
+    /** 最後に地図を作るのにかかった時間(マイクロ秒、裏のスレッド。重さの確かめ用)。 */
+    static volatile long lastBuildMicros;
+    private static int builds;
+    /**
+     * 月の斑点の強さ(0〜1、11-05 光の点検 4)= 夜の度合い × 月の高さ × 月の満ち欠けの門(月の明るさ {@code moonMapPhaseMin} 以下で 0、満月で 1)× 雨で弱める。
+     */
+    static float moonMap(ClientLevel level, float partialTick) {
+        float min = DesignData.atmosphere().moonMapPhaseMin();
+        float gate = SunLight.smooth(Mth.clamp((level.getMoonBrightness() - min) / (1.0F - min), 0.0F, 1.0F));
+        return SunLight.night(level, partialTick) * SunLight.moonHeight(level, partialTick) * gate * (1.0F - 0.9F * level.getRainLevel(partialTick));
+    }
+
     static void clear() {
         building = null;
         buildStartTick = -1_000_000L;
@@ -169,8 +182,11 @@ public final class CanopySunMap {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
-        Vec3 sun = SunLight.sunDirection(level, 1.0F);
-        if (DesignData.atmosphere().surfaceShade() <= 0.0F || sun.y < MIN_SUN_Y || ForestPresence.openForest() <= 0.001F) {
+        // 夜は月の向きで作る(11-05 光の点検 4「月の斑点」。満月のころだけ: moonMap が 0 なら作らない)。
+        Vec3 sun = SunLight.lightDirection(level, 1.0F);
+        boolean moon = SunLight.isMoonlight(level, 1.0F);
+        if (DesignData.atmosphere().surfaceShade() <= 0.0F || sun.y < MIN_SUN_Y || ForestPresence.openCover() <= 0.001F && (moon || !terrainShadowOn())
+                || moon && moonMap(level, 1.0F) <= 0.01F) {
             clear();
             return;
         }
@@ -191,13 +207,22 @@ public final class CanopySunMap {
         }
         buildStartTick = ticks;
         Vec3 eye = mc.gameRenderer.getMainCamera().getPosition();
-        double camU = eye.x - eye.y * sun.x / sun.y;
-        double camV = eye.z - eye.y * sun.z / sun.y;
         int camY = Mth.floor(eye.y);
-        Map m = new Map(Mth.floor(camU) - SIZE / 2, Mth.floor(camV) - SIZE / 2, camY - BELOW, camY + ABOVE, sun, camY);
+        // 地図の真ん中と下端は、カメラの真下の地面(覆いの下ではカメラ)に合わせる(11-06 バニラ地域の光 1: 村を高い所から見下ろすと、地面がカメラの線の地図の外
+        // (太陽が低いと高さの差 × 太陽の傾きだけずれる)と下端より下に出て、地形の影が出なかった)。高さの差は 100 まで(地図の値 0〜255 に収める)。
+        int ground = level.getHeight(Heightmap.Types.MOTION_BLOCKING, Mth.floor(eye.x), Mth.floor(eye.z));
+        int refY = Math.max(Math.min(camY, ground), camY - 100);
+        double camU = eye.x - refY * sun.x / sun.y;
+        double camV = eye.z - refY * sun.z / sun.y;
+        Map m = new Map(Mth.floor(camU) - SIZE / 2, Mth.floor(camV) - SIZE / 2, refY - BELOW, camY + ABOVE, sun, refY);
         building = CompletableFuture.supplyAsync(() -> {
+            long start = System.nanoTime();
             for (int index = 0; index < SIZE * SIZE; index++) {
                 m.pixels[index] = trace(level, m, index % SIZE, index / SIZE);
+            }
+            lastBuildMicros = (System.nanoTime() - start) / 1000L;
+            if (++builds % 20 == 1) {
+                OvergrownVegetation.LOGGER.info("林冠の地図(裏のスレッド、{}): 1 回 {} µs", m.sunY > 0.0 && SunLight.isMoonlight(level, 1.0F) ? "月" : "太陽", lastBuildMicros);
             }
             return m;
         }, ScanThread.EXECUTOR).exceptionally(t -> {
@@ -296,13 +321,15 @@ public final class CanopySunMap {
      * {@code sporeTexture} は地図のテクスチャ(使えないとき −1)、{@code SPORE_SUN_A}・{@code SPORE_MAP_A} は地形のシェーダーの OvSunA・OvMapA と同じ値。
      */
     static int sporeTexture = -1;
+    private static final float[] SKY_TINT = {1.0F, 1.0F, 1.0F};
     static final float[] SPORE_SUN_A = new float[4];
     static final float[] SPORE_MAP_A = new float[4];
 
     static void upload(RenderLevelStageEvent event, boolean enabled) {
         sporeTexture = -1;
+        // 登る蔓のシェーダー(ClimbingVineRenderer、11-05 光の点検 6)も地形と同じ値を受ける(読み込めていなければ null で飛ばす)。
         ShaderInstance[] shaders = {GameRenderer.getRendertypeSolidShader(), GameRenderer.getRendertypeCutoutShader(),
-                GameRenderer.getRendertypeCutoutMippedShader()};
+                GameRenderer.getRendertypeCutoutMippedShader(), com.yayuy.overgrownvegetation.client.shader.ModShaders.lianaCanopyLit()};
         try {
             Minecraft mc = Minecraft.getInstance();
             Map m = broken || !enabled ? null : shown;
@@ -310,23 +337,71 @@ public final class CanopySunMap {
             float mapDay = 0.0F;
             Vec3 sun = null;
             float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+            float night = 0.0F;
+            float moonMapK = 0.0F;
+            if (mc.level != null) {
+                night = SunLight.night(mc.level, partialTick);
+                moonMapK = moonMap(mc.level, partialTick);
+            }
             if (m != null && mc.level != null) {
-                sun = SunLight.sunDirection(mc.level, partialTick);
-                mapDay = SunLight.daylight(mc.level, sun, partialTick);
-                amount = VisualQuality.canopyLight() ? DesignData.atmosphere().surfaceShade() * mapDay * ForestPresence.openForest() : 0.0F;
+                sun = SunLight.lightDirection(mc.level, partialTick);
+                // 夜(月の地図)は mapDay = 0 のまま(葉を透かす光・胞子の日向・霧のレイマーチの日向は昼だけ)。強さは月の斑点の強さ。
+                boolean moon = SunLight.isMoonlight(mc.level, partialTick);
+                mapDay = moon ? 0.0F : SunLight.daylight(mc.level, sun, partialTick);
+                amount = VisualQuality.canopyLight() ? DesignData.atmosphere().surfaceShade() * (moon ? moonMapK : mapDay) * ForestPresence.openCover() : 0.0F;
             }
             hue(RGB);
-            float forest = enabled && mc.level != null && VisualQuality.canopyLight() ? ForestPresence.forestFactor() * DesignData.atmosphere().forestTint()
+            float forest = enabled && mc.level != null && VisualQuality.canopyLight() ? ForestPresence.overgrown() * DesignData.atmosphere().forestTint()
                     * Mth.lerp(nightWeight(), 1.0F, DesignData.atmosphere().nightTintStrength()) : 0.0F;
+            // 空の光の色(11-05 光の点検 3、ov_light.glsl の ovSkyTintAt): 太陽の高さの色を全面に。太陽の地図が無い夕方にも効く。
+            // 11-06 から世界全体(覆いが無い平原でも。地下では切るが、過繁茂の地下は前と同じ: ForestPresence.sky)。
+            // 日なたの面もこの色が掛かるので OvSunTint は変えない。
+            float skyStrength = 0.0F;
+            if (enabled && mc.level != null && VisualQuality.canopyLight()) {
+                SunLight.skyTint(mc.level, SunLight.sunDirection(mc.level, partialTick), partialTick, SKY_TINT);
+                skyStrength = ForestPresence.sky() * DesignData.atmosphere().skyTintStrength();
+            }
+            // 夜の暗さ(11-05 光の点検 4、ov_light.glsl の ovMoonNight): 月の向きの面の明暗・月の当たる所だけ青灰・暗い所は彩度を落とす。
+            // 11-06 から世界全体(ForestPresence.sky。覆いが無くても効く)。昼と夕方は night = 0 で何もしない。
+            var atm0 = DesignData.atmosphere();
+            float nightForest = 0.0F;
+            float moonFace = 0.0F;
+            float moonGlow = 0.0F;
+            Vec3 lightDir = new Vec3(0.0, 1.0, 0.0);
+            if (enabled && mc.level != null && VisualQuality.canopyLight()) {
+                float forestK = ForestPresence.sky();
+                nightForest = night * forestK;
+                moonFace = atm0.moonShadeStrength() * SunLight.moonLight(mc.level, partialTick, SunLight.MOON_FLOOR) * forestK;
+                moonGlow = SunLight.moonLight(mc.level, partialTick, 0.0F);
+                lightDir = SunLight.lightDirection(mc.level, partialTick);
+            }
+            float[] moonColor = atm0.moonMapColor();
+            float warmK = enabled && mc.level != null && VisualQuality.canopyLight() ? ForestPresence.overgrown() : 0.0F;
             for (ShaderInstance shader : shaders) {
                 if (shader != null) {
+                    // 光の向き(夜は月)。地図が無い間も毎フレーム流す(月の向きの面の明暗が使う)。w = 地図の中の背面の影の強さ(夜は面の明暗に任せて 0 へ)。
+                    shader.safeGetUniform("OvSunDir").set((float) lightDir.x, (float) lightDir.y, (float) lightDir.z, 1.0F - night);
+                    shader.safeGetUniform("OvMoon").set(nightForest, moonFace, atm0.nightDesaturate(), moonGlow);
+                    shader.safeGetUniform("OvMoonB").set(atm0.moonShadeSide(), atm0.moonShadeBack(), atm0.moonShadeDown(), 0.0F);
+                    shader.safeGetUniform("OvMoonC").set(moonColor[0], moonColor[1], moonColor[2], moonMapK);
                     shader.safeGetUniform("OvTint").set(RGB[0], RGB[1], RGB[2], forest);
+                    shader.safeGetUniform("OvSkyTint").set(SKY_TINT[0], SKY_TINT[1], SKY_TINT[2], skyStrength);
+                    shader.safeGetUniform("OvSkyTintB").set(DesignData.atmosphere().skyTintShade(), 0.0F, 0.0F, 0.0F);
+                    // 点検 21(11-06): 木漏れ日は影の穴(日向の明るさへ戻すだけ)。ライトマップの持ち上げを写して、その面が日向よりどれだけ暗いかを出す。
+                    // 幹の影の帯は design の light.trunkShadow*。
+                    shader.safeGetUniform("OvLift").set(CanopyLift.skyLift(), CanopyLift.skyLiftDark(), night,
+                            mc.options.gamma().get().floatValue());
+                    // 地形の影(幹・岩・丘・崖・家。地図があるときだけ下で強さを入れる)。
+                    shader.safeGetUniform("OvTrunk").set(0.0F, atm0.terrainShadowReach(), atm0.trunkShadowSoft(), 0.0F);
                     // 日なたの暖かい白〜金(A4、10-30 夜 ユーザー採用)。日の当たる面と木漏れ日の斑点に掛ける(森の中だけ)。
                     float[] warm = DesignData.atmosphere().sunWarm();
-                    shader.safeGetUniform("OvSunTint").set(warm[0], warm[1], warm[2], DesignData.atmosphere().sunWarmStrength() * (forest > 0.0F ? 1.0F : 0.0F));
+                    // 11-06: 過繁茂で強まる層(過繁茂の度合いで寄せる。シェーダーでも過繁茂の列 a = 255 だけ)。
+                    shader.safeGetUniform("OvSunTint").set(warm[0], warm[1], warm[2], DesignData.atmosphere().sunWarmStrength() * (1.0F - night) * warmK);
                 }
             }
-            if (amount <= 0.0F || sun == null) {
+            // 覆いの無い所(平原・村・崖)でも、地形の影のためだけに地図を使う(バニラ地域の光 1、11-06)。林冠の影・斑点は amount 0 のまま。
+            boolean terrain = m != null && sun != null && mapDay > 0.0F && terrainShadowOn();
+            if (sun == null || amount <= 0.0F && !terrain) {
                 for (ShaderInstance shader : shaders) {
                     if (shader != null) {
                         shader.safeGetUniform("OvSunA").set(0.0F, 0.0F, 0.0F, 0.0F);
@@ -364,7 +439,8 @@ public final class CanopySunMap {
             double fleckU = wrap64((camU + branch * wind.dirX()) * FLECK_SCALE);
             double fleckV = wrap64((camV + branch * wind.dirZ()) * FLECK_SCALE);
             float seconds = (float) ((windTime / 20.0) % 1000.0);
-            float level = shadeLevel();
+            // 夜の月の地図では、月の影を深く(1 − moonMapStrength。昼の影 0.92 では月の当たる床が浮かない)。
+            float level = Mth.lerp(night, shadeLevel(), 1.0F - DesignData.atmosphere().moonMapStrength());
             sporeTexture = texture.getId();
             SPORE_SUN_A[0] = (float) kx;
             SPORE_SUN_A[1] = (float) kz;
@@ -381,10 +457,16 @@ public final class CanopySunMap {
                 shader.setSampler("OvSunMap", texture.getId());
                 // w = 地図が日向・影を決める度合い(昼の強さ)。z = 影の強さ。
                 shader.safeGetUniform("OvSunA").set((float) kx, (float) kz, amount, mapDay);
-                shader.safeGetUniform("OvSunDir").set((float) sun.x, (float) sun.y, (float) sun.z, 1.0F);
+                shader.safeGetUniform("OvSunDir").set((float) sun.x, (float) sun.y, (float) sun.z, 1.0F - night);
                 shader.safeGetUniform("OvMapA").set((float) (m.originU - camU), (float) (m.originV - camV), (float) SIZE,
                         (float) (m.baseY - cam.y));
                 shader.safeGetUniform("OvShadeColor").set(level, level, level, 1.0F);
+                if (terrain) {
+                    var atmT = DesignData.atmosphere();
+                    // w: 1 = 地図あり、2 = 地図あり・重さの段が低い(縁のぼかしを 5 点から 1 点に。11-06)。
+                    shader.safeGetUniform("OvTrunk").set(atmT.trunkShadow() * mapDay, atmT.terrainShadowReach(), atmT.trunkShadowSoft(),
+                            VisualQuality.atmosphereTier() >= 2 ? 2.0F : 1.0F);
+                }
                 shader.safeGetUniform("OvFleck").set((float) fleckU, (float) fleckV, seconds, CanopyDapple.FLECKS_ON && VisualQuality.canopyDapple() ? 1.0F : 0.0F);
             }
         } catch (RuntimeException e) {
@@ -400,8 +482,40 @@ public final class CanopySunMap {
         }
     }
 
+    /** 地形の影(幹・岩・丘・崖・家の影)を出すか。覆いが無くても太陽地図を作る理由(バニラ地域の光 1、11-06)。地下では作らない。 */
+    private static boolean terrainShadowOn() {
+        return VisualQuality.canopyLight() && DesignData.atmosphere().trunkShadow() > 0.0F && ForestPresence.underground() < 0.5F;
+    }
+
     private static double wrap64(double value) {
         return value - Math.floor(value / 64.0) * 64.0;
+    }
+
+    /**
+     * 確かめ用(11-05 光の点検 20、devbridge {@code cavedev ray}): ワールドの点 (x, y, z) を太陽の地図で引いた値。
+     * 固いブロックの上端・葉の上端・樹冠の層・過繁茂か、その点が地図で「固いブロックの陰」か、上の葉の数。地図が無ければ「なし」。
+     */
+    static String debugAt(double x, double y, double z) {
+        Map m = shown;
+        if (m == null || m.sunY <= 0.0) {
+            return "太陽の地図 なし";
+        }
+        double u = x - y * m.sunX / m.sunY;
+        double v = z - y * m.sunZ / m.sunY;
+        int i = Mth.floor(u - m.originU);
+        int j = Mth.floor(v - m.originV);
+        if (i < 0 || j < 0 || i >= SIZE || j >= SIZE) {
+            return "太陽の地図の外 (" + i + ", " + j + ")";
+        }
+        int p = m.pixels[j * SIZE + i];
+        int solidTop = p & 0xFF;
+        int leafTop = (p >> 8) & 0xFF;
+        int crowns = (p >> 16) & 0xFF;
+        int a = p >>> 24;
+        double h = y - m.baseY;
+        boolean shadowed = solidTop > 0 && h < solidTop - 1.5;
+        return String.format("太陽の地図 (%d, %d) 固い上端 %d 葉の上端 %d 層 %d a %d 高さ %.1f 固いの陰 %s 上の葉 %.1f 縁まで %d",
+                i, j, solidTop, leafTop, crowns, a, h, shadowed, Math.min(crowns / 17.0, leafTop - h), Math.min(Math.min(i, j), Math.min(SIZE - 1 - i, SIZE - 1 - j)));
     }
 
     private CanopySunMap() {

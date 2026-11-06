@@ -481,6 +481,11 @@ public final class CorruptionRegistry {
         } finally {
             CorruptionDropSuppressor.exit();
         }
+        // 不透明な汚染ブロック(地面の草・土・overgrown_block など)になったら、上と横の建築ブロックに這い上がる苔を付ける
+        // (2026-11-03。建物の壁は地面から 1 段ずつ覆われていく。覆いの記録で覆ったときは OvergrownLayerData#cover から)
+        if (level instanceof ServerLevel serverLevel && CoverCreepData.source(level.getBlockState(pos))) {
+            CoverCreepData.spreadFrom(serverLevel, pos);
+        }
     }
 
     /** {@link #placeCorrupted} の中身。ドロップを消す範囲の中から呼ぶ。 */

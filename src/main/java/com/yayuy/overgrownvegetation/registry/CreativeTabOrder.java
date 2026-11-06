@@ -65,7 +65,7 @@ public final class CreativeTabOrder {
             ModBlocks.OVERGROWN_GROWTH, ModBlocks.OVERGROWN_SPORE_BLOOM, ModBlocks.OVERGROWN_ZENMAI, ModBlocks.UNDEVELOPED_BUSH,
             ModBlocks.OVERGROWN_BUSH, ModBlocks.OVERGROWN_SAPLING, ModItems.GIANT_OVERGROWN_SAPLING_ITEM,
             ModBlocks.OVERGROWN_CREEPING_VINE, ModBlocks.OVERGROWN_SHELF_LICHEN, ModBlocks.OVERGROWN_THORN_VINE,
-            ModBlocks.CLIMBING_SEEDFERN, ModBlocks.AERIAL_ROOT, ModBlocks.AERIAL_ROOT_PILLAR, ModBlocks.BEARD_LICHEN, ModBlocks.HANGING_SPORE_SAC,
+            ModBlocks.AERIAL_ROOT, ModBlocks.AERIAL_ROOT_PILLAR, ModBlocks.BEARD_LICHEN, ModBlocks.HANGING_SPORE_SAC,
             ModBlocks.OVERGROWN_WEEPING_TENDRIL, ModBlocks.OVERGROWN_DRIP_MOSS, ModBlocks.OVERGROWN_SPORE_TENDRIL,
             ModBlocks.OVERGROWN_TALL_FERN, ModBlocks.OVERGROWN_SPORE_REED, ModBlocks.OVERGROWN_CURLED_FERN, ModBlocks.OVERGROWN_MOSS_LAYER,
             ModBlocks.SELAGINELLA, ModBlocks.CLUBMOSS, ModBlocks.LYCOPSID_CARPET, ModBlocks.LYCOPSID_UPRIGHT,
@@ -73,6 +73,9 @@ public final class CreativeTabOrder {
             ModBlocks.FALLEN_LOG, ModBlocks.BRACKET_FUNGUS, ModBlocks.MEDULLOSA_TRUNK, ModBlocks.MEDULLOSA_CROWN, ModBlocks.HORSETAIL,
             ModBlocks.CHARA, ModBlocks.WATER_ROOTS, ModBlocks.ALGAE_FILM, ModBlocks.SPORE_FILM, ModBlocks.SEA_SPORE_BAND,
             ModBlocks.SPORE_KELP_STALK, ModBlocks.SPORE_KELP_FROND,
+            ModBlocks.CEILING_ROOT_NET, ModBlocks.LEY_ROOT, ModBlocks.FOXFIRE, ModBlocks.PALE_CAVE_FERN, ModBlocks.PALE_CAVE_CAPS,
+            ModBlocks.PALE_CAVE_MOSS, ModBlocks.CAVE_HORSETAIL, ModBlocks.CAVE_MYCELIUM,
+            ModBlocks.DANGLING_ROOTS, ModBlocks.PROTOTAXITES_STEM, ModBlocks.PROTOTAXITES_KNOB, ModBlocks.PROTOTAXITES_CAP,
             ModBlocks.OVERGROWN_LIANA);
 
     /** 置けるがドロップ・素材として扱うもの(実った大きな未熟果)。 */

@@ -1,0 +1,22 @@
+{
+  "multipart": [
+    { "when": { "ground": "stone", "north": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_stone", "uvlock": true } },
+    { "when": { "ground": "stone", "south": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_stone", "uvlock": true, "y": 180 } },
+    { "when": { "ground": "stone", "west": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_stone", "uvlock": true, "y": 270 } },
+    { "when": { "ground": "stone", "east": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_stone", "uvlock": true, "y": 90 } },
+    { "when": { "ground": "stone", "up": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_stone", "uvlock": true, "x": 270 } },
+    { "when": { "ground": "stone", "down": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_stone", "uvlock": true, "x": 90 } },
+    { "when": { "ground": "deepslate", "north": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_deepslate", "uvlock": true } },
+    { "when": { "ground": "deepslate", "south": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_deepslate", "uvlock": true, "y": 180 } },
+    { "when": { "ground": "deepslate", "west": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_deepslate", "uvlock": true, "y": 270 } },
+    { "when": { "ground": "deepslate", "east": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_deepslate", "uvlock": true, "y": 90 } },
+    { "when": { "ground": "deepslate", "up": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_deepslate", "uvlock": true, "x": 270 } },
+    { "when": { "ground": "deepslate", "down": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_deepslate", "uvlock": true, "x": 90 } },
+    { "when": { "ground": "dirt", "north": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_dirt", "uvlock": true } },
+    { "when": { "ground": "dirt", "south": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_dirt", "uvlock": true, "y": 180 } },
+    { "when": { "ground": "dirt", "west": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_dirt", "uvlock": true, "y": 270 } },
+    { "when": { "ground": "dirt", "east": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_dirt", "uvlock": true, "y": 90 } },
+    { "when": { "ground": "dirt", "up": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_dirt", "uvlock": true, "x": 270 } },
+    { "when": { "ground": "dirt", "down": "true" }, "apply": { "model": "overgrown_vegetation:block/cave_mycelium_dirt", "uvlock": true, "x": 90 } }
+  ]
+}

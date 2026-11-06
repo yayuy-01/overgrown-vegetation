@@ -17,6 +17,8 @@ import org.lwjgl.opengl.GL30;
 import org.lwjgl.system.MemoryUtil;
 
 import java.nio.FloatBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -28,7 +30,8 @@ import java.util.concurrent.CompletableFuture;
  * 地形のシェーダー({@code ov_cave.glsl} の {@code ovCaveUnder})は、断片の真上の岩の厚み(この高さ − 断片の高さ)が roofFrom〜roofTo で 0 → 1、
  * 断片の空の光が skyFrom → skyTo で 0 → 1 を掛けて「そこが地下か」を出す(面の法線の側へ半ブロックずらした列を見るので、崖の面は外の列で決まる)。
  * 作るのは裏のスレッド({@link ScanThread})で 2 秒おき・カメラが 8 ブロック動いたら。原点は 8 に丸める。MistMap と同じく読むだけ。
- * 画素(RGBA32F): r = 岩の上面の高さ(ワールドの y。岩が無ければ −10000)、g = 過繁茂の地域なら 1。
+ * 画素(RGBA32F): r = 岩の上面の高さ(ワールドの y。岩が無ければ −10000)、g = 過繁茂の地域なら 1、b = いちばん近い口の列までの水平距離({@link #mouthDistance}、11-04)、
+ * a = 天井の下面の高さ(続く岩のいちばん下のブロックの y)。
  */
 final class CaveMap {
 
@@ -44,7 +47,29 @@ final class CaveMap {
     /** 確かめ用: 真なら前の数え方(1 段でも天井)。撮り比べのため。 */
     static boolean devThinRoof;
 
-    private record Built(int originX, int originZ, float[] data, boolean anyOvergrown) {
+    /**
+     * 粗い地図(2026-11-05 光の点検 16): 細かい地図の外の断片の「空の光だけで地下」を、上に岩が無い所では打ち消す。{@link #COARSE} ブロック升の
+     * 真ん中の 1 列を読んだ 128×128(512 ブロック四方 = 描画距離 16 を覆う。読む列は 16384)。画素は r = 岩の上面(細かい地図と同じ数え方。木は岩でない)・
+     * g = 過繁茂なら 1・b = 読めた列なら 1・a = 0。テクスチャ(幅 128)の行 64〜191 に載せる(細かい地図は行 0〜63 の左 64 列)。
+     * 原点は細かい地図の原点 + 32 − 256(シェーダーも同じ式で出すので uniform は増やさない)。前は細かい地図の外を「空の光 3/15 未満なら地下」で決めていて、
+     * 巨大樹の傘の下の幹・林床(空の光ほぼ 0)が地下になり、外から洞窟の霧の黒に沈んでいた。
+     * 升を 8 ブロックにした最初の版は、升の真ん中が岸に当たると傘の下の池が、升が小さな丘(fog14、幅 16)の端をまたぐと洞窟の奥の壁が取り違えられた
+     * (升の中の数か所の最小・2 番目に低い値も試したが、池と丘の端の両方は直らなかった)。4 ブロックで両方とも合う。
+     */
+    static final int COARSE = 4;
+    static final int CSIZE = 128;
+    static final int COARSE_OFFSET = SIZE / 2 - CSIZE * COARSE / 2;
+
+    /**
+     * 洞窟の水面の地図(11-06 光の点検 10)。細かい地図と同じ 64×64 の列ごとに、カメラの高さ +{@link #WATER_UP} 〜 −{@link #WATER_DOWN} 段の中で
+     * 上から最初に見つけた水面(上が水でない水のブロックの y + 水の高さ)。r = 水面の y(ワールド)・g = 水があれば 1。テクスチャ(幅 128)の行 0〜63 の
+     * 右 64 列(前は空き)に載せる。シェーダーは洞窟の水の下の面を水深で暗くする({@code ov_cave.glsl} の {@code ovCaveWaterBottom})。段の範囲は仮決め。
+     */
+    static final int WATER_UP = 8;
+    static final int WATER_DOWN = 24;
+
+    private record Built(int originX, int originZ, float[] data, float[] coarse, float[] water, boolean anyOvergrown, long fineMicros, long coarseMicros,
+                         long waterMicros) {
     }
 
     @Nullable
@@ -111,7 +136,8 @@ final class CaveMap {
         builtAt = ticks;
         int ox = (Mth.floor(eye.x) >> 3 << 3) - SIZE / 2;
         int oz = (Mth.floor(eye.z) >> 3 << 3) - SIZE / 2;
-        building = CompletableFuture.supplyAsync(() -> build(level, ox, oz), ScanThread.EXECUTOR).exceptionally(t -> {
+        int eyeY = Mth.floor(eye.y);
+        building = CompletableFuture.supplyAsync(() -> build(level, ox, oz, eyeY), ScanThread.EXECUTOR).exceptionally(t -> {
             OvergrownVegetation.LOGGER.warn("地下の地図を作れなかった", t);
             return null;
         });
@@ -163,7 +189,79 @@ final class CaveMap {
     }
 
     /** 作業スレッド: 列ごとに上から木・空気・水・下草を読み飛ばし、{@link #MIN_ROOF} 段以上続く最初の岩を探す。 */
-    private static Built build(ClientLevel level, int ox, int oz) {
+    /** 列 (wx, wz) のいちばん上の {@link #MIN_ROOF} 段以上続く岩の上のブロックの y(無ければ {@code Integer.MIN_VALUE})。 */
+    private static int rockTop(ClientLevel level, BlockPos.MutableBlockPos pos, int wx, int wz, int minY) {
+        int top = level.getHeight(Heightmap.Types.WORLD_SURFACE, wx, wz) - 1;
+        for (int y = top; y >= minY; y--) {
+            if (isRock(level.getBlockState(pos.set(wx, y, wz)))) {
+                int run = rockRun(level, pos, wx, y, wz, minY);
+                if (run >= MIN_ROOF || devThinRoof || y - run < minY) {
+                    return y;
+                }
+                y -= run - 1;
+            }
+        }
+        return Integer.MIN_VALUE;
+    }
+
+    /** 作業スレッド: 粗い地図(画素の真ん中の 1 列だけ読む)。 */
+    private static float[] buildCoarse(ClientLevel level, int ox, int oz, BlockPos.MutableBlockPos pos, int minY) {
+        float[] out = new float[CSIZE * CSIZE * 4];
+        int cx = ox + COARSE_OFFSET;
+        int cz = oz + COARSE_OFFSET;
+        for (int z = 0; z < CSIZE; z++) {
+            for (int x = 0; x < CSIZE; x++) {
+                int wx = cx + x * COARSE + COARSE / 2;
+                int wz = cz + z * COARSE + COARSE / 2;
+                int at = (z * CSIZE + x) * 4;
+                out[at] = NO_ROCK;
+                if (!level.hasChunk(wx >> 4, wz >> 4)) {
+                    continue;
+                }
+                out[at + 2] = 1.0F;
+                int rockY = rockTop(level, pos, wx, wz, minY);
+                if (rockY == Integer.MIN_VALUE) {
+                    continue;
+                }
+                out[at] = rockY + 1.0F;
+                if (ModBiomes.isOvergrownLike(level.getBiome(pos.set(wx, rockY, wz)))) {
+                    out[at + 1] = 1.0F;
+                }
+            }
+        }
+        return out;
+    }
+
+    /** 作業スレッド: 洞窟の水面の地図({@link #WATER_UP})。地図に過繁茂の列が無ければ読まない(地下モードの光は過繁茂のまわりだけ)。 */
+    private static float[] buildWater(ClientLevel level, int ox, int oz, int eyeY, BlockPos.MutableBlockPos pos) {
+        float[] out = new float[SIZE * SIZE * 4];
+        int minY = level.getMinBuildHeight();
+        for (int z = 0; z < SIZE; z++) {
+            for (int x = 0; x < SIZE; x++) {
+                int wx = ox + x;
+                int wz = oz + z;
+                if (!level.hasChunk(wx >> 4, wz >> 4)) {
+                    continue;
+                }
+                boolean aboveWater = false;
+                for (int y = eyeY + WATER_UP; y >= Math.max(minY, eyeY - WATER_DOWN); y--) {
+                    var fluid = level.getFluidState(pos.set(wx, y, wz));
+                    boolean water = fluid.is(net.minecraft.tags.FluidTags.WATER);
+                    if (water && !aboveWater && y < eyeY + WATER_UP) {
+                        int at = (z * SIZE + x) * 4;
+                        out[at] = y + fluid.getHeight(level, pos);
+                        out[at + 1] = 1.0F;
+                        break;
+                    }
+                    aboveWater = water;
+                }
+            }
+        }
+        return out;
+    }
+
+    private static Built build(ClientLevel level, int ox, int oz, int eyeY) {
+        long t0 = System.nanoTime();
         float[] data = new float[SIZE * SIZE * 4];
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         int minY = level.getMinBuildHeight();
@@ -177,18 +275,7 @@ final class CaveMap {
                 if (!level.hasChunk(wx >> 4, wz >> 4)) {
                     continue;
                 }
-                int top = level.getHeight(Heightmap.Types.WORLD_SURFACE, wx, wz) - 1;
-                int rockY = Integer.MIN_VALUE;
-                for (int y = top; y >= minY; y--) {
-                    if (isRock(level.getBlockState(pos.set(wx, y, wz)))) {
-                        int run = rockRun(level, pos, wx, y, wz, minY);
-                        if (run >= MIN_ROOF || devThinRoof || y - run < minY) {
-                            rockY = y;
-                            break;
-                        }
-                        y -= run - 1;
-                    }
-                }
+                int rockY = rockTop(level, pos, wx, wz, minY);
                 if (rockY == Integer.MIN_VALUE) {
                     continue;
                 }
@@ -197,9 +284,85 @@ final class CaveMap {
                     data[at + 1] = 1.0F;
                     any = true;
                 }
+                // 天井の下面(続く岩のいちばん下のブロック。CEIL_SCAN 段で打ち切り)。口までの距離に使う(11-04 地下の光の直し 12)。
+                int bottom = rockY;
+                while (bottom > rockY - CEIL_SCAN && bottom - 1 >= minY && isRock(level.getBlockState(pos.set(wx, bottom - 1, wz)))) {
+                    bottom--;
+                }
+                data[at + 3] = bottom;
             }
         }
-        return new Built(ox, oz, data, any);
+        mouthDistance(data, loaded(level, ox, oz));
+        long t1 = System.nanoTime();
+        float[] coarse = buildCoarse(level, ox, oz, pos, minY);
+        long t2 = System.nanoTime();
+        float[] water = any ? buildWater(level, ox, oz, eyeY, pos) : null;
+        long t3 = System.nanoTime();
+        return new Built(ox, oz, data, coarse, water, any, (t1 - t0) / 1000L, (t2 - t1) / 1000L, (t3 - t2) / 1000L);
+    }
+
+    /** 天井の下面を探す深さ(仮決め 64)。これより厚い岩は「とても深い天井」として扱う。 */
+    static final int CEIL_SCAN = 64;
+    /** 口までの距離の打ち切り(列。仮決め 32)。 */
+    static final int MOUTH_CAP = 32;
+    /** 半径 {@link #MOUTH_CAP} の中の列の差を近い順に並べたもの(dx, dz, 距離)。 */
+    private static final int[][] OFFSETS = offsets();
+
+    private static int[][] offsets() {
+        List<int[]> list = new ArrayList<>();
+        for (int dz = -MOUTH_CAP; dz <= MOUTH_CAP; dz++) {
+            for (int dx = -MOUTH_CAP; dx <= MOUTH_CAP; dx++) {
+                int d2 = dx * dx + dz * dz;
+                if (d2 > 0 && d2 <= MOUTH_CAP * MOUTH_CAP) {
+                    list.add(new int[]{dx, dz, d2});
+                }
+            }
+        }
+        list.sort((a, b) -> Integer.compare(a[2], b[2]));
+        return list.toArray(new int[0][]);
+    }
+
+    private static boolean[] loaded(ClientLevel level, int ox, int oz) {
+        boolean[] out = new boolean[SIZE * SIZE];
+        for (int z = 0; z < SIZE; z++) {
+            for (int x = 0; x < SIZE; x++) {
+                out[z * SIZE + x] = level.hasChunk((ox + x) >> 4, (oz + z) >> 4);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 各列の b に「いちばん近い口の列までの水平距離」(列、{@link #MOUTH_CAP} で打ち切り)を書く(11-04 地下の光の直し 12)。
+     * 口 = 読み込み済みで、岩の上面(r)がこの列の天井の下面(a)以下の列(その高さで空が開いている。崖の斜面のように天井より高い列は口でない)。
+     * 岩の無い列・天井の無い列は 0。地図の外は見ない(口が無ければ打ち切りの値)。シェーダーは外から見た洞窟の中をこの距離で黒へ沈める。
+     * 作業スレッドで呼ぶ。素の Java で検算できるよう、BlockGetter に触らない。
+     */
+    static void mouthDistance(float[] data, boolean[] loaded) {
+        for (int z = 0; z < SIZE; z++) {
+            for (int x = 0; x < SIZE; x++) {
+                int at = (z * SIZE + x) * 4;
+                if (data[at] <= NO_ROCK + 1.0F) {
+                    data[at + 2] = 0.0F;
+                    continue;
+                }
+                float ceil = data[at + 3];
+                float found = MOUTH_CAP;
+                for (int[] o : OFFSETS) {
+                    int mx = x + o[0];
+                    int mz = z + o[1];
+                    if (mx < 0 || mz < 0 || mx >= SIZE || mz >= SIZE) {
+                        continue;
+                    }
+                    int m = mz * SIZE + mx;
+                    if (loaded[m] && data[m * 4] <= ceil) {
+                        found = (float) Math.sqrt(o[2]);
+                        break;
+                    }
+                }
+                data[at + 2] = found;
+            }
+        }
     }
 
     /** 描画のスレッド: 新しい地図をテクスチャへ載せる(AFTER_SKY、{@link CaveLights#upload} から)。 */
@@ -210,10 +373,20 @@ final class CaveMap {
         }
         uploadPending = false;
         if (buffer == null) {
-            buffer = MemoryUtil.memAllocFloat(SIZE * SIZE * 4);
+            buffer = MemoryUtil.memAllocFloat(CSIZE * (SIZE + CSIZE) * 4);
         }
+        // 幅 CSIZE のテクスチャ: 行 0〜63 の左 64 列が細かい地図、右 64 列が洞窟の水面の地図(11-06。無ければ 0)、行 64〜191 が粗い地図。
         buffer.clear();
-        buffer.put(b.data);
+        float[] pad = new float[(CSIZE - SIZE) * 4];
+        for (int z = 0; z < SIZE; z++) {
+            buffer.put(b.data, z * SIZE * 4, SIZE * 4);
+            if (b.water != null) {
+                buffer.put(b.water, z * SIZE * 4, SIZE * 4);
+            } else {
+                buffer.put(pad);
+            }
+        }
+        buffer.put(b.coarse);
         buffer.flip();
         int previous = GlStateManager._getInteger(GL11.GL_TEXTURE_BINDING_2D);
         if (texture == 0) {
@@ -229,13 +402,48 @@ final class CaveMap {
         GlStateManager._pixelStore(GL11.GL_UNPACK_ROW_LENGTH, 0);
         GlStateManager._pixelStore(GL11.GL_UNPACK_SKIP_PIXELS, 0);
         GlStateManager._pixelStore(GL11.GL_UNPACK_SKIP_ROWS, 0);
-        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL30.GL_RGBA32F, SIZE, SIZE, 0, GL11.GL_RGBA, GL11.GL_FLOAT, buffer);
+        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL30.GL_RGBA32F, CSIZE, SIZE + CSIZE, 0, GL11.GL_RGBA, GL11.GL_FLOAT, buffer);
         GlStateManager._bindTexture(previous);
+    }
+
+    /** 確かめ用: 列 (wx, wz) の画素(r 岩の上面・g 過繁茂・b 口までの距離・a 天井の下面)。地図の外なら null。 */
+    @Nullable
+    static float[] texel(int wx, int wz) {
+        Built b = shown;
+        if (b == null) {
+            return null;
+        }
+        int x = wx - b.originX;
+        int z = wz - b.originZ;
+        if (x < 0 || z < 0 || x >= SIZE || z >= SIZE) {
+            return null;
+        }
+        int at = (z * SIZE + x) * 4;
+        return new float[]{b.data[at], b.data[at + 1], b.data[at + 2], b.data[at + 3]};
+    }
+
+    /** 確かめ用: 列 (wx, wz) を含む粗い地図の升の画素(r 岩の上面・g 過繁茂・b 読めた・升の原点 x・z)。粗い地図の外なら null。 */
+    @Nullable
+    static float[] coarseTexel(int wx, int wz) {
+        Built b = shown;
+        if (b == null) {
+            return null;
+        }
+        int ox = b.originX + COARSE_OFFSET;
+        int oz = b.originZ + COARSE_OFFSET;
+        int x = Math.floorDiv(wx - ox, COARSE);
+        int z = Math.floorDiv(wz - oz, COARSE);
+        if (x < 0 || z < 0 || x >= CSIZE || z >= CSIZE) {
+            return null;
+        }
+        int at = (z * CSIZE + x) * 4;
+        return new float[]{b.coarse[at], b.coarse[at + 1], b.coarse[at + 2], ox + x * COARSE, oz + z * COARSE};
     }
 
     /** 確かめ用の一行。 */
     static String describe() {
         Built b = shown;
-        return b == null ? "地下の地図 なし" : String.format("地下の地図 原点 %d %d 過繁茂 %s", b.originX, b.originZ, b.anyOvergrown);
+        return b == null ? "地下の地図 なし" : String.format("地下の地図 原点 %d %d 過繁茂 %s 作る時間 細かい %d µs 粗い %d µs 水面 %d µs", b.originX, b.originZ, b.anyOvergrown,
+                b.fineMicros, b.coarseMicros, b.waterMicros);
     }
 }

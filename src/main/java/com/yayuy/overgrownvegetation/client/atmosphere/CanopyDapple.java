@@ -4,7 +4,6 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.yayuy.overgrownvegetation.client.VisualQuality;
 import com.yayuy.overgrownvegetation.data.DesignData;
-import com.yayuy.overgrownvegetation.registry.ModBiomes;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.client.Minecraft;
@@ -63,6 +62,12 @@ final class CanopyDapple {
     private static final int MIN_BLOBS = 4;
     private static final int BLOB_SEGMENTS = 10;
 
+    /**
+     * 日向の地面の明るさ(加算の板の色の倍率。点検 21、11-06)。足す光は「これ × 地面の影の深さ」まで({@link #shadeDepth})。
+     * 加算の板は下の色を読めないので、日向の草の上面くらいの明るさとして前の斑点の強さ 0.55 をそのまま使う(仮決め)。
+     */
+    private static final float SUN_GROUND = 0.55F;
+    private static final float[] SHADE_RGB = new float[3];
     private static final List<Patch> PATCHES = new ArrayList<>();
     private static final LongSet TAKEN = new LongOpenHashSet();
     private static final RandomSource RANDOM = RandomSource.create();
@@ -77,6 +82,8 @@ final class CanopyDapple {
         /** 斑点がマスの中心からはみ出してよい範囲(0.5 = マスの中だけ、1 = 平らな周りのマスまで)。 */
         final float bound;
         final int life;
+        /** 地面の真上の空の光の段(0〜15。影の深さの見積もり {@link #shadeDepth} に使う)。 */
+        int sky = 15;
         /** うっすらした筋の、地面から最初に通った葉までの高さと半分の幅。筋を立てないマスは NaN。 */
         float rayRise = Float.NaN;
         float rayHalf;
@@ -122,7 +129,7 @@ final class CanopyDapple {
         }
         Vec3 sun = SunLight.sunDirection(level, 1.0F);
         float day = SunLight.daylight(level, sun, 1.0F);
-        boolean inForest = ForestPresence.openForest() > 0.001F;
+        boolean inForest = ForestPresence.openCover() > 0.001F;
         Wind wind = Wind.current();
         double time = Atmosphere.time(0.0F);
         for (Iterator<Patch> it = PATCHES.iterator(); it.hasNext(); ) {
@@ -166,7 +173,7 @@ final class CanopyDapple {
         }
         int py = Mth.floor(player.getY());
         float ground = SunTrace.findGround(level, x, py, z);
-        if (Float.isNaN(ground) || !ModBiomes.isOvergrownLike(level.getBiome(new BlockPos(x, Mth.floor(ground), z)))) {
+        if (Float.isNaN(ground)) { // 11-06 から世界全体(バイオームを問わない)
             return;
         }
         int layers = SunTrace.leafLayersOnSunPath(level, x, ground, z, sun, MAX_LAYERS);
@@ -191,6 +198,7 @@ final class CanopyDapple {
         }
         Patch patch = new Patch(x, z, ground, LAYER_BRIGHTNESS[layers - 1] * dim, spots, bound, 500 + RANDOM.nextInt(700));
         patch.sharp = t.dappleLowSharpness() * (1.0F - high);
+        patch.sky = level.getBrightness(net.minecraft.world.level.LightLayer.SKY, BlockPos.containing(x + 0.5, ground + 0.01, z + 0.5));
         if (!Double.isNaN(rise) && rise >= 2.0 && RANDOM.nextFloat() < RAY_SHARE) {
             patch.rayRise = (float) rise;
             patch.rayHalf = Mth.clamp(widest * 0.6F, 0.08F, 0.3F);
@@ -290,7 +298,7 @@ final class CanopyDapple {
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         Vec3 sun = SunLight.sunDirection(level, partialTick);
         float day = SunLight.daylight(level, sun, partialTick);
-        float intensity = DesignData.atmosphere().intensity() * ForestPresence.openForest();
+        float intensity = DesignData.atmosphere().intensity() * ForestPresence.openCover();
         if (intensity <= 0.0F || day <= 0.0F) {
             return;
         }
@@ -312,6 +320,14 @@ final class CanopyDapple {
         float far = Math.max(12.0F, Math.min(RenderSystem.getShaderFogEnd(), RADIUS + 4.0F));
         Wind wind = Wind.current();
         double windTime = Atmosphere.time(partialTick);
+        // 林冠の影の掛け算(地形のシェーダーの ovCanopyLight と同じ値: 影の明るさ・色 × 影の強さ)と、日向の暖かい色の明るさ(過繁茂だけ)。
+        CanopySunMap.shadeColor(SHADE_RGB);
+        float shadeLum = 0.299F * SHADE_RGB[0] + 0.587F * SHADE_RGB[1] + 0.114F * SHADE_RGB[2];
+        float shadeK = Mth.lerp(VisualQuality.canopyLight() ? DesignData.atmosphere().surfaceShade() * day * ForestPresence.openCover() : 0.0F,
+                1.0F, shadeLum);
+        float[] sunWarm = DesignData.atmosphere().sunWarm();
+        float warmLum = Mth.lerp(Math.min(1.0F, DesignData.atmosphere().sunWarmStrength()) * ForestPresence.overgrown(), 1.0F,
+                0.299F * sunWarm[0] + 0.587F * sunWarm[1] + 0.114F * sunWarm[2]);
 
         MultiBufferSource.BufferSource buffers = AddLight.buffers();
         VertexConsumer c = buffers.getBuffer(AddLight.renderType());
@@ -321,7 +337,10 @@ final class CanopyDapple {
             double cz = p.z + 0.5 - eye.z;
             double dist = Math.sqrt(cx * cx + cy * cy + cz * cz);
             float fade = 1.0F - SunLight.smooth(Mth.clamp((float) ((dist - far * 0.6) / (far * 0.4)), 0.0F, 1.0F));
-            float base = 0.55F * p.brightness * p.presence() * day * intensity * fade * (1.0F - MistView.fogAmount((float) dist));
+            // 斑点は影の穴(点検 21、11-06): 足す光は「日向の地面の明るさ SUN_GROUND × その地面が日向よりどれだけ暗いか」まで。
+            float depth = shadeDepth(level, p.sky, shadeK, warmLum);
+            float base = SUN_GROUND * depth * p.brightness * p.presence() * day * intensity * fade
+                    * (1.0F - MistView.fogAmount((float) dist));
             if (base <= 0.003F) {
                 continue;
             }
@@ -350,13 +369,28 @@ final class CanopyDapple {
                 float flicker = (float) Wind.flutter(windTime, patchPhase, w);
                 double length = Math.min(p.rayRise / Math.max(sun.y, 0.05), RAY_MAX_LENGTH);
                 float edgeFade = 1.0F - SunLight.smooth(Mth.clamp((float) ((Math.sqrt(cx * cx + cz * cz) - RAY_RANGE * 0.65) / (RAY_RANGE * 0.35)), 0.0F, 1.0F));
-                float alpha = RAY_ALPHA * p.brightness * p.presence() * day * intensity * edgeFade * Math.max(0.0F, flicker) * AirHaze.haze();
+                // うっすらした筋も影の深さで(影の無い所の筋は浮く。11-06 点検 21 の続き)。
+                float alpha = RAY_ALPHA * depth * p.brightness * p.presence() * day * intensity * edgeFade * Math.max(0.0F, flicker) * AirHaze.haze();
                 if (alpha > 0.002F) {
                     ray(c, cx + branch * wind.dirX(), cy, cz + branch * wind.dirZ(), sun, length, p.rayHalf, alpha, r, rayG, rayB);
                 }
             }
         }
         buffers.endBatch(AddLight.renderType());
+    }
+
+    /**
+     * 地面が日向よりどれだけ暗いか(0〜1。点検 21、11-06)。1 − 今の明るさ ÷ 日向の明るさ。今 = 持ち上げた空の光の段 {@code sky} の明るさ(ライトマップと同じ曲線・
+     * ガンマ)× 林冠の影 {@code shadeK}、日向 = 空の光 15・影なし × 日なたの暖かい色の明るさ {@code warmLum}。地形のシェーダーの斑点(ov_light.glsl)と同じ考えの近似
+     * (霞・森の色合いは明るさ 1 なので入れない)。斑点のマスは葉の下なので、林冠の影はいつも全部掛かっている扱い。
+     */
+    static float shadeDepth(ClientLevel level, int sky, float shadeK, float warmLum) {
+        float lift = CanopyLift.skyLift();
+        float b = CanopyLift.liftedSkyBrightness(level.dimensionType(), sky, lift);
+        float gamma = Mth.clamp(Minecraft.getInstance().options.gamma().get().floatValue(), 0.0F, 1.0F);
+        float inv = 1.0F - b;
+        b = Mth.lerp(gamma, b, 1.0F - inv * inv * inv * inv);
+        return Mth.clamp(1.0F - b * shadeK / Math.max(warmLum, 0.01F), 0.0F, 1.0F);
     }
 
     /**

@@ -10,15 +10,81 @@ public final class AtmosphereLife {
      * 10-31 雨上がりの足元が白い(ユーザー報告): 真上から見た面に残す照りの割合 faceOn・フレネルの冪 fresnelPower・近くで弱める距離 nearFrom〜nearTo。 */
     public static final class WetJson {
         public Double minutes, highlight, sharpness, groundDarken, rainHighlight, faceOn, fresnelPower, nearFrom, nearTo;
+        /**
+         * 11-06 バニラ地域の光 5(雨で地面が濡れる。値はすべて仮決め): 過繁茂の外は、真上が空の上向きの面だけが雨で濡れる。
+         * rainWetDarken = 濡れた地面の明るさの倍率(0.85 = 15% 暗く)・rainWetSpecular = 照りの強さ・rainWetSaturate = 足す彩度・
+         * rainWetIn = 降り始めから濡れきるまでの秒・rainWetOut = 止んでから乾ききるまでの秒・rainWetSkyFrom〜rainWetSkyTo = 濡れる面の空の光(15 段)。
+         * 過繁茂の中は前の規則(minutes 分かけて乾く・空の光 4〜11 の全部の面)のまま。カメラの過繁茂の度合いで混ぜる。
+         */
+        public Double rainWetDarken, rainWetSpecular, rainWetSaturate, rainWetIn, rainWetOut, rainWetSkyFrom, rainWetSkyTo;
     }
 
     public record WetParams(float minutes, float highlight, float sharpness, float groundDarken, float rainHighlight, float faceOn,
-                            float fresnelPower, float nearFrom, float nearTo) {
+                            float fresnelPower, float nearFrom, float nearTo,
+                            float rainWetDarken, float rainWetSpecular, float rainWetSaturate, float rainWetIn, float rainWetOut,
+                            float rainWetSkyFrom, float rainWetSkyTo) {
         static WetParams of(WetJson w) {
             WetJson v = w != null ? w : new WetJson();
+            float skyFrom = c(v.rainWetSkyFrom, 14.6, 0.0, 15.0);
             return new WetParams(c(v.minutes, 3.0, 0.0, 60.0), c(v.highlight, 0.6, 0.0, 2.0), c(v.sharpness, 60.0, 1.0, 256.0), c(v.groundDarken, 0.22, 0.0, 0.8),
                     c(v.rainHighlight, 0.6, 0.0, 2.0), c(v.faceOn, 0.15, 0.0, 1.0), c(v.fresnelPower, 3.0, 0.5, 8.0),
-                    c(v.nearFrom, 2.0, 0.0, 16.0), c(v.nearTo, 6.0, 0.1, 32.0));
+                    c(v.nearFrom, 2.0, 0.0, 16.0), c(v.nearTo, 6.0, 0.1, 32.0),
+                    c(v.rainWetDarken, 0.85, 0.2, 1.0), c(v.rainWetSpecular, 0.2, 0.0, 2.0), c(v.rainWetSaturate, 0.15, 0.0, 1.0),
+                    c(v.rainWetIn, 20.0, 0.5, 600.0), c(v.rainWetOut, 60.0, 0.5, 1800.0), skyFrom,
+                    Math.max(skyFrom + 0.1F, c(v.rainWetSkyTo, 15.0, 0.0, 15.5)));
+        }
+    }
+
+    /**
+     * 節 {@code waterGlint}(11-06 バニラ地域の光 4、水面の太陽と月。値はすべて仮決め): sunSpecular・moonSpecular = 太陽・月の照りの強さ
+     * (月は月相で弱まる)・shininess = 鋭さ・ripple = 波の傾き(ゆっくりの波 4 つ)・rainRipple = 雨の強さ 1 で波の傾きに掛ける倍率・
+     * rainDim = 雨の強さ 1 で照りに掛ける倍率(雲で日が隠れる)・moonColor = 月の照りの色。夕方の太陽の色は時刻の色(light.skyTint*)。
+     */
+    public static final class WaterGlintJson {
+        public Double sunSpecular, moonSpecular, shininess, ripple, rainRipple, rainDim;
+        public double[] moonColor;
+    }
+
+    /**
+     * 節 {@code rainLook}(2026-11-06 雨の見え方)。ユーザー指定: 傾きは最も強い風で約 {@code windTilt} 30°・突風で揺れる・雪も流す・色は半透明の白 + その時刻の
+     * 空の色を少し・水滴は全部白。ほかは仮決め: snowTiltScale・snowTiltMax = 雪の傾きの倍率と上限(度)・snowSway = 雪の柱のゆらぎ(ブロック)・
+     * skyTintShare = 時刻の色を混ぜる割合・alpha = 雨と滴の不透明さの倍率・sporeTint = 胞子の空気 100% で黄緑へ寄せる割合・sporeColor = その色・
+     * puddleRadius = 幹の根元の水たまりの半径(ブロック)・puddleDarken = 水たまりの暗さ・puddleSheen = 水たまりに映る空の明るさ・
+     * puddleIn = 雨で広がりきるまでの秒・puddleOut = 雨上がりに乾ききるまでの秒。
+     */
+    public static final class RainLookJson {
+        /** false = 雨・雪・水滴・水たまりをバニラのまま(撮り比べ用)。 */
+        public Boolean enabled;
+        public Double windTilt, snowTiltScale, snowTiltMax, snowSway, skyTintShare, alpha, sporeTint, puddleRadius, puddleDarken, puddleSheen,
+                puddleIn, puddleOut, rainPuddleSpacing;
+        /** 雨でできる水たまり(11-06 夜、仮決め): カメラのまわりの数の上限・1 tick に見る列の数。間隔は rainPuddleSpacing(ブロック)。 */
+        public Integer rainPuddleMax, rainPuddleTries;
+        public double[] sporeColor;
+    }
+
+    public record RainLookParams(boolean enabled, float windTilt, float snowTiltScale, float snowTiltMax, float snowSway, float skyTintShare, float alpha,
+                                 float sporeTint, float[] sporeColor, float puddleRadius, float puddleDarken, float puddleSheen, float puddleIn,
+                                 float puddleOut, int rainPuddleMax, int rainPuddleTries, float rainPuddleSpacing) {
+        static RainLookParams of(RainLookJson w) {
+            RainLookJson v = w != null ? w : new RainLookJson();
+            double[] s = v.sporeColor != null && v.sporeColor.length >= 3 ? v.sporeColor : new double[]{0.80, 0.92, 0.55};
+            return new RainLookParams(v.enabled == null || v.enabled, c(v.windTilt, 30.0, 0.0, 80.0), c(v.snowTiltScale, 1.5, 0.0, 4.0), c(v.snowTiltMax, 45.0, 0.0, 80.0),
+                    c(v.snowSway, 0.3, 0.0, 2.0), c(v.skyTintShare, 0.5, 0.0, 1.0), c(v.alpha, 0.58, 0.0, 2.0), c(v.sporeTint, 0.25, 0.0, 1.0),
+                    new float[]{c(s[0], 0.80, 0.0, 2.0), c(s[1], 0.92, 0.0, 2.0), c(s[2], 0.55, 0.0, 2.0)}, c(v.puddleRadius, 1.3, 0.1, 4.0),
+                    c(v.puddleDarken, 0.6, 0.0, 1.0), c(v.puddleSheen, 0.5, 0.0, 1.0), c(v.puddleIn, 30.0, 0.5, 600.0), c(v.puddleOut, 60.0, 0.5, 1800.0),
+                    v.rainPuddleMax != null ? Math.max(0, Math.min(200, v.rainPuddleMax)) : 20, v.rainPuddleTries != null ? Math.max(0, Math.min(64, v.rainPuddleTries)) : 6,
+                    c(v.rainPuddleSpacing, 3.0, 0.5, 32.0));
+        }
+    }
+
+    public record WaterGlintParams(float sunSpecular, float moonSpecular, float shininess, float ripple, float rainRipple, float rainDim,
+                                   float[] moonColor) {
+        static WaterGlintParams of(WaterGlintJson w) {
+            WaterGlintJson v = w != null ? w : new WaterGlintJson();
+            double[] m = v.moonColor != null && v.moonColor.length >= 3 ? v.moonColor : new double[]{0.75, 0.82, 1.0};
+            return new WaterGlintParams(c(v.sunSpecular, 1.0, 0.0, 4.0), c(v.moonSpecular, 0.35, 0.0, 4.0), c(v.shininess, 300.0, 1.0, 2048.0),
+                    c(v.ripple, 0.15, 0.0, 1.0), c(v.rainRipple, 2.5, 1.0, 10.0), c(v.rainDim, 0.3, 0.0, 1.0),
+                    new float[]{c(m[0], 0.75, 0.0, 2.0), c(m[1], 0.82, 0.0, 2.0), c(m[2], 1.0, 0.0, 2.0)});
         }
     }
 

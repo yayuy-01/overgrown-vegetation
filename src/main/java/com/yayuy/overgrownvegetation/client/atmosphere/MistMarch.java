@@ -128,7 +128,8 @@ public final class MistMarch {
         march.safeGetUniform("InvViewProj").set(inv);
         march.setSampler("DepthTex", depthCopy.getDepthTextureId());
         march.setSampler("OvFogMap", MistMap.textureId());
-        boolean sunMap = CanopySunMap.sporeTexture >= 0;
+        // 11-06 2 層: 林冠の地図は覆いだけで作られるようになったが、霧の日向(光の筋)は過繁茂で強まる層なので、前と同じく過繁茂の中にいる間だけ読む。
+        boolean sunMap = CanopySunMap.sporeTexture >= 0 && ForestPresence.openOvergrown() > 0.001F;
         march.setSampler("SunMap", sunMap ? CanopySunMap.sporeTexture : MistMap.textureId());
         float noiseScale = mp.noiseScale();
         march.safeGetUniform("MarchA").set((float) mp.steps(), mp.distance(), mp.fadeFrom(), mp.noise());

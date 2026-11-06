@@ -106,7 +106,7 @@ final class DuskMotes {
             return;
         }
         AtmosphereTable.DuskParams p = DesignData.atmosphere().dusk();
-        float target = timeWeight(level.getDayTime(), p) * (1.0F - level.getRainLevel(1.0F)) * ForestPresence.openForest();
+        float target = timeWeight(level.getDayTime(), p) * (1.0F - level.getRainLevel(1.0F)) * ForestPresence.openOvergrown();
         shown += (target - shown) * 0.02F;
         if (shown <= 0.005F || ModShaders.duskMotes() == null) {
             return;

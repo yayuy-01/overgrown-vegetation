@@ -215,7 +215,7 @@ public final class ForestInsectSound {
         float hour = (float) (Math.floorMod(level.getDayTime(), 24000L) / 1000.0 + 6.0) % 24.0F;
         // 森全体の凪: lullIntervalMin〜Max 秒おきに lullMin〜Max 秒、コオロギ・キリギリス様が区切りで黙り、新しく鳴き始めない(11-01)。
         lull = LULL.tick(ticks, RHYTHM, p.lullIntervalMin(), p.lullIntervalMax(), p.lullMin(), p.lullMax());
-        float forest = ForestPresence.forestFactor();
+        float forest = ForestPresence.overgrown();
         boolean place = audible && forest >= p.minForest() && !hushed(level, player, p.hushRadius()) && !player.isUnderWater();
         // 地下モードの分だけ下げる(地下では森の音を 1 − mix 倍。2026-11-01 地下と水中の環境音)。
         float forestWeight = Mth.clamp((forest - p.minForest()) / 0.2F, 0.0F, 1.0F) * (1.0F - com.yayuy.overgrownvegetation.client.atmosphere.CaveLights.mix());

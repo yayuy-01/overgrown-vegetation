@@ -2,6 +2,7 @@ package com.yayuy.overgrownvegetation;
 
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.data.DesignData;
+import com.yayuy.overgrownvegetation.registry.ModArmorMaterials;
 import com.yayuy.overgrownvegetation.registry.ModAttachments;
 import com.yayuy.overgrownvegetation.registry.ModBlockEntities;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
@@ -51,6 +52,7 @@ public class OvergrownVegetation {
 
         ModBlocks.register(modBus);
         ModBlockEntities.register(modBus);
+        ModArmorMaterials.register(modBus); // 2026-11-04 防護マスクの素材だけ
         ModItems.register(modBus);
         ModEntities.register(modBus);
         ModFeatures.register(modBus);

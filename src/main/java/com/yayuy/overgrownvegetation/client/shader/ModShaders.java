@@ -59,8 +59,46 @@ public final class ModShaders {
         return duskMotes;
     }
 
+    /**
+     * 登る蔓({@code client/ClimbingVineRenderer}、2026-11-05 光の点検 6)。バニラの文字のシェーダーに地形と同じ林冠の光({@code ov_light.glsl} の
+     * {@code ovCanopyLight})を足したもの。uniform は {@code atmosphere/CanopySunMap#upload} が地形と一緒に流す。読み込めなかったら null(文字のシェーダーに戻す)。
+     */
+    private static ShaderInstance lianaCanopyLit;
+
+    public static ShaderInstance lianaCanopyLit() {
+        return lianaCanopyLit;
+    }
+
+    /**
+     * 白い雨と水滴({@code client/atmosphere/RainLook}、2026-11-06 雨の見え方)。バニラの粒のシェーダーの、絵の色相を抜いて白 × 時刻の色にしたもの。
+     * 読み込めなかったら null(雨と滴はバニラの青のまま)。
+     */
+    private static ShaderInstance rainWhite;
+
+    public static ShaderInstance rainWhite() {
+        return rainWhite;
+    }
+
     @SubscribeEvent
     public static void onRegisterShaders(RegisterShadersEvent event) {
+        try {
+            event.registerShader(new ShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "rain_white"),
+                            DefaultVertexFormat.PARTICLE),
+                    shader -> rainWhite = shader);
+        } catch (IOException e) {
+            OvergrownVegetation.LOGGER.error("白い雨のシェーダーを読み込めなかったので、雨と水滴はバニラの青のまま", e);
+            rainWhite = null;
+        }
+        try {
+            event.registerShader(new ShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "liana_canopy_lit"),
+                            DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP),
+                    shader -> lianaCanopyLit = shader);
+        } catch (IOException e) {
+            OvergrownVegetation.LOGGER.error("登る蔓のシェーダーを読み込めなかったので、蔓は文字のシェーダーで描く(林冠の影は付かない)", e);
+            lianaCanopyLit = null;
+        }
         try {
             event.registerShader(new OwnShaderInstance(event.getResourceProvider(),
                             ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "mist_march"),

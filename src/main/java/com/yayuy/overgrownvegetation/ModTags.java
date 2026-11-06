@@ -148,6 +148,18 @@ public final class ModTags {
     /** 胞子の溜まり(地下の植生 U6)。近づくと低いうなりが鳴る(client の CaveSound、2026-11-01)。今は空(溜まりのブロックを足したらここへ)。 */
     public static final TagKey<Block> SPORE_POOL = BlockTags.create(OvergrownVegetation.id("spore_pool"));
 
+    /**
+     * 全面に張り付く Mob(アルボラなど、{@code entity/cling})が<b>張り付けない</b>ブロック(2026-11-05 ユーザー決定「後から足せる口だけ」)。
+     * 壁・天井として掴めないだけで、床としては乗れる。今は空。
+     */
+    public static final TagKey<Block> UNCLINGABLE = BlockTags.create(OvergrownVegetation.id("unclingable"));
+
+    /**
+     * 全面に張り付く Mob が<b>中へ潜って 3 次元に動ける</b>葉(2026-11-05 ユーザー決定「葉の中は潜れて自由自在に動ける」)。
+     * 外の面には普通に張り付く。当たりのある葉だけを並べる(当たりの無い房は、そもそも空気と同じに通れる)。
+     */
+    public static final TagKey<Block> BURROWABLE_FOLIAGE = BlockTags.create(OvergrownVegetation.id("burrowable_foliage"));
+
     /** 地下で根の軋みが聞こえてくる向きにするブロック(天井を貫く巨大樹の幹・根。client の CaveSound、2026-11-01)。 */
     public static final TagKey<Block> CAVE_CREAK_ROOTS = BlockTags.create(OvergrownVegetation.id("cave_creak_roots"));
 
@@ -296,6 +308,12 @@ public final class ModTags {
      * </ul>
      */
     public static final TagKey<EntityType<?>> WATER_ROT_IMMUNE = entityTag("water_rot_immune");
+
+    /**
+     * 胞子の暴露量を測らない Mob(2026-11-04 感染システムの第 2 段、Claude の仮決め)。既定はエンダードラゴンとウィザー:
+     * ボスは 20 ダメージの繰り返しで削られるべきでなく、ドラゴンはプレイヤー以外のダメージを受け付けない。データパックで足せる。
+     */
+    public static final TagKey<EntityType<?>> SPORE_EXPOSURE_IMMUNE = entityTag("spore_exposure_immune");
 
     /**
      * <b>水に入らずに攻撃できる</b>(= 遠距離攻撃を持つ)エンティティタイプ。

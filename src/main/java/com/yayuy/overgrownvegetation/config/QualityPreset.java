@@ -13,7 +13,7 @@ package com.yayuy.overgrownvegetation.config;
  */
 public enum QualityPreset {
     //     巻きシダ                     雰囲気の重さ
-    LOW(CurledFernDetail.SIMPLE, AtmosphereQuality.LOW),
+    LOW(CurledFernDetail.REDUCED, AtmosphereQuality.LOW), // 11-03 まで SIMPLE(削除)
     MEDIUM(CurledFernDetail.REDUCED, AtmosphereQuality.MEDIUM),
     HIGH(CurledFernDetail.REDUCED, AtmosphereQuality.HIGH);
 

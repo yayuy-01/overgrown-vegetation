@@ -893,11 +893,6 @@ public final class ModBlocks {
 
     // 側面・底面に生えるもの(2026-11-01)。どれも木の生成の後に worldgen.TreeSideGrowth が置く(S1 は汚染の広がりでも幹の面に生える)。
 
-    /** 幹に巻き付く種子シダ(S1)。幹の面に貼り付く立体の模型({@link com.yayuy.overgrownvegetation.block.ClimbingSeedfernBlock})。 */
-    public static final DeferredBlock<Block> CLIMBING_SEEDFERN = BLOCKS.registerBlock(
-            "climbing_seedfern", com.yayuy.overgrownvegetation.block.ClimbingSeedfernBlock::new,
-            wallGrowthProperties(SoundType.VINE));
-
     /** 気根のカーテン(S3)。林冠・腕の縁から 2〜6 段垂れる({@link com.yayuy.overgrownvegetation.block.AerialRootBlock})。 */
     public static final DeferredBlock<Block> AERIAL_ROOT = BLOCKS.registerBlock(
             "aerial_root", com.yayuy.overgrownvegetation.block.AerialRootBlock::new,
@@ -1185,12 +1180,148 @@ public final class ModBlocks {
                     .mapColor(MapColor.COLOR_GREEN)
                     .lightLevel(OvergrownGlowVines.emission(14)));
 
-    /** 地下モードの試作用の仮の光源(2026-11-01。地下の植生の実装で本物に置き換えて消す。見た目の光はシェーダーの点光源)。 */
-    public static final DeferredBlock<Block> CAVE_LIGHT_PROBE = BLOCKS.registerBlock(
-            "cave_light_probe", com.yayuy.overgrownvegetation.block.CaveLightProbeBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.STONE)
+    // ------------------------------------------------------------------
+    // 地下の植生 1(2026-11-03、光を出す側)。置き方は corruption/CaveFlora。見た目の光は地下モードの点光源(client/atmosphere/CaveLights)、
+    // 本物の光量(仮)は湧きと植物の判定にだけ効く。絵は下絵のまま(ユーザーが清書)。地下モードの試作の仮の光源 cave_light_probe はこれで消した。
+    // ------------------------------------------------------------------
+
+    /** 天井の光源 A: 天井の岩の下面に貼る光る根の網(結び目が光る。光量 1 = 仮)。 */
+    public static final DeferredBlock<Block> CEILING_ROOT_NET = BLOCKS.registerBlock(
+            "ceiling_root_net", com.yayuy.overgrownvegetation.block.CaveSheetBlock::new,
+            BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_GREEN)
-                    .lightLevel(state -> 2));
+                    .noCollission()
+                    .instabreak()
+                    .noOcclusion()
+                    .sound(SoundType.HANGING_ROOTS)
+                    .lightLevel(state -> 1)
+                    .pushReaction(PushReaction.DESTROY));
+
+    /** 天井の光源 A: 網から垂れる房の中間(上下で巻く。アイテムは持たない)。 */
+    public static final DeferredBlock<Block> GLOW_TASSEL = BLOCKS.registerBlock(
+            "glow_tassel", com.yayuy.overgrownvegetation.block.GlowTasselPlantBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .noCollission()
+                    .instabreak()
+                    .noOcclusion()
+                    .sound(SoundType.CAVE_VINES)
+                    .pushReaction(PushReaction.DESTROY));
+
+    /** 天井の光源 A: 房の先の光る玉(光量 3 = 仮。アイテムは持たない)。 */
+    public static final DeferredBlock<Block> GLOW_TASSEL_TIP = BLOCKS.registerBlock(
+            "glow_tassel_tip", com.yayuy.overgrownvegetation.block.GlowTasselBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .noCollission()
+                    .instabreak()
+                    .noOcclusion()
+                    .sound(SoundType.CAVE_VINES)
+                    .lightLevel(state -> 3)
+                    .pushReaction(PushReaction.DESTROY));
+
+    /** U3 地脈の根: 洞窟の壁を這う根(glow = none / far / near。光量 0 / 1 / 2 = 仮)。 */
+    public static final DeferredBlock<Block> LEY_ROOT = BLOCKS.registerBlock(
+            "ley_root", com.yayuy.overgrownvegetation.block.LeyRootBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .noCollission()
+                    .instabreak()
+                    .noOcclusion()
+                    .sound(SoundType.HANGING_ROOTS)
+                    .lightLevel(com.yayuy.overgrownvegetation.block.LeyRootBlock::emission)
+                    .pushReaction(PushReaction.DESTROY));
+
+    /** U4 狐火茸(wood = false 茸の群れ / true 朽ちた根の切れ端。光量 3 = 仮)。 */
+    public static final DeferredBlock<Block> FOXFIRE = BLOCKS.registerBlock(
+            "foxfire", com.yayuy.overgrownvegetation.block.FoxfireBlock::new,
+            crossGrowthProperties(SoundType.FUNGUS).lightLevel(state -> 3));
+
+    /** 天井の光源の下の床の下生え: 淡いシダ。 */
+    public static final DeferredBlock<Block> PALE_CAVE_FERN = BLOCKS.registerBlock(
+            "pale_cave_fern", CorruptedGroundGrowthBlock::new, crossGrowthProperties(SoundType.GRASS));
+    /** 天井の光源の下の床の下生え: 背の低い菌の傘。 */
+    public static final DeferredBlock<Block> PALE_CAVE_CAPS = BLOCKS.registerBlock(
+            "pale_cave_caps", CorruptedGroundGrowthBlock::new, crossGrowthProperties(SoundType.FUNGUS));
+    /** 天井の光源の下の床の下生え: 地下の苔の塊(胞子体の柄と蒴)。 */
+    public static final DeferredBlock<Block> PALE_CAVE_MOSS = BLOCKS.registerBlock(
+            "pale_cave_moss", CorruptedGroundGrowthBlock::new, crossGrowthProperties(SoundType.MOSS));
+    /** 天井の光源の下の床の下生え: 水辺のトクサ(水平 2 以内に水があるときだけ)。 */
+    public static final DeferredBlock<Block> CAVE_HORSETAIL = BLOCKS.registerBlock(
+            "cave_horsetail", CorruptedGroundGrowthBlock::new, crossGrowthProperties(SoundType.BAMBOO));
+
+    /** 小さな洞窟の菌糸(11-03 直し。ヒカリゴケと同じ作りの面に貼る薄いブロック、ground = 石・深層岩・土で絵を選ぶ。光量 0)。 */
+    public static final DeferredBlock<Block> CAVE_MYCELIUM = BLOCKS.registerBlock(
+            "cave_mycelium", com.yayuy.overgrownvegetation.block.CaveMyceliumBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_LIGHT_GRAY)
+                    .replaceable()
+                    .noCollission()
+                    .strength(0.2F)
+                    .noOcclusion()
+                    .sound(SoundType.GLOW_LICHEN)
+                    .pushReaction(PushReaction.DESTROY));
+
+    // 地下の植生 2(2026-11-03、U5〜U7)。光らない。絵は下絵のまま(ユーザーが清書)。
+
+    /** U5 根の簾の先(水滴が落ちる。アイテムはこれ = 置くと先から)。 */
+    public static final DeferredBlock<Block> DANGLING_ROOTS = BLOCKS.registerBlock(
+            "dangling_roots", com.yayuy.overgrownvegetation.block.DanglingRootsBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.DIRT)
+                    .noCollission()
+                    .instabreak()
+                    .noOcclusion()
+                    .sound(SoundType.HANGING_ROOTS)
+                    .pushReaction(PushReaction.DESTROY));
+
+    /** U5 根の簾の中間(アイテムは持たない)。 */
+    public static final DeferredBlock<Block> DANGLING_ROOTS_PLANT = BLOCKS.registerBlock(
+            "dangling_roots_plant", com.yayuy.overgrownvegetation.block.DanglingRootsPlantBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.DIRT)
+                    .noCollission()
+                    .instabreak()
+                    .noOcclusion()
+                    .sound(SoundType.HANGING_ROOTS)
+                    .pushReaction(PushReaction.DESTROY));
+
+    /** U6 胞子の溜まりの印(見えない・当たらない・置き換えられる。アイテム・ドロップ無し)。 */
+    public static final DeferredBlock<Block> CAVE_SPORE_POOL = BLOCKS.registerBlock(
+            "cave_spore_pool", com.yayuy.overgrownvegetation.block.CaveSporePoolBlock::new,
+            BlockBehaviour.Properties.of()
+                    .replaceable()
+                    .noCollission()
+                    .noOcclusion()
+                    .noLootTable()
+                    .instabreak()
+                    .pushReaction(PushReaction.DESTROY));
+
+    /** U7 巨大菌の柱(プロトタキシーテス)の幹。縦の繊維の側面と、成長の輪の上下(cube_column)。 */
+    public static final DeferredBlock<Block> PROTOTAXITES_STEM = BLOCKS.registerBlock(
+            "prototaxites_stem", Block::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.TERRACOTTA_BROWN)
+                    .strength(1.5F)
+                    .sound(SoundType.STEM));
+
+    /** U7 柱の天辺の丸い瘤(11-04 ユーザー決定。corner = 1×1 / 2×2 のどの列か)。 */
+    public static final DeferredBlock<Block> PROTOTAXITES_KNOB = BLOCKS.registerBlock(
+            "prototaxites_knob", p -> new com.yayuy.overgrownvegetation.block.PrototaxitesTopBlock(p, false),
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.TERRACOTTA_BROWN)
+                    .strength(1.5F)
+                    .noOcclusion()
+                    .sound(SoundType.STEM));
+
+    /** U7 柱の天辺の平たい傘(11-04 ユーザー決定。模型はマスの外へはみ出す、当たり判定は自分のマスの円盤だけ)。 */
+    public static final DeferredBlock<Block> PROTOTAXITES_CAP = BLOCKS.registerBlock(
+            "prototaxites_cap", p -> new com.yayuy.overgrownvegetation.block.PrototaxitesTopBlock(p, true),
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.TERRACOTTA_BROWN)
+                    .strength(1.5F)
+                    .noOcclusion()
+                    .sound(SoundType.STEM));
 
     // ------------------------------------------------------------------
     // 木と木をつなぐ蔦(リアナ)
@@ -1325,7 +1456,6 @@ public final class ModBlocks {
                 OVERGROWN_CREEPING_VINE,
                 OVERGROWN_SHELF_LICHEN,
                 OVERGROWN_THORN_VINE,
-                CLIMBING_SEEDFERN,
                 AERIAL_ROOT,
                 AERIAL_ROOT_PILLAR,
                 BEARD_LICHEN,
@@ -1347,6 +1477,8 @@ public final class ModBlocks {
                 SEA_SPORE_BAND,
                 SPORE_KELP_STALK,
                 SPORE_KELP_FROND,
+                CEILING_ROOT_NET, LEY_ROOT, FOXFIRE, PALE_CAVE_FERN, PALE_CAVE_CAPS, PALE_CAVE_MOSS, CAVE_HORSETAIL, CAVE_MYCELIUM,
+                DANGLING_ROOTS, PROTOTAXITES_STEM, PROTOTAXITES_KNOB, PROTOTAXITES_CAP,
                 OVERGROWN_LIANA);
     }
 

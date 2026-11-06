@@ -87,6 +87,14 @@ public final class SporeField {
          */
         public double wetMul = 3, riverMul = 3, dryMul = 0.15, mountMul = 0.08, wetDownfall = 0.85, dryDownfall = 0.2;
         public int heightStride = 8;
+        /**
+         * 地下の層(2026-11-04 暴露量ノート 追記 6【決定】、数はすべて仮決め): 地上の浮遊が洞窟の口の多さ(0〜1)に応じて染み込む速さ(1 日あたり、
+         * 口 1 のとき)、地下の浮遊の死滅と地下の降り積もりへの沈着(地上の 1/4: airDecay / 4、昼夜の沈着の平均 / 4)、
+         * 地下の降り積もりの減衰(depDecay / 4)、測ったことの無いチャンクの口の多さ。隣の地下へは伝えない。
+         */
+        public double soakPerDay = 4.0, underDecayPerDay = 0.175, underDepPerDay = 0.225, underDepDecayPerDay = 0.125, mouthDefault = 0.05;
+        /** 逆転層より上でも発芽・飛び地の着地を許す、生きている巨大樹の根元からの水平の距離(チャンク)。 */
+        public double treeExemptChunks = 4;
 
         public void set(String k, double v) {
             try {
@@ -127,6 +135,12 @@ public final class SporeField {
         float[] airEmit; // 土地の空気への放出の倍率({@link Ground#airEmitFactor}。水の下の株は小さい)。null = どこも 1
         /** 地表の高さ(ブロック。2026-10-30 谷風・逆転層・山の壁)。null = 高さを持たない(平らな合成の世界)。保存する。 */
         float[] height;
+        /**
+         * 地下の層(2026-11-04): 地下の浮遊・地下の降り積もり・洞窟の口の多さ(0〜1。NaN = まだ測っていない → {@link Params#mouthDefault})・
+         * 洞窟の床から発芽した回数(上限 {@link Params#maxSprouts})。どれも保存する(区画ファイルの版 3)。
+         */
+        final float[] under = new float[TN], underDep = new float[TN], mouth = new float[TN];
+        final byte[] caveCount = new byte[TN];
         /** 嵐の間に持ち上げた量と、その重心を求める和(塊にまとめるまで)。 */
         double lifted, liftX, liftZ;
 
@@ -134,6 +148,7 @@ public final class SporeField {
             this.tx = tx;
             this.tz = tz;
             java.util.Arrays.fill(sprout, NOT);
+            java.util.Arrays.fill(mouth, Float.NaN);
         }
     }
 
@@ -373,6 +388,76 @@ public final class SporeField {
     public double low(int cx, int cz) {
         Tile t = tile(cx, cz, false);
         return t == null ? 0 : t.low[idx(cx, cz)];
+    }
+
+    // ---------------------------------------------------------------- 地下の層(2026-11-04 暴露量ノート 追記 6)
+
+    /** 地下の層を回すか(オーバーワールド = true、ネザーの場は false。Params は場どうしで共用なので場ごとに持つ)。 */
+    public boolean underground = true;
+    /** 生きている巨大樹の根元のチャンク({@link #chunkKey})。逆転層より上でも発芽・着地を許す例外。サーバーが更新ごとに入れる(保存しない)。 */
+    public long[] treeChunks = new long[0];
+    /** 直前の {@link #step} で洞窟の床から発芽した升 {cx, cz, 何回目か}(チャンクの汚染・台帳は変えない。洞窟の床に芽の点を置くだけ)。 */
+    public final List<int[]> newCaveSprouts = new ArrayList<>();
+
+    /** 地下の浮遊。 */
+    public double under(int cx, int cz) {
+        Tile t = tile(cx, cz, false);
+        return t == null ? 0 : t.under[idx(cx, cz)];
+    }
+
+    /** 地下の降り積もり。 */
+    public double underDeposited(int cx, int cz) {
+        Tile t = tile(cx, cz, false);
+        return t == null ? 0 : t.underDep[idx(cx, cz)];
+    }
+
+    /** 洞窟の床から発芽した回数。 */
+    public int caveCount(int cx, int cz) {
+        Tile t = tile(cx, cz, false);
+        return t == null ? 0 : t.caveCount[idx(cx, cz)];
+    }
+
+    /** 洞窟の口の多さ(0〜1。測っていなければ既定値)。 */
+    public double mouth(int cx, int cz) {
+        Tile t = tile(cx, cz, false);
+        return t == null ? p.mouthDefault : mouthOf(t, idx(cx, cz));
+    }
+
+    private double mouthOf(Tile t, int i) {
+        float m = t.mouth[i];
+        return Float.isNaN(m) ? p.mouthDefault : m;
+    }
+
+    /** 測った洞窟の口の多さ(0〜1)を入れる。区画が無ければ何もしない(作り直すときは既定値。読み込まれたら測り直す)。 */
+    public void setMouth(int cx, int cz, float m) {
+        Tile t = tile(cx, cz, false);
+        if (t != null) t.mouth[idx(cx, cz)] = Math.max(0f, Math.min(1f, m));
+    }
+
+    /** 地下の降り積もりを直に足す(テスト・開発用)。 */
+    public void depositUnderPoint(int cx, int cz, double amount) {
+        tile(cx, cz, true).underDep[idx(cx, cz)] += (float) amount;
+    }
+
+    /** 生きている巨大樹の根元から水平 {@link Params#treeExemptChunks} チャンク以内か。 */
+    public boolean nearTree(int cx, int cz) {
+        double r2 = p.treeExemptChunks * p.treeExemptChunks;
+        for (long k : treeChunks) {
+            double dx = cx - (int) k, dz = cz - (int) (k >> 32);
+            if (dx * dx + dz * dz <= r2) return true;
+        }
+        return false;
+    }
+
+    /** 逆転層より上で、巨大樹の例外でもない升(発芽しない・飛び地が落ちない。2026-11-04)。 */
+    private boolean barrenHigh(Tile t, int i, int cx, int cz) {
+        return aboveInversion(t, i) && !nearTree(cx, cz);
+    }
+
+    /** {@link #barrenHigh} のチャンク座標版(区画が無ければ高さを引いて作る。塊の着地にだけ使う)。 */
+    private boolean barrenHighAt(int cx, int cz) {
+        Tile t = tile(cx, cz, ground != null);
+        return t != null && barrenHigh(t, idx(cx, cz), cx, cz);
     }
 
     /** 持っている区画(保存用。同じパッケージの保存係だけが中を読む)。 */
@@ -672,6 +757,7 @@ public final class SporeField {
     public void step(Conditions c, PrevailingWind.Sample wind) {
         newSprouts.clear();
         newLandings.clear();
+        newCaveSprouts.clear();
         double full = p.stepTicks / (double) PrevailingWind.DAY; // 日
         advanceFronts(full);
         inversionNow = inversionY(Math.floorDiv(c.dayTime(), (long) PrevailingWind.DAY));
@@ -794,6 +880,12 @@ public final class SporeField {
         float eps = (float) p.eps;
         boolean half = p.half16 != 0;
         double full = p.stepTicks / (double) PrevailingWind.DAY;
+        // 地下の層(2026-11-04): 風・雨・昼夜が無いので減りは一定。洞窟の中はいつも湿っている(仮決め)
+        boolean under = underground && doAir;
+        double kU = p.underDepPerDay + p.underDecayPerDay;
+        double keepU = Math.exp(-kU * dtAir), toDepU = kU > 0 ? (1 - keepU) * p.underDepPerDay / kU : 0;
+        double underDepKeep = Math.exp(-p.underDepDecayPerDay * dtAir);
+        double germPU = p.germPerDay * dtAir;
 
         List<Tile> list = new ArrayList<>(tiles.values());
         for (Tile tl : list) {
@@ -835,6 +927,7 @@ public final class SporeField {
                     if ((tl.flags[i] & WAIT) != 0 && dd * g < p.germThreshold) tl.flags[i] &= ~WAIT;
                     if (g > 0 && (tl.flags[i] & WAIT) == 0 && dd * g >= need && (first || t - sp >= secondGap)
                             && (moist || (tl.wet != null && tl.wet[i]))
+                            && !barrenHigh(tl, i, bx + (i & (TS - 1)), bz + (i >> TB)) // 逆転層より上は発芽しない(巨大樹の近くは例外。2026-11-04)
                             && PrevailingWind.unit(PrevailingWind.hash(seed ^ t, ((long) (bx + (i & 31)) << 32) ^ (bz + (i >> TB)))) < germP) {
                         int cx = bx + (i & (TS - 1)), cz = bz + (i >> TB);
                         if (first) {
@@ -867,6 +960,7 @@ public final class SporeField {
                     }
                 }
                 if (!doAir) continue;
+                if (under) a = stepUnder(tl, i, cx, cz, a, dtAir, keepU, toDepU, underDepKeep, germPU, t);
                 double lifted = a * tLift;
                 a *= tKeep;
                 if (lifted > 0) {
@@ -939,6 +1033,38 @@ public final class SporeField {
             }
         }
         if (empty != null) for (long kk : empty) tiles.remove(kk);
+    }
+
+    /**
+     * 地下の層の 1 刻み(2026-11-04 暴露量ノート 追記 6【決定】): 地上の浮遊 {@code a} から 口の多さ × soakPerDay の速さで地下へ染み込ませ(移すので量は保存)、
+     * 地下の浮遊を死滅と地下の降り積もりへの沈着で減らし、地下の降り積もりがしきい値を越えたら洞窟の床から発芽させる
+     * ({@link #newCaveSprouts} に出すだけ。チャンクの汚染・台帳は変えない)。隣の地下へは伝えない(入り口の無い洞窟には空気では届かない)。
+     * 染み込んだ後の地上の浮遊を返す。
+     */
+    private double stepUnder(Tile tl, int i, int cx, int cz, double a, double dtAir, double keepU, double toDepU, double underDepKeep,
+                             double germPU, long t) {
+        double mo = mouthOf(tl, i);
+        double u = tl.under[i];
+        if (mo > 0 && a > 0 && p.soakPerDay > 0) {
+            double q = a * (1 - Math.exp(-p.soakPerDay * mo * dtAir));
+            a -= q;
+            u += q;
+        }
+        double ud = tl.underDep[i] * underDepKeep + u * toDepU;
+        u *= keepU;
+        tl.under[i] = u < p.eps * 1e-2 ? 0f : (float) u;
+        if (tl.caveCount[i] < p.maxSprouts && ud > 0) {
+            float g = tl.germ == null ? 1f : tl.germ[i];
+            double need = tl.caveCount[i] == 0 ? p.germThreshold : p.secondThreshold;
+            if (g > 0 && ud * g >= need && !barrenHigh(tl, i, cx, cz)
+                    && PrevailingWind.unit(PrevailingWind.hash(seed ^ 0xCA7E5EEDL ^ t, ((long) cx << 32) ^ cz)) < germPU) {
+                tl.caveCount[i]++;
+                ud = 0;
+                newCaveSprouts.add(new int[]{cx, cz, tl.caveCount[i]});
+            }
+        }
+        tl.underDep[i] = (float) ud;
+        return a;
     }
 
     private double pushLow(Tile from, int cx, int cz, double lo, double gd, float s0) {
@@ -1015,6 +1141,10 @@ public final class SporeField {
                 pc.dropAt += p.dropMin * 0.25; // まだ汚染から dropMin 以内(縁に沿って飛んだ)→ もう少し飛ぶ
                 continue;
             }
+            if (!timeUp && pc.traveled >= pc.dropAt && barrenHighAt((int) Math.floor(pc.x), (int) Math.floor(pc.z))) {
+                pc.dropAt += p.dropMin * 0.25; // 逆転層より上の山には落とさない → もう少し飛ぶ(2026-11-04)
+                continue;
+            }
             if (timeUp || pc.traveled >= pc.dropAt) {
                 if (landed == null) landed = new ArrayList<>();
                 landed.add(pc);
@@ -1036,11 +1166,18 @@ public final class SporeField {
                 }
             }
             int x0 = (int) Math.floor(pc.x), z0 = (int) Math.floor(pc.z);
+            // 逆転層より上の升(巨大樹の近くを除く)には降り積もらせない(2026-11-04)。全部が上なら浮遊として薄く散らす
             int cells = 0;
-            for (int dx = -r; dx <= r; dx++) for (int dz = -r; dz <= r; dz++) if (dx * dx + dz * dz <= p.dumpRadius * p.dumpRadius) cells++;
+            for (int dx = -r; dx <= r; dx++)
+                for (int dz = -r; dz <= r; dz++)
+                    if (dx * dx + dz * dz <= p.dumpRadius * p.dumpRadius && !barrenHighAt(x0 + dx, z0 + dz)) cells++;
+            if (cells == 0) {
+                emitPoint(x0, z0, pc.mass);
+                continue;
+            }
             for (int dx = -r; dx <= r; dx++)
                 for (int dz = -r; dz <= r; dz++) {
-                    if (dx * dx + dz * dz <= p.dumpRadius * p.dumpRadius) depositPoint(x0 + dx, z0 + dz, pc.mass / cells);
+                    if (dx * dx + dz * dz <= p.dumpRadius * p.dumpRadius && !barrenHighAt(x0 + dx, z0 + dz)) depositPoint(x0 + dx, z0 + dz, pc.mass / cells);
                 }
             newLandings.add(new double[]{pc.x, pc.z, pc.mass, pc.traveled});
         }
@@ -1079,7 +1216,10 @@ public final class SporeField {
     }
 
     private boolean isEmpty(Tile tl, float eps) {
-        for (int i = 0; i < TN; i++) if (tl.air[i] >= eps || tl.low[i] >= eps || tl.dep[i] >= eps) return false;
+        for (int i = 0; i < TN; i++) {
+            if (tl.air[i] >= eps || tl.low[i] >= eps || tl.dep[i] >= eps) return false;
+            if (tl.under[i] >= eps || tl.underDep[i] >= eps || tl.caveCount[i] != 0) return false; // 地下の層(2026-11-04)
+        }
         return true;
     }
 

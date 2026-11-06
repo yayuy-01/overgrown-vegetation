@@ -77,6 +77,11 @@ public final class SporeSprouts {
         final LongLinkedOpenHashSet check = new LongLinkedOpenHashSet();
         /** 読み込んだチャンクにあった、広げ終えていない株(次の tick で点にする。読み込みの最中にブロックを書かない)。 */
         final LongOpenHashSet pendingRooted = new LongOpenHashSet();
+        /**
+         * 走り待ちの芽の点(2026-11-04 C): 同時に走る上限を超えた点と、走っている途中で読み込まれなくなった点。捨てずに覚え、空きができて
+         * 読み込まれていれば初めから走らせる。上限 {@code sprouts.waitingMax}。保存しない(仮決め)。
+         */
+        final LongLinkedOpenHashSet waiting = new LongLinkedOpenHashSet();
     }
 
     private static final java.util.Map<net.minecraft.resources.ResourceKey<Level>, Dim> DIMS = new java.util.HashMap<>();
@@ -120,11 +125,9 @@ public final class SporeSprouts {
         long now = level.getGameTime();
         List<BlockPos> surface = new ArrayList<>();
         for (int i = 0; i < n; i++) {
-            BlockPos p = level.dimension() == Level.OVERWORLD && random.nextDouble() < t.sproutCaveShare() ? caveFloor(level, chunk, random) : null;
-            if (p == null) {
-                p = surfacePoint(level, chunk, random);
-                if (p != null) surface.add(p);
-            }
+            // 洞窟の床の点は地下の降り積もりからの発芽で別に置く(2026-11-04 に caveShare = 2 割を洞窟へ、を置き換えた。onCaveSprout)
+            BlockPos p = surfacePoint(level, chunk, random);
+            if (p != null) surface.add(p);
             if (p != null) addPoint(level, p, now + random.nextInt(t.sproutTickInterval() * 4));
         }
         // 萌芽体
@@ -151,6 +154,59 @@ public final class SporeSprouts {
         }
     }
 
+    /**
+     * 洞窟の床から発芽した(場の地下の降り積もり。2026-11-04 暴露量ノート 追記 6)。読み込まれていれば次の tick の見直しで洞窟の床に芽の点を置く。
+     * 読み込まれていなければ、読み込んだときの見直しで({@link ModAttachments#CAVE_SPROUTS_PLACED} と場の回数を比べる)。
+     */
+    static void onCaveSprout(ServerLevel level, long chunkKey) {
+        if (level.getChunkSource().getChunkNow(ChunkPos.getX(chunkKey), ChunkPos.getZ(chunkKey)) != null) dim(level).check.add(chunkKey);
+    }
+
+    /**
+     * 洞窟の床に芽の点を最大 {@code sprouts.cavePoints} 個置く(2026-11-04 追記 6 の【決定】a: チャンクの境で止めない)。
+     * 候補の列はこのチャンクから 8 ブロック外まで広げて選び、その列の「洞窟の芽の出やすさ」({@link #caveStrengthAt}、4 チャンクで混ぜた値)÷
+     * このチャンクの値 の確率で残す。境で段を作らず、隣のチャンクの中心(約 16 ブロック先)へ向けて薄くなる。
+     */
+    private static void placeCavePoints(ServerLevel level, LevelChunk chunk) {
+        int n = DesignData.sporeField().sproutCavePoints();
+        long now = level.getGameTime();
+        RandomSource random = level.random;
+        ChunkPos cp = chunk.getPos();
+        double own = Math.max(1e-6, caveStrength(level, cp.x, cp.z));
+        int placed = 0;
+        for (int tries = 0; tries < n * 4 && placed < n; tries++) {
+            int x = cp.getMinBlockX() - 8 + random.nextInt(32), z = cp.getMinBlockZ() - 8 + random.nextInt(32);
+            if (random.nextDouble() >= Math.min(1.0D, caveStrengthAt(level, x, z) / own)) continue;
+            LevelChunk at = level.getChunkSource().getChunkNow(x >> 4, z >> 4);
+            if (at == null) continue;
+            BlockPos p = caveFloor(level, at, x, z, random);
+            if (p == null) continue;
+            addPoint(level, p, now + random.nextInt(DesignData.sporeField().sproutTickInterval() * 4));
+            CaveWallCreep.seed(level, p.below()); // 洞窟の壁を這う汚染の元にも(b)
+            placed++;
+        }
+    }
+
+    /**
+     * チャンクの洞窟の芽の出やすさ(0〜1、仮決め): 洞窟の床から発芽していれば 1、まだなら 地下の降り積もり ÷ 発芽のしきい値(1 で頭打ち)。
+     * 写しの無い所は 0。
+     */
+    static double caveStrength(ServerLevel level, int cx, int cz) {
+        SporeFieldServer.Cell c = SporeFieldServer.cell(level, cx, cz);
+        if (c == null) return 0.0D;
+        if (c.caveCount() > 0) return 1.0D;
+        return Math.min(1.0D, c.underDep() / Math.max(1e-9, DesignData.sporeField().field().germThreshold));
+    }
+
+    /** 列 (x, z) の洞窟の芽の出やすさを、まわり 4 チャンクの中心どうしで双線形に混ぜた値(濃度の読みと同じ混ぜ方)。 */
+    public static double caveStrengthAt(ServerLevel level, int x, int z) {
+        double fx = x / 16.0D - 0.5D, fz = z / 16.0D - 0.5D;
+        int x0 = net.minecraft.util.Mth.floor(fx), z0 = net.minecraft.util.Mth.floor(fz);
+        double tx = fx - x0, tz = fz - z0;
+        return (caveStrength(level, x0, z0) * (1 - tx) + caveStrength(level, x0 + 1, z0) * tx) * (1 - tz)
+                + (caveStrength(level, x0, z0 + 1) * (1 - tx) + caveStrength(level, x0 + 1, z0 + 1) * tx) * tz;
+    }
+
     /** 汚染の根を伸ばす点を足す(根付いた萌芽体のまわりなど)。 */
     public static void addPoint(ServerLevel level, BlockPos origin) {
         addPoint(level, origin, level.getGameTime());
@@ -173,8 +229,12 @@ public final class SporeSprouts {
 
     private static void addPoint(ServerLevel level, BlockPos origin, long next) {
         if (!fieldLevel(level)) return;
-        List<Point> active = dim(level).active;
-        if (active.size() >= DesignData.sporeField().sproutMaxActive()) return;
+        Dim d = dim(level);
+        List<Point> active = d.active;
+        if (active.size() >= DesignData.sporeField().sproutMaxActive()) {
+            wait(d, origin); // 上限を超えた点は捨てずに待たせる(2026-11-04 C)
+            return;
+        }
         Point p = new Point(origin.immutable(), next);
         p.spreader.seedGround(level, p.origin);
         active.add(p);
@@ -308,11 +368,11 @@ public final class SporeSprouts {
         return null;
     }
 
-    /** 洞窟の床のランダムな 1 点(空の光 0・足元が塞がり上が空気)。見つからなければ null。 */
-    private static BlockPos caveFloor(ServerLevel level, LevelChunk chunk, RandomSource random) {
+    /** 列 (x, z)(chunk の中)の洞窟の床のランダムな 1 点(空の光 0・足元が塞がり上が空気)。見つからなければ null。 */
+    static BlockPos caveFloor(ServerLevel level, LevelChunk chunk, int x, int z, RandomSource random) {
         int minY = level.getMinBuildHeight() + 8;
+        int lx = x & 15, lz = z & 15;
         for (int tries = 0; tries < 4; tries++) {
-            int lx = random.nextInt(16), lz = random.nextInt(16);
             int top = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz) - 8;
             if (top <= minY) continue;
             int y = minY + random.nextInt(top - minY);
@@ -344,6 +404,7 @@ public final class SporeSprouts {
             }
             d.pendingRooted.clear();
         }
+        drainWaiting(level, d);
         if (d.active.isEmpty() || CorruptionSwitch.isOff()) return;
         if (!TickBudget.mayStart(PerfJob.SPORE_SPROUTS)) return;
         SporeFieldTable t = DesignData.sporeField();
@@ -357,6 +418,7 @@ public final class SporeSprouts {
                 if (done > 0 && !TickBudget.timeLeft()) break;
                 if (!level.isLoaded(p.origin)) {
                     it.remove();
+                    if (!p.rooted) wait(d, p.origin); // 読み込まれなくなった点は待たせる(株は読み込んだときに走らせ直す。2026-11-04 C)
                     continue;
                 }
                 int before = p.spreader.getCorruptedCount();
@@ -384,6 +446,71 @@ public final class SporeSprouts {
         }
     }
 
+    /** 待ちの点を覚える(上限まで)。 */
+    private static void wait(Dim d, BlockPos origin) {
+        if (d.waiting.size() < DesignData.sporeField().sproutWaitingMax()) d.waiting.add(origin.asLong());
+    }
+
+    /** 1 tick に見る待ちの点の数(仮決め)。 */
+    private static final int WAITING_CHECKS_PER_TICK = 16;
+
+    /**
+     * 走り待ちの点を、空きがあって読み込まれていれば走らせる(2026-11-04 C)。読み込まれていない点は後ろへ回す。
+     * 予算は {@link PerfJob#SPORE_SPROUT_QUEUE}。
+     */
+    private static void drainWaiting(ServerLevel level, Dim d) {
+        if (d.waiting.isEmpty() || CorruptionSwitch.isOff()) return;
+        int max = DesignData.sporeField().sproutMaxActive();
+        if (d.active.size() >= max || !TickBudget.mayStart(PerfJob.SPORE_SPROUT_QUEUE)) return;
+        long start = TickBudget.begin();
+        int done = 0;
+        try {
+            for (int i = 0; i < WAITING_CHECKS_PER_TICK && !d.waiting.isEmpty() && d.active.size() < max; i++) {
+                if (done > 0 && !TickBudget.timeLeft()) break;
+                long k = d.waiting.removeFirstLong();
+                BlockPos o = BlockPos.of(k);
+                if (!level.isLoaded(o)) {
+                    d.waiting.add(k); // 後ろへ
+                    continue;
+                }
+                Point p = new Point(o, level.getGameTime());
+                p.spreader.seedGround(level, o);
+                d.active.add(p);
+                done++;
+            }
+        } finally {
+            TickBudget.end(PerfJob.SPORE_SPROUT_QUEUE, start, done);
+        }
+    }
+
+    /** テスト用: 走っている点と待っている点の数(オーバーワールド)。 */
+    public static int[] countsForTests(ServerLevel level) {
+        Dim d = dim(level);
+        return new int[]{d.active.size(), d.waiting.size()};
+    }
+
+    /** テスト用: 芽の点を足す(上限を超えれば待ちへ)。 */
+    public static void addPointForTests(ServerLevel level, BlockPos origin) {
+        addPoint(level, origin, level.getGameTime());
+    }
+
+    /** テスト用: 走っている点と待っている点を空にする(テストで足した点を残さない)。 */
+    public static void clearForTests(ServerLevel level) {
+        Dim d = dim(level);
+        d.active.clear();
+        d.waiting.clear();
+    }
+
+    /** テスト用: 走っている点だけ空にする(空きを作る)。 */
+    public static void clearActiveForTests(ServerLevel level) {
+        dim(level).active.clear();
+    }
+
+    /** テスト用: 待ちの点を走らせる(予算の番人を通す)。 */
+    public static void drainWaitingForTests(ServerLevel level) {
+        drainWaiting(level, dim(level));
+    }
+
     /** 読み込まれたチャンクのうち、萌芽体の数が足りない所に根付いた姿を置く(読み込まれていない間の発芽の分)。 */
     private static void tickChecks(ServerLevel level, Dim d) {
         if (d.check.isEmpty() || CorruptionSwitch.isOff()) return;
@@ -394,9 +521,18 @@ public final class SporeSprouts {
             ChunkPos pos = new ChunkPos(key);
             LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x, pos.z);
             boolean overgrown = nether ? com.yayuy.overgrownvegetation.corruption.NetherLedgerData.get(level).isOvergrown(key) : phase.isOvergrownChunk(pos);
-            if (chunk == null || !overgrown) continue;
+            if (chunk == null) continue;
             SporeFieldServer.Cell cell = SporeFieldServer.cell(level, pos.x, pos.z);
             if (cell == null) continue;
+            // 洞窟の床からの発芽(2026-11-04): 過繁茂かどうかに関わらず、場の回数より少なければ洞窟の床に芽の点を置く
+            if (!nether) {
+                int cavePlaced = chunk.getData(ModAttachments.CAVE_SPROUTS_PLACED);
+                if (cell.caveCount() > cavePlaced) {
+                    for (int k = cavePlaced; k < cell.caveCount(); k++) placeCavePoints(level, chunk);
+                    chunk.setData(ModAttachments.CAVE_SPROUTS_PLACED, cell.caveCount());
+                }
+            }
+            if (!overgrown) continue;
             int placed = chunk.getData(ModAttachments.SPROUTS_PLACED);
             int want = Math.min(2, cell.count());
             for (int k = placed; k < want; k++) {
