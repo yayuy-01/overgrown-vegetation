@@ -2,6 +2,7 @@
 
 #moj_import <fog.glsl>
 #moj_import <ov_light.glsl>
+#moj_import <ov_cloud.glsl>
 
 uniform sampler2D Sampler0;
 
@@ -29,5 +30,7 @@ void main() {
         discard;
     }
     color.rgb = ovCanopyLight(color.rgb, ovPos, vec3(0.0, 0.0, 1.0), 0.0, ovLight);
+    // The shadows of the drifting voxel clouds (ov_cloud.glsl, 11-08 clouds stage 1, improvement 9). Lianas hang in the open air: no cave column.
+    color.rgb = ovCloudShadow(color.rgb, ovPos, vec3(0.0, 0.0, 1.0), 0.0, ovLight, ovCanopyShade, 0.0);
     fragColor = linear_fog(color, vertexDistance, FogStart, FogEnd, FogColor);
 }

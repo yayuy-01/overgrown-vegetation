@@ -576,6 +576,11 @@ public final class DevBridge {
                         Integer.parseInt(p[2]), Integer.parseInt(p[3]), Integer.parseInt(p[4]), heading));
                 return null;
             }
+            case "clouds" -> {
+                // 雲(2026-11-08 雲の段階 1、client/sky/VoxelClouds): status = 有効・量・面の数・遠景・段・雲の速さ。返事は CLOUDS …
+                log("CLOUDS " + com.yayuy.overgrownvegetation.client.sky.VoxelClouds.describe() + " / " + com.yayuy.overgrownvegetation.client.atmosphere.CloudShadows.describe());
+                return null;
+            }
             case "fog" -> {
                 // 霧(2026-10-30 夜 第 3 段、client/atmosphere/MistDev): status / march on|off / time on|off / stat。返事は FOG …
                 log(com.yayuy.overgrownvegetation.client.atmosphere.MistDev.command(arg));

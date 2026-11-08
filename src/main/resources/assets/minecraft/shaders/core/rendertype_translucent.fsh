@@ -3,6 +3,7 @@
 #moj_import <fog.glsl>
 #moj_import <ov_cave.glsl>
 #moj_import <ov_water.glsl>
+#moj_import <ov_cloud.glsl>
 
 uniform sampler2D Sampler0;
 
@@ -32,6 +33,8 @@ void main() {
     // The point lights of glowing cave plants (ov_cave.glsl), before the fog. Water's vertex normal is up on every face, so no
     // facing-away shade (facing 0, like thin plants); the column above the face decides whether it is underground.
     float ovUnder = ovCaveUnder(ovPos, ovNormal, ovLight.y);
+    // The shadows of the drifting voxel clouds on water and glass (ov_cloud.glsl, 11-08 clouds stage 1, improvement 9). None underground.
+    color.rgb = ovCloudShadow(color.rgb, ovPos, ovNormal, 0.0, ovLight, 0.0, ovUnder);
     // Water takes half the light of a solid face (11-04 provisional: at full strength the lake looked like it glowed).
     ovCaveSink(ovPos, ovNormal, ovUnder);
     color.rgb = ovCaveLight(color.rgb, tex.rgb * ovTint * OV_CAVE_WATER_GAIN, ovPos, ovNormal, 0.0, ovUnder, ovLight.x);

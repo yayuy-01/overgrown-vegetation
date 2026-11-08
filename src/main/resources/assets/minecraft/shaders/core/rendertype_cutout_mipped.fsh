@@ -5,6 +5,7 @@
 #moj_import <ov_wet.glsl>
 #moj_import <ov_caustic.glsl>
 #moj_import <ov_cave.glsl>
+#moj_import <ov_cloud.glsl>
 #moj_import <ov_leaf.glsl>
 
 uniform sampler2D Sampler0;
@@ -46,6 +47,8 @@ void main() {
     // The point lights of glowing cave plants (ov_cave.glsl), before the fog.
     // How much this fragment is underground (ov_cave.glsl, the cave map; 11-01 evening).
     float ovUnder = ovCaveUnder(ovPos, ovNormal * 1.0, ovLight.y);
+    // The shadows of the drifting voxel clouds (ov_cloud.glsl, 11-08 clouds stage 1). None underground.
+    color.rgb = ovCloudShadow(color.rgb, ovPos, ovNormal, 1.0, ovLight, ovCanopyShade, ovUnder);
     float ovSink = ovCaveSink(ovPos, ovNormal * 1.0, ovUnder);
     color.rgb = ovCaveLight(color.rgb, tex.rgb * ovTint, ovPos, ovNormal, 1.0, ovUnder, ovLight.x);
     // Faces under cave water get darker with the depth (ov_cave.glsl, 11-06 light inspection 10).

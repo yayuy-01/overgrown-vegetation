@@ -1,0 +1,45 @@
+{
+  "_comment": "空と雲の設計値(2026-11-08 雲の段階 1「土台」。data/SkyTable)。ユーザー指定: 雲の層 y 300〜350(コードの定数)・高空の晴天 300〜350。ほかは全部仮決め(前の COMMON 設定の既定値のまま)。オン/オフはクライアント設定 clouds、重さは atmosphereQuality。反映は再起動。",
+  "clouds": {
+    "_comment": "coverage = 雲の量の固定(-1 = 日ごとに変わる)。style = 並び方(1 群れ / 2 谷のある雲の海 / 3 壁と橋。積乱雲は段階 2 まで出ないので 1 と 3 の違いは小さい)。ほかは見た目の強さ 0〜1。floorThickness = 谷のある雲の海の厚さの上限(y 300 から。ユーザー指定 11-08「y 300〜350 を守る」で 50。空のボスが戻るときは 252 = 前の厚さ)。floorFlatness = 雲の海の上面の平らさ(0 丘のまま〜1 平ら。11-08 ユーザーの見本「なめらかな床」と雲の床を水面のように使う決定から。仮決め 0.75)。lit*/shade* = 時間帯ごとに日の当たる側・影の側へ掛ける色 [r, g, b](昼・夕方・夜。仮決め。色はユーザーと風景を見て決める)。",
+    "coverage": -1.0,
+    "style": 2,
+    "celShading": 1.0,
+    "softEdges": 1.0,
+    "roughWeather": 1.0,
+    "windStreaks": 1.0,
+    "blueHaze": 1.0,
+    "texture": 1.0,
+    "nightClouds": 1.0,
+    "curvature": 1.0,
+    "farClouds": 1.0,
+    "floorThickness": 50.0,
+    "floorFlatness": 0.75,
+    "litDay": [1.0, 1.0, 1.0],
+    "litDusk": [1.0, 0.84, 0.74],
+    "litNight": [1.0, 1.0, 1.0],
+    "shadeDay": [1.0, 1.0, 1.0],
+    "shadeDusk": [0.86, 0.82, 1.0],
+    "shadeNight": [1.0, 1.0, 1.0]
+  },
+  "wind": {
+    "_comment": "雲は世界に 1 つの卓越風(spore/field/PrevailingWind)で流れる。速さ = clamp(風の強さ, minStrength, maxStrength) × blocksPerTick(ブロック/tick)。",
+    "blocksPerTick": 0.05,
+    "minStrength": 0.5,
+    "maxStrength": 2.0
+  },
+  "shadows": {
+    "_comment": "流れる雲の影の強さ(0〜1)。地下(洞窟の地図で地下と分かる面)には落とさない。",
+    "strength": 1.0
+  },
+  "rays": {
+    "_comment": "薄明光線(天使の梯子)の強さ(0〜1)。",
+    "strength": 1.0
+  },
+  "highSky": {
+    "_comment": "高空の晴天: clearFrom〜clearTo で雨が消え、空がバニラの晴れた色へ(ユーザー指定 300〜350)。clarity = 強さ。",
+    "clarity": 1.0,
+    "clearFrom": 300.0,
+    "clearTo": 350.0
+  }
+}

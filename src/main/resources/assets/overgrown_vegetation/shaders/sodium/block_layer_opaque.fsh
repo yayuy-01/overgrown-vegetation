@@ -15,6 +15,7 @@
 #ov_import <ov_caustic.glsl>
 #ov_import <ov_leaf.glsl>
 #ov_import <ov_cave.glsl>
+#ov_import <ov_cloud.glsl>
 #ov_import <ov_water.glsl>
 
 in vec4 v_Color; // The interpolated vertex color
@@ -117,6 +118,8 @@ void main() {
         // The point lights of glowing cave plants (ov_cave.glsl), before the fog.
         // How much this fragment is underground (ov_cave.glsl, the cave map; 11-01 evening). Thin plants use their own column.
         ovUnder = ovCaveUnder(ovPos, n * facing, ovLight.y);
+        // The shadows of the drifting voxel clouds (ov_cloud.glsl, 11-08 clouds stage 1). None underground.
+        color.rgb = ovCloudShadow(color.rgb, ovPos, n, facing, ovLight, ovCanopyShade, ovUnder);
         ovSink = ovCaveSink(ovPos, n * facing, ovUnder);
         color.rgb = ovCaveLight(color.rgb, ovAlbedo, ovPos, n, facing, ovUnder, ovLight.x);
         // Faces under cave water get darker with the depth (ov_cave.glsl, 11-06 light inspection 10).
@@ -127,6 +130,8 @@ void main() {
     } else {
         // Water and glass get the cave point lights too (11-04), with no facing-away shade, like vanilla's rendertype_translucent.fsh.
         ovUnder = ovCaveUnder(ovPos, n, ovLight.y);
+        // The cloud shadows on water and glass too (ov_cloud.glsl, 11-08 clouds stage 1, improvement 9).
+        color.rgb = ovCloudShadow(color.rgb, ovPos, n, 0.0, ovLight, 0.0, ovUnder);
         ovSink = ovCaveSink(ovPos, n, ovUnder);
         color.rgb = ovCaveLight(color.rgb, ovAlbedo * OV_CAVE_WATER_GAIN, ovPos, n, 0.0, ovUnder, ovLight.x);
         // The point lights mirrored on the cave water (ov_cave.glsl, 11-06 light inspection 10).

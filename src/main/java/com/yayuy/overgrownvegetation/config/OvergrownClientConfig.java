@@ -68,6 +68,8 @@ public final class OvergrownClientConfig {
         public final ModConfigSpec.BooleanValue underwater;
         /** 地下モード(過繁茂の地下の黒い霧と植物の点光源・Mob の明るさ。11-01 試作)。 */
         public final ModConfigSpec.BooleanValue caveLight;
+        /** 雲(ボクセルの雲・雲の影・薄明光線・高空の晴天。2026-11-08 雲の段階 1)。シェーダーパック使用中はパックの雲に任せて描かない。 */
+        public final ModConfigSpec.BooleanValue clouds;
 
         Client(ModConfigSpec.Builder b) {
             b.push("visual");
@@ -102,6 +104,7 @@ public final class OvergrownClientConfig {
             waterLife = b.comment("Rings and bubbles on water, wet sheen.").define("waterLife", true);
             underwater = b.comment("Caustics and light shafts under water, glowing algae at night.").define("underwater", true);
             caveLight = b.comment("Cave mode under the overgrown forest: black fog and the glow of cave plants (shader point lights, mobs lit too).").define("caveLight", true);
+            clouds = b.comment("Voxel clouds above y 300, their drifting shadows, crepuscular rays and the clear sky above the clouds (not drawn while a shader pack is in use).").define("clouds", true);
             b.pop();
         }
     }

@@ -134,6 +134,14 @@ public final class VisualQuality {
         return part(OvergrownClientConfig.CLIENT.caveLight);
     }
 
+    /**
+     * 雲(2026-11-08 雲の段階 1)。雰囲気の親のオンオフとは別(雲はバニラの雲の置き換えなので、雰囲気を切っても残す。仮決め)。
+     * 重さの段は {@link #atmosphereTier()} を使う。
+     */
+    public static boolean clouds() {
+        return loaded() ? OvergrownClientConfig.CLIENT.clouds.get() : OvergrownClientConfig.CLIENT.clouds.getDefault();
+    }
+
     /** Iris のシェーダーパック使用中もこの MOD の演出を描くか。 */
     public static boolean effectsWithShaderPack() {
         return loaded() ? OvergrownClientConfig.CLIENT.effectsWithShaderPack.get() : false;

@@ -332,7 +332,8 @@ final class LightShafts {
             return;
         }
         // 霧の濃い朝は霧の細部の筋に任せて弱める(提案 1、{@link MistFog#shaftScale})。
-        float intensity = DesignData.atmosphere().intensity() * ForestPresence.openOvergrown() * MistFog.shaftScale();
+        float intensity = DesignData.atmosphere().intensity() * ForestPresence.openOvergrown() * MistFog.shaftScale()
+                * CloudShadows.sunVisibility(); // 雲が太陽を隠すと筋が消える(11-08 雲の段階 1)
         if (intensity <= 0.0F) {
             return;
         }

@@ -31,6 +31,8 @@
     "client.LevelRendererLeafCullMixin",
     "client.LightTextureCanopyLiftMixin",
     "client.LevelRendererCaveCloudsMixin",
+    "client.LevelRainAboveCloudsMixin",
+    "client.BiomeClearSkyMixin",
     "client.LightTextureCaveTintMixin",
     "client.UnderwaterAmbientVolumeMixin",
     "client.LivingEntitySelfEffectParticlesMixin",

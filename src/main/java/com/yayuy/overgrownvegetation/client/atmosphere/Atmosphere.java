@@ -90,6 +90,8 @@ public final class Atmosphere {
         CaveLights.clear();
         EyeAdaptation.clear();
         SporePools.clear();
+        CloudShadows.clear();
+        CrepuscularRays.clear();
     }
 
     @SubscribeEvent
@@ -158,6 +160,8 @@ public final class Atmosphere {
         guard("cave", () -> CaveLights.tick(now, mc.gameRenderer.getMainCamera().getPosition(), ticks));
         guard("eyeadapt", () -> EyeAdaptation.tick(now, mc.gameRenderer.getMainCamera().getPosition()));
         guard("sporepools", () -> SporePools.tick(now, player, ticks)); // 洞窟の胞子の溜まり(地下の植生 2・U6)
+        guard("cloudshadow", () -> CloudShadows.tick(now, mc.gameRenderer.getMainCamera().getPosition())); // 雲の影・薄明光線(11-08 雲の段階 1)
+        guard("rays", () -> CrepuscularRays.tick(now));
         if (DEV_LOG && ticks % 100 == 0) {
             OvergrownVegetation.LOGGER.info("Atmosphere {}", MistFog.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere 小物 {} 滴 {}", DuskMotes.describe(player.getX(), player.getZ()), RainDrops.count());
@@ -191,6 +195,7 @@ public final class Atmosphere {
             guard("mist", () -> MistFog.upload(event, on));
             guard("caustics", () -> WaterCaustics.upload(event, on));
             guard("cave", () -> CaveLights.upload(event, on));
+            guard("cloudshadow", () -> CloudShadows.upload(event, on)); // 流れる雲の影(11-08 雲の段階 1)
             return;
         }
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_CUTOUT_BLOCKS) {
@@ -288,6 +293,7 @@ public final class Atmosphere {
         try {
             guard("dapple", () -> CanopyDapple.render(event));
             guard("shafts", () -> LightShafts.render(event));
+            guard("rays", () -> CrepuscularRays.render(event)); // 薄明光線(11-08 雲の段階 1)
             guard("caveshafts", () -> CaveShafts.render(event));
             guard("motes", () -> ShaftMotes.render(event));
             guard("dusk", () -> DuskMotes.render(event));

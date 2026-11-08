@@ -298,7 +298,8 @@ final class CanopyDapple {
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         Vec3 sun = SunLight.sunDirection(level, partialTick);
         float day = SunLight.daylight(level, sun, partialTick);
-        float intensity = DesignData.atmosphere().intensity() * ForestPresence.openCover();
+        float intensity = DesignData.atmosphere().intensity() * ForestPresence.openCover()
+                * CloudShadows.sunVisibility(); // 雲が太陽を隠すと木漏れ日が消える(11-08 雲の段階 1)
         if (intensity <= 0.0F || day <= 0.0F) {
             return;
         }

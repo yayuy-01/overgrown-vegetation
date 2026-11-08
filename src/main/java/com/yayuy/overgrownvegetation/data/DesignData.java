@@ -51,6 +51,7 @@ public final class DesignData {
     private static volatile EffectTable effects = EffectTable.DEFAULT;
     private static volatile AdaptationTable adaptation = AdaptationTable.DEFAULT;
     private static volatile ActionTable actions = ActionTable.DEFAULT;
+    private static volatile SkyTable sky = SkyTable.DEFAULT;
 
     private static volatile boolean loaded;
 
@@ -98,6 +99,11 @@ public final class DesignData {
     }
 
     /** Mob の技の調整値({@code actions.json}、11-05。層 2 の共通部品)。 */
+    /** 空と雲の設計値({@code sky.json}、2026-11-08 雲の段階 1)。サーバー(雲の風)とクライアント(描画)が読む。 */
+    public static SkyTable sky() {
+        return sky;
+    }
+
     public static ActionTable actions() {
         return actions;
     }
@@ -135,6 +141,7 @@ public final class DesignData {
         effects = EffectTable.fromJson(read(dir, "effects.json", EffectTable.Json.class));
         adaptation = AdaptationTable.fromJson(read(dir, "adaptation.json", AdaptationTable.Json.class));
         actions = ActionTable.fromJson(read(dir, "actions.json", ActionTable.Json.class));
+        sky = SkyTable.fromJson(read(dir, "sky.json", SkyTable.Json.class));
 
         OvergrownVegetation.LOGGER.info("設計データを読み込みました({})", dir);
     }
