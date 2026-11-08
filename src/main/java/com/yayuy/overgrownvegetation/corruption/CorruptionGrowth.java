@@ -33,11 +33,6 @@ public final class CorruptionGrowth {
             // (以前は 4。spore_bloom/zenmai は軽いクロスモデル)。
             new Candidate(ModBlocks.OVERGROWN_CURLED_FERN, 2));
 
-    private static final List<Candidate> SIDE = List.of(
-            new Candidate(ModBlocks.OVERGROWN_CREEPING_VINE),
-            new Candidate(ModBlocks.OVERGROWN_SHELF_LICHEN),
-            new Candidate(ModBlocks.OVERGROWN_THORN_VINE));
-
     private static final List<Candidate> HANGING = List.of(
             new Candidate(ModBlocks.OVERGROWN_WEEPING_TENDRIL),
             new Candidate(ModBlocks.OVERGROWN_DRIP_MOSS),
@@ -55,11 +50,6 @@ public final class CorruptionGrowth {
     /** 下面(露出面が DOWN)に生やす、垂れ下がる植物。 */
     public static BlockState randomHanging(RandomSource random) {
         return pick(HANGING, random).defaultBlockState();
-    }
-
-    /** 側面(露出面が水平方向)に生やす蔦。{@code facing} は壁から生える向き。 */
-    public static BlockState randomSide(RandomSource random, Direction facing) {
-        return pick(SIDE, random).defaultBlockState().setValue(HorizontalDirectionalBlock.FACING, facing);
     }
 
     /** 上面に生える、高さ2ブロックの植物(下半分の状態)。 */

@@ -142,6 +142,8 @@ public final class CaveWallCreep {
         if (!CorruptionRegistry.noChange(state, corrupted)) {
             CorruptionRegistry.placeCorrupted(level, pos, state, corrupted, Block.UPDATE_ALL);
             com.yayuy.overgrownvegetation.phase.CorruptionCounter.record(level, 1);
+            // 洞窟の壁からも壁と壁の隙間に太い蔦の抽選(11-07 ユーザー決定「洞窟にも出す」。確率は vineSpanCaveChance(11-07 ユーザー決定「洞窟だけ確率を上げる」)、天井の決まりはそのまま)
+            com.yayuy.overgrownvegetation.corruption.VineSpan.tryGrowCave(level, pos, random);
         }
         return OvergrownLayerData.isCorruptedCell(level, pos, level.getBlockState(pos));
     }
@@ -175,6 +177,11 @@ public final class CaveWallCreep {
     /** テスト用: 元を足す(条件を見る)・passes 回ぶん間隔と予算を無視して広げる・待ち行列の大きさ。 */
     public static void seedForTests(ServerLevel level, BlockPos pos) {
         seed(level, pos);
+    }
+
+    /** テスト用: 洞窟の壁の 1 マスを這う汚染と同じやり方で汚染する(太い蔦の抽選も走る)。汚染済みになれば true。 */
+    public static boolean corruptForTests(ServerLevel level, BlockPos pos, RandomSource random) {
+        return corrupt(level, pos, random);
     }
 
     public static void runForTests(ServerLevel level, int passes) {

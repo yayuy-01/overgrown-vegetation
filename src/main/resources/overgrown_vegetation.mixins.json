@@ -25,6 +25,7 @@
     "client.WaterDropParticleWhiteMixin",
     "client.DripParticleWhiteMixin",
     "client.GameRendererSwingThroughFoliageMixin",
+    "client.GameRendererEyeAdaptMixin",
     "client.SpriteContentsCoverMipMixin",
     "client.VideoSettingsScreenMixin",
     "client.LevelRendererLeafCullMixin",

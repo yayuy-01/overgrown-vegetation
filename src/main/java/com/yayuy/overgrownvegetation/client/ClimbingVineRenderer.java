@@ -387,6 +387,18 @@ public final class ClimbingVineRenderer {
             int i = Math.min(n - 1, j * LIGHT_STRIDE);
             lightPos[j] = BlockPos.containing(self.getX() + (double) (cx[i] + path[i * stride + 3] * 0.4F),
                     self.getY() + (double) (cy[i] + 0.1F), self.getZ() + (double) (cz[i] + path[i * stride + 4] * 0.4F));
+            // 測る所が固いブロックの中(太い蔦の芯に巻き付く蔓の下側など。2026-11-07)なら、点のマス → 上下・横の空いたマスへ寄せる(中は光 0 で黒くなる)
+            Level lv = be.getLevel();
+            if (lv != null && lv.getBlockState(lightPos[j]).isSolidRender(lv, lightPos[j])) {
+                BlockPos own = BlockPos.containing(self.getX() + (double) cx[i], self.getY() + (double) cy[i], self.getZ() + (double) cz[i]);
+                BlockPos[] tries = {own, own.below(), own.above(), own.north(), own.south(), own.east(), own.west()};
+                for (BlockPos q : tries) {
+                    if (!lv.getBlockState(q).isSolidRender(lv, q)) {
+                        lightPos[j] = q;
+                        break;
+                    }
+                }
+            }
         }
 
         // 節の葉と苔(印の位置を種に)

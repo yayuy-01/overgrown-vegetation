@@ -34,6 +34,14 @@ public final class AtmosphereTable {
         public AtmosphereLife.RainLookJson rainLook;
         /** 胞子の空気(11-06、{@link AtmosphereAir})。 */
         public AtmosphereAir.SporeAirJson sporeAir;
+        /** 洞窟の出入りの目の慣れ(11-07、{@link AtmosphereEye})。 */
+        public AtmosphereEye.EyeAdaptJson eyeAdapt;
+        /** 過繁茂の外の洞窟(11-07、{@link AtmosphereEye})。 */
+        public AtmosphereEye.CaveOpenJson caveOpen;
+        /** 洞窟の天井の穴の光の筋(11-07、{@link AtmosphereEye})。 */
+        public AtmosphereEye.CaveShaftsJson caveShafts;
+        /** 手に持った明かり(11-07、{@link AtmosphereEye})。 */
+        public AtmosphereEye.HeldLightsJson heldLights;
         public AtmosphereLife.SteamJson steam;
         public AtmosphereLife.RipplesJson ripples;
         public AtmosphereLife.GnatsJson gnats;
@@ -41,6 +49,12 @@ public final class AtmosphereTable {
         public AtmosphereLife.RainRippleJson rainRipple;
         public AtmosphereLife.AlgaeJson algae;
         public AtmosphereLife.CreakJson creak;
+        /** 巨大樹のまわりの生き物と音(11-06 改善案 ⑤、{@link AtmosphereGiantLife})。 */
+        public AtmosphereGiantLife.Json giantLife;
+        /** 洞窟の小ネタ(11-07、{@link AtmosphereCaveLife})。 */
+        public AtmosphereCaveLife.Json caveLife;
+        /** 巨大樹の胞子の柱・夜の地脈の光(11-06 改善案 ①③、{@link AtmosphereGiantTree})。 */
+        public AtmosphereGiantTree.Json giantTree;
         public AtmosphereWater.CausticsJson caustics;
         public AtmosphereWater.ShaftsJson underwaterShafts;
         public AtmosphereCave.CaveJson cave;
@@ -53,6 +67,8 @@ public final class AtmosphereTable {
      */
     public static final class SilhouetteJson {
         public Double cutAt, cutBand, hazeStretch, mistStretch;
+        /** 11-06 夜(ユーザー「巨大樹の上の方が見えない」、仮決め): 森の霞の中で、霞の k を何倍に引き延ばして影絵を霞ませるか。 */
+        public Double forestHazeStretch;
     }
 
     /** 節 {@code drops}(雨上がりの水滴): 生きている数の上限(高・中・低)・1 秒に試す数・探す範囲(水平、ブロック)・雨の最中の強さ(perSecond に掛ける)・雨が止んでから 0 になるまでの分(10-31 雨中の量から減らす)。 */
@@ -112,11 +128,11 @@ public final class AtmosphereTable {
     }
 
     /** 巨大樹のシルエットの値。 */
-    public record SilhouetteParams(float cutAt, float cutBand, float hazeStretch, float mistStretch) {
+    public record SilhouetteParams(float cutAt, float cutBand, float hazeStretch, float mistStretch, float forestHazeStretch) {
         static SilhouetteParams of(SilhouetteJson s) {
             SilhouetteJson v = s != null ? s : new SilhouetteJson();
             return new SilhouetteParams(clamp(v.cutAt, 0.55, 0.05, 0.95), clamp(v.cutBand, 8.0, 0.5, 64.0),
-                    clamp(v.hazeStretch, 3.2, 1.0, 20.0), clamp(v.mistStretch, 3.0, 1.0, 20.0));
+                    clamp(v.hazeStretch, 3.2, 1.0, 20.0), clamp(v.mistStretch, 3.0, 1.0, 20.0), clamp(v.forestHazeStretch, 16.0, 1.0, 50.0));
         }
     }
 
@@ -636,6 +652,10 @@ public final class AtmosphereTable {
     private final AtmosphereLife.WaterGlintParams waterGlint;
     private final AtmosphereLife.RainLookParams rainLook;
     private final AtmosphereAir.SporeAirParams sporeAir;
+    private final AtmosphereEye.EyeAdaptParams eyeAdapt;
+    private final AtmosphereEye.CaveOpenParams caveOpen;
+    private final AtmosphereEye.CaveShaftsParams caveShafts;
+    private final AtmosphereEye.HeldLightsParams heldLights;
     private final AtmosphereLife.SteamParams steam;
     private final AtmosphereLife.RipplesParams ripples;
     private final AtmosphereLife.GnatsParams gnats;
@@ -643,6 +663,9 @@ public final class AtmosphereTable {
     private final AtmosphereLife.RainRippleParams rainRipple;
     private final AtmosphereLife.AlgaeParams algae;
     private final AtmosphereLife.CreakParams creak;
+    private final AtmosphereGiantLife.Params giantLife;
+    private final AtmosphereCaveLife.Params caveLife;
+    private final AtmosphereGiantTree.Params giantTree;
     private final AtmosphereWater.CausticsParams caustics;
     private final AtmosphereWater.ShaftsParams underwaterShafts;
     private final AtmosphereCave.CaveParams cave;
@@ -729,6 +752,10 @@ public final class AtmosphereTable {
         this.waterGlint = AtmosphereLife.WaterGlintParams.of(j != null ? j.waterGlint : null);
         this.rainLook = AtmosphereLife.RainLookParams.of(j != null ? j.rainLook : null);
         this.sporeAir = AtmosphereAir.SporeAirParams.of(j != null ? j.sporeAir : null);
+        this.eyeAdapt = AtmosphereEye.EyeAdaptParams.of(j != null ? j.eyeAdapt : null);
+        this.caveOpen = AtmosphereEye.CaveOpenParams.of(j != null ? j.caveOpen : null);
+        this.caveShafts = AtmosphereEye.CaveShaftsParams.of(j != null ? j.caveShafts : null);
+        this.heldLights = AtmosphereEye.HeldLightsParams.of(j != null ? j.heldLights : null);
         this.steam = AtmosphereLife.SteamParams.of(j != null ? j.steam : null);
         this.ripples = AtmosphereLife.RipplesParams.of(j != null ? j.ripples : null);
         this.gnats = AtmosphereLife.GnatsParams.of(j != null ? j.gnats : null);
@@ -736,6 +763,9 @@ public final class AtmosphereTable {
         this.rainRipple = AtmosphereLife.RainRippleParams.of(j != null ? j.rainRipple : null);
         this.algae = AtmosphereLife.AlgaeParams.of(j != null ? j.algae : null);
         this.creak = AtmosphereLife.CreakParams.of(j != null ? j.creak : null);
+        this.giantLife = AtmosphereGiantLife.Params.of(j != null ? j.giantLife : null);
+        this.caveLife = AtmosphereCaveLife.Params.of(j != null ? j.caveLife : null);
+        this.giantTree = AtmosphereGiantTree.Params.of(j != null ? j.giantTree : null);
         this.caustics = AtmosphereWater.CausticsParams.of(j != null ? j.caustics : null);
         this.underwaterShafts = AtmosphereWater.ShaftsParams.of(j != null ? j.underwaterShafts : null);
         this.cave = AtmosphereCave.CaveParams.of(j != null ? j.cave : null);
@@ -1102,6 +1132,26 @@ public final class AtmosphereTable {
     /** 水面の太陽と月(節 waterGlint、11-06 バニラ地域の光 4)。 */
     /** 雨の見え方(節 rainLook、11-06)。 */
     /** 胞子の空気(節 sporeAir、11-06。{@link AtmosphereAir})。 */
+    /** 洞窟の出入りの目の慣れ(節 eyeAdapt、11-07。{@link AtmosphereEye})。 */
+    /** 過繁茂の外の洞窟(節 caveOpen、11-07。{@link AtmosphereEye})。 */
+    /** 洞窟の天井の穴の光の筋(節 caveShafts、11-07。{@link AtmosphereEye})。 */
+    /** 手に持った明かり(節 heldLights、11-07。{@link AtmosphereEye})。 */
+    public AtmosphereEye.HeldLightsParams heldLights() {
+        return heldLights;
+    }
+
+    public AtmosphereEye.CaveShaftsParams caveShafts() {
+        return caveShafts;
+    }
+
+    public AtmosphereEye.CaveOpenParams caveOpen() {
+        return caveOpen;
+    }
+
+    public AtmosphereEye.EyeAdaptParams eyeAdapt() {
+        return eyeAdapt;
+    }
+
     public AtmosphereAir.SporeAirParams sporeAir() {
         return sporeAir;
     }
@@ -1140,6 +1190,21 @@ public final class AtmosphereTable {
 
     public AtmosphereLife.AlgaeParams algae() {
         return algae;
+    }
+
+    /** 洞窟の小ネタ(節 caveLife、11-07)。 */
+    public AtmosphereCaveLife.Params caveLife() {
+        return caveLife;
+    }
+
+    /** 巨大樹のまわりの生き物と音(節 giantLife、11-06 改善案 ⑤)。 */
+    public AtmosphereGiantLife.Params giantLife() {
+        return giantLife;
+    }
+
+    /** 巨大樹の胞子の柱・夜の地脈の光(節 giantTree、11-06 改善案 ①③)。 */
+    public AtmosphereGiantTree.Params giantTree() {
+        return giantTree;
     }
 
     public AtmosphereLife.CreakParams creak() {

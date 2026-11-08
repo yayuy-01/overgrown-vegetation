@@ -44,6 +44,34 @@ uniform vec4 OvCaveFog;
 uniform vec4 OvCaveFogD;
 uniform vec4 OvCaveSurf;
 uniform vec4 OvCaveMouth;
+// 11-07 (no camera switch; user: the cave look need not be switched by where the camera is): OvCaveLocal = (1 while the cave look is
+// decided per place, the camera's own cave value (the same rule as for a place, smoothed over 0.3 s, not the 4 s camera mix), surface
+// fog start, surface fog end); OvCaveSurfColor = (surface fog colour rgb, -). While on, terrain takes the surface fog from these instead
+// of the vanilla fog (which still carries the short black cave fog for mobs and particles), and the black fog by the share of the line of
+// sight that runs through cave air (ovCaveFog). 0 = the old way (devbridge "wind cavedev local off"; a fluid at the camera; fog off).
+uniform vec4 OvCaveLocal;
+uniform vec4 OvCaveSurfColor;
+
+float ovCaveCam() {
+    return OvCaveLocal.x > 0.5 ? OvCaveLocal.y : OvCave.y;
+}
+
+float ovFogS(float s) {
+    return OvCaveLocal.x > 0.5 ? OvCaveLocal.z : s;
+}
+
+float ovFogE(float e) {
+    return OvCaveLocal.x > 0.5 ? OvCaveLocal.w : e;
+}
+
+vec4 ovFogC(vec4 c) {
+    return OvCaveLocal.x > 0.5 ? vec4(OvCaveSurfColor.rgb, c.a) : c;
+}
+
+float ovCaveCavern(vec3 pos);
+
+// The cavern share of this fragment (ovCaveCavern), worked out once in ovCaveSink and only while the camera is in a cave.
+float ovCaveCavernNow = 0.0;
 
 // Water and glass (the translucent layer) take this share of the point lights and the raised floor (11-04, provisional).
 const float OV_CAVE_WATER_GAIN = 0.5;
@@ -56,7 +84,7 @@ float ovCaveUnder(vec3 pos, vec3 n, float sky) {
     // (11-04: with the sky no longer black, the far forest past the 64 x 64 map - giant trees with shaded canopies, sky light 3..8 -
     // showed as black shapes through a cave mouth. Sky light 0.5 -> 3 (of 15) fades from cave to outside; provisional).
     float enclosed = 1.0 - smoothstep(0.5 / 15.0, 3.0 / 15.0, sky);
-    float outside = OvCave.y * enclosed;
+    float outside = ovCaveCam() * enclosed;
     if (OvCaveMapA.w < 0.5) {
         return outside;
     }
@@ -100,7 +128,7 @@ float ovCaveUnder(vec3 pos, vec3 n, float sky) {
         // map skips) was outside right up to a straight line, with the forest haze on it next to the dark cave. While the camera is in a
         // cave, near it the sky light alone decides (per vertex, so it ramps over the ~8 blocks the light falls off from the hole); past
         // 0.6 fogStart .. fogStart the roof map counts again (the far outside seen through a mouth keeps the 11-04 rule). Provisional.
-        float near = OvCave.y * (1.0 - smoothstep(0.6 * OvCaveFogD.x, OvCaveFogD.x, length(pos)));
+        float near = ovCaveCam() * (1.0 - smoothstep(0.6 * OvCaveFogD.x, OvCaveFogD.x, length(pos)));
         inMap = mix(roof, 1.0, near) * dark;
     }
     // 11-04 (c): blend into the stand-in over the outer 6 columns, so the map's edge does not show as a jump.
@@ -128,11 +156,14 @@ float ovCaveMouthAt(ivec2 t) {
 // near the mouth the cave keeps the forest haze like the ground around it, and deeper in it goes dark.
 float ovCaveSink(vec3 pos, vec3 n, float under) {
     ovCaveSinkNow = 0.0;
+    // OvCaveSurfColor.w = 1: the light way for low settings, without the cavern share.
+    ovCaveCavernNow = OvCaveLocal.x > 0.5 && OvCaveSurfColor.w < 0.5 && under < 1.0 && ovCaveCam() > 0.001 ? ovCaveCavern(pos) : 0.0;
+    ovCavePosNow = pos;
     ovCaveMouthNow = 0.0;
     if (under <= 0.0 || OvCaveMapA.w < 0.5 || OvCaveFogD.z > 0.5) {
         return 0.0;
     }
-    float away = under * (1.0 - OvCave.y);
+    float away = under * (1.0 - ovCaveCam());
     if (away <= 0.0) {
         return 0.0;
     }
@@ -188,7 +219,7 @@ float ovCaveOutsideShare(vec3 pos) {
 // The length of the line of sight that is in the forest haze (11-04, 14): the whole distance, except for a cave fragment seen while the
 // camera is outside (by its cave share), where it ends where the line goes under the roof (ovCaveOutsideShare). Call after ovCaveSink.
 float ovCavePath(float dist, float under) {
-    float toCave = under * (1.0 - OvCave.y);
+    float toCave = under * (1.0 - ovCaveCam());
     if (OvCaveMapA.w < 0.5 || OvCaveFogD.z > 0.5 || toCave <= 0.0) {
         return dist;
     }
@@ -285,13 +316,17 @@ vec3 ovCaveLight(vec3 color, vec3 albedo, vec3 pos, vec3 n, float facing, float 
     // sunlit floor right under the hole got neither the raised floor nor the point lights and stayed at the bare vanilla light, darker
     // than the cave floor around it. While the camera is in a cave, near it (the same 0.6 fogStart .. fogStart as ovCaveUnder) both go
     // in whatever the sky light; the sky light still decides the fog only (ovCaveFog gets the real under). Provisional.
-    under = max(under, OvCave.y * (1.0 - smoothstep(0.6 * OvCaveFogD.x, OvCaveFogD.x, length(pos))));
+    under = max(under, ovCaveCam() * (OvCaveLocal.x > 0.5 ? max(ovCaveCavernNow, 1.0 - smoothstep(0.6 * OvCaveFogD.x, OvCaveFogD.x, length(pos))) : 1.0 - smoothstep(0.6 * OvCaveFogD.x, OvCaveFogD.x, length(pos))));
     int count = int(OvCave.x + 0.5);
     vec4 extra2 = texelFetch(OvCaveLights, ivec2(24, 1), 0);
     // 11-06 (light 6): at night on the surface the lights pull the colour of a face toward their colour and direction, by the
     // block light share of the fragment (the vanilla lightmap keeps its brightness; sky light is not pulled). extra2.w = night x strength.
     float surf = count > 0 ? extra2.w * (1.0 - under) * clamp(block, 0.0, 1.0) : 0.0;
-    if (under <= 0.0 && surf <= 0.0) {
+    // 11-07 (held lights): the first `held` lights are lights in someone's hand (CaveLights.heldLights). They light every face, not
+    // only the underground ones (a torch in hand also lights the night outside); the Java side already weakens them in bright places.
+    int held = count > 0 ? int(texelFetch(OvCaveLights, ivec2(24, 4), 0).x + 0.5) : 0;
+    vec3 hsum = vec3(0.0);
+    if (under <= 0.0 && surf <= 0.0 && held == 0) {
         return color;
     }
     vec3 sum = vec3(0.0);
@@ -321,6 +356,10 @@ vec3 ovCaveLight(vec3 color, vec3 albedo, vec3 pos, vec3 n, float facing, float 
         float ndl = dot(n, to / max(d, 0.001));
         float lambert = mix(1.0, clamp(ndl * 0.75 + 0.25, 0.0, 1.0), facing);
         sum += c.rgb * att * lambert;
+        if (i < held) {
+            hsum += c.rgb * att * lambert;
+            continue;
+        }
         if (surf > 0.0) {
             // Row 2 y = this frame's flame flicker (c.w already has it): the colour sum leaves it out, so the flicker shows.
             float flick = max(texelFetch(OvCaveLights, ivec2(i, 2), 0).y, 0.05);
@@ -348,6 +387,10 @@ vec3 ovCaveLight(vec3 color, vec3 albedo, vec3 pos, vec3 n, float facing, float 
         // turned away. Faded in over the first 0.1 of reach so the edge of a light's reach does not show.
         vec3 tint = sDir / max(dot(sCol, lum), 1.0e-4);
         color *= mix(vec3(1.0), tint, surf * clamp(sAtt / 0.1, 0.0, 1.0));
+    }
+    // Held lights on the part of the face that is not underground (the underground part gets them with the other lights below).
+    if (held > 0) {
+        color += albedo * hsum * OvCave.z * (1.0 - under);
     }
     if (under <= 0.0) {
         return color;
@@ -463,11 +506,102 @@ float ovCaveGlow(vec3 texel, vec3 pos, float under) {
 // while the camera is outside drops the forest haze inside the cave and sinks into the cave fog colour by its distance from the mouth
 // (ovCaveSink; 11-04, before that by its distance from the camera, so a cave seen from far away was solid black). The point lights
 // sink only by OvCaveMouth.z of that, so they stay as dim pools of light in the dark.
+// 11-07 (a big cave with a hole to the surface in its roof): how much a fragment that is not under rock itself (the floor and walls
+// under the hole, lit by the sky) still sits inside the cavern: the share of 16 map columns around it (8 directions at 6 and 12 blocks)
+// whose rock top is more than roofTo above it. The surface seen out of a side mouth has ground at its own height around it (share low);
+// the floor under a skylight has the cave roof all around it (share high). Such fragments keep the cave fog instead of the forest haze
+// seen from a cave (before: flat grey-green patches with jagged edges in the dark). Provisional thresholds 0.25 .. 0.5 (the walls of
+// the hole itself have rock on about half of their sides).
+float ovCaveCavern(vec3 pos) {
+    // OvCaveFogD.w >= 10: dev switch, the old way (devbridge "wind cavedev cavern off").
+    if (OvCaveMapA.w < 0.5 || OvCaveFogD.w > 9.5) {
+        return 0.0;
+    }
+    float roofed = 0.0;
+    for (int i = 0; i < 16; i++) {
+        float a = float(i) * 0.785398;
+        float r = i < 8 ? 6.0 : 12.0;
+        vec2 q = pos.xz + vec2(cos(a), sin(a)) * r;
+        ivec2 t = ivec2(floor(q.x - OvCaveMapA.x), floor(q.y - OvCaveMapA.y));
+        vec4 c;
+        if (t.x < 0 || t.y < 0 || t.x > 63 || t.y > 63) {
+            // Past the fine map (64 columns round the camera; the far side of a big hole is often past it): the coarse map, 4-block cells.
+            ivec2 tc = ivec2(floor((q - OvCaveMapA.xy + 224.0) / 4.0));
+            if (tc.x < 0 || tc.y < 0 || tc.x > 127 || tc.y > 127) {
+                continue;
+            }
+            c = texelFetch(OvCaveMap, ivec2(tc.x, tc.y + 64), 0);
+            if (c.b < 0.5) {
+                continue;
+            }
+        } else {
+            c = texelFetch(OvCaveMap, t, 0);
+        }
+        if (c.g >= 0.5 && c.r + OvCaveMapA.z - pos.y > OvCaveMapB.y) {
+            roofed += 1.0;
+        }
+    }
+    return smoothstep(0.25, 0.5, roofed / 16.0);
+}
+
+// 11-07 (no camera switch): the cave fog by place. fogged is the fragment with the surface fog (OvCaveLocal); the line of sight is split
+// by where the camera and the fragment are (the camera's own cave value c, the fragment's under u, its cavern share k):
+//   both in the cave (c u, and c (1 - u) k: the sunlit floor of a cavern) -> the black fog by distance, as deep in a cave before;
+//   camera out, fragment in (1 - c) u -> sinking by the fragment's depth from the mouth, haze over the outside part (as before);
+//   camera in, fragment out c (1 - u) (1 - k) -> the outside seen through the mouth: haze over the part past the camera's mouth (as before);
+//   both out (1 - c)(1 - u) -> the surface fog.
+// The weights add up to 1, so walking through a mouth moves them a little per step instead of switching the whole view.
+vec3 ovCaveFogLocal(vec3 fogged, vec3 lit, vec3 surface, float dist, float under) {
+    float cam = OvCaveLocal.y;
+    float k = ovCaveCavernNow;
+    float wBoth = cam * (under + (1.0 - under) * k);
+    float wToCave = (1.0 - cam) * under;
+    float wToSurf = cam * (1.0 - under) * (1.0 - k);
+    vec3 c = fogged * ((1.0 - cam) * (1.0 - under));
+    if (wBoth > 0.0) {
+        float f = clamp((dist - OvCaveFogD.x) / max(OvCaveFogD.y - OvCaveFogD.x, 0.01), 0.0, 1.0);
+        // The old deep look: the vanilla fog over the colour after the height fog (surface), with the cave fog colour and distances.
+        c += mix(surface, OvCaveFog.rgb, f) * wBoth;
+    }
+    float s = ovCaveSinkNow;
+    if (wToCave > 0.0) {
+        vec3 cave = mix(lit, OvCaveFog.rgb, s) + ovCaveAdd * s * (1.0 - OvCaveMouth.z);
+        vec3 x;
+        if (ovCaveHaze >= 0.0) {
+            x = fogged + ovCaveHazeOver(cave, true) - ovCaveHazeOver(lit, false);
+        } else {
+            x = mix(cave, OvCaveSurf.rgb, 1.0 - exp(-OvCaveSurf.w * max(dist - ovCaveMouthNow, 0.0)));
+        }
+        c += x * wToCave;
+    }
+    if (wToSurf > 0.0) {
+        float camMouth = texelFetch(OvCaveMap, clamp(ivec2(floor(-OvCaveMapA.xy)), ivec2(0), ivec2(63)), 0).b;
+        float outPath = max(dist - camMouth, 0.0);
+        vec3 base = surface;
+        if (ovCaveHaze >= 0.0) {
+            float share = 1.0 - pow(max(1.0 - ovCaveHeight.a, 0.0), outPath / max(dist, 0.001));
+            float colorDist = max(OvFogD.w, 1.0);
+            vec3 col = clamp(ovCaveHeight.rgb + (OvFogD.rgb - OvFogC.rgb) * (exp(-dist / colorDist) - exp(-outPath / colorDist)), 0.0, 1.0);
+            base = mix(lit, col, share);
+        }
+        c += mix(base, OvCaveSurf.rgb, 1.0 - exp(-OvCaveSurf.w * outPath)) * wToSurf;
+    }
+    if (mod(OvCaveFogD.w, 10.0) > 1.5) {
+        c = mix(c, vec3(0.0, 0.3, 1.0), 0.8 * s * wToCave);
+    } else if (mod(OvCaveFogD.w, 10.0) > 0.5) {
+        c = mix(c, vec3(1.0, 0.0, 0.0), 0.7 * under);
+    }
+    return c;
+}
+
 vec3 ovCaveFog(vec3 fogged, vec3 lit, vec3 surface, float dist, float under) {
     // The camera is in water (or another fluid): the fluid fog wins over the cave fog (11-01; a drowned cave seen from the sea was clear,
     // because the cave fog starts at 20 blocks and replaced the short water fog).
     if (OvCaveMapA.w < 0.5 || OvCaveFogD.z > 0.5) {
         return fogged;
+    }
+    if (OvCaveLocal.x > 0.5) {
+        return ovCaveFogLocal(fogged, lit, surface, dist, under);
     }
     float cam = OvCave.y;
     vec3 c = fogged;
@@ -497,7 +631,8 @@ vec3 ovCaveFog(vec3 fogged, vec3 lit, vec3 surface, float dist, float under) {
     // after the camera has left, so under the canopy right outside the leaves past ~8 blocks were painted with a bright haze wall next
     // to vivid near ones. It now goes by the lower of the smoothed mix and its unsmoothed target (OvCaveMouth.w): off as soon as the
     // camera is out, still easing in on the way into a cave. The black camera fog keeps its slow fade (vanilla fog, MistView).
-    float toSurface = (1.0 - under) * min(cam, OvCaveMouth.w);
+    float cavern = (1.0 - under) * cam * ovCaveCavern(ovCavePosNow);
+    float toSurface = (1.0 - under) * min(cam, OvCaveMouth.w) * (1.0 - ovCaveCavern(ovCavePosNow));
     if (toSurface > 0.0) {
         // 11-04 (13): the part of the path inside the cave (the camera's own distance to the nearest mouth, map b) has no bright forest
         // haze, the same as the cave part seen from outside (a lit floor under a hole in the roof a few blocks away was veiled bright green).
@@ -515,11 +650,18 @@ vec3 ovCaveFog(vec3 fogged, vec3 lit, vec3 surface, float dist, float under) {
         vec3 hazed = mix(base, OvCaveSurf.rgb, 1.0 - exp(-OvCaveSurf.w * outPath));
         c = mix(c, hazed, toSurface);
     }
+    // 11-07: a fragment under the hole but inside the cavern (its sunlit walls and floor) seen from the cave takes the cave fog by
+    // distance like the rest of the cave (its own fog was the forest haze of an outside fragment: a flat grey-green patch). The light
+    // falling through the hole is drawn by the shafts and their floor glow (CaveShafts), which the fog does not take.
+    if (cavern > 0.0) {
+        float f = clamp((dist - OvCaveFogD.x) / max(OvCaveFogD.y - OvCaveFogD.x, 0.01), 0.0, 1.0);
+        c = mix(c, mix(lit, OvCaveFog.rgb, f), cavern);
+    }
     // Dev only (OvCaveFogD.w, devbridge "wind cavedev tint on"): paint the cave factor red.
-    if (OvCaveFogD.w > 1.5) {
+    if (mod(OvCaveFogD.w, 10.0) > 1.5) {
         // devbridge "wind cavedev tint sink": paint the sink from the mouth blue (11-04).
         c = mix(c, vec3(0.0, 0.3, 1.0), 0.8 * s * toCave);
-    } else if (OvCaveFogD.w > 0.5) {
+    } else if (mod(OvCaveFogD.w, 10.0) > 0.5) {
         c = mix(c, vec3(1.0, 0.0, 0.0), 0.7 * under);
     }
     return c;

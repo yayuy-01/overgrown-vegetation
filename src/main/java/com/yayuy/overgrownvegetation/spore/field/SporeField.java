@@ -818,11 +818,24 @@ public final class SporeField {
     /**
      * 1 刻み。dtAir = 0 なら浮遊を進めない、dtLow = 0 なら林床を進めない。dtSub は降り積もりの減衰と発芽の確率に使う刻みの長さ。
      */
+    /** 昼の度合い 0〜1(時刻 tod の風の昼夜の強さから。午後 2 時に 1、夜と朝 6〜8 時ごろは 0)。 */
+    public static double dayness(double tod) {
+        double sun = PrevailingWind.diurnalStrength(tod); // 0.15〜1、午後に山
+        return (sun - PrevailingWind.P_NIGHT) / (PrevailingWind.P_AFTERNOON - PrevailingWind.P_NIGHT);
+    }
+
+    /** 浮遊の沈着の速さ(1 日あたり)。巨大樹の胞子の柱(クライアント)も同じ値で薄める(2026-11-06 に {@link #stepOnce} から出した)。 */
+    public static double deposition(Params p, double dayness, boolean raining, boolean thundering, boolean afterRain) {
+        if (thundering) return p.depStorm;
+        if (raining) return p.depRain;
+        double dep = p.depNight + (p.depDay - p.depNight) * dayness;
+        return afterRain ? Math.max(dep, p.depAfterRain) : dep;
+    }
+
     private void stepOnce(Conditions c, PrevailingWind.Sample wind, double dtAir, double dtLow, double dtSub, long t) {
         boolean doAir = dtAir > 0, doLow = dtLow > 0;
         double tod = Math.floorMod(c.dayTime() - (c.tick() - t), PrevailingWind.DAY);
-        double sun = PrevailingWind.diurnalStrength(tod); // 0.15〜1、午後に山
-        double dayness = (sun - PrevailingWind.P_NIGHT) / (PrevailingWind.P_AFTERNOON - PrevailingWind.P_NIGHT);
+        double dayness = dayness(tod); // 0〜1、午後に山
         boolean night = tod >= 13000 && tod < 23000;
 
         // 放出の倍率
@@ -834,13 +847,7 @@ public final class SporeField {
         release *= 1 - p.windLift + p.windLift * Math.min(wind.strength, 3.0);
 
         // 沈着の速さ
-        double dep;
-        if (c.thundering()) dep = p.depStorm;
-        else if (c.raining()) dep = p.depRain;
-        else {
-            dep = p.depNight + (p.depDay - p.depNight) * dayness;
-            if (c.afterRain()) dep = Math.max(dep, p.depAfterRain);
-        }
+        double dep = deposition(p, dayness, c.raining(), c.thundering(), c.afterRain());
         // 強風・嵐の間は胞子が高く長く浮く(沈着も死滅も遅く)
         double decay = p.airDecay;
         if (wind.strongDay || wind.storm) {

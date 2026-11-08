@@ -56,6 +56,14 @@ public final class SporeFieldTable {
         /** 洞窟の壁を這う汚染(2026-11-04 b): 回す間隔(tick)・1 回に見る元の数・1 つの元が広げる確率・1 回にプレイヤーのまわりで見る列の数・その半径(ブロック)・元の上限。 */
         public Integer creepIntervalTicks, creepSourcesPerPass, creepSamplesPerPass, creepRadius, creepMaxFrontier;
         public Double creepChance;
+        /**
+         * 菌糸の染み下り(2026-11-07、{@link com.yayuy.overgrownvegetation.spore.field.MyceliumSeep}): 入り切り・地表から世界の底まで届く日数・
+         * 回す間隔(tick)・1 回に見るチャンクの数・前線が何ブロック下がったら処理するか・1 回の処理で下げる最大のブロック数・
+         * 1 tick に見るマスの上限・1 tick に置き換える上限・置き換えたマスを壁を這う汚染の元に入れる確率・1 tick に使う時間の上限(ms。重いときの予算の番人とは別に常に効く)。
+         */
+        public Boolean seepEnabled, seepWaterFacing;
+        public Double seepDays, seepCreepSeedChance, seepMaxMillisPerTick, seepRootSpeed, seepPlantShare, seepGrowMarginMillis;
+        public Integer seepIntervalTicks, seepChunksPerPass, seepStepBlocks, seepSlabBlocks, seepCellsPerTick, seepPlacementsPerTick, seepRootRadius, seepGrowQueueMax;
     }
 
     /**
@@ -206,6 +214,9 @@ public final class SporeFieldTable {
     private final double sproutWetMultiplier;
     private final int mouthLoadDelay, mouthScanDepth, mouthFullCells, mouthRemeasureTicks, mouthRemeasureRadius;
     private final int creepInterval, creepSources, creepSamples, creepRadius, creepMaxFrontier, holeSides, sproutWaitingMax;
+    private final boolean seepEnabled, seepWaterFacing;
+    private final double seepDays, seepCreepSeedChance, seepMaxMillisPerTick, seepRootSpeed, seepPlantShare, seepGrowMarginMillis;
+    private final int seepInterval, seepChunksPerPass, seepStepBlocks, seepSlabBlocks, seepCellsPerTick, seepPlacementsPerTick, seepRootRadius, seepGrowQueueMax;
     private final double creepChance, edgeNoiseAmp, edgeNoiseBlocks, edgeDepositWeight, edgeThreshold;
     private final double highFadeBlocks, highCapPercent;
     private final double sweepShare, sweepThinChance;
@@ -276,6 +287,22 @@ public final class SporeFieldTable {
         this.creepRadius = ug.creepRadius != null ? Math.max(1, Math.min(128, ug.creepRadius)) : 48;
         this.creepMaxFrontier = ug.creepMaxFrontier != null ? Math.max(1, ug.creepMaxFrontier) : 4096;
         this.creepChance = Math.min(1.0D, orElse(ug.creepChance, 0.5D));
+        this.seepEnabled = ug.seepEnabled == null || ug.seepEnabled;
+        this.seepDays = Math.max(0.01D, orElse(ug.seepDays, 2.5D));
+        this.seepCreepSeedChance = Math.min(1.0D, orElse(ug.seepCreepSeedChance, 0.1D));
+        this.seepMaxMillisPerTick = Math.max(0.1D, orElse(ug.seepMaxMillisPerTick, 1.0D));
+        this.seepWaterFacing = ug.seepWaterFacing == null || ug.seepWaterFacing;
+        this.seepRootSpeed = Math.max(1.0D, orElse(ug.seepRootSpeed, 2.0D));
+        this.seepPlantShare = Math.min(1.0D, orElse(ug.seepPlantShare, 1.0D));
+        this.seepGrowMarginMillis = orElse(ug.seepGrowMarginMillis, 0.3D);
+        this.seepGrowQueueMax = ug.seepGrowQueueMax != null ? Math.max(0, ug.seepGrowQueueMax) : 8192;
+        this.seepRootRadius = ug.seepRootRadius != null ? Math.max(0, Math.min(256, ug.seepRootRadius)) : 48;
+        this.seepInterval = ug.seepIntervalTicks != null ? Math.max(0, ug.seepIntervalTicks) : 20;
+        this.seepChunksPerPass = ug.seepChunksPerPass != null ? Math.max(1, ug.seepChunksPerPass) : 16;
+        this.seepStepBlocks = ug.seepStepBlocks != null ? Math.max(1, Math.min(64, ug.seepStepBlocks)) : 2;
+        this.seepSlabBlocks = ug.seepSlabBlocks != null ? Math.max(1, Math.min(128, ug.seepSlabBlocks)) : 16;
+        this.seepCellsPerTick = ug.seepCellsPerTick != null ? Math.max(256, ug.seepCellsPerTick) : 8192;
+        this.seepPlacementsPerTick = ug.seepPlacementsPerTick != null ? Math.max(1, ug.seepPlacementsPerTick) : 48;
         Edge eg = src.edge != null ? src.edge : new Edge();
         this.edgeNoiseAmp = Math.min(1.0D, orElse(eg.noiseAmp, 0.35D));
         this.edgeNoiseBlocks = Math.max(1.0D, orElse(eg.noiseBlocks, 6.0D));
@@ -473,6 +500,26 @@ public final class SporeFieldTable {
     public int creepRadius() { return creepRadius; }
     public int creepMaxFrontier() { return creepMaxFrontier; }
     public double creepChance() { return creepChance; }
+    /** 菌糸の染み下り(2026-11-07)。値は {@link Underground} の seep* を参照。 */
+    public boolean seepEnabled() { return seepEnabled; }
+    public double seepDays() { return seepDays; }
+    public double seepCreepSeedChance() { return seepCreepSeedChance; }
+    public int seepIntervalTicks() { return seepInterval; }
+    public int seepChunksPerPass() { return seepChunksPerPass; }
+    public int seepStepBlocks() { return seepStepBlocks; }
+    public int seepSlabBlocks() { return seepSlabBlocks; }
+    public int seepCellsPerTick() { return seepCellsPerTick; }
+    public int seepPlacementsPerTick() { return seepPlacementsPerTick; }
+    public double seepMaxMillisPerTick() { return seepMaxMillisPerTick; }
+    /** 水に面したブロック(地底湖の底・岸)も汚染するか・巨大樹の根のまわりの前線の速さの倍率・その半径(幹の中心から水平、ブロック)。2026-11-08。 */
+    public boolean seepWaterFacing() { return seepWaterFacing; }
+    public double seepRootSpeed() { return seepRootSpeed; }
+    public int seepRootRadius() { return seepRootRadius; }
+    /** 置き換え・覆ったマスのうち、自然の洞窟と同じ植物の入口(growSurfacePlants・growPlantsIfNewlyCovered)を通す割合(2026-11-08。1 = 自然と同じ)。 */
+    public double seepPlantShare() { return seepPlantShare; }
+    /** 植物を同じ列で生やすのに残す時間(ms。残りがこれより少なければ待ち行列へ)・待ち行列の上限(溢れた分は生やさない)。2026-11-08。 */
+    public double seepGrowMarginMillis() { return seepGrowMarginMillis; }
+    public int seepGrowQueueMax() { return seepGrowQueueMax; }
     /** 縁の列ごとの判定の雑音の大きさ(±)・雑音の模様の大きさ(ブロック)・降り積もりの重み(2026-11-04 A)。 */
     public double edgeNoiseAmp() { return edgeNoiseAmp; }
     public double edgeNoiseBlocks() { return edgeNoiseBlocks; }

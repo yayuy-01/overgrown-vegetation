@@ -15,6 +15,7 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.ShaderInstance;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Vector3f;
@@ -26,6 +27,7 @@ import org.lwjgl.system.MemoryUtil;
 
 import java.nio.FloatBuffer;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * <b>光の筋の中で光る胞子</b>(一覧 27。2026-10-15「胞子が光に当たって光る」、10-23 GPU で動かす、10-30 作り直し。元は parked の {@code client/GpuSpores} の
@@ -70,10 +72,11 @@ final class ShaftMotes {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         ShaderInstance shader = ModShaders.gpuMotes();
-        if (level == null || shader == null || LightShafts.count() == 0 || WindHistory.texture() < 0) {
+        if (level == null || shader == null || LightShafts.count() + CaveShafts.count() == 0 || WindHistory.texture() < 0) {
             return;
         }
-        float intensity = DesignData.atmosphere().intensity() * ForestPresence.openOvergrown();
+        // 11-07: 洞窟の天井の穴の筋(CaveShafts)の中にも漂わせる(森の外でも)
+        float intensity = DesignData.atmosphere().intensity() * Math.max(ForestPresence.openOvergrown(), CaveShafts.moteIntensity());
         if (intensity <= 0.0F) {
             return;
         }
@@ -100,7 +103,11 @@ final class ShaftMotes {
         shader.safeGetUniform("CamUp").set(up.x(), up.y(), up.z(), 0.0F);
         shader.safeGetUniform("Sun").set((float) light.x, (float) light.y, (float) light.z, SunLight.lightStrength(level, light, partialTick));
         // 光る粒は筋より少し緑と青を足して、淡い金の中で胞子の色に見せる。
-        shader.safeGetUniform("Glow").set(RGB[0], Math.min(1.0F, RGB[1] + 0.05F), RGB[2] + 0.1F, intensity);
+        // 11-07: 過繁茂の外の洞窟の筋の粒は胞子でなく埃の色(caveShafts.dustColor)へ寄せる
+        float dust = CaveShafts.count() > 0 ? CaveLights.openShare() : 0.0F;
+        float[] dc = DesignData.atmosphere().caveShafts().dustColor();
+        shader.safeGetUniform("Glow").set(Mth.lerp(dust, RGB[0], RGB[0] * dc[0]), Mth.lerp(dust, Math.min(1.0F, RGB[1] + 0.05F), RGB[1] * dc[1]),
+                Mth.lerp(dust, RGB[2] + 0.1F, RGB[2] * dc[2]), intensity);
         shader.safeGetUniform("Phase").set(t.phaseMin(), t.phaseMax() - t.phaseMin(), t.phasePower(), 0.0F);
         AmbientSpores.setDrift(shader, t.spores());
 
@@ -148,6 +155,13 @@ final class ShaftMotes {
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableBlend();
     }
+    /** 林冠の筋と洞窟の天井の穴の筋(11-07)。 */
+    private static List<LightShafts.Shaft> allShafts() {
+        List<LightShafts.Shaft> all = new java.util.ArrayList<>(LightShafts.shafts());
+        all.addAll(CaveShafts.shafts());
+        return all;
+    }
+
 
     /**
      * 筋ごとの組に 12 個ずつ(上端 − カメラ、湧く幅の半分、下端 − カメラ、出ている度合い、湧き始める位置 tMin、出す枠の割合、光る判定の幅の倍率、薄い筋なら 1)。
@@ -157,7 +171,7 @@ final class ShaftMotes {
     private static int fillGroups(Vec3 cam) {
         Arrays.fill(GROUPS, 0.0F);
         boolean[] used = new boolean[MAX_GROUPS];
-        for (LightShafts.Shaft s : LightShafts.shafts()) {
+        for (LightShafts.Shaft s : allShafts()) {
             if (s.moteGroup >= 0 && s.moteGroup < MAX_GROUPS) {
                 used[s.moteGroup] = true;
             }
@@ -166,7 +180,7 @@ final class ShaftMotes {
         float total = 0.0F;
         int top = 0;
         float[] want = new float[MAX_GROUPS];
-        for (LightShafts.Shaft s : LightShafts.shafts()) {
+        for (LightShafts.Shaft s : allShafts()) {
             if (s.moteGroup < 0) {
                 for (int g = 0; g < MAX_GROUPS; g++) {
                     if (!used[g]) {

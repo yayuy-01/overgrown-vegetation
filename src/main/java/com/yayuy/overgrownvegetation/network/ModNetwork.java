@@ -105,6 +105,13 @@ public final class ModNetwork {
                 (payload, context) -> context.enqueueWork(
                         () -> com.yayuy.overgrownvegetation.client.SporeExposureClient.accept(payload)));
 
+        // まわりの巨大樹(2026-11-06 胞子の柱・夜の地脈の光。S2C、5 秒ごとに変わったとき)
+        registrar.playToClient(
+                GiantTreesPayload.TYPE,
+                GiantTreesPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(
+                        () -> com.yayuy.overgrownvegetation.client.atmosphere.GiantTrees.accept(payload)));
+
     }
 
     private ModNetwork() {

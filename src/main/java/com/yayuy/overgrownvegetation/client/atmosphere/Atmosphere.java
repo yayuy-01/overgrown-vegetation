@@ -66,6 +66,7 @@ public final class Atmosphere {
         com.yayuy.overgrownvegetation.client.atmosphere.sound.UnderwaterSound.stop();
         CanopySunMap.clear();
         LightShafts.clear();
+        CaveShafts.clear();
         CanopyDapple.clear();
         CanopyShade.clear();
         MistFog.clear();
@@ -80,7 +81,13 @@ public final class Atmosphere {
         WaterCaustics.clear();
         UnderwaterShafts.clear();
         HollowDwellers.clear();
+        CanopyGnats.clear(); // 巨大樹の生き物と音(11-06 改善案 ⑤)
+        TrunkLizards.clear();
+        CaveGlowworms.clear(); // 洞窟の小ネタ(11-07)
+        CaveCrickets.clear();
+        com.yayuy.overgrownvegetation.client.atmosphere.sound.GiantTreeCreakSound.stop();
         CaveLights.clear();
+        EyeAdaptation.clear();
         SporePools.clear();
     }
 
@@ -122,26 +129,39 @@ public final class Atmosphere {
         guard("mist", () -> MistFog.tick(now, mc.gameRenderer.getMainCamera().getPosition(), ticks));
         guard("sunmap", () -> CanopySunMap.tick(now, ticks));
         guard("shafts", () -> LightShafts.tick(now, player));
+        guard("caveshafts", () -> CaveShafts.tick(now, player)); // 洞窟の天井の穴の光の筋(11-07)
         guard("dapple", () -> CanopyDapple.tick(now, player));
         guard("shade", () -> CanopyShade.tick(now, player));
         guard("spores", () -> AmbientSpores.tick(now, player));
         guard("motes", () -> ShaftMotes.tick(mc.gameRenderer.getMainCamera().getPosition()));
         guard("silhouette", () -> GiantSilhouettes.tick(now, player));
+        guard("sporecolumns", () -> SporeColumns.tick(now)); // 巨大樹の胞子の柱の雨上がりの判定(11-06 改善案 ①)
         guard("drops", () -> RainDrops.tick(now, player));
         guard("dusk", () -> DuskMotes.tick(now, player));
         guard("steam", () -> SteamWisps.tick(now, player));
         guard("rivulets", () -> TrunkRivulets.tick(now, player)); // 幹を伝う水(41、11-01 に作り直して戻した)
+        guard("canopydrips", () -> CanopyDrips.tick(now, player)); // 巨大樹の傘からの雨だれ(11-06 夜)
         guard("watersigns", () -> WaterSigns.tick(now, player));
         guard("gnats", () -> GnatSwarms.tick(now, player));
+        // 巨大樹のまわりの生き物と音(11-06 改善案 ⑤): 傘の羽虫・幹のトカゲ・突風の軋み
+        guard("canopygnats", () -> CanopyGnats.tick(now, player));
+        guard("lizards", () -> TrunkLizards.tick(now, player));
+        // 洞窟の小ネタ(11-07): 天井の土ボタル・洞窟の口のカマドウマ
+        guard("glowworms", () -> CaveGlowworms.tick(now, player));
+        guard("crickets", () -> CaveCrickets.tick(now, player));
+        guard("giantcreak", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.GiantTreeCreakSound.tick(mc, now, player, time(0.0F)));
         guard("algae", () -> GlowAlgae.tick(now, player));
         guard("caustics", () -> WaterCaustics.tick(now, ticks));
         guard("uwshafts", () -> UnderwaterShafts.tick(now));
         guard("cave", () -> CaveLights.tick(now, mc.gameRenderer.getMainCamera().getPosition(), ticks));
+        guard("eyeadapt", () -> EyeAdaptation.tick(now, mc.gameRenderer.getMainCamera().getPosition()));
         guard("sporepools", () -> SporePools.tick(now, player, ticks)); // 洞窟の胞子の溜まり(地下の植生 2・U6)
         if (DEV_LOG && ticks % 100 == 0) {
             OvergrownVegetation.LOGGER.info("Atmosphere {}", MistFog.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere 小物 {} 滴 {}", DuskMotes.describe(player.getX(), player.getZ()), RainDrops.count());
             OvergrownVegetation.LOGGER.info("Atmosphere 見え方 {} / {} / {} / {} / {}", SteamWisps.describe(), WaterSigns.describe(), GnatSwarms.describe(), GlowAlgae.describe(), TrunkRivulets.describe());
+            OvergrownVegetation.LOGGER.info("Atmosphere 巨大樹の生き物 {} / {}", CanopyGnats.describe(), TrunkLizards.describe());
+            OvergrownVegetation.LOGGER.info("Atmosphere 洞窟の小ネタ {} / {}", CaveGlowworms.describe(), CaveCrickets.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere 水中の光 {} / {}", WaterCaustics.describe(), UnderwaterShafts.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere {}", CaveLights.describe());
             BlockPos feet = player.blockPosition();
@@ -225,6 +245,32 @@ public final class Atmosphere {
         guard("spores", () -> AmbientSpores.render(event));
         guard("life", () -> renderLife(event));
         guard("rivulets", () -> TrunkRivulets.render(event));
+        guard("canopydrips", () -> CanopyDrips.render(event));
+        if (CaveGlowworms.any()) {
+            // 洞窟の天井の土ボタル(11-07)。足し算・霧で薄めない(地下の黒い霧の中でも沈めない)。
+            guard("glowworms", () -> {
+                LifeSprites.beginGlowNoFog(event);
+                try {
+                    net.minecraft.world.phys.Vec3 c = event.getCamera().getPosition();
+                    CaveGlowworms.render(event.getPartialTick().getGameTimeDeltaPartialTick(false), c.x, c.y, c.z, event.getCamera().getLeftVector(),
+                            event.getCamera().getUpVector());
+                } finally {
+                    LifeSprites.end();
+                }
+            });
+        }
+        if (CanopyGnats.glowing()) {
+            // 夜の傘の光る虫(11-06 ⑤ の案。nightGlow が 0 なら出ない)。足し算で光らせる。
+            guard("canopyglow", () -> {
+                LifeSprites.begin(event, true);
+                try {
+                    CanopyGnats.renderGlow(event.getPartialTick().getGameTimeDeltaPartialTick(false), event.getCamera().getPosition(),
+                            event.getCamera().getLeftVector(), event.getCamera().getUpVector());
+                } finally {
+                    LifeSprites.end();
+                }
+            });
+        }
         if (HollowDwellers.hasEyes()) {
             // 木の洞の目(43)。足し算で光らせる。
             guard("hollow", () -> {
@@ -240,8 +286,11 @@ public final class Atmosphere {
         try {
             guard("dapple", () -> CanopyDapple.render(event));
             guard("shafts", () -> LightShafts.render(event));
+            guard("caveshafts", () -> CaveShafts.render(event));
             guard("motes", () -> ShaftMotes.render(event));
             guard("dusk", () -> DuskMotes.render(event));
+            guard("sporecolumns", () -> SporeColumns.render(event)); // 巨大樹の胞子の柱(11-06 改善案 ①)
+            guard("leypulses", () -> LeyPulses.render(event)); // 夜に幹を昇る地脈の光(11-06 改善案 ③)
         } finally {
             AddLight.restoreTarget(main);
         }
@@ -261,6 +310,9 @@ public final class Atmosphere {
             SteamWisps.render(lvl, partialTick, left, up);
             WaterSigns.render(lvl, partialTick, left, up);
             GnatSwarms.render(partialTick, left, up);
+            CanopyGnats.render(partialTick, event.getCamera().getPosition(), left, up); // 巨大樹の傘の羽虫(11-06 ⑤)
+            TrunkLizards.render(lvl, partialTick); // 幹のトカゲ(11-06 ⑤)
+            CaveCrickets.render(lvl, partialTick); // 洞窟の口のカマドウマ(11-07)
             HollowDwellers.render(left, up); // 木の洞から飛び出す虫(43)
             net.minecraft.world.phys.Vec3 cam = event.getCamera().getPosition();
             SporePools.render(lvl, partialTick, left, up, cam.x, cam.y, cam.z); // 洞窟の胞子の溜まり(地下の植生 2・U6)

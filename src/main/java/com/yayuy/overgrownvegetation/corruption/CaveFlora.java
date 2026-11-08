@@ -585,7 +585,7 @@ public final class CaveFlora {
     }
 
     /** 天井の真下の空気のマス {@code top} から {@code length} 段(先を含む)根を垂らす。先の下に 1 段の空気を残し、足りなければ短くする。 */
-    static boolean hangRoots(ServerLevel level, BlockPos top, int length) {
+    public static boolean hangRoots(ServerLevel level, BlockPos top, int length) {
         int n = 0;
         while (n < length && isAir(level, top.below(n)) && isAir(level, top.below(n + 1))) {
             n++;

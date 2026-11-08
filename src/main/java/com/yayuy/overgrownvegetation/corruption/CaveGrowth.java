@@ -261,9 +261,9 @@ public final class CaveGrowth {
         if (random.nextDouble() < CorruptionRootTip.SHARE) {
             return buildHangingRootTip(level, host, random, mode);
         }
-        double vineShare = OvergrownVegetationConfig.COMMON.caveVineArchShare.get();
-        ArchStyle style = vineShare > 0.0D && random.nextDouble() < vineShare ? ArchStyle.VINE : ArchStyle.ROOT;
-        return buildCeilingArch(level, host, random, mode, style);
+        // 蔦のアーチ(ArchStyle.VINE)は 2026-11-07 に止めた(ユーザー決定): 蔦は壁と壁の隙間に渡る太い蔦(VineSpan、
+        // CorruptionSpreader#growSurfacePlants から)に置き換え。caveVineArchShare の既定も 0。値が残っていても自然には建てない。
+        return buildCeilingArch(level, host, random, mode, ArchStyle.ROOT);
     }
 
     /**

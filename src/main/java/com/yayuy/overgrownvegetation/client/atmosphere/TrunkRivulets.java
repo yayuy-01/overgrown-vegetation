@@ -82,7 +82,7 @@ public final class TrunkRivulets {
      * 雨の間に {@code rainLook.puddleIn} 秒で広がり、雨上がりは {@code puddleOut} 秒で乾く(幹の水の 15 秒より長く残る)。
      * 中心 (cx, cz)・地面の高さ y・形の種・大きさの倍率。
      */
-    private record Puddle(int x, int z, double cx, double cz, double y, float seed, float size, boolean rain) {
+    private record Puddle(int x, int z, double cx, double cz, double y, float seed, float size, boolean rain, boolean drip) {
     }
 
     private static final List<Puddle> PUDDLES = new ArrayList<>();
@@ -107,10 +107,10 @@ public final class TrunkRivulets {
      * 確かめ用(devbridge {@code wind cavedev puddleview <trunk|rain> <高さ>}、11-06 夜): その種類の水たまりのうち、遮られずに見える視点を探して
      * 「x y z yaw pitch」で返す。目の位置は水たまりから高さ {@code rise}・水平 2〜4 ブロックの 8 方向、視線が水たまりの中心まで何にも当たらない所。
      */
-    static String viewPoint(ClientLevel level, boolean rain, double rise) {
+    static String viewPoint(ClientLevel level, int kind, double rise) {
         net.minecraft.world.entity.Entity cam = Minecraft.getInstance().getCameraEntity();
         for (Puddle p : PUDDLES) {
-            if (p.rain != rain) {
+            if ((kind == 2 ? !p.drip : p.drip || p.rain != (kind == 1))) {
                 continue;
             }
             Vec3 target = new Vec3(p.cx, p.y + 0.02, p.cz);
@@ -169,7 +169,9 @@ public final class TrunkRivulets {
         PUDDLES.removeIf(p -> {
             double dx = p.cx - player.getX();
             double dz = p.cz - player.getZ();
-            return puddle <= 0.0F || dx * dx + dz * dz > r2 * 1.5;
+            // 巨大樹の傘の雨だれの輪(11-06 夜、{@link CanopyDrips})は雨だれの時計で乾き、傘の縁は遠いので広く残す。
+            return p.drip ? CanopyDrips.level() <= 0.0F || dx * dx + dz * dz > CanopyDrips.RADIUS * CanopyDrips.RADIUS * 1.5
+                    : puddle <= 0.0F || dx * dx + dz * dz > r2 * 1.5;
         });
         if (raining && look.enabled()) {
             tryRainPuddles(level, player, look);
@@ -223,7 +225,7 @@ public final class TrunkRivulets {
                     double[] cell = openGround(level, pos, x, z, bottom, side);
                     if (cell != null) {
                         PUDDLES.add(new Puddle(x, z, cell[0] + 0.5 + (RANDOM.nextFloat() - 0.5F) * 0.3, cell[1] + 0.5 + (RANDOM.nextFloat() - 0.5F) * 0.3,
-                                cell[2], RANDOM.nextFloat() * 100.0F, 0.75F + RANDOM.nextFloat() * 0.5F, false));
+                                cell[2], RANDOM.nextFloat() * 100.0F, 0.75F + RANDOM.nextFloat() * 0.5F, false, false));
                     }
                 }
             }
@@ -255,7 +257,7 @@ public final class TrunkRivulets {
             int top = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
             var ground = level.getBlockState(pos.set(x, top - 1, z));
             // 木の上(林冠・枝・過繁茂の葉。過繁茂の葉はバニラの葉のタグに入っていない)には置かない。
-            if (ground.is(BlockTags.LEAVES) || ground.is(BlockTags.LOGS) || com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder.isTreePart(ground)
+            if (ground.is(BlockTags.LEAVES) || CanopyDrips.isTreeBlock(ground)
                     || ground.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_LEAVES.get()) || ground.is(BlockTags.SAND) || ground.is(net.minecraft.world.level.block.Blocks.GRAVEL)
                     || ground.is(BlockTags.SNOW) || ground.is(BlockTags.ICE)
                     || level.getBiome(pos.set(x, top, z)).value().getPrecipitationAt(pos) != net.minecraft.world.level.biome.Biome.Precipitation.RAIN) {
@@ -293,7 +295,7 @@ public final class TrunkRivulets {
             if (near) {
                 continue;
             }
-            PUDDLES.add(new Puddle(x, z, cx, cz, surface, RANDOM.nextFloat() * 100.0F, 0.75F + RANDOM.nextFloat() * 0.5F, true));
+            PUDDLES.add(new Puddle(x, z, cx, cz, surface, RANDOM.nextFloat() * 100.0F, 0.75F + RANDOM.nextFloat() * 0.5F, true, false));
             count++;
         }
     }
@@ -320,7 +322,7 @@ public final class TrunkRivulets {
      * 11-06 夜 ユーザー「今も全く見えない」: 過繁茂の林床は苔の敷物・落ち葉などの薄い層で覆われ、「そのマスが空気」の条件ではほぼ置けなかった。
      * 空気か、形の高さが {@link #LAYER_MAX} 以下の薄い層(水を含まない)なら、その上の面に描く。下のマスの上の面が固いこと。
      */
-    private static double surfaceAt(ClientLevel level, BlockPos.MutableBlockPos pos, int x, int y, int z) {
+    static double surfaceAt(ClientLevel level, BlockPos.MutableBlockPos pos, int x, int y, int z) {
         net.minecraft.world.level.block.state.BlockState s = level.getBlockState(pos.set(x, y, z));
         double h = 0.0;
         if (!s.isAir()) {
@@ -362,6 +364,34 @@ public final class TrunkRivulets {
         return null;
     }
 
+    /** 水たまりの広がり(0〜1): 傘の雨だれの輪は雨だれの時計、ほかは雨の時計。 */
+    private static float growOf(Puddle p, float rainGrow) {
+        return p.drip ? SunLight.smooth(CanopyDrips.level()) : rainGrow;
+    }
+
+    /**
+     * 巨大樹の傘の縁の真下に、雨だれの輪の水たまりを 1 つ足す({@link CanopyDrips} から。11-06 夜)。近くに水たまりがあれば足さない。
+     * 雨だれの輪の数は {@code max} まで。
+     */
+    static void addDripPuddle(double cx, double cz, double y, double spacing, int max) {
+        int n = 0;
+        double s2 = spacing * spacing;
+        for (Puddle p : PUDDLES) {
+            if (p.drip) {
+                n++;
+            }
+            double dx = p.cx - cx;
+            double dz = p.cz - cz;
+            if (dx * dx + dz * dz < s2) {
+                return;
+            }
+        }
+        if (n >= max) {
+            return;
+        }
+        PUDDLES.add(new Puddle(Mth.floor(cx), Mth.floor(cz), cx, cz, y, RANDOM.nextFloat() * 100.0F, 0.8F + RANDOM.nextFloat() * 0.4F, false, true));
+    }
+
     private static boolean hasPuddle(int x, int z) {
         for (Puddle p : PUDDLES) {
             if (p.x == x && p.z == z) {
@@ -388,7 +418,7 @@ public final class TrunkRivulets {
      */
     private static void renderPuddles(RenderLevelStageEvent event, ClientLevel level) {
         drawnPuddles = 0;
-        if (puddle <= 0.0F || PUDDLES.isEmpty() || !com.yayuy.overgrownvegetation.data.DesignData.atmosphere().rainLook().enabled()) {
+        if (puddle <= 0.0F && CanopyDrips.level() <= 0.0F || PUDDLES.isEmpty() || !com.yayuy.overgrownvegetation.data.DesignData.atmosphere().rainLook().enabled()) {
             return;
         }
         var look = com.yayuy.overgrownvegetation.data.DesignData.atmosphere().rainLook();
@@ -418,7 +448,7 @@ public final class TrunkRivulets {
                     r = 0.0F;
                     g = 0.0F;
                     b = 0.0F;
-                    alpha = look.puddleDarken() * grow * fog;
+                    alpha = look.puddleDarken() * growOf(p, grow) * fog;
                     drawnAlpha = alpha;
                     drawnPuddles++;
                 } else {
@@ -432,12 +462,12 @@ public final class TrunkRivulets {
                     r = 0.80F * bright;
                     g = 0.84F * bright;
                     b = 0.86F * bright;
-                    alpha = look.puddleSheen() * fresnel * grow * fog;
+                    alpha = look.puddleSheen() * fresnel * growOf(p, grow) * fog;
                 }
                 if (alpha <= 0.002F) {
                     continue;
                 }
-                disc(builder, (float) dx, (float) dy, (float) dz, look.puddleRadius() * p.size * (0.55F + 0.45F * grow), p.seed, r, g, b, alpha);
+                disc(builder, (float) dx, (float) dy, (float) dz, look.puddleRadius() * p.size * (0.55F + 0.45F * growOf(p, grow)), p.seed, r, g, b, alpha);
             }
             MeshData mesh = builder.build();
             if (mesh == null) {

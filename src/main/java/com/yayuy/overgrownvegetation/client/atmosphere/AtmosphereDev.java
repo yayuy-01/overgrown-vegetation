@@ -113,6 +113,70 @@ public final class AtmosphereDev {
         return sb.append("\n  ").append(CaveLights.describe()).toString();
     }
 
+
+    /** 確かめ用: 自然の洞窟の口を探す({@code cavedev findmouth}、11-07)。 */
+    private static String findMouth(int r) {
+        var mc = net.minecraft.client.Minecraft.getInstance();
+        var level = mc.level;
+        if (level == null || mc.player == null) {
+            return "なし";
+        }
+        net.minecraft.core.BlockPos.MutableBlockPos pos = new net.minecraft.core.BlockPos.MutableBlockPos();
+        int cx = mc.player.getBlockX();
+        int cz = mc.player.getBlockZ();
+        int[][] dirs = {{1, 0, -90}, {-1, 0, 90}, {0, 1, 0}, {0, -1, 180}};
+        java.util.List<int[]> found = new java.util.ArrayList<>();
+        int[] stage = new int[3];
+        for (int x = cx - r; x <= cx + r; x++) {
+            for (int z = cz - r; z <= cz + r; z++) {
+                if (!level.hasChunk(x >> 4, z >> 4)) {
+                    continue;
+                }
+                // 11-07: 口のすぐ内側の立てる所 = 地表から 24 段下までで、歩ける高さ 2 の空気・床あり・3 段以上の岩の天井の下・空の光 6〜11。
+                // 向きは 3 マス先の空の光がいちばん明るい方(口の外を向く)。
+                // クライアントの高さ地図は WORLD_SURFACE と MOTION_BLOCKING だけ(ほかは -64。メモリ client-heightmaps-only-two)
+                int top = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, x, z);
+                for (int y = top - 1; y > top - 32; y--) {
+                    if (!level.getBlockState(pos.set(x, y, z)).getCollisionShape(level, pos).isEmpty()
+                            || !level.getBlockState(pos.set(x, y + 1, z)).getCollisionShape(level, pos).isEmpty()
+                            || level.getBlockState(pos.set(x, y - 1, z)).getCollisionShape(level, pos).isEmpty()
+                            || !level.getFluidState(pos.set(x, y, z)).isEmpty()) {
+                        continue;
+                    }
+                    stage[0]++;
+                    int sky = level.getBrightness(net.minecraft.world.level.LightLayer.SKY, pos.set(x, y, z));
+                    if (sky >= 6 && sky <= 11) {
+                        stage[1]++;
+                    }
+                    if (sky < 6 || sky > 11 || !CaveMap.thickRoofAbove(level, x, y + 2, z, 6)) {
+                        continue;
+                    }
+                    int best = -1;
+                    int bestYaw = 0;
+                    for (int[] d : dirs) {
+                        int s = level.getBrightness(net.minecraft.world.level.LightLayer.SKY, pos.set(x + d[0] * 3, y, z + d[1] * 3));
+                        if (s > best) {
+                            best = s;
+                            bestYaw = d[2];
+                        }
+                    }
+                    stage[2]++;
+                    if (best >= 13) {
+                        found.add(new int[]{x, y, z, bestYaw, (x - cx) * (x - cx) + (z - cz) * (z - cz)});
+                    }
+                    break;
+                }
+            }
+        }
+        found.sort((a, b) -> Integer.compare(a[4], b[4]));
+        StringBuilder sb = new StringBuilder("口 " + found.size() + " か所(空気 " + stage[0] + "・空の光 6〜11 " + stage[1] + "・天井も " + stage[2] + ")");
+        for (int i = 0; i < Math.min(5, found.size()); i++) {
+            int[] f = found.get(i);
+            sb.append(" | ").append(f[0]).append(' ').append(f[1]).append(' ').append(f[2]).append(' ').append(f[3])
+                    .append(' ').append(level.getBiome(pos.set(f[0], f[1], f[2])).unwrapKey().map(k -> k.location().getPath()).orElse("?"));
+        }
+        return sb.toString();
+    }
     /** 地下の地図の確かめ(11-02): thin on = 前の数え方(1 段でも天井)・tint on = 地下の係数を赤で塗る。 */
     public static String caveDev(String what) {
         String[] p = what.trim().split(" +");
@@ -129,6 +193,44 @@ public final class AtmosphereDev {
             CaveLights.devNoFade = !on;
         } else if (p[0].equals("sinktint")) {
             CaveLights.devTintSink = on;
+        } else if (p[0].equals("worldwide")) {
+            // 11-07 地下モードを世界全体へ: cavedev worldwide off = 前の形(過繁茂の地域の地下だけ)。撮り比べ用
+            CaveLights.devOvergrownOnly = !on;
+        } else if (p[0].equals("findmouth")) {
+            // 11-07: 自然の洞窟の口のすぐ内側を探す(cavedev findmouth [半径])。歩ける高さ 2 の空気・3 段以上の岩の天井の下・空の光 6〜11 で、
+            // 3 マス先が空の光 13 以上の所。近い順に 5 つ "x y z yaw バイオーム"(yaw は口の外を向く)。
+            return findMouth(p.length > 1 ? Integer.parseInt(p[1]) : 96);
+        } else if (p[0].equals("shafts")) {
+            // 11-07 洞窟の天井の穴の光の筋: cavedev shafts off|on = 描かない・描く。cavedev shafts info = 本数と時間
+            if (p.length > 1 && p[1].equals("info")) {
+                return CaveShafts.describe();
+            }
+            CaveShafts.devOff = !on;
+        } else if (p[0].equals("held")) {
+            // 11-07 手に持った明かり: cavedev held off|on
+            CaveLights.devNoHeld = !on;
+        } else if (p[0].equals("mobfog")) {
+            // 11-08 Q1: cavedev mobfog off = Mob・粒の黒い霧を前の形(4 秒の mix)に戻す
+            CaveLights.devMobFogMix = !on;
+        } else if (p[0].equals("local")) {
+            // 11-07 カメラ切り替えの廃止: cavedev local off = 前の形(カメラの所の mix で画面全体)
+            CaveLights.devNoLocal = !on;
+        } else if (p[0].equals("roof")) {
+            // 11-07 天井の穴: cavedev roof off = 前の天井の割合の閾値(地下モードが半分で止まる)
+            CaveLights.devHalfRoof = !on;
+        } else if (p[0].equals("cavern")) {
+            // 11-07 天井の穴: cavedev cavern off = 穴の下の面にも外の霞を掛ける(前の形)
+            CaveLights.devNoCavern = !on;
+        } else if (p[0].equals("open")) {
+            // 11-07 判断の後の直し: cavedev open off = 過繁茂の外の洞窟の値(caveOpen)を使わない(判断の前の形)
+            CaveLights.devNoOpen = !on;
+        } else if (p[0].equals("adapt")) {
+            // 11-07 目の慣れ: cavedev adapt off = 目の慣れを切る(撮り比べ用)・cavedev adapt reset = 慣れを今の明るさにそろえる
+            if (p.length > 1 && p[1].equals("reset")) {
+                EyeAdaptation.reset();
+            } else {
+                EyeAdaptation.devOff = !on;
+            }
         } else if (p[0].equals("at") && p.length > 2) {
             // 地下の地図の列の中身(11-04): cavedev at <x> <z>
             try {
@@ -187,7 +289,7 @@ public final class AtmosphereDev {
         } else if (p[0].equals("puddleview") && p.length > 2) {
             // 水たまりの見える視点(11-06 夜): cavedev puddleview trunk|rain <高さ> → "VIEW x y z yaw pitch"(tp の足の位置)
             net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
-            return mc.level == null ? "ワールドなし" : "VIEW " + TrunkRivulets.viewPoint(mc.level, p[1].equals("rain"), Double.parseDouble(p[2]));
+            return mc.level == null ? "ワールドなし" : "VIEW " + TrunkRivulets.viewPoint(mc.level, p[1].equals("drip") ? 2 : p[1].equals("rain") ? 1 : 0, Double.parseDouble(p[2]));
         } else if (p[0].equals("blendleak") || p[0].equals("passgl")) {
             // 陸の日光の照りの確かめ(11-06): blendleak on = Sodium の層の描き始めで GL のブレンドを直に入れる / passgl on = 層の判定を前のブレンドの状態に戻す
             if (p[0].equals("blendleak")) {
@@ -206,7 +308,7 @@ public final class AtmosphereDev {
             var cam = mc.gameRenderer.getMainCamera().getBlockPosition();
             var biome = mc.level.getBiome(cam);
             return String.format("外の濡れ %.2f 過繁茂 %.2f 胞子 %.0f%% %s %s 雨 %.2f 降り方 %s バイオーム %s", WetSheen.openWet(), ForestPresence.overgrown(),
-                    AirHaze.sporePercent(), RainLook.describe(), TrunkRivulets.describe(),
+                    AirHaze.sporePercent(), RainLook.describe(), TrunkRivulets.describe() + " " + CanopyDrips.describe(),
                     mc.level.getRainLevel(1.0F), biome.value().getPrecipitationAt(cam), biome.unwrapKey().map(k -> k.location().toString()).orElse("?"));
         } else if (p[0].equals("air")) {
             // 胞子の空気(11-06): cavedev air [度合い 0〜1 | off] — カメラの所の濃度と度合い。数を渡すとカメラの所の度合いをその値に固定(撮り比べ)、off で戻す。

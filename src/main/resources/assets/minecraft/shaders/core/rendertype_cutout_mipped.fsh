@@ -52,19 +52,19 @@ void main() {
     color.rgb = ovCaveWaterBottom(color.rgb, ovPos, ovNormal, ovUnder);
     // The glowing pixels: while the camera is outside they go in before the forest haze, and deep in a cave they stay dim (11-04).
     float ovGlow = ovCaveGlow(tex.rgb, ovPos, ovUnder);
-    color.rgb = mix(color.rgb, tex.rgb * ovTint, ovGlow * (1.0 - OvCave.y));
+    color.rgb = mix(color.rgb, tex.rgb * ovTint, ovGlow * (1.0 - ovCaveCam()));
     vec3 ovLit = color.rgb;
     color.rgb = mix(color.rgb, ovFog.rgb, ovFog.a);
     vec3 ovSurface = color.rgb;
     // The far forest loses a little saturation (A6; aerial perspective).
     color.rgb = mix(color.rgb, vec3(dot(color.rgb, vec3(0.299, 0.587, 0.114))), OvFogI.x * smoothstep(OvFogI.y, OvFogI.z, vertexDistance));
-    fragColor = linear_fog(color, vertexDistance, FogStart, FogEnd, ovShadedFogColor(FogColor, FogStart, ovLight.y, vertexDistance, ovPos));
+    fragColor = linear_fog(color, vertexDistance, ovFogS(FogStart), ovFogE(FogEnd), ovShadedFogColor(ovFogC(FogColor), ovFogS(FogStart), ovLight.y, vertexDistance, ovPos));
     // The fog by where the fragment is: caves seen from outside sink into black, the outside seen from a cave stays bright (ov_cave.glsl).
     // How far the usual fogs moved this fragment toward the haze, for the cave part of the view (ov_cave.glsl, 11-04).
     float ovPathLen = ovCavePath(vertexDistance, ovUnder);
-    ovCaveSetHaze(ovFog, ovShadedFogColor(FogColor, FogStart, ovLight.y, vertexDistance, ovPos), vertexDistance, ovPathLen, linear_fog(vec4(0.0, 0.0, 0.0, 1.0), vertexDistance, FogStart, FogEnd, vec4(1.0)).r,
-                  linear_fog(vec4(0.0, 0.0, 0.0, 1.0), ovPathLen, FogStart, FogEnd, vec4(1.0)).r);
+    ovCaveSetHaze(ovFog, ovShadedFogColor(ovFogC(FogColor), ovFogS(FogStart), ovLight.y, vertexDistance, ovPos), vertexDistance, ovPathLen, linear_fog(vec4(0.0, 0.0, 0.0, 1.0), vertexDistance, ovFogS(FogStart), ovFogE(FogEnd), vec4(1.0)).r,
+                  linear_fog(vec4(0.0, 0.0, 0.0, 1.0), ovPathLen, ovFogS(FogStart), ovFogE(FogEnd), vec4(1.0)).r);
     fragColor.rgb = ovCaveFog(fragColor.rgb, ovLit, ovSurface, vertexDistance, ovUnder);
     // The glowing pixels of the cave light blocks stay out of the fog (ov_cave.glsl).
-    fragColor.rgb = mix(fragColor.rgb, tex.rgb * ovTint * (1.0 - ovSink * OvCaveMouth.z), ovGlow * max(OvCave.y, ovSink));
+    fragColor.rgb = mix(fragColor.rgb, tex.rgb * ovTint * (1.0 - ovSink * OvCaveMouth.z), ovGlow * max(ovCaveCam(), ovSink));
 }

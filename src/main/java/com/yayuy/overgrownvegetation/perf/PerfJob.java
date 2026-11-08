@@ -16,6 +16,8 @@ public enum PerfJob {
     SPORE_CAVE_MOUTHS("洞窟の口の測り(胞子の地下の層)", true),
     /** 洞窟の壁を這う汚染(2026-11-04)。 */
     CAVE_WALL_CREEP("洞窟の壁を這う汚染", true),
+    /** 菌糸の染み下り(過繁茂の地下を地表から底へ。読み込んだときの追いつきも、2026-11-07)。 */
+    MYCELIUM_SEEP("菌糸の染み下り(地下)", true),
     /** 走り待ちの芽の点(上限超え・読み込まれていない点を後で走らせる。2026-11-04)。 */
     SPORE_SPROUT_QUEUE("芽の点の待ち行列", true),
     SPORE_DEPOSIT_SWEEP("降り積もりによる繁茂化", true),

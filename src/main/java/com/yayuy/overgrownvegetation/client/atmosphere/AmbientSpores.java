@@ -221,7 +221,7 @@ final class AmbientSpores {
         float cave = 0.0F;
         if (CaveLights.mix() > 0.0F) {
             var cp = DesignData.atmosphere().cave();
-            cave = Mth.clamp(CaveLights.intensityAt(cam.x, cam.y, cam.z) * cp.lightGain() * cp.entityGain() + CaveLights.ambient() * CaveLights.mix(), 0.0F, 1.0F);
+            cave = Mth.clamp(CaveLights.intensityAt(cam.x, cam.y, cam.z) * CaveLights.lightGain() * cp.entityGain() + CaveLights.ambient() * CaveLights.mix(), 0.0F, 1.0F);
         }
         float bright = 0.25F + 0.75F * Math.max(Math.max(sky, block * 0.8F), cave);
 

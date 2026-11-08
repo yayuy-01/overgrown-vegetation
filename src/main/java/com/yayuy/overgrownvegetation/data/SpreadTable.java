@@ -20,6 +20,43 @@ public final class SpreadTable {
         public Boolean sleepAdvancesClock;
         public Boolean sleepGivesPhasePoints;
         public CatchUp catchUp;
+        public WallPlantsJson wallPlants;
+    }
+
+    /**
+     * {@code wallPlants} 節(壁の側面の植物を場所で選ぶ、2026-11-08。{@code corruption/WallPlantGrowth})。数はすべて仮決め。
+     * 重みは場所ごとの相対の重み。引いたものが置けない所(垂れ苔は真上が固体の面だけ)では何も置かない。
+     */
+    public static final class WallPlantsJson {
+        /** 空の光がこれ以上なら地上(湿っていないとき)。 */
+        public Integer skyLight;
+        /** 湿った壁とみなす水の探す半径(ブロック。上下は -2〜+1)。 */
+        public Integer wetRadius;
+        public Double surfaceLycopsid, surfaceMoss, surfaceFern;
+        public Double wetMoss, wetFern, wetFernLarge;
+        public Double caveMoss, caveSporeSacs, caveBracket;
+        /** 地上の壁の小葉類のうちヒカゲノカズラ(form 2)にする割合。 */
+        public Double clubmossShare;
+    }
+
+    /** 壁の植物の値(仮決め)。 */
+    public record WallPlants(int skyLight, int wetRadius, double surfaceLycopsid, double surfaceMoss, double surfaceFern,
+                             double wetMoss, double wetFern, double wetFernLarge, double caveMoss, double caveSporeSacs, double caveBracket,
+                             double clubmossShare) {
+        static WallPlants of(WallPlantsJson j) {
+            WallPlantsJson s = j != null ? j : new WallPlantsJson();
+            return new WallPlants(
+                    s.skyLight != null ? Math.max(0, Math.min(15, s.skyLight)) : 10,
+                    s.wetRadius != null ? Math.max(0, Math.min(4, s.wetRadius)) : 2,
+                    w(s.surfaceLycopsid, 5), w(s.surfaceMoss, 2), w(s.surfaceFern, 1),
+                    w(s.wetMoss, 4), w(s.wetFern, 2), w(s.wetFernLarge, 1),
+                    w(s.caveMoss, 5), w(s.caveSporeSacs, 2), w(s.caveBracket, 1),
+                    s.clubmossShare != null ? Math.max(0.0D, Math.min(1.0D, s.clubmossShare)) : 0.3D);
+        }
+
+        private static double w(Double v, double def) {
+            return v != null ? Math.max(0.0D, v) : def;
+        }
     }
 
     /** {@code catchUp} 節(読み込まれたチャンクを書き換える)。 */
@@ -43,6 +80,7 @@ public final class SpreadTable {
     private final int surfaceDepth;
     private final int placementsPerTick;
     private final int columnsPerTick;
+    private final WallPlants wallPlants;
 
     private SpreadTable(Json j) {
         Json src = j != null ? j : new Json();
@@ -55,6 +93,7 @@ public final class SpreadTable {
         this.surfaceDepth = c.surfaceDepth != null ? Math.max(1, Math.min(16, c.surfaceDepth)) : 4;
         this.placementsPerTick = c.placementsPerTick != null ? Math.max(1, c.placementsPerTick) : 512;
         this.columnsPerTick = c.columnsPerTick != null ? Math.max(1, c.columnsPerTick) : 2048;
+        this.wallPlants = WallPlants.of(src.wallPlants);
     }
 
     /** 睡眠で飛ばした夜を汚染の暦に足すか(ユーザー指定)。 */
@@ -92,6 +131,11 @@ public final class SpreadTable {
         return columnsPerTick;
     }
 
+    /** 壁の植物を場所で選ぶ値(2026-11-08、仮決め)。 */
+    public WallPlants wallPlants() {
+        return wallPlants;
+    }
+
     /** 全部の値を決まった順に並べた文字列(同梱の json と Java の既定値を比べるテスト用)。 */
     public String describe() {
         Map<String, Object> out = new TreeMap<>();
@@ -102,6 +146,7 @@ public final class SpreadTable {
         out.put("surfaceDepth", surfaceDepth);
         out.put("placementsPerTick", placementsPerTick);
         out.put("columnsPerTick", columnsPerTick);
+        out.put("wallPlants", wallPlants.toString());
         return out.toString();
     }
 

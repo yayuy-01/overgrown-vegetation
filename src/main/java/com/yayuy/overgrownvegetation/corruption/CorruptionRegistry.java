@@ -215,7 +215,7 @@ public final class CorruptionRegistry {
 
         // --- 薄い植物 ---
         // Blocks.VINE はここにも入れてあるが、通常は corrupt() 冒頭の特別処理
-        // (corruptVine) が先に横向きの面を見つけて OVERGROWN_CREEPING_VINE に変換する。
+        // (corruptVine) が先に横向きの面を見つけて WALL_LYCOPSID に変換する。
         // ここに残しているのは、上面(天井)にしか張り付いていない特殊な状態など
         // 横向きの面が無い場合のフォールバック用。
         // 積もった雪(SnowLayerBlock)はここには入れない。corrupt() 冒頭で「何にも変換せず
@@ -409,7 +409,7 @@ public final class CorruptionRegistry {
 
     /**
      * バニラの蔦({@link VineBlock})を、対応する壁1面に薄く張り付く
-     * {@link ModBlocks#OVERGROWN_CREEPING_VINE} へ変換する。
+     * {@link ModBlocks#WALL_LYCOPSID}(壁の小葉類の扇。2026-11-08 まで這い蔦)へ変換する。
      *
      * <p>バニラの蔦は {@code NORTH}/{@code SOUTH}/{@code EAST}/{@code WEST}(+ {@code UP})の
      * 面を同時に複数持てるが、こちらは {@link net.minecraft.world.level.block.HorizontalDirectionalBlock}
@@ -428,7 +428,7 @@ public final class CorruptionRegistry {
         for (Direction direction : Direction.Plane.HORIZONTAL) {
             BooleanProperty faceProperty = VineBlock.getPropertyForFace(direction);
             if (state.getValue(faceProperty)) {
-                return ModBlocks.OVERGROWN_CREEPING_VINE.get().defaultBlockState()
+                return ModBlocks.WALL_LYCOPSID.get().defaultBlockState()
                         .setValue(HorizontalDirectionalBlock.FACING, direction.getOpposite());
             }
         }

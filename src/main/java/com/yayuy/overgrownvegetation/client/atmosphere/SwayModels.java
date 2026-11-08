@@ -94,8 +94,8 @@ public final class SwayModels {
         wrapped += wrap(models, ModBlocks.OVERGROWN_BUSH, state -> Mode.WHOLE);
         wrapped += wrap(models, ModBlocks.OVERGROWN_GLOW_VINES, state -> Mode.WHOLE);
         wrapped += wrap(models, ModBlocks.OVERGROWN_GLOW_VINES_PLANT, state -> Mode.WHOLE);
-        wrapped += wrap(models, ModBlocks.OVERGROWN_CREEPING_VINE, state -> Mode.PLANAR);
-        wrapped += wrap(models, ModBlocks.OVERGROWN_THORN_VINE, state -> Mode.PLANAR);
+        wrapped += wrap(models, ModBlocks.WALL_LYCOPSID, state -> Mode.PLANAR);
+        wrapped += wrap(models, ModBlocks.HANGING_MOSS, state -> Mode.HANGING);
         wrapped += wrap(models, ModBlocks.UNDEVELOPED_BUSH, state -> Mode.GROUND);
         wrapped += wrap(models, ModBlocks.OVERGROWN_TALL_FERN, state ->
                 state.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF) && state.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.UPPER

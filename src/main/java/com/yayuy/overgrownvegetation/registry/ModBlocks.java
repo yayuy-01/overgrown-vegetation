@@ -1,7 +1,8 @@
 package com.yayuy.overgrownvegetation.registry;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.block.CorruptedFlushWallGrowthBlock;
+import com.yayuy.overgrownvegetation.block.SmallWallGrowthBlock;
+import com.yayuy.overgrownvegetation.block.WallFormGrowthBlock;
 import com.yayuy.overgrownvegetation.block.CorruptedGeoGrowthBlock;
 import com.yayuy.overgrownvegetation.block.CorruptedGroundGrowthBlock;
 import com.yayuy.overgrownvegetation.block.CorruptedHangingGrowthBlock;
@@ -879,17 +880,33 @@ public final class ModBlocks {
             "undeveloped_bush", UndevelopedBushBlock::new,
             crossGrowthProperties(SoundType.SWEET_BERRY_BUSH).randomTicks());
 
-    /** 這い蔦(側面)。他の側面装飾と違い、壁からせり出さず表面に薄く張り付く見た目。 */
-    public static final DeferredBlock<Block> OVERGROWN_CREEPING_VINE = BLOCKS.registerBlock(
-            "overgrown_creeping_vine", CorruptedFlushWallGrowthBlock::new, wallGrowthProperties(SoundType.VINE));
+    // 壁の側面の植物(2026-11-08 作り直し。下絵は tools/wall-plants、どこに何を置くかは corruption/WallPlantGrowth)。
+    // 前の 這い蔦 overgrown_creeping_vine・棚苔癬 overgrown_shelf_lichen・棘蔦 overgrown_thorn_vine は消し、
+    // 既存のワールドでは別名(register の addAlias)で 壁の小葉類・垂れ苔 に置き換わる。
 
-    /** 棚苔癬(側面)。 */
-    public static final DeferredBlock<Block> OVERGROWN_SHELF_LICHEN = BLOCKS.registerBlock(
-            "overgrown_shelf_lichen", CorruptedWallGrowthBlock::new, wallGrowthProperties(SoundType.GLOW_LICHEN));
+    /** 壁シダの小さな房(A1)。巻きシダの葉を借りた立体(geo_static)。 */
+    public static final DeferredBlock<Block> WALL_FERN = BLOCKS.registerBlock(
+            "wall_fern", CorruptedWallGrowthBlock::new, wallGrowthProperties(SoundType.GRASS));
 
-    /** 棘蔦(側面)。 */
-    public static final DeferredBlock<Block> OVERGROWN_THORN_VINE = BLOCKS.registerBlock(
-            "overgrown_thorn_vine", CorruptedWallGrowthBlock::new, wallGrowthProperties(SoundType.SWEET_BERRY_BUSH));
+    /** 大きく垂れる壁シダ(A2)。湿った壁だけ。下のブロックへ葉先が垂れる。 */
+    public static final DeferredBlock<Block> WALL_FERN_LARGE = BLOCKS.registerBlock(
+            "wall_fern_large", CorruptedWallGrowthBlock::new, wallGrowthProperties(SoundType.GRASS));
+
+    /** 壁を這う小葉類(B)。form 0 = 扇、1 = 床から続く最下段、2 = ヒカゲノカズラ。壁に貼る板。 */
+    public static final DeferredBlock<Block> WALL_LYCOPSID = BLOCKS.registerBlock(
+            "wall_lycopsid", WallFormGrowthBlock::flush, wallGrowthProperties(SoundType.VINE));
+
+    /** 垂れ苔(C)。form 0 = 長い、1 = 短い、2 = 洞窟の灰緑。上の縁から手前へ傾けた板。 */
+    public static final DeferredBlock<Block> HANGING_MOSS = BLOCKS.registerBlock(
+            "hanging_moss", WallFormGrowthBlock::hanging, wallGrowthProperties(SoundType.MOSS_CARPET));
+
+    /** 胞子嚢のこぶ(F)。幹の胞子嚢(S6)の小型版。暗い壁。 */
+    public static final DeferredBlock<Block> WALL_SPORE_SACS = BLOCKS.registerBlock(
+            "wall_spore_sacs", SmallWallGrowthBlock::new, wallGrowthProperties(SoundType.FROGSPAWN));
+
+    /** 壁の小さな菌の棚(D)。洞窟の白い菌。倒木の棚の菌(ユーザーの模型)を小さくしたもの。 */
+    public static final DeferredBlock<Block> WALL_BRACKET_FUNGUS = BLOCKS.registerBlock(
+            "wall_bracket_fungus", SmallWallGrowthBlock::new, wallGrowthProperties(SoundType.FUNGUS));
 
     // 側面・底面に生えるもの(2026-11-01)。どれも木の生成の後に worldgen.TreeSideGrowth が置く(S1 は汚染の広がりでも幹の面に生える)。
 
@@ -1453,9 +1470,12 @@ public final class ModBlocks {
                 OVERGROWN_SPORE_BLOOM,
                 OVERGROWN_ZENMAI,
                 UNDEVELOPED_BUSH,
-                OVERGROWN_CREEPING_VINE,
-                OVERGROWN_SHELF_LICHEN,
-                OVERGROWN_THORN_VINE,
+                WALL_FERN,
+                WALL_FERN_LARGE,
+                WALL_LYCOPSID,
+                HANGING_MOSS,
+                WALL_SPORE_SACS,
+                WALL_BRACKET_FUNGUS,
                 AERIAL_ROOT,
                 AERIAL_ROOT_PILLAR,
                 BEARD_LICHEN,
@@ -1491,7 +1511,7 @@ public final class ModBlocks {
     }
 
     public static List<DeferredBlock<Block>> sideGrowthBlocks() {
-        return List.of(OVERGROWN_CREEPING_VINE, OVERGROWN_SHELF_LICHEN, OVERGROWN_THORN_VINE);
+        return List.of(WALL_FERN, WALL_FERN_LARGE, WALL_LYCOPSID, HANGING_MOSS, WALL_SPORE_SACS, WALL_BRACKET_FUNGUS);
     }
 
     public static List<DeferredBlock<Block>> hangingGrowthBlocks() {
@@ -1504,6 +1524,10 @@ public final class ModBlocks {
     }
 
     public static void register(IEventBus modBus) {
+        // 消した壁の植物(2026-11-08)を新しい植物へ写す。向き(facing)は同じ名前なので引き継がれ、form は既定の 0。
+        BLOCKS.addAlias(OvergrownVegetation.id("overgrown_creeping_vine"), OvergrownVegetation.id("wall_lycopsid"));
+        BLOCKS.addAlias(OvergrownVegetation.id("overgrown_thorn_vine"), OvergrownVegetation.id("wall_lycopsid"));
+        BLOCKS.addAlias(OvergrownVegetation.id("overgrown_shelf_lichen"), OvergrownVegetation.id("hanging_moss"));
         BLOCKS.register(modBus);
     }
 

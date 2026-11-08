@@ -114,7 +114,8 @@ public final class CaveLights {
 
     /** 地下モードの床の持ち上げ(確かめ用の上書き込み)。 */
     public static float ambient() {
-        return devAmbient >= 0.0F ? devAmbient : DesignData.atmosphere().cave().ambient();
+        // 11-07 目の慣れ: 洞窟へ入った直後は床の持ち上げを絞る(光源だけが見え、数秒で岩の輪郭が見えてくる)
+        return (devAmbient >= 0.0F ? devAmbient : DesignData.atmosphere().cave().ambient()) * EyeAdaptation.ambientScale();
     }
 
     private static int texture;
@@ -156,7 +157,7 @@ public final class CaveLights {
      * Mob ごとに色を変えることはできない(ライトマップは 1 枚)ので、カメラの所の色で代える(11-04 洞窟の直し 3)。
      */
     private static void updateTint(Vec3 eye, AtmosphereCave.CaveParams p) {
-        float[] ac = p.ambientColor();
+        float[] ac = ambientColor();
         float amb = ambient();
         float r = ac[0] * amb;
         float g = ac[1] * amb;
@@ -196,7 +197,7 @@ public final class CaveLights {
         if (m <= 0.001F || block <= 0) {
             return abgr;
         }
-        float w = m * tintStrength * Math.min(1.0F, block / TINT_FULL_LEVEL) * (1.0F - sky / 15.0F);
+        float w = m * tintStrength * Mth.lerp(openShare(), 1.0F, DesignData.atmosphere().caveOpen().tint()) * Math.min(1.0F, block / TINT_FULL_LEVEL) * (1.0F - sky / 15.0F);
         if (w <= 0.001F) {
             return abgr;
         }
@@ -229,6 +230,8 @@ public final class CaveLights {
         shownWeight = new float[0];
         fading.clear();
         scannedAt = -1_000_000L;
+        ogBlend = Float.NaN;
+        camLocal = 0.0F;
         CaveMap.clear();
     }
 
@@ -261,10 +264,10 @@ public final class CaveLights {
 
     // ---- バニラ(と他の MOD)の光源(11-04 地下の光の直し 8。溶岩・松明・グロウストーンが周りを照らさず、溶岩の隣の床が緑のままだった) ----
 
-    /** 色の系統: 0 = 炎(溶岩・マグマ・火・焚き火)、1 = 灯り(松明・ランタン・ろうそく)、2 = 淡い黄(グロウストーン・シュルームライト・ジャック・オ・ランタン)、3 = 冷たい光(シーランタン・エンドロッド・魂の火)。 */
-    private static final int[] FAMILY_RGB = {0xFF7A1E, 0xFFC46A, 0xFFE3A0, 0xA8DCFF};
+    /** 色の系統: 0 = 炎(溶岩・マグマ・火・焚き火)、1 = 灯り(松明・ランタン・ろうそく)、2 = 淡い黄(グロウストーン・シュルームライト・ジャック・オ・ランタン)、3 = 冷たい光(シーランタン・エンドロッド・魂の火)、4 = 地衣・スカルクの青緑(光る地衣類・スカルクカタリスト)、5 = アメジストの紫(11-07 世界全体へ: 普通の洞窟の光源。前はどちらも淡い黄。色は仮決め)。 */
+    private static final int[] FAMILY_RGB = {0xFF7A1E, 0xFFC46A, 0xFFE3A0, 0xA8DCFF, 0x8FE0C8, 0xC79BFF};
     /** 強さ(仮決め。発光 15 のとき)。 */
-    private static final float[] FAMILY_STRENGTH = {0.6F, 0.6F, 0.5F, 0.5F};
+    private static final float[] FAMILY_STRENGTH = {0.6F, 0.6F, 0.5F, 0.5F, 0.35F, 0.35F};
     /** 系統 × 発光の段(1〜15)の種類(作業スレッドからも読むので先に作る)。 */
     private static final Kind[][] VANILLA = vanillaKinds(false);
     /** 同じ表の、炎のゆらぎを付ける種類(11-06 光源 7。松明・焚き火・溶岩・マグマ・火・ジャック・オ・ランタン・ろうそく)。 */
@@ -291,7 +294,7 @@ public final class CaveLights {
      * 発光の段 {@code getLightEmission()} が 5 未満のもの(マグマ 3・苔むした光る地衣類 7 未満など)は光源にしない(弱い光で 24 の枠を食わないように。仮決め)。
      */
     @Nullable
-    private static Kind vanilla(BlockState state) {
+    static Kind vanilla(BlockState state) {
         int e = state.getLightEmission();
         if (e < 5) {
             return null;
@@ -316,6 +319,10 @@ public final class CaveLights {
             family = 1;
             // 松明・ろうそくだけゆらぐ。ランタン(ガラスの中)とレッドストーンの松明はゆらがない(仮決め)
             flame = path.contains("candle") || path.contains("torch") && !path.contains("redstone");
+        } else if (!devOvergrownOnly && (path.contains("glow_lichen") || path.contains("sculk"))) {
+            family = 4;
+        } else if (!devOvergrownOnly && path.contains("amethyst")) {
+            family = 5;
         } else {
             family = 2;
         }
@@ -329,16 +336,26 @@ public final class CaveLights {
             return;
         }
         AtmosphereCave.CaveParams p = DesignData.atmosphere().cave();
-        if (ticks % 10 == 3) {
+        // 11-07(カメラ切り替えの廃止): カメラの所の値は場所ごとの判定の一つとして地形のシェーダーが読むので、0.5 秒おきでは歩くと段が出る。毎 2 tick にした。
+        if (ticks % 2 == 1) {
             mixTarget = target(level, eye, p);
         }
         // 11-01 夜(ユーザー「地上 → 洞窟の変わり目をもっとゆっくり」): 1 秒の直線 → 時定数 transitionCaveSeconds(4 秒)の指数。
         // 黒い霧・点光源の強さ(シェーダーで × mix)・Mob の明るさがどれもこの値なので、まとめて滑らかになる。
-        mix = ForestPresence.approach(mix, mixTarget, 0.05F, DesignData.atmosphere().fog().transitionCaveSeconds());
+        // 11-07 目の慣れ: 白く飛んでいる(暗く沈んでいる)間は早めに寄せて、つなぎ目を隠す
+        mix = ForestPresence.approach(mix, mixTarget, 0.05F, EyeAdaptation.transitionSeconds(DesignData.atmosphere().fog().transitionCaveSeconds()));
+        // カメラの所の場所の値(地形のシェーダーの OvCaveLocal.y)。段だけ均す 0.3 秒(仮決め)。
+        camLocal = ForestPresence.approach(camLocal, mixTarget, 0.05F, 0.3F);
+        // 11-07: カメラが洞窟の奥(いちばん近い口から 8〜24 列)にいる度合い。DH の遠景の霧の色を洞窟の色へ寄せるのに使う(MistView)
+        float[] ct = CaveMap.texel(Mth.floor(eye.x), Mth.floor(eye.z));
+        float deepGoal = ct == null || ct[0] < -9000.0F ? 0.0F : SunLight.smooth(Mth.clamp((ct[2] - 8.0F) / 16.0F, 0.0F, 1.0F));
+        camDeep = ForestPresence.approach(camDeep, deepGoal, 0.05F, 1.0F);
         if (mix > 0.001F) {
             updateTint(eye, p);
         }
         night = nightFactor(level);
+        // 11-07 判断の後の直し: 過繁茂の度合い(過繁茂の外の洞窟の値と混ぜる)
+        blendOpen(eye);
         if (scanning != null && scanning.isDone()) {
             Light[] done = scanning.getNow(null);
             scanning = null;
@@ -347,9 +364,14 @@ public final class CaveLights {
             }
         }
         // 11-01 夜(見え方の直し 4): 断片の所で地下を決める地図。カメラが外でも、まわりに過繁茂の地下があれば光源を集める(外から洞窟の中が照らされて見える)。
-        CaveMap.tick(level, eye, ticks);
+        // 11-07: 世界全体へ。空の光の無い次元(ネザー)は地図も作らない(岩盤の天井の下が全部「地下」になる)。
+        if (level.dimensionType().hasSkyLight()) {
+            CaveMap.tick(level, eye, ticks);
+        } else {
+            CaveMap.clear();
+        }
         // 11-06 光源 6: 地上の夜も集める(バニラの光量はそのまま、面の色と向きだけ光源に寄せる。ov_cave.glsl の ovCaveLight)
-        if (mix <= 0.0F && mixTarget <= 0.0F && !CaveMap.nearOvergrown() && night <= 0.0F) {
+        if (mix <= 0.0F && mixTarget <= 0.0F && !CaveMap.nearRoof() && night <= 0.0F) {
             found = new Light[0];
             return;
         }
@@ -454,28 +476,269 @@ public final class CaveLights {
         return total > 0.0F ? roofed / total : 0.0F;
     }
 
-    /** 地下モードの目標(岩の天井の下・過繁茂の地域・空の光の暗さ)。 */
+    /**
+     * 地下モードの目標(岩の天井の下・空の光の暗さ)。11-07 ユーザー決定「洞窟のシェーダーも他と同じく過繁茂したバイオーム以外でも効くように」で
+     * 過繁茂の地域の縛りを外した(世界全体の層。過繁茂かどうかは {@link #overgrownHere} に分け、洞窟の音だけが読む)。
+     * 空の光の無い次元(ネザー・エンド)は 0 のまま({@link CaveMap#thickRoofAbove} はそこで常に天井なので、ここで切らないと全部が地下になる)。
+     */
     private static float target(ClientLevel level, Vec3 eye, AtmosphereCave.CaveParams p) {
-        float roof = SunLight.smooth(Mth.clamp((roofFraction(level, eye) - 0.3F) / 0.6F, 0.0F, 1.0F));
-        if (roof <= 0.0F) {
+        if (!level.dimensionType().hasSkyLight()) {
+            overgrownHere = false;
             return 0.0F;
         }
         BlockPos at = BlockPos.containing(eye);
+        float sky = level.getBrightness(LightLayer.SKY, at);
+        float dark = Mth.clamp((p.skyFrom() - sky) / (p.skyFrom() - p.skyTo()), 0.0F, 1.0F);
+        // 11-07(天井に穴の開いた大きな洞窟): 17 列のうち穴の下の列は天井が無いので、前の式(割合 0.3〜0.9)では、空の光 0 の暗い所でも
+        // 地下モードが半分ほどで止まり、霧が中途半端に掛かった。カメラの所が暗いほど、少ない天井で地下とみなす(暗さ 1 で割合 0.05〜0.35。仮決め)。
+        float roofLo = devHalfRoof ? 0.3F : Mth.lerp(dark, 0.3F, 0.05F);
+        float roofHi = devHalfRoof ? 0.9F : Mth.lerp(dark, 0.9F, 0.35F);
+        float roof = SunLight.smooth(Mth.clamp((roofFraction(level, eye) - roofLo) / (roofHi - roofLo), 0.0F, 1.0F));
         boolean overgrown = ModBiomes.isOvergrownLike(level.getBiome(at));
         if (!overgrown) {
             int top = level.getHeight(Heightmap.Types.WORLD_SURFACE, at.getX(), at.getZ()) - 1;
             overgrown = top > at.getY() && ModBiomes.isOvergrownLike(level.getBiome(new BlockPos(at.getX(), top, at.getZ())));
         }
-        if (!overgrown) {
+        overgrownHere = overgrown;
+        if (roof <= 0.0F || devOvergrownOnly && !overgrown) {
             return 0.0F;
         }
-        float sky = level.getBrightness(LightLayer.SKY, at);
-        float dark = Mth.clamp((p.skyFrom() - sky) / (p.skyFrom() - p.skyTo()), 0.0F, 1.0F);
         return roof * SunLight.smooth(dark);
     }
 
+    /** カメラの所(か、その列の地表)が過繁茂の地域か({@link #target} が 0.5 秒おきに書く)。 */
+    private static boolean overgrownHere;
+    /** 確かめ用: 真なら前の形(過繁茂の地域の地下だけ)。devbridge の {@code wind cavedev worldwide off}(11-07)。 */
+    static boolean devOvergrownOnly;
+    /** 確かめ用: 真なら前の天井の割合の閾値(0.3〜0.9)。wind cavedev roof off(11-07 天井の穴)。 */
+    static boolean devHalfRoof;
+    /** 確かめ用: 真なら天井の穴の下の面も外の霞のまま(前の形)。wind cavedev cavern off(11-07)。 */
+    static boolean devNoCavern;
+
+    /**
+     * 過繁茂の地域の地下の度合い(0〜1 = 地下モードの係数 × 過繁茂の地域か)。洞窟の音 {@code CaveSound} はこれで鳴る(11-07: 地下モードは世界全体へ広げたが、
+     * 滴・根の軋みは過繁茂の洞窟の音として残す。水の音などと同じ扱い)。
+     */
+    public static float overgrownMix() {
+        return overgrownHere ? mix : 0.0F;
+    }
+
+
+    // ---- 手に持った明かり(11-07 ユーザー決定、設計値 heldLights。値は仮決め) ----
+    // たいまつ・ランタン・光る植物など光るブロックのアイテムを手(メインかオフ)に持つと、その人の手の所に点光源を 1 つ足す。地形のシェーダーの表の先頭と
+    // 動く光(DynamicLights)に入る。見た目だけ(湧き・作物には効かない)。地下でも地上の夜でも効き、明るい所(空の光 × 昼)ほど弱める。
+
+    /** 手に持った明かりの上限(表の先頭の枠)。 */
+    static final int HELD_MAX = 4;
+    /** このフレームの表の先頭のうち、手に持った明かりの数。 */
+    private static volatile int shownHeld;
+    private static boolean heldWritten;
+    /** 手に持った明かりのゆらぎの位相(持ち主ごと)。 */
+    private static final int[] heldSeeds = new int[HELD_MAX];
+
+    public static int heldCount() {
+        return shownHeld;
+    }
+
+    /** 光を出すブロックのアイテムなら、その種類(この MOD の光る植物も)。 */
+    @Nullable
+    private static Kind heldKind(net.minecraft.world.item.ItemStack stack) {
+        if (stack.isEmpty() || !(stack.getItem() instanceof net.minecraft.world.item.BlockItem bi)) {
+            return null;
+        }
+        BlockState state = bi.getBlock().defaultBlockState();
+        Kind k = lookup(state);
+        if (k == null && state.getLightEmission() >= 5) {
+            k = vanilla(state);
+        }
+        if (k == null && state.is(ModBlocks.GLOW_TASSEL.get())) {
+            k = TASSEL;
+        }
+        return k;
+    }
+
+    /** このフレームの手に持った明かり(近い順、最大 {@link #HELD_MAX})。 */
+    private static Light[] heldLights(RenderLevelStageEvent event, AtmosphereCave.CaveParams p) {
+        var hp = DesignData.atmosphere().heldLights();
+        Minecraft mc = Minecraft.getInstance();
+        ClientLevel level = mc.level;
+        if (!hp.enabled() || devNoHeld || level == null || mc.player == null || VisualQuality.atmosphereTier() >= 2) {
+            return new Light[0];
+        }
+        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        Vec3 cam = event.getCamera().getPosition();
+        float day = level.dimensionType().hasSkyLight() ? Mth.clamp((level.getSkyDarken(1.0F) - 0.2F) / 0.8F, 0.0F, 1.0F) : 0.0F;
+        List<Light> out = new ArrayList<>();
+        List<Integer> seeds = new ArrayList<>();
+        for (net.minecraft.world.entity.player.Player pl : level.players()) {
+            boolean self = pl == mc.player;
+            if (!self && (!hp.otherPlayers() || pl.distanceToSqr(cam) > (double) hp.otherRange() * hp.otherRange() || pl.isInvisible())) {
+                continue;
+            }
+            Kind k = heldKind(pl.getMainHandItem());
+            if (k == null) {
+                k = heldKind(pl.getOffhandItem());
+            }
+            if (k == null) {
+                continue;
+            }
+            // 手の所: 目の 0.45 下・見ている向きへ水平に 0.35
+            Vec3 at = pl.getPosition(partial);
+            Vec3 look = pl.getViewVector(partial);
+            double hl = Math.sqrt(look.x * look.x + look.z * look.z);
+            double fx = hl > 1.0E-4 ? look.x / hl * 0.35 : 0.0;
+            double fz = hl > 1.0E-4 ? look.z / hl * 0.35 : 0.0;
+            double y = at.y + pl.getEyeHeight() - 0.45;
+            BlockPos bp = BlockPos.containing(at.x, y, at.z);
+            // 明るい所ほど弱く: 空の光 × 昼の明るさ(地下・夜は 1)
+            float sky = level.getBrightness(LightLayer.SKY, bp) / 15.0F;
+            float dark = 1.0F - Mth.clamp(sky * day, 0.0F, 1.0F) * hp.daylightCut();
+            float strength = k.strength() * hp.strength() * dark;
+            if (strength < 0.01F) {
+                continue;
+            }
+            Kind hk = new Kind(k.radius() * hp.radiusScale(), k.r(), k.g(), k.b(), strength, false, k.family(), k.flame());
+            out.add(new Light(at.x + fx, y, at.z + fz, hk));
+            seeds.add(pl.getId());
+        }
+        // 近い順に上限まで(自分は距離 0 なので先頭)
+        Integer[] idx = new Integer[out.size()];
+        for (int i = 0; i < idx.length; i++) {
+            idx[i] = i;
+        }
+        Arrays.sort(idx, (a, b) -> Double.compare(dist2(out.get(a), cam), dist2(out.get(b), cam)));
+        int n = Math.min(HELD_MAX, idx.length);
+        Light[] res = new Light[n];
+        for (int i = 0; i < n; i++) {
+            res[i] = out.get(idx[i]);
+            heldSeeds[i] = seeds.get(idx[i]);
+        }
+        return res;
+    }
+
+    /** 手に持った明かりの炎のゆらぎ(持ち主ごとの決まった位相。位置で決めると歩くたびに位相が跳ぶ)。 */
+    private static float heldFlicker(Light l, int seed, double sec, float amp) {
+        if (!l.kind.flame() || amp <= 0.0F) {
+            return 1.0F;
+        }
+        int h = Mth.murmurHash3Mixer(seed * 0x9E3779B1);
+        double pa = (h & 0xFFFF) / 65536.0 * Math.PI * 2.0;
+        double pb = (h >>> 16 & 0xFFFF) / 65536.0 * Math.PI * 2.0;
+        double wave = 0.6 * Math.sin(2.0 * Math.PI * sec / FLICKER_A + pa) + 0.4 * Math.sin(2.0 * Math.PI * sec / FLICKER_B + pb);
+        double u = sec / FLICKER_NOISE + (h & 0xFF) / 256.0;
+        long k = (long) Math.floor(u);
+        double f = u - k;
+        f = f * f * (3.0 - 2.0 * f);
+        wave = (wave + 0.3 * (noise(h, k) + (noise(h, k + 1) - noise(h, k)) * f)) / 1.3;
+        return (float) (1.0 + amp * Mth.clamp(wave, -1.0, 1.0));
+    }
+
+    /** 確かめ用: 手に持った明かりを切る(wind cavedev held off)。 */
+    static boolean devNoHeld;
+    // ---- カメラ切り替えの廃止(11-07 ユーザー決定。地下モードの見た目を場所ごとに決める) ----
+
+    /** カメラの所の場所の値(target を 0.3 秒で寄せたもの。4 秒の mix とは別)。 */
+    private static float camLocal;
+    /** カメラが洞窟の奥にいる度合い(0〜1)。 */
+    private static float camDeep;
+
+    /** DH の遠景の霧の色を洞窟の霧の色へ寄せる割合(地下モード × 洞窟の奥。DH が無ければ 0)。 */
+    public static float dhCaveColor() {
+        return DistantHorizonsFog.loaded() && !devNoLocal ? camLocal * camDeep : 0.0F;
+    }
+    /** 確かめ用: 真なら前の形(カメラの所の mix で画面全体を切り替える)。wind cavedev local off。 */
+    static boolean devNoLocal;
+
+    /**
+     * {@code MistView} が地形の霧(FOG_TERRAIN、雲の間を除く)を決めたときに呼ぶ: 地下モードの黒い霧を入れる前の地上の霧の始まり・終わり・色を地形のシェーダーへ渡し、
+     * 場所ごとの判定を立てる。地形は地上の霧で描いてから、視線が洞窟の空気を通る割合で黒い霧を掛ける({@code ov_cave.glsl} の ovCaveFogLocal)。
+     * バニラの霧はカメラの所の値の黒い霧のまま(Mob・粒・水の外の物が読む)。
+     */
+    public static void setSurfaceFog(float start, float end, float r, float g, float b) {
+        if (devNoLocal || !VisualQuality.caveLight() || !CaveMap.ready()) {
+            return;
+        }
+        ShaderInstance[] shaders = {GameRenderer.getRendertypeSolidShader(), GameRenderer.getRendertypeCutoutShader(),
+                GameRenderer.getRendertypeCutoutMippedShader(), GameRenderer.getRendertypeTranslucentShader()};
+        for (ShaderInstance shader : shaders) {
+            if (shader == null) {
+                continue;
+            }
+            shader.safeGetUniform("OvCaveLocal").set(1.0F, camLocal, start, end);
+            // w = 1: 軽い形(画質の段 LOW。天井の穴の下の面の判定 ovCaveCavern の 16 か所の読みを省く)
+            shader.safeGetUniform("OvCaveSurfColor").set(r, g, b, VisualQuality.atmosphereTier() >= 2 ? 1.0F : 0.0F);
+        }
+    }
+
+    /** カメラの所の場所の値(確かめ用)。 */
+    static float camLocal() {
+        return camLocal;
+    }
+
+    /**
+     * 11-08 Q1: バニラの霧(Mob・粒・水の外の物が読む)に入れる黒い霧の割合。場所ごとの判定が効いている間は地形と同じ 0.3 秒でならした
+     * camLocal(洞窟を出た直後に外の Mob だけ数秒黒い霧が残っていた)。効いていなければ前のまま 4 秒の mix。
+     */
+    public static float fogMix() {
+        return devNoLocal || devMobFogMix || !CaveMap.ready() ? mix : camLocal;
+    }
+    /** 確かめ用: 真なら Mob・粒の黒い霧を前の形(4 秒の mix)に戻す。wind cavedev mobfog off。 */
+    static boolean devMobFogMix;
+
+    // ---- 過繁茂の外の洞窟(11-07 判断の後の直し、設計値 caveOpen。値はすべて仮決め) ----
+
+    /** 過繁茂の度合い(0 = 過繁茂の外の洞窟の値、1 = 前のまま)。カメラの所の判定を blendSeconds で寄せる(境目で跳ばない)。 */
+    private static float ogBlend = Float.NaN;
+
+    private static void blendOpen(Vec3 eye) {
+        var o = DesignData.atmosphere().caveOpen();
+        float goal = devOvergrownOnly || overgrownHere ? 1.0F : 0.0F;
+        ogBlend = Float.isNaN(ogBlend) ? goal : ForestPresence.approach(ogBlend, goal, 0.05F, o.blendSeconds());
+    }
+
+    /** 過繁茂の外の分(0〜1)。 */
+    public static float openShare() {
+        return devNoOpen || Float.isNaN(ogBlend) ? 0.0F : 1.0F - ogBlend;
+    }
+
+    /** 黒い霧の始まり・終わり(過繁茂の外では fogScale 倍)。 */
+    public static float fogStart() {
+        return DesignData.atmosphere().cave().fogStart() * Mth.lerp(openShare(), 1.0F, DesignData.atmosphere().caveOpen().fogScale());
+    }
+
+    public static float fogEnd() {
+        return DesignData.atmosphere().cave().fogEnd() * Mth.lerp(openShare(), 1.0F, DesignData.atmosphere().caveOpen().fogScale());
+    }
+
+    /** 黒い霧の色(0 = r、1 = g、2 = b。過繁茂の外では fogDarken 倍)。 */
+    public static float fogColor(int i) {
+        var p = DesignData.atmosphere().cave();
+        float c = i == 0 ? p.r() : i == 1 ? p.g() : p.b();
+        return c * Mth.lerp(openShare(), 1.0F, DesignData.atmosphere().caveOpen().fogDarken());
+    }
+
+    /** 点光源の足し分(過繁茂の外では lightGain 倍)。 */
+    public static float lightGain() {
+        return DesignData.atmosphere().cave().lightGain() * Mth.lerp(openShare(), 1.0F, DesignData.atmosphere().caveOpen().lightGain());
+    }
+
+    /** 床の持ち上げの色(過繁茂の外では灰色寄り)。 */
+    static float[] ambientColor() {
+        float[] a = DesignData.atmosphere().cave().ambientColor();
+        float[] b = DesignData.atmosphere().caveOpen().ambientColor();
+        float s = openShare();
+        return new float[]{Mth.lerp(s, a[0], b[0]), Mth.lerp(s, a[1], b[1]), Mth.lerp(s, a[2], b[2])};
+    }
+
+    /** 確かめ用: 過繁茂の外の洞窟の値を使わない(判断の前の形。wind cavedev open off)。 */
+    static boolean devNoOpen;
+
+    /** 確かめ用: 最後の光源集めにかかった時間(µs、作業スレッド。11-07 世界全体へ広げた重さの確かめ)。 */
+    private static volatile long scanMicros;
+
     /** 作業スレッド: カメラのまわりの区画から光源を集める(パレットに光源が無い区画は中を読まない)。 */
     private static Light[] scan(ClientLevel level, int cx, int cy, int cz, int radius) {
+        long t0 = System.nanoTime();
         List<Light> out = new ArrayList<>();
         int r2 = radius * radius;
         int minSx = SectionPos.blockToSectionCoord(cx - radius);
@@ -533,7 +796,9 @@ public final class CaveLights {
                 }
             }
         }
-        return thin(out).toArray(new Light[0]);
+        Light[] result = thin(out).toArray(new Light[0]);
+        scanMicros = (System.nanoTime() - t0) / 1000L;
+        return result;
     }
 
     /**
@@ -562,7 +827,8 @@ public final class CaveLights {
 
     /** まとめる距離(仮決め: 房の先 6・地脈の根 4・狐火茸 3・炎の系統の発光 15(溶岩・火)5。網はハッシュで間引き済み、蔓・ほかのバニラの光源は前のまま)。 */
     private static double spacing(Kind k) {
-        return k == TASSEL ? 6.0 : k == LEY_NEAR || k == LEY_FAR ? 4.0 : k == FOXFIRE ? 3.0 : isLavaKind(k) ? 5.0 : 0.0;
+        // 11-07: 光る地衣類は壁一面に広がるので 4 ブロックにまとめる(仮決め)
+        return k == TASSEL ? 6.0 : k == LEY_NEAR || k == LEY_FAR ? 4.0 : k == FOXFIRE ? 3.0 : isLavaKind(k) ? 5.0 : k.family() == 4 && !devOvergrownOnly ? 4.0 : 0.0;
     }
 
     private static double sqDist(Light a, Light b) {
@@ -608,14 +874,16 @@ public final class CaveLights {
     public static float intensityAt(double x, double y, double z) {
         Light[] lights = shown;
         float[] wts = shownWeight;
-        if (lights.length == 0 || mix <= 0.0F) {
+        if (lights.length == 0 || mix <= 0.0F && shownHeld == 0) {
             return 0.0F;
         }
         float sum = 0.0F;
+        float heldSum = 0.0F;
         float fo = falloff(DesignData.atmosphere().cave());
         for (int i = 0; i < lights.length; i++) {
             Light l = lights[i];
             float lw = i < wts.length ? wts[i] : 1.0F;
+            boolean isHeld = i < shownHeld;
             double dx = x - l.x;
             double dy = y - l.y;
             double dz = z - l.z;
@@ -624,9 +892,15 @@ public final class CaveLights {
             if (d2 >= reach * reach) {
                 continue;
             }
-            sum += reach(l.kind, Math.sqrt(d2), fo) * Math.max(l.kind.r, Math.max(l.kind.g, l.kind.b)) * lw;
+            float add = reach(l.kind, Math.sqrt(d2), fo) * Math.max(l.kind.r, Math.max(l.kind.g, l.kind.b)) * lw;
+            // 手に持った明かりは地下モードの係数を掛けない(地上の夜にも効く。11-07)
+            if (isHeld) {
+                heldSum += add;
+            } else {
+                sum += add;
+            }
         }
-        return sum * mix;
+        return sum * mix + heldSum;
     }
 
     // ---- 表の出入りをなめらかに(11-06 ユーザー「近づいたら初めて植物が光り始める」。値は仮決め) ----
@@ -675,7 +949,7 @@ public final class CaveLights {
      * 新しく入った光源は 0 から、出た光源は今の重みから {@link #FADE_SECONDS} かけて寄せる。枠が足りないときは出て行く途中の光源を先に残し、
      * 入ってくる光源は枠が空くまで 0 のまま待つ(待っている間に強くなって、入った瞬間に灯らないように)。
      */
-    private static Light[] fade(Light[] goals, float[] goalWeights) {
+    private static Light[] fade(Light[] goals, float[] goalWeights, int cap) {
         long now = System.nanoTime();
         float dt = lastFadeNanos == 0L ? 0.0F : Mth.clamp((now - lastFadeNanos) / 1.0E9F, 0.0F, 0.1F);
         lastFadeNanos = now;
@@ -699,11 +973,11 @@ public final class CaveLights {
         }
         list.sort((a, b) -> Float.compare(b.getValue()[0], a.getValue()[0]));
         int n = 0;
-        Light[] out = new Light[Math.min(MAX, list.size())];
+        Light[] out = new Light[Math.max(0, Math.min(cap, list.size()))];
         float[] weights = new float[out.length];
         for (java.util.Map.Entry<Light, float[]> e : list) {
             float[] w = e.getValue();
-            boolean room = n < MAX;
+            boolean room = n < cap;
             if (room) {
                 w[0] = w[0] < w[1] ? Math.min(w[1], w[0] + step) : Math.max(w[1], w[0] - step);
             } else {
@@ -761,13 +1035,13 @@ public final class CaveLights {
             CaveMap.upload();
         }
         boolean useMap = mapOn && CaveMap.ready();
-        boolean cave = mix > 0.0F || useMap && CaveMap.nearOvergrown();
+        boolean cave = mix > 0.0F || useMap && CaveMap.nearRoof();
         // 11-06 光源 6: 地上の夜は近い surfaceLights 個まで(画面じゅうの断片がループを回るので地下より少なく)
         float nightNow = on && VisualQuality.caveLight() ? night : 0.0F;
         Light[] goals = new Light[0];
         float[] goalWeights = new float[0];
         if (on && VisualQuality.caveLight() && (cave || nightNow > 0.0F)) {
-            int limit = Math.min(MAX, devMaxLights >= 0 ? devMaxLights : cave ? p.maxLights() : Math.min(p.maxLights(), p.surfaceLights()));
+            int limit = Math.min(MAX - HELD_MAX, devMaxLights >= 0 ? devMaxLights : cave ? p.maxLights() : Math.min(p.maxLights(), p.surfaceLights()));
             // 11-06(光が急に灯る): 上限の 1 つ外まで取り、上限の境と集める半径の端へ向けて重みを滑らかに 0 へ落とす
             Light[] sorted = nearest(found, cam, limit + 1);
             double cut = sorted.length > limit ? key(sorted[limit], cam) : Double.POSITIVE_INFINITY;
@@ -780,18 +1054,34 @@ public final class CaveLights {
         if (!(on && VisualQuality.caveLight())) {
             fading.clear();
         }
-        pick = fade(goals, goalWeights);
+        // 11-07 手に持った明かり: 表の先頭に毎フレーム入れる(寄せない)。地形の光源はその分だけ枠を減らす
+        Light[] held = on && VisualQuality.caveLight() ? heldLights(event, p) : new Light[0];
+        pick = fade(goals, goalWeights, MAX - held.length);
+        if (held.length > 0) {
+            Light[] all = new Light[held.length + pick.length];
+            float[] w = new float[all.length];
+            System.arraycopy(held, 0, all, 0, held.length);
+            System.arraycopy(pick, 0, all, held.length, pick.length);
+            Arrays.fill(w, 0, held.length, 1.0F);
+            System.arraycopy(shownWeight, 0, w, held.length, pick.length);
+            pick = all;
+            shownWeight = w;
+        }
+        shownHeld = held.length;
         shown = pick;
         // 光源が 0 個でも、地下モードの間は床の持ち上げ(ambient)と飽和の抑え(clipKnee)を渡す(11-01 夜)。
         float shaderMix = on && VisualQuality.caveLight() ? mix : 0.0F;
-        if (shaderMix > 0.0F || useMap || nightNow > 0.0F || nightWritten > 0.0F) {
+        if (shaderMix > 0.0F || useMap || nightNow > 0.0F || nightWritten > 0.0F || shownHeld > 0 || heldWritten) {
+            heldWritten = shownHeld > 0;
             write(pick, shownWeight, glowList(cam, p.radius()), cam, p, nightNow);
         }
         float mapX = useMap ? (float) (CaveMap.originX() - cam.x) : 0.0F;
         float mapZ = useMap ? (float) (CaveMap.originZ() - cam.z) : 0.0F;
         boolean inFluid = event.getCamera().getFluidInCamera() != net.minecraft.world.level.material.FogType.NONE;
         float[] surf = MistFog.sporeColor();
-        float surfK = DesignData.atmosphere().fog().forestFogDensity();
+        // 11-07 世界全体へ: 森の胞子の霞は過繁茂の地域の洞窟だけ(普通の洞窟の口の外に黄緑の霞を掛けない)。過繁茂の判定は前の地下モードの縛りと同じ
+        // overgrownHere(カメラの所か列の地表。地下のバイオームがバニラのままの過繁茂の洞窟も入る)を優先し、覆いの度合いで補う。確かめ用の前の形では常に掛ける。
+        float surfK = DesignData.atmosphere().fog().forestFogDensity() * (devOvergrownOnly || overgrownHere ? 1.0F : ForestPresence.overgrown());
         for (ShaderInstance shader : shaders) {
             if (shader == null) {
                 continue;
@@ -799,23 +1089,25 @@ public final class CaveLights {
             if (texture != 0) {
                 shader.setSampler("OvCaveLights", texture);
             }
-            shader.safeGetUniform("OvCave").set((float) pick.length, shaderMix, p.lightGain(), p.glowThreshold());
+            shader.safeGetUniform("OvCave").set((float) pick.length, shaderMix, lightGain(), p.glowThreshold());
             if (useMap) {
                 shader.setSampler("OvCaveMap", CaveMap.texture());
             }
             // w: 0 = 地図なし、1 = 地図あり、2 = 地図にまわりの過繁茂の列がある(地図の外の空の光の無い断片を洞窟とみなす。11-04)
-            shader.safeGetUniform("OvCaveMapA").set(mapX, mapZ, (float) -cam.y, useMap ? (CaveMap.nearOvergrown() ? 2.0F : 1.0F) : 0.0F);
+            shader.safeGetUniform("OvCaveMapA").set(mapX, mapZ, (float) -cam.y, useMap ? (CaveMap.nearRoof() ? 2.0F : 1.0F) : 0.0F);
             shader.safeGetUniform("OvCaveMapB").set(p.roofFrom(), p.roofTo(), p.skyFrom() / 15.0F, p.skyTo() / 15.0F);
-            shader.safeGetUniform("OvCaveFog").set(p.r(), p.g(), p.b(), 0.0F);
+            shader.safeGetUniform("OvCaveFog").set(fogColor(0), fogColor(1), fogColor(2), 0.0F);
             // z: カメラが水(など液体)の中なら 1。水中の霧が地下の霧に勝つ(11-01 ユーザー: 海から崖の洞窟を見ると中だけ澄んでいた。
             // 断片の所の地下の霧 20〜28 が、水の霧を掛けた色を差し替えていた)。
-            shader.safeGetUniform("OvCaveFogD").set(p.fogStart(), p.fogEnd(), inFluid ? 1.0F : 0.0F, devTintSink ? 2.0F : devTint ? 1.0F : 0.0F);
+            shader.safeGetUniform("OvCaveFogD").set(fogStart(), fogEnd(), inFluid ? 1.0F : 0.0F, (devTintSink ? 2.0F : devTint ? 1.0F : 0.0F) + (devNoCavern ? 10.0F : 0.0F));
             // 洞窟の中から見た口の外: カメラの黒い霧を外した代わりに森の胞子の霞(地上の霧と同じ色・濃さ)を距離で掛ける。
             shader.safeGetUniform("OvCaveSurf").set(surf[0], surf[1], surf[2], surfK);
             // カメラが外にいるとき、洞窟の中を口からの距離で黒へ沈める(11-04 地下の光の直し 12。前はカメラからの距離で、遠くから覗くと奥がまるごと黒だった)。
             float mFrom = devMouthFrom >= 0.0F ? devMouthFrom : p.mouthFrom();
             float mTo = devMouthTo > 0.0F ? Math.max(mFrom + 0.5F, devMouthTo) : p.mouthTo();
             // w(11-05 光の点検 20): なめらかにする前の地下モードの目標。シェーダーは洞窟から見た外の霞(toSurface)を min(mix, 目標) で掛ける。
+            // 11-07: 場所ごとの判定は MistView が地形の霧を決めたとき(setSurfaceFog)に立てる。ここでは毎フレーム下ろす(水の中・霧を切った時は前の形)。
+            shader.safeGetUniform("OvCaveLocal").set(0.0F, camLocal, 0.0F, 1000.0F);
             shader.safeGetUniform("OvCaveMouth").set(mFrom, mTo, devLightSink >= 0.0F ? devLightSink : p.mouthLightSink(), shaderMix > 0.0F ? mixTarget : 0.0F);
         }
     }
@@ -834,7 +1126,8 @@ public final class CaveLights {
         float amp = devFlicker >= 0.0F ? devFlicker : p.flameFlicker();
         float[] flick = new float[lights.length];
         for (int i = 0; i < lights.length; i++) {
-            flick[i] = flicker(lights[i], sec, amp);
+            // 手に持った明かり(先頭 shownHeld 個)は位置が毎フレーム動くので、持ち主ごとの決まった位相でゆらす
+            flick[i] = i < shownHeld ? heldFlicker(lights[i], heldSeeds[i], sec, amp) : flicker(lights[i], sec, amp);
         }
         buffer.clear();
         for (int i = 0; i < MAX; i++) {
@@ -845,7 +1138,7 @@ public final class CaveLights {
                 buffer.put(0.0F).put(-10000.0F).put(0.0F).put(1.0F);
             }
         }
-        float[] ac = p.ambientColor();
+        float[] ac = ambientColor();
         float amb = ambient();
         buffer.put(ac[0] * amb).put(ac[1] * amb).put(ac[2] * amb).put(p.clipKnee());
         for (int i = 0; i < MAX; i++) {
@@ -883,7 +1176,7 @@ public final class CaveLights {
                     buffer.put(0.0F).put(-10000.0F).put(0.0F).put(0.0F);
                 }
             }
-            buffer.put(row == 0 ? (float) glowCount : 0.0F).put(0.0F).put(0.0F).put(0.0F);
+            buffer.put(row == 0 ? (float) glowCount : row == 1 ? (float) shownHeld : 0.0F).put(0.0F).put(0.0F).put(0.0F);
         }
         buffer.flip();
         int previous = GlStateManager._getInteger(GL11.GL_TEXTURE_BINDING_2D);
@@ -913,7 +1206,7 @@ public final class CaveLights {
                 full++;
             }
         }
-        return String.format("地下 %.2f(目標 %.2f)夜 %.2f 光源 %d 個 / 渡した %d 個(重み 1 は %d 個)/ 光る画素 %d 個 / 入った %d・出た %d / ",
-                mix, mixTarget, night, found.length, shown.length, full, glowLights.length, enteredCount, leftCount) + CaveMap.describe();
+        return String.format("地下 %.2f(目標 %.2f)夜 %.2f 光源 %d 個 / 渡した %d 個(重み 1 は %d 個)/ 光る画素 %d 個 / 入った %d・出た %d / 集め %d µs / 過繁茂 %s(度合い %.2f・霧 %.0f〜%.0f)/ ",
+                mix, mixTarget, night, found.length, shown.length, full, glowLights.length, enteredCount, leftCount, scanMicros, overgrownHere, 1.0F - openShare(), fogStart(), fogEnd()) + EyeAdaptation.describe() + " / " + CaveMap.describe();
     }
 }

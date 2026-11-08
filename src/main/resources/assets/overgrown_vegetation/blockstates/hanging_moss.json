@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "facing=north,form=0": { "model": "overgrown_vegetation:block/hanging_moss" },
+    "facing=east,form=0": { "model": "overgrown_vegetation:block/hanging_moss", "y": 90 },
+    "facing=south,form=0": { "model": "overgrown_vegetation:block/hanging_moss", "y": 180 },
+    "facing=west,form=0": { "model": "overgrown_vegetation:block/hanging_moss", "y": 270 },
+    "facing=north,form=1": { "model": "overgrown_vegetation:block/hanging_moss_short" },
+    "facing=east,form=1": { "model": "overgrown_vegetation:block/hanging_moss_short", "y": 90 },
+    "facing=south,form=1": { "model": "overgrown_vegetation:block/hanging_moss_short", "y": 180 },
+    "facing=west,form=1": { "model": "overgrown_vegetation:block/hanging_moss_short", "y": 270 },
+    "facing=north,form=2": { "model": "overgrown_vegetation:block/hanging_moss_cave" },
+    "facing=east,form=2": { "model": "overgrown_vegetation:block/hanging_moss_cave", "y": 90 },
+    "facing=south,form=2": { "model": "overgrown_vegetation:block/hanging_moss_cave", "y": 180 },
+    "facing=west,form=2": { "model": "overgrown_vegetation:block/hanging_moss_cave", "y": 270 }
+  }
+}

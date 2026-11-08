@@ -149,6 +149,22 @@ public final class ModShaders {
             OvergrownVegetation.LOGGER.error("夕方の光の粒のシェーダーを読み込めなかったので、光の粒は描かない", e);
             duskMotes = null;
         }
+        try {
+            event.registerShader(new ShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "eye_adapt"),
+                            DefaultVertexFormat.POSITION),
+                    shader -> eyeAdapt = shader);
+        } catch (IOException e) {
+            OvergrownVegetation.LOGGER.error("目の慣れのシェーダーを読み込めなかったので、洞窟の出入りの画面の補正は掛けない", e);
+            eyeAdapt = null;
+        }
+    }
+
+    /** 洞窟の出入りの目の慣れの全画面の補正({@code client/atmosphere/EyeAdaptation}、2026-11-07)。読み込めなかったら null(掛けない)。シェーダーパック使用中は使わない。 */
+    private static ShaderInstance eyeAdapt;
+
+    public static ShaderInstance eyeAdapt() {
+        return eyeAdapt;
     }
 
     private ModShaders() {

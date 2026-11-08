@@ -59,12 +59,18 @@ public final class AtmosphereLife {
                 puddleIn, puddleOut, rainPuddleSpacing;
         /** 雨でできる水たまり(11-06 夜、仮決め): カメラのまわりの数の上限・1 tick に見る列の数。間隔は rainPuddleSpacing(ブロック)。 */
         public Integer rainPuddleMax, rainPuddleTries;
+        /** 巨大樹の傘からの雨だれ(11-06 夜、仮決め): 雨上がりに落ち続ける秒・雨の間と雨上がりの 1 点あたり毎秒の滴・縁の点の上限・1 tick に見る列・
+         *  縁とみなす傘の高さ(下面から地面まで)・輪の水たまりの上限と間隔。 */
+        public Double dripSeconds, dripRainRate, dripAfterRate, dripMinHeight, dripPuddleSpacing;
+        public Integer dripMaxPoints, dripTries, dripPuddleMax;
         public double[] sporeColor;
     }
 
     public record RainLookParams(boolean enabled, float windTilt, float snowTiltScale, float snowTiltMax, float snowSway, float skyTintShare, float alpha,
                                  float sporeTint, float[] sporeColor, float puddleRadius, float puddleDarken, float puddleSheen, float puddleIn,
-                                 float puddleOut, int rainPuddleMax, int rainPuddleTries, float rainPuddleSpacing) {
+                                 float puddleOut, int rainPuddleMax, int rainPuddleTries, float rainPuddleSpacing,
+                                 float dripSeconds, float dripRainRate, float dripAfterRate, float dripMinHeight, float dripPuddleSpacing,
+                                 int dripMaxPoints, int dripTries, int dripPuddleMax) {
         static RainLookParams of(RainLookJson w) {
             RainLookJson v = w != null ? w : new RainLookJson();
             double[] s = v.sporeColor != null && v.sporeColor.length >= 3 ? v.sporeColor : new double[]{0.80, 0.92, 0.55};
@@ -73,7 +79,10 @@ public final class AtmosphereLife {
                     new float[]{c(s[0], 0.80, 0.0, 2.0), c(s[1], 0.92, 0.0, 2.0), c(s[2], 0.55, 0.0, 2.0)}, c(v.puddleRadius, 1.3, 0.1, 4.0),
                     c(v.puddleDarken, 0.6, 0.0, 1.0), c(v.puddleSheen, 0.5, 0.0, 1.0), c(v.puddleIn, 30.0, 0.5, 600.0), c(v.puddleOut, 60.0, 0.5, 1800.0),
                     v.rainPuddleMax != null ? Math.max(0, Math.min(200, v.rainPuddleMax)) : 20, v.rainPuddleTries != null ? Math.max(0, Math.min(64, v.rainPuddleTries)) : 6,
-                    c(v.rainPuddleSpacing, 3.0, 0.5, 32.0));
+                    c(v.rainPuddleSpacing, 3.0, 0.5, 32.0),
+                    c(v.dripSeconds, 150.0, 1.0, 1800.0), c(v.dripRainRate, 4.0, 0.0, 40.0), c(v.dripAfterRate, 1.5, 0.0, 40.0), c(v.dripMinHeight, 12.0, 2.0, 128.0),
+                    c(v.dripPuddleSpacing, 2.0, 0.5, 16.0), v.dripMaxPoints != null ? Math.max(0, Math.min(400, v.dripMaxPoints)) : 60,
+                    v.dripTries != null ? Math.max(0, Math.min(128, v.dripTries)) : 12, v.dripPuddleMax != null ? Math.max(0, Math.min(200, v.dripPuddleMax)) : 30);
         }
     }
 

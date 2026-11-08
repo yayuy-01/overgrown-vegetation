@@ -64,7 +64,8 @@ public final class CreativeTabOrder {
     private static final List<Supplier<? extends ItemLike>> PLANTS = List.of(
             ModBlocks.OVERGROWN_GROWTH, ModBlocks.OVERGROWN_SPORE_BLOOM, ModBlocks.OVERGROWN_ZENMAI, ModBlocks.UNDEVELOPED_BUSH,
             ModBlocks.OVERGROWN_BUSH, ModBlocks.OVERGROWN_SAPLING, ModItems.GIANT_OVERGROWN_SAPLING_ITEM,
-            ModBlocks.OVERGROWN_CREEPING_VINE, ModBlocks.OVERGROWN_SHELF_LICHEN, ModBlocks.OVERGROWN_THORN_VINE,
+            ModBlocks.WALL_FERN, ModBlocks.WALL_FERN_LARGE, ModBlocks.WALL_LYCOPSID, ModBlocks.HANGING_MOSS,
+            ModBlocks.WALL_SPORE_SACS, ModBlocks.WALL_BRACKET_FUNGUS,
             ModBlocks.AERIAL_ROOT, ModBlocks.AERIAL_ROOT_PILLAR, ModBlocks.BEARD_LICHEN, ModBlocks.HANGING_SPORE_SAC,
             ModBlocks.OVERGROWN_WEEPING_TENDRIL, ModBlocks.OVERGROWN_DRIP_MOSS, ModBlocks.OVERGROWN_SPORE_TENDRIL,
             ModBlocks.OVERGROWN_TALL_FERN, ModBlocks.OVERGROWN_SPORE_REED, ModBlocks.OVERGROWN_CURLED_FERN, ModBlocks.OVERGROWN_MOSS_LAYER,

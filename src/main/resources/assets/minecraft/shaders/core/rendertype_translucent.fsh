@@ -55,11 +55,11 @@ void main() {
     vec3 ovSurface = color.rgb;
     // The far forest loses a little saturation (A6; aerial perspective).
     color.rgb = mix(color.rgb, vec3(dot(color.rgb, vec3(0.299, 0.587, 0.114))), OvFogI.x * smoothstep(OvFogI.y, OvFogI.z, vertexDistance));
-    fragColor = linear_fog(color, vertexDistance, FogStart, FogEnd, ovShadedFogColor(FogColor, FogStart, ovLight.y, vertexDistance, ovPos));
+    fragColor = linear_fog(color, vertexDistance, ovFogS(FogStart), ovFogE(FogEnd), ovShadedFogColor(ovFogC(FogColor), ovFogS(FogStart), ovLight.y, vertexDistance, ovPos));
     // The fog by where the fragment is: cave water seen from outside sinks into black, outside water seen from a cave stays bright.
     // How far the usual fogs moved this fragment toward the haze, for the cave part of the view (ov_cave.glsl, 11-04).
     float ovPathLen = ovCavePath(vertexDistance, ovUnder);
-    ovCaveSetHaze(ovFog, ovShadedFogColor(FogColor, FogStart, ovLight.y, vertexDistance, ovPos), vertexDistance, ovPathLen, linear_fog(vec4(0.0, 0.0, 0.0, 1.0), vertexDistance, FogStart, FogEnd, vec4(1.0)).r,
-                  linear_fog(vec4(0.0, 0.0, 0.0, 1.0), ovPathLen, FogStart, FogEnd, vec4(1.0)).r);
+    ovCaveSetHaze(ovFog, ovShadedFogColor(ovFogC(FogColor), ovFogS(FogStart), ovLight.y, vertexDistance, ovPos), vertexDistance, ovPathLen, linear_fog(vec4(0.0, 0.0, 0.0, 1.0), vertexDistance, ovFogS(FogStart), ovFogE(FogEnd), vec4(1.0)).r,
+                  linear_fog(vec4(0.0, 0.0, 0.0, 1.0), ovPathLen, ovFogS(FogStart), ovFogE(FogEnd), vec4(1.0)).r);
     fragColor.rgb = ovCaveFog(fragColor.rgb, ovLit, ovSurface, vertexDistance, ovUnder);
 }

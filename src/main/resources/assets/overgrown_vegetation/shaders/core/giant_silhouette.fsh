@@ -21,6 +21,12 @@ uniform float Brightness;
 uniform float FarStart;
 uniform float FarEnd;
 uniform float MistStretch;
+// 11-06 evening: inside the forest haze (the mark of MistView, k per block) the silhouette is drawn too. HazeK = k / hazeStretch (0 = outside
+// the haze: the old stretched smoothstep); the haze goes on from FogAtCut as 1 - (1 - FogAtCut) exp(-HazeK (d - CutEnd)), and its colour
+// turns from the fog colour of the terrain (darkened in the shade of the canopy) to HazeFar (the fog colour before that darkening) within
+// 64 blocks past the cut, so the far crown is a pale shape in the bright haze, not a dark block.
+uniform float HazeK;
+uniform vec3 HazeFar;
 
 in vec3 relPos;
 in vec4 vertexColor;
@@ -48,5 +54,10 @@ void main() {
         lit = mix(lit, mist.rgb, 1.0 - exp(-tau));
     }
     float haze = FogAtCut + (1.0 - FogAtCut) * smoothstep(CutEnd, HazeEnd, d);
-    fragColor = vec4(mix(lit, FogColor.rgb, haze), appear) * ColorModulator;
+    vec3 fogColor = FogColor.rgb;
+    if (HazeK > 0.0) {
+        haze = 1.0 - (1.0 - FogAtCut) * exp(-HazeK * max(d - CutEnd, 0.0));
+        fogColor = mix(FogColor.rgb, HazeFar, smoothstep(CutEnd, CutEnd + 64.0, d));
+    }
+    fragColor = vec4(mix(lit, fogColor, haze), appear) * ColorModulator;
 }

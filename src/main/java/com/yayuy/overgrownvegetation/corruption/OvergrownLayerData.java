@@ -59,6 +59,9 @@ public final class OvergrownLayerData {
     /**
      * チャンクごとの「今 tick で新しく覆われたマス」。tick の終わりにまとめて送る。
      *
+     * <p><b>2026-11-08 に直した</b>(ユーザー 11-07「洞窟の壁で覆いが素の見た目に見える件は直す」。菌糸の染み下り・壁を這う汚染が flush より後に覆い、
+     * 洞窟の壁が素の砂利・石のまま見えていた)。キーを次元 → チャンクにして、flush は自分の次元だけ送る。以下は直す前の記録:
+     *
      * <p><b>既知の食い違い(2026-09-24 軽量化の監査 1351 / 512(a)、ユーザー確認待ちで未修正)</b>:
      * キーがチャンク座標だけなので、ある次元の {@link #flush} より後(同じ LevelTickEvent.Post に
      * ぶら下がる汚染の処理。クラス間の順番は登録順任せ)に覆った分は、次に tick した<b>別の次元</b>の
@@ -68,7 +71,7 @@ public final class OvergrownLayerData {
      * 苔の見え方がプレイヤーに分かる形で変わる(軽くはならない)ので、軽量化の作業では元のままにした。
      * 直すならユーザーの了承を取り、DEV_NOTES に「見た目が変わる修正」として書く。
      */
-    private static final Map<ChunkPos, LongOpenHashSet> PENDING = new HashMap<>();
+    private static final Map<net.minecraft.resources.ResourceKey<Level>, Map<ChunkPos, LongOpenHashSet>> PENDING = new HashMap<>();
 
     /**
      * ワールドを閉じたら送り残しを捨てる(キーはチャンク座標だけなので、残すと次に開いたワールドで
@@ -175,7 +178,8 @@ public final class OvergrownLayerData {
             return false;
         }
         chunk.setUnsaved(true);
-        PENDING.computeIfAbsent(chunk.getPos(), key -> new LongOpenHashSet()).add(pos.asLong());
+        PENDING.computeIfAbsent(level.dimension(), k -> new HashMap<>())
+                .computeIfAbsent(chunk.getPos(), key -> new LongOpenHashSet()).add(pos.asLong());
         lastNewlyCovered = pos.asLong();
         relightIfLit(level, pos);
         SpawnerCorruption.onCovered(level, pos); // スポナーなら湧く Mob を寄生体へ(2026-10-09)
@@ -210,7 +214,8 @@ public final class OvergrownLayerData {
             return false;
         }
         chunk.setUnsaved(true);
-        LongOpenHashSet pending = PENDING.get(chunk.getPos());
+        Map<ChunkPos, LongOpenHashSet> pendingOfLevel = PENDING.get(level.dimension());
+        LongOpenHashSet pending = pendingOfLevel == null ? null : pendingOfLevel.get(chunk.getPos());
         if (pending != null) {
             pending.remove(pos.asLong());
         }
@@ -242,15 +247,18 @@ public final class OvergrownLayerData {
                         new OvergrownLayerPayload(cp, entry.getValue().toLongArray(), false, true));
             }
         }
-        if (PENDING.isEmpty()) {
+        Map<ChunkPos, LongOpenHashSet> pending = PENDING.remove(level.dimension()); // 自分の次元の分だけ(2026-11-08)
+        if (pending == null || pending.isEmpty()) {
             return;
         }
-        for (Map.Entry<ChunkPos, LongOpenHashSet> entry : PENDING.entrySet()) {
+        for (Map.Entry<ChunkPos, LongOpenHashSet> entry : pending.entrySet()) {
+            if (level.getChunkSource().getChunkNow(entry.getKey().x, entry.getKey().z) == null) {
+                continue; // もう読み込まれていない(見始めたらまるごと届く)
+            }
             OvergrownLayerPayload payload =
                     new OvergrownLayerPayload(entry.getKey(), entry.getValue().toLongArray(), false);
             PacketDistributor.sendToPlayersTrackingChunk(level, entry.getKey(), payload);
         }
-        PENDING.clear();
     }
 
     /** そのチャンクを見始めたプレイヤーへ、記録をまるごと送る。 */

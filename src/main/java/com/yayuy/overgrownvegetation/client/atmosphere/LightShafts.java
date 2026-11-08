@@ -139,6 +139,13 @@ final class LightShafts {
         return lastDay;
     }
 
+    /** 帯と床のにじみの色を決める(洞窟の穴の筋 {@link CaveShafts} が描く前に呼ぶ。11-07)。 */
+    static void color(float r, float g, float b) {
+        RGB[0] = r;
+        RGB[1] = g;
+        RGB[2] = b;
+    }
+
     static float lastSoftness() {
         return softness;
     }
@@ -379,7 +386,7 @@ final class LightShafts {
      * カメラを向く帯(筋の中心線のまわりで回す)。{@code shorten} は上端から薄くする割合の上乗せ(正午の短い筋)。横は 縁 0 → 中ほど → 中心 の 5 点で山なりに、縦は上端(林冠)で 0 から湧き、下端の手前で弱まる。
      * 筋の軸に沿って見ている(真下から見上げる)ほど薄くする(帯の向きが少しの揺れで大きく回り、画面いっぱいのにじみがちらつくので)。
      */
-    private static void ribbon(VertexConsumer c, Shaft s, Vec3 bottom, Vec3 eye, Vec3 sun, float widthScale, float alpha, float soft, float shorten, float fogEnd) {
+    static void ribbon(VertexConsumer c, Shaft s, Vec3 bottom, Vec3 eye, Vec3 sun, float widthScale, float alpha, float soft, float shorten, float fogEnd) {
         final int rows = 8;
         Vec3 axis = bottom.subtract(s.top);
         float mid = Mth.lerp(soft, 0.55F, 0.8F);
@@ -443,7 +450,7 @@ final class LightShafts {
      * 光が落ちた所の地面のにじみ(中心が明るく、半径で 0 になる丸)。マスごとにそのマスの地面の上面に置き、落ちた所と高さが
      * 0.6 ブロック以上違うマスには置かない(段の外へはみ出した板が宙に浮かないように)。
      */
-    private static void groundGlow(VertexConsumer c, ClientLevel level, Shaft s, Vec3 bottom, Vec3 eye, float radScale, float alpha) {
+    static void groundGlow(VertexConsumer c, ClientLevel level, Shaft s, Vec3 bottom, Vec3 eye, float radScale, float alpha) {
         float rad = halfWidth(s.width, 1.0F) * 2.2F * radScale;
         int x0 = Mth.floor(bottom.x - rad);
         int x1 = Mth.floor(bottom.x + rad);

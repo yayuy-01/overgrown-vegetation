@@ -44,6 +44,8 @@ final class CaveMap {
      * 1 段の土・草・過繁茂ブロックが天井になり、その下の林床が地下扱い = 胞子の霞が外れて黒い霧の手前の澄んだ暗さになっていた)。
      */
     static final int MIN_ROOF = 3;
+    /** 「まわりに天井になれる岩がある」とみなす、目より上の岩の高さ(段。11-07 仮決め 4 = 頭より高い丘・崖・洞窟の天井)。 */
+    static final int ROOF_NEAR = 4;
     /** 確かめ用: 真なら前の数え方(1 段でも天井)。撮り比べのため。 */
     static boolean devThinRoof;
 
@@ -68,7 +70,7 @@ final class CaveMap {
     static final int WATER_UP = 8;
     static final int WATER_DOWN = 24;
 
-    private record Built(int originX, int originZ, float[] data, float[] coarse, float[] water, boolean anyOvergrown, long fineMicros, long coarseMicros,
+    private record Built(int originX, int originZ, float[] data, float[] coarse, float[] water, boolean anyRoof, long fineMicros, long coarseMicros,
                          long waterMicros) {
     }
 
@@ -91,10 +93,15 @@ final class CaveMap {
         uploadPending = false;
     }
 
-    /** 地図があり、まわりに過繁茂の列があるか(地下の光源を集めるか)。 */
-    static boolean nearOvergrown() {
+    /** 列に地下モードを掛けてよいか(11-07 から岩のある列すべて。確かめ用の前の形では過繁茂の列だけ)。作業スレッドから呼ぶ。 */
+    private static boolean eligible(ClientLevel level, BlockPos.MutableBlockPos pos, int wx, int rockY, int wz) {
+        return !CaveLights.devOvergrownOnly || ModBiomes.isOvergrownLike(level.getBiome(pos.set(wx, rockY, wz)));
+    }
+
+    /** 地図があり、まわりに天井になれる岩(目より {@link #ROOF_NEAR} 段以上高い岩の列)があるか(地下の光源を集めるか。11-07 までは「過繁茂の列があるか」)。 */
+    static boolean nearRoof() {
         Built b = shown;
-        return b != null && b.anyOvergrown;
+        return b != null && b.anyRoof;
     }
 
     static boolean ready() {
@@ -224,7 +231,7 @@ final class CaveMap {
                     continue;
                 }
                 out[at] = rockY + 1.0F;
-                if (ModBiomes.isOvergrownLike(level.getBiome(pos.set(wx, rockY, wz)))) {
+                if (eligible(level, pos, wx, rockY, wz)) {
                     out[at + 1] = 1.0F;
                 }
             }
@@ -280,9 +287,15 @@ final class CaveMap {
                     continue;
                 }
                 data[at] = rockY + 1.0F;
-                if (ModBiomes.isOvergrownLike(level.getBiome(pos.set(wx, rockY, wz)))) {
+                // 11-07 世界全体へ: g は「地下モードを掛けてよい列」。前は過繁茂の列だけ、今は岩のある列すべて(確かめ用の cavedev worldwide off で前の形)。
+                // 「まわりに天井になれる岩がある」(光源を集めるか・地図の外の空の光の暗い所を洞窟とみなすか)は、目より {@link #ROOF_NEAR} 段以上高い岩の列があるかで見る
+                // (岩 = 地表の土や石も含むので、岩のある列の有無では平原でも常に真になる)。過繁茂の列があるときも前と同じく真(過繁茂の地域の中を前と変えない)。
+                boolean overgrownColumn = ModBiomes.isOvergrownLike(level.getBiome(pos.set(wx, rockY, wz)));
+                if (overgrownColumn || !CaveLights.devOvergrownOnly) {
                     data[at + 1] = 1.0F;
-                    any = true;
+                    if (overgrownColumn || rockY + 1.0F - eyeY >= ROOF_NEAR) {
+                        any = true;
+                    }
                 }
                 // 天井の下面(続く岩のいちばん下のブロック。CEIL_SCAN 段で打ち切り)。口までの距離に使う(11-04 地下の光の直し 12)。
                 int bottom = rockY;
@@ -443,7 +456,7 @@ final class CaveMap {
     /** 確かめ用の一行。 */
     static String describe() {
         Built b = shown;
-        return b == null ? "地下の地図 なし" : String.format("地下の地図 原点 %d %d 過繁茂 %s 作る時間 細かい %d µs 粗い %d µs 水面 %d µs", b.originX, b.originZ, b.anyOvergrown,
+        return b == null ? "地下の地図 なし" : String.format("地下の地図 原点 %d %d 岩の天井 %s 作る時間 細かい %d µs 粗い %d µs 水面 %d µs", b.originX, b.originZ, b.anyRoof,
                 b.fineMicros, b.coarseMicros, b.waterMicros);
     }
 }

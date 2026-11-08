@@ -86,6 +86,9 @@ public final class GiantTreeGrowthQueue {
         final LongArrayList leaves;
         /** フェーズ3: 根を這わせた各歩の足元(地表)の座標。頂上を探して下草を生やす。 */
         final LongArrayList rootColumns;
+        // 洞窟の柱の付け根の天井から垂らす dangling_roots の房(2026-11-07)。天井の真下の空気のマスと長さ。
+        final LongArrayList danglingTops;
+        final it.unimi.dsi.fastutil.ints.IntArrayList danglingLens;
         final int trunkSize;
         final int cambiumSize;
         final int chlorophylliteOreSize;
@@ -146,6 +149,8 @@ public final class GiantTreeGrowthQueue {
             this.hiveLining = plan.hiveLining;
             this.leaves = plan.leaves;
             this.rootColumns = plan.rootColumns;
+            this.danglingTops = plan.danglingTops;
+            this.danglingLens = plan.danglingLens;
             this.trunkSize = plan.trunk.size();
             this.cambiumSize = plan.cambium.size();
             this.chlorophylliteOreSize = plan.chlorophylliteOre.size();
@@ -229,6 +234,21 @@ public final class GiantTreeGrowthQueue {
         OvergrownVegetation.LOGGER.info("GiantTree: 巣の球の小部屋に hive_node を置きました {} / 儀式の広間 {} (yaw {})",
                 pos, job.hiveRitualCenter == Long.MIN_VALUE ? "なし" : BlockPos.of(job.hiveRitualCenter),
                 job.hiveRitualYaw);
+    }
+
+    /**
+     * 洞窟の柱の付け根の天井から {@code dangling_roots} の房を垂らす(2026-11-07)。根を全部置き終えた後に 1 回だけ。
+     * 置く所が空気でなくなっていれば、{@code CaveFlora.hangRoots} が短くするか置かない。
+     */
+    private static void hangPillarTufts(ServerLevel level, Job job) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int i = 0; i < job.danglingTops.size(); i++) {
+            long k = job.danglingTops.getLong(i);
+            p.set(BlockPos.getX(k), BlockPos.getY(k), BlockPos.getZ(k));
+            if (level.isLoaded(p) && level.isLoaded(p.above())) {
+                com.yayuy.overgrownvegetation.corruption.CaveFlora.hangRoots(level, p.immutable(), job.danglingLens.getInt(i));
+            }
+        }
     }
 
     /** {@link GiantTreeFeature#place} から呼ぶ。以降このジョブを毎ティック少しずつ設置していく。 */
@@ -421,6 +441,7 @@ public final class GiantTreeGrowthQueue {
                 // 側面・底面に生えるもの(2026-11-01)。巨大樹は数を増やし、幹の巻き付きは面の一部の列だけ。
                 TreeSideGrowth.decorate(serverLevel, serverLevel.random, new it.unimi.dsi.fastutil.longs.LongOpenHashSet(job.trunk),
                         new it.unimi.dsi.fastutil.longs.LongOpenHashSet(job.leaves), true);
+                hangPillarTufts(serverLevel, job);
                 spawnHiveNode(serverLevel, job);
                 it.remove();
             }

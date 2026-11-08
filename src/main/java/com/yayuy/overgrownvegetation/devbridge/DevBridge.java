@@ -406,6 +406,38 @@ public final class DevBridge {
                 log("RIPPLE " + p[0]);
                 return null;
             }
+            case "cavelife" -> {
+                // 洞窟の小ネタ(2026-11-07): cavelife glow = 真上の天井のまわりに土ボタルを必ず置く / cavelife cricket = 見ている先にカマドウマの群れを置く
+                if (mc.level == null || mc.player == null) return "ワールドが無い";
+                String what = arg.trim();
+                if (what.equals("glow")) {
+                    log("CAVELIFE glow " + com.yayuy.overgrownvegetation.client.atmosphere.CaveGlowworms.devPlace(mc.level, mc.player));
+                } else if (what.startsWith("hold")) {
+                    // cavelife hold on|off = カマドウマを近づいても跳ばせない(11-08 形の写真用)
+                    com.yayuy.overgrownvegetation.client.atmosphere.CaveCrickets.devHold(what.endsWith("on"));
+                    log("CAVELIFE hold " + what);
+                } else if (what.equals("cricket")) {
+                    log("CAVELIFE cricket " + com.yayuy.overgrownvegetation.client.atmosphere.CaveCrickets.devPlace(mc.level, mc.player));
+                } else {
+                    return "cavelife glow|cricket|hold on|hold off";
+                }
+                return null;
+            }
+            case "lizard" -> {
+                // 幹のトカゲ(client/atmosphere/TrunkLizards)を決めた木部のブロックの面に 1 匹置く(逃げ・湧きを止める)。lizard <x y z> <nx> <nz> [向き°] / lizard off(2026-11-07 見え方の前後)
+                String[] p = arg.trim().split("\\s+");
+                if (mc.level == null) return "ワールドが無い";
+                if (p[0].equals("off")) {
+                    com.yayuy.overgrownvegetation.client.atmosphere.TrunkLizards.devRelease();
+                    log("LIZARD off");
+                    return null;
+                }
+                if (p.length < 5) return "lizard <x y z> <nx> <nz> [向き°] / lizard off";
+                double heading = p.length > 5 ? Math.toRadians(Double.parseDouble(p[5])) : 0.35;
+                log("LIZARD " + com.yayuy.overgrownvegetation.client.atmosphere.TrunkLizards.devPlace(mc.level, Integer.parseInt(p[0]), Integer.parseInt(p[1]),
+                        Integer.parseInt(p[2]), Integer.parseInt(p[3]), Integer.parseInt(p[4]), heading));
+                return null;
+            }
             case "fog" -> {
                 // 霧(2026-10-30 夜 第 3 段、client/atmosphere/MistDev): status / march on|off / time on|off / stat。返事は FOG …
                 log(com.yayuy.overgrownvegetation.client.atmosphere.MistDev.command(arg));
@@ -940,6 +972,153 @@ public final class DevBridge {
                     log("ROOTS " + kind + " " + built + "/" + count);
                 });
             }
+            case "vinespan" -> {
+                // 壁と壁の隙間に渡る太い蔦(2026-11-07、corruption/VineSpan)。
+                // vinespan x1 y1 z1 x2 y2 z2 [種]: 2 つの壁のブロックの間に置く。
+                // vinespan find x y z r [最小 最大]: 箱(水平 r・上下 r/2)の壁から隙間を探して書き出す(汚染は問わない。汚染なら「汚染」と付く)。
+                IntegratedServer server = mc.getSingleplayerServer();
+                if (mc.level == null || server == null) return "ワールドの中";
+                String[] a = arg.trim().split("\\s+");
+                var dimension = mc.level.dimension();
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(dimension);
+                    if (level == null) return;
+                    if (a[0].equals("stats")) {
+                        // vinespan stats [reset]: 自然に出る太い蔦の数え(tryGrow の呼ばれた回数・抽選・隙間・近く・置けない・天井・置けた・時間・記録の組の数)。11-07 自然に出る量の測り
+                        int[] st = com.yayuy.overgrownvegetation.corruption.VineSpan.STATS;
+                        long[] ns = com.yayuy.overgrownvegetation.corruption.VineSpan.NANOS;
+                        log(String.format("VINESPAN STATS 呼ばれた %d 抽選 %d 隙間 %d 近くに有り %d 置けない %d(天井 %d) 置けた %d 時間 合計 %.2f ms 最大 %.3f ms 1 回の平均 %.3f ms 記録の組 %d 日 %d 時刻 %d 洞窟の壁から 呼ばれた %d 置けた %d 置く仕事 1 tick の最大 %.2f ms 合計 %.2f ms 置き終えた %d 捨てた %d 置きかけ %d",
+                                com.yayuy.overgrownvegetation.corruption.VineSpan.CALLS, st[0], st[1], st[2], st[3], st[4], st[5],
+                                ns[0] / 1.0e6, ns[1] / 1.0e6, st[0] == 0 ? 0.0 : ns[0] / 1.0e6 / st[0],
+                                com.yayuy.overgrownvegetation.corruption.VineSpanRecord.get(level).size(),
+                                level.getDayTime() / 24000L, level.getGameTime(), com.yayuy.overgrownvegetation.corruption.VineSpan.CAVE_CALLS, com.yayuy.overgrownvegetation.corruption.VineSpan.CAVE_GROWN, com.yayuy.overgrownvegetation.corruption.VineSpanPlacer.NANOS[1] / 1.0e6, com.yayuy.overgrownvegetation.corruption.VineSpanPlacer.NANOS[0] / 1.0e6, com.yayuy.overgrownvegetation.corruption.VineSpanPlacer.DONE, com.yayuy.overgrownvegetation.corruption.VineSpanPlacer.DROPPED, com.yayuy.overgrownvegetation.corruption.VineSpanPlacer.pending(level)));
+                        if (a.length > 1 && a[1].equals("list")) {
+                            long[] e = com.yayuy.overgrownvegetation.corruption.VineSpanRecord.get(level).ends();
+                            for (int i = 0; i + 1 < e.length; i += 2) {
+                                log("VINESPAN REC " + net.minecraft.core.BlockPos.of(e[i]).toShortString().replace(",", "") + " -> " + net.minecraft.core.BlockPos.of(e[i + 1]).toShortString().replace(",", ""));
+                            }
+                        }
+                        if (a.length > 1 && a[1].equals("reset")) {
+                            java.util.Arrays.fill(st, 0);
+                            java.util.Arrays.fill(ns, 0L);
+                            com.yayuy.overgrownvegetation.corruption.VineSpan.CALLS = 0;
+                            com.yayuy.overgrownvegetation.corruption.VineSpan.CAVE_CALLS = 0;
+                            com.yayuy.overgrownvegetation.corruption.VineSpan.CAVE_GROWN = 0;
+                            java.util.Arrays.fill(com.yayuy.overgrownvegetation.corruption.VineSpanPlacer.NANOS, 0L);
+                        }
+                        return;
+                    }
+                    if (a[0].equals("find")) {
+                        int x0 = Integer.parseInt(a[1]);
+                        int y0 = Integer.parseInt(a[2]);
+                        int z0 = Integer.parseInt(a[3]);
+                        int r = Integer.parseInt(a[4]);
+                        double lo = a.length > 5 ? Double.parseDouble(a[5]) : 0.0D;
+                        double hi = a.length > 6 ? Double.parseDouble(a[6]) : 99.0D;
+                        net.minecraft.util.RandomSource random = net.minecraft.util.RandomSource.create(1L);
+                        java.util.List<com.yayuy.overgrownvegetation.corruption.VineSpan.Gap> found = new java.util.ArrayList<>();
+                        for (net.minecraft.core.BlockPos p : net.minecraft.core.BlockPos.betweenClosed(x0 - r, y0 - r / 2, z0 - r, x0 + r, y0 + r / 2, z0 + r)) {
+                            if (((p.getX() + p.getY() + p.getZ()) & 1) != 0) continue;
+                            var g = com.yayuy.overgrownvegetation.corruption.VineSpan.findGap(level, p.immutable(), random, false);
+                            if (g == null || g.span() < lo || g.span() > hi) continue;
+                            boolean near = false;
+                            for (var o : found) {
+                                if (o.a().distSqr(g.a()) < 100 || o.b().distSqr(g.a()) < 100) { near = true; break; }
+                            }
+                            if (near) continue;
+                            boolean cave = com.yayuy.overgrownvegetation.corruption.CaveGrowth.isCave(level, g.a(), 6);
+                            // [最小 最大 sky|cave]: 空に開けた所(崖・渓谷)だけ / 洞窟だけ
+                            if (a.length > 7 && a[7].equals("sky") == cave) continue;
+                            found.add(g);
+                            log("VINESPAN GAP " + g.a().toShortString().replace(",", "") + " -> " + g.b().toShortString().replace(",", "")
+                                    + String.format(" 幅 %.1f", g.span()) + (cave ? " 洞窟" : " 空")
+                                    + (com.yayuy.overgrownvegetation.corruption.VineSpan.isCorruptedPublic(level, g.a()) ? " 汚染" : ""));
+                            if (found.size() >= 30) break;
+                        }
+                        log("VINESPAN FIND " + found.size());
+                        return;
+                    }
+                    if (a[0].equals("grow")) {
+                        // vinespan grow x1 y1 z1 x2 y2 z2: 箱の中の汚染済みのブロックごとに、汚染の直後と同じ育ち(CorruptionSpreader#growSurfacePlants)を 1 回走らせる。
+                        // 太い蔦は自然と同じ確率・間隔で出る。出た所を書き出す。
+                        int[] c = java.util.Arrays.stream(a).skip(1).limit(6).mapToInt(Integer::parseInt).toArray();
+                        int before = com.yayuy.overgrownvegetation.corruption.VineSpan.GROWN.size();
+                        int hosts = 0;
+                        for (net.minecraft.core.BlockPos p : net.minecraft.core.BlockPos.betweenClosed(c[0], c[1], c[2], c[3], c[4], c[5])) {
+                            net.minecraft.core.BlockPos at = p.immutable();
+                            net.minecraft.world.level.block.state.BlockState st = level.getBlockState(at);
+                            if (st.isAir() || !com.yayuy.overgrownvegetation.corruption.VineSpan.isCorruptedPublic(level, at)) continue;
+                            hosts++;
+                            com.yayuy.overgrownvegetation.corruption.CorruptionSpreader.growSurfacePlants(level, at, st,
+                                    com.yayuy.overgrownvegetation.corruption.CorruptionSpreader.surfaceGrowthChance(level, at));
+                        }
+                        var grown = com.yayuy.overgrownvegetation.corruption.VineSpan.GROWN;
+                        for (int i = before; i < grown.size(); i++) {
+                            var g = grown.get(i);
+                            log("VINESPAN GROWN " + g.a().toShortString().replace(",", "") + " -> " + g.b().toShortString().replace(",", "")
+                                    + String.format(" 幅 %.1f", g.span()));
+                        }
+                        log("VINESPAN GROW 汚染済み " + hosts + " マス・太い蔦 " + (grown.size() - before));
+                        var st0 = com.yayuy.overgrownvegetation.corruption.VineSpan.STATS;
+                        log("VINESPAN STATS 抽選 " + st0[0] + " 隙間 " + st0[1] + " 近くに有り " + st0[2] + " 置けない " + st0[3] + " " + com.yayuy.overgrownvegetation.corruption.VineSpan.LAST_FAIL);
+                        return;
+                    }
+                    if (a[0].equals("cam")) {
+                        // vinespan cam x1 y1 z1 x2 y2 z2 side|under|end: 真ん中を横・下・端の外から見る空いた所へ移る(写真の定点を探す)
+                        int[] c = java.util.Arrays.stream(a).skip(1).limit(6).mapToInt(Integer::parseInt).toArray();
+                        String how = a.length > 7 ? a[7] : "side";
+                        double mx = (c[0] + c[3]) / 2.0D + 0.5D, my = (c[1] + c[4]) / 2.0D - 1.0D, mz = (c[2] + c[5]) / 2.0D + 0.5D;
+                        double ex = c[3] - c[0], ez = c[5] - c[2];
+                        double el = Math.sqrt(ex * ex + ez * ez);
+                        ex /= el; ez /= el;
+                        double hx = -ez, hz = ex;
+                        java.util.function.BiFunction<double[], double[], Double> free = (from, dir) -> {
+                            double d = 0;
+                            for (d = 1; d < 30; d += 0.5) {
+                                net.minecraft.core.BlockPos p = net.minecraft.core.BlockPos.containing(from[0] + dir[0] * d, from[1] + dir[1] * d, from[2] + dir[2] * d);
+                                if (!level.getBlockState(p).isAir() || !level.getBlockState(p.above()).isAir()) break;
+                            }
+                            return d;
+                        };
+                        double px, py, pz;
+                        float yaw, pitch;
+                        if (how.equals("under")) {
+                            double down = free.apply(new double[]{mx + hx * 2, my - 4, mz + hz * 2}, new double[]{0, -1, 0});
+                            px = mx + hx * 2; pz = mz + hz * 2; py = my - 4 - Math.max(0, Math.min(down - 2.0, 6.0));
+                            yaw = (float) Math.toDegrees(Math.atan2(-ex, ez)); pitch = -70;
+                        } else if (how.equals("end")) {
+                            double back = free.apply(new double[]{c[0] + 0.5 + hx * 3, my + 3, c[2] + 0.5 + hz * 3}, new double[]{-ex, 0, -ez});
+                            double k = Math.min(back - 1.5, 6.0);
+                            px = c[0] + 0.5 + hx * 3 - ex * k; py = my + 3; pz = c[2] + 0.5 + hz * 3 - ez * k;
+                            yaw = (float) Math.toDegrees(Math.atan2(-(mx - px), mz - pz)); pitch = 12;
+                        } else {
+                            double best = -1, sgn = 1;
+                            for (double sg : new double[]{1, -1}) {
+                                double d = free.apply(new double[]{mx, my + 2, mz}, new double[]{hx * sg, 0, hz * sg});
+                                if (d > best) { best = d; sgn = sg; }
+                            }
+                            double k = Math.min(best - 1.5, 22.0);
+                            px = mx + hx * sgn * k; py = my + 2 + k * 0.25; pz = mz + hz * sgn * k;
+                            yaw = (float) Math.toDegrees(Math.atan2(-(mx - px), mz - pz));
+                            pitch = (float) Math.toDegrees(Math.atan2(py - my, k));
+                        }
+                        var player = level.players().isEmpty() ? null : level.players().get(0);
+                        if (player != null) {
+                            player.teleportTo(level, px, py, pz, yaw, pitch);
+                        }
+                        log(String.format("VINESPAN CAM %s %.1f %.1f %.1f yaw %.0f pitch %.0f", how, px, py, pz, yaw, pitch));
+                        return;
+                    }
+                    int[] v = java.util.Arrays.stream(a).limit(6).mapToInt(Integer::parseInt).toArray();
+                    long seed = a.length > 6 ? Long.parseLong(a[6]) : v[0] * 31L + v[2];
+                    long tb = System.nanoTime();
+                    var res = com.yayuy.overgrownvegetation.corruption.VineSpan.build(level,
+                            new net.minecraft.core.BlockPos(v[0], v[1], v[2]), new net.minecraft.core.BlockPos(v[3], v[4], v[5]),
+                            net.minecraft.util.RandomSource.create(seed));
+                    log(String.format("VINESPAN 形を決める時間 %.2f ms(葉と植物は待ち行列で置く)", (System.nanoTime() - tb) / 1.0e6));
+                    log("VINESPAN " + res);
+                });
+            }
             case "corrupt" -> {
                 // 箱の中のブロックを、汚染の本来の経路(CorruptionRegistry)で 1 回ずつ汚染する。例: corrupt 0 -60 0 15 -60 15
                 IntegratedServer server = mc.getSingleplayerServer();
@@ -1058,6 +1237,125 @@ public final class DevBridge {
                         if (level.isLoaded(p) && level.getBlockState(p).is(block)) n++;
                     }
                     log("COUNT " + id + " " + n);
+                });
+            }
+            case "aimat" -> {
+                // 照準の先のブロック(2026-11-07 洞窟の壁の覆いの見え方の切り分け): クライアントの状態・クライアントに届いた覆いの記録・サーバーの状態と覆い。
+                if (mc.level == null || !(mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult bh)) return "照準の先にブロックが無い";
+                net.minecraft.core.BlockPos at = bh.getBlockPos();
+                var cchunk = mc.level.getChunkAt(at);
+                boolean clientCovered = cchunk.getExistingData(com.yayuy.overgrownvegetation.registry.ModAttachments.OVERGROWN_LAYER.get())
+                        .map(s -> s.contains(at.asLong())).orElse(false);
+                long[] cells = com.yayuy.overgrownvegetation.client.ClientOvergrownLayer.coveredCells(cchunk, at.getY() >> 4);
+                int cell = ((at.getY() & 15) << 8) | ((at.getZ() & 15) << 4) | (at.getX() & 15);
+                boolean inSnapshot = cells != null && (cells[cell >> 6] & 1L << (cell & 63)) != 0L;
+                String clientLine = "AIMAT " + at.toShortString() + " 面 " + bh.getDirection() + " クライアント " + mc.level.getBlockState(at)
+                        + " 記録 " + clientCovered + " 写し " + inSnapshot;
+                IntegratedServer server = mc.getSingleplayerServer();
+                var dimension = mc.level.dimension();
+                if (server != null) server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(dimension);
+                    if (level == null) return;
+                    log(clientLine + " | サーバー " + level.getBlockState(at) + " 覆い " + com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.isCovered(level, at)
+                            + " canCover " + com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.canCover(level.getBlockState(at)));
+                });
+            }
+            case "seepmark" -> {
+                // 菌糸の染み下りの確かめ(2026-11-07): seepmark <cx0> <cz0> <cx1> <cz1> のチャンクを過繁茂にして台帳に載せる(地割れと同じ forceOvergrownBatch)。
+                IntegratedServer server = mc.getSingleplayerServer();
+                if (mc.level == null || server == null) return "ワールドの中";
+                int[] v = java.util.Arrays.stream(arg.trim().split("\\s+")).mapToInt(Integer::parseInt).toArray();
+                var dimension = mc.level.dimension();
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(dimension);
+                    if (level == null) return;
+                    java.util.List<net.minecraft.world.level.ChunkPos> list = new java.util.ArrayList<>();
+                    for (int cx = v[0]; cx <= v[2]; cx++) for (int cz = v[1]; cz <= v[3]; cz++) list.add(new net.minecraft.world.level.ChunkPos(cx, cz));
+                    int n = com.yayuy.overgrownvegetation.corruption.OvergrownBiomeConverter.forceOvergrownBatch(level, list);
+                    var phase = com.yayuy.overgrownvegetation.phase.PhaseData.get(level);
+                    int inLedger = 0;
+                    for (var p : list) if (phase.isOvergrownChunk(p)) inLedger++;
+                    log("SEEPMARK converted " + n + " ledger " + inLedger + "/" + list.size() + " clock " + phase.clock(server));
+                });
+            }
+            case "seepstat" -> {
+                // 菌糸の染み下りの測り(2026-11-07): seepstat <cx0> <cz0> <cx1> <cz1>(チャンク座標の箱)。地下(列の地表のすぐ下の段以下)の
+                // 空気に面したブロック(液体を除く)のうち汚染されたものの割合を 16 段ごとに。チャンクの進みと台帳の有無、処理の時間も出す(時間は出したら 0 に戻す)。
+                IntegratedServer server = mc.getSingleplayerServer();
+                if (mc.level == null || server == null) return "ワールドの中";
+                int[] v = java.util.Arrays.stream(arg.trim().split("\\s+")).mapToInt(Integer::parseInt).toArray();
+                var dimension = mc.level.dimension();
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(dimension);
+                    if (level == null) return;
+                    int minY = level.getMinBuildHeight(), bands = (level.getMaxBuildHeight() - minY) / 16;
+                    long[] total = new long[bands], bad = new long[bands], wetTotal = new long[2], plants = new long[bands];
+                    int inLedger = 0, chunks = 0, pMin = Integer.MAX_VALUE, pMax = 0;
+                    var phase = com.yayuy.overgrownvegetation.phase.PhaseData.get(level);
+                    net.minecraft.core.BlockPos.MutableBlockPos m = new net.minecraft.core.BlockPos.MutableBlockPos(), n = new net.minecraft.core.BlockPos.MutableBlockPos();
+                    for (int cx = v[0]; cx <= v[2]; cx++)
+                        for (int cz = v[1]; cz <= v[3]; cz++) {
+                            var chunk = level.getChunkSource().getChunkNow(cx, cz);
+                            if (chunk == null) continue;
+                            chunks++;
+                            if (phase.isOvergrownChunk(chunk.getPos())) inLedger++;
+                            int p = com.yayuy.overgrownvegetation.spore.field.MyceliumSeep.progressPpm(chunk);
+                            pMin = Math.min(pMin, p);
+                            pMax = Math.max(pMax, p);
+                            for (int lx = 0; lx < 16; lx++)
+                                for (int lz = 0; lz < 16; lz++) {
+                                    int x = (cx << 4) + lx, z = (cz << 4) + lz;
+                                    int top = com.yayuy.overgrownvegetation.spore.field.MyceliumSeep.columnTopForStats(chunk, x, z, minY);
+                                    for (int y = minY; y <= top; y++) {
+                                        m.set(x, y, z);
+                                        var s = chunk.getBlockState(m);
+                                        if (!s.isAir() && !s.blocksMotion()) plants[(y - minY) >> 4]++; // 地下の植物(動きを止めないブロック。水中の根なども)
+                                        if (s.isAir() || !s.getFluidState().isEmpty()) continue;
+                                        boolean air = false, wet = false;
+                                        for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+                                            n.setWithOffset(m, d);
+                                            if (!level.isLoaded(n)) continue;
+                                            var ns = level.getBlockState(n);
+                                            if (ns.isAir()) air = true;
+                                            else if (ns.is(net.minecraft.world.level.block.Blocks.WATER)) wet = true;
+                                        }
+                                        if (!air && wet) { // 水にだけ面したブロック(地底湖の底。2026-11-08)は別に数える
+                                            wetTotal[0]++;
+                                            if (com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.isCorruptedCell(chunk, m, s)) wetTotal[1]++;
+                                            continue;
+                                        }
+                                        if (!air) continue;
+                                        int b = (y - minY) >> 4;
+                                        total[b]++;
+                                        if (com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.isCorruptedCell(chunk, m, s)) bad[b]++;
+                                    }
+                                }
+                        }
+                    StringBuilder sb = new StringBuilder("SEEPSTAT chunks " + chunks + " ledger " + inLedger + " progress " + (chunks == 0 ? "-" : pMin + ".." + pMax)
+                            + " clock " + phase.clock(server) + " | " + com.yayuy.overgrownvegetation.spore.field.MyceliumSeep.takeStats()
+                            + " | " + com.yayuy.overgrownvegetation.spore.field.MyceliumSeep.debugState());
+                    long tt = 0, tb = 0;
+                    for (int b = bands - 1; b >= 0; b--) {
+                        if (total[b] == 0) continue;
+                        tt += total[b];
+                        tb += bad[b];
+                        sb.append(String.format(java.util.Locale.ROOT, "\n  y %4d..%4d  %6d / %6d  %5.1f%%  植物 %d", minY + b * 16, minY + b * 16 + 15, bad[b], total[b], 100.0 * bad[b] / total[b], plants[b]));
+                    }
+                    sb.append(String.format(java.util.Locale.ROOT, "\n  all  %d / %d  %.1f%%", tb, tt, tt == 0 ? 0.0 : 100.0 * tb / tt));
+                    long tp = 0; for (long pl : plants) tp += pl;
+                    sb.append(String.format(java.util.Locale.ROOT, "\n  植物 %d(汚染 100 マスあたり %.1f)", tp, tb == 0 ? 0.0 : 100.0 * tp / tb));
+                    sb.append(String.format(java.util.Locale.ROOT, "\n  水にだけ面した  %d / %d  %.1f%%", wetTotal[1], wetTotal[0], wetTotal[0] == 0 ? 0.0 : 100.0 * wetTotal[1] / wetTotal[0]));
+                    StringBuilder lag = new StringBuilder();
+                    int lagN = 0;
+                    for (int cx = v[0]; cx <= v[2]; cx++)
+                        for (int cz = v[1]; cz <= v[3]; cz++) {
+                            var chunk = level.getChunkSource().getChunkNow(cx, cz);
+                            if (chunk == null) continue;
+                            int p = com.yayuy.overgrownvegetation.spore.field.MyceliumSeep.progressPpm(chunk);
+                            if (p < pMax - 100_000 && lagN++ < 8) lag.append(" [").append(cx).append(",").append(cz).append("]=").append(p);
+                        }
+                    if (lagN > 0) sb.append("\n  遅れているチャンク ").append(lagN).append(":").append(lag);
+                    log(sb.toString());
                 });
             }
             case "holes" -> {

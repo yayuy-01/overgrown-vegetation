@@ -1,0 +1,24 @@
+{
+  "variants": {
+    "facing=north": [
+      { "model": "overgrown_vegetation:block/wall_bracket_fungus_a" },
+      { "model": "overgrown_vegetation:block/wall_bracket_fungus_b" },
+      { "model": "overgrown_vegetation:block/wall_bracket_fungus_c" }
+    ],
+    "facing=east": [
+      { "model": "overgrown_vegetation:block/wall_bracket_fungus_a", "y": 90 },
+      { "model": "overgrown_vegetation:block/wall_bracket_fungus_b", "y": 90 },
+      { "model": "overgrown_vegetation:block/wall_bracket_fungus_c", "y": 90 }
+    ],
+    "facing=south": [
+      { "model": "overgrown_vegetation:block/wall_bracket_fungus_a", "y": 180 },
+      { "model": "overgrown_vegetation:block/wall_bracket_fungus_b", "y": 180 },
+      { "model": "overgrown_vegetation:block/wall_bracket_fungus_c", "y": 180 }
+    ],
+    "facing=west": [
+      { "model": "overgrown_vegetation:block/wall_bracket_fungus_a", "y": 270 },
+      { "model": "overgrown_vegetation:block/wall_bracket_fungus_b", "y": 270 },
+      { "model": "overgrown_vegetation:block/wall_bracket_fungus_c", "y": 270 }
+    ]
+  }
+}

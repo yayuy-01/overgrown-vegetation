@@ -48,6 +48,14 @@ public final class ModAttachments {
      * チャンクごとの「洞窟の床に芽の点を置いた回数」(2026-11-04 胞子の場の地下の層)。場の洞窟の発芽の回数より少なければ、
      * 読み込んだときに足りない分の点を洞窟の床に置く。チャンクと一緒にセーブされる。
      */
+    /**
+     * チャンクごとの<b>菌糸の染み下りの進み</b>(2026-11-07、{@code spore/field/MyceliumSeep})。地表から世界の底までのうち、
+     * 処理し終えた割合 × 1,000,000(0 = まだ、1,000,000 = 底まで)。チャンクと一緒にセーブされる(読み込まれていない間の分は、次に読み込んだときに追いつく)。
+     */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<Integer>> MYCELIUM_SEEP =
+            ATTACHMENT_TYPES.register("mycelium_seep",
+                    () -> AttachmentType.builder(() -> 0).serialize(Codec.INT, v -> v != 0).build());
+
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<Integer>> CAVE_SPROUTS_PLACED =
             ATTACHMENT_TYPES.register("cave_sprouts_placed",
                     () -> AttachmentType.builder(() -> 0).serialize(Codec.INT).build());

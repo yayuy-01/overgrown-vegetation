@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "facing=north,form=0": { "model": "overgrown_vegetation:block/wall_lycopsid_fan" },
+    "facing=east,form=0": { "model": "overgrown_vegetation:block/wall_lycopsid_fan", "y": 90 },
+    "facing=south,form=0": { "model": "overgrown_vegetation:block/wall_lycopsid_fan", "y": 180 },
+    "facing=west,form=0": { "model": "overgrown_vegetation:block/wall_lycopsid_fan", "y": 270 },
+    "facing=north,form=1": { "model": "overgrown_vegetation:block/wall_lycopsid_base" },
+    "facing=east,form=1": { "model": "overgrown_vegetation:block/wall_lycopsid_base", "y": 90 },
+    "facing=south,form=1": { "model": "overgrown_vegetation:block/wall_lycopsid_base", "y": 180 },
+    "facing=west,form=1": { "model": "overgrown_vegetation:block/wall_lycopsid_base", "y": 270 },
+    "facing=north,form=2": { "model": "overgrown_vegetation:block/wall_lycopsid_clubmoss" },
+    "facing=east,form=2": { "model": "overgrown_vegetation:block/wall_lycopsid_clubmoss", "y": 90 },
+    "facing=south,form=2": { "model": "overgrown_vegetation:block/wall_lycopsid_clubmoss", "y": 180 },
+    "facing=west,form=2": { "model": "overgrown_vegetation:block/wall_lycopsid_clubmoss", "y": 270 }
+  }
+}

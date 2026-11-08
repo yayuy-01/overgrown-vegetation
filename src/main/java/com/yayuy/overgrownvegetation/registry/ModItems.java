@@ -213,6 +213,10 @@ public final class ModItems {
             "protective_mask", com.yayuy.overgrownvegetation.item.ProtectiveMaskItem::new, new Item.Properties().stacksTo(1));
 
     public static void register(IEventBus modBus) {
+        // 消した壁の植物(2026-11-08)のアイテムも新しい植物へ写す(ModBlocks#register の別名と同じ組)
+        ITEMS.addAlias(OvergrownVegetation.id("overgrown_creeping_vine"), OvergrownVegetation.id("wall_lycopsid"));
+        ITEMS.addAlias(OvergrownVegetation.id("overgrown_thorn_vine"), OvergrownVegetation.id("wall_lycopsid"));
+        ITEMS.addAlias(OvergrownVegetation.id("overgrown_shelf_lichen"), OvergrownVegetation.id("hanging_moss"));
         ITEMS.register(modBus);
     }
 

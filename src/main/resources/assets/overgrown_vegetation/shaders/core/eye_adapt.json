@@ -1,0 +1,11 @@
+{
+    "vertex": "overgrown_vegetation:mist_composite",
+    "fragment": "overgrown_vegetation:eye_adapt",
+    "samplers": [
+        { "name": "SceneTex" }
+    ],
+    "uniforms": [
+        { "name": "EyeA", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+        { "name": "EyeB", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] }
+    ]
+}

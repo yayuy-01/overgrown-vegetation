@@ -28,7 +28,8 @@ public final class DynamicLights {
 
     /** 動く光が 1 つでもあるか(無ければ呼ぶ側で位置を作らずに済ませる)。 */
     public static boolean any() {
-        return CaveLights.mix() > 0.0F && (CaveLights.shown().length > 0 || CaveLights.ambient() > 0.0F);
+        // 11-07: 手に持った明かりは地上の夜にも効く
+        return CaveLights.mix() > 0.0F && (CaveLights.shown().length > 0 || CaveLights.ambient() > 0.0F) || CaveLights.heldCount() > 0;
     }
 
     /**
@@ -38,7 +39,7 @@ public final class DynamicLights {
      */
     public static int levelAt(Vec3 pos) {
         var p = DesignData.atmosphere().cave();
-        float b = Mth.clamp(CaveLights.intensityAt(pos.x, pos.y, pos.z) * p.lightGain() * p.entityGain()
+        float b = Mth.clamp(CaveLights.intensityAt(pos.x, pos.y, pos.z) * CaveLights.lightGain() * p.entityGain()
                 + CaveLights.ambient() * CaveLights.mix(), 0.0F, 1.0F);
         return Mth.clamp(Math.round(15.0F * 4.0F * b / (1.0F + 3.0F * b)), 0, 15);
     }

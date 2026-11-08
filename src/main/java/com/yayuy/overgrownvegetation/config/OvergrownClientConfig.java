@@ -97,7 +97,7 @@ public final class OvergrownClientConfig {
             fog = b.comment("Spore fog and morning mist (terrain fog, vanilla fog override, Distant Horizons fog override, giant tree silhouettes).").define("fog", true);
             fogDetail = b.comment("Fine detail of the fog (ray marching; only at atmosphereQuality HIGH).").define("fogDetail", true);
             motes = b.comment("Falling leaves, glowing spores, dusk motes, after-rain drops and steam.").define("motes", true);
-            critters = b.comment("Gnat swarms and the critters in tree hollows.").define("critters", true);
+            critters = b.comment("Gnat swarms, the critters in tree hollows, and the gnats and lizards around giant trees.").define("critters", true);
             leafSway = b.comment("Leaves and grass swaying in the wind.").define("leafSway", true);
             waterLife = b.comment("Rings and bubbles on water, wet sheen.").define("waterLife", true);
             underwater = b.comment("Caustics and light shafts under water, glowing algae at night.").define("underwater", true);

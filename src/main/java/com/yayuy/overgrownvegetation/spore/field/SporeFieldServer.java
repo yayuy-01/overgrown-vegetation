@@ -389,20 +389,12 @@ public final class SporeFieldServer {
         WindWeatherData wx = WindWeatherData.get(server);
         // 巨大樹の梢(中心)= 第二の胞子の震源(2026-10-23 D)。ハイヴノードを倒された木は外す。記録の古い順に maxTrees 本まで
         PhaseData pd = PhaseData.get(level);
-        long[] trees = pd.giantTreeOriginSnapshot();
-        long now = level.getGameTime();
-        int max = table.giantTreeMaxTrees() > 0 ? table.giantTreeMaxTrees() : Integer.MAX_VALUE;
         LongArrayList cl = new LongArrayList();
         it.unimi.dsi.fastutil.doubles.DoubleArrayList cr = new it.unimi.dsi.fastutil.doubles.DoubleArrayList();
-        for (long tr : trees) {
-            if (cl.size() >= max) break;
-            if (pd.isGiantTreeDead(tr)) continue;
-            int x = (int) (tr >> 32), z = (int) tr;
-            long born = pd.giantTreeBorn(tr);
-            double ageDays = born == Long.MIN_VALUE ? Double.MAX_VALUE : (now - born) / 24000.0D;
-            cl.add(ChunkPos.asLong(x >> 4, z >> 4));
-            cr.add(table.giantTreePerDay(ageDays));
-        }
+        forEachTreeSource(pd, level.getGameTime(), table, (tr, perDay) -> {
+            cl.add(ChunkPos.asLong(((int) (tr >> 32)) >> 4, ((int) tr) >> 4));
+            cr.add(perDay);
+        });
         long[] canopy = cl.toLongArray();
         double[] canopyRate = cr.toDoubleArray();
         return new Inputs(fieldClock, steps, table.updateTicks(), level.getDayTime(), clock, field.seed,
@@ -410,6 +402,34 @@ public final class SporeFieldServer {
                 canopy, canopyRate, com.yayuy.overgrownvegetation.quake.EarthquakeData.get(level).eruptingChunks(level.getGameTime()),
                 breathingChunks(),
                 watchTiles(level), table, livingTreeChunks(pd));
+    }
+
+    /** 胞子を出している巨大樹 1 本(根元の x,z を詰めた値と、1 日あたりの放出。朝の上乗せは入らない)。 */
+    @FunctionalInterface
+    public interface TreeSink {
+        void accept(long packedOrigin, double perDay);
+    }
+
+    /**
+     * 胞子の発生源になっている巨大樹を記録の古い順に {@code maxTrees} 本まで(ハイヴノードを倒された木は外す)、育ち具合の 1 日の放出と一緒に渡す
+     * (2026-11-06 に {@link #gatherInputs} から出した。巨大樹の胞子の柱 {@code GiantTreeSync} も同じ規則で量を決める)。
+     */
+    public static void forEachTreeSource(PhaseData pd, long gameTime, SporeFieldTable table, TreeSink sink) {
+        int max = table.giantTreeMaxTrees() > 0 ? table.giantTreeMaxTrees() : Integer.MAX_VALUE;
+        int n = 0;
+        for (long tr : pd.giantTreeOriginSnapshot()) {
+            if (n >= max) break;
+            if (pd.isGiantTreeDead(tr)) continue;
+            long born = pd.giantTreeBorn(tr);
+            double ageDays = born == Long.MIN_VALUE ? Double.MAX_VALUE : (gameTime - born) / 24000.0D;
+            sink.accept(tr, table.giantTreePerDay(ageDays));
+            n++;
+        }
+    }
+
+    /** 朝(時刻 0〜3000 = 6〜9 時)の梢の上乗せ(1 日の量を朝の 1/8 日に寄せる)。{@link #compute} と胞子の柱で同じ。 */
+    public static double canopyMorningPerDay(SporeFieldTable table, long timeOfDay) {
+        return Math.floorMod(timeOfDay, PrevailingWind.DAY) < 3000 ? table.canopyMorningPerDay() * 8 : 0.0D;
     }
 
     /**
@@ -462,7 +482,7 @@ public final class SporeFieldServer {
                     long c = in.canopyChunks[i];
                     int ccx = ChunkPos.getX(c), ccz = ChunkPos.getZ(c);
                     // 一日中(育ち具合で増える)。朝(6〜9 時)はさらに上乗せ(1 日の量を朝の 1/8 日に寄せる)
-                    double perDay = in.canopyRate[i] + (tod < 3000 ? table.canopyMorningPerDay() * 8 : 0.0D);
+                    double perDay = in.canopyRate[i] + canopyMorningPerDay(table, tod);
                     f.emitPoint(ccx, ccz, perDay * dt);
                     // 嵐が無くても梢の浮遊を上空の層へ持ち上げる(晴れの日も塊になって飛び地を作る)
                     if (liftFrac > 0) f.liftAt(ccx, ccz, liftFrac);

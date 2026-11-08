@@ -735,6 +735,8 @@ final class GiantSilhouettes {
         target.needsScan = false;
         target.scannedAt = ticks;
         target.buried = scan.buried;
+        // 巨大樹の一覧の読み取り口へ形を渡す(11-06 胞子の柱・夜の地脈の光。{@link GiantTrees})
+        GiantTrees.fromScan(scan.axisX, scan.axisZ, scan.baseY, scan.topY, scan.crownRadius, scan.voxels);
         long signature = scan.signature();
         if (signature == target.builtSignature || scan.voxels.isEmpty()) {
             return;
@@ -1069,6 +1071,28 @@ final class GiantSilhouettes {
 
     /** 開発用: 撮り比べのためにこのセッションだけ描かない({@link MistDev} の {@code fog silhouette off})。 */
     static boolean devOff;
+    /** 開発用: 前の決まり(森の中の霞の間は描かない)に戻す(11-06 夜の撮り比べ。{@code fog silhouette old})。 */
+    static boolean devHazeOld;
+    /** 開発用: 霞の中の引き延ばしの倍率の上書き(0 以下 = 設計値 silhouette.forestHazeStretch。{@code fog silhouette stretch <倍率>})。 */
+    static float devForestStretch;
+
+    /** 今の地形の霧({@link MistView#fogAmount}。霞の印込み)で、隠れる量が {@code target} になる距離(二分法。霧の終わりまでで届かなければ終わり)。 */
+    private static float distanceAtFog(float target, float fogEnd) {
+        float lo = 0.0F;
+        float hi = fogEnd;
+        if (MistView.fogAmount(hi) < target) {
+            return hi;
+        }
+        for (int i = 0; i < 24; i++) {
+            float mid = 0.5F * (lo + hi);
+            if (MistView.fogAmount(mid) < target) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        return hi;
+    }
 
     /** AFTER_CUTOUT_BLOCKS({@link Atmosphere} から。水の中・盲目の間は呼ばれない)。 */
     static void render(RenderLevelStageEvent event) {
@@ -1078,9 +1102,12 @@ final class GiantSilhouettes {
         ShaderInstance shader = ModShaders.giantSilhouette();
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
+        // 11-06 夜(ユーザー「正面に巨大樹あるんですけど、上の方が見えてない」): 前は森の中の霞の間(MistView.hazeActive)は描かなかったので、
+        // 林床から見上げると巨大樹の上の方が霞(壁 86.4〜96 と 1 ブロックあたり k の霞)に溶けて何も見えなかった。今は霞の中でも描き、
+        // 入れ替える距離を「本物の木が今の霧(霞の印込み)で FogAtCut だけ隠れる所」にする(MistView.fogAmount を解く)。
+        boolean haze = MistView.hazeActive();
         if (devOff || shader == null || TREES.isEmpty() || level == null || level != trackedLevel || ShaderPacks.active()
-                || ForestPresence.underground() > 0.5F || MistView.hazeActive()) {
-            // 森の中の霞の間は出さない(霞の向こうは 96 ブロックで見えない。シルエットの切り替えの濃さが霞と合わないのもある)。
+                || ForestPresence.underground() > 0.5F || haze && devHazeOld) {
             return;
         }
         AtmosphereTable.SilhouetteParams p = DesignData.atmosphere().silhouette();
@@ -1089,13 +1116,14 @@ final class GiantSilhouettes {
         if (fogEnd <= fogStart + 1.0F) {
             return;
         }
-        float cutEnd = fogStart + p.cutAt() * (fogEnd - fogStart);
+        float fogAtCut = p.cutAt() * p.cutAt() * (3.0F - 2.0F * p.cutAt());
+        // 霞の外は前と同じ(バニラの霧の壁の cutAt の所)。霞の中は、霞込みの霧の量が壁の cutAt と同じ FogAtCut になる距離。
+        float cutEnd = haze ? distanceAtFog(fogAtCut, fogEnd) : fogStart + p.cutAt() * (fogEnd - fogStart);
         // 描画距離の端へ近づくほど薄くする(水平の距離で。高い所の傘まで薄くしない): 形は読み込まれたチャンクからしか写せないので、その先で木が切れて見えないように。
         float farEnd = mc.options.getEffectiveRenderDistance() * 16.0F - 8.0F;
         if (cutEnd >= farEnd - 4.0F) {
             return; // 霧が遠い(本物の木が描画距離の端まで見えている)ので入れ替える所が無い。
         }
-        float fogAtCut = p.cutAt() * p.cutAt() * (3.0F - 2.0F * p.cutAt());
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         float brightness = level.getSkyDarken(partialTick);
         Camera camera = event.getCamera();
@@ -1122,6 +1150,17 @@ final class GiantSilhouettes {
         shader.safeGetUniform("MistStretch").set(p.mistStretch());
         shader.safeGetUniform("FarStart").set(farEnd - 40.0F);
         shader.safeGetUniform("FarEnd").set(farEnd);
+        // 11-06 夜: 霞の中は霞の k を hazeStretch 倍に引き延ばして霞ませ、色は林冠の陰で落とす前の霧の色(明るい霞)へ寄せる(giant_silhouette.fsh)。
+        float[] terrainFog = RenderSystem.getShaderFogColor().clone();
+        float stretch = devForestStretch > 0.0F ? devForestStretch : p.forestHazeStretch();
+        float hazeK = haze ? MistView.markK() / Math.max(stretch, 0.01F) : 0.0F;
+        shader.safeGetUniform("HazeK").set(hazeK);
+        if (hazeK > 0.0F) {
+            net.minecraft.client.renderer.FogRenderer.levelFogColor(); // 林冠の陰で落とす前の霧の色
+            float[] far = RenderSystem.getShaderFogColor();
+            shader.safeGetUniform("HazeFar").set(far[0], far[1], far[2]);
+            RenderSystem.setShaderFogColor(terrainFog[0], terrainFog[1], terrainFog[2], terrainFog[3]);
+        }
         for (Tree t : TREES) {
             if (t.vbo == null) {
                 continue;

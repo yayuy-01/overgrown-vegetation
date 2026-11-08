@@ -401,6 +401,14 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.DoubleValue caveVineArchDip;
         public final ModConfigSpec.IntValue caveVineArchLeafRadius;
         public final ModConfigSpec.DoubleValue caveVineArchLeafChance;
+        /** 壁と壁の隙間に渡る太い蔦(2026-11-07、corruption/VineSpan): オン/オフ・汚染した壁 1 つあたりの確率・ほかの太い蔦との間隔・隙間の幅。 */
+        public final ModConfigSpec.BooleanValue vineSpan;
+        public final ModConfigSpec.DoubleValue vineSpanChance;
+        /** 洞窟の壁を這う汚染(spore/field/CaveWallCreep)が汚染した壁 1 つあたりの確率(11-07 ユーザー決定「洞窟だけ確率を上げる」、仮 0.01)。 */
+        public final ModConfigSpec.DoubleValue vineSpanCaveChance;
+        public final ModConfigSpec.IntValue vineSpanSpacing;
+        public final ModConfigSpec.IntValue vineSpanMinGap;
+        public final ModConfigSpec.IntValue vineSpanMaxGap;
         /**
          * 地表の汚染割合が {@link #overgrownBiomeThreshold} に届く前でも、胞子濃度が 100% に達した
          * チャンクを「繁茂バイオーム」({@link com.yayuy.overgrownvegetation.registry.ModBiomes#OVERGROWTH})
@@ -1636,8 +1644,9 @@ public final class OvergrownVegetationConfig {
             caveVineArchShare = b
                     .comment("天井のアーチのうち、根(giant_overgrown_log)ではなく葉に包まれた巨大な蔦",
                             "(overgrown_wood + overgrown_leaves、湿地系では overgrown_swamp_* )になる割合。",
-                            "0 で常に根のアーチ、1 で常に蔦のアーチ。密林・湿地系どちらの洞窟でも同じ割合。既定 0.35。")
-                    .defineInRange("caveVineArchShare", 0.35D, 0.0D, 1.0D);
+                            "0 で常に根のアーチ、1 で常に蔦のアーチ。密林・湿地系どちらの洞窟でも同じ割合。",
+                            "2026-11-07 から既定 0(ユーザー決定。蔦は壁と壁の隙間に渡る太い蔦 vineSpan に置き換え)。")
+                    .defineInRange("caveVineArchShare", 0.0D, 0.0D, 1.0D);
 
             caveVineArchDip = b
                     .comment("蔦のアーチ: 中央の垂れ下がり(水平距離に対する割合)。蔦なので根(caveArchDip)より深く垂れる。既定 0.6。")
@@ -1650,6 +1659,31 @@ public final class OvergrownVegetationConfig {
             caveVineArchLeafChance = b
                     .comment("蔦のアーチ: 葉の層の各マスが実際に葉になる確率。1 未満にすると房状にまばらになる。既定 0.65。")
                     .defineInRange("caveVineArchLeafChance", 0.65D, 0.0D, 1.0D);
+
+            vineSpan = b
+                    .comment("壁と壁の隙間(崖・渓谷・洞窟)に、汚染された壁から向かいの汚染された壁へ太い蔦(汚染された葉だけで作る)を渡すか。",
+                            "汚染が壁に広がったときに抽選する(2026-11-07)。既定 true。")
+                    .define("vineSpan", true);
+
+            vineSpanChance = b
+                    .comment("太い蔦: 汚染した壁のブロック(横の面が空気に出たもの)1 つあたり、隙間を探す確率。既定 0.004(仮決め)。")
+                    .defineInRange("vineSpanChance", 0.004D, 0.0D, 1.0D);
+
+            vineSpanCaveChance = b
+                    .comment("太い蔦: 洞窟の壁を這う汚染が汚染した壁のブロック 1 つあたり、隙間を探す確率(地表は vineSpanChance)。洞窟の汚染が少ないので地表より高め。既定 0.01(仮決め、2026-11-07)。")
+                    .defineInRange("vineSpanCaveChance", 0.01D, 0.0D, 1.0D);
+
+            vineSpanSpacing = b
+                    .comment("太い蔦: ほかの太い蔦からこれだけ(ブロック)離れていないと渡さない。既定 16(仮決め)。")
+                    .defineInRange("vineSpanSpacing", 16, 0, 128);
+
+            vineSpanMinGap = b
+                    .comment("太い蔦: 渡す隙間の幅の下限(ブロック)。既定 6(仮決め)。")
+                    .defineInRange("vineSpanMinGap", 6, 4, 64);
+
+            vineSpanMaxGap = b
+                    .comment("太い蔦: 渡す隙間の幅の上限(ブロック)。既定 40(仮決め)。")
+                    .defineInRange("vineSpanMaxGap", 40, 4, 64);
 
             convertToOvergrowthBiome = b
                     .comment("地表の汚染割合が overgrownBiomeThreshold に届く前でも、胞子濃度が 100% に達した",

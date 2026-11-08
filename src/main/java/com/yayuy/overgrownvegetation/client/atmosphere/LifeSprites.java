@@ -30,6 +30,8 @@ final class LifeSprites {
     private static Vec3 cam;
     private static boolean any;
     private static boolean additive;
+    /** 霧で薄めない(洞窟の土ボタルの光: 地下の黒い霧の中でも光る画素と同じく沈めない。11-07)。end で戻る。 */
+    private static boolean noFog;
 
     static void begin(RenderLevelStageEvent event) {
         begin(event, false);
@@ -45,7 +47,18 @@ final class LifeSprites {
         any = false;
     }
 
+    /** 霧で薄めない描き方で始める(足し算)。 */
+    static void beginGlowNoFog(RenderLevelStageEvent event) {
+        begin(event, true);
+        noFog = true;
+    }
+
     static void end() {
+        boolean wasNoFog = noFog;
+        noFog = false;
+        if (wasNoFog && builder == null) {
+            return;
+        }
         if (builder == null) {
             return;
         }
@@ -91,7 +104,7 @@ final class LifeSprites {
         float dy = (float) (y - cam.y);
         float dz = (float) (z - cam.z);
         // この描き方(POSITION_COLOR)は霧を受けないので、森の中の霞の分だけ薄める(霞の中で粒だけ浮かないように、11-01)。
-        float hazed = a * (1.0F - MistView.fogAmount(Mth.sqrt(dx * dx + dy * dy + dz * dz)));
+        float hazed = noFog ? a : a * (1.0F - MistView.fogAmount(Mth.sqrt(dx * dx + dy * dy + dz * dz)));
         builder.addVertex(dx, dy, dz).setColor(r, g, b, hazed);
     }
 
@@ -148,6 +161,21 @@ final class LifeSprites {
         vertex(x - lx - ux, y - ly - uy, z - lz - uz, r, g, b, alpha);
         vertex(x + lx + ux, y + ly + uy, z + lz + uz, r, g, b, alpha);
         vertex(x - lx + ux, y - ly + uy, z - lz + uz, r, g, b, alpha);
+    }
+
+    /** 塗りつぶした四角(4 つの角を順に。裏表なし)。幹のトカゲ({@link TrunkLizards})の体の部品(11-06)。 */
+    static void quad(double x0, double y0, double z0, double x1, double y1, double z1, double x2, double y2, double z2,
+                     double x3, double y3, double z3, float r, float g, float b, float alpha) {
+        if (builder == null || alpha <= 0.002F) {
+            return;
+        }
+        any = true;
+        vertex(x0, y0, z0, r, g, b, alpha);
+        vertex(x1, y1, z1, r, g, b, alpha);
+        vertex(x2, y2, z2, r, g, b, alpha);
+        vertex(x0, y0, z0, r, g, b, alpha);
+        vertex(x2, y2, z2, r, g, b, alpha);
+        vertex(x3, y3, z3, r, g, b, alpha);
     }
 
     /** 水平な輪(水面の波紋)。半径 radius、幅 width。真ん中の線が alpha、内と外のふちが 0。 */

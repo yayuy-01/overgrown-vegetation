@@ -46,6 +46,13 @@ public final class DistantHorizonsFog {
     private static int farFogMaxSent = -1;
     /** 森の中の胞子の霧で DH を上書きしているか(森の縁で行き来して設定を書き続けないよう 0.6 で入り 0.4 で出る)。 */
     private static boolean inForest;
+    /** 地下モードで DH を上書きしているか(11-07)。 */
+    private static boolean inCave;
+
+    /** DH が入っているか(11-07: 地下の間の DH の遠景の霧の色を洞窟の色へ寄せるのは DH があるときだけ。{@link MistView})。 */
+    static boolean loaded() {
+        return LOADED;
+    }
 
     private DistantHorizonsFog() {
     }
@@ -63,8 +70,12 @@ public final class DistantHorizonsFog {
         float inside = inWorld ? MistFog.cameraInside() : 0.0F;
         float forest = inWorld ? MistView.sporeFog() : 0.0F;
         inForest = inForest ? forest > 0.4F : forest >= 0.6F;
-        fogSent = send("ふつうの霧", vanillaFogValue, inside > 0.001F || inForest, Boolean.TRUE, fogSent);
-        boolean thick = inside > 0.5F || inForest;
+        // 11-07(天井に穴の開いた洞窟): 地下モードの黒い霧もバニラの霧の距離で出すので、DH が既定でふつうの霧を切っていると洞窟の中で霧が掛からず、
+        // 穴の向こうに DH の遠景がくっきり出た。地下モードの間も森の霧と同じに、ふつうの霧を有効にして遠景を霧で隠す(0.5 で入り 0.3 で出る)。
+        float cave = inWorld && VisualQuality.caveLight() && !CaveLights.devHalfRoof ? CaveLights.mix() : 0.0F;
+        inCave = inCave ? cave > 0.3F : cave >= 0.5F;
+        fogSent = send("ふつうの霧", vanillaFogValue, inside > 0.001F || inForest || inCave, Boolean.TRUE, fogSent);
+        boolean thick = inside > 0.5F || inForest || inCave;
         farFogMinSent = send("遠景の霧(薄い所)", farFogMinValue, thick, HIDDEN_FAR_FOG, farFogMinSent);
         farFogMaxSent = send("遠景の霧(濃い所)", farFogMaxValue, thick, HIDDEN_FAR_FOG, farFogMaxSent);
     }

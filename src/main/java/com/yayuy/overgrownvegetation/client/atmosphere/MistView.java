@@ -103,6 +103,12 @@ final class MistView {
         return new float[]{(c - h * 10000.0F) / HAZE_SCALE, (h - s * 51.0F) / 50.0F, s / 20.0F};
     }
 
+    /** 今の霧の印の 1 ブロックあたりの霞 k(印が無ければ 0。11-06 夜、巨大樹のシルエットが霞の中の霞み方に使う)。 */
+    static float markK() {
+        float[] m = decodeMark(RenderSystem.getShaderFogStart());
+        return m != null ? m[0] : 0.0F;
+    }
+
     /** 森の中の霞を描いているか(バニラの霧の始まりの印に胞子の霞が入っている。空気遠近だけの印は数えない)。 */
     static boolean hazeActive() {
         float[] m = decodeMark(RenderSystem.getShaderFogStart());
@@ -399,6 +405,13 @@ final class MistView {
             r = Mth.lerp(cave, r, c.r());
             g = Mth.lerp(cave, g, c.g());
             b = Mth.lerp(cave, b, c.b());
+        } else if (fluid == FogType.NONE && CaveLights.dhCaveColor() > 0.001F) {
+            // 11-07: Distant Horizons は遠景の霧の色をこの色(RenderSystem の霧の色)から取る。洞窟の奥(口から離れた所)では洞窟の霧の色へ寄せる。
+            // 前は地上の空の灰色のまま、遠くの空洞の壁(DH の遠景)が薄い灰色に浮いた。口の近くは寄せない(口の外の空は明るいまま。11-04)。
+            float sd = CaveLights.dhCaveColor();
+            r = Mth.lerp(sd, r, CaveLights.fogColor(0));
+            g = Mth.lerp(sd, g, CaveLights.fogColor(1));
+            b = Mth.lerp(sd, b, CaveLights.fogColor(2));
         }
         event.setRed(r);
         event.setGreen(g);
@@ -434,6 +447,8 @@ final class MistView {
         float storm = MistFog.stormNear();
         float forest = sporeFog();
         float cave = CaveLights.mix();
+        // 11-08 Q1: Mob・粒の黒い霧は地形と同じ 0.3 秒でならした場所の値(CaveLights.fogMix)。cave(4 秒)は空気遠近・霞の門だけ
+        float caveK = CaveLights.fogMix();
         if (event.getMode() != FogRenderer.FogMode.FOG_TERRAIN) {
             return;
         }
@@ -442,7 +457,11 @@ final class MistView {
         float aerial = !cloudPass && event.getFarPlaneDistance() < 1.0E9F ? aerial(forest, cave) : 0.0F;
         // 胞子の空気(11-06): カメラの所の分。森の中は森の霞に譲る(airAmount の中で × (1 − 森の霧の度合い))。
         float airK = !cloudPass && event.getFarPlaneDistance() < 1.0E9F ? DesignData.atmosphere().sporeAir().hazeDensity() * airAmount(forest, cave) : 0.0F;
-        if (inside <= 0.001F && storm <= 0.001F && forest <= 0.001F && cave <= 0.001F && aerial <= 0.001F && airK <= 0.0F) {
+        if (inside <= 0.001F && storm <= 0.001F && forest <= 0.001F && cave <= 0.001F && caveK <= 0.001F && aerial <= 0.001F && airK <= 0.0F) {
+            if (!cloudPass) {
+                float[] sc = com.mojang.blaze3d.systems.RenderSystem.getShaderFogColor();
+                CaveLights.setSurfaceFog(event.getNearPlaneDistance(), event.getFarPlaneDistance(), sc[0], sc[1], sc[2]);
+            }
             return;
         }
         var p = DesignData.atmosphere().fog();
@@ -460,7 +479,7 @@ final class MistView {
         // 地下モード(11-01 試作、{@link CaveLights}): 黒い霧で見通し 12〜16(ユーザー指定)。霞の印が入っているときは壁の始まりが
         // 終わり − clamp(終わり / 10, 4, 64) なので、終わり 16 で 12〜16 になる。
         // 雲を描く間(cloudPass。Sodium の雲はここを FOG_TERRAIN でもう一度呼ぶ)は地下の黒い霧を入れない(11-04 洞窟の直し 1)。
-        boolean caveFog = cave > 0.001F && !cloudPass;
+        boolean caveFog = caveK > 0.001F && !cloudPass;
         float k = hazeK(forest, reach) + airK;
         // 印(胞子の霞 k と空気遠近)。どちらも無ければ NaN。
         float mark = encodeMark(k, aerial, p.aerialStart());
@@ -472,13 +491,16 @@ final class MistView {
             surfaceStart = cloudStart;
             aerialOn = true;
         }
+        // 地上の霧(黒い霧を入れる前)。印があれば印を始まりにする(下の near = mark と同じ)。
+        float surfEnd = far;
+        float surfStart = !Float.isNaN(mark) ? mark : near;
         if (caveFog) {
             // 地上のままの霧の距離を控える(雲を描く間だけ戻す、beginClouds)。
             surfaceEnd = far;
             surfaceStart = cloudStart;
             var c = DesignData.atmosphere().cave();
-            far = Mth.lerp(cave, far, Math.min(far, c.fogEnd()));
-            near = Mth.lerp(cave, near, Math.min(near, c.fogStart()));
+            far = Mth.lerp(caveK, far, Math.min(far, CaveLights.fogEnd()));
+            near = Mth.lerp(caveK, near, Math.min(near, CaveLights.fogStart()));
         }
         if (!Float.isNaN(mark)) {
             near = mark;
@@ -502,6 +524,11 @@ final class MistView {
             com.mojang.blaze3d.systems.RenderSystem.setShaderFogColor(fc[0] * dim, fc[1] * dim, fc[2] * dim, fc[3]);
             forestDimOn = true;
         }
+        // 11-07(カメラ切り替えの廃止): 黒い霧を入れる前の地上の霧を地形のシェーダーへ(雲を描く間は除く)。地形は場所ごとに黒い霧を掛ける。
+        if (!cloudPass) {
+            float[] sc = com.mojang.blaze3d.systems.RenderSystem.getShaderFogColor();
+            CaveLights.setSurfaceFog(surfStart, surfEnd, sc[0], sc[1], sc[2]);
+        }
         if (caveFog) {
             // 11-04(洞窟の直し 1): 黒い霧の色はここで地形の霧の色だけに入れる(空・画面の消し色・雲は地上の色のまま。computeFogColor)。
             // これより後に描く地形・水・Mob・粒は黒い霧、雲の前で地上の色へ戻す(beginClouds)。
@@ -509,8 +536,8 @@ final class MistView {
             // 天井の光る玉(20 ブロック先)まで消えて穴から空が見えた。透明度を 0.999 にしてこの間引きを止める(霧の効き目は 0.1% しか変わらない)。
             var c = DesignData.atmosphere().cave();
             float[] fc = com.mojang.blaze3d.systems.RenderSystem.getShaderFogColor();
-            com.mojang.blaze3d.systems.RenderSystem.setShaderFogColor(Mth.lerp(cave, fc[0], c.r()), Mth.lerp(cave, fc[1], c.g()),
-                    Mth.lerp(cave, fc[2], c.b()), Math.min(fc[3], 0.999F));
+            com.mojang.blaze3d.systems.RenderSystem.setShaderFogColor(Mth.lerp(caveK, fc[0], CaveLights.fogColor(0)), Mth.lerp(caveK, fc[1], CaveLights.fogColor(1)),
+                    Mth.lerp(caveK, fc[2], CaveLights.fogColor(2)), Math.min(fc[3], 0.999F));
             caveFogOn = true;
         }
     }

@@ -1517,6 +1517,85 @@ public class CorruptionSpreader {
      */
     private void tryRandomArch(ServerLevel level, BlockPos origin, TendrilNode head, RandomSource random,
                                LongOpenHashSet touchedChunks) {
+        // 2026-11-07(Vault「巨大樹の根と根のアーチの作り直し」決定 6、ユーザー): 汚染の筋から単独のアーチ・地面から突き出す根の先端・
+        // 渓谷の逆さアーチは出さない(「置いた飾り」「触手」に見えるため)。アーチは巨大樹の地表の根の背中、渓谷は巨大樹の根の渡りとして
+        // GiantTreeFeature が作る。ここでは湿った地面にだけ呼吸根(膝根)の群れを置く。前の形は tryRandomArchLegacy に残してある(呼ばれない)。
+        int hx = origin.getX() + head.x;
+        int hz = origin.getZ() + head.z;
+        int groundY = findArchAnchorY(level, hx, hz, origin.getY() + head.y);
+        if (groundY == Integer.MIN_VALUE) {
+            return;
+        }
+        if (!Pneumatophores.isWet(level, hx, groundY, hz)) {
+            // 乾いた地面(2026-11-07 相談 4): 低い確率で、短い根の背中(小さなアーチ)だけ出す。大きなアーチ・根の先端は戻さない。
+            if (random.nextDouble() < DRY_BACK_SHARE) {
+                tryDryRootBack(level, hx, groundY, hz, random, touchedChunks);
+            }
+            return;
+        }
+        List<BlockPos> shell = new ArrayList<>();
+        if (Pneumatophores.place(level, random, new BlockPos(hx, groundY, hz),
+                ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState(), touchedChunks, shell)) {
+            decorateArchShell(level, shell, random, touchedChunks);
+        }
+    }
+
+    // 乾いた汚染地の短い根の背中(2026-11-07 相談 4。数はすべて仮決め): アーチの機会のうちこの割合で、長さ 4〜8・高さ 1〜2・太さ 0〜1。
+    private static final double DRY_BACK_SHARE = 0.3D;
+    private static final int DRY_BACK_LEN_MIN = 4;
+    private static final int DRY_BACK_LEN_MAX = 8;
+    private static final int DRY_BACK_H_MIN = 1;
+    private static final int DRY_BACK_H_MAX = 2;
+
+    /**
+     * 乾いた地面に、地面から少しだけ背を出す短い根(小さなアーチ)を 1 本。両端に地面があり、通り道が空気・草・自然の地面・
+     * 汚染ブロックだけのとき(家などの構造物・水をまたがない)だけ置く。
+     */
+    private void tryDryRootBack(ServerLevel level, int hx, int groundY, int hz, RandomSource random,
+                                LongOpenHashSet touchedChunks) {
+        double angle = random.nextDouble() * Math.PI * 2.0D;
+        int span = DRY_BACK_LEN_MIN + random.nextInt(DRY_BACK_LEN_MAX - DRY_BACK_LEN_MIN + 1);
+        int peak = DRY_BACK_H_MIN + random.nextInt(DRY_BACK_H_MAX - DRY_BACK_H_MIN + 1);
+        int thickness = random.nextInt(2);
+        int tx = hx + (int) Math.round(Math.cos(angle) * span);
+        int tz = hz + (int) Math.round(Math.sin(angle) * span);
+        int toY = findArchAnchorY(level, tx, tz, groundY);
+        if (toY == Integer.MIN_VALUE || Math.abs(toY - groundY) > 2 || Pneumatophores.isWet(level, tx, toY, tz)) {
+            return;
+        }
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int k = 0; k <= span; k++) {
+            double f = (double) k / span;
+            int x = (int) Math.round(hx + (tx - hx) * f);
+            int z = (int) Math.round(hz + (tz - hz) * f);
+            int base = (int) Math.round(groundY + (toY - groundY) * f);
+            for (int y = base - 1; y <= base + peak + thickness + 1; y++) {
+                p.set(x, y, z);
+                if (!level.isLoaded(p)) {
+                    return;
+                }
+                BlockState s = level.getBlockState(p);
+                if (!s.getFluidState().isEmpty()) {
+                    return;
+                }
+                if (!s.isAir() && !s.canBeReplaced()
+                        && !com.yayuy.overgrownvegetation.worldgen.GiantTreeFeature.isRootTerrain(s)
+                        && !OvergrownLayerData.isCorruptedCell(level, p, s)) {
+                    return;
+                }
+            }
+        }
+        List<BlockPos> shell = new ArrayList<>();
+        if (CorruptionArch.build(level, new BlockPos(hx, groundY, hz), new BlockPos(tx, toY, tz), peak, thickness,
+                ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState(), touchedChunks, null, shell)) {
+            decorateArchShell(level, shell, random, touchedChunks);
+        }
+    }
+
+    /** 2026-11-06 までの単独のアーチ・根の先端・渓谷の逆さアーチ(呼ばれない。戻すときの控え)。 */
+    @SuppressWarnings("unused")
+    private void tryRandomArchLegacy(ServerLevel level, BlockPos origin, TendrilNode head, RandomSource random,
+                               LongOpenHashSet touchedChunks) {
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
 
         // アーチの代わりに地面から突き出す根の先端(2026-10-09、ユーザー指定「アーチ:根の先端 = 7:3、合計は今のアーチと同じ」)。
@@ -1908,6 +1987,7 @@ public class CorruptionSpreader {
             }
             BlockPos from = new BlockPos(hx, hy, hz);
             BlockPos to = new BlockPos(wx, surfaceY, wz);
+            BlockPos landing = to; // 汚染を続ける着地点(橋の根が潜る所とは別)
 
             // 太さ・持ち上げは橋の長さ(span = k)から決める(装飾アーチ tryRandomArch と同じ考え方)。
             // 短い橋は細く低く、長い橋ほど太く高くなる。
@@ -1917,6 +1997,18 @@ public class CorruptionSpreader {
             double biasedPeak = Math.pow(random.nextDouble(), 1.0D - 0.7D * sizeFrac);
             int peak = 2 + (int) Math.round(biasedPeak * (peakCeil - 2));
 
+            // 岸の木の根が対岸へ渡る形(2026-11-07、Vault「巨大樹の根と根のアーチの作り直し」決定 6)。根は手前の岸の木の脇
+            // (無ければ岸の 4 マス奥)の地中から出て、水面の少し上を低く渡り、対岸の 3 マス奥の地中へ潜る。持ち上げは 1〜2 に抑える。
+            BlockPos rootFrom = bankRootStart(level, hx, hy, hz, ux, uz);
+            BlockPos rootTo = landInto(level, to, ux, uz, 3);
+            if (rootFrom != null && rootTo != null) {
+                from = rootFrom;
+                peak = Math.min(peak, 1 + random.nextInt(2)) + Math.max(0, (hy - from.getY()));
+            }
+            if (rootTo != null) {
+                to = rootTo;
+            }
+
             List<BlockPos> shell = new ArrayList<>();
             if (!CorruptionArch.build(level, from, to, peak, thickness,
                     ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState(), touchedChunks, null, shell)) {
@@ -1924,7 +2016,7 @@ public class CorruptionSpreader {
             }
             bridgesBuilt++;
             decorateArchShell(level, shell, random, touchedChunks);
-            seedFarBank(level, origin, to, dir, backtrackBudget, random, touchedChunks);
+            seedFarBank(level, origin, landing, dir, backtrackBudget, random, touchedChunks);
             return true;
         }
         return false;
@@ -1981,6 +2073,57 @@ public class CorruptionSpreader {
     }
 
     /**
+     * 川の橋の根の出どころ(2026-11-07): 手前の岸で、川と反対側 8 マス以内の木の幹(#logs)の、川側の脇の地面の 1 つ下。
+     * 木が無ければ岸の 4 マス奥の地面の 1 つ下。地面が無ければ null。
+     */
+    @Nullable
+    private static BlockPos bankRootStart(ServerLevel level, int hx, int hy, int hz, double ux, double uz) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        BlockPos best = null;
+        double bestD = Double.MAX_VALUE;
+        for (int dx = -8; dx <= 8; dx++) {
+            for (int dz = -8; dz <= 8; dz++) {
+                double d = dx * dx + dz * dz;
+                if (dx * ux + dz * uz > -1.0D || d > 64.0D || d >= bestD) {
+                    continue;
+                }
+                for (int dy = 0; dy <= 3; dy++) {
+                    p.set(hx + dx, hy + dy, hz + dz);
+                    if (!level.isLoaded(p)) {
+                        break;
+                    }
+                    if (level.getBlockState(p).is(BlockTags.LOGS)) {
+                        int sx = hx + dx + (int) Math.round(ux);
+                        int sz = hz + dz + (int) Math.round(uz);
+                        int gy = findArchAnchorY(level, sx, sz, hy);
+                        if (gy != Integer.MIN_VALUE) {
+                            best = new BlockPos(sx, gy - 1, sz);
+                            bestD = d;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        if (best != null) {
+            return best;
+        }
+        int bx = hx - (int) Math.round(ux * 4.0D);
+        int bz = hz - (int) Math.round(uz * 4.0D);
+        int gy = findArchAnchorY(level, bx, bz, hy);
+        return gy == Integer.MIN_VALUE ? null : new BlockPos(bx, gy - 1, bz);
+    }
+
+    /** 対岸の着地点 {@code to} から向き {@code (ux, uz)} へ {@code depth} マス奥の、地面の 1 つ下(根が潜る所)。無ければ null。 */
+    @Nullable
+    private static BlockPos landInto(ServerLevel level, BlockPos to, double ux, double uz, int depth) {
+        int x = to.getX() + (int) Math.round(ux * depth);
+        int z = to.getZ() + (int) Math.round(uz * depth);
+        int gy = findArchAnchorY(level, x, z, to.getY());
+        return gy == Integer.MIN_VALUE ? null : new BlockPos(x, gy - 1, z);
+    }
+
+    /**
      * {@code pos} の露出面(空気に接した面)に、面ごとに確率 {@code chance} で装飾植物を生やす。
      * 上面は下草(まれに高さ2ブロック)、下面は垂れ下がる植物、側面は壁の蔦。{@code hostState} が
      * {@link ModTags#GROWTH_HANGING_ONLY}(葉ブロックなど)の場合は下面の垂れ植物のみ。
@@ -2029,6 +2172,8 @@ public class CorruptionSpreader {
             // 洞窟の口(11-04): 天井が薄くて洞窟と判定されない口の帯にも根の簾だけ垂らす(ほかの地下の植生は置かない)。
             CaveFlora.decorateMouth(level, pos, hostState, random);
         }
+        // 壁と壁の隙間に渡る太い蔦(2026-11-07): 洞窟でも、空に開けた崖・渓谷でも。確率 vineSpanChance で隙間を探す(VineSpan)。
+        VineSpan.tryGrow(level, pos, random);
         // 地下(洞窟)かどうか。光るツタの増量に使う。modeAt が洞窟と判定していればそれを流用し、
         // caveGrowth をオフにしているときだけ深さを単独で見る(天井探しを二重に走らせない)。
         final boolean underground = cave != CaveGrowth.Mode.NONE
@@ -2379,8 +2524,9 @@ public class CorruptionSpreader {
     }
 
     private static void growSide(ServerLevel level, BlockPos pos, RandomSource random, Direction facing) {
-        BlockState growth = CorruptionGrowth.randomSide(random, facing);
-        if (growth.canSurvive(level, pos)) {
+        // 2026-11-08: 場所(地上・湿った壁・洞窟)で選ぶ(WallPlantGrowth)。置けない所を引いたら何も置かない
+        BlockState growth = WallPlantGrowth.pick(level, pos, random, facing);
+        if (growth != null && growth.canSurvive(level, pos)) {
             level.setBlock(pos, growth, Block.UPDATE_ALL);
         }
         // 壁面に植物が生えたとき、地上より低い確率で茂みの塊も壁から突き出す。
