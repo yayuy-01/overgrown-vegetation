@@ -64,6 +64,15 @@ public final class SporeFieldTable {
         public Boolean seepEnabled, seepWaterFacing;
         public Double seepDays, seepCreepSeedChance, seepMaxMillisPerTick, seepRootSpeed, seepPlantShare, seepGrowMarginMillis;
         public Integer seepIntervalTicks, seepChunksPerPass, seepStepBlocks, seepSlabBlocks, seepCellsPerTick, seepPlacementsPerTick, seepRootRadius, seepGrowQueueMax;
+        /**
+         * 浅い洞窟の天井から地上の木の根(2026-11-08 境目の帯 2、{@link com.yayuy.overgrownvegetation.corruption.CaveFlora#decorateForestRoots}。値はすべて仮決め):
+         * 入り切り・汚染した天井のブロック 1 つが根の束の起点になる確率・天井の上の岩の厚みの上限・地面から上へ幹を探す段数・幹を探す列の水平のずれ・
+         * 束どうしの間隔(この半径に根があれば垂らさない)・束を広げる半径・1 束の本数(下限・上限)・1 本の長さ(下限・上限)・バニラの垂れ根(1 段)にする割合。
+         */
+        public Boolean forestRootsEnabled;
+        public Double forestRootsChance, forestRootsVanillaShare;
+        public Integer forestRoofMax, forestTreeReach, forestTreeSide, forestRootsSpacing, forestRootsRadius, forestStrandsMin, forestStrandsMax,
+                forestRootLenMin, forestRootLenMax;
     }
 
     /**
@@ -217,6 +226,10 @@ public final class SporeFieldTable {
     private final boolean seepEnabled, seepWaterFacing;
     private final double seepDays, seepCreepSeedChance, seepMaxMillisPerTick, seepRootSpeed, seepPlantShare, seepGrowMarginMillis;
     private final int seepInterval, seepChunksPerPass, seepStepBlocks, seepSlabBlocks, seepCellsPerTick, seepPlacementsPerTick, seepRootRadius, seepGrowQueueMax;
+    private final boolean forestRootsEnabled;
+    private final double forestRootsChance, forestRootsVanillaShare;
+    private final int forestRoofMax, forestTreeReach, forestTreeSide, forestRootsSpacing, forestRootsRadius, forestStrandsMin, forestStrandsMax,
+            forestRootLenMin, forestRootLenMax;
     private final double creepChance, edgeNoiseAmp, edgeNoiseBlocks, edgeDepositWeight, edgeThreshold;
     private final double highFadeBlocks, highCapPercent;
     private final double sweepShare, sweepThinChance;
@@ -303,6 +316,18 @@ public final class SporeFieldTable {
         this.seepSlabBlocks = ug.seepSlabBlocks != null ? Math.max(1, Math.min(128, ug.seepSlabBlocks)) : 16;
         this.seepCellsPerTick = ug.seepCellsPerTick != null ? Math.max(256, ug.seepCellsPerTick) : 8192;
         this.seepPlacementsPerTick = ug.seepPlacementsPerTick != null ? Math.max(1, ug.seepPlacementsPerTick) : 48;
+        this.forestRootsEnabled = ug.forestRootsEnabled == null || ug.forestRootsEnabled;
+        this.forestRootsChance = Math.max(0.0D, Math.min(1.0D, orElse(ug.forestRootsChance, 0.04D)));
+        this.forestRootsVanillaShare = Math.max(0.0D, Math.min(1.0D, orElse(ug.forestRootsVanillaShare, 0.0D)));
+        this.forestRoofMax = ug.forestRoofMax != null ? Math.max(1, Math.min(32, ug.forestRoofMax)) : 6;
+        this.forestTreeReach = ug.forestTreeReach != null ? Math.max(1, Math.min(32, ug.forestTreeReach)) : 6;
+        this.forestTreeSide = ug.forestTreeSide != null ? Math.max(0, Math.min(8, ug.forestTreeSide)) : 2;
+        this.forestRootsSpacing = ug.forestRootsSpacing != null ? Math.max(0, Math.min(8, ug.forestRootsSpacing)) : 3;
+        this.forestRootsRadius = ug.forestRootsRadius != null ? Math.max(0, Math.min(6, ug.forestRootsRadius)) : 2;
+        this.forestStrandsMin = ug.forestStrandsMin != null ? Math.max(1, Math.min(32, ug.forestStrandsMin)) : 3;
+        this.forestStrandsMax = Math.max(this.forestStrandsMin, ug.forestStrandsMax != null ? Math.min(32, ug.forestStrandsMax) : 8);
+        this.forestRootLenMin = ug.forestRootLenMin != null ? Math.max(1, Math.min(16, ug.forestRootLenMin)) : 1;
+        this.forestRootLenMax = Math.max(this.forestRootLenMin, ug.forestRootLenMax != null ? Math.min(16, ug.forestRootLenMax) : 4);
         Edge eg = src.edge != null ? src.edge : new Edge();
         this.edgeNoiseAmp = Math.min(1.0D, orElse(eg.noiseAmp, 0.35D));
         this.edgeNoiseBlocks = Math.max(1.0D, orElse(eg.noiseBlocks, 6.0D));
@@ -520,6 +545,19 @@ public final class SporeFieldTable {
     /** 植物を同じ列で生やすのに残す時間(ms。残りがこれより少なければ待ち行列へ)・待ち行列の上限(溢れた分は生やさない)。2026-11-08。 */
     public double seepGrowMarginMillis() { return seepGrowMarginMillis; }
     public int seepGrowQueueMax() { return seepGrowQueueMax; }
+    /** 浅い洞窟の天井から地上の木の根(2026-11-08 境目の帯 2)。値は {@link Underground} の forest* を参照。 */
+    public boolean forestRootsEnabled() { return forestRootsEnabled; }
+    public double forestRootsChance() { return forestRootsChance; }
+    public double forestRootsVanillaShare() { return forestRootsVanillaShare; }
+    public int forestRoofMax() { return forestRoofMax; }
+    public int forestTreeReach() { return forestTreeReach; }
+    public int forestTreeSide() { return forestTreeSide; }
+    public int forestRootsSpacing() { return forestRootsSpacing; }
+    public int forestRootsRadius() { return forestRootsRadius; }
+    public int forestStrandsMin() { return forestStrandsMin; }
+    public int forestStrandsMax() { return forestStrandsMax; }
+    public int forestRootLenMin() { return forestRootLenMin; }
+    public int forestRootLenMax() { return forestRootLenMax; }
     /** 縁の列ごとの判定の雑音の大きさ(±)・雑音の模様の大きさ(ブロック)・降り積もりの重み(2026-11-04 A)。 */
     public double edgeNoiseAmp() { return edgeNoiseAmp; }
     public double edgeNoiseBlocks() { return edgeNoiseBlocks; }

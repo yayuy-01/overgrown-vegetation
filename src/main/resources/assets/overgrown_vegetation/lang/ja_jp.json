@@ -129,6 +129,7 @@
   "block.overgrown_vegetation.undeveloped_bush": "未発達の茂み",
   "block.overgrown_vegetation.large_undeveloped_fruit": "大きな未発達な果実",
   "block.overgrown_vegetation.overgrown_liana": "蔓",
+  "block.overgrown_vegetation.overgrown_liana_segment": "蔓",
   "item.overgrown_vegetation.spore": "胞子",
   "block.overgrown_vegetation.overgrown_door": "覆われたドア",
   "block.overgrown_vegetation.overgrown_chest": "過繫茂したチェスト",

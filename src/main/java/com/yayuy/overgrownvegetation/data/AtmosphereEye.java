@@ -114,6 +114,62 @@ public final class AtmosphereEye {
         }
     }
 
+    /**
+     * 洞窟の呼吸(節 caveBreath、2026-11-08 境目の帯 1。設定: 地下の汚染は胞子が流れ込むから起きる。それを口の所で見せる)。読むのは {@code client/atmosphere/CaveBreath}。
+     * 卓越風が口へ吹き込むときは外の胞子・埃の粒が中へ流れ込み、口から吹き出すときは中の湿った空気が霞になって出ていく。ユーザー指定は向きだけで、数はすべて仮決め:
+     * <ul>
+     *     <li>{@code radius}・{@code scanPerTick}・{@code maxVents}: 口を探す範囲・1 tick に試す所・覚えておく口の上限。</li>
+     *     <li>{@code skyMin}・{@code skyMax}: 口の内側とみなす空気の空の光。{@code reachMax}: 内側から外(上に岩の天井が無い所)まで探す長さ。
+     *     {@code depthMax}: 中へ流れ込む長さの上限。</li>
+     *     <li>{@code flowThreshold}: 風の向きと口の向きの内積がこれより小さければ凪(出入り無し)。{@code windGain}: 風の強さを量へ掛ける倍率。</li>
+     *     <li>{@code inSpeed}・{@code outSpeed}: 流れ込む粒・出ていく霞の速さ(ブロック/tick)。{@code inRate}・{@code outRate}: 口 1 つ・1 tick に出す粒・霞の数(風がいちばん強いとき)。</li>
+     *     <li>{@code moteCounts}・{@code hazeCounts}: 画質の段(高・中・低)ごとの粒・霞の上限。{@code moteSize}・{@code moteAlpha}・{@code hazeSize}・{@code hazeAlpha}: 大きさと濃さ。</li>
+     *     <li>縦穴(11-08 ユーザー決定): 床の空の光が {@code shaftSkyMin} 以上で上に岩が無く、まわりの輪に天井がある所。昼夜の温度差で出入りする: 太陽の高さ ÷ {@code thermalSun} で
+     *     昼は吹き出し(霞が穴を昇る)、夜は吹き込み(粒が穴を下りる)、量は {@code thermalGain} 倍。{@code nearFrom}〜{@code nearTo}: カメラに近い粒を小さく・薄くする距離。</li>
+     *     <li>{@code dustFloor}: 胞子の無い所でも出す埃の割合(胞子の濃さ 0 のとき)。{@code dustColor}・{@code sporeColor}・{@code hazeColor}: 色(胞子の濃さで埃 → 胞子へ寄せる)。</li>
+     * </ul>
+     */
+    public static final class CaveBreathJson {
+        public Boolean enabled;
+        public Double radius, scanPerTick, maxVents, skyMin, skyMax, reachMax, depthMax, flowThreshold, windGain, inSpeed, outSpeed, inRate, outRate,
+                moteSize, moteAlpha, hazeSize, hazeAlpha, dustFloor, thermalSun, thermalGain, shaftSkyMin, nearFrom, nearTo, overgrownHazeLight;
+        public int[] moteCounts, hazeCounts;
+        public double[] dustColor, sporeColor, hazeColor, overgrownHazeColor;
+    }
+
+    public record CaveBreathParams(boolean enabled, int radius, int scanPerTick, int maxVents, int skyMin, int skyMax, int reachMax, int depthMax,
+                                   float flowThreshold, float windGain, float inSpeed, float outSpeed, float inRate, float outRate, int[] moteCounts,
+                                   int[] hazeCounts, float moteSize, float moteAlpha, float hazeSize, float hazeAlpha, float dustFloor, float[] dustColor,
+                                   float[] sporeColor, float[] hazeColor, float thermalSun, float thermalGain, int shaftSkyMin, float nearFrom,
+                                   float nearTo, float[] overgrownHazeColor, float overgrownHazeLight) {
+        static CaveBreathParams of(CaveBreathJson j) {
+            CaveBreathJson v = j != null ? j : new CaveBreathJson();
+            return new CaveBreathParams(v.enabled == null || v.enabled, Math.round(c(v.radius, 32.0, 8.0, 64.0)), Math.round(c(v.scanPerTick, 3.0, 1.0, 32.0)),
+                    Math.round(c(v.maxVents, 8.0, 0.0, 32.0)), Math.round(c(v.skyMin, 4.0, 0.0, 15.0)), Math.round(c(v.skyMax, 13.0, 0.0, 15.0)),
+                    Math.round(c(v.reachMax, 7.0, 2.0, 16.0)), Math.round(c(v.depthMax, 14.0, 2.0, 32.0)), c(v.flowThreshold, 0.2, 0.0, 1.0),
+                    c(v.windGain, 1.0, 0.0, 4.0), c(v.inSpeed, 0.1, 0.01, 0.5), c(v.outSpeed, 0.05, 0.01, 0.5), c(v.inRate, 1.5, 0.0, 10.0),
+                    c(v.outRate, 0.15, 0.0, 2.0), counts(v.moteCounts, new int[]{180, 100, 40}), counts(v.hazeCounts, new int[]{30, 18, 8}),
+                    c(v.moteSize, 0.04, 0.005, 0.3), c(v.moteAlpha, 0.75, 0.0, 1.0), c(v.hazeSize, 1.4, 0.2, 6.0), c(v.hazeAlpha, 0.12, 0.0, 1.0),
+                    c(v.dustFloor, 0.35, 0.0, 1.0), color(v.dustColor, new double[]{0.80, 0.76, 0.66}), color(v.sporeColor, new double[]{0.80, 0.86, 0.48}),
+                    color(v.hazeColor, new double[]{0.82, 0.85, 0.82}), c(v.thermalSun, 0.3, 0.02, 1.0),
+                    c(v.thermalGain, 0.8, 0.0, 2.0), Math.round(c(v.shaftSkyMin, 12.0, 0.0, 15.0)), c(v.nearFrom, 0.8, 0.0, 8.0), c(v.nearTo, 4.0, 0.1, 16.0),
+                    color(v.overgrownHazeColor, new double[]{0.90, 0.94, 1.0}), c(v.overgrownHazeLight, 0.6, 0.0, 1.0));
+        }
+    }
+
+    private static int[] counts(int[] v, int[] def) {
+        int[] out = new int[3];
+        for (int i = 0; i < 3; i++) {
+            out[i] = Math.max(0, Math.min(1024, v != null && v.length > i ? v[i] : def[i]));
+        }
+        return out;
+    }
+
+    private static float[] color(double[] v, double[] def) {
+        double[] d = v != null && v.length >= 3 ? v : def;
+        return new float[]{c(d[0], def[0], 0.0, 1.0), c(d[1], def[1], 0.0, 1.0), c(d[2], def[2], 0.0, 1.0)};
+    }
+
     private static float c(Double v, double def, double min, double max) {
         double x = v != null && Double.isFinite(v) ? v : def;
         return (float) Math.max(min, Math.min(max, x));

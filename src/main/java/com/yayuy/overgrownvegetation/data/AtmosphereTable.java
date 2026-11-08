@@ -40,6 +40,8 @@ public final class AtmosphereTable {
         public AtmosphereEye.CaveOpenJson caveOpen;
         /** 洞窟の天井の穴の光の筋(11-07、{@link AtmosphereEye})。 */
         public AtmosphereEye.CaveShaftsJson caveShafts;
+        /** 洞窟の呼吸(11-08 境目の帯 1、{@link AtmosphereEye})。 */
+        public AtmosphereEye.CaveBreathJson caveBreath;
         /** 手に持った明かり(11-07、{@link AtmosphereEye})。 */
         public AtmosphereEye.HeldLightsJson heldLights;
         public AtmosphereLife.SteamJson steam;
@@ -655,6 +657,7 @@ public final class AtmosphereTable {
     private final AtmosphereEye.EyeAdaptParams eyeAdapt;
     private final AtmosphereEye.CaveOpenParams caveOpen;
     private final AtmosphereEye.CaveShaftsParams caveShafts;
+    private final AtmosphereEye.CaveBreathParams caveBreath;
     private final AtmosphereEye.HeldLightsParams heldLights;
     private final AtmosphereLife.SteamParams steam;
     private final AtmosphereLife.RipplesParams ripples;
@@ -755,6 +758,7 @@ public final class AtmosphereTable {
         this.eyeAdapt = AtmosphereEye.EyeAdaptParams.of(j != null ? j.eyeAdapt : null);
         this.caveOpen = AtmosphereEye.CaveOpenParams.of(j != null ? j.caveOpen : null);
         this.caveShafts = AtmosphereEye.CaveShaftsParams.of(j != null ? j.caveShafts : null);
+        this.caveBreath = AtmosphereEye.CaveBreathParams.of(j != null ? j.caveBreath : null);
         this.heldLights = AtmosphereEye.HeldLightsParams.of(j != null ? j.heldLights : null);
         this.steam = AtmosphereLife.SteamParams.of(j != null ? j.steam : null);
         this.ripples = AtmosphereLife.RipplesParams.of(j != null ? j.ripples : null);
@@ -1142,6 +1146,11 @@ public final class AtmosphereTable {
 
     public AtmosphereEye.CaveShaftsParams caveShafts() {
         return caveShafts;
+    }
+
+    /** 洞窟の呼吸(節 caveBreath、11-08 境目の帯 1。{@link AtmosphereEye})。 */
+    public AtmosphereEye.CaveBreathParams caveBreath() {
+        return caveBreath;
     }
 
     public AtmosphereEye.CaveOpenParams caveOpen() {

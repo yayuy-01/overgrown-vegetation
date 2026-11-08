@@ -843,7 +843,7 @@ public final class TreeVineConnector {
                 || state.is(ModBlocks.OVERGROWN_LOG.get())
                 || state.getBlock() instanceof com.yayuy.overgrownvegetation.block.BranchJointBlock // 通り抜けてよいが、蔦の端にはしない(2026-11-01)
                 || state.is(ModBlocks.OVERGROWN_LEAVES.get())
-                || state.is(ModBlocks.OVERGROWN_LIANA.get());
+                || com.yayuy.overgrownvegetation.block.CorruptedLianaBlock.isLianaPart(state);
     }
 
     /**

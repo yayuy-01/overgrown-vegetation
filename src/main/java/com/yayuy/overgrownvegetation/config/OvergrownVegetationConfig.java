@@ -513,6 +513,10 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.BooleanValue vineClimb;
         /** 林冠の細い蔓(2026-11-03 採用)を付ける木の割合。登る蔓の vinePerTreeChance とは別の関門。 */
         public final ModConfigSpec.DoubleValue canopyVineChance;
+        /** 蔦(登る蔓・林冠の細い蔓・掛け渡し)を素手で壊すのにかかる秒数(2026-11-08、仮決め 1.2)。剣・急ぎ・水中などの倍率はバニラどおり掛かる。 */
+        public final ModConfigSpec.DoubleValue vineHandBreakSeconds;
+        /** 蔦をハサミで壊すのにかかる秒数(2026-11-08、仮決め 0.15 = バニラの蔦をハサミで切るのと同じ 3 tick)。 */
+        public final ModConfigSpec.DoubleValue vineShearsBreakSeconds;
         /**
          * 木が1本生えたとき、そもそも連結蔦の生成処理を試みる確率(0.0〜1.0)。
          * これに外れた木からは蔦が一切生えない(vineMinPerTree の下限保証よりも前に判定される)。
@@ -1191,8 +1195,8 @@ public final class OvergrownVegetationConfig {
                     .comment("露出面 1 つあたりに装飾植物を生やす確率。",
                             "6 面すべてが露出していても必ず 6 個生えるわけではなく、面ごとに毎回この確率で抽選する。",
                             "密林の空を覆うくらい木・下草を密集させたい場合はここを上げる(treeChance も参照)。",
-                            "既定 0.9(2026-11-01 夜に 0.85 から。何も生えない上面を減らす。値は仮決め)。")
-                    .defineInRange("growthChance", 0.9D, 0.0D, 1.0D);
+                            "既定 0.97(2026-11-08 ユーザー指定「何も生えないを 3%」で 0.9 から。11-01 夜に 0.85 → 0.9)。")
+                    .defineInRange("growthChance", 0.97D, 0.0D, 1.0D);
 
             tallGrowthChance = b
                     .comment("上面(露出面が UP)に植物を生やすと決まった際、",
@@ -1263,8 +1267,8 @@ public final class OvergrownVegetationConfig {
             // 林床(2026-11-01)。どれも密林だけ。値は仮決め(下絵の配置の図: 敷物 5〜6 割・小葉類の株 1 チャンク 20〜30・倒木 0〜2 本)
             floorCarpetChance = b
                     .comment("林床(密林): 上面の下草の抽選に当たったマスのうち、小葉類の敷物を敷く割合(苗木・木生シダの次に引く)。",
-                            "敷物を敷いたマスには、ほかの下草は生えない(小葉類の株だけ敷物付きで立つ)。仮決め 0.50(11-02 ユーザー指定「少し減らす」で 0.65 から)。")
-                    .defineInRange("floorCarpetChance", 0.50D, 0.0D, 1.0D);
+                            "敷物を敷いたマスには、ほかの下草は生えない(小葉類の株だけ敷物付きで立つ)。0.30(2026-11-08 ユーザー指定で 0.50 から。11-02 ユーザー指定「少し減らす」で 0.65 → 0.50)。")
+                    .defineInRange("floorCarpetChance", 0.30D, 0.0D, 1.0D);
             floorCarpetPlantChance = b
                     .comment("林床: 敷物の上に小葉類の株(敷物付きの 1 ブロック)を立てる確率。仮決め 0.15。")
                     .defineInRange("floorCarpetPlantChance", 0.15D, 0.0D, 1.0D);
@@ -1875,6 +1879,16 @@ public final class OvergrownVegetationConfig {
                     .comment("林冠の細い蔓(葉から真下に垂れる蔓と、隣の木の葉へ渡る浅い U)を付ける木の割合(vineClimb が true のとき)。",
                             "登る蔓の vinePerTreeChance とは別。1 本の木に 5〜10 本。重ければ下げる。")
                     .defineInRange("canopyVineChance", 0.7D, 0.0D, 1.0D);
+
+            vineHandBreakSeconds = b
+                    .comment("蔦(登る蔓・林冠の細い蔓・掛け渡し)を素手で壊すのにかかる秒数(2026-11-08 仮決め 1.2。ユーザー指定は「少し時間がかかる」)。",
+                            "剣(1.5 倍)・急ぎ・水中・空中などの倍率はバニラどおり掛かる。剣で殴る・ハサミで右クリックはこれまでどおり一瞬で切れる。")
+                    .defineInRange("vineHandBreakSeconds", 1.2D, 0.0D, 30.0D);
+
+            vineShearsBreakSeconds = b
+                    .comment("蔦をハサミで壊すのにかかる秒数(2026-11-08 仮決め 0.15 = バニラの蔦をハサミで切るのと同じ 3 tick)。",
+                            "0 なら一瞬。ハサミ(とシルクタッチ)で壊したときだけ蔦のアイテムが落ちる。")
+                    .defineInRange("vineShearsBreakSeconds", 0.15D, 0.0D, 30.0D);
 
             vinePerTreeChance = b
                     .comment("木が1本生えたとき、そもそも連結蔦の生成処理を試みる確率。",

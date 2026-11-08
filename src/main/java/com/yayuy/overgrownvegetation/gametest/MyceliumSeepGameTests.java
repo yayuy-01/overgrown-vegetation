@@ -220,6 +220,62 @@ public final class MyceliumSeepGameTests {
         });
     }
 
+    /**
+     * 追いつきでも植物が生える(2026-11-08、境目の帯のセッションが見つけた「天井まで汚染されたのに植物 0」の直し)。
+     * 前線より先にほかの経路(壁を這う汚染など。植物を生やさない)が空洞の壁を汚染していた場合も、一度に全部の日数を追いつかせると、
+     * 前線が通るときに植物の入口が通り、空洞に植物(動きを止めないブロック)が生える。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 400)
+    public static void seepGrowsPlantsOnCatchUpEvenIfCaveWasCorruptedFirst(GameTestHelper helper) {
+        ChunkPos a = forced(helper);
+        whenLoaded(helper, a, 0, () -> {
+            ServerLevel level = helper.getLevel();
+            build(level, a);
+            // 真ん中と深い空洞の壁・床・天井を先に汚染しておく(植物は生やさない = 壁を這う汚染と同じ)
+            int pre = 0;
+            for (int floor : new int[]{MIDDLE, DEEP})
+                for (int x = 5; x <= 9; x++)
+                    for (int z = 5; z <= 9; z++)
+                        for (int y = floor; y <= floor + 4; y++) {
+                            BlockPos p = new BlockPos(a.getMinBlockX() + x, y, a.getMinBlockZ() + z);
+                            BlockState s = level.getBlockState(p);
+                            if (s.isAir()) continue;
+                            BlockState c = com.yayuy.overgrownvegetation.corruption.CorruptionRegistry.corrupt(level, p, s, level.random);
+                            if (!com.yayuy.overgrownvegetation.corruption.CorruptionRegistry.noChange(s, c)) {
+                                com.yayuy.overgrownvegetation.corruption.CorruptionRegistry.placeCorrupted(level, p, s, c, Block.UPDATE_CLIENTS);
+                            }
+                            if (dirty(level, p)) pre++;
+                        }
+            int before = 0;
+            for (int floor : new int[]{MIDDLE, DEEP})
+                for (int x = 6; x <= 8; x++)
+                    for (int z = 6; z <= 8; z++)
+                        for (int y = floor + 1; y <= floor + 3; y++) {
+                            BlockState s = level.getBlockState(new BlockPos(a.getMinBlockX() + x, y, a.getMinBlockZ() + z));
+                            if (!s.isAir()) before++;
+                        }
+            helper.assertTrue(before == 0, "テストの前提: 先に汚染しただけで空洞に何か置かれた: " + before);
+            helper.assertTrue(pre > 0 && dirty(level, floorOf(a, MIDDLE)) && dirty(level, ceilingOf(a, DEEP)), "テストの前提: 空洞の壁を先に汚染できない(" + pre + ")");
+            double share = DesignData.sporeField().seepPlantShare();
+            long now = 7_000_000L;
+            MyceliumSeep.runChunkForTests(level, a, now - ticks(DesignData.sporeField().seepDays() * 2), now);
+            int plants = 0;
+            for (int floor : new int[]{MIDDLE, DEEP})
+                for (int x = 6; x <= 8; x++)
+                    for (int z = 6; z <= 8; z++)
+                        for (int y = floor + 1; y <= floor + 3; y++) {
+                            BlockState s = level.getBlockState(new BlockPos(a.getMinBlockX() + x, y, a.getMinBlockZ() + z));
+                            if (!s.isAir() && !s.blocksMotion()) plants++;
+                        }
+            if (share > 0.0D && com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.growthChance.get() > 0.2D
+                    && com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.spawnGrowthPlants.get()) {
+                helper.assertTrue(plants > 0, "先に汚染された空洞に、追いつきで植物が 1 つも生えない");
+            }
+            unforce(level, a);
+            helper.succeed();
+        });
+    }
+
     /** 過繁茂でない(台帳に載っていない)チャンクの下は、何日経っても変わらない。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 400)
     public static void seepLeavesNonOvergrownChunkClean(GameTestHelper helper) {

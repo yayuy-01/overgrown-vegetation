@@ -524,6 +524,11 @@ public final class CorruptionRegistry {
         level.setBlock(pos, corrupted, safeFlags);
         // 支えを失って生き残れなくなった周りの植物は、音・粒子・ドロップ無しでここで消す(2026-10-06。残すと後で一斉に壊れる)。
         StrandedPlants.clearAround(level, pos);
+        // 氷が溶けて水・空気になったら、上に根付いていた萌芽体を水底へ沈める(2026-11-08。StrandedPlants は BlockEntity を持つ株を飛ばし、
+        // 形の更新も出さないので、株が水面に浮いて残っていた)
+        if (level instanceof net.minecraft.server.level.ServerLevel server && (corrupted.isAir() || !corrupted.getFluidState().isEmpty())) {
+            com.yayuy.overgrownvegetation.spore.field.SporeSprouts.resettleRooted(server, pos.above());
+        }
     }
 
     /**

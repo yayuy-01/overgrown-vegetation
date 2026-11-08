@@ -124,6 +124,24 @@ public final class DevBridge {
     private static long waitUntil;
     /** {@code hold} で右クリック(使う)を押し続ける tick の終わり(0 = 押していない。2026-10-08、火炎放射器の確かめ用)。 */
     private static long holdUntil;
+    /** dig(2026-11-08): 壊している所・面・始めの状態・始めた tick・打ち切る tick・狙いの点。 */
+    private static net.minecraft.core.BlockPos digPos;
+    private static net.minecraft.core.Direction digFace;
+    private static net.minecraft.world.level.block.state.BlockState digState;
+    private static long digStart;
+    private static long digUntil;
+    private static Vec3 digAim;
+
+    /** マウスを掴んでいることにする / 戻す(dig 用。MouseHandler#mouseGrabbed を直に。カーソルの形は変えない)。 */
+    private static void setMouseGrabbed(Minecraft mc, boolean grabbed) {
+        try {
+            java.lang.reflect.Field f = net.minecraft.client.MouseHandler.class.getDeclaredField("mouseGrabbed");
+            f.setAccessible(true);
+            f.setBoolean(mc.mouseHandler, grabbed);
+        } catch (ReflectiveOperationException e) {
+            log("ERR mouseGrabbed: " + e);
+        }
+    }
     /** sneak <tick>(2026-10-22、クリエイティブで飛びながら下りる確かめ): スニークを押している終わりの tick。 */
     private static long sneakUntil;
     /** walk <tick>(2026-10-23、シダの胞子の確かめ): 前へ歩くキーを押している終わりの tick。 */
@@ -142,6 +160,11 @@ public final class DevBridge {
     /** 前提待ちの理由(同じ理由を毎 tick 書かない)。 */
     private static String waitingFor;
 
+    /** navto の続き(着くまで引き直す。サーバーの Mob をクライアントの tick から見る。開発用)。 */
+    private static volatile net.minecraft.world.entity.Mob navMob;
+    private static double[] navTarget;
+    private static long navUntil;
+
     private DevBridge() {
     }
 
@@ -153,6 +176,24 @@ public final class DevBridge {
         if (!started && !start(mc)) return;
         // 始められなかった(別のクライアントが使っている等)ら、次の tick からも何もしない(2026-10-20 まで 2 tick 目で dir の null を踏んで落ちていた)
         if (dir == null) return;
+        if (navMob != null && tick % 5 == 0) {
+            // navto の続き: 標的のいない Mob は待機の仕草を始めると経路を止めるので、着くまで引き直す
+            net.minecraft.client.server.IntegratedServer server = mc.getSingleplayerServer();
+            net.minecraft.world.entity.Mob m = navMob;
+            double[] t = navTarget;
+            if (server == null || tick > navUntil || !m.isAlive()) {
+                navMob = null;
+            } else {
+                server.execute(() -> {
+                    if (m.distanceToSqr(t[0], t[1], t[2]) < 4.0D) {
+                        navMob = null;
+                        log(String.format(java.util.Locale.ROOT, "NAVTO 着いた %.1f %.1f %.1f", m.getX(), m.getY(), m.getZ()));
+                    } else if (m.getNavigation().isDone()) {
+                        m.getNavigation().moveTo(t[0], t[1], t[2], t[3]);
+                    }
+                });
+            }
+        }
         if (sneakUntil > 0L) {
             // スニーク(クリエイティブで飛んでいるときは下降)の押しっぱなし。hold と同じく毎 tick 押し直す。
             if (tick < sneakUntil && mc.player != null && mc.screen == null) {
@@ -180,6 +221,30 @@ public final class DevBridge {
                 mc.options.keyUse.setDown(false);
                 holdUntil = 0L;
                 log("HOLD 終わり");
+            }
+        }
+        if (digUntil > 0L && mc.player != null && mc.level != null && mc.gameMode != null) {
+            // dig: 毎 tick 採掘を続ける(左クリック長押しと同じ)。壊れたら(ブロックが替わったら)かかった tick を書く
+            if (mc.level.getBlockState(digPos) != digState) {
+                long t = tick - digStart;
+                log(String.format(Locale.ROOT, "DIG %s %s %d tick (%.2f 秒) → 今 %s", digState.getBlock().builtInRegistryHolder().key().location(),
+                        digPos.toShortString(), t, t / 20.0D, mc.level.getBlockState(digPos).getBlock().builtInRegistryHolder().key().location()));
+                mc.gameMode.stopDestroyBlock();
+                digUntil = 0L;
+            } else if (tick >= digUntil) {
+                log("DIG 壊れず(" + (tick - digStart) + " tick)");
+                mc.gameMode.stopDestroyBlock();
+                digUntil = 0L;
+            } else {
+                // 左クリックの押しっぱなし。バニラの Minecraft#continueAttack は「マウスを掴んでいる」ときしか続けず、
+                // 掴んでいなければ毎 tick stopDestroyBlock で進みを捨てるので、掴んでいることにする(窓が裏でも測れるように)
+                mc.player.lookAt(EntityAnchorArgument.Anchor.EYES, digAim);
+                mc.options.keyAttack.setDown(true);
+                setMouseGrabbed(mc, true);
+            }
+            if (digUntil == 0L) {
+                mc.options.keyAttack.setDown(false);
+                setMouseGrabbed(mc, false);
             }
         }
         watchState(mc);
@@ -371,6 +436,79 @@ public final class DevBridge {
             case "hud" -> {
                 mc.options.hideGui = arg.equalsIgnoreCase("off");
                 log("HUD " + (mc.options.hideGui ? "off" : "on"));
+            }
+            case "navstat" -> {
+                // 一番近い Mob の位置・経路の進み・動いている Goal(2026-11-08、navto の確かめ)。返事は NAVSTAT …
+                net.minecraft.client.server.IntegratedServer server = mc.getSingleplayerServer();
+                if (server == null || mc.player == null) break;
+                net.minecraft.world.phys.Vec3 me = mc.player.position();
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(mc.player.level().dimension());
+                    if (level == null) return;
+                    net.minecraft.world.entity.Mob best = null;
+                    for (net.minecraft.world.entity.Mob m : level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class,
+                            new net.minecraft.world.phys.AABB(me, me).inflate(64.0D))) {
+                        if (best == null || m.distanceToSqr(me) < best.distanceToSqr(me)) best = m;
+                    }
+                    if (best == null) {
+                        log("NAVSTAT なし");
+                        return;
+                    }
+                    net.minecraft.world.level.pathfinder.Path path = best.getNavigation().getPath();
+                    StringBuilder goals = new StringBuilder();
+                    best.goalSelector.getAvailableGoals().forEach(g -> {
+                        if (g.isRunning()) goals.append(' ').append(g.getGoal().getClass().getSimpleName());
+                    });
+                    log(String.format(java.util.Locale.ROOT, "NAVSTAT pos %.2f %.2f %.2f yaw %.1f done %s next %s/%s noai %s ticking %s goals%s",
+                            best.getX(), best.getY(), best.getZ(), best.getYRot(), best.getNavigation().isDone(),
+                            path == null ? "-" : path.getNextNodeIndex(), path == null ? "-" : path.getNodeCount(), best.isNoAi(),
+                            level.isPositionEntityTicking(best.blockPosition()), goals));
+                });
+            }
+            case "navto" -> {
+                // プレイヤーから 64 ブロック以内で一番近い Mob を (x y z) へ歩かせる(経路探索の本来の道。2026-11-08、ファルキムネスの森の中の移動)。
+                // 返事は NAVTO 種類 経路のノード数 届くか / NAVTO なし
+                String[] p = arg.trim().split("\\s+");
+                net.minecraft.client.server.IntegratedServer server = mc.getSingleplayerServer();
+                if (server == null || mc.player == null) {
+                    log("NAVTO 統合サーバーが無い");
+                    break;
+                }
+                double tx = Double.parseDouble(p[0]), ty = Double.parseDouble(p[1]), tz = Double.parseDouble(p[2]);
+                double speed = p.length > 3 ? Double.parseDouble(p[3]) : 1.0D;
+                net.minecraft.world.phys.Vec3 me = mc.player.position();
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(mc.player.level().dimension());
+                    if (level == null) return;
+                    net.minecraft.world.entity.Mob best = null;
+                    for (net.minecraft.world.entity.Mob m : level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class,
+                            new net.minecraft.world.phys.AABB(me, me).inflate(64.0D))) {
+                        if (best == null || m.distanceToSqr(me) < best.distanceToSqr(me)) best = m;
+                    }
+                    if (best == null) {
+                        log("NAVTO なし");
+                        return;
+                    }
+                    net.minecraft.world.level.pathfinder.Path path = best.getNavigation().createPath(tx, ty, tz, 0);
+                    best.getNavigation().moveTo(path, speed);
+                    navTarget = new double[]{tx, ty, tz, speed};
+                    navUntil = tick + 1200L;
+                    navMob = best;
+                    StringBuilder nodes = new StringBuilder();
+                    if (path != null) {
+                        for (int i = 0; i < path.getNodeCount(); i++) {
+                            net.minecraft.world.phys.Vec3 c = path.getEntityPosAtNode(best, i);
+                            nodes.append(String.format(java.util.Locale.ROOT, " (%.1f,%.1f)", c.x, c.z));
+                        }
+                    }
+                    log("NAVTO " + best.getType().getDescriptionId() + " ノード " + (path == null ? -1 : path.getNodeCount())
+                            + " 届く " + (path != null && path.canReach()) + nodes);
+                });
+            }
+            case "hitboxes" -> {
+                // 当たり判定の箱(F3 + B と同じ。叩ける部位の箱も出る)を出す / 消す(2026-11-08、ファルキムネスの細い芯と部位)
+                mc.getEntityRenderDispatcher().setRenderHitBoxes(!arg.equalsIgnoreCase("off"));
+                log("HITBOXES " + mc.getEntityRenderDispatcher().shouldRenderHitBoxes());
             }
             case "key" -> {
                 // 割り当てたキーを 1 回押したことにする(名前は KeyMapping の名前。例 key key.overgrown_vegetation.sunlit_lantern。2026-10-16)
@@ -798,6 +936,153 @@ public final class DevBridge {
                     log("INTERACT " + what + " → " + result);
                 }
             }
+            case "sproutscan" -> {
+                // sproutscan <cx0> <cz0> <cx1> <cz1> [回数] [spawn](2026-11-08、萌芽体が水面に出る不具合): チャンクの箱で萌芽体の湧き場所
+                // (SporeSprouts#surfacePoint)を回数ずつ引き、「水面」(自分は水でなく、足元のブロックの横が水 = 水面の高さの何かの上)を数えて例を書く。
+                // spawn を付けると、引いた水の中・水面の点に本来の経路(BlightFernPlacement#spawn)で萌芽体を出す(後で fernscan で見る)。
+                IntegratedServer server = mc.getSingleplayerServer();
+                if (mc.level == null || server == null) return "ワールドの中";
+                String[] a = arg.trim().split("\\s+");
+                int cx0 = Integer.parseInt(a[0]), cz0 = Integer.parseInt(a[1]), cx1 = Integer.parseInt(a[2]), cz1 = Integer.parseInt(a[3]);
+                int n = a.length > 4 ? Integer.parseInt(a[4]) : 20;
+                boolean spawn = a.length > 5 && a[5].equals("spawn");
+                var dimension = mc.level.dimension();
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(dimension);
+                    if (level == null) return;
+                    net.minecraft.util.RandomSource random = net.minecraft.util.RandomSource.create(cx0 * 31L + cz0);
+                    int total = 0, water = 0, surface = 0, nul = 0;
+                    java.util.Map<String, Integer> supports = new java.util.TreeMap<>();
+                    for (int cx = Math.min(cx0, cx1); cx <= Math.max(cx0, cx1); cx++) {
+                        for (int cz = Math.min(cz0, cz1); cz <= Math.max(cz0, cz1); cz++) {
+                            net.minecraft.world.level.chunk.LevelChunk chunk = level.getChunkSource().getChunkNow(cx, cz);
+                            if (chunk == null) continue;
+                            for (int i = 0; i < n; i++) {
+                                net.minecraft.core.BlockPos p = com.yayuy.overgrownvegetation.spore.field.SporeSprouts.surfacePointForTest(level, chunk, random);
+                                total++;
+                                if (p == null) { nul++; continue; }
+                                boolean inWater = level.getFluidState(p).is(net.minecraft.tags.FluidTags.WATER);
+                                boolean nearWater = false;
+                                for (net.minecraft.core.Direction d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+                                    // 足元のブロックの横が水 = 水面と同じ高さの何かの上に乗っている
+                                    nearWater |= level.getFluidState(p.below().relative(d)).is(net.minecraft.tags.FluidTags.WATER);
+                                }
+                                if (inWater) water++;
+                                // 足元が水面の膜・水そのもの(11-08 追記: 膜の上を選んでいないか)
+                                net.minecraft.world.level.block.state.BlockState under = level.getBlockState(p.below());
+                                if (!inWater && (under.getBlock() instanceof com.yayuy.overgrownvegetation.block.FloatingFilmBlock
+                                        || !under.getFluidState().isEmpty())) {
+                                    log("SPROUTSCAN 膜・水の上 " + p.toShortString() + " 足元 " + under);
+                                }
+                                if (!inWater && nearWater) {
+                                    surface++;
+                                    String sup = level.getBlockState(p.below()).getBlock().builtInRegistryHolder().key().location().toString();
+                                    supports.merge(sup, 1, Integer::sum);
+                                    if (surface <= 12) log("SPROUTSCAN 水面 " + p.toShortString() + " 足元 " + sup + " 自分のマス "
+                                            + level.getBlockState(p).getBlock().builtInRegistryHolder().key().location());
+                                }
+                                if (spawn && (inWater || nearWater)) {
+                                    var e = com.yayuy.overgrownvegetation.entity.BlightFernPlacement.spawn(level, p, net.minecraft.world.entity.MobSpawnType.EVENT);
+                                    if (e != null) log("SPROUTSCAN 出した " + p.toShortString() + (inWater ? " 水の中" : " 水面"));
+                                }
+                            }
+                        }
+                    }
+                    log("SPROUTSCAN 引いた " + total + " 水の中 " + water + " 水面 " + surface + " 無し " + nul + " 水面の足元 " + supports);
+                });
+                return null;
+            }
+            case "segnear" -> {
+                // segnear [半径] [canopy](2026-11-08): プレイヤーに近い蔦の狙いのマス(LianaSegmentBlock)を 12 個まで、持ち主の蔓の種類
+                // (本体・林冠・垂れる)と狙いの箱で書く。canopy を付けると林冠の細い蔓のものだけ
+                IntegratedServer server = mc.getSingleplayerServer();
+                if (mc.level == null || mc.player == null || server == null) return "ワールドの中";
+                String[] a = arg.trim().isEmpty() ? new String[0] : arg.trim().split("\\s+");
+                int r = a.length > 0 ? Integer.parseInt(a[0]) : 16;
+                boolean canopyOnly = a.length > 1 && a[1].equals("canopy");
+                var dimension = mc.level.dimension();
+                net.minecraft.core.BlockPos center = mc.player.blockPosition();
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(dimension);
+                    if (level == null) return;
+                    java.util.List<net.minecraft.core.BlockPos> found = new java.util.ArrayList<>();
+                    for (net.minecraft.core.BlockPos p : net.minecraft.core.BlockPos.betweenClosed(center.offset(-r, -r, -r), center.offset(r, r, r))) {
+                        if (level.getBlockState(p).getBlock() instanceof com.yayuy.overgrownvegetation.block.LianaSegmentBlock) found.add(p.immutable());
+                    }
+                    found.sort(java.util.Comparator.comparingDouble(p -> p.distSqr(center)));
+                    int n = 0;
+                    for (net.minecraft.core.BlockPos p : found) {
+                        net.minecraft.core.BlockPos prim = com.yayuy.overgrownvegetation.block.CorruptedLianaBlock.primaryOf(level, p);
+                        String kind = "持ち主なし";
+                        if (prim != null && level.getBlockEntity(prim) instanceof com.yayuy.overgrownvegetation.block.CorruptedLianaBlockEntity l) {
+                            kind = l.isClimbCanopy() ? "林冠" : l.isClimbMain() ? "本体" : l.isClimbHanging() ? "垂れる綱" : "添う細い蔓";
+                        }
+                        if (canopyOnly && !kind.equals("林冠")) continue;
+                        log("SEG " + p.toShortString() + " " + kind + " 箱 " + level.getBlockState(p).getShape(level, p).bounds());
+                        if (++n >= 12) break;
+                    }
+                    log("SEGNEAR " + found.size() + " 個");
+                });
+                return null;
+            }
+            case "fernscan" -> {
+                // fernscan [半径]: まわりの萌芽体(歩く姿)と根付いた姿の位置・水の中か・足元を書く(2026-11-08)
+                IntegratedServer server = mc.getSingleplayerServer();
+                if (mc.level == null || mc.player == null || server == null) return "ワールドの中";
+                int r = arg.isBlank() ? 64 : Integer.parseInt(arg.trim());
+                var dimension = mc.level.dimension();
+                net.minecraft.core.BlockPos center = mc.player.blockPosition();
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(dimension);
+                    if (level == null) return;
+                    for (var e : level.getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.BlightFernEntity.class,
+                            new net.minecraft.world.phys.AABB(center).inflate(r))) {
+                        net.minecraft.core.BlockPos p = e.blockPosition();
+                        log(String.format(Locale.ROOT, "FERN 歩く %.2f %.2f %.2f 水の中 %s 頭の上 %s 足元 %s 接地 %s", e.getX(), e.getY(), e.getZ(),
+                                e.isInWater(), level.getFluidState(p.above()).is(net.minecraft.tags.FluidTags.WATER),
+                                level.getBlockState(p.below()).getBlock().builtInRegistryHolder().key().location(), e.onGround()));
+                    }
+                    for (net.minecraft.core.BlockPos p : net.minecraft.core.BlockPos.betweenClosed(center.offset(-r, -24, -r), center.offset(r, 24, r))) {
+                        if (level.getBlockState(p).is(com.yayuy.overgrownvegetation.registry.ModBlocks.BLIGHT_FERN_ROOTED.get())) {
+                            log("FERN 根付いた " + p.toShortString() + " 水の中 " + level.getFluidState(p).is(net.minecraft.tags.FluidTags.WATER)
+                                    + " 上が水 " + level.getFluidState(p.above()).is(net.minecraft.tags.FluidTags.WATER)
+                                    + " 足元 " + level.getBlockState(p.below()).getBlock().builtInRegistryHolder().key().location());
+                        }
+                    }
+                    log("FERNSCAN 終わり");
+                });
+                return null;
+            }
+            case "dig" -> {
+                // dig <x> <y> <z> [最大 tick](2026-11-08、蔦を壊す秒数を測る): 世界の点 (x, y, z) を狙い、照準の先のブロックを本来の
+                // 採掘(MultiPlayerGameMode の start/continueDestroyBlock = 左クリック長押しと同じ。窓が裏でも動く)で壊し続ける。
+                // 壊れたら `DIG <id> <座標> <tick> tick (<秒>)`。次の命令は待たない(続けて wait)。
+                LocalPlayer player = mc.player;
+                if (player == null || mc.gameMode == null || mc.level == null) return "ワールドの中";
+                String[] a = arg.trim().split("\\s+");
+                Vec3 aim = new Vec3(Double.parseDouble(a[0]), Double.parseDouble(a[1]), Double.parseDouble(a[2]));
+                long max = a.length > 3 ? Long.parseLong(a[3]) : 200L;
+                player.lookAt(EntityAnchorArgument.Anchor.EYES, aim);
+                player.yRotO = player.getYRot();
+                player.xRotO = player.getXRot();
+                net.minecraft.world.phys.HitResult hit = player.pick(player.blockInteractionRange(), 0.0F, false);
+                if (!(hit instanceof net.minecraft.world.phys.BlockHitResult bhr) || hit.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK) {
+                    log("DIG 狙いの先にブロックが無い");
+                    return null;
+                }
+                digAim = aim;
+                digPos = bhr.getBlockPos();
+                digFace = bhr.getDirection();
+                digState = mc.level.getBlockState(digPos);
+                digStart = tick;
+                digUntil = tick + max;
+                setMouseGrabbed(mc, true);
+                net.minecraft.client.KeyMapping.click(mc.options.keyAttack.getKey());
+                mc.options.keyAttack.setDown(true);
+                log(String.format(Locale.ROOT, "DIG 狙い %s %s 手 %s 形 %s", digState.getBlock().builtInRegistryHolder().key().location(),
+                        digPos.toShortString(), player.getMainHandItem().getItem().builtInRegistryHolder().key().location(),
+                        digState.getShape(mc.level, digPos).bounds()));
+            }
             case "useblock" -> {
                 // ブロックの右クリック(上の面の真ん中を押す)。サーバーの届く距離は約 4.5 なので先に近くへ tp
                 LocalPlayer player = mc.player;
@@ -892,7 +1177,7 @@ public final class DevBridge {
                     if (clear) {
                         int removed = 0;
                         for (net.minecraft.core.BlockPos p : net.minecraft.core.BlockPos.betweenClosed(x0 - extra, y0 - 4, z0 - extra, x0 + extra, y0 + 48, z0 + extra)) {
-                            if (level.getBlockState(p).is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_LIANA.get())
+                            if (com.yayuy.overgrownvegetation.block.CorruptedLianaBlock.isLianaPart(level.getBlockState(p)) // 狙いのマス(LianaSegmentBlock)も(11-08)
                                     || level.getBlockState(p).is(net.minecraft.world.level.block.Blocks.LIGHT)) {
                                 level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
                                 removed++;

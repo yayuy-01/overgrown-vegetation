@@ -129,6 +129,7 @@
   "block.overgrown_vegetation.undeveloped_bush": "Undeveloped Bush",
   "block.overgrown_vegetation.large_undeveloped_fruit": "Large Undeveloped Fruit",
   "block.overgrown_vegetation.overgrown_liana": "Vine",
+  "block.overgrown_vegetation.overgrown_liana_segment": "Vine",
   "item.overgrown_vegetation.spore": "Spore",
   "block.overgrown_vegetation.overgrown_door": "Covered Door",
   "block.overgrown_vegetation.overgrown_chest": "Overgrown Chest",

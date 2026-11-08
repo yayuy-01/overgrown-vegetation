@@ -74,7 +74,7 @@ public final class ClimbingVine {
 
     /** 置いた本体の蔓。点は x, y, z, nx, nz, u(周の座標)、どこに沿うか、幹からの距離。 */
     private record Placed(List<double[]> pts, int bridgeStart, int bridgeEnd, @Nullable Trunk neighbor, BlockPos source,
-            BlockPos target) {
+            BlockPos target, BlockPos marker) {
     }
 
     private ClimbingVine() {
@@ -274,8 +274,8 @@ public final class ClimbingVine {
             return;
         }
         boolean bridged = main.bridgeEnd() >= 0 && path.size() > main.bridgeEnd();
-        commit(level, own, path, bridged ? main.bridgeStart() : -1, bridged ? main.bridgeEnd() : -1,
-                main.source(), main.target(), COMPANION_SCALE, -1.0F, 0);
+        link(level, main.marker(), commit(level, own, path, bridged ? main.bridgeStart() : -1, bridged ? main.bridgeEnd() : -1,
+                main.source(), main.target(), COMPANION_SCALE, -1.0F, 0));
     }
 
     // ---- 林冠の細い蔓 ----
@@ -349,8 +349,9 @@ public final class ClimbingVine {
                         Mth.lerp(t, from[2], to[2]), hz / hl, -hx / hl, Double.NaN, BRIDGE, 0.0D});
             }
             BlockPos target = BlockPos.containing(pair[2][0], pair[2][1], pair[2][2]);
-            if (commit(level, own, pts, 0, pts.size() - 1, source, target, thinScale(random), -1.0F,
-                    CorruptedLianaBlockEntity.CLIMB_CANOPY) == null) {
+            BlockPos uMarker = commit(level, own, pts, 0, pts.size() - 1, source, target, thinScale(random), -1.0F,
+                    CorruptedLianaBlockEntity.CLIMB_CANOPY);
+            if (uMarker == null) {
                 continue;
             }
             r++;
@@ -371,7 +372,8 @@ public final class ClimbingVine {
                 List<double[]> rope = ropePath(level, new double[]{p[0], p[1] - 0.03D, p[2]}, 2.0D + random.nextDouble() * 4.0D,
                         false, THIN_STEP, random);
                 if (rope != null) {
-                    commit(level, own, rope, -1, -1, source, target, thinScale(random), w, CorruptedLianaBlockEntity.CLIMB_CANOPY);
+                    link(level, uMarker, commit(level, own, rope, -1, -1, source, target, thinScale(random), w,
+                            CorruptedLianaBlockEntity.CLIMB_CANOPY));
                 }
             }
         }
@@ -395,7 +397,7 @@ public final class ClimbingVine {
             }
             BlockState state = level.getBlockState(c);
             if (!(state.isAir() || state.canBeReplaced() || isLeaf(state)
-                    || state.is(ModBlocks.OVERGROWN_LIANA.get()))) {
+                    || com.yayuy.overgrownvegetation.block.CorruptedLianaBlock.isLianaPart(state))) {
                 return false;
             }
         }
@@ -427,7 +429,7 @@ public final class ClimbingVine {
             double[] top = {p[0], p[1] - RADIUS_TIP * MAIN_SCALE * 0.6D, p[2]};
             List<double[]> rope = ropePath(level, top, 2.0D + random.nextDouble() * 3.0D, false, 0.3D, random);
             if (rope != null) {
-                commit(level, own, rope, -1, -1, main.source(), main.target(), ROPE_SCALE, w, 0);
+                link(level, main.marker(), commit(level, own, rope, -1, -1, main.source(), main.target(), ROPE_SCALE, w, 0));
             }
         }
     }
@@ -631,11 +633,12 @@ public final class ClimbingVine {
             targetLog = nearestLogInTrunk(own, new BlockPos(own.minX(), Mth.floor(yEnd), own.minZ()));
         }
         BlockPos source = new BlockPos(own.minX(), own.baseY(), own.minZ());
-        if (commit(level, own, pts, bridgeStart, bridgeEnd, source, targetLog, MAIN_SCALE, -1.0F,
-                CorruptedLianaBlockEntity.CLIMB_MAIN) == null) {
+        BlockPos marker = commit(level, own, pts, bridgeStart, bridgeEnd, source, targetLog, MAIN_SCALE, -1.0F,
+                CorruptedLianaBlockEntity.CLIMB_MAIN);
+        if (marker == null) {
             return null;
         }
-        return new Placed(pts, bridgeStart, bridgeEnd, neighbor, source, targetLog);
+        return new Placed(pts, bridgeStart, bridgeEnd, neighbor, source, targetLog, marker);
     }
 
     /**
@@ -647,14 +650,16 @@ public final class ClimbingVine {
             BlockPos source, BlockPos target, float scale, float hangTop, int flags) {
         BlockPos marker = null;
         // 林冠の U は両端が葉の中なので、経路のどこでも探す(先頭の 10 点 = 3 ブロックでは葉の中のまま)
-        int searchPts = (flags & CorruptedLianaBlockEntity.CLIMB_CANOPY) != 0 ? pts.size() : Math.min(pts.size(), 10);
+        // 2026-11-08 から登る蔓も経路の全部を探す(前の蔓の狙いのマスが根元の脇を埋めるので、添う細い蔓の印が置けなくなるのを避ける)。
+        // 前から順に見るので、根元の近くに置ける所があれば前と同じ所になる
+        int searchPts = pts.size();
         search:
         for (int i = 0; i < searchPts; i++) {
             double[] p = pts.get(i);
             for (int up = 0; up <= 2; up++) {
                 for (double out : new double[]{0.0D, 0.6D}) {
                     BlockPos c = BlockPos.containing(p[0] + p[3] * out, p[1] + 0.12D + up, p[2] + p[4] * out);
-                    if (isOpen(level, c) && !own.contains(c.getX(), c.getZ())) {
+                    if (isOpen(level, c) && !isSegment(level, c) && !own.contains(c.getX(), c.getZ())) {
                         marker = c;
                         break search;
                     }
@@ -681,25 +686,31 @@ public final class ClimbingVine {
         liana.setClimbStyle(scale, hangTop, flags);
         liana.setClimb(packed, bridgeStart, bridgeEnd, source, target);
 
-        List<BlockPos> secondaries = new ArrayList<>();
-        if (bridgeStart >= 0) {
-            BlockPos previous = marker;
-            for (int i = bridgeStart + 1; i < bridgeEnd; i++) {
-                double[] p = pts.get(i);
-                BlockPos c = BlockPos.containing(p[0], p[1], p[2]);
-                if (c.equals(previous) || !isOpen(level, c)) {
-                    continue;
-                }
-                previous = c;
-                level.setBlock(c, ModBlocks.OVERGROWN_LIANA.get().defaultBlockState(), Block.UPDATE_ALL);
-                if (level.getBlockEntity(c) instanceof CorruptedLianaBlockEntity secondary) {
-                    secondary.setPrimaryPos(marker);
-                    secondaries.add(c);
-                }
-            }
-        }
+        // 切るための狙いのマス(2026-11-08、ユーザー依頼「巻き付く蔦・間の蔦を手やハサミで壊せるように」): 前は渡る区間だけに副アンカー
+        // (BlockEntity 付き)を置いていたので、幹を登る区間・垂れる綱は叩けなかった。今は経路が通る空気のマス全部に、BlockEntity の無い
+        // LianaSegmentBlock を置き、狙いの箱をそのマスの中の蔓の所だけにする(幹の脇の空気のマスも塞ぐ。草のマス・葉の中には置かない)。
+        // bridgeStart / bridgeEnd は描き手の揺れの区間なので、ここでは使わない。
+        double radius = scale * RADIUS_ROOT + 0.04D;
+        List<BlockPos> secondaries = com.yayuy.overgrownvegetation.block.LianaSegmentBlock.placeAlong(level, marker, pts, radius,
+                Block.UPDATE_CLIENTS);
         liana.setSecondaryPositions(secondaries);
+        liana.markSegmentsPlaced();
         return marker;
+    }
+
+    /**
+     * {@code child} の蔓を {@code parent} の蔓に依存させる(2026-11-08): 本体を切ると、添う細い蔓・渡る区間から垂れる綱・U から垂れる綱も
+     * 一緒に消える({@code CorruptedLianaBlock#removeDependentVines})。子だけを切ったときは子だけが消える。
+     */
+    private static void link(ServerLevel level, BlockPos parent, @Nullable BlockPos child) {
+        if (child == null || !(level.getBlockEntity(parent) instanceof CorruptedLianaBlockEntity p)
+                || !(level.getBlockEntity(child) instanceof CorruptedLianaBlockEntity c)) {
+            return;
+        }
+        p.addChildPosition(child);
+        List<BlockPos> parents = new ArrayList<>(c.getParentPositions());
+        parents.add(parent);
+        c.setParentPositions(parents);
     }
 
     // ---- 束(本体に添う細い蔓)----
@@ -861,7 +872,13 @@ public final class ClimbingVine {
             return false;
         }
         BlockState state = level.getBlockState(pos);
-        return state.isAir() || state.canBeReplaced();
+        // 別の蔓の狙いのマス(LianaSegmentBlock)は通り抜けられる(2026-11-08。綱の長さ・根元の出し方が前と変わらないように)
+        return state.isAir() || state.canBeReplaced() || state.getBlock() instanceof com.yayuy.overgrownvegetation.block.LianaSegmentBlock;
+    }
+
+    /** 別の蔓の狙いのマス(印はここに置かない。置くと先の蔓の副アンカーの一覧が別の蔓の印を指してしまう)。 */
+    private static boolean isSegment(Level level, BlockPos pos) {
+        return level.getBlockState(pos).getBlock() instanceof com.yayuy.overgrownvegetation.block.LianaSegmentBlock;
     }
 
     /** 周 u・高さ y の点のマスに、枝(継ぎ目)か原木がある。 */
@@ -891,7 +908,7 @@ public final class ClimbingVine {
             }
             BlockState state = level.getBlockState(c);
             if (state.isAir() || state.canBeReplaced() || isLeaf(state)
-                    || state.is(ModBlocks.OVERGROWN_LIANA.get())) {
+                    || com.yayuy.overgrownvegetation.block.CorruptedLianaBlock.isLianaPart(state)) {
                 continue;
             }
             return false;

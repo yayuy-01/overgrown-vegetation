@@ -167,7 +167,20 @@
     "seepPlantShare": 1.0,
     "seepGrowMarginMillis": 0.3,
     "seepGrowQueueMax": 8192,
-    "seepCreepSeedChance": 0.1
+    "seepCreepSeedChance": 0.1,
+    "_forestRootsComment": "11-08 境目の帯 2: 森の下の浅い洞窟の天井から地上の木の根(CaveFlora.decorateForestRoots。汚染の植物の入口 growSurfacePlants から。染み下りの植物も同じ入口)。数はすべて仮決め: forestRootsChance = 汚染した天井のブロック 1 つが束の起点になる確率、forestRoofMax = 天井の上の岩の厚みの上限、forestTreeReach・forestTreeSide = 地面から上へ幹を探す段数と、水平に探す半径(±side の正方形)、forestRootsSpacing = この半径に根があれば垂らさない、forestRootsRadius = 束を広げる半径、forestStrandsMin・Max = 1 束の本数、forestRootLenMin・Max = この MOD の垂れ根の長さ、forestRootsVanillaShare = バニラの垂れ根(1 段)にする割合(汚染が続くとバニラの垂れ根は消される(バニラの植物の扱い)ので既定 0。11-08 撮影で確かめた)。forestRootsEnabled false で切る。",
+    "forestRootsEnabled": true,
+    "forestRootsChance": 0.04,
+    "forestRoofMax": 6,
+    "forestTreeReach": 6,
+    "forestTreeSide": 2,
+    "forestRootsSpacing": 3,
+    "forestRootsRadius": 2,
+    "forestStrandsMin": 3,
+    "forestStrandsMax": 8,
+    "forestRootLenMin": 1,
+    "forestRootLenMax": 4,
+    "forestRootsVanillaShare": 0.0
   },
   "high": {
     "fadeBlocks": 20.0,

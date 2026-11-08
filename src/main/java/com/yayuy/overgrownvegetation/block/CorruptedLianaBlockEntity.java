@@ -213,6 +213,19 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
     @Nullable
     private AABB renderBoxCache;
 
+    /** 主アンカーの狙いの箱(CorruptedLianaBlock#getShape が経路から求める。2026-11-08)。経路が変わる setClimb と loadAdditional で捨てる。保存しない。 */
+    @Nullable
+    private net.minecraft.world.phys.shapes.VoxelShape shapeCache;
+
+    @Nullable
+    public net.minecraft.world.phys.shapes.VoxelShape getShapeCache() {
+        return shapeCache;
+    }
+
+    public void setShapeCache(@Nullable net.minecraft.world.phys.shapes.VoxelShape shape) {
+        this.shapeCache = shape;
+    }
+
     @Nullable
     public AABB getRenderBoxCache() {
         return renderBoxCache;
@@ -301,6 +314,7 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
         this.swagStart = null;
         this.swagEnd = null;
         this.renderBoxCache = null;
+        this.shapeCache = null;
         syncToClient();
     }
 
@@ -424,6 +438,10 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
      * 副アンカーは最初の 1 tick で自分のティッカーを外す({@link #detachTicker})。
      */
     public static void serverTick(Level level, BlockPos pos, BlockState state, CorruptedLianaBlockEntity be) {
+        if (be.primaryPos == null && !be.segmentsPlaced && be.climbPath.length > 0 && level instanceof ServerLevel serverLevel
+                && Math.floorMod(level.getGameTime() + pos.hashCode(), SEGMENT_RETROFIT_SPREAD) == 0) {
+            be.retrofitSegments(serverLevel);
+        }
         if (be.primaryPos != null || be.droopIndices.length == 0) {
             if (be.primaryPos != null) {
                 be.detachTicker(level);
@@ -446,6 +464,39 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
         if (level instanceof ServerLevel serverLevel) {
             be.ripenRandomDroop(serverLevel, level.getRandom());
         }
+    }
+
+    /** 狙いのマスを後から足す処理を、読み込んだ蔦ごとにこの tick 数の中でばらす。 */
+    private static final int SEGMENT_RETROFIT_SPREAD = 20;
+
+    /**
+     * 狙いのマス({@link LianaSegmentBlock})をもう置いたか(2026-11-08)。11-08 より前に生えた登る蔓には無いので、
+     * 読み込んだ後の最初の数 tick で経路をたどって 1 回だけ置く({@link #retrofitSegments})。新しく生やした蔓は生やしたときに置いて true。
+     */
+    private boolean segmentsPlaced;
+
+    public void markSegmentsPlaced() {
+        this.segmentsPlaced = true;
+        setChanged();
+    }
+
+    /** 前からある登る蔓に、経路の空気のマスへ狙いのマスを置く(1 回だけ。読み込まれていないチャンクのマスは飛ばす)。 */
+    private void retrofitSegments(ServerLevel level) {
+        int stride = CLIMB_STRIDE;
+        List<double[]> pts = new ArrayList<>(climbPath.length / stride);
+        for (int o = 0; o + 2 < climbPath.length; o += stride) {
+            pts.add(new double[]{worldPosition.getX() + climbPath[o], worldPosition.getY() + climbPath[o + 1],
+                    worldPosition.getZ() + climbPath[o + 2]});
+        }
+        double radius = climbScale * com.yayuy.overgrownvegetation.worldgen.ClimbingVine.RADIUS_ROOT + 0.04D;
+        List<BlockPos> placed = LianaSegmentBlock.placeAlong(level, worldPosition, pts, radius, Block.UPDATE_CLIENTS);
+        if (!placed.isEmpty()) {
+            List<BlockPos> all = new ArrayList<>(secondaryPositions);
+            all.addAll(placed);
+            secondaryPositions = List.copyOf(all);
+        }
+        segmentsPlaced = true;
+        setChanged();
     }
 
     /**
@@ -730,6 +781,9 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
             tag.putFloat("ClimbScale", climbScale);
             tag.putFloat("ClimbHang", climbHangTop);
             tag.putInt("ClimbFlags", climbFlags);
+            if (segmentsPlaced) {
+                tag.putBoolean("Segs", true);
+            }
         }
     }
 
@@ -737,6 +791,7 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
         renderBoxCache = null;
+        shapeCache = null;
         sourcePos = NbtUtils.readBlockPos(tag, "Source").orElse(null);
         targetPos = NbtUtils.readBlockPos(tag, "Target").orElse(null);
         sag = tag.getFloat("Sag");
@@ -774,6 +829,7 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
         climbScale = tag.contains("ClimbScale") ? tag.getFloat("ClimbScale") : 1.0F;
         climbHangTop = tag.contains("ClimbHang") ? tag.getFloat("ClimbHang") : -1.0F;
         climbFlags = tag.contains("ClimbFlags") ? tag.getInt("ClimbFlags") : -1;
+        segmentsPlaced = tag.getBoolean("Segs");
 
         // detachTicker で外したティッカーを、主アンカーに変わったときだけ付け直す(元は付けっぱなしだったので、
         // 元どおり熟成させる)。チャンク読み込み時は新しいインスタンス(tickerDetached=false・level 未設定)なので素通り。

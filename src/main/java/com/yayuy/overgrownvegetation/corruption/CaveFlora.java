@@ -563,6 +563,144 @@ public final class CaveFlora {
         return placeRootCurtain(level, host, CurtainSite.MOUTH, random);
     }
 
+    // ------------------------------------------------------------------
+    // 境目の帯 2(2026-11-08): 浅い洞窟の天井から地上の木の根
+    // ------------------------------------------------------------------
+
+    /**
+     * 森の下の浅い洞窟の天井から、地上の木の根を垂らす(2026-11-08 境目の帯 2。頭の上に森があることを洞窟の中から感じさせる)。
+     * 汚染したブロック 1 つにつき {@link CorruptionSpreader#growSurfacePlants} から 1 回呼ばれる(洞窟と判定されない薄い天井でも。染み下りの植物もこの入口を通るので、
+     * 染み下りの時間の上限の中で動く)。確率 {@code forestRootsChance} に当たったときだけ天井を調べる。条件は {@link #forestAbove}。
+     * 近く({@code forestRootsSpacing})にもう根があれば垂らさない。値は {@code spore_field.json} の {@code underground.forest*}(すべて仮決め)。
+     *
+     * @return 垂らした本数
+     */
+    public static int decorateForestRoots(ServerLevel level, BlockPos host, BlockState hostState, RandomSource random) {
+        com.yayuy.overgrownvegetation.data.SporeFieldTable t = com.yayuy.overgrownvegetation.data.DesignData.sporeField();
+        if (!t.forestRootsEnabled() || random.nextDouble() >= t.forestRootsChance()) {
+            return 0;
+        }
+        if (hostState.is(com.yayuy.overgrownvegetation.ModTags.NOT_CAVE_ROOF) || !isAir(level, host.below())
+                || !hostState.isFaceSturdy(level, host, Direction.DOWN) || !forestAbove(level, host)) {
+            return 0;
+        }
+        if (rootsNear(level, host.below(), t.forestRootsSpacing())) {
+            return 0;
+        }
+        return placeForestRoots(level, host, random);
+    }
+
+    /**
+     * 天井のブロック {@code ceiling} の上が「汚染された森の浅い地面」か: 天井から上へ続く岩(木でない動きを止めるブロック)が {@code forestRoofMax} 段以内で終わり、
+     * その上が液体でなく、地面のブロックが汚染済みか地面の所が過繁茂の地域で、地面から上 {@code forestTreeReach} 段・水平 ±{@code forestTreeSide} の正方形の列のどれかに
+     * 木の幹(原木・過繁茂の原木・巨大樹の幹・木生シダの幹)がある。
+     */
+    public static boolean forestAbove(ServerLevel level, BlockPos ceiling) {
+        com.yayuy.overgrownvegetation.data.SporeFieldTable t = com.yayuy.overgrownvegetation.data.DesignData.sporeField();
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        int x = ceiling.getX();
+        int z = ceiling.getZ();
+        int y = ceiling.getY();
+        int thick = 0;
+        while (true) {
+            p.set(x, y, z);
+            if (!level.isLoaded(p)) {
+                return false;
+            }
+            BlockState s = level.getBlockState(p);
+            if (!isRoofRock(s)) {
+                if (!s.getFluidState().isEmpty()) {
+                    return false; // 上が水(湖・川の底)
+                }
+                break;
+            }
+            thick++;
+            y++;
+            if (thick > t.forestRoofMax()) {
+                return false;
+            }
+        }
+        BlockPos ground = new BlockPos(x, y - 1, z);
+        BlockState groundState = level.getBlockState(ground);
+        if (!OvergrownLayerData.isCorruptedCell(level, ground, groundState)
+                && !com.yayuy.overgrownvegetation.registry.ModBiomes.isOvergrownLike(level.getBiome(p.set(x, y, z)))) {
+            return false;
+        }
+        // 幹は 1 ブロックの太さが多いので、十字(巨大樹の underTree)でなく ±side の正方形の列を全部見る(確率に当たった時だけなので重さは無視できる)
+        int side = t.forestTreeSide();
+        for (int dy = -1; dy < t.forestTreeReach(); dy++) {
+            for (int dz = -side; dz <= side; dz++) {
+                for (int dx = -side; dx <= side; dx++) {
+                    p.set(x + dx, y + dy, z + dz);
+                    if (level.isLoaded(p) && isForestTrunk(level.getBlockState(p))) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /** 天井の岩: 空気・液体・木の一部・天井にならないもの({@code #not_cave_roof})でない、動きを止めるブロック。 */
+    private static boolean isRoofRock(BlockState s) {
+        return !s.isAir() && s.blocksMotion() && s.getFluidState().isEmpty() && !s.is(com.yayuy.overgrownvegetation.ModTags.NOT_CAVE_ROOF)
+                && !com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder.isTreePart(s);
+    }
+
+    /** 地上の木の幹(葉は数えない)。 */
+    static boolean isForestTrunk(BlockState s) {
+        return s.is(net.minecraft.tags.BlockTags.LOGS) || isTrunk(s) || s.getBlock() instanceof com.yayuy.overgrownvegetation.block.TreeFernTrunkBlock;
+    }
+
+    /** 天井の真下の段 {@code cell} の高さで、水平 {@code radius} 以内に垂れた根(この MOD の垂れ根・バニラの垂れ根)があるか。 */
+    private static boolean rootsNear(ServerLevel level, BlockPos cell, int radius) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int dz = -radius; dz <= radius; dz++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                p.set(cell.getX() + dx, cell.getY(), cell.getZ() + dz);
+                if (!level.isLoaded(p)) {
+                    continue;
+                }
+                BlockState s = level.getBlockState(p);
+                if (s.is(ModBlocks.DANGLING_ROOTS.get()) || s.is(ModBlocks.DANGLING_ROOTS_PLANT.get()) || s.is(net.minecraft.world.level.block.Blocks.HANGING_ROOTS)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 天井 {@code ceiling} のまわり(半径 {@code forestRootsRadius})に地上の木の根を 1 束垂らす。{@code forestRootsVanillaShare} の割合はバニラの垂れ根 1 段、
+     * 残りはこの MOD の垂れ根を {@code forestRootLenMin}〜{@code forestRootLenMax} 段。条件は見ない(呼び手が {@link #forestAbove} で確かめる。テストからも呼ぶ)。
+     *
+     * @return 垂らした本数
+     */
+    public static int placeForestRoots(ServerLevel level, BlockPos ceiling, RandomSource random) {
+        com.yayuy.overgrownvegetation.data.SporeFieldTable t = com.yayuy.overgrownvegetation.data.DesignData.sporeField();
+        int radius = t.forestRootsRadius();
+        int strands = t.forestStrandsMin() + random.nextInt(t.forestStrandsMax() - t.forestStrandsMin() + 1);
+        int placed = 0;
+        for (int tries = 0; tries < strands * 4 && placed < strands; tries++) {
+            int dx = radius == 0 ? 0 : random.nextInt(radius * 2 + 1) - radius;
+            int dz = radius == 0 ? 0 : random.nextInt(radius * 2 + 1) - radius;
+            BlockPos cell = ceilingCell(level, ceiling.getX() + dx, ceiling.getY() - 1, ceiling.getZ() + dz, 1);
+            if (cell == null || !level.getBlockState(cell).isAir()) {
+                continue;
+            }
+            if (random.nextDouble() < t.forestRootsVanillaShare()) {
+                BlockState hanging = net.minecraft.world.level.block.Blocks.HANGING_ROOTS.defaultBlockState();
+                if (hanging.canSurvive(level, cell)) {
+                    level.setBlock(cell, hanging, Block.UPDATE_ALL);
+                    placed++;
+                }
+            } else if (hangRoots(level, cell, t.forestRootLenMin() + random.nextInt(t.forestRootLenMax() - t.forestRootLenMin() + 1))) {
+                placed++;
+            }
+        }
+        return placed;
+    }
+
     private static int placeRootCurtain(ServerLevel level, BlockPos ceiling, CurtainSite site, RandomSource random) {
         if (site == CurtainSite.NONE) {
             return 0;

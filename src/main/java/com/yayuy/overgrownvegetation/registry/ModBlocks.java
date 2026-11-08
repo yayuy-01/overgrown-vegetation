@@ -1374,6 +1374,21 @@ public final class ModBlocks {
                     .sound(SoundType.VINE)
                     .pushReaction(PushReaction.DESTROY));
 
+    /**
+     * 蔦の「ここを狙えば切れる」マス(2026-11-08)。登る蔓・林冠の細い蔓の経路が通る空気のマスに置く見えないブロック
+     * ({@link com.yayuy.overgrownvegetation.block.LianaSegmentBlock})。BlockEntity もアイテムも無い。壊す速さ・落とすもの
+     * (ハサミ・シルクタッチのときだけ蔦)は蔦と同じ。壊す速さは硬さではなく CorruptedLianaBlock#destroyProgress が決める。
+     */
+    public static final DeferredBlock<Block> OVERGROWN_LIANA_SEGMENT = BLOCKS.registerBlock(
+            "overgrown_liana_segment", com.yayuy.overgrownvegetation.block.LianaSegmentBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .noCollission()
+                    .strength(0.2F)
+                    .noOcclusion()
+                    .sound(SoundType.VINE)
+                    .pushReaction(PushReaction.DESTROY));
+
     // ------------------------------------------------------------------
     // 汚染死体ブロック(種族専用)
     //

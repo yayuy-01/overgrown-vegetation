@@ -73,9 +73,20 @@ public class BlightFernRootedBlock extends Block implements net.minecraft.world.
         if (state.getValue(WATERLOGGED)) {
             level.scheduleTick(pos, net.minecraft.world.level.material.Fluids.WATER, net.minecraft.world.level.material.Fluids.WATER.getTickDelay(level));
         }
-        return facing == Direction.DOWN && !canSurvive(state, level, pos)
-                ? (state.getValue(WATERLOGGED) ? Blocks.WATER.defaultBlockState() : Blocks.AIR.defaultBlockState())
-                : super.updateShape(state, facing, facingState, level, pos, facingPos);
+        if (facing == Direction.DOWN && !canSurvive(state, level, pos)) {
+            // 足元が水になった(氷が溶けた等)なら、次の tick で水底へ沈める(2026-11-08。前はその場で消えていた)。下が水でなければ前どおり消える
+            if (facingState.getFluidState().is(net.minecraft.tags.FluidTags.WATER)) {
+                level.scheduleTick(pos, this, 1);
+                return state;
+            }
+            return state.getValue(WATERLOGGED) ? Blocks.WATER.defaultBlockState() : Blocks.AIR.defaultBlockState();
+        }
+        return super.updateShape(state, facing, facingState, level, pos, facingPos);
+    }
+
+    @Override
+    protected void tick(BlockState state, ServerLevel level, BlockPos pos, net.minecraft.util.RandomSource random) {
+        SporeSprouts.resettleRooted(level, pos);
     }
 
     @Override

@@ -78,6 +78,11 @@ public final class SporeSprouts {
         /** 読み込んだチャンクにあった、広げ終えていない株(次の tick で点にする。読み込みの最中にブロックを書かない)。 */
         final LongOpenHashSet pendingRooted = new LongOpenHashSet();
         /**
+         * 読み込んだチャンクにあった株 → 待った tick(支えを失っていれば {@link #resettleRooted} で水底へ沈める。11-08)。
+         * 読み込みの通知の直後はまだ {@code isLoaded} が偽のチャンクがあるので、読めるまで最大 {@link #RESETTLE_WAIT} tick 待つ。
+         */
+        final it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap resettle = new it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap();
+        /**
          * 走り待ちの芽の点(2026-11-04 C): 同時に走る上限を超えた点と、走っている途中で読み込まれなくなった点。捨てずに覚え、空きができて
          * 読み込まれていれば初めから走らせる。上限 {@code sprouts.waitingMax}。保存しない(仮決め)。
          */
@@ -259,6 +264,45 @@ public final class SporeSprouts {
         return true;
     }
 
+    /**
+     * 支えを失った株を水底へ沈める(2026-11-08 ユーザー報告「萌芽体が水面に設置される」)。原因は、凍った水面の氷の上に根付いた株が、
+     * 汚染で氷が溶けて水になった後も残ること(氷の置き換えは形の更新を出さず、支えを失った植物の片付け StrandedPlants は
+     * BlockEntity を持つ株を飛ばす)。10-24 の決定(水の中なら水底の床に根付く)どおり、真下の水をたどった水底に向き・広げ終えた印を
+     * 引き継いで植え直す。水底に置けなければ(下が空気など)前と同じく消す。支えがあれば何もしない。
+     */
+    /** 読み込んだ株を沈めるまで待つ上限(tick)。 */
+    private static final int RESETTLE_WAIT = 200;
+
+    public static void resettleRooted(ServerLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        if (!state.is(ModBlocks.BLIGHT_FERN_ROOTED.get()) || state.canSurvive(level, pos)) return;
+        float yaw = Float.NaN;
+        boolean done = false;
+        if (level.getBlockEntity(pos) instanceof com.yayuy.overgrownvegetation.block.BlightFernRootedBlockEntity be) {
+            yaw = be.yaw();
+            done = be.spreadDone();
+        }
+        BlockPos target = null;
+        BlockPos.MutableBlockPos m = pos.below().mutable();
+        for (int d = 0; d < 64 && m.getY() > level.getMinBuildHeight() && level.isLoaded(m); d++) {
+            if (!level.getFluidState(m).is(net.minecraft.tags.FluidTags.WATER)) break;
+            if (!level.getFluidState(m.below()).is(net.minecraft.tags.FluidTags.WATER)) {
+                target = m.immutable();
+                break;
+            }
+            m.move(Direction.DOWN);
+        }
+        level.setBlock(pos, state.getFluidState().createLegacyBlock(), Block.UPDATE_ALL);
+        if (target != null && !level.getBlockState(target).canBeReplaced()) {
+            // 水底のマスが水中の植物(シャジクモの柱の根元など)なら水に戻して植える(上の段は支えを失って水に戻る)
+            level.setBlock(target, net.minecraft.world.level.block.Blocks.WATER.defaultBlockState(), Block.UPDATE_ALL);
+        }
+        if (target != null && placeRootedAt(level, target, Float.isNaN(yaw) ? 0.0F : yaw, false) && done
+                && level.getBlockEntity(target) instanceof com.yayuy.overgrownvegetation.block.BlightFernRootedBlockEntity moved) {
+            moved.markSpreadDone();
+        }
+    }
+
     /** 根付いた姿を置ける所(足元が塞がっていれば上へ 2 まで)。無ければ null。 */
     public static BlockPos rootedSpot(ServerLevel level, BlockPos at) {
         BlockState state = ModBlocks.BLIGHT_FERN_ROOTED.get().defaultBlockState();
@@ -288,6 +332,11 @@ public final class SporeSprouts {
      * 地表のランダムな 1 点(地面の 1 つ上)。水の下なら水底の床の 1 つ上(水の中。2026-10-24 追記 18: 胞子は水にも沈んで芽吹く)。
      * 溶岩・空は除く。
      */
+    /** 確かめ用(GameTest・DevBridge): {@link #surfacePoint} をそのまま呼ぶ。 */
+    public static BlockPos surfacePointForTest(ServerLevel level, LevelChunk chunk, RandomSource random) {
+        return surfacePoint(level, chunk, random);
+    }
+
     private static BlockPos surfacePoint(ServerLevel level, LevelChunk chunk, RandomSource random) {
         if (level.dimension() == Level.NETHER) return netherFloorPoint(level, chunk, random);
         for (int tries = 0; tries < 6; tries++) {
@@ -403,6 +452,17 @@ public final class SporeSprouts {
                 if (level.isLoaded(bp) && level.getBlockState(bp).is(ModBlocks.BLIGHT_FERN_ROOTED.get())) addRootedPoint(level, bp);
             }
             d.pendingRooted.clear();
+        }
+        if (!d.resettle.isEmpty()) {
+            for (long k : d.resettle.keySet().toLongArray()) {
+                BlockPos bp = BlockPos.of(k);
+                if (level.isLoaded(bp)) {
+                    resettleRooted(level, bp);
+                    d.resettle.remove(k);
+                } else if (d.resettle.addTo(k, 1) >= RESETTLE_WAIT) {
+                    d.resettle.remove(k); // 読み込まれないまま(すぐ読み込みが解けた等)。次に読み込んだときにまた見る
+                }
+            }
         }
         drainWaiting(level, d);
         if (d.active.isEmpty() || CorruptionSwitch.isOff()) return;
@@ -553,8 +613,10 @@ public final class SporeSprouts {
         if (event.getLevel() instanceof ServerLevel level && fieldLevel(level)
                 && event.getChunk() instanceof LevelChunk chunk) {
             for (net.minecraft.world.level.block.entity.BlockEntity be : chunk.getBlockEntities().values()) {
-                if (be instanceof com.yayuy.overgrownvegetation.block.BlightFernRootedBlockEntity r && !r.spreadDone()) {
-                    dim(level).pendingRooted.add(be.getBlockPos().asLong());
+                if (be instanceof com.yayuy.overgrownvegetation.block.BlightFernRootedBlockEntity r) {
+                    if (!r.spreadDone()) dim(level).pendingRooted.add(be.getBlockPos().asLong());
+                    // 前から水面に浮いている株(氷が溶けた跡。11-08 不具合)を次の tick で水底へ沈める
+                    dim(level).resettle.putIfAbsent(be.getBlockPos().asLong(), 0);
                 }
             }
         }

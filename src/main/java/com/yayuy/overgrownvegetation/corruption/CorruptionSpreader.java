@@ -2172,6 +2172,8 @@ public class CorruptionSpreader {
             // 洞窟の口(11-04): 天井が薄くて洞窟と判定されない口の帯にも根の簾だけ垂らす(ほかの地下の植生は置かない)。
             CaveFlora.decorateMouth(level, pos, hostState, random);
         }
+        // 境目の帯 2(2026-11-08): 森の下の浅い洞窟の天井から地上の木の根。薄い天井は洞窟と判定されないことがあるので両方の分岐の後で。
+        CaveFlora.decorateForestRoots(level, pos, hostState, random);
         // 壁と壁の隙間に渡る太い蔦(2026-11-07): 洞窟でも、空に開けた崖・渓谷でも。確率 vineSpanChance で隙間を探す(VineSpan)。
         VineSpan.tryGrow(level, pos, random);
         // 地下(洞窟)かどうか。光るツタの増量に使う。modeAt が洞窟と判定していればそれを流用し、

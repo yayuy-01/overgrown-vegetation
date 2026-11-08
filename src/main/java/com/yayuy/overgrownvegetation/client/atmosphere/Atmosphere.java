@@ -67,6 +67,7 @@ public final class Atmosphere {
         CanopySunMap.clear();
         LightShafts.clear();
         CaveShafts.clear();
+        CaveBreath.clear();
         CanopyDapple.clear();
         CanopyShade.clear();
         MistFog.clear();
@@ -130,6 +131,7 @@ public final class Atmosphere {
         guard("sunmap", () -> CanopySunMap.tick(now, ticks));
         guard("shafts", () -> LightShafts.tick(now, player));
         guard("caveshafts", () -> CaveShafts.tick(now, player)); // 洞窟の天井の穴の光の筋(11-07)
+        guard("cavebreath", () -> CaveBreath.tick(now, player)); // 洞窟の呼吸(11-08 境目の帯 1)
         guard("dapple", () -> CanopyDapple.tick(now, player));
         guard("shade", () -> CanopyShade.tick(now, player));
         guard("spores", () -> AmbientSpores.tick(now, player));
@@ -308,6 +310,7 @@ public final class Atmosphere {
         LifeSprites.begin(event);
         try {
             SteamWisps.render(lvl, partialTick, left, up);
+            CaveBreath.render(lvl, partialTick, left, up, event.getCamera().getPosition().x, event.getCamera().getPosition().y, event.getCamera().getPosition().z); // 洞窟の呼吸(11-08 境目の帯 1)
             WaterSigns.render(lvl, partialTick, left, up);
             GnatSwarms.render(partialTick, left, up);
             CanopyGnats.render(partialTick, event.getCamera().getPosition(), left, up); // 巨大樹の傘の羽虫(11-06 ⑤)

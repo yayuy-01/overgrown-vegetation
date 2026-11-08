@@ -176,6 +176,66 @@ public final class WaterSporeGameTests {
         });
     }
 
+    /**
+     * 水面の膜(藻の膜)の上は根付く足場にならない(2026-11-08 ユーザー報告「萌芽体が水面に設置される」。Fable の見立て = 膜の上に根付く)。
+     * 膜の上の 1 マスは根付く所に選ばれず、膜の所に出した萌芽体は沈んで水底(水の中の姿)に根付く。膜の高さ・その上には株ができない。
+     */
+    @GameTest(template = "gametest_empty7", batch = "water_spore", timeoutTicks = 400)
+    public static void sproutlingDoesNotRootOnSurfaceFilm(GameTestHelper helper) {
+        pool(helper);
+        for (int x = 1; x <= 5; x++)
+            for (int z = 1; z <= 5; z++) helper.setBlock(new BlockPos(x, 5, z), ModBlocks.ALGAE_FILM.get());
+        helper.assertBlockPresent(ModBlocks.ALGAE_FILM.get(), new BlockPos(3, 5, 3));
+        BlockPos filmAbs = helper.absolutePos(new BlockPos(3, 5, 3));
+        helper.assertTrue(SporeSprouts.rootedSpot(helper.getLevel(), filmAbs) == null,
+                "膜の所・その上が根付く所に選ばれた: " + SporeSprouts.rootedSpot(helper.getLevel(), filmAbs));
+        BlightFernEntity fern = helper.spawn(ModEntities.BLIGHT_FERN.get(), new BlockPos(3, 5, 3));
+        fern.rootSoonForTests();
+        helper.succeedWhen(() -> {
+            for (int x = 1; x <= 5; x++)
+                for (int z = 1; z <= 5; z++)
+                    for (int y = 3; y <= 6; y++)
+                        helper.assertBlockNotPresent(ModBlocks.BLIGHT_FERN_ROOTED.get(), new BlockPos(x, y, z));
+            BlockPos at = null;
+            for (int x = 1; x <= 5 && at == null; x++)
+                for (int z = 1; z <= 5 && at == null; z++)
+                    if (helper.getBlockState(new BlockPos(x, 2, z)).is(ModBlocks.BLIGHT_FERN_ROOTED.get())) at = new BlockPos(x, 2, z);
+            helper.assertTrue(at != null, "水底に根付いていない(萌芽体 y " + String.format("%.2f", fern.getY() - helper.absolutePos(BlockPos.ZERO).getY())
+                    + "・水の中 " + fern.isInWater() + "・" + fern.rootDebugForTests() + ")");
+            helper.assertTrue(helper.getBlockState(at).getValue(BlightFernRootedBlock.WATERLOGGED), "水底の株が水の中の姿でない");
+        });
+    }
+
+    /**
+     * 凍った水面の氷の上に根付いた株は、汚染で氷が溶けたら水底へ沈む(2026-11-08 ユーザー報告「萌芽体が水面に設置される」の原因。
+     * 前は氷の置き換えが形の更新を出さず、支えを失った植物の片付けも BlockEntity を持つ株を飛ばすので、株が水面に浮いて残っていた)。
+     */
+    @GameTest(template = "gametest_empty7", batch = "water_spore", timeoutTicks = 100)
+    public static void rootedOnMeltingIceSinksToSeabed(GameTestHelper helper) {
+        pool(helper);
+        BlockPos ice = new BlockPos(3, 4, 3);
+        // 株を置くと株の根がすぐ足元を汚染する(氷なら下草に覆われて株が消える)ので、置く間は石にし、形の更新を出さずに氷へ差し替える
+        helper.setBlock(ice, Blocks.STONE);
+        BlockPos onIce = ice.above();
+        ServerLevel level = helper.getLevel();
+        helper.assertTrue(SporeSprouts.placeRootedAt(level, helper.absolutePos(onIce), 90.0F, false), "石の上に根付けない");
+        // 本来の汚染の経路で氷を溶かす(CorruptionRegistry#corrupt → placeCorrupted)
+        BlockPos iceAbs = helper.absolutePos(ice);
+        level.setBlock(iceAbs, Blocks.ICE.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+        helper.assertBlockPresent(ModBlocks.BLIGHT_FERN_ROOTED.get(), onIce);
+        BlockState before = level.getBlockState(iceAbs);
+        BlockState melted = com.yayuy.overgrownvegetation.corruption.CorruptionRegistry.corrupt(level, iceAbs, before, level.random);
+        helper.assertTrue(melted.getFluidState().is(FluidTags.WATER), "氷が水にならない: " + melted);
+        com.yayuy.overgrownvegetation.corruption.CorruptionRegistry.placeCorrupted(level, iceAbs, before, melted, Block.UPDATE_ALL);
+        helper.succeedWhen(() -> {
+            helper.assertBlockNotPresent(ModBlocks.BLIGHT_FERN_ROOTED.get(), onIce);
+            BlockPos bottom = new BlockPos(3, 2, 3);
+            helper.assertBlockPresent(ModBlocks.BLIGHT_FERN_ROOTED.get(), bottom);
+            helper.assertTrue(helper.getBlockState(bottom).getValue(BlightFernRootedBlock.WATERLOGGED), "水底の株が水の中の姿でない");
+            helper.assertTrue(helper.getLevel().getFluidState(helper.absolutePos(ice)).is(FluidTags.WATER), "氷の跡が水でない");
+        });
+    }
+
     /** 水の中の点からも水底の床が汚染される(芽の点は水底にも置く)。 */
     @GameTest(template = "gametest_empty7", batch = "water_spore", timeoutTicks = 200)
     public static void seabedCorruptsFromWaterPoint(GameTestHelper helper) {

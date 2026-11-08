@@ -133,8 +133,12 @@ public final class ForestFloorGameTests {
         summary += " / 泥炭になるはずのマス " + expectedPeat;
         OvergrownVegetation.LOGGER.info("林床 泥炭: {}", summary);
         int cells = PLANE * PLANE - 4;
-        if (carpets < cells * 0.3 || carpets > cells * 0.75) {
-            helper.fail("敷物の割合が 5〜6 割から遠い: " + summary);
+        // 期待値は設定値から出す(11-08 に floorCarpetChance 0.5 → 0.3・growthChance 0.9 → 0.97 で、決め打ちの「5〜6 割」が外れた)。
+        // 泥炭・倒木・メドゥロサに取られるマスがあるので下は広めに。
+        var cfg = com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON;
+        double expectedCarpets = cells * cfg.growthChance.get() * (1.0D - cfg.floorMedullosaChance.get()) * cfg.floorCarpetChance.get();
+        if (carpets < expectedCarpets * 0.55D || carpets > expectedCarpets * 1.5D + 4) {
+            helper.fail(String.format("敷物の数が設定からの見込み %.0f から遠い: ", expectedCarpets) + summary);
         } else if (lycopsids < 8 || lycopsids > 60) {
             helper.fail("小葉類の株の数がおかしい: " + summary);
         } else if (n[7] + n[8] < expectedPeat - n[9] - 2) {

@@ -176,14 +176,14 @@ public final class MyceliumSeep {
     }
 
     /** 計測用: 仕事のあった tick の数・合計と最大の時間(ns)・板の数・置き換えた数・追いつき(1 枚では足りない遅れの板)の数。 */
-    private static long statTicks, statSumNs, statMaxNs, statJobs, statPlaced, statCatchUpJobs, statMaxColNs, statMaxFindNs, statMaxPlaceNs, statOver2, statMaxGrowNs, statOver1, statGrowDeferred, statGrowDropped;
+    private static long statTicks, statSumNs, statMaxNs, statJobs, statPlaced, statCatchUpJobs, statMaxColNs, statMaxFindNs, statMaxPlaceNs, statOver2, statMaxGrowNs, statOver1, statGrowDeferred, statGrowDropped, statGrowOnOld;
 
     /** 計測用: 統計を文字列で返して 0 に戻す(1 列・次の板探し・1 マスの置き換えのいちばん長い時間、2 ms を超えた tick の数も)。 */
     public static String takeStats() {
-        String s = String.format(java.util.Locale.ROOT, "ticks %d avg %.3f ms max %.3f ms (>2ms %d) jobs %d catchup %d placed %d maxPlacedInTick %d | col %.3f find %.3f place %.3f grow %.3f ms (>1ms %d) 植物の回し %d 捨て %d 待ち %d",
+        String s = String.format(java.util.Locale.ROOT, "ticks %d avg %.3f ms max %.3f ms (>2ms %d) jobs %d catchup %d placed %d maxPlacedInTick %d | col %.3f find %.3f place %.3f grow %.3f ms (>1ms %d) 植物の回し %d 捨て %d 待ち %d 汚染済みへ %d",
                 statTicks, statTicks == 0 ? 0.0D : statSumNs / 1e6 / statTicks, statMaxNs / 1e6, statOver2, statJobs, statCatchUpJobs, statPlaced, maxPlacedInTick,
-                statMaxColNs / 1e6, statMaxFindNs / 1e6, statMaxPlaceNs / 1e6, statMaxGrowNs / 1e6, statOver1, statGrowDeferred, statGrowDropped, GROW_QUEUE.size());
-        statTicks = statSumNs = statMaxNs = statJobs = statPlaced = statCatchUpJobs = statMaxColNs = statMaxFindNs = statMaxPlaceNs = statOver2 = statMaxGrowNs = statOver1 = statGrowDeferred = statGrowDropped = 0L;
+                statMaxColNs / 1e6, statMaxFindNs / 1e6, statMaxPlaceNs / 1e6, statMaxGrowNs / 1e6, statOver1, statGrowDeferred, statGrowDropped, GROW_QUEUE.size(), statGrowOnOld);
+        statTicks = statSumNs = statMaxNs = statJobs = statPlaced = statCatchUpJobs = statMaxColNs = statMaxFindNs = statMaxPlaceNs = statOver2 = statMaxGrowNs = statOver1 = statGrowDeferred = statGrowDropped = statGrowOnOld = 0L;
         maxPlacedInTick = 0;
         return s;
     }
@@ -350,7 +350,25 @@ public final class MyceliumSeep {
             if (facing == 0) continue;
             m.set(x, y, z);
             LevelChunk chunk = area.chunk(x >> 4, z >> 4);
-            if (OvergrownLayerData.isCorruptedCell(chunk, m, state) || !CorruptionRegistry.canCorrupt(level, m, state)) continue;
+            if (OvergrownLayerData.isCorruptedCell(chunk, m, state)) {
+                // 前線より先にほかの経路(壁を這う汚染・洞窟の床の芽)が汚染していたマス。その経路は植物を生やさないので、前線が通るときに
+                // 1 回だけ植物の入口を通す(2026-11-08: 暦の進んだワールドの台地で、洞窟が先に汚染されて植物 0 だった)。前線は各マスを 1 回しか通らない。
+                // 植物そのもの(動きを止めないブロック)は土台にしない
+                if ((facing & 1) != 0 && state.blocksMotion() && t.seepPlantShare() > 0.0D && random.nextDouble() < t.seepPlantShare()) {
+                    BlockPos at = m.immutable();
+                    if (System.nanoTime() + growMarginNs(t) <= deadline) {
+                        long g0 = System.nanoTime();
+                        growAt(level, at, state);
+                        statMaxGrowNs = Math.max(statMaxGrowNs, System.nanoTime() - g0);
+                    } else {
+                        deferGrow(at, t);
+                    }
+                    statGrowOnOld++;
+                    justPlaced = true;
+                }
+                continue;
+            }
+            if (!CorruptionRegistry.canCorrupt(level, m, state)) continue;
             BlockState corrupted = CorruptionRegistry.corrupt(level, m, state, random);
             boolean plants = t.seepPlantShare() > 0.0D && random.nextDouble() < t.seepPlantShare();
             if (CorruptionRegistry.noChange(state, corrupted)) {
@@ -566,6 +584,8 @@ public final class MyceliumSeep {
                 current = job;
                 while (current == job) work(level, t, false);
             }
+            // 次の tick へ回した植物もその場で生やし切る(本物は次の tick の頭で生やす)
+            while (!GROW_QUEUE.isEmpty()) drainGrowQueue(level, t, Long.MAX_VALUE / 2);
         } finally {
             current = saved;
         }

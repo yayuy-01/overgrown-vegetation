@@ -129,6 +129,7 @@
   "block.overgrown_vegetation.undeveloped_bush": "Недоразвитый куст",
   "block.overgrown_vegetation.large_undeveloped_fruit": "Крупный недоразвитый плод",
   "block.overgrown_vegetation.overgrown_liana": "Лиана",
+  "block.overgrown_vegetation.overgrown_liana_segment": "Лиана",
   "item.overgrown_vegetation.spore": "Спора",
   "block.overgrown_vegetation.overgrown_door": "Покрытая дверь",
   "block.overgrown_vegetation.overgrown_chest": "Разросшийся сундук",

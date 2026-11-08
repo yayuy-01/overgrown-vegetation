@@ -197,6 +197,91 @@ public final class ClimbingVineGameTests {
         helper.succeed();
     }
 
+    /**
+     * 蔦を手やハサミで壊す(2026-11-08、ユーザー依頼「巻き付く蔦・間の蔦をしっかりハサミや手で壊せるように。手は少し時間がかかる」)。
+     * 幹を登る区間の脇のマスにも狙いのマス(LianaSegmentBlock)があり、素手は vineHandBreakSeconds・ハサミは vineShearsBreakSeconds の速さ、
+     * 幹の脇の 1 マスを素手で壊すと束(本体・添う細い蔓・垂れる綱)が全部消える。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void climbingVineBreaksByHandAndShears(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        for (int x = 0; x < 7; x++) {
+            for (int z = 0; z < 7; z++) {
+                place(helper, new BlockPos(x, 1, z), Blocks.DIRT.defaultBlockState());
+                for (int y = 2; y < 2 + HEIGHT + 2; y++) {
+                    place(helper, new BlockPos(x, y, z), Blocks.AIR.defaultBlockState());
+                }
+            }
+        }
+        for (int y = 0; y < HEIGHT; y++) {
+            place(helper, TRUNK_A.above(y), ModBlocks.OVERGROWN_LOG.get().defaultBlockState());
+            place(helper, TRUNK_B.above(y), ModBlocks.OVERGROWN_LOG.get().defaultBlockState());
+        }
+        BlockPos base = helper.absolutePos(TRUNK_A);
+        if (ClimbingVine.placeOnTree(level, base, 1, RandomSource.create(42L)) != 1) {
+            helper.fail("登る蔓が置けなかった");
+            return;
+        }
+        BlockPos lo = helper.absolutePos(new BlockPos(0, 1, 0));
+        BlockPos hi = helper.absolutePos(new BlockPos(6, 2 + HEIGHT + 1, 6));
+        // 幹 A の脇(水平に隣り合う)・地面より上のマスにある狙いのマス
+        BlockPos trunkSide = null;
+        int besideTrunk = 0;
+        for (BlockPos p : BlockPos.betweenClosed(lo, hi)) {
+            if (!(level.getBlockState(p).getBlock() instanceof com.yayuy.overgrownvegetation.block.LianaSegmentBlock)) {
+                continue;
+            }
+            int ddx = Math.abs(p.getX() - base.getX());
+            int ddz = Math.abs(p.getZ() - base.getZ());
+            if (ddx + ddz == 1 && p.getY() >= base.getY() + 1 && p.getY() <= base.getY() + HEIGHT - 3) {
+                besideTrunk++;
+                if (trunkSide == null) {
+                    trunkSide = p.immutable();
+                }
+            }
+        }
+        if (besideTrunk < 3 || trunkSide == null) {
+            helper.fail("幹を登る区間の脇に狙いのマスが少ない: " + besideTrunk);
+            return;
+        }
+        // 狙いの箱は幹の側の 1/3 か 2/3(マス全体ではない)
+        net.minecraft.world.phys.AABB box = level.getBlockState(trunkSide).getShape(level, trunkSide).bounds();
+        if (box.getXsize() > 0.7D && box.getZsize() > 0.7D) {
+            helper.fail("幹の脇の狙いの箱が広すぎる: " + box);
+            return;
+        }
+        net.minecraft.world.entity.player.Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        player.setOnGround(true);
+        net.minecraft.world.level.block.state.BlockState segment = level.getBlockState(trunkSide);
+        float hand = segment.getDestroyProgress(player, level, trunkSide);
+        player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.SHEARS));
+        float shears = segment.getDestroyProgress(player, level, trunkSide);
+        player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.ItemStack.EMPTY);
+        double handSeconds = com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.vineHandBreakSeconds.get();
+        double shearsSeconds = com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.vineShearsBreakSeconds.get();
+        int handTicks = (int) Math.ceil(1.0D / hand);
+        int shearsTicks = (int) Math.ceil(1.0D / shears);
+        if (Math.abs(handTicks - handSeconds * 20.0D) > 1.0D || Math.abs(shearsTicks - shearsSeconds * 20.0D) > 1.0D || shearsTicks >= handTicks) {
+            helper.fail("壊す速さが設定と違う: 素手 " + handTicks + " tick(設定 " + handSeconds + " 秒)・ハサミ " + shearsTicks + " tick(設定 "
+                    + shearsSeconds + " 秒)");
+            return;
+        }
+        // 素手で 1 マス壊す(ServerPlayerGameMode#destroyBlock と同じ順: playerWillDestroy → removeBlock)
+        segment.getBlock().playerWillDestroy(level, trunkSide, segment, player);
+        level.removeBlock(trunkSide, false);
+        int left = 0;
+        for (BlockPos p : BlockPos.betweenClosed(lo, hi)) {
+            if (com.yayuy.overgrownvegetation.block.CorruptedLianaBlock.isLianaPart(level.getBlockState(p))) {
+                left++;
+            }
+        }
+        if (left != 0) {
+            helper.fail("1 マス壊したのに蔦の束が残っている: " + left + " マス");
+            return;
+        }
+        helper.succeed();
+    }
+
     private static void place(GameTestHelper helper, BlockPos relative, net.minecraft.world.level.block.state.BlockState state) {
         helper.getLevel().setBlock(helper.absolutePos(relative), state, Block.UPDATE_CLIENTS);
     }

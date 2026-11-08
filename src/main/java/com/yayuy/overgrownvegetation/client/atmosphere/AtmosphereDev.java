@@ -206,6 +206,20 @@ public final class AtmosphereDev {
                 return CaveShafts.describe();
             }
             CaveShafts.devOff = !on;
+        } else if (p[0].equals("breath")) {
+            // 11-08 洞窟の呼吸: cavedev breath off|on|info|in|out|auto(in・out = 風に関わらず吹き込み・吹き出し。撮影用)
+            String sub = p.length > 1 ? p[1] : "info";
+            switch (sub) {
+                case "info" -> {
+                    return CaveBreath.describe();
+                }
+                case "in" -> CaveBreath.devForce = 1;
+                case "out" -> CaveBreath.devForce = -1;
+                case "auto" -> CaveBreath.devForce = 0;
+                case "oldcolor" -> CaveBreath.devOldHazeColor = p.length > 2 && p[2].equals("on");
+                default -> CaveBreath.devOff = !on;
+            }
+            return "洞窟の呼吸 " + (CaveBreath.devOff ? "切" : "入") + " 強制 " + CaveBreath.devForce + " 前の霞の色 " + CaveBreath.devOldHazeColor;
         } else if (p[0].equals("held")) {
             // 11-07 手に持った明かり: cavedev held off|on
             CaveLights.devNoHeld = !on;

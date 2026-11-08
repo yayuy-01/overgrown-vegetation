@@ -317,6 +317,103 @@ public final class CaveFloraGameTests {
         });
     }
 
+    /**
+     * (f) 境目の帯 2(11-08): 森の下の浅い洞窟の天井から地上の木の根。屋根 3 段の箱の上を汚染した草にしてバニラの原木を立てると、汚染の入口
+     * ({@link CaveFlora#decorateForestRoots})から根が垂れる(バニラの垂れ根とこの MOD の垂れ根)。木が無い・地面が汚染されていない・屋根が厚い(forestRoofMax を超える)
+     * 箱では森の上と判定されない。屋根の厚みの上限は設計値から(メモリ gametest-derive-from-design-values)。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 160)
+    public static void forestRootsHangUnderShallowCorruptedForest(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        int inner = 5;
+        int extra = com.yayuy.overgrownvegetation.data.DesignData.sporeField().forestRoofMax() + 1 - ROOF; // 厚い箱の屋根に足す段(上限 + 1 段)
+        BlockPos forest = helper.absolutePos(new BlockPos(0, SKY + 20, 0));
+        BlockPos bare = helper.absolutePos(new BlockPos(0, SKY + 4, 0)); // 木の無い箱
+        BlockPos clean = helper.absolutePos(new BlockPos(0, SKY - 12, 0)); // 地面が汚染されていない箱
+        BlockPos thick = helper.absolutePos(new BlockPos(0, SKY - 28 - extra, 0)); // 屋根の厚い箱
+        BlockState grass = ModBlocks.OVERGROWN_GRASS_BLOCK.get().defaultBlockState();
+        BlockState log = Blocks.OAK_LOG.defaultBlockState();
+        for (BlockPos o : new BlockPos[]{forest, bare, clean, thick}) {
+            box(level, o, inner);
+        }
+        for (int i = 1; i <= extra; i++) {
+            for (int z = 0; z < SIZE; z++) {
+                for (int x = 0; x < SIZE; x++) {
+                    level.setBlock(thick.offset(x, inner + ROOF + i, z), Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS);
+                }
+            }
+        }
+        int topForest = inner + ROOF;
+        int topThick = inner + ROOF + extra;
+        for (int z = 0; z < SIZE; z++) {
+            for (int x = 0; x < SIZE; x++) {
+                level.setBlock(forest.offset(x, topForest, z), grass, Block.UPDATE_CLIENTS);
+                level.setBlock(bare.offset(x, topForest, z), grass, Block.UPDATE_CLIENTS);
+                level.setBlock(clean.offset(x, topForest, z), Blocks.GRASS_BLOCK.defaultBlockState(), Block.UPDATE_CLIENTS);
+                level.setBlock(thick.offset(x, topThick, z), grass, Block.UPDATE_CLIENTS);
+            }
+        }
+        for (int i = 1; i <= 3; i++) {
+            level.setBlock(forest.offset(3, topForest + i, 3), log, Block.UPDATE_CLIENTS);
+            level.setBlock(clean.offset(3, topForest + i, 3), log, Block.UPDATE_CLIENTS);
+            level.setBlock(thick.offset(3, topThick + i, 3), log, Block.UPDATE_CLIENTS);
+        }
+        helper.runAfterDelay(5, () -> {
+            boolean underForest = CaveFlora.forestAbove(level, forest.offset(3, inner + 1, 3));
+            boolean noTree = CaveFlora.forestAbove(level, bare.offset(3, inner + 1, 3));
+            boolean notCorrupted = CaveFlora.forestAbove(level, clean.offset(3, inner + 1, 3));
+            boolean thickRoof = CaveFlora.forestAbove(level, thick.offset(3, inner + 1, 3));
+            // 汚染の入口から(確率に当たるまで天井のブロックを選び直す)
+            RandomSource r = RandomSource.create(17);
+            int strands = 0;
+            for (int i = 0; i < 2000 && strands == 0; i++) {
+                BlockPos host = forest.offset(1 + r.nextInt(5), inner + 1, 1 + r.nextInt(5));
+                strands = CaveFlora.decorateForestRoots(level, host, level.getBlockState(host), r);
+            }
+            int modTips = count(level, forest, inner, ModBlocks.DANGLING_ROOTS.get());
+            int vanilla = count(level, forest, inner, Blocks.HANGING_ROOTS);
+            // 2 束目は間隔(forestRootsSpacing)で止まる
+            int second = 0;
+            for (int i = 0; i < 400; i++) {
+                BlockPos host = forest.offset(2 + r.nextInt(3), inner + 1, 2 + r.nextInt(3));
+                second += CaveFlora.decorateForestRoots(level, host, level.getBlockState(host), r);
+            }
+            for (BlockPos o : new BlockPos[]{forest, clean}) {
+                for (int i = 1; i <= 3; i++) {
+                    level.setBlock(o.offset(3, topForest + i, 3), Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+                }
+            }
+            for (int i = 1; i <= 3; i++) {
+                level.setBlock(thick.offset(3, topThick + i, 3), Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+            }
+            for (int i = extra; i >= 1; i--) {
+                for (int z = 0; z < SIZE; z++) {
+                    for (int x = 0; x < SIZE; x++) {
+                        level.setBlock(thick.offset(x, inner + ROOF + i, z), Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+                    }
+                }
+            }
+            for (BlockPos o : new BlockPos[]{forest, bare, clean, thick}) {
+                clear(level, o, inner);
+            }
+            if (!underForest) {
+                helper.fail("屋根 3 段・汚染した草・原木の下が森の上にならない");
+            } else if (noTree) {
+                helper.fail("木の無い箱が森の上になった");
+            } else if (notCorrupted) {
+                helper.fail("汚染されていない地面の箱が森の上になった");
+            } else if (thickRoof) {
+                helper.fail("屋根 " + (ROOF + extra) + " 段の箱が森の上になった");
+            } else if (strands < 1 || modTips + vanilla < 1) {
+                helper.fail("森の下に根が垂れない: 本数 " + strands + "・先 " + modTips + "・バニラ " + vanilla);
+            } else if (second != 0) {
+                helper.fail("間隔の中に 2 束目が垂れた: " + second);
+            } else {
+                helper.succeed();
+            }
+        });
+    }
+
     /** 屋根 1 段・東の壁の無い石の箱(洞窟と判定されない薄い天井の口)。 */
     private static void thinMouthBox(ServerLevel level, BlockPos origin, int inner) {
         for (int y = 0; y <= inner + 1; y++) {
