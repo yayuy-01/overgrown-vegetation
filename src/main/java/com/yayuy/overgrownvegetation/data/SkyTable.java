@@ -21,6 +21,7 @@ public final class SkyTable {
         public HighSkyJson highSky;
         public StormsJson storms;
         public CirrusJson cirrus;
+        public WeatherJson weather;
     }
 
     public static final class CloudsJson {
@@ -59,6 +60,18 @@ public final class SkyTable {
     }
 
     /** 巻雲(2026-11-09 雲の段階 2a)。見た目だけ(送らない)。 */
+    /** 天気(2026-11-09 雲の段階 2a-5、ユーザー決定「バニラの雨を雲の多い日だけに合わせる」)。形の値と同じくサーバーの値を送る({@code sky.CloudShape})。 */
+    public static final class WeatherJson {
+        /** バニラの雨を雲の多い日に合わせるか(0 / 1)。0 ならバニラのまま。 */
+        public Double syncRain;
+        /** 雲の多い日のうち雨の日の割合。 */
+        public Double rainDays;
+        /** 雨のうち雷雨の割合。 */
+        public Double thunderShare;
+        /** 雨の前にだんだん曇る長さ(tick)。 */
+        public Double preRainTicks;
+    }
+
     public static final class CirrusJson {
         public Double strength;
         /** 量の固定(−1 = 日ごとに変わる)。 */
@@ -104,6 +117,7 @@ public final class SkyTable {
     public final float highSkyClarity, highSkyClearFrom, highSkyClearTo;
     public final float storms, stormChance, giantChance, footScale;
     public final float cirrus, cirrusAmount, cirrusHeight, cirrusWindScale;
+    public final float syncRain, rainDays, thunderShare, preRainTicks;
 
     private SkyTable(Json j) {
         CloudsJson c = j == null || j.clouds == null ? new CloudsJson() : j.clouds;
@@ -113,6 +127,7 @@ public final class SkyTable {
         HighSkyJson h = j == null || j.highSky == null ? new HighSkyJson() : j.highSky;
         StormsJson st = j == null || j.storms == null ? new StormsJson() : j.storms;
         CirrusJson ci = j == null || j.cirrus == null ? new CirrusJson() : j.cirrus;
+        WeatherJson we = j == null || j.weather == null ? new WeatherJson() : j.weather;
         coverage = clamp(c.coverage, -1.0, -1.0, 1.0);
         style = c.style == null ? 2 : Math.max(1, Math.min(3, c.style));
         celShading = f(c.celShading, 1.0);
@@ -148,6 +163,10 @@ public final class SkyTable {
         cirrusAmount = (float) clamp(ci.amount, -1.0, -1.0, 1.0);
         cirrusHeight = (float) clamp(ci.height, 3500.0, 400.0, 6000.0);
         cirrusWindScale = (float) clamp(ci.windScale, 1.0, 0.0, 1.5);
+        syncRain = f(we.syncRain, 1.0);
+        rainDays = f(we.rainDays, 0.75); // 11-09 段階 2a-6 ユーザー決定: 0.5 → 0.75(雨の時間をバニラ並みの約 15% に。胞子の降り積もりは雨の間 10 倍で、汚染の速さはバニラの雨の量で合わせてある)
+        thunderShare = f(we.thunderShare, 0.3);
+        preRainTicks = (float) clamp(we.preRainTicks, 4000.0, 0.0, 24000.0);
     }
 
     public static SkyTable fromJson(Json j) {

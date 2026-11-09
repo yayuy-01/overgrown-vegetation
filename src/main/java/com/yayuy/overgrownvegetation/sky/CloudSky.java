@@ -50,8 +50,13 @@ public final class CloudSky {
     /** 今の雲の量(設計値で固定されていればその値)。 */
     public static float coverage(Level level, float partialTick) {
         double override = CloudShape.current().coverage();
-        return override >= 0.0 ? (float) override
-                : CloudField.coverage(level.getDayTime(), rawRain(level, partialTick), rawThunder(level, partialTick));
+        if (override >= 0.0) {
+            return (float) override;
+        }
+        float c = CloudField.coverage(level.getDayTime(), rawRain(level, partialTick), rawThunder(level, partialTick));
+        // 雨の前にだんだん曇る(11-09 段階 2a-5、{@link CloudWeather#preRain})。
+        float pre = CloudWeather.preRain(level, partialTick);
+        return pre > 0.0F ? Mth.lerp(pre, c, Math.max(c, 0.97F)) : c;
     }
 
     /** 雲の並び方(1 = 群れ・2 = 谷のある雲の海・3 = 壁と橋)。 */
@@ -105,7 +110,7 @@ public final class CloudSky {
         // 10-18 夜(ユーザー「晴れの日は大きい雲ばかりで分厚い」): 巨大な積乱雲も晴れの日ほど少なく(量 0 で 3 割・量 0.7 以上でそのまま)。
         float t = Mth.clamp(coverage / 0.7F, 0.0F, 1.0F);
         float giant = giantChance() * Mth.lerp(t * t * (3.0F - 2.0F * t), 0.3F, 1.0F);
-        return CloudField.storms(minX, minZ, maxX, maxZ, level.getDayTime(), chance, 0.0F, giant, style());
+        return CloudField.storms(minX, minZ, maxX, maxZ, level.getDayTime(), chance, 0.0F, giant, style(), coverage);
     }
 
     /**
@@ -225,7 +230,23 @@ public final class CloudSky {
 
     /** 世界の点 (x, y, z) が晴れの日の積雲の下か(上昇気流の判定の土台。積雲があり、雲の底 y 300 より下)。 */
     public static boolean underCumulus(Level level, double x, double y, double z, float partialTick) {
-        return y < CloudField.LOW_BASE && cumulusAt(level, x, z, partialTick) > 0.0F;
+        if (y < CloudField.LOW_BASE && cumulusAt(level, x, z, partialTick) > 0.0F) {
+            return true;
+        }
+        // 晴れの日の積雲(11-09 段階 2a-5、{@link CloudField#KIND_CUMULUS})の下も。
+        long gt = level.getGameTime();
+        double fx = CloudField.fieldX(x, gt, partialTick);
+        double fz = CloudField.fieldZ(z, gt, partialTick);
+        for (CloudField.Storm s : stormsNear(level, x, z, partialTick, 64.0)) {
+            if (s.kind() != CloudField.KIND_CUMULUS) {
+                continue;
+            }
+            int[] sp = stormSpan(s, fx, fz);
+            if (sp != null && y < sp[0]) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

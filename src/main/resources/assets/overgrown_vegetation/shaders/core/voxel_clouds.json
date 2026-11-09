@@ -24,6 +24,7 @@
         { "name": "InsideColor", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 1.0 ] },
         { "name": "Look", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] },
         { "name": "World", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+        { "name": "PreRain", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
         { "name": "ShadowA", "type": "float", "count": 4, "values": [ 0.0, 0.0, 1.0, 0.0 ] },
         { "name": "ShadowB", "type": "float", "count": 4, "values": [ 0.0, 0.0, 420.0, 1300.0 ] },
         { "name": "Rough", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] },

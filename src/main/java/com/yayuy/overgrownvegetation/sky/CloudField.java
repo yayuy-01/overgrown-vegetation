@@ -79,6 +79,8 @@ public final class CloudField {
     public static final int KIND_RIDGE = 3;
     /** 宙に浮いた独立した雲(11-09 段階 2a-2、ユーザー「宙に浮いた独立した雲もあるとよい」)。top = 塊の真ん中の高さ、radius = 横の半径。 */
     public static final int KIND_FLOAT = 4;
+    /** 晴れの日の積雲(11-09 段階 2a-5 ユーザー「晴れの日でも、そこそこの大きさの雲が一つや二つあってもよい」)。積乱雲ではない(積乱雲探し・積乱雲の下の判定に入れない)。 */
+    public static final int KIND_CUMULUS = 5;
     public static final int TOWER_GRID = 640;
     static final double TOWER_LIFE_MIN = 7000.0;
     static final double TOWER_LIFE_MAX = 13000.0;
@@ -508,6 +510,12 @@ public final class CloudField {
      */
     public static List<Storm> storms(double minX, double minZ, double maxX, double maxZ, long dayTime, float chance, float thunder, float giantChance,
                                      int style) {
+        return storms(minX, minZ, maxX, maxZ, dayTime, chance, thunder, giantChance, style, -1.0F);
+    }
+
+    /** coverage = 日の雲の量(晴れの日の積雲 {@link #fairCumulus} を出すか決める。−1 で出さない)。 */
+    public static List<Storm> storms(double minX, double minZ, double maxX, double maxZ, long dayTime, float chance, float thunder, float giantChance,
+                                     int style, float coverage) {
         List<Storm> all = new ArrayList<>();
         if (chance <= 0.0F) {
             return all;
@@ -608,6 +616,7 @@ public final class CloudField {
         congestus(all, minX, minZ, maxX, maxZ, dayTime, chance, style);
         ridges(all, style);
         floating(all, minX, minZ, maxX, maxZ, dayTime, chance, style);
+        fairCumulus(all, minX, minZ, maxX, maxZ, dayTime, coverage, style);
         // 巨大な雲どうしは雲海 2 つ分より近ければ、決まった順で 1 つだけ残す(どの範囲で探しても同じ答えになるよう、近くだけで決める)。
         List<Storm> giants = new ArrayList<>();
         for (Storm g : all) {
@@ -753,6 +762,58 @@ public final class CloudField {
                 float r = Math.min(p.bodyRadius(), q.bodyRadius()) * (0.38F + 0.18F * hash01(pair, 3));
                 all.add(new Storm(p.x(), p.z(), Math.max(r, 50.0F), crest, arch, false, Math.min(p.maturity(), q.maturity()), pair, style,
                         KIND_RIDGE, q.x(), q.z()));
+            }
+        }
+    }
+
+    /** 晴れの日の積雲の升の大きさ・1 升に立つ割合・出る日の雲の量(これより下で全部、上の量で消える)。仮決め。 */
+    static final int CUMULUS_GRID = 1600;
+    static final float CUMULUS_SHARE = 0.6F;
+    static final float CUMULUS_FULL_BELOW = 0.2F;
+    static final float CUMULUS_GONE_AT = 0.35F;
+
+    /**
+     * 晴れの日の積雲(11-09 段階 2a-5 ユーザー「晴れの日でも、そこそこの大きさの雲が一つや二つあってもよい」。積雲・雄大積雲の小さめ、積乱雲ではない)。
+     * {@link #CUMULUS_GRID} 四方の升の {@link #CUMULUS_SHARE} に 1 つ(見える範囲 半径 1500 に平均 2 つほど)。地域の雲の多さでは減らさない
+     * (晴れた地域でも 1〜2 つ見えるように)。胴の半径 50〜90・天辺 y 450〜650(底は雲の床 y 300)。入道雲と同じ一生(湧いては崩れる)。
+     * 雲の量 {@link #CUMULUS_FULL_BELOW} 以下の日に全部出て、{@link #CUMULUS_GONE_AT} で消える(そこそこの日は雲の海の切れ目と積雲がある)。数値は仮決め。
+     */
+    private static void fairCumulus(List<Storm> all, double minX, double minZ, double maxX, double maxZ, long dayTime, float coverage, int style) {
+        if (coverage < 0.0F) {
+            return;
+        }
+        float fair = 1.0F - smooth((coverage - CUMULUS_FULL_BELOW) / (CUMULUS_GONE_AT - CUMULUS_FULL_BELOW));
+        if (fair <= 0.0F) {
+            return;
+        }
+        int grid = CUMULUS_GRID;
+        double margin = 400.0;
+        int gx0 = Mth.floor((minX - margin) / grid);
+        int gx1 = Mth.floor((maxX + margin) / grid);
+        int gz0 = Mth.floor((minZ - margin) / grid);
+        int gz1 = Mth.floor((maxZ + margin) / grid);
+        float here = CUMULUS_SHARE * fair;
+        for (int gz = gz0; gz <= gz1; gz++) {
+            for (int gx = gx0; gx <= gx1; gx++) {
+                long home = (gx * 0x9FB21C651E98DF25L) ^ (gz * 0xC13FA9A902A6328FL) ^ (style * 0x2545F4914F6CDD1DL) ^ 0xC0C0L;
+                double life = TOWER_LIFE_MIN + (TOWER_LIFE_MAX - TOWER_LIFE_MIN) * hash01(home, 14);
+                double phase = (dayTime + life * hash01(home, 15)) / life;
+                long epoch = Mth.floor(phase);
+                float u = (float) (phase - epoch);
+                long cell = home ^ (epoch * 0x165667B19E3779F9L);
+                float h = hash01(cell, 1);
+                if (h >= here) {
+                    continue;
+                }
+                float maturity = smooth(u / 0.25F) * (1.0F - smooth((u - 0.8F) / 0.15F)) * smooth((here - h) / PRESENCE_SOFT);
+                if (maturity < 0.15F) {
+                    continue;
+                }
+                double cx = (gx + 0.15 + 0.7 * hash01(cell, 2)) * grid;
+                double cz = (gz + 0.15 + 0.7 * hash01(cell, 3)) * grid;
+                float radius = 50.0F + 40.0F * hash01(cell, 4);
+                int top = 450 + Math.round(200.0F * hash01(cell, 5));
+                all.add(new Storm(cx, cz, radius, top, false, false, maturity, cell, style, KIND_CUMULUS, cx, cz));
             }
         }
     }
@@ -963,7 +1024,7 @@ public final class CloudField {
             ridge(list, r, s, lite);
             return list;
         }
-        if (s.kind() == KIND_TOWER) {
+        if (s.kind() == KIND_TOWER || s.kind() == KIND_CUMULUS) {
             // 入道雲: 平たい台・真ん中の塔(傾きは積乱雲の 6 割)・脇の低い塔 1〜2 本(育ちの段がずれた泡の塔が寄り集まる = もくもく)。
             for (int i = 0; i < 2; i++) {
                 double a = r.nextDouble() * Math.PI * 2.0;
@@ -1708,10 +1769,14 @@ public final class CloudField {
         h ^= h >>> 31;
         float u = (h >>> 40) / (float) (1 << 24);
         float v = ((h >>> 16) & 0xFFFFFF) / (float) (1 << 24);
-        if (u < MANY_DAYS) {
+        // 雨を雲の多い日に合わせる間(11-09 段階 2a-5)は、雨が多い日にだけ降るので日の割合をユーザー指定のまま 4・3・3 に。合わせないときは雨の分を引いた割合。
+        boolean sync = CloudShape.current().syncRain() > 0.0F;
+        float many = sync ? 0.4F : MANY_DAYS;
+        float some = sync ? 0.3F : SOME_DAYS;
+        if (u < many) {
             return MANY_FROM + 0.16F * v;
         }
-        if (u < MANY_DAYS + SOME_DAYS) {
+        if (u < many + some) {
             return SOME_FROM + 0.35F * v;
         }
         return CLEAR_TO * v;

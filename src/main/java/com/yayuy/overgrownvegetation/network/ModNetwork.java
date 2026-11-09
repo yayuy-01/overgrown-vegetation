@@ -66,7 +66,8 @@ public final class ModNetwork {
         // 2026-11-08 に 25 へ(雲を流した距離 CloudDriftPayload を足した。雲の段階 1「風を 1 つに」)。
         // 2026-11-08 に 26 へ(雰囲気の出来事の確かめ AtmosphereFxPayload を足した。G4 胞子の風・G5 光る胞子の夜の /ov fx)。
         // 2026-11-09 に 27 へ(雲を流した距離に積乱雲の形の設計値を足した。雲の段階 2a)。
-        PayloadRegistrar registrar = event.registrar("27");
+        // 2026-11-09 に 28 へ(雲を流した距離に天気の設計値と、雨の予定で天気を決めている間かを足した。雲の段階 2a-5)。
+        PayloadRegistrar registrar = event.registrar("28");
         registrar.playToClient(
                 AtmosphereFxPayload.TYPE,
                 AtmosphereFxPayload.STREAM_CODEC,

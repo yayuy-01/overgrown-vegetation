@@ -24,6 +24,9 @@ uniform vec4 Curve;
 // and shrinks around it.
 uniform vec4 Puff;
 uniform vec3 PuffCenter;
+// PreRain = (base drop in blocks, darkening 0..1, -, -). 11-09 (clouds stage 2a-6): before a scheduled rain the cloud bases sink and darken
+// (client/sky/VoxelClouds.java, sky/CloudWeather.java). Every vertex at the bottom of the layer (y 0 = y 300) goes down.
+uniform vec4 PreRain;
 
 out vec3 ovPos;
 out vec4 ovInfo;
@@ -31,6 +34,9 @@ out vec2 ovUv;
 
 void main() {
     vec3 local = Puff.w > 0.5 ? PuffCenter + (Position - PuffCenter) * Puff.x : Position;
+    if (Position.y < 0.5) {
+        local.y -= PreRain.x;
+    }
     ovPos = local + Offset;
     vec3 bent = ovPos;
     float past = max(length(ovPos.xz) - Curve.y, 0.0);

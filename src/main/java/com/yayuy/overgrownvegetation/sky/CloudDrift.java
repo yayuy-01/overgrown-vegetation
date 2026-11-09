@@ -134,7 +134,8 @@ public final class CloudDrift extends SavedData {
         double dt = gameTime - lastTick;
         CloudShape shape = CloudShape.fromDesign(); // 雲の形はサーバーの設計値(11-08 仕上げ 8)
         return new CloudDriftPayload(gameTime, offsetX + velX * dt, offsetZ + velZ * dt, (float) velX, (float) velZ, CloudField.seed(),
-                shape.style(), shape.coverage(), shape.floorThickness(), shape.floorFlatness(), shape.storms(), shape.stormChance(), shape.giantChance(), shape.footScale());
+                shape.style(), shape.coverage(), shape.floorThickness(), shape.floorFlatness(), shape.storms(), shape.stormChance(), shape.giantChance(), shape.footScale(),
+                shape.syncRain(), shape.rainDays(), shape.thunderShare(), shape.preRainTicks(), CloudWeather.serverActive());
     }
 
     @SubscribeEvent

@@ -173,6 +173,9 @@ public final class VoxelClouds implements CloudRenderer {
     /** 風の筋の模様をシェーダーへ渡すときの場の座標の折り返し(float の細かさを保つ)。 */
     static final double FIELD_PERIOD = 32768.0;
 
+    /** 開発用: 形づくりの CPU 時間(作業スレッドは優先度が低く、ほかの処理で待たされると壁時計の時間が延びるので、分けて記録する)。 */
+    private static final java.lang.management.ThreadMXBean CPU = java.lang.management.ManagementFactory.getThreadMXBean();
+
     private static final boolean DH_LOADED = ModList.get().isLoaded("distanthorizons");
     private static final boolean DEV_LOG = Boolean.getBoolean("ov.devbridge");
 
@@ -224,6 +227,14 @@ public final class VoxelClouds implements CloudRenderer {
         return tier();
     }
 
+    /** 雨の前触れで雲の底を下げる高さ(ブロック。11-09 段階 2a-6。仮決め)。見た目だけ(サーバーの答え・雲の形は変えない)。 */
+    public static final float PRE_RAIN_DROP = 20.0F;
+
+    /** 今の雲の底の下がり(ブロック)。雲の中の霧も同じだけ下げる({@link CloudInterior})。 */
+    public static float baseDrop(ClientLevel level, float partialTick) {
+        return com.yayuy.overgrownvegetation.sky.CloudWeather.preRain(level, partialTick) * PRE_RAIN_DROP;
+    }
+
     /** 重さの段(0 = 高、1 = 中、2 = 低)。 */
     static int tier() {
         return Mth.clamp(VisualQuality.atmosphereTier(), 0, 2);
@@ -233,7 +244,9 @@ public final class VoxelClouds implements CloudRenderer {
     static float roughness(ClientLevel level, float partialTick) {
         float rain = CloudSky.rawRain(level, partialTick);
         float thunder = CloudSky.rawThunder(level, partialTick);
-        return Math.max(rain * 0.6F, thunder) * DesignData.sky().roughWeather;
+        // 雨の前にだんだん荒天の色へ(11-09 段階 2a-5。予定の雨の前触れで半分まで)。
+        float pre = com.yayuy.overgrownvegetation.sky.CloudWeather.preRain(level, partialTick) * 0.5F;
+        return Math.max(Math.max(rain * 0.6F, thunder), pre) * DesignData.sky().roughWeather;
     }
 
     /** 天気を入れない時刻だけの雲の色(バニラの {@code ClientLevel#getCloudColor} から雨・雷を除いた式)。 */
@@ -621,6 +634,9 @@ public final class VoxelClouds implements CloudRenderer {
             shader.safeGetUniform("Glow").set(0.0F, 0.0F, 0.0F, 0.0F);
         }
         shader.safeGetUniform("World").set((float) camY, coverage, sky.floorFlatness, 0.0F);
+        // 雨の前触れ(11-09 段階 2a-6 ユーザー決定「前触れの間だけ雲の底を少し下げて暗くする」): 底を {@link #PRE_RAIN_DROP} 下げ、下面を暗く。
+        float preRain = com.yayuy.overgrownvegetation.sky.CloudWeather.preRain(level, partialTick);
+        shader.safeGetUniform("PreRain").set(preRain * PRE_RAIN_DROP, preRain, 0.0F, 0.0F);
         // 時間帯の色(11-08、design の値。仮決め): 昼 → 夕方(日が低いほど)→ 夜。
         float duskK = moon ? 0.0F : 1.0F - SunLight.smooth(Mth.clamp((float) sunDir.y / 0.35F, 0.0F, 1.0F));
         float nightK = SunLight.night(level, partialTick);
@@ -799,6 +815,7 @@ public final class VoxelClouds implements CloudRenderer {
     private static Window buildFar(int holeX, int holeZ, float coverage, int style, long id, boolean outer, boolean coarse,
                                    List<CloudField.Storm> all, int stormKey) {
         long started = System.nanoTime();
+        long cpu0 = CPU.getCurrentThreadCpuTime();
         // 内の 2 段の雲の海は FAR_RANGE までに届く雲だけで引く(外の輪の雲まで回すと、柱ごとの裾野の計算が重い)。
         List<CloudField.Storm> storms = new java.util.ArrayList<>();
         List<CloudField.Storm> mine = new java.util.ArrayList<>();
@@ -847,8 +864,8 @@ public final class VoxelClouds implements CloudRenderer {
         quads += farStormTiles(b, mine, w);
         w.storms = mine.size();
         if (DEV_LOG) {
-            OvergrownVegetation.LOGGER.info("VoxelClouds 遠景を作った 面 {}(床 {}) 積乱雲 {} 外の輪 {} {} ms", quads, floorQuads, mine.size(), outer,
-                    (System.nanoTime() - started) / 1000000L);
+            OvergrownVegetation.LOGGER.info("VoxelClouds 遠景を作った 面 {}(床 {}) 積乱雲 {} 外の輪 {} {} ms(CPU {} ms)", quads, floorQuads, mine.size(), outer,
+                    (System.nanoTime() - started) / 1000000L, (CPU.getCurrentThreadCpuTime() - cpu0) / 1000000L);
         }
         w.quads = quads;
         w.mesh = quads > 0 ? b.build() : null;
@@ -974,6 +991,7 @@ public final class VoxelClouds implements CloudRenderer {
                                 List<CloudField.Storm> floorStorms, List<CloudField.Storm> meshStorms, int stormKey, int voxel) {
         Window w = new Window();
         long started = System.nanoTime();
+        long cpu0 = CPU.getCurrentThreadCpuTime();
         w.stormKey = stormKey;
         w.storms = meshStorms.size();
         int size = radius * 2 + 1;
@@ -1020,8 +1038,8 @@ public final class VoxelClouds implements CloudRenderer {
         quads += stormTiles(b, meshStorms, w, voxel);
         w.quads = quads;
         if (DEV_LOG) {
-            OvergrownVegetation.LOGGER.info("VoxelClouds 近くを作った 面 {}(床 {}) 積乱雲 {} 箱 {} {} ms", quads, floorQuads, meshStorms.size(), voxel,
-                    (System.nanoTime() - started) / 1000000L);
+            OvergrownVegetation.LOGGER.info("VoxelClouds 近くを作った 面 {}(床 {}) 積乱雲 {} 箱 {} {} ms(CPU {} ms)", quads, floorQuads, meshStorms.size(), voxel,
+                    (System.nanoTime() - started) / 1000000L, (CPU.getCurrentThreadCpuTime() - cpu0) / 1000000L);
         }
         w.mesh = quads > 0 ? b.build() : null;
         if (w.mesh == null) {
@@ -1377,7 +1395,7 @@ public final class VoxelClouds implements CloudRenderer {
         double maxZ = -Double.MAX_VALUE;
         double[][] box = new double[storms.size()][];
         for (int i = 0; i < storms.size(); i++) {
-            java.util.List<CloudField.Puff> pp = CloudField.puffs(storms.get(i), peakLevel());
+            java.util.List<CloudField.Puff> pp = CloudField.puffs(storms.get(i), Math.max(peakLevel(), 1)); // 遠景は高の段でも峰を半分(11-09 段階 2a-5 ユーザー決定)
             puffsOf.add(pp);
             double bx0 = Double.MAX_VALUE;
             double bz0 = Double.MAX_VALUE;

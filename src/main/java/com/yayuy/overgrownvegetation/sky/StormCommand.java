@@ -132,6 +132,7 @@ public final class StormCommand {
                 CloudSky.insideCloud(level, p.x, p.y, p.z, 1.0F) ? "はい" : "いいえ",
                 s == null ? "" : String.format(" / 真上の雲: 天辺 y %d・育ち %d%%%s%s", s.topY(), Math.round(s.maturity() * 100.0F), s.giant() ? "・巨大" : "", s.congestus() ? "・入道雲" : ""));
         source.sendSuccess(() -> Component.literal(text), false);
+        source.sendSuccess(() -> Component.literal(CloudWeather.describe(level)), false);
         return 1;
     }
 

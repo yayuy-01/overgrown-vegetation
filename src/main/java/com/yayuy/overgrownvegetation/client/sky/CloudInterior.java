@@ -75,7 +75,7 @@ public final class CloudInterior {
         float target = 0.0F;
         if (VoxelClouds.isActive() && level.dimensionType().hasSkyLight()) {
             Vec3 eye = mc.gameRenderer.getMainCamera().getPosition();
-            if (eye.y > CloudField.LOW_BASE - OUTSIDE && eye.y < CloudField.LOW_BASE + 700.0) {
+            if (eye.y > CloudField.LOW_BASE - OUTSIDE - VoxelClouds.PRE_RAIN_DROP && eye.y < CloudField.LOW_BASE + 700.0) {
                 target = depth(level, eye);
             }
         }
@@ -102,6 +102,7 @@ public final class CloudInterior {
         float threshold = CloudField.threshold(coverage);
         // 積乱雲・入道雲(11-09 段階 2a): 足元の裾野は雲の床の柱に入り、塔の中は塊で見る(塔の中でも内側の面を描かず霧に沈める)。
         java.util.List<CloudField.Storm> storms = CloudSky.stormsNear(level, eye.x, eye.z, 1.0F, 64.0);
+        float drop = VoxelClouds.baseDrop(level, 1.0F);
         double[][] offsets = {{0, 0}, {DEPTH, 0}, {-DEPTH, 0}, {0, DEPTH}, {0, -DEPTH}};
         float sum = 0.0F;
         boolean centerInside = false;
@@ -112,7 +113,8 @@ public final class CloudInterior {
             if (!c.present()) {
                 continue;
             }
-            float d = (float) Math.min(eye.y - c.bottom(), c.top() - eye.y);
+            // 雨の前触れで描く雲の底を下げた分(11-09 段階 2a-6)だけ、霧の底も下げる。
+            float d = (float) Math.min(eye.y - (c.bottom() - drop), c.top() - eye.y);
             if (o[0] == 0.0 && o[1] == 0.0 && d >= 0.0F) {
                 centerInside = true;
             }

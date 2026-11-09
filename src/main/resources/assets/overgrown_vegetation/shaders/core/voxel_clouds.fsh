@@ -35,6 +35,8 @@ uniform vec4 InsideColor;
 uniform vec4 Look;
 // World: x = camera y.
 uniform vec4 World;
+// PreRain = (base drop in blocks, darkening 0..1, -, -): before a scheduled rain (11-09, clouds stage 2a-6). The drop is done in voxel_clouds.vsh.
+uniform vec4 PreRain;
 // Storm shadow map (client/CloudSelfShadow.java): ShadowA = (map origin x, z relative to the camera, map span, strength),
 // ShadowB = (sun kx, kz of the map, plane height, height range). Value = (first height inside a storm along the sun line - 300) / range.
 uniform vec4 ShadowA;
@@ -377,6 +379,13 @@ void main() {
     // Inside a cloud the flash lights the fog (client/CloudInterior.java) rather than the box faces: a near flash made the hidden faces
     // around the camera stand out as hard white rectangles.
     c += min(ovFlash(Flash0) + ovFlash(Flash1) + ovFlash(Flash2), vec3(0.35)) * (1.0 - 0.85 * smoothstep(0.03, 0.3, InsideFog.y));
+    // Before a scheduled rain (11-09, clouds stage 2a-6, PreRain.y): the undersides and the low sides darken, so an overcast sky still
+    // reads as "rain is coming". Strongest on the undersides seen from the ground.
+    if (PreRain.y > 0.001) {
+        float lowPart = 1.0 - smoothstep(300.0, 420.0, worldY);
+        float dark = n.y < -0.5 ? 0.32 : 0.18 * lowPart;
+        c *= 1.0 - dark * PreRain.y;
+    }
     // Blue haze (user ask after the reference): the farther a cloud, the bluer and paler (aerial perspective).
     vec3 haze = min(SkyColor.rgb * vec3(0.9, 0.97, 1.1), vec3(1.0));
     // By horizontal distance (towards the horizon): looking down from high above stays clear (at first it washed the whole sea out).

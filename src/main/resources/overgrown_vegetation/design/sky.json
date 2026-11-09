@@ -50,6 +50,13 @@
     "height": 3500.0,
     "windScale": 1.0
   },
+  "weather": {
+    "_comment": "天気(2026-11-09 雲の段階 2a-5)。ユーザー決定: バニラの雨を雲の多い日だけに合わせる・/weather はそのまま使える・雨の前にだんだん曇る。syncRain = 合わせるか(0 ならバニラのまま)。rainDays = 雲の多い日のうち雨の日の割合(11-09 ユーザー決定で 0.75。雨の時間をバニラ並みの約 15% に)。thunderShare = 雨のうち雷雨の割合。preRainTicks = 雨の前に曇っていく長さ(tick)。数値は仮決め。サーバーの値を送る。",
+    "syncRain": 1.0,
+    "rainDays": 0.75,
+    "thunderShare": 0.3,
+    "preRainTicks": 4000.0
+  },
   "highSky": {
     "_comment": "高空の晴天: clearFrom〜clearTo で雨が消え、空がバニラの晴れた色へ(ユーザー指定 300〜350)。clarity = 強さ。",
     "clarity": 1.0,

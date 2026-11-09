@@ -292,6 +292,85 @@ public final class CloudServerGameTests {
         }
     }
 
+    /**
+     * 雨を雲の多い日に合わせる(11-09 段階 2a-5): 予定の雨は雲の多い日にだけ来る・種と日で決まる・{@code /weather clear} の間は降らせない・
+     * {@code /weather rain} で手で起こした雨は止めない。天気は終わったら元に戻す。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 40)
+    public static void rainFollowsCloudyDays(GameTestHelper helper) {
+        long before = CloudField.seed();
+        ServerLevel level = helper.getLevel();
+        net.minecraft.world.level.storage.ServerLevelData data = (net.minecraft.world.level.storage.ServerLevelData) level.getLevelData();
+        int clear0 = data.getClearWeatherTime();
+        int rain0 = data.getRainTime();
+        int thunder0 = data.getThunderTime();
+        boolean raining0 = data.isRaining();
+        boolean thundering0 = data.isThundering();
+        net.minecraft.world.level.GameRules.BooleanValue cycle = level.getGameRules().getRule(net.minecraft.world.level.GameRules.RULE_WEATHER_CYCLE);
+        boolean cycle0 = cycle.get();
+        try {
+            CloudShape.setOverride(null);
+            CloudField.setSeed(SEED_A);
+            int rainDays = 0;
+            for (long d = 0; d < 400; d++) {
+                com.yayuy.overgrownvegetation.sky.CloudWeather.Rain r = com.yayuy.overgrownvegetation.sky.CloudWeather.rainOfDay(d);
+                if (r == null) {
+                    continue;
+                }
+                rainDays++;
+                if (!com.yayuy.overgrownvegetation.sky.CloudWeather.manyDay(d)) {
+                    helper.fail("雲の多い日でない日 " + d + " に雨の予定");
+                    return;
+                }
+                if (!r.equals(com.yayuy.overgrownvegetation.sky.CloudWeather.rainOfDay(d))) {
+                    helper.fail("同じ種・同じ日で雨の予定が違う");
+                    return;
+                }
+            }
+            if (rainDays < 60 || rainDays > 180) {
+                helper.fail("400 日のうち雨の日が " + rainDays + "(多い日 4 割 × 7.5 割 = 120 前後のはず)");
+                return;
+            }
+            cycle.set(true, level.getServer());
+            com.yayuy.overgrownvegetation.sky.CloudWeather.reset();
+            // /weather clear の間は降らせない。
+            level.setWeatherParameters(6000, 0, false, false);
+            com.yayuy.overgrownvegetation.sky.CloudWeather.tick(level);
+            if (data.isRaining()) {
+                helper.fail("/weather clear の間に雨にした");
+                return;
+            }
+            // 予定どおり。
+            level.setWeatherParameters(0, 0, false, false);
+            com.yayuy.overgrownvegetation.sky.CloudWeather.reset();
+            com.yayuy.overgrownvegetation.sky.CloudWeather.tick(level);
+            boolean want = com.yayuy.overgrownvegetation.sky.CloudWeather.rainAt(level.getDayTime()) != null;
+            if (data.isRaining() != want) {
+                helper.fail("予定と天気が違う: 予定 " + want + "・天気 " + data.isRaining());
+                return;
+            }
+            // 手で起こした雨(/weather rain と同じ書き方)は、予定に関係なく止めない。
+            level.setWeatherParameters(0, 6000, true, false);
+            com.yayuy.overgrownvegetation.sky.CloudWeather.tick(level);
+            com.yayuy.overgrownvegetation.sky.CloudWeather.tick(level);
+            if (!data.isRaining()) {
+                helper.fail("/weather rain で起こした雨を止めた");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            com.yayuy.overgrownvegetation.sky.CloudWeather.reset();
+            data.setClearWeatherTime(clear0);
+            data.setRainTime(rain0);
+            data.setThunderTime(thunder0);
+            data.setRaining(raining0);
+            data.setThundering(thundering0);
+            cycle.set(cycle0, level.getServer());
+            CloudShape.setOverride(null);
+            CloudField.setSeed(before);
+        }
+    }
+
     private CloudServerGameTests() {
     }
 }
