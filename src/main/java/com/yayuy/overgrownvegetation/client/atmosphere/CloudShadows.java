@@ -56,6 +56,7 @@ public final class CloudShadows {
         int originZ;
         float coverage;
         int style;
+        int stormKey;
         float[] values;
         long seed = CloudField.seed();
         com.yayuy.overgrownvegetation.sky.CloudShape shape = com.yayuy.overgrownvegetation.sky.CloudShape.current();
@@ -70,6 +71,7 @@ public final class CloudShadows {
     private static float visibility = 1.0F;
     private static float lastBase;
     /** 前触れの帯を地図に書いた tick と、書いてあるか。 */
+    private static long lastBuildTick;
     private static long omenTick = Long.MIN_VALUE;
     private static boolean omenShown;
 
@@ -224,6 +226,16 @@ public final class CloudShadows {
         int ox = Mth.floor(px / CloudField.CELL_XZ) - SIZE / 2;
         int oz = Mth.floor(pz / CloudField.CELL_XZ) - SIZE / 2;
         int style = CloudSky.style();
+        // 積乱雲も影を落とす(11-09 段階 2a。parked の版と同じ): 地図の画素の太陽の線を、高さ 40 ごとに積乱雲の中か確かめる(背の高い雲の影は朝夕に
+        // とても遠くへ伸びるので、地図の外の雲も太陽の向きにずれる分だけ広げて探す)。足元の裾野は下の層の柱として影になる。
+        double span0 = SIZE * (double) CloudField.CELL_XZ;
+        double pad = Math.min(3000.0, Math.max(Math.abs(kx), Math.abs(kz)) * (CloudField.GIANT_TOP - SHADOW_Y) + 200.0);
+        List<CloudField.Storm> storms = VoxelClouds.storms(level, partialTick, coverage, ox * (double) CloudField.CELL_XZ - pad, oz * (double) CloudField.CELL_XZ - pad,
+                ox * (double) CloudField.CELL_XZ + span0 + pad, oz * (double) CloudField.CELL_XZ + span0 + pad);
+        int key = 0;
+        for (CloudField.Storm s : storms) {
+            key = key * 31 + Math.round(s.maturity() * 32.0F) + (int) s.id();
+        }
 
         if (pending != null && pending.isDone()) {
             shown = pending.join();
@@ -233,9 +245,14 @@ public final class CloudShadows {
         boolean moved = shown == null || Math.abs(ox - shown.originX) > REBUILD_CELLS || Math.abs(oz - shown.originZ) > REBUILD_CELLS
                 || Math.abs(coverage - shown.coverage) > VoxelClouds.REBUILD_COVERAGE || shown.style != style || shown.seed != CloudField.seed()
                 || !shown.shape.equals(com.yayuy.overgrownvegetation.sky.CloudShape.current());
-        if (pending == null && moved) {
+        boolean grown = shown != null && key != shown.stormKey && gameTime - lastBuildTick >= VoxelClouds.STORM_REBUILD_TICKS;
+        if (pending == null && (moved || grown)) {
             final float c = coverage;
-            pending = CompletableFuture.supplyAsync(() -> build(ox, oz, c, style), CloudThread.EXECUTOR);
+            final int k = key;
+            final double skx = kx;
+            final double skz = kz;
+            lastBuildTick = gameTime;
+            pending = CompletableFuture.supplyAsync(() -> build(ox, oz, c, style, storms, k, skx, skz), CloudThread.EXECUTOR);
         }
         Map m = shown;
         if (m == null) {
@@ -297,20 +314,25 @@ public final class CloudShadows {
         return true;
     }
 
-    /** 場から影の地図を作る(別スレッド)。値 = 柱の影の濃さ(厚さ 4 で 0.55 〜 厚さ 24 以上で 1)。段階 1 は下の層だけ(積乱雲の影は段階 2)。 */
-    private static Map build(int originX, int originZ, float coverage, int style) {
+    /** 場から影の地図を作る(別スレッド)。値 = 柱の影の濃さ(厚さ 4 で 0.55 〜 厚さ 24 以上で 1)。積乱雲の影は 1(11-09 段階 2a)。 */
+    private static Map build(int originX, int originZ, float coverage, int style, List<CloudField.Storm> storms, int stormKey, double kx, double kz) {
         Map m = new Map();
         m.originX = originX;
         m.originZ = originZ;
         m.coverage = coverage;
         m.style = style;
         m.values = new float[SIZE * SIZE];
+        m.stormKey = stormKey;
         float threshold = CloudField.threshold(coverage);
         for (int j = 0; j < SIZE; j++) {
             for (int i = 0; i < SIZE; i++) {
-                CloudField.Column c = CloudField.column(originX + i, originZ + j, threshold, coverage, List.of(), style);
+                CloudField.Column c = CloudField.column(originX + i, originZ + j, threshold, coverage, storms, style);
                 if (c.present()) {
                     m.values[j * SIZE + i] = Mth.clamp(0.45F + (c.top() - c.bottom()) / 40.0F, 0.0F, 1.0F);
+                }
+                if (!storms.isEmpty() && m.values[j * SIZE + i] < 1.0F
+                        && CloudField.shadowLine(storms, (originX + i + 0.5) * CloudField.CELL_XZ, (originZ + j + 0.5) * CloudField.CELL_XZ, SHADOW_Y, kx, kz)) {
+                    m.values[j * SIZE + i] = 1.0F;
                 }
             }
         }

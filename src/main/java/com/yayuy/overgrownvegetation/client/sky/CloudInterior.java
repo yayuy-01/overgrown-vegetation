@@ -34,6 +34,8 @@ public final class CloudInterior {
     /** 雲の面からこれだけ入ると濃さ 1(ブロック。外側 2 ブロックから薄く始まる)。仮決め。 */
     static final float DEPTH = 6.0F;
     static final float OUTSIDE = 2.0F;
+    /** 積乱雲・尾根・浮いた雲で濃さ 1 になる深さ(11-09 段階 2a-3。雲の床の 6 より長く、小さな浮いた雲で霧が急に変わらないように。仮決め)。 */
+    static final float STORM_DEPTH = 14.0F;
     /** 出入りをならす秒数。仮決め。 */
     static final float SECONDS = 0.35F;
     /** カメラが雲の柱の中にいるときの濃さの下限(11-08。仮決め)。 */
@@ -98,13 +100,15 @@ public final class CloudInterior {
         }
         int style = CloudSky.style();
         float threshold = CloudField.threshold(coverage);
+        // 積乱雲・入道雲(11-09 段階 2a): 足元の裾野は雲の床の柱に入り、塔の中は塊で見る(塔の中でも内側の面を描かず霧に沈める)。
+        java.util.List<CloudField.Storm> storms = CloudSky.stormsNear(level, eye.x, eye.z, 1.0F, 64.0);
         double[][] offsets = {{0, 0}, {DEPTH, 0}, {-DEPTH, 0}, {0, DEPTH}, {0, -DEPTH}};
         float sum = 0.0F;
         boolean centerInside = false;
         for (double[] o : offsets) {
             double fx = CloudField.fieldX(eye.x + o[0], gt, 1.0F);
             double fz = CloudField.fieldZ(eye.z + o[1], gt, 1.0F);
-            CloudField.Column c = column(fx, fz, threshold, coverage, style);
+            CloudField.Column c = CloudSky.columnRendered(fx, fz, threshold, coverage, style, storms);
             if (!c.present()) {
                 continue;
             }
@@ -117,7 +121,48 @@ public final class CloudInterior {
         // 11-08(ユーザー報告「雲の角に立つと透けて下が見える」): カメラが柱の中にいる間は、内側の面を描かない(シェーダー)ので、
         // まわりの平均が浅くても霧を {@link #CENTER_MIN} まで濃くし、下の地面を霧に沈める。
         float avg = sum / offsets.length;
-        return centerInside ? Math.max(avg, CENTER_MIN) : avg;
+        float floor = centerInside ? Math.max(avg, CENTER_MIN) : avg;
+        return storms.isEmpty() ? floor : Math.max(floor, stormDepth(storms, eye, gt));
+    }
+
+    /**
+     * 積乱雲・尾根・浮いた雲の塊の中の深さ(0〜1)。11-09 段階 2a-3: いちばん深く入っている塊の面からの距離(ブロック、楕円体の近い方の半径で見積もる。
+     * 下を切った塊は切り口からの距離も)で、雲の床と同じく面の外 {@link #OUTSIDE} から {@link #DEPTH} 入ると 1。
+     * 前は 7 点のうち塊の中の割合だったので、小さい浮いた雲では濃さが段で急に変わり、トンネルの壁のそばでは 1 点だけ中に入って白い霧がかかった。
+     */
+    static float stormDepth(java.util.List<CloudField.Storm> storms, Vec3 eye, long gt) {
+        double fx = CloudField.fieldX(eye.x, gt, 1.0F);
+        double fz = CloudField.fieldZ(eye.z, gt, 1.0F);
+        double y = eye.y;
+        double best = -OUTSIDE;
+        for (CloudField.Storm s : storms) {
+            double reach = s.reach();
+            if (Math.abs(fx - s.x()) > reach || Math.abs(fz - s.z()) > reach || y > s.topY() + 40.0) {
+                continue;
+            }
+            for (CloudField.Puff p : CloudField.puffs(s, VoxelClouds.peakLevel())) {
+                double r = p.r();
+                if (Math.abs(fx - p.x()) > r * 1.1 || Math.abs(fz - p.z()) > r * 1.1) {
+                    continue;
+                }
+                double ry = r * p.squash();
+                double dx = (fx - p.x()) / r;
+                double dy = (y - p.y()) / ry;
+                double dz = (fz - p.z()) / r;
+                double d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                double depth = (1.0 - d) * Math.min(r, ry);
+                if (p.floor() > Double.NEGATIVE_INFINITY) {
+                    depth = Math.min(depth, y - p.floor());
+                }
+                if (depth > best) {
+                    best = depth;
+                    if (best >= STORM_DEPTH) {
+                        return 1.0F;
+                    }
+                }
+            }
+        }
+        return Mth.clamp((float) ((best + OUTSIDE) / (STORM_DEPTH + OUTSIDE)), 0.0F, 1.0F);
     }
 
     /** 描いている形と同じ柱(11-08 仕上げ 7 で共通の {@link CloudSky#columnRendered} へ移した)。 */

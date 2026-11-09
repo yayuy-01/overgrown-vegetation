@@ -72,6 +72,13 @@ public final class CloudField {
      * 一生の 3 割をかけて湧き上がる(もくもく伸びるのが見える)。数値はすべて仮決め。
      */
     public static final int KIND_TOWER = 2;
+    /**
+     * 尾根(2026-11-09 雲の段階 2a-2、ユーザー「地形のように連続した積乱雲群・雲の山やトンネルを航空機で飛べる」)。隣り合う積乱雲 2 つ (x, z)〜(x2, z2) を
+     * つなぐ塊の列。真ん中で鞍部へ下がる。一部はアーチ(下を切って、雲の床との間を飛んで抜けられる = トンネル)。top = 尾根の稜線の高さ(端)。
+     */
+    public static final int KIND_RIDGE = 3;
+    /** 宙に浮いた独立した雲(11-09 段階 2a-2、ユーザー「宙に浮いた独立した雲もあるとよい」)。top = 塊の真ん中の高さ、radius = 横の半径。 */
+    public static final int KIND_FLOAT = 4;
     public static final int TOWER_GRID = 640;
     static final double TOWER_LIFE_MIN = 7000.0;
     static final double TOWER_LIFE_MAX = 13000.0;
@@ -102,9 +109,6 @@ public final class CloudField {
      * それまでは快晴の日でも床の 3 割が残り、ふつうの日は 5〜8 割が床だった(切れ目 = 0.7 × (1 − smooth(量 / 0.75)))。値は仮決め。
      */
     public static final float FLOOR_FULL_AT = 0.9F;
-    /** 曇り(一面の雲海)の日の割合と、晴れの日の床の割合の上限(10-18 夜のユーザー指定「雲海 3 割・晴れは 0〜7 割」から。曇りの日の割合は仮決め、{@link #dayCoverage})。 */
-    static final float OVERCAST_DAYS = 0.18F;
-    static final float CLEAR_MAX_COVER = 0.5F;
     /**
      * 晴れの日の小さい雲・中くらいの雲(10-18 夜 ユーザー「大きい雲ばかりあり、すべてが分厚いので少し違和感。晴れの日の空に小さい雲や中くらいの雲も混ぜる」):
      * 雲の床のある並び方でも、晴れの日は床の割合を減らして({@link #floorAmount})薄くし({@link #FLOOR_THIN})、その分を濃さの場 {@link #density}
@@ -430,7 +434,13 @@ public final class CloudField {
 
         /** 今の天辺の高さ(育ちで伸びる。橋は架かる高さのまま)。 */
         public int topY() {
-            return kind == 1 ? top : LOW_BASE + 60 + Math.round(maturity * (top - LOW_BASE - 60));
+            if (kind == KIND_FLOAT) {
+                return top + Math.round(radius * 0.6F);
+            }
+            if (kind == KIND_RIDGE) {
+                return top + Math.round(radius) + (top - LOW_BASE); // 途中の峰の高さの上限を含む(11-09 段階 2a-3)
+            }
+            return kind == 1 ? top + Math.round(radius) : LOW_BASE + 60 + Math.round(maturity * (top - LOW_BASE - 60));
         }
 
         /** 入道雲(雄大積雲)か。雷・雨の柱・積乱雲探しの対象にしない。 */
@@ -445,8 +455,11 @@ public final class CloudField {
 
         /** 横の広がりの見積もり(真ん中から。こぶ・金床・風の傾きを含む。橋は端から端まで)。 */
         public double reach() {
-            if (kind == 1) {
-                return Math.hypot(x2 - x, z2 - z) + radius * 2.0;
+            if (kind == 1 || kind == KIND_RIDGE) {
+                return Math.hypot(x2 - x, z2 - z) + radius * 2.6; // 途中の峰の塔の太さを含む(11-09)
+            }
+            if (kind == KIND_FLOAT) {
+                return radius * 1.4;
             }
             return radius * (anvil && !giant ? 3.4 : 2.9) + (top - LOW_BASE) * 0.11;
         }
@@ -593,6 +606,8 @@ public final class CloudField {
             }
         }
         congestus(all, minX, minZ, maxX, maxZ, dayTime, chance, style);
+        ridges(all, style);
+        floating(all, minX, minZ, maxX, maxZ, dayTime, chance, style);
         // 巨大な雲どうしは雲海 2 つ分より近ければ、決まった順で 1 つだけ残す(どの範囲で探しても同じ答えになるよう、近くだけで決める)。
         List<Storm> giants = new ArrayList<>();
         for (Storm g : all) {
@@ -636,6 +651,162 @@ public final class CloudField {
             list.add(s);
         }
         return list;
+    }
+
+    /**
+     * 場の座標の四角 (minX, minZ)〜(maxX, maxZ) の柱の答え({@link #column}・{@link #baseCovers}・{@link #sea})に効く積乱雲だけ(11-09 段階 2a-2 軽量化)。
+     * 効く広さ = 広がり・足元の裾野(胴の 3.3 倍)・巨大な雲の雲海の大きい方。四角ごとに絞ってから柱を引くと、答えは同じで、柱ごとに全部の雲を回さずに済む。
+     */
+    public static List<Storm> near(List<Storm> storms, double minX, double minZ, double maxX, double maxZ) {
+        List<Storm> out = new ArrayList<>();
+        for (Storm s : storms) {
+            double r = Math.max(s.reach(), s.kind() == 0 ? s.bodyRadius() * 3.3 + 8.0 : 0.0);
+            if (s.giant()) {
+                r = Math.max(r, SEA_RADIUS);
+            }
+            if (s.x() + r >= minX && s.x() - r <= maxX && s.z() + r >= minZ && s.z() - r <= maxZ) {
+                out.add(s);
+            } else if ((s.kind() == 1 || s.kind() == KIND_RIDGE)
+                    && Math.max(s.x(), s.x2()) + s.radius() * 2.6 >= minX && Math.min(s.x(), s.x2()) - s.radius() * 2.6 <= maxX
+                    && Math.max(s.z(), s.z2()) + s.radius() * 2.6 >= minZ && Math.min(s.z(), s.z2()) - s.radius() * 2.6 <= maxZ) {
+                out.add(s);
+            }
+        }
+        return out;
+    }
+
+    /** 巨大な雲の足元の雲海の広さの倍率(11-09 段階 2a-2)。 */
+    static final double GIANT_SEA_SCALE = 0.5;
+
+    /** 尾根でつなぐ距離の上限(真ん中どうし)と、1 つの積乱雲から伸ばす尾根の数。仮決め。 */
+    static final double RIDGE_LINK = 2500.0; // 11-09 段階 2a-3 ユーザー決定「2500 まで伸ばす」
+    static final int RIDGE_MAX = 3;
+    /** 尾根のうちアーチ(下を切ったトンネル)にする割合。仮決め。 */
+    static final float ARCH_SHARE = 0.8F; // 11-09 段階 2a-3 ユーザー決定「トンネルを増やす」(0.6 → 0.8)
+    /** 尾根の途中の峰の間隔(ブロック)。仮決め。 */
+    static final double RIDGE_PEAK_EVERY = 800.0;
+
+    /** アーチにする組の離れ方の下限(2 つの胴の太さの和の倍率)。 */
+    static final double ARCH_GAP = 1.5; // 11-09 段階 2a-3: 2.2 → 1.5(近めの組もアーチに。台の縁の上を抜ける)
+
+    /**
+     * 隣り合う積乱雲を尾根でつなぐ(11-09 段階 2a-2。ユーザー「大きな雲がポツポツと諸島のよう。理想は地形のように連続した積乱雲群・雲の山やトンネル」)。
+     * 巨大でない積乱雲(塔)ごとに、{@link #RIDGE_LINK} より近いものを近い順に {@link #RIDGE_MAX} つ選び、どちらかが選んだ組を 1 本の尾根にする
+     * (組は番号の小さい方から。範囲の外の雲も all に入っているので、どの範囲で探しても同じ尾根になる)。稜線は低い方の山の高さの 3〜5 割、真ん中で鞍部へ下がる(峠)。
+     * 離れた組({@link #ARCH_GAP})の {@link #ARCH_SHARE} はアーチ: 稜線を高く(5〜6 割)し、真ん中の 6 割の下を切って、雲の床との間を飛んで抜けられるようにする(トンネル)。
+     */
+    private static void ridges(List<Storm> all, int style) {
+        List<Storm> towers = new ArrayList<>();
+        for (Storm s : all) {
+            if (s.kind() == 0 && !s.giant() && s.maturity() >= 0.3F) {
+                towers.add(s);
+            }
+        }
+        java.util.Set<Long> made = new java.util.HashSet<>();
+        int n = towers.size();
+        for (int i = 0; i < n; i++) {
+            Storm a = towers.get(i);
+            // 近い順に RIDGE_MAX つ。
+            int[] best = new int[RIDGE_MAX];
+            double[] bestD = new double[RIDGE_MAX];
+            java.util.Arrays.fill(best, -1);
+            java.util.Arrays.fill(bestD, Double.MAX_VALUE);
+            for (int j = 0; j < n; j++) {
+                if (j == i) {
+                    continue;
+                }
+                Storm b = towers.get(j);
+                double d = Math.hypot(b.x() - a.x(), b.z() - a.z());
+                if (d >= RIDGE_LINK || d < a.bodyRadius() + b.bodyRadius() * 0.5) {
+                    continue;
+                }
+                for (int k = 0; k < RIDGE_MAX; k++) {
+                    if (d < bestD[k]) {
+                        for (int m = RIDGE_MAX - 1; m > k; m--) {
+                            best[m] = best[m - 1];
+                            bestD[m] = bestD[m - 1];
+                        }
+                        best[k] = j;
+                        bestD[k] = d;
+                        break;
+                    }
+                }
+            }
+            for (int k = 0; k < RIDGE_MAX; k++) {
+                if (best[k] < 0) {
+                    continue;
+                }
+                Storm b = towers.get(best[k]);
+                Storm p = a.id() < b.id() ? a : b;
+                Storm q = a.id() < b.id() ? b : a;
+                long pair = p.id() * 0x9E3779B97F4A7C15L ^ q.id() * 0xC2B2AE3D27D4EB4FL ^ 0x81D6EL;
+                if (!made.add(pair)) {
+                    continue;
+                }
+                // アーチは山の台(胴の 1.4〜1.9 倍の平たい塊)どうしが重ならない離れた組だけ(11-09: 近い組では真ん中が台で埋まり、下が抜けなかった)。
+                double span = Math.hypot(q.x() - p.x(), q.z() - p.z());
+                boolean arch = span > ARCH_GAP * (p.bodyRadius() + q.bodyRadius()) && hash01(pair, 1) < ARCH_SHARE;
+                int low = Math.min(p.topY(), q.topY());
+                // アーチは高く(11-09 段階 2a-4 ユーザー決定「アーチを高くして下が抜けるものを増やす」: 5〜6 割 → 6.8〜8.2 割。仮決め)。
+                float share = arch ? 0.68F + 0.14F * hash01(pair, 2) : 0.3F + 0.2F * hash01(pair, 2);
+                int crest = LOW_BASE + Math.round((low - LOW_BASE) * share);
+                float r = Math.min(p.bodyRadius(), q.bodyRadius()) * (0.38F + 0.18F * hash01(pair, 3));
+                all.add(new Storm(p.x(), p.z(), Math.max(r, 50.0F), crest, arch, false, Math.min(p.maturity(), q.maturity()), pair, style,
+                        KIND_RIDGE, q.x(), q.z()));
+            }
+        }
+    }
+
+    /** 浮いた雲の升の大きさ・1 升に立つ割合の上限・高さの幅。仮決め。 */
+    static final int FLOAT_GRID = 700;
+    static final float FLOAT_DENSITY = 0.55F;
+    static final int FLOAT_LOW = 450;
+    static final int FLOAT_HIGH = 1000;
+
+    /**
+     * 宙に浮いた独立した雲(11-09 段階 2a-2。ユーザー「今は一定の高度に置かれている感じなので、宙に浮いた独立した雲もあるとよい」)。
+     * {@link #FLOAT_GRID} 四方の升ごとに、入道雲と同じ一生(湧く・浮かぶ・崩れる)で 1〜4 つの塊の群れ。高さ y {@link #FLOAT_LOW}〜{@link #FLOAT_HIGH}、
+     * 横の半径 45〜130(群れの中で少しずつ違う高さ)。形は吐いた雲と同じ {@link #blob}(平たい芯と子と孫の泡)。量は積乱雲の確率と地域の雲の多さで。
+     */
+    private static void floating(List<Storm> all, double minX, double minZ, double maxX, double maxZ, long dayTime, float chance, int style) {
+        int grid = FLOAT_GRID;
+        double margin = 300.0;
+        int gx0 = Mth.floor((minX - margin) / grid);
+        int gx1 = Mth.floor((maxX + margin) / grid);
+        int gz0 = Mth.floor((minZ - margin) / grid);
+        int gz1 = Mth.floor((maxZ + margin) / grid);
+        float base = Mth.clamp(0.2F + chance, 0.0F, 1.0F) * FLOAT_DENSITY;
+        for (int gz = gz0; gz <= gz1; gz++) {
+            for (int gx = gx0; gx <= gx1; gx++) {
+                long home = (gx * 0xA0761D6478BD642FL) ^ (gz * 0xE7037ED1A0B428DBL) ^ (style * 0x2545F4914F6CDD1DL) ^ 0xF10A7L;
+                double life = TOWER_LIFE_MIN + (TOWER_LIFE_MAX - TOWER_LIFE_MIN) * hash01(home, 14);
+                double phase = (dayTime + life * hash01(home, 15)) / life;
+                long epoch = Mth.floor(phase);
+                float u = (float) (phase - epoch);
+                long cell = home ^ (epoch * 0x165667B19E3779F9L);
+                float here = base * regionStormsCell(gx, gz, grid);
+                float h = hash01(cell, 1);
+                if (h >= here) {
+                    continue;
+                }
+                float maturity = smooth(u / 0.25F) * (1.0F - smooth((u - 0.8F) / 0.15F)) * smooth((here - h) / PRESENCE_SOFT);
+                if (maturity < 0.15F) {
+                    continue;
+                }
+                double cx = (gx + 0.2 + 0.6 * hash01(cell, 2)) * grid;
+                double cz = (gz + 0.2 + 0.6 * hash01(cell, 3)) * grid;
+                int y = FLOAT_LOW + Math.round((FLOAT_HIGH - FLOAT_LOW) * hash01(cell, 5));
+                int count = 1 + (int) (hash01(cell, 10) * 4.0F);
+                for (int k = 0; k < count; k++) {
+                    long id = cell * 31L + k;
+                    double a = hash01(id, 6) * Math.PI * 2.0;
+                    double d = k == 0 ? 0.0 : 90.0 + 140.0 * hash01(id, 7);
+                    float radius = (45.0F + 85.0F * hash01(id, 4)) * (k == 0 ? 1.0F : 0.75F) * (0.6F + 0.4F * maturity);
+                    int yy = y + Math.round((hash01(id, 8) - 0.5F) * 120.0F);
+                    all.add(new Storm(cx + Math.cos(a) * d, cz + Math.sin(a) * d, radius, yy, false, false, maturity, id, style, KIND_FLOAT, cx, cz));
+                }
+            }
+        }
     }
 
     /**
@@ -727,7 +898,18 @@ public final class CloudField {
 
     /** 積乱雲の塊(id と育ちで決まる。何度も引くので覚えておく)。 */
     public static List<Puff> puffs(Storm s) {
-        long key = (s.id() * 31L + Math.round(s.maturity() * 32.0F)) * 7L + s.style() * 3L + s.kind();
+        return puffs(s, 0);
+    }
+
+    /**
+     * 描き方の重さの段に合わせた塊(11-09 段階 2a-4 ユーザー決定「中・低の段だけ峰を減らす」)。lite = 0 全部 / 1 尾根の途中の峰を半分 / 2 峰なし。
+     * 形の正本(サーバーの答え・雲の影)は 0。尾根のほかは lite に関係なく同じ。
+     */
+    public static List<Puff> puffs(Storm s, int lite) {
+        if (s.kind() != KIND_RIDGE) {
+            lite = 0;
+        }
+        long key = ((s.id() * 31L + Math.round(s.maturity() * 32.0F)) * 7L + s.style() * 3L + s.kind()) * 3L + lite;
         List<Puff> cached = PUFFS.get(key);
         if (cached != null) {
             return cached;
@@ -737,7 +919,7 @@ public final class CloudField {
             PUFFS.clear();
             PuffIndex.clear();
         }
-        List<Puff> list = List.copyOf(buildPuffs(s));
+        List<Puff> list = List.copyOf(buildPuffs(s, lite));
         PUFFS.put(key, list);
         return list;
     }
@@ -748,7 +930,7 @@ public final class CloudField {
      * 平たい台(底 300)・胴(高さの 3〜4 割で一番太く、段ごとにずれ、上へ行くほど風下へ傾く)・丸い頭(子と孫の泡が多い)。どの泡も天辺を越えない。
      * 金床は anvil の雲だけ(たまに)。橋(kind 1)は端から端へ宙に架かる泡の列(少したわむ)。
      */
-    private static List<Puff> buildPuffs(Storm s) {
+    private static List<Puff> buildPuffs(Storm s, int lite) {
         RandomSource r = RandomSource.create(s.id() ^ 0x5EEDC10DL);
         List<Puff> list = new ArrayList<>();
         if (s.kind() == 1) {
@@ -772,6 +954,15 @@ public final class CloudField {
         double dirX = WIND_X / wl;
         double dirZ = WIND_Z / wl;
         double lean = TOWER_LEAN;
+        if (s.kind() == KIND_FLOAT) {
+            // 浮いた雲: 吐いた雲と同じ塊(高さは横の半径の 0.6〜1.1 倍)。
+            float rr = s.radius();
+            return new ArrayList<>(blob(s.id(), s.x(), s.top(), s.z(), rr, rr * (0.6F + 0.5F * hash01(s.id(), 9))));
+        }
+        if (s.kind() == KIND_RIDGE) {
+            ridge(list, r, s, lite);
+            return list;
+        }
         if (s.kind() == KIND_TOWER) {
             // 入道雲: 平たい台・真ん中の塔(傾きは積乱雲の 6 割)・脇の低い塔 1〜2 本(育ちの段がずれた泡の塔が寄り集まる = もくもく)。
             for (int i = 0; i < 2; i++) {
@@ -960,7 +1151,51 @@ public final class CloudField {
     }
 
     /**
-     * 子の塔 1 本: 胴は上へ行くほど細る塊の列(縦 1.3 倍、段ごとに横へふらつく)、表面に横へ張り出すこぶ(子の泡 0.45〜0.7 倍)と孫の泡、天辺に丸い頭。
+     * 尾根 1 本({@link #KIND_RIDGE}): 端 (x, z) から (x2, z2) へ塊を並べる。稜線は真ん中で鞍部へ下がる(壁 = 3 割5 分、アーチ = 1 割5 分)。
+     * 壁: 塊を雲の床から稜線まで縦に伸ばす(峰と峰をつなぐ雲の山並み・峠)。アーチ: 両端の 2 割は壁と同じ足、真ん中の 6 割は稜線のまわりだけの塊で、
+     * 下を稜線 − 半径 × 0.45 で平らに切る(下が抜けた雲のトンネル)。上に子と孫の泡。数値は仮決め。
+     */
+    private static void ridge(List<Puff> list, RandomSource r, Storm s, int lite) {
+        double len = Math.hypot(s.x2() - s.x(), s.z2() - s.z());
+        float rad = s.radius() * (0.7F + 0.3F * s.maturity());
+        int n = Math.max(3, (int) Math.ceil(len / (rad * 0.7)));
+        double crest = s.top();
+        double dip = (crest - LOW_BASE) * (s.anvil() ? 0.15 : 0.35);
+        for (int i = 0; i <= n; i++) {
+            double t = i / (double) n;
+            double x = Mth.lerp(t, s.x(), s.x2()) + (r.nextDouble() - 0.5) * rad * 0.3;
+            double z = Mth.lerp(t, s.z(), s.z2()) + (r.nextDouble() - 0.5) * rad * 0.3;
+            double y = crest - dip * Math.sin(Math.PI * t);
+            float rr = rad * (0.85F + 0.3F * r.nextFloat());
+            boolean archPart = s.anvil() && t > 0.2 && t < 0.8;
+            if (archPart) {
+                double cut = y - rr * 0.45;
+                list.add(new Puff(x, y, z, rr, 0.75F, cut));
+                bubbles(list, r, x, y, z, rr, 0.75F, 2 + r.nextInt(2), y + rr * 1.1, 0.35F, 0.55F, 0.7F);
+            } else {
+                // 雲の床から稜線までの壁(縦に伸ばした塊)。
+                double half = (y + rr * 0.4 - LOW_BASE) * 0.5;
+                list.add(new Puff(x, LOW_BASE + half, z, rr, (float) (half / rr)));
+                bubbles(list, r, x, y, z, rr, 0.8F, 2 + r.nextInt(2), y + rr * 1.1, 0.35F, 0.55F, 0.7F);
+            }
+        }
+        // 途中の小さな峰(11-09 段階 2a-3 ユーザー決定「尾根の途中に小さな峰を立てる」): 800 ブロックごとに 1 つ、尾根の上に塔を立てる。
+        // 高さは稜線から山の高さの 5〜10 割上(上限は {@link Storm#topY})。アーチの真ん中(トンネル)には立てない。
+        int peaks = lite >= 2 ? 0 : (int) (len / (RIDGE_PEAK_EVERY * (lite == 1 ? 2.0 : 1.0)));
+        for (int k = 0; k < peaks; k++) {
+            double t = (k + 1.0) / (peaks + 1.0) + (hash01(s.id(), 20 + k) - 0.5) * 0.12;
+            if (s.anvil() && t > 0.15 && t < 0.85) {
+                continue;
+            }
+            double px = Mth.lerp(t, s.x(), s.x2());
+            double pz = Mth.lerp(t, s.z(), s.z2());
+            int peakTop = (int) Math.round(crest + (crest - LOW_BASE) * (0.5 + 0.5 * hash01(s.id(), 30 + k)) * s.maturity());
+            tower(list, r, px, pz, rad * 1.25F, peakTop, 0.0, 0.0);
+        }
+    }
+
+    /**
+     * 子の塔 1 本:胴は上へ行くほど細る塊の列(縦 1.3 倍、段ごとに横へふらつく)、表面に横へ張り出すこぶ(子の泡 0.45〜0.7 倍)と孫の泡、天辺に丸い頭。
      * どの泡も top を越えない。
      */
     private static void tower(List<Puff> list, RandomSource r, double x, double z, float rb, int top, double leanX, double leanZ) {
@@ -1093,7 +1328,9 @@ public final class CloudField {
                 if (Double.isNaN(noise)) {
                     noise = PUFF.getValue(x / 70.0, y / 70.0, z / 70.0);
                 }
-                double edge = 1.0 + 0.06 * noise;
+                // 揺れの幅は 14 ブロックで頭打ち(11-09 段階 2a: 巨大な雲の台の塊(半径 2000 超)では ±6% が ±140 ブロックになり、
+                // 大きさ 70 の雑音で縁が厚い斑の殻になって、近くでは宙に点々と浮く箱に見えた)。半径 233 までは前と同じ。
+                double edge = 1.0 + Math.min(0.06, 14.0 / p.r()) * noise;
                 if (d2 < edge * edge) {
                     return true;
                 }
@@ -1289,11 +1526,14 @@ public final class CloudField {
             if (s.giant()) {
                 spread = Math.max(spread, 0.3F);
             }
-            double reach = s.bodyRadius() * (1.3 + 2.0 * spread);
+            // 巨大な雲の深い雲海は半分の広さに(11-09 段階 2a-2 ユーザー決定「今の約半分」。真ん中から 2500 前後。仮決め)。
+            double reach = s.bodyRadius() * (1.3 + 2.0 * spread) * (s.giant() ? GIANT_SEA_SCALE : 1.0);
             double d = Math.sqrt(dx * dx + dz * dz) / reach;
             if (d < 1.0) {
                 // 巨大な雲の足元は 450 まで(10-18。ボスが潜って隠れられる厚さ)。
-                float rise = (float) Math.min(s.giant() ? 450.0 : 220.0, 60.0 + 0.2 * (s.topY() - LOW_BASE)) * (0.35F + 0.65F * spread);
+                // 11-09 段階 2a: 高さの倍率を設計値に(sky.json storms.footScale)。雲の海が y 350 で平らになったので、裾野はそこから山の台(y 460〜590)へ上る坂。
+                float rise = (float) Math.min(s.giant() ? 450.0 : 220.0, 60.0 + 0.2 * (s.topY() - LOW_BASE)) * (0.35F + 0.65F * spread)
+                        * CloudShape.current().footScale();
                 foot = Math.max(foot, (float) (rise * Math.pow(smooth((float) (1.0 - d)), 1.3)));
             }
         }
@@ -1391,10 +1631,12 @@ public final class CloudField {
                 return NONE;
             }
             // 平らな床では 8 ブロックに丸める(11-08 仕上げ 5: 4 ブロックの低い段の縁が、床すれすれで斜めの線に見えた)。
-            int quantum = CloudShape.current().floorFlatness() >= 0.5F ? CELL_Y * 2 : CELL_Y;
+            // 積乱雲の足元の坂(上限より高い所)は 4 ブロックの段(11-09 段階 2a-2: 8 ブロックの段では山の裾が階段に見えた)。
+            int quantum = CloudShape.current().floorFlatness() >= 0.5F && landTop <= floorThickness() ? CELL_Y * 2 : CELL_Y;
             int t = LOW_BASE + Math.max(CELL_Y, Math.round(landTop / quantum) * quantum);
-            // 厚さの上限を超えない(4 ブロックへの丸めで 352 になっていた。ユーザー指定 y 300〜350。11-08 仕上げ)。積乱雲の裾野は別(段階 2)。
-            if (storms.isEmpty()) {
+            // 厚さの上限を超えない(4 ブロックへの丸めで 352 になっていた。ユーザー指定 y 300〜350。11-08 仕上げ)。積乱雲の裾野(上限より高い所)は別
+            // (11-09 段階 2a: 前は積乱雲が近くに無いときだけ切っていたので、積乱雲を渡すと裾野の外の床まで 352 になり得た)。
+            if (landTop <= floorThickness() + 0.01F) {
                 t = Math.min(t, LOW_BASE + Math.max(CELL_Y, (int) (floorThickness() / CELL_Y) * CELL_Y));
             }
             return new Column(LOW_BASE, t, 1.0F);
@@ -1452,10 +1694,12 @@ public final class CloudField {
     }
 
     /**
-     * 天気の日ごとの量(10-18 夜 ユーザー「雲海(曇りや雨含む)3 割、晴れ(雲が空を占める割合が 0〜7 割の空)が 7 割」): 曇り(一面の雲海)の日が
-     * {@link #OVERCAST_DAYS}、残りは晴れの日で、量を 0〜{@link #CLEAR_MAX_COVER} から一様に選ぶ(床の残る割合は量とほぼ同じ。谷の溝と切れ目の縁の薄い所が消えるので、量 ÷ 0.9 より少し少ない)。
-     * 雨・雷雨の間は量を 0.9 以上へ寄せる(一面の雲海)ので、バニラの雨(時間の 15% ほど)と合わせて雲海が時間の 3 割ほどになるよう、曇りの日は 18%(仮決め)。
-     * それまでは 快晴 15%・少し 15%・ふつう 45%・多め 17%・曇り 8%(雲の床のある並び方では、ふつうの日でも床が 5〜8 割残った)。
+     * 天気の日ごとの量(11-09 段階 2a-4 ユーザー指定「雲の多い日(曇り・雨・雷雨)4 割・雲がそこそこある日 3 割・晴れ 3 割くらい」)。
+     * 日の種類と量(量の範囲は仮決め): 多い日 {@link #MANY_FROM}〜+0.16(一面の雲海に積乱雲の山並み)・そこそこの日 {@link #SOME_FROM}〜+0.35・
+     * 晴れの日 0〜{@link #CLEAR_TO}。バニラの雨・雷雨は日と関係なく時間の 16% ほど降り、降っている間は量を 0.9(雷雨 0.97)以上へ寄せる
+     * ({@link #coverage(long, float, float)})ので、晴れ・そこそこの日の雨の分だけ「多い」が増える。時間で 4・3・3 になるよう、日の割合は
+     * 多い {@link #MANY_DAYS}・そこそこ {@link #SOME_DAYS}・残り晴れ(多い 0.286 + 雨 0.16 × 0.714 = 0.40、そこそこ・晴れ 0.357 × 0.84 = 0.30)。
+     * 前(10-18 夜)は 曇り 18%・晴れ 82%(量 0〜0.5)。
      */
     static float dayCoverage(long day) {
         long h = day * 0x9E3779B97F4A7C15L + SEED;
@@ -1464,11 +1708,21 @@ public final class CloudField {
         h ^= h >>> 31;
         float u = (h >>> 40) / (float) (1 << 24);
         float v = ((h >>> 16) & 0xFFFFFF) / (float) (1 << 24);
-        if (u < OVERCAST_DAYS) {
-            return FLOOR_FULL_AT + 0.08F * v;
+        if (u < MANY_DAYS) {
+            return MANY_FROM + 0.16F * v;
         }
-        return CLEAR_MAX_COVER * v;
+        if (u < MANY_DAYS + SOME_DAYS) {
+            return SOME_FROM + 0.35F * v;
+        }
+        return CLEAR_TO * v;
     }
+
+    /** 日の種類の割合と量(11-09 段階 2a-4。割合はユーザー指定の 4・3・3 から雨の分を引いたもの、量は仮決め)。 */
+    static final float MANY_DAYS = 0.286F;
+    static final float SOME_DAYS = 0.357F;
+    static final float MANY_FROM = 0.82F;
+    static final float SOME_FROM = 0.30F;
+    static final float CLEAR_TO = 0.25F;
 
     private static float smooth(float t) {
         t = Mth.clamp(t, 0.0F, 1.0F);

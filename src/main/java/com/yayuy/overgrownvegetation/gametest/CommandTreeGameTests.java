@@ -44,7 +44,9 @@ public final class CommandTreeGameTests {
             Map.entry("phase", Set.of("set", "true", "false")),
             Map.entry("perf", Set.of("bench", "fluid", "record", "spore")),
             // 2026-11-08: 環境ギミック G4 胞子の風・G5 光る胞子の夜を自分のゲームで確かめる fx(依頼「/ov か DevBridge に足す」。要らなければ消す)。
-            Map.entry("fx", Set.of("gale", "glownight", "status")));
+            Map.entry("fx", Set.of("gale", "glownight", "status")),
+            // 2026-11-09: 雲の段階 2a で積乱雲を探す storm(一覧・tp)を戻した(10-17 ユーザー依頼、11-09 段階 2a の依頼)。
+            Map.entry("storm", Set.of("tp", "here")));
 
     @GameTest(template = "gametest_empty7")
     public static void ovCommandTreeMatchesAgreedList(GameTestHelper helper) {

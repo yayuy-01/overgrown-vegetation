@@ -109,7 +109,8 @@ public final class CloudServerGameTests {
                 double x = i * 37.0 - 7000.0;
                 double z = i * 53.0 + 300.0;
                 int[] c = CloudSky.floorAt(level, x, z, 0.0F);
-                if (c == null) {
+                // 積乱雲・入道雲のかかる所は雲の床の上にも雲があるので、床だけの確かめから外す(11-09 段階 2a)。
+                if (c == null || CloudSky.stormSpan(level, x, z, 0.0F) != null) {
                     continue;
                 }
                 found++;
@@ -127,6 +128,161 @@ public final class CloudServerGameTests {
             }
             if (found == 0) {
                 helper.fail("世界の座標で雲の床が 1 つも引けない");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            CloudShape.setOverride(null);
+            CloudField.setSeed(before);
+        }
+    }
+
+    /** 積乱雲を必ず立てる形(1 升に立つ確率 1・巨大な雲は既定)。 */
+    private static final CloudShape STORMY = new CloudShape(CloudField.STYLE_VALLEY, 0.6F, 50.0F, 0.75F, 1.0F, 1.0F, -1.0F, 1.0F);
+
+    /**
+     * 積乱雲(11-09 段階 2a): サーバーが種と時刻から同じ積乱雲を引けること、塊の中の判定・塊の縦の広がり・積乱雲の下の判定が食い違わないこと、
+     * 積乱雲を立てない設計値では 1 つも立たないこと、足元の裾野は雲の床(y 350)より高くなってよいが裾野の外の床は y 350 を超えないこと。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 60)
+    public static void stormsAreQueryableOnTheServer(GameTestHelper helper) {
+        long before = CloudField.seed();
+        try {
+            ServerLevel level = helper.getLevel();
+            CloudShape.setOverride(STORMY);
+            CloudField.setSeed(SEED_A);
+            float coverage = STORMY.coverage();
+            java.util.List<CloudField.Storm> a1 = CloudSky.storms(level, coverage, -6000.0, -6000.0, 6000.0, 6000.0);
+            java.util.List<CloudField.Storm> a2 = CloudSky.storms(level, coverage, -6000.0, -6000.0, 6000.0, 6000.0);
+            if (a1.isEmpty()) {
+                helper.fail("確率 1 なのに 12000 ブロック四方に積乱雲が 1 つも無い");
+                return;
+            }
+            if (!a1.equals(a2)) {
+                helper.fail("同じ種・同じ時刻で積乱雲の並びが違う");
+                return;
+            }
+            // 塊の中・縦の広がり・下の判定(世界の座標へ直して引く)。
+            long gt = level.getGameTime();
+            int checked = 0;
+            for (CloudField.Storm s : a1) {
+                if (s.kind() != 0 || checked >= 6) {
+                    continue;
+                }
+                double wx = s.x() + CloudField.offsetX(gt);
+                double wz = s.z() + CloudField.offsetZ(gt);
+                int[] span = CloudSky.stormSpan(level, wx, wz, 0.0F);
+                if (span == null) {
+                    continue;
+                }
+                checked++;
+                double mid = (span[0] + span[1]) * 0.5;
+                if (!CloudSky.insideStorm(level, wx, span[0] + 4.0, wz, 0.0F) && !CloudSky.insideStorm(level, wx, mid, wz, 0.0F)) {
+                    helper.fail("積乱雲の真ん中の柱で塊の中の判定が外れた: " + span[0] + "〜" + span[1]);
+                    return;
+                }
+                if (CloudSky.insideStorm(level, wx, span[1] + 20.0, wz, 0.0F)) {
+                    helper.fail("積乱雲の天辺より上が雲の中になった: 天辺 " + span[1]);
+                    return;
+                }
+                if (!CloudSky.underStorm(level, wx, span[0] - 30.0, wz, 0.0F) || CloudSky.underStorm(level, wx, span[1] + 20.0, wz, 0.0F)) {
+                    helper.fail("積乱雲の下の判定が塊の広がりと合わない: " + span[0] + "〜" + span[1]);
+                    return;
+                }
+                if (CloudSky.stormAt(level, wx, wz, 0.0F, true) == null) {
+                    helper.fail("積乱雲の真ん中で stormAt が null");
+                    return;
+                }
+            }
+            if (checked == 0) {
+                helper.fail("塊の柱が引ける積乱雲が 1 つも無い");
+                return;
+            }
+            // 雲の床: 積乱雲から遠い所(裾野の外)は y 350 を超えない。
+            float threshold = CloudField.threshold(coverage);
+            int over = 0;
+            int far = 0;
+            for (int i = 0; i < 400; i++) {
+                double fx = (i % 20) * 293.0 - 3000.0;
+                double fz = (i / 20) * 307.0 - 3000.0;
+                boolean nearStorm = false;
+                for (CloudField.Storm s : a1) {
+                    if (Math.hypot(fx - s.x(), fz - s.z()) < s.bodyRadius() * 3.6 + 60.0) {
+                        nearStorm = true;
+                        break;
+                    }
+                }
+                if (nearStorm) {
+                    continue;
+                }
+                far++;
+                CloudField.Column c = CloudSky.columnRendered(fx, fz, threshold, coverage, STORMY.style(), a1);
+                if (c.present() && c.top() > CloudField.LOW_BASE + 50) {
+                    over++;
+                }
+            }
+            if (far > 0 && over > 0) {
+                helper.fail("積乱雲の裾野の外で雲の床が y 350 を超えた: " + over + " / " + far + " 点");
+                return;
+            }
+            // 尾根・アーチ・浮いた雲(11-09 段階 2a-2): 尾根は真ん中が雲、アーチは稜線が雲で、その下(雲の床と稜線の間)は抜けている。浮いた雲は真ん中が雲、下は空。
+            int ridges = 0;
+            int arches = 0;
+            int floats = 0;
+            int floatBelow = 0;
+            for (CloudField.Storm s : a1) {
+                double wx = (s.x() + s.x2()) * 0.5 + CloudField.offsetX(gt);
+                double wz = (s.z() + s.z2()) * 0.5 + CloudField.offsetZ(gt);
+                if (s.kind() == CloudField.KIND_RIDGE) {
+                    int[] span = CloudSky.stormSpan(level, wx, wz, 0.0F);
+                    if (span == null) {
+                        continue;
+                    }
+                    ridges++;
+                    if (s.anvil()) {
+                        // アーチ: 塊の下の端(span[0])が雲の床の天辺より 40 以上上で、その間は雲の塊でない。
+                        int[] floor = CloudSky.floorAt(level, wx, wz, 0.0F);
+                        int floorTop = floor == null ? CloudField.LOW_BASE : floor[1];
+                        if (span[0] > floorTop + 40) {
+                            arches++;
+                            double gap = (floorTop + span[0]) * 0.5;
+                            if (CloudSky.insideStorm(level, wx, gap, wz, 0.0F)) {
+                                helper.fail("アーチの下(トンネル)が雲の中になった: 床 " + floorTop + "・アーチの底 " + span[0]);
+                                return;
+                            }
+                        }
+                    }
+                } else if (s.kind() == CloudField.KIND_FLOAT && floats < 8) {
+                    double fx = s.x() + CloudField.offsetX(gt);
+                    double fz = s.z() + CloudField.offsetZ(gt);
+                    if (!CloudSky.insideStorm(level, fx, s.top(), fz, 0.0F)) {
+                        helper.fail("浮いた雲の真ん中が雲の中でない: y " + s.top());
+                        return;
+                    }
+                    // 下は空(群れのほかの塊が下にかかることがあるので、半分より多く外れたら落とす)。
+                    if (CloudSky.insideStorm(level, fx, s.top() - s.radius() * 1.3, fz, 0.0F)) {
+                        floatBelow++;
+                    }
+                    // 浮いた雲の下は「積乱雲の下」でない(11-09 段階 2a-3 ユーザー決定)。積乱雲の上に浮いている所もあるので、下の y 250 で見る。
+                    if (CloudSky.underStorm(level, fx, 250.0, fz, 0.0F) && CloudSky.stormAt(level, fx, fz, 0.0F, true) == null) {
+                        helper.fail("浮いた雲だけの下で underStorm が true");
+                        return;
+                    }
+                    floats++;
+                }
+            }
+            if (floatBelow * 2 > floats) {
+                helper.fail("浮いた雲の下が雲の中: " + floatBelow + " / " + floats);
+                return;
+            }
+            if (ridges == 0 || arches == 0 || floats == 0) {
+                helper.fail("尾根 " + ridges + "・抜けたアーチ " + arches + "・浮いた雲 " + floats + " のどれかが 0");
+                return;
+            }
+            // 積乱雲を立てない設計値。
+            CloudShape.setOverride(new CloudShape(CloudField.STYLE_VALLEY, 0.6F, 50.0F, 0.75F, 0.0F, 1.0F, -1.0F, 1.0F));
+            if (!CloudSky.storms(level, coverage, -6000.0, -6000.0, 6000.0, 6000.0).isEmpty()) {
+                helper.fail("storms.enabled = 0 なのに積乱雲が立った");
                 return;
             }
             helper.succeed();

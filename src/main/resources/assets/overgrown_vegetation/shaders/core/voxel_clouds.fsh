@@ -233,7 +233,10 @@ void main() {
     float floorEdge = (!storm && (giant || farRing)) ? World.z : 0.0;
     // 11-08 (user report: standing at a step of the cloud floor, the clouds near the camera were see-through and the ground below showed):
     // the soft outline is for far silhouettes only. Near the camera every face is solid, and the cloud floor stays solid out to 300 blocks.
-    float nearSolid = 1.0 - smoothstep(48.0, 160.0, dist);
+    // 11-09 (clouds stage 2a): storm towers are 16-block boxes whose every edge is convex, so the soft outline turned whole faces
+    // see-through within a few hundred blocks (a tower 300 blocks away looked like a ghost). 11-09 (stage 2a-2, user decision): towers
+    // 500 to 1100 blocks away still showed see-through rims, so storms stay solid out to 1500 blocks and soften only by 2500.
+    float nearSolid = storm ? 1.0 - smoothstep(1500.0, 2500.0, dist) : 1.0 - smoothstep(48.0, 160.0, dist);
     float floorSolid = (!storm && (giant || farRing)) ? 1.0 - smoothstep(300.0, 700.0, dist) : 0.0;
     float keep = max(max(0.9 * floorEdge, nearSolid), floorSolid);
     float soft = 1.0 - Look.y * mix(0.8, 0.95, far) * edgeSoft * (1.0 - 0.75 * shadowed) * (1.0 - 0.85 * ceiling) * (1.0 - keep);
@@ -287,10 +290,12 @@ void main() {
     // Storm bases (user pick: dark and flat like a rain cloud): the lower part of the tower (low baked brightness) and the undersides
     // of the lobes drop to the shadow tone.
     if (storm) {
-        float base = smoothstep(0.72, 0.56, height) * Look2.z;
+        // 11-09 (stage 2a-2, user decision): half as strong, the dark base made the towers stand out from the cloud sea (deep blue-violet
+        // bodies at dusk).
+        float base = smoothstep(0.72, 0.56, height) * Look2.z * 0.5;
         lum = mix(lum, min(lum, 0.66), base);
         if (n.y < -0.5) {
-            lum = mix(lum, min(lum, 0.68), Look2.z);
+            lum = mix(lum, min(lum, 0.68), Look2.z * 0.5);
         }
     }
     // Palette after the user's reference (Royal Space Force: The Wings of Honneamise): faintly warm white lights, pale lavender-blue
@@ -300,10 +305,13 @@ void main() {
     vec3 hi = CloudColor.rgb * vec3(1.02, 1.01, 0.99) + SunColor.rgb * 0.05 * s;
     vec3 mid = CloudColor.rgb * vec3(0.8, 0.83, 0.93);
     // The cloud sea: middle tone closer to the light one, so each step of the columns is a softer line (user pick).
-    if (!storm) {
-        mid = mix(mid, hi, 0.4 * Look2.z);
-    }
+    // 11-09 (stage 2a-2, user decision "the same brightness as the clouds around"): the storm towers take most of it too, and their
+    // shadow tone leans to the middle one, so a near tower wall is not a pale lavender sheet and a dusk tower not a dark violet mass.
+    mid = mix(mid, hi, (storm ? 0.3 : 0.4) * Look2.z);
     vec3 low = mix(CloudColor.rgb * vec3(0.55, 0.59, 0.8), SkyColor.rgb * 0.72, 0.22);
+    if (storm) {
+        low = mix(low, mid, 0.35);
+    }
     // Time-of-day tints (11-08, design values).
     hi *= LitTint.rgb;
     mid *= mix(LitTint.rgb, ShadeTint.rgb, 0.5);
@@ -359,7 +367,7 @@ void main() {
         float under = n.y < -0.5 ? 0.9 : 0.2;
         float gLow = clamp(Glow.a * under * (1.0 - top) * (0.35 + 0.65 * toward * toward) * 0.5, 0.0, 1.0);
         c = mix(c, c * 0.55 + Glow.rgb * 0.8, gLow);
-        c *= mix(vec3(1.0), vec3(0.8, 0.8, 0.9), Glow.a * Look.z * (1.0 - top) * 0.6);
+        c *= mix(vec3(1.0), vec3(0.8, 0.8, 0.9), Glow.a * Look.z * (1.0 - top) * (storm ? 0.3 : 0.6));
     }
     // Cut edge of a hole: a darker lip (the cloud seen into its depth) and, right after the hit, a glowing rim.
     c *= 1.0 - 0.22 * hole.y;

@@ -19,6 +19,8 @@ public final class SkyTable {
         public ShadowsJson shadows;
         public RaysJson rays;
         public HighSkyJson highSky;
+        public StormsJson storms;
+        public CirrusJson cirrus;
     }
 
     public static final class CloudsJson {
@@ -42,6 +44,29 @@ public final class SkyTable {
         public Double floorFlatness;
         /** 時間帯ごとの雲の色(日の当たる側・影の側に掛ける色 [r, g, b])。昼・夕方・夜。11-08 仮決め(色はユーザーと風景を見ながら決める)。 */
         public double[] litDay, litDusk, litNight, shadeDay, shadeDusk, shadeNight;
+    }
+
+    /** 積乱雲(2026-11-09 雲の段階 2a)。形を決める値なのでサーバーから送る({@code sky.CloudShape})。 */
+    public static final class StormsJson {
+        /** 積乱雲・入道雲を立てるか(0 / 1)。 */
+        public Double enabled;
+        /** 1 升に立つ確率の固定(−1 = 日の雲の量で 0.03〜0.45)。 */
+        public Double chance;
+        /** 立つ雲のうち巨大になる割合(−1 = 既定 0.12)。 */
+        public Double giantChance;
+        /** 足元の裾野(雲の海から山へつなぐ坂)の高さの倍率。 */
+        public Double footScale;
+    }
+
+    /** 巻雲(2026-11-09 雲の段階 2a)。見た目だけ(送らない)。 */
+    public static final class CirrusJson {
+        public Double strength;
+        /** 量の固定(−1 = 日ごとに変わる)。 */
+        public Double amount;
+        /** 高さ(y)。 */
+        public Double height;
+        /** 下の雲に対する流れる速さの倍率(ユーザー指定 10-18「1.5 倍以下」)。 */
+        public Double windScale;
     }
 
     public static final class WindJson {
@@ -77,6 +102,8 @@ public final class SkyTable {
     public final float shadows;
     public final float rays;
     public final float highSkyClarity, highSkyClearFrom, highSkyClearTo;
+    public final float storms, stormChance, giantChance, footScale;
+    public final float cirrus, cirrusAmount, cirrusHeight, cirrusWindScale;
 
     private SkyTable(Json j) {
         CloudsJson c = j == null || j.clouds == null ? new CloudsJson() : j.clouds;
@@ -84,6 +111,8 @@ public final class SkyTable {
         ShadowsJson s = j == null || j.shadows == null ? new ShadowsJson() : j.shadows;
         RaysJson r = j == null || j.rays == null ? new RaysJson() : j.rays;
         HighSkyJson h = j == null || j.highSky == null ? new HighSkyJson() : j.highSky;
+        StormsJson st = j == null || j.storms == null ? new StormsJson() : j.storms;
+        CirrusJson ci = j == null || j.cirrus == null ? new CirrusJson() : j.cirrus;
         coverage = clamp(c.coverage, -1.0, -1.0, 1.0);
         style = c.style == null ? 2 : Math.max(1, Math.min(3, c.style));
         celShading = f(c.celShading, 1.0);
@@ -111,6 +140,14 @@ public final class SkyTable {
         highSkyClarity = f(h.clarity, 1.0);
         highSkyClearFrom = (float) clamp(h.clearFrom, 300.0, 64.0, 2000.0);
         highSkyClearTo = (float) Math.max(highSkyClearFrom + 1.0, clamp(h.clearTo, 350.0, 65.0, 2100.0));
+        storms = f(st.enabled, 1.0);
+        stormChance = (float) clamp(st.chance, -1.0, -1.0, 1.0);
+        giantChance = (float) clamp(st.giantChance, -1.0, -1.0, 1.0);
+        footScale = (float) clamp(st.footScale, 1.0, 0.0, 3.0);
+        cirrus = f(ci.strength, 1.0);
+        cirrusAmount = (float) clamp(ci.amount, -1.0, -1.0, 1.0);
+        cirrusHeight = (float) clamp(ci.height, 3500.0, 400.0, 6000.0);
+        cirrusWindScale = (float) clamp(ci.windScale, 1.0, 0.0, 1.5);
     }
 
     public static SkyTable fromJson(Json j) {

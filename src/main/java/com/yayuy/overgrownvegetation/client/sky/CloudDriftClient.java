@@ -38,7 +38,8 @@ public final class CloudDriftClient implements CloudField.Drift {
     public static void accept(CloudDriftPayload p) {
         CloudField.setSeed(p.seed());
         // 雲の形もサーバーの値で(11-08 仕上げ 8)。
-        com.yayuy.overgrownvegetation.sky.CloudShape.setOverride(new com.yayuy.overgrownvegetation.sky.CloudShape(p.style(), p.coverage(), p.floorThickness(), p.floorFlatness()));
+        com.yayuy.overgrownvegetation.sky.CloudShape.setOverride(new com.yayuy.overgrownvegetation.sky.CloudShape(p.style(), p.coverage(), p.floorThickness(), p.floorFlatness(),
+                p.storms(), p.stormChance(), p.giantChance(), p.footScale()));
         INSTANCE.receive(p);
         CloudField.setDrift(INSTANCE);
     }
