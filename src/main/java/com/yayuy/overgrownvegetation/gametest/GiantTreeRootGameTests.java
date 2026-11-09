@@ -81,7 +81,18 @@ public final class GiantTreeRootGameTests {
                     BlockPos below = p.below();
                     boolean overFloor = Math.max(Math.abs(p.getX() - base.getX()), Math.abs(p.getZ() - base.getZ())) < FLOOR_R - 1;
                     // 地面の外(テスト場の縁から空へ落ちた根)は垂らして終わるのが正しいので数えない。
-                    if (overFloor && !cells.contains(below.asLong())) {
+                    // 2026-11-09: 構造物の縁から垂れる根はうねる(横へずれる所は斜め下の根に支えられる)。真下にも斜め下(3×3)にも
+                    // 根が無く、真下が空いているマスだけを「浮き」と数える(離れて浮いたかけら)。
+                    boolean diagSupport = false;
+                    for (int ox = -1; ox <= 1 && !diagSupport; ox++) {
+                        for (int oz = -1; oz <= 1; oz++) {
+                            if (cells.contains(below.offset(ox, 0, oz).asLong())) {
+                                diagSupport = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (overFloor && !diagSupport) {
                         BlockState b = level.getBlockState(below);
                         if (b.isAir() || b.canBeReplaced()) {
                             floating++;
@@ -210,6 +221,74 @@ public final class GiantTreeRootGameTests {
             helper.succeed();
         } finally {
             fill(level, base.offset(-r - 1, 0, -r - 1), base.offset(r + 1, 44, r + 1), Blocks.AIR.defaultBlockState());
+        }
+    }
+
+    /**
+     * 構造物の上の巨大樹(2026-11-09 ユーザー報告): 地面(土)の上に石英レンガの塔(25×25・高さ 28)を建て、屋上を汚染の皮
+     * (overgrown_bricks 1 枚。汚染されたブロックは自然の地面の仲間に入る)で覆い、その上に木を置いたつもりで根を計画する。
+     * (1) 根が屋上の皮を置き換えない(潜らない)、(2) 塔の外壁の外に垂れる根があり、上と下で列がずれている(うねる)、を見る。
+     */
+    @GameTest(template = "gametest_empty7", batch = "giant_tree_roots", timeoutTicks = 100)
+    public static void rootsOnStructureStayOnTopAndSway(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos base = helper.absolutePos(new BlockPos(0, 150, 0));
+        int r = 30;
+        int t = 12;
+        try {
+            fill(level, base.offset(-r, 0, -r), base.offset(r, 2, r), Blocks.DIRT.defaultBlockState());
+            fill(level, base.offset(-t, 3, -t), base.offset(t, 30, t), Blocks.QUARTZ_BRICKS.defaultBlockState());
+            fill(level, base.offset(-t, 31, -t), base.offset(t, 31, t), ModBlocks.OVERGROWN_BRICKS.get().defaultBlockState());
+            BlockState log = ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState();
+            GiantTreeFeature.Config config = new GiantTreeFeature.Config(log, Blocks.OAK_LEAVES.defaultBlockState(),
+                    16, 3, 1, 6, 22, 1, 0, 0, 1, 0, 8, 2, 2);
+            BlockPos origin = base.offset(0, 32, 0);
+            int buried = 0;
+            String firstBuried = null;
+            java.util.Set<Long> low = new java.util.HashSet<>();
+            java.util.Set<Long> high = new java.util.HashSet<>();
+            int outside = 0;
+            for (long seed = 1; seed <= 4; seed++) {
+                LongOpenHashSet cells = GiantTreeFeature.planRootsForTests(level, origin, config, seed, true, new int[6]);
+                for (long k : cells) {
+                    BlockPos p = BlockPos.of(k);
+                    if (level.getBlockState(p).is(ModBlocks.OVERGROWN_BRICKS.get())) {
+                        buried++;
+                        if (firstBuried == null) {
+                            firstBuried = p.subtract(base).toShortString() + " 種 " + seed;
+                        }
+                    }
+                    int dx = p.getX() - base.getX();
+                    int dz = p.getZ() - base.getZ();
+                    int dy = p.getY() - base.getY();
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) > t && dy >= 6 && dy <= 28) {
+                        outside++;
+                        long col = BlockPos.asLong(p.getX(), 0, p.getZ()) ^ (seed << 60);
+                        if (dy == 9) {
+                            low.add(col);
+                        } else if (dy == 25) {
+                            high.add(col);
+                        }
+                    }
+                }
+            }
+            if (buried > 0) {
+                helper.fail("根が屋上の汚染の皮を " + buried + " マス置き換えた(潜った。最初 " + firstBuried + ")");
+                return;
+            }
+            if (outside == 0) {
+                helper.fail("塔の外壁の外に垂れる根が無い");
+                return;
+            }
+            if (!low.isEmpty() && low.equals(high)) {
+                helper.fail("外へ垂れる根が真っすぐ(上と下で列が同じ)");
+                return;
+            }
+            OvergrownVegetation.LOGGER.info("GiantTreeRootGameTests: 構造物の上 潜り 0・外壁の外の根 {} マス・列(下 {} / 上 {})",
+                    outside, low.size(), high.size());
+            helper.succeed();
+        } finally {
+            fill(level, base.offset(-r - 1, 0, -r - 1), base.offset(r + 1, 34, r + 1), Blocks.AIR.defaultBlockState());
         }
     }
 

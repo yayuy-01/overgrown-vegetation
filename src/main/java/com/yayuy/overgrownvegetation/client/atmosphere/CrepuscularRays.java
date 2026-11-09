@@ -164,6 +164,7 @@ public final class CrepuscularRays {
 
     /** 足し算の光の回(呼び手は {@link Atmosphere}。描き先は {@link AddLight#drawToMainTarget} で決まっている)。 */
     static void render(RenderLevelStageEvent event) {
+        lastStrength = 0.0F;
         ClientLevel level = net.minecraft.client.Minecraft.getInstance().level;
         if (level == null || beams.isEmpty()) {
             return;
@@ -175,37 +176,118 @@ public final class CrepuscularRays {
         Vec3 eye = event.getCamera().getPosition();
         int skyLight = level.getBrightness(LightLayer.SKY, BlockPos.containing(eye));
         float exposure = SunLight.smooth(Mth.clamp((skyLight - 9.0F) / 5.0F, 0.0F, 1.0F));
-        float forest = 1.0F - 0.9F * ForestPresence.openOvergrown();
-        float strength = DesignData.sky().rays * CloudShadows.base() * covered
-                * humidity(level, coverage) * exposure * forest * (1.0F - ForestPresence.underground())
-                * (0.5F + 0.5F * Mth.clamp((1.0F - CloudShadows.sunVisibility()) / CloudShadows.SUN_BLOCK, 0.0F, 1.0F))
+        Vec3 sun = SunLight.sunDirection(level, partialTick);
+        // G5 光る胞子の夜(11-08): 夜は月の光の柱。雲の影の地図も月の向きで作ってある({@link CloudShadows#lightDirection})。
+        boolean moon = sun.y < 0.0 && GlowNight.amount() > 0.001F;
+        var night = DesignData.atmosphere().glowNight();
+        float forest = 1.0F - (moon ? 1.0F - night.forestKeep() : 0.9F) * ForestPresence.openOvergrown();
+        float strength = (moon ? night.rays() * GlowNight.amount() * (SunLight.MOON_FLOOR + (1.0F - SunLight.MOON_FLOOR) * level.getMoonBrightness())
+                : DesignData.sky().rays * humidity(level, coverage)
+                * (0.5F + 0.5F * Mth.clamp((1.0F - CloudShadows.sunVisibility()) / CloudShadows.SUN_BLOCK, 0.0F, 1.0F)))
+                * CloudShadows.base() * covered * exposure * forest * (1.0F - ForestPresence.underground())
                 // 雲の中では見えない(霧に沈む。改善 ②)。
                 * (1.0F - com.yayuy.overgrownvegetation.client.sky.CloudInterior.amount(partialTick));
         if (strength <= 0.003F) {
             return;
         }
-        Vec3 sun = SunLight.sunDirection(level, partialTick);
-        if (sun.y < 0.05) {
+        Vec3 light = moon ? sun.scale(-1.0) : sun;
+        if (light.y < 0.05) {
             return;
         }
-        float warm = 1.0F - SunLight.smooth(Mth.clamp(((float) sun.y - 0.15F) / 0.5F, 0.0F, 1.0F));
-        float r = 1.0F;
-        float g = Mth.lerp(warm, 0.95F, 0.78F);
-        float b = Mth.lerp(warm, 0.84F, 0.5F);
+        float r;
+        float g;
+        float b;
+        if (moon) {
+            float[] c = night.rayColor();
+            r = c[0];
+            g = c[1];
+            b = c[2];
+        } else {
+            float warm = 1.0F - SunLight.smooth(Mth.clamp(((float) sun.y - 0.15F) / 0.5F, 0.0F, 1.0F));
+            r = 1.0F;
+            g = Mth.lerp(warm, 0.95F, 0.78F);
+            b = Mth.lerp(warm, 0.84F, 0.5F);
+        }
         long gameTime = level.getGameTime();
         double windX = CloudField.offsetX((double) gameTime + partialTick);
         double windZ = CloudField.offsetZ((double) gameTime + partialTick);
         double bottomY = Math.min(eye.y - 24.0, 62.0);
-        double length = (CloudField.LOW_BASE - bottomY) / sun.y;
-        Vec3 down = sun.scale(-1.0);
+        double length = (CloudField.LOW_BASE - bottomY) / light.y;
+        Vec3 down = light.scale(-1.0);
+        lastStrength = strength;
+        lastWindX = windX;
+        lastWindZ = windZ;
+        lastDown = down;
 
         MultiBufferSource.BufferSource buffers = AddLight.buffers();
         VertexConsumer c = buffers.getBuffer(AddLight.renderType());
         for (Beam beam : beams) {
             Vec3 top = new Vec3(beam.fx() + windX, CloudField.LOW_BASE, beam.fz() + windZ);
-            ribbon(c, top, down, length, beam.width(), eye, sun, ALPHA * strength, r, g, b);
+            ribbon(c, top, down, length, beam.width(), eye, light, ALPHA * strength, r, g, b);
         }
         buffers.endBatch(AddLight.renderType());
+    }
+
+    /** このフレームの筋の強さ(0 = 描いていない)と、筋の位置を世界へ戻す風の分・下る向き(G4・G5 の粒が読む)。 */
+    private static float lastStrength;
+    private static double lastWindX;
+    private static double lastWindZ;
+    private static Vec3 lastDown = new Vec3(0.0, -1.0, 0.0);
+
+    /** このフレームに筋を描いたか(G4 の光る胞子の波)。 */
+    static boolean lit() {
+        return lastStrength > 0.003F && !beams.isEmpty();
+    }
+
+    /**
+     * 点 (x, y, z) がどれかの筋の中にどれだけ入っているか(0〜1、筋の芯で 1、縁で 0)× 筋の強さ(1 で頭打ち)。G4 胞子の風の粒を光らせる。
+     * 筋の幅は描くときと同じ(下ほど 25% 広い)。
+     */
+    static float glowAt(double x, double y, double z) {
+        if (lastStrength <= 0.003F) {
+            return 0.0F;
+        }
+        float best = 0.0F;
+        double length = (CloudField.LOW_BASE - y) / Math.max(0.05, -lastDown.y);
+        for (Beam beam : beams) {
+            double tx = beam.fx() + lastWindX;
+            double tz = beam.fz() + lastWindZ;
+            double vx = x - tx;
+            double vy = y - CloudField.LOW_BASE;
+            double vz = z - tz;
+            double t = vx * lastDown.x + vy * lastDown.y + vz * lastDown.z;
+            if (t <= 0.0) {
+                continue;
+            }
+            double dx = vx - lastDown.x * t;
+            double dy = vy - lastDown.y * t;
+            double dz = vz - lastDown.z * t;
+            double half = beam.width() * 0.5 * (1.0 + 0.25 * Math.min(1.0, t / Math.max(1.0, length)));
+            double d = Math.sqrt(dx * dx + dy * dy + dz * dz) / half;
+            if (d < 1.0) {
+                best = Math.max(best, 1.0F - SunLight.smooth((float) d));
+            }
+        }
+        return best * Math.min(1.0F, lastStrength * 2.0F);
+    }
+
+    /** 描いている筋の数(G5 の柱の中の粒)。 */
+    static int beamCount() {
+        return lastStrength > 0.003F ? beams.size() : 0;
+    }
+
+    /** i 番目の筋の、高さ y での芯の点(out[0], out[2])と半幅(out[1])。G5 の柱の中の粒。 */
+    static void axisAt(int i, double y, double[] out) {
+        Beam beam = beams.get(i);
+        double t = (y - CloudField.LOW_BASE) / Math.min(-0.05, lastDown.y);
+        out[0] = beam.fx() + lastWindX + lastDown.x * t;
+        out[2] = beam.fz() + lastWindZ + lastDown.z * t;
+        out[1] = beam.width() * 0.5;
+    }
+
+    /** 雨上がりの湿り(1 = 雨の最中・止んだ直後 → {@link #AFTERGLOW_TICKS} で 0)。 */
+    static float afterglow() {
+        return afterglow;
     }
 
     /** 1 本の筋(カメラを向く帯)。横は 縁 0 → 中ほど → 芯 の山なり、縦は雲の底で湧き、下の 4 割で薄れる。森の霞の向こうは薄める。 */

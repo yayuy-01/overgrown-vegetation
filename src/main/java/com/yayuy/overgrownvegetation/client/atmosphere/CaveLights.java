@@ -494,6 +494,11 @@ public final class CaveLights {
         float roofLo = devHalfRoof ? 0.3F : Mth.lerp(dark, 0.3F, 0.05F);
         float roofHi = devHalfRoof ? 0.9F : Mth.lerp(dark, 0.9F, 0.35F);
         float roof = SunLight.smooth(Mth.clamp((roofFraction(level, eye) - roofLo) / (roofHi - roofLo), 0.0F, 1.0F));
+        // 11-09: 空に浮かぶ構造物・大きな張り出しの下(まわりが開けている列。CaveMap#markOverhangs)は地下にしない(前は黒い霧と洞窟の色・目の慣れが掛かった)
+        if (devCamOverhang ? CaveMap.overhangAt(at.getX(), at.getZ()) || CaveMap.overhangShare(at.getX(), at.getZ(), 2) >= 0.5F
+                : CaveMap.cameraBelowOverhang(at.getX(), at.getZ(), eye.y)) {
+            roof = 0.0F; // まわり 5×5 の半分以上が印なら(柱のそば)も
+        }
         boolean overgrown = ModBiomes.isOvergrownLike(level.getBiome(at));
         if (!overgrown) {
             int top = level.getHeight(Heightmap.Types.WORLD_SURFACE, at.getX(), at.getZ()) - 1;
@@ -505,6 +510,17 @@ public final class CaveLights {
         }
         return roof * SunLight.smooth(dark);
     }
+
+    /**
+     * 確かめ用: 真なら前の形(カメラの列が開けた張り出しの印なら、中でも地下モードにしない。11-09 の最初の直し。cavedev overhang cam on)。
+     * 既定は偽: 構造物の<b>下</b>(浮いた岩の下面より下)にいるときだけ地下モードにしない({@link CaveMap#cameraBelowOverhang})。中で外扱いにすると、
+     * 面が自分の空の光だけで地下かどうか決まり、葉の面が明るい緑と真っ暗にくっきり分かれた(ユーザーの写真 28〜30)。
+     */
+    static boolean devCamOverhang;
+    /** 構造物の中の葉の面のむらの案の確かめ用の上書き(11-09。cavedev foliage <効き> / cavedev overhanglight <点光源> <床の持ち上げ>。負 = 設計値 cave.foliageFacing など)。 */
+    static float devFoliageFacing = -1.0F;
+    static float devOverhangLights = -1.0F;
+    static float devOverhangLift = -1.0F;
 
     /** カメラの所(か、その列の地表)が過繁茂の地域か({@link #target} が 0.5 秒おきに書く)。 */
     private static boolean overgrownHere;
@@ -1176,7 +1192,14 @@ public final class CaveLights {
                     buffer.put(0.0F).put(-10000.0F).put(0.0F).put(0.0F);
                 }
             }
-            buffer.put(row == 0 ? (float) glowCount : row == 1 ? (float) shownHeld : 0.0F).put(0.0F).put(0.0F).put(0.0F);
+            if (row == 2) {
+                // 6 行目の 25 列目(11-09 構造物の中の葉の面のむらの案): x = 葉・茂み(cutout_mipped)の面の向きの効き(1 = 岩と同じ)、
+                // y = 開けた張り出しの印の列の点光源の倍率、z = 同じ列の床の持ち上げの倍率
+                buffer.put(devFoliageFacing >= 0.0F ? devFoliageFacing : p.foliageFacing()).put(devOverhangLights >= 0.0F ? devOverhangLights : p.overhangLights())
+                        .put(devOverhangLift >= 0.0F ? devOverhangLift : p.overhangLift()).put(1.0F); // w = 1: この行が書かれている印
+            } else {
+                buffer.put(row == 0 ? (float) glowCount : (float) shownHeld).put(0.0F).put(0.0F).put(0.0F);
+            }
         }
         buffer.flip();
         int previous = GlStateManager._getInteger(GL11.GL_TEXTURE_BINDING_2D);

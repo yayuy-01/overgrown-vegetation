@@ -57,6 +57,9 @@ public final class AtmosphereTable {
         public AtmosphereCaveLife.Json caveLife;
         /** 巨大樹の胞子の柱・夜の地脈の光(11-06 改善案 ①③、{@link AtmosphereGiantTree})。 */
         public AtmosphereGiantTree.Json giantTree;
+        /** G4 胞子の風・G5 光る胞子の夜(11-08、{@link AtmosphereEvents})。 */
+        public AtmosphereEvents.GaleJson gale;
+        public AtmosphereEvents.GlowNightJson glowNight;
         public AtmosphereWater.CausticsJson caustics;
         public AtmosphereWater.ShaftsJson underwaterShafts;
         public AtmosphereCave.CaveJson cave;
@@ -669,6 +672,8 @@ public final class AtmosphereTable {
     private final AtmosphereGiantLife.Params giantLife;
     private final AtmosphereCaveLife.Params caveLife;
     private final AtmosphereGiantTree.Params giantTree;
+    private final AtmosphereEvents.GaleParams gale;
+    private final AtmosphereEvents.GlowNightParams glowNight;
     private final AtmosphereWater.CausticsParams caustics;
     private final AtmosphereWater.ShaftsParams underwaterShafts;
     private final AtmosphereCave.CaveParams cave;
@@ -770,6 +775,8 @@ public final class AtmosphereTable {
         this.giantLife = AtmosphereGiantLife.Params.of(j != null ? j.giantLife : null);
         this.caveLife = AtmosphereCaveLife.Params.of(j != null ? j.caveLife : null);
         this.giantTree = AtmosphereGiantTree.Params.of(j != null ? j.giantTree : null);
+        this.gale = AtmosphereEvents.GaleParams.of(j != null ? j.gale : null);
+        this.glowNight = AtmosphereEvents.GlowNightParams.of(j != null ? j.glowNight : null);
         this.caustics = AtmosphereWater.CausticsParams.of(j != null ? j.caustics : null);
         this.underwaterShafts = AtmosphereWater.ShaftsParams.of(j != null ? j.underwaterShafts : null);
         this.cave = AtmosphereCave.CaveParams.of(j != null ? j.cave : null);
@@ -1214,6 +1221,16 @@ public final class AtmosphereTable {
     /** 巨大樹の胞子の柱・夜の地脈の光(節 giantTree、11-06 改善案 ①③)。 */
     public AtmosphereGiantTree.Params giantTree() {
         return giantTree;
+    }
+
+    /** G4 胞子の風(節 gale、11-08。{@link AtmosphereEvents})。 */
+    public AtmosphereEvents.GaleParams gale() {
+        return gale;
+    }
+
+    /** G5 光る胞子の夜(節 glowNight、11-08。{@link AtmosphereEvents})。 */
+    public AtmosphereEvents.GlowNightParams glowNight() {
+        return glowNight;
     }
 
     public AtmosphereLife.CreakParams creak() {

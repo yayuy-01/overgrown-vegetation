@@ -69,6 +69,9 @@ public final class CloudShadows {
     private static ClientLevel lastLevel;
     private static float visibility = 1.0F;
     private static float lastBase;
+    /** 前触れの帯を地図に書いた tick と、書いてあるか。 */
+    private static long omenTick = Long.MIN_VALUE;
+    private static boolean omenShown;
 
     static Map current() {
         return shown;
@@ -91,15 +94,31 @@ public final class CloudShadows {
         lastBase = 0.0F;
     }
 
-    private static float base(ClientLevel level, Vec3 sun, float partialTick) {
+    /**
+     * 雲の影の地図を作る光の向き。昼は太陽、夜は G5 光る胞子の夜({@link GlowNight})の間だけ月(太陽の反対。11-08)。
+     */
+    static Vec3 lightDirection(ClientLevel level, float partialTick) {
+        Vec3 sun = SunLight.sunDirection(level, partialTick);
+        return sun.y < 0.0 && GlowNight.amount() > 0.001F ? sun.scale(-1.0) : sun;
+    }
+
+    /** dir = {@link #lightDirection}。昼は太陽の高さ × 昼の強さ、夜(月)は月の高さだけ(光る胞子の夜の度合いは読み手が掛ける)。 */
+    private static float base(ClientLevel level, Vec3 dir, float partialTick) {
         if (!CloudRenderers.current().active()) {
             return 0.0F;
         }
-        float low = SunLight.smooth(Mth.clamp(((float) sun.y - 0.12F) / 0.19F, 0.0F, 1.0F));
-        return low * SunLight.daylight(level, sun, partialTick);
+        float low = SunLight.smooth(Mth.clamp(((float) dir.y - 0.12F) / 0.19F, 0.0F, 1.0F));
+        if (SunLight.sunDirection(level, partialTick).y < 0.0) {
+            return GlowNight.amount() > 0.001F ? low : 0.0F;
+        }
+        return low * SunLight.daylight(level, dir, partialTick);
     }
 
-    private static float shadowSetting() {
+    /** 地形に落とす影の濃さの設定。夜(月の影)は G5 の moonShadow × 光る胞子の夜の度合い。 */
+    private static float shadowSetting(ClientLevel level, float partialTick) {
+        if (SunLight.sunDirection(level, partialTick).y < 0.0) {
+            return DesignData.sky().shadows * DesignData.atmosphere().glowNight().moonShadow() * GlowNight.amount();
+        }
         return DesignData.sky().shadows;
     }
 
@@ -111,7 +130,7 @@ public final class CloudShadows {
         float target = 1.0F;
         Map m = shown;
         Vec3 sun = SunLight.sunDirection(level, 1.0F);
-        float s = base(level, sun, 1.0F) * shadowSetting() * (1.0F - ForestPresence.underground());
+        float s = base(level, sun, 1.0F) * shadowSetting(level, 1.0F) * (1.0F - ForestPresence.underground());
         if (m != null && s > 0.0F && sun.y > 0.0) {
             target = 1.0F - SUN_BLOCK * Math.min(1.0F, s * 1.5F) * sample(m, level, cam.x, cam.y, cam.z, sun, 1.0F);
         }
@@ -137,7 +156,9 @@ public final class CloudShadows {
         float b = m.values[j * SIZE + i + 1];
         float c = m.values[(j + 1) * SIZE + i];
         float d = m.values[(j + 1) * SIZE + i + 1];
-        return Mth.lerp(fz, Mth.lerp(fx, a, b), Mth.lerp(fx, c, d));
+        float cloud = Mth.lerp(fz, Mth.lerp(fx, a, b), Mth.lerp(fx, c, d));
+        // G4 胞子の風の前触れの影(地図に足した分と同じ。日差しも陰る)。
+        return Math.max(cloud, SporeGale.omenAt(x, z, Atmosphere.time(partialTick)));
     }
 
     private static ShaderInstance[] shaders() {
@@ -186,10 +207,10 @@ public final class CloudShadows {
             clear();
         }
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
-        Vec3 sun = SunLight.sunDirection(level, partialTick);
+        Vec3 sun = lightDirection(level, partialTick);
         float base = base(level, sun, partialTick);
         lastBase = 0.0F;
-        float strength = base * shadowSetting();
+        float strength = base * shadowSetting(level, partialTick);
         float coverage = VoxelClouds.coverage(level, partialTick);
         if (base <= 0.001F || coverage <= 0.0F || strength <= 0.0F && DesignData.sky().rays <= 0.0F) {
             return false;
@@ -225,12 +246,28 @@ public final class CloudShadows {
             texture = new DynamicTexture(SIZE, SIZE, false);
             uploadPending = true;
         }
+        // G4 胞子の風の前触れ(11-08): 走る影の帯を地図に足す。帯が出ている間は tick ごとに書き直す(帯は地図の升より速く動くので)。
+        boolean omen = SporeGale.omenActive();
+        if (omen && gameTime != omenTick || !omen && omenShown) {
+            uploadPending = true;
+        }
         if (uploadPending) {
             NativeImage image = texture.getPixels();
             if (image != null) {
+                double windX0 = CloudField.offsetX((double) gameTime + partialTick);
+                double windZ0 = CloudField.offsetZ((double) gameTime + partialTick);
+                double t = Atmosphere.time(partialTick);
+                double lift = SHADOW_Y - cam.y;
                 for (int j = 0; j < SIZE; j++) {
                     for (int i = 0; i < SIZE; i++) {
-                        int v = Math.round(m.values[j * SIZE + i] * 255.0F);
+                        float value = m.values[j * SIZE + i];
+                        if (omen) {
+                            // 升の真ん中(雲の高さ・世界)から光の向きに地面(カメラの高さ)へ戻した点の帯の濃さ。
+                            double gx = (m.originX + i + 0.5) * CloudField.CELL_XZ + windX0 - kx * lift;
+                            double gz = (m.originZ + j + 0.5) * CloudField.CELL_XZ + windZ0 - kz * lift;
+                            value = Math.max(value, SporeGale.omenAt(gx, gz, t));
+                        }
+                        int v = Math.round(value * 255.0F);
                         image.setPixelRGBA(i, j, 0xFF000000 | v);
                     }
                 }
@@ -239,6 +276,8 @@ public final class CloudShadows {
                 image.upload(0, 0, 0, 0, 0, SIZE, SIZE, true, true, false, false);
             }
             uploadPending = false;
+            omenTick = gameTime;
+            omenShown = omen;
         }
         // 地図の原点(場の座標)を世界へ戻し(風で流れた分を足す)、カメラからの位置にする。
         double windX = CloudField.offsetX((double) gameTime + partialTick);

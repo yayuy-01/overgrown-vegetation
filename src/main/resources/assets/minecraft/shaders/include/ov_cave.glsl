@@ -325,6 +325,24 @@ vec3 ovCaveLight(vec3 color, vec3 albedo, vec3 pos, vec3 n, float facing, float 
     // 11-07 (held lights): the first `held` lights are lights in someone's hand (CaveLights.heldLights). They light every face, not
     // only the underground ones (a torch in hand also lights the night outside); the Java side already weakens them in bright places.
     int held = count > 0 ? int(texelFetch(OvCaveLights, ivec2(24, 4), 0).x + 0.5) : 0;
+    // 11-09 (the leaf faces inside a floating structure, bright green next to near-black): row 5 of column 24 = (facing share of
+    // foliage, point light scale and raised floor scale in a column marked as an open overhang). 1 = as before; w = 1 when the row is written (an older texture reads 0: everything as before).
+    vec4 tune = texelFetch(OvCaveLights, ivec2(24, 5), 0);
+    if (facing < 0.0) {
+        facing = tune.w > 0.5 ? tune.x : 1.0;
+    }
+    float overLights = 1.0;
+    float overLift = 1.0;
+    if (OvCaveMapA.w > 0.5 && tune.w > 0.5 && (tune.y != 1.0 || tune.z != 1.0)) {
+        ivec2 mt = ivec2(floor(pos.x + n.x * 0.5 - OvCaveMapA.x), floor(pos.z + n.z * 0.5 - OvCaveMapA.y));
+        if (mt.x >= 0 && mt.y >= 0 && mt.x <= 63 && mt.y <= 63) {
+            vec4 mc = texelFetch(OvCaveMap, mt, 0);
+            if (mc.b < 0.5 && mc.r > -9000.0) {
+                overLights = tune.y;
+                overLift = tune.z;
+            }
+        }
+    }
     vec3 hsum = vec3(0.0);
     if (under <= 0.0 && surf <= 0.0 && held == 0) {
         return color;
@@ -397,8 +415,8 @@ vec3 ovCaveLight(vec3 color, vec3 albedo, vec3 pos, vec3 n, float facing, float 
     }
     // The raised floor: grey-green, from the albedo with part of its saturation taken out.
     vec3 floorAlbedo = mix(albedo, vec3(dot(albedo, lum)), extra2.x);
-    ovCaveAdd = albedo * sum * OvCave.z * under;
-    vec3 lit = color + floorAlbedo * extra.rgb * under + ovCaveAdd;
+    ovCaveAdd = albedo * sum * OvCave.z * under * overLights;
+    vec3 lit = color + floorAlbedo * extra.rgb * under * overLift + ovCaveAdd;
     // Soft clip of the brightest channel above the knee (only where the lights added something), losing saturation as it climbs.
     float knee = clamp(extra.w, 0.1, 1.0);
     float top = max(lit.r, max(lit.g, lit.b));

@@ -25,6 +25,8 @@ out vec3 ovPos;
 out vec3 ovNormal;
 out vec2 ovLight;
 out vec3 ovTint;
+// 1 for faces that are never water (the spore dust: marker code 64 in the vertex alpha; 11-09).
+out float ovNoGlint;
 
 // Overgrown Vegetation: the same as vanilla, plus the height fog of the overgrown forest over water (ov_fog.glsl), and
 // (11-04) the camera-relative position, normal, light levels and tint for the cave point lights on water (ov_cave.glsl).
@@ -34,7 +36,9 @@ void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);
 
     vertexDistance = fog_distance(pos, FogShape);
-    vertexColor = Color * minecraft_sample_lightmap(Sampler2, UV2);
+    // The spore dust (client/SporeDustRenderer) carries code 64 in its alpha: not water, so no water glint. Its alpha goes back to 1.
+    ovNoGlint = abs(floor((1.0 - Color.a) * 255.0 + 0.5) - 64.0) < 0.5 ? 1.0 : 0.0;
+    vertexColor = vec4(Color.rgb, ovNoGlint > 0.5 ? 1.0 : Color.a) * minecraft_sample_lightmap(Sampler2, UV2);
     texCoord0 = UV0;
     ovPos = pos;
     ovNormal = Normal;

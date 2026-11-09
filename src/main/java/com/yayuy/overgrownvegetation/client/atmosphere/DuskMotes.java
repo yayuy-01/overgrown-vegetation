@@ -106,7 +106,9 @@ final class DuskMotes {
             return;
         }
         AtmosphereTable.DuskParams p = DesignData.atmosphere().dusk();
-        float target = timeWeight(level.getDayTime(), p) * (1.0F - level.getRainLevel(1.0F)) * ForestPresence.openOvergrown();
+        // G5 光る胞子の夜(11-08): その夜は一晩中 duskBoost の割合で出す。
+        float time = Math.max(timeWeight(level.getDayTime(), p), GlowNight.amount() * DesignData.atmosphere().glowNight().duskBoost());
+        float target = time * (1.0F - level.getRainLevel(1.0F)) * ForestPresence.openOvergrown();
         shown += (target - shown) * 0.02F;
         if (shown <= 0.005F || ModShaders.duskMotes() == null) {
             return;

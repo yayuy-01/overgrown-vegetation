@@ -246,7 +246,7 @@ public final class CaveCrickets {
             return true;
         }
         int sky = level.getBrightness(LightLayer.SKY, pos);
-        return sky >= p.skyMin() && sky <= p.skyMax() && CaveMap.thickRoofAbove(level, x, y + 1, z, 16);
+        return sky >= p.skyMin() && sky <= p.skyMax() && !CaveMap.overhangAt(x, z) && CaveMap.thickRoofAbove(level, x, y + 1, z, 16); // 11-09: 開けた張り出しの下は口でない
     }
 
     /** 空気のマス (x, y, z) に接する岩の面(壁か天井。floor = 床も可)を 1 つ。 */

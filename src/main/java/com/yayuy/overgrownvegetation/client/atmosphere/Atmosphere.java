@@ -92,6 +92,8 @@ public final class Atmosphere {
         SporePools.clear();
         CloudShadows.clear();
         CrepuscularRays.clear();
+        SporeGale.clear(); // G4 胞子の風・G5 光る胞子の夜(11-08)
+        GlowNight.clear();
     }
 
     @SubscribeEvent
@@ -121,6 +123,9 @@ public final class Atmosphere {
             GustField.INSTANCE.setPrevailing(PrevailingWindClient.angle(now), PrevailingWindClient.strength(now));
             GustField.INSTANCE.tick(time(0.0F), player.getX(), player.getZ());
         });
+        // G4 胞子の風(11-08): どの突風を胞子の風にするか・霧・前触れ。突風の場を進めた後に。
+        guard("gale", () -> SporeGale.tick(now, player));
+        guard("glownight", () -> GlowNight.tick(now, player)); // G5 光る胞子の夜(11-08)。雲の影の地図より前に
         guard("gate", () -> WindGate.tick(player.getX(), player.getZ(), time(0.0F)));
         guard("leaves", () -> FallingLeaves.tick(mc, now, player));
         guard("sound", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestWindSound.tick(mc, now, player, time(0.0F)));
@@ -170,6 +175,7 @@ public final class Atmosphere {
             OvergrownVegetation.LOGGER.info("Atmosphere 洞窟の小ネタ {} / {}", CaveGlowworms.describe(), CaveCrickets.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere 水中の光 {} / {}", WaterCaustics.describe(), UnderwaterShafts.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere {}", CaveLights.describe());
+            OvergrownVegetation.LOGGER.info("Atmosphere G4・G5 {} / {} / {}", SporeGale.describe(), GlowNight.describe(now), CloudShadows.describe());
             BlockPos feet = player.blockPosition();
             OvergrownVegetation.LOGGER.info("Atmosphere 覆い {} 地下 {} 持ち上げ {} 霞み {} 足元の光 空 {} ブロック {} 筋 {} 木漏れ日 {} 影の地図 {}",
                     String.format("%.2f", ForestPresence.cover()) + " 過繁茂 " + String.format("%.2f", ForestPresence.overgrown()), String.format("%.2f", ForestPresence.underground()),
@@ -294,6 +300,8 @@ public final class Atmosphere {
             guard("dapple", () -> CanopyDapple.render(event));
             guard("shafts", () -> LightShafts.render(event));
             guard("rays", () -> CrepuscularRays.render(event)); // 薄明光線(11-08 雲の段階 1)
+            // G4 光線の中で光る胞子の波・G5 降る光る胞子(11-08)。薄明光線(月の柱)を描いた後に、その位置で光らせる。
+            guard("galeglow", () -> renderGlowEvents(event));
             guard("caveshafts", () -> CaveShafts.render(event));
             guard("motes", () -> ShaftMotes.render(event));
             guard("dusk", () -> DuskMotes.render(event));
@@ -325,6 +333,24 @@ public final class Atmosphere {
             HollowDwellers.render(left, up); // 木の洞から飛び出す虫(43)
             net.minecraft.world.phys.Vec3 cam = event.getCamera().getPosition();
             SporePools.render(lvl, partialTick, left, up, cam.x, cam.y, cam.z); // 洞窟の胞子の溜まり(地下の植生 2・U6)
+            SporeGale.render(lvl, partialTick, cam, left, up); // G4 胞子の風の黄緑の波(11-08)
+        } finally {
+            LifeSprites.end();
+        }
+    }
+
+    /** G4 胞子の風の光る粒・G5 光る胞子の夜の粒(足し算の光。11-08)。 */
+    private static void renderGlowEvents(RenderLevelStageEvent event) {
+        ClientLevel lvl = Minecraft.getInstance().level;
+        if (lvl == null || !SporeGale.active() && GlowNight.amount() <= 0.002F) {
+            return;
+        }
+        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        net.minecraft.world.phys.Vec3 cam = event.getCamera().getPosition();
+        LifeSprites.begin(event, true);
+        try {
+            SporeGale.renderGlow(lvl, partialTick, cam, event.getCamera().getLeftVector(), event.getCamera().getUpVector());
+            GlowNight.render(lvl, partialTick, cam, event.getCamera().getLeftVector(), event.getCamera().getUpVector());
         } finally {
             LifeSprites.end();
         }

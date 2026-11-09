@@ -22,6 +22,7 @@ in vec3 ovPos;
 in vec3 ovNormal;
 in vec2 ovLight;
 in vec3 ovTint;
+in float ovNoGlint;
 
 out vec4 fragColor;
 
@@ -44,13 +45,13 @@ void main() {
     if (dot(ovFace, ovPos) > 0.0) {
         ovFace = -ovFace;
     }
-    if (color.a < 0.99) {
+    if (color.a < 0.99 && ovNoGlint < 0.5) {
         color.rgb += ovCaveWaterSpecular(ovPos, ovFace, ovUnder);
     }
     // The sun and the moon mirrored on open water (ov_water.glsl, 11-06). Without the canopy map here: the sky light alone keeps it out
     // from under leaves and roofs.
     // Opaque texels (alpha 1) never get it (11-06, see the Sodium shader).
-    vec4 ovGlint = color.a < 0.99 ? ovWaterGlint(ovPos, ovFace, ovLight.y, ovUnder, 0.0) : vec4(0.0);
+    vec4 ovGlint = color.a < 0.99 && ovNoGlint < 0.5 ? ovWaterGlint(ovPos, ovFace, ovLight.y, ovUnder, 0.0) : vec4(0.0);
     color.rgb += ovGlint.rgb;
     color.a = mix(color.a, 1.0, ovGlint.a);
     vec3 ovLit = color.rgb;

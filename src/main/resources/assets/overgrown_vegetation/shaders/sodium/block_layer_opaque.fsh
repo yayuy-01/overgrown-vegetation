@@ -29,6 +29,7 @@ in vec2 ovLight;
 in vec4 ovFog;
 in vec4 ovLeaf;
 in vec3 ovTint;
+in float ovNoGlint;
 
 uniform sampler2D u_BlockTex; // The block texture
 
@@ -121,7 +122,10 @@ void main() {
         // The shadows of the drifting voxel clouds (ov_cloud.glsl, 11-08 clouds stage 1). None underground.
         color.rgb = ovCloudShadow(color.rgb, ovPos, n, facing, ovLight, ovCanopyShade, ovUnder);
         ovSink = ovCaveSink(ovPos, n * facing, ovUnder);
-        color.rgb = ovCaveLight(color.rgb, ovAlbedo, ovPos, n, facing, ovUnder, ovLight.x);
+        // 11-09: leaves and other cutout-mipped blocks (alpha cutoff 2, 3) pass facing -1: ovCaveLight takes the foliage facing share
+        // (OvCaveLights column 24 row 5 x; 1 = as solid rock).
+        uint ovCutoff = (v_Material >> 1u) & 3u;
+        color.rgb = ovCaveLight(color.rgb, ovAlbedo, ovPos, n, ovCutoff >= 2u ? -1.0 : facing, ovUnder, ovLight.x);
         // Faces under cave water get darker with the depth (ov_cave.glsl, 11-06 light inspection 10).
         color.rgb = ovCaveWaterBottom(color.rgb, ovPos, n, ovUnder);
         // The glowing pixels: while the camera is outside they go in before the forest haze, and deep in a cave they stay dim (11-04).
@@ -135,12 +139,12 @@ void main() {
         ovSink = ovCaveSink(ovPos, n, ovUnder);
         color.rgb = ovCaveLight(color.rgb, ovAlbedo * OV_CAVE_WATER_GAIN, ovPos, n, 0.0, ovUnder, ovLight.x);
         // The point lights mirrored on the cave water (ov_cave.glsl, 11-06 light inspection 10).
-        if (color.a < 0.99) {
+        if (color.a < 0.99 && ovNoGlint < 0.5) {
             color.rgb += ovCaveWaterSpecular(ovPos, n, ovUnder);
         }
         // The sun and the moon mirrored on open water (ov_water.glsl, 11-06), kept out of the canopy shade by the sun map.
         // Opaque texels (alpha 1: grass, stone) never get it, whatever the pass flag says (11-06: the glint showed on a grass slope).
-        vec4 ovGlint = color.a < 0.99 ? ovWaterGlint(ovPos, n, ovLight.y, ovUnder, ovWaterSunShade(ovPos)) : vec4(0.0);
+        vec4 ovGlint = color.a < 0.99 && ovNoGlint < 0.5 ? ovWaterGlint(ovPos, n, ovLight.y, ovUnder, ovWaterSunShade(ovPos)) : vec4(0.0);
         color.rgb += ovGlint.rgb;
         color.a = mix(color.a, 1.0, ovGlint.a);
     }

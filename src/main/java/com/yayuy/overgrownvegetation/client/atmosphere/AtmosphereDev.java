@@ -206,6 +206,47 @@ public final class AtmosphereDev {
                 return CaveShafts.describe();
             }
             CaveShafts.devOff = !on;
+        } else if (p[0].equals("aim")) {
+            // 11-09: 画面の真ん中に見えている面(カメラから 64 ブロックまで)の、面の前のマスの空の光・ブロックの光と、その列の地下の地図
+            var mc = net.minecraft.client.Minecraft.getInstance();
+            var cam = mc.gameRenderer.getMainCamera();
+            net.minecraft.world.phys.Vec3 from = cam.getPosition();
+            org.joml.Vector3f look = cam.getLookVector();
+            net.minecraft.world.phys.Vec3 to = from.add(look.x() * 64.0, look.y() * 64.0, look.z() * 64.0);
+            var hit = mc.level.clip(new net.minecraft.world.level.ClipContext(from, to, net.minecraft.world.level.ClipContext.Block.VISUAL,
+                    net.minecraft.world.level.ClipContext.Fluid.NONE, mc.player));
+            if (hit.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK) {
+                return "当たらない";
+            }
+            net.minecraft.core.BlockPos b = hit.getBlockPos();
+            net.minecraft.core.BlockPos air = b.relative(hit.getDirection());
+            float[] t = CaveMap.texel(air.getX(), air.getZ());
+            return String.format("面 %s %s 向き %s 前のマス 空の光 %d ブロックの光 %d 距離 %.1f 地図 %s", b.toShortString(),
+                    net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(mc.level.getBlockState(b).getBlock()), hit.getDirection().getName(),
+                    mc.level.getBrightness(net.minecraft.world.level.LightLayer.SKY, air), mc.level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, air),
+                    hit.getLocation().distanceTo(from), t == null ? "外" : String.format("岩の上面 %.0f 口まで %.1f 天井の下面 %.0f", t[0], t[2], t[3]));
+        } else if (p[0].equals("foliage") && p.length > 1) {
+            CaveLights.devFoliageFacing = p[1].equals("design") ? -1.0F : Float.parseFloat(p[1]);
+            return "葉の面の向きの効き " + (CaveLights.devFoliageFacing < 0.0F ? "設計値" : CaveLights.devFoliageFacing);
+        } else if (p[0].equals("overhanglight") && p.length > 2) {
+            CaveLights.devOverhangLights = p[1].equals("design") ? -1.0F : Float.parseFloat(p[1]);
+            CaveLights.devOverhangLift = p[2].equals("design") ? -1.0F : Float.parseFloat(p[2]);
+            return "印の列の点光源 " + CaveLights.devOverhangLights + " 床の持ち上げ " + CaveLights.devOverhangLift;
+        } else if (p[0].equals("overhangmap")) {
+            var cam = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().getBlockPosition();
+            return CaveMap.overhangMap(cam.getX(), cam.getZ(), p.length > 1 ? Integer.parseInt(p[1]) : 20);
+        } else if (p[0].equals("overhangwhy") && p.length > 2) {
+            return CaveMap.explainOverhang(net.minecraft.client.Minecraft.getInstance().level, Integer.parseInt(p[1]), Integer.parseInt(p[2]));
+        } else if (p[0].equals("overhang")) {
+            // 11-09 空に浮かぶ構造物の下: cavedev overhang off = 前の形(開けた張り出しも地下)。cavedev overhang info = 地図の数と時間
+            if (p.length > 2 && p[1].equals("cam")) {
+                CaveLights.devCamOverhang = p[2].equals("on");
+            } else             if (p.length > 2 && p[1].equals("cut")) {
+                CaveMap.devOverhangCut = p[2].equals("on");
+            } else             if (!(p.length > 1 && p[1].equals("info"))) {
+                CaveMap.devNoOverhang = !on;
+            }
+            return CaveMap.describe() + (CaveMap.devNoOverhang ? "(張り出しを見ない)" : "");
         } else if (p[0].equals("breath")) {
             // 11-08 洞窟の呼吸: cavedev breath off|on|info|in|out|auto(in・out = 風に関わらず吹き込み・吹き出し。撮影用)
             String sub = p.length > 1 ? p[1] : "info";
@@ -304,6 +345,20 @@ public final class AtmosphereDev {
             // 水たまりの見える視点(11-06 夜): cavedev puddleview trunk|rain <高さ> → "VIEW x y z yaw pitch"(tp の足の位置)
             net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
             return mc.level == null ? "ワールドなし" : "VIEW " + TrunkRivulets.viewPoint(mc.level, p[1].equals("drip") ? 2 : p[1].equals("rain") ? 1 : 0, Double.parseDouble(p[2]));
+        } else if (p[0].equals("dust") && p.length > 1) {
+            // 陸の水面の照りの再発の確かめ(11-09): カメラのまわり 7×7 チャンクに胞子の粉の降り積もり % を直に入れる(サーバーの次の便で上書きされる)。
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.level == null || mc.getCameraEntity() == null) {
+                return "ワールドなし";
+            }
+            int pct = Integer.parseInt(p[1]);
+            int size = 7;
+            int cx = (net.minecraft.util.Mth.floor(mc.getCameraEntity().getX()) >> 4) - size / 2;
+            int cz = (net.minecraft.util.Mth.floor(mc.getCameraEntity().getZ()) >> 4) - size / 2;
+            byte[] levels = new byte[size * size];
+            java.util.Arrays.fill(levels, (byte) pct);
+            com.yayuy.overgrownvegetation.client.ClientSporeDust.accept(new com.yayuy.overgrownvegetation.network.SporeDustPayload(cx, cz, size, levels, new int[size * size]));
+            return "dust " + pct + "% チャンク " + cx + " " + cz + " から " + size + "×" + size;
         } else if (p[0].equals("blendleak") || p[0].equals("passgl")) {
             // 陸の日光の照りの確かめ(11-06): blendleak on = Sodium の層の描き始めで GL のブレンドを直に入れる / passgl on = 層の判定を前のブレンドの状態に戻す
             if (p[0].equals("blendleak")) {

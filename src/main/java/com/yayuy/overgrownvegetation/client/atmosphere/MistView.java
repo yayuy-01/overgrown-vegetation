@@ -457,6 +457,10 @@ final class MistView {
         float aerial = !cloudPass && event.getFarPlaneDistance() < 1.0E9F ? aerial(forest, cave) : 0.0F;
         // 胞子の空気(11-06): カメラの所の分。森の中は森の霞に譲る(airAmount の中で × (1 − 森の霧の度合い))。
         float airK = !cloudPass && event.getFarPlaneDistance() < 1.0E9F ? DesignData.atmosphere().sporeAir().hazeDensity() * airAmount(forest, cave) : 0.0F;
+        // G4 胞子の風(11-08): 前線がカメラを通る間、霞を一瞬濃く(SporeGale.fogK。地下では足さない)。
+        if (!cloudPass && event.getFarPlaneDistance() < 1.0E9F) {
+            airK += SporeGale.fogK() * (1.0F - cave);
+        }
         if (inside <= 0.001F && storm <= 0.001F && forest <= 0.001F && cave <= 0.001F && caveK <= 0.001F && aerial <= 0.001F && airK <= 0.0F) {
             if (!cloudPass) {
                 float[] sc = com.mojang.blaze3d.systems.RenderSystem.getShaderFogColor();

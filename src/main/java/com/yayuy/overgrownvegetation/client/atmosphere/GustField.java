@@ -68,9 +68,17 @@ public final class GustField implements Wind {
         final double lenBehind;
         final double halfWidth;
         final double born;
+        /** G4 胞子の風の前線か(2026-11-08。黄緑の胞子の波・霧・雲の影の前触れを連れてくる。{@link SporeGale})。 */
+        final boolean spore;
 
         Gust(double startX, double startZ, double dirX, double dirZ, double speed, double strength,
              double lenAhead, double lenBehind, double halfWidth, double born) {
+            this(startX, startZ, dirX, dirZ, speed, strength, lenAhead, lenBehind, halfWidth, born, false);
+        }
+
+        Gust(double startX, double startZ, double dirX, double dirZ, double speed, double strength,
+             double lenAhead, double lenBehind, double halfWidth, double born, boolean spore) {
+            this.spore = spore;
             this.startX = startX;
             this.startZ = startZ;
             this.dirX = dirX;
@@ -187,24 +195,54 @@ public final class GustField implements Wind {
         double dz = Math.sin(angle);
         double upwind = between(p.spawnDistanceMin(), p.spawnDistanceMax());
         double lateral = (this.random.nextDouble() - 0.5) * 16.0;
+        // G4 胞子の風(11-08): 突風のうち sporeChance の割合(過繁茂の近く・雨でない日だけ、呼び手 SporeGale が決める)。少し強く吹く。
+        boolean spore = this.random.nextDouble() < this.sporeChance;
         this.gusts.add(new Gust(camX - dx * upwind - dz * lateral, camZ - dz * upwind + dx * lateral, dx, dz,
                 between(p.frontSpeedMin(), p.frontSpeedMax()) / 20.0,
-                between(p.gustStrengthMin(), p.gustStrengthMax()) + 0.2 * this.storm,
+                between(p.gustStrengthMin(), p.gustStrengthMax()) + 0.2 * this.storm + (spore ? this.sporeBonus : 0.0),
                 between(p.frontAheadMin(), p.frontAheadMax()), between(p.frontBehindMin(), p.frontBehindMax()),
-                between(p.frontHalfWidthMin(), p.frontHalfWidthMax()), time));
+                between(p.frontHalfWidthMin(), p.frontHalfWidthMax()), time, spore));
     }
+
+    /** G4 胞子の風: 次の突風が胞子の風になる割合と、そのときに足す強さ(毎 tick {@link SporeGale} が渡す。0 = 胞子の風にしない)。 */
+    public void setSporeGale(double chance, double bonus) {
+        this.sporeChance = chance;
+        this.sporeBonus = bonus;
+    }
+
+    private double sporeChance;
+    private double sporeBonus;
 
     /** 開発用: カメラの風上に強めの突風を 1 つ生む(テストクライアントの {@code wind gust})。 */
     public void forceGust(double camX, double camZ) {
+        forceGust(camX, camZ, false);
+    }
+
+    /** 開発用: カメラの風上に強めの突風を 1 つ生む。spore = 胞子の風にする({@code /ov fx gale})。 */
+    public void forceGust(double camX, double camZ, boolean spore) {
         AtmosphereTable.WindParams p = this.params;
         double dx = Math.cos(this.baseAngle);
         double dz = Math.sin(this.baseAngle);
         double upwind = p.spawnDistanceMin();
-        this.gusts.add(new Gust(camX - dx * upwind, camZ - dz * upwind, dx, dz, 4.5 / 20.0, 0.9,
-                p.frontAheadMax(), p.frontBehindMax(), p.frontHalfWidthMax(), this.now));
+        this.gusts.add(new Gust(camX - dx * upwind, camZ - dz * upwind, dx, dz, 4.5 / 20.0, 0.9 + (spore ? this.sporeBonus : 0.0),
+                p.frontAheadMax(), p.frontBehindMax(), p.frontHalfWidthMax(), this.now, spore));
         while (this.gusts.size() > MAX_GUSTS) {
             this.gusts.remove(0);
         }
+        if (spore) {
+            // 自然の突風がすぐ後ろに続いて胞子の波と重ならないように。
+            this.nextGustIn = Math.max(this.nextGustIn, 600);
+        }
+    }
+
+    /** 今吹いている突風(G4 胞子の風の粒・霧・前触れが読む。書き換えない)。 */
+    List<Gust> gusts() {
+        return this.gusts;
+    }
+
+    /** 今の時刻({@link Atmosphere#time}。最後の {@link #tick} の値)。 */
+    double now() {
+        return this.now;
     }
 
     /** 開発用: 突風を消して、しばらく凪にする(テストクライアントの {@code wind calm})。 */

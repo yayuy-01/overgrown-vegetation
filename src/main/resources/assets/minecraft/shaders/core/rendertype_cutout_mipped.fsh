@@ -50,7 +50,8 @@ void main() {
     // The shadows of the drifting voxel clouds (ov_cloud.glsl, 11-08 clouds stage 1). None underground.
     color.rgb = ovCloudShadow(color.rgb, ovPos, ovNormal, 1.0, ovLight, ovCanopyShade, ovUnder);
     float ovSink = ovCaveSink(ovPos, ovNormal * 1.0, ovUnder);
-    color.rgb = ovCaveLight(color.rgb, tex.rgb * ovTint, ovPos, ovNormal, 1.0, ovUnder, ovLight.x);
+    // 11-09: facing -1 = foliage (leaves, plants): ovCaveLight takes its own facing share for it (OvCaveLights column 24 row 5 x).
+    color.rgb = ovCaveLight(color.rgb, tex.rgb * ovTint, ovPos, ovNormal, -1.0, ovUnder, ovLight.x);
     // Faces under cave water get darker with the depth (ov_cave.glsl, 11-06 light inspection 10).
     color.rgb = ovCaveWaterBottom(color.rgb, ovPos, ovNormal, ovUnder);
     // The glowing pixels: while the camera is outside they go in before the forest haze, and deep in a cave they stay dim (11-04).

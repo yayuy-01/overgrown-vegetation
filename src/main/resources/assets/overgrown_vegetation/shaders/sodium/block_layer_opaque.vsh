@@ -26,6 +26,8 @@ out vec2 ovLight;
 out vec4 ovFog;
 out vec4 ovLeaf;
 out vec3 ovTint;
+// 1 for faces that are never water (the spore dust: marker code 64 in the vertex alpha; 11-09). No water glint on them.
+out float ovNoGlint;
 
 uniform int u_FogShape;
 uniform vec3 u_RegionOffset;
@@ -61,6 +63,11 @@ void main() {
     ovLeaf = ((_material_params >> 1u) & 3u) == 2u ? ovLeafDecode(color, tint) : vec4(0.0);
     color.rgb = tint;
     position += ovDisplace(position, vec3(0.0), color.a);
+    // The spore dust (client/SporeDustRenderer) carries code 64 in its alpha: not water, so no water glint. Its alpha goes back to 1.
+    ovNoGlint = abs(floor((1.0 - color.a) * 255.0 + 0.5) - 64.0) < 0.5 ? 1.0 : 0.0;
+    if (ovNoGlint > 0.5) {
+        color.a = 1.0;
+    }
 
 #ifdef USE_FOG
     v_FragDistance = getFragDistance(u_FogShape, position);

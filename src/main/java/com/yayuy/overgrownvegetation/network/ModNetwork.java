@@ -64,7 +64,13 @@ public final class ModNetwork {
         // 2026-11-01 に 23 へ(這い上がる苔の記録 CoverCreepPayload を足した)。
         // 2026-11-04 に 24 へ(自分の胞子の暴露量 SporeExposurePayload を足した。前触れの画面のにじみ)。
         // 2026-11-08 に 25 へ(雲を流した距離 CloudDriftPayload を足した。雲の段階 1「風を 1 つに」)。
-        PayloadRegistrar registrar = event.registrar("25");
+        // 2026-11-08 に 26 へ(雰囲気の出来事の確かめ AtmosphereFxPayload を足した。G4 胞子の風・G5 光る胞子の夜の /ov fx)。
+        PayloadRegistrar registrar = event.registrar("26");
+        registrar.playToClient(
+                AtmosphereFxPayload.TYPE,
+                AtmosphereFxPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(
+                        () -> com.yayuy.overgrownvegetation.client.atmosphere.AtmosphereFx.accept(payload)));
         registrar.playToClient(
                 CloudDriftPayload.TYPE,
                 CloudDriftPayload.STREAM_CODEC,

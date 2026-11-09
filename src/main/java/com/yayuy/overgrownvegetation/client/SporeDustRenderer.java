@@ -48,6 +48,8 @@ public final class SporeDustRenderer {
 
     /** 不透明度を 1/16 ずつ焼いた粉の絵(spore_dust_a01〜a16。元の絵 spore_dust の透明度 × k/16。元の絵は parked の U9)。 */
     private static final int ALPHA_STEPS = 16;
+    /** 頂点の透明度に入れる「水でない」の印(255 − 64。ov_sway の揺れの印 1〜63 とぶつからない。シェーダーが 1 に戻す)。 */
+    private static final int NOT_WATER_ALPHA = 255 - 64;
     private static final net.minecraft.resources.ResourceLocation[] LEVEL_SPRITES = new net.minecraft.resources.ResourceLocation[ALPHA_STEPS + 1];
 
     static {
@@ -170,7 +172,7 @@ public final class SporeDustRenderer {
         Matrix4f m = context.getPoseStack().last().pose();
         BlockPos.MutableBlockPos above = new BlockPos.MutableBlockPos();
         for (int n = 0; n < spots.length; n++) {
-            // 濃さは絵に焼いた 16 段から選ぶ(頂点の透明度は 255。Sodium は頂点の透明度を使わない)。
+            // 濃さは絵に焼いた 16 段から選ぶ(頂点の透明度は「水でない」の印 64 で、シェーダーが 1 に戻す。Sodium は頂点の透明度で濃さを出さない)。
             int step = Mth.clamp(Math.round(alphas[n] * ALPHA_STEPS), 1, ALPHA_STEPS); // minPercent を超えた列はいちばん薄い段でも描く(Codex の指摘、10-31)
             int top = spots[n] >> 8;
             int i = spots[n] & 255;
@@ -193,12 +195,13 @@ public final class SporeDustRenderer {
             float z0 = lz;
             float y = top - origin.getY() + lift[n];
             float[][] corners = {{x0, z0}, {x0 + 1, z0}, {x0 + 1, z0 + 1}, {x0, z0 + 1}};
-            // 上から見て反時計回り(上向きの面)。
+            // 上から見て反時計回り(上向きの面)。頂点の透明度は印 64(255 − 64 = 191): 半透明の層だが水でない、の印。地形のシェーダーが読んで 1 に戻し、
+            // 水面の照りを足さない(11-09 ユーザー「胞子が積もった場所に水面の反射が出る」。前は粉の板が水と区別できず、太陽の照り返しの来る所で光った)。
             int[] order = {0, 3, 2, 1};
             for (int k = 0; k < 4; k++) {
                 int c = order[k];
                 int uvi = flip ? (3 - ((c + rot) & 3)) : ((c + rot) & 3);
-                vc.addVertex(m, corners[c][0], y, corners[c][1]).setColor(cr, cg, cb, 255)
+                vc.addVertex(m, corners[c][0], y, corners[c][1]).setColor(cr, cg, cb, NOT_WATER_ALPHA)
                         .setUv(us[uvi], vs[uvi]).setLight(light).setNormal(0, 1, 0);
             }
         }

@@ -40,6 +40,11 @@ public final class AtmosphereCave {
          * flameFlicker = 炎のゆらぎの強さ(光源の強さに 1 ± これを掛ける。松明・焚き火・溶岩・火・ジャック・オ・ランタン・ろうそく。0 = しない)。
          */
         public Double surfaceTint, flameFlicker;
+        /**
+         * 11-09(空に浮かぶ構造物の中の葉の面のむら。ユーザー決定「案 1」、強さは仮決め): foliageFacing = 葉・茂み(cutout_mipped の層)の点光源の「光の方を向いているか」の効き
+         * (1 = 岩と同じ・0 = 向きを見ない。仮 0.5)・overhangLights・overhangLift = 開けた張り出しの印の列(空に浮かぶ構造物)の点光源・床の持ち上げの倍率(案 2。既定は 1 = 切り)。
+         */
+        public Double foliageFacing, overhangLights, overhangLift;
         public Integer maxLights, surfaceLights;
         public double[] fogColor, ambientColor;
     }
@@ -49,7 +54,7 @@ public final class AtmosphereCave {
                              float[] ambientColor, float ambientDesaturate, float clipDesaturate, float roofFrom, float roofTo,
                              float falloff, float mouthFrom, float mouthTo, float mouthLightSink,
                              float waterDepthDarken, float waterDepthFold, float waterSpecular, float waterShininess,
-                             int surfaceLights, float surfaceTint, float flameFlicker) {
+                             int surfaceLights, float surfaceTint, float flameFlicker, float foliageFacing, float overhangLights, float overhangLift) {
         static CaveParams of(CaveJson c) {
             CaveJson v = c != null ? c : new CaveJson();
             double[] col = v.fogColor != null && v.fogColor.length >= 3 ? v.fogColor : new double[]{0.047, 0.063, 0.039};
@@ -71,7 +76,8 @@ public final class AtmosphereCave {
                     AtmosphereLife.c(v.waterDepthDarken, 0.6, 0.0, 1.0), AtmosphereLife.c(v.waterDepthFold, 2.5, 0.1, 32.0),
                     AtmosphereLife.c(v.waterSpecular, 0.35, 0.0, 4.0), AtmosphereLife.c(v.waterShininess, 128.0, 1.0, 512.0),
                     v.surfaceLights != null ? Math.max(0, Math.min(24, v.surfaceLights)) : 12,
-                    AtmosphereLife.c(v.surfaceTint, 1.0, 0.0, 1.0), AtmosphereLife.c(v.flameFlicker, 0.15, 0.0, 0.5));
+                    AtmosphereLife.c(v.surfaceTint, 1.0, 0.0, 1.0), AtmosphereLife.c(v.flameFlicker, 0.15, 0.0, 0.5),
+                    AtmosphereLife.c(v.foliageFacing, 0.5, 0.0, 1.0), AtmosphereLife.c(v.overhangLights, 1.0, 0.0, 4.0), AtmosphereLife.c(v.overhangLift, 1.0, 0.0, 16.0));
         }
     }
 

@@ -42,7 +42,9 @@ public final class CommandTreeGameTests {
             // phase の omen・perf の g1 は parked/ へ。前の一覧は git の before-park-2026-10-30 に残る。
             Map.entry("corruption", Set.of("speed", "true", "false")),
             Map.entry("phase", Set.of("set", "true", "false")),
-            Map.entry("perf", Set.of("bench", "fluid", "record", "spore")));
+            Map.entry("perf", Set.of("bench", "fluid", "record", "spore")),
+            // 2026-11-08: 環境ギミック G4 胞子の風・G5 光る胞子の夜を自分のゲームで確かめる fx(依頼「/ov か DevBridge に足す」。要らなければ消す)。
+            Map.entry("fx", Set.of("gale", "glownight", "status")));
 
     @GameTest(template = "gametest_empty7")
     public static void ovCommandTreeMatchesAgreedList(GameTestHelper helper) {

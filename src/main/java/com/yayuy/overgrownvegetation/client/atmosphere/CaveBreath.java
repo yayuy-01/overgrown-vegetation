@@ -275,6 +275,9 @@ final class CaveBreath {
             if (!passable(level, pos, x, cy, z) || passable(level, pos, x, cy - 1, z)) {
                 continue;
             }
+            if (CaveMap.overhangAt(x, z)) {
+                return; // 空に浮かぶ構造物・開けた張り出しの下は口でない(11-09)
+            }
             int sky = level.getBrightness(LightLayer.SKY, pos.set(x, cy, z));
             if (sky >= p.skyMin() && sky <= p.skyMax() && CaveMap.thickRoofAbove(level, x, cy + 1, z, 16)) {
                 y = cy;

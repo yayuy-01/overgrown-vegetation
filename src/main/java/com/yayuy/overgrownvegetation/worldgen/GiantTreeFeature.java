@@ -981,7 +981,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             growButtress(c, angle, thick * (0.7D + random.nextDouble() * 0.3D), len);
         }
         // 深い根(第 2 段): 幹の下から斜めに地下へ。洞窟・渓谷の壁に出た所だけ見える(洞窟を貫く根)。
-        if (stage2) {
+        if (stage2 && isGroundForRoots(plan.level, origin.getX(), originGroundY, origin.getZ())) { // 構造物の上の木は深い根を出さない(11-09)
             int deep = DEEP_COUNT_MIN + random.nextInt(DEEP_COUNT_MAX - DEEP_COUNT_MIN + 1);
             for (int i = 0; i < deep; i++) {
                 double angle = random.nextDouble() * TAU;
@@ -1094,7 +1094,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         if (holes && top - g >= 4 && notchMax >= 1 && r.nextFloat() < PLATE_NOTCH_CHANCE) {
             top -= Math.min(notchMax, 1 + r.nextInt(2));
         }
-        for (int y = g; y <= top; y++) {
+        for (int y = isGroundForRoots(plan.level, x, g, z) ? g : g + 1; y <= top; y++) { // 構造物の床は置き換えない(11-09)
             plan.root(x, y, z);
         }
     }
@@ -1220,7 +1220,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             int g = surfaceStep(plan, ix, gy, iz, c.trunkBlock(), ROOT_MAX_DROP_PER_STEP);
             if (g == STEP_WALL) {
                 BlockState wall = plan.level.getBlockState(cursor.set(ix, gy + 1, iz));
-                if (isRootTerrain(wall)) {
+                if (isRootTerrain(wall) && isGroundForRoots(plan.level, ix, gy + 1, iz)) { // 汚染の皮をかぶった構造物の壁には潜らない(11-09)
                     // 土・岩の壁: 潜って地下の根として続く(崖の切り口・洞窟に出ればそこで見える)。
                     if (c.stage2()) {
                         growUnderground(c, nx, gy + 0.5D, nz, h, -0.08D, -0.08D, (length - step) + UNDER_TAIL,
@@ -1247,6 +1247,23 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                 int far = scanGroundY(plan.level, ix, gy - ROOT_MAX_DROP_PER_STEP - 1, iz, 0, ROOT_DROP_MAX,
                         c.trunkBlock());
                 int rr = Math.max(0, (int) Math.round(rad - 0.5D));
+                // 構造物の上(2026-11-09): 狭い開口(吹き抜け・階段口)は、向こうに同じ高さの床があれば低く渡る(中へ落ちて消えない)。
+                boolean standOnStructure = havePrev && !isGroundForRoots(plan.level, pix, gy, piz);
+                if (standOnStructure) {
+                    BankHit open = findOpeningFloor(plan, c.trunkBlock(), curX, curZ, dirX, dirZ, gy);
+                    if (open != null) {
+                        spanAcross(c, curX, curZ, gy, dirX, dirZ, open, rad, true);
+                        curX += dirX * open.dist();
+                        curZ += dirZ * open.dist();
+                        gy = open.groundY();
+                        pix = Mth.floor(curX);
+                        piz = Mth.floor(curZ);
+                        pgy = gy;
+                        pcy = Double.NaN;
+                        step += open.dist();
+                        continue;
+                    }
+                }
                 // 川・渓谷: 同じくらいの高さの対岸があれば渡る(第 2 段)。
                 if (c.stage2() && havePrev) {
                     boolean river = far != Integer.MIN_VALUE
@@ -1289,7 +1306,13 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                     ended = true;
                     break;
                 }
-                rootColumn(plan, ix, iz, far + 1, gy + 1, rr);
+                if (standOnStructure) {
+                    // 構造物の縁から外へ: 洞窟の垂れと同じく、うねりながら下りる(11-09)。地面の木の崖は前のまま真っすぐ。
+                    dropRoot(plan, r, ix, iz, gy + 1, far + 1, rr, h);
+                    plan.sample("縁の垂れ", ix, gy, iz);
+                } else {
+                    rootColumn(plan, ix, iz, far + 1, gy + 1, rr);
+                }
                 g = far;
                 pcy = Double.NaN;
             }
@@ -1297,7 +1320,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             gy = g;
 
             BlockState surface = plan.level.getBlockState(cursor.set(ix, gy, iz));
-            boolean onStructure = !isRootTerrain(surface);
+            boolean onStructure = !isGroundForRoots(plan.level, ix, gy, iz); // 構造物の上の汚染の皮・薄い床では埋もれない(11-09)
             double e = onStructure ? 1.0D
                     : EXP_START - EXP_BURY * t + EXP_WAVE * Math.sin(expPhase + step * expFreq);
             double lift = 0.0D;
@@ -1374,7 +1397,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             if (com.yayuy.overgrownvegetation.corruption.Pneumatophores.isWet(plan.level, pix, gy, piz)) {
                 kneeCluster(c, pix, gy, piz);
             }
-            if (depth == 0) {
+            if (depth == 0 && isGroundForRoots(plan.level, pix, gy, piz)) { // 構造物の上では潜らせない(11-09)
                 growUnderground(c, curX, gy - 2.5D, curZ, h, -0.05D, -0.05D, UNDER_TAIL, 0.8D, UNDER_EXPOSURES_SHALLOW);
             }
         }
@@ -1664,6 +1687,27 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         }
     }
 
+    /** {@link #stampDisc} と同じだが、空気・置き換え可能なマスにだけ置く(構造物の縁から垂れる根。2026-11-09)。 */
+    private static void stampDiscIntoAir(Plan plan, double qx, int y, double qz, double rad) {
+        int ri = (int) Math.ceil(rad) + 1;
+        int cx = Mth.floor(qx);
+        int cz = Mth.floor(qz);
+        double edgeSq = (rad + 0.35D) * (rad + 0.35D);
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int dx = -ri; dx <= ri; dx++) {
+            for (int dz = -ri; dz <= ri; dz++) {
+                double ox = cx + dx + 0.5D - qx;
+                double oz = cz + dz + 0.5D - qz;
+                if ((dx == 0 && dz == 0) || ox * ox + oz * oz <= edgeSq) {
+                    BlockState s = plan.level.getBlockState(p.set(cx + dx, y, cz + dz));
+                    if (s.isAir() || s.canBeReplaced()) {
+                        plan.root(cx + dx, y, cz + dz);
+                    }
+                }
+            }
+        }
+    }
+
     /** 段 {@code y} に、芯 {@code (qx, qz)} のまわり半径 {@code rad}(+0.35)の丸い断面を置く(芯のマスは必ず置く)。 */
     private static void stampDisc(Plan plan, double qx, int y, double qz, double rad) {
         int ri = (int) Math.ceil(rad) + 1;
@@ -1856,6 +1900,132 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         return river && bank.dist() - 1 <= SMALL_WATER_MAX ? SPAN_SMALL_WATER_CHANCE : SPAN_RIVER_CHANCE;
     }
 
+    // 構造物の上に立った巨大樹(2026-11-09 ユーザー報告「根が潜って短く見える・垂れが垂直」。数はすべて仮決め)。
+    /** 「地面」と認める深さ: 面のマスと、その下この段数がすべて自然の地面({@link #isRootTerrain})。 */
+    private static final int GROUND_DEPTH = 3;
+    /** 構造物の上の開口を渡る最大の幅(列)。 */
+    private static final int OPENING_MAX = 8;
+    /** 構造物の縁から外へ垂れる根: この段数より短い落差は真っすぐのまま。揺れの振れ幅・波長・外への膨らみ。 */
+    private static final int DROP_SWAY_MIN_LEN = 6;
+    private static final double DROP_SWAY_MIN = 0.6D;
+    private static final double DROP_SWAY_MAX = 1.4D;
+    private static final int DROP_PERIOD_MIN = 14;
+    private static final int DROP_PERIOD_MAX = 26;
+    private static final double DROP_BULGE_MAX = 1.0D;
+
+    /**
+     * 根が埋もれ・潜ってよい「地面」か(2026-11-09): 面 {@code (x, y, z)} とその下 {@value #GROUND_DEPTH} 段がすべて自然の地面。
+     * 構造物の上の汚染の皮(汚染されたブロックは {@link #isRootTerrain} に入る)・下が空いた薄い床・洞窟のすぐ上の薄い天井は
+     * 地面にしない(根は上に載る)。
+     */
+    public static boolean isGroundForRoots(net.minecraft.world.level.BlockGetter level, int x, int y, int z) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int k = 0; k <= GROUND_DEPTH; k++) {
+            if (!isRootTerrain(level.getBlockState(p.set(x, y - k, z)))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 構造物の上の開口の向こうの床(2026-11-09): 向き {@code (dirX, dirZ)} の 2〜{@value #OPENING_MAX} 列先に、足元
+     * {@code gy} の上下 2 段の面がある最初の列。間の列はどれも面が無いこと。登れない壁に当たれば null。
+     */
+    private static BankHit findOpeningFloor(Plan plan, Block trunkBlock, double px, double pz, double dirX, double dirZ,
+            int gy) {
+        int gap = 0;
+        for (int d = 1; d <= OPENING_MAX; d++) {
+            int x = Mth.floor(px + dirX * d);
+            int z = Mth.floor(pz + dirZ * d);
+            if (!chunkLoaded(plan.level, new BlockPos(x, gy, z))) {
+                return null;
+            }
+            int s = surfaceStep(plan, x, gy, z, trunkBlock, 2);
+            if (s == STEP_WALL) {
+                return null;
+            }
+            if (s == STEP_NONE) {
+                gap++;
+                continue;
+            }
+            return gap > 0 && d >= 2 ? new BankHit(d, s) : null;
+        }
+        return null;
+    }
+
+    /**
+     * 構造物の縁から外へ垂れる根(2026-11-09): 列 {@code (x, z)} の {@code topY} から {@code bottomY} まで、縁に沿う向き
+     * (根の向き {@code h} の横)へゆるく揺れ({@value #DROP_SWAY_MIN}〜{@value #DROP_SWAY_MAX} マス・波長
+     * {@value #DROP_PERIOD_MIN}〜{@value #DROP_PERIOD_MAX} 段)、途中は外へ少し膨らむ(壁の側へは寄らない)。上下の端では
+     * 揺れを 0 に戻す。芯の通り道に固いブロックがあれば揺れを半分 → 0 にする(壁の出っ張りで途切れない)。下の 2 段は各マスを床まで下ろす。
+     */
+    private static void dropRoot(Plan plan, RandomSource r, int x, int z, int topY, int bottomY, int rr, double h) {
+        int len = topY - bottomY;
+        if (len < DROP_SWAY_MIN_LEN) {
+            rootColumn(plan, x, z, bottomY, topY, rr);
+            return;
+        }
+        double amp = (DROP_SWAY_MIN + r.nextDouble() * (DROP_SWAY_MAX - DROP_SWAY_MIN)) * (r.nextBoolean() ? 1.0D : -1.0D);
+        double period = DROP_PERIOD_MIN + r.nextInt(DROP_PERIOD_MAX - DROP_PERIOD_MIN + 1);
+        double ph = r.nextDouble() * TAU;
+        double bulge = r.nextDouble() * DROP_BULGE_MAX;
+        double perpX = -Math.sin(h);
+        double perpZ = Math.cos(h);
+        double outX = Math.cos(h);
+        double outZ = Math.sin(h);
+        double cx0 = x + 0.5D;
+        double cz0 = z + 0.5D;
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        double scale = 1.0D;
+        for (double s : new double[] {1.0D, 0.5D, 0.0D}) {
+            scale = s;
+            boolean clear = true;
+            for (int k = 0; k <= len && clear; k++) {
+                double[] q = dropPoint(cx0, cz0, perpX, perpZ, outX, outZ, amp * s, period, ph, bulge * s, k, len);
+                BlockState st = plan.level.getBlockState(p.set(Mth.floor(q[0]), topY - k, Mth.floor(q[1])));
+                clear = st.isAir() || st.canBeReplaced() || plan.isTrunk(p.getX(), p.getY(), p.getZ());
+            }
+            if (clear) {
+                break;
+            }
+        }
+        if (scale == 0.0D) {
+            rootColumn(plan, x, z, bottomY, topY, rr);
+            return;
+        }
+        for (int k = 0; k <= len; k++) {
+            for (double half : new double[] {0.0D, 0.5D}) {
+                double[] q = dropPoint(cx0, cz0, perpX, perpZ, outX, outZ, amp * scale, period, ph, bulge * scale,
+                        Math.min(len, k + half), len);
+                int y = topY - k;
+                stampDiscIntoAir(plan, q[0], y, q[1], rr); // 空いたマスだけ(縁の汚染の皮・壁に食い込まない)
+                if (k >= len - 1) {
+                    // 下の 2 段: 外側のマスもその列の床まで下ろす(床が平らでなくても浮かない)。
+                    int ri = rr + 1;
+                    for (int dx = -ri; dx <= ri; dx++) {
+                        for (int dz = -ri; dz <= ri; dz++) {
+                            int ax = Mth.floor(q[0]) + dx;
+                            int az = Mth.floor(q[1]) + dz;
+                            if (plan.isTrunk(ax, y, az)) {
+                                extendDown(plan, ax, y - 1, az, 8);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** {@link #dropRoot} の芯: 上から {@code k} 段目の {x, z}。揺れは上下の端の 4 段で 0 へ戻り、外への膨らみは真ん中で最大。 */
+    private static double[] dropPoint(double cx, double cz, double perpX, double perpZ, double outX, double outZ,
+            double amp, double period, double ph, double bulge, double k, int len) {
+        double env = Math.min(1.0D, Math.min(k / 4.0D, (len - k) / 4.0D));
+        double sway = amp * Math.sin(TAU * k / period + ph) * Math.max(0.0D, env);
+        double out = bulge * Math.sin(Math.PI * k / len);
+        return new double[] {cx + perpX * sway + outX * out, cz + perpZ * sway + outZ * out};
+    }
+
     /** 構造物: 固く、自然の地面でも木でもないブロック(根も巣の球も壊さない)。 */
     static boolean isStructure(BlockState s, Block ownTrunk) {
         return isRootSolid(s, ownTrunk) && !isRootTerrain(s);
@@ -1869,7 +2039,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         int bottom = Math.max(level.getMinBuildHeight(), gy - 200);
         for (int y = gy; y >= bottom; y--) {
-            if (isRootTerrain(level.getBlockState(p.set(origin.getX(), y, origin.getZ())))) {
+            if (isGroundForRoots(level, origin.getX(), y, origin.getZ())) { // 構造物の上の汚染の皮・薄い床は地面にしない(11-09)
                 return y;
             }
         }

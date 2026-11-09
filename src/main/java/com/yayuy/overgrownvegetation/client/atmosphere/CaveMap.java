@@ -71,7 +71,7 @@ final class CaveMap {
     static final int WATER_DOWN = 24;
 
     private record Built(int originX, int originZ, float[] data, float[] coarse, float[] water, boolean anyRoof, long fineMicros, long coarseMicros,
-                         long waterMicros) {
+                         long waterMicros, boolean[] overhang, float[] underY, int overhangCount, long overhangMicros) {
     }
 
     @Nullable
@@ -311,7 +311,426 @@ final class CaveMap {
         long t2 = System.nanoTime();
         float[] water = any ? buildWater(level, ox, oz, eyeY, pos) : null;
         long t3 = System.nanoTime();
-        return new Built(ox, oz, data, coarse, water, any, (t1 - t0) / 1000L, (t2 - t1) / 1000L, (t3 - t2) / 1000L);
+        boolean[] overhang = new boolean[SIZE * SIZE];
+        float[] underY = new float[SIZE * SIZE];
+        java.util.Arrays.fill(underY, Float.NaN);
+        int overhangs = devNoOverhang ? 0 : markOverhangs(level, ox, oz, data, coarse, overhang, underY, pos, minY);
+        long t4 = System.nanoTime();
+        return new Built(ox, oz, data, coarse, water, any, (t1 - t0) / 1000L, (t2 - t1) / 1000L, (t3 - t2) / 1000L, overhang, underY, overhangs, (t4 - t3) / 1000L);
+    }
+
+    // ---- 開けた張り出し(2026-11-09 ユーザー報告「空に浮かぶ構造物に近づくと真っ暗になる」) ----
+
+    /** 確かめ用: 開けた張り出しを見ない(前の形。cavedev overhang off)。 */
+    static volatile boolean devNoOverhang;
+    /** 確かめ用: 印の列を地下モードの対象から外す(11-09 の最初の形。cavedev overhang cut on)。既定は口までの距離を 0 にするだけ。 */
+    static volatile boolean devOverhangCut;
+    /** 開けた張り出しとみなす、外へ開けた方向の数の下限(8 方向のうち。仮決め 5)。 */
+    static final int OVERHANG_OPEN_DIRS = 5;
+    /** 外へ開けているかを見る距離(ブロック)。細かい地図の中は細かい地図、外は粗い地図(仮決め、128 まで。11-09 ユーザーの構造物は幅 150 ほどで、64 では真ん中の下が外れた)。 */
+    private static final int[] OVERHANG_REACH = {4, 8, 12, 16, 20, 24, 28, 32, 40, 48, 56, 64, 80, 96, 112, 128};
+    private static final int[][] DIR8 = {{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}};
+
+    /**
+     * 作業スレッド: <b>開けた張り出し</b>の列に印を付け、その列を地下モードの対象から外す(g = 0。2026-11-09)。
+     * 空に浮かぶ構造物や大きな張り出しの下は、岩の天井があって空の光も届きにくいので、前は洞窟と同じ黒い霧になっていた(ユーザー報告・写真 22・23)。
+     * 張り出し = いちばん上の岩の続き(屋根)の下面 a の下に空気があり、8 方向のうち {@link #OVERHANG_OPEN_DIRS} 方向以上で、{@link #OVERHANG_REACH} の距離のどこかに
+     * 岩の上面が a 以下の列(= その高さで空が開いている列)がある。洞窟は口の方向(1〜2 方向)しか開けていないので外れない。
+     * 粗い地図の升も同じ決まりで外す(遠くから見た構造物の下の地面)。粗い升は、まわりより 6 段以上高い升だけ天井の下面を読む(ほとんどの升は読まない)。
+     *
+     * @return 印を付けた細かい列の数
+     */
+    private static int markOverhangs(ClientLevel level, int ox, int oz, float[] data, float[] coarse, boolean[] overhang, float[] underY,
+                                     BlockPos.MutableBlockPos pos,
+                                     int minY) {
+        int count = 0;
+        // 市松の半分の列だけ調べ、残りの列は上下左右 4 列のうち 2 列以上に印があれば印(11-09 軽く。構造物の下の印はまとまって付くので)
+        for (int pass = 0; pass < 2; pass++) {
+            for (int z = 0; z < SIZE; z++) {
+                for (int x = 0; x < SIZE; x++) {
+                    if (((x + z) & 1) != pass) {
+                        continue;
+                    }
+                    int at = (z * SIZE + x) * 4;
+                    if (data[at] <= NO_ROCK + 1.0F) {
+                        continue;
+                    }
+                    float top = data[at] - 1.0F;
+                    float a = data[at + 3];
+                    if (top - a >= CEIL_SCAN - 1 || a - 1 < minY) {
+                        continue; // 下まで岩(山・地面)
+                    }
+                    boolean mark;
+                    if (pass == 0) {
+                        int u = overhangColumn(level, pos, ox, oz, data, coarse, ox + x, oz + z, (int) a, minY);
+                        mark = u != Integer.MIN_VALUE;
+                        if (mark) {
+                            underY[z * SIZE + x] = u;
+                        }
+                    } else {
+                        int n = 0;
+                        n += x > 0 && overhang[z * SIZE + x - 1] ? 1 : 0;
+                        n += x < SIZE - 1 && overhang[z * SIZE + x + 1] ? 1 : 0;
+                        n += z > 0 && overhang[(z - 1) * SIZE + x] ? 1 : 0;
+                        n += z < SIZE - 1 && overhang[(z + 1) * SIZE + x] ? 1 : 0;
+                        mark = n >= 2;
+                        if (mark) {
+                            underY[z * SIZE + x] = minUnder(underY, overhang, x, z, 1);
+                        }
+                    }
+                    if (mark) {
+                        overhang[z * SIZE + x] = true;
+                        if (devOverhangCut) {
+                            data[at + 1] = 0.0F; // 確かめ用の前の形: 地下モードの対象から外す(バニラの暗さになる)
+                        } else {
+                            // 地下の照らし方(床の持ち上げ・点光源)は残し、外から見て口からの距離で黒へ沈むのだけやめる(口までの距離 0)。
+                            // 11-09 ユーザーのワールド: 対象から外すと、過繁茂した構造物の中・下がバニラの暗さ(空の光 0)で前より暗くなった
+                            data[at + 2] = 0.0F;
+                        }
+                        count++;
+                    }
+                }
+            }
+        }
+        // 穴埋め(11-09 ユーザーの写真 25・26: 印の列の中に印の無い列が点々と残り、そこだけ外から見て黒へ沈んで、床に段の付いたまだらが出た)。
+        // 印の無い天井の下の列は、まわり 5×5 の 6 割以上が印なら印にする(柱・吊り下がった飾りの列)。
+        boolean[] filled = overhang.clone();
+        for (int z = 0; z < SIZE; z++) {
+            for (int x = 0; x < SIZE; x++) {
+                int i = z * SIZE + x;
+                if (overhang[i] || data[i * 4] <= NO_ROCK + 1.0F || data[i * 4 + 2] <= 0.5F) {
+                    continue;
+                }
+                int marked = 0;
+                int total = 0;
+                for (int dz = -2; dz <= 2; dz++) {
+                    for (int dx = -2; dx <= 2; dx++) {
+                        int nx = x + dx;
+                        int nz = z + dz;
+                        if ((dx != 0 || dz != 0) && nx >= 0 && nz >= 0 && nx < SIZE && nz < SIZE) {
+                            total++;
+                            marked += overhang[nz * SIZE + nx] ? 1 : 0;
+                        }
+                    }
+                }
+                if (total > 0 && marked >= 0.6F * total) {
+                    filled[i] = true;
+                    underY[i] = minUnder(underY, overhang, x, z, 2);
+                    if (devOverhangCut) {
+                        data[i * 4 + 1] = 0.0F;
+                    } else {
+                        data[i * 4 + 2] = 0.0F;
+                    }
+                    count++;
+                }
+            }
+        }
+        System.arraycopy(filled, 0, overhang, 0, overhang.length);
+        int cx0 = ox + COARSE_OFFSET;
+        int cz0 = oz + COARSE_OFFSET;
+        for (int z = 0; z < CSIZE; z++) {
+            for (int x = 0; x < CSIZE; x++) {
+                int at = (z * CSIZE + x) * 4;
+                if (coarse[at] <= NO_ROCK + 1.0F || coarse[at + 1] < 0.5F) {
+                    continue;
+                }
+                int wx = cx0 + x * COARSE + COARSE / 2;
+                int wz = cz0 + z * COARSE + COARSE / 2;
+                // まわりより 6 段以上高い升だけ(平らな地面・なだらかな丘は天井の下面を読まない)
+                if (openDirs(ox, oz, data, coarse, wx, wz, coarse[at] - 1.0F - 6.0F) < OVERHANG_OPEN_DIRS) {
+                    continue;
+                }
+                int topY = (int) (coarse[at] - 1.0F);
+                int bottom = topY;
+                while (bottom > topY - CEIL_SCAN && bottom - 1 >= minY && isRock(level.getBlockState(pos.set(wx, bottom - 1, wz)))) {
+                    bottom--;
+                }
+                if (topY - bottom >= CEIL_SCAN - 1 || bottom - 1 < minY) {
+                    continue; // 山の頂(下まで岩)
+                }
+                if (overhangColumn(level, pos, ox, oz, data, coarse, wx, wz, bottom, minY) != Integer.MIN_VALUE) {
+                    coarse[at + 1] = 0.0F;
+                }
+            }
+        }
+        return count;
+    }
+
+    /** 列 (wx, wz) から 8 方向に {@link #OVERHANG_REACH} の距離を見て、岩の上面が高さ {@code a} 以下の列(か、岩の無い読み込まれた列)がある方向の数。 */
+    private static int openDirs(int ox, int oz, float[] data, float[] coarse, int wx, int wz, float a) {
+        int open = 0;
+        int cx0 = ox + COARSE_OFFSET;
+        int cz0 = oz + COARSE_OFFSET;
+        for (int[] d : DIR8) {
+            double len = d[0] != 0 && d[1] != 0 ? Math.sqrt(2.0) : 1.0;
+            for (int reach : OVERHANG_REACH) {
+                int sx = wx + (int) Math.round(d[0] * reach / len);
+                int sz = wz + (int) Math.round(d[1] * reach / len);
+                int fx = sx - ox;
+                int fz = sz - oz;
+                float r;
+                boolean known;
+                if (fx >= 0 && fz >= 0 && fx < SIZE && fz < SIZE) {
+                    r = data[(fz * SIZE + fx) * 4];
+                    known = true; // 読み込まれていない列は NO_ROCK のまま(開けていると数えない)
+                    if (r <= NO_ROCK + 1.0F) {
+                        known = false;
+                    }
+                } else {
+                    int gx = Math.floorDiv(sx - cx0, COARSE);
+                    int gz = Math.floorDiv(sz - cz0, COARSE);
+                    if (gx < 0 || gz < 0 || gx >= CSIZE || gz >= CSIZE) {
+                        break;
+                    }
+                    int c = (gz * CSIZE + gx) * 4;
+                    r = coarse[c];
+                    known = coarse[c + 2] > 0.5F && r > NO_ROCK + 1.0F;
+                }
+                if (known && r <= a) {
+                    open++;
+                    break;
+                }
+            }
+        }
+        return open;
+    }
+
+    /** 列を下へたどるのは屋根の下面からこの段数まで(仮決め)。 */
+    private static final int UNDERSIDE_SCAN = 320;
+    /** 1 列で覚える浮いた岩の下面の数・見通しまで調べる数の上限(仮決め)。 */
+    private static final int MAX_UNDERSIDES = 12;
+    private static final int MAX_SEEN_CHECKS = 3;
+    /** 見通しを調べる高さ(下面から何段下。11-09: 吊り下がった飾りで 1・3 段下だけでは 8 方向のうち 4 方向しか通らなかった)。 */
+    private static final int[] RAY_DROPS = {1, 3, 6, 10};
+
+    /**
+     * 列が開けた張り出しの下なら、その判定に使った浮いた岩の下面の高さ。違えば Integer.MIN_VALUE。浮いた岩の下面を下から順に試す
+     * (11-09: 構造物の下の地面の下に洞窟があると、いちばん下の下面は洞窟の天井になり、外れていた)。高さの試しは安いので全部、見通しは {@link #MAX_SEEN_CHECKS} 回まで。
+     */
+    private static int overhangColumn(ClientLevel level, BlockPos.MutableBlockPos pos, int ox, int oz, float[] data, float[] coarse, int wx, int wz, int a,
+                                      int minY) {
+        int[] us = undersides(level, pos, wx, wz, a, minY);
+        int checks = 0;
+        for (int i = us.length - 1; i >= 0 && checks < MAX_SEEN_CHECKS; i--) {
+            if (openDirs(ox, oz, data, coarse, wx, wz, us[i]) < OVERHANG_OPEN_DIRS) {
+                continue;
+            }
+            checks++;
+            if (seenDirs(level, pos, ox, oz, data, coarse, wx, wz, us[i]) >= OVERHANG_OPEN_DIRS) {
+                return us[i];
+            }
+        }
+        return Integer.MIN_VALUE;
+    }
+
+    /** 列の屋根の下面 a と、その下の浮いた岩の下面(上から順。地面に着くまで、{@link #MAX_UNDERSIDES} 個まで)。 */
+    private static int[] undersides(ClientLevel level, BlockPos.MutableBlockPos pos, int wx, int wz, int a, int minY) {
+        int[] buf = new int[MAX_UNDERSIDES];
+        int n = 0;
+        buf[n++] = a;
+        int y = a - 1;
+        int stop = Math.max(minY, a - UNDERSIDE_SCAN);
+        while (y > stop && n < MAX_UNDERSIDES) {
+            while (y > stop && !isRock(level.getBlockState(pos.set(wx, y, wz)))) {
+                y--;
+            }
+            if (y <= stop) {
+                break;
+            }
+            int top = y;
+            while (y > stop && top - y < CEIL_SCAN && isRock(level.getBlockState(pos.set(wx, y - 1, wz)))) {
+                y--;
+            }
+            if (top - y >= CEIL_SCAN - 1 || y - 1 <= minY) {
+                break; // 地面に着いた
+            }
+            buf[n++] = y;
+            y--;
+        }
+        return java.util.Arrays.copyOf(buf, n);
+    }
+
+    /**
+     * 列 (wx, wz) の屋根の下面 {@code a} のすぐ下(1 段下と 3 段下)の高さで 8 方向へ 2 ブロックずつ進み、岩に当たる前に「その高さで空の開けた列」
+     * (岩の上面が a 以下)へ出られる方向の数。丘の中の洞窟は壁に当たるので数えない(11-09: 高さだけで見ると、まわりの平地より高い所の洞窟が外になった)。
+     * 空に浮かぶ構造物の下は空気が外まで続くので数える。読み込まれていない所・地図の外で止まる。
+     */
+    private static int seenDirs(ClientLevel level, BlockPos.MutableBlockPos pos, int ox, int oz, float[] data, float[] coarse, int wx, int wz, int a) {
+        int open = 0;
+        int done = 0;
+        int cx0 = ox + COARSE_OFFSET;
+        int cz0 = oz + COARSE_OFFSET;
+        for (int[] d : DIR8) {
+            double len = d[0] != 0 && d[1] != 0 ? Math.sqrt(2.0) : 1.0;
+            boolean seen = false;
+            for (int dy : RAY_DROPS) {
+                if (seen) {
+                    break;
+                }
+                int y = a - dy;
+                // 下面からこの高さまで、列が空気で続いている所だけ(11-09: 床・地面の中や世界の底の下から撃つと、空気として抜けて丘の洞窟が外になった)
+                boolean clear = y > level.getMinBuildHeight();
+                for (int k = a - 1; clear && k >= y; k--) {
+                    clear = !isRock(level.getBlockState(pos.set(wx, k, wz)));
+                }
+                if (!clear) {
+                    break;
+                }
+                for (int s = 2; s <= OVERHANG_REACH[OVERHANG_REACH.length - 1]; s += s < 16 ? 2 : s < 48 ? 4 : 8) {
+                    int sx = wx + (int) Math.round(d[0] * s / len);
+                    int sz = wz + (int) Math.round(d[1] * s / len);
+                    if (!level.hasChunk(sx >> 4, sz >> 4) || isRock(level.getBlockState(pos.set(sx, y, sz)))) {
+                        break; // 壁・床に当たった
+                    }
+                    int fx = sx - ox;
+                    int fz = sz - oz;
+                    float r;
+                    if (fx >= 0 && fz >= 0 && fx < SIZE && fz < SIZE) {
+                        r = data[(fz * SIZE + fx) * 4];
+                    } else {
+                        int gx = Math.floorDiv(sx - cx0, COARSE);
+                        int gz = Math.floorDiv(sz - cz0, COARSE);
+                        if (gx < 0 || gz < 0 || gx >= CSIZE || gz >= CSIZE) {
+                            break;
+                        }
+                        r = coarse[(gz * CSIZE + gx) * 4];
+                    }
+                    if (r > NO_ROCK + 1.0F && r <= a) {
+                        seen = true;
+                        break;
+                    }
+                }
+            }
+            if (seen) {
+                open++;
+            }
+            done++;
+            // 答えが決まったら打ち切る(11-09 軽く: ユーザーの構造物で地図 1 回が 0.9 秒かかった)
+            if (open >= OVERHANG_OPEN_DIRS || done - open > DIR8.length - OVERHANG_OPEN_DIRS) {
+                return open;
+            }
+        }
+        return open;
+    }
+
+    /**
+     * 確かめ用(cavedev overhangmap): カメラのまわり ±r 列の印を文字の地図で(行 = z、列 = x、北が上)。
+     * '.' = 岩が無いか天井の無い列(口までの距離 0)、'o' = 開けた張り出しの印、'#' = 印の無い天井の下(外から見て黒へ沈む列)、'@' = カメラ。
+     */
+    static String overhangMap(int cx, int cz, int r) {
+        Built b = shown;
+        if (b == null) {
+            return "地図なし";
+        }
+        StringBuilder s = new StringBuilder();
+        for (int z = cz - r; z <= cz + r; z++) {
+            s.append('\n');
+            for (int x = cx - r; x <= cx + r; x++) {
+                int fx = x - b.originX;
+                int fz = z - b.originZ;
+                if (fx < 0 || fz < 0 || fx >= SIZE || fz >= SIZE) {
+                    s.append(' ');
+                    continue;
+                }
+                int i = fz * SIZE + fx;
+                char c = x == cx && z == cz ? '@' : b.overhang[i] ? 'o' : b.data[i * 4 + 2] > 0.5F ? '#' : '.';
+                s.append(c);
+            }
+        }
+        return s.toString();
+    }
+
+    /** 確かめ用(cavedev overhangwhy x z): 列の屋根の下面・浮いた岩のいちばん下の面・高さで開けた方向・見通せた方向。描画のスレッドで地図を読み直す。 */
+    static String explainOverhang(ClientLevel level, int wx, int wz) {
+        Built b = shown;
+        if (b == null) {
+            return "地図なし";
+        }
+        int x = wx - b.originX;
+        int z = wz - b.originZ;
+        if (x < 0 || z < 0 || x >= SIZE || z >= SIZE) {
+            return "地図の外";
+        }
+        int at = (z * SIZE + x) * 4;
+        float top = b.data[at] - 1.0F;
+        float a = b.data[at + 3];
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        StringBuilder s = new StringBuilder(String.format("岩の上面 %.0f 屋根の下面 %.0f 印 %s 下面ごと(高さで開けた・見通せた):", top, a, b.overhang[z * SIZE + x]));
+        for (int u : undersides(level, pos, wx, wz, (int) a, level.getMinBuildHeight())) {
+            s.append(String.format(" %d(%d・%d)", u, openDirs(b.originX, b.originZ, b.data, b.coarse, wx, wz, u),
+                    seenDirs(level, pos, b.originX, b.originZ, b.data, b.coarse, wx, wz, u)));
+        }
+        return s.toString();
+    }
+
+    /** 印の列の、判定に使った浮いた岩の下面の高さのうち、(x, z) のまわり r 列で一番低いもの(11-09: 一番高いものにすると、構造物の中のカメラが下にいると取り違えられ、葉の面が分かれた)(穴埋め・市松の残りの列に)。 */
+    private static float minUnder(float[] underY, boolean[] overhang, int x, int z, int r) {
+        float best = Float.NaN;
+        for (int dz = -r; dz <= r; dz++) {
+            for (int dx = -r; dx <= r; dx++) {
+                int nx = x + dx;
+                int nz = z + dz;
+                if (nx >= 0 && nz >= 0 && nx < SIZE && nz < SIZE && overhang[nz * SIZE + nx] && !Float.isNaN(underY[nz * SIZE + nx])) {
+                    best = Float.isNaN(best) ? underY[nz * SIZE + nx] : Math.min(best, underY[nz * SIZE + nx]);
+                }
+            }
+        }
+        return best;
+    }
+
+    /**
+     * カメラ (wx, y, wz) が、空に浮かぶ構造物の<b>下</b>(浮いた岩のいちばん下の面より下の、開けた空気)にいるか(11-09)。カメラの列か、まわり 5×5 の印の列の
+     * 下面の高さのうち一番低いものより下なら真。構造物の<b>中</b>(下面より上)では偽 = カメラはもとの地下の判定のまま
+     * (中で外扱いにすると、面が自分の空の光だけで地下かどうか決まり、葉の面が明るい緑と真っ暗に分かれた。ユーザーの写真 28〜30)。
+     */
+    static boolean cameraBelowOverhang(int wx, int wz, double y) {
+        Built b = shown;
+        if (b == null) {
+            return false;
+        }
+        int x = wx - b.originX;
+        int z = wz - b.originZ;
+        if (x < 0 || z < 0 || x >= SIZE || z >= SIZE) {
+            return false;
+        }
+        float u = b.overhang[z * SIZE + x] ? b.underY[z * SIZE + x] : Float.NaN;
+        if (Float.isNaN(u) && overhangShare(wx, wz, 2) >= 0.5F) {
+            u = minUnder(b.underY, b.overhang, x, z, 2);
+        }
+        return !Float.isNaN(u) && y < u;
+    }
+
+    /** (wx, wz) のまわり (2r+1)² 列のうち開けた張り出しの印の列の割合(地図の外の列は数えない。11-09: 構造物の柱の列は地面まで岩なので印が付かず、柱のそばのカメラが地下になった)。 */
+    static float overhangShare(int wx, int wz, int r) {
+        Built b = shown;
+        if (b == null) {
+            return 0.0F;
+        }
+        int marked = 0;
+        int total = 0;
+        for (int dz = -r; dz <= r; dz++) {
+            for (int dx = -r; dx <= r; dx++) {
+                int x = wx + dx - b.originX;
+                int z = wz + dz - b.originZ;
+                if (x < 0 || z < 0 || x >= SIZE || z >= SIZE) {
+                    continue;
+                }
+                total++;
+                marked += b.overhang[z * SIZE + x] ? 1 : 0;
+            }
+        }
+        return total == 0 ? 0.0F : (float) marked / total;
+    }
+
+    /** 列 (wx, wz) が開けた張り出しの下か(細かい地図の中だけ。地図が無い・外なら偽)。カメラの地下の判定・洞窟の口の演出が見る(11-09)。 */
+    static boolean overhangAt(int wx, int wz) {
+        Built b = shown;
+        if (b == null) {
+            return false;
+        }
+        int x = wx - b.originX;
+        int z = wz - b.originZ;
+        return x >= 0 && z >= 0 && x < SIZE && z < SIZE && b.overhang[z * SIZE + x];
     }
 
     /** 天井の下面を探す深さ(仮決め 64)。これより厚い岩は「とても深い天井」として扱う。 */
@@ -456,7 +875,7 @@ final class CaveMap {
     /** 確かめ用の一行。 */
     static String describe() {
         Built b = shown;
-        return b == null ? "地下の地図 なし" : String.format("地下の地図 原点 %d %d 岩の天井 %s 作る時間 細かい %d µs 粗い %d µs 水面 %d µs", b.originX, b.originZ, b.anyRoof,
-                b.fineMicros, b.coarseMicros, b.waterMicros);
+        return b == null ? "地下の地図 なし" : String.format("地下の地図 原点 %d %d 岩の天井 %s 作る時間 細かい %d µs 粗い %d µs 水面 %d µs 開けた張り出し %d 列 %d µs", b.originX, b.originZ, b.anyRoof,
+                b.fineMicros, b.coarseMicros, b.waterMicros, b.overhangCount, b.overhangMicros);
     }
 }
