@@ -115,7 +115,7 @@ public final class CloudSky {
 
     /**
      * 点 (x, z)(世界の座標)のまわり ±range ブロックにかかる積乱雲(場の座標)。何度も引かれるので、場の座標の 2048 ブロックの升ごと・
-     * 時刻 100 tick ごとに覚える(積乱雲の育ちは 100 tick ではほとんど変わらない。升の縁は 1 升ぶん広げて探すので覆える)。
+     * 時刻 100 tick ごとに覚える(升の縁は 1 升ぶん広げて探すので覆える)。GameTest は始めに {@link #clearNearCache} で覚えを消す。
      */
     public static List<CloudField.Storm> stormsNear(Level level, double x, double z, float partialTick, double range) {
         long gt = level.getGameTime();
@@ -127,6 +127,8 @@ public final class CloudSky {
         }
         int cx = Mth.floor(fx / NEAR_CELL);
         int cz = Mth.floor(fz / NEAR_CELL);
+        // 時刻は 100 tick ごとに覚える。その間に湧き始めた雲(育ち 0.15 を越えた所)は次の 100 tick まで一覧に無いことがある(11-10 に調べた。
+        // tick ちょうどにすると毎 tick 作り直しになって重い。湧き始めの小さい雲が 100 tick 遅れるだけなので、遊びでは困らない)。
         NearKey key = new NearKey(level.dimension().location().toString(), cx, cz, level.getDayTime() / 100L, Math.round(stormCoverage(coverage) * 50.0F),
                 CloudShape.current(), CloudField.seed(), level.isClientSide());
         List<CloudField.Storm> list = NEAR.get(key);
@@ -147,6 +149,11 @@ public final class CloudSky {
     }
 
     private static final java.util.Map<NearKey, List<CloudField.Storm>> NEAR = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** {@link #stormsNear} の覚えを消す(GameTest で、ほかのテストが少し前の時刻で覚えた一覧を使わないように。11-10)。 */
+    public static void clearNearCache() {
+        NEAR.clear();
+    }
 
     /**
      * 世界の点 (x, z)・今の時刻の雲の柱(底と天辺の y)。雲が無ければ null。下の層(雲の海と裾野)と積乱雲・入道雲(塊を 8 ブロックおきに縦にたどる)。

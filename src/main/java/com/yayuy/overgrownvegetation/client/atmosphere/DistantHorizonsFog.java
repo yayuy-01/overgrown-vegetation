@@ -48,6 +48,8 @@ public final class DistantHorizonsFog {
     private static boolean inForest;
     /** 地下モードで DH を上書きしているか(11-07)。 */
     private static boolean inCave;
+    /** 熱水の森(ネザー)の霧で DH を上書きしているか(11-10)。 */
+    private static boolean inHeat;
 
     /** DH が入っているか(11-07: 地下の間の DH の遠景の霧の色を洞窟の色へ寄せるのは DH があるときだけ。{@link MistView})。 */
     static boolean loaded() {
@@ -74,8 +76,11 @@ public final class DistantHorizonsFog {
         // 穴の向こうに DH の遠景がくっきり出た。地下モードの間も森の霧と同じに、ふつうの霧を有効にして遠景を霧で隠す(0.5 で入り 0.3 で出る)。
         float cave = inWorld && VisualQuality.caveLight() && !CaveLights.devHalfRoof ? CaveLights.mix() : 0.0F;
         inCave = inCave ? cave > 0.3F : cave >= 0.5F;
-        fogSent = send("ふつうの霧", vanillaFogValue, inside > 0.001F || inForest || inCave, Boolean.TRUE, fogSent);
-        boolean thick = inside > 0.5F || inForest || inCave;
+        // 11-10 熱水の森(ネザー)の霧(client/atmosphere/heat/HeatFxFog)もバニラの霧の距離で出すので、森の中の間はふつうの霧を有効に(0.1 で入り 0.05 で出る)。
+        float heat = inWorld ? com.yayuy.overgrownvegetation.client.atmosphere.heat.HeatFxFog.amount() : 0.0F;
+        inHeat = inHeat ? heat > 0.05F : heat >= 0.1F;
+        fogSent = send("ふつうの霧", vanillaFogValue, inside > 0.001F || inForest || inCave || inHeat, Boolean.TRUE, fogSent);
+        boolean thick = inside > 0.5F || inForest || inCave || inHeat;
         farFogMinSent = send("遠景の霧(薄い所)", farFogMinValue, thick, HIDDEN_FAR_FOG, farFogMinSent);
         farFogMaxSent = send("遠景の霧(濃い所)", farFogMaxValue, thick, HIDDEN_FAR_FOG, farFogMaxSent);
     }

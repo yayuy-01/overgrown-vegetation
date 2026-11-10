@@ -1280,6 +1280,11 @@ public class CorruptionSpreader {
             // 雪のように「汚染しても消えるだけ」のブロックは、その跡地(空気)に何も生やさない。
             return;
         }
+        if (HeatForestGround.applies(level)) {
+            // ネザーの熱水の森(2026-11-09): オーバーワールドの林床・トクサ・茂みは置かず、熱水の森の植物だけ
+            growSurfacePlants(level, pos, hostState, surfaceGrowthChance(level, pos));
+            return;
+        }
         // 林床の地面(泥炭の斑と水たまり・倒木。密林だけ、2026-11-01)。水たまりになったマスには何も生やさない
         hostState = FloorGrowth.beforePlants(level, pos, hostState);
         if (hostState.isAir() || hostState.is(Blocks.WATER)) {
@@ -2148,6 +2153,11 @@ public class CorruptionSpreader {
             return;
         }
         if (chance <= 0.0D || !OvergrownVegetationConfig.COMMON.spawnGrowthPlants.get()) {
+            return;
+        }
+        if (HeatForestGround.applies(level)) {
+            // ネザーの熱水の森(2026-11-09): オーバーワールドの下草・洞窟の植物・壁の植物・蔓は生やさない
+            HeatForestFlora.grow(level, pos, hostState, chance);
             return;
         }
 

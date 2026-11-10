@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "part=bottom,waterlogged=false": { "model": "overgrown_vegetation:block/heat_forest/horsetail_bottom" },
+    "part=bottom,waterlogged=true": { "model": "overgrown_vegetation:block/heat_forest/horsetail_bottom" },
+    "part=middle,waterlogged=false": { "model": "overgrown_vegetation:block/heat_forest/horsetail_middle" },
+    "part=middle,waterlogged=true": { "model": "overgrown_vegetation:block/heat_forest/horsetail_middle" },
+    "part=top,waterlogged=false": { "model": "overgrown_vegetation:block/heat_forest/horsetail_top" },
+    "part=top,waterlogged=true": { "model": "overgrown_vegetation:block/heat_forest/horsetail_top" }
+  }
+}

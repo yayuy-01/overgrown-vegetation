@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "": [
+      { "model": "overgrown_vegetation:block/heat_forest/scale_shrub" },
+      { "model": "overgrown_vegetation:block/heat_forest/scale_shrub", "y": 90 },
+      { "model": "overgrown_vegetation:block/heat_forest/scale_shrub", "y": 180 },
+      { "model": "overgrown_vegetation:block/heat_forest/scale_shrub", "y": 270 }
+    ]
+  }
+}

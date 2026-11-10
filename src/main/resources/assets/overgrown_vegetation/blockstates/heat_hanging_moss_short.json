@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "": [
+      { "model": "overgrown_vegetation:block/heat_forest/hanging_moss_short" },
+      { "model": "overgrown_vegetation:block/heat_forest/hanging_moss_short", "y": 90 },
+      { "model": "overgrown_vegetation:block/heat_forest/hanging_moss_short", "y": 180 },
+      { "model": "overgrown_vegetation:block/heat_forest/hanging_moss_short", "y": 270 }
+    ]
+  }
+}

@@ -11,6 +11,7 @@
 #ov_import <ov_sway.glsl>
 #ov_import <ov_fog.glsl>
 #ov_import <ov_leaf.glsl>
+#ov_import <ov_heat_glow.glsl>
 
 out vec4 v_Color;
 out vec2 v_TexCoord;
@@ -62,6 +63,8 @@ void main() {
     vec3 tint = color.rgb;
     ovLeaf = ((_material_params >> 1u) & 3u) == 2u ? ovLeafDecode(color, tint) : vec4(0.0);
     color.rgb = tint;
+    // The glowing faces of the heat forest carry a class code in their tint (ov_heat_glow.glsl, 11-10): read it, back to the grey shade.
+    color = ovHeatGlowDecode(color);
     position += ovDisplace(position, vec3(0.0), color.a);
     // The spore dust (client/SporeDustRenderer) carries code 64 in its alpha: not water, so no water glint. Its alpha goes back to 1.
     ovNoGlint = abs(floor((1.0 - color.a) * 255.0 + 0.5) - 64.0) < 0.5 ? 1.0 : 0.0;
@@ -77,7 +80,9 @@ void main() {
     gl_Position = u_ProjectionMatrix * u_ModelViewMatrix * vec4(position, 1.0);
 
     // Add the light color to the vertex color, and pass the texture coordinates to the fragment shader
-    v_Color = color * texture(u_LightTex, _vert_tex_light_coord);
+    // The heat forest glow (ov_heat_glow.glsl): the sky body takes the full block light by day; the class gain (time of day, breathing).
+    v_Color = color * texture(u_LightTex, vec2(ovHeatBlockLight(_vert_tex_light_coord.x, 248.0 / 256.0), _vert_tex_light_coord.y));
+    v_Color.rgb *= ovHeatGlowGain(position);
     v_TexCoord = (_vert_tex_diffuse_coord_bias * u_TexCoordShrink) + _vert_tex_diffuse_coord; // FMA for precision
 
     v_Material = _material_params;

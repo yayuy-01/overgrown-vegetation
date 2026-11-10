@@ -263,6 +263,9 @@ public final class CloudField {
     public static synchronized void setSeed(long seed) {
         if (seed != SEED) {
             build(seed);
+            // 塊の覚えも捨てる(11-10。鍵にも種を入れたが、古い種の塊で覚えが埋まらないように)。
+            PUFFS.clear();
+            PuffIndex.clear();
         }
     }
 
@@ -970,7 +973,16 @@ public final class CloudField {
         if (s.kind() != KIND_RIDGE) {
             lite = 0;
         }
-        long key = ((s.id() * 31L + Math.round(s.maturity() * 32.0F)) * 7L + s.style() * 3L + s.kind()) * 3L + lite;
+        // 11-10: 雲の種を鍵に入れた(積乱雲の番号は種に依らないが、場所・大きさ・高さは種で決まるので、ほかの種で作った塊が返り、
+        // 浮いた雲の真ん中が雲の中にならなかった。GameTest stormsAreQueryableOnTheServer が全体の実行でだけ落ちた原因)。育ちの項が番号の項に
+        // はみ出して別の雲と鍵がぶつかることもあったので、掛け算で混ぜる。
+        long key = s.id() * 0x9E3779B97F4A7C15L + Math.round(s.maturity() * 32.0F);
+        key = ((key * 31L + s.style()) * 7L + s.kind()) * 3L + lite;
+        key ^= SEED * 0xC2B2AE3D27D4EB4FL;
+        // 11-10: 雲の場所と高さも鍵に入れる(升の番号は格子の座標の掛け算の XOR で作っていて、離れた升が同じ番号になることがある。
+        // 浮いた雲で 10 升・2 升離れた雲が同じ番号になり、先に覚えた方の場所の塊が返って、真ん中が雲の中にならなかった)。
+        key = key * 0x9E3779B97F4A7C15L ^ (long) Math.floor(s.x()) * 0x632BE59BD9B4E019L
+                ^ (long) Math.floor(s.z()) * 0x85EBCA77C2B2AE63L ^ (long) s.top() * 0x27D4EB2F165667C5L;
         List<Puff> cached = PUFFS.get(key);
         if (cached != null) {
             return cached;

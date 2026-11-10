@@ -66,7 +66,7 @@ public final class CoverRenderer {
 
     @SubscribeEvent
     public static void onAddSectionGeometry(AddSectionGeometryEvent event) {
-        CoverSprites.Set sprites = CoverSprites.current();
+        CoverSprites.Set sprites = CoverSprites.forLevel(event.getLevel());
         if (sprites == null) {
             return;
         }

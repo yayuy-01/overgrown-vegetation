@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "axis=y": { "model": "overgrown_vegetation:block/heat_forest/bark" },
+    "axis=z": { "model": "overgrown_vegetation:block/heat_forest/bark", "x": 90 },
+    "axis=x": { "model": "overgrown_vegetation:block/heat_forest/bark", "x": 90, "y": 90 }
+  }
+}

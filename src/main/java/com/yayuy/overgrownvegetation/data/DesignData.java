@@ -52,6 +52,8 @@ public final class DesignData {
     private static volatile AdaptationTable adaptation = AdaptationTable.DEFAULT;
     private static volatile ActionTable actions = ActionTable.DEFAULT;
     private static volatile SkyTable sky = SkyTable.DEFAULT;
+    private static volatile HeatFxTable heatFx = HeatFxTable.DEFAULT;
+    private static volatile HeatForestTable heatForest = HeatForestTable.DEFAULT;
 
     private static volatile boolean loaded;
 
@@ -104,6 +106,16 @@ public final class DesignData {
         return sky;
     }
 
+    /** 熱水の森の見え方の設計値({@code heat_fx.json}、2026-11-10 熱水の森のシェーダー段階 1)。クライアントの描画だけが読む。 */
+    public static HeatFxTable heatFx() {
+        return heatFx;
+    }
+
+    /** 熱水の森の大きな植物の設計値({@code heat_forest.json}、2026-11-10 追記 14)。普通の木の小・中・大と管の樹の高さ。 */
+    public static HeatForestTable heatForest() {
+        return heatForest;
+    }
+
     public static ActionTable actions() {
         return actions;
     }
@@ -142,6 +154,8 @@ public final class DesignData {
         adaptation = AdaptationTable.fromJson(read(dir, "adaptation.json", AdaptationTable.Json.class));
         actions = ActionTable.fromJson(read(dir, "actions.json", ActionTable.Json.class));
         sky = SkyTable.fromJson(read(dir, "sky.json", SkyTable.Json.class));
+        heatFx = HeatFxTable.fromJson(read(dir, "heat_fx.json", HeatFxTable.Json.class));
+        heatForest = HeatForestTable.fromJson(read(dir, "heat_forest.json", HeatForestTable.Json.class));
 
         OvergrownVegetation.LOGGER.info("設計データを読み込みました({})", dir);
     }

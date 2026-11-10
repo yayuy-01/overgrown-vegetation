@@ -1420,6 +1420,179 @@ public final class ModBlocks {
             .sound(SoundType.MOSS)
             .noOcclusion();
 
+    // ------------------------------------------------------------------
+    // ネザーの熱水の森・段階 1(2026-11-09): 地面と小さな植物。置き場所は corruption/HeatForestGround・HeatForestFlora。
+    // 絵は tools/nether-flora の下絵 4 回目(textures/block/heat_forest)。本体は暗く、模様だけ光る(模型の _glow の面に block_light)。
+    // ブロックの光源は持たない(光は模型の面だけ。周りは照らさない)。
+    // ------------------------------------------------------------------
+
+    private static BlockBehaviour.Properties heatPlant(SoundType sound, boolean offset) {
+        return crossGrowthProperties(sound).mapColor(MapColor.COLOR_CYAN)
+                .offsetType(offset ? BlockBehaviour.OffsetType.XZ : BlockBehaviour.OffsetType.NONE);
+    }
+
+    /** 冷えた殻: 溶岩の海の表面・汚染されたネザーの中身。橙のひびがかすかに光る。 */
+    public static final DeferredBlock<Block> HEAT_COOLED_CRUST = BLOCKS.registerSimpleBlock("heat_cooled_crust",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.NETHERRACK).mapColor(MapColor.COLOR_BLACK).sound(SoundType.BASALT));
+    /** 熱の敷物 A(光る粒)。汚染されたネザーの床。 */
+    public static final DeferredBlock<Block> HEAT_MAT = BLOCKS.registerSimpleBlock("heat_mat",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.NETHERRACK).mapColor(MapColor.WARPED_NYLIUM).sound(SoundType.NYLIUM));
+    /** 熱の敷物 B(糸)。A に少し混ぜる。 */
+    public static final DeferredBlock<Block> HEAT_MAT_STRANDS = BLOCKS.registerSimpleBlock("heat_mat_strands",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.NETHERRACK).mapColor(MapColor.WARPED_NYLIUM).sound(SoundType.NYLIUM));
+    /** 光の苔 A: 高い天井(床まで 24 以上)の下の面。 */
+    public static final DeferredBlock<Block> HEAT_CEILING_GLOW_MOSS = BLOCKS.registerSimpleBlock("heat_ceiling_glow_moss",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.NETHERRACK).mapColor(MapColor.COLOR_CYAN).sound(SoundType.MOSS));
+
+    // 床に貼る板
+    public static final DeferredBlock<Block> HEAT_ROOT_NET = BLOCKS.registerBlock("heat_root_net",
+            com.yayuy.overgrownvegetation.block.FloorCarpetBlock::new, heatPlant(SoundType.HANGING_ROOTS, false));
+    public static final DeferredBlock<Block> HEAT_ROOT_NET_KNOT = BLOCKS.registerBlock("heat_root_net_knot",
+            com.yayuy.overgrownvegetation.block.FloorCarpetBlock::new, heatPlant(SoundType.HANGING_ROOTS, false));
+    public static final DeferredBlock<Block> HEAT_THIN_MOSS = BLOCKS.registerBlock("heat_thin_moss",
+            com.yayuy.overgrownvegetation.block.FloorCarpetBlock::new, heatPlant(SoundType.MOSS_CARPET, false));
+    public static final DeferredBlock<Block> HEAT_STEM_LITTER = BLOCKS.registerBlock("heat_stem_litter",
+            com.yayuy.overgrownvegetation.block.FloorCarpetBlock::new, heatPlant(SoundType.MOSS_CARPET, false));
+    public static final DeferredBlock<Block> HEAT_VENT_FLOC = BLOCKS.registerBlock("heat_vent_floc",
+            com.yayuy.overgrownvegetation.block.FloorCarpetBlock::new, heatPlant(SoundType.WOOL, false));
+    // 床の下草(cross・立体)
+    public static final DeferredBlock<Block> HEAT_ZENMAI = BLOCKS.registerBlock("heat_zenmai",
+            CorruptedGroundGrowthBlock::new, heatPlant(SoundType.SWEET_BERRY_BUSH, true));
+    public static final DeferredBlock<Block> HEAT_CURLED_FERN = BLOCKS.registerBlock("heat_curled_fern",
+            CorruptedGroundGrowthBlock::new, heatPlant(SoundType.GRASS, false));
+    public static final DeferredBlock<Block> HEAT_FUR_FLOWER = BLOCKS.registerBlock("heat_fur_flower",
+            CorruptedGroundGrowthBlock::new, heatPlant(SoundType.WOOL, true));
+    public static final DeferredBlock<Block> HEAT_FUR_TUFT = BLOCKS.registerBlock("heat_fur_tuft",
+            CorruptedGroundGrowthBlock::new, heatPlant(SoundType.WOOL, true));
+    public static final DeferredBlock<Block> HEAT_CLUBMOSS = BLOCKS.registerBlock("heat_clubmoss",
+            CorruptedGroundGrowthBlock::new, heatPlant(SoundType.MOSS, true));
+    public static final DeferredBlock<Block> HEAT_SPORE_CAP = BLOCKS.registerBlock("heat_spore_cap",
+            CorruptedGroundGrowthBlock::new, heatPlant(SoundType.FUNGUS, true));
+    public static final DeferredBlock<Block> HEAT_TALL_SPORE_CAP = BLOCKS.registerBlock("heat_tall_spore_cap",
+            CorruptedTallGrowthBlock::new, heatPlant(SoundType.FUNGUS, true));
+    public static final DeferredBlock<Block> HEAT_TALL_FERN = BLOCKS.registerBlock("heat_tall_fern",
+            CorruptedTallGrowthBlock::new, heatPlant(SoundType.GRASS, true));
+    public static final DeferredBlock<Block> HEAT_HORSETAIL = BLOCKS.registerBlock("heat_horsetail",
+            com.yayuy.overgrownvegetation.block.HorsetailBlock::new, heatPlant(SoundType.BAMBOO, true));
+    public static final DeferredBlock<Block> HEAT_FRUIT_BUSH = BLOCKS.registerBlock("heat_fruit_bush",
+            CorruptedGroundGrowthBlock::new, heatPlant(SoundType.SWEET_BERRY_BUSH, false));
+    public static final DeferredBlock<Block> HEAT_SCALE_SHRUB = BLOCKS.registerBlock("heat_scale_shrub",
+            CorruptedGroundGrowthBlock::new, heatPlant(SoundType.AZALEA_LEAVES, false));
+    public static final DeferredBlock<Block> HEAT_THORN_SCALE_SHRUB = BLOCKS.registerBlock("heat_thorn_scale_shrub",
+            CorruptedGroundGrowthBlock::new, heatPlant(SoundType.AZALEA_LEAVES, false));
+    public static final DeferredBlock<Block> HEAT_TUBE_WORMS = BLOCKS.registerBlock("heat_tube_worms",
+            CorruptedGroundGrowthBlock::new, heatPlant(SoundType.CORAL_BLOCK, false));
+    public static final DeferredBlock<Block> HEAT_SMALL_CHIMNEY = BLOCKS.registerBlock("heat_small_chimney",
+            CorruptedGroundGrowthBlock::new, heatPlant(SoundType.DRIPSTONE_BLOCK, false));
+    // 天井・下面
+    public static final DeferredBlock<Block> HEAT_POD_CLUSTER = BLOCKS.registerBlock("heat_pod_cluster",
+            CorruptedHangingGrowthBlock::new, heatPlant(SoundType.FROGSPAWN, false));
+    public static final DeferredBlock<Block> HEAT_ROOT_CURTAIN = BLOCKS.registerBlock("heat_root_curtain",
+            com.yayuy.overgrownvegetation.block.HeatStrandBlock::new, heatPlant(SoundType.HANGING_ROOTS, false));
+    public static final DeferredBlock<Block> HEAT_ROOT_ROPE = BLOCKS.registerBlock("heat_root_rope",
+            com.yayuy.overgrownvegetation.block.HeatStrandBlock::new, heatPlant(SoundType.HANGING_ROOTS, false));
+    public static final DeferredBlock<Block> HEAT_GLOW_VINE = BLOCKS.registerBlock("heat_glow_vine",
+            com.yayuy.overgrownvegetation.block.HeatStrandBlock::new, heatPlant(SoundType.CAVE_VINES, false));
+    public static final DeferredBlock<Block> HEAT_BEARD_LICHEN = BLOCKS.registerBlock("heat_beard_lichen",
+            CorruptedHangingGrowthBlock::new, heatPlant(SoundType.MOSS, true));
+    public static final DeferredBlock<Block> HEAT_HANGING_FIDDLEHEAD = BLOCKS.registerBlock("heat_hanging_fiddlehead",
+            CorruptedHangingGrowthBlock::new, heatPlant(SoundType.SWEET_BERRY_BUSH, true));
+    public static final DeferredBlock<Block> HEAT_HANGING_MOSS = BLOCKS.registerBlock("heat_hanging_moss",
+            CorruptedHangingGrowthBlock::new, heatPlant(SoundType.MOSS_CARPET, false));
+    public static final DeferredBlock<Block> HEAT_HANGING_MOSS_SHORT = BLOCKS.registerBlock("heat_hanging_moss_short",
+            CorruptedHangingGrowthBlock::new, heatPlant(SoundType.MOSS_CARPET, false));
+    public static final DeferredBlock<Block> HEAT_BELL = BLOCKS.registerBlock("heat_bell",
+            CorruptedHangingGrowthBlock::new, heatPlant(SoundType.FUNGUS, false));
+    public static final DeferredBlock<Block> HEAT_MINERAL_STRAWS = BLOCKS.registerBlock("heat_mineral_straws",
+            CorruptedHangingGrowthBlock::new, heatPlant(SoundType.POINTED_DRIPSTONE, false));
+    // 側面(壁)。facing = 壁から離れる向き
+    public static final DeferredBlock<Block> HEAT_WALL_FERN = BLOCKS.registerBlock("heat_wall_fern",
+            CorruptedWallGrowthBlock::new, wallGrowthProperties(SoundType.GRASS).mapColor(MapColor.COLOR_CYAN));
+    public static final DeferredBlock<Block> HEAT_WALL_SCALE = BLOCKS.registerBlock("heat_wall_scale",
+            CorruptedWallGrowthBlock::new, wallGrowthProperties(SoundType.VINE).mapColor(MapColor.COLOR_CYAN));
+
+    // 鉱石・グロウストーンの熱水の森の版(2026-11-09 追記 1、ユーザー決定: 地を冷えた殻の色にし、落とす物はバニラと同じ)。グロウストーンも同じ扱い(11-10 ユーザー決定)
+    public static final DeferredBlock<Block> HEAT_QUARTZ_ORE = BLOCKS.registerBlock("heat_quartz_ore",
+            props -> new DropExperienceBlock(UniformInt.of(2, 5), props),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.NETHER_QUARTZ_ORE).mapColor(MapColor.COLOR_BLACK));
+    public static final DeferredBlock<Block> HEAT_GOLD_ORE = BLOCKS.registerBlock("heat_gold_ore",
+            props -> new DropExperienceBlock(UniformInt.of(0, 1), props),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.NETHER_GOLD_ORE).mapColor(MapColor.COLOR_BLACK));
+    public static final DeferredBlock<Block> HEAT_ANCIENT_DEBRIS = BLOCKS.registerSimpleBlock("heat_ancient_debris",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.ANCIENT_DEBRIS).mapColor(MapColor.COLOR_BLACK));
+    public static final DeferredBlock<Block> HEAT_GLOWSTONE = BLOCKS.registerSimpleBlock("heat_glowstone",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.GLOWSTONE).mapColor(MapColor.COLOR_CYAN));
+
+    // 熱水の森・木の段階の前半(2026-11-10): 普通の木 B 案 2・天井の逆さの木・熱の気根・管の樹 A/B・煙突の塚 A/B。置き場所は corruption/HeatForestTrees。
+    // 葉は落ちない(普通の葉のような腐り落ちは無し。仮)。光る面の階級は side-session-notes「熱水の森-光る面の階級と目印」
+    /** 熱の幹(普通の木・逆さの木の幹。光は不変)。 */
+    public static final DeferredBlock<Block> HEAT_BARK = BLOCKS.registerBlock("heat_bark", RotatedPillarBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.WARPED_STEM).mapColor(MapColor.COLOR_BLACK));
+    /** 地上の木の葉(葉が下を向く傘。光は地)。 */
+    public static final DeferredBlock<Block> HEAT_LEAVES = BLOCKS.registerSimpleBlock("heat_leaves",
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_CYAN).strength(0.2F).sound(SoundType.AZALEA_LEAVES).noOcclusion()
+                    .isValidSpawn((s, l, p, t) -> false).isSuffocating((s, l, p) -> false).isViewBlocking((s, l, p) -> false));
+    /** 天井の逆さの木の葉(光は空・体は空の体)。 */
+    public static final DeferredBlock<Block> HEAT_SKY_LEAVES = BLOCKS.registerSimpleBlock("heat_sky_leaves",
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_CYAN).strength(0.2F).sound(SoundType.AZALEA_LEAVES).noOcclusion()
+                    .isValidSpawn((s, l, p, t) -> false).isSuffocating((s, l, p) -> false).isViewBlocking((s, l, p) -> false));
+    /** 地上の木の傘の縁から垂れる紫の房(光は地)。 */
+    public static final DeferredBlock<Block> HEAT_LEAF_FRINGE = BLOCKS.registerBlock("heat_leaf_fringe",
+            CorruptedHangingGrowthBlock::new, heatPlant(SoundType.AZALEA_LEAVES, false));
+    /** 逆さの木の樹冠から垂れる白っぽい青緑の房(光は空)。 */
+    public static final DeferredBlock<Block> HEAT_SKY_LEAF_FRINGE = BLOCKS.registerBlock("heat_sky_leaf_fringe",
+            CorruptedHangingGrowthBlock::new, heatPlant(SoundType.AZALEA_LEAVES, false));
+    /** 熱の気根(逆さの木の樹冠の下から下りる。光は地)。 */
+    public static final DeferredBlock<Block> HEAT_AERIAL_ROOT = BLOCKS.registerBlock("heat_aerial_root",
+            com.yayuy.overgrownvegetation.block.HeatStrandBlock::new, heatPlant(SoundType.HANGING_ROOTS, false));
+    /** 管の樹 B の太い管(1 ブロックの管)。 */
+    public static final DeferredBlock<Block> HEAT_TUBE = BLOCKS.registerSimpleBlock("heat_tube",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.CALCITE).mapColor(MapColor.COLOR_GRAY).sound(SoundType.CORAL_BLOCK));
+    /** 管の樹 A の細い管(6 画素角の柱)。 */
+    public static final DeferredBlock<Block> HEAT_TUBE_STEM = BLOCKS.registerBlock("heat_tube_stem", com.yayuy.overgrownvegetation.block.HeatTubeStemBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.CALCITE).mapColor(MapColor.COLOR_GRAY).sound(SoundType.CORAL_BLOCK).noOcclusion());
+    /** 管の先の羽根(管虫の羽。目印。近づくと引っ込むのは後の段階)。 */
+    public static final DeferredBlock<Block> HEAT_TUBE_PLUME = BLOCKS.registerBlock("heat_tube_plume",
+            CorruptedGroundGrowthBlock::new, heatPlant(SoundType.CORAL_BLOCK, false));
+    /** 煙突の塚の体と根元(光は地)。 */
+    public static final DeferredBlock<Block> HEAT_CHIMNEY = BLOCKS.registerSimpleBlock("heat_chimney",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.DRIPSTONE_BLOCK).mapColor(MapColor.COLOR_GRAY));
+    public static final DeferredBlock<Block> HEAT_CHIMNEY_BASE = BLOCKS.registerSimpleBlock("heat_chimney_base",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.DRIPSTONE_BLOCK).mapColor(MapColor.COLOR_GRAY));
+
+    // 熱水の森の芽(2026-11-10 ユーザー決定: 苗木方式。オーバーワールドの苗木と同じく時間で育つ。block/HeatSproutBlock)
+    private static BlockBehaviour.Properties heatSprout() {
+        return BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_SAPLING).mapColor(MapColor.COLOR_CYAN).pushReaction(PushReaction.DESTROY);
+    }
+    /** 普通の木の芽(地面)。 */
+    public static final DeferredBlock<Block> HEAT_TREE_SPROUT = BLOCKS.registerBlock("heat_tree_sprout",
+            com.yayuy.overgrownvegetation.block.HeatSproutBlock::tree, heatSprout());
+    /** 管の樹の芽(地面)。 */
+    public static final DeferredBlock<Block> HEAT_TUBE_SPROUT = BLOCKS.registerBlock("heat_tube_sprout",
+            com.yayuy.overgrownvegetation.block.HeatSproutBlock::tube, heatSprout().sound(SoundType.CORAL_BLOCK));
+    /** 逆さの木の芽(天井から下がる)。 */
+    public static final DeferredBlock<Block> HEAT_SKY_SPROUT = BLOCKS.registerBlock("heat_sky_sprout",
+            com.yayuy.overgrownvegetation.block.HeatSproutBlock::sky, heatSprout());
+    /** 若い煙突(煙突の塚の若い姿。見た目は小さな煙突。仮)。 */
+    public static final DeferredBlock<Block> HEAT_CHIMNEY_SPROUT = BLOCKS.registerBlock("heat_chimney_sprout",
+            com.yayuy.overgrownvegetation.block.HeatSproutBlock::mound, heatSprout().sound(SoundType.DRIPSTONE_BLOCK));
+
+    /** 熱水の森のブロック(タグ・GameTest・ガイド用に一覧で)。 */
+    public static List<DeferredBlock<Block>> heatForestBlocks() {
+        return List.of(HEAT_COOLED_CRUST, HEAT_MAT, HEAT_MAT_STRANDS, HEAT_CEILING_GLOW_MOSS,
+                HEAT_ROOT_NET, HEAT_ROOT_NET_KNOT, HEAT_THIN_MOSS, HEAT_STEM_LITTER, HEAT_VENT_FLOC,
+                HEAT_ZENMAI, HEAT_CURLED_FERN, HEAT_FUR_FLOWER, HEAT_FUR_TUFT, HEAT_CLUBMOSS, HEAT_SPORE_CAP,
+                HEAT_TALL_SPORE_CAP, HEAT_TALL_FERN, HEAT_HORSETAIL, HEAT_FRUIT_BUSH, HEAT_SCALE_SHRUB, HEAT_THORN_SCALE_SHRUB,
+                HEAT_TUBE_WORMS, HEAT_SMALL_CHIMNEY,
+                HEAT_POD_CLUSTER, HEAT_ROOT_CURTAIN, HEAT_ROOT_ROPE, HEAT_GLOW_VINE, HEAT_BEARD_LICHEN, HEAT_HANGING_FIDDLEHEAD,
+                HEAT_HANGING_MOSS, HEAT_HANGING_MOSS_SHORT, HEAT_BELL, HEAT_MINERAL_STRAWS,
+                HEAT_WALL_FERN, HEAT_WALL_SCALE,
+                HEAT_QUARTZ_ORE, HEAT_GOLD_ORE, HEAT_ANCIENT_DEBRIS, HEAT_GLOWSTONE,
+                HEAT_BARK, HEAT_LEAVES, HEAT_SKY_LEAVES, HEAT_LEAF_FRINGE, HEAT_SKY_LEAF_FRINGE, HEAT_AERIAL_ROOT,
+                HEAT_TUBE, HEAT_TUBE_STEM, HEAT_TUBE_PLUME, HEAT_CHIMNEY, HEAT_CHIMNEY_BASE,
+                HEAT_TREE_SPROUT, HEAT_TUBE_SPROUT, HEAT_SKY_SPROUT, HEAT_CHIMNEY_SPROUT);
+    }
+
     /** クリエイティブタブ表示用の並び順。 */
     public static List<DeferredBlock<Block>> displayOrder() {
         return List.of(
@@ -1514,7 +1687,20 @@ public final class ModBlocks {
                 SPORE_KELP_FROND,
                 CEILING_ROOT_NET, LEY_ROOT, FOXFIRE, PALE_CAVE_FERN, PALE_CAVE_CAPS, PALE_CAVE_MOSS, CAVE_HORSETAIL, CAVE_MYCELIUM,
                 DANGLING_ROOTS, PROTOTAXITES_STEM, PROTOTAXITES_KNOB, PROTOTAXITES_CAP,
-                OVERGROWN_LIANA);
+                OVERGROWN_LIANA,
+                // ネザーの熱水の森(2026-11-09)
+                HEAT_COOLED_CRUST, HEAT_MAT, HEAT_MAT_STRANDS, HEAT_CEILING_GLOW_MOSS,
+                HEAT_ROOT_NET, HEAT_ROOT_NET_KNOT, HEAT_THIN_MOSS, HEAT_STEM_LITTER, HEAT_VENT_FLOC,
+                HEAT_ZENMAI, HEAT_CURLED_FERN, HEAT_FUR_FLOWER, HEAT_FUR_TUFT, HEAT_CLUBMOSS, HEAT_SPORE_CAP,
+                HEAT_TALL_SPORE_CAP, HEAT_TALL_FERN, HEAT_HORSETAIL, HEAT_FRUIT_BUSH, HEAT_SCALE_SHRUB, HEAT_THORN_SCALE_SHRUB,
+                HEAT_TUBE_WORMS, HEAT_SMALL_CHIMNEY,
+                HEAT_POD_CLUSTER, HEAT_ROOT_CURTAIN, HEAT_ROOT_ROPE, HEAT_GLOW_VINE, HEAT_BEARD_LICHEN, HEAT_HANGING_FIDDLEHEAD,
+                HEAT_HANGING_MOSS, HEAT_HANGING_MOSS_SHORT, HEAT_BELL, HEAT_MINERAL_STRAWS,
+                HEAT_WALL_FERN, HEAT_WALL_SCALE,
+                HEAT_QUARTZ_ORE, HEAT_GOLD_ORE, HEAT_ANCIENT_DEBRIS, HEAT_GLOWSTONE,
+                HEAT_BARK, HEAT_LEAVES, HEAT_SKY_LEAVES, HEAT_LEAF_FRINGE, HEAT_SKY_LEAF_FRINGE, HEAT_AERIAL_ROOT,
+                HEAT_TUBE, HEAT_TUBE_STEM, HEAT_TUBE_PLUME, HEAT_CHIMNEY, HEAT_CHIMNEY_BASE,
+                HEAT_TREE_SPROUT, HEAT_TUBE_SPROUT, HEAT_SKY_SPROUT, HEAT_CHIMNEY_SPROUT);
     }
 
     /**

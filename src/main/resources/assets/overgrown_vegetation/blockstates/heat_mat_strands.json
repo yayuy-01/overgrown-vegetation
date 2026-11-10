@@ -1,0 +1,44 @@
+{
+  "variants": {
+    "": [
+      {
+        "model": "overgrown_vegetation:block/heat_forest/heat_mat_strands",
+        "weight": 11
+      },
+      {
+        "model": "overgrown_vegetation:block/heat_forest/heat_mat_strands_dark",
+        "weight": 9
+      },
+      {
+        "model": "overgrown_vegetation:block/heat_forest/heat_mat_strands",
+        "y": 90,
+        "weight": 11
+      },
+      {
+        "model": "overgrown_vegetation:block/heat_forest/heat_mat_strands_dark",
+        "y": 90,
+        "weight": 9
+      },
+      {
+        "model": "overgrown_vegetation:block/heat_forest/heat_mat_strands",
+        "y": 180,
+        "weight": 11
+      },
+      {
+        "model": "overgrown_vegetation:block/heat_forest/heat_mat_strands_dark",
+        "y": 180,
+        "weight": 9
+      },
+      {
+        "model": "overgrown_vegetation:block/heat_forest/heat_mat_strands",
+        "y": 270,
+        "weight": 11
+      },
+      {
+        "model": "overgrown_vegetation:block/heat_forest/heat_mat_strands_dark",
+        "y": 270,
+        "weight": 9
+      }
+    ]
+  }
+}

@@ -17,6 +17,7 @@
 #ov_import <ov_cave.glsl>
 #ov_import <ov_cloud.glsl>
 #ov_import <ov_water.glsl>
+#ov_import <ov_heat.glsl>
 
 in vec4 v_Color; // The interpolated vertex color
 in vec2 v_TexCoord; // The interpolated block texture coordinates
@@ -167,4 +168,6 @@ void main() {
     if (ovSodiumPass != 1) {
         fragColor.rgb = mix(fragColor.rgb, ovAlbedo * (1.0 - ovSink * OvCaveMouth.z), ovGlow * max(ovCaveCam(), ovSink));
     }
+    // The fog of the heat forest (the overgrown Nether, ov_heat.glsl, 11-10): over the usual fogs, by how much the camera is in it.
+    fragColor.rgb = ovHeatFog(fragColor.rgb, color.rgb, ovPos);
 }

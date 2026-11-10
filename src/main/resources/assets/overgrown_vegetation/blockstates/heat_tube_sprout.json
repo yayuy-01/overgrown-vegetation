@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "stage=0": [ { "model": "overgrown_vegetation:block/heat_forest/tube_sprout" }, { "model": "overgrown_vegetation:block/heat_forest/tube_sprout", "y": 90 }, { "model": "overgrown_vegetation:block/heat_forest/tube_sprout", "y": 180 }, { "model": "overgrown_vegetation:block/heat_forest/tube_sprout", "y": 270 } ],
+    "stage=1": [ { "model": "overgrown_vegetation:block/heat_forest/tube_sprout" }, { "model": "overgrown_vegetation:block/heat_forest/tube_sprout", "y": 90 }, { "model": "overgrown_vegetation:block/heat_forest/tube_sprout", "y": 180 }, { "model": "overgrown_vegetation:block/heat_forest/tube_sprout", "y": 270 } ]
+  }
+}

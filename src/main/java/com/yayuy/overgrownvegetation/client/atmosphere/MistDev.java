@@ -48,6 +48,10 @@ public final class MistDev {
             case "stat" -> {
                 return "FOG 細部 " + MistMarch.takeStat();
             }
+            case "heat" -> {
+                // 11-10 熱水の森(ネザー)の暗さと霧の撮り比べ: fog heat status|on|off|dark on/off|mist on/off|strength n|end n|shape …|force n
+                return com.yayuy.overgrownvegetation.client.atmosphere.heat.HeatFxDev.command(arg.trim().substring(4));
+            }
             case "status", "" -> {
             }
             default -> {

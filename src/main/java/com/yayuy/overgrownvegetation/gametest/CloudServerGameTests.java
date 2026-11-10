@@ -61,6 +61,7 @@ public final class CloudServerGameTests {
         long before = CloudField.seed();
         try {
             CloudShape.setOverride(SHAPE);
+            CloudSky.clearNearCache();
             CloudField.setSeed(SEED_A);
             int[] a1 = sample();
             CloudField.setSeed(SEED_B);
@@ -150,6 +151,8 @@ public final class CloudServerGameTests {
         try {
             ServerLevel level = helper.getLevel();
             CloudShape.setOverride(STORMY);
+            // ほかのテストが少し前の時刻で覚えた近くの積乱雲の一覧を使わない(11-10: 全体の実行でだけ、湧き始めの雲が一覧に無くて落ちた)。
+            CloudSky.clearNearCache();
             CloudField.setSeed(SEED_A);
             float coverage = STORMY.coverage();
             java.util.List<CloudField.Storm> a1 = CloudSky.storms(level, coverage, -6000.0, -6000.0, 6000.0, 6000.0);

@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "part=body": { "model": "overgrown_vegetation:block/heat_forest/glow_vine_body" },
+    "part=tip": { "model": "overgrown_vegetation:block/heat_forest/glow_vine_tip" }
+  }
+}

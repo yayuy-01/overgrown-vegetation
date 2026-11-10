@@ -6,6 +6,7 @@
 #moj_import <ov_caustic.glsl>
 #moj_import <ov_cave.glsl>
 #moj_import <ov_cloud.glsl>
+#moj_import <ov_heat.glsl>
 
 uniform sampler2D Sampler0;
 
@@ -63,4 +64,6 @@ void main() {
     fragColor.rgb = ovCaveFog(fragColor.rgb, ovLit, ovSurface, vertexDistance, ovUnder);
     // The glowing pixels of the cave light blocks stay out of the fog (ov_cave.glsl).
     fragColor.rgb = mix(fragColor.rgb, tex.rgb * ovTint * (1.0 - ovSink * OvCaveMouth.z), ovGlow * max(ovCaveCam(), ovSink));
+    // The fog of the heat forest (the overgrown Nether, ov_heat.glsl, 11-10): over the usual fogs, by how much the camera is in it.
+    fragColor.rgb = ovHeatFog(fragColor.rgb, color.rgb, ovPos);
 }

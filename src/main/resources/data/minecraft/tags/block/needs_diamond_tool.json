@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "overgrown_vegetation:hardened_giant_trunk"
+    "overgrown_vegetation:hardened_giant_trunk",
+    "overgrown_vegetation:heat_ancient_debris"
   ]
 }

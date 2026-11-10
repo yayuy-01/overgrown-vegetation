@@ -1,0 +1,55 @@
+{
+  "_comment": "熱水の森(ネザーの汚染地)の見え方(2026-11-10 シェーダー段階 1: 暗さと霧)。読み手は client/atmosphere/heat/。ユーザー決定(11-10): shade.strength 0.55・fog.end 72・fog.color(案 3 暗く緑へ)・fog.cylinder 1(横だけ)・境目を広くゆっくり。ほかの数値は仮決め(presence の数値も仮)。",
+  "presence": {
+    "_comment": "熱水の森の中にいる度合い(11-10 追記 1 で作り直し): 半径 radius の円の中の列を毎 tick samplesPerTick 本、カメラの少し上から下へ scanDown まで最初の床(上が空いた面)を探し、その床が heat_*(床の植物を含む)かを近いほど重く数える。重み付きの割合を ratioLow〜ratioHigh で 0〜1 に、followTicks でなだらかに追う。壁・天井は数えない",
+    "radius": 48,
+    "samplesPerTick": 16,
+    "scanDown": 48,
+    "memoryTicks": 40,
+    "ratioLow": 0.1,
+    "ratioHigh": 0.7,
+    "followTicks": 60
+  },
+  "shade": {
+    "_comment": "1. 光らない面を暗くする(ライトマップ)。光 0 の面を (1 - strength) 倍、keepLevel 段以上はほぼ元のまま",
+    "strength": 0.55,
+    "keepLevel": 5
+  },
+  "fog": {
+    "_comment": "2. 霧。色は深い青緑〜黒。cylinder 1 = 横の距離だけで測る(真上の偽の空は沈まない)。keepFarSections 1 = Sodium の霧の先の間引きを止める",
+    "color": [0.012, 0.035, 0.025],
+    "start": 2,
+    "end": 72,
+    "cylinder": 1,
+    "keepFarSections": 1
+  },
+  "glow": {
+    "_comment": "段階 2(11-10): 光る面。階級 = tintindex(1 空の先と粒・2 地の目印・3 地の粒・4 地・5 空の体)。codes 1 = 目印の色を返してシェーダーが階級を読む(0 だと脈動も昼夜の明るさも効かない)。配列は階級 1〜5。決: 地の模様は昼 40%・夜 100%、空は昼に体ごと光る。地・粒の「3 割」は模型の block_light 4 で表してあるので倍率は他と同じ(階級の表 11-10)。仮: 空の昼の強さ・脈動・紫の色",
+    "codes": 1,
+    "pulse": 1,
+    "pulsePeriod": 7,
+    "pulseCell": 4,
+    "pulseDepth": [0.12, 0.18, 0.12, 0.15, 0.1],
+    "dayNight": 1,
+    "dayGain": [1.0, 0.4, 0.4, 0.4, 1.0],
+    "nightGain": [1.0, 1.0, 1.0, 1.0, 1.0],
+    "skyBodyDayLift": 0.7,
+    "duskTint": [0.85, 0.55, 1.0]
+  },
+  "cycle": {
+    "_comment": "偽の空の 1 日(tick)。周期 24000 = 20 分は決、内訳(昼 10・夕 1.5・夜 7・朝 1.5 分)は仮。dayStart = dayTime のどこを昼の始まりにするか",
+    "dayStart": 0,
+    "dayTicks": 12000,
+    "duskTicks": 1800,
+    "nightTicks": 8400,
+    "dawnTicks": 1800
+  },
+  "day": {
+    "_comment": "昼の暗さと霧(夜は shade・fog の値)。夕と朝の霧の紫。ユーザー決定(11-10): 昼 = 候補 C の方向(数値は当面の値)・夕と朝は空の面だけ紫(duskFogMix 0)",
+    "shadeStrength": 0,
+    "fogColor": [0.06, 0.15, 0.1],
+    "fogEnd": 128,
+    "duskFogColor": [0.035, 0.02, 0.05],
+    "duskFogMix": 0
+  }
+}

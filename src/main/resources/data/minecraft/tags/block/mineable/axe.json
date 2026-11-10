@@ -25,6 +25,7 @@
     "overgrown_vegetation:overgrown_door",
     "overgrown_vegetation:overgrown_chest",
     "overgrown_vegetation:overgrown_barrel",
-    "overgrown_vegetation:overgrown_slab"
+    "overgrown_vegetation:overgrown_slab",
+    "overgrown_vegetation:heat_bark"
   ]
 }

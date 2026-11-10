@@ -720,6 +720,19 @@ public final class CorruptionRegistry {
             return state;
         }
         init();
+        if (level.dimension() == net.minecraft.world.level.Level.NETHER) {
+            HeatForestAdaptation.noteCorruption(level); // 適応の時計(最初の汚染から 10 分)を動かし始める
+            if (HeatForestFungus.keepForFall(state)) {
+                return state; // 菌の木の傘は覆わず、倒木の仕組み(SwampTreeFall)が幹と一緒に消す(2026-11-10)
+            }
+        }
+        if (HeatForestGround.applies(level)) {
+            // ネザーの熱水の森(2026-11-09 段階 1): 地形は熱の敷物・光の苔・冷えた殻へ、溶岩は表面だけ殻へ。対象外のブロックは下のふだんの表へ
+            BlockState heat = HeatForestGround.corrupt(level, pos, state);
+            if (heat != null) {
+                return heat;
+            }
+        }
         // エンドポータルの枠の隣が汚染されたら、森がエンドへ渡る(2026-10-02。枠そのものは免疫なので隣で気付く)。
         PortalCorruption.noticeEndFrame(level, pos, state);
         if (MeltedIce.isIce(state)) {
