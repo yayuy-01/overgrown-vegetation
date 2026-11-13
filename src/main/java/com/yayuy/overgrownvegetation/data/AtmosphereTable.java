@@ -36,6 +36,8 @@ public final class AtmosphereTable {
         public AtmosphereAir.SporeAirJson sporeAir;
         /** 洞窟の出入りの目の慣れ(11-07、{@link AtmosphereEye})。 */
         public AtmosphereEye.EyeAdaptJson eyeAdapt;
+        /** 光るもののにじみ(11-13 仕上げ B、{@link AtmosphereEye})。 */
+        public AtmosphereEye.BloomJson bloom;
         /** 過繁茂の外の洞窟(11-07、{@link AtmosphereEye})。 */
         public AtmosphereEye.CaveOpenJson caveOpen;
         /** 洞窟の天井の穴の光の筋(11-07、{@link AtmosphereEye})。 */
@@ -664,6 +666,7 @@ public final class AtmosphereTable {
     private final AtmosphereLife.RainLookParams rainLook;
     private final AtmosphereAir.SporeAirParams sporeAir;
     private final AtmosphereEye.EyeAdaptParams eyeAdapt;
+    private final AtmosphereEye.BloomParams bloom;
     private final AtmosphereEye.CaveOpenParams caveOpen;
     private final AtmosphereEye.CaveShaftsParams caveShafts;
     private final AtmosphereEye.CaveBreathParams caveBreath;
@@ -769,6 +772,7 @@ public final class AtmosphereTable {
         this.rainLook = AtmosphereLife.RainLookParams.of(j != null ? j.rainLook : null);
         this.sporeAir = AtmosphereAir.SporeAirParams.of(j != null ? j.sporeAir : null);
         this.eyeAdapt = AtmosphereEye.EyeAdaptParams.of(j != null ? j.eyeAdapt : null);
+        this.bloom = AtmosphereEye.BloomParams.of(j != null ? j.bloom : null);
         this.caveOpen = AtmosphereEye.CaveOpenParams.of(j != null ? j.caveOpen : null);
         this.caveShafts = AtmosphereEye.CaveShaftsParams.of(j != null ? j.caveShafts : null);
         this.caveBreath = AtmosphereEye.CaveBreathParams.of(j != null ? j.caveBreath : null);
@@ -1184,6 +1188,11 @@ public final class AtmosphereTable {
 
     public AtmosphereEye.EyeAdaptParams eyeAdapt() {
         return eyeAdapt;
+    }
+
+    /** 光るもののにじみ(節 bloom、11-13 仕上げ B。{@link AtmosphereEye})。 */
+    public AtmosphereEye.BloomParams bloom() {
+        return bloom;
     }
 
     public AtmosphereAir.SporeAirParams sporeAir() {

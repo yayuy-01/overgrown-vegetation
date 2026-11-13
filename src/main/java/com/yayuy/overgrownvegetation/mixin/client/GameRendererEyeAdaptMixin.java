@@ -19,6 +19,8 @@ public abstract class GameRendererEyeAdaptMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;renderLevel(Lnet/minecraft/client/DeltaTracker;)V", shift = At.Shift.AFTER),
             require = 0)
     private void overgrownvegetation$eyeAdapt(DeltaTracker deltaTracker, boolean renderLevel, CallbackInfo ci) {
+        // 光るもののにじみ(11-13 仕上げ B)を先に: 目の慣れのまぶしさは、にじみの乗った画面に掛かる。
+        com.yayuy.overgrownvegetation.client.atmosphere.GlowBloom.renderPost();
         EyeAdaptation.renderPost();
     }
 }

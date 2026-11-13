@@ -41,6 +41,32 @@ public final class AtmosphereEye {
     }
 
     /**
+     * 光るもののにじみ(節 bloom、2026-11-13 シェーダーの仕上げ B。読むのは {@code client/atmosphere/GlowBloom})。ユーザー決定: 既定でオン・切れる・
+     * 強さ {@code strength} は見本の「中 1.6」。ほかの数は仮決め:
+     * <ul>
+     *     <li>{@code threshold}・{@code knee}: いちばん明るい色の成分がこれより上の画素が光る物の候補(knee の幅で全部)。</li>
+     *     <li>{@code contrastFrom}・{@code contrastTo}: まわり(広くぼかした明るさ)よりこれだけ明るければ光る物とみなす(ここから・全部)。</li>
+     *     <li>{@code skyContrastFrom}・{@code skyContrastTo}: 空の画素は差がこれだけ要る(ぽつんとした点だけ通す。夕焼けの帯は通さない)。</li>
+     *     <li>{@code darkFrom}・{@code darkTo}: カメラの所の (空の光/15)² × 昼の明るさ がこれより下で全部にじむ・これより上でにじまない(昼の外)。</li>
+     * </ul>
+     */
+    public static final class BloomJson {
+        /** false = 切る。 */
+        public Boolean enabled;
+        public Double strength, threshold, knee, contrastFrom, contrastTo, skyContrastFrom, skyContrastTo, darkFrom, darkTo;
+    }
+
+    public record BloomParams(boolean enabled, float strength, float threshold, float knee, float contrastFrom, float contrastTo, float skyContrastFrom,
+                              float skyContrastTo, float darkFrom, float darkTo) {
+        static BloomParams of(BloomJson j) {
+            BloomJson v = j != null ? j : new BloomJson();
+            return new BloomParams(v.enabled == null || v.enabled, c(v.strength, 1.6, 0.0, 8.0), c(v.threshold, 0.72, 0.0, 1.0), c(v.knee, 0.18, 0.01, 1.0),
+                    c(v.contrastFrom, 0.10, 0.0, 1.0), c(v.contrastTo, 0.35, 0.01, 1.0), c(v.skyContrastFrom, 0.35, 0.0, 1.0),
+                    c(v.skyContrastTo, 0.60, 0.01, 1.0), c(v.darkFrom, 0.2, 0.0, 1.0), c(v.darkTo, 0.7, 0.01, 1.0));
+        }
+    }
+
+    /**
      * 過繁茂の外の洞窟(節 caveOpen、2026-11-07 判断の後の直し。ユーザー「おすすめで直す」)。地下モードの仕組みは世界全体、過繁茂らしさは色と見通しで出す 2 層の方針で、
      * 過繁茂の外の洞窟だけ値を変える(過繁茂の中は前のまま)。過繁茂の度合い(カメラの所の判定を blendSeconds で寄せたもの)で混ぜる。数はすべて仮決め:
      * <ul>

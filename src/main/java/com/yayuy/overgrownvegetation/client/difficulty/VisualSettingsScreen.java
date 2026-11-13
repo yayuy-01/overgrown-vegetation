@@ -94,7 +94,8 @@ public final class VisualSettingsScreen extends Screen {
                 new Toggle("leaf_sway", c.leafSway, atmosphere),
                 new Toggle("water_life", c.waterLife, atmosphere),
                 new Toggle("underwater", c.underwater, atmosphere).section("underwater"),
-                new Toggle("cave_light", c.caveLight, atmosphere).section("cave"));
+                new Toggle("cave_light", c.caveLight, atmosphere).section("cave"),
+                new Toggle("glow_bloom", c.glowBloom, atmosphere));
     }
 
     /** 今の手元の値がどの段階と全部一致するか(どれとも違えば null = カスタム)。 */

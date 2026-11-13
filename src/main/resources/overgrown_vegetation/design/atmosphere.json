@@ -368,6 +368,19 @@
     "sporeCeiling": 12.0,
     "smoothSeconds": 4.0
   },
+  "bloom": {
+    "_comment": "光るもののにじみ(2026-11-13 シェーダーの仕上げ B。ユーザー決定: 既定でオン・切れる(見え方の設定「光のにじみ」)・強さ strength は見本 tools/bloom の「中 1.6」。ほかの数は仮決め)。暗い所で、まわりよりずっと明るい点(松明の炎・ランタン・溶岩・光る植物・光る胞子)にだけ柔らかい暈を付ける。enabled = false で切る。threshold・knee = いちばん明るい色の成分がこれより上の画素が候補(knee の幅で全部)。contrastFrom・contrastTo = まわり(広くぼかした明るさ)よりこれだけ明るければ光る物とみなす。skyContrastFrom・skyContrastTo = 空の画素に要る差(ぽつんとした点だけ通す。夕焼けの帯は通さない)。darkFrom・darkTo = カメラの所の (空の光/15)² × 昼の明るさ がこれより下で全部にじむ・これより上でにじまない(昼の外は掛けない)。",
+    "enabled": true,
+    "strength": 1.6,
+    "threshold": 0.72,
+    "knee": 0.18,
+    "contrastFrom": 0.10,
+    "contrastTo": 0.35,
+    "skyContrastFrom": 0.35,
+    "skyContrastTo": 0.60,
+    "darkFrom": 0.2,
+    "darkTo": 0.7
+  },
   "eyeAdapt": {
     "_comment": "11-07 洞窟の出入りの目の慣れ(明順応・暗順応。ユーザーの考え「暗い所から明るい所へ出た瞬間の視覚効果で、外と洞窟を違和感なくつなげる」)。ユーザー指定: 出るときは白く飛んで 2〜4 秒で戻る・白い間に地下モードの切り替えを済ませる・入るときは暗く光源だけが見え数秒で岩の輪郭が見える・強さは暗い所にいた時間で決める(口を少し出入りしただけならほとんど出ない)・強さはほどほど・世界全体・オフにできる(enabled false)。数はすべて仮決め: lightSeconds・darkSeconds = 目が慣れている明るさ(EV)が今の明るさを追う時定数(明るくなる向き・暗くなる向き)、deadband・range = 差(EV)が deadband を超えた分を range で 0 → 1(まぶしさ・暗さ)、今の明るさ = max((空の光/15)² × 昼の明るさ(夜は nightSky), (ブロックの光/15)² × blockWeight, floor)、glareExposure = 明るさの上乗せ・glareBloom = 明るい所のにじみ・glareWash = 白へ寄せる(コントラストを下げる)・glareDesaturate = 彩度を抜く、darkAmbient = 入った直後の地下の床の持ち上げの倍率・darkShadow = 地下で暗い所をさらに沈める割合、hideSeconds = まぶしさ・暗さが hideFrom を超えている間の地下モードの寄せの時定数(普段は fog.transitionCaveSeconds)。シェーダーパック使用中は掛けない。",
     "enabled": true,

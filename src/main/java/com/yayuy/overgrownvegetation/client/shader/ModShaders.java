@@ -174,6 +174,20 @@ public final class ModShaders {
             OvergrownVegetation.LOGGER.error("目の慣れのシェーダーを読み込めなかったので、洞窟の出入りの画面の補正は掛けない", e);
             eyeAdapt = null;
         }
+        try {
+            event.registerShader(new ShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "bloom_bright"),
+                            DefaultVertexFormat.POSITION),
+                    shader -> bloomBright = shader);
+            event.registerShader(new ShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "bloom_composite"),
+                            DefaultVertexFormat.POSITION),
+                    shader -> bloomComposite = shader);
+        } catch (IOException e) {
+            OvergrownVegetation.LOGGER.error("光のにじみのシェーダーを読み込めなかったので、にじみは掛けない", e);
+            bloomBright = null;
+            bloomComposite = null;
+        }
     }
 
     /** 洞窟の出入りの目の慣れの全画面の補正({@code client/atmosphere/EyeAdaptation}、2026-11-07)。読み込めなかったら null(掛けない)。シェーダーパック使用中は使わない。 */
@@ -181,6 +195,18 @@ public final class ModShaders {
 
     public static ShaderInstance eyeAdapt() {
         return eyeAdapt;
+    }
+
+    /** 光るもののにじみ({@code client/atmosphere/GlowBloom}、2026-11-13 仕上げ B)。光る画素を拾う・画面へ重ねるの 2 本。読み込めなかったら null(掛けない)。 */
+    private static ShaderInstance bloomBright;
+    private static ShaderInstance bloomComposite;
+
+    public static ShaderInstance bloomBright() {
+        return bloomBright;
+    }
+
+    public static ShaderInstance bloomComposite() {
+        return bloomComposite;
     }
 
     private ModShaders() {

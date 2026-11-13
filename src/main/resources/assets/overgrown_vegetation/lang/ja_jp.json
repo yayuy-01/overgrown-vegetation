@@ -325,6 +325,8 @@
   "gui.overgrown_vegetation.visual_settings.section.cave": "地下",
   "gui.overgrown_vegetation.visual_settings.cave_light": "地下の光",
   "gui.overgrown_vegetation.visual_settings.cave_light.desc": "過繁茂の地下で、黒い霧の中に植物の光だけが浮かぶ見え方(点光源・Mob の明るさ)。試作。",
+  "gui.overgrown_vegetation.visual_settings.glow_bloom": "光のにじみ",
+  "gui.overgrown_vegetation.visual_settings.glow_bloom.desc": "暗い所で、松明・溶岩・光る植物や胞子のまわりに柔らかい暈を付ける。画面全体の処理なので、重いときは切る。",
   "entity.overgrown_vegetation.falcimnes": "ファルキムネス",
   "item.overgrown_vegetation.falcimnes_spawn_egg": "ファルキムネスのスポーンエッグ",
   "entity.overgrown_vegetation.phyllosens": "フィロセンス",

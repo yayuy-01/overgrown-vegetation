@@ -325,6 +325,8 @@
   "gui.overgrown_vegetation.visual_settings.section.cave": "Под землёй",
   "gui.overgrown_vegetation.visual_settings.cave_light": "Свет в пещерах",
   "gui.overgrown_vegetation.visual_settings.cave_light.desc": "Под разросшимся лесом в чёрном тумане светятся только растения (точечные источники света, мобы тоже освещаются). Прототип.",
+  "gui.overgrown_vegetation.visual_settings.glow_bloom": "Свечение огней",
+  "gui.overgrown_vegetation.visual_settings.glow_bloom.desc": "Мягкое свечение вокруг факелов, лавы, светящихся растений и спор в темноте. Полноэкранная обработка; отключите, если игра тормозит.",
   "entity.overgrown_vegetation.falcimnes": "Фальцимнес",
   "item.overgrown_vegetation.falcimnes_spawn_egg": "Яйцо призыва: Фальцимнес",
   "entity.overgrown_vegetation.phyllosens": "Филлосенс",

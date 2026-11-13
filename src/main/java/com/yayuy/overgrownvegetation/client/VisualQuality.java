@@ -134,6 +134,11 @@ public final class VisualQuality {
         return part(OvergrownClientConfig.CLIENT.caveLight);
     }
 
+    /** 光るもののにじみ(暗い所の光源の暈。2026-11-13 仕上げ B)。 */
+    public static boolean glowBloom() {
+        return part(OvergrownClientConfig.CLIENT.glowBloom);
+    }
+
     /**
      * 雲(2026-11-08 雲の段階 1)。雰囲気の親のオンオフとは別(雲はバニラの雲の置き換えなので、雰囲気を切っても残す。仮決め)。
      * 重さの段は {@link #atmosphereTier()} を使う。
