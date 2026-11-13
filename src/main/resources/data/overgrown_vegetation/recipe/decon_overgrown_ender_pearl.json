@@ -1,0 +1,6 @@
+{
+  "type": "overgrown_vegetation:decontamination",
+  "ingredient": { "item": "overgrown_vegetation:overgrown_ender_pearl" },
+  "result": { "id": "minecraft:ender_pearl", "count": 1 },
+  "spores": 1.0
+}

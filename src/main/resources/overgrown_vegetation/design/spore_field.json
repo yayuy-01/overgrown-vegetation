@@ -259,6 +259,17 @@
     "filterWashesMax": 3,
     "filterWashWear": 0.2,
     "lowerFloor": true
+  },
+  "decon": {
+    "_comment": "除染(2026-11-14 サバイバルの背骨 段 3a。決定 30・31)。手洗い(水の入った大釜で 1 つずつ・水が減る・遅い)と地脈の洗い場(FE でまとめて速く自動で)。どちらも素材・装備・フィルターを洗える(ユーザー指定)。覆われた○○ → 元の素材 + 胞子の変換表はデータパックのレシピ data/overgrown_vegetation/recipe/decon_*.json(種類 overgrown_vegetation:decontamination。胞子 spores は平均の個数)。数はすべて仮決め: 手洗いは 1 回ごとに 10 tick 待つ・洗いの重み(素材 1、装備・フィルター 3)が 3 たまるごとに大釜の水が 1 段減る(満タンで素材 9 つ・装備 3 つ)・洗い場は 20 FE/t・中に 4000 FE・5 tick に 1 つ(1 秒 4 つ)・水は要らない(地下水を汲む設定)・上に落ちた物を吸い込む。",
+    "handCooldownTicks": 10,
+    "handWorkPerLevel": 3,
+    "handWorkMaterial": 1,
+    "handWorkOther": 3,
+    "machineFePerTick": 20,
+    "machineEnergyBuffer": 4000,
+    "machineTicksPerItem": 5,
+    "machinePickup": true
   }
 }
 

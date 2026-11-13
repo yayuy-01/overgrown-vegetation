@@ -1,0 +1,6 @@
+{
+  "type": "overgrown_vegetation:decontamination",
+  "ingredient": { "item": "overgrown_vegetation:overgrown_leather" },
+  "result": { "id": "minecraft:leather", "count": 1 },
+  "spores": 0.5
+}

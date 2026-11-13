@@ -487,3 +487,9 @@
   "message.overgrown_vegetation.ley_wire.already": "Уже соединено",
   "message.overgrown_vegetation.ley_wire.blocked": "Мешает блок"
 }
+  "block.overgrown_vegetation.ley_washer": "Лей-мойка",
+  "message.overgrown_vegetation.ley_washer.running": "Мойка: моет",
+  "message.overgrown_vegetation.ley_washer.idle": "Мойка: ждёт",
+  "message.overgrown_vegetation.ley_washer.no_power": "Мойка: не хватает лей-энергии",
+  "message.overgrown_vegetation.ley_washer.info": " · к мойке %s · вымыто %s · %s/%s FE",
+  "message.overgrown_vegetation.decon.filter_worn_out": "Этот фильтр слишком изношен, его больше не отмыть",

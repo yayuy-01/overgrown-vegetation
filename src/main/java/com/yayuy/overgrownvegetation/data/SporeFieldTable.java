@@ -50,6 +50,8 @@ public final class SporeFieldTable {
         public LeySpec.Json ley;
         /** 換気の機械とフィルター(2026-11-14 サバイバルの背骨 段 2c。null は既定値)。 */
         public VentSpec.Json vent;
+        /** 除染(2026-11-14 サバイバルの背骨 段 3a。null は既定値)。 */
+        public DeconSpec.Json decon;
     }
 
     /**
@@ -252,6 +254,7 @@ public final class SporeFieldTable {
     private final RoomSpec room;
     private final LeySpec ley;
     private final VentSpec vent;
+    private final DeconSpec decon;
 
     private SporeFieldTable(Json j) {
         Json src = j != null ? j : new Json();
@@ -270,6 +273,7 @@ public final class SporeFieldTable {
         this.room = RoomSpec.from(src.room);
         this.ley = LeySpec.from(src.ley);
         this.vent = VentSpec.from(src.vent);
+        this.decon = DeconSpec.from(src.decon);
         this.enabled = src.enabled == null || src.enabled;
         this.updateTicks = src.updateTicks != null ? Math.max(20, Math.min(1200, src.updateTicks)) : 100;
         this.maxStepsPerRun = src.maxStepsPerRun != null ? Math.max(1, Math.min(2400, src.maxStepsPerRun)) : 60;
@@ -506,6 +510,11 @@ public final class SporeFieldTable {
     /** 換気の機械とフィルターの設計値(2026-11-14 段 2c)。 */
     public VentSpec vent() {
         return vent;
+    }
+
+    /** 除染の設計値(2026-11-14 段 3a)。 */
+    public DeconSpec decon() {
+        return decon;
     }
 
     public int exposurePlayerIntervalTicks() {

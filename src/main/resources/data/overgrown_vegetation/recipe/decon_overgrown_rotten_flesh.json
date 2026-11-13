@@ -1,0 +1,6 @@
+{
+  "type": "overgrown_vegetation:decontamination",
+  "ingredient": { "item": "overgrown_vegetation:overgrown_rotten_flesh" },
+  "result": { "id": "minecraft:rotten_flesh", "count": 1 },
+  "spores": 0.5
+}

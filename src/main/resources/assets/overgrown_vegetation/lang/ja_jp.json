@@ -487,3 +487,9 @@
   "message.overgrown_vegetation.ley_wire.already": "もう張ってある",
   "message.overgrown_vegetation.ley_wire.blocked": "間にブロックがあって張れない"
 }
+  "block.overgrown_vegetation.ley_washer": "地脈の洗い場",
+  "message.overgrown_vegetation.ley_washer.running": "洗い場: 洗っている",
+  "message.overgrown_vegetation.ley_washer.idle": "洗い場: 待っている",
+  "message.overgrown_vegetation.ley_washer.no_power": "洗い場: 地脈の力が足りない",
+  "message.overgrown_vegetation.ley_washer.info": "・洗う前 %s・洗い上がり %s・%s/%s FE",
+  "message.overgrown_vegetation.decon.filter_worn_out": "このフィルターはもう洗えない(傷み切っている)",

@@ -487,3 +487,9 @@
   "message.overgrown_vegetation.ley_wire.already": "Already connected",
   "message.overgrown_vegetation.ley_wire.blocked": "Something is in the way"
 }
+  "block.overgrown_vegetation.ley_washer": "Ley Wash Station",
+  "message.overgrown_vegetation.ley_washer.running": "Wash station: washing",
+  "message.overgrown_vegetation.ley_washer.idle": "Wash station: waiting",
+  "message.overgrown_vegetation.ley_washer.no_power": "Wash station: not enough ley power",
+  "message.overgrown_vegetation.ley_washer.info": " · to wash %s · washed %s · %s/%s FE",
+  "message.overgrown_vegetation.decon.filter_worn_out": "This filter is too worn to wash again",
