@@ -53,11 +53,11 @@ public final class RoomAir {
 
     /**
      * {@code pos} のまわりに部屋の汚れがあるか(2026-11-14 段 3c)。外の値が 0 の所では部屋を調べないので、汚れのある所だけはその前に調べさせる
-     * ({@code SporeConcentration#reading})。汚れの置き場所を囲む箱 + 部屋の差し渡しで見る(安い)。
+     * ({@code SporeConcentration#reading})。汚した部屋の箱(中の空気の外接箱)の中だけを見る(安い。基地の下の洞窟の Mob の読みでは部屋を調べない)。
      */
     public static boolean dirtNear(ServerLevel level, net.minecraft.core.BlockPos pos) {
         RoomDirt d = RoomDirt.peek(level);
-        return d != null && d.anyNear(pos, com.yayuy.overgrownvegetation.data.DesignData.sporeField().room().maxSpan());
+        return d != null && d.anyNear(pos, 1);
     }
 
     /**

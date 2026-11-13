@@ -146,6 +146,11 @@ public final class RoomDirtGameTests {
                 helper.fail(String.format("前室 %.3f%%(%.3f のはず)・奥 %.3f%%", got, expect, RoomAir.extraPercent(level, rb)));
                 return;
             }
+            // 安い確かめは汚した部屋の箱の中だけ(床の下・奥の部屋では部屋を調べない)
+            if (!RoomAir.dirtNear(level, a) || RoomAir.dirtNear(level, a.below(3)) || RoomAir.dirtNear(level, b)) {
+                helper.fail("汚れの確かめの箱が違う: 前室 " + RoomAir.dirtNear(level, a) + "・床の下 " + RoomAir.dirtNear(level, a.below(3)) + "・奥 " + RoomAir.dirtNear(level, b));
+                return;
+            }
             SporeConcentration.clearCacheForTests();
             double read = SporeConcentration.percentAt(level, a);
             if (Math.abs(read - got) > 1e-6 || SporeConcentration.percentAt(level, b) != 0.0D) {
@@ -218,7 +223,7 @@ public final class RoomDirtGameTests {
             // 保存と復元
             CompoundTag tag = dirt.save(new CompoundTag(), level.registryAccess());
             RoomDirt copy = RoomDirt.load(tag, level.registryAccess());
-            if (Math.abs(copy.percentIn(ra) - p0) > 1e-9) {
+            if (Math.abs(copy.percentIn(ra) - p0) > 1e-9 || !copy.anyNear(a, 1)) {
                 helper.fail("保存と復元で部屋の汚れが変わった: " + copy.percentIn(ra) + " / " + p0);
                 return;
             }

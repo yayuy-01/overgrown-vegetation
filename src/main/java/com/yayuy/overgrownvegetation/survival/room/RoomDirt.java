@@ -49,25 +49,31 @@ public final class RoomDirt extends SavedData {
         return level.getDataStorage().computeIfAbsent(new SavedData.Factory<>(RoomDirt::new, RoomDirt::load, null), NAME);
     }
 
-    /** 汚れのある場所を囲む箱(足したときに広げ、減らしたときに作り直す)。 */
-    private int minX, minY, minZ, maxX, maxY, maxZ;
-    private boolean boxStale = true;
+    /**
+     * 汚した部屋の箱(中の空気のマスの外接箱 minX..maxZ)。部屋を調べる前の安い確かめはこの箱の中だけ(基地の下の洞窟の Mob の読みで
+     * 部屋の判定を走らせないように)。中に汚れが無くなった箱は捨てる。保存する(読み込み直後から読めるように)。
+     */
+    final java.util.List<int[]> boxes = new java.util.ArrayList<>();
+    /** 持つ箱の上限。 */
+    static final int MAX_BOXES = 256;
 
-    private void rebuildBox() {
-        minX = minY = minZ = Integer.MAX_VALUE;
-        maxX = maxY = maxZ = Integer.MIN_VALUE;
-        for (long k : mass.keySet()) grow(k);
-        boxStale = false;
+    private void addBox(RoomScan room) {
+        int[] b = {room.minX(), room.minY(), room.minZ(), room.maxX(), room.maxY(), room.maxZ()};
+        for (int[] o : boxes) if (java.util.Arrays.equals(o, b)) return;
+        boxes.add(b);
+        if (boxes.size() > MAX_BOXES) boxes.remove(0);
     }
 
-    private void grow(long k) {
-        int x = BlockPos.getX(k), y = BlockPos.getY(k), z = BlockPos.getZ(k);
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        minZ = Math.min(minZ, z);
-        maxX = Math.max(maxX, x);
-        maxY = Math.max(maxY, y);
-        maxZ = Math.max(maxZ, z);
+    private static boolean inBox(int[] b, int x, int y, int z) {
+        return x >= b[0] && x <= b[3] && y >= b[1] && y <= b[4] && z >= b[2] && z <= b[5];
+    }
+
+    /** 汚れが 1 つも入っていない箱を捨てる。 */
+    private void pruneBoxes() {
+        boxes.removeIf(b -> {
+            for (long k : mass.keySet()) if (inBox(b, BlockPos.getX(k), BlockPos.getY(k), BlockPos.getZ(k))) return false;
+            return true;
+        });
     }
 
     /** 読み込まずに、その次元に汚れがあるか(無ければ作らない)。 */
@@ -83,12 +89,14 @@ public final class RoomDirt extends SavedData {
         return mass.isEmpty();
     }
 
-    /** {@code pos} から差し渡し {@code span} 以内に汚れがあるか(部屋を調べる前の安い確かめ)。 */
-    public boolean anyNear(BlockPos pos, int span) {
+    /** {@code pos} が汚した部屋の箱(± {@code margin})の中か(部屋を調べる前の安い確かめ)。 */
+    public boolean anyNear(BlockPos pos, int margin) {
         if (mass.isEmpty()) return false;
-        if (boxStale) rebuildBox();
-        return pos.getX() >= minX - span && pos.getX() <= maxX + span && pos.getY() >= minY - span && pos.getY() <= maxY + span
-                && pos.getZ() >= minZ - span && pos.getZ() <= maxZ + span;
+        int x = pos.getX(), y = pos.getY(), z = pos.getZ();
+        for (int[] b : boxes) {
+            if (x >= b[0] - margin && x <= b[3] + margin && y >= b[1] - margin && y <= b[4] + margin && z >= b[2] - margin && z <= b[5] + margin) return true;
+        }
+        return false;
     }
 
     /** 部屋の中の量の和(% × マス)。 */
@@ -114,7 +122,7 @@ public final class RoomDirt extends SavedData {
         double room1 = Math.min(spec().roomMaxPercent(), room0 + percent);
         if (room1 <= room0) return;
         mass.addTo(cell, (room1 - room0) * room.volume());
-        if (!boxStale) grow(cell);
+        addBox(room);
         if (mass.size() > MAX_DEPOSITS) dropSmallest();
         setDirty();
     }
@@ -129,7 +137,6 @@ public final class RoomDirt extends SavedData {
             }
         }
         mass.remove(worst);
-        boxStale = true;
     }
 
     /**
@@ -160,11 +167,11 @@ public final class RoomDirt extends SavedData {
             }
             if (after < EPSILON) {
                 it.remove();
-                boxStale = true;
                 continue;
             }
             e.setValue(after);
         }
+        pruneBoxes();
         setDirty();
     }
 
@@ -188,7 +195,7 @@ public final class RoomDirt extends SavedData {
     /** 全部消す(開発用・GameTest)。 */
     public void clearAll() {
         mass.clear();
-        boxStale = true;
+        boxes.clear();
         setDirty();
     }
 
@@ -202,6 +209,9 @@ public final class RoomDirt extends SavedData {
             list.add(c);
         }
         tag.put("deposits", list);
+        ListTag bl = new ListTag();
+        for (int[] b : boxes) bl.add(new net.minecraft.nbt.IntArrayTag(b));
+        tag.put("rooms", bl);
         return tag;
     }
 
@@ -212,6 +222,11 @@ public final class RoomDirt extends SavedData {
             CompoundTag c = list.getCompound(i);
             double m = c.getDouble("m");
             if (m >= EPSILON && Double.isFinite(m)) d.mass.put(c.getLong("p"), m);
+        }
+        ListTag bl = tag.getList("rooms", Tag.TAG_INT_ARRAY);
+        for (int i = 0; i < bl.size(); i++) {
+            int[] b = bl.getIntArray(i);
+            if (b.length == 6) d.boxes.add(b);
         }
         return d;
     }
