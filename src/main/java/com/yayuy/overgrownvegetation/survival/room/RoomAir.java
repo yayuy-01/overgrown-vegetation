@@ -32,6 +32,15 @@ public final class RoomAir {
         return scan != null && scan.status() == RoomScan.Status.OPEN && scan.built() > 0;
     }
 
+    /**
+     * 閉じた部屋の中のゆっくりたまる暴露量(%秒 / 秒。2026-11-13 決定 22、ユーザー指定): 外の値(部屋の倍率の前)が過繁茂の下支え
+     * {@code reading.floorOvergrown} 以上なら {@code room.seepPerSecond}(過繁茂の部屋にこもり続けて約 2 日で感染 1)、それ以外は 0。
+     * 森の中の小屋は一時の避難所で、住むには換気の機械(段 2c)が要る、という段差。
+     */
+    public static double seepPerSecond(double outsidePercent, SporeFieldTable t) {
+        return outsidePercent >= t.floorFor(2) ? t.room().seepPerSecond() : 0.0D;
+    }
+
     /** 部屋に積もった汚れの上乗せ(%)。段 3c まで 0。 */
     public static double extraPercent(ServerLevel level, RoomScan room) {
         return 0.0D;

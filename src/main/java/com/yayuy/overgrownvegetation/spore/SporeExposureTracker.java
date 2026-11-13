@@ -96,20 +96,26 @@ public final class SporeExposureTracker {
 
     /** 1 体ぶんの判定({@code interval} tick ぶん)。偽プレイヤーは tick しないので GameTest からも呼ぶ。 */
     public static void tick(ServerLevel level, LivingEntity entity, int interval) {
-        tickWith(level, entity, interval, SporeConcentration.percentAt(level, entity.blockPosition()));
+        SporeConcentration.Reading r = SporeConcentration.reading(level, entity.blockPosition());
+        tickWith(level, entity, interval, r.percent(), r.roomSeepPerSecond());
     }
 
     /** {@code rawPercent}(その地点の胞子濃度)で 1 回判定する。Mob は屋根の判定を通す。 */
     public static void tickWith(ServerLevel level, LivingEntity entity, int interval, double rawPercent) {
+        tickWith(level, entity, interval, rawPercent, 0.0D);
+    }
+
+    /** {@code roomSeepPerSecond} = 閉じた部屋の中のゆっくりたまる量(決定 22。{@link SporeConcentration.Reading})。 */
+    public static void tickWith(ServerLevel level, LivingEntity entity, int interval, double rawPercent, double roomSeepPerSecond) {
         long now = level.getGameTime();
         if (entity instanceof Player player) {
-            tickPlayer(level, player, interval, rawPercent, now);
+            tickPlayer(level, player, interval, rawPercent, roomSeepPerSecond, now);
             return;
         }
         double percent = mobPercent(level, entity, rawPercent);
         boolean protecting = wearMask(entity, percent, interval);
         boolean wasFull = dose(entity) >= DesignData.sporeField().infectDose(); // 減る前に満ちていた分(コマンドで決めたときなど)も拾う
-        accumulate(entity, percent, protecting ? 0.0D : 1.0D, interval, now);
+        accumulate(entity, percent, protecting ? 0.0D : 1.0D, interval, now, percent > 0.0D ? roomSeepPerSecond : 0.0D);
         if (entity.hasData(ModAttachments.SPORE_EXPOSURE)) {
             SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
             if (wasFull || ex.dose >= DesignData.sporeField().infectDose()) {
@@ -118,7 +124,7 @@ public final class SporeExposureTracker {
         }
     }
 
-    private static void tickPlayer(ServerLevel level, Player player, int interval, double percent, long now) {
+    private static void tickPlayer(ServerLevel level, Player player, int interval, double percent, double roomSeepPerSecond, long now) {
         SporeFieldTable t = DesignData.sporeField();
         SporeExposure ex = player.getData(ModAttachments.SPORE_EXPOSURE);
         boolean protecting = wearMask(player, percent, interval);
@@ -130,7 +136,7 @@ public final class SporeExposureTracker {
                 player.setData(ModAttachments.SPORE_STAGE_TICKS, 0);
             }
             boolean wasFull = ex.dose >= t.infectDose(); // 減る前に満ちていた分も拾う
-            accumulate(player, percent, protecting ? 0.0D : 1.0D, interval, now);
+            accumulate(player, percent, protecting ? 0.0D : 1.0D, interval, now, roomSeepPerSecond);
             if ((wasFull || ex.dose >= t.infectDose()) && SporeInfectionEffects.startPlayer(player)) {
                 ex.dose = 0.0D;
                 ex.atDose = false;
@@ -242,12 +248,25 @@ public final class SporeExposureTracker {
      * 満ちたときの影響は呼ぶ側({@link #tickWith})。
      */
     public static void accumulate(LivingEntity entity, double percent, double factor, int intervalTicks, long gameTime) {
+        accumulate(entity, percent, factor, intervalTicks, gameTime, 0.0D);
+    }
+
+    /**
+     * {@code roomSeepPerSecond} 付き(2026-11-13 決定 22): 濃度が境目より下でも、閉じた部屋の中で外が過繁茂の濃さ以上なら、
+     * 暴露量がこの速さ(%秒 / 秒)でたまり、抜けない。マスクが効いていれば(factor 0)たまらない。境目以上なら今までどおり。
+     */
+    public static void accumulate(LivingEntity entity, double percent, double factor, int intervalTicks, long gameTime, double roomSeepPerSecond) {
         SporeFieldTable t = DesignData.sporeField();
         double seconds = intervalTicks / 20.0D;
         double effective = percent * factor;
         if (effective >= t.exposureMinPercent() && effective > 0.0D) {
             SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
             ex.dose = Math.min(t.infectDose(), ex.dose + effective * seconds);
+            return;
+        }
+        if (roomSeepPerSecond > 0.0D && factor > 0.0D) {
+            SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
+            ex.dose = Math.min(t.infectDose(), ex.dose + roomSeepPerSecond * factor * seconds);
             return;
         }
         if (!entity.hasData(ModAttachments.SPORE_EXPOSURE)) return;

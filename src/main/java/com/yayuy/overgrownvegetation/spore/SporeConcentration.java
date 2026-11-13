@@ -70,7 +70,20 @@ public final class SporeConcentration {
 
     /** {@code pos} の胞子濃度(%)。地点の補正込み。 */
     public static double percentAt(ServerLevel level, BlockPos pos) {
-        if (!useField(level)) return 0.0D;
+        return reading(level, pos).percent();
+    }
+
+    /**
+     * 地点の読み(2026-11-13 決定 22): {@code percent} = 濃度(%)、{@code roomSeepPerSecond} = 閉じた部屋の中で外が過繁茂の濃さ以上のときの
+     * ゆっくりたまる暴露量(%秒 / 秒。それ以外は 0)。たまり方は {@link SporeExposureTracker#accumulate}。
+     */
+    public record Reading(double percent, double roomSeepPerSecond) {
+    }
+
+    private static final Reading NONE = new Reading(0.0D, 0.0D);
+
+    public static Reading reading(ServerLevel level, BlockPos pos) {
+        if (!useField(level)) return NONE;
         // 地面より下で空の光 0 の所は地下の層の値を読む(2026-11-04 暴露量ノート 追記 6。前の深い洞窟 ×0.5 をやめた)
         boolean deep = level.dimension() == Level.OVERWORLD && undergroundAt(level, pos);
         double fx = pos.getX() / 16.0D - 0.5D, fz = pos.getZ() / 16.0D - 0.5D;
@@ -95,7 +108,8 @@ public final class SporeConcentration {
                 : deep ? 1.0D : pointFactor(level, pos);
         double out = (v + rift) * factor;
         double extra = room != null ? com.yayuy.overgrownvegetation.survival.room.RoomAir.extraPercent(level, room) : 0.0D;
-        return highCut(level, pos, out) + sporePoolPercent(level, pos) + extra;
+        double seep = room != null ? com.yayuy.overgrownvegetation.survival.room.RoomAir.seepPerSecond(v + rift, DesignData.sporeField()) : 0.0D;
+        return new Reading(highCut(level, pos, out) + sporePoolPercent(level, pos) + extra, seep);
     }
 
     /** {@code pos} の部屋の倍率(部屋の中なら reading.roomFactor、外なら 1。開発用・テスト)。 */

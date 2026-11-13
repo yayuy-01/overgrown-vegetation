@@ -358,7 +358,7 @@ public final class SporeFieldTable {
         this.floorOvergrown = orElse(rd.floorOvergrown, 25.0D);
         this.aboveCanopyFalloff = Math.max(1.0D, orElse(rd.aboveCanopyFalloff, 16.0D));
         this.hollowFactor = orElse(rd.hollowFactor, 1.3D);
-        this.roomFactor = orElse(rd.roomFactor, 0.2D);
+        this.roomFactor = orElse(rd.roomFactor, 0.15D); // 11-13 決定 22: 0.2 → 0.15【仮】(過繁茂の部屋の読みを境目 5% より下へ。たまるのは room.seepPerSecond)
         this.roofFactor = orElse(rd.roofFactor, 0.6D);
         this.rainFactor = orElse(rd.rainFactor, 0.7D);
         this.upwindShadeFactor = orElse(rd.upwindShadeFactor, 0.85D);

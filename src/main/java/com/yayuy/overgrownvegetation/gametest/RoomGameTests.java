@@ -437,6 +437,38 @@ public final class RoomGameTests {
         }));
     }
 
+    /**
+     * 決定 22: 過繁茂の中の閉じた部屋は、読みは境目より下でも暴露量がゆっくりたまり抜けない(約 2 日で感染の量)。繁茂の部屋は安全。
+     * 境目以上の読み(嵐など)は今までどおり。マスクが効けばたまらない。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void overgrownRoomSeepsSlowly(GameTestHelper helper) {
+        var t = DesignData.sporeField();
+        double over = t.floorFor(2), thriving = t.floorFor(1);
+        double seep = com.yayuy.overgrownvegetation.survival.room.RoomAir.seepPerSecond(over, t);
+        if (seep <= 0.0D) helper.fail("過繁茂の部屋でたまらない");
+        if (com.yayuy.overgrownvegetation.survival.room.RoomAir.seepPerSecond(thriving, t) != 0.0D) helper.fail("繁茂の部屋でたまる");
+        if (over * t.roomFactor() >= t.exposureMinPercent()) helper.fail("過繁茂の部屋の読み " + over * t.roomFactor() + "% が境目以上(境目で揺れる)");
+        double days = t.infectDose() / seep / 1200.0D;
+        if (days < 1.5D || days > 2.5D) helper.fail(String.format("感染の量まで %.2f 日(約 2 日のはず)", days));
+        net.minecraft.world.entity.animal.Cow cow = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.COW, new net.minecraft.world.phys.Vec3(3.5, 2.0, 3.5));
+        long now = helper.getLevel().getGameTime();
+        double inRoom = over * t.roomFactor();
+        com.yayuy.overgrownvegetation.spore.SporeExposureTracker.accumulate(cow, inRoom, 1.0D, 200, now, seep);
+        double d1 = com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(cow);
+        if (Math.abs(d1 - seep * 10.0D) > 1e-6) helper.fail("10 秒でたまったのが " + d1 + "(期待 " + seep * 10.0D + ")");
+        com.yayuy.overgrownvegetation.spore.SporeExposureTracker.accumulate(cow, inRoom, 0.0D, 200, now, seep);
+        if (com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(cow) > d1) helper.fail("マスクが効いているのにたまった"); // マスクの間は今までどおり抜ける
+        d1 = com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(cow);
+        com.yayuy.overgrownvegetation.spore.SporeExposureTracker.accumulate(cow, thriving * t.roomFactor(), 1.0D, 1200, now, 0.0D);
+        if (com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(cow) >= d1) helper.fail("繁茂の部屋で抜けない");
+        double before = com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(cow);
+        com.yayuy.overgrownvegetation.spore.SporeExposureTracker.accumulate(cow, 40.0D, 1.0D, 20, now, seep);
+        if (Math.abs(com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(cow) - before - 40.0D) > 1e-6) helper.fail("嵐で境目以上の読みが今までどおりにたまらない");
+        cow.discard();
+        helper.succeed();
+    }
+
     /** 塀の形(石の塀)は横切る向きをふさぐ・板ガラスの投影・壁の印。AirCells の印の決まりを直接見る。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void airCellClasses(GameTestHelper helper) {

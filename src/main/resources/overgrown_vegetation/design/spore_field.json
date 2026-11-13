@@ -60,7 +60,7 @@
     "floorOvergrown": 25.0,
     "aboveCanopyFalloff": 16.0,
     "hollowFactor": 1.3,
-    "roomFactor": 0.2,
+    "roomFactor": 0.15,
     "roofFactor": 0.6,
     "rainFactor": 0.7,
     "upwindShadeFactor": 0.85
@@ -223,6 +223,7 @@
     "openTtlTicks": 200,
     "maxSearchesPerTick": 2,
     "maxCachedCells": 300000,
-    "requireBuiltWall": true
+    "requireBuiltWall": true,
+    "seepPerSecond": 0.625
   }
 }

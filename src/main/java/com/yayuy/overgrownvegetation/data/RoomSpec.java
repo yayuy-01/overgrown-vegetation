@@ -23,7 +23,8 @@ public record RoomSpec(
         int openTtlTicks,
         int maxSearchesPerTick,
         int maxCachedCells,
-        boolean requireBuiltWall) {
+        boolean requireBuiltWall,
+        double seepPerSecond) {
 
     /** Gson の受け皿(null は既定値)。 */
     public static final class Json {
@@ -44,6 +45,9 @@ public record RoomSpec(
         public Integer maxCachedCells;
         /** 境界に「人の手のブロック」(タグ room_natural_wall に入っていないブロック)が 1 つも無ければ部屋にしない(自然の洞窟を除く)。 */
         public Boolean requireBuiltWall;
+        /** 決定 22(ユーザー指定): 閉じた部屋の中で外が過繁茂の濃さ以上のとき、暴露量がたまる速さ(%秒 / 秒。抜けない)。
+         *  ユーザー指定「こもり続けて約 2 日(1 日 = 1200 秒)で感染 1」= 感染の量 1500 ÷ 2400 秒 = 0.625。 */
+        public Double seepPerSecond;
     }
 
     public static final RoomSpec DEFAULT = from(null);
@@ -58,7 +62,8 @@ public record RoomSpec(
                 clamp(s.openTtlTicks, 200, 1, 72000),
                 clamp(s.maxSearchesPerTick, 2, 1, 64),
                 clamp(s.maxCachedCells, 300_000, 1000, 5_000_000),
-                s.requireBuiltWall == null || s.requireBuiltWall);
+                s.requireBuiltWall == null || s.requireBuiltWall,
+                s.seepPerSecond != null && Double.isFinite(s.seepPerSecond) ? Math.max(0.0D, s.seepPerSecond) : 0.625D);
     }
 
     private static int clamp(Integer v, int def, int lo, int hi) {
