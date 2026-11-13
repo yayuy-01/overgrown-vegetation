@@ -22,6 +22,7 @@ public final class SkyTable {
         public StormsJson storms;
         public CirrusJson cirrus;
         public WeatherJson weather;
+        public SkyColorJson skyColor;
     }
 
     public static final class CloudsJson {
@@ -105,6 +106,22 @@ public final class SkyTable {
         public Double clearTo;
     }
 
+    /**
+     * 空の色(2026-11-13 シェーダーの仕上げ A。ユーザー決定: 普通の世界は「鮮やか」・汚染地域の森の中は「太陽がにじむ + 天頂が少し抜ける」)。
+     * 見た目だけ(送らない)。色の中身は仮決め(見本 tools/sky-color で選んだ案 2・案 イ)。切り替わる太陽の高さは atmosphere.json の skyTintHeights と同じ。
+     */
+    public static final class SkyColorJson {
+        /** 強さ(0 = バニラの空のまま 〜 1)。 */
+        public Double strength;
+        /** 金の時間・日の入り・日没後(= 夜明け前)の、天頂・太陽の反対側の地平・太陽の側の地平・太陽のまわりの暈の色 [r, g, b] と暈の強さ。 */
+        public double[] zenithGold, awayGold, towardGold, glowGold;
+        public double[] zenithSunset, awaySunset, towardSunset, glowSunset;
+        public double[] zenithTwilight, awayTwilight, towardTwilight, glowTwilight;
+        public Double glowGoldStrength, glowSunsetStrength, glowTwilightStrength;
+        /** 森の中の霞で満ちた空: 霞ごしの太陽のにじみの強さ(0 = 今までの平らな空)・真上で霞が薄れる割合。 */
+        public Double hazeGlow, hazeZenith;
+    }
+
     public final double coverage;
     public final int style;
     public final float celShading, softEdges, roughWeather, windStreaks, blueHaze, texture, nightClouds, curvature, farClouds;
@@ -118,6 +135,11 @@ public final class SkyTable {
     public final float storms, stormChance, giantChance, footScale;
     public final float cirrus, cirrusAmount, cirrusHeight, cirrusWindScale;
     public final float syncRain, rainDays, thunderShare, preRainTicks;
+    /** 空の色(11-13): 強さ、金の時間・日の入り・日没後の順の色(天頂・反対側・太陽の側・暈)と暈の強さ、霞ごしの太陽のにじみ・天頂の抜け。 */
+    public final float skyColorStrength;
+    public final float[][] skyZenith, skyAway, skyToward, skyGlow;
+    public final float[] skyGlowStrength;
+    public final float skyHazeGlow, skyHazeZenith;
 
     private SkyTable(Json j) {
         CloudsJson c = j == null || j.clouds == null ? new CloudsJson() : j.clouds;
@@ -167,6 +189,16 @@ public final class SkyTable {
         rainDays = f(we.rainDays, 0.75); // 11-09 段階 2a-6 ユーザー決定: 0.5 → 0.75(雨の時間をバニラ並みの約 15% に。胞子の降り積もりは雨の間 10 倍で、汚染の速さはバニラの雨の量で合わせてある)
         thunderShare = f(we.thunderShare, 0.3);
         preRainTicks = (float) clamp(we.preRainTicks, 4000.0, 0.0, 24000.0);
+        SkyColorJson sc = j == null || j.skyColor == null ? new SkyColorJson() : j.skyColor;
+        skyColorStrength = f(sc.strength, 1.0);
+        skyZenith = new float[][]{rgb(sc.zenithGold, 0.36F, 0.52F, 0.92F), rgb(sc.zenithSunset, 0.22F, 0.30F, 0.62F), rgb(sc.zenithTwilight, 0.07F, 0.10F, 0.26F)};
+        skyAway = new float[][]{rgb(sc.awayGold, 0.78F, 0.78F, 0.92F), rgb(sc.awaySunset, 0.62F, 0.52F, 0.70F), rgb(sc.awayTwilight, 0.16F, 0.19F, 0.36F)};
+        skyToward = new float[][]{rgb(sc.towardGold, 1.00F, 0.82F, 0.55F), rgb(sc.towardSunset, 1.00F, 0.50F, 0.22F), rgb(sc.towardTwilight, 0.75F, 0.38F, 0.30F)};
+        skyGlow = new float[][]{rgb(sc.glowGold, 1.00F, 0.85F, 0.55F), rgb(sc.glowSunset, 1.00F, 0.55F, 0.25F), rgb(sc.glowTwilight, 0.90F, 0.40F, 0.30F)};
+        skyGlowStrength = new float[]{(float) clamp(sc.glowGoldStrength, 0.6, 0.0, 2.0), (float) clamp(sc.glowSunsetStrength, 0.9, 0.0, 2.0),
+                (float) clamp(sc.glowTwilightStrength, 0.5, 0.0, 2.0)};
+        skyHazeGlow = (float) clamp(sc.hazeGlow, 1.0, 0.0, 3.0);
+        skyHazeZenith = f(sc.hazeZenith, 0.3);
     }
 
     public static SkyTable fromJson(Json j) {

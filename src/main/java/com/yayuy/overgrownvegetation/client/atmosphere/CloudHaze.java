@@ -21,6 +21,11 @@ public final class CloudHaze {
     private CloudHaze() {
     }
 
+    /** 空の丸天井を霞の色で満たしている割合(0〜1。空の色 {@code client.sky.SkyColors} が読む。11-13 仕上げ A)。 */
+    public static float wall() {
+        return VisualQuality.fog() ? Math.min(MistView.cloudWall(), 1.0F) : 0.0F;
+    }
+
     /** 雲のシェーダーに {@code ForestHaze}・{@code ForestHazeK} を入れる(遠くの雲・近くの雲のどちらの描画でも同じ値)。 */
     public static void set(ShaderInstance shader) {
         float wall = VisualQuality.fog() ? MistView.cloudWall() : 0.0F;

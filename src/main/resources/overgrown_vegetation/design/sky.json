@@ -57,6 +57,27 @@
     "thunderShare": 0.3,
     "preRainTicks": 4000.0
   },
+  "skyColor": {
+    "_comment": "空の色(2026-11-13 シェーダーの仕上げ A。ユーザー決定: 普通の世界は「鮮やか」・汚染地域の森の中は「太陽がにじむ + 天頂が少し抜ける」。色と強さの中身は仮決め = 見本 tools/sky-color の案 2・案 イ)。見た目だけ(送らない)。strength = 強さ(0 = バニラの空のまま)。昼と夜はバニラの空の色のままで、その間の 3 つの時刻(金の時間 Gold・日の入り Sunset・日没後 = 夜明け前 Twilight。切り替わる太陽の高さは atmosphere.json の skyTintHeights と同じ)の色を決める: zenith = 天頂・away = 太陽の反対側の地平・toward = 太陽の側の地平・glow = 太陽のまわりの暈の色、glow…Strength = 暈の強さ。空のいちばん下の輪は霧の色のまま(地形と継ぎ目を作らない)。hazeGlow = 森の中の霞ごしの太陽のにじみ(0 = 今までの平らな空)・hazeZenith = 真上で霞が薄れる割合。",
+    "strength": 1.0,
+    "zenithGold": [0.36, 0.52, 0.92],
+    "awayGold": [0.78, 0.78, 0.92],
+    "towardGold": [1.00, 0.82, 0.55],
+    "glowGold": [1.00, 0.85, 0.55],
+    "glowGoldStrength": 0.6,
+    "zenithSunset": [0.22, 0.30, 0.62],
+    "awaySunset": [0.62, 0.52, 0.70],
+    "towardSunset": [1.00, 0.50, 0.22],
+    "glowSunset": [1.00, 0.55, 0.25],
+    "glowSunsetStrength": 0.9,
+    "zenithTwilight": [0.07, 0.10, 0.26],
+    "awayTwilight": [0.16, 0.19, 0.36],
+    "towardTwilight": [0.75, 0.38, 0.30],
+    "glowTwilight": [0.90, 0.40, 0.30],
+    "glowTwilightStrength": 0.5,
+    "hazeGlow": 1.0,
+    "hazeZenith": 0.3
+  },
   "highSky": {
     "_comment": "高空の晴天: clearFrom〜clearTo で雨が消え、空がバニラの晴れた色へ(ユーザー指定 300〜350)。clarity = 強さ。",
     "clarity": 1.0,

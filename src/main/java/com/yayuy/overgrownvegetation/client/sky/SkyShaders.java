@@ -17,6 +17,12 @@ public final class SkyShaders {
 
     private static ShaderInstance voxelClouds;
     private static ShaderInstance cirrus;
+    private static ShaderInstance skyDome;
+
+    /** 空の色({@link SkyColors}、11-13 仕上げ A)。読み込めなかったら null(バニラの空のまま)。 */
+    public static ShaderInstance skyDome() {
+        return skyDome;
+    }
 
     /** 巻雲({@link Cirrus}、11-09 段階 2a)。読み込めなかったら null(描かない)。 */
     public static ShaderInstance cirrus() {
@@ -46,6 +52,14 @@ public final class SkyShaders {
         } catch (IOException e) {
             OvergrownVegetation.LOGGER.error("巻雲のシェーダーを読み込めなかったので、巻雲は描かない", e);
             cirrus = null;
+        }
+        try {
+            event.registerShader(new ShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "sky_dome"), DefaultVertexFormat.POSITION),
+                    shader -> skyDome = shader);
+        } catch (IOException e) {
+            OvergrownVegetation.LOGGER.error("空の色のシェーダーを読み込めなかったので、空はバニラのまま", e);
+            skyDome = null;
         }
     }
 
