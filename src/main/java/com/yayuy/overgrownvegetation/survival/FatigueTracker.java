@@ -182,19 +182,27 @@ public final class FatigueTracker {
     public static void onAttack(AttackEntityEvent event) {
         Player player = event.getEntity();
         if (player.level().isClientSide() || !(event.getTarget() instanceof LivingEntity)) return;
-        countAttack(player);
+        // 連打で疲れすぎないよう、攻撃の溜め(0〜1)で重み付け【仮】
+        countAttack(player, player.getAttackStrengthScale(0.5F));
     }
 
     @SubscribeEvent
     public static void onBreak(BlockEvent.BreakEvent event) {
         Player player = event.getPlayer();
         if (player == null || player.level().isClientSide() || player.isCreative()) return;
+        // 草・花のような一瞬で壊れるものは数えない【仮】
+        if (event.getState().getDestroySpeed(event.getLevel(), event.getPos()) <= 0.0F) return;
         countBreak(player);
     }
 
     /** 殴った 1 回を数える(テストからも呼ぶ)。 */
     public static void countAttack(Player player) {
-        player.getData(ModAttachments.FATIGUE).attacks++;
+        countAttack(player, 1.0D);
+    }
+
+    /** 溜めの割合 {@code weight}(0〜1)で殴った 1 回を数える。 */
+    public static void countAttack(Player player, double weight) {
+        player.getData(ModAttachments.FATIGUE).attacks += Math.max(0.0D, Math.min(1.0D, weight));
     }
 
     /** 壊した 1 つを数える(テストからも呼ぶ)。 */

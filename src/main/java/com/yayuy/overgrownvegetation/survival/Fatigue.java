@@ -19,8 +19,8 @@ public final class Fatigue {
 
     /** 前の判定から走って(泳いで)いた tick(保存しない)。 */
     public int sprintTicks;
-    /** 前の判定から殴った回数(保存しない)。 */
-    public int attacks;
+    /** 前の判定から殴った回数(溜めの割合で重み付け。連打は溜めが小さいので少ししか数えない。保存しない)。 */
+    public double attacks;
     /** 前の判定から壊したブロックの数(保存しない)。 */
     public int breaks;
     /** 最後にクライアントへ送った HUD の値の鍵(保存しない。作り直された添付は -1 から = 復活・ログイン・次元の移動で送り直す)。 */
