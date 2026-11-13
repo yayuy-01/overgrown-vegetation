@@ -42,6 +42,8 @@ public final class SporeFieldTable {
         public High high;
         /** 汚染の縁と穴(2026-11-04)。 */
         public Edge edge;
+        /** 疲労(2026-11-13 サバイバルの背骨 段 1。null は既定値)。 */
+        public FatigueSpec.Json fatigue;
     }
 
     /**
@@ -240,6 +242,7 @@ public final class SporeFieldTable {
 
     private final double exposureMinPercent, exposureHalfLifeSeconds, infectDose, maskCapacity, mobExposureDamage, mobMaxHealthLoss, warnFaint, warnStrong;
     private final int exposurePlayerInterval, exposureMobInterval;
+    private final FatigueSpec fatigue;
 
     private SporeFieldTable(Json j) {
         Json src = j != null ? j : new Json();
@@ -254,6 +257,7 @@ public final class SporeFieldTable {
         this.warnStrong = Math.max(this.warnFaint, Math.min(1.0D, orElse(ex.warnStrongFraction, 0.8D)));
         this.exposurePlayerInterval = ex.playerIntervalTicks != null ? Math.max(1, Math.min(200, ex.playerIntervalTicks)) : 20;
         this.exposureMobInterval = ex.mobIntervalTicks != null ? Math.max(1, Math.min(200, ex.mobIntervalTicks)) : 40;
+        this.fatigue = FatigueSpec.from(src.fatigue);
         this.enabled = src.enabled == null || src.enabled;
         this.updateTicks = src.updateTicks != null ? Math.max(20, Math.min(1200, src.updateTicks)) : 100;
         this.maxStepsPerRun = src.maxStepsPerRun != null ? Math.max(1, Math.min(2400, src.maxStepsPerRun)) : 60;
@@ -470,6 +474,11 @@ public final class SporeFieldTable {
     /** にじみが濃くなりきる暴露量の割合(0.8、仮決め)。 */
     public double warnStrongFraction() {
         return warnStrong;
+    }
+
+    /** 疲労の設計値(2026-11-13)。 */
+    public FatigueSpec fatigue() {
+        return fatigue;
     }
 
     public int exposurePlayerIntervalTicks() {

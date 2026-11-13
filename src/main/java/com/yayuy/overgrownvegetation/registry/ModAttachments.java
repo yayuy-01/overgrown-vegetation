@@ -282,6 +282,13 @@ public final class ModAttachments {
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<Integer>> SPORE_STAGE_TICKS =
             ATTACHMENT_TYPES.register("spore_stage_ticks",
                     () -> AttachmentType.builder(() -> 0).serialize(Codec.INT).build());
+    /**
+     * プレイヤーの疲労(2026-11-13 サバイバルの背骨 段 1、{@code survival/FatigueTracker})。保存する・死んだら引き継がない(復活は 0。ユーザー指定)。
+     */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<com.yayuy.overgrownvegetation.survival.Fatigue>> FATIGUE =
+            ATTACHMENT_TYPES.register("fatigue",
+                    () -> AttachmentType.builder(com.yayuy.overgrownvegetation.survival.Fatigue::new)
+                            .serialize(com.yayuy.overgrownvegetation.survival.Fatigue.CODEC).build());
     /** 暖花の丸薬で最大体力の低下を免れた段の数(2026-10-16、effect/MedicineEffects)。治ると 0。保存する。 */
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<Integer>> SPORE_HEALTH_RELIEF =
             ATTACHMENT_TYPES.register("spore_health_relief",

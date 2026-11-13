@@ -143,6 +143,9 @@ public final class SporeExposureTracker {
             SporeInfectionEffects.tickInfected(player, ex, interval, percent,
                     ModBiomes.isFullyOvergrown(level.getBiome(player.blockPosition())), protecting);
         }
+        // 疲労と、HUD の 2 本のゲージ(2026-11-13 サバイバルの背骨 段 1)
+        com.yayuy.overgrownvegetation.survival.FatigueTracker.step(player, interval, percent, SporeInfectionEffects.stageOf(player), protecting);
+        com.yayuy.overgrownvegetation.survival.SurvivalSync.send(player);
         sendWarning(player);
     }
 
@@ -250,7 +253,9 @@ public final class SporeExposureTracker {
         if (!entity.hasData(ModAttachments.SPORE_EXPOSURE)) return;
         SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
         if (ex.dose > 0.0D) {
-            ex.dose *= Math.pow(0.5D, seconds / t.exposureHalfLifeSeconds());
+            // 疲労で抜けにくくなる(2026-11-13 サバイバル段 1。プレイヤーだけ、Mob は 1 倍)
+            ex.dose *= Math.pow(0.5D, seconds / (t.exposureHalfLifeSeconds()
+                    * com.yayuy.overgrownvegetation.survival.FatigueTracker.exposureHalfLifeMultiplier(entity)));
             if (ex.dose < 1.0D) ex.dose = 0.0D;
         }
         if (ex.atDose && ex.dose < t.infectDose() * 0.5D) ex.atDose = false;

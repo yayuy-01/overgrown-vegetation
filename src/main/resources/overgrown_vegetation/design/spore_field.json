@@ -194,5 +194,24 @@
     "depositWeight": 0.6,
     "threshold": 0.35,
     "holeSides": 3
+  },
+  "fatigue": {
+    "_comment": "疲労(2026-11-13 サバイバルの背骨 段 1)。0〜100%。たまる 4 つの要因・約 2 日で限界・効き目 2 つ・夜に寝ると全部戻る・昼のベッドで少しずつ戻る・死んだら 0 はユーザー指定。数はすべて仮決め:「ふつう」= 起きている + 2 割走る + 20 秒に 1 回殴る + 5 秒に 1 ブロック掘る → 0.0415 %/秒で約 2 日。効き目は effectsFrom から 100 まで直線。infectionMultiplierMax は疲労による感染の加速の上限(ユーザー指定「上限を付ける」)。",
+    "enabled": true,
+    "awakePerSecond": 0.025,
+    "sprintPerSecond": 0.05,
+    "attackEach": 0.05,
+    "breakEach": 0.02,
+    "denseFromPercent": 20.0,
+    "densePerSecondAt100": 0.05,
+    "stagePerSecond": 0.004,
+    "restPerSecond": 0.25,
+    "effectsFrom": 50.0,
+    "moveSlow": 0.15,
+    "mineSlow": 0.2,
+    "attackSpeedSlow": 0.1,
+    "exposureHalfLifeMax": 2.0,
+    "infectionMultiplierMax": 1.5,
+    "dayRestNeedsSafety": true
   }
 }

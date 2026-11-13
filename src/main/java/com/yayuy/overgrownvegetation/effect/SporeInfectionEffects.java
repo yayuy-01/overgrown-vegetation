@@ -96,7 +96,9 @@ public final class SporeInfectionEffects {
                 player.giveExperiencePoints(-spec.xpDrainPoints());
             }
         }
-        double rate = masked ? 1.0D : spec.rate(percent, overgrownBiome);
+        // 疲労で進みやすくなる(2026-11-13 サバイバル段 1。上限 fatigue.infectionMultiplierMax、マスクが効いていれば掛けない)
+        double rate = masked ? 1.0D : spec.rate(percent, overgrownBiome)
+                * com.yayuy.overgrownvegetation.survival.FatigueTracker.infectionMultiplier(player);
         double exact = interval * rate + ex.rateCarry;
         int ticks = (int) Math.floor(exact);
         ex.rateCarry = exact - ticks;
