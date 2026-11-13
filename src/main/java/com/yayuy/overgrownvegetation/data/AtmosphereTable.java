@@ -38,6 +38,8 @@ public final class AtmosphereTable {
         public AtmosphereEye.EyeAdaptJson eyeAdapt;
         /** 光るもののにじみ(11-13 仕上げ B、{@link AtmosphereEye})。 */
         public AtmosphereEye.BloomJson bloom;
+        /** 鉱石のきらめき(11-13 仕上げ E、{@link AtmosphereEye})。 */
+        public AtmosphereEye.OreSparkleJson oreSparkle;
         /** 過繁茂の外の洞窟(11-07、{@link AtmosphereEye})。 */
         public AtmosphereEye.CaveOpenJson caveOpen;
         /** 洞窟の天井の穴の光の筋(11-07、{@link AtmosphereEye})。 */
@@ -667,6 +669,7 @@ public final class AtmosphereTable {
     private final AtmosphereAir.SporeAirParams sporeAir;
     private final AtmosphereEye.EyeAdaptParams eyeAdapt;
     private final AtmosphereEye.BloomParams bloom;
+    private final AtmosphereEye.OreSparkleParams oreSparkle;
     private final AtmosphereEye.CaveOpenParams caveOpen;
     private final AtmosphereEye.CaveShaftsParams caveShafts;
     private final AtmosphereEye.CaveBreathParams caveBreath;
@@ -773,6 +776,7 @@ public final class AtmosphereTable {
         this.sporeAir = AtmosphereAir.SporeAirParams.of(j != null ? j.sporeAir : null);
         this.eyeAdapt = AtmosphereEye.EyeAdaptParams.of(j != null ? j.eyeAdapt : null);
         this.bloom = AtmosphereEye.BloomParams.of(j != null ? j.bloom : null);
+        this.oreSparkle = AtmosphereEye.OreSparkleParams.of(j != null ? j.oreSparkle : null);
         this.caveOpen = AtmosphereEye.CaveOpenParams.of(j != null ? j.caveOpen : null);
         this.caveShafts = AtmosphereEye.CaveShaftsParams.of(j != null ? j.caveShafts : null);
         this.caveBreath = AtmosphereEye.CaveBreathParams.of(j != null ? j.caveBreath : null);
@@ -1193,6 +1197,11 @@ public final class AtmosphereTable {
     /** 光るもののにじみ(節 bloom、11-13 仕上げ B。{@link AtmosphereEye})。 */
     public AtmosphereEye.BloomParams bloom() {
         return bloom;
+    }
+
+    /** 鉱石のきらめき(節 oreSparkle、11-13 仕上げ E。{@link AtmosphereEye})。 */
+    public AtmosphereEye.OreSparkleParams oreSparkle() {
+        return oreSparkle;
     }
 
     public AtmosphereAir.SporeAirParams sporeAir() {

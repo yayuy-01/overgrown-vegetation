@@ -145,6 +145,8 @@ float ovCaveHaze = -1.0;
 // The fragment's position relative to the camera, kept by ovCaveSink for ovCaveFog.
 vec3 ovCavePosNow = vec3(0.0);
 vec3 ovCaveAdd = vec3(0.0);
+// The light the point lights (and the lights in hand) put on this fragment, without the surface colour (11-13, for the ore sparkle: ov_ore.glsl).
+vec3 ovCaveLightNow = vec3(0.0);
 
 // Map b (distance to the nearest cave mouth) at a column, clamped to the map.
 float ovCaveMouthAt(ivec2 t) {
@@ -312,6 +314,7 @@ vec3 ovCaveHazeOver(vec3 color, bool path) {
 // The glowing plants of this mod are not held back (their own light level is low, or the glow vines' 14 left dark rings around them).
 vec3 ovCaveLight(vec3 color, vec3 albedo, vec3 pos, vec3 n, float facing, float under, float block) {
     ovCaveAdd = vec3(0.0);
+    ovCaveLightNow = vec3(0.0);
     // 11-04 (13 continued, the floor under a hole in the roof darker than around it): under holds the sky light (12 -> 4 of 15), so the
     // sunlit floor right under the hole got neither the raised floor nor the point lights and stayed at the bare vanilla light, darker
     // than the cave floor around it. While the camera is in a cave, near it (the same 0.6 fogStart .. fogStart as ovCaveUnder) both go
@@ -409,6 +412,7 @@ vec3 ovCaveLight(vec3 color, vec3 albedo, vec3 pos, vec3 n, float facing, float 
     // Held lights on the part of the face that is not underground (the underground part gets them with the other lights below).
     if (held > 0) {
         color += albedo * hsum * OvCave.z * (1.0 - under);
+        ovCaveLightNow += hsum * OvCave.z * (1.0 - under);
     }
     if (under <= 0.0) {
         return color;
@@ -416,6 +420,7 @@ vec3 ovCaveLight(vec3 color, vec3 albedo, vec3 pos, vec3 n, float facing, float 
     // The raised floor: grey-green, from the albedo with part of its saturation taken out.
     vec3 floorAlbedo = mix(albedo, vec3(dot(albedo, lum)), extra2.x);
     ovCaveAdd = albedo * sum * OvCave.z * under * overLights;
+    ovCaveLightNow += sum * OvCave.z * under * overLights;
     vec3 lit = color + floorAlbedo * extra.rgb * under * overLift + ovCaveAdd;
     // Soft clip of the brightest channel above the knee (only where the lights added something), losing saturation as it climbs.
     float knee = clamp(extra.w, 0.1, 1.0);

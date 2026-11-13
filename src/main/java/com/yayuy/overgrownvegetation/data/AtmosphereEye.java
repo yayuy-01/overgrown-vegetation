@@ -67,6 +67,23 @@ public final class AtmosphereEye {
     }
 
     /**
+     * 鉱石のきらめき(節 oreSparkle、2026-11-13 シェーダーの仕上げ E。読むのは {@code client/atmosphere/OreSparkle})。ユーザー決定: 既定でオン。数は仮決め:
+     * {@code strength} = きらめきの明るさ、{@code share} = 同時に光る粒の割合。
+     */
+    public static final class OreSparkleJson {
+        /** false = 切る。 */
+        public Boolean enabled;
+        public Double strength, share;
+    }
+
+    public record OreSparkleParams(boolean enabled, float strength, float share) {
+        static OreSparkleParams of(OreSparkleJson j) {
+            OreSparkleJson v = j != null ? j : new OreSparkleJson();
+            return new OreSparkleParams(v.enabled == null || v.enabled, c(v.strength, 0.8, 0.0, 4.0), c(v.share, 0.08, 0.01, 1.0));
+        }
+    }
+
+    /**
      * 過繁茂の外の洞窟(節 caveOpen、2026-11-07 判断の後の直し。ユーザー「おすすめで直す」)。地下モードの仕組みは世界全体、過繁茂らしさは色と見通しで出す 2 層の方針で、
      * 過繁茂の外の洞窟だけ値を変える(過繁茂の中は前のまま)。過繁茂の度合い(カメラの所の判定を blendSeconds で寄せたもの)で混ぜる。数はすべて仮決め:
      * <ul>

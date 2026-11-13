@@ -15,6 +15,7 @@
 #ov_import <ov_caustic.glsl>
 #ov_import <ov_leaf.glsl>
 #ov_import <ov_cave.glsl>
+#ov_import <ov_ore.glsl>
 #ov_import <ov_cloud.glsl>
 #ov_import <ov_wave.glsl>
 #ov_import <ov_water.glsl>
@@ -134,6 +135,8 @@ void main() {
         // (OvCaveLights column 24 row 5 x; 1 = as solid rock).
         uint ovCutoff = (v_Material >> 1u) & 3u;
         color.rgb = ovCaveLight(color.rgb, ovAlbedo, ovPos, n, ovCutoff >= 2u ? -1.0 : facing, ovUnder, ovLight.x);
+        // Grains of ore glint where a point light or a light in hand reaches (ov_ore.glsl, 11-13).
+        color.rgb = ovOreSparkle(color.rgb, v_TexCoord, ovPos, n, ovCaveLightNow);
         // Faces under cave water get darker with the depth (ov_cave.glsl, 11-06 light inspection 10).
         color.rgb = ovCaveWaterBottom(color.rgb, ovPos, n, ovUnder);
         // The glowing pixels: while the camera is outside they go in before the forest haze, and deep in a cave they stay dim (11-04).

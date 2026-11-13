@@ -381,6 +381,12 @@
     "darkFrom": 0.2,
     "darkTo": 0.7
   },
+  "oreSparkle": {
+    "_comment": "鉱石のきらめき(2026-11-13 シェーダーの仕上げ E。ユーザー決定: 既定でオン。数は仮決め)。暗い洞窟で、点光源(光る植物・松明・溶岩)や手に持った明かりが届いている面の、鉱石の粒の画素だけが一瞬きらめく。歩く・見回す・時間で入れ替わる。enabled = false で切る(見え方の設定「地下の光」を切っても出ない)。strength = きらめきの明るさ、share = 同時に光る粒の割合。",
+    "enabled": true,
+    "strength": 0.8,
+    "share": 0.08
+  },
   "eyeAdapt": {
     "_comment": "11-07 洞窟の出入りの目の慣れ(明順応・暗順応。ユーザーの考え「暗い所から明るい所へ出た瞬間の視覚効果で、外と洞窟を違和感なくつなげる」)。ユーザー指定: 出るときは白く飛んで 2〜4 秒で戻る・白い間に地下モードの切り替えを済ませる・入るときは暗く光源だけが見え数秒で岩の輪郭が見える・強さは暗い所にいた時間で決める(口を少し出入りしただけならほとんど出ない)・強さはほどほど・世界全体・オフにできる(enabled false)。数はすべて仮決め: lightSeconds・darkSeconds = 目が慣れている明るさ(EV)が今の明るさを追う時定数(明るくなる向き・暗くなる向き)、deadband・range = 差(EV)が deadband を超えた分を range で 0 → 1(まぶしさ・暗さ)、今の明るさ = max((空の光/15)² × 昼の明るさ(夜は nightSky), (ブロックの光/15)² × blockWeight, floor)、glareExposure = 明るさの上乗せ・glareBloom = 明るい所のにじみ・glareWash = 白へ寄せる(コントラストを下げる)・glareDesaturate = 彩度を抜く、darkAmbient = 入った直後の地下の床の持ち上げの倍率・darkShadow = 地下で暗い所をさらに沈める割合、hideSeconds = まぶしさ・暗さが hideFrom を超えている間の地下モードの寄せの時定数(普段は fog.transitionCaveSeconds)。シェーダーパック使用中は掛けない。",
     "enabled": true,
