@@ -26,6 +26,8 @@
     "skyTintHeights": [0.35, 0.15, 0.0, -0.15, -0.35],
     "skyTintStrength": 1.0,
     "skyTintShade": 0.7,
+    "_skyTintOvercast": "11-13(ユーザー決定「曇りの日は地面の色を弱める」。値は仮決め): 雲が空を覆う日(雲の量 0.6〜0.95 で雲の天井になる。雲のシェーダーと同じ物差し)は、空の光の色(朝焼け・夕焼け・日没後の青灰)を skyTintOvercast の割合だけ白へ戻す(雨は 0.75)。空が雲の天井に隠れているのに、地面だけ朝焼け色になっていた。雲より上(高空の晴天)では弱めない。",
+    "skyTintOvercast": 0.8,
     "_night": "11-05 光の点検 4「夜が一様な灰緑」(ユーザー選択は案 1〜5、目標「少し見える暗さ」: 満月はぼんやり見え、新月は月明かりの無い黒に近く地脈や結晶の光だけが頼り。値はすべて仮決め)。夜の度合い = 太陽が地平線の下 0〜0.2 で 0 → 1(夕方 12500 は 0 で変わらない)。(1) 林床の持ち上げは夜、満月 skyLiftNightFull〜新月 skyLiftNightNew(月の満ち欠けで寄せる)、0〜3 段の寄せ方は skyLiftDarkNight。(2) 月の向きで面の明暗: 頂点の面の明るさと合わせて 上向き(月の方)1・月の側 moonShadeSide・反対側 moonShadeBack・下向き moonShadeDown(明るくはしない)、強さ moonShadeStrength × 月の高さ × 月の満ち欠け(新月で 0.3)。松明の当たる面は弱める。(4) 月の斑点: 太陽の地図を月の向きで作り、月の影を 1 − moonMapStrength まで落とし、月の当たる所を moonMapColor(比)に。月の明るさが moonMapPhaseMin 以下(月相 0.5 未満)では作らない。葉を透かす光は夜は無し。(5) 夜の色は月の当たる所だけ nightTint(青灰)、月の当たらない所は彩度を nightDesaturate 倍まで落とす。 11-05 夜 地図の直しの後、moonMapStrength 0.5 → 0.15(直す前の満月の明るさへ)。",
     "skyLiftNightFull": 0.35,
     "skyLiftNightNew": 0.05,

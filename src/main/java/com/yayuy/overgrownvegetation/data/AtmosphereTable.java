@@ -463,6 +463,8 @@ public final class AtmosphereTable {
          *  森の中の地形の全面に、林冠の開いた所(頂点の空の光が高い所)で skyTintStrength・傘の下はその skyTintShade 倍だけ掛ける。 */
         public double[] skyTintGold, skyTintDusk, skyTintTwilight, skyTintHeights;
         public Double skyTintStrength, skyTintShade;
+        /** 11-13(ユーザー決定「曇りの日は地面の色を弱める」。値は仮決め): 雲が空を覆う日(雲の天井)に、空の光の色(朝焼け・夕焼け)を弱める割合(0 = 弱めない)。 */
+        public Double skyTintOvercast;
         /**
          * 夜の暗さ(11-05 光の点検 4、値は仮決め): 夜の林床の持ち上げ(満月 skyLiftNightFull・新月 skyLiftNightNew を月の満ち欠けで寄せる)と、夜の 0〜3 段の寄せ方 skyLiftDarkNight。
          * 月の向きの面の明暗(上向き 1・月の側 moonShadeSide・反対側 moonShadeBack・下向き moonShadeDown。頂点の面の明るさと合わせた比)とその強さ moonShadeStrength。
@@ -630,6 +632,7 @@ public final class AtmosphereTable {
     private final float greenBounce;
     private final float[] skyTintGold, skyTintDusk, skyTintTwilight, skyTintHeights;
     private final float skyTintStrength, skyTintShade;
+    private final float skyTintOvercast;
     private final float skyLift, skyLiftDark;
     private final float skyLiftNightFull, skyLiftNightNew, skyLiftDarkNight;
     private final float skyLiftNightFullOpen, skyLiftNightNewOpen;
@@ -710,6 +713,7 @@ public final class AtmosphereTable {
         this.skyTintHeights = descending(l.skyTintHeights, new float[]{0.35F, 0.15F, 0.0F, -0.15F, -0.35F});
         this.skyTintStrength = clamp(l.skyTintStrength, 1.0, 0.0, 1.0);
         this.skyTintShade = clamp(l.skyTintShade, 0.7, 0.0, 1.0);
+        this.skyTintOvercast = clamp(l.skyTintOvercast, 0.8, 0.0, 1.0);
         this.swampPresence = clamp(l.swampPresence, 0.45, 0.0, 1.0);
         this.skyLift = clamp(l.skyLift, 1.0, 0.0, 1.0);
         this.skyLiftDark = clamp(l.skyLiftDark, 0.8, 0.0, 1.0);
@@ -922,6 +926,11 @@ public final class AtmosphereTable {
 
     public float skyTintShade() {
         return skyTintShade;
+    }
+
+    /** 曇りの日に空の光の色を弱める割合(11-13)。 */
+    public float skyTintOvercast() {
+        return skyTintOvercast;
     }
 
     public float nightTintStrength() {

@@ -157,7 +157,8 @@ public final class SunLight {
             }
         }
         k = smooth(Mth.clamp(k, 0.0F, 1.0F));
-        float clear = 1.0F - 0.75F * level.getRainLevel(partialTick);
+        // 雨と、雲が空を覆う日(11-13 ユーザー決定「曇りの日は地面の色を弱める」。空が雲の天井に隠れているのに地面だけ朝焼け色だった)は白へ戻す。
+        float clear = 1.0F - Math.max(0.75F * level.getRainLevel(partialTick), t.skyTintOvercast() * overcast(level, partialTick));
         for (int i = 0; i < 3; i++) {
             out[i] = Mth.lerp(clear, 1.0F, Mth.lerp(k, a[i], b[i]));
         }
@@ -165,6 +166,18 @@ public final class SunLight {
     }
 
     private static final float[] WHITE = {1.0F, 1.0F, 1.0F};
+
+    /**
+     * 雲が空を覆っている度合い(0〜1。2026-11-13)。雲の量 0.6〜0.95 で雲の天井になる(雲のシェーダー voxel_clouds の ceiling と同じ物差し)。
+     * ボクセルの雲を描いていないとき(設定・シェーダーパック)と、雲より上(高空の晴天)では 0。
+     */
+    public static float overcast(ClientLevel level, float partialTick) {
+        if (!com.yayuy.overgrownvegetation.client.sky.VoxelClouds.isActive()) {
+            return 0.0F;
+        }
+        float cover = com.yayuy.overgrownvegetation.client.sky.VoxelClouds.coverage(level, partialTick);
+        return smooth(Mth.clamp((cover - 0.6F) / 0.35F, 0.0F, 1.0F)) * (1.0F - com.yayuy.overgrownvegetation.client.sky.HighSky.clarity());
+    }
 
     /**
      * 空気の中の光の向きの差。{@code (dx, dy, dz)} は目からその点への向き。c = 太陽の向きとの cos、q = (1 + c) / 2 として
