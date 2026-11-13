@@ -327,6 +327,8 @@
   "gui.overgrown_vegetation.visual_settings.cave_light.desc": "Under the overgrown forest, only the glow of plants floats in black fog (point lights, mobs lit too). Prototype.",
   "gui.overgrown_vegetation.visual_settings.glow_bloom": "Glow bloom",
   "gui.overgrown_vegetation.visual_settings.glow_bloom.desc": "A soft glow around torches, lava, glowing plants and spores in the dark. A full-screen pass; turn it off if the game runs slow.",
+  "gui.overgrown_vegetation.visual_settings.surface_bump": "Surface relief",
+  "gui.overgrown_vegetation.visual_settings.surface_bump.desc": "Under a low sun, bark and rock get relief from the light and dark of their textures. It assumes 16x16 textures, so resource packs with larger textures may show seams.",
   "entity.overgrown_vegetation.falcimnes": "Falcimnes",
   "item.overgrown_vegetation.falcimnes_spawn_egg": "Falcimnes Spawn Egg",
   "entity.overgrown_vegetation.phyllosens": "Phyllosens",

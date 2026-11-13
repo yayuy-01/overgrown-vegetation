@@ -327,6 +327,8 @@
   "gui.overgrown_vegetation.visual_settings.cave_light.desc": "過繁茂の地下で、黒い霧の中に植物の光だけが浮かぶ見え方(点光源・Mob の明るさ)。試作。",
   "gui.overgrown_vegetation.visual_settings.glow_bloom": "光のにじみ",
   "gui.overgrown_vegetation.visual_settings.glow_bloom.desc": "暗い所で、松明・溶岩・光る植物や胞子のまわりに柔らかい暈を付ける。画面全体の処理なので、重いときは切る。",
+  "gui.overgrown_vegetation.visual_settings.surface_bump": "面の凹凸",
+  "gui.overgrown_vegetation.visual_settings.surface_bump.desc": "低い日差しで、樹皮や岩の面にテクスチャの明暗から凹凸を付ける。16×16 の絵が前提なので、大きな絵の資源パックでは継ぎ目が出ることがある。",
   "entity.overgrown_vegetation.falcimnes": "ファルキムネス",
   "item.overgrown_vegetation.falcimnes_spawn_egg": "ファルキムネスのスポーンエッグ",
   "entity.overgrown_vegetation.phyllosens": "フィロセンス",

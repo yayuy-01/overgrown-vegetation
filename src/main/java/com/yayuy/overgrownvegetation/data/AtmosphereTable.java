@@ -44,6 +44,8 @@ public final class AtmosphereTable {
         public AtmosphereEye.CaveWetJson caveWet;
         /** 岩肌の地脈の筋(11-14 仕上げ F、{@link AtmosphereEye})。 */
         public AtmosphereEye.LeyVeinsJson leyVeins;
+        /** テクスチャの明暗から面の凹凸(11-14 仕上げ G、{@link AtmosphereEye})。 */
+        public AtmosphereEye.SurfaceBumpJson surfaceBump;
         /** 過繁茂の外の洞窟(11-07、{@link AtmosphereEye})。 */
         public AtmosphereEye.CaveOpenJson caveOpen;
         /** 洞窟の天井の穴の光の筋(11-07、{@link AtmosphereEye})。 */
@@ -676,6 +678,7 @@ public final class AtmosphereTable {
     private final AtmosphereEye.OreSparkleParams oreSparkle;
     private final AtmosphereEye.CaveWetParams caveWet;
     private final AtmosphereEye.LeyVeinsParams leyVeins;
+    private final AtmosphereEye.SurfaceBumpParams surfaceBump;
     private final AtmosphereEye.CaveOpenParams caveOpen;
     private final AtmosphereEye.CaveShaftsParams caveShafts;
     private final AtmosphereEye.CaveBreathParams caveBreath;
@@ -785,6 +788,7 @@ public final class AtmosphereTable {
         this.oreSparkle = AtmosphereEye.OreSparkleParams.of(j != null ? j.oreSparkle : null);
         this.caveWet = AtmosphereEye.CaveWetParams.of(j != null ? j.caveWet : null);
         this.leyVeins = AtmosphereEye.LeyVeinsParams.of(j != null ? j.leyVeins : null);
+        this.surfaceBump = AtmosphereEye.SurfaceBumpParams.of(j != null ? j.surfaceBump : null);
         this.caveOpen = AtmosphereEye.CaveOpenParams.of(j != null ? j.caveOpen : null);
         this.caveShafts = AtmosphereEye.CaveShaftsParams.of(j != null ? j.caveShafts : null);
         this.caveBreath = AtmosphereEye.CaveBreathParams.of(j != null ? j.caveBreath : null);
@@ -1220,6 +1224,11 @@ public final class AtmosphereTable {
     /** 岩肌の地脈の筋(節 leyVeins、11-14 仕上げ F。{@link AtmosphereEye})。 */
     public AtmosphereEye.LeyVeinsParams leyVeins() {
         return leyVeins;
+    }
+
+    /** テクスチャの明暗から面の凹凸(節 surfaceBump、11-14 仕上げ G。{@link AtmosphereEye})。 */
+    public AtmosphereEye.SurfaceBumpParams surfaceBump() {
+        return surfaceBump;
     }
 
     public AtmosphereAir.SporeAirParams sporeAir() {

@@ -123,6 +123,21 @@ public final class AtmosphereEye {
     }
 
     /**
+     * テクスチャの明暗から面の凹凸(節 surfaceBump、2026-11-14 シェーダーの仕上げ G。読むのは {@code client/atmosphere/SurfaceBump})。
+     * ユーザー決定: 作るが既定でオフ(見え方の設定「面の凹凸」で入れる)。数は仮決め: {@code strength} = 明暗の強さ、{@code distance} = この距離(ブロック)で消える。
+     */
+    public static final class SurfaceBumpJson {
+        public Double strength, distance;
+    }
+
+    public record SurfaceBumpParams(float strength, float distance) {
+        static SurfaceBumpParams of(SurfaceBumpJson j) {
+            SurfaceBumpJson v = j != null ? j : new SurfaceBumpJson();
+            return new SurfaceBumpParams(c(v.strength, 1.5, 0.0, 8.0), c(v.distance, 32.0, 4.0, 128.0));
+        }
+    }
+
+    /**
      * 過繁茂の外の洞窟(節 caveOpen、2026-11-07 判断の後の直し。ユーザー「おすすめで直す」)。地下モードの仕組みは世界全体、過繁茂らしさは色と見通しで出す 2 層の方針で、
      * 過繁茂の外の洞窟だけ値を変える(過繁茂の中は前のまま)。過繁茂の度合い(カメラの所の判定を blendSeconds で寄せたもの)で混ぜる。数はすべて仮決め:
      * <ul>

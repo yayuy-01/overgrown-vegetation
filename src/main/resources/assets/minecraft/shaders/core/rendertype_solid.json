@@ -45,6 +45,7 @@
         { "name": "OvLeyB", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
         { "name": "OvLeyC", "type": "float", "count": 4, "values": [ 0.55, 0.85, 1.0, 12.0 ] },
         { "name": "OvLeyD", "type": "float", "count": 4, "values": [ 0.675, 0.89, 0.0, 0.0 ] },
+        { "name": "OvBump", "type": "float", "count": 4, "values": [ 0.0, 32.0, 0.0, 0.0 ] },
         { "name": "OvTrunk", "type": "float", "count": 4, "values": [ 0.0, 12.0, 0.5, 0.0 ] },
         { "name": "OvMoon", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.4, 0.0 ] },
         { "name": "OvMoonB", "type": "float", "count": 4, "values": [ 0.8, 0.5, 0.35, 0.0 ] },

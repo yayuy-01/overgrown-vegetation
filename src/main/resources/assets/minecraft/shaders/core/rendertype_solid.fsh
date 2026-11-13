@@ -7,6 +7,7 @@
 #moj_import <ov_cave.glsl>
 #moj_import <ov_ore.glsl>
 #moj_import <ov_ley.glsl>
+#moj_import <ov_bump.glsl>
 #moj_import <ov_cloud.glsl>
 
 uniform sampler2D Sampler0;
@@ -34,6 +35,8 @@ out vec4 fragColor;
 void main() {
     vec4 tex = texture(Sampler0, texCoord0);
     vec4 color = tex * vertexColor * ColorModulator;
+    // The relief of the face from its texture under a low sun (ov_bump.glsl, 11-14; off by default).
+    color.rgb = ovBump(color.rgb, Sampler0, texCoord0, ovPos, ovNormal, ovLight.y);
     color.rgb = ovCanopyLight(color.rgb, ovPos, ovNormal, 1.0, ovLight);
     // The net of sunlight on faces under shallow water (ov_caustic.glsl).
     color.rgb = ovCaustics(color.rgb, ovPos, ovNormal, ovLight);

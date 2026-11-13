@@ -17,6 +17,7 @@
 #ov_import <ov_cave.glsl>
 #ov_import <ov_ore.glsl>
 #ov_import <ov_ley.glsl>
+#ov_import <ov_bump.glsl>
 #ov_import <ov_cloud.glsl>
 #ov_import <ov_wave.glsl>
 #ov_import <ov_water.glsl>
@@ -122,6 +123,10 @@ void main() {
         // Grass and ferns (vanilla cutout layer, alpha cutoff 1) are thin: no facing-away shade, like rendertype_cutout.fsh.
         // Water and glass (the translucent pass) are left as they are, like vanilla's rendertype_translucent.
         float facing = ((v_Material >> 1u) & 3u) == 1u ? 0.0 : 1.0;
+        // The relief of the face from its texture under a low sun (ov_bump.glsl, 11-14; off by default): solid blocks only.
+        if (((v_Material >> 1u) & 3u) == 0u) {
+            color.rgb = ovBump(color.rgb, u_BlockTex, v_TexCoord, ovPos, n, ovLight.y);
+        }
         color.rgb = ovCanopyLight(color.rgb, ovPos, n, facing, ovLight);
         // The net of sunlight on faces under shallow water (ov_caustic.glsl).
         color.rgb = ovCaustics(color.rgb, ovPos, n, ovLight);

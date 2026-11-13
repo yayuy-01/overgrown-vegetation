@@ -139,6 +139,11 @@ public final class VisualQuality {
         return part(OvergrownClientConfig.CLIENT.glowBloom);
     }
 
+    /** テクスチャの明暗から面の凹凸(2026-11-14 仕上げ G。既定でオフ)。 */
+    public static boolean surfaceBump() {
+        return part(OvergrownClientConfig.CLIENT.surfaceBump);
+    }
+
     /**
      * 雲(2026-11-08 雲の段階 1)。雰囲気の親のオンオフとは別(雲はバニラの雲の置き換えなので、雰囲気を切っても残す。仮決め)。
      * 重さの段は {@link #atmosphereTier()} を使う。
