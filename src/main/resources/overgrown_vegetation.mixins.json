@@ -17,7 +17,8 @@
     "FallingBlockCoveredMixin",
     "LeavesPushThroughMixin",
     "LivingEntityCorpseDeathMixin",
-    "VillagerHostilesSensorMixin"
+    "VillagerHostilesSensorMixin",
+    "ServerLevelRoomInvalidateMixin"
   ],
   "client": [
     "client.LivingEntityRendererCollapseMixin",

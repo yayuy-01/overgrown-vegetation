@@ -213,5 +213,16 @@
     "exposureHalfLifeMax": 2.0,
     "infectionMultiplierMax": 1.5,
     "dayRestNeedsSafety": true
+  },
+  "room": {
+    "_comment": "閉じた部屋の判定(2026-11-13 サバイバルの背骨 段 2a)。立っている所からつながる空気をたどり、外(空が開けた所・バリア)へ抜けなければ部屋(ユーザー指定)。ドアは閉じていれば壁・開けている間はすき間(ユーザー指定)。部屋の中の濃度の倍率は reading.roomFactor。数はすべて仮決め: 上限 4096 マス・差し渡し 64・部屋だった結果は 6000 tick、部屋でなかった結果は 200 tick 覚える(ブロックが変われば捨てる)・1 tick に新しくたどるのは 4 回まで・境界に人の手のブロック(タグ room_natural_wall 以外)が無い空間は部屋にしない。",
+    "enabled": true,
+    "maxCells": 4096,
+    "maxSpan": 64,
+    "roomTtlTicks": 6000,
+    "openTtlTicks": 200,
+    "maxSearchesPerTick": 4,
+    "maxCachedCells": 300000,
+    "requireBuiltWall": true
   }
 }

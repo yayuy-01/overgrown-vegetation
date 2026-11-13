@@ -81,8 +81,20 @@ public final class SporeConcentration {
         double v01 = chunkPercent(level, x0, z0 + 1, deep);
         double v11 = chunkPercent(level, x0 + 1, z0 + 1, deep);
         double v = (v00 * (1 - tx) + v10 * tx) * (1 - tz) + (v01 * (1 - tx) + v11 * tx) * tz;
-        double out = (v + riftFloorPercent(level, pos)) * (deep ? 1.0D : pointFactor(level, pos));
-        return highCut(level, pos, out) + sporePoolPercent(level, pos);
+        // 閉じた部屋(2026-11-13 段 2a): 地上でも地下でも・ネザーでも、部屋の中は外の値 × 部屋の倍率だけ(屋根・雨・風上の陰は掛けない【仮】)
+        com.yayuy.overgrownvegetation.survival.room.RoomScan room = com.yayuy.overgrownvegetation.survival.room.RoomCache.roomAt(level, pos);
+        double factor = room != null
+                ? com.yayuy.overgrownvegetation.survival.room.RoomAir.factor(room, DesignData.sporeField())
+                : deep ? 1.0D : pointFactor(level, pos);
+        double out = (v + riftFloorPercent(level, pos)) * factor;
+        double extra = room != null ? com.yayuy.overgrownvegetation.survival.room.RoomAir.extraPercent(level, room) : 0.0D;
+        return highCut(level, pos, out) + sporePoolPercent(level, pos) + extra;
+    }
+
+    /** {@code pos} の部屋の倍率(部屋の中なら reading.roomFactor、外なら 1。開発用・テスト)。 */
+    public static double roomFactorAt(ServerLevel level, BlockPos pos) {
+        return com.yayuy.overgrownvegetation.survival.room.RoomAir.factor(
+                com.yayuy.overgrownvegetation.survival.room.RoomCache.roomAt(level, pos), DesignData.sporeField());
     }
 
     /**
@@ -267,14 +279,16 @@ public final class SporeConcentration {
 
     /**
      * 地点の補正(粗くてよい。【決定】閉じた部屋は厳密でなくてよい・屋根付きの廊下も閉じ扱いで可):
-     * 梢より上は薄い / 空が少し見える地下(洞窟の口・窪地)は濃い / 空の光 0 で地面から浅い所は屋根の下(周り 4 方が塞がれば閉じた部屋)/
+     * (閉じた部屋は 2026-11-13 段 2a から percentAt が先に部屋の判定 RoomCache で見て、ここへは来ない)
+     * 梢より上は薄い / 空が少し見える地下(洞窟の口・窪地)は濃い / 空の光 0 で地面から浅い所は屋根の下 /
      * 深い洞窟 / 雨の最中 / 風上のすぐ隣が塞がっていれば壁の陰。
      */
     static double pointFactor(ServerLevel level, BlockPos pos) {
         SporeFieldTable t = DesignData.sporeField();
         if (level.dimension() == Level.NETHER) {
-            // ネザー: 天井の岩盤の下はどこも「地表」扱い(高さ地図は天井を指すので使わない)。雨も風も無い。閉じた部屋だけ薄い(2026-10-23 F)
-            return enclosed(level, pos.above()) && level.getBlockState(pos.above(2)).isCollisionShapeFullBlock(level, pos.above(2)) ? t.roomFactor() : 1.0D;
+            // ネザー: 天井の岩盤の下はどこも「地表」扱い(高さ地図は天井を指すので使わない)。雨も風も無い。
+            // 閉じた部屋は percentAt が先に部屋の判定で見る(2026-11-13 段 2a。前の「周り 4 方 + 頭の上」の粗い判定は消した)
+            return 1.0D;
         }
         int x = pos.getX(), z = pos.getZ(), y = pos.getY();
         double f = 1.0D;
@@ -286,8 +300,9 @@ public final class SporeConcentration {
             int sky = level.getBrightness(net.minecraft.world.level.LightLayer.SKY, pos.above());
             int depth = ground - y;
             if (sky == 0) {
-                // 地面の下の洞窟は percentAt が地下の層を読む(2026-11-04)。ここへ来るのは家の中など浅い屋根の下
-                f *= enclosed(level, pos.above()) ? t.roomFactor() : t.roofFactor();
+                // 地面の下の洞窟は percentAt が地下の層を読む(2026-11-04)。ここへ来るのは家の中など浅い屋根の下で、閉じていない所
+                // (閉じた部屋は percentAt が先に部屋の判定で見る。2026-11-13 段 2a)
+                f *= t.roofFactor();
             } else if (sky < 15) {
                 f *= t.hollowFactor();
             }
@@ -306,20 +321,6 @@ public final class SporeConcentration {
             }
         }
         return f;
-    }
-
-    /** 頭の高さで東西南北それぞれ 6 ブロック以内に塞ぐブロックがあるか。 */
-    private static boolean enclosed(ServerLevel level, BlockPos head) {
-        BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
-        for (net.minecraft.core.Direction d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
-            boolean hit = false;
-            for (int i = 1; i <= 6 && !hit; i++) {
-                m.set(head.getX() + d.getStepX() * i, head.getY(), head.getZ() + d.getStepZ() * i);
-                hit = level.getBlockState(m).isCollisionShapeFullBlock(level, m);
-            }
-            if (!hit) return false;
-        }
-        return true;
     }
 
     private SporeConcentration() {

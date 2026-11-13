@@ -44,6 +44,8 @@ public final class SporeFieldTable {
         public Edge edge;
         /** 疲労(2026-11-13 サバイバルの背骨 段 1。null は既定値)。 */
         public FatigueSpec.Json fatigue;
+        /** 閉じた部屋の判定(2026-11-13 サバイバルの背骨 段 2a。null は既定値)。 */
+        public RoomSpec.Json room;
     }
 
     /**
@@ -243,6 +245,7 @@ public final class SporeFieldTable {
     private final double exposureMinPercent, exposureHalfLifeSeconds, infectDose, maskCapacity, mobExposureDamage, mobMaxHealthLoss, warnFaint, warnStrong;
     private final int exposurePlayerInterval, exposureMobInterval;
     private final FatigueSpec fatigue;
+    private final RoomSpec room;
 
     private SporeFieldTable(Json j) {
         Json src = j != null ? j : new Json();
@@ -258,6 +261,7 @@ public final class SporeFieldTable {
         this.exposurePlayerInterval = ex.playerIntervalTicks != null ? Math.max(1, Math.min(200, ex.playerIntervalTicks)) : 20;
         this.exposureMobInterval = ex.mobIntervalTicks != null ? Math.max(1, Math.min(200, ex.mobIntervalTicks)) : 40;
         this.fatigue = FatigueSpec.from(src.fatigue);
+        this.room = RoomSpec.from(src.room);
         this.enabled = src.enabled == null || src.enabled;
         this.updateTicks = src.updateTicks != null ? Math.max(20, Math.min(1200, src.updateTicks)) : 100;
         this.maxStepsPerRun = src.maxStepsPerRun != null ? Math.max(1, Math.min(2400, src.maxStepsPerRun)) : 60;
@@ -479,6 +483,11 @@ public final class SporeFieldTable {
     /** 疲労の設計値(2026-11-13)。 */
     public FatigueSpec fatigue() {
         return fatigue;
+    }
+
+    /** 閉じた部屋の判定の設計値(2026-11-13 段 2a)。 */
+    public RoomSpec room() {
+        return room;
     }
 
     public int exposurePlayerIntervalTicks() {
