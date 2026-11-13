@@ -136,7 +136,8 @@ public final class SporeExposureTracker {
                 player.setData(ModAttachments.SPORE_STAGE_TICKS, 0);
             }
             boolean wasFull = ex.dose >= t.infectDose(); // 減る前に満ちていた分も拾う
-            accumulate(player, percent, protecting ? 0.0D : 1.0D, interval, now, roomSeepPerSecond);
+            accumulate(player, percent, protecting ? 0.0D : 1.0D, interval, now, roomSeepPerSecond
+                    + com.yayuy.overgrownvegetation.survival.decon.GearDirt.seepPerSecond(player)); // 汚れた装備から吸う(2026-11-14 段 3b)
             if ((wasFull || ex.dose >= t.infectDose()) && SporeInfectionEffects.startPlayer(player)) {
                 ex.dose = 0.0D;
                 ex.atDose = false;
@@ -151,6 +152,8 @@ public final class SporeExposureTracker {
         }
         // 疲労と、HUD の 2 本のゲージ(2026-11-13 サバイバルの背骨 段 1)
         com.yayuy.overgrownvegetation.survival.FatigueTracker.step(player, interval, percent, SporeInfectionEffects.stageOf(player), protecting);
+        // 装備の汚れと、汚れた物で部屋が汚れる(2026-11-14 サバイバルの背骨 段 3b・3c)
+        com.yayuy.overgrownvegetation.survival.decon.GearDirt.step(level, player, interval, percent);
         com.yayuy.overgrownvegetation.survival.SurvivalSync.send(player);
         sendWarning(player);
     }

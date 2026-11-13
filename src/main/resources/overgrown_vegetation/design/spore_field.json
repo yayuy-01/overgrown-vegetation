@@ -270,6 +270,29 @@
     "machineEnergyBuffer": 4000,
     "machineTicksPerItem": 5,
     "machinePickup": true
+  },
+  "dirt": {
+    "_comment": "装備の汚れ(2026-11-14 サバイバルの背骨 段 3b、決定 32・33)と汚れた物で部屋が汚れる(段 3c)。濃い所にいた分だけ装備が汚れる・汚れた装備を着ているときれいな空気でも暴露量がたまる・汚れた物や覆われた○○を持って閉じた部屋に入ると部屋の濃度が上がる(換気の機械で押し返せる)・汚れるほど性能が落ちる・見た目が変わる・汚れの量は数字で見せず絵でだけ(ユーザー指定)。数はすべて仮決め: 汚れは 0〜full 1000、濃度 minPercent 15% 以上で 濃度 ÷ 100 × perSecondAt100 3.33 / 秒(100% で 5 分、過繁茂の下支え 25% で 20 分 = 約 1 日で満ちる)。着ている 4 か所と両手の耐久のある物が汚れる。見た目の段は stage1〜3(150・450・800)。段 1/2/3 ごとに: 着ている 1 か所あたり吸う暴露量 seepPerStage(%秒/秒。4 か所とも 3 段で 0.6 = 約 2 日で感染 1。マスクが効いていればたまらない)・防具の守りと強靭さ armorLossPerStage・利き手の道具の掘る速さ breakSpeedLossPerStage。物への書き込みの刻み commitStepArmor 10・commitStepHand 50(手の物は書くと掘っている途中が切れる)。手洗い 1 回で handWashAmount 400 落ちる・洗い場の枠では machineWashAmount(全部)・洗い場の上に立つと 1 tick showerPerTick 20(3 段が約 2.5 秒)。部屋(段 3c): 汚れた物 1 段 = 1 点・覆われた○○ 1 枠 = 1 点、1 点あたり roomPerPoint 0.002 %/秒(roomRefVolume 64 マスの部屋で。広い部屋ほど薄まる)・上限 roomMaxPercent 8%・半減期 roomHalfLifeSeconds 600 秒、換気機の範囲では roomVentHalfLifeSeconds 30 秒・換気機が 1% 抜くごとにフィルターが roomVentFilterLoadPerPercent 60 %秒 詰まる。",
+    "full": 1000,
+    "minPercent": 15.0,
+    "perSecondAt100": 3.333,
+    "stage1": 150,
+    "stage2": 450,
+    "stage3": 800,
+    "seepPerStage": [0.03, 0.08, 0.15],
+    "armorLossPerStage": [0.05, 0.10, 0.15],
+    "breakSpeedLossPerStage": [0.05, 0.10, 0.15],
+    "commitStepArmor": 10,
+    "commitStepHand": 50,
+    "handWashAmount": 400,
+    "machineWashAmount": 1000000,
+    "showerPerTick": 20,
+    "roomPerPoint": 0.002,
+    "roomRefVolume": 64.0,
+    "roomMaxPercent": 8.0,
+    "roomHalfLifeSeconds": 600.0,
+    "roomVentHalfLifeSeconds": 30.0,
+    "roomVentFilterLoadPerPercent": 60.0
   }
 }
 

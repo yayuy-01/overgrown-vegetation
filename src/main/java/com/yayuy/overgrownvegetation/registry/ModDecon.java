@@ -45,6 +45,17 @@ public final class ModDecon {
     public static final DeferredHolder<RecipeSerializer<?>, DeconRecipe.Serializer> RECIPE_SERIALIZER =
             ModRecipes.SERIALIZERS.register("decontamination", DeconRecipe.Serializer::new);
 
+    // ---- 装備の汚れ(段 3b) ----
+
+    /**
+     * 装備の汚れ(0〜{@code dirt.full})。着ている物・手の耐久のある物に付く。数字では見せず、絵(アイコンと体に着た姿)でだけ見せる(決定 33)。
+     * クライアントへも送る(絵のため)。
+     */
+    public static final DeferredHolder<net.minecraft.core.component.DataComponentType<?>, net.minecraft.core.component.DataComponentType<Integer>> GEAR_DIRT =
+            ModDataComponents.COMPONENTS.registerComponentType("gear_dirt", b -> b
+                    .persistent(com.mojang.serialization.Codec.INT)
+                    .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT));
+
     // ---- 地脈の洗い場 ----
 
     public static final DeferredBlock<WasherBlock> WASHER = ModBlocks.BLOCKS.registerBlock(

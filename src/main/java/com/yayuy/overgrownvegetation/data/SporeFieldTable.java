@@ -52,6 +52,8 @@ public final class SporeFieldTable {
         public VentSpec.Json vent;
         /** 除染(2026-11-14 サバイバルの背骨 段 3a。null は既定値)。 */
         public DeconSpec.Json decon;
+        /** 装備の汚れと部屋の汚れ(2026-11-14 サバイバルの背骨 段 3b・3c。null は既定値)。 */
+        public DirtSpec.Json dirt;
     }
 
     /**
@@ -255,6 +257,7 @@ public final class SporeFieldTable {
     private final LeySpec ley;
     private final VentSpec vent;
     private final DeconSpec decon;
+    private final DirtSpec dirt;
 
     private SporeFieldTable(Json j) {
         Json src = j != null ? j : new Json();
@@ -274,6 +277,7 @@ public final class SporeFieldTable {
         this.ley = LeySpec.from(src.ley);
         this.vent = VentSpec.from(src.vent);
         this.decon = DeconSpec.from(src.decon);
+        this.dirt = DirtSpec.from(src.dirt);
         this.enabled = src.enabled == null || src.enabled;
         this.updateTicks = src.updateTicks != null ? Math.max(20, Math.min(1200, src.updateTicks)) : 100;
         this.maxStepsPerRun = src.maxStepsPerRun != null ? Math.max(1, Math.min(2400, src.maxStepsPerRun)) : 60;
@@ -515,6 +519,11 @@ public final class SporeFieldTable {
     /** 除染の設計値(2026-11-14 段 3a)。 */
     public DeconSpec decon() {
         return decon;
+    }
+
+    /** 装備の汚れと部屋の汚れの設計値(2026-11-14 段 3b・3c)。 */
+    public DirtSpec dirt() {
+        return dirt;
     }
 
     public int exposurePlayerIntervalTicks() {

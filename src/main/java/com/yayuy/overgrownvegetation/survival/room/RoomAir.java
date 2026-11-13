@@ -46,6 +46,15 @@ public final class RoomAir {
         return 0.0D;
     }
 
+    /** 汚れた物を持ったプレイヤーが閉じた部屋にいると、部屋を汚す(段 3c で中身を入れる)。 */
+    public static void contaminateFrom(ServerLevel level, net.minecraft.world.entity.player.Player player, double points, double seconds) {
+    }
+
+    /** 開発用の説明(立っている所の部屋の汚れ。段 3c で中身を入れる)。 */
+    public static String describe(ServerLevel level, net.minecraft.core.BlockPos pos) {
+        return "部屋の汚れ: (段 3c)";
+    }
+
     /** 部屋を汚す(段 3c の口。今は何もしない)。 */
     public static void contaminate(ServerLevel level, RoomScan room, double percent) {
     }
