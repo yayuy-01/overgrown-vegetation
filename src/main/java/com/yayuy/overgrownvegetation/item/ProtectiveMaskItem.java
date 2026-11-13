@@ -14,6 +14,10 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.entity.SlotAccess;
+import net.minecraft.world.inventory.ClickAction;
+import net.minecraft.world.inventory.Slot;
+import com.yayuy.overgrownvegetation.survival.vent.AirFilters;
 import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.animatable.GeoItem;
 import software.bernie.geckolib.animatable.client.GeoRenderProvider;
@@ -37,7 +41,8 @@ import java.util.function.Consumer;
  *     5% 未満では減らない({@code SporeExposureTracker#wearMask})。10% の森で 30 分・50% で 6 分・100% で 3 分。</li>
  *     <li>耐久が残っている間は暴露を積まず、感染中でも加速しない(10 分ごとの昇格はそのまま)。</li>
  *     <li>0 になっても外れず壊れず、効かなくなるだけ。吸い取った量はデータコンポーネント {@link ModDataComponents#MASK_FILTER_USED} に持ち、
- *     バニラの耐久(殴られて減る・壊れる)は使わない。耐久のバーは自前で出す。直す手段はまだ無い。</li>
+ *     バニラの耐久(殴られて減る・壊れる)は使わない。耐久のバーは自前で出す。</li>
+ *     <li>2026-11-14 段 2c: 耐久 = 中のフィルターの残り。換気機と同じフィルター(決定 15。式は {@link AirFilters})。持ち物の画面でフィルターをマスクの上で右クリックすると入れ替わる【仮】。</li>
  * </ul>
  * 描画は GeckoLib の立体モデル({@code geo/armor/protective_mask.geo.json}、アイコンも同じモデル)。
  */
@@ -60,52 +65,74 @@ public class ProtectiveMaskItem extends ArmorItem implements GeoItem {
         return head.getItem() instanceof ProtectiveMaskItem && remaining(head) > 0.0D;
     }
 
-    /** 吸い取った量(%秒)。 */
+    /** 吸い取った量(%秒)。式はフィルターと共通({@link AirFilters}、2026-11-14 段 2c)。 */
     public static int used(ItemStack stack) {
-        return stack.getOrDefault(ModDataComponents.MASK_FILTER_USED, 0);
+        return AirFilters.used(stack);
     }
 
     /** 残りの吸い取れる量(%秒)。 */
     public static double remaining(ItemStack stack) {
-        return Math.max(0.0D, DesignData.sporeField().maskCapacity() - used(stack));
+        return AirFilters.remaining(stack);
     }
 
     /** フィルターに {@code amount} %秒 吸わせる(上限で止める)。 */
     public static void absorb(ItemStack stack, int amount) {
-        if (amount <= 0) return;
-        int cap = (int) Math.ceil(DesignData.sporeField().maskCapacity());
-        stack.set(ModDataComponents.MASK_FILTER_USED, Math.min(cap, used(stack) + amount));
+        AirFilters.absorb(stack, amount);
     }
 
     @Override
     public boolean isBarVisible(ItemStack stack) {
-        return used(stack) > 0;
+        return AirFilters.barVisible(stack);
     }
 
     @Override
     public int getBarWidth(ItemStack stack) {
-        double cap = DesignData.sporeField().maskCapacity();
-        return cap <= 0.0D ? 0 : Math.round(13.0F * (float) (remaining(stack) / cap));
+        return AirFilters.barWidth(stack);
     }
 
     @Override
     public int getBarColor(ItemStack stack) {
-        double cap = DesignData.sporeField().maskCapacity();
-        float f = cap <= 0.0D ? 0.0F : (float) (remaining(stack) / cap);
-        return Mth.hsvToRgb(f / 3.0F, 1.0F, 1.0F);
+        return AirFilters.barColor(stack);
+    }
+
+    /**
+     * フィルターの入れ替え(2026-11-14 段 2c【仮】): 持ち物の画面でフィルターをつかみ、このマスクの上で右クリックすると入れ替わる。
+     * 新しいフィルターがマスクに入り、入っていた古いフィルター(詰まり・洗った回数をそのまま)が手に残る(つかんでいたのが 2 枚以上なら持ち物へ)。
+     * 詰まり切ったフィルターは入れない。
+     */
+    @Override
+    public boolean overrideOtherStackedOnMe(ItemStack mask, ItemStack other, Slot slot, ClickAction action, Player player, SlotAccess access) {
+        if (action != ClickAction.SECONDARY || !AirFilters.isFilter(other) || AirFilters.clogged(other) || !slot.allowModification(player)) {
+            return false;
+        }
+        swapFilter(mask, other, player, access);
+        player.playSound(net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.8F, 1.2F);
+        return true;
+    }
+
+    /** マスクのフィルターを {@code carried} の 1 枚と入れ替える(GameTest からも)。古いフィルターは {@code access}(手)か持ち物へ。 */
+    public static void swapFilter(ItemStack mask, ItemStack carried, Player player, SlotAccess access) {
+        ItemStack old = AirFilters.asFilterItem(mask);
+        AirFilters.copyState(carried, mask);
+        if (carried.getCount() <= 1) {
+            access.set(old);
+        } else {
+            carried.shrink(1);
+            if (!player.getInventory().add(old)) {
+                player.drop(old, false);
+            }
+        }
     }
 
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
-        double cap = DesignData.sporeField().maskCapacity();
-        double rest = remaining(stack);
-        if (rest <= 0.0D) {
+        if (AirFilters.clogged(stack)) {
             tooltip.add(Component.translatable("item.overgrown_vegetation.protective_mask.spent").withStyle(ChatFormatting.RED));
         } else {
-            int pct = cap <= 0.0D ? 0 : (int) Math.ceil(rest / cap * 100.0D);
-            tooltip.add(Component.translatable("item.overgrown_vegetation.protective_mask.filter", pct)
+            tooltip.add(Component.translatable("item.overgrown_vegetation.protective_mask.filter", AirFilters.percentLeft(stack))
                     .withStyle(ChatFormatting.GRAY));
         }
+        tooltip.add(Component.translatable("item.overgrown_vegetation.protective_mask.swap_hint").withStyle(ChatFormatting.DARK_GRAY));
     }
 
     @Override

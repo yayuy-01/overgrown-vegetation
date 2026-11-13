@@ -53,6 +53,7 @@ public class OvergrownVegetation {
         com.yayuy.overgrownvegetation.registry.ModG1.init(); // G1 段階 0 の死体・Mob・卵(2026-11-08。下の DeferredRegister に足す)
         com.yayuy.overgrownvegetation.registry.ModStilt.init(); // 竹馬型(フィロセンス)の Mob・卵(2026-11-10)
         com.yayuy.overgrownvegetation.registry.ModLey.init(); // 地脈の最小限: 花・汲み上げ器・柱・電池・線(2026-11-13 サバイバルの背骨 段 2b)
+        com.yayuy.overgrownvegetation.registry.ModVent.init(); // 換気の機械とフィルター(2026-11-14 サバイバルの背骨 段 2c)
         ModBlocks.register(modBus);
         ModBlockEntities.register(modBus);
         ModArmorMaterials.register(modBus); // 2026-11-04 防護マスクの素材だけ

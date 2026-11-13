@@ -394,7 +394,8 @@ public final class SporeFieldServer {
     private record Inputs(long fromClock, int steps, int stepTicks, long dayTimeNow, long clockNow, long seed,
                           PrevailingWind.Weather weather, long lastRainEnd, float rainIntensity, float afterIntensity,
                           long[] canopyChunks, double[] canopyRate, long[] eruptions, long[] breathers,
-                          long[] watchTiles, SporeFieldTable table, long[] trees) {
+                          long[] watchTiles, SporeFieldTable table, long[] trees,
+                          com.yayuy.overgrownvegetation.survival.vent.Ventilators.Snapshot vents) {
     }
 
     private static Inputs gatherInputs(ServerLevel level, SporeFieldTable table, long clock, int steps) {
@@ -416,7 +417,9 @@ public final class SporeFieldServer {
                 com.yayuy.overgrownvegetation.sky.RainIntensity.global(level, level.isRaining(), false, 0.0F), wx.lastRainIntensity(),
                 canopy, canopyRate, com.yayuy.overgrownvegetation.quake.EarthquakeData.get(level).eruptingChunks(level.getGameTime()),
                 breathingChunks(),
-                watchTiles(level), table, livingTreeChunks(pd));
+                watchTiles(level), table, livingTreeChunks(pd),
+                // 換気機(2026-11-14 段 2c): 動いている機械の場所と、この計算で抜ける量(フィルターの残りで切る)
+                com.yayuy.overgrownvegetation.survival.vent.Ventilators.snapshot(level, steps, table));
     }
 
     /** 胞子を出している巨大樹 1 本(根元の x,z を詰めた値と、1 日あたりの放出。朝の上乗せは入らない)。 */
@@ -462,7 +465,7 @@ public final class SporeFieldServer {
     /** 計算の答え。 */
     private record Result(long toClock, int steps, long[] sprouts, long nanos,
                           int tiles, long corrupted, int parcels, it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<Readout> readout, long[] seconds,
-                          long[] caves) {
+                          long[] caves, long[] ventPos, double[] ventTaken) {
     }
 
     /** 裏のスレッド(GameTest ではその場)。場の鍵を持って入力を取り込み、更新を進める。 */
@@ -472,6 +475,9 @@ public final class SporeFieldServer {
         LongArrayList seconds = new LongArrayList();
         LongArrayList caves = new LongArrayList();
         int frontCells = 0;
+        int nVents = in.vents.pos().length;
+        double[] ventTaken = new double[nVents];
+        double ventCap = in.table.vent().capPerUpdate(), ventRadius = in.table.vent().radiusChunks();
         LOCK.lock();
         try {
             Consumer<SporeField> input;
@@ -522,13 +528,21 @@ public final class SporeFieldServer {
                     if (ns[3] == 1) sprouts.add(ChunkPos.asLong(ns[0], ns[1]));
                     else seconds.add(ChunkPos.asLong(ns[0], ns[1]));
                 }
-                // 除去装置・拡散装置(吸い込み口・発生源)は装置と一緒に 2026-10-30 に parked/ へ(戻すときは parked の写しから)
+                // 吸い込み口: 換気機(2026-11-14 段 2c、決定 11)。場そのものから、1 回の更新で上限まで抜く(範囲を 0 にはしない。
+                // 流れ込みが少なければ近くはほぼ 0 まで下がり、上限を超える流れ込みは抜き切れない)。降り積もりは捨てない(発芽は止めない)。
+                // 前の除去装置・拡散装置は 2026-10-30 に parked/ へ
+                for (int i = 0; i < nVents; i++) {
+                    double room = Math.min(ventCap, in.vents.budget()[i] - ventTaken[i]);
+                    if (room <= 0) continue;
+                    long d = in.vents.pos()[i];
+                    ventTaken[i] += f.extractAround(BlockPos.getX(d) >> 4, BlockPos.getZ(d) >> 4, ventRadius, room);
+                }
             }
             lastFrontCells = frontCells;
             lastFronts = f.fronts.size();
             return new Result(in.fromClock + (long) in.steps * in.stepTicks, in.steps, sprouts.toLongArray(),
                     System.nanoTime() - t0, f.tileCount(), f.corruptedCount, f.parcels.size(), readout(f, in), seconds.toLongArray(),
-                    caves.toLongArray());
+                    caves.toLongArray(), in.vents.pos(), ventTaken);
         } finally {
             LOCK.unlock();
         }
@@ -560,6 +574,10 @@ public final class SporeFieldServer {
             for (long key : r.caves) SporeSprouts.onCaveSprout(level, key);
         }
         READOUT = r.readout;
+        // 換気機が抜いた量をフィルターへ(2026-11-14 段 2c)
+        if (r.ventPos.length > 0) {
+            com.yayuy.overgrownvegetation.survival.vent.Ventilators.apply(level, r.ventPos, r.ventTaken, r.steps, DesignData.sporeField());
+        }
         SporeSweeping.refresh(level); // 払った升の印を消すか見る
         SporeDustSync.send(level); // 粉の見た目(2026-10-31 に戻した)
         lastSummary = String.format("更新 %d 回 / %.1f ms・区画 %d・汚染されたチャンク %d・発芽 %d・上空の塊 %d",
@@ -646,6 +664,13 @@ public final class SporeFieldServer {
                 for (int dx = -WATCH_TILES; dx <= WATCH_TILES; dx++) set.add(SporeField.key(tx + dx, tz + dz));
         }
         for (long d : WATCH_EXTRA) set.add(d);
+        // 動いている換気機のまわり(下支えを下げた所を、場の値で読めるように。2026-11-14 段 2c)
+        int vr = (int) Math.ceil(DesignData.sporeField().vent().radiusChunks()) + 1;
+        for (long c : com.yayuy.overgrownvegetation.survival.vent.Ventilators.runningChunks(level)) {
+            for (int dz = -vr; dz <= vr; dz += vr)
+                for (int dx = -vr; dx <= vr; dx += vr)
+                    set.add(SporeField.key((ChunkPos.getX(c) + dx) >> SporeField.TB, (ChunkPos.getZ(c) + dz) >> SporeField.TB));
+        }
         return set.toLongArray();
     }
 

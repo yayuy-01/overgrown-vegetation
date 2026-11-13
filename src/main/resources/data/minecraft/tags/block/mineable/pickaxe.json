@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
+    "overgrown_vegetation:ley_ventilator",
     "overgrown_vegetation:tube_tree_stem",
     "overgrown_vegetation:overgrown_netherrack",
     "overgrown_vegetation:overgrown_end_stone",

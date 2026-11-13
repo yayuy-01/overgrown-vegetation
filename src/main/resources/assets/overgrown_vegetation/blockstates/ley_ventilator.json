@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "running=false": { "model": "overgrown_vegetation:block/ley_ventilator" },
+    "running=true": { "model": "overgrown_vegetation:block/ley_ventilator_running" }
+  }
+}

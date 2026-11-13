@@ -272,7 +272,20 @@ public final class SporeConcentration {
             stage = PhaseData.get(level).isOvergrownChunk(chunk) ? 2 : 0;
             raw = 0.0D;
         }
-        return Math.max(raw, t.floorFor(stage));
+        if (OVERGROWN_FOR_TESTS.contains(chunk.toLong())) stage = 2;
+        // 稼働中の換気機の範囲では下支えを外し、場の値だけで読む(2026-11-14 段 2c、決定 22 の「機械で吸えば外が過繁茂の濃さより下がる」。
+        // 10-22 の「装置は下支えまでしか下げられない」から変わった【仮】)。追いついていればほぼ 0、嵐で追いつかなければ場の値そのものが高い
+        double floor = t.floorFor(stage);
+        if (floor > 0.0D && com.yayuy.overgrownvegetation.survival.vent.Ventilators.covers(level, cx, cz, t.vent())) floor = 0.0D;
+        return Math.max(raw, floor);
+    }
+
+    /** テスト用: 過繁茂として読むチャンク(台帳に載せずに、下支えだけを試す)。 */
+    public static final it.unimi.dsi.fastutil.longs.LongOpenHashSet OVERGROWN_FOR_TESTS = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+
+    /** テスト用: チャンクの値の覚え(updateTicks の間)を捨てる。 */
+    public static void clearCacheForTests() {
+        CACHE.clear();
     }
 
     /**
