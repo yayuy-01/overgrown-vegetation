@@ -225,5 +225,28 @@
     "maxCachedCells": 300000,
     "requireBuiltWall": true,
     "seepPerSecond": 0.625
+  },
+  "ley": {
+    "_comment": "地脈の最小限(2026-11-13 サバイバルの背骨 段 2b。決定 8・13・14・19・20・23〜25)。エネルギーは FE(ユーザー指定)。線の正本は corruption/LeyLines(ユーザー指定)。数はすべて仮決め: 線の場はセル 192・歪み 0.35(前の地脈と同じ。変えると洞窟の地脈の根・巨大樹の光も動く)・花の帯は線から 2.5・汲み上げ器は線の真上で 40 FE/t、線から 96 で 5% まで直線に下がる・中に 20000 FE・1 tick 200 FE まで出す・電池 200000 FE(1 tick 400 FE)・線は 24 ブロックまで・柱 1 本に 4 本・網 1 つで 1 tick 1000 FE・間にブロックがあれば張れない。",
+    "cellSize": 192.0,
+    "warp": 0.35,
+    "flowerBand": 2.5,
+    "flowerWorldgenTries": 12,
+    "flowerSpreadIntervalTicks": 200,
+    "flowerSpreadTries": 4,
+    "flowerSpreadRadius": 48,
+    "flowerCrowdRadius": 3,
+    "flowerCrowdMax": 2,
+    "pumpFePerTick": 40,
+    "pumpReach": 96.0,
+    "pumpMinEfficiency": 0.05,
+    "pumpBuffer": 20000,
+    "pumpMaxOutput": 200,
+    "batteryCapacity": 200000,
+    "batteryMaxTransfer": 400,
+    "wireMaxLength": 24,
+    "wireMaxPerPylon": 4,
+    "wireNetworkPerTick": 1000,
+    "wireNeedsClearPath": true
   }
 }

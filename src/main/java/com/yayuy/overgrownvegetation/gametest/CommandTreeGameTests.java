@@ -43,7 +43,8 @@ public final class CommandTreeGameTests {
             Map.entry("corruption", Set.of("speed", "true", "false")),
             Map.entry("phase", Set.of("set", "true", "false")),
             // 2026-11-08: G1 段階 0 の組み込みで perf の g1(死体をすぐ起き上がらせる hatch)を戻した。
-            Map.entry("perf", Set.of("bench", "fluid", "record", "spore", "g1")),
+            // 2026-11-13: サバイバルの背骨 段 2b で地脈を確かめる ley(線までの距離・効率・近くの線へ飛ぶ near)を足した。
+            Map.entry("perf", Set.of("bench", "fluid", "record", "spore", "g1", "ley")),
             // 2026-11-08: 環境ギミック G4 胞子の風・G5 光る胞子の夜を自分のゲームで確かめる fx(依頼「/ov か DevBridge に足す」。要らなければ消す)。
             Map.entry("fx", Set.of("gale", "glownight", "status")),
             // 2026-11-09: 雲の段階 2a で積乱雲を探す storm(一覧・tp)を戻した(10-17 ユーザー依頼、11-09 段階 2a の依頼)。

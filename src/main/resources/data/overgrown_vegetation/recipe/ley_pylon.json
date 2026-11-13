@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "N": { "item": "minecraft:copper_ingot" },
+    "S": { "item": "minecraft:stick" },
+    "L": { "tag": "minecraft:logs" }
+  },
+  "pattern": [
+    "SNS",
+    " L ",
+    " L "
+  ],
+  "result": { "count": 2, "id": "overgrown_vegetation:ley_pylon" }
+}

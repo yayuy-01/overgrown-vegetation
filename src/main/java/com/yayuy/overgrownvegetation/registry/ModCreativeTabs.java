@@ -170,6 +170,7 @@ public final class ModCreativeTabs {
 
                         output.accept(ModItems.SPORE_METER.get());
                         output.accept(ModItems.PROTECTIVE_MASK.get());
+                        com.yayuy.overgrownvegetation.registry.ModLey.acceptItems(output); // 地脈(2026-11-13 段 2b)
 
                     })
                     .build());

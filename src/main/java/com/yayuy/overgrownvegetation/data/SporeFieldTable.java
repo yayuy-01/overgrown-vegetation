@@ -46,6 +46,8 @@ public final class SporeFieldTable {
         public FatigueSpec.Json fatigue;
         /** 閉じた部屋の判定(2026-11-13 サバイバルの背骨 段 2a。null は既定値)。 */
         public RoomSpec.Json room;
+        /** 地脈の最小限(2026-11-13 サバイバルの背骨 段 2b。null は既定値)。 */
+        public LeySpec.Json ley;
     }
 
     /**
@@ -246,6 +248,7 @@ public final class SporeFieldTable {
     private final int exposurePlayerInterval, exposureMobInterval;
     private final FatigueSpec fatigue;
     private final RoomSpec room;
+    private final LeySpec ley;
 
     private SporeFieldTable(Json j) {
         Json src = j != null ? j : new Json();
@@ -262,6 +265,7 @@ public final class SporeFieldTable {
         this.exposureMobInterval = ex.mobIntervalTicks != null ? Math.max(1, Math.min(200, ex.mobIntervalTicks)) : 40;
         this.fatigue = FatigueSpec.from(src.fatigue);
         this.room = RoomSpec.from(src.room);
+        this.ley = LeySpec.from(src.ley);
         this.enabled = src.enabled == null || src.enabled;
         this.updateTicks = src.updateTicks != null ? Math.max(20, Math.min(1200, src.updateTicks)) : 100;
         this.maxStepsPerRun = src.maxStepsPerRun != null ? Math.max(1, Math.min(2400, src.maxStepsPerRun)) : 60;
@@ -488,6 +492,11 @@ public final class SporeFieldTable {
     /** 閉じた部屋の判定の設計値(2026-11-13 段 2a)。 */
     public RoomSpec room() {
         return room;
+    }
+
+    /** 地脈の最小限の設計値(2026-11-13 段 2b)。 */
+    public LeySpec ley() {
+        return ley;
     }
 
     public int exposurePlayerIntervalTicks() {

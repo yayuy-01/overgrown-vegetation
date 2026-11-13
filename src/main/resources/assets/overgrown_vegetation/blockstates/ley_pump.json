@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "battery=false": { "model": "overgrown_vegetation:block/ley_pump" },
+    "battery=true": { "model": "overgrown_vegetation:block/ley_pump_battery" }
+  }
+}

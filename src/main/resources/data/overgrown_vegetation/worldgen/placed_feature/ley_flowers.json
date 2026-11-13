@@ -1,0 +1,6 @@
+{
+  "feature": "overgrown_vegetation:ley_flowers",
+  "placement": [
+    { "type": "minecraft:biome" }
+  ]
+}

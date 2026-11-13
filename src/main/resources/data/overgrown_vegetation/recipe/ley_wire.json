@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "redstone",
+  "ingredients": [
+    { "item": "minecraft:copper_ingot" },
+    { "tag": "minecraft:wool" }
+  ],
+  "result": { "count": 4, "id": "overgrown_vegetation:ley_wire" }
+}

@@ -1,5 +1,7 @@
 package com.yayuy.overgrownvegetation.corruption;
 
+import com.yayuy.overgrownvegetation.data.DesignData;
+import com.yayuy.overgrownvegetation.data.LeySpec;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.levelgen.synth.SimplexNoise;
@@ -8,19 +10,18 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 地脈の線までの距離だけを測る小さな場(2026-11-03 地下の植生 1。地脈の根 {@code ley_root} の光り方を決める)。
+ * <b>地脈の場の正本</b>(2026-11-03 地下の植生 1 で作り、2026-11-13 サバイバルの背骨 段 2b で正本に決定 = Vault の決定 24)。どこを地脈の線が通るか。
  *
- * <p>本来の地脈の場 {@code LeyVeinField} は 2026-10-30 に極相・地脈ごと parked へ退避した(U6)。その線の作り(歪めた座標のボロノイの境界)と
- * 数(セル 192・歪み 0.35・塩・ハッシュ)を<b>そのまま</b>写したので、同じシードなら退避した地脈と同じ所を通る。
- * 地脈(序盤の地脈技術)を戻すときは、こちらを消して {@code LeyVeinField#distanceToLine} を呼ぶよう替える。
- * シードと座標だけの決定的な関数(チャンクも隣も見ない)。
+ * <p>線は歪めた座標のボロノイの境界(セルの境目がそのまま切れ目の無い網になる)。退避した {@code parked/…/LeyVeinField} と式・数(セル 192・歪み 0.35・塩・ハッシュ)が
+ * 同じなので、同じシードなら前の地脈と同じ所を通る(決定 19「線の計算は前の物を戻す」)。シードと座標だけの決定的な関数(チャンクも隣も見ない)。
+ * 形の数は {@code spore_field.json} の {@code ley}({@link LeySpec})。使う所: 洞窟の地脈の根({@code CaveFlora})・巨大樹の夜の光({@code GiantTreeSync})・
+ * 地脈の花と汲み上げ器({@code ley/})。
  */
 public final class LeyLines {
 
-    /** 網目の粗さ(セル 1 つの 1 辺、ブロック)。parked の design/climax.json の leyVein.cellSize。 */
-    private static final double CELL_SIZE = 192.0D;
-    /** 境界線をうねらせる強さ(セルの大きさに対する割合)。leyVein.warp。 */
-    private static final double WARP = 0.35D;
+    private static LeySpec spec() {
+        return DesignData.sporeField().ley();
+    }
     /** 地脈のセルのシード塩(LeyVeinField と同じ)。 */
     private static final long SALT = 0x1E4A1E17L;
 
@@ -32,11 +33,28 @@ public final class LeyLines {
     /** いちばん近い地脈の線までの水平の距離(ブロック、歪めた座標の上)。セルの真ん中でおよそ 100。 */
     public static double distanceToLine(long seed, int blockX, int blockZ) {
         SimplexNoise noise = WARP_NOISE.computeIfAbsent(seed ^ SALT, s -> new SimplexNoise(RandomSource.create(s)));
-        double scale = 1.0D / Math.max(16.0D, CELL_SIZE * 0.75D);
-        double amp = CELL_SIZE * WARP;
+        LeySpec spec = spec();
+        double cell = spec.cellSize();
+        double scale = 1.0D / Math.max(16.0D, cell * 0.75D);
+        double amp = cell * spec.warp();
         double x = blockX + noise.getValue(blockX * scale, blockZ * scale) * amp;
         double z = blockZ + noise.getValue(blockZ * scale + 1337.0D, blockX * scale - 911.0D) * amp;
-        return distanceToBorder(seed, x / CELL_SIZE, z / CELL_SIZE) * CELL_SIZE;
+        return distanceToBorder(seed, x / cell, z / cell) * cell;
+    }
+
+    /**
+     * 汲み上げ器の効率 0〜1(決定 20: 線の真上で 1、線から {@code pumpReach} 離れると {@code pumpMinEfficiency} まで直線に下がる。下がり方は【仮】)。
+     */
+    public static double efficiency(long seed, int blockX, int blockZ) {
+        LeySpec spec = spec();
+        double d = distanceToLine(seed, blockX, blockZ);
+        double t = 1.0D - Math.min(1.0D, d / spec.pumpReach());
+        return spec.pumpMinEfficiency() + (1.0D - spec.pumpMinEfficiency()) * t;
+    }
+
+    /** 地脈の花が生えてよい帯の中か(線から {@code flowerBand} 以内)。 */
+    public static boolean inFlowerBand(long seed, int blockX, int blockZ) {
+        return distanceToLine(seed, blockX, blockZ) <= spec().flowerBand();
     }
 
     /** セル座標から、いちばん近い母点と 2 番目の母点の垂直二等分線までの距離(セル単位)。LeyVeinField と同じ。 */
