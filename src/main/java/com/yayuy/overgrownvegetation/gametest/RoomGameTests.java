@@ -172,6 +172,19 @@ public final class RoomGameTests {
         RoomScan r = g.full(3, 1, 3);
         expect(helper, "壁に 1 マスの穴", r, RoomScan.Status.OPEN);
         if (!r.gaps().contains(BlockPos.asLong(0, 2, 3))) helper.fail("すき間に穴のマスが無い: " + r.gaps());
+        // すき間のある建物 = 外と同じ(決定 21)。穴のすぐ内側に立っても、広間の天井の真ん中に穴(その隣に立つ。穴の真下は空が開けた外)でも、人の手の壁を見つける
+        if (!com.yayuy.overgrownvegetation.survival.room.RoomAir.leakyBuilding(g.scan(3, 1, 3))) helper.fail("穴のある小屋がすき間のある建物と読めない");
+        if (!com.yayuy.overgrownvegetation.survival.room.RoomAir.leakyBuilding(g.scan(1, 2, 3))) helper.fail("穴の内側で、すき間のある建物と読めない");
+        Grid roof = new Grid(0);
+        roof.box(0, 0, 0, 21, 5, 21, Blocks.STONE_BRICKS.defaultBlockState());
+        roof.put(10, 5, 10, Blocks.AIR.defaultBlockState());
+        if (!com.yayuy.overgrownvegetation.survival.room.RoomAir.leakyBuilding(roof.scan(11, 4, 10))) helper.fail("天井の穴の隣で、すき間のある建物と読めない: 人の手 " + roof.scan(11, 4, 10).built());
+        // 自然の窪地(石の地面に掘った横穴、口が空へ開く)は建物でない
+        Grid hollow = new Grid(60);
+        hollow.fill(0, 58, 0, 6, 59, 0, Blocks.AIR.defaultBlockState());
+        hollow.fill(6, 58, 0, 6, 60, 0, Blocks.AIR.defaultBlockState());
+        RoomScan ho = hollow.scan(1, 58, 0);
+        if (ho.status() != RoomScan.Status.OPEN || com.yayuy.overgrownvegetation.survival.room.RoomAir.leakyBuilding(ho)) helper.fail("自然の横穴が建物と読めた: " + ho.status().label + " 人の手 " + ho.built());
         // 穴に板ガラス(壁の向きにつながったもの)→ 部屋に戻る
         g.put(0, 2, 3, Blocks.GLASS_PANE.defaultBlockState().setValue(IronBarsBlock.NORTH, true).setValue(IronBarsBlock.SOUTH, true));
         expect(helper, "穴を板ガラスでふさぐ", g.scan(3, 1, 3), RoomScan.Status.ROOM);

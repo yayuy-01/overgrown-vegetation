@@ -24,6 +24,14 @@ public final class RoomAir {
         return room != null && room.isRoom() ? t.roomFactor() : 1.0D;
     }
 
+    /**
+     * すき間のある建物の中か(2026-11-13 決定 21): たどって外へ抜けたが、境界か中に人の手のブロック(自然の壁のタグ以外)があった。
+     * この中の濃度は外と同じ(×1)。自然の窪地・洞窟の口(人の手のブロックが無い)は今までの地点の補正(×1.3 など)のまま。
+     */
+    public static boolean leakyBuilding(RoomScan scan) {
+        return scan != null && scan.status() == RoomScan.Status.OPEN && scan.built() > 0;
+    }
+
     /** 部屋に積もった汚れの上乗せ(%)。段 3c まで 0。 */
     public static double extraPercent(ServerLevel level, RoomScan room) {
         return 0.0D;

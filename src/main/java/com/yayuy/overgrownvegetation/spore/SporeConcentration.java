@@ -85,10 +85,13 @@ public final class SporeConcentration {
         double rift = riftFloorPercent(level, pos);
         // 外の値が 0 の所(汚染の無い土地・場の写しの無い所)は部屋を調べない(倍率を掛けても 0。洞窟・ネザーで上限までたどる費用を省く)。
         // 段 3c で部屋に汚れが積もるようになったら、汚れのある部屋はここでも見ること
-        com.yayuy.overgrownvegetation.survival.room.RoomScan room = v + rift > 0.0D
-                ? com.yayuy.overgrownvegetation.survival.room.RoomCache.roomAt(level, pos) : null;
+        com.yayuy.overgrownvegetation.survival.room.RoomScan scan = v + rift > 0.0D
+                ? com.yayuy.overgrownvegetation.survival.room.RoomCache.scanAt(level, pos) : null;
+        com.yayuy.overgrownvegetation.survival.room.RoomScan room = scan != null && scan.isRoom() ? scan : null;
+        // すき間のある建物の中(人の手の壁がある・外へ抜ける)は外と同じ ×1(窪地の ×1.3・屋根の下の ×0.6 を掛けない。11-13 決定 21)
         double factor = room != null
                 ? com.yayuy.overgrownvegetation.survival.room.RoomAir.factor(room, DesignData.sporeField())
+                : com.yayuy.overgrownvegetation.survival.room.RoomAir.leakyBuilding(scan) ? 1.0D
                 : deep ? 1.0D : pointFactor(level, pos);
         double out = (v + rift) * factor;
         double extra = room != null ? com.yayuy.overgrownvegetation.survival.room.RoomAir.extraPercent(level, room) : 0.0D;

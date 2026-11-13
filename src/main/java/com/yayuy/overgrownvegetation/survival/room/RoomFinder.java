@@ -31,6 +31,8 @@ public final class RoomFinder {
     private static final int[] AXIS = {0, 0, 1, 1, 2, 2};
     /** 開発用のすき間の一覧の上限。 */
     public static final int MAX_GAPS = 32;
+    /** 外へ出た後、人の手のブロックを探してたどる残りのマス数【仮】。 */
+    public static final int AFTER_ESCAPE = 64;
 
     private RoomFinder() {
     }
@@ -59,7 +61,7 @@ public final class RoomFinder {
         if ((s0 & AirCells.OUTSIDE) != 0 || w.openSky(sx, sy, sz)) return RoomScan.simple(RoomScan.Status.OPEN, start);
 
         LongOpenHashSet cells = new LongOpenHashSet(256);
-        LongOpenHashSet outside = full ? new LongOpenHashSet() : null;
+        LongOpenHashSet outside = new LongOpenHashSet();
         LongLinkedOpenHashSet gaps = new LongLinkedOpenHashSet();
         LongArrayFIFOQueue queue = new LongArrayFIFOQueue();
         long s = BlockPos.asLong(sx, sy, sz);
@@ -70,16 +72,21 @@ public final class RoomFinder {
         int boundary = 0;
         long escape = Long.MIN_VALUE;
         RoomScan.Status status = null;
+        // ふつう(full でない)は外へ出たら止めるが、人の手のブロックをまだ見ていなければ、あと AFTER_ESCAPE マスだけ探す
+        // (すき間のある建物の中か、自然の窪地かを分けるため。2026-11-13 決定 21)
+        boolean escaped = false;
+        int afterEscape = 0;
 
         search:
         while (!queue.isEmpty()) {
+            if (escaped && !full && (built > 0 || ++afterEscape > AFTER_ESCAPE)) break;
             long c = queue.dequeueLong();
             int cx = BlockPos.getX(c), cy = BlockPos.getY(c), cz = BlockPos.getZ(c);
             byte cc = w.cell(cx, cy, cz);
             for (int d = 0; d < 6; d++) {
                 int nx = cx + DX[d], ny = cy + DY[d], nz = cz + DZ[d];
                 long n = BlockPos.asLong(nx, ny, nz);
-                if (cells.contains(n) || (outside != null && outside.contains(n))) continue;
+                if (cells.contains(n) || outside.contains(n)) continue;
                 int axis = AXIS[d];
                 if (AirCells.blocks(cc, axis)) {
                     // 自分のマスのブロック(板ガラス・ドア・ハーフ)がこの向きをふさぐ: 境界はこのマス自身(入るときに数えた)
@@ -88,7 +95,7 @@ public final class RoomFinder {
                 }
                 byte nc = w.cell(nx, ny, nz);
                 if (nc == AirCells.UNLOADED) {
-                    status = RoomScan.Status.UNLOADED;
+                    if (!escaped) status = RoomScan.Status.UNLOADED;
                     break search;
                 }
                 if ((nc & AirCells.OUTSIDE) == 0 && AirCells.blocks(nc, axis)) {
@@ -100,10 +107,7 @@ public final class RoomFinder {
                     // 外へ出た: c がすき間の内側
                     if (escape == Long.MIN_VALUE) escape = n;
                     if (gaps.size() < MAX_GAPS) gaps.add(c);
-                    if (outside == null) {
-                        status = RoomScan.Status.OPEN;
-                        break search;
-                    }
+                    escaped = true;
                     outside.add(n);
                     continue;
                 }
@@ -117,7 +121,7 @@ public final class RoomFinder {
                 maxZ = Math.max(maxZ, nz);
                 if (cells.size() > spec.maxCells()
                         || maxX - minX >= spec.maxSpan() || maxY - minY >= spec.maxSpan() || maxZ - minZ >= spec.maxSpan()) {
-                    status = RoomScan.Status.TOO_BIG;
+                    if (!escaped) status = RoomScan.Status.TOO_BIG;
                     break search;
                 }
                 queue.enqueue(n);
