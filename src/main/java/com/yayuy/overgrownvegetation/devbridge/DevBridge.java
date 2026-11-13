@@ -621,6 +621,17 @@ public final class DevBridge {
                     log("DETOURPLAN " + (plan == null ? "なし" : plan.waypoint() + " 残り " + plan.gap()) + " 列" + cols);
                 });
             }
+            case "stiltbrainbench" -> {
+                // stiltbrainbench watch|peer <n> <tick>: 竹馬型の見張り・覗きの重さ(11-14)。返事は STILTBRAINBENCH …
+                String[] p = arg.trim().split("\\s+");
+                net.minecraft.client.server.IntegratedServer server = mc.getSingleplayerServer();
+                if (server == null || mc.player == null || p.length < 3) break;
+                java.util.UUID id = mc.player.getUUID();
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerPlayer sp = server.getPlayerList().getPlayer(id);
+                    if (sp != null) StiltDev.lookBench(sp.serverLevel(), sp, p[0], Integer.parseInt(p[1]), Integer.parseInt(p[2]), DevBridge::log);
+                });
+            }
             case "stiltlook" -> {
                 // stiltlook x y z [倒す角] [光る 0/1] / stiltlook off: 竹馬型の首の確かめ(11-14)。返事は STILTLOOK …
                 String[] p = arg.trim().split("\\s+");

@@ -61,6 +61,8 @@ public final class PhyllosensBrain {
     private int whyIn, whyNeck, whySee;
     @Nullable
     private OpeningSearch search;
+    @Nullable
+    private OpeningSearch.Result pending;
 
     /** 計測用: 見張り・覗きの考えにかかった時間(ns)と回数。 */
     public static volatile long nanos, calls;
@@ -128,8 +130,10 @@ public final class PhyllosensBrain {
                 if (this.modeT > PEEK_TIMING.recover()) enter(Mode.WALK);
             }
         }
-        nanos += System.nanoTime() - t0;
+        long ns = System.nanoTime() - t0;
+        nanos += ns;
         calls++;
+        StiltWalker.addLook(now, ns);
     }
 
     private void enter(Mode m) {
@@ -156,6 +160,7 @@ public final class PhyllosensBrain {
                 this.nextWatch = this.mob.level().getGameTime() + this.p.watchEvery;
             }
             case WATCH_GO, PEER_GO -> {
+                this.pending = null;
                 this.w.stanceScale = 1.0D;
                 this.g.aim(null, null);
                 this.g.glow(false);
@@ -261,7 +266,7 @@ public final class PhyllosensBrain {
         double d = t.distanceTo(this.mob);
         if (d <= this.p.noticeRange && !coverOver(level, t.position())) {
             enter(Mode.PEEK);
-        } else if (d <= this.p.peerRange && now - this.lastSeenAt <= 200L && !this.visible && coverOver(level, t.position())) {
+        } else if (d <= this.p.peerRange && now - this.lastSeenAt <= this.p.peerMemory && !this.visible && coverOver(level, t.position())) {
             startPeer(level);
         } else if (this.mode == Mode.DISGUISE && now >= this.nextWatch) {
             startWatch(level);
@@ -347,6 +352,13 @@ public final class PhyllosensBrain {
 
     private void peek(ServerLevel level, long now) {
         Player t = this.target;
+        // 屋根の下へ入った: 開口を覗きに行く(あきらめて休むと「最近見た」が切れて行けなかった、11-14)
+        if (t != null && coverOver(level, t.position()) && this.lastSeen != null && now >= this.hitUntil
+                && this.lastSeen.distanceTo(this.mob.position()) <= this.p.peerRange) {
+            this.g.aim(null, null);
+            startPeer(level);
+            return;
+        }
         if (t == null || t.distanceTo(this.mob) > this.p.noticeRange * 1.5D || this.modeT > PEEK_TIMING.total()) {
             this.coolUntil = now + this.p.peekCooldown;
             enter(Mode.RETRACT);
@@ -359,7 +371,10 @@ public final class PhyllosensBrain {
                 enter(Mode.RETRACT);
                 return;
             }
+            if (com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.remaining(level) < this.p.lookSliceNanos) return;   // 予算が足りなければ次の tick
+            long s0 = System.nanoTime();
             this.peekHead = findPeekHead(level, t.getEyePosition());
+            com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.spend(level, System.nanoTime() - s0);
             this.note = "覗く頭 " + (this.peekHead == null ? "なし" : String.format(java.util.Locale.ROOT, "%.1f %.1f %.1f", this.peekHead.x, this.peekHead.y, this.peekHead.z)) + " 回 " + this.tries + " 中" + this.whyIn + " 首" + this.whyNeck + " 見え" + this.whySee + " 目 " + String.format(java.util.Locale.ROOT, "%.1f %.1f %.1f", t.getEyePosition().x, t.getEyePosition().y, t.getEyePosition().z) + " 付け根 " + String.format(java.util.Locale.ROOT, "%.1f %.1f %.1f", StiltNeck.baseWorld(this.g.shape, this.mob.position(), this.mob.getYRot(), 0.0D).x, StiltNeck.baseWorld(this.g.shape, this.mob.position(), this.mob.getYRot(), 0.0D).y, StiltNeck.baseWorld(this.g.shape, this.mob.position(), this.mob.getYRot(), 0.0D).z);
             if (this.peekHead == null) {
                 this.tries++;
@@ -459,18 +474,32 @@ public final class PhyllosensBrain {
             enter(Mode.WALK);
             return;
         }
-        if (this.openCell == null) {
+        if (this.openCell == null && this.pending == null) {
             if (this.search == null || this.lastSeen == null) {
                 enter(Mode.WALK);
                 return;
             }
             Player t = this.target;
             Vec3 eye = t != null && t.distanceToSqr(this.lastSeen) < 9.0D ? t.getEyePosition() : this.lastSeen.add(0, 1.6D, 0);
+            // サーバー全体の予算(段 1 の経路と同じ 2 ms/tick)の残りが少なければ次の tick へ
+            if (com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.remaining(level) < this.p.lookSliceNanos) return;
+            long s0 = System.nanoTime();
             OpeningSearch.Result res = this.search.step(level, eye, this.mob.position(), this.p.openingCellsPerTick);
+            com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.spend(level, System.nanoTime() - s0);
             if (res == null) return;   // まだ探している(次の tick に続き)
+            this.pending = res;
             this.search = null;
+        }
+        if (this.openCell == null && this.pending != null) {
+            // 立ち位置選び(胴を下ろせるかの確かめ)も予算の中で(11-14、10 体で 1 tick 2.7 ms になった)
+            if (com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.remaining(level) < this.p.lookSliceNanos) return;
+            OpeningSearch.Result res = this.pending;
+            this.pending = null;
+            long c0 = System.nanoTime();
+            boolean stand = res.cell() != null && chooseStand(level, res);
+            com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.spend(level, System.nanoTime() - c0);
             this.note = res.cell() == null ? "開口なし" : "開口 " + res.cell().toShortString();
-            if (res.cell() == null || !chooseStand(level, res)) {
+            if (!stand) {
                 if (res.cell() != null) this.note += " 立ち位置なし";
                 this.coolUntil = now + this.p.peekCooldown;
                 enter(Mode.WALK);
@@ -526,13 +555,39 @@ public final class PhyllosensBrain {
         this.w.heightOverride = this.p.peerHeight;
         this.g.lean(this.p.peerLean);
         Vec3 look = t != null && this.visible ? t.getEyePosition() : (this.lastSeen != null ? this.lastSeen.add(0, 1.0D, 0) : this.openCell.subtract(this.openDir));
-        Vec3 head = this.openCell.add(this.openDir.scale(this.openSolid ? 1.05D : 0.45D));
-        if (this.modeT >= PEEK_TIMING.windup()) {
+        // 頭の付け根は開口の外へ「閉じたつぼみの長さ」ぶん(花弁は付け根から見る向きへ約 1.5 伸びる)。前は 0.45 / 1.05 で、
+        // つぼみがガラス・壁を抜けて部屋の中へ入った(11-14 テストクライアント)
+        // ただし首の弧が届かず頭がずれると、窓の上の壁越しになって見えない(11-14 GameTest)。胴が下りきった所で、外への距離を
+        // 2.1 から内へ試し、首を解いた頭から開口ごしに見える一番外の距離を選ぶ(覗く間は固定)
+        if (this.modeT == PEEK_TIMING.windup() || (this.modeT > PEEK_TIMING.windup() && this.peekHead == null)) {
+            this.peekHead = peerHead(level, look);
+        }
+        if (this.modeT >= PEEK_TIMING.windup() && this.peekHead != null) {
+            Vec3 head = this.peekHead;
             this.g.aim(head, look);
-            this.peekHead = head;
             this.g.glow(headArrived());
         }
         markIfSeen(now);
+    }
+
+    /** 開口の外に置く頭の付け根: 外への距離を試し、首を解いた頭の目から look が見える一番外。どれも見えなければ一番内。 */
+    private Vec3 peerHead(ServerLevel level, Vec3 look) {
+        Vec3 pos = this.mob.position();
+        float yaw = this.mob.getYRot();
+        double lean = this.g.lean(1.0F);
+        Vec3 last = null;
+        for (double out : this.openSolid ? new double[]{2.8D, 2.5D, 2.2D, 1.9D, 1.6D} : new double[]{2.2D, 1.9D, 1.6D, 1.3D, 1.0D}) {
+            Vec3 want = this.openCell.add(this.openDir.scale(out));
+            StiltNeck.Pose pz = StiltNeck.solve(this.g.shape, StiltNeck.toBody(this.g.shape, want, pos, yaw, lean), StiltNeck.toBody(this.g.shape, look, pos, yaw, lean));
+            Vec3 h = StiltNeck.toWorld(this.g.shape, pz.head(), pos, yaw, lean);
+            last = want;
+            if (h.distanceTo(want) < 0.5D && StiltSight.canSee(level, h.add(look.subtract(h).normalize().scale(0.44D)), look)) {
+                this.note = String.format(java.util.Locale.ROOT, "覗く頭 外へ %.1f", out);
+                return want;
+            }
+            this.note = String.format(java.util.Locale.ROOT, "覗く頭 外へ %.1f は だめ(ずれ %.2f)", out, h.distanceTo(want));
+        }
+        return last;
     }
 
     // ------------------------------------------------------------------ 開口の探し

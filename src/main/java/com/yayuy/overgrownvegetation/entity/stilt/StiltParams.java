@@ -63,6 +63,8 @@ public final class StiltParams {
     public int unreachableTries = 6;
     /** 経路の探索に使う時間: サーバー全体の予算 2 ms/tick の残りから、歩き・足のために残す分と、これより少なければその tick は探さない分(ns)【仮】。 */
     public long planReserveNanos = 400_000L, planMinSliceNanos = 250_000L;
+    /** 段 2(11-14): 見る行動の探し(開口・覗く頭・立ち位置)を始めてよい予算の残り(ns)。経路と合わせて 1 tick 2 ms に収める【仮】。 */
+    public long lookSliceNanos = 1_000_000L;
 
     // ------------------------------------------------------------------ 段 2(11-14): 首の動き・見張り・覗き。全部【仮・Claude】
 
@@ -79,8 +81,10 @@ public final class StiltParams {
     public int peekSamples = 96, peekRetries = 3, peekCooldown = 200;
     /** 開口を覗く: 相手のまわりを探す半径(ブロック)・1 tick に調べるマスの数・立ち位置の開口からの距離・胴の中心の高さ・前へ倒す角(度)・覗く長さ(tick)。 */
     public int openingRadius = 6, openingCellsPerTick = 700;
-    public double peerStandOff = 3.0D, peerHeight = 2.5D, peerLean = 25.0D;
+    public double peerStandOff = 4.3D, peerHeight = 2.5D, peerLean = 25.0D;   // 3.0 だと前へ倒した首の付け根が開口のすぐ手前に来て、頭を外に置けなかった(11-14)
     public int peerFor = 300;
+    /** 屋根の下へ隠れた相手を覗きに行くのは、最後に見てからこの間(tick)。 */
+    public int peerMemory = 600;
     /** 頭を叩かれたら覗くのをやめる長さ(tick)【決定 11-10「しばらく」、値は仮 10 秒】。 */
     public int headHitCooldown = 200;
     /** 叩ける頭の大きさ(ブロック、つぼみ)。 */

@@ -111,7 +111,7 @@ public final class StiltWalker {
     private static long sumTick = Long.MIN_VALUE, tickSum;
 
     /** 計測用: 今の tick の内訳(経路の時間・回数・打ち切りの回数・足・森の地図・歩いた個体の数)と、合計が最大だった tick の内訳。 */
-    private static long curPlan, curPlans, curCapped, curFeet, curForest, curWalkers, curStand, curGc, curMove;
+    private static long curPlan, curPlans, curCapped, curFeet, curForest, curWalkers, curStand, curGc, curMove, curLook;
     /** 確かめ用(テストクライアントだけ): 最悪の tick の中で GC が止めた時間を測る。 */
     private static final boolean DEV = Boolean.getBoolean("ov.devbridge");
 
@@ -124,10 +124,31 @@ public final class StiltWalker {
     /** 計測用: 経路を探した回数・打ち切った回数・届かない目標を覚えていて探さなかった回数。 */
     public static volatile long plans, cappedPlans, skippedPlans;
 
+    /** サーバーの tick が変わったら、前の tick の合計を最大と比べて内訳を残し、数え直す。 */
+    private static void roll(long gt) {
+        if (gt == sumTick) return;
+        if (tickSum > maxTickSum) {
+            worstTick = String.format(java.util.Locale.ROOT, "合計 %.2f ms = 経路 %.2f ms(%d 回・打ち切り %d)+ 足 %.2f ms + 森の地図 %.2f ms + 立ち上がり %.2f ms + 胴の移動 %.2f ms + 見る %.2f ms + そのほか %.2f ms(%d 体)・この tick の中の GC %d ms",
+                    tickSum / 1.0e6, curPlan / 1.0e6, curPlans, curCapped, curFeet / 1.0e6, curForest / 1.0e6, curStand / 1.0e6, curMove / 1.0e6, curLook / 1.0e6,
+                    (tickSum - curPlan - curFeet - curForest - curStand - curMove - curLook) / 1.0e6, curWalkers, curGc);
+        }
+        maxTickSum = Math.max(maxTickSum, tickSum);
+        sumTick = gt;
+        tickSum = 0L;
+        curPlan = curPlans = curCapped = curFeet = curForest = curWalkers = curStand = curGc = curMove = curLook = 0L;
+    }
+
+    /** 段 2(11-14): 見る行動(PhyllosensBrain)の時間も同じ tick の合計に入れる。 */
+    public static void addLook(long gameTime, long ns) {
+        roll(gameTime);
+        tickSum += ns;
+        curLook += ns;
+    }
+
     public static void resetStats() {
         maxTickSum = maxOneNanos = maxFeetNanos = 0L;
         tickSum = 0L;
-        curPlan = curPlans = curCapped = curFeet = curForest = curWalkers = curStand = curGc = curMove = 0L;
+        curPlan = curPlans = curCapped = curFeet = curForest = curWalkers = curStand = curGc = curMove = curLook = 0L;
         worstTick = "-";
         plans = cappedPlans = skippedPlans = 0L;
     }
@@ -383,18 +404,7 @@ public final class StiltWalker {
         ticks++;
         maxFeetNanos = Math.max(maxFeetNanos, now - tf);
         maxOneNanos = Math.max(maxOneNanos, ns);
-        long gt = level.getGameTime();
-        if (gt != sumTick) {
-            if (tickSum > maxTickSum) {
-                worstTick = String.format(java.util.Locale.ROOT, "合計 %.2f ms = 経路 %.2f ms(%d 回・打ち切り %d)+ 足 %.2f ms + 森の地図 %.2f ms + 立ち上がり %.2f ms + 胴の移動 %.2f ms + そのほか %.2f ms(%d 体)・この tick の中の GC %d ms",
-                        tickSum / 1.0e6, curPlan / 1.0e6, curPlans, curCapped, curFeet / 1.0e6, curForest / 1.0e6, curStand / 1.0e6, curMove / 1.0e6,
-                        (tickSum - curPlan - curFeet - curForest - curStand - curMove) / 1.0e6, curWalkers, curGc);
-            }
-            maxTickSum = Math.max(maxTickSum, tickSum);
-            sumTick = gt;
-            tickSum = 0L;
-            curPlan = curPlans = curCapped = curFeet = curForest = curWalkers = curStand = curGc = curMove = 0L;
-        }
+        roll(level.getGameTime());
         tickSum += ns;
         if (DEV) curGc += gcMillis() - gc0;
         curFeet += now - tf;

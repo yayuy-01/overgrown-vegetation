@@ -67,6 +67,75 @@ final class StiltDev {
         log.accept(String.format(Locale.ROOT, "STILTLOOK 頭 %.2f %.2f %.2f を %.2f %.2f %.2f へ(付け根 %.2f %.2f %.2f)", head.x, head.y, head.z, t.x, t.y, t.z, base.x, base.y, base.z));
     }
 
+    // ------------------------------------------------------------------ 段 2(11-14): 見張り・覗きの重さ
+
+    private static List<PhyllosensEntity> lookBench;
+    private static long lookStart, lookTicks, lookSum0, lookTicks0;
+    private static int lookLen;
+
+    /**
+     * {@code stiltbrainbench watch|peer <n> <tick>}: プレイヤー(サバイバルで立つ)のまわりにフィロセンスを n 体出す。watch = 30〜60 ブロックの
+     * 扇に置いてすぐ見張り、peer = 12〜20 ブロックに置いて「さっきここで見た」を入れる(屋根の下に隠れていれば開口を覗きに来る)。
+     * tick の間、歩きと見る行動の 1 tick の合計の最大・平均と、最悪の tick の内訳を返す。
+     */
+    static void lookBench(ServerLevel level, net.minecraft.world.entity.player.Player me, String mode, int n, int ticks, Consumer<String> log) {
+        lookBench = new ArrayList<>();
+        StiltColumns.of(level).clear();
+        StiltPlanner.forget(level);
+        StiltWalker.forgetUnreachable();
+        boolean watch = mode.equals("watch");
+        for (int i = 0; i < n; i++) {
+            PhyllosensEntity e = ModStilt.PHYLLOSENS.get().create(level);
+            if (e == null) continue;
+            double a = Math.PI * (0.25D + 0.5D * i / Math.max(1, n - 1)) + Math.PI;
+            double r = watch ? 30.0D + 3.0D * i : 12.0D + (i % 3) * 3.0D;
+            e.moveTo(me.getX() + Math.cos(a) * r, me.getY(), me.getZ() + Math.sin(a) * r, 0.0F, 0.0F);
+            e.setCustomName(net.minecraft.network.chat.Component.literal("nostroll" + i));
+            e.setPersistenceRequired();
+            level.addFreshEntity(e);
+            lookBench.add(e);
+        }
+        lookStart = level.getGameTime();
+        lookLen = ticks;
+        lookSum0 = StiltWalker.tickNanos;
+        log.accept("STILTBRAINBENCH 始め " + mode + " " + lookBench.size() + " 体");
+        lookMode = mode;
+        lookMe = me;
+    }
+
+    private static String lookMode;
+    private static net.minecraft.world.entity.player.Player lookMe;
+    private static boolean lookGo;
+
+    private static void lookStep(ServerLevel level, long now, Consumer<String> log) {
+        long t = now - lookStart;
+        if (t >= 20L && !lookGo) {
+            lookGo = true;
+            for (PhyllosensEntity e : lookBench) {
+                if (lookMode.equals("watch")) e.brain().forceWatch();
+                else e.brain().noteSeen(lookMe.position(), now);
+            }
+            StiltWalker.resetStats();
+            com.yayuy.overgrownvegetation.entity.PhyllosensBrain.nanos = 0L;
+            com.yayuy.overgrownvegetation.entity.PhyllosensBrain.calls = 0L;
+            lookSum0 = StiltWalker.tickNanos;
+            lookTicks0 = now;
+        }
+        if (!lookGo || t < lookLen) return;
+        int marked = lookMe.hasEffect(ModStilt.PHYLLOSENS_WATCH) ? 1 : 0;
+        StringBuilder modes = new StringBuilder();
+        for (PhyllosensEntity e : lookBench) modes.append(' ').append(e.brain().mode());
+        long span = Math.max(1L, now - lookTicks0);
+        double avg = (StiltWalker.tickNanos - lookSum0 + com.yayuy.overgrownvegetation.entity.PhyllosensBrain.nanos) / 1.0e6 / span;
+        log.accept(String.format(Locale.ROOT, "STILTBRAINBENCH %s 体 %d tick %d 1tickの合計の最大 %.2f ms 平均 %.3f ms 見る %.3f ms/体/tick 印 %d 状態%s",
+                lookMode, lookBench.size(), span, StiltWalker.maxTickSum / 1.0e6, avg,
+                com.yayuy.overgrownvegetation.entity.PhyllosensBrain.nanos / 1.0e6 / Math.max(1L, com.yayuy.overgrownvegetation.entity.PhyllosensBrain.calls), marked, modes));
+        log.accept("STILTBRAINBENCH 最悪の tick " + StiltWalker.worstTick);
+        for (PhyllosensEntity e : lookBench) e.discard();
+        lookBench = null;
+        lookGo = false;
+    }
+
     static boolean navto(Mob best, double tx, double ty, double tz, double speed, long now, Consumer<String> log) {
         if (!(best instanceof StiltWalker.Holder h)) return false;
         h.stiltWalker().goTo(tx, ty, tz, speed);
@@ -110,6 +179,7 @@ final class StiltDev {
             }
         }
         if (bench != null) benchStep(level, now, log);
+        if (lookBench != null) lookStep(level, now, log);
     }
 
     // ------------------------------------------------------------------ 重さの測り
