@@ -162,8 +162,9 @@ public final class CorruptionRegistry {
 
         // --- ネザー(2026-10-02 ユーザー指定。ポータルを越えた侵食の地面) ---
         // ナイリウムも「草の生えたネザーラック」へまとめる。ソウルサンド・ソウルソイルは以前は汚染された土だった。
-        put(exact, ModBlocks.OVERGROWN_NETHERRACK.get(), Blocks.NETHERRACK, Blocks.CRIMSON_NYLIUM, Blocks.WARPED_NYLIUM);
-        put(exact, ModBlocks.OVERGROWN_SOUL_SAND.get(), Blocks.SOUL_SAND);
+        put(exact, ModBlocks.OVERGROWN_NETHERRACK.get(), Blocks.NETHERRACK);
+        put(exact, ModBlocks.OVERGROWN_NYLIUM.get(), Blocks.CRIMSON_NYLIUM, Blocks.WARPED_NYLIUM); // 2026-11-12 ネザーの表に揃えた
+        put(exact, ModBlocks.NETHER_PEAT.get(), Blocks.SOUL_SAND); // 2026-11-12 ユーザー決定: ソウルサンドは泥炭(overgrown_soul_sand は使わなくなった)
         put(exact, ModBlocks.OVERGROWN_SOUL_SOIL.get(), Blocks.SOUL_SOIL);
         put(exact, ModBlocks.OVERGROWN_END_STONE.get(), Blocks.END_STONE);
 
@@ -644,8 +645,10 @@ public final class CorruptionRegistry {
             // 水その他の液体は常に汚染対象外。
             // 2026-10-02 ユーザー指定: 流れている溶岩に汚染が来たら、その流れの源泉を固める(LavaSolidifier)。
             // 流れている溶岩そのものは置き換えないので、ここは通して corrupt() の側で源泉を辿る。
+            // 2026-11-11 ネザーの骨組み: ネザーの溶岩は根の台帳の段階 2 が殻にする(玄武岩にしない。NetherLava)
             return state.is(Blocks.LAVA)
-                    && OvergrownVegetationConfig.COMMON.convertLavaToBasalt.get();
+                    && OvergrownVegetationConfig.COMMON.convertLavaToBasalt.get()
+                    && !(level instanceof ServerLevel server && NetherLedger.active(server));
         }
         if (state.getFluidState().is(FluidTags.WATER) && !state.isCollisionShapeFullBlock(level, pos)) {
             // 水に浸かった非充填ブロック(海草・昆布・水没した装飾ブロックなど)は汚染対象外。
@@ -720,19 +723,6 @@ public final class CorruptionRegistry {
             return state;
         }
         init();
-        if (level.dimension() == net.minecraft.world.level.Level.NETHER) {
-            HeatForestAdaptation.noteCorruption(level); // 適応の時計(最初の汚染から 10 分)を動かし始める
-            if (HeatForestFungus.keepForFall(state)) {
-                return state; // 菌の木の傘は覆わず、倒木の仕組み(SwampTreeFall)が幹と一緒に消す(2026-11-10)
-            }
-        }
-        if (HeatForestGround.applies(level)) {
-            // ネザーの熱水の森(2026-11-09 段階 1): 地形は熱の敷物・光の苔・冷えた殻へ、溶岩は表面だけ殻へ。対象外のブロックは下のふだんの表へ
-            BlockState heat = HeatForestGround.corrupt(level, pos, state);
-            if (heat != null) {
-                return heat;
-            }
-        }
         // エンドポータルの枠の隣が汚染されたら、森がエンドへ渡る(2026-10-02。枠そのものは免疫なので隣で気付く)。
         PortalCorruption.noticeEndFrame(level, pos, state);
         if (MeltedIce.isIce(state)) {
@@ -742,8 +732,32 @@ public final class CorruptionRegistry {
         }
         if (LavaSolidifier.isFlowingLava(state)) {
             // 流れている溶岩は置き換えず、上流の源泉を玄武岩へ固める(流れはバニラの更新で消える。2026-10-02)。
-            LavaSolidifier.solidifySourcesOf(level, pos);
+            // ネザーは 2026-11-11 から根の台帳の段階 2 が殻にする(NetherLava)ので、ここでは固めない。
+            if (!NetherLedger.active(level)) {
+                LavaSolidifier.solidifySourcesOf(level, pos);
+            }
             return state;
+        }
+        if (state.is(Blocks.LAVA) && NetherLedger.active(level)) {
+            return state; // ネザーの溶岩の源泉も同じ(玄武岩にしない)
+        }
+        if (NetherLedger.active(level)) {
+            // 2026-11-11 ユーザー決定「両方」: Mob などのふだんの汚染は、ネザーの対応表どおりにすぐブロックを変え(10-02 の
+            // 過繁茂したネザーラック・ソウルサンドにはしない。表に無い元はそのまま)、そのチャンクがまだ森でなければ段階の時計を始める
+            if (PortalCorruption.interceptNetherFrame(level, pos, state)) {
+                return state; // 火の付いたネザーポータルの枠: 置き換えない(逆流は PortalCorruption が起こす)
+            }
+            BlockState mapped = NetherGround.ordinaryTarget(state);
+            if (mapped == null) {
+                // 表に無いブロック(鉱石・グロウストーン・要塞のレンガなど)は覆う(2026-11-11 ユーザー決定: ネザーの覆い Q1)
+                if (state.blocksMotion() && OvergrownLayerData.canCover(state) && OvergrownLayerData.cover(level, pos)) {
+                    NetherLedger.noticeOrdinaryCorruption(level, pos);
+                }
+                return state;
+            }
+            NetherLedger.noticeOrdinaryCorruption(level, pos);
+            NetherGround.coverAfterOrdinary(level, pos, mapped); // 段階 1 を終えたチャンクなら、その段階の斑で覆う(2026-11-12)
+            return mapped;
         }
         if (state.is(BlockTags.LOGS)) {
             // 元の森の木を残さない(消滅 or 倒木)。環境ごとの有効/無効と確率は tick 側(SwampTreeFall)で判定する。

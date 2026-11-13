@@ -1,0 +1,7 @@
+{
+  "intact": "g1_chicken_v2_r9_intact.png",
+  "burst": "corpse_burst",
+  "burstTicks": 60,
+  "swapTick": 30,
+  "idle": "corpse_idle"
+}

@@ -4,7 +4,6 @@
 #moj_import <fog.glsl>
 #moj_import <ov_fog.glsl>
 #moj_import <ov_sway.glsl>
-#moj_import <ov_heat_glow.glsl>
 
 in vec3 Position;
 in vec4 Color;
@@ -33,16 +32,12 @@ out vec3 ovTint;
 void main() {
     // Plants sway in the wind (ov_sway.glsl); marked vertices get their alpha back to 1.
     vec4 color = Color;
-    // The glowing faces of the heat forest carry a class code in their tint (ov_heat_glow.glsl, 11-10): read it, back to the grey shade.
-    color = ovHeatGlowDecode(color);
     vec3 pos = Position + ChunkOffset;
     pos += ovDisplace(pos, Normal, color.a);
     gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);
 
     vertexDistance = fog_distance(pos, FogShape);
-    // The heat forest glow (ov_heat_glow.glsl): the sky body takes the full block light by day; the class gain (time of day, breathing).
-    vertexColor = color * minecraft_sample_lightmap(Sampler2, ivec2(int(ovHeatBlockLight(float(UV2.x), 240.0)), UV2.y));
-    vertexColor.rgb *= ovHeatGlowGain(pos);
+    vertexColor = color * minecraft_sample_lightmap(Sampler2, UV2);
     texCoord0 = UV0;
     ovPos = pos;
     ovNormal = Normal;

@@ -1,6 +1,6 @@
 {
   "falcimnes": {
-    "_comment": "技の調整値(11-05、すべて仮)。時刻(前触れ・実行・隙)はアニメと対なので Java に書く。間合い・ダメージはブロックと体力。cooldown は技を始めてからの tick。score は選ぶ重み、recency は直前の技の重みに掛ける数、chance は間合いに入った 1 tick ごとに候補に入る確率。反映は再起動。",
+    "_comment": "技の調整値(11-05、すべて仮)。時刻(前触れ・実行・隙)はアニメと対なので Java に書く。間合い・ダメージはブロックと体力。cooldown は技を始めてからの tick。score は選ぶ重み、recency は直前の技の重みに掛ける数、chance は間合いに入った 1 tick ごとに候補に入る確率。反映は再起動。段 2(11-07 夜)で小さな通常技 5 つ(kiriage 切り上げ・tsukikaki 突き掻き・kosa 交差斬り・fumikomi 踏み込み斬り・kozuki 小突き。全部仮)と連撃の締め(flurry の finishFactor = X 字の交差斬りの攻撃力の倍率)を足した。kiriage: lift = 打ち上げ・shieldBreak = 盾を弾いて使えなくする tick / tsukikaki: pull = 引き寄せ / fumikomi: sidestep = 横への踏み出し(ブロック/tick)。 段 3(11-08、全部仮): 個体の性格。各技の extra の cautious・aggressive・flank = 慎重さ・攻撃性・回り込みが 1 のときの重みの掛け数(0 で逆数、0.5 で 1)、counter = 慎重な個体が待っている間にも返す技、next.<hit|blocked|missed>.<技> = 連続技の 2 段目の重み(1 段目の結果ごと)。personality は選ばれない擬似の技で、comboChance = 2 段目へ続ける確率(comboAggressive・comboCautious で傾け、1 段目の結果で comboOnHit・comboOnBlocked・comboOnMissed を掛ける)、comboCut = 1 段目の隙のどこで 2 段目へ切り替えるか(割合。技の extra の comboCut が先。技ごとの値は 2 段目の頭へ補間しても鎌が地面・首・脚を通らない一番早い所)、keepDistance = 慎重な個体の止まる距離の伸び、backpedal = 後ずさりの速さ(普段の何倍)、patienceTicks = 慎重さ 1 の個体が隙を待つ最長、commitTicks = 隙を見つけて攻めに行く長さ、flankAngle = 回り込み 1 の個体が相手の横へずらす角度。",
     "pacing": {
       "warmupTicks": 120,
       "normalsBeforeFirst": 2,
@@ -8,15 +8,34 @@
       "chance": 0.35
     },
     "actions": {
-      "sweep": { "cooldown": 46, "minRange": 0, "maxRange": 0, "score": 1.0, "recency": 0.5, "chance": 1.0, "damage": 0 },
+      "sweep": { "cooldown": 46, "minRange": 0, "maxRange": 0, "score": 1.0, "recency": 0.5, "chance": 1.0, "damage": 0,
+        "extra": { "cautious": 0.8, "aggressive": 1.2 } },
       "flurry": { "cooldown": 390, "minRange": 0, "maxRange": 0, "score": 0.45, "recency": 0.25, "chance": 1.0, "damage": 0,
-        "extra": { "damageFactor": 0.3, "moveSpeed": 0.55 } },
+        "extra": { "damageFactor": 0.3, "moveSpeed": 0.55, "finishFactor": 1.0, "cautious": 0.4, "aggressive": 2.5 } },
       "grab": { "cooldown": 600, "minRange": 9.0, "maxRange": 21.6, "score": 0.6, "recency": 0.3, "chance": 0.05, "damage": 30,
-        "extra": { "bite": 8, "breakFree": 15, "dashSpeed": 0.95, "bites": 3 } },
+        "extra": { "bite": 8, "breakFree": 15, "dashSpeed": 0.95, "bites": 3, "cautious": 0.7, "aggressive": 1.5 } },
       "wave": { "cooldown": 144, "minRange": 6, "maxRange": 16, "score": 0.8, "recency": 0.3, "chance": 0.06, "damage": 10,
-        "extra": { "speed": 1.0, "range": 16, "width": 3.0, "height": 0.5 } },
+        "extra": { "speed": 1.0, "range": 16, "width": 3.0, "height": 0.5, "cautious": 1.5, "aggressive": 0.8 } },
       "rift": { "cooldown": 400, "minRange": 0, "maxRange": 22, "score": 1.0, "recency": 1.0, "chance": 1.0, "damage": 14,
-        "extra": { "lineSpeed": 1.2, "lineMax": 18, "overshoot": 2, "width": 1.5, "bandDelay": 12, "bandTicks": 8, "bandHeight": 3, "lift": 0.6, "burstRadius": 4, "burstUnder": 2 } }
+        "extra": { "lineSpeed": 1.2, "lineMax": 18, "overshoot": 2, "width": 1.5, "bandDelay": 12, "bandTicks": 8, "bandHeight": 3, "lift": 0.6, "burstRadius": 4, "burstUnder": 2 } },
+      "kiriage": { "cooldown": 70, "minRange": 0, "maxRange": 0, "score": 0.7, "recency": 0.4, "chance": 1.0, "damage": 14,
+        "extra": { "lift": 0.5, "shieldBreak": 40, "cautious": 2.0, "counter": 1, "comboCut": 0.6,
+          "next.hit.kozuki": 1.0, "next.hit.tsukikaki": 0.5, "next.blocked.kosa": 1.0, "next.missed.fumikomi": 0.5 } },
+      "tsukikaki": { "cooldown": 90, "minRange": 0, "maxRange": 0, "score": 0.6, "recency": 0.4, "chance": 1.0, "damage": 6,
+        "extra": { "pull": 0.6, "cautious": 2.0, "counter": 1, "comboCut": 0.55,
+          "next.hit.kozuki": 1.0, "next.hit.kosa": 1.0, "next.blocked.kiriage": 1.0, "next.missed.fumikomi": 1.0 } },
+      "kosa": { "cooldown": 80, "minRange": 0, "maxRange": 5.5, "score": 0.7, "recency": 0.4, "chance": 1.0, "damage": 12,
+        "extra": { "cautious": 0.6, "aggressive": 2.5, "comboCut": 0.8,
+          "next.hit.kozuki": 1.0, "next.blocked.kiriage": 1.0, "next.missed.tsukikaki": 1.0, "next.missed.fumikomi": 1.0 } },
+      "fumikomi": { "cooldown": 80, "minRange": 0, "maxRange": 0, "score": 0.6, "recency": 0.4, "chance": 1.0, "damage": 12,
+        "extra": { "sidestep": 0.16, "flank": 3.0, "comboCut": 0.8,
+          "next.hit.kozuki": 1.0, "next.hit.kosa": 0.5, "next.blocked.kiriage": 1.0, "next.missed.kosa": 0.5 } },
+      "kozuki": { "cooldown": 30, "minRange": 0, "maxRange": 0, "score": 0.9, "recency": 0.4, "chance": 1.0, "damage": 5,
+        "extra": { "cautious": 2.5, "aggressive": 0.8, "counter": 1,
+          "next.hit.kiriage": 1.0, "next.hit.tsukikaki": 0.5, "next.blocked.kiriage": 2.0, "next.missed.tsukikaki": 1.0, "next.missed.fumikomi": 0.5 } },
+      "personality": { "cooldown": 0, "minRange": 0, "maxRange": 0, "score": 0, "recency": 1.0, "chance": 0, "damage": 0,
+        "extra": { "comboChance": 0.35, "comboAggressive": 2.2, "comboCautious": 0.7, "comboCut": 0.35, "comboOnHit": 1.0, "comboOnBlocked": 1.3, "comboOnMissed": 0.6,
+          "keepDistance": 0.8, "backpedal": 0.5, "patienceTicks": 160, "commitTicks": 60, "flankAngle": 60 } }
     }
   },
   "arbora": {

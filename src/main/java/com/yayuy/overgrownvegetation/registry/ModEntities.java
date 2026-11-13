@@ -58,12 +58,15 @@ public final class ModEntities {
 
     /**
      * 「ファルキムネス」— カマキリの姿をした爬虫類。グループ5(適応種)の陸の攻撃役(2026-09-23、11-05 に作り直して戻した)。
-     * 11-05 から描画倍率 1.8 を geo に焼き込み、体格(SCALE)は 1。当たり判定は前と同じ実効 2.97 x 3.06(胴だけを覆う。3 を超えると経路探索が通らない)。
+     * 11-05 から描画倍率 1.8 を geo に焼き込み、体格(SCALE)は 1。
+     * 11-08(森の中を動く型 ② の段 1): 地形とぶつかる箱を胴の芯だけ 1.3 x 2.1【仮】に細くした(前は 2.97 x 3.06 で、幹と幹の 2 マスの隙間を通れなかった)。
+     * 芯の外の頭・首・鎌・腹は叩ける部位({@code entity/parts/HitPart})。目の高さは前と同じ頭の高さ({@link FalcimnesEntity#EYE_HEIGHT})。
      */
     public static final DeferredHolder<EntityType<?>, EntityType<FalcimnesEntity>> FALCIMNES =
             ENTITY_TYPES.register("falcimnes", () -> EntityType.Builder
                     .of(FalcimnesEntity::new, MobCategory.MONSTER)
-                    .sized(MobStats.width("falcimnes", 2.97F), MobStats.height("falcimnes", 3.06F))
+                    .sized(MobStats.width("falcimnes", 1.3F), MobStats.height("falcimnes", 2.1F))
+                    .eyeHeight(FalcimnesEntity.EYE_HEIGHT)
                     .spawnDimensionsScale(MobStats.spawnScale("falcimnes"))
                     .clientTrackingRange(12)
                     .updateInterval(2)

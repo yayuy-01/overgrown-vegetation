@@ -92,7 +92,8 @@ final class WaterSigns {
             spawn(level, player, p, pos, true, now);
         }
         // 雨の波紋: 雨の強さに比例。雨の当たる(空の開いた)水面だけ。
-        float rain = level.getRainLevel(1.0F);
+        // 11-12(水まわり ④): 水のシェーダーが効いている間はシェーダーの波紋(ov_water.glsl ovWaterRain)に任せ、粒は出さない。
+        float rain = WaterGlint.shaderWater() ? 0.0F : level.getRainLevel(1.0F);
         rainCarry = rain > 0.05F ? rainCarry + p.rainRingsPerSecond() * rain / 20.0F : 0.0F;
         while (rainCarry >= 1.0F) {
             rainCarry -= 1.0F;

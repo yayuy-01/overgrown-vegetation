@@ -30,6 +30,8 @@ public final class CoverTable {
     public static final class Json {
         public List<String> textures;
         public List<String> waterTextures, seaTextures;
+        /** ネザーで使う覆いの絵(2026-11-11)。{@code <名前>_top} は下地がタグ {@code nether_cover_ground_top} のブロックの上面だけ。 */
+        public List<String> netherTextures;
         public Boolean rotate;
         public List<Double> mipCoverage;
         public Double push;
@@ -57,6 +59,7 @@ public final class CoverTable {
     private final List<String> textures;
     private final List<String> waterTextures;
     private final List<String> seaTextures;
+    private final List<String> netherTextures;
     private final boolean rotate;
     private final double[] mipCoverage;
     private final double push;
@@ -92,6 +95,7 @@ public final class CoverTable {
         this.waterTextures = src.waterTextures != null ? List.copyOf(src.waterTextures)
                 : List.of("water_algae_cover_a", "water_algae_cover_b", "water_algae_cover_c"); // 11-01 水中の植物(tools/water-plants)
         this.seaTextures = src.seaTextures != null ? List.copyOf(src.seaTextures) : List.of("sea_algae_cover_a", "sea_algae_cover_b");
+        this.netherTextures = src.netherTextures != null ? List.copyOf(src.netherTextures) : List.of();
         this.rotate = src.rotate == null || src.rotate;
         double[] mips = {1.0D, 1.0D, 1.0D, 1.0D};
         if (src.mipCoverage != null) {
@@ -140,6 +144,11 @@ public final class CoverTable {
     /** 水に接した面に貼る絵(川・池。海は {@link #seaTextures})。空なら陸の絵のまま。 */
     public List<String> waterTextures() {
         return waterTextures;
+    }
+
+    /** ネザーで使う覆いの絵(2026-11-11。空ならオーバーワールドと同じ絵)。 */
+    public List<String> netherTextures() {
+        return netherTextures;
     }
 
     /** 海の水に接した面に貼る絵(海底の藻の丘)。空なら {@link #waterTextures}。 */

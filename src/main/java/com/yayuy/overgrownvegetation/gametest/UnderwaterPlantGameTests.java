@@ -187,6 +187,42 @@ public final class UnderwaterPlantGameTests {
     }
 
     /** 床が石・壁がガラスの水槽(中は 1〜5、深さ {@code depth})。水は流れを起こさないよう知らせずに置く。 */
+    /**
+     * 11-13 密林の水辺 ③④: 水底の落ち葉は水源を抱え、下の床が無くなると水に戻る。倒木は水槽の真ん中からどの向きへも 3 ブロック以上寝る。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 40)
+    public static void sunkenLitterAndLogStayInWater(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos origin = helper.absolutePos(new BlockPos(0, SKY, 0));
+        tank(level, origin, 4);
+        BlockPos litter = origin.offset(2, 1, 2);
+        level.setBlock(litter, ModBlocks.SUNKEN_LEAF_LITTER.get().defaultBlockState(), Block.UPDATE_ALL);
+        boolean holdsWater = level.getBlockState(litter).getFluidState().isSource();
+        boolean logged = UnderwaterPlants.sinkLog(level, origin.offset(3, 1, 3), RandomSource.create(7L));
+        int logs = 0;
+        for (int x = 1; x <= 5; x++) {
+            for (int z = 1; z <= 5; z++) {
+                logs += level.getBlockState(origin.offset(x, 1, z)).is(ModBlocks.FALLEN_LOG.get()) ? 1 : 0;
+            }
+        }
+        int logCount = logs;
+        level.setBlock(litter.below(), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+        helper.runAfterDelay(2, () -> {
+            BlockState after = level.getBlockState(litter);
+            boolean back = after.getFluidState().is(Fluids.WATER) && !after.is(ModBlocks.SUNKEN_LEAF_LITTER.get());
+            clear(level, origin, 4);
+            if (!holdsWater) {
+                helper.fail("水底の落ち葉が水源を抱えていない");
+            } else if (!logged || logCount < 3) {
+                helper.fail("倒木が寝ない: " + logged + " / " + logCount);
+            } else if (!back) {
+                helper.fail("床を外しても水に戻らない: " + after);
+            } else {
+                helper.succeed();
+            }
+        });
+    }
+
     private static void tank(ServerLevel level, BlockPos origin, int depth) {
         BlockState water = Blocks.WATER.defaultBlockState();
         for (int x = 0; x <= 6; x++) {

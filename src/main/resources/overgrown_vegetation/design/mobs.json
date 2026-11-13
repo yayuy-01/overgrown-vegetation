@@ -25,6 +25,212 @@
     "naturalSpawn": false,
     "eggFit": 3.95
   },
+  "parasitized_zombie": {
+    "movementSpeed": 0.28,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.6,
+    "height": 1.95,
+    "eggFit": 2.07,
+    "naturalSpawn": false
+  },
+  "parasitized_baby_zombie": {
+    "movementSpeed": 0.345,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.3,
+    "height": 0.975,
+    "eggFit": 2.4,
+    "naturalSpawn": false
+  },
+  "parasitized_villager": {
+    "movementSpeed": 0.28,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.6,
+    "height": 1.95,
+    "eggFit": 2.07,
+    "naturalSpawn": false
+  },
+  "parasitized_pig": {
+    "movementSpeed": 0.30,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.9,
+    "height": 0.9,
+    "eggFit": 2.33,
+    "naturalSpawn": false
+  },
+  "parasitized_sheep": {
+    "movementSpeed": 0.28,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.9,
+    "height": 1.3,
+    "eggFit": 2.0,
+    "naturalSpawn": false
+  },
+  "parasitized_chicken": {
+    "movementSpeed": 0.3,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.4,
+    "height": 0.7,
+    "eggFit": 2.4,
+    "naturalSpawn": false
+  },
+  "parasitized_creeper": {
+    "movementSpeed": 0.30,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.6,
+    "height": 1.7,
+    "eggFit": 2.17,
+    "naturalSpawn": false
+  },
+  "parasitized_skeleton": {
+    "movementSpeed": 0.3,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.6,
+    "height": 1.99,
+    "eggFit": 2.07,
+    "naturalSpawn": false
+  },
+  "parasitized_spider": {
+    "movementSpeed": 0.3,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 1.4,
+    "height": 0.9,
+    "eggFit": 2.15,
+    "naturalSpawn": false
+  },
+  "parasitized_enderman": {
+    "movementSpeed": 0.3,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.6,
+    "height": 2.9,
+    "eggFit": 3.4,
+    "naturalSpawn": false
+  },
+  "parasitized_cow": {
+    "movementSpeed": 0.25,
+    "attackDamage": 3,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.9,
+    "height": 1.4,
+    "eggFit": 2.1,
+    "naturalSpawn": false
+  },
+  "parasitized_iron_golem": {
+    "movementSpeed": 0.25,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 1.4,
+    "height": 2.7,
+    "eggFit": 3.7,
+    "naturalSpawn": false
+  },
+  "parasitized_warden": {
+    "movementSpeed": 0.3,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.9,
+    "height": 2.9,
+    "eggFit": 3.9,
+    "naturalSpawn": false
+  },
+  "developed_parasitized_zombie": {
+    "movementSpeed": 0.25,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.6,
+    "height": 1.95,
+    "naturalSpawn": false
+  },
+  "developed_parasitized_baby_zombie": {
+    "movementSpeed": 0.36,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.6,
+    "height": 0.8,
+    "naturalSpawn": false
+  },
+  "developed_parasitized_villager": {
+    "movementSpeed": 0.28,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.8,
+    "height": 1.9,
+    "naturalSpawn": false
+  },
+  "developed_parasitized_cow": {
+    "movementSpeed": 0.25,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 1.0,
+    "height": 1.5,
+    "naturalSpawn": false
+  },
+  "developed_parasitized_pig": {
+    "movementSpeed": 0.3,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 1.0,
+    "height": 1.0,
+    "naturalSpawn": false
+  },
+  "developed_parasitized_sheep": {
+    "movementSpeed": 0.28,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.9,
+    "height": 1.7,
+    "naturalSpawn": false
+  },
+  "developed_parasitized_chicken": {
+    "movementSpeed": 0.3,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.5,
+    "height": 1.0,
+    "naturalSpawn": false
+  },
+  "developed_parasitized_creeper": {
+    "movementSpeed": 0.3,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.6,
+    "height": 1.7,
+    "naturalSpawn": false
+  },
+  "developed_parasitized_skeleton": {
+    "movementSpeed": 0.28,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.6,
+    "height": 1.99,
+    "naturalSpawn": false
+  },
+  "developed_parasitized_spider": {
+    "movementSpeed": 0.3,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 1.4,
+    "height": 1.2,
+    "naturalSpawn": false
+  },
+  "developed_parasitized_enderman": {
+    "movementSpeed": 0.3,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.6,
+    "height": 3.0,
+    "naturalSpawn": false
+  },
   "falcimnes": {
     "maxHealth": 50,
     "attackDamage": 16,
@@ -35,10 +241,26 @@
     "followRange": 32,
     "stepHeight": 1.5,
     "scale": 1,
-    "width": 2.97,
-    "height": 3.06,
+    "width": 1.3,
+    "height": 2.1,
     "xpReward": 40,
     "eggFit": 6.33
+  },
+  "phyllosens": {
+    "maxHealth": 40,
+    "armor": 4,
+    "movementSpeed": 0.28,
+    "knockbackResistance": 1,
+    "followRange": 32,
+    "stepHeight": 0,
+    "scale": 1,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 1.5,
+    "height": 1.5,
+    "xpReward": 12,
+    "eggFit": 13.5,
+    "naturalSpawn": false
   },
   "arbora": {
     "maxHealth": 8,

@@ -115,6 +115,9 @@ public final class OvergrownBiomeConverter {
         if (CorruptionSwitch.isOff()) {
             return; // /ov corruption false(2026-10-10 ユーザー指定): バイオームも書き換えない
         }
+        if (NetherLedger.active(level)) {
+            return; // 2026-11-11 ネザーのバイオームは根の台帳の段階だけが決める(setNetherStageBiome)
+        }
         if (!OvergrownVegetationConfig.COMMON.convertToOvergrownBiome.get()) {
             return;
         }
@@ -360,6 +363,9 @@ public final class OvergrownBiomeConverter {
         if (CorruptionSwitch.isOff()) {
             return; // /ov corruption false(2026-10-10 ユーザー指定): バイオームも書き換えない
         }
+        if (NetherLedger.active(level)) {
+            return; // 2026-11-11 ネザーのバイオームは根の台帳の段階だけが決める
+        }
         if (!OvergrownVegetationConfig.COMMON.convertToOvergrownBiome.get()
                 || !OvergrownVegetationConfig.COMMON.convertToOvergrowthBiome.get()) {
             return;
@@ -411,6 +417,23 @@ public final class OvergrownBiomeConverter {
         ResourceKey<Biome> target = targetKey(level, chunkPos, classifyTerrain(currentBiome), OvergrowthVariant.Stage.OVERGROWN);
         flowConvert(level, chunkPos, target, null);
         recordOvergrownChunk(level, chunkPos, target);
+    }
+
+    /**
+     * ネザーの根の台帳の段階でバイオームを書き換える(2026-11-11 骨組み。段階 1〜2 = 繁茂・3〜5 = 過繁茂)。
+     * 数えるのは台帳({@link NetherLedger})なので、ここでは面積・ポイントに数えない。同じキーなら何もしない。
+     */
+    public static void setNetherStageBiome(ServerLevel level, ChunkPos chunkPos, boolean overgrown) {
+        if (CorruptionSwitch.isOff()) {
+            return;
+        }
+        ResourceKey<Biome> target = targetKey(level, chunkPos, Terrain.LAND,
+                overgrown ? OvergrowthVariant.Stage.OVERGROWN : OvergrowthVariant.Stage.OVERGROWTH);
+        Holder<Biome> current = level.getBiome(chunkPos.getMiddleBlockPosition(NetherSurface.BIOME_SAMPLE_Y));
+        if (current.is(target)) {
+            return;
+        }
+        flowConvert(level, chunkPos, target, null);
     }
 
     /**

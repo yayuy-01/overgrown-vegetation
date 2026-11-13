@@ -220,6 +220,7 @@ public final class CoverRenderer {
                 long seed = state.getSeed(p);
                 CoverModel model = new CoverModel(base, sprites, design, p.getX(), p.getY(), p.getZ(), seed);
                 model.waterMask = waterMask(region, p, state);
+                model.groundTop = sprites.groundTop() != null && state.is(com.yayuy.overgrownvegetation.ModTags.NETHER_COVER_GROUND_TOP);
                 model.sea = model.waterMask != 0 && mc.level != null
                         && com.yayuy.overgrownvegetation.corruption.UnderwaterPlants.isSea(mc.level.getBiome(p));
                 if (state.getBlock() instanceof net.minecraft.world.level.block.IronBarsBlock) {
@@ -359,6 +360,8 @@ public final class CoverRenderer {
         boolean sea;
         /** 透けるブロックが下に重なっている段数(0〜2、{@link com.yayuy.overgrownvegetation.corruption.CoverLook#seeThroughMossHeight})。 */
         int seeThroughDepth;
+        /** 下地が上面だけの絵を使うブロックか(ネザーラックなど、2026-11-11 ネザーの覆い)。 */
+        boolean groundTop;
 
         CoverModel(BakedModel base, CoverSprites.Set sprites, CoverTable design, int x, int y, int z, long seed) {
             this.base = base;
@@ -389,7 +392,7 @@ public final class CoverRenderer {
                     if (dark != null) {
                         out.add(dark);
                     }
-                    out.add(CoverQuads.overlay(q, flush, x, y, z, sprites, design, waterMask, sea));
+                    out.add(CoverQuads.overlay(q, flush, x, y, z, sprites, design, waterMask, sea, groundTop));
                 }
             }
             return out;

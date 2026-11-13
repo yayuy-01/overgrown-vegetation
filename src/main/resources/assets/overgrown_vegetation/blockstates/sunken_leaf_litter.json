@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "": [
+      { "model": "overgrown_vegetation:block/sunken_leaf_litter" },
+      { "model": "overgrown_vegetation:block/sunken_leaf_litter", "y": 90 },
+      { "model": "overgrown_vegetation:block/sunken_leaf_litter", "y": 180 },
+      { "model": "overgrown_vegetation:block/sunken_leaf_litter", "y": 270 }
+    ]
+  }
+}

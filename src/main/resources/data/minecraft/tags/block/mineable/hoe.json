@@ -1,6 +1,19 @@
 {
   "replace": false,
   "values": [
+    "overgrown_vegetation:overgrown_zombie_corpse",
+    "overgrown_vegetation:overgrown_baby_zombie_corpse",
+    "overgrown_vegetation:overgrown_villager_corpse",
+    "overgrown_vegetation:overgrown_cow_corpse",
+    "overgrown_vegetation:overgrown_pig_corpse",
+    "overgrown_vegetation:overgrown_sheep_corpse",
+    "overgrown_vegetation:overgrown_chicken_corpse",
+    "overgrown_vegetation:overgrown_creeper_corpse",
+    "overgrown_vegetation:overgrown_skeleton_corpse",
+    "overgrown_vegetation:overgrown_spider_corpse",
+    "overgrown_vegetation:overgrown_enderman_corpse",
+    "overgrown_vegetation:overgrown_iron_golem_corpse",
+    "overgrown_vegetation:overgrown_warden_corpse",
     "overgrown_vegetation:aerial_root",
     "overgrown_vegetation:aerial_root_pillar",
     "overgrown_vegetation:beard_lichen",
@@ -40,9 +53,12 @@
     "overgrown_vegetation:chara",
     "overgrown_vegetation:water_roots",
     "overgrown_vegetation:algae_film",
+    "overgrown_vegetation:sunken_leaf_litter",
+    "overgrown_vegetation:sunken_twigs",
     "overgrown_vegetation:spore_film",
     "overgrown_vegetation:sea_spore_band",
     "overgrown_vegetation:spore_kelp_frond",
-    "overgrown_vegetation:overgrown_bush"
+    "overgrown_vegetation:overgrown_bush",
+    "overgrown_vegetation:overgrown_husk"
   ]
 }

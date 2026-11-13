@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:overgrown_gold_ore",
+    "overgrown_vegetation:overgrown_deepslate_gold_ore"
+  ]
+}

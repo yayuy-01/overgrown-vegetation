@@ -62,7 +62,8 @@ public enum DifficultySetting {
     TD_MAX_MOBS("td_max_mobs", Kind.COUNT, 1.0D, 2000.0D),
     /**
      * 実験的要素(2026-10-09、ユーザー指定「設定画面に『実験的要素』の項目を用意し、オンにしたときだけ出るように」)。
-     * 今は同盟軍(基地・兵士・基地のブロック・火炎放射器と火による浄化)。既定はオフ。効かせ方は {@link ExperimentalFeatures}。
+     * 2026-11-12 から新しいネザーの汚染(同盟軍は 10-30 に parked へ)。既定はオフ。効かせ方は {@link ExperimentalFeatures}。
+     * 設定の画面(WorldDifficultyScreen)は 10-30 に parked へ行ったので、今は画面から変えられない。
      */
     EXPERIMENTAL("experimental", Kind.TOGGLE, 0.0D, 1.0D);
 

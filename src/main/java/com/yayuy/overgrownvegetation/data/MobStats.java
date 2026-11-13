@@ -570,27 +570,16 @@ public final class MobStats {
             s.width = 0.98; s.height = 0.98; s.eggFit = 2.25; s.xpReward = 10;
         }));
 
-        // フィロセンス — 索敵役。followRange 56 が phyllosensSightRange と対。戦うより見つける Mob なので
-        // 体力は高め・攻撃力は持たない(攻撃はビームで、ダメージは phyllosensBeamDamage 側)。
+        // フィロセンス(竹馬型の 1 体目、2026-11-10 作り直し)。数値は全部【仮・依頼 11-10】: 胴の体力 40・防御 4・ノックバック耐性 1.0・
+        // 胴の当たり判定 1.5 × 1.5(エンティティの位置は胴。脚・首・花ははみ出す)・速さは開けた所の 0.28(森 0.12 との間は
+        // entity/stilt/StiltParams)。描画倍率は掛けない(画素の大きさを揃える決まり)。eggFit は全高(脚の先〜花)の約 13.5。
+        // 旧(長い首の小さな多脚・scale 2.27・ビーム)は parked/ にあり、洞窟の目になる予定。
         m.put("phyllosens", stat(s -> {
-            s.maxHealth = 60.0; s.movementSpeed = 0.20; s.armor = 6.0; s.armorToughness = 2.0;
-            s.knockbackResistance = 0.6; s.followRange = 56.0; s.stepHeight = 1.5;
-            // 大型 Mob(ユーザー要望 2026-09-14)。SCALE 属性は<b>見た目と当たり判定の両方</b>に掛かるので、
-            // width/height はここでは素の値のまま持ち、実効は 1.5 倍 = 2.7 x 5.25 になる。
-            // 大きさを変えるときは scale の 1 箇所だけでよい(eggFit だけ手で追従させる)。
-            // スポロフィルの 1.5 倍(ユーザー指定 2026-09-14)。スポロフィルが 1.35 なので
-            // 「素のモデルの高さ比」で逆算して 2.27。実効 7.06 x 10.99 x 30.10 の大物になる。
-            s.scale = 2.27;
-            // 素のモデルは 1.22 x 3.48 x 12.76(幅 x 高さ x 奥行き)。首から尾まで 12.8 ブロックある長物で、
-            // 当たり判定は正方形にしかできないので<b>見えている胴の太さ</b>に合わせる(首と尾ははみ出す)。
-            // 高さはモデルに合わせて 3.5 — 持ち上げた首にも矢やビームが当たるように。
-            // eggFit はスポーンエッグの絵を枠に収める基準。待機アニメーション中の<b>画面上の差し渡し</b>の
-            // 実測値で、scale 込みの値(2026-09-15 に測り直し)。scale を変えたらこれも測り直すこと。
-            // ⚠ 当たり判定は<b>わざとモデルに追従させていない</b>。scale を 1.5 → 2.27 に上げたので
-            // 素の 1.8 のままだと実効 4.09 ブロック幅になり、そんな幅の Mob は経路探索が通らず
-            // どこにも行けなくなる([[wide-mob-pathing-and-spawn-fit]])。実効 2.95 に収まるよう
-            // 素の幅だけ 1.8 → 1.3 へ下げてある(見た目より細い = 翼や首は判定からはみ出す)。
-            s.width = 1.3; s.height = 3.5; s.eggFit = 21.07; s.xpReward = 12;
+            s.maxHealth = 40.0; s.movementSpeed = 0.28; s.armor = 4.0; s.armorToughness = 0.0;
+            s.knockbackResistance = 1.0; s.followRange = 32.0; s.stepHeight = 0.0;
+            s.scale = 1.0;
+            s.width = 1.5; s.height = 1.5; s.eggFit = 13.5; s.xpReward = 12;
+            s.naturalSpawn = false;   // 自然には湧かない(湧き方は司令塔が決める予定で未決。レイド・増援・汚染したスポナーからも外す)
         }));
 
         // スポロフィル — 支援役。体はフィロセンスの流用で、頭が花ではなくキノコの傘。
@@ -772,6 +761,7 @@ public final class MobStats {
         }));
 
         // 「過繁茂した(MOB名)」— バニラ属性への上書き分のみ(牛/羊/豚は ATTACK_DAMAGE を明示追加)。
+        // 2026-11-08 G1 段階 0: チビゾンビ 0.345・クモ 0.3 はバニラと同じ速さ(11-05 ユーザー)。ほかは旧のまま(元 +0.03〜0.05)。
         // グループ1(媒介種)は<b>もとの Mob より足が速い</b>(ユーザー指定 2026-09-21)。
         // 寄生されて痛みも疲れも感じなくなった、という想定で一律 +0.05。
         // それ以外(体力・攻撃力・防御)はバニラのまま —— 変えるのは足だけ。
@@ -783,9 +773,9 @@ public final class MobStats {
         m.put("parasitized_chicken", stat(s -> { s.attackDamage = 2.0; s.movementSpeed = 0.3; s.width = 0.4; s.height = 0.7; s.eggFit = 2.4; }));
         m.put("parasitized_skeleton", stat(s -> { s.movementSpeed = 0.3; s.width = 0.6; s.height = 1.99; s.eggFit = 2.07; }));
         m.put("parasitized_enderman", stat(s -> { s.movementSpeed = 0.3; s.width = 0.6; s.height = 2.9; s.eggFit = 3.4; }));
-        m.put("parasitized_baby_zombie", stat(s -> { s.movementSpeed = 0.38; s.width = 0.3; s.height = 0.975; s.eggFit = 2.4; }));
+        m.put("parasitized_baby_zombie", stat(s -> { s.movementSpeed = 0.345; s.width = 0.3; s.height = 0.975; s.eggFit = 2.4; }));
         m.put("parasitized_creeper", stat(s -> { s.movementSpeed = 0.30; s.width = 0.6; s.height = 1.7; s.eggFit = 2.17; }));
-        m.put("parasitized_spider", stat(s -> { s.movementSpeed = 0.35; s.width = 1.4; s.height = 0.9; s.eggFit = 2.15; }));
+        m.put("parasitized_spider", stat(s -> { s.movementSpeed = 0.3; s.width = 1.4; s.height = 0.9; s.eggFit = 2.15; }));
         // ネザーの媒介種(2026-10-09)。足は上と同じく元より +0.05(仮)。ガスト・ブレイズの movementSpeed は行き先へ足す加速
         // (バニラのガストは 0.1)。爆弾はバニラの火の玉に近い威力(ユーザー指定「ダメージはもともとの攻撃と同じくらい」)+ 毒(数値は仮)。
         m.put("parasitized_piglin", stat(s -> { s.movementSpeed = 0.4; s.width = 0.6; s.height = 1.95; s.eggFit = 2.5; }));
@@ -807,8 +797,22 @@ public final class MobStats {
         }));
         // 2026-10-10: アイアンゴーレム・ウォーデン。自然には湧かない(ユーザー指定: 胞子感染で死んだ個体の死体からだけ)。
         // naturalSpawn false で、汚染したスポナー・レイドなど「G1 から選ぶ」経路からも外れる(死体からの孵化は通る)。
-        m.put("parasitized_iron_golem", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 1.4; s.height = 2.7; s.eggFit = 3.7; }));
-        m.put("parasitized_warden", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.35; s.width = 0.9; s.height = 2.9; s.eggFit = 3.9; }));
+        m.put("parasitized_iron_golem", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.25; // 11-09 G1 段階 0: バニラと同じ 0.25(歩きの ref 0.135 はこの速さから)
+            s.width = 1.4; s.height = 2.7; s.eggFit = 3.7; }));
+        m.put("parasitized_warden", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; // 11-09 G1 段階 0: 歩きの ref 0.194 はこの速さから
+            s.width = 0.9; s.height = 2.9; s.eggFit = 3.9; }));
+        // G1 1 段目(2026-11-12、第 1 段): 発達した寄生された○○ 11 種。卵とコマンドだけ(11-09)。速さ・大きさは種ごとの仕様書【仮】。体力・攻撃は entity/g1/G1Developed
+        m.put("developed_parasitized_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.25; s.width = 0.6; s.height = 1.95; }));
+        m.put("developed_parasitized_baby_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.36; s.width = 0.6; s.height = 0.8; }));
+        m.put("developed_parasitized_villager", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.28; s.width = 0.8; s.height = 1.9; }));
+        m.put("developed_parasitized_cow", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.25; s.width = 1.0; s.height = 1.5; }));
+        m.put("developed_parasitized_pig", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 1.0; s.height = 1.0; }));
+        m.put("developed_parasitized_sheep", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.28; s.width = 0.9; s.height = 1.7; }));
+        m.put("developed_parasitized_chicken", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 0.5; s.height = 1.0; }));
+        m.put("developed_parasitized_creeper", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 0.6; s.height = 1.7; }));
+        m.put("developed_parasitized_skeleton", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.28; s.width = 0.6; s.height = 1.99; }));
+        m.put("developed_parasitized_spider", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 1.4; s.height = 1.2; }));
+        m.put("developed_parasitized_enderman", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 0.6; s.height = 3.0; }));
         // G1 の作り直し 第 1 段(2026-10-22): 進化体 8 種。G1 の一生(司令塔の「進化」)からだけ現れる(naturalSpawn false = レイド・汚染したスポナー・増援にも出ない)。数値は仮決め
         m.put("vinearm_zombie", stat(s -> { s.naturalSpawn = false; s.maxHealth = 26.0; s.movementSpeed = 0.28; s.width = 0.6; s.height = 1.95; s.eggFit = 2.07; }));
         m.put("hollow_villager", stat(s -> { s.naturalSpawn = false; s.maxHealth = 24.0; s.attackDamage = 5.0; s.movementSpeed = 0.29; s.width = 0.6; s.height = 1.95; s.eggFit = 2.07; }));
@@ -861,7 +865,7 @@ public final class MobStats {
         spawns(m, range(3, 10), null, null, null, "eryops", "pulmonoscorpius", "crassigyrinus");
         // 拡大種(G4)はフェーズ4から(2026-10-10 ユーザー指定で 5 から 1 つ前へ)。アルボラだけはフェーズ4 から外にも「はぐれ」として出る(json の値)。
         spawns(m, range(4, 10), null, null, null,
-                "velophyll", "overgrown_shielder", "phyllosens", "sporophyll");
+                "velophyll", "overgrown_shielder", "sporophyll");   // フィロセンスは 11-10 から自然に湧かない(竹馬型、湧き方は未決)
         spawns(m, range(4, 10), null, null, range(4, 10), "arbora");
         // 空を漂う種も同じくフェーズ4から。湧くのは密林の上空だけで、そこから外へ流れていく。
         spawns(m, range(4, 10), null, null, null, "pedicula");

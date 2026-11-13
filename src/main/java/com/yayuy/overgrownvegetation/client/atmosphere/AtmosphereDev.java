@@ -239,6 +239,11 @@ public final class AtmosphereDev {
             return CaveMap.explainOverhang(net.minecraft.client.Minecraft.getInstance().level, Integer.parseInt(p[1]), Integer.parseInt(p[2]));
         } else if (p[0].equals("overhang")) {
             // 11-09 空に浮かぶ構造物の下: cavedev overhang off = 前の形(開けた張り出しも地下)。cavedev overhang info = 地図の数と時間
+            if (p.length > 2 && p[1].equals("camsec")) {
+                CaveLights.devCamSeconds = Float.parseFloat(p[2]);
+            } else if (p.length > 2 && p[1].equals("camspread")) {
+                CaveLights.devCamSpread = Float.parseFloat(p[2]);
+            } else
             if (p.length > 2 && p[1].equals("cam")) {
                 CaveLights.devCamOverhang = p[2].equals("on");
             } else             if (p.length > 2 && p[1].equals("cut")) {
@@ -379,6 +384,26 @@ public final class AtmosphereDev {
             return String.format("外の濡れ %.2f 過繁茂 %.2f 胞子 %.0f%% %s %s 雨 %.2f 降り方 %s バイオーム %s", WetSheen.openWet(), ForestPresence.overgrown(),
                     AirHaze.sporePercent(), RainLook.describe(), TrunkRivulets.describe() + " " + CanopyDrips.describe(),
                     mc.level.getRainLevel(1.0F), biome.value().getPrecipitationAt(cam), biome.unwrapKey().map(k -> k.location().toString()).orElse("?"));
+        } else if (p[0].equals("camstate")) {
+            // 11-09 追記 9(動くときだけのチカチカ): カメラの位置で決まる値を一行に。地図の列の値(r 岩の上面・g・b 口までの距離・a 天井の下面)・印も
+            var mc = net.minecraft.client.Minecraft.getInstance();
+            var e = mc.gameRenderer.getMainCamera().getPosition();
+            int cx = (int) Math.floor(e.x), cz = (int) Math.floor(e.z);
+            float[] t = CaveMap.texel(cx, cz);
+            MistView.devRecord = true;
+            return CaveLights.camState() + String.format(" 列 %d %d 地図 %s 印 %s 下 %s 割合 %.2f 地下(森) %.3f 森の霧 %.3f 霧の濃さ %.4f 位置 %.2f %.2f %.2f", cx, cz,
+                    t == null ? "-" : String.format("%.0f/%.0f/%.1f/%.0f", t[0], t[1], t[2], t[3]), CaveMap.overhangAt(cx, cz), CaveMap.cameraBelowOverhang(cx, cz, e.y),
+                    CaveMap.overhangShare(cx, cz, 2), ForestPresence.underground(), ForestPresence.fogForest(), MistFog.density(), e.x, e.y, e.z) + MistView.devLast;
+        } else if (p[0].equals("targetreset")) {
+            CaveLights.targetNanos = 0L;
+            CaveLights.targetCount = 0L;
+            return "TARGETRESET";
+        } else if (p[0].equals("fogstate")) {
+            // 11-09 追記 7(ゆっくりした明るさの揺れ): 止まっている間に数秒で動く霧の値を一行に。cavedev fogstate
+            return String.format("FOGSTATE 地下mix %.3f 霧mix %.3f 場所 %.3f 地下(森) %.3f 覆い %.3f 過繁茂 %.3f 森の霧 %.3f 霧の濃さ %.4f 深さ %.1f 中 %.3f 胞子 %.3f 胞子霧 %.3f 霞 %s 霧 %.1f〜%.1f 目標 %.1f µs/回(%d 回)",
+                    CaveLights.mix(), CaveLights.fogMix(), CaveLights.camLocal(), ForestPresence.underground(), ForestPresence.cover(), ForestPresence.overgrown(),
+                    ForestPresence.fogForest(), MistFog.density(), MistFog.depth(), MistFog.cameraInside(), SporeAir.level(), MistView.sporeFog(),
+                    MistView.hazeActive(), CaveLights.fogStart(), CaveLights.fogEnd(), CaveLights.targetCount > 0 ? CaveLights.targetNanos / 1000.0 / CaveLights.targetCount : 0.0, CaveLights.targetCount);
         } else if (p[0].equals("air")) {
             // 胞子の空気(11-06): cavedev air [度合い 0〜1 | off] — カメラの所の濃度と度合い。数を渡すとカメラの所の度合いをその値に固定(撮り比べ)、off で戻す。
             if (p.length > 1) {

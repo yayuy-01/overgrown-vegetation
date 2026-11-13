@@ -79,6 +79,15 @@ public final class ActionPicker {
     @Nullable
     public ActionDef pick(List<ActionDef> defs, double distance, double rangeScale, double reach,
                           Predicate<ActionDef> allowed, RandomSource random) {
+        return pick(defs, distance, rangeScale, reach, allowed, d -> 1.0D, random);
+    }
+
+    /**
+     * {@link #pick} に、技ごとの重みの掛け数 {@code tilt}(個体の性格など。1 で変わらない)を足したもの(2026-11-08、ファルキムネスの段 3)。
+     */
+    @Nullable
+    public ActionDef pick(List<ActionDef> defs, double distance, double rangeScale, double reach,
+                          Predicate<ActionDef> allowed, java.util.function.ToDoubleFunction<ActionDef> tilt, RandomSource random) {
         List<ActionDef> cands = new ArrayList<>();
         List<Double> weights = new ArrayList<>();
         double sum = 0.0D;
@@ -89,7 +98,8 @@ public final class ActionPicker {
             if (d.chance() < 1.0D && random.nextDouble() >= d.chance()) {
                 continue;
             }
-            double w = Math.max(0.0D, d.score()) * (d.id().equals(this.last) ? Math.max(0.0D, d.recency()) : 1.0D);
+            double w = Math.max(0.0D, d.score()) * (d.id().equals(this.last) ? Math.max(0.0D, d.recency()) : 1.0D)
+                    * Math.max(0.0D, tilt.applyAsDouble(d));
             if (w <= 0.0D) {
                 continue;
             }

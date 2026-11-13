@@ -42,6 +42,7 @@
         { "name": "HorizonColor", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
         { "name": "LitTint", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] },
         { "name": "ShadeTint", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] },
-        { "name": "PuffCenter", "type": "float", "count": 3, "values": [ 0.0, 0.0, 0.0 ] }
+        { "name": "PuffCenter", "type": "float", "count": 3, "values": [ 0.0, 0.0, 0.0 ] },
+        { "name": "Dissolve", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] }
     ]
 }

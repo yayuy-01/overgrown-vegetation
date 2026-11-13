@@ -74,13 +74,71 @@ final class WaterGlint {
             camX = (float) Mth.positiveModulo(cam.x, 1024.0);
             camZ = (float) Mth.positiveModulo(cam.z, 1024.0);
         }
+        // 空と雲の映り込み(2026-11-12、ユーザー選択「空と雲の映り込み」。式は ov_water.glsl の ovWaterReflect)。
+        float reflect = 0.0F;
+        float cloudReflect = 0.0F;
+        float[] zenith = {0.5F, 0.7F, 1.0F};
+        float[] horizon = {0.7F, 0.8F, 1.0F};
+        float[] cloud = {0.8F, 0.8F, 0.85F};
+        // 水面のうねり(2026-11-12、水まわり ③ ユーザー選択「波で水面が動く・控えめ」。式は ov_wave.glsl)。
+        float waveY = 0.0F;
+        float waveAmp = 0.0F;
+        float rainAmount = 0.0F;
+        shaderWater = on && level != null && !SodiumTerrain.unsupported();
+        if (on && level != null && !SodiumTerrain.unsupported()) {
+            float pt = mc.getTimer().getGameTimeDeltaPartialTick(false);
+            Vec3 cam = mc.gameRenderer.getMainCamera().getPosition();
+            Vec3 skyColor = level.getSkyColor(cam, pt);
+            zenith = new float[]{(float) skyColor.x, (float) skyColor.y, (float) skyColor.z};
+            // AFTER_SKY の霧の色 = 地平の空の色(森の霧の色が入ると地平も森の色を映す)。
+            float[] fog = com.mojang.blaze3d.systems.RenderSystem.getShaderFogColor();
+            horizon = new float[]{fog[0], fog[1], fog[2]};
+            reflect = REFLECT;
+            // 雨の水面(2026-11-12、水まわり ④): カメラの所が雨の降るバイオームのときだけ(雪・乾いた地域では 0)。
+            net.minecraft.core.BlockPos at = net.minecraft.core.BlockPos.containing(cam);
+            boolean rains = level.getBiome(at).value().getPrecipitationAt(at) == net.minecraft.world.level.biome.Biome.Precipitation.RAIN;
+            rainAmount = rains ? level.getRainLevel(pt) : 0.0F;
+            waveY = (float) Mth.positiveModulo(cam.y, 1.0);
+            waveAmp = WAVE * (1.0F + RAIN_WAVE * rainAmount);
+            if (com.yayuy.overgrownvegetation.client.sky.VoxelClouds.isActive()) {
+                Vec3 c = com.yayuy.overgrownvegetation.client.sky.VoxelClouds.undersideColor(level, pt);
+                cloud = new float[]{(float) c.x, (float) c.y, (float) c.z};
+                cloudReflect = CLOUD_REFLECT;
+            }
+        }
         ShaderInstance shader = GameRenderer.getRendertypeTranslucentShader();
         if (shader != null) {
             shader.safeGetUniform("OvWaterSpec").set(dx, dy, dz, strength);
             shader.safeGetUniform("OvWaterSpecB").set(r, g, b, p.shininess());
             shader.safeGetUniform("OvWaterSpecC").set(ripple, time, camX, camZ);
+            shader.safeGetUniform("OvWaterSky").set(zenith[0], zenith[1], zenith[2], reflect);
+            shader.safeGetUniform("OvWaterSkyB").set(horizon[0], horizon[1], horizon[2], cloudReflect);
+            shader.safeGetUniform("OvWaterSkyC").set(cloud[0], cloud[1], cloud[2], 0.0F);
+            shader.safeGetUniform("OvWave").set(camX, camZ, waveY, waveAmp);
+            shader.safeGetUniform("OvWaveB").set(time, 0.0F, 0.0F, 0.0F);
+            shader.safeGetUniform("OvRain").set(rainAmount, RAIN_DROPS, RAIN_RING_SPEED, RAIN_DARKEN);
         }
     }
+
+    /** 水のシェーダーの演出(雨の波紋など)が効いているか。効いている間は水面の雨の輪の粒({@link WaterSigns})を出さない(11-12)。 */
+    static boolean shaderWater() {
+        return shaderWater;
+    }
+
+    private static boolean shaderWater;
+
+    /** 雨の波紋(11-12、水まわり ④。式は ov_water.glsl の ovWaterRain)。升ごとの 1 秒あたりの雨粒(満の雨)・輪の広がる速さ(ブロック/秒)・水面の暗さ・雨でうねりを強める割合。仮決め。 */
+    static final float RAIN_DROPS = 1.4F;
+    static final float RAIN_RING_SPEED = 1.0F;
+    static final float RAIN_DARKEN = 0.12F;
+    static final float RAIN_WAVE = 0.6F;
+
+    /** 水面のうねりの高さ(ブロック。3 本の和の最大)。ユーザー指定「控えめ・0.1 ブロックほど」に合わせた仮決め(11-12)。 */
+    static final float WAVE = 0.08F;
+
+    /** 映り込みの強さ(フレネルに掛ける)と、雲の映り込みの濃さ。仮決め(11-12)。 */
+    static final float REFLECT = 0.85F;
+    static final float CLOUD_REFLECT = 0.9F;
 
     private WaterGlint() {
     }

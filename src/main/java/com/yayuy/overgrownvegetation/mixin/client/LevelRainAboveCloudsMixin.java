@@ -26,6 +26,8 @@ public abstract class LevelRainAboveCloudsMixin {
         if (rain <= 0.0F || !((Object) this instanceof ClientLevel) || !RenderSystem.isOnRenderThread() || CloudSky.readingRawWeather()) {
             return rain;
         }
+        // 11-12 雨の種類: カメラの所の雨の強さ(小雨・普通・大雨 + 真上の雲)を掛ける({@link com.yayuy.overgrownvegetation.client.atmosphere.RainFeel})。
+        rain *= com.yayuy.overgrownvegetation.client.atmosphere.RainFeel.rainScale();
         float c = HighSky.clarity();
         return c > 0.001F ? rain * (1.0F - c) : rain;
     }

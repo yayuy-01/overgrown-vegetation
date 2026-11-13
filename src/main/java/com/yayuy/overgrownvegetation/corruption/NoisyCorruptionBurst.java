@@ -61,8 +61,8 @@ public final class NoisyCorruptionBurst {
      */
     private static final int DEATH_BURSTS_PER_TICK = 3;
 
-    /** 積んである死亡時の汚染球 1 個ぶん(中心・半径・揺らぎ)。 */
-    private record PendingBurst(Vec3 center, int radius, double noiseAmplitude) {
+    /** 積んである死亡時の汚染球 1 個ぶん(中心・半径・揺らぎ・胞子の場へ放出するか)。 */
+    private record PendingBurst(Vec3 center, int radius, double noiseAmplitude, boolean emitSpores) {
     }
 
     /** 次元ごとの「この tick に作った数」と、超えたぶんの待ち行列(死んだ順)。サーバースレッドだけが触る。 */
@@ -78,13 +78,22 @@ public final class NoisyCorruptionBurst {
      * 次の tick 以降へ回す(胞子除去装置の判定などの「作るかどうか」は呼ぶ側が死んだ時点で済ませること)。
      */
     public static void deathSphere(ServerLevel level, Vec3 center, int radius, double noiseAmplitude) {
+        deathSphere(level, center, radius, noiseAmplitude, true);
+    }
+
+    /**
+     * {@link #deathSphere(ServerLevel, Vec3, int, double)} の、胞子の場への点の放出を選べる形(2026-11-12 G1 進化体の破裂)。
+     * {@code emitSpores} が false なら球はブロックだけを汚染し、浮遊は呼ぶ側が自分の量で上げる
+     * ({@link com.yayuy.overgrownvegetation.corpse.G1DeathBurst}。ユーザー決定「G1 だけ小さく」。ほかの死に方の量は変えない)。
+     */
+    public static void deathSphere(ServerLevel level, Vec3 center, int radius, double noiseAmplitude, boolean emitSpores) {
         DeathBurstBudget budget = DEATH_BURSTS.computeIfAbsent(level.dimension(), key -> new DeathBurstBudget());
         if (budget.pending.isEmpty() && budget.usedThisTick < DEATH_BURSTS_PER_TICK) {
             budget.usedThisTick++;
-            sphere(level, center, radius, noiseAmplitude);
+            sphere(level, center, radius, noiseAmplitude, emitSpores);
             return;
         }
-        budget.pending.addLast(new PendingBurst(center, radius, noiseAmplitude));
+        budget.pending.addLast(new PendingBurst(center, radius, noiseAmplitude, emitSpores));
     }
 
     /** tick の頭で数え直し、積んであるぶんを死んだ順に上限まで作る(残りはさらに次の tick)。 */
@@ -104,7 +113,7 @@ public final class NoisyCorruptionBurst {
         while (!budget.pending.isEmpty() && budget.usedThisTick < DEATH_BURSTS_PER_TICK) {
             PendingBurst burst = budget.pending.pollFirst();
             budget.usedThisTick++;
-            sphere(level, burst.center(), burst.radius(), burst.noiseAmplitude());
+            sphere(level, burst.center(), burst.radius(), burst.noiseAmplitude(), burst.emitSpores());
         }
     }
 
@@ -120,7 +129,7 @@ public final class NoisyCorruptionBurst {
             ArrayDeque<PendingBurst> pending = DEATH_BURSTS.get(dimension).pending;
             while (level != null && !pending.isEmpty()) {
                 PendingBurst burst = pending.pollFirst();
-                sphere(level, burst.center(), burst.radius(), burst.noiseAmplitude());
+                sphere(level, burst.center(), burst.radius(), burst.noiseAmplitude(), burst.emitSpores());
             }
         }
         DEATH_BURSTS.clear();
@@ -147,11 +156,17 @@ public final class NoisyCorruptionBurst {
      * @return 実際に汚染したブロック数。
      */
     public static int sphere(ServerLevel level, Vec3 center, int radius, double noiseAmplitude) {
+        return sphere(level, center, radius, noiseAmplitude, true);
+    }
+
+    /** {@link #sphere(ServerLevel, Vec3, int, double)} の、胞子の場への点の放出を選べる形(2026-11-12)。 */
+    private static int sphere(ServerLevel level, Vec3 center, int radius, double noiseAmplitude, boolean emitSpores) {
         if (radius <= 0) {
             return 0;
         }
-        // 胞子の場にも点の放出を足す(2026-10-23 胞子の場と風 第 2 段 C。G1・G4 の死・寄生クリーパーなどの汚染の球)
-        if (!CorruptionSwitch.isOff()) {
+        // 胞子の場にも点の放出を足す(2026-10-23 胞子の場と風 第 2 段 C。G4 の死・寄生クリーパーなどの汚染の球。
+        // G1 進化体の破裂は 11-12 から自分の小さな量で放出するので、ここでは足さない = emitSpores false)
+        if (emitSpores && !CorruptionSwitch.isOff()) {
             com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.emitPoint(level, net.minecraft.core.BlockPos.containing(center),
                     com.yayuy.overgrownvegetation.data.DesignData.sporeField().burstPerRadiusSq() * radius * radius);
         }

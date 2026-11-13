@@ -16,8 +16,9 @@
 #ov_import <ov_leaf.glsl>
 #ov_import <ov_cave.glsl>
 #ov_import <ov_cloud.glsl>
+#ov_import <ov_wave.glsl>
 #ov_import <ov_water.glsl>
-#ov_import <ov_heat.glsl>
+#ov_import <ov_wake.glsl>
 
 in vec4 v_Color; // The interpolated vertex color
 in vec2 v_TexCoord; // The interpolated block texture coordinates
@@ -105,6 +106,12 @@ void main() {
         discard;
     }
 #endif
+    // The floating films: their patchy look and the lanes parted through them (ov_wake.glsl, 11-13).
+    vec4 ovWk = ovFilmWake(v_TexCoord, ovPos);
+    if (ovWk.x > 0.5) {
+        discard;
+    }
+    color.rgb *= ovWk.yzw;
 
     float ovUnder = 0.0;
     float ovGlow = 0.0;
@@ -121,7 +128,7 @@ void main() {
         // How much this fragment is underground (ov_cave.glsl, the cave map; 11-01 evening). Thin plants use their own column.
         ovUnder = ovCaveUnder(ovPos, n * facing, ovLight.y);
         // The shadows of the drifting voxel clouds (ov_cloud.glsl, 11-08 clouds stage 1). None underground.
-        color.rgb = ovCloudShadow(color.rgb, ovPos, n, facing, ovLight, ovCanopyShade, ovUnder);
+        color.rgb = ovCloudShadow(color.rgb, ovPos, n, facing, ovLight, ovCanopyMul, ovUnder);
         ovSink = ovCaveSink(ovPos, n * facing, ovUnder);
         // 11-09: leaves and other cutout-mipped blocks (alpha cutoff 2, 3) pass facing -1: ovCaveLight takes the foliage facing share
         // (OvCaveLights column 24 row 5 x; 1 = as solid rock).
@@ -133,10 +140,15 @@ void main() {
         ovGlow = ovCaveGlow(ovTexel, ovPos, ovUnder);
         color.rgb = mix(color.rgb, ovAlbedo, ovGlow * (1.0 - ovCaveCam()));
     } else {
+        // Shallows and depths, foam along the shore (ov_water.glsl, 11-12). Water only.
+        if (color.a < 0.99 && ovNoGlint < 0.5) {
+            float ovLitK = max(max(v_Color.r, v_Color.g), v_Color.b) / max(max(max(ovTint.r, ovTint.g), ovTint.b), 0.001);
+            color = ovWaterDepth(color, ovPos, n, ovLitK);
+        }
         // Water and glass get the cave point lights too (11-04), with no facing-away shade, like vanilla's rendertype_translucent.fsh.
         ovUnder = ovCaveUnder(ovPos, n, ovLight.y);
         // The cloud shadows on water and glass too (ov_cloud.glsl, 11-08 clouds stage 1, improvement 9).
-        color.rgb = ovCloudShadow(color.rgb, ovPos, n, 0.0, ovLight, 0.0, ovUnder);
+        color.rgb = ovCloudShadow(color.rgb, ovPos, n, 0.0, ovLight, vec3(1.0), ovUnder);
         ovSink = ovCaveSink(ovPos, n, ovUnder);
         color.rgb = ovCaveLight(color.rgb, ovAlbedo * OV_CAVE_WATER_GAIN, ovPos, n, 0.0, ovUnder, ovLight.x);
         // The point lights mirrored on the cave water (ov_cave.glsl, 11-06 light inspection 10).
@@ -145,6 +157,13 @@ void main() {
         }
         // The sun and the moon mirrored on open water (ov_water.glsl, 11-06), kept out of the canopy shade by the sun map.
         // Opaque texels (alpha 1: grass, stone) never get it, whatever the pass flag says (11-06: the glint showed on a grass slope).
+        // The sky and the clouds mirrored on open water (ov_water.glsl, 11-12), under the glint.
+        if (color.a < 0.99 && ovNoGlint < 0.5) {
+            // Not the sun map's shade: the sky is mirrored in the shadow of a cliff too (it cut the mirror along the shadow's block edge).
+            color = ovWaterReflect(color, ovPos, n, ovLight.y, ovUnder, 0.0);
+            // Rain rings on the water (ov_water.glsl, 11-12).
+            color = ovWaterRain(color, ovPos, n, ovLight.y, ovUnder);
+        }
         vec4 ovGlint = color.a < 0.99 && ovNoGlint < 0.5 ? ovWaterGlint(ovPos, n, ovLight.y, ovUnder, ovWaterSunShade(ovPos)) : vec4(0.0);
         color.rgb += ovGlint.rgb;
         color.a = mix(color.a, 1.0, ovGlint.a);
@@ -168,6 +187,4 @@ void main() {
     if (ovSodiumPass != 1) {
         fragColor.rgb = mix(fragColor.rgb, ovAlbedo * (1.0 - ovSink * OvCaveMouth.z), ovGlow * max(ovCaveCam(), ovSink));
     }
-    // The fog of the heat forest (the overgrown Nether, ov_heat.glsl, 11-10): over the usual fogs, by how much the camera is in it.
-    fragColor.rgb = ovHeatFog(fragColor.rgb, color.rgb, ovPos);
 }

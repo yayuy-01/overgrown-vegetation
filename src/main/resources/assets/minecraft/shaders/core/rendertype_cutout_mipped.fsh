@@ -6,8 +6,8 @@
 #moj_import <ov_caustic.glsl>
 #moj_import <ov_cave.glsl>
 #moj_import <ov_cloud.glsl>
-#moj_import <ov_heat.glsl>
 #moj_import <ov_leaf.glsl>
+#moj_import <ov_wake.glsl>
 
 uniform sampler2D Sampler0;
 
@@ -40,6 +40,12 @@ void main() {
     if (color.a < 0.5) {
         discard;
     }
+    // The floating films: their patchy look and the lanes parted through them (ov_wake.glsl, 11-13).
+    vec4 ovWk = ovFilmWake(texCoord0, ovPos);
+    if (ovWk.x > 0.5) {
+        discard;
+    }
+    color.rgb *= ovWk.yzw;
     color.rgb = ovCanopyLight(color.rgb, ovPos, ovNormal, 1.0, ovLight);
     // The net of sunlight on faces under shallow water (ov_caustic.glsl).
     color.rgb = ovCaustics(color.rgb, ovPos, ovNormal, ovLight);
@@ -49,7 +55,7 @@ void main() {
     // How much this fragment is underground (ov_cave.glsl, the cave map; 11-01 evening).
     float ovUnder = ovCaveUnder(ovPos, ovNormal * 1.0, ovLight.y);
     // The shadows of the drifting voxel clouds (ov_cloud.glsl, 11-08 clouds stage 1). None underground.
-    color.rgb = ovCloudShadow(color.rgb, ovPos, ovNormal, 1.0, ovLight, ovCanopyShade, ovUnder);
+    color.rgb = ovCloudShadow(color.rgb, ovPos, ovNormal, 1.0, ovLight, ovCanopyMul, ovUnder);
     float ovSink = ovCaveSink(ovPos, ovNormal * 1.0, ovUnder);
     // 11-09: facing -1 = foliage (leaves, plants): ovCaveLight takes its own facing share for it (OvCaveLights column 24 row 5 x).
     color.rgb = ovCaveLight(color.rgb, tex.rgb * ovTint, ovPos, ovNormal, -1.0, ovUnder, ovLight.x);
@@ -72,6 +78,4 @@ void main() {
     fragColor.rgb = ovCaveFog(fragColor.rgb, ovLit, ovSurface, vertexDistance, ovUnder);
     // The glowing pixels of the cave light blocks stay out of the fog (ov_cave.glsl).
     fragColor.rgb = mix(fragColor.rgb, tex.rgb * ovTint * (1.0 - ovSink * OvCaveMouth.z), ovGlow * max(ovCaveCam(), ovSink));
-    // The fog of the heat forest (the overgrown Nether, ov_heat.glsl, 11-10): over the usual fogs, by how much the camera is in it.
-    fragColor.rgb = ovHeatFog(fragColor.rgb, color.rgb, ovPos);
 }

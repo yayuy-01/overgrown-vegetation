@@ -293,7 +293,10 @@ public final class SporeConcentration {
             }
         }
         if (level.isRainingAt(pos.above(2)) || (level.isRaining() && y >= ground - 1 && level.canSeeSky(pos.above()))) {
-            f *= t.rainFactor();
+            // 11-12 雨の種類(ユーザー決定「雨が胞子を洗い落とす。大雨の後は空気が一時澄む」): 雨の強さで(普通の雨で今までの rainFactor)。雷雨は今まで通り。
+            float k = level.isThundering() ? 1.0F
+                    : com.yayuy.overgrownvegetation.sky.RainIntensity.normalized(com.yayuy.overgrownvegetation.sky.RainIntensity.global(level, true, false, 0.0F));
+            f *= Math.pow(t.rainFactor(), Math.max(0.3F, Math.min(1.6F, k)));
         }
         PrevailingWind.Sample w = level.dimension() == Level.OVERWORLD ? SporeFieldServer.windNow(level) : null;
         if (w != null && w.strength > 0.3D) {

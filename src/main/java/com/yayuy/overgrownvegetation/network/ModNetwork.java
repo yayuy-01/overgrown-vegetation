@@ -27,7 +27,6 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
  *   <li>{@link SporeAirMapPayload} — まわり ±24 チャンクの浮遊の濃度(S2C、5 秒ごとに変わったとき。胞子の空気の霞、2026-11-06)</li>
  *   <li>{@link SporeDustPayload} — 胞子の粉の降り積もり %と払った升の印(S2C、場の更新で変わったとき)</li>
  *   <li>{@link SporeExposurePayload} — 自分の胞子の暴露量(S2C、1/32 刻みが変わったとき。前触れの画面のにじみ、2026-11-04)</li>
- *   <li>{@link HeatForestClockPayload} — ネザーの植物が適応したか(S2C、ログイン・次元の移動・適応したとき。熱水の森の覆いの絵、2026-11-10)</li>
  *   <li>{@link ResearchUnlockPayload} — 研究ノードの開放要求(C2S)</li>
  *   <li>{@link PoweredArmorCraftPayload} — パワードアーマー作成テーブルの「作成」(C2S、レシピ id)</li>
  *   <li>{@link CannonControlPayload} — 砲台に乗っている間の発射・装薬(C2S)</li>
@@ -69,6 +68,7 @@ public final class ModNetwork {
         // 2026-11-09 に 27 へ(雲を流した距離に積乱雲の形の設計値を足した。雲の段階 2a)。
         // 2026-11-09 に 28 へ(雲を流した距離に天気の設計値と、雨の予定で天気を決めている間かを足した。雲の段階 2a-5)。
         // 2026-11-10 に 29 へ(ネザーの植物が適応したか HeatForestClockPayload を足した。熱水の森の覆いの絵を 10 分の前後で分ける)。
+        // 2026-11-11 U13 で HeatForestClockPayload は parked へ退避(版は 29 のまま)。
         PayloadRegistrar registrar = event.registrar("29");
         registrar.playToClient(
                 AtmosphereFxPayload.TYPE,
@@ -121,13 +121,6 @@ public final class ModNetwork {
                 SporeExposurePayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(
                         () -> com.yayuy.overgrownvegetation.client.SporeExposureClient.accept(payload)));
-
-        // ネザーの植物が適応したか(2026-11-10 熱水の森の覆いの絵。S2C、ログイン・次元の移動・適応したとき)
-        registrar.playToClient(
-                HeatForestClockPayload.TYPE,
-                HeatForestClockPayload.STREAM_CODEC,
-                (payload, context) -> context.enqueueWork(
-                        () -> com.yayuy.overgrownvegetation.client.HeatForestClockClient.accept(payload)));
 
         // まわりの巨大樹(2026-11-06 胞子の柱・夜の地脈の光。S2C、5 秒ごとに変わったとき)
         registrar.playToClient(

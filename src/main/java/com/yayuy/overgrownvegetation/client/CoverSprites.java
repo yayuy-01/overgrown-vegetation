@@ -30,14 +30,19 @@ public final class CoverSprites {
      * {@code water}・{@code sea} は水に接した面の絵(川・池・海、2026-11-01。全部の面で同じ絵。無ければ空)。
      */
     public record Set(TextureAtlasSprite[] side, TextureAtlasSprite[] top, TextureAtlasSprite[][] creep, TextureAtlasSprite[] water,
-                      TextureAtlasSprite[] sea) {
+                      TextureAtlasSprite[] sea, @Nullable TextureAtlasSprite[] groundTop) {
+        public Set(TextureAtlasSprite[] side, TextureAtlasSprite[] top, TextureAtlasSprite[][] creep, TextureAtlasSprite[] water,
+                   TextureAtlasSprite[] sea) {
+            this(side, top, creep, water, sea, null);
+        }
     }
 
     private static volatile @Nullable Set current;
-    /** ネザー版の覆いの絵({@code block/cover/heat_cover_1..3}、2026-11-09 熱水の森の追記 1)。無ければ null(ふつうの絵を使う)。 */
+    /**
+     * ネザーの覆いの絵(2026-11-11。{@code cover.json} の {@code netherTextures}、苔が主の青緑)。上面もふつうは側面の絵で、下地が
+     * タグ {@code #overgrown_vegetation:nether_cover_ground_top} のブロック(ネザーラックなど)の上面だけ {@code <名前>_top}({@link Set#groundTop})。
+     */
     private static volatile @Nullable Set nether;
-    /** ネザー版の覆いの絵の名前(仮決め: 熱の敷物の絵から作った 3 枚)。 */
-    private static final List<String> NETHER_NAMES = List.of("heat_cover_1", "heat_cover_2", "heat_cover_3");
 
     private CoverSprites() {
     }
@@ -47,12 +52,12 @@ public final class CoverSprites {
     }
 
     /**
-     * その次元で使う覆いの絵。ネザーは、植物が適応した後(最初の汚染から 10 分。{@link HeatForestClockClient})だけネザー版(熱水の森の色)、
-     * 適応の前はオーバーワールドの覆い(2026-11-10 ユーザー決定: 10 分の前後で分ける)。
+     * その次元で使う覆いの絵。ネザーはネザーの絵の組(2026-11-11)、ほかはオーバーワールドの絵
+     * (11-11 U13: 前のネザー版の熱水の森の絵 {@code heat_cover_1..3} は parked へ退避)。
      */
     public static @Nullable Set forLevel(@Nullable net.minecraft.world.level.Level level) {
         Set n = nether;
-        if (n != null && level != null && level.dimension() == net.minecraft.world.level.Level.NETHER && HeatForestClockClient.adapted()) {
+        if (n != null && level != null && level.dimension() == net.minecraft.world.level.Level.NETHER) {
             return n;
         }
         return current;
@@ -88,12 +93,25 @@ public final class CoverSprites {
         TextureAtlasSprite[] sea = load(atlas, DesignData.cover().seaTextures());
         current = side.isEmpty() ? null : new Set(side.toArray(TextureAtlasSprite[]::new), top.toArray(TextureAtlasSprite[]::new), creep,
                 water, sea.length > 0 ? sea : water);
-        TextureAtlasSprite[] heat = load(atlas, NETHER_NAMES);
-        nether = heat.length == 0 ? null : new Set(heat, heat, creep, heat, heat);
-        OvergrownVegetation.LOGGER.info("ネザー版の覆いの絵 {} 枚", heat.length);
         OvergrownVegetation.LOGGER.info("覆いの水中の絵 川・池 {} 枚・海 {} 枚", water.length, sea.length);
         OvergrownVegetation.LOGGER.info("這い上がる苔の段階の絵 {} 枚", creepCount);
         OvergrownVegetation.LOGGER.info("覆いの絵 {} 枚", side.size());
+        // ネザーの組: 側面の絵を全部の面に、<名前>_top は下地を見て上面だけ(這い上がる苔・水中の絵はオーバーワールドと同じ)
+        List<TextureAtlasSprite> nSide = new ArrayList<>();
+        List<TextureAtlasSprite> nGround = new ArrayList<>();
+        for (String name : DesignData.cover().netherTextures()) {
+            TextureAtlasSprite s = find(atlas, name);
+            if (s == null) {
+                OvergrownVegetation.LOGGER.warn("ネザーの覆いの絵 textures/block/cover/{}.png がアトラスに無い(飛ばす)", name);
+                continue;
+            }
+            TextureAtlasSprite t = find(atlas, name + "_top");
+            nSide.add(s);
+            nGround.add(t != null ? t : s);
+        }
+        TextureAtlasSprite[] ns = nSide.toArray(TextureAtlasSprite[]::new);
+        nether = ns.length == 0 ? null : new Set(ns, ns, creep, water, sea.length > 0 ? sea : water, nGround.toArray(TextureAtlasSprite[]::new));
+        OvergrownVegetation.LOGGER.info("ネザーの覆いの絵 {} 枚", ns.length);
     }
 
     private static TextureAtlasSprite[] load(TextureAtlas atlas, List<String> names) {

@@ -113,6 +113,9 @@ float ovTerrainShadow(vec2 uv, float h) {
 
 // How much ovCanopyLight found this fragment in canopy shade (0 to 1), for later effects (the cloud shadow must not shade it again).
 float ovCanopyShade = 0.0;
+// The colour factor the canopy shade and the trunk band put on this fragment (1 = none). 11-12 (user report: under a cloud shadow
+// the ground under a tree was brighter than around it): the cloud shadow now takes the darker of the two (ov_cloud.glsl).
+vec3 ovCanopyMul = vec3(1.0);
 
 // Block light (0 to 1) from which a face counts as torch-lit and keeps its warm colour (fully at OV_TORCH_FULL).
 const float OV_TORCH_FROM = 0.45;
@@ -310,6 +313,7 @@ vec3 ovCanopyLight(vec3 color, vec3 pos, vec3 n, float facing, vec2 light) {
     float trunkK = clamp(trunk, 0.0, 1.0) * clamp(OvTrunk.x, 0.0, 0.9) * torch;
     lit *= 1.0 - trunkK;
     ovCanopyShade = max(ovCanopyShade, trunkK);
+    ovCanopyMul = mix(vec3(1.0), OvShadeColor.rgb, shadeAmount) * (1.0 - trunkK);
     float fleckK = fleck * clamp(OvSunA.z, 0.0, 1.0);
     if (fleckK <= 0.0) {
         return lit;

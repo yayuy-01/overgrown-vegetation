@@ -57,16 +57,16 @@ public final class ActionTable {
     static {
         Map<String, ActionDef> f = new LinkedHashMap<>();
         // 横薙ぎ(近)。届く距離は種が決める(maxRange 0)。クールダウンは始めてから(振り 36 tick + 間 10)。
-        f.put("sweep", new ActionDef("sweep", 46, 0.0D, 0.0D, 1.0D, 0.5D, 1.0D, 0.0D, Map.of()));
+        f.put("sweep", new ActionDef("sweep", 46, 0.0D, 0.0D, 1.0D, 0.5D, 1.0D, 0.0D, m("cautious", 0.8D, "aggressive", 1.2D)));
         // 連撃(近)。1 振り = 攻撃力 × damageFactor。
         f.put("flurry", new ActionDef("flurry", 390, 0.0D, 0.0D, 0.45D, 0.25D, 1.0D, 0.0D,
-                Map.of("damageFactor", 0.3D, "moveSpeed", 0.55D)));
+                m("damageFactor", 0.3D, "moveSpeed", 0.55D, "finishFactor", 1.0D, "cautious", 0.4D, "aggressive", 2.5D)));   // finishFactor = 締めの X 字(段 2、仮)
         // 掴み(近〜中、間隔は長め)。damage = 止め(11-05 即死をやめた。防具は効く)。噛みつき・振りほどきの量・突進の速さ。
         f.put("grab", new ActionDef("grab", 600, 9.0D, 21.6D, 0.6D, 0.3D, 0.05D, 30.0D,
-                Map.of("bite", 8.0D, "breakFree", 15.0D, "dashSpeed", 0.95D, "bites", 3.0D)));
+                m("bite", 8.0D, "breakFree", 15.0D, "dashSpeed", 0.95D, "bites", 3.0D, "cautious", 0.7D, "aggressive", 1.5D)));
         // 飛ぶ斬撃(遠、11-05 新規)。毎秒 20 ブロック・16 ブロックで消える・横 3 × 厚み 0.5。盾で防げる。
         f.put("wave", new ActionDef("wave", 144, 6.0D, 16.0D, 0.8D, 0.3D, 0.06D, 10.0D,
-                Map.of("speed", 1.0D, "range", 16.0D, "width", 3.0D, "height", 0.5D)));
+                m("speed", 1.0D, "range", 16.0D, "width", 3.0D, "height", 0.5D, "cautious", 1.5D, "aggressive", 0.8D)));
         // 地走りの光の帯(特殊、11-05 新規)。筋は毎秒 24 ブロック・相手の足元の 2 先まで(最大 18)・幅 1.5。
         // 筋が伸びきって 12 tick 後に高さ 3 の帯が 8 tick 立つ。打ち上げ 0.6。盾では防げない。
         // 11-05 夜(ユーザー指定「近くでも出す」「刺した所で円く噴き出す」): 刺した所から前へ 2 未満の相手には、刺した所を中心に半径 4 の円で噴き出す(4 と 2 は仮)。
@@ -82,6 +82,22 @@ public final class ActionTable {
         rift.put("burstRadius", 4.0D);
         rift.put("burstUnder", 2.0D);
         f.put("rift", new ActionDef("rift", 400, 0.0D, 22.0D, 1.0D, 1.0D, 1.0D, 14.0D, rift));
+        // 段 2(11-07 夜)の小さな通常技。全部【仮】。damage 0 は種の攻撃力。maxRange 0 は種が決める届く距離(交差斬りだけ短く)。
+        f.put("kiriage", new ActionDef("kiriage", 70, 0.0D, 0.0D, 0.7D, 0.4D, 1.0D, 14.0D, m("lift", 0.5D, "shieldBreak", 40.0D, "cautious", 2.0D, "counter", 1.0D, "comboCut", 0.6D,
+                "next.hit.kozuki", 1.0D, "next.hit.tsukikaki", 0.5D, "next.blocked.kosa", 1.0D, "next.missed.fumikomi", 0.5D)));
+        f.put("tsukikaki", new ActionDef("tsukikaki", 90, 0.0D, 0.0D, 0.6D, 0.4D, 1.0D, 6.0D, m("pull", 0.6D, "cautious", 2.0D, "counter", 1.0D, "comboCut", 0.55D,
+                "next.hit.kozuki", 1.0D, "next.hit.kosa", 1.0D, "next.blocked.kiriage", 1.0D, "next.missed.fumikomi", 1.0D)));
+        f.put("kosa", new ActionDef("kosa", 80, 0.0D, 5.5D, 0.7D, 0.4D, 1.0D, 12.0D, m("cautious", 0.6D, "aggressive", 2.5D, "comboCut", 0.8D,
+                "next.hit.kozuki", 1.0D, "next.blocked.kiriage", 1.0D, "next.missed.tsukikaki", 1.0D, "next.missed.fumikomi", 1.0D)));
+        f.put("fumikomi", new ActionDef("fumikomi", 80, 0.0D, 0.0D, 0.6D, 0.4D, 1.0D, 12.0D, m("sidestep", 0.16D, "flank", 3.0D, "comboCut", 0.8D,
+                "next.hit.kozuki", 1.0D, "next.hit.kosa", 0.5D, "next.blocked.kiriage", 1.0D, "next.missed.kosa", 0.5D)));
+        f.put("kozuki", new ActionDef("kozuki", 30, 0.0D, 0.0D, 0.9D, 0.4D, 1.0D, 5.0D, m("cautious", 2.5D, "aggressive", 0.8D, "counter", 1.0D,
+                "next.hit.kiriage", 1.0D, "next.hit.tsukikaki", 0.5D, "next.blocked.kiriage", 2.0D, "next.missed.tsukikaki", 1.0D, "next.missed.fumikomi", 0.5D)));
+        // 段 3(11-08)個体の性格の数値(選ばれない擬似の技。extra だけ)。全部【仮】。FalcimnesPersonality の javadoc。
+        f.put("personality", new ActionDef("personality", 0, 0.0D, 0.0D, 0.0D, 1.0D, 0.0D, 0.0D, m(
+                "comboChance", 0.35D, "comboAggressive", 2.2D, "comboCautious", 0.7D, "comboCut", 0.35D,
+                "comboOnHit", 1.0D, "comboOnBlocked", 1.3D, "comboOnMissed", 0.6D,
+                "keepDistance", 0.8D, "backpedal", 0.5D, "patienceTicks", 160.0D, "commitTicks", 60.0D, "flankAngle", 60.0D)));
         DEFAULT_ACTIONS.put("falcimnes", Collections.unmodifiableMap(f));
         DEFAULT_PACING.put("falcimnes", new Pacing(120, 2, 2, 0.35F));
 
@@ -93,6 +109,15 @@ public final class ActionTable {
         a.put("leap", new ActionDef("leap", 70, 3.0D, 9.5D, 1.0D, 1.0D, 0.08D, 0.0D,
                 Map.of("horizontalSpeed", 1.15D, "lift", 0.55D)));
         DEFAULT_ACTIONS.put("arbora", Collections.unmodifiableMap(a));
+    }
+
+    /** extra の表(鍵と値を交互に)。Map.of は 10 組までなので。 */
+    private static Map<String, Double> m(Object... kv) {
+        Map<String, Double> out = new LinkedHashMap<>();
+        for (int i = 0; i + 1 < kv.length; i += 2) {
+            out.put((String) kv[i], ((Number) kv[i + 1]).doubleValue());
+        }
+        return out;
     }
 
     public static final ActionTable DEFAULT = new ActionTable(null);

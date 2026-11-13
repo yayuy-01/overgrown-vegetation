@@ -34,7 +34,8 @@ out vec2 ovUv;
 
 void main() {
     vec3 local = Puff.w > 0.5 ? PuffCenter + (Position - PuffCenter) * Puff.x : Position;
-    if (Position.y < 0.5) {
+    // 11-12: < 2.5 so the lifted storm bases (VoxelClouds.STORM_BASE_LIFT = 2) sink with the floor; the floor tops are at 4 and above.
+    if (Position.y < 2.5) {
         local.y -= PreRain.x;
     }
     ovPos = local + Offset;

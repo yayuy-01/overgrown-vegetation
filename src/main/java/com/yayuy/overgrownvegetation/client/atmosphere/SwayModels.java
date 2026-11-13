@@ -83,7 +83,22 @@ public final class SwayModels {
         HANGING,
         /** 2 段の垂れ物の上の段(付け根 0 → 0.5)と下の段(0.5 → 1)。ひげ地衣(2026-11-01)。 */
         HANG_UPPER,
-        HANG_LOWER
+        HANG_LOWER,
+        /**
+         * 水の中の草(2026-11-13、水まわり ⑥ ユーザー選択「水草が流れに揺れる」): 風ではなく水のゆっくりしたふらつき(胞子昆布の葉と同じ
+         * {@code ov_sway.glsl} の印 53〜60)。重みは根元 0 → 上 1・2 段の下と上・3 段・全体 1。
+         */
+        WATER_GROUND,
+        WATER_LOWER,
+        WATER_UPPER,
+        WATER_THIRD_LOW,
+        WATER_THIRD_MID,
+        WATER_THIRD_TOP,
+        WATER_WHOLE;
+
+        boolean water() {
+            return ordinal() >= WATER_GROUND.ordinal();
+        }
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -102,14 +117,22 @@ public final class SwayModels {
                         ? Mode.TALL_UPPER : Mode.TALL_LOWER);
         wrapped += wrap(models, ModBlocks.OVERGROWN_CURLED_FERN, state -> Mode.RADIAL);
         // シャジクモ(2026-11-01): 株の高さごとの段で重みをつなぐ(1 段 = 根元 0 → 先 1)
+        // 11-13(水まわり ⑥): 水の中の草なので、風ではなく水の揺れに(前は陸の草と同じ風の揺れ)。
         wrapped += wrap(models, ModBlocks.CHARA, state -> switch (state.getValue(com.yayuy.overgrownvegetation.block.CharaBlock.PART)) {
-            case SINGLE -> Mode.GROUND;
-            case BOTTOM_OF_2 -> Mode.TALL_LOWER;
-            case TOP_OF_2 -> Mode.TALL_UPPER;
-            case BOTTOM_OF_3 -> Mode.THIRD_LOW;
-            case MIDDLE_OF_3 -> Mode.THIRD_MID;
-            case TOP_OF_3 -> Mode.THIRD_TOP;
+            case SINGLE -> Mode.WATER_GROUND;
+            case BOTTOM_OF_2 -> Mode.WATER_LOWER;
+            case TOP_OF_2 -> Mode.WATER_UPPER;
+            case BOTTOM_OF_3 -> Mode.WATER_THIRD_LOW;
+            case MIDDLE_OF_3 -> Mode.WATER_THIRD_MID;
+            case TOP_OF_3 -> Mode.WATER_THIRD_TOP;
         });
+        // バニラの水草(11-13、水まわり ⑥ ユーザー選択「水草が流れに揺れる」): 海草は根元 0 → 先 1、背の高い海草は 2 段、昆布は全体 1
+        // (昆布は縦に積む柱なので、どの段も同じ重みにして段の境目を割らない)。
+        wrapped += wrap(models, () -> net.minecraft.world.level.block.Blocks.SEAGRASS, state -> Mode.WATER_GROUND);
+        wrapped += wrap(models, () -> net.minecraft.world.level.block.Blocks.TALL_SEAGRASS, state ->
+                state.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.UPPER ? Mode.WATER_UPPER : Mode.WATER_LOWER);
+        wrapped += wrap(models, () -> net.minecraft.world.level.block.Blocks.KELP, state -> Mode.WATER_WHOLE);
+        wrapped += wrap(models, () -> net.minecraft.world.level.block.Blocks.KELP_PLANT, state -> Mode.WATER_WHOLE);
         for (var hanging : ModBlocks.hangingGrowthBlocks()) {
             wrapped += wrap(models, hanging, state -> Mode.HANGING);
         }
@@ -342,7 +365,7 @@ public final class SwayModels {
             float y = Float.intBitsToFloat(v[at + 1]);
             float z = Float.intBitsToFloat(v[at + 2]);
             float weight = weight(mode, x, y, z);
-            int code = mode == Mode.PLANAR ? planarCode : 1 + Math.round(weight * 31.0F);
+            int code = mode == Mode.PLANAR ? planarCode : (mode.water() ? 53 + Math.round(weight * 7.0F) : 1 + Math.round(weight * 31.0F));
             int alpha = 255 - (code);
             v[at + 3] = (v[at + 3] & 0x00FFFFFF) | (alpha << 24);
         }
@@ -370,8 +393,13 @@ public final class SwayModels {
     static float weight(Mode mode, float x, float y, float z) {
         float h = Math.max(0.0F, Math.min(1.0F, y));
         return switch (mode) {
-            case WHOLE, PLANAR -> 1.0F;
-            case GROUND -> h;
+            case WHOLE, PLANAR, WATER_WHOLE -> 1.0F;
+            case GROUND, WATER_GROUND -> h;
+            case WATER_LOWER -> 0.5F * h;
+            case WATER_UPPER -> 0.5F + 0.5F * h;
+            case WATER_THIRD_LOW -> h / 3.0F;
+            case WATER_THIRD_MID -> (1.0F + h) / 3.0F;
+            case WATER_THIRD_TOP -> (2.0F + h) / 3.0F;
             case HANGING -> 1.0F - h;
             case HANG_UPPER -> 0.5F * (1.0F - h);
             case HANG_LOWER -> 0.5F + 0.5F * (1.0F - h);

@@ -35,7 +35,7 @@ public final class CoverQuads {
      * @param x     ブロックの座標(絵と回転を選ぶ)
      */
     public static BakedQuad overlay(BakedQuad q, boolean flush, int x, int y, int z, CoverSprites.Set sprites, CoverTable design) {
-        return retexture(q, q.getVertices().clone(), flush, x, y, z, sprites, design, 0, false);
+        return retexture(q, q.getVertices().clone(), flush, x, y, z, sprites, design, 0, false, false);
     }
 
     /**
@@ -44,7 +44,13 @@ public final class CoverQuads {
      */
     public static BakedQuad overlay(BakedQuad q, boolean flush, int x, int y, int z, CoverSprites.Set sprites, CoverTable design,
                                     int waterMask, boolean sea) {
-        return retexture(q, q.getVertices().clone(), flush, x, y, z, sprites, design, waterMask, sea);
+        return retexture(q, q.getVertices().clone(), flush, x, y, z, sprites, design, waterMask, sea, false);
+    }
+
+    /** 下地の上面だけの絵を使う版(ネザーラックなどの上面、2026-11-11 ネザーの覆い。{@link CoverSprites.Set#groundTop})。 */
+    public static BakedQuad overlay(BakedQuad q, boolean flush, int x, int y, int z, CoverSprites.Set sprites, CoverTable design,
+                                    int waterMask, boolean sea, boolean groundTop) {
+        return retexture(q, q.getVertices().clone(), flush, x, y, z, sprites, design, waterMask, sea, groundTop);
     }
 
     /**
@@ -70,7 +76,7 @@ public final class CoverQuads {
                 }
             }
         }
-        return retexture(q, v, flush, x, y, z, sprites, design, 0, false);
+        return retexture(q, v, flush, x, y, z, sprites, design, 0, false, false);
     }
 
     /**
@@ -169,7 +175,7 @@ public final class CoverQuads {
     }
 
     private static BakedQuad retexture(BakedQuad q, int[] v, boolean flush, int x, int y, int z, CoverSprites.Set sprites, CoverTable design,
-                                       int waterMask, boolean sea) {
+                                       int waterMask, boolean sea, boolean groundTop) {
         Direction d = q.getDirection();
         TextureAtlasSprite[] wet = (waterMask & 1 << d.ordinal()) == 0 ? null : sea ? sprites.sea() : sprites.water();
         TextureAtlasSprite sprite;
@@ -180,7 +186,9 @@ public final class CoverQuads {
         } else {
             picked = CoverLook.pick(x, y, z, d, sprites.side().length, design.rotate());
             int index = CoverLook.index(picked);
-            sprite = d == Direction.UP ? sprites.top()[index] : sprites.side()[index];
+            TextureAtlasSprite[] gt = sprites.groundTop();
+            sprite = d != Direction.UP ? sprites.side()[index]
+                    : groundTop && gt != null && index < gt.length ? gt[index] : sprites.top()[index];
         }
         int rot = CoverLook.rotation(picked);
         float push = flush ? 0 : (float) design.push();

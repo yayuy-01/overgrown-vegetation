@@ -1,5 +1,22 @@
 {
   "variants": {
-    "": { "model": "overgrown_vegetation:block/spore_film" }
+    "": [
+      { "model": "overgrown_vegetation:block/spore_film" },
+      { "model": "overgrown_vegetation:block/spore_film", "y": 90 },
+      { "model": "overgrown_vegetation:block/spore_film", "y": 180 },
+      { "model": "overgrown_vegetation:block/spore_film", "y": 270 },
+      { "model": "overgrown_vegetation:block/spore_film_1" },
+      { "model": "overgrown_vegetation:block/spore_film_1", "y": 90 },
+      { "model": "overgrown_vegetation:block/spore_film_1", "y": 180 },
+      { "model": "overgrown_vegetation:block/spore_film_1", "y": 270 },
+      { "model": "overgrown_vegetation:block/spore_film_2" },
+      { "model": "overgrown_vegetation:block/spore_film_2", "y": 90 },
+      { "model": "overgrown_vegetation:block/spore_film_2", "y": 180 },
+      { "model": "overgrown_vegetation:block/spore_film_2", "y": 270 },
+      { "model": "overgrown_vegetation:block/spore_film_3" },
+      { "model": "overgrown_vegetation:block/spore_film_3", "y": 90 },
+      { "model": "overgrown_vegetation:block/spore_film_3", "y": 180 },
+      { "model": "overgrown_vegetation:block/spore_film_3", "y": 270 }
+    ]
   }
 }

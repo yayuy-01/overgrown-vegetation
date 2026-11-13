@@ -14,9 +14,18 @@
     "LevelChunkTickerInvoker",
     "MobThinkThrottleMixin",
     "DoorSetOpenCoveredMixin",
-    "FallingBlockCoveredMixin"
+    "FallingBlockCoveredMixin",
+    "LeavesPushThroughMixin",
+    "LivingEntityCorpseDeathMixin",
+    "VillagerHostilesSensorMixin"
   ],
   "client": [
+    "client.LivingEntityRendererCollapseMixin",
+    "client.RenderLayerCollapseMixin",
+    "client.ExtraLayerCollapseMixin",
+    "client.QuadrupedModelAccessor",
+    "client.ChickenModelAccessor",
+    "client.EntityRendererCollapseShadowMixin",
     "client.DebugScreenBiomeColorMixin",
     "client.EntityRendererDynamicLightMixin",
     "client.EntityRendererNightDimMixin",
@@ -32,6 +41,7 @@
     "client.LightTextureCanopyLiftMixin",
     "client.LevelRendererCaveCloudsMixin",
     "client.LevelRainAboveCloudsMixin",
+    "client.LevelRendererRainSoundMixin",
     "client.BiomeClearSkyMixin",
     "client.LightTextureCaveTintMixin",
     "client.UnderwaterAmbientVolumeMixin",

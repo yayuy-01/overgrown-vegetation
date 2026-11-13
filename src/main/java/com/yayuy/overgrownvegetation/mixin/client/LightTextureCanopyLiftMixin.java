@@ -37,7 +37,6 @@ public class LightTextureCanopyLiftMixin {
             method = "updateLightTexture",
             at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/NativeImage;setPixelRGBA(III)V"))
     private void overgrown_vegetation$greenBounce(NativeImage image, int x, int y, int abgr, Operation<Void> original) {
-        // 熱水の森(ネザー)の中では光らない面を暗くする(11-10 熱水の森のシェーダー段階 1、{@code HeatFxShade})。ネザーの外では何もしない。
-        original.call(image, x, y, com.yayuy.overgrownvegetation.client.atmosphere.heat.HeatFxShade.lightmap(CanopyLift.greenBounce(abgr), x, y));
+        original.call(image, x, y, CanopyLift.greenBounce(abgr));
     }
 }

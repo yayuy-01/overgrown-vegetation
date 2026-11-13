@@ -136,7 +136,8 @@ public final class OvergrownLayerData {
                 || state.getRenderShape() != RenderShape.MODEL) {
             return false;
         }
-        if (state.is(ModTags.CORRUPTED) || state.is(ModTags.CORRUPTION_IMMUNE)) {
+        if (state.is(ModTags.CORRUPTED) && !state.is(ModTags.NETHER_COVERABLE) || state.is(ModTags.CORRUPTION_IMMUNE)) {
+            // 汚染済みのブロックは覆わない。ただしネザーの搾られた岩・泥炭は覆える(2026-11-11 ユーザー決定: 段階 3 で覆いの一部を残す)
             return false;
         }
         if (state.getBlock().defaultDestroyTime() < 0.0F) {
@@ -147,7 +148,8 @@ public final class OvergrownLayerData {
             return false;
         }
         // 建築タブのブロック(板材・原木・階段など対応表にあるものも)は 2026-10-30 から元のまま記録で覆う(CorruptionRegistry#coversInPlace)
-        return CorruptionRegistry.hasNoCorruptedForm(state) || CorruptionRegistry.coversInPlace(state);
+        // ネザーの地面(ネザーラック・ソウルサンドなど・搾られた岩・泥炭)は行き先があっても覆う(2026-11-11 ネザーの覆い。ネザーでは汚染が置き換えない)
+        return CorruptionRegistry.hasNoCorruptedForm(state) || CorruptionRegistry.coversInPlace(state) || state.is(ModTags.NETHER_COVERABLE);
     }
 
     // --- 書く(サーバー) ---

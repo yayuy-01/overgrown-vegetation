@@ -80,13 +80,20 @@ vec3 ovSway(vec3 pos, out float bob) {
     return vec3(h.x, up, h.y) * OvBase.w;
 }
 
+// OvCurrent = (direction of the water current x, z scaled by its strength 0..1, lean in blocks at full weight, -). 11-13 (water item 6
+// fix, user pick "a common current"): water plants lean down the current that also carries the motes, leaves and bubbles
+// (client/atmosphere/WaterCurrent.java), and sway more along it.
+uniform vec4 OvCurrent;
+
 // The slow sway of spore kelp fronds in the water (not the wind; OvSwayW carries the phases, OvSwayF.z the amount).
 vec3 ovWaterSway(vec3 pos) {
     float a = pos.x * 0.31 + pos.z * 0.23 + pos.y * 0.17;
     float b = pos.x * 0.19 - pos.z * 0.29 + pos.y * 0.11;
     float sa = OvSwayW.x * cos(a) + OvSwayW.y * sin(a);
     float sb = OvSwayW.z * cos(b) + OvSwayW.w * sin(b);
-    return vec3(sa, 0.15 * sb, 0.8 * sb) * OvSwayF.z;
+    vec2 along = OvCurrent.xy;
+    vec3 lean = vec3(along.x, 0.0, along.y) * OvCurrent.z * (1.0 + 0.4 * sa);
+    return vec3(sa, 0.15 * sb, 0.8 * sb) * OvSwayF.z + lean;
 }
 
 // Displacement of a chunk vertex; alpha is set back to 1 for marked vertices.

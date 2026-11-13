@@ -338,14 +338,19 @@ public final class CaveLights {
         AtmosphereCave.CaveParams p = DesignData.atmosphere().cave();
         // 11-07(カメラ切り替えの廃止): カメラの所の値は場所ごとの判定の一つとして地形のシェーダーが読むので、0.5 秒おきでは歩くと段が出る。毎 2 tick にした。
         if (ticks % 2 == 1) {
-            mixTarget = target(level, eye, p);
+            // 11-09 ユーザー決定「案 1」: カメラの 1 点だけで決めると、構造物の下で隣の列へ動くだけで跳び、そばの面がチカチカした。5 点の平均にする
+            float spread = devCamSpread >= 0.0F ? devCamSpread : p.camSpread();
+            long t0 = System.nanoTime();
+            mixTarget = spread > 0.0F ? spreadTarget(level, eye, p, spread) : target(level, eye, p);
+            targetNanos += System.nanoTime() - t0;
+            targetCount++;
         }
         // 11-01 夜(ユーザー「地上 → 洞窟の変わり目をもっとゆっくり」): 1 秒の直線 → 時定数 transitionCaveSeconds(4 秒)の指数。
         // 黒い霧・点光源の強さ(シェーダーで × mix)・Mob の明るさがどれもこの値なので、まとめて滑らかになる。
         // 11-07 目の慣れ: 白く飛んでいる(暗く沈んでいる)間は早めに寄せて、つなぎ目を隠す
         mix = ForestPresence.approach(mix, mixTarget, 0.05F, EyeAdaptation.transitionSeconds(DesignData.atmosphere().fog().transitionCaveSeconds()));
         // カメラの所の場所の値(地形のシェーダーの OvCaveLocal.y)。段だけ均す 0.3 秒(仮決め)。
-        camLocal = ForestPresence.approach(camLocal, mixTarget, 0.05F, 0.3F);
+        camLocal = ForestPresence.approach(camLocal, mixTarget, 0.05F, devCamSeconds >= 0.0F ? devCamSeconds : 0.3F);
         // 11-07: カメラが洞窟の奥(いちばん近い口から 8〜24 列)にいる度合い。DH の遠景の霧の色を洞窟の色へ寄せるのに使う(MistView)
         float[] ct = CaveMap.texel(Mth.floor(eye.x), Mth.floor(eye.z));
         float deepGoal = ct == null || ct[0] < -9000.0F ? 0.0F : SunLight.smooth(Mth.clamp((ct[2] - 8.0F) / 16.0F, 0.0F, 1.0F));
@@ -517,6 +522,64 @@ public final class CaveLights {
      * 面が自分の空の光だけで地下かどうか決まり、葉の面が明るい緑と真っ暗にくっきり分かれた(ユーザーの写真 28〜30)。
      */
     static boolean devCamOverhang;
+    /** 確かめ用(11-09 追記 7 のチカチカ): カメラの所の値の寄せる時間(秒。負で 0.3)・目標をまわり ±r ブロックの 5 点の平均にする r(負で設計値 camSpread、0 で 1 点)。 */
+    static float devCamSeconds = -1.0F;
+    static float devCamSpread = -1.0F;
+    /** 確かめ用: 目標の計算にかかった時間の合計(ナノ秒)と回数(cavedev fogstate で出す・cavedev targetreset で 0 に戻す)。 */
+    static long targetNanos;
+    static long targetCount;
+    /** 確かめ用(11-09 追記 9): 直近の 5 点の目標(カメラ・+x・−x・+z・−z)。 */
+    static final float[] lastSamples = new float[5];
+
+    /** 確かめ用(11-09 追記 9): カメラの位置で決まる値を一行に(cavedev camstate)。 */
+    static String camState() {
+        Light[] l = shown;
+        float[] w = shownWeight;
+        long h = 0L;
+        float ws = 0.0F;
+        for (int i = 0; i < l.length; i++) {
+            h = h * 31 + (long) Math.floor(l[i].x()) * 73856093L + (long) Math.floor(l[i].y()) * 19349663L + (long) Math.floor(l[i].z()) * 83492791L;
+            ws += i < w.length ? w[i] : 0.0F;
+        }
+        return String.format("CAMSTATE 場所 %.3f 目標 %.3f mix %.3f 5点 %.2f %.2f %.2f %.2f %.2f 光 %d 重み %.2f 組 %x 目 %.3f/%.3f 霧 %.1f〜%.1f",
+                camLocal, mixTarget, mix, lastSamples[0], lastSamples[1], lastSamples[2], lastSamples[3], lastSamples[4], l.length, ws, h & 0xffffff,
+                EyeAdaptation.glare(), EyeAdaptation.dark(), fogStart(), fogEnd()) + uniformState();
+    }
+
+    /** 確かめ用: 固い層のシェーダーに今入っている OvCaveLocal・OvCaveMouth・OvCave(Sodium はここから写す)。 */
+    private static String uniformState() {
+        ShaderInstance s = GameRenderer.getRendertypeSolidShader();
+        if (s == null) {
+            return " uniform -";
+        }
+        StringBuilder b = new StringBuilder();
+        for (String n : new String[]{"OvCaveLocal", "OvCaveMouth", "OvCave"}) {
+            var u = s.getUniform(n);
+            if (u != null) {
+                java.nio.FloatBuffer f = u.getFloatBuffer();
+                b.append(String.format(" %s %.3f/%.3f/%.1f/%.1f", n, f.get(0), f.get(1), f.get(2), f.get(3)));
+            }
+        }
+        return b.toString();
+    }
+
+    /** 目標をカメラと前後左右 r ブロックの 5 点の平均に(1 ブロック動いただけで跳ばないように)。overgrownHere はカメラの所の値を残す。 */
+    private static float spreadTarget(ClientLevel level, Vec3 eye, AtmosphereCave.CaveParams p, float r) {
+        float center = target(level, eye, p);
+        lastSamples[0] = center;
+        boolean here = overgrownHere;
+        float sum = center;
+        for (int i = 0; i < 4; i++) {
+            Vec3 at = eye.add(i == 0 ? r : i == 1 ? -r : 0.0, 0.0, i == 2 ? r : i == 3 ? -r : 0.0);
+            // 壁・岩の中の点は空の光が 0 で「地下」と読めるので、カメラの所の値で代える(崖や構造物の壁ぎわで外が地下寄りにならないように)
+            BlockPos bp = BlockPos.containing(at);
+            float v = level.getBlockState(bp).isSolidRender(level, bp) ? center : target(level, at, p);
+            lastSamples[i + 1] = v;
+            sum += v;
+        }
+        overgrownHere = here;
+        return sum / 5.0F;
+    }
     /** 構造物の中の葉の面のむらの案の確かめ用の上書き(11-09。cavedev foliage <効き> / cavedev overhanglight <点光源> <床の持ち上げ>。負 = 設計値 cave.foliageFacing など)。 */
     static float devFoliageFacing = -1.0F;
     static float devOverhangLights = -1.0F;

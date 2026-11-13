@@ -72,7 +72,7 @@ public final class CreativeTabOrder {
             ModBlocks.SELAGINELLA, ModBlocks.CLUBMOSS, ModBlocks.LYCOPSID_CARPET, ModBlocks.LYCOPSID_UPRIGHT,
             ModBlocks.PEAT, ModBlocks.PEAT_POOL_BOTTOM, ModBlocks.PEAT_SPROUTS, ModBlocks.PEAT_LITTER,
             ModBlocks.FALLEN_LOG, ModBlocks.BRACKET_FUNGUS, ModBlocks.MEDULLOSA_TRUNK, ModBlocks.MEDULLOSA_CROWN, ModBlocks.HORSETAIL,
-            ModBlocks.CHARA, ModBlocks.WATER_ROOTS, ModBlocks.ALGAE_FILM, ModBlocks.SPORE_FILM, ModBlocks.SEA_SPORE_BAND,
+            ModBlocks.CHARA, ModBlocks.WATER_ROOTS, ModBlocks.ALGAE_FILM, ModBlocks.SPORE_FILM, ModBlocks.SEA_SPORE_BAND, ModBlocks.SUNKEN_LEAF_LITTER, ModBlocks.SUNKEN_TWIGS,
             ModBlocks.SPORE_KELP_STALK, ModBlocks.SPORE_KELP_FROND,
             ModBlocks.CEILING_ROOT_NET, ModBlocks.LEY_ROOT, ModBlocks.FOXFIRE, ModBlocks.PALE_CAVE_FERN, ModBlocks.PALE_CAVE_CAPS,
             ModBlocks.PALE_CAVE_MOSS, ModBlocks.CAVE_HORSETAIL, ModBlocks.CAVE_MYCELIUM,

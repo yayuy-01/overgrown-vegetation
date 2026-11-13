@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.spore.field;
 
+import com.yayuy.overgrownvegetation.sky.RainIntensity;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -29,6 +30,12 @@ public final class WindWeatherData extends SavedData {
     private long prevRainStart = PrevailingWind.NONE, prevRainEnd = PrevailingWind.NONE;
     private boolean raining, thundering;
     private boolean seen;
+    /**
+     * 雨の強さ(11-12 雨の種類、{@link RainIntensity})。rainPeak = 今の雨の間の雷の無い強さの最大、lastRainIntensity = 止んだ雨の強さ
+     * (雨の後の沈着・湿りの長さに使う)。古いセーブ・予定の無い雨は普通。
+     */
+    private float rainPeak;
+    private float lastRainIntensity = RainIntensity.NORMAL;
 
     private WindWeatherData() {
     }
@@ -42,6 +49,8 @@ public final class WindWeatherData extends SavedData {
         d.raining = tag.getBoolean("raining");
         d.thundering = tag.getBoolean("thundering");
         d.seen = tag.getBoolean("seen");
+        d.rainPeak = tag.getFloat("rainPeak");
+        d.lastRainIntensity = tag.contains("lastRainIntensity") ? tag.getFloat("lastRainIntensity") : RainIntensity.NORMAL;
         return d;
     }
 
@@ -54,6 +63,8 @@ public final class WindWeatherData extends SavedData {
         tag.putBoolean("raining", raining);
         tag.putBoolean("thundering", thundering);
         tag.putBoolean("seen", seen);
+        tag.putFloat("rainPeak", rainPeak);
+        tag.putFloat("lastRainIntensity", lastRainIntensity);
         return tag;
     }
 
@@ -69,6 +80,25 @@ public final class WindWeatherData extends SavedData {
     /** 今の天気の印。 */
     public PrevailingWind.Weather weather() {
         return new PrevailingWind.Weather(raining, thundering, lastRainStart, lastRainEnd, prevRainStart, prevRainEnd);
+    }
+
+    /** 止んだ雨の強さ(普通 0.6。11-12)。 */
+    public float lastRainIntensity() {
+        return lastRainIntensity;
+    }
+
+    /** 雨の間に、雷の無い雨の強さを見て最大を覚える。止んだときに止んだ雨の強さにする(11-12)。 */
+    void observeIntensity(boolean nowRaining, boolean nowThundering, float intensity) {
+        if (nowRaining) {
+            if (!nowThundering && intensity > rainPeak) {
+                rainPeak = intensity;
+                setDirty();
+            }
+        } else if (rainPeak > 0.0F) {
+            lastRainIntensity = rainPeak;
+            rainPeak = 0.0F;
+            setDirty();
+        }
     }
 
     /** 最後の雨の終わり(雨上がりの判定)。降っている最中や無ければ NONE。 */
@@ -119,5 +149,8 @@ public final class WindWeatherData extends SavedData {
         boolean rain = level.isRaining();
         boolean thunder = rain && level.isThundering();
         data.observe(rain, thunder, level.getDayTime());
+        if (level.getGameTime() % 20 == 0) {
+            data.observeIntensity(rain, thunder, RainIntensity.global(level, rain, false, 0.0F));
+        }
     }
 }

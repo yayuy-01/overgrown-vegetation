@@ -239,11 +239,6 @@ public final class SwampTreeFall {
         LongOpenHashSet removed = new LongOpenHashSet(fall.blocks);
         removeLianasEndingIn(level, removed);
         StrandedPlants.clearUnanchored(level, removed);
-        if (level.dimension() == Level.NETHER) {
-            HeatForestFungus.clearVines(level, removed); // 消したウォートに付いていた垂れる・ねじれるツタ(2026-11-10、仮)
-            HeatForestFungus.clearOrphanCaps(level, removed); // 立っている幹につながらなくなった傘(2026-11-10、追記 12)
-            HeatForestFungus.markCaplessStubs(level, removed); // 傘を全部取られた隣の幹に印(2026-11-10、追記 13)
-        }
         if (!level.isLoaded(fall.lowest)) {
             return; // 撤去の途中で切り株のチャンクが外れた(集めた tick に終わる木では起きない)。
         }
@@ -316,10 +311,7 @@ public final class SwampTreeFall {
         }
         // 環境ごとの有効/無効。湿地系は swampTreeFall、密林は jungleTreeFall(2026-09-11 に密林にも拡張)。
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
-        // ネザー(2026-11-10 ユーザー決定: 菌の木もオーバーワールドと同じく倒木か消滅)は地域の種類が無いので、密林の値を使う(仮)。
-        // 葉の代わりにウォートブロックとシュルームライトを集める({@link HeatForestFungus})。
-        boolean nether = level.dimension() == Level.NETHER;
-        boolean swamp = !nether && OvergrowthRegionMap.blendedVariantAt(level, start.getX(), start.getZ(), 2).isSwamp();
+        boolean swamp = OvergrowthRegionMap.blendedVariantAt(level, start.getX(), start.getZ(), 2).isSwamp();
         if (swamp ? !cfg.swampTreeFall.get() : !cfg.jungleTreeFall.get()) {
             return null;
         }
@@ -402,7 +394,7 @@ public final class SwampTreeFall {
                     continue;
                 }
                 seen.add(nl);
-                if (isTreeLeaves(level.getBlockState(n)) || (nether && HeatForestFungus.isCap(level.getBlockState(n)))) {
+                if (isTreeLeaves(level.getBlockState(n))) {
                     leaves.add(nl);
                     leafDist.put(nl, dist + 1);
                     leafFrontier.add(new long[]{nl, dist + 1});
@@ -411,9 +403,7 @@ public final class SwampTreeFall {
         }
 
         // 葉が 1 枚も付いていない原木の塊は木ではない(丸太置き場・柱など)。
-        // ネザー: 密な菌の森では、背の低い木の傘が先に倒れた隣の木に全部集められ、幹だけが残る。菌の幹だけの塊で、
-        // 根元が菌の地面で、そばで木が倒れたときに印が付いた塊なら、傘が無くても木として倒す(2026-11-10 追記 12・13。印の無い柱は倒さない)
-        if (leaves.isEmpty() && !(nether && HeatForestFungus.isCaplessStub(level, logs, lowest))) {
+        if (leaves.isEmpty()) {
             return null;
         }
         // 隣の mod の木の葉は残す(葉が全部 mod の木のものでも、葉の付いた原木なので木として消す)。
@@ -513,9 +503,7 @@ public final class SwampTreeFall {
                 }
                 BlockPos above = BlockPos.of(l).above();
                 if (level.getBlockState(above).isAir()) {
-                    BlockState moss = level.dimension() == Level.NETHER
-                            ? ModBlocks.HEAT_THIN_MOSS.get().defaultBlockState() // ネザーの倒木の上は熱の薄い苔(2026-11-10、仮)
-                            : ModBlocks.OVERGROWN_MOSS_LAYER.get().defaultBlockState()
+                    BlockState moss = ModBlocks.OVERGROWN_MOSS_LAYER.get().defaultBlockState()
                             .setValue(MultifaceBlock.getFaceProperty(Direction.DOWN), Boolean.TRUE);
                     if (moss.canSurvive(level, above)) {
                         level.setBlock(above, moss, FLAGS);
@@ -676,7 +664,10 @@ public final class SwampTreeFall {
                 // 封印木(2026-11-01)。#logs に入っているので名指しで外す。葉(sigillaria_leaves・_fringe)は isTreeLeaves に入れない = 元の木の葉として集めない
                 || state.is(ModBlocks.SIGILLARIA_LOG.get())
                 // 枝の継ぎ目(2026-11-01)。#logs に入っているので名指しで外す(数えないと枝先から mod の木が元の木として片付く)
-                || state.getBlock() instanceof com.yayuy.overgrownvegetation.block.BranchJointBlock;
+                || state.getBlock() instanceof com.yayuy.overgrownvegetation.block.BranchJointBlock
+                // 木生シダの幹・スティグマリア・コルダイテスの板根(2026-11-12 に #logs へ入れた。タグの見直し)。名指しで外さないと元の木として片付く
+                || state.is(ModBlocks.TREE_FERN_TRUNK.get()) || state.is(ModBlocks.STIGMARIA.get())
+                || state.is(ModBlocks.CORDAITES_BUTTRESS.get());
     }
 
     /** 封印木の原木・枝・葉・球果(元の木の一部には決してならない)。 */

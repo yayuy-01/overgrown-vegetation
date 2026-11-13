@@ -103,6 +103,8 @@ public final class ModCreativeTabs {
     /** ネザー・エンド。 */
     private static final List<DeferredBlock<Block>> CORRUPTED_NETHER_END = List.of(
             ModBlocks.OVERGROWN_NETHERRACK,
+            ModBlocks.OVERGROWN_NYLIUM,
+            ModBlocks.NETHER_OVERGROWN_BLOCK,
             ModBlocks.OVERGROWN_SOUL_SAND,
             ModBlocks.OVERGROWN_SOUL_SOIL,
             ModBlocks.OVERGROWN_END_STONE);
@@ -139,6 +141,8 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.BLIGHT_FERN_SPAWN_EGG.get());
                         output.accept(ModItems.FALCIMNES_SPAWN_EGG.get());
                         output.accept(ModItems.ARBORA_SPAWN_EGG.get());
+                        ModG1.acceptEggs(output); // G1 段階 0(2026-11-08)
+                        com.yayuy.overgrownvegetation.registry.ModStilt.acceptEggs(output); // 竹馬型(2026-11-10)
 
                         // 植物から採れるもの
                         output.accept(ModItems.SPORE.get());
@@ -150,6 +154,20 @@ public final class ModCreativeTabs {
 
                         output.accept(ModItems.SPORE_GLAND_TISSUE.get());
                         output.accept(ModItems.SPORE_SAC.get());
+
+                        // G1 段階 0 のドロップ「覆われた〜」(2026-11-08)
+                        output.accept(ModItems.OVERGROWN_ROTTEN_FLESH.get());
+                        output.accept(ModItems.OVERGROWN_BEEF.get());
+                        output.accept(ModItems.OVERGROWN_LEATHER.get());
+                        output.accept(ModItems.OVERGROWN_PORKCHOP.get());
+                        output.accept(ModItems.OVERGROWN_MUTTON.get());
+                        output.accept(ModItems.OVERGROWN_WOOL.get());
+                        output.accept(ModItems.OVERGROWN_CHICKEN.get());
+                        output.accept(ModItems.OVERGROWN_FEATHER.get());
+                        output.accept(ModItems.OVERGROWN_BONE.get());
+                        output.accept(ModItems.OVERGROWN_SPIDER_EYE.get());
+                        output.accept(ModItems.OVERGROWN_ENDER_PEARL.get());
+
                         output.accept(ModItems.SPORE_METER.get());
                         output.accept(ModItems.PROTECTIVE_MASK.get());
 

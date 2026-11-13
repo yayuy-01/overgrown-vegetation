@@ -1,5 +1,13 @@
 {
   "replace": false,
   "values": [
+    "overgrown_vegetation:overgrown_coal_ore",
+    "overgrown_vegetation:overgrown_iron_ore",
+    "overgrown_vegetation:overgrown_copper_ore",
+    "overgrown_vegetation:overgrown_gold_ore",
+    "overgrown_vegetation:overgrown_redstone_ore",
+    "overgrown_vegetation:overgrown_lapis_ore",
+    "overgrown_vegetation:overgrown_diamond_ore",
+    "overgrown_vegetation:overgrown_emerald_ore"
   ]
 }

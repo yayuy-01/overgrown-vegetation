@@ -142,8 +142,122 @@ public class OvergrownNodeEvaluator extends WalkNodeEvaluator {
         }
     }
 
+    // --- 長い体の経路(11-08、森の中を動く型 ② の段 2) ---
+
+    /**
+     * 長い体の Mob の経路の重み。幹(障害物)に近い所と、狭い所での急な曲がりを高くつけ、広い所・まっすぐ抜ける道を選ばせる
+     * (決定「体の長さと向きを考えて経路を引く。急に曲がれない所は大回り」)。値は全部【仮】。
+     *
+     * @param clearWant  これより幹に近い所(ブロック、体の芯の中心から)に重みを足す
+     * @param clearCost  幹に 1 ブロック近づくごとの重み
+     * @param turnCost   45 度を超えて曲がるとき、45 度ごとの重み
+     * @param tightClear これより幹に近い所の曲がりは重みを 2 倍に(狭い所では急に曲がれない)
+     */
+    public record LongBody(float clearWant, float clearCost, float turnCost, float tightClear) {
+    }
+
+    @Nullable
+    private LongBody longBody;
+
+    /** 今の長い体の重み(無ければ null)。 */
+    @Nullable
+    public LongBody longBody() {
+        return this.longBody;
+    }
+    /** 長い体の重みを足す前の、ノードの元の重み(探索 1 回ぶん。ノードは探索の中で使い回され、重みは max で積まれるので元を控える)。 */
+    private final java.util.IdentityHashMap<Node, Float> baseMalus = new java.util.IdentityHashMap<>();
+    /** 計測用: 長い体の重みの計算にかかった時間(ns)と回数。 */
+    public static volatile long longBodyNanos, longBodyCalls;
+
+    /** 長い体の経路にする(Mob の createNavigation から。null で外す)。 */
+    public void setLongBody(@Nullable LongBody longBody) {
+        this.longBody = longBody;
+    }
+
+    private final BlockPos.MutableBlockPos leafScratch = new BlockPos.MutableBlockPos();
+
+    /**
+     * この MOD の葉({@link com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock} とそれを継ぐ木生シダ・シギラリアの葉)を、バニラの葉と同じく
+     * {@link net.minecraft.world.level.pathfinder.PathType#LEAVES} として返す(11-08 夜、ユーザー「葉のタグを直す」)。
+     *
+     * <p>バニラは {@code LeavesBlock} だけを葉と見るので、この MOD の葉は「通れない固いブロック」({@code BLOCKED})だった。
+     * そのため葉を押し分ける荒い個体のファルキムネス(葉の重みを 2.0 にしている)も、経路の上では MOD の葉を回り込んでいた。
+     * 葉のタグ({@code minecraft:leaves})に足すと汚染の置き換え(自然の葉 → MOD の葉)などが崩れるので、タグではなくこの評価器で見る。
+     * この評価器を使うのはファルキムネスだけ。葉の重みは既定で −1(通れない)なので、葉を押し分けない個体には今までどおり通れない。
+     * 足場としての扱い(下が葉なら歩ける)は BLOCKED と同じ。
+     */
+    @Override
+    public net.minecraft.world.level.pathfinder.PathType getPathType(net.minecraft.world.level.pathfinder.PathfindingContext context, int x, int y, int z) {
+        net.minecraft.world.level.pathfinder.PathType type = super.getPathType(context, x, y, z);
+        if (type == net.minecraft.world.level.pathfinder.PathType.BLOCKED
+                && context.getBlockState(this.leafScratch.set(x, y, z)).getBlock() instanceof com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock) {
+            return net.minecraft.world.level.pathfinder.PathType.LEAVES;
+        }
+        return type;
+    }
+
+    @Override
+    public void done() {
+        super.done();
+        this.baseMalus.clear();
+    }
+
+    /** 長い体の重みを候補に足す。 */
+    private void addLongBodyCost(Node[] out, int count, Node from) {
+        LongBody lb = this.longBody;
+        if (lb == null || !(this.mob.level() instanceof net.minecraft.server.level.ServerLevel server)) return;
+        long t0 = System.nanoTime();
+        com.yayuy.overgrownvegetation.entity.forest.ForestMap map = com.yayuy.overgrownvegetation.entity.forest.ForestMap.of(server);
+        // 入ってきた向き(2 つ前のノードから。8 方向の格子なので 1 つ前だけだと向きが粗い)
+        Node back = from.cameFrom != null ? (from.cameFrom.cameFrom != null ? from.cameFrom.cameFrom : from.cameFrom) : null;
+        double inX = back != null ? from.x - back.x : 0.0D, inZ = back != null ? from.z - back.z : 0.0D;
+        double inLen = Math.sqrt(inX * inX + inZ * inZ);
+        int fw = this.entityWidth;
+        for (int i = 0; i < count; i++) {
+            Node c = out[i];
+            Float base = this.baseMalus.get(c);
+            if (base == null) {
+                base = c.costMalus;
+                this.baseMalus.put(c, base);
+            }
+            // 体の芯が占める列(幅のマス数ぶん)の一番近い幹までの距離
+            float d = Float.NaN;
+            for (int dz = 0; dz < fw; dz++) {
+                for (int dx = 0; dx < fw; dx++) {
+                    float v = map.clearance(c.x + dx, c.y, c.z + dz);
+                    if (!Float.isNaN(v) && (Float.isNaN(d) || v < d)) d = v;
+                }
+            }
+            float extra = 0.0F;
+            if (!Float.isNaN(d) && d < lb.clearWant()) {
+                extra += (lb.clearWant() - d) * lb.clearCost();
+            }
+            if (inLen > 0.0D) {
+                double ox = c.x - from.x, oz = c.z - from.z;
+                double oLen = Math.sqrt(ox * ox + oz * oz);
+                if (oLen > 0.0D) {
+                    double cos = (inX * ox + inZ * oz) / (inLen * oLen);
+                    double deg = Math.toDegrees(Math.acos(Math.max(-1.0D, Math.min(1.0D, cos))));
+                    if (deg > 45.5D) {
+                        float k = !Float.isNaN(d) && d < lb.tightClear() ? 2.0F : 1.0F;
+                        extra += (float) ((deg - 45.0D) / 45.0D) * lb.turnCost() * k;
+                    }
+                }
+            }
+            c.costMalus = base + extra;
+        }
+        longBodyNanos += System.nanoTime() - t0;
+        longBodyCalls++;
+    }
+
     @Override
     public int getNeighbors(Node[] outputArray, Node node) {
+        int found = getNeighborsRiseChecked(outputArray, node);
+        addLongBodyCost(outputArray, found, node);
+        return found;
+    }
+
+    private int getNeighborsRiseChecked(Node[] outputArray, Node node) {
         int found = super.getNeighbors(outputArray, node);
         int kept = 0;
         this.riseCount = 0;

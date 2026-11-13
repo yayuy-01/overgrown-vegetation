@@ -1,6 +1,0 @@
-{
-  "variants": {
-    "half=lower": { "model": "overgrown_vegetation:block/heat_forest/tall_fern_bottom" },
-    "half=upper": { "model": "overgrown_vegetation:block/heat_forest/tall_fern_top" }
-  }
-}

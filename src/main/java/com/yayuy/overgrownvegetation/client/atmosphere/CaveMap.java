@@ -323,6 +323,9 @@ final class CaveMap {
 
     /** 確かめ用: 開けた張り出しを見ない(前の形。cavedev overhang off)。 */
     static volatile boolean devNoOverhang;
+    /** 確かめ用: 直近の地図で印を付けた粗い升の数と、印の付いた粗い升の位置の要約(ハッシュ。変わったか見る)。 */
+    static volatile int coarseMarked;
+    static volatile long coarseHash;
     /** 確かめ用: 印の列を地下モードの対象から外す(11-09 の最初の形。cavedev overhang cut on)。既定は口までの距離を 0 にするだけ。 */
     static volatile boolean devOverhangCut;
     /** 開けた張り出しとみなす、外へ開けた方向の数の下限(8 方向のうち。仮決め 5)。 */
@@ -344,6 +347,8 @@ final class CaveMap {
                                      BlockPos.MutableBlockPos pos,
                                      int minY) {
         int count = 0;
+        coarseMarked = 0;
+        long hash = 0L;
         // 市松の半分の列だけ調べ、残りの列は上下左右 4 列のうち 2 列以上に印があれば印(11-09 軽く。構造物の下の印はまとまって付くので)
         for (int pass = 0; pass < 2; pass++) {
             for (int z = 0; z < SIZE; z++) {
@@ -450,9 +455,12 @@ final class CaveMap {
                 }
                 if (overhangColumn(level, pos, ox, oz, data, coarse, wx, wz, bottom, minY) != Integer.MIN_VALUE) {
                     coarse[at + 1] = 0.0F;
+                    coarseMarked++;
+                    hash += (wx * 73856093L) ^ (wz * 19349663L);
                 }
             }
         }
+        coarseHash = hash;
         return count;
     }
 
@@ -875,7 +883,7 @@ final class CaveMap {
     /** 確かめ用の一行。 */
     static String describe() {
         Built b = shown;
-        return b == null ? "地下の地図 なし" : String.format("地下の地図 原点 %d %d 岩の天井 %s 作る時間 細かい %d µs 粗い %d µs 水面 %d µs 開けた張り出し %d 列 %d µs", b.originX, b.originZ, b.anyRoof,
-                b.fineMicros, b.coarseMicros, b.waterMicros, b.overhangCount, b.overhangMicros);
+        return b == null ? "地下の地図 なし" : String.format("地下の地図 原点 %d %d 岩の天井 %s 作る時間 細かい %d µs 粗い %d µs 水面 %d µs 開けた張り出し %d 列 %d µs 粗い升 %d(%x)", b.originX, b.originZ, b.anyRoof,
+                b.fineMicros, b.coarseMicros, b.waterMicros, b.overhangCount, b.overhangMicros, coarseMarked, coarseHash & 0xffffff);
     }
 }

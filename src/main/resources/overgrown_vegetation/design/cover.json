@@ -3,6 +3,7 @@
   "textures": ["cover_1", "cover_2", "cover_3", "cover_4", "cover_5", "cover_6", "cover_7", "cover_8", "cover_9", "cover_10", "cover_11", "cover_12", "cover_13", "cover_14", "cover_15", "cover_16", "cover_17", "cover_18", "cover_19", "cover_20", "cover_21", "cover_22", "cover_23", "cover_24", "cover_25"],
   "waterTextures": ["water_algae_cover_a", "water_algae_cover_b", "water_algae_cover_c"],
   "seaTextures": ["sea_algae_cover_a", "sea_algae_cover_b"],
+  "netherTextures": ["nether/moss_a_2", "nether/moss_a_3", "nether/moss_a_4", "nether/moss_b_2", "nether/moss_b_3", "nether/moss_b_4", "nether/moss_c_2", "nether/moss_c_3", "nether/moss_c_4", "nether/moss_e_2", "nether/moss_e_3", "nether/moss_e_4"],
   "rotate": true,
   "mipCoverage": [1.0, 1.0, 1.0, 1.0],
   "push": 0.002,

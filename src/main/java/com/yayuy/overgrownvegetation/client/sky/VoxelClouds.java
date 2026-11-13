@@ -123,6 +123,26 @@ public final class VoxelClouds implements CloudRenderer {
     private static VertexBuffer vbo;
 
     /*
+     * 形の差し替えを溶け合わせる(2026-11-12、ユーザー報告「雲と雲の影が数秒ごとに瞬間移動しているみたい」)。
+     * 雲の形は積乱雲の育ち(約 10 秒ごと)・量の変化(天気の変わり目は 1〜2 秒ごと)で作り直し、前は 1 フレームで丸ごと差し替えていた。
+     * 今は前の形(prev)を残し、SWAP_TICKS の間だけ新旧の両方を描いて、シェーダーの Dissolve で場の座標の雑音に沿って入れ替える。
+     * 入れ替えの間は次の作り直しを始めない(作り直しが続いても、1 回ずつ溶け合わせる)。VBO は 2 つを使い回す(spare)。数値は仮決め。
+     */
+    static final double SWAP_TICKS = 40.0;
+    /** 積乱雲の一番下の段の底を上げる高さ(ブロック。雲の層の底からの高さ。2.5 未満なら雨の前触れで一緒に下がる)。 */
+    static final float STORM_BASE_LIFT = 2.0F;
+    private static Window prevShown;
+    private static VertexBuffer prevVbo;
+    private static VertexBuffer spareVbo;
+    private static double swapStart;
+    private static Window prevFarShown;
+    private static VertexBuffer prevFarVbo;
+    private static VertexBuffer spareFarVbo;
+    private static double farSwapStart;
+    /** 今のフレームの時刻(gameTime + partialTick)。差し替えの始まりに使う。 */
+    private static double nowTicks;
+
+    /*
      * 遠景(2026-10-18、ユーザー「高度 400 を超えて雲より上に入ったとき、読み込み範囲外の雲も見えるように」):
      * 雲の上(高さ FAR_ON_Y より上)で、近くの窓の外に 7680 ブロックまでの雲の海を、遠いほど大きな柱で描く(別の VBO・同じシェーダー)。
      * 遠景には真ん中に四角い穴(FAR_HOLE)があり、その中は近くの窓が受け持つ(近くの雲の床は穴の外をシェーダーで捨てる)。
@@ -246,7 +266,9 @@ public final class VoxelClouds implements CloudRenderer {
         float thunder = CloudSky.rawThunder(level, partialTick);
         // 雨の前にだんだん荒天の色へ(11-09 段階 2a-5。予定の雨の前触れで半分まで)。
         float pre = com.yayuy.overgrownvegetation.sky.CloudWeather.preRain(level, partialTick) * 0.5F;
-        return Math.max(Math.max(rain * 0.6F, thunder), pre) * DesignData.sky().roughWeather;
+        // 11-12 雨の種類: 小雨は明るい雨空(0.35)、普通は今まで(0.6)、大雨は雷雨に近い暗さ(0.9)。
+        float rainDark = Mth.lerp(com.yayuy.overgrownvegetation.client.atmosphere.RainFeel.intensity(), 0.2F, 0.95F);
+        return Math.max(Math.max(rain * rainDark, thunder), pre) * DesignData.sky().roughWeather;
     }
 
     /** 天気を入れない時刻だけの雲の色(バニラの {@code ClientLevel#getCloudColor} から雨・雷を除いた式)。 */
@@ -282,6 +304,17 @@ public final class VoxelClouds implements CloudRenderer {
             b = Mth.lerp(blue, b, BLUE_CLOUD[2]);
         }
         return new Vec3(r, g, b);
+    }
+
+    /**
+     * 下から見た雲の底の色(2026-11-12、水面の映り込み {@code client.atmosphere.WaterGlint} が読む)。雲の色にシェーダーの雲の床の底の明るさ
+     * (0.62 + 空の明るさの分)を掛け、雨の間は暗い灰へ寄せる。仮決め。
+     */
+    public static Vec3 undersideColor(ClientLevel level, float partialTick) {
+        // 11-12: 0.74 では水に映ると灰茶色の汚れに見えたので、明るい底の色に(映る雲は水の色と混ざって暗くなる)。
+        Vec3 c = cloudColor(level, partialTick, level.getCloudColor(partialTick)).scale(0.95);
+        float rough = roughness(level, partialTick);
+        return c.scale(1.0 - 0.3 * rough);
     }
 
     /** 雲を描く({@link OverworldCloudEffects#renderClouds} から。近くの雲)。false ならバニラの雲を描かせる。 */
@@ -450,10 +483,23 @@ public final class VoxelClouds implements CloudRenderer {
         if (level != lastLevel) {
             lastLevel = level;
             shown = null;
+            endSwap();
+            endFarSwap();
             discardPending();
+        }
+        // 11-13(水まわり ⑤ ユーザー選択「水中から雲を見せない」): 潜っている間は雲・巻雲を描かない(雲だけ水の霧に沈まず、くっきり見えていた)。
+        if (Minecraft.getInstance().gameRenderer.getMainCamera().getFluidInCamera() == net.minecraft.world.level.material.FogType.WATER) {
+            return;
         }
         SkyTable sky = DesignData.sky();
         long gameTime = level.getGameTime();
+        nowTicks = gameTime + (double) partialTick;
+        if (prevVbo != null && swapProgress(swapStart) >= 1.0F) {
+            endSwap();
+        }
+        if (prevFarVbo != null && swapProgress(farSwapStart) >= 1.0F) {
+            endFarSwap();
+        }
         float coverage = coverage(level, partialTick);
         int style = CloudSky.style();
         int radius = RADIUS_BY_TIER[tier()];
@@ -495,7 +541,7 @@ public final class VoxelClouds implements CloudRenderer {
                 || Math.abs(coverage - shown.coverage) > REBUILD_COVERAGE || shown.farId != farId || shown.radius != radius || shown.style != style || shown.seed != CloudField.seed()
                 || !shown.shape.equals(com.yayuy.overgrownvegetation.sky.CloudShape.current());
         boolean grown = shown != null && key != shown.stormKey && gameTime - lastBuildTick >= STORM_REBUILD_TICKS;
-        boolean busy = pending != null || pendingPair != null;
+        boolean busy = pending != null || pendingPair != null || prevVbo != null || prevFarVbo != null;
         final int voxel = STORM_VOXEL_BY_TIER[tier()];
         if (!busy && far && farWanted && needFar(level, partialTick, gameTime, fx, fz, coverage, style)) {
             final float c = coverage;
@@ -569,7 +615,9 @@ public final class VoxelClouds implements CloudRenderer {
         float farShow = sky.farClouds * farAlpha;
         boolean farOk = farShown != null && farShown.quads > 0 && farVbo != null && farShow > 0.002F;
         boolean cut = farOk && shown != null && shown.farId == farShown.id;
-        if (!nearOk && !farOk) {
+        boolean prevOk = prevVbo != null && prevShown != null && prevShown.quads > 0;
+        boolean prevFarOk = prevFarVbo != null && prevFarShown != null && prevFarShown.quads > 0 && farShow > 0.002F;
+        if (!nearOk && !farOk && !prevOk && !prevFarOk) {
             // 下の層・積乱雲が無くても巻雲は描く(11-09 段階 2a、{@link Cirrus})。
             Cirrus.draw(level, partialTick, modelView, projection, camX, camY, camZ, far, Minecraft.getInstance().gameRenderer.getDepthFar() * 0.9F);
             return;
@@ -682,13 +730,13 @@ public final class VoxelClouds implements CloudRenderer {
         RenderSystem.depthMask(true);
         RenderSystem.disableBlend();
         shader.safeGetUniform("Look").set(sky.celShading, sky.softEdges, 1.0F, 1.0F);
-        drawMeshes(shader, modelView, projection, nearOk, farOk, fx, fz, dy);
+        drawMeshes(shader, modelView, projection, nearOk, farOk, prevOk, prevFarOk, fx, fz, dy);
         RenderSystem.colorMask(true, true, true, true);
         RenderSystem.depthMask(false);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         shader.safeGetUniform("Look").set(sky.celShading, sky.softEdges, 1.0F, 0.0F);
-        drawMeshes(shader, modelView, projection, nearOk, farOk, fx, fz, dy);
+        drawMeshes(shader, modelView, projection, nearOk, farOk, prevOk, prevFarOk, fx, fz, dy);
         // 巻雲(11-09 段階 2a): 雲を塗った後に、同じ奥行きの幅で、奥行きを書かずに重ねる(手前の積乱雲には隠れ、上から見ると積乱雲の手前に見える)。
         Cirrus.draw(level, partialTick, modelView, projection, camX, camY, camZ, far, split);
         RenderSystem.disableBlend();
@@ -713,20 +761,70 @@ public final class VoxelClouds implements CloudRenderer {
     }
 
     private static void drawMeshes(ShaderInstance shader, Matrix4f modelView, Matrix4f projection, boolean nearOk, boolean farOk,
-                                   double fx, double fz, double dy) {
+                                   boolean prevOk, boolean prevFarOk, double fx, double fz, double dy) {
+        float k = swapProgress(swapStart);
+        float kFar = swapProgress(farSwapStart);
         if (nearOk) {
-            shader.safeGetUniform("Offset").set((float) (shown.originX * (double) CloudField.CELL_XZ - fx), (float) dy,
-                    (float) (shown.originZ * (double) CloudField.CELL_XZ - fz));
-            vbo.bind();
-            vbo.drawWithShader(modelView, projection, shader);
+            drawOne(shader, modelView, projection, vbo, shown, fx, fz, dy, k, prevVbo != null ? 1.0F : 0.0F);
+        }
+        if (prevOk) {
+            drawOne(shader, modelView, projection, prevVbo, prevShown, fx, fz, dy, k, -1.0F);
         }
         if (farOk) {
-            shader.safeGetUniform("Offset").set((float) (farShown.originX * (double) CloudField.CELL_XZ - fx), (float) dy,
-                    (float) (farShown.originZ * (double) CloudField.CELL_XZ - fz));
-            farVbo.bind();
-            farVbo.drawWithShader(modelView, projection, shader);
+            drawOne(shader, modelView, projection, farVbo, farShown, fx, fz, dy, kFar, prevFarVbo != null ? 1.0F : 0.0F);
         }
+        if (prevFarOk) {
+            drawOne(shader, modelView, projection, prevFarVbo, prevFarShown, fx, fz, dy, kFar, -1.0F);
+        }
+        shader.safeGetUniform("Dissolve").set(0.0F, 0.0F, 0.0F, 0.0F);
         VertexBuffer.unbind();
+    }
+
+    /** 1 つの形を描く。mode 1 = 差し替えの新しい形・−1 = 古い形・0 = 差し替えていない(Dissolve の説明は voxel_clouds.fsh)。 */
+    private static void drawOne(ShaderInstance shader, Matrix4f modelView, Matrix4f projection, VertexBuffer buffer, Window w,
+                                double fx, double fz, double dy, float progress, float mode) {
+        shader.safeGetUniform("Offset").set((float) (w.originX * (double) CloudField.CELL_XZ - fx), (float) dy,
+                (float) (w.originZ * (double) CloudField.CELL_XZ - fz));
+        shader.safeGetUniform("Dissolve").set(progress, mode, 0.0F, 0.0F);
+        buffer.bind();
+        buffer.drawWithShader(modelView, projection, shader);
+    }
+
+    /** 差し替えの進み(0〜1)。時刻が戻ったら(ワールドの入り直し)終わったことにする。 */
+    private static float swapProgress(double start) {
+        double t = (nowTicks - start) / SWAP_TICKS;
+        return t < 0.0 ? 1.0F : (float) Math.min(1.0, t);
+    }
+
+    /** 古い近くの窓を手放す(VBO は次の差し替えに使い回す)。 */
+    private static void endSwap() {
+        if (prevVbo != null) {
+            if (spareVbo == null) {
+                spareVbo = prevVbo;
+            } else {
+                prevVbo.close();
+            }
+        }
+        prevVbo = null;
+        prevShown = null;
+    }
+
+    private static void endFarSwap() {
+        if (prevFarVbo != null) {
+            if (spareFarVbo == null) {
+                spareFarVbo = prevFarVbo;
+            } else {
+                prevFarVbo.close();
+            }
+        }
+        prevFarVbo = null;
+        prevFarShown = null;
+    }
+
+    /** 新しい窓が今の窓と重なるか(重ならない = 瞬間移動・入り直し。そのときは溶け合わせずに差し替える)。 */
+    private static boolean overlaps(Window a, Window b) {
+        int reach = Math.max(a.radius, 1);
+        return Math.abs(a.centerX - b.centerX) < reach && Math.abs(a.centerZ - b.centerZ) < reach;
     }
 
     // ---------------------------------------------------------------- 遠景
@@ -789,6 +887,15 @@ public final class VoxelClouds implements CloudRenderer {
     }
 
     private static void uploadFar(Window w) {
+        endFarSwap();
+        if (farShown != null && farShown.quads > 0 && farVbo != null && farShown.outer == w.outer
+                && Math.abs(farShown.holeX - w.holeX) < FAR_RANGE && Math.abs(farShown.holeZ - w.holeZ) < FAR_RANGE) {
+            prevFarVbo = farVbo;
+            prevFarShown = farShown;
+            farVbo = spareFarVbo;
+            spareFarVbo = null;
+            farSwapStart = nowTicks;
+        }
         try {
             if (w.mesh != null) {
                 if (farVbo == null) {
@@ -939,6 +1046,15 @@ public final class VoxelClouds implements CloudRenderer {
     // ---------------------------------------------------------------- 近くの窓
 
     private static void upload(Window w) {
+        // 今の形が見えていれば、古い形として残して溶け合わせる(11-12)。
+        endSwap();
+        if (shown != null && shown.quads > 0 && vbo != null && overlaps(shown, w)) {
+            prevVbo = vbo;
+            prevShown = shown;
+            vbo = spareVbo;
+            spareVbo = null;
+            swapStart = nowTicks;
+        }
         try {
             if (w.mesh != null) {
                 if (vbo == null) {
@@ -1026,7 +1142,8 @@ public final class VoxelClouds implements CloudRenderer {
                     CloudField.Column c = CloudField.column(w.originX + i, w.originZ + j, threshold, coverage, floorStorms, style);
                     if (c.present() && !floorStorms.isEmpty()
                             && CloudField.baseCovers(floorStorms, (w.originX + i + 0.5) * CloudField.CELL_XZ, (w.originZ + j + 0.5) * CloudField.CELL_XZ)) {
-                        c = new CloudField.Column(1, 0, 0.0F);
+                        // 11-12: 空けずに薄い床だけ残す(谷の並び方の floorGrid と同じ理由)。
+                        c = new CloudField.Column(CloudField.LOW_BASE, CloudField.LOW_BASE + CloudField.CELL_Y, 0.0F);
                     }
                     bottom[k] = c.present() ? c.bottom() - CloudField.LOW_BASE : 1;
                     top[k] = c.present() ? c.top() - CloudField.LOW_BASE : 0;
@@ -1092,6 +1209,10 @@ public final class VoxelClouds implements CloudRenderer {
                         bottom[k] = 1;
                         top[k] = 0;
                         if (!here.isEmpty() && CloudField.baseCovers(here, (gx + 0.5) * size, (gz + 0.5) * size)) {
+                            // 積乱雲の台の下は薄い床だけ残す(11-12、ユーザー報告「積乱雲の下だけ雲の底が白い」): 前は柱ごと空けていたが、
+                            // 柱(24 ブロック)と積乱雲の箱(16 ブロック)の升がずれ、埋まらない細い隙間から日の当たる床の内側の壁が下から見えた。
+                            bottom[k] = 0;
+                            top[k] = CloudField.CELL_Y;
                             continue;
                         }
                         CloudField.Column c = CloudField.column(gx * per + per / 2, gz * per + per / 2, threshold, coverage, here, style);
@@ -1336,8 +1457,11 @@ public final class VoxelClouds implements CloudRenderer {
                     float py1 = (iy + 1) * (float) v;
                     float pz1 = edge(z0 + iz + 1, v, w.originZ);
                     if (!down) {
+                        // 一番下の段の底は少し上げる(11-12): 台の下に残した薄い床の底(高さ 0)と同じ面に重なってちらつかないように。
+                        // 床のある所は床の底が、無い所はこの底が見える。雨の前触れでも一緒に下がる高さ(voxel_clouds.vsh)。
+                        float pyD = iy == 0 ? STORM_BASE_LIFT : py0;
                         quad(b, 0, 0.2F, tag, occ.edges(ix, iy, iz, 0, ix, iy, iz, ix + 1, iy, iz, ix + 1, iy, iz + 1, ix, iy, iz + 1),
-                                px0, py0, pz0, light, px1, py0, pz0, light, px1, py0, pz1, light, px0, py0, pz1, light);
+                                px0, pyD, pz0, light, px1, pyD, pz0, light, px1, pyD, pz1, light, px0, pyD, pz1, light);
                         quads++;
                     }
                     if (!up) {

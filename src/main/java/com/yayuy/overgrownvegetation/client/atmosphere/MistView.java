@@ -104,6 +104,11 @@ final class MistView {
     }
 
     /** 今の霧の印の 1 ブロックあたりの霞 k(印が無ければ 0。11-06 夜、巨大樹のシルエットが霞の中の霞み方に使う)。 */
+    /** 確かめ用(11-09 追記 9): 直近の地形の霧の内訳(cavedev camstate)。 */
+    static String devLast = "";
+    /** 確かめ用: devLast を書くか(cavedev camstate を一度呼ぶと立つ。ふだんは書かない)。 */
+    static boolean devRecord;
+
     static float markK() {
         float[] m = decodeMark(RenderSystem.getShaderFogStart());
         return m != null ? m[0] : 0.0F;
@@ -148,6 +153,9 @@ final class MistView {
      * {@code aerialStrength} × 夜は {@code aerialNight} 倍 × 雨・雷は {@code aerialRain} 倍。地下・地下モード・胞子の霞(過繁茂の森の中)の分だけ弱める
      * (過繁茂の中は既存の霞に譲る)。空の光の無い次元(ネザー・エンド)・盲目・暗闇・Iris のパック使用中は 0。
      */
+    /** 大雨で空気遠近の霞を何倍まで上乗せするか(11-12、仮決め)。 */
+    static final float HEAVY_RAIN_AERIAL = 0.9F;
+
     static float aerial(float forest, float cave) {
         var p = DesignData.atmosphere().fog();
         Minecraft mc = Minecraft.getInstance();
@@ -159,6 +167,8 @@ final class MistView {
         float night = SunLight.night(level, 1.0F);
         float rain = Math.max(level.getRainLevel(1.0F), level.getThunderLevel(1.0F));
         float a = p.aerialStrength() * Mth.lerp(night, 1.0F, p.aerialNight()) * Mth.lerp(rain, 1.0F, p.aerialRain());
+        // 11-12 雨の種類(ユーザー選択「大雨ほど遠くが灰色に霞む」): 大雨の度合いで霞を上乗せ(小雨・普通は雨の強さの掛け算だけ)。仮決め。
+        a *= 1.0F + HEAVY_RAIN_AERIAL * RainFeel.heavy();
         return Mth.clamp(a * (1.0F - ForestPresence.underground()) * (1.0F - cave) * (1.0F - forest), 0.0F, 1.0F);
     }
 
@@ -209,6 +219,16 @@ final class MistView {
         Holder<Biome> biome = lvl.getBiome(BlockPos.containing(cam.getPosition()));
         return waterFogEnd(biome) > 0.0F ? biome : null;
     }
+
+    /** 汚染されていない水の中か(盲目・暗闇でない。11-13 水まわり ⑤)。 */
+    static boolean clearWater(Camera cam) {
+        Minecraft mc = Minecraft.getInstance();
+        return cam.getFluidInCamera() == FogType.WATER && mc.level != null && murkyWater(cam) == null
+                && (mc.player == null || !mc.player.hasEffect(MobEffects.BLINDNESS) && !mc.player.hasEffect(MobEffects.DARKNESS));
+    }
+
+    /** バニラの水の見通しの上限(ブロック。11-13 ユーザー選択「バニラの水も少し霞む」= 澄んだまま少し底が霞む。バニラは潜るほど 96 まで澄む)。仮決め。 */
+    static final float CLEAR_WATER_FOG_END = 48.0F;
 
     /** カメラが過繁茂の海・川・森の池の水の中にいるか(水中の光の筋を強める。{@link UnderwaterShafts})。 */
     static boolean inMurkyWater(Camera cam) {
@@ -332,6 +352,17 @@ final class MistView {
         if (water == null) {
             waterSeen = false;
         }
+        if (water == null && clearWater(event.getCamera())) {
+            // 11-13(水まわり ⑤ ユーザー選択「深いほど暗く」): バニラの水も水面からの深さで霧の色を暗く(汚染の水と同じ式)。
+            float dark = depthFactor(Minecraft.getInstance().level, event.getCamera().getPosition());
+            if (CaveLights.mix() > 0.001F) {
+                dark *= caveWaterFactor(event.getCamera().getPosition()); // 地下の水は光の届く分だけ(下の地下モードと同じ)
+            }
+            event.setRed(event.getRed() * dark);
+            event.setGreen(event.getGreen() * dark);
+            event.setBlue(event.getBlue() * dark);
+            return;
+        }
         if (water != null) {
             // 水中の濁り: 設計値の色に固定する(バニラが潜っている時間で明るくする分を外す)。深い所の暗さ(空の色の暗さ)はバニラと同じ式。
             // バイオームが替わったときは時間で寄せる(followWater)。
@@ -428,6 +459,13 @@ final class MistView {
             event.setCanceled(true);
             return;
         }
+        if (VisualQuality.fog() && clearWater(event.getCamera()) && event.getFarPlaneDistance() > CLEAR_WATER_FOG_END) {
+            // バニラの水(11-13 水まわり ⑤): 潜っている時間で 96 まで澄みきらないよう、見通しを止める。
+            event.setFarPlaneDistance(CLEAR_WATER_FOG_END);
+            event.setNearPlaneDistance(Math.min(event.getNearPlaneDistance(), CLEAR_WATER_FOG_END * DesignData.atmosphere().fog().waterFogNearFraction()));
+            event.setCanceled(true);
+            return;
+        }
         if (event.getType() != FogType.NONE || !VisualQuality.fog()) {
             return;
         }
@@ -508,6 +546,9 @@ final class MistView {
         }
         if (!Float.isNaN(mark)) {
             near = mark;
+        }
+        if (devRecord && !cloudPass) {
+            devLast = String.format(" 霧の内訳 中 %.3f 嵐 %.3f 森 %.3f 洞 %.3f/%.3f 遠 %.3f 胞子 %.4f k %.5f 終わり %.1f 始まり %.1f", inside, storm, forest, cave, caveK, aerial, airK, k, far, near);
         }
         event.setFarPlaneDistance(far);
         event.setNearPlaneDistance(near);

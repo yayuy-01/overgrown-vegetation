@@ -197,7 +197,7 @@ public final class SporeFieldTable {
      * 仮決め: 判定の間隔 プレイヤー 20 tick・Mob 40 tick。
      */
     public static final class Exposure {
-        public Double minPercent, halfLifeSeconds, infectDose, maskCapacity, mobDamage, warnFaintFraction, warnStrongFraction;
+        public Double minPercent, halfLifeSeconds, infectDose, maskCapacity, mobDamage, mobMaxHealthLossPerHit, warnFaintFraction, warnStrongFraction;
         public Integer playerIntervalTicks, mobIntervalTicks;
     }
 
@@ -238,7 +238,7 @@ public final class SporeFieldTable {
     private final int gtMaxTrees;
     private final double riftTreeMultiple, riftLift, riftFrontSpeed, riftFrontFull, riftFrontFalloff, riftFrontMin, riftFloor, riftFloorRadius, riftFrontRadius;
 
-    private final double exposureMinPercent, exposureHalfLifeSeconds, infectDose, maskCapacity, mobExposureDamage, warnFaint, warnStrong;
+    private final double exposureMinPercent, exposureHalfLifeSeconds, infectDose, maskCapacity, mobExposureDamage, mobMaxHealthLoss, warnFaint, warnStrong;
     private final int exposurePlayerInterval, exposureMobInterval;
 
     private SporeFieldTable(Json j) {
@@ -249,6 +249,7 @@ public final class SporeFieldTable {
         this.infectDose = Math.max(1.0D, orElse(ex.infectDose, 1500.0D));
         this.maskCapacity = Math.max(0.0D, orElse(ex.maskCapacity, 18000.0D));
         this.mobExposureDamage = Math.max(0.0D, orElse(ex.mobDamage, 20.0D));
+        this.mobMaxHealthLoss = Math.max(0.0D, orElse(ex.mobMaxHealthLossPerHit, 20.0D));
         this.warnFaint = Math.max(0.0D, Math.min(1.0D, orElse(ex.warnFaintFraction, 0.5D)));
         this.warnStrong = Math.max(this.warnFaint, Math.min(1.0D, orElse(ex.warnStrongFraction, 0.8D)));
         this.exposurePlayerInterval = ex.playerIntervalTicks != null ? Math.max(1, Math.min(200, ex.playerIntervalTicks)) : 20;
@@ -454,6 +455,11 @@ public final class SporeFieldTable {
     /** Mob の暴露量が満ちたときの防御無視のダメージ(11-04 ユーザー指定 20)。 */
     public double mobExposureDamage() {
         return mobExposureDamage;
+    }
+
+    /** Mob が胞子の 20 ダメージを 1 回受けるたびに下がる最大体力(11-09 ユーザー決定 20。元に戻らない)。 */
+    public double mobMaxHealthLossPerHit() {
+        return mobMaxHealthLoss;
     }
 
     /** にじみが出始める暴露量の割合(0.5、仮決め)。 */

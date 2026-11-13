@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
+    "overgrown_vegetation:tube_tree_stem",
     "overgrown_vegetation:overgrown_netherrack",
     "overgrown_vegetation:overgrown_end_stone",
     "overgrown_vegetation:overgrown_stone",
@@ -28,16 +29,9 @@
     "overgrown_vegetation:overgrown_lapis_ore",
     "overgrown_vegetation:overgrown_redstone_ore",
     "overgrown_vegetation:overgrown_block_slab",
-    "overgrown_vegetation:heat_cooled_crust",
-    "overgrown_vegetation:heat_mat",
-    "overgrown_vegetation:heat_mat_strands",
-    "overgrown_vegetation:heat_ceiling_glow_moss",
-    "overgrown_vegetation:heat_quartz_ore",
-    "overgrown_vegetation:heat_gold_ore",
-    "overgrown_vegetation:heat_ancient_debris",
-    "overgrown_vegetation:heat_tube",
-    "overgrown_vegetation:heat_tube_stem",
-    "overgrown_vegetation:heat_chimney",
-    "overgrown_vegetation:heat_chimney_base"
+    "overgrown_vegetation:cooled_crust",
+    "overgrown_vegetation:heat_crystal_crust",
+    "overgrown_vegetation:overgrown_nylium",
+    "overgrown_vegetation:nether_overgrown_block"
   ]
 }

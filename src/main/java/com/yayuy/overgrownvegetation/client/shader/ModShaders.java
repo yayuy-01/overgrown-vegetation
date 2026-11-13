@@ -33,6 +33,13 @@ public final class ModShaders {
         return ambientSpores;
     }
 
+    /** 水中の浮遊物の束({@code client/atmosphere/WaterMotes}、2026-11-13)。読み込めなかったら null(バニラの水中の粒のまま)。 */
+    private static ShaderInstance waterMotes;
+
+    public static ShaderInstance waterMotes() {
+        return waterMotes;
+    }
+
     /** 霧の細部のレイマーチと重ね({@code client/atmosphere/MistMarch}、2026-10-30 夜)。読み込めなかったら null(細部は描かない)。 */
     private static ShaderInstance mistMarch;
     private static ShaderInstance mistComposite;
@@ -130,6 +137,15 @@ public final class ModShaders {
         } catch (IOException e) {
             OvergrownVegetation.LOGGER.error("環境の胞子のシェーダーを読み込めなかったので、環境の胞子は描かない", e);
             ambientSpores = null;
+        }
+        try {
+            event.registerShader(new OwnShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "water_motes"),
+                            DefaultVertexFormat.POSITION),
+                    shader -> waterMotes = shader);
+        } catch (IOException e) {
+            OvergrownVegetation.LOGGER.error("水中の浮遊物のシェーダーを読み込めなかったので、バニラの水中の粒のままにする", e);
+            waterMotes = null;
         }
         try {
             event.registerShader(new OwnShaderInstance(event.getResourceProvider(),

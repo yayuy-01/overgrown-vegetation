@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "axis=x": { "model": "overgrown_vegetation:block/nether_root", "x": 90, "y": 90 },
+    "axis=y": { "model": "overgrown_vegetation:block/nether_root" },
+    "axis=z": { "model": "overgrown_vegetation:block/nether_root", "x": 90 }
+  }
+}

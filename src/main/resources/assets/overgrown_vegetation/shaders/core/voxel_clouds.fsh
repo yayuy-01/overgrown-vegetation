@@ -69,6 +69,11 @@ uniform vec4 HorizonColor;
 // (white by day; peach light and lavender shade at dusk by default). World.z = flatness of the cloud floor (0..1).
 uniform vec4 LitTint;
 uniform vec4 ShadeTint;
+// Dissolve = (progress 0..1, mode, -, -). 11-12 (user report: clouds and their shadows jumped every few seconds): a rebuilt cloud mesh no
+// longer replaces the old one in a single frame. For a moment both are drawn: the new mesh (mode 1) keeps the points whose noise is
+// below the progress, the old one (mode -1) the rest. The noise sits in field coordinates, so the change spreads over the clouds like
+// billowing, and where both meshes have the same face exactly one of them draws each point (no flicker). Mode 0 = off.
+uniform vec4 Dissolve;
 
 in vec3 ovPos;
 in vec4 ovInfo;
@@ -178,6 +183,14 @@ void main() {
     if (Split.y > 0.5 ? dist < Split.x - 24.0 : (Split.y < -0.5 && dist >= Split.x)) {
         discard;
     }
+    if (Dissolve.y != 0.0) {
+        vec2 fq = ovPos.xz + Field.xy + vec2(0.37, -0.61) * (ovPos.y + World.x);
+        float dn = 0.65 * ovNoise(fq / 14.0) + 0.35 * ovNoise(fq / 5.0 + 13.0);
+        bool isNew = dn < mix(-0.02, 1.02, Dissolve.x);
+        if (isNew != (Dissolve.y > 0.0)) {
+            discard;
+        }
+    }
     float d = length(ovPos.xz);
     // a: 0.5 low layer, 0.65 cloud sea (low-layer shading, giant fade), 0.8 giant storm, 1 storm.
     bool farRing = ovInfo.a < 0.42;
@@ -221,6 +234,10 @@ void main() {
     // Storm shadow on this point (client/CloudSelfShadow.java). Inside a shadow the edges stay nearly solid: a see-through edge there
     // showed the lit cloud or sky behind it, so the shadowed step edges looked bright.
     float worldY = ovPos.y + World.x;
+    // 11-12 (user report: under a storm the cloud base had white patches): seen from below the cloud layer, the undersides of a storm
+    // and its low sides take the tone of the cloud floor's underside, so the base reads as one grey ceiling. 1 = like the floor.
+    float below = 1.0 - smoothstep(280.0, 310.0, World.x);
+    float asLow = storm ? below * (n.y < -0.5 ? 1.0 : (n.y > 0.5 ? 0.0 : 1.0 - smoothstep(330.0, 430.0, worldY))) : 0.0;
     float shadowed = ovStormShadow(worldY, storm ? 40.0 : 6.0) * SunDir.w;
     // Holes (in field coordinates the torn edge stays put on the cloud while the camera moves).
     float torn = ovNoise((ovPos.xz + Field.xy) / 6.0 + vec2(worldY / 5.0, 0.0));
@@ -271,7 +288,8 @@ void main() {
             shade = mix(shade, 0.9, 0.6 * World.z);
         }
     }
-    float lit = max(dot(n, l), 0.0);
+    shade = mix(shade, n.y < -0.5 ? 0.62 : 0.66, asLow);
+    float lit = max(dot(n, l), 0.0) * (1.0 - asLow);
     // Storm clouds cast shadows on the cloud sea and on their own far side (client/CloudSelfShadow.java).
     float cast = shadowed * (storm ? 0.6 : 1.0);
     vec3 c = CloudColor.rgb * shade;
@@ -312,7 +330,7 @@ void main() {
     mid = mix(mid, hi, (storm ? 0.3 : 0.4) * Look2.z);
     vec3 low = mix(CloudColor.rgb * vec3(0.55, 0.59, 0.8), SkyColor.rgb * 0.72, 0.22);
     if (storm) {
-        low = mix(low, mid, 0.35);
+        low = mix(low, mid, 0.35 * (1.0 - asLow));
     }
     // Time-of-day tints (11-08, design values).
     hi *= LitTint.rgb;

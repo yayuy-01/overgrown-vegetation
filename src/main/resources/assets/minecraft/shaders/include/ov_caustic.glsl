@@ -26,6 +26,9 @@ uniform vec4 OvCausticMap;
 uniform vec4 OvCausticC;
 uniform vec4 OvCausticD;
 
+// Strength of the broad shimmer (11-13, provisional): brightness swings by about plus or minus half of this.
+const float OV_SHIMMER = 0.5;
+
 vec2 ovCausticHash2(vec2 p) {
     p = mod(p, 64.0);
     return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453);
@@ -107,10 +110,25 @@ vec3 ovCaustics(vec3 color, vec3 pos, vec3 n, vec2 light) {
     if (amount <= 0.002) {
         return color;
     }
+    // Pixel art (11-12, user: "too smooth for Minecraft; can it be dot art?"): the point is snapped to the 1/16-block texel grid of
+    // the face it lies on (pushed a hair into the face so a face on a block boundary snaps steadily), and the net comes out in three
+    // flat tones. The snapped depth makes the net shift in texel steps too.
+    vec3 inFace = pos - n * 0.002;
+    vec2 worldXZ = (floor((OvCaustic.xy + inFace.xz) * 16.0) + 0.5) / 16.0;
+    float baseRel = inFace.y - OvCausticMap.w;
+    float depthPx = surface - (OvCausticMap.w + (floor(baseRel * 16.0) + 0.5) / 16.0);
     // The net lies where the refracted sun ray through this point crossed the surface (it shifts with depth and sun angle).
-    vec2 world = OvCaustic.xy + pos.xz + OvCausticB.xy * depth;
+    vec2 world = worldXZ + OvCausticB.xy * depthPx;
     // The ripples only move the light around: the lines get much brighter and the cells between them a little darker
     // (the light gathered into a line is missing from its cell). Without the darker cells the net reads as faint speckles.
-    float c = ovCausticPattern(world, depth);
-    return color * (1.0 - amount * 0.3 + amount * 1.6 * c * OvCausticC.rgb);
+    float c = ovCausticPattern(world, depthPx);
+    c = c > 0.5 ? 1.0 : (c > 0.2 ? 0.45 : 0.0);
+    // The broad shimmer (11-13, water item 6; user pick "the whole underwater flickers with light"): the light and shade of the swell
+    // on the surface drift slowly over everything below, much larger than the net (several blocks), in four flat tones (pixel art).
+    float ts = OvCaustic.z;
+    vec2 sp = world * 0.16;
+    float sh = ovNoise(sp + vec2(ts * 0.21, ts * 0.13)) * 0.6 + ovNoise(sp * 2.3 + vec2(-ts * 0.17, ts * 0.25) + 31.0) * 0.4;
+    sh = floor(sh * 4.0) / 3.0 - 0.5;
+    float shimmer = sh * OV_SHIMMER * amount / max(OvCaustic.w, 0.001);
+    return color * (1.0 - amount * 0.3 + amount * 1.6 * c * OvCausticC.rgb) * (1.0 + shimmer);
 }

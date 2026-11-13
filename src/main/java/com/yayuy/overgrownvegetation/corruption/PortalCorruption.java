@@ -385,6 +385,11 @@ public final class PortalCorruption {
         BlockPos owAnchor = toKey == Level.NETHER ? fromAnchor.pos() : toAnchor.pos();
         BlockPos netherAnchor = toKey == Level.NETHER ? toAnchor.pos() : fromAnchor.pos();
         data.addPair(owAnchor, netherAnchor);
+        // 2026-11-11 ネザーの骨組み: ネザー側の出口のチャンクから根の台帳を始める(最初の根はいちばん近い溶岩の海へ)
+        ServerLevel netherLevel = server.getLevel(Level.NETHER);
+        if (netherLevel != null) {
+            NetherLedger.seedFromPortal(netherLevel, netherAnchor);
+        }
         OvergrownVegetation.LOGGER.info("ポータルを越えた侵食: {} ↔ {} をつないだ(出口を{})",
                 fromAnchor, toAnchor, created ? "作った" : "見つけた");
         return new Result(fromAnchor, toAnchor, created, 0);

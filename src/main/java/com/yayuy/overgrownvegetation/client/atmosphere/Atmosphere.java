@@ -80,6 +80,10 @@ public final class Atmosphere {
         GnatSwarms.clear();
         GlowAlgae.clear();
         WaterCaustics.clear();
+        WaterDepth.clear(); // 浅瀬と深みの色・岸の泡(11-12 水まわり ②)
+        UnderwaterCritters.clear(); // 水中のにぎわい(11-13 水まわり ⑥)
+        WaterMotes.clear(); // 水中の浮遊物(11-13 水まわり ⑥ の続き)
+        FilmWakes.clear(); // 水面の膜をかき分けた筋(11-13)
         UnderwaterShafts.clear();
         HollowDwellers.clear();
         CanopyGnats.clear(); // 巨大樹の生き物と音(11-06 改善案 ⑤)
@@ -161,7 +165,14 @@ public final class Atmosphere {
         guard("giantcreak", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.GiantTreeCreakSound.tick(mc, now, player, time(0.0F)));
         guard("algae", () -> GlowAlgae.tick(now, player));
         guard("caustics", () -> WaterCaustics.tick(now, ticks));
+        guard("waterdepth", () -> WaterDepth.tick(now, ticks)); // 浅瀬と深みの色・岸の泡(11-12 水まわり ②)
         guard("uwshafts", () -> UnderwaterShafts.tick(now));
+        guard("current", () -> WaterCurrent.tick(now)); // 水の中の共通の流れ(11-13 水まわり ⑥ の直し)
+        guard("watermotes", () -> WaterMotes.tick(now)); // 水中の浮遊物(11-13。バニラの水中の粒の置き換え)
+        guard("floatleaves", () -> FloatingLeaves.tick(now)); // 水面に浮く落ち葉(11-13 密林の水辺 ②。流木は同日に消した)
+        guard("filmwakes", () -> FilmWakes.tick(now)); // 水面の膜をかき分けた筋(11-13)
+        guard("uwmotes", () -> UnderwaterMotes.tick(now)); // 水中を漂う粒を足す(11-13 水まわり ⑤)
+        guard("uwcritters", () -> UnderwaterCritters.tick(now)); // 沈む葉・水生の虫・泥煙(11-13 水まわり ⑥)
         guard("cave", () -> CaveLights.tick(now, mc.gameRenderer.getMainCamera().getPosition(), ticks));
         guard("eyeadapt", () -> EyeAdaptation.tick(now, mc.gameRenderer.getMainCamera().getPosition()));
         guard("sporepools", () -> SporePools.tick(now, player, ticks)); // 洞窟の胞子の溜まり(地下の植生 2・U6)
@@ -173,7 +184,7 @@ public final class Atmosphere {
             OvergrownVegetation.LOGGER.info("Atmosphere 見え方 {} / {} / {} / {} / {}", SteamWisps.describe(), WaterSigns.describe(), GnatSwarms.describe(), GlowAlgae.describe(), TrunkRivulets.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere 巨大樹の生き物 {} / {}", CanopyGnats.describe(), TrunkLizards.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere 洞窟の小ネタ {} / {}", CaveGlowworms.describe(), CaveCrickets.describe());
-            OvergrownVegetation.LOGGER.info("Atmosphere 水中の光 {} / {}", WaterCaustics.describe(), UnderwaterShafts.describe());
+            OvergrownVegetation.LOGGER.info("Atmosphere 水中の光 {} / {} / {} / {} / {}", WaterCaustics.describe(), UnderwaterShafts.describe(), UnderwaterCritters.describe(), WaterMotes.describe(), FloatingLeaves.describe() + " " + FilmWakes.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere {}", CaveLights.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere G4・G5 {} / {} / {}", SporeGale.describe(), GlowNight.describe(now), CloudShadows.describe());
             BlockPos feet = player.blockPosition();
@@ -196,6 +207,8 @@ public final class Atmosphere {
             guard("tones", () -> LeafTones.upload(on));
             guard("wet", () -> WetSheen.upload(on));
             guard("glint", () -> WaterGlint.upload(on));
+            guard("waterdepth", () -> WaterDepth.upload(on));
+            guard("filmwakes", () -> FilmWakes.upload(on)); // 水面の膜をかき分けた筋(11-13)
             guard("rainlook", () -> RainLook.upload(on));
             guard("march", () -> MistMarch.prepare(on && event.getCamera().getFluidInCamera() == FogType.NONE));
             guard("mist", () -> MistFog.upload(event, on));
@@ -245,6 +258,8 @@ public final class Atmosphere {
         if (camera.getFluidInCamera() == FogType.WATER) {
             if (!blinded(mc, camera)) {
                 guard("uwshafts", () -> UnderwaterShafts.render(event));
+                guard("watermotes", () -> WaterMotes.render(event)); // 水中の浮遊物(11-13)
+                // 沈む葉・水生の虫の群れ(11-13 水まわり ⑥)は絵の付いた粒(UnderwaterLifeParticles)なので、ここでは描かない。
             }
             return;
         }

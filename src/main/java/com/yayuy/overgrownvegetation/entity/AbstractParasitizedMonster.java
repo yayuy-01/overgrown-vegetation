@@ -1,0 +1,330 @@
+package com.yayuy.overgrownvegetation.entity;
+
+import com.yayuy.overgrownvegetation.corpse.G1Species;
+import com.yayuy.overgrownvegetation.corpse.RisingMob;
+import com.yayuy.overgrownvegetation.corpse.RisingSupport;
+import com.yayuy.overgrownvegetation.entity.g1.G1HurtByTargetGoal;
+import com.yayuy.overgrownvegetation.entity.g1.G1NightWanderGoal;
+import com.yayuy.overgrownvegetation.entity.g1.G1StrikeGoal;
+import com.yayuy.overgrownvegetation.entity.g1.G1TargetGoal;
+import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.ai.goal.FloatGoal;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
+import net.minecraft.world.entity.ai.goal.RandomStrollGoal;
+import net.minecraft.world.entity.ai.util.LandRandomPos;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
+import software.bernie.geckolib.animatable.GeoEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.util.GeckoLibUtil;
+
+import javax.annotation.Nullable;
+
+/**
+ * G1 段階 0 の感染体の共通部分(2026-11-08、作り直し 2 回目の組み込み。仕様の正本は Vault「Mob の能力/G1 段階 0 の共通」)。
+ *
+ * <p>11 種とも {@link Monster} から作る(バニラの牛・クモ・クリーパーなどを継がない)。段階 0 は「歩いて殴る・噛むだけ」で、
+ * 元の Mob の能力(爆発・弓・壁登り・テレポート・卵・毛刈り…)は使わない(10-22 決定、11-05 ユーザー再確認)。バニラを継ぐと
+ * その能力を種ごとに外す手間が増えるので、外す物の無い Monster から作る。Monster は {@code Enemy} なので、鉄のゴーレム・
+ * スノーゴーレムは元の Mob が何であっても G1 を狙う(11-05「G1〜G10 はすべての Mob から平等に敵対される」の一部)。
+ * 日の光で燃えない(Monster は燃えない)。
+ *
+ * <ul>
+ *   <li>死体から起き上がる({@link RisingMob})。起き上がりの間は AI を止める(長さは種の表 {@link G1Species#riseTicks})。</li>
+ *   <li>攻撃は G1 専用の 3 段の 1 撃 {@link G1StrikeGoal}(前触れ 12・実行 3・隙 14 tick。11-08 ユーザー決定)。段階は同期データ
+ *   {@link #ACTION} でクライアントへ送り、アニメ {@code attack_windup}・{@code attack}・{@code attack_recover} を流す。</li>
+ *   <li>どの生き物も襲う {@link G1TargetGoal}。夜は明かり・生き物の多い方へ歩く {@link G1NightWanderGoal}。</li>
+ *   <li>歩きのアニメは実際の速さに合わせる({@link PhaseKeepingAnimationController} + {@link MobAnimation#walkSpeedFor}、11-05 ユーザー)。</li>
+ *   <li>遠くへ離れても消えない(死体から起きた家畜の G1 が 128 ブロックで消えないように)。</li>
+ * </ul>
+ */
+public abstract class AbstractParasitizedMonster extends Monster implements ParasitizedMob, GeoEntity, RisingMob {
+
+    protected static final RawAnimation IDLE_ANIM = RawAnimation.begin().thenLoop("idle");
+    protected static final RawAnimation WALK_ANIM = RawAnimation.begin().thenLoop("walk");
+    protected static final RawAnimation WINDUP_ANIM = RawAnimation.begin().thenPlayAndHold("attack_windup");
+    protected static final RawAnimation STRIKE_ANIM = RawAnimation.begin().thenPlayAndHold("attack");
+    protected static final RawAnimation RECOVER_ANIM = RawAnimation.begin().thenPlay("attack_recover");
+
+    /** 行動の段階(同期)。 */
+    public static final int ACTION_NONE = 0;
+    public static final int ACTION_WINDUP = 1;
+    public static final int ACTION_STRIKE = 2;
+    public static final int ACTION_RECOVER = 3;
+
+    private static final EntityDataAccessor<Integer> RISING =
+            SynchedEntityData.defineId(AbstractParasitizedMonster.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> ACTION =
+            SynchedEntityData.defineId(AbstractParasitizedMonster.class, EntityDataSerializers.INT);
+
+    private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
+
+    protected AbstractParasitizedMonster(EntityType<? extends AbstractParasitizedMonster> type, Level level) {
+        super(type, level);
+    }
+
+    /** この G1 の種(表の 1 行)。 */
+    public abstract G1Species species();
+
+    /** 3 段の 1 撃を持つか(既定は種の表。1 段目は種ごとの表)。 */
+    public boolean attacks() {
+        return species().attacks();
+    }
+
+    /** 歩きのアニメの足が滑らない速さ(ブロック/tick)。 */
+    public double walkRef() {
+        return species().walkRef();
+    }
+
+    /** 3 段の 1 撃の隙(tick、アニメ {@code attack_recover} の長さ)。段階 0 は全種 14。 */
+    public int recoverTicks() {
+        return G1StrikeGoal.RECOVER;
+    }
+
+    // ------------------------------------------------------------------ 1 段目の技の口(2026-11-12、能力の第 1 回)
+    /** よろけ・転んでいる残り(サーバーだけ。保存しない)。 */
+    private int stunTicks;
+
+    /**
+     * 3 段の 1 撃を振り出せない・追えない間か({@link G1StrikeGoal} が見る)。既定は、よろけている間と、ほかの Mob に乗っている間
+     * (豚の背のチビゾンビが背から殴らないように)。1 段目は取り付き・種の技の間も足す。
+     */
+    public boolean busy() {
+        return stunTicks > 0 || isPassenger();
+    }
+
+    /** よろける・転ぶ(その間は動かず殴らない)。豚から落ちたチビゾンビの 1 秒など。 */
+    public void stun(int ticks) {
+        stunTicks = Math.max(stunTicks, ticks);
+        getNavigation().stop();
+    }
+
+    public boolean isStunned() {
+        return stunTicks > 0;
+    }
+
+    /** 3 段の 1 撃が当たった(盾で防がれたら呼ばれない)。1 段目のチビゾンビはここで取り付く。 */
+    public void onStrikeHit(net.minecraft.world.entity.LivingEntity target) {
+    }
+
+    /** 3 段の 1 撃が隙まで終わった(1 段目は次の技までの間を数え始める)。{@code gap} = 次の 1 撃までの間(tick)。 */
+    public void onStrikeEnd(int gap) {
+    }
+
+    /**
+     * 3 段の 1 撃を振り出してよい距離か(2026-11-13、1 段目の (a))。既定は間合いの中(バニラの {@code isWithinMeleeAttackRange})。
+     * 1 段目の牛・羊は踏み込みのぶん遠くから振り出す。
+     */
+    public boolean strikeInRange(net.minecraft.world.entity.LivingEntity target) {
+        return isWithinMeleeAttackRange(target);
+    }
+
+    /**
+     * 3 段の 1 撃の実行の段の毎 tick(当たりの判定の前に呼ばれる。2026-11-13、1 段目の (a))。既定は何もしない。
+     * 1 段目の牛・羊はここでまっすぐ前へ踏み込む。
+     *
+     * @param tick   実行の段の中の tick(1〜{@link G1StrikeGoal#STRIKE})
+     * @param yaw    止めた向き(度)
+     * @param target 標的(消えていれば null)
+     */
+    public void onStrikeTick(int tick, float yaw, @javax.annotation.Nullable net.minecraft.world.entity.LivingEntity target) {
+    }
+
+    /**
+     * 次の 1 撃までの間、届く所({@link #strikeInRange})では寄らずに待つか(2026-11-13、1 段目の (a))。既定は寄り続ける(段階 0)。
+     * 1 段目の牛・羊(踏み込み)と鶏(伸びる首)は、寄ってしまうと踏み込み・長い間合いが見えなくなるので待つ。
+     */
+    public boolean strikeHoldsDistance() {
+        return false;
+    }
+
+    /** 次の 1 撃を振り出してよいか(1 段目は種の技の直後に間を空ける)。 */
+    public boolean strikeReady() {
+        return true;
+    }
+
+    /** 行動の段に入るときの補間(tick)。段階 0 は前触れ 2・段の間 0・種の行動(クリーパーの puff)4。 */
+    protected int actionTransition(int action) {
+        return action == ACTION_WINDUP ? 2 : action > ACTION_RECOVER ? 4 : 0;
+    }
+
+    @Override
+    protected void registerGoals() {
+        this.goalSelector.addGoal(0, new FloatGoal(this));
+        if (attacks()) {
+            this.goalSelector.addGoal(2, new G1StrikeGoal(this));
+        }
+        this.goalSelector.addGoal(5, new G1NightWanderGoal(this));
+        // うろつき: 4 つ目の引数 false = 創造・観戦のプレイヤーのそばでも止まらない(記憶 vanilla-stroll-stops-near-creative)。水は避ける。
+        this.goalSelector.addGoal(7, new RandomStrollGoal(this, 0.8D, 120, false) {
+            @Nullable
+            @Override
+            protected Vec3 getPosition() {
+                return LandRandomPos.getPos(this.mob, 10, 7);
+            }
+        });
+        this.goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0F));
+        this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
+        if (attacks()) {
+            this.targetSelector.addGoal(1, new G1HurtByTargetGoal(this));
+            this.targetSelector.addGoal(2, new G1TargetGoal(this));
+        }
+    }
+
+    // ------------------------------------------------------------------ 同期データ
+    @Override
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(RISING, 0);
+        builder.define(ACTION, ACTION_NONE);
+    }
+
+    /** 間合いの箱(バニラの {@code getAttackBoundingBox}。エンダーマンは長い腕で広げる)。{@link G1StrikeGoal} の当たりの判定が使う。 */
+    public net.minecraft.world.phys.AABB getAttackBoundingBoxForG1() {
+        return getAttackBoundingBox();
+    }
+
+    public int action() {
+        return this.entityData.get(ACTION);
+    }
+
+    public void setAction(int action) {
+        this.entityData.set(ACTION, action);
+    }
+
+    // ------------------------------------------------------------------ 起き上がり
+    /** 死体から起き上がるとき、死体の記録を引き継ぐ(羊の毛の色)。既定は何もしない。 */
+    public void inheritCorpse(com.yayuy.overgrownvegetation.block.CorruptedCorpseBlockEntity corpse) {
+    }
+
+    @Override
+    public void startRising(int ticks) {
+        this.entityData.set(RISING, ticks);
+    }
+
+    @Override
+    public boolean isRising() {
+        return this.entityData.get(RISING) > 0;
+    }
+
+    /** 起き上がりの間は AI を止める(Mob#isEffectiveAi が見る)。 */
+    @Override
+    public boolean isNoAi() {
+        return super.isNoAi() || isRising();
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        RisingSupport.tick(this, RISING);
+        if (stunTicks > 0 && !level().isClientSide()) {
+            stunTicks--;
+            getNavigation().stop();
+        }
+    }
+
+    /** 死体から起きた家畜・村人の G1 も、遠くへ離れて消えないように(自然湧きが無いので、消えると戻らない)。 */
+    @Override
+    public boolean removeWhenFarAway(double distanceToClosestPlayer) {
+        return false;
+    }
+
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putInt("Rising", RisingSupport.remaining(this, RISING));
+    }
+
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        this.entityData.set(RISING, tag.getInt("Rising"));
+    }
+
+    // ------------------------------------------------------------------ アニメ
+    /**
+     * 1 本のコントローラで: 起き上がり(補間 0)> 攻撃の 3 段(段の間は補間 0。3 tick の実行が補間に食われないように)> 歩き / 待機。
+     * 歩きの再生速度は実際に進んだ量 ÷ 基準の速さ(位相が巻き戻らないコントローラ)。
+     */
+    @Override
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        controllers.add(new PhaseKeepingAnimationController<>(this, "move", 5, state -> {
+            AnimationController<AbstractParasitizedMonster> ctl = state.getController();
+            ctl.setAnimationSpeed(1.0D);
+            RawAnimation death = isDeadOrDying() ? deathAnimation() : null;
+            if (death != null) {
+                ctl.transitionLength(2);
+                return state.setAndContinue(death); // 1 段目の死に際の破裂(段階 0 は null = バニラの倒れ方)
+            }
+            if (isRising()) {
+                ctl.transitionLength(0);
+                return state.setAndContinue(RisingSupport.RISE_ANIM);
+            }
+            RawAnimation act = actionAnimation(action());
+            if (act != null) {
+                ctl.transitionLength(actionTransition(action())); // 種の行動(クリーパーの puff)は 4、1 段目の技は段ごと(G1Move)
+                return state.setAndContinue(act);
+            }
+            RawAnimation ride = getVehicle() instanceof AbstractParasitizedMonster ? ridingAnimation() : null;
+            if (ride != null) {
+                ctl.transitionLength(4);
+                return state.setAndContinue(ride); // 豚の背に乗っている間(チビゾンビ。2026-11-13)
+            }
+            ctl.transitionLength(5);
+            if (isWalkingNow()) {
+                ctl.setAnimationSpeed(MobAnimation.walkSpeedFor(this, walkRef()));
+                return state.setAndContinue(WALK_ANIM);
+            }
+            return state.setAndContinue(IDLE_ANIM);
+        }));
+    }
+
+    /** G1 の背(1 段目の豚)に乗っている間のアニメ(繰り返し)。無い種は null = 歩き・待機のまま。チビゾンビの段階 0 と 1 段目だけが持つ。 */
+    @Nullable
+    protected RawAnimation ridingAnimation() {
+        return null;
+    }
+
+    /** 死に際のアニメ(1 段目の death_burst)。段階 0 は null。 */
+    @Nullable
+    protected RawAnimation deathAnimation() {
+        return null;
+    }
+
+    /** 行動の段階のアニメ(無ければ null = 歩き・待機)。種ごとに足す(クリーパーの puff)。 */
+    @Nullable
+    protected RawAnimation actionAnimation(int action) {
+        return switch (action) {
+            case ACTION_WINDUP -> WINDUP_ANIM;
+            case ACTION_STRIKE -> STRIKE_ANIM;
+            case ACTION_RECOVER -> RECOVER_ANIM;
+            default -> null;
+        };
+    }
+
+    /**
+     * この tick に地面を進んだか(位置の差。{@code limbSwingAmount} は被弾で 1.5 に跳ねて止まっていても歩きが流れるので使わない。
+     * 記憶 geckolib-animation-speed-rewinds-phase)。
+     */
+    public boolean isWalkingNow() {
+        double dx = getX() - xo;
+        double dz = getZ() - zo;
+        return dx * dx + dz * dz > 0.015D * 0.015D;
+    }
+
+    @Override
+    public AnimatableInstanceCache getAnimatableInstanceCache() {
+        return this.geoCache;
+    }
+}

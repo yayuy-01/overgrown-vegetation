@@ -1,5 +1,29 @@
 {
   "replace": false,
   "values": [
+    "overgrown_vegetation:parasitized_zombie",
+    "overgrown_vegetation:parasitized_baby_zombie",
+    "overgrown_vegetation:parasitized_villager",
+    "overgrown_vegetation:parasitized_cow",
+    "overgrown_vegetation:parasitized_pig",
+    "overgrown_vegetation:parasitized_sheep",
+    "overgrown_vegetation:parasitized_chicken",
+    "overgrown_vegetation:parasitized_creeper",
+    "overgrown_vegetation:parasitized_skeleton",
+    "overgrown_vegetation:parasitized_spider",
+    "overgrown_vegetation:parasitized_enderman",
+    "overgrown_vegetation:parasitized_iron_golem",
+    "overgrown_vegetation:parasitized_warden",
+    "overgrown_vegetation:developed_parasitized_zombie",
+    "overgrown_vegetation:developed_parasitized_baby_zombie",
+    "overgrown_vegetation:developed_parasitized_villager",
+    "overgrown_vegetation:developed_parasitized_cow",
+    "overgrown_vegetation:developed_parasitized_pig",
+    "overgrown_vegetation:developed_parasitized_sheep",
+    "overgrown_vegetation:developed_parasitized_chicken",
+    "overgrown_vegetation:developed_parasitized_creeper",
+    "overgrown_vegetation:developed_parasitized_skeleton",
+    "overgrown_vegetation:developed_parasitized_spider",
+    "overgrown_vegetation:developed_parasitized_enderman"
   ]
 }

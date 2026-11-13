@@ -30,6 +30,9 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
  */
 public final class LeafSway {
 
+    /** 水草が流れへ傾く大きさ(ブロック。重み 1・流れが最も強いとき。11-13 仮決め)。 */
+    static final float CURRENT_LEAN = 0.2F;
+
     private static final double TWO_PI = Math.PI * 2.0;
     private static final float[] GUSTS = new float[GustField.MAX_GUSTS * 8];
     private static final double[] PUSH = new double[2];
@@ -95,6 +98,10 @@ public final class LeafSway {
         double wa = wrap(TWO_PI * p.kelpHz() * seconds + cam.x * 0.31 + cam.z * 0.23 + cam.y * 0.17);
         double wb = wrap(TWO_PI * p.kelpHz() * 0.73 * seconds + cam.x * 0.19 - cam.z * 0.29 + cam.y * 0.11);
         shader.safeGetUniform("OvSwayW").set((float) Math.sin(wa), (float) Math.cos(wa), (float) Math.sin(wb), (float) Math.cos(wb));
+        // 水の中の共通の流れ(11-13 水まわり ⑥ の直し): 水草が流れの向きへ傾く。向き × 強さ(0〜1)と、満の重みでの傾き(ブロック)。
+        double cLen = Math.sqrt(WaterCurrent.x() * WaterCurrent.x() + WaterCurrent.z() * WaterCurrent.z());
+        float cK = on && cLen > 1.0E-6 ? WaterCurrent.strength01() : 0.0F;
+        shader.safeGetUniform("OvCurrent").set(cK > 0.0F ? (float) (WaterCurrent.x() / cLen) * cK : 0.0F, cK > 0.0F ? (float) (WaterCurrent.z() / cLen) * cK : 0.0F, CURRENT_LEAN, 0.0F);
         if (amount <= 0.0F) {
             shader.safeGetUniform("OvBase").set(0.0F, 1.0F, 0.0F, 0.0F);
             return;

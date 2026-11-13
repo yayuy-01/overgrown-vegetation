@@ -77,17 +77,30 @@ public final class SporeFieldServer {
 
     // ---------------------------------------------------------------- ほかの所からの入力
 
-    /** 点の放出(汚染の球・G1/G4 の死・寄生クリーパーなど)。量は過繁茂 1 チャンクの 1 日の放出が 1。オーバーワールドだけ。 */
+    /**
+     * 点の放出(汚染の球・G1/G4 の死・寄生クリーパーなど)。量は過繁茂 1 チャンクの 1 日の放出が 1。
+     * オーバーワールドとネザー(2026-11-12 ユーザー決定: 同じ生き物がネザーにも来るので、ネザーの場へ回す。量の単位は同じ)。ほかの次元は捨てる。
+     */
     public static void emitPoint(ServerLevel level, BlockPos pos, double amount) {
-        if (amount <= 0 || level.dimension() != Level.OVERWORLD) return;
+        if (amount <= 0) return;
         int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
+        if (level.dimension() == Level.NETHER) {
+            NetherSporeFieldServer.emitPoint(cx, cz, amount);
+            return;
+        }
+        if (level.dimension() != Level.OVERWORLD) return;
         INPUTS.add(f -> f.emitPoint(cx, cz, amount));
     }
 
-    /** 点の降り積もり(歩く胞子嚢の破裂など。G1 の作り直し 第 1 段)。量は場の降り積もりの単位。オーバーワールドだけ。 */
+    /** 点の降り積もり(歩く胞子嚢の破裂など。G1 の作り直し 第 1 段)。量は場の降り積もりの単位。オーバーワールドとネザー(2026-11-12)。 */
     public static void depositPoint(ServerLevel level, BlockPos pos, double amount) {
-        if (amount <= 0 || level.dimension() != Level.OVERWORLD) return;
+        if (amount <= 0) return;
         int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
+        if (level.dimension() == Level.NETHER) {
+            NetherSporeFieldServer.depositPoint(cx, cz, amount);
+            return;
+        }
+        if (level.dimension() != Level.OVERWORLD) return;
         INPUTS.add(f -> f.depositPoint(cx, cz, amount));
     }
 
@@ -379,7 +392,7 @@ public final class SporeFieldServer {
 
     /** サーバースレッドで作る入力の写し。 */
     private record Inputs(long fromClock, int steps, int stepTicks, long dayTimeNow, long clockNow, long seed,
-                          PrevailingWind.Weather weather, long lastRainEnd,
+                          PrevailingWind.Weather weather, long lastRainEnd, float rainIntensity, float afterIntensity,
                           long[] canopyChunks, double[] canopyRate, long[] eruptions, long[] breathers,
                           long[] watchTiles, SporeFieldTable table, long[] trees) {
     }
@@ -399,6 +412,8 @@ public final class SporeFieldServer {
         double[] canopyRate = cr.toDoubleArray();
         return new Inputs(fieldClock, steps, table.updateTicks(), level.getDayTime(), clock, field.seed,
                 wx.weather(), wx.lastRainEnd(),
+                // 雨の強さ(11-12 雨の種類。世界で 1 つ・雷の無い雨の値)と、止んだ雨の強さ。
+                com.yayuy.overgrownvegetation.sky.RainIntensity.global(level, level.isRaining(), false, 0.0F), wx.lastRainIntensity(),
                 canopy, canopyRate, com.yayuy.overgrownvegetation.quake.EarthquakeData.get(level).eruptingChunks(level.getGameTime()),
                 breathingChunks(),
                 watchTiles(level), table, livingTreeChunks(pd));
@@ -473,7 +488,9 @@ public final class SporeFieldServer {
                 long t = in.fromClock + (long) k * in.stepTicks;
                 long dayT = in.dayTimeNow - (in.clockNow - t);
                 boolean raining = in.weather.raining(), thundering = in.weather.thundering();
-                boolean after = !raining && in.lastRainEnd != PrevailingWind.NONE && dayT - in.lastRainEnd < f.p.afterRainTicks;
+                // 雨の後の湿りの長さは止んだ雨の強さで(11-12。普通 1 倍・小雨 0.5 倍・大雨 1.5 倍)。
+                double afterScale = Math.max(0.5, Math.min(1.5, com.yayuy.overgrownvegetation.sky.RainIntensity.normalized(in.afterIntensity)));
+                boolean after = !raining && in.lastRainEnd != PrevailingWind.NONE && dayT - in.lastRainEnd < f.p.afterRainTicks * afterScale;
                 PrevailingWind.sample(in.seed, dayT, in.weather, s);
                 // ゲームの発生源
                 long tod = Math.floorMod(dayT, PrevailingWind.DAY);
@@ -498,7 +515,7 @@ public final class SporeFieldServer {
                         if (riftLift > 0) f.liftAt(ChunkPos.getX(c), ChunkPos.getZ(c), riftLift);
                     }
                 }
-                f.step(new SporeField.Conditions(t, dayT, raining, thundering, after), s);
+                f.step(new SporeField.Conditions(t, dayT, raining, thundering, after, in.rainIntensity, in.afterIntensity), s);
                 frontCells += f.frontCells;
                 for (int[] cs : f.newCaveSprouts) caves.add(ChunkPos.asLong(cs[0], cs[1])); // 洞窟の床からの発芽(2026-11-04)
                 for (int[] ns : f.newSprouts) {
@@ -702,7 +719,12 @@ public final class SporeFieldServer {
             // ネザーの場(2026-10-23 F): 風は無い。写しの値だけ
             int ncx = pos.getX() >> 4, ncz = pos.getZ() >> 4;
             Cell c = NetherSporeFieldServer.cell(ncx, ncz);
-            out.add("ネザーの場(風なし)");
+            // 2026-11-11: 寒暖差の風。温度(0 冷たい〜1 熱い)を隣と並べる。風は冷たい升から熱い隣へ吹く
+            NetherThermal th = NetherSporeFieldServer.CURRENT;
+            out.add(th == null ? "ネザーの場(寒暖差の風。まだ温度を計算していない)"
+                    : String.format("ネザーの場(寒暖差の風): 温度 ここ %.2f・東 %.2f・西 %.2f・南 %.2f・北 %.2f(風は冷たい方から熱い方へ)・森の段階 %d",
+                    th.temperature(ncx, ncz), th.temperature(ncx + 1, ncz), th.temperature(ncx - 1, ncz),
+                    th.temperature(ncx, ncz + 1), th.temperature(ncx, ncz - 1), th.stage(ncx, ncz)));
             out.add(c == null ? String.format("チャンク (%d, %d): 写しが無い", ncx, ncz)
                     : String.format("チャンク (%d, %d): 浮遊 + 林床 %.4f・浮遊 %.4f・降り積もり %.4f・段階 %d・萌芽体 %d", ncx, ncz, c.conc(),
                     NetherSporeFieldServer.airAt(ncx, ncz), c.dep(), c.stage(), c.count()));

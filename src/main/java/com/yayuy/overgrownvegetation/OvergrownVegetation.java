@@ -50,6 +50,8 @@ public class OvergrownVegetation {
         // ロードできるよう、定形レシピパターンの上限を 5×5 に広げる(バニラの作業台は 3×3 のまま)。
         ShapedRecipePattern.setCraftingSize(5, 5);
 
+        com.yayuy.overgrownvegetation.registry.ModG1.init(); // G1 段階 0 の死体・Mob・卵(2026-11-08。下の DeferredRegister に足す)
+        com.yayuy.overgrownvegetation.registry.ModStilt.init(); // 竹馬型(フィロセンス)の Mob・卵(2026-11-10)
         ModBlocks.register(modBus);
         ModBlockEntities.register(modBus);
         ModArmorMaterials.register(modBus); // 2026-11-04 防護マスクの素材だけ

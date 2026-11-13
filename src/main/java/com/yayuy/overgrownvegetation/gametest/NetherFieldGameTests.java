@@ -55,7 +55,10 @@ public final class NetherFieldGameTests {
         if (nether == null) return;
         int cx = 1_210_000, cz = -1_210_000;
         long key = ChunkPos.asLong(cx, cz);
-        double th = DesignData.sporeField().field().germThreshold;
+        // 2026-11-11: ネザーの場は自分の値(nether_spread.json の spores)。上限の中になるよう、すぐ近くを起点にする
+        Double thN = NetherSporeFieldServer.withFieldForTests(f -> f.p.germThreshold * 2);
+        double th = thN == null ? DesignData.sporeField().field().germThreshold : thN;
+        com.yayuy.overgrownvegetation.corruption.NetherLedger.reachForTests(nether, new ChunkPos(cx + 3, cz), 0);
         NetherSporeFieldServer.watchForTests(cx, cz);
         boolean sprouted = false;
         for (int i = 0; i < 30 && !sprouted; i++) {
@@ -68,7 +71,7 @@ public final class NetherFieldGameTests {
             sprouted = Boolean.TRUE.equals(NetherSporeFieldServer.withFieldForTests(f -> f.isCorrupted(cx, cz)));
         }
         NetherLedgerData ledger = NetherLedgerData.get(nether);
-        boolean recorded = ledger.isOvergrown(key);
+        boolean recorded = ledger.isReached(key); // 2026-11-11: 発芽 = 汚染の入口(段階 1 から。過繁茂は段階 3)
         NetherSporeFieldServer.withFieldForTests(f -> {
             f.unsprout(cx, cz);
             f.clearDepositAround(cx, cz, 1.5D);
@@ -94,10 +97,11 @@ public final class NetherFieldGameTests {
         if (nether == null) return;
         NetherLedgerData ledger = NetherLedgerData.get(nether);
         long[] keys = {ChunkPos.asLong(1_220_000, 5), ChunkPos.asLong(1_220_001, 5), ChunkPos.asLong(1_220_002, 5)};
-        int before = ledger.overgrownCount();
+        NetherLedger.reachForTests(nether, new ChunkPos(1_220_000, 9), 0); // 上限(起点から 128 チャンク)の中にする(2026-11-11)
+        int before = ledger.reachedCount(); // 2026-11-11: 発芽は汚染の入口(段階の時計の始まり)
         NetherLedger.acceptFieldSprouts(nether, keys);
         NetherLedger.acceptFieldSprouts(nether, new long[]{keys[0]}); // もう一度来ても数えない
-        int after = ledger.overgrownCount();
+        int after = ledger.reachedCount();
         for (long k : keys) ledger.forgetForTests(k);
         if (after - before != keys.length) {
             helper.fail("記録の数が合わない: " + before + " → " + after + "(期待 +" + keys.length + ")");
@@ -107,11 +111,11 @@ public final class NetherFieldGameTests {
     }
 
     /**
-     * つながったポータルの対では、オーバーワールド側のポータルのチャンクの胞子がネザー側へ染み出し、ネザー側からも同じ式で戻る。
-     * 移した分は元の側から減る。
+     * つながったポータルの対では、ネザー側のポータルのチャンクの胞子がオーバーワールド側へ染み出す。オーバーワールド → ネザーは染み出さない
+     * (2026-11-11 ユーザー決定: 片向き。オーバーワールド → ネザーは最初の根が担う)。
      */
     @GameTest(template = "gametest_empty7", batch = "spore_field_world", timeoutTicks = 200)
-    public static void portalSeepsBothWays(GameTestHelper helper) {
+    public static void portalSeepsOnlyToOverworld(GameTestHelper helper) {
         ServerLevel nether = nether(helper);
         if (nether == null) return;
         ServerLevel ow = helper.getLevel();
@@ -162,8 +166,8 @@ public final class NetherFieldGameTests {
         double toOverworld = inOw == null ? 0 : inOw.conc();
         clean.run();
         data.clearPairsForTests();
-        if (toNether <= 0.0D) {
-            helper.fail("オーバーワールド側の胞子がネザー側へ染み出さない");
+        if (toNether > 1e-6) {
+            helper.fail("オーバーワールド側の胞子がネザー側へ染み出した(片向きのはず): " + toNether);
             return;
         }
         if (toOverworld <= 0.0D) {

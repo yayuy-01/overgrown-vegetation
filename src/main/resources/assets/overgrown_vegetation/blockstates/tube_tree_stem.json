@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "base=false": { "model": "overgrown_vegetation:block/tube_tree_stem" },
+    "base=true": { "model": "overgrown_vegetation:block/tube_tree_stem_base" }
+  }
+}

@@ -26,7 +26,7 @@ import net.minecraft.world.entity.player.Player;
  *
  * <ul>
  *     <li>amplifier = 段階 − 1(0〜9)。持続は無限で、進みは {@link ModAttachments#SPORE_STAGE_TICKS}。
- *     {@code stageTicks}(10 分)ごとに 1 段上がり、感染10 からさらに 10 分で死んで汚染シダになる({@link #killByInfection})。</li>
+ *     {@code stageTicks}(10 分)ごとに 1 段上がり、感染10 からさらに 10 分で死に、その場に萌芽体が生える({@link #killByInfection})。</li>
  *     <li>上がるたびに {@code damagePerStage}(1)のダメージ。最大体力は治るまで {@code maxHealthPerStage} × (段階 − 1) 減る。</li>
  *     <li>かかるのは暴露量が 1500 %秒に届いたとき({@code spore/SporeExposureTracker}、11-04)と、過繁茂の Mob の攻撃で 30%
  *     ({@link #plantAttack}。攻撃する Mob は今いない)。</li>
@@ -166,7 +166,7 @@ public final class SporeInfectionEffects {
         return player.getData(ModAttachments.SPORE_STAGE_TICKS);
     }
 
-    /** 胞子感染で死なせ、死んだ場所に汚染シダを生やす(10-14 ユーザー指定)。 */
+    /** 胞子感染で死なせ、死んだ場所に萌芽体(BlightFernPlacement#spawnFromDeath。近くに十分いれば生えない)を生やす(10-14 ユーザー指定)。 */
     public static void killByInfection(ServerLevel level, LivingEntity entity) {
         BlockPos deathPos = entity.blockPosition();
         entity.hurt(ModDamageTypes.sporeInfection(level), Float.MAX_VALUE);

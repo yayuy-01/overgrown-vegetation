@@ -63,6 +63,14 @@ public final class CloudShadows {
     }
 
     private static Map shown;
+    /**
+     * 作り直す前の地図(2026-11-12、ユーザー報告「影が数秒ごとに飛び飛びで移動する」)。作り直した地図を 1 フレームで差し替えず、
+     * {@link #BLEND_TICKS} かけて前の地図から混ぜて移す(雲の形の溶け合わせ {@code VoxelClouds.SWAP_TICKS} と同じ長さ)。
+     * 地図の原点がずれていれば前の地図を升の数だけずらして重ねる(場の座標の升はどちらも同じ)。混ぜている間は次を作らない。
+     */
+    private static Map prevMap;
+    private static double blendStart;
+    static final double BLEND_TICKS = 40.0;
     private static CompletableFuture<Map> pending;
     private static DynamicTexture texture;
     private static boolean uploadPending;
@@ -91,6 +99,7 @@ public final class CloudShadows {
 
     static void clear() {
         shown = null;
+        prevMap = null;
         pending = null;
         visibility = 1.0F;
         lastBase = 0.0F;
@@ -237,16 +246,30 @@ public final class CloudShadows {
             key = key * 31 + Math.round(s.maturity() * 32.0F) + (int) s.id();
         }
 
+        double now = (double) gameTime + partialTick;
         if (pending != null && pending.isDone()) {
-            shown = pending.join();
+            Map next = pending.join();
             pending = null;
+            prevMap = shown != null && Math.abs(next.originX - shown.originX) < SIZE && Math.abs(next.originZ - shown.originZ) < SIZE ? shown : null;
+            blendStart = now;
+            shown = next;
+            uploadPending = true;
+        }
+        float blend = 1.0F;
+        if (prevMap != null) {
+            double k = (now - blendStart) / BLEND_TICKS;
+            if (k >= 1.0 || k < 0.0) {
+                prevMap = null; // 終わり(最後に新しい地図だけでもう一度書く)
+            } else {
+                blend = (float) k;
+            }
             uploadPending = true;
         }
         boolean moved = shown == null || Math.abs(ox - shown.originX) > REBUILD_CELLS || Math.abs(oz - shown.originZ) > REBUILD_CELLS
                 || Math.abs(coverage - shown.coverage) > VoxelClouds.REBUILD_COVERAGE || shown.style != style || shown.seed != CloudField.seed()
                 || !shown.shape.equals(com.yayuy.overgrownvegetation.sky.CloudShape.current());
         boolean grown = shown != null && key != shown.stormKey && gameTime - lastBuildTick >= VoxelClouds.STORM_REBUILD_TICKS;
-        if (pending == null && (moved || grown)) {
+        if (pending == null && prevMap == null && (moved || grown)) {
             final float c = coverage;
             final int k = key;
             final double skx = kx;
@@ -275,9 +298,18 @@ public final class CloudShadows {
                 double windZ0 = CloudField.offsetZ((double) gameTime + partialTick);
                 double t = Atmosphere.time(partialTick);
                 double lift = SHADOW_Y - cam.y;
+                Map prev = prevMap;
+                int sx = prev == null ? 0 : m.originX - prev.originX;
+                int sz = prev == null ? 0 : m.originZ - prev.originZ;
                 for (int j = 0; j < SIZE; j++) {
                     for (int i = 0; i < SIZE; i++) {
                         float value = m.values[j * SIZE + i];
+                        if (prev != null) {
+                            int pi = i + sx;
+                            int pj = j + sz;
+                            float old = pi >= 0 && pj >= 0 && pi < SIZE && pj < SIZE ? prev.values[pj * SIZE + pi] : value;
+                            value = Mth.lerp(blend, old, value);
+                        }
                         if (omen) {
                             // 升の真ん中(雲の高さ・世界)から光の向きに地面(カメラの高さ)へ戻した点の帯の濃さ。
                             double gx = (m.originX + i + 0.5) * CloudField.CELL_XZ + windX0 - kx * lift;

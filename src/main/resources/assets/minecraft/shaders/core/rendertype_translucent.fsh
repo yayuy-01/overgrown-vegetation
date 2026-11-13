@@ -2,8 +2,9 @@
 
 #moj_import <fog.glsl>
 #moj_import <ov_cave.glsl>
-#moj_import <ov_water.glsl>
 #moj_import <ov_cloud.glsl>
+#moj_import <ov_wave.glsl>
+#moj_import <ov_water.glsl>
 
 uniform sampler2D Sampler0;
 
@@ -31,11 +32,19 @@ out vec4 fragColor;
 void main() {
     vec4 tex = texture(Sampler0, texCoord0);
     vec4 color = tex * vertexColor * ColorModulator;
+    // Shallows and depths, foam along the shore (ov_water.glsl, 11-12). Water only (texel alpha below 1, not the spore dust).
+    // The face normal from the derivatives, outside the branch (derivatives in non-uniform control flow are undefined).
+    vec3 ovUp = normalize(cross(dFdx(ovPos), dFdy(ovPos)));
+    ovUp = dot(ovUp, ovPos) > 0.0 ? -ovUp : ovUp;
+    if (color.a < 0.99 && ovNoGlint < 0.5) {
+        float ovLitK = max(max(vertexColor.r, vertexColor.g), vertexColor.b) / max(max(max(ovTint.r, ovTint.g), ovTint.b), 0.001);
+        color = ovWaterDepth(color, ovPos, ovUp, ovLitK);
+    }
     // The point lights of glowing cave plants (ov_cave.glsl), before the fog. Water's vertex normal is up on every face, so no
     // facing-away shade (facing 0, like thin plants); the column above the face decides whether it is underground.
     float ovUnder = ovCaveUnder(ovPos, ovNormal, ovLight.y);
     // The shadows of the drifting voxel clouds on water and glass (ov_cloud.glsl, 11-08 clouds stage 1, improvement 9). None underground.
-    color.rgb = ovCloudShadow(color.rgb, ovPos, ovNormal, 0.0, ovLight, 0.0, ovUnder);
+    color.rgb = ovCloudShadow(color.rgb, ovPos, ovNormal, 0.0, ovLight, vec3(1.0), ovUnder);
     // Water takes half the light of a solid face (11-04 provisional: at full strength the lake looked like it glowed).
     ovCaveSink(ovPos, ovNormal, ovUnder);
     color.rgb = ovCaveLight(color.rgb, tex.rgb * ovTint * OV_CAVE_WATER_GAIN, ovPos, ovNormal, 0.0, ovUnder, ovLight.x);
@@ -51,6 +60,12 @@ void main() {
     // The sun and the moon mirrored on open water (ov_water.glsl, 11-06). Without the canopy map here: the sky light alone keeps it out
     // from under leaves and roofs.
     // Opaque texels (alpha 1) never get it (11-06, see the Sodium shader).
+    // The sky and the clouds mirrored on open water (ov_water.glsl, 11-12), under the glint.
+    if (color.a < 0.99 && ovNoGlint < 0.5) {
+        color = ovWaterReflect(color, ovPos, ovFace, ovLight.y, ovUnder, 0.0);
+        // Rain rings on the water (ov_water.glsl, 11-12).
+        color = ovWaterRain(color, ovPos, ovFace, ovLight.y, ovUnder);
+    }
     vec4 ovGlint = color.a < 0.99 && ovNoGlint < 0.5 ? ovWaterGlint(ovPos, ovFace, ovLight.y, ovUnder, 0.0) : vec4(0.0);
     color.rgb += ovGlint.rgb;
     color.a = mix(color.a, 1.0, ovGlint.a);

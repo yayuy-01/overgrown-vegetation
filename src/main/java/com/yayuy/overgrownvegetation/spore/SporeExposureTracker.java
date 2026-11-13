@@ -11,7 +11,6 @@ import com.yayuy.overgrownvegetation.registry.ModAttachments;
 import com.yayuy.overgrownvegetation.registry.ModBiomes;
 import com.yayuy.overgrownvegetation.registry.ModDamageTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -46,8 +45,8 @@ import net.neoforged.neoforge.network.PacketDistributor;
  *
  * <h2>仮決め</h2>
  * <ul>
- *     <li>積むのはプレイヤーと<b>バニラの Mob</b>(id が minecraft: の {@link Mob})。タグ {@code overgrown_vegetation:spore_exposure_immune}
- *     (エンダードラゴン・ウィザー)は測らない。</li>
+ *     <li>積むのはプレイヤーと<b>植物側以外のすべての {@link Mob}</b>(11-09 ユーザー決定。他 mod の Mob・この mod の人類側・ボスも入る。
+ *     id の名前空間では分けない)。植物側 = {@link #isPlantSide}。データパック用のタグ {@code spore_exposure_immune}(既定は空)も外す。</li>
  *     <li>プレイヤーは屋根の判定を使わず、胞子計に出る値をそのまま積む(11-04 ユーザー「このままでよい」)。</li>
  *     <li>判定の間隔はプレイヤー 20 tick・Mob 40 tick。その 1 回で間隔ぶんの秒を積む / 減らす。</li>
  *     <li>プレイヤーが感染1 にかかったら暴露量を 0 に戻す。感染中は積まず、減っていくだけ(にじみも消える)。</li>
@@ -79,11 +78,20 @@ public final class SporeExposureTracker {
         tick(level, entity, interval);
     }
 
-    /** 暴露量を測る Mob か(仮決め: バニラの Mob だけ・ボスは除く)。 */
+    /** 暴露量を測る Mob か(11-09 ユーザー決定: 植物側以外のすべての Mob。名前空間では分けない)。 */
     public static boolean isMeasuredMob(LivingEntity entity) {
-        return entity instanceof Mob
-                && "minecraft".equals(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).getNamespace())
-                && !entity.getType().is(ModTags.SPORE_EXPOSURE_IMMUNE);
+        return entity instanceof Mob && !isPlantSide(entity) && !entity.getType().is(ModTags.SPORE_EXPOSURE_IMMUNE);
+    }
+
+    /**
+     * 植物側の Mob か: タグ {@code overgrown_vegetation:plant_side}(グループ 1〜10・萌芽体・ハイヴノード)、
+     * または G1 の寄生体・萌芽体・ハイヴノードのクラス(タグから抜かれても漏れない保険)。
+     */
+    public static boolean isPlantSide(LivingEntity entity) {
+        return entity.getType().is(ModTags.PLANT_SIDE)
+                || entity instanceof com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster
+                || entity instanceof com.yayuy.overgrownvegetation.entity.BlightFernEntity
+                || entity instanceof com.yayuy.overgrownvegetation.entity.HiveNodeEntity;
     }
 
     /** 1 体ぶんの判定({@code interval} tick ぶん)。偽プレイヤーは tick しないので GameTest からも呼ぶ。 */
@@ -146,6 +154,7 @@ public final class SporeExposureTracker {
         float amount = (float) DesignData.sporeField().mobExposureDamage();
         if (amount <= 0.0F) return;
         if (mob.hurt(ModDamageTypes.sporeInfection(level), amount)) {
+            if (mob.isAlive()) scarMaxHealth(mob, DesignData.sporeField().mobMaxHealthLossPerHit());
             ex.dose = 0.0D;
             ex.atDose = false;
             ex.reachedCount++;
@@ -153,6 +162,30 @@ public final class SporeExposureTracker {
         } else {
             ex.atDose = true;
         }
+    }
+
+    /** 胞子の傷で下がった最大体力の修飾の id(11-09)。 */
+    public static final net.minecraft.resources.ResourceLocation SPORE_SCAR_ID = OvergrownVegetation.id("spore_scar");
+
+    /**
+     * 胞子の 20 ダメージが入るたびに最大体力を {@code loss} 下げる(2026-11-09 ユーザー決定「受けた分が治らない傷として残る」。元に戻らない)。
+     * 修飾は 1 つの id にまとめて下げた量を足していき、属性ごとセーブに残る(addPermanentModifier)。最大体力は 1 より下げず、
+     * 今の体力は新しい上限に切り詰める。Mob だけ(プレイヤーは 10 段階の −(段階 − 1) のまま)。
+     */
+    public static void scarMaxHealth(LivingEntity mob, double loss) {
+        if (loss <= 0.0D || mob instanceof Player) return;
+        net.minecraft.world.entity.ai.attributes.AttributeInstance attr =
+                mob.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
+        if (attr == null) return;
+        net.minecraft.world.entity.ai.attributes.AttributeModifier old = attr.getModifier(SPORE_SCAR_ID);
+        double already = old != null ? -old.amount() : 0.0D;
+        double without = attr.getValue() + already; // この傷を除いた最大体力
+        double total = Math.min(already + loss, Math.max(0.0D, without - 1.0D));
+        if (total <= already) return;
+        attr.removeModifier(SPORE_SCAR_ID);
+        attr.addPermanentModifier(new net.minecraft.world.entity.ai.attributes.AttributeModifier(SPORE_SCAR_ID, -total,
+                net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_VALUE));
+        if (mob.getHealth() > mob.getMaxHealth()) mob.setHealth(mob.getMaxHealth());
     }
 
     /**
@@ -221,6 +254,17 @@ public final class SporeExposureTracker {
             if (ex.dose < 1.0D) ex.dose = 0.0D;
         }
         if (ex.atDose && ex.dose < t.infectDose() * 0.5D) ex.atDose = false;
+    }
+
+    /**
+     * G1 の攻撃が当たった Mob の暴露量を足す(2026-11-08 G1 段階 0、11-05 ユーザー「Mob に当てたら暴露量を足す → 入れる」。1 撃の量は
+     * {@code G1StrikeGoal#MOB_DOSE})。測る Mob({@link #isMeasuredMob})だけ。感染の量で頭打ち —— 届いたら次の判定で 20 ダメージになる。
+     * プレイヤーは足さない(プレイヤーは {@code ParasitizedAttackInfectionHandler} の 30% / 5% のまま)。
+     */
+    public static void addDose(LivingEntity entity, double amount) {
+        if (amount <= 0.0D || entity instanceof Player || !isMeasuredMob(entity) || !entity.isAlive()) return;
+        SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
+        ex.dose = Math.min(DesignData.sporeField().infectDose(), ex.dose + amount);
     }
 
     /** 暴露量(%秒)。添付が無ければ 0(作らない)。 */

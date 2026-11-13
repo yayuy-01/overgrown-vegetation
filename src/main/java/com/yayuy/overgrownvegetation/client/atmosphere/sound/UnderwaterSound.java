@@ -112,8 +112,10 @@ public final class UnderwaterSound {
         AtmosphereSound.WaterSoundParams p = DesignData.atmosphere().sound().water();
         boolean audible = DEV_LOG || mc.options.getSoundSourceVolume(SoundSource.AMBIENT) > 0.0F && mc.options.getSoundSourceVolume(SoundSource.MASTER) > 0.0F;
         BlockPos eye = BlockPos.containing(player.getEyePosition());
-        boolean in = player.isEyeInFluid(FluidTags.WATER) && overgrownWater(level.getBiome(eye));
-        vanillaScale = in ? p.vanillaScale() : 1.0F;
+        // 11-13(水まわり ⑥ ユーザー選択「水中の音を全部の水に」): バニラの水でも薄く(CLEAR_WATER_VOLUME 倍)鳴らす。バニラの水中の音は下げない。
+        boolean in = player.isEyeInFluid(FluidTags.WATER);
+        boolean murky = in && overgrownWater(level.getBiome(eye));
+        vanillaScale = murky ? p.vanillaScale() : 1.0F;
         float target = 0.0F;
         if (in) {
             if (ticks % 10 == 0 || !wasIn) {
@@ -125,7 +127,7 @@ public final class UnderwaterSound {
                 sea = UnderwaterPlants.isSea(level.getBiome(eye));
             }
             float deep = Math.min(1.0F, depth / p.depthFull());
-            target = p.volume() * (1.0F - (1.0F - p.depthVolume()) * deep);
+            target = p.volume() * (1.0F - (1.0F - p.depthVolume()) * deep) * (murky ? 1.0F : CLEAR_WATER_VOLUME);
             if (SOURCE.synth == null) {
                 SOURCE.synth = new CaveWaterSynth.Underwater(0x0A7E_0001, sea);
             }
@@ -151,6 +153,9 @@ public final class UnderwaterSound {
         }
         wasIn = in;
     }
+
+    /** 汚染されていない水での大きさ(汚染の水の何倍。11-13、仮決め)。 */
+    static final float CLEAR_WATER_VOLUME = 0.4F;
 
     /** 過繁茂・繁茂の水のバイオーム 6 つ(陸・川・海。UnderwaterMoteParticle と同じ)。 */
     static boolean overgrownWater(Holder<Biome> b) {

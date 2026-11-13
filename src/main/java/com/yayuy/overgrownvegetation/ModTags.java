@@ -129,6 +129,12 @@ public final class ModTags {
     /** 既に汚染済みのブロック。二重に汚染されないようにするためのタグ。 */
     public static final TagKey<Block> CORRUPTED = BlockTags.create(OvergrownVegetation.id("corrupted"));
 
+    /** ネザーの覆いで、上面だけ「8〜9 割塗り」の絵({@code <名前>_top})を使う下地(2026-11-11 ユーザー: ネザーラックは上面だけ)。 */
+    public static final TagKey<Block> NETHER_COVER_GROUND_TOP = BlockTags.create(OvergrownVegetation.id("nether_cover_ground_top"));
+
+    /** ネザーの覆い(重ねる苔の絵、2026-11-11)を付けられる地面: ネザーラック・ソウルサンド・ソウルソイル・玄武岩・ブラックストーン(汚染の行き先があっても覆う)と、汚染済みの搾られた岩・泥炭。 */
+    public static final TagKey<Block> NETHER_COVERABLE = BlockTags.create(OvergrownVegetation.id("nether_coverable"));
+
     /** 枝の継ぎ目({@code BranchJointBlock})が腕を出す相手(原木・継ぎ目・原木から化けた幹。2026-11-01)。葉は入れない。 */
     public static final TagKey<Block> BRANCH_CONNECTABLE = BlockTags.create(OvergrownVegetation.id("branch_connectable"));
 
@@ -310,10 +316,16 @@ public final class ModTags {
     public static final TagKey<EntityType<?>> WATER_ROT_IMMUNE = entityTag("water_rot_immune");
 
     /**
-     * 胞子の暴露量を測らない Mob(2026-11-04 感染システムの第 2 段、Claude の仮決め)。既定はエンダードラゴンとウィザー:
-     * ボスは 20 ダメージの繰り返しで削られるべきでなく、ドラゴンはプレイヤー以外のダメージを受け付けない。データパックで足せる。
+     * 胞子の暴露量を測らない Mob(データパック用。2026-11-09 から既定は空: ユーザー決定「ボスも外さない」。
+     * 11-04 の仮決めではエンダードラゴンとウィザーを入れていた)。植物側は {@link #PLANT_SIDE} で外す。
      */
     public static final TagKey<EntityType<?>> SPORE_EXPOSURE_IMMUNE = entityTag("spore_exposure_immune");
+
+    /**
+     * 植物側の Mob(2026-11-09、暴露量を測らない・感染の死で萌芽体にしない)。グループ 1〜10 のタグ全部 + 萌芽体 + ハイヴノード。
+     * コード側でも G1 の寄生体({@code AbstractParasitizedMonster})・萌芽体・ハイヴノードはクラスで外す(タグから抜かれても漏れない保険)。
+     */
+    public static final TagKey<EntityType<?>> PLANT_SIDE = entityTag("plant_side");
 
     /**
      * <b>水に入らずに攻撃できる</b>(= 遠距離攻撃を持つ)エンティティタイプ。

@@ -6,7 +6,6 @@
 #moj_import <ov_caustic.glsl>
 #moj_import <ov_cave.glsl>
 #moj_import <ov_cloud.glsl>
-#moj_import <ov_heat.glsl>
 
 uniform sampler2D Sampler0;
 
@@ -42,7 +41,7 @@ void main() {
     // How much this fragment is underground (ov_cave.glsl, the cave map; 11-01 evening).
     float ovUnder = ovCaveUnder(ovPos, ovNormal * 1.0, ovLight.y);
     // The shadows of the drifting voxel clouds (ov_cloud.glsl, 11-08 clouds stage 1). None underground.
-    color.rgb = ovCloudShadow(color.rgb, ovPos, ovNormal, 1.0, ovLight, ovCanopyShade, ovUnder);
+    color.rgb = ovCloudShadow(color.rgb, ovPos, ovNormal, 1.0, ovLight, ovCanopyMul, ovUnder);
     float ovSink = ovCaveSink(ovPos, ovNormal * 1.0, ovUnder);
     color.rgb = ovCaveLight(color.rgb, tex.rgb * ovTint, ovPos, ovNormal, 1.0, ovUnder, ovLight.x);
     // Faces under cave water get darker with the depth (ov_cave.glsl, 11-06 light inspection 10).
@@ -64,6 +63,4 @@ void main() {
     fragColor.rgb = ovCaveFog(fragColor.rgb, ovLit, ovSurface, vertexDistance, ovUnder);
     // The glowing pixels of the cave light blocks stay out of the fog (ov_cave.glsl).
     fragColor.rgb = mix(fragColor.rgb, tex.rgb * ovTint * (1.0 - ovSink * OvCaveMouth.z), ovGlow * max(ovCaveCam(), ovSink));
-    // The fog of the heat forest (the overgrown Nether, ov_heat.glsl, 11-10): over the usual fogs, by how much the camera is in it.
-    fragColor.rgb = ovHeatFog(fragColor.rgb, color.rgb, ovPos);
 }

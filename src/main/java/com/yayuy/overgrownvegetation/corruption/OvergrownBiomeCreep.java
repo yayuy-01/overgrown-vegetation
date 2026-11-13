@@ -164,6 +164,10 @@ public final class OvergrownBiomeCreep {
         if (!(event.getLevel() instanceof ServerLevel level)) {
             return;
         }
+        if (NetherLedger.active(level)) {
+            // 2026-11-11 ネザーの骨組み: ネザーの地面は根の台帳の段階だけが変える(面と奥 1〜3 段だけ。地中の一括置き換え・縁のにじみはしない)
+            return;
+        }
         // サーバーが重いときは予算の番人が次の tick(パスは次の周回)へ回す(2026-10-06。結果は同じで遅れるだけ)。
         // 番人に聞くのは仕事がある tick だけ(何も無い tick を「止めた」と数えないため)。
         if (!hasWork(level) || !TickBudget.mayStart(PerfJob.BIOME_CREEP)) {

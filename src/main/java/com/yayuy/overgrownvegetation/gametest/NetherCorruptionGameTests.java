@@ -71,9 +71,9 @@ public final class NetherCorruptionGameTests {
         BlockPos base = new BlockPos(chunk.getMinBlockX() + 4, 100, chunk.getMinBlockZ() + 4);
         Block[][] cases = {
                 {Blocks.NETHERRACK, ModBlocks.OVERGROWN_NETHERRACK.get()},
-                {Blocks.CRIMSON_NYLIUM, ModBlocks.OVERGROWN_NETHERRACK.get()},
-                {Blocks.WARPED_NYLIUM, ModBlocks.OVERGROWN_NETHERRACK.get()},
-                {Blocks.SOUL_SAND, ModBlocks.OVERGROWN_SOUL_SAND.get()},
+                {Blocks.CRIMSON_NYLIUM, ModBlocks.OVERGROWN_NYLIUM.get()},
+                {Blocks.WARPED_NYLIUM, ModBlocks.OVERGROWN_NYLIUM.get()},
+                {Blocks.SOUL_SAND, ModBlocks.NETHER_PEAT.get()},
                 {Blocks.SOUL_SOIL, ModBlocks.OVERGROWN_SOUL_SOIL.get()},
         };
         for (int i = 0; i < cases.length; i++) {
@@ -157,43 +157,8 @@ public final class NetherCorruptionGameTests {
         helper.succeed();
     }
 
-    /** 床が汚染されたネザーのチャンクは、ネザー用の過繁茂バイオームになり、ネザーの台帳に入る。そこから隣の床へ広がる。 */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 400, batch = "nether_corruption")
-    public static void corruptedNetherChunkBecomesOvergrownAndCreeps(GameTestHelper helper) {
-        ServerLevel nether = nether(helper);
-        if (nether == null) {
-            return;
-        }
-        ChunkPos pos = new ChunkPos(NETHER_CHUNK + 4, NETHER_CHUNK);
-        LevelChunk chunk = nether.getChunk(pos.x, pos.z);
-        // 全列に「y=100 の床 + 上 3 マスの空き」を作り、全部を汚染する。
-        flatFloor(nether, pos, ModBlocks.OVERGROWN_NETHERRACK.get().defaultBlockState());
-        OvergrownBiomeConverter.maybeConvert(nether, pos);
-        Holder<Biome> biome = nether.getBiome(pos.getMiddleBlockPosition(NetherSurface.BIOME_SAMPLE_Y));
-        if (biome.unwrapKey().map(NetherOvergrowthVariant::fromKey).orElse(null) == null
-                || !com.yayuy.overgrownvegetation.registry.ModBiomes.isFullyOvergrown(biome)) {
-            helper.fail("ネザー用の過繁茂バイオームになっていない: " + biome.unwrapKey());
-            return;
-        }
-        if (!NetherLedgerData.get(nether).isOvergrown(pos.toLong())) {
-            helper.fail("ネザーの台帳に入っていない");
-            return;
-        }
-
-        // 隣のチャンク: 素のネザーラックの床で、西の端の列だけが汚染されたチャンクに接している。
-        ChunkPos next = new ChunkPos(pos.x + 1, pos.z);
-        LevelChunk nextChunk = nether.getChunk(next.x, next.z);
-        flatFloor(nether, next, Blocks.NETHERRACK.defaultBlockState());
-        int placed = 0;
-        for (int i = 0; i < 40 && placed == 0; i++) {
-            placed += NetherLedger.creepChunk(nether, nextChunk, nether.getRandom());
-        }
-        if (placed == 0) {
-            helper.fail("汚染された床の隣の床へ広がらなかった");
-            return;
-        }
-        helper.succeed();
-    }
+    // 2026-11-11: 「床が汚染されたネザーのチャンクが過繁茂になり、隣の床へ這い出す」(10-02)のテストは消した。
+    // ネザーの広がりとバイオームは根の台帳の段階だけが決める(NetherSkeletonGameTests)。
 
 
     /** 過繁茂したネザーでは水バケツの水が蒸発せずに置ける。ふつうのネザーでは今までどおり蒸発する。 */

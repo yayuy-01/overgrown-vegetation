@@ -3,6 +3,8 @@ package com.yayuy.overgrownvegetation.entity;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.adaptation.Adaptation;
 import com.yayuy.overgrownvegetation.data.DesignData;
+import com.yayuy.overgrownvegetation.entity.legs.FootPlanter;
+import com.yayuy.overgrownvegetation.entity.parts.HitPartSet;
 import com.yayuy.overgrownvegetation.entity.action.ActionDef;
 import com.yayuy.overgrownvegetation.entity.action.ActionPhase;
 import com.yayuy.overgrownvegetation.entity.action.ActionPicker;
@@ -175,6 +177,22 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
     public static final int ACT_RIFT_RECOVER = 22;
     /** 掴みの止め(11-05、即死をやめて特大ダメージ)。アニメ grab_finish。 */
     public static final int ACT_GRAB_FINISH = 23;
+    // --- 段 2(11-07 夜): 連撃の締めと小さな通常技(アニメ tools/falcimnes-anim/FalcMoves) ---
+    /** 連撃の締め: 両鎌の X 字の交差斬り(ユーザー決定)。続けて {@link #ACT_FLURRY_END}。アニメ flurry_x。 */
+    public static final int ACT_FLURRY_X = 24;
+    /** 切り上げ(右・左)。アニメ kiriage_r / kiriage_l。 */
+    public static final int ACT_KIRIAGE_R = 25;
+    public static final int ACT_KIRIAGE_L = 26;
+    /** 突き掻き(両鎌)。アニメ tsukikaki。 */
+    public static final int ACT_TSUKIKAKI = 27;
+    /** 交差斬り(両鎌を左右から内へ。連撃の締めの X 字とは別の技)。アニメ kosa。 */
+    public static final int ACT_KOSA = 28;
+    /** 踏み込み斬り(右・左)。アニメ fumikomi_r / fumikomi_l。 */
+    public static final int ACT_FUMIKOMI_R = 29;
+    public static final int ACT_FUMIKOMI_L = 30;
+    /** 小突き(右・左)。アニメ kozuki_r / kozuki_l。 */
+    public static final int ACT_KOZUKI_R = 31;
+    public static final int ACT_KOZUKI_L = 32;
 
     /** 設計データ({@code actions.json})の種の名前。 */
     static final String ACTIONS_ID = "falcimnes";
@@ -267,8 +285,35 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
     // 連撃は振りながら 0.55 倍の足で寄るので、横薙ぎの間合いの端で始めても届く。
     /** 溜め 1.2 秒(ユーザー指定は 0.8 秒 → 「対応できる秒数を」で 2026-09-23 に延長)。 */
     static final int FLURRY_WINDUP_TICKS = TRANSITION_TICKS + 24;
-    /** 1 振りごとの間隔(tick)。だんだん速くなる。 */
-    static final int[] FLURRY_INTERVALS = {12, 11, 10, 9, 8, 7, 6, 6, 5, 5, 4, 4, 4, 3, 3, 3};
+    /**
+     * 1 振りごとの間隔(tick)。だんだん速くなる。段 2(11-07 夜)で最短を 3 → 5 に【仮】: 1 振りのアニメ(0.5 秒)を間隔に合わせて速めて流すので、
+     * 3 tick では 3.3 倍になり斜めの振りが跳ねて見える。14 振りのあと {@link #ACT_FLURRY_X}(X 字の締め)。
+     */
+    static final int[] FLURRY_INTERVALS = {12, 11, 10, 9, 8, 8, 7, 7, 6, 6, 6, 5, 5, 5};
+    /** 連撃の締め(X 字): 前触れ 0.3(両鎌を開いて伸び上がる)/ 実行 0.25(0.45 秒で当たる)/ 隙 0.25 秒【仮】。アニメ flurry_x 0.8 秒。 */
+    static final ActionTiming FLURRY_X = ActionTiming.ofSeconds(LEAD, 0.3, 0.25, 0.25);
+    static final int FLURRY_X_HIT = LEAD + 9;
+
+    // --- 小さな通常技(段 2、11-07 夜。時刻はアニメ FalcMoves と対、数値は全部【仮】。ダメージ・間合い・点は actions.json) ---
+    /** 切り上げ: 前触れ 1.15(鎌を前脚の外へ出して斜め下後ろへ引き、0.95〜1.15 秒はその形で震える)/ 実行 0.3(1.37 秒で当たる)/ 隙 0.75。アニメ 2.2 秒(11-08 に構えを直して 0.3 秒延ばした)。 */
+    static final ActionTiming KIRIAGE = ActionTiming.ofSeconds(LEAD, 1.15, 0.3, 0.75);
+    static final int KIRIAGE_HIT = LEAD + 27;
+    /** 突き掻き: 前触れ 0.9(0.65〜0.9 秒は胸の前に畳んでぴたりと止まる)/ 実行 0.3(1.05 秒で当たる)/ 隙 0.75。アニメ 1.95 秒(11-08 に構えを直して 0.1 秒延ばした)。 */
+    static final ActionTiming TSUKIKAKI = ActionTiming.ofSeconds(LEAD, 0.9, 0.3, 0.75);
+    static final int TSUKIKAKI_HIT = LEAD + 21;
+    /** 交差斬り: 前触れ 1.0 / 実行 0.3(1.12 秒で当たる)/ 隙 0.9。アニメ 2.2 秒。 */
+    static final ActionTiming KOSA = ActionTiming.ofSeconds(LEAD, 1.0, 0.3, 0.9);
+    static final int KOSA_HIT = LEAD + 22;
+    /** 踏み込み斬り: 前触れ 1.0(0.2〜0.8 秒に横へ踏み出す)/ 実行 0.3(1.1 秒で当たる)/ 隙 0.9。アニメ 2.2 秒。 */
+    static final ActionTiming FUMIKOMI = ActionTiming.ofSeconds(LEAD, 1.0, 0.3, 0.9);
+    static final int FUMIKOMI_HIT = LEAD + 22;
+    static final int FUMIKOMI_STEP_FROM = LEAD + 4, FUMIKOMI_STEP_UNTIL = LEAD + 16;
+    /** 小突き: 前触れ 0.3 / 実行 0.2(0.38 秒で当たる)/ 隙 0.45。アニメ 0.95 秒。 */
+    static final ActionTiming KOZUKI = ActionTiming.ofSeconds(LEAD, 0.3, 0.2, 0.45);
+    static final int KOZUKI_HIT = LEAD + 8;
+    /** 小さな技の届く距離・横幅(横薙ぎの何倍か。体格 1.0 の値に bodyScale を掛ける)【仮】。 */
+    static final double KIRIAGE_REACH = 1.0D, KIRIAGE_WIDTH = 0.8D, TSUKI_REACH = 1.05D, TSUKI_WIDTH = 0.6D,
+            KOSA_REACH = 0.75D, KOSA_WIDTH = 1.4D, FUMI_REACH = 1.0D, FUMI_WIDTH = 1.0D, KOZUKI_REACH = 0.95D, KOZUKI_WIDTH = 0.5D;
     static final double FLURRY_REACH = 4.4D;
     /** 連撃のあと鎌を下ろす間(11-05: アニメ flurry_end 0.8 秒 = 隙 16 tick。1 振りのダメージ倍率・寄る足は actions.json)。 */
     static final int FLURRY_END_TICKS = TRANSITION_TICKS + 16;
@@ -397,6 +442,25 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
     /** 動作を始めたときのワールドの時刻(下位 32 ビット)。クライアントが待機の仕草を見始めたのが遅れたかを測る({@link #FIDGET_LATE_TICKS})。 */
     private static final EntityDataAccessor<Integer> DATA_ACTION_TIME =
             SynchedEntityData.defineId(FalcimnesEntity.class, EntityDataSerializers.INT);
+    /** 森の中を動く型 ② の段 2(11-08): 体の曲げ。首 4 つ・腹 4 つの骨の向き(体に対する度、1 バイトずつ)。{@link FalcimnesBend}。 */
+    private static final EntityDataAccessor<Long> DATA_BEND =
+            SynchedEntityData.defineId(FalcimnesEntity.class, EntityDataSerializers.LONG);
+    /**
+     * 11-08 夜: 胴の地形の傾き(前後・左右、0.25 度刻み 1 バイトずつ)と高さ(実体の y からの差、1/256 ブロック、2 バイト)。
+     * サーバーも描画と同じ足の置き方({@link FootPlanter})を 1 つ動かして求め、叩ける部位をこれで傾ける(坂で頭が下がっても部位が付いていく)。
+     */
+    /** 段 3(11-08 夜): 狭い所の構えの効き(1 バイト)と首を下げる構えの効き(1 バイト)。 */
+    private static final EntityDataAccessor<Integer> DATA_SHAPE =
+            SynchedEntityData.defineId(FalcimnesEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_TERRAIN =
+            SynchedEntityData.defineId(FalcimnesEntity.class, EntityDataSerializers.INT);
+    /** 個体の性格(段 3、{@link FalcimnesPersonality})。慎重さ・攻撃性・回り込み(0〜1)。構えの見た目にも使うのでクライアントへ送る。 */
+    private static final EntityDataAccessor<Float> DATA_CAUTION =
+            SynchedEntityData.defineId(FalcimnesEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> DATA_AGGRESSION =
+            SynchedEntityData.defineId(FalcimnesEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> DATA_FLANK =
+            SynchedEntityData.defineId(FalcimnesEntity.class, EntityDataSerializers.FLOAT);
 
     // --- 脚・胴・尾の層(コントローラ "legs") ---
     private static final RawAnimation LEGS_IDLE = RawAnimation.begin().thenLoop("legs_idle");
@@ -440,6 +504,16 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
     private static final RawAnimation WAVE_R_ANIM = RawAnimation.begin().thenPlayAndHold("wave_r");
     private static final RawAnimation WAVE_L_ANIM = RawAnimation.begin().thenPlayAndHold("wave_l");
     private static final RawAnimation RIFT_WINDUP_ANIM = RawAnimation.begin().thenPlayAndHold("rift_windup");
+    // 段 2(11-07 夜)
+    private static final RawAnimation FLURRY_X_ANIM = RawAnimation.begin().thenPlayAndHold("flurry_x");
+    private static final RawAnimation KIRIAGE_R_ANIM = RawAnimation.begin().thenPlayAndHold("kiriage_r");
+    private static final RawAnimation KIRIAGE_L_ANIM = RawAnimation.begin().thenPlayAndHold("kiriage_l");
+    private static final RawAnimation TSUKIKAKI_ANIM = RawAnimation.begin().thenPlayAndHold("tsukikaki");
+    private static final RawAnimation KOSA_ANIM = RawAnimation.begin().thenPlayAndHold("kosa");
+    private static final RawAnimation FUMIKOMI_R_ANIM = RawAnimation.begin().thenPlayAndHold("fumikomi_r");
+    private static final RawAnimation FUMIKOMI_L_ANIM = RawAnimation.begin().thenPlayAndHold("fumikomi_l");
+    private static final RawAnimation KOZUKI_R_ANIM = RawAnimation.begin().thenPlayAndHold("kozuki_r");
+    private static final RawAnimation KOZUKI_L_ANIM = RawAnimation.begin().thenPlayAndHold("kozuki_l");
     private static final RawAnimation RIFT_HOLD_ANIM = RawAnimation.begin().thenLoop("rift_hold");
     private static final RawAnimation RIFT_RECOVER_ANIM = RawAnimation.begin().thenPlayAndHold("rift_recover");
     private static final RawAnimation GRAB_FINISH_ANIM = RawAnimation.begin().thenPlayAndHold("grab_finish");
@@ -487,6 +561,24 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
     /** 横薙ぎの間合いの外で標的を追い続けている tick({@link #OUT_OF_REACH_AS_NORMAL_TICKS} ごとに通常攻撃 1 回ぶんとして数える)。 */
     private int outOfReachTicks;
 
+    // --- 段 3(11-08): 個体の性格と連続技。性格は保存する(OvPersonality)、ほかは保存しない ---
+    /** 性格を決めたか(保存から読んだ・setPersonality)。決めていなければ最初の tick に U 字の分布で振る。 */
+    private boolean personalitySet;
+    /** 連続技の何段目か(0 = 1 段目・普通の技、1 = 2 段目。2 段目からは続けない —— 最大 2 段は決定)。 */
+    private int comboStep;
+    /** 小さな技の当たりの結果({@link FalcimnesPersonality#RESULT_HIT} など)。2 段目を選ぶ鍵。 */
+    private int comboResult;
+    /** GameTest 用: 連続技に続ける確率を上書きする(負なら設計データと性格から)。 */
+    private double comboChanceOverride = -1.0D;
+    /** 慎重な個体: 隙が無いまま待った tick。性格で決まる長さで待ちきれず攻めに行く。 */
+    private int patience;
+    /** 慎重な個体: 攻めに行く残りの tick(隙を見つけた・待ちきれなかった)。 */
+    private int commitTicks;
+    /** 相手が 1 tick 前に盾を構えていたか(盾を下ろした隙)。 */
+    private boolean targetWasBlocking;
+    /** この tick に後ずさりする速さの割合(HuntGoal が毎 tick 立て、移動の操縦が使って消す)。 */
+    private float backpedal;
+
     // --- 向き(サーバーが正。クライアントは同期された yRot に体を揃えるだけ) ---
     /** いまの向き(度)。NaN なら次の tick に yRot から取り直す(湧いた直後・テレポートの後)。 */
     private float heading = Float.NaN;
@@ -503,6 +595,27 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
     /** クライアント: 最後に見た {@link #DATA_SEQ}(コントローラごと)。 */
     private int clientSeq = -1;
     private int clientLegsSeq = -1;
+
+    // --- 地形に合わせた足の置き方(2026-11-07、クライアントの描画だけ。FootPlanter・client/FalcimnesLegRig)---
+    /**
+     * 脚の基準の置き場(ブロック、体格 1。左前・左後・右前・右後)。生成器の待機の足の置き場(FalcBody.NEUTRAL_F = (22, −11)・
+     * NEUTRAL_H = (20, 12) px、焼き込む前)× 焼き込み 1.8 ÷ 16。手付けの待機と同じ所に置くので、平らな地面では手付けとほぼ同じ形。
+     */
+    public static final double[] LEG_HOME_LEFT = {22 * 1.8D / 16, 20 * 1.8D / 16, -22 * 1.8D / 16, -20 * 1.8D / 16};
+    public static final double[] LEG_HOME_FWD = {11 * 1.8D / 16, -12 * 1.8D / 16, 11 * 1.8D / 16, -12 * 1.8D / 16};
+    /** 対角の組み: 左前 + 右後 = 0、左後 + 右前 = 1。 */
+    private static final int[] LEG_GROUP = {0, 1, 1, 0};
+    /** 確かめ用の名前(keyed / feet)を効かせるか。Claude のテストクライアント(-Dov.devbridge=true)だけ。 */
+    private static final boolean DEV_HOOKS = Boolean.getBoolean("ov.devbridge");
+    @Nullable
+    private FootPlanter footPlanter;
+    /** 段 3: 性格の構えの鎌・首の先の効き(0〜1、技の間は 0 へ)と、前のフレームの時刻(クライアントの描画だけが使う)。 */
+    public float postureFade = 1.0F, postureClock;
+    /** 描画の IK の前のフレームの解(解き継ぐ)。 */
+    private final double[][] legSolution = new double[4][];
+    private int legSolvedTick = -100, legsRenderedTick = -100;
+    /** クライアント: いま手続きの足を使っているか(使っている間、脚の層は待機を流す。胴・尾の揺れだけ借りる)。 */
+    private boolean clientProceduralLegs;
     /** クライアント: いま流している口パク(null なら無し)・終わる tick・流し直しの合図と、コントローラが最後に見た合図。 */
     @Nullable
     private RawAnimation clientVoice;
@@ -521,6 +634,498 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
         this.setPathfindingMalus(PathType.WATER, -1.0F);
         this.setPathfindingMalus(PathType.LEAVES, -1.0F);
         this.getNavigation().setCanFloat(false);
+        // 森の中を動く型 ② の段 1(11-08): 叩ける部位。id は本体の続き番号にする(エンダードラゴンと同じ。クライアントの部位と揃える)
+        FalcimnesPartTrack track = FalcimnesPartTrack.get();
+        this.hitParts = new HitPartSet(this, track.names, track.widths, track.heights);
+        this.partNow = new double[track.count() * 3];
+        this.partFrom = new double[track.count() * 3];
+        this.partTarget = new double[track.count() * 3];
+        this.partBent = new double[track.count() * 3];
+        this.partPosed = new double[track.count() * 3];
+        this.setId(ENTITY_COUNTER.getAndAdd(this.hitParts.count() + 1) + 1);
+    }
+
+    // ------------------------------------------------------------------ 細い芯と叩ける部位(11-08、森の中を動く型 ② の段 1)
+
+    /*
+     * 叩ける部位(9 個: 頭・首 2・鎌の腕〜前腕 / 刃 × 左右・腹 2。11-08 夜にユーザー「細かすぎる、もう少し大雑把に」で 17 個からまとめた)。置き場はアニメから作った軌道表
+     * ({@link FalcimnesPartTrack}、生成器 tools/falcimnes-anim/PartTrack.java)を、同期された動作・動作の始まった時刻・連撃の速さ・
+     * 仕草の種類から、描画の mainState と同じアニメ・同じ時刻で引く(サーバーとクライアントで同じ置き場になる)。
+     * 地形とぶつかる本体の箱は胴の芯(幅 1.3 × 高さ 2.1【仮】)だけで、そこから前後に長く伸びた首・頭・鎌・腹をこれで殴れるようにする。
+     * 大きさ・骨の上の点は全部【仮】(Claude)。首はユーザーの決定(頭・鎌・腹)に無いが、頭と胴の間の長い首を殴れないと
+     * 「見えている所を殴れる」にならないので足した。脚は殴れない(細く、芯の左右 2.6 ブロックまで広がる)。
+     * 付いていかないもの: 性格の構え(数 px)・脚の手続きの胴の高さと坂の傾き(クライアントの描画だけが知っている)・歩きの揺れ(待機の形で代える)。
+     */
+    /**
+     * 目の高さ(体格 1 のブロック)。芯を低くしても、視線・見回し・飛び道具の狙いは前と同じ頭の高さから
+     * (前は箱の高さ 3.06 の 0.85 倍 = 2.6。頭は待機で 2.3〜3.0)。窒息は芯の中で見る({@link #isInWall})。
+     */
+    public static final float EYE_HEIGHT = 2.6F;
+
+    /** 叩ける部位(サーバーとクライアントの両方。クライアントは照準の当たりに使う)。 */
+    private final HitPartSet hitParts;
+    /** 部位の中心(体格 1 のブロック、[前, 左, 上] × 部位)。今・動作が替わった時の・表の値。 */
+    private final double[] partNow, partFrom, partTarget, partBent, partPosed;
+    /** 段 2: 体の曲げ(首は先の経路に、腹は通った跡に沿う)。 */
+    private final FalcimnesBend bend = new FalcimnesBend();
+
+    public FalcimnesBend bend() {
+        return this.bend;
+    }
+
+    // --- 坂・段での胴の傾き(11-08 夜、ユーザー「坂で下がる頭の部位も付いていかせる」) ---
+
+    /** サーバーの足の置き方(描画と同じ部品。叩ける部位の傾きを求めるためだけに使う)。 */
+    @Nullable
+    private FootPlanter serverPlanter;
+    /** 計測用(サーバー)。 */
+    public static volatile long terrainNanos, terrainCalls;
+
+    /**
+     * サーバー: 描画と同じ足の置き方を 1 つ動かし、胴の傾き・高さを送る。手付けの脚になる間(回避・突進・死・水の中・乗り物)は
+     * 描画と同じく効きを 0 へ下ろす。描画は 40 ブロックより遠いと手付けの脚(傾かない)になるが、サーバーは見ている人を知らないので常に傾ける。
+     */
+    /** 足の置き方を計算する、プレイヤーからの距離(ブロック)【仮 48 = 矢が届くくらい】。11-08 夜、ユーザー「近くにプレイヤーがいる個体だけ計算する」。 */
+    static final double TERRAIN_RANGE = 48.0D;
+    /** 送る傾きが目標へ寄る割合(1 tick あたり)【仮】。範囲に出入りしたとき部位が跳ねないように。 */
+    static final double TERRAIN_EASE = 0.2D;
+    /** 計測用: 範囲を見ずに常に計算する(GameTest で直す前と比べる)。 */
+    public static boolean terrainAlways;
+    /** GameTest 用: この個体だけ範囲を見ずに計算する(テストのサーバーにはプレイヤーがいない)。 */
+    public boolean terrainForced;
+    /** 送っている傾き {前後 度, 左右 度, 高さ}(なめらかに寄せる)。 */
+    private final double[] terrainOut = new double[3];
+    private int terrainSteady;
+
+    // --- 段 3(11-08 夜): 狭い所で前を起こして細くなる構え・低い葉の下で首を下げる構え ---
+
+    /**
+     * 狭い所の構えに入る隙間の幅(左右の壁の間、ブロック、体格 1)・抜ける幅【仮】。幹と幹の間 2 マスの真ん中で 2.0。
+     * 片側だけに幹があるときは、反対側が {@link #GAP_LOOK} まで開いているので入らない。
+     */
+    static final double SQUEEZE_IN_WIDTH = 2.5D, SQUEEZE_OUT_WIDTH = 3.5D;
+    /** 入ってから抜けるまでの最低の tick・抜けてから入り直すまでの最低の tick【仮】(ぱたぱた切り替わらないように)。 */
+    static final int SQUEEZE_MIN_HOLD = 30, SQUEEZE_MIN_GAP = 20;
+    /** 左右の壁を探す距離(ブロック、体格 1)【仮】。 */
+    static final double GAP_LOOK = 3.0D;
+    /** 狭い所の構えに入っているか・今の状態に入ってからの tick(サーバー)。 */
+    private boolean squeezeOn;
+    private int squeezeHold = SQUEEZE_MIN_GAP;
+
+    /**
+     * 芯の今の位置・1.5・3 ブロック前で、体の左右それぞれ一番近い壁(足元から 1 段上に当たりのあるブロック。バリアを除く)までの距離を測り、
+     * 左 + 右の一番狭い所を返す(壁が無ければ {@link #GAP_LOOK} とする)。
+     */
+    private double narrowestGap(double fx, double fz, double s) {
+        // 左 = (cos yaw, sin yaw)。前 (−sin, cos) から: cos = fz、sin = −fx
+        double lx = fz;
+        double lz = -fx;
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        double y = this.getY() + 1.0D * s + 0.5D;
+        double best = Double.MAX_VALUE;
+        for (double ahead : new double[]{0.0D, 1.5D, 3.0D}) {
+            double cx = this.getX() + fx * ahead * s, cz = this.getZ() + fz * ahead * s;
+            double w = 0.0D;
+            for (int side = -1; side <= 1; side += 2) {
+                double hit = GAP_LOOK * s;
+                for (double dd = 0.5D; dd <= GAP_LOOK + 1e-6; dd += 0.5D) {
+                    p.set(cx + lx * side * dd * s, y, cz + lz * side * dd * s);
+                    BlockState st = this.level().getBlockState(p);
+                    if (!st.isAir() && !st.is(net.minecraft.world.level.block.Blocks.BARRIER) && !st.getCollisionShape(this.level(), p).isEmpty()) {
+                        hit = dd * s;
+                        break;
+                    }
+                }
+                w += hit;
+            }
+            best = Math.min(best, w);
+        }
+        return best;
+    }
+    /** 構えの効きが変わる速さ(1 tick あたり)【仮】。0.6 秒・0.5 秒で全部。 */
+    static final float SQUEEZE_RATE = 0.08F, DUCK_RATE = 0.1F;
+    /** 狭い所の構えの脚: 横の幅の倍率と歩幅の倍率(効き 1 のとき)【仮】。 */
+    static final double SQUEEZE_LATERAL = 0.6D, SQUEEZE_STRIDE = 0.65D;
+
+    /** 構えの効き(両側。サーバーが求めて送り、クライアントは受けた値。前の tick の値は描画の補間用)。 */
+    private float squeezeNow, squeezePrev, duckNow, duckPrev;
+    /** サーバー: 送る前の効き(なめらかに寄せる)。 */
+    private float squeezeServer, duckServer;
+
+    public float squeeze(float pt) {
+        return Mth.lerp(pt, this.squeezePrev, this.squeezeNow);
+    }
+
+    public float duck(float pt) {
+        return Mth.lerp(pt, this.duckPrev, this.duckNow);
+    }
+
+    /** 足の置き方の歩幅の倍率(狭い所の構えで小股)。 */
+    double squeezeStride() {
+        return Mth.lerp(this.squeezeNow, 1.0D, SQUEEZE_STRIDE);
+    }
+
+    /** 足の置き方の横の幅の倍率(狭い所の構えで脚を寄せる)。 */
+    double squeezeLateral() {
+        return Mth.lerp(this.squeezeNow, 1.0D, SQUEEZE_LATERAL);
+    }
+
+    /**
+     * サーバー: 森の地図で芯の前後(今の位置・1.5・3 ブロック前)の一番近い幹までの距離を見て狭い所の構えを、頭の上(前 3.5〜5.5 の足元から
+     * 2 段上)に当たりのあるブロック(葉・枝・幹)があれば首を下げる構えを、なめらかに寄せて送る。技の間・死んだ後は 0 へ戻す。
+     * クライアント: 受けた値を進める。
+     */
+    private void tickShape() {
+        this.squeezePrev = this.squeezeNow;
+        this.duckPrev = this.duckNow;
+        if (!(this.level() instanceof ServerLevel server)) {
+            int v = this.entityData.get(DATA_SHAPE);
+            this.squeezeNow = (v & 0xFF) / 255.0F;
+            this.duckNow = ((v >> 8) & 0xFF) / 255.0F;
+            return;
+        }
+        float qT = 0.0F, dT = 0.0F;
+        // 近くにプレイヤーがいる個体だけ(見えない所では構えを変えない。重さのため。足の置き方と同じ範囲)
+        if (getAction() == ACT_NONE && !this.isDeadOrDying() && !this.isPassenger() && (this.terrainForced || playerWithin(TERRAIN_RANGE))) {
+            double s = this.getScale();
+            float yaw = this.getYRot() * Mth.DEG_TO_RAD;
+            double fx = -Mth.sin(yaw), fz = Mth.cos(yaw);
+            // 11-08 夜の直し: 「一番近い幹までの距離」だけで決めると、片側に幹が 1 本あるだけで構えに入り、すぐ戻るのを繰り返した
+            // (ユーザー「ブロックがあるだけで鎌を後ろに回したり戻したりしすぎ」)。左右の両側を測り、隙間の幅で決める。入る・抜けるに差と保つ時間を持たせる
+            double width = narrowestGap(fx, fz, s);
+            if (this.squeezeOn) {
+                this.squeezeHold++;
+                if (width >= SQUEEZE_OUT_WIDTH * s && this.squeezeHold >= SQUEEZE_MIN_HOLD) {
+                    this.squeezeOn = false;
+                    this.squeezeHold = 0;
+                }
+            } else {
+                this.squeezeHold++;
+                if (width <= SQUEEZE_IN_WIDTH * s && this.squeezeHold >= SQUEEZE_MIN_GAP) {
+                    this.squeezeOn = true;
+                    this.squeezeHold = 0;
+                }
+            }
+            qT = this.squeezeOn ? 1.0F : 0.0F;
+            BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+            // 狭い所の構えで頭が上がっている間は、もう 1 段上(足元から 3 段上)も見る
+            int rows = this.squeezeServer > 0.3F ? 2 : 1;
+            look:
+            for (double ahead : new double[]{3.5D, 4.5D, 5.5D}) {
+                for (int r = 0; r < rows; r++) {
+                    p.set(this.getX() + fx * ahead * s, this.getY() + (2.0D + r) * s + 0.5D, this.getZ() + fz * ahead * s);
+                    BlockState st = this.level().getBlockState(p);
+                    // 見えない壁(バリア)は頭が当たって見えるものではないので数えない(GameTest のテスト場の壁も)
+                    if (!st.isAir() && !st.is(net.minecraft.world.level.block.Blocks.BARRIER) && !st.getCollisionShape(this.level(), p).isEmpty()) {
+                        dT = 1.0F;
+                        break look;
+                    }
+                }
+            }
+        }
+        this.squeezeServer += Mth.clamp(qT - this.squeezeServer, -SQUEEZE_RATE, SQUEEZE_RATE);
+        this.duckServer += Mth.clamp(dT - this.duckServer, -DUCK_RATE, DUCK_RATE);
+        int packed = Math.round(this.squeezeServer * 255.0F) | (Math.round(this.duckServer * 255.0F) << 8);
+        this.entityData.set(DATA_SHAPE, packed);
+        this.squeezeNow = (packed & 0xFF) / 255.0F;   // サーバーも送った値(丸めた値)を使う(部位が両側で同じになる)
+        this.duckNow = ((packed >> 8) & 0xFF) / 255.0F;
+    }
+
+    /** GameTest 用: 構えの効きを直に置く(サーバー)。 */
+    public void forceShapeForTest(float q, float d) {
+        this.squeezeServer = q;
+        this.duckServer = d;
+    }
+
+    /** うろつきを始める、プレイヤーからの距離(ブロック)【仮】。遠くの個体は動かさない(重さのため。バニラの「動きの無い時間」の代わり)。 */
+    static final double STROLL_RANGE = 64.0D;
+    /** うろつきの間隔(平均の tick)と行き先の範囲(横・縦、ブロック)【仮】。 */
+    static final int STROLL_INTERVAL = 80, STROLL_XZ = 12, STROLL_Y = 7;
+
+    /**
+     * 標的のいない間、森の中を歩き回る(11-08 夜、ユーザー「待機の癖も直す」)。
+     *
+     * <p>前はバニラの {@code WaterAvoidingRandomStrollGoal} だった。バニラのうろつきは「動きの無い時間」({@code noActionTime})が 100 を超えると
+     * 始まらず、その時間を 0 に戻すのは 32 ブロック以内にいる<b>サバイバルの</b>プレイヤーだけ(クリエイティブ・観戦は数えない)、
+     * しかも昼のモンスターはこの時間が 1 tick に 2 ずつ増える。だからクリエイティブで見ていると、標的のいない個体は一度もうろつかず、
+     * 待機の仕草だけを繰り返して止まったままに見えた。ここでは動きの無い時間を見ず、代わりに {@link #STROLL_RANGE} 以内に
+     * だれか(クリエイティブ・観戦も含む)いるときだけ始める。行き先はバニラと同じく陸の上の乱数の位置(水を避ける)。
+     */
+    static final class ForestStrollGoal extends net.minecraft.world.entity.ai.goal.RandomStrollGoal {
+        private final FalcimnesEntity falc;
+
+        ForestStrollGoal(FalcimnesEntity mob) {
+            super(mob, 0.8D, STROLL_INTERVAL, false);
+            this.falc = mob;
+        }
+
+        @Override
+        public boolean canUse() {
+            // 確かめ用(テストクライアントだけ): 名前が nostroll で始まる個体はうろつかない(navto の経路を上書きしないように)
+            if (DEV_HOOKS && this.falc.hasCustomName() && this.falc.getCustomName().getString().startsWith("nostroll")) return false;
+            return !this.falc.isActing() && this.falc.playerWithin(STROLL_RANGE) && super.canUse();
+        }
+
+        @Nullable
+        @Override
+        protected Vec3 getPosition() {
+            if (this.mob.isInWaterOrBubble()) {
+                Vec3 p = net.minecraft.world.entity.ai.util.LandRandomPos.getPos(this.mob, STROLL_XZ, STROLL_Y);
+                return p == null ? super.getPosition() : p;
+            }
+            return net.minecraft.world.entity.ai.util.LandRandomPos.getPos(this.mob, STROLL_XZ, STROLL_Y);
+        }
+    }
+
+    /** この個体から {@code range} ブロック以内にプレイヤー(観戦も含む)がいるか。 */
+    boolean playerWithin(double range) {
+        double r2 = range * range;
+        for (Player p : this.level().players()) {
+            if (p.distanceToSqr(this) <= r2) return true;
+        }
+        return false;
+    }
+
+    private void tickTerrain() {
+        if (this.level().isClientSide()) return;
+        long t0 = System.nanoTime();
+        double s = this.getScale();
+        double pitch = 0.0D, roll = 0.0D, lift = 0.0D;
+        if (terrainAlways || this.terrainForced || playerWithin(TERRAIN_RANGE)) {
+            if (this.serverPlanter == null) {
+                // 範囲に入った(または湧いた): 新しく作る。最初の tick は今の地面へそのまま置き、効きは 0 から上がる(+ 送る値もなめらかに寄せる)
+                this.serverPlanter = new FootPlanter(LEG_HOME_LEFT, LEG_HOME_FWD, LEG_GROUP);
+            }
+            int act = getAction();
+            boolean keyed = this.isDeadOrDying() || isDodge(act) || act == ACT_GRAB_DASH || this.isPassenger() || this.isInWater();
+            double stride = FalcimnesPersonality.stride(caution(), aggression());
+            this.serverPlanter.stepAt = 0.45D * stride * squeezeStride();
+            this.serverPlanter.lead = 6.0D * stride * squeezeStride();
+            this.serverPlanter.lateral = squeezeLateral();
+            this.serverPlanter.tick(this, !keyed, s);
+            float w = this.serverPlanter.weight(1.0F);
+            lift = Mth.clamp(this.serverPlanter.bodyWorldY(1.0F) - this.getY(), -2.0D * s, 1.2D * s) * w;
+            pitch = Math.toDegrees(this.serverPlanter.bodyPitch(1.0F)) * w;
+            roll = Math.toDegrees(this.serverPlanter.bodyRoll(1.0F)) * w;
+        } else {
+            // 範囲の外: 計算しない(足の置き方を捨てる)。送る傾きは平らへなめらかに戻す
+            this.serverPlanter = null;
+        }
+        // 範囲に出入りした前後 20 tick だけなめらかに寄せる。続けて計算している間は寄せない(描画の足の置き方と遅れがずれないように)
+        this.terrainSteady = this.serverPlanter != null ? this.terrainSteady + 1 : 0;
+        double ease = this.terrainSteady > 20 ? 1.0D : TERRAIN_EASE;
+        this.terrainOut[0] += (pitch - this.terrainOut[0]) * ease;
+        this.terrainOut[1] += (roll - this.terrainOut[1]) * ease;
+        this.terrainOut[2] += (lift - this.terrainOut[2]) * ease;
+        pitch = this.terrainOut[0];
+        roll = this.terrainOut[1];
+        lift = this.terrainOut[2];
+        int p = Mth.clamp((int) Math.round(pitch * 4.0D), -127, 127) & 0xFF;
+        int r = Mth.clamp((int) Math.round(roll * 4.0D), -127, 127) & 0xFF;
+        int l = Mth.clamp((int) Math.round(lift * 256.0D), -32767, 32767) & 0xFFFF;
+        this.entityData.set(DATA_TERRAIN, p | (r << 8) | (l << 16));
+        terrainNanos += System.nanoTime() - t0;
+        terrainCalls++;
+    }
+
+    /** 送った胴の傾き {前後(度、+ で前が上がる), 左右(度、+ で左が上がる), 高さ(ブロック)}。両側で同じ値。 */
+    public float[] terrainTilt() {
+        int v = this.entityData.get(DATA_TERRAIN);
+        return new float[]{(byte) (v & 0xFF) / 4.0F, (byte) ((v >> 8) & 0xFF) / 4.0F, (short) ((v >> 16) & 0xFFFF) / 256.0F};
+    }
+
+    /** 首に付いている部位(首の逆の起こしを受ける)。 */
+    private static boolean onNeck(String name) {
+        return switch (name) {
+            case "head", "neck_a", "neck_b", "arm_l", "arm_r", "blade_l", "blade_r" -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * 部位の中心(体格 1、[前, 左, 上])を胴の傾きで回す。描画({@code client/FalcimnesLegRig})と同じく、首に付いた部位は先に首の付け根
+     * (前 1.474・高さ 1.575)まわりで胴の傾きの半分だけ逆へ起こし、次に全部を腰の中心(前 0.056・高さ 1.575)まわりで前後・左右に傾け、高さを足す。
+     */
+    private void applyTerrain(double[] c, String[] names) {
+        float[] t = terrainTilt();
+        if (t[0] == 0.0F && t[1] == 0.0F && t[2] == 0.0F) return;
+        double s = Math.max(this.getScale(), 0.05F);
+        double pitch = Math.toRadians(t[0]), roll = Math.toRadians(t[1]), lift = t[2] / s;
+        double neckF = 1.474D, neckU = 1.575D, hubF = 0.056D, hubU = 1.575D;
+        double cn = Math.cos(-pitch * 0.5D), sn = Math.sin(-pitch * 0.5D);
+        double cp = Math.cos(pitch), sp = Math.sin(pitch), cr = Math.cos(roll), sr = Math.sin(roll);
+        for (int i = 0; i < names.length; i++) {
+            double f = c[i * 3], l = c[i * 3 + 1], u = c[i * 3 + 2];
+            if (onNeck(names[i])) {
+                double df = f - neckF, du = u - neckU;
+                f = neckF + df * cn - du * sn;
+                u = neckU + df * sn + du * cn;
+            }
+            double df = f - hubF, du = u - hubU;
+            f = hubF + df * cp - du * sp;
+            u = hubU + df * sp + du * cp;
+            du = u - hubU;
+            double l2 = l * cr - du * sr;
+            u = hubU + l * sr + du * cr;
+            c[i * 3] = f;
+            c[i * 3 + 1] = l2;
+            c[i * 3 + 2] = u + lift;
+        }
+    }
+
+    /** 体の曲げを 1 tick 進める(サーバーが求めて送り、クライアントは受けた値を進める)。aiStep の移動の後。 */
+    private void tickBend() {
+        if (this.level().isClientSide()) {
+            this.bend.clientTick(this.entityData.get(DATA_BEND));
+        } else {
+            this.entityData.set(DATA_BEND, this.bend.serverTick(this));
+        }
+    }
+    /** 部位の動作の鍵(動作 × 始まった時刻。替わったら今の置き場から補間し直す)。 */
+    private long partKey = Long.MIN_VALUE;
+    private int partSinceKey;
+    /** 部位に足す性格の構えの効き(両側で同じ式。描画の postureFade は描画の時刻で進むので別に持つ)。 */
+    private float partPostureFade;
+    private boolean partPlaced;
+
+    @Override
+    public void setId(int id) {
+        super.setId(id);
+        // コンストラクタの setId より前(Entity のコンストラクタの中)には呼ばれないが、念のため
+        if (this.hitParts != null) {
+            this.hitParts.assignIds(id + 1);
+        }
+    }
+
+    @Override
+    public boolean isMultipartEntity() {
+        return true;
+    }
+
+    @Override
+    public net.neoforged.neoforge.entity.PartEntity<?>[] getParts() {
+        return this.hitParts.parts();
+    }
+
+    public HitPartSet hitParts() {
+        return this.hitParts;
+    }
+
+    /** 部位を体の向き・構えに合わせて置き直す(aiStep の移動の後、両側)。 */
+    private void placeHitParts() {
+        FalcimnesPartTrack track = FalcimnesPartTrack.get();
+        int act = this.isDeadOrDying() ? -1 : getAction();
+        int start = act == -1 ? 0 : this.entityData.get(DATA_ACTION_TIME);
+        long key = ((long) act << 32) ^ (start & 0xffffffffL);
+        int elapsed = act == -1 ? this.deathTime : (int) (this.level().getGameTime() - start);
+        // 描画の mainState と同じアニメ・補間の長さ・速さ
+        String anim;
+        int blend = TRANSITION_TICKS;
+        double speed = 1.0D;
+        switch (act) {
+            case -1 -> anim = "death";
+            case ACT_ATTACK_R -> anim = "attack_r";
+            case ACT_ATTACK_L -> anim = "attack_l";
+            case ACT_FLURRY_WINDUP -> anim = "flurry_windup";
+            case ACT_FLURRY_R, ACT_FLURRY_L -> {
+                anim = act == ACT_FLURRY_R ? "flurry_r" : "flurry_l";
+                blend = 0;
+                speed = 10.0D / Math.max(1, this.entityData.get(DATA_SLASH_TICKS));
+            }
+            case ACT_GRAB_WINDUP -> anim = "grab_windup";
+            case ACT_GRAB_DASH -> anim = "grab_dash";
+            case ACT_GRAB_HOLD -> anim = "grab_hold";
+            case ACT_FLURRY_END -> anim = "flurry_end";
+            case ACT_RECOVER -> anim = "grab_end";
+            case ACT_THREAT_END -> anim = "ikaku_end";
+            case ACT_DODGE -> anim = this.entityData.get(DATA_DODGE_HI) ? "dodge_hi" : "dodge";
+            case ACT_DODGE_L -> anim = this.entityData.get(DATA_DODGE_HI) ? "dodge_l_hi" : "dodge_l";
+            case ACT_DODGE_R -> anim = this.entityData.get(DATA_DODGE_HI) ? "dodge_r_hi" : "dodge_r";
+            case ACT_THREAT -> anim = "ikaku";
+            case ACT_WAVE_R -> anim = "wave_r";
+            case ACT_WAVE_L -> anim = "wave_l";
+            case ACT_RIFT_WINDUP -> anim = "rift_windup";
+            case ACT_RIFT_HOLD -> { anim = "rift_hold"; blend = 0; }
+            case ACT_RIFT_RECOVER -> { anim = "rift_recover"; blend = 0; }
+            case ACT_GRAB_FINISH -> anim = "grab_finish";
+            case ACT_FLURRY_X -> anim = "flurry_x";
+            case ACT_KIRIAGE_R -> anim = "kiriage_r";
+            case ACT_KIRIAGE_L -> anim = "kiriage_l";
+            case ACT_TSUKIKAKI -> anim = "tsukikaki";
+            case ACT_KOSA -> anim = "kosa";
+            case ACT_FUMIKOMI_R -> anim = "fumikomi_r";
+            case ACT_FUMIKOMI_L -> anim = "fumikomi_l";
+            case ACT_KOZUKI_R -> anim = "kozuki_r";
+            case ACT_KOZUKI_L -> anim = "kozuki_l";
+            case ACT_IDLE -> anim = IDLE_ANIM_NAMES[Math.floorMod(idleKind(), IDLE_ANIM_NAMES.length)];
+            case ACT_GROOM_END -> anim = idleKind() == IDLE_GROOM_L ? "groom_end_l" : "groom_end_r";
+            default -> {
+                // 動作なし(待機・歩き・旋回)。待機のループを世界の時刻で流す(歩きの揺れは小さいので待機で代える)
+                anim = "idle";
+            }
+        }
+        if (!track.has(anim)) anim = "idle";
+        if (key != this.partKey) {
+            this.partKey = key;
+            this.partSinceKey = 0;
+            System.arraycopy(this.partNow, 0, this.partFrom, 0, this.partNow.length);
+        }
+        // 補間の重みは「この個体が動作の替わりを見てから」の tick(クライアントは同期が数 tick 遅れて届くので、開始時刻からだと補間が飛ぶ)
+        int since = this.partSinceKey++;
+        double t = act == ACT_NONE ? this.level().getGameTime() / 20.0D
+                : Math.max(0, elapsed - blend) / 20.0D * speed;
+        track.sample(anim, t, this.partTarget);
+        if (!this.partPlaced) {
+            // 初めて置くとき(湧いた・クライアントで見え始めた)は補間せず、今の動作の形から始める
+            System.arraycopy(this.partTarget, 0, this.partFrom, 0, this.partTarget.length);
+        }
+        double w =blend <= 0 ? 1.0D : Mth.clamp((since + 1) / (double) blend, 0.0D, 1.0D);
+        for (int i = 0; i < this.partNow.length; i++) {
+            this.partNow[i] = Mth.lerp(w, this.partFrom[i], this.partTarget[i]);
+        }
+        this.partPlaced = true;
+        // 11-08 夜: 性格の構え(慎重 = 低く首を垂らす / 荒い = 高く首を起こす)にも付いていく。性格は同期されているので両側で同じ値。
+        // 構えの効きは描画(FalcimnesPostureRig)と同じく、動作の無い間 1・技の間 0 へ、1 秒に 8 の速さで寄る(1 tick で 4 割)
+        float postureWant = act == ACT_NONE ? 1.0F : 0.0F;
+        this.partPostureFade += (postureWant - this.partPostureFade) * 0.4F;
+        float[] pw = FalcimnesPersonality.postureWeights(caution(), aggression());
+        System.arraycopy(this.partNow, 0, this.partPosed, 0, this.partNow.length);   // 構えは partNow(動作の切り替えの補間の始点)へ混ぜない
+        // 段 3: 狭い所の構えの間は性格の構えを薄める(鎌の構えが畳んだ鎌とぶつかる)。描画の FalcimnesShapeRig と同じ
+        track.addPosture(this.partPosed, pw[0], pw[1], Math.max(0.0F, (0.5F - caution()) * 2.0F), this.partPostureFade * (1.0F - this.squeezeNow));
+        track.addShape(this.partPosed, this.squeezeNow, this.duckNow);
+        this.bend.bendParts(this.partPosed, this.partBent, track.names);   // 段 2: 首・腹の曲げに付いていく(両側で同じ値)
+        applyTerrain(this.partBent, track.names);   // 11-08 夜: 坂・段での胴の傾きと高さ(サーバーが求めて送った値。両側で同じ)
+        this.hitParts.place(this, this.getYRot(), this.partBent);
+    }
+
+    /** GameTest の失敗の手がかり。 */
+    public String partDebug() {
+        return "key " + this.partKey + " since " + this.partSinceKey + " placed " + this.partPlaced + " act " + getAction()
+                + " t0 " + this.entityData.get(DATA_ACTION_TIME) + " now " + this.level().getGameTime()
+                + " head " + this.partNow[0] + "," + this.partNow[1] + "," + this.partNow[2] + " from " + this.partFrom[0] + " target " + this.partTarget[0];
+    }
+
+    /** 待機の仕草のアニメの名前({@link #IDLE_ANIMS} と同じ順)。 */
+    private static final String[] IDLE_ANIM_NAMES = {"idle_look_r", "idle_look_l", "idle_gape", "idle_shake", "idle_groom_r", "idle_groom_l"};
+
+    /**
+     * 窒息は芯の箱の中で見る。バニラは目の高さで見るが、目({@link #EYE_HEIGHT})は芯の箱の上に出ていて、
+     * 芯が通れる隙間でも頭の高さの葉・枝に「埋まった」と見てしまう(頭・首は地形とぶつからない作り)。
+     * 見る高さは前の既定の目と同じ「箱の高さの 0.85」。
+     */
+    @Override
+    public boolean isInWall() {
+        if (this.noPhysics) {
+            return false;
+        }
+        float w = this.getBbWidth() * 0.8F;
+        AABB box = AABB.ofSize(new Vec3(this.getX(), this.getY() + this.getBbHeight() * 0.85D, this.getZ()), w, 1.0E-6D, w);
+        return BlockPos.betweenClosedStream(box).anyMatch(p -> {
+            BlockState s = this.level().getBlockState(p);
+            return !s.isAir() && s.isSuffocating(this.level(), p)
+                    && net.minecraft.world.phys.shapes.Shapes.joinIsNotEmpty(s.getCollisionShape(this.level(), p).move(p.getX(), p.getY(), p.getZ()),
+                    net.minecraft.world.phys.shapes.Shapes.create(box), net.minecraft.world.phys.shapes.BooleanOp.AND);
+        });
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -533,12 +1138,162 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
         return new GroundPathNavigation(this, level) {
             @Override
             protected PathFinder createPathFinder(int maxVisitedNodes) {
-                this.nodeEvaluator = new OvergrownNodeEvaluator();
+                OvergrownNodeEvaluator evaluator = new OvergrownNodeEvaluator();
+                evaluator.setLongBody(FalcimnesBend.LONG_BODY);   // 段 2: 幹に近い所・狭い所の急な曲がりを高くつける
+                this.nodeEvaluator = evaluator;
                 this.nodeEvaluator.setCanPassDoors(true);
                 return new PathFinder(this.nodeEvaluator, maxVisitedNodes);
             }
+
+            /**
+             * 11-09(ユーザー「直す」): 回り道が経路を探す範囲(調べるマスの数・距離)の外にあると、慎重な個体が葉や障害物の手前で止まった。
+             * 普段の探索が届かない経路しか返さなかったときだけ、調べる数を {@link #WIDE_NODES} 倍・距離を +{@link #WIDE_EXTRA} に広げて 1 回探し直す
+             * (普段の歩きの重さは変わらない)。探し直しには間隔を空ける(届かなければもっと空ける)。広げても届かない(閉じた囲いなど)ときは、
+             * 慎重な個体は届かない経路のまま手前まで行って、うろつきに戻る(押し分けるのは荒い個体だけ、の決まりはそのまま)。
+             */
+            @Override
+            protected net.minecraft.world.level.pathfinder.Path createPath(java.util.Set<BlockPos> targets, int regionOffset, boolean offsetUpward,
+                                                                            int accuracy, float followRange) {
+                net.minecraft.world.level.pathfinder.Path p = super.createPath(targets, regionOffset, offsetUpward, accuracy, followRange);
+                FalcimnesEntity f = FalcimnesEntity.this;
+                if ((p == null || !p.canReach()) && !targets.isEmpty() && f.level() instanceof net.minecraft.server.level.ServerLevel sl
+                        && (f.tickCount >= f.wideRetryTick || f.detourMoved())) {
+                    if (detourCoarse) return coarse(sl, p, targets, regionOffset, offsetUpward, accuracy, followRange);
+                    long t0 = System.nanoTime();
+                    net.minecraft.world.level.pathfinder.Path w;
+                    this.setMaxVisitedNodesMultiplier(WIDE_NODES);
+                    // 広げた探し直しでは長い体の重み(幹・葉の近さ・曲がり)を外す。重みがあると遠回りの探索で調べるマスが増え、4 倍でも届かなかった
+                    // (25 マスの生け垣、11-09)。回り道を見つけるのが目的なので、壁際を通る経路でよい
+                    OvergrownNodeEvaluator ev = this.nodeEvaluator instanceof OvergrownNodeEvaluator o ? o : null;
+                    OvergrownNodeEvaluator.LongBody keep = ev != null ? ev.longBody() : null;
+                    if (ev != null) ev.setLongBody(null);
+                    try {
+                        w = super.createPath(targets, regionOffset, offsetUpward, accuracy, followRange + WIDE_EXTRA);
+                    } finally {
+                        this.resetMaxVisitedNodesMultiplier();
+                        if (ev != null) ev.setLongBody(keep);
+                    }
+                    boolean reached = w != null && w.canReach();
+                    // 届かなくても、普段の経路より WIDE_CLOSER 以上目標に近い所まで行けるなら採る(回り込んだ先で探し直せば、残りは普段の探索で届く。
+                    // 25 マスの生け垣では、広げた経路が端を回って向こう側の目標の 4 ブロック手前まで来ていた、11-09)
+                    boolean closer = !reached && w != null && w.getEndNode() != null && w.getTarget() != null
+                            && endGap(w) + WIDE_CLOSER <= (p == null || p.getEndNode() == null ? Double.MAX_VALUE : endGap(p));
+                    f.wideRetryTick = f.tickCount + (reached || closer ? WIDE_RETRY_TICKS : WIDE_GIVE_UP_TICKS);
+                    f.detourFrom = null;
+                    long ns = System.nanoTime() - t0;
+                    widePathNanos += ns;
+                    com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.spend(sl, ns);
+                    if (DEV_HOOKS) com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info("FALC_WIDE {} µs 普段 {} / 広げた {} ノード {} 届く {}", ns / 1000,
+                            p == null ? "null" : p.getNodeCount() + (p.canReach() ? "届く" : "届かない"), w == null ? "null" : "ok", w == null ? -1 : w.getNodeCount() + (w.getEndNode() == null ? "" : " 終わり " + w.getEndNode().asBlockPos() + " 目標 " + w.getTarget()), reached);
+                    widePathCalls++;
+                    if (reached || closer) {
+                        widePathFound++;
+                        return w;
+                    }
+                }
+                return p;
+            }
+
+            /**
+             * 11-09: 広げた探し直し(1 回 11〜13 ms)の代わり。粗い下調べ({@link com.yayuy.overgrownvegetation.entity.forest.CoarseDetour})で
+             * 回り道を見つけ、その道の途中(普段の探索で届く距離)の「途中の目標」まで普段の探索でつなぐ。途中の目標に着けば、
+             * 呼ぶ側(Goal)が引き直すたびにまた下調べして先へ進む(動いた後は間隔を待たない)。サーバー全体の予算を使い切っていたら、
+             * 少し後({@link #DETOUR_WAIT_TICKS})に回す(それまでは普段の届かない経路のまま)。
+             */
+            net.minecraft.world.level.pathfinder.Path coarse(net.minecraft.server.level.ServerLevel sl, net.minecraft.world.level.pathfinder.Path p,
+                                                             java.util.Set<BlockPos> targets, int regionOffset, boolean offsetUpward, int accuracy, float followRange) {
+                FalcimnesEntity f = FalcimnesEntity.this;
+                if (!com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.budgetLeft(sl)) {
+                    f.wideRetryTick = f.tickCount + DETOUR_WAIT_TICKS;
+                    return p;
+                }
+                BlockPos goal = null;
+                for (BlockPos t : targets) if (goal == null || t.distSqr(f.blockPosition()) < goal.distSqr(f.blockPosition())) goal = t;
+                int width = net.minecraft.util.Mth.floor(f.getBbWidth() + 1.0F);
+                BlockPos from = f.blockPosition();
+                double reach = Math.max(DETOUR_REACH_MIN, Math.min(followRange * DETOUR_REACH, DETOUR_REACH_MAX));
+                long call0 = System.nanoTime();
+                var plan = com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.plan(sl, from, goal, width, !f.leafPusher, reach);
+                widePathCalls++;
+                double before = p == null || p.getEndNode() == null ? Double.MAX_VALUE : Math.sqrt(p.getEndNode().asBlockPos().distSqr(goal));
+                net.minecraft.world.level.pathfinder.Path q = null;
+                if (plan != null && plan.gap() + WIDE_CLOSER <= before) {
+                    long t0 = System.nanoTime();
+                    // 途中の目標は近く(reach 以内)で道も分かっているので、調べる数と距離を絞る(届かないときに数を使い切るのが重さの山だった、11-09)
+                    // 長い体の重みも外す(広げた探し直しと同じ。体が通れる幅は下調べで確かめてある。重みがあると曲がり角の手前で数が尽きた)
+                    this.setMaxVisitedNodesMultiplier(Math.max(DETOUR_FINE_NODES, DETOUR_FINE_MIN_NODES / (followRange * 16.0F)));
+                    OvergrownNodeEvaluator ev = this.nodeEvaluator instanceof OvergrownNodeEvaluator o ? o : null;
+                    OvergrownNodeEvaluator.LongBody keep = ev != null ? ev.longBody() : null;
+                    if (ev != null) ev.setLongBody(null);
+                    try {
+                        q = super.createPath(java.util.Set.of(plan.waypoint()), regionOffset, offsetUpward, accuracy, (float) (reach + 4.0D));
+                    } finally {
+                        this.resetMaxVisitedNodesMultiplier();
+                        if (ev != null) ev.setLongBody(keep);
+                    }
+                    long ns = System.nanoTime() - t0;
+                    widePathNanos += ns;
+                    com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.spend(sl, ns);
+                }
+                com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.noteCall(System.nanoTime() - call0);
+                // 途中の目標(か、そのすぐ手前)まで行ければ採る。届かなくても途中の目標に 1 ブロック以上近づくなら採る(引き返して行ったり来たりしない)
+                boolean ok = q != null && q.getEndNode() != null && (q.getEndNode().asBlockPos().distSqr(plan.waypoint()) <= DETOUR_NEAR_SQR
+                        || Math.sqrt(q.getEndNode().asBlockPos().distSqr(plan.waypoint())) + 1.0D <= Math.sqrt(from.distSqr(plan.waypoint())));
+                f.wideRetryTick = f.tickCount + (ok ? WIDE_RETRY_TICKS : WIDE_GIVE_UP_TICKS);
+                f.detourFrom = ok ? from : null;
+                f.detourTo = ok ? q.getEndNode().asBlockPos() : null;
+                if (detourTrace) lastDetour = "位置 " + from + " 目標 " + goal + " 下調べ " + (plan == null ? "なし" : plan.waypoint() + " 残り " + plan.gap()) + " 普段の残り " + before + " 細かい終わり " + (q == null || q.getEndNode() == null ? "-" : q.getEndNode().asBlockPos()) + " 採る " + ok;
+                if (DEV_HOOKS) com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info("FALC_DETOUR 位置 {} 目標 {} 葉を避ける {} 下調べ {} 途中 {} 残り {} / 普段の残り {} 細かい終わり {} 採る {}", from, goal, !f.leafPusher,
+                        plan == null ? "なし" : "あり", plan == null ? "-" : plan.waypoint(), plan == null ? "-" : String.format(java.util.Locale.ROOT, "%.1f", plan.gap()),
+                        before == Double.MAX_VALUE ? "-" : String.format(java.util.Locale.ROOT, "%.1f", before), q == null || q.getEndNode() == null ? "-" : q.getEndNode().asBlockPos(), ok);
+                if (ok) {
+                    widePathFound++;
+                    return q;
+                }
+                return p;
+            }
         };
     }
+
+    /** 回り道のやり方: true = 粗い下調べ + 途中の目標(11-09)、false = 前の広げた探し直し(比べる計測のため残す)。 */
+    public static volatile boolean detourCoarse = true;
+    /** 確かめ用(GameTest): 最後の回り道の中身を文字にして残すか・その文字。 */
+    public static volatile boolean detourTrace;
+    public static volatile String lastDetour = "";
+    /** 予算を使い切っていたときに待つ tick・途中の目標を置く距離(普段の探す距離に掛ける・上限ブロック)・途中の目標に「着ける」とみる距離の 2 乗【仮】。 */
+    static final int DETOUR_WAIT_TICKS = 5;
+    static final double DETOUR_REACH = 0.3D, DETOUR_REACH_MIN = 4.0D, DETOUR_REACH_MAX = 12.0D, DETOUR_NEAR_SQR = 4.0D;
+    /** 途中の目標へ動き出した所(ここから {@link #DETOUR_MOVED_SQR} より離れたら、間隔を待たずに次を下調べしてよい)。 */
+    private BlockPos detourFrom;
+    static final double DETOUR_MOVED_SQR = 4.0D;
+    /** 途中の目標までの細かい探索の、調べる数の倍率(普段に掛ける)と下限(マス)【仮】。 */
+    static final float DETOUR_FINE_NODES = 0.35F, DETOUR_FINE_MIN_NODES = 64.0F;
+
+    /** 前の途中の目標への経路の終わり(ここに着いたら、動いた距離によらず次を下調べしてよい)。 */
+    private BlockPos detourTo;
+
+    boolean detourMoved() {
+        if (this.detourFrom == null) return false;
+        BlockPos at = this.blockPosition();
+        return at.distSqr(this.detourFrom) > DETOUR_MOVED_SQR || (this.detourTo != null && !this.detourTo.equals(this.detourFrom) && at.distSqr(this.detourTo) <= 3.0D);   // 経路のノードは体の足場の角、体の位置はその +1(バニラの大きい体)
+    }
+
+    /** 経路を広げて探し直すときの、調べるマスの数の倍率と、探す距離の足し(ブロック)【仮】。 */
+    static final float WIDE_NODES = 2.5F;
+    /** 広げた経路が届かなくても、普段の経路より目標にこれだけ(ブロック)近い所で終わるなら採る【仮】。 */
+    static final double WIDE_CLOSER = 2.0D;
+
+    /** 経路の終わりのノードから目標までの距離(ブロック)。 */
+    static double endGap(net.minecraft.world.level.pathfinder.Path p) {
+        return Math.sqrt(p.getEndNode().asBlockPos().distSqr(p.getTarget()));
+    }
+    static final float WIDE_EXTRA = 16.0F;
+    /** 広げて探し直す間隔: 届いたら次まで / 届かなかったら次まで(tick)【仮】。 */
+    static final int WIDE_RETRY_TICKS = 60, WIDE_GIVE_UP_TICKS = 200;
+    /** 次に広げて探し直してよい tick。 */
+    private int wideRetryTick;
+    /** 計測用: 広げた探し直しの時間(ns)・回数・届いた回数。 */
+    public static volatile long widePathNanos, widePathCalls, widePathFound;
 
     /**
      * 体は常に {@code yRot} と同じ向き(サーバーでもクライアントでも)。バニラの {@code BodyRotationControl} は
@@ -560,13 +1315,84 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
         builder.define(DATA_DODGE_HI, false);
         builder.define(DATA_IDLE_KIND, IDLE_LOOK_R);
         builder.define(DATA_ACTION_TIME, 0);
+        builder.define(DATA_BEND, 0L);
+        builder.define(DATA_TERRAIN, 0);
+        builder.define(DATA_SHAPE, 0);
+        builder.define(DATA_CAUTION, 0.5F);
+        builder.define(DATA_AGGRESSION, 0.5F);
+        builder.define(DATA_FLANK, 0.5F);
+    }
+
+    // ------------------------------------------------------------------ 個体の性格(段 3)
+
+    public float caution() {
+        return this.entityData.get(DATA_CAUTION);
+    }
+
+    public float aggression() {
+        return this.entityData.get(DATA_AGGRESSION);
+    }
+
+    public float flank() {
+        return this.entityData.get(DATA_FLANK);
+    }
+
+    /** 性格を決める(0〜1 に収める)。GameTest は 0.5 / 0.5 / 0.5(段 2 までと同じ振る舞い)を置く。 */
+    public void setPersonality(float caution, float aggression, float flank) {
+        this.entityData.set(DATA_CAUTION, Mth.clamp(caution, 0.0F, 1.0F));
+        this.entityData.set(DATA_AGGRESSION, Mth.clamp(aggression, 0.0F, 1.0F));
+        this.entityData.set(DATA_FLANK, Mth.clamp(flank, 0.0F, 1.0F));
+        this.personalitySet = true;
+        applyPersonalityToPaths();
+    }
+
+    // --- 段 3(11-08 夜): 通れない所の振る舞いを性格で変える(決定「慎重な個体は大きく回り込み、荒い個体は下草や葉を押し分けて近道する。ブロックは壊さない」) ---
+
+    /** 荒い個体(開く構えの重み)がこれより大きいと葉を押し分けて通る【仮】。 */
+    static final float LEAF_PUSH_MIN = 0.4F;
+    /** 葉を押し分けるときの経路の重み(1 マスあたり)【仮】。 */
+    static final float LEAF_PUSH_MALUS = 2.0F;
+    /** この個体は葉を押し分けて通るか(サーバーの当たりの判定から毎回読む。性格を決めたときに求めておく)。 */
+    private boolean leafPusher;
+
+    public boolean pushesThroughLeaves() {
+        return this.leafPusher;
+    }
+
+    /**
+     * 性格から経路の重みを決める(値は全部【仮】)。慎重(畳む重み g)ほど幹から離れたがり・曲がりを嫌い(大きく回り込む)、
+     * 荒い(開く重み o)ほど幹の近く・曲がりを気にしない。荒い個体は葉の重みを「通れない」から {@link #LEAF_PUSH_MALUS} にし、
+     * 当たりも葉を通り抜ける({@code mixin/LeavesPushThroughMixin})。
+     */
+    private void applyPersonalityToPaths() {
+        float[] w = FalcimnesPersonality.postureWeights(caution(), aggression());
+        float g = w[0], o = w[1];
+        OvergrownNodeEvaluator.LongBody base = FalcimnesBend.LONG_BODY;
+        OvergrownNodeEvaluator.LongBody mine = new OvergrownNodeEvaluator.LongBody(
+                base.clearWant() + 1.0F * g - 0.5F * o, base.clearCost() + 1.0F * g - 0.5F * o,
+                base.turnCost() + 0.6F * g - 0.3F * o, base.tightClear());
+        if (this.getNavigation().getNodeEvaluator() instanceof OvergrownNodeEvaluator ev) {
+            ev.setLongBody(mine);
+        }
+        this.leafPusher = o > LEAF_PUSH_MIN;
+        this.setPathfindingMalus(PathType.LEAVES, this.leafPusher ? LEAF_PUSH_MALUS : -1.0F);
+    }
+
+    /** 技の重みの性格の掛け数。 */
+    double personalityWeight(ActionDef d) {
+        return FalcimnesPersonality.weight(d, caution(), aggression(), flank());
+    }
+
+    /** 性格の数値({@code actions.json} の擬似の技 {@code personality} の extra)。 */
+    static double pv(String key, double fallback) {
+        return def(FalcimnesPersonality.ID).get(key, fallback);
     }
 
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
         this.goalSelector.addGoal(1, new HuntGoal(this));
-        this.goalSelector.addGoal(6, new WaterAvoidingRandomStrollGoal(this, 0.8D));
+        this.goalSelector.addGoal(6, new ForestStrollGoal(this));   // 段 3(11-08 夜): バニラのうろつきは創造・観戦の人のそばで始まらなかった
         this.goalSelector.addGoal(7, new LookAtPlayerGoal(this, Player.class, 12.0F));
         this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
 
@@ -618,6 +1444,7 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
         this.entityData.set(DATA_ACTION, action);
         this.entityData.set(DATA_SEQ, this.entityData.get(DATA_SEQ) + 1);
         this.actionTicks = 0;
+        this.comboResult = FalcimnesPersonality.RESULT_NONE;
     }
 
     /** 動作の頭の技の名前({@code actions.json} の鍵)。続きの動作なら null。 */
@@ -629,6 +1456,11 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
             case ACT_GRAB_WINDUP -> "grab";
             case ACT_WAVE_R, ACT_WAVE_L -> "wave";
             case ACT_RIFT_WINDUP -> "rift";
+            case ACT_KIRIAGE_R, ACT_KIRIAGE_L -> "kiriage";
+            case ACT_TSUKIKAKI -> "tsukikaki";
+            case ACT_KOSA -> "kosa";
+            case ACT_FUMIKOMI_R, ACT_FUMIKOMI_L -> "fumikomi";
+            case ACT_KOZUKI_R, ACT_KOZUKI_L -> "kozuki";
             default -> null;
         };
     }
@@ -680,13 +1512,20 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
             case ACT_RIFT_WINDUP -> ActionPhase.WINDUP;
             case ACT_RIFT_HOLD -> ActionPhase.EXECUTE;
             case ACT_RIFT_RECOVER -> ActionPhase.RECOVER;
+            case ACT_FLURRY_X -> FLURRY_X.phaseAt(this.actionTicks);
+            case ACT_KIRIAGE_R, ACT_KIRIAGE_L -> KIRIAGE.phaseAt(this.actionTicks);
+            case ACT_TSUKIKAKI -> TSUKIKAKI.phaseAt(this.actionTicks);
+            case ACT_KOSA -> KOSA.phaseAt(this.actionTicks);
+            case ACT_FUMIKOMI_R, ACT_FUMIKOMI_L -> FUMIKOMI.phaseAt(this.actionTicks);
+            case ACT_KOZUKI_R, ACT_KOZUKI_L -> KOZUKI.phaseAt(this.actionTicks);
             default -> ActionPhase.DONE;
         };
     }
 
-    /** 通常技(横薙ぎ・連撃・掴み・飛ぶ斬撃)の調整値。 */
+    /** 通常技(横薙ぎ・連撃・掴み・飛ぶ斬撃・段 2 の小さな技 5 つ)の調整値。 */
     java.util.List<ActionDef> normalDefs() {
-        return java.util.List.of(def("sweep"), def("flurry"), def("grab"), def("wave"));
+        return java.util.List.of(def("sweep"), def("flurry"), def("grab"), def("wave"),
+                def("kiriage"), def("tsukikaki"), def("kosa"), def("fumikomi"), def("kozuki"));
     }
 
     /** 選び方(GameTest 用。書き換えない)。 */
@@ -697,6 +1536,7 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
     private void endAction() {
         this.entityData.set(DATA_ACTION, ACT_NONE);
         this.actionTicks = 0;
+        this.comboStep = 0;
     }
 
     private void recover(int ticks) {
@@ -705,6 +1545,120 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
     }
 
     // ------------------------------------------------------------------ 毎 tick
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (this.level().isClientSide()) {
+            tickFootPlanter();
+            tickUndergrowthBrush();
+        }
+    }
+
+    /**
+     * 足の置き場を 1 tick 進める(クライアント)。近くで描かれていて(描画が {@link #markLegsRendered} で知らせる)、
+     * 歩き・旋回・待機・技の最中なら手続き。回避・突進・死・水の中・乗り物の上は手付けのアニメに任せる。
+     */
+    private void tickFootPlanter() {
+        if (this.footPlanter == null) {
+            this.footPlanter = new FootPlanter(LEG_HOME_LEFT, LEG_HOME_FWD, LEG_GROUP);
+        }
+        int act = getAction();
+        boolean keyedOnly = this.isDeadOrDying() || isDodge(act) || act == ACT_GRAB_DASH || this.isPassenger() || this.isInWater();
+        // 確かめ用(テストクライアントだけ。撮り比べる): 名前が "keyed" の個体は手付けのまま、"feet" の個体は足の置き場に粒を出す
+        String devName = DEV_HOOKS && this.hasCustomName() ? this.getCustomName().getString() : "";
+        if (devName.equals("keyed")) {
+            keyedOnly = true;
+        }
+        boolean near = this.tickCount - this.legsRenderedTick <= 5;
+        boolean on = near && !keyedOnly;
+        // 段 3: 歩幅は性格で(慎重 = 小股、荒い = 大股)。踏み替えるずれと先回りの両方に掛ける【仮】
+        double stride = FalcimnesPersonality.stride(caution(), aggression());
+        this.footPlanter.stepAt = 0.45D * stride * squeezeStride();   // 段 3: 狭い所では小股・脚を寄せる
+        this.footPlanter.lead = 6.0D * stride * squeezeStride();
+        this.footPlanter.lateral = squeezeLateral();
+        this.footPlanter.tick(this, on, this.getScale());
+        this.clientProceduralLegs = this.footPlanter.weight(1.0F) > 0.0F && !keyedOnly;
+        if (devName.equals("feet") && this.footPlanter.ready()) {
+            StringBuilder sb = this.tickCount % 2 == 0 ? new StringBuilder() : null;
+            for (int i = 0; i < this.footPlanter.legs(); i++) {
+                Vec3 f = this.footPlanter.foot(i, 1.0F);
+                this.level().addParticle(net.minecraft.core.particles.ParticleTypes.END_ROD, f.x, f.y + 0.05D, f.z, 0, 0, 0);
+                if (sb != null) {
+                    sb.append(String.format(java.util.Locale.ROOT, " [%d] %.2f %.2f %.2f", i, f.x, f.y, f.z));
+                }
+            }
+            if (sb != null) {
+                com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info("FALC_FEET pos {} {} {} yaw {} w {}{}", this.getX(), this.getY(), this.getZ(),
+                        this.yBodyRot, this.footPlanter.weight(1.0F), sb);
+            }
+        }
+    }
+
+    /** 下草を押し分けた音を最後に鳴らした tick(クライアント)。 */
+    private int brushSoundTick;
+
+    /**
+     * 段 3(11-08 夜): 下草・葉を押し分ける見た目(クライアント、近くで描いていて歩いているときだけ)。
+     * 足先(足の置き方の置き場)と頭・首・腹(叩ける部位の中心)のマスに、当たりの無い植物(草・シダ・この MOD の下草)か葉があれば、
+     * そのブロックの欠片を少し散らし、ときどきそのブロックの音を小さく鳴らす。ブロックは変えない。数・間隔は【仮】。
+     */
+    private void tickUndergrowthBrush() {
+        if (this.footPlanter == null || !this.footPlanter.ready() || this.tickCount % 2 != 0) return;
+        if (clientForwardSpeed() < 0.03D && Math.abs(getTurnRate()) < 2.0F) return;
+        Level level = this.level();
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        boolean any = false;
+        BlockState heard = null;
+        int n = this.footPlanter.legs() + this.hitParts.count();
+        for (int i = 0; i < n; i++) {
+            Vec3 at = i < this.footPlanter.legs() ? this.footPlanter.foot(i, 1.0F).add(0.0D, 0.3D, 0.0D)
+                    : this.hitParts.part(i - this.footPlanter.legs()).getBoundingBox().getCenter();
+            p.set(at.x, at.y, at.z);
+            BlockState st = level.getBlockState(p);
+            // 見えないブロック(光のブロックなど)は数えない(その欠片 = 電球の絵の白い粒が出ていた、11-08 夜)
+            boolean plant = !st.isAir() && st.getRenderShape() != net.minecraft.world.level.block.RenderShape.INVISIBLE
+                    && st.getFluidState().isEmpty() && st.canBeReplaced() && st.getCollisionShape(level, p).isEmpty();
+            boolean leaf = st.is(net.minecraft.tags.BlockTags.LEAVES) || st.getBlock() instanceof com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock;
+            if (!plant && !leaf) continue;
+            if (this.random.nextInt(leaf ? 2 : 3) != 0) continue;
+            any = true;
+            heard = st;
+            for (int k = 0; k < (leaf ? 3 : 1); k++) {
+                level.addParticle(new net.minecraft.core.particles.BlockParticleOption(net.minecraft.core.particles.ParticleTypes.BLOCK, st),
+                        at.x + (this.random.nextDouble() - 0.5D) * 0.6D, at.y + this.random.nextDouble() * 0.4D, at.z + (this.random.nextDouble() - 0.5D) * 0.6D,
+                        0.0D, 0.05D, 0.0D);
+            }
+        }
+        if (any && this.tickCount - this.brushSoundTick > 12) {
+            this.brushSoundTick = this.tickCount;
+            var sound = heard.getSoundType();
+            level.playLocalSound(this.getX(), this.getY(), this.getZ(), sound.getHitSound(), net.minecraft.sounds.SoundSource.HOSTILE,
+                    sound.getVolume() * 0.35F, sound.getPitch() * 0.8F, false);
+        }
+    }
+
+    @Nullable
+    public FootPlanter footPlanter() {
+        return this.footPlanter;
+    }
+
+    public double[][] legSolution() {
+        return this.legSolution;
+    }
+
+    /** 前のフレームの解が新しい(2 tick 以内)か。古ければ手付けの構えから解き直す。 */
+    public boolean legSolutionFresh() {
+        return this.tickCount - this.legSolvedTick <= 2;
+    }
+
+    public void markLegSolution() {
+        this.legSolvedTick = this.tickCount;
+    }
+
+    public void markLegsRendered() {
+        this.legsRenderedTick = this.tickCount;
+    }
 
     /**
      * 動作は {@code aiStep} で進める({@code customServerAiStep} ではなく)。{@code NoAI} の個体でも動作だけは
@@ -718,8 +1672,16 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
             applyFacing();
         }
         super.aiStep();
+        tickShape();
+        tickBend();
+        tickTerrain();
+        placeHitParts();
         if (this.level().isClientSide() || !this.isAlive()) {
             return;
+        }
+        if (!this.personalitySet) {
+            // 段 3: 湧いた個体(finalizeSpawn を通らない湧き方も)は最初の tick に性格を振る。つまみごとに U 字の分布。
+            setPersonality(FalcimnesPersonality.roll(this.random), FalcimnesPersonality.roll(this.random), FalcimnesPersonality.roll(this.random));
         }
         this.picker.tick();
         if (this.dodgeCooldown > 0) this.dodgeCooldown--;
@@ -815,10 +1777,28 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
                         startSlash();
                     } else {
                         this.getNavigation().stop();
-                        startAction(ACT_FLURRY_END);
+                        startAction(ACT_FLURRY_X);   // 段 2: 締めの X 字の交差斬りへ
                     }
                 }
             }
+            case ACT_FLURRY_X -> {
+                holdStill();
+                if (hasTarget && this.actionTicks < FLURRY_X.executeStart()) turnTo(target, 20.0F);
+                if (this.actionTicks == 1) playSound(ModSounds.FALCIMNES_GROWL.get(), 1.2F, 1.1F);
+                if (this.actionTicks == FLURRY_X_HIT - 2) playSound(ModSounds.FALCIMNES_SLASH.get(), 1.2F, 0.8F);
+                if (this.actionTicks == FLURRY_X_HIT) {
+                    float dmg = (float) this.getAttributeValue(Attributes.ATTACK_DAMAGE) * (float) def("flurry").get("finishFactor", 1.0D);
+                    for (LivingEntity e : inSweep(FLURRY_REACH + SWEEP_MARGIN, SWEEP_HALF_WIDTH)) {
+                        e.invulnerableTime = 0;
+                        if (e.hurt(this.damageSources().mobAttack(this), dmg)) {
+                            e.knockback(0.6D, -forward().x, -forward().z);
+                        }
+                    }
+                }
+                if (this.actionTicks >= FLURRY_X.total()) startAction(ACT_FLURRY_END);
+            }
+            case ACT_KIRIAGE_R, ACT_KIRIAGE_L, ACT_TSUKIKAKI, ACT_KOSA, ACT_FUMIKOMI_R, ACT_FUMIKOMI_L, ACT_KOZUKI_R, ACT_KOZUKI_L ->
+                    tickSmallMove(getAction(), target, hasTarget);
             case ACT_GRAB_WINDUP -> {
                 holdStill();
                 // 最後の 0.5 秒は向きを固定する —— 突進の向きが見えてから横へ逃げられる。
@@ -954,6 +1934,158 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
         } else {
             endAction();
         }
+    }
+
+    /**
+     * 小さな通常技(段 2、11-07 夜)を 1 tick 進める。どれも前触れの間は標的へ向き直り(実行の 4 tick 前まで —— 向きが決まってから避けられる)、
+     * 当たりの tick に前方の扇で斬る。技ごとの付け足し(数値は actions.json、すべて【仮】):
+     * <ul>
+     *   <li>切り上げ: 打ち上げ({@code lift})。盾を構えていたら盾を弾く({@code shieldBreak} tick 使えない)。</li>
+     *   <li>突き掻き: 1〜2 ブロック引き寄せる({@code pull})。</li>
+     *   <li>交差斬り: 幅広いが届く距離は短い(扇の形だけ)。</li>
+     *   <li>踏み込み斬り: 前触れの間、鎌の側へ横に踏み出して回り込む({@code sidestep} ブロック/tick)。</li>
+     *   <li>小突き: 弱いが速い。</li>
+     * </ul>
+     */
+    private void tickSmallMove(int act, @Nullable LivingEntity target, boolean hasTarget) {
+        ActionTiming tm;
+        int hit;
+        double reach, width;
+        String id;
+        switch (act) {
+            case ACT_KIRIAGE_R, ACT_KIRIAGE_L -> { tm = KIRIAGE; hit = KIRIAGE_HIT; reach = KIRIAGE_REACH; width = KIRIAGE_WIDTH; id = "kiriage"; }
+            case ACT_TSUKIKAKI -> { tm = TSUKIKAKI; hit = TSUKIKAKI_HIT; reach = TSUKI_REACH; width = TSUKI_WIDTH; id = "tsukikaki"; }
+            case ACT_KOSA -> { tm = KOSA; hit = KOSA_HIT; reach = KOSA_REACH; width = KOSA_WIDTH; id = "kosa"; }
+            case ACT_FUMIKOMI_R, ACT_FUMIKOMI_L -> { tm = FUMIKOMI; hit = FUMIKOMI_HIT; reach = FUMI_REACH; width = FUMI_WIDTH; id = "fumikomi"; }
+            default -> { tm = KOZUKI; hit = KOZUKI_HIT; reach = KOZUKI_REACH; width = KOZUKI_WIDTH; id = "kozuki"; }
+        }
+        ActionDef d = def(id);
+        boolean fumi = act == ACT_FUMIKOMI_R || act == ACT_FUMIKOMI_L;
+        if (!fumi || this.actionTicks < FUMIKOMI_STEP_FROM || this.actionTicks > FUMIKOMI_STEP_UNTIL) {
+            holdStill();
+        }
+        if (hasTarget && this.actionTicks <= tm.executeStart() - 4) turnTo(target, 30.0F);
+        if (this.actionTicks == 1 && act != ACT_KOZUKI_R && act != ACT_KOZUKI_L) playSound(ModSounds.FALCIMNES_GROWL.get(), 0.9F, 1.2F);
+        if (fumi && this.actionTicks >= FUMIKOMI_STEP_FROM && this.actionTicks <= FUMIKOMI_STEP_UNTIL) {
+            // 鎌の側(右の鎌 = 本体の左 = left())へ横に踏み出して回り込む。向きは標的へ向け続ける(上の turnTo)。
+            Vec3 side = act == ACT_FUMIKOMI_R ? left() : left().scale(-1.0D);
+            double sp = d.get("sidestep", 0.16D);
+            Vec3 v = this.getDeltaMovement();
+            this.setDeltaMovement(side.x * sp, v.y, side.z * sp);
+            this.hasImpulse = true;
+        }
+        if (this.actionTicks == hit - 2) playSound(ModSounds.FALCIMNES_SLASH.get(), 0.9F, act == ACT_KOZUKI_R || act == ACT_KOZUKI_L ? 1.4F : 1.1F);
+        if (this.actionTicks == hit) {
+            float dmg = d.damage() > 0 ? (float) d.damage() : (float) this.getAttributeValue(Attributes.ATTACK_DAMAGE);
+            // 段 3: 1 段目の結果(どれか 1 体に通れば当たり、通らず盾で受けられたら防がれた、誰もいなければ外れ)
+            this.comboResult = FalcimnesPersonality.RESULT_MISSED;
+            for (LivingEntity e : inSweep(SWEEP_REACH * reach + SWEEP_MARGIN, SWEEP_HALF_WIDTH * width)) {
+                boolean blocking = e instanceof Player p && p.isBlocking();
+                if (!e.hurt(this.damageSources().mobAttack(this), dmg)) {
+                    if (blocking && this.comboResult != FalcimnesPersonality.RESULT_HIT) this.comboResult = FalcimnesPersonality.RESULT_BLOCKED;
+                    // 盾で受けられた(切り上げは盾を弾く)
+                    if (blocking && id.equals("kiriage") && e instanceof Player p) {
+                        p.getCooldowns().addCooldown(p.getUseItem().getItem(), (int) d.get("shieldBreak", 40.0D));
+                        p.stopUsingItem();
+                    }
+                    continue;
+                }
+                this.comboResult = FalcimnesPersonality.RESULT_HIT;
+                switch (id) {
+                    case "kiriage" -> {
+                        Vec3 v = e.getDeltaMovement();
+                        e.setDeltaMovement(v.x, Math.max(v.y, d.get("lift", 0.5D)), v.z);
+                        e.hurtMarked = true;
+                    }
+                    case "tsukikaki" -> {
+                        // 引き寄せる(体の正面の、鎌の届く距離の半分ほどの所へ向けて)
+                        Vec3 to = this.position().add(forward().scale(SWEEP_REACH * this.bodyScale() * 0.45D)).subtract(e.position());
+                        double len = Math.sqrt(to.x * to.x + to.z * to.z);
+                        if (len > 1e-3) {
+                            double pull = d.get("pull", 0.6D);
+                            e.setDeltaMovement(to.x / len * pull, Math.max(e.getDeltaMovement().y, 0.15D), to.z / len * pull);
+                            e.hurtMarked = true;
+                        }
+                    }
+                    default -> e.knockback(0.3D, -forward().x, -forward().z);
+                }
+            }
+        }
+        // 段 3: 隙の途中(comboCut)で 2 段目へ。2 段目の前触れが 1 段目の終わり際に見える。
+        if (this.actionTicks == comboCutTick(tm, id) && tryCombo(id, target, hasTarget)) return;
+        if (this.actionTicks >= tm.total()) endAction();
+    }
+
+    /**
+     * 連続技で 2 段目へ切り替える tick(隙の頭から、技の comboCut の割合。無ければ personality の comboCut)。技ごとの値は、
+     * 2 段目の頭(休めの鎌)へ 4 tick で補間しても鎌が地面・首・脚を通らない一番早い所(FalcCheck の -Dfalc.comboscan で探した)。
+     */
+    static int comboCutTick(ActionTiming tm, String id) {
+        int rec = tm.total() - tm.recoverStart();
+        return tm.recoverStart() + (int) Math.round(rec * def(id).get("comboCut", pv("comboCut", 0.35D)));
+    }
+
+    /** 小さな技の名前 → 動作(片方の鎌の技は左右を交互に)。小さな技でなければ -1。 */
+    int smallMoveAction(String id) {
+        return switch (id) {
+            case "kiriage" -> flipSide() ? ACT_KIRIAGE_L : ACT_KIRIAGE_R;
+            case "tsukikaki" -> ACT_TSUKIKAKI;
+            case "kosa" -> ACT_KOSA;
+            case "fumikomi" -> flipSide() ? ACT_FUMIKOMI_L : ACT_FUMIKOMI_R;
+            case "kozuki" -> flipSide() ? ACT_KOZUKI_L : ACT_KOZUKI_R;
+            default -> -1;
+        };
+    }
+
+    /**
+     * 連続技(段 3、決定「小さな技を組み合わせて最大 2 段。2 段目は 1 段目の結果で決める」)。1 段目の技の extra
+     * {@code next.<hit|blocked|missed>.<技>} の重み × 性格の掛け数から 2 段目を引く。続けるかは {@code comboChance}(攻撃性で上げ、
+     * 慎重さで下げ、1 段目の結果の倍率 comboOnHit・comboOnBlocked・comboOnMissed を掛ける。すべて【仮】)。2 段目は届く間合いの技だけ。同じ技へは続けない(表に無い)。
+     */
+    private boolean tryCombo(String id, @Nullable LivingEntity target, boolean hasTarget) {
+        if (this.comboStep > 0 || !hasTarget || this.comboResult == FalcimnesPersonality.RESULT_NONE) return false;
+        double chance = this.comboChanceOverride >= 0.0D ? this.comboChanceOverride
+                : pv("comboChance", 0.35D) * FalcimnesPersonality.tilt(pv("comboAggressive", 2.2D), aggression())
+                * FalcimnesPersonality.tilt(pv("comboCautious", 0.7D), caution())
+                * pv(switch (this.comboResult) {   // 続けるかも 1 段目の結果で(決定)。防がれたら崩しに行き、外れたら引きやすい
+                    case FalcimnesPersonality.RESULT_HIT -> "comboOnHit";
+                    case FalcimnesPersonality.RESULT_BLOCKED -> "comboOnBlocked";
+                    default -> "comboOnMissed";
+                }, 1.0D);
+        if (this.random.nextDouble() >= Math.min(0.95D, chance)) return false;
+        String prefix = "next." + FalcimnesPersonality.resultKey(this.comboResult) + ".";
+        double s = bodyScale();
+        double d = Math.sqrt(this.distanceToSqr(target.getX(), this.getY(), target.getZ()));
+        double reach = SWEEP_REACH * s + target.getBbWidth() * 0.5D;
+        if (Math.abs(target.getY() - this.getY()) >= 3.0D * s) return false;
+        java.util.List<String> ids = new java.util.ArrayList<>();
+        java.util.List<Double> ws = new java.util.ArrayList<>();
+        double sum = 0.0D;
+        for (var e : def(id).extra().entrySet()) {
+            if (!e.getKey().startsWith(prefix)) continue;
+            String next = e.getKey().substring(prefix.length());
+            if (next.equals(id) || smallMoveAction(next) < 0) continue;
+            ActionDef nd = def(next);
+            if (!ActionPicker.inRange(nd, d, this.getScale(), reach)) continue;
+            double w = e.getValue() * personalityWeight(nd);
+            if (w <= 0.0D) continue;
+            ids.add(next);
+            ws.add(w);
+            sum += w;
+        }
+        if (ids.isEmpty()) return false;
+        double r = this.random.nextDouble() * sum;
+        String next = ids.get(ids.size() - 1);
+        for (int i = 0; i < ids.size(); i++) {
+            r -= ws.get(i);
+            if (r < 0.0D) {
+                next = ids.get(i);
+                break;
+            }
+        }
+        startAction(smallMoveAction(next));
+        this.comboStep = 1;
+        return true;
     }
 
     private void startSlash() {
@@ -1150,6 +2282,13 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
     public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putInt("OvAction", getAction());
+        if (this.personalitySet) {
+            net.minecraft.nbt.CompoundTag p = new net.minecraft.nbt.CompoundTag();
+            p.putFloat("caution", caution());
+            p.putFloat("aggression", aggression());
+            p.putFloat("flank", flank());
+            tag.put("OvPersonality", p);
+        }
     }
 
     @Override
@@ -1158,6 +2297,23 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
         if (tag.contains("OvForceAction")) {
             this.pendingForce = tag.getInt("OvForceAction");
         }
+        // 段 3: 個体の性格。確かめ用に /data merge entity <個体> {OvPersonality:{caution:1f,aggression:0f,flank:0.5f}} でも置ける(書いた値だけ変わる)
+        if (tag.contains("OvPersonality")) {
+            net.minecraft.nbt.CompoundTag p = tag.getCompound("OvPersonality");
+            setPersonality(p.contains("caution") ? p.getFloat("caution") : caution(),
+                    p.contains("aggression") ? p.getFloat("aggression") : aggression(),
+                    p.contains("flank") ? p.getFloat("flank") : flank());
+        }
+    }
+
+    /** GameTest 用: 連続技に続ける確率(0〜1)。負なら設計データと性格から。 */
+    public void setComboChanceForTest(double chance) {
+        this.comboChanceOverride = chance;
+    }
+
+    /** 連続技の何段目か(GameTest 用)。 */
+    public int comboStep() {
+        return this.comboStep;
     }
 
     /** 動作をいますぐ始める(GameTest・デバッグ用。溜めや間合いの条件は見ない)。 */
@@ -1417,6 +2573,8 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
         // 光の技(飛ぶ斬撃・地走り)は始めたら最後まで(11-05。前触れの間も跳ばない —— 光った技は必ず来る、と読めるように)。
         if (act == ACT_WAVE_R || act == ACT_WAVE_L || act == ACT_RIFT_WINDUP || act == ACT_RIFT_HOLD || act == ACT_RIFT_RECOVER) return false;
         if (committedStrike(act, this.actionTicks)) return false;
+        // 段 2(11-07 夜): 連撃の締めと終わり・小さな技は始めたら最後まで(回避しない)【仮】。検算の割り込みの表(FalcCheck#sweeps)もそう見ている。
+        if (act == ACT_FLURRY_X || act == ACT_FLURRY_END || isSmallMove(act)) return false;
         if (act == ACT_RECOVER && this.actionTicks < RECOVER_NO_DODGE) return false;
         if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) return false;
         if (source.getEntity() == null && source.getDirectEntity() == null) return false;
@@ -1458,6 +2616,18 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
     public boolean isDodging() {
         return isDodge(getAction());
     }
+    /** 段 2 の小さな通常技か。 */
+    public static boolean isSmallMove(int act) {
+        return act >= ACT_KIRIAGE_R && act <= ACT_KOZUKI_L;
+    }
+
+    /** 片方の鎌の技の左右を交互に(横薙ぎ・飛ぶ斬撃と同じ合図を使う)。true なら左。 */
+    boolean flipSide() {
+        boolean l = this.nextSlashLeft;
+        this.nextSlashLeft = !l;
+        return l;
+    }
+
 
     /**
      * 振り始めた打ち込み(横薙ぎの振り 〜 下ろし終わり、連撃の 1 振り)の最中か。この間は回避しない(2026-09-24、仮)。
@@ -1575,8 +2745,11 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
      */
     @Override
     public AABB getBoundingBoxForCulling() {
+        // 11-08: 当たりの箱を胴の芯へ細くしたので、箱から広げるのをやめて位置から取る(広さは前の 2.97 × 3.06 の箱から広げたのと同じ)
         double s = this.bodyScale();
-        return super.getBoundingBoxForCulling().inflate(3.5D * s, 3.0D * s, 3.5D * s);
+        double half = 4.325D * s;
+        return new AABB(this.getX() - half, this.getY() - 3.0D * s, this.getZ() - half,
+                this.getX() + half, this.getY() + 4.7D * s, this.getZ() + half);
     }
 
     @Override
@@ -1659,12 +2832,14 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
             // 11-05: 通常技 4 つを点数で選ぶ(層 2 の ActionPicker。直前の技は点数を下げる)。近接技(横薙ぎ・連撃)は「振り始める距離」
             // = 届く距離の 85% まで(振りかぶりの間に踏み込んで懐で当てる)。掴み・飛ぶ斬撃は間合いに入った 1 tick ごとに小さな確率で候補に入る。
             double dy = Math.abs(target.getY() - mob.getY());
-            ActionDef picked = mob.picker.pick(mob.normalDefs(), d, mob.getScale(), reach * 0.85D, a -> switch (a.id()) {
-                case "sweep", "flurry" -> off <= ATTACK_FACING && dy < 3.0D * s;
+            // 段 3: 慎重な個体は隙を待つ。攻めに行くのは隙を見つけたとき・待ちきれなくなったとき(数値はすべて【仮】)。
+            boolean committed = mob.tickPatience(target);
+            ActionDef picked = mob.picker.pick(mob.normalDefs(), d, mob.getScale(), reach * 0.85D, a -> (committed || a.get("counter", 0.0D) > 0.0D) && switch (a.id()) {
+                case "sweep", "flurry", "kiriage", "tsukikaki", "kosa", "fumikomi", "kozuki" -> off <= ATTACK_FACING && dy < 3.0D * s;
                 case "grab" -> sees && off <= SPECIAL_FACING && mob.onGround();
                 case "wave" -> sees && off <= SPECIAL_FACING && dy < 4.0D;
                 default -> false;
-            }, mob.random);
+            }, mob::personalityWeight, mob.random);
             if (picked != null) {
                 // 特殊技(地走りの光の帯): 通常技を出す場面で、出してよく(SpecialPacing の roll に勝ち)間合い・クールダウンが合えば代わりに。
                 ActionDef rift = def("rift");
@@ -1674,12 +2849,19 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
                     return;
                 }
                 mob.outOfReachTicks = 0;
+                mob.onAttackStarted();
                 switch (picked.id()) {
                     case "sweep" -> {
                         mob.startAction(mob.nextSlashLeft ? ACT_ATTACK_L : ACT_ATTACK_R);
                         mob.nextSlashLeft = !mob.nextSlashLeft;
                     }
                     case "flurry" -> mob.startAction(ACT_FLURRY_WINDUP);
+                    // 段 2(11-07 夜)の小さな技。片方の鎌の技は左右を交互に。
+                    case "kiriage" -> mob.startAction(mob.flipSide() ? ACT_KIRIAGE_L : ACT_KIRIAGE_R);
+                    case "tsukikaki" -> mob.startAction(ACT_TSUKIKAKI);
+                    case "kosa" -> mob.startAction(ACT_KOSA);
+                    case "fumikomi" -> mob.startAction(mob.flipSide() ? ACT_FUMIKOMI_L : ACT_FUMIKOMI_R);
+                    case "kozuki" -> mob.startAction(mob.flipSide() ? ACT_KOZUKI_L : ACT_KOZUKI_R);
                     case "grab" -> mob.startAction(ACT_GRAB_WINDUP);
                     case "wave" -> {
                         mob.startAction(mob.nextSlashLeft ? ACT_WAVE_L : ACT_WAVE_R);
@@ -1691,17 +2873,85 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
                 return;
             }
             // 追う(間合いの少し手前で止まる)。止まっている間は標的へ向き直る(その場で旋回の足踏み)。
-            if (d > reach * ATTACK_IDEAL_RATIO) {
+            // 段 3: 止まる距離は慎重さで変わる(待っている慎重な個体は遠く、攻めに行くときと大胆な個体は今まで通り〜少し近く)。
+            double stop = reach * ATTACK_IDEAL_RATIO * (committed ? Math.min(1.0D, mob.holdFactor()) : mob.holdFactor());
+            double band = 1.0D * s;
+            if (!committed && d < stop - band) {
+                // 間合いを保つ: 向き合ったまま後ずさる
+                mob.getNavigation().stop();
+                mob.wantFacing(mob.yawTo(target), TURN_HUNT);
+                mob.backpedal = (float) pv("backpedal", 0.5D);
+            } else if (d > stop) {
                 if (--repath <= 0) {
                     repath = 8;
-                    // moveTo(target, 1.0) と同じ。前回届かなかったのと同じマス同士なら探索を省く(PathRetryMemo)。
-                    pathMemo.moveTo(mob, target, 1.0D);
+                    Vec3 flankTo = mob.flankPoint(target, stop);
+                    if (flankTo != null) {
+                        // 回り込み: 相手の横へずらした点へ
+                        mob.getNavigation().moveTo(flankTo.x, flankTo.y, flankTo.z, 1.0D);
+                    } else {
+                        // moveTo(target, 1.0) と同じ。前回届かなかったのと同じマス同士なら探索を省く(PathRetryMemo)。
+                        pathMemo.moveTo(mob, target, 1.0D);
+                    }
                 }
             } else {
                 mob.getNavigation().stop();
                 mob.wantFacing(mob.yawTo(target), TURN_HUNT);
             }
         }
+    }
+
+    // ------------------------------------------------------------------ 段 3: 性格の振る舞い(数値はすべて【仮】)
+
+    /**
+     * 慎重な個体の待ちを 1 tick 進め、攻めに行く(普通の技を選んでよい)かを返す。慎重さ 0.5 以下の個体は常に攻めに行く(段 2 までと同じ)。
+     * 慎重な個体は、相手の隙({@link FalcimnesPersonality#opening})を見つけるか、慎重さに比例する長さ({@code patienceTicks} × 慎重さの片側)
+     * 待ちきれなくなると {@code commitTicks} の間だけ攻めに行く。技を 1 つ始めたら待ちに戻る({@link #onAttackStarted})。
+     */
+    boolean tickPatience(LivingEntity target) {
+        boolean opening = FalcimnesPersonality.opening(this, target, this.targetWasBlocking);
+        this.targetWasBlocking = target instanceof Player p && p.isBlocking();
+        double wary = FalcimnesPersonality.over(caution());
+        if (wary <= 0.0D) return true;
+        if (this.commitTicks > 0) {
+            this.commitTicks--;
+            return true;
+        }
+        if (opening || ++this.patience >= (int) Math.round(pv("patienceTicks", 160.0D) * wary)) {
+            this.patience = 0;
+            this.commitTicks = (int) pv("commitTicks", 60.0D);
+            return true;
+        }
+        return false;
+    }
+
+    /** 選んで技を始めた(連続技の 2 段目・特殊技は除く)。慎重な個体は待ちに戻る。 */
+    void onAttackStarted() {
+        this.commitTicks = 0;
+        this.patience = 0;
+    }
+
+    /** 止まる距離の倍率: 慎重さ 0.5 で 1、1 で 1 + 2 × keepDistance × 0.5、0 で小さく(下限 0.75)。 */
+    double holdFactor() {
+        return Math.max(0.75D, 1.0D + 2.0D * pv("keepDistance", 0.8D) * (caution() - 0.5D));
+    }
+
+    /**
+     * 回り込みの行き先(回り込み 0.5 以下なら null = まっすぐ追う)。相手から自分への向きを、個体ごとに決まった側へ
+     * {@code flankAngle} × 回り込みの片側だけ回した、相手から {@code dist} の点。
+     */
+    @Nullable
+    Vec3 flankPoint(LivingEntity target, double dist) {
+        double over = FalcimnesPersonality.over(flank());
+        if (over <= 0.05D) return null;
+        double ang = Math.toRadians(pv("flankAngle", 60.0D) * over) * ((this.getUUID().getLeastSignificantBits() & 1L) == 0L ? 1.0D : -1.0D);
+        double dx = this.getX() - target.getX(), dz = this.getZ() - target.getZ();
+        double len = Math.sqrt(dx * dx + dz * dz);
+        if (len < 1e-3) return null;
+        dx /= len;
+        dz /= len;
+        double cos = Math.cos(ang), sin = Math.sin(ang);
+        double rx = dx * cos - dz * sin, rz = dx * sin + dz * cos;
+        return new Vec3(target.getX() + rx * dist, target.getY(), target.getZ() + rz * dist);
     }
 
     // ------------------------------------------------------------------ 旋回の上限の付いた操縦(スクティムネスと同じ作り)
@@ -1737,7 +2987,8 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
                 // 段差の飛び乗り(バニラの MoveControl と同じ条件)。
                 BlockPos pos = f.blockPosition();
                 BlockState state = f.level().getBlockState(pos);
-                VoxelShape shape = state.getCollisionShape(f.level(), pos);
+                // 段 3: この個体の当たりで見る(葉を押し分ける荒い個体は、葉の中で段と見て跳ねていた)
+                VoxelShape shape = state.getCollisionShape(f.level(), pos, net.minecraft.world.phys.shapes.CollisionContext.of(f));
                 if (dy > (double) f.maxUpStep() && dx * dx + dz * dz < (double) Math.max(1.0F, f.getBbWidth())
                         || !shape.isEmpty() && f.getY() < shape.max(Direction.Axis.Y) + (double) pos.getY()
                         && !state.is(BlockTags.DOORS) && !state.is(BlockTags.FENCES)) {
@@ -1751,9 +3002,17 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
                 }
             } else {
                 this.operation = Operation.WAIT;
-                f.setZza(0.0F);
+                if (f.backpedal > 0.0F && !f.isActing()) {
+                    // 段 3: 慎重な個体が間合いを保つ後ずさり(HuntGoal がこの tick に立てたときだけ)。速さは普段の backpedal 倍【仮】。
+                    float speed = (float) f.getAttributeValue(Attributes.MOVEMENT_SPEED);
+                    f.setSpeed(speed);
+                    f.setZza(-speed * f.backpedal);
+                } else {
+                    f.setZza(0.0F);
+                }
                 f.setXxa(0.0F);
             }
+            f.backpedal = 0.0F;
         }
     }
 
@@ -1880,6 +3139,10 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
             default:
                 break;
         }
+        if (this.clientProceduralLegs) {
+            // 脚は FalcimnesLegRig が地形に合わせて曲げる。脚の層は待機(胴の呼吸・尾の揺れ)を流し、脚の形の基準にする。
+            return state.setAndContinue(LEGS_IDLE);
+        }
         Gait gait = clientGait();
         if (gait.walking()) {
             c.setAnimationSpeed(loopSpeed(gait.ahead(), px(WALK_GROUND_SPEED_PX)));
@@ -1937,6 +3200,15 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
             case ACT_WAVE_R: return state.setAndContinue(WAVE_R_ANIM);
             case ACT_WAVE_L: return state.setAndContinue(WAVE_L_ANIM);
             case ACT_RIFT_WINDUP: return state.setAndContinue(RIFT_WINDUP_ANIM);
+            case ACT_FLURRY_X: return state.setAndContinue(FLURRY_X_ANIM);
+            case ACT_KIRIAGE_R: return state.setAndContinue(KIRIAGE_R_ANIM);
+            case ACT_KIRIAGE_L: return state.setAndContinue(KIRIAGE_L_ANIM);
+            case ACT_TSUKIKAKI: return state.setAndContinue(TSUKIKAKI_ANIM);
+            case ACT_KOSA: return state.setAndContinue(KOSA_ANIM);
+            case ACT_FUMIKOMI_R: return state.setAndContinue(FUMIKOMI_R_ANIM);
+            case ACT_FUMIKOMI_L: return state.setAndContinue(FUMIKOMI_L_ANIM);
+            case ACT_KOZUKI_R: return state.setAndContinue(KOZUKI_R_ANIM);
+            case ACT_KOZUKI_L: return state.setAndContinue(KOZUKI_L_ANIM);
             case ACT_RIFT_HOLD:
                 // 刺した姿勢のまま補間 0 でつなぐ(生成器が刺す終わり・待つループ・抜く頭を同じ姿勢に揃えている。検算の「つなぎ目」)。
                 c.transitionLength(0);

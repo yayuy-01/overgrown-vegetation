@@ -42,11 +42,16 @@ public final class CommandTreeGameTests {
             // phase の omen・perf の g1 は parked/ へ。前の一覧は git の before-park-2026-10-30 に残る。
             Map.entry("corruption", Set.of("speed", "true", "false")),
             Map.entry("phase", Set.of("set", "true", "false")),
-            Map.entry("perf", Set.of("bench", "fluid", "record", "spore")),
+            // 2026-11-08: G1 段階 0 の組み込みで perf の g1(死体をすぐ起き上がらせる hatch)を戻した。
+            Map.entry("perf", Set.of("bench", "fluid", "record", "spore", "g1")),
             // 2026-11-08: 環境ギミック G4 胞子の風・G5 光る胞子の夜を自分のゲームで確かめる fx(依頼「/ov か DevBridge に足す」。要らなければ消す)。
             Map.entry("fx", Set.of("gale", "glownight", "status")),
             // 2026-11-09: 雲の段階 2a で積乱雲を探す storm(一覧・tp)を戻した(10-17 ユーザー依頼、11-09 段階 2a の依頼)。
-            Map.entry("storm", Set.of("tp", "here")));
+            Map.entry("storm", Set.of("tp", "here")),
+            // 2026-11-11: ネザーの汚染の骨組み(根の台帳と段階)を見る・進める nether(実装の依頼「段階を見る・進める・速さの倍率を変える命令」)。
+            Map.entry("nether", Set.of("status", "stage", "advance", "speed", "seed")),
+            // 2026-11-12 ユーザー決定「おすすめ通り」: 実験的要素(今は新しいネザー)を見る・切り替える experimental(設定の画面が parked の間の代わり)。
+            Map.entry("experimental", Set.of("on", "off")));
 
     @GameTest(template = "gametest_empty7")
     public static void ovCommandTreeMatchesAgreedList(GameTestHelper helper) {

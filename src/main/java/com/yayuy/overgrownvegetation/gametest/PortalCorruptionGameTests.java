@@ -316,7 +316,10 @@ public final class PortalCorruptionGameTests {
         nether.getChunk(chunk.x, chunk.z);
         PhaseData phase = PhaseData.get(level);
         long before = phase.getOvergrownChunks();
-        OvergrownBiomeConverter.forceOvergrown(nether, chunk);
+        // 2026-11-11: ネザーの過繁茂は根の台帳の段階 3。段階 3 に入ったところとして台帳に入れ、数えさせる
+        com.yayuy.overgrownvegetation.corruption.NetherLedger.reachForTests(nether, chunk,
+                com.yayuy.overgrownvegetation.data.DesignData.netherSpread().stageStartTicks[2] + 1);
+        com.yayuy.overgrownvegetation.corruption.NetherLedger.advance(nether, 0);
         if (phase.isOvergrownChunk(chunk)) {
             helper.fail("ネザーのチャンクが台帳に入った(同じ座標のオーバーワールドとして数えられる)");
             return;

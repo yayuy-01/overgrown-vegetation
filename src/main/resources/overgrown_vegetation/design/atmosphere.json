@@ -785,7 +785,9 @@
     "_foliageComment": "11-09 空に浮かぶ構造物の中で、葉の面が明るい緑と真っ暗にくっきり分かれた(ユーザーの写真 28〜30)。ユーザー決定「案 1」: 葉・茂み(cutout_mipped の層)だけ、点光源の「光の方を向いているか」の効きを弱める。強さは仮決め: foliageFacing = その効き(1 = 岩と同じ・0 = 向きを見ない)。overhangLights・overhangLift = 開けた張り出しの印の列(空に浮かぶ構造物)の点光源・床の持ち上げの倍率(案 2。1 = 切り)。",
     "foliageFacing": 0.5,
     "overhangLights": 1.0,
-    "overhangLift": 1.0
+    "overhangLift": 1.0,
+    "_camSpreadComment": "11-09 構造物の下・中を飛ぶと、そばの面の明るさが 0.4 秒ほどで入れ替わってチカチカした(ユーザー報告。カメラの所の地下らしさがカメラの 1 ブロックだけで決まり、隣の列へ動くだけで 0 と 0.67 の間を跳んだ)。ユーザー決定「案 1」: カメラの所の地下らしさを、カメラと前後左右 camSpread ブロックの 5 点の平均で決める。2 は仮決め。0 で前の形(1 点)",
+    "camSpread": 2.0
   },
   "giantTree": {
     "_comment": "11-06 巨大樹の改善案 ① 胞子の柱・③ 夜の地脈の光(どちらもユーザー採用。数はすべて仮決め)。① sporeColumn: 濃さはサーバーの胞子の場と同じ規則(梢の 1 日の放出 = 育ち具合 + 朝 6〜9 時の上乗せ、成木の朝 = 1)× (depDay ÷ 今の沈着の速さ)^weatherPower。梢の上 riseMin〜riseMax 昇って風下へ trail + windTrail × 卓越風の強さ たなびく。太さは傘の半径 × widthBase から widthEnd へ。描画距離の farFade 倍まで描く(上限 4)。drift = 煙のまだらが流れる速さ(ブロック/秒)。③ leyPulse: 地脈の貯蓄(ハイヴノードの貯蓄はまだ無いので仮の物差し = 育ち具合 × 地脈の線への近さ)が多いほど明るく速く。根元から幹の先まで periodSlow〜periodFast 秒・長さ length・幅 width・筋 veins 本・通り道のかすかな光 trace。dayTime で duskStart〜duskFull に灯り dawnStart〜dawnEnd で消える。distance ブロックまで(描画距離の中だけ)。色 #ace300。",

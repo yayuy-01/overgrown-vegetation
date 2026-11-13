@@ -231,6 +231,13 @@ public final class OvergrownVegetationClient {
     @SubscribeEvent
     public static void registerParticleProviders(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(ModParticles.SPORE_JET.get(), SporeJetParticle.Provider::new);
+        // G1 進化体の破裂の胞子の雲(2026-11-12)
+        event.registerSpriteSet(ModParticles.SPORE_BURST_CLOUD.get(), SporeCloudParticle.Provider::new);
+        event.registerSpriteSet(ModParticles.MUD_CLOUD.get(), MudCloudParticle.Provider::new); // 泥煙(11-13 水まわり ⑥)
+        event.registerSpriteSet(ModParticles.WATER_FLEA.get(), UnderwaterLifeParticles.WaterFlea.Provider::new); // ミジンコ(11-13)
+        event.registerSpriteSet(ModParticles.SINKING_LEAF.get(), UnderwaterLifeParticles.Sinking.Provider::new); // 沈む葉(11-13)
+        event.registerSpriteSet(ModParticles.SPORE_FLUFF.get(), UnderwaterLifeParticles.Sinking.Provider::new); // 胞子の綿(11-13)
+        event.registerSpriteSet(ModParticles.FLOATING_LEAF.get(), FloatingLeafParticle.Provider::new); // 水面に浮く落ち葉(11-13 密林の水辺 ②)
         // バニラの水中の浮遊粒を置き換える(過繁茂の水では黄緑の微粒、W6 2026-11-01)。
         event.registerSpriteSet(net.minecraft.core.particles.ParticleTypes.UNDERWATER, UnderwaterMoteParticle.Provider::new);
     }

@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.spore.field;
 
+import com.yayuy.overgrownvegetation.sky.RainIntensity;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -95,6 +96,44 @@ public final class SporeField {
         public double soakPerDay = 4.0, underDecayPerDay = 0.175, underDepPerDay = 0.225, underDepDecayPerDay = 0.125, mouthDefault = 0.05;
         /** 逆転層より上でも発芽・飛び地の着地を許す、生きている巨大樹の根元からの水平の距離(チャンク)。 */
         public double treeExemptChunks = 4;
+        /**
+         * ネザーの寒暖差の風(2026-11-11。{@link #thermal} があるときだけ効く。オーバーワールドは 0 のまま): 浮遊が<b>冷たい升から熱い隣の升へ</b>
+         * 1 日に移る割合 = 温度の差 × thermalWindPerDay(隣 1 つあたり thermalWindCap で頭打ち)。
+         */
+        public double thermalWindPerDay = 0, thermalWindCap = 0;
+        /** ネザーの天井への持ち上げ: 温度が thermalLiftFrom を超えた分 × thermalLiftPerDay の速さで浮遊を上空の塊へ(嵐の持ち上げと同じ口)。 */
+        public double thermalLiftPerDay = 0, thermalLiftFrom = 1;
+        /** 1 = 上空の塊の向きを風に依らずばらばら(ネザーは風 0。塊ごとに 0〜360°)。 */
+        public int parcelRandomDir = 0;
+        /** 1 = 放出を夜に多く(夜 releaseNightHigh・昼 releaseDayLow。ネザーの胞子嚢)。満月の夜は fullMoonMul 倍。 */
+        public int nightRelease = 0;
+        public double releaseNightHigh = 1.0, releaseDayLow = 0.3, fullMoonMul = 1.0;
+        /** 満月の夜(nightRelease のとき)の発芽のしきい値の倍率(小さいほど発芽しやすい = 前線の波。1 = 変えない)。 */
+        public double fullMoonGermMul = 1.0;
+        /**
+         * 繁茂の前(daysToThriving まで)の放出(2026-11-12 ネザー: 苔は胞子で増えるので、覆いの広がりに合わせて少し出す)。
+         * emitThriving × earlyEmit × (経過 ÷ daysToThriving)²(覆いは起点から広がるので面積で 2 乗)。0 = 出さない(オーバーワールド)。
+         */
+        public double earlyEmit = 0;
+        /**
+         * 管の樹(2026-11-12 ネザー段階 2): 繁茂の後(daysToThriving から)の台帳のチャンクの放出のうち、下地として残す割合(1 = 前と同じ)。
+         * 残りの出どころは管の樹で、満月の夜だけ {@link Thermal#tubeFactor}(0〜1 = 管の樹の多さ)× tubeMoonEmit を足す。
+         */
+        public double ledgerBaseEmit = 1.0, tubeMoonEmit = 0;
+
+        /** 同じ値の写し(ネザーの場がオーバーワールドの値を共有しないように)。 */
+        public Params copy() {
+            Params c = new Params();
+            for (var f : Params.class.getFields()) {
+                if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
+                try {
+                    f.set(c, f.get(this));
+                } catch (IllegalAccessException e) {
+                    throw new IllegalStateException(e);
+                }
+            }
+            return c;
+        }
 
         public void set(String k, double v) {
             try {
@@ -143,6 +182,12 @@ public final class SporeField {
         final byte[] caveCount = new byte[TN];
         /** 嵐の間に持ち上げた量と、その重心を求める和(塊にまとめるまで)。 */
         double lifted, liftX, liftZ;
+        /** 温度(ネザーの寒暖差の風、2026-11-11。{@link #thermal} が無ければ null)。{@link #step} の頭で引き直してにじませる。保存しない。 */
+        float[] temp;
+        /** 放出の倍率(ネザーの湖の一押し、2026-11-11。{@link Thermal#emitFactor}。null = どこも 1)。温度と一緒に引き直す。 */
+        float[] emitMul;
+        /** 管の樹の多さ({@link Thermal#tubeFactor}。null = どこも 0)。温度と一緒に引き直す。 */
+        float[] tube;
 
         Tile(int tx, int tz) {
             this.tx = tx;
@@ -176,11 +221,39 @@ public final class SporeField {
      * 1 回の更新の天気と時刻(升に依らない分)。tick = 汚染の暦(PhaseData#clock。発芽からの日数・追いつきに使う)、
      * dayTime = その時点の一日の時刻のもと(Level#getDayTime。昼夜の放出・沈着に使う)。見積もり器では同じ値。
      */
-    public record Conditions(long tick, long dayTime, boolean raining, boolean thundering, boolean afterRain) {
+    public record Conditions(long tick, long dayTime, boolean raining, boolean thundering, boolean afterRain, float rainIntensity, float afterIntensity) {
+        public Conditions(long tick, long dayTime, boolean raining, boolean thundering, boolean afterRain) {
+            this(tick, dayTime, raining, thundering, afterRain, RainIntensity.NORMAL, RainIntensity.NORMAL);
+        }
+
         public Conditions(long tick, boolean raining, boolean thundering, boolean afterRain) {
             this(tick, tick, raining, thundering, afterRain);
         }
+
+        /** 雷の無い雨の強さを「普通 = 1」に直した値(11-12 雨の種類。小雨 0.5・大雨 1.5)。雨でなければ 0。 */
+        double rainK() {
+            return raining && !thundering ? Math.max(0.0, Math.min(RAIN_K_MAX, RainIntensity.normalized(rainIntensity))) : 0.0;
+        }
+
+        /** 雨の後の湿り気の強さ(止んだ雨の強さ、普通 = 1)。雨の後でなければ 0。 */
+        double afterK() {
+            return afterRain ? Math.max(0.0, Math.min(RAIN_K_MAX, RainIntensity.normalized(afterIntensity))) : 0.0;
+        }
     }
+
+    /*
+     * 雨の種類と胞子(2026-11-12、ユーザー決定。正規化して「普通の雨 = 今までの数値」。数値は仮決め):
+     *  - 洗い落とし: 雨の強さで沈着を晴れの値から depRain まで(普通で depRain、大雨は越える)、放出を晴れの値から releaseRain まで。
+     *    地点の濃度の rainFactor も強さで(SporeConcentration)。雷雨は別扱い(巻き上げる。下)。
+     *  - 湿った地面: 雨の間・雨の後の発芽の確率を強さで(普通 1 倍)。雨の後の湿りの長さも止んだ雨の強さで(SporeFieldServer)。
+     *  - 風で飛びにくい: 雷の無い雨の間は運ぶ速さを {@link #RAIN_DRAG} だけ落とす(普通の雨で 1 − RAIN_DRAG)。
+     *  - 雷雨(ユーザー「雷によって胞子の生産と拡散能力が一時的に向上し、雲よりも上の風に乗って遠くへ行く」): 放出 × THUNDER_RELEASE、
+     *    上空への持ち上げ × THUNDER_LIFT。
+     */
+    static final double RAIN_K_MAX = 1.6;
+    static final double RAIN_DRAG = 0.3;
+    static final double THUNDER_RELEASE = 1.5;
+    static final double THUNDER_LIFT = 1.5;
 
     /**
      * 升ごとの土地。発芽しやすさ(降り積もり × これ ≥ しきい値で発芽。0 = 発芽しない水面・岩、1 = ふつう)・
@@ -211,6 +284,27 @@ public final class SporeField {
             return 1;
         }
     }
+
+    /**
+     * 升ごとの温度(ネザーの寒暖差の風・天井への持ち上げ、2026-11-11)。0 = 冷たい(森の奥)〜 1 = 熱い(溶岩の海)。
+     * 裏のスレッドから呼ぶので、ワールドではなく写し(台帳・溶岩の割合)だけを読むこと。
+     */
+    public interface Thermal {
+        float temperature(int cx, int cz);
+
+        /** 放出の倍率(ネザー: 湖のチャンクは多く出す = 湖が風の元。2026-11-11)。 */
+        default float emitFactor(int cx, int cz) {
+            return 1f;
+        }
+
+        /** 管の樹の多さ(0〜1。2026-11-12)。満月の夜に羽根から吐く量の倍率({@link Params#tubeMoonEmit})。 */
+        default float tubeFactor(int cx, int cz) {
+            return 0f;
+        }
+    }
+
+    /** null = 温度なし(オーバーワールド)。 */
+    public Thermal thermal;
 
     /** null = どこもふつう・乾き(平らな合成の世界)。区画を作る前に入れる。 */
     public Ground ground;
@@ -480,6 +574,7 @@ public final class SporeField {
     /** {@code savedHeight} = 保存してあった地表の高さ(無ければ null で、土地から引く。2026-10-30 より前のセーブも null)。 */
     Tile newTile(int tx, int tz, float[] savedHeight) {
         Tile t = new Tile(tx, tz);
+        if (thermal != null) fillTemp(t);
         if (ground != null) {
             t.germ = new float[TN];
             t.spread = new float[TN];
@@ -504,6 +599,43 @@ public final class SporeField {
             t.height = h;
         }
         return t;
+    }
+
+    private void fillTemp(Tile t) {
+        if (t.temp == null) t.temp = new float[TN];
+        for (int i = 0; i < TN; i++) {
+            t.temp[i] = thermal.temperature((t.tx << TB) + (i & (TS - 1)), (t.tz << TB) + (i >> TB));
+            if (t.emitMul == null) t.emitMul = new float[TN];
+            t.emitMul[i] = thermal.emitFactor((t.tx << TB) + (i & (TS - 1)), (t.tz << TB) + (i >> TB));
+            if (p.tubeMoonEmit > 0) {
+                if (t.tube == null) t.tube = new float[TN];
+                t.tube[i] = thermal.tubeFactor((t.tx << TB) + (i & (TS - 1)), (t.tz << TB) + (i >> TB));
+            }
+        }
+    }
+
+    /** 温度を引き直し、隣と 1 回にじませる(境目に坂を作る)。区画の外の隣は {@link #thermal} から直に引く。 */
+    private void refreshTemps() {
+        if (thermal == null) return;
+        for (Tile t : tiles.values()) fillTemp(t);
+        HashMap<Long, float[]> blurred = new HashMap<>();
+        for (Tile t : tiles.values()) {
+            float[] out = new float[TN];
+            for (int i = 0; i < TN; i++) {
+                int cx = (t.tx << TB) + (i & (TS - 1)), cz = (t.tz << TB) + (i >> TB);
+                double sum = tempAt(cx + 1, cz) + tempAt(cx - 1, cz) + tempAt(cx, cz + 1) + tempAt(cx, cz - 1);
+                out[i] = (float) (0.5 * t.temp[i] + 0.125 * sum);
+            }
+            blurred.put(key(t.tx, t.tz), out);
+        }
+        for (Tile t : tiles.values()) t.temp = blurred.get(key(t.tx, t.tz));
+    }
+
+    /** 升の温度(区画があればその値、無ければ {@link #thermal} から)。 */
+    double tempAt(int cx, int cz) {
+        Tile t = tile(cx, cz, false);
+        if (t != null && t.temp != null) return t.temp[idx(cx, cz)];
+        return thermal == null ? 0 : thermal.temperature(cx, cz);
     }
 
     /** 升 i の発芽しやすさと林床の広がりやすさ(土地の倍率込み)を埋め直す。発芽しない升の数も合わせる。 */
@@ -762,10 +894,12 @@ public final class SporeField {
         advanceFronts(full);
         inversionNow = inversionY(Math.floorDiv(c.dayTime(), (long) PrevailingWind.DAY));
         breathe(c.dayTime(), full);
+        refreshTemps(); // ネザーの温度(オーバーワールドは thermal = null で何もしない)
         // 1 回で升の外へ出す割合が 0.5 を超えないように刻む(押し出しの安定と、間隔に依らない答えのため)
         double gmax = ground == null ? 1 : MAX_SPREAD;
-        double moveAir = (4 * p.diffusionPerDay + wind.strength * p.windSpeed * (Math.abs(wind.dirX) + Math.abs(wind.dirZ))) * full;
-        double moveLow = 4 * p.groundDiffusion * gmax * full;
+        double moveAir = (4 * p.diffusionPerDay + wind.strength * p.windSpeed * (Math.abs(wind.dirX) + Math.abs(wind.dirZ))
+                + (thermal != null ? 4 * p.thermalWindCap : 0)) * full;
+        double moveLow = (4 * p.groundDiffusion * gmax + (thermal != null ? 4 * p.thermalWindCap : 0)) * full;
         int nAir = Math.max(1, (int) Math.ceil(moveAir / 0.5));
         int nLow = Math.max(1, (int) Math.ceil(moveLow / 0.5));
         if (p.splitLayers == 0) nAir = nLow = Math.max(nAir, nLow);
@@ -826,10 +960,18 @@ public final class SporeField {
 
     /** 浮遊の沈着の速さ(1 日あたり)。巨大樹の胞子の柱(クライアント)も同じ値で薄める(2026-11-06 に {@link #stepOnce} から出した)。 */
     public static double deposition(Params p, double dayness, boolean raining, boolean thundering, boolean afterRain) {
+        return deposition(p, dayness, raining, thundering, afterRain, raining ? 1.0 : 0.0, afterRain ? 1.0 : 0.0);
+    }
+
+    /**
+     * 雨の強さ入り(11-12 雨の種類)。rainK・afterK = 雨・止んだ雨の強さ(普通 = 1、{@link Conditions#rainK})。普通の雨で今までと同じ値。
+     * 雨は晴れの値から depRain へ rainK で寄せる(大雨は越える)。雨の後も止んだ雨の強さで depAfterRain へ。
+     */
+    public static double deposition(Params p, double dayness, boolean raining, boolean thundering, boolean afterRain, double rainK, double afterK) {
         if (thundering) return p.depStorm;
-        if (raining) return p.depRain;
-        double dep = p.depNight + (p.depDay - p.depNight) * dayness;
-        return afterRain ? Math.max(dep, p.depAfterRain) : dep;
+        double dry = p.depNight + (p.depDay - p.depNight) * dayness;
+        if (raining) return Math.max(0.0, dry + (p.depRain - dry) * rainK);
+        return afterRain ? Math.max(dry, dry + (p.depAfterRain - dry) * afterK) : dry;
     }
 
     private void stepOnce(Conditions c, PrevailingWind.Sample wind, double dtAir, double dtLow, double dtSub, long t) {
@@ -840,14 +982,22 @@ public final class SporeField {
 
         // 放出の倍率
         double release;
-        if (c.thundering()) release = p.releaseStorm;
-        else if (c.raining()) release = p.releaseRain;
-        else release = p.releaseNight + (1 - p.releaseNight) * dayness;
+        double rainK = c.rainK();
+        double releaseDry = p.releaseNight + (1 - p.releaseNight) * dayness;
+        if (c.thundering()) release = p.releaseStorm * THUNDER_RELEASE;
+        else if (c.raining()) release = Math.max(0.02, releaseDry + (p.releaseRain - releaseDry) * rainK);
+        else release = releaseDry;
+        boolean moonNight = p.nightRelease != 0 && night && fullMoon(c.dayTime() - (c.tick() - t));
+        if (p.nightRelease != 0 && !c.thundering() && !c.raining()) {
+            // ネザーの胞子嚢は夜に多く出す(夜の光 = 繁殖の光)。満月の夜は一斉放出(2026-11-11 ユーザー決定: ふつうの夜の 3 倍)
+            release = night ? p.releaseNightHigh : p.releaseDayLow;
+            if (night && fullMoon(c.dayTime() - (c.tick() - t))) release *= p.fullMoonMul;
+        }
         double releaseLow = release;
         release *= 1 - p.windLift + p.windLift * Math.min(wind.strength, 3.0);
 
         // 沈着の速さ
-        double dep = deposition(p, dayness, c.raining(), c.thundering(), c.afterRain());
+        double dep = deposition(p, dayness, c.raining(), c.thundering(), c.afterRain(), rainK, c.afterK());
         // 強風・嵐の間は胞子が高く長く浮く(沈着も死滅も遅く)
         double decay = p.airDecay;
         if (wind.strongDay || wind.storm) {
@@ -855,7 +1005,7 @@ public final class SporeField {
             decay *= p.loftFactor;
         }
         // 嵐の間は浮遊胞子の一部を上空の層へ持ち上げる(飛び地のもと)
-        double lift = c.thundering() ? p.liftPerDay : 0;
+        double lift = c.thundering() ? p.liftPerDay * THUNDER_LIFT : 0;
         double k = dep + decay + lift;
         double keep = Math.exp(-k * dtAir);
         double toDep = (1 - keep) * dep / k;
@@ -874,11 +1024,14 @@ public final class SporeField {
         double keepLow = Math.exp(-kl * dtLow), toDepLow = (1 - keepLow) * p.groundDep / kl;
         double gd = p.groundDiffusion * dtLow;
         boolean moist = c.raining() || c.afterRain() || night;
-        double germP = p.germPerDay * dtSub;
+        // 湿った地面で発芽が速い(11-12): 雨の間・雨の後は強さで(普通 1 倍・小雨 0.6 倍ほど・大雨 1.4 倍ほど)。
+        double wetK = c.raining() && !c.thundering() ? rainK : c.afterK();
+        double germP = p.germPerDay * dtSub * (wetK > 0 ? Math.pow(wetK, 0.8) : 1.0);
         long secondGap = (long) (p.secondAfterDays * PrevailingWind.DAY);
 
         // 運搬の割合
-        double v = wind.strength * p.windSpeed * dtAir;
+        // 雨の間は湿って重く、風で遠くへ運ばれにくい(11-12)。運ぶ速さだけ落とす(雲を流す風 PrevailingWind はそのまま)。
+        double v = wind.strength * p.windSpeed * dtAir * (1.0 - RAIN_DRAG * Math.min(rainK, 1.5));
         double ax = wind.dirX * v, az = wind.dirZ * v;
         double fx = Math.abs(ax), fz = Math.abs(az);
         int sx = ax >= 0 ? 1 : -1, sz = az >= 0 ? 1 : -1;
@@ -913,8 +1066,14 @@ public final class SporeField {
                 long sp = tl.sprout[i];
                 if (sp != NOT) {
                     double age = (t - sp) / (double) PrevailingWind.DAY;
-                    double e = age < p.daysToThriving ? 0 : age < p.daysToOvergrown ? p.emitThriving : p.emitOvergrown;
+                    double e = age < p.daysToThriving ? (p.earlyEmit > 0 ? p.emitThriving * p.earlyEmit * (age / p.daysToThriving) * (age / p.daysToThriving) : 0)
+                            : age < p.daysToOvergrown ? p.emitThriving : p.emitOvergrown;
                     if (p.sproutEmitBonus > 0) e *= 1 + p.sproutEmitBonus * tl.count[i];
+                    if (tl.emitMul != null) e *= tl.emitMul[i];
+                    // 管の樹(2026-11-12): 繁茂の後の放出は下地 ledgerBaseEmit を残し、満月の夜は管の樹の羽根から吐く分を足す
+                    if (age >= p.daysToThriving && (p.ledgerBaseEmit != 1.0 || p.tubeMoonEmit > 0)) {
+                        e *= p.ledgerBaseEmit + (moonNight && tl.tube != null ? p.tubeMoonEmit * tl.tube[i] : 0);
+                    }
                     if (doAir) a += e * release * dtAir * (tl.airEmit == null ? 1f : tl.airEmit[i]);
                     if (lowHere) lo += e * releaseLow * dtLow * p.groundEmit;
                 }
@@ -930,6 +1089,7 @@ public final class SporeField {
                             : (doAir ? inA * tDep : 0) + (lowHere ? inL * toDepLow : 0));
                     float g = tl.germ == null ? 1f : tl.germ[i];
                     double need = first ? p.germThreshold : p.secondThreshold;
+                    if (moonNight) need *= p.fullMoonGermMul; // ネザー: 満月の夜だけ発芽しやすい(前線の波、2026-11-11)
                     // 読み込まれるまで待つ印(下回ったら外す。印の間は発芽を試み直さない。2026-10-24)
                     if ((tl.flags[i] & WAIT) != 0 && dd * g < p.germThreshold) tl.flags[i] &= ~WAIT;
                     if (g > 0 && (tl.flags[i] & WAIT) == 0 && dd * g >= need && (first || t - sp >= secondGap)
@@ -963,6 +1123,20 @@ public final class SporeField {
                         out += pushLow(tl, cx - 1, cz, lo, gd, s0);
                         out += pushLow(tl, cx, cz + 1, lo, gd, s0);
                         out += pushLow(tl, cx, cz - 1, lo, gd, s0);
+                        // 寒暖差の風は地面近くの風なので、林床の層も冷たい升から熱い隣へ運ぶ(2026-11-11。浮遊だけでは前線は変わらなかった)
+                        if (thermal != null && tl.temp != null && p.thermalWindPerDay > 0) {
+                            double tHere = tl.temp[i];
+                            for (int dir = 0; dir < 4; dir++) {
+                                int nx = cx + (dir == 0 ? 1 : dir == 1 ? -1 : 0), nz = cz + (dir == 2 ? 1 : dir == 3 ? -1 : 0);
+                                double dT = tempAt(nx, nz) - tHere;
+                                if (dT <= 0) continue;
+                                double q = lo * Math.min(p.thermalWindCap, dT * p.thermalWindPerDay) * dtLow;
+                                Tile nt = (nx >> TB) == tl.tx && (nz >> TB) == tl.tz ? tl : tile(nx, nz, true);
+                                nt.lowNext[idx(nx, nz)] += (float) q;
+                                nt.inLowNext[idx(nx, nz)] += (float) q;
+                                out += q;
+                            }
+                        }
                         tl.lowNext[i] += (float) (lo - out);
                     }
                 }
@@ -997,6 +1171,30 @@ public final class SporeField {
                         double m = a * fValley;
                         a -= m;
                         add(tl, i, cx + bestX, cz + bestZ, (float) m);
+                    }
+                }
+                if (thermal != null && tl.temp != null) {
+                    double tHere = tl.temp[i];
+                    // 天井への持ち上げ(ネザーの飛び地): 熱い升の浮遊が昇って上空の塊へ
+                    double hot = tHere - p.thermalLiftFrom;
+                    if (hot > 0 && p.thermalLiftPerDay > 0) {
+                        double up = a * (1 - Math.exp(-p.thermalLiftPerDay * hot * dtAir));
+                        a -= up;
+                        tl.lifted += up;
+                        tl.liftX += up * (cx + 0.5);
+                        tl.liftZ += up * (cz + 0.5);
+                    }
+                    // 寒暖差の風: 冷たい升から熱い隣へ(差に比例・隣 1 つあたり thermalWindCap まで)。森の中は温度が揃って凪ぐ
+                    if (p.thermalWindPerDay > 0 && a >= eps) {
+                        double a0 = a;
+                        for (int dir = 0; dir < 4; dir++) {
+                            int nx = cx + (dir == 0 ? 1 : dir == 1 ? -1 : 0), nz = cz + (dir == 2 ? 1 : dir == 3 ? -1 : 0);
+                            double dT = tempAt(nx, nz) - tHere;
+                            if (dT <= 0) continue;
+                            double m = a0 * Math.min(p.thermalWindCap, dT * p.thermalWindPerDay) * dtAir;
+                            a -= m;
+                            add(tl, i, nx, nz, (float) m);
+                        }
                     }
                 }
                 tl.next[i] += (float) (a * stay);
@@ -1116,6 +1314,7 @@ public final class SporeField {
                     double u = PrevailingWind.unit(h);
                     double dropAt = p.dropMin * Math.pow(p.dropMax / p.dropMin, u);
                     double turn = Math.toRadians(30) * (PrevailingWind.unit(PrevailingWind.hash(h, 7)) * 2 - 1);
+                    if (p.parcelRandomDir != 0) turn = 2 * Math.PI * PrevailingWind.unit(PrevailingWind.hash(h, 7)); // ネザー: 風が無いので四方へ
                     parcels.add(new Parcel(tl.liftX / tl.lifted, tl.liftZ / tl.lifted, total / np, dropAt, t, turn));
                     launched++;
                 }
@@ -1126,7 +1325,7 @@ public final class SporeField {
         double speed = Math.max(p.highMinStrength, wind.strength) * p.windSpeed * p.highSpeedMul * dtDays;
         List<Parcel> landed = null;
         for (Parcel pc : parcels) {
-            double ang = Math.atan2(wind.dirZ, wind.dirX) + pc.turn;
+            double ang = p.parcelRandomDir != 0 ? pc.turn : Math.atan2(wind.dirZ, wind.dirX) + pc.turn;
             pc.x += Math.cos(ang) * speed;
             pc.z += Math.sin(ang) * speed;
             // 落ちるまでの距離は本体の外へ出てから数える(飛び地の距離 = 縁からの距離)
@@ -1188,6 +1387,11 @@ public final class SporeField {
                 }
             newLandings.add(new double[]{pc.x, pc.z, pc.mass, pc.traveled});
         }
+    }
+
+    /** 満月の日か(バニラの月の満ち欠け: 日 % 8 == 0 が満月)。 */
+    public static boolean fullMoon(long dayTime) {
+        return Math.floorMod(Math.floorDiv(dayTime, (long) PrevailingWind.DAY), 8L) == 0;
     }
 
     /** いちばん近い「汚染のある区画」の箱までの距離(実際の距離以下の見積もり。limit で打ち切り)。 */

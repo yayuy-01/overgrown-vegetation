@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "pose=open": { "model": "overgrown_vegetation:block/tube_tree_plume_open" },
+    "pose=spitting": { "model": "overgrown_vegetation:block/tube_tree_plume_open" },
+    "pose=closed": { "model": "overgrown_vegetation:block/tube_tree_plume_closed" },
+    "pose=retracted": { "model": "overgrown_vegetation:block/tube_tree_plume_retracted" }
+  }
+}

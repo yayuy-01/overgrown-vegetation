@@ -182,6 +182,20 @@ public final class SporeExposureGameTests {
             helper.fail("2 回目: 体力 " + g.getHealth() + "・回数 " + ex.reachedCount);
             return;
         }
+        // 11-09: 1 回ごとに最大体力も 20 下がる(100 → 60)。保存して読み直しても下がったまま
+        double expectMax = 100.0D - 2.0D * t.mobMaxHealthLossPerHit();
+        if (Math.abs(g.getMaxHealth() - expectMax) > 1.0E-3D) {
+            helper.fail("2 回で最大体力が " + expectMax + " にならない: " + g.getMaxHealth());
+            return;
+        }
+        net.minecraft.nbt.CompoundTag saved = new net.minecraft.nbt.CompoundTag();
+        g.saveWithoutId(saved);
+        IronGolem copy = EntityType.IRON_GOLEM.create(level);
+        copy.load(saved);
+        if (Math.abs(copy.getMaxHealth() - expectMax) > 1.0E-3D) {
+            helper.fail("読み直すと最大体力が戻った: " + copy.getMaxHealth());
+            return;
+        }
         helper.succeed();
     }
 
@@ -203,9 +217,9 @@ public final class SporeExposureGameTests {
             helper.fail("体力 10 の牛が 1 回で死なない: 体力 " + c.getHealth());
             return;
         }
-        if (!EntityType.ENDER_DRAGON.is(com.yayuy.overgrownvegetation.ModTags.SPORE_EXPOSURE_IMMUNE)
-                || !EntityType.WITHER.is(com.yayuy.overgrownvegetation.ModTags.SPORE_EXPOSURE_IMMUNE)) {
-            helper.fail("ボス(ドラゴン・ウィザー)が測らない Mob のタグに入っていない");
+        if (EntityType.ENDER_DRAGON.is(com.yayuy.overgrownvegetation.ModTags.SPORE_EXPOSURE_IMMUNE)
+                || EntityType.WITHER.is(com.yayuy.overgrownvegetation.ModTags.SPORE_EXPOSURE_IMMUNE)) {
+            helper.fail("ボス(ドラゴン・ウィザー)が測らない Mob のタグに入っている(11-09 ユーザー決定でボスも測る)");
             return;
         }
         helper.succeed();
@@ -220,10 +234,75 @@ public final class SporeExposureGameTests {
         float health = z.getHealth();
         SporeExposureTracker.tickWith(helper.getLevel(), z, overDoseTicks(), 100.0D);
         SporeExposure ex = z.getData(ModAttachments.SPORE_EXPOSURE);
-        if (ex.dose != t.infectDose() || ex.reachedCount != 0 || z.getHealth() != health) {
+        if (ex.dose != t.infectDose() || ex.reachedCount != 0 || z.getHealth() != health || z.getMaxHealth() != z.getAttribute(Attributes.MAX_HEALTH).getBaseValue()) {
             helper.fail("無敵の Mob: 暴露 " + ex.dose + "・回数 " + ex.reachedCount + "・体力 " + z.getHealth());
             return;
         }
         helper.succeed();
+    }
+
+    /**
+     * 測る Mob は植物側以外のすべて(11-09 ユーザー決定)。バニラ・ボスは測り、植物側(G1 の寄生体・萌芽体・アルボラ・ファルキムネス・ハイヴノード)は
+     * 測らない。他 mod の Mob はテスト環境に無いが、{@link SporeExposureTracker#isMeasuredMob} は id の名前空間を見ない
+     * (Mob であること・植物側でないこと・データパック用のタグだけ)。
+     */
+    @GameTest(template = "gametest_empty7", batch = BATCH)
+    public static void measuresEveryoneButPlantSide(GameTestHelper helper) {
+        var level = helper.getLevel();
+        EntityType<?>[] measured = {EntityType.WOLF, EntityType.HORSE, EntityType.WITHER, EntityType.ENDER_DRAGON, EntityType.PILLAGER};
+        for (EntityType<?> t : measured) {
+            if (!(t.create(level) instanceof net.minecraft.world.entity.LivingEntity e) || !SporeExposureTracker.isMeasuredMob(e)) {
+                helper.fail("測るはずの Mob を測らない: " + EntityType.getKey(t));
+                return;
+            }
+        }
+        java.util.List<EntityType<?>> plant = new java.util.ArrayList<>(java.util.List.of(
+                com.yayuy.overgrownvegetation.registry.ModEntities.BLIGHT_FERN.get(),
+                com.yayuy.overgrownvegetation.registry.ModEntities.HIVE_NODE.get(),
+                com.yayuy.overgrownvegetation.registry.ModEntities.ARBORA.get(),
+                com.yayuy.overgrownvegetation.registry.ModEntities.FALCIMNES.get()));
+        for (com.yayuy.overgrownvegetation.corpse.G1Species s : com.yayuy.overgrownvegetation.corpse.G1Species.values()) {
+            plant.add(s.entityType());
+        }
+        for (EntityType<?> t : plant) {
+            if (!(t.create(level) instanceof net.minecraft.world.entity.LivingEntity e)) {
+                helper.fail("植物側の Mob を作れない: " + EntityType.getKey(t));
+                return;
+            }
+            if (SporeExposureTracker.isMeasuredMob(e) || !SporeExposureTracker.isPlantSide(e)) {
+                helper.fail("植物側の Mob を測っている: " + EntityType.getKey(t));
+                return;
+            }
+        }
+        helper.succeed();
+    }
+
+    /** G1 の表に無い種(オオカミ・ウマ)は感染の死で萌芽体が生える(11-09 ユーザー決定)。 */
+    @GameTest(template = "gametest_empty7", batch = "spore_sprout_wolf", timeoutTicks = 40)
+    public static void unlistedWolfSproutsBlightFern(GameTestHelper helper) {
+        sproutsOnInfectionDeath(helper, EntityType.WOLF);
+    }
+
+    @GameTest(template = "gametest_empty7", batch = "spore_sprout_horse", timeoutTicks = 40)
+    public static void unlistedHorseSproutsBlightFern(GameTestHelper helper) {
+        sproutsOnInfectionDeath(helper, EntityType.HORSE);
+    }
+
+    private static void sproutsOnInfectionDeath(GameTestHelper helper, EntityType<? extends net.minecraft.world.entity.Mob> type) {
+        var level = helper.getLevel();
+        net.minecraft.world.entity.Mob m = helper.spawnWithNoFreeWill(type, new BlockPos(3, 2, 3));
+        net.minecraft.world.phys.AABB around = m.getBoundingBox().inflate(40.0D);
+        // 前の組が残した萌芽体があると密集の判定で生えないので、まわりから片付けておく
+        level.getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.BlightFernEntity.class, around).forEach(e -> e.discard());
+        m.hurt(com.yayuy.overgrownvegetation.registry.ModDamageTypes.sporeInfection(level), 1000.0F);
+        helper.runAfterDelay(5, () -> {
+            var ferns = level.getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.BlightFernEntity.class, m.getBoundingBox().inflate(4.0D));
+            if (ferns.isEmpty()) {
+                helper.fail(EntityType.getKey(type) + " が感染の死で萌芽体にならない");
+                return;
+            }
+            ferns.forEach(e -> e.discard());
+            helper.succeed();
+        });
     }
 }

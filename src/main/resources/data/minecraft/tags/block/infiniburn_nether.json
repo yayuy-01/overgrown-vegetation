@@ -1,9 +1,6 @@
 {
   "replace": false,
   "values": [
-    "overgrown_vegetation:overgrown_netherrack",
-    "overgrown_vegetation:heat_cooled_crust",
-    "overgrown_vegetation:heat_mat",
-    "overgrown_vegetation:heat_mat_strands"
+    "overgrown_vegetation:overgrown_netherrack"
   ]
 }

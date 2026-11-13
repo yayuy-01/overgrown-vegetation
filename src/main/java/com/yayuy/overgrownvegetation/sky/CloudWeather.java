@@ -151,6 +151,11 @@ public final class CloudWeather {
         clientActive = active;
     }
 
+    /** 予定で天気を決めている間か(サーバーは自分の状態、クライアントは届いた値。11-12 雨の強さ {@link RainIntensity} が読む)。 */
+    public static boolean scheduleActive(Level level) {
+        return level.isClientSide() ? clientActive : serverActive;
+    }
+
     /** 前の tick に書いた値(手で変えられたかを見る)。書いていなければ written = false。 */
     private static boolean written;
     private static boolean wroteRain;

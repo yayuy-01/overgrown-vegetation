@@ -165,6 +165,49 @@ public final class DevBridge {
     private static double[] navTarget;
     private static long navUntil;
 
+    /** detourbench の続き(サーバーのスレッドで読み書きする)。 */
+    private static java.util.List<com.yayuy.overgrownvegetation.entity.FalcimnesEntity> benchMobs;
+    private static long[] benchArrive;
+    private static double[] benchX;
+    private static double benchY, benchZ;
+    private static long benchStart, benchCalls0;
+    private static String benchMode;
+
+    /** detourbench の 1 tick: 着いていない個体は経路が終わっていれば引き直す。全員着いたか 1200 tick で結果を書いて片付ける。 */
+    private static void benchStep(net.minecraft.server.level.ServerLevel level) {
+        var mobs = benchMobs;
+        if (mobs == null) return;
+        long t = level.getGameTime() - benchStart;
+        int arrived = 0;
+        for (int i = 0; i < mobs.size(); i++) {
+            var f = mobs.get(i);
+            if (benchArrive[i] >= 0) {
+                arrived++;
+                continue;
+            }
+            if (!f.isAlive()) continue;
+            if (f.getZ() >= benchZ - 1.5D && Math.abs(f.getX() - benchX[i]) < 3.0D) {
+                benchArrive[i] = t;
+                arrived++;
+            } else if (f.getNavigation().isDone()) {
+                f.getNavigation().moveTo(benchX[i], benchY, benchZ, 1.0D);
+            }
+        }
+        if (arrived == mobs.size() || t >= 1200L) {
+            long total = com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.totalNanos;
+            StringBuilder arr = new StringBuilder();
+            for (long a : benchArrive) arr.append(' ').append(a);
+            log(String.format(Locale.ROOT, "DETOURBENCH %s 体 %d 着いた %d tick %d 1tick最大 %.2f ms 平均 %.3f ms 合計 %.1f ms 回り道 %d 下調べ %d (%.2f ms/回) 使い回し %d 予算待ち %d 着いた tick%s",
+                    benchMode, mobs.size(), arrived, t, com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.maxTickNanos / 1e6,
+                    total / 1e6 / Math.max(1L, t), total / 1e6, com.yayuy.overgrownvegetation.entity.FalcimnesEntity.widePathCalls - benchCalls0,
+                    com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.calls,
+                    com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.nanos / 1e6 / Math.max(1L, com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.calls),
+                    com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.shared, com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.deferred, arr));
+            for (var f : mobs) f.discard();
+            benchMobs = null;
+        }
+    }
+
     private DevBridge() {
     }
 
@@ -193,6 +236,23 @@ public final class DevBridge {
                     }
                 });
             }
+        }
+        if (mc.player != null && mc.getSingleplayerServer() != null) {
+            // 竹馬型の navto の続き・stiltbench(11-10)
+            net.minecraft.client.server.IntegratedServer ss = mc.getSingleplayerServer();
+            var sdim = mc.player.level().dimension();
+            ss.execute(() -> {
+                var lv = ss.getLevel(sdim);
+                if (lv != null) StiltDev.tick(lv, lv.getGameTime(), DevBridge::log);
+            });
+        }
+        if (benchMobs != null && mc.player != null) {
+            net.minecraft.client.server.IntegratedServer bs = mc.getSingleplayerServer();
+            var dim = mc.player.level().dimension();
+            if (bs != null) bs.execute(() -> {
+                var lv = bs.getLevel(dim);
+                if (lv != null) benchStep(lv);
+            });
         }
         if (sneakUntil > 0L) {
             // スニーク(クリエイティブで飛んでいるときは下降)の押しっぱなし。hold と同じく毎 tick 押し直す。
@@ -437,6 +497,86 @@ public final class DevBridge {
                 mc.options.hideGui = arg.equalsIgnoreCase("off");
                 log("HUD " + (mc.options.hideGui ? "off" : "on"));
             }
+            case "findsea" -> {
+                // findsea [半径]: ネザーで、読み込まれたチャンクのうち、溶岩の海(海面の高さの溶岩の上に 16 段以上の空き)と、
+                // 低い岸(海面 + 1〜4 の床の上に 16 段以上の空き)の両方がある所を多い順に 8 つ(2026-11-12、先駆けの植物の写真の場所探し)
+                String[] p = arg.trim().isEmpty() ? new String[0] : arg.trim().split("\\s+");
+                net.minecraft.client.server.IntegratedServer server = mc.getSingleplayerServer();
+                if (server == null || mc.player == null) break;
+                int r = p.length > 0 ? Integer.parseInt(p[0]) : 128;
+                net.minecraft.core.BlockPos me = mc.player.blockPosition();
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(mc.player.level().dimension());
+                    if (level == null) return;
+                    int s = com.yayuy.overgrownvegetation.corruption.NetherLava.surfaceY(level);
+                    java.util.List<int[]> found = new java.util.ArrayList<>();
+                    net.minecraft.core.BlockPos.MutableBlockPos q = new net.minecraft.core.BlockPos.MutableBlockPos();
+                    for (int cx = (me.getX() - r) >> 4; cx <= (me.getX() + r) >> 4; cx++) {
+                        for (int cz = (me.getZ() - r) >> 4; cz <= (me.getZ() + r) >> 4; cz++) {
+                            if (level.getChunkSource().getChunkNow(cx, cz) == null) continue;
+                            int sea = 0, shore = 0;
+                            for (int x = cx << 4; x < (cx << 4) + 16; x++) {
+                                for (int z = cz << 4; z < (cz << 4) + 16; z++) {
+                                    int open = 0;
+                                    if (level.getFluidState(q.set(x, s, z)).is(net.minecraft.world.level.material.Fluids.LAVA)) {
+                                        while (open < 16 && level.getBlockState(q.set(x, s + 1 + open, z)).isAir()) open++;
+                                        if (open >= 16) sea++;
+                                        continue;
+                                    }
+                                    for (int f = s + 1; f <= s + 4; f++) {
+                                        if (!level.getBlockState(q.set(x, f, z)).blocksMotion()) continue;
+                                        open = 0;
+                                        while (open < 16 && level.getBlockState(q.set(x, f + 1 + open, z)).isAir()) open++;
+                                        if (open >= 16) {
+                                            shore++;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            if (sea >= 16 && shore >= 8) found.add(new int[]{cx, cz, sea, shore, Math.min(sea, shore * 3)});
+                        }
+                    }
+                    found.sort((a, b) -> b[4] - a[4]);
+                    log("FINDSEA " + found.size() + " チャンク(海面 " + s + ")");
+                    for (int i = 0; i < Math.min(8, found.size()); i++) {
+                        int[] f = found.get(i);
+                        log(String.format("FINDSEA チャンク %d %d(真ん中 %d %d)開けた海 %d 列・低い岸 %d 列", f[0], f[1], (f[0] << 4) + 8, (f[1] << 4) + 8, f[2], f[3]));
+                    }
+                });
+            }
+            case "findblock" -> {
+                // findblock <ブロックの id> <半径>: プレイヤーのまわりで、そのブロックのうち地面から 1〜3 段の高さにあるものを近い順に 8 つ
+                // (2026-11-08 夜、本物の森で地面近くの葉を探す)。返事は FINDBLOCK x y z 地面からの高さ
+                String[] p = arg.trim().split("\\s+");
+                net.minecraft.client.server.IntegratedServer server = mc.getSingleplayerServer();
+                if (server == null || mc.player == null) break;
+                net.minecraft.world.level.block.Block want = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(net.minecraft.resources.ResourceLocation.parse(p[0]));
+                int r = p.length > 1 ? Integer.parseInt(p[1]) : 24;
+                net.minecraft.core.BlockPos me = mc.player.blockPosition();
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(mc.player.level().dimension());
+                    if (level == null) return;
+                    java.util.List<int[]> found = new java.util.ArrayList<>();
+                    net.minecraft.core.BlockPos.MutableBlockPos q = new net.minecraft.core.BlockPos.MutableBlockPos();
+                    for (int dx = -r; dx <= r; dx++) for (int dz = -r; dz <= r; dz++) for (int dy = -12; dy <= 12; dy++) {
+                        q.set(me.getX() + dx, me.getY() + dy, me.getZ() + dz);
+                        if (!level.getBlockState(q).is(want)) continue;
+                        int h = 0;
+                        for (int k = 1; k <= 4; k++) {
+                            var below = level.getBlockState(q.below(k));
+                            if (!below.isAir() && !below.is(want) && !below.getCollisionShape(level, q.below(k)).isEmpty()) { h = k; break; }
+                        }
+                        if (h >= 1 && h <= 3) found.add(new int[]{q.getX(), q.getY(), q.getZ(), h, Math.abs(dy) * 10000 + dx * dx + dz * dz});   // 高さの近いものから
+                    }
+                    found.sort(java.util.Comparator.comparingInt(a -> a[4]));
+                    log("FINDBLOCK " + found.size() + " 個");
+                    for (int i = 0; i < Math.min(16, found.size()); i++) {
+                        int[] f = found.get(i);
+                        log(String.format("FINDBLOCK %d %d %d 地面から %d", f[0], f[1], f[2], f[3]));
+                    }
+                });
+            }
             case "navstat" -> {
                 // 一番近い Mob の位置・経路の進み・動いている Goal(2026-11-08、navto の確かめ)。返事は NAVSTAT …
                 net.minecraft.client.server.IntegratedServer server = mc.getSingleplayerServer();
@@ -448,7 +588,7 @@ public final class DevBridge {
                     net.minecraft.world.entity.Mob best = null;
                     for (net.minecraft.world.entity.Mob m : level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class,
                             new net.minecraft.world.phys.AABB(me, me).inflate(64.0D))) {
-                        if (best == null || m.distanceToSqr(me) < best.distanceToSqr(me)) best = m;
+                        if (m.isAlive() && (best == null || m.distanceToSqr(me) < best.distanceToSqr(me))) best = m;   // 死ぬ途中の個体は選ばない
                     }
                     if (best == null) {
                         log("NAVSTAT なし");
@@ -463,6 +603,80 @@ public final class DevBridge {
                             best.getX(), best.getY(), best.getZ(), best.getYRot(), best.getNavigation().isDone(),
                             path == null ? "-" : path.getNextNodeIndex(), path == null ? "-" : path.getNodeCount(), best.isNoAi(),
                             level.isPositionEntityTicking(best.blockPosition()), goals));
+                });
+            }
+            case "detourplan" -> {
+                // detourplan fx fy fz tx tz: 回り道の下調べを 1 回(使い回しなし)。返事は DETOURPLAN …、列の高さ 5 本も
+                String[] p = arg.trim().split("\s+");
+                net.minecraft.client.server.IntegratedServer server = mc.getSingleplayerServer();
+                if (server == null || mc.player == null) break;
+                int fx = Integer.parseInt(p[0]), fy = Integer.parseInt(p[1]), fz = Integer.parseInt(p[2]), tx = Integer.parseInt(p[3]), tz = Integer.parseInt(p[4]);
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(mc.player.level().dimension());
+                    if (level == null) return;
+                    com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.resetStats();
+                    var plan = com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.plan(level, new net.minecraft.core.BlockPos(fx, fy, fz), new net.minecraft.core.BlockPos(tx, fy, tz), 2, true, 24.0D);
+                    StringBuilder cols = new StringBuilder();
+                    for (int z = fz; z <= tz; z++) cols.append(' ').append(z).append(':').append(com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.debugColumn(level, fx, z, fy, true));
+                    log("DETOURPLAN " + (plan == null ? "なし" : plan.waypoint() + " 残り " + plan.gap()) + " 列" + cols);
+                });
+            }
+            case "stiltbench" -> {
+                // stiltbench <n> <cx> <y> <z0> <z1>: 竹馬型(フィロセンス)を n 体並べて z1 へ歩かせ、1 tick の最大・平均を測る(11-10)。返事は STILTBENCH …
+                String[] p = arg.trim().split("\\s+");
+                net.minecraft.client.server.IntegratedServer server = mc.getSingleplayerServer();
+                if (server == null || mc.player == null || p.length < 5) {
+                    log("STILTBENCH 引数か統合サーバーが無い");
+                    break;
+                }
+                int n = Integer.parseInt(p[0]), cx = Integer.parseInt(p[1]), y = Integer.parseInt(p[2]);
+                int z0 = Integer.parseInt(p[3]), z1 = Integer.parseInt(p[4]);
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(mc.player.level().dimension());
+                    int fixed = p.length > 5 ? Integer.parseInt(p[5]) : 0;   // 6 つ目 = 着いても測り続ける tick(11-11)
+                    if (level != null) StiltDev.bench(level, n, cx, y, z0, z1, fixed, p.length > 6 && p[6].equals("same"), level.getGameTime(), DevBridge::log);
+                });
+            }
+            case "detourbench" -> {
+                // detourbench <coarse|wide> <n> <cx> <y> <z0> <z1>: 慎重なファルキムネスを n 体、x = cx を中心に 2 ブロックおきに z0 へ並べ、
+                // 全員を z1 へ歩かせる(間の生け垣を回り込ませる)。回り道に使った時間の 1 tick の最大・平均と、全員が着くまでの tick を返す。
+                // 返事は DETOURBENCH …(2026-11-09、広い探し直しの重さの比べ)
+                String[] p = arg.trim().split("\s+");
+                net.minecraft.client.server.IntegratedServer server = mc.getSingleplayerServer();
+                if (server == null || mc.player == null || p.length < 6) {
+                    log("DETOURBENCH 引数か統合サーバーが無い");
+                    break;
+                }
+                boolean coarse = !p[0].equals("wide");
+                int n = Integer.parseInt(p[1]), cx = Integer.parseInt(p[2]), y = Integer.parseInt(p[3]);
+                int z0 = Integer.parseInt(p[4]), z1 = Integer.parseInt(p[5]);
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(mc.player.level().dimension());
+                    if (level == null) return;
+                    com.yayuy.overgrownvegetation.entity.FalcimnesEntity.detourCoarse = coarse;
+                    com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.resetStats();
+                    benchCalls0 = com.yayuy.overgrownvegetation.entity.FalcimnesEntity.widePathCalls;
+                    benchMobs = new java.util.ArrayList<>();
+                    benchArrive = new long[n];
+                    java.util.Arrays.fill(benchArrive, -1L);
+                    benchX = new double[n];
+                    for (int i = 0; i < n; i++) {
+                        var f = com.yayuy.overgrownvegetation.registry.ModEntities.FALCIMNES.get().create(level);
+                        if (f == null) continue;
+                        double x = cx - (n - 1) + 2 * i + 0.5;
+                        f.moveTo(x, y, z0 + 0.5, 0.0F, 0.0F);
+                        f.setCustomName(net.minecraft.network.chat.Component.literal("nostroll" + i));
+                        f.setPersistenceRequired();
+                        level.addFreshEntity(f);
+                        f.setPersonality(1.0F, 0.0F, 0.5F);
+                        benchMobs.add(f);
+                        benchX[benchMobs.size() - 1] = x;
+                    }
+                    benchY = y;
+                    benchZ = z1 + 0.5;
+                    benchStart = level.getGameTime();
+                    benchMode = coarse ? "coarse" : "wide";
+                    log("DETOURBENCH 始め " + benchMode + " " + benchMobs.size() + " 体");
                 });
             }
             case "navto" -> {
@@ -483,12 +697,13 @@ public final class DevBridge {
                     net.minecraft.world.entity.Mob best = null;
                     for (net.minecraft.world.entity.Mob m : level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class,
                             new net.minecraft.world.phys.AABB(me, me).inflate(64.0D))) {
-                        if (best == null || m.distanceToSqr(me) < best.distanceToSqr(me)) best = m;
+                        if (m.isAlive() && (best == null || m.distanceToSqr(me) < best.distanceToSqr(me))) best = m;   // 死ぬ途中の個体は選ばない
                     }
                     if (best == null) {
                         log("NAVTO なし");
                         return;
                     }
+                    if (StiltDev.navto(best, tx, ty, tz, speed, level.getGameTime(), DevBridge::log)) return;   // 竹馬型(11-10)
                     net.minecraft.world.level.pathfinder.Path path = best.getNavigation().createPath(tx, ty, tz, 0);
                     best.getNavigation().moveTo(path, speed);
                     navTarget = new double[]{tx, ty, tz, speed};
@@ -578,7 +793,8 @@ public final class DevBridge {
             }
             case "clouds" -> {
                 // 雲(2026-11-08 雲の段階 1、client/sky/VoxelClouds): status = 有効・量・面の数・遠景・段・雲の速さ。返事は CLOUDS …
-                log("CLOUDS " + com.yayuy.overgrownvegetation.client.sky.VoxelClouds.describe() + " / " + com.yayuy.overgrownvegetation.client.atmosphere.CloudShadows.describe());
+                log("CLOUDS " + com.yayuy.overgrownvegetation.client.sky.VoxelClouds.describe() + " / " + com.yayuy.overgrownvegetation.client.atmosphere.CloudShadows.describe()
+                        + " / " + com.yayuy.overgrownvegetation.client.atmosphere.RainFeel.describe());
                 return null;
             }
             case "fog" -> {
@@ -2119,6 +2335,21 @@ public final class DevBridge {
             case "echo" -> log("ECHO " + arg);
             // 重さを測る(2026-10-18、FxProfiler)。bench は終わるまで次の命令へ進まない。
             case "fxprof" -> log(FxProfiler.command(arg));
+            // 予定の雨と種類(2026-11-12 雨の種類、sky.RainIntensity)。今から 12 日分の雨の始まり・終わり(dayTime)・種類・雷雨。返事は RAINS …
+            case "rains" -> {
+                long t0 = mc.level == null ? 0L : mc.level.getDayTime();
+                StringBuilder sb = new StringBuilder("RAINS");
+                for (long d = Math.floorDiv(t0 + 6000L, 24000L); d <= Math.floorDiv(t0 + 6000L, 24000L) + 12; d++) {
+                    com.yayuy.overgrownvegetation.sky.CloudWeather.Rain r = com.yayuy.overgrownvegetation.sky.CloudWeather.rainOfDay(d);
+                    if (r != null) {
+                        sb.append(String.format(" [%d〜%d 強さ %.1f%s]", r.from(), r.to(), com.yayuy.overgrownvegetation.sky.RainIntensity.kind(r),
+                                r.thunderTo() > r.thunderFrom() ? " 雷 " + r.thunderFrom() + "〜" + r.thunderTo() : ""));
+                    }
+                }
+                log(sb.toString());
+            }
+            // 雲の流れの跳びの計測(2026-11-12、CloudProbe)。cloudprobe start / stop。
+            case "cloudprobe" -> log(CloudProbe.command(arg, dir));
             case "winsize" -> log(FxProfiler.winsize(mc, arg));
             // 資源パックの入り切り(2026-10-23、バニラの地形のシェーダーと比べる)。rpack <フォルダ名> on|off。読み直しが終わると RPACK 終わり
             case "rpack" -> {

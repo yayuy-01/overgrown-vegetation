@@ -41,7 +41,8 @@ public final class ModItems {
                 // 蔦は1マス置いても見えないので、始点→終点の2回クリックで張る専用アイテム。
                 ITEMS.registerItem(block.getId().getPath(),
                         props -> new com.yayuy.overgrownvegetation.item.LianaItem(block.get(), props), new Item.Properties());
-            } else if (block == ModBlocks.ALGAE_FILM || block == ModBlocks.SPORE_FILM || block == ModBlocks.SEA_SPORE_BAND) {
+            } else if (block == ModBlocks.ALGAE_FILM || block == ModBlocks.SPORE_FILM || block == ModBlocks.SEA_SPORE_BAND
+                    || block == ModBlocks.LAVA_FERN_MAT) { // 溶岩の浮き草も液体の源を狙って置く(2026-11-12。溶岩の源にも当たる)
                 // 水面の膜は睡蓮の葉と同じく水面を狙って置く(2026-11-01)。
                 ITEMS.registerItem(block.getId().getPath(),
                         props -> new net.minecraft.world.item.PlaceOnWaterBlockItem(block.get(), props), new Item.Properties());
@@ -199,6 +200,35 @@ public final class ModItems {
     /** 「胞子嚢」— 寄生されたクリーパーが落とす。爆発の因子の元(火薬はそのまま落とす)。 */
     public static final DeferredItem<Item> SPORE_SAC =
             ITEMS.registerSimpleItem("spore_sac", new Item.Properties());
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  G1 段階 0 のドロップ「覆われた〜」(2026-11-05 ユーザー決定: 元のドロップの覆われた版。
+    //  作るのは生き物の体から出る物だけ)。11-08 ユーザー: 今は素材だけ(食べられない・骨粉にできない)。
+    //  どの G1 が落とすかは data/…/loot_table/entities/parasitized_*.json 側。
+    // ─────────────────────────────────────────────────────────────────────
+
+    /** 覆われた腐肉(ゾンビ・チビゾンビ)。 */
+    public static final DeferredItem<Item> OVERGROWN_ROTTEN_FLESH = ITEMS.registerSimpleItem("overgrown_rotten_flesh", new Item.Properties());
+    /** 覆われた牛肉(牛)。 */
+    public static final DeferredItem<Item> OVERGROWN_BEEF = ITEMS.registerSimpleItem("overgrown_beef", new Item.Properties());
+    /** 覆われた革(牛)。 */
+    public static final DeferredItem<Item> OVERGROWN_LEATHER = ITEMS.registerSimpleItem("overgrown_leather", new Item.Properties());
+    /** 覆われた豚肉(豚)。 */
+    public static final DeferredItem<Item> OVERGROWN_PORKCHOP = ITEMS.registerSimpleItem("overgrown_porkchop", new Item.Properties());
+    /** 覆われた羊肉(羊)。 */
+    public static final DeferredItem<Item> OVERGROWN_MUTTON = ITEMS.registerSimpleItem("overgrown_mutton", new Item.Properties());
+    /** 覆われた羊毛(羊。色を問わず 1 種。刈れないので倒したときだけ)。ブロックではなく毛の塊のアイテム。 */
+    public static final DeferredItem<Item> OVERGROWN_WOOL = ITEMS.registerSimpleItem("overgrown_wool", new Item.Properties());
+    /** 覆われた鶏肉(鶏。燃えて死んでも焼けない)。 */
+    public static final DeferredItem<Item> OVERGROWN_CHICKEN = ITEMS.registerSimpleItem("overgrown_chicken", new Item.Properties());
+    /** 覆われた羽根(鶏)。 */
+    public static final DeferredItem<Item> OVERGROWN_FEATHER = ITEMS.registerSimpleItem("overgrown_feather", new Item.Properties());
+    /** 覆われた骨(スケルトン)。 */
+    public static final DeferredItem<Item> OVERGROWN_BONE = ITEMS.registerSimpleItem("overgrown_bone", new Item.Properties());
+    /** 覆われたクモの目(クモ。糸は落とさない)。 */
+    public static final DeferredItem<Item> OVERGROWN_SPIDER_EYE = ITEMS.registerSimpleItem("overgrown_spider_eye", new Item.Properties());
+    /** 覆われたエンダーパール(エンダーマン。投げられない)。 */
+    public static final DeferredItem<Item> OVERGROWN_ENDER_PEARL = ITEMS.registerSimpleItem("overgrown_ender_pearl", new Item.Properties().stacksTo(16));
 
     /** 根付いた萌芽体(2026-10-23 胞子の場 第 2 段 F。クリエイティブ・確かめ用)。 */
     public static final DeferredItem<BlockItem> BLIGHT_FERN_ROOTED_ITEM = ITEMS.registerItem(

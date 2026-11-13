@@ -83,6 +83,7 @@ public final class FalcimnesGameTests {
     private static FalcimnesEntity placeAt(GameTestHelper helper, int z) {
         FalcimnesEntity f = helper.spawnWithNoFreeWill(ModEntities.FALCIMNES.get(), new BlockPos(3, 2, z));
         f.snapFacing(0.0F);
+        f.setPersonality(0.5F, 0.5F, 0.5F);   // 段 3: 性格の真ん中 = 段 2 までと同じ振る舞い(湧いた個体は U 字の分布で振るので、テストは決めて置く)
         return f;
     }
 
@@ -651,7 +652,7 @@ public final class FalcimnesGameTests {
 
 
     /**
-     * AI を動かした本物の交戦で、最初の 5.5 秒は通常技(横薙ぎ・連撃)だけを出し、特殊技(地走りの光の帯)を出さない。
+     * AI を動かした本物の交戦で、最初の 5.5 秒は通常技(横薙ぎ・連撃・段 2 の小さな技)だけを出し、特殊技(地走りの光の帯)を出さない。
      * 変更前は交戦直後から連撃(毎 tick 1/12、最初の 3 秒はクールダウン)が出ていた。乱数に頼るのは「出さない」側だけなので、
      * このテストが偶然通ることはあっても、正しい実装で偶然落ちることは無い。
      */
@@ -659,6 +660,7 @@ public final class FalcimnesGameTests {
     public static void falcimnesOpensWithSlashesNotSpecials(GameTestHelper helper) {
         FalcimnesEntity f = helper.spawn(ModEntities.FALCIMNES.get(), new BlockPos(3, 2, 1));
         f.snapFacing(0.0F);
+        f.setPersonality(0.5F, 0.5F, 0.5F);
         // 正面 3 ブロック(横薙ぎの間合いの内側、連撃の間合いの内側)。横薙ぎ 16 × 3 回でも死なない。
         IronGolem golem = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, new BlockPos(3, 2, 4));
         f.setTarget(golem);
@@ -670,6 +672,8 @@ public final class FalcimnesGameTests {
                 sawSlash[0] = true;
             } else if (act == FalcimnesEntity.ACT_FLURRY_WINDUP) {
                 sawSlash[0] = true;   // 11-05: 連撃は通常技(近い間合いの選び方の候補)
+            } else if (FalcimnesEntity.isSmallMove(act)) {
+                sawSlash[0] = true;   // 11-07 夜(段 2): 小さな通常技 5 つも近い間合いの通常技
             } else if (act == FalcimnesEntity.ACT_RIFT_WINDUP) {
                 special[0] = act;
             }
@@ -993,6 +997,835 @@ public final class FalcimnesGameTests {
                 return;
             }
             helper.succeed();
+        });
+    }
+
+    // ------------------------------------------------------------------ 段 3(11-08): 個体の性格と連続技
+
+    /** 性格のつまみは U 字の分布(両端の 0.1 以内に 3 割より多く入る)で、平均は真ん中あたり。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void personalityRollIsUShaped(GameTestHelper helper) {
+        RandomSource r = RandomSource.create(20261108L);
+        int n = 20000, ends = 0;
+        double sum = 0.0D;
+        for (int i = 0; i < n; i++) {
+            float v = com.yayuy.overgrownvegetation.entity.FalcimnesPersonality.roll(r);
+            if (v < 0.0F || v > 1.0F) {
+                helper.fail("つまみが 0〜1 の外: " + v);
+                return;
+            }
+            if (v < 0.1F || v > 0.9F) ends++;
+            sum += v;
+        }
+        double endFrac = ends / (double) n, mean = sum / n;
+        if (endFrac < 0.3D || Math.abs(mean - 0.5D) > 0.02D) {
+            helper.fail("U 字になっていない: 両端 " + endFrac + " 平均 " + mean);
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** どのつまみも 0.5 なら、どの通常技の重みも変わらない(段 2 までと同じ選び方)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void neutralPersonalityKeepsWeights(GameTestHelper helper) {
+        for (String id : new String[]{"sweep", "flurry", "grab", "wave", "kiriage", "tsukikaki", "kosa", "fumikomi", "kozuki"}) {
+            double w = com.yayuy.overgrownvegetation.entity.FalcimnesPersonality.weight(FalcimnesEntity.def(id), 0.5F, 0.5F, 0.5F);
+            if (Math.abs(w - 1.0D) > 1e-9) {
+                helper.fail(id + " の重みが性格 0.5 で " + w);
+                return;
+            }
+        }
+        double cautious = com.yayuy.overgrownvegetation.entity.FalcimnesPersonality.weight(FalcimnesEntity.def("kozuki"), 1.0F, 0.5F, 0.5F);
+        double bold = com.yayuy.overgrownvegetation.entity.FalcimnesPersonality.weight(FalcimnesEntity.def("kozuki"), 0.0F, 0.5F, 0.5F);
+        if (!(cautious > 1.0D && bold < 1.0D)) {
+            helper.fail("慎重さで小突きの重みが傾かない: " + cautious + " / " + bold);
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * 連続技: 小突きが当たったら、隙の途中で(休めに戻らずに)当たったときの表の技(切り上げ・突き掻き)へ続け、2 段目からは続けない(最大 2 段)。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 140)
+    public static void comboFollowsHitWithSecondStepOnly(GameTestHelper helper) {
+        FalcimnesEntity f = place(helper);
+        Pig front = helper.spawnWithNoFreeWill(EntityType.PIG, new BlockPos(3, 2, 4));
+        front.getAttribute(Attributes.MAX_HEALTH).setBaseValue(100.0D);
+        front.setHealth(100.0F);
+        f.setTarget(front);
+        f.setComboChanceForTest(1.0D);
+        f.forceAction(FalcimnesEntity.ACT_KOZUKI_R);
+        java.util.List<Integer> seq = new java.util.ArrayList<>();
+        int[] prev = {FalcimnesEntity.ACT_KOZUKI_R};
+        boolean[] secondWasStep2 = {false};
+        seq.add(FalcimnesEntity.ACT_KOZUKI_R);
+        helper.onEachTick(() -> {
+            int act = f.getAction();
+            if (act != prev[0]) {
+                seq.add(act);
+                if (FalcimnesEntity.isSmallMove(act) && f.comboStep() == 1) secondWasStep2[0] = true;
+                prev[0] = act;
+            }
+        });
+        helper.runAfterDelay(130L, () -> {
+            // 期待: 小突き → (休めを挟まず)切り上げか突き掻き → 休め
+            if (seq.size() < 3 || seq.get(2) != FalcimnesEntity.ACT_NONE) {
+                helper.fail("動作の並びが 小突き → 2 段目 → 休め になっていない: " + seq);
+                return;
+            }
+            int second = seq.get(1);
+            boolean ok = second == FalcimnesEntity.ACT_KIRIAGE_R || second == FalcimnesEntity.ACT_KIRIAGE_L || second == FalcimnesEntity.ACT_TSUKIKAKI;
+            if (!ok || !secondWasStep2[0]) {
+                helper.fail("当たったあとの 2 段目が表(切り上げ・突き掻き)の技でない: " + seq);
+                return;
+            }
+            if (seq.size() > 3) {
+                helper.fail("3 段目へ続けた: " + seq);
+                return;
+            }
+            if (front.getHealth() >= front.getMaxHealth()) {
+                helper.fail("小突きが当たっていない");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * 慎重な個体(慎重さ 1)は、隙の無い相手(こちらを向いた鉄ゴーレム)には待つ間(8 秒)、自分からは返し技(小突き・突き掻き・切り上げ)しか始めない。
+     * 連続技の 2 段目は数えない。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 130)
+    public static void cautiousOnlyCountersWhileWaiting(GameTestHelper helper) {
+        FalcimnesEntity f = helper.spawn(ModEntities.FALCIMNES.get(), new BlockPos(3, 2, 1));
+        f.snapFacing(0.0F);
+        f.setPersonality(1.0F, 0.5F, 0.5F);
+        IronGolem golem = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, new BlockPos(3, 2, 4));
+        golem.setYRot(180.0F);
+        golem.setYHeadRot(180.0F);
+        golem.yBodyRot = 180.0F;
+        f.setTarget(golem);
+        int[] prev = {FalcimnesEntity.ACT_NONE};
+        int[] bad = {-1};
+        helper.onEachTick(() -> {
+            int act = f.getAction();
+            if (prev[0] == FalcimnesEntity.ACT_NONE && act != FalcimnesEntity.ACT_NONE) {
+                boolean counter = act == FalcimnesEntity.ACT_KOZUKI_R || act == FalcimnesEntity.ACT_KOZUKI_L || act == FalcimnesEntity.ACT_TSUKIKAKI
+                        || act == FalcimnesEntity.ACT_KIRIAGE_R || act == FalcimnesEntity.ACT_KIRIAGE_L;
+                boolean neutral = act == FalcimnesEntity.ACT_THREAT || act == FalcimnesEntity.ACT_DODGE
+                        || act == FalcimnesEntity.ACT_DODGE_L || act == FalcimnesEntity.ACT_DODGE_R;
+                if (!counter && !neutral && bad[0] < 0) bad[0] = act;
+            }
+            prev[0] = act;
+        });
+        helper.runAfterDelay(120L, () -> {
+            if (bad[0] >= 0) {
+                helper.fail("慎重な個体が待っている間に返し技でない技(動作 " + bad[0] + ")を自分から始めた");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    // ------------------------------------------------------------------ 森の中を動く型 ② の段 1(11-08): 細い芯と叩ける部位
+
+    /**
+     * 幹と幹の間の 2 マスの隙間を、経路を引いて抜けられる(前の 2.97 の箱では 3 マスの隙間が要った)。
+     * テスト場を横切る高さ 4 の丸太の壁(z = 3)に、x = 3・4 の 2 マスだけ隙間を空け、奥(z = 5)へ歩かせる。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 240)
+    public static void coreSlipsThroughTwoBlockGapBetweenTrunks(GameTestHelper helper) {
+        for (int x = 0; x <= 6; x++) {
+            if (x == 3 || x == 4) continue;
+            for (int y = 2; y <= 5; y++) {
+                helper.setBlock(new BlockPos(x, y, 3), net.minecraft.world.level.block.Blocks.OAK_LOG.defaultBlockState());
+            }
+        }
+        FalcimnesEntity f = placeAt(helper, 1);
+        BlockPos goalRel = new BlockPos(4, 2, 5);
+        Vec3 goal = helper.absoluteVec(new Vec3(4.0D, 2.0D, 5.5D));
+        helper.runAfterDelay(2L, () -> {
+            net.minecraft.world.level.pathfinder.Path path = f.getNavigation().createPath(helper.absolutePos(goalRel), 0);
+            if (path == null || !path.canReach()) {
+                helper.fail("2 マスの隙間の向こうへ経路が引けない(path " + (path == null ? "null" : "届かない") + ")");
+                return;
+            }
+            f.getNavigation().moveTo(goal.x, goal.y, goal.z, 1.0D);
+        });
+        helper.onEachTick(() -> {
+            if (f.getZ() > helper.absoluteVec(new Vec3(0, 0, 4.6D)).z) {
+                helper.succeed();
+            }
+        });
+    }
+
+    /**
+     * 叩ける部位: 本体の id の続き番号で 9 個あり、待機の頭は体の前 5.6 ブロック(体格 1)。部位を殴ると本体が減る。
+     * 同じ tick に別の部位を同じ強さで殴っても、無敵時間で 2 回は減らない(1 撃を 2 つの部位が拾っても二重に入らない)。
+     * 生き物の検索(LivingEntity)には部位は入らない(自分の鎌の当たり・飛ぶ斬撃が自分の部位を拾わない)。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void hitPartsForwardDamageToBody(GameTestHelper helper) {
+        FalcimnesEntity f = place(helper);
+        f.setInvulnerable(false);
+        helper.runAfterDelay(2L, () -> {
+            var parts = f.getParts();
+            if (parts.length != 9) {
+                helper.fail("部位が 9 個でない(軌道表が読めていない?): " + parts.length);
+                return;
+            }
+            for (int i = 0; i < parts.length; i++) {
+                if (parts[i].getId() != f.getId() + 1 + i) {
+                    helper.fail("部位 " + i + " の id が本体の続き番号でない");
+                    return;
+                }
+                if (helper.getLevel().getEntityOrPart(parts[i].getId()) != parts[i]) {
+                    helper.fail("部位 " + i + " を世界が id で引けない(NeoForge の部位の台帳に載っていない)");
+                    return;
+                }
+            }
+            var head = f.hitParts().part(0);
+            double fwd = head.getZ() - f.getZ();   // 向き 0 = +Z が前
+            if (Math.abs(fwd - 5.6D * f.getScale()) > 0.1D || Math.abs(head.getX() - f.getX()) > 0.3D) {   // 待機の揺れで頭は横へ 0.1 ほど動く
+                helper.fail("頭の部位が体の前 5.6 にない: 前 " + fwd + " 横 " + (head.getX() - f.getX()) + " 向き " + f.getYRot() + " | " + f.partDebug());
+                return;
+            }
+            var living = helper.getLevel().getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class, head.getBoundingBox().inflate(0.1D));
+            if (living.stream().anyMatch(e -> e != f && !(e instanceof Player))) {
+                helper.fail("生き物の検索に部位以外の何かが入った: " + living);
+                return;
+            }
+            if (!helper.getLevel().getEntities(f, head.getBoundingBox()).contains(head)) {
+                helper.fail("エンティティの検索に頭の部位が入らない(照準・飛び道具が当たらない)");
+                return;
+            }
+            float before = f.getHealth();
+            DamageSource src = helper.getLevel().damageSources().magic();
+            boolean hit = head.hurt(src, 6.0F);
+            float afterHead = f.getHealth();
+            f.hitParts().part(f.hitParts().indexOf("abdomen_a")).hurt(src, 6.0F);   // 腹
+            float afterBelly = f.getHealth();
+            if (!hit || afterHead >= before) {
+                helper.fail("頭の部位を殴っても本体が減らない: " + before + " → " + afterHead);
+                return;
+            }
+            if (afterBelly < afterHead) {
+                helper.fail("同じ tick に 2 つ目の部位を同じ強さで殴ったら二重に減った: " + afterHead + " → " + afterBelly);
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * 部位は技の構えに付いていく(サーバーはアニメを流さないので、アニメから作った軌道表を同期した動作と時刻で引く)。
+     * 威嚇の 1.5 秒で頭の部位の底が 4 より上(待機は 2.2)、振りかざした左の刃の箱の底が 5 より上。
+     * 横薙ぎ(右)の当たり(0.80 秒)で左の刃の箱が体の前 6 より先(待機は 1.2)。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 80)
+    public static void hitPartsFollowMovePoses(GameTestHelper helper) {
+        FalcimnesEntity f = place(helper);
+        int head = f.hitParts().indexOf("head"), tip = f.hitParts().indexOf("blade_l");
+        double[] low = new double[1];
+        helper.runAfterDelay(2L, () -> {
+            low[0] = f.hitParts().part(head).getY() - f.getY();
+            if (Math.abs(low[0] - 2.1D * f.getScale()) > 0.25D) {   // 待機の揺れで頭は上下に 0.1 ほど動く(箱の高さ 1.1)
+                helper.fail("待機の頭の部位の底が 2.1 前後でない: " + low[0]);
+                return;
+            }
+            f.forceAction(FalcimnesEntity.ACT_THREAT);
+        });
+        // 動作の切り替えの補間 4 tick + 1.5 秒(forceAction は次の aiStep で始まる)
+        helper.runAfterDelay(2L + 1L + 4L + 30L, () -> {
+            double high = f.hitParts().part(head).getY() - f.getY();
+            double tipUp = f.hitParts().part(tip).getY() - f.getY();
+            if (f.getAction() != FalcimnesEntity.ACT_THREAT) {
+                helper.fail("威嚇が続いていない(動作 " + f.getAction() + ")");
+                return;
+            }
+            if (high < 4.0D * f.getScale() || tipUp < 5.0D * f.getScale()) {
+                helper.fail("威嚇の構えに部位が付いていかない: 頭の底 " + high + " 刃先の底 " + tipUp);
+                return;
+            }
+            f.forceAction(FalcimnesEntity.ACT_ATTACK_R);
+        });
+        helper.runAfterDelay(37L + 1L + 4L + 16L, () -> {
+            double fwd = f.hitParts().part(tip).getZ() - f.getZ();
+            if (f.getAction() != FalcimnesEntity.ACT_ATTACK_R) {
+                helper.fail("横薙ぎが続いていない(動作 " + f.getAction() + ")");
+                return;
+            }
+            if (fwd < 6.0D * f.getScale()) {
+                helper.fail("横薙ぎの当たりで刃の先の部位が前に出ていない: 前 " + fwd);
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /** 部位でも会心が出る(跳んで溜めきって殴ると 1.5 倍)。芯と同じ条件(11-08 ユーザー決定)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void hitPartsTakeCriticalHits(GameTestHelper helper) {
+        FalcimnesEntity f = place(helper);
+        Player p = helper.makeMockPlayer(GameType.SURVIVAL);
+        p.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_SWORD));
+        helper.runAfterDelay(2L, () -> {
+            var part = f.hitParts().part(f.hitParts().indexOf("abdomen_a"));
+            float before = f.getHealth();
+            swing(p, part, false);
+            float plain = before - f.getHealth();
+            f.invulnerableTime = 0;
+            float mid = f.getHealth();
+            swing(p, part, true);
+            float crit = mid - f.getHealth();
+            if (plain <= 0.0F) {
+                helper.fail("部位を殴っても減らない");
+                return;
+            }
+            if (crit < plain * 1.4F) {
+                helper.fail("跳んで殴っても会心にならない: 普通 " + plain + " / 跳んで " + crit);
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /** 溜めきった一撃を部位へ(跳んでいれば落ちている途中)。 */
+    private static void swing(Player p, net.minecraft.world.entity.Entity target, boolean jumping) {
+        try {
+            java.lang.reflect.Field fld = net.minecraft.world.entity.LivingEntity.class.getDeclaredField("attackStrengthTicker");
+            fld.setAccessible(true);
+            fld.setInt(p, 100);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+        p.setOnGround(!jumping);
+        p.fallDistance = jumping ? 1.0F : 0.0F;
+        p.setSprinting(false);
+        p.attack(target);
+    }
+
+    /** 火の矢・火属性: 部位に付けた火は本体が燃える(部位は tick しない)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void hitPartsPassFireToBody(GameTestHelper helper) {
+        FalcimnesEntity f = place(helper);
+        helper.runAfterDelay(2L, () -> {
+            var part = f.hitParts().part(f.hitParts().indexOf("head"));
+            part.igniteForSeconds(4.0F);
+            if (f.getRemainingFireTicks() < 60) {
+                helper.fail("部位に付けた火が本体に移らない: " + f.getRemainingFireTicks());
+                return;
+            }
+            if (part.getRemainingFireTicks() != f.getRemainingFireTicks()) {
+                helper.fail("部位の火の残りが本体と違う");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * 叩ける部位は性格の構えにも付いていく(11-08 夜、ユーザー「頭や首が下に下がらなかった」): 慎重な個体(首を垂らす・低い)の頭の部位は
+     * 真ん中の個体より 0.6 以上低く、荒い個体(首を起こす・高い)は 0.6 以上高い。性格は同期されるので両側で同じ。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void hitPartsFollowPersonalityPosture(GameTestHelper helper) {
+        FalcimnesEntity mid = placeAt(helper, 1), low = placeAt(helper, 3), high = placeAt(helper, 5);
+        low.setPersonality(1.0F, 0.0F, 0.5F);
+        high.setPersonality(0.5F, 1.0F, 0.5F);
+        helper.runAfterDelay(12L, () -> {
+            int h = mid.hitParts().indexOf("head");
+            double m = mid.hitParts().part(h).getY() - mid.getY(), l = low.hitParts().part(h).getY() - low.getY(),
+                    u = high.hitParts().part(h).getY() - high.getY();
+            if (l > m - 0.6D || u < m + 0.6D) {
+                helper.fail(String.format(java.util.Locale.ROOT, "頭の部位が性格の構えに付いていかない: 慎重 %.2f / 真ん中 %.2f / 荒い %.2f", l, m, u));
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * 坂・段で胴が傾くと、叩ける部位も傾く(11-08 夜、ユーザー「坂で下がる頭の部位も付いていかせる」)。サーバーも描画と同じ足の置き方を動かす。
+     * 2 段の台(後ろ足の下)から前が 2 段下がる所に立たせると、胴が前へ傾き、頭の部位は平らな所(待機の表の値)より 0.5 以上低い。
+     * テスト場は脚(左右 2.4)の幅で 2 体並べられないので、平らな所の値は表から引く。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 60)
+    public static void hitPartsTiltDownSlope(GameTestHelper helper) {
+        // 幅いっぱい(x 0〜6)・z 0〜1 に 2 段の台。z 2 から先は床のまま(2 段下がる)
+        for (int x = 0; x <= 6; x++) {
+            for (int z = 0; z <= 1; z++) {
+                helper.setBlock(new BlockPos(x, 2, z), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+                helper.setBlock(new BlockPos(x, 3, z), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+            }
+        }
+        FalcimnesEntity slope = helper.spawnWithNoFreeWill(ModEntities.FALCIMNES.get(), new BlockPos(3, 4, 1));
+        slope.snapFacing(0.0F);
+        slope.setPersonality(0.5F, 0.5F, 0.5F);
+        slope.setNoAi(true);
+        slope.terrainForced = true;   // テストのサーバーにはプレイヤーがいない(足の置き方は近くにプレイヤーがいる個体だけ)
+        helper.runAfterDelay(40L, () -> {
+            var track = com.yayuy.overgrownvegetation.entity.FalcimnesPartTrack.get();
+            int h = slope.hitParts().indexOf("head");
+            double[] idle = new double[track.count() * 3];
+            track.sample("idle", 0.0D, idle);
+            double level = (idle[h * 3 + 2] - slope.hitParts().part(h).getBbHeight() * 0.5D / slope.getScale()) * slope.getScale();
+            double down = slope.hitParts().part(h).getY() - slope.getY();
+            float[] tilt = slope.terrainTilt();
+            OvergrownVegetation.LOGGER.info("TERRAIN_TILT 傾き {} 頭の部位の底 坂 {} 平ら {} / サーバーの足の置き方 {} 回 平均 {} µs", java.util.Arrays.toString(tilt), down, level,
+                    FalcimnesEntity.terrainCalls, FalcimnesEntity.terrainNanos / 1000.0D / Math.max(1, FalcimnesEntity.terrainCalls));
+            if (tilt[0] > -5.0F) {
+                helper.fail("前が 2 段下がっているのに胴が前へ傾かない: " + java.util.Arrays.toString(tilt));
+                return;
+            }
+            if (down > level - 0.5D) {
+                helper.fail(String.format(java.util.Locale.ROOT, "胴が傾いても頭の部位が下がらない: 坂 %.2f / 平ら %.2f(傾き %s)",
+                        down, level, java.util.Arrays.toString(tilt)));
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    // ------------------------------------------------------------------ 森の中を動く型 ② の段 3(11-08 夜)
+
+    /** 近くにプレイヤーがいない個体は足の置き方を計算せず、胴の傾きは平ら(0)のまま(11-08 夜、ユーザー「近くにプレイヤーがいる個体だけ計算」)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 50)
+    public static void terrainOnlyNearPlayers(GameTestHelper helper) {
+        for (int x = 0; x <= 6; x++) {
+            for (int z = 0; z <= 1; z++) {
+                helper.setBlock(new BlockPos(x, 2, z), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+                helper.setBlock(new BlockPos(x, 3, z), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+            }
+        }
+        FalcimnesEntity f = helper.spawnWithNoFreeWill(ModEntities.FALCIMNES.get(), new BlockPos(3, 4, 1));
+        f.snapFacing(0.0F);
+        f.setPersonality(0.5F, 0.5F, 0.5F);
+        f.setNoAi(true);
+        helper.runAfterDelay(40L, () -> {
+            float[] t = f.terrainTilt();
+            if (t[0] != 0.0F || t[1] != 0.0F || t[2] != 0.0F) {
+                helper.fail("近くにプレイヤーがいないのに胴を傾けた: " + java.util.Arrays.toString(t));
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * 体より狭い隙間(幹と幹の間 2 マス)に立つと、前を起こして細くなる構えになり、頭の部位が上がる(威嚇の起こしの 7 割、表で +1.3)。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 60)
+    public static void squeezeInTwoBlockGap(GameTestHelper helper) {
+        for (int x = 0; x <= 6; x++) {
+            if (x == 3 || x == 4) continue;
+            for (int y = 2; y <= 5; y++) helper.setBlock(new BlockPos(x, y, 3), net.minecraft.world.level.block.Blocks.OAK_LOG.defaultBlockState());
+        }
+        FalcimnesEntity f = helper.spawnWithNoFreeWill(ModEntities.FALCIMNES.get(), new BlockPos(3, 2, 1));
+        f.setPersonality(0.5F, 0.5F, 0.5F);
+        f.setNoAi(true);
+        f.terrainForced = true;   // テストのサーバーにはプレイヤーがいない(構えは近くにプレイヤーがいる個体だけ)
+        Vec3 gap = helper.absoluteVec(new Vec3(4.0D, 2.0D, 3.5D));
+        f.moveTo(gap.x, gap.y, gap.z, 0.0F, 0.0F);
+        f.snapFacing(0.0F);
+        int h = f.hitParts().indexOf("head");
+        helper.runAfterDelay(40L, () -> {
+            if (f.squeeze(1.0F) < 0.9F || f.duck(1.0F) > 0.1F) {
+                helper.fail("2 マスの隙間で狭い所の構えにならない: 細く " + f.squeeze(1.0F) + " 首を下げる " + f.duck(1.0F));
+                return;
+            }
+            var track = com.yayuy.overgrownvegetation.entity.FalcimnesPartTrack.get();
+            double[] idle = new double[track.count() * 3];
+            track.sample("idle", 0.0D, idle);
+            double flat = (idle[h * 3 + 2] - f.hitParts().part(h).getBbHeight() * 0.5D / f.getScale()) * f.getScale();
+            double up = f.hitParts().part(h).getY() - f.getY();
+            if (up < flat + 0.8D) {
+                helper.fail(String.format(java.util.Locale.ROOT, "前を起こしても頭の部位が上がらない: %.2f(待機 %.2f)", up, flat));
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /** 頭の上(前 3.5〜5.5、足元から 2 段上)に葉があると首を下げる構えになり、頭の部位が下がる。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 50)
+    public static void duckUnderLowLeaves(GameTestHelper helper) {
+        FalcimnesEntity f = placeAt(helper, 0);   // z 0.5 から +Z を向く: 頭の上を見る所は z 4.0〜6.0
+        f.setNoAi(true);
+        f.terrainForced = true;
+        int h = f.hitParts().indexOf("head");
+        double[] before = {Double.NaN};
+        helper.runAfterDelay(5L, () -> {
+            before[0] = f.hitParts().part(h).getY() - f.getY();
+            for (int x = 2; x <= 4; x++) {
+                for (int z = 4; z <= 6; z++) {
+                    helper.setBlock(new BlockPos(x, 4, z), net.minecraft.world.level.block.Blocks.OAK_LEAVES.defaultBlockState()
+                            .setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true));
+                }
+            }
+        });
+        helper.runAfterDelay(30L, () -> {
+            double ducked = f.hitParts().part(h).getY() - f.getY();
+            if (f.duck(1.0F) < 0.9F) {
+                helper.fail("頭の上に葉があるのに首を下げない: " + f.duck(1.0F));
+                return;
+            }
+            if (ducked > before[0] - 0.8D) {
+                helper.fail(String.format(java.util.Locale.ROOT, "首を下げても頭の部位が下がらない: %.2f → %.2f", before[0], ducked));
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * 片側に幹が 1 本あるだけでは狭い所の構えに入らない(11-08 夜、ユーザー「ブロックがあるだけで鎌を後ろに回したり戻したりしすぎ」)。
+     * 体のすぐ左(x 2)に高さ 4 の幹を立て、右は開けておく。40 tick の間、構えの効きは 0 のまま。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 60)
+    public static void singleTrunkDoesNotSqueeze(GameTestHelper helper) {
+        for (int z = 1; z <= 4; z++) {
+            for (int y = 2; y <= 5; y++) helper.setBlock(new BlockPos(5, y, z), net.minecraft.world.level.block.Blocks.OAK_LOG.defaultBlockState());
+        }
+        FalcimnesEntity f = placeAt(helper, 1);
+        f.setNoAi(true);
+        f.terrainForced = true;
+        float[] max = {0.0F};
+        helper.onEachTick(() -> max[0] = Math.max(max[0], f.squeeze(1.0F)));
+        helper.runAfterDelay(45L, () -> {
+            if (max[0] > 0.0F) {
+                helper.fail("片側に幹があるだけで狭い所の構えに入った: " + max[0]);
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * 曲げは急な動きで飛ばない(11-08 夜、ユーザー「曲がったりするときに体の後ろ半分が変の方向に吹き飛ぶ」の再現の見張り)。
+     * 歩かせながら、その場で 180 度向きを変え、4 ブロック瞬間移動させる。毎 tick、曲げの角が上限(70 度)を超えず、1 tick に 10 度より大きく
+     * 変わらず、叩ける部位が芯から体の長さ(頭 6.2)より遠くへ離れないことを見る。
+     * (描画の骨の値が毎フレーム積み重なって飛んでいた本当の原因は描画の中なので、GameTest では見られない。テストクライアントで見た)
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 120)
+    public static void bendSurvivesUTurnAndTeleport(GameTestHelper helper) {
+        FalcimnesEntity f = helper.spawnWithNoFreeWill(ModEntities.FALCIMNES.get(), new BlockPos(1, 2, 1));
+        f.snapFacing(0.0F);
+        f.setPersonality(0.5F, 0.5F, 0.5F);
+        Vec3 goal = helper.absoluteVec(new Vec3(5.0D, 2.0D, 5.5D));
+        float[] prev = new float[8];
+        String[] bad = {null};
+        helper.onEachTick(() -> {
+            long t = helper.getTick();
+            if (t > 2 && f.getNavigation().isDone() && t < 90) f.getNavigation().moveTo(goal.x, goal.y, goal.z, 1.0D);
+            if (t == 30) f.snapFacing(f.getYRot() + 180.0F);   // その場で 180 度
+            if (t == 55) {
+                Vec3 to = helper.absoluteVec(new Vec3(1.5D, 2.0D, 5.5D));
+                f.teleportTo(to.x, to.y, to.z);   // 瞬間移動
+            }
+            float[] a = new float[8];
+            f.bend().angles(1.0F, a);
+            for (int k = 0; k < 8; k++) {
+                if (Math.abs(a[k]) > 70.5F) bad[0] = "角が上限を超えた: " + java.util.Arrays.toString(a);
+                if (t > 3 && Math.abs(a[k] - prev[k]) > 10.5F) bad[0] = "1 tick に大きく変わった: " + java.util.Arrays.toString(prev) + " → " + java.util.Arrays.toString(a);
+            }
+            System.arraycopy(a, 0, prev, 0, 8);
+            for (var part : t < 2 ? new net.neoforged.neoforge.entity.PartEntity<?>[0] : f.getParts()) {   // 部位は最初の aiStep で置かれる
+                double dx = part.getX() - f.getX(), dz = part.getZ() - f.getZ();
+                if (dx * dx + dz * dz > 6.5D * 6.5D * f.getScale() * f.getScale()) bad[0] = "部位が芯から離れた: " + Math.sqrt(dx * dx + dz * dz);
+            }
+            if (bad[0] != null) {
+                helper.fail(bad[0] + "(tick " + t + ")");
+                return;
+            }
+            if (t >= 110) helper.succeed();
+        });
+    }
+
+    /**
+     * この MOD の葉(木生シダの葉)の生け垣を、荒い個体は経路の上でも押し分けて近道し、慎重な個体は開いた所を回り込む
+     * (11-08 夜、ユーザー「葉のタグを直す」。経路の評価器が MOD の葉を葉として見るようにした)。
+     * z = 3 の x 0〜4 を高さ 4 の葉で塞ぎ、x 5〜6 の 2 マスだけ開ける。左下 (1.5, 1.5) から左上 (1.5, 5.5) への経路を見る。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void modLeavesPathByPersonality(GameTestHelper helper) {
+        for (int x = 0; x <= 4; x++) {
+            for (int y = 2; y <= 5; y++) helper.setBlock(new BlockPos(x, y, 3), com.yayuy.overgrownvegetation.registry.ModBlocks.TREE_FERN_LEAVES.get().defaultBlockState());
+        }
+        FalcimnesEntity bold = helper.spawnWithNoFreeWill(ModEntities.FALCIMNES.get(), new BlockPos(1, 2, 1));
+        FalcimnesEntity careful = helper.spawnWithNoFreeWill(ModEntities.FALCIMNES.get(), new BlockPos(1, 2, 1));
+        bold.setPersonality(0.5F, 1.0F, 0.5F);
+        careful.setPersonality(1.0F, 0.0F, 0.5F);
+        BlockPos goal = helper.absolutePos(new BlockPos(1, 2, 5));
+        BlockPos hedgeLeft = helper.absolutePos(new BlockPos(0, 2, 3));
+        helper.runAfterDelay(2L, () -> {
+            var pb = bold.getNavigation().createPath(goal, 0);
+            var pc = careful.getNavigation().createPath(goal, 0);
+            if (pb == null || !pb.canReach() || pc == null || !pc.canReach()) {
+                helper.fail("経路が引けない: 荒い " + (pb == null ? "null" : pb.canReach()) + " / 慎重 " + (pc == null ? "null" : pc.canReach()));
+                return;
+            }
+            // 生け垣の列(z = 3)を通るノードの x(足場の角。体は x 〜 x + 1)
+            int boldX = Integer.MIN_VALUE, carefulX = Integer.MIN_VALUE;
+            for (int i = 0; i < pb.getNodeCount(); i++) if (pb.getNode(i).z == hedgeLeft.getZ()) boldX = pb.getNode(i).x - hedgeLeft.getX();
+            for (int i = 0; i < pc.getNodeCount(); i++) if (pc.getNode(i).z == hedgeLeft.getZ()) carefulX = pc.getNode(i).x - hedgeLeft.getX();
+            if (boldX == Integer.MIN_VALUE || boldX > 3) {
+                helper.fail("荒い個体が葉を押し分けて近道しない(生け垣の列を通る x = " + boldX + ")");
+                return;
+            }
+            if (carefulX < 5) {
+                helper.fail("慎重な個体が葉の中を通る経路を引いた(生け垣の列を通る x = " + carefulX + ")");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * 回り道が経路を探す範囲の外にあっても、慎重な個体は止まらずに回り込む(11-09、ユーザー「直す」)。普段の探索が届かないときだけ、
+     * 粗い下調べで回り道を見つけ、その途中の目標まで普段の探索でつなぐ(11-09 夕、広げた探し直しの代わり)。テスト場に 25 マスの生け垣は
+     * 置けないので、探す距離(FOLLOW_RANGE)を 3 に縮めて「普段の探索では回り道が範囲の外」を作る。生け垣は {@link #modLeavesPathByPersonality}
+     * と同じ(x 0〜4 を葉、x 5〜6 が開いている)。経路の終わりへ動かしては引き直し、目標に届くまで続ける(歩く代わり)。どの経路も葉を通らない。
+     * 最初に頼んだ直後にもう一度頼むと、間隔を空けるので下調べしない。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 80)
+    public static void cautiousWidensSearchToGoAround(GameTestHelper helper) {
+        for (int x = 0; x <= 4; x++) {
+            for (int y = 2; y <= 5; y++) helper.setBlock(new BlockPos(x, y, 3), com.yayuy.overgrownvegetation.registry.ModBlocks.TREE_FERN_LEAVES.get().defaultBlockState());
+        }
+        FalcimnesEntity careful = helper.spawnWithNoFreeWill(ModEntities.FALCIMNES.get(), new BlockPos(1, 2, 1));
+        careful.setPersonality(1.0F, 0.0F, 0.5F);
+        careful.getAttribute(Attributes.FOLLOW_RANGE).setBaseValue(3.0D);
+        BlockPos goal = helper.absolutePos(new BlockPos(1, 2, 5));
+        BlockPos hedgeLeft = helper.absolutePos(new BlockPos(0, 2, 3));
+        FalcimnesEntity.detourTrace = true;
+        long before = FalcimnesEntity.widePathFound;
+        helper.runAfterDelay(2L, () -> aroundStep(helper, careful, goal, hedgeLeft, before, 0, 0));
+    }
+
+    /**
+     * {@link #cautiousWidensSearchToGoAround} の 1 手順(1 tick に 1 つ)。回り道の予算(サーバー全体で 1 tick 2 ms)を同じ tick のほかのテストや
+     * 前の手順(JIT 前で重い)が使い切っていたら、次の tick にやり直す(予算が効いている印なので失敗にしない)。
+     */
+    private static void aroundStep(GameTestHelper helper, FalcimnesEntity careful, BlockPos goal, BlockPos hedgeLeft, long before, int step, int waits) {
+        if (step >= 12 || waits > 40) {
+            helper.fail("12 回動かしても目標に届かない(位置 " + careful.blockPosition() + "、予算待ち " + waits + ")");
+            return;
+        }
+        long deferred = com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.deferred;
+        var p = careful.getNavigation().createPath(goal, 0);
+        if (com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.deferred != deferred) {
+            helper.runAfterDelay(1L, () -> aroundStep(helper, careful, goal, hedgeLeft, before, step, waits + 1));
+            return;
+        }
+        if (p == null) {
+            helper.fail("回り込む途中で経路が無くなった(" + step + " 回目、位置 " + careful.blockPosition() + ")");
+            return;
+        }
+        for (int i = 0; i < p.getNodeCount(); i++) {
+            var nd = p.getNode(i);
+            if (nd.z == hedgeLeft.getZ() && nd.x - hedgeLeft.getX() < 5) {
+                helper.fail("慎重な個体の経路が葉を通った(生け垣の列で x = " + (nd.x - hedgeLeft.getX()) + "、" + step + " 回目)");
+                return;
+            }
+        }
+        if (step == 0) {
+            long calls = FalcimnesEntity.widePathCalls;
+            careful.getNavigation().createPath(goal, 0);
+            if (FalcimnesEntity.widePathCalls != calls) {
+                helper.fail("続けて頼むと間隔を空けずにまた回り道を探した");
+                return;
+            }
+        }
+        if (p.canReach() && goal.equals(p.getTarget())) {
+            if (FalcimnesEntity.widePathFound <= before) {
+                helper.fail("普段の探索で届いた(テストの場面が「範囲の外」になっていない)");
+                return;
+            }
+            FalcimnesEntity.detourTrace = false;
+            helper.succeed();
+            return;
+        }
+        var end = p.getEntityPosAtNode(careful, p.getNodeCount() - 1);
+        if (end.distanceToSqr(careful.position()) < 0.25D) {
+            helper.fail("回り道が見つからず進めない(" + step + " 回目、位置 " + careful.blockPosition() + "、届く " + p.canReach() + "、最後の回り道 "
+                    + FalcimnesEntity.lastDetour + "、経路の終わり " + p.getEndNode().asBlockPos() + ")");
+            return;
+        }
+        careful.moveTo(end.x, end.y, end.z);
+        helper.runAfterDelay(1L, () -> aroundStep(helper, careful, goal, hedgeLeft, before, step + 1, waits));
+    }
+
+    /**
+     * 荒い個体は足場の葉を押し分けない(11-08 夜遅く、本物の木生シダの森で葉の上の荒い個体が 10 ブロック落ちた)。
+     * 床の上に MOD の葉を 1 段敷き、その下(床)との間に空気を 1 段空けて、葉の上に荒い個体を立たせる。40 tick たっても落ちない。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 60)
+    public static void aggressiveStandsOnLeafFloor(GameTestHelper helper) {
+        for (int x = 0; x <= 6; x++) {
+            for (int z = 0; z <= 6; z++) helper.setBlock(new BlockPos(x, 3, z), com.yayuy.overgrownvegetation.registry.ModBlocks.TREE_FERN_LEAVES.get().defaultBlockState());
+        }
+        FalcimnesEntity bold = helper.spawnWithNoFreeWill(ModEntities.FALCIMNES.get(), new BlockPos(3, 4, 3));
+        bold.setPersonality(0.5F, 1.0F, 0.5F);
+        double y0 = bold.getY();
+        helper.runAfterDelay(40L, () -> {
+            if (!bold.pushesThroughLeaves()) {
+                helper.fail("荒い個体が葉を押し分ける個体になっていない");
+                return;
+            }
+            if (bold.getY() < y0 - 0.5D) {
+                helper.fail(String.format(java.util.Locale.ROOT, "葉の床を抜けて落ちた: %.2f → %.2f", y0, bold.getY()));
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /** 荒い個体は葉を押し分けて通る(葉の当たりが空になる)。慎重な個体には当たる。ブロックは壊さない。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 10)
+    public static void aggressivePushesThroughLeaves(GameTestHelper helper) {
+        BlockPos leaf = new BlockPos(3, 2, 5);
+        helper.setBlock(leaf, net.minecraft.world.level.block.Blocks.OAK_LEAVES.defaultBlockState().setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true));
+        FalcimnesEntity bold = placeAt(helper, 1), careful = placeAt(helper, 1);
+        bold.setPersonality(0.5F, 1.0F, 0.5F);
+        careful.setPersonality(1.0F, 0.0F, 0.5F);
+        net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(helper.absolutePos(leaf)).deflate(0.1D);
+        helper.runAfterDelay(1L, () -> {
+            boolean boldFree = helper.getLevel().noCollision(bold, box), carefulFree = helper.getLevel().noCollision(careful, box);
+            if (!boldFree || carefulFree) {
+                helper.fail("葉の当たり: 荒い個体 " + (boldFree ? "通る" : "当たる") + " / 慎重な個体 " + (carefulFree ? "通る" : "当たる"));
+                return;
+            }
+            if (!helper.getBlockState(leaf).is(net.minecraft.tags.BlockTags.LEAVES)) {
+                helper.fail("葉が無くなった");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    // ------------------------------------------------------------------ 森の中を動く型 ② の段 2(11-08): 森の地図・体の曲げ
+
+    /**
+     * 森の地図の「一番近い幹までの距離」: 丸太の柱 (3, 3) の上は 0、隣は 0.5、2 つ隣は 1.5(列の中心どうし − 0.5)。
+     * 区画は裏のスレッドで作るので、最初は「分からない」(NaN)で、少し待つと値が入る。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 120)
+    public static void forestMapMeasuresTrunkDistance(GameTestHelper helper) {
+        for (int y = 2; y <= 4; y++) helper.setBlock(new BlockPos(3, y, 3), net.minecraft.world.level.block.Blocks.OAK_LOG.defaultBlockState());
+        var map = com.yayuy.overgrownvegetation.entity.forest.ForestMap.of(helper.getLevel());
+        BlockPos trunk = helper.absolutePos(new BlockPos(3, 2, 3));
+        // 3 つのマスは別の区画にまたがることがあるので、どれも最初に頼み、値が入るまで待つ(裏のスレッドは他のテストの区画も作る)
+        helper.onEachTick(() -> {
+            if (helper.getTick() < 2) return;
+            float on = map.clearance(trunk.getX(), trunk.getY(), trunk.getZ());
+            float next = map.clearance(trunk.getX() + 1, trunk.getY(), trunk.getZ());
+            float two = map.clearance(trunk.getX(), trunk.getY(), trunk.getZ() - 2);
+            if (Float.isNaN(on) || Float.isNaN(next) || Float.isNaN(two)) {
+                if (helper.getTick() > 110) helper.fail("森の地図の区画ができない(裏のスレッド)");   // 裏のスレッドはほかのテストの区画も作るので、混むと遅れる
+                return;
+            }
+            if (on != 0.0F || Math.abs(next - 0.5F) > 0.01F || Math.abs(two - 1.5F) > 0.01F) {
+                helper.fail("幹までの距離が違う: 上 " + on + " 隣 " + next + " 2 つ隣 " + two);
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * 体の曲げの形: 首を左へ曲げると頭・首の部位が左へ、腹を左へ曲げると腹の部位が左へ寄る。まっすぐなら部位は動かない。
+     * (同じ計算をサーバーの当たりとクライアントの照準の両方が使う。)
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 10)
+    public static void bendMovesPartsSideways(GameTestHelper helper) {
+        var track = com.yayuy.overgrownvegetation.entity.FalcimnesPartTrack.get();
+        int n = track.count();
+        double[] in = new double[n * 3], out = new double[n * 3];
+        if (!track.sample("idle", 0.0D, in)) {
+            helper.fail("待機の軌道表が無い");
+            return;
+        }
+        var bend = new com.yayuy.overgrownvegetation.entity.FalcimnesBend();
+        bend.clientTick(0L);
+        bend.bendParts(in, out, track.names);
+        if (!java.util.Arrays.equals(in, out)) {
+            helper.fail("曲げ 0 で部位が動いた");
+            return;
+        }
+        bend.clientTick(com.yayuy.overgrownvegetation.entity.FalcimnesBend.pack(new float[]{10, 20, 30, 40, 10, 20, 30, 40}));
+        bend.bendParts(in, out, track.names);
+        int head = java.util.Arrays.asList(track.names).indexOf("head"), tail = java.util.Arrays.asList(track.names).indexOf("abdomen_b");
+        double headLeft = out[head * 3 + 1] - in[head * 3 + 1], tailLeft = out[tail * 3 + 1] - in[tail * 3 + 1];
+        if (headLeft < 1.0D || tailLeft < 0.3D) {
+            helper.fail("左へ曲げても部位が左へ寄らない: 頭 " + headLeft + " 腹 " + tailLeft);
+            return;
+        }
+        // 骨の長さは変わらない(頭は胴の中心から 5.6 前後のまま。曲げた分だけ前へは縮む)
+        double r = Math.hypot(out[head * 3], out[head * 3 + 1]);
+        if (r > Math.hypot(in[head * 3], in[head * 3 + 1]) + 0.05D || out[head * 3] >= in[head * 3]) {
+            helper.fail("曲げた頭の部位が伸びた・前へ出た: " + out[head * 3] + ", " + out[head * 3 + 1]);
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * 歩いている間は首と頭が先の経路に沿って曲がり、頭の部位は曲げた向きの側へ寄る。着いて止まると曲げは 0 に戻る。
+     * 丸太の壁(z = 3、x = 0〜3)を避けて、左下 (1.5, 1.5) から右上 (5, 5.5) へ回り込ませる。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 200)
+    public static void walkingBendsAlongPathAndStraightens(GameTestHelper helper) {
+        for (int x = 0; x <= 3; x++) {
+            for (int y = 2; y <= 4; y++) helper.setBlock(new BlockPos(x, y, 3), net.minecraft.world.level.block.Blocks.OAK_LOG.defaultBlockState());
+        }
+        FalcimnesEntity f = helper.spawnWithNoFreeWill(ModEntities.FALCIMNES.get(), new BlockPos(1, 2, 1));
+        f.snapFacing(0.0F);
+        f.setPersonality(0.5F, 0.5F, 0.5F);
+        Vec3 goal = helper.absoluteVec(new Vec3(5.0D, 2.0D, 5.5D));
+        float[] max = {0.0F};
+        boolean[] sideOk = {true};
+        int[] arrived = {-1};
+        int head = f.hitParts().indexOf("head");
+        helper.runAfterDelay(2L, () -> f.getNavigation().moveTo(goal.x, goal.y, goal.z, 1.0D));
+        helper.onEachTick(() -> {
+            float[] a = new float[8];
+            f.bend().angles(1.0F, a);
+            float front = a[3];
+            if (Math.abs(front) > Math.abs(max[0])) {
+                max[0] = front;
+                // 頭の部位が体のどちら側にあるか(左 = 向きの左)
+                float yaw = f.getYRot() * net.minecraft.util.Mth.DEG_TO_RAD;
+                var hp = f.hitParts().part(head);
+                double left = (hp.getX() - f.getX()) * net.minecraft.util.Mth.cos(yaw) + (hp.getZ() - f.getZ()) * net.minecraft.util.Mth.sin(yaw);
+                // 首が S 字のときは頭の位置と頭の向きの側が食い違ってよいので、首の 4 つが同じ側へ曲がっているときだけ見る
+                boolean oneSide = Math.signum(a[0]) == Math.signum(a[3]) && Math.signum(a[1]) == Math.signum(a[3]) && Math.signum(a[2]) == Math.signum(a[3]);
+                if (Math.abs(front) > 10.0F && oneSide && Math.signum(left) != Math.signum(front)) sideOk[0] = false;
+            }
+            if (arrived[0] < 0 && f.distanceToSqr(goal) < 4.0D) arrived[0] = (int) helper.getTick();   // 経路は目的地の手前 1〜2 ブロックで終わることがある
+            // 標的のいない個体は待機の仕草を始めると経路を止めるので、着くまで引き直す
+            if (arrived[0] < 0 && helper.getTick() > 2 && f.getNavigation().isDone()) f.getNavigation().moveTo(goal.x, goal.y, goal.z, 1.0D);
+            if (arrived[0] < 0 && helper.getTick() > 190) helper.fail(String.format(java.util.Locale.ROOT, "着かない: 位置 %.2f %.2f 動作 %d", f.getX() - goal.x, f.getZ() - goal.z, f.getAction()));
+            if (arrived[0] >= 0 && helper.getTick() > arrived[0] + 30) {
+                if (Math.abs(max[0]) < 5.0F) {
+                    helper.fail("歩いている間に首が曲がらない(最大 " + max[0] + " 度)");
+                } else if (!sideOk[0]) {
+                    helper.fail("頭の部位が首を曲げた側と逆にある");
+                } else if (f.bend().packed() != 0L) {
+                    helper.fail("止まっても曲げが 0 に戻らない");
+                } else {
+                    OvergrownVegetation.LOGGER.info("FOREST_COST 地図の写し {} 回 平均 {} µs / 裏の計算 合計 {} µs / 経路の重み {} 回 平均 {} µs / 曲げ {} 回 平均 {} µs",
+                            com.yayuy.overgrownvegetation.entity.forest.ForestMap.snapshotCount,
+                            com.yayuy.overgrownvegetation.entity.forest.ForestMap.snapshotNanos / 1000.0D / Math.max(1, com.yayuy.overgrownvegetation.entity.forest.ForestMap.snapshotCount),
+                            com.yayuy.overgrownvegetation.entity.forest.ForestMap.buildNanos / 1000.0D,
+                            com.yayuy.overgrownvegetation.entity.OvergrownNodeEvaluator.longBodyCalls,
+                            com.yayuy.overgrownvegetation.entity.OvergrownNodeEvaluator.longBodyNanos / 1000.0D / Math.max(1, com.yayuy.overgrownvegetation.entity.OvergrownNodeEvaluator.longBodyCalls),
+                            com.yayuy.overgrownvegetation.entity.FalcimnesBend.serverCalls,
+                            com.yayuy.overgrownvegetation.entity.FalcimnesBend.serverNanos / 1000.0D / Math.max(1, com.yayuy.overgrownvegetation.entity.FalcimnesBend.serverCalls));
+                    helper.succeed();
+                }
+            }
         });
     }
 }

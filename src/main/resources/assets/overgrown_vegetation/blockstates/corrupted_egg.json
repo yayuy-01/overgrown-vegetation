@@ -1,0 +1,208 @@
+{
+  "variants": {
+    "eggs=1,hatch=0": [
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg"
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg",
+        "y": 90
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg",
+        "y": 180
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg",
+        "y": 270
+      }
+    ],
+    "eggs=1,hatch=1": [
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_slightly_cracked"
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_slightly_cracked",
+        "y": 90
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_slightly_cracked",
+        "y": 180
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_slightly_cracked",
+        "y": 270
+      }
+    ],
+    "eggs=1,hatch=2": [
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_very_cracked"
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_very_cracked",
+        "y": 90
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_very_cracked",
+        "y": 180
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_very_cracked",
+        "y": 270
+      }
+    ],
+    "eggs=2,hatch=0": [
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_two"
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_two",
+        "y": 90
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_two",
+        "y": 180
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_two",
+        "y": 270
+      }
+    ],
+    "eggs=2,hatch=1": [
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_slightly_cracked_two"
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_slightly_cracked_two",
+        "y": 90
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_slightly_cracked_two",
+        "y": 180
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_slightly_cracked_two",
+        "y": 270
+      }
+    ],
+    "eggs=2,hatch=2": [
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_very_cracked_two"
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_very_cracked_two",
+        "y": 90
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_very_cracked_two",
+        "y": 180
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_very_cracked_two",
+        "y": 270
+      }
+    ],
+    "eggs=3,hatch=0": [
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_three"
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_three",
+        "y": 90
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_three",
+        "y": 180
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_three",
+        "y": 270
+      }
+    ],
+    "eggs=3,hatch=1": [
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_slightly_cracked_three"
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_slightly_cracked_three",
+        "y": 90
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_slightly_cracked_three",
+        "y": 180
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_slightly_cracked_three",
+        "y": 270
+      }
+    ],
+    "eggs=3,hatch=2": [
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_very_cracked_three"
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_very_cracked_three",
+        "y": 90
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_very_cracked_three",
+        "y": 180
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_very_cracked_three",
+        "y": 270
+      }
+    ],
+    "eggs=4,hatch=0": [
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_four"
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_four",
+        "y": 90
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_four",
+        "y": 180
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_four",
+        "y": 270
+      }
+    ],
+    "eggs=4,hatch=1": [
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_slightly_cracked_four"
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_slightly_cracked_four",
+        "y": 90
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_slightly_cracked_four",
+        "y": 180
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_slightly_cracked_four",
+        "y": 270
+      }
+    ],
+    "eggs=4,hatch=2": [
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_very_cracked_four"
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_very_cracked_four",
+        "y": 90
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_very_cracked_four",
+        "y": 180
+      },
+      {
+        "model": "overgrown_vegetation:block/corrupted_egg_very_cracked_four",
+        "y": 270
+      }
+    ]
+  }
+}

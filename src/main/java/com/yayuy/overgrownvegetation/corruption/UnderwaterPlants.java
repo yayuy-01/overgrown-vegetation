@@ -145,9 +145,84 @@ public final class UnderwaterPlants {
             }
             return;
         }
-        if (random.nextDouble() < OvergrownVegetationConfig.COMMON.underwaterGrowthChance.get()) {
-            growChara(level, water, random);
+        growBottom(level, water, surface, random);
+    }
+
+    // ------------------------------------------------------------------ 川・池の底(11-13 密林の水辺 ③④)
+
+    /** 沈んだ倒木を寝かせる升の割合(座標の雑音)と、倒木の長さ・要る水深。仮決め。 */
+    static final double SUNKEN_LOG_CHANCE = 0.015;
+    static final int SUNKEN_LOG_MIN = 3;
+    static final int SUNKEN_LOG_MAX = 5;
+    static final int SUNKEN_LOG_DEPTH = 2;
+    /** 水底の落ち葉の群れ(雑音がこれより上の所)と、積もる水深の上限。仮決め。 */
+    static final double LITTER_PATCH = 0.56;
+    static final int LITTER_MAX_DEPTH = 6;
+    /** 沈んだ小枝を散らす割合。仮決め。 */
+    static final double TWIG_CHANCE = 0.06;
+
+    /**
+     * 川・池の底の 1 升(2026-11-13、ユーザー選択「水底の倒木」「水底の落ち葉の層」「沈んだ枝と小枝」。理由: 森の木・枝・葉が水に落ちて沈み、底に溜まる)。
+     * まれに倒木(林床と同じ {@code fallen_log} を横倒しに 3〜5 ブロック)、浅い所(水深 6 まで)の落ち葉の群れ、シャジクモの群落の中はシャジクモ、
+     * ほかに小枝を散らす。どれも座標の雑音で決めるので、同じ底はいつ汚染しても同じ形になる(シャジクモの株の有無だけは前と同じく確率)。
+     */
+    static void growBottom(ServerLevel level, BlockPos water, BlockPos surface, RandomSource random) {
+        int x = water.getX();
+        int z = water.getZ();
+        int depth = surface == null ? Integer.MAX_VALUE : surface.getY() - water.getY();
+        if (depth >= SUNKEN_LOG_DEPTH && hash01(x, z, 0xD0C1L) < SUNKEN_LOG_CHANCE && sinkLog(level, water, random)) {
+            return;
         }
+        // 落ち葉の群れはシャジクモの群落より先(11-13: 群落が底の大部分を取り、落ち葉がほとんど出なかった。群落の中にも落ち葉の空き地ができる)。
+        if (depth <= LITTER_MAX_DEPTH && noise(0x1EAFL, x / 4.0, z / 4.0) >= LITTER_PATCH) {
+            placeSunken(level, water, ModBlocks.SUNKEN_LEAF_LITTER.get().defaultBlockState());
+            return;
+        }
+        if (noise(0x5A1A, x / 5.0, z / 5.0) >= CHARA_MEADOW) {
+            if (random.nextDouble() < OvergrownVegetationConfig.COMMON.underwaterGrowthChance.get()) {
+                growChara(level, water, random);
+            }
+            return;
+        }
+        if (hash01(x, z, 0x7016L) < TWIG_CHANCE) {
+            placeSunken(level, water, ModBlocks.SUNKEN_TWIGS.get().defaultBlockState());
+        }
+    }
+
+    /** 水源の升に水底の敷物を置く(下の面が塞がっているときだけ)。 */
+    private static boolean placeSunken(ServerLevel level, BlockPos pos, BlockState state) {
+        if (!isWaterSource(level.getBlockState(pos)) || !state.canSurvive(level, pos)) {
+            return false;
+        }
+        level.setBlock(pos, state, Block.UPDATE_ALL);
+        return true;
+    }
+
+    /** 水底に倒木を横倒しに寝かせる。水平のどちらかの向きへ、水源で下が塞がった升が 3 つ以上続けば置いて true。 */
+    public static boolean sinkLog(ServerLevel level, BlockPos water, RandomSource random) {
+        Direction dir = Direction.Plane.HORIZONTAL.getRandomDirection(random);
+        int want = SUNKEN_LOG_MIN + random.nextInt(SUNKEN_LOG_MAX - SUNKEN_LOG_MIN + 1);
+        java.util.List<BlockPos> cells = new java.util.ArrayList<>();
+        for (int i = 0; i < want; i++) {
+            BlockPos cell = water.relative(dir, i);
+            BlockPos below = cell.below();
+            // 先に生えた水底の敷物・シャジクモの上にも寝かせる(11-13: 隣の升が先に埋まり、倒木が 1 本も置けなかった)。
+            BlockState at = level.isLoaded(cell) ? level.getBlockState(cell) : null;
+            boolean free = at != null && (isWaterSource(at) || at.is(ModBlocks.SUNKEN_LEAF_LITTER.get()) || at.is(ModBlocks.SUNKEN_TWIGS.get())
+                    || at.is(ModBlocks.CHARA.get()));
+            if (!free || !level.getBlockState(below).isFaceSturdy(level, below, Direction.UP)) {
+                break;
+            }
+            cells.add(cell);
+        }
+        if (cells.size() < SUNKEN_LOG_MIN) {
+            return false;
+        }
+        BlockState log = ModBlocks.FALLEN_LOG.get().defaultBlockState().setValue(com.yayuy.overgrownvegetation.block.FallenLogBlock.AXIS, dir.getAxis());
+        for (BlockPos cell : cells) {
+            level.setBlock(cell, log, Block.UPDATE_ALL);
+        }
+        return true;
     }
 
     /** 水マスから上へたどった水面(水源の真上の空気)。見つからなければ null。 */
