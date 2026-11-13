@@ -398,6 +398,32 @@ public final class VentGameTests {
         helper.succeed();
     }
 
+    /** 換気機は機械の 4 点(つるはし・石以上・正しい道具で落ちる・自分を落とすルート)がそろっている(memory machine-blocks-pickaxe-stone)。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void ventDropsWithStonePickaxe(GameTestHelper helper) {
+        var state = ModVent.VENTILATOR.get().defaultBlockState();
+        if (!state.is(net.minecraft.tags.BlockTags.MINEABLE_WITH_PICKAXE) || !state.is(net.minecraft.tags.BlockTags.NEEDS_STONE_TOOL)
+                || !state.requiresCorrectToolForDrops()) {
+            helper.fail("換気機がつるはし・石以上・正しい道具で落ちる、になっていない");
+            return;
+        }
+        if (!new ItemStack(net.minecraft.world.item.Items.STONE_PICKAXE).isCorrectToolForDrops(state)
+                || new ItemStack(net.minecraft.world.item.Items.WOODEN_PICKAXE).isCorrectToolForDrops(state)) {
+            helper.fail("石のつるはしで落ちない・木のつるはしで落ちる");
+            return;
+        }
+        BlockPos rel = new BlockPos(3, 2, 3);
+        helper.setBlock(rel, state);
+        var drops = net.minecraft.world.level.block.Block.getDrops(state, helper.getLevel(), helper.absolutePos(rel), helper.getBlockEntity(rel),
+                null, new ItemStack(net.minecraft.world.item.Items.STONE_PICKAXE));
+        helper.setBlock(rel, Blocks.AIR);
+        if (drops.stream().noneMatch(s -> s.is(ModVent.VENTILATOR_ITEM.get()))) {
+            helper.fail("石のつるはしで壊しても換気機が落ちない: " + drops);
+            return;
+        }
+        helper.succeed();
+    }
+
     /** フィルター・換気機・胞子濃度計は、汚染の前から作れる(材料がバニラだけ)。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void recipesUseVanillaOnly(GameTestHelper helper) {
