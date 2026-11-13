@@ -621,6 +621,17 @@ public final class DevBridge {
                     log("DETOURPLAN " + (plan == null ? "なし" : plan.waypoint() + " 残り " + plan.gap()) + " 列" + cols);
                 });
             }
+            case "stiltlook" -> {
+                // stiltlook x y z [倒す角] [光る 0/1] / stiltlook off: 竹馬型の首の確かめ(11-14)。返事は STILTLOOK …
+                String[] p = arg.trim().split("\\s+");
+                net.minecraft.client.server.IntegratedServer server = mc.getSingleplayerServer();
+                if (server == null || mc.player == null) break;
+                net.minecraft.world.phys.Vec3 me = mc.player.position();
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerLevel level = server.getLevel(mc.player.level().dimension());
+                    if (level != null) StiltDev.look(level, me, p, DevBridge::log);
+                });
+            }
             case "stiltbench" -> {
                 // stiltbench <n> <cx> <y> <z0> <z1>: 竹馬型(フィロセンス)を n 体並べて z1 へ歩かせ、1 tick の最大・平均を測る(11-10)。返事は STILTBENCH …
                 String[] p = arg.trim().split("\\s+");

@@ -35,6 +35,11 @@ public final class ModStilt {
                     .clientTrackingRange(10)
                     .build(PhyllosensEntity.ID));
 
+    /** 段 2(11-14): フィロセンスの視線の印(能力値は変えない。PhyllosensWatchEffect)。色は花の芯の黄緑。 */
+    public static final DeferredHolder<net.minecraft.world.effect.MobEffect, com.yayuy.overgrownvegetation.effect.PhyllosensWatchEffect> PHYLLOSENS_WATCH =
+            ModMobEffects.MOB_EFFECTS.register("phyllosens_watch",
+                    () -> new com.yayuy.overgrownvegetation.effect.PhyllosensWatchEffect(net.minecraft.world.effect.MobEffectCategory.HARMFUL, 0xACE300));
+
     /** スポーンエッグ(地は樹皮の茶、点は花の芯の黄緑)。 */
     public static final DeferredItem<DeferredSpawnEggItem> PHYLLOSENS_SPAWN_EGG = ModItems.ITEMS.registerItem(PhyllosensEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(PHYLLOSENS, 0x4A3B2A, 0xACE300, props));

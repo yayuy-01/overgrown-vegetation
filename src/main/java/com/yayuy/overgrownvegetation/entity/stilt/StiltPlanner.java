@@ -187,6 +187,31 @@ public final class StiltPlanner {
         return new Node(x, z, b, gMed, open);
     }
 
+    /**
+     * 段 2(11-14): 角 (x, z) で胴の中心を地面から {@code height} まで下ろせるか(覗く立ち位置を選ぶとき)。通れる節で、
+     * 胴の箱がその高さで何にも当たらず、膝が張り出す外側の 12 列に幹・壁が無いこと。{@link #evaluate} は一番高い胴を返すだけなので別に見る。
+     */
+    public static boolean canCrouch(ServerLevel level, StiltParams p, int x, int z, double ref, double height) {
+        Node n = evaluateCached(level, p, x, z, ref);
+        if (n == null) return false;
+        StiltColumns cols = StiltColumns.of(level);
+        double b = n.ground() + height - p.bodyHalf;
+        StiltColumns.Column[] fp = new StiltColumns.Column[4];
+        for (int i = 0; i < 4; i++) {
+            fp[i] = cols.at(x - 1 + (i & 1), z - 1 + (i >> 1), ref);
+            if (!fp[i].hasGround() || fp[i].surface() > b - 0.3D) return false;
+        }
+        if (!clear(fp, b, p.bodyHalf)) return false;
+        for (int dx = -2; dx <= 1; dx++) {
+            for (int dz = -2; dz <= 1; dz++) {
+                if (dx >= -1 && dx <= 0 && dz >= -1 && dz <= 0) continue;
+                StiltColumns.Column c = cols.at(x + dx, z + dz, ref);
+                if (!c.hasGround() || c.firmBetween(b + 0.5D, b + 2.75D)) return false;
+            }
+        }
+        return true;
+    }
+
     private static boolean clear(StiltColumns.Column[] fp, double b, double half) {
         for (StiltColumns.Column c : fp) {
             if (c.blocked(b, b + half * 2.0D)) return false;

@@ -333,6 +333,7 @@
   "item.overgrown_vegetation.falcimnes_spawn_egg": "Яйцо призыва: Фальцимнес",
   "entity.overgrown_vegetation.phyllosens": "Филлосенс",
   "item.overgrown_vegetation.phyllosens_spawn_egg": "Яйцо призыва: Филлосенс",
+  "effect.overgrown_vegetation.phyllosens_watch": "Взгляд Филлосенса",
   "block.overgrown_vegetation.overgrown_zombie_corpse": "Осквернённый труп зомби",
   "entity.overgrown_vegetation.parasitized_zombie": "Заражённый зомби",
   "item.overgrown_vegetation.parasitized_zombie_spawn_egg": "Яйцо призыва: Заражённый зомби",

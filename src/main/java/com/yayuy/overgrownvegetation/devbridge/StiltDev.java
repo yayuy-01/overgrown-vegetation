@@ -32,6 +32,41 @@ final class StiltDev {
     private static boolean planLogged;
 
     /** 竹馬型なら行き先を渡して true。 */
+    /**
+     * {@code stiltlook x y z [倒す角] [光る 0/1]} / {@code stiltlook off}(11-14、段 2 の首の確かめ): 一番近いフィロセンスの頭を (x y z) へ寄せ、そこを見させる。
+     * 行動はその間首を触らない(PhyllosensGaze#devHold)。
+     */
+    static void look(ServerLevel level, net.minecraft.world.phys.Vec3 me, String[] p, Consumer<String> log) {
+        PhyllosensEntity best = null;
+        for (PhyllosensEntity e : level.getEntitiesOfClass(PhyllosensEntity.class, new net.minecraft.world.phys.AABB(me, me).inflate(64.0D))) {
+            if (best == null || e.distanceToSqr(me) < best.distanceToSqr(me)) best = e;
+        }
+        if (best == null) {
+            log.accept("STILTLOOK なし");
+            return;
+        }
+        var gz = best.gaze();
+        if (p[0].equals("off")) {
+            gz.devHold = false;
+            gz.aim(null, null);
+            gz.lean(0.0D);
+            gz.glow(false);
+            log.accept("STILTLOOK 戻した");
+            return;
+        }
+        net.minecraft.world.phys.Vec3 t = new net.minecraft.world.phys.Vec3(Double.parseDouble(p[0]), Double.parseDouble(p[1]), Double.parseDouble(p[2]));
+        double lean = p.length > 3 ? Double.parseDouble(p[3]) : 0.0D;
+        net.minecraft.world.phys.Vec3 base = com.yayuy.overgrownvegetation.entity.stilt.StiltNeck.baseWorld(gz.shape, best.position(), best.getYRot(), lean);
+        net.minecraft.world.phys.Vec3 d = t.subtract(base);
+        double reach = com.yayuy.overgrownvegetation.entity.stilt.StiltNeck.reach(gz.shape);
+        net.minecraft.world.phys.Vec3 head = base.add(d.normalize().scale(Math.min(reach, Math.max(0.5D, d.length() - 0.6D))));
+        gz.devHold = true;
+        gz.aim(head, t);
+        gz.lean(lean);
+        gz.glow(p.length > 4 && p[4].equals("1"));
+        log.accept(String.format(Locale.ROOT, "STILTLOOK 頭 %.2f %.2f %.2f を %.2f %.2f %.2f へ(付け根 %.2f %.2f %.2f)", head.x, head.y, head.z, t.x, t.y, t.z, base.x, base.y, base.z));
+    }
+
     static boolean navto(Mob best, double tx, double ty, double tz, double speed, long now, Consumer<String> log) {
         if (!(best instanceof StiltWalker.Holder h)) return false;
         h.stiltWalker().goTo(tx, ty, tz, speed);

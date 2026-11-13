@@ -14,6 +14,8 @@ public class PhyllosensRenderer extends GeoEntityRenderer<PhyllosensEntity> {
     public PhyllosensRenderer(EntityRendererProvider.Context context) {
         super(context, new PhyllosensModel());
         this.shadowRadius = 0.0F;
+        // 段 2(11-14): 花の芯は見張り・覗きで見ている間だけ光る(仕様 4 節)。マスクの光る画素は 384 で空ではない
+        addRenderLayer(new G1Glow<>(this, e -> !e.gaze().glowing()));
     }
 
     /** バニラの「倒れると横へ 90° 転がる」を切る(13 ブロックの体が横倒しで地面に埋まる。倒れる形はアニメ death の仕事)。 */

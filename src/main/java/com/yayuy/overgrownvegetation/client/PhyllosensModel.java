@@ -57,5 +57,17 @@ public class PhyllosensModel extends GeoModel<PhyllosensEntity> {
         float w = animatable.isDeadOrDying() ? 0.0F : 1.0F;
         StiltLegRig.apply(this, animatable, animatable.clientFeet(), LEGS, TIPS, PhyllosensEntity.ROOT_SHIFT,
                 animationState.getPartialTick(), w);
+        // 段 2(11-14): 首と頭を手続きで(頭を置く点・見る点はサーバーが決めて送る)。胴を前へ倒す角も
+        float pt = animationState.getPartialTick();
+        var gz = animatable.gaze();
+        float nw = gz.weight(pt) * w;
+        net.minecraft.world.phys.Vec3 pos = new net.minecraft.world.phys.Vec3(
+                net.minecraft.util.Mth.lerp(pt, animatable.xo, animatable.getX()),
+                net.minecraft.util.Mth.lerp(pt, animatable.yo, animatable.getY()),
+                net.minecraft.util.Mth.lerp(pt, animatable.zo, animatable.getZ()));
+        float yaw = net.minecraft.util.Mth.rotLerp(pt, animatable.yBodyRotO, animatable.yBodyRot);
+        StiltNeckRig.apply(this, gz.shape, "body", NECK, "head", nw > 0.0F ? gz.pose(pos, yaw, pt) : null, nw, gz.lean(pt) * w);
     }
+
+    static final String[] NECK = {"neck_1", "neck_2", "neck_3", "neck_4"};
 }

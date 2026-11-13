@@ -64,6 +64,28 @@ public final class StiltParams {
     /** 経路の探索に使う時間: サーバー全体の予算 2 ms/tick の残りから、歩き・足のために残す分と、これより少なければその tick は探さない分(ns)【仮】。 */
     public long planReserveNanos = 400_000L, planMinSliceNanos = 250_000L;
 
+    // ------------------------------------------------------------------ 段 2(11-14): 首の動き・見張り・覗き。全部【仮・Claude】
+
+    /** 止まってから枯れ木に化けるまで(tick)・化けたときの足の置き場の広さ(倍)・覗くときの広さ。 */
+    public int disguiseAfter = 60;
+    public double disguiseStance = 0.55D, peerStance = 1.25D;
+    /** 相手を見る距離(仕様 9 節「視線 128」)・森で覗きに気づく距離・覗きに行く(開口を探す)距離(ブロック)。 */
+    public double sightRange = 128.0D, noticeRange = 32.0D, peerRange = 40.0D;
+    /** 見え続けて印が付くまで(tick。この間に隠れ直せば付かない)。 */
+    public int markDelay = 40;
+    /** 化けてから見張りに出るまで(tick)・見張りの長さ・見張りの場所を探す半径(ブロック)。 */
+    public int watchEvery = 400, watchFor = 600, watchRadius = 16;
+    /** 森で覗く: 頭の置き場を探す点の数・やり直す回数・あきらめた後の待ち(tick)。 */
+    public int peekSamples = 96, peekRetries = 3, peekCooldown = 200;
+    /** 開口を覗く: 相手のまわりを探す半径(ブロック)・1 tick に調べるマスの数・立ち位置の開口からの距離・胴の中心の高さ・前へ倒す角(度)・覗く長さ(tick)。 */
+    public int openingRadius = 6, openingCellsPerTick = 700;
+    public double peerStandOff = 3.0D, peerHeight = 2.5D, peerLean = 25.0D;
+    public int peerFor = 300;
+    /** 頭を叩かれたら覗くのをやめる長さ(tick)【決定 11-10「しばらく」、値は仮 10 秒】。 */
+    public int headHitCooldown = 200;
+    /** 叩ける頭の大きさ(ブロック、つぼみ)。 */
+    public float headSize = 1.2F;
+
     public static StiltParams phyllosens() {
         return new StiltParams();
     }

@@ -51,6 +51,13 @@ public final class HitPartSet {
         return this.parts[i];
     }
 
+    /** 部位が叩かれたときに本体へ知らせる口を差す(11-14。本体の hurt の前に呼ばれる)。 */
+    public void onHurt(java.util.function.BiConsumer<HitPart, net.minecraft.world.damagesource.DamageSource> hook) {
+        for (HitPart p : this.parts) {
+            p.onHurt = hook;
+        }
+    }
+
     /** 名前で引く(無ければ -1)。 */
     public int indexOf(String name) {
         for (int i = 0; i < this.names.length; i++) {

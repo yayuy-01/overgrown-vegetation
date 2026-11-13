@@ -26,6 +26,9 @@ public final class HitPart extends PartEntity<Mob> {
 
     public final String name;
     private EntityDimensions size;
+    /** 叩かれたときに本体へ知らせる口(11-14、フィロセンスの頭。無ければ null。ファルキムネスは使わない)。本体の hurt の前に呼ぶ。 */
+    @Nullable
+    java.util.function.BiConsumer<HitPart, DamageSource> onHurt;
 
     HitPart(Mob parent, String name, float width, float height) {
         super(parent);
@@ -68,6 +71,9 @@ public final class HitPart extends PartEntity<Mob> {
     public boolean hurt(DamageSource source, float amount) {
         if (this.isInvulnerableTo(source)) {
             return false;
+        }
+        if (this.onHurt != null) {
+            this.onHurt.accept(this, source);
         }
         return this.getParent().hurt(source, amount);
     }

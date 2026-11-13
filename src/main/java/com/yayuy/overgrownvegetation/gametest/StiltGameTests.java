@@ -57,16 +57,16 @@ public final class StiltGameTests {
     static final int SIZE = 32;
 
     /** 実行ごとに違う、遠いチャンク(2 × 2 チャンク = 32 × 32 の場 + まわり 1 チャンク)。 */
-    private static ChunkPos fresh() {
+    static ChunkPos fresh() {
         int base = 1_200_000 + (RUN_SALT % 2000) * 64 + NEXT.getAndIncrement() * 6;
         return new ChunkPos(base, base / 2);
     }
 
-    private static void force(ServerLevel level, ChunkPos a, boolean on) {
+    static void force(ServerLevel level, ChunkPos a, boolean on) {
         for (int dx = -1; dx <= 2; dx++) for (int dz = -1; dz <= 2; dz++) level.setChunkForced(a.x + dx, a.z + dz, on);
     }
 
-    private static void fill(ServerLevel level, int x0, int y0, int z0, int x1, int y1, int z1, BlockState s) {
+    static void fill(ServerLevel level, int x0, int y0, int z0, int x1, int y1, int z1, BlockState s) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (int x = Math.min(x0, x1); x <= Math.max(x0, x1); x++)
             for (int y = Math.min(y0, y1); y <= Math.max(y0, y1); y++)
@@ -74,7 +74,7 @@ public final class StiltGameTests {
                     level.setBlock(p.set(x, y, z), s, 2 | 16);
     }
 
-    private static BlockState leaves() {
+    static BlockState leaves() {
         return Blocks.OAK_LEAVES.defaultBlockState().setValue(LeavesBlock.PERSISTENT, true);
     }
 
@@ -147,7 +147,7 @@ public final class StiltGameTests {
         });
     }
 
-    private static void cleanup(ServerLevel level, ChunkPos c, PhyllosensEntity e) {
+    static void cleanup(ServerLevel level, ChunkPos c, PhyllosensEntity e) {
         if (e != null) e.discard();
         force(level, c, false);
     }
@@ -156,7 +156,7 @@ public final class StiltGameTests {
         return e.getY() + 0.75D;
     }
 
-    private static String at(Arena a, PhyllosensEntity e) {
+    static String at(Arena a, PhyllosensEntity e) {
         return String.format(Locale.ROOT, "(%.2f, %.2f, %.2f) 胴の高さ %.2f", e.getX() - a.x0, e.getY() - FLOOR, e.getZ() - a.z0, center(e) - FLOOR);
     }
 

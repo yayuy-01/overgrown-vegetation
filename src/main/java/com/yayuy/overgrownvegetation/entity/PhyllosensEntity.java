@@ -52,8 +52,17 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
     public static final String ID = "phyllosens";
     private static final boolean DEV_HOOKS = Boolean.getBoolean("ov.devbridge");
     private static final EntityDataAccessor<CompoundTag> DATA_GAIT = SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.COMPOUND_TAG);
+    /** 段 2(11-14): 頭を置く点・見る点(エンティティからの差)と、倒す角・首の効き・芯の光(PhyllosensGaze#packed)。 */
+    private static final EntityDataAccessor<org.joml.Vector3f> DATA_HEAD = SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.VECTOR3);
+    private static final EntityDataAccessor<org.joml.Vector3f> DATA_LOOK = SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.VECTOR3);
+    private static final EntityDataAccessor<Integer> DATA_NECK = SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.INT);
+    /** 段 2: 行動の状態(PhyllosensBrain.Mode の番号 | 見つけた 0x100)。アニメを選ぶ。 */
+    private static final EntityDataAccessor<Integer> DATA_MODE = SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.INT);
 
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
+    private static final RawAnimation DISGUISE = RawAnimation.begin().thenLoop("idle_disguise");
+    private static final RawAnimation WATCH = RawAnimation.begin().thenPlay("watch_open").thenLoop("watch_sweep");
+    private static final RawAnimation LOCK = RawAnimation.begin().thenPlay("watch_lock");
     /** 歩きのアニメの基準の速さ(ブロック/tick)。r2 の生成器: 歩幅 28 単位・周期 2.0 秒。 */
     static final double WALK_REF = 0.058D;
     /** 描画: root を下げる量(モデル単位)。モデルの root の pivot は y 104(= 6.5 ブロック)、胴の中心はエンティティの位置 + 0.75(= 12)。 */
@@ -64,6 +73,10 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
     private final StiltWalker.Client clientFeet;
     /** 描画の歩きの速さ(クライアント、なめらかにしたもの)。 */
     private double clientWalk;
+    /** 首と頭(段 2)。 */
+    private final PhyllosensGaze gaze = new PhyllosensGaze();
+    private final PhyllosensBrain brain;
+    private final com.yayuy.overgrownvegetation.entity.parts.HitPartSet hitParts;
 
     public PhyllosensEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
@@ -72,6 +85,11 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
         this.clientFeet = new StiltWalker.Client(p.homeLeft.length, p.swingLift);
         this.setNoGravity(true);
         this.xpReward = 12;
+        // 段 2(11-14): 見る行動と、叩ける頭(部位の id は本体の続き番号。ファルキムネスと同じ作り)
+        this.brain = new PhyllosensBrain(this, this.walker);
+        this.hitParts = new com.yayuy.overgrownvegetation.entity.parts.HitPartSet(this, new String[]{"head"}, new float[]{p.headSize}, new float[]{p.headSize});
+        this.hitParts.onHurt((part, src) -> this.brain.onHeadHit());
+        this.setId(ENTITY_COUNTER.getAndAdd(this.hitParts.count() + 1) + 1);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -82,6 +100,67 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(DATA_GAIT, new CompoundTag());
+        builder.define(DATA_HEAD, new org.joml.Vector3f());
+        builder.define(DATA_LOOK, new org.joml.Vector3f());
+        builder.define(DATA_NECK, 1000);
+        builder.define(DATA_MODE, 0);
+    }
+
+    public PhyllosensGaze gaze() {
+        return this.gaze;
+    }
+
+    public PhyllosensBrain brain() {
+        return this.brain;
+    }
+
+    // ------------------------------------------------------------------ 叩ける頭(段 2、11-14。段 3 で脚 4 本を足す)
+
+    @Override
+    public void setId(int id) {
+        super.setId(id);
+        if (this.hitParts != null) {
+            this.hitParts.assignIds(id + 1);   // コンストラクタの setId より前(Entity のコンストラクタの中)には呼ばれない
+        }
+    }
+
+    @Override
+    public boolean isMultipartEntity() {
+        return true;
+    }
+
+    @Override
+    public net.neoforged.neoforge.entity.PartEntity<?>[] getParts() {
+        return this.hitParts.parts();
+    }
+
+    public com.yayuy.overgrownvegetation.entity.parts.HitPartSet hitParts() {
+        return this.hitParts;
+    }
+
+    /** 頭の部位を花(つぼみ)の真ん中へ置く(両側。クライアントは照準の当たりに使う)。 */
+    private void placeHead() {
+        if (this.hitParts == null) return;
+        net.minecraft.world.phys.Vec3 c = this.gaze.eyeWorld(this);
+        float yaw = this.getYRot() * Mth.DEG_TO_RAD;
+        double dx = c.x - this.getX(), dz = c.z - this.getZ();
+        double fwd = dx * -Mth.sin(yaw) + dz * Mth.cos(yaw), left = dx * Mth.cos(yaw) + dz * Mth.sin(yaw);
+        this.hitParts.place(this, this.getYRot(), new double[]{fwd, left, c.y - this.getY()});
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (this.level().isClientSide()) {
+            this.gaze.clientTick(this.entityData.get(DATA_HEAD), this.entityData.get(DATA_LOOK), this.entityData.get(DATA_NECK));
+        } else {
+            this.gaze.serverTick(this);
+            this.entityData.set(DATA_HEAD, this.gaze.headData());
+            this.entityData.set(DATA_LOOK, this.gaze.lookData());
+            this.entityData.set(DATA_NECK, this.gaze.packed());
+            this.entityData.set(DATA_MODE, this.brain.mode().ordinal() | (this.brain.locked() ? 0x100 : 0));
+        }
+        placeHead();
     }
 
     @Override
@@ -120,6 +199,7 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
     protected void customServerAiStep() {
         super.customServerAiStep();
         if (this.isAlive()) {
+            this.brain.tick();
             this.walker.tick();
         }
     }
@@ -197,6 +277,21 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
         double dx = this.getX() - this.xo, dz = this.getZ() - this.zo;
         double v = Math.sqrt(dx * dx + dz * dz) / WALK_REF;
         this.clientWalk = Mth.lerp(0.2D, this.clientWalk, Mth.clamp(v, 0.0D, 3.0D));
+        // 段 2(11-14): 化ける・覗く(つぼみ。首は手続き)は idle_disguise、見張りは watch_open → watch_sweep、見つけたら watch_lock
+        int m = this.entityData.get(DATA_MODE);
+        PhyllosensBrain.Mode mode = PhyllosensBrain.Mode.values()[Mth.clamp(m & 0xFF, 0, PhyllosensBrain.Mode.values().length - 1)];
+        switch (mode) {
+            case DISGUISE, PEEK, PEER -> {
+                state.getController().setAnimationSpeed(1.0D);
+                return state.setAndContinue(DISGUISE);
+            }
+            case WATCH -> {
+                state.getController().setAnimationSpeed(1.0D);
+                return state.setAndContinue((m & 0x100) != 0 ? LOCK : WATCH);
+            }
+            default -> {
+            }
+        }
         state.getController().setAnimationSpeed(this.clientWalk);
         return state.setAndContinue(WALK);
     }
@@ -303,6 +398,7 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
             // 確かめ用(テストクライアント・GameTest): 名前が nostroll で始まる個体はうろつかない(navto の行き先を上書きしないように)
             if (this.mob.hasCustomName() && this.mob.getCustomName().getString().startsWith("nostroll")) return false;
             if (this.mob.walker.moving() || !this.mob.walker.ready()) return false;
+            if (this.mob.brain.mode() != PhyllosensBrain.Mode.WALK) return false;   // 段 2: 化けている・見張り・覗きの間はうろつかない
             if (this.mob.getRandom().nextInt(STROLL_INTERVAL) != 0) return false;
             return this.mob.playerWithin(STROLL_RANGE);
         }

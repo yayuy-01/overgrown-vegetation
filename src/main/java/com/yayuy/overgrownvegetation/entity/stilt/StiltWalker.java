@@ -72,6 +72,10 @@ public final class StiltWalker {
     private long nextPlan;
     private int stall, gaitWait, replans;
     private double bestGap = Double.MAX_VALUE;
+    /** 段 2(11-14): 足の置き場の広さの倍率(1 = ふつう。化けると寄せ、覗くと広げる)と、止まっている間の胴の中心の高さ(地面から。NaN = 指定なし)。 */
+    public double stanceScale = 1.0D, heightOverride = Double.NaN;
+    /** 段 2: 止まっている間に向く向き(度。NaN = そのまま)。 */
+    public double faceYaw = Double.NaN;
     /** 続きから探している途中の探索(無ければ null)と、届かないと覚えた目標を探し直してよい時刻。 */
     @Nullable
     private StiltPlanner.Search search;
@@ -283,6 +287,10 @@ public final class StiltWalker {
         double vx = 0.0D, vz = 0.0D, vy = 0.0D;
         // 胴の目標の高さは、着いている足から脚が届く高さまで(段を上るとき、後ろ足が下にある間は低いまま前へ出る)
         double tb = this.targetB;
+        // 段 2(11-14): 止まっている間の胴の高さの指定(覗くときに地面から約 2.5 へ下ろす)。中心の地面からの高さ
+        if (this.goal == null && !Double.isNaN(this.heightOverride)) {
+            tb = groundRef(pos) + this.heightOverride - p.bodyHalf;
+        }
         if (!Double.isNaN(tb)) {
             double top = reachTop(pos, yaw) - 0.1D, bottom = feetFloor() + 0.05D;
             // 下限: 付け根が着いている足より下がらない(深さ 5 の池へ下りるとき、岸に残った後ろ足より胴が低くなって支えが切れた、11-10)
@@ -306,6 +314,9 @@ public final class StiltWalker {
                 vx *= 0.2D;
                 vz *= 0.2D;
             }
+        } else if (this.goal == null && !Double.isNaN(this.faceYaw)) {
+            // 段 2(11-14): 止まっている間に向きを変える(覗く開口へ向く)。脚は置き場がずれれば踏み直す
+            newYaw = yaw + Mth.clamp(Mth.wrapDegrees((float) this.faceYaw - yaw), (float) -p.maxTurn * 0.5F, (float) p.maxTurn * 0.5F);
         }
         // 歩調: 着いている足のうち、進む向きへあとどれだけ届くか(余り)が一番少ないものに合わせて速さを落とす
         // (余りが尽きてから止まると「進む・止まる」の繰り返しになった、11-10)
@@ -649,7 +660,7 @@ public final class StiltWalker {
     private Vec3 home(int i, Vec3 pos, float yawDeg, Vec3 v) {
         float yaw = yawDeg * Mth.DEG_TO_RAD;
         double fx = -Mth.sin(yaw), fz = Mth.cos(yaw), lx = Mth.cos(yaw), lz = Mth.sin(yaw);
-        double l = p.homeLeft[i], f = p.homeFwd[i];
+        double l = p.homeLeft[i] * this.stanceScale, f = p.homeFwd[i] * this.stanceScale;
         double ax = v.x * p.lead, az = v.z * p.lead;
         double al = Math.sqrt(ax * ax + az * az);
         if (al > 2.2D) {
