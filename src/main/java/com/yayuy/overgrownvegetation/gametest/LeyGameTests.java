@@ -25,6 +25,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.energy.EnergyStorage;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -315,6 +316,55 @@ public final class LeyGameTests {
         level.removeBlock(hub, false);
         helper.assertTrue(!right.hasLink(hub), "柱を壊しても相手の線が残る");
         clear(level, o.offset(12, 0, 0), spec.wireMaxLength() + 4);
+        helper.succeed();
+    }
+
+    /**
+     * 受け取るだけの口(2c の換気の機械の形)への配り方: 欲しい量を汲み上げ器から集め、足りない分はためる側(電池)から出す。
+     * 2 台の受け取る側には均等に分ける。網 1 つで 1 tick に運ぶ量は {@code wireNetworkPerTick} まで。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void consumersGetPumpThenBattery(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        LeySpec spec = spec();
+        BlockPos at = findNear(level, far(helper, 12000), 0.6);
+        clear(level, at, 1);
+        LeyPumpBlockEntity pump = place(level, at, ModLey.PUMP.get().defaultBlockState(), LeyPumpBlockEntity.class);
+        fill(pump, spec.pumpBuffer());
+        int pumpBefore = pump.energy();
+        ItemStack battery = new ItemStack(ModLey.BATTERY.get());
+        battery.set(ModLey.ENERGY.get(), 50_000);
+        int perConsumer = spec.pumpMaxOutput();
+        EnergyStorage c1 = new EnergyStorage(1_000_000, perConsumer, 0);
+        EnergyStorage c2 = new EnergyStorage(1_000_000, perConsumer, 0);
+        LeyGrid.Network grid = new LeyGrid.Network();
+        grid.producers.add(pump.energyPort());
+        grid.consumers.add(c1);
+        grid.consumers.add(c2);
+        grid.buffers.add(battery.getCapability(Capabilities.EnergyStorage.ITEM));
+        int moved = grid.transfer();
+        int fromPump = pumpBefore - pump.energy();
+        int fromBattery = 50_000 - LeyBatteryItem.stored(battery);
+        helper.assertTrue(c1.getEnergyStored() == perConsumer && c2.getEnergyStored() == perConsumer,
+                "受け取る側に均等に届かない: " + c1.getEnergyStored() + " / " + c2.getEnergyStored());
+        helper.assertTrue(fromPump == spec.pumpMaxOutput(), "汲み上げ器から " + fromPump);
+        helper.assertTrue(fromBattery == 2 * perConsumer - spec.pumpMaxOutput(), "足りない分が電池から出ない: " + fromBattery);
+        helper.assertTrue(moved == 2 * perConsumer, "運んだ量 " + moved);
+
+        EnergyStorage big = new EnergyStorage(10_000_000, 10_000_000, 10_000_000, 10_000_000);
+        LeyGrid.Network flood = new LeyGrid.Network();
+        flood.buffers.add(big);
+        java.util.List<EnergyStorage> sinks = new java.util.ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            EnergyStorage s = new EnergyStorage(10_000_000, 10_000_000, 0);
+            sinks.add(s);
+            flood.consumers.add(s);
+        }
+        int movedFlood = flood.transfer();
+        int got = sinks.stream().mapToInt(EnergyStorage::getEnergyStored).sum();
+        helper.assertTrue(movedFlood == spec.wireNetworkPerTick() && got == spec.wireNetworkPerTick(),
+                "網の 1 tick の上限が効かない: " + movedFlood + " / " + got);
+        level.removeBlock(at, false);
         helper.succeed();
     }
 

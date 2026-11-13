@@ -83,7 +83,6 @@ public final class ModLey {
             BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_GRAY)
                     .strength(3.0F, 6.0F)
-                    .requiresCorrectToolForDrops()
                     .sound(SoundType.COPPER));
 
     public static final DeferredBlock<LeyPylonBlock> PYLON = ModBlocks.BLOCKS.registerBlock(
