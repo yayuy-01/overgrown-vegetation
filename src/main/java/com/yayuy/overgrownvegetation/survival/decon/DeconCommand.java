@@ -18,6 +18,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 /**
  * 開発用(2026-11-14 サバイバルの背骨 段 3b・3c): {@code /ov perf spore dirt} = 着ている物・手の物の汚れの値と段・持っている汚れの点・
  * 吸う暴露量・立っている部屋の汚れ。{@code /ov perf spore dirt set <0〜full>} = 着ている物と手の物の汚れを決める。
+ * {@code /ov perf spore dirt clearrooms} = この次元の部屋の汚れを全部消す。
  * ゲームの中では数字を見せない(決定 33)ので、値はこの命令でだけ見る。/ov の下の一覧はテストで決めてあるので perf spore の下に足す。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
@@ -34,6 +35,12 @@ public final class DeconCommand {
                         .then(Commands.literal("spore")
                                 .then(Commands.literal("dirt")
                                         .executes(DeconCommand::show)
+                                        .then(Commands.literal("clearrooms").executes(ctx -> {
+                                            if (!(ctx.getSource().getLevel() instanceof ServerLevel level)) return 0;
+                                            com.yayuy.overgrownvegetation.survival.room.RoomDirt.get(level).clearAll();
+                                            ctx.getSource().sendSuccess(() -> Component.literal("この次元の部屋の汚れを消した"), false);
+                                            return 1;
+                                        }))
                                         .then(Commands.literal("set").then(Commands.argument("value", IntegerArgumentType.integer(0, 1_000_000))
                                                 .executes(ctx -> {
                                                     if (!(ctx.getSource().getEntity() instanceof Player player)) {
