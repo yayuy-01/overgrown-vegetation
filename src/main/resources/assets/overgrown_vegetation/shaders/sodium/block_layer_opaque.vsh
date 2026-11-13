@@ -12,6 +12,7 @@
 #ov_import <ov_fog.glsl>
 #ov_import <ov_leaf.glsl>
 #ov_import <ov_wave.glsl>
+#ov_import <ov_giant.glsl>
 
 out vec4 v_Color;
 out vec2 v_TexCoord;
@@ -85,7 +86,9 @@ void main() {
     gl_Position = u_ProjectionMatrix * u_ModelViewMatrix * vec4(position, 1.0);
 
     // Add the light color to the vertex color, and pass the texture coordinates to the fragment shader
-    v_Color = color * texture(u_LightTex, _vert_tex_light_coord);
+    // The giant trees seen from outside the forest read the lightmap at a sky light floor (ov_giant.glsl, 11-13).
+    vec2 ovLightCoord = vec2(_vert_tex_light_coord.x, max(_vert_tex_light_coord.y, ovGiantFloor(position) * 240.0 / 256.0));
+    v_Color = color * texture(u_LightTex, ovLightCoord);
     v_TexCoord = (_vert_tex_diffuse_coord_bias * u_TexCoordShrink) + _vert_tex_diffuse_coord; // FMA for precision
 
     v_Material = _material_params;

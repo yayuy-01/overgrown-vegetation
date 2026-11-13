@@ -3,6 +3,7 @@
 #moj_import <light.glsl>
 #moj_import <fog.glsl>
 #moj_import <ov_fog.glsl>
+#moj_import <ov_giant.glsl>
 #moj_import <ov_sway.glsl>
 #moj_import <ov_leaf.glsl>
 
@@ -43,7 +44,8 @@ void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);
 
     vertexDistance = fog_distance(pos, FogShape);
-    vertexColor = color * minecraft_sample_lightmap(Sampler2, UV2);
+    // The giant trees seen from outside the forest read the lightmap at a sky light floor (ov_giant.glsl, 11-13).
+    vertexColor = color * minecraft_sample_lightmap(Sampler2, ivec2(UV2.x, max(UV2.y, int(ovGiantFloor(pos) * 240.0))));
     texCoord0 = UV0;
     ovPos = pos;
     ovNormal = Normal;

@@ -74,6 +74,12 @@ uniform vec4 ShadeTint;
 // below the progress, the old one (mode -1) the rest. The noise sits in field coordinates, so the change spreads over the clouds like
 // billowing, and where both meshes have the same face exactly one of them draws each point (no flicker). Mode 0 = off.
 uniform vec4 Dissolve;
+// The haze of the overgrown forest (11-13; client/atmosphere/CloudHaze.java). Terrain, mobs and particles fade into the spore haze through
+// the fog mark of MistView (fog.glsl), but these clouds are drawn by their own shader and stood crisp and blue-white in a sky filled with
+// the yellow-green haze. ForestHaze = (colour of the haze-filled sky, the share of the sky dome filled with it 0..1),
+// ForestHazeK.x = haze per block at the camera. A cloud at distance d keeps (1 - share) * exp(-k d) of itself; both 0 outside the forest.
+uniform vec4 ForestHaze;
+uniform vec4 ForestHazeK;
 
 in vec3 ovPos;
 in vec4 ovInfo;
@@ -427,6 +433,9 @@ void main() {
     // towards the horizon colour (the moonlit haze) with the distance.
     float night = 1.0 - smoothstep(0.4, 0.7, CloudColor.b);
     c = mix(c, max(c, HorizonColor.rgb * 1.05), night * HorizonColor.a * smoothstep(120.0, 700.0, d));
+    if (ForestHaze.a > 0.0 || ForestHazeK.x > 0.0) {
+        c = mix(c, ForestHaze.rgb, 1.0 - (1.0 - ForestHaze.a) * exp(-ForestHazeK.x * dist));
+    }
     if (InsideFog.y > 0.001) {
         // The thin tail of the haze after leaving a cloud does not grey out the clouds (they come back right away).
         float f = clamp(dist / InsideFog.x, 0.0, 1.0) * smoothstep(0.03, 0.3, InsideFog.y);

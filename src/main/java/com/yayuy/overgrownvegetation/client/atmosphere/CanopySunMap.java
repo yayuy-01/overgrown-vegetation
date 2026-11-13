@@ -377,6 +377,8 @@ public final class CanopySunMap {
             }
             float[] moonColor = atm0.moonMapColor();
             float warmK = enabled && mc.level != null && VisualQuality.canopyLight() ? ForestPresence.overgrown() : 0.0F;
+            // 森の外から見た巨大樹の空の光の下限(11-13、GiantTreeLight・ov_giant.glsl)。
+            GiantTreeLight.prepare(mc.level, mc.gameRenderer.getMainCamera().getPosition(), enabled, night);
             for (ShaderInstance shader : shaders) {
                 if (shader != null) {
                     // 光の向き(夜は月)。地図が無い間も毎フレーム流す(月の向きの面の明暗が使う)。w = 地図の中の背面の影の強さ(夜は面の明暗に任せて 0 へ)。
@@ -387,6 +389,7 @@ public final class CanopySunMap {
                     shader.safeGetUniform("OvTint").set(RGB[0], RGB[1], RGB[2], forest);
                     shader.safeGetUniform("OvSkyTint").set(SKY_TINT[0], SKY_TINT[1], SKY_TINT[2], skyStrength);
                     shader.safeGetUniform("OvSkyTintB").set(DesignData.atmosphere().skyTintShade(), 0.0F, 0.0F, 0.0F);
+                    GiantTreeLight.set(shader);
                     // 点検 21(11-06): 木漏れ日は影の穴(日向の明るさへ戻すだけ)。ライトマップの持ち上げを写して、その面が日向よりどれだけ暗いかを出す。
                     // 幹の影の帯は design の light.trunkShadow*。
                     shader.safeGetUniform("OvLift").set(CanopyLift.skyLift(), CanopyLift.skyLiftDark(), night,

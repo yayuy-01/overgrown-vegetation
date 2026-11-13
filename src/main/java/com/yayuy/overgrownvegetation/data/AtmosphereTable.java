@@ -475,6 +475,8 @@ public final class AtmosphereTable {
         /** 点検 21(11-06。値は仮決め): 過繁茂の外(バニラの森)の昼の林床の持ち上げ skyLiftOpen(過繁茂の分で skyLift へ寄せる)と、
          *  幹・地形の影の濃さ trunkShadow・届く高さの差 terrainShadowReach(11-06 バニラ地域の光 1 で太陽の向きの長さから変えた)・縁のぼけ trunkShadowSoft(届く高さのうち薄れていく割合)。 */
         public Double skyLiftOpen, trunkShadow, terrainShadowReach, trunkShadowSoft;
+        /** 11-13(値は仮決め): 森の外から見た巨大樹の空の光の下限(0〜1 = 0〜15 段。0 = 切る)。樹冠の下は空の光が 0 で、森の外からは幹が真っ黒だった(ov_giant.glsl)。 */
+        public Double giantOutsideSky;
         public Double moonShadeSide, moonShadeBack, moonShadeDown, moonShadeStrength;
         public Double moonMapStrength, moonMapPhaseMin, nightDesaturate;
         /** 夜の森の Mob を沈める(11-06、仮決め): 過繁茂の森の夜に Mob の明るさを満月 mobNightFull・新月 mobNightNew 倍へ(空の光の段で下げる。client/light/MobNightDim)。 */
@@ -632,6 +634,7 @@ public final class AtmosphereTable {
     private final float skyLiftNightFull, skyLiftNightNew, skyLiftDarkNight;
     private final float skyLiftNightFullOpen, skyLiftNightNewOpen;
     private final float skyLiftOpen, trunkShadow, terrainShadowReach, trunkShadowSoft;
+    private final float giantOutsideSky;
     private final float moonShadeSide, moonShadeBack, moonShadeDown, moonShadeStrength;
     private final float moonMapStrength, moonMapPhaseMin, nightDesaturate;
     private final float mobNightFull, mobNightNew;
@@ -715,6 +718,7 @@ public final class AtmosphereTable {
         this.skyLiftNightFullOpen = clamp(l.skyLiftNightFullOpen, 0.45, 0.0, 1.0);
         this.skyLiftNightNewOpen = clamp(l.skyLiftNightNewOpen, 0.12, 0.0, 1.0);
         this.skyLiftOpen = clamp(l.skyLiftOpen, 0.5, 0.0, 1.0);
+        this.giantOutsideSky = clamp(l.giantOutsideSky, 0.8, 0.0, 1.0);
         this.trunkShadow = clamp(l.trunkShadow, 0.25, 0.0, 0.9);
         this.terrainShadowReach = clamp(l.terrainShadowReach, 32.0, 2.0, 64.0);
         this.trunkShadowSoft = clamp(l.trunkShadowSoft, 0.5, 0.0, 1.0);
@@ -951,6 +955,11 @@ public final class AtmosphereTable {
 
     public float skyLiftNightNewOpen() {
         return skyLiftNightNewOpen;
+    }
+
+    /** 森の外から見た巨大樹の空の光の下限(11-13、0〜1)。 */
+    public float giantOutsideSky() {
+        return giantOutsideSky;
     }
 
     /** 過繁茂の外の昼の林床の持ち上げ(点検 21)。 */

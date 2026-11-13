@@ -203,6 +203,16 @@ final class MistView {
         return new float[]{Math.min(1.0F, c[0] * s), Math.min(1.0F, c[1] * s), Math.min(1.0F, c[2] * s)};
     }
 
+    /** 雲に掛ける分(11-13、{@link CloudHaze}): 空の丸天井を霧の色で満たしている割合(0〜1)。 */
+    static float cloudWall() {
+        return whiteSky();
+    }
+
+    /** 雲に掛ける分(11-13、{@link CloudHaze}): カメラの所の森の霞の濃さ(1 ブロックあたり。胞子の空気・空気遠近は入れない)。 */
+    static float cloudK() {
+        return hazeK(sporeFog(), MistFog.forestReach());
+    }
+
     /** 森の中で空を白く飛ばす度合い(0〜1)。 */
     private static float whiteSky() {
         return ForestPresence.fogForest() * DesignData.atmosphere().fog().forestSky();

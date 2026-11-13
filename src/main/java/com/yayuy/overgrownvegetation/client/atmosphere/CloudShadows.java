@@ -372,7 +372,8 @@ public final class CloudShadows {
     }
 
     public static String describe() {
-        return String.format("雲の影 地図 %s 昼 %.2f 日差し %.2f 薄明光線 %d 本", shown != null, lastBase, visibility, CrepuscularRays.count());
+        return String.format("雲の影 地図 %s 昼 %.2f 日差し %.2f 薄明光線 %d 本", shown != null, lastBase, visibility, CrepuscularRays.count())
+                + " / " + GiantTreeLight.describe();
     }
 
     private CloudShadows() {

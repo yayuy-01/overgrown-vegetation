@@ -695,6 +695,8 @@ public final class VoxelClouds implements CloudRenderer {
         // 地平の霧の色(改善 ③④): 遠くの雲・曇りの天井・夜の遠い雲の底をここへ溶かす。
         float[] horizon = RenderSystem.getShaderFogColor();
         shader.safeGetUniform("HorizonColor").set(horizon[0], horizon[1], horizon[2], 1.0F);
+        // 森の霞(11-13 見え方の点検 A): 霞で満ちた空の中では雲も霞に溶かす。
+        com.yayuy.overgrownvegetation.client.atmosphere.CloudHaze.set(shader);
         float[] clear = clearCloudColor(level, partialTick);
         shader.safeGetUniform("Rough").set(clear[0], clear[1], clear[2], roughness(level, partialTick));
         // 風の筋の向き = ふだんの向きの風(固定)。今の風の向きにすると、場の座標の原点のまわりで模様ごと回って速く流れて見えた(10-18)。
