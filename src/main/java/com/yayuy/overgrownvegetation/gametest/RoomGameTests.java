@@ -437,6 +437,12 @@ public final class RoomGameTests {
         check(helper, "下付きハーフ", Blocks.OAK_SLAB.defaultBlockState(), AirCells.BLOCK_Y, false);
         check(helper, "葉", Blocks.OAK_LEAVES.defaultBlockState(), 0, false);
         if ((AirCells.of(Blocks.BARRIER.defaultBlockState()) & AirCells.OUTSIDE) == 0) helper.fail("バリアが外でない");
+        check(helper, "ソウルサンド(見た目は満ちた形)", Blocks.SOUL_SAND.defaultBlockState(), AirCells.SOLID, true);
+        check(helper, "泥", Blocks.MUD.defaultBlockState(), AirCells.SOLID, false);
+        check(helper, "耕地(15/16)", Blocks.FARMLAND.defaultBlockState(), AirCells.SOLID, false);
+        check(helper, "巨大樹の幹", com.yayuy.overgrownvegetation.registry.ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState(), AirCells.SOLID, true);
+        check(helper, "汚染された木材(家の材料は人の手のまま)", net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(
+                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "overgrown_planks")).defaultBlockState(), AirCells.SOLID, false);
         helper.succeed();
     }
 

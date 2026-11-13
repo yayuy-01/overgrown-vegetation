@@ -108,7 +108,9 @@ public final class RoomCache {
         scans++;
         if (scan.status() == RoomScan.Status.UNLOADED || scan.cells().isEmpty()) return scan;
         if (d.byCell.size() + scan.cells().size() > spec.maxCachedCells()) d.byCell.clear();
-        Entry ne = new Entry(scan, now + (scan.isRoom() ? spec.roomTtlTicks() : spec.openTtlTicks()));
+        // 部屋・自然の空洞・大きすぎる空間は、中や境界の変化で捨てられるので長く覚える(大きすぎる空間の先でふさいだのは見えないが、まれ)。
+        // 外へ抜けた結果だけ短く(抜けた先の列の空を遠くでふさいだのは見えない)
+        Entry ne = new Entry(scan, now + (scan.status() == RoomScan.Status.OPEN ? spec.openTtlTicks() : spec.roomTtlTicks()));
         for (LongIterator it = scan.cells().iterator(); it.hasNext(); ) d.byCell.put(it.nextLong(), ne);
         return scan;
     }

@@ -104,6 +104,12 @@ public final class AirCells {
         }
         if (shape.isEmpty()) return 0;
         if (shape == Shapes.block()) return (byte) (SOLID | COLLIDES | natural);
+        // 見た目は満ちたブロック(ソウルサンド・泥: 当たり判定は 14/16)は壁【仮】
+        try {
+            if (Block.isShapeFullBlock(state.getShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO))) return (byte) (SOLID | COLLIDES | natural);
+        } catch (RuntimeException ignored) {
+            // 形が世界に依るブロックは当たり判定の投影だけで見る
+        }
         byte out = (byte) (COLLIDES | natural);
         for (int axis = 0; axis < 3; axis++) {
             if (projectionFull(shape, axis)) out |= (byte) (1 << axis);
@@ -123,8 +129,10 @@ public final class AirCells {
             int iu0 = cell(u0, false), iu1 = cell(u1, true), iv0 = cell(v0, false), iv1 = cell(v1, true);
             for (int u = iu0; u < iu1; u++) for (int v = iv0; v < iv1; v++) cover[u * 16 + v] = true;
         }
-        for (boolean c : cover) if (!c) return false;
-        return true;
+        // 1/16 の 1 列ぶん(16 格)までの欠けは埋まっているとみなす【仮】(耕地・土の道の 15/16 の高さを壁に数える)
+        int open = 0;
+        for (boolean c : cover) if (!c) open++;
+        return open <= 16;
     }
 
     private static int cell(double d, boolean upper) {

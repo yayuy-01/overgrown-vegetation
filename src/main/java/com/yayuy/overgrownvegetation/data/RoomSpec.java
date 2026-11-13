@@ -12,7 +12,7 @@ package com.yayuy.overgrownvegetation.data;
  *
  * <h2>仮決め(数はすべて【仮】)</h2>
  * 上限 4096 マス(16×16×16 相当。幅 20 × 奥行 20 × 高さ 4 の広間 1600 が入る)・どの向きも 64 ブロックまで・
- * 部屋だった結果は 6000 tick、部屋でなかった結果は 200 tick 覚える(ブロックが変われば待たずに捨てる)・1 tick に新しくたどるのは 1 次元 4 回まで・
+ * 部屋・自然の空洞・大きすぎる結果は 6000 tick、外へ抜けた結果は 200 tick 覚える(ブロックが変われば待たずに捨てる)・1 tick に新しくたどるのは 1 次元 2 回まで(上限までたどると本物の世界で 1 回 1〜3 ms)・
  * 覚えるマスの合計が 300000 を超えたら全部捨てる・「人の手のブロック」が境界に 1 つも無い空間(自然の洞窟のふさがった袋)は部屋にしない。
  */
 public record RoomSpec(
@@ -34,9 +34,9 @@ public record RoomSpec(
         public Integer maxCells;
         /** 部屋の差し渡しの上限(ブロック。東西・上下・南北のどれか)。細長いトンネルを上限まで追わない。 */
         public Integer maxSpan;
-        /** 「部屋だった」結果を覚える長さ(tick)。中や境界のブロックが変われば待たずに捨てる。 */
+        /** 「部屋だった」「自然の空洞」「大きすぎる」結果を覚える長さ(tick)。中や境界のブロックが変われば待たずに捨てる。 */
         public Integer roomTtlTicks;
-        /** 「部屋でなかった」結果を覚える長さ(tick)。遠くでふさいだのは見えないので短め。 */
+        /** 「外へ抜けた」結果を覚える長さ(tick)。抜けた先の空を遠くでふさいだのは見えないので短め。 */
         public Integer openTtlTicks;
         /** 1 tick・1 次元あたり、新しくたどる回数の上限(超えた分はその回は「部屋でない」と読む)。 */
         public Integer maxSearchesPerTick;
@@ -56,7 +56,7 @@ public record RoomSpec(
                 clamp(s.maxSpan, 64, 3, 256),
                 clamp(s.roomTtlTicks, 6000, 20, 72000),
                 clamp(s.openTtlTicks, 200, 1, 72000),
-                clamp(s.maxSearchesPerTick, 4, 1, 64),
+                clamp(s.maxSearchesPerTick, 2, 1, 64),
                 clamp(s.maxCachedCells, 300_000, 1000, 5_000_000),
                 s.requireBuiltWall == null || s.requireBuiltWall);
     }

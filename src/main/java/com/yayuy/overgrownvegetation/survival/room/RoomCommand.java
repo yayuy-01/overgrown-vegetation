@@ -34,7 +34,29 @@ public final class RoomCommand {
                         .then(Commands.literal("spore")
                                 .then(Commands.literal("room")
                                         .executes(RoomCommand::show)
-                                        .then(Commands.literal("stats").executes(RoomCommand::stats))))));
+                                        .then(Commands.literal("stats").executes(RoomCommand::stats))
+                                        .then(Commands.literal("bench").executes(RoomCommand::bench))))));
+    }
+
+    /** 覚えを使わずに今の場所から 20 回たどり、1 回の時間を測る(本物の世界での費用。大きな洞窟・ネザーで上限までたどる重さ)。 */
+    private static int bench(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack src = ctx.getSource();
+        ServerLevel level = src.getLevel();
+        RoomCache.LevelWorld w = new RoomCache.LevelWorld(level);
+        BlockPos start = RoomFinder.start(w, BlockPos.containing(src.getPosition()));
+        if (start == null) {
+            src.sendFailure(Component.literal("ブロックの中"));
+            return 0;
+        }
+        com.yayuy.overgrownvegetation.data.RoomSpec spec = com.yayuy.overgrownvegetation.data.DesignData.sporeField().room();
+        RoomScan last = RoomFinder.scan(w, start, spec, false);
+        long t0 = System.nanoTime();
+        for (int i = 0; i < 20; i++) last = RoomFinder.scan(new RoomCache.LevelWorld(level), start, spec, false);
+        double ms = (System.nanoTime() - t0) / 1.0E6D / 20;
+        RoomScan r = last;
+        src.sendSuccess(() -> Component.literal(String.format("部屋をたどる 1 回 %.3f ms(%s・%d マス・空が開けている: %s)",
+                ms, r.status().label, r.volume(), w.openSky(start.getX(), start.getY(), start.getZ()))), false);
+        return 1;
     }
 
     private static int show(CommandContext<CommandSourceStack> ctx) {
