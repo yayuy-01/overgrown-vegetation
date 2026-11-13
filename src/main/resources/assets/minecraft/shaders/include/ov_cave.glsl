@@ -51,6 +51,9 @@ uniform vec4 OvCaveMouth;
 // sight that runs through cave air (ovCaveFog). 0 = the old way (devbridge "wind cavedev local off"; a fluid at the camera; fog off).
 uniform vec4 OvCaveLocal;
 uniform vec4 OvCaveSurfColor;
+// Wet rock (11-14, shader polish F; client/atmosphere/CaveWetRock.java): cave rock is damp, so the point lights and the lights in hand
+// leave a soft highlight on solid faces where the eye sees their reflection (Blinn). OvCaveWet = (strength; 0 = off, shininess, -, -).
+uniform vec4 OvCaveWet;
 
 float ovCaveCam() {
     return OvCaveLocal.x > 0.5 ? OvCaveLocal.y : OvCave.y;
@@ -315,6 +318,7 @@ vec3 ovCaveHazeOver(vec3 color, bool path) {
 vec3 ovCaveLight(vec3 color, vec3 albedo, vec3 pos, vec3 n, float facing, float under, float block) {
     ovCaveAdd = vec3(0.0);
     ovCaveLightNow = vec3(0.0);
+    bool ovWetRock = OvCaveWet.x > 0.0 && facing > 0.99;
     // 11-04 (13 continued, the floor under a hole in the roof darker than around it): under holds the sky light (12 -> 4 of 15), so the
     // sunlit floor right under the hole got neither the raised floor nor the point lights and stayed at the bare vanilla light, darker
     // than the cave floor around it. While the camera is in a cave, near it (the same 0.6 fogStart .. fogStart as ovCaveUnder) both go
@@ -347,6 +351,9 @@ vec3 ovCaveLight(vec3 color, vec3 albedo, vec3 pos, vec3 n, float facing, float 
         }
     }
     vec3 hsum = vec3(0.0);
+    // Wet rock: solid faces only (ovWetRock, taken at the top from the facing the caller passed: leaves pass -1, thin plants 0).
+    vec3 wetSpec = vec3(0.0);
+    vec3 wetView = normalize(-pos);
     if (under <= 0.0 && surf <= 0.0 && held == 0) {
         return color;
     }
@@ -377,6 +384,10 @@ vec3 ovCaveLight(vec3 color, vec3 albedo, vec3 pos, vec3 n, float facing, float 
         float ndl = dot(n, to / max(d, 0.001));
         float lambert = mix(1.0, clamp(ndl * 0.75 + 0.25, 0.0, 1.0), facing);
         sum += c.rgb * att * lambert;
+        if (ovWetRock && ndl > 0.0) {
+            vec3 hv = normalize(to / max(d, 0.001) + wetView);
+            wetSpec += c.rgb * att * pow(max(dot(n, hv), 0.0), max(OvCaveWet.y, 1.0));
+        }
         if (i < held) {
             hsum += c.rgb * att * lambert;
             continue;
@@ -421,7 +432,9 @@ vec3 ovCaveLight(vec3 color, vec3 albedo, vec3 pos, vec3 n, float facing, float 
     vec3 floorAlbedo = mix(albedo, vec3(dot(albedo, lum)), extra2.x);
     ovCaveAdd = albedo * sum * OvCave.z * under * overLights;
     ovCaveLightNow += sum * OvCave.z * under * overLights;
-    vec3 lit = color + floorAlbedo * extra.rgb * under * overLift + ovCaveAdd;
+    // The wet highlight follows the brightness of the texel a little (darker pits stay matt), and only underground.
+    vec3 wetAdd = wetSpec * OvCaveWet.x * under * overLights * (0.35 + 0.65 * dot(albedo, lum));
+    vec3 lit = color + floorAlbedo * extra.rgb * under * overLift + ovCaveAdd + wetAdd;
     // Soft clip of the brightest channel above the knee (only where the lights added something), losing saturation as it climbs.
     float knee = clamp(extra.w, 0.1, 1.0);
     float top = max(lit.r, max(lit.g, lit.b));

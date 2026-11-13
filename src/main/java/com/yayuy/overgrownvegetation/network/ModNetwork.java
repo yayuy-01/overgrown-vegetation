@@ -111,6 +111,12 @@ public final class ModNetwork {
                         () -> com.yayuy.overgrownvegetation.client.atmosphere.SporeAir.accept(payload)));
 
         registrar.playToClient(
+                LeyVeinMapPayload.TYPE,
+                LeyVeinMapPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(
+                        () -> com.yayuy.overgrownvegetation.client.atmosphere.LeyVeins.accept(payload)));
+
+        registrar.playToClient(
                 SporeDustPayload.TYPE,
                 SporeDustPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(

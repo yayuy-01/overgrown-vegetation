@@ -40,6 +40,10 @@ public final class AtmosphereTable {
         public AtmosphereEye.BloomJson bloom;
         /** 鉱石のきらめき(11-13 仕上げ E、{@link AtmosphereEye})。 */
         public AtmosphereEye.OreSparkleJson oreSparkle;
+        /** 濡れた岩の照り(11-14 仕上げ F、{@link AtmosphereEye})。 */
+        public AtmosphereEye.CaveWetJson caveWet;
+        /** 岩肌の地脈の筋(11-14 仕上げ F、{@link AtmosphereEye})。 */
+        public AtmosphereEye.LeyVeinsJson leyVeins;
         /** 過繁茂の外の洞窟(11-07、{@link AtmosphereEye})。 */
         public AtmosphereEye.CaveOpenJson caveOpen;
         /** 洞窟の天井の穴の光の筋(11-07、{@link AtmosphereEye})。 */
@@ -670,6 +674,8 @@ public final class AtmosphereTable {
     private final AtmosphereEye.EyeAdaptParams eyeAdapt;
     private final AtmosphereEye.BloomParams bloom;
     private final AtmosphereEye.OreSparkleParams oreSparkle;
+    private final AtmosphereEye.CaveWetParams caveWet;
+    private final AtmosphereEye.LeyVeinsParams leyVeins;
     private final AtmosphereEye.CaveOpenParams caveOpen;
     private final AtmosphereEye.CaveShaftsParams caveShafts;
     private final AtmosphereEye.CaveBreathParams caveBreath;
@@ -777,6 +783,8 @@ public final class AtmosphereTable {
         this.eyeAdapt = AtmosphereEye.EyeAdaptParams.of(j != null ? j.eyeAdapt : null);
         this.bloom = AtmosphereEye.BloomParams.of(j != null ? j.bloom : null);
         this.oreSparkle = AtmosphereEye.OreSparkleParams.of(j != null ? j.oreSparkle : null);
+        this.caveWet = AtmosphereEye.CaveWetParams.of(j != null ? j.caveWet : null);
+        this.leyVeins = AtmosphereEye.LeyVeinsParams.of(j != null ? j.leyVeins : null);
         this.caveOpen = AtmosphereEye.CaveOpenParams.of(j != null ? j.caveOpen : null);
         this.caveShafts = AtmosphereEye.CaveShaftsParams.of(j != null ? j.caveShafts : null);
         this.caveBreath = AtmosphereEye.CaveBreathParams.of(j != null ? j.caveBreath : null);
@@ -1202,6 +1210,16 @@ public final class AtmosphereTable {
     /** 鉱石のきらめき(節 oreSparkle、11-13 仕上げ E。{@link AtmosphereEye})。 */
     public AtmosphereEye.OreSparkleParams oreSparkle() {
         return oreSparkle;
+    }
+
+    /** 濡れた岩の照り(節 caveWet、11-14 仕上げ F。{@link AtmosphereEye})。 */
+    public AtmosphereEye.CaveWetParams caveWet() {
+        return caveWet;
+    }
+
+    /** 岩肌の地脈の筋(節 leyVeins、11-14 仕上げ F。{@link AtmosphereEye})。 */
+    public AtmosphereEye.LeyVeinsParams leyVeins() {
+        return leyVeins;
     }
 
     public AtmosphereAir.SporeAirParams sporeAir() {

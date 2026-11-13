@@ -6,6 +6,7 @@
 #moj_import <ov_caustic.glsl>
 #moj_import <ov_cave.glsl>
 #moj_import <ov_ore.glsl>
+#moj_import <ov_ley.glsl>
 #moj_import <ov_cloud.glsl>
 
 uniform sampler2D Sampler0;
@@ -47,6 +48,8 @@ void main() {
     color.rgb = ovCaveLight(color.rgb, tex.rgb * ovTint, ovPos, ovNormal, 1.0, ovUnder, ovLight.x);
     // Grains of ore glint where a point light or a light in hand reaches (ov_ore.glsl, 11-13).
     color.rgb = ovOreSparkle(color.rgb, texCoord0, ovPos, ovNormal, ovCaveLightNow);
+    // The veins of the ley on cave rock near a ley line (ov_ley.glsl, 11-14).
+    color.rgb = ovLeyVeins(color.rgb, tex.rgb * ovTint, ovPos, ovNormal, ovUnder);
     // Faces under cave water get darker with the depth (ov_cave.glsl, 11-06 light inspection 10).
     color.rgb = ovCaveWaterBottom(color.rgb, ovPos, ovNormal, ovUnder);
     // The glowing pixels: while the camera is outside they go in before the forest haze, and deep in a cave they stay dim (11-04).

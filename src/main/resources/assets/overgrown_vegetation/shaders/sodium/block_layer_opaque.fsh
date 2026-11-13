@@ -16,6 +16,7 @@
 #ov_import <ov_leaf.glsl>
 #ov_import <ov_cave.glsl>
 #ov_import <ov_ore.glsl>
+#ov_import <ov_ley.glsl>
 #ov_import <ov_cloud.glsl>
 #ov_import <ov_wave.glsl>
 #ov_import <ov_water.glsl>
@@ -137,6 +138,10 @@ void main() {
         color.rgb = ovCaveLight(color.rgb, ovAlbedo, ovPos, n, ovCutoff >= 2u ? -1.0 : facing, ovUnder, ovLight.x);
         // Grains of ore glint where a point light or a light in hand reaches (ov_ore.glsl, 11-13).
         color.rgb = ovOreSparkle(color.rgb, v_TexCoord, ovPos, n, ovCaveLightNow);
+        // The veins of the ley on cave rock near a ley line (ov_ley.glsl, 11-14): solid blocks only.
+        if (ovCutoff == 0u) {
+            color.rgb = ovLeyVeins(color.rgb, ovAlbedo, ovPos, n, ovUnder);
+        }
         // Faces under cave water get darker with the depth (ov_cave.glsl, 11-06 light inspection 10).
         color.rgb = ovCaveWaterBottom(color.rgb, ovPos, n, ovUnder);
         // The glowing pixels: while the camera is outside they go in before the forest haze, and deep in a cave they stay dim (11-04).

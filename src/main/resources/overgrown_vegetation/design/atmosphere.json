@@ -387,6 +387,20 @@
     "strength": 0.8,
     "share": 0.08
   },
+  "caveWet": {
+    "_comment": "濡れた岩の照り(2026-11-14 シェーダーの仕上げ F。ユーザー決定: 世界全体の洞窟。数は仮決め)。洞窟の不透明のブロックの面に、点光源・手の明かりの映り込みがやわらかく照る。enabled = false で切る。strength = 映り込みの強さ、shininess = 鋭さ(大きいほど小さく鋭い点)。",
+    "enabled": true,
+    "strength": 1.4,
+    "shininess": 10.0
+  },
+  "leyVeins": {
+    "_comment": "岩肌の地脈の筋(2026-11-14 シェーダーの仕上げ F。ユーザー決定: 岩肌にうっすら水色の地脈の筋・世界全体の洞窟・汚染地域は地脈の根と同じ色で、境目は滑らかに変わる。数と色の値は仮決め)。地脈の線の近くの洞窟の岩(灰色の画素)に、光る細い筋が見える。enabled = false で切る。strength = 筋の明るさ、reach = 地脈の線からこの距離(ブロック)で筋が消える、color = 通常世界の色(水色)、pollutedColor = 汚染地域の色(地脈の根の光 #ACE300)。",
+    "enabled": true,
+    "strength": 0.35,
+    "reach": 24.0,
+    "color": [0.55, 0.85, 1.0],
+    "pollutedColor": [0.675, 0.89, 0.0]
+  },
   "eyeAdapt": {
     "_comment": "11-07 洞窟の出入りの目の慣れ(明順応・暗順応。ユーザーの考え「暗い所から明るい所へ出た瞬間の視覚効果で、外と洞窟を違和感なくつなげる」)。ユーザー指定: 出るときは白く飛んで 2〜4 秒で戻る・白い間に地下モードの切り替えを済ませる・入るときは暗く光源だけが見え数秒で岩の輪郭が見える・強さは暗い所にいた時間で決める(口を少し出入りしただけならほとんど出ない)・強さはほどほど・世界全体・オフにできる(enabled false)。数はすべて仮決め: lightSeconds・darkSeconds = 目が慣れている明るさ(EV)が今の明るさを追う時定数(明るくなる向き・暗くなる向き)、deadband・range = 差(EV)が deadband を超えた分を range で 0 → 1(まぶしさ・暗さ)、今の明るさ = max((空の光/15)² × 昼の明るさ(夜は nightSky), (ブロックの光/15)² × blockWeight, floor)、glareExposure = 明るさの上乗せ・glareBloom = 明るい所のにじみ・glareWash = 白へ寄せる(コントラストを下げる)・glareDesaturate = 彩度を抜く、darkAmbient = 入った直後の地下の床の持ち上げの倍率・darkShadow = 地下で暗い所をさらに沈める割合、hideSeconds = まぶしさ・暗さが hideFrom を超えている間の地下モードの寄せの時定数(普段は fog.transitionCaveSeconds)。シェーダーパック使用中は掛けない。",
     "enabled": true,

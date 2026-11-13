@@ -11,7 +11,8 @@
         { "name": "OvCaveMap" },
         { "name": "OvWaterMap" },
         { "name": "OvCloudMap" },
-        { "name": "OvOreMask" }
+        { "name": "OvOreMask" },
+        { "name": "OvLeyMap" }
     ],
     "uniforms": [
         { "name": "ModelViewMat", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
@@ -39,6 +40,11 @@
         { "name": "OvGiantK", "type": "float", "count": 4, "values": [ 0.0, 24.0, 40.0, 0.0 ] },
         { "name": "OvOre", "type": "float", "count": 4, "values": [ 0.0, 0.0, 1024.0, 1024.0 ] },
         { "name": "OvOreB", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.08 ] },
+        { "name": "OvCaveWet", "type": "float", "count": 4, "values": [ 0.0, 20.0, 0.0, 0.0 ] },
+        { "name": "OvLey", "type": "float", "count": 4, "values": [ 0.0, 0.0, 192.0, 0.0 ] },
+        { "name": "OvLeyB", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+        { "name": "OvLeyC", "type": "float", "count": 4, "values": [ 0.55, 0.85, 1.0, 24.0 ] },
+        { "name": "OvLeyD", "type": "float", "count": 4, "values": [ 0.675, 0.89, 0.0, 0.0 ] },
         { "name": "OvTrunk", "type": "float", "count": 4, "values": [ 0.0, 12.0, 0.5, 0.0 ] },
         { "name": "OvMoon", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.4, 0.0 ] },
         { "name": "OvMoonB", "type": "float", "count": 4, "values": [ 0.8, 0.5, 0.35, 0.0 ] },

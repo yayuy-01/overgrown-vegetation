@@ -84,6 +84,45 @@ public final class AtmosphereEye {
     }
 
     /**
+     * 濡れた岩の照り(節 caveWet、2026-11-14 シェーダーの仕上げ F。読むのは {@code client/atmosphere/CaveWetRock})。数は仮決め:
+     * {@code strength} = 映り込みの強さ、{@code shininess} = 鋭さ(大きいほど小さく鋭い点)。
+     */
+    public static final class CaveWetJson {
+        public Boolean enabled;
+        public Double strength, shininess;
+    }
+
+    public record CaveWetParams(boolean enabled, float strength, float shininess) {
+        static CaveWetParams of(CaveWetJson j) {
+            CaveWetJson v = j != null ? j : new CaveWetJson();
+            return new CaveWetParams(v.enabled == null || v.enabled, c(v.strength, 1.4, 0.0, 4.0), c(v.shininess, 10.0, 1.0, 256.0));
+        }
+    }
+
+    /**
+     * 岩肌の地脈の筋(節 leyVeins、2026-11-14 シェーダーの仕上げ F。読むのは {@code client/atmosphere/LeyVeins})。ユーザー決定: 岩肌に水色の筋・
+     * 世界全体の洞窟・汚染地域は地脈の根と同じ色で、境目は滑らかに変わる。数と色の値は仮決め:
+     * {@code strength} = 筋の明るさ、{@code reach} = 地脈の線からこの距離(ブロック)で筋が消える、{@code color} = 通常世界の色、
+     * {@code pollutedColor} = 汚染地域の色(地脈の根の光 #ACE300)。
+     */
+    public static final class LeyVeinsJson {
+        public Boolean enabled;
+        public Double strength, reach;
+        public double[] color, pollutedColor;
+    }
+
+    public record LeyVeinsParams(boolean enabled, float strength, float reach, float[] color, float[] pollutedColor) {
+        static LeyVeinsParams of(LeyVeinsJson j) {
+            LeyVeinsJson v = j != null ? j : new LeyVeinsJson();
+            double[] a = v.color != null && v.color.length >= 3 ? v.color : new double[]{0.55, 0.85, 1.0};
+            double[] b = v.pollutedColor != null && v.pollutedColor.length >= 3 ? v.pollutedColor : new double[]{0.675, 0.89, 0.0};
+            return new LeyVeinsParams(v.enabled == null || v.enabled, c(v.strength, 0.35, 0.0, 4.0), c(v.reach, 24.0, 2.0, 60.0),
+                    new float[]{c(a[0], 0.55, 0.0, 2.0), c(a[1], 0.85, 0.0, 2.0), c(a[2], 1.0, 0.0, 2.0)},
+                    new float[]{c(b[0], 0.675, 0.0, 2.0), c(b[1], 0.89, 0.0, 2.0), c(b[2], 0.0, 0.0, 2.0)});
+        }
+    }
+
+    /**
      * 過繁茂の外の洞窟(節 caveOpen、2026-11-07 判断の後の直し。ユーザー「おすすめで直す」)。地下モードの仕組みは世界全体、過繁茂らしさは色と見通しで出す 2 層の方針で、
      * 過繁茂の外の洞窟だけ値を変える(過繁茂の中は前のまま)。過繁茂の度合い(カメラの所の判定を blendSeconds で寄せたもの)で混ぜる。数はすべて仮決め:
      * <ul>

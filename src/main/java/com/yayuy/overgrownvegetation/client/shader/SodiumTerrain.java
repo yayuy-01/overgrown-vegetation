@@ -376,6 +376,9 @@ public final class SodiumTerrain {
     public static void notePass(@Nullable Boolean translucent) {
         passTranslucent = translucent;
     }
+    /** GlStateManager が結び先を覚えているテクスチャのユニットの数(バニラの配列の長さ)。 */
+    private static final int GL_STATE_UNITS = 12;
+
 
     /** 今結ばれている Sodium の地形のプログラムへ、この MOD の uniform とテクスチャを流す。 */
     public static void upload() {
@@ -411,6 +414,13 @@ public final class SodiumTerrain {
                     // 11-05(林冠の影が地形に掛かっていなかった件): GlStateManager の覚えている結び先が実際と食い違うことがあり
                     // (ユニット 4〜6 で覚えは「結んである」のに実際は 0)、そのときは _bindTexture が何もしないで終わっていた。
                     // 覚えと実際をそろえたまま必ず結ぶ: 有効なユニットは GL でも直に選び、いったん 0 を結んでから結び直す。
+                    if (unit >= GL_STATE_UNITS) {
+                        // 11-14(地脈の筋でテクスチャが 11 個になり、ユニット 12 で落ちた): GlStateManager が覚えているのはユニット 0〜11 だけ
+                        // (配列の長さ 12)。それより上は GlStateManager を通さず GL へ直に結ぶ(覚えが無いので食い違いも起きない)。
+                        GL13.glActiveTexture(GL13.GL_TEXTURE0 + unit);
+                        GL11.glBindTexture(GL11.GL_TEXTURE_2D, id);
+                        continue;
+                    }
                     GlStateManager._activeTexture(GL13.GL_TEXTURE0 + unit);
                     GL13.glActiveTexture(GL13.GL_TEXTURE0 + unit);
                     GlStateManager._bindTexture(0);
