@@ -116,7 +116,7 @@ public final class AtmosphereEye {
             LeyVeinsJson v = j != null ? j : new LeyVeinsJson();
             double[] a = v.color != null && v.color.length >= 3 ? v.color : new double[]{0.55, 0.85, 1.0};
             double[] b = v.pollutedColor != null && v.pollutedColor.length >= 3 ? v.pollutedColor : new double[]{0.675, 0.89, 0.0};
-            return new LeyVeinsParams(v.enabled == null || v.enabled, c(v.strength, 0.35, 0.0, 4.0), c(v.reach, 24.0, 2.0, 60.0),
+            return new LeyVeinsParams(v.enabled == null || v.enabled, c(v.strength, 0.35, 0.0, 4.0), c(v.reach, 12.0, 2.0, 60.0),
                     new float[]{c(a[0], 0.55, 0.0, 2.0), c(a[1], 0.85, 0.0, 2.0), c(a[2], 1.0, 0.0, 2.0)},
                     new float[]{c(b[0], 0.675, 0.0, 2.0), c(b[1], 0.89, 0.0, 2.0), c(b[2], 0.0, 0.0, 2.0)});
         }
