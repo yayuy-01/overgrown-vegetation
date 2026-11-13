@@ -6,7 +6,7 @@ import software.bernie.geckolib.renderer.GeoEntityRenderer;
 
 /**
  * 「フィロセンス」の描画。描画倍率は掛けない(画素の大きさを揃える決まり)。発光マスク {@code phyllosens_glowmask.png}(花の芯)は
- * 見張り・焼く光の間だけ光る決まり(仕様 4 節)なので、歩くだけの段 1 では重ねない。
+ * 見張り・覗きで見ている間だけ重ねる(仕様 4 節。段 2 の 11-14 から。PhyllosensGaze#glowing)。
  * 影は出さない: エンティティの位置は胴(地面から 2.5〜6.5 上)で、バニラの影は位置の真下の近くにしか落ちない。
  */
 public class PhyllosensRenderer extends GeoEntityRenderer<PhyllosensEntity> {

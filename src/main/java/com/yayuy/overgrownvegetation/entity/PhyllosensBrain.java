@@ -276,23 +276,25 @@ public final class PhyllosensBrain {
     /** 歩いている間、かがんでいる・頭の上が塞がっているなら首を前・下へ(葉に埋めない)。 */
     private void duck(ServerLevel level) {
         if ((this.modeT & 7) != 0) return;
+        if (!this.w.ready()) return;
         Vec3 pos = this.mob.position();
         float yaw = this.mob.getYRot();
-        boolean blocked = false;
-        BlockPos.MutableBlockPos q = new BlockPos.MutableBlockPos();
+        // 塞がっている = 首の付け根から静止の頭(と上 1 マス)までの線が通らない。かがんでいる間(胴の中心が crouchBelow より低い)は必ず逃がす。
+        // 前は静止の頭の上 3 マスだけを見ていて、葉の天井の下でかがむと頭が天井より上にあり、首が葉を突き抜けた(11-14 見直し)
+        Vec3 base0 = StiltNeck.baseWorld(this.g.shape, pos, yaw, 0.0D);
         Vec3 head = this.g.restHead(pos, yaw);
-        for (int dy = 0; dy <= 2 && !blocked; dy++) {
-            q.set(Mth.floor(head.x), Mth.floor(head.y) + dy, Mth.floor(head.z));
-            blocked = StiltSight.blocks(level, q) || !level.getBlockState(q).getCollisionShape(level, q).isEmpty();
-        }
+        boolean blocked = !StiltSight.canSee(level, base0, head) || !StiltSight.canSee(level, base0, head.add(0, 1.0D, 0));
+        double gy = 0.0D;
+        for (int i = 0; i < 4; i++) gy += this.w.foot(i).y / 4.0D;
+        if (pos.y + this.p.bodyHalf - gy < this.p.crouchBelow) blocked = true;
         if (!blocked) {
             this.g.aim(null, null);
             return;
         }
-        Vec3 base = StiltNeck.baseWorld(this.g.shape, pos, yaw, 0.0D);
+        // 逃がし先: 胴の中心の高さで前へ 3(葉の天井の層より下)
         Vec3 fwd = Vec3.directionFromRotation(0.0F, yaw);
-        Vec3 h = base.add(fwd.scale(3.2D)).add(0, -0.4D, 0);
-        this.g.aim(h, h.add(fwd.scale(3.0D)).add(0, -0.5D, 0));
+        Vec3 h = pos.add(0, this.p.bodyHalf, 0).add(fwd.scale(3.0D));
+        this.g.aim(h, h.add(fwd.scale(3.0D)).add(0, -0.3D, 0));
     }
 
     // ------------------------------------------------------------------ 見張り

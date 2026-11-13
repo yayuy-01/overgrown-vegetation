@@ -245,14 +245,20 @@ public final class StiltGameTests {
     @GameTest(template = "gametest_empty7", timeoutTicks = 1000, batch = "stilt")
     public static void crouchesUnderALeafCeiling(GameTestHelper helper) {
         double[] lowest = {99.0D};
+        boolean[] ducked = {false};
         run(helper, a -> fill(a.level, a.x(13), 104, a.z(0), a.x(19), 105, a.z(SIZE - 1), leaves()),
                 4.5, 16.5, 27.0, 16.0, 950, (a, e) -> {
                     feetInOpen(a, e);
                     double x = e.getX() - a.x0;
-                    if (x > 13.5D && x < 18.5D) lowest[0] = Math.min(lowest[0], center(e) - FLOOR);
+                    if (x > 13.5D && x < 18.5D) {
+                        lowest[0] = Math.min(lowest[0], center(e) - FLOOR);
+                        // 段 2(11-14): 葉の下では首を前・下へ逃がす(頭の付け根が葉の層の下にあること)
+                        if (e.gaze().aiming() && e.gaze().headWorld(e).y < 104.0D) ducked[0] = true;
+                    }
                 }, (a, e) -> {
                     arrived(a, e, 27.0, 16.0);
                     if (lowest[0] > 4.0D) helper.fail(String.format(Locale.ROOT, "かがんでいない(葉の下の胴の高さ %.2f)", lowest[0]));
+                    if (!ducked[0]) helper.fail("葉の下で首を逃がしていない(頭が葉の層に入る)");
                 });
     }
 
