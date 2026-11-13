@@ -1,7 +1,7 @@
 package com.yayuy.overgrownvegetation.registry;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.data.DesignData;
+import com.yayuy.overgrownvegetation.data.ItemTable;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ArmorItem;
@@ -89,25 +89,30 @@ public final class CreativeTabOrder {
     @javax.annotation.Nullable
     private static String tabKeyOf(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == ModCreativeTabs.PLANTS.getKey()) {
+            return ItemTable.PLANTS;
         }
         return null;
     }
 
+    /**
+     * {@code items.json} に並びが書いてあれば、その順に並べ直す(2026-11-13 に戻した。新しい mod マネージャーの
+     * 「アイテム」タブが書く)。<b>書いた物が書いた順で先、書いていない物は {@link ModCreativeTabs} が積んだ順のまま後ろ</b>
+     * (安定な並べ替え)なので、Java へ新しいアイテムを足しても消えず、並べた所も動かない。
+     * 区分({@link Section})での並べ直しは 10-30 の退避から止めたまま。
+     */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onBuildTab(BuildCreativeModeTabContentsEvent event) {
         String tab = tabKeyOf(event);
         if (tab == null) {
             return;
         }
-
-        List<ItemStack> entries = new ArrayList<>(event.getParentEntries());
-        // 逆に、このタブへ回すと書いてあるのにまだ居ないアイテムは連れてくる。
-        Set<Item> present = new HashSet<>();
-        for (ItemStack stack : entries) {
-            present.add(stack.getItem());
+        ItemTable table = ItemTable.get();
+        if (!table.hasOrder(tab)) {
+            return;
         }
 
-        List<ItemStack> sorted = new ArrayList<>(entries);
+        List<ItemStack> sorted = new ArrayList<>(event.getParentEntries());
+        sorted.sort(Comparator.comparingInt((ItemStack stack) -> table.indexIn(tab, idOf(stack.getItem()))));
         if (sorted.equals(new ArrayList<>(event.getParentEntries()))) {
             return;
         }
