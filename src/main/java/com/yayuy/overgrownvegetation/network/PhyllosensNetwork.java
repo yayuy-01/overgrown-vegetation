@@ -18,7 +18,7 @@ public final class PhyllosensNetwork {
 
     @SubscribeEvent
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("phyllosens-2");
+        PayloadRegistrar registrar = event.registrar("phyllosens-3");
         registrar.playToClient(
                 PhyllosensGazePayload.TYPE,
                 PhyllosensGazePayload.STREAM_CODEC,

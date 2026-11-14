@@ -66,12 +66,17 @@ public final class PhyllosensGazeEdge {
                 }
                 t[1] = now;
                 t[2] = Math.max(p.event() == PhyllosensGazePayload.START ? 0.0F : t[2], p.strength());
+                // 知らせが途切れて(通信の詰まり・時間の止まったサーバー)忘れた後でも、サーバーの数えた見え始め・印からの tick で戻す。
+                // 印の知らせは 1 回しか来ないので、これが無いと見え直した扱いのまま印が戻らなかった(11-14 Fable の指摘・tick freeze で再現)
                 if (seenSince < 0L) {
-                    seenSince = now;
+                    seenSince = p.sinceSeen() >= 0 ? now - p.sinceSeen() : now;
                     lostTick = -1L;
                     markTick = -1L;
                 }
-                if (p.event() == PhyllosensGazePayload.MARK && markTick < 0L) markTick = now;
+                if (markTick < 0L) {
+                    if (p.event() == PhyllosensGazePayload.MARK) markTick = now;
+                    else if (p.sinceMark() >= 0) markTick = now - p.sinceMark();
+                }
             }
             case PhyllosensGazePayload.LOST -> {
                 if (TOWERS.remove(p.tower()) != null && TOWERS.isEmpty()) lose();
@@ -89,6 +94,8 @@ public final class PhyllosensGazeEdge {
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
+        // ひとり用で一時停止の間はサーバーも止まって知らせが来ないので、この時計も止める(止めないと「切れた」扱いになる)
+        if (Minecraft.getInstance().isPaused()) return;
         now++;
         value0 = value;
         if (Minecraft.getInstance().player == null) {
@@ -178,7 +185,9 @@ public final class PhyllosensGazeEdge {
     public static final class Layers {
         @SubscribeEvent
         public static void onRegisterGuiLayers(RegisterGuiLayersEvent event) {
-            event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS, OvergrownVegetation.id("phyllosens_gaze_edge"), PhyllosensGazeEdge::render);
+            // 照準のすぐ下 = 画面の効果(CAMERA_OVERLAYS の上に足される暴露量のもや など)より上、照準・ホットバーより下。
+            // CAMERA_OVERLAYS の上に足すと、もやとの順が登録の順(決まらない)で入れ替わり、もやが目より上に来ることがあった(11-14)
+            event.registerBelow(VanillaGuiLayers.CROSSHAIR, OvergrownVegetation.id("phyllosens_gaze_edge"), PhyllosensGazeEdge::render);
         }
 
         private Layers() {

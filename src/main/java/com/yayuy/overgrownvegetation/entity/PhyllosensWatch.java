@@ -118,6 +118,7 @@ public final class PhyllosensWatch {
     @Nullable
     private ServerPlayer gazeTo;
     private boolean markSent;
+    private long markAt = -1L;
 
     // ---- 首(サーバーが決めて送る)
     private PeekKind kind = PeekKind.GAP;
@@ -385,7 +386,10 @@ public final class PhyllosensWatch {
 
     /** 画面の縁へ: 見られている本人だけへ知らせる(見え始め・見えている・印・切れた)。 */
     private void gaze(ServerPlayer sp, byte event, float strength) {
-        PacketDistributor.sendToPlayer(sp, new PhyllosensGazePayload(event, this.mob.getId(), strength));
+        long now = this.mob.level().getGameTime();
+        int seen = this.seenSince < 0L ? -1 : (int) Math.min(Integer.MAX_VALUE - 2, now - this.seenSince);
+        int mark = this.markSent && this.markAt >= 0L ? (int) Math.min(Integer.MAX_VALUE - 2, now - this.markAt) : -1;
+        PacketDistributor.sendToPlayer(sp, new PhyllosensGazePayload(event, this.mob.getId(), strength, seen, mark));
     }
 
     /** 視線が切れた(隠れた・閉じた・倒れた・相手が替わった)。 */
@@ -404,6 +408,7 @@ public final class PhyllosensWatch {
         PhyllosensWatchEffect.mark(t);
         if (!this.markSent && t == this.gazeTo && this.gazeTo != null) {
             this.markSent = true;
+            this.markAt = now;
             gaze(this.gazeTo, PhyllosensGazePayload.MARK, 1.0F);
         }
         if (!had || now - this.lastCall >= CALL_REFRESH) {
