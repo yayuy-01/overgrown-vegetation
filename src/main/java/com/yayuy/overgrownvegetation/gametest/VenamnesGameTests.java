@@ -162,6 +162,196 @@ public final class VenamnesGameTests {
         });
     }
 
+    // ------------------------------------------------------------------ 段 A(11-15): 追う・噛みつく・飛びかかる
+
+    /** 的: 動かない・日に焼けない・体力の多いハスク(噛まれた数を体力で数える)。 */
+    private static net.minecraft.world.entity.monster.Husk dummy(GameTestHelper helper, double x, double z) {
+        net.minecraft.world.entity.monster.Husk h = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.HUSK, new BlockPos(0, 2, 0));
+        Vec3 p = helper.absoluteVec(new Vec3(x, 2.0D, z));
+        h.moveTo(p.x, p.y, p.z, 0.0F, 0.0F);
+        h.setNoAi(true);
+        java.util.Objects.requireNonNull(h.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH)).setBaseValue(500.0D);
+        h.setHealth(500.0F);
+        return h;
+    }
+
+    private static float yawTo(Vec3 from, Vec3 to) {
+        return (float) (Math.atan2(to.z - from.z, to.x - from.x) * (180.0D / Math.PI)) - 90.0F;
+    }
+
+    /**
+     * 噛みつき: 前触れ(0.5 秒 + 補間)の間は当たらず、実行の 2〜3 tick 目に 1 回だけ当たる。隙(0.8 秒)の間は動かず・回らない。
+     * 的は真正面 3.5 ブロック(頭の真ん前)。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 80)
+    public static void biteHitsAfterWindupThenHoldsStill(GameTestHelper helper) {
+        VenamnesEntity v = placeAt(helper, 3.5D, 0.6D, 0.0F);
+        net.minecraft.world.entity.monster.Husk h = dummy(helper, 3.5D, 4.1D);
+        v.setTarget(h);
+        v.forceAction(VenamnesEntity.ACT_BITE_WINDUP);
+        int hitAt = VenamnesEntity.BITE_T.executeStart();
+        int[] tick = {0};
+        double[] still = new double[3];
+        helper.onEachTick(() -> {
+            tick[0]++;
+            int k = tick[0];
+            float lost = 500.0F - h.getHealth();
+            if (k < hitAt + 1 && lost > 0.0F) {
+                helper.fail("前触れの間に当たった(" + k + " tick 目)");
+                return;
+            }
+            if (k == hitAt + VenamnesEntity.BITE_T.execute() && lost <= 0.0F) {
+                helper.fail("実行の間に当たらなかった");
+                return;
+            }
+            if (v.getAction() == VenamnesEntity.ACT_BITE_RECOVER && v.actionTicks() == 1) {
+                still[0] = v.getX();
+                still[1] = v.getZ();
+                still[2] = v.getYRot();
+            }
+            if (v.getAction() == VenamnesEntity.ACT_BITE_RECOVER && v.actionTicks() >= VenamnesEntity.BITE_T.recover() - 1) {
+                double moved = Math.hypot(v.getX() - still[0], v.getZ() - still[1]);
+                if (moved > 0.05D || Math.abs(net.minecraft.util.Mth.wrapDegrees(v.getYRot() - (float) still[2])) > 0.5F) {
+                    helper.fail(String.format("隙の間に動いた(%.3f ブロック・%.1f 度)", moved, net.minecraft.util.Mth.wrapDegrees(v.getYRot() - (float) still[2])));
+                    return;
+                }
+                float dealt = 500.0F - h.getHealth();
+                double atk = v.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE);
+                if (dealt > atk * 1.5D) {
+                    helper.fail("2 回以上当たった(" + dealt + ")");
+                    return;
+                }
+                helper.succeed();
+            }
+        });
+    }
+
+    /**
+     * 飛びかかり: 前触れ(0.8 秒 + 補間)の後に跳び、決めた距離(頭が的に届く所)へ ±0.7 で着き、着地で 1 回当たる。着地の隙(1 秒)は
+     * 滑りが収まった後(6 tick 目から)動かない。テスト場は 7 × 7 なので対角線(7.6 ブロック)で。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 120)
+    public static void pounceLandsThenFreezes(GameTestHelper helper) {
+        Vec3 from = new Vec3(0.8D, 2.0D, 0.8D), to = new Vec3(6.2D, 2.0D, 6.2D);
+        VenamnesEntity v = placeAt(helper, from.x, from.z, yawTo(from, to));
+        net.minecraft.world.entity.monster.Husk h = dummy(helper, to.x, to.z);
+        v.setTarget(h);
+        v.forceAction(VenamnesEntity.ACT_POUNCE_WINDUP);
+        double[] launch = new double[2];
+        double[] land = new double[2];
+        double[] settled = new double[2];
+        boolean[] airborne = {false};
+        helper.onEachTick(() -> {
+            int act = v.getAction();
+            if (act == VenamnesEntity.ACT_POUNCE_WINDUP && v.actionTicks() > 4 && !v.onGround()) {   // 湧いた直後の数 tick はまだ着地を数えていない
+                helper.fail("前触れの間に地面を離れた");
+                return;
+            }
+            if (act == VenamnesEntity.ACT_POUNCE && v.actionTicks() == VenamnesEntity.POUNCE_LIFTOFF) {
+                launch[0] = v.getX();
+                launch[1] = v.getZ();
+            }
+            if (act == VenamnesEntity.ACT_POUNCE && !v.onGround()) airborne[0] = true;
+            if (act == VenamnesEntity.ACT_POUNCE_RECOVER && v.actionTicks() == 1) {
+                land[0] = v.getX();
+                land[1] = v.getZ();
+            }
+            if (act == VenamnesEntity.ACT_POUNCE_RECOVER && v.actionTicks() == 6) {
+                settled[0] = v.getX();
+                settled[1] = v.getZ();
+            }
+            if (act == VenamnesEntity.ACT_POUNCE_RECOVER && v.actionTicks() >= VenamnesEntity.POUNCE_RECOVER_T - 1) {
+                if (!airborne[0]) {
+                    helper.fail("跳ばなかった");
+                    return;
+                }
+                double flew = Math.hypot(land[0] - launch[0], land[1] - launch[1]);
+                if (Math.abs(flew - v.leapDistance()) > 0.7D) {
+                    helper.fail(String.format("跳んだ距離 %.2f が決めた距離 %.2f と合わない", flew, v.leapDistance()));
+                    return;
+                }
+                double moved = Math.hypot(v.getX() - settled[0], v.getZ() - settled[1]);
+                if (moved > 0.05D) {
+                    helper.fail(String.format("着地の隙に動いた(%.3f)", moved));
+                    return;
+                }
+                if (h.getHealth() >= 500.0F) {
+                    helper.fail(String.format("当たらなかった(跳んだ %.2f、的まで %.2f)", flew,
+                            Math.hypot(h.getX() - v.getX(), h.getZ() - v.getZ())));
+                    return;
+                }
+                helper.succeed();
+            }
+        });
+    }
+
+    /** 飛びかかりは跳ぶ前に向きを固める: 前触れの終わりに的が横へ出れば当たらない。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 120)
+    public static void pounceMissesWhenTargetSidesteps(GameTestHelper helper) {
+        Vec3 from = new Vec3(0.8D, 2.0D, 0.8D), to = new Vec3(6.2D, 2.0D, 6.2D);
+        VenamnesEntity v = placeAt(helper, from.x, from.z, yawTo(from, to));
+        net.minecraft.world.entity.monster.Husk h = dummy(helper, to.x, to.z);
+        v.setTarget(h);
+        v.forceAction(VenamnesEntity.ACT_POUNCE_WINDUP);
+        helper.onEachTick(() -> {
+            if (v.getAction() == VenamnesEntity.ACT_POUNCE_WINDUP && v.actionTicks() == VenamnesEntity.POUNCE_WINDUP_T - 2) {
+                Vec3 side = helper.absoluteVec(new Vec3(6.2D, 2.0D, 2.8D));   // 跳ぶ線から横へ約 2.4 ブロック
+                h.moveTo(side.x, side.y, side.z, 0.0F, 0.0F);
+            }
+            if (v.getAction() == VenamnesEntity.ACT_POUNCE_RECOVER && v.actionTicks() >= VenamnesEntity.POUNCE_RECOVER_T - 1) {
+                if (h.getHealth() < 500.0F) {
+                    helper.fail("横へ出たのに当たった");
+                    return;
+                }
+                helper.succeed();
+            }
+        });
+    }
+
+    /** 追う Goal: 標的を置くと寄って噛む(技を選ぶのは Goal)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 200)
+    public static void huntGoalClosesInAndBites(GameTestHelper helper) {
+        VenamnesEntity v = helper.spawn(ModRunners.VENAMNES.get(), new BlockPos(0, 2, 0));
+        Vec3 p = helper.absoluteVec(new Vec3(1.0D, 2.0D, 0.8D));
+        v.moveTo(p.x, p.y, p.z, 0.0F, 0.0F);
+        v.snapFacing(0.0F);
+        v.setCustomName(net.minecraft.network.chat.Component.literal("nostroll"));   // うろつかない・自分で標的を探さない
+        net.minecraft.world.entity.monster.Husk h = dummy(helper, 5.5D, 6.0D);
+        v.setTarget(h);
+        boolean[] bit = {false};
+        helper.onEachTick(() -> {
+            if (v.getAction() == VenamnesEntity.ACT_BITE_WINDUP || v.getAction() == VenamnesEntity.ACT_POUNCE_WINDUP) bit[0] = true;
+            if (h.getHealth() < 500.0F) {
+                if (!bit[0]) {
+                    helper.fail("技の前触れを通らずに当たった");
+                    return;
+                }
+                helper.succeed();
+            }
+        });
+    }
+
+    /** まっすぐの下見: 平らなら通る、間に幹 1 本・2 段の段差・水があれば通らない、1 段の段差は通る。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 5)
+    public static void steerCorridorCheck(GameTestHelper helper) {
+        Vec3 a = helper.absoluteVec(new Vec3(3.5D, 2.0D, 0.5D)), b = helper.absoluteVec(new Vec3(3.5D, 2.0D, 6.5D));
+        var lvl = helper.getLevel();
+        boolean open = com.yayuy.overgrownvegetation.entity.runner.ChaseSteer.clear(lvl, a, b, 0.6D, 24.0D);
+        helper.setBlock(new BlockPos(3, 2, 3), Blocks.STONE.defaultBlockState());   // 1 段の段差(1 マスだけ。体の幅の左右は平ら → 段の角で 1 段差 = 通る)
+        boolean step1 = com.yayuy.overgrownvegetation.entity.runner.ChaseSteer.clear(lvl, a, b, 0.6D, 24.0D);
+        helper.setBlock(new BlockPos(3, 3, 3), Blocks.OAK_LOG.defaultBlockState());   // 幹(2 段に積む)
+        boolean trunk = com.yayuy.overgrownvegetation.entity.runner.ChaseSteer.clear(lvl, a, b, 0.6D, 24.0D);
+        helper.setBlock(new BlockPos(3, 2, 3), Blocks.AIR.defaultBlockState());
+        helper.setBlock(new BlockPos(3, 3, 3), Blocks.AIR.defaultBlockState());
+        helper.setBlock(new BlockPos(3, 1, 4), Blocks.WATER.defaultBlockState());   // 床の水(足場にならない)
+        boolean water = com.yayuy.overgrownvegetation.entity.runner.ChaseSteer.clear(lvl, a, b, 0.6D, 24.0D);
+        if (!open || !step1 || trunk || water) {
+            helper.fail("下見が決まり通りでない: 平ら " + open + " 1 段 " + step1 + " 幹 " + trunk + " 水 " + water);
+            return;
+        }
+        helper.succeed();
+    }
+
     /** 開けた所の倍率: 幹まで 2 以下で 1、5 以上で上限、回っている間は 1 へ戻る。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 5)
     public static void sprintOnlyInTheOpen(GameTestHelper helper) {

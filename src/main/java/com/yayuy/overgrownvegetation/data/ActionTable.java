@@ -109,6 +109,14 @@ public final class ActionTable {
         a.put("leap", new ActionDef("leap", 70, 3.0D, 9.5D, 1.0D, 1.0D, 0.08D, 0.0D,
                 Map.of("horizontalSpeed", 1.15D, "lift", 0.55D)));
         DEFAULT_ACTIONS.put("arbora", Collections.unmodifiableMap(a));
+
+        // ヴェナムネス(11-15 段 A、すべて仮)。間合いは体の真ん中から相手の真ん中まで(頭は真ん中の約 3.3 ブロック前)。
+        // 噛みつき: 届けば出す(maxRange 0 = 種が決める振り始めの距離)。damage 0 = 種の攻撃力。
+        // 飛びかかり: 頭から相手まで約 4〜8 ブロック(= 真ん中から 7〜11)の相手へ、間合いに入った 1 tick ごとに 8%。lift = 跳ぶ上向きの勢い。
+        Map<String, ActionDef> v = new LinkedHashMap<>();
+        v.put("bite", new ActionDef("bite", 30, 0.0D, 0.0D, 1.0D, 1.0D, 1.0D, 0.0D, Map.of()));
+        v.put("pounce", new ActionDef("pounce", 100, 7.0D, 11.0D, 1.0D, 1.0D, 0.08D, 12.0D, Map.of("lift", 0.42D)));
+        DEFAULT_ACTIONS.put("venamnes", Collections.unmodifiableMap(v));
     }
 
     /** extra の表(鍵と値を交互に)。Map.of は 10 組までなので。 */

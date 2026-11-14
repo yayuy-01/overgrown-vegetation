@@ -45,5 +45,13 @@
       "leap": { "cooldown": 70, "minRange": 3, "maxRange": 9.5, "score": 1.0, "recency": 1.0, "chance": 0.08, "damage": 0,
         "extra": { "horizontalSpeed": 1.15, "lift": 0.55 } }
     }
+  },
+  "venamnes": {
+    "_comment": "ヴェナムネスの技(11-15 段 A、すべて仮)。間合いは体の真ん中から相手の真ん中まで(頭は真ん中の約 3.3 ブロック前)。bite = 噛みつき(届けば出す。damage 0 は種の攻撃力)、pounce = 飛びかかり(頭から相手まで約 4〜8 ブロック = 真ん中から 7〜11。chance は間合いに入った 1 tick ごとの確率。lift は跳ぶ上向きの勢い、横の勢いは届く距離から逆算)。時刻(前触れ・実行・隙)はアニメと対なので Java。",
+    "actions": {
+      "bite": { "cooldown": 30, "minRange": 0, "maxRange": 0, "score": 1.0, "recency": 1.0, "chance": 1.0, "damage": 0 },
+      "pounce": { "cooldown": 100, "minRange": 7, "maxRange": 11, "score": 1.0, "recency": 1.0, "chance": 0.08, "damage": 12,
+        "extra": { "lift": 0.42 } }
+    }
   }
 }
