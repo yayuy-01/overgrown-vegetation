@@ -73,6 +73,10 @@ public final class OvergrownClientConfig {
         public final ModConfigSpec.BooleanValue simpleAo;
         /** 雲(ボクセルの雲・雲の影・薄明光線・高空の晴天。2026-11-08 雲の段階 1)。シェーダーパック使用中はパックの雲に任せて描かない。 */
         public final ModConfigSpec.BooleanValue clouds;
+        /** 監視塔フィロセンスに見られているときの画面の縁(2026-11-14。client/PhyllosensGazeEdge)の強さ: 目の数の倍率(%)・視界の内側に開く目・鼓動の縁。 */
+        public final ModConfigSpec.IntValue gazeEyeScale;
+        public final ModConfigSpec.BooleanValue gazeInnerEyes;
+        public final ModConfigSpec.BooleanValue gazePulse;
 
         Client(ModConfigSpec.Builder b) {
             b.push("visual");
@@ -111,6 +115,11 @@ public final class OvergrownClientConfig {
             surfaceBump = b.comment("Relief of bark and rock from the light and dark of their textures under a low sun. Off by default: it assumes 16x16 textures, so resource packs with larger textures show seams.").define("surfaceBump", false);
             simpleAo = b.comment("Soft shade in crevices, at the foot of trunks, in wall corners and where plants meet the ground (screen-space ambient occlusion). Off by default: two full-screen passes every frame.").define("simpleAo", false);
             clouds = b.comment("Voxel clouds above y 300, their drifting shadows, crepuscular rays and the clear sky above the clouds (not drawn while a shader pack is in use).").define("clouds", true);
+            b.pop();
+            b.comment("The screen effect while a Phyllosens watchtower is watching you (2026-11-14). For players who find it too strong.").push("watched");
+            gazeEyeScale = b.comment("How many eyes open around the screen edge, in percent of the full number (0 = none).").defineInRange("gazeEyeScale", 100, 0, 100);
+            gazeInnerEyes = b.comment("Now and then an eye opens for a moment inside the view, near the crosshair.").define("gazeInnerEyes", true);
+            gazePulse = b.comment("The dark screen edge throbs like a heartbeat.").define("gazePulse", true);
             b.pop();
         }
     }

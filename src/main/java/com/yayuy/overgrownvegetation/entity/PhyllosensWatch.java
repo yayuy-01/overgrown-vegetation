@@ -9,6 +9,9 @@ import com.yayuy.overgrownvegetation.entity.tower.TowerNeck;
 import com.yayuy.overgrownvegetation.registry.ModPhyllosens;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import com.yayuy.overgrownvegetation.network.PhyllosensGazePayload;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
@@ -111,6 +114,10 @@ public final class PhyllosensWatch {
     private Vec3 basePuffAt;
     @Nullable
     private Vec3 headPuffAt;
+    /** 画面の縁の知らせを送っている相手と、この見え始めで印を知らせたか。 */
+    @Nullable
+    private ServerPlayer gazeTo;
+    private boolean markSent;
 
     // ---- 首(サーバーが決めて送る)
     private PeekKind kind = PeekKind.GAP;
@@ -361,12 +368,31 @@ public final class PhyllosensWatch {
             this.lastSeen = best.position();
             this.lastSeenAt = now;
             // 画面の縁: 視線が通った瞬間 0 → 印の 2 秒で 1 → 見られている間 1(見られている本人だけへ)
-            if (best instanceof net.minecraft.server.level.ServerPlayer sp) {
-                float s = Mth.clamp((now - this.seenSince) / (float) MARK_DELAY, 0.0F, 1.0F);
-                net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.PhyllosensGazePayload(Math.max(0.02F, s)));
+            if (best instanceof ServerPlayer sp) {
+                if (this.gazeTo != sp) {
+                    gazeLost();
+                    this.gazeTo = sp;
+                    this.markSent = false;
+                    gaze(sp, PhyllosensGazePayload.START, 0.0F);
+                }
+                gaze(sp, PhyllosensGazePayload.SEEN, Mth.clamp((now - this.seenSince) / (float) MARK_DELAY, 0.0F, 1.0F));
             }
         } else {
             this.seenSince = -1L;
+            gazeLost();
+        }
+    }
+
+    /** 画面の縁へ: 見られている本人だけへ知らせる(見え始め・見えている・印・切れた)。 */
+    private void gaze(ServerPlayer sp, byte event, float strength) {
+        PacketDistributor.sendToPlayer(sp, new PhyllosensGazePayload(event, this.mob.getId(), strength));
+    }
+
+    /** 視線が切れた(隠れた・閉じた・倒れた・相手が替わった)。 */
+    private void gazeLost() {
+        if (this.gazeTo != null) {
+            gaze(this.gazeTo, PhyllosensGazePayload.LOST, 0.0F);
+            this.gazeTo = null;
         }
     }
 
@@ -376,6 +402,10 @@ public final class PhyllosensWatch {
         if (!this.visible || t == null || this.seenSince < 0L || now - this.seenSince < MARK_DELAY) return;
         boolean had = t.hasEffect(ModPhyllosens.PHYLLOSENS_WATCH);
         PhyllosensWatchEffect.mark(t);
+        if (!this.markSent && t == this.gazeTo && this.gazeTo != null) {
+            this.markSent = true;
+            gaze(this.gazeTo, PhyllosensGazePayload.MARK, 1.0F);
+        }
         if (!had || now - this.lastCall >= CALL_REFRESH) {
             this.lastCall = now;
             PhyllosensCall.seen(this.mob, t);
@@ -779,6 +809,7 @@ public final class PhyllosensWatch {
     }
 
     void onDeath() {
+        gazeLost();
         enter(State.DEAD);
         if (this.mob.level() instanceof ServerLevel level) PhyllosensCall.cut(this.mob, level);
     }

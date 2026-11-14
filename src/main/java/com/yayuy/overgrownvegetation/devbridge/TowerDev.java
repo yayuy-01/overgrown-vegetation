@@ -90,7 +90,12 @@ final class TowerDev {
             }
         }
         Vec3 eye = w.eye();
-        log.accept(String.format(Locale.ROOT, "縁 %.2f ", com.yayuy.overgrownvegetation.client.PhyllosensGazeEdge.strength(1.0F)));
+        {
+            log.accept(String.format(Locale.ROOT, "縁 強さ %.2f 見える %s 塔 %d 見え始めから %d 印から %d 切れてから %d",
+                    com.yayuy.overgrownvegetation.client.PhyllosensGazeEdge.strength(1.0F), com.yayuy.overgrownvegetation.client.PhyllosensGazeEdge.visible(),
+                    com.yayuy.overgrownvegetation.client.PhyllosensGazeEdge.watchers(), com.yayuy.overgrownvegetation.client.PhyllosensGazeEdge.seenTicks(),
+                    com.yayuy.overgrownvegetation.client.PhyllosensGazeEdge.ticksSinceMark(), com.yayuy.overgrownvegetation.client.PhyllosensGazeEdge.lostTicks()));
+        }
         log.accept(String.format(Locale.ROOT, "TOWERDEV %s 状態 %s(%d)覗き %s 効き %.2f 見つめ %.2f 目 (%.1f %.1f %.1f) 塔 (%.1f %.1f %.1f) 向き %.0f 記録 [%s]",
                 p[0], w.state(), w.stateTicks(), w.peekKind(), w.peekWeight(), w.lockWeight(), eye.x, eye.y, eye.z, e.getX(), e.getY(), e.getZ(), e.getYRot(), w.note));
     }
