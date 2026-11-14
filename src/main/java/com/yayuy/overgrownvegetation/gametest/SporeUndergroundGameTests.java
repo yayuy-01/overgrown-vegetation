@@ -178,7 +178,7 @@ public final class SporeUndergroundGameTests {
         double under = a.under(0, 0), underDep = a.underDeposited(0, 0);
         helper.assertTrue(under > 0, "テストの前提: 地下の浮遊が 0");
         CompoundTag tag = SporeFieldServer.tileTagForTests(a, 0, 0);
-        helper.assertTrue(tag.getInt("ver") == 3, "版が 3 でない: " + tag.getInt("ver"));
+        helper.assertTrue(tag.getInt("ver") >= 3, "版が 3 より前: " + tag.getInt("ver"));
         SporeField b = field(p, 64);
         SporeFieldServer.loadTileForTests(b, 0, 0, tag);
         helper.assertTrue(b.under(0, 0) == under && b.underDeposited(0, 0) == underDep && Math.abs(b.mouth(0, 0) - 0.7) < 1e-6,

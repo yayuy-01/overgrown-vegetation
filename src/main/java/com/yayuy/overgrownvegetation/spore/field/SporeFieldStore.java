@@ -34,8 +34,9 @@ final class SporeFieldStore {
      * 区画ファイルの版。3 = 地下の層(地下の浮遊 under・地下の降り積もり underDep・洞窟の口の多さ mouth・洞窟の発芽の回数 cave。2026-11-04)。
      * 2 = 地表の高さ height を持つ(2026-10-30 谷風・逆転層・山の壁)。1(ver が無い)= 高さなし、読み込みで引き直す。
      * 3 より前は地下 0・口はまだ測っていない(読み込まれたら測り直す)。
+     * 4 = 土地の表(germ・spread・airEmit・wet)も持つ(2026-11-15 軽量化 B。区画の landSig が今の土地の版と同じときだけ使う。無ければ引き直す)。
      */
-    static final int VERSION = 3;
+    static final int VERSION = 4;
 
     private static final ExecutorService IO = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "Overgrown Vegetation spore field IO");
@@ -61,6 +62,9 @@ final class SporeFieldStore {
         return SAVED_HASH.computeIfAbsent(name, k -> new java.util.concurrent.ConcurrentHashMap<>());
     }
 
+    /** 計測(2026-11-15): 直近の読み込みの内訳。 */
+    static volatile long devReadNanos, devBuildNanos;
+
     private SporeFieldStore() {
     }
 
@@ -83,6 +87,9 @@ final class SporeFieldStore {
         java.util.Map<String, Long> savedHash = savedHash(name);
         Set<String> written = written(name);
         if (!Files.isDirectory(dir)) return 0;
+        // 今の土地の版(区画ごとに、保存したときの版と同じなら保存した土地の表を使う。2026-11-15 軽量化 B)
+        long nowSig = field.ground == null ? 0L : field.ground.landSignature();
+        if (DIR.equals(name)) devReadNanos = devBuildNanos = 0;
         int n = 0;
         try (DirectoryStream<Path> ds = Files.newDirectoryStream(dir, "t.*.dat")) {
             for (Path p : ds) {
@@ -90,8 +97,12 @@ final class SporeFieldStore {
                 if (parts.length != 4) continue;
                 try {
                     int tx = Integer.parseInt(parts[1]), tz = Integer.parseInt(parts[2]);
+                    long r0 = System.nanoTime();
                     CompoundTag tag = NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap());
-                    field.putLoadedTile(readTile(field, tx, tz, tag));
+                    long r1 = System.nanoTime();
+                    field.putLoadedTile(readTile(field, tx, tz, tag, nowSig));
+                    devReadNanos += r1 - r0; // 計測(2026-11-15): ファイルを読む時間と、区画に組み立てる時間
+                    devBuildNanos += System.nanoTime() - r1;
                     n++;
                 } catch (IOException | RuntimeException e) {
                     OvergrownVegetation.LOGGER.error("胞子の場の区画を読めませんでした: {}", p, e);
@@ -134,6 +145,11 @@ final class SporeFieldStore {
 
     /** 区画 1 つの保存の形(サーバースレッド、場の鍵を持って)。 */
     static CompoundTag tileTag(SporeField.Tile t) {
+        return tileTag(t, 0L);
+    }
+
+    /** {@code landSig} = 土地の版(0 = 土地の表を書かない)。区画ごとに書く(書き直されない区画に古い土地が残っても、版が違えば使わない)。 */
+    static CompoundTag tileTag(SporeField.Tile t, long landSig) {
         CompoundTag tag = new CompoundTag();
         tag.putIntArray("air", bits(t.air));
         tag.putIntArray("low", bits(t.low));
@@ -147,17 +163,43 @@ final class SporeFieldStore {
         tag.putIntArray("underDep", bits(t.underDep));
         tag.putIntArray("mouth", bits(t.mouth));
         tag.putByteArray("cave", t.caveCount.clone());
+        // 土地の表(2026-11-15 軽量化 B。開くときに引き直さない)
+        if (landSig != 0L && t.germ != null && t.spread != null && t.airEmit != null && t.wet != null) {
+            tag.putLong("landSig", landSig);
+            tag.putIntArray("germ", bits(t.germ));
+            tag.putIntArray("spread", bits(t.spread));
+            tag.putIntArray("airEmit", bits(t.airEmit));
+            byte[] wetB = new byte[t.wet.length];
+            for (int i = 0; i < wetB.length; i++) wetB[i] = (byte) (t.wet[i] ? 1 : 0);
+            tag.putByteArray("wet", wetB);
+        }
         return tag;
     }
 
     static SporeField.Tile readTile(SporeField field, int tx, int tz, CompoundTag tag) {
+        return readTile(field, tx, tz, tag, 0L);
+    }
+
+    /** {@code nowSig} = 今の土地の版(0 = 保存した土地の表を使わない)。区画に書いてある版と同じときだけ使う。 */
+    static SporeField.Tile readTile(SporeField field, int tx, int tz, CompoundTag tag, long nowSig) {
+        boolean landOk = nowSig != 0L && tag.getLong("landSig") == nowSig;
         // 地表の高さ(2026-10-30、版 2 から)。無ければ(前のセーブ)土地から引き直す
         float[] height = null;
         if (tag.getInt("ver") >= 2 && tag.contains("height")) {
             height = new float[SporeField.TN];
             floats(tag, "height", height);
         }
-        SporeField.Tile t = field.newTile(tx, tz, height);
+        SporeField.Tile t = null;
+        if (landOk && height != null && tag.getInt("ver") >= 4 && tag.contains("germ")) {
+            float[] germ = new float[SporeField.TN], spread = new float[SporeField.TN], airEmit = new float[SporeField.TN];
+            byte[] wetB = tag.getByteArray("wet");
+            if (floats(tag, "germ", germ) && floats(tag, "spread", spread) && floats(tag, "airEmit", airEmit) && wetB.length == SporeField.TN) {
+                boolean[] wet = new boolean[SporeField.TN];
+                for (int i = 0; i < wetB.length; i++) wet[i] = wetB[i] != 0;
+                t = field.newTileWithLand(tx, tz, height, germ, spread, airEmit, wet);
+            }
+        }
+        if (t == null) t = field.newTile(tx, tz, height);
         floats(tag, "air", t.air);
         floats(tag, "low", t.low);
         floats(tag, "dep", t.dep);
@@ -181,10 +223,11 @@ final class SporeFieldStore {
         return t;
     }
 
-    private static void floats(CompoundTag tag, String key, float[] out) {
+    private static boolean floats(CompoundTag tag, String key, float[] out) {
         int[] bits = tag.getIntArray(key);
-        if (bits.length != out.length) return;
+        if (bits.length != out.length) return false;
         for (int i = 0; i < bits.length; i++) out[i] = Float.intBitsToFloat(bits[i]);
+        return true;
     }
 
     private static int[] bits(float[] a) {
@@ -224,6 +267,7 @@ final class SporeFieldStore {
 
     static Snapshot snapshot(SporeField field, long clock, String dirName) {
         java.util.Map<String, Long> savedHash = savedHash(dirName);
+        long landSig = field.ground == null ? 0L : field.ground.landSignature();
         List<Object[]> tiles = new ArrayList<>();
         for (SporeField.Tile t : field.tilesView()) {
             String name = fileName(t.tx, t.tz);
@@ -233,7 +277,7 @@ final class SporeFieldStore {
                 tiles.add(new Object[]{name, null});
                 continue;
             }
-            tiles.add(new Object[]{name, tileTag(t)});
+            tiles.add(new Object[]{name, tileTag(t, landSig)});
         }
         CompoundTag meta = new CompoundTag();
         meta.putLong("clock", clock);

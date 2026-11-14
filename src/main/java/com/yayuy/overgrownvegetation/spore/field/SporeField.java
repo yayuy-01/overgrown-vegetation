@@ -283,6 +283,14 @@ public final class SporeField {
         default float terrainMul(int cx, int cz, float height) {
             return 1;
         }
+
+        /**
+         * 土地の表の版(2026-11-15 軽量化 B)。0 = 区画ファイルに土地の表を保存しない・使わない。0 以外なら、保存した表は同じ値のときだけ使う
+         * (土地の決め方の設計値が変わったら値が変わり、開くときに引き直す)。
+         */
+        default long landSignature() {
+            return 0L;
+        }
     }
 
     /**
@@ -330,7 +338,7 @@ public final class SporeField {
     /** 計測用の切り替え: 捨てた区画を控えに置く(軽量化 A。既定は入り)。false で前の動き(毎回作り直す)。 */
     public static volatile boolean devDormant = !Boolean.getBoolean("ov.spore.noDormant");
     /** 計測: 控えから戻した区画の数。 */
-    public long devRevived, devEvicted;
+    public long devRevived, devEvicted, devLandLoaded;
 
     /** 計測: 控えの数。 */
     public int dormantCount() {
@@ -642,6 +650,24 @@ public final class SporeField {
     /** 新しい空の区画(保存係が読み込みに使う。土地の表はここで埋める)。 */
     Tile newTile(int tx, int tz) {
         return newTile(tx, tz, null);
+    }
+
+    /**
+     * 保存してあった土地の表から区画を作る(2026-11-15 軽量化 B。土地を引き直さない)。配列はそのまま持つ(呼ぶ側は使い回さない)。
+     */
+    Tile newTileWithLand(int tx, int tz, float[] height, float[] germ, float[] spread, float[] airEmit, boolean[] wet) {
+        Tile t = new Tile(tx, tz);
+        if (thermal != null) fillTemp(t);
+        t.germ = germ;
+        t.spread = spread;
+        t.airEmit = airEmit;
+        t.wet = wet;
+        t.height = height;
+        int never = 0;
+        for (int i = 0; i < TN; i++) if (germ[i] == 0) never++;
+        t.never = never;
+        devLandLoaded++;
+        return t;
     }
 
     /** {@code savedHeight} = 保存してあった地表の高さ(無ければ null で、土地から引く。2026-10-30 より前のセーブも null)。 */

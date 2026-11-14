@@ -290,23 +290,29 @@ public final class SporeFieldServer {
         LOCK.lock();
         try {
             tiles = SporeFieldStore.load(server, f, clock);
+            long ldA = System.nanoTime();
             // 台帳と照らし合わせる(台帳にあって場に無いチャンクは汚染済みとして入れる。新しいワールドの地割れなど)
             PhaseData phase = PhaseData.get(overworld);
+            long ldB = System.nanoTime();
             phase.forEachOvergrownChunk(key -> {
                 int cx = ChunkPos.getX(key), cz = ChunkPos.getZ(key);
                 if (!f.isCorrupted(cx, cz)) f.setCorrupted(cx, cz, phase.overgrownSinceTick(new ChunkPos(key)));
             });
+            long ldC = System.nanoTime();
             field = f;
             fieldClock = clock[0];
             computedClock = clock[0];
             WAITING.clear();
             f.forEachWaiting(WAITING::add);
+            OvergrownVegetation.LOGGER.info("胞子の場の読み込みの内訳: 保存係 {} ms・台帳を開く {} ms・台帳と照らす {} ms・待ちの升 {} ms",
+                    (ldA - loadT0) / 1_000_000L, (ldB - ldA) / 1_000_000L, (ldC - ldB) / 1_000_000L, (System.nanoTime() - ldC) / 1_000_000L);
             DevStats.loadNanos = System.nanoTime() - loadT0;
             com.yayuy.overgrownvegetation.quake.EarthquakeData.get(overworld); // 地割れの中心(下支え)を読み込んでおく
         } finally {
             LOCK.unlock();
         }
-        OvergrownVegetation.LOGGER.info("胞子の場: 区画 {} 個・汚染されたチャンク {} を読み込みました", tiles, f.corruptedCount);
+        OvergrownVegetation.LOGGER.info("胞子の場: 区画 {} 個・汚染されたチャンク {} を読み込みました({} ms。ファイルを読む {} ms・組み立て {} ms・土地の表を使った区画 {})", tiles, f.corruptedCount,
+                DevStats.loadNanos / 1_000_000L, SporeFieldStore.devReadNanos / 1_000_000L, SporeFieldStore.devBuildNanos / 1_000_000L, f.devLandLoaded);
     }
 
     @SubscribeEvent
@@ -971,6 +977,19 @@ public final class SporeFieldServer {
             lastAtKey = k;
             lastAt = b;
             return b;
+        }
+
+        /** 土地の決め方が変わったら 1 上げる(保存した土地の表を捨てて引き直させる)。 */
+        static final int LAND_VERSION = 1;
+
+        /** 土地の表の版(2026-11-15 軽量化 B): 土地の倍率の設計値と決め方の版から。0 にはしない。 */
+        @Override
+        public long landSignature() {
+            long h = 1469598103934665603L;
+            double[] v = {p.riverMul, p.wetMul, p.dryMul, p.mountMul, p.mountainY, p.wetDownfall, p.dryDownfall, p.heightStride,
+                    DEEP_OCEAN_GERM, OCEAN_AIR_EMIT, LAND_VERSION, seaLevel, SporeField.MAX_SPREAD};
+            for (double d : v) h = (h ^ Double.doubleToLongBits(d)) * 1099511628211L;
+            return h == 0L ? 1L : h;
         }
 
         @Override
