@@ -305,4 +305,46 @@ public final class NurseryGameTests {
         }
         helper.succeed();
     }
+
+    // ------------------------------------------------------------------ 寿命(司令塔 第 3 段 区切り 4。11-14 ユーザー N1)
+    /** 萌芽体を決めた数(nurseryLifeSprouts)だけ生んだら、その芽の動きが終わったところで枯れて崩れる。1 つ手前では枯れない。 */
+    @GameTest(template = TEMPLATE, batch = "g1_nursery_life", timeoutTicks = 200)
+    public static void nurseryWithersAfterLifeSprouts(GameTestHelper helper) {
+        NurseryParasitized m = spawnNursery(helper, G1Nursery.ZOMBIE);
+        int life = DesignData.director().nurseryLifeSprouts;
+        m.setSproutedForTests(life - 2);
+        helper.runAfterDelay(2, () -> m.setTimersForTests(1, 99999));
+        helper.runAfterDelay(2 + G1Nursery.SPROUT + 6, () -> {
+            helper.assertTrue(m.isAlive() && m.sprouted() == life - 1, "1 つ手前で枯れた・数えていない: " + m.sprouted());
+            m.setTimersForTests(1, 99999);
+        });
+        helper.runAfterDelay(2 + 2 * (G1Nursery.SPROUT + 6) + 4, () -> {
+            helper.assertTrue(!m.isAlive() && m.spent(), "決めた数を生んでも枯れない: " + m.sprouted());
+            ferns(helper).forEach(net.minecraft.world.entity.Entity::discard);
+            helper.succeed();
+        });
+    }
+
+    /** G4 以降を 1 回孵したら、嚢の動きが終わったところで枯れる(飲まれてスポナーだけになった苗床も同じ)。 */
+    @GameTest(template = TEMPLATE, batch = "g1_nursery_life", timeoutTicks = 200)
+    public static void nurseryWithersAfterOneHatch(GameTestHelper helper) {
+        DirectorTable t = DesignData.director();
+        ServerLevel level = helper.getLevel();
+        ForestDirector director = ForestDirector.get(level);
+        NurseryParasitized m = spawnNursery(helper, G1Nursery.ZOMBIE);
+        m.setSwallowedForTests(true);
+        List<Supplier<? extends EntityType<? extends Mob>>> pool = List.of(() -> EntityType.PIG);
+        m.setSpawnPoolForTests(pool);
+        double before = director.available(level);
+        helper.runAfterDelay(3, () -> {
+            director.setBudget(level, t.costSpawn * 2.0D);
+            m.setTimersForTests(99999, 1);
+        });
+        helper.runAfterDelay(3 + G1Nursery.HATCH + 8, () -> {
+            director.setBudget(level, before);
+            level.getEntitiesOfClass(Pig.class, helper.getBounds()).forEach(net.minecraft.world.entity.Entity::discard);
+            helper.assertTrue(!m.isAlive() && m.spent(), "孵しても枯れない");
+            helper.succeed();
+        });
+    }
 }

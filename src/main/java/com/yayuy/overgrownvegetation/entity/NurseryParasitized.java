@@ -248,7 +248,11 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
                 hatch(level);
             }
             actionAge++;
-            if (--actionLeft <= 0) begin(ACTION_NONE, 0);
+            if (--actionLeft <= 0) {
+                begin(ACTION_NONE, 0);
+                // 寿命(第 3 段 区切り 4。11-14 ユーザー N1): 萌芽体を決めた数だけ生むか、G4 以降を 1 回孵したら、枯れて崩れる
+                if (spent()) kill();
+            }
             return;
         }
         // スポナーの口: 飲まれていても・いなくても働く。司令塔が払ったときだけ孵す
@@ -305,6 +309,7 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
 
     /** 芽の頭が抜ける瞬間: 近くに萌芽体を 1 体出す(予算は払わない)。 */
     private void sproutFern(ServerLevel level) {
+        sprouted++;
         BlockPos p = spotAround(level, FERN_NEAR, FERN_FAR);
         if (p != null) BlightFernPlacement.spawn(level, p, MobSpawnType.MOB_SUMMONED);
     }
@@ -315,6 +320,7 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         hatching = null;
         if (type == null) return;
         BlockPos p = spotAround(level, 1.0D, 2.5D);
+        hatched = true;
         Mob mob = type.create(level);
         if (mob == null) return;
         Vec3 at = p != null ? Vec3.atBottomCenterOf(p) : position();
@@ -322,6 +328,24 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         net.neoforged.neoforge.event.EventHooks.finalizeMobSpawn(mob, level, level.getCurrentDifficultyAt(mob.blockPosition()), MobSpawnType.SPAWNER, null);
         level.addFreshEntity(mob);
         com.yayuy.overgrownvegetation.director.BaseRaids.onNurseryHatched(level, mob); // 認識した拠点のそばの苗床から孵った Mob は拠点へ向かう(第 2 段)
+    }
+
+    // ------------------------------------------------------------------ 寿命(第 3 段 区切り 4)
+    /**
+     * 生んだ萌芽体の数と、G4 以降を孵したか。11-14 ユーザー「苗床は汚染されていない地域に萌芽体をばらまいて周囲を汚染したり、
+     * 周囲の mob を狩るために G4〜を生み出す存在」・N1 = 萌芽体を 6 体【仮】生むか、G4 以降を 1 回孵したら枯れる(どちらか先)。
+     * 飲まれて萌芽体を生まなくなった苗床は、スポナーとして残り、孵したら枯れる。
+     */
+    private int sprouted;
+    private boolean hatched;
+
+    /** 役目を終えたか(枯れる)。 */
+    public boolean spent() {
+        return hatched || sprouted >= com.yayuy.overgrownvegetation.data.DesignData.director().nurseryLifeSprouts;
+    }
+
+    public int sprouted() {
+        return sprouted;
     }
 
     // ------------------------------------------------------------------ 枯れて崩れる
@@ -341,6 +365,8 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         if (!Float.isNaN(anchorYaw)) tag.putFloat("AnchorYaw", anchorYaw);
         tag.putInt("SproutIn", sproutIn);
         tag.putInt("HatchAskIn", hatchAskIn);
+        tag.putInt("Sprouted", sprouted);
+        tag.putBoolean("Hatched", hatched);
     }
 
     @Override
@@ -349,6 +375,8 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         if (tag.contains("AnchorYaw")) anchorYaw = tag.getFloat("AnchorYaw");
         if (tag.contains("SproutIn")) sproutIn = tag.getInt("SproutIn");
         if (tag.contains("HatchAskIn")) hatchAskIn = tag.getInt("HatchAskIn");
+        sprouted = tag.getInt("Sprouted");
+        hatched = tag.getBoolean("Hatched");
     }
 
     // ------------------------------------------------------------------ アニメ
@@ -389,6 +417,10 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
 
     // ------------------------------------------------------------------ 確かめ・テスト用
     /** 次に萌芽体を生むまで・次に司令塔へ聞くまでの残り(tick)を決める。 */
+    public void setSproutedForTests(int n) {
+        this.sprouted = n;
+    }
+
     public void setTimersForTests(int sproutIn, int hatchAskIn) {
         this.sproutIn = sproutIn;
         this.hatchAskIn = hatchAskIn;

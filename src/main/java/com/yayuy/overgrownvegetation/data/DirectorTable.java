@@ -63,6 +63,8 @@ public final class DirectorTable {
         public KillMemoryTable.Json kills;
         /** 第 3 段: 貯めて一気に使う(HoardTable)。 */
         public HoardTable.Json hoard;
+        /** 第 3 段 区切り 4: 苗床が枯れるまでに生む萌芽体の数。 */
+        public Integer nurseryLifeSprouts;
     }
 
     /** フェーズで開く口の json。 */
@@ -116,6 +118,8 @@ public final class DirectorTable {
     public final KillMemoryTable kills;
     /** 第 3 段(11-14): 貯めて一気に使う。 */
     public final HoardTable hoard;
+    /** 苗床は萌芽体をこれだけ生むか、G4 以降を 1 回孵したら枯れる(11-14 ユーザー N1。数 6 は【仮】)。 */
+    public final int nurseryLifeSprouts;
 
     /**
      * 司令塔が使うものが開くフェーズ(2026-11-14 決定。Vault「フェーズの仕組み」の作り直し): 苗床 1・根付き 2・進化 3・偵察 4・認識 5・送り込み 5・
@@ -183,6 +187,7 @@ public final class DirectorTable {
         this.gates = new Gates(s.gates);
         this.kills = KillMemoryTable.fromJson(s.kills);
         this.hoard = HoardTable.fromJson(s.hoard);
+        this.nurseryLifeSprouts = Math.max(1, s.nurseryLifeSprouts != null ? s.nurseryLifeSprouts : 6);
     }
 
     private static double nonNeg(Double v, double fallback) {
