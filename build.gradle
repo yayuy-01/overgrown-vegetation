@@ -120,6 +120,133 @@ neoForge {
     }
 }
 
+// ゲームは build/ ではなく起動時の写しから MOD を読む(2026-11-14 ユーザー了承「案 B」。経緯は Vault の「ビルドとテストを分ける(写しから読む)」)。
+// 何のため: 同じリポジトリで何本ものセッションがビルドする。ゲームが build/classes を直接読むと、動いている間に別のビルドが
+//   作り直して NoClassDefFoundError で落ちる。写しから読めば、ゲームを開いたままでもほかのセッションはビルドできる。
+// 中身: run の起動のたびに、読み込む MOD の source set の出力を runs/_snap/<キー>/ へ robocopy /MIR で写し、
+//   -Dfml.modFoldersFile で FML に写しを渡す(fml.modFolders より先に見られる)。classpath の build/ も写しへ替える
+//   (残すと UserdevLocator が 2 つ目の MOD として拾う)。MDG の -Dfml.modFolders は残す(compileJava などへの依存が残る)。
+// 写しの場所: この MOD は <キー>/classes・<キー>/resources、ほかの MOD(vbench)は <キー>/<MOD>/…。
+//   キーは runClaudeClient = OV_CC_DIR、runGameTestServer = OV_GT_DIR のフォルダ名、無ければ run の名前。
+//   同じキーで 2 つ同時に起動すると、後の写しが前のゲームの下で書き換わるので、セッションごとにフォルダを分ける。
+// 写し終えたら、buildlock.sh(tools/claude-client)が渡す BUILDLOCK_PID が印の持ち主なら印を外す。7 日使っていない写しは消す。
+abstract class OvSnapExec {
+    @javax.inject.Inject
+    abstract org.gradle.process.ExecOperations getExecOps()
+}
+
+// IntelliJ から起動したとき(11-14 追加): MDG が作る IntelliJ の実行設定(Client など。Application 型)を「Gradle に任せる」で動かすと、
+//   IntelliJ は runClient を通らず、自前の JavaExec(名前は 'net.neoforged.devlaunch.Main.main()')を作って起動する。
+//   その jvmArgs の -Dfml.modFolders(build/ を指す)を見つけて、同じように写しへ向ける。キーは 'ide_' + 作業フォルダの名前(Client なら ide_run)。
+//   印は取らない(IntelliJ は buildlock.sh を通らない)ので外しもしない。
+gradle.taskGraph.whenReady { graph ->
+    graph.allTasks.findAll { it.project == project && it instanceof JavaExec }.each { t ->
+        boolean isRun = t.class.name.startsWith('net.neoforged.moddevgradle.internal.RunGameTask')
+        String key
+        // 読み込む MOD → その source set(順番どおり)
+        Map<String, List<SourceSet>> modSets = [:]
+        if (isRun) {
+            def run = neoForge.runs.find { ('run' + it.name.capitalize()) == t.name }
+            if (run == null) return
+            String envName = ['runClaudeClient': 'OV_CC_DIR', 'runGameTestServer': 'OV_GT_DIR'][t.name]
+            String envDir = envName ? System.getenv(envName) : null
+            key = envDir ? new File(envDir).name : t.name
+            run.loadedMods.get().sort { it.name }.each { mod -> modSets[mod.name] = mod.modSourceSets.get() }
+        } else {
+            String arg = t.jvmArgs.find { it.startsWith('-Dfml.modFolders=') }
+            if (arg == null) return
+            // 値は「MOD%%フォルダ;MOD%%フォルダ…」。フォルダがどの source set の出力かを引き当てる(分からなければ触らない)
+            boolean unknown = false
+            arg.substring('-Dfml.modFolders='.length()).split(';').each { String entry ->
+                int at = entry.indexOf('%%')
+                if (at < 0) { unknown = true; return }
+                String id = entry.substring(0, at)
+                String path = new File(entry.substring(at + 2)).canonicalPath
+                SourceSet ss = sourceSets.find { s -> s.output.resourcesDir.canonicalPath == path || s.output.classesDirs.files.any { it.canonicalPath == path } }
+                if (ss == null) { unknown = true; return }
+                def list = modSets.computeIfAbsent(id) { [] }
+                if (!list.contains(ss)) list << ss
+            }
+            if (unknown || modSets.isEmpty()) { println "OV_SNAP ${t.name}: fml.modFolders を読めないので写しを使わない"; return }
+            key = 'ide_' + t.workingDir.name
+        }
+        File snapRoot = file('runs/_snap')
+        File snap = new File(snapRoot, key)
+        File foldersFile = new File(snap, 'modfolders.properties')
+        File marker = new File(snap, 'last-used.txt')
+        // 写す組 [元, 写し] と、MOD ごとの写しのフォルダ(modfolders.properties と last-used.txt は /MIR の外に置く)
+        List<List<File>> pairs = []
+        Map<String, List<File>> modDirs = [:]
+        modSets.each { String modName, List<SourceSet> sets ->
+            File base = modName == mod_id ? snap : new File(snap, modName)
+            List<File> dirs = []
+            int ci = 0
+            sets.each { ss ->
+                ss.output.classesDirs.files.each { File d ->
+                    File to = new File(base, ci == 0 ? 'classes' : "classes-${ci}")
+                    ci++
+                    pairs << [d, to]; dirs << to
+                }
+                File to = new File(base, dirs.any { it.name == 'resources' } ? "resources-${ss.name}" : 'resources')
+                pairs << [ss.output.resourcesDir, to]; dirs << to
+            }
+            modDirs[modName] = dirs
+        }
+        Map<String, File> mapping = pairs.collectEntries { [(it[0].canonicalPath): it[1]] }
+        // 設定の段で替える(実行が始まってからだと入力を変えられない)
+        def cpFiles = { -> isRun ? t.classpathProvider.files : t.classpath.files }
+        def swapped = cpFiles().collect { File f -> mapping[f.canonicalPath] ?: f }
+        if (isRun) t.classpathProvider.setFrom(swapped) else t.classpath = files(swapped)
+        t.jvmArgs('-Dfml.modFoldersFile=' + foldersFile.absolutePath)
+
+        t.doFirst {
+            long t0 = System.currentTimeMillis()
+            snap.mkdirs()
+            def exec = objects.newInstance(OvSnapExec).execOps
+            pairs.each { pair ->
+                File from = pair[0], to = pair[1]
+                if (!from.isDirectory()) { delete(to); to.mkdirs(); return }
+                def out = new ByteArrayOutputStream()
+                def r = exec.exec {
+                    commandLine 'robocopy', from.absolutePath, to.absolutePath, '/MIR', '/MT:16', '/R:2', '/W:1', '/NFL', '/NDL', '/NJH', '/NJS', '/NP'
+                    standardOutput = out
+                    errorOutput = out
+                    ignoreExitValue = true
+                }
+                if (r.exitValue >= 8) throw new GradleException("OV_SNAP: robocopy が失敗 (${r.exitValue}) ${from} -> ${to}\n${out}")
+            }
+            // Java の properties の書式: \ は \\ に。UTF-8(パスに「制作」が入る)
+            def esc = { File f -> f.absolutePath.replace('\\', '\\\\') }
+            foldersFile.withWriter('UTF-8') { w ->
+                modDirs.each { id, dirs -> w.write(id + '=' + dirs.collect(esc).join(';') + '\n') }
+            }
+            marker.text = new Date().toString() + '\n'
+            println "OV_SNAP 写し ${System.currentTimeMillis() - t0} ms -> ${snap}"
+            def left = cpFiles().findAll { mapping.containsKey(it.canonicalPath) }
+            if (left) println "OV_SNAP 警告: classpath に build/ が残っている ${left}"
+
+            // 起動に要る build/ は読み終えたので、buildlock の印を外す(ほかのセッションがビルドできる)
+            String lockPid = System.getenv('BUILDLOCK_PID')
+            File lock = file('runs/_busy/build.lock')
+            File owner = new File(lock, 'owner.txt')
+            if (lockPid && owner.isFile() && owner.readLines('UTF-8').contains('pid=' + lockPid)) {
+                delete(lock)
+                println "OV_SNAP buildlock の印を外した (pid ${lockPid})"
+            }
+
+            // 7 日使っていない写しを消す(1 か所 約 45MB)。自分のキーは消さない
+            long cutoff = System.currentTimeMillis() - 7L * 24 * 3600 * 1000
+            snapRoot.listFiles()?.findAll { it.isDirectory() && it.name != key }?.each { File d ->
+                File m = new File(d, 'last-used.txt')
+                long used = m.isFile() ? m.lastModified() : d.lastModified()
+                if (used < cutoff) {
+                    try { delete(d); println "OV_SNAP 古い写しを消した ${d.name}" } catch (Exception e) { println "OV_SNAP 古い写しを消せない ${d.name}: ${e.message}" }
+                }
+            }
+        }
+    }
+}
+
 repositories {
     mavenLocal()
     maven {

@@ -2592,7 +2592,8 @@ public final class DevBridge {
                 });
             }
             case "reloadres" -> {
-                // 資源(モデル・テクスチャ)を読み直す = F3+T。build/resources/main の写しを直してから流すと、起動し直さずに見た目を詰められる(2026-10-09)
+                // 資源(モデル・テクスチャ)を読み直す = F3+T。起動中のゲームが読む写し runs/_snap/<キー>/resources を直してから流すと、
+                // 起動し直さずに見た目を詰められる(2026-10-09。11-14 から build/resources/main ではなく写しを読む。build.gradle の OV_SNAP)
                 mc.reloadResourcePacks().thenRun(() -> log("RELOADRES 終わり"));
             }
             case "leave" -> {
