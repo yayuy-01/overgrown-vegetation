@@ -59,6 +59,28 @@ public final class PhaseTable {
         public Points points;
         /** フェーズ1の前の「前兆」(2026-10-24 地脈技術の 4 段目。数値はどれも仮)。 */
         public OmenJson omen;
+        /** 小さな段(導入 → 定着 → 最盛)の既定の倍率と区切り(2026-11-14)。フェーズごとの {@code stages} が無い欄はここを使う。 */
+        public Stages stages;
+    }
+
+    /**
+     * フェーズの中の小さな段(2026-11-14 ユーザー決定: どのフェーズも 導入 → 定着 → 最盛 の 3 つ)。
+     * そのフェーズの新しい物は導入でまれに、定着で普通に、最盛でいちばん多く強くなる。段ごとに新しい物は作らない。
+     *
+     * <ul>
+     *   <li>{@code intro} / {@code established} / {@code peak}: その段での「そのフェーズの物の強さ」の倍率
+     *   (【仮】0.3 / 0.7 / 1.0)。読むのは {@link com.yayuy.overgrownvegetation.phase.PhaseStages#strength}。</li>
+     *   <li>{@code establishedFrom} / {@code peakFrom}: 次のフェーズの {@code pointsToAdvance} に対する進みが
+     *   これを越えたら定着・最盛(【仮】1/3・2/3)。</li>
+     * </ul>
+     * {@code global.stages} が既定、各フェーズの {@code stages} は書いた欄だけ上書き。
+     */
+    public static final class Stages {
+        public Double intro;
+        public Double established;
+        public Double peak;
+        public Double establishedFrom;
+        public Double peakFrom;
     }
 
     /**
@@ -243,9 +265,16 @@ public final class PhaseTable {
         public Integer siegeDelayTicks;
         /** 自由記述の内容メモ(挙動には影響しない — マネージャー表示用)。 */
         public String notes;
+        /** このフェーズの小さな段の倍率と区切り(2026-11-14。書いた欄だけ {@code global.stages} を上書き)。{@link Stages}。 */
+        public Stages stages;
     }
 
     // --- 解決済みの値 ---
+
+    /** フェーズごとの段の倍率 [導入, 定着, 最盛](index 1..10)。 */
+    private final double[][] stageMultipliers = new double[MAX_PHASE + 1][3];
+    /** フェーズごとの段の区切り [定着から, 最盛から](次のフェーズの閾値に対する割合、index 1..10)。 */
+    private final double[][] stageBounds = new double[MAX_PHASE + 1][2];
 
     private final int startWorldAgeTicks;
     private final int startAdvancements;
@@ -291,10 +320,104 @@ public final class PhaseTable {
             Phase over = j != null && j.phases != null ? j.phases.get(String.valueOf(n)) : null;
             this.phases[n] = merge(def, over);
         }
+
+        // 小さな段(2026-11-14): フェーズの欄 → global の欄 → 既定 の順に引く。
+        Stages gs = g.stages != null ? g.stages : new Stages();
+        Stages ds = dg.stages;
+        for (int n = MIN_PHASE; n <= MAX_PHASE; n++) {
+            Stages ps = this.phases[n].stages != null ? this.phases[n].stages : new Stages();
+            stageMultipliers[n][0] = Math.max(0.0D, pick(ps.intro, gs.intro, ds.intro));
+            stageMultipliers[n][1] = Math.max(0.0D, pick(ps.established, gs.established, ds.established));
+            stageMultipliers[n][2] = Math.max(0.0D, pick(ps.peak, gs.peak, ds.peak));
+            double from1 = clamp01(pick(ps.establishedFrom, gs.establishedFrom, ds.establishedFrom));
+            double from2 = clamp01(pick(ps.peakFrom, gs.peakFrom, ds.peakFrom));
+            stageBounds[n][0] = from1;
+            stageBounds[n][1] = Math.max(from1, from2);
+        }
+    }
+
+    private static double pick(Double first, Double second, Double fallback) {
+        return first != null ? first : second != null ? second : fallback;
+    }
+
+    private static double clamp01(double v) {
+        return Math.max(0.0D, Math.min(1.0D, v));
     }
 
     public static PhaseTable fromJson(Json j) {
         return new PhaseTable(j);
+    }
+
+    // --- 小さな段(導入 → 定着 → 最盛、2026-11-14) ---
+
+    /**
+     * フェーズ {@code phase} の中で段を決める物差しのポイント = <b>次のフェーズの {@code pointsToAdvance}</b>
+     * (ポイントはフェーズが上がるたびに 0 へ戻るので、フェーズ p の進みは「p+1 へ上がる閾値」に対する割合)。
+     * {@code autoAdvance: false}(F8 以降)でも閾値の数字が書いてあれば使う —— F7〜F9 もポイントは貯まり続けるので、
+     * 段は最盛まで進んでそこで止まる。次のフェーズが無い(F10)・閾値が無いときは {@link Long#MAX_VALUE}
+     * (= 段はポイントでは進まない。{@code PhaseData} が持っている段のまま)。
+     */
+    public long stageSpanPoints(int phase) {
+        if (phase < MIN_PHASE || phase >= MAX_PHASE) {
+            return Long.MAX_VALUE;
+        }
+        Integer v = phases[phase + 1].pointsToAdvance;
+        return v != null && v > 0 ? v : Long.MAX_VALUE;
+    }
+
+    /** その段の倍率(【仮】導入 0.3 / 定着 0.7 / 最盛 1.0)。 */
+    public double stageMultiplier(int phase, com.yayuy.overgrownvegetation.phase.PhaseStage stage) {
+        int n = Math.max(MIN_PHASE, Math.min(MAX_PHASE, phase));
+        return stageMultipliers[n][stage.ordinal()];
+    }
+
+    /** その段が始まる進みの割合(導入 = 0、定着 = {@code establishedFrom}、最盛 = {@code peakFrom})。 */
+    public double stageFrom(int phase, com.yayuy.overgrownvegetation.phase.PhaseStage stage) {
+        int n = Math.max(MIN_PHASE, Math.min(MAX_PHASE, phase));
+        return switch (stage) {
+            case INTRO -> 0.0D;
+            case ESTABLISHED -> stageBounds[n][0];
+            case PEAK -> stageBounds[n][1];
+        };
+    }
+
+    /**
+     * その段が始まるポイント(切り上げ)。物差しが無いフェーズは -1。
+     * {@code points >= stageStartPoints(p, s)} なら段 s 以上。
+     */
+    public long stageStartPoints(int phase, com.yayuy.overgrownvegetation.phase.PhaseStage stage) {
+        long span = stageSpanPoints(phase);
+        if (span == Long.MAX_VALUE) {
+            return -1L;
+        }
+        return (long) Math.ceil(span * stageFrom(phase, stage));
+    }
+
+    /**
+     * ポイントから段を求める(純粋な計算。テストもここを見る)。物差しが無いフェーズは null
+     * (= ポイントでは決まらない)。閾値を越えていても最盛のまま(上がらないフェーズの F7〜F9)。
+     */
+    @javax.annotation.Nullable
+    public com.yayuy.overgrownvegetation.phase.PhaseStage stageFor(int phase, long points) {
+        if (stageSpanPoints(phase) == Long.MAX_VALUE) {
+            return null;
+        }
+        if (points >= stageStartPoints(phase, com.yayuy.overgrownvegetation.phase.PhaseStage.PEAK)) {
+            return com.yayuy.overgrownvegetation.phase.PhaseStage.PEAK;
+        }
+        if (points >= stageStartPoints(phase, com.yayuy.overgrownvegetation.phase.PhaseStage.ESTABLISHED)) {
+            return com.yayuy.overgrownvegetation.phase.PhaseStage.ESTABLISHED;
+        }
+        return com.yayuy.overgrownvegetation.phase.PhaseStage.INTRO;
+    }
+
+    /** このフェーズの進み(0〜1、閾値を越えたら 1)。物差しが無いフェーズは -1。 */
+    public double stageProgress(int phase, long points) {
+        long span = stageSpanPoints(phase);
+        if (span == Long.MAX_VALUE) {
+            return -1.0D;
+        }
+        return Math.max(0.0D, Math.min(1.0D, points / (double) span));
     }
 
     public int startWorldAgeTicks() {
@@ -588,6 +711,18 @@ public final class PhaseTable {
         r.siegeDelayTicks = over != null && over.siegeDelayTicks != null ? over.siegeDelayTicks : def.siegeDelayTicks;
         r.notes = over != null && over.notes != null ? over.notes : def.notes;
         r.groups = mergeGroups(def.groups, over != null ? over.groups : null);
+        // 小さな段(2026-11-14)。フェーズの欄は書いた欄だけ。global との重ね合わせはコンストラクタで行う。
+        Stages ds = def.stages;
+        Stages os = over != null ? over.stages : null;
+        if (ds != null || os != null) {
+            Stages s = new Stages();
+            s.intro = os != null && os.intro != null ? os.intro : (ds != null ? ds.intro : null);
+            s.established = os != null && os.established != null ? os.established : (ds != null ? ds.established : null);
+            s.peak = os != null && os.peak != null ? os.peak : (ds != null ? ds.peak : null);
+            s.establishedFrom = os != null && os.establishedFrom != null ? os.establishedFrom : (ds != null ? ds.establishedFrom : null);
+            s.peakFrom = os != null && os.peakFrom != null ? os.peakFrom : (ds != null ? ds.peakFrom : null);
+            r.stages = s;
+        }
         return r;
     }
 
@@ -676,6 +811,14 @@ public final class PhaseTable {
         o.flowerRecoverChance = 0.15D;
         o.animalAvoidExtra = 6;
         j.global.omen = o;
+        // 小さな段(2026-11-14 ユーザー決定は「3 つ」まで。倍率と区切りは【仮】)。
+        Stages st = new Stages();
+        st.intro = 0.3D;
+        st.established = 0.7D;
+        st.peak = 1.0D;
+        st.establishedFrom = 1.0D / 3.0D;
+        st.peakFrom = 2.0D / 3.0D;
+        j.global.stages = st;
 
         // 昇格条件: ポイントのみ(チャンク数による昇格は 2026-09-15 に廃止)。
         //   ユーザー指定の日数: F1→F2〜F4→F5 は各 5 日、F5→F6・F6→F7 は各 20 日、F7→F8〜F9→F10 は各 10 日

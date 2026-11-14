@@ -162,14 +162,114 @@ public final class PhaseData extends SavedData {
     /** 胞子警報器の「次のフェーズが近い」警告をこのフェーズで出したか(2026-09-19)。昇格でリセット。 */
     private boolean phaseWarned;
 
+    /**
+     * 今のフェーズの中の小さな段(2026-11-14)。ポイントの進みで上がり({@link #refreshStage})、フェーズが変わると導入に戻る。
+     * 保存するのは、変わった瞬間に 1 回だけイベントを流すためと、閾値の無いフェーズ(F10)で段をコマンドで決められるようにするため。
+     */
+    private PhaseStage stage = PhaseStage.INTRO;
+
+    /**
+     * テスト用の切り離した入れ物(ワールドの本物ではない)のときだけ非 null。イベントはバスへ流さずここへ渡し、
+     * 全員への文・クライアントへの同期・地割れもしない。{@link #createDetachedForTests}。
+     */
+    @javax.annotation.Nullable
+    private java.util.function.Consumer<net.neoforged.bus.api.Event> detachedSink;
+
     private PhaseData() {
         overgrownSince.defaultReturnValue(-1L);
+    }
+
+    /** GameTest 用: ワールドに登録しない入れ物を作る(イベントは {@code sink} へ)。 */
+    public static PhaseData createDetachedForTests(java.util.function.Consumer<net.neoforged.bus.api.Event> sink) {
+        PhaseData data = new PhaseData();
+        data.detachedSink = sink;
+        return data;
+    }
+
+    /** GameTest 用: 保存した中身から読み直す(ワールドの本物には触らない)。 */
+    public static PhaseData loadDetachedForTests(CompoundTag tag, java.util.function.Consumer<net.neoforged.bus.api.Event> sink) {
+        PhaseData data = load(tag);
+        data.detachedSink = sink;
+        return data;
+    }
+
+    private boolean isLive() {
+        return detachedSink == null;
+    }
+
+    private void fire(net.neoforged.bus.api.Event event) {
+        if (detachedSink != null) {
+            detachedSink.accept(event);
+        } else {
+            net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(event);
+        }
+    }
+
+    private void syncToClients(ServerLevel overworld) {
+        if (isLive()) {
+            PhaseSync.sendToAll(overworld.getServer(), this);
+        }
+    }
+
+    /** 今の段(フェーズ 0 では導入)。 */
+    public PhaseStage getStage() {
+        return stage;
+    }
+
+    /**
+     * ポイントから段を求め直し、上がっていれば段を進めてイベントを流す(2026-11-14)。ポイントの進みでは段は下げない。
+     * 閾値の無いフェーズ(物差しが無い)は今の段のまま。
+     */
+    private void refreshStage(ServerLevel overworld) {
+        if (phase < 1) {
+            return;
+        }
+        PhaseStage derived = DesignData.phases().stageFor(phase, points);
+        if (derived == null || derived.ordinal() <= stage.ordinal()) {
+            return;
+        }
+        PhaseStage old = stage;
+        stage = derived;
+        setDirty();
+        fire(new PhaseEvents.StageChanged(overworld, phase, old, derived, true));
+        syncToClients(overworld);
+    }
+
+    /**
+     * コマンド用({@code /ov phase stage <段>})。次のフェーズの閾値があればポイントをその段の始まりに合わせ、
+     * 無ければ段だけを決める。下げることもできる。
+     *
+     * @return 合わせた後のポイント(閾値が無くポイントを変えなかったときは -1)
+     */
+    public long setStage(ServerLevel overworld, PhaseStage newStage) {
+        if (phase < 1) {
+            return -1L;
+        }
+        long start = DesignData.phases().stageStartPoints(phase, newStage);
+        if (start >= 0L) {
+            points = start;
+        }
+        PhaseStage old = stage;
+        stage = newStage;
+        setDirty();
+        if (old != newStage) {
+            fire(new PhaseEvents.StageChanged(overworld, phase, old, newStage, false));
+        }
+        syncToClients(overworld);
+        return start;
     }
 
     private static PhaseData load(CompoundTag tag) {
         PhaseData data = new PhaseData();
         data.phase = tag.getInt("phase");
         data.points = tag.getLong("points");
+        // 小さな段(2026-11-14)。この欄の無い古いセーブは、ポイントから黙って求める(読み込みではイベントを流さない)。
+        if (tag.contains("stage")) {
+            data.stage = PhaseStage.byIndex(tag.getInt("stage"));
+        } else if (data.phase >= 1) {
+            PhaseStage derived = DesignData.phases().stageFor(data.phase, data.points);
+            data.stage = derived != null ? derived : PhaseStage.INTRO;
+        }
         data.lastPointsGameTime = tag.contains("lastPointsGameTime") ? tag.getLong("lastPointsGameTime") : -1L;
         data.timePointsCarry = tag.getDouble("timePointsCarry");
         data.multipliedPointsCarry = tag.getDouble("multipliedPointsCarry");
@@ -236,6 +336,7 @@ public final class PhaseData extends SavedData {
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.putInt("phase", phase);
         tag.putLong("points", points);
+        tag.putInt("stage", stage.ordinal());
         tag.putLong("lastPointsGameTime", lastPointsGameTime);
         tag.putDouble("timePointsCarry", timePointsCarry);
         tag.putDouble("multipliedPointsCarry", multipliedPointsCarry);
@@ -815,6 +916,9 @@ public final class PhaseData extends SavedData {
             return;
         }
 
+        // 設計データの読み直しで閾値・区切りが変わったときも、ここで段が追いつく(下げはしない)。
+        refreshStage(overworld);
+
         if (phase >= PhaseTable.MAX_PHASE) {
             return;
         }
@@ -916,8 +1020,23 @@ public final class PhaseData extends SavedData {
         if (whole <= 0L) {
             return;
         }
+        gainPoints(overworld, whole);
+    }
+
+    /** 倍率を掛けた後のポイントを足し、フェーズ → 段の順に進める(フェーズが上がったら新しいフェーズの段を見る)。 */
+    private void gainPoints(ServerLevel overworld, long whole) {
         points += whole;
         tryAdvance(overworld);
+        refreshStage(overworld);
+    }
+
+    /** GameTest 用: ワールドの難易度の倍率を通さずにポイントを足す(凍結・フェーズの範囲の判定は {@link #addPoints} と同じ)。 */
+    public void addPointsUnscaledForTests(ServerLevel overworld, long amount) {
+        if (frozen || phase < 1 || phase >= PhaseTable.MAX_PHASE || amount <= 0L) {
+            return;
+        }
+        setDirty();
+        gainPoints(overworld, amount);
     }
 
     /**
@@ -949,22 +1068,31 @@ public final class PhaseData extends SavedData {
     }
 
     private void advanceToPhase(ServerLevel overworld, int newPhase) {
+        int oldPhase = this.phase;
         this.phase = newPhase;
         // フェーズが進むたびにポイントを 0 にリセットする(次のフェーズの条件はここからの増分)。
         this.points = 0L;
+        // 新しいフェーズは導入から(2026-11-14)。
+        this.stage = PhaseStage.INTRO;
         setDirty();
         this.phaseWarned = false;
-        // 切り替わりに流すのは 1 行だけ。文は phases.json の message(2026-09-29 ユーザー指定)、
-        // 書いていなければ言語ファイルのフェーズ名(「フェーズ3-拡大」など)。
-        Component name = phaseAnnouncement(newPhase);
-        overworld.getServer().getPlayerList().broadcastSystemMessage(name, false);
+        if (isLive()) {
+            // 切り替わりに流すのは 1 行だけ。文は phases.json の message(2026-09-29 ユーザー指定)、
+            // 書いていなければ言語ファイルのフェーズ名(「フェーズ3-拡大」など)。
+            Component name = phaseAnnouncement(newPhase);
+            overworld.getServer().getPlayerList().broadcastSystemMessage(name, false);
+        }
 
         if (newPhase == 1) {
-            // フェーズ1突入時の演出: 全プレイヤーから離れた地表で地震が起き、大地が裂けて胞子が噴き出す。
-            com.yayuy.overgrownvegetation.quake.EarthquakeEvent.onEnterPhase1(overworld);
+            if (isLive()) {
+                // フェーズ1突入時の演出: 全プレイヤーから離れた地表で地震が起き、大地が裂けて胞子が噴き出す。
+                com.yayuy.overgrownvegetation.quake.EarthquakeEvent.onEnterPhase1(overworld);
+            }
             // 実績ゲートの記録はもう使わないので捨てる(個数だけ startAdvancementCount に残す)。
             startAdvancementIds.clear();
         }
+        fire(new PhaseEvents.PhaseChanged(overworld, oldPhase, newPhase, true));
+        syncToClients(overworld);
     }
 
     /**
@@ -974,11 +1102,21 @@ public final class PhaseData extends SavedData {
     public void setPhase(ServerLevel overworld, int newPhase) {
         int clamped = Math.max(0, Math.min(PhaseTable.MAX_PHASE, newPhase));
         boolean enteringPhase1 = clamped == 1 && this.phase != 1;
+        int oldPhase = this.phase;
+        PhaseStage oldStage = this.stage;
         this.phase = clamped;
         this.points = 0L;
+        // 段も導入へ戻す(ポイントを 0 にするのと同じ。2026-11-14)。
+        this.stage = PhaseStage.INTRO;
         setDirty();
-        if (enteringPhase1) {
+        if (enteringPhase1 && isLive()) {
             com.yayuy.overgrownvegetation.quake.EarthquakeEvent.onEnterPhase1(overworld);
         }
+        if (oldPhase != clamped) {
+            fire(new PhaseEvents.PhaseChanged(overworld, oldPhase, clamped, false));
+        } else if (oldStage != PhaseStage.INTRO && clamped >= 1) {
+            fire(new PhaseEvents.StageChanged(overworld, clamped, oldStage, PhaseStage.INTRO, false));
+        }
+        syncToClients(overworld);
     }
 }

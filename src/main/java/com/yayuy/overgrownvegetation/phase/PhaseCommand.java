@@ -36,6 +36,12 @@ public final class PhaseCommand {
                         // 自動進行の有効・無効(2026-10-10 ユーザー指定: true = 進む、false = 止める。旧 freeze <bool> は逆向きだった)。
                         .then(Commands.literal("true").executes(ctx -> setFreeze(ctx, false)))
                         .then(Commands.literal("false").executes(ctx -> setFreeze(ctx, true)))
+                        // 小さな段(2026-11-14): 見る(引数なし)・決める(intro / established / peak。開発用)。
+                        .then(Commands.literal("stage")
+                                .executes(PhaseCommand::showStage)
+                                .then(Commands.literal(PhaseStage.INTRO.key()).executes(ctx -> setStage(ctx, PhaseStage.INTRO)))
+                                .then(Commands.literal(PhaseStage.ESTABLISHED.key()).executes(ctx -> setStage(ctx, PhaseStage.ESTABLISHED)))
+                                .then(Commands.literal(PhaseStage.PEAK.key()).executes(ctx -> setStage(ctx, PhaseStage.PEAK))))
                         // F1 の前の前兆(地脈の予兆 LeyOmen の omen)は 2026-10-30 に地脈と一緒に parked/ へ。
                         ));
     }
@@ -48,11 +54,54 @@ public final class PhaseCommand {
                 data.getPhase(), data.getPoints(),
                 data.getOvergrownChunks(), data.getCorruptedBlocks()), false);
         ctx.getSource().sendSuccess(() -> nextPhaseRequirement(overworld, data), false);
+        ctx.getSource().sendSuccess(() -> stageLine(data), false);
         if (data.isFrozen()) {
             ctx.getSource().sendSuccess(() -> Component.translatable(
                     "commands.overgrown_vegetation.phase.freeze.status_frozen"), false);
         }
         return data.getPhase();
+    }
+
+    /** 段の 1 行: 「フェーズ 2 の段: 定着(このフェーズの進み 41%・この段の倍率 0.7)」。 */
+    private static Component stageLine(PhaseData data) {
+        int phase = data.getPhase();
+        if (phase < 1) {
+            return Component.translatable("commands.overgrown_vegetation.phase.stage.none");
+        }
+        PhaseTable table = DesignData.phases();
+        double strength = PhaseStages.strength(table, phase, data.getStage(), phase);
+        double progress = table.stageProgress(phase, data.getPoints());
+        String mult = String.format(java.util.Locale.ROOT, "%.2f", strength);
+        if (progress < 0.0D) {
+            return Component.translatable("commands.overgrown_vegetation.phase.stage.status_nospan",
+                    phase, data.getStage().displayName(), mult);
+        }
+        return Component.translatable("commands.overgrown_vegetation.phase.stage.status",
+                phase, data.getStage().displayName(),
+                String.format(java.util.Locale.ROOT, "%.1f", progress * 100.0D), mult,
+                table.stageStartPoints(phase, PhaseStage.ESTABLISHED), table.stageStartPoints(phase, PhaseStage.PEAK),
+                table.stageSpanPoints(phase));
+    }
+
+    private static int showStage(com.mojang.brigadier.context.CommandContext<CommandSourceStack> ctx) {
+        PhaseData data = PhaseData.get(ctx.getSource().getServer().overworld());
+        ctx.getSource().sendSuccess(() -> stageLine(data), false);
+        return data.getStage().ordinal();
+    }
+
+    private static int setStage(com.mojang.brigadier.context.CommandContext<CommandSourceStack> ctx, PhaseStage stage) {
+        ServerLevel overworld = ctx.getSource().getServer().overworld();
+        PhaseData data = PhaseData.get(overworld);
+        if (data.getPhase() < 1) {
+            ctx.getSource().sendFailure(Component.translatable("commands.overgrown_vegetation.phase.stage.none"));
+            return 0;
+        }
+        long points = data.setStage(overworld, stage);
+        ctx.getSource().sendSuccess(() -> points >= 0L
+                ? Component.translatable("commands.overgrown_vegetation.phase.stage.set", stage.displayName(), points)
+                : Component.translatable("commands.overgrown_vegetation.phase.stage.set_nospan", stage.displayName()), true);
+        ctx.getSource().sendSuccess(() -> stageLine(data), false);
+        return stage.ordinal() + 1;
     }
 
     /**

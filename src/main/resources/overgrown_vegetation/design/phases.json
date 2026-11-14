@@ -29,6 +29,14 @@
       "flowerWiltChance": 0.1,
       "flowerRecoverChance": 0.15,
       "animalAvoidExtra": 6
+    },
+    "stages": {
+      "_comment": "フェーズの中の小さな段 導入 → 定着 → 最盛(2026-11-14 ユーザー決定は「どのフェーズも 3 つ」まで。値は全部【仮】)。establishedFrom / peakFrom = 次のフェーズの pointsToAdvance に対する進みがこれを越えたら定着・最盛。intro / established / peak = その段での「そのフェーズの物の強さ」の倍率(各フェーズの stages が無い欄の既定)。",
+      "intro": 0.3,
+      "established": 0.7,
+      "peak": 1.0,
+      "establishedFrom": 0.3333,
+      "peakFrom": 0.6667
     }
 
   },
@@ -46,6 +54,7 @@
         }
       },
       "raidEnabled": false,
+      "stages": { "intro": 0.3, "established": 0.7, "peak": 1.0 },
       "notes": "ワールド 3 日経過 かつ 実績 6 個で突入。グループ1が過繫茂バイオームに湧き始める。突入時に地割れ演出。"
     },
     "2": {
@@ -74,6 +83,7 @@
         "minDistance": 32,
         "maxDistance": 80
       },
+      "stages": { "intro": 0.3, "established": 0.7, "peak": 1.0 },
       "notes": "フェーズ1からさらに 360000 ポイントで突入。アルボラが過繫茂バイオームの外にも少数だけ湧き始める(outsideSpawns)。グループ2(原生生産種)が過繫茂バイオームに湧き始める。グループ1は汚染地形から離れて他 Mob を襲う(体力・攻撃力の強化は 2026-10-10 ユーザー指定で無し)。"
     },
     "3": {
@@ -102,6 +112,7 @@
         "minDistance": 32,
         "maxDistance": 80
       },
+      "stages": { "intro": 0.3, "established": 0.7, "peak": 1.0 },
       "notes": "フェーズ2からさらに 800000 ポイントで突入。アルボラの外湧きは継続。グループ3(原生消費種)が湧き始める。"
     },
     "4": {
@@ -130,6 +141,7 @@
         "minDistance": 32,
         "maxDistance": 80
       },
+      "stages": { "intro": 0.3, "established": 0.7, "peak": 1.0 },
       "notes": "フェーズ3からさらに 1400000 ポイントで突入。アルボラの外湧きはこのフェーズまで(F5 以降は過繫茂バイオームの中に湧く)。グループ4(拡大種)が過繫茂バイオームに湧き始める(2026-10-10 ユーザー指定で F5 から 1 つ前へ)。過繫茂バイオームの直接スポーンからグループ1が外れる。"
     },
     "5": {
@@ -153,6 +165,7 @@
         "minDistance": 32,
         "maxDistance": 80
       },
+      "stages": { "intro": 0.3, "established": 0.7, "peak": 1.0 },
       "notes": "フェーズ4からさらに 2800000 ポイントで突入。突入した瞬間にレイド(過繫茂の苗床)が確定で1回発生し、以降は周期レイドも起きる。グループ5(適応種)が湧き始める(2026-10-10 ユーザー指定で F6 から 1 つ前へ)。"
     },
     "6": {
@@ -183,6 +196,7 @@
         "minDistance": 32,
         "maxDistance": 80
       },
+      "stages": { "intro": 0.3, "established": 0.7, "peak": 1.0 },
       "notes": "フェーズ5からさらに 5800000 ポイントで突入。グループ4が「種のばらばらな 3〜5 体の群れ」で湧くようになる。"
     },
     "7": {
@@ -209,6 +223,7 @@
       "raidEnabled": true,
       "tdEnabled": true,
       "siegeEnabled": false,
+      "stages": { "intro": 0.3, "established": 0.7, "peak": 1.0 },
       "notes": "昇格条件はユーザー指定の日数から逆算(F6→F7 は 20 日、2026-09-28 に台帳の広がりの新しい規則で計算し直した)。攻城戦(ドルガ=アーケロウス・ティタニカ)が始まるかは siegeEnabled。以前の仮トリガー /siege は 2026-09-26 に削除。"
     },
     "8": {
@@ -236,6 +251,7 @@
       "raidEnabled": true,
       "tdEnabled": true,
       "siegeEnabled": false,
+      "stages": { "intro": 0.3, "established": 0.7, "peak": 1.0 },
       "notes": "内容未定。昇格条件は未設定 = 自動では到達しない。",
       "autoAdvance": false
     },
@@ -266,6 +282,7 @@
       "raidEnabled": true,
       "tdEnabled": true,
       "siegeEnabled": false,
+      "stages": { "intro": 0.3, "established": 0.7, "peak": 1.0 },
       "notes": "内容未定。昇格条件は未設定 = 自動では到達しない。",
       "autoAdvance": false
     },
@@ -297,6 +314,7 @@
       "raidEnabled": true,
       "tdEnabled": true,
       "siegeEnabled": true,
+      "stages": { "intro": 0.3, "established": 0.7, "peak": 1.0 },
       "notes": "内容未定、最終フェーズ。昇格条件は未設定 = 自動では到達しない。",
       "siegeDelayTicks": 3600,
       "autoAdvance": false

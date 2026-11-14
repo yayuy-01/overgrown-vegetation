@@ -30,7 +30,10 @@ public final class PhaseTicker {
             return;
         }
 
-        PhaseData.get(serverLevel).tick(serverLevel);
+        PhaseData data = PhaseData.get(serverLevel);
+        data.tick(serverLevel);
+        // 進みの % が動いたらクライアントへ(2026-11-14 小さな段)。
+        PhaseSync.tickProgress(serverLevel.getServer(), data);
     }
 
     private PhaseTicker() {

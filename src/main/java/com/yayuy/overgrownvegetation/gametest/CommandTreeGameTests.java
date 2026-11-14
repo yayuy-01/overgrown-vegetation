@@ -41,7 +41,8 @@ public final class CommandTreeGameTests {
             // 2026-10-30 の整理(退避)で、汚染に関係ない系統(raid・td・bench・biomass・age・base・siege・storm・sky)と
             // phase の omen・perf の g1 は parked/ へ。前の一覧は git の before-park-2026-10-30 に残る。
             Map.entry("corruption", Set.of("speed", "true", "false")),
-            Map.entry("phase", Set.of("set", "true", "false")),
+            // 2026-11-14: フェーズの小さな段(導入・定着・最盛)を見る・決める stage を足した。
+            Map.entry("phase", Set.of("set", "true", "false", "stage")),
             // 2026-11-08: G1 段階 0 の組み込みで perf の g1(死体をすぐ起き上がらせる hatch)を戻した。
             // 2026-11-13: サバイバルの背骨 段 2b で地脈を確かめる ley(線までの距離・効率・近くの線へ飛ぶ near)を足した。
             // 2026-11-14: 段 2c で換気機を確かめる vent(動いている機械・ここが範囲か・まわりを過繁茂の台帳に載せる forest)を足した。
