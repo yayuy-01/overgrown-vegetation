@@ -45,6 +45,10 @@ public final class FootPlanter {
     public double probeUp = 1.3, probeDown = 2.6;   // 下は 11-07 夜に 1.8 → 2.6(1 マスの段が続く急な坂で下側の足が地面を見つけられず浮いた。3 マスの崖の下までは伸ばさない)
     /** 脚の置き場の横の幅の倍率(1 = 基準。段 3 の「前を起こして細くなる」構えで脚を寄せる、11-08 夜)【仮】。 */
     public double lateral = 1.0;
+    /** 踏み替えの長さ(tick)。0 = 既定(速いほど短く 4〜7 tick)。大股でゆっくり運ぶ種が毎 tick 渡す(11-14、ヴェナムネス)。 */
+    public int swingTicks = 0;
+    /** もう片方の組みが着いてから、この組みが踏み替えを始めるまでに空ける tick(0 = 既定 = 空けない)。左右を半周期ずらして交互に運ぶために(11-14、ヴェナムネス)。 */
+    public int restGap = 0;
     /** 胴の傾きを地形の傾きに合わせる割合【仮】。 */
     public static final double FOLLOW = 0.85D;
 
@@ -59,6 +63,8 @@ public final class FootPlanter {
     private final float[] swingT;
     private final int[] swingLen;
     private boolean ready;
+    /** 組みごとの、最後に足が着いてからの tick({@link #restGap} 用)。 */
+    private final int[] sinceLanding = {1000, 1000};
 
     // 胴(今と 1 tick 前。描画で補間する)
     private double lift0, lift1, pitch0, pitch1, roll0, roll1;
@@ -139,7 +145,7 @@ public final class FootPlanter {
 
         double horiz = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
         // 速いほど踏み替えを短く(4〜7 tick)【仮】
-        int len = Mth.clamp((int) Math.round(7.0D - horiz / scale * 25.0D), 4, 7);
+        int len = swingTicks > 0 ? swingTicks : Mth.clamp((int) Math.round(7.0D - horiz / scale * 25.0D), 4, 7);
 
         // 置きたい所。地面あり / なしの切り替えにはためらいを持たせる(縁で毎 tick 入れ替わると足が震えた、11-07 夜)
         Vec3[] want = new Vec3[n];
@@ -180,6 +186,7 @@ public final class FootPlanter {
                 planted[i] = want[i];
                 now[i] = want[i];
                 hanging[i] = wantHang[i];
+                sinceLanding[group[i]] = 0;
             } else {
                 now[i] = arc(from[i], want[i], swingT[i], scale);
             }
@@ -191,6 +198,8 @@ public final class FootPlanter {
                 planted[i] = now[i];
             }
         }
+        sinceLanding[0]++;
+        sinceLanding[1]++;
         // 踏み替えを始める(組みごと。もう片方の組みが宙にある間は待つ)
         for (int g = 0; g < 2; g++) {
             boolean otherUp = false, selfUp = false, need = false, force = false;
@@ -219,7 +228,7 @@ public final class FootPlanter {
                     }
                 }
             }
-            if (selfUp || !need || (otherUp && !force)) {
+            if (selfUp || !need || ((otherUp || sinceLanding[1 - g] < restGap) && !force)) {
                 continue;
             }
             for (int i = 0; i < n; i++) {
@@ -459,5 +468,15 @@ public final class FootPlanter {
 
     public boolean swinging(int i) {
         return swinging[i];
+    }
+
+    /** 踏み替えの進み(0〜1。着いている間は 0)。 */
+    public float swingProgress(int i) {
+        return swinging[i] ? swingT[i] : 0.0F;
+    }
+
+    /** 垂らしている(地面の無い)脚か。 */
+    public boolean hanging(int i) {
+        return hanging[i];
     }
 }

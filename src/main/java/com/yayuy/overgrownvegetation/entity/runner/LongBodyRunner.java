@@ -271,6 +271,20 @@ public abstract class LongBodyRunner extends Monster {
         tunePlanter(this.footPlanter);
         this.footPlanter.tick(this, near && !keyedOnly, footScale());
         this.clientProceduralLegs = this.footPlanter.weight(1.0F) > 0.0F && !keyedOnly;
+        if (devName.contains("gait") && this.footPlanter.ready()) {
+            // 確かめ用: 足の運びを 1 tick ごとに書く(速さ・脚ごとの「宙か」と体の前後へのずれ・胴の高さ)
+            float yaw = this.yBodyRot * Mth.DEG_TO_RAD;
+            double fx = -Mth.sin(yaw), fz = Mth.cos(yaw);
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < this.footPlanter.legs(); i++) {
+                Vec3 f = this.footPlanter.foot(i, 1.0F);
+                sb.append(String.format(java.util.Locale.ROOT, " %s%+.2f", this.footPlanter.swinging(i) ? "^" : "_",
+                        (f.x - this.getX()) * fx + (f.z - this.getZ()) * fz));
+            }
+            com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
+                    "VEN_STEP t %d 速さ %.3f 手続き %s 足%s 胴 %+.3f", this.tickCount, clientForwardSpeed(), this.clientProceduralLegs, sb,
+                    this.footPlanter.bodyWorldY(1.0F) - this.getY()));
+        }
         if (devName.equals("feet") && this.footPlanter.ready()) {
             for (int i = 0; i < this.footPlanter.legs(); i++) {
                 Vec3 f = this.footPlanter.foot(i, 1.0F);
@@ -312,6 +326,11 @@ public abstract class LongBodyRunner extends Monster {
 
     public void markLegsRendered() {
         this.legsRenderedTick = this.tickCount;
+    }
+
+    /** 描画: 足の前後の傾き(ラジアン、+ でつま先が上がる)。宙の足のつま先を垂らす・着く前に上げる、を種が決める。 */
+    public double footPitch(int leg, float pt) {
+        return 0.0D;
     }
 
     /** 描画: 脚を手続き(IK)で置いているか。true の間、脚の層は待機の形を流す。 */

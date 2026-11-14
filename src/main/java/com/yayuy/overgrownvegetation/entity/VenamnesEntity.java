@@ -3,6 +3,7 @@ package com.yayuy.overgrownvegetation.entity;
 import com.yayuy.overgrownvegetation.data.MobStats;
 import com.yayuy.overgrownvegetation.entity.forest.ForestMap;
 import com.yayuy.overgrownvegetation.entity.legs.FootPlanter;
+import com.yayuy.overgrownvegetation.entity.runner.GaitSway;
 import com.yayuy.overgrownvegetation.entity.runner.LongBodyRunner;
 import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
 import net.minecraft.server.level.ServerLevel;
@@ -24,7 +25,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * ヴェナムネス {@code venamnes}(G5・攻撃特化。11-14 に本名。仮名オイカケ、仮の id {@code g5_pursuer})。G5 の原型: 逃げる人を速く走って追い詰め、口で噛む。
  * ファルキムネスより脆く、長く追う「足の速さ」の Mob(名簿「Mob の名簿と能力の刷新(11-04)」の G5 の表・注文書 g5_pursuer)。
  *
- * <h2>段 1(2026-11-14): 歩くところまで</h2>
+ * <h2>段 1(2026-11-14): 歩くところまで。段 1b(同日): 歩きの見直しと走りのアニメ</h2>
  * 移動は「② 大型の地上を走る型」({@link LongBodyRunner}。ファルキムネスの作りの写し)を使い回す。攻撃・能力はまだ無い(次の段で相談)。
  * 行動はうろつき(と、テストクライアントの navto)だけ。自然には湧かない(スポーンエッグ・コマンドだけ)。
  *
@@ -36,9 +37,12 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  *       {@link #MOVE_OFF} 度(同 70)、向きがずれていても前へ {@link #TURN_ADVANCE} は進む(同 0)。経路の長い体の重みは軽め({@link #LONG_BODY})。</li>
  * </ul>
  *
- * <h3>脚</h3>
- * 二足(太もも → すね → ふ節 → 足)。近くで描かれていて遅い間({@link #IK_MAX_SPEED} 未満)は足の置き場({@link FootPlanter})+ IK、
- * 速く走る間は手付けの歩き(walk)を実際の速さに合わせて流す(足の置き場は二足の宙に浮く走りを持たないので)。
+ * <h3>脚と歩き方(11-14 段 1b で見直し)</h3>
+ * 二足(太もも → すね → ふ節 → 足)。近くで描かれていて遅い間({@link #IK_MAX_SPEED} 未満)は足の置き場({@link FootPlanter})+ IK:
+ * 大股でゆっくり運び、左右を半周期ずらす({@link #tunePlanter})。腰の上下とひねり・胸と首と尾の遅れは、実際の踏み替えから
+ * {@link GaitSway} が出す(アニメは上半身の構え stalk だけ)。それより速い間は手付けの走り run(宙に浮く間がある)を実際の速さに合わせて流す。
+ * 遠くの個体(足の置き場が効かない)がゆっくり歩く間は手付けの walk。walk・run・stalk は {@code tools/venamnes-anim} が同じ式で焼く
+ * (正本は Blockbench の venamnes.bbmodel)。
  */
 public class VenamnesEntity extends LongBodyRunner implements GeoEntity, ParasitizedMob {
 
@@ -61,7 +65,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     /** 回る速さ(度/tick)・その場で回りだすずれ(度)・ずれていても進む割合【仮】。 */
     static final float TURN_PER_TICK = 10.0F, MOVE_OFF = 85.0F, TURN_ADVANCE = 0.35F;
     /** うろつきの速さ(移動の速さに掛ける)【仮】。 */
-    static final double STROLL_SPEED = 0.55D;
+    static final double STROLL_SPEED = 0.72D;   // 11-14 段 1b: 0.55 → 0.72(地面の速さ 0.059 → 約 0.10 ブロック/tick。0.059 は体長 8 ブロックには這うように遅く、大股にできなかった)
     /** 経路の長い体の重み【仮】: ファルキムネス (2.0, 1.0, 0.6, 1.5) より軽く、曲がりを嫌わない。 */
     public static final OvergrownNodeEvaluator.LongBody LONG_BODY = new OvergrownNodeEvaluator.LongBody(1.8F, 0.8F, 0.35F, 1.3F);
 
@@ -77,13 +81,15 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
 
     // --- 脚の手続きと手付けの切り替え・アニメの速さ ---
     /** これより速い(ブロック/tick)と手付けの歩き(走り)にする / これより遅くなったら足の置き場へ戻す【仮】。 */
-    public static final double IK_MAX_SPEED = 0.20D, IK_BACK_SPEED = 0.16D;
+    public static final double IK_MAX_SPEED = 0.235D, IK_BACK_SPEED = 0.205D;   // 11-14 段 1b: 0.20・0.16 から上げた(急ぎの素の速さ 0.194 が境のすぐ下で、森の中で切り替えが続くため)
     /**
-     * walk を速さ 1.0 で流したときの地上速度(ブロック/tick)。FK で踏む足の動きを測った値: 着いている間に 6.1 px を 0.225 秒で
-     * 後ろへ送る(平均 0.21、真ん中 0.255)。【測り 11-14 Claude】
+     * walk・run を速さ 1.0 で流したときの地上速度(ブロック/tick)。道具 {@code tools/venamnes-anim} が、踏む足が着いている間に後ろへ送る速さを
+     * この値に合わせて焼く(walk は 28 tick で 1 周・歩幅 2.8 ブロック、run は 16 tick で 1 周・歩幅 4.96 ブロック)。【11-14 段 1b】
      */
-    public static final double WALK_REF = 0.22D;
+    public static final double WALK_REF = 0.10D, RUN_REF = 0.31D;
     static final double LOOP_SPEED_MIN = 0.3D, LOOP_SPEED_MAX = 2.5D;
+    /** 走りを流す速さの範囲(境 0.205 で約 0.66 倍、最高 0.39 で約 1.26 倍)。 */
+    static final double RUN_SPEED_MIN = 0.55D, RUN_SPEED_MAX = 1.5D;
     /** これ(ブロック/tick)以上前へ進んだ tick は歩き。 */
     static final double WALK_MIN_SPEED = 0.01D;
     /** その場で回っていても歩きを流す回る速さ(度/tick)。旋回の足踏みのアニメはまだ無い。 */
@@ -91,6 +97,9 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
 
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
+    private static final RawAnimation RUN = RawAnimation.begin().thenLoop("run");
+    /** 足の置き場で歩く間の上半身(脚と腰の上下・首と尾の付け根は手続きが足す)。 */
+    private static final RawAnimation STALK = RawAnimation.begin().thenLoop("stalk");
 
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
@@ -102,6 +111,8 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     static final int SPRINT_LOOK_EVERY = 5;
     /** クライアント: 手付けの走りにしているか(速さのヒステリシス)。 */
     private boolean keyedRun;
+    /** クライアント: 足の運びから出す胴・首・尾の動き。 */
+    private final GaitSway sway = new GaitSway();
     /** 計測用(サーバー): 速さの倍率を求めた時間。 */
     public static volatile long sprintNanos, sprintCalls;
 
@@ -246,19 +257,89 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
 
     // ------------------------------------------------------------------ 脚
 
+    // --- 足の運び(足の置き場で歩く間)【仮・Claude 11-14 段 1b】 ---
+    /**
+     * 着いている足が体の下を後ろへ流れる距離(ブロック。= 踏み替えを始めるずれ): 止まりかけは {@link #STEP_MIN}、速さ(ブロック/tick)に
+     * {@link #STEP_PER} を掛けて足し、{@link #STEP_MAX}(腰を上げた脚が届く前後の幅)まで。速さ 0.10 で 1.7 → 1 歩 2.8 ブロック・28 tick で左右 1 巡。
+     * 段 1 は 0.35 + 速さ × 2 で、足は体の前の 0.5 ブロックの中だけを 15 tick で 1 巡していた(ユーザー「足の運びが小さい・遅い」)。
+     */
+    static final double STEP_MIN = 0.45D, STEP_PER = 12.5D, STEP_MAX = 2.0D;
+    /** 踏み替えの長さ(tick)= 着いている時間 × {@link #SWING_SHARE}、{@link #SWING_MIN}〜{@link #SWING_MAX}。段 1 は 4〜7(速い小股)。 */
+    static final double SWING_SHARE = 0.65D;
+    static final int SWING_MIN = 6, SWING_MAX = 11;
+    /** 足の運びの真ん中を、基準の置き場からこれだけ後ろへ(ブロック)。腰の関節は置き場の 0.37 後ろ = 足は腰の少し前に着き、腰の後ろで離れる。 */
+    static final double STEP_CENTER_BACK = 0.3D;
+    /** 先回りの上限(tick)と、回っている間の上限。 */
+    static final double LEAD_MAX = 8.0D, LEAD_TURNING = 3.0D;
+    /** 腰の関節が体の中心より後ろにある量(モデルの px)。 */
+    static final double HIP_BACK_PX = 1.5D;
+
     @Override
     protected void configurePlanter(FootPlanter fp) {
-        fp.lift = 0.45D;       // 宙の足を上げる高さ(ブロック)【仮】
+        fp.lift = 0.55D;       // 宙の足を上げる高さ(ブロック)【仮】。段 1 は 0.45
         fp.probeUp = 1.3D;
         fp.probeDown = 2.2D;   // 腰の高さ 1.6 + 少し
     }
 
+    /** 速いほど大股に。ゆっくりの間は長く宙を運び、左右を半周期ずらす(片足が宙の間はもう片足が支える)。 */
     @Override
     protected void tunePlanter(FootPlanter fp) {
-        double v = Math.sqrt(sq(this.getX() - this.xo) + sq(this.getZ() - this.zo));
-        // 速いほど大股・早めに踏み替える【仮】。二足なので片足が宙の間はもう片足が支える
-        fp.stepAt = 0.35D + v * 2.0D;
-        fp.lead = 5.0D;
+        double v = Math.sqrt(sq(this.getX() - this.xo) + sq(this.getZ() - this.zo)) / Math.max(this.getScale(), 0.05F);
+        boolean turning = Math.abs(getTurnRate()) > 3.0F;
+        double step = Mth.clamp(STEP_MIN + v * STEP_PER, STEP_MIN, STEP_MAX);
+        double stance = v > 0.01D ? step / v : 40.0D;   // 足が着いている tick
+        int swing = Mth.clamp((int) Math.round(stance * SWING_SHARE), SWING_MIN, turning ? SWING_MIN : SWING_MAX);
+        fp.stepAt = step;
+        fp.swingTicks = swing;
+        fp.restGap = turning || v < 0.02D ? 0 : Mth.clamp((int) Math.round((stance - swing) * 0.5D), 0, 4);
+        fp.lead = Mth.clamp((step * 0.5D - STEP_CENTER_BACK) / Math.max(v, 0.01D), 0.0D, turning ? LEAD_TURNING : LEAD_MAX);
+    }
+
+    /** 宙の足: 離れてすぐはつま先を垂らし、着く前に少し上げる(ラジアン、+ でつま先が上がる)【仮】。 */
+    @Override
+    public double footPitch(int leg, float pt) {
+        FootPlanter fp = footPlanter();
+        if (fp == null || !fp.swinging(leg)) return 0.0D;
+        double s = Mth.clamp(fp.swingProgress(leg) - (1.0D - pt) / Math.max(fp.swingTicks, 1), 0.0D, 1.0D);   // 描く足先は 1 tick 前からの補間
+        double drop = Math.sin(Math.PI * Mth.clamp(s / 0.6D, 0.0D, 1.0D));
+        double up = Math.sin(Math.PI * Mth.clamp((s - 0.6D) / 0.4D, 0.0D, 1.0D));
+        return -0.55D * drop + 0.22D * up;
+    }
+
+    /** クライアント: 足の置き場の後で、足の運びから胴・首・尾の動きを 1 tick 進める。 */
+    @Override
+    public void tick() {
+        super.tick();
+        if (!this.level().isClientSide()) return;
+        FootPlanter fp = footPlanter();
+        if (fp == null || !fp.ready()) return;
+        float yaw = this.yBodyRot * Mth.DEG_TO_RAD;
+        double fx = -Mth.sin(yaw), fz = Mth.cos(yaw), s = Math.max(this.getScale(), 0.05F);
+        for (int i = 0; i < 2; i++) {
+            net.minecraft.world.phys.Vec3 f = fp.foot(i, 1.0F);
+            this.swayFwd[i] = ((f.x - this.getX()) * fx + (f.z - this.getZ()) * fz) / s + HIP_BACK_PX * PX;
+            this.swayPlanted[i] = !fp.swinging(i) && !fp.hanging(i);
+            this.swaySwing[i] = fp.swingProgress(i);
+        }
+        boolean walking = proceduralLegs() && clientForwardSpeed() / s > 0.02D;
+        this.sway.tick(this.swayFwd, this.swayPlanted, this.swaySwing, SWAY_SIDE, walking);
+        if (DEV_HOOKS && this.hasCustomName() && this.getCustomName().getString().contains("gait")) {
+            com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
+                    "VEN_SWAY t %d 腰 %+.3f ひねり %+.1f 傾き %+.1f 胸 %+.1f 首 %+.1f 走り %s", this.tickCount, this.sway.get(GaitSway.LIFT, 1.0F),
+                    this.sway.get(GaitSway.YAW, 1.0F), this.sway.get(GaitSway.ROLL, 1.0F), this.sway.get(GaitSway.FRONT_PITCH, 1.0F),
+                    this.sway.get(GaitSway.NECK_PITCH, 1.0F), this.keyedRun));
+        }
+    }
+
+    private final double[] swayFwd = new double[2];
+    private final boolean[] swayPlanted = new boolean[2];
+    private final float[] swaySwing = new float[2];
+    /** 脚の左右(+1 = 左)。{@link #LEG_HOME_LEFT} の並び。 */
+    private static final int[] SWAY_SIDE = {1, -1};
+
+    /** 描画: 足の運びから出した胴・首・尾の動き。 */
+    public GaitSway sway() {
+        return this.sway;
     }
 
     private static double sq(double v) {
@@ -297,6 +378,16 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         double ahead = clientForwardSpeed();
         boolean turning = Math.abs(getTurnRate()) >= TURN_ANIM_MIN;
         if (!this.isDeadOrDying() && (ahead >= WALK_MIN_SPEED || turning)) {
+            if (this.keyedRun) {
+                // 走り: 脚の切り替え(legsFree)と同じ旗で選ぶ。踏む足が滑らないよう、実際の速さに合わせて流す
+                c.setAnimationSpeed(Mth.clamp(ahead / (RUN_REF * this.getScale()), RUN_SPEED_MIN, RUN_SPEED_MAX));
+                return state.setAndContinue(RUN);
+            }
+            if (proceduralLegs()) {
+                // 足の置き場で歩く間: 上半身だけの構え。脚・腰の上下・首と尾の付け根は実際の踏み替えから手続きで足す
+                return state.setAndContinue(STALK);
+            }
+            // 遠く(足の置き場が効いていない)でゆっくり歩く間: 手付けの歩き
             double v = Math.max(ahead, turning ? WALK_REF * 0.5D : 0.0D);
             c.setAnimationSpeed(Mth.clamp(v / (WALK_REF * this.getScale()), LOOP_SPEED_MIN, LOOP_SPEED_MAX));
             return state.setAndContinue(WALK);

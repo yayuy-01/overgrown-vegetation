@@ -117,7 +117,7 @@ public final class LegChainRig {
                     an.getInitialSnapshot().getRotX(), ft.getInitialSnapshot().getRotX()}
                     : key;
             // 足の向きは基準の向きを地面に対して保つ: 足の X = 基準の足 + (基準の X の和 − 解の X の和) − 胴の前後の傾き
-            double footBase = ref[4] + ref[0] + ref[2] + ref[3] - pitch;
+            double footBase = ref[4] + ref[0] + ref[2] + ref[3] - pitch + e.footPitch(i, pt) * w;
             double[] x = sol[i] != null && sol[i].length == 4 && e.legSolutionFresh() ? sol[i].clone() : new double[]{ref[0], ref[1], ref[2], ref[3]};
             solve(x, ref, th, sh, an, ft, footBase, this.sole[i], target);
             sol[i] = x;
