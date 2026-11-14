@@ -357,11 +357,32 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
             // 山・大木にぶつかった: 横へは押し付けられたまま、昇って越える(浮くことしかできない)
             this.bumpY = this.getY() + BUMP_CLIMB;
         }
-        if (this.verticalCollision && this.drift.vy > 0.0D) this.drift.vy = 0.0D;
+        if (this.verticalCollision && v.y > 0.0D) {
+            if (onlyLeavesAbove(sl)) {
+                // 林冠の下に押し付けられた: 葉の中へ入る(入れば上の「埋まっている間はすり抜ける」で抜ける)。石などの天井の下では留まる
+                this.setPos(this.getX(), this.getY() + 0.1D, this.getZ());
+            } else {
+                this.drift.vy = 0.0D;
+            }
+        }
         this.setDeltaMovement(v);
         this.setYRot(this.getYRot() + this.spin);
         this.yBodyRot = this.getYRot();
         this.yHeadRot = this.getYRot();
+    }
+
+    /** 体の真上(頭の上 0.5 ブロック)でぶつかるブロックが葉だけか(1 つも無ければ false)。 */
+    private boolean onlyLeavesAbove(ServerLevel sl) {
+        AABB b = this.getBoundingBox();
+        boolean leaves = false;
+        for (BlockPos p : BlockPos.betweenClosed(Mth.floor(b.minX), Mth.floor(b.maxY + 0.01D), Mth.floor(b.minZ),
+                Mth.floor(b.maxX), Mth.floor(b.maxY + 0.5D), Mth.floor(b.maxZ))) {
+            net.minecraft.world.level.block.state.BlockState s = sl.getBlockState(p);
+            if (s.getCollisionShape(sl, p).isEmpty()) continue;
+            if (!s.is(net.minecraft.tags.BlockTags.LEAVES)) return false;
+            leaves = true;
+        }
+        return leaves;
     }
 
     private boolean playerWithin(ServerLevel sl, double r) {
