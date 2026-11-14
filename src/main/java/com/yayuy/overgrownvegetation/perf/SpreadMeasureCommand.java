@@ -35,6 +35,7 @@ import java.util.List;
  *     <li>{@code sec} = 本体の、元から 8 方位(東から時計回り。0 = 東・2 = 南)それぞれの扇(±22.5 度)でいちばん遠いチャンクまでの距離(チャンク)。</li>
  *     <li>{@code wind} = 今の卓越風の吹いていく向き(度。0 = 東へ・90 = 南へ)。風下 = その向きの扇、風上 = 反対。</li>
  *     <li>{@code cum} = F1 からの累計ポイント(越えたフェーズの {@code pointsToAdvance} の和 + 今のポイント)。</li>
+ *     <li>{@code overgrown} = フェーズが数える過繁茂の累計(時間ポイントの式が読む数)。{@code dump} で台帳の全チャンクと載った時刻をファイルへ。</li>
  *     <li>{@code lag} = 胞子の場の暦の遅れ(tick。早送りで場の計算が追いついているかの確かめ)。</li>
  * </ul>
  */
@@ -51,6 +52,8 @@ public final class SpreadMeasureCommand {
                                     BlockPos p = BlockPos.containing(ctx.getSource().getPosition());
                                     return measure(ctx, p.getX() >> 4, p.getZ() >> 4);
                                 })
+                                // 台帳の全チャンクと載った時刻を <ゲームフォルダ>/ov-ledger-<gt>.tsv へ(あとで日ごとの広がりを組み直す)
+                                .then(Commands.literal("dump").executes(SpreadMeasureCommand::dump))
                                 .then(Commands.argument("cx", IntegerArgumentType.integer())
                                         .then(Commands.argument("cz", IntegerArgumentType.integer())
                                                 .executes(ctx -> measure(ctx, IntegerArgumentType.getInteger(ctx, "cx"),
@@ -112,8 +115,8 @@ public final class SpreadMeasureCommand {
         long clock = pd.clock(level.getServer());
         long lag = SporeFieldServer.fieldClockForTests() == Long.MIN_VALUE ? -1 : clock - SporeFieldServer.fieldClockForTests();
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("SPREAD gt=%d clock=%d day=%.3f phase=%d points=%d cum=%d ledger=%d main=%d enclaves=%d meanR=%.2f",
-                level.getGameTime(), clock, clock / 24000.0D, pd.getPhase(), pd.getPoints(), cum, ledger.size(), main.size(),
+        sb.append(String.format("SPREAD gt=%d clock=%d day=%.3f phase=%d points=%d cum=%d ledger=%d overgrown=%d main=%d enclaves=%d meanR=%.2f",
+                level.getGameTime(), clock, clock / 24000.0D, pd.getPhase(), pd.getPoints(), cum, ledger.size(), pd.getOvergrownChunks(), main.size(),
                 ledger.size() - main.size(), Math.sqrt(main.size() / Math.PI)));
         sb.append(" sec=");
         for (int i = 0; i < 8; i++) sb.append(i == 0 ? "" : ",").append(String.format("%.1f", sec[i]));
@@ -130,6 +133,24 @@ public final class SpreadMeasureCommand {
                 ctx.getSource().sendSuccess(() -> Component.literal("SPREADFIELD " + last), false);
             }
         }
+        return ledger.size();
+    }
+
+    private static int dump(CommandContext<CommandSourceStack> ctx) {
+        ServerLevel level = ctx.getSource().getServer().overworld();
+        Long2LongOpenHashMap ledger = PhaseData.get(level).snapshotLedger();
+        java.nio.file.Path out = net.neoforged.fml.loading.FMLPaths.GAMEDIR.get().resolve("ov-ledger-" + level.getGameTime() + ".tsv");
+        StringBuilder sb = new StringBuilder("cx\tcz\tsince\n");
+        for (Long2LongOpenHashMap.Entry e : ledger.long2LongEntrySet()) {
+            sb.append(ChunkPos.getX(e.getLongKey())).append('\t').append(ChunkPos.getZ(e.getLongKey())).append('\t').append(e.getLongValue()).append('\n');
+        }
+        try {
+            java.nio.file.Files.writeString(out, sb.toString());
+        } catch (java.io.IOException ex) {
+            ctx.getSource().sendFailure(Component.literal("書けない: " + ex));
+            return 0;
+        }
+        ctx.getSource().sendSuccess(() -> Component.literal("SPREADDUMP " + ledger.size() + " " + out), false);
         return ledger.size();
     }
 
