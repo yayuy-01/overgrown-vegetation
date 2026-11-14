@@ -213,8 +213,19 @@ public final class BaseMemoryGameTests {
     public static void scoutedBaseIsRecognizedAfterOneToTwoDays(GameTestHelper helper) {
         BaseMemory m = BaseMemory.createForTests();
         BaseMemory.Base b = remembered(m, A, 0.0D);
-        helper.assertTrue(!BaseMemory.wantsScout(b, 0.0D) && BaseMemory.wantsScout(b, t().scoutIntervalMinDays), "覚えてからの偵察の間が違う");
+        helper.assertTrue(!BaseMemory.wantsScout(b, 0.0D) && BaseMemory.wantsScout(b, t().scoutFirstDays), "覚えてからの偵察の間が違う");
+        // 偵察の間(11-14 ユーザー): ふだん 0.4〜0.6 日・F4 の間は 1〜2 日。出した時から数え、眺め終えても次の時は変えない
+        net.minecraft.util.RandomSource ir = net.minecraft.util.RandomSource.create(5L);
+        for (int i = 0; i < 50; i++) {
+            double n = BaseMemory.scoutInterval(ir, false), q = BaseMemory.scoutInterval(ir, true);
+            helper.assertTrue(n >= t().scoutIntervalMinDays && n <= t().scoutIntervalMaxDays, "ふだんの偵察の間が幅の外: " + n);
+            helper.assertTrue(q >= t().scoutQuietIntervalMinDays && q <= t().scoutQuietIntervalMaxDays && q > n, "F4 の偵察の間が幅の外: " + q);
+        }
+        m.scoutSent(b, 0.2D, ir, true);
+        double next = b.nextScoutDay();
+        helper.assertTrue(next >= 0.2D + t().scoutQuietIntervalMinDays, "F4 なのに次の偵察が早い: " + next);
         m.onScouted(b.id(), 0.2D, helper.getLevel().getRandom());
+        helper.assertTrue(b.nextScoutDay() == next, "眺め終えたら次の偵察の時が変わった");
         helper.assertTrue(b.stage() == BaseMemory.Stage.SCOUTED, "眺め終えても偵察済みにならない");
         double after = b.recognizeAfter();
         helper.assertTrue(after >= t().recognizeMinDays && after <= t().recognizeMaxDays, "認識までの日数が 1〜2 日の外: " + after);

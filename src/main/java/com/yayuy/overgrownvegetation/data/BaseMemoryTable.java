@@ -47,7 +47,9 @@ public final class BaseMemoryTable {
         public Double scoutIntervalMinDays;
         public Double scoutIntervalMaxDays;
         public Double scoutRetryDays;
-        public Double scoutBusyDays;
+        public Double scoutQuietIntervalMinDays;
+        public Double scoutQuietIntervalMaxDays;
+        public Double scoutFirstDays;
         public Double recognizeMinDays;
         public Double recognizeMaxDays;
         public Double killAdvanceDays;
@@ -114,12 +116,15 @@ public final class BaseMemoryTable {
     /** 偵察に出す段階 0 を探す半径と、拠点に近すぎて選ばない半径(ブロック。拠点の外から来させる)。 */
     public final double scoutSearchBlocks;
     public final double scoutFromMinBlocks;
-    /** 次の偵察までの間(日)と、出せる段階 0 がいなかったときにまた探すまで(日)。 */
+    /** 偵察を出してから次の偵察までの間(日)。11-14 ユーザー「偵察の間隔は 10 分に一度くらい」= ゲーム内 0.5 日を真ん中に 0.4〜0.6。F5 から(覚えた・偵察済みの拠点)。 */
     public final double scoutIntervalMinDays;
     public final double scoutIntervalMaxDays;
     public final double scoutRetryDays;
-    /** 偵察に出したら、この間は次を出さない(日。行って帰るまでの見込み)。 */
-    public final double scoutBusyDays;
+    /** F4 の間(認識がまだ開いていない)の偵察の間(日)。11-14 ユーザー「f4 の時は 1 日に一回歩かないかくらい」= 1〜2 日(平均 1.5 日。来ない日もある)。 */
+    public final double scoutQuietIntervalMinDays;
+    public final double scoutQuietIntervalMaxDays;
+    /** 覚えてから最初の偵察を出してよくなるまで(日)【仮】。 */
+    public final double scoutFirstDays;
     /** 偵察済みから認識まで(日。拠点ごとにこの幅から 1 つ)。11-14 ユーザー決定「1〜2 日」。 */
     public final double recognizeMinDays;
     public final double recognizeMaxDays;
@@ -208,10 +213,12 @@ public final class BaseMemoryTable {
         this.scoutLeaveBlocks = Math.max(8, s.scoutLeaveBlocks != null ? s.scoutLeaveBlocks : 48);
         this.scoutSearchBlocks = Math.max(16.0D, nonNeg(s.scoutSearchBlocks, 128.0D));
         this.scoutFromMinBlocks = Math.min(this.scoutSearchBlocks, nonNeg(s.scoutFromMinBlocks, 40.0D));
-        this.scoutIntervalMinDays = Math.max(0.01D, nonNeg(s.scoutIntervalMinDays, 0.1D));
-        this.scoutIntervalMaxDays = Math.max(this.scoutIntervalMinDays, nonNeg(s.scoutIntervalMaxDays, 0.3D));
+        this.scoutIntervalMinDays = Math.max(0.01D, nonNeg(s.scoutIntervalMinDays, 0.4D));
+        this.scoutIntervalMaxDays = Math.max(this.scoutIntervalMinDays, nonNeg(s.scoutIntervalMaxDays, 0.6D));
+        this.scoutQuietIntervalMinDays = Math.max(0.01D, nonNeg(s.scoutQuietIntervalMinDays, 1.0D));
+        this.scoutQuietIntervalMaxDays = Math.max(this.scoutQuietIntervalMinDays, nonNeg(s.scoutQuietIntervalMaxDays, 2.0D));
+        this.scoutFirstDays = nonNeg(s.scoutFirstDays, 0.25D);
         this.scoutRetryDays = Math.max(0.005D, nonNeg(s.scoutRetryDays, 0.05D));
-        this.scoutBusyDays = Math.max(0.01D, nonNeg(s.scoutBusyDays, 0.25D));
         this.recognizeMinDays = nonNeg(s.recognizeMinDays, 1.0D);
         this.recognizeMaxDays = Math.max(this.recognizeMinDays, nonNeg(s.recognizeMaxDays, 2.0D));
         this.killAdvanceDays = nonNeg(s.killAdvanceDays, 0.5D);

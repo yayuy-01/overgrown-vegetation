@@ -236,7 +236,7 @@ public final class DirectorCommand {
         }
         final AbstractParasitizedMonster scout = pick;
         scout.fate().scout().begin(b);
-        m.scoutSent(b, day);
+        m.scoutSent(b, day, server.overworld().getRandom(), !DirectorGates.open(server.overworld(), DirectorGates.Gate.RECOGNIZE));
         source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "%s(%.0f, %.0f, %.0f)を拠点 #%d の偵察に出した",
                 scout.species().key(), scout.getX(), scout.getY(), scout.getZ(), b.id())), true);
         return 1;

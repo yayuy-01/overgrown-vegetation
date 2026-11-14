@@ -335,7 +335,7 @@ public final class BaseMemory extends SavedData {
             if (used[i] || cl.score < t.rememberScore) continue;
             Base b = new Base(nextId++);
             b.stageSince = day;
-            b.nextScoutDay = day + table().scoutIntervalMinDays; // 覚えてすぐには来ない【仮】
+            b.nextScoutDay = day + table().scoutFirstDays; // 覚えてすぐには来ない【仮】
             cl.applyTo(b);
             kept.add(b);
         }
@@ -487,9 +487,12 @@ public final class BaseMemory extends SavedData {
         return (b.stage == Stage.REMEMBERED || b.stage == Stage.SCOUTED) && day >= b.nextScoutDay;
     }
 
-    /** 偵察を出した: 行って帰るまでの間は次を出さない。 */
-    public void scoutSent(Base b, double day) {
-        b.nextScoutDay = day + table().scoutBusyDays;
+    /**
+     * 偵察を出した: 次の偵察は、出した時から間を空ける(眺め終えても・倒されても・着けずに帰っても、次の時は変えない)。
+     * {@code quiet} = F4 の間(認識がまだ開いていない)。間は ふだん 0.4〜0.6 日・F4 は 1〜2 日(11-14 ユーザー)。
+     */
+    public void scoutSent(Base b, double day, net.minecraft.util.RandomSource random, boolean quiet) {
+        b.nextScoutDay = day + scoutInterval(random, quiet);
         setDirty();
     }
 
@@ -506,9 +509,11 @@ public final class BaseMemory extends SavedData {
         b.recognizeAfter = t.recognizeMinDays + random.nextDouble() * (t.recognizeMaxDays - t.recognizeMinDays);
     }
 
-    private static double nextInterval(net.minecraft.util.RandomSource random) {
+    /** 偵察の間(日)。 */
+    public static double scoutInterval(net.minecraft.util.RandomSource random, boolean quiet) {
         BaseMemoryTable t = table();
-        return t.scoutIntervalMinDays + random.nextDouble() * (t.scoutIntervalMaxDays - t.scoutIntervalMinDays);
+        double lo = quiet ? t.scoutQuietIntervalMinDays : t.scoutIntervalMinDays, hi = quiet ? t.scoutQuietIntervalMaxDays : t.scoutIntervalMaxDays;
+        return lo + random.nextDouble() * (hi - lo);
     }
 
     /** 偵察が眺め終えた: 覚えた拠点なら偵察済みにする(認識までの日数を数え始める)。 */
@@ -517,7 +522,6 @@ public final class BaseMemory extends SavedData {
         if (b == null) return;
         markScouted(b, day, random);
         b.scoutsDone++;
-        b.nextScoutDay = day + nextInterval(random);
         setDirty();
     }
 
@@ -531,7 +535,6 @@ public final class BaseMemory extends SavedData {
         markScouted(b, day, random);
         if (b.stage == Stage.SCOUTED) b.stageSince -= table().killAdvanceDays;
         b.scoutKills++;
-        b.nextScoutDay = day + nextInterval(random);
         setDirty();
     }
 

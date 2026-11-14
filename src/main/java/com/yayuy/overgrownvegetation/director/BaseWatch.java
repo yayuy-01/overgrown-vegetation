@@ -89,7 +89,7 @@ public final class BaseWatch {
                 continue;
             }
             pick.fate().scout().begin(b);
-            memory.scoutSent(b, day);
+            memory.scoutSent(b, day, level.getRandom(), !DirectorGates.open(level, DirectorGates.Gate.RECOGNIZE)); // F4 は 1〜2 日おき
             ForestDirector.get(level).note(String.format(java.util.Locale.ROOT,
                     "%s → 偵察(拠点 #%d へ)", pick.species().key(), b.id()));
         }
