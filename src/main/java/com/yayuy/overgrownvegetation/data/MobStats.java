@@ -439,12 +439,15 @@ public final class MobStats {
         // 体力 40・防御 8(撃ち合いの的になるので打たれ弱め)・攻撃 12(= 棘のダメージ、防具を貫通)・飛ぶ速さ 0.6(最高 0.3 ブロック/tick)・
         // 追跡 48(上空から撃つ)・ノックバック耐性 0.5・経験値 40。素の判定 1.4 x 1.8 → 実効 2.52 x 3.24(胸・腹の前半・垂らした脚)。
         // eggFit は待機の姿の画面上の差し渡しの見当(針が長いので全長ではなく 10)。
+        // 2026-11-15 段 1(止まっては飛ぶ・移るまで。技は段 2)で作り直し: 形は re_acumnes_r8(描画倍率 1 で全長 10.6・翅の幅 5.5・高さ 3.4。
+        // 旧版の体格 1.8 はやめた)。当たりの芯は胸と垂らした脚(1.2 × 3.0【仮】。止まり木の上の空き 1.3 幅に収まる)。翅・頭・腹は叩ける部位。
+        // 体力・防御・攻撃・追跡は旧版のまま【仮】。動きの速さの本体は entity/flyer/DartHover(鋭く飛ぶ 1.0 ブロック/tick)。
         m.put("acumnes", stat(s -> {
-            s.maxHealth = 40.0; s.attackDamage = 12.0; s.armor = 8.0; s.movementSpeed = 0.3; s.flyingSpeed = 0.6;
+            s.maxHealth = 40.0; s.attackDamage = 12.0; s.armor = 8.0; s.movementSpeed = 0.3; s.flyingSpeed = 1.0;
             s.knockbackResistance = 0.5; s.followRange = 48.0;
-            s.scale = 1.8;
-            s.width = 1.4; s.height = 1.8; s.xpReward = 40;
-            s.eggFit = 10.0;
+            s.width = 1.2; s.height = 3.0; s.xpReward = 40;
+            s.eggFit = 10.6;
+            s.naturalSpawn = false;   // 段 1 は自然には湧かない(スポーンエッグ・コマンドだけ)
         }));
 
         // グループ5 の低キューブ 4 種(2026-10-01 足場)。体格(scale)は NOTES の「描画倍率」、素の判定は NOTES の目安 ÷ 体格。

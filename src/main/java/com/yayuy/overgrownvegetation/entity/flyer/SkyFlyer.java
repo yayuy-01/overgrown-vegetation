@@ -145,6 +145,31 @@ public abstract class SkyFlyer extends Monster {
 
     protected abstract double[] partCenters();
 
+    /**
+     * 種が自分で飛び方を決める口(2026-11-15 アクムネスで足した。既定は false = 土台の飛び方)。飛んでいる間({@link #MODE_FLY})、
+     * 群れが止まり木へ向かっていない(ROOST でない)ときに毎 tick 呼ぶ。true を返した tick は土台の巡回・隊列・惰性({@link FlightBody})を飛ばし、
+     * {@link #setOwnMotion} で渡した量だけそのまま動く(惰性・風なし。ピタッと止まる・短く鋭く飛ぶ型のため。{@link DartHover})。
+     * 降りる・止まる・飛び立つは土台のまま。
+     */
+    protected boolean ownFlight(ServerLevel sl, Flock f) {
+        return false;
+    }
+
+    /** {@link #ownFlight} の間に、この tick に動く量(ブロック)を渡す。 */
+    protected final void setOwnMotion(double vx, double vy, double vz) {
+        this.kinX = vx;
+        this.kinY = vy;
+        this.kinZ = vz;
+    }
+
+    /** 体を yaw(度)へ 1 tick あたり maxStep 度まで回す(飛ぶ向きも合わせる)。 */
+    protected final void turnToward(double yaw, float maxStep) {
+        faceToward(yaw, maxStep);
+    }
+
+    /** この tick に {@link #ownFlight} が動きを決めたか(サーバー)。 */
+    private boolean ownFlightNow;
+
     // ------------------------------------------------------------------ 状態
 
     @Override
@@ -321,9 +346,13 @@ public abstract class SkyFlyer extends Monster {
             case MODE_PERCHED -> tickPerched(sl, f);
             case MODE_LANDING -> tickLanding(sl, f);
             case MODE_TAKEOFF -> tickTakeoff();
-            default -> tickFly(sl, f);
+            default -> {
+                this.ownFlightNow = f.state != Flock.State.ROOST && ownFlight(sl, f);
+                if (!this.ownFlightNow) tickFly(sl, f);
+            }
         }
-        boolean flapNow = this.mode == MODE_LANDING || this.mode == MODE_TAKEOFF || (this.mode == MODE_FLY && this.flap);
+        if (this.mode != MODE_FLY) this.ownFlightNow = false;
+        boolean flapNow = this.mode == MODE_LANDING || this.mode == MODE_TAKEOFF || (this.mode == MODE_FLY && (this.flap || this.ownFlightNow));
         byte st = (byte) (this.mode | (flapNow ? FLAP_BIT : 0));
         if (this.entityData.get(DATA_STATE) != st) this.entityData.set(DATA_STATE, st);
     }
@@ -639,7 +668,7 @@ public abstract class SkyFlyer extends Monster {
             return;
         }
         Vec3 v;
-        if (this.mode == MODE_FLY) {
+        if (this.mode == MODE_FLY && !this.ownFlightNow) {
             if (this.level() instanceof ServerLevel sl) FlyerWind.now(sl, this.wind);
             this.body.step(params(), this.cmdHeading, this.cmdSpeed, this.cmdY - this.getY(), this.wind[0], this.wind[1]);
             v = new Vec3(this.body.vx, this.body.vy, this.body.vz);

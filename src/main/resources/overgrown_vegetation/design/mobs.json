@@ -551,6 +551,24 @@
     "eggFit": 6.63,
     "naturalSpawn": false
   },
+  "acumnes": {
+    "maxHealth": 40,
+    "attackDamage": 12,
+    "armor": 8,
+    "movementSpeed": 0.3,
+    "flyingSpeed": 1.0,
+    "knockbackResistance": 0.5,
+    "followRange": 48,
+    "stepHeight": 1,
+    "scale": 1,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 1.2,
+    "height": 3.0,
+    "xpReward": 40,
+    "eggFit": 10.6,
+    "naturalSpawn": false
+  },
   "pilimnes": {
     "maxHealth": 30,
     "attackDamage": 6,
