@@ -463,6 +463,24 @@
     "eggFit": 4.6,
     "naturalSpawn": false
   },
+  "velophyll": {
+    "maxHealth": 20,
+    "attackDamage": 4,
+    "armor": 0,
+    "movementSpeed": 0.12,
+    "flyingSpeed": 0.7,
+    "knockbackResistance": 0,
+    "followRange": 48,
+    "stepHeight": 1,
+    "scale": 1,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 1.2,
+    "height": 0.8,
+    "xpReward": 10,
+    "eggFit": 6.63,
+    "naturalSpawn": false
+  },
   "pilimnes": {
     "maxHealth": 30,
     "attackDamage": 6,

@@ -1,0 +1,260 @@
+package com.yayuy.overgrownvegetation.gametest;
+
+import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.data.DesignData;
+import com.yayuy.overgrownvegetation.entity.VelophyllEntity;
+import com.yayuy.overgrownvegetation.entity.flyer.FlightBody;
+import com.yayuy.overgrownvegetation.entity.flyer.Flock;
+import com.yayuy.overgrownvegetation.entity.flyer.SkyFlyer;
+import com.yayuy.overgrownvegetation.entity.flyer.VFormation;
+import com.yayuy.overgrownvegetation.phase.MobGroup;
+import com.yayuy.overgrownvegetation.registry.ModFlyers;
+import net.minecraft.core.BlockPos;
+import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LeavesBlock;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.RegisterGameTestsEvent;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+
+/**
+ * ヴェロフィルの段 1(2026-11-15): 「飛ぶ型」の土台。旋回の半径(10 ブロック級)と V 字はテスト場(7 × 7)に収まらないので、
+ * 飛び方({@link FlightBody})と隊列({@link VFormation})は計算だけで回す(ゲームの中の後続と同じ関数)。
+ * 止まり木へ降りる・叩かれて飛び立つはテスト場で。夜・雨の判断は世界全体で共通なので、{@link SkyFlyer#roostOverride} で差し込む。
+ */
+@GameTestHolder(OvergrownVegetation.MODID)
+@PrefixGameTestTemplate(false)
+public final class VelophyllGameTests {
+
+    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD)
+    public static final class Registration {
+        @SubscribeEvent
+        public static void onRegisterGameTests(RegisterGameTestsEvent event) {
+            event.register(VelophyllGameTests.class);
+        }
+
+        private Registration() {
+        }
+    }
+
+    private VelophyllGameTests() {
+    }
+
+    private static FlightBody.Params params() {
+        FlightBody.Params p = new FlightBody.Params();
+        p.cruise = 0.7D;
+        p.maxTurnDeg = 4.0D;
+        return p;
+    }
+
+    private static VelophyllEntity spawn(GameTestHelper helper, double x, double y, double z) {
+        VelophyllEntity v = helper.spawn(ModFlyers.VELOPHYLL.get(), new BlockPos(3, 2, 3));
+        Vec3 p = helper.absoluteVec(new Vec3(x, y, z));
+        v.moveTo(p.x, p.y, p.z, 0.0F, 0.0F);
+        v.debugSolo = true;
+        return v;
+    }
+
+    /** G4 に入り、自然には湧かず、芯は 1.2 × 0.8、翼と頭の叩ける部位がある。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void registeredAsG4WithWingParts(GameTestHelper helper) {
+        VelophyllEntity v = spawn(helper, 3.5D, 3.0D, 3.5D);
+        if (MobGroup.of(v.getType()) != MobGroup.GROUP_4) {
+            helper.fail("G4 に入っていない: " + MobGroup.of(v.getType()));
+            return;
+        }
+        if (DesignData.mobs().forId(VelophyllEntity.ID).naturalSpawn()) {
+            helper.fail("自然湧きが切れていない");
+            return;
+        }
+        if (Math.abs(v.getBbWidth() - 1.2F) > 1e-3 || Math.abs(v.getBbHeight() - 0.8F) > 1e-3) {
+            helper.fail("芯の大きさが 1.2 × 0.8 でない: " + v.getBbWidth() + " × " + v.getBbHeight());
+            return;
+        }
+        if (v.hitParts().count() != 3 || v.hitParts().indexOf("wing_l") < 0 || v.hitParts().indexOf("wing_r") < 0) {
+            helper.fail("翼の叩ける部位が無い");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** 巡航で目一杯曲がると半径 約 10 ブロックの弧(9〜11.5)を描き、横へは滑らない(地面の速さの向き = 機首)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void turnsInWideArcWithoutSideslip(GameTestHelper helper) {
+        FlightBody.Params p = params();
+        FlightBody b = new FlightBody();
+        b.speed = p.cruise;
+        double maxSlip = 0.0D;
+        for (int t = 0; t < 200; t++) {
+            b.step(p, b.heading + 90.0D, p.cruise, 0.0D, 0.0D, 0.0D);
+            double vh = FlightBody.yawOf(b.vx, b.vz);
+            maxSlip = Math.max(maxSlip, Math.abs(FlightBody.wrapDeg(vh - b.heading)));
+        }
+        double r = b.speed / Math.toRadians(Math.abs(b.turnRate));
+        if (r < 9.0D || r > 11.5D) {
+            helper.fail(String.format("旋回の半径 %.2f(速さ %.3f・%.2f 度/tick)", r, b.speed, b.turnRate));
+            return;
+        }
+        if (maxSlip > 0.01D) {
+            helper.fail(String.format("横へ滑った(最大 %.3f 度)", maxSlip));
+            return;
+        }
+        double bank = FlightBody.bankDeg(b.speed, b.turnRate);
+        if (Math.abs(bank) < 20.0D) {
+            helper.fail(String.format("曲がっているのに体の傾きが小さい: %.1f 度", bank));
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** 風上へは遅く、風下へは速い(風 0.1 ブロック/tick で差 0.15 以上)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void windSlowsUpwind(GameTestHelper helper) {
+        FlightBody.Params p = params();
+        double[] g = new double[2];
+        for (int i = 0; i < 2; i++) {
+            FlightBody b = new FlightBody();
+            b.heading = i == 0 ? 0.0D : 180.0D;   // 0 = 南へ(風下)、180 = 北へ(風上)
+            b.speed = p.cruise;
+            for (int t = 0; t < 100; t++) b.step(p, b.heading, p.cruise, 0.0D, 0.0D, 0.1D);
+            g[i] = Math.sqrt(b.vx * b.vx + b.vz * b.vz);
+        }
+        if (g[0] - g[1] < 0.15D) {
+            helper.fail(String.format("風下 %.3f・風上 %.3f の差が小さい", g[0], g[1]));
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * 後続 6 体がばらばらの所から V 字へ収まり(各々の位置から 2.5 ブロック以内)、先頭がゆるく曲がり続けても崩れない。
+     * 先頭を落とすと並びの 1 番が先頭になり、残りが詰めて並び直す(3 ブロック以内)。ゲームの中と同じ関数で回す。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void followersHoldVAndCloseUpAfterLeaderLoss(GameTestHelper helper) {
+        FlightBody.Params p = params();
+        int n = 7;
+        java.util.List<FlightBody> bodies = new java.util.ArrayList<>();
+        java.util.List<double[]> pos = new java.util.ArrayList<>();
+        java.util.Random rnd = new java.util.Random(7);
+        for (int i = 0; i < n; i++) {
+            FlightBody b = new FlightBody();
+            b.speed = p.cruise * 0.8D;
+            b.heading = (rnd.nextDouble() - 0.5D) * 60.0D;
+            bodies.add(b);
+            pos.add(new double[]{(rnd.nextDouble() - 0.5D) * 20.0D, 0.0D, -5.0D - rnd.nextDouble() * 20.0D});
+        }
+        double[] tmp = new double[3];
+        VFormation.Command c = new VFormation.Command();
+        String err = simulate(p, bodies, pos, tmp, c, 600, 2.5D);
+        if (err != null) {
+            helper.fail("隊列に収まらない: " + err);
+            return;
+        }
+        bodies.remove(0);
+        pos.remove(0);
+        err = simulate(p, bodies, pos, tmp, c, 500, 3.0D);
+        if (err != null) {
+            helper.fail("先頭を落とした後に並び直せない: " + err);
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** 先頭はゆるく曲がり続け、後続は VFormation で付いていく。最後の 100 tick の各々の位置からのずれの最大が tol 以下なら null。 */
+    private static String simulate(FlightBody.Params p, java.util.List<FlightBody> bodies, java.util.List<double[]> pos,
+                                   double[] tmp, VFormation.Command c, int ticks, double tol) {
+        double worst = 0.0D;
+        int worstK = -1;
+        for (int t = 0; t < ticks; t++) {
+            FlightBody lb = bodies.get(0);
+            double[] lp = pos.get(0);
+            double turn = Math.sin(t / 120.0D) * 40.0D;   // ゆるい S 字
+            lb.step(p, lb.heading + turn * 0.2D, p.cruise * 0.9D, 0.0D, 0.0D, 0.0D);
+            for (int k = 1; k < bodies.size(); k++) {
+                FlightBody b = bodies.get(k);
+                double[] mp = pos.get(k);
+                VFormation.follow(lp[0], lp[1], lp[2], lb.heading, lb.speed, lb.turnRate, k, mp[0], mp[2], p.maxSpeed, tmp, c);
+                b.step(p, c.heading, c.speed, 0.0D, 0.0D, 0.0D);
+                if (t >= ticks - 100 && c.dist > worst) {
+                    worst = c.dist;
+                    worstK = k;
+                }
+            }
+            for (int k = 0; k < bodies.size(); k++) {
+                double[] q = pos.get(k);
+                q[0] += bodies.get(k).vx;
+                q[2] += bodies.get(k).vz;
+            }
+        }
+        return worst <= tol ? null : String.format("並び %d が %.2f ブロック離れている", worstK, worst);
+    }
+
+    /** 夜(差し込み): 真上にいる個体が、テスト場の葉の柱のてっぺんへ降りて止まる。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 300)
+    public static void perchesOnTreeTopWhenRoosting(GameTestHelper helper) {
+        for (int y = 1; y <= 9; y++) {
+            helper.setBlock(new BlockPos(3, y, 3), Blocks.OAK_LEAVES.defaultBlockState().setValue(LeavesBlock.PERSISTENT, true));
+        }
+        BlockPos top = helper.absolutePos(new BlockPos(3, 9, 3));
+        VelophyllEntity v = spawn(helper, 3.5D, 18.0D, 3.5D);
+        v.roostOverride = Boolean.TRUE;
+        helper.onEachTick(() -> {
+            if (v.mode() == SkyFlyer.MODE_PERCHED) {
+                if (!top.equals(v.perchPos())) {
+                    helper.fail("葉の柱でない所に止まった: " + v.perchPos() + "(柱 " + top + ")");
+                    return;
+                }
+                if (Math.abs(v.getY() - (top.getY() + 1)) > 0.01D) {
+                    helper.fail("止まった高さが葉の上でない: " + v.getY());
+                    return;
+                }
+                if (v.flock() == null || v.flock().state() != Flock.State.ROOST) {
+                    helper.fail("群れが休んでいない");
+                    return;
+                }
+                helper.succeed();
+            }
+        });
+    }
+
+    /** 止まっている個体を叩くと群れごと飛び立ち、上へ昇る(30 tick で 2 ブロック以上)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 60)
+    public static void takesOffWhenHitOnPerch(GameTestHelper helper) {
+        helper.setBlock(new BlockPos(3, 1, 3), Blocks.OAK_LEAVES.defaultBlockState().setValue(LeavesBlock.PERSISTENT, true));
+        BlockPos top = helper.absolutePos(new BlockPos(3, 1, 3));
+        VelophyllEntity v = spawn(helper, 3.5D, 2.0D, 3.5D);
+        v.roostOverride = Boolean.TRUE;
+        v.debugPerchAt(top);
+        v.debugTickFlock();
+        double[] y0 = {Double.NaN};
+        helper.runAfterDelay(5L, () -> {
+            if (v.mode() != SkyFlyer.MODE_PERCHED) {
+                helper.fail("止まったままでいない: " + v.mode());
+                return;
+            }
+            y0[0] = v.getY();
+            v.hurt(helper.getLevel().damageSources().generic(), 1.0F);
+        });
+        helper.runAfterDelay(35L, () -> {
+            int m = v.mode();
+            if (m == SkyFlyer.MODE_PERCHED || m == SkyFlyer.MODE_LANDING) {
+                helper.fail("叩かれても飛び立たない: " + m);
+                return;
+            }
+            if (v.getY() - y0[0] < 2.0D) {
+                helper.fail(String.format("昇っていない(%.2f)", v.getY() - y0[0]));
+                return;
+            }
+            if (v.flock() == null || v.flock().state() != Flock.State.FLEE) {
+                helper.fail("群れが逃げていない: " + (v.flock() == null ? "null" : v.flock().state()));
+                return;
+            }
+            helper.succeed();
+        });
+    }
+}

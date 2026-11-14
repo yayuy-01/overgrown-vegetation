@@ -630,35 +630,16 @@ public final class MobStats {
             s.width = 2.0; s.height = 3.6; s.eggFit = 13.78; s.xpReward = 14;
         }));
 
-        // ヴェロフィル — 爆撃役。攻撃は落とす爆弾側なので attackDamage を持たない
-        // (ダメージは velophyllBombBlastDamage / velophyllBombDirectDamage)。
-        // movementSpeed は<b>地上で這うときの速さ</b>で、飛行の速さは flyingSpeed のほう。
-        // 翼で体を引きずる動きなので、地上は歩く Mob よりはっきり遅くしてある。
+        // ヴェロフィル(G4・空の爆撃。V 字の群れ、2026-11-15 段 1 = 飛ぶ・群れ・止まり木まで。爆撃は次の段)。数値は【仮・Claude】、
+        // 巡航 0.7 ブロック/tick と当たりの作り(胴の芯 + 翼の叩ける部位)はユーザー決定(11-15)。速さの本体は entity/flyer の FlightBody、
+        // flyingSpeed は巡航の速さとしてそこから読む。体力 20 = 弓で落とせる(溜めきりの矢 3 本ほど)。
+        // 当たりの芯は胴だけ(幅 1.2 × 高さ 0.8)。翼(翼幅 5.8)は叩ける部位(VelophyllEntity の WING_*)で、地形とはぶつからない。
         m.put("velophyll", stat(s -> {
-            // attackDamage は<噛みつき>(VelophyllBiteGoal、2026-09-17)のダメージ。
-            // 爆弾のほうは velophyllBombBlastDamage / velophyllBombDirectDamage で別管理。
-            // アルボラ(8)より軽いのは、当たり判定の重なりで何度でも噛めるのと、
-            // 飛ぶ相手にしか使わない手なので。
-            s.maxHealth = 40.0; s.attackDamage = 6.0;
-            s.movementSpeed = 0.12; s.flyingSpeed = 1.6; s.armor = 3.0;
-            s.knockbackResistance = 0.0; s.followRange = 64.0; s.stepHeight = 1.0;
-            // モデルは翼を広げて 5.75 x 1.28 x 5.02(幅 x 高さ x 奥行き)。
-            // width は<b>翼端まで</b>取ってある(ユーザー要望 2026-09-17:
-            // 「当たり判定が小さすぎるので翼の部分も含めた大きさに」)。
-            // 以前は胴体だけの 1.6 で、見えている翼を矢が素通りしていた。
-            //
-            // 広げたことの代償は 2 つ。どちらも<b>承知の上</b>:
-            //   1. 木立の中では体が引っ掛かりやすい。飛行は経路探索を使っておらず
-            //      (VelophyllFlightMoveControl が行き先へ直接舵を切る)、ぶつかったら
-            //      斜め後ろ上方へ離脱する仕掛けがあるので、詰まりはしない。
-            //   2. 地上へ降りて這うとき(VelophyllGroundSporeGoal)は 5.75 幅の通路が要る。
-            //      降りるのは「地面と天蓋の差が 3 以内 = 開けた場所」だけなので概ね通るが、
-            //      通れなければ這うのを諦めてその場で撒く(CRAWL_TIMEOUT)。
-            //
-            // eggFit は斜め 25 度から見たときの見かけの差し渡し(mob-must-ship-spawn-egg の式)。
-            // 滑空アニメーション中の実測値(2026-09-15 に測り直し)。地上の這い姿勢はこれより大きいが、
-            // スポーンエッグの絵に出るのは滑空のほう。
-            s.width = 5.75; s.height = 0.9; s.eggFit = 6.63; s.xpReward = 10;
+            s.maxHealth = 20.0; s.attackDamage = 4.0;
+            s.movementSpeed = 0.12; s.flyingSpeed = 0.7; s.armor = 0.0;
+            s.knockbackResistance = 0.0; s.followRange = 48.0; s.stepHeight = 1.0;
+            s.width = 1.2; s.height = 0.8; s.eggFit = 6.63; s.xpReward = 10;
+            s.naturalSpawn = false;   // 段 1 は自然には湧かない(スポーンエッグ・コマンドだけ)
         }));
 
         // ペディキュラ — 上空を漂うだけの巨大な胞子の塊(2026-09-23)。攻撃はしない。

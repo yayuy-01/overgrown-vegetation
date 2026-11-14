@@ -363,6 +363,8 @@
   "item.overgrown_vegetation.phyllosens_spawn_egg": "Яйцо призыва: Филлосенс",
   "entity.overgrown_vegetation.venamnes": "Венамнес",
   "item.overgrown_vegetation.venamnes_spawn_egg": "Яйцо призыва: Венамнес",
+  "entity.overgrown_vegetation.velophyll": "Велофилл",
+  "item.overgrown_vegetation.velophyll_spawn_egg": "Яйцо призыва: Велофилл",
   "entity.overgrown_vegetation.pilimnes": "Пилимнес",
   "item.overgrown_vegetation.pilimnes_spawn_egg": "Яйцо призыва: Пилимнес",
   "effect.overgrown_vegetation.phyllosens_watch": "Взгляд Филлосенса",
