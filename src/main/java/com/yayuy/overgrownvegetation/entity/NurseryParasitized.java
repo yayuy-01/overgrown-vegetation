@@ -255,7 +255,7 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         if (--hatchAskIn <= 0) {
             hatchAskIn = HATCH_ASK_INTERVAL;
             List<Supplier<? extends EntityType<? extends Mob>>> pool = spawnPoolOverride != null ? spawnPoolOverride : ForestDirector.nurserySpawns();
-            EntityType<? extends Mob> bought = ForestDirector.get(level).buySpawn(level, random, pool);
+            EntityType<? extends Mob> bought = ForestDirector.get(level).buySpawn(level, random, pool, position());
             if (bought != null) {
                 hatching = bought;
                 this.entityData.set(SLOT, 1 + random.nextInt(nursery().pods));
@@ -321,6 +321,7 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         mob.moveTo(at.x, at.y, at.z, random.nextFloat() * 360.0F, 0.0F);
         net.neoforged.neoforge.event.EventHooks.finalizeMobSpawn(mob, level, level.getCurrentDifficultyAt(mob.blockPosition()), MobSpawnType.SPAWNER, null);
         level.addFreshEntity(mob);
+        com.yayuy.overgrownvegetation.director.BaseRaids.onNurseryHatched(level, mob); // 認識した拠点のそばの苗床から孵った Mob は拠点へ向かう(第 2 段)
     }
 
     // ------------------------------------------------------------------ 枯れて崩れる

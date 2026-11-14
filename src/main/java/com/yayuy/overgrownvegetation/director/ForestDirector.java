@@ -57,7 +57,13 @@ public final class ForestDirector extends SavedData implements ForestBudget {
 
     /** 判断の入力(テストは作って {@link #score} に渡す)。 */
     public record Inputs(boolean canEvolve, boolean canRoot, boolean canNursery, double budget, double playerDistance, double ageDays,
-                         double forestDistance) {
+                         double forestDistance, double baseNear) {
+        /** 拠点を見ない個体(第 1 段のテストの形)。 */
+        public Inputs(boolean canEvolve, boolean canRoot, boolean canNursery, double budget, double playerDistance, double ageDays,
+                      double forestDistance) {
+            this(canEvolve, canRoot, canNursery, budget, playerDistance, ageDays, forestDistance, 0.0D);
+        }
+
         /** 苗床を選べない個体(区切り 5 までのテストの形)。 */
         public Inputs(boolean canEvolve, boolean canRoot, double budget, double playerDistance, double ageDays) {
             this(canEvolve, canRoot, false, budget, playerDistance, ageDays, 0.0D);
@@ -179,7 +185,7 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         if (in.canEvolve() && in.budget() + 1.0E-9D >= t.costEvolve) {
             double near = Math.max(0.0D, 1.0D - in.playerDistance() / t.playerNearBlocks);
             double age = Math.min(1.0D, Math.max(0.0D, in.ageDays()) / t.ageRefDays);
-            evolve = jitter(t.evolveBase + t.evolvePlayerNear * near + t.evolveAge * age, t, random);
+            evolve = jitter(t.evolveBase + t.evolvePlayerNear * near + t.evolveAge * age + t.base.evolveTowardBase * Math.max(0.0D, Math.min(1.0D, in.baseNear())), t, random);
         }
         // 根付き(区切り 2): 根付きの姿のある種で予算が足りるときだけ。rootedBase + 起き上がってからの日数 × rootedAge。
         // 「拠点と森の間に置く」(D-16)は拠点の記憶(第 2 段)が入ってから点に足す
@@ -218,6 +224,33 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         return new Decision(route, nothing, evolve, rooted, nursery, summary);
     }
 
+    /** いちばん近い認識した拠点(真ん中まで evolveBaseBlocks 以内)。無ければ null。 */
+    @Nullable
+    public static BaseMemory.Base nearestRecognized(ServerLevel level, double x, double z) {
+        double within = DesignData.director().base.evolveBaseBlocks;
+        BaseMemory.Base best = null;
+        double bestD = within * within;
+        for (BaseMemory.Base b : BaseMemory.get(level.getServer()).bases()) {
+            if (b.stage() != BaseMemory.Stage.RECOGNIZED) continue;
+            double dx = b.centerX() - x, dz = b.centerZ() - z;
+            double d2 = dx * dx + dz * dz;
+            if (d2 <= bestD) {
+                bestD = d2;
+                best = b;
+            }
+        }
+        return best;
+    }
+
+    /** 認識した拠点への近さ(0〜1。真ん中で 1、evolveBaseBlocks で 0)。D-8「拠点の方角で 1 段目へ進化させやすく」。 */
+    public static double baseNear(ServerLevel level, double x, double z) {
+        if (level.dimension() != net.minecraft.world.level.Level.OVERWORLD) return 0.0D;
+        BaseMemory.Base b = nearestRecognized(level, x, z);
+        if (b == null) return 0.0D;
+        double d = Math.sqrt((b.centerX() - x) * (b.centerX() - x) + (b.centerZ() - z) * (b.centerZ() - z));
+        return Math.max(0.0D, 1.0D - d / DesignData.director().base.evolveBaseBlocks);
+    }
+
     private static String fmt(double v) {
         return Double.isFinite(v) ? String.format(Locale.ROOT, "%.2f", v) : "-";
     }
@@ -241,7 +274,8 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         Inputs in = new Inputs(G1Fate.developedOf(mob) != null, fate != null && fate.rootedForm() != null,
                 fate != null && fate.nurseryForm() != null,
                 available(level), playerDist, ageDays,
-                fate != null ? fate.forest(level).distance(mob.position()) : 0.0D);
+                fate != null ? fate.forest(level).distance(mob.position()) : 0.0D,
+                baseNear(level, mob.getX(), mob.getZ()));
         Decision d = score(t, in, mob.getRandom());
         if (d.route() != Route.NONE && !tryPay(level, cost(t, d.route()))) {
             d = new Decision(Route.NONE, d.nothing(), d.evolve(), d.rooted(), d.nursery(), d.summary());
@@ -270,6 +304,30 @@ public final class ForestDirector extends SavedData implements ForestBudget {
      * 苗床が「孵してよいか」を聞く口: 出せる Mob があり、予算が {@code costSpawn} に足りれば、払って 1 種を返す(どれを出すかは今は乱数。
      * 拠点の記憶・森の性格が入ったら、ここで選ぶ)。出せない・足りないなら null(何も払わない)。
      */
+    /**
+     * 場所つきの口(第 2 段 区切り 4): 認識した拠点があるのに、この苗床がどの拠点のそば(evolveBaseBlocks)にも無ければ、
+     * {@code farNurserySkip} の割合で断る(予算を拠点のそばの苗床に回す。拠点のそばから孵った Mob は拠点へ向かう = {@link BaseRaids#onNurseryHatched})。
+     */
+    @Nullable
+    public net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob> buySpawn(
+            ServerLevel level, RandomSource random,
+            List<java.util.function.Supplier<? extends net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>>> pool,
+            net.minecraft.world.phys.Vec3 at) {
+        if (pool.isEmpty()) return null;
+        if (skipFarNursery(level, at, random)) return null;
+        return buySpawn(level, random, pool);
+    }
+
+    /** 拠点から遠い苗床を断るか。 */
+    public static boolean skipFarNursery(ServerLevel level, net.minecraft.world.phys.Vec3 at, RandomSource random) {
+        boolean anyRecognized = false;
+        for (BaseMemory.Base b : BaseMemory.get(level.getServer()).bases()) {
+            if (b.stage() == BaseMemory.Stage.RECOGNIZED) anyRecognized = true;
+        }
+        if (!anyRecognized || nearestRecognized(level, at.x, at.z) != null) return false;
+        return random.nextDouble() < DesignData.director().base.farNurserySkip;
+    }
+
     @Nullable
     public net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob> buySpawn(
             ServerLevel level, RandomSource random,
@@ -294,6 +352,12 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         recent.addFirst(line);
         while (recent.size() > 8) recent.removeLast();
         setDirty();
+    }
+
+    /** 判断の数には入れずに、直近の一覧へだけ足す(偵察・送り込みの記録。第 2 段)。 */
+    public void note(String line) {
+        recent.addFirst(line);
+        while (recent.size() > 8) recent.removeLast();
     }
 
     // ---------------------------------------------------------------- 見る口

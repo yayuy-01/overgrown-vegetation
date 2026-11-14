@@ -69,7 +69,7 @@ public final class G1WalkAwayGoal extends Goal {
         if (repath > 0 && !(mob.getNavigation().isDone() && repath <= REPATH - REPATH_MIN)) return;
         repath = REPATH;
         if (!(mob.level() instanceof ServerLevel level)) return;
-        Vec3 dir = mob.fate().forest(level).away(mob.position());
+        Vec3 dir = mob.fate().settleDirection(level);
         Vec3 to = dir == null ? null : LandRandomPos.getPosTowards(mob, 14, 7, mob.position().add(dir.scale(24.0D)));
         if (to == null) to = LandRandomPos.getPos(mob, 10, 7);
         if (to != null) mob.getNavigation().moveTo(to.x, to.y, to.z, SPEED);

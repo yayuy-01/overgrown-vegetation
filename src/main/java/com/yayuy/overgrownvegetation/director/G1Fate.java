@@ -10,6 +10,7 @@ import com.yayuy.overgrownvegetation.registry.ModG1;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
 
@@ -80,8 +81,16 @@ public final class G1Fate {
     @Nullable
     private java.util.function.Supplier<? extends net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>> rootedOverride;
 
+    /** 偵察の使い(第 2 段 区切り 2)。 */
+    private final G1Scout scout;
+
     public G1Fate(AbstractParasitizedMonster mob) {
         this.mob = mob;
+        this.scout = new G1Scout(mob);
+    }
+
+    public G1Scout scout() {
+        return scout;
     }
 
     /** この個体の種の 1 段目。無ければ null(ゴーレム・ウォーデン、1 段目自身)。 */
@@ -141,6 +150,12 @@ public final class G1Fate {
             tickRooted(level, t);
             return;
         }
+        if (scout.active()) {
+            // 偵察の間は見に来ない(使いが済んでから)
+            scout.tick(level);
+            if (nextVisit < now + BUSY_WAIT) nextVisit = now + BUSY_WAIT;
+            return;
+        }
         if (now < nextVisit) return;
         if (mob.isRising() || mob.isPassenger() || mob.isVehicle() || !mob.onGround() || inCombat(mob)) {
             nextVisit = now + BUSY_WAIT;
@@ -150,6 +165,9 @@ public final class G1Fate {
         paid = d.route() != Route.NONE;
         if (d.route() == Route.EVOLVE) {
             beginEvolve();
+            // 認識した拠点のそばで進化した個体は、拠点へ向かう(D-8。距離は evolveBaseBlocks)
+            BaseMemory.Base near = ForestDirector.nearestRecognized(level, mob.getX(), mob.getZ());
+            if (near != null) mob.march().begin(near);
         } else if (d.route() == Route.ROOTED) {
             beginRooted();
         } else if (d.route() == Route.NURSERY) {
@@ -159,8 +177,14 @@ public final class G1Fate {
         }
     }
 
+    /** 司令塔が予算を払って決めた道にする(送り込みが進化させたとき。やめたら予算を戻す)。 */
+    void markPaid() {
+        paid = true;
+    }
+
     /** 進化の前兆を始める(予算は呼ぶ側が払ってある)。 */
     public void beginEvolve() {
+        scout.cancel();
         route = Route.EVOLVE;
         omenLeft = DesignData.director().evolveOmenTicks;
         noRoomTries = 0;
@@ -195,6 +219,7 @@ public final class G1Fate {
         }
         if (mob.isPersistenceRequired()) next.setPersistenceRequired();
         next.setTarget(mob.getTarget());
+        next.march().copyFrom(mob.march()); // 拠点へ送られる途中の個体は、進化した後も向かう(第 2 段)
         level.addFreshEntity(next);
         next.startEvolveIn();
         mob.discard();
@@ -242,6 +267,7 @@ public final class G1Fate {
     }
 
     private void beginSettle(Route to) {
+        scout.cancel();
         DirectorTable t = DesignData.director();
         route = to;
         awayWanted = t.rootAwayMinBlocks + mob.getRandom().nextDouble() * (t.rootAwayMaxBlocks - t.rootAwayMinBlocks);
@@ -249,6 +275,62 @@ public final class G1Fate {
         omenLeft = 0;
         noRoomTries = 0;
         retryAfterWalked = 0;
+    }
+
+    /**
+     * 根付き・苗床が歩く向き。苗床は森から離れるだけ(11-14 ユーザー決定 Q1 = 1「苗床は拠点を見ない」)。
+     * 根付きは、覚えた拠点が近くにあれば「森から離れつつ拠点へ寄る」(D-16。拠点と森の間に立って、プレイヤーを妨害しつつほかの G1 を支える)。
+     * 拠点を覚えていなければ、ただ森から離れる。
+     */
+    @Nullable
+    public Vec3 settleDirection(ServerLevel level) {
+        Vec3 away = forest(level).away(mob.position());
+        if (route != Route.ROOTED) return away;
+        BaseMemory.Base b = settleBase(level);
+        return blendTowardBase(away, mob.position(), b == null ? null : new Vec3(b.centerX(), mob.getY(), b.centerZ()), DesignData.director().base);
+    }
+
+    /** 根付きが寄る拠点(覚えた段から。真ん中まで rootBaseBlocks 以内)。テストは差し替える。 */
+    @Nullable
+    private BaseMemory.Base settleBase(ServerLevel level) {
+        if (baseOverride != null) return baseOverride;
+        if (level.dimension() != net.minecraft.world.level.Level.OVERWORLD) return null;
+        return BaseMemory.get(level.getServer()).nearest(mob.getX(), mob.getZ(), DesignData.director().base.rootBaseBlocks);
+    }
+
+    /**
+     * 森から離れる向きに、拠点へ寄る向きを混ぜる(純粋な計算)。拠点に rootBaseMinBlocks より近ければ、拠点から離れる向きを混ぜる
+     * (拠点の中には根付かない =「拠点と森のどちらからも少し離れた所」11-13 ユーザー)。
+     */
+    @Nullable
+    public static Vec3 blendTowardBase(@Nullable Vec3 away, Vec3 pos, @Nullable Vec3 base, com.yayuy.overgrownvegetation.data.BaseMemoryTable t) {
+        if (base == null) return away;
+        double dx = base.x - pos.x, dz = base.z - pos.z;
+        double dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist < 1.0E-6D) return away;
+        double tx = dx / dist, tz = dz / dist;
+        double ax = away == null ? 0.0D : away.x, az = away == null ? 0.0D : away.z;
+        double w = dist < t.rootBaseMinBlocks ? -1.0D : t.rootTowardBase;
+        double x = ax + w * tx, z = az + w * tz;
+        double len = Math.sqrt(x * x + z * z);
+        return len < 1.0E-9D ? away : new Vec3(x / len, 0.0D, z / len);
+    }
+
+    /** 根付き: 拠点に近すぎて、ここには根付かない。 */
+    private boolean tooCloseToBase(ServerLevel level) {
+        if (route != Route.ROOTED) return false;
+        BaseMemory.Base b = settleBase(level);
+        if (b == null) return false;
+        double dx = b.centerX() - mob.getX(), dz = b.centerZ() - mob.getZ();
+        double min = DesignData.director().base.rootBaseMinBlocks;
+        return dx * dx + dz * dz < min * min;
+    }
+
+    @Nullable
+    private BaseMemory.Base baseOverride;
+
+    public void setBaseForTests(@Nullable BaseMemory.Base b) {
+        this.baseOverride = b;
     }
 
     /** 森から離れて歩いている最中か(根を下ろす前)。 */
@@ -277,7 +359,7 @@ public final class G1Fate {
         boolean timeout = walkedTicks >= t.walkTimeoutTicks;
         if (!timeout && walkedTicks % 20 != 0) return;
         // 着いた(森の縁から決めた長さだけ離れた・森が見当たらない)か、歩く時間を使い切ったら、その場で根を下ろす
-        if ((timeout || forest(level).distance(mob.position()) >= awayWanted) && walkedTicks >= retryAfterWalked
+        if ((timeout || (forest(level).distance(mob.position()) >= awayWanted && !tooCloseToBase(level))) && walkedTicks >= retryAfterWalked
                 && mob.onGround() && !mob.isPassenger() && !mob.isVehicle()) {
             omenLeft = t.rootOmenTicks;
             mob.getNavigation().stop();
@@ -362,6 +444,7 @@ public final class G1Fate {
         f.putDouble("AwayWanted", awayWanted);
         f.putInt("Walked", walkedTicks);
         f.putBoolean("Paid", paid);
+        scout.save(f);
         tag.put("Fate", f);
     }
 
@@ -375,6 +458,7 @@ public final class G1Fate {
         awayWanted = f.getDouble("AwayWanted");
         walkedTicks = f.getInt("Walked");
         paid = f.getBoolean("Paid");
+        scout.load(f);
         mob.setOmen(route == Route.EVOLVE ? OMEN_EVOLVE : route == Route.ROOTED || route == Route.NURSERY ? f.getInt("Omen") : OMEN_NONE);
     }
 

@@ -1,0 +1,16 @@
+{
+  "values": [
+    "#minecraft:beds",
+    "minecraft:chest",
+    "minecraft:trapped_chest",
+    "minecraft:barrel",
+    "minecraft:ender_chest",
+    "#minecraft:shulker_boxes",
+    "minecraft:furnace",
+    "minecraft:blast_furnace",
+    "minecraft:smoker",
+    "minecraft:crafting_table",
+    "overgrown_vegetation:ley_ventilator",
+    "overgrown_vegetation:ley_washer"
+  ]
+}

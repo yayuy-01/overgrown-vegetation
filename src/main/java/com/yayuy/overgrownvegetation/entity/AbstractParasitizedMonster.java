@@ -171,6 +171,10 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
         this.goalSelector.addGoal(0, new FloatGoal(this));
         // 司令塔が根付きに決めた個体は、森から離れて歩く(1 撃より先。決まっていない個体・1 段目では動かない。2026-11-13)
         this.goalSelector.addGoal(1, new com.yayuy.overgrownvegetation.director.G1WalkAwayGoal(this));
+        // 司令塔の偵察に出された個体は、拠点を眺めに行って帰る(第 2 段、2026-11-14)
+        this.goalSelector.addGoal(1, new com.yayuy.overgrownvegetation.director.G1ScoutGoal(this));
+        // 司令塔が認識した拠点へ送り込まれた個体は、拠点へ歩く(獲物がいればそちらが先。1 段目も持つ)
+        this.goalSelector.addGoal(3, new com.yayuy.overgrownvegetation.director.G1MarchGoal(this));
         if (attacks()) {
             this.goalSelector.addGoal(2, new G1StrikeGoal(this));
         }
@@ -221,6 +225,13 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
             fate = directorVisits() ? new com.yayuy.overgrownvegetation.director.G1Fate(this) : null;
         }
         return fate;
+    }
+
+    /** 拠点へ攻めて行く使い(司令塔 第 2 段。段階 0 も 1 段目も持つ)。 */
+    private final com.yayuy.overgrownvegetation.director.G1March march = new com.yayuy.overgrownvegetation.director.G1March();
+
+    public com.yayuy.overgrownvegetation.director.G1March march() {
+        return march;
     }
 
     /** 前兆の種類({@code G1Fate.OMEN_*}。0 = 無し)。前兆の間は立ち止まる。 */
@@ -280,6 +291,7 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
         } else if (fate() != null) {
             fate.tick(); // 司令塔が見に来る時刻・前兆・入れ替え
         }
+        if (!level().isClientSide()) march.step(position()); // 拠点へ向かう使いの時間と着いたか(第 2 段)
         if (stunTicks > 0 && !level().isClientSide()) {
             stunTicks--;
             getNavigation().stop();
@@ -322,6 +334,7 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
         super.addAdditionalSaveData(tag);
         tag.putInt("Rising", RisingSupport.remaining(this, RISING));
         if (fate() != null) fate.save(tag);
+        march.save(tag);
         // バニラは isNoAi() が真なら NoAI を保存し、読み込みで本物の印にする。起き上がり・前兆・evolve_in の途中で保存された個体が
         // 読み込み後ずっと固まらないように、一時的に止まっているだけなら書かない(2026-11-13)
         if (!super.isNoAi()) tag.remove("NoAI");
@@ -332,6 +345,7 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
         super.readAdditionalSaveData(tag);
         this.entityData.set(RISING, tag.getInt("Rising"));
         if (fate() != null) fate.load(tag);
+        march.load(tag);
     }
 
     // ------------------------------------------------------------------ アニメ

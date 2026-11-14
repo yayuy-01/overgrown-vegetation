@@ -24,6 +24,8 @@ import java.util.Locale;
  *   <li>{@code budget <量>} — 森の予算をその量にする。</li>
  *   <li>{@code visit [半径]} — 周りの段階 0 を今すぐ見に来させる(判断は司令塔がする。予算が足りなければ何もしない)。</li>
  *   <li>{@code route evolve [半径]} — 周りの段階 0 を、司令塔を通さず(予算も払わず)進化の前兆に入らせる。</li>
+ *   <li>{@code director base} — 拠点の記憶(覚えている拠点・点・段・いない日数)。{@code base sample} = 見張りを今すぐ 1 回、{@code base here <時間>} = 立っている升にいたことにする、
+ *   {@code base absent <日>} = 全部の拠点でその日数いなかったことにする、{@code base forget} = 全部消す(第 2 段 区切り 1)。</li>
  * </ul>
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
@@ -39,7 +41,27 @@ public final class DirectorCommand {
                         .requires(source -> source.hasPermission(2))
                         .then(Commands.literal("g1")
                                 .then(Commands.literal("director")
-                                        .executes(ctx -> describe(ctx.getSource())))
+                                        .executes(ctx -> describe(ctx.getSource()))
+                                        .then(Commands.literal("base")
+                                                .executes(ctx -> baseDescribe(ctx.getSource()))
+                                                .then(Commands.literal("sample")
+                                                        .executes(ctx -> baseSample(ctx.getSource())))
+                                                .then(Commands.literal("here")
+                                                        .then(Commands.argument("hours", DoubleArgumentType.doubleArg(0.0D, 1000.0D))
+                                                                .executes(ctx -> baseHere(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "hours")))))
+                                                .then(Commands.literal("absent")
+                                                        .then(Commands.argument("days", DoubleArgumentType.doubleArg(0.0D, 100.0D))
+                                                                .executes(ctx -> baseAbsent(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "days")))))
+                                                .then(Commands.literal("scout")
+                                                        .executes(ctx -> baseScout(ctx.getSource())))
+                                                .then(Commands.literal("wave")
+                                                        .executes(ctx -> baseWave(ctx.getSource())))
+                                                .then(Commands.literal("stage")
+                                                        .then(Commands.literal("remembered").executes(ctx -> baseStage(ctx.getSource(), BaseMemory.Stage.REMEMBERED)))
+                                                        .then(Commands.literal("scouted").executes(ctx -> baseStage(ctx.getSource(), BaseMemory.Stage.SCOUTED)))
+                                                        .then(Commands.literal("recognized").executes(ctx -> baseStage(ctx.getSource(), BaseMemory.Stage.RECOGNIZED))))
+                                                .then(Commands.literal("forget")
+                                                        .executes(ctx -> baseForget(ctx.getSource())))))
                                 .then(Commands.literal("budget")
                                         .then(Commands.argument("amount", DoubleArgumentType.doubleArg(0.0D, 1.0E6D))
                                                 .executes(ctx -> budget(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "amount")))))
@@ -123,6 +145,105 @@ public final class DirectorCommand {
                     m.species().key(), m.getX(), m.getY(), m.getZ(), when)), false);
         }
         return 1 + near.size();
+    }
+
+    // ---------------------------------------------------------------- 拠点の記憶(第 2 段 区切り 1)
+
+    private static int baseDescribe(CommandSourceStack source) {
+        var server = source.getServer();
+        List<String> lines = BaseMemory.get(server).describe(BaseMemory.today(server));
+        for (String line : lines) {
+            source.sendSuccess(() -> Component.literal(line), false);
+        }
+        return lines.size();
+    }
+
+    /** 見張りを今すぐ 1 回まわす(20 秒待たずに点を見る)。 */
+    private static int baseSample(CommandSourceStack source) {
+        BaseWatch.sample(source.getServer());
+        return baseDescribe(source);
+    }
+
+    /** 立っている升に「いた時間」を足す(何時間もいたことにする)。 */
+    private static int baseHere(CommandSourceStack source, double hours) {
+        var server = source.getServer();
+        net.minecraft.core.BlockPos pos = net.minecraft.core.BlockPos.containing(source.getPosition());
+        BaseMemory m = BaseMemory.get(server);
+        double day = BaseMemory.today(server);
+        m.addPresence(net.minecraft.world.level.ChunkPos.asLong(pos.getX() >> 4, pos.getZ() >> 4), hours, day);
+        m.update(day);
+        source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "この升に %.1f 時間いたことにした", hours)), true);
+        return baseDescribe(source);
+    }
+
+    /** 全部の拠点で、その日数だけいなかったことにする(忘れる・減るのを確かめる)。 */
+    private static int baseAbsent(CommandSourceStack source, double days) {
+        var server = source.getServer();
+        BaseMemory m = BaseMemory.get(server);
+        m.pretendAbsent(days);
+        m.update(BaseMemory.today(server));
+        source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "%.1f 日いなかったことにした", days)), true);
+        return baseDescribe(source);
+    }
+
+    /** いちばん近い拠点(真ん中まで 256 ブロック以内)。 */
+    @javax.annotation.Nullable
+    private static BaseMemory.Base nearestBase(CommandSourceStack source) {
+        BaseMemory.Base b = BaseMemory.get(source.getServer()).nearest(source.getPosition().x, source.getPosition().z, 256.0D);
+        if (b == null) source.sendFailure(Component.literal("近くに覚えている拠点が無い(/ov perf g1 director base here 20 で作れる)"));
+        return b;
+    }
+
+    /** いちばん近い拠点へ、今すぐ偵察を出す(まわりに出せる段階 0 がいれば)。 */
+    private static int baseScout(CommandSourceStack source) {
+        BaseMemory.Base b = nearestBase(source);
+        if (b == null) return 0;
+        var server = source.getServer();
+        BaseMemory m = BaseMemory.get(server);
+        double day = BaseMemory.today(server);
+        AbstractParasitizedMonster pick = BaseWatch.pickScout(server.overworld(), b,
+                com.yayuy.overgrownvegetation.data.DesignData.director().base, server.overworld().getRandom());
+        if (pick == null) pick = BaseWatch.spawnScoutFromForest(server.overworld(), b, com.yayuy.overgrownvegetation.data.DesignData.director().base,
+                server.overworld().getRandom()); // いなければ森の方角から湧かせる(見張りと同じ)
+        if (pick == null) {
+            source.sendFailure(Component.literal(String.format(Locale.ROOT,
+                    "拠点 #%d のまわり(%.0f〜%.0f ブロック)に出せる段階 0 がいない。森の方角から湧かせる所も無い(森が見当たらない・予算が足りない・見通せる所だけ)", b.id(),
+                    com.yayuy.overgrownvegetation.data.DesignData.director().base.scoutFromMinBlocks,
+                    com.yayuy.overgrownvegetation.data.DesignData.director().base.scoutSearchBlocks)));
+            return 0;
+        }
+        final AbstractParasitizedMonster scout = pick;
+        scout.fate().scout().begin(b);
+        m.scoutSent(b, day);
+        source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "%s(%.0f, %.0f, %.0f)を拠点 #%d の偵察に出した",
+                scout.species().key(), scout.getX(), scout.getY(), scout.getZ(), b.id())), true);
+        return 1;
+    }
+
+    /** いちばん近い拠点へ、今すぐ 1 回送り込む(認識していなくても送る。顔ぶれは認識してからの日数の段)。 */
+    private static int baseWave(CommandSourceStack source) {
+        BaseMemory.Base b = nearestBase(source);
+        if (b == null) return 0;
+        var server = source.getServer();
+        BaseRaids.Result r = BaseRaids.sendWave(server.overworld(), b, BaseMemory.today(server), server.overworld().getRandom());
+        source.sendSuccess(() -> Component.literal("拠点 #" + b.id() + " へ送り込んだ: " + r.summary()), true);
+        return 1;
+    }
+
+    /** いちばん近い拠点の段を変える(偵察済みにしたら、認識までの日数も決める)。 */
+    private static int baseStage(CommandSourceStack source, BaseMemory.Stage stage) {
+        BaseMemory.Base b = nearestBase(source);
+        if (b == null) return 0;
+        var server = source.getServer();
+        BaseMemory.get(server).setStage(b, stage, BaseMemory.today(server), server.overworld().getRandom());
+        source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "拠点 #%d を「%s」にした", b.id(), stage.label)), true);
+        return baseDescribe(source);
+    }
+
+    private static int baseForget(CommandSourceStack source) {
+        BaseMemory.get(source.getServer()).clear();
+        source.sendSuccess(() -> Component.literal("拠点の記憶を全部消した"), true);
+        return 1;
     }
 
     private static int budget(CommandSourceStack source, double amount) {

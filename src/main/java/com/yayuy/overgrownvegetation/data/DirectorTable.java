@@ -55,6 +55,8 @@ public final class DirectorTable {
         public Double costSpawn;
         public Double nurseryFar;
         public Double nurseryFarBlocks;
+        /** 第 2 段: 拠点の記憶({@link BaseMemoryTable})。 */
+        public BaseMemoryTable.Json base;
     }
 
     /** false なら司令塔は見に来ない(予算も貯まらない)。 */
@@ -95,6 +97,8 @@ public final class DirectorTable {
     /** 苗床の点に足す「森から離れているほど」の上がり幅と、頭打ちの距離(ブロック)。11-14 ユーザー決定 R6-3(数は【仮】)。 */
     public final double nurseryFar;
     public final double nurseryFarBlocks;
+    /** 第 2 段(11-14): 拠点の記憶。 */
+    public final BaseMemoryTable base;
 
     private DirectorTable(Json j) {
         Json s = j != null ? j : new Json();
@@ -130,6 +134,7 @@ public final class DirectorTable {
         this.costSpawn = nonNeg(s.costSpawn, 12.0D);
         this.nurseryFar = nonNeg(s.nurseryFar, 0.4D);
         this.nurseryFarBlocks = Math.max(1.0D, s.nurseryFarBlocks != null ? s.nurseryFarBlocks : 96.0D);
+        this.base = BaseMemoryTable.fromJson(s.base);
     }
 
     private static double nonNeg(Double v, double fallback) {

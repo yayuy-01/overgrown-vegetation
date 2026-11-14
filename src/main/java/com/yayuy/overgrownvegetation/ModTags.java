@@ -126,6 +126,12 @@ public final class ModTags {
     public static final TagKey<net.minecraft.world.item.Item> OVERGROWTH_RESISTANT =
             net.minecraft.tags.ItemTags.create(OvergrownVegetation.id("overgrowth_resistant"));
 
+    /**
+     * 司令塔の拠点の記憶で「人が住んでいる印」に数える置き物(2026-11-14 第 2 段。11-14 ユーザー決定 Q2 = 3: ベッド・入れ物・換気機・洗い場・かまど類・作業台)。
+     * 退避中の防衛設備を戻したら、ここへ足す。
+     */
+    public static final TagKey<Block> BASE_STRUCTURE = BlockTags.create(OvergrownVegetation.id("base_structure"));
+
     /** 既に汚染済みのブロック。二重に汚染されないようにするためのタグ。 */
     public static final TagKey<Block> CORRUPTED = BlockTags.create(OvergrownVegetation.id("corrupted"));
 
