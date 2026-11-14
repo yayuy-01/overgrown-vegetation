@@ -42,11 +42,6 @@ import java.util.Map;
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, value = Dist.CLIENT)
 public final class PhyllosensGazeEdge {
 
-    /** 強さ 1 のときの暗さ(0〜1)【仮】。 */
-    static final float MAX_DARK = 0.85F;
-    /** 縁の帯の数・縁から内への深さ(画面の短い辺に対する割合)【仮】。 */
-    static final int BANDS = 14;
-    static final float EDGE_DEPTH = 0.22F;
     /** 知らせが来なくなって「切れた」とみなすまで(塔は 5 tick ごとに送る)・強さを引く/上げる速さ【仮】(1 → 0 を 1 秒)。 */
     static final int TIMEOUT_TICKS = 12;
     static final float FADE_PER_TICK = 0.05F, RISE_PER_TICK = 0.25F;
@@ -174,24 +169,8 @@ public final class PhyllosensGazeEdge {
     // ------------------------------------------------------------------ 描画(仮)
 
     static void render(GuiGraphics g, DeltaTracker delta) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.options.hideGui) return;
-        float s = strength(delta.getGameTimeDeltaPartialTick(false));
-        if (s <= 0.01F) return;
-        // 仮の見た目: 縁から内へ BANDS 本の黒い帯(外ほど濃い)。四辺とも同じ(方角は出さない)
-        int w = g.guiWidth(), h = g.guiHeight();
-        int depth = Math.max(8, (int) (Math.min(w, h) * EDGE_DEPTH));
-        for (int i = 0; i < BANDS; i++) {
-            float f = 1.0F - i / (float) BANDS;
-            int alpha = (int) (255 * s * MAX_DARK * f * f);
-            if (alpha <= 0) continue;
-            int c = alpha << 24;
-            int o = depth * i / BANDS, o2 = depth * (i + 1) / BANDS;
-            g.fill(o, o, w - o, o2, c);
-            g.fill(o, h - o2, w - o, h - o, c);
-            g.fill(o, o2, o2, h - o2, c);
-            g.fill(w - o2, o2, w - o, h - o2, c);
-        }
+        // 見た目は PhyllosensGazeEyes(ユーザーの目の絵・仕掛け 6 つ・慣れ。11-14 Fable)。仮の値もそこにまとめてある
+        PhyllosensGazeEyes.render(g, delta);
     }
 
     /** GUI の層の登録(MOD バス)。 */

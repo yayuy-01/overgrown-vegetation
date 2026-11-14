@@ -219,6 +219,7 @@ public final class DevBridge {
         if (!started && !start(mc)) return;
         // 始められなかった(別のクライアントが使っている等)ら、次の tick からも何もしない(2026-10-20 まで 2 tick 目で dir の null を踏んで落ちていた)
         if (dir == null) return;
+        GazeDev.tick();
         if (navMob != null && tick % 5 == 0) {
             // navto の続き: 標的のいない Mob は待機の仕草を始めると経路を止めるので、着くまで引き直す
             net.minecraft.client.server.IntegratedServer server = mc.getSingleplayerServer();
@@ -633,6 +634,7 @@ public final class DevBridge {
                     if (sp != null) StiltDev.lookBench(sp.serverLevel(), sp, p[0], Integer.parseInt(p[1]), Integer.parseInt(p[2]), DevBridge::log);
                 });
             }
+            case "gazedev" -> GazeDev.run(arg.trim().split("\\s+"), DevBridge::log); // 見られているときの画面の縁(11-14)。返事は GAZEDEV …
             case "towerdev" -> {
                 // towerdev …: 監視塔フィロセンスの姿勢・覗き・計測(11-14)。返事は TOWERDEV / TOWERBENCH …
                 String[] p = arg.trim().split("\\s+");
