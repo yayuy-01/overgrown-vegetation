@@ -42,16 +42,6 @@ public final class ModCrawlers {
     public static final DeferredItem<DeferredSpawnEggItem> GREGARIA_SPAWN_EGG = ModItems.ITEMS.registerItem(GregariaEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(GREGARIA, 0x2E3A16, 0x9AC81E, props));
 
-    /** 植物側の Mob のタブへ卵を並べる({@code ModCreativeTabs} から)。 */
-    public static void acceptEggs(CreativeModeTab.Output output) {
-        output.accept(GREGARIA_SPAWN_EGG.get());
-    }
-
-    @SubscribeEvent
-    public static void onEntityAttributeCreation(EntityAttributeCreationEvent event) {
-        event.put(GREGARIA.get(), GregariaEntity.createAttributes().build());
-    }
-}
     /**
      * ストロビラ(11-15)。当たりは胴と背板の芯だけ(幅 0.95 × 高さ 1.2【仮】)。脚・触角・尾ははみ出す(全体 3.6 × 2.8 × 5.5)。
      * 1 マス幅の通路は通れるが、高さ 1 の隙間はくぐらない(尾が天井を突き抜けないように)。
@@ -71,5 +61,15 @@ public final class ModCrawlers {
             com.yayuy.overgrownvegetation.entity.StrobilaEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(STROBILA, 0x3A3F14, 0x8C7A2E, props));
 
+    /** 植物側の Mob のタブへ卵を並べる({@code ModCreativeTabs} から)。 */
+    public static void acceptEggs(CreativeModeTab.Output output) {
+        output.accept(GREGARIA_SPAWN_EGG.get());
         output.accept(STROBILA_SPAWN_EGG.get());
+    }
+
+    @SubscribeEvent
+    public static void onEntityAttributeCreation(EntityAttributeCreationEvent event) {
+        event.put(GREGARIA.get(), GregariaEntity.createAttributes().build());
         event.put(STROBILA.get(), com.yayuy.overgrownvegetation.entity.StrobilaEntity.createAttributes().build());
+    }
+}

@@ -20,9 +20,9 @@ public final class CrawlerClient {
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModCrawlers.GREGARIA.get(),
                 ctx -> new SmallCrawlerRenderer<GregariaEntity>(ctx, new GregariaModel(), GregariaEntity.RENDER_SCALE, 0.4F));
-    }
-}
         event.registerEntityRenderer(ModCrawlers.STROBILA.get(),
                 ctx -> new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.StrobilaEntity>(ctx,
                         new com.yayuy.overgrownvegetation.client.StrobilaModel(),
                         com.yayuy.overgrownvegetation.entity.StrobilaEntity.RENDER_SCALE, 0.9F));
+    }
+}

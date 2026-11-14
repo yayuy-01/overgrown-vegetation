@@ -655,6 +655,18 @@ public final class MobStats {
             s.naturalSpawn = false;   // 自然には湧かない(スポーンエッグ・コマンドだけ)
         }));
 
+        // ストロビラ(G4・軽い投手。小さな地這いの虫の型の 2 体目、2026-11-15 段 1)。数値は全部【仮・Claude 11-15】:
+        // 「G4 の中で少し丈夫・詰められると弱い」→ 体力 12(グレガリア 4・アルボラ 8)・防御 4(背板)。攻撃 2 は小さな大顎(技はまだ)。
+        // 速さ 0.19: walk(1 倍で約 0.03 ブロック/tick)を 2.5 倍まで = 急ぎ 約 0.075(地面の速さ ≈ 2.16 × 速さ²)。歩幅が短いので遅い。
+        // 当たりは胴と背板の芯 0.95 × 1.2(脚・触角・尾ははみ出す。全体 3.6 × 2.8 × 5.5)。段差 1.0。
+        m.put("strobila", stat(s -> {
+            s.maxHealth = 12.0; s.attackDamage = 2.0; s.armor = 4.0; s.armorToughness = 0.0; s.movementSpeed = 0.19;
+            s.knockbackResistance = 0.2; s.followRange = 32.0; s.stepHeight = 1.0;
+            s.scale = 1.0;
+            s.width = 0.95; s.height = 1.2; s.eggFit = 5.5; s.xpReward = 3;
+            s.naturalSpawn = false;   // 自然には湧かない(スポーンエッグ・コマンドだけ)
+        }));
+
         // スポロフィル — 支援役。体はフィロセンスの流用で、頭が花ではなくキノコの傘。
         // 自分では攻撃せず(attackDamage を持たない)、半径 32 のバフ/デバフ/胞子濃度上昇で戦う
         // (SporophyllAura)。居座られると厄介なので体力は高め。
@@ -670,18 +682,6 @@ public final class MobStats {
         }));
 
         // ヴェロフィル(G4・空の爆撃。V 字の群れ、2026-11-15 段 1 = 飛ぶ・群れ・止まり木まで。爆撃は次の段)。数値は【仮・Claude】、
-        // ストロビラ(G4・軽い投手。小さな地這いの虫の型の 2 体目、2026-11-15 段 1)。数値は全部【仮・Claude 11-15】:
-        // 「G4 の中で少し丈夫・詰められると弱い」→ 体力 12(グレガリア 4・アルボラ 8)・防御 4(背板)。攻撃 2 は小さな大顎(技はまだ)。
-        // 速さ 0.19: walk(1 倍で約 0.03 ブロック/tick)を 2.5 倍まで = 急ぎ 約 0.075(地面の速さ ≈ 2.16 × 速さ²)。歩幅が短いので遅い。
-        // 当たりは胴と背板の芯 0.95 × 1.2(脚・触角・尾ははみ出す。全体 3.6 × 2.8 × 5.5)。段差 1.0。
-        m.put("strobila", stat(s -> {
-            s.maxHealth = 12.0; s.attackDamage = 2.0; s.armor = 4.0; s.armorToughness = 0.0; s.movementSpeed = 0.19;
-            s.knockbackResistance = 0.2; s.followRange = 32.0; s.stepHeight = 1.0;
-            s.scale = 1.0;
-            s.width = 0.95; s.height = 1.2; s.eggFit = 5.5; s.xpReward = 3;
-            s.naturalSpawn = false;   // 自然には湧かない(スポーンエッグ・コマンドだけ)
-        }));
-
         // 巡航 0.7 ブロック/tick と当たりの作り(胴の芯 + 翼の叩ける部位)はユーザー決定(11-15)。速さの本体は entity/flyer の FlightBody、
         // flyingSpeed は巡航の速さとしてそこから読む。体力 20 = 弓で落とせる(溜めきりの矢 3 本ほど)。
         // 当たりの芯は胴だけ(幅 1.2 × 高さ 0.8)。翼(翼幅 5.8)は叩ける部位(VelophyllEntity の WING_*)で、地形とはぶつからない。
