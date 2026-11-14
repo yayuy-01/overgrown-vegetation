@@ -2,7 +2,7 @@ package com.yayuy.overgrownvegetation.gametest;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.corruption.CorruptionRegistry;
-import com.yayuy.overgrownvegetation.corruption.LedgerSpreadTestHooks;
+import com.yayuy.overgrownvegetation.corruption.OvergrownBiomeConverter;
 import com.yayuy.overgrownvegetation.corruption.OvergrownBiomeCreep;
 import com.yayuy.overgrownvegetation.corruption.OvergrownLayerData;
 import com.yayuy.overgrownvegetation.data.DesignData;
@@ -123,7 +123,7 @@ public final class CorruptionEdgeGameTests {
         level.getChunk(a.x, a.z);
         level.getChunk(b.x, b.z);
         level.getChunk(a.x + 2, a.z);
-        LedgerSpreadTestHooks.convertNow(level, a);
+        OvergrownBiomeConverter.forceOvergrown(level, a); // A を過繁茂のバイオームに(地表は下で東の端だけ塗る。2026-11-14 四角い塗りを消した)
         // A の東の端の列を全部汚染する(模様の塗り残しで境が途切れないように)
         for (int z = a.getMinBlockZ(); z <= a.getMaxBlockZ(); z++) {
             int x = a.getMaxBlockX();
@@ -168,7 +168,7 @@ public final class CorruptionEdgeGameTests {
     private static void enclosedHoleIsFilledBody(GameTestHelper helper, ChunkPos a) {
         ServerLevel level = helper.getLevel();
         for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) level.getChunk(a.x + dx, a.z + dz);
-        LedgerSpreadTestHooks.convertNow(level, a);
+        OvergrownBiomeConverter.forceOvergrown(level, a); // A を過繁茂のバイオームに(穴のまわりは下で塗る。2026-11-14 四角い塗りを消した)
         int x = a.getMiddleBlockX(), z = a.getMiddleBlockZ();
         // 真ん中の列と 4 方を作り直す: 4 方は汚染、真ん中は素の草
         int[][] around = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};

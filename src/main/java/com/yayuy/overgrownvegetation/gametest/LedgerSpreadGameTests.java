@@ -10,6 +10,7 @@ import com.yayuy.overgrownvegetation.data.SpreadTable;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
 import com.yayuy.overgrownvegetation.registry.ModBiomes;
 import com.yayuy.overgrownvegetation.spore.SporeDeviceData;
+import com.yayuy.overgrownvegetation.spore.field.SporeSprouts;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -34,8 +35,8 @@ import java.nio.charset.StandardCharsets;
  * <p>守りたいのは次のもの。
  * <ul>
  *     <li><b>寝た夜も 1 日に数える</b> —— 睡眠で飛ばした時間が汚染の暦に入る。</li>
- *     <li><b>読み込まれたチャンクの書き換え</b> —— バイオームが過繁茂になり、地表は模様が塗ると決めた列だけ汚染される
- *     (模様が全体でおおよそ決めた割合を塗ることは計算のテストで見る)。</li>
+ *     <li><b>読み込まれたチャンクの書き換え</b> —— バイオームが過繁茂になり、待ちから外れ、芽の点が置かれる
+ *     (2026-11-14 に地表の四角い塗りと、その模様の計算のテストを消した)。</li>
  *     <li><b>同梱の json と Java の既定値が食い違わない</b>(spread.json)。</li>
  * </ul>
  *
@@ -63,32 +64,6 @@ public final class LedgerSpreadGameTests {
     /** 実行をまたいで台帳の座標がかぶらないように(台帳は消せず、GameTest のワールドは残る)。 */
     private static final int RUN_SALT = new java.util.Random().nextInt(1 << 20);
     private static final java.util.concurrent.atomic.AtomicInteger NEXT = new java.util.concurrent.atomic.AtomicInteger();
-    /** 地表の塗り残しの模様: 決めた割合(既定 75%)だけ塗る。模様は連続(隣の列でほとんど変わらない)。 */
-    @GameTest(template = "gametest_empty7")
-    public static void surfacePatchCoversTheChosenShare(GameTestHelper helper) {
-        double coverage = SpreadTable.DEFAULT.surfaceCoverage();
-        double threshold = LedgerSpreadMath.noiseThreshold(coverage);
-        double cell = SpreadTable.DEFAULT.patchSize();
-        int painted = 0;
-        int total = 0;
-        double maxStep = 0.0D;
-        for (int x = -300; x < 300; x += 2) {
-            for (int z = -300; z < 300; z += 2) {
-                double v = LedgerSpreadMath.patch(2026L, x, z, cell);
-                if (v < threshold) {
-                    painted++;
-                }
-                total++;
-                maxStep = Math.max(maxStep, Math.abs(v - LedgerSpreadMath.patch(2026L, x + 1, z, cell)));
-            }
-        }
-        double share = painted / (double) total;
-        expectTrue(helper, Math.abs(share - coverage) < 0.05D, "塗った割合 " + share + "(期待 " + coverage + ")");
-        // 細かい方の模様(格子 2.4 ブロック)があるので隣でも 0.3 ほどは動く。ホワイトノイズなら 1 近くまで飛ぶ。
-        expectTrue(helper, maxStep < 0.5D, "隣の列で模様が飛んでいる(最大の差 " + maxStep + ")");
-        helper.succeed();
-    }
-
     /** spread.json と Java の既定値が同じ。 */
     @GameTest(template = "gametest_empty7")
     public static void bundledJsonMatchesDefault(GameTestHelper helper) {
@@ -132,84 +107,32 @@ public final class LedgerSpreadGameTests {
     }
 
     /**
-     * 読み込まれたチャンクを書き換えると、バイオームが過繁茂になり、地表は<b>模様が塗ると決めた列だけ</b>汚染される。
-     *
-     * <p>割合は決め打ちの幅で見ない。模様は格子 6 ブロックの値ノイズなので、1 チャンク(256 列)の塗る割合は場所しだいで
-     * 平均 0.75・標準偏差 0.14 ほどばらつく(シード 0 でこのテストが選びうる 10 万チャンクのうち 5.7% が 0.5 以下)。
-     * チャンクは実行ごとに変わるので、以前の「0.75 − 0.25 より上」は 2026-09-26 に 0.40・0.45 で 2 回落ちた。
-     * そこで、そのチャンクの模様を同じ設計値(塗る割合・模様の大きさ・世界のシード)から計算して列ごとに突き合わせる。
-     * 全体でおおよそ決めた割合になることは {@link #surfacePatchCoversTheChosenShare} が広い範囲で見ている。
+     * 書き換え待ちのチャンクを書き換えると(胞子の場のやり方、2026-11-14 に四角い塗りから書き換え)、バイオームが過繁茂になり、
+     * 待ちから外れ、芽の点が置かれる。地表はここでは塗らない(芽と過繁茂バイオームの浸食が後から広げる)。
+     * 胞子の場の升が無いチャンク(このテストの遠いチャンク)は過繁茂の札。発芽して 2 日未満の升なら繁茂の札になる。
      */
     @GameTest(template = "gametest_empty7", batch = WORLD_BATCH, timeoutTicks = 200)
-    public static void catchUpConvertsBiomeAndSurface(GameTestHelper helper) {
+    public static void catchUpConvertsBiomeAndStartsSprouts(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ChunkPos pos = new ChunkPos(40_000 + (RUN_SALT % 50_000) * 4, 40_000 + NEXT.getAndIncrement() * 4);
-        level.getChunk(pos.x, pos.z); // 読み込む(平らな GameTest のワールドなので軽い)
-        boolean[] before = corruptedColumns(level, pos); // 前の実行と同じチャンクに当たったときの分
-        LedgerSpreadTestHooks.convertNow(level, pos);
-        BlockPos middle = pos.getMiddleBlockPosition(level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
-                pos.getMiddleBlockX(), pos.getMiddleBlockZ()));
-        expectTrue(helper, ModBiomes.isFullyOvergrown(level.getBiome(middle)), "バイオームが過繁茂にならない");
-        boolean[] after = corruptedColumns(level, pos);
-        SpreadTable table = SpreadTable.DEFAULT;
-        double threshold = LedgerSpreadMath.noiseThreshold(table.surfaceCoverage());
-        int planned = 0;
-        int missed = 0;
-        int extra = 0;
-        StringBuilder extraWhat = new StringBuilder();
-        for (int c = 0; c < 256; c++) {
-            boolean paint = LedgerSpreadMath.patch(level.getSeed(), pos.getMinBlockX() + (c & 15),
-                    pos.getMinBlockZ() + (c >> 4), table.patchSize()) < threshold;
-            if (paint) {
-                planned++;
-                if (!after[c]) {
-                    if (missed < 4) {
-                        int mx = pos.getMinBlockX() + (c & 15), mz = pos.getMinBlockZ() + (c >> 4);
-                        int my = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, mx, mz) - 1;
-                        extraWhat.append(" 抜け[").append(c & 15).append(',').append(c >> 4).append(" y").append(my);
-                        for (int k = 0; k < 6; k++) extraWhat.append(' ').append(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(new BlockPos(mx, my - k, mz)).getBlock()).getPath());
-                        extraWhat.append(']');
-                    }
-                    missed++;
-                }
-            } else if (after[c] && !before[c]) {
-                if (extra < 4) { // 何が塗られたか(2026-11-04 の切り分け)
-                    int ex = pos.getMinBlockX() + (c & 15), ez = pos.getMinBlockZ() + (c >> 4);
-                    int ey = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, ex, ez) - 1;
-                    extraWhat.append(" [").append(c & 15).append(',').append(c >> 4).append(" y").append(ey).append(' ')
-                            .append(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(new BlockPos(ex, ey, ez)).getBlock()).getPath())
-                            .append('/').append(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(new BlockPos(ex, ey - 1, ez)).getBlock()).getPath())
-                            .append(']');
-                }
-                extra++;
-            }
+        for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) level.getChunk(pos.x + dx, pos.z + dz); // 芽は周りへはみ出す
+        int[] before = SporeSprouts.countsForTests(level);
+        try {
+            boolean converted = LedgerSpreadTestHooks.convertNow(level, pos);
+            String where = "(チャンク " + pos + "・除去装置の圏内 "
+                    + SporeDeviceData.mayInhibitBlocksIn(level, pos, SporeDeviceData.Inhibit.CORRUPTION) + ")";
+            expectTrue(helper, converted, "書き換えずに外した" + where);
+            expectTrue(helper, !LedgerSpreadTestHooks.isPending(level, pos), "書き換え待ちに残っている" + where);
+            BlockPos middle = pos.getMiddleBlockPosition(level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                    pos.getMiddleBlockX(), pos.getMiddleBlockZ()));
+            expectTrue(helper, ModBiomes.isFullyOvergrown(level.getBiome(middle)), "バイオームが過繁茂にならない" + where);
+            int[] after = SporeSprouts.countsForTests(level);
+            expectTrue(helper, after[0] + after[1] > before[0] + before[1],
+                    "芽の点が置かれない(前 " + before[0] + "+" + before[1] + "・後 " + after[0] + "+" + after[1] + ")" + where);
+        } finally {
+            SporeSprouts.clearForTests(level); // テストで置いた点を残さない(同じバッチはこのテストだけが点を置く)
         }
-        String where = "(チャンク " + pos + "・模様が塗る列 " + planned + " / 256・除去装置の圏内 "
-                + SporeDeviceData.mayInhibitBlocksIn(level, pos, SporeDeviceData.Inhibit.CORRUPTION) + ")";
-        expectTrue(helper, missed == 0, "模様が塗る列のうち " + missed + " 列が汚染されていない" + where + extraWhat);
-        expectTrue(helper, extra == 0, "塗り残すはずの列が " + extra + " 列汚染された" + where + extraWhat);
         helper.succeed();
-    }
-
-    /** チャンクの 256 列(x が速く回る)の地表が汚染済みか。植物が乗っていればその下の地面まで見る。 */
-    private static boolean[] corruptedColumns(ServerLevel level, ChunkPos pos) {
-        boolean[] out = new boolean[256];
-        for (int c = 0; c < 256; c++) {
-            int x = pos.getMinBlockX() + (c & 15);
-            int z = pos.getMinBlockZ() + (c >> 4);
-            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
-            // 木生シダの幹・葉(隣の列から張り出したものも)はくぐって地面で数える(2026-11-04: 塗り残しの列に葉・幹が乗って「汚染された」と数えていた)
-            for (int d = 0; d < 32; d++) {
-                net.minecraft.world.level.block.state.BlockState s = level.getBlockState(new BlockPos(x, y, z));
-                if (!s.isAir() && !com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder.isTreePart(s)) break;
-                y--;
-            }
-            for (int k = 0; k < 3 && !out[c]; k++) {
-                BlockPos at = new BlockPos(x, y - k, z); // 記録で覆ったマスも汚染済み(本体と同じ数え方、2026-10-30 夜)
-                out[c] = com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.isCorruptedCell(level, at, level.getBlockState(at));
-            }
-        }
-        return out;
     }
 
     private static ChunkPos freshCenter() {

@@ -426,7 +426,7 @@ public final class MyceliumSeep {
 
     /**
      * 汚染したマス 1 つに、自然の過繁茂の洞窟と同じ入口で植物を生やす(洞窟なら天井のアーチ・天井の光源・地脈の根・狐火茸・菌糸・根の簾・
-     * 胞子の溜まり・巨大菌の柱・太い蔦・面ごとの植物)。並びは地表の追いつき(LedgerSpreadCatchUp)と同じ(水辺のトクサ → 面ごとの植物)。
+     * 胞子の溜まり・巨大菌の柱・太い蔦・面ごとの植物)。並びは前の地表の追いつき(2026-11-14 に消した LedgerSpreadCatchUp の四角い塗り)と同じ(水辺のトクサ → 面ごとの植物)。
      */
     private static void growAt(ServerLevel level, BlockPos at, BlockState host) {
         if (!com.yayuy.overgrownvegetation.corruption.FloorGrowth.tryHorsetail(level, at)) {

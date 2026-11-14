@@ -83,9 +83,9 @@ public final class BlightFernPlacement {
      *     半径 64 で 40)と同じ面積あたりの密度</li>
      * </ul>
      * (汚染水草は 2026-10-23 に削除した。)
-     * 判定の箱は {@code BlightFernSelfSpread} と同じく立方体(水平距離ではない)。
+     * 判定の箱は立方体(水平距離ではない。前は自己増殖 BlightFernSelfSpread と揃えていた —— そちらは消えている)。
      *
-     * <p>攻城戦ボスに殺された Mob({@code SiegeKillHandler})はここを通さない —— 引き継ぎ書で
+     * <p>攻城戦ボスに殺された Mob(SiegeKillHandler。2026-10-30 に parked/ へ退避)はここを通さない —— 引き継ぎ書で
      * 「必ず 1 本生える」と決めてある。死体ブロックの孵化(死体を経由するので死とは間が空く)も対象外。
      *
      * @return 生成できたエンティティ。密度の上限・除去装置などで湧かなかったら {@code null}。

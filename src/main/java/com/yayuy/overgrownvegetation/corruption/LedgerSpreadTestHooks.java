@@ -20,9 +20,17 @@ public final class LedgerSpreadTestHooks {
         return LedgerSpread.creditSleep(overworld, ticks, SpreadTable.fromJson(json));
     }
 
-    /** 読み込まれたチャンクを、台帳の広がりの書き換え(バイオーム + 地表)でその場で書き換え切る。 */
-    public static int convertNow(ServerLevel level, ChunkPos pos) {
-        return LedgerSpreadCatchUp.convertNow(level, pos, SpreadTable.DEFAULT);
+    /**
+     * 読み込まれたチャンク(周りも)を書き換え待ちに載せ、ゲームと同じ道(バイオーム + 芽と萌芽体)でその場で書き換える。
+     * 書き換えたら true(除去装置の範囲なら false)。
+     */
+    public static boolean convertNow(ServerLevel level, ChunkPos pos) {
+        return LedgerSpreadCatchUp.convertNow(level, pos);
+    }
+
+    /** そのチャンクが書き換え待ちに残っているか。 */
+    public static boolean isPending(ServerLevel level, ChunkPos pos) {
+        return LedgerSpreadData.get(level.getServer()).isPending(pos.toLong());
     }
 
     /** 台帳の広がりがそのチャンクを「読み込まれていないので印を付けない」と判断するか(ワールドの設定を今の値で読む)。 */

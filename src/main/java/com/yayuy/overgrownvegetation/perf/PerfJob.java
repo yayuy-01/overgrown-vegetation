@@ -10,7 +10,7 @@ package com.yayuy.overgrownvegetation.perf;
  * 両方測ると、内側の時間が 2 回数えられて予算を食う。測るのは実際に仕事をする内側だけ。
  */
 public enum PerfJob {
-    LEDGER_CATCH_UP("台帳の書き換え(地表)", true),
+    LEDGER_CATCH_UP("台帳の書き換え(バイオーム・芽)", true),
     SPORE_SPROUTS("胞子の芽(発芽したチャンクの汚染)", true),
     /** 洞窟の口の多さを測る(胞子の場の地下の層、2026-11-04)。 */
     SPORE_CAVE_MOUTHS("洞窟の口の測り(胞子の地下の層)", true),
@@ -26,20 +26,15 @@ public enum PerfJob {
     GRAMMAR_GROWTH("構造物の成長", true),
     SAPLING_OFFLINE("苗木の追いつき成長", true),
     SWAMP_TREE_FALL("湿地・密林の木の片付け", true),
+    /** 湿地の水没(湿地は 10-30 に退避。0.2.1 で作り直すので枠は残す。2026-11-14)。 */
     SWAMP_FLOOD("湿地の水没", true),
     BUILD_CORROSION("建物の侵食", true),
     /** 這い上がる苔が最終段を過ぎたら覆う(CoverCreepChain、2026-11-03)。 */
     COVER_CREEP("這い上がる苔の連鎖", true),
     END_OVERGROWTH("エンドの侵食", true),
-    NETHER_LEDGER("ネザーの書き換え", true),
-    BASE_CONSTRUCTION("基地の工事", true),
-    BASE_CHUNK_JOBS("基地のチャンク作業", true),
-    BASE_ROADS("基地の道を敷く", true),
-    BASE_UPKEEP_COMPARE("基地の整備の見比べ", true),
-    BURNT_LAND("焼けた荒地を元に戻す", true),
-    TREE_BURN("焼け切れた木が燃え落ちる", true),
-    /** F1 の前の前兆(汲み上げ器の近くへの知らせ・軽い地鳴り。2026-10-24)。時間どおりに動かすので測るだけ。 */
-    LEY_OMEN("地脈の前兆(知らせ・地鳴り)", false);
+    NETHER_LEDGER("ネザーの書き換え", true);
+    // 2026-11-14: 退避したもの(基地の工事・チャンク作業・道・整備の見比べ = BASE_*、焼けた荒地 BURNT_LAND、燃え落ちる木 TREE_BURN、
+    // 地脈の前兆 LEY_OMEN)の行を消した(どこからも測っていなかった)。戻すときに足し直す。
 
     /** {@code /ov perf} に出す名前。 */
     public final String label;

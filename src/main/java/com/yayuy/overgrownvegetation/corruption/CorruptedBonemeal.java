@@ -16,10 +16,8 @@ import net.minecraft.world.level.block.state.BlockState;
  * 露出面から、汚染されたときに生えるのと同じ装飾植物(シダ・苔・蔦・下草・茂みの塊など)を
  * 一気に生やす。中心に近いブロックほど高い確率で対象になる。
  *
- * <p>骨粉アイテムの使用時({@link CorruptedBonemealHandler})のほか、
- * 胞子感染で死んだスケルトンの死亡地点
- * ({@link com.yayuy.overgrownvegetation.effect.SporeInfectionDeathHandler})からも
- * 「その場所に骨粉を使ったのと同じ効果」として呼ばれる。
+ * <p>骨粉アイテムの使用時({@link CorruptedBonemealHandler})に呼ばれる。
+ * (胞子感染で死んだスケルトンの死亡地点からも呼んでいた SporeInfectionDeathHandler は 2026-10-30 に parked/ へ退避した。)
  */
 public final class CorruptedBonemeal {
 

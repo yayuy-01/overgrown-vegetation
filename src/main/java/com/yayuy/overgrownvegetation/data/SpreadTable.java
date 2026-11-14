@@ -12,7 +12,7 @@ import java.util.TreeMap;
  * {@code includeLoadedChunks})は 2026-10-30 に消した(古い json に残っていても読み飛ばす)。
  *
  * <p><b>ユーザー指定</b>: 寝たときは飛ばした夜のぶんも汚染の暦を進める。
- * <b>仮決め</b>: 睡眠でポイントも入れる・地表の塗り方・1 tick の予算。
+ * <b>仮決め</b>: 睡眠でポイントも入れる・1 tick の予算。
  */
 public final class SpreadTable {
 
@@ -61,24 +61,12 @@ public final class SpreadTable {
 
     /** {@code catchUp} 節(読み込まれたチャンクを書き換える)。 */
     public static final class CatchUp {
-        /** 地表の列のうち汚染する割合(0〜1)。残りはまだらな塗り残し。 */
-        public Double surfaceCoverage;
-        /** 塗り残しの模様の大きさ(ブロック)。 */
-        public Double patchSize;
-        /** 地表から何マス下まで汚染できるマスを探すか(過繁茂バイオームの浸食と同じ既定 4)。 */
-        public Integer surfaceDepth;
-        /** 1 tick に置き換えるブロックの上限。 */
-        public Integer placementsPerTick;
-        /** 1 tick に見る列の上限。 */
+        /** 1 tick の予算(列の数。1 チャンクの書き換えを 16 列に数える)。古い json の surfaceCoverage・patchSize・surfaceDepth・placementsPerTick(2026-11-14 に四角い塗りと一緒に消した)は読み飛ばす。 */
         public Integer columnsPerTick;
     }
 
     private final boolean sleepAdvancesClock;
     private final boolean sleepGivesPhasePoints;
-    private final double surfaceCoverage;
-    private final double patchSize;
-    private final int surfaceDepth;
-    private final int placementsPerTick;
     private final int columnsPerTick;
     private final WallPlants wallPlants;
 
@@ -88,10 +76,6 @@ public final class SpreadTable {
 
         this.sleepAdvancesClock = src.sleepAdvancesClock == null || src.sleepAdvancesClock;
         this.sleepGivesPhasePoints = src.sleepGivesPhasePoints == null || src.sleepGivesPhasePoints;
-        this.surfaceCoverage = c.surfaceCoverage != null ? Math.max(0.0D, Math.min(1.0D, c.surfaceCoverage)) : 0.75D;
-        this.patchSize = c.patchSize != null ? Math.max(1.0D, c.patchSize) : 6.0D;
-        this.surfaceDepth = c.surfaceDepth != null ? Math.max(1, Math.min(16, c.surfaceDepth)) : 4;
-        this.placementsPerTick = c.placementsPerTick != null ? Math.max(1, c.placementsPerTick) : 512;
         this.columnsPerTick = c.columnsPerTick != null ? Math.max(1, c.columnsPerTick) : 2048;
         this.wallPlants = WallPlants.of(src.wallPlants);
     }
@@ -106,27 +90,7 @@ public final class SpreadTable {
         return sleepGivesPhasePoints;
     }
 
-    /** 読み込まれたチャンクの地表を汚染する割合。仮決め 0.75。 */
-    public double surfaceCoverage() {
-        return surfaceCoverage;
-    }
-
-    /** 塗り残しの模様の大きさ(ブロック)。仮決め 6。 */
-    public double patchSize() {
-        return patchSize;
-    }
-
-    /** 地表から何マス下まで汚染できるマスを探すか。 */
-    public int surfaceDepth() {
-        return surfaceDepth;
-    }
-
-    /** 書き換えで 1 tick に置き換えるブロックの上限。仮決め 512。 */
-    public int placementsPerTick() {
-        return placementsPerTick;
-    }
-
-    /** 書き換えで 1 tick に見る列の上限。仮決め 2048(= 8 チャンクぶん)。 */
+    /** 書き換えで 1 tick に使う予算(列の数。1 チャンク = 16 列)。仮決め 2048(= 128 チャンクぶん)。 */
     public int columnsPerTick() {
         return columnsPerTick;
     }
@@ -141,10 +105,6 @@ public final class SpreadTable {
         Map<String, Object> out = new TreeMap<>();
         out.put("sleepAdvancesClock", sleepAdvancesClock);
         out.put("sleepGivesPhasePoints", sleepGivesPhasePoints);
-        out.put("surfaceCoverage", surfaceCoverage);
-        out.put("patchSize", patchSize);
-        out.put("surfaceDepth", surfaceDepth);
-        out.put("placementsPerTick", placementsPerTick);
         out.put("columnsPerTick", columnsPerTick);
         out.put("wallPlants", wallPlants.toString());
         return out.toString();
