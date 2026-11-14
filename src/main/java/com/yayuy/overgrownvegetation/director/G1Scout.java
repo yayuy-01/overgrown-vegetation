@@ -77,6 +77,14 @@ public final class G1Scout {
             len = 1.0D;
         }
         double dist = t.scoutWatchMin + mob.getRandom().nextDouble() * (t.scoutWatchMax - t.scoutWatchMin);
+        // 弱い所を突く: 守りの薄い方角から眺める(回り込む割合 × 偵察の段の強さ。第 3 段)
+        if (base.weakSector() >= 0 && mob.level() instanceof ServerLevel sl
+                && mob.getRandom().nextDouble() < t.flankShare * DirectorGates.strength(sl, DirectorGates.Gate.SCOUT)) {
+            double a = BaseDefense.angleOf(base.weakSector(), t.weakSectors);
+            dx = Math.cos(a);
+            dz = Math.sin(a);
+            len = 1.0D;
+        }
         watchX = baseX + dx / len * dist;
         watchZ = baseZ + dz / len * dist;
         ticks = 0;

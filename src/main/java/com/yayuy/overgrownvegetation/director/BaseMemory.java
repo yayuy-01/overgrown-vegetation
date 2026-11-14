@@ -96,6 +96,12 @@ public final class BaseMemory extends SavedData {
         /** 次に送り込む日と、これまでに送り込んだ回数。 */
         private double nextWaveDay;
         private int wavesSent;
+        // ---- 第 3 段 区切り 2: 弱い所を突く
+        /** いちばん守りの薄い方位(−1 = まだ分からない)と、見た日。方位ごとの守り(保存しない)。 */
+        private int weakSector = -1;
+        private double defenseAt = Double.NEGATIVE_INFINITY;
+        @Nullable
+        private double[] defense;
 
         Base(int id) {
             this.id = id;
@@ -161,6 +167,37 @@ public final class BaseMemory extends SavedData {
 
         public int wavesSent() {
             return wavesSent;
+        }
+
+        public int weakSector() {
+            return weakSector;
+        }
+
+        @Nullable
+        public double[] defense() {
+            return defense;
+        }
+
+        public double defenseAt() {
+            return defenseAt;
+        }
+
+        /** 守りを見た結果を入れる。 */
+        public void setDefense(double[] d, int weak, double day) {
+            defense = d;
+            weakSector = weak;
+            defenseAt = day;
+        }
+
+        /**
+         * 弱い方角の輪の上の点(拠点の真ん中から {@code radius})。まだ分からなければ null。
+         */
+        @Nullable
+        public net.minecraft.world.phys.Vec3 weakPoint(double radius, double y) {
+            if (weakSector < 0) return null;
+            int n = DesignData.director().base.weakSectors;
+            double a = BaseDefense.angleOf(weakSector, n);
+            return new net.minecraft.world.phys.Vec3(centerX + Math.cos(a) * radius, y, centerZ + Math.sin(a) * radius);
         }
 
         /** 認識まで、あと何日(偵察済みのときだけ。ほかは NaN)。 */
@@ -616,6 +653,9 @@ public final class BaseMemory extends SavedData {
             }
             String next = b.stage == Stage.RECOGNIZED ? "" :String.format(Locale.ROOT, "次の偵察まで %.2f 日", Math.max(0.0D, b.nextScoutDay - day));
             out.add(String.format(Locale.ROOT, "     偵察: 眺め終えた %d・倒された %d %s %s", b.scoutsDone, b.scoutKills, scout, next));
+            if (b.defense != null) {
+                out.add(String.format(Locale.ROOT, "     守り(%.2f 日前に見た): %s", Math.max(0.0D, day - b.defenseAt), BaseDefense.describe(b.defense, b.weakSector)));
+            }
         }
         return out;
     }
@@ -691,6 +731,8 @@ public final class BaseMemory extends SavedData {
             b.nextScoutDay = c.getDouble("NS");
             b.nextWaveDay = c.getDouble("NW");
             b.wavesSent = c.getInt("WS");
+            b.weakSector = c.contains("Weak") ? c.getInt("Weak") : -1;
+            b.defenseAt = c.contains("DefAt") ? c.getDouble("DefAt") : Double.NEGATIVE_INFINITY;
             m.bases.add(b);
             m.nextId = Math.max(m.nextId, b.id + 1);
         }
@@ -734,6 +776,8 @@ public final class BaseMemory extends SavedData {
             c.putDouble("NS", b.nextScoutDay);
             c.putDouble("NW", b.nextWaveDay);
             c.putInt("WS", b.wavesSent);
+            c.putInt("Weak", b.weakSector);
+            c.putDouble("DefAt", b.defenseAt);
             bl.add(c);
         }
         tag.put("Bases", bl);

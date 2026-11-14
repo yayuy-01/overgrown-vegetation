@@ -85,10 +85,12 @@ public final class BaseRaids {
         }
         Collections.shuffle(zeros, new java.util.Random(random.nextLong()));
         Collections.shuffle(developed, new java.util.Random(random.nextLong()));
+        // 弱い所を突く: 守りの薄い方角から回り込む割合(F5 の送り込みの段の強さを掛ける。11-14 ユーザー)
+        double flank = DesignData.director().base.flankShare * DirectorGates.strength(level, DirectorGates.Gate.RAID);
         int sentDev = 0;
         for (AbstractParasitizedMonster m : developed) {
             if (sentDev >= w.developed()) break;
-            m.march().begin(b);
+            m.march().beginFlank(b, flank, random);
             sentDev++;
         }
         // 進化体が足りない分は、段階 0 を予算で進化させて送る(進化体のある種だけ。予算が尽きたらそこまで)
@@ -101,7 +103,7 @@ public final class BaseRaids {
             if (canEvolve && sentDev + evolved < w.developed() && G1Fate.developedOf(m) != null && director.tryPay(level, cost)) {
                 m.fate().beginEvolve();
                 m.fate().markPaid(cost);
-                m.march().begin(b); // 進化で入れ替わるときに引き継ぐ(G1Fate#finishEvolve)
+                m.march().beginFlank(b, flank, random); // 進化で入れ替わるときに引き継ぐ(G1Fate#finishEvolve)
                 director.record(ForestDirector.Route.EVOLVE, m.species().key() + " → 進化(拠点 #" + b.id() + " へ送るため)");
                 evolved++;
             } else {
@@ -111,7 +113,7 @@ public final class BaseRaids {
         int sentZero = 0;
         for (AbstractParasitizedMonster m : rest) {
             if (sentZero >= w.stageZero()) break;
-            m.march().begin(b);
+            m.march().beginFlank(b, flank, random);
             sentZero++;
         }
         // G4 は F4・G5〜 は F5 から(G4〜G6 の混ざった群れ = F6 は、登録する側が DirectorGates.Gate.WAVE_MIXED を見る)

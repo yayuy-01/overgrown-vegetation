@@ -77,6 +77,8 @@ public final class DirectorCommand {
                                                         .executes(ctx -> baseScout(ctx.getSource())))
                                                 .then(Commands.literal("wave")
                                                         .executes(ctx -> baseWave(ctx.getSource())))
+                                                .then(Commands.literal("defense")
+                                                        .executes(ctx -> baseDefense(ctx.getSource())))
                                                 .then(Commands.literal("stage")
                                                         .then(Commands.literal("remembered").executes(ctx -> baseStage(ctx.getSource(), BaseMemory.Stage.REMEMBERED)))
                                                         .then(Commands.literal("scouted").executes(ctx -> baseStage(ctx.getSource(), BaseMemory.Stage.SCOUTED)))
@@ -294,6 +296,19 @@ public final class DirectorCommand {
         m.scoutSent(b, day, server.overworld().getRandom(), !DirectorGates.open(server.overworld(), DirectorGates.Gate.RECOGNIZE));
         source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "%s(%.0f, %.0f, %.0f)を拠点 #%d の偵察に出した",
                 scout.species().key(), scout.getX(), scout.getY(), scout.getZ(), b.id())), true);
+        return 1;
+    }
+
+    /** いちばん近い拠点の守りの方角を、今すぐ見直す(第 3 段 区切り 2)。 */
+    private static int baseDefense(CommandSourceStack source) {
+        BaseMemory.Base b = nearestBase(source);
+        if (b == null) return 0;
+        var server = source.getServer();
+        double day = BaseMemory.today(server);
+        double[] d = BaseDefense.measure(server.overworld(), b, day);
+        int weak = BaseDefense.weakest(d);
+        b.setDefense(d, weak, day);
+        source.sendSuccess(() -> Component.literal("拠点 #" + b.id() + " の守り: " + BaseDefense.describe(d, weak)), true);
         return 1;
     }
 

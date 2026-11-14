@@ -68,6 +68,12 @@ public final class BaseWatch {
         }
         // 覚える・忘れるは F1 から裏で回す。認識は F5 から、偵察は F4 から、送り込みは F5 から。TD の前触れの間は偵察・送り込みを止める(DirectorGates)
         memory.update(day, DirectorGates.open(level, DirectorGates.Gate.RECOGNIZE));
+        // 弱い所を突く: 拠点のまわりの守りの方角を、間を空けて見直す(フェーズを見ない。使う側が見る)
+        for (BaseMemory.Base b : memory.bases()) {
+            if (day - b.defenseAt() < DesignData.director().base.weakRefreshDays) continue;
+            double[] d = BaseDefense.measure(level, b, day);
+            b.setDefense(d, BaseDefense.weakest(d), day);
+        }
         boolean omen = DirectorGates.tdOmen(level);
         if (!omen && DirectorGates.open(level, DirectorGates.Gate.SCOUT)) dispatchScouts(level, memory, day);
         if (!omen && DirectorGates.open(level, DirectorGates.Gate.RAID)) BaseRaids.dispatch(level, memory, day);

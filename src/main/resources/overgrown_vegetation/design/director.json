@@ -128,6 +128,16 @@
     "rootBaseBlocks": 192.0,
     "rootBaseMinBlocks": 24.0,
     "_comment_g4": "区切り 4: G4 以降の送り込みの口。認識した拠点があるとき、拠点から遠い苗床が孵すのを断る割合【仮】。",
-    "farNurserySkip": 0.5
+    "farNurserySkip": 0.5,
+    "_comment_weak": "第 3 段 区切り 2 弱い所を突く(11-14)。ユーザー決定: 明るさ + 危ない所の方位で見る・汚染そのものは伸ばさない・回り込む割合に段の強さを掛ける。数は全部【仮】。方位 8・1 方位 12 点・輪 24〜64・危ない所の重み 1.0・見直し 0.25 日・回り込みの点 40(着いた 8)・回り込む割合 1.0(× 段の強さ)。",
+    "weakSectors": 8,
+    "weakSamplesPerSector": 12,
+    "weakRingMin": 24.0,
+    "weakRingMax": 64.0,
+    "weakDangerWeight": 1.0,
+    "weakRefreshDays": 0.25,
+    "flankRadius": 40.0,
+    "flankArriveBlocks": 8.0,
+    "flankShare": 1.0
   }
 }

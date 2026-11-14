@@ -20,6 +20,10 @@ public final class G1March {
     private double baseX;
     private double baseZ;
     private int ticks;
+    /** 回り込み(第 3 段 区切り 2): 先に向かう弱い方角の点。着いたら真ん中へ。 */
+    private boolean hasWay;
+    private double wayX;
+    private double wayZ;
 
     public boolean active() {
         return active;
@@ -30,7 +34,26 @@ public final class G1March {
     }
 
     public Vec3 target(double y) {
-        return new Vec3(baseX, y, baseZ);
+        return hasWay ? new Vec3(wayX, y, wayZ) : new Vec3(baseX, y, baseZ);
+    }
+
+    /** 回り込みの途中か。 */
+    public boolean flanking() {
+        return hasWay;
+    }
+
+    /**
+     * 拠点へ、守りの薄い方角から回り込んで向かう(11-13 ユーザー「弱い所を突く」)。弱い方角が分かっていて、
+     * 回り込む割合(flankShare × 段の強さ。11-14 ユーザー「回り込む割合に段の強さを掛ける」)の確率に当たれば、先に弱い方角の輪の上の点へ。
+     */
+    public void beginFlank(BaseMemory.Base base, double flankChance, net.minecraft.util.RandomSource random) {
+        begin(base);
+        Vec3 way = base.weakPoint(DesignData.director().base.flankRadius, 0.0D);
+        if (way != null && random.nextDouble() < flankChance) {
+            hasWay = true;
+            wayX = way.x;
+            wayZ = way.z;
+        }
     }
 
     public void begin(BaseMemory.Base base) {
@@ -40,6 +63,7 @@ public final class G1March {
     /** 拠点以外の行き先へ(第 3 段の「危ない所」など。{@code id} は拠点の番号の代わりの印。危ない所は負の数)。 */
     public void beginTo(double x, double z, int id) {
         active = true;
+        hasWay = false;
         baseId = id;
         baseX = x;
         baseZ = z;
@@ -53,6 +77,9 @@ public final class G1March {
         baseX = other.baseX;
         baseZ = other.baseZ;
         ticks = other.ticks;
+        hasWay = other.hasWay;
+        wayX = other.wayX;
+        wayZ = other.wayZ;
     }
 
     /** 1 tick(Mob の tick から。歩いていない間も数える = 何かに引っかかっていても時間切れで終わる)。着いた・時間切れなら終わる。 */
@@ -60,6 +87,12 @@ public final class G1March {
         if (!active) return;
         BaseMemoryTable t = DesignData.director().base;
         ticks++;
+        if (hasWay) {
+            double wx = pos.x - wayX, wz = pos.z - wayZ;
+            if (wx * wx + wz * wz <= t.flankArriveBlocks * t.flankArriveBlocks) hasWay = false;
+            if (ticks >= t.marchTimeoutTicks) active = false;
+            return;
+        }
         double dx = pos.x - baseX, dz = pos.z - baseZ;
         if (dx * dx + dz * dz <= t.marchArriveBlocks * t.marchArriveBlocks || ticks >= t.marchTimeoutTicks) active = false;
     }
@@ -83,6 +116,10 @@ public final class G1March {
         m.putDouble("X", baseX);
         m.putDouble("Z", baseZ);
         m.putInt("Ticks", ticks);
+        if (hasWay) {
+            m.putDouble("WX", wayX);
+            m.putDouble("WZ", wayZ);
+        }
         tag.put("March", m);
     }
 
@@ -94,5 +131,8 @@ public final class G1March {
         baseX = m.getDouble("X");
         baseZ = m.getDouble("Z");
         ticks = m.getInt("Ticks");
+        hasWay = m.contains("WX");
+        wayX = m.getDouble("WX");
+        wayZ = m.getDouble("WZ");
     }
 }

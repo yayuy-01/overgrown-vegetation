@@ -73,6 +73,15 @@ public final class BaseMemoryTable {
         public Double rootBaseBlocks;
         public Double rootBaseMinBlocks;
         public Double farNurserySkip;
+        public Integer weakSectors;
+        public Integer weakSamplesPerSector;
+        public Double weakRingMin;
+        public Double weakRingMax;
+        public Double weakDangerWeight;
+        public Double weakRefreshDays;
+        public Double flankRadius;
+        public Double flankArriveBlocks;
+        public Double flankShare;
     }
 
     /** 送り込みの段 1 つ(json)。 */
@@ -163,6 +172,22 @@ public final class BaseMemoryTable {
     public final double rootBaseMinBlocks;
     /** 区切り 4: 認識した拠点があるとき、拠点から遠い苗床が孵すのを断る割合【仮】。 */
     public final double farNurserySkip;
+    // ---- 第 3 段 区切り 2: 弱い所を突く(どれも【仮】。ユーザーが決めたのは「明るさ + 危ない所の方位で見る」「汚染そのものは伸ばさない」)
+    /** 拠点のまわりを分ける方位の数と、1 方位で明るさを読む点の数。 */
+    public final int weakSectors;
+    public final int weakSamplesPerSector;
+    /** 明るさを読む輪(拠点の真ん中から、ブロック)。 */
+    public final double weakRingMin;
+    public final double weakRingMax;
+    /** 方位に危ない所があるとき、守りに足す量(明るさの平均は 0〜1)。 */
+    public final double weakDangerWeight;
+    /** 守りを見直す間(日)。 */
+    public final double weakRefreshDays;
+    /** 回り込むとき、まず向かう輪の上の点(拠点の真ん中から、ブロック)と、そこに着いたと見る距離。 */
+    public final double flankRadius;
+    public final double flankArriveBlocks;
+    /** 回り込む割合(最盛で)。段の強さを掛ける(11-14 ユーザー)。 */
+    public final double flankShare;
 
     /**
      * 送り込みの段 1 つ: 認識してから {@code fromDays} 日たったら、1 回の送り込みで 段階 0・進化体・G4・G5 以降をこの数ずつ送る。
@@ -242,6 +267,15 @@ public final class BaseMemoryTable {
         this.rootBaseBlocks = Math.max(1.0D, nonNeg(s.rootBaseBlocks, 192.0D));
         this.rootBaseMinBlocks = nonNeg(s.rootBaseMinBlocks, 24.0D);
         this.farNurserySkip = Math.min(1.0D, nonNeg(s.farNurserySkip, 0.5D));
+        this.weakSectors = Math.max(4, Math.min(16, s.weakSectors != null ? s.weakSectors : 8));
+        this.weakSamplesPerSector = Math.max(1, Math.min(64, s.weakSamplesPerSector != null ? s.weakSamplesPerSector : 12));
+        this.weakRingMin = nonNeg(s.weakRingMin, 24.0D);
+        this.weakRingMax = Math.max(this.weakRingMin + 1.0D, nonNeg(s.weakRingMax, 64.0D));
+        this.weakDangerWeight = nonNeg(s.weakDangerWeight, 1.0D);
+        this.weakRefreshDays = Math.max(0.01D, nonNeg(s.weakRefreshDays, 0.25D));
+        this.flankRadius = nonNeg(s.flankRadius, 40.0D);
+        this.flankArriveBlocks = Math.max(2.0D, nonNeg(s.flankArriveBlocks, 8.0D));
+        this.flankShare = Math.min(1.0D, nonNeg(s.flankShare, 1.0D));
     }
 
     /** 既定の段【仮】: 最初は段階 0 数体と G4、日がたつと進化体が混ざって増え、G4 以降も増える(11-14 ユーザー「徐々に強い個体が攻めてくる」)。 */

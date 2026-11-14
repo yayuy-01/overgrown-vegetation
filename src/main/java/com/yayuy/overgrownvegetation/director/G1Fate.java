@@ -291,10 +291,22 @@ public final class G1Fate {
         Vec3 away = forest(level).away(mob.position());
         if (route != Route.ROOTED) return away;
         BaseMemory.Base b = settleBase(level);
-        Vec3 dir = blendTowardBase(away, mob.position(), b == null ? null : new Vec3(b.centerX(), mob.getY(), b.centerZ()), DesignData.director().base);
+        // 弱い所を突く(第 3 段): 守りの薄い方角が分かっていれば、拠点の真ん中ではなく弱い方角の輪の上の点へ寄る
+        // (回り込む割合 × 根付きの段の強さ。個体ごとに決まった当たり外れ)
+        Vec3 toward = b == null ? null : new Vec3(b.centerX(), mob.getY(), b.centerZ());
+        if (b != null && b.weakSector() >= 0 && flankLot() < DesignData.director().base.flankShare * DirectorGates.strength(level, DirectorGates.Gate.ROOTED)) {
+            Vec3 w = b.weakPoint(DesignData.director().base.flankRadius, mob.getY());
+            if (w != null) toward = w;
+        }
+        Vec3 dir = blendTowardBase(away, mob.position(), toward, DesignData.director().base);
         // 学ぶ(11-14 ユーザー): 遠距離の根付き(スケルトン・エンダーマンなど)は、危ない所から離れて根付く
         KillMemory.Danger d = rangedDanger(level);
         return d == null ? dir : awayFromDanger(dir, mob.position(), new Vec3(d.x(), mob.getY(), d.z()));
+    }
+
+    /** 個体ごとに決まった 0〜1 の当たりくじ(回り込むか)。 */
+    private double flankLot() {
+        return (mob.getUUID().getLeastSignificantBits() & 0xFFFFL) / 65536.0D;
     }
 
     /** 遠距離の根付きにとって近すぎる危ない所(rangedKeepAwayBlocks の中)。遠距離でない種・危ない所が無ければ null。 */
