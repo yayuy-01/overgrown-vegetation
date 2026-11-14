@@ -220,6 +220,14 @@ public final class ModTags {
     public static final TagKey<Block> NOT_CAVE_ROOF = BlockTags.create(OvergrownVegetation.id("not_cave_roof"));
 
     /**
+     * 洞窟の天井になれる<b>天然の地形</b>のブロック(2026-11-14 ユーザー決定「丸石・石レンガなどバニラの建材で作った建物の中が洞窟判定なのはおかしい」)。
+     * 石・深層岩・土・砂・砂利・砂岩・テラコッタ・鉱石など + この MOD の汚染後の地形 + 共通タグ {@code c:stones}・{@code c:ores}(他 MOD の天然の岩)。
+     * 画面側の地下モード({@code client/atmosphere/CaveMap#isRock})だけが読む。石レンガ・丸石・磨いた石・板などの建材は入れない
+     * (建物の中は洞窟の見え方にしない)。他 MOD の岩の洞窟が洞窟扱いにならないときは、このタグへ足す。
+     */
+    public static final TagKey<Block> CAVE_ROCK = BlockTags.create(OvergrownVegetation.id("cave_rock"));
+
+    /**
      * 中に入っている相手を隠す「茂み」ブロック。既定では
      * {@link com.yayuy.overgrownvegetation.block.OvergrownBushBlock}(過繁茂した茂み)のみ。
      * データパックで他の下草などを追加可能。「過繁茂した(MOB名)」系の索敵・追跡 Goal

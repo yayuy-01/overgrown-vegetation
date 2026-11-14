@@ -48,6 +48,8 @@ final class CaveMap {
     static final int ROOF_NEAR = 4;
     /** 確かめ用: 真なら前の数え方(1 段でも天井)。撮り比べのため。 */
     static boolean devThinRoof;
+    /** 確かめ用: 真なら前の数え方(光を遮る立方体なら建材も岩。11-14 の撮り比べ。cavedev anyrock on)。 */
+    static volatile boolean devAnyRock;
 
     /**
      * 粗い地図(2026-11-05 光の点検 16): 細かい地図の外の断片の「空の光だけで地下」を、上に岩が無い所では打ち消す。{@link #COARSE} ブロック升の
@@ -153,9 +155,14 @@ final class CaveMap {
     /**
      * 岩(洞窟の天井になれるブロック)か。光を遮る立方体で、水を含まないもの(胞子昆布の柱・水没した物を天井にすると、
      * その下の海底が地下になって黒い霧の筋が出た。11-01 撮影)。
+     *
+     * <p>2026-11-14(ユーザー決定): <b>天然の地形のブロック(タグ {@code #cave_rock})だけ</b>を岩に数える。前は光を遮る立方体なら何でも岩で、
+     * 石レンガ・丸石・他 MOD の建材の建物の中が洞窟扱いになり(黒い霧・点光源・濡れた照り)、外から見ると中が真っ黒に沈んだ。
+     * サーバー側の {@code corruption/CaveCover#isRock}(洞窟の植物が生える面)は前のまま(建物の中にも汚染の植物は生える)。
+     * 確かめ用: {@link #devAnyRock}(cavedev anyrock on)で前の数え方。
      */
     static boolean isRock(BlockState state) {
-        return !state.isAir() && state.canOcclude() && state.blocksMotion() && state.getFluidState().isEmpty()
+        return !state.isAir() && (devAnyRock || state.is(ModTags.CAVE_ROCK)) && state.canOcclude() && state.blocksMotion() && state.getFluidState().isEmpty()
                 && !state.is(ModTags.NOT_CAVE_ROOF) && !TreeCanopyGroundFinder.isTreePart(state);
     }
 

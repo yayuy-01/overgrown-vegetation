@@ -45,7 +45,7 @@ public final class CaveCover {
         return mask;
     }
 
-    /** 岩(洞窟の天井になれるブロック)か。CaveMap#isRock と同じ。 */
+    /** 岩(洞窟の天井になれるブロック)か。11-14 から画面側の CaveMap#isRock は天然の地形(タグ cave_rock)だけ。こちらは前のまま建材も岩(ユーザー了承: 建物の中にも汚染の植物は生える)。 */
     public static boolean isRock(BlockState state) {
         return !state.isAir() && state.canOcclude() && state.blocksMotion() && state.getFluidState().isEmpty()
                 && !state.is(ModTags.NOT_CAVE_ROOF) && !TreeCanopyGroundFinder.isTreePart(state);

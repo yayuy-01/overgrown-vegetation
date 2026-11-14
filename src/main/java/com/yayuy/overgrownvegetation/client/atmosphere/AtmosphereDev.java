@@ -278,6 +278,9 @@ public final class AtmosphereDev {
         } else if (p[0].equals("roof")) {
             // 11-07 天井の穴: cavedev roof off = 前の天井の割合の閾値(地下モードが半分で止まる)
             CaveLights.devHalfRoof = !on;
+        } else if (p[0].equals("anyrock")) {
+            // 11-14 天然の岩だけを天井に: cavedev anyrock on = 前の数え方(建材も岩)。地図は 2 秒で作り直される
+            CaveMap.devAnyRock = on;
         } else if (p[0].equals("cavern")) {
             // 11-07 天井の穴: cavedev cavern off = 穴の下の面にも外の霞を掛ける(前の形)
             CaveLights.devNoCavern = !on;
