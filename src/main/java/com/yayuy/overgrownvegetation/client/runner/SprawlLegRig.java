@@ -49,7 +49,7 @@ public final class SprawlLegRig {
     private GeoBone soleFor;
 
     /** 確かめ用: IK の残り(足先と置き場の距離、ブロック)の最悪と合計・数(全個体)。 */
-    public static volatile double residualWorst, residualSum;
+    public static volatile double residualWorst, residualSum, plantedWorst;
     public static volatile long residualCount;
 
     public SprawlLegRig(String[][] legs, String[][] parents, String body, double renderScale, double[] range, double[] reg) {
@@ -120,9 +120,11 @@ public final class SprawlLegRig {
                 double[] p = toe(x, hip, knee, foot, hipX, kneeY, this.sole[i]);
                 double r = Math.sqrt(sq(p[0] - wanted[0]) + sq(p[1] - wanted[1]) + sq(p[2] - wanted[2])) * scale / 16.0D;
                 residualWorst = Math.max(residualWorst, r);
+                boolean planted = !fp.swinging(i) && !fp.hanging(i);
+                if (planted) plantedWorst = Math.max(plantedWorst, r);   // 着いている足の滑り(宙の足の外れとは分けて見る)
                 residualSum += r;
                 residualCount++;
-                if (r > 0.3D && e.hasCustomName() && e.getCustomName().getString().contains("ikwhy")) {
+                if ((r > 0.3D || planted && r > 0.05D) && e.hasCustomName() && e.getCustomName().getString().contains("ikwhy")) {
                     double reachD = Math.sqrt(sq(wanted[0] - hip.getPivotX()) + sq(wanted[1] - hip.getPivotY()) + sq(wanted[2] - hip.getPivotZ()));
                     com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
                             "SPRAWL_WHY t %d 脚 %d 外れ %.2f ブロック 付け根からの距離 %.1f px(届く %.1f)宙 %s 垂らす %s 効き %.2f 回る %.1f 前へ %.3f 置き場の高さ %+.2f",
@@ -130,8 +132,10 @@ public final class SprawlLegRig {
                 }
                 if (residualCount % 2000 == 0) {
                     com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
-                            "SPRAWL_RES 脚 %d 回: 足先と置き場の距離 最悪 %.3f 平均 %.4f ブロック", residualCount, residualWorst, residualSum / residualCount));
+                            "SPRAWL_RES 脚 %d 回: 足先と置き場の距離 最悪 %.3f(着いている足だけ %.3f)平均 %.4f ブロック", residualCount, residualWorst,
+                            plantedWorst, residualSum / residualCount));
                     residualWorst = 0.0D;
+                    plantedWorst = 0.0D;
                     residualSum = 0.0D;
                     residualCount = 0;
                 }

@@ -63,7 +63,7 @@ public final class ClipeimnesGameTests {
 
     /** G5 に入り、自然には湧かず、体の芯は設計値の幅 × 高さ、ほかの Mob から敵対される。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
-    public static void registeredAsG5WithoutNaturalSpawn(GameTestHelper helper) {
+    public static void clipRegisteredAsG5WithoutNaturalSpawn(GameTestHelper helper) {
         ClipeimnesEntity v = placeAt(helper, 3.5D, 3.5D, 0.0F);
         var stat = DesignData.mobs().forId(ClipeimnesEntity.ID);
         if (MobGroup.of(v.getType()) != MobGroup.GROUP_5) {
@@ -88,7 +88,7 @@ public final class ClipeimnesGameTests {
 
     /** 平地: 向こうの端まで歩き、体の向きに対して横へ滑らない(横の速さが 1 tick 0.05 ブロック以下)。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 200)
-    public static void walksForwardOnlyOnFlatGround(GameTestHelper helper) {
+    public static void clipWalksForwardOnlyOnFlatGround(GameTestHelper helper) {
         ClipeimnesEntity v = placeAt(helper, 3.5D, 0.9D, 0.0F);
         double[] maxSide = {0.0D};
         double[] last = {v.getX(), v.getZ()};
@@ -112,7 +112,7 @@ public final class ClipeimnesGameTests {
 
     /** 幹の並ぶ森: 2 マスの隙間が互い違いの 2 列を縫って抜け、歩いている間に体が経路へ沿って曲がる。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 360)
-    public static void weavesThroughStaggeredTrunks(GameTestHelper helper) {
+    public static void clipWeavesThroughStaggeredTrunks(GameTestHelper helper) {
         for (int x = 0; x <= 6; x++) {
             for (int y = 2; y <= 5; y++) {
                 if (x != 2 && x != 3) helper.setBlock(new BlockPos(x, y, 1), Blocks.OAK_LOG.defaultBlockState());
@@ -141,7 +141,7 @@ public final class ClipeimnesGameTests {
 
     /** 壁: x 0〜4 の壁(z 3)の向こうの目標へ、開いている x 5〜6 を回り込んで着く。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 360)
-    public static void goesAroundWall(GameTestHelper helper) {
+    public static void clipGoesAroundWall(GameTestHelper helper) {
         for (int x = 0; x <= 4; x++) {
             for (int y = 2; y <= 5; y++) helper.setBlock(new BlockPos(x, y, 3), Blocks.STONE.defaultBlockState());
         }
@@ -162,7 +162,7 @@ public final class ClipeimnesGameTests {
      * (芯の中心が 0.3 ブロック以上動かない)うちに、向きが目標の側へ回りきる。回る速さは上限 {@link ClipeimnesEntity#TURN_PER_TICK} を超えない。
      */
     @GameTest(template = "gametest_empty7", timeoutTicks = 120)
-    public static void turnsAroundOnTheSpot(GameTestHelper helper) {
+    public static void clipTurnsAroundOnTheSpot(GameTestHelper helper) {
         ClipeimnesEntity v = placeAt(helper, 3.5D, 4.5D, 0.0F);   // +Z を向いて置き、後ろ(−Z)へ歩かせる
         Vec3 start = v.position();
         double[] maxMove = {0.0D};
