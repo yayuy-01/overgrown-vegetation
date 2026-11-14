@@ -363,6 +363,8 @@
   "item.overgrown_vegetation.phyllosens_spawn_egg": "フィロセンスのスポーンエッグ",
   "entity.overgrown_vegetation.venamnes": "ヴェナムネス",
   "item.overgrown_vegetation.venamnes_spawn_egg": "ヴェナムネスのスポーンエッグ",
+  "entity.overgrown_vegetation.pilimnes": "ピリムネス",
+  "item.overgrown_vegetation.pilimnes_spawn_egg": "ピリムネスのスポーンエッグ",
   "effect.overgrown_vegetation.phyllosens_watch": "フィロセンスの視線",
   "block.overgrown_vegetation.overgrown_zombie_corpse": "過繁茂したゾンビの死体",
   "entity.overgrown_vegetation.parasitized_zombie": "寄生されたゾンビ",

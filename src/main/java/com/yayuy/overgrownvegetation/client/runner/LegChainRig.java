@@ -134,7 +134,7 @@ public final class LegChainRig {
         e.markLegSolution();
     }
 
-    static void clampToReach(double[] t, GeoBone th, double r) {
+    public static void clampToReach(double[] t, GeoBone th, double r) {
         double hx = t[0] - th.getPivotX(), hy = t[1] - th.getPivotY(), hz = t[2] - th.getPivotZ();
         double d2 = hx * hx + hy * hy + hz * hz;
         if (d2 <= r * r) return;
@@ -227,7 +227,7 @@ public final class LegChainRig {
         return apply(m, soleLocal[0], soleLocal[1], soleLocal[2]);
     }
 
-    static double[] solve4(double[] A, double[] b) {
+    public static double[] solve4(double[] A, double[] b) {
         double[] m = A.clone();
         double[] v = b.clone();
         for (int c = 0; c < 4; c++) {
@@ -261,7 +261,7 @@ public final class LegChainRig {
 
     // ------------------------------------------------------------------ 行列(3×4、行優先)
 
-    static double[] boneMatrix(GeoBone b, double[] parent) {
+    public static double[] boneMatrix(GeoBone b, double[] parent) {
         double[] m = local(b, b.getRotX(), b.getRotY(), b.getRotZ(), null);
         m[3] += -b.getPosX();
         m[7] += b.getPosY();
@@ -269,7 +269,7 @@ public final class LegChainRig {
         return parent == null ? m : mul(parent, m);
     }
 
-    static double[] local(GeoBone b, double x, double y, double z, double[] parent) {
+    public static double[] local(GeoBone b, double x, double y, double z, double[] parent) {
         double cx = Math.cos(x), sx = Math.sin(x), cy = Math.cos(y), sy = Math.sin(y), cz = Math.cos(z), sz = Math.sin(z);
         double r00 = cz * cy, r01 = cz * sy * sx - sz * cx, r02 = cz * sy * cx + sz * sx;
         double r10 = sz * cy, r11 = sz * sy * sx + cz * cx, r12 = sz * sy * cx - cz * sx;
@@ -282,7 +282,7 @@ public final class LegChainRig {
         return parent == null ? m : mul(parent, m);
     }
 
-    static double[] mul(double[] a, double[] b) {
+    public static double[] mul(double[] a, double[] b) {
         double[] o = new double[12];
         for (int r = 0; r < 3; r++) {
             for (int c = 0; c < 4; c++) {
@@ -294,14 +294,14 @@ public final class LegChainRig {
         return o;
     }
 
-    static double[] apply(double[] m, double x, double y, double z) {
+    public static double[] apply(double[] m, double x, double y, double z) {
         return new double[]{
                 m[0] * x + m[1] * y + m[2] * z + m[3],
                 m[4] * x + m[5] * y + m[6] * z + m[7],
                 m[8] * x + m[9] * y + m[10] * z + m[11]};
     }
 
-    static double[] invertRigid(double[] m) {
+    public static double[] invertRigid(double[] m) {
         double[] o = {m[0], m[4], m[8], 0, m[1], m[5], m[9], 0, m[2], m[6], m[10], 0};
         o[3] = -(o[0] * m[3] + o[1] * m[7] + o[2] * m[11]);
         o[7] = -(o[4] * m[3] + o[5] * m[7] + o[6] * m[11]);

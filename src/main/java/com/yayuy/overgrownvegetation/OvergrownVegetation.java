@@ -54,6 +54,7 @@ public class OvergrownVegetation {
         com.yayuy.overgrownvegetation.registry.ModStilt.init(); // 竹馬型の Mob(11-14 から内部用 phyllosens_stilt)
         com.yayuy.overgrownvegetation.registry.ModPhyllosens.init(); // 監視塔フィロセンスの Mob・卵・視線の印(2026-11-14)
         com.yayuy.overgrownvegetation.registry.ModRunners.init(); // ② 大型の地上を走る型(ヴェナムネス)の Mob・卵(2026-11-14)
+        com.yayuy.overgrownvegetation.registry.ModLizards.init(); // トカゲ型(ピリムネス)の Mob・卵(2026-11-15)
         com.yayuy.overgrownvegetation.registry.ModLey.init(); // 地脈の最小限: 花・汲み上げ器・柱・電池・線(2026-11-13 サバイバルの背骨 段 2b)
         com.yayuy.overgrownvegetation.registry.ModVent.init(); // 換気の機械とフィルター(2026-11-14 サバイバルの背骨 段 2c)
         com.yayuy.overgrownvegetation.registry.ModDecon.init(); // 除染: 変換表のレシピ・地脈の洗い場(2026-11-14 サバイバルの背骨 段 3a)

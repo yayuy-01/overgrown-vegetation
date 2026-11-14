@@ -604,6 +604,18 @@ public final class MobStats {
             s.naturalSpawn = false;   // 自然には湧かない(スポーンエッグ・コマンドだけ)
         }));
 
+        // ピリムネス(G5・地上の遠距離。トカゲ型の 1 体目、2026-11-15 段 1)。数値は全部【仮・Claude 11-15】:
+        // 「棘で足を止めて口で仕留める撃ち手」→ 体力 30(ヴェナムネス 34)・防御 4・速さ 0.30(走っては止まるので平均は遅い)・追う距離 40。
+        // 段差 1(2 段は跳び上がる。跳ぶ力は PilimnesEntity#JUMP_STRENGTH)。当たりは胴の芯 1.3 × 1.6(首・尾・横へ張った脚・背の棘ははみ出す。
+        // 全体 3.7 × 3.4 × 9.5)。描画倍率 2.0 は描画で掛ける(体格は 1)。攻撃は能力の段。
+        m.put("pilimnes", stat(s -> {
+            s.maxHealth = 30.0; s.attackDamage = 6.0; s.armor = 4.0; s.armorToughness = 0.0; s.movementSpeed = 0.30;
+            s.knockbackResistance = 0.5; s.followRange = 40.0; s.stepHeight = 1.0;
+            s.scale = 1.0;
+            s.width = 1.3; s.height = 1.6; s.eggFit = 4.2; s.xpReward = 30;
+            s.naturalSpawn = false;   // 自然には湧かない(スポーンエッグ・コマンドだけ)
+        }));
+
         // スポロフィル — 支援役。体はフィロセンスの流用で、頭が花ではなくキノコの傘。
         // 自分では攻撃せず(attackDamage を持たない)、半径 32 のバフ/デバフ/胞子濃度上昇で戦う
         // (SporophyllAura)。居座られると厄介なので体力は高め。
