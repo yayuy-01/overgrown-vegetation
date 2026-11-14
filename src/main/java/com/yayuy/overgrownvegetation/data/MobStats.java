@@ -710,9 +710,12 @@ public final class MobStats {
         // 当たり判定は main の大きな立方体がどの向きに回っても収まる立方体(外接球の半径 1.73 → 一辺 3.46)。
         // 中心の高さ 1.8 がモデルの回転の中心と一致する。sub / sub2 / sub3 は判定からはみ出す。
         // eggFit は sub まで含めた外接球の直径(半径 2.67)。回りながら描くので向きを選ばない値にしてある。
+        // 2026-11-15 段 1(漂う型。形は作り直し案 r6、上下のある塊)で戻した。値は旧版のまま(当たり 3.6 角の中心 1.8 = r6 の main の付け根)。
+        // 動き(風任せ・高さの帯)は PediculaEntity・entity/flyer/BalloonDrift の【仮】の値。段 1 は自然には湧かない。
         m.put("pedicula", stat(s -> {
             s.maxHealth = 0.1; s.armor = 0.0; s.movementSpeed = 0.0; s.knockbackResistance = 0.0;
             s.width = 3.6; s.height = 3.6; s.eggFit = 5.33; s.xpReward = 5;
+            s.naturalSpawn = false;   // 段 1 は自然には湧かない(スポーンエッグ・コマンドだけ)
         }));
 
         // トカゲ 3 種の体格(scale)は 2026-10-10 のユーザー指定「2〜2.5 倍、だいたい 1 ブロックに。小さすぎて見当たらない」。

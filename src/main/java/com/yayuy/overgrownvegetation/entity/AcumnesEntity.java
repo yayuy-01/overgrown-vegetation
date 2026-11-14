@@ -201,6 +201,10 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
     protected void customServerAiStep() {
         if (this.level() instanceof ServerLevel sl) tickTargeting(sl);
         super.customServerAiStep();
+        // 止まり木へ寄る間(土台の飛び方)は飛ぶ姿に
+        if (mode() == MODE_FLY && this.lastOwnTick != this.tickCount && this.entityData.get(DATA_MOTION) != MOTION_DART) {
+            this.entityData.set(DATA_MOTION, (byte) MOTION_DART);
+        }
     }
 
     private void tickTargeting(ServerLevel sl) {
@@ -244,6 +248,7 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
             this.lastPhase = DartHover.Phase.HOLD;
             this.holdLeft = 10;
             this.pendX = Double.NaN;
+            this.idleTicks = 0;   // 飛び立った直後にまた同じ木へ降りない(相手がいなくても 200 tick は飛び回る)
         }
         this.lastOwnTick = this.tickCount;
         if (this.hover.holding()) {

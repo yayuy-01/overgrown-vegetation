@@ -43,23 +43,6 @@ public final class ModFlyers {
     public static final DeferredItem<DeferredSpawnEggItem> VELOPHYLL_SPAWN_EGG = ModItems.ITEMS.registerItem(VelophyllEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(VELOPHYLL, 0x2E3A1C, 0xC8E03A, props));
 
-    /** アクムネス(2026-11-15 段 1、止まっては飛ぶトンボ型)。当たりは胸と垂らした脚の芯(1.2 × 3.0【仮】)。翅・頭・腹は叩ける部位。 */
-    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.AcumnesEntity>> ACUMNES =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.AcumnesEntity.ID, () -> EntityType.Builder
-                    .<com.yayuy.overgrownvegetation.entity.AcumnesEntity>of(com.yayuy.overgrownvegetation.entity.AcumnesEntity::new, MobCategory.MONSTER)
-                    .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.AcumnesEntity.ID, 1.2F),
-                            MobStats.height(com.yayuy.overgrownvegetation.entity.AcumnesEntity.ID, 3.0F))
-                    .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.AcumnesEntity.ID))
-                    .eyeHeight(2.5F)
-                    .clientTrackingRange(16)
-                    .updateInterval(2)
-                    .build(com.yayuy.overgrownvegetation.entity.AcumnesEntity.ID));
-
-    /** スポーンエッグ(地は体の暗い緑、点は眼の黄緑)。 */
-    public static final DeferredItem<DeferredSpawnEggItem> ACUMNES_SPAWN_EGG = ModItems.ITEMS.registerItem(
-            com.yayuy.overgrownvegetation.entity.AcumnesEntity.ID + "_spawn_egg",
-            props -> new DeferredSpawnEggItem(ACUMNES, 0x2A3418, 0xB8D838, props));
-
     /** セミナリア(2026-11-15 段 1)。当たりは胸の芯だけ(幅 0.8 × 高さ 1.0【仮】)。翅(幅 4.7)と腹は叩ける部位。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.SeminariaEntity>> SEMINARIA =
             ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.SeminariaEntity.ID, () -> EntityType.Builder
@@ -77,10 +60,45 @@ public final class ModFlyers {
             com.yayuy.overgrownvegetation.entity.SeminariaEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(SEMINARIA, 0x3A4A1E, 0x5A1838, props));
 
+    /** ペディキュラ(2026-11-15 段 1、漂う型)。当たりは塊の真ん中(3.6 × 3.6、旧版の値)。高い空に浮くので遠くまで送る。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.PediculaEntity>> PEDICULA =
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.PediculaEntity.ID, () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.PediculaEntity>of(com.yayuy.overgrownvegetation.entity.PediculaEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.PediculaEntity.ID, 3.6F),
+                            MobStats.height(com.yayuy.overgrownvegetation.entity.PediculaEntity.ID, 3.6F))
+                    .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.PediculaEntity.ID))
+                    .eyeHeight(1.8F)
+                    .clientTrackingRange(16)
+                    .updateInterval(4)
+                    .build(com.yayuy.overgrownvegetation.entity.PediculaEntity.ID));
+
+    /** スポーンエッグ(地は膜の灰がかった緑、点は芯の赤紫)。 */
+    public static final DeferredItem<DeferredSpawnEggItem> PEDICULA_SPAWN_EGG = ModItems.ITEMS.registerItem(
+            com.yayuy.overgrownvegetation.entity.PediculaEntity.ID + "_spawn_egg",
+            props -> new DeferredSpawnEggItem(PEDICULA, 0x8A9A78, 0x6A2848, props));
+
+    /** アクムネス(2026-11-15 段 1、止まっては飛ぶトンボ型)。当たりは胸と垂らした脚の芯(1.2 × 3.0【仮】)。翅・頭・腹は叩ける部位。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.AcumnesEntity>> ACUMNES =
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.AcumnesEntity.ID, () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.AcumnesEntity>of(com.yayuy.overgrownvegetation.entity.AcumnesEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.AcumnesEntity.ID, 1.2F),
+                            MobStats.height(com.yayuy.overgrownvegetation.entity.AcumnesEntity.ID, 3.0F))
+                    .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.AcumnesEntity.ID))
+                    .eyeHeight(2.5F)
+                    .clientTrackingRange(16)
+                    .updateInterval(2)
+                    .build(com.yayuy.overgrownvegetation.entity.AcumnesEntity.ID));
+
+    /** スポーンエッグ(地は体の暗い緑、点は眼の黄緑)。 */
+    public static final DeferredItem<DeferredSpawnEggItem> ACUMNES_SPAWN_EGG = ModItems.ITEMS.registerItem(
+            com.yayuy.overgrownvegetation.entity.AcumnesEntity.ID + "_spawn_egg",
+            props -> new DeferredSpawnEggItem(ACUMNES, 0x2A3418, 0xB8D838, props));
+
     /** 植物側の Mob のタブへ卵を並べる({@code ModCreativeTabs} から)。 */
     public static void acceptEggs(CreativeModeTab.Output output) {
         output.accept(VELOPHYLL_SPAWN_EGG.get());
         output.accept(SEMINARIA_SPAWN_EGG.get());
+        output.accept(PEDICULA_SPAWN_EGG.get());
         output.accept(ACUMNES_SPAWN_EGG.get());
     }
 
@@ -88,6 +106,7 @@ public final class ModFlyers {
     public static void onEntityAttributeCreation(EntityAttributeCreationEvent event) {
         event.put(VELOPHYLL.get(), VelophyllEntity.createAttributes().build());
         event.put(SEMINARIA.get(), com.yayuy.overgrownvegetation.entity.SeminariaEntity.createAttributes().build());
+        event.put(PEDICULA.get(), com.yayuy.overgrownvegetation.entity.PediculaEntity.createAttributes().build());
         event.put(ACUMNES.get(), com.yayuy.overgrownvegetation.entity.AcumnesEntity.createAttributes().build());
     }
 }

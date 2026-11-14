@@ -373,6 +373,8 @@
   "item.overgrown_vegetation.velophyll_spawn_egg": "ヴェロフィルのスポーンエッグ",
   "entity.overgrown_vegetation.seminaria": "セミナリア",
   "item.overgrown_vegetation.seminaria_spawn_egg": "セミナリアのスポーンエッグ",
+  "entity.overgrown_vegetation.pedicula": "ペディキュラ",
+  "item.overgrown_vegetation.pedicula_spawn_egg": "ペディキュラのスポーンエッグ",
   "entity.overgrown_vegetation.acumnes": "アクムネス",
   "item.overgrown_vegetation.acumnes_spawn_egg": "アクムネスのスポーンエッグ",
   "entity.overgrown_vegetation.strobila": "ストロビラ",

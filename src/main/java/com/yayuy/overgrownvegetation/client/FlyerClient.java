@@ -18,6 +18,7 @@ public final class FlyerClient {
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModFlyers.VELOPHYLL.get(), VelophyllRenderer::new);
         event.registerEntityRenderer(ModFlyers.SEMINARIA.get(), SeminariaRenderer::new);
+        event.registerEntityRenderer(ModFlyers.PEDICULA.get(), PediculaRenderer::new);
         event.registerEntityRenderer(ModFlyers.ACUMNES.get(), AcumnesRenderer::new);
     }
 }

@@ -43,4 +43,14 @@ public final class FlyerWind {
         out[0] = cx;
         out[1] = cz;
     }
+
+    /**
+     * 高さ y の風(ブロック/tick)を out[0..1] へ(2026-11-15 ペディキュラで足した。漂う型が上下して行き先を選ぶため)。
+     * {@link #now} を {@link BalloonDrift#layerWind} で回して強める。世界の風そのもの(胞子の場・雲)は変えない。
+     */
+    public static void atHeight(ServerLevel level, double y, double[] out) {
+        now(level, out);
+        if (out[0] == 0.0D && out[1] == 0.0D) return;
+        BalloonDrift.layerWind(WindWeatherData.windSeed(level.getServer()), level.getDayTime(), y, out[0], out[1], out);
+    }
 }

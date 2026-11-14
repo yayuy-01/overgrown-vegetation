@@ -604,6 +604,20 @@
     "eggFit": 4.2,
     "naturalSpawn": false
   },
+  "pedicula": {
+    "maxHealth": 0.1,
+    "armor": 0,
+    "movementSpeed": 0,
+    "knockbackResistance": 0,
+    "scale": 1,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 3.6,
+    "height": 3.6,
+    "xpReward": 5,
+    "eggFit": 5.33,
+    "naturalSpawn": false
+  },
   "arbora": {
     "maxHealth": 8,
     "attackDamage": 8,
