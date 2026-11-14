@@ -291,7 +291,28 @@ public final class G1Fate {
         Vec3 away = forest(level).away(mob.position());
         if (route != Route.ROOTED) return away;
         BaseMemory.Base b = settleBase(level);
-        return blendTowardBase(away, mob.position(), b == null ? null : new Vec3(b.centerX(), mob.getY(), b.centerZ()), DesignData.director().base);
+        Vec3 dir = blendTowardBase(away, mob.position(), b == null ? null : new Vec3(b.centerX(), mob.getY(), b.centerZ()), DesignData.director().base);
+        // 学ぶ(11-14 ユーザー): 遠距離の根付き(スケルトン・エンダーマンなど)は、危ない所から離れて根付く
+        KillMemory.Danger d = rangedDanger(level);
+        return d == null ? dir : awayFromDanger(dir, mob.position(), new Vec3(d.x(), mob.getY(), d.z()));
+    }
+
+    /** 遠距離の根付きにとって近すぎる危ない所(rangedKeepAwayBlocks の中)。遠距離でない種・危ない所が無ければ null。 */
+    @Nullable
+    private KillMemory.Danger rangedDanger(ServerLevel level) {
+        if (route != Route.ROOTED || level.dimension() != net.minecraft.world.level.Level.OVERWORLD) return null;
+        var k = DesignData.director().kills;
+        if (!k.isRanged(mob.species().key())) return null;
+        return KillMemory.get(level.getServer()).nearest(mob.getX(), mob.getZ(), k.rangedKeepAwayBlocks, BaseMemory.today(level.getServer()));
+    }
+
+    /** 歩く向きに、危ない所から離れる向きを足す(純粋な計算)。 */
+    public static Vec3 awayFromDanger(@Nullable Vec3 dir, Vec3 pos, Vec3 danger) {
+        double dx = pos.x - danger.x, dz = pos.z - danger.z, len = Math.sqrt(dx * dx + dz * dz);
+        if (len < 1.0E-6D) return dir;
+        double x = (dir == null ? 0.0D : dir.x) + dx / len, z = (dir == null ? 0.0D : dir.z) + dz / len;
+        double l = Math.sqrt(x * x + z * z);
+        return l < 1.0E-9D ? dir : new Vec3(x / l, 0.0D, z / l);
     }
 
     /** 根付きが寄る拠点(覚えた段から。真ん中まで rootBaseBlocks 以内)。テストは差し替える。 */
@@ -363,7 +384,7 @@ public final class G1Fate {
         boolean timeout = walkedTicks >= t.walkTimeoutTicks;
         if (!timeout && walkedTicks % 20 != 0) return;
         // 着いた(森の縁から決めた長さだけ離れた・森が見当たらない)か、歩く時間を使い切ったら、その場で根を下ろす
-        if ((timeout || (forest(level).distance(mob.position()) >= awayWanted && !tooCloseToBase(level))) && walkedTicks >= retryAfterWalked
+        if ((timeout || (forest(level).distance(mob.position()) >= awayWanted && !tooCloseToBase(level) && rangedDanger(level) == null)) && walkedTicks >= retryAfterWalked
                 && mob.onGround() && !mob.isPassenger() && !mob.isVehicle()) {
             omenLeft = t.rootOmenTicks;
             mob.getNavigation().stop();

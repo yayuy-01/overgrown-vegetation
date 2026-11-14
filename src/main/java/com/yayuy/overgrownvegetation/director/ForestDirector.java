@@ -57,11 +57,17 @@ public final class ForestDirector extends SavedData implements ForestBudget {
 
     /** 判断の入力(テストは作って {@link #score} に渡す)。 */
     public record Inputs(boolean canEvolve, boolean canRoot, boolean canNursery, double budget, double playerDistance, double ageDays,
-                         double forestDistance, double baseNear) {
+                         double forestDistance, double baseNear, double dangerNear, double rootDanger) {
+        /** 危ない所を見ない個体(第 2 段の形)。 */
+        public Inputs(boolean canEvolve, boolean canRoot, boolean canNursery, double budget, double playerDistance, double ageDays,
+                      double forestDistance, double baseNear) {
+            this(canEvolve, canRoot, canNursery, budget, playerDistance, ageDays, forestDistance, baseNear, 0.0D, 0.0D);
+        }
+
         /** 拠点を見ない個体(第 1 段のテストの形)。 */
         public Inputs(boolean canEvolve, boolean canRoot, boolean canNursery, double budget, double playerDistance, double ageDays,
                       double forestDistance) {
-            this(canEvolve, canRoot, canNursery, budget, playerDistance, ageDays, forestDistance, 0.0D);
+            this(canEvolve, canRoot, canNursery, budget, playerDistance, ageDays, forestDistance, 0.0D, 0.0D, 0.0D);
         }
 
         /** 苗床を選べない個体(区切り 5 までのテストの形)。 */
@@ -206,14 +212,17 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         if (in.canEvolve() && in.budget() + 1.0E-9D >= t.costEvolve) {
             double near = Math.max(0.0D, 1.0D - in.playerDistance() / t.playerNearBlocks);
             double age = Math.min(1.0D, Math.max(0.0D, in.ageDays()) / t.ageRefDays);
-            evolve = jitter(t.evolveBase + t.evolvePlayerNear * near + t.evolveAge * age + t.base.evolveTowardBase * Math.max(0.0D, Math.min(1.0D, in.baseNear())), t, random);
+            evolve = jitter(t.evolveBase + t.evolvePlayerNear * near + t.evolveAge * age + t.base.evolveTowardBase * Math.max(0.0D, Math.min(1.0D, in.baseNear()))
+                    + t.kills.evolveTowardDanger * Math.max(0.0D, Math.min(1.0D, in.dangerNear())), t, random); // 学ぶ: 危ない所の近くは進化しやすい(第 3 段)
         }
         // 根付き(区切り 2): 根付きの姿のある種で予算が足りるときだけ。rootedBase + 起き上がってからの日数 × rootedAge。
         // 「拠点と森の間に置く」(D-16)は拠点の記憶(第 2 段)が入ってから点に足す
         double rooted = Double.NEGATIVE_INFINITY;
         if (in.canRoot() && in.budget() + 1.0E-9D >= t.costRooted) {
             double age = Math.min(1.0D, Math.max(0.0D, in.ageDays()) / t.ageRefDays);
-            rooted = jitter(t.rootedBase + t.rootedAge * age, t, random);
+            // 学ぶ(11-14 ユーザー): 遠距離でない根付きは、危ない所でも「ある程度は」根付く = 点を下げる(遠距離の根付きは離れて根付くので下げない)
+            double danger = 1.0D - t.kills.rootedDangerFactor * Math.max(0.0D, Math.min(1.0D, in.rootDanger()));
+            rooted = jitter((t.rootedBase + t.rootedAge * age) * danger, t, random);
         }
         Route route = Route.NONE;
         double best = nothing;
@@ -263,6 +272,18 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         return best;
     }
 
+    /** 危ない所への近さ(0〜1。学ぶが開いていなければ 0。進化の点に足す)。 */
+    public static double dangerNear(ServerLevel level, double x, double z) {
+        if (!DirectorGates.open(level, DirectorGates.Gate.LEARN)) return 0.0D;
+        return dangerNearRaw(level, x, z);
+    }
+
+    /** 危ない所への近さ(フェーズを見ない。根付きの点に使う = 根付きは F2 から)。 */
+    public static double dangerNearRaw(ServerLevel level, double x, double z) {
+        if (level.dimension() != net.minecraft.world.level.Level.OVERWORLD) return 0.0D;
+        return KillMemory.get(level.getServer()).near(x, z, DesignData.director().kills.dangerBlocks, BaseMemory.today(level.getServer()));
+    }
+
     /** 認識した拠点への近さ(0〜1。真ん中で 1、evolveBaseBlocks で 0)。D-8「拠点の方角で 1 段目へ進化させやすく」。 */
     public static double baseNear(ServerLevel level, double x, double z) {
         if (level.dimension() != net.minecraft.world.level.Level.OVERWORLD) return 0.0D;
@@ -298,7 +319,9 @@ public final class ForestDirector extends SavedData implements ForestBudget {
                 fate != null && fate.nurseryForm() != null && DirectorGates.open(level, DirectorGates.Gate.NURSERY),
                 available(level), playerDist, ageDays,
                 fate != null ? fate.forest(level).distance(mob.position()) : 0.0D,
-                baseNear(level, mob.getX(), mob.getZ()));
+                baseNear(level, mob.getX(), mob.getZ()),
+                dangerNear(level, mob.getX(), mob.getZ()),
+                DesignData.director().kills.isRanged(mob.species().key()) ? 0.0D : dangerNearRaw(level, mob.getX(), mob.getZ()));
         Decision d = score(t, in, mob.getRandom());
         // フェーズの小さな段: その道が開いたフェーズの中では、導入でまれ・定着で普通・最盛でいつも通り【仮】。
         // (1) 選んだ道を強さの確率で通す(見送ったら何もしない = 予算が余っていてもまれ)

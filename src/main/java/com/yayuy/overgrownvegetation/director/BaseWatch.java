@@ -71,6 +71,7 @@ public final class BaseWatch {
         boolean omen = DirectorGates.tdOmen(level);
         if (!omen && DirectorGates.open(level, DirectorGates.Gate.SCOUT)) dispatchScouts(level, memory, day);
         if (!omen && DirectorGates.open(level, DirectorGates.Gate.RAID)) BaseRaids.dispatch(level, memory, day);
+        if (!omen && DirectorGates.open(level, DirectorGates.Gate.LEARN)) DangerWatch.dispatch(level, day); // 学ぶ: 危ない所へ進化体(F3 から)
     }
 
     /**

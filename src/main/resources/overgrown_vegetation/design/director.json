@@ -43,7 +43,28 @@
     "spawner": 4,
     "waveG4": 4,
     "waveG5": 5,
-    "waveMixed": 6
+    "waveMixed": 6,
+    "_comment_learn": "第 3 段 学ぶ【決定 11-14 全体管理・ユーザー】: 危ない所へ進化体 F3・送り込みの進化体を増やす F5。倒された記録は F1 から裏で。",
+    "learn": 3,
+    "learnWave": 5
+  },
+  "kills": {
+    "_comment": "第 3 段 区切り 1 学ぶ(11-14)。ユーザー指定: halfLifeDays 1・dangerMinKills〜dangerMaxKills 10〜13(升ごとに座標から 1 つ)・プレイヤーに倒されたものだけ数える・rangedRooted のスケルトンとエンダーマンは危ない所から離れて根付き、ほかは危ない所でもある程度は根付く。rangedRooted の羊とほかの数は【仮】。",
+    "halfLifeDays": 1.0,
+    "dangerMinKills": 10,
+    "dangerMaxKills": 13,
+    "mergeChunks": 3,
+    "dangerBlocks": 64.0,
+    "evolveTowardDanger": 0.4,
+    "dangerDeveloped": 2,
+    "dangerIntervalMinDays": 0.25,
+    "dangerIntervalMaxDays": 0.5,
+    "dangerSearchBlocks": 128.0,
+    "dangerFromMinBlocks": 16.0,
+    "baseDangerExtraDeveloped": 1,
+    "rootedDangerFactor": 0.5,
+    "rangedKeepAwayBlocks": 48.0,
+    "rangedRooted": ["skeleton", "enderman", "sheep"]
   },
   "base": {
     "_comment": "第 2 段(11-14): 拠点の記憶。点の単位はゲーム内の時間(1 = 1000 tick いた)。ユーザーが決めたのは decayStartDays 1・forgetRecognizedDays 5・forgetRememberedDays 2 と、点の元(いた時間 + ベッド・入れ物・換気機・洗い場・かまど類・作業台 = タグ base_structure、閉じた部屋は多め)。ほかは【仮】。",

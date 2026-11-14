@@ -34,10 +34,15 @@ public final class G1March {
     }
 
     public void begin(BaseMemory.Base base) {
+        beginTo(base.centerX(), base.centerZ(), base.id());
+    }
+
+    /** 拠点以外の行き先へ(第 3 段の「危ない所」など。{@code id} は拠点の番号の代わりの印。危ない所は負の数)。 */
+    public void beginTo(double x, double z, int id) {
         active = true;
-        baseId = base.id();
-        baseX = base.centerX();
-        baseZ = base.centerZ();
+        baseId = id;
+        baseX = x;
+        baseZ = z;
         ticks = 0;
     }
 

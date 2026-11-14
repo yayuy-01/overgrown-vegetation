@@ -61,6 +61,11 @@ public final class BaseRaids {
         double since = Math.max(0.0D, day - b.stageSince());
         // 小さな段: 送り込みの枠に、その枠が開いたフェーズの強さを掛ける(進化体 F3・G4 F4・G5〜 F5。導入で少なく・最盛で表どおり。端数は確率)【仮】
         BaseMemoryTable.Wave w = scaled(level, t.waveFor(since), random);
+        // 学ぶ: 拠点の中に危ない所があれば(拠点を守りの固い所と覚えた)、進化体の枠を増やす(F5 から)
+        if (DirectorGates.open(level, DirectorGates.Gate.LEARN_WAVE) && level.dimension() == net.minecraft.world.level.Level.OVERWORLD
+                && KillMemory.get(level.getServer()).nearest(b.centerX(), b.centerZ(), t.matchBlocks, day) != null) {
+            w = new BaseMemoryTable.Wave(w.fromDays(), w.stageZero(), w.developed() + DesignData.director().kills.baseDangerExtraDeveloped, w.g4(), w.g5plus());
+        }
         int waveNo = t.waveIndex(since);
         double r = t.raidSearchBlocks;
         AABB box = new AABB(b.centerX() - r, level.getMinBuildHeight(), b.centerZ() - r, b.centerX() + r, level.getMaxBuildHeight(), b.centerZ() + r);

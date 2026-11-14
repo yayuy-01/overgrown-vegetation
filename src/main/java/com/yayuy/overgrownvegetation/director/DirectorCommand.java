@@ -52,6 +52,17 @@ public final class DirectorCommand {
                                                         .then(Commands.literal("reset").executes(ctx -> stageSet(ctx.getSource(), null))))
                                                 .then(Commands.argument("phase", IntegerArgumentType.integer(0, 99))
                                                         .executes(ctx -> phaseSet(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "phase")))))
+                                        .then(Commands.literal("danger")
+                                                .executes(ctx -> dangerDescribe(ctx.getSource()))
+                                                .then(Commands.literal("here")
+                                                        .then(Commands.argument("kills", IntegerArgumentType.integer(1, 100))
+                                                                .executes(ctx -> dangerHere(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "kills")))))
+                                                .then(Commands.literal("send").executes(ctx -> dangerSend(ctx.getSource())))
+                                                .then(Commands.literal("forget").executes(ctx -> {
+                                                    KillMemory.get(ctx.getSource().getServer()).clear();
+                                                    ctx.getSource().sendSuccess(() -> Component.literal("倒された記録を全部消した"), true);
+                                                    return 1;
+                                                })))
                                         .then(Commands.literal("base")
                                                 .executes(ctx -> baseDescribe(ctx.getSource()))
                                                 .then(Commands.literal("sample")
@@ -155,6 +166,37 @@ public final class DirectorCommand {
                     m.species().key(), m.getX(), m.getY(), m.getZ(), when)), false);
         }
         return 1 + near.size();
+    }
+
+    // ---------------------------------------------------------------- 学ぶ(第 3 段 区切り 1)
+
+    private static int dangerDescribe(CommandSourceStack source) {
+        var server = source.getServer();
+        List<String> lines = KillMemory.get(server).describe(BaseMemory.today(server));
+        for (String line : lines) source.sendSuccess(() -> Component.literal(line), false);
+        return lines.size();
+    }
+
+    /** 立っている升に、n 体倒されたことにする。 */
+    private static int dangerHere(CommandSourceStack source, int kills) {
+        var server = source.getServer();
+        net.minecraft.core.BlockPos pos = net.minecraft.core.BlockPos.containing(source.getPosition());
+        KillMemory.get(server).addForTests(net.minecraft.world.level.ChunkPos.asLong(pos.getX() >> 4, pos.getZ() >> 4), kills, BaseMemory.today(server));
+        source.sendSuccess(() -> Component.literal("この升で " + kills + " 体倒されたことにした"), true);
+        return dangerDescribe(source);
+    }
+
+    /** 危ない所へ、今すぐ送る(間を待たない。フェーズは見ない)。 */
+    private static int dangerSend(CommandSourceStack source) {
+        var server = source.getServer();
+        int n = 0;
+        for (KillMemory.Danger d : KillMemory.get(server).dangers(BaseMemory.today(server))) {
+            int[] r = DangerWatch.send(server.overworld(), d, server.overworld().getRandom());
+            n += r[0] + r[1];
+            source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "危ない所 (%.0f, %.0f) へ: 1 段目 %d・進化させて %d", d.x(), d.z(), r[0], r[1])), true);
+        }
+        DangerWatch.resetTimers();
+        return n;
     }
 
     // ---------------------------------------------------------------- フェーズで開くもの(第 2 段の続き)
