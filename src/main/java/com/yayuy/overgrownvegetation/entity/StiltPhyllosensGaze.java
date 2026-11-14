@@ -8,12 +8,12 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
 /**
- * フィロセンスの首と頭(2026-11-14、段 2)。行動({@code PhyllosensBrain})が「頭を置きたい点・見たい点・胴を前へ倒す角・芯を光らせるか」を決め、
+ * フィロセンスの首と頭(2026-11-14、段 2)。行動({@code StiltPhyllosensBrain})が「頭を置きたい点・見たい点・胴を前へ倒す角・芯を光らせるか」を決め、
  * ここがサーバーで少しずつそこへ寄せて({@link #HEAD_SPEED} ほか)クライアントへ送る。首の形はどちらの側も {@link StiltNeck} で同じに解く。
  *
  * <p>頭を置きたい点が無い間は、首はキーのアニメのまま(効き {@code weight} を 0 へ下ろす)。
  */
-public final class PhyllosensGaze {
+public final class StiltPhyllosensGaze {
 
     /** 頭・見る点を寄せる速さ(ブロック/tick)・胴を倒す速さ(度/tick)・効きの上げ下げ(/tick)【仮】。 */
     static final double HEAD_SPEED = 0.25D, LOOK_SPEED = 0.6D, LEAN_SPEED = 1.5D;
@@ -61,7 +61,7 @@ public final class PhyllosensGaze {
     }
 
     /** サーバーの tick: 寄せる。戻り値 = 送る値が変わったか。 */
-    boolean serverTick(PhyllosensEntity e) {
+    boolean serverTick(StiltPhyllosensEntity e) {
         Vec3 pos = e.position();
         float yaw = e.getYRot();
         Vec3 rest = restHead(pos, yaw).subtract(pos);
@@ -92,7 +92,7 @@ public final class PhyllosensGaze {
         return StiltNeck.toWorld(this.shape, new double[]{0, 207, -1}, pos, yaw, 0.0D);
     }
 
-    // ------------------------------------------------------------------ 送る / 受ける(PhyllosensEntity の同期データ)
+    // ------------------------------------------------------------------ 送る / 受ける(StiltPhyllosensEntity の同期データ)
 
     Vector3f headData() {
         return new Vector3f((float) this.head.x, (float) this.head.y, (float) this.head.z);
@@ -151,21 +151,21 @@ public final class PhyllosensGaze {
     }
 
     /** サーバー: 今の首の形。 */
-    public StiltNeck.Pose pose(PhyllosensEntity e) {
+    public StiltNeck.Pose pose(StiltPhyllosensEntity e) {
         return pose(e.position(), e.getYRot(), 1.0F);
     }
 
     /**
      * サーバー: 頭の pivot(ワールド)。効きが 0 の間(首はアニメ)は静止の首の頭の位置で近似する。
      */
-    public Vec3 headWorld(PhyllosensEntity e) {
+    public Vec3 headWorld(StiltPhyllosensEntity e) {
         if (this.weight <= 0.0F) return restHead(e.position(), e.getYRot());
         StiltNeck.Pose p = pose(e);
         return StiltNeck.toWorld(this.shape, p.head(), e.position(), e.getYRot(), this.lean);
     }
 
     /** サーバー: 目(花の芯)の位置(ワールド)。頭の pivot から花の見る軸へ 7 単位。 */
-    public Vec3 eyeWorld(PhyllosensEntity e) {
+    public Vec3 eyeWorld(StiltPhyllosensEntity e) {
         if (this.weight <= 0.0F) {
             return restHead(e.position(), e.getYRot()).add(0, 0.4D, 0);
         }

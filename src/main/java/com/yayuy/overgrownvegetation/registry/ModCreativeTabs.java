@@ -142,7 +142,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.FALCIMNES_SPAWN_EGG.get());
                         output.accept(ModItems.ARBORA_SPAWN_EGG.get());
                         ModG1.acceptEggs(output); // G1 段階 0(2026-11-08)
-                        com.yayuy.overgrownvegetation.registry.ModStilt.acceptEggs(output); // 竹馬型(2026-11-10)
+                        com.yayuy.overgrownvegetation.registry.ModPhyllosens.acceptEggs(output); // 監視塔フィロセンス(11-14。竹馬型は卵無し)
                         com.yayuy.overgrownvegetation.registry.ModRunners.acceptEggs(output); // ② 大型の地上を走る型(2026-11-14)
 
                         // 植物から採れるもの

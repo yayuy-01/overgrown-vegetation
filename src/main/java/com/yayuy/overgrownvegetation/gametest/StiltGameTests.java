@@ -1,7 +1,7 @@
 package com.yayuy.overgrownvegetation.gametest;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.entity.PhyllosensEntity;
+import com.yayuy.overgrownvegetation.entity.StiltPhyllosensEntity;
 import com.yayuy.overgrownvegetation.entity.stilt.StiltColumns;
 import com.yayuy.overgrownvegetation.entity.stilt.StiltLegIK;
 import com.yayuy.overgrownvegetation.entity.stilt.StiltWalker;
@@ -94,14 +94,14 @@ public final class StiltGameTests {
      * {@code until} の tick で {@code end} を呼ぶ(成功で抜ける)。
      */
     private static void run(GameTestHelper helper, Consumer<Arena> build, double sx, double sz, double gx, double gz,
-                            int until, java.util.function.BiConsumer<Arena, PhyllosensEntity> each,
-                            java.util.function.BiConsumer<Arena, PhyllosensEntity> end) {
+                            int until, java.util.function.BiConsumer<Arena, StiltPhyllosensEntity> each,
+                            java.util.function.BiConsumer<Arena, StiltPhyllosensEntity> end) {
         ServerLevel level = helper.getLevel();
         StiltWalker.alwaysNear = true;   // テストのサーバーにはプレイヤーがいない(人がいないと足場探しを省く作り)
         ChunkPos c = fresh();
         force(level, c, true);
         Arena a = new Arena(level, c, c.getMinBlockX(), c.getMinBlockZ());
-        PhyllosensEntity[] mob = new PhyllosensEntity[1];
+        StiltPhyllosensEntity[] mob = new StiltPhyllosensEntity[1];
         helper.runAfterDelay(20, () -> {
             fill(level, a.x(-4), 88, a.z(-4), a.x(SIZE + 3), 124, a.z(SIZE + 3), Blocks.AIR.defaultBlockState());
             fill(level, a.x(0), 99, a.z(0), a.x(SIZE - 1), 99, a.z(SIZE - 1), Blocks.STONE.defaultBlockState());
@@ -109,7 +109,7 @@ public final class StiltGameTests {
             StiltColumns.of(level).clear();
             com.yayuy.overgrownvegetation.entity.stilt.StiltPlanner.forget(level);
             StiltWalker.forgetUnreachable();
-            PhyllosensEntity e = ModStilt.PHYLLOSENS.get().create(level);
+            StiltPhyllosensEntity e = ModStilt.PHYLLOSENS_STILT.get().create(level);
             if (e == null) {
                 helper.fail("作れない");
                 return;
@@ -147,21 +147,21 @@ public final class StiltGameTests {
         });
     }
 
-    static void cleanup(ServerLevel level, ChunkPos c, PhyllosensEntity e) {
+    static void cleanup(ServerLevel level, ChunkPos c, StiltPhyllosensEntity e) {
         if (e != null) e.discard();
         force(level, c, false);
     }
 
-    private static double center(PhyllosensEntity e) {
+    private static double center(StiltPhyllosensEntity e) {
         return e.getY() + 0.75D;
     }
 
-    static String at(Arena a, PhyllosensEntity e) {
+    static String at(Arena a, StiltPhyllosensEntity e) {
         return String.format(Locale.ROOT, "(%.2f, %.2f, %.2f) 胴の高さ %.2f", e.getX() - a.x0, e.getY() - FLOOR, e.getZ() - a.z0, center(e) - FLOOR);
     }
 
     /** 着いている足先が全部、当たりの無いマス(か葉)にあるか。 */
-    private static void feetInOpen(Arena a, PhyllosensEntity e) {
+    private static void feetInOpen(Arena a, StiltPhyllosensEntity e) {
         StiltWalker w = e.stiltWalker();
         if (!w.ready()) return;
         for (int i = 0; i < 4; i++) {
@@ -175,7 +175,7 @@ public final class StiltGameTests {
         }
     }
 
-    private static void arrived(Arena a, PhyllosensEntity e, double gx, double gz) {
+    private static void arrived(Arena a, StiltPhyllosensEntity e, double gx, double gz) {
         double dx = e.getX() - (a.x0 + gx), dz = e.getZ() - (a.z0 + gz);
         if (dx * dx + dz * dz > 2.0D * 2.0D) {
             throw new net.minecraft.gametest.framework.GameTestAssertException("着いていない " + at(a, e) + " 動いている " + e.stiltWalker().moving() + " " + e.stiltWalker().debug());

@@ -47,17 +47,17 @@ import java.util.Set;
  * <p>段 1 の行動は「うろつく」だけ({@link StiltStrollGoal})。索敵・覗き込み・脚の当たり判定・攻撃はまだ無い。旧フィロセンス(長い首の小さな多脚)の
  * コードは {@code overgrown/parked/} にあり、別の Mob(洞窟の目)になる予定。
  */
-public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedMob, StiltWalker.Holder {
+public class StiltPhyllosensEntity extends Monster implements GeoEntity, ParasitizedMob, StiltWalker.Holder {
 
-    public static final String ID = "phyllosens";
+    public static final String ID = "phyllosens_stilt";
     private static final boolean DEV_HOOKS = Boolean.getBoolean("ov.devbridge");
-    private static final EntityDataAccessor<CompoundTag> DATA_GAIT = SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.COMPOUND_TAG);
-    /** 段 2(11-14): 頭を置く点・見る点(エンティティからの差)と、倒す角・首の効き・芯の光(PhyllosensGaze#packed)。 */
-    private static final EntityDataAccessor<org.joml.Vector3f> DATA_HEAD = SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.VECTOR3);
-    private static final EntityDataAccessor<org.joml.Vector3f> DATA_LOOK = SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.VECTOR3);
-    private static final EntityDataAccessor<Integer> DATA_NECK = SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.INT);
-    /** 段 2: 行動の状態(PhyllosensBrain.Mode の番号 | 見つけた 0x100)。アニメを選ぶ。 */
-    private static final EntityDataAccessor<Integer> DATA_MODE = SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<CompoundTag> DATA_GAIT = SynchedEntityData.defineId(StiltPhyllosensEntity.class, EntityDataSerializers.COMPOUND_TAG);
+    /** 段 2(11-14): 頭を置く点・見る点(エンティティからの差)と、倒す角・首の効き・芯の光(StiltPhyllosensGaze#packed)。 */
+    private static final EntityDataAccessor<org.joml.Vector3f> DATA_HEAD = SynchedEntityData.defineId(StiltPhyllosensEntity.class, EntityDataSerializers.VECTOR3);
+    private static final EntityDataAccessor<org.joml.Vector3f> DATA_LOOK = SynchedEntityData.defineId(StiltPhyllosensEntity.class, EntityDataSerializers.VECTOR3);
+    private static final EntityDataAccessor<Integer> DATA_NECK = SynchedEntityData.defineId(StiltPhyllosensEntity.class, EntityDataSerializers.INT);
+    /** 段 2: 行動の状態(StiltPhyllosensBrain.Mode の番号 | 見つけた 0x100)。アニメを選ぶ。 */
+    private static final EntityDataAccessor<Integer> DATA_MODE = SynchedEntityData.defineId(StiltPhyllosensEntity.class, EntityDataSerializers.INT);
 
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
     private static final RawAnimation DISGUISE = RawAnimation.begin().thenLoop("idle_disguise");
@@ -74,11 +74,11 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
     /** 描画の歩きの速さ(クライアント、なめらかにしたもの)。 */
     private double clientWalk;
     /** 首と頭(段 2)。 */
-    private final PhyllosensGaze gaze = new PhyllosensGaze();
-    private final PhyllosensBrain brain;
+    private final StiltPhyllosensGaze gaze = new StiltPhyllosensGaze();
+    private final StiltPhyllosensBrain brain;
     private final com.yayuy.overgrownvegetation.entity.parts.HitPartSet hitParts;
 
-    public PhyllosensEntity(EntityType<? extends Monster> type, Level level) {
+    public StiltPhyllosensEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
         StiltParams p = StiltParams.phyllosens();
         this.walker = new StiltWalker(this, this, p);
@@ -86,7 +86,7 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
         this.setNoGravity(true);
         this.xpReward = 12;
         // 段 2(11-14): 見る行動と、叩ける頭(部位の id は本体の続き番号。ファルキムネスと同じ作り)
-        this.brain = new PhyllosensBrain(this, this.walker);
+        this.brain = new StiltPhyllosensBrain(this, this.walker);
         this.hitParts = new com.yayuy.overgrownvegetation.entity.parts.HitPartSet(this, new String[]{"head"}, new float[]{p.headSize}, new float[]{p.headSize});
         this.hitParts.onHurt((part, src) -> this.brain.onHeadHit());
         this.setId(ENTITY_COUNTER.getAndAdd(this.hitParts.count() + 1) + 1);
@@ -106,11 +106,11 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
         builder.define(DATA_MODE, 0);
     }
 
-    public PhyllosensGaze gaze() {
+    public StiltPhyllosensGaze gaze() {
         return this.gaze;
     }
 
-    public PhyllosensBrain brain() {
+    public StiltPhyllosensBrain brain() {
         return this.brain;
     }
 
@@ -219,8 +219,8 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
         return new BodyRotationControl(this) {
             @Override
             public void clientTick() {
-                PhyllosensEntity.this.yBodyRot = PhyllosensEntity.this.getYRot();
-                PhyllosensEntity.this.yHeadRot = PhyllosensEntity.this.getYRot();
+                StiltPhyllosensEntity.this.yBodyRot = StiltPhyllosensEntity.this.getYRot();
+                StiltPhyllosensEntity.this.yHeadRot = StiltPhyllosensEntity.this.getYRot();
             }
         };
     }
@@ -271,7 +271,7 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
         controllers.add(new PhaseKeepingAnimationController<>(this, "main", 6, this::mainState));
     }
 
-    private PlayState mainState(AnimationState<PhyllosensEntity> state) {
+    private PlayState mainState(AnimationState<StiltPhyllosensEntity> state) {
         // 歩きの速さ: その tick に胴が横へ動いた量 / 基準。止まると 0(歩きの形のまま止まる。待機の「枯れ木に化ける」は段 2)。
         // 脚は IK なので足は滑らない。ここで合わせるのは胴・首・花の揺れの速さ(記憶 walk-anim-match-move-speed)
         double dx = this.getX() - this.xo, dz = this.getZ() - this.zo;
@@ -279,7 +279,7 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
         this.clientWalk = Mth.lerp(0.2D, this.clientWalk, Mth.clamp(v, 0.0D, 3.0D));
         // 段 2(11-14): 化ける・覗く(つぼみ。首は手続き)は idle_disguise、見張りは watch_open → watch_sweep、見つけたら watch_lock
         int m = this.entityData.get(DATA_MODE);
-        PhyllosensBrain.Mode mode = PhyllosensBrain.Mode.values()[Mth.clamp(m & 0xFF, 0, PhyllosensBrain.Mode.values().length - 1)];
+        StiltPhyllosensBrain.Mode mode = StiltPhyllosensBrain.Mode.values()[Mth.clamp(m & 0xFF, 0, StiltPhyllosensBrain.Mode.values().length - 1)];
         switch (mode) {
             case DISGUISE, PEEK, PEER -> {
                 state.getController().setAnimationSpeed(1.0D);
@@ -308,9 +308,9 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
      * バニラの経路は作らない({@code createPath} は null)。うろつき・よその Goal の {@code isDone} はここで答える。
      */
     static final class StiltNavigation extends GroundPathNavigation {
-        private final PhyllosensEntity mob;
+        private final StiltPhyllosensEntity mob;
 
-        StiltNavigation(PhyllosensEntity mob, Level level) {
+        StiltNavigation(StiltPhyllosensEntity mob, Level level) {
             super(mob, level);
             this.mob = mob;
         }
@@ -386,9 +386,9 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
      * まわりの角を数個引いて、胴が立てる所({@link StiltPlanner#evaluate})へ歩く。
      */
     static final class StiltStrollGoal extends Goal {
-        private final PhyllosensEntity mob;
+        private final StiltPhyllosensEntity mob;
 
-        StiltStrollGoal(PhyllosensEntity mob) {
+        StiltStrollGoal(StiltPhyllosensEntity mob) {
             this.mob = mob;
             this.setFlags(EnumSet.of(Flag.MOVE));
         }
@@ -398,7 +398,7 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
             // 確かめ用(テストクライアント・GameTest): 名前が nostroll で始まる個体はうろつかない(navto の行き先を上書きしないように)
             if (this.mob.hasCustomName() && this.mob.getCustomName().getString().startsWith("nostroll")) return false;
             if (this.mob.walker.moving() || !this.mob.walker.ready()) return false;
-            if (this.mob.brain.mode() != PhyllosensBrain.Mode.WALK) return false;   // 段 2: 化けている・見張り・覗きの間はうろつかない
+            if (this.mob.brain.mode() != StiltPhyllosensBrain.Mode.WALK) return false;   // 段 2: 化けている・見張り・覗きの間はうろつかない
             if (this.mob.getRandom().nextInt(STROLL_INTERVAL) != 0) return false;
             return this.mob.playerWithin(STROLL_RANGE);
         }

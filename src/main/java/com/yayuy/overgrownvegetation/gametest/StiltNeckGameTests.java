@@ -1,14 +1,15 @@
 package com.yayuy.overgrownvegetation.gametest;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.entity.PhyllosensBrain;
-import com.yayuy.overgrownvegetation.entity.PhyllosensEntity;
+import com.yayuy.overgrownvegetation.entity.StiltPhyllosensBrain;
+import com.yayuy.overgrownvegetation.entity.StiltPhyllosensEntity;
 import com.yayuy.overgrownvegetation.entity.stilt.StiltColumns;
 import com.yayuy.overgrownvegetation.entity.stilt.StiltLegIK;
 import com.yayuy.overgrownvegetation.entity.stilt.StiltNeck;
 import com.yayuy.overgrownvegetation.entity.stilt.StiltPlanner;
 import com.yayuy.overgrownvegetation.entity.stilt.StiltSight;
 import com.yayuy.overgrownvegetation.entity.stilt.StiltWalker;
+import com.yayuy.overgrownvegetation.registry.ModPhyllosens;
 import com.yayuy.overgrownvegetation.registry.ModStilt;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -38,7 +39,7 @@ import java.util.function.Consumer;
  * 首の計算の検算・化ける・見張りで見つけて印・森で幹を回り込んで覗く・隠れ直すと付かない・屋根の下を開口から覗く・塞ぐと付かない・
  * ガラス窓ごしは付く・下りた頭を叩くと引っ込む。
  *
- * <p>GameTest の偽プレイヤー({@code makeMockPlayer})は世界のプレイヤーの一覧に入らないので、相手は {@link PhyllosensBrain#forcedTarget} で渡す
+ * <p>GameTest の偽プレイヤー({@code makeMockPlayer})は世界のプレイヤーの一覧に入らないので、相手は {@link StiltPhyllosensBrain#forcedTarget} で渡す
  * (見えるか・印・覗きの流れは本物の処理を通る)。場は段 1 と同じく、強制読み込みの遠いチャンクの y 99 の床。
  */
 @GameTestHolder(OvergrownVegetation.MODID)
@@ -130,15 +131,15 @@ public final class StiltNeckGameTests {
      * 場を組み、フィロセンスを (sx, sz) に置く(歩かない・うろつかない)。setup は置いた後に 1 回、each は毎 tick、end は until の tick。
      */
     private static void runBrain(GameTestHelper helper, Consumer<StiltGameTests.Arena> build, double sx, double sz, float yaw,
-                                 BiConsumer<StiltGameTests.Arena, PhyllosensEntity> setup,
-                                 BiConsumer<StiltGameTests.Arena, PhyllosensEntity> each, int until,
-                                 BiConsumer<StiltGameTests.Arena, PhyllosensEntity> end) {
+                                 BiConsumer<StiltGameTests.Arena, StiltPhyllosensEntity> setup,
+                                 BiConsumer<StiltGameTests.Arena, StiltPhyllosensEntity> each, int until,
+                                 BiConsumer<StiltGameTests.Arena, StiltPhyllosensEntity> end) {
         ServerLevel level = helper.getLevel();
         StiltWalker.alwaysNear = true;
         ChunkPos c = StiltGameTests.fresh();
         StiltGameTests.force(level, c, true);
         StiltGameTests.Arena a = new StiltGameTests.Arena(level, c, c.getMinBlockX(), c.getMinBlockZ());
-        PhyllosensEntity[] mob = new PhyllosensEntity[1];
+        StiltPhyllosensEntity[] mob = new StiltPhyllosensEntity[1];
         helper.runAfterDelay(20, () -> {
             StiltGameTests.fill(level, a.x(-4), 88, a.z(-4), a.x(StiltGameTests.SIZE + 3), 124, a.z(StiltGameTests.SIZE + 3), Blocks.AIR.defaultBlockState());
             StiltGameTests.fill(level, a.x(0), 99, a.z(0), a.x(StiltGameTests.SIZE - 1), 99, a.z(StiltGameTests.SIZE - 1), Blocks.STONE.defaultBlockState());
@@ -146,7 +147,7 @@ public final class StiltNeckGameTests {
             StiltColumns.of(level).clear();
             StiltPlanner.forget(level);
             StiltWalker.forgetUnreachable();
-            PhyllosensEntity e = ModStilt.PHYLLOSENS.get().create(level);
+            StiltPhyllosensEntity e = ModStilt.PHYLLOSENS_STILT.get().create(level);
             if (e == null) {
                 helper.fail("作れない");
                 return;
@@ -186,11 +187,11 @@ public final class StiltNeckGameTests {
     }
 
     private static boolean marked(Player pl) {
-        return pl.hasEffect(ModStilt.PHYLLOSENS_WATCH);
+        return pl.hasEffect(ModPhyllosens.PHYLLOSENS_WATCH);
     }
 
-    private static String why(StiltGameTests.Arena a, PhyllosensEntity e) {
-        PhyllosensBrain b = e.brain();
+    private static String why(StiltGameTests.Arena a, StiltPhyllosensEntity e) {
+        StiltPhyllosensBrain b = e.brain();
         net.minecraft.world.phys.Vec3 hw = e.gaze().headWorld(e), ew = e.gaze().eyeWorld(e);
         return String.format(Locale.ROOT, "状態 %s 見える %s 見え始め %d 開口 %s 記録 [%s] 頭 (%.1f %.1f %.1f) 目 (%.1f %.1f %.1f) 効き %.2f %s", b.mode(), b.seesTarget(), b.seenSince(), b.openingCell(), b.note,
                 hw.x - a.x0(), hw.y, hw.z - a.z0(), ew.x - a.x0(), ew.y, ew.z - a.z0(), e.gaze().weight(1.0F), StiltGameTests.at(a, e));
@@ -203,7 +204,7 @@ public final class StiltNeckGameTests {
         }, 16.5, 16.5, 0.0F, (a, e) -> {
         }, (a, e) -> {
         }, 220, (a, e) -> {
-            if (e.brain().mode() != PhyllosensBrain.Mode.DISGUISE) helper.fail("化けていない " + why(a, e));
+            if (e.brain().mode() != StiltPhyllosensBrain.Mode.DISGUISE) helper.fail("化けていない " + why(a, e));
             StiltWalker w = e.stiltWalker();
             for (int i = 0; i < 4; i++) {
                 Vec3 f = w.foot(i);
@@ -321,15 +322,15 @@ public final class StiltNeckGameTests {
             e.brain().forcedTarget = pl[0];
             e.brain().noteSeen(new Vec3(a.x0() + 20.5D, FLOOR, a.z0() + 16.5D), a.level().getGameTime());
         }, (a, e) -> {
-            if (!hit[0] && e.brain().mode() == PhyllosensBrain.Mode.PEER && e.gaze().weight(1.0F) > 0.9F) {
+            if (!hit[0] && e.brain().mode() == StiltPhyllosensBrain.Mode.PEER && e.gaze().weight(1.0F) > 0.9F) {
                 hit[0] = true;
                 hitAt[0] = helper.getTick();
                 hp[0] = e.getHealth();
                 e.hitParts().part(0).hurt(a.level().damageSources().generic(), 2.0F);
-                if (e.brain().mode() != PhyllosensBrain.Mode.RETRACT) throw new GameTestAssertException("叩いても引っ込めない " + why(a, e));
+                if (e.brain().mode() != StiltPhyllosensBrain.Mode.RETRACT) throw new GameTestAssertException("叩いても引っ込めない " + why(a, e));
                 if (e.getHealth() >= hp[0]) throw new GameTestAssertException("胴の体力が減らない");
             }
-            if (hit[0] && helper.getTick() < hitAt[0] + 180 && (e.brain().mode() == PhyllosensBrain.Mode.PEER || e.brain().mode() == PhyllosensBrain.Mode.PEER_GO))
+            if (hit[0] && helper.getTick() < hitAt[0] + 180 && (e.brain().mode() == StiltPhyllosensBrain.Mode.PEER || e.brain().mode() == StiltPhyllosensBrain.Mode.PEER_GO))
                 throw new GameTestAssertException("叩かれてすぐまた覗いた " + why(a, e));
         }, 860, (a, e) -> {
             if (!hit[0]) helper.fail("覗かなかった " + why(a, e));

@@ -1,9 +1,10 @@
 package com.yayuy.overgrownvegetation.devbridge;
 
-import com.yayuy.overgrownvegetation.entity.PhyllosensEntity;
+import com.yayuy.overgrownvegetation.entity.StiltPhyllosensEntity;
 import com.yayuy.overgrownvegetation.entity.stilt.StiltColumns;
 import com.yayuy.overgrownvegetation.entity.stilt.StiltPlanner;
 import com.yayuy.overgrownvegetation.entity.stilt.StiltWalker;
+import com.yayuy.overgrownvegetation.registry.ModPhyllosens;
 import com.yayuy.overgrownvegetation.registry.ModStilt;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
@@ -34,11 +35,11 @@ final class StiltDev {
     /** 竹馬型なら行き先を渡して true。 */
     /**
      * {@code stiltlook x y z [倒す角] [光る 0/1]} / {@code stiltlook off}(11-14、段 2 の首の確かめ): 一番近いフィロセンスの頭を (x y z) へ寄せ、そこを見させる。
-     * 行動はその間首を触らない(PhyllosensGaze#devHold)。
+     * 行動はその間首を触らない(StiltPhyllosensGaze#devHold)。
      */
     static void look(ServerLevel level, net.minecraft.world.phys.Vec3 me, String[] p, Consumer<String> log) {
-        PhyllosensEntity best = null;
-        for (PhyllosensEntity e : level.getEntitiesOfClass(PhyllosensEntity.class, new net.minecraft.world.phys.AABB(me, me).inflate(64.0D))) {
+        StiltPhyllosensEntity best = null;
+        for (StiltPhyllosensEntity e : level.getEntitiesOfClass(StiltPhyllosensEntity.class, new net.minecraft.world.phys.AABB(me, me).inflate(64.0D))) {
             if (best == null || e.distanceToSqr(me) < best.distanceToSqr(me)) best = e;
         }
         if (best == null) {
@@ -69,7 +70,7 @@ final class StiltDev {
 
     // ------------------------------------------------------------------ 段 2(11-14): 見張り・覗きの重さ
 
-    private static List<PhyllosensEntity> lookBench;
+    private static List<StiltPhyllosensEntity> lookBench;
     private static long lookStart, lookTicks, lookSum0, lookTicks0;
     private static int lookLen;
 
@@ -85,7 +86,7 @@ final class StiltDev {
         StiltWalker.forgetUnreachable();
         boolean watch = mode.equals("watch");
         for (int i = 0; i < n; i++) {
-            PhyllosensEntity e = ModStilt.PHYLLOSENS.get().create(level);
+            StiltPhyllosensEntity e = ModStilt.PHYLLOSENS_STILT.get().create(level);
             if (e == null) continue;
             double a = Math.PI * (0.25D + 0.5D * i / Math.max(1, n - 1)) + Math.PI;
             double r = watch ? 30.0D + 3.0D * i : 12.0D + (i % 3) * 3.0D;
@@ -111,27 +112,27 @@ final class StiltDev {
         long t = now - lookStart;
         if (t >= 20L && !lookGo) {
             lookGo = true;
-            for (PhyllosensEntity e : lookBench) {
+            for (StiltPhyllosensEntity e : lookBench) {
                 if (lookMode.equals("watch")) e.brain().forceWatch();
                 else e.brain().noteSeen(lookMe.position(), now);
             }
             StiltWalker.resetStats();
-            com.yayuy.overgrownvegetation.entity.PhyllosensBrain.nanos = 0L;
-            com.yayuy.overgrownvegetation.entity.PhyllosensBrain.calls = 0L;
+            com.yayuy.overgrownvegetation.entity.StiltPhyllosensBrain.nanos = 0L;
+            com.yayuy.overgrownvegetation.entity.StiltPhyllosensBrain.calls = 0L;
             lookSum0 = StiltWalker.tickNanos;
             lookTicks0 = now;
         }
         if (!lookGo || t < lookLen) return;
-        int marked = lookMe.hasEffect(ModStilt.PHYLLOSENS_WATCH) ? 1 : 0;
+        int marked = lookMe.hasEffect(ModPhyllosens.PHYLLOSENS_WATCH) ? 1 : 0;
         StringBuilder modes = new StringBuilder();
-        for (PhyllosensEntity e : lookBench) modes.append(' ').append(e.brain().mode());
+        for (StiltPhyllosensEntity e : lookBench) modes.append(' ').append(e.brain().mode());
         long span = Math.max(1L, now - lookTicks0);
-        double avg = (StiltWalker.tickNanos - lookSum0 + com.yayuy.overgrownvegetation.entity.PhyllosensBrain.nanos) / 1.0e6 / span;
+        double avg = (StiltWalker.tickNanos - lookSum0 + com.yayuy.overgrownvegetation.entity.StiltPhyllosensBrain.nanos) / 1.0e6 / span;
         log.accept(String.format(Locale.ROOT, "STILTBRAINBENCH %s 体 %d tick %d 1tickの合計の最大 %.2f ms 平均 %.3f ms 見る %.3f ms/体/tick 印 %d 状態%s",
                 lookMode, lookBench.size(), span, StiltWalker.maxTickSum / 1.0e6, avg,
-                com.yayuy.overgrownvegetation.entity.PhyllosensBrain.nanos / 1.0e6 / Math.max(1L, com.yayuy.overgrownvegetation.entity.PhyllosensBrain.calls), marked, modes));
+                com.yayuy.overgrownvegetation.entity.StiltPhyllosensBrain.nanos / 1.0e6 / Math.max(1L, com.yayuy.overgrownvegetation.entity.StiltPhyllosensBrain.calls), marked, modes));
         log.accept("STILTBRAINBENCH 最悪の tick " + StiltWalker.worstTick);
-        for (PhyllosensEntity e : lookBench) e.discard();
+        for (StiltPhyllosensEntity e : lookBench) e.discard();
         lookBench = null;
         lookGo = false;
     }
@@ -184,7 +185,7 @@ final class StiltDev {
 
     // ------------------------------------------------------------------ 重さの測り
 
-    private static List<PhyllosensEntity> bench;
+    private static List<StiltPhyllosensEntity> bench;
     private static long[] arrive;
     private static long benchStart, lastNanos, maxNanos, sumNanos, benchTicks, plan0, planMax0;
     private static double benchZ;
@@ -216,7 +217,7 @@ final class StiltDev {
         StiltPlanner.forget(level);
         StiltWalker.forgetUnreachable();
         for (int i = 0; i < n; i++) {
-            PhyllosensEntity e = ModStilt.PHYLLOSENS.get().create(level);
+            StiltPhyllosensEntity e = ModStilt.PHYLLOSENS_STILT.get().create(level);
             if (e == null) continue;
             double x = cx - (n - 1) * 1.5D + 3 * i + 0.5D;
             e.moveTo(x, y, z0 + 0.5D, 0.0F, 0.0F);
@@ -239,7 +240,7 @@ final class StiltDev {
         long t = now - benchStart;
         if (t >= 5L && !benchGo) {
             benchGo = true;
-            for (PhyllosensEntity e : bench) e.stiltWalker().goTo(Double.isNaN(benchSameX) ? e.getX() : benchSameX, e.getY(), benchZ, 1.0D);
+            for (StiltPhyllosensEntity e : bench) e.stiltWalker().goTo(Double.isNaN(benchSameX) ? e.getX() : benchSameX, e.getY(), benchZ, 1.0D);
             lastNanos = StiltWalker.tickNanos;
             StiltWalker.resetStats();
             gc0 = gcMillis();
@@ -255,7 +256,7 @@ final class StiltDev {
         int done = 0;
         StringBuilder at = new StringBuilder();
         for (int i = 0; i < bench.size(); i++) {
-            PhyllosensEntity e = bench.get(i);
+            StiltPhyllosensEntity e = bench.get(i);
             if (arrive[i] < 0 && Math.abs(e.getZ() - benchZ) < 1.5D) arrive[i] = t;
             if (arrive[i] >= 0) done++;
             at.append(' ').append(arrive[i]);
@@ -266,7 +267,7 @@ final class StiltDev {
                     StiltWalker.maxOneNanos / 1.0e6, StiltWalker.maxFeetNanos / 1.0e6,
                     StiltPlanner.calls - plan0, StiltPlanner.maxNanos / 1.0e6, gcMillis() - gc0, at));
             log.accept("STILTBENCH 最悪の tick " + StiltWalker.worstTick + String.format(Locale.ROOT, " / 経路 %d 回・打ち切り %d・覚えていて省いた %d", StiltWalker.plans, StiltWalker.cappedPlans, StiltWalker.skippedPlans));
-            for (PhyllosensEntity e : bench) e.discard();
+            for (StiltPhyllosensEntity e : bench) e.discard();
             bench = null;
         }
     }

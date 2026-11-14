@@ -72,6 +72,16 @@ public class G1SporeCloud extends Entity {
      */
     public static G1SporeCloud spawn(ServerLevel level, Vec3 feet, float radius, int ticks, double dosePerSecond,
                                      int slowAmplifier, int slowLinger, boolean haze, @Nullable Entity owner) {
+        return spawn(level, feet, radius, ticks, dosePerSecond, slowAmplifier, slowLinger, haze, owner, true);
+    }
+
+    /**
+     * {@link #spawn} の音を選べる形(2026-11-14、監視塔フィロセンスの胞子が使う。音は種の側で決める決まりなので、音なしで出す)。
+     *
+     * @param sound 噴く音(イカの吐く音 + 火の消える音)を鳴らすか
+     */
+    public static G1SporeCloud spawn(ServerLevel level, Vec3 feet, float radius, int ticks, double dosePerSecond,
+                                     int slowAmplifier, int slowLinger, boolean haze, @Nullable Entity owner, boolean sound) {
         G1SporeCloud c = new G1SporeCloud(ModG1.SPORE_CLOUD.get(), level);
         c.setPos(feet);
         c.entityData.set(RADIUS, radius);
@@ -82,8 +92,10 @@ public class G1SporeCloud extends Entity {
         c.slowLinger = slowLinger;
         c.owner = owner == null ? null : owner.getUUID();
         level.addFreshEntity(c);
-        level.playSound(null, feet.x, feet.y + 0.5D, feet.z, SoundEvents.SQUID_SQUIRT, SoundSource.HOSTILE, 0.7F, 0.6F);
-        level.playSound(null, feet.x, feet.y + 0.5D, feet.z, SoundEvents.FIRE_EXTINGUISH, SoundSource.HOSTILE, 0.25F, 1.6F);
+        if (sound) {
+            level.playSound(null, feet.x, feet.y + 0.5D, feet.z, SoundEvents.SQUID_SQUIRT, SoundSource.HOSTILE, 0.7F, 0.6F);
+            level.playSound(null, feet.x, feet.y + 0.5D, feet.z, SoundEvents.FIRE_EXTINGUISH, SoundSource.HOSTILE, 0.25F, 1.6F);
+        }
         return c;
     }
 

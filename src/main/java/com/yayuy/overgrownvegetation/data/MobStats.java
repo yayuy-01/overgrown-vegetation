@@ -574,12 +574,23 @@ public final class MobStats {
         // 胴の当たり判定 1.5 × 1.5(エンティティの位置は胴。脚・首・花ははみ出す)・速さは開けた所の 0.28(森 0.12 との間は
         // entity/stilt/StiltParams)。描画倍率は掛けない(画素の大きさを揃える決まり)。eggFit は全高(脚の先〜花)の約 13.5。
         // 旧(長い首の小さな多脚・scale 2.27・ビーム)は parked/ にあり、洞窟の目になる予定。
-        m.put("phyllosens", stat(s -> {
+        // 11-14: 竹馬の体は内部用の id phyllosens_stilt へ(卵・タグ・自然湧き無し。後の竹馬型の Mob 用に残す)。数値は前の phyllosens のまま。
+        m.put("phyllosens_stilt", stat(s -> {
             s.maxHealth = 40.0; s.movementSpeed = 0.28; s.armor = 4.0; s.armorToughness = 0.0;
             s.knockbackResistance = 1.0; s.followRange = 32.0; s.stepHeight = 0.0;
             s.scale = 1.0;
             s.width = 1.5; s.height = 1.5; s.eggFit = 13.5; s.xpReward = 12;
-            s.naturalSpawn = false;   // 自然には湧かない(湧き方は司令塔が決める予定で未決。レイド・増援・汚染したスポナーからも外す)
+            s.naturalSpawn = false;
+        }));
+        // フィロセンス = 監視塔(2026-11-14 作り直し)。数値は【仮・Claude 11-14】: 体力は竹馬の胴の 40 を塔の本体へ(板根 4 枚は別に 16 ずつ。
+        // entity/PhyllosensEntity)・防御 4・押されない(1.0)・動かない(速さ 0)。当たり判定は塔の幹 2.6 × 13(閉じた立ち姿の全高 約 13。
+        // 首・花・板根ははみ出す)。描画倍率は掛けない。eggFit は全高 約 14。
+        m.put("phyllosens", stat(s -> {
+            s.maxHealth = 40.0; s.movementSpeed = 0.0; s.armor = 4.0; s.armorToughness = 0.0;
+            s.knockbackResistance = 1.0; s.followRange = 32.0; s.stepHeight = 0.0;
+            s.scale = 1.0;
+            s.width = 2.6; s.height = 13.0; s.eggFit = 14.0; s.xpReward = 12;
+            s.naturalSpawn = false;   // 自然には湧かない(植えるのは司令塔の持ち場で、まだつないでいない。レイド・増援・汚染したスポナーからも外す)
         }));
 
         // ヴェナムネス(G5 の原型・② 大型の地上を走る型の 1 体目、2026-11-14 段 1)。数値は全部【仮・Claude 11-14】:

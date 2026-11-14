@@ -244,6 +244,7 @@ public final class DevBridge {
             ss.execute(() -> {
                 var lv = ss.getLevel(sdim);
                 if (lv != null) StiltDev.tick(lv, lv.getGameTime(), DevBridge::log);
+                if (lv != null) TowerDev.tick(lv, DevBridge::log);
             });
         }
         if (benchMobs != null && mc.player != null) {
@@ -630,6 +631,17 @@ public final class DevBridge {
                 server.execute(() -> {
                     net.minecraft.server.level.ServerPlayer sp = server.getPlayerList().getPlayer(id);
                     if (sp != null) StiltDev.lookBench(sp.serverLevel(), sp, p[0], Integer.parseInt(p[1]), Integer.parseInt(p[2]), DevBridge::log);
+                });
+            }
+            case "towerdev" -> {
+                // towerdev …: 監視塔フィロセンスの姿勢・覗き・計測(11-14)。返事は TOWERDEV / TOWERBENCH …
+                String[] p = arg.trim().split("\\s+");
+                net.minecraft.client.server.IntegratedServer server = mc.getSingleplayerServer();
+                if (server == null || mc.player == null) break;
+                java.util.UUID id = mc.player.getUUID();
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerPlayer sp = server.getPlayerList().getPlayer(id);
+                    if (sp != null) TowerDev.run(sp.serverLevel(), sp, p, DevBridge::log);
                 });
             }
             case "stiltlook" -> {

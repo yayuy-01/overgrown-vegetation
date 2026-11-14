@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.effect;
 
-import com.yayuy.overgrownvegetation.registry.ModStilt;
+import com.yayuy.overgrownvegetation.registry.ModPhyllosens;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -29,9 +29,9 @@ public class PhyllosensWatchEffect extends MobEffect {
 
     /** 印を付ける / 付け直す(残りが 1 秒以上減ってから。通信を毎 tick 出さない)。 */
     public static void mark(LivingEntity target) {
-        MobEffectInstance cur = target.getEffect(ModStilt.PHYLLOSENS_WATCH);
+        MobEffectInstance cur = target.getEffect(ModPhyllosens.PHYLLOSENS_WATCH);
         if (cur == null || cur.getDuration() < TICKS - 20) {
-            target.addEffect(new MobEffectInstance(ModStilt.PHYLLOSENS_WATCH, TICKS, 0, true, false, true));
+            target.addEffect(new MobEffectInstance(ModPhyllosens.PHYLLOSENS_WATCH, TICKS, 0, true, false, true));
         }
     }
 }

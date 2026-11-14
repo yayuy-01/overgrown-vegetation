@@ -51,7 +51,8 @@ public class OvergrownVegetation {
         ShapedRecipePattern.setCraftingSize(5, 5);
 
         com.yayuy.overgrownvegetation.registry.ModG1.init(); // G1 段階 0 の死体・Mob・卵(2026-11-08。下の DeferredRegister に足す)
-        com.yayuy.overgrownvegetation.registry.ModStilt.init(); // 竹馬型(フィロセンス)の Mob・卵(2026-11-10)
+        com.yayuy.overgrownvegetation.registry.ModStilt.init(); // 竹馬型の Mob(11-14 から内部用 phyllosens_stilt)
+        com.yayuy.overgrownvegetation.registry.ModPhyllosens.init(); // 監視塔フィロセンスの Mob・卵・視線の印(2026-11-14)
         com.yayuy.overgrownvegetation.registry.ModRunners.init(); // ② 大型の地上を走る型(ヴェナムネス)の Mob・卵(2026-11-14)
         com.yayuy.overgrownvegetation.registry.ModLey.init(); // 地脈の最小限: 花・汲み上げ器・柱・電池・線(2026-11-13 サバイバルの背骨 段 2b)
         com.yayuy.overgrownvegetation.registry.ModVent.init(); // 換気の機械とフィルター(2026-11-14 サバイバルの背骨 段 2c)

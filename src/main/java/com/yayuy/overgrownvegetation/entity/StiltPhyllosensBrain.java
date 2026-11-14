@@ -5,6 +5,7 @@ import com.yayuy.overgrownvegetation.entity.action.ActionTiming;
 import com.yayuy.overgrownvegetation.entity.stilt.StiltNeck;
 import com.yayuy.overgrownvegetation.entity.stilt.StiltParams;
 import com.yayuy.overgrownvegetation.entity.stilt.StiltPlanner;
+import com.yayuy.overgrownvegetation.entity.stilt.OpeningSearch;
 import com.yayuy.overgrownvegetation.entity.stilt.StiltSight;
 import com.yayuy.overgrownvegetation.entity.stilt.StiltWalker;
 import net.minecraft.core.BlockPos;
@@ -34,17 +35,17 @@ import java.util.List;
  * </ul>
  * 覗きは前触れ(首が出る・胴が下りる)→ 実行(見る・印)→ 隙(引っ込める)の 3 段({@link ActionTiming})。
  */
-public final class PhyllosensBrain {
+public final class StiltPhyllosensBrain {
 
     public enum Mode { WALK, DISGUISE, WATCH_GO, WATCH, PEEK, PEER_GO, PEER, RETRACT }
 
     /** 覗きの 3 段: 前触れ 30・実行(上限)・隙 30 tick【仮】。実行の長さは見張り・覗きの長さで決める。 */
     static final ActionTiming PEEK_TIMING = new ActionTiming(0, 30, 400, 30);
 
-    private final PhyllosensEntity mob;
+    private final StiltPhyllosensEntity mob;
     private final StiltParams p;
     private final StiltWalker w;
-    private final PhyllosensGaze g;
+    private final StiltPhyllosensGaze g;
 
     private Mode mode = Mode.WALK;
     private int modeT, idle, lost, tries;
@@ -67,7 +68,7 @@ public final class PhyllosensBrain {
     /** 計測用: 見張り・覗きの考えにかかった時間(ns)と回数。 */
     public static volatile long nanos, calls;
 
-    PhyllosensBrain(PhyllosensEntity mob, StiltWalker walker) {
+    StiltPhyllosensBrain(StiltPhyllosensEntity mob, StiltWalker walker) {
         this.mob = mob;
         this.w = walker;
         this.p = walker.p;
@@ -204,7 +205,7 @@ public final class PhyllosensBrain {
     private void scan(ServerLevel level) {
         double r = this.p.sightRange;
         List<Player> list = this.forcedTarget != null ? List.of(this.forcedTarget)
-                : level.getEntitiesOfClass(Player.class, this.mob.getBoundingBox().inflate(r), PhyllosensBrain::watchable);
+                : level.getEntitiesOfClass(Player.class, this.mob.getBoundingBox().inflate(r), StiltPhyllosensBrain::watchable);
         Player best = null;
         double bd = r * r;
         for (Player pl : list) {
@@ -590,64 +591,6 @@ public final class PhyllosensBrain {
             this.note = String.format(java.util.Locale.ROOT, "覗く頭 外へ %.1f は だめ(ずれ %.2f)", out, h.distanceTo(want));
         }
         return last;
-    }
-
-    // ------------------------------------------------------------------ 開口の探し
-
-    /**
-     * 相手のまわり(半径 R の立方体)で、頭を寄せられる開口を探す。1 tick に {@code perTick} マスずつ続きから(段 1 の経路と同じく予算を守る)。
-     * 開口 = 視線を通すマス(空気・ガラス・柵・鉄格子)で、横のどれかの向きに外へ 2 マス空いていて(2 マス先は空が見える)、そこから相手の目が見える。
-     * 屋根の下のマス(空が見えない = 入口・窓の中)を先に選ぶ。一番近いもの。
-     */
-    static final class OpeningSearch {
-        record Result(@Nullable BlockPos cell, net.minecraft.core.Direction dir) {
-        }
-
-        private final BlockPos center;
-        private final int r;
-        private int index;
-        @Nullable
-        private BlockPos best;
-        private net.minecraft.core.Direction bestDir = net.minecraft.core.Direction.NORTH;
-        private double bestScore = Double.MAX_VALUE;
-        /** 計測用。 */
-        static volatile long cells;
-
-        OpeningSearch(BlockPos center, int r) {
-            this.center = center;
-            this.r = r;
-        }
-
-        @Nullable
-        Result step(ServerLevel level, Vec3 eye, Vec3 from, int perTick) {
-            int n = 2 * this.r + 1, total = n * n * n;
-            BlockPos.MutableBlockPos c = new BlockPos.MutableBlockPos(), q = new BlockPos.MutableBlockPos();
-            int end = Math.min(total, this.index + perTick);
-            for (; this.index < end; this.index++) {
-                int i = this.index;
-                int dx = i % n - this.r, dy = (i / n) % n - this.r, dz = i / (n * n) - this.r;
-                c.set(this.center.getX() + dx, this.center.getY() + dy, this.center.getZ() + dz);
-                cells++;
-                if (StiltSight.blocks(level, c)) continue;
-                boolean covered = !skyOpen(level, c);
-                if (!covered && !StiltSight.seeThrough(level.getBlockState(c))) continue;   // 外の空気のマスは開口でない
-                for (net.minecraft.core.Direction d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
-                    q.set(c.getX() + d.getStepX(), c.getY(), c.getZ() + d.getStepZ());
-                    if (StiltSight.blocks(level, q) || !level.getBlockState(q).getCollisionShape(level, q).isEmpty()) continue;
-                    q.set(c.getX() + d.getStepX() * 2, c.getY(), c.getZ() + d.getStepZ() * 2);
-                    if (StiltSight.blocks(level, q) || !skyOpen(level, q)) continue;
-                    Vec3 cc = Vec3.atCenterOf(c);
-                    double score = cc.distanceTo(from) + Math.abs(dy) * 0.5D;
-                    if (score >= this.bestScore) continue;
-                    if (!StiltSight.canSee(level, cc.add(d.getStepX() * 0.45D, 0, d.getStepZ() * 0.45D), eye)) continue;
-                    this.bestScore = score;
-                    this.best = c.immutable();
-                    this.bestDir = d;
-                }
-            }
-            if (this.index < total) return null;
-            return new Result(this.best, this.bestDir);
-        }
     }
 
     /** 試験用: 相手(GameTest の偽プレイヤーは世界の一覧に入らないので直に渡す)。 */
