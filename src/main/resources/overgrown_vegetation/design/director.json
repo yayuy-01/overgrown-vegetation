@@ -48,6 +48,19 @@
     "learn": 3,
     "learnWave": 5
   },
+  "hoard": {
+    "_comment": "第 3 段 区切り 3 貯めて一気に使う(② 貯めた襲撃。11-14)。ユーザー決定: 貯める間は襲わず遠巻きにうろつく・新しい演出は足さない・定着と最盛だけで起こし導入では起こさない。F3(進化)から、使うときの送り込みは F5 から。数は全部【仮】。",
+    "chancePerDay": 0.2,
+    "minBudgetFraction": 0.5,
+    "minDays": 0.5,
+    "maxDays": 1.0,
+    "capFactor": 2.0,
+    "cooldownDays": 1.0,
+    "burstMax": 8,
+    "burstSearchBlocks": 128.0,
+    "holdMinBlocks": 24.0,
+    "holdMaxBlocks": 40.0
+  },
   "kills": {
     "_comment": "第 3 段 区切り 1 学ぶ(11-14)。ユーザー指定: halfLifeDays 1・dangerMinKills〜dangerMaxKills 10〜13(升ごとに座標から 1 つ)・プレイヤーに倒されたものだけ数える・rangedRooted のスケルトンとエンダーマンは危ない所から離れて根付き、ほかは危ない所でもある程度は根付く。rangedRooted の羊とほかの数は【仮】。",
     "halfLifeDays": 1.0,

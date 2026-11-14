@@ -159,6 +159,11 @@ public final class G1Fate {
             return;
         }
         if (now < nextVisit) return;
+        if (ForestDirector.hoarding()) {
+            // 森が貯めている間は、見に来ても道を選ばない(第 3 段)。貯め終えたらまた見に来る
+            nextVisit = now + BUSY_WAIT * 6;
+            return;
+        }
         if (mob.isRising() || mob.isPassenger() || mob.isVehicle() || !mob.onGround() || inCombat(mob)) {
             nextVisit = now + BUSY_WAIT;
             return;

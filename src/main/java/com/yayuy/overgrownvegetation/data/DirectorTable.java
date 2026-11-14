@@ -61,6 +61,8 @@ public final class DirectorTable {
         public GatesJson gates;
         /** 第 3 段: 学ぶ(KillMemoryTable)。 */
         public KillMemoryTable.Json kills;
+        /** 第 3 段: 貯めて一気に使う(HoardTable)。 */
+        public HoardTable.Json hoard;
     }
 
     /** フェーズで開く口の json。 */
@@ -112,6 +114,8 @@ public final class DirectorTable {
     public final Gates gates;
     /** 第 3 段(11-14): 学ぶ。 */
     public final KillMemoryTable kills;
+    /** 第 3 段(11-14): 貯めて一気に使う。 */
+    public final HoardTable hoard;
 
     /**
      * 司令塔が使うものが開くフェーズ(2026-11-14 決定。Vault「フェーズの仕組み」の作り直し): 苗床 1・根付き 2・進化 3・偵察 4・認識 5・送り込み 5・
@@ -178,6 +182,7 @@ public final class DirectorTable {
         this.base = BaseMemoryTable.fromJson(s.base);
         this.gates = new Gates(s.gates);
         this.kills = KillMemoryTable.fromJson(s.kills);
+        this.hoard = HoardTable.fromJson(s.hoard);
     }
 
     private static double nonNeg(Double v, double fallback) {

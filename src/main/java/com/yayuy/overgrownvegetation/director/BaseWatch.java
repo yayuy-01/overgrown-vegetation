@@ -74,8 +74,10 @@ public final class BaseWatch {
             double[] d = BaseDefense.measure(level, b, day);
             b.setDefense(d, BaseDefense.weakest(d), day);
         }
-        boolean omen = DirectorGates.tdOmen(level);
-        if (!omen && DirectorGates.open(level, DirectorGates.Gate.SCOUT)) dispatchScouts(level, memory, day);
+        ForestMoods.tick(level, day, DesignData.director().base.sampleTicks); // 貯めて一気に使う(第 3 段)
+        boolean omen = DirectorGates.tdOmen(level) || ForestDirector.hoarding(); // 貯めている間も、送り込み・危ない所へ送るのは止める(偵察は続ける)
+        boolean scoutStop = DirectorGates.tdOmen(level);
+        if (!scoutStop && DirectorGates.open(level, DirectorGates.Gate.SCOUT)) dispatchScouts(level, memory, day);
         if (!omen && DirectorGates.open(level, DirectorGates.Gate.RAID)) BaseRaids.dispatch(level, memory, day);
         if (!omen && DirectorGates.open(level, DirectorGates.Gate.LEARN)) DangerWatch.dispatch(level, day); // 学ぶ: 危ない所へ進化体(F3 から)
     }

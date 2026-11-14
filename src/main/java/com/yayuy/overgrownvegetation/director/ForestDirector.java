@@ -144,7 +144,79 @@ public final class ForestDirector extends SavedData implements ForestBudget {
 
     /** 貯蓄の上限(今のハイヴノードの数から)。 */
     public static double cap(ServerLevel level) {
-        return DesignData.director().cap(PhaseData.get(level).hiveNodeSnapshot().length);
+        double base = DesignData.director().cap(PhaseData.get(level).hiveNodeSnapshot().length);
+        // 貯める間は上限を上げる(第 3 段「貯めて一気に使う」)
+        return get(level).mood == Mood.HOARD ? base * DesignData.director().hoard.capFactor : base;
+    }
+
+    // ---------------------------------------------------------------- 気分(第 3 段 区切り 3。② 貯めた襲撃。③ TD も後で同じ形に載せる)
+
+    /**
+     * 森の気分。ふだん / 貯める(予算を使わず、G1 は遠巻きにうろつく。終わったら一気に使う)。
+     * 11-14 ユーザー: 襲撃は ① 送り込み ② 貯めた襲撃 ③ TD(いちばん強い。前触れの約 2 日は植物側の Mob が湧かない)。③ はここへ足す。
+     */
+    public enum Mood {
+        NORMAL("ふだん"), HOARD("貯める");
+
+        public final String label;
+
+        Mood(String label) {
+            this.label = label;
+        }
+
+        static Mood byName(String n) {
+            for (Mood m : values()) {
+                if (m.name().equals(n)) return m;
+            }
+            return NORMAL;
+        }
+    }
+
+    private Mood mood = Mood.NORMAL;
+    private double moodSince;
+    private double moodUntil;
+    /** この日までは次に貯め始めない。 */
+    private double hoardCooldownUntil;
+    /** 貯めているか(G1 の Goal が毎 tick 見る。見張りが付け直す。保存しない)。 */
+    private static volatile boolean hoarding;
+
+    public Mood mood() {
+        return mood;
+    }
+
+    public double moodSince() {
+        return moodSince;
+    }
+
+    public double moodUntil() {
+        return moodUntil;
+    }
+
+    public double hoardCooldownUntil() {
+        return hoardCooldownUntil;
+    }
+
+    /** 貯めている最中か(サーバーの G1 の Goal から)。 */
+    public static boolean hoarding() {
+        return hoarding;
+    }
+
+    void setMood(Mood m, double since, double until) {
+        mood = m;
+        moodSince = since;
+        moodUntil = until;
+        hoarding = m == Mood.HOARD;
+        setDirty();
+    }
+
+    void setHoardCooldownUntil(double day) {
+        hoardCooldownUntil = day;
+        setDirty();
+    }
+
+    /** 見張りから: 保存から読んだ気分を、G1 が見る印へ写す。 */
+    void syncFlag() {
+        hoarding = mood == Mood.HOARD;
     }
 
     /**
@@ -391,7 +463,7 @@ public final class ForestDirector extends SavedData implements ForestBudget {
             List<java.util.function.Supplier<? extends net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>>> pool) {
         if (pool.isEmpty() || !DesignData.director().enabled) return null;
         // 苗床のスポナーは F4 から。TD の前触れの間は止める(DirectorGates)
-        if (!DirectorGates.open(level, DirectorGates.Gate.SPAWNER) || DirectorGates.tdOmen(level)) return null;
+        if (!DirectorGates.open(level, DirectorGates.Gate.SPAWNER) || DirectorGates.tdOmen(level) || hoarding()) return null; // 貯めている間も孵さない
         // 小さな段: F4 の中は、導入でまれに・定着で普通に孵す(聞かれた回を強さの確率で通す)【仮】
         double spawnStrength = DirectorGates.strength(level, DirectorGates.Gate.SPAWNER);
         if (!DirectorGates.roll(spawnStrength, random)) return null;
@@ -451,6 +523,10 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         d.spawnsBought = tag.getLong("SpawnsBought");
         long[] dec = tag.getLongArray("Decided");
         System.arraycopy(dec, 0, d.decided, 0, Math.min(dec.length, d.decided.length));
+        d.mood = Mood.byName(tag.getString("Mood"));
+        d.moodSince = tag.getDouble("MoodSince");
+        d.moodUntil = tag.getDouble("MoodUntil");
+        d.hoardCooldownUntil = tag.getDouble("HoardCooldown");
         return d;
     }
 
@@ -460,6 +536,10 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         tag.putLong("BudgetAt", budgetAt);
         tag.putLongArray("Decided", decided);
         tag.putLong("SpawnsBought", spawnsBought);
+        tag.putString("Mood", mood.name());
+        tag.putDouble("MoodSince", moodSince);
+        tag.putDouble("MoodUntil", moodUntil);
+        tag.putDouble("HoardCooldown", hoardCooldownUntil);
         return tag;
     }
 }

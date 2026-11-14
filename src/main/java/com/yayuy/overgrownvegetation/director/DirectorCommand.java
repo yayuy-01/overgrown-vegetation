@@ -52,6 +52,21 @@ public final class DirectorCommand {
                                                         .then(Commands.literal("reset").executes(ctx -> stageSet(ctx.getSource(), null))))
                                                 .then(Commands.argument("phase", IntegerArgumentType.integer(0, 99))
                                                         .executes(ctx -> phaseSet(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "phase")))))
+                                        .then(Commands.literal("mood")
+                                                .executes(ctx -> moodDescribe(ctx.getSource()))
+                                                .then(Commands.literal("hoard")
+                                                        .then(Commands.argument("days", DoubleArgumentType.doubleArg(0.01D, 10.0D))
+                                                                .executes(ctx -> {
+                                                                    var s = ctx.getSource();
+                                                                    ForestMoods.startHoard(s.getServer().overworld(), BaseMemory.today(s.getServer()), DoubleArgumentType.getDouble(ctx, "days"));
+                                                                    return moodDescribe(s);
+                                                                })))
+                                                .then(Commands.literal("spend").executes(ctx -> {
+                                                    var s = ctx.getSource();
+                                                    int n = ForestMoods.spend(s.getServer().overworld(), BaseMemory.today(s.getServer()), s.getServer().overworld().getRandom(), null);
+                                                    s.sendSuccess(() -> Component.literal("一斉に進化させた: " + n + " 体"), true);
+                                                    return moodDescribe(s);
+                                                })))
                                         .then(Commands.literal("danger")
                                                 .executes(ctx -> dangerDescribe(ctx.getSource()))
                                                 .then(Commands.literal("here")
@@ -168,6 +183,20 @@ public final class DirectorCommand {
                     m.species().key(), m.getX(), m.getY(), m.getZ(), when)), false);
         }
         return 1 + near.size();
+    }
+
+    // ---------------------------------------------------------------- 貯めて一気に使う(第 3 段 区切り 3)
+
+    private static int moodDescribe(CommandSourceStack source) {
+        var server = source.getServer();
+        ServerLevel level = server.overworld();
+        ForestDirector d = ForestDirector.get(level);
+        double day = BaseMemory.today(server);
+        String line = String.format(Locale.ROOT, "森の気分: %s%s・予算 %.1f / 上限 %.1f・次に貯め始めてよいのは %.2f 日後(今の段 %s。導入では貯めない)",
+                d.mood().label, d.mood() == ForestDirector.Mood.HOARD ? String.format(Locale.ROOT, "(あと %.2f 日)", Math.max(0.0D, d.moodUntil() - day)) : "",
+                d.available(level), ForestDirector.cap(level), Math.max(0.0D, d.hoardCooldownUntil() - day), DirectorGates.stage(level).name());
+        source.sendSuccess(() -> Component.literal(line), false);
+        return 1;
     }
 
     // ---------------------------------------------------------------- 学ぶ(第 3 段 区切り 1)

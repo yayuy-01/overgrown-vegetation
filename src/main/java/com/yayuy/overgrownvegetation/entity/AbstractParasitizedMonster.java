@@ -173,6 +173,8 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
         this.goalSelector.addGoal(1, new com.yayuy.overgrownvegetation.director.G1WalkAwayGoal(this));
         // 司令塔の偵察に出された個体は、拠点を眺めに行って帰る(第 2 段、2026-11-14)
         this.goalSelector.addGoal(1, new com.yayuy.overgrownvegetation.director.G1ScoutGoal(this));
+        // 森が貯めている間は、襲わず遠巻きにうろつく(第 3 段「貯めて一気に使う」。1 段目も持つ)
+        this.goalSelector.addGoal(1, new com.yayuy.overgrownvegetation.director.G1HoldOffGoal(this));
         // 司令塔が認識した拠点へ送り込まれた個体は、拠点へ歩く(獲物がいればそちらが先。1 段目も持つ)
         this.goalSelector.addGoal(3, new com.yayuy.overgrownvegetation.director.G1MarchGoal(this));
         if (attacks()) {
