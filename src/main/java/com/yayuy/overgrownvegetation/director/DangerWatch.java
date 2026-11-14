@@ -33,7 +33,7 @@ import java.util.Locale;
  * <ul>
  *   <li>記録: プレイヤー(とその飛び道具・飼い犬など持ち主のいる生き物)に倒された G1 を {@link KillMemory} へ。フェーズは見ない(F1 から裏で)。</li>
  *   <li>送る: 危ない所ごとに {@code dangerIntervalMin〜MaxDays} おき、まわりの 1 段目を歩かせる({@link G1March})。足りなければ段階 0 を予算で進化させて送る。
- *   F3 から(DirectorGates.Gate.LEARN)。TD の前触れの間は止める。数に小さな段の強さを掛ける。</li>
+ *   F3 から(DirectorGates.Gate.LEARN)。大きな襲撃の前触れの間は止める。数に小さな段の強さを掛ける。</li>
  * </ul>
  * 送れるのは読み込まれた範囲の G1 だけ(拠点の送り込みと同じ)。前兆は、送られた 1 段目が歩いてくる姿と、足りない分の進化の震え(新しい演出は無し)。
  */

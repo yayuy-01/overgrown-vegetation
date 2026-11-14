@@ -18,6 +18,8 @@ public final class OvergrownVegetationConfig {
     }
 
     public static final class Common {
+        /** ゲーム内容: 大きな襲撃で、同時に出ている植物側の Mob の上限(−1 = 設計データ director.json の値を使う)。2026-11-14 ユーザー「mod の設定タブで変えれるように」。 */
+        public final ModConfigSpec.IntValue largeRaidMaxAlive;
         /** 汚染が広がる半径(ブロック)。 */
         public final ModConfigSpec.IntValue corruptionRadius;
         /** 1 回の処理で置き換える最大ブロック数(汚染が進むにつれてこの値から増えていく、開始値)。 */
@@ -2475,6 +2477,16 @@ public final class OvergrownVegetationConfig {
             mobThinkThrottleInterval = b
                     .comment("遠くの Mob が行動を選び直す間隔(tick)。バニラは 2。既定 8 = 0.4 秒(仮決め)。")
                     .defineInRange("mobThinkThrottleInterval", 8, 2, 40);
+
+            b.pop();
+
+            b.comment("OvergrownVegetation — ゲーム内容(MOD の設定画面の「ゲーム内容」から変えられる)").push("gameplay");
+
+            largeRaidMaxAlive = b
+                    .comment("森の大きな襲撃のとき、同時に出ている植物側の Mob(攻め手)の上限。重さのための安全弁で、上限に当たっている間も倒された分はすぐ補われる。",
+                            "-1 = 設計データ(director.json の largeRaid.maxAlive、仮 150)を使う。20〜500 で上書き。大きいほど重くなる。",
+                            "マルチプレイではサーバー側のこの値が効く。")
+                    .defineInRange("largeRaidMaxAlive", -1, -1, 500);
 
             b.pop();
 

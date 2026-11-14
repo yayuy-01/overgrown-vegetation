@@ -124,6 +124,12 @@ public final class BaseRaids {
         return res;
     }
 
+    /** G4 以降を count 体まで拠点へ送る(G4 の口から、足りなければ G5 以降の口から)。大きな襲撃・後の超大規模の襲撃が呼ぶ。 */
+    public static int sendPlantSide(ServerLevel level, BaseMemory.Base b, int count, RandomSource random) {
+        int n = send(G4, level, b, count, random);
+        return n + send(G5_PLUS, level, b, count - n, random);
+    }
+
     private static int send(List<Sender> senders, ServerLevel level, BaseMemory.Base b, int count, RandomSource random) {
         int sent = 0;
         for (Sender s : senders) {

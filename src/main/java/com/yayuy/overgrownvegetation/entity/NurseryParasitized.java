@@ -270,7 +270,8 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         // 萌芽体: ただで生む。飲まれたら生まない
         if (--sproutIn <= 0) {
             sproutIn = nextSproutDelay();
-            if (!swallowed() && fernsNearby(level) < FERN_LIMIT) {
+            // 大きな襲撃の前触れの間は、植物側の湧きが止まる(萌芽体も生まない。11-14 ユーザー)
+            if (!swallowed() && fernsNearby(level) < FERN_LIMIT && !com.yayuy.overgrownvegetation.director.DirectorGates.plantSpawnsSuppressed(level)) {
                 this.entityData.set(SLOT, 1 + random.nextInt(nursery().buds));
                 begin(ACTION_SPROUT, G1Nursery.SPROUT);
                 playSound(ModSounds.NURSERY_SPROUT.get(), 1.0F, 1.0F); // 弾けるのは音の頭から 12 tick = SPROUT_AT。音量【仮】

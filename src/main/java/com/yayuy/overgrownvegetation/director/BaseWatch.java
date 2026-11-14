@@ -66,7 +66,7 @@ public final class BaseWatch {
             memory.addPresence(chunk, hours * (inRoom ? t.roomFactor : 1.0D), day);
             memory.setStructures(chunk, countStructures(level, pos, t.scanHalfHeight), day);
         }
-        // 覚える・忘れるは F1 から裏で回す。認識は F5 から、偵察は F4 から、送り込みは F5 から。TD の前触れの間は偵察・送り込みを止める(DirectorGates)
+        // 覚える・忘れるは F1 から裏で回す。認識は F5 から、偵察は F4 から、送り込みは F5 から。大きな襲撃の前触れの間は偵察・送り込みを止める(DirectorGates)
         memory.update(day, DirectorGates.open(level, DirectorGates.Gate.RECOGNIZE));
         // 弱い所を突く: 拠点のまわりの守りの方角を、間を空けて見直す(フェーズを見ない。使う側が見る)
         for (BaseMemory.Base b : memory.bases()) {
@@ -75,9 +75,11 @@ public final class BaseWatch {
             b.setDefense(d, BaseDefense.weakest(d), day);
         }
         ForestMoods.tick(level, day, DesignData.director().base.sampleTicks); // 貯めて一気に使う(第 3 段)
-        boolean omen = DirectorGates.tdOmen(level) || ForestDirector.hoarding(); // 貯めている間も、送り込み・危ない所へ送るのは止める(偵察は続ける)
-        boolean scoutStop = DirectorGates.tdOmen(level);
-        if (!scoutStop && DirectorGates.open(level, DirectorGates.Gate.SCOUT)) dispatchScouts(level, memory, day);
+        LargeRaids.tick(level, day, DesignData.director().base.sampleTicks); // 大きな襲撃(第 4 段)
+        // 送り込み・危ない所へ送るのを止める: 大きな襲撃の前触れ・本番の間と、貯めている間。偵察は止めない(11-14 ユーザー T1 = 2)
+        ForestDirector.Mood mood = ForestDirector.get(level).mood();
+        boolean omen = DirectorGates.largeRaidOmen(level) || ForestDirector.hoarding() || mood == ForestDirector.Mood.LARGE;
+        if (DirectorGates.open(level, DirectorGates.Gate.SCOUT)) dispatchScouts(level, memory, day);
         if (!omen && DirectorGates.open(level, DirectorGates.Gate.RAID)) BaseRaids.dispatch(level, memory, day);
         if (!omen && DirectorGates.open(level, DirectorGates.Gate.LEARN)) DangerWatch.dispatch(level, day); // 学ぶ: 危ない所へ進化体(F3 から)
     }

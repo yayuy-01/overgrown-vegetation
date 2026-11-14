@@ -46,7 +46,7 @@ public final class HoardGameTests {
     private HoardGameTests() {
     }
 
-    /** 貯め始める条件: 進化が開いている・定着か最盛(導入では起こさない = ユーザー)・TD の前触れでない・間が空いた・予算が上限の半分以上。 */
+    /** 貯め始める条件: 進化が開いている・定着か最盛(導入では起こさない = ユーザー)・大きな襲撃の前触れでない・間が空いた・予算が上限の半分以上。 */
     @GameTest(template = "gametest_empty7", batch = "director_hoard_pure", timeoutTicks = 20)
     public static void hoardStartsOnlyWhenAllowed(GameTestHelper helper) {
         HoardTable t = DesignData.director().hoard;
@@ -55,7 +55,7 @@ public final class HoardGameTests {
         helper.assertTrue(ForestMoods.canStartHoard(true, PhaseStage.PEAK, false, 5.0D, 1.0D, enough, cap, t), "最盛で貯め始めない");
         helper.assertTrue(!ForestMoods.canStartHoard(true, PhaseStage.INTRO, false, 5.0D, 1.0D, enough, cap, t), "導入で貯め始めた");
         helper.assertTrue(!ForestMoods.canStartHoard(false, PhaseStage.PEAK, false, 5.0D, 1.0D, enough, cap, t), "進化が閉じているのに貯め始めた");
-        helper.assertTrue(!ForestMoods.canStartHoard(true, PhaseStage.PEAK, true, 5.0D, 1.0D, enough, cap, t), "TD の前触れなのに貯め始めた");
+        helper.assertTrue(!ForestMoods.canStartHoard(true, PhaseStage.PEAK, true, 5.0D, 1.0D, enough, cap, t), "大きな襲撃の前触れなのに貯め始めた");
         helper.assertTrue(!ForestMoods.canStartHoard(true, PhaseStage.PEAK, false, 5.0D, 6.0D, enough, cap, t), "使い終えてすぐ貯め始めた");
         helper.assertTrue(!ForestMoods.canStartHoard(true, PhaseStage.PEAK, false, 5.0D, 1.0D, enough - 1.0D, cap, t), "予算が少ないのに貯め始めた");
         helper.succeed();

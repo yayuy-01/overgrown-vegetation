@@ -137,26 +137,43 @@ public final class ForestDirector extends SavedData implements ForestBudget {
 
     // ---------------------------------------------------------------- 予算
 
-    /** 1 日に貯まる量(今の過繁茂のチャンク数から)。 */
+    /**
+     * 1 日に貯まる量 = フェーズの基本 × 面積の割合(11-14 ユーザー決定の収支。数は【仮】)。フェーズは司令塔が見るフェーズ(差し替えを含む。
+     * GameTest のサーバーでは全部開いている = いちばん上の基本)。
+     */
     public static double incomePerDay(ServerLevel level) {
-        return DesignData.director().incomePerDay(PhaseData.get(level).overgrownLedgerSize());
+        if (!DesignData.director().enabled) return 0.0D;
+        return DesignData.director().income(DirectorGates.phase(level), areaRatio(level));
     }
 
-    /** 貯蓄の上限(今のハイヴノードの数から)。 */
+    /**
+     * 面積の割合(今の面積 ÷ そのフェーズのふつうの広さ)を読む 1 か所の口。物差しはフェーズのポイントと同じもので、
+     * 「古い仕組みの片付けと汚染の速さの計測」のセッションが phases.json と PhaseData に作っている最中。出来るまでは 1.0(仮)。
+     * 出来たら、ここだけをつなぐ(幅 0.3〜1.5 に収めるのは DirectorTable#income)。
+     */
+    public static double areaRatio(ServerLevel level) {
+        return 1.0D;
+    }
+
+    /** 貯蓄の上限 = 1 日の収入 × (1 日分 + ハイヴノードごとに 0.5 日分)。貯める・大きな襲撃の間は倍にする。 */
     public static double cap(ServerLevel level) {
-        double base = DesignData.director().cap(PhaseData.get(level).hiveNodeSnapshot().length);
+        double base = DesignData.director().cap(incomePerDay(level), PhaseData.get(level).hiveNodeSnapshot().length);
         // 貯める間は上限を上げる(第 3 段「貯めて一気に使う」)
-        return get(level).mood == Mood.HOARD ? base * DesignData.director().hoard.capFactor : base;
+        Mood m = get(level).mood;
+        if (m == Mood.HOARD) return base * DesignData.director().hoard.capFactor;
+        // 大きな襲撃の前触れ・本番の間も上限を上げる(11-14 ユーザー T7: 4 倍【仮】)
+        if (m == Mood.LARGE_OMEN || m == Mood.LARGE) return base * DesignData.director().largeRaid.capFactor;
+        return base;
     }
 
-    // ---------------------------------------------------------------- 気分(第 3 段 区切り 3。② 貯めた襲撃。③ TD も後で同じ形に載せる)
+    // ---------------------------------------------------------------- 気分(第 3 段 区切り 3。② 貯めた襲撃。③ 大きな襲撃も同じ形)
 
     /**
      * 森の気分。ふだん / 貯める(予算を使わず、G1 は遠巻きにうろつく。終わったら一気に使う)。
-     * 11-14 ユーザー: 襲撃は ① 送り込み ② 貯めた襲撃 ③ TD(いちばん強い。前触れの約 2 日は植物側の Mob が湧かない)。③ はここへ足す。
+     * 11-14 ユーザー: 襲撃は ① 送り込み ② 貯めた襲撃 ③ 大きな襲撃(いちばん強い。前触れの約 2 日は植物側の湧きが止まる)。
      */
     public enum Mood {
-        NORMAL("ふだん"), HOARD("貯める");
+        NORMAL("ふだん"), HOARD("貯める"), LARGE_OMEN("大きな襲撃の前触れ"), LARGE("大きな襲撃");
 
         public final String label;
 
@@ -211,6 +228,29 @@ public final class ForestDirector extends SavedData implements ForestBudget {
 
     void setHoardCooldownUntil(double day) {
         hoardCooldownUntil = day;
+        setDirty();
+    }
+
+    // ---- 大きな襲撃(第 4 段)
+    /** 本番の的(拠点の番号)と、次に起こしてよい日。 */
+    private int largeRaidTarget = -1;
+    private double largeRaidCooldownUntil;
+
+    public int largeRaidTarget() {
+        return largeRaidTarget;
+    }
+
+    public double largeRaidCooldownUntil() {
+        return largeRaidCooldownUntil;
+    }
+
+    void setLargeRaidTarget(int id) {
+        largeRaidTarget = id;
+        setDirty();
+    }
+
+    void setLargeRaidCooldownUntil(double day) {
+        largeRaidCooldownUntil = day;
         setDirty();
     }
 
@@ -462,15 +502,41 @@ public final class ForestDirector extends SavedData implements ForestBudget {
             ServerLevel level, RandomSource random,
             List<java.util.function.Supplier<? extends net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>>> pool) {
         if (pool.isEmpty() || !DesignData.director().enabled) return null;
-        // 苗床のスポナーは F4 から。TD の前触れの間は止める(DirectorGates)
-        if (!DirectorGates.open(level, DirectorGates.Gate.SPAWNER) || DirectorGates.tdOmen(level) || hoarding()) return null; // 貯めている間も孵さない
+        // 苗床のスポナーは F4 から。大きな襲撃の前触れの間は止める(DirectorGates)
+        if (!DirectorGates.open(level, DirectorGates.Gate.SPAWNER) || DirectorGates.largeRaidOmen(level) || hoarding()) return null; // 貯めている間も孵さない
         // 小さな段: F4 の中は、導入でまれに・定着で普通に孵す(聞かれた回を強さの確率で通す)【仮】
         double spawnStrength = DirectorGates.strength(level, DirectorGates.Gate.SPAWNER);
         if (!DirectorGates.roll(spawnStrength, random)) return null;
-        if (!tryPay(level, stagePrice(DesignData.director().costSpawn, spawnStrength))) return null; // 値段も強さで割る(道と同じ)
+        // 孵す Mob を先に選び、そのグループで値段を引く(11-14 ユーザー: G4 12・G5 25・G6 40【仮】)。値段も強さで割る(道と同じ)
+        net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob> type = pool.get(random.nextInt(pool.size())).get();
+        if (!tryPay(level, stagePrice(spawnCost(type), spawnStrength))) return null;
         spawnsBought++;
         setDirty();
-        return pool.get(random.nextInt(pool.size())).get();
+        return type;
+    }
+
+    /**
+     * G4 以降の自然の湧き(繁茂・過繁茂の縁から)が予算を払う口(11-14 夕 ユーザー「G4 以降の自然の湧きも予算を使う。予算が無ければ湧かない」)。
+     * G4 以降を戻す側が、湧かせる前に 1 体ずつ呼ぶ。払えたら true(湧かせてよい)。今は呼ぶ側が無い(G4 以降は退避中)。
+     * <ul>
+     *   <li>値段は苗床が孵す口と同じ表(G4 costSpawn・G5 costG5・G6 costG6)を、その群れの段の強さで割る。</li>
+     *   <li>大きな襲撃の前触れの間は湧かない(その分が貯まる)。貯めている間も湧かない(予算を使わない)。</li>
+     *   <li>G4 は F4・G5 は F5・G6 は F6 から(送り込みの枠と同じゲート)。</li>
+     * </ul>
+     */
+    public boolean buyNaturalSpawn(ServerLevel level, net.minecraft.world.entity.EntityType<?> type) {
+        if (!DesignData.director().enabled || DirectorGates.plantSpawnsSuppressed(level) || hoarding()) return false;
+        com.yayuy.overgrownvegetation.phase.MobGroup g = com.yayuy.overgrownvegetation.phase.MobGroup.of(type);
+        int group = g == null ? 4 : g.number();
+        DirectorGates.Gate gate = group >= 6 ? DirectorGates.Gate.WAVE_MIXED : group == 5 ? DirectorGates.Gate.WAVE_G5 : DirectorGates.Gate.WAVE_G4;
+        if (!DirectorGates.open(level, gate)) return false;
+        return tryPay(level, stagePrice(spawnCost(type), DirectorGates.strength(level, gate)));
+    }
+
+    /** 孵す Mob の値段(グループで。G5・G6 のほかは G4 の値段)。 */
+    public static double spawnCost(net.minecraft.world.entity.EntityType<?> type) {
+        com.yayuy.overgrownvegetation.phase.MobGroup g = com.yayuy.overgrownvegetation.phase.MobGroup.of(type);
+        return DesignData.director().spawnCost(g == null ? 4 : g.number());
     }
 
     /** これまでに苗床へ払って孵した数。 */
@@ -527,6 +593,8 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         d.moodSince = tag.getDouble("MoodSince");
         d.moodUntil = tag.getDouble("MoodUntil");
         d.hoardCooldownUntil = tag.getDouble("HoardCooldown");
+        d.largeRaidTarget = tag.contains("LargeTarget") ? tag.getInt("LargeTarget") : -1;
+        d.largeRaidCooldownUntil = tag.getDouble("LargeCooldown");
         return d;
     }
 
@@ -540,6 +608,8 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         tag.putDouble("MoodSince", moodSince);
         tag.putDouble("MoodUntil", moodUntil);
         tag.putDouble("HoardCooldown", hoardCooldownUntil);
+        tag.putInt("LargeTarget", largeRaidTarget);
+        tag.putDouble("LargeCooldown", largeRaidCooldownUntil);
         return tag;
     }
 }

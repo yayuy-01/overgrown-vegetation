@@ -52,6 +52,26 @@ public final class DirectorCommand {
                                                         .then(Commands.literal("reset").executes(ctx -> stageSet(ctx.getSource(), null))))
                                                 .then(Commands.argument("phase", IntegerArgumentType.integer(0, 99))
                                                         .executes(ctx -> phaseSet(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "phase")))))
+                                        .then(Commands.literal("raid")
+                                                .then(Commands.literal("large")
+                                                        .executes(ctx -> largeDescribe(ctx.getSource()))
+                                                        .then(Commands.literal("omen")
+                                                                .then(Commands.argument("days", DoubleArgumentType.doubleArg(0.01D, 10.0D))
+                                                                        .executes(ctx -> {
+                                                                            var s = ctx.getSource();
+                                                                            LargeRaids.startOmen(s.getServer().overworld(), BaseMemory.today(s.getServer()), DoubleArgumentType.getDouble(ctx, "days"));
+                                                                            return largeDescribe(s);
+                                                                        })))
+                                                        .then(Commands.literal("start").executes(ctx -> {
+                                                            var s = ctx.getSource();
+                                                            LargeRaids.begin(s.getServer().overworld(), BaseMemory.today(s.getServer()));
+                                                            return largeDescribe(s);
+                                                        }))
+                                                        .then(Commands.literal("stop").executes(ctx -> {
+                                                            var s = ctx.getSource();
+                                                            LargeRaids.end(s.getServer().overworld(), BaseMemory.today(s.getServer()), "コマンド");
+                                                            return largeDescribe(s);
+                                                        }))))
                                         .then(Commands.literal("mood")
                                                 .executes(ctx -> moodDescribe(ctx.getSource()))
                                                 .then(Commands.literal("hoard")
@@ -183,6 +203,27 @@ public final class DirectorCommand {
                     m.species().key(), m.getX(), m.getY(), m.getZ(), when)), false);
         }
         return 1 + near.size();
+    }
+
+    // ---------------------------------------------------------------- 大きな襲撃(第 4 段)
+
+    private static int largeDescribe(CommandSourceStack source) {
+        var server = source.getServer();
+        ServerLevel level = server.overworld();
+        ForestDirector d = ForestDirector.get(level);
+        double day = BaseMemory.today(server);
+        BaseMemory.Base b = LargeRaids.target(level);
+        String miss = String.format(Locale.ROOT, "(湧かせる回 %d・湧かせる所で弾いた数: 動いていない %d・地面 %d・見える %d)", LargeRaids.steps, RaidSpawns.lastMisses[0], RaidSpawns.lastMisses[1], RaidSpawns.lastMisses[2]);
+        source.sendSuccess(() -> Component.literal(miss), false);
+        String line = String.format(Locale.ROOT, "大きな襲撃: 気分 %s%s・的 %s・攻め手 %s / 上限 %d・予算 %.1f / 上限 %.1f・次に起こしてよいのは %.2f 日後(F%d から・今の段 %s)",
+                d.mood().label,
+                d.mood() == ForestDirector.Mood.LARGE_OMEN ? String.format(Locale.ROOT, "(本番まで %.2f 日)", Math.max(0.0D, d.moodUntil() - day)) : "",
+                b == null ? "なし" : "拠点 #" + b.id(), b == null ? "-" : String.valueOf(LargeRaids.alive(level, b)),
+                LargeRaids.maxAlive(), d.available(level), ForestDirector.cap(level),
+                Math.max(0.0D, d.largeRaidCooldownUntil() - day), com.yayuy.overgrownvegetation.data.DesignData.director().gates.largeRaid,
+                DirectorGates.stage(level).name());
+        source.sendSuccess(() -> Component.literal(line), false);
+        return 1;
     }
 
     // ---------------------------------------------------------------- 貯めて一気に使う(第 3 段 区切り 3)

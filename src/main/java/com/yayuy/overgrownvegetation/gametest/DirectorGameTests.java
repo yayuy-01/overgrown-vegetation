@@ -68,10 +68,13 @@ public final class DirectorGameTests {
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void budgetGrowsWithForestAndStopsAtCap(GameTestHelper helper) {
         DirectorTable t = DesignData.director();
-        double small = t.incomePerDay(10);
-        double large = t.incomePerDay(200);
-        helper.assertTrue(Math.abs((large - small) - t.incomePerChunkPerDay * 190) < 1.0E-9D, "貯まる速さがチャンク数に比例していない");
-        helper.assertTrue(Math.abs(t.cap(3) - t.cap(0) - 3 * t.capPerHiveNode) < 1.0E-9D, "上限がハイヴノードの数で上がっていない");
+        // 11-14 ユーザー決定の収支: 収入 = フェーズの基本 × 面積の割合(幅に収める)、上限 = 1 日分 + ハイヴノードごとに 0.5 日分
+        helper.assertTrue(t.income(1, 1.0D) == t.incomeBase[1] && t.income(7, 1.0D) == t.incomeBase[7] && t.incomeBase[7] > t.incomeBase[1],
+                "フェーズの基本で貯まっていない");
+        helper.assertTrue(Math.abs(t.income(5, 0.0D) - t.incomeBase[5] * t.areaRatioMin) < 1.0E-9D
+                && Math.abs(t.income(5, 99.0D) - t.incomeBase[5] * t.areaRatioMax) < 1.0E-9D, "面積の割合が幅に収まっていない");
+        helper.assertTrue(Math.abs(t.cap(100.0D, 0) - 100.0D * t.capDays) < 1.0E-9D
+                && Math.abs(t.cap(100.0D, 3) - t.cap(100.0D, 0) - 3 * t.capPerHiveNodeDays * 100.0D) < 1.0E-9D, "上限が 1 日分とハイヴノードで決まっていない");
 
         double cap = 1000.0D;
         double oneDay = ForestDirector.accrued(0.0D, 24000L, 7.0D, cap);

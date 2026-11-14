@@ -21,14 +21,14 @@ import java.util.Set;
  * 森の気分の移り変わり(2026-11-14、司令塔 第 3 段 区切り 3「貯めて一気に使う」= ② 貯めた襲撃)。見張り({@link BaseWatch})が 20 秒ごとに呼ぶ。
  *
  * <ul>
- *   <li><b>貯め始める</b>: 進化が開いていて(F3〜)、今の段が定着か最盛(導入では起こさない。11-14 ユーザー)、TD の前触れでなく、
+ *   <li><b>貯め始める</b>: 進化が開いていて(F3〜)、今の段が定着か最盛(導入では起こさない。11-14 ユーザー)、大きな襲撃の前触れでなく、
  *   前に使い終えてから {@code cooldownDays} たち、予算が上限の {@code minBudgetFraction} 以上のとき、1 日に {@code chancePerDay} の割合で。</li>
  *   <li><b>貯める間</b>({@code minDays}〜{@code maxDays} 日): 予算の上限が {@code capFactor} 倍。司令塔は道を選ばず(見に来ても何もしない)、
  *   苗床のスポナー・送り込み・危ない所へ送るのも止める(偵察は続ける)。G1 は襲わず、プレイヤーから {@code holdMin〜holdMax} の所を遠巻きにうろつく
  *   ({@link G1HoldOffGoal}。殴られたら殴り返す)。</li>
  *   <li><b>使う</b>: プレイヤーと認識した拠点のまわりの段階 0 を、予算が尽きるか {@code burstMax} 体まで一斉に進化させる(進化の前の震えが何体も同時に
  *   起こる = 見える合図。新しい演出は無し、H2)。認識した拠点があり送り込みが開いていれば(F5〜)、続けて送り込みを 1 回。</li>
- *   <li>TD の前触れに入ったら、貯めるのをやめる(貯めた予算は使わずに残す = TD の分になる。11-14 全体管理の読み【仮】)。</li>
+ *   <li>大きな襲撃の前触れに入ったら、貯めるのをやめる(貯めた予算は使わずに残す = 大きな襲撃の分になる)。</li>
  * </ul>
  */
 public final class ForestMoods {
@@ -45,13 +45,15 @@ public final class ForestMoods {
     static void tick(ServerLevel level, double day, int sampleTicks) {
         ForestDirector d = ForestDirector.get(level);
         d.syncFlag();
+        // 大きな襲撃の前触れ・本番の間は、貯めない(LargeRaids が受け持つ)
+        if (d.mood() == ForestDirector.Mood.LARGE_OMEN || d.mood() == ForestDirector.Mood.LARGE) return;
         HoardTable t = DesignData.director().hoard;
         RandomSource random = level.getRandom();
-        boolean omen = DirectorGates.tdOmen(level);
+        boolean omen = DirectorGates.largeRaidOmen(level);
         if (d.mood() == ForestDirector.Mood.HOARD) {
             if (omen) {
-                d.setMood(ForestDirector.Mood.NORMAL, day, day); // TD の前触れ: 使わずにやめる(貯めた分は残る)
-                d.note("TD の前触れに入ったので、貯めるのをやめた(貯めた予算は残す)");
+                d.setMood(ForestDirector.Mood.NORMAL, day, day); // 大きな襲撃の前触れ: 使わずにやめる(貯めた分は残る)
+                d.note("大きな襲撃の前触れに入ったので、貯めるのをやめた(貯めた予算は残す)");
             } else if (day >= d.moodUntil()) {
                 spend(level, day, random, null);
             }

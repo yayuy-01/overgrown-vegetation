@@ -1363,6 +1363,22 @@ public final class DevBridge {
                 log(String.format(Locale.ROOT, "CLICK %.1f %.1f (画面 %dx%d) → %s/%s", x, y,
                         mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), down, up));
             }
+            case "type" -> {
+                // 開いている画面の入力欄(先に click で選んでおく)へ文字を打つ。"type \b3" のように \b は 1 文字消す(2026-11-14、設定画面の確かめ)
+                if (mc.screen == null) {
+                    log("ERR type: 画面が開いていない");
+                    return null;
+                }
+                String text = arg.replace("\\b", "\b");
+                for (char c : text.toCharArray()) {
+                    if (c == '\b') {
+                        mc.screen.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_BACKSPACE, 0, 0);
+                    } else {
+                        mc.screen.charTyped(c, 0);
+                    }
+                }
+                log("TYPE " + arg);
+            }
             case "vineclimb" -> {
                 // 登る蔓(2026-11-03)。vineclimb x y z [本数]: その幹(原木のどの段でもよい)に登る蔓を置き、林冠の細い蔓も付ける(世界生成と同じ。確率の関門は通さない)。
                 // vineclimb clear x y z r: 箱の中の蔦の印(今の蔦も)を消す(写真に前の蔦が写らないように)。

@@ -19,8 +19,8 @@ import java.util.Locale;
  *   <li>偵察 = F4 から(前兆として)。拠点を覚えるのは F1 から裏で回す。認識と送り込み(襲撃)= F5 から。</li>
  *   <li>苗床のスポナー(G4 以降)= F4。送り込みの枠は 進化体 F3・G4 F4・G5〜 F5・G4〜G6 の混ざった群れ F6。</li>
  *   <li>根付きの向きはフェーズを見ない(F5 より前から、覚えた拠点の方を向く =「森は前から見ていた」の静かな前兆。ユーザー)。</li>
- *   <li>TD の前触れの間(感染 Mob と G4 以降が一切湧かなくなる)は、偵察・送り込み・苗床のスポナーを止める。TD は退避中なので、
- *   前触れかどうかは外から足す口({@link #registerTdOmen})。何も登録されていなければ「前触れではない」。</li>
+ *   <li>大きな襲撃(司令塔の襲撃の大・中・小の「大」)の前触れの間は、植物側の湧き(苗床・送り込み・危ない所へ送る・貯める)を止める。偵察は続ける(11-14 ユーザー T1 = 2)。
+ *   それ以外の前触れの元は外から足す口({@link #registerLargeRaidOmen})。
  *   <li>フェーズの小さな段(導入・定着・最盛)の強さは {@link #strength}(PhaseStages の口を、司令塔が見るフェーズ・段で引く)。</li>
  * </ul>
  * フェーズの数は {@code director.json} の {@code gates}(ユーザー・全体管理が決めた値。【仮】ではない)。
@@ -34,7 +34,7 @@ public final class DirectorGates {
     public enum Gate {
         NURSERY("苗床"), ROOTED("根付き"), EVOLVE("進化"), SCOUT("偵察"), RECOGNIZE("認識"), RAID("送り込み"),
         SPAWNER("苗床のスポナー"), WAVE_G4("送り込みの G4"), WAVE_G5("送り込みの G5〜"), WAVE_MIXED("G4〜G6 の混ざった群れ"),
-        LEARN("学ぶ(危ない所へ進化体)"), LEARN_WAVE("学ぶ(送り込みの進化体を増やす)");
+        LEARN("学ぶ(危ない所へ進化体)"), LEARN_WAVE("学ぶ(送り込みの進化体を増やす)"), LARGE_RAID("大きな襲撃");
 
         public final String label;
 
@@ -58,6 +58,7 @@ public final class DirectorGates {
             case WAVE_MIXED -> g.waveMixed;
             case LEARN -> g.learn;
             case LEARN_WAVE -> g.learnWave;
+            case LARGE_RAID -> g.largeRaid;
         };
     }
 
@@ -95,25 +96,34 @@ public final class DirectorGates {
         return DesignData.director().enabled && open(DesignData.director().gates, gate, phase(level));
     }
 
-    // ---------------------------------------------------------------- TD の前触れ
+    // ---------------------------------------------------------------- 大きな襲撃の前触れ
 
-    /** 「今は TD の前触れの最中か」を答える口(TD を戻したら、TD の側が登録する)。 */
-    public interface TdOmen {
+    /** 「今は大きな襲撃の前触れの最中か」を足す口(司令塔の気分のほかに、後で超大規模の襲撃などが登録する)。 */
+    public interface LargeRaidOmen {
         boolean active(ServerLevel level);
     }
 
-    private static final List<TdOmen> TD_OMENS = new ArrayList<>();
+    private static final List<LargeRaidOmen> OMEN_SOURCES = new ArrayList<>();
 
-    public static void registerTdOmen(TdOmen omen) {
-        TD_OMENS.add(omen);
+    public static void registerLargeRaidOmen(LargeRaidOmen omen) {
+        OMEN_SOURCES.add(omen);
     }
 
-    /** TD の前触れの最中か(何も登録されていなければ false)。この間は偵察・送り込み・苗床のスポナーを止める。 */
-    public static boolean tdOmen(ServerLevel level) {
-        for (TdOmen o : TD_OMENS) {
+    /** 大きな襲撃の前触れの最中か(何も登録されていなければ false)。この間は偵察・送り込み・苗床のスポナーを止める。 */
+    public static boolean largeRaidOmen(ServerLevel level) {
+        if (ForestDirector.get(level).mood() == ForestDirector.Mood.LARGE_OMEN) return true;
+        for (LargeRaidOmen o : OMEN_SOURCES) {
             if (o.active(level)) return true;
         }
         return false;
+    }
+
+    /**
+     * 植物側の湧きを止めるか(大きな襲撃の前触れの間。11-14 ユーザー: 自然の湧き・苗床・送り込み・G4 以降が止まる。胞子の暴露から生まれる
+     * 感染 Mob とバニラの Mob はふだんどおり)。湧かせる側(G1 の自然湧き・萌芽体の湧き・苗床・G4 以降を戻す側)が見る口。
+     */
+    public static boolean plantSpawnsSuppressed(ServerLevel level) {
+        return largeRaidOmen(level);
     }
 
     // ---------------------------------------------------------------- 小さな段の倍率
@@ -177,8 +187,8 @@ public final class DirectorGates {
             if (!str.isEmpty()) str.append("・");
             str.append(gate.label).append(String.format(Locale.ROOT, " %.2f", strength(level, gate)));
         }
-        return String.format(Locale.ROOT, "フェーズ %s・段 %s%s / 開いている: %s / まだ: %s / TD の前触れ %s / 今の強さ(導入でまれ・定着で普通・最盛でいちばん多い。偵察・認識はユーザー指定の日数なので掛けていない): %s",
+        return String.format(Locale.ROOT, "フェーズ %s・段 %s%s / 開いている: %s / まだ: %s / 大きな襲撃の前触れ %s / 今の強さ(導入でまれ・定着で普通・最盛でいちばん多い。偵察・認識はユーザー指定の日数なので掛けていない): %s",
                 phase, stage(level).name(), stageOverride != null ? "(差し替え中)" : "", open.isEmpty() ? "なし" : open, closed.isEmpty() ? "なし" : closed,
-                tdOmen(level) ? "中(偵察・送り込みを止める)" : "なし", str);
+                largeRaidOmen(level) ? "中(偵察・送り込みを止める)" : "なし", str);
     }
 }

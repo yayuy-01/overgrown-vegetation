@@ -101,11 +101,11 @@ public final class DirectorGateGameTests {
     }
 
     /**
-     * 世界を通す口: 苗床のスポナーは F4 から・TD の前触れの間は止まる。差し替えたフェーズで確かめ、最後に戻す。
+     * 世界を通す口: 苗床のスポナーは F4 から・大きな襲撃の前触れの間は止まる。差し替えたフェーズで確かめ、最後に戻す。
      * 世界に 1 つの予算を使うので、前の値に戻す。
      */
     @GameTest(template = "gametest_empty7", batch = "director_gates_world", timeoutTicks = 20)
-    public static void spawnerOpensAtF4AndStopsDuringTdOmen(GameTestHelper helper) {
+    public static void spawnerOpensAtF4AndStopsDuringLargeRaidOmen(GameTestHelper helper) {
         var level = helper.getLevel();
         ForestDirector director = ForestDirector.get(level);
         double before = director.available(level);
@@ -119,9 +119,9 @@ public final class DirectorGateGameTests {
             helper.assertTrue(DirectorGates.open(level, Gate.EVOLVE) && !DirectorGates.open(level, Gate.SCOUT), "F3 の開き方が違う");
             DirectorGates.setPhaseForTests(4);
             DirectorGates.setStageForTests(PhaseStage.PEAK); // 段の確率で見送らないように(段は下で別に確かめる)
-            TD[0] = true;
-            helper.assertTrue(director.buySpawn(level, RandomSource.create(1L), pool) == null, "TD の前触れの間にスポナーが動いた");
-            TD[0] = false;
+            OMEN[0] = true;
+            helper.assertTrue(director.buySpawn(level, RandomSource.create(1L), pool) == null, "大きな襲撃の前触れの間にスポナーが動いた");
+            OMEN[0] = false;
             helper.assertTrue(director.buySpawn(level, RandomSource.create(1L), pool) == EntityType.ZOMBIE, "F4 で苗床のスポナーが動かない");
 
             // 小さな段(PhaseStages の口を、司令塔が差し替えたフェーズ・段で引く): 開いたフェーズの中は段の倍率・過ぎたフェーズは最盛・開く前は 0
@@ -146,7 +146,7 @@ public final class DirectorGateGameTests {
             }
             helper.assertTrue(Math.abs(bought / 400.0D - intro) < 0.08D, "導入で孵す割合が強さと違う: " + bought + " / 400(強さ " + intro + ")");
         } finally {
-            TD[0] = false;
+            OMEN[0] = false;
             DirectorGates.setPhaseForTests(phaseBefore);
             DirectorGates.setStageForTests(null);
             director.setBudget(level, before);
@@ -173,14 +173,39 @@ public final class DirectorGateGameTests {
                 prev = r[target];
             }
         }
+        for (int phase : new int[]{4, 5, 6, 7}) {
+            double[] r = simulate(pt, phase, PhaseStage.PEAK, 40);
+            DirectorTable st = DesignData.director();
+            double income = st.income(phase, 1.0D);
+            // G4 以降(戻したら): 10 日の収入から G1 の道に払った分を引いた残りを、全部 G4 の湧き(1 体 costSpawn)に使ったら 1 日何体か
+            double g4PerDay = Math.max(0.0D, income * 10.0D - r[4]) / 10.0D / st.costSpawn;
+            OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
+                    "[司令塔の段の試算] F%d(道はどれも最盛・収入 %.0f/日): 進化 %.1f・根付き %.1f・苗床 %.1f・段階 0 のまま %.1f・G1 の道に払った %.0f → 残りで G4 なら 1 日 %.1f 体",
+                    phase, income, r[0], r[1], r[2], r[3], r[4], g4PerDay));
+        }
+        // F7 の大きな襲撃: 前触れの間に上限(1 日分 × 4 倍)まで貯めて、段階 0(1)と 1 段目(進化の値段)を決めた割合で湧かせると何体か
+        DirectorTable dt = DesignData.director();
+        // 予算 = 手元(上限 = 1 日分 + ハイヴノード)+ 前触れ 2 日の収入(上限は 4 倍なので溢れない)+ 襲撃の間の収入(0〜0.5 日)
+        double avg = dt.largeRaid.developedShare * dt.costEvolve + dt.largeRaid.plantShare * dt.costSpawn
+                + (1.0D - dt.largeRaid.developedShare - dt.largeRaid.plantShare) * dt.largeRaid.costStageZero;
+        double inc7 = dt.income(7, 1.0D);
+        for (int hives : new int[]{0, 2}) {
+            for (double during : new double[]{0.0D, 0.5D}) {
+                double budget = Math.min(dt.cap(inc7, hives) * dt.largeRaid.capFactor, dt.cap(inc7, hives) + inc7 * 2.0D) + inc7 * during;
+                double n = budget / avg;
+                OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
+                        "[司令塔の段の試算] F7 の大きな襲撃(ハイヴノード %d・襲撃の間の収入 %.1f 日分): 予算 %.0f → 約 %.0f 体(段階 0 %.0f・1 段目 %.0f・G4〜G6 %.0f)",
+                        hives, during, budget, n, n * (1.0D - dt.largeRaid.developedShare - dt.largeRaid.plantShare), n * dt.largeRaid.developedShare, n * dt.largeRaid.plantShare));
+            }
+        }
         helper.succeed();
     }
 
     /** 試算 1 つ: [進化, 根付き, 苗床, まま] の平均。 */
     private static double[] simulate(PhaseTable pt, int phase, PhaseStage stage, int runs) {
         DirectorTable t = DesignData.director();
-        double income = t.incomePerDay(200), cap = t.cap(2);
-        double[] sum = new double[4];
+        double income = t.income(phase, 1.0D), cap = t.cap(income, 2); // 面積の割合 1.0・ハイヴノード 2
+        double[] sum = new double[5]; // [進化, 根付き, 苗床, まま, G1 の道に払った予算]
         RandomSource rnd = RandomSource.create(42L);
         double sEvolve = com.yayuy.overgrownvegetation.phase.PhaseStages.strength(pt, phase, stage, t.gates.evolve);
         double sRooted = com.yayuy.overgrownvegetation.phase.PhaseStages.strength(pt, phase, stage, t.gates.rooted);
@@ -214,6 +239,7 @@ public final class DirectorGateGameTests {
                 double price = ForestDirector.stagePrice(ForestDirector.cost(t, route), s);
                 if (route != ForestDirector.Route.NONE && DirectorGates.roll(s, rnd) && price <= budget + 1.0E-9D) {
                     budget -= price;
+                    sum[4] += price;
                     done[k] = true;
                     sum[route == ForestDirector.Route.EVOLVE ? 0 : route == ForestDirector.Route.ROOTED ? 1 : 2]++;
                 } else {
@@ -224,14 +250,14 @@ public final class DirectorGateGameTests {
                 if (!d) sum[3]++;
             }
         }
-        for (int i = 0; i < 4; i++) sum[i] /= runs;
+        for (int i = 0; i < 5; i++) sum[i] /= runs;
         return sum;
     }
 
-    /** テストの TD の前触れ(1 回だけ登録する)。 */
-    private static final boolean[] TD = {false};
+    /** テストの 大きな襲撃の前触れ(1 回だけ登録する)。 */
+    private static final boolean[] OMEN = {false};
 
     static {
-        DirectorGates.registerTdOmen(level -> TD[0]);
+        DirectorGates.registerLargeRaidOmen(level -> OMEN[0]);
     }
 }

@@ -400,6 +400,9 @@ public final class VisualSettingsScreen extends Screen {
         layout.addTitleHeader(TITLE, font);
         list = layout.addToContents(new SettingList(minecraft));
         LinearLayout footer = layout.addToFooter(LinearLayout.horizontal().spacing(8));
+        // 「ゲーム内容」のページへ(2026-11-14。この画面の変更は保存されない = 行き来は「キャンセル」と同じ)
+        footer.addChild(Button.builder(Component.translatable("gui.overgrown_vegetation.gameplay_settings.open"),
+                button -> minecraft.setScreen(new GameplaySettingsScreen(parent))).width(100).build());
         doneButton = footer.addChild(Button.builder(CommonComponents.GUI_DONE, button -> done()).build());
         footer.addChild(Button.builder(CommonComponents.GUI_CANCEL, button -> onClose()).build());
         layout.visitWidgets(widget -> addRenderableWidget(widget));
