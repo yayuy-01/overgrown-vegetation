@@ -49,7 +49,9 @@ void main() {
     ovCaveSink(ovPos, ovNormal, ovUnder);
     // Water takes none of the raised floor (ov_cave.glsl OV_CAVE_WATER_LIFT, 11-14); glass keeps it.
     ovCaveLift = tex.a < 0.99 && ovNoGlint < 0.5 ? OV_CAVE_WATER_LIFT : 1.0;
-    color.rgb = ovCaveLight(color.rgb, tex.rgb * ovTint * OV_CAVE_WATER_GAIN, ovPos, ovNormal, 0.0, ovUnder, ovLight.x);
+    // The side faces of falling water take less of the point lights (OV_CAVE_FALL_GAIN, 11-14).
+    float ovWaterGain = tex.a < 0.99 && ovNoGlint < 0.5 && abs(ovUp.y) < 0.5 ? OV_CAVE_FALL_GAIN : OV_CAVE_WATER_GAIN;
+    color.rgb = ovCaveLight(color.rgb, tex.rgb * ovTint * ovWaterGain, ovPos, ovNormal, 0.0, ovUnder, ovLight.x);
     // The point lights mirrored on the cave water (11-06, light inspection 10). Water's vertex normal is up on every face, so the face
     // normal comes from the position derivatives, turned towards the camera (seen from below while diving it points down: no mirror).
     vec3 ovFace = normalize(cross(dFdx(ovPos), dFdy(ovPos)));

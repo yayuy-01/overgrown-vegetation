@@ -166,7 +166,9 @@ void main() {
         ovSink = ovCaveSink(ovPos, n, ovUnder);
         // Water takes none of the raised floor (ov_cave.glsl OV_CAVE_WATER_LIFT, 11-14); glass keeps it.
         ovCaveLift = ovTexelA < 0.99 && ovNoGlint < 0.5 ? OV_CAVE_WATER_LIFT : 1.0;
-        color.rgb = ovCaveLight(color.rgb, ovAlbedo * OV_CAVE_WATER_GAIN, ovPos, n, 0.0, ovUnder, ovLight.x);
+        // The side faces of falling water take less of the point lights (OV_CAVE_FALL_GAIN, 11-14).
+        float ovWaterGain = ovTexelA < 0.99 && ovNoGlint < 0.5 && abs(n.y) < 0.5 ? OV_CAVE_FALL_GAIN : OV_CAVE_WATER_GAIN;
+        color.rgb = ovCaveLight(color.rgb, ovAlbedo * ovWaterGain, ovPos, n, 0.0, ovUnder, ovLight.x);
         // The point lights mirrored on the cave water (ov_cave.glsl, 11-06 light inspection 10).
         if (color.a < 0.99 && ovNoGlint < 0.5) {
             color.rgb += ovCaveWaterSpecular(ovPos, n, ovUnder);

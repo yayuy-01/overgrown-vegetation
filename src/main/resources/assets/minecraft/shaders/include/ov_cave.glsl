@@ -85,6 +85,10 @@ const float OV_CAVE_WATER_GAIN = 0.5;
 const float OV_CAVE_WATER_LIFT = 0.0;
 // The share of the raised floor this fragment takes (1; water: OV_CAVE_WATER_LIFT). Set by the caller before ovCaveLight.
 float ovCaveLift = 1.0;
+// 11-14 (the same photo, second step): the side faces of falling water take less of the point lights than a lake does. The lights
+// reach through walls and the flow texture has little pattern, so a fall near a glowing plant was an even, opaque green slab.
+// Provisional.
+const float OV_CAVE_FALL_GAIN = 0.15;
 
 // How much this fragment is underground (0..1). Without the map (or outside it) the camera's cave mix stands in.
 // n points away from the face into the air it faces (the column on that side decides, so cliff faces stay outside).
