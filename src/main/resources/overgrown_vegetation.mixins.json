@@ -18,7 +18,8 @@
     "LeavesPushThroughMixin",
     "LivingEntityCorpseDeathMixin",
     "VillagerHostilesSensorMixin",
-    "ServerLevelRoomInvalidateMixin"
+    "ServerLevelRoomInvalidateMixin",
+    "ItemStackDirtWearMixin"
   ],
   "client": [
     "client.LivingEntityRendererCollapseMixin",

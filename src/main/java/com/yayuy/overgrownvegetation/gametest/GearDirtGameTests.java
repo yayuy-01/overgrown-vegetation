@@ -215,6 +215,30 @@ public final class GearDirtGameTests {
         helper.succeed();
     }
 
+    /** 汚れた物は耐久の減りが段ごとに wearExtraPerStage 増える(差し込み ItemStackDirtWearMixin)。きれいな物はそのまま。2026-11-14 決定 36。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void dirtyGearWearsFaster(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        DirtSpec s = spec();
+        ItemStack clean = new ItemStack(Items.IRON_PICKAXE);
+        clean.hurtAndBreak(100, level, (net.minecraft.world.entity.LivingEntity) null, i -> { });
+        if (clean.getDamageValue() != 100) {
+            helper.fail("きれいなつるはしの耐久の減り " + clean.getDamageValue() + "(100 のはず)");
+            return;
+        }
+        for (int stage = 1; stage <= 3; stage++) {
+            ItemStack dirty = new ItemStack(Items.IRON_PICKAXE);
+            GearDirt.setDirt(dirty, stage == 1 ? s.stage1() : stage == 2 ? s.stage2() : s.stage3());
+            dirty.hurtAndBreak(100, level, (net.minecraft.world.entity.LivingEntity) null, i -> { });
+            double expect = 100.0D * (1.0D + s.wearExtraPerStage()[stage - 1]);
+            if (Math.abs(dirty.getDamageValue() - expect) > 1.0D) {
+                helper.fail("段 " + stage + " の耐久の減り " + dirty.getDamageValue() + "(約 " + expect + " のはず。差し込みが効いていない?)");
+                return;
+            }
+        }
+        helper.succeed();
+    }
+
     /** 手洗い 1 回で handWashAmount 落ち(水 1 段)、洗い場の枠では全部落ち、洗い場の上に立つと showerPerTick ずつ落ちる。保存しても汚れは残る。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void dirtWashesOffAndPersists(GameTestHelper helper) {

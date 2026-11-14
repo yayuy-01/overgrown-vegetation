@@ -11,6 +11,12 @@ package com.yayuy.overgrownvegetation.data;
  *     <li>汚れの量は数字で見せない。体に着た姿とアイコンの汚れ方でだけ読む(決定 33)。</li>
  * </ul>
  *
+ * <h2>11-14 の見直し(決定 35〜37、ユーザー指定)</h2>
+ * 汚れたままでも 1 日(ゲーム内 20 分)くらいは大丈夫な強さに弱める・汚れた物の耐久が速く減る・防護マスクの姿にも汚れ。
+ * 【仮】吸う量を半分(段ごと 0.015/0.04/0.075)・部屋の上限を境目 5% より下の 4% にして、部屋の汚れは 1% あたり {@code roomSeepPerPercent} 0.1 %秒/秒の
+ * ゆっくりたまる道で効かせる(全身 3 段 + 汚れた部屋で 0.7 %秒/秒 = 約 36 分 ≒ 1.8 日で感染 1)・耐久の減り +10/+25/+50%({@code wearExtraPerStage})。
+ * 下の「仮決め」は最初の版の数(吸う量・部屋の上限はこの見直しで変わった)。
+ *
  * <h2>仮決め(数はすべて【仮】)</h2>
  * 汚れは 0〜{@code full} 1000。濃度 {@code minPercent} 15% 以上の所で「濃度 ÷ 100 × perSecondAt100 3.33 / 秒」たまる(100% で 5 分、過繁茂の下支え 25% で 20 分 = 約 1 日で満ちる)。
  * 着ている 4 か所と、両手の耐久のある物(道具・武器・盾)が汚れる。見た目の段は 3 つ(汚れ 150・450・800 から)。
@@ -27,6 +33,7 @@ public record DirtSpec(
         double[] seepPerStage,
         double[] armorLossPerStage,
         double[] breakSpeedLossPerStage,
+        double[] wearExtraPerStage,
         int commitStepArmor,
         int commitStepHand,
         int handWashAmount,
@@ -37,7 +44,8 @@ public record DirtSpec(
         double roomMaxPercent,
         double roomHalfLifeSeconds,
         double roomVentHalfLifeSeconds,
-        double roomVentFilterLoadPerPercent) {
+        double roomVentFilterLoadPerPercent,
+        double roomSeepPerPercent) {
 
     /** Gson の受け皿(null は既定値)。 */
     public static final class Json {
@@ -56,6 +64,8 @@ public record DirtSpec(
         public double[] armorLossPerStage;
         /** 段 1/2/3 の利き手の道具の掘る速さが減る割合。 */
         public double[] breakSpeedLossPerStage;
+        /** 段 1/2/3 の物の耐久の減りが増える割合(0.5 = 1.5 倍)。 */
+        public double[] wearExtraPerStage;
         /** 汚れを物に書き込む刻み(着ている物・手の物)。手の物は書くと掘っている途中が切れるので粗く。 */
         public Integer commitStepArmor, commitStepHand;
         /** 手洗い 1 回・洗い場の枠で 1 回に落とす汚れ。洗い場の上に立ったとき 1 tick に落とす汚れ。 */
@@ -70,6 +80,8 @@ public record DirtSpec(
         public Double roomHalfLifeSeconds, roomVentHalfLifeSeconds;
         /** 換気機が部屋の汚れを 1% 抜くごとに、そのフィルターが詰まる量(%秒)。 */
         public Double roomVentFilterLoadPerPercent;
+        /** 部屋の汚れ 1% あたり、中にいる人に暴露量がたまる速さ(%秒/秒。部屋の汚れは境目 5% より下に止め、このゆっくりたまる道で効かせる)。 */
+        public Double roomSeepPerPercent;
     }
 
     public static final DirtSpec DEFAULT = from(null);
@@ -82,9 +94,10 @@ public record DirtSpec(
                 d(s.minPercent, 15.0D, 0.0D, 10_000.0D),
                 d(s.perSecondAt100, 1000.0D / 300.0D, 0.0D, 1_000_000.0D),
                 i(s.stage1, 150, 1, full), i(s.stage2, 450, 1, full), i(s.stage3, 800, 1, full),
-                three(s.seepPerStage, 0.03D, 0.08D, 0.15D),
+                three(s.seepPerStage, 0.015D, 0.04D, 0.075D),
                 three(s.armorLossPerStage, 0.05D, 0.10D, 0.15D),
                 three(s.breakSpeedLossPerStage, 0.05D, 0.10D, 0.15D),
+                three(s.wearExtraPerStage, 0.10D, 0.25D, 0.50D),
                 i(s.commitStepArmor, 10, 1, full),
                 i(s.commitStepHand, 50, 1, full),
                 i(s.handWashAmount, 400, 0, 1_000_000),
@@ -92,10 +105,11 @@ public record DirtSpec(
                 i(s.showerPerTick, 20, 0, 1_000_000),
                 d(s.roomPerPoint, 0.002D, 0.0D, 100.0D),
                 d(s.roomRefVolume, 64.0D, 1.0D, 1_000_000.0D),
-                d(s.roomMaxPercent, 8.0D, 0.0D, 10_000.0D),
+                d(s.roomMaxPercent, 4.0D, 0.0D, 10_000.0D),
                 d(s.roomHalfLifeSeconds, 600.0D, 1.0D, 1.0E7D),
                 d(s.roomVentHalfLifeSeconds, 30.0D, 1.0D, 1.0E7D),
-                d(s.roomVentFilterLoadPerPercent, 60.0D, 0.0D, 1.0E7D));
+                d(s.roomVentFilterLoadPerPercent, 60.0D, 0.0D, 1.0E7D),
+                d(s.roomSeepPerPercent, 0.1D, 0.0D, 1000.0D));
     }
 
     /** 汚れの見た目の段(0 = きれい、1〜3)。 */

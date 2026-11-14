@@ -224,6 +224,21 @@ public final class GearDirt {
         return stg == 0 ? 1.0D : Math.max(0.0D, 1.0D - spec().breakSpeedLossPerStage()[stg - 1]);
     }
 
+    private static final net.minecraft.util.RandomSource WEAR_RANDOM = net.minecraft.util.RandomSource.create();
+
+    /**
+     * 汚れた物の耐久の減り(2026-11-14 決定 36。{@code mixin/ItemStackDirtWearMixin} から)。減らす量 {@code amount} に段ごとの
+     * {@code wearExtraPerStage} を掛けた分を足す(整数部は必ず、端数は確率)。汚れていない物・減らさない呼び出しはそのまま。
+     */
+    public static int wearAmount(ItemStack stack, int amount) {
+        if (amount <= 0) return amount;
+        int stg = stage(stack);
+        if (stg == 0) return amount;
+        double extra = amount * spec().wearExtraPerStage()[stg - 1];
+        int whole = (int) Math.floor(extra);
+        return amount + whole + (WEAR_RANDOM.nextDouble() < extra - whole ? 1 : 0);
+    }
+
     @SubscribeEvent
     public static void onBreakSpeed(PlayerEvent.BreakSpeed event) {
         double f = breakSpeedFactor(event.getEntity());

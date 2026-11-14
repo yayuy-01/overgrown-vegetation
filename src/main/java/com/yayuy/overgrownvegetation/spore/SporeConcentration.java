@@ -109,7 +109,9 @@ public final class SporeConcentration {
                 : deep ? 1.0D : pointFactor(level, pos);
         double out = (v + rift) * factor;
         double extra = room != null ? com.yayuy.overgrownvegetation.survival.room.RoomAir.extraPercent(level, room) : 0.0D;
-        double seep = room != null ? com.yayuy.overgrownvegetation.survival.room.RoomAir.seepPerSecond(v + rift, DesignData.sporeField()) : 0.0D;
+        // 部屋の汚れ(段 3c)は境目 5% より下に止め、ゆっくりたまる道で効かせる(2026-11-14 決定 35)
+        double seep = room != null ? com.yayuy.overgrownvegetation.survival.room.RoomAir.seepPerSecond(v + rift, DesignData.sporeField())
+                + extra * DesignData.sporeField().dirt().roomSeepPerPercent() : 0.0D;
         return new Reading(highCut(level, pos, out) + sporePoolPercent(level, pos) + extra, seep);
     }
 

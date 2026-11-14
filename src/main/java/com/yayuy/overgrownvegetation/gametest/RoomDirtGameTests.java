@@ -157,11 +157,13 @@ public final class RoomDirtGameTests {
                 helper.fail(String.format("地点の読み: 前室 %.3f%%(%.3f のはず)・奥 %.3f%%", read, got, SporeConcentration.percentAt(level, b)));
                 return;
             }
-            // 汚れた部屋では暴露量がたまる(きれいな装備の人でも)
+            // 汚れた部屋では、きれいな装備の人にも暴露量がゆっくりたまる(部屋の汚れ 1% あたり roomSeepPerPercent。2026-11-14 決定 35)
             Player guest = helper.makeMockPlayer(GameType.SURVIVAL);
-            for (int i = 0; i < 10; i++) SporeExposureTracker.tickWith(level, guest, 20, read);
-            if (read >= DesignData.sporeField().exposureMinPercent() && !(SporeExposureTracker.dose(guest) > 0.0D)) {
-                helper.fail("汚れた部屋(" + read + "%)で暴露量がたまらない");
+            guest.setPos(a.getX() + 0.5D, a.getY(), a.getZ() + 0.5D);
+            for (int i = 0; i < 10; i++) SporeExposureTracker.tick(level, guest, 20);
+            double expectDose = got * s.roomSeepPerPercent() * 10.0D;
+            if (Math.abs(SporeExposureTracker.dose(guest) - expectDose) > 1e-6) {
+                helper.fail("汚れた部屋(" + read + "%)で 10 秒の暴露量 " + SporeExposureTracker.dose(guest) + "(" + expectDose + " のはず)");
                 return;
             }
             // 奥のドアを開ける → つながって薄まる
