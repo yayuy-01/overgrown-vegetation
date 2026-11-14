@@ -110,18 +110,18 @@ public final class MobInfection {
     }
 
     /**
-     * 判定の後: 逃げる向きを決め直す・感染した Mob から粒を出す。{@code rawPercent} は屋根の決まりを掛ける前の濃度
-     * (屋根の下でも匂いで逃げる【仮】)。
+     * 判定の後: 逃げる向きを決め直す・感染した Mob から粒を出す。{@code percent} は Mob の濃度({@link SporeExposureTracker#mobPercent}。
+     * 屋根の決まり込み = 屋根の下で積まない所では逃げない【仮】)。
      */
-    public static void afterCheck(ServerLevel level, LivingEntity entity, double rawPercent, long now) {
+    public static void afterCheck(ServerLevel level, LivingEntity entity, double percent, long now) {
         MobInfectionSpec s = DesignData.sporeField().mobInfection();
         if (!s.enabled()) return;
         boolean infected = isInfected(entity);
         if (s.fleeEnabled() && isFleer(entity)) {
             double start = s.fleeStartPercent() > 0.0D ? s.fleeStartPercent() : DesignData.sporeField().exposureMinPercent();
-            if (infected || rawPercent >= start) {
+            if (infected || percent >= start) {
                 SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
-                if (rawPercent >= start) ex.fleeUntil = now + s.fleeLingerTicks();
+                if (percent >= start) ex.fleeUntil = now + s.fleeLingerTicks();
                 updateFleeDirection(level, entity, ex);
             }
         }
