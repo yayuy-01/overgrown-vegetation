@@ -353,10 +353,15 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         }
         if (name.contains("perflog") && this.level().getGameTime() % 200L == 0L) {
             com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
-                    "VEN_CHASE 引き直し %d 回 次へ回した %d 回 計 %.1f ms 1 回の最悪 %.2f ms", com.yayuy.overgrownvegetation.entity.runner.ChasePathBudget.calls,
+                    "VEN_CHASE 引き直し %d 回 次へ回した %d 回 計 %.1f ms 1 回の最悪 %.2f ms / 回り道の細かい探索 計 %.1f ms・下調べの 1 tick の最悪 %.2f ms",
+                    com.yayuy.overgrownvegetation.entity.runner.ChasePathBudget.calls,
                     com.yayuy.overgrownvegetation.entity.runner.ChasePathBudget.deferred, com.yayuy.overgrownvegetation.entity.runner.ChasePathBudget.nanos / 1e6,
-                    com.yayuy.overgrownvegetation.entity.runner.ChasePathBudget.worst / 1e6));
+                    com.yayuy.overgrownvegetation.entity.runner.ChasePathBudget.worst / 1e6,
+                    com.yayuy.overgrownvegetation.entity.runner.LongBodyNavigation.detourNanos / 1e6,
+                    com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.maxTickNanos / 1e6));
             com.yayuy.overgrownvegetation.entity.runner.ChasePathBudget.resetStats();
+            com.yayuy.overgrownvegetation.entity.runner.LongBodyNavigation.detourNanos = 0L;
+            com.yayuy.overgrownvegetation.entity.forest.CoarseDetour.maxTickNanos = 0L;
         }
         if (name.contains("trace") && this.tickCount % 10 == 0) {
             double v = Math.sqrt(sq(this.getX() - this.xo) + sq(this.getZ() - this.zo));
