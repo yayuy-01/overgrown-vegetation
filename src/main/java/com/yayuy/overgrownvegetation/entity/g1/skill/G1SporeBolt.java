@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.corruption.CorruptionSwitch;
 import com.yayuy.overgrownvegetation.corruption.NoisyCorruptionBurst;
 import com.yayuy.overgrownvegetation.corruption.OvergrownBiomeConverter;
@@ -183,7 +184,7 @@ public class G1SporeBolt extends ThrowableItemProjectile {
         if (level() instanceof ServerLevel level) {
             level.sendParticles(ModParticles.SPORE_JET.get(), getX(), getY(), getZ(), 24, 0.25D, 0.25D, 0.25D, 0.04D);
             level.sendParticles(ModParticles.SPORE_BURST_CLOUD.get(), getX(), getY() + 0.2D, getZ(), 2, 0.2D, 0.1D, 0.2D, 0.01D);
-            level.playSound(null, getX(), getY(), getZ(), SoundEvents.SLIME_SQUISH, SoundSource.HOSTILE, 0.9F, 0.6F);
+            level.playSound(null, getX(), getY(), getZ(), ModSounds.G1_SAC_LUMP_HIT.get(), SoundSource.HOSTILE, 0.9F, 0.6F);
             discard();
         }
     }

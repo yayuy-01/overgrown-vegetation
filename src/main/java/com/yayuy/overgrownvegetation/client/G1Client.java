@@ -55,6 +55,19 @@ public final class G1Client {
                 return r;
             });
         }
+        // 根付き(2026-11-13、司令塔の区切り 2)。素材は g1_<種>_rooted
+        for (com.yayuy.overgrownvegetation.entity.g1.G1Rooted r : com.yayuy.overgrownvegetation.entity.g1.G1Rooted.values()) {
+            String asset = r.assetName();
+            float rootedShadow = Math.min(0.9F, Math.max(0.4F, r.width * 0.75F)); // 小さい種(鶏)に大きな影を付けない
+            event.registerEntityRenderer(ModG1.rooted(r).get(), ctx -> new G1GeoRenderer<>(ctx, asset, 1.0F, rootedShadow));
+        }
+        event.registerEntityRenderer(ModG1.ROOT_GUARDIAN.get(), ctx -> new G1GeoRenderer<>(ctx, "g1_root_guardian", 1.0F, 0.8F));
+        // 苗床 11 種(2026-11-13、司令塔の区切り 6)。素材は g1_<種>_nursery
+        for (com.yayuy.overgrownvegetation.entity.g1.G1Nursery n : com.yayuy.overgrownvegetation.entity.g1.G1Nursery.values()) {
+            String asset = n.assetName();
+            float nurseryShadow = Math.min(0.9F, Math.max(0.4F, n.width * 0.75F));
+            event.registerEntityRenderer(ModG1.nursery(n).get(), ctx -> new G1GeoRenderer<>(ctx, asset, 1.0F, nurseryShadow));
+        }
         // 1 段目の胞子の煙(2026-11-12)は粒だけ(実体の tick が出す)。霞みは G1SporeHaze
         event.registerEntityRenderer(ModG1.SPORE_CLOUD.get(), net.minecraft.client.renderer.entity.NoopRenderer::new);
         // 投げる胞子の塊(2026-11-13)は胞子嚢のアイテムの絵(雪玉と同じ)

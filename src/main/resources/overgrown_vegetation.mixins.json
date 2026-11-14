@@ -22,6 +22,7 @@
     "ItemStackDirtWearMixin"
   ],
   "client": [
+    "client.SoundBufferLibraryCrushedMixin",
     "client.LivingEntityRendererCollapseMixin",
     "client.RenderLayerCollapseMixin",
     "client.ExtraLayerCollapseMixin",

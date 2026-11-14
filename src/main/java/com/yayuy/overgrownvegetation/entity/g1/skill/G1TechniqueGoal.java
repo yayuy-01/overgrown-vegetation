@@ -155,4 +155,18 @@ public abstract class G1TechniqueGoal extends Goal {
     public void resetCooldown() {
         readyAt = 0L;
     }
+
+    /**
+     * 冷却の残り(tick)。保存用: 世界の時計ではなく残りで持つ(鶏の {@code LayIn} と同じ)。技の途中なら、今終わったものとして冷却まるごと
+     * (途中で保存された技は読み込み直しで続きを流さないので、放った後の段で保存されても 2 回目をすぐ出さない)。
+     */
+    public long cooldownLeft() {
+        if (t > 0) return cooldown();
+        return Math.max(0L, readyAt - mob.level().getGameTime());
+    }
+
+    /** 保存した冷却の残りを戻す(読み込み)。冷却の長さで頭打ち。 */
+    public void setCooldownLeft(long ticks) {
+        readyAt = mob.level().getGameTime() + Mth.clamp(ticks, 0L, (long) cooldown());
+    }
 }

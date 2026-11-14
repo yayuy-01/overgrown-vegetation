@@ -46,6 +46,51 @@ public final class ModSounds {
     /** 地走りの光の帯: 筋が走って帯が立つまでの低い地鳴り。 */
     public static final DeferredHolder<SoundEvent, SoundEvent> FALCIMNES_RIFT_RUMBLE = register("entity.falcimnes.rift_rumble");
 
+    // --- G1(11-14 に組み込み。Krotos の素材から tools/g1-sound で作り、ユーザーが試聴して採用) ---
+    /** 嚢が膨らむ・溜める(スライムの SQUISH_SMALL の置き換え)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> G1_SAC_SWELL = register("entity.g1.sac_swell");
+    /** 湿った塊を出す・当たる(スライムの SQUISH の置き換え)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> G1_SAC_LUMP_HIT = register("entity.g1.sac_lump_hit");
+    /** 嚢が爆ぜる(SLIME_BLOCK_BREAK + MUD_BREAK + SQUID_SQUIRT の 3 つ重ねの置き換え)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> G1_SAC_BURST = register("entity.g1.sac_burst");
+    /** 蔦を打つ・薙ぎ払う。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> G1_VINE_LASH = register("entity.g1.vine_lash");
+    /** 根が地面を割る。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> G1_ROOT_BREAK = register("entity.g1.root_break");
+    /** 生える(根付き・苗床の emerge 60 tick。音 3.0 秒)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> G1_PLANT_EMERGE = register("entity.g1.plant_emerge");
+    /** 生える・短い版(根の守り手の立ち上がり 32 tick。音 1.8 秒。ユーザーの試聴はまだ)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> G1_PLANT_EMERGE_SHORT = register("entity.g1.plant_emerge_short");
+    /** 枯れて崩れる(death_wither。音 2.4 秒)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> G1_PLANT_WITHER = register("entity.g1.plant_wither");
+    /** 進化の前の震え(音 2.4 秒。前兆の頭から 10 tick 遅らせて鳴らすと、終わりが前兆の 60 tick に合う)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> G1_EVOLVE_OMEN = register("entity.g1.evolve_omen");
+    /** 進化の入れ替わり(evolve_in の頭。体を破って茎が伸び、葉が開き、嚢が張る。音 1.3 秒)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> G1_EVOLVE_BURST = register("entity.g1.evolve_burst");
+    /** 眠った村人の背の嚢が開く(ゆっくり膨らみ、開いて息が漏れる。音 1.3 秒・静か)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> G1_SAC_OPEN = register("entity.g1.sac_open");
+    /** 取り付いて噛む(湿った噛む音 3 本)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> G1_LATCH_BITE = register("entity.g1.latch_bite");
+    /** 根の守り手が殴る(当たりは音の頭から約 5 tick)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> ROOT_GUARDIAN_STRIKE = register("entity.root_guardian.strike");
+    /** 根の守り手の足音(3 本)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> ROOT_GUARDIAN_STEP = register("entity.root_guardian.step");
+    /** 苗床が萌芽体を出す(弾けるのは音の頭から 12 tick = SPROUT_AT)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> NURSERY_SPROUT = register("entity.nursery.sprout");
+
+    // --- アルボラ・ハイヴノード(11-14 に組み込み。ユーザーが試聴して採用) ---
+    public static final DeferredHolder<SoundEvent, SoundEvent> ARBORA_IDLE = register("entity.arbora.idle");
+    public static final DeferredHolder<SoundEvent, SoundEvent> ARBORA_HURT = register("entity.arbora.hurt");
+    public static final DeferredHolder<SoundEvent, SoundEvent> ARBORA_DEATH = register("entity.arbora.death");
+    /** 胞子の噴出の鼓動(2 拍)。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> HIVE_NODE_PULSE = register("entity.hive_node.pulse");
+    public static final DeferredHolder<SoundEvent, SoundEvent> HIVE_NODE_HURT = register("entity.hive_node.hurt");
+    public static final DeferredHolder<SoundEvent, SoundEvent> HIVE_NODE_DEATH = register("entity.hive_node.death");
+
+    // --- 萌芽体(11-14 に組み込み。ユーザーが試聴して採用) ---
+    public static final DeferredHolder<SoundEvent, SoundEvent> BLIGHT_FERN_HURT = register("entity.blight_fern.hurt");
+    public static final DeferredHolder<SoundEvent, SoundEvent> BLIGHT_FERN_DEATH = register("entity.blight_fern.death");
+
     private static DeferredHolder<SoundEvent, SoundEvent> register(String path) {
         return SOUND_EVENTS.register(path, () -> SoundEvent.createVariableRangeEvent(OvergrownVegetation.id(path)));
     }

@@ -3,6 +3,7 @@ package com.yayuy.overgrownvegetation.entity;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.data.MobStats;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -261,7 +262,7 @@ public class HiveNodeEntity extends PathfinderMob
                 this.getX(), this.getY() + this.getBbHeight() * 0.5D, this.getZ(),
                 40, 1.6D, 1.6D, 1.6D, 0.02D);
         level.playSound(null, this.getX(), this.getY(), this.getZ(),
-                SoundEvents.WARDEN_HEARTBEAT, this.getSoundSource(), 2.0F, 0.6F);
+                ModSounds.HIVE_NODE_PULSE.get(), this.getSoundSource(), 2.0F, 1.0F);
     }
 
     /** 緑に光っている雰囲気を出すための、球の周りに漂うパーティクル(クライアント側だけ)。 */
@@ -362,12 +363,12 @@ public class HiveNodeEntity extends PathfinderMob
 
     @Override
     protected SoundEvent getHurtSound(DamageSource source) {
-        return SoundEvents.SLIME_HURT;
+        return ModSounds.HIVE_NODE_HURT.get();
     }
 
     @Override
     protected SoundEvent getDeathSound() {
-        return SoundEvents.SCULK_SHRIEKER_BREAK;
+        return ModSounds.HIVE_NODE_DEATH.get();
     }
 
     @Override

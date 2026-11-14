@@ -10,6 +10,7 @@ import com.yayuy.overgrownvegetation.entity.cling.ClingPose;
 import com.yayuy.overgrownvegetation.entity.cling.SurfaceNode;
 import com.yayuy.overgrownvegetation.phase.MobGroup;
 import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
@@ -632,17 +633,17 @@ public class ArboraEntity extends Monster implements GeoEntity, ParasitizedMob, 
 
     @Override
     protected SoundEvent getAmbientSound() {
-        return SoundEvents.SPIDER_AMBIENT;
+        return ModSounds.ARBORA_IDLE.get();
     }
 
     @Override
     protected SoundEvent getHurtSound(DamageSource source) {
-        return SoundEvents.SPIDER_HURT;
+        return ModSounds.ARBORA_HURT.get();
     }
 
     @Override
     protected SoundEvent getDeathSound() {
-        return SoundEvents.SILVERFISH_DEATH;
+        return ModSounds.ARBORA_DEATH.get();
     }
 
     @Override

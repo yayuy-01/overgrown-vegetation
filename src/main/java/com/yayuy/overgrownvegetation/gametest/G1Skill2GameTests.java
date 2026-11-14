@@ -361,6 +361,81 @@ public final class G1Skill2GameTests {
     }
 
     /**
+     * 放つ冷却と「綿毛が戻る間」は保存する【決定 11-13 ユーザー「羊のやつは一応直しておこう。」】: 草の上で 1 回放った羊を保存して読み込み直しても、
+     * 2 回目をすぐ放たず(前は読み込み直すたびに 1 回放った)、草も食べ直さない(前は放った数秒後に食べて戻した)。
+     * 読み込んだ側では冷却を飛ばさない(実際の保存 → 読み込みの経路)。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 600)
+    public static void sheepCooldownsSurviveReload(GameTestHelper helper) {
+        BlockPos grass = new BlockPos(3, 1, 4);
+        helper.setBlock(grass, Blocks.GRASS_BLOCK);
+        DevelopedParasitized sheep = spawnDev(helper, G1Developed.SHEEP, new Vec3(3.5, 2.0, 4.5));
+        onlyTechniques(sheep);
+        noTarget(helper, sheep);
+        sheep.forceSkillsReady();
+        DevelopedParasitized[] loaded = new DevelopedParasitized[1];
+        int looseCooldown = com.yayuy.overgrownvegetation.entity.g1.skill.G1FluffLooseGoal.COOLDOWN;
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(sheep.fluff() == DevelopedParasitized.FLUFF_MAX - 1, "まだ 1 回目を放っていない"))
+                .thenIdle(60) // 技が終わって冷却を数え始めるまで
+                .thenExecute(() -> {
+                    helper.assertTrue(sheep.fluff() == DevelopedParasitized.FLUFF_MAX - 1, "放った数秒後に綿毛が変わった(食べ直した?): " + sheep.fluff());
+                    net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
+                    sheep.saveWithoutId(tag);
+                    long looseIn = tag.getLong("LooseIn");
+                    long regrowIn = tag.getLong("FluffRegrowIn");
+                    helper.assertTrue(looseIn > looseCooldown - 200 && looseIn <= looseCooldown, "放つ冷却の残りが保存されていない: " + looseIn);
+                    helper.assertTrue(regrowIn > DevelopedParasitized.FLUFF_REGROW_TICKS - 200 && regrowIn <= DevelopedParasitized.FLUFF_REGROW_TICKS,
+                            "綿毛が戻る間の残りが保存されていない: " + regrowIn);
+                    tag.remove("UUID"); // 新しい個体として読み込む(同じ UUID を 2 つ置かない)
+                    sheep.discard();
+                    DevelopedParasitized fresh = (DevelopedParasitized) ModG1.developed(G1Developed.SHEEP).get().create(helper.getLevel());
+                    helper.assertTrue(fresh != null, "羊を作れない");
+                    fresh.load(tag);
+                    helper.getLevel().addFreshEntity(fresh);
+                    fresh.targetSelector.removeAllGoals(g -> true);
+                    onlyTechniques(fresh);
+                    noTarget(helper, fresh);
+                    loaded[0] = fresh;
+                })
+                .thenIdle(300)
+                .thenExecute(() -> {
+                    helper.assertTrue(loaded[0].isAlive(), "読み込んだ羊がいない");
+                    helper.assertTrue(loaded[0].fluff() == DevelopedParasitized.FLUFF_MAX - 1,
+                            "読み込み直した後に放った・食べ直した: 綿毛 " + loaded[0].fluff());
+                    helper.assertBlockPresent(Blocks.GRASS_BLOCK, grass);
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * 刈った後は「綿毛が戻る間」(1 分【仮】)が明けるまで草を食べ直さない(前は刈っても 10 秒ほどで 1 段戻り、すぐ放てた)。間が明ければ食べて戻す。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 600)
+    public static void sheepShornFluffDoesNotRegrowAtOnce(GameTestHelper helper) {
+        helper.assertTrue(DevelopedParasitized.FLUFF_REGROW_TICKS == 1200, "綿毛が戻る間が 1 分(1200 tick)でない");
+        BlockPos grass = new BlockPos(3, 1, 4);
+        helper.setBlock(grass, Blocks.GRASS_BLOCK);
+        DevelopedParasitized sheep = spawnDev(helper, G1Developed.SHEEP, new Vec3(3.5, 2.0, 4.5));
+        onlyTechniques(sheep);
+        noTarget(helper, sheep);
+        sheep.shear();
+        helper.assertTrue(sheep.fluff() == 0, "刈れていない");
+        helper.startSequence()
+                .thenIdle(300)
+                .thenExecute(() -> {
+                    helper.assertTrue(sheep.fluff() == 0, "刈った直後に綿毛が戻った: " + sheep.fluff());
+                    helper.assertBlockPresent(Blocks.GRASS_BLOCK, grass);
+                    sheep.forceSkillsReady(); // 間を飛ばす = 間が明けたら
+                })
+                .thenWaitUntil(() -> {
+                    helper.assertBlockPresent(ModBlocks.OVERGROWN_DIRT.get(), grass);
+                    helper.assertTrue(sheep.fluff() >= 1 || sheep.lastFluffLanding() != null, "間が明けても綿毛が戻らない");
+                })
+                .thenSucceed();
+    }
+
+    /**
      * 爆ぜたとき、残っていた綿毛の一部が風下へ流れる【決定 11-13 ユーザー】: 綿毛を残して倒すと、破裂の所から風下 20〜40 ブロックに着地点が決まる。
      */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 80)

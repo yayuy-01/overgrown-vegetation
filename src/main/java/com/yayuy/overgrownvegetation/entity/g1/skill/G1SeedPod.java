@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import com.yayuy.overgrownvegetation.registry.ModG1;
 import net.minecraft.core.particles.ItemParticleOption;
@@ -102,7 +103,7 @@ public class G1SeedPod extends Entity {
         if (!(level() instanceof ServerLevel level)) return;
         if (tickCount == 4) {
             // 「ぽとり」
-            level.playSound(null, getX(), getY(), getZ(), SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE, 0.7F, 0.6F);
+            level.playSound(null, getX(), getY(), getZ(), ModSounds.G1_SAC_LUMP_HIT.get(), SoundSource.HOSTILE, 0.7F, 0.6F);
         }
         int fuse = fuse();
         if (tickCount >= fuse) {
@@ -110,7 +111,7 @@ public class G1SeedPod extends Entity {
             return;
         }
         if (tickCount > fuse / 2 && tickCount % pulsePeriod(tickCount, fuse) == 0) {
-            level.playSound(null, getX(), getY(), getZ(), SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE, 0.35F, 0.8F + 0.5F * tickCount / fuse);
+            level.playSound(null, getX(), getY(), getZ(), ModSounds.G1_SAC_SWELL.get(), SoundSource.HOSTILE, 0.35F, 0.8F + 0.5F * tickCount / fuse);
         }
     }
 
@@ -119,8 +120,7 @@ public class G1SeedPod extends Entity {
         discard();
         // 覆う球の中心は莢の下のブロックに置く(莢のいる空気のマスを中心にすると、半径 1 では下の地面が縁になって半分以上は覆われない)
         G1SporeBlast.blast(level, null, at.add(0.0D, -0.5D, 0.0D), CORRUPT_RADIUS, CORRUPT_NOISE, AIR_PERCENT, DOSE, DOSE, DOSE_RADIUS, 0.0F, 0.0D);
-        level.playSound(null, at.x, at.y, at.z, SoundEvents.SLIME_BLOCK_BREAK, SoundSource.HOSTILE, 0.7F, 1.1F);
-        level.playSound(null, at.x, at.y, at.z, SoundEvents.SQUID_SQUIRT, SoundSource.HOSTILE, 0.5F, 1.2F);
+        level.playSound(null, at.x, at.y, at.z, ModSounds.G1_SAC_BURST.get(), SoundSource.HOSTILE, 0.7F, 1.1F);
     }
 
     /** 叩かれた: 割れずに潰れて消える(撒かない)。 */
@@ -130,7 +130,7 @@ public class G1SeedPod extends Entity {
         if (level() instanceof ServerLevel level) {
             level.sendParticles(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(ModBlocks.OVERGROWN_MOSS_LAYER.get())),
                     getX(), getY() + 0.2D, getZ(), 8, 0.12D, 0.1D, 0.12D, 0.05D);
-            level.playSound(null, getX(), getY(), getZ(), SoundEvents.SLIME_SQUISH, SoundSource.HOSTILE, 0.6F, 1.3F);
+            level.playSound(null, getX(), getY(), getZ(), ModSounds.G1_SAC_LUMP_HIT.get(), SoundSource.HOSTILE, 0.6F, 1.3F);
             discard();
         }
         return true;

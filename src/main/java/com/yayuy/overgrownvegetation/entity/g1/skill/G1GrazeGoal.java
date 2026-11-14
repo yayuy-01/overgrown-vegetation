@@ -23,7 +23,10 @@ import net.minecraft.world.level.block.state.BlockState;
  *   <li>段: graze 40 tick(頭を下げて止まる = 近づいて刈る好機)。{@value #EAT_AT} tick 目に食べる。</li>
  *   <li>食べた跡: 草ブロック → <b>汚染した土</b>(過繁茂の土 {@code overgrown_dirt}。過繁茂の土はランダム tick で過繁茂の草に戻るので、汚染地帯では食べ続けられる)。
  *   汚染が切られている・抑える装置の中では、バニラと同じただの土。</li>
- *   <li>冷却 {@value #COOLDOWN} tick【仮】。</li>
+ *   <li>綿毛が 1 段戻るまでの間 {@link DevelopedParasitized#FLUFF_REGROW_TICKS} tick(1 分【仮】): 綿毛が減った(放った・刈られた)とき・食べて 1 段戻したときから数え、
+ *   明けるまで食べない(11-13 ユーザー「羊のやつは一応直しておこう。」。前は下の冷却 10 秒だけで、放っても刈られても数秒で食べ直して戻っていた)。
+ *   間は Mob が持ち、保存する({@code FluffRegrowIn})。</li>
+ *   <li>技の冷却 {@value #COOLDOWN} tick【仮】(食べ損ねたときの間。食べたときは上の間のほうが長い)。</li>
  * </ul>
  */
 public class G1GrazeGoal extends G1TechniqueGoal {
@@ -52,7 +55,7 @@ public class G1GrazeGoal extends G1TechniqueGoal {
     @Override
     protected boolean ready() {
         if (!(mob.level() instanceof ServerLevel level)) return false;
-        return mob.fluff() < DevelopedParasitized.FLUFF_MAX && mob.onGround() && mob.calm(CALM_RADIUS) && edible(level, mob.blockPosition());
+        return mob.fluff() < DevelopedParasitized.FLUFF_MAX && mob.fluffRegrowReady() && mob.onGround() && mob.calm(CALM_RADIUS) && edible(level, mob.blockPosition());
     }
 
     /** 向きは追わない(標的に向かう技ではない)。 */
@@ -89,6 +92,7 @@ public class G1GrazeGoal extends G1TechniqueGoal {
         }
         if (ate) {
             mob.setFluff(mob.fluff() + 1);
+            mob.delayFluffRegrow(); // 次の 1 段はまた間を置いて
             level.playSound(null, mob.getX(), mob.getY(), mob.getZ(), SoundEvents.GRASS_BREAK, SoundSource.HOSTILE, 0.8F, 0.8F);
         }
     }

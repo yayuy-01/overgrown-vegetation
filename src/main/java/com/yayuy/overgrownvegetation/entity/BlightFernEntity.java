@@ -4,6 +4,7 @@ import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.data.MobStats;
 import com.yayuy.overgrownvegetation.corruption.CorruptionSpreader;
 import com.yayuy.overgrownvegetation.phase.CorruptionCounter;
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
@@ -439,7 +440,7 @@ public class BlightFernEntity extends PathfinderMob implements GeoEntity {
         level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR,
                 this.getX(), this.getY() + 0.4D, this.getZ(), 16, 0.6D, 0.3D, 0.6D, 0.01D);
         level.playSound(null, this.getX(), this.getY(), this.getZ(),
-                SoundEvents.ROOTED_DIRT_PLACE, this.getSoundSource(), 1.0F, 0.8F);
+                ModSounds.G1_ROOT_BREAK.get(), this.getSoundSource(), 1.0F, 0.8F);
     }
 
     /** 根付こうとして足場が無かった回数(保存しない。3 回で近くの足場へ落とす)。 */
@@ -453,7 +454,7 @@ public class BlightFernEntity extends PathfinderMob implements GeoEntity {
         level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR,
                 this.getX(), this.getY() + 1.2D, this.getZ(), 60, 1.2D, 1.4D, 1.2D, 0.02D);
         level.playSound(null, this.getX(), this.getY(), this.getZ(),
-                SoundEvents.MOSS_BREAK, this.getSoundSource(), 1.0F, 0.8F);
+                ModSounds.G1_SAC_BURST.get(), this.getSoundSource(), 1.0F, 0.8F);
     }
 
     private void spawnAmbientParticles() {
@@ -555,12 +556,12 @@ public class BlightFernEntity extends PathfinderMob implements GeoEntity {
 
     @Override
     protected SoundEvent getHurtSound(DamageSource source) {
-        return SoundEvents.MOSS_HIT;
+        return ModSounds.BLIGHT_FERN_HURT.get();
     }
 
     @Override
     protected SoundEvent getDeathSound() {
-        return SoundEvents.MOSS_BREAK;
+        return ModSounds.BLIGHT_FERN_DEATH.get();
     }
 
     @Override

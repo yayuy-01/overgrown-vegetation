@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.entity.DevelopedParasitized;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -83,7 +84,7 @@ public class G1FuseBurstGoal extends G1TechniqueGoal {
             }
             for (int p : PULSES) {
                 if (tickInStage == p) {
-                    level.playSound(null, mob.getX(), mob.getY() + 1.2D, mob.getZ(), SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE,
+                    level.playSound(null, mob.getX(), mob.getY() + 1.2D, mob.getZ(), ModSounds.G1_SAC_SWELL.get(), SoundSource.HOSTILE,
                             0.6F, 0.6F + 0.4F * p / FUSE_TICKS);
                 }
             }
@@ -93,9 +94,7 @@ public class G1FuseBurstGoal extends G1TechniqueGoal {
         } else if (tickInStage == 2) {
             G1SporeBlast.blast(level, mob, mob.position(), CORRUPT_RADIUS, CORRUPT_NOISE, AIR_PERCENT, DOSE_CENTER, DOSE_EDGE, DOSE_RADIUS,
                     DAMAGE, KNOCKBACK);
-            level.playSound(null, mob.getX(), mob.getY() + 1.0D, mob.getZ(), SoundEvents.SLIME_BLOCK_BREAK, SoundSource.HOSTILE, 1.3F, 0.6F);
-            level.playSound(null, mob.getX(), mob.getY() + 1.0D, mob.getZ(), SoundEvents.MUD_BREAK, SoundSource.HOSTILE, 1.1F, 0.6F);
-            level.playSound(null, mob.getX(), mob.getY() + 1.0D, mob.getZ(), SoundEvents.SQUID_SQUIRT, SoundSource.HOSTILE, 0.9F, 0.7F);
+            level.playSound(null, mob.getX(), mob.getY() + 1.0D, mob.getZ(), ModSounds.G1_SAC_BURST.get(), SoundSource.HOSTILE, 1.3F, 0.6F);
             mob.burstPods();
         }
     }

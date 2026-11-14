@@ -766,6 +766,11 @@ public final class DevBridge {
                 log("DESIGN 読み直した");
                 return null;
             }
+            case "resreload" -> {
+                // リソースの再読み込み(F3+T と同じ)。汚した声のバッファーが捨てられて作り直されるかの確かめ(2026-11-14)
+                mc.reloadResourcePacks().thenRun(() -> log("RESRELOAD 終わり"));
+                return null;
+            }
             case "ripple" -> {
                 // 波紋の部品(client/atmosphere/Ripples)を決めた所に出す。ripple drop <x y z> / ripple rain <x y z> [直径] [秒](2026-10-31 見本撮り)
                 String[] p = arg.trim().split("\\s+");

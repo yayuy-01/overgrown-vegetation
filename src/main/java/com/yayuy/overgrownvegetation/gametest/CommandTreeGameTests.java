@@ -47,7 +47,8 @@ public final class CommandTreeGameTests {
             // 2026-11-14: 段 2c で換気機を確かめる vent(動いている機械・ここが範囲か・まわりを過繁茂の台帳に載せる forest)を足した。
             Map.entry("perf", Set.of("bench", "fluid", "record", "spore", "g1", "ley", "vent")),
             // 2026-11-08: 環境ギミック G4 胞子の風・G5 光る胞子の夜を自分のゲームで確かめる fx(依頼「/ov か DevBridge に足す」。要らなければ消す)。
-            Map.entry("fx", Set.of("gale", "glownight", "status")),
+            // 2026-11-14: 任意の SoundEvent を鳴らすときに汚して鳴らす voice(声の加工の試作・voice/VoiceCommand)を足した。
+            Map.entry("fx", Set.of("gale", "glownight", "status", "voice")),
             // 2026-11-09: 雲の段階 2a で積乱雲を探す storm(一覧・tp)を戻した(10-17 ユーザー依頼、11-09 段階 2a の依頼)。
             Map.entry("storm", Set.of("tp", "here")),
             // 2026-11-11: ネザーの汚染の骨組み(根の台帳と段階)を見る・進める nether(実装の依頼「段階を見る・進める・速さの倍率を変える命令」)。

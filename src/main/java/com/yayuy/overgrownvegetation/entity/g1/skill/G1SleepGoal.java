@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster;
 import com.yayuy.overgrownvegetation.entity.DevelopedParasitized;
@@ -45,6 +46,8 @@ public class G1SleepGoal extends Goal {
     static final int RECOVER = 16;
     /** 眠りに入ってこの tick より前に起こされたら、起き上がりを流さずに立ち姿へ戻す(まだ座り込んでいないので)。【仮】 */
     static final int RECOVER_FROM = 12;
+    /** 嚢の開く音を鳴らす tick(sleep_windup で蓋が動き出す 1.0 秒)。 */
+    static final int SAC_OPEN_AT = 20;
 
     private final DevelopedParasitized mob;
     private int t;
@@ -106,6 +109,10 @@ public class G1SleepGoal extends Goal {
     public void tick() {
         mob.getNavigation().stop();
         t++;
+        if (t == SAC_OPEN_AT) {
+            // 嚢が開く音(1.3 秒)。sleep_windup の 1.0 秒で蓋が動き出し、1.2〜1.8 秒で横と上が開ききる。音量【仮】
+            mob.playSound(ModSounds.G1_SAC_OPEN.get(), 0.6F, 1.0F);
+        }
         if (t == WINDUP + 1) {
             mob.setAction(G1Move.SLEEP.id());
         }

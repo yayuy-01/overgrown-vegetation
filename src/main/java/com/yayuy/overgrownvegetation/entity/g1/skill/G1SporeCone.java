@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.registry.ModParticles;
 import com.yayuy.overgrownvegetation.spore.SporeExposureTracker;
 import com.yayuy.overgrownvegetation.spore.field.SporeFieldServer;
@@ -72,7 +73,7 @@ public final class G1SporeCone {
         level.sendParticles(ModParticles.SPORE_BURST_CLOUD.get(), mouth.x + dir.x * length * 0.6D, mouth.y, mouth.z + dir.z * length * 0.6D,
                 4, length * 0.2D, 0.2D, length * 0.2D, 0.01D);
         level.playSound(null, mouth.x, mouth.y, mouth.z, SoundEvents.SQUID_SQUIRT, SoundSource.HOSTILE, 0.9F, 0.55F);
-        level.playSound(null, mouth.x, mouth.y, mouth.z, SoundEvents.SLIME_SQUISH, SoundSource.HOSTILE, 0.7F, 0.6F);
+        level.playSound(null, mouth.x, mouth.y, mouth.z, ModSounds.G1_SAC_LUMP_HIT.get(), SoundSource.HOSTILE, 0.7F, 0.6F);
         return hit;
     }
 }

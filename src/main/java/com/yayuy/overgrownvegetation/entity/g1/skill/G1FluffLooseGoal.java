@@ -16,9 +16,10 @@ import net.minecraft.world.phys.Vec3;
  *   (仕様「敵が近いときは使わない」。G1 は 35 ブロック以内の生き物を必ず標的にするので、「標的がいない」ではなく「近くにいない」で見る)。</li>
  *   <li>段: loose_windup 30(綿毛の房が白く膨らみ、体を震わせて房を立てる = 放つ前に倒す・刈る好機)→ loose 10(1 tick 目に「ぼふっ」と放つ)。
  *   途中で火が付いたら止める(綿毛は減らない)。</li>
- *   <li>放つと綿毛が 1 段減る(草を食べると戻る、{@link G1GrazeGoal})。着地点の升の降り積もり +{@value #DEPOSIT_PERCENT}%(発芽のしきい値の)。</li>
+ *   <li>放つと綿毛が 1 段減る(草を食べると戻る、{@link G1GrazeGoal}。戻るのは放ってから {@link DevelopedParasitized#FLUFF_REGROW_TICKS} tick 後から)。着地点の升の降り積もり +{@value #DEPOSIT_PERCENT}%(発芽のしきい値の)。</li>
  *   <li>冷却 {@value #COOLDOWN} tick(2 分【決定 11-13 ユーザー「クールダウンを20秒から2分に伸ばそう」】。前は 400 tick = 20 秒で、
- *   1 頭が 2〜3 分で風下の同じ升を発芽のしきい値まで持っていく計算だった)。冷却は保存しないので、湧いた直後・読み込み直後は 1 回すぐ放てる。</li>
+ *   1 頭が 2〜3 分で風下の同じ升を発芽のしきい値まで持っていく計算だった)。冷却は残りの tick で保存する({@code LooseIn}、11-13 ユーザー「羊のやつは一応直しておこう。」。前は保存せず、読み込み直すたびに 1 回すぐ放っていた)。
+ *   湧いた直後・1 段目に育った直後の 1 回はすぐ放てる【仮】。</li>
  * </ul>
  */
 public class G1FluffLooseGoal extends G1TechniqueGoal {
@@ -62,6 +63,7 @@ public class G1FluffLooseGoal extends G1TechniqueGoal {
         }
         if (stageIndex == 1 && tickInStage == 1 && mob.fluff() > 0) {
             mob.setFluff(mob.fluff() - 1);
+            mob.delayFluffRegrow(); // 放った分をすぐ食べ直させない
             Vec3 from = mob.position().add(0.0D, mob.getBbHeight(), 0.0D);
             mob.setLastFluffLanding(G1FluffDrift.loose(level, from, DEPOSIT_PERCENT, mob.getRandom()));
             level.playSound(null, from.x, from.y, from.z, SoundEvents.WOOL_BREAK, SoundSource.HOSTILE, 1.2F, 0.6F);

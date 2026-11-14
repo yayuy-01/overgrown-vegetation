@@ -67,6 +67,9 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
             SynchedEntityData.defineId(AbstractParasitizedMonster.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> ACTION =
             SynchedEntityData.defineId(AbstractParasitizedMonster.class, EntityDataSerializers.INT);
+    /** 司令塔が決めた変化の前兆(0 = 無し、1 = 進化の前の震え。2026-11-13)。 */
+    private static final EntityDataAccessor<Integer> OMEN =
+            SynchedEntityData.defineId(AbstractParasitizedMonster.class, EntityDataSerializers.INT);
 
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
@@ -118,6 +121,10 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
     public void onStrikeHit(net.minecraft.world.entity.LivingEntity target) {
     }
 
+    /** 3 段の 1 撃が盾で防がれた(2026-11-13、1 段目の (a))。既定は何もしない。1 段目のゾンビ・村人は盾ごしに押す。 */
+    public void onStrikeBlocked(net.minecraft.world.entity.LivingEntity target) {
+    }
+
     /** 3 段の 1 撃が隙まで終わった(1 段目は次の技までの間を数え始める)。{@code gap} = 次の 1 撃までの間(tick)。 */
     public void onStrikeEnd(int gap) {
     }
@@ -162,6 +169,8 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
+        // 司令塔が根付きに決めた個体は、森から離れて歩く(1 撃より先。決まっていない個体・1 段目では動かない。2026-11-13)
+        this.goalSelector.addGoal(1, new com.yayuy.overgrownvegetation.director.G1WalkAwayGoal(this));
         if (attacks()) {
             this.goalSelector.addGoal(2, new G1StrikeGoal(this));
         }
@@ -188,6 +197,44 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
         super.defineSynchedData(builder);
         builder.define(RISING, 0);
         builder.define(ACTION, ACTION_NONE);
+        builder.define(OMEN, 0);
+    }
+
+    // ------------------------------------------------------------------ 司令塔(2026-11-13、第 1 段)
+    /** 司令塔との約束(見に来る時刻・決まった道)。持たない個体(1 段目・ゴーレム・ウォーデン)は null。作るのは最初に要るとき。 */
+    @Nullable
+    private com.yayuy.overgrownvegetation.director.G1Fate fate;
+    private boolean fateChecked;
+    /** 前兆が始まってからの tick(クライアントだけ。震えと膨らみの強さ)。 */
+    private int omenClientTicks;
+
+    /** 司令塔が見に来る個体か。既定は「1 段目のある種の段階 0」。 */
+    protected boolean directorVisits() {
+        return com.yayuy.overgrownvegetation.director.G1Fate.developedOf(this) != null;
+    }
+
+    /** 司令塔との約束。持たない個体は null。 */
+    @Nullable
+    public com.yayuy.overgrownvegetation.director.G1Fate fate() {
+        if (!fateChecked) {
+            fateChecked = true;
+            fate = directorVisits() ? new com.yayuy.overgrownvegetation.director.G1Fate(this) : null;
+        }
+        return fate;
+    }
+
+    /** 前兆の種類({@code G1Fate.OMEN_*}。0 = 無し)。前兆の間は立ち止まる。 */
+    public int omen() {
+        return this.entityData.get(OMEN);
+    }
+
+    public void setOmen(int omen) {
+        this.entityData.set(OMEN, omen);
+    }
+
+    /** 前兆が始まってからの tick(クライアント。描画の間を埋める)。 */
+    public float omenClientTicks(float partialTick) {
+        return omenClientTicks + partialTick;
     }
 
     /** 間合いの箱(バニラの {@code getAttackBoundingBox}。エンダーマンは長い腕で広げる)。{@link G1StrikeGoal} の当たりの判定が使う。 */
@@ -221,17 +268,47 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
     /** 起き上がりの間は AI を止める(Mob#isEffectiveAi が見る)。 */
     @Override
     public boolean isNoAi() {
-        return super.isNoAi() || isRising();
+        return super.isNoAi() || isRising() || omen() != 0; // 前兆の間も立ち止まる(司令塔、11-13)
     }
 
     @Override
     public void tick() {
         super.tick();
         RisingSupport.tick(this, RISING);
+        if (level().isClientSide()) {
+            omenClientTicks = omen() != 0 ? omenClientTicks + 1 : 0;
+        } else if (fate() != null) {
+            fate.tick(); // 司令塔が見に来る時刻・前兆・入れ替え
+        }
         if (stunTicks > 0 && !level().isClientSide()) {
             stunTicks--;
             getNavigation().stop();
         }
+    }
+
+    // ------------------------------------------------------------------ 殴ってきた相手の記録(司令塔の「戦っている最中」「殴り返す」用。2026-11-13)
+    /** 最後に殴ってきた相手と、その時刻(この Mob の tickCount)。バニラの lastHurtByMob は 100 tick で消えるので、10 秒を数えるために自前で持つ。保存しない。 */
+    @Nullable
+    private net.minecraft.world.entity.LivingEntity combatBy;
+    private int combatByAt = -100000;
+
+    @Nullable
+    public net.minecraft.world.entity.LivingEntity combatBy() {
+        return combatBy;
+    }
+
+    public int combatByAt() {
+        return combatByAt;
+    }
+
+    @Override
+    public boolean hurt(net.minecraft.world.damagesource.DamageSource source, float amount) {
+        boolean hurt = super.hurt(source, amount);
+        if (hurt && !level().isClientSide() && source.getEntity() instanceof net.minecraft.world.entity.LivingEntity by && by != this) {
+            combatBy = by;
+            combatByAt = tickCount;
+        }
+        return hurt;
     }
 
     /** 死体から起きた家畜・村人の G1 も、遠くへ離れて消えないように(自然湧きが無いので、消えると戻らない)。 */
@@ -244,12 +321,17 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putInt("Rising", RisingSupport.remaining(this, RISING));
+        if (fate() != null) fate.save(tag);
+        // バニラは isNoAi() が真なら NoAI を保存し、読み込みで本物の印にする。起き上がり・前兆・evolve_in の途中で保存された個体が
+        // 読み込み後ずっと固まらないように、一時的に止まっているだけなら書かない(2026-11-13)
+        if (!super.isNoAi()) tag.remove("NoAI");
     }
 
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         this.entityData.set(RISING, tag.getInt("Rising"));
+        if (fate() != null) fate.load(tag);
     }
 
     // ------------------------------------------------------------------ アニメ
@@ -321,6 +403,17 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
         double dx = getX() - xo;
         double dz = getZ() - zo;
         return dx * dx + dz * dz > 0.015D * 0.015D;
+    }
+
+    /**
+     * 鳴き声・被弾・死の声(バニラはどれも {@code makeSound} を通る)を、宿主のバニラの声のまま「声帯が植物につぶされた声」にして鳴らす
+     * (2026-11-14 ユーザー決定: 版 2 つぶれ。{@link com.yayuy.overgrownvegetation.voice.G1Voice})。
+     */
+    @Override
+    public void makeSound(@Nullable net.minecraft.sounds.SoundEvent sound) {
+        if (sound != null) {
+            com.yayuy.overgrownvegetation.voice.G1Voice.play(this, species(), sound, getSoundVolume(), getVoicePitch());
+        }
     }
 
     @Override

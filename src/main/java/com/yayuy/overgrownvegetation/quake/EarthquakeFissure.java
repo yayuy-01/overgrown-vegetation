@@ -18,8 +18,6 @@ import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
@@ -138,12 +136,8 @@ final class EarthquakeFissure {
                         2, 0.35D, 0.4D, 0.35D, 0.03D);
             }
         });
-        // 亀裂が走る地響きは土砂崩れの音(EarthquakeData 側で1回再生)が主。ここでは近くのプレイヤー向けに
-        // ときどき岩の砕ける音を薄く重ねるだけにする。
-        if (w % 22 == 0) {
-            level.playSound(null, BlockPos.containing(ex, ey, ez), SoundEvents.DEEPSLATE_BREAK, SoundSource.AMBIENT,
-                    2.0F, 0.30F + level.getRandom().nextFloat() * 0.2F);
-        }
+        // 亀裂が走る地響きは土砂崩れの音(EarthquakeData 側で1回再生)だけ。22 tick ごとに重ねていた岩の砕ける音
+        // (DEEPSLATE_BREAK)は 2026-11-14 にユーザー決定で無くした(地震の音は揺れと噴出の一撃のみ)。
     }
 
     /**
@@ -425,15 +419,12 @@ final class EarthquakeFissure {
     }
 
     /**
-     * 噴出の音(ときどき)。前は裂け目の底から緑の胞子の粒を花火のように噴き上げていたが、粒は画面の演出と一緒に
-     * 2026-10-30 に parked/ へ退避した(環境の演出は作り直す)。
+     * 胞子の噴出の演出(今は空)。前は裂け目の底から緑の胞子の粒を花火のように噴き上げていたが、粒は画面の演出と一緒に
+     * 2026-10-30 に parked/ へ退避した(環境の演出は作り直す)。ときどき鳴らしていた音(SCULK_CATALYST_BLOOM 2.0 / 0.6・1/12)も
+     * 2026-11-14 にユーザー決定で無くした。粒の演出を作り直すときのために、呼び出し(EarthquakeData)と間隔の設定
+     * {@code quakeEruptIntervalTicks} は残してある。
      */
     void eruptSpores() {
-        RandomSource r = level.getRandom();
-        if (r.nextInt(12) == 0) {
-            level.playSound(null, BlockPos.containing(ex, ey, ez), SoundEvents.SCULK_CATALYST_BLOOM,
-                    SoundSource.AMBIENT, 2.0F, 0.6F);
-        }
     }
 
     // ---- 噴出中のハザード(確定感染 + 汚染シダ) --------------------------

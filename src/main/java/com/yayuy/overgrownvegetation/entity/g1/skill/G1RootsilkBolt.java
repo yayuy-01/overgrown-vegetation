@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.block.RootsilkWebBlock;
 import com.yayuy.overgrownvegetation.registry.ModG1;
 import com.yayuy.overgrownvegetation.registry.ModItems;
@@ -120,7 +121,7 @@ public class G1RootsilkBolt extends ThrowableItemProjectile {
                     getX(), getY(), getZ(), 10, 0.2D, 0.2D, 0.2D, 0.03D);
             if (!webPlaced) {
                 // 巣を張ったときは置く音が鳴る。それ以外(相手・置けない所)は湿った繊維の音
-                level.playSound(null, getX(), getY(), getZ(), SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE, 0.8F, 0.8F);
+                level.playSound(null, getX(), getY(), getZ(), ModSounds.G1_SAC_LUMP_HIT.get(), SoundSource.HOSTILE, 0.8F, 0.8F);
             }
             discard();
         }

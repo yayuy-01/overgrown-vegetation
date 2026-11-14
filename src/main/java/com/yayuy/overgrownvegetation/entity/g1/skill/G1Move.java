@@ -133,8 +133,8 @@ public enum G1Move {
     HANG_IDLE("hang_idle", true, 4),
     /** (b1) 落ちる前に脚を縮めて揺れる(10 tick)。 */
     DROP_WINDUP("drop_windup", false, 2),
-    /** (b1) 落ちている間(繰り返し)。 */
-    DROP("drop", true, 2),
+    /** (b1) 落ちている間(繰り返し)。張り付いた姿から落ちる姿へ 102° 変わるので、入りの補間は 3 tick(11-13 アニメのセッションの依頼・ユーザー了承)。 */
+    DROP("drop", true, 3),
     /** (b2) 低く沈んで杭の脚を地面に刺す(10 tick)。 */
     LEAP_WINDUP("leap_windup", false, 2),
     /** (b2) 跳んでいる間(10 tick)。 */

@@ -29,7 +29,11 @@ public class G1GeoRenderer<T extends LivingEntity & GeoEntity> extends GeoEntity
     /** 1 段目は死んでも横に倒れない(death_burst で震えて袋が膨らみ、その場で破裂する。11-11 ユーザー)。段階 0 はバニラのまま倒れる。 */
     @Override
     protected float getDeathMaxRotation(T animatable) {
-        return animatable instanceof com.yayuy.overgrownvegetation.entity.DevelopedParasitized ? 0.0F : super.getDeathMaxRotation(animatable);
+        // 根付きも倒れない(death_wither でその場に枯れて崩れる。11-13 ユーザー)
+        return animatable instanceof com.yayuy.overgrownvegetation.entity.DevelopedParasitized
+                || animatable instanceof com.yayuy.overgrownvegetation.entity.RootedParasitized
+                || animatable instanceof com.yayuy.overgrownvegetation.entity.RootGuardian
+                || animatable instanceof com.yayuy.overgrownvegetation.entity.NurseryParasitized ? 0.0F : super.getDeathMaxRotation(animatable);
     }
 
     /** 羊の 1 段目の綿毛の段(0〜3)で立って見える房の数(骨 boll_1〜boll_5)。【仮】(2026-11-13、能力の第 2 回) */
@@ -59,7 +63,11 @@ public class G1GeoRenderer<T extends LivingEntity & GeoEntity> extends GeoEntity
     /** 1 段目の死に際は赤い被弾色を出さない(破裂のアニメを見せる。G1DeathBurst の javadoc)。 */
     @Override
     public int getPackedOverlay(T animatable, float u, float partialTick) {
-        if (animatable instanceof com.yayuy.overgrownvegetation.entity.DevelopedParasitized && animatable.deathTime > 0) {
+        // 根付きの「枯れて崩れる」も赤くしない(2.2 秒のあいだ全身が赤いままになる。11-13)
+        if ((animatable instanceof com.yayuy.overgrownvegetation.entity.DevelopedParasitized
+                || animatable instanceof com.yayuy.overgrownvegetation.entity.RootedParasitized
+                || animatable instanceof com.yayuy.overgrownvegetation.entity.RootGuardian
+                || animatable instanceof com.yayuy.overgrownvegetation.entity.NurseryParasitized) && animatable.deathTime > 0) {
             return net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY;
         }
         return super.getPackedOverlay(animatable, u, partialTick);

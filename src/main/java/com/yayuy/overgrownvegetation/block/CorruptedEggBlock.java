@@ -27,8 +27,10 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  *   <li><b>効果は後で決める【決定 11-09・11-13】</b>ので、今は何もしない: 段は進まない(ランダム tick なし)・何も生まれない・割れても何も起きない。
  *   {@code TurtleEggBlock} を継ぐと亀が孵るので、継がずに形だけ写した。</li>
  *   <li><b>踏むと割れて消える【決定 11-13 ユーザー「踏むと割れて消滅」】</b>({@link #stepOn}・{@link #tramples})。何も落とさない。
- *   【仮】の置き方: 割るのは生きている生き物(プレイヤーは創造でも。ほかの Mob は亀の卵と同じく mobGriefing が要る)・<b>植物側は割らない</b>
- *   (産んだ鶏は自分の足元の升に産むので、除かないと産んだ直後に自分で割る)・忍び歩きでも割れる・確率なしで乗った瞬間に・升ごと(1〜4 個まとめて)消える。</li>
+ *   割るのは<b>植物側以外のすべての生き物【決定 11-13 ユーザー「卵は植物側以外なら誰でも割るかな」】</b>・<b>植物側は割らない</b>
+ *   (産んだ鶏は自分の足元の升に産むので、除かないと産んだ直後に自分で割る)。
+ *   【仮】で残る所: プレイヤーは創造でも割る・観戦は割らない・ほかの Mob は亀の卵と同じく mobGriefing が要る・忍び歩きでも割れる・
+ *   確率なしで乗った瞬間に・升ごと(1〜4 個まとめて)消える。</li>
  *   <li>素手で壊せる・何も落とさない(亀の卵と同じ)。アイテムは無い(置くのは鶏か {@code /setblock})。光らない。</li>
  * </ul>
  */
@@ -68,8 +70,8 @@ public class CorruptedEggBlock extends Block {
     }
 
     /**
-     * その生き物が乗ると卵が割れるか【仮】: 生きている生き物で、植物側({@link SporeExposureTracker#isPlantSide})でないこと。
-     * プレイヤーは創造でも割る。ほかの Mob は亀の卵と同じく mobGriefing が要る。落ちたアイテムなど生き物でない物は割らない。
+     * その生き物が乗ると卵が割れるか: 生きている生き物で、植物側({@link SporeExposureTracker#isPlantSide})でないこと【決定 11-13 ユーザー】。
+     * 【仮】: プレイヤーは創造でも割る・観戦は割らない・ほかの Mob は亀の卵と同じく mobGriefing が要る。落ちたアイテムなど生き物でない物は割らない。
      */
     public static boolean tramples(Level level, Entity entity) {
         if (!(entity instanceof LivingEntity living) || !living.isAlive() || living.isSpectator()) return false;

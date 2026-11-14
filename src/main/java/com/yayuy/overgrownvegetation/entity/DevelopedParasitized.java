@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.corpse.G1DeathBurst;
 import com.yayuy.overgrownvegetation.corpse.G1Species;
@@ -88,7 +89,8 @@ import java.util.List;
  *       <li>豚: 小さな G1 を背に乗せて運ぶ {@link G1CarryGoal}・放り出す {@link G1TossGoal}・喉袋の胞子噴き {@link G1ThroatPuffGoal}。</li>
  *       <li>牛(第 2 回 11-13): 胞子の乳 {@link G1MilkSprayGoal}(乳だまり {@link G1MilkPuddle})・歩く発生源 {@link G1WalkingSource}。</li>
  *       <li>羊(第 2 回): 草を食べて綿毛が育つ {@link G1GrazeGoal}・鋏で刈れる({@link #shear})・綿毛を風に飛ばす {@link G1FluffLooseGoal}・燃えやすい・
- *       爆ぜると残りの綿毛の一部が風下へ流れる({@link #DEATH_FLUFF_PERCENT_PER_STAGE}、11-13 ユーザー決定)。</li>
+ *       爆ぜると残りの綿毛の一部が風下へ流れる({@link #DEATH_FLUFF_PERCENT_PER_STAGE}、11-13 ユーザー決定)。
+ *       放つ冷却と綿毛が戻る間({@link #FLUFF_REGROW_TICKS})は保存する({@code LooseIn}・{@code FluffRegrowIn}、11-13 ユーザー決定)。</li>
  *       <li>鶏(第 2 回): 汚染された卵を産む {@link G1LayEggGoal}・そ嚢の胞子を吐く {@link G1SpewGoal}。</li>
  *       <li>クリーパー(第 3 回 11-13): 胞子の爆ぜ {@link G1FuseBurstGoal}(地形を壊さない・死なない・莢は {@value #POD_REGROW_TICKS} tick で育ち直す)・
  *       莢を落とす {@link G1DropPodGoal}(落ちた莢 {@code G1SeedPod})。</li>
@@ -162,6 +164,11 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
     // ------------------------------------------------------------------ 【仮】の数値(2026-11-13 能力の第 2 回 = 牛・羊・鶏)
     /** 羊 (b): 綿毛の段の上限(仕様「綿毛は 3 段」。飛ばすと 1 段減る・草 1 回で 1 段戻る・刈ると 0 段)。 */
     public static final int FLUFF_MAX = 3;
+    /**
+     * 羊 (b): 綿毛が 1 段戻るまでの間(tick)【仮】。綿毛が減った(放った・刈られた)とき・草を食べて 1 段戻したときから数える({@link #delayFluffRegrow})。
+     * 前は「草食みの冷却 10 秒」だけで、放っても刈られても数秒で食べ直して戻っていた(11-13 ユーザー「羊のやつは一応直しておこう。」)。
+     */
+    public static final int FLUFF_REGROW_TICKS = 1200;
     /** 羊 (b): 刈ったときに舞う胞子(周り {@value} ブロックへ暴露量 +{@link #SHEAR_DOSE})と、落ちる覆われた羊毛の数(1〜2)。 */
     static final double SHEAR_RADIUS = 2.0D;
     static final double SHEAR_DOSE = 300.0D;
@@ -260,6 +267,8 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
     private final G1WalkingSource walkingSource = new G1WalkingSource();
     /** 鶏 (b): 次に卵を産める時刻(ゲームの tick。-1 = まだ決めていない)と、産んだ数。 */
     private long layReadyAt = -1L;
+    /** 羊 (b): 次に草を食べて綿毛を戻せる時刻(世界の時計)。保存は残りの tick で({@code FluffRegrowIn})。 */
+    private long fluffRegrowAt;
     private int eggsLaid;
     /** 羊 (c): 最後に放った綿毛の着地点(GameTest・確かめ用)。 */
     @Nullable
@@ -583,6 +592,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
         mistTrigger = dev() == G1Developed.VILLAGER;
         giftReadyAt = 0L;
         layReadyAt = 0L;
+        fluffRegrowAt = 0L;
         fuseForced = dev() == G1Developed.CREEPER; // 爆ぜの解禁(交戦 6 秒 + 薙ぎ払い 1 回)を飛ばす
         podDropReadyAt = 0L;
         podRegrowLeft = 0; // 空の莢もすぐ満たす
@@ -839,7 +849,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
         if (kb != null) kb.removeModifier(ANCHOR_KNOCKBACK_ID);
         anchorReadyAt = level().getGameTime() + G1RootAnchorGoal.COOLDOWN;
         holdAction(G1Move.ROOT_RELEASE, G1RootAnchorGoal.RELEASE_TICKS);
-        level().playSound(null, getX(), getY(), getZ(), SoundEvents.ROOTED_DIRT_BREAK, SoundSource.HOSTILE, 0.7F, 0.8F);
+        level().playSound(null, getX(), getY(), getZ(), ModSounds.G1_ROOT_BREAK.get(), SoundSource.HOSTILE, 0.7F, 0.8F);
     }
 
     /**
@@ -1195,6 +1205,16 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
         this.entityData.set(FLUFF, net.minecraft.util.Mth.clamp(fluff, 0, FLUFF_MAX));
     }
 
+    /** 羊 (b): 綿毛を戻す間が明けているか({@link #FLUFF_REGROW_TICKS})。 */
+    public boolean fluffRegrowReady() {
+        return level().getGameTime() >= fluffRegrowAt;
+    }
+
+    /** 羊 (b): 綿毛が戻るまでの間を今から数え直す(放った・刈られた・草を食べて 1 段戻した)。 */
+    public void delayFluffRegrow() {
+        fluffRegrowAt = level().getGameTime() + FLUFF_REGROW_TICKS;
+    }
+
     /**
      * 落ち着いてする技(草を食べる・綿毛を放つ・卵を産む)の「近くに獲物がいない」。G1 は 35 ブロック以内の生き物を必ず標的にするので、
      * 「標的がいない」ではなく「{@code radius} ブロック以内に獲物がいない」で見る(村人の眠りと同じ考え)。
@@ -1268,6 +1288,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
     public void shear() {
         if (!(level() instanceof ServerLevel level) || fluff() <= 0) return;
         setFluff(0);
+        delayFluffRegrow(); // 刈った直後に食べ直させない(刈るのが対処として残るように)
         int wool = 1 + getRandom().nextInt(2);
         for (int i = 0; i < wool; i++) {
             net.minecraft.world.entity.item.ItemEntity drop = spawnAtLocation(new net.minecraft.world.item.ItemStack(ModItems.OVERGROWN_WOOL.get()), 1.0F);
@@ -1433,6 +1454,47 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
         lastStrikePush = target.getDeltaMovement();
     }
 
+    /** 当たった 1 撃の後に残る素の押し返し(バニラの 0.4 が、重ねた押し返しで半分になった分)。盾ごしのゾンビが同じ強さを出すのに使う。 */
+    static final double STRIKE_BASE_AFTER = 0.2D;
+    /** 当たった 1 撃の跳ね上げ(バニラの押し返しが地面の相手に付ける上向きの速さ)。 */
+    static final double STRIKE_HOP = 0.4D;
+    /** 盾ごしの「少し後ずさる」(村人)の速さ = 押し返し × これ(0.8 × 0.25 = 0.2。跳ね上げ無し)。【仮】 */
+    static final double SHIELD_PUSH_SMALL = 0.25D;
+
+    /** 直前に盾で防がれた 1 撃が相手に与えた速さ(押さなかったら null。テスト・調べ用)。 */
+    @Nullable
+    private net.minecraft.world.phys.Vec3 lastShieldPush;
+
+    @Nullable
+    public net.minecraft.world.phys.Vec3 lastShieldPush() {
+        return lastShieldPush;
+    }
+
+    /**
+     * (a) 盾で防がれたときの押し返し(2026-11-13 ユーザー「入れよう」。ゾンビ「盾で受けると押し返しだけ受ける」・村人「盾で受けると少し後ずさる」)。
+     * 傷は入らず、向いた方へ押す。強さは仕様の言い回しどおり(11-13 ユーザー「A案」): ゾンビは当たったときと同じ(前へ 0.2 + 押し返し × 0.5 = 0.45、跳ね上げ 0.4)、
+     * 村人はそれより小さく(押し返し × 0.25 = 0.2【仮】、跳ね上げ無し = 地面を滑る)。バニラは盾で防いだ相手に手前向きの速さを入れる(プレイヤーには送られない)ので、重ねずに置き換える。
+     */
+    @Override
+    public void onStrikeBlocked(LivingEntity target) {
+        lastShieldPush = null;
+        double knock = dev().knock;
+        if (!dev().pushesThroughShield() || knock <= 0.0D || !target.isAlive()) return;
+        // ゾンビ「押し返しだけ受ける」= 当たったときと同じ(素の残り 0.2 + 押し返し × 0.5、跳ね上げ 0.4)。
+        // 村人「少し後ずさる」= 押し返し × SHIELD_PUSH_SMALL、跳ね上げ無し(地面を滑る)。
+        boolean full = dev().shieldPushFull();
+        double speed = full ? STRIKE_BASE_AFTER + knock * 0.5D : knock * SHIELD_PUSH_SMALL;
+        double push = speed * Math.max(0.0D, 1.0D - target.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE));
+        if (push <= 0.0D) return;
+        float rad = getYRot() * net.minecraft.util.Mth.DEG_TO_RAD;
+        // 地面にいれば、上向きはこちらで決める(バニラの盾の処理が入れた上向きを置き換える)。空中なら上下はそのまま
+        double vy = target.onGround() ? (full ? STRIKE_HOP : 0.0D) : target.getDeltaMovement().y;
+        target.setDeltaMovement(-net.minecraft.util.Mth.sin(rad) * push, vy, net.minecraft.util.Mth.cos(rad) * push);
+        target.hasImpulse = true;
+        target.hurtMarked = true; // プレイヤーへ速さを送る
+        lastShieldPush = target.getDeltaMovement();
+    }
+
     // ------------------------------------------------------------------ チビゾンビの取り付き((a) が当たったら)
     @Override
     public void onStrikeHit(LivingEntity target) {
@@ -1487,10 +1549,19 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
         evolveLeft = (dev() == G1Developed.BABY_ZOMBIE || dev() == G1Developed.PIG) ? 50 : 60;
         getNavigation().stop();
         setAction(ACTION_EVOLVE);
+        // 体を破って茎が伸びる音(1.3 秒)。震えの音(evolve_omen)の終わりに続く。音量は震えと同じ 1.0【仮】
+        if (!level().isClientSide()) playSound(ModSounds.G1_EVOLVE_BURST.get(), 1.0F, 1.0F);
     }
 
     public boolean isEvolving() {
         return action() == ACTION_EVOLVE;
+    }
+
+    /** evolve_in が始まってからの tick(クライアントだけ。始まりを立ち姿からつなぐ {@code client/G1DevelopedRig} が使う。2026-11-13)。 */
+    private int evolveClientTicks;
+
+    public float evolveClientTicks(float partialTick) {
+        return evolveClientTicks + partialTick;
     }
 
     @Override
@@ -1503,6 +1574,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
     public void tick() {
         super.tick();
         if (level().isClientSide()) {
+            evolveClientTicks = isEvolving() ? evolveClientTicks + 1 : 0;
             if (faceYawTicks > 0) {
                 faceYawTicks--;
                 this.yBodyRot = getYRot(); // 立って投げる間、体をサーバーの向きに合わせる(下の EVENT_FACE_YAW)
@@ -1612,7 +1684,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
             roofPulses++;
             SporeFieldServer.emitPoint(level, blockPosition(), ROOF_PULSE_PERCENT / 100.0D * DesignData.sporeField().fullAt());
             level.sendParticles(ModParticles.SPORE_JET.get(), getX(), getY() + 0.8D, getZ(), 6, 0.2D, 0.15D, 0.2D, 0.01D);
-            level.playSound(null, getX(), getY() + 0.8D, getZ(), SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE, 0.5F, 0.6F);
+            level.playSound(null, getX(), getY() + 0.8D, getZ(), ModSounds.G1_SAC_SWELL.get(), SoundSource.HOSTILE, 0.5F, 0.6F);
         }
     }
 
@@ -1678,7 +1750,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
         callReadyAt = level.getGameTime() + CALL_COOLDOWN;
         triggerAnim("overlay", "call_burst");
         G1SporeCloud.spawn(level, position().add(0.0D, 0.6D, 0.0D), CALL_CLOUD_RADIUS, CALL_CLOUD_TICKS, CALL_DOSE_PER_SECOND, -1, 0, false, this);
-        level.playSound(null, getX(), getY() + 1.4D, getZ(), SoundEvents.ZOMBIE_AMBIENT, SoundSource.HOSTILE, 1.4F, 0.5F);
+        com.yayuy.overgrownvegetation.voice.G1Voice.playAt(level, getX(), getY() + 1.4D, getZ(), species(), SoundEvents.ZOMBIE_AMBIENT, 1.4F, 0.5F);
         for (AbstractParasitizedMonster m : level.getEntitiesOfClass(AbstractParasitizedMonster.class, getBoundingBox().inflate(CALL_RANGE))) {
             if (m == this || !m.isAlive() || m.isRising() || distanceTo(m) > CALL_RANGE) continue;
             if (m.attacks() && m.canAttack(attacker) && attacker != m) {
@@ -1781,6 +1853,8 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
 
     @Override
     protected int actionTransition(int action) {
+        // evolve_in は補間なしで 0 秒目から(段階 0 から入れ替わった瞬間に、育ちきった姿が補間の間だけ見えないように。司令塔、11-13)
+        if (action == ACTION_EVOLVE) return 0;
         G1Move m = G1Move.byId(action);
         return m != null ? m.blendIn : super.actionTransition(action);
     }
@@ -1854,6 +1928,11 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
         tag.putBoolean("MistByHealthUsed", mistByHealthUsed);
         if (dev() == G1Developed.SHEEP) {
             tag.putInt("Fluff", fluff());
+            // 冷却は残りの tick で持つ(読み込み直すたびに 1 回すぐ放つ・食べ直すのを止める。11-13 ユーザー決定)
+            tag.putLong("FluffRegrowIn", Math.max(0L, fluffRegrowAt - level().getGameTime()));
+            for (G1TechniqueGoal g : techniques()) {
+                if (g instanceof G1FluffLooseGoal) tag.putLong("LooseIn", g.cooldownLeft());
+            }
         }
         if (dev() == G1Developed.CHICKEN && layReadyAt >= 0L) {
             tag.putLong("LayIn", Math.max(0L, layReadyAt - level().getGameTime())); // 残りの tick で持つ(世界の時計が変わっても狂わない)
@@ -1873,6 +1952,14 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
         mistByHealthUsed = tag.getBoolean("MistByHealthUsed");
         if (tag.contains("Fluff")) {
             setFluff(tag.getInt("Fluff"));
+        }
+        if (tag.contains("FluffRegrowIn")) {
+            fluffRegrowAt = level().getGameTime() + net.minecraft.util.Mth.clamp(tag.getLong("FluffRegrowIn"), 0L, (long) FLUFF_REGROW_TICKS);
+        }
+        if (tag.contains("LooseIn")) {
+            for (G1TechniqueGoal g : techniques()) {
+                if (g instanceof G1FluffLooseGoal) g.setCooldownLeft(tag.getLong("LooseIn"));
+            }
         }
         if (tag.contains("LayIn")) {
             layReadyAt = level().getGameTime() + tag.getLong("LayIn");

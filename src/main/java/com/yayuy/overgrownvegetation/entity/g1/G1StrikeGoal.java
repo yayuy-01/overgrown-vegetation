@@ -92,7 +92,14 @@ public class G1StrikeGoal extends Goal {
     @Override
     public void stop() {
         t = 0;
-        mob.setAction(AbstractParasitizedMonster.ACTION_NONE);
+        // 行動の段を空に戻すのは、1 撃の自分の段(前触れ・実行・隙)のときだけ(2026-11-13)。1 撃が当たって始まった取り付き・食らいつきの
+        // 段を消さない: 噛んでいる最中に標的が消える(別の相手を標的に渡され、その相手がいなくなる)と、この Goal だけが止まり、
+        // 噛んだまま行動の段が空になっていた(豚の食らいつきのテストが回によって落ちた原因)。
+        int a = mob.action();
+        if (a == AbstractParasitizedMonster.ACTION_WINDUP || a == AbstractParasitizedMonster.ACTION_STRIKE
+                || a == AbstractParasitizedMonster.ACTION_RECOVER) {
+            mob.setAction(AbstractParasitizedMonster.ACTION_NONE);
+        }
         mob.setAggressive(false);
         mob.getNavigation().stop();
     }
@@ -220,12 +227,29 @@ public class G1StrikeGoal extends Goal {
     }
 
     private void hit(LivingEntity target) {
+        land(mob, target);
+    }
+
+    /**
+     * 1 撃を相手に当てる(盾が効く)。当たれば暴露量を足して {@code onStrikeHit}、盾で防がれたら {@code onStrikeBlocked}(2026-11-13、1 段目の (a))。
+     * GameTest からも呼ぶ。
+     *
+     * @return 当たったか
+     */
+    public static boolean land(AbstractParasitizedMonster mob, LivingEntity target) {
         mob.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+        // 盾で防がれるかは当てる前に見る(当てた後は、構えが解けていることがある)
+        boolean shielded = target.isDamageSourceBlocked(mob.damageSources().mobAttack(mob));
         if (mob.doHurtTarget(target)) {
             // 当てたら Mob にも暴露量を足す(噛まれた家畜・村人も G1 になる鎖。11-05 ユーザー)。プレイヤーは
             // ParasitizedAttackInfectionHandler(グループのタグ)が胞子感染を付ける。
             SporeExposureTracker.addDose(target, MOB_DOSE);
             mob.onStrikeHit(target); // 1 段目のチビゾンビはここで取り付く(2026-11-12)
+            return true;
         }
+        if (shielded) {
+            mob.onStrikeBlocked(target); // 1 段目のゾンビ・村人は盾ごしに押す
+        }
+        return false;
     }
 }

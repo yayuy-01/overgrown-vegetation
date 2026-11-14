@@ -54,6 +54,13 @@ public final class DesignData {
     private static volatile SkyTable sky = SkyTable.DEFAULT;
     private static volatile NetherSpreadTable netherSpread = NetherSpreadTable.DEFAULT;
 
+    private static volatile DirectorTable director = DirectorTable.DEFAULT;
+
+    /** 森の知性(司令塔)の設計値({@code director.json}、2026-11-13)。 */
+    public static DirectorTable director() {
+        return director;
+    }
+
     /** ネザーの汚染の骨組みの設計値({@code nether_spread.json}、2026-11-11)。 */
     public static NetherSpreadTable netherSpread() {
         return netherSpread;
@@ -154,6 +161,7 @@ public final class DesignData {
         actions = ActionTable.fromJson(read(dir, "actions.json", ActionTable.Json.class));
         sky = SkyTable.fromJson(read(dir, "sky.json", SkyTable.Json.class));
         netherSpread = NetherSpreadTable.fromJson(read(dir, "nether_spread.json", NetherSpreadTable.Json.class));
+        director = DirectorTable.fromJson(read(dir, "director.json", DirectorTable.Json.class));
 
         OvergrownVegetation.LOGGER.info("設計データを読み込みました({})", dir);
     }

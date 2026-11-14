@@ -5,16 +5,22 @@ import com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster;
 import com.yayuy.overgrownvegetation.entity.DevelopedParasitized;
 import com.yayuy.overgrownvegetation.entity.g1.G1Developed;
 import com.yayuy.overgrownvegetation.entity.g1.G1StrikeGoal;
+import com.yayuy.overgrownvegetation.entity.g1.skill.G1Move;
 import com.yayuy.overgrownvegetation.registry.ModG1;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.Cow;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -322,5 +328,127 @@ public final class G1StrikeAGameTests {
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 120)
     public static void chickenStrikeHasOnlyBaseKnockback(GameTestHelper helper) {
         pushIs(helper, G1Developed.CHICKEN, 0.25D, 0.4D, 0.0D);
+    }
+
+    // ------------------------------------------------------------------ 盾で防がれたとき(A-5)・スケルトンの攻撃(A-7)
+    /** 盾を構えて 1 段目の方を向いた偽プレイヤー(1 段目の正面 1.2 ブロック)。 */
+    private static Player shieldedPlayer(GameTestHelper helper, DevelopedParasitized mob) {
+        Player p = helper.makeMockPlayer(GameType.SURVIVAL);
+        p.setPos(mob.getX(), mob.getY(), mob.getZ() + 1.2D);
+        p.setYRot(180.0F); // 北(−Z)= 1 段目の方を向く
+        p.setYHeadRot(180.0F);
+        p.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(Items.SHIELD));
+        p.startUsingItem(InteractionHand.OFF_HAND);
+        for (int i = 0; i < 6; i++) p.tick(); // 盾は構えて 5 tick 後から防ぐ
+        p.setOnGround(true); // 本物のプレイヤーと同じく地面に立っている扱い(バニラの盾の処理が上向きの速さを入れる方の道)
+        helper.assertTrue(p.isBlocking(), "偽プレイヤーが盾を構えられない");
+        return p;
+    }
+
+    /**
+     * 盾で防がれた 1 撃: 傷は入らない。ゾンビは当たったときと同じ強さ(跳ね上げも)、村人はそれより小さく(跳ね上げ無し)で押す(11-13 ユーザー「A案」)。
+     *
+     * @param forward 前へ押す速さの期待値。負なら「押さない」
+     * @param up      上向きの速さの期待値(地面に立っている相手)
+     */
+    private static void shieldPushIs(GameTestHelper helper, G1Developed d, double forward, double up) {
+        DevelopedParasitized mob = spawnStriker(helper, d, new Vec3(3.5, 2.0, 2.0));
+        mob.goalSelector.removeAllGoals(g -> true); // 1 撃はテストが直に当てる
+        Player p = shieldedPlayer(helper, mob);
+        float health = p.getHealth();
+        boolean hit = G1StrikeGoal.land(mob, p);
+        helper.assertTrue(!hit, d + " の 1 撃が盾を抜けた");
+        helper.assertTrue(p.getHealth() >= health, d + " の 1 撃が盾ごしに傷を与えた: " + p.getHealth());
+        helper.assertTrue(mob.strikeHits() == 0, "盾で防がれたのに当たった数に入った");
+        Vec3 push = mob.lastShieldPush();
+        if (forward < 0.0D) {
+            helper.assertTrue(push == null, d + " が盾ごしに押した: " + push);
+        } else {
+            helper.assertTrue(push != null, d + " が盾ごしに押していない");
+            // 出たときの向きは真南とは限らないので、1 段目の向きの前・右の成分で見る
+            float rad = mob.getYRot() * Mth.DEG_TO_RAD;
+            double f = push.x * -Mth.sin(rad) + push.z * Mth.cos(rad);
+            double r = push.x * -Mth.cos(rad) + push.z * -Mth.sin(rad);
+            helper.assertTrue(Math.abs(f - forward) < 0.02D && Math.abs(r) < 0.02D && Math.abs(push.y - up) < 0.02D,
+                    d + " の盾ごしの押し返しが違う: 前 " + f + "・右 " + r + "・上 " + push.y + "(前へ " + forward + "・上へ " + up + " のはず)");
+            Vec3 now = p.getDeltaMovement();
+            helper.assertTrue(now.distanceTo(push) < 1.0E-6D, "相手の速さが押し返しになっていない: " + now);
+            helper.assertTrue(p.hurtMarked, "プレイヤーへ速さを送る印が付いていない");
+        }
+        helper.succeed();
+    }
+
+    /** ゾンビ「盾で受けると押し返しだけ受ける」: 当たったときと同じ = 前へ 0.45(素の残り 0.2 + 押し返し 0.5 × 0.5)・跳ね上げ 0.4。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 40)
+    public static void zombieStrikePushesThroughShield(GameTestHelper helper) {
+        shieldPushIs(helper, G1Developed.ZOMBIE, 0.45D, 0.4D);
+    }
+
+    /** 村人「盾で受けると少し後ずさる」: ゾンビより小さく = 前へ 0.2(押し返し 0.8 × 0.25)・跳ね上げ無し。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 40)
+    public static void villagerStrikePushesThroughShield(GameTestHelper helper) {
+        shieldPushIs(helper, G1Developed.VILLAGER, 0.2D, 0.0D);
+    }
+
+    /** 欄に盾ごしの記述が無い種(牛: 押し返し 0.9)は、盾で防がれたら押さない。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 40)
+    public static void cowStrikeDoesNotPushThroughShield(GameTestHelper helper) {
+        shieldPushIs(helper, G1Developed.COW, -1.0D, 0.0D);
+    }
+
+    /** スケルトンの根の弓の薙ぎ: 攻撃 5(11-13 ユーザー「5で行こう」)。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 120)
+    public static void skeletonStrikeDealsFive(GameTestHelper helper) {
+        DevelopedParasitized skeleton = spawnStriker(helper, G1Developed.SKELETON, new Vec3(3.5, 2.0, 2.0));
+        helper.assertTrue(Math.abs(skeleton.getAttributeValue(Attributes.ATTACK_DAMAGE) - 5.0D) < 1.0E-6D,
+                "スケルトンの攻撃が 5 でない: " + skeleton.getAttributeValue(Attributes.ATTACK_DAMAGE));
+        Cow cow = spawnCow(helper, new Vec3(3.5, 2.0, 2.0 + 0.3D + 0.4D + COW_HALF));
+        keepTarget(helper, skeleton, cow);
+        float[] afterFirst = {Float.NaN};
+        helper.onEachTick(() -> {
+            if (Float.isNaN(afterFirst[0]) && skeleton.strikeHits() >= 1) {
+                afterFirst[0] = cow.getHealth();
+                skeleton.goalSelector.removeAllGoals(g -> true); // 2 撃目を振らせない
+            }
+        });
+        helper.succeedWhen(() -> {
+            helper.assertTrue(!Float.isNaN(afterFirst[0]), "当たっていない");
+            helper.assertTrue(Math.abs(afterFirst[0] - 195.0F) < 0.05F, "1 撃のダメージが 5 でない: 体力 " + afterFirst[0]);
+        });
+    }
+
+    /**
+     * 噛んでいる最中に標的が別の相手へ替わり、その相手が消えても、食らいつきの段(attack_hold)は消えない
+     * (1 撃の Goal は止まるが、行動の段を空に戻すのは自分の段のときだけ)。豚の食らいつきのテストが回によって落ちた原因の再現。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 200)
+    public static void biteHoldSurvivesLosingAnotherTarget(GameTestHelper helper) {
+        DevelopedParasitized pig = spawnStriker(helper, G1Developed.PIG, new Vec3(2.5, 2.0, 3.5));
+        Cow cow = spawnCow(helper, new Vec3(3.8, 2.0, 3.5));
+        int[] step = {0};
+        String[] bad = {null};
+        helper.onEachTick(() -> {
+            if (step[0] == 0) {
+                if (pig.getTarget() != cow) pig.setTarget(cow);
+                if (pig.latch() != null) {
+                    // 隣のテスト場のゾンビの「仲間を呼ぶ」と同じ形: 標的を別の相手に替えられ、その相手が消える
+                    Cow other = spawnCow(helper, new Vec3(5.5, 2.0, 5.5));
+                    pig.setTarget(other);
+                    other.discard();
+                    step[0] = 1;
+                }
+            } else if (step[0] < 4) {
+                if (pig.latch() == null) {
+                    bad[0] = "標的が消えたら口を離した(" + step[0] + " tick 後)";
+                } else if (pig.action() != G1Move.BITE_HOLD.id()) {
+                    bad[0] = "噛んだまま行動の段が変わった: " + pig.action() + "(" + step[0] + " tick 後)";
+                }
+                step[0]++;
+            }
+        });
+        helper.succeedWhen(() -> {
+            helper.assertTrue(step[0] >= 4, "まだ噛んでいない・見終わっていない: 段 " + step[0]);
+            helper.assertTrue(bad[0] == null, String.valueOf(bad[0]));
+        });
     }
 }

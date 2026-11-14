@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster;
 import com.yayuy.overgrownvegetation.registry.ModG1;
 import com.yayuy.overgrownvegetation.registry.ModItems;
@@ -70,7 +71,7 @@ public class G1SporeLump extends ThrowableItemProjectile {
         super.onHit(result);
         if (level() instanceof ServerLevel level) {
             level.sendParticles(ModParticles.SPORE_JET.get(), getX(), getY(), getZ(), 14, 0.2D, 0.2D, 0.2D, 0.03D);
-            level.playSound(null, getX(), getY(), getZ(), SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE, 0.8F, 0.7F);
+            level.playSound(null, getX(), getY(), getZ(), ModSounds.G1_SAC_LUMP_HIT.get(), SoundSource.HOSTILE, 0.8F, 0.7F);
             discard();
         }
     }

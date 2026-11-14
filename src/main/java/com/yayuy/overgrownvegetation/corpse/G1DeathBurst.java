@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.corpse;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.corruption.CorruptionSwitch;
 import com.yayuy.overgrownvegetation.corruption.NoisyCorruptionBurst;
 import com.yayuy.overgrownvegetation.data.DesignData;
@@ -219,9 +220,7 @@ public final class G1DeathBurst {
         // 5. 湿った破裂音(バニラの湿った音を低くして重ねる。新しい音は作らない)
         float pitch = Mth.clamp(PITCH_BASE - PITCH_PER_SIZE * (float) size, 0.5F, 0.85F);
         float volume = VOLUME_BASE + VOLUME_PER_SIZE * (float) size;
-        level.playSound(null, mid.x, mid.y, mid.z, SoundEvents.SLIME_BLOCK_BREAK, SoundSource.HOSTILE, volume, pitch);
-        level.playSound(null, mid.x, mid.y, mid.z, SoundEvents.MUD_BREAK, SoundSource.HOSTILE, volume * 0.9F, pitch * 0.9F);
-        level.playSound(null, mid.x, mid.y, mid.z, SoundEvents.SQUID_SQUIRT, SoundSource.HOSTILE, volume * 0.6F, pitch * 1.1F);
+        level.playSound(null, mid.x, mid.y, mid.z, ModSounds.G1_SAC_BURST.get(), SoundSource.HOSTILE, volume, pitch);
         return airPercent;
     }
 }

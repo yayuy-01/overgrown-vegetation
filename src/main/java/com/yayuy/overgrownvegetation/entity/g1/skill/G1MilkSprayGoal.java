@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.entity.DevelopedParasitized;
 import com.yayuy.overgrownvegetation.registry.ModParticles;
 import com.yayuy.overgrownvegetation.spore.SporeExposureTracker;
@@ -94,7 +95,7 @@ public class G1MilkSprayGoal extends G1TechniqueGoal {
         if (!(mob.level() instanceof ServerLevel level)) return;
         if (stageIndex == 0 && (tickInStage == 3 || tickInStage == 9 || tickInStage == 15)) {
             // 乳嚢の脈打ち(3 回)と、滴る白っぽい汁
-            level.playSound(null, mob.getX(), mob.getY() + 0.4D, mob.getZ(), SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE, 0.7F, 0.55F);
+            level.playSound(null, mob.getX(), mob.getY() + 0.4D, mob.getZ(), ModSounds.G1_SAC_SWELL.get(), SoundSource.HOSTILE, 0.7F, 0.55F);
             level.sendParticles(ParticleTypes.SPIT, mob.getX(), mob.getY() + 0.35D, mob.getZ(), 1, 0.2D, 0.05D, 0.2D, 0.0D);
         }
         if (stageIndex == 1 && tickInStage == 1) {

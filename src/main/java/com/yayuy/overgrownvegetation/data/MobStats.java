@@ -813,6 +813,29 @@ public final class MobStats {
         m.put("developed_parasitized_skeleton", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.28; s.width = 0.6; s.height = 1.99; }));
         m.put("developed_parasitized_spider", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 1.4; s.height = 1.2; }));
         m.put("developed_parasitized_enderman", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 0.6; s.height = 3.0; }));
+        m.put("rooted_parasitized_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.0; s.height = 4.4; })); // 根付き(2026-11-13)
+        m.put("rooted_parasitized_baby_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 0.8; s.height = 2.5; }));
+        m.put("rooted_parasitized_villager", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.0; s.height = 4.6; }));
+        m.put("rooted_parasitized_enderman", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.0; s.height = 4.6; }));
+        m.put("rooted_parasitized_skeleton", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.0; s.height = 5.2; }));
+        m.put("root_guardian", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.25; s.width = 1.3; s.height = 1.9; }));
+        m.put("rooted_parasitized_cow", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.4; s.height = 1.6; }));
+        m.put("rooted_parasitized_pig", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.2; }));
+        m.put("rooted_parasitized_sheep", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.3; s.height = 1.6; }));
+        m.put("rooted_parasitized_chicken", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 0.7; s.height = 0.9; }));
+        m.put("rooted_parasitized_spider", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.0; s.height = 1.8; }));
+        m.put("rooted_parasitized_creeper", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 0.8; s.height = 1.8; }));
+        m.put("nursery_parasitized_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.0; }));
+        m.put("nursery_parasitized_baby_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 0.9; s.height = 0.7; }));
+        m.put("nursery_parasitized_villager", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.1; }));
+        m.put("nursery_parasitized_skeleton", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.0; }));
+        m.put("nursery_parasitized_enderman", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.0; }));
+        m.put("nursery_parasitized_cow", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.3; s.height = 1.2; }));
+        m.put("nursery_parasitized_pig", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.1; s.height = 1.0; }));
+        m.put("nursery_parasitized_sheep", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.1; }));
+        m.put("nursery_parasitized_chicken", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 0.8; s.height = 0.6; }));
+        m.put("nursery_parasitized_spider", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.0; }));
+        m.put("nursery_parasitized_creeper", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.0; }));
         // G1 の作り直し 第 1 段(2026-10-22): 進化体 8 種。G1 の一生(司令塔の「進化」)からだけ現れる(naturalSpawn false = レイド・汚染したスポナー・増援にも出ない)。数値は仮決め
         m.put("vinearm_zombie", stat(s -> { s.naturalSpawn = false; s.maxHealth = 26.0; s.movementSpeed = 0.28; s.width = 0.6; s.height = 1.95; s.eggFit = 2.07; }));
         m.put("hollow_villager", stat(s -> { s.naturalSpawn = false; s.maxHealth = 24.0; s.attackDamage = 5.0; s.movementSpeed = 0.29; s.width = 0.6; s.height = 1.95; s.eggFit = 2.07; }));

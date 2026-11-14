@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.entity.DevelopedParasitized;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -56,7 +57,7 @@ public class G1SpitGoal extends G1TechniqueGoal {
         if (!(mob.level() instanceof ServerLevel level)) return;
         if (stageIndex == 0 && tickInStage == 3) {
             // 腹の袋が膨らむ
-            level.playSound(null, mob.getX(), mob.getY() + 0.8D, mob.getZ(), SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE, 0.7F, 0.6F);
+            level.playSound(null, mob.getX(), mob.getY() + 0.8D, mob.getZ(), ModSounds.G1_SAC_SWELL.get(), SoundSource.HOSTILE, 0.7F, 0.6F);
         } else if (stageIndex == 1 && tickInStage == 1) {
             spit(level);
         }

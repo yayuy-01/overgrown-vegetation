@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.entity.DevelopedParasitized;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
@@ -61,7 +62,7 @@ public class G1RootAnchorGoal extends G1TechniqueGoal {
                 level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, ground), mob.getX(), mob.getY() + 0.1D, mob.getZ(),
                         10, 0.3D, 0.05D, 0.3D, 0.05D);
             }
-            level.playSound(null, mob.getX(), mob.getY(), mob.getZ(), SoundEvents.ROOTED_DIRT_BREAK, SoundSource.HOSTILE, 0.8F, 0.6F);
+            level.playSound(null, mob.getX(), mob.getY(), mob.getZ(), ModSounds.G1_ROOT_BREAK.get(), SoundSource.HOSTILE, 0.8F, 0.6F);
         }
         if (tickInStage == 20) {
             mob.startAnchor(ANCHOR_TICKS); // 段が終わる前に据える(終わりの行動の段が anchored_idle になる)

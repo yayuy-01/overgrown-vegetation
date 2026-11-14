@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.entity.DevelopedParasitized;
 import com.yayuy.overgrownvegetation.entity.g1.G1StrikeGoal;
 import com.yayuy.overgrownvegetation.spore.SporeExposureTracker;
@@ -76,7 +77,7 @@ public class G1LeapGoal extends G1TechniqueGoal {
             if (target != null && target.isAlive()) launchDist = mob.distanceTo(target);
             if (tickInStage == 2) {
                 // 杭の脚 2 本を地面に刺して踏ん張る
-                level.playSound(null, mob.getX(), mob.getY(), mob.getZ(), SoundEvents.ROOTED_DIRT_BREAK, SoundSource.HOSTILE, 0.6F, 1.0F);
+                level.playSound(null, mob.getX(), mob.getY(), mob.getZ(), ModSounds.G1_ROOT_BREAK.get(), SoundSource.HOSTILE, 0.6F, 1.0F);
             }
         } else if (stageIndex == 1) {
             if (tickInStage == 1) {

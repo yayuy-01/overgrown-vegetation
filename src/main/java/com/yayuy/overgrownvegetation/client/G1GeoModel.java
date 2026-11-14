@@ -51,6 +51,40 @@ public class G1GeoModel<T extends Entity & GeoAnimatable> extends LodGeoModel<T>
         super.setCustomAnimations(animatable, instanceId, animationState);
         if (animatable instanceof com.yayuy.overgrownvegetation.entity.DevelopedParasitized d) {
             G1DevelopedRig.apply(this, d, animationState);
+        } else if (animatable instanceof com.yayuy.overgrownvegetation.entity.RootedParasitized r) {
+            // 根付き: 体は固定のまま、蔦の腕だけを標的へ回す(骨 grab_swing の y 回転。2026-11-13)。
+            // 符号はゲーム内で確かめた(11-13): 体の正面から左回りの角度を、そのまま骨の y 回転に足すと標的の側へ向く(逆にすると反対側へ伸びた)
+            // 骨は種ごと: ゾンビ grab_swing・エンダーマン reach_shoulder・スケルトン ballista_aim(G1Rooted.Skill#aimBone)
+            String boneName = r.rooted().skill.aimBone;
+            software.bernie.geckolib.cache.object.GeoBone swing = boneName == null ? null : getAnimationProcessor().getBone(boneName);
+            if (swing != null) {
+                float yaw = r.aimYaw();
+                if (r.deathTime > 0) {
+                    // 枯れて崩れる動きは正面向きで作ってある: 頭の 10 tick で向きを 0 へ戻す(向きを付けたままだと弓の腕が地面へ潜る)
+                    float k = Math.max(0.0F, 1.0F - (r.deathTime + animationState.getPartialTick()) / 10.0F);
+                    yaw = net.minecraft.util.Mth.wrapDegrees(yaw) * k;
+                }
+                swing.setRotY(swing.getRotY() + yaw * net.minecraft.util.Mth.DEG_TO_RAD);
+                swing.resetStateChanges();
+            }
+            // 豚の根の顎: 骨 root_jaw_carry を、同期した位置(体の左・前へのブロック数)へ動かし、縛っている間は大きくする。
+            // 静止の位置からの差を骨の位置に入れる(モデルの単位 = 1/16 ブロック。前 = −Z、左 = −X。GeckoLib は位置の x を逆の符号で持つ)
+            if (r.rooted().skill == com.yayuy.overgrownvegetation.entity.g1.G1Rooted.Skill.BIND) {
+                software.bernie.geckolib.cache.object.GeoBone jaw = getAnimationProcessor().getBone("root_jaw_carry");
+                if (jaw != null) {
+                    float dLeft = (r.jawLeft() - com.yayuy.overgrownvegetation.entity.RootedParasitized.JAW_REST_LEFT) * 16.0F;
+                    float dFront = (r.jawFront() - com.yayuy.overgrownvegetation.entity.RootedParasitized.JAW_REST_FRONT) * 16.0F;
+                    jaw.setPosX(jaw.getPosX() + dLeft);
+                    jaw.setPosZ(jaw.getPosZ() - dFront);
+                    float s = r.jawScale();
+                    jaw.setScaleX(jaw.getScaleX() * s);
+                    jaw.setScaleY(jaw.getScaleY() * s);
+                    jaw.setScaleZ(jaw.getScaleZ() * s);
+                    jaw.resetStateChanges();
+                }
+            }
+        } else if (animatable instanceof com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster m) {
+            G1OmenRig.apply(this, m, animationState); // 司令塔の前兆(進化の前の震え。2026-11-13)
         }
     }
 

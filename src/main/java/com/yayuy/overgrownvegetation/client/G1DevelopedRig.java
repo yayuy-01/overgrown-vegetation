@@ -34,7 +34,34 @@ final class G1DevelopedRig {
     private G1DevelopedRig() {
     }
 
+    /**
+     * evolve_in の始まりを立ち姿からつなぐ長さ(tick)【仮】。11-13 ユーザー「始まりを立ち姿に寄せてほしい」: 段階 0 は震えの終わりに立っているのに、
+     * evolve_in の 0 秒目は前かがみ(ゾンビは胴 28°)で、入れ替わった 1 コマで姿勢が飛んでいた。アニメは直さず、始まりの間だけ、
+     * どの骨も回転と位置を「モデルの静止の姿(立ち姿)→ アニメの値」へならす。拡大(植物が小さい所から育つ)はアニメのまま。
+     */
+    private static final float EVOLVE_BLEND_TICKS = 12.0F;
+
+    private static void blendEvolveStart(GeoModel<?> model, DevelopedParasitized mob, AnimationState<?> state) {
+        float t = mob.evolveClientTicks(state.getPartialTick());
+        if (t >= EVOLVE_BLEND_TICKS) return;
+        float k = Mth.clamp(t / EVOLVE_BLEND_TICKS, 0.0F, 1.0F);
+        k = k * k * (3.0F - 2.0F * k);
+        for (software.bernie.geckolib.cache.object.GeoBone bone : model.getAnimationProcessor().getRegisteredBones()) {
+            software.bernie.geckolib.animation.state.BoneSnapshot init = bone.getInitialSnapshot();
+            bone.setRotX(Mth.lerp(k, init.getRotX(), bone.getRotX()));
+            bone.setRotY(Mth.lerp(k, init.getRotY(), bone.getRotY()));
+            bone.setRotZ(Mth.lerp(k, init.getRotZ(), bone.getRotZ()));
+            bone.setPosX(Mth.lerp(k, init.getOffsetX(), bone.getPosX()));
+            bone.setPosY(Mth.lerp(k, init.getOffsetY(), bone.getPosY()));
+            bone.setPosZ(Mth.lerp(k, init.getOffsetZ(), bone.getPosZ()));
+            bone.resetStateChanges();
+        }
+    }
+
     static void apply(GeoModel<?> model, DevelopedParasitized mob, AnimationState<?> state) {
+        // evolve_in の始まりのならし(blendEvolveStart)は 11-13 夜から呼ばない: アニメの側で同じ式がキーに焼かれた
+        // (developed_parasitized_<種>.animation.json の evolve_in。0 秒目はどの骨も回転・位置 0)。二重に掛けないよう外した。
+        // メソッドは、アニメを前の版へ戻したときのために残してある
         if (mob.dev() == G1Developed.CREEPER) {
             float empty = 1.0F - mob.podsShown(state.getPartialTick());
             if (empty > 0.001F) {

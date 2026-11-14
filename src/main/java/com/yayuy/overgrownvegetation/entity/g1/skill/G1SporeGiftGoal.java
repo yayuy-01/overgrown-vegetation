@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster;
 import com.yayuy.overgrownvegetation.entity.DevelopedParasitized;
 import com.yayuy.overgrownvegetation.spore.SporeExposureTracker;
@@ -126,6 +127,6 @@ public class G1SporeGiftGoal extends Goal {
         // 速さ 0.8・重力 0.03 の落下ぶん(≒ 0.0234 × 距離²)だけ上を狙う。ばらつきは雪玉の半分
         lump.shoot(dx, dy + DROP_PER_DISTANCE_SQ * h * h, dz, THROW_SPEED, 1.0F);
         mob.level().addFreshEntity(lump);
-        mob.level().playSound(null, mob.getX(), mob.getY() + 1.4D, mob.getZ(), SoundEvents.SLIME_SQUISH, SoundSource.HOSTILE, 0.7F, 0.8F);
+        mob.level().playSound(null, mob.getX(), mob.getY() + 1.4D, mob.getZ(), ModSounds.G1_SAC_LUMP_HIT.get(), SoundSource.HOSTILE, 0.7F, 0.8F);
     }
 }

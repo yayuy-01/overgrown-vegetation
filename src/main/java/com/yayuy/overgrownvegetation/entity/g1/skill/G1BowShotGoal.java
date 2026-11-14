@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster;
 import com.yayuy.overgrownvegetation.entity.DevelopedParasitized;
 import net.minecraft.server.level.ServerLevel;
@@ -85,7 +86,7 @@ public class G1BowShotGoal extends G1TechniqueGoal {
         if (!(mob.level() instanceof ServerLevel level)) return;
         if (stageIndex == 0 && tickInStage == 7) {
             // 胸の袋から塊をちぎり取る
-            level.playSound(null, mob.getX(), mob.getY() + 1.2D, mob.getZ(), SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE, 0.8F, 0.6F);
+            level.playSound(null, mob.getX(), mob.getY() + 1.2D, mob.getZ(), ModSounds.G1_SAC_SWELL.get(), SoundSource.HOSTILE, 0.8F, 0.6F);
         } else if (stageIndex == 0 && tickInStage == 13) {
             // 蔓の弦を引く
             level.playSound(null, mob.getX(), mob.getY() + 1.2D, mob.getZ(), SoundEvents.CROSSBOW_LOADING_MIDDLE.value(), SoundSource.HOSTILE, 0.7F, 0.6F);
@@ -113,6 +114,6 @@ public class G1BowShotGoal extends G1TechniqueGoal {
         level.addFreshEntity(bolt);
         mob.countBoltShot(bolt);
         level.playSound(null, from.x, from.y, from.z, SoundEvents.SKELETON_SHOOT, SoundSource.HOSTILE, 1.0F, 0.6F);
-        level.playSound(null, from.x, from.y, from.z, SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE, 0.6F, 0.9F);
+        level.playSound(null, from.x, from.y, from.z, ModSounds.G1_SAC_SWELL.get(), SoundSource.HOSTILE, 0.6F, 0.9F);
     }
 }

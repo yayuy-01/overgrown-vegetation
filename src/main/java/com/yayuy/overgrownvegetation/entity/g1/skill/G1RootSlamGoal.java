@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.corruption.OvergrownLayerData;
 import com.yayuy.overgrownvegetation.entity.DevelopedParasitized;
 import com.yayuy.overgrownvegetation.entity.g1.G1StrikeGoal;
@@ -96,7 +97,7 @@ public class G1RootSlamGoal extends G1TechniqueGoal {
                 level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, s), p.getX() + 0.5D, p.getY() + 1.05D, p.getZ() + 0.5D,
                         3, 0.25D, 0.02D, 0.25D, 0.02D);
             }
-            level.playSound(null, mob.getX(), mob.getY(), mob.getZ(), SoundEvents.ROOTED_DIRT_BREAK, SoundSource.HOSTILE, 0.8F, 0.5F);
+            level.playSound(null, mob.getX(), mob.getY(), mob.getZ(), ModSounds.G1_ROOT_BREAK.get(), SoundSource.HOSTILE, 0.8F, 0.5F);
         } else if (stageIndex == 1 && tickInStage == 1) {
             slam(level);
         }
@@ -135,7 +136,7 @@ public class G1RootSlamGoal extends G1TechniqueGoal {
             G1RootSpike.spawn(level, p);
         }
         if (!spikes.isEmpty()) {
-            level.playSound(null, mob.getX(), mob.getY(), mob.getZ(), SoundEvents.ROOTS_BREAK, SoundSource.HOSTILE, 1.0F, 0.6F);
+            level.playSound(null, mob.getX(), mob.getY(), mob.getZ(), ModSounds.G1_ROOT_BREAK.get(), SoundSource.HOSTILE, 1.0F, 0.6F);
         }
         mob.countSlam(spikes.size(), hits);
     }

@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.entity.DevelopedParasitized;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -58,7 +59,7 @@ public class G1VineLashGoal extends G1TechniqueGoal {
     @Override
     protected void onTick(int stageIndex, int tickInStage) {
         if (stageIndex == 0 && tickInStage == 1) {
-            mob.level().playSound(null, mob.getX(), mob.getY() + 1.5D, mob.getZ(), SoundEvents.CAVE_VINES_STEP, SoundSource.HOSTILE, 1.0F, 0.6F);
+            mob.level().playSound(null, mob.getX(), mob.getY() + 1.5D, mob.getZ(), ModSounds.G1_VINE_LASH.get(), SoundSource.HOSTILE, 1.0F, 0.6F);
         }
         if (stageIndex == 1 && tickInStage == 4) {
             lash();
@@ -67,7 +68,7 @@ public class G1VineLashGoal extends G1TechniqueGoal {
 
     private void lash() {
         LivingEntity t = target;
-        mob.level().playSound(null, mob.getX(), mob.getY() + 1.5D, mob.getZ(), SoundEvents.CAVE_VINES_PLACE, SoundSource.HOSTILE, 1.0F, 1.2F);
+        mob.level().playSound(null, mob.getX(), mob.getY() + 1.5D, mob.getZ(), ModSounds.G1_VINE_LASH.get(), SoundSource.HOSTILE, 1.0F, 1.2F);
         if (t == null || !t.isAlive() || !inLine(t)) return;
         if (t.isBlocking() && facing(t)) {
             mob.level().playSound(null, t.getX(), t.getY() + 1.0D, t.getZ(), SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, 1.0F, 1.0F);

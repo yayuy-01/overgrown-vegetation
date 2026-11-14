@@ -55,8 +55,8 @@ public class G1ThroatPuffGoal extends G1TechniqueGoal {
 
     @Override
     protected void onTick(int stageIndex, int tickInStage) {
-        if (stageIndex == 0 && (tickInStage == 3 || tickInStage == 9)) {
-            mob.level().playSound(null, mob.getX(), mob.getY() + 0.6D, mob.getZ(), SoundEvents.PIG_HURT, SoundSource.HOSTILE, 0.5F, 0.45F);
+        if (stageIndex == 0 && (tickInStage == 3 || tickInStage == 9) && mob.level() instanceof ServerLevel voiceLevel) {
+            com.yayuy.overgrownvegetation.voice.G1Voice.playAt(voiceLevel, mob.getX(), mob.getY() + 0.6D, mob.getZ(), mob.species(), SoundEvents.PIG_HURT, 0.5F, 0.45F);
         }
         if (stageIndex == 1 && tickInStage == 1 && mob.level() instanceof ServerLevel level) {
             G1SporeCone.puff(level, mob, lockedYaw, LENGTH, HALF_ANGLE, DOSE, DEPOSIT);

@@ -62,6 +62,13 @@ public final class G1Latch {
             holder.setNoGravity(true);
         }
         holder.getNavigation().stop();
+        bite(); // 取り付いた瞬間の 1 噛み(それまでは標的の被弾の声だけで、噛む音が無かった)
+    }
+
+    /** 噛む音(湿った噛む音 3 本から選ぶ)。音量 0.8【仮】・高さ 0.9〜1.1 の乱数。 */
+    private void bite() {
+        if (holder.level().isClientSide()) return;
+        holder.playSound(com.yayuy.overgrownvegetation.registry.ModSounds.G1_LATCH_BITE.get(), 0.8F, 0.9F + holder.getRandom().nextFloat() * 0.2F);
     }
 
     /**
@@ -138,7 +145,10 @@ public final class G1Latch {
             target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 12, slowAmplifier, false, false), holder);
         }
         if (biteInterval > 0 && ticks % biteInterval == 0) {
-            if (biteDamage <= 0.0F || target.hurt(holder.damageSources().mobAttack(holder), biteDamage)) {
+            if (biteDamage <= 0.0F) {
+                G1SporeDose.add(target, biteDose);
+            } else if (target.hurt(holder.damageSources().mobAttack(holder), biteDamage)) {
+                bite(); // 噛んで傷が入ったときだけ鳴らす(暴露量だけの豚の食らいつきは鳴らさない)
                 G1SporeDose.add(target, biteDose);
             }
         }

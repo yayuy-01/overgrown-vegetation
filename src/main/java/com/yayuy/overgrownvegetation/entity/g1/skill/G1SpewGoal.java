@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.entity.DevelopedParasitized;
 import com.yayuy.overgrownvegetation.spore.field.SporeFieldServer;
@@ -61,13 +62,13 @@ public class G1SpewGoal extends G1TechniqueGoal {
     protected void onTick(int stageIndex, int tickInStage) {
         if (stageIndex == 0 && (tickInStage == 3 || tickInStage == 9 || tickInStage == 15)) {
             // そ嚢の脈打ち(3 回)
-            mob.level().playSound(null, mob.getX(), mob.getY() + 0.4D, mob.getZ(), SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE, 0.6F, 0.7F);
+            mob.level().playSound(null, mob.getX(), mob.getY() + 0.4D, mob.getZ(), ModSounds.G1_SAC_SWELL.get(), SoundSource.HOSTILE, 0.6F, 0.7F);
         }
         if (stageIndex == 1 && tickInStage % PULSE_TICKS == 1 && mob.level() instanceof ServerLevel level) {
             G1SporeCone.puff(level, mob, lockedYaw, LENGTH, HALF_ANGLE, DOSE_PER_SECOND * PULSE_TICKS / 20.0D, 0.0D);
             if (tickInStage == 1) {
                 SporeFieldServer.emitPoint(level, mob.blockPosition(), AIR_PERCENT / 100.0D * DesignData.sporeField().fullAt());
-                level.playSound(null, mob.getX(), mob.getY() + 0.6D, mob.getZ(), SoundEvents.CHICKEN_HURT, SoundSource.HOSTILE, 0.6F, 0.5F);
+                com.yayuy.overgrownvegetation.voice.G1Voice.playAt(level, mob.getX(), mob.getY() + 0.6D, mob.getZ(), mob.species(), SoundEvents.CHICKEN_HURT, 0.6F, 0.5F);
             }
         }
     }

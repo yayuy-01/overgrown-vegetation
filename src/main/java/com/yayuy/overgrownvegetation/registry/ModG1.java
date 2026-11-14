@@ -163,6 +163,13 @@ public final class ModG1 {
         for (DeferredItem<DeferredSpawnEggItem> egg : DEVELOPED_EGGS.values()) {
             output.accept(egg.get());
         }
+        for (DeferredItem<DeferredSpawnEggItem> egg : ROOTED_EGGS.values()) {
+            output.accept(egg.get());
+        }
+        output.accept(ROOT_GUARDIAN_EGG.get());
+        for (DeferredItem<DeferredSpawnEggItem> egg : NURSERY_EGGS.values()) {
+            output.accept(egg.get());
+        }
     }
 
     // ------------------------------------------------------------------ 1 段目(2026-11-12、第 1 段)
@@ -304,6 +311,81 @@ public final class ModG1 {
         return DEVELOPED.get(d);
     }
 
+    // ------------------------------------------------------------------ 根付き(2026-11-13、司令塔 第 1 段の区切り 2)
+    /**
+     * 根付き(1 つのクラス {@link com.yayuy.overgrownvegetation.entity.RootedParasitized}、種の値は {@link com.yayuy.overgrownvegetation.entity.g1.G1Rooted})。
+     * 表に行のある種だけ登録する(アニメの無い姿は組み込まない)。卵の点は樹皮の茶。登録した種は、司令塔が「根付き」を選べるようになる
+     * ({@link com.yayuy.overgrownvegetation.director.G1Fate#registerRooted})。
+     */
+    private static final Map<com.yayuy.overgrownvegetation.entity.g1.G1Rooted,
+            DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.RootedParasitized>>> ROOTED =
+            new EnumMap<>(com.yayuy.overgrownvegetation.entity.g1.G1Rooted.class);
+    private static final Map<com.yayuy.overgrownvegetation.entity.g1.G1Rooted, DeferredItem<DeferredSpawnEggItem>> ROOTED_EGGS =
+            new EnumMap<>(com.yayuy.overgrownvegetation.entity.g1.G1Rooted.class);
+
+    static {
+        for (com.yayuy.overgrownvegetation.entity.g1.G1Rooted r : com.yayuy.overgrownvegetation.entity.g1.G1Rooted.values()) {
+            String id = r.id();
+            DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.RootedParasitized>> holder =
+                    ModEntities.ENTITY_TYPES.register(id, () -> EntityType.Builder
+                            .of(com.yayuy.overgrownvegetation.entity.RootedParasitized::new, MobCategory.MONSTER)
+                            .sized(MobStats.width(id, r.width), MobStats.height(id, r.height))
+                            .clientTrackingRange(10)
+                            .build(id));
+            ROOTED.put(r, holder);
+            int base = EGG_BASE.getOrDefault(r.base(), 0x3B6642);
+            ROOTED_EGGS.put(r, ModItems.ITEMS.registerItem(id + "_spawn_egg", props -> new DeferredSpawnEggItem(holder, base, 0x5A4126, props)));
+            com.yayuy.overgrownvegetation.director.G1Fate.registerRooted(r.base(), holder);
+        }
+    }
+
+    // ------------------------------------------------------------------ 苗床(2026-11-13、司令塔 第 1 段の区切り 6)
+    /**
+     * 苗床 11 種(1 つのクラス {@link com.yayuy.overgrownvegetation.entity.NurseryParasitized}、種の値は
+     * {@link com.yayuy.overgrownvegetation.entity.g1.G1Nursery})。卵の点は胞子の黄緑。登録した種は、司令塔が「苗床」を選べる。
+     */
+    private static final Map<com.yayuy.overgrownvegetation.entity.g1.G1Nursery,
+            DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.NurseryParasitized>>> NURSERY =
+            new EnumMap<>(com.yayuy.overgrownvegetation.entity.g1.G1Nursery.class);
+    private static final Map<com.yayuy.overgrownvegetation.entity.g1.G1Nursery, DeferredItem<DeferredSpawnEggItem>> NURSERY_EGGS =
+            new EnumMap<>(com.yayuy.overgrownvegetation.entity.g1.G1Nursery.class);
+
+    static {
+        for (com.yayuy.overgrownvegetation.entity.g1.G1Nursery n : com.yayuy.overgrownvegetation.entity.g1.G1Nursery.values()) {
+            String id = n.id();
+            DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.NurseryParasitized>> holder =
+                    ModEntities.ENTITY_TYPES.register(id, () -> EntityType.Builder
+                            .of(com.yayuy.overgrownvegetation.entity.NurseryParasitized::new, MobCategory.MONSTER)
+                            .sized(MobStats.width(id, n.width), MobStats.height(id, n.height))
+                            .clientTrackingRange(8)
+                            .build(id));
+            NURSERY.put(n, holder);
+            int base = EGG_BASE.getOrDefault(n.base(), 0x3B6642);
+            NURSERY_EGGS.put(n, ModItems.ITEMS.registerItem(id + "_spawn_egg", props -> new DeferredSpawnEggItem(holder, base, 0xBCC100, props)));
+            com.yayuy.overgrownvegetation.director.G1Fate.registerNursery(n.base(), holder);
+        }
+    }
+
+    public static DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.NurseryParasitized>> nursery(
+            com.yayuy.overgrownvegetation.entity.g1.G1Nursery n) {
+        return NURSERY.get(n);
+    }
+
+    /** 根の守り手(根付きの村人が育てる根のゴーレム。2026-11-13)。素材 g1_root_guardian。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.RootGuardian>> ROOT_GUARDIAN =
+            ModEntities.ENTITY_TYPES.register("root_guardian", () -> EntityType.Builder
+                    .of(com.yayuy.overgrownvegetation.entity.RootGuardian::new, MobCategory.MONSTER)
+                    .sized(MobStats.width("root_guardian", 1.3F), MobStats.height("root_guardian", 1.9F))
+                    .clientTrackingRange(8)
+                    .build("root_guardian"));
+    private static final DeferredItem<DeferredSpawnEggItem> ROOT_GUARDIAN_EGG =
+            ModItems.ITEMS.registerItem("root_guardian_spawn_egg", props -> new DeferredSpawnEggItem(ROOT_GUARDIAN, 0x4A3A22, 0x7BA43A, props));
+
+    public static DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.RootedParasitized>> rooted(
+            com.yayuy.overgrownvegetation.entity.g1.G1Rooted r) {
+        return ROOTED.get(r);
+    }
+
     // ------------------------------------------------------------------ 属性
     @SubscribeEvent
     public static void onEntityAttributeCreation(EntityAttributeCreationEvent event) {
@@ -312,6 +394,13 @@ public final class ModG1 {
         }
         for (G1Developed d : G1Developed.values()) {
             event.put(DEVELOPED.get(d).get(), MobStats.apply(DevelopedParasitized.attributes(d), d.id()).build());
+        }
+        for (com.yayuy.overgrownvegetation.entity.g1.G1Rooted r : com.yayuy.overgrownvegetation.entity.g1.G1Rooted.values()) {
+            event.put(ROOTED.get(r).get(), MobStats.apply(com.yayuy.overgrownvegetation.entity.RootedParasitized.attributes(r), r.id()).build());
+        }
+        event.put(ROOT_GUARDIAN.get(), MobStats.apply(com.yayuy.overgrownvegetation.entity.RootGuardian.attributes(), "root_guardian").build());
+        for (com.yayuy.overgrownvegetation.entity.g1.G1Nursery n : com.yayuy.overgrownvegetation.entity.g1.G1Nursery.values()) {
+            event.put(NURSERY.get(n).get(), MobStats.apply(com.yayuy.overgrownvegetation.entity.NurseryParasitized.attributes(n), n.id()).build());
         }
     }
 }

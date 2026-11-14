@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import com.yayuy.overgrownvegetation.block.CorruptedEggBlock;
 import com.yayuy.overgrownvegetation.entity.DevelopedParasitized;
 import com.yayuy.overgrownvegetation.registry.ModG1;
@@ -69,7 +70,7 @@ public class G1LayEggGoal extends G1TechniqueGoal {
     protected void onTick(int stageIndex, int tickInStage) {
         if (!(mob.level() instanceof ServerLevel level)) return;
         if (stageIndex == 0 && tickInStage % 12 == 6) {
-            level.playSound(null, mob.getX(), mob.getY() + 0.3D, mob.getZ(), SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE, 0.5F, 0.8F);
+            level.playSound(null, mob.getX(), mob.getY() + 0.3D, mob.getZ(), ModSounds.G1_SAC_SWELL.get(), SoundSource.HOSTILE, 0.5F, 0.8F);
         }
         if (stageIndex == 1 && tickInStage == 1) {
             if (CorruptedEggBlock.layAt(level, mob.blockPosition(), ModG1.CORRUPTED_EGG.get())) {

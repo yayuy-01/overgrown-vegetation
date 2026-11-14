@@ -22,7 +22,8 @@ import javax.annotation.Nullable;
  *     <li>{@code reach}: ゾンビ・スケルトン・クモ +0.5、エンダーマン +1.0(段階 0 は +0.5)。鶏・クリーパーは仕様が「間合い 2.5 ブロック」なので、
  *     体の中心から相手の体の手前の端まで 2.5 になる値(2.5 − 体の半幅 − 素の間合い 0.83)= 鶏 1.42・クリーパー 1.37。</li>
  *     <li>{@code knock}: ゾンビ 0.5・村人 0.8・牛 0.9・羊 0.8・スケルトン 0.6。エンダーマン 0.6 は横へ({@link #knockSideways})。
- *     クモ −0.3 は手前へ引き寄せる。チビゾンビ・豚は 0(取り付き・食らいつきにつながるので押さない)。</li>
+ *     クモ −0.3 は手前へ引き寄せる。チビゾンビ・豚は 0(取り付き・食らいつきにつながるので押さない)。
+ *     ゾンビ・村人は盾で防がれても押す({@link #pushesThroughShield}。ゾンビは当たったときと同じ強さ、村人はそれより小さく = {@link #shieldPushFull})。</li>
  *     <li>{@code lunge}: 牛 2・羊 3。</li>
  *   </ul></li>
  * </ul>
@@ -39,7 +40,7 @@ public enum G1Developed {
     SHEEP("sheep", G1Species.SHEEP, 12, 5, 0.28, 0.9F, 1.7F, 0.169, 14, 14, 0.0, 0.8, 3.0),
     CHICKEN("chicken", G1Species.CHICKEN, 6, 4, 0.3, 0.5F, 1.0F, 0.194, 14, 13, 1.42, 0.0, 0.0),
     CREEPER("creeper", G1Species.CREEPER, 30, 4, 0.3, 0.6F, 1.7F, 0.194, 14, 18, 1.37, 0.0, 0.0),
-    SKELETON("skeleton", G1Species.SKELETON, 30, 4, 0.28, 0.6F, 1.99F, 0.166, 14, 18, 0.5, 0.6, 0.0),
+    SKELETON("skeleton", G1Species.SKELETON, 30, 5, 0.28, 0.6F, 1.99F, 0.166, 14, 18, 0.5, 0.6, 0.0),
     SPIDER("spider", G1Species.SPIDER, 24, 4, 0.3, 1.4F, 1.2F, 0.124, 14, 18, 0.5, -0.3, 0.0),
     ENDERMAN("enderman", G1Species.ENDERMAN, 60, 9, 0.3, 0.6F, 3.0F, 0.193, 14, 18, 1.0, 0.6, 0.0);
 
@@ -89,6 +90,22 @@ public enum G1Developed {
     /** (a) の押し返しが横向きか(エンダーマンの横薙ぎ: 根の左腕が振り抜く向き = 体の右へ押す【仮】)。 */
     public boolean knockSideways() {
         return this == ENDERMAN;
+    }
+
+    /**
+     * (a) 盾で防がれても相手を押すか(2026-11-13 ユーザー「入れよう」)。仕様書の (a) 欄に書いてある 2 種だけ:
+     * ゾンビ「盾で受けると押し返しだけ受ける」・村人「盾で受けると少し後ずさる」。ほかの種の欄は「盾」とあるだけ。
+     */
+    public boolean pushesThroughShield() {
+        return this == ZOMBIE || this == VILLAGER;
+    }
+
+    /**
+     * (a) 盾ごしの押し返しが、当たったときと同じ強さか(2026-11-13 ユーザー「A案でいこうかな」= 仕様の言い回しどおり)。
+     * ゾンビ「押し返しだけ受ける」= 同じ強さ(跳ね上げも)。村人「少し後ずさる」= それより小さく、跳ね上げ無し。
+     */
+    public boolean shieldPushFull() {
+        return this == ZOMBIE;
     }
 
     /**
