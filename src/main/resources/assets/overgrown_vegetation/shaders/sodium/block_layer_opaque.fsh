@@ -101,6 +101,7 @@ void main() {
     color.rgb = ovLeafRecolor(color.rgb, ovLeaf);
     // The texel and the lit-free colour for the cave point lights (ov_cave.glsl).
     vec3 ovTexel = color.rgb;
+    float ovTexelA = color.a;
     vec3 ovAlbedo = color.rgb * ovTint;
     color *= v_Color; // Apply per-vertex color modulator
 
@@ -163,6 +164,8 @@ void main() {
         // The cloud shadows on water and glass too (ov_cloud.glsl, 11-08 clouds stage 1, improvement 9).
         color.rgb = ovCloudShadow(color.rgb, ovPos, n, 0.0, ovLight, vec3(1.0), ovUnder);
         ovSink = ovCaveSink(ovPos, n, ovUnder);
+        // Water takes none of the raised floor (ov_cave.glsl OV_CAVE_WATER_LIFT, 11-14); glass keeps it.
+        ovCaveLift = ovTexelA < 0.99 && ovNoGlint < 0.5 ? OV_CAVE_WATER_LIFT : 1.0;
         color.rgb = ovCaveLight(color.rgb, ovAlbedo * OV_CAVE_WATER_GAIN, ovPos, n, 0.0, ovUnder, ovLight.x);
         // The point lights mirrored on the cave water (ov_cave.glsl, 11-06 light inspection 10).
         if (color.a < 0.99 && ovNoGlint < 0.5) {

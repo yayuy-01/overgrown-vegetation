@@ -78,6 +78,13 @@ float ovCaveCavernNow = 0.0;
 
 // Water and glass (the translucent layer) take this share of the point lights and the raised floor (11-04, provisional).
 const float OV_CAVE_WATER_GAIN = 0.5;
+// 11-14 (user photo: dark green slabs filling the view in a cave = waterfalls): water takes none of the raised floor. Falling water is
+// all but opaque, and in the dark the raised floor (the albedo with most of its saturation and pattern taken out) was the only light on
+// it: flat olive slabs standing out of the black fog. Without it unlit water sinks into the dark like vanilla, and lit water keeps
+// its texture (the point lights use the plain albedo). The translucent shaders set ovCaveLift to this for water texels.
+const float OV_CAVE_WATER_LIFT = 0.0;
+// The share of the raised floor this fragment takes (1; water: OV_CAVE_WATER_LIFT). Set by the caller before ovCaveLight.
+float ovCaveLift = 1.0;
 
 // How much this fragment is underground (0..1). Without the map (or outside it) the camera's cave mix stands in.
 // n points away from the face into the air it faces (the column on that side decides, so cliff faces stay outside).
@@ -434,7 +441,7 @@ vec3 ovCaveLight(vec3 color, vec3 albedo, vec3 pos, vec3 n, float facing, float 
     ovCaveLightNow += sum * OvCave.z * under * overLights;
     // The wet highlight follows the brightness of the texel a little (darker pits stay matt), and only underground.
     vec3 wetAdd = wetSpec * OvCaveWet.x * under * overLights * (0.35 + 0.65 * dot(albedo, lum));
-    vec3 lit = color + floorAlbedo * extra.rgb * under * overLift + ovCaveAdd + wetAdd;
+    vec3 lit = color + floorAlbedo * extra.rgb * under * overLift * ovCaveLift + ovCaveAdd + wetAdd;
     // Soft clip of the brightest channel above the knee (only where the lights added something), losing saturation as it climbs.
     float knee = clamp(extra.w, 0.1, 1.0);
     float top = max(lit.r, max(lit.g, lit.b));
