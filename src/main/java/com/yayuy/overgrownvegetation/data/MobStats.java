@@ -628,11 +628,12 @@ public final class MobStats {
         }));
 
         // グレガリア(G4・大群の先触れ。小さな地這いの虫の型の 1 体目、2026-11-15 段 1)。数値は全部【仮・Claude 11-15】:
-        // 「一体はすぐ死ぬ」→ 体力 4(アルボラ 8)・防御 0。急ぎの地面の速さ 約 0.24 ブロック/tick(プレイヤーの歩き 0.216 より少し速い。11-15 ユーザー)
-        // → 地面の速さ ≈ 2.16 × 速さ² から 0.33。段差 1.0(1 ブロックは這い上がる・柵と 2 段の壁は越えない)。
+        // 「一体はすぐ死ぬ」→ 体力 4(アルボラ 8)・防御 0。急ぎの的は 約 0.24 ブロック/tick(プレイヤーの歩き 0.216 より少し速い。11-15 ユーザー)だが、
+        // 段 1 は walk を震えずに流せる上限(2.5 倍 = 0.175)で止める(足を滑らせない。0.24 は走り専用のアニメができてから)
+        // → 地面の速さ ≈ 2.16 × 速さ² から 0.285。段差 1.0(1 ブロックは這い上がる・柵と 2 段の壁は越えない)。
         // 当たりは胴の芯 0.7 × 0.45(脚・触角ははみ出す)。攻撃(足首を噛む)は次の段。
         m.put("gregaria", stat(s -> {
-            s.maxHealth = 4.0; s.attackDamage = 2.0; s.armor = 0.0; s.armorToughness = 0.0; s.movementSpeed = 0.33;
+            s.maxHealth = 4.0; s.attackDamage = 2.0; s.armor = 0.0; s.armorToughness = 0.0; s.movementSpeed = 0.285;
             s.knockbackResistance = 0.0; s.followRange = 24.0; s.stepHeight = 1.0;
             s.scale = 1.0;
             s.width = 0.7; s.height = 0.45; s.eggFit = 2.2; s.xpReward = 1;

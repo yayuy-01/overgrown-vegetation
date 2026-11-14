@@ -28,7 +28,8 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * <h3>歩きの速さ合わせ</h3>
  * walk(0.5 秒の三脚歩行)を 1 倍で流したとき、中脚・後脚が地面を後ろへ送る速さは FK で約 {@link #WALK_REF} ブロック/tick(11-15 測定。
  * 前脚だけ約 0.02 で揃っていない = 前脚は少し滑る)。再生は実際の速さ ÷ {@link #WALK_REF}、上限 {@link #WALK_SPEED_MAX} 倍
- * (それより速いと脚が震えて見える)。急ぎの最高 0.24 は 3.4 倍にあたるので、上限を超えた分は足が滑る → 走り専用のアニメが要る。
+ * (2.5 倍は MobAnimation#walkSpeedFor の上限を引き継いだ値で、震え始める所は見ていない)。急ぎの的 0.24(11-15 ユーザー)は 3.4 倍にあたり滑るので、
+ * 段 1 は急ぎを 2.5 倍 = 約 0.175 で止めた(移動の速さ 0.285)。0.24 は走り専用のアニメができてから。
  */
 public class GregariaEntity extends SmallCrawler implements GeoEntity, ParasitizedMob {
 
@@ -47,7 +48,7 @@ public class GregariaEntity extends SmallCrawler implements GeoEntity, Parasitiz
     /** 回る速さ(度/tick)【仮】。 */
     static final float TURN_PER_TICK = 30.0F;
     /** うろつき(小走り)の速さ: 移動の速さの属性に掛ける【仮】。地面で約 0.07 ブロック/tick(walk 1 倍)を的に。 */
-    static final double STROLL_SPEED = 0.55D;   // 地面の速さ ≈ 2.16 × (0.33 × 0.55)² ≈ 0.07
+    static final double STROLL_SPEED = 0.63D;   // 地面の速さ ≈ 2.16 × (0.285 × 0.63)² ≈ 0.07
 
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");

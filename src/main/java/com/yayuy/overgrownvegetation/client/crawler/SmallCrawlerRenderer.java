@@ -35,6 +35,6 @@ public class SmallCrawlerRenderer<T extends SmallCrawler & GeoEntity> extends Ge
 
     @Override
     protected float getDeathMaxRotation(T animatable) {
-        return 180.0F;   // 虫は死ぬと裏返る
+        return 0.0F;   // 死ぬときの倒れ方は段 1 では付けない(演出は後で相談)
     }
 }
