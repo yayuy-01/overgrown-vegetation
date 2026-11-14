@@ -107,7 +107,34 @@ public final class PhasePointsGameTests {
             long expEst = (long) Math.ceil(span * t.stageFrom(p, PhaseStage.ESTABLISHED));
             long expPeak = (long) Math.ceil(span * t.stageFrom(p, PhaseStage.PEAK));
             helper.assertTrue(est == expEst && peak == expPeak, "F" + p + " の区切り " + est + " / " + peak + "(期待 " + expEst + " / " + expPeak + ")");
-            helper.assertTrue(Math.abs(est - span / 3.0D) <= 1.0D && Math.abs(peak - span * 2.0D / 3.0D) <= 1.0D, "F" + p + " の区切りが 1/3・2/3 でない");
+            // json は 0.3333 / 0.6667 と 4 桁で書いてあるので、閾値の 0.01% まではずれてよい
+            double tol = span * 1.0E-4D + 1.0D;
+            helper.assertTrue(Math.abs(est - span / 3.0D) <= tol && Math.abs(peak - span * 2.0D / 3.0D) <= tol,
+                    "F" + p + " の区切りが 1/3・2/3 でない: " + est + " / " + peak + "(閾値 " + span + ")");
+        }
+        helper.succeed();
+    }
+
+    /** 新しい閾値(11-14 夜の案)のどのフェーズでも、ポイントが 1/3・2/3 を越えた所で定着・最盛に上がり、閾値で次のフェーズへ上がる。 */
+    @GameTest(template = "gametest_empty7")
+    public static void stagesChangeAtNewThresholds(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        PhaseTable t = DesignData.phases();
+        for (int p = 1; p < PhaseTable.MAX_PHASE; p++) {
+            long span = t.stageSpanPoints(p);
+            if (span == Long.MAX_VALUE || !t.autoAdvance(p + 1)) continue;
+            long est = t.stageStartPoints(p, PhaseStage.ESTABLISHED);
+            long peak = t.stageStartPoints(p, PhaseStage.PEAK);
+            PhaseData data = PhaseData.createDetachedForTests(e -> { });
+            data.setPhase(level, p);
+            data.addPointsUnscaledForTests(level, est - 1);
+            helper.assertTrue(data.getStage() == PhaseStage.INTRO, "F" + p + " " + (est - 1) + " 点で導入でない: " + data.getStage());
+            data.addPointsUnscaledForTests(level, 1);
+            helper.assertTrue(data.getStage() == PhaseStage.ESTABLISHED, "F" + p + " " + est + " 点で定着でない: " + data.getStage());
+            data.addPointsUnscaledForTests(level, peak - est);
+            helper.assertTrue(data.getStage() == PhaseStage.PEAK, "F" + p + " " + peak + " 点で最盛でない: " + data.getStage());
+            data.addPointsUnscaledForTests(level, span - peak);
+            helper.assertTrue(data.getPhase() == p + 1, "F" + p + " 閾値 " + span + " で次のフェーズへ上がらない: F" + data.getPhase());
         }
         helper.succeed();
     }
