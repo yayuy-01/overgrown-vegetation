@@ -103,6 +103,8 @@ public abstract class SkyFlyer extends Monster {
     private final double[] wind = new double[2];
     private final double[] tmp = new double[3];
     private final VFormation.Command cmd = new VFormation.Command();
+    /** 個体ごとの揺れの位相(ひらひら・ゆるい群れの居場所。2026-11-15 セミナリアで足した)。 */
+    private final double flutterPhase1, flutterPhase2, loosePhase;
     /** テスト用: 夜・雨の判断を上書きする(null = ふつう)。 */
     @Nullable
     public Boolean roostOverride;
@@ -121,6 +123,9 @@ public abstract class SkyFlyer extends Monster {
         this.body.heading = this.getYRot();
         this.body.speed = params().cruise * 0.6D;
         this.cycleTicks = 40 + this.random.nextInt(40);
+        this.flutterPhase1 = this.random.nextDouble() * Math.PI * 2.0D;
+        this.flutterPhase2 = this.random.nextDouble() * Math.PI * 2.0D;
+        this.loosePhase = this.random.nextDouble() * Math.PI * 2.0D;
     }
 
     // ------------------------------------------------------------------ 種が決めること
@@ -144,6 +149,36 @@ public abstract class SkyFlyer extends Monster {
     protected abstract float[] partHeights();
 
     protected abstract double[] partCenters();
+
+    /** 後続が V 字を組まず、先頭のまわりにゆるくまとまる({@link LooseFormation})なら true(2026-11-15 セミナリアで足した。既定は V 字)。 */
+    protected boolean looseFlock() {
+        return false;
+    }
+
+    /**
+     * 着かねばならない行き先(家へ戻る巡回・止まり木へ寄る)へ向かう間、風に逆らって進路を保つなら true(2026-11-15 セミナリアで足した。既定 false)。
+     * true の種は、その間だけ「地面に対して行きたい速さ − 風」を空気に対する向きと速さにする(横風には斜めに構え、向かい風には上限まで羽ばたく)。
+     * ふだんの巡回は風に任せたまま。
+     */
+    protected boolean fightsWind() {
+        return false;
+    }
+
+    /**
+     * 巡回の次の行き先を選ぶときの扇の真ん中の向き(度。2026-11-15 セミナリアで足した)。既定は今の向き(まっすぐ先寄り)。
+     * 風に乗る種は風下を返す(行き先が風下寄りになり、家から離れすぎたら {@link #fightsWind} で戻る)。
+     */
+    protected double patrolFanCenter() {
+        return this.body.heading;
+    }
+
+    /** 今の風の吹いていく向き(度、Minecraft の yaw)。凪(0.02 ブロック/tick 未満)なら NaN。種の判断用。 */
+    protected final double downwindYaw() {
+        if (!(this.level() instanceof ServerLevel sl)) return Double.NaN;
+        FlyerWind.now(sl, this.wind);
+        double s = Math.sqrt(this.wind[0] * this.wind[0] + this.wind[1] * this.wind[1]);
+        return s < 0.02D ? Double.NaN : FlightBody.yawOf(this.wind[0], this.wind[1]);
+    }
 
     /**
      * 種が自分で飛び方を決める口(2026-11-15 アクムネスで足した。既定は false = 土台の飛び方)。飛んでいる間({@link #MODE_FLY})、
@@ -412,6 +447,7 @@ public abstract class SkyFlyer extends Monster {
         double floor = Double.isNaN(this.canopyAhead) ? this.getY() : this.canopyAhead;
         double cruiseY = floor + this.layer + this.personalAlt;
         boolean roostApproach = false;
+        boolean mustReach = false;
         double needAlong = 0.0D;
 
         if (f.state == Flock.State.ROOST) {
@@ -428,6 +464,7 @@ public abstract class SkyFlyer extends Monster {
                     this.cmdSpeed = Mth.lerp(d / 20.0D, p.minSpeed, p.cruise * 0.8D);
                     this.cmdY = ty + 1.5D + d * 0.4D;
                 }
+                mustReach = true;
                 if (d < 2.5D && this.getY() - ty < SkyProbe.CLEAR_UP || d < 8.0D && this.modeTicks > 400) {
                     setMode(MODE_LANDING);
                     return;
@@ -455,16 +492,50 @@ public abstract class SkyFlyer extends Monster {
                 this.cmdHeading = this.body.heading + Mth.clamp(e, -LEADER_TURN_ERR, LEADER_TURN_ERR);
             }
             this.cmdSpeed = p.cruise * (f.state == Flock.State.FLEE ? 1.0D : 0.9D);
+            mustReach = isLeader && f.state == Flock.State.PATROL && f.hasPatrol && f.returningHome;
             this.cmdY = cruiseY;
         } else {
             int k = f.slotOf(this);
-            VFormation.follow(leader.getX(), leader.getY(), leader.getZ(), leader.body.heading, leader.body.speed, leader.body.turnRate, k,
-                    this.getX(), this.getZ(), p.maxSpeed, this.tmp, this.cmd);
+            if (looseFlock()) {
+                LooseFormation.slot(k, this.loosePhase, this.tickCount, this.tmp);
+                LooseFormation.follow(leader.getX(), leader.getY(), leader.getZ(), leader.body.heading, leader.body.speed, leader.body.turnRate,
+                        this.tmp, this.getX(), this.getZ(), p.maxSpeed, this.cmd);
+            } else {
+                VFormation.follow(leader.getX(), leader.getY(), leader.getZ(), leader.body.heading, leader.body.speed, leader.body.turnRate, k,
+                        this.getX(), this.getZ(), p.maxSpeed, this.tmp, this.cmd);
+            }
             this.cmdHeading = this.cmd.heading;
             this.cmdSpeed = this.cmd.speed;
             this.cmdY = Math.max(this.cmd.y, floor + MIN_CLEARANCE);
             needAlong = this.cmd.along;
             this.formationErr = this.cmd.dist;
+        }
+
+        // ひらひら(種が値を渡したときだけ。止まり木へ寄る終わりは弱める)
+        if (p.flutterDeg > 0.0D || p.flutterBob > 0.0D) {
+            double w = 2.0D * Math.PI * this.tickCount / Math.max(1.0D, p.flutterPeriod);
+            double n1 = 0.65D * Math.sin(w + this.flutterPhase1) + 0.35D * Math.sin(w * 2.7D + this.flutterPhase2);
+            double n2 = 0.6D * Math.sin(w * 1.3D + this.flutterPhase2) + 0.4D * Math.sin(w * 0.47D + this.flutterPhase1);
+            double k = 1.0D;
+            if (roostApproach && this.perch != null) {
+                double dx = this.perch.getX() + 0.5D - this.getX(), dz = this.perch.getZ() + 0.5D - this.getZ();
+                k = Mth.clamp(Math.sqrt(dx * dx + dz * dz) / 12.0D, 0.0D, 1.0D);
+            }
+            this.cmdHeading += p.flutterDeg * n1 * k;
+            this.cmdY += p.flutterBob * n2 * k;
+        }
+
+        // 風に逆らって進路を保つ(種が選んだときだけ・着かねばならない行き先へ向かう間だけ): 空気に対する速さ = 地面に対して行きたい速さ − 風
+        if (mustReach && fightsWind()) {
+            FlyerWind.now(sl, this.wind);
+            double h = Math.toRadians(this.cmdHeading);
+            double ax = -Math.sin(h) * this.cmdSpeed - this.wind[0] * p.windFactor;
+            double az = Math.cos(h) * this.cmdSpeed - this.wind[1] * p.windFactor;
+            double a = Math.sqrt(ax * ax + az * az);
+            if (a > 1e-4) {
+                this.cmdHeading = FlightBody.yawOf(ax, az);
+                this.cmdSpeed = Math.min(p.maxSpeed, a);
+            }
         }
 
         // 枝・葉(4 tick ごと)
@@ -750,6 +821,20 @@ public abstract class SkyFlyer extends Monster {
         if (this.level() instanceof ServerLevel sl) {
             ensureFlock(sl);
             this.flock.tick(sl);
+        }
+    }
+
+    /**
+     * テスト用: 群れを休ませ、止まり木を top に割り当てる(飛んで寄って降りるのは本来の動き。2026-11-15 セミナリアで足した)。
+     * テスト場のまわりにはほかのテストの高い物があり、本来の止まり木探し(一番高い所を選ぶ)がそちらを選ぶことがあるため。
+     */
+    public void debugRoostAt(BlockPos top) {
+        if (this.level() instanceof ServerLevel sl) {
+            ensureFlock(sl);
+            this.flock.tick(sl);
+            this.flock.state = Flock.State.ROOST;
+            this.flock.roostCenter = top;
+            this.perch = top;
         }
     }
 

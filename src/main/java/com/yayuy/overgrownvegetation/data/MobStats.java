@@ -693,6 +693,16 @@ public final class MobStats {
             s.naturalSpawn = false;   // 段 1 は自然には湧かない(スポーンエッグ・コマンドだけ)
         }));
 
+        // セミナリア(G4・空の斥候兼種まき、2026-11-15 段 1)。値はどれも【仮】。攻撃しない(attackDamage 0)。
+        // 当たりの芯は胸だけ(0.8 × 1.0)。翅(幅 4.7)と腹の松かさは叩ける部位(SeminariaEntity の PARTS)。射落とせば飛び地を防げるので体力は低め。
+        m.put("seminaria", stat(s -> {
+            s.maxHealth = 8.0; s.attackDamage = 0.0;
+            s.movementSpeed = 0.1; s.flyingSpeed = 0.3; s.armor = 0.0;
+            s.knockbackResistance = 0.0; s.followRange = 32.0; s.stepHeight = 1.0;
+            s.width = 0.8; s.height = 1.0; s.eggFit = 5.0; s.xpReward = 5;
+            s.naturalSpawn = false;   // 段 1 は自然には湧かない(スポーンエッグ・コマンドだけ)
+        }));
+
         // ペディキュラ — 上空を漂うだけの巨大な胞子の塊(2026-09-23)。攻撃はしない。
         // 体力 0.1・防御 0 はユーザー指定。体力は Minecraft の下限(1 = ハート半分)に丸められるが、
         // どの一撃でも落ちるのは同じ。歩かないので movementSpeed は 0(亜種の抽選からも外れる)。

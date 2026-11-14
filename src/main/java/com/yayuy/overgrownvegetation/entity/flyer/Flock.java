@@ -59,6 +59,8 @@ public final class Flock {
     /** 巡回の行き先。 */
     double patrolX, patrolZ;
     boolean hasPatrol;
+    /** 今の巡回の行き先が「家から離れすぎたので戻る」ものか(2026-11-15 セミナリアで足した。風に流される種が戻るときだけ強く羽ばたく)。 */
+    boolean returningHome;
     private int patrolTicks;
     /** 逃げる向き・残り。 */
     double fleeHeading;
@@ -100,6 +102,10 @@ public final class Flock {
 
     public State state() {
         return this.state;
+    }
+
+    public boolean returningHome() {
+        return this.returningHome;
     }
 
     public int scatterTicks() {
@@ -256,8 +262,10 @@ public final class Flock {
             double a = rnd.nextDouble() * Math.PI * 2.0D, r = rnd.nextDouble() * HOME_RADIUS * 0.4D;
             this.patrolX = this.home.getX() + 0.5D + Math.cos(a) * r;
             this.patrolZ = this.home.getZ() + 0.5D + Math.sin(a) * r;
+            this.returningHome = true;
         } else {
-            double h = Math.toRadians(leader.body.heading + (rnd.nextDouble() * 2.0D - 1.0D) * PATROL_FAN);
+            this.returningHome = false;
+            double h = Math.toRadians(leader.patrolFanCenter() + (rnd.nextDouble() * 2.0D - 1.0D) * PATROL_FAN);
             double d = Mth.lerp(rnd.nextDouble(), PATROL_MIN, PATROL_MAX);
             double px = leader.getX() - Math.sin(h) * d, pz = leader.getZ() + Math.cos(h) * d;
             // 家の輪の外へ出るなら輪の内へ引き戻す

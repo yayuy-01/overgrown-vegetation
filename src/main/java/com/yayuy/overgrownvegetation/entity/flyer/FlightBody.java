@@ -35,6 +35,16 @@ public final class FlightBody {
         public double stallLoss = 0.06D;
         /** 昇る間に速さを削る割合(上下の速さに掛ける)。 */
         public double climbCost = 0.04D;
+        /**
+         * 風への任せ具合(2026-11-15 セミナリアで足した): 卓越風({@code FlyerWind}、強さ 1 = 0.1 ブロック/tick)に掛ける倍率。
+         * 1 = ヴェロフィル(既定)。軽い種ほど大きく、巡航と同じくらいの風なら「風上へはほとんど進めない」。
+         */
+        public double windFactor = 1.0D;
+        /**
+         * ひらひら揺れる(2026-11-15 セミナリアで足した。{@code SkyFlyer} が飛ぶ間の指示に足す): 向きの揺れの幅(度)・高さの揺れの幅(ブロック)・
+         * 揺れのおおよその周期(tick)。0 = 揺れない(既定)。
+         */
+        public double flutterDeg = 0.0D, flutterBob = 0.0D, flutterPeriod = 30.0D;
     }
 
     /** 体の傾きの式の重さ(傾き = atan(速さ × 回る速さ[rad] ÷ これ))。巡航 0.7・4 度/tick で約 35 度。 */
@@ -91,8 +101,8 @@ public final class FlightBody {
         this.speed = clamp(this.speed, p.minSpeed * 0.5D, p.maxSpeed);
 
         double h = Math.toRadians(this.heading);
-        this.vx = -Math.sin(h) * this.speed + windX;
-        this.vz = Math.cos(h) * this.speed + windZ;
+        this.vx = -Math.sin(h) * this.speed + windX * p.windFactor;
+        this.vz = Math.cos(h) * this.speed + windZ * p.windFactor;
     }
 
     /** 体の傾き(度、+ = yaw が増える向きへ曲がるとき)。クライアントも同じ式。 */

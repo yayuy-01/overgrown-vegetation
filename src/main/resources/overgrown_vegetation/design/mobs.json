@@ -551,6 +551,24 @@
     "eggFit": 6.63,
     "naturalSpawn": false
   },
+  "seminaria": {
+    "maxHealth": 8,
+    "attackDamage": 0,
+    "armor": 0,
+    "movementSpeed": 0.1,
+    "flyingSpeed": 0.3,
+    "knockbackResistance": 0,
+    "followRange": 32,
+    "stepHeight": 1,
+    "scale": 1,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.8,
+    "height": 1.0,
+    "xpReward": 5,
+    "eggFit": 5.0,
+    "naturalSpawn": false
+  },
   "acumnes": {
     "maxHealth": 40,
     "attackDamage": 12,

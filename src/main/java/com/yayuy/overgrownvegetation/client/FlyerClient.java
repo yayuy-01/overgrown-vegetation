@@ -17,6 +17,7 @@ public final class FlyerClient {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModFlyers.VELOPHYLL.get(), VelophyllRenderer::new);
+        event.registerEntityRenderer(ModFlyers.SEMINARIA.get(), SeminariaRenderer::new);
         event.registerEntityRenderer(ModFlyers.ACUMNES.get(), AcumnesRenderer::new);
     }
 }
