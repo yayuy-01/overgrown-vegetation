@@ -29,7 +29,7 @@ public class VelophyllRenderer extends GeoEntityRenderer<VelophyllEntity> {
         if (Math.abs(bank) < 0.01F && Math.abs(pitch) < 0.01F) return;
         poseStack.translate(0.0F, PIVOT_Y, 0.0F);
         poseStack.mulPose(Axis.XP.rotationDegrees(-pitch));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(bank));
+        poseStack.mulPose(Axis.ZP.rotationDegrees(-bank));   // 11-15 テストクライアント: 回したモデルの前は −Z なので、左へ曲がる(bank 負)とき左の翼を下げるには符号を返す
         poseStack.translate(0.0F, -PIVOT_Y, 0.0F);
     }
 }

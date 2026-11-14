@@ -56,6 +56,15 @@ public final class SkyProbe {
         return Double.POSITIVE_INFINITY;
     }
 
+    /** 止まり木の上に空けておく箱(半幅・高さ)【仮】。体の芯(1.2 × 0.8)が収まり、真上から降りられる。 */
+    public static final double CLEAR_HALF = 0.65D, CLEAR_UP = 6.0D;
+
+    /** 止まり木の上(体の芯の幅で真上 {@link #CLEAR_UP})に固いものが無いか。 */
+    public static boolean clearAbove(Level level, BlockPos top) {
+        double cx = top.getX() + 0.5D, cz = top.getZ() + 0.5D, y = top.getY() + 1.0D;
+        return level.noCollision(new net.minecraft.world.phys.AABB(cx - CLEAR_HALF, y + 0.01D, cz - CLEAR_HALF, cx + CLEAR_HALF, y + CLEAR_UP, cz + CLEAR_HALF));
+    }
+
     /** 止まってよいブロックか(上が空いた固いブロック。液体は不可)。 */
     public static boolean perchable(Level level, BlockPos top) {
         if (!level.hasChunk(top.getX() >> 4, top.getZ() >> 4)) return false;
@@ -87,7 +96,7 @@ public final class SkyProbe {
                 if (Double.isNaN(c)) continue;
                 int y = (int) c - 1;
                 p.set(x, y, z);
-                if (y <= level.getMinBuildHeight() || !perchable(level, p)) continue;
+                if (y <= level.getMinBuildHeight() || !perchable(level, p) || !clearAbove(level, p)) continue;
                 int score = y * 4 + (isLeaves(level.getBlockState(p)) ? 16 : 0);
                 cands.add(new long[]{score, p.asLong()});
             }

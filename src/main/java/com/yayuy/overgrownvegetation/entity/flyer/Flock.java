@@ -274,6 +274,18 @@ public final class Flock {
         this.patrolTicks = PATROL_GIVE_UP;
     }
 
+    /** ワールドを閉じたら群れを忘れる(値が実体を持ち、実体が面を持つので WeakHashMap だけでは面が残る)。 */
+    @net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID)
+    public static final class Unload {
+        private Unload() {
+        }
+
+        @net.neoforged.bus.api.SubscribeEvent
+        public static void onLevelUnload(net.neoforged.neoforge.event.level.LevelEvent.Unload event) {
+            if (event.getLevel() instanceof ServerLevel sl) BY_LEVEL.remove(sl);
+        }
+    }
+
     /** 空になった群れを忘れる。 */
     static void forget(ServerLevel level, Flock f) {
         Map<UUID, Flock> map = BY_LEVEL.get(level);

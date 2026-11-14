@@ -295,6 +295,10 @@ public abstract class SkyFlyer extends Monster {
                     String.format("%.1f", this.canopyAhead), String.format("%.3f", this.body.speed), String.format("%.3f", gs),
                     String.format("%.1f", this.body.heading), String.format("%.2f", this.body.turnRate));
         }
+        // 確かめ用: 先頭に名前 lead を付ける(コマンドで先頭だけを落とせるように。開発用クライアントだけ)
+        if (this.flock != null && this.flock.leader() == this && this.flock.size() > 1 && !this.hasCustomName()) {
+            this.setCustomName(net.minecraft.network.chat.Component.literal("lead"));
+        }
         if (this.flock != null && this.flock.leader() == this && this.flock.size() > 1 && this.tickCount % 20 == 0) {
             StringBuilder sb = new StringBuilder();
             for (SkyFlyer m : this.flock.members) sb.append(String.format(" %.1f", m.formationErr)).append(m.mode == MODE_FLY ? "" : "m" + m.mode);
@@ -395,7 +399,7 @@ public abstract class SkyFlyer extends Monster {
                     this.cmdSpeed = Mth.lerp(d / 20.0D, p.minSpeed, p.cruise * 0.8D);
                     this.cmdY = ty + 1.5D + d * 0.4D;
                 }
-                if (d < 2.5D && this.getY() - ty < 10.0D || d < 8.0D && this.modeTicks > 400) {
+                if (d < 2.5D && this.getY() - ty < SkyProbe.CLEAR_UP || d < 8.0D && this.modeTicks > 400) {
                     setMode(MODE_LANDING);
                     return;
                 }
@@ -494,7 +498,8 @@ public abstract class SkyFlyer extends Monster {
         double hs = Math.min(LAND_H, d);
         this.kinX = d > 1e-4 ? dx / d * hs : 0.0D;
         this.kinZ = d > 1e-4 ? dz / d * hs : 0.0D;
-        this.kinY = Mth.clamp(dy, -LAND_DOWN, 0.05D);
+        // 先に真上へ寄り(低ければ少し昇る)、真上に来てから真下へ降りる(止まり木の上は CLEAR_UP まで空いている)
+        this.kinY = d > 0.3D ? Mth.clamp(dy, 0.0D, 0.05D) : Mth.clamp(dy, -LAND_DOWN, 0.05D);
         if (d > 0.5D) faceToward(FlightBody.yawOf(dx, dz), 6.0F);
         if (d < 0.05D && Math.abs(dy) < 0.05D) {
             this.setPos(tx, ty, tz);
@@ -503,7 +508,29 @@ public abstract class SkyFlyer extends Monster {
             this.body.vy = 0.0D;
             setMode(MODE_PERCHED);
         }
-        if (this.modeTicks > 200) startTakeoff();   // 降りきれない(何かに阻まれた)
+        if (this.modeTicks > 200) {
+            // 降りきれない(何かに阻まれた): 近くの別の止まり木へ替えてから飛び直す(同じ所へ降り続けない)
+            this.perch = pickSparePerch(sl, f, this.perch);
+            startTakeoff();
+        }
+    }
+
+    /** old の近く(半径 10)で、群れのほかの個体が使っていない止まり木。無ければ null(止まり木のまわりを回る)。 */
+    @Nullable
+    private static BlockPos pickSparePerch(ServerLevel sl, Flock f, @Nullable BlockPos old) {
+        if (old == null) return null;
+        for (BlockPos c : SkyProbe.findPerches(sl, old, 10, 12, Flock.PERCH_GAP)) {
+            if (c.equals(old)) continue;
+            boolean used = false;
+            for (SkyFlyer m : f.members) {
+                if (m.perch != null && m.perch.distSqr(c) < Flock.PERCH_GAP * Flock.PERCH_GAP) {
+                    used = true;
+                    break;
+                }
+            }
+            if (!used) return c;
+        }
+        return null;
     }
 
     private void tickPerched(ServerLevel sl, Flock f) {

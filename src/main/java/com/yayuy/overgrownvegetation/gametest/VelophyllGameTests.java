@@ -201,7 +201,7 @@ public final class VelophyllGameTests {
             helper.setBlock(new BlockPos(3, y, 3), Blocks.OAK_LEAVES.defaultBlockState().setValue(LeavesBlock.PERSISTENT, true));
         }
         BlockPos top = helper.absolutePos(new BlockPos(3, 9, 3));
-        VelophyllEntity v = spawn(helper, 3.5D, 18.0D, 3.5D);
+        VelophyllEntity v = spawn(helper, 3.5D, 14.0D, 3.5D);
         v.roostOverride = Boolean.TRUE;
         helper.onEachTick(() -> {
             if (v.mode() == SkyFlyer.MODE_PERCHED) {
