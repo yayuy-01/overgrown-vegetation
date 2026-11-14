@@ -143,6 +143,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.ARBORA_SPAWN_EGG.get());
                         ModG1.acceptEggs(output); // G1 段階 0(2026-11-08)
                         com.yayuy.overgrownvegetation.registry.ModStilt.acceptEggs(output); // 竹馬型(2026-11-10)
+                        com.yayuy.overgrownvegetation.registry.ModRunners.acceptEggs(output); // ② 大型の地上を走る型(2026-11-14)
 
                         // 植物から採れるもの
                         output.accept(ModItems.SPORE.get());

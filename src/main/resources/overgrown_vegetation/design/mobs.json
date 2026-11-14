@@ -446,6 +446,23 @@
     "eggFit": 13.5,
     "naturalSpawn": false
   },
+  "venamnes": {
+    "maxHealth": 34,
+    "attackDamage": 10,
+    "armor": 6,
+    "movementSpeed": 0.3,
+    "knockbackResistance": 0.4,
+    "followRange": 48,
+    "stepHeight": 1.5,
+    "scale": 1,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 1.2,
+    "height": 2.4,
+    "xpReward": 30,
+    "eggFit": 4.6,
+    "naturalSpawn": false
+  },
   "arbora": {
     "maxHealth": 8,
     "attackDamage": 8,

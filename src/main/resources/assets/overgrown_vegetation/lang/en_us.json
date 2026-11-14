@@ -353,6 +353,8 @@
   "item.overgrown_vegetation.falcimnes_spawn_egg": "Falcimnes Spawn Egg",
   "entity.overgrown_vegetation.phyllosens": "Phyllosens",
   "item.overgrown_vegetation.phyllosens_spawn_egg": "Phyllosens Spawn Egg",
+  "entity.overgrown_vegetation.venamnes": "Venamnes",
+  "item.overgrown_vegetation.venamnes_spawn_egg": "Venamnes Spawn Egg",
   "effect.overgrown_vegetation.phyllosens_watch": "Phyllosens' Gaze",
   "block.overgrown_vegetation.overgrown_zombie_corpse": "Corrupted Zombie Corpse",
   "entity.overgrown_vegetation.parasitized_zombie": "Parasitized Zombie",

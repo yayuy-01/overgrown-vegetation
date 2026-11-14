@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "overgrown_vegetation:falcimnes"
+    "overgrown_vegetation:falcimnes",
+    "overgrown_vegetation:venamnes"
   ]
 }

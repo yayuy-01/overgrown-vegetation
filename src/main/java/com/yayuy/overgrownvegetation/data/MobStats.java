@@ -582,6 +582,17 @@ public final class MobStats {
             s.naturalSpawn = false;   // 自然には湧かない(湧き方は司令塔が決める予定で未決。レイド・増援・汚染したスポナーからも外す)
         }));
 
+        // ヴェナムネス(G5 の原型・② 大型の地上を走る型の 1 体目、2026-11-14 段 1)。数値は全部【仮・Claude 11-14】:
+        // 「ファルキムネスより脆い・足が速い・長く追う」→ 体力 34(ファルキムネス 50)・防御 6(14)・速さ 0.30(0.27)・追う距離 48(32)。
+        // 当たりは胴の芯 1.2 × 2.4(首・尾ははみ出す。全体 2.2 × 3.1 × 8.1)。描画倍率 2.5 は描画で掛ける(体格は 1)。攻撃は次の段。
+        m.put("venamnes", stat(s -> {
+            s.maxHealth = 34.0; s.attackDamage = 10.0; s.armor = 6.0; s.armorToughness = 0.0; s.movementSpeed = 0.30;
+            s.knockbackResistance = 0.4; s.followRange = 48.0; s.stepHeight = 1.5;
+            s.scale = 1.0;
+            s.width = 1.2; s.height = 2.4; s.eggFit = 4.6; s.xpReward = 30;
+            s.naturalSpawn = false;   // 自然には湧かない(スポーンエッグ・コマンドだけ)
+        }));
+
         // スポロフィル — 支援役。体はフィロセンスの流用で、頭が花ではなくキノコの傘。
         // 自分では攻撃せず(attackDamage を持たない)、半径 32 のバフ/デバフ/胞子濃度上昇で戦う
         // (SporophyllAura)。居座られると厄介なので体力は高め。
