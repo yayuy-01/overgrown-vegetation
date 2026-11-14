@@ -39,10 +39,14 @@ vec3 ovOreSparkle(vec3 color, vec2 uv, vec3 pos, vec3 n, vec3 light) {
     // 11-14 (user photo: the glints showed as slanted shards): the view direction of the texel centre, so a whole texel glints or not.
     vec3 view = normalize((w + 0.5) / 16.0 - OvOreB.xyz);
     float phase = h * 6.2832 + dot(view, vec3(h2 - 0.5, h - 0.5, 0.37)) * 60.0 + OvOre.y * (0.6 + h2);
-    float s = sin(phase) * 0.5 + 0.5;
+    // 11-14 (too bright next to a torch): a triangle wave, even over 0..1, so that "share" is the real share of grains glinting
+    // (the sine spent more time near its top: 8% lit about 18%).
+    float s = 1.0 - abs(2.0 * fract(phase / 6.2832) - 1.0);
     float share = clamp(OvOreB.w, 0.01, 1.0);
     float glint = smoothstep(1.0 - share, 1.0 - share * 0.4, s);
     // The colour of the light, pushed toward white; stronger light, stronger glint (full from a modest light on).
     vec3 tint = mix(light / max(l, 0.001), vec3(1.0), 0.6);
-    return color + tint * glint * OvOre.x * min(l * 2.5, 1.0);
+    // 11-14: less on a face that is already bright (an ore wall next to a torch washed out to white with the bloom on top).
+    float room = 1.0 - smoothstep(0.45, 0.95, max(color.r, max(color.g, color.b)));
+    return color + tint * glint * OvOre.x * min(l * 2.5, 1.0) * (0.25 + 0.75 * room);
 }

@@ -79,7 +79,7 @@ public final class AtmosphereEye {
     public record OreSparkleParams(boolean enabled, float strength, float share) {
         static OreSparkleParams of(OreSparkleJson j) {
             OreSparkleJson v = j != null ? j : new OreSparkleJson();
-            return new OreSparkleParams(v.enabled == null || v.enabled, c(v.strength, 0.8, 0.0, 4.0), c(v.share, 0.08, 0.01, 1.0));
+            return new OreSparkleParams(v.enabled == null || v.enabled, c(v.strength, 0.5, 0.0, 4.0), c(v.share, 0.08, 0.01, 1.0));
         }
     }
 
@@ -95,7 +95,7 @@ public final class AtmosphereEye {
     public record CaveWetParams(boolean enabled, float strength, float shininess) {
         static CaveWetParams of(CaveWetJson j) {
             CaveWetJson v = j != null ? j : new CaveWetJson();
-            return new CaveWetParams(v.enabled == null || v.enabled, c(v.strength, 1.4, 0.0, 4.0), c(v.shininess, 10.0, 1.0, 256.0));
+            return new CaveWetParams(v.enabled == null || v.enabled, c(v.strength, 0.7, 0.0, 4.0), c(v.shininess, 10.0, 1.0, 256.0));
         }
     }
 
