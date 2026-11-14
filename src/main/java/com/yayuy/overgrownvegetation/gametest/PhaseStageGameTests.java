@@ -77,6 +77,36 @@ public final class PhaseStageGameTests {
         helper.succeed();
     }
 
+    /**
+     * json の {@code stages} が読まれる(global の区切り・フェーズの倍率の上書き・書いていないフェーズは global)。
+     * 既定値と同じ値だと読まれなくても通ってしまうので、わざと違う値で作る。
+     */
+    @GameTest(template = "gametest_empty7")
+    public static void stagesJsonOverridesAreRead(GameTestHelper helper) {
+        PhaseTable.Json j = new PhaseTable.Json();
+        j.global = new PhaseTable.Global();
+        j.global.stages = new PhaseTable.Stages();
+        j.global.stages.establishedFrom = 0.5D;
+        j.global.stages.peak = 0.9D;
+        j.phases = new java.util.HashMap<>();
+        PhaseTable.Phase three = new PhaseTable.Phase();
+        three.stages = new PhaseTable.Stages();
+        three.stages.intro = 0.11D;
+        three.stages.peakFrom = 0.8D;
+        j.phases.put("3", three);
+        PhaseTable t = PhaseTable.fromJson(j);
+        helper.assertTrue(t.stageFrom(2, PhaseStage.ESTABLISHED) == 0.5D, "global の establishedFrom: " + t.stageFrom(2, PhaseStage.ESTABLISHED));
+        helper.assertTrue(t.stageMultiplier(2, PhaseStage.PEAK) == 0.9D, "global の peak");
+        helper.assertTrue(t.stageMultiplier(3, PhaseStage.INTRO) == 0.11D, "フェーズ 3 の intro の上書き");
+        helper.assertTrue(t.stageMultiplier(3, PhaseStage.PEAK) == 0.9D, "フェーズ 3 の書いていない peak は global");
+        helper.assertTrue(t.stageFrom(3, PhaseStage.PEAK) == 0.8D, "フェーズ 3 の peakFrom の上書き");
+        helper.assertTrue(t.stageMultiplier(2, PhaseStage.INTRO) == PhaseTable.DEFAULT.stageMultiplier(2, PhaseStage.INTRO),
+                "どこにも書いていない欄は既定");
+        // 実際に読み込まれた設計データにも stages の欄が届いている(各フェーズに intro を書いてある)
+        helper.assertTrue(DesignData.phases().phase(1).stages != null, "読み込んだ phases.json のフェーズ 1 に stages が無い(json が読めていない?)");
+        helper.succeed();
+    }
+
     /** ポイントを足すと段が上がってイベントが 1 回ずつ流れ、閾値でフェーズが上がると導入に戻る。 */
     @GameTest(template = "gametest_empty7")
     public static void stageRisesThenResetsOnPhaseUp(GameTestHelper helper) {
