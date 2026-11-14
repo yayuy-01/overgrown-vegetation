@@ -311,6 +311,11 @@ public final class SporeField {
     public final long seed;
     public final Params p;
     final HashMap<Long, Tile> tiles = new HashMap<>();
+    /**
+     * 区画を引くための表(2026-11-15 軽量化 E)。{@link #tiles} は鍵の hash が tx ^ tz に偏って遅い(計算の 16%)が、舐める順番が場の答え
+     * (足し算の順)を決めているので替えず、引くのだけこちらで。{@link #tiles} と必ず一緒に足し引きする。
+     */
+    private final it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<Tile> index = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
     /** 上空の塊。 */
     public final List<Parcel> parcels = new ArrayList<>();
     /** 直前の {@link #step} で発芽した升 {cx, cz, 飛び地なら 1, 何回目か}。 */
@@ -339,7 +344,7 @@ public final class SporeField {
     Tile tile(int cx, int cz, boolean create) {
         int tx = cx >> TB, tz = cz >> TB;
         long k = key(tx, tz);
-        Tile t = tiles.get(k);
+        Tile t = index.get(k);
         if (t == null && create) {
             // 捨てた空の区画が控えにあれば戻す(2026-11-15 軽量化 A。土地の表を引き直さない。中身は捨てたときに空にしてある)
             t = dormant.remove(k);
@@ -349,6 +354,7 @@ public final class SporeField {
                 if (thermal != null) fillTemp(t);
             }
             tiles.put(k, t);
+            index.put(k, t);
         }
         return t;
     }
@@ -615,6 +621,7 @@ public final class SporeField {
     /** 読み込んだ区画を入れる(保存係から)。数え直しもする。 */
     void putLoadedTile(Tile t) {
         Tile old = tiles.put(key(t.tx, t.tz), t);
+        index.put(key(t.tx, t.tz), t);
         if (old != null) corruptedCount -= old.corrupted;
         corruptedCount += t.corrupted;
     }
@@ -1000,7 +1007,7 @@ public final class SporeField {
             boolean in = tl.corrupted + tl.never >= TN;
             for (int dz = -1; in && dz <= 1; dz++)
                 for (int dx = -1; in && dx <= 1; dx++) {
-                    Tile nb = tiles.get(key(tl.tx + dx, tl.tz + dz));
+                    Tile nb = index.get(key(tl.tx + dx, tl.tz + dz));
                     in = nb != null && nb.corrupted + nb.never >= TN;
                 }
             tl.interior = in;
@@ -1299,6 +1306,7 @@ public final class SporeField {
         if (empty != null && !devKeepEmptyTiles) {
             for (long kk : empty) {
                 Tile gone = tiles.remove(kk);
+                index.remove(kk);
                 if (gone != null && devDormant) {
                     clearForDormant(gone);
                     dormant.put(kk, gone);
@@ -1470,7 +1478,7 @@ public final class SporeField {
         double best = limit;
         for (int tz = tz0 - R; tz <= tz0 + R; tz++)
             for (int tx = tx0 - R; tx <= tx0 + R; tx++) {
-                Tile tl = tiles.get(key(tx, tz));
+                Tile tl = index.get(key(tx, tz));
                 if (tl == null || tl.corrupted == 0) continue;
                 double dx = Math.max(0, Math.max((tx << TB) - x, x - ((tx << TB) + TS)));
                 double dz = Math.max(0, Math.max((tz << TB) - z, z - ((tz << TB) + TS)));
@@ -1484,11 +1492,16 @@ public final class SporeField {
         int x0 = (int) Math.floor(x), z0 = (int) Math.floor(z), ri = (int) Math.ceil(r);
         for (int tz = (z0 - ri) >> TB; tz <= (z0 + ri) >> TB; tz++)
             for (int tx = (x0 - ri) >> TB; tx <= (x0 + ri) >> TB; tx++) {
-                Tile tl = tiles.get(key(tx, tz));
+                Tile tl = index.get(key(tx, tz));
                 if (tl == null || tl.corrupted == 0) continue;
+                // 2026-11-15 軽量化 I(答えは同じ): 区画のいちばん近い升でも届かなければ飛ばす。全部の升が汚染済みならその升で決まる
+                int bx = tx << TB, bz = tz << TB;
+                double ndx = Math.max(bx, Math.min(bx + TS - 1, x0)) - x0, ndz = Math.max(bz, Math.min(bz + TS - 1, z0)) - z0;
+                if (ndx * ndx + ndz * ndz > r * r) continue;
+                if (tl.corrupted == TN) return true;
                 for (int i = 0; i < TN; i++) {
                     if (tl.sprout[i] == NOT) continue;
-                    double dx = (tx << TB) + (i & (TS - 1)) - x0, dz = (tz << TB) + (i >> TB) - z0;
+                    double dx = bx + (i & (TS - 1)) - x0, dz = bz + (i >> TB) - z0;
                     if (dx * dx + dz * dz <= r * r) return true;
                 }
             }
