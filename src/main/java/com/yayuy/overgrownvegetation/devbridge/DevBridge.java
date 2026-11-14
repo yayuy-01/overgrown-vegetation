@@ -817,6 +817,12 @@ public final class DevBridge {
                 }
                 return null;
             }
+            case "geninfect" -> {
+                // 汎用の感染体の見た目の確かめ(2026-11-15): まわり <半径> の生き物を感染体として描かせる。geninfect 0 で戻す
+                if (mc.level == null || mc.player == null) return "ワールドが無い";
+                double r = arg.isBlank() ? 16.0D : Double.parseDouble(arg.trim());
+                log("GENINFECT " + com.yayuy.overgrownvegetation.client.infect.InfectClientEvents.devMark(mc.level, mc.player.position(), r));
+            }
             case "lizard" -> {
                 // 幹のトカゲ(client/atmosphere/TrunkLizards)を決めた木部のブロックの面に 1 匹置く(逃げ・湧きを止める)。lizard <x y z> <nx> <nz> [向き°] / lizard off(2026-11-07 見え方の前後)
                 String[] p = arg.trim().split("\\s+");

@@ -51,6 +51,8 @@
     "client.UnderwaterAmbientVolumeMixin",
     "client.LivingEntitySelfEffectParticlesMixin",
     "client.ShaderInstanceSamplerAccessor",
+    "client.EntityRenderDispatcherInfectMixin",
+    "client.RenderTypeInfectMixin",
     "client.sodium.SodiumShaderInterfaceMixin",
     "client.sodium.SodiumShaderLoaderMixin",
     "client.sodium.SodiumTerrainPassMixin"
