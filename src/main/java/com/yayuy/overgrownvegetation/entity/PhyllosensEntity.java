@@ -97,6 +97,10 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
     // ---- クライアント(描画の補間)
     private float peekW0, peekW1, lockW0, lockW1, lockYaw0, lockYaw1;
     private int lastSerial = -1;
+    private PhyllosensWatch.State lastState;
+    /** 確かめ用(テストクライアント -Dov.devbridge): アニメが変わったらログへ。 */
+    private static final boolean DEV_LOG = Boolean.getBoolean("ov.devbridge");
+    private String lastAnimName = "";
 
     public PhyllosensEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
@@ -453,13 +457,19 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
         RawAnimation want = PhyllosensWatch.animation(st, peekKind(), lockWeight(1.0F) > 0.5F);
         int serial = stateSerial();
         if (serial != this.lastSerial) {
-            boolean first = this.lastSerial < 0;
+            boolean reentry = this.lastSerial >= 0 && st == this.lastState;
             this.lastSerial = serial;
-            // 状態へ入り直した(叩かれて引っ込む が続いた など): 同じアニメでも頭から流し直す。
-            // 繰り返しだけのアニメ(見張り)へ戻るときは、今そのアニメが流れていれば続ける(見回しの位相が飛ばないように。下)
-            if (!first && !PhyllosensWatch.keepsLoop(st)) c.forceAnimationReset();
+            this.lastState = st;
+            // 同じ状態へ入り直した(叩かれて引っ込む が続いた など)ときだけ頭から流し直す。状態が変わっただけ(崩れる → 倒れている、
+            // 覗きの前触れ → 覗く)は同じアニメの続きなので流し直さない(流し直すと前触れから再生し直して形が飛ぶ)
+            if (reentry && !PhyllosensWatch.keepsLoop(st)) c.forceAnimationReset();
         }
-        if (PhyllosensWatch.keepsLoop(st) && c.getCurrentAnimation() != null
+        if (DEV_LOG && c.getCurrentAnimation() != null && !c.getCurrentAnimation().animation().name().equals(this.lastAnimName)) {
+            this.lastAnimName = c.getCurrentAnimation().animation().name();
+            System.out.println("[phyllosens-anim] t=" + this.tickCount + " " + st + " → " + this.lastAnimName);
+        }
+        // 繰り返しだけのアニメ(見回し・閉じた待機)へ戻るときは、今そのアニメが流れていれば続ける(位相が飛ばないように)。見つめ(watch_lock)は除く
+        if ((want == PhyllosensWatch.A_WATCH || want == PhyllosensWatch.A_CLOSED) && c.getCurrentAnimation() != null
                 && PhyllosensWatch.loopName(st, peekKind()).equals(c.getCurrentAnimation().animation().name())) {
             return PlayState.CONTINUE;
         }

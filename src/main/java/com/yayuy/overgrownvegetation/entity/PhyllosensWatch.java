@@ -413,7 +413,8 @@ public final class PhyllosensWatch {
             this.look = t.getEyePosition();
             double[] f = TowerNeck.toFile(t.getEyePosition(), this.mob.position(), this.mob.getYRot());
             double want = TowerNeck.fileToPlane(this.sh, f)[2];
-            this.lockYaw += Mth.clamp(Mth.wrapDegrees(want - this.lockYaw), -6.0D, 6.0D);
+            // 向きは ±180 で巻き戻さない(後ろへ回られたら、前を通って回り直す。ねじりが一瞬で裏返らないように)
+            this.lockYaw = Mth.clamp(this.lockYaw + Mth.clamp(want - this.lockYaw, -6.0D, 6.0D), -178.0D, 178.0D);
             markIfSeen(now);
         } else if (this.locked && ++this.lost > 40) {
             this.locked = false;
@@ -848,9 +849,9 @@ public final class PhyllosensWatch {
 
     // ------------------------------------------------------------------ 描画のアニメ
 
-    static final RawAnimation A_CLOSED = RawAnimation.begin().thenLoop("idle_closed");
+    public static final RawAnimation A_CLOSED = RawAnimation.begin().thenLoop("idle_closed");
     static final RawAnimation A_OPEN = RawAnimation.begin().thenPlay("watch_windup").thenLoop("watch");
-    static final RawAnimation A_WATCH = RawAnimation.begin().thenLoop("watch");
+    public static final RawAnimation A_WATCH = RawAnimation.begin().thenLoop("watch");
     static final RawAnimation A_LOCK = RawAnimation.begin().thenPlayAndHold("watch_lock");
     static final RawAnimation A_CLOSE = RawAnimation.begin().thenPlay("watch_recover").thenLoop("idle_closed");
     static final RawAnimation[] A_PEEK = new RawAnimation[3], A_PEEK_OUT = new RawAnimation[3];
