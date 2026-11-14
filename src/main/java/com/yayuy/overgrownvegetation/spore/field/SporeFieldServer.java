@@ -622,7 +622,7 @@ public final class SporeFieldServer {
             DevStats.lastTiles = r.tiles;
             DevStats.lastParcels = r.parcels;
             SporeField df = field;
-            if (df != null) DevStats.fieldDev = String.format("newTiles=%d (%.0fms) removed=%d stepOnce=%.0fms parcels=%.0fms", df.devNewTiles, df.devNewTileNanos / 1e6, df.devRemoved, df.devOnceNanos / 1e6, df.devParcelNanos / 1e6);
+            if (df != null) DevStats.fieldDev = String.format("newTiles=%d (%.0fms) revived=%d removed=%d stepOnce=%.0fms parcels=%.0fms", df.devNewTiles, df.devNewTileNanos / 1e6, df.devRevived, df.devRemoved, df.devOnceNanos / 1e6, df.devParcelNanos / 1e6);
         }
     }
 
@@ -978,8 +978,17 @@ public final class SporeFieldServer {
             return 1f;
         }
 
+        /** 直前に引いた升(2026-11-15 軽量化 A: 区画を作るとき 1 升を 4 回引いていたのを 1 回に。場の鍵を持った所からだけ呼ぶ)。 */
+        private long lastAtKey = Long.MIN_VALUE;
+        private Holder<Biome> lastAt;
+
         private Holder<Biome> at(int cx, int cz) {
-            return source.getNoiseBiome((cx << 2) + 2, qy, (cz << 2) + 2, sampler);
+            long k = ChunkPos.asLong(cx, cz);
+            if (k == lastAtKey && lastAt != null) return lastAt;
+            Holder<Biome> b = source.getNoiseBiome((cx << 2) + 2, qy, (cz << 2) + 2, sampler);
+            lastAtKey = k;
+            lastAt = b;
+            return b;
         }
 
         @Override
