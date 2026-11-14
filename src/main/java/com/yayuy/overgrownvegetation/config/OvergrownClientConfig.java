@@ -70,6 +70,7 @@ public final class OvergrownClientConfig {
         public final ModConfigSpec.BooleanValue caveLight;
         public final ModConfigSpec.BooleanValue glowBloom;
         public final ModConfigSpec.BooleanValue surfaceBump;
+        public final ModConfigSpec.BooleanValue simpleAo;
         /** 雲(ボクセルの雲・雲の影・薄明光線・高空の晴天。2026-11-08 雲の段階 1)。シェーダーパック使用中はパックの雲に任せて描かない。 */
         public final ModConfigSpec.BooleanValue clouds;
 
@@ -108,6 +109,7 @@ public final class OvergrownClientConfig {
             caveLight = b.comment("Cave mode under the overgrown forest: black fog and the glow of cave plants (shader point lights, mobs lit too).").define("caveLight", true);
             glowBloom = b.comment("Soft glow around lights in the dark (torches, lava, glowing plants and spores). A full-screen pass; turn off on a weak GPU.").define("glowBloom", true);
             surfaceBump = b.comment("Relief of bark and rock from the light and dark of their textures under a low sun. Off by default: it assumes 16x16 textures, so resource packs with larger textures show seams.").define("surfaceBump", false);
+            simpleAo = b.comment("Soft shade in crevices, at the foot of trunks, in wall corners and where plants meet the ground (screen-space ambient occlusion). Off by default: two full-screen passes every frame.").define("simpleAo", false);
             clouds = b.comment("Voxel clouds above y 300, their drifting shadows, crepuscular rays and the clear sky above the clouds (not drawn while a shader pack is in use).").define("clouds", true);
             b.pop();
         }

@@ -329,6 +329,8 @@
   "gui.overgrown_vegetation.visual_settings.glow_bloom.desc": "Мягкое свечение вокруг факелов, лавы, светящихся растений и спор в темноте. Полноэкранная обработка; отключите, если игра тормозит.",
   "gui.overgrown_vegetation.visual_settings.surface_bump": "Рельеф поверхностей",
   "gui.overgrown_vegetation.visual_settings.surface_bump.desc": "При низком солнце кора и камень получают рельеф по светлым и тёмным участкам текстуры. Рассчитано на текстуры 16x16; с наборами ресурсов большего размера возможны швы.",
+  "gui.overgrown_vegetation.visual_settings.simple_ao": "Тени в углах",
+  "gui.overgrown_vegetation.visual_settings.simple_ao.desc": "Мягкие тени на лесной подстилке, у основания стволов, в углах стен и там, где растения касаются земли. Полноэкранная обработка каждый кадр, снижает производительность.",
   "entity.overgrown_vegetation.falcimnes": "Фальцимнес",
   "item.overgrown_vegetation.falcimnes_spawn_egg": "Яйцо призыва: Фальцимнес",
   "entity.overgrown_vegetation.phyllosens": "Филлосенс",

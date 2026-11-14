@@ -144,6 +144,11 @@ public final class VisualQuality {
         return part(OvergrownClientConfig.CLIENT.surfaceBump);
     }
 
+    /** 隙間と根元の陰り(簡易 AO。2026-11-14 仕上げ H。既定でオフ)。 */
+    public static boolean simpleAo() {
+        return part(OvergrownClientConfig.CLIENT.simpleAo);
+    }
+
     /**
      * 雲(2026-11-08 雲の段階 1)。雰囲気の親のオンオフとは別(雲はバニラの雲の置き換えなので、雰囲気を切っても残す。仮決め)。
      * 重さの段は {@link #atmosphereTier()} を使う。

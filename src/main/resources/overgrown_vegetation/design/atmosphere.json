@@ -406,6 +406,12 @@
     "strength": 1.5,
     "distance": 32.0
   },
+  "simpleAo": {
+    "_comment": "隙間と根元の陰り(簡易 AO。2026-11-14 シェーダーの仕上げ H。ユーザー決定: 作るが既定でオフ。入れるのは見え方の設定「隙間と根元の陰り」。数は仮決め)。画面の奥行きから、林床・根元・壁の隅・草と地面の境に陰りを付ける。画面全体の処理が毎フレーム入るので重い。strength = 陰りの濃さ、radius = まわりを見る半径(ブロック)、distance = この距離(ブロック)で消える。",
+    "strength": 0.6,
+    "radius": 0.9,
+    "distance": 48.0
+  },
   "eyeAdapt": {
     "_comment": "11-07 洞窟の出入りの目の慣れ(明順応・暗順応。ユーザーの考え「暗い所から明るい所へ出た瞬間の視覚効果で、外と洞窟を違和感なくつなげる」)。ユーザー指定: 出るときは白く飛んで 2〜4 秒で戻る・白い間に地下モードの切り替えを済ませる・入るときは暗く光源だけが見え数秒で岩の輪郭が見える・強さは暗い所にいた時間で決める(口を少し出入りしただけならほとんど出ない)・強さはほどほど・世界全体・オフにできる(enabled false)。数はすべて仮決め: lightSeconds・darkSeconds = 目が慣れている明るさ(EV)が今の明るさを追う時定数(明るくなる向き・暗くなる向き)、deadband・range = 差(EV)が deadband を超えた分を range で 0 → 1(まぶしさ・暗さ)、今の明るさ = max((空の光/15)² × 昼の明るさ(夜は nightSky), (ブロックの光/15)² × blockWeight, floor)、glareExposure = 明るさの上乗せ・glareBloom = 明るい所のにじみ・glareWash = 白へ寄せる(コントラストを下げる)・glareDesaturate = 彩度を抜く、darkAmbient = 入った直後の地下の床の持ち上げの倍率・darkShadow = 地下で暗い所をさらに沈める割合、hideSeconds = まぶしさ・暗さが hideFrom を超えている間の地下モードの寄せの時定数(普段は fog.transitionCaveSeconds)。シェーダーパック使用中は掛けない。",
     "enabled": true,

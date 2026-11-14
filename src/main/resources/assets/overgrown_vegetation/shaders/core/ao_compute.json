@@ -1,0 +1,11 @@
+{
+    "vertex": "overgrown_vegetation:mist_composite",
+    "fragment": "overgrown_vegetation:ao_compute",
+    "samplers": [
+        { "name": "DepthTex" }
+    ],
+    "uniforms": [
+        { "name": "AoA", "type": "float", "count": 4, "values": [ 0.9, 0.6, 48.0, 0.0 ] },
+        { "name": "AoB", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 1.0 ] }
+    ]
+}

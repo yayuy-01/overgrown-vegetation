@@ -138,6 +138,22 @@ public final class AtmosphereEye {
     }
 
     /**
+     * 隙間と根元の陰り(簡易 AO。節 simpleAo、2026-11-14 シェーダーの仕上げ H。読むのは {@code client/atmosphere/SimpleAo})。
+     * ユーザー決定: 作るが既定でオフ(見え方の設定「隙間と根元の陰り」で入れる)。数は仮決め: {@code strength} = 陰りの濃さ、
+     * {@code radius} = まわりを見る半径(ブロック)、{@code distance} = この距離(ブロック)で消える。
+     */
+    public static final class SimpleAoJson {
+        public Double strength, radius, distance;
+    }
+
+    public record SimpleAoParams(float strength, float radius, float distance) {
+        static SimpleAoParams of(SimpleAoJson j) {
+            SimpleAoJson v = j != null ? j : new SimpleAoJson();
+            return new SimpleAoParams(c(v.strength, 0.6, 0.0, 4.0), c(v.radius, 0.9, 0.1, 4.0), c(v.distance, 48.0, 4.0, 256.0));
+        }
+    }
+
+    /**
      * 過繁茂の外の洞窟(節 caveOpen、2026-11-07 判断の後の直し。ユーザー「おすすめで直す」)。地下モードの仕組みは世界全体、過繁茂らしさは色と見通しで出す 2 層の方針で、
      * 過繁茂の外の洞窟だけ値を変える(過繁茂の中は前のまま)。過繁茂の度合い(カメラの所の判定を blendSeconds で寄せたもの)で混ぜる。数はすべて仮決め:
      * <ul>

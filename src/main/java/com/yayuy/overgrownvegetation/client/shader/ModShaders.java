@@ -188,6 +188,20 @@ public final class ModShaders {
             bloomBright = null;
             bloomComposite = null;
         }
+        try {
+            event.registerShader(new ShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "ao_compute"),
+                            DefaultVertexFormat.POSITION),
+                    shader -> aoCompute = shader);
+            event.registerShader(new ShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "ao_composite"),
+                            DefaultVertexFormat.POSITION),
+                    shader -> aoComposite = shader);
+        } catch (IOException e) {
+            OvergrownVegetation.LOGGER.error("簡易 AO のシェーダーを読み込めなかったので、隙間と根元の陰りは掛けない", e);
+            aoCompute = null;
+            aoComposite = null;
+        }
     }
 
     /** 洞窟の出入りの目の慣れの全画面の補正({@code client/atmosphere/EyeAdaptation}、2026-11-07)。読み込めなかったら null(掛けない)。シェーダーパック使用中は使わない。 */
@@ -207,6 +221,18 @@ public final class ModShaders {
 
     public static ShaderInstance bloomComposite() {
         return bloomComposite;
+    }
+
+    /** 隙間と根元の陰り(簡易 AO。{@code client/atmosphere/SimpleAo}、2026-11-14 仕上げ H)。読み込めなかったら null(掛けない)。 */
+    private static ShaderInstance aoCompute;
+    private static ShaderInstance aoComposite;
+
+    public static ShaderInstance aoCompute() {
+        return aoCompute;
+    }
+
+    public static ShaderInstance aoComposite() {
+        return aoComposite;
     }
 
     private ModShaders() {
