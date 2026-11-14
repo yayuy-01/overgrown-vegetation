@@ -79,6 +79,27 @@ public final class ForestDirector extends SavedData implements ForestBudget {
     public record Decision(Route route, double nothing, double evolve, double rooted, double nursery, String summary) {
     }
 
+    /** 段の強さで割った値段(強さ 0.1 未満は 0.1 とみなす)。 */
+    public static double stagePrice(double cost, double strength) {
+        return cost / Math.max(0.1D, Math.min(1.0D, strength));
+    }
+
+    /** 直前の {@link #visit} で払った値段(変われなかったときに戻す額)。 */
+    private double lastPrice;
+
+    public double lastPrice() {
+        return lastPrice;
+    }
+
+    /** 道が開くゲート。 */
+    public static DirectorGates.Gate gateOf(Route route) {
+        return switch (route) {
+            case EVOLVE -> DirectorGates.Gate.EVOLVE;
+            case ROOTED -> DirectorGates.Gate.ROOTED;
+            case NURSERY, NONE -> DirectorGates.Gate.NURSERY;
+        };
+    }
+
     /** その道になるときに払う値段。 */
     public static double cost(DirectorTable t, Route route) {
         return switch (route) {
@@ -279,8 +300,19 @@ public final class ForestDirector extends SavedData implements ForestBudget {
                 fate != null ? fate.forest(level).distance(mob.position()) : 0.0D,
                 baseNear(level, mob.getX(), mob.getZ()));
         Decision d = score(t, in, mob.getRandom());
-        if (d.route() != Route.NONE && !tryPay(level, cost(t, d.route()))) {
+        // フェーズの小さな段: その道が開いたフェーズの中では、導入でまれ・定着で普通・最盛でいつも通り【仮】。
+        // (1) 選んだ道を強さの確率で通す(見送ったら何もしない = 予算が余っていてもまれ)
+        // (2) 値段を強さで割る(導入の 0.3 なら 3.3 倍。予算で頭打ちのときも、なる数が強さに比べて減る)
+        lastPrice = 0.0D;
+        double strength = d.route() == Route.NONE ? 1.0D : DirectorGates.strength(level, gateOf(d.route()));
+        if (d.route() != Route.NONE && !DirectorGates.roll(strength, mob.getRandom())) {
+            d = new Decision(Route.NONE, d.nothing(), d.evolve(), d.rooted(), d.nursery(), d.summary() + "・段で見送り");
+        }
+        double price = d.route() == Route.NONE ? 0.0D : stagePrice(cost(t, d.route()), strength);
+        if (d.route() != Route.NONE && !tryPay(level, price)) {
             d = new Decision(Route.NONE, d.nothing(), d.evolve(), d.rooted(), d.nursery(), d.summary());
+        } else if (d.route() != Route.NONE) {
+            lastPrice = price;
         }
         record(d.route(), mob.species().key() + " → " + d.summary());
         return d;
@@ -337,7 +369,10 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         if (pool.isEmpty() || !DesignData.director().enabled) return null;
         // 苗床のスポナーは F4 から。TD の前触れの間は止める(DirectorGates)
         if (!DirectorGates.open(level, DirectorGates.Gate.SPAWNER) || DirectorGates.tdOmen(level)) return null;
-        if (!tryPay(level, DesignData.director().costSpawn)) return null;
+        // 小さな段: F4 の中は、導入でまれに・定着で普通に孵す(聞かれた回を強さの確率で通す)【仮】
+        double spawnStrength = DirectorGates.strength(level, DirectorGates.Gate.SPAWNER);
+        if (!DirectorGates.roll(spawnStrength, random)) return null;
+        if (!tryPay(level, stagePrice(DesignData.director().costSpawn, spawnStrength))) return null; // 値段も強さで割る(道と同じ)
         spawnsBought++;
         setDirty();
         return pool.get(random.nextInt(pool.size())).get();

@@ -45,6 +45,11 @@ public final class DirectorCommand {
                                         .then(Commands.literal("phase")
                                                 .executes(ctx -> gates(ctx.getSource()))
                                                 .then(Commands.literal("reset").executes(ctx -> phaseSet(ctx.getSource(), null)))
+                                                .then(Commands.literal("stage")
+                                                        .then(Commands.literal("intro").executes(ctx -> stageSet(ctx.getSource(), com.yayuy.overgrownvegetation.phase.PhaseStage.INTRO)))
+                                                        .then(Commands.literal("established").executes(ctx -> stageSet(ctx.getSource(), com.yayuy.overgrownvegetation.phase.PhaseStage.ESTABLISHED)))
+                                                        .then(Commands.literal("peak").executes(ctx -> stageSet(ctx.getSource(), com.yayuy.overgrownvegetation.phase.PhaseStage.PEAK)))
+                                                        .then(Commands.literal("reset").executes(ctx -> stageSet(ctx.getSource(), null))))
                                                 .then(Commands.argument("phase", IntegerArgumentType.integer(0, 99))
                                                         .executes(ctx -> phaseSet(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "phase")))))
                                         .then(Commands.literal("base")
@@ -160,9 +165,17 @@ public final class DirectorCommand {
         return 1;
     }
 
+    /** 司令塔が見る小さな段だけを差し替える(PhaseStages は変えない。reset で戻す)。 */
+    private static int stageSet(CommandSourceStack source, @javax.annotation.Nullable com.yayuy.overgrownvegetation.phase.PhaseStage stage) {
+        DirectorGates.setStageForTests(stage);
+        source.sendSuccess(() -> Component.literal(stage == null ? "司令塔が見る段を元に戻した" : "司令塔が見る段を " + stage.name() + " にした(司令塔だけ)"), true);
+        return gates(source);
+    }
+
     /** 司令塔が見るフェーズだけを差し替える(ほかの仕組みのフェーズは変えない。reset で戻す)。 */
     private static int phaseSet(CommandSourceStack source, @javax.annotation.Nullable Integer phase) {
         DirectorGates.setPhaseForTests(phase);
+        if (phase == null) DirectorGates.setStageForTests(null);
         source.sendSuccess(() -> Component.literal(phase == null ? "司令塔が見るフェーズを元に戻した" : "司令塔が見るフェーズを F" + phase + " にした(司令塔だけ)"), true);
         return gates(source);
     }

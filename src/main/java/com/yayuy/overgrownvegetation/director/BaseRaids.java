@@ -59,7 +59,8 @@ public final class BaseRaids {
     public static Result sendWave(ServerLevel level, BaseMemory.Base b, double day, RandomSource random) {
         BaseMemoryTable t = DesignData.director().base;
         double since = Math.max(0.0D, day - b.stageSince());
-        BaseMemoryTable.Wave w = t.waveFor(since);
+        // 小さな段: 送り込みの枠に、その枠が開いたフェーズの強さを掛ける(進化体 F3・G4 F4・G5〜 F5。導入で少なく・最盛で表どおり。端数は確率)【仮】
+        BaseMemoryTable.Wave w = scaled(level, t.waveFor(since), random);
         int waveNo = t.waveIndex(since);
         double r = t.raidSearchBlocks;
         AABB box = new AABB(b.centerX() - r, level.getMinBuildHeight(), b.centerZ() - r, b.centerX() + r, level.getMaxBuildHeight(), b.centerZ() + r);
@@ -94,7 +95,7 @@ public final class BaseRaids {
         for (AbstractParasitizedMonster m : zeros) {
             if (canEvolve && sentDev + evolved < w.developed() && G1Fate.developedOf(m) != null && director.tryPay(level, cost)) {
                 m.fate().beginEvolve();
-                m.fate().markPaid();
+                m.fate().markPaid(cost);
                 m.march().begin(b); // 進化で入れ替わるときに引き継ぐ(G1Fate#finishEvolve)
                 director.record(ForestDirector.Route.EVOLVE, m.species().key() + " → 進化(拠点 #" + b.id() + " へ送るため)");
                 evolved++;
@@ -158,12 +159,20 @@ public final class BaseRaids {
         return false;
     }
 
+    /** 送り込みの枠に、フェーズの小さな段の強さを掛ける(段階 0 は掛けない = 送り込みそのものの強さは送り込みの間で掛ける)。 */
+    static BaseMemoryTable.Wave scaled(ServerLevel level, BaseMemoryTable.Wave w, RandomSource random) {
+        return new BaseMemoryTable.Wave(w.fromDays(), w.stageZero(),
+                DirectorGates.scaleCount(w.developed(), DirectorGates.strength(level, DirectorGates.Gate.EVOLVE), random),
+                DirectorGates.scaleCount(w.g4(), DirectorGates.strength(level, DirectorGates.Gate.WAVE_G4), random),
+                DirectorGates.scaleCount(w.g5plus(), DirectorGates.strength(level, DirectorGates.Gate.WAVE_G5), random));
+    }
+
     /** 見張りから: 送り込む時が来た拠点へ送る。 */
     static void dispatch(ServerLevel level, BaseMemory memory, double day) {
         for (BaseMemory.Base b : List.copyOf(memory.bases())) {
             if (!BaseMemory.wantsWave(b, day)) continue;
             sendWave(level, b, day, level.getRandom());
-            memory.waveSent(b, day, level.getRandom(), DirectorGates.stageMultiplier(level));
+            memory.waveSent(b, day, level.getRandom(), DirectorGates.strength(level, DirectorGates.Gate.RAID)); // F5 の導入では送り込みの間が長い(0.3 なら 3.3 倍)
         }
     }
 }

@@ -21,7 +21,7 @@ import java.util.Locale;
  *   <li>根付きの向きはフェーズを見ない(F5 より前から、覚えた拠点の方を向く =「森は前から見ていた」の静かな前兆。ユーザー)。</li>
  *   <li>TD の前触れの間(感染 Mob と G4 以降が一切湧かなくなる)は、偵察・送り込み・苗床のスポナーを止める。TD は退避中なので、
  *   前触れかどうかは外から足す口({@link #registerTdOmen})。何も登録されていなければ「前触れではない」。</li>
- *   <li>フェーズの小さな段(導入・定着・最盛)の倍率は {@link #stageMultiplier}(別のセッションが口を作っている最中。今は 1)。</li>
+ *   <li>フェーズの小さな段(導入・定着・最盛)の強さは {@link #strength}(PhaseStages の口を、司令塔が見るフェーズ・段で引く)。</li>
  * </ul>
  * フェーズの数は {@code director.json} の {@code gates}(ユーザー・全体管理が決めた値。【仮】ではない)。
  */
@@ -115,12 +115,45 @@ public final class DirectorGates {
 
     // ---------------------------------------------------------------- 小さな段の倍率
 
+    @Nullable
+    private static com.yayuy.overgrownvegetation.phase.PhaseStage stageOverride;
+
+    /** テスト・確かめ用: 小さな段を差し替える(null で戻す)。フェーズの差し替えと組で使う(PhaseStages はこちらの差し替えを見ない)。 */
+    public static void setStageForTests(@Nullable com.yayuy.overgrownvegetation.phase.PhaseStage stage) {
+        stageOverride = stage;
+    }
+
+    @Nullable
+    public static com.yayuy.overgrownvegetation.phase.PhaseStage stageOverride() {
+        return stageOverride;
+    }
+
+    /** 今の小さな段(差し替えがあればそれ)。 */
+    public static com.yayuy.overgrownvegetation.phase.PhaseStage stage(ServerLevel level) {
+        return stageOverride != null ? stageOverride : com.yayuy.overgrownvegetation.phase.PhaseStages.stage(level);
+    }
+
     /**
-     * フェーズの小さな段(導入・定着・最盛)の倍率(送り込みの間を割る = 大きいほど送り込みが頻繁)。別のセッションが口を作っている最中なので、
-     * 今は 1。口が出来たら、ここだけを差し替える。
+     * その物の今の強さ(0〜1)。フェーズの小さな段の口 {@code PhaseStages.strength} を、司令塔が見るフェーズ・段(差し替えを含む)で引く:
+     * 開く前は 0・開いたフェーズの中は今の段の倍率(導入 0.3 / 定着 0.7 / 最盛 1.0【仮】)・過ぎたフェーズは最盛の倍率。
+     * 11-14 ユーザー「そのフェーズの新しい物は、導入でまれに、定着で普通に、最盛でいちばん多く強く」。
      */
-    public static double stageMultiplier(ServerLevel level) {
-        return 1.0D;
+    public static double strength(ServerLevel level, Gate gate) {
+        if (!DesignData.director().enabled) return 0.0D;
+        return com.yayuy.overgrownvegetation.phase.PhaseStages.strength(DesignData.phases(), phase(level), stage(level),
+                openAt(DesignData.director().gates, gate));
+    }
+
+    /** 強さを確率として 1 回引く(道・スポナーを「まれに」する)。 */
+    public static boolean roll(double strength, net.minecraft.util.RandomSource random) {
+        return strength >= 1.0D || random.nextDouble() < strength;
+    }
+
+    /** 数に強さを掛け、端数は確率で切り上げる(送り込みの枠)。 */
+    public static int scaleCount(int count, double strength, net.minecraft.util.RandomSource random) {
+        double v = count * Math.max(0.0D, strength);
+        int n = (int) Math.floor(v);
+        return n + (random.nextDouble() < v - n ? 1 : 0);
     }
 
     // ---------------------------------------------------------------- 見る口
@@ -136,8 +169,13 @@ public final class DirectorGates {
             sb.append(gate.label).append(" F").append(openAt(g, gate));
         }
         String phase = p == Integer.MAX_VALUE ? "全部開(テスト)" : "F" + p + (phaseOverride != null ? "(差し替え中)" : "");
-        return String.format(Locale.ROOT, "フェーズ %s / 開いている: %s / まだ: %s / TD の前触れ %s / 小さな段の倍率 %.2f",
-                phase, open.isEmpty() ? "なし" : open, closed.isEmpty() ? "なし" : closed, tdOmen(level) ? "中(偵察・送り込みを止める)" : "なし",
-                stageMultiplier(level));
+        StringBuilder str = new StringBuilder();
+        for (Gate gate : Gate.values()) {
+            if (!str.isEmpty()) str.append("・");
+            str.append(gate.label).append(String.format(Locale.ROOT, " %.2f", strength(level, gate)));
+        }
+        return String.format(Locale.ROOT, "フェーズ %s・段 %s%s / 開いている: %s / まだ: %s / TD の前触れ %s / 今の強さ(導入でまれ・定着で普通・最盛でいちばん多い。偵察・認識はユーザー指定の日数なので掛けていない): %s",
+                phase, stage(level).name(), stageOverride != null ? "(差し替え中)" : "", open.isEmpty() ? "なし" : open, closed.isEmpty() ? "なし" : closed,
+                tdOmen(level) ? "中(偵察・送り込みを止める)" : "なし", str);
     }
 }

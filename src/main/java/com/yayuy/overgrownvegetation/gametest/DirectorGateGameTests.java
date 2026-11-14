@@ -3,6 +3,8 @@ package com.yayuy.overgrownvegetation.gametest;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.data.DirectorTable;
+import com.yayuy.overgrownvegetation.data.PhaseTable;
+import com.yayuy.overgrownvegetation.phase.PhaseStage;
 import com.yayuy.overgrownvegetation.director.BaseMemory;
 import com.yayuy.overgrownvegetation.director.DirectorGates;
 import com.yayuy.overgrownvegetation.director.DirectorGates.Gate;
@@ -116,16 +118,114 @@ public final class DirectorGateGameTests {
             helper.assertTrue(director.buySpawn(level, RandomSource.create(1L), pool) == null, "F3 で苗床のスポナーが動いた");
             helper.assertTrue(DirectorGates.open(level, Gate.EVOLVE) && !DirectorGates.open(level, Gate.SCOUT), "F3 の開き方が違う");
             DirectorGates.setPhaseForTests(4);
+            DirectorGates.setStageForTests(PhaseStage.PEAK); // 段の確率で見送らないように(段は下で別に確かめる)
             TD[0] = true;
             helper.assertTrue(director.buySpawn(level, RandomSource.create(1L), pool) == null, "TD の前触れの間にスポナーが動いた");
             TD[0] = false;
             helper.assertTrue(director.buySpawn(level, RandomSource.create(1L), pool) == EntityType.ZOMBIE, "F4 で苗床のスポナーが動かない");
+
+            // 小さな段(PhaseStages の口を、司令塔が差し替えたフェーズ・段で引く): 開いたフェーズの中は段の倍率・過ぎたフェーズは最盛・開く前は 0
+            PhaseTable pt = DesignData.phases();
+            DirectorGates.setStageForTests(PhaseStage.INTRO);
+            helper.assertTrue(DirectorGates.strength(level, Gate.SPAWNER) == pt.stageMultiplier(4, PhaseStage.INTRO), "F4 導入のスポナーの強さが違う");
+            helper.assertTrue(DirectorGates.strength(level, Gate.EVOLVE) == pt.stageMultiplier(3, PhaseStage.PEAK), "F4 で進化(F3)が最盛でない");
+            helper.assertTrue(DirectorGates.strength(level, Gate.RAID) == 0.0D, "F4 で送り込みの強さが 0 でない");
+            double intro = DirectorGates.strength(level, Gate.SPAWNER);
+            DirectorGates.setStageForTests(PhaseStage.ESTABLISHED);
+            double est = DirectorGates.strength(level, Gate.SPAWNER);
+            DirectorGates.setStageForTests(PhaseStage.PEAK);
+            double peak = DirectorGates.strength(level, Gate.SPAWNER);
+            helper.assertTrue(intro <= est && est <= peak && intro < peak, "段で強くならない: " + intro + " / " + est + " / " + peak);
+            // 導入では、聞かれた回のうち強さの割合だけ孵す
+            DirectorGates.setStageForTests(PhaseStage.INTRO);
+            RandomSource r = RandomSource.create(9L);
+            int bought = 0;
+            for (int i = 0; i < 400; i++) {
+                director.setBudget(level, DesignData.director().costSpawn * 10.0D);
+                if (director.buySpawn(level, r, pool) != null) bought++;
+            }
+            helper.assertTrue(Math.abs(bought / 400.0D - intro) < 0.08D, "導入で孵す割合が強さと違う: " + bought + " / 400(強さ " + intro + ")");
         } finally {
             TD[0] = false;
             DirectorGates.setPhaseForTests(phaseBefore);
+            DirectorGates.setStageForTests(null);
             director.setBudget(level, before);
         }
         helper.succeed();
+    }
+
+    /**
+     * 段ごとの試算(10 日・段階 0 が 80 体・人は遠い・森の縁から 48・過繁茂 200 チャンク・ハイヴノード 2)。司令塔の式(点・予算・段の確率)だけを
+     * 取り出して 40 回の平均を出し、ログに表を書く(報告用)。その道が開いたフェーズの中では、導入 ≦ 定着 ≦ 最盛 になること。
+     */
+    @GameTest(template = "gametest_empty7", batch = "director_gates_pure", timeoutTicks = 20)
+    public static void stageSimulationTable(GameTestHelper helper) {
+        PhaseTable pt = DesignData.phases();
+        int[][] rows = new int[3][];
+        for (int phase = 1; phase <= 3; phase++) {
+            double prev = -1.0D;
+            for (PhaseStage st : PhaseStage.values()) {
+                double[] r = simulate(pt, phase, st, 40);
+                int target = phase == 1 ? 2 : phase == 2 ? 1 : 0; // その段で開いた道(苗床・根付き・進化)
+                OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
+                        "[司令塔の段の試算] F%d %s: 進化 %.1f・根付き %.1f・苗床 %.1f・段階 0 のまま %.1f", phase, st.name(), r[0], r[1], r[2], r[3]));
+                helper.assertTrue(r[target] + 1.0D >= prev, "F" + phase + " で段が上がって減った: " + st);
+                prev = r[target];
+            }
+        }
+        helper.succeed();
+    }
+
+    /** 試算 1 つ: [進化, 根付き, 苗床, まま] の平均。 */
+    private static double[] simulate(PhaseTable pt, int phase, PhaseStage stage, int runs) {
+        DirectorTable t = DesignData.director();
+        double income = t.incomePerDay(200), cap = t.cap(2);
+        double[] sum = new double[4];
+        RandomSource rnd = RandomSource.create(42L);
+        double sEvolve = com.yayuy.overgrownvegetation.phase.PhaseStages.strength(pt, phase, stage, t.gates.evolve);
+        double sRooted = com.yayuy.overgrownvegetation.phase.PhaseStages.strength(pt, phase, stage, t.gates.rooted);
+        double sNursery = com.yayuy.overgrownvegetation.phase.PhaseStages.strength(pt, phase, stage, t.gates.nursery);
+        for (int run = 0; run < runs; run++) {
+            int n = 80;
+            double[] born = new double[n], next = new double[n];
+            boolean[] done = new boolean[n];
+            for (int i = 0; i < n; i++) {
+                born[i] = i * 10.0D / n;
+                next[i] = born[i] + com.yayuy.overgrownvegetation.director.G1Fate.firstDelay(t, rnd) / 24000.0D;
+            }
+            double budget = 0.0D, at = 0.0D;
+            while (true) {
+                int k = -1;
+                for (int i = 0; i < n; i++) {
+                    if (!done[i] && next[i] < 10.0D && (k < 0 || next[i] < next[k])) k = i;
+                }
+                if (k < 0) break;
+                budget = ForestDirector.accrued(budget, (long) ((next[k] - at) * 24000.0D), income, cap);
+                at = next[k];
+                ForestDirector.Inputs in = new ForestDirector.Inputs(sEvolve > 0.0D, sRooted > 0.0D, sNursery > 0.0D, budget, 1.0E9D,
+                        at - born[k], 48.0D, 0.0D);
+                ForestDirector.Route route = ForestDirector.score(t, in, rnd).route();
+                double s = switch (route) {
+                    case EVOLVE -> sEvolve;
+                    case ROOTED -> sRooted;
+                    case NURSERY -> sNursery;
+                    case NONE -> 0.0D;
+                };
+                double price = ForestDirector.stagePrice(ForestDirector.cost(t, route), s);
+                if (route != ForestDirector.Route.NONE && DirectorGates.roll(s, rnd) && price <= budget + 1.0E-9D) {
+                    budget -= price;
+                    done[k] = true;
+                    sum[route == ForestDirector.Route.EVOLVE ? 0 : route == ForestDirector.Route.ROOTED ? 1 : 2]++;
+                } else {
+                    next[k] = at + (t.revisitMinTicks + rnd.nextInt(t.revisitMaxTicks - t.revisitMinTicks + 1)) / 24000.0D;
+                }
+            }
+            for (boolean d : done) {
+                if (!d) sum[3]++;
+            }
+        }
+        for (int i = 0; i < 4; i++) sum[i] /= runs;
+        return sum;
     }
 
     /** テストの TD の前触れ(1 回だけ登録する)。 */

@@ -550,7 +550,7 @@ public final class BaseMemory extends SavedData {
         waveSent(b, day, random, 1.0D);
     }
 
-    /** 送り込んだ。間はフェーズの小さな段の倍率で割る(倍率が大きいほど頻繁。DirectorGates#stageMultiplier)。 */
+    /** 送り込んだ。間はフェーズの小さな段の倍率で割る(送り込みの強さ = 小さな段。大きいほど頻繁。DirectorGates#strength)。 */
     public void waveSent(Base b, double day, net.minecraft.util.RandomSource random, double stageMultiplier) {
         BaseMemoryTable t = table();
         double interval = t.waveIntervalMinDays + random.nextDouble() * (t.waveIntervalMaxDays - t.waveIntervalMinDays);

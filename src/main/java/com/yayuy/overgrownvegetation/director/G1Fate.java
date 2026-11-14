@@ -75,6 +75,8 @@ public final class G1Fate {
     private int walkedTicks;
     /** 司令塔が予算を払って決めた道か(コマンドで決めた道は払っていない = やめても戻さない)。 */
     private boolean paid;
+    /** 払った額(段の強さで割った値段。変われなかったら、これを戻す)。 */
+    private double paidPrice;
     /** テスト用の差し替え(森の見え方・根付きの姿)。保存しない。 */
     @Nullable
     private ForestEdge forestOverride;
@@ -163,6 +165,7 @@ public final class G1Fate {
         }
         ForestDirector.Decision d = ForestDirector.get(level).visit(level, mob, bornAt);
         paid = d.route() != Route.NONE;
+        paidPrice = paid ? ForestDirector.get(level).lastPrice() : 0.0D;
         if (d.route() == Route.EVOLVE) {
             beginEvolve();
             // 認識した拠点のそばで進化した個体は、拠点へ向かう(D-8。距離は evolveBaseBlocks)
@@ -178,8 +181,9 @@ public final class G1Fate {
     }
 
     /** 司令塔が予算を払って決めた道にする(送り込みが進化させたとき。やめたら予算を戻す)。 */
-    void markPaid() {
+    void markPaid(double price) {
         paid = true;
+        paidPrice = price;
     }
 
     /** 進化の前兆を始める(予算は呼ぶ側が払ってある)。 */
@@ -404,7 +408,7 @@ public final class G1Fate {
     /** 変われなかった: 予算を戻し、後でまた見に来る。 */
     private void cancel(ServerLevel level) {
         if (route != Route.NONE && paid) {
-            ForestDirector.get(level).refund(level, ForestDirector.cost(DesignData.director(), route));
+            ForestDirector.get(level).refund(level, paidPrice > 0.0D ? paidPrice : ForestDirector.cost(DesignData.director(), route));
         }
         route = Route.NONE;
         omenLeft = 0;
@@ -444,6 +448,7 @@ public final class G1Fate {
         f.putDouble("AwayWanted", awayWanted);
         f.putInt("Walked", walkedTicks);
         f.putBoolean("Paid", paid);
+        f.putDouble("PaidPrice", paidPrice);
         scout.save(f);
         tag.put("Fate", f);
     }
@@ -458,6 +463,7 @@ public final class G1Fate {
         awayWanted = f.getDouble("AwayWanted");
         walkedTicks = f.getInt("Walked");
         paid = f.getBoolean("Paid");
+        paidPrice = f.getDouble("PaidPrice");
         scout.load(f);
         mob.setOmen(route == Route.EVOLVE ? OMEN_EVOLVE : route == Route.ROOTED || route == Route.NURSERY ? f.getInt("Omen") : OMEN_NONE);
     }
