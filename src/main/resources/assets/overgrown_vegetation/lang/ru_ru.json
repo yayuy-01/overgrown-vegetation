@@ -363,6 +363,8 @@
   "item.overgrown_vegetation.phyllosens_spawn_egg": "Яйцо призыва: Филлосенс",
   "entity.overgrown_vegetation.venamnes": "Венамнес",
   "item.overgrown_vegetation.venamnes_spawn_egg": "Яйцо призыва: Венамнес",
+  "entity.overgrown_vegetation.saltimnes": "Сальтимнес",
+  "item.overgrown_vegetation.saltimnes_spawn_egg": "Яйцо призыва: Сальтимнес",
   "entity.overgrown_vegetation.gregaria": "Грегария",
   "item.overgrown_vegetation.gregaria_spawn_egg": "Яйцо призыва: Грегария",
   "entity.overgrown_vegetation.velophyll": "Велофилл",
