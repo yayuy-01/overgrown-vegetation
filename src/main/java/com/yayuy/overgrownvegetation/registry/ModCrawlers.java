@@ -52,3 +52,24 @@ public final class ModCrawlers {
         event.put(GREGARIA.get(), GregariaEntity.createAttributes().build());
     }
 }
+    /**
+     * ストロビラ(11-15)。当たりは胴と背板の芯だけ(幅 0.95 × 高さ 1.2【仮】)。脚・触角・尾ははみ出す(全体 3.6 × 2.8 × 5.5)。
+     * 1 マス幅の通路は通れるが、高さ 1 の隙間はくぐらない(尾が天井を突き抜けないように)。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.StrobilaEntity>> STROBILA =
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.StrobilaEntity.ID, () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.StrobilaEntity>of(com.yayuy.overgrownvegetation.entity.StrobilaEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.StrobilaEntity.ID, 0.95F),
+                            MobStats.height(com.yayuy.overgrownvegetation.entity.StrobilaEntity.ID, 1.2F))
+                    .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.StrobilaEntity.ID))
+                    .eyeHeight(0.7F)
+                    .clientTrackingRange(10)
+                    .build(com.yayuy.overgrownvegetation.entity.StrobilaEntity.ID));
+
+    /** ストロビラのスポーンエッグ(地は背板の暗いオリーブ、点は球果の黄土)。 */
+    public static final DeferredItem<DeferredSpawnEggItem> STROBILA_SPAWN_EGG = ModItems.ITEMS.registerItem(
+            com.yayuy.overgrownvegetation.entity.StrobilaEntity.ID + "_spawn_egg",
+            props -> new DeferredSpawnEggItem(STROBILA, 0x3A3F14, 0x8C7A2E, props));
+
+        output.accept(STROBILA_SPAWN_EGG.get());
+        event.put(STROBILA.get(), com.yayuy.overgrownvegetation.entity.StrobilaEntity.createAttributes().build());
