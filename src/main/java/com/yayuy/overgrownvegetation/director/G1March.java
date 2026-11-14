@@ -21,6 +21,8 @@ public final class G1March {
     private double baseZ;
     private int ticks;
     /** 回り込み(第 3 段 区切り 2): 先に向かう弱い方角の点。着いたら真ん中へ。 */
+    /** この使いだけの長さの上限(tick。0 = 設計値の marchTimeoutTicks。監視塔の呼び出しは 1 分)。 */
+    private int limit;
     private boolean hasWay;
     private double wayX;
     private double wayZ;
@@ -62,6 +64,12 @@ public final class G1March {
 
     /** 拠点以外の行き先へ(第 3 段の「危ない所」など。{@code id} は拠点の番号の代わりの印。危ない所は負の数)。 */
     public void beginTo(double x, double z, int id) {
+        beginTo(x, z, id, 0);
+    }
+
+    /** 長さの上限つき(tick)。 */
+    public void beginTo(double x, double z, int id, int limitTicks) {
+        limit = Math.max(0, limitTicks);
         active = true;
         hasWay = false;
         baseId = id;
@@ -77,6 +85,7 @@ public final class G1March {
         baseX = other.baseX;
         baseZ = other.baseZ;
         ticks = other.ticks;
+        limit = other.limit;
         hasWay = other.hasWay;
         wayX = other.wayX;
         wayZ = other.wayZ;
@@ -87,14 +96,15 @@ public final class G1March {
         if (!active) return;
         BaseMemoryTable t = DesignData.director().base;
         ticks++;
+        int timeout = limit > 0 ? Math.min(limit, t.marchTimeoutTicks) : t.marchTimeoutTicks;
         if (hasWay) {
             double wx = pos.x - wayX, wz = pos.z - wayZ;
             if (wx * wx + wz * wz <= t.flankArriveBlocks * t.flankArriveBlocks) hasWay = false;
-            if (ticks >= t.marchTimeoutTicks) active = false;
+            if (ticks >= timeout) active = false;
             return;
         }
         double dx = pos.x - baseX, dz = pos.z - baseZ;
-        if (dx * dx + dz * dz <= t.marchArriveBlocks * t.marchArriveBlocks || ticks >= t.marchTimeoutTicks) active = false;
+        if (dx * dx + dz * dz <= t.marchArriveBlocks * t.marchArriveBlocks || ticks >= timeout) active = false;
     }
 
     public void cancel() {
@@ -116,6 +126,7 @@ public final class G1March {
         m.putDouble("X", baseX);
         m.putDouble("Z", baseZ);
         m.putInt("Ticks", ticks);
+        if (limit > 0) m.putInt("Limit", limit);
         if (hasWay) {
             m.putDouble("WX", wayX);
             m.putDouble("WZ", wayZ);
@@ -131,6 +142,7 @@ public final class G1March {
         baseX = m.getDouble("X");
         baseZ = m.getDouble("Z");
         ticks = m.getInt("Ticks");
+        limit = m.getInt("Limit");
         hasWay = m.contains("WX");
         wayX = m.getDouble("WX");
         wayZ = m.getDouble("WZ");

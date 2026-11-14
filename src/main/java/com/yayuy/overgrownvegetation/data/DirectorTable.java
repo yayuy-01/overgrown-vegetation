@@ -68,13 +68,15 @@ public final class DirectorTable {
         public HoardTable.Json hoard;
         /** 第 4 段: 大きな襲撃(LargeRaidTable)。 */
         public LargeRaidTable.Json largeRaid;
+        /** 監視塔(WatcherTable)。 */
+        public WatcherTable.Json watcher;
         /** 第 3 段 区切り 4: 苗床が枯れるまでに生む萌芽体の数。 */
         public Integer nurseryLifeSprouts;
     }
 
     /** フェーズで開く口の json。 */
     public static final class GatesJson {
-        public Integer nursery, rooted, evolve, scout, recognize, raid, spawner, waveG4, waveG5, waveMixed, learn, learnWave, largeRaid;
+        public Integer nursery, rooted, evolve, scout, recognize, raid, spawner, waveG4, waveG5, waveMixed, learn, learnWave, largeRaid, watcher;
     }
 
     /** false なら司令塔は見に来ない(予算も貯まらない)。 */
@@ -132,6 +134,8 @@ public final class DirectorTable {
     public final HoardTable hoard;
     /** 第 4 段(11-14): 大きな襲撃(司令塔の襲撃の大・中・小の「大」)。 */
     public final LargeRaidTable largeRaid;
+    /** 11-14: 司令塔が植える監視塔(フィロセンス)。 */
+    public final WatcherTable watcher;
     /** 苗床は萌芽体をこれだけ生むか、G4 以降を 1 回孵したら枯れる(11-14 ユーザー N1。数 6 は【仮】)。 */
     public final int nurseryLifeSprouts;
 
@@ -140,7 +144,7 @@ public final class DirectorTable {
      * 苗床のスポナー 4・送り込みの G4 4・G5〜 5・G4〜G6 の混ざった群れ 6。
      */
     public static final class Gates {
-        public final int nursery, rooted, evolve, scout, recognize, raid, spawner, waveG4, waveG5, waveMixed, learn, learnWave, largeRaid;
+        public final int nursery, rooted, evolve, scout, recognize, raid, spawner, waveG4, waveG5, waveMixed, learn, learnWave, largeRaid, watcher;
 
         Gates(GatesJson j) {
             GatesJson s = j != null ? j : new GatesJson();
@@ -157,6 +161,7 @@ public final class DirectorTable {
             learn = ph(s.learn, 3);
             learnWave = ph(s.learnWave, 5);
             largeRaid = ph(s.largeRaid, 7);
+            watcher = ph(s.watcher, 5);
         }
 
         private static int ph(Integer v, int fallback) {
@@ -210,6 +215,7 @@ public final class DirectorTable {
         this.kills = KillMemoryTable.fromJson(s.kills);
         this.hoard = HoardTable.fromJson(s.hoard);
         this.largeRaid = LargeRaidTable.fromJson(s.largeRaid);
+        this.watcher = WatcherTable.fromJson(s.watcher);
         this.nurseryLifeSprouts = Math.max(1, s.nurseryLifeSprouts != null ? s.nurseryLifeSprouts : 6);
     }
 

@@ -98,6 +98,16 @@ public final class BaseMemory extends SavedData {
         private int wavesSent;
         // ---- 第 3 段 区切り 2: 弱い所を突く
         /** いちばん守りの薄い方位(−1 = まだ分からない)と、見た日。方位ごとの守り(保存しない)。 */
+        // ---- 監視塔(11-14)
+        /** 司令塔が植えた監視塔(立っているもの。刈られたら外す)。 */
+        final java.util.List<WatcherSite> watchers = new ArrayList<>();
+        /** 監視塔がこの拠点のそばでプレイヤーに視線の印を付けた、最後の日。 */
+        double watcherSeenDay = Double.NEGATIVE_INFINITY;
+        /** 次に植えてよい日。 */
+        double nextPlantDay;
+        /** これまでに刈られた本数(育つ前・育った後)。 */
+        int watchersCutYoung;
+        int watchersCutGrown;
         private int weakSector = -1;
         private double defenseAt = Double.NEGATIVE_INFINITY;
         @Nullable
@@ -171,6 +181,27 @@ public final class BaseMemory extends SavedData {
 
         public int weakSector() {
             return weakSector;
+        }
+
+        /** 立っている監視塔(司令塔が植えたもの)。 */
+        public java.util.List<WatcherSite> watchers() {
+            return java.util.Collections.unmodifiableList(watchers);
+        }
+
+        public double watcherSeenDay() {
+            return watcherSeenDay;
+        }
+
+        public double nextPlantDay() {
+            return nextPlantDay;
+        }
+
+        public int watchersCutYoung() {
+            return watchersCutYoung;
+        }
+
+        public int watchersCutGrown() {
+            return watchersCutGrown;
         }
 
         @Nullable
@@ -466,6 +497,7 @@ public final class BaseMemory extends SavedData {
     }
 
     private static boolean confirmed(Base b, double day) {
+        if (!Watchers.confirms(b)) return false; // 監視塔が組み込まれていれば、監視塔の視線の印が要る(「偵察は感染体、確定は監視塔」)
         for (Confirmer c : CONFIRMERS) {
             if (!c.confirm(b, day)) return false;
         }
@@ -733,6 +765,11 @@ public final class BaseMemory extends SavedData {
             b.wavesSent = c.getInt("WS");
             b.weakSector = c.contains("Weak") ? c.getInt("Weak") : -1;
             b.defenseAt = c.contains("DefAt") ? c.getDouble("DefAt") : Double.NEGATIVE_INFINITY;
+            b.watcherSeenDay = c.contains("WSeen") ? c.getDouble("WSeen") : Double.NEGATIVE_INFINITY;
+            b.nextPlantDay = c.getDouble("WNext");
+            b.watchersCutYoung = c.getInt("WCutY");
+            b.watchersCutGrown = c.getInt("WCutG");
+            for (Tag wt : c.getList("Watchers", Tag.TAG_COMPOUND)) b.watchers.add(WatcherSite.load((CompoundTag) wt));
             m.bases.add(b);
             m.nextId = Math.max(m.nextId, b.id + 1);
         }
@@ -778,6 +815,13 @@ public final class BaseMemory extends SavedData {
             c.putInt("WS", b.wavesSent);
             c.putInt("Weak", b.weakSector);
             c.putDouble("DefAt", b.defenseAt);
+            c.putDouble("WSeen", b.watcherSeenDay);
+            c.putDouble("WNext", b.nextPlantDay);
+            c.putInt("WCutY", b.watchersCutYoung);
+            c.putInt("WCutG", b.watchersCutGrown);
+            ListTag wl = new ListTag();
+            for (WatcherSite w : b.watchers) wl.add(w.save());
+            c.put("Watchers", wl);
             bl.add(c);
         }
         tag.put("Bases", bl);

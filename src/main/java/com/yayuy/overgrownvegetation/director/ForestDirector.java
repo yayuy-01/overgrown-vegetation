@@ -148,11 +148,13 @@ public final class ForestDirector extends SavedData implements ForestBudget {
 
     /**
      * 面積の割合(今の面積 ÷ そのフェーズのふつうの広さ)を読む 1 か所の口。物差しはフェーズのポイントと同じもので、
-     * 「古い仕組みの片付けと汚染の速さの計測」のセッションが phases.json と PhaseData に作っている最中。出来るまでは 1.0(仮)。
-     * 出来たら、ここだけをつなぐ(幅 0.3〜1.5 に収めるのは DirectorTable#income)。
+     * 「古い仕組みの片付けと汚染の速さの計測」のセッションが phases.json の {@code normalArea} に作った(11-14)。
+     * 今の面積 = 過繁茂の台帳のチャンク数。ふつうの広さが無いフェーズ(F0・GameTest の全部開き)は 1.0。幅 0.3〜1.5 に収めるのは DirectorTable#income。
      */
     public static double areaRatio(ServerLevel level) {
-        return 1.0D;
+        int normal = DesignData.phases().normalArea(DirectorGates.phase(level));
+        if (normal <= 0) return 1.0D;
+        return PhaseData.get(level).overgrownLedgerSize() / (double) normal;
     }
 
     /** 貯蓄の上限 = 1 日の収入 × (1 日分 + ハイヴノードごとに 0.5 日分)。貯める・大きな襲撃の間は倍にする。 */

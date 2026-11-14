@@ -34,7 +34,7 @@ public final class DirectorGates {
     public enum Gate {
         NURSERY("苗床"), ROOTED("根付き"), EVOLVE("進化"), SCOUT("偵察"), RECOGNIZE("認識"), RAID("送り込み"),
         SPAWNER("苗床のスポナー"), WAVE_G4("送り込みの G4"), WAVE_G5("送り込みの G5〜"), WAVE_MIXED("G4〜G6 の混ざった群れ"),
-        LEARN("学ぶ(危ない所へ進化体)"), LEARN_WAVE("学ぶ(送り込みの進化体を増やす)"), LARGE_RAID("大きな襲撃");
+        LEARN("学ぶ(危ない所へ進化体)"), LEARN_WAVE("学ぶ(送り込みの進化体を増やす)"), LARGE_RAID("大きな襲撃"), WATCHER("監視塔を植える");
 
         public final String label;
 
@@ -59,6 +59,7 @@ public final class DirectorGates {
             case LEARN -> g.learn;
             case LEARN_WAVE -> g.learnWave;
             case LARGE_RAID -> g.largeRaid;
+            case WATCHER -> g.watcher;
         };
     }
 

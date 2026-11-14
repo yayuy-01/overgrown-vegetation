@@ -6,6 +6,7 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
@@ -52,6 +53,15 @@ public final class DirectorCommand {
                                                         .then(Commands.literal("reset").executes(ctx -> stageSet(ctx.getSource(), null))))
                                                 .then(Commands.argument("phase", IntegerArgumentType.integer(0, 99))
                                                         .executes(ctx -> phaseSet(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "phase")))))
+                                        .then(Commands.literal("watcher")
+                                                .executes(ctx -> watcherDescribe(ctx.getSource()))
+                                                .then(Commands.literal("debug")
+                                                        .then(Commands.literal("on").executes(ctx -> watcherDebug(ctx.getSource(), true)))
+                                                        .then(Commands.literal("off").executes(ctx -> watcherDebug(ctx.getSource(), false))))
+                                                .then(Commands.literal("plant").executes(ctx -> watcherPlant(ctx.getSource())))
+                                                .then(Commands.literal("grown").executes(ctx -> watcherNearest(ctx.getSource(), 0)))
+                                                .then(Commands.literal("cut").executes(ctx -> watcherNearest(ctx.getSource(), 1)))
+                                                .then(Commands.literal("see").executes(ctx -> watcherNearest(ctx.getSource(), 2))))
                                         .then(Commands.literal("raid")
                                                 .then(Commands.literal("large")
                                                         .executes(ctx -> largeDescribe(ctx.getSource()))
@@ -203,6 +213,79 @@ public final class DirectorCommand {
                     m.species().key(), m.getX(), m.getY(), m.getZ(), when)), false);
         }
         return 1 + near.size();
+    }
+
+    // ---------------------------------------------------------------- 監視塔(11-14。本体が組み込まれるまでの確かめ用)
+
+    private static int watcherDescribe(CommandSourceStack source) {
+        BaseMemory.Base b = nearestBase(source);
+        if (b == null) return 0;
+        double day = BaseMemory.today(source.getServer());
+        StringBuilder sb = new StringBuilder();
+        for (WatcherSite w : b.watchers()) {
+            sb.append(String.format(Locale.ROOT, " (%d, %d, %d)%s", w.pos().getX(), w.pos().getY(), w.pos().getZ(), w.grown() ? "育った" : "芽"));
+        }
+        String line = String.format(Locale.ROOT, "監視塔: 組み込み %s・拠点 #%d(%s)の監視塔 %d 本%s・刈られた 育つ前 %d / 後 %d・見られた %s・次に植えてよいまで %.2f 日",
+                Watchers.active() ? "あり" : "なし(植えない・確定に印は要らない)", b.id(), b.stage().label, b.watchers().size(), sb,
+                b.watchersCutYoung(), b.watchersCutGrown(),
+                Double.isInfinite(b.watcherSeenDay()) ? "まだ" : String.format(Locale.ROOT, "%.2f 日前", day - b.watcherSeenDay()),
+                Math.max(0.0D, b.nextPlantDay() - day));
+        source.sendSuccess(() -> Component.literal(line), false);
+        return 1;
+    }
+
+    /** 確かめ用の植える口(苔の柱を 3 段置く)を差し込む / 外す。 */
+    private static int watcherDebug(CommandSourceStack source, boolean on) {
+        Watchers.setPlanterForTests(on ? (level, pos, base) -> {
+            for (int i = 0; i < 3; i++) level.setBlockAndUpdate(pos.above(i), net.minecraft.world.level.block.Blocks.MOSS_BLOCK.defaultBlockState());
+            return true;
+        } : null);
+        source.sendSuccess(() -> Component.literal(on ? "確かめ用の監視塔(苔の柱)を植える口を差し込んだ" : "確かめ用の監視塔を外した"), true);
+        return 1;
+    }
+
+    private static int watcherPlant(CommandSourceStack source) {
+        BaseMemory.Base b = nearestBase(source);
+        if (b == null) return 0;
+        var server = source.getServer();
+        b.nextPlantDay = 0.0D;
+        BlockPos at = Watchers.tryPlant(server.overworld(), BaseMemory.get(server), b, BaseMemory.today(server), server.overworld().getRandom());
+        source.sendSuccess(() -> Component.literal(at == null ? "植えなかった(監視塔の組み込み・本数・予算・場所を見る)" : "植えた: " + at.toShortString()), true);
+        return at == null ? 0 : 1;
+    }
+
+    /** いちばん近い監視塔に: 0 = 育ち切った・1 = 刈られた・2 = コマンドを打った人に視線の印を付けた。 */
+    private static int watcherNearest(CommandSourceStack source, int what) {
+        BaseMemory.Base b = nearestBase(source);
+        if (b == null) return 0;
+        WatcherSite best = null;
+        for (WatcherSite w : b.watchers()) {
+            if (best == null || w.pos().distToCenterSqr(source.getPosition()) < best.pos().distToCenterSqr(source.getPosition())) best = w;
+        }
+        if (best == null) {
+            source.sendFailure(Component.literal("拠点 #" + b.id() + " に監視塔が無い"));
+            return 0;
+        }
+        ServerLevel level = source.getServer().overworld();
+        BlockPos pos = best.pos();
+        switch (what) {
+            case 0 -> Watchers.onGrown(level, pos);
+            case 1 -> {
+                Watchers.onCut(level, pos);
+                for (int i = 0; i < 3; i++) {
+                    if (level.getBlockState(pos.above(i)).is(net.minecraft.world.level.block.Blocks.MOSS_BLOCK)) level.removeBlock(pos.above(i), false);
+                }
+            }
+            default -> {
+                if (!(source.getEntity() instanceof net.minecraft.world.entity.LivingEntity target)) {
+                    source.sendFailure(Component.literal("印を付ける相手(コマンドを打った人)がいない"));
+                    return 0;
+                }
+                int n = Watchers.markSeen(level, pos, target);
+                source.sendSuccess(() -> Component.literal("視線の印を付けた: 呼び寄せた植物側の Mob " + n + " 体"), true);
+            }
+        }
+        return watcherDescribe(source);
     }
 
     // ---------------------------------------------------------------- 大きな襲撃(第 4 段)
