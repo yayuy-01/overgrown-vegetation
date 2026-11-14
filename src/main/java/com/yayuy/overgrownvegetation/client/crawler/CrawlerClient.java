@@ -18,6 +18,10 @@ public final class CrawlerClient {
 
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerEntityRenderer(ModCrawlers.VESICARIA.get(),
+                ctx -> new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.VesicariaEntity>(ctx,
+                        new com.yayuy.overgrownvegetation.client.VesicariaModel(),
+                        com.yayuy.overgrownvegetation.entity.VesicariaEntity.RENDER_SCALE, 0.5F));
         event.registerEntityRenderer(ModCrawlers.GREGARIA.get(),
                 ctx -> new SmallCrawlerRenderer<GregariaEntity>(ctx, new GregariaModel(), GregariaEntity.RENDER_SCALE, 0.4F));
         event.registerEntityRenderer(ModCrawlers.STROBILA.get(),

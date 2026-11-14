@@ -87,6 +87,14 @@ public abstract class SmallCrawler extends Monster {
         return new int[]{6, 24};
     }
 
+    /**
+     * 急ぎ(追う・逃げる・突撃など、うろつきより速い移動)の速さ(移動の速さの属性に掛ける)。既定 1.0。
+     * 種ごとに変える口(11-15 ヴェシカリアの段 1 で足した。土台の中ではまだ誰も使わない = 今までの動きは変わらない)。
+     */
+    public double rushSpeed() {
+        return 1.0D;
+    }
+
     /** 群れなどが舵を取っている間は真(うろつきを止める)。段 1 では誰も取らない。 */
     public boolean isSteered() {
         return false;

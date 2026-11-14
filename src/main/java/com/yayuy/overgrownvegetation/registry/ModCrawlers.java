@@ -28,6 +28,25 @@ public final class ModCrawlers {
     public static void init() {
     }
 
+    /**
+     * ヴェシカリア(11-15)。当たりは腹の袋の芯だけ(幅 0.8 × 高さ 0.6【仮】)。脚・前脚・鋏角ははみ出す(全体 1.1 × 0.73 × 2.8)。
+     * 1 マス幅・高さ 1 の隙間をくぐれる。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.VesicariaEntity>> VESICARIA =
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.VesicariaEntity.ID, () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.VesicariaEntity>of(com.yayuy.overgrownvegetation.entity.VesicariaEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.VesicariaEntity.ID, 0.8F),
+                            MobStats.height(com.yayuy.overgrownvegetation.entity.VesicariaEntity.ID, 0.6F))
+                    .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.VesicariaEntity.ID))
+                    .eyeHeight(0.35F)
+                    .clientTrackingRange(8)
+                    .build(com.yayuy.overgrownvegetation.entity.VesicariaEntity.ID));
+
+    /** ヴェシカリアのスポーンエッグ(地は鱗の暗い樹皮、点は袋の脈の黄緑)。 */
+    public static final DeferredItem<DeferredSpawnEggItem> VESICARIA_SPAWN_EGG = ModItems.ITEMS.registerItem(
+            com.yayuy.overgrownvegetation.entity.VesicariaEntity.ID + "_spawn_egg",
+            props -> new DeferredSpawnEggItem(VESICARIA, 0x3A2E1E, 0xA4E100, props));
+
     /** 当たりは胴の芯だけ(幅 0.7 × 高さ 0.45【仮】)。脚・触角ははみ出す(全体 1.0 × 0.43 × 2.2)。根の下・1 マス幅の隙間をくぐれる。 */
     public static final DeferredHolder<EntityType<?>, EntityType<GregariaEntity>> GREGARIA =
             ModEntities.ENTITY_TYPES.register(GregariaEntity.ID, () -> EntityType.Builder
@@ -63,12 +82,14 @@ public final class ModCrawlers {
 
     /** 植物側の Mob のタブへ卵を並べる({@code ModCreativeTabs} から)。 */
     public static void acceptEggs(CreativeModeTab.Output output) {
+        output.accept(VESICARIA_SPAWN_EGG.get());
         output.accept(GREGARIA_SPAWN_EGG.get());
         output.accept(STROBILA_SPAWN_EGG.get());
     }
 
     @SubscribeEvent
     public static void onEntityAttributeCreation(EntityAttributeCreationEvent event) {
+        event.put(VESICARIA.get(), com.yayuy.overgrownvegetation.entity.VesicariaEntity.createAttributes().build());
         event.put(GREGARIA.get(), GregariaEntity.createAttributes().build());
         event.put(STROBILA.get(), com.yayuy.overgrownvegetation.entity.StrobilaEntity.createAttributes().build());
     }
