@@ -17,5 +17,6 @@ public final class RunnerClient {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModRunners.VENAMNES.get(), VenamnesRenderer::new);
+        event.registerEntityRenderer(ModRunners.CLIPEIMNES.get(), ClipeimnesRenderer::new);
     }
 }

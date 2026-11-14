@@ -480,6 +480,25 @@
     "eggFit": 4.6,
     "naturalSpawn": false
   },
+  "clipeimnes": {
+    "maxHealth": 70,
+    "attackDamage": 12,
+    "armor": 16,
+    "armorToughness": 4,
+    "movementSpeed": 0.24,
+    "knockbackResistance": 0.8,
+    "attackKnockback": 1,
+    "followRange": 32,
+    "stepHeight": 1.5,
+    "scale": 1,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 1.4,
+    "height": 2.6,
+    "xpReward": 35,
+    "eggFit": 4.8,
+    "naturalSpawn": false
+  },
   "saltimnes": {
     "maxHealth": 30,
     "attackDamage": 9,
