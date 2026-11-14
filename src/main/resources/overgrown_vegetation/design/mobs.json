@@ -446,6 +446,23 @@
     "eggFit": 14,
     "naturalSpawn": false
   },
+  "gregaria": {
+    "maxHealth": 4,
+    "attackDamage": 2,
+    "armor": 0,
+    "movementSpeed": 0.33,
+    "knockbackResistance": 0,
+    "followRange": 24,
+    "stepHeight": 1,
+    "scale": 1,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.7,
+    "height": 0.45,
+    "xpReward": 1,
+    "eggFit": 2.2,
+    "naturalSpawn": false
+  },
   "venamnes": {
     "maxHealth": 34,
     "attackDamage": 10,

@@ -144,6 +144,7 @@ public final class ModCreativeTabs {
                         ModG1.acceptEggs(output); // G1 段階 0(2026-11-08)
                         com.yayuy.overgrownvegetation.registry.ModPhyllosens.acceptEggs(output); // 監視塔フィロセンス(11-14。竹馬型は卵無し)
                         com.yayuy.overgrownvegetation.registry.ModRunners.acceptEggs(output); // ② 大型の地上を走る型(2026-11-14)
+                        com.yayuy.overgrownvegetation.registry.ModCrawlers.acceptEggs(output); // 小さな地這いの虫の型(2026-11-15)
                         com.yayuy.overgrownvegetation.registry.ModFlyers.acceptEggs(output); // 飛ぶ型(2026-11-15)
                         com.yayuy.overgrownvegetation.registry.ModLizards.acceptEggs(output); // トカゲ型(2026-11-15)
 
