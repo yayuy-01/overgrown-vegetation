@@ -54,7 +54,9 @@ public class PilimnesEntity extends LizardRunner implements GeoEntity, Parasitiz
     public static final double JUMP_STRENGTH = 0.62D;
 
     // --- 体の作り(モデル prac2_g5_lancer_r7 の骨の位置 × 描画倍率) ---
-    /** 足の置き場(左前・右前・左後ろ・右後ろ): 前の爪は左右 ±12 px・前 12 px、後ろの足は左右 ±13 px・後ろ 8.9 px。 */
+    /**
+     * 足の置き場(左前・右前・左後ろ・右後ろ): 前の爪は左右 ±12 px・前 12 px(休めの爪の位置)、後ろの足は左右 ±13 px・後ろ 8.9 px。
+     */
     static final double[] LEG_HOME_LEFT = {12.0D * PX, -12.0D * PX, 13.0D * PX, -13.0D * PX};
     static final double[] LEG_HOME_FWD = {12.0D * PX, 12.0D * PX, -8.9D * PX, -8.9D * PX};
     /** 曲げの付け根: 首 neck0・neck1・neck2・頭 head(z −10・−17・−20・−23)、尾 tail0〜tail3(z 12・19・25.5・31.5)。 */

@@ -293,6 +293,25 @@ public abstract class LizardRunner extends LongBodyRunner {
         }
         double speed = clientForwardSpeed() / Math.max(this.getScale(), 0.05F);
         this.spine.tick(ready && proceduralLegs() ? this.legFwd : null, speed, isPaused(), this.tickCount);
+        // 動いている間は胴を低く(這う)。止まると休めの高さへ戻る
+        boolean upright = DEV_HOOKS && this.hasCustomName() && this.getCustomName().getString().contains("upright");   // 確かめ用: 低くしない
+        double want = ready && proceduralLegs() && speed > 0.02D && !upright ? crouchDepth() * Math.max(this.getScale(), 0.05F) : 0.0D;
+        this.crouchPrev = this.crouchNow;
+        this.crouchNow += (want - this.crouchNow) * CROUCH_FOLLOW;
+    }
+
+    /** 動いている間に胴を下げる量(ブロック、体格 1)【仮】。 */
+    protected double crouchDepth() {
+        return 0.3D;
+    }
+
+    /** 胴を下げる量が寄る割合(1 tick)【仮】。 */
+    static final double CROUCH_FOLLOW = 0.2D;
+    private double crouchNow, crouchPrev;
+
+    /** 描画: 今 胴を下げている量(ブロック)。 */
+    public double crouch(float pt) {
+        return Mth.lerp(pt, this.crouchPrev, this.crouchNow);
     }
 
     public SpineWave spine() {

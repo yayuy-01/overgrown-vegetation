@@ -24,14 +24,14 @@ public class PilimnesModel extends GeoModel<PilimnesEntity> {
     private static final ResourceLocation ANIMATION = OvergrownVegetation.id("animations/pilimnes.animation.json");
 
     /**
-     * 脚の IK【仮】: 変数の範囲(休めからの足し分、度)は付け根 Y ±55・付け根 Z ±40・2 つ目 X ±45・2 つ目 Z ±45、
+     * 脚の IK【仮】: 変数の範囲(休めからの足し分、度)は付け根 Y ±75・付け根 Z ±45・2 つ目 X ±50・2 つ目 Z ±60、
      * 休めへ引く重みは 0.4・1.0・1.2・0.8(足を前後へ運ぶのは主に付け根の水平の振り)。
      */
     private final SprawlLegRig legs = new SprawlLegRig(
             new String[][]{{"upf_l", "lof_l"}, {"upf_r", "lof_r"}, {"uph_l", "loh_l", "foh_l"}, {"uph_r", "loh_r", "foh_r"}},
             new String[][]{{"root", "chest"}, {"root", "chest"}, {"root", "chest", "hip"}, {"root", "chest", "hip"}},
             "chest", PilimnesEntity.RENDER_SCALE,
-            new double[]{55, 40, 45, 45}, new double[]{0.4, 1.0, 1.2, 0.8});
+            new double[]{75, 45, 50, 60}, new double[]{0.4, 1.0, 1.2, 0.8});
 
     private final SpineWaveRig spine = new SpineWaveRig("chest", "hip", "neck0", "neck1", "neck2", "head",
             new String[]{"tail0", "tail1", "tail2", "tail3", "tail4"});

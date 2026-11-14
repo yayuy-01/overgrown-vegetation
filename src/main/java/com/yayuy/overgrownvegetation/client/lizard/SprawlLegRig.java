@@ -2,6 +2,7 @@ package com.yayuy.overgrownvegetation.client.lizard;
 
 import com.yayuy.overgrownvegetation.client.runner.LegChainRig;
 import com.yayuy.overgrownvegetation.entity.legs.FootPlanter;
+import com.yayuy.overgrownvegetation.entity.lizard.LizardRunner;
 import com.yayuy.overgrownvegetation.entity.runner.LongBodyRunner;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
@@ -77,7 +78,8 @@ public final class SprawlLegRig {
         // ---- 胴: 高さと傾き(手付けの値に足す)
         float pitch = (float) fp.bodyPitch(pt) * w, roll = (float) fp.bodyRoll(pt) * w;
         double eyI = Mth.lerp(pt, e.yo, e.getY());
-        double liftB = Mth.clamp(fp.bodyWorldY(pt) - eyI, -1.5D * scale / this.renderScale, 1.0D * scale / this.renderScale);
+        double crouch = e instanceof LizardRunner lz ? lz.crouch(pt) : 0.0D;   // 動いている間は胴を低く(這う)
+        double liftB = Mth.clamp(fp.bodyWorldY(pt) - eyI - crouch, -1.5D * scale / this.renderScale, 1.0D * scale / this.renderScale);
         float lift = (float) (liftB / scale * 16.0D) * w;
         trunk.setRotX(trunk.getRotX() + pitch);
         trunk.setRotZ(trunk.getRotZ() - roll);
@@ -108,6 +110,7 @@ public final class SprawlLegRig {
             double dx = f.x - ex, dy = f.y - ey, dz = f.z - ez;
             double left = dx * lx + dz * lz, fwd = dx * fx + dz * fz;
             double[] target = LegChainRig.apply(inv, -left / scale * 16.0D, (dy - 0.01D) / scale * 16.0D, -fwd / scale * 16.0D);
+            double[] wanted = target.clone();
             LegChainRig.clampToReach(target, a, this.reach[i]);
 
             double[] key = {a.getRotY(), a.getRotZ(), b.getRotX(), b.getRotZ()};
@@ -117,6 +120,17 @@ public final class SprawlLegRig {
             double[] x = sol[i] != null && sol[i].length == 4 && e.legSolutionFresh() ? sol[i].clone() : ref.clone();
             solve(x, ref, a, b, c, footRef, this.sole[i], target);
             sol[i] = x;
+            if (DEV_HOOKS && e.hasCustomName() && e.getCustomName().getString().contains("reach")) {
+                double[] got = toe(x, ref, a, b, c, footRef, this.sole[i]);
+                double miss = Math.sqrt(sq(got[0] - wanted[0]) + sq(got[1] - wanted[1]) + sq(got[2] - wanted[2])) / 16.0D * scale;
+                if (miss > this.missMax[i] && i < 2) {
+                    // 前脚だけ: 外れたときの足の置き場(体の前へ・上へ、ブロック)・届かず縮めたか・宙か・解の角(度)
+                    double clampD = Math.sqrt(sq(target[0] - wanted[0]) + sq(target[1] - wanted[1]) + sq(target[2] - wanted[2])) / 16.0D * scale;
+                    this.missWhy[i] = String.format(java.util.Locale.ROOT, "[前 %+.2f 上 %+.2f 縮め %.2f %s Y %.0f Z %.0f X2 %.0f Z2 %.0f]", fwd, dy, clampD,
+                            fp.swinging(i) ? "宙" : "着", Math.toDegrees(x[0]), Math.toDegrees(x[1]), Math.toDegrees(x[2]), Math.toDegrees(x[3]));
+                }
+                this.missMax[i] = Math.max(this.missMax[i], miss);
+            }
             a.setRotY(lerp(w, key[0], x[0]));
             a.setRotZ(lerp(w, key[1], x[1]));
             b.setRotX(lerp(w, key[2], x[2]));
@@ -131,7 +145,21 @@ public final class SprawlLegRig {
             }
         }
         e.markLegSolution();
+        if (DEV_HOOKS && e.tickCount != this.missTick && e.hasCustomName() && e.getCustomName().getString().contains("reach")) {
+            // 確かめ用: 前の tick に描いたフレームのうち、足の裏が置き場から一番離れた距離(ブロック、脚ごと)。届いていれば 0 に近い
+            com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
+                    "LIZ_REACH t %d 速さ %.3f 低く %.2f 外れ 左前 %.3f 右前 %.3f 左後 %.3f 右後 %.3f", e.tickCount, e.clientForwardSpeed(), crouch,
+                    this.missMax[0], this.missMax[1], this.missMax[2], this.missMax[3]) + " " + this.missWhy[0] + " " + this.missWhy[1]);
+            java.util.Arrays.fill(this.missMax, 0.0D);
+            java.util.Arrays.fill(this.missWhy, "");
+            this.missTick = e.tickCount;
+        }
     }
+
+    private static final boolean DEV_HOOKS = Boolean.getBoolean("ov.devbridge");
+    private final double[] missMax = new double[4];
+    private final String[] missWhy = {"", ""};
+    private int missTick = -1;
 
     /** 3 骨の足の X・Z: 休めの向きから、上の骨で傾いた分を打ち消す。 */
     private static double[] foot(double[] x, double[] ref, double[] footRef) {
