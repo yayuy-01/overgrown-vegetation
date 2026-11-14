@@ -3,19 +3,18 @@
   "global": {
     "startWorldAgeTicks": 72000,
     "startAdvancements": 6,
-    "_points": "2026-11-14 ユーザー決定: ふつうに遊んだ 1 日 = 100 点 = 時間 timePerDay 50 + 面積 areaPerDay 40 ×(今の面積 ÷ そのフェーズの normalArea。上限なし)+ 撃破(1 日 killsPerDayCap まで)。今の面積 = 台帳(胞子の場で発芽したチャンク。押し返して外れると減る)。閾値 pointsToAdvance = そのフェーズの日数 × 100。【仮】perAdvancement 10・kills(プレイヤーが倒した植物側の Mob だけ。stage0 = G1 の段階 0・根付き・苗床、evolved = G1 の 1 段目、g4・g5・g6)・killsPerDayCap 20・各フェーズの normalArea(測り直す)・F8〜F10 の閾値。",
+    "_points": "2026-11-14 夕 ユーザー決定(方針: 進み方は大きく変わってよい。植物側の Mob を倒しまくれば無茶苦茶速く進む): 時間 timePerDay 100(12 秒で 1 点)+ 面積 毎秒 今の過繁茂のチャンク数 × areaPerChunkPerSecond 0.01(上限なし。今の数 = 台帳。押し返して外れると減る)+ 撃破 1 体で今のフェーズの閾値の kills %(上限なし。プレイヤーが倒した植物側の Mob だけ。stage0 = G1 の段階 0・根付き・苗床、evolved = G1 の 1 段目)。【仮】perAdvancement 0(F1 より後は付けない)。閾値 pointsToAdvance は計測から決める(今の値は前の案の仮置き)。各フェーズの normalArea(ふつうの広さ = 今の過繁茂のチャンク数)は点の式には使わず、司令塔のバイオマスの物差し。",
     "points": {
-      "perAdvancement": 10,
-      "timePerDay": 50,
-      "areaPerDay": 40,
+      "perAdvancement": 0,
+      "timePerDay": 100,
+      "areaPerChunkPerSecond": 0.01,
       "kills": {
-        "stage0": 1,
-        "evolved": 3,
-        "g4": 3,
-        "g5": 6,
-        "g6": 10
-      },
-      "killsPerDayCap": 20
+        "stage0": 0.1,
+        "evolved": 0.3,
+        "g4": 0.3,
+        "g5": 0.6,
+        "g6": 1.0
+      }
     },
     "omen": {
       "_comment": "F1 の前の前兆(2026-10-24 地脈技術の 4 段目、全部仮)。leadTicks = 地割れの発生日時の何 tick 前から前兆か、sampleLeadTicks = 何 tick 前から汲み上げ器の雫に未知の試料が混じるか。",
@@ -48,7 +47,7 @@
   },
   "phases": {
     "1": {
-      "normalArea": 3500,
+      "normalArea": 3600,
       "raidWaveGroups": [
         4
       ],
@@ -66,7 +65,7 @@
     },
     "2": {
       "pointsToAdvance": 600,
-      "normalArea": 36000,
+      "normalArea": 43000,
       "raidWaveGroups": [
         4
       ],
@@ -96,7 +95,7 @@
     },
     "3": {
       "pointsToAdvance": 800,
-      "normalArea": 200000,
+      "normalArea": 199000,
       "raidWaveGroups": [
         4
       ],
@@ -126,7 +125,7 @@
     },
     "4": {
       "pointsToAdvance": 1000,
-      "normalArea": 470000,
+      "normalArea": 570000,
       "raidWaveGroups": [
         4
       ],
@@ -156,7 +155,7 @@
     },
     "5": {
       "pointsToAdvance": 1200,
-      "normalArea": 800000,
+      "normalArea": 1350000,
       "raidWaveGroups": [
         4
       ],
@@ -181,7 +180,7 @@
     },
     "6": {
       "pointsToAdvance": 1700,
-      "normalArea": 1300000,
+      "normalArea": 2900000,
       "raidWaveGroups": [
         4
       ],
@@ -213,7 +212,7 @@
     },
     "7": {
       "pointsToAdvance": 2200,
-      "normalArea": 2000000,
+      "normalArea": 5300000,
       "raidWaveGroups": [
         4,
         5
@@ -241,7 +240,7 @@
     },
     "8": {
       "pointsToAdvance": 1800,
-      "normalArea": 2000000,
+      "normalArea": 5300000,
       "raidWaveGroups": [
         3,
         4,
@@ -271,7 +270,7 @@
     },
     "9": {
       "pointsToAdvance": 2400,
-      "normalArea": 2000000,
+      "normalArea": 5300000,
       "raidWaveGroups": [
         2,
         3,
@@ -303,7 +302,7 @@
     },
     "10": {
       "pointsToAdvance": 3100,
-      "normalArea": 2000000,
+      "normalArea": 5300000,
       "raidWaveGroups": [
         1,
         2,

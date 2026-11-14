@@ -41,7 +41,7 @@ import net.minecraft.world.level.saveddata.SavedData;
  * </ul>
  *
  * <p>実際にポイントを加算する箇所(2026-11-14 の作り直しから)は {@link AdvancementPoints}(実績解除)・{@link KillPoints}
- * (プレイヤーが植物側の Mob を倒した。1 日の上限つき {@link #addKillPoints})・{@link PhaseTicker}(時間 + 今の面積)の 3 箇所。
+ * (プレイヤーが植物側の Mob を倒した。閾値の %・上限なし {@link #addKillPoints})・{@link PhaseTicker}(時間 + 今の面積)の 3 箇所。
  * 上の「既定の条件」の数は古い。今の式と閾値は {@link com.yayuy.overgrownvegetation.data.PhaseTable} の頭。
  */
 public final class PhaseData extends SavedData {
@@ -158,9 +158,9 @@ public final class PhaseData extends SavedData {
      * {@link #setPhase}({@code phase set})による手動変更だけは凍結中でも通す。
      */
     private boolean frozen;
-    /** 撃破の点を数えている日(clock ÷ 24000)と、その日にもう入れた点(難易度の倍率を掛ける前。2026-11-14)。 */
-    private long killPointsDay = -1L;
-    private int killPointsToday;
+    /** 撃破の点の端数(閾値の % なので小数になる。2026-11-14 夕)と、F1 からの撃破の点の累計(倍率の前。表示・テスト用)。 */
+    private double killPointsCarry;
+    private double killPointsTotal;
 
     /** 胞子警報器の「次のフェーズが近い」警告をこのフェーズで出したか(2026-09-19)。昇格でリセット。 */
     private boolean phaseWarned;
@@ -292,8 +292,8 @@ public final class PhaseData extends SavedData {
         if (tag.getInt("pointsScale") < POINTS_SCALE && data.phase >= 1) {
             data.points = convertOldPoints(data.phase, data.points);
         }
-        data.killPointsDay = tag.contains("killPointsDay") ? tag.getLong("killPointsDay") : -1L;
-        data.killPointsToday = tag.getInt("killPointsToday");
+        data.killPointsCarry = tag.getDouble("killPointsCarry");
+        data.killPointsTotal = tag.getDouble("killPointsTotal");
         // 小さな段(2026-11-14)。この欄の無い古いセーブは、ポイントから黙って求める(読み込みではイベントを流さない)。
         if (tag.contains("stage")) {
             data.stage = PhaseStage.byIndex(tag.getInt("stage"));
@@ -368,8 +368,8 @@ public final class PhaseData extends SavedData {
         tag.putInt("phase", phase);
         tag.putLong("points", points);
         tag.putInt("pointsScale", POINTS_SCALE);
-        tag.putLong("killPointsDay", killPointsDay);
-        tag.putInt("killPointsToday", killPointsToday);
+        tag.putDouble("killPointsCarry", killPointsCarry);
+        tag.putDouble("killPointsTotal", killPointsTotal);
         tag.putInt("stage", stage.ordinal());
         tag.putLong("lastPointsGameTime", lastPointsGameTime);
         tag.putDouble("timePointsCarry", timePointsCarry);
@@ -875,7 +875,7 @@ public final class PhaseData extends SavedData {
         if (!creditPoints || frozen || phase < 1) {
             return 0L;
         }
-        double raw = ticks * DesignData.phases().pointsPerTick(phase, overgrownLedgerSize()) + timePointsCarry;
+        double raw = ticks * DesignData.phases().pointsPerTick(overgrownLedgerSize()) + timePointsCarry;
         long whole = (long) Math.floor(raw);
         timePointsCarry = raw - whole;
         if (whole > 0L) {
@@ -959,9 +959,9 @@ public final class PhaseData extends SavedData {
         if (gameTime > lastPointsGameTime) {
             long elapsedTicks = gameTime - lastPointsGameTime;
             lastPointsGameTime = gameTime;
-            // 1 tick あたりの収入(2026-11-14 ユーザー決定)=(時間 50 + 面積 40 × 今の面積 ÷ そのフェーズのふつうの広さ)÷ 24000。
-            // 今の面積 = 台帳の大きさ(押し返して台帳から外れると減る)。この判定の時点の値を経過ぶん全体に当てる(判定は 100 tick ごと)。
-            double perTick = DesignData.phases().pointsPerTick(phase, overgrownLedgerSize());
+            // 1 tick あたりの収入(2026-11-14 夕 ユーザー決定)= 100 ÷ 24000(12 秒で 1 点)+ 今の過繁茂のチャンク数 × 0.01 ÷ 20(毎秒 × 0.01)。
+            // 今の数 = 台帳の大きさ(押し返して台帳から外れると減る)。この判定の時点の値を経過ぶん全体に当てる(判定は 100 tick ごと)。
+            double perTick = DesignData.phases().pointsPerTick(overgrownLedgerSize());
             double gained = elapsedTicks * perTick + timePointsCarry;
             long whole = (long) gained;
             timePointsCarry = gained - whole;
@@ -1028,37 +1028,37 @@ public final class PhaseData extends SavedData {
     }
 
     /**
-     * プレイヤーが植物側の Mob を倒したときの点(2026-11-14【仮】。{@link KillPoints} から)。1 日(暦 {@link #clock} の 24000 tick の区切り)に
-     * {@code points.killsPerDayCap} まで(難易度の倍率を掛ける前の点で数える)。実際に入れた点(倍率の前)を返す。
+     * プレイヤーが植物側の Mob を倒したときの点(2026-11-14 夕 ユーザー決定。{@link KillPoints} から)。
+     * 1 体 = 今のフェーズの閾値(次のフェーズの {@code pointsToAdvance})× {@code points.kills} の %。<b>上限なし</b>(倒しまくれば無茶苦茶速く進む)。
+     * 小数の端数は持ち越す。入れた点(倍率の前・小数)を返す。
      */
-    public int addKillPoints(ServerLevel overworld, int amount) {
-        if (frozen || phase < 1 || phase >= PhaseTable.MAX_PHASE || amount <= 0) {
-            return 0;
+    public double addKillPoints(ServerLevel overworld, int kind) {
+        if (frozen || phase < 1 || phase >= PhaseTable.MAX_PHASE) {
+            return 0.0D;
         }
-        long day = clock(overworld.getServer()) / PhaseTable.TICKS_PER_DAY;
-        if (day != killPointsDay) {
-            killPointsDay = day;
-            killPointsToday = 0;
+        double add = DesignData.phases().killPoints(phase, kind);
+        if (add <= 0.0D) {
+            return 0.0D;
         }
-        int cap = DesignData.phases().killPointsPerDayCap();
-        int add = Math.max(0, Math.min(amount, cap - killPointsToday));
-        if (add <= 0) {
-            return 0;
-        }
-        killPointsToday += add;
+        killPointsTotal += add;
+        double raw = add + killPointsCarry;
+        long whole = (long) Math.floor(raw);
+        killPointsCarry = raw - whole;
         setDirty();
-        addPoints(overworld, add);
+        if (whole > 0L) {
+            addPoints(overworld, whole);
+        }
         return add;
     }
 
-    /** 今の 1 日あたりの時間 + 面積の点(撃破と実績は入らない。難易度の倍率の前)。今のフェーズと台帳の大きさから。 */
+    /** 今の 1 日あたりの時間 + 面積の点(撃破と実績は入らない。難易度の倍率の前)。台帳の大きさから。 */
     public double incomePerDay() {
-        return DesignData.phases().pointsPerTick(phase, overgrownLedgerSize()) * PhaseTable.TICKS_PER_DAY;
+        return DesignData.phases().pointsPerTick(overgrownLedgerSize()) * PhaseTable.TICKS_PER_DAY;
     }
 
-    /** 今日の撃破の点(テスト・表示用)。 */
-    public int killPointsToday() {
-        return killPointsToday;
+    /** F1 からの撃破の点の累計(倍率の前。表示・テスト用)。 */
+    public double killPointsTotal() {
+        return killPointsTotal;
     }
 
     /**

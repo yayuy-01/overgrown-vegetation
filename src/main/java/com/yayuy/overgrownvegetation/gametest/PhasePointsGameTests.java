@@ -5,6 +5,8 @@ import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.data.PhaseTable;
 import com.yayuy.overgrownvegetation.phase.KillPoints;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
+import com.yayuy.overgrownvegetation.phase.PhaseStage;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
@@ -17,8 +19,8 @@ import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
- * フェーズのポイントの式(2026-11-14 ユーザー決定。ふつうの 1 日 = 100 点 = 時間 50・面積 40・撃破 10)のテスト。
- * 期待値はどれも設計データ({@code phases.json})から計算する(数字を決め打ちしない)。世界の本物の {@link PhaseData} には触らない。
+ * フェーズのポイントの式(2026-11-14 夕 ユーザー決定)のテスト: 時間 12 秒で 1 点・面積 毎秒 今の過繁茂のチャンク数 × 0.01・
+ * 撃破は今のフェーズの閾値の %(上限なし)。期待値はどれも設計データ({@code phases.json})から計算する。世界の本物の {@link PhaseData} には触らない。
  */
 @GameTestHolder(OvergrownVegetation.MODID)
 @PrefixGameTestTemplate(false)
@@ -35,84 +37,26 @@ public final class PhasePointsGameTests {
         }
     }
 
-    /** 自然に上がる最後のフェーズ(F7 まで)。 */
-    private static int lastAuto(PhaseTable t) {
-        int last = 1;
-        for (int n = 2; n <= PhaseTable.MAX_PHASE; n++) {
-            if (t.autoAdvance(n) && t.pointsToAdvance(n) != Long.MAX_VALUE) last = n;
-            else break;
-        }
-        return last;
+    private static boolean near(double a, double b) {
+        return Math.abs(a - b) <= 1.0E-6D * Math.max(1.0D, Math.abs(b));
     }
 
-    /** 面積が「ふつうの広さ × k」のまま進んだときに、F1 から {@code to} に着く日数。 */
-    private static double daysTo(PhaseTable t, int to, double k) {
-        double days = 0.0D;
-        for (int p = 1; p < to; p++) {
-            double perDay = t.pointsPerTick(p, Math.round(t.normalArea(p) * k)) * PhaseTable.TICKS_PER_DAY;
-            days += t.pointsToAdvance(p + 1) / perDay;
-        }
-        return days;
-    }
-
-    /** 時間だけ(面積 0・撃破なし)なら 1 日 timePerDay 点。F7 までの日数 = 閾値の和 ÷ timePerDay(既定 7500 ÷ 50 = 150 日)。 */
+    /** 面積 0 なら 1 日 timePerDay 点(既定 100 = 12 秒で 1 点)。 */
     @GameTest(template = "gametest_empty7")
-    public static void timeOnlyDays(GameTestHelper helper) {
+    public static void timeOnlyPoints(GameTestHelper helper) {
         PhaseTable t = DesignData.phases();
-        int last = lastAuto(t);
-        long sum = 0L;
-        for (int n = 2; n <= last; n++) sum += t.pointsToAdvance(n);
-        double expected = sum / t.timePointsPerDay();
-        double got = daysTo(t, last, 0.0D);
-        helper.assertTrue(Math.abs(got - expected) < 1.0E-6D, "時間だけの日数 " + got + "(期待 " + expected + ")");
-        helper.assertTrue(Math.abs(t.pointsPerTick(1, 0L) * PhaseTable.TICKS_PER_DAY - t.timePointsPerDay()) < 1.0E-9D, "面積 0 で 1 日の点が時間の点と違う");
+        double perDay = t.pointsPerTick(0L) * PhaseTable.TICKS_PER_DAY;
+        helper.assertTrue(near(perDay, t.timePointsPerDay()), "面積 0 の 1 日の点 " + perDay + "(期待 " + t.timePointsPerDay() + ")");
+        double secondsPerPoint = 1.0D / (t.pointsPerTick(0L) * 20.0D);
+        helper.assertTrue(near(secondsPerPoint, 24000.0D / 20.0D / t.timePointsPerDay()), "1 点に " + secondsPerPoint + " 秒");
         helper.succeed();
     }
 
-    /** 面積 0 / ふつう / 2 倍 で、1 日の点が 時間 / 時間 + 面積 / 時間 + 2 × 面積 になり、日数がその分だけ縮む。 */
+    /** 面積の点は毎秒「チャンク数 × areaPerChunkPerSecond」。台帳(今の過繁茂)が減ると点の入りが減る。 */
     @GameTest(template = "gametest_empty7")
-    public static void areaScalesDays(GameTestHelper helper) {
-        PhaseTable t = DesignData.phases();
-        double time = t.timePointsPerDay(), area = t.areaPointsPerDay();
-        for (int p = 1; p < lastAuto(t); p++) {
-            helper.assertTrue(t.normalArea(p) > 0, "F" + p + " のふつうの広さが無い");
-            for (int k = 0; k <= 2; k++) {
-                double perDay = t.pointsPerTick(p, (long) t.normalArea(p) * k) * PhaseTable.TICKS_PER_DAY;
-                helper.assertTrue(Math.abs(perDay - (time + area * k)) < 1.0E-6D, "F" + p + " 面積 ×" + k + " の 1 日の点 " + perDay);
-            }
-        }
-        int last = lastAuto(t);
-        double d0 = daysTo(t, last, 0.0D), d1 = daysTo(t, last, 1.0D), d2 = daysTo(t, last, 2.0D);
-        double expected1 = d0 * time / (time + area);
-        helper.assertTrue(Math.abs(d1 - expected1) < 1.0E-6D, "ふつうの面積の日数 " + d1 + "(期待 " + expected1 + ")");
-        helper.assertTrue(d0 > d1 && d1 > d2, "面積が広いほど早く着かない: " + d0 + " / " + d1 + " / " + d2);
-        helper.succeed();
-    }
-
-    /** 撃破の点は 1 日 killsPerDayCap で頭打ち(植物側の Mob の種類の点もここで見る)。 */
-    @GameTest(template = "gametest_empty7")
-    public static void killPointsCapPerDay(GameTestHelper helper) {
+    public static void areaPointsFollowCurrentChunks(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         PhaseTable t = DesignData.phases();
-        int cap = t.killPointsPerDayCap();
-        PhaseData data = PhaseData.createDetachedForTests(e -> { });
-        data.setPhase(level, 1);
-        int a = data.addKillPoints(level, cap - 1);
-        int b = data.addKillPoints(level, 5);
-        int c = data.addKillPoints(level, 5);
-        helper.assertTrue(a == cap - 1 && b == 1 && c == 0, "頭打ちにならない: " + a + " / " + b + " / " + c + "(上限 " + cap + ")");
-        helper.assertTrue(data.killPointsToday() == cap, "今日の撃破の点 " + data.killPointsToday());
-        // 種類: G1 段階 0 = 0、G1 の 1 段目 = 1、植物側でない Mob は数えない
-        helper.assertTrue(KillPoints.kindOf(net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(OvergrownVegetation.id("parasitized_zombie"))) == 0, "段階 0 のゾンビが stage0 でない");
-        helper.assertTrue(KillPoints.kindOf(net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(OvergrownVegetation.id("developed_parasitized_zombie"))) == 1, "1 段目のゾンビが evolved でない");
-        helper.assertTrue(KillPoints.kindOf(EntityType.ZOMBIE) == -1, "バニラのゾンビを数えた");
-        helper.succeed();
-    }
-
-    /** 今の面積(台帳)が減ると、1 日の点の入りが減る(押し返すとフェーズが遅れる)。 */
-    @GameTest(template = "gametest_empty7")
-    public static void shrinkingAreaLowersIncome(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
         PhaseData data = PhaseData.createDetachedForTests(e -> { });
         data.setPhase(level, 1);
         int base = 9_100_000 + level.random.nextInt(10_000) * 64; // 世界の外れ(本物の台帳とかぶらない所)
@@ -123,10 +67,48 @@ public final class PhasePointsGameTests {
         for (int i = 0; i < n / 2; i++) data.forgetOvergrownChunk(new ChunkPos(base + i, base));
         double half = data.incomePerDay();
         for (int i = n / 2; i < n; i++) data.forgetOvergrownChunk(new ChunkPos(base + i, base)); // 胞子の場の写しにも残さない
-        helper.assertTrue(full > half && half > empty, "面積が減っても点の入りが減らない: " + empty + " / " + half + " / " + full);
+        double perChunkPerDay = t.areaPointsPerChunkPerSecond() * PhaseTable.TICKS_PER_DAY / 20.0D;
+        helper.assertTrue(near(full - empty, n * perChunkPerDay), "チャンク " + n + " の 1 日の面積の点 " + (full - empty) + "(期待 " + n * perChunkPerDay + ")");
+        helper.assertTrue(full > half && half > empty, "チャンクが減っても点の入りが減らない: " + empty + " / " + half + " / " + full);
+        helper.assertTrue(near(half - empty, (n / 2) * perChunkPerDay), "半分にしたときの面積の点 " + (half - empty));
+        helper.succeed();
+    }
+
+    /** 撃破は 1 体で今のフェーズの閾値 × %。上限なし(%が 0.1 なら 1000 体で 1 フェーズ分)。種類の分け方も見る。 */
+    @GameTest(template = "gametest_empty7")
+    public static void killPointsArePercentWithoutCap(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
         PhaseTable t = DesignData.phases();
-        double expectedHalf = t.timePointsPerDay() + t.areaPointsPerDay() * (n / 2) / (double) t.normalArea(1);
-        helper.assertTrue(Math.abs(half - expectedHalf) < 1.0E-6D, "半分にしたときの 1 日の点 " + half + "(期待 " + expectedHalf + ")");
+        PhaseData data = PhaseData.createDetachedForTests(e -> { });
+        data.setPhase(level, 1);
+        long span = t.stageSpanPoints(1);
+        double one = data.addKillPoints(level, 0);
+        helper.assertTrue(near(one, span * t.killPercent(0) / 100.0D), "段階 0 の 1 体 " + one + "(閾値 " + span + " の " + t.killPercent(0) + "%)");
+        int more = (int) Math.max(1, Math.floor(0.5D * span / one) - 1); // フェーズが上がらない数(上がると 1 体の点が変わる)
+        for (int i = 0; i < more; i++) data.addKillPoints(level, 0);
+        helper.assertTrue(near(data.killPointsTotal(), (more + 1) * one), "上限があるように見える: " + data.killPointsTotal() + "(期待 " + (more + 1) * one + ")");
+        double g6 = t.killPoints(1, 4);
+        helper.assertTrue(near(g6, span * t.killPercent(4) / 100.0D) && g6 > one, "G6 の点 " + g6);
+        helper.assertTrue(KillPoints.kindOf(BuiltInRegistries.ENTITY_TYPE.get(OvergrownVegetation.id("parasitized_zombie"))) == 0, "段階 0 のゾンビが stage0 でない");
+        helper.assertTrue(KillPoints.kindOf(BuiltInRegistries.ENTITY_TYPE.get(OvergrownVegetation.id("developed_parasitized_zombie"))) == 1, "1 段目のゾンビが evolved でない");
+        helper.assertTrue(KillPoints.kindOf(EntityType.ZOMBIE) == -1, "バニラのゾンビを数えた");
+        helper.succeed();
+    }
+
+    /** 小さな段の区切りは閾値の 1/3・2/3(式が変わっても、閾値が物差しのまま)。 */
+    @GameTest(template = "gametest_empty7")
+    public static void stageBoundsStayAtThirds(GameTestHelper helper) {
+        PhaseTable t = DesignData.phases();
+        for (int p = 1; p < PhaseTable.MAX_PHASE; p++) {
+            long span = t.stageSpanPoints(p);
+            if (span == Long.MAX_VALUE) continue;
+            long est = t.stageStartPoints(p, PhaseStage.ESTABLISHED);
+            long peak = t.stageStartPoints(p, PhaseStage.PEAK);
+            long expEst = (long) Math.ceil(span * t.stageFrom(p, PhaseStage.ESTABLISHED));
+            long expPeak = (long) Math.ceil(span * t.stageFrom(p, PhaseStage.PEAK));
+            helper.assertTrue(est == expEst && peak == expPeak, "F" + p + " の区切り " + est + " / " + peak + "(期待 " + expEst + " / " + expPeak + ")");
+            helper.assertTrue(Math.abs(est - span / 3.0D) <= 1.0D && Math.abs(peak - span * 2.0D / 3.0D) <= 1.0D, "F" + p + " の区切りが 1/3・2/3 でない");
+        }
         helper.succeed();
     }
 
