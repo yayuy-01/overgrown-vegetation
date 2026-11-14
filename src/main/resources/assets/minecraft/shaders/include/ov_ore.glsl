@@ -36,7 +36,8 @@ vec3 ovOreSparkle(vec3 color, vec2 uv, vec3 pos, vec3 n, vec3 light) {
     float h2 = ovOreHash(w + 17.0);
     // A grain glints when its own facet turns toward the eye: the phase moves with the view direction (walking past, turning the
     // head) and slowly with time (a flame flickers).
-    vec3 view = normalize(pos);
+    // 11-14 (user photo: the glints showed as slanted shards): the view direction of the texel centre, so a whole texel glints or not.
+    vec3 view = normalize((w + 0.5) / 16.0 - OvOreB.xyz);
     float phase = h * 6.2832 + dot(view, vec3(h2 - 0.5, h - 0.5, 0.37)) * 60.0 + OvOre.y * (0.6 + h2);
     float s = sin(phase) * 0.5 + 0.5;
     float share = clamp(OvOreB.w, 0.01, 1.0);
