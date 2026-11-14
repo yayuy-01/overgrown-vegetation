@@ -84,8 +84,14 @@ public final class WatcherGameTests {
             helper.assertTrue(Watchers.tryPlant(level, memory, b, d0 + t.plantIntervalDays, RandomSource.create(4L)) != null, "間を空けても 2 本目を植えない");
             helper.assertTrue(Watchers.tryPlant(level, memory, b, d0 + t.plantIntervalDays * 3, RandomSource.create(5L)) == null, "3 本目を植えた");
 
-            // 確定: 偵察済みで日数が過ぎても、監視塔に見られるまで認識しない
+            // 確定(11-14 ユーザー W1 = 2): 偵察済みの拠点に監視塔の印が付いたら、日数を待たずにすぐ認識。「覚えた」だけでは認識しない
+            Pig early = helper.spawn(EntityType.PIG, new Vec3(4.5, 2.0, 4.5));
+            Watchers.markSeen(level, first, early);
+            helper.assertTrue(memory.bases().get(0).stage() == BaseMemory.Stage.REMEMBERED, "偵察が済む前に、印だけで認識した");
+            early.discard();
             memory.onScouted(b.id(), d0, RandomSource.create(6L));
+            memory.update(d0, true);
+            helper.assertTrue(memory.bases().get(0).stage() == BaseMemory.Stage.SCOUTED, "偵察の前の印で認識した(偵察の後にもう一度見られる必要がある)");
             double late = d0 + DesignData.director().base.recognizeMaxDays + 0.1D;
             memory.addPresence(ChunkPos.asLong(center.getX() >> 4, center.getZ() >> 4), 0.1D, late);
             memory.update(late, true);
@@ -94,8 +100,7 @@ public final class WatcherGameTests {
             AbstractParasitizedMonster z = helper.spawn(G1Species.ZOMBIE.entityType(), new Vec3(1.5, 2.0, 5.5));
             z.goalSelector.removeAllGoals(g -> true);
             int called = Watchers.markSeen(level, first, pig);
-            memory.update(late, true);
-            helper.assertTrue(memory.bases().get(0).stage() == BaseMemory.Stage.RECOGNIZED, "監視塔に見られても認識しない");
+            helper.assertTrue(memory.bases().get(0).stage() == BaseMemory.Stage.RECOGNIZED, "監視塔に見られても、その場で認識しない");
             helper.assertTrue(called >= 1 && z.march().active() && z.march().baseId() == PlantSideCall.CALL_ID, "印の相手へ呼び寄せない: " + called);
 
             // 呼ぶ: 貯めている間は呼ばない

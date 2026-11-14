@@ -193,11 +193,14 @@ public final class Watchers {
         if (b != null) {
             b.watcherSeenDay = BaseMemory.today(level.getServer());
             memory.setDirty();
+            // 偵察済みなら、その場で認識する(W1 = 2)。「覚えた」だけの拠点は、印を覚えておくが認識しない(偵察は感染体、確定は監視塔 = 偵察が済んでいることが要る)。
+            // 印の後に偵察が済んでも、印は偵察済みになった日より前なので効かない(もう一度見られる必要がある)
+            memory.update(BaseMemory.today(level.getServer()), DirectorGates.open(level, DirectorGates.Gate.RECOGNIZE));
         }
         return PlantSideCall.towards(level, Vec3.atCenterOf(watcherPos), target, t.callRadius, t.callTicks);
     }
 
-    /** 認識を確定してよいか: 監視塔が組み込まれていないなら、いつでもよい。いるなら、偵察済みになってから監視塔に見られていること。 */
+    /** 監視塔に見られたか: 偵察済みになってから監視塔の印が付いた(組み込まれていなければ常に true)。11-14 ユーザー W1 = 2: これだけで認識する。 */
     static boolean confirms(BaseMemory.Base b) {
         return !active() || b.watcherSeenDay >= b.stageSince();
     }

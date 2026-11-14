@@ -412,7 +412,10 @@ public final class BaseMemory extends SavedData {
         // 偵察済みから 1〜2 日引っ越さなければ認識する(11-14 ユーザー決定 Q5 = 1: 偵察が来てから数える)。
         // 引っ越した = 2 日いなければ、覚えただけの拠点と同じく忘れる(上の付け直しで消える)
         for (Base b : bases) {
-            if (recognizeOpen && b.stage == Stage.SCOUTED && day - b.stageSince >= b.recognizeAfter && confirmed(b, day)) {
+            // 監視塔が組み込まれていれば「偵察済みの拠点に監視塔の印が付いた時点で」認識(11-14 ユーザー W1 = 2。日数は待たない)。
+            // 組み込まれていなければ、今の形(偵察が来てから 1〜2 日)
+            boolean due = Watchers.active() ? Watchers.confirms(b) : day - b.stageSince >= b.recognizeAfter;
+            if (recognizeOpen && b.stage == Stage.SCOUTED && due && confirmed(b, day)) {
                 b.setStage(Stage.RECOGNIZED, day);
                 b.nextWaveDay = day + t.waveIntervalMinDays * 0.5D; // 認識してすぐ、最初の送り込み【仮】
             }
@@ -497,7 +500,6 @@ public final class BaseMemory extends SavedData {
     }
 
     private static boolean confirmed(Base b, double day) {
-        if (!Watchers.confirms(b)) return false; // 監視塔が組み込まれていれば、監視塔の視線の印が要る(「偵察は感染体、確定は監視塔」)
         for (Confirmer c : CONFIRMERS) {
             if (!c.confirm(b, day)) return false;
         }
@@ -576,6 +578,8 @@ public final class BaseMemory extends SavedData {
         BaseMemoryTable t = table();
         b.setStage(Stage.SCOUTED, day);
         b.recognizeAfter = t.recognizeMinDays + random.nextDouble() * (t.recognizeMaxDays - t.recognizeMinDays);
+        // 偵察の前に付いた監視塔の印は効かない(偵察は感染体、確定は監視塔 = 偵察が済んでから見られる必要がある)
+        b.watcherSeenDay = Double.NEGATIVE_INFINITY;
     }
 
     /** 偵察の間(日)。 */
