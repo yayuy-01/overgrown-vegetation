@@ -120,6 +120,7 @@ public final class SpreadMeasureCommand {
                 ledger.size() - main.size(), Math.sqrt(main.size() / Math.PI)));
         sb.append(" sec=");
         for (int i = 0; i < 8; i++) sb.append(i == 0 ? "" : ",").append(String.format("%.1f", sec[i]));
+        sb.append(String.format(" income=%.1f killsToday=%d", pd.incomePerDay(), pd.killPointsToday()));
         sb.append(String.format(" wind=%.0f kind=%s str=%.2f lag=%d mult=%.2f unloaded=%s thunder=%s",
                 w == null ? Double.NaN : w.angleDeg(), kind, w == null ? Double.NaN : w.strength, lag,
                 WorldDifficultyData.phasePointMultiplier(level.getServer()), WorldDifficultyData.unloadedSpread(level.getServer()),

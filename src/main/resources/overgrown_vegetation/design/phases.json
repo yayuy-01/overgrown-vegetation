@@ -3,13 +3,19 @@
   "global": {
     "startWorldAgeTicks": 72000,
     "startAdvancements": 6,
+    "_points": "2026-11-14 ユーザー決定: ふつうに遊んだ 1 日 = 100 点 = 時間 timePerDay 50 + 面積 areaPerDay 40 ×(今の面積 ÷ そのフェーズの normalArea。上限なし)+ 撃破(1 日 killsPerDayCap まで)。今の面積 = 台帳(胞子の場で発芽したチャンク。押し返して外れると減る)。閾値 pointsToAdvance = そのフェーズの日数 × 100。【仮】perAdvancement 10・kills(プレイヤーが倒した植物側の Mob だけ。stage0 = G1 の段階 0・根付き・苗床、evolved = G1 の 1 段目、g4・g5・g6)・killsPerDayCap 20・各フェーズの normalArea(測り直す)・F8〜F10 の閾値。",
     "points": {
-      "perAdvancement": 100,
-      "perTick": 1,
-      "perTickPerOvergrownChunk": 0.005,
-      "perGroupMobDeath": 1,
-      "perGroupMobKill": 1,
-      "perOvergrownChunk": 5
+      "perAdvancement": 10,
+      "timePerDay": 50,
+      "areaPerDay": 40,
+      "kills": {
+        "stage0": 1,
+        "evolved": 3,
+        "g4": 3,
+        "g5": 6,
+        "g6": 10
+      },
+      "killsPerDayCap": 20
     },
     "omen": {
       "_comment": "F1 の前の前兆(2026-10-24 地脈技術の 4 段目、全部仮)。leadTicks = 地割れの発生日時の何 tick 前から前兆か、sampleLeadTicks = 何 tick 前から汲み上げ器の雫に未知の試料が混じるか。",
@@ -42,6 +48,7 @@
   },
   "phases": {
     "1": {
+      "normalArea": 3500,
       "raidWaveGroups": [
         4
       ],
@@ -58,7 +65,8 @@
       "notes": "ワールド 3 日経過 かつ 実績 6 個で突入。グループ1が過繫茂バイオームに湧き始める。突入時に地割れ演出。"
     },
     "2": {
-      "pointsToAdvance": 263000,
+      "pointsToAdvance": 600,
+      "normalArea": 36000,
       "raidWaveGroups": [
         4
       ],
@@ -87,7 +95,8 @@
       "notes": "フェーズ1からさらに 360000 ポイントで突入。アルボラが過繫茂バイオームの外にも少数だけ湧き始める(outsideSpawns)。グループ2(原生生産種)が過繫茂バイオームに湧き始める。グループ1は汚染地形から離れて他 Mob を襲う(体力・攻撃力の強化は 2026-10-10 ユーザー指定で無し)。"
     },
     "3": {
-      "pointsToAdvance": 696000,
+      "pointsToAdvance": 800,
+      "normalArea": 200000,
       "raidWaveGroups": [
         4
       ],
@@ -116,7 +125,8 @@
       "notes": "フェーズ2からさらに 800000 ポイントで突入。アルボラの外湧きは継続。グループ3(原生消費種)が湧き始める。"
     },
     "4": {
-      "pointsToAdvance": 1421000,
+      "pointsToAdvance": 1000,
+      "normalArea": 470000,
       "raidWaveGroups": [
         4
       ],
@@ -145,7 +155,8 @@
       "notes": "フェーズ3からさらに 1400000 ポイントで突入。アルボラの外湧きはこのフェーズまで(F5 以降は過繫茂バイオームの中に湧く)。グループ4(拡大種)が過繫茂バイオームに湧き始める(2026-10-10 ユーザー指定で F5 から 1 つ前へ)。過繫茂バイオームの直接スポーンからグループ1が外れる。"
     },
     "5": {
-      "pointsToAdvance": 2452000,
+      "pointsToAdvance": 1200,
+      "normalArea": 800000,
       "raidWaveGroups": [
         4
       ],
@@ -169,7 +180,8 @@
       "notes": "フェーズ4からさらに 2800000 ポイントで突入。突入した瞬間にレイド(過繫茂の苗床)が確定で1回発生し、以降は周期レイドも起きる。グループ5(適応種)が湧き始める(2026-10-10 ユーザー指定で F6 から 1 つ前へ)。"
     },
     "6": {
-      "pointsToAdvance": 26329000,
+      "pointsToAdvance": 1700,
+      "normalArea": 1300000,
       "raidWaveGroups": [
         4
       ],
@@ -200,7 +212,8 @@
       "notes": "フェーズ5からさらに 5800000 ポイントで突入。グループ4が「種のばらばらな 3〜5 体の群れ」で湧くようになる。"
     },
     "7": {
-      "pointsToAdvance": 67841000,
+      "pointsToAdvance": 2200,
+      "normalArea": 2000000,
       "raidWaveGroups": [
         4,
         5
@@ -227,7 +240,8 @@
       "notes": "昇格条件はユーザー指定の日数から逆算(F6→F7 は 20 日、2026-09-28 に台帳の広がりの新しい規則で計算し直した)。攻城戦(ドルガ=アーケロウス・ティタニカ)が始まるかは siegeEnabled。以前の仮トリガー /siege は 2026-09-26 に削除。"
     },
     "8": {
-      "pointsToAdvance": 55816000,
+      "pointsToAdvance": 1800,
+      "normalArea": 2000000,
       "raidWaveGroups": [
         3,
         4,
@@ -256,7 +270,8 @@
       "autoAdvance": false
     },
     "9": {
-      "pointsToAdvance": 73784000,
+      "pointsToAdvance": 2400,
+      "normalArea": 2000000,
       "raidWaveGroups": [
         2,
         3,
@@ -287,7 +302,8 @@
       "autoAdvance": false
     },
     "10": {
-      "pointsToAdvance": 94305000,
+      "pointsToAdvance": 3100,
+      "normalArea": 2000000,
       "raidWaveGroups": [
         1,
         2,

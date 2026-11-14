@@ -12,12 +12,9 @@ import java.util.List;
  * たびに 0 へ戻す)。{@code pointsToAdvance} が無い(null / 0)フェーズへは<b>自動昇格しない</b>
  * (2026-09-26 からは既定でフェーズ10 まで全部に条件があり、F7 以降も自動で上がる)。
  *
- * <p>2026-09-15 に「過繫茂系チャンク数が一定に達したら昇格」({@code chunksToAdvance} /
- * {@code advanceMode})は<b>廃止した</b>。汚染の広がりは、時間経過ポイントの倍率
- * ({@code points.perTickPerOvergrownChunk})を通して<b>昇格を早める</b>形でだけ効く。
- *
- * <p>既定の条件(2026-09-28、ユーザー指定の日数から逆算): F2 = 263000 / F3 = 696000 / F4 = 1421000 /
- * F5 = 2452000 / F6 = 26329000 / F7 = 67841000 / F8 = 55816000 / F9 = 73784000 / F10 = 94305000 点。
+ * <p>ポイント(2026-11-14 ユーザー決定): ふつうに遊んだ 1 日 = 100 点 = 時間 50 + 面積 40 ×(今の面積 ÷ ふつうの広さ)+ 撃破(1 日 20 まで)。
+ * 閾値 = 日数 × 100: F2 = 600 / F3 = 800 / F4 = 1000 / F5 = 1200 / F6 = 1700 / F7 = 2200(F8〜F10 は仮置き)。
+ * 汚染を押し返すと面積の点が減り、放っておくと増える。
  * 台帳の広がり({@code corruption/LedgerSpread}、5 分おきに縁を面の数 × 25% の確率で塗る)の平均の増え方で、
  * F1→F2〜F4→F5 が各 5 日、F5→F6・F6→F7 が各 20 日、F7→F8〜F9→F10 が各 10 日(F1→F10 で 90 日)。
  * フェーズ0→1 だけは別枠で、{@code global.startWorldAgeTicks}(既定 3 日)と
@@ -123,25 +120,34 @@ public final class PhaseTable {
                        double flowerWiltChance, double flowerRecoverChance, int animalAvoidExtra) {
     }
 
-    /** ポイントの獲得条件。2026-09-13 の再編でこの 5 本だけになった。 */
+    /**
+     * ポイントの獲得条件(2026-11-14 ユーザー決定で作り直し。正本は Vault「フェーズの仕組み」の「ポイントの配分とバイオマスの収支」)。
+     * 「ふつうに遊んだ 1 日 = 100 点」= 時間 50・面積 40・撃破 10。古い鍵(perTick・perTickPerOvergrownChunk・perGroupMobDeath・
+     * perGroupMobKill・perOvergrownChunk)は読み飛ばす。
+     */
     public static final class Points {
-        /** 実績を 1 つ解除するたび。 */
+        /** 実績を 1 つ解除するたび。【仮】10(前は 100 = まる 1 日ぶんだった)。 */
         public Integer perAdvancement;
-        /** 1 tick 経過するたび(小数可。既定 1.0 = 毎 tick 1 点)。 */
-        public Double perTick;
+        /** 時間: 1 日(24000 tick)でこれだけ。ユーザー指定 50。 */
+        public Double timePerDay;
         /**
-         * 1 tick 経過するたびに、これ ×「そのワールドで過繫茂系バイオームになったチャンクの総数」も
-         * 加算する(2026-09-15。既定 0.005 = 総チャンク 200 ごとに毎 tick +1 点)。汚染が広がるほど
-         * 時間あたりの収入が増える仕組みで、1 分あたりの収入は {@code 1200 × (perTick + これ × 総チャンク数)}。
-         * 0 で無効(従来の時間経過のみ)。
+         * 面積: 1 日でこれ ×(今の面積 ÷ そのフェーズの {@code normalArea})。ユーザー指定 40、上限なし。
+         * 今の面積 = 台帳({@code PhaseData#overgrownLedgerSize})= 胞子の場で発芽したチャンク(繁茂の札の 2 日 + 過繁茂)。
          */
-        public Double perTickPerOvergrownChunk;
-        /** グループ1〜10の Mob が 1 体死ぬたび(誰が倒したかは問わない)。 */
-        public Integer perGroupMobDeath;
-        /** グループ1〜10の Mob が他の Mob を 1 体倒すたび(グループ3がグループ2を捕食したぶんも含む)。 */
-        public Integer perGroupMobKill;
-        /** チャンクが 1 つ新たに過繁茂系バイオームになるたび。 */
-        public Integer perOvergrownChunk;
+        public Double areaPerDay;
+        /** 撃破【仮】: プレイヤーが倒した植物側の Mob 1 体の点。 */
+        public KillPoints kills;
+        /** 撃破の点の 1 日(24000 tick の区切り)の上限【仮】20。難易度の倍率を掛ける前の点で数える。 */
+        public Integer killsPerDayCap;
+    }
+
+    /** 撃破の点【仮・Claude 11-14】。G1 の 1 段目(発達した寄生体)= evolved、それ以外の G1(段階 0・根付き・苗床)= stage0。 */
+    public static final class KillPoints {
+        public Integer stage0;
+        public Integer evolved;
+        public Integer g4;
+        public Integer g5;
+        public Integer g6;
     }
 
     /**
@@ -197,6 +203,11 @@ public final class PhaseTable {
          * (チャンク数による昇格は 2026-09-15 に廃止)。
          */
         public Integer pointsToAdvance;
+        /**
+         * このフェーズの「ふつうの広さ」(今の面積のチャンク数、2026-11-14)。面積の点 = {@code areaPerDay} ×(今の面積 ÷ これ)。
+         * 【仮】計測で決める(動物の多い普通の世界で、プレイヤーのそばで、そのフェーズの日の真ん中あたりの面積)。
+         */
+        public Integer normalArea;
         /**
          * このフェーズへ<b>自然に昇格するか</b>(2026-09-29 ユーザー指定、既定 true)。
          * false にするとポイントが足りていても上がらない —— {@code /ov phase set} だけで入れる。
@@ -279,11 +290,10 @@ public final class PhaseTable {
     private final int startWorldAgeTicks;
     private final int startAdvancements;
     private final int pointsPerAdvancement;
-    private final double pointsPerTick;
-    private final double pointsPerTickPerOvergrownChunk;
-    private final int pointsPerGroupMobDeath;
-    private final int pointsPerGroupMobKill;
-    private final int pointsPerOvergrownChunk;
+    private final double timePointsPerDay;
+    private final double areaPointsPerDay;
+    private final int[] killPoints = new int[5]; // stage0・evolved・g4・g5・g6
+    private final int killPointsPerDayCap;
     private final Phase[] phases; // index 1..10
     private final Omen omen;
 
@@ -295,13 +305,17 @@ public final class PhaseTable {
         this.startAdvancements = orElse(g.startAdvancements, dg.startAdvancements);
         Points p = g.points != null ? g.points : new Points();
         Points dp = dg.points;
-        this.pointsPerAdvancement = orElse(p.perAdvancement, dp.perAdvancement);
-        this.pointsPerTick = orElse(p.perTick, dp.perTick);
-        this.pointsPerTickPerOvergrownChunk =
-                orElse(p.perTickPerOvergrownChunk, dp.perTickPerOvergrownChunk);
-        this.pointsPerGroupMobDeath = orElse(p.perGroupMobDeath, dp.perGroupMobDeath);
-        this.pointsPerGroupMobKill = orElse(p.perGroupMobKill, dp.perGroupMobKill);
-        this.pointsPerOvergrownChunk = orElse(p.perOvergrownChunk, dp.perOvergrownChunk);
+        this.pointsPerAdvancement = Math.max(0, orElse(p.perAdvancement, dp.perAdvancement));
+        this.timePointsPerDay = Math.max(0.0D, orElse(p.timePerDay, dp.timePerDay));
+        this.areaPointsPerDay = Math.max(0.0D, orElse(p.areaPerDay, dp.areaPerDay));
+        KillPoints k = p.kills != null ? p.kills : new KillPoints();
+        KillPoints dk = dp.kills;
+        this.killPoints[0] = Math.max(0, orElse(k.stage0, dk.stage0));
+        this.killPoints[1] = Math.max(0, orElse(k.evolved, dk.evolved));
+        this.killPoints[2] = Math.max(0, orElse(k.g4, dk.g4));
+        this.killPoints[3] = Math.max(0, orElse(k.g5, dk.g5));
+        this.killPoints[4] = Math.max(0, orElse(k.g6, dk.g6));
+        this.killPointsPerDayCap = Math.max(0, orElse(p.killsPerDayCap, dp.killsPerDayCap));
         OmenJson o = g.omen != null ? g.omen : new OmenJson();
         OmenJson od = dg.omen;
         this.omen = new Omen(orElse(o.leadTicks, od.leadTicks), orElse(o.sampleLeadTicks, od.sampleLeadTicks),
@@ -438,40 +452,47 @@ public final class PhaseTable {
         return pointsPerAdvancement;
     }
 
-    public double pointsPerTick() {
-        return pointsPerTick;
+    /** 時間の点(1 日)。 */
+    public double timePointsPerDay() {
+        return timePointsPerDay;
+    }
+
+    /** 面積の点(ふつうの広さのときの 1 日)。 */
+    public double areaPointsPerDay() {
+        return areaPointsPerDay;
+    }
+
+    /** フェーズ {@code n} の「ふつうの広さ」(チャンク)。無ければ 0(面積の点は入らない)。 */
+    public int normalArea(int n) {
+        if (n < MIN_PHASE || n > MAX_PHASE) {
+            return 0;
+        }
+        Integer v = phases[n].normalArea;
+        return v != null && v > 0 ? v : 0;
     }
 
     /**
-     * 1 tick あたり、これ × 過繫茂系バイオームの総チャンク数 が上乗せされる
-     * ({@code points.perTickPerOvergrownChunk})。汚染が広がるほど時間収入が増える。
+     * フェーズ {@code phase} で今の面積が {@code area} チャンクのときの、1 tick あたりの時間 + 面積の点(2026-11-14)。
+     * = (timePerDay + areaPerDay × area ÷ normalArea) ÷ 24000。上限は付けない(ユーザー)。
      */
-    public double pointsPerTickPerOvergrownChunk() {
-        return pointsPerTickPerOvergrownChunk;
+    public double pointsPerTick(int phase, long area) {
+        int normal = normalArea(phase);
+        double areaShare = normal > 0 ? Math.max(0L, area) / (double) normal : 0.0D;
+        return (timePointsPerDay + areaPointsPerDay * areaShare) / TICKS_PER_DAY;
     }
 
-    /**
-     * 過繫茂系バイオームの総チャンク数が {@code overgrownChunks} のときの、1 tick あたりの
-     * 時間経過ポイント({@code perTick + perTickPerOvergrownChunk × 総チャンク数})。
-     */
-    public double pointsPerTickWithChunks(long overgrownChunks) {
-        return pointsPerTick + pointsPerTickPerOvergrownChunk * Math.max(0L, overgrownChunks);
+    /** 撃破の点【仮】。{@code kind}: 0 = 段階 0・1 = 進化体・2 = G4・3 = G5・4 = G6。 */
+    public int killPoints(int kind) {
+        return kind >= 0 && kind < killPoints.length ? killPoints[kind] : 0;
     }
 
-    /** グループ1〜10の Mob 1 体の死亡で入るポイント。 */
-    public int pointsPerGroupMobDeath() {
-        return pointsPerGroupMobDeath;
+    /** 撃破の点の 1 日の上限【仮】。 */
+    public int killPointsPerDayCap() {
+        return killPointsPerDayCap;
     }
 
-    /** グループ1〜10の Mob が他の Mob を 1 体倒したときに入るポイント。 */
-    public int pointsPerGroupMobKill() {
-        return pointsPerGroupMobKill;
-    }
-
-    /** チャンクが 1 つ新たに過繁茂系バイオームになったときに入るポイント。 */
-    public int pointsPerOvergrownChunk() {
-        return pointsPerOvergrownChunk;
-    }
+    /** 1 日の長さ(tick)。 */
+    public static final long TICKS_PER_DAY = 24000L;
 
     /** {@code n} フェーズへ進むのに必要なポイント。条件が無ければ {@link Long#MAX_VALUE}。 */
     public long pointsToAdvance(int n) {
@@ -485,7 +506,7 @@ public final class PhaseTable {
     /**
      * フェーズ {@code n} へ昇格できるか。判定はポイントだけ
      * (過繫茂系チャンク数による昇格は 2026-09-15 に廃止。チャンクは
-     * {@link #pointsPerTickWithChunks} 経由でポイントの貯まる速さにだけ効く)。
+     * 面積は {@link #pointsPerTick} 経由でポイントの貯まる速さにだけ効く)。
      *
      * @param points 直前のフェーズ開始時点からの獲得ポイント
      * @return 条件を満たしていれば true。{@code pointsToAdvance} が設定されていないフェーズは常に false
@@ -690,6 +711,7 @@ public final class PhaseTable {
     private static Phase merge(Phase def, Phase over) {
         Phase r = new Phase();
         r.pointsToAdvance = over != null && over.pointsToAdvance != null ? over.pointsToAdvance : def.pointsToAdvance;
+        r.normalArea = over != null && over.normalArea != null ? over.normalArea : def.normalArea;
         r.autoAdvance = over != null && over.autoAdvance != null ? over.autoAdvance : def.autoAdvance;
         r.message = over != null && over.message != null ? over.message : def.message;
         r.maxPacks = over != null && over.maxPacks != null ? over.maxPacks : def.maxPacks;
@@ -786,12 +808,18 @@ public final class PhaseTable {
         j.global.startWorldAgeTicks = 72000;
         j.global.startAdvancements = 6;
         j.global.points = new Points();
-        j.global.points.perAdvancement = 100;
-        j.global.points.perTick = 1.0D; // 毎 tick 1 点
-        j.global.points.perTickPerOvergrownChunk = 0.005D; // + 毎 tick 「総チャンク数 × 0.005」ぶん(200ch で毎 tick +1)
-        j.global.points.perGroupMobDeath = 1;
-        j.global.points.perGroupMobKill = 1;
-        j.global.points.perOvergrownChunk = 5;
+        // 2026-11-14 ユーザー決定: ふつうの 1 日 = 100 点(時間 50・面積 40・撃破 10)。実績 10 と撃破の表・上限は【仮】。
+        j.global.points.perAdvancement = 10;
+        j.global.points.timePerDay = 50.0D;
+        j.global.points.areaPerDay = 40.0D;
+        KillPoints kp = new KillPoints();
+        kp.stage0 = 1;
+        kp.evolved = 3;
+        kp.g4 = 3;
+        kp.g5 = 6;
+        kp.g6 = 10;
+        j.global.points.kills = kp;
+        j.global.points.killsPerDayCap = 20;
         // 前兆(2026-10-24 地脈技術の 4 段目。全部仮決め)。
         OmenJson o = new OmenJson();
         o.leadTicks = 12000;
@@ -820,23 +848,20 @@ public final class PhaseTable {
         st.peakFrom = 2.0D / 3.0D;
         j.global.stages = st;
 
-        // 昇格条件: ポイントのみ(チャンク数による昇格は 2026-09-15 に廃止)。
-        //   ユーザー指定の日数: F1→F2〜F4→F5 は各 5 日、F5→F6・F6→F7 は各 20 日、F7→F8〜F9→F10 は各 10 日
-        //   (F1→F10 で 90 日)。F7 以降も自動で上がる。
-        //   2026-09-28 に台帳の広がりの規則(5 分 = 6000 tick おきに、縁のチャンクを接している面の数 × 25% の確率で過繁茂に)から
-        //   逆算し直した: 地割れに似た 16×3 チャンクの帯から 100 回回した平均で、過繁茂は 5 日目 529 / 20 日目 4956 /
-        //   40 日目 18094 / 60 日目 39633 / 90 日目 87822 チャンク。汚染シダが近くで広げた分は前倒しになる。
-        //   ポイント = 毎 tick (1 + 0.005 × 過繁茂チャンク数) + 新しい過繁茂 1 チャンク 5 点。撃破・実績は小さいので入れていない。
-        //   (2026-09-26〜27 は「1 日平均 285 チャンク」前提の 585000 / 1440000 / 2295000 / 3150000 / 21150000 /
-        //   34830000 / 22545000 / 25965000 / 29385000。2026-09-28 午前の「1 日 1 回」前提は 164000 / 217000 / 289000 /
-        //   377000 / 2768000 / 5679000 / 4310000 / 5495000 / 6832000)
-        int[] pointsToAdvance = {0, 0, 263_000, 696_000, 1_421_000, 2_452_000,
-                26_329_000, 67_841_000, 55_816_000, 73_784_000, 94_305_000};
+        // 昇格条件: ポイントのみ。2026-11-14 ユーザー決定: 閾値 = そのフェーズの日数 × 100(ふつうの 1 日 = 100 点)。
+        //   F1→F2 6 日・F2→F3 8・F3→F4 10・F4→F5 12・F5→F6 17・F6→F7 22(F7 まで 75 日)。
+        //   F8〜F10 は【仮】前の値の比(F7 : F8 : F9 : F10 = 67.8 : 55.8 : 73.8 : 94.3 百万)を F7 の 2200 に掛けて丸めた。autoAdvance:false で止まる。
+        //   (前の値 2026-09-28: 263000 / 696000 / 1421000 / 2452000 / 26329000 / 67841000 / 55816000 / 73784000 / 94305000)
+        int[] pointsToAdvance = {0, 0, 600, 800, 1_000, 1_200, 1_700, 2_200, 1_800, 2_400, 3_100};
+        // ふつうの広さ【仮】(チャンク)。11-14 の参考計測(シード A・感染の入る前・プレイヤーは離れた所)の台帳の数を、
+        // 新しい日数の表の各フェーズの真ん中の日(F1 3・F2 10・F3 19・F4 30 日目)で引いた。F5 以降は伸び方からの見積もり。測り直す。
+        int[] normalArea = {0, 3_500, 36_000, 200_000, 470_000, 800_000, 1_300_000, 2_000_000, 2_000_000, 2_000_000, 2_000_000};
 
         j.phases = new java.util.LinkedHashMap<>();
         for (int n = MIN_PHASE; n <= MAX_PHASE; n++) {
             Phase p = new Phase();
             p.pointsToAdvance = pointsToAdvance[n] > 0 ? pointsToAdvance[n] : null;
+            p.normalArea = normalArea[n];
 
             // フェーズ2〜4 は、過繫茂バイオームの外にもアルボラが少数だけ現れる(2026-09-19)。
             // 汚染がまだ狭いうちから「はぐれの拡大種」を見かけるようにするための枠。

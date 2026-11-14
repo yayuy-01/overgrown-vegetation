@@ -40,9 +40,9 @@ import net.minecraft.world.level.saveddata.SavedData;
  *     止めておけばフェーズ1も始まらない)。{@link #frozen} を参照。</li>
  * </ul>
  *
- * <p>実際にポイントを加算する箇所は {@link AdvancementPoints}(実績解除)・{@link MobGroupPoints}
- * (グループ1〜10の死亡 / グループ1〜10による他 Mob の殺害)・{@link PhaseTicker}(時間経過分)・
- * {@link #addOvergrownChunks}(過繁茂系バイオームの増加)の 4 箇所。
+ * <p>実際にポイントを加算する箇所(2026-11-14 の作り直しから)は {@link AdvancementPoints}(実績解除)・{@link KillPoints}
+ * (プレイヤーが植物側の Mob を倒した。1 日の上限つき {@link #addKillPoints})・{@link PhaseTicker}(時間 + 今の面積)の 3 箇所。
+ * 上の「既定の条件」の数は古い。今の式と閾値は {@link com.yayuy.overgrownvegetation.data.PhaseTable} の頭。
  */
 public final class PhaseData extends SavedData {
 
@@ -158,6 +158,9 @@ public final class PhaseData extends SavedData {
      * {@link #setPhase}({@code phase set})による手動変更だけは凍結中でも通す。
      */
     private boolean frozen;
+    /** 撃破の点を数えている日(clock ÷ 24000)と、その日にもう入れた点(難易度の倍率を掛ける前。2026-11-14)。 */
+    private long killPointsDay = -1L;
+    private int killPointsToday;
 
     /** 胞子警報器の「次のフェーズが近い」警告をこのフェーズで出したか(2026-09-19)。昇格でリセット。 */
     private boolean phaseWarned;
@@ -259,10 +262,38 @@ public final class PhaseData extends SavedData {
         return start;
     }
 
+    /** 保存したポイントの縮尺(2026-11-14 の作り直しで 2。印の無い古いセーブは {@link #convertOldPoints} で直す)。 */
+    private static final int POINTS_SCALE = 2;
+    /** 作り直しの前の既定の閾値(2026-09-28)。古いセーブの換算にだけ使う。 */
+    private static final long[] OLD_POINTS_TO_ADVANCE = {0, 0, 263_000, 696_000, 1_421_000, 2_452_000,
+            26_329_000, 67_841_000, 55_816_000, 73_784_000, 94_305_000};
+
+    /**
+     * 古い縮尺のポイントを、次のフェーズまでの進みの割合を保ったまま今の閾値へ直す【仮】(そのままだと読み込んだ直後に 1 フェーズ跳ぶ)。
+     * 古い閾値は既定の値で見る(run/config で変えていたワールドは少しずれる)。
+     */
+    static long convertOldPoints(int phase, long oldPoints) {
+        int next = phase + 1;
+        if (next >= OLD_POINTS_TO_ADVANCE.length || OLD_POINTS_TO_ADVANCE[next] <= 0) {
+            return 0L;
+        }
+        long now = DesignData.phases().pointsToAdvance(next);
+        if (now == Long.MAX_VALUE) {
+            return 0L;
+        }
+        double share = Math.max(0.0D, Math.min(0.999D, oldPoints / (double) OLD_POINTS_TO_ADVANCE[next]));
+        return (long) Math.floor(share * now);
+    }
+
     private static PhaseData load(CompoundTag tag) {
         PhaseData data = new PhaseData();
         data.phase = tag.getInt("phase");
         data.points = tag.getLong("points");
+        if (tag.getInt("pointsScale") < POINTS_SCALE && data.phase >= 1) {
+            data.points = convertOldPoints(data.phase, data.points);
+        }
+        data.killPointsDay = tag.contains("killPointsDay") ? tag.getLong("killPointsDay") : -1L;
+        data.killPointsToday = tag.getInt("killPointsToday");
         // 小さな段(2026-11-14)。この欄の無い古いセーブは、ポイントから黙って求める(読み込みではイベントを流さない)。
         if (tag.contains("stage")) {
             data.stage = PhaseStage.byIndex(tag.getInt("stage"));
@@ -336,6 +367,9 @@ public final class PhaseData extends SavedData {
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.putInt("phase", phase);
         tag.putLong("points", points);
+        tag.putInt("pointsScale", POINTS_SCALE);
+        tag.putLong("killPointsDay", killPointsDay);
+        tag.putInt("killPointsToday", killPointsToday);
         tag.putInt("stage", stage.ordinal());
         tag.putLong("lastPointsGameTime", lastPointsGameTime);
         tag.putDouble("timePointsCarry", timePointsCarry);
@@ -684,9 +718,7 @@ public final class PhaseData extends SavedData {
     /**
      * チャンクが新たに過繁茂系バイオームになったときに
      * {@link com.yayuy.overgrownvegetation.corruption.OvergrownBiomeConverter} から呼ぶ。
-     * 累計を増やし、1 チャンクあたり {@code points.perOvergrownChunk}(既定 5)のポイントを加算する。
-     * 累計は時間経過ポイントの倍率({@code points.perTickPerOvergrownChunk})の元にもなるので、
-     * 汚染が広がるほどポイントの貯まり方が速くなる(チャンク数そのものが昇格条件になることはない)。
+     * 累計だけを増やす(2026-11-14 から点は入れない。面積の点は「今の面積」= 台帳の大きさで {@link #tick} が入れる)。
      *
      * <p>凍結中({@link #frozen})やフェーズ0の間は累計だけ増やし、ポイント加算とフェーズ判定は行わない
      * ({@link #addPoints} 側の早期リターンに合わせた挙動)。
@@ -700,14 +732,8 @@ public final class PhaseData extends SavedData {
         overgrownChunks += amount;
         setDirty();
 
-        ServerLevel overworld = level.getServer().overworld();
-        long perChunk = DesignData.phases().pointsPerOvergrownChunk();
-        if (perChunk > 0L) {
-            // addPoints が終わりにフェーズ判定まで行う。
-            addPoints(overworld, perChunk * amount);
-        } else {
-            tryAdvance(overworld);
-        }
+        // 2026-11-14: 新しいチャンク 1 つごとの点(5 点)はやめた。面積は「今の面積」として時間の点と一緒に入る(tick)。
+        tryAdvance(level.getServer().overworld());
     }
 
     /**
@@ -849,7 +875,7 @@ public final class PhaseData extends SavedData {
         if (!creditPoints || frozen || phase < 1) {
             return 0L;
         }
-        double raw = ticks * DesignData.phases().pointsPerTickWithChunks(overgrownChunks) + timePointsCarry;
+        double raw = ticks * DesignData.phases().pointsPerTick(phase, overgrownLedgerSize()) + timePointsCarry;
         long whole = (long) Math.floor(raw);
         timePointsCarry = raw - whole;
         if (whole > 0L) {
@@ -933,10 +959,9 @@ public final class PhaseData extends SavedData {
         if (gameTime > lastPointsGameTime) {
             long elapsedTicks = gameTime - lastPointsGameTime;
             lastPointsGameTime = gameTime;
-            // 1 tick あたりの収入は「perTick + perTickPerOvergrownChunk × 過繫茂系の総チャンク数」
-            // (2026-09-15。汚染が広がるほど時間収入が増える)。総チャンク数はこの判定の時点の値を
-            // 経過ぶん全体に当てる — 判定は 100 tick(5 秒)ごとなので誤差は無視できる。
-            double perTick = DesignData.phases().pointsPerTickWithChunks(overgrownChunks);
+            // 1 tick あたりの収入(2026-11-14 ユーザー決定)=(時間 50 + 面積 40 × 今の面積 ÷ そのフェーズのふつうの広さ)÷ 24000。
+            // 今の面積 = 台帳の大きさ(押し返して台帳から外れると減る)。この判定の時点の値を経過ぶん全体に当てる(判定は 100 tick ごと)。
+            double perTick = DesignData.phases().pointsPerTick(phase, overgrownLedgerSize());
             double gained = elapsedTicks * perTick + timePointsCarry;
             long whole = (long) gained;
             timePointsCarry = gained - whole;
@@ -1000,6 +1025,40 @@ public final class PhaseData extends SavedData {
             return;
         }
         advanceToPhase(overworld, 1);
+    }
+
+    /**
+     * プレイヤーが植物側の Mob を倒したときの点(2026-11-14【仮】。{@link KillPoints} から)。1 日(暦 {@link #clock} の 24000 tick の区切り)に
+     * {@code points.killsPerDayCap} まで(難易度の倍率を掛ける前の点で数える)。実際に入れた点(倍率の前)を返す。
+     */
+    public int addKillPoints(ServerLevel overworld, int amount) {
+        if (frozen || phase < 1 || phase >= PhaseTable.MAX_PHASE || amount <= 0) {
+            return 0;
+        }
+        long day = clock(overworld.getServer()) / PhaseTable.TICKS_PER_DAY;
+        if (day != killPointsDay) {
+            killPointsDay = day;
+            killPointsToday = 0;
+        }
+        int cap = DesignData.phases().killPointsPerDayCap();
+        int add = Math.max(0, Math.min(amount, cap - killPointsToday));
+        if (add <= 0) {
+            return 0;
+        }
+        killPointsToday += add;
+        setDirty();
+        addPoints(overworld, add);
+        return add;
+    }
+
+    /** 今の 1 日あたりの時間 + 面積の点(撃破と実績は入らない。難易度の倍率の前)。今のフェーズと台帳の大きさから。 */
+    public double incomePerDay() {
+        return DesignData.phases().pointsPerTick(phase, overgrownLedgerSize()) * PhaseTable.TICKS_PER_DAY;
+    }
+
+    /** 今日の撃破の点(テスト・表示用)。 */
+    public int killPointsToday() {
+        return killPointsToday;
     }
 
     /**
