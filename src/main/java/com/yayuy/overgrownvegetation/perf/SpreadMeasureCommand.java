@@ -54,6 +54,14 @@ public final class SpreadMeasureCommand {
                                 })
                                 // 台帳の全チャンクと載った時刻を <ゲームフォルダ>/ov-ledger-<gt>.tsv へ(あとで日ごとの広がりを組み直す)
                                 .then(Commands.literal("dump").executes(SpreadMeasureCommand::dump))
+                                // 計測用(2026-11-14 胞子の場の重さ): fill <チャンク数> = 実行した所を中心に台帳と場をその広さにする /
+                                // stat = 場の計算・保存の時間とメモリ / stat reset = 数えを 0 に / savetest = 台帳の保存を作って書く時間と大きさ
+                                .then(Commands.literal("fill").then(Commands.argument("chunks", IntegerArgumentType.integer(1, 20_000_000))
+                                        .executes(ctx -> SpreadPerfDev.fill(ctx, IntegerArgumentType.getInteger(ctx, "chunks")))))
+                                .then(Commands.literal("stat").executes(ctx -> SpreadPerfDev.stat(ctx, false, false))
+                                        .then(Commands.literal("reset").executes(ctx -> SpreadPerfDev.stat(ctx, true, false)))
+                                        .then(Commands.literal("keep").executes(ctx -> SpreadPerfDev.stat(ctx, true, true))))
+                                .then(Commands.literal("savetest").executes(SpreadPerfDev::saveTest))
                                 .then(Commands.argument("cx", IntegerArgumentType.integer())
                                         .then(Commands.argument("cz", IntegerArgumentType.integer())
                                                 .executes(ctx -> measure(ctx, IntegerArgumentType.getInteger(ctx, "cx"),

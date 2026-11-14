@@ -765,6 +765,25 @@ public final class PhaseData extends SavedData {
         return added;
     }
 
+    /**
+     * 計測用(2026-11-14 胞子の場の重さの計測。{@code /ov perf spread fill}): 台帳へまとめて載せる。胞子の場へは 1 つずつ知らせない
+     * (呼ぶ側が {@code SporeFieldServer.devBulkCorrupt} でまとめて渡す)。フェーズの昇格も見ない。新しく載せた数を返す。
+     */
+    public int devBulkMark(long[] keys, long since) {
+        int added = 0;
+        for (long key : keys) {
+            if (!overgrownSince.containsKey(key)) {
+                overgrownSince.put(key, since);
+                added++;
+            }
+        }
+        if (added > 0) {
+            overgrownChunks += added;
+            setDirty();
+        }
+        return added;
+    }
+
     /** {@link #markOvergrownChunks} の 1 チャンク版。新しく記録されたら {@code true}。 */
     public boolean markOvergrownChunk(ServerLevel level, ChunkPos pos) {
         return markOvergrownChunks(level, java.util.List.of(pos)) > 0;

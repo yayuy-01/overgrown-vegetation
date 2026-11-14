@@ -75,6 +75,39 @@ public final class SporeFieldServer {
     private SporeFieldServer() {
     }
 
+    // ---------------------------------------------------------------- 計測(2026-11-14 胞子の場の重さの計測。/ov perf spread stat)
+
+    /** 計測の数え(開発用)。裏の計算・サーバースレッドの前後・保存の写しの時間。 */
+    public static final class DevStats {
+        public static volatile long runs, steps, computeNanos, computeMaxNanos, lastComputeNanos;
+        public static volatile long gatherNanos, gatherMaxNanos, applyNanos, applyMaxNanos;
+        public static volatile long saves, savesSkipped, saveLockNanos, saveSnapNanos, saveSnapMaxNanos, saveLockMaxNanos;
+        public static volatile int lastSaveTiles, lastSaveChanged, lastTiles, lastParcels;
+        public static volatile long lastWriteNanos, lastWriteBytes, loadNanos;
+        /** 場の中の数え(始まってからの累計)。 */
+        public static volatile String fieldDev = "";
+
+        public static void reset() {
+            runs = steps = computeNanos = computeMaxNanos = gatherNanos = gatherMaxNanos = applyNanos = applyMaxNanos = 0;
+            saves = savesSkipped = saveLockNanos = saveSnapNanos = saveSnapMaxNanos = saveLockMaxNanos = 0;
+        }
+    }
+
+    /** 計測用: 自動保存と同じ道で場を保存する。 */
+    public static void devSave(MinecraftServer server) {
+        save(server, false);
+    }
+
+    /** 計測用: まとめて汚染済みにする(台帳は {@code PhaseData#devBulkMark} で別に載せる)。 */
+    public static void devBulkCorrupt(long[] keys, long since) {
+        INPUTS.add(f -> {
+            for (long k : keys) {
+                int cx = ChunkPos.getX(k), cz = ChunkPos.getZ(k);
+                if (!f.isCorrupted(cx, cz)) f.setCorrupted(cx, cz, since);
+            }
+        });
+    }
+
     // ---------------------------------------------------------------- ほかの所からの入力
 
     /**
@@ -243,6 +276,7 @@ public final class SporeFieldServer {
         f.ground = new BiomeGround(overworld, f.p);
         long[] clock = new long[1];
         int tiles;
+        long loadT0 = System.nanoTime();
         LOCK.lock();
         try {
             tiles = SporeFieldStore.load(server, f, clock);
@@ -256,6 +290,7 @@ public final class SporeFieldServer {
             fieldClock = clock[0];
             WAITING.clear();
             f.forEachWaiting(WAITING::add);
+            DevStats.loadNanos = System.nanoTime() - loadT0;
             com.yayuy.overgrownvegetation.quake.EarthquakeData.get(overworld); // 地割れの中心(下支え)を読み込んでおく
         } finally {
             LOCK.unlock();
@@ -293,17 +328,34 @@ public final class SporeFieldServer {
 
     private static void save(MinecraftServer server, boolean wait) {
         SporeFieldStore.Snapshot snap;
+        long saveT0 = System.nanoTime();
         try {
             // 裏で計算中なら終わるのを待つ(閉じるときは必ず、自動保存は 2 秒まで)
             if (wait) LOCK.lock();
-            else if (!LOCK.tryLock(2, TimeUnit.SECONDS)) return;
+            else if (!LOCK.tryLock(2, TimeUnit.SECONDS)) {
+                DevStats.savesSkipped++;
+                DevStats.saveLockNanos += System.nanoTime() - saveT0;
+                DevStats.saveLockMaxNanos = Math.max(DevStats.saveLockMaxNanos, System.nanoTime() - saveT0);
+                return;
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return;
         }
         try {
             if (field == null) return;
+            long saveT1 = System.nanoTime();
             snap = SporeFieldStore.snapshot(field, fieldClock);
+            long saveT2 = System.nanoTime();
+            DevStats.saves++;
+            DevStats.saveLockNanos += saveT1 - saveT0;
+            DevStats.saveLockMaxNanos = Math.max(DevStats.saveLockMaxNanos, saveT1 - saveT0);
+            DevStats.saveSnapNanos += saveT2 - saveT1;
+            DevStats.saveSnapMaxNanos = Math.max(DevStats.saveSnapMaxNanos, saveT2 - saveT1);
+            int changed = 0;
+            for (Object[] e : snap.tiles()) if (e[1] != null) changed++;
+            DevStats.lastSaveTiles = snap.tiles().size();
+            DevStats.lastSaveChanged = changed;
         } finally {
             LOCK.unlock();
         }
@@ -349,7 +401,11 @@ public final class SporeFieldServer {
         long behind = clock - fieldClock;
         if (behind < u) return 0;
         int steps = (int) Math.min(table.maxStepsPerRun(), behind / u);
+        long g0 = System.nanoTime();
         Inputs in = gatherInputs(level, table, clock, steps);
+        long g1 = System.nanoTime() - g0;
+        DevStats.gatherNanos += g1;
+        DevStats.gatherMaxNanos = Math.max(DevStats.gatherMaxNanos, g1);
         SporeField f = field;
         TASK.start(level.getServer(), () -> compute(f, in), r -> apply(level, r));
         return steps;
@@ -551,6 +607,26 @@ public final class SporeFieldServer {
     /** サーバースレッドで答えを当てはめる。 */
     private static void apply(ServerLevel level, Result r) {
         if (field == null) return;
+        long a0 = System.nanoTime();
+        try {
+            apply0(level, r);
+        } finally {
+            long a1 = System.nanoTime() - a0;
+            DevStats.applyNanos += a1;
+            DevStats.applyMaxNanos = Math.max(DevStats.applyMaxNanos, a1);
+            DevStats.runs++;
+            DevStats.steps += r.steps;
+            DevStats.computeNanos += r.nanos;
+            DevStats.computeMaxNanos = Math.max(DevStats.computeMaxNanos, r.nanos);
+            DevStats.lastComputeNanos = r.nanos;
+            DevStats.lastTiles = r.tiles;
+            DevStats.lastParcels = r.parcels;
+            SporeField df = field;
+            if (df != null) DevStats.fieldDev = String.format("newTiles=%d (%.0fms) removed=%d stepOnce=%.0fms parcels=%.0fms", df.devNewTiles, df.devNewTileNanos / 1e6, df.devRemoved, df.devOnceNanos / 1e6, df.devParcelNanos / 1e6);
+        }
+    }
+
+    private static void apply0(ServerLevel level, Result r) {
         fieldClock = Math.max(fieldClock, r.toClock);
         long[] sproutKeys = keepOnlyForTests == null ? r.sprouts
                 : java.util.Arrays.stream(r.sprouts).filter(k -> k == keepOnlyForTests).toArray();

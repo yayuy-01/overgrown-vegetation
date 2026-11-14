@@ -268,6 +268,7 @@ final class SporeFieldStore {
         Set<String> written = written(snap.dirName());
         java.util.Map<String, Long> savedHash = savedHash(snap.dirName());
         Runnable job = () -> {
+            long w0 = System.nanoTime(); // 計測(2026-11-14)
             try {
                 Files.createDirectories(dir);
                 Set<String> now = new HashSet<>();
@@ -284,6 +285,7 @@ final class SporeFieldStore {
                     written.clear();
                     written.addAll(now);
                 }
+                SporeFieldServer.DevStats.lastWriteNanos = System.nanoTime() - w0;
             } catch (IOException e) {
                 OvergrownVegetation.LOGGER.error("胞子の場を書き出せませんでした: {}", dir, e);
                 server.execute(savedHash::clear); // 次の保存で全部書き直す

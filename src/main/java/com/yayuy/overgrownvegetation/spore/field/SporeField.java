@@ -318,6 +318,10 @@ public final class SporeField {
     /** 直前の {@link #step} で着地した塊 {x, z, 量, 飛んだ距離}。 */
     public final List<double[]> newLandings = new ArrayList<>();
     public long corruptedCount, sproutEvents, launched;
+    /** 計測(2026-11-14 胞子の場の重さ): 作った区画の数と時間・捨てた区画の数・1 刻みの本体の時間・塊の時間。 */
+    public long devNewTiles, devNewTileNanos, devRemoved, devOnceNanos, devParcelNanos;
+    /** 計測用の切り替え: 空の区画を捨てない(縁の区画の作り直しを止めて、計算そのものの重さを見る)。 */
+    public static volatile boolean devKeepEmptyTiles;
 
     public SporeField(long seed, Params p) {
         this.seed = seed;
@@ -573,6 +577,7 @@ public final class SporeField {
 
     /** {@code savedHeight} = 保存してあった地表の高さ(無ければ null で、土地から引く。2026-10-30 より前のセーブも null)。 */
     Tile newTile(int tx, int tz, float[] savedHeight) {
+        long devN0 = System.nanoTime();
         Tile t = new Tile(tx, tz);
         if (thermal != null) fillTemp(t);
         if (ground != null) {
@@ -598,6 +603,8 @@ public final class SporeField {
             }
             t.height = h;
         }
+        devNewTiles++;
+        devNewTileNanos += System.nanoTime() - devN0;
         return t;
     }
 
@@ -931,7 +938,9 @@ public final class SporeField {
                 java.util.Arrays.fill(tl.inLowNext, 0f);
             }
         }
+        long devP0 = System.nanoTime();
         moveParcels(c, wind, full);
+        devParcelNanos += System.nanoTime() - devP0;
     }
 
     private long stepCounter;
@@ -1047,6 +1056,7 @@ public final class SporeField {
         double underDepKeep = Math.exp(-p.underDepDecayPerDay * dtAir);
         double germPU = p.germPerDay * dtAir;
 
+        long devT0 = System.nanoTime();
         List<Tile> list = new ArrayList<>(tiles.values());
         for (Tile tl : list) {
             int bx = tl.tx << TB, bz = tl.tz << TB;
@@ -1237,7 +1247,8 @@ public final class SporeField {
                 empty.add(en.getKey());
             }
         }
-        if (empty != null) for (long kk : empty) tiles.remove(kk);
+        if (empty != null && !devKeepEmptyTiles) { for (long kk : empty) tiles.remove(kk); devRemoved += empty.size(); }
+        devOnceNanos += System.nanoTime() - devT0;
     }
 
     /**
