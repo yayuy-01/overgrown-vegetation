@@ -42,6 +42,11 @@ public final class DirectorCommand {
                         .then(Commands.literal("g1")
                                 .then(Commands.literal("director")
                                         .executes(ctx -> describe(ctx.getSource()))
+                                        .then(Commands.literal("phase")
+                                                .executes(ctx -> gates(ctx.getSource()))
+                                                .then(Commands.literal("reset").executes(ctx -> phaseSet(ctx.getSource(), null)))
+                                                .then(Commands.argument("phase", IntegerArgumentType.integer(0, 99))
+                                                        .executes(ctx -> phaseSet(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "phase")))))
                                         .then(Commands.literal("base")
                                                 .executes(ctx -> baseDescribe(ctx.getSource()))
                                                 .then(Commands.literal("sample")
@@ -147,10 +152,27 @@ public final class DirectorCommand {
         return 1 + near.size();
     }
 
+    // ---------------------------------------------------------------- フェーズで開くもの(第 2 段の続き)
+
+    private static int gates(CommandSourceStack source) {
+        String line = DirectorGates.describe(source.getServer().overworld());
+        source.sendSuccess(() -> Component.literal(line), false);
+        return 1;
+    }
+
+    /** 司令塔が見るフェーズだけを差し替える(ほかの仕組みのフェーズは変えない。reset で戻す)。 */
+    private static int phaseSet(CommandSourceStack source, @javax.annotation.Nullable Integer phase) {
+        DirectorGates.setPhaseForTests(phase);
+        source.sendSuccess(() -> Component.literal(phase == null ? "司令塔が見るフェーズを元に戻した" : "司令塔が見るフェーズを F" + phase + " にした(司令塔だけ)"), true);
+        return gates(source);
+    }
+
     // ---------------------------------------------------------------- 拠点の記憶(第 2 段 区切り 1)
 
     private static int baseDescribe(CommandSourceStack source) {
         var server = source.getServer();
+        String gates = DirectorGates.describe(server.overworld());
+        source.sendSuccess(() -> Component.literal(gates), false);
         List<String> lines = BaseMemory.get(server).describe(BaseMemory.today(server));
         for (String line : lines) {
             source.sendSuccess(() -> Component.literal(line), false);

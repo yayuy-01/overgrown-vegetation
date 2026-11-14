@@ -251,6 +251,14 @@ public final class BaseMemory extends SavedData {
      * 升の数はプレイヤーの足跡ぶん(2 日で消える)なので、まとめは毎回やり直す。
      */
     public void update(double day) {
+        update(day, true);
+    }
+
+    /**
+     * {@code recognizeOpen} = 偵察済み → 認識へ進めてよいか(フェーズ F5 から。DirectorGates)。閉じている間も、覚える・忘れる・偵察済みの日数は進む
+     * (F4 までに偵察済みになった拠点は、F5 になった時点で日数が足りていればすぐ認識 =「森は前から見ていた」)。
+     */
+    public void update(double day, boolean recognizeOpen) {
         BaseMemoryTable t = table();
         // つながった升をまとめる(clusterChunks 以内)
         LongOpenHashSet seen = new LongOpenHashSet();
@@ -336,7 +344,7 @@ public final class BaseMemory extends SavedData {
         // 偵察済みから 1〜2 日引っ越さなければ認識する(11-14 ユーザー決定 Q5 = 1: 偵察が来てから数える)。
         // 引っ越した = 2 日いなければ、覚えただけの拠点と同じく忘れる(上の付け直しで消える)
         for (Base b : bases) {
-            if (b.stage == Stage.SCOUTED && day - b.stageSince >= b.recognizeAfter) {
+            if (recognizeOpen && b.stage == Stage.SCOUTED && day - b.stageSince >= b.recognizeAfter && confirmed(b, day)) {
                 b.setStage(Stage.RECOGNIZED, day);
                 b.nextWaveDay = day + t.waveIntervalMinDays * 0.5D; // 認識してすぐ、最初の送り込み【仮】
             }
@@ -401,6 +409,67 @@ public final class BaseMemory extends SavedData {
             b.cells = keys.size();
             b.structures = structures;
         }
+    }
+
+    // ---------------------------------------------------------------- 認識を確定する口・遅らせる・忘れさせる(監視塔を後から差し込む口)
+
+    /**
+     * 認識を確定する条件(外から足す)。全部が true を返したときだけ、偵察済みから認識へ進む。何も登録されていなければ、今の形
+     * (偵察が来てから 1〜2 日)だけで認識する。11-14 ユーザー(未確定)「偵察は感染体、確定は監視塔」にするなら、監視塔の側が
+     * 「この拠点のそばに監視塔が立っているか」をここに登録する。
+     */
+    public interface Confirmer {
+        boolean confirm(Base base, double day);
+    }
+
+    private static final List<Confirmer> CONFIRMERS = new ArrayList<>();
+
+    public static void registerConfirmer(Confirmer c) {
+        CONFIRMERS.add(c);
+    }
+
+    private static boolean confirmed(Base b, double day) {
+        for (Confirmer c : CONFIRMERS) {
+            if (!c.confirm(b, day)) return false;
+        }
+        return true;
+    }
+
+    /** 外から: 偵察済みの拠点の認識を {@code days} 日遅らせる(例: 監視塔を刈った)。偵察済みでなければ何もしない。 */
+    public void delayRecognition(int baseId, double days) {
+        Base b = byId(baseId);
+        if (b == null || b.stage != Stage.SCOUTED) return;
+        b.stageSince += Math.max(0.0D, days);
+        setDirty();
+    }
+
+    /**
+     * 外から: 拠点を 1 段戻す(認識 → 偵察済み → 覚えた)か、すっかり忘れさせる。
+     *
+     * @param forgetAll true なら記憶ごと消す(升も)。false なら 1 段戻す
+     */
+    public void setBack(int baseId, double day, boolean forgetAll) {
+        Base b = byId(baseId);
+        if (b == null) return;
+        if (forgetAll) {
+            bases.remove(b);
+            double r2 = table().matchBlocks * table().matchBlocks;
+            cells.long2ObjectEntrySet().removeIf(en -> {
+                double dx = ChunkPos.getX(en.getLongKey()) * 16 + 8 - b.centerX, dz = ChunkPos.getZ(en.getLongKey()) * 16 + 8 - b.centerZ;
+                return dx * dx + dz * dz <= r2;
+            });
+            forgotten++;
+        } else if (b.stage == Stage.RECOGNIZED) {
+            b.setStage(Stage.SCOUTED, day);
+        } else if (b.stage == Stage.SCOUTED) {
+            b.setStage(Stage.REMEMBERED, day);
+        }
+        setDirty();
+    }
+
+    /** テスト用: 足した確定の条件を外す。 */
+    public static void clearConfirmersForTests() {
+        CONFIRMERS.clear();
     }
 
     // ---------------------------------------------------------------- 偵察(区切り 2)
@@ -475,8 +544,14 @@ public final class BaseMemory extends SavedData {
 
     /** 送り込んだ。 */
     public void waveSent(Base b, double day, net.minecraft.util.RandomSource random) {
+        waveSent(b, day, random, 1.0D);
+    }
+
+    /** 送り込んだ。間はフェーズの小さな段の倍率で割る(倍率が大きいほど頻繁。DirectorGates#stageMultiplier)。 */
+    public void waveSent(Base b, double day, net.minecraft.util.RandomSource random, double stageMultiplier) {
         BaseMemoryTable t = table();
-        b.nextWaveDay = day + t.waveIntervalMinDays + random.nextDouble() * (t.waveIntervalMaxDays - t.waveIntervalMinDays);
+        double interval = t.waveIntervalMinDays + random.nextDouble() * (t.waveIntervalMaxDays - t.waveIntervalMinDays);
+        b.nextWaveDay = day + interval / Math.max(0.1D, stageMultiplier);
         b.wavesSent++;
         setDirty();
     }

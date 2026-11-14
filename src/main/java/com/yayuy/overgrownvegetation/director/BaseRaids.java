@@ -87,11 +87,12 @@ public final class BaseRaids {
         }
         // 進化体が足りない分は、段階 0 を予算で進化させて送る(進化体のある種だけ。予算が尽きたらそこまで)
         int evolved = 0;
+        boolean canEvolve = DirectorGates.open(level, DirectorGates.Gate.EVOLVE); // 送り込みのための進化も F3 から
         ForestDirector director = ForestDirector.get(level);
         double cost = DesignData.director().costEvolve;
         List<AbstractParasitizedMonster> rest = new ArrayList<>();
         for (AbstractParasitizedMonster m : zeros) {
-            if (sentDev + evolved < w.developed() && G1Fate.developedOf(m) != null && director.tryPay(level, cost)) {
+            if (canEvolve && sentDev + evolved < w.developed() && G1Fate.developedOf(m) != null && director.tryPay(level, cost)) {
                 m.fate().beginEvolve();
                 m.fate().markPaid();
                 m.march().begin(b); // 進化で入れ替わるときに引き継ぐ(G1Fate#finishEvolve)
@@ -107,8 +108,9 @@ public final class BaseRaids {
             m.march().begin(b);
             sentZero++;
         }
-        int g4 = send(G4, level, b, w.g4(), random);
-        int g5 = send(G5_PLUS, level, b, w.g5plus(), random);
+        // G4 は F4・G5〜 は F5 から(G4〜G6 の混ざった群れ = F6 は、登録する側が DirectorGates.Gate.WAVE_MIXED を見る)
+        int g4 = DirectorGates.open(level, DirectorGates.Gate.WAVE_G4) ? send(G4, level, b, w.g4(), random) : 0;
+        int g5 = DirectorGates.open(level, DirectorGates.Gate.WAVE_G5) ? send(G5_PLUS, level, b, w.g5plus(), random) : 0;
         Result res = new Result(waveNo, sentZero, sentDev, evolved, g4, g5, w.stageZero(), w.developed(), w.g4(), w.g5plus());
         director.note("拠点 #" + b.id() + " へ送り込み " + res.summary());
         return res;
@@ -161,7 +163,7 @@ public final class BaseRaids {
         for (BaseMemory.Base b : List.copyOf(memory.bases())) {
             if (!BaseMemory.wantsWave(b, day)) continue;
             sendWave(level, b, day, level.getRandom());
-            memory.waveSent(b, day, level.getRandom());
+            memory.waveSent(b, day, level.getRandom(), DirectorGates.stageMultiplier(level));
         }
     }
 }

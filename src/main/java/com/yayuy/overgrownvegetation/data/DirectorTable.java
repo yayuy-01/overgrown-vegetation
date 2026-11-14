@@ -57,6 +57,13 @@ public final class DirectorTable {
         public Double nurseryFarBlocks;
         /** 第 2 段: 拠点の記憶({@link BaseMemoryTable})。 */
         public BaseMemoryTable.Json base;
+        /** フェーズで開く口(DirectorGates)。 */
+        public GatesJson gates;
+    }
+
+    /** フェーズで開く口の json。 */
+    public static final class GatesJson {
+        public Integer nursery, rooted, evolve, scout, recognize, raid, spawner, waveG4, waveG5, waveMixed;
     }
 
     /** false なら司令塔は見に来ない(予算も貯まらない)。 */
@@ -99,6 +106,34 @@ public final class DirectorTable {
     public final double nurseryFarBlocks;
     /** 第 2 段(11-14): 拠点の記憶。 */
     public final BaseMemoryTable base;
+    /** 11-14: フェーズで開く口(割り当てはユーザー・全体管理の決定)。 */
+    public final Gates gates;
+
+    /**
+     * 司令塔が使うものが開くフェーズ(2026-11-14 決定。Vault「フェーズの仕組み」の作り直し): 苗床 1・根付き 2・進化 3・偵察 4・認識 5・送り込み 5・
+     * 苗床のスポナー 4・送り込みの G4 4・G5〜 5・G4〜G6 の混ざった群れ 6。
+     */
+    public static final class Gates {
+        public final int nursery, rooted, evolve, scout, recognize, raid, spawner, waveG4, waveG5, waveMixed;
+
+        Gates(GatesJson j) {
+            GatesJson s = j != null ? j : new GatesJson();
+            nursery = ph(s.nursery, 1);
+            rooted = ph(s.rooted, 2);
+            evolve = ph(s.evolve, 3);
+            scout = ph(s.scout, 4);
+            recognize = ph(s.recognize, 5);
+            raid = ph(s.raid, 5);
+            spawner = ph(s.spawner, 4);
+            waveG4 = ph(s.waveG4, 4);
+            waveG5 = ph(s.waveG5, 5);
+            waveMixed = ph(s.waveMixed, 6);
+        }
+
+        private static int ph(Integer v, int fallback) {
+            return v == null ? fallback : Math.max(0, v);
+        }
+    }
 
     private DirectorTable(Json j) {
         Json s = j != null ? j : new Json();
@@ -135,6 +170,7 @@ public final class DirectorTable {
         this.nurseryFar = nonNeg(s.nurseryFar, 0.4D);
         this.nurseryFarBlocks = Math.max(1.0D, s.nurseryFarBlocks != null ? s.nurseryFarBlocks : 96.0D);
         this.base = BaseMemoryTable.fromJson(s.base);
+        this.gates = new Gates(s.gates);
     }
 
     private static double nonNeg(Double v, double fallback) {

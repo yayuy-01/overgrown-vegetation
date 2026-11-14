@@ -271,8 +271,10 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         double playerDist = nearest != null ? nearest.distanceTo(mob) : Double.MAX_VALUE;
         double ageDays = Math.max(0L, level.getGameTime() - bornAt) / 24000.0D;
         G1Fate fate = mob.fate();
-        Inputs in = new Inputs(G1Fate.developedOf(mob) != null, fate != null && fate.rootedForm() != null,
-                fate != null && fate.nurseryForm() != null,
+        // フェーズで開いていない道は選べない(苗床 F1・根付き F2・進化 F3。DirectorGates)
+        Inputs in = new Inputs(G1Fate.developedOf(mob) != null && DirectorGates.open(level, DirectorGates.Gate.EVOLVE),
+                fate != null && fate.rootedForm() != null && DirectorGates.open(level, DirectorGates.Gate.ROOTED),
+                fate != null && fate.nurseryForm() != null && DirectorGates.open(level, DirectorGates.Gate.NURSERY),
                 available(level), playerDist, ageDays,
                 fate != null ? fate.forest(level).distance(mob.position()) : 0.0D,
                 baseNear(level, mob.getX(), mob.getZ()));
@@ -333,6 +335,8 @@ public final class ForestDirector extends SavedData implements ForestBudget {
             ServerLevel level, RandomSource random,
             List<java.util.function.Supplier<? extends net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>>> pool) {
         if (pool.isEmpty() || !DesignData.director().enabled) return null;
+        // 苗床のスポナーは F4 から。TD の前触れの間は止める(DirectorGates)
+        if (!DirectorGates.open(level, DirectorGates.Gate.SPAWNER) || DirectorGates.tdOmen(level)) return null;
         if (!tryPay(level, DesignData.director().costSpawn)) return null;
         spawnsBought++;
         setDirty();
@@ -365,6 +369,7 @@ public final class ForestDirector extends SavedData implements ForestBudget {
     public List<String> describe(ServerLevel level) {
         PhaseData phase = PhaseData.get(level);
         List<String> out = new ArrayList<>();
+        out.add(DirectorGates.describe(level));
         out.add(String.format(Locale.ROOT, "森の予算 %.1f / 上限 %.1f(ハイヴノード %d)・1 日に +%.1f(過繁茂のチャンク %d)",
                 available(level), cap(level), phase.hiveNodeSnapshot().length, incomePerDay(level), phase.overgrownLedgerSize()));
         DirectorTable t = DesignData.director();
