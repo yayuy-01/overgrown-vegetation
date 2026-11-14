@@ -36,8 +36,8 @@ import java.util.Map;
  * </ul>
  *
  * <h2>見た目の差し替え</h2>
- * {@link #render} の中身だけを替える(今は縁から内へ薄くなる黒い帯の仮の絵。F1 では出さない)。目の絵(ユーザーの 64×32 のまぶた・
- * 9×13 の瞳)は素材フォルダ {@code textures/gui/} に置き、ここから描く。時間の流れは上の読み口だけを使えばよい(tick は {@link #now()})。
+ * {@link #render} は {@link PhyllosensGazeEyes} へ渡すだけ(11-14 Fable: ユーザーの目の絵・仕掛け 6 つ・慣れ。仮の値もそこ。F1 では出さない)。
+ * 絵は素材フォルダ {@code textures/gui/phyllosens_gaze_eyes.png}。時間の流れは上の読み口だけを使う(tick は {@link #now()})。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, value = Dist.CLIENT)
 public final class PhyllosensGazeEdge {
@@ -166,7 +166,7 @@ public final class PhyllosensGazeEdge {
         return OvergrownClientConfig.CLIENT.gazePulse.get();
     }
 
-    // ------------------------------------------------------------------ 描画(仮)
+    // ------------------------------------------------------------------ 描画
 
     static void render(GuiGraphics g, DeltaTracker delta) {
         // 見た目は PhyllosensGazeEyes(ユーザーの目の絵・仕掛け 6 つ・慣れ。11-14 Fable)。仮の値もそこにまとめてある
