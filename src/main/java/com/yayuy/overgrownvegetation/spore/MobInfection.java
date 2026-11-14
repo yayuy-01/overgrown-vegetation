@@ -80,6 +80,8 @@ public final class MobInfection {
         ex.infectedGameTime = now;
         ex.exposedTicks = 0;
         infectedCount++;
+        MobInfectionSpec s = DesignData.sporeField().mobInfection();
+        if (s.enabled()) syncWeakness(entity, s.infectedSlowdown());
     }
 
     // ---------------------------------------------------------------- 1 回の判定(SporeExposureTracker から)
@@ -129,6 +131,29 @@ public final class MobInfection {
             level.sendParticles(ModParticles.SPORE_JET.get(), entity.getX(), entity.getEyeY() - 0.1D, entity.getZ(),
                     s.particleCount(), entity.getBbWidth() * 0.3D, 0.1D, entity.getBbWidth() * 0.3D, 0.02D);
         }
+        syncWeakness(entity, infected ? s.infectedSlowdown() : 0.0D);
+    }
+
+    /** 感染で弱った歩く速さの修飾の id(2026-11-14 ユーザー「感染後は弱って遅くなる」)。 */
+    public static final net.minecraft.resources.ResourceLocation WEAKNESS_ID = OvergrownVegetation.id("spore_infection_weakness");
+
+    /**
+     * 歩く速さの修飾を {@code slowdown}(0〜1、0 なら外す)に合わせる。一時の修飾なので保存されず、読み直した後は次の判定で付け直す
+     * (設計値を変えたときもそのまま効く)。
+     */
+    static void syncWeakness(LivingEntity entity, double slowdown) {
+        net.minecraft.world.entity.ai.attributes.AttributeInstance attr =
+                entity.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
+        if (attr == null) return;
+        net.minecraft.world.entity.ai.attributes.AttributeModifier old = attr.getModifier(WEAKNESS_ID);
+        if (slowdown <= 0.0D) {
+            if (old != null) attr.removeModifier(WEAKNESS_ID);
+            return;
+        }
+        if (old != null && Math.abs(old.amount() + slowdown) < 1.0E-9D) return;
+        attr.removeModifier(WEAKNESS_ID);
+        attr.addTransientModifier(new net.minecraft.world.entity.ai.attributes.AttributeModifier(WEAKNESS_ID, -slowdown,
+                net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
     }
 
     /** 逃げる側か: 動物・水の動物・村人と行商人【仮】(敵・ゴーレムは逃げない)。座っている飼い慣らした動物・つながれた Mob は逃げない。 */

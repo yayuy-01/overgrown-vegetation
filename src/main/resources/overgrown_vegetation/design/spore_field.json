@@ -78,7 +78,7 @@
     "mobIntervalTicks": 40
   },
   "mobInfection": {
-    "_comment": "Mob の胞子感染と飛び火・動物が汚染から逃げる(2026-11-14、正本は Vault「フェーズの仕組み(ポイント・日数)」の F1)。ユーザー指定: 植物側以外の全部の Mob は、暴露量が上がる所(Mob の濃度が exposure.minPercent 以上)に startSeconds 5 秒いると胞子感染になり、その後はその場を離れても毎秒暴露量が上がっていく・逃げた先で死に、そこからまた汚染が広がる(飛び火)・動物は汚染から逃げる。数はすべて仮決め: 数えている間の判定 countStepTicks 20、感染中は 1 秒に growPerSecond 12.5 %秒上がる(1500 で 20 ダメージなので体力 20 以下は約 2 分で死ぬ。アイアンゴーレムは 5 回で約 10 分)、飛び火 = 死んだチャンクへ降り積もり jumpDeposit 0.15(発芽のしきい値 0.05 の 3 倍)と浮遊 jumpEmit 0.1、同じチャンクは jumpCooldownTicks 1200 に 1 回。逃げる: 濃度 fleeStartPercent(0 = minPercent と同じ)以上で逃げ始め、出てから fleeLingerTicks 60 逃げ続ける、感染後はずっと逃げる、1 回に fleeDistance 16 ブロック先、速さの倍率 fleeSpeed 1.25・infectedFleeSpeed 1.0。粒は判定ごとに particleCount 2。enabled false で全部止まる(1500 で 20 ダメージだけに戻る)。",
+    "_comment": "Mob の胞子感染と飛び火・動物が汚染から逃げる(2026-11-14、正本は Vault「フェーズの仕組み(ポイント・日数)」の F1)。ユーザー指定: 植物側以外の全部の Mob は、暴露量が上がる所(Mob の濃度が exposure.minPercent 以上)に startSeconds 5 秒いると胞子感染になり、その後はその場を離れても毎秒暴露量が上がっていく・逃げた先で死に、そこからまた汚染が広がる(飛び火)・動物は汚染から逃げる。数はすべて仮決め: 数えている間の判定 countStepTicks 20、感染中は 1 秒に growPerSecond 12.5 %秒上がる(1500 で 20 ダメージなので体力 20 以下は約 2 分で死ぬ。アイアンゴーレムは 5 回で約 10 分)、飛び火 = 死んだチャンクへ降り積もり jumpDeposit 0.15(発芽のしきい値 0.05 の 3 倍)と浮遊 jumpEmit 0.1、同じチャンクは jumpCooldownTicks 1200 に 1 回。逃げる: 濃度 fleeStartPercent(0 = minPercent と同じ)以上で逃げ始め、出てから fleeLingerTicks 60 逃げ続ける、感染後はずっと逃げる、1 回に fleeDistance 16 ブロック先、速さの倍率 fleeSpeed 1.25・infectedFleeSpeed 1.0。粒は判定ごとに particleCount 2。enabled false で全部止まる(1500 で 20 ダメージだけに戻る)。 11-14 ユーザー「感染後は弱って遅くなる」(体の中の胞子が養分を奪う。死ぬまでの約 2 分は変えず、走る距離を 60〜100 ブロックに縮めて Mob の動く範囲の中で死ぬように): 歩く速さを infectedSlowdown 0.4 下げ、逃げる向きから左右に wobbleDegrees 50 度までふらつき、1 回に infectedStepDistance 8 ブロックずつ歩く(数は仮決め)。治らない・咳の音は入れない(ユーザー)。",
     "enabled": true,
     "startSeconds": 5.0,
     "countStepTicks": 20,
@@ -92,7 +92,10 @@
     "fleeDistance": 16,
     "fleeSpeed": 1.25,
     "infectedFleeSpeed": 1.0,
-    "particleCount": 2
+    "particleCount": 2,
+    "infectedSlowdown": 0.4,
+    "wobbleDegrees": 50.0,
+    "infectedStepDistance": 8
   },
   "sprouts": {
     "pointsPerChunk": 10,

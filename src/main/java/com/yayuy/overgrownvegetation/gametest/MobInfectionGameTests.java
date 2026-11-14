@@ -234,6 +234,37 @@ public final class MobInfectionGameTests {
         helper.succeed();
     }
 
+    /**
+     * 感染した後は弱って遅くなる(11-14 ユーザー): 歩く速さが infectedSlowdown だけ下がる。読み直した後も次の判定で付き直し、
+     * 感染の記録を消すと戻る。
+     */
+    @GameTest(template = "gametest_empty7", batch = BATCH)
+    public static void infectedMobIsSlowed(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Cow c = helper.spawnWithNoFreeWill(EntityType.COW, new BlockPos(3, 2, 3));
+        c.setInvulnerable(true);
+        var speed = net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED;
+        double base = c.getAttributeValue(speed);
+        MobInfection.infect(c, level.getGameTime());
+        double slowed = c.getAttributeValue(speed);
+        double expect = base * (1.0D - spec().infectedSlowdown());
+        net.minecraft.nbt.CompoundTag saved = new net.minecraft.nbt.CompoundTag();
+        c.saveWithoutId(saved);
+        Cow copy = EntityType.COW.create(level);
+        copy.load(saved);
+        copy.moveTo(c.position());
+        SporeExposureTracker.tickWith(level, copy, DesignData.sporeField().exposureMobIntervalTicks(), 0.0D);
+        double reloaded = copy.getAttributeValue(speed);
+        SporeExposureTracker.setDose(c, 0.0D, level.getGameTime()); // 記録ごと消す
+        SporeExposureTracker.tickWith(level, c, DesignData.sporeField().exposureMobIntervalTicks(), 0.0D);
+        double cleared = c.getAttributeValue(speed);
+        if (Math.abs(slowed - expect) > 1.0E-6D || Math.abs(reloaded - expect) > 1.0E-6D || Math.abs(cleared - base) > 1.0E-6D) {
+            helper.fail("速さ: もと " + base + "・感染 " + slowed + "・読み直し " + reloaded + "・消した後 " + cleared + "(期待 " + expect + ")");
+            return;
+        }
+        helper.succeed();
+    }
+
     /** 感染・感染した時刻・逃げる向きは保存して読み直しても残る。 */
     @GameTest(template = "gametest_empty7", batch = BATCH)
     public static void infectionSurvivesSaveAndLoad(GameTestHelper helper) {

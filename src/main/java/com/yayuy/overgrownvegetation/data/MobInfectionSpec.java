@@ -19,6 +19,9 @@ package com.yayuy.overgrownvegetation.data;
  * 逃げる: 濃度が {@code fleeStartPercent}(0 = exposure.minPercent と同じ)以上の所で逃げ始め、出てから {@code fleeLingerTicks} 逃げ続ける。
  * 感染した後はずっと逃げる(汚染の無い所では最後の向きのまま)。1 回に {@code fleeDistance} ブロック先へ、速さの倍率は感染前 {@code fleeSpeed}・
  * 感染後 {@code infectedFleeSpeed}。粒は判定ごとに {@code particleCount} 個。
+ * 感染後は弱って遅くなる(11-14 ユーザー): 歩く速さを {@code infectedSlowdown} 0.4 だけ下げ(属性の修飾・保存される)、逃げる向きから左右に
+ * {@code wobbleDegrees} 50 度までふらつき、1 回に {@code infectedStepDistance} 8 ブロックずつ歩く(歩き直すたびに少し立ち止まる)。
+ * 死ぬまでの約 2 分は変えず、走る距離を 60〜100 ブロックに縮めて Mob の動く範囲の中で死ぬようにするため。
  */
 public record MobInfectionSpec(
         boolean enabled,
@@ -34,7 +37,10 @@ public record MobInfectionSpec(
         int fleeDistance,
         double fleeSpeed,
         double infectedFleeSpeed,
-        int particleCount) {
+        int particleCount,
+        double infectedSlowdown,
+        double wobbleDegrees,
+        int infectedStepDistance) {
 
     /** Gson の受け皿(null は既定値)。 */
     public static final class Json {
@@ -65,6 +71,12 @@ public record MobInfectionSpec(
         public Double fleeSpeed, infectedFleeSpeed;
         /** 感染した Mob から判定ごとに出る胞子の粒の数。 */
         public Integer particleCount;
+        /** 感染後の歩く速さの減り(0.4 = 40% 遅く。体の中の胞子が養分を奪う、11-14 ユーザー「感染後は弱って遅くなる」)。 */
+        public Double infectedSlowdown;
+        /** 感染後にふらつく角度(逃げる向きから左右にこの度数まで乱れる)。 */
+        public Double wobbleDegrees;
+        /** 感染後に 1 回に歩く先の距離(ブロック。短いほど立ち止まりが増える)。 */
+        public Integer infectedStepDistance;
     }
 
     public static final MobInfectionSpec DEFAULT = from(null);
@@ -85,7 +97,10 @@ public record MobInfectionSpec(
                 i(s.fleeDistance, 16, 4, 64),
                 d(s.fleeSpeed, 1.25D, 0.1D, 5.0D),
                 d(s.infectedFleeSpeed, 1.0D, 0.1D, 5.0D),
-                i(s.particleCount, 2, 0, 64));
+                i(s.particleCount, 2, 0, 64),
+                d(s.infectedSlowdown, 0.4D, 0.0D, 0.95D),
+                d(s.wobbleDegrees, 50.0D, 0.0D, 180.0D),
+                i(s.infectedStepDistance, 8, 2, 64));
     }
 
     private static int i(Integer v, int def, int lo, int hi) {

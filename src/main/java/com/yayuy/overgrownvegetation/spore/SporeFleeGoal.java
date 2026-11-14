@@ -66,12 +66,25 @@ public final class SporeFleeGoal extends Goal {
         return MobInfection.isInfected(mob) ? s.infectedFleeSpeed() : s.fleeSpeed();
     }
 
-    /** 逃げる向きへ fleeDistance 先(歩ける所が見つからなければその点そのもの)。 */
+    /**
+     * 逃げる向きへ fleeDistance 先(歩ける所が見つからなければその点そのもの)。感染した後は弱ってふらつく(11-14 ユーザー):
+     * 向きを左右に wobbleDegrees まで乱し、1 回に infectedStepDistance だけ歩く(歩き直すまでの間が立ち止まりになる)。
+     */
     private Vec3 pickTarget() {
         SporeExposure ex = mob.getData(ModAttachments.SPORE_EXPOSURE);
-        int dist = DesignData.sporeField().mobInfection().fleeDistance();
-        Vec3 want = mob.position().add(ex.fleeX * dist, 0.0D, ex.fleeZ * dist);
-        Vec3 p = DefaultRandomPos.getPosTowards(mob, dist, 7, want, Math.PI / 3.0D);
+        MobInfectionSpec s = DesignData.sporeField().mobInfection();
+        boolean infected = ex.infected;
+        int dist = infected ? s.infectedStepDistance() : s.fleeDistance();
+        double dx = ex.fleeX, dz = ex.fleeZ;
+        if (infected && s.wobbleDegrees() > 0.0D) {
+            double a = Math.toRadians((mob.getRandom().nextDouble() * 2.0D - 1.0D) * s.wobbleDegrees());
+            double c = Math.cos(a), sn = Math.sin(a);
+            double rx = dx * c - dz * sn, rz = dx * sn + dz * c;
+            dx = rx;
+            dz = rz;
+        }
+        Vec3 want = mob.position().add(dx * dist, 0.0D, dz * dist);
+        Vec3 p = DefaultRandomPos.getPosTowards(mob, dist, 7, want, infected ? Math.PI / 6.0D : Math.PI / 3.0D);
         return p != null ? p : want;
     }
 }
