@@ -67,7 +67,7 @@ public final class SporeExposureTracker {
         boolean player = entity instanceof Player;
         if (!player && !isMeasuredMob(entity)) return;
         SporeFieldTable t = DesignData.sporeField();
-        int interval = player ? t.exposurePlayerIntervalTicks() : t.exposureMobIntervalTicks();
+        int interval = player ? t.exposurePlayerIntervalTicks() : MobInfection.intervalFor(entity, t.exposureMobIntervalTicks());
         if (interval > 1 && Math.floorMod(entity.tickCount + entity.getId(), interval) != 0) return;
         if (!entity.isAlive()) return;
         if (player && entity.isSpectator()) {
@@ -115,7 +115,15 @@ public final class SporeExposureTracker {
         double percent = mobPercent(level, entity, rawPercent);
         boolean protecting = wearMask(entity, percent, interval);
         boolean wasFull = dose(entity) >= DesignData.sporeField().infectDose(); // 減る前に満ちていた分(コマンドで決めたときなど)も拾う
-        accumulate(entity, percent, protecting ? 0.0D : 1.0D, interval, now, percent > 0.0D ? roomSeepPerSecond : 0.0D);
+        if (MobInfection.isInfected(entity)) {
+            // 感染した後(2026-11-14): 減らず、体の中の胞子が育つ。濃い所ではその分も足す(マスクが効いていれば外の分は足さない)
+            if (!protecting && percent >= DesignData.sporeField().exposureMinPercent()) accumulate(entity, percent, 1.0D, interval, now);
+            MobInfection.grow(entity, interval);
+        } else {
+            accumulate(entity, percent, protecting ? 0.0D : 1.0D, interval, now, percent > 0.0D ? roomSeepPerSecond : 0.0D);
+            MobInfection.countExposure(entity, protecting ? 0.0D : percent, interval, now); // 5 秒で感染(2026-11-14)
+        }
+        MobInfection.afterCheck(level, entity, percent, now);
         if (entity.hasData(ModAttachments.SPORE_EXPOSURE)) {
             SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
             if (wasFull || ex.dose >= DesignData.sporeField().infectDose()) {

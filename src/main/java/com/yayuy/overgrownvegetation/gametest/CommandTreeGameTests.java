@@ -47,7 +47,8 @@ public final class CommandTreeGameTests {
             // 2026-11-13: サバイバルの背骨 段 2b で地脈を確かめる ley(線までの距離・効率・近くの線へ飛ぶ near)を足した。
             // 2026-11-14: 段 2c で換気機を確かめる vent(動いている機械・ここが範囲か・まわりを過繁茂の台帳に載せる forest)を足した。
             // 2026-11-14: 汚染の広がりの速さの計測(見直し (B) 10)で、台帳の広がり・前線・累計ポイントを 1 行で出す spread を足した。
-            Map.entry("perf", Set.of("bench", "fluid", "record", "spore", "g1", "ley", "vent", "spread")),
+            // 2026-11-14: Mob の感染と飛び火を確かめる infection(感染した数・飛び火の回数・感染させる infect・1 体を見る show)を足した。
+            Map.entry("perf", Set.of("bench", "fluid", "record", "spore", "g1", "ley", "vent", "spread", "infection")),
             // 2026-11-08: 環境ギミック G4 胞子の風・G5 光る胞子の夜を自分のゲームで確かめる fx(依頼「/ov か DevBridge に足す」。要らなければ消す)。
             // 2026-11-14: 任意の SoundEvent を鳴らすときに汚して鳴らす voice(声の加工の試作・voice/VoiceCommand)を足した。
             Map.entry("fx", Set.of("gale", "glownight", "status", "voice")),
