@@ -63,7 +63,9 @@ public final class SporeFieldServer {
 
     private static SporeField field;
     /** 場がどの暦まで進んだか(サーバースレッドが持つ)。 */
-    private static long fieldClock = Long.MIN_VALUE;
+    private static volatile long fieldClock = Long.MIN_VALUE;
+    /** 場そのものがどの暦まで計算されたか(場の鍵を持って書く。計算が済んで当てはめ待ちの間は fieldClock より先。保存はこちらも見る。2026-11-15)。 */
+    private static volatile long computedClock = Long.MIN_VALUE;
     private static MinecraftServer current;
     /** 直近の計算の要約(/ov perf spore)。 */
     private static volatile String lastSummary = "まだ回っていない";
@@ -91,6 +93,14 @@ public final class SporeFieldServer {
             runs = steps = computeNanos = computeMaxNanos = gatherNanos = gatherMaxNanos = applyNanos = applyMaxNanos = 0;
             saves = savesSkipped = saveLockNanos = saveSnapNanos = saveSnapMaxNanos = saveLockMaxNanos = 0;
         }
+    }
+
+    /** 計測用: 場の中の数え(始まってからの累計。計算の最中でも読める。きっちり揃った値ではない)。 */
+    public static String devLive() {
+        SporeField df = field;
+        if (df == null) return "";
+        return String.format("tilesNow=%d newTiles=%d (%.0fms) revived=%d dormant=%d evicted=%d removed=%d stepOnce=%.0fms parcels=%.0fms", df.tileCount(),
+                df.devNewTiles, df.devNewTileNanos / 1e6, df.devRevived, df.dormantCount(), df.devEvicted, df.devRemoved, df.devOnceNanos / 1e6, df.devParcelNanos / 1e6);
     }
 
     /** 計測用: 自動保存と同じ道で場を保存する。 */
@@ -288,6 +298,7 @@ public final class SporeFieldServer {
             });
             field = f;
             fieldClock = clock[0];
+            computedClock = clock[0];
             WAITING.clear();
             f.forEachWaiting(WAITING::add);
             DevStats.loadNanos = System.nanoTime() - loadT0;
@@ -308,6 +319,7 @@ public final class SporeFieldServer {
             LOCK.unlock();
         }
         fieldClock = Long.MIN_VALUE;
+        computedClock = Long.MIN_VALUE;
         lastSummary = "まだ回っていない"; // 次に開くワールドへ前のワールドの要約を見せない
         current = null;
         READOUT = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
@@ -327,39 +339,10 @@ public final class SporeFieldServer {
     }
 
     private static void save(MinecraftServer server, boolean wait) {
-        SporeFieldStore.Snapshot snap;
-        long saveT0 = System.nanoTime();
-        try {
-            // 裏で計算中なら終わるのを待つ(閉じるときは必ず、自動保存は 2 秒まで)
-            if (wait) LOCK.lock();
-            else if (!LOCK.tryLock(2, TimeUnit.SECONDS)) {
-                DevStats.savesSkipped++;
-                DevStats.saveLockNanos += System.nanoTime() - saveT0;
-                DevStats.saveLockMaxNanos = Math.max(DevStats.saveLockMaxNanos, System.nanoTime() - saveT0);
-                return;
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return;
-        }
-        try {
-            if (field == null) return;
-            long saveT1 = System.nanoTime();
-            snap = SporeFieldStore.snapshot(field, fieldClock);
-            long saveT2 = System.nanoTime();
-            DevStats.saves++;
-            DevStats.saveLockNanos += saveT1 - saveT0;
-            DevStats.saveLockMaxNanos = Math.max(DevStats.saveLockMaxNanos, saveT1 - saveT0);
-            DevStats.saveSnapNanos += saveT2 - saveT1;
-            DevStats.saveSnapMaxNanos = Math.max(DevStats.saveSnapMaxNanos, saveT2 - saveT1);
-            int changed = 0;
-            for (Object[] e : snap.tiles()) if (e[1] != null) changed++;
-            DevStats.lastSaveTiles = snap.tiles().size();
-            DevStats.lastSaveChanged = changed;
-        } finally {
-            LOCK.unlock();
-        }
-        SporeFieldStore.write(server, snap, wait);
+        // 2026-11-15 軽量化 C: 鍵待ち・写し・書き出しを丸ごと IO スレッドで(サーバースレッドは待たない。閉じるときだけ終わりを待つ)
+        SporeField f = field;
+        if (f == null) return;
+        SporeFieldStore.saveOffThread(server, LOCK, f, () -> Math.max(fieldClock, computedClock), SporeFieldStore.DIR, wait, true);
     }
 
     // ---------------------------------------------------------------- 回す
@@ -596,6 +579,7 @@ public final class SporeFieldServer {
             }
             lastFrontCells = frontCells;
             lastFronts = f.fronts.size();
+            computedClock = in.fromClock + (long) in.steps * in.stepTicks; // 場はここまで進んだ(保存の暦)
             return new Result(in.fromClock + (long) in.steps * in.stepTicks, in.steps, sprouts.toLongArray(),
                     System.nanoTime() - t0, f.tileCount(), f.corruptedCount, f.parcels.size(), readout(f, in), seconds.toLongArray(),
                     caves.toLongArray(), in.vents.pos(), ventTaken);
@@ -621,8 +605,6 @@ public final class SporeFieldServer {
             DevStats.lastComputeNanos = r.nanos;
             DevStats.lastTiles = r.tiles;
             DevStats.lastParcels = r.parcels;
-            SporeField df = field;
-            if (df != null) DevStats.fieldDev = String.format("newTiles=%d (%.0fms) revived=%d removed=%d stepOnce=%.0fms parcels=%.0fms", df.devNewTiles, df.devNewTileNanos / 1e6, df.devRevived, df.devRemoved, df.devOnceNanos / 1e6, df.devParcelNanos / 1e6);
         }
     }
 

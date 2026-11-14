@@ -48,7 +48,7 @@ final class SporeFieldStore {
      * 区画ごとの、最後に書いた(または読んだ)中身の指紋(2026-10-23: 変わった区画だけ書く)。サーバースレッドだけが触る。
      * 書き出しに失敗したら空にする(次の保存で全部書き直す)。
      */
-    private static final java.util.Map<String, java.util.Map<String, Long>> SAVED_HASH = new java.util.HashMap<>();
+    private static final java.util.Map<String, java.util.Map<String, Long>> SAVED_HASH = new java.util.concurrent.ConcurrentHashMap<>();
 
     /** 場ごとの保存のフォルダ名(オーバーワールド = {@link #DIR}、ネザー = {@link #NETHER_DIR}。2026-10-23 F)。 */
     static final String NETHER_DIR = "overgrown_vegetation_spore_field_nether";
@@ -58,7 +58,7 @@ final class SporeFieldStore {
     }
 
     private static java.util.Map<String, Long> savedHash(String name) {
-        return SAVED_HASH.computeIfAbsent(name, k -> new java.util.HashMap<>());
+        return SAVED_HASH.computeIfAbsent(name, k -> new java.util.concurrent.ConcurrentHashMap<>());
     }
 
     private SporeFieldStore() {
@@ -262,35 +262,97 @@ final class SporeFieldStore {
     record Snapshot(List<Object[]> tiles, CompoundTag meta, String dirName) {
     }
 
-    /** 書き出す。{@code wait} なら書き終わるまで待つ(ワールドを閉じるとき)。 */
-    static void write(MinecraftServer server, Snapshot snap, boolean wait) {
+    /** 前の自動保存がまだ並んでいる・書いている最中か(場ごと)。 */
+    private static final java.util.Map<String, java.util.concurrent.atomic.AtomicBoolean> QUEUED = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * 保存を丸ごと IO スレッドで(2026-11-15 軽量化 C): 場の鍵を待つ・写しを取る・書き出す。サーバースレッドは頼むだけで待たない
+     * (前は鍵を最大 2 秒待ってサーバーが止まり、取れなければその回の保存を飛ばしていた)。{@code wait}(ワールドを閉じるとき)は終わるまで待つ。
+     * 自動保存は、前の自動保存がまだ終わっていなければ足さない(書き出しが長いときに積もらせない。次の自動保存で書く)。
+     * {@code clock} は鍵を持った所で呼ぶ(場がどの暦まで進んだか)。
+     */
+    static void saveOffThread(MinecraftServer server, java.util.concurrent.locks.ReentrantLock lock, SporeField field,
+                              java.util.function.LongSupplier clock, String dirName, boolean wait, boolean stats) {
+        java.util.concurrent.atomic.AtomicBoolean queued = QUEUED.computeIfAbsent(dirName, k -> new java.util.concurrent.atomic.AtomicBoolean());
+        if (!wait && !queued.compareAndSet(false, true)) {
+            if (stats) SporeFieldServer.DevStats.savesSkipped++;
+            return;
+        }
+        Runnable job = () -> {
+            try {
+                long t0 = System.nanoTime();
+                Snapshot snap;
+                lock.lock();
+                long t1 = System.nanoTime();
+                try {
+                    snap = snapshot(field, clock.getAsLong(), dirName);
+                } finally {
+                    lock.unlock();
+                }
+                if (stats) {
+                    long t2 = System.nanoTime();
+                    SporeFieldServer.DevStats.saves++;
+                    SporeFieldServer.DevStats.saveLockNanos += t1 - t0;
+                    SporeFieldServer.DevStats.saveLockMaxNanos = Math.max(SporeFieldServer.DevStats.saveLockMaxNanos, t1 - t0);
+                    SporeFieldServer.DevStats.saveSnapNanos += t2 - t1;
+                    SporeFieldServer.DevStats.saveSnapMaxNanos = Math.max(SporeFieldServer.DevStats.saveSnapMaxNanos, t2 - t1);
+                    int changed = 0;
+                    for (Object[] e : snap.tiles()) if (e[1] != null) changed++;
+                    SporeFieldServer.DevStats.lastSaveTiles = snap.tiles().size();
+                    SporeFieldServer.DevStats.lastSaveChanged = changed;
+                }
+                writeNow(server, snap, true);
+            } catch (RuntimeException e) {
+                OvergrownVegetation.LOGGER.error("胞子の場を保存できませんでした: {}", dirName, e);
+            } finally {
+                if (!wait) queued.set(false);
+            }
+        };
+        if (wait) {
+            try {
+                IO.submit(job).get();
+            } catch (Exception e) {
+                OvergrownVegetation.LOGGER.error("胞子の場の書き出しを待てませんでした", e);
+            }
+        } else {
+            IO.execute(job);
+        }
+    }
+
+    /** 写しを書き出す(呼んだスレッドで)。{@code onIoThread} = IO スレッドから(指紋の表を直に触ってよい)。 */
+    private static void writeNow(MinecraftServer server, Snapshot snap, boolean onIoThread) {
         Path dir = dir(server, snap.dirName());
         Set<String> written = written(snap.dirName());
         java.util.Map<String, Long> savedHash = savedHash(snap.dirName());
-        Runnable job = () -> {
-            long w0 = System.nanoTime(); // 計測(2026-11-14)
-            try {
-                Files.createDirectories(dir);
-                Set<String> now = new HashSet<>();
-                for (Object[] e : snap.tiles()) {
-                    String name = (String) e[0];
-                    now.add(name);
-                    if (e[1] != null) writeAtomic(dir.resolve(name), (CompoundTag) e[1]); // null = 変わっていない
-                }
-                writeAtomic(dir.resolve("meta.dat"), snap.meta());
-                synchronized (written) {
-                    for (String old : written) {
-                        if (!now.contains(old)) Files.deleteIfExists(dir.resolve(old));
-                    }
-                    written.clear();
-                    written.addAll(now);
-                }
-                SporeFieldServer.DevStats.lastWriteNanos = System.nanoTime() - w0;
-            } catch (IOException e) {
-                OvergrownVegetation.LOGGER.error("胞子の場を書き出せませんでした: {}", dir, e);
-                server.execute(savedHash::clear); // 次の保存で全部書き直す
+        long w0 = System.nanoTime(); // 計測(2026-11-14)
+        try {
+            Files.createDirectories(dir);
+            Set<String> now = new HashSet<>();
+            for (Object[] e : snap.tiles()) {
+                String name = (String) e[0];
+                now.add(name);
+                if (e[1] != null) writeAtomic(dir.resolve(name), (CompoundTag) e[1]); // null = 変わっていない
             }
-        };
+            writeAtomic(dir.resolve("meta.dat"), snap.meta());
+            synchronized (written) {
+                for (String old : written) {
+                    if (!now.contains(old)) Files.deleteIfExists(dir.resolve(old));
+                }
+                written.clear();
+                written.addAll(now);
+            }
+            SporeFieldServer.DevStats.lastWriteNanos = System.nanoTime() - w0;
+        } catch (IOException e) {
+            OvergrownVegetation.LOGGER.error("胞子の場を書き出せませんでした: {}", dir, e);
+            // 次の保存で全部書き直す
+            if (onIoThread) savedHash.clear();
+            else server.execute(savedHash::clear);
+        }
+    }
+
+    /** 書き出す。{@code wait} なら書き終わるまで待つ(ワールドを閉じるとき)。 */
+    static void write(MinecraftServer server, Snapshot snap, boolean wait) {
+        Runnable job = () -> writeNow(server, snap, false);
         if (wait) {
             try {
                 IO.submit(job).get();

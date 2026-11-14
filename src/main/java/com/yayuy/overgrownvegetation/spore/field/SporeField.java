@@ -330,7 +330,12 @@ public final class SporeField {
     /** 計測用の切り替え: 捨てた区画を控えに置く(軽量化 A。既定は入り)。false で前の動き(毎回作り直す)。 */
     public static volatile boolean devDormant = !Boolean.getBoolean("ov.spore.noDormant");
     /** 計測: 控えから戻した区画の数。 */
-    public long devRevived;
+    public long devRevived, devEvicted;
+
+    /** 計測: 控えの数。 */
+    public int dormantCount() {
+        return dormant.size();
+    }
 
     public SporeField(long seed, Params p) {
         this.seed = seed;
@@ -347,10 +352,11 @@ public final class SporeField {
         Tile t = index.get(k);
         if (t == null && create) {
             // 捨てた空の区画が控えにあれば戻す(2026-11-15 軽量化 A。土地の表を引き直さない。中身は捨てたときに空にしてある)
-            t = dormant.remove(k);
-            if (t == null) t = newTile(tx, tz);
+            Land land = dormant.remove(k);
+            if (land == null) t = newTile(tx, tz);
             else {
                 devRevived++;
+                t = land.revive(tx, tz);
                 if (thermal != null) fillTemp(t);
             }
             tiles.put(k, t);
@@ -365,37 +371,44 @@ public final class SporeField {
      * 捨てるときに中身を空にしてここへ置き、次に要るときに戻す。場の答えは捨てて作り直したときと同じ
      * (違いは、読み込まれたチャンクから入れた本物の高さ・洞窟の口の値が残ること)。古い順に {@link #DORMANT_MAX} 個まで。保存はしない。
      */
-    private final java.util.LinkedHashMap<Long, Tile> dormant = new java.util.LinkedHashMap<>(64, 0.75f, false) {
+    private final java.util.LinkedHashMap<Long, Land> dormant = new java.util.LinkedHashMap<>(64, 0.75f, false) {
         @Override
-        protected boolean removeEldestEntry(java.util.Map.Entry<Long, Tile> eldest) {
-            return size() > DORMANT_MAX;
+        protected boolean removeEldestEntry(java.util.Map.Entry<Long, Land> eldest) {
+            boolean drop = size() > DORMANT_MAX;
+            if (drop) devEvicted++;
+            return drop;
         }
     };
-    /** 控えの上限(1 個 約 74 KB。1024 個で約 75 MB)。 */
-    static final int DORMANT_MAX = 1024;
+    /** 控えの上限(土地の表だけ持つので 1 個 約 21 KB。8192 個で約 170 MB。530 万チャンクの縁の帯と飛び地のまわりが入る大きさ)。 */
+    static final int DORMANT_MAX = 8192;
 
-    /** 空の区画を控えへ回す前に、動く値を全部 0 に戻す(新しく作った区画と同じ中身にする)。土地の表・高さ・洞窟の口は残す。 */
-    private static void clearForDormant(Tile t) {
-        java.util.Arrays.fill(t.air, 0f);
-        java.util.Arrays.fill(t.next, 0f);
-        java.util.Arrays.fill(t.dep, 0f);
-        java.util.Arrays.fill(t.low, 0f);
-        java.util.Arrays.fill(t.lowNext, 0f);
-        java.util.Arrays.fill(t.inAir, (short) 0);
-        java.util.Arrays.fill(t.inLow, (short) 0);
-        java.util.Arrays.fill(t.inAirNext, 0f);
-        java.util.Arrays.fill(t.inLowNext, 0f);
-        if (t.inAirF != null) java.util.Arrays.fill(t.inAirF, 0f);
-        if (t.inLowF != null) java.util.Arrays.fill(t.inLowF, 0f);
-        java.util.Arrays.fill(t.under, 0f);
-        java.util.Arrays.fill(t.underDep, 0f);
-        java.util.Arrays.fill(t.flags, (byte) 0);
-        java.util.Arrays.fill(t.count, (byte) 0);
-        java.util.Arrays.fill(t.caveCount, (byte) 0);
-        java.util.Arrays.fill(t.sprout, NOT);
-        t.corrupted = 0;
-        t.lifted = t.liftX = t.liftZ = 0;
-        t.interior = false;
+    /** 捨てた区画の土地の表(動かない値だけ)。戻すときは新しい空の区画にこれを付ける = 作り直したときと同じ中身。 */
+    private static final class Land {
+        final float[] germ, spread, airEmit, height, mouth;
+        final boolean[] wet;
+        final int never;
+
+        Land(Tile t) {
+            germ = t.germ;
+            spread = t.spread;
+            airEmit = t.airEmit;
+            height = t.height;
+            mouth = t.mouth;
+            wet = t.wet;
+            never = t.never;
+        }
+
+        Tile revive(int tx, int tz) {
+            Tile t = new Tile(tx, tz);
+            t.germ = germ;
+            t.spread = spread;
+            t.airEmit = airEmit;
+            t.height = height;
+            t.wet = wet;
+            t.never = never;
+            System.arraycopy(mouth, 0, t.mouth, 0, TN);
+            return t;
+        }
     }
 
     static int idx(int cx, int cz) {
@@ -1307,10 +1320,7 @@ public final class SporeField {
             for (long kk : empty) {
                 Tile gone = tiles.remove(kk);
                 index.remove(kk);
-                if (gone != null && devDormant) {
-                    clearForDormant(gone);
-                    dormant.put(kk, gone);
-                }
+                if (gone != null && devDormant) dormant.put(kk, new Land(gone));
             }
             devRemoved += empty.size();
         }

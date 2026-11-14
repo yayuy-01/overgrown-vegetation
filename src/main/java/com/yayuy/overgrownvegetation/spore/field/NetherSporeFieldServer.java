@@ -60,7 +60,7 @@ public final class NetherSporeFieldServer {
     static final ConcurrentLinkedQueue<Consumer<SporeField>> INPUTS = new ConcurrentLinkedQueue<>();
     private static final BackgroundTask<Result> TASK = new BackgroundTask<>("胞子の場(ネザー)");
     private static SporeField field;
-    private static long fieldClock = Long.MIN_VALUE;
+    private static volatile long fieldClock = Long.MIN_VALUE;
     private static volatile Long2ObjectOpenHashMap<SporeFieldServer.Readout> READOUT = new Long2ObjectOpenHashMap<>();
     /** プレイヤーがいなくても写したい区画(ポータル・テスト)。 */
     private static final LongOpenHashSet WATCH_EXTRA = new LongOpenHashSet();
@@ -152,21 +152,10 @@ public final class NetherSporeFieldServer {
     }
 
     private static void save(MinecraftServer server, boolean wait) {
-        SporeFieldStore.Snapshot snap;
-        try {
-            if (wait) LOCK.lock();
-            else if (!LOCK.tryLock(2, TimeUnit.SECONDS)) return;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return;
-        }
-        try {
-            if (field == null) return;
-            snap = SporeFieldStore.snapshot(field, fieldClock, SporeFieldStore.NETHER_DIR);
-        } finally {
-            LOCK.unlock();
-        }
-        SporeFieldStore.write(server, snap, wait);
+        // 2026-11-15 軽量化 C: 鍵待ち・写し・書き出しを丸ごと IO スレッドで(サーバースレッドは待たない。閉じるときだけ終わりを待つ)
+        SporeField f = field;
+        if (f == null) return;
+        SporeFieldStore.saveOffThread(server, LOCK, f, () -> fieldClock, SporeFieldStore.NETHER_DIR, wait, false);
     }
 
     // ---------------------------------------------------------------- 回す

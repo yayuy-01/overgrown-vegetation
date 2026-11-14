@@ -108,7 +108,7 @@ final class SpreadPerfDev {
         Path data = level.getServer().getWorldPath(LevelResource.ROOT).resolve("data");
         long[] dir = dirSize(data.resolve("overgrown_vegetation_spore_field"));
         String a = String.format("SPREADSTAT ledger=%d phase=%d lag=%d tiles=%d parcels=%d pending=%d | field(bg) runs=%d steps=%d avg=%.1fms max=%.1fms last=%.1fms perStep=%.1fms"
-                        + " | serverThread gather avg=%.3fms max=%.3fms apply avg=%.3fms max=%.3fms | load=%.0fms | " + DevStats.fieldDev.replace("%", ""),
+                        + " | serverThread gather avg=%.3fms max=%.3fms apply avg=%.3fms max=%.3fms | load=%.0fms | " + SporeFieldServer.devLive(),
                 pd.overgrownLedgerSize(), pd.getPhase(), fc == Long.MIN_VALUE ? -1 : clock - fc, DevStats.lastTiles, DevStats.lastParcels,
                 LedgerSpreadData.get(level.getServer()).pendingCount(),
                 DevStats.runs, DevStats.steps, DevStats.computeNanos / 1e6 / runs, DevStats.computeMaxNanos / 1e6, DevStats.lastComputeNanos / 1e6,
