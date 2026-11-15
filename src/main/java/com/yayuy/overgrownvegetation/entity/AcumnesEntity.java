@@ -229,6 +229,14 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
      * 木から飛び立つ前の溜め【決定 11-15 ユーザー: 溜めるのは枝(今は木のてっぺん)から飛び立つときだけ】。
      * 空中の「止まっては飛ぶ」は溜めずに dart で鋭く移る。
      */
+    /** 止まった姿(案 A「若枝」)は針の先が足元 +7.35 なので、止まり木の真上を 8 空ける(Vault 5.7 の 12。既定は 6)。 */
+    public static final double PERCH_CLEAR_UP = 8.0D;
+
+    @Override
+    protected double perchClearUp() {
+        return PERCH_CLEAR_UP;
+    }
+
     @Override
     protected int takeoffWindupTicks() {
         return WINDUP_TICKS + ENTRY_SHORT;

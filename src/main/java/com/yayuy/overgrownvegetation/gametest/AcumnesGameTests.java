@@ -292,6 +292,27 @@ public final class AcumnesGameTests {
     }
 
     /**
+     * 止まり木の真上の空きは種ごと(Vault 5.7 の 12): アクムネスは 8(若枝の姿 7.35)、既定(ヴェロフィルなど)は 6 のまま。
+     * 葉の 7 ブロック上に石があると、既定では止まれて、アクムネスの空きでは止まれない。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void perchClearanceIsPerSpecies(GameTestHelper helper) {
+        helper.setBlock(new BlockPos(3, 1, 3), Blocks.OAK_LEAVES.defaultBlockState().setValue(LeavesBlock.PERSISTENT, true));
+        helper.setBlock(new BlockPos(3, 8, 3), Blocks.STONE);
+        BlockPos top = helper.absolutePos(new BlockPos(3, 1, 3));
+        var level = helper.getLevel();
+        if (!com.yayuy.overgrownvegetation.entity.flyer.SkyProbe.clearAbove(level, top)) {
+            helper.fail("既定(6)で止まれない(ほかの種の動きが変わった)");
+            return;
+        }
+        if (com.yayuy.overgrownvegetation.entity.flyer.SkyProbe.clearAbove(level, top, AcumnesEntity.PERCH_CLEAR_UP)) {
+            helper.fail("アクムネスの空き 8 なのに 7 上の石を見逃した");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
      * 木から飛び立つときだけ溜める【決定 11-15 ユーザー】: 叩かれてもその場で takeoff_windup の分(8 + 入りの補間 3 tick)は動かず、
      * 送る段は「溜め」。その後に昇る段へ移る。
      */

@@ -223,9 +223,11 @@ public final class Flock {
     /** 止まり木を探して割り当てる。見つからなければ 100 tick 後に探し直す(その間は巡回のまま)。 */
     void pickRoost(ServerLevel level, BlockPos center) {
         int n = this.members.size();
-        List<BlockPos> spots = SkyProbe.findPerches(level, center, ROOST_RADIUS, n, PERCH_GAP);
+        SkyFlyer lead = leader();
+        double up = lead != null ? lead.perchClearUp() : SkyProbe.CLEAR_UP;   // 種ごとの真上の空き(既定 6)
+        List<BlockPos> spots = SkyProbe.findPerches(level, center, ROOST_RADIUS, n, PERCH_GAP, up);
         if (spots.size() < n) {
-            List<BlockPos> wide = SkyProbe.findPerches(level, center, ROOST_RADIUS_WIDE, n, PERCH_GAP);
+            List<BlockPos> wide = SkyProbe.findPerches(level, center, ROOST_RADIUS_WIDE, n, PERCH_GAP, up);
             if (wide.size() > spots.size()) spots = wide;
         }
         if (spots.isEmpty()) {

@@ -226,6 +226,14 @@ public abstract class SkyFlyer extends Monster {
     }
 
     /**
+     * 止まり木の真上に空けておく高さ(2026-11-15 アクムネス段 2 で足した。既定 {@link SkyProbe#CLEAR_UP} = 6 = 今まで通り)。
+     * 止まった姿が高い種(アクムネスの若枝 7.35)は大きくする。群れの止まり木は先頭の値で探す。
+     */
+    protected double perchClearUp() {
+        return SkyProbe.CLEAR_UP;
+    }
+
+    /**
      * 止まっている群れが一斉に飛び立つ距離(2026-11-15 セミナリア段 2 で足した。既定 {@link #FLUSH_RANGE} = 今まで通り)。
      * しゃがんでいるときは同じ割合で縮める(既定 8 → 4)。
      */
@@ -508,7 +516,7 @@ public abstract class SkyFlyer extends Monster {
                     this.cmdY = ty + 1.5D + d * 0.4D;
                 }
                 mustReach = true;
-                if (d < 2.5D && this.getY() - ty < SkyProbe.CLEAR_UP || d < 8.0D && this.modeTicks > 400) {
+                if (d < 2.5D && this.getY() - ty < perchClearUp() || d < 8.0D && this.modeTicks > 400) {
                     setMode(MODE_LANDING);
                     return;
                 }
@@ -653,16 +661,16 @@ public abstract class SkyFlyer extends Monster {
         }
         if (this.modeTicks > 200) {
             // 降りきれない(何かに阻まれた): 近くの別の止まり木へ替えてから飛び直す(同じ所へ降り続けない)
-            this.perch = pickSparePerch(sl, f, this.perch);
+            this.perch = pickSparePerch(sl, f, this.perch, perchClearUp());
             startTakeoff();
         }
     }
 
     /** old の近く(半径 10)で、群れのほかの個体が使っていない止まり木。無ければ null(止まり木のまわりを回る)。 */
     @Nullable
-    private static BlockPos pickSparePerch(ServerLevel sl, Flock f, @Nullable BlockPos old) {
+    private static BlockPos pickSparePerch(ServerLevel sl, Flock f, @Nullable BlockPos old, double clearUp) {
         if (old == null) return null;
-        for (BlockPos c : SkyProbe.findPerches(sl, old, 10, 12, Flock.PERCH_GAP)) {
+        for (BlockPos c : SkyProbe.findPerches(sl, old, 10, 12, Flock.PERCH_GAP, clearUp)) {
             if (c.equals(old)) continue;
             boolean used = false;
             for (SkyFlyer m : f.members) {

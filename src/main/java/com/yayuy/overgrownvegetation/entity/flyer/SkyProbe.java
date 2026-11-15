@@ -61,8 +61,13 @@ public final class SkyProbe {
 
     /** 止まり木の上(体の芯の幅で真上 {@link #CLEAR_UP})に固いものが無いか。 */
     public static boolean clearAbove(Level level, BlockPos top) {
+        return clearAbove(level, top, CLEAR_UP);
+    }
+
+    /** 真上 {@code up} ブロックまで空いているか(種ごとの空き {@link SkyFlyer#perchClearUp}。2026-11-15 アクムネスで足した)。 */
+    public static boolean clearAbove(Level level, BlockPos top, double up) {
         double cx = top.getX() + 0.5D, cz = top.getZ() + 0.5D, y = top.getY() + 1.0D;
-        return level.noCollision(new net.minecraft.world.phys.AABB(cx - CLEAR_HALF, y + 0.01D, cz - CLEAR_HALF, cx + CLEAR_HALF, y + CLEAR_UP, cz + CLEAR_HALF));
+        return level.noCollision(new net.minecraft.world.phys.AABB(cx - CLEAR_HALF, y + 0.01D, cz - CLEAR_HALF, cx + CLEAR_HALF, y + up, cz + CLEAR_HALF));
     }
 
     /** 止まってよいブロックか(上が空いた固いブロック。液体は不可)。 */
@@ -86,6 +91,11 @@ public final class SkyProbe {
      * @return 止まるブロック(この上に立つ)。見つからなければ空
      */
     public static List<BlockPos> findPerches(Level level, BlockPos center, int radius, int n, double minGap) {
+        return findPerches(level, center, radius, n, minGap, CLEAR_UP);
+    }
+
+    /** 真上の空きを {@code clearUp} にして探す(種ごと。{@link SkyFlyer#perchClearUp})。 */
+    public static List<BlockPos> findPerches(Level level, BlockPos center, int radius, int n, double minGap, double clearUp) {
         List<long[]> cands = new ArrayList<>();
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (int dx = -radius; dx <= radius; dx += 2) {
@@ -96,7 +106,7 @@ public final class SkyProbe {
                 if (Double.isNaN(c)) continue;
                 int y = (int) c - 1;
                 p.set(x, y, z);
-                if (y <= level.getMinBuildHeight() || !perchable(level, p) || !clearAbove(level, p)) continue;
+                if (y <= level.getMinBuildHeight() || !perchable(level, p) || !clearAbove(level, p, clearUp)) continue;
                 int score = y * 4 + (isLeaves(level.getBlockState(p)) ? 16 : 0);
                 cands.add(new long[]{score, p.asLong()});
             }
