@@ -156,27 +156,40 @@ public final class VesicariaGameTests {
     }
 
     /**
-     * 急ぎの地面の速さは walk 2.5 倍(= {@link VesicariaEntity#WALK_REF} × 2.5 ≈ 0.075)の近く:
+     * 急ぎの地面の速さは段 1 の {@link VesicariaEntity#RUSH_GROUND}(≈ 0.075。新しい walk の 1.67 倍)の近く:
      * 平らな 24 マスの場をまっすぐ歩かせ、20〜80 tick の平均が 的の 0.73〜1.13 倍。
      */
     @GameTest(template = "gametest_empty24", timeoutTicks = 120)
     public static void vesiRushSpeedMatchesWalkCap(GameTestHelper helper) {
-        measure(helper, VesicariaEntity.RUSH_SPEED, VesicariaEntity.WALK_REF * VesicariaEntity.WALK_SPEED_MAX, "急ぎ");
+        measure(helper, VesicariaEntity.RUSH_SPEED, VesicariaEntity.RUSH_GROUND, "急ぎ");
     }
 
-    /** うろつき(小走り)の地面の速さは 約 0.045(walk 1.5 倍)の近く = 急ぎより遅い。 */
+    /** うろつき(小走り)の地面の速さは 約 0.045(新しい walk の 1 倍)の近く = 急ぎより遅い。 */
     @GameTest(template = "gametest_empty24", timeoutTicks = 120)
     public static void vesiStrollSpeedIsSlower(GameTestHelper helper) {
-        measure(helper, VesicariaEntity.STROLL_SPEED, VesicariaEntity.WALK_REF * 1.5D, "うろつき");
+        measure(helper, VesicariaEntity.STROLL_SPEED, VesicariaEntity.STROLL_GROUND, "うろつき");
+    }
+
+    /**
+     * 突撃の速さ(段 2 の技の前に値だけ): 約 {@link VesicariaEntity#CHARGE_GROUND}(走るプレイヤーくらい。11-15 ユーザー)の近く。
+     * 速いので 10〜50 tick の平均で見る(場の奥 21.5 まで届く前に終える)。run は 0.6〜1.25 倍で約 0.17〜0.35 を覆う。
+     */
+    @GameTest(template = "gametest_empty24", timeoutTicks = 80)
+    public static void vesiChargeSpeedMatchesRun(GameTestHelper helper) {
+        measure(helper, VesicariaEntity.CHARGE_SPEED, VesicariaEntity.CHARGE_GROUND, "突撃", 10L, 50L);
     }
 
     private static void measure(GameTestHelper helper, double modifier, double target, String what) {
+        measure(helper, modifier, target, what, 20L, 80L);
+    }
+
+    private static void measure(GameTestHelper helper, double modifier, double target, String what, long from, long to) {
         VesicariaEntity v = placeAt(helper, 3.5D, 2.5D, 0.0F);
         double[] z0 = {Double.NaN};
         helper.runAfterDelay(2L, () -> walkTo(v, helper, new Vec3(3.5D, 2.0D, 21.5D), modifier));
-        helper.runAtTickTime(20L, () -> z0[0] = v.getZ());
-        helper.runAtTickTime(80L, () -> {
-            double s = (v.getZ() - z0[0]) / 60.0D;
+        helper.runAtTickTime(from, () -> z0[0] = v.getZ());
+        helper.runAtTickTime(to, () -> {
+            double s = (v.getZ() - z0[0]) / (to - from);
             OvergrownVegetation.LOGGER.info(String.format("VESI_SPEED %s %.4f ブロック/tick(的 %.4f)", what, s, target));
             if (s < target * 0.73D || s > target * 1.13D) {
                 helper.fail(String.format("%sの速さ %.4f ブロック/tick(的 %.4f)", what, s, target));
