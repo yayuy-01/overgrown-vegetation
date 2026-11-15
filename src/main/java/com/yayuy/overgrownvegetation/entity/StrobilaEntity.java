@@ -110,6 +110,41 @@ public class StrobilaEntity extends SmallCrawler implements GeoEntity, Parasitiz
     /** 段の境(投げ始めからの tick): 前触れは補間のあと {@link #WINDUP_TICKS}、投げは {@link #THROW_TICKS}。 */
     static final int THROW_PHASE_AT = THROW_TRANSITION + WINDUP_TICKS, RECOVER_PHASE_AT = THROW_PHASE_AT + THROW_TICKS;
 
+    // --- 尾の払い(段 2 の追い、11-15 夜) ---
+    /** 払いの段(左 = {@code _l}・右 = {@code _r})。投げの段と同じ口で送る(投げと払いは同時には無い)。 */
+    static final byte PHASE_SWEEP_WINDUP_L = 4, PHASE_SWEEP_L = 5, PHASE_SWEEP_RECOVER_L = 6,
+            PHASE_SWEEP_WINDUP_R = 7, PHASE_SWEEP_R = 8, PHASE_SWEEP_RECOVER_R = 9;
+    /** 3 本の長さ(tick。アニメの値【仮・strobila-anim】)。 */
+    static final int SWEEP_WINDUP_TICKS = 12, SWEEP_TICKS = 8, SWEEP_RECOVER_TICKS = 16;
+    /** 段の境(払い始めからの tick。入るときの補間 {@link #THROW_TRANSITION} を足す)。 */
+    static final int SWEEP_PHASE_AT = THROW_TRANSITION + SWEEP_WINDUP_TICKS, SWEEP_RECOVER_AT = SWEEP_PHASE_AT + SWEEP_TICKS;
+    public static final int SWEEP_ACTION_TICKS = SWEEP_RECOVER_AT + SWEEP_RECOVER_TICKS;
+    /** 当たりを取る払いの中の tick(アニメの測り「尾が速く動くのは 2〜6 tick」)。 */
+    static final int SWEEP_HIT_FROM = 2, SWEEP_HIT_TO = 6;
+    /**
+     * 払いの tick ごとの球果の方位(度。0 = 真後ろ・+ = 右・− = 左)と、尾・苞・球果のいちばん遠い角までの距離(px)。
+     * Vault「Mob の能力/ストロビラ」9 節の表(MOD の json から測った値)。添字 = 払いの中の tick 0〜8。
+     */
+    static final float[] SWEEP_AZ_L = {41, 37, 23, -7, -45, -91, -100, -88, -76};
+    static final float[] SWEEP_REACH_L = {51, 53, 56, 62, 59, 40, 31, 32, 33};
+    static final float[] SWEEP_AZ_R = {-44, -40, -26, 4, 43, 87, 96, 84, 73};
+    static final float[] SWEEP_REACH_R = {50, 52, 56, 62, 60, 42, 32, 33, 35};
+    /** 当たる高さ(足元から、ブロック)。尾 1.4〜1.75・球果 0.7〜1.25(9 節)。 */
+    static final double SWEEP_LOW = 0.7D, SWEEP_HIGH = 1.75D;
+    /** 払う相手: 正面からこれ(度)より外。ユーザー決定 11-15「正面の左右 60° より外」。 */
+    static final float SWEEP_OUTSIDE = 60.0F;
+    /** 尾が届くのは正面からこれ(度)より外(9 節。{@code _r} は 84)。60〜これの相手には、払う前に体を相手から離す向きへ回す(ユーザー決定 11-15)。 */
+    static final float SWEEP_REACHABLE = 82.0F;
+    /** 払う前に回る長さの上限(tick)【仮】(回る速さ 15 度/tick を 1〜2 tick の目安。3 tick で打ち切って払う)。 */
+    static final int SWEEP_TURN_MAX = 3;
+    /** 払いを始める距離: 相手の方位での尾の届き(ブロック)× これ【仮】。 */
+    static final double SWEEP_TRIGGER_SHARE = 0.9D;
+    /** 傷(ゾンビの一撃の半分くらい【仮・ユーザーの目安】)と弾き飛ばしの強さ【仮】(バニラの近接の素の弾き 0.4)。 */
+    public static final float SWEEP_DAMAGE = 1.5F;
+    static final double SWEEP_KNOCKBACK = 1.5D;
+    /** 払い終わってから次の払いまで(tick)【仮】。 */
+    static final int SWEEP_COOLDOWN = 20;
+
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
     private static final RawAnimation RUN = RawAnimation.begin().thenLoop("run");
@@ -117,6 +152,13 @@ public class StrobilaEntity extends SmallCrawler implements GeoEntity, Parasitiz
     private static final RawAnimation WINDUP = RawAnimation.begin().thenPlayAndHold("throw_windup");
     private static final RawAnimation THROW = RawAnimation.begin().thenPlayAndHold("throw");
     private static final RawAnimation RECOVER = RawAnimation.begin().thenPlay("throw_recover");
+    /** 尾の払いの 3 本 × 左右(windup・sweep は json が「最後の姿で止まる」)。 */
+    private static final RawAnimation SWEEP_WINDUP_L = RawAnimation.begin().thenPlayAndHold("tail_sweep_windup_l");
+    private static final RawAnimation SWEEP_L = RawAnimation.begin().thenPlayAndHold("tail_sweep_l");
+    private static final RawAnimation SWEEP_RECOVER_L = RawAnimation.begin().thenPlay("tail_sweep_recover_l");
+    private static final RawAnimation SWEEP_WINDUP_R = RawAnimation.begin().thenPlayAndHold("tail_sweep_windup_r");
+    private static final RawAnimation SWEEP_R = RawAnimation.begin().thenPlayAndHold("tail_sweep_r");
+    private static final RawAnimation SWEEP_RECOVER_R = RawAnimation.begin().thenPlay("tail_sweep_recover_r");
 
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
@@ -130,6 +172,13 @@ public class StrobilaEntity extends SmallCrawler implements GeoEntity, Parasitiz
     private Vec3 aim;
     @Nullable
     private LivingEntity lastTarget;
+    /** 払い始めからの tick(払っていなければ -1)・右へ払うか・払う前に回った tick(回っていなければ -1)・次の払いまでの残り。 */
+    private int sweepTick = -1;
+    private boolean sweepRight;
+    private int sweepTurnTick = -1;
+    private int sweepCooldown;
+    /** この払いで当たった相手(1 回の払いで 1 度だけ)。 */
+    private final java.util.Set<Integer> sweepHit = new java.util.HashSet<>();
 
     // --- クライアント ---
     private boolean running;
@@ -228,7 +277,17 @@ public class StrobilaEntity extends SmallCrawler implements GeoEntity, Parasitiz
             this.lastTarget = t;
         }
         if (this.throwCooldown > 0) this.throwCooldown--;   // 投げている間も減らす(間隔は投げ始めから次の投げ始めまで)
+        if (this.sweepCooldown > 0 && this.sweepTick < 0) this.sweepCooldown--;
+        if (this.sweepTurnTick >= 0 || this.sweepTick >= 0) {
+            tickSweep(t);
+            return;
+        }
         if (this.throwTick < 0) {
+            // 優先は尾(ユーザー決定 11-15「寄られたら、まず払う。投げは 20 秒おきのまま待つ」)
+            if (t != null && this.sweepCooldown <= 0 && wantsSweep(t)) {
+                startSweepTurn(t);
+                return;
+            }
             if (this.throwCooldown <= 0 && t != null && canThrowAt(t)) startThrow(t);
             return;
         }
@@ -257,6 +316,118 @@ public class StrobilaEntity extends SmallCrawler implements GeoEntity, Parasitiz
         this.throwCooldown = THROW_INTERVAL;
         this.aim = t.position().add(0.0D, t.getBbHeight() * 0.3D, 0.0D);
         this.entityData.set(DATA_THROW_PHASE, PHASE_WINDUP);
+    }
+
+    // ------------------------------------------------------------------ 尾の払い(サーバー)
+
+    /** 投げか払いをしている(または払う前に回っている)。 */
+    public boolean isActing() {
+        return this.throwTick >= 0 || this.sweepTick >= 0 || this.sweepTurnTick >= 0;
+    }
+
+    /** 払っている(回っている間も含む。GameTest 用)・右へ払うか・払い始めからの tick。 */
+    public boolean isSweeping() {
+        return this.sweepTick >= 0 || this.sweepTurnTick >= 0;
+    }
+
+    public boolean sweepRight() {
+        return this.sweepRight;
+    }
+
+    public int sweepTick() {
+        return this.sweepTick;
+    }
+
+    /** {@code p} の方位(度): 0 = 真後ろ・+ = 右・− = 左(9 節の表と同じ言い方)。 */
+    float azimuthOf(double px, double pz) {
+        float yaw = this.getYRot() * Mth.DEG_TO_RAD;
+        double dx = px - this.getX(), dz = pz - this.getZ();
+        double back = dx * Mth.sin(yaw) - dz * Mth.cos(yaw);     // 後ろ = (sin, -cos)
+        double right = -dx * Mth.cos(yaw) - dz * Mth.sin(yaw);   // 右 = (-cos, -sin)
+        return (float) (Mth.atan2(right, back) * Mth.RAD_TO_DEG);
+    }
+
+    /** 方位 {@code az}(度)での尾の届き(ブロック、足元の中心から)。真後ろ〜45 度で 3.7、真横 100 度で 2.2(9 節)。 */
+    static double sweepReach(float az) {
+        float a = Math.abs(az);
+        if (a <= 45.0F) return 3.7D;
+        return Mth.lerp(Math.min(1.0F, (a - 45.0F) / 55.0F), 3.7D, 2.2D);
+    }
+
+    /** 尾で払う相手か: 正面から {@link #SWEEP_OUTSIDE} 度より外(方位で 180 − 60 = 120 度より後ろ)で、尾の届く近さ。 */
+    public boolean wantsSweep(LivingEntity t) {
+        float az = azimuthOf(t.getX(), t.getZ());
+        if (Math.abs(az) >= 180.0F - SWEEP_OUTSIDE) return false;
+        double dx = t.getX() - this.getX(), dz = t.getZ() - this.getZ();
+        double d = Math.sqrt(dx * dx + dz * dz) - t.getBbWidth() * 0.5D;
+        return d <= sweepReach(az) * SWEEP_TRIGGER_SHARE && Math.abs(t.getY() - this.getY()) < 2.0D;
+    }
+
+    /** 払う前: 相手が尾の届く帯(正面から {@link #SWEEP_REACHABLE} 度より外)に入るまで、体を相手から離す向きへ回す(ユーザー決定 11-15)。 */
+    private void startSweepTurn(LivingEntity t) {
+        this.sweepTurnTick = 0;
+        this.getNavigation().stop();
+        tickSweep(t);
+    }
+
+    private void tickSweep(@Nullable LivingEntity t) {
+        if (this.sweepTurnTick >= 0) {
+            float az = t == null ? 0.0F : azimuthOf(t.getX(), t.getZ());
+            if (t == null || Math.abs(az) <= 180.0F - SWEEP_REACHABLE || this.sweepTurnTick >= SWEEP_TURN_MAX) {
+                this.sweepTurnTick = -1;
+                this.sweepTick = 0;
+                this.sweepRight = az > 0.0F;   // 右にいれば右へ払う(真後ろはどちらでも)
+                this.sweepHit.clear();
+                this.entityData.set(DATA_THROW_PHASE, this.sweepRight ? PHASE_SWEEP_WINDUP_R : PHASE_SWEEP_WINDUP_L);
+                return;
+            }
+            // 相手を後ろへ回す: 相手が右にいれば左へ回る(yaw が増えると右へ回る。方位を 0 へ寄せる向き)
+            float turn = Math.min(TURN_PER_TICK, Math.abs(az) - (180.0F - SWEEP_REACHABLE) + 3.0F);
+            float yaw = this.getYRot() + (az > 0.0F ? -turn : turn);
+            this.setYRot(yaw);
+            this.yBodyRot = yaw;
+            this.sweepTurnTick++;
+            return;
+        }
+        this.getNavigation().stop();
+        this.sweepTick++;
+        int k = this.sweepTick - SWEEP_PHASE_AT;   // 払いの中の tick
+        if (this.sweepTick == SWEEP_PHASE_AT) this.entityData.set(DATA_THROW_PHASE, this.sweepRight ? PHASE_SWEEP_R : PHASE_SWEEP_L);
+        if (k >= SWEEP_HIT_FROM && k <= SWEEP_HIT_TO) sweepHits(k);
+        if (this.sweepTick == SWEEP_RECOVER_AT) this.entityData.set(DATA_THROW_PHASE, this.sweepRight ? PHASE_SWEEP_RECOVER_R : PHASE_SWEEP_RECOVER_L);
+        if (this.sweepTick >= SWEEP_ACTION_TICKS) {
+            this.sweepTick = -1;
+            this.sweepCooldown = SWEEP_COOLDOWN;
+            this.entityData.set(DATA_THROW_PHASE, PHASE_NONE);
+        }
+    }
+
+    /**
+     * 払いの {@code k} tick 目の当たり: 前の tick の球果の方位から今の方位までの扇(1 tick に 30 度以上進むので点でなく扇)、
+     * 距離は 2 つの tick のいちばん遠い角まで、高さは {@link #SWEEP_LOW}〜{@link #SWEEP_HIGH}。植物側は叩かない。
+     */
+    private void sweepHits(int k) {
+        float[] az = this.sweepRight ? SWEEP_AZ_R : SWEEP_AZ_L;
+        float[] reach = this.sweepRight ? SWEEP_REACH_R : SWEEP_REACH_L;
+        float a0 = Math.min(az[k - 1], az[k]), a1 = Math.max(az[k - 1], az[k]);
+        double r = Math.max(reach[k - 1], reach[k]) / 16.0D;
+        AABB box = this.getBoundingBox().inflate(r + 1.0D, 1.0D, r + 1.0D);
+        for (LivingEntity e : this.level().getEntitiesOfClass(LivingEntity.class, box, e -> e != this && e.isAlive() && !StrobilaCone.passesThrough(e))) {
+            if (this.sweepHit.contains(e.getId())) continue;
+            if (e instanceof net.minecraft.world.entity.player.Player p && (p.isCreative() || p.isSpectator())) continue;
+            double dx = e.getX() - this.getX(), dz = e.getZ() - this.getZ();
+            double d = Math.sqrt(dx * dx + dz * dz);
+            double half = e.getBbWidth() * 0.5D;
+            if (d - half > r) continue;
+            if (e.getBoundingBox().minY > this.getY() + SWEEP_HIGH || e.getBoundingBox().maxY < this.getY() + SWEEP_LOW) continue;
+            float a = azimuthOf(e.getX(), e.getZ());
+            float pad = (float) Math.toDegrees(Math.atan2(half, Math.max(d, 0.1D)));   // 体の幅のぶん扇を広げる
+            if (a < a0 - pad || a > a1 + pad) continue;
+            this.sweepHit.add(e.getId());
+            e.hurt(this.damageSources().mobAttack(this), SWEEP_DAMAGE);
+            e.knockback(SWEEP_KNOCKBACK, this.getX() - e.getX(), this.getZ() - e.getZ());
+            e.hurtMarked = true;
+        }
     }
 
     /** 球果を出す所: 体の後ろの頭上(アニメの throw 4 tick の球果の中心)。そこがブロックの中なら背の上から。 */
@@ -328,6 +499,8 @@ public class StrobilaEntity extends SmallCrawler implements GeoEntity, Parasitiz
         public void tick() {
             LivingEntity t = mob.getTarget();
             if (t == null) return;
+            // 払っている間・払う相手(横・後ろの近い相手)には向き直らない(向き直ると尾が届かない。11-15 尾の払い)
+            if (mob.isSweeping() || mob.wantsSweep(t)) return;
             double d = Math.sqrt(mob.distanceToSqr(t.getX(), mob.getY(), t.getZ()));
             if (d > APPROACH_ABOVE) {
                 if (--this.repath <= 0 || mob.getNavigation().isDone()) {
@@ -373,6 +546,11 @@ public class StrobilaEntity extends SmallCrawler implements GeoEntity, Parasitiz
             if (this.throwTick == 0 || this.throwTick == RELEASE_AT) {
                 com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
                         "STROB_THROW server gt %d 投げ %d", this.level().getGameTime(), this.throwTick));
+            }
+            if (this.sweepTurnTick >= 0 || (this.sweepTick >= 0 && this.sweepTick <= SWEEP_RECOVER_AT)) {
+                com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
+                        "STROB_SWEEP server gt %d 回り %d 払い %d %s 向き %.0f", this.level().getGameTime(), this.sweepTurnTick, this.sweepTick,
+                        this.sweepRight ? "右" : "左", this.getYRot()));
             }
         }
     }
@@ -444,7 +622,17 @@ public class StrobilaEntity extends SmallCrawler implements GeoEntity, Parasitiz
             c.transitionLength(before == PHASE_NONE ? THROW_TRANSITION : 0);
             if (before == PHASE_NONE) c.forceAnimationReset();   // 前の投げと同じ前触れを流し直す
         }
-        return state.setAndContinue(phase == PHASE_WINDUP ? WINDUP : phase == PHASE_THROW ? THROW : RECOVER);
+        return state.setAndContinue(switch (phase) {
+            case PHASE_WINDUP -> WINDUP;
+            case PHASE_THROW -> THROW;
+            case PHASE_RECOVER -> RECOVER;
+            case PHASE_SWEEP_WINDUP_L -> SWEEP_WINDUP_L;
+            case PHASE_SWEEP_L -> SWEEP_L;
+            case PHASE_SWEEP_RECOVER_L -> SWEEP_RECOVER_L;
+            case PHASE_SWEEP_WINDUP_R -> SWEEP_WINDUP_R;
+            case PHASE_SWEEP_R -> SWEEP_R;
+            default -> SWEEP_RECOVER_R;
+        });
     }
 
     @Override

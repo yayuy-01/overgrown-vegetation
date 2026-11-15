@@ -309,4 +309,85 @@ public final class StrobilaGameTests {
         });
         helper.runAtTickTime(190L, () -> helper.fail("煙ができない: 投げ " + s.throwTick() + " " + where(helper, s)));
     }
+
+    // ------------------------------------------------------------------ 尾の払い(11-15 夜)
+
+    /**
+     * 払いの見張り: 牛を的にして毎 tick 狙わせ、払い始めの向き・左右・牛が叩かれた tick・投げたかを数える。
+     * {@code expectRight} が null なら左右は見ない。
+     */
+    private static void sweepCase(GameTestHelper helper, double cowX, double cowZ, Boolean expectRight, float minTurn, float maxTurn) {
+        StrobilaEntity s = placeAt(helper, 6.5D, 6.5D, 0.0F);
+        var cow = targetCow(helper, s, cowX, cowZ);
+        float yaw0 = s.getYRot();
+        double d0 = Math.hypot(cow.getX() - s.getX(), cow.getZ() - s.getZ());
+        float maxHp = cow.getHealth();
+        boolean[] started = {false};
+        float[] yawAtStart = {Float.NaN};
+        helper.onEachTick(() -> {
+            s.setTarget(cow);
+            if (!started[0] && s.sweepTick() == 0) {
+                started[0] = true;
+                yawAtStart[0] = s.getYRot();
+                if (expectRight != null && s.sweepRight() != expectRight) {
+                    helper.fail("払う向きが逆(" + (s.sweepRight() ? "右" : "左") + ")");
+                    return;
+                }
+                float turned = Math.abs(net.minecraft.util.Mth.wrapDegrees(yawAtStart[0] - yaw0));
+                if (turned < minTurn || turned > maxTurn) {
+                    helper.fail(String.format("払う前に %.0f 度回った(的 %.0f〜%.0f)", turned, minTurn, maxTurn));
+                    return;
+                }
+            }
+            if (s.throwTick() >= 0) {
+                helper.fail("近い横・後ろの相手に投げ始めた(払いが先のはず)");
+                return;
+            }
+            if (started[0] && cow.getHealth() < maxHp) {
+                double d = Math.hypot(cow.getX() - s.getX(), cow.getZ() - s.getZ());
+                if (helper.getTick() > 0 && d > d0 + 0.8D) {
+                    if (maxHp - cow.getHealth() > StrobilaEntity.SWEEP_DAMAGE + 0.01F) helper.fail("傷が強すぎる: " + (maxHp - cow.getHealth()));
+                    else helper.succeed();
+                }
+            }
+        });
+        helper.runAtTickTime(110L, () -> helper.fail(String.format("払って弾き飛ばさない: 払い始め %s 牛の体力 %.1f/%.1f 距離 %.2f → %.2f %s",
+                started[0], cow.getHealth(), maxHp, d0, Math.hypot(cow.getX() - s.getX(), cow.getZ() - s.getZ()), where(helper, s))));
+    }
+
+    /** 真後ろ 2 ブロックの相手: 向き直らずに払い(回り 0 度)、弱い傷で弾き飛ばす。投げない。 */
+    @GameTest(template = "gametest_empty24", timeoutTicks = 120)
+    public static void strobilaSweepsTargetBehind(GameTestHelper helper) {
+        sweepCase(helper, 6.5D, 4.5D, null, 0.0F, 0.5F);
+    }
+
+    /** 左後ろ(方位 −60)の相手は左へ払う(左 = 体の向き +z に対して +x)。 */
+    @GameTest(template = "gametest_empty24", timeoutTicks = 120)
+    public static void strobilaSweepsLeftForLeftTarget(GameTestHelper helper) {
+        sweepCase(helper, 6.5D + 1.9D, 6.5D - 1.1D, false, 0.0F, 0.5F);
+    }
+
+    /** 右後ろ(方位 +60)の相手は右へ払う。 */
+    @GameTest(template = "gametest_empty24", timeoutTicks = 120)
+    public static void strobilaSweepsRightForRightTarget(GameTestHelper helper) {
+        sweepCase(helper, 6.5D - 1.9D, 6.5D - 1.1D, true, 0.0F, 0.5F);
+    }
+
+    /** 右の正面から 70 度(方位 +110)の相手: 尾が届かない帯なので、体を左へ 1〜3 tick 回してから(13〜45 度)右へ払う。 */
+    @GameTest(template = "gametest_empty24", timeoutTicks = 120)
+    public static void strobilaTurnsAwayThenSweepsBandTarget(GameTestHelper helper) {
+        sweepCase(helper, 6.5D - 1.88D, 6.5D + 0.68D, true, 13.0F, 45.0F);
+    }
+
+    /** 正面 2 ブロックの近い相手は払わない(尾は後ろにしか届かない。投げの届く 3 より近いので投げもしない)。 */
+    @GameTest(template = "gametest_empty24", timeoutTicks = 80)
+    public static void strobilaDoesNotSweepFrontTarget(GameTestHelper helper) {
+        StrobilaEntity s = placeAt(helper, 6.5D, 6.5D, 0.0F);
+        var cow = targetCow(helper, s, 6.5D, 8.5D);
+        helper.onEachTick(() -> {
+            s.setTarget(cow);
+            if (s.isSweeping()) helper.fail("正面の相手を払った");
+        });
+        helper.runAtTickTime(70L, helper::succeed);
+    }
 }

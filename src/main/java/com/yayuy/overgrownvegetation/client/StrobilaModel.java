@@ -44,9 +44,11 @@ public class StrobilaModel extends LodGeoModel<StrobilaEntity> {
         this.lastTraceTick = t;
         var cone = getAnimationProcessor().getBone("cone");
         var tail = getAnimationProcessor().getBone("tail0");
+        var tail1 = getAnimationProcessor().getBone("tail1");
         int flying = animatable.level().getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.StrobilaCone.class,
                 animatable.getBoundingBox().inflate(6.0D)).size();
-        OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT, "STROB_BONE gt %d 球果の大きさ %.2f 尾0 %.1f 度 弾 %d",
-                t, cone == null ? -1.0F : cone.getScaleX(), tail == null ? 0.0F : Math.toDegrees(tail.getRotX()), flying));
+        OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT, "STROB_BONE gt %d 球果の大きさ %.2f 尾0 %.1f 度 尾1 y %.1f 度 弾 %d",
+                t, cone == null ? -1.0F : cone.getScaleX(), tail == null ? 0.0F : Math.toDegrees(tail.getRotX()),
+                tail1 == null ? 0.0F : Math.toDegrees(tail1.getRotY()), flying));
     }
 }
