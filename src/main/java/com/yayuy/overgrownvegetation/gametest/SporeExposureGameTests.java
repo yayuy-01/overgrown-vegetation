@@ -277,31 +277,37 @@ public final class SporeExposureGameTests {
         helper.succeed();
     }
 
-    /** G1 の表に無い種(オオカミ・ウマ)は感染の死で萌芽体が生える(11-09 ユーザー決定)。 */
+    /**
+     * G1 の表に無い種(オオカミ・ウマ)は、感染の死で死なずに汎用の感染体に変わり、萌芽体は生えない
+     * (2026-11-15 ユーザー決定「萌芽体が湧くのをなくして感染体になる」。11-09 の「萌芽体が生える」を置き換えた)。
+     */
     @GameTest(template = "gametest_empty7", batch = "spore_sprout_wolf", timeoutTicks = 40)
-    public static void unlistedWolfSproutsBlightFern(GameTestHelper helper) {
-        sproutsOnInfectionDeath(helper, EntityType.WOLF);
+    public static void unlistedWolfTurnsOnInfectionDeath(GameTestHelper helper) {
+        turnsOnInfectionDeath(helper, EntityType.WOLF);
     }
 
     @GameTest(template = "gametest_empty7", batch = "spore_sprout_horse", timeoutTicks = 40)
-    public static void unlistedHorseSproutsBlightFern(GameTestHelper helper) {
-        sproutsOnInfectionDeath(helper, EntityType.HORSE);
+    public static void unlistedHorseTurnsOnInfectionDeath(GameTestHelper helper) {
+        turnsOnInfectionDeath(helper, EntityType.HORSE);
     }
 
-    private static void sproutsOnInfectionDeath(GameTestHelper helper, EntityType<? extends net.minecraft.world.entity.Mob> type) {
+    private static void turnsOnInfectionDeath(GameTestHelper helper, EntityType<? extends net.minecraft.world.entity.Mob> type) {
         var level = helper.getLevel();
         net.minecraft.world.entity.Mob m = helper.spawnWithNoFreeWill(type, new BlockPos(3, 2, 3));
         net.minecraft.world.phys.AABB around = m.getBoundingBox().inflate(40.0D);
-        // 前の組が残した萌芽体があると密集の判定で生えないので、まわりから片付けておく
         level.getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.BlightFernEntity.class, around).forEach(e -> e.discard());
         m.hurt(com.yayuy.overgrownvegetation.registry.ModDamageTypes.sporeInfection(level), 1000.0F);
         helper.runAfterDelay(5, () -> {
             var ferns = level.getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.BlightFernEntity.class, m.getBoundingBox().inflate(4.0D));
-            if (ferns.isEmpty()) {
-                helper.fail(EntityType.getKey(type) + " が感染の死で萌芽体にならない");
+            ferns.forEach(e -> e.discard());
+            if (!m.isAlive() || !com.yayuy.overgrownvegetation.infect.GenericInfection.isTurned(m)) {
+                helper.fail(EntityType.getKey(type) + " が感染の死で汎用の感染体に変わらない(生きている " + m.isAlive() + ")");
                 return;
             }
-            ferns.forEach(e -> e.discard());
+            if (!ferns.isEmpty()) {
+                helper.fail(EntityType.getKey(type) + " の感染の死で萌芽体が生えた");
+                return;
+            }
             helper.succeed();
         });
     }

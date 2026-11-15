@@ -59,12 +59,15 @@ public final class ParasitizedAttackInfectionHandler {
         }
     }
 
-    /** 過繁茂した Mob(グループ 1〜10 のどれかのタグ)か。 */
+    /**
+     * 過繁茂した Mob(グループ 1〜10 のどれかのタグ)か。汎用の感染体(変わった印)も入れる(2026-11-15。ほかの MOD の Mob はタグを変えられないので印で):
+     * G1 に狙われない・ほかの Mob の {@code HuntG1} に狙われる。
+     */
     public static boolean isOvergrownMob(LivingEntity e) {
         for (TagKey<EntityType<?>> g : GROUPS) {
             if (e.getType().is(g)) return true;
         }
-        return false;
+        return PlantSideRules.isTransformed(e);
     }
 
     private ParasitizedAttackInfectionHandler() {

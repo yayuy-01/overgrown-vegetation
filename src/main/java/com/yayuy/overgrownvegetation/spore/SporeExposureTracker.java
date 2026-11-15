@@ -175,7 +175,10 @@ public final class SporeExposureTracker {
         float amount = (float) DesignData.sporeField().mobExposureDamage();
         if (amount <= 0.0F) return;
         if (mob.hurt(ModDamageTypes.sporeInfection(level), amount)) {
-            if (mob.isAlive()) scarMaxHealth(mob, DesignData.sporeField().mobMaxHealthLossPerHit());
+            // 死ぬ所で汎用の感染体に変わった Mob(2026-11-15)は、傷を外して満タンで変わったので傷を付け直さない
+            if (mob.isAlive() && !com.yayuy.overgrownvegetation.infect.GenericInfection.isTurned(mob)) {
+                scarMaxHealth(mob, DesignData.sporeField().mobMaxHealthLossPerHit());
+            }
             ex.dose = 0.0D;
             ex.atDose = false;
             ex.reachedCount++;

@@ -159,7 +159,10 @@ public final class MobInfectionGameTests {
         helper.succeed();
     }
 
-    /** G1 になれない種(狐)も、感染して死んだ所に飛び火を残す(死体にはならない)。 */
+    /**
+     * G1 になれない種(狐)は、感染の死の所で死なずに汎用の感染体に変わる(2026-11-15 ユーザー決定)。変わった狐が死ぬと、その所に飛び火を残す
+     * (★ 問い 11。死体にはならない)。
+     */
     @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 100)
     public static void infectedFoxLeavesJumpToo(GameTestHelper helper) {
         MobInfection.clearJumpCooldownsForTests();
@@ -168,16 +171,16 @@ public final class MobInfectionGameTests {
         BlockPos at = fox.blockPosition();
         SporeExposureTracker.setDose(fox, DesignData.sporeField().infectDose(), helper.getLevel().getGameTime());
         SporeExposureTracker.tickWith(helper.getLevel(), fox, DesignData.sporeField().exposureMobIntervalTicks(), 0.0D);
-        boolean collapsing = CorpseCollapse.isCollapsing(fox);
-        // 萌芽体が生えたら片付ける(隣のテストへ汚染を広げない)
-        helper.getLevel().getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.BlightFernEntity.class,
-                new net.minecraft.world.phys.AABB(at).inflate(4)).forEach(net.minecraft.world.entity.Entity::discard);
-        if (fox.isAlive()) {
-            helper.fail("感染した狐が死なない: 体力 " + fox.getHealth());
+        if (!fox.isAlive() || !com.yayuy.overgrownvegetation.infect.GenericInfection.isTurned(fox)) {
+            helper.fail("感染した狐が汎用の感染体に変わらない: 生きている " + fox.isAlive());
             return;
         }
+        fox.kill();
+        boolean collapsing = CorpseCollapse.isCollapsing(fox);
+        helper.getLevel().getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.BlightFernEntity.class,
+                new net.minecraft.world.phys.AABB(at).inflate(4)).forEach(net.minecraft.world.entity.Entity::discard);
         if (!at.equals(MobInfection.lastJumpForTests)) {
-            helper.fail("狐の死んだ所に飛び火が無い: " + MobInfection.lastJumpForTests);
+            helper.fail("変わった狐の死んだ所に飛び火が無い: " + MobInfection.lastJumpForTests);
             return;
         }
         if (collapsing) {

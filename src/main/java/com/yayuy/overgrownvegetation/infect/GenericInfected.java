@@ -29,6 +29,11 @@ public final class GenericInfected {
     public int transformTicks;
     /** ボスとして変わったか(変わったときに決めて保存する)。 */
     public boolean boss;
+    /** 最後に体当たりを当てたゲーム時刻(保存しない)。 */
+    public long lastRamTick = Long.MIN_VALUE / 2;
+    /** 監視塔の呼び寄せ(保存しない): 向かう先と、このゲーム時刻まで向かう。 */
+    public double callX, callY, callZ;
+    public long callUntil = Long.MIN_VALUE / 2;
 
     private static GenericInfected of(boolean turned, long seed, long start, int transform, boolean boss) {
         GenericInfected g = new GenericInfected();

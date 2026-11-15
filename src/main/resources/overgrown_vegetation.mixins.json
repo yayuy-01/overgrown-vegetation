@@ -17,6 +17,7 @@
     "FallingBlockCoveredMixin",
     "LeavesPushThroughMixin",
     "LivingEntityCorpseDeathMixin",
+    "LivingEntityGenericVoiceMixin",
     "VillagerHostilesSensorMixin",
     "ServerLevelRoomInvalidateMixin",
     "ItemStackDirtWearMixin"

@@ -98,12 +98,16 @@
     "infectedStepDistance": 8
   },
   "genericInfection": {
-    "_comment": "汎用の感染体(2026-11-15、正本は Vault「G1 媒介種(寄生された動物)」の「汎用の感染体」節。読むのは infect/GenericInfection)。★ ユーザー指定: 専用の G1 が無い生き物すべて(バニラ + ほかの MOD。ボス・飛ぶ・泳ぐものも)が生きたまま植物側に変わる・ボスは変わると最大体力が元の bossMaxHealthFactor 0.6 倍(ほかのステータスはそのまま)。【仮】: 変わる動きの長さ transformTicks 40(約 2 秒。この間は動きと攻撃を止める)、ボス = タグ c:bosses の種 + bossEntities、変わらない種 excludedEntities = ウォーデン(感染の道は 0.7.0 の地下と一緒に決める)。表の 13 種の子どもは変わらない(今までどおり萌芽体)。enabled false で汎用の感染体を作らない。",
+    "_comment": "汎用の感染体(2026-11-15、正本は Vault「G1 媒介種(寄生された動物)」の「汎用の感染体」節。読むのは infect/GenericInfection・GenericInfectionAi)。★ ユーザー指定: 専用の G1 が無い生き物すべて(バニラ + ほかの MOD。ボス・飛ぶ・泳ぐもの・表の 13 種の子ども・ウォーデンも)が、感染の死(胞子の 20 ダメージ・G1 に殴り殺された)の所で死なずに植物側に変わる・胞子の傷を外して元の最大体力・満タンで変わる・ボス(タグ c:bosses + bossEntities)は最大体力が元の bossMaxHealthFactor 0.6 倍(ほかのステータスはそのまま)・攻撃を持たない種と Brain で動く Mob は種を問わず一定の体当たり・狙いは視線を問わない・ピースフルでは変わらない。【仮】: 変わる動きの長さ transformTicks 40(約 2 秒。この間は動きと攻撃を止める)、体当たりのダメージ ramDamage 3・冷却 ramCooldownTicks 20・追う速さ ramSpeed 1.2、追跡範囲の属性が無い Mob の狙う範囲 targetRange 16、変わらない種 excludedEntities は空。enabled false で汎用の感染体を作らない。",
     "enabled": true,
     "transformTicks": 40,
     "bossMaxHealthFactor": 0.6,
     "bossEntities": [],
-    "excludedEntities": ["minecraft:warden"]
+    "excludedEntities": [],
+    "ramDamage": 3.0,
+    "ramCooldownTicks": 20,
+    "ramSpeed": 1.2,
+    "targetRange": 16.0
   },
   "sprouts": {
     "pointsPerChunk": 10,
