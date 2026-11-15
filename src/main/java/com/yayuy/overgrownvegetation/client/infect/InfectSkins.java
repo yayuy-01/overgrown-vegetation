@@ -124,7 +124,7 @@ final class InfectSkins {
     }
 
     /** 覗いた頂点から、絵ごとに「どの画素が体のどこか」を出す。{@code requested} = このフレームで工場に入ってきた絵。 */
-    static void learn(Entity entity, InfectRender.QuadTap tap, Set<ResourceLocation> requested) {
+    static void learn(Entity entity, InfectRender.QuadTap tap, Set<ResourceLocation> requested, @Nullable ResourceLocation bodyTexture) {
         // 体の大きさ(このフレームで通った四角ぜんぶ)
         float minY = Float.POSITIVE_INFINITY, maxY = Float.NEGATIVE_INFINITY;
         float minX = Float.POSITIVE_INFINITY, maxX = Float.NEGATIVE_INFINITY, minZ = Float.POSITIVE_INFINITY, maxZ = Float.NEGATIVE_INFINITY;
@@ -162,7 +162,7 @@ final class InfectSkins {
                 OvergrownVegetation.LOGGER.info("InfectSkins 覚えた: {} {} {}x{} 四角 {} 細かさ {}", entity.getType(), texture, map.w, map.h, map.quadCount, map.k);
             }
             Entry entry = new Entry(map);
-            if (map != null) {
+            if (map != null && texture.equals(bodyTexture)) {
                 entry.anchors = InfectParts.choose(map, e.getValue(), texture.hashCode() * 131L);
             }
             ENTRIES.put(texture, entry);

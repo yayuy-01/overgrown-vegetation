@@ -45,6 +45,11 @@ public final class InfectRender {
     private static InfectParts.AnchorTap anchorTap;
     @Nullable
     private static MultiBufferSource plainBuffers;
+    /** この 1 体で最初に工場へ入った絵 = 体の絵(重ね着の層より先に描かれる)。部品はこの絵の面にだけ付ける。 */
+    @Nullable
+    private static ResourceLocation bodyTexture;
+    /** 部品を描く遠さ(ブロック)。これより遠い個体は塗りだけ(頂点を覗かない)。【仮】 */
+    private static final double PART_RANGE = 32.0D;
 
     private InfectRender() {
     }
@@ -58,6 +63,7 @@ public final class InfectRender {
             return buffers;
         }
         plainBuffers = buffers;
+        bodyTexture = null;
         currentId = entity.getId();
         if (PENDING.contains(currentId) && canCapture(entity, camRelX, camRelY, camRelZ)) {
             PENDING.remove(currentId);
@@ -65,7 +71,7 @@ public final class InfectRender {
             tap = new QuadTap(buffers, (float) camRelX, (float) camRelY, (float) camRelZ);
             return tap;
         }
-        if (InfectParts.enabled) {
+        if (InfectParts.enabled && camRelX * camRelX + camRelY * camRelY + camRelZ * camRelZ <= PART_RANGE * PART_RANGE) {
             anchorTap = new InfectParts.AnchorTap(buffers);
             return anchorTap;
         }
@@ -90,7 +96,7 @@ public final class InfectRender {
         boolean was = current != null;
         current = null;
         if (was && t != null) {
-            InfectSkins.learn(entity, t, REQUESTED);
+            InfectSkins.learn(entity, t, REQUESTED, bodyTexture);
             REQUESTED.clear();
         }
         if (was && at != null && plain != null) {
@@ -104,6 +110,9 @@ public final class InfectRender {
         GenericInfectionClient.State state = current;
         if (state == null || InfectSkins.isSkin(texture)) {
             return texture;
+        }
+        if (bodyTexture == null) {
+            bodyTexture = texture;
         }
         if (!InfectSkins.known(texture)) {
             PENDING.add(currentId);
@@ -124,6 +133,7 @@ public final class InfectRender {
     /** 資源の読み込み直し・確かめ用。 */
     public static void reset() {
         TYPE_TEXTURE.clear();
+        PartModels.clear();
         PENDING.clear();
         REQUESTED.clear();
         InfectSkins.clear();
