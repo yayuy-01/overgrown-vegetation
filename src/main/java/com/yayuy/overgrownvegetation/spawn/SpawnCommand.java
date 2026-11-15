@@ -38,7 +38,25 @@ public final class SpawnCommand {
                                 .executes(ctx -> tick(ctx.getSource(), 1))
                                 .then(Commands.argument("times", IntegerArgumentType.integer(1, 200))
                                         .executes(ctx -> tick(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "times")))))
-                        .then(Commands.literal("clear").executes(ctx -> clear(ctx.getSource()))))));
+                        .then(Commands.literal("clear").executes(ctx -> clear(ctx.getSource())))
+                        .then(Commands.literal("march")
+                                .then(Commands.argument("x", IntegerArgumentType.integer())
+                                        .then(Commands.argument("z", IntegerArgumentType.integer())
+                                                .executes(ctx -> march(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "x"),
+                                                        IntegerArgumentType.getInteger(ctx, "z")))))))));
+    }
+
+    /** まわり 32 ブロックの、歩かせられる G4・G5 を (x, z) へ歩かせる(司令塔の送り込みと同じ歩き。確かめ用)。 */
+    private static int march(CommandSourceStack src, int x, int z) {
+        ServerLevel level = src.getLevel();
+        Vec3 p = src.getPosition();
+        int n = 0;
+        for (Mob m : level.getEntitiesOfClass(Mob.class, new AABB(p, p).inflate(32.0D))) {
+            if (PlantMarch.begin(m, -1, x + 0.5D, z + 0.5D)) n++;
+        }
+        int fn = n;
+        src.sendSuccess(() -> Component.literal(fn + " 体を (" + x + ", " + z + ") へ歩かせた"), false);
+        return n;
     }
 
     private static int show(CommandSourceStack src) {

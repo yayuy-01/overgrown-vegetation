@@ -32,11 +32,16 @@ public final class PlantMarch {
 
     /** 拠点へ歩かせ始める。歩かせられない種なら false。 */
     public static boolean begin(Mob mob, BaseMemory.Base base) {
+        return begin(mob, base.id(), base.centerX(), base.centerZ());
+    }
+
+    /** 行き先を直に渡して歩かせ始める(確かめの命令 {@code /ov perf spawns march} も使う)。 */
+    public static boolean begin(Mob mob, int baseId, double x, double z) {
         if (!(mob instanceof PathfinderMob) || !DirectorHooks.marchable(mob.getType())) return false;
         CompoundTag t = new CompoundTag();
-        t.putInt("Base", base.id());
-        t.putDouble("X", base.centerX());
-        t.putDouble("Z", base.centerZ());
+        t.putInt("Base", baseId);
+        t.putDouble("X", x);
+        t.putDouble("Z", z);
         t.putLong("Since", mob.level().getGameTime());
         mob.getPersistentData().put(KEY, t);
         EnemySpawns.release(mob); // 縁の上限・片付けから外す

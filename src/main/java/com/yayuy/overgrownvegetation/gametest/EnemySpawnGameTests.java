@@ -216,12 +216,29 @@ public final class EnemySpawnGameTests {
             helper.assertTrue(!EnemySpawns.spawnedHere(arbora), "送った個体に縁の印が残っている");
             helper.assertTrue(MobGroup.of(arbora) != null && MobGroup.of(arbora).number() == 4, "アルボラが G4 でない");
 
+            // ---- 送り込み: まわりにいなければ、森の方角(テストでは決め打ちの所)に湧かせて歩かせ、予算から払う
+            director.setBudget(level, 1000.0D);
+            DirectorHooks.setSpotForTests(() -> helper.absolutePos(new BlockPos(5, 2, 5)));
+            long spawnedBefore = DirectorHooks.sentSpawned;
+            double budget0 = director.available(level);
+            int sentG5 = DirectorHooks.send(level, b, 1, RandomSource.create(4L), 5);
+            List<Mob> g5s = level.getEntitiesOfClass(Mob.class, helper.getBounds().inflate(4.0D),
+                    m -> PlantMarch.active(m) && DirectorHooks.groupOf(m.getType()) == 5);
+            made.addAll(g5s);
+            helper.assertTrue(sentG5 == 1 && DirectorHooks.sentSpawned == spawnedBefore + 1 && g5s.size() == 1,
+                    "足りない G5 を湧かせて送れない: 送った " + sentG5 + "・湧かせた " + (DirectorHooks.sentSpawned - spawnedBefore) + "・見つけた " + g5s.size());
+            double paid = budget0 - director.available(level);
+            double price = ForestDirector.stagePrice(ForestDirector.spawnCost(g5s.get(0).getType()), DirectorGates.strength(level, DirectorGates.Gate.WAVE_G5));
+            helper.assertTrue(Math.abs(paid - price) < 1.0E-6D, "湧かせた分の払いが違う: " + paid + "(値段 " + price + ")");
+            helper.assertTrue(!EnemySpawns.spawnedHere(g5s.get(0)), "送り込みで湧かせた個体に縁の印が付いている");
+
             // ---- 大きな襲撃: 印の付いた G4 も数える
             int aliveBefore = LargeRaids.alive(level, b);
             arbora.addTag(LargeRaids.ATTACKER_TAG);
             helper.assertTrue(LargeRaids.alive(level, b) == aliveBefore + 1, "大きな襲撃が G4 の攻め手を数えない");
             helper.succeed();
         } finally {
+            DirectorHooks.setSpotForTests(null);
             for (Mob m : made) m.discard();
             for (ChunkPos p : added) data.forgetOvergrownChunk(p);
             DirectorGates.setPhaseForTests(phaseBefore);

@@ -178,9 +178,18 @@ public final class DirectorHooks {
         return sent;
     }
 
+    /** テスト用: 送り込みで湧かせる所を決め打ちにする(null で戻す。テスト場の高さの地図は天井のバリアを答えるため)。 */
+    @Nullable
+    private static java.util.function.Supplier<BlockPos> spotOverride;
+
+    public static void setSpotForTests(@Nullable java.util.function.Supplier<BlockPos> p) {
+        spotOverride = p;
+    }
+
     /** 森の方角の、プレイヤーから見えない地面(大きな襲撃の湧き方と同じ口)。 */
     @Nullable
     public static BlockPos hiddenSpot(ServerLevel level, BaseMemory.Base b, RandomSource random) {
+        if (spotOverride != null) return spotOverride.get();
         SpawnTable t = DesignData.spawns();
         Vec3 away = ForestEdge.of(level).away(new Vec3(b.centerX(), 64.0D, b.centerZ()));
         double angle = away != null ? Math.atan2(-away.z, -away.x) : random.nextDouble() * Math.PI * 2.0D;

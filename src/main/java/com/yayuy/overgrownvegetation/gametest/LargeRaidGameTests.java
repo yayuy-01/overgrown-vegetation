@@ -95,12 +95,13 @@ public final class LargeRaidGameTests {
             for (int i = 0; i < 10 && director.mood() == ForestDirector.Mood.LARGE; i++) {
                 total += LargeRaids.step(level, RandomSource.create(10L + i));
             }
-            List<AbstractParasitizedMonster> attackers = level.getEntitiesOfClass(AbstractParasitizedMonster.class, helper.getBounds().inflate(8.0D),
+            // G4・G5 の攻め手も印を持つ(11-15 enemy-spawns。顔ぶれの plantShare に当たった回)
+            List<Mob> attackers = level.getEntitiesOfClass(Mob.class, helper.getBounds().inflate(8.0D),
                     m -> m.getTags().contains(LargeRaids.ATTACKER_TAG));
             helper.assertTrue(total >= 1 && attackers.size() == total, "攻め手が湧かない・印が無い: " + total + " / " + attackers.size());
-            helper.assertTrue(attackers.stream().allMatch(m -> m.march().active()), "攻め手が拠点へ向かわない");
+            helper.assertTrue(attackers.stream().allMatch(m -> m instanceof AbstractParasitizedMonster g ? g.march().active() : com.yayuy.overgrownvegetation.spawn.PlantMarch.active(m)), "攻め手が拠点へ向かわない");
             helper.assertTrue(director.mood() == ForestDirector.Mood.NORMAL, "予算を使い切っても終わらない(残り " + director.available(level) + ")");
-            helper.assertTrue(attackers.stream().allMatch(AbstractParasitizedMonster::isAlive), "終わったら攻め手が消えた");
+            helper.assertTrue(attackers.stream().allMatch(Mob::isAlive), "終わったら攻め手が消えた");
             attackers.forEach(net.minecraft.world.entity.Entity::discard);
         } finally {
             LargeRaids.setSpotForTests(null);
