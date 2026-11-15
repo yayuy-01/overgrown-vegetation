@@ -54,6 +54,62 @@ public final class InfectRender {
     /** 今描いている 1 体の、変わる動きの進み(0〜1。1 = 変わり終えた)。 */
     private static float currentProgress = 1.0F;
     private static boolean shaking;
+    /**
+     * RenderType を作り置きして使う描き方の種(エンダードラゴン: 絵が工場を通らないので差し替えが効かない)。
+     * 1 回描いて工場に 1 度も絵が入らなかった種をここに覚え、次からは器の側で RenderType を作り直す({@link Remap})。
+     */
+    private static final Set<net.minecraft.world.entity.EntityType<?>> PREBUILT_TYPES = new HashSet<>();
+    /** 作り置きの RenderType → 作り直し方(名前と絵が読めた物だけ。読めない物・エンティティ用でない物は empty)。 */
+    private static final Map<RenderType, java.util.Optional<Remake>> REMAKES = new IdentityHashMap<>();
+    private static final java.util.regex.Pattern TYPE_NAME = java.util.regex.Pattern.compile("^RenderType\\[([a-z_]+):");
+    private static final java.util.regex.Pattern TYPE_TEXTURE_TEXT = java.util.regex.Pattern.compile("texture\\[Optional\\[([a-z0-9_.-]+:[a-z0-9_./-]+)\\]");
+
+    private record Remake(java.util.function.Function<ResourceLocation, RenderType> factory, ResourceLocation texture) {
+    }
+
+    /** 作り置きの RenderType の名前と絵を文字から読み、同じ工場で作り直せる形にする(RenderType 1 つにつき 1 回)。 */
+    private static java.util.Optional<Remake> remakeOf(RenderType type) {
+        String text = type.toString();
+        java.util.regex.Matcher name = TYPE_NAME.matcher(text), tex = TYPE_TEXTURE_TEXT.matcher(text);
+        if (!name.find() || !tex.find()) {
+            return java.util.Optional.empty();
+        }
+        java.util.function.Function<ResourceLocation, RenderType> factory = switch (name.group(1)) {
+            case "entity_solid" -> RenderType::entitySolid;
+            case "entity_cutout" -> RenderType::entityCutout;
+            case "entity_cutout_no_cull" -> RenderType::entityCutoutNoCull;
+            case "entity_cutout_no_cull_z_offset" -> RenderType::entityCutoutNoCullZOffset;
+            case "entity_translucent_cull" -> RenderType::entityTranslucentCull;
+            case "entity_translucent" -> RenderType::entityTranslucent;
+            case "entity_smooth_cutout" -> RenderType::entitySmoothCutout;
+            case "entity_decal" -> RenderType::entityDecal;
+            case "entity_no_outline" -> RenderType::entityNoOutline;
+            default -> null;
+        };
+        ResourceLocation texture = ResourceLocation.tryParse(tex.group(1));
+        return factory == null || texture == null ? java.util.Optional.empty() : java.util.Optional.of(new Remake(factory, texture));
+    }
+
+    /** 器を包み、作り置きの RenderType を、今の個体のための物(絵を差し替えた物)に作り直してから下の器へ渡す。 */
+    private static final class Remap implements MultiBufferSource {
+        private final MultiBufferSource inner;
+
+        Remap(MultiBufferSource inner) {
+            this.inner = inner;
+        }
+
+        @Override
+        public VertexConsumer getBuffer(RenderType type) {
+            if (current != null) {
+                java.util.Optional<Remake> remake = REMAKES.computeIfAbsent(type, InfectRender::remakeOf);
+                if (remake.isPresent()) {
+                    // 工場を通す = 絵の差し替え・覚え・覗きの予約が、ほかの Mob と同じ道で働く
+                    return this.inner.getBuffer(remake.get().factory().apply(remake.get().texture()));
+                }
+            }
+            return this.inner.getBuffer(type);
+        }
+    }
 
     private InfectRender() {
     }
@@ -86,13 +142,17 @@ public final class InfectRender {
             PENDING.remove(currentId);
             REQUESTED.clear();
             tap = new QuadTap(buffers, (float) camRelX, (float) camRelY, (float) camRelZ);
-            return tap;
+            return prebuilt(entity, tap);
         }
         if (InfectParts.enabled && camRelX * camRelX + camRelY * camRelY + camRelZ * camRelZ <= PART_RANGE * PART_RANGE) {
             anchorTap = new InfectParts.AnchorTap(buffers);
-            return anchorTap;
+            return prebuilt(entity, anchorTap);
         }
-        return buffers;
+        return prebuilt(entity, buffers);
+    }
+
+    private static MultiBufferSource prebuilt(Entity entity, MultiBufferSource use) {
+        return PREBUILT_TYPES.contains(entity.getType()) ? new Remap(use) : use;
     }
 
     /** 死にかけ(倒れる回転)・透明・画面の中の見本(位置が 0)は、面の向きが当てにならないので覗かない。 */
@@ -128,6 +188,9 @@ public final class InfectRender {
         plainBuffers = null;
         boolean was = current != null;
         current = null;
+        if (was && bodyTexture == null && !entity.isInvisible()) {
+            PREBUILT_TYPES.add(entity.getType());
+        }
         if (was && t != null) {
             InfectSkins.learn(entity, t, REQUESTED, bodyTexture);
             REQUESTED.clear();
@@ -166,6 +229,7 @@ public final class InfectRender {
     /** 資源の読み込み直し・確かめ用。 */
     public static void reset() {
         TYPE_TEXTURE.clear();
+        REMAKES.clear();
         PartModels.clear();
         PENDING.clear();
         REQUESTED.clear();
