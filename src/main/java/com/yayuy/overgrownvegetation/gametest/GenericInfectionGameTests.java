@@ -189,7 +189,7 @@ public final class GenericInfectionGameTests {
     }
 
     /**
-     * ★ 問い 7: Brain で動き、getTarget を Brain の狙いで上書きする種(ホグリン)も、体当たりで豚を傷付ける(自前の相手を見る)。
+     * ★ 問い 7 = 1(11-15 に戻した): Brain で動き、getTarget を Brain の狙いで上書きする種(ホグリン)は、ATTACK_TARGET を書かれて元の突き上げで豚を傷付ける。
      * オーバーワールドのホグリンは本来ゾグリンに変わるが、変わった個体は変身しない(★ 問い 14)。
      */
     @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 200)
@@ -197,8 +197,8 @@ public final class GenericInfectionGameTests {
         Mob hoglin = helper.spawn(EntityType.HOGLIN, new BlockPos(1, 2, 1));
         Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, new BlockPos(5, 2, 5));
         GenericInfection.turn(hoglin, true);
-        if (!GenericInfectionAiAccess.usesRam(hoglin)) {
-            helper.fail("ホグリン(Brain の Mob)が体当たりを使わない");
+        if (GenericInfectionAiAccess.usesRam(hoglin)) {
+            helper.fail("ホグリン(Brain の Mob・元の攻撃を持つ)が汎用の近接だけになった(★ 問い 7 = 1 では元の突き上げで戦う)");
             return;
         }
         helper.succeedWhen(() -> {
@@ -555,6 +555,58 @@ public final class GenericInfectionGameTests {
         }
     }
 
+    /**
+     * ★ 11-15「ゾンビのように触れて攻撃・草を食べるしぐさも無くして、ただ移動して攻撃するだけ」: 変わった馬は、しぐさの Goal(見回す・後ろ足立ち・
+     * 繁殖・誘い など)が外れ、残るのは止める・近接・浮く・うろつく だけ。草食み(馬の中の処理)も止まる。元の攻撃を持つ狼はしぐさも元のまま。
+     */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH)
+    public static void attacklessHorseLosesIdleBehaviour(GameTestHelper helper) {
+        Horse h = helper.spawnWithNoFreeWill(EntityType.HORSE, new BlockPos(1, 2, 1));
+        Mob wolf = helper.spawnWithNoFreeWill(EntityType.WOLF, new BlockPos(5, 2, 5));
+        int wolfGoals = wolf.goalSelector.getAvailableGoals().size();
+        GenericInfection.turn(h, true);
+        GenericInfection.turn(wolf, true);
+        for (var w : h.goalSelector.getAvailableGoals()) {
+            String n = w.getGoal().getClass().getSimpleName();
+            boolean ok = n.equals("FreezeGoal") || n.equals("MeleeGoal") || n.equals("AddedGoal")
+                    || n.contains("Float") || n.contains("Stroll") || n.contains("Swim") || n.contains("Wander") || n.contains("Movement");
+            if (!ok) {
+                helper.fail("変わった馬にしぐさの Goal が残っている: " + n);
+                return;
+            }
+        }
+        h.setEating(true);
+        helper.runAfterDelay(2, () -> {
+            if (h.isEating()) {
+                helper.fail("変わった馬が草を食べている");
+                return;
+            }
+            if (wolf.goalSelector.getAvailableGoals().size() < wolfGoals) {
+                helper.fail("元の攻撃を持つ狼のしぐさまで外れた: " + wolf.goalSelector.getAvailableGoals().size() + "(元 " + wolfGoals + ")");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /** 攻撃の手段を持たない Brain の種(ラクダ): 振る舞いを外し、ゾンビのような近接で豚を傷付ける。 */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
+    public static void attackCamel(GameTestHelper helper) {
+        attacksPig(helper, EntityType.CAMEL);
+    }
+
+    /** 相手が村人(攻撃の手段を持たない馬が殴る)。 */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
+    public static void horseAttacksVillager(GameTestHelper helper) {
+        Mob horse = helper.spawn(EntityType.HORSE, new BlockPos(1, 2, 1));
+        Mob villager = helper.spawnWithNoFreeWill(EntityType.VILLAGER, new BlockPos(5, 2, 5));
+        GenericInfection.turn(horse, true);
+        horse.setTarget(villager);
+        helper.succeedWhen(() -> {
+            if (villager.isAlive() && villager.getHealth() >= villager.getMaxHealth()) helper.fail("馬が村人に当たっていない");
+        });
+    }
+
     /** 撃つ種(ラマ = 唾)。 */
     @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
     public static void attackLlama(GameTestHelper helper) {
@@ -582,7 +634,8 @@ public final class GenericInfectionGameTests {
     /** Brain で動き、getTarget を Brain で上書きする種(ピグリン)。 */
     @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
     public static void attackPiglin(GameTestHelper helper) {
-        attacksPig(helper, EntityType.PIGLIN);
+        attacksPig(helper, EntityType.PIGLIN, m -> m.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND,
+                new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.GOLDEN_SWORD)));
     }
 
     /** 飛ぶ・攻撃を持たない種(コウモリ。歩けない)。 */

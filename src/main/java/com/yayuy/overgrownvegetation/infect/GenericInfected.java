@@ -43,6 +43,8 @@ public final class GenericInfected {
     public net.minecraft.world.entity.LivingEntity trackedTarget;
     public int targetSince;
     public boolean fallbackOn;
+    /** 攻撃の手段を持たない種として動きを付けたか(保存しない。付けたとき 1 回だけ決める。null = まだ決めていない)。 */
+    public Boolean attackless;
     /** 外した Goal(戻す用。保存しない。Mob と一緒に消えるようここに置く)。 */
     Object removedGoals;
 

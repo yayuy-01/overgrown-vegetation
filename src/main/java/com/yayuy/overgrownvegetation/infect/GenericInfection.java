@@ -272,6 +272,12 @@ public final class GenericInfection {
     }
 
     @SubscribeEvent
+    public static void onTickPost(EntityTickEvent.Post event) {
+        Entity e = event.getEntity();
+        if (e instanceof Mob mob && !e.level().isClientSide() && isTurned(e) && mob.isAlive()) GenericInfectionAi.afterTick(mob);
+    }
+
+    @SubscribeEvent
     public static void onTick(EntityTickEvent.Pre event) {
         Entity e = event.getEntity();
         if (!(e instanceof Mob mob) || e.level().isClientSide() || !e.hasData(ModAttachments.GENERIC_INFECTED)) return;
@@ -285,6 +291,7 @@ public final class GenericInfection {
         if ((mob.tickCount & 15) == 0) GenericInfectionAi.keepOwnerless(mob);
         if (Math.floorMod(mob.tickCount + mob.getId(), RELEASE_INTERVAL) == 0) releaseAttackers(mob);
         if (Math.floorMod(mob.tickCount + mob.getId(), GenericInfectionAi.ACQUIRE_INTERVAL) == 0) GenericInfectionAi.acquireIfIdle(mob, g);
+        if (Math.floorMod(mob.tickCount + mob.getId(), 5) == 0) GenericInfectionAi.feedBrain(mob); // Brain の Mob に狙いを伝える(★ 問い 7 = 1)
         GenericInfectionAi.trackTarget(mob, g);
         if (GenericInfectionAi.rammingNow(mob)) GenericInfectionAi.ramTick(mob, g, now);
         if (now < g.callUntil) marchTick(mob, g);
