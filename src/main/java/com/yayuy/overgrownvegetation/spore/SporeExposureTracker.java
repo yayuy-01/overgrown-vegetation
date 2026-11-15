@@ -91,7 +91,8 @@ public final class SporeExposureTracker {
         return entity.getType().is(ModTags.PLANT_SIDE)
                 || entity instanceof com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster
                 || entity instanceof com.yayuy.overgrownvegetation.entity.BlightFernEntity
-                || entity instanceof com.yayuy.overgrownvegetation.entity.HiveNodeEntity;
+                || entity instanceof com.yayuy.overgrownvegetation.entity.HiveNodeEntity
+                || com.yayuy.overgrownvegetation.infect.GenericInfection.isTurned(entity); // 汎用の感染体(2026-11-15。ほかの MOD の Mob はタグを変えられないので印で)
     }
 
     /** 1 体ぶんの判定({@code interval} tick ぶん)。偽プレイヤーは tick しないので GameTest からも呼ぶ。 */

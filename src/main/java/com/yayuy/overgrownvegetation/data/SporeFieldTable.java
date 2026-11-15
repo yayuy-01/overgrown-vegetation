@@ -56,6 +56,8 @@ public final class SporeFieldTable {
         public DirtSpec.Json dirt;
         /** Mob の胞子感染と飛び火・動物が逃げる(2026-11-14。null は既定値)。 */
         public MobInfectionSpec.Json mobInfection;
+        /** 汎用の感染体(2026-11-15。null は既定値)。 */
+        public GenericInfectionSpec.Json genericInfection;
     }
 
     /**
@@ -261,6 +263,7 @@ public final class SporeFieldTable {
     private final DeconSpec decon;
     private final DirtSpec dirt;
     private final MobInfectionSpec mobInfection;
+    private final GenericInfectionSpec genericInfection;
 
     private SporeFieldTable(Json j) {
         Json src = j != null ? j : new Json();
@@ -282,6 +285,7 @@ public final class SporeFieldTable {
         this.decon = DeconSpec.from(src.decon);
         this.dirt = DirtSpec.from(src.dirt);
         this.mobInfection = MobInfectionSpec.from(src.mobInfection);
+        this.genericInfection = GenericInfectionSpec.from(src.genericInfection);
         this.enabled = src.enabled == null || src.enabled;
         this.updateTicks = src.updateTicks != null ? Math.max(20, Math.min(1200, src.updateTicks)) : 100;
         this.maxStepsPerRun = src.maxStepsPerRun != null ? Math.max(1, Math.min(2400, src.maxStepsPerRun)) : 60;
@@ -528,6 +532,11 @@ public final class SporeFieldTable {
     /** Mob の胞子感染と飛び火・動物が逃げるの設計値(2026-11-14)。 */
     public MobInfectionSpec mobInfection() {
         return mobInfection;
+    }
+
+    /** 汎用の感染体の設計値(2026-11-15)。 */
+    public GenericInfectionSpec genericInfection() {
+        return genericInfection;
     }
 
     /** 装備の汚れと部屋の汚れの設計値(2026-11-14 段 3b・3c)。 */

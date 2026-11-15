@@ -320,6 +320,14 @@ public final class ModAttachments {
                     () -> AttachmentType.builder(() -> new net.minecraft.nbt.CompoundTag())
                             .serialize(net.minecraft.nbt.CompoundTag.CODEC).build());
 
+    /**
+     * 汎用の感染体の印(2026-11-15、{@code infect/GenericInfection})。変わった個体だけ保存する。クライアントへは追跡開始時と変わったときに配る。
+     */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<com.yayuy.overgrownvegetation.infect.GenericInfected>> GENERIC_INFECTED =
+            ATTACHMENT_TYPES.register("generic_infected",
+                    () -> AttachmentType.builder(com.yayuy.overgrownvegetation.infect.GenericInfected::new)
+                            .serialize(com.yayuy.overgrownvegetation.infect.GenericInfected.CODEC, g -> g.turned).build());
+
     public static void register(IEventBus modBus) {
         ATTACHMENT_TYPES.register(modBus);
     }
