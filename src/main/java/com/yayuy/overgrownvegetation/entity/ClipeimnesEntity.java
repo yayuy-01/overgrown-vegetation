@@ -1,6 +1,7 @@
 package com.yayuy.overgrownvegetation.entity;
 
 import com.yayuy.overgrownvegetation.data.MobStats;
+import com.yayuy.overgrownvegetation.entity.crawler.GaitAnimationController;
 import com.yayuy.overgrownvegetation.entity.legs.FootPlanter;
 import com.yayuy.overgrownvegetation.entity.runner.LongBodyRunner;
 import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
@@ -12,7 +13,6 @@ import net.minecraft.world.level.Level;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationController;
 import software.bernie.geckolib.animation.AnimationState;
 import software.bernie.geckolib.animation.PlayState;
 import software.bernie.geckolib.animation.RawAnimation;
@@ -36,6 +36,12 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * 回る速さ {@link #TURN_PER_TICK} 度/tick を早く出し({@link #TURN_SMOOTHING})、向きが {@link #MOVE_OFF} 度より大きくずれたら進まずに<b>その場で向き直る</b>
  * (ヴェナムネス 85・ファルキムネス 70。小さいほど弧を描かず、狭い所で向きを変えられる)。回る速さの上限は、後脚の足先(体の中心から約 2.9 ブロック)が
  * その場で回る間に踏み替えで付いていける速さから決めた(1 tick に 6 度で足先は 0.3 ブロック/tick 動く)。
+ * 盾の腕・頭・尾が幹にめり込むのは許す・回る速さはこのままでよい(11-15 ユーザー)。
+ *
+ * <h2>段 2 のアニメの組み込み(2026-11-15)</h2>
+ * アニメ(正本 {@code clipeimnes.bbmodel})は段 2 で 19 本になった(Fable のセッション。Vault「クリペイムネス」6 節)。ここで流すのは walk・run・idle だけ:
+ * 遅い間は walk、速い間は run({@link #RUN_ON}・{@link #RUN_OFF})。技のアニメ(盾打ち・抱え込み・溜めの解放・盾で詰める {@code guard_*})と光は、
+ * 能力を入れる段で鳴らす(段の切り替えは補間 0、{@code guard_*} は main の後に登録する 2 つ目のコントローラ)。
  */
 public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, ParasitizedMob {
 
@@ -78,15 +84,24 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
     /** 先回りの上限(tick)と、回っている間の上限。 */
     static final double LEAD_MAX = 7.0D, LEAD_TURNING = 3.0D;
 
-    // --- アニメの速さ ---
+    // --- アニメの速さ(段 2 のアニメ、11-15 Fable。Vault「クリペイムネス」6 節) ---
     /**
-     * walk(1.4 秒 = 28 tick の手付けの歩き)を速さ 1.0 で流したときの地上速度(ブロック/tick)。遠く(足の置き場が効いていない)の個体だけが使う。
-     * 着いている間の付け根の Y の振れ × 足先までの半径で測った(11-15 Claude): 中脚は 14 tick に 32 度・半径 13.7 px → 前後 6.9 px = 0.062 ブロック/tick、
-     * 後脚は 14 tick に 26 度・半径 16.8 px → 5.0 px = 0.045 ブロック/tick。<b>手付けの walk は中脚と後脚で足の送りが合っていない</b>(どちらかが 15% ほど滑る)
-     * ので、間を取った。近く(足の置き場 + IK)では使わない。
+     * walk(24 tick で 1 巡・着く 15 tick・1 巡 1.27 ブロック)と run(16 tick・着く 9 tick・1 巡 1.98 ブロック)を速さ 1.0 で流したときの地上速度(ブロック/tick)。
+     * どちらもゲームの IK と同じ変数で焼いてあり、4 本とも着いている間の送りがこの速さに揃っている。遠く(足の置き場が効いていない)の個体は、
+     * 実際の速さ ÷ これ で流せば足が滑らない。近くでは脚は IK が置き、アニメは胴・盾・尾の揺れだけが効く。
+     * どちらも<b>1 巡の 0 で中左 + 後右が着き、0.5 で中右 + 後左が着く</b>(胴の一番低い所はその 2〜3 tick 後)。
      */
-    public static final double WALK_REF = 0.053D;
+    public static final double WALK_REF = 0.053D, RUN_REF = 0.124D;
     static final double LOOP_SPEED_MIN = 0.3D, LOOP_SPEED_MAX = 2.5D;
+    /** run の再生の速さの範囲(0.37〜1.5 倍 = 0.046〜0.186 ブロック/tick)。 */
+    static final double RUN_SPEED_MIN = 0.37D, RUN_SPEED_MAX = 1.5D;
+    /** walk → run へ移る速さ / run → walk へ戻る速さ(ブロック/tick。幅を持たせて境で切り替えが続かないように)【仮】。うろつき 0.061・急ぎ 0.124。 */
+    public static final double RUN_ON = 0.10D, RUN_OFF = 0.08D;
+    /**
+     * 近く(足の置き場が効いている間)の胴の揺れを踏み替えに合わせる: 中脚が着いた tick に、アニメの 1 巡の中の位置と着地の位置(中左 0・中右 0.5)の
+     * ずれを測り、その後の再生を速め・遅めてずれを返す。1 tick に返す割合と、速さを変える幅の上限(基準の速さに対する割合)【仮】。
+     */
+    static final double SYNC_RATE = 0.25D, SYNC_MAX = 0.6D;
     /** これ(ブロック/tick)以上前へ進んだ tick は歩き。 */
     static final double WALK_MIN_SPEED = 0.01D;
     /** その場で回っていても歩きを流す回る速さ(度/tick)。 */
@@ -94,6 +109,7 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
 
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
+    private static final RawAnimation RUN = RawAnimation.begin().thenLoop("run");
 
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
@@ -202,7 +218,10 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
         double step = turning ? STEP_TURN : Mth.clamp(STEP_MIN + v * STEP_PER, STEP_MIN, STEP_MAX);
         fp.stepAt = step;
         fp.swingTicks = turning ? SWING_TURN : SWING_WALK;
-        fp.restGap = 0;
+        // 2 つの組みを半巡ずつずらす(アニメの胴の揺れは 0 と 0.5 で組みが着く作り)。空けないと、片方が着くとすぐもう片方が踏み替え、
+        // 着地が 1 巡の 0.06 と 0.34 に寄った(11-15 測り)。空ける tick = (着いている時間 − 宙の時間) ÷ 2(ヴェナムネスと同じ式)
+        double stance = v > 0.01D ? step / v : 40.0D;
+        fp.restGap = turning || v < 0.02D ? 0 : Mth.clamp((int) Math.round((stance - fp.swingTicks) * 0.5D), 0, 8);
         fp.lead = Mth.clamp(step * 0.5D / Math.max(v, 0.01D), 0.0D, turning ? LEAD_TURNING : LEAD_MAX);
     }
 
@@ -212,26 +231,110 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
 
     // ------------------------------------------------------------------ アニメ
 
+    /** クライアント: 今 run を流しているか(速さのしきい値の幅のため)。 */
+    private boolean running;
+    /** クライアント: 歩きのコントローラ(1 巡の中の位置を読む)。 */
+    @org.jetbrains.annotations.Nullable
+    private GaitAnimationController<ClipeimnesEntity> gait;
+    /** クライアント: 中脚 2 本の前の tick の「宙か」と、踏み替えに合わせるために返す残りのずれ(1 巡の割合、+ = アニメが先)。 */
+    private final boolean[] midSwingBefore = new boolean[2];
+    private double phaseDebt;
+
     /**
-     * アニメは 1 つのコントローラ。前へ進むか回っていれば walk(盾の腕・胸・腹・尾の揺れも入っている)、止まっていれば idle。
-     * 近くで足の置き場が効いている間も walk を流す(脚は IK が休めの形を基準に上書きする)。遠くの個体は walk を実際の速さに合わせて流す。
+     * アニメは 1 つのコントローラ({@link GaitAnimationController}、グレガリアで足したもの)。前へ進むか回っていれば walk、速ければ run
+     * (しきい値に幅 {@link #RUN_ON}・{@link #RUN_OFF})、止まっていれば idle。walk と run は同じ脚の並びなので、切り替えは 1 巡の中の位置を保って補間なしで移る。
+     * どちらも実際の速さ ÷ 基準の速さで流す(遠くの個体の足が滑らない)。近くで足の置き場が効いている間は、脚は IK が上書きし、
+     * 胴・盾・尾の揺れの位相を中脚の着地に合わせて少しずつ寄せる({@link #syncCorrection})。
+     * その場で回る間は walk を基準の 0.6 倍で流す(回る用のアニメは無い。遠くでは足が滑る)。
      */
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new PhaseKeepingAnimationController<>(this, "main", 4, this::mainState));
+        controllers.add(new GaitAnimationController<>(this, "main", 4, this::mainState));
     }
 
     private PlayState mainState(AnimationState<ClipeimnesEntity> state) {
-        AnimationController<ClipeimnesEntity> c = state.getController();
-        c.setAnimationSpeed(1.0D);
+        GaitAnimationController<ClipeimnesEntity> c = (GaitAnimationController<ClipeimnesEntity>) state.getController();
+        this.gait = c;
+        double s = this.getScale();
         double ahead = clientForwardSpeed();
         boolean turning = Math.abs(getTurnRate()) >= TURN_ANIM_MIN;
         if (!this.isDeadOrDying() && (ahead >= WALK_MIN_SPEED || turning)) {
+            if (this.running ? ahead > RUN_OFF * s : ahead >= RUN_ON * s) {
+                this.running = true;
+                double base = Mth.clamp(ahead / (RUN_REF * s), RUN_SPEED_MIN, RUN_SPEED_MAX);
+                c.setAnimationSpeed(Math.max(0.0D, base + syncCorrection(base, RUN_TICKS)));
+                c.switchGait(RUN, "run", "walk");
+                return state.setAndContinue(RUN);
+            }
+            this.running = false;
             double v = Math.max(ahead, turning ? WALK_REF * 0.6D : 0.0D);
-            c.setAnimationSpeed(Mth.clamp(v / (WALK_REF * this.getScale()), LOOP_SPEED_MIN, LOOP_SPEED_MAX));
+            double base = Mth.clamp(v / (WALK_REF * s), LOOP_SPEED_MIN, LOOP_SPEED_MAX);
+            c.setAnimationSpeed(Math.max(0.0D, base + syncCorrection(base, WALK_TICKS)));
+            c.switchGait(WALK, "walk", "run");
             return state.setAndContinue(WALK);
         }
+        this.running = false;
+        this.phaseDebt = 0.0D;
+        c.setAnimationSpeed(1.0D);
+        c.switchGait(IDLE, "idle", "-");
         return state.setAndContinue(IDLE);
+    }
+
+    /** 1 巡の長さ(tick)。 */
+    static final double WALK_TICKS = 24.0D, RUN_TICKS = 16.0D;
+
+    /**
+     * 踏み替えに合わせる再生の速さの足し分(アニメの tick / ゲームの tick): 残りのずれの {@link #SYNC_RATE} を 1 tick で返す。
+     * 足し分は基準の速さの ±{@link #SYNC_MAX} まで(大きく変えると胴の揺れが急に速く・遅く見える)。
+     */
+    private double syncCorrection(double base, double loopTicks) {
+        if (!proceduralLegs()) return 0.0D;
+        double corr = -this.phaseDebt * SYNC_RATE * loopTicks;
+        return Mth.clamp(corr, -SYNC_MAX * base, SYNC_MAX * base);
+    }
+
+    /**
+     * クライアント: 中脚が着いた tick に、アニメの 1 巡の中の位置と着地の位置(中左 = 0、中右 = 0.5)のずれを測る。
+     * 毎 tick、再生の速さで返した分だけずれを減らす(返す量は {@link #syncCorrection} と同じ式)。
+     */
+    @Override
+    public void tick() {
+        super.tick();
+        if (!this.level().isClientSide()) return;
+        GaitAnimationController<ClipeimnesEntity> c = this.gait;
+        FootPlanter fp = footPlanter();
+        if (c == null || fp == null || !fp.ready()) return;
+        String name = c.currentName();
+        double loop = "run".equals(name) ? RUN_TICKS : "walk".equals(name) ? WALK_TICKS : 0.0D;
+        if (loop > 0.0D && proceduralLegs()) {
+            double base = c.getAnimationSpeed();   // 足し分を含む今の速さ。返した量は足し分 ÷ 1 巡の長さ
+            double corr = syncCorrection(Math.max(base, 0.05D), loop);
+            this.phaseDebt += corr / loop;
+        } else {
+            this.phaseDebt = 0.0D;
+        }
+        for (int i = 0; i < 2; i++) {
+            boolean swinging = fp.swinging(i);
+            if (this.midSwingBefore[i] && !swinging && loop > 0.0D && proceduralLegs()) {
+                double target = i == 0 ? 0.0D : 0.5D;
+                double err = c.fraction() - target;
+                err -= Math.floor(err + 0.5D);   // −0.5〜0.5 へ
+                this.phaseDebt = err;
+                if (DEV_HOOKS && this.hasCustomName() && this.getCustomName().getString().contains("gait")) {
+                    com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
+                            "CLIP_SYNC t %d %s 中%s が着いた 1 巡の位置 %.3f(着地は %.1f)ずれ %+.3f 速さ %.2f", this.tickCount, name, i == 0 ? "左" : "右",
+                            c.fraction(), target, err, c.getAnimationSpeed()));
+                }
+            }
+            this.midSwingBefore[i] = swinging;
+        }
+        if (DEV_HOOKS && this.tickCount % 5 == 0 && this.hasCustomName() && this.getCustomName().getString().contains("gait") && loop > 0.0D) {
+            double ref = "run".equals(name) ? RUN_REF : WALK_REF;
+            double ahead = clientForwardSpeed();
+            com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
+                    "CLIP_ANIM t %d %s 足の置き場 %s 前へ %.3f アニメの送り %.3f 滑り %+.3f ブロック/tick", this.tickCount, name, proceduralLegs(), ahead,
+                    c.getAnimationSpeed() * ref * this.getScale(), ahead - c.getAnimationSpeed() * ref * this.getScale()));
+        }
     }
 
     @Override
