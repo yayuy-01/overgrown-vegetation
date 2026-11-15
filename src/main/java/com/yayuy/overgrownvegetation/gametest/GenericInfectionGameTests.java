@@ -607,6 +607,37 @@ public final class GenericInfectionGameTests {
         });
     }
 
+    /**
+     * 11-16 ユーザーの不具合「変わったスライムが攻撃のときだけ跳ねずに水平に滑って飛ぶ」: 変わった小さなスライム(元の攻撃はプレイヤーと
+     * アイアンゴーレムにしか出ないので、豚へは予備の近接になる)は、元の跳ねで近づき(宙に浮いたまま長く進まない)、触れて豚を傷付ける。
+     */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 300)
+    public static void turnedSlimeHopsInsteadOfGliding(GameTestHelper helper) {
+        net.minecraft.world.entity.monster.Slime slime = helper.spawn(EntityType.SLIME, new BlockPos(1, 2, 1));
+        slime.setSize(1, true);
+        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, new BlockPos(5, 2, 5));
+        GenericInfection.turn(slime, true);
+        slime.setTarget(pig);
+        int[] air = {0, 0}; // 今続いている宙の tick・その最長
+        int[] glide = {0}; // 宙で上下がほぼ止まったまま横へ進んだ tick
+        helper.onEachTick(() -> {
+            if (!slime.onGround()) {
+                air[0]++;
+                air[1] = Math.max(air[1], air[0]);
+                var v = slime.getDeltaMovement();
+                if (Math.abs(v.y) < 0.02D && v.horizontalDistance() > 0.05D) glide[0]++;
+            } else {
+                air[0] = 0;
+            }
+        });
+        helper.succeedWhen(() -> {
+            if (air[1] > 30 || glide[0] > 12) {
+                helper.fail("スライムが跳ねずに滑っている: 宙の最長 " + air[1] + " tick・滑り " + glide[0] + " tick");
+            }
+            if (pig.isAlive() && pig.getHealth() >= pig.getMaxHealth()) helper.fail("スライムが豚を傷付けない(宙の最長 " + air[1] + "・滑り " + glide[0] + ")");
+        });
+    }
+
     /** 撃つ種(ラマ = 唾)。 */
     @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
     public static void attackLlama(GameTestHelper helper) {

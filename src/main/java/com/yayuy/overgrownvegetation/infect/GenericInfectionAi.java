@@ -509,8 +509,7 @@ public final class GenericInfectionAi {
      * </ul>
      */
     static void afterTick(Mob mob) {
-        boolean walker = mob instanceof PathfinderMob && !(mob instanceof net.minecraft.world.entity.animal.Squid);
-        if (!walker && !GenericInfection.isTransforming(mob) && rammingNow(mob)) {
+        if (needsSteer(mob) && !GenericInfection.isTransforming(mob) && rammingNow(mob)) {
             LivingEntity t = targetOf(mob);
             double r = range(mob, GenericInfection.spec());
             if (t != null && t.isAlive() && mob.distanceToSqr(t) < r * r) {
@@ -522,6 +521,20 @@ public final class GenericInfectionAi {
             if (horse.isEating()) horse.setEating(false);
             if (horse.isStanding()) horse.setStanding(false);
         }
+    }
+
+    /**
+     * 相手へ向けて直に動かす Mob か: 道を歩けず(PathfinderMob でない・イカ)、かつ<b>飛ぶ・泳ぐ</b>もの(重力の無い Mob・ガストとファントム・コウモリ・
+     * 飛ぶ動物・水の中の水の生き物)。スライム・マグマキューブ(とそれを継ぐほかの MOD の種)は地面を跳ねて動くので入れない —— 入れると跳ねの外で
+     * 速さが入り、宙に浮いたまま横へ滑る(11-16 ユーザーが見つけた不具合)。スライムは元の跳ねで近づき、触れたら予備の近接が当たる。
+     */
+    static boolean needsSteer(Mob mob) {
+        boolean walker = mob instanceof PathfinderMob && !(mob instanceof net.minecraft.world.entity.animal.Squid);
+        if (walker) return false;
+        if (mob instanceof net.minecraft.world.entity.monster.Slime) return false;
+        return mob.isNoGravity() || mob instanceof net.minecraft.world.entity.FlyingMob || mob instanceof net.minecraft.world.entity.ambient.Bat
+                || mob instanceof net.minecraft.world.entity.animal.FlyingAnimal
+                || (mob instanceof WaterAnimal && mob.isInWater());
     }
 
     /** 飼い主の印が残っていたら消す(読み直した個体など)。 */
