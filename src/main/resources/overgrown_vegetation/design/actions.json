@@ -47,7 +47,7 @@
     }
   },
   "venamnes": {
-    "_comment": "ヴェナムネスの技(11-15 段 A、すべて仮)。間合いは体の真ん中から相手の真ん中まで(頭は真ん中の約 3.3 ブロック前)。bite = 噛みつき(届けば出す。damage 0 は種の攻撃力)、pounce = 飛びかかり(頭から相手まで約 4〜8 ブロック = 真ん中から 7〜11。chance は間合いに入った 1 tick ごとの確率。lift は跳ぶ上向きの勢い、横の勢いは届く距離から逆算)。時刻(前触れ・実行・隙)はアニメと対なので Java。段 B(11-15、すべて仮): nip = すれ違いざまの足噛み(走りながら、首の横の届く所の相手へ。slowTicks・slowAmp = 移動の遅さの長さと強さ 1 = II)。hunt = 狩りの疾走(背を向けて離れる速さ fleeSpeed 以上の相手へ。speedMult = 移動の倍率 1.34 → 地面 0.35 ブロック/tick(ユーザー決定)、sprintTicks = 走る長さ、damage・lift = 最後の飛びかかり)。",
+    "_comment": "ヴェナムネスの技(11-15 段 A、すべて仮)。間合いは体の真ん中から相手の真ん中まで(頭は真ん中の約 3.3 ブロック前)。bite = 噛みつき(届けば出す。damage 0 は種の攻撃力)、pounce = 飛びかかり(頭から相手まで約 4〜8 ブロック = 真ん中から 7〜11。chance は間合いに入った 1 tick ごとの確率。lift は跳ぶ上向きの勢い、横の勢いは届く距離から逆算)。時刻(前触れ・実行・隙)はアニメと対なので Java。段 B(11-15、すべて仮): nip = すれ違いざまの足噛み(走りながら、首の横の届く所の相手へ。slowTicks・slowAmp = 移動の遅さの長さと強さ 1 = II)。hunt = 狩りの疾走(背を向けて離れる速さ fleeSpeed 以上の相手へ。speedMult = 移動の倍率 1.34 → 地面 0.35 ブロック/tick(ユーザー決定)、sprintTicks = 走る長さ、damage・lift = 最後の飛びかかり)。段 C(11-15、すべて仮): personality = 性格の擬似の技(選ばれない。extra だけ): 慎重な個体のつけ回しの距離 prowlNear〜prowlFar、相手がこちらを見ているとみる向きのずれ watchCone 度以内、背を向けたとみる backCone 度より大きい、待ちきれなくなるまで patienceTicks × 慎重さの片側、攻めに行く長さ commitTicks、つけ回しの速さ prowlSpeed。",
     "actions": {
       "bite": { "cooldown": 30, "minRange": 0, "maxRange": 0, "score": 1.0, "recency": 1.0, "chance": 1.0, "damage": 0 },
       "pounce": { "cooldown": 100, "minRange": 7, "maxRange": 11, "score": 1.0, "recency": 1.0, "chance": 0.08, "damage": 12,
@@ -55,7 +55,9 @@
       "nip": { "cooldown": 40, "minRange": 0, "maxRange": 5, "score": 1.0, "recency": 1.0, "chance": 1.0, "damage": 4,
         "extra": { "slowTicks": 60, "slowAmp": 1 } },
       "hunt": { "cooldown": 400, "minRange": 10, "maxRange": 28, "score": 1.0, "recency": 1.0, "chance": 0.1, "damage": 14,
-        "extra": { "fleeSpeed": 0.12, "speedMult": 1.34, "sprintTicks": 80, "lift": 0.42 } }
+        "extra": { "fleeSpeed": 0.12, "speedMult": 1.34, "sprintTicks": 80, "lift": 0.42 } },
+      "personality": { "cooldown": 0, "minRange": 0, "maxRange": 0, "score": 0, "recency": 1.0, "chance": 0, "damage": 0,
+        "extra": { "prowlNear": 16, "prowlFar": 24, "watchCone": 35, "backCone": 110, "patienceTicks": 600, "commitTicks": 200, "prowlSpeed": 0.72 } }
     }
   }
 }

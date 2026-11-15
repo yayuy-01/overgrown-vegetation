@@ -121,7 +121,23 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     public static final int ACT_NONE = 0, ACT_BITE_WINDUP = 1, ACT_BITE = 2, ACT_BITE_RECOVER = 3,
             ACT_POUNCE_WINDUP = 4, ACT_POUNCE = 5, ACT_POUNCE_RECOVER = 6,
             // 段 B(11-15): 狩りの疾走。叫び → 疾走(走りながら追う。脚・曲げは止めない = isActing ではない)→ 最後の飛びかかり → 着地 → 息切れ
-            ACT_HUNT_WINDUP = 7, ACT_HUNT_SPRINT = 8, ACT_HUNT_POUNCE = 9, ACT_HUNT_LAND = 10, ACT_HUNT_RECOVER = 11;
+            ACT_HUNT_WINDUP = 7, ACT_HUNT_SPRINT = 8, ACT_HUNT_POUNCE = 9, ACT_HUNT_LAND = 10, ACT_HUNT_RECOVER = 11,
+            // 段 C(11-15): 段差を跳び上がる(経路の次の点が 2 段以上上のとき)
+            ACT_LEAP_WINDUP = 12, ACT_LEAP = 13, ACT_LEAP_RECOVER = 14;
+
+    // --- 段 C: どこでも逃げ切れない(決定「段差も水も越えてくる」)【仮・Claude 11-15】 ---
+    /** 跳び上がれる高さ(ブロック)。経路を引く間だけ「上れる段」をこの高さにする(ほかの Mob の経路は変えない)。 */
+    public static final float LEAP_HEIGHT = 3.0F;
+    /** 跳び上がる: 経路の次の点がこれ以上高く(段)、横にこれ以内(ブロック)なら跳ぶ。 */
+    static final int LEAP_MIN_RISE = 2;
+    static final double LEAP_REACH = 3.0D;
+    /** 長さ: leap_windup 0.40 秒(+ 補間 4。LEAD はこの下で決めるので数で書く)・leap(足が 0.10 秒で離れる。宙は最後の姿のまま)・leap_recover 0.50 秒。 */
+    public static final int LEAP_WINDUP_T = 4 + 8, LEAP_LIFTOFF = 2, LEAP_RECOVER_T = 10, LEAP_MAX_AIR = 40;
+    /** 跳ぶ頂点の余裕(着く段の上へ、ブロック)・宙で崖の縁へ寄せ続ける横の速さの下限(ブロック/tick)。 */
+    static final double LEAP_CLEAR = 0.5D, LEAP_AIR_PUSH = 0.18D;
+    /** 泳ぐ速さ(ブロック/tick、水の中で前へ進む間)・経路の水の重み(1 マス)。 */
+    public static final double SWIM_SPEED = 0.15D;
+    static final float WATER_MALUS = 4.0F;
 
     /** 動作に入るときの補間(tick)。 */
     static final int LEAD = 4;
@@ -197,6 +213,12 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     private static final RawAnimation HUNT_WINDUP_ANIM = RawAnimation.begin().thenPlayAndHold("hunt_windup");
     private static final RawAnimation SPRINT_ANIM = RawAnimation.begin().thenLoop("sprint");
     private static final RawAnimation HUNT_RECOVER_ANIM = RawAnimation.begin().thenPlayAndHold("hunt_recover");
+    private static final RawAnimation LEAP_WINDUP_ANIM = RawAnimation.begin().thenPlayAndHold("leap_windup");
+    private static final RawAnimation LEAP_ANIM = RawAnimation.begin().thenPlayAndHold("leap");
+    private static final RawAnimation LEAP_RECOVER_ANIM = RawAnimation.begin().thenPlayAndHold("leap_recover");
+    private static final RawAnimation SWIM_ANIM = RawAnimation.begin().thenLoop("swim");
+    private static final RawAnimation PROWL_ANIM = RawAnimation.begin().thenLoop("prowl");
+    private static final RawAnimation PROWL_FREEZE_ANIM = RawAnimation.begin().thenLoop("prowl_freeze");
     private static final RawAnimation[] NIP_ANIMS = {null,
             RawAnimation.begin().thenPlayAndHold("nip_l_windup"), RawAnimation.begin().thenPlayAndHold("nip_l"), RawAnimation.begin().thenPlayAndHold("nip_l_recover"),
             RawAnimation.begin().thenPlayAndHold("nip_r_windup"), RawAnimation.begin().thenPlayAndHold("nip_r"), RawAnimation.begin().thenPlayAndHold("nip_r_recover")};
@@ -252,6 +274,9 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     public VenamnesEntity(EntityType<? extends VenamnesEntity> type, Level level) {
         super(type, level);
         this.xpReward = MobStats.xpReward(ID, 30);
+        // 段 C(11-15): 水も越えてくる。経路は水を通ってよい(重み WATER_MALUS)・水面に浮く(土台は水を通らない作り。この種だけ変える)
+        this.setPathfindingMalus(net.minecraft.world.level.pathfinder.PathType.WATER, WATER_MALUS);
+        this.getNavigation().setCanFloat(true);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -264,6 +289,8 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         builder.define(DATA_ACTION, ACT_NONE);
         builder.define(DATA_SEQ, 0);
         builder.define(DATA_NIP, NIP_NONE);
+        builder.define(DATA_CAUTION, 0.5F);
+        builder.define(DATA_PROWL, PROWL_NONE);
     }
 
     /** うろつく・見回すに、追う(技を選ぶ)Goal と標的の Goal を足す(標的はファルキムネスと同じ: 殴られたら反撃・プレイヤー・グループの外の生き物)。 */
@@ -360,7 +387,9 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     /** 開けた所の倍率を目標へ寄せる(サーバー、移動の後)。 */
     @Override
     protected void tickRunner() {
+        if (!this.personalitySet) setCaution(FalcimnesPersonality.roll(this.random));   // 湧いた個体ごとに 1 回(U 字の分布)
         tickAction();
+        tickTerrain();
         long t0 = System.nanoTime();
         double target = 1.0D;
         boolean hurrying = currentSpeedModifier() >= 1.0D && this.onGround();
@@ -489,7 +518,14 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     /** まっすぐの舵の間も「急いでいる」(開けた所の倍率を掛ける。経路が無いので土台の読み方では 0 になる)。 */
     @Override
     protected double currentSpeedModifier() {
-        return this.steering ? 1.0D : super.currentSpeedModifier();
+        return this.steering ? this.steerSpeed : super.currentSpeedModifier();
+    }
+
+    /** まっすぐの舵の速さ倍率(つけ回しは遅い)。 */
+    private double steerSpeed = 1.0D;
+
+    void setSteerSpeed(double s) {
+        this.steerSpeed = s;
     }
 
     void setSteering(boolean on) {
@@ -529,6 +565,137 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
             case "hunt" -> ACT_HUNT_WINDUP;
             default -> ACT_BITE_WINDUP;
         });
+    }
+
+    // ------------------------------------------------------------------ 性格(段 C 11-15)
+    // 決定(11-14 ユーザー): 慎重な個体は 16〜24 ブロック離れてつけ回し、振り向くと止まり、背を向けて逃げた瞬間に狩りの疾走。
+    // 大胆な個体は見つけたら真っすぐ来る。ファルキムネスと同じ仕組み = 連続したつまみ(慎重さ 0〜1)を U 字の分布で振る。
+    // 慎重さ 0.5 以下は大胆(段 A・B の振る舞いのまま)。数値は actions.json の擬似の技 personality【仮】。
+
+    private static final EntityDataAccessor<Float> DATA_CAUTION = SynchedEntityData.defineId(VenamnesEntity.class, EntityDataSerializers.FLOAT);
+    /** つけ回しの見え方(同期する): 0 = ふつう、1 = つけ回し(低い構えで歩く)、2 = 振り向かれて固まる。 */
+    private static final EntityDataAccessor<Integer> DATA_PROWL = SynchedEntityData.defineId(VenamnesEntity.class, EntityDataSerializers.INT);
+    public static final int PROWL_NONE = 0, PROWL_STALK = 1, PROWL_FREEZE = 2;
+    private boolean personalitySet;
+
+    public float caution() {
+        return this.entityData.get(DATA_CAUTION);
+    }
+
+    /** 性格を決める(0〜1。GameTest は 0 = 大胆・1 = 慎重を置く)。 */
+    public void setCaution(float caution) {
+        this.entityData.set(DATA_CAUTION, Mth.clamp(caution, 0.0F, 1.0F));
+        this.personalitySet = true;
+    }
+
+    /** 慎重さの片側(0.5 以下は 0 = 大胆、1 で 1)。 */
+    public double wary() {
+        return FalcimnesPersonality.over(caution());
+    }
+
+    public int prowlMode() {
+        return this.entityData.get(DATA_PROWL);
+    }
+
+    void setProwlMode(int m) {
+        if (this.entityData.get(DATA_PROWL) != m) this.entityData.set(DATA_PROWL, m);
+    }
+
+    /** 性格の数値({@code actions.json} の擬似の技 {@code personality} の extra)。 */
+    static double pv(String key, double fallback) {
+        return def("personality").get(key, fallback);
+    }
+
+    // ------------------------------------------------------------------ 段差と水(段 C 11-15)
+
+    /** 経路を引いている最中か(この間だけ「上れる段」を {@link #LEAP_HEIGHT} にする)。 */
+    private boolean pathing;
+
+    /**
+     * 上れる段: 経路を引く間だけ {@link #LEAP_HEIGHT}(バニラの経路は {@code maxUpStep} で「何段上の隣へ行けるか」を決める。
+     * 跳べば届く段を経路に入れる)。動く間はふつうの値(体が一気に 3 段持ち上がらないように)。
+     */
+    @Override
+    public float maxUpStep() {
+        return this.pathing ? Math.max(LEAP_HEIGHT, super.maxUpStep()) : super.maxUpStep();
+    }
+
+    /** 経路: 土台と同じ(長い体の重み + 回り道)に、引く間だけ跳べる段を上れることにする。この種だけ。 */
+    @Override
+    protected net.minecraft.world.entity.ai.navigation.PathNavigation createNavigation(Level level) {
+        return new com.yayuy.overgrownvegetation.entity.runner.LongBodyNavigation(this, level, LONG_BODY, () -> true) {
+            @Override
+            protected net.minecraft.world.level.pathfinder.Path createPath(java.util.Set<net.minecraft.core.BlockPos> targets, int regionOffset,
+                                                                           boolean offsetUpward, int accuracy, float followRange) {
+                VenamnesEntity v = VenamnesEntity.this;
+                v.pathing = true;
+                try {
+                    return super.createPath(targets, regionOffset, offsetUpward, accuracy, followRange);
+                } finally {
+                    v.pathing = false;
+                }
+            }
+        };
+    }
+
+    /** 跳び上がりの行き先(経路の次の点の足元)。 */
+    @Nullable
+    private Vec3 leapTo;
+
+    /**
+     * 段差と水(サーバー、移動の後): 経路の次の点が {@link #LEAP_MIN_RISE} 段以上高く近ければ跳び上がりを始める / 水の中で前へ進む間は
+     * {@link #SWIM_SPEED} で泳ぐ(バニラの水の中は 0.02 ずつしか押さず、長い体がほとんど進まない)。
+     */
+    private void tickTerrain() {
+        if (isActing() || !this.isAlive()) return;
+        if (this.isInWater()) {
+            if (currentSpeedModifier() > 0.0D || this.steering) {
+                float yaw = this.getYRot() * Mth.DEG_TO_RAD;
+                Vec3 v = this.getDeltaMovement();
+                double s = SWIM_SPEED * this.getScale();
+                this.setDeltaMovement(-Mth.sin(yaw) * s, v.y, Mth.cos(yaw) * s);
+            }
+            return;
+        }
+        if (!this.onGround()) return;
+        net.minecraft.world.level.pathfinder.Path p = this.getNavigation().getPath();
+        if (p == null || p.isDone()) return;
+        net.minecraft.world.level.pathfinder.Node n = p.getNextNode();
+        int rise = n.y - this.getBlockY();
+        if (rise < LEAP_MIN_RISE || rise > Mth.ceil(LEAP_HEIGHT)) return;
+        double cx = n.x + 0.5D, cz = n.z + 0.5D;
+        // 大きい体の経路の点は足場の角(体の真ん中は +0.5 ずれる)。近い方を取る
+        double dx = cx - this.getX(), dz = cz - this.getZ();
+        if (dx * dx + dz * dz > LEAP_REACH * LEAP_REACH * this.getScale() * this.getScale()) return;
+        this.leapTo = new Vec3(cx, n.y, cz);
+        this.leftGround = false;
+        setAction(ACT_LEAP_WINDUP);
+    }
+
+    /** 跳び上がり: 頂点が着く段の {@link #LEAP_CLEAR} 上になる上向きの勢いを {@link LeapArc} で探し、横は宙の長さで割る。 */
+    private void launchUp() {
+        Vec3 to = this.leapTo != null ? this.leapTo : this.position().add(0, LEAP_HEIGHT, 0);
+        double rise = to.y - this.getY() + LEAP_CLEAR;
+        double lift = 0.42D;
+        while (lift < 1.2D && LeapArc.reach(0.0D, lift, 60)[1] < rise) lift += 0.02D;
+        double dx = to.x - this.getX(), dz = to.z - this.getZ(), dist = Math.sqrt(dx * dx + dz * dz);
+        double h = 0.05D;
+        while (h < 1.0D && !LeapArc.canReach(h, lift, 60, dist, to.y - this.getY())) h += 0.02D;
+        double ux = dist > 1.0E-3D ? dx / dist : 0.0D, uz = dist > 1.0E-3D ? dz / dist : 0.0D;
+        this.setDeltaMovement(ux * h, lift, uz * h);
+        this.setOnGround(false);
+        this.hasImpulse = true;
+    }
+
+    /** 宙で、まだ着く段より低い間は崖の縁へ寄せ続ける(壁に当たると横の勢いが消えるので)。 */
+    private void leapAirPush() {
+        if (this.leapTo == null || this.onGround()) return;
+        double dx = this.leapTo.x - this.getX(), dz = this.leapTo.z - this.getZ(), dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist < 0.3D) return;
+        Vec3 v = this.getDeltaMovement();
+        double hv = Math.sqrt(v.x * v.x + v.z * v.z);
+        if (hv >= LEAP_AIR_PUSH) return;
+        this.setDeltaMovement(dx / dist * LEAP_AIR_PUSH, v.y, dz / dist * LEAP_AIR_PUSH);
     }
 
     // ------------------------------------------------------------------ 足噛み(段 B 11-15)
@@ -641,6 +808,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         this.entityData.set(DATA_SEQ, this.entityData.get(DATA_SEQ) + 1);
         this.actionTicks = 0;
         if (act != ACT_NONE) {
+            this.entityData.set(DATA_PROWL, PROWL_NONE);
             this.getNavigation().stop();
             this.steering = false;
         }
@@ -749,6 +917,24 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
             case ACT_HUNT_RECOVER -> {
                 if (k >= HUNT_RECOVER_T) setAction(ACT_NONE);
             }
+            // --- 段差を跳び上がる(段 C) ---
+            case ACT_LEAP_WINDUP -> {
+                if (this.leapTo != null) wantFacing((float) (Mth.atan2(this.leapTo.z - this.getZ(), this.leapTo.x - this.getX()) * Mth.RAD_TO_DEG) - 90.0F, TURN_ACTION);
+                if (k >= LEAP_WINDUP_T) setAction(ACT_LEAP);
+            }
+            case ACT_LEAP -> {
+                if (k == LEAP_LIFTOFF) launchUp();
+                if (!this.onGround()) this.leftGround = true;
+                if (k > LEAP_LIFTOFF) leapAirPush();
+                boolean landed = this.leftGround && this.onGround() && k > LEAP_LIFTOFF + 1;
+                if (landed || k > LEAP_LIFTOFF + LEAP_MAX_AIR) setAction(ACT_LEAP_RECOVER);
+            }
+            case ACT_LEAP_RECOVER -> {
+                if (k >= LEAP_RECOVER_T) {
+                    this.leapTo = null;
+                    setAction(ACT_NONE);
+                }
+            }
             default -> setAction(ACT_NONE);
         }
     }
@@ -847,6 +1033,11 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putInt("OvAction", getAction());
+        if (this.personalitySet) {
+            CompoundTag p = new CompoundTag();
+            p.putFloat("caution", caution());
+            tag.put("OvPersonality", p);
+        }
     }
 
     @Override
@@ -854,6 +1045,8 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         super.readAdditionalSaveData(tag);
         if (tag.contains("OvForceAction")) this.pendingForce = tag.getInt("OvForceAction");
         if (tag.contains("OvForceNip")) this.pendingNip = true;
+        // 段 C: 性格。確かめ用に /data merge entity <個体> {OvPersonality:{caution:1f}} でも置ける
+        if (tag.contains("OvPersonality")) setCaution(tag.getCompound("OvPersonality").getFloat("caution"));
     }
 
     // ------------------------------------------------------------------ 脚
@@ -1005,7 +1198,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
             // 補間: 技に入る段は LEAD、継ぎ目が同じ姿の段は 0。疾走 → 最後の飛びかかりは走りの位相がまちまちなので 2、
             // 息切れは頭が疾走の構え(着地の後は静止の姿)なので LEAD(アニメの一覧の注意)
             c.transitionLength(switch (act) {
-                case ACT_BITE_WINDUP, ACT_POUNCE_WINDUP, ACT_HUNT_WINDUP, ACT_HUNT_RECOVER -> LEAD;
+                case ACT_BITE_WINDUP, ACT_POUNCE_WINDUP, ACT_HUNT_WINDUP, ACT_HUNT_RECOVER, ACT_LEAP_WINDUP -> LEAD;
                 case ACT_HUNT_POUNCE -> 2;
                 default -> 0;
             });
@@ -1023,9 +1216,16 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
                 case ACT_HUNT_WINDUP -> HUNT_WINDUP_ANIM;
                 case ACT_HUNT_SPRINT -> SPRINT_ANIM;
                 case ACT_HUNT_RECOVER -> HUNT_RECOVER_ANIM;
+                case ACT_LEAP_WINDUP -> LEAP_WINDUP_ANIM;
+                case ACT_LEAP -> LEAP_ANIM;
+                case ACT_LEAP_RECOVER -> LEAP_RECOVER_ANIM;
                 default -> IDLE;
             };
             return state.setAndContinue(a);
+        }
+        if (this.isInWater() && !this.isDeadOrDying()) {
+            // 泳ぐ(段 C): 脚は畳んだまま(土台が水の中は足の置き場を止める)。水面に浮かせるのは浮く Goal
+            return state.setAndContinue(SWIM_ANIM);
         }
         double ahead = clientForwardSpeed();
         boolean turning = Math.abs(getTurnRate()) >= TURN_ANIM_MIN;
@@ -1037,14 +1237,14 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
             }
             if (proceduralLegs()) {
                 // 足の置き場で歩く間: 上半身だけの構え。脚・腰の上下・首と尾の付け根は実際の踏み替えから手続きで足す
-                return state.setAndContinue(STALK);
+                return state.setAndContinue(prowlMode() == PROWL_NONE ? STALK : PROWL_ANIM);   // 段 C: つけ回しは低い構え prowl
             }
             // 遠く(足の置き場が効いていない)でゆっくり歩く間: 手付けの歩き
             double v = Math.max(ahead, turning ? WALK_REF * 0.5D : 0.0D);
             c.setAnimationSpeed(Mth.clamp(v / (WALK_REF * this.getScale()), LOOP_SPEED_MIN, LOOP_SPEED_MAX));
             return state.setAndContinue(WALK);
         }
-        return state.setAndContinue(IDLE);
+        return state.setAndContinue(prowlMode() == PROWL_FREEZE ? PROWL_FREEZE_ANIM : IDLE);   // 段 C: 振り向かれて固まる
     }
 
     @Override

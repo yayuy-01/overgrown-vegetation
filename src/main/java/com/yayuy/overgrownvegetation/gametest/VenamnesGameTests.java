@@ -446,6 +446,144 @@ public final class VenamnesGameTests {
         });
     }
 
+    // ------------------------------------------------------------------ 段 C(11-15): 段差・水・性格
+
+    /** 段差: 3 段の崖(z 4 から奥。x は全部)の上へ、経路が「跳べば届く」を選び、跳び上がって着く。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 240)
+    public static void leapsUpThreeBlockLedge(GameTestHelper helper) {
+        for (int x = 0; x <= 6; x++) for (int z = 4; z <= 6; z++) for (int y = 2; y <= 4; y++) helper.setBlock(new BlockPos(x, y, z), Blocks.STONE.defaultBlockState());
+        VenamnesEntity v = placeAt(helper, 3.5D, 0.8D, 0.0F);
+        boolean[] leapt = {false};
+        helper.runAfterDelay(2L, () -> walkTo(helper, v, new BlockPos(3, 5, 5), 1.0D));
+        helper.onEachTick(() -> {
+            if (v.getAction() == VenamnesEntity.ACT_LEAP) leapt[0] = true;
+            if (helper.getTick() > 10 && v.getNavigation().isDone() && !v.isActing() && v.getY() < helper.absoluteVec(new Vec3(0, 4.9D, 0)).y) {
+                walkTo(helper, v, new BlockPos(3, 5, 5), 1.0D);
+            }
+            if (v.getY() >= helper.absoluteVec(new Vec3(0, 4.95D, 0)).y && v.onGround() && !v.isActing()) {
+                if (!leapt[0]) {
+                    helper.fail("跳び上がりを通らずに上った");
+                    return;
+                }
+                helper.succeed();
+            }
+        });
+    }
+
+    /** 段差: 4 段の壁は跳べない(経路が届かない・上らない)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 120)
+    public static void doesNotLeapFourBlockWall(GameTestHelper helper) {
+        for (int x = 0; x <= 6; x++) for (int z = 4; z <= 6; z++) for (int y = 2; y <= 5; y++) helper.setBlock(new BlockPos(x, y, z), Blocks.STONE.defaultBlockState());
+        VenamnesEntity v = placeAt(helper, 3.5D, 0.8D, 0.0F);
+        helper.runAfterDelay(2L, () -> {
+            Path p = v.getNavigation().createPath(helper.absolutePos(new BlockPos(3, 6, 5)), 0);
+            BlockPos goal = helper.absolutePos(new BlockPos(3, 6, 5));
+            if (p != null && p.getEndNode() != null && p.getEndNode().asBlockPos().distManhattan(goal) <= 2) {   // canReach は回り道の途中の目標へ届くことでも true になるので、終わりの点で見る
+                helper.fail("4 段の上へ届く経路が引けた");
+                return;
+            }
+            if (p != null) v.getNavigation().moveTo(p, 1.0D);
+        });
+        helper.runAfterDelay(110L, () -> {
+            if (v.getY() > helper.absoluteVec(new Vec3(0, 3.0D, 0)).y || v.getAction() == VenamnesEntity.ACT_LEAP) {
+                helper.fail("4 段の壁へ跳んだ: y " + (v.getY() - helper.absoluteVec(Vec3.ZERO).y));
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /** 水: 深さ 2・幅 3 の水路(z 2〜4。テスト場の幅いっぱいで回り道は無い)を泳いで向こう岸へ渡る。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 300)
+    public static void swimsAcrossChannel(GameTestHelper helper) {
+        for (int x = 0; x <= 6; x++) {
+            for (int z = 2; z <= 4; z++) {
+                helper.setBlock(new BlockPos(x, -1, z), Blocks.STONE.defaultBlockState());
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.WATER.defaultBlockState());
+                helper.setBlock(new BlockPos(x, 1, z), Blocks.WATER.defaultBlockState());
+            }
+        }
+        VenamnesEntity v = hunter(helper, 0.0F);   // 浮く Goal が要る(spawnWithNoFreeWill は外す)。名前 nostroll = うろつかない・標的を探さない
+        boolean[] swam = {false};
+        helper.runAfterDelay(2L, () -> walkTo(helper, v, new BlockPos(3, 2, 6), 1.0D));
+        helper.onEachTick(() -> {
+            if (v.isInWater()) swam[0] = true;
+            if (helper.getTick() > 10 && v.getNavigation().isDone() && v.getZ() < helper.absoluteVec(new Vec3(0, 0, 5.2D)).z) {
+                walkTo(helper, v, new BlockPos(3, 2, 6), 1.0D);
+            }
+            if (v.getZ() > helper.absoluteVec(new Vec3(0, 0, 5.2D)).z && v.onGround()) {
+                if (!swam[0]) {
+                    helper.fail("水に入らずに渡った");
+                    return;
+                }
+                helper.succeed();
+            }
+        });
+    }
+
+    /** 性格の確かめ用: 追う Goal の動くヴェナムネスと、こちらを向いた偽プレイヤー(2.2 ブロック先。テスト場が狭いので、つけ回しの距離より近い = 止まって向き直る所)。 */
+    private static VenamnesEntity hunter(GameTestHelper helper, float caution) {
+        VenamnesEntity v = helper.spawn(ModRunners.VENAMNES.get(), new BlockPos(0, 2, 0));
+        Vec3 p = helper.absoluteVec(new Vec3(3.5D, 2.0D, 0.8D));
+        v.moveTo(p.x, p.y, p.z, 0.0F, 0.0F);
+        v.snapFacing(0.0F);
+        v.setCustomName(net.minecraft.network.chat.Component.literal("nostroll"));
+        v.setCaution(caution);
+        return v;
+    }
+
+    private static net.minecraft.world.entity.player.Player watcher(GameTestHelper helper, VenamnesEntity v) {
+        net.minecraft.world.entity.player.Player pl = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        Vec3 at = helper.absoluteVec(new Vec3(3.5D, 2.0D, 3.0D));
+        pl.moveTo(at.x, at.y, at.z, 180.0F, 0.0F);   // 北(ヴェナムネスの方)を向く
+        pl.setYHeadRot(180.0F);
+        v.setTarget(pl);
+        return pl;
+    }
+
+    /**
+     * 性格: 慎重な個体は、見ている(こちらを向いた)プレイヤーの前では止まって固まり、噛みに来ない。プレイヤーが背を向けて離れていくと、
+     * その瞬間に狩りの疾走(叫び)を始める。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 160)
+    public static void cautiousFreezesWhenWatchedAndSprintsWhenBackTurned(GameTestHelper helper) {
+        VenamnesEntity v = hunter(helper, 1.0F);
+        net.minecraft.world.entity.player.Player pl = watcher(helper, v);
+        double[] start = new double[2];
+        helper.runAfterDelay(3L, () -> {
+            start[0] = v.getX();
+            start[1] = v.getZ();
+        });
+        helper.runAfterDelay(60L, () -> {
+            if (v.prowlMode() != VenamnesEntity.PROWL_FREEZE || v.isActing() || Math.hypot(v.getX() - start[0], v.getZ() - start[1]) > 0.3D) {
+                helper.fail("見られているのに固まらない: 構え " + v.prowlMode() + " 動作 " + v.getAction());
+                return;
+            }
+            pl.setYRot(0.0F);
+            pl.setYHeadRot(0.0F);   // 背を向ける(南)
+        });
+        helper.onEachTick(() -> {
+            if (helper.getTick() > 61) {
+                pl.setPos(pl.getX(), pl.getY(), Math.min(pl.getZ() + 0.25D, helper.absoluteVec(new Vec3(0, 0, 6.6D)).z));   // 離れていく
+            }
+            if (helper.getTick() > 61 && v.getAction() == VenamnesEntity.ACT_HUNT_WINDUP) helper.succeed();
+        });
+    }
+
+    /** 性格: 大胆な個体は見られていても固まらず、真っすぐ寄って噛む。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 120)
+    public static void boldIgnoresGazeAndBites(GameTestHelper helper) {
+        VenamnesEntity v = hunter(helper, 0.0F);
+        watcher(helper, v);
+        helper.onEachTick(() -> {
+            if (v.prowlMode() != VenamnesEntity.PROWL_NONE) {
+                helper.fail("大胆な個体がつけ回した");
+                return;
+            }
+            if (v.getAction() == VenamnesEntity.ACT_BITE_WINDUP || v.getAction() == VenamnesEntity.ACT_POUNCE_WINDUP) helper.succeed();
+        });
+    }
+
     /** 開けた所の倍率: 幹まで 2 以下で 1、5 以上で上限、回っている間は 1 へ戻る。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 5)
     public static void sprintOnlyInTheOpen(GameTestHelper helper) {

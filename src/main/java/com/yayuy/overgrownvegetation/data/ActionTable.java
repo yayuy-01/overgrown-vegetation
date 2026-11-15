@@ -123,6 +123,11 @@ public final class ActionTable {
         // damage = 最後の飛びかかり。speedMult = 移動の倍率(地面 0.35 ブロック/tick、ユーザー決定)、sprintTicks = 走る長さ。
         v.put("hunt", new ActionDef("hunt", 400, 10.0D, 28.0D, 1.0D, 1.0D, 0.1D, 14.0D,
                 Map.of("fleeSpeed", 0.12D, "speedMult", 1.34D, "sprintTicks", 80.0D, "lift", 0.42D)));
+        // 段 C(11-15、すべて仮): 性格の擬似の技(選ばれない)。慎重な個体のつけ回しの距離(prowlNear〜prowlFar)、振り向いたとみる向きのずれ
+        // (watchCone 度以内で相手がこちらを見ている)、背を向けたとみる向きのずれ(backCone 度より大きい)、待ちきれなくなるまで(patienceTicks × 慎重さの片側)
+        // と攻めに行く長さ(commitTicks)、つけ回しの歩きの速さ(prowlSpeed、移動の速さに掛ける)。
+        v.put("personality", new ActionDef("personality", 0, 0.0D, 0.0D, 0.0D, 1.0D, 0.0D, 0.0D, m("prowlNear", 16.0D, "prowlFar", 24.0D,
+                "watchCone", 35.0D, "backCone", 110.0D, "patienceTicks", 600.0D, "commitTicks", 200.0D, "prowlSpeed", 0.72D)));
         DEFAULT_ACTIONS.put("venamnes", Collections.unmodifiableMap(v));
     }
 

@@ -83,6 +83,7 @@ final class VenamnesHuntGoal extends Goal {
 
     @Override
     public void stop() {
+        this.mob.setProwlMode(VenamnesEntity.PROWL_NONE);
         this.mob.getNavigation().stop();
         this.mob.setSteering(false);
         this.straight = false;
@@ -115,6 +116,8 @@ final class VenamnesHuntGoal extends Goal {
         // 相手が離れていく速さ(自分から相手への向きへの、相手の速さの成分)
         double away = d > 1.0E-3D ? (tvx * (t.getX() - this.mob.getX()) + tvz * (t.getZ() - this.mob.getZ())) / d : 0.0D;
         boolean nipping = this.mob.getNip() != VenamnesEntity.NIP_NONE;
+        if (prowl(t, d, dy, sees, away)) return;
+        this.mob.setProwlMode(VenamnesEntity.PROWL_NONE);
 
         ActionDef picked = this.mob.picker().pick(VenamnesEntity.normalDefs(), d, s, biteStart, a -> switch (a.id()) {
             case "bite" -> off <= VenamnesEntity.BITE_START_CONE && Math.abs(dy) < VenamnesEntity.BITE_DY;
@@ -139,7 +142,7 @@ final class VenamnesHuntGoal extends Goal {
             double side = (this.mob.getX() - t.getX()) * -uz + (this.mob.getZ() - t.getZ()) * ux >= 0.0D ? 1.0D : -1.0D;   // 相手の進む線のどちら側にいるか
             Vec3 aim = new Vec3(t.getX() - ux * ALONGSIDE_BACK * s - uz * side * ALONGSIDE_SIDE * s, t.getY(),
                     t.getZ() - uz * ALONGSIDE_BACK * s + ux * side * ALONGSIDE_SIDE * s);
-            chase(t, aim.add(ux * tSpeed * 4.0D, 0.0D, uz * tSpeed * 4.0D), dy, sees);   // 4 tick 先へ(並んだまま走る)
+            chase(t, aim.add(ux * tSpeed * 4.0D, 0.0D, uz * tSpeed * 4.0D), dy, sees, 1.0D);   // 4 tick 先へ(並んだまま走る)
             return;
         }
         if (d <= biteStart * 0.9D) {
@@ -149,7 +152,7 @@ final class VenamnesHuntGoal extends Goal {
             this.mob.wantFacing(this.mob.yawTo(t), VenamnesEntity.TURN_HUNT);
             return;
         }
-        chase(t, t.position(), dy, sees);
+        chase(t, t.position(), dy, sees, 1.0D);
     }
 
     // --- 段 B(11-15)【仮・Claude】 ---
@@ -184,6 +187,76 @@ final class VenamnesHuntGoal extends Goal {
         this.hn++;
     }
 
+    // --- 段 C(11-15): 慎重な個体のつけ回し ---
+    /** 待った tick・攻めに行く残りの tick。 */
+    private int patience, commit;
+
+    /**
+     * 慎重な個体(慎重さ 0.5 より上)がプレイヤーを相手にしている間のつけ回し。戻り値 true ならこの tick はこれで終わり。
+     * <ul>
+     *   <li><b>背を向けて逃げた</b>(相手の向きと「相手から自分への向き」のずれが backCone 度より大きく、かつ離れる速さ fleeSpeed 以上)瞬間に
+     *       狩りの疾走(クールダウンが明けていれば。間合いは見ない)。</li>
+     *   <li><b>振り向いた</b>(ずれが watchCone 度以内で、相手から自分が見えている)間は止まって固まる(prowl_freeze)。</li>
+     *   <li>それ以外は prowlNear〜prowlFar ブロックを保ってつけ回す(遠ければ prowlSpeed で寄る・近すぎれば止まって向き直る。低い構え prowl)。</li>
+     *   <li>殴られた・patienceTicks × 慎重さの片側 待ちきれなくなった → commitTicks の間は大胆な個体と同じに攻めに行く。</li>
+     * </ul>
+     * 大胆な個体・プレイヤーでない相手には何もしない(false)。
+     */
+    private boolean prowl(LivingEntity t, double d, double dy, boolean sees, double away) {
+        double wary = this.mob.wary();
+        if (wary <= 0.0D || !(t instanceof net.minecraft.world.entity.player.Player)) {
+            this.patience = 0;
+            return false;
+        }
+        if (this.commit > 0) {
+            this.commit--;
+            return false;
+        }
+        int commitTicks = (int) VenamnesEntity.pv("commitTicks", 200.0D);
+        boolean hurt = this.mob.getLastHurtByMob() == t && this.mob.tickCount - this.mob.getLastHurtByMobTimestamp() < 40;
+        if (hurt || ++this.patience >= (int) Math.round(VenamnesEntity.pv("patienceTicks", 600.0D) * wary)) {
+            this.patience = 0;
+            this.commit = commitTicks;
+            return false;
+        }
+        float look = lookOff(t);
+        boolean backTurned = look > VenamnesEntity.pv("backCone", 110.0D);
+        if (backTurned && away >= VenamnesEntity.def("hunt").get("fleeSpeed", 0.12D) && sees && this.mob.onGround()
+                && this.mob.picker().ready("hunt")) {
+            this.mob.setProwlMode(VenamnesEntity.PROWL_NONE);
+            this.mob.setSteering(false);
+            this.mob.startSkill(VenamnesEntity.def("hunt"), t);
+            this.commit = commitTicks;   // 疾走の後は攻めに行く(息切れの後にすぐつけ回しへ戻らない)
+            return true;
+        }
+        if (look <= VenamnesEntity.pv("watchCone", 35.0D) && t.hasLineOfSight(this.mob)) {
+            // 振り向かれた: 止まって固まり、見据える
+            hold(t);
+            this.mob.setProwlMode(VenamnesEntity.PROWL_FREEZE);
+            return true;
+        }
+        this.mob.setProwlMode(VenamnesEntity.PROWL_STALK);
+        double s = this.mob.getScale();
+        if (d > VenamnesEntity.pv("prowlFar", 24.0D) * s) {
+            chase(t, t.position(), dy, sees, VenamnesEntity.pv("prowlSpeed", 0.72D));
+        } else {
+            hold(t);   // 近すぎる・ちょうどよい: 止まって向き直る(後ずさりはしない。前へだけ進む体)
+        }
+        return true;
+    }
+
+    private void hold(LivingEntity t) {
+        this.mob.getNavigation().stop();
+        this.mob.setSteering(false);
+        this.mob.wantFacing(this.mob.yawTo(t), VenamnesEntity.TURN_HUNT);
+    }
+
+    /** 相手の向き(頭)と「相手から自分への向き」のずれ(度、0〜180)。0 = こちらを真っすぐ見ている、180 = 真後ろを向いている。 */
+    float lookOff(LivingEntity t) {
+        float toMe = (float) (Math.atan2(this.mob.getZ() - t.getZ(), this.mob.getX() - t.getX()) * (180.0D / Math.PI)) - 90.0F;
+        return Math.abs(net.minecraft.util.Mth.wrapDegrees(toMe - t.getYHeadRot()));
+    }
+
     /** 相手の速さ(GameTest 用)。 */
     double[] targetVelocity() {
         return new double[]{this.tvx, this.tvz};
@@ -199,19 +272,20 @@ final class VenamnesHuntGoal extends Goal {
         if (sees && Math.abs(dy) <= STEER_DY && ChaseSteer.clear(this.mob.level(), this.mob.position(), aim, this.mob.getBbWidth() * 0.5D, STEER_LOOK)) {
             this.mob.getNavigation().stop();
             this.mob.setSteering(true);
+            this.mob.setSteerSpeed(1.0D);
             this.mob.getMoveControl().setWantedPosition(aim.x, aim.y, aim.z, 1.0D);
             return;
         }
         this.mob.setSteering(false);
         this.straight = false;
-        chase(t, t.position(), dy, false);
+        chase(t, t.position(), dy, false, 1.0D);
     }
 
     private static double sq(double v) {
         return v * v;
     }
 
-    private void chase(LivingEntity t, Vec3 aim, double dy, boolean sees) {
+    private void chase(LivingEntity t, Vec3 aim, double dy, boolean sees, double speed) {
         boolean plain = this.mob.devPlainChase();
         if (this.steerBan > 0) this.steerBan--;
         if (!plain && --this.steerCheck <= 0) {
@@ -227,7 +301,8 @@ final class VenamnesHuntGoal extends Goal {
             }
             this.mob.getNavigation().stop();
             this.mob.setSteering(true);
-            this.mob.getMoveControl().setWantedPosition(aim.x, aim.y, aim.z, 1.0D);
+            this.mob.setSteerSpeed(speed);
+            this.mob.getMoveControl().setWantedPosition(aim.x, aim.y, aim.z, speed);
             if (++this.stuckTicks >= STUCK_TICKS) {
                 double mx = this.mob.getX() - this.stuckX, mz = this.mob.getZ() - this.stuckZ;
                 if (mx * mx + mz * mz < 0.25D) {
@@ -248,7 +323,7 @@ final class VenamnesHuntGoal extends Goal {
         if (--this.repath > 0) return;
         if (plain) {
             this.repath = REPATH;
-            this.memo.moveTo(this.mob, t, 1.0D);
+            this.memo.moveTo(this.mob, t, speed);
             return;
         }
         ServerLevel sl = (ServerLevel) this.mob.level();
@@ -260,7 +335,7 @@ final class VenamnesHuntGoal extends Goal {
         long t0 = System.nanoTime();
         this.mob.getNavigation().setMaxVisitedNodesMultiplier(NODE_MULT);
         try {
-            this.memo.moveTo(this.mob, t, 1.0D);
+            this.memo.moveTo(this.mob, t, speed);
         } finally {
             this.mob.getNavigation().resetMaxVisitedNodesMultiplier();
         }
