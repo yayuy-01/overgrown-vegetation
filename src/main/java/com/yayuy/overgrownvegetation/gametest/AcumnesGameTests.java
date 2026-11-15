@@ -292,6 +292,48 @@ public final class AcumnesGameTests {
     }
 
     /**
+     * 木から飛び立つときだけ溜める【決定 11-15 ユーザー】: 叩かれてもその場で takeoff_windup の分(8 + 入りの補間 3 tick)は動かず、
+     * 送る段は「溜め」。その後に昇る段へ移る。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 60)
+    public static void takeoffFromPerchWindsUpInPlace(GameTestHelper helper) {
+        helper.setBlock(new BlockPos(3, 1, 3), Blocks.OAK_LEAVES.defaultBlockState().setValue(LeavesBlock.PERSISTENT, true));
+        BlockPos top = helper.absolutePos(new BlockPos(3, 1, 3));
+        AcumnesEntity a = spawn(helper, 3.5D, 2.0D, 3.5D);
+        a.roostOverride = Boolean.TRUE;
+        a.debugPerchAt(top);
+        a.debugTickFlock();
+        double[] y0 = {Double.NaN};
+        int[] hitAt = {-1}, windup = {0}, climbAt = {-1};
+        helper.runAfterDelay(5L, () -> {
+            y0[0] = a.getY();
+            hitAt[0] = a.tickCount;
+            a.hurt(helper.getLevel().damageSources().generic(), 1.0F);
+        });
+        helper.onEachTick(() -> {
+            if (hitAt[0] < 0 || climbAt[0] >= 0 || a.mode() != SkyFlyer.MODE_TAKEOFF) return;
+            if (a.takeoffPhase() == 1) {
+                windup[0]++;
+                if (Math.abs(a.getY() - y0[0]) > 1e-6) helper.fail(String.format("溜めの間に %.3f 動いた", a.getY() - y0[0]));
+            } else if (a.takeoffPhase() == 2) {
+                climbAt[0] = a.tickCount;
+            }
+        });
+        helper.runAfterDelay(50L, () -> {
+            if (climbAt[0] < 0) {
+                helper.fail("昇り始めない(溜め " + windup[0] + " tick)");
+                return;
+            }
+            int want = AcumnesEntity.WINDUP_TICKS + AcumnesEntity.ENTRY_SHORT;
+            if (Math.abs(windup[0] - want) > 1) {
+                helper.fail("溜めの長さが " + windup[0] + " tick(" + want + " のはず)");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
      * 狙う相手【決定 11-15 ユーザー: 植物側の Mob 以外すべて】: 村人・動物・ゴーレムは狙い、植物側(ヴェロフィル・ほかのアクムネス)は狙わない。
      * 村人とヴェロフィルを並べると村人を選ぶ。プレイヤーを先に選ぶ順は、偽プレイヤーが世界のプレイヤーの一覧に入らないので確かめていない。
      */
