@@ -118,7 +118,7 @@ public class G1RootSlamGoal extends G1TechniqueGoal {
             spikes.add(ground);
             if (e.hurt(mob.damageSources().mobAttack(mob), DAMAGE)) {
                 hits++;
-                SporeExposureTracker.addDose(e, G1StrikeGoal.MOB_DOSE);
+                // 当たった Mob の感染は ParasitizedAttackInfectionHandler(11-15 に暴露 +300 から置き換えた)
                 Vec3 v = e.getDeltaMovement();
                 e.setDeltaMovement(v.x, LIFT, v.z);
                 e.hurtMarked = true;

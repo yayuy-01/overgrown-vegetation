@@ -291,7 +291,7 @@ public class G1PerchGoal extends Goal {
             if (!G1TargetGoal.isPrey(mob, e)) continue;
             if (mob.doHurtTarget(e)) {
                 // 3 段の 1 撃と同じ当て方(当てたら暴露量)+ 鈍足 1 秒
-                SporeExposureTracker.addDose(e, G1StrikeGoal.MOB_DOSE);
+                // 当たった Mob の感染は ParasitizedAttackInfectionHandler(11-15 に暴露 +300 から置き換えた)
                 e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, LAND_SLOW_TICKS, 0), mob);
             }
         }

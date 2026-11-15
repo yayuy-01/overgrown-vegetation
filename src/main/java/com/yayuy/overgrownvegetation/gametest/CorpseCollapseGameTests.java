@@ -262,8 +262,8 @@ public final class CorpseCollapseGameTests {
             helper.assertTrue(gap >= G1StrikeGoal.WINDUP && gap <= G1StrikeGoal.WINDUP + G1StrikeGoal.STRIKE + 1,
                     "前触れから当たりまでが 12〜16 tick でない: " + gap);
             helper.assertTrue(recoverAt[0] > hitAt[0] - 1, "当たった後に隙が来ない");
-            helper.assertTrue(SporeExposureTracker.dose(target) >= G1StrikeGoal.MOB_DOSE - 1.0E-6,
-                    "当たった Mob に暴露量が足されていない: " + SporeExposureTracker.dose(target));
+            helper.assertTrue(com.yayuy.overgrownvegetation.spore.MobInfection.isInfected(target),
+                    "当たった Mob が感染していない(11-15 から 1 撃で必ず感染)");
             g1.discard();
             target.discard();
             helper.succeed();

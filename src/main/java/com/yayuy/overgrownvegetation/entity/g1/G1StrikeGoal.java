@@ -20,7 +20,7 @@ import java.util.EnumSet;
  *   <li>前触れ {@value #WINDUP} tick(アニメ {@code attack_windup}): 止まる。{@value #AIM_UNTIL} tick までは標的の方を向き、
  *   そこから向きを止める(横へ出ればよけられる。仕様「対処: 横へ出る・盾・下がる」)。</li>
  *   <li>実行 {@value #STRIKE} tick(アニメ {@code attack}): 終わりの tick に、間合い(+{@value #REACH_SLACK} ブロックの余裕)の中で
- *   向いた方の ±{@value #HIT_CONE_DEG}° にいれば当てる({@code doHurtTarget}。盾が効く)。Mob に当たったら暴露量 +{@value #MOB_DOSE} %秒。</li>
+ *   向いた方の ±{@value #HIT_CONE_DEG}° にいれば当てる({@code doHurtTarget}。盾が効く)。Mob に当たったら必ず感染(11-15。{@code ParasitizedAttackInfectionHandler})。</li>
  *   <li>隙 {@value #RECOVER} tick(アニメ {@code attack_recover}): 動かない。</li>
  * </ol>
  * 段の長さはアニメと同じ(生成器の記録)。技の途中で標的が死んだ・消えても、振り出した技は最後まで振る(途中で止めると絵が飛ぶ)。
@@ -241,9 +241,9 @@ public class G1StrikeGoal extends Goal {
         // 盾で防がれるかは当てる前に見る(当てた後は、構えが解けていることがある)
         boolean shielded = target.isDamageSourceBlocked(mob.damageSources().mobAttack(mob));
         if (mob.doHurtTarget(target)) {
-            // 当てたら Mob にも暴露量を足す(噛まれた家畜・村人も G1 になる鎖。11-05 ユーザー)。プレイヤーは
+            // 噛まれた家畜・村人も G1 になる鎖(11-05 ユーザー)。プレイヤーは
             // ParasitizedAttackInfectionHandler(グループのタグ)が胞子感染を付ける。
-            SporeExposureTracker.addDose(target, MOB_DOSE);
+            // Mob への感染は ParasitizedAttackInfectionHandler(傷を付けたら必ず感染。11-15 に 1 撃 +300 の暴露から置き換えた)
             mob.onStrikeHit(target); // 1 段目のチビゾンビはここで取り付く(2026-11-12)
             return true;
         }

@@ -52,6 +52,7 @@
     "client.LivingEntitySelfEffectParticlesMixin",
     "client.ShaderInstanceSamplerAccessor",
     "client.EntityRenderDispatcherInfectMixin",
+    "client.EntityRenderDispatcherDeathSwellMixin",
     "client.RenderTypeInfectMixin",
     "client.sodium.SodiumShaderInterfaceMixin",
     "client.sodium.SodiumShaderLoaderMixin",

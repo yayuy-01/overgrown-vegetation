@@ -166,7 +166,7 @@ public final class G1Skill4GameTests {
             helper.assertTrue(windup[0], "落ちる前の揺れ(drop_windup)が無かった");
             helper.assertTrue(!spider.perched() && spider.onGround(), "まだ落ちていない");
             helper.assertTrue(cow[0].getHealth() <= 196.5F, "落ちて噛んだ 4 ダメージが入っていない: " + cow[0].getHealth());
-            helper.assertTrue(dose[0] >= 299.0D, "暴露量が足されていない: " + dose[0]);
+            helper.assertTrue(cow[0] != null && com.yayuy.overgrownvegetation.spore.MobInfection.isInfected(cow[0]), "当たった Mob が感染していない(11-15 から 1 撃で必ず感染)");
             helper.assertTrue(slowed[0], "鈍足が付いていない");
             helper.assertTrue(spider.getHealth() >= spider.getMaxHealth(), "落下のダメージを受けた: " + spider.getHealth());
             helper.assertTrue(spider.action() == 0, "着地の後に行動の段が空きへ戻らない: " + spider.action());
@@ -194,7 +194,7 @@ public final class G1Skill4GameTests {
             helper.assertTrue(airborne[0], "跳んでいない");
             helper.assertTrue(spider.position().distanceTo(start) > 1.2D, "前へ進んでいない: " + spider.position().distanceTo(start));
             helper.assertTrue(cow.getHealth() <= 196.5F, "跳びつきの 4 ダメージが入っていない: " + cow.getHealth());
-            helper.assertTrue(dose[0] >= 299.0D, "暴露量が足されていない: " + dose[0]);
+            helper.assertTrue(com.yayuy.overgrownvegetation.spore.MobInfection.isInfected(cow), "当たった Mob が感染していない(11-15 から 1 撃で必ず感染)");
             helper.assertTrue(spider.getHealth() >= spider.getMaxHealth(), "自分が傷ついた: " + spider.getHealth());
         });
     }
@@ -230,7 +230,7 @@ public final class G1Skill4GameTests {
             helper.assertTrue(spider.rootsilkShots() >= 1, "まだ吐いていない");
             helper.assertTrue(tangled[0], "当たった相手が跳べなくなっていない");
             helper.assertTrue(slow2[0], "鈍足 II が付いていない");
-            helper.assertTrue(dose[0] >= 299.0D, "暴露量が足されていない: " + dose[0]);
+            helper.assertTrue(dose[0] >= 299.0D, "暴露量が足されていない: " + dose[0]); // 根糸はダメージの無い胞子(G1SporeDose)なので、傷の感染には入らない(11-15)
             helper.assertTrue(cow.getHealth() >= 200.0F, "根糸にダメージがある: " + cow.getHealth());
             helper.assertTrue(released[0], "時間が来ても跳ぶ強さが戻らない");
         });
@@ -560,7 +560,7 @@ public final class G1Skill4GameTests {
             helper.assertTrue(ender.slams() >= 1, "まだ叩きつけていない");
             helper.assertTrue(ender.lastSlamSpikes() >= 1, "根が 1 本も出ていない");
             helper.assertTrue(onCorrupted.getHealth() <= 194.5F, "汚染した地面の上の相手に 6 ダメージが入っていない: " + onCorrupted.getHealth());
-            helper.assertTrue(dose[0] >= 299.0D, "暴露量が足されていない: " + dose[0]);
+            helper.assertTrue(com.yayuy.overgrownvegetation.spore.MobInfection.isInfected(onCorrupted), "当たった Mob が感染していない(11-15 から 1 撃で必ず感染)");
             helper.assertTrue(lifted[0], "相手が浮いていない");
             helper.assertTrue(onClean.getHealth() >= 200.0F, "汚染していない地面の上の相手に当たった: " + onClean.getHealth());
             helper.assertTrue(lockedAfter[0], "叩きつけの後、根の技の間(4 秒)が掛かっていない");

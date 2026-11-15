@@ -154,6 +154,17 @@ public final class G1DeathBurst {
      * @return この破裂で上げた升の浮遊(%。汚染が止まっている・汚染を禁じた所では 0)
      */
     public static double burst(ServerLevel level, Vec3 feet, float width, float height) {
+        return burst(level, feet, width, height, 1.0D, true);
+    }
+
+    /**
+     * 粒の量を絞れる形(2026-11-15 植物側の死の破裂 {@code PlantSideBurst}。大の襲撃で一斉に死んだとき、1 tick の上限を超えた分は粒を減らし、
+     * 音を鳴らさない)。汚染の球と升の浮遊は {@code detail} に関わらず同じ量。
+     *
+     * @param detail 雲・かけら・汁の数の倍率(0〜1)
+     * @param sound  湿った破裂音を鳴らすか
+     */
+    public static double burst(ServerLevel level, Vec3 feet, float width, float height, double detail, boolean sound) {
         double size = size(width, height);
         RandomSource random = level.random;
         Vec3 mid = feet.add(0.0D, height * 0.5D, 0.0D);
@@ -174,10 +185,10 @@ public final class G1DeathBurst {
         }
 
         // 2. 胞子の雲(濃さ = 上げた浮遊): ゆっくり膨らんで薄れる大きめの粒 + 細かい胞子の粒
-        double density = corrupts && fieldDimension ? cloudDensity(airPercent) : CLOUD_DENSITY_WHEN_OFF;
+        double density = (corrupts && fieldDimension ? cloudDensity(airPercent) : CLOUD_DENSITY_WHEN_OFF) * Mth.clamp(detail, 0.0D, 1.0D);
         double cloudRadius = CLOUD_RADIUS_BASE + CLOUD_RADIUS_PER_SIZE * size;
         if (density > 0.0D) {
-            int puffs = Mth.clamp((int) Math.round(density * PUFFS_PER_RADIUS_SQ * cloudRadius * cloudRadius), PUFFS_MIN, PUFFS_MAX);
+            int puffs = Mth.clamp((int) Math.round(density * PUFFS_PER_RADIUS_SQ * cloudRadius * cloudRadius), detail >= 1.0D ? PUFFS_MIN : 1, PUFFS_MAX);
             level.sendParticles(ModParticles.SPORE_BURST_CLOUD.get(), mid.x, mid.y, mid.z, puffs,
                     cloudRadius * 0.4D, Math.max(0.2D, height * 0.3D), cloudRadius * 0.4D, 0.02D);
         }
@@ -191,7 +202,7 @@ public final class G1DeathBurst {
         ItemParticleOption flesh = new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.ROTTEN_FLESH));
         ItemParticleOption bark = new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(ModBlocks.OVERGROWN_LOG.get()));
         ItemParticleOption moss = new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(ModBlocks.OVERGROWN_MOSS_LAYER.get()));
-        int fragments = Math.min(FRAGMENTS_MAX, (int) Math.round(FRAGMENTS_BASE + FRAGMENTS_PER_SIZE * size));
+        int fragments = (int) Math.round(Math.min(FRAGMENTS_MAX, FRAGMENTS_BASE + FRAGMENTS_PER_SIZE * size) * Mth.clamp(detail, 0.0D, 1.0D));
         double speedScale = 0.8D + 0.3D * size;
         for (int i = 0; i < fragments; i++) {
             float pick = random.nextFloat();
@@ -207,7 +218,7 @@ public final class G1DeathBurst {
         }
 
         // 4. 汁の飛び散り(蜂蜜の滴は真下へ落ちて地面に小さく散る。高さをばらして散る時刻をずらす)
-        int drops = Math.min(JUICE_MAX, (int) Math.round(JUICE_BASE + JUICE_PER_SIZE * size));
+        int drops = (int) Math.round(Math.min(JUICE_MAX, JUICE_BASE + JUICE_PER_SIZE * size) * Mth.clamp(detail, 0.0D, 1.0D));
         double spread = JUICE_SPREAD_BASE + JUICE_SPREAD_PER_SIZE * size;
         for (int i = 0; i < drops; i++) {
             double angle = random.nextDouble() * Mth.TWO_PI;
@@ -220,7 +231,7 @@ public final class G1DeathBurst {
         // 5. 湿った破裂音(バニラの湿った音を低くして重ねる。新しい音は作らない)
         float pitch = Mth.clamp(PITCH_BASE - PITCH_PER_SIZE * (float) size, 0.5F, 0.85F);
         float volume = VOLUME_BASE + VOLUME_PER_SIZE * (float) size;
-        level.playSound(null, mid.x, mid.y, mid.z, ModSounds.G1_SAC_BURST.get(), SoundSource.HOSTILE, volume, pitch);
+        if (sound) level.playSound(null, mid.x, mid.y, mid.z, ModSounds.G1_SAC_BURST.get(), SoundSource.HOSTILE, volume, pitch);
         return airPercent;
     }
 }

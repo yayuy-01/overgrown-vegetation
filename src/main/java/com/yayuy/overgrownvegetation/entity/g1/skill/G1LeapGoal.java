@@ -90,9 +90,7 @@ public class G1LeapGoal extends G1TechniqueGoal {
             }
             if (!hit && target != null && target.isAlive() && mob.getBoundingBox().inflate(HIT_INFLATE).intersects(target.getBoundingBox())) {
                 hit = true;
-                if (mob.doHurtTarget(target)) {
-                    SporeExposureTracker.addDose(target, G1StrikeGoal.MOB_DOSE);
-                }
+                mob.doHurtTarget(target); // 当たった Mob の感染は ParasitizedAttackInfectionHandler(11-15)
             }
         }
     }
