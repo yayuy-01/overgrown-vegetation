@@ -467,7 +467,7 @@
     "maxHealth": 4,
     "attackDamage": 2,
     "armor": 0,
-    "movementSpeed": 0.285,
+    "movementSpeed": 0.33,
     "knockbackResistance": 0,
     "followRange": 24,
     "stepHeight": 1,
