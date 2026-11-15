@@ -178,7 +178,9 @@ public final class StrobilaGameTests {
             double v = (s.getZ() - z0[0]) / 30.0D;
             double ref = StrobilaEntity.RUN_REF;
             if (v < ref * 0.73D || v > ref * 1.13D) {
-                helper.fail(String.format("急ぎの速さ %.4f ブロック/tick(的 %.4f)", v, ref));
+                double attr = s.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
+                helper.fail(String.format("急ぎの速さ %.4f ブロック/tick(的 %.4f)。移動の速さの属性 %.3f%s", v, ref, attr,
+                        attr < 0.3D ? "(0.36 のはず。この GameTest のフォルダの config/overgrown_vegetation/mobs.json が古い写しかもしれない)" : ""));
                 return;
             }
             helper.succeed();
