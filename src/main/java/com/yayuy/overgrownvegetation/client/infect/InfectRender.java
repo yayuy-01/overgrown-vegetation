@@ -54,6 +54,9 @@ public final class InfectRender {
     /** 今描いている 1 体の、変わる動きの進み(0〜1。1 = 変わり終えた)。 */
     private static float currentProgress = 1.0F;
     private static boolean shaking;
+    /** 染め色をどれだけ残すか(1 = そのまま・0 = 白)。【仮】 */
+    private static final float TINT_KEEP = 0.3F;
+    private static int partDepth;
     /** 部品を、部位の姿勢から描ける種(バニラ式の模型)。それ以外(GeckoLib など)は頂点の流れを覗いて描く。 */
     private static final Set<net.minecraft.world.entity.EntityType<?>> PART_MODE = new HashSet<>();
     private static final Map<net.minecraft.client.model.geom.ModelPart, PoseSlot> SLOTS = new IdentityHashMap<>();
@@ -127,6 +130,7 @@ public final class InfectRender {
         anchorTap = null;
         shaking = false;
         watching = false;
+        partDepth = 0;
         if (current == null) {
             return buffers;
         }
@@ -293,6 +297,37 @@ public final class InfectRender {
             }
             s.m.set(poseStack.last().pose());
             s.stamp = renderStamp;
+        }
+    }
+
+    /**
+     * 模型へ掛ける色(羊の毛の染め色・熱帯魚の色など)を、感染体では白へ寄せる(2026-11-15)。
+     * 塗り替えた絵に元の色がそのまま掛かると、苔まで染め色になった(赤い羊の苔が暗い赤)。色の名残は少しだけ残す。
+     * 変わり始める前(元の絵のまま描く間)は触らない。
+     */
+    public static int softenTint(int color) {
+        if (current == null) {
+            return color;
+        }
+        // 子の部位は親が寄せた色を受け取る = いちばん外の部位でだけ寄せる(重ねて寄せない)
+        if (partDepth++ > 0) {
+            return color;
+        }
+        if ((color | 0xFF000000) == -1 || currentProgress < InfectSkins.STAGE0_AT) {
+            return color;
+        }
+        float keep = currentProgress < InfectSkins.STAGE1_AT ? 0.65F : TINT_KEEP;
+        int r = (color >> 16) & 0xFF, g = (color >> 8) & 0xFF, b = color & 0xFF;
+        r = 255 - (int) ((255 - r) * keep);
+        g = 255 - (int) ((255 - g) * keep);
+        b = 255 - (int) ((255 - b) * keep);
+        return (color & 0xFF000000) | (r << 16) | (g << 8) | b;
+    }
+
+    /** 部位を描き終えた所で呼ぶ({@link #softenTint} と対)。 */
+    public static void onPartDone() {
+        if (current != null && partDepth > 0) {
+            partDepth--;
         }
     }
 

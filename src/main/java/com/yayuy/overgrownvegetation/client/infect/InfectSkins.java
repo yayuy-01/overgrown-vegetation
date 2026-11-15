@@ -101,7 +101,7 @@ final class InfectSkins {
         ResourceLocation skin = e.skins[v];
         if (skin == null) {
             try {
-                skin = bake(texture, e.map, variant, STAGE_STRENGTH[stage]);
+                skin = bake(texture, e.map, variant, STAGE_STRENGTH[stage], InfectParts.tears(e.anchors, e.map.unit));
             } catch (RuntimeException ex) {
                 OvergrownVegetation.LOGGER.warn("InfectSkins 塗れない(元のまま描く): {}", texture, ex);
                 skin = texture;
@@ -137,9 +137,9 @@ final class InfectSkins {
         InfectPaint.unload();
     }
 
-    private static ResourceLocation bake(ResourceLocation texture, FaceMap map, int variant, double strength) {
+    private static ResourceLocation bake(ResourceLocation texture, FaceMap map, int variant, double strength, float[] tears) {
         long seed = texture.hashCode() * 31L + variant * 7919L;
-        int[] argb = InfectPaint.paint(map, seed, strength);
+        int[] argb = InfectPaint.paint(map, seed, strength, tears);
         NativeImage img = new NativeImage(map.w, map.h, false);
         for (int y = 0; y < map.h; y++) {
             for (int x = 0; x < map.w; x++) {

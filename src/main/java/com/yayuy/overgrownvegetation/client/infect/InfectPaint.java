@@ -37,13 +37,17 @@ final class InfectPaint {
      * 3 小さなむらの重み・4 寄生の中心の半径の倍率・5 むらの濃淡の強さ・6 塊ごとの粒の乱れ。【仮】
      */
     static final double[] TUNE = {0.12, 6.0, 2.0, 0.45, 1.45, 3.2, 0.15};
+    /** 根の筋のむらの大きさ(単位)と、筋の太さ(むらの値の幅)。【仮】 */
+    private static final double ROOT_UNITS = 9.0, ROOT_BAND = 0.03;
     /** 下地の覆い(寄生の中心から遠い所)。 */
     private static final double BASE_COVER = 0.06;
     /** 寄生の中心の半径(体のいちばん長い辺に対して)。主・反対側・おまけ。 */
     private static final double[] CENTER_RADIUS = {0.42, 0.24, 0.16};
 
     @Nullable
-    private static Tile moss, caveMoss;
+    private static Tile moss, caveMoss, bark, cambium;
+    /** 根の筋の色(暗い樹皮)。 */
+    private static final int[] ROOT = {0x2A2414, 0x332B17, 0x3B3219, 0x252012};
     /** 確かめ用(書き出しのときだけ): 直前に塗った絵の、画素ごとの覆いの濃さとむらの値。 */
     @Nullable
     static float[] debugCover, debugNoise;
@@ -57,12 +61,16 @@ final class InfectPaint {
     static void unload() {
         moss = null;
         caveMoss = null;
+        bark = null;
+        cambium = null;
     }
 
     private static void load() {
         if (moss == null) {
             moss = tile("textures/block/overgrown_block.png", 0xFF3E5A2A);
             caveMoss = tile("textures/block/cave_moss_clump.png", 0x00000000);
+            bark = tile("textures/block/overgrown_log.png", 0xFF3A3020);
+            cambium = tile("textures/block/giant_overgrown_cambium.png", 0xFF8A8060);
         }
     }
 
@@ -94,7 +102,7 @@ final class InfectPaint {
      * {@code strength} = 感染の深さ(1 = 変わり終えた姿。変わる途中は小さい値 = 寄生の中心の芯だけ苔が出て、死体の色も半分)。
      * 同じ {@code seed} なら寄生の中心と塊の並びは同じ = 段を上げると同じ所から広がって見える。
      */
-    static int[] paint(InfectSkins.FaceMap m, long seed, double strength) {
+    static int[] paint(InfectSkins.FaceMap m, long seed, double strength, float[] tears) {
         load();
         int w = m.w, h = m.h, n = w * h, k = m.k;
         int[] out = m.argb.clone();
@@ -190,6 +198,7 @@ final class InfectPaint {
         // ---- 苔の塊
         int cs = 2 * k;
         boolean[] mossy = new boolean[n];
+        float[] coverAt = new float[n];
         debugCover = InfectSkins.dumpDir != null ? new float[n] : null;
         debugNoise = InfectSkins.dumpDir != null ? new float[n] : null;
         for (int y = 0; y < h; y++) {
@@ -226,10 +235,25 @@ final class InfectPaint {
                 nz = Math.max(0.0, Math.min(1.0, (nz - 0.5) * TUNE[5] + 0.5));
                 nz = nz * (1.0 - TUNE[6]) + TUNE[6] * hash(bx, by, seed + 13);
                 mossy[i] = nz < cover;
+                coverAt[i] = (float) cover;
                 if (debugCover != null) {
                     debugCover[i] = (float) cover;
                     debugNoise[i] = (float) nz;
                 }
+            }
+        }
+
+        // ---- 根の筋(変わり終えた姿だけ): 寄生の中心のまわりから外へ、体の表面を這う暗い筋。
+        // 立体のむらの等しい値の面が体の表面と交わる線を使う = 面や箱をまたいでも 1 本につながる
+        boolean[] root = new boolean[n];
+        if (strength >= 1.0) {
+            double cell = m.unit * ROOT_UNITS;
+            for (int i = 0; i < n; i++) {
+                if (!used[i] || keep[i] || face[m.quad[i]] || coverAt[i] < 0.2F || coverAt[i] > 0.97F) {
+                    continue;
+                }
+                double v = noise3(m.px[i] / cell, m.py[i] / cell, m.pz[i] / cell, seed + 21);
+                root[i] = Math.abs(v - 0.5) < ROOT_BAND;
             }
         }
 
@@ -246,7 +270,22 @@ final class InfectPaint {
                 int raw = m.argb[i] & 0xFFFFFF;
                 int orig = strength >= 1.0 ? deaden(raw) : mix(raw, deaden(raw), strength);
                 int rgb;
-                if (mossy[i]) {
+                // 裂け目(胞子の袋のまわり): 中 = 暗い繊維、縁 = 破れた皮
+                double tearE = Double.MAX_VALUE;
+                if (strength >= 1.0) {
+                    for (int t = 0; t + 3 < tears.length; t += 4) {
+                        double dx = m.px[i] - tears[t], dy = m.py[i] - tears[t + 1], dz = m.pz[i] - tears[t + 2];
+                        tearE = Math.min(tearE, Math.sqrt(dx * dx + dy * dy + dz * dz) / tears[t + 3]);
+                    }
+                }
+                if (tearE < 2.1 && !face[m.quad[i]]) {
+                    rgb = tearPx(mossy[i] ? mossPx(a, b, hsh, seed) : orig, tearE, a, b, hsh, seed);
+                } else if (root[i]) {
+                    rgb = ROOT[(int) (hash(a, b, seed + 57) * ROOT.length) % ROOT.length];
+                } else if (!mossy[i] && near(root, used, w, h, x, y, k)) {
+                    // 根の筋のまわりは苔がにじむ
+                    rgb = mix(orig, scale(moss.at(a + 5, b) & 0xFFFFFF, 0.7), 0.6);
+                } else if (mossy[i]) {
                     rgb = mossPx(a, b, hsh, seed);
                 } else if (near(mossy, used, w, h, x, y, k)) {
                     rgb = edgePx(orig, a, b, hsh, seed);
@@ -324,6 +363,29 @@ final class InfectPaint {
         }
         int s = SHADOW[(int) (hash(a, b, seed + 79) * SHADOW.length) % SHADOW.length];
         return mix(s, scale(orig, 0.6), 0.25);
+    }
+
+    /** 裂け目: e < 1 は中身、1〜1.45 は破れた皮の縁(暗い影、赤黒は少し)、〜2.1 はくすむ。e = 裂け目の中心からの遠さ(半径で割った値)。 */
+    private static int tearPx(int orig, double e, int a, int b, double h, long seed) {
+        e += (h - 0.5) * 0.45;
+        if (e < 1) {
+            // 中: 暗い繊維(樹皮の暗い所)に、形成層の淡い筋。まれに髄の白
+            int c = scale(bark.at(a, b) & 0xFFFFFF, 0.55);
+            if (h > 0.82) {
+                c = scale(cambium.at(a + 3, b + 5) & 0xFFFFFF, 0.75);
+            }
+            if (h > 0.97) {
+                c = h > 0.985 ? 0xCFC9AE : PITH_WHITE;
+            }
+            return c;
+        }
+        if (e < 1.45) {
+            return edgePx(orig, a, b, h, seed + 7);
+        }
+        if (e < 2.1) {
+            return scale(orig, 0.82);
+        }
+        return orig;
     }
 
     /** 死体の色へくすませる(灰緑 #868C70 へ、明るさを合わせて寄せる)。明るい画素ほど強く暗く。 */

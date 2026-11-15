@@ -7,6 +7,7 @@ import net.minecraft.client.model.geom.ModelPart;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
@@ -23,5 +24,17 @@ public abstract class ModelPartInfectMixin {
     private void overgrown_vegetation$infectPartPose(PoseStack poseStack, VertexConsumer buffer, int packedLight, int packedOverlay, int color,
                                                      CallbackInfo ci) {
         InfectRender.onPartPose((ModelPart) (Object) this, poseStack);
+    }
+
+    // 感染体を描いていなければ、色はそのまま返る
+    @ModifyVariable(method = "render(Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/blaze3d/vertex/VertexConsumer;III)V",
+            at = @At("HEAD"), argsOnly = true, ordinal = 2, require = 0)
+    private int overgrown_vegetation$infectSoftenTint(int color) {
+        return InfectRender.softenTint(color);
+    }
+
+    @Inject(method = "render(Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/blaze3d/vertex/VertexConsumer;III)V", at = @At("RETURN"), require = 0)
+    private void overgrown_vegetation$infectPartDone(PoseStack poseStack, VertexConsumer buffer, int packedLight, int packedOverlay, int color, CallbackInfo ci) {
+        InfectRender.onPartDone();
     }
 }

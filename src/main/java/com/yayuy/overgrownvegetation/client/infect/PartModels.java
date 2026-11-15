@@ -28,7 +28,7 @@ import java.util.Optional;
 final class PartModels {
 
     /** 焼いた形。四角 1 枚 = 位置 12(xyz × 4。単位は 1/16 ブロック)・絵の位置 8(0〜1)・面の向き 3。 */
-    record Model(ResourceLocation texture, int quads, float[] pos, float[] uv, float[] normal) {
+    record Model(ResourceLocation texture, @Nullable ResourceLocation glow, int quads, float[] pos, float[] uv, float[] normal) {
     }
 
     private static final Map<String, Optional<Model>> MODELS = new HashMap<>();
@@ -120,7 +120,12 @@ final class PartModels {
                 System.arraycopy(uv.get(i), 0, au, i * 8, 8);
                 System.arraycopy(nrm.get(i), 0, an, i * 3, 3);
             }
-            return Optional.of(new Model(OvergrownVegetation.id("textures/entity/parasite_parts/" + id + ".png"), n, ap, au, an));
+            // 光る画素の絵(胞子の袋の中の胞子だけ)。あれば、同じ形をもう 1 回、光る描き方で重ねる
+            ResourceLocation glow = OvergrownVegetation.id("textures/entity/parasite_parts/" + id + "_glowmask.png");
+            if (Minecraft.getInstance().getResourceManager().getResource(glow).isEmpty()) {
+                glow = null;
+            }
+            return Optional.of(new Model(OvergrownVegetation.id("textures/entity/parasite_parts/" + id + ".png"), glow, n, ap, au, an));
         } catch (Exception ex) {
             OvergrownVegetation.LOGGER.warn("PartModels 部品の形を読めない: {}", geo, ex);
             return Optional.empty();

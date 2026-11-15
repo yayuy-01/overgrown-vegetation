@@ -30,6 +30,8 @@ final class InfectParts {
     static boolean enabled = true;
 
     private static final int UP = 1, SIDE = 2;
+    /** 光る胞子の明るさ(白 = いちばん明るい)。【仮】 */
+    private static final int GLOW_TINT = 0xFF8C8C8C;
 
     private InfectParts() {
     }
@@ -39,7 +41,32 @@ final class InfectParts {
      * 四角の 1 辺目の長さ(1/16 ブロック単位。今の辺の長さと比べて部品の大きさを決める)・上下の面での向き(ラジアン)。
      */
     record Anchor(int quad, float uc, float vc, float w0, float w1, float w2, float w3, String part, float edgeUnits, float yaw,
+                  float cx, float cy, float cz,
                   @javax.annotation.Nullable net.minecraft.client.model.geom.ModelPart owner, @javax.annotation.Nullable float[] local) {
+    }
+
+    /**
+     * 塗りの裂け目の置き場 = 胞子の袋の付け根(覗いたときの体の位置 x y z と、裂け目の中の半径。4 つ組で並べる)。
+     * {@code unit} = 1 単位の長さ(ブロック)。
+     */
+    static float[] tears(List<Anchor> anchors, float unit) {
+        List<Anchor> sacs = new ArrayList<>();
+        for (Anchor an : anchors) {
+            if (an.part.startsWith("g1_sac")) {
+                sacs.add(an);
+            }
+        }
+        float[] out = new float[sacs.size() * 4];
+        for (int i = 0; i < sacs.size(); i++) {
+            Anchor an = sacs.get(i);
+            // 袋の大きさ 1〜3 → 裂け目の中の半径 2.2〜3.4 単位
+            float size = an.part.charAt(an.part.length() - 1) - '0';
+            out[i * 4] = an.cx;
+            out[i * 4 + 1] = an.cy;
+            out[i * 4 + 2] = an.cz;
+            out[i * 4 + 3] = (1.6F + 0.6F * size) * unit;
+        }
+        return out;
     }
 
     /** 覗いた形から付け根を選ぶ。 */
@@ -112,7 +139,7 @@ final class InfectParts {
             placed.add(new float[]{x, y, z});
             float uc = (uv[0] + uv[2] + uv[4] + uv[6]) / 4.0F, vc = (uv[1] + uv[3] + uv[5] + uv[7]) / 4.0F;
             float yaw = (float) (InfectPaint.hash(t, 37, seed) * Math.PI * 2.0);
-            out.add(new Anchor(q, uc, vc, w0, w1, w2, w3, part, edgeUnits, yaw, quads.get(q).part(), quads.get(q).local()));
+            out.add(new Anchor(q, uc, vc, w0, w1, w2, w3, part, edgeUnits, yaw, x, y, z, quads.get(q).part(), quads.get(q).local()));
             return true;
         }
         return false;
@@ -323,10 +350,26 @@ final class InfectParts {
                 endBatch(buffers, last);
             }
             last = q.an().part();
-            emitNow(q.an(), q.p(), 0, buffers, q.light(), q.progress(), q.index());
+            emitNow(q.an(), q.p(), 0, buffers, q.light(), q.progress(), q.index(), false);
         }
         if (last != null) {
             endBatch(buffers, last);
+        }
+        // 2 巡目: 光る胞子(袋だけ)。体と部品を描き終えてから重ねる
+        last = null;
+        for (Queued q : QUEUE) {
+            PartModels.Model model = PartModels.get(q.an().part());
+            if (model == null || model.glow() == null) {
+                continue;
+            }
+            if (last != null && !last.equals(q.an().part())) {
+                endGlow(buffers, last);
+            }
+            last = q.an().part();
+            emitNow(q.an(), q.p(), 0, buffers, q.light(), q.progress(), q.index(), true);
+        }
+        if (last != null) {
+            endGlow(buffers, last);
         }
         QUEUE.clear();
     }
@@ -335,6 +378,13 @@ final class InfectParts {
         PartModels.Model model = PartModels.get(part);
         if (model != null) {
             buffers.endBatch(RenderType.entityCutoutNoCull(model.texture()));
+        }
+    }
+
+    private static void endGlow(MultiBufferSource.BufferSource buffers, String part) {
+        PartModels.Model model = PartModels.get(part);
+        if (model != null && model.glow() != null) {
+            buffers.endBatch(RenderType.eyes(model.glow()));
         }
     }
 
@@ -349,11 +399,15 @@ final class InfectParts {
             QUEUE.add(new Queued(an, copy, packedLight, progress, index));
             return;
         }
-        emitNow(an, p, o, buffers, packedLight, progress, index);
+        emitNow(an, p, o, buffers, packedLight, progress, index, false);
+        PartModels.Model model = PartModels.get(an.part);
+        if (model != null && model.glow() != null) {
+            emitNow(an, p, o, buffers, packedLight, progress, index, true);
+        }
     }
 
     /** 付け根 1 つぶん。{@code p[o..]} = 付け根の四角の 4 頂点(カメラからの世界の位置)と面の向き。 */
-    private static void emitNow(Anchor an, float[] p, int o, MultiBufferSource buffers, int packedLight, float progress, int index) {
+    private static void emitNow(Anchor an, float[] p, int o, MultiBufferSource buffers, int packedLight, float progress, int index, boolean glow) {
         PartModels.Model model = PartModels.get(an.part);
         if (model == null) {
             return;
@@ -401,7 +455,9 @@ final class InfectParts {
         }
         // X = Y × Z
         float xx = yy * zz - yz * zy, xy = yz * zx - yx * zz, xz = yx * zy - yy * zx;
-        VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(model.texture()));
+        VertexConsumer vc = buffers.getBuffer(glow ? RenderType.eyes(model.glow()) : RenderType.entityCutoutNoCull(model.texture()));
+        // 光る胞子は微光(段階 0 の決まり): 明るさを落として重ねる【仮】
+        int tint = glow ? GLOW_TINT : -1;
         int ov = OverlayTexture.NO_OVERLAY;
         float[] mp = model.pos(), mu = model.uv(), mn = model.normal();
         for (int q = 0; q < model.quads(); q++) {
@@ -410,7 +466,7 @@ final class InfectParts {
             for (int v = 0; v < 4; v++) {
                 float px = mp[q * 12 + v * 3] * unit, py = mp[q * 12 + v * 3 + 1] * unit, pz = mp[q * 12 + v * 3 + 2] * unit;
                 vc.addVertex(x + px * xx + py * yx + pz * zx, y + px * xy + py * yy + pz * zy, z + px * xz + py * yz + pz * zz,
-                        -1, mu[q * 8 + v * 2], mu[q * 8 + v * 2 + 1], ov, packedLight, nx, ny, nz);
+                        tint, mu[q * 8 + v * 2], mu[q * 8 + v * 2 + 1], ov, packedLight, nx, ny, nz);
             }
         }
     }
