@@ -243,6 +243,41 @@ public final class PediculaGameTests {
         helper.succeedWhen(() -> {
             if (!p.isRemoved()) throw new net.minecraft.gametest.framework.GameTestAssertException("まだ消えていない y " + p.getY());
             if (helper.getTick() <= 3) throw new net.minecraft.gametest.framework.GameTestAssertException("早すぎる");
+            // その場に胞子を降らせる: 落ちた所に胞子の雲
+            if (helper.getLevel().getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeCloud.class,
+                    new net.minecraft.world.phys.AABB(helper.absolutePos(new BlockPos(0, 0, 0))).inflate(8.0D)).isEmpty()) {
+                throw new net.minecraft.gametest.framework.GameTestAssertException("落ちた所に胞子の雲が無い");
+            }
+        });
+    }
+
+    /** 能力: 上にいるチャンクは、いる間だけ胞子濃度 100%(PediculaCover)。消えると 2 tick で戻る。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 40)
+    public static void pediculaCoversChunkOnlyWhilePresent(GameTestHelper helper) {
+        PediculaEntity p = helper.spawn(ModFlyers.PEDICULA.get(), new BlockPos(3, 2, 3));
+        p.debugGround = helper.absolutePos(new BlockPos(0, 1, 0)).getY();
+        long key = p.chunkPosition().toLong();
+        helper.runAfterDelay(3, () -> {
+            double cover = com.yayuy.overgrownvegetation.spore.PediculaCover.percentAt(helper.getLevel(), key);
+            if (cover < PediculaEntity.PRESENCE_PERCENT) {
+                helper.fail("いるチャンクが 100% でない: " + cover);
+                return;
+            }
+            if (com.yayuy.overgrownvegetation.spore.SporeConcentration.useField(helper.getLevel())
+                    && com.yayuy.overgrownvegetation.spore.SporeConcentration.percentAt(helper.getLevel(), p.chunkPosition()) < PediculaEntity.PRESENCE_PERCENT) {
+                helper.fail("チャンクの胞子濃度に効いていない");
+                return;
+            }
+            p.discard();
+        });
+        helper.runAfterDelay(8, () -> {
+            double cover = com.yayuy.overgrownvegetation.spore.PediculaCover.percentAt(helper.getLevel(), key);
+            // 同じチャンクにほかのテストのペディキュラがいることがあるので、この個体の印が残っていないかは「消えた後に書かれていない」で見る
+            if (cover > 0.0D && helper.getLevel().getEntities(ModFlyers.PEDICULA.get(), e -> e.isAlive() && e.chunkPosition().toLong() == key).isEmpty()) {
+                helper.fail("消えた後も 100% が残っている: " + cover);
+                return;
+            }
+            helper.succeed();
         });
     }
 

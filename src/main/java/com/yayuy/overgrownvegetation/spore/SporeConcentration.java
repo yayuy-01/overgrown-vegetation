@@ -94,6 +94,8 @@ public final class SporeConcentration {
         double v01 = chunkPercent(level, x0, z0 + 1, deep);
         double v11 = chunkPercent(level, x0 + 1, z0 + 1, deep);
         double v = (v00 * (1 - tx) + v10 * tx) * (1 - tz) + (v01 * (1 - tx) + v11 * tx) * tz;
+        // 上空のペディキュラ(2026-11-15): 上にいる間だけ、そのチャンクの地上の値を 100% へ引き上げる(PediculaCover。キャッシュの外)
+        if (!deep) v = Math.max(v, PediculaCover.percentAt(level, ChunkPos.asLong(pos)));
         // 閉じた部屋(2026-11-13 段 2a): 地上でも地下でも・ネザーでも、部屋の中は外の値 × 部屋の倍率だけ(屋根・雨・風上の陰は掛けない【仮】)
         double rift = riftFloorPercent(level, pos);
         // 外の値が 0 の所(汚染の無い土地・場の写しの無い所)は部屋を調べない(倍率を掛けても 0。洞窟・ネザーで上限までたどる費用を省く)。
@@ -204,7 +206,7 @@ public final class SporeConcentration {
 
     /** {@code chunk} の胞子濃度(%)。地点の補正なし。 */
     public static double percentAt(ServerLevel level, ChunkPos chunk) {
-        return useField(level) ? chunkPercent(level, chunk.x, chunk.z, false) : 0.0D;
+        return useField(level) ? Math.max(chunkPercent(level, chunk.x, chunk.z, false), PediculaCover.percentAt(level, chunk.toLong())) : 0.0D;
     }
 
     /** チャンクの地下の層の値(%、地点の補正なし。2026-11-04)。オーバーワールドだけ、写しが無ければ 0。 */

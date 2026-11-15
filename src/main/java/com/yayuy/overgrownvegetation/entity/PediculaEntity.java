@@ -109,6 +109,18 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
     /** 破れて落ちる: 重さ(ブロック/tick²)・落ちる速さの上限・横の勢いの減り【仮】。着かなければこの tick で消す(奈落など)。 */
     static final double FALL_ACCEL = 0.03D, FALL_MAX = 0.6D, FALL_DRAG = 0.95D;
     static final int FALL_GIVE_UP = 600;
+    // --- 能力(2026-11-15。Vault「G4〜G6 の能力の決定(11-14)」ペディキュラの節・「ペディキュラ」8 節) ---
+    /** 上にいる間のそのチャンクの胞子濃度(%)。旧版のユーザー指定 09-23「いる時だけ 100%」・決定 11-14「いるチャンクは 100%」。 */
+    public static final double PRESENCE_PERCENT = 100.0D;
+    /** こぼした所(真下のチャンク)へ足す降り積もり(発芽のしきい値の %)【仮・Claude 11-15】(球果・爆弾の 15 より少し)。 */
+    public static final double SPILL_DEPOSIT_PERCENT = 5.0D;
+    /** 破れて落ちた所の降り積もり(発芽のしきい値の %)【仮・Claude 11-15】(球果・爆弾の 4 倍。拠点の近くで落とすと拠点が汚れる)。 */
+    public static final double RUPTURE_DEPOSIT_PERCENT = 60.0D;
+    /** 落ちた所の胞子の雲: 半径(ブロック)・漂う長さ(tick)・中にいる間の暴露量(%秒 / 秒)【仮・Claude 11-15】(爆弾 3.0・80 より大きい)。 */
+    public static final float RUPTURE_CLOUD_RADIUS = 4.0F;
+    public static final int RUPTURE_CLOUD_TICKS = 120;
+    public static final double RUPTURE_CLOUD_DOSE = 100.0D;
+
     /** エンティティの知らせ(サーバー → クライアント): こぼし始め・着いて消える。 */
     static final byte EVENT_SPILL = 70, EVENT_LAND = 71;
 
@@ -143,6 +155,8 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
     private boolean capChecked;
     /** 次にこぼすまで(tick。サーバー)。 */
     private int spillIn = -1;
+    /** こぼす瞬間(前触れの後)までの tick。降り積もりはその時に足す(サーバー。-1 = なし)。 */
+    private int spillDepositIn = -1;
     /** 破れて落ちる速さ(サーバー)。 */
     private double fallVx, fallVy, fallVz;
     // --- クライアント ---
@@ -320,6 +334,7 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
         if (--this.spillIn <= 0) {
             this.spillIn = debugSpill ? SPILL_DEBUG : SPILL_MIN + this.random.nextInt(SPILL_SPAN);
             sl.broadcastEntityEvent(this, EVENT_SPILL);
+            this.spillDepositIn = SPILL_WINDUP_T + 1;
         }
         if (DEV) devLog(sl, low, high);
     }
@@ -394,6 +409,22 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
     }
 
     // ------------------------------------------------------------------ こぼす・破れる(見た目)
+
+    /**
+     * 能力(サーバー): 上にいるチャンクの胞子濃度を、いる間だけ {@link #PRESENCE_PERCENT} にする(毎 tick 書く。立ち去る・破れる・消えると
+     * 2 tick で元へ戻る。{@link com.yayuy.overgrownvegetation.spore.PediculaCover})。AI とは関係ないので NoAI でも効く。
+     * こぼす瞬間には真下へ降り積もりを少し足す。
+     */
+    @Override
+    public void aiStep() {
+        super.aiStep();
+        if (!(this.level() instanceof ServerLevel sl) || !this.isAlive()) return;
+        com.yayuy.overgrownvegetation.spore.PediculaCover.mark(sl, this.chunkPosition().toLong(), PRESENCE_PERCENT);
+        if (this.spillDepositIn >= 0 && --this.spillDepositIn < 0) {
+            com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.depositPoint(sl, this.blockPosition(),
+                    com.yayuy.overgrownvegetation.data.DesignData.sporeField().field().germThreshold * SPILL_DEPOSIT_PERCENT / 100.0D);
+        }
+    }
 
     @Override
     public void handleEntityEvent(byte id) {
@@ -494,6 +525,15 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
         this.fallVz = this.drift.vz;
     }
 
+    /** 破れて落ちた所に胞子を降らせる(決定 11-14「射落とすと破れてその場に胞子を降らせる。どこで落とすかが大事」): 胞子の雲 + 降り積もり。 */
+    void rupturedHere(ServerLevel sl) {
+        Vec3 at = this.position();
+        com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeCloud.spawn(sl, at, RUPTURE_CLOUD_RADIUS, RUPTURE_CLOUD_TICKS, RUPTURE_CLOUD_DOSE,
+                -1, 0, false, this, false);
+        com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.depositPoint(sl, BlockPos.containing(at),
+                com.yayuy.overgrownvegetation.data.DesignData.sporeField().field().germThreshold * RUPTURE_DEPOSIT_PERCENT / 100.0D);
+    }
+
     /**
      * 破れて落ちる(バニラの「赤く傾いて 20 tick で消える」の代わり)。転がりながら落ち、地面・水に着いたら殻を残さず消える
      * (ユーザー決定 11-15)。着かなければ {@link #FALL_GIVE_UP} tick で消す。
@@ -509,6 +549,7 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
         this.move(MoverType.SELF, new Vec3(this.fallVx, this.fallVy, this.fallVz));
         this.setDeltaMovement(this.fallVx, this.fallVy, this.fallVz);
         if (this.onGround() || this.isInWater() || this.isInLava() || this.verticalCollisionBelow || this.deathTime >= FALL_GIVE_UP) {
+            if (this.deathTime < FALL_GIVE_UP && this.level() instanceof ServerLevel sl) rupturedHere(sl);
             this.level().broadcastEntityEvent(this, EVENT_LAND);
             this.remove(RemovalReason.KILLED);
         }
