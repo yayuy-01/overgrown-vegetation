@@ -186,4 +186,156 @@ public final class ClipeimnesGameTests {
             }
         });
     }
+
+    // ------------------------------------------------------------------ 技(11-15 段 3)
+
+    /** 技を試す個体: 行動の Goal を残して湧かせる(spawnWithNoFreeWill は襲う Goal も外す)。名前 nostroll で自分では標的を探さない。 */
+    private static ClipeimnesEntity placeActive(GameTestHelper helper, double x, double z, float yaw) {
+        ClipeimnesEntity v = helper.spawn(ModRunners.CLIPEIMNES.get(), new BlockPos(0, 2, 0));
+        Vec3 p = helper.absoluteVec(new Vec3(x, 2.0D, z));
+        v.moveTo(p.x, p.y, p.z, yaw, 0.0F);
+        v.snapFacing(yaw);
+        v.setCustomName(net.minecraft.network.chat.Component.literal("nostroll"));
+        return v;
+    }
+
+    /** 的(ハスク。日に焼けない)を体の前 {@code ahead} ブロックに置き、動かないようにする。 */
+    private static net.minecraft.world.entity.monster.Husk targetAhead(GameTestHelper helper, ClipeimnesEntity v, double ahead) {
+        net.minecraft.world.entity.monster.Husk h = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.HUSK, new BlockPos(3, 2, 3));
+        Vec3 p = v.position().add(0.0D, 0.0D, ahead);   // v は +Z を向いている
+        h.moveTo(p.x, p.y, p.z, 180.0F, 0.0F);
+        h.setNoAi(true);
+        v.setTarget(h);
+        return h;
+    }
+
+    /** 盾打ち: 前の相手を打って傷を与え、前へ弾き飛ばす。続けて打つと左右の板が入れ替わる(右 → 左)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 200)
+    public static void clipBashAlternatesSidesAndKnocksBack(GameTestHelper helper) {
+        ClipeimnesEntity v = placeActive(helper, 3.5D, 0.9D, 0.0F);
+        net.minecraft.world.entity.monster.Husk h = targetAhead(helper, v, 3.6D);   // 抱え込みの届く所(3.4)の外・盾打ちの届く所(3.8)の内
+        float hp0 = h.getHealth();
+        java.util.List<Integer> windups = new java.util.ArrayList<>();
+        boolean[] pushed = {false};
+        int[] last = {ClipeimnesEntity.ACT_NONE};
+        helper.onEachTick(() -> {
+            int a = v.act();
+            if (a != last[0] && (a == ClipeimnesEntity.ACT_BASH_R_WINDUP || a == ClipeimnesEntity.ACT_BASH_L_WINDUP)) windups.add(a);
+            if ((a == ClipeimnesEntity.ACT_BASH_R || a == ClipeimnesEntity.ACT_BASH_L) && h.getDeltaMovement().z > 0.3D) pushed[0] = true;
+            last[0] = a;
+            if (windups.size() >= 2 && a == ClipeimnesEntity.ACT_NONE) {
+                if (windups.get(0) != ClipeimnesEntity.ACT_BASH_R_WINDUP || windups.get(1) != ClipeimnesEntity.ACT_BASH_L_WINDUP) {
+                    helper.fail("左右が入れ替わらない: " + windups);
+                    return;
+                }
+                if (!(h.getHealth() < hp0 || pushed[0])) {
+                    helper.fail("盾打ちが当たらない(体力 " + h.getHealth() + "・弾き " + pushed[0] + ")");
+                    return;
+                }
+                helper.succeed();
+            }
+            if (v.act() == ClipeimnesEntity.ACT_NONE) h.moveTo(v.getX(), v.getY(), v.getZ() + 3.6D, 180.0F, 0.0F);   // 弾かれた的を戻す
+        });
+    }
+
+    /** 抱え込み: 前の相手を抱え(乗せ)、3 秒締めて(締めのたびに傷)放す。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 200)
+    public static void clipGrabHoldsThreeSecondsThenLets(GameTestHelper helper) {
+        ClipeimnesEntity v = placeActive(helper, 3.5D, 0.9D, 0.0F);
+        net.minecraft.world.entity.monster.Husk h = targetAhead(helper, v, 2.2D);
+        v.forceActForTests(ClipeimnesEntity.ACT_GRAB_WINDUP);
+        float hp0 = h.getHealth();
+        int[] heldFrom = {-1};
+        helper.onEachTick(() -> {
+            if (heldFrom[0] < 0 && h.getVehicle() == v) heldFrom[0] = (int) helper.getTick();
+            if (heldFrom[0] >= 0 && h.getVehicle() != v) {
+                long held = helper.getTick() - heldFrom[0];
+                if (held < 55 || held > 65) {
+                    helper.fail("抱えた長さが 3 秒でない: " + held + " tick");
+                    return;
+                }
+                if (!(h.getHealth() < hp0)) {
+                    helper.fail("締めの傷が無い");
+                    return;
+                }
+                helper.succeed();
+            }
+            if (helper.getTick() > 60 && heldFrom[0] < 0) helper.fail("抱えない(技 " + v.act() + ")");
+        });
+    }
+
+    /** 抱え込み: 外から殴られて傷が溜まると放し、よろける(hold_recover)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 160)
+    public static void clipHoldBreaksWhenHitFromOutside(GameTestHelper helper) {
+        ClipeimnesEntity v = placeActive(helper, 3.5D, 0.9D, 0.0F);
+        net.minecraft.world.entity.monster.Husk h = targetAhead(helper, v, 2.2D);
+        net.minecraft.world.entity.monster.Husk other = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.HUSK, new BlockPos(6, 2, 1));
+        other.setNoAi(true);
+        v.forceActForTests(ClipeimnesEntity.ACT_GRAB_WINDUP);
+        boolean[] hit = {false};
+        helper.onEachTick(() -> {
+            if (!hit[0] && v.act() == ClipeimnesEntity.ACT_HOLD && h.getVehicle() == v) {
+                hit[0] = true;
+                v.invulnerableTime = 0;
+                v.hurt(v.damageSources().mobAttack(other), 7.0F);
+            }
+            if (hit[0] && v.act() == ClipeimnesEntity.ACT_HOLD_RECOVER) {
+                if (h.getVehicle() == v) {
+                    helper.fail("よろけたのに放していない");
+                    return;
+                }
+                helper.succeed();
+            }
+            if (helper.getTick() > 70 && !hit[0]) helper.fail("抱えない(技 " + v.act() + ")");
+        });
+    }
+
+    /** 盾で詰める: 構えている間、前から殴られても傷が通らず溜めが 1 段増え、後ろからは通る。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 40)
+    public static void clipGuardBlocksFrontOnly(GameTestHelper helper) {
+        ClipeimnesEntity v = placeAt(helper, 3.5D, 3.5D, 0.0F);
+        v.setNoAi(true);   // 向き・構えを動かさない(構えはテストが立てる)
+        v.guardNowForTests();
+        net.minecraft.world.entity.monster.Husk front = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.HUSK, new BlockPos(3, 2, 6));
+        net.minecraft.world.entity.monster.Husk back = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.HUSK, new BlockPos(3, 2, 0));
+        front.setNoAi(true);
+        back.setNoAi(true);
+        helper.runAfterDelay(2L, () -> {
+            float hp0 = v.getHealth();
+            v.invulnerableTime = 0;
+            v.hurt(v.damageSources().mobAttack(front), 5.0F);
+            if (v.getHealth() != hp0 || v.charge() != 1) {
+                helper.fail("前からの傷を弾かない(体力 " + hp0 + " → " + v.getHealth() + "・溜め " + v.charge() + ")");
+                return;
+            }
+            v.invulnerableTime = 0;
+            v.hurt(v.damageSources().mobAttack(back), 5.0F);
+            if (!(v.getHealth() < hp0)) {
+                helper.fail("後ろからの傷まで弾いた");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /** 溜めの解放: 溜めが満ちていて前に相手がいれば、両の盾を打ち合わせて前方へ衝撃波(傷と弾き)。溜めは 0 に戻る。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 120)
+    public static void clipReleaseWhenChargeIsFull(GameTestHelper helper) {
+        ClipeimnesEntity v = placeActive(helper, 3.5D, 0.9D, 0.0F);
+        net.minecraft.world.entity.monster.Husk h = targetAhead(helper, v, 4.0D);
+        v.setChargeForTests(ClipeimnesEntity.CHARGE_MAX);
+        float hp0 = h.getHealth();
+        boolean[] released = {false};
+        helper.onEachTick(() -> {
+            if (v.act() == ClipeimnesEntity.ACT_RELEASE) released[0] = true;
+            if (released[0] && v.act() == ClipeimnesEntity.ACT_RELEASE_RECOVER) {
+                if (!(h.getHealth() < hp0) || v.charge() != 0) {
+                    helper.fail("衝撃波が当たらない・溜めが残る(体力 " + h.getHealth() + "・溜め " + v.charge() + ")");
+                    return;
+                }
+                helper.succeed();
+            }
+            if (helper.getTick() > 40 && !released[0] && v.act() == ClipeimnesEntity.ACT_NONE) helper.fail("溜めが満ちても解放しない");
+        });
+    }
 }

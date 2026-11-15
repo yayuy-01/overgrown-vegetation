@@ -179,6 +179,446 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
         return 6.2D * this.getScale();   // 尾の先が原点の 6.1 ブロック後ろ
     }
 
+    // ------------------------------------------------------------------ 技(11-15 段 3。進めるのは ClipeimnesHuntGoal)
+
+    /** 技の番号(描画へ送る)。盾打ちの前触れ → 実行 → 隙、抱え込みの前触れ → 実行 → 締め、溜めの解放は「番号 + 1」が次の段。 */
+    public static final int ACT_NONE = 0, ACT_BASH_R_WINDUP = 1, ACT_BASH_R = 2, ACT_BASH_R_RECOVER = 3,
+            ACT_BASH_L_WINDUP = 4, ACT_BASH_L = 5, ACT_BASH_L_RECOVER = 6,
+            ACT_GRAB_WINDUP = 7, ACT_GRAB = 8, ACT_HOLD = 9, ACT_HOLD_RECOVER = 10, ACT_GRAB_RECOVER = 11,
+            ACT_RELEASE_WINDUP = 12, ACT_RELEASE = 13, ACT_RELEASE_RECOVER = 14;
+    /** 盾の構え: 無し / 構える(guard_windup → guard)/ 受けた(guard_hit → guard)/ 下ろす(guard_recover)。 */
+    public static final int GUARD_NONE = 0, GUARD_UP = 1, GUARD_HIT = 2, GUARD_DOWN = 3;
+    /** 構えのアニメの長さ(tick): 構え始め・受け・下ろし。構え始めの間は弾かない(板が顔の前に来る前)。 */
+    static final int GUARD_WINDUP_TICKS = 8, GUARD_HIT_TICKS = 8, GUARD_DOWN_TICKS = 8;
+    /** 弾く向き(体の正面から ± 度)・溜めの段の上限・満ちない溜めが 1 段減るまでの tick【仮】。 */
+    public static final float GUARD_DEG = 60.0F;
+    public static final int CHARGE_MAX = 5;
+    static final int CHARGE_DECAY = 600;
+    /** 抱えられる相手の大きさ(幅・高さの上限、ブロック)【仮】。 */
+    static final float HOLD_MAX_WIDTH = 1.2F, HOLD_MAX_HEIGHT = 2.2F;
+
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Integer> DATA_ACT =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(ClipeimnesEntity.class, net.minecraft.network.syncher.EntityDataSerializers.INT);
+    /** 盾の構え(下 4 ビット)・溜めの段(次の 4 ビット)・構えが始まった回数(上)。 */
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Integer> DATA_GUARD =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(ClipeimnesEntity.class, net.minecraft.network.syncher.EntityDataSerializers.INT);
+
+    @org.jetbrains.annotations.Nullable
+    private ClipeimnesHuntGoal hunt;
+    private int actSeq, guardSeq;
+    /** サーバー: 盾の構え。 */
+    private boolean guardWanted;
+    private int guardState = GUARD_NONE, guardTicks, charge, chargeIdle;
+    /** 自分で抱えた相手を放す途中(降車を止めない)。 */
+    private boolean releasing;
+
+    @Override
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(DATA_ACT, 0);
+        builder.define(DATA_GUARD, 0);
+    }
+
+    /**
+     * 段 1 の Goal(浮く・うろつく・見回す)に、襲う Goal({@link ClipeimnesHuntGoal})と標的を足す。
+     * 標的はサルティムネス・ヴェナムネスと同じ: 殴った相手・プレイヤー(サバイバル・アドベンチャー)・植物側でない生き物
+     * (G1〜G10・感染体・植物側へ変わった生き物・防具立ては狙わない)。
+     */
+    @Override
+    protected void registerGoals() {
+        super.registerGoals();
+        this.hunt = new ClipeimnesHuntGoal(this);
+        this.goalSelector.addGoal(3, this.hunt);
+        this.targetSelector.addGoal(1, new net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal(this));
+        this.targetSelector.addGoal(2, new SeekGoal<>(this, net.minecraft.world.entity.player.Player.class, e -> true));
+        this.targetSelector.addGoal(3, new SeekGoal<>(this, net.minecraft.world.entity.LivingEntity.class,
+                e -> !(e instanceof net.minecraft.world.entity.player.Player) && !(e instanceof ParasitizedMob)
+                        && com.yayuy.overgrownvegetation.phase.MobGroup.of(e.getType()) == null
+                        && !com.yayuy.overgrownvegetation.spore.PlantSideRules.isTransformed(e)
+                        && !(e instanceof net.minecraft.world.entity.decoration.ArmorStand)));
+    }
+
+    /** 自分で標的を探す Goal(バニラの最寄り)。名前が {@code nostroll} で始まる個体は自分では探さない(確かめ・GameTest 用。標的はテストが置く)。 */
+    static final class SeekGoal<T extends net.minecraft.world.entity.LivingEntity> extends net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal<T> {
+        SeekGoal(ClipeimnesEntity mob, Class<T> type, java.util.function.Predicate<net.minecraft.world.entity.LivingEntity> filter) {
+            super(mob, type, 10, true, false, filter);
+        }
+
+        @Override
+        public boolean canUse() {
+            if (this.mob.hasCustomName() && this.mob.getCustomName().getString().startsWith("nostroll")) return false;
+            return super.canUse();
+        }
+    }
+
+    /** 技の最中(全身の技。脚は手付け、体の曲げは止める)。クライアントでも同期した番号で答える。盾の構えは技に数えない(歩きに重ねる)。 */
+    @Override
+    public boolean isActing() {
+        return act() != ACT_NONE;
+    }
+
+    /** 技を描画へ送る(番号と、同じ技の続けての始まりを見分ける回数)。 */
+    void setAct(int act) {
+        this.actSeq = (this.actSeq + 1) & 0xFFFF;
+        this.entityData.set(DATA_ACT, act | (this.actSeq << 8));
+        if (DEV_HOOKS && this.hasCustomName() && this.getCustomName().getString().contains("acts")) {
+            com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT, "CLIP_ACT t %d 技 %d 構え %d 溜め %d 抱え %s",
+                    this.tickCount, act, this.guardState, this.charge, held() != null));
+        }
+    }
+
+    /** 今の技の番号(サーバー・クライアントどちらでも)。 */
+    public int act() {
+        return this.entityData.get(DATA_ACT) & 0xFF;
+    }
+
+    // --- 盾の構えと溜め(サーバー)
+
+    /** 盾を構える / 下ろす(下ろすときは guard_recover を流す)。 */
+    void setGuard(boolean on) {
+        this.guardWanted = on;
+    }
+
+    /** 全身の技の前: 盾の層をすぐ外す(guard_recover を流すと技の前触れの腕と重なる)。 */
+    void dropGuardNow() {
+        this.guardWanted = false;
+        setGuardState(GUARD_NONE);
+    }
+
+    private void setGuardState(int s) {
+        this.guardState = s;
+        this.guardTicks = 0;
+        this.guardSeq = (this.guardSeq + 1) & 0xFFFF;
+        syncGuard();
+    }
+
+    private void syncGuard() {
+        this.entityData.set(DATA_GUARD, this.guardState | (this.charge << 4) | (this.guardSeq << 8));
+    }
+
+    /** 弾ける構えか(構え始めの {@link #GUARD_WINDUP_TICKS} tick の後・受けた最中)。 */
+    public boolean guardReady() {
+        return this.guardState == GUARD_UP && this.guardTicks >= GUARD_WINDUP_TICKS || this.guardState == GUARD_HIT;
+    }
+
+    /** 溜めの段(0〜{@link #CHARGE_MAX})。サーバー・クライアントどちらでも。 */
+    public int charge() {
+        return this.level().isClientSide() ? (this.entityData.get(DATA_GUARD) >> 4) & 0xF : this.charge;
+    }
+
+    void resetCharge() {
+        this.charge = 0;
+        this.chargeIdle = 0;
+        syncGuard();
+    }
+
+    private void tickGuard() {
+        this.guardTicks++;
+        if (this.guardWanted && (this.guardState == GUARD_NONE || this.guardState == GUARD_DOWN) && act() == ACT_NONE) {
+            setGuardState(GUARD_UP);
+        } else if (!this.guardWanted && (this.guardState == GUARD_UP || this.guardState == GUARD_HIT)) {
+            setGuardState(GUARD_DOWN);
+        } else if (this.guardState == GUARD_HIT && this.guardTicks >= GUARD_HIT_TICKS) {
+            this.guardState = GUARD_UP;   // 受けの後は構えのまま(アニメは guard_hit → guard と続く。数え直さない)
+            this.guardTicks = GUARD_WINDUP_TICKS;
+            syncGuard();
+        } else if (this.guardState == GUARD_DOWN && this.guardTicks >= GUARD_DOWN_TICKS) {
+            setGuardState(GUARD_NONE);
+        }
+        if (this.charge > 0 && this.charge < CHARGE_MAX + 1 && ++this.chargeIdle >= CHARGE_DECAY) {
+            this.charge--;
+            this.chargeIdle = 0;
+            syncGuard();
+        }
+    }
+
+    /**
+     * 盾で弾くか: 構えていて、傷の出どころ(矢の当たった所・殴った相手)が体の正面 ±{@link #GUARD_DEG} 度にあり、盾で受けられる種類
+     * (爆発・炎・盾を貫く傷でない)。
+     */
+    boolean blocksFromFront(net.minecraft.world.damagesource.DamageSource source) {
+        if (!guardReady() || act() != ACT_NONE) return false;
+        if (source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_SHIELD) || source.is(net.minecraft.tags.DamageTypeTags.IS_EXPLOSION)
+                || source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE)) {
+            return false;
+        }
+        net.minecraft.world.phys.Vec3 from = source.getSourcePosition();
+        if (from == null) return false;
+        float yaw = (float) (Mth.atan2(from.z - this.getZ(), from.x - this.getX()) * Mth.RAD_TO_DEG) - 90.0F;
+        return Math.abs(Mth.wrapDegrees(yaw - this.getYRot())) <= GUARD_DEG;
+    }
+
+    @Override
+    public boolean hurt(net.minecraft.world.damagesource.DamageSource source, float amount) {
+        if (!this.level().isClientSide() && blocksFromFront(source)) {
+            // 盾で弾いた: 傷は通らない(矢はバニラの決まりで跳ね返る)。溜めが 1 段増え、受けの動き
+            this.playSound(net.minecraft.sounds.SoundEvents.SHIELD_BLOCK, 1.0F, 0.7F + this.getRandom().nextFloat() * 0.2F);
+            if (this.charge < CHARGE_MAX) this.charge++;
+            this.chargeIdle = 0;
+            setGuardState(GUARD_HIT);
+            if (DEV_HOOKS && this.hasCustomName() && this.getCustomName().getString().contains("acts")) {
+                com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT, "CLIP_BLOCK t %d 弾いた %s 溜め %d", this.tickCount, source.getMsgId(), this.charge));
+            }
+            if (source.getEntity() instanceof net.minecraft.world.entity.LivingEntity l && l != this.getTarget() && this.getTarget() == null) this.setTarget(l);
+            return false;
+        }
+        boolean r = super.hurt(source, amount);
+        if (r && this.hunt != null && act() == ACT_HOLD && source.getEntity() != held()) this.hunt.holdDamage += amount;
+        return r;
+    }
+
+    // --- 当たり(サーバー)
+
+    /** 盾打ち: 体の前 {@code fMin}〜{@code fMax}・左右 {@code lat} にいる標的とプレイヤーを打ち、前へ弾き飛ばす。傷は攻撃の属性。 */
+    void bash(double fMin, double fMax, double lat, double push, double lift) {
+        float dmg = (float) this.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE);
+        hitInFront(fMin, fMax, lat, 0.0F, dmg, push, lift);
+        this.playSound(net.minecraft.sounds.SoundEvents.PLAYER_ATTACK_KNOCKBACK, 1.0F, 0.6F);
+    }
+
+    /** 溜めの解放の衝撃波: 体の前 {@code reach} ブロック・± {@code deg} 度の扇。 */
+    void shockwave(double reach, float deg, float damage, double push, double lift) {
+        hitInFront(0.0D, reach, 0.0D, deg, damage, push, lift);
+        this.playSound(net.minecraft.sounds.SoundEvents.ANVIL_LAND, 1.2F, 0.5F);
+        if (this.level() instanceof net.minecraft.server.level.ServerLevel sl) {
+            float r = this.getYRot() * Mth.DEG_TO_RAD;
+            double fx = -Mth.sin(r), fz = Mth.cos(r);
+            sl.sendParticles(net.minecraft.core.particles.ParticleTypes.SWEEP_ATTACK, this.getX() + fx * 2.7D, this.getY() + 1.6D, this.getZ() + fz * 2.7D, 3, 0.6D, 0.3D, 0.6D, 0.0D);
+            sl.sendParticles(net.minecraft.core.particles.ParticleTypes.POOF, this.getX() + fx * 4.0D, this.getY() + 0.3D, this.getZ() + fz * 4.0D, 24, 1.5D, 0.1D, 1.5D, 0.05D);
+        }
+    }
+
+    /** 前の箱(lat > 0)か扇(deg > 0)の中の標的とプレイヤーに傷と弾きを与える。巻き込むのは標的とプレイヤーだけ(植物側は除く)。 */
+    private void hitInFront(double fMin, double fMax, double lat, float deg, float damage, double push, double lift) {
+        float r = this.getYRot() * Mth.DEG_TO_RAD;
+        double fx = -Mth.sin(r), fz = Mth.cos(r), rx = -Mth.cos(r), rz = -Mth.sin(r);
+        double sc = this.getScale();
+        net.minecraft.world.phys.AABB box = this.getBoundingBox().inflate(fMax * sc + 1.0D, 2.5D, fMax * sc + 1.0D);
+        for (net.minecraft.world.entity.LivingEntity e : this.level().getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class, box,
+                x -> x != this && x.isAlive() && !(x instanceof ParasitizedMob))) {
+            double dx = e.getX() - this.getX(), dz = e.getZ() - this.getZ();
+            double f = dx * fx + dz * fz, l = dx * rx + dz * rz;
+            if (f < fMin * sc || f > fMax * sc || Math.abs(e.getY() - this.getY()) > 2.5D) continue;
+            if (lat > 0.0D && Math.abs(l) > lat * sc) continue;
+            if (deg > 0.0F && Math.abs(Math.toDegrees(Math.atan2(l, f))) > deg) continue;
+            if (e instanceof net.minecraft.world.entity.player.Player p && (p.isCreative() || p.isSpectator())) continue;
+            if (e != this.getTarget() && !(e instanceof net.minecraft.world.entity.player.Player)) continue;
+            if (e == held()) continue;
+            if (e.hurt(this.damageSources().mobAttack(this), damage)) {
+                this.setLastHurtMob(e);
+                double k = Math.max(0.0D, 1.0D - e.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.KNOCKBACK_RESISTANCE));
+                e.setDeltaMovement(e.getDeltaMovement().add(fx * push * k, lift * k, fz * push * k));
+                e.hurtMarked = true;
+            }
+        }
+    }
+
+    // --- 抱え込み(相手を鉤の輪の中に乗せる。サルティムネスの押さえ込みと同じ作り)
+
+    /** 抱えられる相手か(ボス・大きすぎる・ほかに乗っている / 乗せている相手は抱えない)。 */
+    static boolean canHold(net.minecraft.world.entity.LivingEntity prey) {
+        return !prey.getType().is(net.neoforged.neoforge.common.Tags.EntityTypes.BOSSES) && prey.getBbWidth() <= HOLD_MAX_WIDTH
+                && prey.getBbHeight() <= HOLD_MAX_HEIGHT && !prey.isVehicle() && !prey.isPassenger();
+    }
+
+    /** 抱える。乗せられなければ false。 */
+    boolean hold(net.minecraft.world.entity.LivingEntity prey) {
+        if (!canHold(prey) || !this.getPassengers().isEmpty()) return false;
+        if (!prey.startRiding(this, true)) return false;
+        if (prey instanceof net.minecraft.server.level.ServerPlayer sp) {
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.ClipeimnesHoldPayload(
+                    com.yayuy.overgrownvegetation.network.ClipeimnesHoldPayload.START, this.getId()));
+        }
+        this.setDeltaMovement(0.0D, this.getDeltaMovement().y, 0.0D);
+        return true;
+    }
+
+    /** 抱えている相手(いなければ null)。 */
+    @org.jetbrains.annotations.Nullable
+    public net.minecraft.world.entity.LivingEntity held() {
+        return this.getFirstPassenger() instanceof net.minecraft.world.entity.LivingEntity l ? l : null;
+    }
+
+    public boolean isHolding() {
+        return held() != null;
+    }
+
+    /** 放す(相手を前へ {@code push} だけ押し出す)。 */
+    void releaseHold(double push) {
+        net.minecraft.world.entity.Entity prey = this.getFirstPassenger();
+        this.releasing = true;
+        this.ejectPassengers();
+        this.releasing = false;
+        if (prey != null) {
+            float r = this.getYRot() * Mth.DEG_TO_RAD;
+            prey.setDeltaMovement(-Mth.sin(r) * push, 0.25D, Mth.cos(r) * push);
+            prey.hurtMarked = true;
+        }
+    }
+
+    /** 締める(噛む)。 */
+    void squeeze(net.minecraft.world.entity.LivingEntity v, float damage) {
+        if (v instanceof net.minecraft.server.level.ServerPlayer sp) {
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.ClipeimnesHoldPayload(
+                    com.yayuy.overgrownvegetation.network.ClipeimnesHoldPayload.SQUEEZE, this.getId()));
+        }
+        if (v.hurt(this.damageSources().mobAttack(this), damage)) this.setLastHurtMob(v);
+        this.playSound(net.minecraft.sounds.SoundEvents.EVOKER_FANGS_ATTACK, 0.6F, 0.9F);
+    }
+
+    /** 抱えた相手は鉤の輪の中(前 {@link ClipeimnesHuntGoal#HOLD_FORWARD})に地面へ立たせる。 */
+    @Override
+    protected net.minecraft.world.phys.Vec3 getPassengerAttachmentPoint(net.minecraft.world.entity.Entity passenger, net.minecraft.world.entity.EntityDimensions dimensions, float partialTick) {
+        double up = passenger.getVehicleAttachmentPoint(this).y;
+        return new net.minecraft.world.phys.Vec3(0.0D, up, ClipeimnesHuntGoal.HOLD_FORWARD * this.getScale()).yRot(-this.getYRot() * Mth.DEG_TO_RAD);
+    }
+
+    /** 放した相手は抱えていた所に残す(バニラは芯の箱の上 = 背中に立たせることがある。サルティムネスと同じ)。 */
+    @Override
+    public net.minecraft.world.phys.Vec3 getDismountLocationForPassenger(net.minecraft.world.entity.LivingEntity passenger) {
+        net.minecraft.world.phys.Vec3 at = new net.minecraft.world.phys.Vec3(passenger.getX(), this.getY(), passenger.getZ());
+        if (this.level().noCollision(passenger, passenger.getDimensions(passenger.getPose()).makeBoundingBox(at))) return at;
+        return super.getDismountLocationForPassenger(passenger);
+    }
+
+    @org.jetbrains.annotations.Nullable
+    @Override
+    public net.minecraft.world.entity.LivingEntity getControllingPassenger() {
+        return null;
+    }
+
+    /** 抱えられたプレイヤーがこちらを殴れるように(殴れば放す)。 */
+    @Override
+    public boolean canRiderInteract() {
+        return true;
+    }
+
+    @Override
+    public boolean shouldRiderSit() {
+        return false;
+    }
+
+    @Override
+    protected boolean canAddPassenger(net.minecraft.world.entity.Entity passenger) {
+        return this.getPassengers().isEmpty();
+    }
+
+    @net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.GAME)
+    public static final class Events {
+        private Events() {
+        }
+
+        /** 抱えられた相手は自分から降りられず、ほかの乗り物にも乗れない(降車はサーバーでだけ止める)。降りたら本人へ知らせる。 */
+        @net.neoforged.bus.api.SubscribeEvent
+        public static void onMount(net.neoforged.neoforge.event.entity.EntityMountEvent event) {
+            if (event.getLevel().isClientSide()) return;
+            if (event.isDismounting()) {
+                if (event.getEntityBeingMounted() instanceof ClipeimnesEntity c && c.isAlive() && !c.isRemoved() && !c.releasing && c.act() == ACT_HOLD) {
+                    event.setCanceled(true);
+                    return;
+                }
+                if (event.getEntityBeingMounted() instanceof ClipeimnesEntity c && event.getEntityMounting() instanceof net.minecraft.server.level.ServerPlayer sp) {
+                    net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.ClipeimnesHoldPayload(
+                            com.yayuy.overgrownvegetation.network.ClipeimnesHoldPayload.END, c.getId()));
+                }
+                return;
+            }
+            if (event.isMounting() && event.getEntityMounting().getVehicle() instanceof ClipeimnesEntity c && c != event.getEntityBeingMounted()
+                    && c.isAlive() && !c.isRemoved() && c.act() == ACT_HOLD) {
+                event.setCanceled(true);
+            }
+        }
+
+        /** 抱えられたままログアウトしたら先に放す(放さないとプレイヤーの乗り物ごと保存されて世界から消える)。 */
+        @net.neoforged.bus.api.SubscribeEvent
+        public static void onLogout(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
+            if (event.getEntity().getVehicle() instanceof ClipeimnesEntity c && !c.level().isClientSide()) c.releaseHold(0.0D);
+        }
+    }
+
+    // --- テスト用
+
+    /** テスト用: 次の判断で出す技(ACT_BASH_R_WINDUP・ACT_GRAB_WINDUP・ACT_RELEASE_WINDUP)。 */
+    public void forceActForTests(int act) {
+        if (this.hunt != null) this.hunt.forceAct = act;
+    }
+
+    /** テスト用: 溜めの段を決める。 */
+    public void setChargeForTests(int c) {
+        this.charge = Mth.clamp(c, 0, CHARGE_MAX);
+        syncGuard();
+    }
+
+    /** テスト用: 盾を今すぐ構えた(弾ける)ことにする。 */
+    public void guardNowForTests() {
+        this.guardWanted = true;
+        setGuardState(GUARD_UP);
+        this.guardTicks = GUARD_WINDUP_TICKS;
+    }
+
+    /** 確かめ用(テストクライアントだけ): 名前に grabber を含む個体は、届けば盾打ちより抱え込みを選ぶ。 */
+    boolean devPreferGrab() {
+        return DEV_HOOKS && this.hasCustomName() && this.getCustomName().getString().contains("grabber");
+    }
+
+    public int guardState() {
+        return this.level().isClientSide() ? this.entityData.get(DATA_GUARD) & 0xF : this.guardState;
+    }
+
+    // --- 光(クライアント): 抱え込みと溜めの解放だけ(決定 11-15)。盾打ち・盾で詰めるは溜めの段の光だけ
+
+    private int clientAct = ACT_NONE, clientActKey = -1, clientActStart;
+    private int clientGuardKey = -1, clientGuardStart;
+
+    /** クライアント: 技の始まり・構えの変わり目を数える。 */
+    private void tickClientAct() {
+        if (DEV_HOOKS && this.gait != null && this.hasCustomName() && this.getCustomName().getString().contains("acts")) {
+            com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT, "CLIP_ANIMNAME t %d 技 %d アニメ %s 状態 %s 光 %.2f",
+                    this.tickCount, this.clientAct, this.gait.currentName(), this.gait.getAnimationState(), glow(0.0F)));
+        }
+        int v = this.entityData.get(DATA_ACT);
+        if (v != this.clientActKey) {
+            this.clientActKey = v;
+            this.clientAct = v & 0xFF;
+            this.clientActStart = this.tickCount;
+        }
+        int g = this.entityData.get(DATA_GUARD) & ~0xF0;   // 溜めの段の変化では数え直さない
+        if (g != this.clientGuardKey) {
+            this.clientGuardKey = g;
+            this.clientGuardStart = this.tickCount;
+        }
+    }
+
+    public int clientAct() {
+        return this.clientAct;
+    }
+
+    public float clientActTicks(float pt) {
+        return this.tickCount - this.clientActStart + pt;
+    }
+
+    /** 溜めの段の光の強さ(満ちて {@link #CHARGE_GLOW_FULL})【仮】。 */
+    static final float CHARGE_GLOW_FULL = 0.6F;
+
+    /**
+     * 盾鱗の隙間の葉脈と T 字の口の光(0〜1)。時刻はアニメの一覧(Vault 6 節。前触れは補間 3 tick ぶん遅らせる): 抱え込みの前触れの 3 → 12 で点く・
+     * 抱えて締める間は点いたまま・放す / 外すと 9 tick で消える / 解放の前触れの 3 → 11 で満ちる・打ち合わせ(2)で閃き 6 で消える。
+     * それ以外は溜めの段に比例して灯る(盾で受けた数)。
+     */
+    public float glow(float pt) {
+        float t = clientActTicks(pt);
+        float act = switch (this.clientAct) {
+            case ACT_GRAB_WINDUP -> Mth.clamp((t - ClipeimnesHuntGoal.LEAD - 3.0F) / 9.0F, 0.0F, 1.0F);
+            case ACT_GRAB, ACT_HOLD -> 1.0F;
+            case ACT_HOLD_RECOVER, ACT_GRAB_RECOVER -> Mth.clamp(1.0F - t / 9.0F, 0.0F, 1.0F);
+            case ACT_RELEASE_WINDUP -> Mth.clamp((t - ClipeimnesHuntGoal.LEAD - 3.0F) / 8.0F, 0.0F, 1.0F);
+            case ACT_RELEASE -> t <= 2.0F ? 1.0F : Mth.clamp(1.0F - (t - 2.0F) / 4.0F, 0.0F, 1.0F);
+            default -> 0.0F;
+        };
+        float stored = this.clientAct == ACT_RELEASE || this.clientAct == ACT_RELEASE_RECOVER ? 0.0F : CHARGE_GLOW_FULL * charge() / CHARGE_MAX;
+        return Math.max(act, stored);
+    }
+
     // ------------------------------------------------------------------ 確かめ用
 
     /**
@@ -187,8 +627,10 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
      */
     @Override
     protected void tickRunner() {
+        tickGuard();
         if (!DEV_HOOKS || !this.hasCustomName()) return;
         String name = this.getCustomName().getString();
+        if (name.contains("charged") && this.charge == 0 && act() == ACT_NONE) setChargeForTests(CHARGE_MAX);   // 確かめ用: 溜めを満たしておく
         if (name.startsWith("nostroll_run") && this.getNavigation().isDone()) {
             net.minecraft.world.phys.Vec3 p = net.minecraft.world.entity.ai.util.LandRandomPos.getPos(this, 20, 6);
             if (p != null && p.distanceToSqr(this.position()) > 12.0D * 12.0D) this.getNavigation().moveTo(p.x, p.y, p.z, 1.0D);
@@ -250,11 +692,88 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new GaitAnimationController<>(this, "main", 4, this::mainState));
+        // 盾で詰める(guard_*)は上半身だけの重ね: main の後に登録する(後のコントローラが同じ骨を上書きする)
+        controllers.add(new software.bernie.geckolib.animation.AnimationController<>(this, "guard", 3, this::guardState));
+    }
+
+    private static final RawAnimation GUARD_UP_ANIM = RawAnimation.begin().thenPlay("guard_windup").thenLoop("guard");
+    private static final RawAnimation GUARD_HIT_ANIM = RawAnimation.begin().thenPlay("guard_hit").thenLoop("guard");
+    private static final RawAnimation GUARD_DOWN_ANIM = RawAnimation.begin().thenPlayAndHold("guard_recover");
+
+    /**
+     * 盾の構えの層: 構える = guard_windup → guard(繰り返し)、受けた = guard_hit → guard(受けるたびに頭から)、下ろす = guard_recover、無し = 止める。
+     * 全身の技の間は止める(サーバーが技の前に構えを外す)。
+     */
+    private PlayState guardState(AnimationState<ClipeimnesEntity> state) {
+        int g = this.entityData.get(DATA_GUARD);
+        int s = g & 0xF;
+        if (s == GUARD_NONE || act() != ACT_NONE || this.isDeadOrDying()) return PlayState.STOP;
+        var c = state.getController();
+        int key = g & ~0xF0;
+        if (key != this.guardAnimKey) {
+            this.guardAnimKey = key;
+            if (s == GUARD_HIT) c.forceAnimationReset();   // 続けて受けたら頭から
+        }
+        return state.setAndContinue(s == GUARD_UP ? GUARD_UP_ANIM : s == GUARD_HIT ? GUARD_HIT_ANIM : GUARD_DOWN_ANIM);
+    }
+
+    private int guardAnimKey = -1;
+
+    private static final RawAnimation BASH_R_WINDUP_ANIM = RawAnimation.begin().thenPlayAndHold("bash_r_windup");
+    private static final RawAnimation BASH_R_ANIM = RawAnimation.begin().thenPlayAndHold("bash_r");
+    private static final RawAnimation BASH_R_RECOVER_ANIM = RawAnimation.begin().thenPlayAndHold("bash_r_recover");
+    private static final RawAnimation BASH_L_WINDUP_ANIM = RawAnimation.begin().thenPlayAndHold("bash_l_windup");
+    private static final RawAnimation BASH_L_ANIM = RawAnimation.begin().thenPlayAndHold("bash_l");
+    private static final RawAnimation BASH_L_RECOVER_ANIM = RawAnimation.begin().thenPlayAndHold("bash_l_recover");
+    private static final RawAnimation GRAB_WINDUP_ANIM = RawAnimation.begin().thenPlayAndHold("grab_windup");
+    private static final RawAnimation GRAB_ANIM = RawAnimation.begin().thenPlayAndHold("grab");
+    private static final RawAnimation HOLD_ANIM = RawAnimation.begin().thenLoop("hold");
+    private static final RawAnimation HOLD_RECOVER_ANIM = RawAnimation.begin().thenPlayAndHold("hold_recover");
+    private static final RawAnimation GRAB_RECOVER_ANIM = RawAnimation.begin().thenPlayAndHold("grab_recover");
+    private static final RawAnimation RELEASE_WINDUP_ANIM = RawAnimation.begin().thenPlayAndHold("release_windup");
+    private static final RawAnimation RELEASE_ANIM = RawAnimation.begin().thenPlayAndHold("release");
+    private static final RawAnimation RELEASE_RECOVER_ANIM = RawAnimation.begin().thenPlayAndHold("release_recover");
+
+    /**
+     * 技のアニメ(速さは全部 1.0)。前触れは歩き・待機から補間 {@link ClipeimnesHuntGoal#LEAD} tick、その後の段(実行・締め・隙)は補間 0
+     * (Vault 6 節: 補間 4 のままだと 5〜6 tick の実行が始まる前に前触れの姿で固まる。つなぎ目は前の終わり = 次の頭)。技の段で無ければ null。
+     */
+    @org.jetbrains.annotations.Nullable
+    private PlayState actState(AnimationState<ClipeimnesEntity> state, GaitAnimationController<ClipeimnesEntity> c) {
+        RawAnimation a = switch (this.clientAct) {
+            case ACT_BASH_R_WINDUP -> BASH_R_WINDUP_ANIM;
+            case ACT_BASH_R -> BASH_R_ANIM;
+            case ACT_BASH_R_RECOVER -> BASH_R_RECOVER_ANIM;
+            case ACT_BASH_L_WINDUP -> BASH_L_WINDUP_ANIM;
+            case ACT_BASH_L -> BASH_L_ANIM;
+            case ACT_BASH_L_RECOVER -> BASH_L_RECOVER_ANIM;
+            case ACT_GRAB_WINDUP -> GRAB_WINDUP_ANIM;
+            case ACT_GRAB -> GRAB_ANIM;
+            case ACT_HOLD -> HOLD_ANIM;
+            case ACT_HOLD_RECOVER -> HOLD_RECOVER_ANIM;
+            case ACT_GRAB_RECOVER -> GRAB_RECOVER_ANIM;
+            case ACT_RELEASE_WINDUP -> RELEASE_WINDUP_ANIM;
+            case ACT_RELEASE -> RELEASE_ANIM;
+            case ACT_RELEASE_RECOVER -> RELEASE_RECOVER_ANIM;
+            default -> null;
+        };
+        if (a == null) return null;
+        boolean windup = this.clientAct == ACT_BASH_R_WINDUP || this.clientAct == ACT_BASH_L_WINDUP || this.clientAct == ACT_GRAB_WINDUP
+                || this.clientAct == ACT_RELEASE_WINDUP;
+        c.transitionLength(windup ? ClipeimnesHuntGoal.LEAD : 0);
+        c.setAnimationSpeed(1.0D);
+        this.running = false;
+        this.phaseDebt = 0.0D;
+        return state.setAndContinue(a);
     }
 
     private PlayState mainState(AnimationState<ClipeimnesEntity> state) {
         GaitAnimationController<ClipeimnesEntity> c = (GaitAnimationController<ClipeimnesEntity>) state.getController();
         this.gait = c;
+        if (!this.isDeadOrDying()) {
+            PlayState acting = actState(state, c);
+            if (acting != null) return acting;
+        }
         double s = this.getScale();
         double ahead = clientForwardSpeed();
         boolean turning = Math.abs(getTurnRate()) >= TURN_ANIM_MIN;
@@ -301,6 +820,7 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
     public void tick() {
         super.tick();
         if (!this.level().isClientSide()) return;
+        tickClientAct();
         GaitAnimationController<ClipeimnesEntity> c = this.gait;
         FootPlanter fp = footPlanter();
         if (c == null || fp == null || !fp.ready()) return;
