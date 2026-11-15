@@ -1,10 +1,12 @@
 package com.yayuy.overgrownvegetation.entity.crawler;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.control.MoveControl;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.Goal;
@@ -21,6 +23,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import javax.annotation.Nullable;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 移動の型「小さな地這いの虫」の土台(2026-11-14〜15、1 体目はグレガリア。ストロビラ・ヴェシカリア・トリツキも継ぐ予定)。
@@ -95,15 +98,116 @@ public abstract class SmallCrawler extends Monster {
         return 1.0D;
     }
 
-    /** 群れなどが舵を取っている間は真(うろつきを止める)。段 1 では誰も取らない。 */
+    /** 群れなどが舵を取っている間は真(うろつきを止める)。群れ({@link CrawlerPack})の後続・相手のいる群れでは真。 */
     public boolean isSteered() {
-        return false;
+        CrawlerPack p = this.pack;
+        return p != null && !p.members.isEmpty() && (p.target() != null || p.leader() != this);
     }
 
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
+        if (usesPack()) {
+            this.goalSelector.addGoal(3, new CrawlerPack.ChaseGoal(this));
+            this.goalSelector.addGoal(5, new CrawlerPack.FollowGoal(this));
+        }
         this.goalSelector.addGoal(6, new ScurryGoal(this));
+    }
+
+    // ------------------------------------------------------------------ 群れ(使う種だけ。2026-11-16)
+
+    /** 群れ({@link CrawlerPack})に入るか。既定 false(ストロビラ・ヴェシカリアの動きは変えない)。 */
+    protected boolean usesPack() {
+        return false;
+    }
+
+    /** 噛むなどで相手そのものへ向かう間は真(群れの囲む位置でなく相手の真ん中へ舵を切る)。既定 false。 */
+    protected boolean lungingAtTarget() {
+        return false;
+    }
+
+    /** 群れが狙う相手か。既定: プレイヤーと植物側以外の生き物(ほかの G4・G5 と同じ)。 */
+    protected boolean isPackPrey(LivingEntity e) {
+        return com.yayuy.overgrownvegetation.entity.AcumnesEntity.isPrey(this, e);
+    }
+
+    /** 名前に notarget を含む個体は相手を探さない・nopack は群れに入らない(GameTest で隣のテストの Mob を狙わないように)。 */
+    boolean huntsDisabled() {
+        return this.hasCustomName() && this.getCustomName().getString().contains("notarget");
+    }
+
+    private boolean packDisabled() {
+        return this.hasCustomName() && this.getCustomName().getString().contains("nopack");
+    }
+
+    @Nullable
+    private CrawlerPack pack;
+    @Nullable
+    private UUID packId;
+
+    /** 入っている群れ(サーバー。無ければ null)。 */
+    @Nullable
+    public CrawlerPack pack() {
+        return this.pack;
+    }
+
+    /** 群れの毎 tick(サーバー): 入る・組み直す・近くの群れへ合わさる・先導役なら相手を見直す・群れの標的を自分の標的にする。 */
+    private void packTick(ServerLevel level) {
+        if (this.pack == null || !this.pack.members.contains(this)) {
+            if (this.packId == null) {
+                CrawlerPack near = CrawlerPack.nearby(level, this, null);
+                this.packId = near != null ? near.id : UUID.randomUUID();
+            }
+            this.pack = CrawlerPack.obtain(level, this.packId, this.getType());
+            this.pack.add(this);
+        }
+        CrawlerPack p = this.pack;
+        p.prune();
+        if (p.size() == 1 && (this.tickCount + this.getId()) % CrawlerPack.JOIN_EVERY == 0) {
+            CrawlerPack other = CrawlerPack.nearby(level, this, p);
+            if (other != null) {
+                p.remove(level, this);
+                other.add(this);
+                this.pack = other;
+                this.packId = other.id;
+                p = other;
+            }
+        }
+        if (p.leader() == this) p.leaderTick(level, this, (self, e) -> self.isPackPrey(e));
+        LivingEntity t = p.target();
+        if (t != this.getTarget()) this.setTarget(t);
+    }
+
+    @Override
+    protected void customServerAiStep() {
+        super.customServerAiStep();
+        if (usesPack() && !packDisabled() && this.level() instanceof ServerLevel sl) packTick(sl);
+    }
+
+    /** 叩かれたら叩いた相手を群れの標的にする。 */
+    @Override
+    public boolean hurt(net.minecraft.world.damagesource.DamageSource source, float amount) {
+        boolean hurt = super.hurt(source, amount);
+        if (hurt && this.pack != null && source.getEntity() instanceof LivingEntity a && isPackPrey(a)) this.pack.setTarget(a);
+        return hurt;
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        if (this.pack != null && this.level() instanceof ServerLevel sl) this.pack.remove(sl, this);
+        super.remove(reason);
+    }
+
+    @Override
+    public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        if (this.packId != null) tag.putUUID("OvPack", this.packId);
+    }
+
+    @Override
+    public void readAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        if (tag.hasUUID("OvPack")) this.packId = tag.getUUID("OvPack");
     }
 
     // ------------------------------------------------------------------ 向き

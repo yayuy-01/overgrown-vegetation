@@ -44,12 +44,13 @@ public final class GregariaGameTests {
     }
 
     private static GregariaEntity placeAt(GameTestHelper helper, double x, double z, float yaw) {
-        GregariaEntity g = helper.spawnWithNoFreeWill(ModCrawlers.GREGARIA.get(), new BlockPos(0, 2, 0));
+        // spawnWithNoFreeWill は Goal を全部外す(removeFreeWill)ので、群れの追う Goal が無くなる → ふつうに湧かせる(名前でうろつき・相手探しを切る)
+        GregariaEntity g = helper.spawn(ModCrawlers.GREGARIA.get(), new BlockPos(0, 2, 0));
         Vec3 p = helper.absoluteVec(new Vec3(x, 2.0D, z));
         g.moveTo(p.x, p.y, p.z, yaw, 0.0F);
         g.snapFacing(yaw);
         g.setNoAi(false);
-        g.setCustomName(Component.literal("nostroll"));
+        g.setCustomName(Component.literal("nostroll_notarget_nopack"));   // 群れ・相手探しを切る(隣のテストの Mob を狙わない・混ざらない)
         return g;
     }
 
@@ -177,5 +178,132 @@ public final class GregariaGameTests {
             }
             helper.succeed();
         });
+    }
+
+    // ------------------------------------------------------------------ 能力(2026-11-16)
+
+    /** 動かない豚(噛まれる的)。 */
+    private static net.minecraft.world.entity.animal.Pig pigAt(GameTestHelper helper, double x, double z) {
+        net.minecraft.world.entity.animal.Pig pig = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.PIG, new BlockPos(0, 2, 0));
+        Vec3 p = helper.absoluteVec(new Vec3(x, 2.0D, z));
+        pig.moveTo(p.x, p.y, p.z, 0.0F, 0.0F);
+        return pig;
+    }
+
+    /** 動かないアイアンゴーレム(体力の多い的)。 */
+    private static net.minecraft.world.entity.animal.IronGolem golemAt(GameTestHelper helper, double x, double z) {
+        net.minecraft.world.entity.animal.IronGolem m = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.IRON_GOLEM, new BlockPos(0, 2, 0));
+        Vec3 p = helper.absoluteVec(new Vec3(x, 2.0D, z));
+        m.moveTo(p.x, p.y, p.z, 0.0F, 0.0F);
+        return m;
+    }
+
+    private static double doseOf(net.minecraft.world.entity.LivingEntity e) {
+        return com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(e);
+    }
+
+    /** 足首を噛む: 動かない豚へ走り寄って噛み、傷 1 と暴露量 +150 以上(傷の暴露も足される)が入る。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 120)
+    public static void bitesAnkleWithWoundAndDose(GameTestHelper helper) {
+        net.minecraft.world.entity.animal.Pig pig = pigAt(helper, 3.5D, 5.0D);
+        GregariaEntity g = placeAt(helper, 3.5D, 1.0D, 0.0F);
+        helper.runAfterDelay(1L, () -> g.setTarget(pig));
+        helper.onEachTick(() -> {
+            if (pig.getHealth() <= pig.getMaxHealth() - GregariaEntity.BITE_DAMAGE + 1e-3 && doseOf(pig) >= GregariaEntity.BITE_DOSE) helper.succeed();
+        });
+        helper.runAtTickTime(115L, () -> {
+            Vec3 o = helper.absoluteVec(Vec3.ZERO);
+            StringBuilder goals = new StringBuilder();
+            g.goalSelector.getAvailableGoals().forEach(w -> { if (w.isRunning()) goals.append(w.getGoal().getClass().getSimpleName()).append(' '); });
+            helper.fail(String.format("噛まない(体力 %.1f / %.1f、暴露量 %.0f、口が届く %s、位置 %.2f %.2f、豚 %.2f %.2f、標的 %s、Goal %s、噛み始め計 %d)",
+                    pig.getHealth(), pig.getMaxHealth(), doseOf(pig), g.mouthReaches(pig), g.getX() - o.x, g.getZ() - o.z,
+                    pig.getX() - o.x, pig.getZ() - o.z, g.getTarget() == null ? "なし" : g.getTarget().getName().getString(), goals,
+                    GregariaEntity.biteStarts));
+        });
+    }
+
+    /** 同じ個体は 2 秒おき: 1 体だけで 100 tick の間に噛み始めるのは 3 回まで(40 tick おき)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 140)
+    public static void sameBiterWaitsTwoSeconds(GameTestHelper helper) {
+        var pig = golemAt(helper, 3.5D, 3.5D);
+        // 体力の多い的(豚は 8 体に噛まれると死ぬ。無敵にすると狙えない相手になる = canBeSeenAsEnemy)
+        GregariaEntity g = placeAt(helper, 3.5D, 2.2D, 0.0F);
+        int[] starts = {0};
+        int[] firstAt = {-1};
+        boolean[] wasBiting = {false};
+        helper.runAfterDelay(1L, () -> g.setTarget(pig));
+        helper.onEachTick(() -> {
+            boolean biting = GregariaEntity.bitersOn(pig, helper.getLevel().getGameTime()) > 0;
+            if (biting && !wasBiting[0]) {
+                starts[0]++;
+                if (firstAt[0] < 0) firstAt[0] = (int) helper.getTick();
+            }
+            wasBiting[0] = biting;
+            if (firstAt[0] >= 0 && helper.getTick() >= firstAt[0] + 100) {
+                if (starts[0] > 3 || starts[0] < 2) {
+                    helper.fail("100 tick で噛み始めた数が 2〜3 でない: " + starts[0]);
+                    return;
+                }
+                helper.succeed();
+            }
+        });
+    }
+
+    /** 1 人を同時に噛めるのは 4 体まで: 8 体で囲んでも、噛んでいる数は 4 を超えない(2 以上にはなる)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 160)
+    public static void atMostFourBiteOneTarget(GameTestHelper helper) {
+        var pig = golemAt(helper, 3.5D, 3.5D);
+        // 体力の多い的
+        List<GregariaEntity> all = new ArrayList<>();
+        for (int i = 0; i < 8; i++) {
+            double a = i * Math.PI / 4.0D;
+            all.add(placeAt(helper, 3.5D + Math.cos(a) * 2.2D, 3.5D + Math.sin(a) * 2.2D, 0.0F));
+        }
+        int[] most = {0};
+        helper.runAfterDelay(1L, () -> all.forEach(g -> g.setTarget(pig)));
+        helper.onEachTick(() -> {
+            int n = GregariaEntity.bitersOn(pig, helper.getLevel().getGameTime());
+            if (n > GregariaEntity.BITE_MAX_PER_TARGET) helper.fail("同時に噛んでいる数が多い: " + n);
+            most[0] = Math.max(most[0], n);
+        });
+        helper.runAtTickTime(150L, () -> {
+            if (most[0] < 2) helper.fail("囲んでも 2 体以上が同時に噛まない(最大 " + most[0] + ")");
+            else helper.succeed();
+        });
+    }
+
+    /** 群れ: 近くに湧いた 4 体は 1 つの群れになり、群れの標的は全員の標的になる。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 80)
+    public static void packSharesTarget(GameTestHelper helper) {
+        net.minecraft.world.entity.animal.Pig pig = pigAt(helper, 5.5D, 5.5D);
+        List<GregariaEntity> all = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            GregariaEntity g = placeAt(helper, 1.5D + i, 1.5D, 0.0F);
+            g.setCustomName(Component.literal("nostroll_notarget"));   // 群れには入る・自分では探さない
+            all.add(g);
+        }
+        helper.runAtTickTime(10L, () -> {
+            var p = all.get(0).pack();
+            if (p == null || all.stream().anyMatch(g -> g.pack() != p)) {
+                helper.fail("4 体が 1 つの群れにならない");
+                return;
+            }
+            p.setTarget(pig);
+        });
+        helper.runAtTickTime(16L, () -> {
+            if (all.stream().allMatch(g -> g.getTarget() == pig)) helper.succeed();
+            else helper.fail("群れの標的が全員に渡らない");
+        });
+    }
+
+    /** 通った所に胞子を降り積もらせる: 4 ブロックほど歩くと、走った距離 × 0.2% ぶんを場へ書く。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 160)
+    public static void depositsSporesWhereItRuns(GameTestHelper helper) {
+        GregariaEntity g = placeAt(helper, 3.5D, 0.8D, 0.0F);
+        helper.runAfterDelay(2L, () -> walkTo(g, helper, new Vec3(3.5D, 2.0D, 6.0D)));
+        helper.onEachTick(() -> {
+            if (g.depositedPercent() >= 0.5D) helper.succeed();
+        });
+        helper.runAtTickTime(150L, () -> helper.fail(String.format("降り積もりを書かない(%.2f%%)", g.depositedPercent())));
     }
 }

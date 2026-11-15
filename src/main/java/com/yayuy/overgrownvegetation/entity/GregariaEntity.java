@@ -93,11 +93,211 @@ public class GregariaEntity extends SmallCrawler implements GeoEntity, Parasitiz
         if (DEV_HOOKS && !this.level().isClientSide() && this.hasCustomName()) devHooks(this.getCustomName().getString());
     }
 
+    // ------------------------------------------------------------------ 能力(2026-11-16。Vault「G4〜G6 の能力の決定(11-14)」・「グレガリア」の噛みつきの決定)
+
+    /** 群れ({@link com.yayuy.overgrownvegetation.entity.crawler.CrawlerPack})で走り回る。 */
+    @Override
+    protected boolean usesPack() {
+        return true;
+    }
+
+    // --- 足首への噛みつき【仮・ユーザー了承 11-15】 ---
+    /** 噛み始める間合い(体の中心どうしの水平の距離、ブロック)・上下の差の上限。 */
+    public static final double BITE_START = 1.5D, BITE_DY = 1.0D;
+    /** 前触れ 6 + 実行 3 + 隙 8 tick。当たりは前触れの頭から {@link #BITE_HIT_T} tick 目。 */
+    public static final int BITE_WINDUP_T = 6, BITE_HIT_T = 8, BITE_TOTAL_T = 17;
+    /** 同じ個体が次に噛めるまで(噛み始めから、tick)・1 人を同時に噛める数。 */
+    public static final int BITE_COOLDOWN = 40, BITE_MAX_PER_TARGET = 4;
+    /** 口の先(体の中心から前へ・高さ、ブロック。大きさ 1)・届く幅。 */
+    public static final double MOUTH_FWD = 0.95D, MOUTH_UP = 0.04D, MOUTH_REACH = 0.3D;
+    /** 傷・暴露量の上乗せ(%秒。傷の暴露とは別)。 */
+    public static final float BITE_DAMAGE = 1.0F;
+    public static final double BITE_DOSE = 150.0D;
+    /** 前触れの間に相手がこれより離れたら噛むのをやめる(ブロック)。 */
+    static final double BITE_GIVE_UP = 2.5D;
+
+    private static final RawAnimation BITE = RawAnimation.begin().thenPlay("bite_windup").thenPlay("bite").thenPlay("bite_recover");
+
+    /** 噛んでいる間の tick(-1 = 噛んでいない)・相手・次に噛める時刻(サーバー)。 */
+    private int biteTick = -1;
+    @org.jetbrains.annotations.Nullable
+    private net.minecraft.world.entity.LivingEntity biteTarget;
+    private long biteReadyAt;
+
+    /** 計測・テスト: 噛み始め・口が当たった・外れた・やめた の回数(サーバー全体)。 */
+    public static volatile long biteStarts, biteHits, biteMisses, biteCancels;
+
+    /** 1 人を同時に噛んでいる個体の印: 相手 → 噛み終わる時刻(枠は時刻が過ぎれば空く = 死・消えで印が残っても漏れない)。 */
+    private static final java.util.Map<net.minecraft.world.entity.LivingEntity, long[]> BITE_SLOTS = new java.util.WeakHashMap<>();
+
+    /** 今 {@code target} を噛んでいる数(テスト用)。 */
+    public static int bitersOn(net.minecraft.world.entity.LivingEntity target, long now) {
+        long[] s = BITE_SLOTS.get(target);
+        if (s == null) return 0;
+        int n = 0;
+        for (long e : s) if (e > now) n++;
+        return n;
+    }
+
+    private static boolean takeSlot(net.minecraft.world.entity.LivingEntity target, long now) {
+        long[] s = BITE_SLOTS.computeIfAbsent(target, k -> new long[BITE_MAX_PER_TARGET]);
+        for (int i = 0; i < s.length; i++) {
+            if (s[i] <= now) {
+                s[i] = now + BITE_TOTAL_T;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // --- 通った所に胞子を降り積もらせる【仮・Claude 11-16】 ---
+    /** 走った距離 1 ブロックあたりの降り積もり(発芽のしきい値の %)。 */
+    public static final double DEPOSIT_PER_BLOCK_PERCENT = 0.2D;
+    /** まとめて書く間隔(tick)。チャンクが変わったときも書く。 */
+    public static final int DEPOSIT_EVERY = 40;
+    private double depositBlocks;
+    private double lastDepX = Double.NaN, lastDepZ = Double.NaN;
+    private long depositChunk = Long.MIN_VALUE;
+    /** この個体が書いた量の合計(しきい値の %。テスト用)。 */
+    private double depositedPercent;
+
+    public double depositedPercent() {
+        return this.depositedPercent;
+    }
+    /** 計測・テスト: 場へ書いた回数・量の合計(しきい値の %)。 */
+    public static volatile long depositCalls;
+    public static volatile double depositPercentTotal;
+
+    @Override
+    protected void customServerAiStep() {
+        super.customServerAiStep();
+        if (!(this.level() instanceof net.minecraft.server.level.ServerLevel sl)) return;
+        tickBite(sl);
+        tickDeposit(sl);
+    }
+
+    private void tickBite(net.minecraft.server.level.ServerLevel sl) {
+        long now = sl.getGameTime();
+        if (this.biteTick < 0) {
+            net.minecraft.world.entity.LivingEntity t = this.getTarget();
+            if (t == null || now < this.biteReadyAt || !t.isAlive()) return;
+            double dx = t.getX() - this.getX(), dz = t.getZ() - this.getZ();
+            if (dx * dx + dz * dz > BITE_START * BITE_START || Math.abs(t.getY() - this.getY()) > BITE_DY) return;
+            if (!takeSlot(t, now)) return;
+            this.biteTick = 0;
+            this.biteTarget = t;
+            this.biteReadyAt = now + BITE_COOLDOWN;
+            biteStarts++;
+            this.triggerAnim("bite", "bite");
+            return;
+        }
+        this.biteTick++;
+        net.minecraft.world.entity.LivingEntity t = this.biteTarget;
+        if (this.biteTick < BITE_HIT_T && (t == null || !t.isAlive() || t.distanceToSqr(this) > BITE_GIVE_UP * BITE_GIVE_UP)) {
+            this.stopTriggeredAnim("bite", "bite");   // 前触れの間に離れた: 隙を飛ばしてやめる
+            this.biteTick = -1;
+            this.biteTarget = null;
+            biteCancels++;
+            return;
+        }
+        if (this.biteTick == BITE_HIT_T && t != null) {
+            if (mouthReaches(t)) {
+                bite(sl, t);
+                biteHits++;
+            } else {
+                biteMisses++;
+            }
+        }
+        if (this.biteTick >= BITE_TOTAL_T) {
+            this.biteTick = -1;
+            this.biteTarget = null;
+        }
+    }
+
+    /** 噛む前触れの間は、群れの囲む位置でなく相手そのものへ走る(口を相手へ向ける)。 */
+    @Override
+    protected boolean lungingAtTarget() {
+        return this.biteTick >= 0 && this.biteTick <= BITE_HIT_T;
+    }
+
+    /** 口の先(体の向きの前へ {@link #MOUTH_FWD}・高さ {@link #MOUTH_UP})が相手の箱を {@link #MOUTH_REACH} 広げた中にあるか。 */
+    public boolean mouthReaches(net.minecraft.world.entity.LivingEntity t) {
+        float yaw = this.getYRot() * Mth.DEG_TO_RAD;
+        double s = this.getScale();
+        double mx = this.getX() - Mth.sin(yaw) * MOUTH_FWD * s, mz = this.getZ() + Mth.cos(yaw) * MOUTH_FWD * s;
+        double my = this.getY() + MOUTH_UP * s;
+        return t.getBoundingBox().inflate(MOUTH_REACH).contains(mx, my, mz);
+    }
+
+    /**
+     * 噛む: 傷 {@link #BITE_DAMAGE}(傷の暴露は全体の仕組みが足す)+ 暴露量 {@link #BITE_DOSE}。盾で防がれたら 0。
+     * 上乗せの数え方とマスクは全体管理の答え待ち【仮: 口が当たるたびに足す・マスクは通り抜ける(傷口に入れる)】。
+     */
+    private void bite(net.minecraft.server.level.ServerLevel sl, net.minecraft.world.entity.LivingEntity t) {
+        net.minecraft.world.damagesource.DamageSource src = this.damageSources().mobAttack(this);
+        if (t.isDamageSourceBlocked(src)) {
+            t.hurt(src, BITE_DAMAGE);   // 盾が受ける(盾のすり減り・音はバニラ)
+            return;
+        }
+        t.hurt(src, BITE_DAMAGE);
+        addBiteDose(t, BITE_DOSE);
+    }
+
+    /** 暴露量の上乗せ(傷の暴露と同じ扱い: マスクは見ない・感染中のプレイヤーは段の進みへ・創造/観戦・測らない Mob には足さない)。 */
+    static void addBiteDose(net.minecraft.world.entity.LivingEntity victim, double amount) {
+        if (amount <= 0.0D || !victim.isAlive()) return;
+        if (victim instanceof net.minecraft.world.entity.player.Player p) {
+            if (p.isCreative() || p.isSpectator()) return;
+            if (com.yayuy.overgrownvegetation.effect.SporeInfectionEffects.stageOf(p) > 0) {
+                com.yayuy.overgrownvegetation.effect.SporeInfectionEffects.advance(p, amount);
+                return;
+            }
+        } else if (!com.yayuy.overgrownvegetation.spore.SporeExposureTracker.isMeasuredMob(victim)) {
+            return;
+        }
+        com.yayuy.overgrownvegetation.spore.SporeExposure ex = victim.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_EXPOSURE);
+        ex.dose = Math.min(com.yayuy.overgrownvegetation.data.DesignData.sporeField().infectDose(), ex.dose + amount);
+    }
+
+    /** 走った距離を貯め、{@link #DEPOSIT_EVERY} tick おき(個体ごとにずらす)かチャンクが変わったときに、まとめて 1 回だけ場へ書く。 */
+    private void tickDeposit(net.minecraft.server.level.ServerLevel sl) {
+        // customServerAiStep はこの tick の移動(travel)より前なので、xo との差は 0。前の tick の位置を自分で持つ
+        double dx = Double.isNaN(this.lastDepX) ? 0.0D : this.getX() - this.lastDepX, dz = Double.isNaN(this.lastDepZ) ? 0.0D : this.getZ() - this.lastDepZ;
+        this.lastDepX = this.getX();
+        this.lastDepZ = this.getZ();
+        if (this.onGround() && dx * dx + dz * dz < 1.0D) this.depositBlocks += Math.sqrt(dx * dx + dz * dz);   // 1 tick に 1 ブロック超えは押し出し・テレポートとして数えない
+        long chunk = this.chunkPosition().toLong();
+        boolean flush = (this.tickCount + this.getId()) % DEPOSIT_EVERY == 0 || chunk != this.depositChunk;
+        if (!flush) return;
+        long was = this.depositChunk;
+        this.depositChunk = chunk;
+        if (this.depositBlocks < 0.5D || was == Long.MIN_VALUE) {
+            if (was == Long.MIN_VALUE) this.depositBlocks = 0.0D;
+            return;
+        }
+        double percent = this.depositBlocks * DEPOSIT_PER_BLOCK_PERCENT;
+        this.depositBlocks = 0.0D;
+        // 書くのは今いる所(チャンクが変わった tick なら、変わる前に走った分も入る。1 チャンク分のずれは許す)
+        com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.depositPoint(sl, this.blockPosition(),
+                com.yayuy.overgrownvegetation.data.DesignData.sporeField().field().germThreshold * percent / 100.0D);
+        depositCalls++;
+        depositPercentTotal += percent;
+        this.depositedPercent += percent;
+    }
+
     /** テストクライアント用: 名前 nostroll_run… は 10〜20 ブロック先へ急ぎで走り続け、…trace… は 10 tick ごとに速さを書く。 */
     private void devHooks(String name) {
         if (name.startsWith("nostroll_run") && this.getNavigation().isDone()) {
             net.minecraft.world.phys.Vec3 p = net.minecraft.world.entity.ai.util.LandRandomPos.getPos(this, 20, 4);
             if (p != null && p.distanceToSqr(this.position()) > 10.0D * 10.0D) this.getNavigation().moveTo(p.x, p.y, p.z, 1.0D);
+        }
+        if (name.contains("bitelog") && this.tickCount % 100 == 0) {
+            com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
+                    "GREG_BITE 始め %d 当たり %d 外れ %d やめた %d 降り積もり %d 回 %.1f%% 群れの相手探し %d 回 平均 %.1f us",
+                    biteStarts, biteHits, biteMisses, biteCancels, depositCalls, depositPercentTotal,
+                    com.yayuy.overgrownvegetation.entity.crawler.CrawlerPack.searchCalls,
+                    com.yayuy.overgrownvegetation.entity.crawler.CrawlerPack.searchCalls == 0 ? 0.0D
+                            : com.yayuy.overgrownvegetation.entity.crawler.CrawlerPack.searchNanos / 1e3 / com.yayuy.overgrownvegetation.entity.crawler.CrawlerPack.searchCalls));
         }
         if (name.contains("trace") && this.tickCount % 10 == 0) {
             double dx = this.getX() - this.xo, dz = this.getZ() - this.zo;
@@ -112,6 +312,8 @@ public class GregariaEntity extends SmallCrawler implements GeoEntity, Parasitiz
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new GaitAnimationController<>(this, "main", 3, this::mainState));
+        // 噛みつき: 頭・顎・触角だけの層を歩き・走りの上に重ねる(後に登録 = 同じ骨は後が勝つ)。サーバーの triggerAnim で鳴らし、普段は止めておく
+        controllers.add(new AnimationController<>(this, "bite", 1, s -> PlayState.STOP).triggerableAnim("bite", BITE));
     }
 
     private PlayState mainState(AnimationState<GregariaEntity> state) {
