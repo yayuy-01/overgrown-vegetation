@@ -1112,6 +1112,83 @@ public final class SporeField {
         return new double[]{pre, keep * (1 - kn) / x - pre * kn};
     }
 
+    /**
+     * 軽量化 D: 寝かせている深い奥の区画を、deepEvery 回ぶんまとめて進める。升どうしの運び・林床の層・地割れの前線は扱わない(深い奥には無い)。
+     * 放出・降り積もり・発芽・地下・持ち上げの式は {@link #stepOnce} の升の処理と同じ(向こうを変えたらここも揃える)。違いは、
+     * 刻みの長さが deepEvery 倍の値を受け取ること、放出を前後に分けること({@link #splitEmit})、隣から入った分を「自分が出す分と同じ」とみなすこと。
+     */
+    private void stepDeepTile(Tile tl, boolean doAir, double dtAir, long t, double release, boolean moonNight, boolean wall, boolean moist,
+                              double germPN, double depKeepN, long secondGap, boolean under,
+                              double keepN, double toDepN, double toLiftN, double[] pq, double toDep1, double soakDt,
+                              double keepMN, double toDepMN, double toLiftMN, double[] pqM, double toDepM1, double soakDtM,
+                              double keepUN, double toDepUN, double underDepKeepN, double germPUN, double inSelf, float eps) {
+        int bx = tl.tx << TB, bz = tl.tz << TB;
+        for (int i = 0; i < TN; i++) {
+            double a = tl.air[i];
+            double a0 = a;
+            float hy = tl.height == null ? Float.NaN : tl.height[i];
+            boolean mount = wall && hy >= p.mountainY;
+            double tKeep = mount ? keepMN : keepN, tDep = mount ? toDepMN : toDepN, tLift = mount ? toLiftMN : toLiftN;
+            double tDepIn = mount ? toDepM1 : toDep1, cSoakDt = mount ? soakDtM : soakDt;
+            double[] split = mount ? pqM : pq;
+            double post = 0;
+            long sp = tl.sprout[i];
+            if (sp != NOT) {
+                double age = (t - sp) / (double) PrevailingWind.DAY;
+                double e = age < p.daysToThriving ? (p.earlyEmit > 0 ? p.emitThriving * p.earlyEmit * (age / p.daysToThriving) * (age / p.daysToThriving) : 0)
+                        : age < p.daysToOvergrown ? p.emitThriving : p.emitOvergrown;
+                if (p.sproutEmitBonus > 0) e *= 1 + p.sproutEmitBonus * tl.count[i];
+                if (tl.emitMul != null) e *= tl.emitMul[i];
+                if (age >= p.daysToThriving && (p.ledgerBaseEmit != 1.0 || p.tubeMoonEmit > 0)) {
+                    e *= p.ledgerBaseEmit + (moonNight && tl.tube != null ? p.tubeMoonEmit * tl.tube[i] : 0);
+                }
+                if (doAir) {
+                    double em = e * release * dtAir * (tl.airEmit == null ? 1f : tl.airEmit[i]);
+                    a += em * split[0];
+                    post = em * split[1];
+                }
+            }
+            int cx = bx + (i & (TS - 1)), cz = bz + (i >> TB);
+            if (tl.count[i] < p.maxSprouts) {
+                boolean first = sp == NOT;
+                double dd = tl.dep[i] * depKeepN + (doAir ? (first ? a * tDep : a0 * inSelf * tDepIn) : 0);
+                float g = tl.germ == null ? 1f : tl.germ[i];
+                double need = first ? p.germThreshold : p.secondThreshold;
+                if (moonNight) need *= p.fullMoonGermMul;
+                if ((tl.flags[i] & WAIT) != 0 && dd * g < p.germThreshold) tl.flags[i] &= ~WAIT;
+                if (g > 0 && (tl.flags[i] & WAIT) == 0 && dd * g >= need && (first || t - sp >= secondGap)
+                        && (moist || (tl.wet != null && tl.wet[i]))
+                        && !barrenHigh(tl, i, cx, cz)
+                        && PrevailingWind.unit(PrevailingWind.hash(seed ^ t, ((long) (bx + (i & 31)) << 32) ^ (bz + (i >> TB)))) < germPN) {
+                    if (first) {
+                        sproutDep.put(chunkKey(cx, cz), (float) dd);
+                        tl.sprout[i] = t;
+                        tl.corrupted++;
+                        corruptedCount++;
+                    }
+                    tl.count[i]++;
+                    sproutEvents++;
+                    dd = 0;
+                    newSprouts.add(new int[]{cx, cz, first && isolated(cx, cz) ? 1 : 0, tl.count[i]});
+                }
+                tl.dep[i] = (float) dd;
+            } else {
+                tl.dep[i] = 0;
+            }
+            if (!doAir) continue;
+            if (under) a = stepUnder(tl, i, cx, cz, a, cSoakDt, keepUN, toDepUN, underDepKeepN, germPUN, t);
+            double lifted = a * tLift;
+            a *= tKeep;
+            a += post;
+            if (lifted > 0) {
+                tl.lifted += lifted;
+                tl.liftX += lifted * (cx + 0.5);
+                tl.liftZ += lifted * (cz + 0.5);
+            }
+            tl.air[i] = a < eps ? 0f : (float) a;
+        }
+    }
+
     /** この更新で、深い奥の区画をどう扱うかを決める(軽量化 D)。区画ごとに回をずらす(保存する状態は無い)。 */
     private void markSlow(int every) {
         boolean rifts = !fronts.isEmpty();
@@ -1129,7 +1206,7 @@ public final class SporeField {
     /**
      * 寝かせている区画(軽量化 D)は、升どうしの運びを計算しない(奥はどこも同じ濃さなので、出る分と入る分が打ち消し合う)。
      * 寝かせていない隣の区画との境だけ、境の升と同じ濃さが向こうへ続いているものとして、ふつうの割合で隣へ入れる(自分の浮遊は減らさない)。
-     * 向こうから入ってくる分は {@link #add} で捨てる(同じ理由)。
+     * 向こうから入ってくる分は、刻みの終わりの入れ替えで捨てる(同じ理由)。
      */
     private void edgeOut(Tile tl, double d, double fx, double fz, int sx, int sz, float eps) {
         float[] a = tl.air;
@@ -1268,27 +1345,19 @@ public final class SporeField {
         long devT0 = System.nanoTime();
         List<Tile> list = new ArrayList<>(tiles.values());
         for (Tile tl : list) {
-            if (tl.slow == 1) {
-                if (doAir) {
-                    edgeOut(tl, d, fx, fz, sx, sz, eps);
-                    float[] av = tl.air, nv = tl.next;
-                    for (int i = 0; i < TN; i++) nv[i] += av[i];
+            if (tl.slow != 0) {
+                // 軽量化 D: 寝かせている深い奥の区画。境だけ隣へ入れ、進める回は升ごとの放出と減りだけをまとめて行う(運びは計算しない)
+                if (doAir) edgeOut(tl, d, fx, fz, sx, sz, eps);
+                if (tl.slow == 2) {
+                    devBigTileSteps++;
+                    stepDeepTile(tl, doAir, dtAir, t, release, moonNight, wall, moist, germPN, depKeepN, secondGap, under,
+                            keepN, toDepN, toLiftN, pq, toDep, dtAir * soakMulN, keepMN, toDepMN, toLiftMN, pqM, toDepM, dtAir * soakMulMN,
+                            keepUN, toDepUN, underDepKeepN, germPUN, (4 * d + fx + fz) * every, eps);
+                } else {
+                    devHeldTileSteps++;
                 }
-                devHeldTileSteps++;
                 continue;
             }
-            boolean big = tl.slow == 2;
-            if (big) {
-                devBigTileSteps++;
-                if (doAir) edgeOut(tl, d, fx, fz, sx, sz, eps);
-            }
-            // 寝かせている区画は運びを計算しないので、隣から入ってくる分(2 体目の発芽に使う)は「自分が出す分と同じ」とみなす
-            double inSelf = big ? (4 * d + fx + fz) * every : 0;
-            double xDtAir = big ? dtAirN : dtAir, xKeep = big ? keepN : keep, xToDep = big ? toDepN : toDep, xToLift = big ? toLiftN : toLift;
-            double xKeepM = big ? keepMN : keepM, xToDepM = big ? toDepMN : toDepM, xToLiftM = big ? toLiftMN : toLiftM;
-            double xDepKeep = big ? depKeepN : depKeep, xGermP = big ? germPN : germP;
-            double eP = big ? pq[0] : 1, eQ = big ? pq[1] : 0, tDepIn1 = toDep, soakDt = big ? dtAir * soakMulN : dtAir;
-            double xKeepU = big ? keepUN : keepU, xToDepU = big ? toDepUN : toDepU, xUnderDepKeep = big ? underDepKeepN : underDepKeep, xGermPU = big ? germPUN : germPU;
             int bx = tl.tx << TB, bz = tl.tz << TB;
             boolean deep = tl.interior;
             boolean lowHere = doLow && !deep;
@@ -1296,21 +1365,12 @@ public final class SporeField {
             for (int i = 0; i < TN; i++) {
                 double a = tl.air[i], lo = tl.low[i];
                 boolean rz = riftTile && inFront(bx + (i & (TS - 1)), bz + (i >> TB));
-                double tDep = rz ? toDepS : xToDep, tKeep = rz ? keepS : xKeep, tLift = rz ? toLiftS : xToLift;
-                double cP = eP, cQ = eQ, tDepIn = big ? tDepIn1 : tDep, cSoakDt = soakDt, post = 0;
+                double tDep = rz ? toDepS : toDep, tKeep = rz ? keepS : keep, tLift = rz ? toLiftS : toLift;
                 float hy = tl.height == null ? Float.NaN : tl.height[i];
                 if (!rz && wall && hy >= p.mountainY) {
-                    tDep = xToDepM;
-                    tKeep = xKeepM;
-                    tLift = xToLiftM;
-                    if (big) {
-                        cP = pqM[0];
-                        cQ = pqM[1];
-                        tDepIn = toDepM;
-                        cSoakDt = dtAir * soakMulMN;
-                    } else {
-                        tDepIn = tDep;
-                    }
+                    tDep = toDepM;
+                    tKeep = keepM;
+                    tLift = toLiftM;
                 }
                 long sp = tl.sprout[i];
                 if (sp != NOT) {
@@ -1323,27 +1383,19 @@ public final class SporeField {
                     if (age >= p.daysToThriving && (p.ledgerBaseEmit != 1.0 || p.tubeMoonEmit > 0)) {
                         e *= p.ledgerBaseEmit + (moonNight && tl.tube != null ? p.tubeMoonEmit * tl.tube[i] : 0);
                     }
-                    if (doAir) {
-                        double em = e * release * dtAir * (tl.airEmit == null ? 1f : tl.airEmit[i]);
-                        if (big) {
-                            a += em * cP;
-                            post = em * cQ;
-                        } else {
-                            a += em;
-                        }
-                    }
+                    if (doAir) a += e * release * dtAir * (tl.airEmit == null ? 1f : tl.airEmit[i]);
                     if (lowHere) lo += e * releaseLow * dtLow * p.groundEmit;
                 }
                 // 降り積もりと発芽(汚染済みの升にも貯める。1 升の発芽は maxSprouts 回まで)
                 if (tl.count[i] < p.maxSprouts) {
                     boolean first = sp == NOT;
                     // 16 ビットのときは 1 回の更新ぶん貯めた流入なので、この刻みの長さの割合だけ使う(10-23 の二重数えの直し)
-                    double inA = big ? tl.air[i] * inSelf : half ? Float.float16ToFloat(tl.inAir[i]) * (dtAir / full) : tl.inAirF == null ? 0 : tl.inAirF[i];
+                    double inA = half ? Float.float16ToFloat(tl.inAir[i]) * (dtAir / full) : tl.inAirF == null ? 0 : tl.inAirF[i];
                     double inL = half ? Float.float16ToFloat(tl.inLow[i]) * (dtLow / full) : tl.inLowF == null ? 0 : tl.inLowF[i];
                     // 汚染済みの升は自分の放出を数えず、隣から入ってきた分だけを降り積もらせる(【決定】10-22 追記 5)
-                    double dd = tl.dep[i] * xDepKeep
+                    double dd = tl.dep[i] * depKeep
                             + (first ? (doAir ? a * tDep : 0) + (lowHere ? lo * toDepLow : 0)
-                            : (doAir ? inA * tDepIn : 0) + (lowHere ? inL * toDepLow : 0));
+                            : (doAir ? inA * tDep : 0) + (lowHere ? inL * toDepLow : 0));
                     float g = tl.germ == null ? 1f : tl.germ[i];
                     double need = first ? p.germThreshold : p.secondThreshold;
                     if (moonNight) need *= p.fullMoonGermMul; // ネザー: 満月の夜だけ発芽しやすい(前線の波、2026-11-11)
@@ -1352,7 +1404,7 @@ public final class SporeField {
                     if (g > 0 && (tl.flags[i] & WAIT) == 0 && dd * g >= need && (first || t - sp >= secondGap)
                             && (moist || (tl.wet != null && tl.wet[i]))
                             && !barrenHigh(tl, i, bx + (i & (TS - 1)), bz + (i >> TB)) // 逆転層より上は発芽しない(巨大樹の近くは例外。2026-11-04)
-                            && PrevailingWind.unit(PrevailingWind.hash(seed ^ t, ((long) (bx + (i & 31)) << 32) ^ (bz + (i >> TB)))) < xGermP) {
+                            && PrevailingWind.unit(PrevailingWind.hash(seed ^ t, ((long) (bx + (i & 31)) << 32) ^ (bz + (i >> TB)))) < germP) {
                         int cx = bx + (i & (TS - 1)), cz = bz + (i >> TB);
                         if (first) {
                             sproutDep.put(chunkKey(cx, cz), (float) dd); // 断られたら戻す(waitForLoad)
@@ -1398,20 +1450,15 @@ public final class SporeField {
                     }
                 }
                 if (!doAir) continue;
-                if (under) a = stepUnder(tl, i, cx, cz, a, cSoakDt, xKeepU, xToDepU, xUnderDepKeep, xGermPU, t);
+                if (under) a = stepUnder(tl, i, cx, cz, a, dtAir, keepU, toDepU, underDepKeep, germPU, t);
                 double lifted = a * tLift;
                 a *= tKeep;
-                a += post;
                 if (lifted > 0) {
                     tl.lifted += lifted;
                     tl.liftX += lifted * (cx + 0.5);
                     tl.liftZ += lifted * (cz + 0.5);
                 }
                 if (a < eps) continue;
-                if (big) {
-                    tl.next[i] += (float) a;
-                    continue;
-                }
                 if (fValley > 0 && !Float.isNaN(hy)) {
                     // 谷風・山風: いちばん高い(夜は低い)隣へ。逆転層より上の隣へは行かない
                     int bestX = 0, bestZ = 0;
@@ -1476,7 +1523,8 @@ public final class SporeField {
         for (var en : tiles.entrySet()) {
             Tile tl = en.getValue();
             if (doAir) {
-                System.arraycopy(tl.next, 0, tl.air, 0, TN);
+                // 寝かせている区画(軽量化 D)は浮遊をその場で持ち越す・進める。隣から入ってきた分は捨てる(出る分と打ち消し合う)
+                if (tl.slow == 0) System.arraycopy(tl.next, 0, tl.air, 0, TN);
                 java.util.Arrays.fill(tl.next, 0f);
             }
             if (doLow) {
@@ -1712,7 +1760,6 @@ public final class SporeField {
     /** 升 {@code fromIdx} の浮遊 q を隣 (cx, cz) へ押し出す。隣が逆転層より上なら入れず、その場(送り元)に降り積もらせる(2026-10-30)。 */
     private void add(Tile from, int fromIdx, int cx, int cz, float q) {
         Tile t = (cx >> TB) == from.tx && (cz >> TB) == from.tz ? from : tile(cx, cz, true);
-        if (t.slow != 0 && t != from) return; // 寝かせている区画へ入る分は捨てる(軽量化 D。出る分と打ち消し合う)
         int i = idx(cx, cz);
         if (aboveInversion(t, i)) {
             from.dep[fromIdx] += q;
