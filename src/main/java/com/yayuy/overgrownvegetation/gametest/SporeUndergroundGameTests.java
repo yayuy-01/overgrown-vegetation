@@ -191,4 +191,29 @@ public final class SporeUndergroundGameTests {
                 "前の版で地下の層を読んだ: " + c.under(0, 0) + " / " + c.mouth(0, 0));
         helper.succeed();
     }
+    /** 前の形の保存(区画ごとのファイル)を読むと、まとめた形に書き直され、読み直しても場が変わらない(2026-11-15 軽量化 F)。 */
+    @GameTest(template = "gametest_empty7")
+    public static void oldTileFilesConvertToBundlesUnchanged(GameTestHelper helper) {
+        SporeField.Params p = params();
+        SporeField a = field(p, 64);
+        // 区画をまたぐ離れた所(別のファイルになる所・負の座標も)に汚染と地下を置いて少し回す
+        int[][] at = {{0, 0}, {40, 3}, {-5, -70}, {300, 10}, {-300, 600}};
+        for (int[] c : at) {
+            a.setCorrupted(c[0], c[1], 0);
+            a.setMouth(c[0], c[1], 0.7f);
+            a.depositUnderPoint(c[0], c[1], 0.3);
+        }
+        run(a, 0.5, false);
+        try {
+            java.nio.file.Path dir = java.nio.file.Files.createTempDirectory("ov_spore_migrate");
+            String diff = SporeFieldServer.migrationRoundTripForTests(a, () -> field(p, 64), dir);
+            try (java.util.stream.Stream<java.nio.file.Path> s = java.nio.file.Files.walk(dir)) {
+                s.sorted(java.util.Comparator.reverseOrder()).forEach(x -> x.toFile().delete());
+            }
+            helper.assertTrue(diff == null, "読み替えで場が変わった: " + diff);
+        } catch (java.io.IOException e) {
+            helper.fail("読み替えのテストでファイルを扱えなかった: " + e);
+        }
+        helper.succeed();
+    }
 }

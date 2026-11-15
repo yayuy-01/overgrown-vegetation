@@ -902,6 +902,11 @@ public final class SporeFieldServer {
         f.putLoadedTile(SporeFieldStore.readTile(f, tx, tz, tag));
     }
 
+    /** テスト用(2026-11-15 軽量化 F): 前の形の保存 → 読み替え → 読み直しで場が変わらないか。null = 同じ。 */
+    public static String migrationRoundTripForTests(SporeField src, java.util.function.Supplier<SporeField> fresh, java.nio.file.Path dir) throws java.io.IOException {
+        return SporeFieldStore.migrationRoundTripForTests(src, fresh, dir);
+    }
+
     public static long fieldClockForTests() {
         return fieldClock;
     }
