@@ -8,6 +8,7 @@ import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
 import com.yayuy.overgrownvegetation.spore.field.WindWeatherData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -96,7 +97,32 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
     static final double TUMBLE_DEG = 0.5D;
     static final double TUMBLE_GUST_DEG = 25.0D;
 
+    // --- 段 2 のアニメのつなぎ(2026-11-15。アニメはモデル制作の持ち場。Vault「ペディキュラ」7・8 節) ---
+    /** 浮きの層の切り替え(上下の速さ vy、ブロック/tick)【仮・アニメ側の案のまま】: 昇る = 入る +0.03・戻る +0.01 / 降りる = 入る −0.02・戻る −0.007。 */
+    static final double RISE_ON = 0.03D, RISE_OFF = 0.01D, SINK_ON = -0.02D, SINK_OFF = -0.007D;
+    public static final int FLOAT = 0, RISE = 1, SINK = 2;
+    /** 胞子をこぼす間隔(tick、下限 + 0〜幅)【仮】。「時々」(ユーザー決定 11-15)。名前に spill を含むと {@link #SPILL_DEBUG} ごと(確かめ用)。 */
+    static final int SPILL_MIN = 1200, SPILL_SPAN = 2400, SPILL_DEBUG = 160;
+    /** こぼす 3 本の長さ(tick。アニメの json と同じ): 前触れ 16・こぼす 10・隙 24。 */
+    static final int SPILL_WINDUP_T = 16, SPILL_T = 10, SPILL_RECOVER_T = 24;
+    static final int SPILL_TOTAL = SPILL_WINDUP_T + SPILL_T + SPILL_RECOVER_T;
+    /** 破れて落ちる: 重さ(ブロック/tick²)・落ちる速さの上限・横の勢いの減り【仮】。着かなければこの tick で消す(奈落など)。 */
+    static final double FALL_ACCEL = 0.03D, FALL_MAX = 0.6D, FALL_DRAG = 0.95D;
+    static final int FALL_GIVE_UP = 600;
+    /** エンティティの知らせ(サーバー → クライアント): こぼし始め・着いて消える。 */
+    static final byte EVENT_SPILL = 70, EVENT_LAND = 71;
+
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
+    private static final RawAnimation A_FLOAT = RawAnimation.begin().thenLoop("float");
+    private static final RawAnimation A_RISE = RawAnimation.begin().thenLoop("rise");
+    private static final RawAnimation A_SINK = RawAnimation.begin().thenLoop("sink");
+    /** こぼし続ける {@code spill_loop} は使わない(ユーザー決定 11-15「時々」)。 */
+    private static final RawAnimation A_SPILL = RawAnimation.begin().thenPlay("spill_windup").thenPlay("spill").thenPlay("spill_recover");
+    /** 破れる → 落ちる間。着地の {@code rupture_land} は使わない(ユーザー決定 11-15: 殻は残さず、着いたら消す)。 */
+    private static final RawAnimation A_RUPTURE = RawAnimation.begin().thenPlay("rupture").thenLoop("rupture_fall");
+
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Byte> DATA_FLOAT =
+            SynchedEntityData.defineId(PediculaEntity.class, net.minecraft.network.syncher.EntityDataSerializers.BYTE);
 
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
@@ -115,6 +141,16 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
     /** 転がりの時計(クライアントだけ。風に流される速さで進む)。 */
     private float tumbleClock, tumbleClockO;
     private boolean capChecked;
+    /** 次にこぼすまで(tick。サーバー)。 */
+    private int spillIn = -1;
+    /** 破れて落ちる速さ(サーバー)。 */
+    private double fallVx, fallVy, fallVz;
+    // --- クライアント ---
+    /** こぼし始めた tick(tickCount。MIN_VALUE = まだ)と、何回目か(アニメを頭から流し直すため)。 */
+    private int spillStart = Integer.MIN_VALUE, spillSerial, spillSeen;
+    /** 口(lip)の世界の位置と吹く向き(骨の +y)。描画のたびに {@link com.yayuy.overgrownvegetation.client.PediculaRenderer} が書く。 */
+    public double lipX, lipY, lipZ, lipDx, lipDy = -1.0D, lipDz;
+    public int lipSeenTick = Integer.MIN_VALUE;
     /** テスト用: 行き先を決め打ちする(選び直さない)。 */
     public boolean debugFixedGoal;
     /** テスト用: 地面の高さを決め打ちする(NaN = ふつう。テスト場の高さ地図は天井のバリアを答えるため)。 */
@@ -129,6 +165,26 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
 
     public static AttributeSupplier.Builder createAttributes() {
         return MobStats.apply(Monster.createMonsterAttributes(), ID);
+    }
+
+    @Override
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(DATA_FLOAT, (byte) FLOAT);
+    }
+
+    /** 浮きの層に流すもの({@link #FLOAT}・{@link #RISE}・{@link #SINK})。サーバーが上下の速さから決めて送る。 */
+    public int floatMode() {
+        return this.entityData.get(DATA_FLOAT);
+    }
+
+    /** 浮きの層の切り替え(戻る線をずらして、境目でちらつかない)。 */
+    public static int nextFloatMode(int current, double vy) {
+        return switch (current) {
+            case RISE -> vy < RISE_OFF ? (vy <= SINK_ON ? SINK : FLOAT) : RISE;
+            case SINK -> vy > SINK_OFF ? (vy >= RISE_ON ? RISE : FLOAT) : SINK;
+            default -> vy >= RISE_ON ? RISE : vy <= SINK_ON ? SINK : FLOAT;
+        };
     }
 
     // ------------------------------------------------------------------ 数の上限
@@ -256,6 +312,15 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
                     low, high, this.targetY, gx, gz);
         }
         this.targetY = Mth.clamp(this.targetY, low, high);   // 夕方・朝や地形で帯が動いたら付いていく
+        // 時々、口から胞子をこぼす(見た目だけ。真下の胞子濃度を上げる能力は別に作る)
+        boolean debugSpill = this.hasCustomName() && this.getCustomName().getString().contains("spill");
+        if (this.spillIn < 0 || (debugSpill && this.spillIn > SPILL_DEBUG)) {
+            this.spillIn = debugSpill ? SPILL_DEBUG : SPILL_MIN + this.random.nextInt(SPILL_SPAN);
+        }
+        if (--this.spillIn <= 0) {
+            this.spillIn = debugSpill ? SPILL_DEBUG : SPILL_MIN + this.random.nextInt(SPILL_SPAN);
+            sl.broadcastEntityEvent(this, EVENT_SPILL);
+        }
         if (DEV) devLog(sl, low, high);
     }
 
@@ -322,7 +387,130 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
             // 風に弄ばれて転がる: 横に流される速さ(見えている位置の差)で時計を進める。凪の夜はゆっくり
             double speed = Math.sqrt(Mth.lengthSquared(this.getX() - this.xo, this.getZ() - this.zo));
             this.tumbleClockO = this.tumbleClock;
-            this.tumbleClock += tumbleRate(speed);
+            // 破れて落ちる間も転がり続ける(ユーザー決定 11-15)。落ちる間は風に弄ばれる速さで
+            this.tumbleClock += this.isDeadOrDying() ? 1.0F : tumbleRate(speed);
+            clientParticles();
+        }
+    }
+
+    // ------------------------------------------------------------------ こぼす・破れる(見た目)
+
+    @Override
+    public void handleEntityEvent(byte id) {
+        if (id == EVENT_SPILL) {
+            this.spillStart = this.tickCount;
+            this.spillSerial++;
+            if (DEV) System.out.println("[pedicula-spill] こぼし始め tick " + this.tickCount + " 口が見えている " + lipFresh());
+        } else if (id == EVENT_LAND) {
+            landBurst();
+        } else {
+            super.handleEntityEvent(id);
+        }
+    }
+
+    /** 今こぼしている途中か(クライアント)。 */
+    boolean spilling() {
+        return this.spillStart != Integer.MIN_VALUE && this.tickCount - this.spillStart < SPILL_TOTAL && !this.isDeadOrDying();
+    }
+
+    /** 口の位置と向き。描画で取れていなければ(画面の外など)体の真ん中から真下。 */
+    private boolean lipFresh() {
+        return this.tickCount - this.lipSeenTick <= 2;
+    }
+
+    private void clientParticles() {
+        Level lv = this.level();
+        double cx = this.getX(), cy = this.getY() + this.getBbHeight() * 0.5D, cz = this.getZ();
+        if (this.isDeadOrDying()) {
+            // 破れる(rupture 0〜1): 膜の破片と胞子の大きな吹き出し / 落ちる間: 胞子の尾を引く
+            if (this.deathTime == 1) {
+                for (int i = 0; i < 14; i++) {
+                    lv.addParticle(com.yayuy.overgrownvegetation.registry.ModParticles.SPORE_BURST_CLOUD.get(),
+                            cx + (this.random.nextDouble() - 0.5D) * 2.4D, cy + (this.random.nextDouble() - 0.5D) * 2.4D, cz + (this.random.nextDouble() - 0.5D) * 2.4D,
+                            (this.random.nextDouble() - 0.5D) * 0.25D, (this.random.nextDouble() - 0.5D) * 0.25D, (this.random.nextDouble() - 0.5D) * 0.25D);
+                }
+                for (int i = 0; i < 30; i++) {
+                    lv.addParticle(com.yayuy.overgrownvegetation.registry.ModParticles.SPORE_JET.get(), cx, cy, cz,
+                            (this.random.nextDouble() - 0.5D) * 0.6D, (this.random.nextDouble() - 0.5D) * 0.6D, (this.random.nextDouble() - 0.5D) * 0.6D);
+                }
+            } else if (this.deathTime > 1 && this.deathTime % 2 == 0) {
+                lv.addParticle(com.yayuy.overgrownvegetation.registry.ModParticles.SPORE_BURST_CLOUD.get(),
+                        cx + (this.random.nextDouble() - 0.5D), cy + 0.6D, cz + (this.random.nextDouble() - 0.5D), 0.0D, 0.02D, 0.0D);
+            }
+            return;
+        }
+        if (!spilling()) return;
+        int age = this.tickCount - this.spillStart;
+        boolean fresh = lipFresh();
+        double px = fresh ? this.lipX : cx, py = fresh ? this.lipY : cy, pz = fresh ? this.lipZ : cz;
+        double dx = fresh ? this.lipDx : 0.0D, dy = fresh ? this.lipDy : -1.0D, dz = fresh ? this.lipDz : 0.0D;
+        int spillAt = SPILL_WINDUP_T, recoverAt = SPILL_WINDUP_T + SPILL_T;
+        if (age >= 4 && age <= 14 && age % 2 == 0) {
+            // 前触れ: 口のまわりに細かい胞子が少しにじむ
+            lv.addParticle(com.yayuy.overgrownvegetation.registry.ModParticles.SPORE_JET.get(), px, py, pz,
+                    dx * 0.03D + (this.random.nextDouble() - 0.5D) * 0.03D, dy * 0.03D, dz * 0.03D + (this.random.nextDouble() - 0.5D) * 0.03D);
+        } else if (age == spillAt + 1) {
+            if (DEV) System.out.println("[pedicula-spill] 吹く tick " + this.tickCount + " 口 " + px + " " + py + " " + pz + " 向き " + dx + " " + dy + " " + dz);
+            // こぼす(spill 1〜2): 口の向きへまとめて吹く
+            for (int i = 0; i < 20; i++) {
+                double s = 0.2D + this.random.nextDouble() * 0.25D;
+                lv.addParticle(com.yayuy.overgrownvegetation.registry.ModParticles.SPORE_JET.get(), px, py, pz,
+                        dx * s + (this.random.nextDouble() - 0.5D) * 0.12D, dy * s + (this.random.nextDouble() - 0.5D) * 0.12D, dz * s + (this.random.nextDouble() - 0.5D) * 0.12D);
+            }
+            for (int i = 0; i < 4; i++) {
+                lv.addParticle(com.yayuy.overgrownvegetation.registry.ModParticles.SPORE_BURST_CLOUD.get(), px + dx * (0.6D + i * 0.5D), py + dy * (0.6D + i * 0.5D), pz + dz * (0.6D + i * 0.5D),
+                        dx * 0.05D, dy * 0.05D, dz * 0.05D);
+            }
+        } else if (age > spillAt + 1 && age < recoverAt) {
+            // こぼれ続ける(下へ流れ落ちる)
+            lv.addParticle(com.yayuy.overgrownvegetation.registry.ModParticles.SPORE_JET.get(), px, py, pz,
+                    dx * 0.05D + (this.random.nextDouble() - 0.5D) * 0.04D, -0.08D, dz * 0.05D + (this.random.nextDouble() - 0.5D) * 0.04D);
+            if (age % 3 == 0) {
+                lv.addParticle(com.yayuy.overgrownvegetation.registry.ModParticles.SPORE_BURST_CLOUD.get(), px, py - 0.5D, pz, 0.0D, -0.04D, 0.0D);
+            }
+        } else if (age >= recoverAt && age <= recoverAt + 8 && age % 2 == 0) {
+            // 隙: 残りがぱらぱら落ちる
+            lv.addParticle(com.yayuy.overgrownvegetation.registry.ModParticles.SPORE_JET.get(), px, py, pz,
+                    (this.random.nextDouble() - 0.5D) * 0.02D, -0.05D, (this.random.nextDouble() - 0.5D) * 0.02D);
+        }
+    }
+
+    /** 着いた: 地面に沿って胞子が広がる(殻は残さない)。 */
+    private void landBurst() {
+        Level lv = this.level();
+        for (int i = 0; i < 16; i++) {
+            double a = i / 16.0D * Math.PI * 2.0D;
+            lv.addParticle(com.yayuy.overgrownvegetation.registry.ModParticles.SPORE_BURST_CLOUD.get(), this.getX(), this.getY() + 0.3D, this.getZ(),
+                    Math.cos(a) * 0.18D, 0.0D, Math.sin(a) * 0.18D);
+        }
+    }
+
+    @Override
+    public void die(DamageSource source) {
+        super.die(source);
+        // 破れた勢い: 漂っていた速さから落ち始める
+        this.fallVx = this.drift.vx;
+        this.fallVy = Math.min(this.drift.vy, 0.0D);
+        this.fallVz = this.drift.vz;
+    }
+
+    /**
+     * 破れて落ちる(バニラの「赤く傾いて 20 tick で消える」の代わり)。転がりながら落ち、地面・水に着いたら殻を残さず消える
+     * (ユーザー決定 11-15)。着かなければ {@link #FALL_GIVE_UP} tick で消す。
+     */
+    @Override
+    protected void tickDeath() {
+        this.deathTime++;
+        if (this.level().isClientSide) return;
+        if (this.isRemoved()) return;
+        this.fallVx *= FALL_DRAG;
+        this.fallVz *= FALL_DRAG;
+        this.fallVy = Math.max(this.fallVy - FALL_ACCEL, -FALL_MAX);
+        this.move(MoverType.SELF, new Vec3(this.fallVx, this.fallVy, this.fallVz));
+        this.setDeltaMovement(this.fallVx, this.fallVy, this.fallVz);
+        if (this.onGround() || this.isInWater() || this.isInLava() || this.verticalCollisionBelow || this.deathTime >= FALL_GIVE_UP) {
+            this.level().broadcastEntityEvent(this, EVENT_LAND);
+            this.remove(RemovalReason.KILLED);
         }
     }
 
@@ -363,10 +551,7 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
 
     @Override
     public void travel(Vec3 input) {
-        if (this.isDeadOrDying()) {
-            this.setDeltaMovement(Vec3.ZERO);   // 破れて落ちる・胞子を降らせるのは段 2
-            return;
-        }
+        if (this.isDeadOrDying()) return;   // 破れて落ちるのは tickDeath
         if (this.level().isClientSide || !this.isEffectiveAi() || !(this.level() instanceof ServerLevel sl)) return;
         double cy = this.getY() + this.getBbHeight() * 0.5D;
         FlyerWind.atHeight(sl, cy, this.wind);
@@ -416,6 +601,8 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
             }
         }
         this.setDeltaMovement(v);
+        int mode = nextFloatMode(floatMode(), this.drift.vy);
+        if (mode != floatMode()) this.entityData.set(DATA_FLOAT, (byte) mode);
     }
 
     /** 体の真上(頭の上 0.5 ブロック)でぶつかるブロックが葉だけか(1 つも無ければ false)。 */
@@ -500,11 +687,38 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        // 層の順が大事: 後に登録した層が同じ骨の同じチャンネルで勝つ(GeckoLib 4.7.6)。浮きの層は main の息を上書きする
         controllers.add(new AnimationController<>(this, "main", 6, this::mainState));
+        controllers.add(new AnimationController<>(this, "float", 30, this::floatState));
+        controllers.add(new AnimationController<>(this, "mouth", 3, this::mouthState));
     }
 
     private PlayState mainState(AnimationState<PediculaEntity> state) {
+        if (this.isDeadOrDying()) {
+            state.getController().transitionLength(0);   // 頭の「はじけ」で段差を隠す
+            return state.setAndContinue(A_RUPTURE);
+        }
         return state.setAndContinue(IDLE);
+    }
+
+    /** 浮きの層: 生きている間は止めない(止めたコマに idle の値へ 1 コマで戻る)。破れたら止める(rupture の大きさを上書きしないように)。 */
+    private PlayState floatState(AnimationState<PediculaEntity> state) {
+        if (this.isDeadOrDying()) return PlayState.STOP;
+        return state.setAndContinue(switch (floatMode()) {
+            case RISE -> A_RISE;
+            case SINK -> A_SINK;
+            default -> A_FLOAT;
+        });
+    }
+
+    /** 口の層: こぼすときだけ流す(前触れ → こぼす → 隙。隙の終わりは静止の姿なので止めても跳ばない)。 */
+    private PlayState mouthState(AnimationState<PediculaEntity> state) {
+        if (!spilling()) return PlayState.STOP;
+        if (this.spillSeen != this.spillSerial) {
+            this.spillSeen = this.spillSerial;
+            state.getController().forceAnimationReset();
+        }
+        return state.setAndContinue(A_SPILL);
     }
 
     @Override

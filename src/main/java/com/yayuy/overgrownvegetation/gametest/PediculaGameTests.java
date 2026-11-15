@@ -201,6 +201,51 @@ public final class PediculaGameTests {
      * 数の上限: 1 つの世界に {@link PediculaEntity#MAX_PER_LEVEL} 体まで。超えて出たものは最初の tick で消える。
      * {@code /summon} と同じく保存データの読み込み(空のタグ)を通したものも数える(11-15 テストクライアントで 14 体出た)。
      */
+    /** 浮きの層の切り替え(段 2): 入る線と戻る線がずれていて、境目でちらつかない。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void pediculaFloatLayerHysteresis(GameTestHelper helper) {
+        int F = PediculaEntity.FLOAT, R = PediculaEntity.RISE, S = PediculaEntity.SINK;
+        int[][] cases = {
+                // 今, vy(×1000), 次
+                {F, 0, F}, {F, 29, F}, {F, 30, R}, {F, 60, R}, {F, -19, F}, {F, -20, S}, {F, -40, S},
+                {R, 20, R}, {R, 10, R}, {R, 9, F}, {R, -40, S},
+                {S, -10, S}, {S, -7, S}, {S, -6, F}, {S, 60, R}};
+        for (int[] c : cases) {
+            int got = PediculaEntity.nextFloatMode(c[0], c[1] / 1000.0D);
+            if (got != c[2]) {
+                helper.fail("今 " + c[0] + " vy " + c[1] / 1000.0D + " → " + got + "(" + c[2] + " のはず)");
+                return;
+            }
+        }
+        helper.succeed();
+    }
+
+    /** 射落とされたら(段 2): 転がりながら落ち、着いたら殻を残さず消える(ユーザー決定 11-15)。宙では消えない。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 80)
+    public static void pediculaRupturesFallsAndVanishes(GameTestHelper helper) {
+        PediculaEntity p = helper.spawn(ModFlyers.PEDICULA.get(), new BlockPos(3, 3, 3));
+        p.debugGround = helper.absolutePos(new BlockPos(0, 1, 0)).getY();
+        double startY = p.getY();
+        p.hurt(helper.getLevel().damageSources().generic(), 1.0F);
+        if (!p.isDeadOrDying()) {
+            helper.fail("一撃で破れない(体力 " + p.getHealth() + ")");
+            return;
+        }
+        helper.runAfterDelay(3, () -> {
+            if (p.isRemoved()) {
+                helper.fail("宙で消えた(3 tick)");
+                return;
+            }
+            if (!(p.getY() < startY)) {
+                helper.fail("落ちていない: " + startY + " → " + p.getY());
+            }
+        });
+        helper.succeedWhen(() -> {
+            if (!p.isRemoved()) throw new net.minecraft.gametest.framework.GameTestAssertException("まだ消えていない y " + p.getY());
+            if (helper.getTick() <= 3) throw new net.minecraft.gametest.framework.GameTestAssertException("早すぎる");
+        });
+    }
+
     /** 3 軸の転がり(ユーザー決定 11-15): 3 軸とも回る・軸ごとに違う・同じ個体は同じ・凪では遅く風では速く進む。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
     public static void pediculaTumblesOnThreeAxes(GameTestHelper helper) {
