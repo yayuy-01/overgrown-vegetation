@@ -48,6 +48,8 @@ public abstract class SkyFlyer extends Monster {
 
     public static final int MODE_FLY = 0, MODE_LANDING = 1, MODE_PERCHED = 2, MODE_TAKEOFF = 3;
     private static final int FLAP_BIT = 4;
+    /** 送る状態の印(2026-11-15 ヴェロフィル段 2): 身構え(止まっていて相手に気付いた)・飛び立ちの溜め・飛び立ちの昇り。 */
+    private static final int ALERT_BIT = 8, WINDUP_BIT = 16, CLIMB_BIT = 32;
     private static final EntityDataAccessor<Byte> DATA_STATE = SynchedEntityData.defineId(SkyFlyer.class, EntityDataSerializers.BYTE);
 
     /** 群れに入る距離(ブロック)【仮】。 */
@@ -85,6 +87,8 @@ public abstract class SkyFlyer extends Monster {
     @Nullable
     BlockPos perch;
     int takeoffDelay;
+    /** 飛び立ちの溜めの残り・昇った tick(サーバー)。 */
+    private int windupLeft, climbTicks;
 
     // --- 動き(サーバー) ---
     private int mode = MODE_FLY;
@@ -205,6 +209,22 @@ public abstract class SkyFlyer extends Monster {
     /** この tick に {@link #ownFlight} が動きを決めたか(サーバー)。 */
     private boolean ownFlightNow;
 
+    /**
+     * 飛び立つ前にその場で溜める tick(2026-11-15 ヴェロフィル段 2 で足した。既定 0 = 今まで通りすぐ昇る)。
+     * 止まった姿から飛ぶとき(朝・驚いた)だけ。降りている途中から飛び立つときは溜めない。群れのずらし({@link #takeoffDelay})はその前。
+     */
+    protected int takeoffWindupTicks() {
+        return 0;
+    }
+
+    /**
+     * 止まっている間にプレイヤーに気付いて身構える距離(2026-11-15 ヴェロフィル段 2。既定 0 = 身構えない)。
+     * 群れの誰かが気付くと群れ全員が身構え、気付いた相手の方を向く。飛び立つのは今まで通り {@link #FLUSH_RANGE}。
+     */
+    protected double alertRange() {
+        return 0.0D;
+    }
+
     // ------------------------------------------------------------------ 状態
 
     @Override
@@ -221,6 +241,17 @@ public abstract class SkyFlyer extends Monster {
     /** 羽ばたいているか(描画。滑空なら false)。 */
     public boolean flapping() {
         return (this.entityData.get(DATA_STATE) & FLAP_BIT) != 0;
+    }
+
+    /** 身構えているか(描画。止まっている間と、飛び立ちの溜めの前の待ちの間)。 */
+    public boolean alerted() {
+        return (this.entityData.get(DATA_STATE) & ALERT_BIT) != 0;
+    }
+
+    /** 飛び立ちの段(描画): 0 = 待ち(止まった姿のまま)、1 = 溜め、2 = 昇っている。{@link #MODE_TAKEOFF} の間だけ意味がある。 */
+    public int takeoffPhase() {
+        byte s = this.entityData.get(DATA_STATE);
+        return (s & CLIMB_BIT) != 0 ? 2 : (s & WINDUP_BIT) != 0 ? 1 : 0;
     }
 
     @Nullable
@@ -380,7 +411,7 @@ public abstract class SkyFlyer extends Monster {
         switch (this.mode) {
             case MODE_PERCHED -> tickPerched(sl, f);
             case MODE_LANDING -> tickLanding(sl, f);
-            case MODE_TAKEOFF -> tickTakeoff();
+            case MODE_TAKEOFF -> tickTakeoff(sl, f);
             default -> {
                 this.ownFlightNow = f.state != Flock.State.ROOST && ownFlight(sl, f);
                 if (!this.ownFlightNow) tickFly(sl, f);
@@ -388,7 +419,11 @@ public abstract class SkyFlyer extends Monster {
         }
         if (this.mode != MODE_FLY) this.ownFlightNow = false;
         boolean flapNow = this.mode == MODE_LANDING || this.mode == MODE_TAKEOFF || (this.mode == MODE_FLY && (this.flap || this.ownFlightNow));
-        byte st = (byte) (this.mode | (flapNow ? FLAP_BIT : 0));
+        boolean waiting = this.mode == MODE_PERCHED || this.mode == MODE_TAKEOFF && this.takeoffDelay > 0;
+        boolean alertNow = waiting && alertRange() > 0.0D && f.alertTicks > 0;
+        int phase = this.mode != MODE_TAKEOFF ? 0 : this.takeoffDelay > 0 ? 0 : this.windupLeft > 0 ? WINDUP_BIT : CLIMB_BIT;
+        if (this.mode == MODE_TAKEOFF && phase != CLIMB_BIT) flapNow = false;
+        byte st = (byte) (this.mode | (flapNow ? FLAP_BIT : 0) | (alertNow ? ALERT_BIT : 0) | phase);
         if (this.entityData.get(DATA_STATE) != st) this.entityData.set(DATA_STATE, st);
     }
 
@@ -635,11 +670,7 @@ public abstract class SkyFlyer extends Monster {
 
     private void tickPerched(ServerLevel sl, Flock f) {
         this.kinX = this.kinY = this.kinZ = 0.0D;
-        // 風上を向く
-        FlyerWind.now(sl, this.wind);
-        if (this.wind[0] * this.wind[0] + this.wind[1] * this.wind[1] > 1e-6) {
-            faceToward(FlightBody.yawOf(-this.wind[0], -this.wind[1]), 1.5F);
-        }
+        faceWhileWaiting(sl, f);
         if (f.state == Flock.State.WAKE || f.state == Flock.State.PATROL) {
             if (this.takeoffDelay-- <= 0) {
                 startTakeoff();
@@ -654,6 +685,8 @@ public abstract class SkyFlyer extends Monster {
         if (this.tickCount % 5 == 0) {
             for (ServerPlayer pl : sl.players()) {
                 if (pl.isSpectator()) continue;
+                double ar = alertRange();
+                if (ar > 0.0D && pl.distanceToSqr(this) < ar * ar) f.alert(pl.getX(), pl.getZ());
                 double r = pl.isShiftKeyDown() ? FLUSH_RANGE_SNEAK : FLUSH_RANGE;
                 if (pl.distanceToSqr(this) < r * r) {
                     f.flush(sl, pl.getX(), pl.getZ());
@@ -663,18 +696,26 @@ public abstract class SkyFlyer extends Monster {
         }
     }
 
-    private void tickTakeoff() {
+    private void tickTakeoff(ServerLevel sl, Flock f) {
         if (this.takeoffDelay > 0) {
             this.takeoffDelay--;
             this.kinX = this.kinY = this.kinZ = 0.0D;
+            faceWhileWaiting(sl, f);
             return;
         }
-        double fwd = Math.min(TAKEOFF_FWD_MAX, 0.04D * this.modeTicks);
+        if (this.windupLeft > 0) {
+            // その場で溜める(止まった所から動かない)
+            this.windupLeft--;
+            this.kinX = this.kinY = this.kinZ = 0.0D;
+            return;
+        }
+        this.climbTicks++;
+        double fwd = Math.min(TAKEOFF_FWD_MAX, 0.04D * this.climbTicks);
         double h = Math.toRadians(this.getYRot());
         this.kinX = -Math.sin(h) * fwd;
         this.kinZ = Math.cos(h) * fwd;
         this.kinY = TAKEOFF_UP;
-        if (this.modeTicks >= TAKEOFF_TICKS) {
+        if (this.climbTicks >= TAKEOFF_TICKS) {
             this.body.heading = this.getYRot();
             this.body.speed = Math.max(fwd, params().minSpeed);
             this.body.vy = 0.12D;
@@ -684,12 +725,27 @@ public abstract class SkyFlyer extends Monster {
         }
     }
 
+    /** 止まっている・飛び立ちを待っている間の向き: 身構えていれば気付いた相手の方(6 度/tick)、ふだんは風上(1.5 度/tick)。 */
+    private void faceWhileWaiting(ServerLevel sl, Flock f) {
+        if (alertRange() > 0.0D && f.alertTicks > 0) {
+            faceToward(FlightBody.yawOf(f.alertX - this.getX(), f.alertZ - this.getZ()), 6.0F);
+            return;
+        }
+        FlyerWind.now(sl, this.wind);
+        if (this.wind[0] * this.wind[0] + this.wind[1] * this.wind[1] > 1e-6) {
+            faceToward(FlightBody.yawOf(-this.wind[0], -this.wind[1]), 1.5F);
+        }
+    }
+
     /** 飛び立つ(止まっている・降りている途中から)。 */
     void startTakeoff() {
         if (this.mode == MODE_FLY || this.mode == MODE_TAKEOFF) return;
         int delay = this.takeoffDelay;
+        boolean fromPerch = this.mode == MODE_PERCHED;
         setMode(MODE_TAKEOFF);
         this.takeoffDelay = Math.max(0, delay);
+        this.windupLeft = fromPerch ? takeoffWindupTicks() : 0;   // 降りている途中からは溜めない
+        this.climbTicks = 0;
     }
 
     /** 先頭が落ちた: 向きを少しばらつかせる。 */

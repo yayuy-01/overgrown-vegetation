@@ -240,6 +240,12 @@ public final class VelophyllGameTests {
             y0[0] = v.getY();
             v.hurt(helper.getLevel().damageSources().generic(), 1.0F);
         });
+        // 段 2(11-15): 驚いても昇る前にその場で溜める(7 tick + 入りの補間 3)。叩いてから 9 tick はまだ昇らない
+        helper.runAfterDelay(14L, () -> {
+            if (Math.abs(v.getY() - y0[0]) > 0.01D) {
+                helper.fail(String.format("溜めの間に動いた(%.2f)", v.getY() - y0[0]));
+            }
+        });
         helper.runAfterDelay(35L, () -> {
             int m = v.mode();
             if (m == SkyFlyer.MODE_PERCHED || m == SkyFlyer.MODE_LANDING) {

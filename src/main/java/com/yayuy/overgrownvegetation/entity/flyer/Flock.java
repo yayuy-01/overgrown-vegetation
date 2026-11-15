@@ -54,6 +54,9 @@ public final class Flock {
     double layer;
     State state = State.PATROL;
     int scatter;
+    /** 止まっている群れが「気付いた」相手の位置と残り(tick)。身構え({@link SkyFlyer#alertRange})用。 */
+    double alertX, alertZ;
+    int alertTicks;
     private long lastTick = Long.MIN_VALUE;
     private SkyFlyer lastLeader;
     /** 巡回の行き先。 */
@@ -159,6 +162,7 @@ public final class Flock {
         }
         this.lastLeader = leader;
         if (this.scatter > 0) this.scatter--;
+        if (this.alertTicks > 0) this.alertTicks--;
 
         boolean roost = leader.wantsRoost();
         RandomSource rnd = level.getRandom();
@@ -237,6 +241,13 @@ public final class Flock {
     }
 
     /** 止まり木で驚いた: 全員が一斉に飛び立ち、(fromX, fromZ) から離れる向きへ逃げる。 */
+    /** 止まっている群れが (x, z) の相手に気付いた(身構え)。見え続ける間は毎 5 tick 呼ばれて延びる。 */
+    void alert(double x, double z) {
+        this.alertX = x;
+        this.alertZ = z;
+        this.alertTicks = 12;
+    }
+
     void flush(ServerLevel level, double fromX, double fromZ) {
         if (this.state != State.ROOST && this.state != State.WAKE) return;
         SkyFlyer leader = leader();
