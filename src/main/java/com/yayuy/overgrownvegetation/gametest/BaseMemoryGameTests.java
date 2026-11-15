@@ -302,7 +302,8 @@ public final class BaseMemoryGameTests {
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void wavesGrowStrongerOverDays(GameTestHelper helper) {
         BaseMemoryTable.Wave first = t().waveFor(0.0D);
-        helper.assertTrue(first.developed() == 0 && first.g5plus() == 0, "最初の段に進化体・G5〜が入っている");
+        // 11-16 作り直し(F5 の襲撃): 最初の段は G1 と G4 が中心(進化体は少し、G5 は無し)
+        helper.assertTrue(first.g5plus() == 0 && first.developed() <= first.stageZero(), "最初の段に G5 が入っている・進化体が段階 0 より多い");
         BaseMemoryTable.Wave prev = first;
         for (double d = 0.5D; d <= 10.0D; d += 0.5D) {
             BaseMemoryTable.Wave w = t().waveFor(d);

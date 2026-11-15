@@ -33,8 +33,8 @@
     "clusterBlocks": 4
   },
   "species": [
-    { "_comment": "habitats: ground(地上)・sky(縁の上空)・sea(海に面した縁)・cave(縁の下の洞窟。G1 は地下の湧きにも)・soil(地中)。g1 は G1 の種の key(段階 0)。id は登録名。登録の無い id は飛ばす。director: false の種は司令塔の口(苗床・送り込み・襲撃)に入れない(空の種は 11-15 全体管理: 最初は縁だけ)。", "id": "" },
-    { "id": "overgrown_vegetation:arbora", "group": 4, "habitats": ["ground"], "weight": 1.0 },
+    { "_comment": "habitats: ground(地上)・sky(縁の上空)・sea(海に面した縁)・cave(縁の下の洞窟。G1 は地下の湧きにも)・soil(地中)。g1 は G1 の種の key(段階 0)。id は登録名。登録の無い id は飛ばす。director: false の種は司令塔の口(苗床・送り込み・襲撃)に入れない(空の種は 11-15 全体管理: 最初は縁だけ)。breaker: true の種は、拠点へ向かう・相手を追う途中で道が詰まると壁や扉(タグ raid_breakable)を壊す(11-16 ユーザー: アルボラ・ファルキムネス・クリペイムネス・ヴェナムネス)。", "id": "" },
+    { "id": "overgrown_vegetation:arbora", "group": 4, "habitats": ["ground"], "weight": 1.0, "breaker": true },
     { "id": "overgrown_vegetation:gregaria", "group": 4, "habitats": ["ground"], "weight": 1.0 },
     { "id": "overgrown_vegetation:strobila", "group": 4, "habitats": ["ground"], "weight": 1.0 },
     { "id": "overgrown_vegetation:vesicaria", "group": 4, "habitats": ["ground"], "weight": 1.0 },
@@ -42,9 +42,9 @@
     { "id": "overgrown_vegetation:seminaria", "group": 4, "habitats": ["sky"], "weight": 0.6, "director": false },
     { "id": "overgrown_vegetation:pedicula", "group": 4, "habitats": ["sky"], "weight": 0.4, "director": false },
     { "id": "overgrown_vegetation:radicula", "group": 4, "habitats": ["soil"], "weight": 1.0 },
-    { "id": "overgrown_vegetation:falcimnes", "group": 5, "habitats": ["ground"], "weight": 1.0 },
-    { "id": "overgrown_vegetation:venamnes", "group": 5, "habitats": ["ground"], "weight": 1.0 },
-    { "id": "overgrown_vegetation:clipeimnes", "group": 5, "habitats": ["ground"], "weight": 1.0 },
+    { "id": "overgrown_vegetation:falcimnes", "group": 5, "habitats": ["ground"], "weight": 1.0, "breaker": true },
+    { "id": "overgrown_vegetation:venamnes", "group": 5, "habitats": ["ground"], "weight": 1.0, "breaker": true },
+    { "id": "overgrown_vegetation:clipeimnes", "group": 5, "habitats": ["ground"], "weight": 1.0, "breaker": true },
     { "id": "overgrown_vegetation:pilimnes", "group": 5, "habitats": ["ground"], "weight": 1.0 },
     { "id": "overgrown_vegetation:saltimnes", "group": 5, "habitats": ["ground"], "weight": 1.0 },
     { "id": "overgrown_vegetation:acumnes", "group": 5, "habitats": ["sky"], "weight": 0.6, "director": false },

@@ -258,8 +258,8 @@ public final class BaseMemoryTable {
         this.marchTimeoutTicks = Math.max(20, s.marchTimeoutTicks != null ? s.marchTimeoutTicks : 6000);
         this.raidSearchBlocks = Math.max(16.0D, nonNeg(s.raidSearchBlocks, 128.0D));
         this.raidFromMinBlocks = Math.min(this.raidSearchBlocks, nonNeg(s.raidFromMinBlocks, 24.0D));
-        this.waveIntervalMinDays = Math.max(0.01D, nonNeg(s.waveIntervalMinDays, 0.25D));
-        this.waveIntervalMaxDays = Math.max(this.waveIntervalMinDays, nonNeg(s.waveIntervalMaxDays, 0.5D));
+        this.waveIntervalMinDays = Math.max(0.01D, nonNeg(s.waveIntervalMinDays, 1.0D));
+        this.waveIntervalMaxDays = Math.max(this.waveIntervalMinDays, nonNeg(s.waveIntervalMaxDays, 2.0D));
         this.waves = readWaves(s.waves);
         this.evolveTowardBase = nonNeg(s.evolveTowardBase, 0.4D);
         this.evolveBaseBlocks = Math.max(1.0D, nonNeg(s.evolveBaseBlocks, 160.0D));
@@ -288,10 +288,12 @@ public final class BaseMemoryTable {
             }
         }
         if (out.isEmpty()) {
-            out.add(new Wave(0.0D, 2, 0, 1, 0));
-            out.add(new Wave(1.0D, 3, 1, 1, 0));
-            out.add(new Wave(2.0D, 3, 2, 2, 1));
-            out.add(new Wave(4.0D, 4, 3, 2, 2));
+            // 11-16 ユーザー: 1 回 10 体から日がたつほど増えて最大 40 体。G1・G4 から始まり G5 が少しずつ混ざる(段の分け方は【仮】)
+            out.add(new Wave(0.0D, 5, 1, 4, 0));
+            out.add(new Wave(1.0D, 6, 2, 6, 1));
+            out.add(new Wave(2.0D, 7, 3, 7, 3));
+            out.add(new Wave(4.0D, 9, 4, 10, 7));
+            out.add(new Wave(6.0D, 11, 5, 13, 11));
         }
         out.sort(java.util.Comparator.comparingDouble(Wave::fromDays));
         return java.util.List.copyOf(out);

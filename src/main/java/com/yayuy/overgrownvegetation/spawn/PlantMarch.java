@@ -56,6 +56,14 @@ public final class PlantMarch {
         return active(mob) ? mob.getPersistentData().getCompound(KEY).getInt("Base") : -1;
     }
 
+    /** 拠点への行き先(歩いていなければ null)。 */
+    @javax.annotation.Nullable
+    public static net.minecraft.world.phys.Vec3 target(Mob mob) {
+        if (!active(mob)) return null;
+        CompoundTag t = mob.getPersistentData().getCompound(KEY);
+        return new net.minecraft.world.phys.Vec3(t.getDouble("X"), mob.getY(), t.getDouble("Z"));
+    }
+
     public static void end(Mob mob) {
         mob.getPersistentData().remove(KEY);
     }
@@ -63,6 +71,7 @@ public final class PlantMarch {
     @SubscribeEvent
     public static void onJoin(EntityJoinLevelEvent event) {
         if (event.getLevel().isClientSide() || !(event.getEntity() instanceof PathfinderMob mob)) return;
+        if (DirectorHooks.breaker(mob.getType())) mob.goalSelector.addGoal(0, new BreachGoal(mob)); // 壁や扉を壊す(11-16。力のある種だけ)
         if (!DirectorHooks.marchable(mob.getType())) return;
         mob.goalSelector.addGoal(2, new MarchGoal(mob));
     }

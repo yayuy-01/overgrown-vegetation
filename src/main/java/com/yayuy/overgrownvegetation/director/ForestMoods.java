@@ -26,7 +26,9 @@ import java.util.Set;
  *   <li><b>貯める間</b>({@code minDays}〜{@code maxDays} 日): 予算の上限が {@code capFactor} 倍。司令塔は道を選ばず(見に来ても何もしない)、
  *   苗床のスポナー・送り込み・危ない所へ送るのも止める(偵察は続ける)。G1 は襲わず、プレイヤーから {@code holdMin〜holdMax} の所を遠巻きにうろつく
  *   ({@link G1HoldOffGoal}。殴られたら殴り返す)。</li>
- *   <li><b>使う</b>: プレイヤーと認識した拠点のまわりの段階 0 を、予算が尽きるか {@code burstMax} 体まで一斉に進化させる(進化の前の震えが何体も同時に
+ *   <li><b>使う</b>(11-16 置き換え): 認識した拠点があり送り込みが開いていれば(F5〜)、拠点ごとに「まとめた 1 回」の送り込み({@link BaseRaids#sendWave} の hoard。
+ *   上限 40 のまま進化体と G5 を 1.5 倍)。11-14 の「遠巻きの G1 を一斉に放つ」はこれに置き換わった(気分が戻れば遠巻きの G1 も放たれる)。
+ *   認識した拠点が無いときだけ、前の形: プレイヤーと認識した拠点のまわりの段階 0 を、予算が尽きるか {@code burstMax} 体まで一斉に進化させる(進化の前の震えが何体も同時に
  *   起こる = 見える合図。新しい演出は無し、H2)。認識した拠点があり送り込みが開いていれば(F5〜)、続けて送り込みを 1 回。</li>
  *   <li>大きな襲撃の前触れに入ったら、貯めるのをやめる(貯めた予算は使わずに残す = 大きな襲撃の分になる)。</li>
  * </ul>
@@ -87,6 +89,24 @@ public final class ForestMoods {
     public static int spend(ServerLevel level, double day, RandomSource random, @javax.annotation.Nullable List<Vec3> around) {
         ForestDirector d = ForestDirector.get(level);
         HoardTable t = DesignData.director().hoard;
+        // 11-16 置き換え(ユーザー): 認識した拠点があり送り込みが開いていれば、貯めた分を「まとめた 1 回」の送り込みで使う
+        // (送り込みは貯める間止まっていた = 1〜2 回飛ばした分。上限 40 のまま進化体と G5 を 1.5 倍)。拠点が無いとき(F3・F4 など)は前の形
+        if (around == null && DirectorGates.open(level, DirectorGates.Gate.RAID)) {
+            BaseMemory memory = BaseMemory.get(level.getServer());
+            int sent = 0, waves = 0;
+            for (BaseMemory.Base b : List.copyOf(memory.bases())) {
+                if (b.stage() != BaseMemory.Stage.RECOGNIZED) continue;
+                sent += HoardRaids.begin(level, b, day, random); // まとめた 1 回目 + 継ぎ足し(同時 40・合計 80。11-16 ユーザー)
+                memory.waveSent(b, day, random);
+                waves++;
+            }
+            if (waves > 0) {
+                d.setMood(ForestDirector.Mood.NORMAL, day, day);
+                d.setHoardCooldownUntil(day + t.cooldownDays);
+                d.note(String.format(Locale.ROOT, "森が貯めた分を使った: まとめた送り込み %d 回・計 %d 体(残りの予算 %.1f)", waves, sent, d.available(level)));
+                return 0;
+            }
+        }
         List<Vec3> centers = around != null ? around : centers(level);
         Set<AbstractParasitizedMonster> found = new LinkedHashSet<>();
         double r = t.burstSearchBlocks;

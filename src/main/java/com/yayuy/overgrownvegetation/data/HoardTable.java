@@ -44,8 +44,8 @@ public final class HoardTable {
         Json s = j != null ? j : new Json();
         this.chancePerDay = Math.min(1.0D, nn(s.chancePerDay, 0.2D));
         this.minBudgetFraction = Math.min(1.0D, nn(s.minBudgetFraction, 0.5D));
-        this.minDays = Math.max(0.01D, nn(s.minDays, 0.5D));
-        this.maxDays = Math.max(this.minDays, nn(s.maxDays, 1.0D));
+        this.minDays = Math.max(0.01D, nn(s.minDays, 1.5D));
+        this.maxDays = Math.max(this.minDays, nn(s.maxDays, 3.0D));
         this.capFactor = Math.max(1.0D, nn(s.capFactor, 2.0D));
         this.cooldownDays = nn(s.cooldownDays, 1.0D);
         this.burstMax = Math.max(0, Math.min(32, s.burstMax != null ? s.burstMax : 8));

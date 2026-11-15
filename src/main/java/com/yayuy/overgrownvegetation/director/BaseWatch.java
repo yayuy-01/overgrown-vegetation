@@ -79,7 +79,8 @@ public final class BaseWatch {
         Watchers.tick(level, memory, day); // 監視塔を植える(F5 から。監視塔が組み込まれてから)
         // 送り込み・危ない所へ送るのを止める: 大きな襲撃の前触れ・本番の間と、貯めている間。偵察は止めない(11-14 ユーザー T1 = 2)
         ForestDirector.Mood mood = ForestDirector.get(level).mood();
-        boolean omen = DirectorGates.largeRaidOmen(level) || ForestDirector.hoarding() || mood == ForestDirector.Mood.LARGE;
+        boolean omen = DirectorGates.largeRaidOmen(level) || ForestDirector.hoarding() || mood == ForestDirector.Mood.LARGE
+                || HoardRaids.active(); // 貯めた襲撃の継ぎ足しの間も、ふつうの送り込みは止める(11-16)
         if (DirectorGates.open(level, DirectorGates.Gate.SCOUT)) dispatchScouts(level, memory, day);
         if (!omen && DirectorGates.open(level, DirectorGates.Gate.RAID)) BaseRaids.dispatch(level, memory, day);
         if (!omen && DirectorGates.open(level, DirectorGates.Gate.LEARN)) DangerWatch.dispatch(level, day); // 学ぶ: 危ない所へ進化体(F3 から)

@@ -71,6 +71,14 @@ public final class DirectorHooks {
         return sp.director() && sp.g1() == null && (sp.group() == 4 || sp.group() == 5) && sp.habitats().contains(SpawnTable.Habitat.GROUND);
     }
 
+    /** その種は壁や扉を壊すか(spawns.json の breaker。11-16)。 */
+    public static boolean breaker(EntityType<?> type) {
+        for (SpawnTable.Species sp : DesignData.spawns().species) {
+            if (sp.breaker() && sp.type() == type) return true;
+        }
+        return false;
+    }
+
     /** その種を拠点へ歩かせられるか。 */
     public static boolean marchable(EntityType<?> type) {
         for (SpawnTable.Species sp : DesignData.spawns().species) {
@@ -144,6 +152,7 @@ public final class DirectorHooks {
         for (Mob m : near) {
             if (sent >= count) break;
             if (PlantMarch.begin(m, b)) {
+                tagWave(m);
                 sent++;
                 sentExisting++;
             }
@@ -167,6 +176,7 @@ public final class DirectorHooks {
             if (m == null) continue;
             d.tryPay(level, price);
             PlantMarch.begin(m, b);
+            tagWave(m);
             sent++;
             sentSpawned++;
         }
@@ -186,6 +196,12 @@ public final class DirectorHooks {
         spotOverride = p;
     }
 
+    /** 送り込みの印(貯めた襲撃の継ぎ足しが数える)を付ける。 */
+    private static void tagWave(Mob m) {
+        String tag = BaseRaids.waveTag();
+        if (tag != null) m.addTag(tag);
+    }
+
     /** 森の方角の、プレイヤーから見えない地面(大きな襲撃の湧き方と同じ口)。 */
     @Nullable
     public static BlockPos hiddenSpot(ServerLevel level, BaseMemory.Base b, RandomSource random) {
@@ -197,7 +213,7 @@ public final class DirectorHooks {
     }
 
     /** 固まって出す: 真ん中から clusterBlocks の中の地面(見つからなければ真ん中)。 */
-    private static BlockPos near(ServerLevel level, BlockPos c, RandomSource random) {
+    public static BlockPos near(ServerLevel level, BlockPos c, RandomSource random) {
         double s = DesignData.spawns().senderCluster;
         if (s < 1.0D) return c;
         int x = c.getX() + (int) Math.round((random.nextDouble() * 2.0D - 1.0D) * s), z = c.getZ() + (int) Math.round((random.nextDouble() * 2.0D - 1.0D) * s);

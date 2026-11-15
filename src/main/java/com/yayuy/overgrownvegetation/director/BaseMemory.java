@@ -417,7 +417,7 @@ public final class BaseMemory extends SavedData {
             boolean due = Watchers.active() ? Watchers.confirms(b) : day - b.stageSince >= b.recognizeAfter;
             if (recognizeOpen && b.stage == Stage.SCOUTED && due && confirmed(b, day)) {
                 b.setStage(Stage.RECOGNIZED, day);
-                b.nextWaveDay = day + t.waveIntervalMinDays * 0.5D; // 認識してすぐ、最初の送り込み【仮】
+                b.nextWaveDay = firstRaidDay(day, java.util.concurrent.ThreadLocalRandom.current().nextDouble()); // 最初の襲撃は次の夜の始め(11-16 ユーザー)
             }
         }
         // 升に、いる拠点の段を付け直す(次の忘れる日数)
@@ -613,6 +613,23 @@ public final class BaseMemory extends SavedData {
 
     // ---------------------------------------------------------------- 送り込み(区切り 3)
 
+    /**
+     * 最初の襲撃の日(11-16 ユーザー「認識した次の夜」): 昼に認識したらその日の夜、夜に認識したら明日の夜の、
+     * nightStartTicks〜nightEndTicks(夜の始め)のどこか。roll は 0〜1。純粋な計算(日 = dayTime / 24000)。
+     */
+    public static double firstRaidDay(double day, double roll) {
+        com.yayuy.overgrownvegetation.data.AssaultTable a = DesignData.director().assault;
+        double start = a.nightStartTicks / 24000.0D, end = a.nightEndTicks / 24000.0D;
+        double whole = Math.floor(day), frac = day - whole;
+        double night = frac < start ? whole : whole + 1.0D;
+        return night + start + Math.max(0.0D, Math.min(1.0D, roll)) * (end - start);
+    }
+
+    /** まだ 1 回も送り込んでいない(次が最初の襲撃)か。古いワールドの数え(wavesSent)をそのまま使う。 */
+    public static boolean firstRaidPending(Base b) {
+        return b.wavesSent == 0;
+    }
+
     /** 送り込む拠点か(認識していて、前の送り込みから間が空いた)。 */
     public static boolean wantsWave(Base b, double day) {
         return b.stage == Stage.RECOGNIZED && day >= b.nextWaveDay;
@@ -623,11 +640,14 @@ public final class BaseMemory extends SavedData {
         waveSent(b, day, random, 1.0D);
     }
 
-    /** 送り込んだ。間はフェーズの小さな段の倍率で割る(送り込みの強さ = 小さな段。大きいほど頻繁。DirectorGates#strength)。 */
+    /**
+     * 送り込んだ。11-16 から間は段の強さで割らない(ユーザー指定の 20〜40 分 = waveInterval を守る。導入で少ないのは数の方で出る)。
+     * stageMultiplier は前の呼び方のために残してあり、使わない。
+     */
     public void waveSent(Base b, double day, net.minecraft.util.RandomSource random, double stageMultiplier) {
         BaseMemoryTable t = table();
         double interval = t.waveIntervalMinDays + random.nextDouble() * (t.waveIntervalMaxDays - t.waveIntervalMinDays);
-        b.nextWaveDay = day + interval / Math.max(0.1D, stageMultiplier);
+        b.nextWaveDay = day + interval;
         b.wavesSent++;
         setDirty();
     }

@@ -4,6 +4,7 @@ import com.yayuy.overgrownvegetation.data.BaseMemoryTable;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster;
 import com.yayuy.overgrownvegetation.entity.DevelopedParasitized;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.AABB;
@@ -46,27 +47,60 @@ public final class BaseRaids {
         (g4 ? G4 : G5_PLUS).add(sender);
     }
 
-    /** 1 回の送り込みの結果。 */
+    /** 1 回の送り込みの結果。spawnedZero = stageZero のうち今湧かせた数。first = 最初の襲撃。hoard = 貯めた襲撃のまとめた回。 */
     public record Result(int wave, int stageZero, int developed, int evolved, int g4, int g5plus, int wantStageZero, int wantDeveloped,
-                         int wantG4, int wantG5plus) {
+                         int wantG4, int wantG5plus, int spawnedZero, boolean first, boolean hoard) {
+        public int total() {
+            return stageZero + developed + evolved + g4 + g5plus;
+        }
+
         public String summary() {
-            return String.format(Locale.ROOT, "段 %d: 段階 0 %d/%d・進化体 %d/%d(うち今進化させた %d)・G4 %d/%d・G5〜 %d/%d",
-                    wave, stageZero, wantStageZero, developed + evolved, wantDeveloped, evolved, g4, wantG4, g5plus, wantG5plus);
+            return String.format(Locale.ROOT, "%s段 %d: 段階 0 %d/%d(うち湧かせた %d)・進化体 %d/%d(うち今進化させた %d)・G4 %d/%d・G5〜 %d/%d・計 %d",
+                    first ? "最初の襲撃・" : hoard ? "貯めた襲撃・" : "", wave, stageZero, wantStageZero, spawnedZero, developed + evolved, wantDeveloped, evolved,
+                    g4, wantG4, g5plus, wantG5plus, total());
         }
     }
 
-    /** 拠点 1 つへ 1 回送り込む。 */
+    /** 拠点 1 つへ 1 回送り込む(ふだんの回)。 */
     public static Result sendWave(ServerLevel level, BaseMemory.Base b, double day, RandomSource random) {
+        return sendWave(level, b, day, random, false);
+    }
+
+    /**
+     * 拠点 1 つへ 1 回送り込む(11-16 作り直し。正本は Vault「F5 の襲撃(11-16)」)。
+     * <ul>
+     *   <li>顔ぶれ: まだ 1 回も送っていなければ「最初の襲撃」({@code assault.firstRaid})、そうでなければ認識してからの日数の段。
+     *   hoard(貯めた襲撃のまとめた回)なら進化体と G5 を {@code hoardShareFactor} 倍。どれも計 {@code maxWave}(40)まで。</li>
+     *   <li>いる個体(拠点のまわりの段階 0・進化体・G4・G5)を先に歩かせ、足りない分は森の方角の見えない地面に湧かせて予算を払う。
+     *   払う順は 段階 0 → G4 → 進化体 → G5(ユーザー)。払えない分は送らない。</li>
+     * </ul>
+     */
+    public static Result sendWave(ServerLevel level, BaseMemory.Base b, double day, RandomSource random, boolean hoard) {
+        return sendWave(level, b, day, random, hoard, null);
+    }
+
+    /**
+     * 顔ぶれを決め打ちにする形(貯めた襲撃の継ぎ足し {@link HoardRaids})。override が null なら上の決め方。
+     */
+    public static Result sendWave(ServerLevel level, BaseMemory.Base b, double day, RandomSource random, boolean hoard,
+                                  @javax.annotation.Nullable BaseMemoryTable.Wave override) {
         BaseMemoryTable t = DesignData.director().base;
+        com.yayuy.overgrownvegetation.data.AssaultTable at = DesignData.director().assault;
         double since = Math.max(0.0D, day - b.stageSince());
+        boolean first = BaseMemory.firstRaidPending(b);
         // 小さな段: 送り込みの枠に、その枠が開いたフェーズの強さを掛ける(進化体 F3・G4 F4・G5〜 F5。導入で少なく・最盛で表どおり。端数は確率)【仮】
-        BaseMemoryTable.Wave w = scaled(level, t.waveFor(since), random);
+        BaseMemoryTable.Wave w = scaled(level, first ? at.firstRaid : t.waveFor(since), random);
         // 学ぶ: 拠点の中に危ない所があれば(拠点を守りの固い所と覚えた)、進化体の枠を増やす(F5 から)
         if (DirectorGates.open(level, DirectorGates.Gate.LEARN_WAVE) && level.dimension() == net.minecraft.world.level.Level.OVERWORLD
                 && KillMemory.get(level.getServer()).nearest(b.centerX(), b.centerZ(), t.matchBlocks, day) != null) {
             w = new BaseMemoryTable.Wave(w.fromDays(), w.stageZero(), w.developed() + DesignData.director().kills.baseDangerExtraDeveloped, w.g4(), w.g5plus());
         }
-        int waveNo = t.waveIndex(since);
+        if (hoard) {
+            w = new BaseMemoryTable.Wave(w.fromDays(), w.stageZero(), (int) Math.round(w.developed() * at.hoardShareFactor), w.g4(),
+                    (int) Math.round(w.g5plus() * at.hoardShareFactor));
+        }
+        w = capped(override != null ? override : w, at.maxWave);
+        int waveNo = first ? -1 : t.waveIndex(since);
         double r = t.raidSearchBlocks;
         AABB box = new AABB(b.centerX() - r, level.getMinBuildHeight(), b.centerZ() - r, b.centerX() + r, level.getMaxBuildHeight(), b.centerZ() + r);
         List<AbstractParasitizedMonster> zeros = new ArrayList<>();
@@ -87,41 +121,124 @@ public final class BaseRaids {
         Collections.shuffle(developed, new java.util.Random(random.nextLong()));
         // 弱い所を突く: 守りの薄い方角から回り込む割合(F5 の送り込みの段の強さを掛ける。11-14 ユーザー)
         double flank = DesignData.director().base.flankShare * DirectorGates.strength(level, DirectorGates.Gate.RAID);
+        ForestDirector director = ForestDirector.get(level);
+        // (1) いる進化体を歩かせる(ただ)
         int sentDev = 0;
         for (AbstractParasitizedMonster m : developed) {
             if (sentDev >= w.developed()) break;
-            m.march().beginFlank(b, flank, random);
+            go(m, b, flank, random);
             sentDev++;
         }
-        // 進化体が足りない分は、段階 0 を予算で進化させて送る(進化体のある種だけ。予算が尽きたらそこまで)
-        int evolved = 0;
+        // (2) 進化体の足りない分のために、進化できる段階 0 を取り置く(払うのは後: 払う順は 段階 0 → G4 → 進化体 → G5)
         boolean canEvolve = DirectorGates.open(level, DirectorGates.Gate.EVOLVE); // 送り込みのための進化も F3 から
-        ForestDirector director = ForestDirector.get(level);
-        double cost = DesignData.director().costEvolve;
+        int devNeed = Math.max(0, w.developed() - sentDev);
+        List<AbstractParasitizedMonster> toEvolve = new ArrayList<>();
         List<AbstractParasitizedMonster> rest = new ArrayList<>();
         for (AbstractParasitizedMonster m : zeros) {
-            if (canEvolve && sentDev + evolved < w.developed() && G1Fate.developedOf(m) != null && director.tryPay(level, cost)) {
-                m.fate().beginEvolve();
-                m.fate().markPaid(cost);
-                m.march().beginFlank(b, flank, random); // 進化で入れ替わるときに引き継ぐ(G1Fate#finishEvolve)
-                director.record(ForestDirector.Route.EVOLVE, m.species().key() + " → 進化(拠点 #" + b.id() + " へ送るため)");
-                evolved++;
-            } else {
-                rest.add(m);
-            }
+            if (canEvolve && toEvolve.size() < devNeed && G1Fate.developedOf(m) != null) toEvolve.add(m);
+            else rest.add(m);
         }
+        // (3) いる段階 0 を歩かせる(ただ)
         int sentZero = 0;
         for (AbstractParasitizedMonster m : rest) {
             if (sentZero >= w.stageZero()) break;
-            m.march().beginFlank(b, flank, random);
+            go(m, b, flank, random);
             sentZero++;
         }
-        // G4 は F4・G5〜 は F5 から(G4〜G6 の混ざった群れ = F6 は、登録する側が DirectorGates.Gate.WAVE_MIXED を見る)
+        // (4) 段階 0 の足りない分を湧かせる(1 体 stageZeroCost)
+        int spawnedZero = 0;
+        BlockPos spot = null;
+        for (int tries = 0; sentZero < w.stageZero() && tries < w.stageZero() * 2; tries++) {
+            if (director.available(level) + 1.0E-9D < at.stageZeroCost) break;
+            if (spot == null) spot = com.yayuy.overgrownvegetation.spawn.DirectorHooks.hiddenSpot(level, b, random);
+            if (spot == null) break;
+            AbstractParasitizedMonster m = RaidSpawns.spawnAttacker(level, com.yayuy.overgrownvegetation.spawn.DirectorHooks.near(level, spot, random), false, random);
+            if (m == null) continue;
+            director.tryPay(level, at.stageZeroCost);
+            go(m, b, flank, random);
+            sentZero++;
+            spawnedZero++;
+        }
+        // (5) G4 は F4・G5〜 は F5 から(G4〜G6 の混ざった群れ = F6 は、登録する側が DirectorGates.Gate.WAVE_MIXED を見る)
         int g4 = DirectorGates.open(level, DirectorGates.Gate.WAVE_G4) ? send(G4, level, b, w.g4(), random) : 0;
+        // (6) 進化体の足りない分: 取り置いた段階 0 を予算で進化させて送る。足りなければ段階 0 を湧かせて進化させる
+        int evolved = 0;
+        double cost = DesignData.director().costEvolve;
+        List<AbstractParasitizedMonster> unused = new ArrayList<>();
+        for (AbstractParasitizedMonster m : toEvolve) {
+            if (evolved < devNeed && director.tryPay(level, cost)) {
+                beginEvolveMarch(director, m, b, flank, cost, random);
+                evolved++;
+            } else {
+                unused.add(m);
+            }
+        }
+        for (int tries = 0; canEvolve && evolved < devNeed && tries < devNeed * 4; tries++) {
+            if (director.available(level) + 1.0E-9D < cost + at.stageZeroCost) break;
+            if (spot == null) spot = com.yayuy.overgrownvegetation.spawn.DirectorHooks.hiddenSpot(level, b, random);
+            if (spot == null) break;
+            // 1 段目を直に湧かせる(進化体の無い種が引かれたら消して引き直す。払わない)
+            AbstractParasitizedMonster m = RaidSpawns.spawnAttacker(level, com.yayuy.overgrownvegetation.spawn.DirectorHooks.near(level, spot, random), true, random);
+            if (m == null) continue;
+            if (!(m instanceof DevelopedParasitized)) {
+                m.discard();
+                continue;
+            }
+            director.tryPay(level, at.stageZeroCost + cost);
+            go(m, b, flank, random);
+            director.record(ForestDirector.Route.EVOLVE, "1 段目を湧かせた(拠点 #" + b.id() + " へ送るため)");
+            evolved++;
+        }
+        // 払えずに進化させなかった段階 0 も、そこにいるので段階 0 として送る(上限まで)
+        for (AbstractParasitizedMonster m : unused) {
+            if (sentZero + sentDev + evolved + g4 >= at.maxWave) break;
+            go(m, b, flank, random);
+            sentZero++;
+        }
+        // (7) G5
         int g5 = DirectorGates.open(level, DirectorGates.Gate.WAVE_G5) ? send(G5_PLUS, level, b, w.g5plus(), random) : 0;
-        Result res = new Result(waveNo, sentZero, sentDev, evolved, g4, g5, w.stageZero(), w.developed(), w.g4(), w.g5plus());
+        Result res = new Result(waveNo, sentZero, sentDev, evolved, g4, g5, w.stageZero(), w.developed(), w.g4(), w.g5plus(), spawnedZero, first, hoard);
         director.note("拠点 #" + b.id() + " へ送り込み " + res.summary());
         return res;
+    }
+
+    /** この送り込みで歩かせる個体に付ける印(貯めた襲撃の継ぎ足しが数える。null なら付けない)。 */
+    @javax.annotation.Nullable
+    private static String waveTag;
+
+    @javax.annotation.Nullable
+    public static String waveTag() {
+        return waveTag;
+    }
+
+    /** 送り込みの間だけ印を付ける(終わったら null に戻す)。 */
+    public static void setWaveTag(@javax.annotation.Nullable String tag) {
+        waveTag = tag;
+    }
+
+    /** 拠点へ向かわせる(印があれば付ける)。 */
+    private static void go(AbstractParasitizedMonster m, BaseMemory.Base b, double flank, RandomSource random) {
+        if (waveTag != null) m.addTag(waveTag);
+        m.march().beginFlank(b, flank, random);
+    }
+
+    private static void beginEvolveMarch(ForestDirector director, AbstractParasitizedMonster m, BaseMemory.Base b, double flank, double cost, RandomSource random) {
+        m.fate().beginEvolve();
+        m.fate().markPaid(cost);
+        go(m, b, flank, random); // 進化で入れ替わるときに引き継ぐ(G1Fate#finishEvolve)
+        director.record(ForestDirector.Route.EVOLVE, m.species().key() + " → 進化(拠点 #" + b.id() + " へ送るため)");
+    }
+
+    /** 計 max 体に収める(多ければ 段階 0 → G4 → 進化体 → G5 の順に削る = 安いものから)。 */
+    public static BaseMemoryTable.Wave capped(BaseMemoryTable.Wave w, int max) {
+        int[] c = {w.stageZero(), w.g4(), w.developed(), w.g5plus()};
+        int over = c[0] + c[1] + c[2] + c[3] - max;
+        for (int i = 0; i < 4 && over > 0; i++) {
+            int cut = Math.min(c[i], over);
+            c[i] -= cut;
+            over -= cut;
+        }
+        return new BaseMemoryTable.Wave(w.fromDays(), c[0], c[2], c[1], c[3]);
     }
 
     /** G4 以降を count 体まで拠点へ送る(G4 の口から、足りなければ G5 以降の口から)。大きな襲撃・後の超大規模の襲撃が呼ぶ。 */

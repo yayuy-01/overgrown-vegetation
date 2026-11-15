@@ -62,10 +62,11 @@ public final class SpawnTable {
         public List<String> habitats;
         public Double weight;
         public Boolean director;
+        public Boolean breaker;
     }
 
     /** 表の 1 行。type は登録の有無を起動後に引く(登録の無い id は null = 飛ばす)。 */
-    public record Species(@Nullable String id, @Nullable G1Species g1, int group, EnumSet<Habitat> habitats, double weight, boolean director) {
+    public record Species(@Nullable String id, @Nullable G1Species g1, int group, EnumSet<Habitat> habitats, double weight, boolean director, boolean breaker) {
         @Nullable
         public EntityType<?> type() {
             if (g1 != null) return g1.entityType();
@@ -158,7 +159,7 @@ public final class SpawnTable {
         }
         if (hs.isEmpty()) hs.add(Habitat.GROUND);
         String id = g1 != null ? null : (sj.id.contains(":") ? sj.id : OvergrownVegetation.MODID + ":" + sj.id);
-        return new Species(id, g1, Math.max(1, Math.min(10, sj.group)), hs, Math.max(0.0D, or(sj.weight, 1.0D)), sj.director == null || sj.director);
+        return new Species(id, g1, Math.max(1, Math.min(10, sj.group)), hs, Math.max(0.0D, or(sj.weight, 1.0D)), sj.director == null || sj.director, sj.breaker != null && sj.breaker);
     }
 
     private static void put(int[] arr, String k, Integer v) {

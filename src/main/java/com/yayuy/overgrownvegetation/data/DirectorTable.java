@@ -66,6 +66,8 @@ public final class DirectorTable {
         public KillMemoryTable.Json kills;
         /** 第 3 段: 貯めて一気に使う(HoardTable)。 */
         public HoardTable.Json hoard;
+        /** F5 の襲撃(AssaultTable。11-16)。 */
+        public AssaultTable.Json assault;
         /** 第 4 段: 大きな襲撃(LargeRaidTable)。 */
         public LargeRaidTable.Json largeRaid;
         /** 監視塔(WatcherTable)。 */
@@ -132,6 +134,8 @@ public final class DirectorTable {
     public final KillMemoryTable kills;
     /** 第 3 段(11-14): 貯めて一気に使う。 */
     public final HoardTable hoard;
+    /** F5 の襲撃(11-16): 最初の襲撃・1 回の上限・拠点を汚す・壁や扉を壊す・貯めた襲撃の倍率。 */
+    public final AssaultTable assault;
     /** 第 4 段(11-14): 大きな襲撃(司令塔の襲撃の大・中・小の「大」)。 */
     public final LargeRaidTable largeRaid;
     /** 11-14: 司令塔が植える監視塔(フィロセンス)。 */
@@ -214,6 +218,7 @@ public final class DirectorTable {
         this.gates = new Gates(s.gates);
         this.kills = KillMemoryTable.fromJson(s.kills);
         this.hoard = HoardTable.fromJson(s.hoard);
+        this.assault = AssaultTable.fromJson(s.assault);
         this.largeRaid = LargeRaidTable.fromJson(s.largeRaid);
         this.watcher = WatcherTable.fromJson(s.watcher);
         this.nurseryLifeSprouts = Math.max(1, s.nurseryLifeSprouts != null ? s.nurseryLifeSprouts : 6);

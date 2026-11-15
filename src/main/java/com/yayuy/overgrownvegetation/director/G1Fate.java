@@ -229,6 +229,7 @@ public final class G1Fate {
         if (mob.isPersistenceRequired()) next.setPersistenceRequired();
         next.setTarget(mob.getTarget());
         next.march().copyFrom(mob.march()); // 拠点へ送られる途中の個体は、進化した後も向かう(第 2 段)
+        for (String tag : mob.getTags()) if (tag.startsWith("ov_")) next.addTag(tag); // 襲撃の印(大きな襲撃・貯めた襲撃。11-16)も引き継ぐ
         level.addFreshEntity(next);
         next.startEvolveIn();
         mob.discard();

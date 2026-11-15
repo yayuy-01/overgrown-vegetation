@@ -66,6 +66,8 @@ public final class BaseRaidGameTests {
         m.setStageForTests(b, BaseMemory.Stage.RECOGNIZED, 0.0D);
         ForestDirector director = ForestDirector.get(level);
         double before = director.available(level);
+        // 11-16: 足りない分を湧かせる所を「無し」に(このテストは、いる個体を歩かせる・進化させる所だけを見る)
+        com.yayuy.overgrownvegetation.spawn.DirectorHooks.setSpotForTests(() -> null);
         try {
             BaseMemoryTable.Wave wave = DesignData.director().base.waveFor(1.0D);
             director.setBudget(level, 0.0D);
@@ -83,6 +85,7 @@ public final class BaseRaidGameTests {
             helper.assertTrue(rich.evolved() == Math.min(wave.developed(), 4) && evolving == rich.evolved(),
                     "予算があるのに進化させて送らない: " + rich.summary());
         } finally {
+            com.yayuy.overgrownvegetation.spawn.DirectorHooks.setSpotForTests(null);
             director.setBudget(level, before);
         }
         for (AbstractParasitizedMonster z : mine) z.discard();
