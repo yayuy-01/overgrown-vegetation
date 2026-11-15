@@ -115,8 +115,8 @@ public final class SprawlLegRig {
 
             double[] key = {a.getRotY(), a.getRotZ(), b.getRotX(), b.getRotZ()};
             double[] ref = {a.getInitialSnapshot().getRotY(), a.getInitialSnapshot().getRotZ(), b.getInitialSnapshot().getRotX(), b.getInitialSnapshot().getRotZ()};
-            double[] footRef = c == null ? null : new double[]{c.getInitialSnapshot().getRotX() - pitch, c.getInitialSnapshot().getRotZ()};
-            double[] footKey = c == null ? null : new double[]{c.getRotX(), c.getRotZ()};
+            double[] footRef = c == null ? null : new double[]{c.getInitialSnapshot().getRotX() - pitch, c.getInitialSnapshot().getRotZ(), c.getInitialSnapshot().getRotY()};
+            double[] footKey = c == null ? null : new double[]{c.getRotX(), c.getRotZ(), c.getRotY()};
             double[] x = sol[i] != null && sol[i].length == 4 && e.legSolutionFresh() ? sol[i].clone() : ref.clone();
             solve(x, ref, a, b, c, footRef, this.sole[i], target);
             sol[i] = x;
@@ -141,6 +141,7 @@ public final class SprawlLegRig {
                 double[] fr = foot(x, ref, footRef);
                 c.setRotX(lerp(w, footKey[0], fr[0]));
                 c.setRotZ(lerp(w, footKey[1], fr[1]));
+                c.setRotY(lerp(w, footKey[2], fr[2]));
                 c.resetStateChanges();
             }
         }
@@ -161,9 +162,9 @@ public final class SprawlLegRig {
     private final String[] missWhy = {"", ""};
     private int missTick = -1;
 
-    /** 3 骨の足の X・Z: 休めの向きから、上の骨で傾いた分を打ち消す。 */
+    /** 3 骨の足の X・Z・Y: 休めの向きから、上の骨で傾いた分と付け根の水平の振りを打ち消す(着いている足が付け根と一緒に回らない。11-15 段 2)。 */
     private static double[] foot(double[] x, double[] ref, double[] footRef) {
-        return new double[]{footRef[0] - (x[2] - ref[2]), footRef[1] - (x[1] - ref[1]) - (x[3] - ref[3])};
+        return new double[]{footRef[0] - (x[2] - ref[2]), footRef[1] - (x[1] - ref[1]) - (x[3] - ref[3]), footRef[2] - (x[0] - ref[0])};
     }
 
     private static float lerp(float w, double a, double b) {
@@ -239,7 +240,7 @@ public final class SprawlLegRig {
         m = LegChainRig.local(b, x[2], b.getRotY(), x[3], m);
         if (c != null) {
             double[] fr = foot(x, ref, footRef);
-            m = LegChainRig.local(c, fr[0], c.getRotY(), fr[1], m);
+            m = LegChainRig.local(c, fr[0], fr[2], fr[1], m);
         }
         return LegChainRig.apply(m, soleLocal[0], soleLocal[1], soleLocal[2]);
     }

@@ -29,10 +29,10 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * <b>3〜6 ブロック走っては 0.5〜1.5 秒止まって見回す</b>。止まる所は幹・岩の脇へ寄せる。2 ブロックの段は跳び上がる。地上だけ(幹へ張り付かない)。
  * 攻撃・能力(棘の弾き・扇の散らし撃ち・噛みつき・棘の雨)はまだ無い。行動はうろつき(と、テストクライアントの navto)だけ。自然には湧かない。
  *
- * <h3>アニメ(練習モデル prac2_g5_lancer_r7 のまま。作っていない・直していない)</h3>
- * idle・walk・kamae の 3 本。近く(足の置き場が効いている)では、歩いている間も idle を流し、脚・胴の高さ・背骨のくねりはコードが足す。
- * 遠くで進む間は walk を実際の速さに合わせて流す。<b>walk は踏んでいる足が体に対して前へ動く(逆向きに流したような足の運び)</b>ので、
- * 遠くでは足が滑って見える(11-15 に FK で測った。直すのはアニメのセッション)。走り専用のアニメは無い。
+ * <h3>アニメ(段 2: 11-15 にアニメのセッションが walk を直し、run・look_around・look_around_r を足した。ユーザーが Blockbench で了承)</h3>
+ * kamae・idle・walk・run・look_around・look_around_r。近く(足の置き場が効いている)では、歩いている間も idle を流し、脚・胴の高さ・
+ * 背骨のくねりはコードが足す。遠くで進む間は、走り出すときに決めた walk か run を実際の速さに合わせて流す。止まっている間は look_around
+ * (近くも遠くも。脚・胸にキーが無い)。見回しをアニメとコードのどちらでするかは {@link #LOOK_BY_ANIMATION}。
  */
 public class PilimnesEntity extends LizardRunner implements GeoEntity, ParasitizedMob {
 
@@ -73,8 +73,13 @@ public class PilimnesEntity extends LizardRunner implements GeoEntity, Parasitiz
     static final double LEAD_MAX = 6.0D, LEAD_TURNING = 2.0D;
 
     // --- アニメの速さ ---
-    /** walk を速さ 1.0 で流したときの地上速度(ブロック/tick)。11-15 に FK で測った(後ろ足が着いている 0.6 秒に 9.5 px)。 */
-    public static final double WALK_REF = 0.10D;
+    /** walk・run を速さ 1.0 で流したときの地上速度(ブロック/tick)。11-15 段 2 のアニメがこの値に合わせて作られた(walk 20 tick・run 12 tick で 1 巡)。 */
+    public static final double WALK_REF = 0.10D, RUN_REF = 0.194D;
+    /**
+     * 止まっている間の見回しを look_around(アニメ)でするか、コードの見回し({@code SpineWave})でするか【仮・11-15 段 2】。
+     * どちらを残すかはユーザーの返事待ち。二重にならないよう片方だけが効く。
+     */
+    public static final boolean LOOK_BY_ANIMATION = true;
     static final double LOOP_SPEED_MIN = 0.3D, LOOP_SPEED_MAX = 3.0D;
     /** これ(ブロック/tick)以上前へ進んだ tick は歩き。 */
     static final double WALK_MIN_SPEED = 0.01D;
@@ -82,6 +87,10 @@ public class PilimnesEntity extends LizardRunner implements GeoEntity, Parasitiz
 
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
+    private static final RawAnimation RUN = RawAnimation.begin().thenLoop("run");
+    /** 見回し(首を上げ、さっと左 → 右 → 正面。最後のコマで止まる)と、その左右逆。 */
+    private static final RawAnimation LOOK = RawAnimation.begin().thenPlay("look_around");
+    private static final RawAnimation LOOK_R = RawAnimation.begin().thenPlay("look_around_r");
 
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
@@ -165,8 +174,14 @@ public class PilimnesEntity extends LizardRunner implements GeoEntity, Parasitiz
     // ------------------------------------------------------------------ アニメ
 
     /**
-     * アニメは 1 つのコントローラ。近く(足の置き場が効いている)・止まっている間は idle(脚と背骨はコードが足す)。
-     * 遠くで進む間は walk を実際の速さに合わせて流す(位相を積み上げるコントローラなので、速さを変えても巻き戻らない)。
+     * アニメは 1 つのコントローラ。
+     * <ul>
+     *   <li>止まって見回す間({@link #isPaused()}、近くも遠くも): {@link #lookByAnimation()} なら look_around か look_around_r を頭から 1 回
+     *       (最後のコマで止まる。止まる長さ 10〜30 tick のどこで切ってもよい作り)。左右は個体の id と止まった回数で交互に。</li>
+     *   <li>近く(足の置き場が効いている): idle(脚・胴の高さ・背骨のくねりはコードが足す)。</li>
+     *   <li>遠くで進む間: 走り出すときに決めた 1 本({@link #isDashRun()} なら run、でなければ walk)を、実際の速さに合わせて流す
+     *       (位相を積み上げるコントローラなので、速さを変えても巻き戻らない)。走り出し・止まり際も同じ 1 本のまま倍率が速さに付いていく。</li>
+     * </ul>
      */
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
@@ -176,14 +191,35 @@ public class PilimnesEntity extends LizardRunner implements GeoEntity, Parasitiz
     private PlayState mainState(AnimationState<PilimnesEntity> state) {
         AnimationController<PilimnesEntity> c = state.getController();
         c.setAnimationSpeed(1.0D);
+        if (!this.isDeadOrDying() && isPaused() && lookByAnimation()) {
+            return state.setAndContinue(((this.getId() + pauseCount()) & 1) == 0 ? LOOK : LOOK_R);
+        }
         double ahead = clientForwardSpeed();
         boolean turning = Math.abs(getTurnRate()) >= TURN_ANIM_MIN;
         if (!this.isDeadOrDying() && !proceduralLegs() && (ahead >= WALK_MIN_SPEED || turning)) {
+            if (isDashRun() && ahead >= WALK_MIN_SPEED) {
+                c.setAnimationSpeed(Mth.clamp(ahead / (RUN_REF * this.getScale()), LOOP_SPEED_MIN, LOOP_SPEED_MAX));
+                return state.setAndContinue(RUN);
+            }
             double v = Math.max(ahead, turning ? WALK_REF * 0.5D : 0.0D);
             c.setAnimationSpeed(Mth.clamp(v / (WALK_REF * this.getScale()), LOOP_SPEED_MIN, LOOP_SPEED_MAX));
             return state.setAndContinue(WALK);
         }
         return state.setAndContinue(IDLE);
+    }
+
+    /**
+     * 見回しをアニメ(look_around)でするか。既定は {@link #LOOK_BY_ANIMATION}。確かめ用(テストクライアントだけ): 名前に {@code codelook} を含む個体は
+     * コードの見回し、{@code animlook} を含む個体はアニメの見回し。
+     */
+    @Override
+    public boolean lookByAnimation() {
+        if (DEV_HOOKS && this.hasCustomName()) {
+            String n = this.getCustomName().getString();
+            if (n.contains("codelook")) return false;
+            if (n.contains("animlook")) return true;
+        }
+        return LOOK_BY_ANIMATION;
     }
 
     @Override

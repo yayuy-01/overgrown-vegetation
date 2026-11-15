@@ -40,6 +40,8 @@ import java.util.Set;
 public abstract class LizardRunner extends LongBodyRunner {
 
     private static final EntityDataAccessor<Boolean> DATA_PAUSED = SynchedEntityData.defineId(LizardRunner.class, EntityDataSerializers.BOOLEAN);
+    /** 今の走りが急ぎ(走りのアニメ)か、ゆっくり(歩きのアニメ)か。走り出すときに 1 回だけ決める(11-15 段 2)。 */
+    private static final EntityDataAccessor<Boolean> DATA_RUN = SynchedEntityData.defineId(LizardRunner.class, EntityDataSerializers.BOOLEAN);
 
     /** 脚の踏み替えの組(対角)。並びは 左前・右前・左後ろ・右後ろ。 */
     public static final int[] DIAGONAL_GROUPS = {0, 1, 1, 0};
@@ -101,6 +103,19 @@ public abstract class LizardRunner extends LongBodyRunner {
         return 2.0F;
     }
 
+    /** 走りのアニメにする経路の速さ倍率の下限(これより遅い走りは歩きのアニメ)【仮】。 */
+    protected double runModifier() {
+        return 0.95D;
+    }
+
+    /**
+     * 止まっている間の見回しをアニメ(look_around)でするか。false ならコードの見回し({@link SpineWave} の首上げ・頭の往復)。
+     * 二重にしないため、どちらか片方だけ(11-15 段 2。どちらを残すかはユーザーの返事待ち)。
+     */
+    public boolean lookByAnimation() {
+        return false;
+    }
+
     @Override
     protected final int[] legGroups() {
         return DIAGONAL_GROUPS;
@@ -112,6 +127,7 @@ public abstract class LizardRunner extends LongBodyRunner {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(DATA_PAUSED, false);
+        builder.define(DATA_RUN, false);
     }
 
     @Override
@@ -185,6 +201,7 @@ public abstract class LizardRunner extends LongBodyRunner {
     private void planDash() {
         double want = Mth.nextDouble(this.random, dashMin(), dashMax());
         this.dashTicks = 0;
+        this.entityData.set(DATA_RUN, currentSpeedModifier() >= runModifier());   // 1 回の走りに 1 本(速さで毎 tick 選ぶと走り出し・止まり際でぱたつく)
         this.coverPlanned = false;
         Path path = this.getNavigation().getPath();
         if (path == null) {
@@ -269,6 +286,19 @@ public abstract class LizardRunner extends LongBodyRunner {
         return this.entityData.get(DATA_PAUSED);
     }
 
+    /** 今の走りを走りのアニメで見せるか(走り出すときに決まる。クライアントでも読める)。 */
+    public boolean isDashRun() {
+        return this.entityData.get(DATA_RUN);
+    }
+
+    /** クライアント: これまでに止まった回数(見回しの左右を選ぶ)。 */
+    public int pauseCount() {
+        return this.pauseCount;
+    }
+
+    private int pauseCount;
+    private boolean wasPaused;
+
     /** サーバー: 今の走りの残りの距離(確かめ用)。 */
     public double dashLeft() {
         return this.dashLeft;
@@ -292,7 +322,10 @@ public abstract class LizardRunner extends LongBodyRunner {
             }
         }
         double speed = clientForwardSpeed() / Math.max(this.getScale(), 0.05F);
-        this.spine.tick(ready && proceduralLegs() ? this.legFwd : null, speed, isPaused(), this.tickCount);
+        boolean paused = isPaused();
+        if (paused && !this.wasPaused) this.pauseCount++;
+        this.wasPaused = paused;
+        this.spine.tick(ready && proceduralLegs() ? this.legFwd : null, speed, paused && !lookByAnimation(), this.tickCount);
         // 動いている間は胴を低く(這う)。止まると休めの高さへ戻る
         boolean upright = DEV_HOOKS && this.hasCustomName() && this.getCustomName().getString().contains("upright");   // 確かめ用: 低くしない
         double want = ready && proceduralLegs() && speed > 0.02D && !upright ? crouchDepth() * Math.max(this.getScale(), 0.05F) : 0.0D;
