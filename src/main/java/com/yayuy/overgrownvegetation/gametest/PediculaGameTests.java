@@ -201,6 +201,41 @@ public final class PediculaGameTests {
      * 数の上限: 1 つの世界に {@link PediculaEntity#MAX_PER_LEVEL} 体まで。超えて出たものは最初の tick で消える。
      * {@code /summon} と同じく保存データの読み込み(空のタグ)を通したものも数える(11-15 テストクライアントで 14 体出た)。
      */
+    /** 3 軸の転がり(ユーザー決定 11-15): 3 軸とも回る・軸ごとに違う・同じ個体は同じ・凪では遅く風では速く進む。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void pediculaTumblesOnThreeAxes(GameTestHelper helper) {
+        if (Math.abs(PediculaEntity.tumbleRate(0.0D) - 0.3F) > 1.0E-4F || Math.abs(PediculaEntity.tumbleRate(0.3D) - 1.0F) > 1.0E-4F
+                || !(PediculaEntity.tumbleRate(0.05D) > PediculaEntity.tumbleRate(0.0D))) {
+            helper.fail("転がりの進みが凪と風で変わらない: " + PediculaEntity.tumbleRate(0.0D) + " / " + PediculaEntity.tumbleRate(0.05D) + " / " + PediculaEntity.tumbleRate(0.3D));
+            return;
+        }
+        java.util.Random r = new java.util.Random(7L);
+        float[] a = new float[3], b = new float[3], c = new float[3];
+        for (int n = 0; n < 20; n++) {
+            java.util.UUID id = new java.util.UUID(r.nextLong(), r.nextLong());
+            PediculaEntity.tumbleAngles(id, 0.0F, a);
+            PediculaEntity.tumbleAngles(id, 300.0F, b);
+            PediculaEntity.tumbleAngles(id, 300.0F, c);
+            for (int axis = 0; axis < 3; axis++) {
+                if (b[axis] != c[axis]) {
+                    helper.fail("同じ個体・同じ時計で角度が違う");
+                    return;
+                }
+                // 300 時計(風に乗って 15 秒)で、どの軸も回る(0.25〜0.75 度/時計 = 75〜225 度、揺らぎの差は 50 度まで)
+                double d = Math.abs(Math.toDegrees(b[axis] - a[axis])) % 360.0D;
+                if (Math.min(d, 360.0D - d) < 1.0D) {
+                    helper.fail("軸 " + axis + " が回らない: " + Math.toDegrees(a[axis]) + " → " + Math.toDegrees(b[axis]));
+                    return;
+                }
+            }
+            if (a[0] == a[1] && a[1] == a[2]) {
+                helper.fail("3 軸の位相が揃っている(1 本の軸で回る)");
+                return;
+            }
+        }
+        helper.succeed();
+    }
+
     @GameTest(template = "gametest_empty7", timeoutTicks = 40, batch = "pedicula_cap")   // ほかのペディキュラのテストと同時に走らせない(上限で消える)
     public static void pediculaCapPerLevel(GameTestHelper helper) {
         int n = PediculaEntity.MAX_PER_LEVEL + 2;

@@ -89,8 +89,12 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
     static final double EDGE_LOOK = 2.0D;
     /** 1 つの世界の数の上限【仮】。 */
     public static final int MAX_PER_LEVEL = 12;
-    /** 体の向きのゆっくりした回り(度/tick、個体ごとに ± この幅)【仮】。正面の無い塊なので向きは風と関係なく回る。 */
-    static final float SPIN_MAX = 0.25F;
+    /** 転がりの時計の進み(1 tick あたり): 凪のときの下限と、この横の速さ(ブロック/tick)で 1 になる【仮】。描画 {@link com.yayuy.overgrownvegetation.client.PediculaRenderer} が読む。 */
+    static final float TUMBLE_CALM = 0.3F;
+    static final double TUMBLE_REF_SPEED = 0.15D;
+    /** 転がりの平均の速さ(度/時計。旧版の spinSpeed)と揺らぎの幅(度)。旧版の値【仮・旧版 09-23】。 */
+    static final double TUMBLE_DEG = 0.5D;
+    static final double TUMBLE_GUST_DEG = 25.0D;
 
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
 
@@ -108,7 +112,8 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
     private long goalPickedAt;
     private int chooseIn;
     private double bumpY = Double.NaN;
-    private final float spin;
+    /** 転がりの時計(クライアントだけ。風に流される速さで進む)。 */
+    private float tumbleClock, tumbleClockO;
     private boolean capChecked;
     /** テスト用: 行き先を決め打ちする(選び直さない)。 */
     public boolean debugFixedGoal;
@@ -119,7 +124,6 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
         super(type, level);
         this.setNoGravity(true);
         this.xpReward = MobStats.xpReward(ID, 5);
-        this.spin = (this.random.nextFloat() * 2.0F - 1.0F) * SPIN_MAX;
         this.chooseIn = this.random.nextInt(20);
     }
 
@@ -312,6 +316,52 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
     // ------------------------------------------------------------------ 動かす
 
     @Override
+    public void tick() {
+        super.tick();
+        if (this.level().isClientSide) {
+            // 風に弄ばれて転がる: 横に流される速さ(見えている位置の差)で時計を進める。凪の夜はゆっくり
+            double speed = Math.sqrt(Mth.lengthSquared(this.getX() - this.xo, this.getZ() - this.zo));
+            this.tumbleClockO = this.tumbleClock;
+            this.tumbleClock += tumbleRate(speed);
+        }
+    }
+
+    /** 転がりの時計の 1 tick の進み: 凪で {@link #TUMBLE_CALM}、横の速さ {@link #TUMBLE_REF_SPEED} 以上で 1。 */
+    public static float tumbleRate(double horizontalSpeed) {
+        return TUMBLE_CALM + (1.0F - TUMBLE_CALM) * (float) Math.min(1.0D, Math.max(0.0D, horizontalSpeed) / TUMBLE_REF_SPEED);
+    }
+
+    /**
+     * 3 軸の転がりの角度(ラジアン、x・y・z の順で {@code out} へ)。旧版(09-23 ユーザー指定「x,y,z の回転すべてがランダムに働き、
+     * 風に流されていく巨大な胞子の塊のような感じに」)の作りのまま: 軸ごとに個体で違う速さ(平均 {@link #TUMBLE_DEG} 度/時計、0.5〜1.5 倍)・
+     * 向き・位相に、15〜30 秒周期(風に乗っているとき)の揺らぎ ±{@link #TUMBLE_GUST_DEG} 度(突風で回り方が変わる)を足す。個体の値は UUID から作るので、
+     * どのクライアントでも同じ個体は同じに回る。
+     */
+    public static void tumbleAngles(java.util.UUID id, float clock, float[] out) {
+        for (int axis = 0; axis < 3; axis++) {
+            double rate = TUMBLE_DEG * (0.5D + individual(id, 10 + axis)) * (individual(id, 13 + axis) < 0.5D ? -1.0D : 1.0D);
+            double gustRate = 0.01D + 0.01D * individual(id, 16 + axis);
+            double deg = individual(id, 19 + axis) * 360.0D + rate * clock
+                    + TUMBLE_GUST_DEG * Math.sin(clock * gustRate + individual(id, 22 + axis) * Math.PI * 2.0D);
+            out[axis] = (float) Math.toRadians(deg % 360.0D);
+        }
+    }
+
+    /** 個体ごとに決まった 0〜1 の値({@code salt} ごとに別。旧版と同じ式)。 */
+    static double individual(java.util.UUID id, int salt) {
+        long h = id.getMostSignificantBits() * 31L + id.getLeastSignificantBits() + salt * 0x9E3779B97F4A7C15L;
+        h = (h ^ (h >>> 30)) * 0xBF58476D1CE4E5B9L;
+        h = (h ^ (h >>> 27)) * 0x94D049BB133111EBL;
+        h ^= h >>> 31;
+        return (h >>> 11) * 0x1.0p-53;
+    }
+
+    /** 描画用: 転がりの時計(tick 相当)。 */
+    public float tumbleClock(float partialTick) {
+        return Mth.lerp(partialTick, this.tumbleClockO, this.tumbleClock);
+    }
+
+    @Override
     public void travel(Vec3 input) {
         if (this.isDeadOrDying()) {
             this.setDeltaMovement(Vec3.ZERO);   // 破れて落ちる・胞子を降らせるのは段 2
@@ -366,9 +416,6 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
             }
         }
         this.setDeltaMovement(v);
-        this.setYRot(this.getYRot() + this.spin);
-        this.yBodyRot = this.getYRot();
-        this.yHeadRot = this.getYRot();
     }
 
     /** 体の真上(頭の上 0.5 ブロック)でぶつかるブロックが葉だけか(1 つも無ければ false)。 */
