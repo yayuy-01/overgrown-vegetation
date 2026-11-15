@@ -167,29 +167,40 @@ final class InfectPaint {
         int[] centers = new int[CENTER_RADIUS.length];
         int centerCount = 0;
         // 主の中心は胴(いちばん広い面の半分より広い面)に置く。頭や脚が丸ごと緑にならないように
+        int[] gCount = new int[m.quadCount];
+        for (int i = 0; i < n; i++) {
+            if (m.quad[i] >= 0) {
+                gCount[m.quad[i]]++;
+            }
+        }
         int maxCount = 0;
-        for (int c : qCount) {
+        for (int c : gCount) {
             maxCount = Math.max(maxCount, c);
         }
         final int torso = maxCount / 2;
-        int main = pick(m, used, seed + 1, i -> m.ny[i] > 0.3F && m.yRel(i) > 0.5F && qCount[m.quad[i]] >= torso);
+        // 中心は体の形だけから選ぶ(絵の透明・色に依らない = 同じ体の別の絵でも同じ所になる)
+        boolean[] geom = new boolean[n];
+        for (int i = 0; i < n; i++) {
+            geom[i] = m.quad[i] >= 0;
+        }
+        int main = pick(m, geom, seed + 1, i -> m.ny[i] > 0.3F && m.yRel(i) > 0.5F && gCount[m.quad[i]] >= torso);
         if (main < 0) {
-            main = pick(m, used, seed + 7, i -> m.yRel(i) > 0.4F && qCount[m.quad[i]] >= torso);
+            main = pick(m, geom, seed + 7, i -> m.yRel(i) > 0.4F && gCount[m.quad[i]] >= torso);
         }
         if (main < 0) {
-            main = pick(m, used, seed + 2, i -> m.yRel(i) > 0.4F);
+            main = pick(m, geom, seed + 2, i -> m.yRel(i) > 0.4F);
         }
         if (main < 0) {
-            main = pick(m, used, seed + 3, i -> true);
+            main = pick(m, geom, seed + 3, i -> true);
         }
         centers[centerCount++] = main;
         final int mainF = main;
-        int far = pick(m, used, seed + 4, i -> dist(m, i, mainF) > 0.55 * m.extent);
+        int far = pick(m, geom, seed + 4, i -> dist(m, i, mainF) > 0.55 * m.extent);
         if (far >= 0) {
             centers[centerCount++] = far;
         }
         if (hash(5, 5, seed + 5) < 0.6) {
-            int extra = pick(m, used, seed + 6, i -> dist(m, i, mainF) > 0.3 * m.extent);
+            int extra = pick(m, geom, seed + 6, i -> dist(m, i, mainF) > 0.3 * m.extent);
             if (extra >= 0) {
                 centers[centerCount++] = extra;
             }

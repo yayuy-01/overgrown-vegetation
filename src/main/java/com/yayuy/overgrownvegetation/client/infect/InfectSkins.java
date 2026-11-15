@@ -53,6 +53,8 @@ final class InfectSkins {
 
     private static final Map<ResourceLocation, Entry> ENTRIES = new HashMap<>();
     private static final Map<ResourceLocation, Integer> TRIES = new HashMap<>();
+    /** 種 + 絵の大きさ + 四角の数 → 最初に覚えた 1 枚ぶん(体の位置と付け根を、同じ体の別の絵で使い回す)。 */
+    private static final Map<String, Entry> GEOMETRY = new HashMap<>();
     /** 塗り替えた絵 → 元の絵の 1 枚ぶん(部品の付け根を引く)。 */
     private static final Map<ResourceLocation, Entry> SKIN_OWNER = new HashMap<>();
     private static int serial;
@@ -132,13 +134,15 @@ final class InfectSkins {
             }
         }
         ENTRIES.clear();
+        GEOMETRY.clear();
         TRIES.clear();
         SKIN_OWNER.clear();
         InfectPaint.unload();
     }
 
     private static ResourceLocation bake(ResourceLocation texture, FaceMap map, int variant, double strength, float[] tears) {
-        long seed = texture.hashCode() * 31L + variant * 7919L;
+        // 種は絵に依らない: 状態で絵を替える Mob(怒った顔・点滅・コマ送りの絵)でも、同じ所に同じ苔が出る
+        long seed = 0x5EEDL + variant * 7919L;
         int[] argb = InfectPaint.paint(map, seed, strength, tears);
         NativeImage img = new NativeImage(map.w, map.h, false);
         for (int y = 0; y < map.h; y++) {
@@ -226,9 +230,23 @@ final class InfectSkins {
             } else {
                 OvergrownVegetation.LOGGER.info("InfectSkins 覚えた: {} {} {}x{} 四角 {} 細かさ {}", entity.getType(), texture, map.w, map.h, map.quadCount, map.k);
             }
+            // 同じ種・同じ大きさの絵・同じ四角の数 = 同じ体の別の絵(状態で替わる絵)と見て、先に覚えた体の位置と部品の付け根を使い回す。
+            // 絵ごとに覚え直すと、覗いた瞬間の姿勢の違いで苔と部品の位置がずれ、絵が替わるたびに見た目が変わった(11-15 ユーザー)
+            boolean body = texture.equals(bodyTexture);
+            String shareKey = map == null ? null : entity.getType() + ":" + map.w + "x" + map.h + ":" + map.quadCount + (body ? ":body" : ":layer");
+            Entry shared = shareKey == null ? null : GEOMETRY.get(shareKey);
+            if (shared != null && shared.map != null) {
+                Entry entry = new Entry(new FaceMap(shared.map, map.argb));
+                entry.anchors = shared.anchors;
+                ENTRIES.put(texture, entry);
+                continue;
+            }
             Entry entry = new Entry(map);
-            if (map != null && texture.equals(bodyTexture)) {
-                entry.anchors = InfectParts.choose(map, e.getValue(), texture.hashCode() * 131L);
+            if (shareKey != null) {
+                GEOMETRY.put(shareKey, entry);
+            }
+            if (map != null && body) {
+                entry.anchors = InfectParts.choose(map, e.getValue(), 0x5EEDL * 131L);
                 boolean byParts = !entry.anchors.isEmpty();
                 for (InfectParts.Anchor an : entry.anchors) {
                     byParts &= an.owner() != null;
@@ -295,7 +313,10 @@ final class InfectSkins {
     private static NativeImage read(ResourceLocation texture) throws Exception {
         Minecraft mc = Minecraft.getInstance();
         var res = mc.getResourceManager().getResource(texture);
-        if (res.isPresent()) {
+        // コマ送りの絵(.mcmeta 付き。資源は全部のコマを縦に並べた 1 枚)は、GPU に載っている今の 1 コマを読む。
+        // 資源の 1 枚をそのまま使うと、絵の上の位置がコマの数だけずれる
+        boolean strip = mc.getResourceManager().getResource(texture.withSuffix(".mcmeta")).isPresent();
+        if (res.isPresent() && !strip) {
             try (InputStream in = res.get().open()) {
                 return NativeImage.read(in);
             }
@@ -330,6 +351,26 @@ final class InfectSkins {
         int k = 1;
         /** 1 単位(1/16 ブロックの模型の長さ)の、覗いた個体での長さ(ブロック)。 */
         float unit = 1.0F / 16.0F;
+
+        /** 体の位置は {@code geometry} の物をそのまま使い、元の絵だけ替えた写し(同じ体の別の絵)。 */
+        FaceMap(FaceMap geometry, int[] argb) {
+            this.w = geometry.w;
+            this.h = geometry.h;
+            this.quadCount = geometry.quadCount;
+            this.argb = argb;
+            this.quad = geometry.quad;
+            this.ny = geometry.ny;
+            this.px = geometry.px;
+            this.py = geometry.py;
+            this.pz = geometry.pz;
+            this.quadNy = geometry.quadNy;
+            this.quadYRel = geometry.quadYRel;
+            this.minY = geometry.minY;
+            this.spanY = geometry.spanY;
+            this.extent = geometry.extent;
+            this.k = geometry.k;
+            this.unit = geometry.unit;
+        }
 
         FaceMap(int w, int h, int quadCount) {
             this.w = w;
