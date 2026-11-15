@@ -6,7 +6,7 @@ import software.bernie.geckolib.renderer.GeoEntityRenderer;
 
 /**
  * 「ピリムネス」の描画。描画倍率 2(geo に焼き込まない。テクスチャは 1 単位 2 テクセルなので画素はブロックの 1 画素に揃う)。
- * 発光マスク(棘の付け根の脈・口)は段 1 では重ねない(構えで光る決まり。構えは能力の段)。
+ * 発光マスクは技の時刻だけ重ねる({@link PilimnesGlowLayer}。棘の列と T 字の口。脇腹の帯 pilimnes_glow_flank.png は使わない)。
  */
 public class PilimnesRenderer extends GeoEntityRenderer<PilimnesEntity> {
 
@@ -14,6 +14,9 @@ public class PilimnesRenderer extends GeoEntityRenderer<PilimnesEntity> {
         super(context, new PilimnesModel());
         this.withScale(PilimnesEntity.RENDER_SCALE);
         this.shadowRadius = 1.2F;
+        // 光(能力の段 11-16): 棘の列と T 字の口。技の時刻だけ灯る
+        this.addRenderLayer(new PilimnesGlowLayer(this, PilimnesGlowLayer.SPINE, PilimnesEntity::spineGlow));
+        this.addRenderLayer(new PilimnesGlowLayer(this, PilimnesGlowLayer.MOUTH, PilimnesEntity::mouthGlow));
     }
 
     @Override

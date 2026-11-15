@@ -38,6 +38,16 @@ public final class ModLizards {
                     .clientTrackingRange(10)
                     .build(PilimnesEntity.ID));
 
+    /** ピリムネスが弾き飛ばす棘(能力の段 11-16)。小さな当たり・毎 tick 送る(速い弾)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.PilimnesSpine>> PILIMNES_SPINE =
+            ModEntities.ENTITY_TYPES.register("pilimnes_spine", () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.PilimnesSpine>of(com.yayuy.overgrownvegetation.entity.PilimnesSpine::new, MobCategory.MISC)
+                    .sized(0.25F, 0.25F)
+                    .noSummon()
+                    .clientTrackingRange(8)
+                    .updateInterval(1)
+                    .build("pilimnes_spine"));
+
     /** スポーンエッグ(地は苔の暗い緑、点は棘の付け根の脈の黄緑)。 */
     public static final DeferredItem<DeferredSpawnEggItem> PILIMNES_SPAWN_EGG = ModItems.ITEMS.registerItem(PilimnesEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(PILIMNES, 0x33401E, 0xB8D82A, props));

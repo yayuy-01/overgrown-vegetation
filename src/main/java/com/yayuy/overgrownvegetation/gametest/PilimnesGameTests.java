@@ -96,6 +96,7 @@ public final class PilimnesGameTests {
         double[] maxSide = {0.0D};
         double[] last = {v.getX(), v.getZ()};
         helper.runAfterDelay(2L, () -> walkTo(helper, v, new BlockPos(3, 2, 6), 1.0D));
+        helper.runAtTickTime(190L, () -> stuckReport(helper, v, "190"));
         helper.onEachTick(() -> {
             double dx = v.getX() - last[0], dz = v.getZ() - last[1];
             last[0] = v.getX();
@@ -103,7 +104,7 @@ public final class PilimnesGameTests {
             float yaw = (v.yRotO + Mth.wrapDegrees(v.getYRot() - v.yRotO) * 0.5F) * Mth.DEG_TO_RAD;
             double side = Math.abs(dx * Mth.cos(yaw) + dz * Mth.sin(yaw));
             maxSide[0] = Math.max(maxSide[0], side);
-            if (v.getZ() > helper.absoluteVec(new Vec3(0, 0, 5.4D)).z) {
+            if (v.getZ() > helper.absoluteVec(new Vec3(0, 0, 5.2D)).z) {   // 11-16: 幅 1.3 の体は最後の点(z 6.5)の 1 ブロック余り手前で「着いた」になる(5.37 で止まった回があった)
                 if (maxSide[0] > 0.05D) {
                     helper.fail("体の向きに対して横へ滑った(1 tick 最大 " + String.format("%.3f", maxSide[0]) + ")");
                     return;
@@ -211,6 +212,7 @@ public final class PilimnesGameTests {
         }
         PilimnesEntity v = placeAt(helper, 12.5D, 1.5D, 0.0F);
         helper.runAfterDelay(2L, () -> walkTo(helper, v, new BlockPos(12, 2, 22), 1.0D));
+        helper.runAtTickTime(490L, () -> stuckReport(helper, v, "490"));
         helper.onEachTick(() -> {
             if (v.getZ() > helper.absoluteVec(new Vec3(0, 0, 20.5D)).z) {
                 if (v.pauses < 1) {
@@ -221,6 +223,171 @@ public final class PilimnesGameTests {
                     helper.succeed();
                 }
             }
+        });
+    }
+
+    /** 時間切れの前に様子を書いて落とす(11-16: 経路が途中で捨てられたかを見分ける)。 */
+    private static void stuckReport(GameTestHelper helper, PilimnesEntity v, String when) {
+        Vec3 rel = v.position().subtract(helper.absoluteVec(Vec3.ZERO));
+        helper.fail(String.format(java.util.Locale.ROOT, "%s tick で着かない: 位置 %.2f %.2f %.2f 止まった %d 止まり中 %s 残り %.2f 経路 %s 標的 %s 技 %d", when,
+                rel.x, rel.y, rel.z, v.pauses, v.isPaused(), v.dashLeft(),
+                v.getNavigation().isDone() ? "なし" : v.getNavigation().getPath().getNextNodeIndex() + "/" + v.getNavigation().getPath().getNodeCount(),
+                v.getTarget() == null ? "-" : v.getTarget().getType().toShortString(), v.act()));
+    }
+
+    // ------------------------------------------------------------------ 技(能力の段 11-16)
+
+    /** 的: 動かない羊(体力を多くして、何発か受けても死なない)。 */
+    private static net.minecraft.world.entity.animal.Sheep target(GameTestHelper helper, double x, double z) {
+        net.minecraft.world.entity.animal.Sheep s = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.SHEEP, new BlockPos(0, 2, 0));
+        Vec3 p = helper.absoluteVec(new Vec3(x, 2.0D, z));
+        s.moveTo(p.x, p.y, p.z, 180.0F, 0.0F);
+        s.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH).setBaseValue(200.0D);
+        s.setHealth(200.0F);
+        return s;
+    }
+
+    /** 技を試す個体: 襲う Goal を残して湧かせる(spawnWithNoFreeWill は Goal を全部外す。クリペイムネスのテストと同じ)。名前 nostroll で自分では標的を探さない。 */
+    private static PilimnesEntity placeActive(GameTestHelper helper, double x, double z, float yaw) {
+        PilimnesEntity v = helper.spawn(ModLizards.PILIMNES.get(), new BlockPos(0, 2, 0));
+        Vec3 p = helper.absoluteVec(new Vec3(x, 2.0D, z));
+        v.moveTo(p.x, p.y, p.z, yaw, 0.0F);
+        v.snapFacing(yaw);
+        v.setCustomName(net.minecraft.network.chat.Component.literal("nostroll"));
+        return v;
+    }
+
+    /** 技を出させる: 標的を置き、次の判断で出す技を決める(名前は nostroll = 自分では探さない・うろつかない)。 */
+    private static PilimnesEntity shooter(GameTestHelper helper, LivingEntityHolder t, int act) {
+        PilimnesEntity v = placeActive(helper, 12.5D, 2.5D, 0.0F);
+        helper.runAfterDelay(2L, () -> {
+            v.setTarget(t.get());
+            v.forceActForTests(act);
+        });
+        return v;
+    }
+
+    @FunctionalInterface
+    private interface LivingEntityHolder {
+        net.minecraft.world.entity.LivingEntity get();
+    }
+
+    /** 棘の弾き: 11 ブロック先の的へ 1 本。当たって傷を負わせ、足が鈍る(鈍足)。前触れの 16 tick(補間 3 込み 19)の後に撃つ。 */
+    @GameTest(template = "gametest_empty24", timeoutTicks = 120)
+    public static void flickHitsAndSlows(GameTestHelper helper) {
+        var s = target(helper, 12.5D, 13.5D);
+        PilimnesEntity v = shooter(helper, () -> s, PilimnesEntity.ACT_FLICK_WINDUP);
+        helper.onEachTick(() -> {
+            if (s.getHealth() < 200.0F && s.hasEffect(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN)) {
+                if (helper.getTick() < 2 + PilimnesHuntGoal_FLICK_SHOT_TICK) {
+                    helper.fail("前触れより早く当たった(" + helper.getTick() + " tick)");
+                    return;
+                }
+                helper.succeed();
+            }
+        });
+    }
+
+    /** 弾きの棘が出るまでの tick(前触れ 補間 3 + 16、実行の 2 tick 目)。 */
+    private static final int PilimnesHuntGoal_FLICK_SHOT_TICK = 3 + 16 + 2;
+
+    /** 扇の散らし撃ち: 7 ブロック先の的へ 3 本が同時に飛び、少なくとも 1 本が当たる。足は鈍らない。 */
+    @GameTest(template = "gametest_empty24", timeoutTicks = 100)
+    public static void fanShootsThree(GameTestHelper helper) {
+        var s = target(helper, 12.5D, 9.5D);
+        PilimnesEntity v = shooter(helper, () -> s, PilimnesEntity.ACT_FAN_WINDUP);
+        int[] most = {0};
+        helper.onEachTick(() -> {
+            int n = helper.getLevel().getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.PilimnesSpine.class, v.getBoundingBox().inflate(24.0D),
+                    e -> e.getOwner() == v && e.kind() == com.yayuy.overgrownvegetation.entity.PilimnesSpine.FAN).size();
+            most[0] = Math.max(most[0], n);
+            if (s.getHealth() < 200.0F) {
+                if (most[0] < 3) {
+                    helper.fail("扇の棘が 3 本でない: " + most[0]);
+                } else if (s.hasEffect(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN)) {
+                    helper.fail("扇で足が鈍った(鈍るのは弾きだけ)");
+                } else {
+                    helper.succeed();
+                }
+            }
+        });
+    }
+
+    /** 噛みつき: 体の前 4 ブロックの的を、前触れ(補間 3 + 8)の後に噛む。 */
+    @GameTest(template = "gametest_empty24", timeoutTicks = 60)
+    public static void biteHitsInFront(GameTestHelper helper) {
+        var s = target(helper, 12.5D, 6.5D);
+        PilimnesEntity v = shooter(helper, () -> s, PilimnesEntity.ACT_BITE_WINDUP);
+        helper.onEachTick(() -> {
+            if (s.getHealth() < 200.0F) {
+                if (helper.getTick() < 2 + 3 + 8 + 3) {
+                    helper.fail("前触れより早く噛んだ(" + helper.getTick() + " tick)");
+                    return;
+                }
+                helper.succeed();
+            }
+        });
+    }
+
+    /**
+     * 棘の雨: 8 本を空へ放ち、約 1.5 秒後に的のまわり(半径 2.5 + 余裕)へ落ちる弧で飛ぶ。落ちる所の印は出さない。
+     * テスト場には天井のバリアがあり(弧の頂は放った所の約 6.5 ブロック上)、本当に落ちるのを待つと天井に当たって消えるので、
+     * 放った瞬間の位置と速さから弧をバニラと同じ式(位置 += 速さ → 速さ × 0.99 − 重力)で地面までなぞって、落ちる所を見る(11-16)。
+     * 体は前 5.5 に置く(尾と後ろの棘がテスト場の壁のバリアに入らないように。2.5 だと後ろの棘が壁の中で生まれて止まった)。
+     */
+    @GameTest(template = "gametest_empty24", timeoutTicks = 120)
+    public static void rainFallsAroundTarget(GameTestHelper helper) {
+        var s = target(helper, 12.5D, 17.5D);
+        PilimnesEntity v = placeActive(helper, 12.5D, 5.5D, 0.0F);
+        helper.runAfterDelay(2L, () -> {
+            v.setTarget(s);
+            v.forceActForTests(PilimnesEntity.ACT_RAIN_WINDUP);
+        });
+        java.util.Set<Integer> seen = new java.util.HashSet<>();
+        java.util.List<String> far = new java.util.ArrayList<>();
+        int[] near = {0};
+        helper.onEachTick(() -> {
+            for (var e : helper.getLevel().getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.PilimnesSpine.class, v.getBoundingBox().inflate(32.0D),
+                    e -> e.getOwner() == v && e.kind() == com.yayuy.overgrownvegetation.entity.PilimnesSpine.RAIN)) {
+                if (!seen.add(e.getId())) continue;
+                Vec3 p = e.position(), vel = e.getDeltaMovement();
+                for (int k = 0; k < 80 && !(vel.y < 0.0D && p.y <= s.getY() + 0.1D); k++) {
+                    p = p.add(vel);
+                    vel = vel.scale(0.99D).subtract(0.0D, com.yayuy.overgrownvegetation.entity.PilimnesSpine.RAIN_GRAVITY, 0.0D);
+                }
+                double d = Math.hypot(p.x - s.getX(), p.z - s.getZ());
+                if (d <= 2.5D + 1.0D) near[0]++;
+                else far.add(String.format(java.util.Locale.ROOT, "%.1f", d));
+            }
+            if (seen.size() >= 8) {
+                if (near[0] < 8) {
+                    helper.fail("雨の棘の弧が的のまわりに落ちない: 8 本のうち " + near[0] + " 本(外れの距離 " + far + ")");
+                } else {
+                    helper.succeed();
+                }
+            }
+        });
+    }
+
+    /** 前触れは殴っても潰せない(決定 11-15): 弾きの前触れの間に殴っても、棘は撃たれる。 */
+    @GameTest(template = "gametest_empty24", timeoutTicks = 120)
+    public static void windupIsNotInterruptedByHits(GameTestHelper helper) {
+        var s = target(helper, 12.5D, 13.5D);
+        PilimnesEntity v = shooter(helper, () -> s, PilimnesEntity.ACT_FLICK_WINDUP);
+        helper.runAtTickTime(10L, () -> v.hurt(helper.getLevel().damageSources().generic(), 3.0F));
+        helper.runAtTickTime(14L, () -> v.hurt(helper.getLevel().damageSources().generic(), 3.0F));
+        helper.onEachTick(() -> {
+            if (v.actCountsForTests()[0] >= 1) helper.succeed();
+        });
+    }
+
+    /** 敵として襲う: 技を決めずに的を置くと、自分で技を選んで撃つ(12 ブロック先 = 弾きの間合い)。 */
+    @GameTest(template = "gametest_empty24", timeoutTicks = 200)
+    public static void attacksTargetOnItsOwn(GameTestHelper helper) {
+        var s = target(helper, 12.5D, 14.5D);
+        PilimnesEntity v = shooter(helper, () -> s, PilimnesEntity.ACT_NONE);
+        helper.onEachTick(() -> {
+            if (s.getHealth() < 200.0F) helper.succeed();
         });
     }
 }

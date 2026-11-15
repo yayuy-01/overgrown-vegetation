@@ -142,6 +142,22 @@ public abstract class LizardRunner extends LongBodyRunner {
                     LizardRunner.this.pathing = false;
                 }
             }
+
+            /**
+             * 止まって見回している間は、バニラの「詰まり」と「時間切れ」を数えない(11-16)。バニラの時間切れの数え({@code timeoutTimer})は経路を
+             * 引いた時にしか 0 に戻らず、止まっている間も増える。走っては止まるので 20 ブロックの道で 4〜6 回止まると、数えが「次の点までの時間 × 3」
+             * (速さ 0.3 で約 200 tick)を超えて経路が途中で捨てられ、目標の 3〜4 ブロック手前で立ち止まっていた(GameTest が時々時間切れになった原因)。
+             */
+            @Override
+            protected void doStuckDetection(Vec3 position) {
+                if (LizardRunner.this.pauseTicks > 0) {
+                    this.lastTimeoutCheck = LizardRunner.this.level().getGameTime();
+                    this.lastStuckCheck = this.tick;
+                    this.lastStuckCheckPos = position;
+                    return;
+                }
+                super.doStuckDetection(position);
+            }
         };
     }
 

@@ -390,6 +390,7 @@
   "item.overgrown_vegetation.strobila_spawn_egg": "Яйцо призыва: Стробила",
   "entity.overgrown_vegetation.pilimnes": "Пилимнес",
   "item.overgrown_vegetation.pilimnes_spawn_egg": "Яйцо призыва: Пилимнес",
+  "entity.overgrown_vegetation.pilimnes_spine": "Шип пилимнеса",
   "effect.overgrown_vegetation.phyllosens_watch": "Взгляд Филлосенса",
   "block.overgrown_vegetation.overgrown_zombie_corpse": "Осквернённый труп зомби",
   "entity.overgrown_vegetation.parasitized_zombie": "Заражённый зомби",
