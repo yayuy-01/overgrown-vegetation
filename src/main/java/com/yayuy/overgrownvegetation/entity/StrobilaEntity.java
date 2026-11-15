@@ -520,9 +520,46 @@ public class StrobilaEntity extends SmallCrawler implements GeoEntity, Parasitiz
 
     // ------------------------------------------------------------------ 調べ
 
+    // ------------------------------------------------------------------ 尾の背の光(クライアント)
+
+    /** 光が前触れの何 tick 目から何 tick 目で 0 → 1 になるか(アニメの時刻。7 節「光と玉の時刻」【仮】)。 */
+    static final float GLOW_RISE_FROM = 2.0F, GLOW_RISE_TO = 16.0F;
+    /** 投げの何 tick 目から何 tick 目で 1 → 0 になるか(球果が離れる 4 tick から)【仮】。 */
+    static final float GLOW_FALL_FROM = 4.0F, GLOW_FALL_TO = 6.0F;
+
+    /** クライアント: 今の段と、その段に入った tick。 */
+    private byte glowPhase = PHASE_NONE;
+    private int glowPhaseStart;
+
+    /** クライアント: 段が変わった tick を覚える(光の強さを段の中の経過から出すため)。 */
+    private void tickGlowPhase() {
+        byte p = this.entityData.get(DATA_THROW_PHASE);
+        if (p != this.glowPhase) {
+            this.glowPhase = p;
+            this.glowPhaseStart = this.tickCount;
+        }
+    }
+
+    /**
+     * 尾の背の光の筋の強さ(0〜1)。投げの前触れで点き、球果が離れたら消える(能力の決定「前触れ = 背板が開き、尾の背に光の筋 約 1 秒」)。
+     * 前触れのアニメは入るときの補間 {@link #THROW_TRANSITION} tick の後に頭から流れるので、その分を引いて数える。尾の払い・歩き・待機では 0。
+     */
+    public float tailGlow(float partialTick) {
+        if (this.isDeadOrDying()) return 0.0F;
+        float t = this.tickCount - this.glowPhaseStart + partialTick;
+        if (this.glowPhase == PHASE_WINDUP) {
+            return Mth.clamp((t - THROW_TRANSITION - GLOW_RISE_FROM) / (GLOW_RISE_TO - GLOW_RISE_FROM), 0.0F, 1.0F);
+        }
+        if (this.glowPhase == PHASE_THROW) {
+            return Mth.clamp(1.0F - (t - GLOW_FALL_FROM) / (GLOW_FALL_TO - GLOW_FALL_FROM), 0.0F, 1.0F);
+        }
+        return 0.0F;
+    }
+
     @Override
     public void tick() {
         super.tick();
+        if (this.level().isClientSide()) tickGlowPhase();
         if (DEV_HOOKS && this.hasCustomName()) {
             String name = this.getCustomName().getString();
             if (!this.level().isClientSide()) devHooks(name);
@@ -561,7 +598,8 @@ public class StrobilaEntity extends SmallCrawler implements GeoEntity, Parasitiz
         if (c != null && isThrowing()) {
             var q = c.getCurrentAnimation();
             com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
-                    "STROB_THROW client gt %d %s %s", this.level().getGameTime(), q == null ? "-" : q.animation().name(), c.getAnimationState()));
+                    "STROB_THROW client gt %d %s %s 光 %.2f", this.level().getGameTime(), q == null ? "-" : q.animation().name(), c.getAnimationState(),
+                    tailGlow(0.0F)));
         }
         if (this.tickCount % 10 == 0) {
             com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
