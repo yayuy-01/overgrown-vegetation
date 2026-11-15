@@ -115,6 +115,12 @@ public class GregariaEntity extends SmallCrawler implements GeoEntity, Parasitiz
     public static final double BITE_DOSE = 150.0D;
     /** 前触れの間に相手がこれより離れたら噛むのをやめる(ブロック)。 */
     static final double BITE_GIVE_UP = 2.5D;
+    /** 噛み始めてよい、体の向きと相手への向きの差(度)【仮・全体管理 11-16】。 */
+    public static final float BITE_AIM_DEG = 30.0F;
+    /** 噛み始める近さの下限(これより近いと口先 0.95 が相手を通り越す)・前触れの間に詰め直す距離(ブロック)【仮・Claude 11-16】。 */
+    public static final double BITE_MIN = 0.45D, BITE_CHASE = 1.2D;
+    /** 噛める間合いにいるが向きがずれているので、まず体を向けている(サーバー)。 */
+    private boolean aimingBite;
 
     private static final RawAnimation BITE = RawAnimation.begin().thenPlay("bite_windup").thenPlay("bite").thenPlay("bite_recover");
 
@@ -176,13 +182,32 @@ public class GregariaEntity extends SmallCrawler implements GeoEntity, Parasitiz
         tickDeposit(sl);
     }
 
+
+    /** 体を相手の方へ、1 tick に回れるだけ回す(噛む向き合わせ)。 */
+    private void faceTowards(net.minecraft.world.entity.LivingEntity t) {
+        float want = (float) (Mth.atan2(t.getZ() - this.getZ(), t.getX() - this.getX()) * Mth.RAD_TO_DEG) - 90.0F;
+        float off = Mth.wrapDegrees(want - this.getYRot());
+        this.setYRot(this.getYRot() + Mth.clamp(off, -turnPerTick(), turnPerTick()));
+        this.yBodyRot = this.getYRot();
+        this.yHeadRot = this.getYRot();
+    }
     private void tickBite(net.minecraft.server.level.ServerLevel sl) {
         long now = sl.getGameTime();
         if (this.biteTick < 0) {
+            this.aimingBite = false;
             net.minecraft.world.entity.LivingEntity t = this.getTarget();
             if (t == null || now < this.biteReadyAt || !t.isAlive()) return;
             double dx = t.getX() - this.getX(), dz = t.getZ() - this.getZ();
-            if (dx * dx + dz * dz > BITE_START * BITE_START || Math.abs(t.getY() - this.getY()) > BITE_DY) return;
+            double d2 = dx * dx + dz * dz;
+            if (d2 > BITE_START * BITE_START || d2 < BITE_MIN * BITE_MIN || Math.abs(t.getY() - this.getY()) > BITE_DY) return;   // 近すぎると口先が相手を通り越す
+            // 口先を相手へ向けてから噛む(11-16 全体管理: 止まっている相手に 56% しか当たらなかった。囲む位置で脇を向いたまま噛み始めていた)
+            float want = (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90.0F;
+            float off = Mth.wrapDegrees(want - this.getYRot());
+            this.aimingBite = Math.abs(off) > BITE_AIM_DEG;
+            if (this.aimingBite) {
+                faceTowards(t);   // まず体を向ける: その場で止まり(lungePoint)、1 tick に回れるだけ相手へ回す
+                return;
+            }
             if (!takeSlot(t, now)) return;
             this.biteTick = 0;
             this.biteTarget = t;
@@ -193,6 +218,7 @@ public class GregariaEntity extends SmallCrawler implements GeoEntity, Parasitiz
         }
         this.biteTick++;
         net.minecraft.world.entity.LivingEntity t = this.biteTarget;
+        if (t != null && this.biteTick < BITE_HIT_T) faceTowards(t);   // 前触れの間も口先を相手へ向け続ける
         if (this.biteTick < BITE_HIT_T && (t == null || !t.isAlive() || t.distanceToSqr(this) > BITE_GIVE_UP * BITE_GIVE_UP)) {
             this.stopTriggeredAnim("bite", "bite");   // 前触れの間に離れた: 隙を飛ばしてやめる
             this.biteTick = -1;
@@ -206,6 +232,7 @@ public class GregariaEntity extends SmallCrawler implements GeoEntity, Parasitiz
                 biteHits++;
             } else {
                 biteMisses++;
+                if (DEV_HOOKS) com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT, "GREG_MISS 距離 %.2f 向きの差 %.0f 上下 %.2f 相手の幅 %.2f", Math.sqrt(this.distanceToSqr(t.getX(), this.getY(), t.getZ())), Mth.wrapDegrees((float) (Mth.atan2(t.getZ() - this.getZ(), t.getX() - this.getX()) * Mth.RAD_TO_DEG) - 90.0F - this.getYRot()), t.getY() - this.getY(), t.getBbWidth()));
             }
         }
         if (this.biteTick >= BITE_TOTAL_T) {
@@ -214,10 +241,20 @@ public class GregariaEntity extends SmallCrawler implements GeoEntity, Parasitiz
         }
     }
 
-    /** 噛む前触れの間は、群れの囲む位置でなく相手そのものへ走る(口を相手へ向ける)。 */
+    /**
+     * 噛む間の行き先(11-16): 向きを合わせている間はその場で止まる(向きは {@link #tickBite} が回す)。前触れの間は、口先が相手の真ん中に乗る所
+     * (相手から自分の側へ {@link #MOUTH_FWD})へ寄る。相手の真ん中へ走ると重なって口先が相手を通り越し、止まっている相手に当たらなかった。
+     */
     @Override
-    protected boolean lungingAtTarget() {
-        return this.biteTick >= 0 && this.biteTick <= BITE_HIT_T;
+    @org.jetbrains.annotations.Nullable
+    protected net.minecraft.world.phys.Vec3 lungePoint(net.minecraft.world.entity.LivingEntity t) {
+        if (this.aimingBite) return this.position();
+        if (this.biteTick < 0 || this.biteTick > BITE_HIT_T) return null;
+        // 前触れの間: 口先が届く間合い(体の中心どうし BITE_CHASE 以内)ならその場で止まる(向きは tickBite が相手へ回し続ける)。
+        // それより離れた(相手が動いた)ら相手の真ん中へ詰める = 前へ走るので向きは相手のまま。下がりはしない(下がると背を向ける)
+        double dx = t.getX() - this.getX(), dz = t.getZ() - this.getZ();
+        if (dx * dx + dz * dz <= BITE_CHASE * BITE_CHASE) return this.position();
+        return t.position();
     }
 
     /** 口の先(体の向きの前へ {@link #MOUTH_FWD}・高さ {@link #MOUTH_UP})が相手の箱を {@link #MOUTH_REACH} 広げた中にあるか。 */
@@ -231,7 +268,7 @@ public class GregariaEntity extends SmallCrawler implements GeoEntity, Parasitiz
 
     /**
      * 噛む: 傷 {@link #BITE_DAMAGE}(傷の暴露は全体の仕組みが足す)+ 暴露量 {@link #BITE_DOSE}。盾で防がれたら 0。
-     * 上乗せの数え方とマスクは全体管理の答え待ち【仮: 口が当たるたびに足す・マスクは通り抜ける(傷口に入れる)】。
+     * 上乗せは口が当たった回数ごと(傷が入らなかった噛みでも)・マスクは通り抜ける(傷口に入れる)【決定 11-16 ユーザー】。
      */
     private void bite(net.minecraft.server.level.ServerLevel sl, net.minecraft.world.entity.LivingEntity t) {
         net.minecraft.world.damagesource.DamageSource src = this.damageSources().mobAttack(this);

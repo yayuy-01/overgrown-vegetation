@@ -121,9 +121,12 @@ public abstract class SmallCrawler extends Monster {
         return false;
     }
 
-    /** 噛むなどで相手そのものへ向かう間は真(群れの囲む位置でなく相手の真ん中へ舵を切る)。既定 false。 */
-    protected boolean lungingAtTarget() {
-        return false;
+    /**
+     * 噛むなどで、群れの囲む位置でなく決まった所へ舵を切る間の行き先(null = ふつうに囲む)。今いる所を返すとその場で止まる。既定 null。
+     */
+    @Nullable
+    protected Vec3 lungePoint(LivingEntity target) {
+        return null;
     }
 
     /** 群れが狙う相手か。既定: プレイヤーと植物側以外の生き物(ほかの G4・G5 と同じ)。 */

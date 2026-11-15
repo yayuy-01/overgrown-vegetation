@@ -302,8 +302,13 @@ public final class CrawlerPack {
             double d = Math.sqrt(dx * dx + dz * dz);
             if (d <= CLOSE && Math.abs(t.getY() - this.mob.getY()) < 1.5D) {
                 this.mob.getNavigation().stop();
+                net.minecraft.world.phys.Vec3 lunge = this.mob.lungePoint(t);
+                if (lunge != null) {   // 噛む間: 種が決めた所へ(口先が相手に乗る間合い。その場で止まって向きを合わせることもある)
+                    this.mob.getMoveControl().setWantedPosition(lunge.x, lunge.y, lunge.z, this.mob.rushSpeed());
+                    return;
+                }
                 double a = (this.mob.getId() * 2.399963D) % (Math.PI * 2.0D);
-                double r = this.mob.lungingAtTarget() ? 0.0D : RING + t.getBbWidth() * 0.5D;   // 噛む間は相手そのものへ(口を向ける)
+                double r = RING + t.getBbWidth() * 0.5D;
                 this.mob.getMoveControl().setWantedPosition(t.getX() + Math.cos(a) * r, t.getY(), t.getZ() + Math.sin(a) * r, this.mob.rushSpeed());
                 return;
             }
