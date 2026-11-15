@@ -53,6 +53,11 @@ public final class G1SporeDose {
         if (e instanceof Player p && SporeInfectionEffects.stageOf(p) > 0) return false;
         SporeExposure ex = e.getData(ModAttachments.SPORE_EXPOSURE);
         ex.dose = Math.min(DesignData.sporeField().infectDose(), ex.dose + amount);
+        // 11-15 ユーザー決定「胞子の技も必ず感染」: 傷の無い胞子の技(根糸・胞子の雲・噴射など。ここを通るのは G1 の技だけ)を浴びた Mob は
+        // 必ず感染する。プレイヤーは今のまま(暴露量だけ)。
+        if (!(e instanceof Player)) {
+            com.yayuy.overgrownvegetation.spore.MobInfection.infect(e, e.level().getGameTime());
+        }
         return true;
     }
 }

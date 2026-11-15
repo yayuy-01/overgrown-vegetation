@@ -43,7 +43,16 @@ public final class PlantSideBurst {
 
     /** 数え(/ov perf・テスト)。 */
     public static int burstCount, reducedCount;
-    /** 最後の破裂で上げた升の浮遊(%。テスト用)。 */
+    /** 個体ごとの破裂で上げた升の浮遊(%。エンティティの id → 値。テスト用。同じ束のテストが並んで走るので個体で引く)。 */
+    public static final java.util.Map<Integer, Double> AIR_BY_ID = new java.util.concurrent.ConcurrentHashMap<>();
+
+    static void record(LivingEntity e, double air) {
+        lastAirPercent = air;
+        if (AIR_BY_ID.size() > 256) AIR_BY_ID.clear();
+        AIR_BY_ID.put(e.getId(), air);
+    }
+
+    /** 最後の破裂で上げた升の浮遊(%)。 */
     public static volatile double lastAirPercent;
 
     private PlantSideBurst() {
@@ -58,6 +67,40 @@ public final class PlantSideBurst {
         burstNow(level, living);
     }
 
+    /**
+     * 汎用の感染体になったエンダードラゴン(11-15 ユーザー決定「死に際の後に破裂」): バニラの死に際(光って昇る約 10 秒、200 tick)を最後まで流し、
+     * 消える tick(ドラゴン自身の数え {@code dragonDeathTime} が 200 になる tick の頭。deathTime ではない)で破裂させて周りを汚す。膨らみの描画は重ねない({@link PlantSideRules#burstsWith} が外す)。
+     * 消すのも出口ポータル・卵もバニラのまま。汚染の球は、ポータルと卵が置かれる前のこの tick のうちにすぐ作る(後回しの列に入れると、
+     * 後から置かれた卵を書き換えることがあるので)。岩盤・ポータルは壊せないブロックなので球は触らない。
+     */
+    @SubscribeEvent
+    public static void onEntityTickPre(EntityTickEvent.Pre event) {
+        if (!(event.getEntity() instanceof net.minecraft.world.entity.boss.enderdragon.EnderDragon dragon)
+                || dragon.dragonDeathTime != DRAGON_DEATH_TICKS - 1 || dragon.isRemoved()
+                || !(dragon.level() instanceof ServerLevel level) || !PlantSideRules.isTransformed(dragon)) return;
+        burstDragon(level, dragon);
+    }
+
+    /** バニラのドラゴンの死に際の長さ(EnderDragon#tickDeath が dragonDeathTime 200 で消す)。 */
+    static final int DRAGON_DEATH_TICKS = 200;
+
+    /** ドラゴンの破裂(粒・音は体の位置で、汚染の球は真下の地面に)。テストからも。 */
+    public static void burstDragon(ServerLevel level, LivingEntity dragon) {
+        record(dragon, G1DeathBurst.burst(level, dragon.position(), dragon.getBbWidth(), dragon.getBbHeight(), 1.0D, true, false));
+        burstCount++;
+        net.minecraft.core.BlockPos ground = level.getHeightmapPos(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                dragon.blockPosition());
+        if (ground.getY() <= level.getMinBuildHeight()) return; // 島の外(下は奈落)
+        int radius = G1DeathBurst.sphereRadius(G1DeathBurst.size(dragon.getBbWidth(), dragon.getBbHeight())); // 上限 3
+        net.minecraft.world.phys.Vec3 center = net.minecraft.world.phys.Vec3.atBottomCenterOf(ground);
+        if (level.dimension() == Level.END) {
+            // ジ・エンドは胞子の場が無いので、球の放出は何もしない。卵より先に作るためすぐ作る
+            com.yayuy.overgrownvegetation.corruption.NoisyCorruptionBurst.sphere(level, center, radius, G1DeathBurst.SPHERE_NOISE);
+        } else {
+            com.yayuy.overgrownvegetation.corruption.NoisyCorruptionBurst.deathSphere(level, center, radius, G1DeathBurst.SPHERE_NOISE, false);
+        }
+    }
+
     /** 今すぐ破裂させて消す(テストからも)。 */
     public static void burstNow(ServerLevel level, LivingEntity living) {
         int[] used = budget(level);
@@ -65,7 +108,7 @@ public final class PlantSideBurst {
         boolean sound = used[1] < SOUNDS_PER_TICK;
         used[0]++;
         if (sound) used[1]++;
-        lastAirPercent = G1DeathBurst.burst(level, living.position(), living.getBbWidth(), living.getBbHeight(), full ? 1.0D : REDUCED_DETAIL, sound);
+        record(living, G1DeathBurst.burst(level, living.position(), living.getBbWidth(), living.getBbHeight(), full ? 1.0D : REDUCED_DETAIL, sound));
         burstCount++;
         if (!full) reducedCount++;
         living.ejectPassengers();

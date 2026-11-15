@@ -64,16 +64,14 @@ public final class PlantSideBurstGameTests {
         helper.assertTrue(PlantSideRules.bursts(mob), type + ": 破裂の対象になっていない");
         BlockPos feet = mob.blockPosition();
         Map<BlockPos, BlockState> before = snapshot(helper, feet);
-        int bursts0 = PlantSideBurst.burstCount;
-        PlantSideBurst.lastAirPercent = 0.0D;
         mob.hurt(helper.getLevel().damageSources().generic(), 10000.0F);
         long t0 = helper.getTick();
         helper.runAtTickTime(t0 + PlantSideRules.BURST_TICK_MIN - 2, () ->
                 helper.assertTrue(!mob.isRemoved(), type + ": 膨らむ前に消えた"));
         helper.runAtTickTime(t0 + 19, () -> {
             helper.assertTrue(mob.isRemoved(), type + ": 19 tick で破裂して消えない");
-            helper.assertTrue(PlantSideBurst.burstCount > bursts0, type + ": 破裂が数えられていない");
-            helper.assertTrue(PlantSideBurst.lastAirPercent > 0.0D, type + ": 升の浮遊が上がっていない");
+            helper.assertTrue(PlantSideBurst.AIR_BY_ID.containsKey(mob.getId()), type + ": 破裂が数えられていない");
+            helper.assertTrue(PlantSideBurst.AIR_BY_ID.getOrDefault(mob.getId(), 0.0D) > 0.0D, type + ": 升の浮遊が上がっていない");
         });
         // 汚染の球は 1 tick 3 個の上限で順に作るので、少し待ってから見る
         helper.runAtTickTime(t0 + 30, () -> {
@@ -177,14 +175,13 @@ public final class PlantSideBurstGameTests {
         int anim = PlantSideRules.deathAnimTicks(mob);
         helper.assertTrue(anim > 0 && PlantSideRules.bursts(mob), type + ": アニメの後に破裂する種になっていない");
         BlockPos feet = mob.blockPosition();
-        PlantSideBurst.lastAirPercent = 0.0D;
         mob.hurt(helper.getLevel().damageSources().generic(), 10000.0F);
         long t0 = helper.getTick();
         helper.runAtTickTime(t0 + anim + PlantSideRules.BURST_TICK_MIN - 2, () ->
                 helper.assertTrue(!mob.isRemoved(), type + ": アニメと膨らみが終わる前に消えた"));
         helper.runAtTickTime(t0 + anim + PlantSideRules.BURST_TICK_MIN + PlantSideRules.BURST_TICK_SPREAD, () -> {
             helper.assertTrue(mob.isRemoved(), type + ": アニメの後に破裂して消えない");
-            helper.assertTrue(PlantSideBurst.lastAirPercent > 0.0D, type + ": 升の浮遊が上がっていない");
+            helper.assertTrue(PlantSideBurst.AIR_BY_ID.getOrDefault(mob.getId(), 0.0D) > 0.0D, type + ": 升の浮遊が上がっていない");
             helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(feet).inflate(5.0)).forEach(e -> e.discard());
             helper.succeed();
         });
@@ -203,6 +200,40 @@ public final class PlantSideBurstGameTests {
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 100)
     public static void acumnesBurstsAfterAnim(GameTestHelper helper) {
         burstsAfterAnim(helper, com.yayuy.overgrownvegetation.registry.ModFlyers.ACUMNES.get());
+    }
+
+    /**
+     * 汎用の感染体のドラゴン(11-15 ユーザー決定「死に際の後に破裂」): 膨らまず(破裂の対象の判定からは外れる)、バニラの 200 tick の終わりで破裂する。
+     * 死に際を 198 tick まで早送りして、消える tick に破裂が数えられることを見る。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 40)
+    public static void transformedDragonBurstsAtTheEndOfItsDeath(GameTestHelper helper) {
+        Mob dragon = helper.spawnWithNoFreeWill(EntityType.ENDER_DRAGON, new Vec3(3.5, 3.0, 3.5));
+        Predicate<LivingEntity> old = PlantSideRules.TRANSFORMED;
+        PlantSideRules.TRANSFORMED = e -> e == dragon || old.test(e);
+        helper.assertTrue(!PlantSideRules.bursts(dragon), "ドラゴンが膨らむ破裂の対象になっている");
+        dragon.setHealth(0.0F); // kill() はドラゴンだけその場で消す作りなので、体力 0 で死に際(tickDeath)を通す
+        helper.runAtTickTime(helper.getTick() + 3, () -> {
+            helper.assertTrue(!dragon.isRemoved() && !PlantSideBurst.AIR_BY_ID.containsKey(dragon.getId()), "ドラゴンが死に際の途中で消えた・破裂した");
+            ((net.minecraft.world.entity.boss.enderdragon.EnderDragon) dragon).dragonDeathTime = 197;
+        });
+        helper.runAtTickTime(helper.getTick() + 8, () -> {
+            PlantSideRules.TRANSFORMED = old;
+            helper.assertTrue(dragon.isRemoved(), "ドラゴンが 200 tick で消えていない");
+            helper.assertTrue(PlantSideBurst.AIR_BY_ID.containsKey(dragon.getId()), "ドラゴンが死に際の終わりに破裂していない");
+            helper.getLevel().getEntitiesOfClass(net.minecraft.world.entity.ExperienceOrb.class, new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(30.0))
+                    .forEach(e -> e.discard());
+            helper.succeed();
+        });
+    }
+
+    /** 胞子の技(傷の無い胞子。G1SporeDose を通る)を浴びた Mob も必ず感染する(11-15 ユーザー決定)。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void sporeTechniqueInfects(GameTestHelper helper) {
+        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(3.5, 2.0, 3.5));
+        com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeDose.add(cow, 10.0D);
+        helper.assertTrue(MobInfection.isInfected(cow), "胞子の技を浴びた牛が感染していない");
+        helper.succeed();
     }
 
     // ------------------------------------------------------------------ 攻撃で必ず感染

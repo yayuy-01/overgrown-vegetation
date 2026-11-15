@@ -165,6 +165,11 @@ public final class G1DeathBurst {
      * @param sound  湿った破裂音を鳴らすか
      */
     public static double burst(ServerLevel level, Vec3 feet, float width, float height, double detail, boolean sound) {
+        return burst(level, feet, width, height, detail, sound, true);
+    }
+
+    /** {@code sphere} = 足元に汚染の球を作るか(false = 呼ぶ側が自分で作る。汎用の感染体のドラゴン、11-15)。 */
+    public static double burst(ServerLevel level, Vec3 feet, float width, float height, double detail, boolean sound, boolean sphere) {
         double size = size(width, height);
         RandomSource random = level.random;
         Vec3 mid = feet.add(0.0D, height * 0.5D, 0.0D);
@@ -177,7 +182,7 @@ public final class G1DeathBurst {
         double airPercent = 0.0D;
         if (corrupts) {
             // 球はブロックだけ(球の放出は使わない)。浮遊は G1 の小さな量を死んだその tick に上げる
-            NoisyCorruptionBurst.deathSphere(level, feet, radius, SPHERE_NOISE, false);
+            if (sphere) NoisyCorruptionBurst.deathSphere(level, feet, radius, SPHERE_NOISE, false);
             if (fieldDimension) {
                 airPercent = airPercent(size);
                 SporeFieldServer.emitPoint(level, BlockPos.containing(feet), airPercent / 100.0D * DesignData.sporeField().fullAt());
