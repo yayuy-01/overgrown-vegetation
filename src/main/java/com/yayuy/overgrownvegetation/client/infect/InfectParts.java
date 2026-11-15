@@ -253,7 +253,12 @@ final class InfectParts {
     }
 
     /** 拾った付け根の上に部品を描く(位置はカメラからの世界の位置そのまま)。 */
-    static void draw(AnchorTap tap, MultiBufferSource buffers, int packedLight) {
+    /**
+     * {@code progress} = 変わる動きの進み。植物が突き出る瞬間({@link InfectSkins#STAGE1_AT})から、部品が 1 つずつ少しずれて、
+     * 大きさ 0 から行き過ぎて戻る(突き出る)。
+     */
+    static void draw(AnchorTap tap, MultiBufferSource buffers, int packedLight, float progress) {
+        int index = 0;
         for (Catcher c : tap.catchers.values()) {
             for (int a = 0; a < c.anchors.size(); a++) {
                 if (!c.found[a]) {
@@ -277,7 +282,18 @@ final class InfectParts {
                 if (tl < 1.0E-6F) {
                     continue;
                 }
-                float unit = tl / an.edgeUnits;
+                float grow = 1.0F;
+                if (progress < 1.0F) {
+                    float g = (progress - InfectSkins.STAGE1_AT - (index++) * 0.04F) / 0.22F;
+                    if (g <= 0.0F) {
+                        continue;
+                    }
+                    if (g < 1.0F) {
+                        float k = g - 1.0F;
+                        grow = 1.0F + 2.70158F * k * k * k + 1.70158F * k * k;
+                    }
+                }
+                float unit = tl / an.edgeUnits * grow;
                 tx /= tl;
                 ty /= tl;
                 tz /= tl;

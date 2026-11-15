@@ -29,11 +29,11 @@ public abstract class EntityRenderDispatcherInfectMixin {
                                                   @Local(argsOnly = true, ordinal = 0) double camRelX,
                                                   @Local(argsOnly = true, ordinal = 1) double camRelY,
                                                   @Local(argsOnly = true, ordinal = 2) double camRelZ) {
-        MultiBufferSource use = InfectRender.begin(entity, camRelX, camRelY, camRelZ, buffers);
+        MultiBufferSource use = InfectRender.begin(entity, camRelX, camRelY, camRelZ, partialTick, poseStack, buffers);
         try {
             original.call(renderer, entity, yaw, partialTick, poseStack, use, packedLight);
         } finally {
-            InfectRender.end(entity, packedLight);
+            InfectRender.end(entity, poseStack, packedLight);
         }
     }
 }

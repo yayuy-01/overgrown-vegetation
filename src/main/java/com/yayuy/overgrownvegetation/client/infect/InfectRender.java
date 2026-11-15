@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.client.infect;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
@@ -50,17 +51,33 @@ public final class InfectRender {
     private static ResourceLocation bodyTexture;
     /** 部品を描く遠さ(ブロック)。これより遠い個体は塗りだけ(頂点を覗かない)。【仮】 */
     private static final double PART_RANGE = 32.0D;
+    /** 今描いている 1 体の、変わる動きの進み(0〜1。1 = 変わり終えた)。 */
+    private static float currentProgress = 1.0F;
+    private static boolean shaking;
 
     private InfectRender() {
     }
 
     /** 感染体なら、その 1 体を描く間だけ差し替えを有効にする。覗く番のフレームは器を包んで返す。 */
-    public static MultiBufferSource begin(Entity entity, double camRelX, double camRelY, double camRelZ, MultiBufferSource buffers) {
+    public static MultiBufferSource begin(Entity entity, double camRelX, double camRelY, double camRelZ, float partialTick, PoseStack poseStack,
+                                          MultiBufferSource buffers) {
         current = GenericInfectionClient.of(entity);
         tap = null;
         anchorTap = null;
+        shaking = false;
         if (current == null) {
             return buffers;
+        }
+        currentProgress = current.progress(entity.level().getGameTime(), partialTick);
+        if (currentProgress < 1.0F) {
+            // 変わる動き: 立ち止まって震える(だんだん強く)→ 植物が突き出る瞬間にいちばん強く → 収まる
+            float amp = shakeAmp(currentProgress) * Math.max(0.4F, Math.min(2.0F, entity.getBbWidth()));
+            if (amp > 0.0F) {
+                float t = (entity.level().getGameTime() % 1000L) + partialTick + entity.getId() * 0.37F;
+                poseStack.pushPose();
+                poseStack.translate(amp * Math.sin(t * 2.9F), amp * 0.35F * Math.sin(t * 4.3F), amp * Math.cos(t * 3.7F));
+                shaking = true;
+            }
         }
         plainBuffers = buffers;
         bodyTexture = null;
@@ -86,7 +103,23 @@ public final class InfectRender {
         return !(entity instanceof LivingEntity living) || living.deathTime <= 0;
     }
 
-    public static void end(Entity entity, int packedLight) {
+    /** 震えの幅(ブロック。体の幅 1 のとき)。【仮】 */
+    private static float shakeAmp(float p) {
+        float burst = InfectSkins.STAGE1_AT;
+        if (p < burst) {
+            return 0.008F + 0.03F * (p / burst);
+        }
+        if (p < burst + 0.1F) {
+            return 0.06F;
+        }
+        return Math.max(0.0F, 0.06F * (1.0F - (p - burst - 0.1F) / 0.25F));
+    }
+
+    public static void end(Entity entity, PoseStack poseStack, int packedLight) {
+        if (shaking) {
+            shaking = false;
+            poseStack.popPose();
+        }
         QuadTap t = tap;
         tap = null;
         InfectParts.AnchorTap at = anchorTap;
@@ -101,7 +134,7 @@ public final class InfectRender {
         }
         if (was && at != null && plain != null) {
             // ここでは current はもう空 = 部品の絵は差し替えの外
-            InfectParts.draw(at, plain, packedLight);
+            InfectParts.draw(at, plain, packedLight, currentProgress);
         }
     }
 
@@ -121,7 +154,7 @@ public final class InfectRender {
             }
             return texture;
         }
-        return InfectSkins.skinFor(texture, state);
+        return InfectSkins.skinFor(texture, state, currentProgress);
     }
 
     public static void remember(RenderType type, ResourceLocation texture) {

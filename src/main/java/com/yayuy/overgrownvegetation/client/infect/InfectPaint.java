@@ -80,7 +80,11 @@ final class InfectPaint {
     }
 
     /** 塗り替えた絵(ARGB)を返す。{@code seed} = 絵と通り番号から。 */
-    static int[] paint(InfectSkins.FaceMap m, long seed) {
+    /**
+     * {@code strength} = 感染の深さ(1 = 変わり終えた姿。変わる途中は小さい値 = 寄生の中心の芯だけ苔が出て、死体の色も半分)。
+     * 同じ {@code seed} なら寄生の中心と塊の並びは同じ = 段を上げると同じ所から広がって見える。
+     */
+    static int[] paint(InfectSkins.FaceMap m, long seed, double strength) {
         load();
         int w = m.w, h = m.h, n = w * h, k = m.k;
         int[] out = m.argb.clone();
@@ -181,6 +185,7 @@ final class InfectPaint {
                 if (face[m.quad[i]]) {
                     cover = Math.min(cover * 0.3, 0.2);
                 }
+                cover -= (1.0 - strength) * 0.7;
                 mossy[i] = hash(Math.floorDiv(x, cs), Math.floorDiv(y, cs), seed + 11) < cover;
             }
         }
@@ -195,7 +200,8 @@ final class InfectPaint {
                 int a = Math.floorDiv(x, k), b = Math.floorDiv(y, k);
                 double hsh = hash(a, b, seed + 17);
                 int alpha = m.argb[i] & 0xFF000000;
-                int orig = deaden(m.argb[i] & 0xFFFFFF);
+                int raw = m.argb[i] & 0xFFFFFF;
+                int orig = strength >= 1.0 ? deaden(raw) : mix(raw, deaden(raw), strength);
                 int rgb;
                 if (mossy[i]) {
                     rgb = mossPx(a, b, hsh, seed);

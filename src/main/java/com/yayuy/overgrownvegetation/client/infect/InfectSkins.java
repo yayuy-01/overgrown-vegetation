@@ -29,6 +29,11 @@ final class InfectSkins {
 
     /** 同じ絵でも個体ごとに塗りを変える数(個体の乱数の種で選ぶ)。 */
     static final int VARIANTS = 3;
+    /** 変わる途中の段(0 = 芯だけ・1 = 変わり終えた姿)。それより前は元の絵のまま。 */
+    private static final int STAGES = 2;
+    private static final double[] STAGE_STRENGTH = {0.45, 1.0};
+    /** 進みがここを越えたら 0 段目・1 段目の絵にする(1 段目 = 植物が突き出る瞬間)。【仮】 */
+    static final float STAGE0_AT = 0.2F, STAGE1_AT = 0.5F;
     private static final String SKIN_PATH = "dynamic/infect_skin/";
     /** 頂点が 1 つも来なかった絵を、何回覗いたらあきらめるか。 */
     private static final int MAX_TRIES = 3;
@@ -38,7 +43,7 @@ final class InfectSkins {
     private static final class Entry {
         @Nullable
         final FaceMap map;
-        final ResourceLocation[] skins = new ResourceLocation[VARIANTS];
+        final ResourceLocation[] skins = new ResourceLocation[VARIANTS * STAGES];
         List<InfectParts.Anchor> anchors = List.of();
 
         Entry(@Nullable FaceMap map) {
@@ -63,16 +68,21 @@ final class InfectSkins {
         return ENTRIES.containsKey(texture);
     }
 
-    static ResourceLocation skinFor(ResourceLocation texture, GenericInfectionClient.State state) {
+    static ResourceLocation skinFor(ResourceLocation texture, GenericInfectionClient.State state, float progress) {
         Entry e = ENTRIES.get(texture);
         if (e == null || e.map == null) {
             return texture;
         }
-        int v = (int) Math.floorMod(state.seed(), (long) VARIANTS);
+        if (progress < STAGE0_AT) {
+            return texture;
+        }
+        int variant = (int) Math.floorMod(state.seed(), (long) VARIANTS);
+        int stage = progress < STAGE1_AT ? 0 : 1;
+        int v = variant * STAGES + stage;
         ResourceLocation skin = e.skins[v];
         if (skin == null) {
             try {
-                skin = bake(texture, e.map, v);
+                skin = bake(texture, e.map, variant, STAGE_STRENGTH[stage]);
             } catch (RuntimeException ex) {
                 OvergrownVegetation.LOGGER.warn("InfectSkins 塗れない(元のまま描く): {}", texture, ex);
                 skin = texture;
@@ -108,9 +118,9 @@ final class InfectSkins {
         InfectPaint.unload();
     }
 
-    private static ResourceLocation bake(ResourceLocation texture, FaceMap map, int variant) {
+    private static ResourceLocation bake(ResourceLocation texture, FaceMap map, int variant, double strength) {
         long seed = texture.hashCode() * 31L + variant * 7919L;
-        int[] argb = InfectPaint.paint(map, seed);
+        int[] argb = InfectPaint.paint(map, seed, strength);
         NativeImage img = new NativeImage(map.w, map.h, false);
         for (int y = 0; y < map.h; y++) {
             for (int x = 0; x < map.w; x++) {
