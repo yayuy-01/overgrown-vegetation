@@ -62,6 +62,8 @@ public final class SpreadMeasureCommand {
                                         .then(Commands.literal("reset").executes(ctx -> SpreadPerfDev.stat(ctx, true, false)))
                                         .then(Commands.literal("keep").executes(ctx -> SpreadPerfDev.stat(ctx, true, true))))
                                 .then(Commands.literal("savetest").executes(SpreadPerfDev::saveTest))
+                                .then(Commands.literal("deep").then(Commands.argument("every", IntegerArgumentType.integer(1, 64))
+                                        .executes(ctx -> SpreadPerfDev.deep(ctx, IntegerArgumentType.getInteger(ctx, "every")))))
                                 .then(Commands.argument("cx", IntegerArgumentType.integer())
                                         .then(Commands.argument("cz", IntegerArgumentType.integer())
                                                 .executes(ctx -> measure(ctx, IntegerArgumentType.getInteger(ctx, "cx"),

@@ -99,8 +99,20 @@ public final class SporeFieldServer {
     public static String devLive() {
         SporeField df = field;
         if (df == null) return "";
-        return String.format("tilesNow=%d newTiles=%d (%.0fms) revived=%d dormant=%d evicted=%d removed=%d stepOnce=%.0fms parcels=%.0fms", df.tileCount(),
-                df.devNewTiles, df.devNewTileNanos / 1e6, df.devRevived, df.dormantCount(), df.devEvicted, df.devRemoved, df.devOnceNanos / 1e6, df.devParcelNanos / 1e6);
+        return String.format("tilesNow=%d newTiles=%d (%.0fms) revived=%d dormant=%d evicted=%d removed=%d stepOnce=%.0fms parcels=%.0fms every=%d held=%d big=%d", df.tileCount(),
+                df.devNewTiles, df.devNewTileNanos / 1e6, df.devRevived, df.dormantCount(), df.devEvicted, df.devRemoved, df.devOnceNanos / 1e6, df.devParcelNanos / 1e6, df.p.deepEvery, df.devHeldTileSteps, df.devBigTileSteps);
+    }
+
+    /** 計測用: 区画の内訳(場の鍵を取れたときだけ)。 */
+    public static String devShape() {
+        SporeField df = field;
+        if (df == null) return "";
+        return df.devShape();
+    }
+
+    /** 計測用(軽量化 D): 深い奥の間引きを、この起動の間だけ変える。 */
+    public static void devDeepEvery(int every) {
+        INPUTS.add(f -> f.p.deepEvery = every);
     }
 
     /** 計測用: 自動保存と同じ道で場を保存する。 */

@@ -108,7 +108,7 @@ final class SpreadPerfDev {
         Path data = level.getServer().getWorldPath(LevelResource.ROOT).resolve("data");
         long[] dir = dirSize(data.resolve("overgrown_vegetation_spore_field"));
         String a = String.format("SPREADSTAT ledger=%d phase=%d lag=%d tiles=%d parcels=%d pending=%d | field(bg) runs=%d steps=%d avg=%.1fms max=%.1fms last=%.1fms perStep=%.1fms"
-                        + " | serverThread gather avg=%.3fms max=%.3fms apply avg=%.3fms max=%.3fms | load=%.0fms | " + SporeFieldServer.devLive(),
+                        + " | serverThread gather avg=%.3fms max=%.3fms apply avg=%.3fms max=%.3fms | load=%.0fms | " + SporeFieldServer.devLive() + " | " + SporeFieldServer.devShape(),
                 pd.overgrownLedgerSize(), pd.getPhase(), fc == Long.MIN_VALUE ? -1 : clock - fc, DevStats.lastTiles, DevStats.lastParcels,
                 LedgerSpreadData.get(level.getServer()).pendingCount(),
                 DevStats.runs, DevStats.steps, DevStats.computeNanos / 1e6 / runs, DevStats.computeMaxNanos / 1e6, DevStats.lastComputeNanos / 1e6,
@@ -134,7 +134,14 @@ final class SpreadPerfDev {
     }
 
     /** 台帳(PhaseData)の保存の形を作り、圧縮して仮のファイルへ書く時間と大きさ(バニラの保存がサーバースレッドでやる仕事と同じ)。 */
-    static int saveTest(CommandContext<CommandSourceStack> ctx) {
+    /** 計測用(軽量化 D): 深い奥の区画を何回の更新に 1 回進めるかを、この起動の間だけ変える(1 = 切)。 */
+    static int deep(com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> ctx, int every) {
+        SporeFieldServer.devDeepEvery(every);
+        ctx.getSource().sendSuccess(() -> net.minecraft.network.chat.Component.literal("SPREADDEEP every=" + every), false);
+        return 1;
+    }
+
+    public static int saveTest(CommandContext<CommandSourceStack> ctx) {
         ServerLevel level = ctx.getSource().getServer().overworld();
         PhaseData pd = PhaseData.get(level);
         long t0 = System.nanoTime();
