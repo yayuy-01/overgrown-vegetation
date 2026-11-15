@@ -104,6 +104,16 @@ public final class ModFlyers {
             com.yayuy.overgrownvegetation.entity.AcumnesEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(ACUMNES, 0x2A3418, 0xB8D838, props));
 
+    /** アクムネスの棘(11-15 能力の段。狙撃・縫い止め・散弾で共用)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.AcumnesSpine>> ACUMNES_SPINE =
+            ModEntities.ENTITY_TYPES.register("acumnes_spine", () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.AcumnesSpine>of(com.yayuy.overgrownvegetation.entity.AcumnesSpine::new, MobCategory.MISC)
+                    .sized(0.25F, 0.25F)
+                    .noSummon()
+                    .clientTrackingRange(8)
+                    .updateInterval(1)
+                    .build("acumnes_spine"));
+
     /** 植物側の Mob のタブへ卵を並べる({@code ModCreativeTabs} から)。 */
     public static void acceptEggs(CreativeModeTab.Output output) {
         output.accept(VELOPHYLL_SPAWN_EGG.get());

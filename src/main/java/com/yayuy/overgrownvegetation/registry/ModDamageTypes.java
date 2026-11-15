@@ -65,6 +65,19 @@ public final class ModDamageTypes {
                 .registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(type), attacker);
     }
 
+    /**
+     * アクムネスの狙撃・縫い止めの棘(2026-11-15 能力の段)。防具を貫く・盾は効く(11-15 ユーザー確認)。
+     * 散弾の小さな棘はバニラの {@code mobProjectile}(防具が効く)。
+     */
+    public static final ResourceKey<DamageType> ACUMNES_SPINE =
+            ResourceKey.create(Registries.DAMAGE_TYPE, OvergrownVegetation.id("acumnes_spine"));
+
+    /** 狙撃・縫い止めの棘(直接の出どころ = 棘。盾の向きの判定に使う)。 */
+    public static DamageSource acumnesSpine(ServerLevel level, net.minecraft.world.entity.Entity spine,
+                                            @javax.annotation.Nullable net.minecraft.world.entity.Entity owner) {
+        return new DamageSource(level.registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(ACUMNES_SPINE), spine, owner);
+    }
+
     private ModDamageTypes() {
     }
 }

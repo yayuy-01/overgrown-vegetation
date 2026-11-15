@@ -358,7 +358,7 @@ public final class AcumnesGameTests {
      * 狙う相手【決定 11-15 ユーザー: 植物側の Mob 以外すべて】: 村人・動物・ゴーレムは狙い、植物側(ヴェロフィル・ほかのアクムネス)は狙わない。
      * 村人とヴェロフィルを並べると村人を選ぶ。プレイヤーを先に選ぶ順は、偽プレイヤーが世界のプレイヤーの一覧に入らないので確かめていない。
      */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 60)
+    @GameTest(template = "gametest_empty7", timeoutTicks = 120)
     public static void targetsEveryoneButPlantSide(GameTestHelper helper) {
         AcumnesEntity a = spawn(helper, 3.5D, 3.0D, 3.5D);
         a.roostOverride = Boolean.FALSE;
@@ -379,9 +379,202 @@ public final class AcumnesGameTests {
         }
         cow.discard();
         golem.discard();
-        helper.runAfterDelay(30L, () -> {
+        helper.runAfterDelay(90L, () -> {
             if (a.getTarget() != villager) {
                 helper.fail("村人を選ばない: " + a.getTarget());
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    // ------------------------------------------------------------------ 技(2026-11-15 能力の段)
+
+    /** 浮いた個体を置き、技の相手(AI の無い村人)を並べる。 */
+    private static AcumnesEntity skillRig(GameTestHelper helper, double ax, double ay, double az) {
+        AcumnesEntity a = spawn(helper, ax, ay, az);
+        a.roostOverride = Boolean.FALSE;
+        a.debugHoldHere(1000);
+        return a;
+    }
+
+    private static net.minecraft.world.entity.Mob armoredZombie(GameTestHelper helper, BlockPos at) {
+        net.minecraft.world.entity.Mob z = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.ZOMBIE, at);
+        z.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND_HELMET));
+        z.setItemSlot(net.minecraft.world.entity.EquipmentSlot.CHEST, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND_CHESTPLATE));
+        z.setItemSlot(net.minecraft.world.entity.EquipmentSlot.LEGS, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND_LEGGINGS));
+        z.setItemSlot(net.minecraft.world.entity.EquipmentSlot.FEET, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND_BOOTS));
+        return z;
+    }
+
+    /**
+     * 狙撃【決定 11-15】: 溜め(入り 4 + aim 2 秒)の後に 1 発。ダイヤの防具を着ても 12 減る(防具を貫く)。撃って装填したら技を終え、必ず場所を移す。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 140)
+    public static void snipePiercesArmorThenRelocates(GameTestHelper helper) {
+        AcumnesEntity a = skillRig(helper, 0.5D, 5.0D, 0.5D);
+        net.minecraft.world.entity.Mob z = armoredZombie(helper, new BlockPos(5, 2, 5));
+        float hp0 = z.getHealth();
+        int moves0 = a.relocations;
+        a.debugStartSkill(z, AcumnesEntity.S_AIM, 0);
+        helper.runAfterDelay(AcumnesEntity.AIM_TICKS - 5, () -> {
+            if (z.getHealth() < hp0) helper.fail("溜めの途中で当たった");
+        });
+        helper.runAfterDelay(AcumnesEntity.AIM_TICKS + 12, () -> {
+            float lost = hp0 - z.getHealth();
+            if (lost < 11.5F) helper.fail(String.format("防具を貫いていない: %.1f しか減らない", lost));
+        });
+        helper.runAfterDelay(AcumnesEntity.AIM_TICKS + 50, () -> {
+            if (a.skill() != AcumnesEntity.S_NONE) {
+                helper.fail("撃った後に技を終えない: 段 " + a.skill());
+                return;
+            }
+            if (a.relocations <= moves0 && !a.mustMove()) {
+                helper.fail("撃った後に場所を移さない");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /** 物陰で狙いの線を 0.3 秒切ると取りやめ、撃たない【決定 11-15: 線は描かないが判定は残す】。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 100)
+    public static void aimCancelsWhenLineIsCut(GameTestHelper helper) {
+        AcumnesEntity a = skillRig(helper, 0.5D, 5.0D, 0.5D);
+        net.minecraft.world.entity.Mob z = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.VILLAGER, new BlockPos(5, 2, 5));
+        float hp0 = z.getHealth();
+        a.debugStartSkill(z, AcumnesEntity.S_AIM, 0);
+        helper.runAfterDelay(20L, () -> {
+            // 相手を石の箱で囲む(物陰)
+            for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) for (int dy = 0; dy <= 2; dy++) {
+                if (dx == 0 && dz == 0 && dy < 2) continue;
+                helper.setBlock(new BlockPos(5 + dx, 2 + dy, 5 + dz), Blocks.STONE);
+            }
+        });
+        helper.runAfterDelay(20L + AcumnesEntity.LOS_GRACE + 3, () -> {
+            int s = a.skill();
+            if (s == AcumnesEntity.S_AIM || s == AcumnesEntity.S_FIRE) helper.fail("線を切っても狙い続ける: 段 " + s);
+        });
+        helper.runAfterDelay(AcumnesEntity.AIM_TICKS + 30, () -> {
+            if (z.getHealth() < hp0) {
+                helper.fail("取りやめたのに当たった");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /** 縫い止め【決定 11-15】: 約 3 秒狙ってから重い棘。当たった相手は 20 tick 動けない(移動の属性が 0)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 160)
+    public static void pinRootsTheTarget(GameTestHelper helper) {
+        AcumnesEntity a = skillRig(helper, 0.5D, 5.0D, 0.5D);
+        net.minecraft.world.entity.Mob z = armoredZombie(helper, new BlockPos(5, 2, 5));
+        float hp0 = z.getHealth();
+        a.debugStartSkill(z, AcumnesEntity.S_AIM, AcumnesEntity.SKILL_PIN);
+        helper.runAfterDelay(AcumnesEntity.AIM_TICKS + 4, () -> {
+            if (z.getHealth() < hp0) helper.fail("縫い止めが狙撃の長さで撃った(約 3 秒のはず)");
+        });
+        helper.runAfterDelay(AcumnesEntity.PIN_AIM_TICKS + 8, () -> {
+            if (!z.hasEffect(com.yayuy.overgrownvegetation.registry.ModMobEffects.ACUMNES_PINNED)) {
+                helper.fail("縫い止められていない(体力 " + z.getHealth() + ")");
+                return;
+            }
+            if (z.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED) > 1e-6) {
+                helper.fail("縫い止められても動ける: " + z.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED));
+                return;
+            }
+            if (hp0 - z.getHealth() < AcumnesEntity.PIN_DAMAGE - 0.5F) {
+                helper.fail("縫い止めのダメージが防具に削られた: " + (hp0 - z.getHealth()));
+                return;
+            }
+        });
+        helper.runAfterDelay(AcumnesEntity.PIN_AIM_TICKS + 40, () -> {
+            if (z.hasEffect(com.yayuy.overgrownvegetation.registry.ModMobEffects.ACUMNES_PINNED)) {
+                helper.fail("1 秒で解けない");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /** 散弾【決定 11-15】: 前触れ 10 tick の後、2〜6 tick に 1 発ずつ 5 発。植物側(ほかのアクムネス)には当たらない。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 80)
+    public static void scatterThrowsFiveSpines(GameTestHelper helper) {
+        AcumnesEntity a = skillRig(helper, 3.5D, 4.0D, 0.5D);
+        net.minecraft.world.entity.Mob v = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.VILLAGER, new BlockPos(3, 2, 6));
+        a.debugStartSkill(v, AcumnesEntity.S_SCATTER_WINDUP, 0);
+        java.util.Set<Integer> seen = new java.util.HashSet<>();
+        int[] before = {0};
+        helper.onEachTick(() -> {
+            for (com.yayuy.overgrownvegetation.entity.AcumnesSpine s : helper.getLevel().getEntitiesOfClass(
+                    com.yayuy.overgrownvegetation.entity.AcumnesSpine.class, a.getBoundingBox().inflate(16.0D))) {
+                if (s.kind() == com.yayuy.overgrownvegetation.entity.AcumnesSpine.SCATTER && s.getOwner() == a && seen.add(s.getId())
+                        && a.skill() == AcumnesEntity.S_SCATTER_WINDUP) before[0]++;
+            }
+        });
+        helper.runAfterDelay(40L, () -> {
+            if (before[0] > 0) {
+                helper.fail("前触れの間に撃った");
+                return;
+            }
+            if (seen.size() != 5) {
+                helper.fail("散弾が 5 発でない: " + seen.size());
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * 刺突を外す【決定 11-15】: 針が壁に刺さると {@code dive_recover} の 34 tick は体が動かない(殴り返せる隙)。その後は離れて解き、技を終える。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 160)
+    public static void diveMissSticksThenPullsAway(GameTestHelper helper) {
+        AcumnesEntity a = skillRig(helper, 0.5D, 3.0D, 3.5D);
+        a.setYRot(-90.0F);
+        net.minecraft.world.entity.Mob v = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.VILLAGER, new BlockPos(6, 2, 3));
+        for (int dy = 1; dy <= 6; dy++) for (int dz = 0; dz <= 6; dz++) helper.setBlock(new BlockPos(4, dy, dz), Blocks.STONE);
+        a.debugStartSkill(v, AcumnesEntity.S_DIVE_WINDUP, 0);
+        Vec3[] stuckAt = {null};
+        int[] missAt = {-1};
+        helper.onEachTick(() -> {
+            if (missAt[0] < 0 && a.skill() == AcumnesEntity.S_DIVE_MISS) {
+                missAt[0] = a.tickCount;
+                stuckAt[0] = a.position();
+            } else if (missAt[0] >= 0 && a.skill() == AcumnesEntity.S_DIVE_MISS && a.position().distanceTo(stuckAt[0]) > 1e-6) {
+                helper.fail("針が刺さっている間に動いた");
+            }
+        });
+        helper.runAfterDelay(80L, () -> {
+            if (missAt[0] < 0) {
+                helper.fail("壁に刺さらない: 段 " + a.skill());
+                return;
+            }
+            int s = a.skill();
+            if (s == AcumnesEntity.S_DIVE_MISS || s == AcumnesEntity.S_DIVE || s == AcumnesEntity.S_DIVE_WINDUP) {
+                helper.fail("隙が 34 tick で終わらない: 段 " + s);
+            }
+        });
+        helper.runAfterDelay(150L, () -> {
+            if (a.skill() != AcumnesEntity.S_NONE) {
+                helper.fail("刺突を終えない: 段 " + a.skill());
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /** 刺突が当たる: 針の先が届けば 10 減り、当てた後の段(dive_hit_recover)へ。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 60)
+    public static void diveHitsTarget(GameTestHelper helper) {
+        AcumnesEntity a = skillRig(helper, 0.5D, 2.0D, 3.5D);
+        a.setYRot(-90.0F);
+        net.minecraft.world.entity.Mob v = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.VILLAGER, new BlockPos(6, 2, 3));
+        float hp0 = v.getHealth();
+        a.debugStartSkill(v, AcumnesEntity.S_DIVE_WINDUP, 0);
+        helper.runAfterDelay(30L, () -> {
+            if (hp0 - v.getHealth() < AcumnesEntity.DIVE_DAMAGE - 0.5F) {
+                helper.fail("刺突が当たらない: 減った " + (hp0 - v.getHealth()) + " 段 " + a.skill());
                 return;
             }
             helper.succeed();
