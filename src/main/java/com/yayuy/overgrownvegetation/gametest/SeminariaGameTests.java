@@ -261,6 +261,12 @@ public final class SeminariaGameTests {
             y0[0] = v.getY();
             v.hurt(helper.getLevel().damageSources().generic(), 1.0F);
         });
+        // 段 2(11-15): 驚いても昇る前にその場で溜める(7 tick + 入りの補間 3)。叩いてから 9 tick はまだ昇らない
+        helper.runAfterDelay(14L, () -> {
+            if (Math.abs(v.getY() - y0[0]) > 0.01D) {
+                helper.fail(String.format("溜めの間に動いた(%.2f)", v.getY() - y0[0]));
+            }
+        });
         helper.runAfterDelay(35L, () -> {
             int m = v.mode();
             if (m == SkyFlyer.MODE_PERCHED || m == SkyFlyer.MODE_LANDING) {
@@ -277,5 +283,27 @@ public final class SeminariaGameTests {
             }
             helper.succeed();
         });
+    }
+
+    /**
+     * 段 2(11-15): 一斉に飛び立つ距離は 10【仮・決定 11-15】(土台・ヴェロフィルは 8 のまま)、溜めは 7 tick。
+     * 風に揉まれる層は強さ 0.4 から揉まれ始め 1.3 でいっぱい【仮】。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void seminariaStage2Wiring(GameTestHelper helper) {
+        if (SeminariaEntity.FLUSH_RANGE_SEMINARIA != 10.0D || SkyFlyer.FLUSH_RANGE != 8.0D) {
+            helper.fail("飛び立つ距離が違う: " + SeminariaEntity.FLUSH_RANGE_SEMINARIA + " / 土台 " + SkyFlyer.FLUSH_RANGE);
+            return;
+        }
+        if (SeminariaEntity.WINDUP_TICKS != 7) {
+            helper.fail("溜めが 7 tick でない: " + SeminariaEntity.WINDUP_TICKS);
+            return;
+        }
+        if (SeminariaEntity.gustFor(0.3D) != 0.0F || SeminariaEntity.gustFor(1.5D) != 1.0F
+                || Math.abs(SeminariaEntity.gustFor(1.0D) - 0.6667F) > 0.01F) {
+            helper.fail("揉まれる層の強さの曲線が違う: " + SeminariaEntity.gustFor(1.0D));
+            return;
+        }
+        helper.succeed();
     }
 }

@@ -4,7 +4,14 @@ import com.yayuy.overgrownvegetation.data.MobStats;
 import com.yayuy.overgrownvegetation.entity.flyer.FlightBody;
 import com.yayuy.overgrownvegetation.entity.flyer.SkyFlyer;
 import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
+import com.yayuy.overgrownvegetation.entity.flyer.FlyerWind;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
@@ -25,7 +32,12 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * ひらひら不規則に揺れる。数体で飛ぶが V 字は組まない(ゆるくまとまる。{@code LooseFormation})。夜と雨は林冠のてっぺんに止まる。
  * 種まき(飛び地)とプレイヤーから逃げるのは次の段。自然には湧かない。
  * 形は練習モデル フリマキ r7 {@code prac2_g4_drifter_r7}(正本 {@code デスクトップ\blockbench\mobs\seminaria.bbmodel})。描画倍率 2。
- * アニメは今ある fly(羽ばたき)・idle(翅を水平に広げて漂う。滑空と止まる姿にも使う)だけ(新しいアニメは Fable のセッションが作る決まり)。
+ * <h2>段 2 のアニメのつなぎ(2026-11-15。アニメはモデル制作の持ち場で作ったもの、Vault 6.3・6.6。ヴェロフィルと同じ作り)</h2>
+ * 止まる = perch_idle / 飛び立つ = その場で takeoff_windup → 昇り始めに takeoff → fly / 降りる = land_windup → land(繰り返し)→
+ * 止まった tick に land_recover → perch_idle。飛ぶ間は fly(羽ばたき)と idle(翅を広げて漂う)。
+ * 【決定 11-15 全体管理・ユーザー】止まっている群れは身構えない。10 ブロック【仮】まで来ると一斉に飛び立つ。驚いたときも溜め 7 tick。
+ * 風に揉まれる層(翅のひねり・体と冠毛の揺れ)は飛ぶ間だけ描画が足す({@code SeminariaModel}。強さは {@link #gust})。
+ * descend・sow_*・flee は種まきと逃げる能力の段で使う(まだ流さない)。
  */
 public class SeminariaEntity extends SkyFlyer implements GeoEntity, ParasitizedMob {
 
@@ -75,9 +87,45 @@ public class SeminariaEntity extends SkyFlyer implements GeoEntity, ParasitizedM
             -0.2D, 1.4D, 0.9D,
             -0.2D, -1.4D, 0.9D,
             -1.2D, 0.0D, 0.65D};
+    /**
+     * 止まっている・溜めている間(寝かせた翼果: 4 枚の翅は腹の上へ後ろへ伏せる。左右 ±1.25・後ろ 0〜2.25・高さ 0.2〜0.7 ブロック、Vault 6.6 の 7)
+     * の部位の置き場【仮】。翅の 2 つは後ろ 1.0・左右 ±0.6・高さ 0.45、腹は伏せた翅の下で後ろ 1.5・高さ 0.4。部位の大きさは飛ぶ間のまま。
+     */
+    static final double[] PART_CENTERS_PERCHED = {
+            -1.0D, 0.6D, 0.45D,
+            -1.0D, -0.6D, 0.45D,
+            -1.5D, 0.0D, 0.4D};
+
+    /** 飛び立ちの溜め【決定 11-15: 7 tick】と、溜めへ入る補間(その分だけ溜めを長くする)。 */
+    public static final int WINDUP_TICKS = 7, ENTRY_SHORT = 3;
+    /** 途中から入る所の補間(tick)。fly ↔ idle は段 1 のまま {@link #ENTRY_FLY}。 */
+    static final int ENTRY = 4, ENTRY_FLY = 5;
+    /** 一斉に飛び立つ距離【仮・決定 11-15 全体管理】(逃げる種なのでヴェロフィルの 8 より早い。しゃがむと 5)。 */
+    public static final double FLUSH_RANGE_SEMINARIA = 10.0D;
+
+    /**
+     * 風に揉まれる層の強さ【仮・Claude。遊んで詰める】: 卓越風の強さ(1 = ふだんの午後)が {@link #GUST_FROM} から揉まれ始め、
+     * {@link #GUST_FULL} で表の値いっぱい(Vault 6.5b)。飛ぶ間だけ。止まる・降りる・飛び立つ間は 1 秒かけて 0 へ戻す。
+     */
+    public static final double GUST_FROM = 0.4D, GUST_FULL = 1.3D;
+
+    /** サーバー → 描画: 今の卓越風の強さ(1 = ふだんの午後。上限 {@link FlyerWind#STRENGTH_CAP})。20 tick おきに送る。 */
+    private static final EntityDataAccessor<Float> DATA_WIND = SynchedEntityData.defineId(SeminariaEntity.class, EntityDataSerializers.FLOAT);
 
     private static final RawAnimation FLY = RawAnimation.begin().thenLoop("fly");
     private static final RawAnimation DRIFT = RawAnimation.begin().thenLoop("idle");
+    private static final RawAnimation PERCH_IDLE = RawAnimation.begin().thenLoop("perch_idle");
+    private static final RawAnimation WINDUP = RawAnimation.begin().thenPlayAndHold("takeoff_windup");
+    private static final RawAnimation TAKEOFF = RawAnimation.begin().thenPlay("takeoff").thenLoop("fly");
+    private static final RawAnimation LAND = RawAnimation.begin().thenPlay("land_windup").thenLoop("land");
+    private static final RawAnimation LAND_RECOVER = RawAnimation.begin().thenPlay("land_recover").thenLoop("perch_idle");
+
+    /** クライアント: 今流しているつなぎ・流し始めた tick・入りの補間。 */
+    private RawAnimation curAnim;
+    private int curStart, curEntry;
+    /** クライアント: 風に揉まれる層の強さ(0〜1)の前の tick と今。 */
+    private float gustO, gustNow;
+    private final double[] windTmp = new double[2];
 
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
@@ -150,22 +198,118 @@ public class SeminariaEntity extends SkyFlyer implements GeoEntity, ParasitizedM
 
     @Override
     protected double[] partCenters() {
-        return PART_CENTERS;
+        return perchedPose() ? PART_CENTERS_PERCHED : PART_CENTERS;
+    }
+
+    /** 止まった姿のままか(止まっている・飛び立ちの待ちと溜め)。部位の置き場に使う(サーバーもクライアントも送られた状態で)。 */
+    private boolean perchedPose() {
+        int m = mode();
+        return m == MODE_PERCHED || m == MODE_TAKEOFF && takeoffPhase() < 2;
+    }
+
+    @Override
+    protected int takeoffWindupTicks() {
+        return WINDUP_TICKS + ENTRY_SHORT;
+    }
+
+    @Override
+    protected double flushRange() {
+        return FLUSH_RANGE_SEMINARIA;
+    }
+
+    /** 新しいアニメの広がり(上 +2.3・下 −1.7・左右 ±2.4・前 1.1〜後ろ 3.8 ブロック、Vault 6.6 の 8)を収める。 */
+    @Override
+    public AABB getBoundingBoxForCulling() {
+        return new AABB(this.getX() - 4.0D, this.getY() - 2.0D, this.getZ() - 4.0D,
+                this.getX() + 4.0D, this.getY() + 2.6D, this.getZ() + 4.0D);
+    }
+
+    // ------------------------------------------------------------------ 風に揉まれる層
+
+    @Override
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(DATA_WIND, 0.0F);
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (!this.level().isClientSide) {
+            if (this.tickCount % 20 == 0 && this.level() instanceof ServerLevel sl) {
+                FlyerWind.now(sl, this.windTmp);
+                float s = (float) (Math.sqrt(this.windTmp[0] * this.windTmp[0] + this.windTmp[1] * this.windTmp[1]) / FlyerWind.BLOCKS_PER_STRENGTH);
+                if (Math.abs(this.entityData.get(DATA_WIND) - s) > 0.02F) this.entityData.set(DATA_WIND, s);
+            }
+            return;
+        }
+        this.gustO = this.gustNow;
+        float target = mode() == MODE_FLY ? gustFor(this.entityData.get(DATA_WIND)) : 0.0F;
+        this.gustNow += Mth.clamp(target - this.gustNow, -0.05F, 0.05F);   // 1 秒で 0 ⇄ 1
+    }
+
+    /** 卓越風の強さ → 揉まれる層の強さ(0〜1)【仮】。 */
+    public static float gustFor(double windStrength) {
+        return (float) Mth.clamp((windStrength - GUST_FROM) / (GUST_FULL - GUST_FROM), 0.0D, 1.0D);
+    }
+
+    /** 描画: 風に揉まれる層の強さ(0〜1)。 */
+    public float gust(float pt) {
+        return Mth.lerp(pt, this.gustO, this.gustNow);
+    }
+
+    /** 描画: 個体ごとの位相(ラジアン)。 */
+    public double gustPhase() {
+        return (this.getUUID().getLeastSignificantBits() & 0xFFFFL) / 65536.0D * Math.PI * 2.0D;
     }
 
     // ------------------------------------------------------------------ アニメ
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "main", 5, this::mainState));
+        controllers.add(new AnimationController<>(this, "main", ENTRY_FLY, this::mainState));
     }
 
+    /**
+     * つなぎを選ぶ(ヴェロフィルと同じ)。入りの補間は流し始めにだけ使い、それを過ぎたら 0 にする
+     * (つないだ段の間は差 0。GeckoLib は段の間でも補間の長さを使うので)。
+     */
     private PlayState mainState(AnimationState<SeminariaEntity> state) {
         int m = mode();
-        if (m == MODE_PERCHED) {
-            return state.setAndContinue(DRIFT);
+        RawAnimation want;
+        int entry;
+        if (m == MODE_PERCHED || m == MODE_TAKEOFF && takeoffPhase() == 0) {
+            if (this.curAnim == LAND || this.curAnim == LAND_RECOVER) {
+                want = LAND_RECOVER;   // 止まった tick に掴む(制動の羽ばたきの途中から入るので短く補間)
+                entry = this.curAnim == LAND ? ENTRY_SHORT : this.curEntry;
+            } else {
+                want = PERCH_IDLE;   // セーブから止まった姿で読み込んだ個体は land_recover を通さず直に
+                entry = this.curAnim == PERCH_IDLE ? this.curEntry : ENTRY;
+            }
+        } else if (m == MODE_TAKEOFF && takeoffPhase() == 1) {
+            want = WINDUP;
+            entry = this.curAnim == WINDUP ? this.curEntry : ENTRY_SHORT;
+        } else if (m == MODE_TAKEOFF) {
+            want = TAKEOFF;
+            entry = this.curAnim == WINDUP ? 0 : (this.curAnim == TAKEOFF ? this.curEntry : ENTRY);   // 溜めの終わり = takeoff の 0 秒(差 0)
+        } else if (m == MODE_LANDING) {
+            want = LAND;
+            entry = this.curAnim == LAND ? this.curEntry : ENTRY;
+        } else if (this.curAnim == TAKEOFF && flapping()) {
+            want = TAKEOFF;   // takeoff の後はそのまま fly を繰り返している
+            entry = this.curEntry;
+        } else {
+            want = flapping() ? FLY : DRIFT;
+            entry = ENTRY_FLY;
         }
-        return state.setAndContinue(m == MODE_FLY && !flapping() ? DRIFT : FLY);
+        if (want != this.curAnim) {
+            this.curAnim = want;
+            this.curStart = this.tickCount;
+            this.curEntry = entry;
+        }
+        boolean chained = want == TAKEOFF || want == LAND || want == LAND_RECOVER || want == WINDUP;
+        state.getController().transitionLength(chained && this.tickCount - this.curStart > this.curEntry ? 0 : this.curEntry);
+        return state.setAndContinue(want);
     }
 
     @Override

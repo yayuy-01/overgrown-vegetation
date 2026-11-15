@@ -219,10 +219,18 @@ public abstract class SkyFlyer extends Monster {
 
     /**
      * 止まっている間にプレイヤーに気付いて身構える距離(2026-11-15 ヴェロフィル段 2。既定 0 = 身構えない)。
-     * 群れの誰かが気付くと群れ全員が身構え、気付いた相手の方を向く。飛び立つのは今まで通り {@link #FLUSH_RANGE}。
+     * 群れの誰かが気付くと群れ全員が身構え、気付いた相手の方を向く。飛び立つのは {@link #flushRange}(既定 {@link #FLUSH_RANGE})。
      */
     protected double alertRange() {
         return 0.0D;
+    }
+
+    /**
+     * 止まっている群れが一斉に飛び立つ距離(2026-11-15 セミナリア段 2 で足した。既定 {@link #FLUSH_RANGE} = 今まで通り)。
+     * しゃがんでいるときは同じ割合で縮める(既定 8 → 4)。
+     */
+    protected double flushRange() {
+        return FLUSH_RANGE;
     }
 
     // ------------------------------------------------------------------ 状態
@@ -687,7 +695,7 @@ public abstract class SkyFlyer extends Monster {
                 if (pl.isSpectator()) continue;
                 double ar = alertRange();
                 if (ar > 0.0D && pl.distanceToSqr(this) < ar * ar) f.alert(pl.getX(), pl.getZ());
-                double r = pl.isShiftKeyDown() ? FLUSH_RANGE_SNEAK : FLUSH_RANGE;
+                double r = pl.isShiftKeyDown() ? flushRange() * (FLUSH_RANGE_SNEAK / FLUSH_RANGE) : flushRange();
                 if (pl.distanceToSqr(this) < r * r) {
                     f.flush(sl, pl.getX(), pl.getZ());
                     return;
