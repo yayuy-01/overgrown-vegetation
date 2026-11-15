@@ -240,4 +240,100 @@ public final class SaltimnesGameTests {
             }
         });
     }
+
+    // ------------------------------------------------------------------ 段 3: 技(11-15)
+
+    /** 動かない的(ハスク。日に焼けない)を (x, z) に置き、サルティムネスの標的にする。 */
+    private static net.minecraft.world.entity.monster.Husk prey(GameTestHelper helper, SaltimnesEntity s, double x, double z) {
+        net.minecraft.world.entity.monster.Husk h = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.HUSK, new BlockPos((int) x, 2, (int) z));
+        Vec3 p = helper.absoluteVec(new Vec3(x, 2.0D, z));
+        h.moveTo(p.x, p.y, p.z, 0.0F, 0.0F);
+        h.setNoAi(true);
+        s.setTarget(h);
+        return h;
+    }
+
+    /**
+     * 跳び抱え: 前 6 ブロックほど(鼻先から約 3)の相手へ、溜め → 跳ぶ → 首の下に押さえ込む(相手が乗客になる)→ 噛む(体力が減る)→ 放す。
+     * 溜めの間は光る(描画の値はクライアントだけなので、ここでは技の段の並びを見る)。
+     */
+    @GameTest(template = ARENA, timeoutTicks = 260)
+    public static void pouncePinsAndBitesPrey(GameTestHelper helper) {
+        SaltimnesEntity s = placeAt(helper, 12.5D, 2.0D, 4.5D, 0.0F, "nostroll");
+        net.minecraft.world.entity.monster.Husk h = prey(helper, s, 12.5D, 11.5D);
+        float hp0 = h.getHealth();
+        boolean[] pinned = {false};
+        helper.onEachTick(() -> {
+            if (s.act() == SaltimnesEntity.ACT_PIN && s.pinned() == h) pinned[0] = true;
+            if (pinned[0] && s.act() == SaltimnesEntity.ACT_NONE) {
+                if (h.isPassenger()) helper.fail("技が終わっても放していない");
+                else if (h.getHealth() >= hp0) helper.fail("押さえ込んだのに噛んでいない(体力 " + h.getHealth() + ")");
+                else helper.succeed();
+            }
+        });
+        helper.runAtTickTime(250L, () -> {
+            if (!pinned[0]) helper.fail("押さえ込まない: 技 " + s.act() + " " + state(helper, s) + " 的 " + helper.relativeVec(h.position()));
+        });
+    }
+
+    /** 後ろ足の蹴り: 体の後ろ 5 ブロックの相手を蹴って傷つけ、後ろへ弾き飛ばす。前・横には出さない(ここでは後ろだけ置く)。 */
+    @GameTest(template = ARENA, timeoutTicks = 120)
+    public static void kicksPreyBehind(GameTestHelper helper) {
+        SaltimnesEntity s = placeAt(helper, 12.5D, 2.0D, 12.5D, 0.0F, "nostroll");
+        net.minecraft.world.entity.monster.Husk h = prey(helper, s, 12.5D, 7.5D);
+        h.setNoAi(false);   // 弾かれて動けるように(標的を探す Goal は外れている)
+        float hp0 = h.getHealth();
+        double z0 = helper.absoluteVec(new Vec3(0, 0, 7.5D)).z;
+        boolean[] kicked = {false};
+        helper.onEachTick(() -> {
+            if (s.act() == SaltimnesEntity.ACT_KICK) kicked[0] = true;
+            if (kicked[0] && h.getHealth() < hp0) {
+                if (h.getZ() < z0 - 0.3D || h.getDeltaMovement().z < -0.1D) helper.succeed();
+            }
+        });
+        helper.runAtTickTime(110L, () -> helper.fail("蹴らない・弾かない: 蹴った " + kicked[0] + " 体力 " + h.getHealth() + " 的の z の差 "
+                + String.format("%.2f", h.getZ() - z0) + " " + state(helper, s)));
+    }
+
+    /** 化けて待つ: 伏せている間は、鼻先から 6 ブロックより遠い標的には動かない。近づくと跳び抱える。 */
+    @GameTest(template = ARENA, timeoutTicks = 200)
+    public static void hiddenWaitsUntilPreyIsClose(GameTestHelper helper) {
+        SaltimnesEntity s = placeAt(helper, 12.5D, 2.0D, 3.5D, 0.0F, "nostroll");
+        s.hideHereForTests(0.0F);
+        net.minecraft.world.entity.monster.Husk h = prey(helper, s, 12.5D, 18.5D);   // 鼻先から約 11.7
+        Vec3 p0 = s.position();
+        once(helper, 60L, () -> {
+            if (s.position().distanceTo(p0) > 0.2D || s.act() != SaltimnesEntity.ACT_NONE || s.leapMotion().active()) {
+                helper.fail("遠い標的に化けを解いた: 技 " + s.act() + " " + state(helper, s));
+                return;
+            }
+            Vec3 near = helper.absoluteVec(new Vec3(12.5D, 2.0D, 10.5D));   // 鼻先から約 3.7
+            h.moveTo(near.x, near.y, near.z, 0.0F, 0.0F);
+        });
+        helper.onEachTick(() -> {
+            if (helper.getTick() > 60L && (s.act() == SaltimnesEntity.ACT_POUNCE || s.act() == SaltimnesEntity.ACT_PIN)) helper.succeed();
+        });
+    }
+
+    /** 連続跳躍: 横へ 2 回跳んでから跳び抱えに行く(押さえ込むか、外して隙)。 */
+    @GameTest(template = ARENA, timeoutTicks = 360)
+    public static void zigzagLeapsTwiceThenPounces(GameTestHelper helper) {
+        SaltimnesEntity s = placeAt(helper, 12.5D, 2.0D, 3.5D, 0.0F, "nostroll");
+        prey(helper, s, 12.5D, 15.5D);
+        s.forceZigForTests();
+        int[] zigs = {0};
+        boolean[] inZig = {false}, done = {false};
+        helper.onEachTick(() -> {
+            if (done[0]) return;
+            int a = s.act();
+            if (a == SaltimnesEntity.ACT_ZIG_AIR && !inZig[0]) zigs[0]++;
+            inZig[0] = a == SaltimnesEntity.ACT_ZIG_AIR;
+            if (a == SaltimnesEntity.ACT_PIN || a == SaltimnesEntity.ACT_POUNCE_RECOVER) {
+                done[0] = true;
+                if (zigs[0] < 2) helper.fail("横跳びが 2 回でない: " + zigs[0]);
+                else helper.succeed();
+            }
+        });
+        helper.runAtTickTime(350L, () -> helper.fail("連続跳躍が終わらない: 横跳び " + zigs[0] + " 技 " + s.act() + " " + state(helper, s)));
+    }
 }

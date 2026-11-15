@@ -80,13 +80,49 @@ public final class LeapMotion {
         return this.lastAborted;
     }
 
-    /** 跳びを始める(身を沈めるところから)。 */
+    /** 跳びを始める(身を沈めるところから)。沈む・着地の長さと向きの揃えは {@link LeapSpec} のまま。 */
     public void start(Mob mob, LeapPlan plan) {
+        start(mob, plan, this.spec.crouchTicks(), this.spec.landTicks(), ALIGN_DEG);
+    }
+
+    /**
+     * 跳びを技ごとの長さで始める(2026-11-15、跳び抱え・連続跳躍のため)。
+     *
+     * @param crouchTicks 向きが揃ってから蹴るまで(0 なら揃った tick に蹴る)
+     * @param landTicks   着地の段の長さ(0 なら着いた tick に終わる。続けて次の跳びへ移るとき)
+     * @param alignDeg    蹴ってよい体の向きのずれ(度)。横へ跳ぶ連続跳躍は広く
+     */
+    public void start(Mob mob, LeapPlan plan, int crouchTicks, int landTicks, float alignDeg) {
         this.plan = plan;
         this.phase = CROUCH;
         this.t = 0;
         this.air = 0;
+        this.crouchTicks = crouchTicks;
+        this.landTicks = landTicks;
+        this.alignDeg = alignDeg;
+        this.landed = false;
         mob.getNavigation().stop();
+    }
+
+    private int crouchTicks, landTicks;
+    private boolean landed;
+
+    /** 着地した tick の後に 1 回だけ true(技が着地を受けて次へ移るため)。 */
+    public boolean consumeLanded() {
+        boolean l = this.landed;
+        this.landed = false;
+        return l;
+    }
+    private float alignDeg = ALIGN_DEG;
+
+    /** 身を沈める段で、向きが揃って数え始めたか(描画へ沈む姿を送ってよいか)。 */
+    public boolean crouchCounting() {
+        return this.phase == CROUCH && this.t > 0;
+    }
+
+    /** 宙に出てからの tick(AIR の間)。 */
+    public int airTicks() {
+        return this.air;
     }
 
     /** 跳びをやめる(宙なら落ちるに任せる)。 */
@@ -106,13 +142,13 @@ public final class LeapMotion {
             case CROUCH -> {
                 Vec3 v = mob.getDeltaMovement();
                 mob.setDeltaMovement(0.0D, v.y, 0.0D);
-                if (Math.abs(Mth.wrapDegrees(yaw() - currentYaw)) <= ALIGN_DEG) {
+                if (Math.abs(Mth.wrapDegrees(yaw() - currentYaw)) <= this.alignDeg) {
                     this.t++;
                 } else if (++this.air > ALIGN_GIVE_UP) {
                     this.phase = NONE;
                     return;
                 }
-                if (this.t >= this.spec.crouchTicks() && mob.onGround()) {
+                if (this.t >= Math.max(1, this.crouchTicks) && mob.onGround()) {
                     // 蹴る: 身を沈めている間にずれたぶん、出る所を今の位置に置き直す(弧の形はそのまま)
                     LeapPlan p = this.plan;
                     this.plan = new LeapPlan(mob.position(), p.to(), p.k(), p.ticks(), p.yaw());
@@ -171,7 +207,7 @@ public final class LeapMotion {
                 if (mob.onGround() || mob.isInWater() || mob.isInLava()) land(mob);
             }
             case LAND -> {
-                if (++this.t >= this.spec.landTicks()) this.phase = NONE;
+                if (++this.t >= this.landTicks) this.phase = NONE;
             }
             default -> {
             }
@@ -179,6 +215,7 @@ public final class LeapMotion {
     }
 
     private void land(Mob mob) {
+        this.landed = true;
         this.phase = LAND;
         this.t = 0;
         mob.fallDistance = 0.0F;

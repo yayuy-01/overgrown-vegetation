@@ -13,7 +13,9 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.Goal;
@@ -135,7 +137,8 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
                 this.clientLeapStart = this.tickCount;
             }
             boolean airborne = phase == LeapMotion.AIR || phase == LeapMotion.FALL;
-            this.groundFit.tick(this, !airborne && !this.isDeadOrDying() && !this.isInWater());
+            tickClientAct();
+            this.groundFit.tick(this, !airborne && !this.isDeadOrDying() && !this.isInWater() && this.clientAct != ACT_PIN);
             // 宙: 体の前後の傾きを弧の向き(上り = 鼻上げ・下り = 鼻下げ)へ
             this.airPitchO = this.airPitch;
             double target = 0.0D;
@@ -208,8 +211,12 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
 
     @Override
     protected float maxTurnPerTick() {
-        return TURN_PER_TICK;
+        int a = act();
+        return a == ACT_ZIG_WINDUP || a == ACT_ZIG_AIR || a == ACT_ZIG_TOUCH || a == ACT_ZIG_POUNCE ? ZIG_TURN : TURN_PER_TICK;
     }
+
+    /** 連続跳躍の間だけの回る速さ(度/tick)【仮】。横へ跳ぶたびに相手へ向き直る。 */
+    static final float ZIG_TURN = 15.0F;
 
     @Override
     protected float maxMoveOff() {
@@ -234,7 +241,7 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
 
     @Override
     public boolean isActing() {
-        return this.leap.active();
+        return this.leap.active() || this.hunt != null && this.hunt.act() != ACT_NONE;
     }
 
     // ------------------------------------------------------------------ 登録
@@ -243,15 +250,45 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(DATA_LEAP, 0);
+        builder.define(DATA_ACT, 0);
     }
 
-    /** 浮く・確かめ用の hop・伏せ場所を探して伏せる、だけ(段 1)。辺りを見回さない(伏せている間に体ごと回らない)。 */
+    /**
+     * 浮く・襲う({@link SaltimnesHuntGoal})・確かめ用の hop・伏せ場所を探して伏せる。辺りを見回さない(伏せている間に体ごと回らない)。
+     * 標的(11-15 段 3。ノートに決まりが無いので【仮】= アクムネス・ヴェナムネスと同じ): 殴った相手・プレイヤー(サバイバル・アドベンチャー)・
+     * 植物側でない生き物(G1〜G10・感染体・汎用の感染体・防具立ては狙わない)。
+     */
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
+        this.hunt = new SaltimnesHuntGoal(this);
+        this.goalSelector.addGoal(3, this.hunt);
         this.goalSelector.addGoal(4, new HopGoal());
         this.ambush = new AmbushGoal();
         this.goalSelector.addGoal(5, this.ambush);
+        this.targetSelector.addGoal(1, new net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal(this));
+        this.targetSelector.addGoal(2, new SeekGoal<>(this, net.minecraft.world.entity.player.Player.class, e -> true));
+        this.targetSelector.addGoal(3, new SeekGoal<>(this, LivingEntity.class,
+                e -> !(e instanceof net.minecraft.world.entity.player.Player) && !(e instanceof ParasitizedMob)
+                        && com.yayuy.overgrownvegetation.phase.MobGroup.of(e.getType()) == null
+                        && !com.yayuy.overgrownvegetation.spore.PlantSideRules.isTransformed(e)
+                        && !(e instanceof net.minecraft.world.entity.decoration.ArmorStand)));
+    }
+
+    /** 自分で標的を探す Goal(バニラの最寄り)。名前が {@code nostroll}・{@code hop} の個体は自分では探さない(確かめ・GameTest 用。標的はテストが置く)。 */
+    static final class SeekGoal<T extends LivingEntity> extends net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal<T> {
+        SeekGoal(SaltimnesEntity mob, Class<T> type, java.util.function.Predicate<LivingEntity> filter) {
+            super(mob, type, 10, true, false, filter);
+        }
+
+        @Override
+        public boolean canUse() {
+            if (this.mob.hasCustomName()) {
+                String n = this.mob.getCustomName().getString();
+                if (n.startsWith("nostroll") || n.equals("hop")) return false;
+            }
+            return super.canUse();
+        }
     }
 
     // ------------------------------------------------------------------ tick
@@ -273,12 +310,8 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
     /** 身を沈める段は、向きが揃って数え始めてから送る(回っている間は歩きのアニメ)。 */
     private int leapSyncValue() {
         int v = this.leap.encode();
-        if (this.leap.phase() == LeapMotion.CROUCH && !this.leapCounting()) v &= ~7;
+        if (this.leap.phase() == LeapMotion.CROUCH && !this.leap.crouchCounting()) v &= ~7;
         return v;
-    }
-
-    private boolean leapCounting() {
-        return Math.abs(Mth.wrapDegrees(this.leap.yaw() - this.getYRot())) <= LeapMotion.ALIGN_DEG;
     }
 
     @Override
@@ -305,6 +338,259 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
     /** 伏せているか(段 1 では見た目は待機のアニメのまま。次の段の跳び抱えが使う)。 */
     public boolean isHidden() {
         return this.ambush != null && this.ambush.state == AmbushGoal.HIDE && this.ambush.aligned;
+    }
+
+    // ------------------------------------------------------------------ 技(11-15 段 3。進めるのは SaltimnesHuntGoal)
+
+    /** 技の番号(描画へ送る)。ACT_ZIG_POUNCE は連続跳躍の最後の跳び抱え(溜めの姿を飛ばす)。 */
+    public static final int ACT_NONE = 0, ACT_POUNCE = 1, ACT_PIN = 2, ACT_PIN_RECOVER = 3, ACT_POUNCE_RECOVER = 4,
+            ACT_KICK_WINDUP = 5, ACT_KICK = 6, ACT_KICK_RECOVER = 7, ACT_ZIG_WINDUP = 8, ACT_ZIG_AIR = 9, ACT_ZIG_TOUCH = 10, ACT_ZIG_POUNCE = 11;
+    private static final EntityDataAccessor<Integer> DATA_ACT = SynchedEntityData.defineId(SaltimnesEntity.class, EntityDataSerializers.INT);
+    @Nullable
+    private SaltimnesHuntGoal hunt;
+    private int actSeq;
+    /** 自分で押さえ込みを放す途中(降車を止めない)。 */
+    private boolean releasing;
+
+    /** 技を描画へ送る(番号と、同じ技の続けての始まりを見分ける回数)。 */
+    void setAct(int act) {
+        this.actSeq = (this.actSeq + 1) & 0xFFFF;
+        this.entityData.set(DATA_ACT, act | (this.actSeq << 8));
+    }
+
+    /** 今の技の番号(サーバー・クライアントどちらでも)。 */
+    public int act() {
+        return this.entityData.get(DATA_ACT) & 0xFF;
+    }
+
+    /** 体の中心から鼻先まで(ブロック)。 */
+    double frontReach() {
+        return LEAP.bodyFront() * this.getScale();
+    }
+
+    /** 化けを解く(伏せ場所をあきらめ、戦いの後は選び直す)。 */
+    void breakCover() {
+        if (this.ambush != null && this.ambush.state != AmbushGoal.PICK) {
+            this.ambush.state = AmbushGoal.PICK;
+            this.ambush.pickWait = 60;
+        }
+    }
+
+    /** 押さえ込む(相手を首の下に乗せる)。乗せられなければ false。 */
+    boolean pin(LivingEntity prey) {
+        if (prey.getType().is(net.neoforged.neoforge.common.Tags.EntityTypes.BOSSES) || prey.getBbWidth() > 2.0F || prey.getBbHeight() > 3.0F
+                || prey.isVehicle() || prey.isPassenger() || !this.getPassengers().isEmpty()) {
+            return false;
+        }
+        if (!prey.startRiding(this, true)) return false;
+        if (prey instanceof net.minecraft.server.level.ServerPlayer sp) {
+            sp.setForcedPose(net.minecraft.world.entity.Pose.SWIMMING);   // 地面へ押し倒す(立たせると目が首の中に入る。11-15 テストクライアント)
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.SaltimnesPinPayload(com.yayuy.overgrownvegetation.network.SaltimnesPinPayload.START, this.getId()));
+        }
+        this.setDeltaMovement(0.0D, this.getDeltaMovement().y, 0.0D);
+        return true;
+    }
+
+    /** 押さえ込んでいる相手(いなければ null)。 */
+    @Nullable
+    public LivingEntity pinned() {
+        return this.getFirstPassenger() instanceof LivingEntity l ? l : null;
+    }
+
+    public boolean isPinning() {
+        return this.act() == ACT_PIN && pinned() != null;
+    }
+
+    /** 押さえ込みを放す(相手を前へ少し押し出す)。 */
+    void releasePin() {
+        Entity prey = this.getFirstPassenger();
+        this.releasing = true;
+        this.ejectPassengers();
+        this.releasing = false;
+        if (prey != null) {
+            float r = this.getYRot() * Mth.DEG_TO_RAD;
+            prey.setDeltaMovement(-Mth.sin(r) * 0.4D, 0.3D, Mth.cos(r) * 0.4D);
+            prey.hurtMarked = true;
+        }
+    }
+
+    /** 噛む(押さえ込みの間)。 */
+    void bite(LivingEntity v, float damage) {
+        if (v instanceof net.minecraft.server.level.ServerPlayer sp) {
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.SaltimnesPinPayload(com.yayuy.overgrownvegetation.network.SaltimnesPinPayload.BITE, this.getId()));
+        }
+        if (v.hurt(this.damageSources().mobAttack(this), damage)) this.setLastHurtMob(v);
+        this.playSound(net.minecraft.sounds.SoundEvents.EVOKER_FANGS_ATTACK, 0.6F, 1.3F);
+    }
+
+    /** 後ろ足の蹴り: 体の後ろ {@code bMin}〜{@code bMax}・左右 {@code lat} にいる標的とプレイヤーを弾き飛ばす。 */
+    void kickBehind(double bMin, double bMax, double lat, double push, double lift) {
+        float r = this.getYRot() * Mth.DEG_TO_RAD;
+        double fx = -Mth.sin(r), fz = Mth.cos(r), rx = -Mth.cos(r), rz = -Mth.sin(r);
+        double sc = this.getScale();
+        net.minecraft.world.phys.AABB box = this.getBoundingBox().inflate(bMax * sc + 1.0D, 2.0D, bMax * sc + 1.0D);
+        float dmg = (float) this.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE);
+        for (LivingEntity e : this.level().getEntitiesOfClass(LivingEntity.class, box, x -> x != this && x.isAlive() && !(x instanceof ParasitizedMob))) {
+            double dx = e.getX() - this.getX(), dz = e.getZ() - this.getZ();
+            double f = dx * fx + dz * fz, l = dx * rx + dz * rz;
+            if (-f < bMin * sc || -f > bMax * sc || Math.abs(l) > lat * sc || Math.abs(e.getY() - this.getY()) > 2.0D) continue;
+            if (e instanceof net.minecraft.world.entity.player.Player p && (p.isCreative() || p.isSpectator())) continue;
+            if (e != this.getTarget() && !(e instanceof net.minecraft.world.entity.player.Player)) continue;   // 巻き込むのは標的とプレイヤーだけ
+            if (e.hurt(this.damageSources().mobAttack(this), dmg)) {
+                this.setLastHurtMob(e);
+                double k = Math.max(0.0D, 1.0D - e.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.KNOCKBACK_RESISTANCE));
+                e.setDeltaMovement(e.getDeltaMovement().add(-fx * push * k, lift * k, -fz * push * k));
+                e.hurtMarked = true;
+            }
+        }
+        this.playSound(net.minecraft.sounds.SoundEvents.PLAYER_ATTACK_KNOCKBACK, 1.0F, 0.6F);
+    }
+
+    @Override
+    public boolean hurt(net.minecraft.world.damagesource.DamageSource source, float amount) {
+        boolean r = super.hurt(source, amount);
+        if (r && this.hunt != null && this.act() == ACT_PIN) this.hunt.pinDamage += amount;
+        if (r) breakCover();
+        return r;
+    }
+
+    // --- 押さえ込んだ相手を乗せる(ファルキムネスの掴みと同じ作り)
+
+    /** 押さえ込んだ相手は首の下(前 {@link SaltimnesHuntGoal#PIN_FORWARD})に地面へ立たせる。 */
+    @Override
+    protected Vec3 getPassengerAttachmentPoint(Entity passenger, net.minecraft.world.entity.EntityDimensions dimensions, float partialTick) {
+        double up = passenger.getVehicleAttachmentPoint(this).y;
+        return new Vec3(0.0D, up, SaltimnesHuntGoal.PIN_FORWARD * this.getScale()).yRot(-this.getYRot() * Mth.DEG_TO_RAD);
+    }
+
+    /**
+     * 放した相手は押さえ込んでいた所(首の下の地面)に残す。バニラは乗り物の芯の箱のまわりから空きを探すので、
+     * 芯の箱(高さ 1.0)の上 = 背中に立たせてしまっていた(11-15 テストクライアント)。そこが塞がっていればバニラに任せる。
+     */
+    @Override
+    public Vec3 getDismountLocationForPassenger(LivingEntity passenger) {
+        Vec3 at = new Vec3(passenger.getX(), this.getY(), passenger.getZ());
+        if (this.level().noCollision(passenger, passenger.getDimensions(passenger.getPose()).makeBoundingBox(at))) return at;
+        return super.getDismountLocationForPassenger(passenger);
+    }
+
+    /** 押さえ込んだ相手に操縦させない。 */
+    @Nullable
+    @Override
+    public LivingEntity getControllingPassenger() {
+        return null;
+    }
+
+    /** 押さえ込まれたプレイヤーがこちらを殴れるように。 */
+    @Override
+    public boolean canRiderInteract() {
+        return true;
+    }
+
+    @Override
+    public boolean shouldRiderSit() {
+        return false;
+    }
+
+    @Override
+    protected boolean canAddPassenger(Entity passenger) {
+        return this.getPassengers().isEmpty();
+    }
+
+    @net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.GAME)
+    public static final class Events {
+        private Events() {
+        }
+
+        /** 押さえ込まれた相手は自分から降りられず、ほかの乗り物にも乗れない(ファルキムネスと同じ。降車はサーバーでだけ止める)。 */
+        @net.neoforged.bus.api.SubscribeEvent
+        public static void onMount(net.neoforged.neoforge.event.entity.EntityMountEvent event) {
+            if (event.getLevel().isClientSide()) return;
+            if (event.isDismounting()) {
+                if (event.getEntityBeingMounted() instanceof SaltimnesEntity s && s.isAlive() && !s.isRemoved() && !s.releasing && s.act() == ACT_PIN) {
+                    event.setCanceled(true);
+                }
+                if (!event.isCanceled() && event.getEntityBeingMounted() instanceof SaltimnesEntity s
+                        && event.getEntityMounting() instanceof net.minecraft.server.level.ServerPlayer sp && sp.getForcedPose() != null) {
+                    sp.setForcedPose(null);   // 押し倒しを戻す(放した・サルティムネスが死んだ・消えた)
+                    net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.SaltimnesPinPayload(com.yayuy.overgrownvegetation.network.SaltimnesPinPayload.END, s.getId()));
+                }
+                return;
+            }
+            if (event.isMounting() && event.getEntityMounting().getVehicle() instanceof SaltimnesEntity s && s != event.getEntityBeingMounted()
+                    && s.isAlive() && !s.isRemoved() && s.act() == ACT_PIN) {
+                event.setCanceled(true);
+            }
+        }
+
+        /** 押さえ込まれたままログアウトしたら先に放す(放さないとプレイヤーの乗り物ごと保存されて世界から消える)。 */
+        @net.neoforged.bus.api.SubscribeEvent
+        public static void onLogout(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
+            if (event.getEntity().getVehicle() instanceof SaltimnesEntity s && !s.level().isClientSide()) s.releasePin();
+        }
+    }
+
+    // --- 光(クライアント): 跳び抱えと連続跳躍だけ(決定 11-15)。移動の跳び・蹴りは光らない
+
+    private int clientAct = ACT_NONE, clientActKey = -1, clientActStart;
+
+    /** クライアント: 技の始まりを数える(同じ技が続けて始まっても数え直す)。 */
+    private void tickClientAct() {
+        int v = this.entityData.get(DATA_ACT);
+        if (v != this.clientActKey) {
+            this.clientActKey = v;
+            this.clientAct = v & 0xFF;
+            this.clientActStart = this.tickCount;
+        }
+    }
+
+    /** クライアント: 今の技の番号と、始まってからの tick。 */
+    public int clientAct() {
+        return this.clientAct;
+    }
+
+    public float clientActTicks(float pt) {
+        return this.tickCount - this.clientActStart + pt;
+    }
+
+    /**
+     * 脚の葉脈と T 字の口の光(0〜1)。時刻はアニメの一覧(Vault 7 節)から: 跳び抱えの溜めで 0 → 12 tick で点く・宙と押さえ込みは点いたまま・
+     * 放すと 10 tick で消える・外すと 16 tick で消える・連続跳躍の溜めは 4・12 で明るく 8・16 で暗く 20 で点く(補間 3 tick ぶん遅らせる)。
+     */
+    public float glow(float pt) {
+        float t = clientActTicks(pt);
+        return switch (this.clientAct) {
+            case ACT_POUNCE -> this.clientLeapPhase == LeapMotion.CROUCH ? Mth.clamp((t - 3.0F) / 12.0F, 0.0F, 1.0F) : 1.0F;
+            case ACT_PIN, ACT_ZIG_AIR, ACT_ZIG_TOUCH, ACT_ZIG_POUNCE -> 1.0F;
+            case ACT_PIN_RECOVER -> Mth.clamp(1.0F - t / 10.0F, 0.0F, 1.0F);
+            case ACT_POUNCE_RECOVER -> Mth.clamp(1.0F - t / 16.0F, 0.0F, 1.0F);
+            case ACT_ZIG_WINDUP -> zigPulse(t - 3.0F);
+            default -> 0.0F;
+        };
+    }
+
+    /** 連続跳躍の溜めの脈: 0→4 で明るく、8 で暗く、12 で明るく、16 で暗く、20 で点いたまま。 */
+    static float zigPulse(float t) {
+        if (t <= 0.0F) return 0.0F;
+        if (t >= 20.0F) return 1.0F;
+        if (t < 4.0F) return t / 4.0F;
+        if (t > 16.0F) return 0.3F + 0.7F * (t - 16.0F) / 4.0F;
+        float k = t % 8.0F;   // 4 で 1、0・8 で 0.3
+        return k <= 4.0F ? 0.3F + 0.7F * k / 4.0F : 1.0F - 0.7F * (k - 4.0F) / 4.0F;
+    }
+
+    /** テスト用: 今いる所で、向き {@code yaw} に化けて伏せたことにする。 */
+    public void hideHereForTests(float yaw) {
+        if (this.ambush == null) return;
+        this.ambush.spot = new AmbushSpots.Spot(this.position(), yaw, 0.0D);
+        this.ambush.state = AmbushGoal.HIDE;
+        this.ambush.aligned = true;
+        this.ambush.hideLeft = HIDE_MAX;
+    }
+
+    /** テスト用: 次の判断で連続跳躍を出す(暖機と回数の縛りを飛ばす)。 */
+    public void forceZigForTests() {
+        if (this.hunt != null) this.hunt.forceZig = true;
     }
 
     /** テスト用: 伏せ場所をこの場所に決めて向かわせる。 */
@@ -519,12 +805,101 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
      * 歩き: 前へ進んでいる間だけ walk を実際の速さに合わせて流す。その場で回るだけの間は待機(回る用のアニメは無く、walk だと足が必ず滑る)。
      * 歩き → 待機は補間 {@link #BLEND_STOP}(歩幅の途中で止まっても足がゆっくり戻る)。
      */
+    private static final RawAnimation POUNCE_WINDUP = RawAnimation.begin().thenPlayAndHold("pounce_windup");
+    private static final RawAnimation POUNCE_AIR = RawAnimation.begin().thenPlayAndHold("pounce");
+    private static final RawAnimation POUNCE_FALL = RawAnimation.begin().thenPlayAndHold("pounce_fall");
+    private static final RawAnimation PIN_ANIM = RawAnimation.begin().thenPlayAndHold("pin");
+    private static final RawAnimation PIN_RECOVER_ANIM = RawAnimation.begin().thenPlayAndHold("pin_recover");
+    private static final RawAnimation POUNCE_RECOVER_ANIM = RawAnimation.begin().thenPlayAndHold("pounce_recover");
+    private static final RawAnimation KICK_WINDUP_ANIM = RawAnimation.begin().thenPlayAndHold("kick_windup");
+    private static final RawAnimation KICK_ANIM = RawAnimation.begin().thenPlayAndHold("kick");
+    private static final RawAnimation KICK_RECOVER_ANIM = RawAnimation.begin().thenPlayAndHold("kick_recover");
+    private static final RawAnimation ZIG_WINDUP_ANIM = RawAnimation.begin().thenPlayAndHold("zigzag_windup");
+    private static final RawAnimation ZIG_TOUCH_ANIM = RawAnimation.begin().thenPlayAndHold("zigzag_touch");
+
+    /**
+     * 技のアニメ(11-15 段 3。つなぎ目は Vault 7 節の一覧: 前の終わりの姿 = 次の始まりの姿なので、実行・隙・着地・次の跳びへは補間 0)。
+     * 跳び抱え: 沈む間 pounce_windup(補間 3)→ 宙の頭 pounce(補間 0)→ 着く 9 tick 前から pounce_fall → pin / pounce_recover(補間 0)。
+     * 連続跳躍: zigzag_windup(補間 3)→ 横跳びは leap_rise・leap_air・leap_fall → 着くと zigzag_touch(補間 0)→ 最後は pounce(補間 0)から。
+     * 蹴り: kick_windup(補間 3)→ kick → kick_recover(補間 0)。技の段に当てはまらない間は null(移動の跳び・歩きの選び方へ)。
+     */
+    @Nullable
+    private PlayState actState(AnimationState<SaltimnesEntity> state, AnimationController<SaltimnesEntity> c, int phase, int ticks) {
+        int el = this.tickCount - this.clientLeapStart;
+        switch (this.clientAct) {
+            case ACT_POUNCE, ACT_ZIG_POUNCE -> {
+                boolean zig = this.clientAct == ACT_ZIG_POUNCE;
+                switch (phase) {
+                    case LeapMotion.CROUCH -> {
+                        if (zig) return null;   // 着いてすぐ蹴る(zigzag_touch の姿のまま)
+                        return state.setAndContinue(POUNCE_WINDUP);
+                    }
+                    case LeapMotion.AIR -> {
+                        if (el < RISE_TICKS && el < ticks - FALL_TICKS - BLEND) {
+                            c.transitionLength(0);
+                            return state.setAndContinue(POUNCE_AIR);
+                        }
+                        if (el >= ticks - FALL_TICKS - BLEND) return state.setAndContinue(POUNCE_FALL);
+                        return state.setAndContinue(POUNCE_AIR);
+                    }
+                    case LeapMotion.FALL -> {
+                        boolean near = this.getY() - GroundFit.groundBelow(this) <= FALL_POSE_GROUND;
+                        return state.setAndContinue(near ? POUNCE_FALL : POUNCE_AIR);
+                    }
+                    case LeapMotion.LAND -> {
+                        return state.setAndContinue(POUNCE_FALL);
+                    }
+                    default -> {
+                        return null;
+                    }
+                }
+            }
+            case ACT_PIN -> {
+                c.transitionLength(0);
+                return state.setAndContinue(PIN_ANIM);
+            }
+            case ACT_PIN_RECOVER -> {
+                c.transitionLength(0);
+                return state.setAndContinue(PIN_RECOVER_ANIM);
+            }
+            case ACT_POUNCE_RECOVER -> {
+                c.transitionLength(0);
+                return state.setAndContinue(POUNCE_RECOVER_ANIM);
+            }
+            case ACT_KICK_WINDUP -> {
+                return state.setAndContinue(KICK_WINDUP_ANIM);
+            }
+            case ACT_KICK -> {
+                c.transitionLength(0);
+                return state.setAndContinue(KICK_ANIM);
+            }
+            case ACT_KICK_RECOVER -> {
+                c.transitionLength(0);
+                return state.setAndContinue(KICK_RECOVER_ANIM);
+            }
+            case ACT_ZIG_WINDUP -> {
+                return state.setAndContinue(ZIG_WINDUP_ANIM);
+            }
+            case ACT_ZIG_TOUCH -> {
+                c.transitionLength(0);
+                return state.setAndContinue(ZIG_TOUCH_ANIM);
+            }
+            default -> {
+                return null;   // ACT_ZIG_AIR: 横跳びは移動の跳びのアニメ(leap_rise …)
+            }
+        }
+    }
+
     private PlayState mainState(AnimationState<SaltimnesEntity> state) {
         AnimationController<SaltimnesEntity> c = state.getController();
         c.setAnimationSpeed(1.0D);
         c.transitionLength(BLEND);
         int v = this.entityData.get(DATA_LEAP);
         int phase = LeapMotion.decodePhase(v);
+        if (this.clientAct != ACT_NONE && !this.isDeadOrDying()) {
+            PlayState ps = actState(state, c, phase, Math.max(1, LeapMotion.decodeTicks(v)));
+            if (ps != null) return ps;
+        }
         if (phase != LeapMotion.NONE && !this.isDeadOrDying()) {
             int ticks = Math.max(1, LeapMotion.decodeTicks(v));
             int el = this.tickCount - this.clientLeapStart;
