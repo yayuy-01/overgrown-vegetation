@@ -80,6 +80,16 @@ public final class ModCrawlers {
             com.yayuy.overgrownvegetation.entity.StrobilaEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(STROBILA, 0x3A3F14, 0x8C7A2E, props));
 
+    /** ストロビラが山なりに投げる球果(11-15 段 2)。{@link com.yayuy.overgrownvegetation.entity.StrobilaCone}。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.StrobilaCone>> STROBILA_CONE =
+            ModEntities.ENTITY_TYPES.register("strobila_cone", () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.StrobilaCone>of(com.yayuy.overgrownvegetation.entity.StrobilaCone::new, MobCategory.MISC)
+                    .sized(0.3F, 0.3F)
+                    .noSummon()
+                    .clientTrackingRange(6)
+                    .updateInterval(10)
+                    .build("strobila_cone"));
+
     /** 植物側の Mob のタブへ卵を並べる({@code ModCreativeTabs} から)。 */
     public static void acceptEggs(CreativeModeTab.Output output) {
         output.accept(VESICARIA_SPAWN_EGG.get());

@@ -28,5 +28,8 @@ public final class CrawlerClient {
                 ctx -> new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.StrobilaEntity>(ctx,
                         new com.yayuy.overgrownvegetation.client.StrobilaModel(),
                         com.yayuy.overgrownvegetation.entity.StrobilaEntity.RENDER_SCALE, 0.9F));
+        // ストロビラの球果(11-15 段 2): 絵は【仮】で胞子嚢のアイテム(少し大きく)
+        event.registerEntityRenderer(ModCrawlers.STROBILA_CONE.get(),
+                ctx -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(ctx, 1.4F, false));
     }
 }

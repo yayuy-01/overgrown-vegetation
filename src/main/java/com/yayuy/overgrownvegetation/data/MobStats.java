@@ -672,7 +672,7 @@ public final class MobStats {
         // 速さ 0.19: walk(1 倍で約 0.03 ブロック/tick)を 2.5 倍まで = 急ぎ 約 0.075(地面の速さ ≈ 2.16 × 速さ²)。歩幅が短いので遅い。
         // 当たりは胴と背板の芯 0.95 × 1.2(脚・触角・尾ははみ出す。全体 3.6 × 2.8 × 5.5)。段差 1.0。
         m.put("strobila", stat(s -> {
-            s.maxHealth = 12.0; s.attackDamage = 2.0; s.armor = 4.0; s.armorToughness = 0.0; s.movementSpeed = 0.19;
+            s.maxHealth = 12.0; s.attackDamage = 2.0; s.armor = 4.0; s.armorToughness = 0.0; s.movementSpeed = 0.36;   // 急ぎで床 約 0.28 = アルボラの床の速さ(11-15 段 2。前は 0.19)
             s.knockbackResistance = 0.2; s.followRange = 32.0; s.stepHeight = 1.0;
             s.scale = 1.0;
             s.width = 0.95; s.height = 1.2; s.eggFit = 5.5; s.xpReward = 3;

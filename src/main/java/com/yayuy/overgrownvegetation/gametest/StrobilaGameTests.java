@@ -42,7 +42,7 @@ public final class StrobilaGameTests {
     }
 
     private static StrobilaEntity placeAt(GameTestHelper helper, double x, double z, float yaw) {
-        StrobilaEntity s = helper.spawnWithNoFreeWill(ModCrawlers.STROBILA.get(), new BlockPos(0, 2, 0));
+        StrobilaEntity s = helper.spawn(ModCrawlers.STROBILA.get(), new BlockPos(0, 2, 0));   // Goal を残す(spawnWithNoFreeWill は Goal を全部消す)
         Vec3 p = helper.absoluteVec(new Vec3(x, 2.0D, z));
         s.moveTo(p.x, p.y, p.z, yaw, 0.0F);
         s.snapFacing(yaw);
@@ -165,23 +165,146 @@ public final class StrobilaGameTests {
     }
 
     /**
-     * 急ぎ(経路の速さ 1.0)の地面の速さは walk 2.5 倍(= {@link StrobilaEntity#WALK_REF} × 2.5 ≈ 0.075)の近く:
-     * 平らな 24 マスの場をまっすぐ歩かせ、20〜80 tick の平均が 0.055〜0.085 ブロック/tick(上は足が滑らない上限 + 1 割強)。
+     * 急ぎ(経路の速さ 1.0)の地面の速さは run 1 倍(= {@link StrobilaEntity#RUN_REF} 0.28 = アルボラの床の速さ)の近く(11-15 段 2 で上げた):
+     * 平らな 24 マスの場をまっすぐ歩かせ、15〜45 tick の平均が的の 0.73〜1.13 倍。
      */
-    @GameTest(template = "gametest_empty24", timeoutTicks = 120)
-    public static void strobilaHurrySpeedMatchesWalkCap(GameTestHelper helper) {
+    @GameTest(template = "gametest_empty24", timeoutTicks = 80)
+    public static void strobilaHurrySpeedMatchesRun(GameTestHelper helper) {
         StrobilaEntity s = placeAt(helper, 3.5D, 2.5D, 0.0F);
         double[] z0 = {Double.NaN};
-        helper.runAfterDelay(2L, () -> walkTo(s, helper, new Vec3(3.5D, 2.0D, 21.5D)));
-        helper.runAtTickTime(20L, () -> z0[0] = s.getZ());
-        helper.runAtTickTime(80L, () -> {
-            double v = (s.getZ() - z0[0]) / 60.0D;
-            double cap = StrobilaEntity.WALK_REF * 2.5D;
-            if (v < cap * 0.73D || v > cap * 1.13D) {
-                helper.fail(String.format("急ぎの速さ %.4f ブロック/tick(的 %.4f)", v, cap));
+        helper.runAfterDelay(2L, () -> walkTo(s, helper, new Vec3(3.5D, 2.0D, 22.5D)));
+        helper.runAtTickTime(15L, () -> z0[0] = s.getZ());
+        helper.runAtTickTime(45L, () -> {
+            double v = (s.getZ() - z0[0]) / 30.0D;
+            double ref = StrobilaEntity.RUN_REF;
+            if (v < ref * 0.73D || v > ref * 1.13D) {
+                helper.fail(String.format("急ぎの速さ %.4f ブロック/tick(的 %.4f)", v, ref));
                 return;
             }
             helper.succeed();
         });
+    }
+
+    /** 的(動かない牛)を置き、ストロビラに狙わせる。 */
+    private static net.minecraft.world.entity.animal.Cow targetCow(GameTestHelper helper, StrobilaEntity s, double x, double z) {
+        net.minecraft.world.entity.animal.Cow cow = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.COW, new BlockPos((int) x, 2, (int) z));
+        Vec3 p = helper.absoluteVec(new Vec3(x, 2.0D, z));
+        cow.moveTo(p.x, p.y, p.z, 0.0F, 0.0F);
+        return cow;
+    }
+
+    /**
+     * 山なりの初速は、投げ物の毎 tick の動き(進む → 0.99 倍 → 重さ 0.03)をなぞると的の点を通る(近い・遠い・上・下の 4 通り。誤差 0.1 ブロック以内)。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void strobilaLobVelocityReachesTarget(GameTestHelper helper) {
+        Vec3 from = new Vec3(0.0D, 2.57D, 0.0D);
+        Vec3[] targets = {new Vec3(4.0D, 0.3D, 1.0D), new Vec3(-3.0D, 0.0D, 15.0D), new Vec3(8.0D, 3.0D, 0.0D), new Vec3(0.0D, -4.0D, -10.0D)};
+        for (Vec3 to : targets) {
+            Vec3 v = StrobilaEntity.lobVelocity(from, to);
+            Vec3 p = from;
+            double best = Double.MAX_VALUE, apex = from.y;
+            for (int i = 0; i < 80; i++) {
+                p = p.add(v);
+                v = v.scale(0.99D).add(0.0D, -0.03D, 0.0D);
+                best = Math.min(best, p.distanceTo(to));
+                apex = Math.max(apex, p.y);
+            }
+            if (best > 0.1D) {
+                helper.fail(String.format("%s へ届かない(いちばん近くて %.2f)", to, best));
+                return;
+            }
+            if (apex < Math.max(from.y, to.y) + 1.0D) {
+                helper.fail(String.format("%s へ山なりになっていない(頂 %.2f)", to, apex));
+                return;
+            }
+        }
+        helper.succeed();
+    }
+
+    /** 球果は植物側(グレガリア)を素通りし、牛には当たる。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void strobilaConePassesThroughPlantSide(GameTestHelper helper) {
+        var g = helper.spawnWithNoFreeWill(ModCrawlers.GREGARIA.get(), new BlockPos(1, 2, 1));
+        var cow = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.COW, new BlockPos(5, 2, 5));
+        if (!com.yayuy.overgrownvegetation.entity.StrobilaCone.passesThrough(g)) {
+            helper.fail("グレガリアに当たる");
+            return;
+        }
+        if (com.yayuy.overgrownvegetation.entity.StrobilaCone.passesThrough(cow)) {
+            helper.fail("牛を素通りする");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * 投げの時刻: 真横(90 度)の的には、まず向き直り、正面の左右 60 度に入ってから投げ始める。弾は投げ始めから {@link StrobilaEntity#RELEASE_AT} tick 目に
+     * 1 つだけ出る。{@link StrobilaEntity#ACTION_TICKS} tick で投げ終わり、次の投げまでの残りは間隔 − 投げの長さ。
+     */
+    @GameTest(template = "gametest_empty24", timeoutTicks = 200)
+    public static void strobilaThrowTimelineAfterTurning(GameTestHelper helper) {
+        StrobilaEntity s = placeAt(helper, 6.5D, 6.5D, 0.0F);
+        var cow = targetCow(helper, s, 14.5D, 6.5D);   // 東へ 8 ブロック = 体の向き(南)から 90 度
+        long[] start = {-1L}, release = {-1L};
+        int[] cones = {0};
+        AABB field = new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(30.0D);
+        helper.onEachTick(() -> {
+            s.setTarget(cow);
+            long t = helper.getTick();
+            if (start[0] < 0 && s.throwTick() == 0) {
+                start[0] = t;
+                float want = (float) (net.minecraft.util.Mth.atan2(cow.getZ() - s.getZ(), cow.getX() - s.getX()) * net.minecraft.util.Mth.RAD_TO_DEG) - 90.0F;
+                float off = Math.abs(net.minecraft.util.Mth.wrapDegrees(want - s.getYRot()));
+                if (off > 60.5F) helper.fail(String.format("向き直る前に投げ始めた(ずれ %.0f 度)", off));
+            }
+            int n = helper.getLevel().getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.StrobilaCone.class, field).size();
+            if (n > cones[0] && release[0] < 0) release[0] = t;
+            cones[0] = Math.max(cones[0], n);
+            if (start[0] >= 0 && t == start[0] + StrobilaEntity.ACTION_TICKS + 1) {
+                if (release[0] - start[0] != StrobilaEntity.RELEASE_AT) {
+                    helper.fail("弾が投げ始めから " + (release[0] - start[0]) + " tick 目に出た(的 " + StrobilaEntity.RELEASE_AT + ")");
+                } else if (s.isThrowing() || s.throwTick() >= 0) {
+                    helper.fail("投げ終わらない");
+                } else if (Math.abs(s.throwCooldown() - (StrobilaEntity.THROW_INTERVAL - StrobilaEntity.ACTION_TICKS - 1)) > 2) {
+                    helper.fail("次の投げまでの残りが " + s.throwCooldown());
+                } else {
+                    helper.succeed();
+                }
+            }
+        });
+        helper.runAtTickTime(190L, () -> helper.fail("投げない: 投げ始め " + start[0] + " 弾 " + release[0] + " 的 " + s.getTarget() + " 残り " + s.throwCooldown() + " Goal " + s.runningGoalNames() + " " + where(helper, s)));
+    }
+
+    /**
+     * 塀の向こうへ落とす(設定上いる理由): 高さ 3 の壁(z 9)の向こう 4.5 ブロックの牛へ投げると、胞子の煙が牛から 3 ブロック以内・壁の向こう側にできる。
+     * 手前に煙ができたら失敗。
+     */
+    @GameTest(template = "gametest_empty24", timeoutTicks = 200)
+    public static void strobilaLobsOverWall(GameTestHelper helper) {
+        for (int x = 0; x <= 23; x++) {
+            for (int y = 2; y <= 4; y++) helper.setBlock(new BlockPos(x, y, 9), Blocks.STONE.defaultBlockState());
+        }
+        StrobilaEntity s = placeAt(helper, 11.5D, 3.5D, 0.0F);
+        var cow = targetCow(helper, s, 11.5D, 14.5D);   // 11 ブロック先
+        double wall = helper.absoluteVec(new Vec3(0, 0, 10.0D)).z;
+        AABB field = new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(30.0D);
+        helper.onEachTick(() -> {
+            s.setTarget(cow);
+            for (var c : helper.getLevel().getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeCloud.class, field)) {
+                if (c.getZ() < wall) {
+                    helper.fail(String.format("壁の手前に煙ができた(z %.2f、壁の向こうは %.2f から)", c.getZ() - wall, 0.0D));
+                    return;
+                }
+                double d = Math.sqrt(c.distanceToSqr(cow.getX(), c.getY(), cow.getZ()));
+                if (d <= 3.0D) {
+                    helper.succeed();
+                    return;
+                }
+                helper.fail(String.format("煙が牛から %.2f ブロック離れた所にできた", d));
+                return;
+            }
+        });
+        helper.runAtTickTime(190L, () -> helper.fail("煙ができない: 投げ " + s.throwTick() + " " + where(helper, s)));
     }
 }
