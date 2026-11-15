@@ -79,7 +79,7 @@ public final class SporeInfectionStageGameTests {
         player.totalExperience = 0;
     }
 
-    /** 10 分ごとに 1 段。症状(防御力・空腹)と最大体力 −(段階 − 1) が表どおり。治すと戻る。 */
+    /** 1 段の暴露量(stageDose)がたまるごとに 1 段(11-15)。症状(防御力・空腹)と最大体力 −(段階 − 1) が表どおり。治すと戻る。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void stagesClimbEveryTenMinutes(GameTestHelper helper) {
         FakePlayer player = player(helper, "ov_spore_stage_climb");
@@ -94,20 +94,21 @@ public final class SporeInfectionStageGameTests {
                 helper.fail("感染1 で最大体力が減った: " + player.getMaxHealth());
                 return;
             }
-            SporeInfectionEffects.advance(player, spec.stageTicks() - 1);
+            int stageDose = (int) Math.ceil(spec.stageDose());
+            SporeInfectionEffects.advance(player, stageDose - 1);
             if (SporeInfectionEffects.stageOf(player) != 1) {
-                helper.fail("10 分たつ前に上がった");
+                helper.fail("1 段の量がたまる前に上がった");
                 return;
             }
             SporeInfectionEffects.advance(player, 1);
             if (SporeInfectionEffects.stageOf(player) != 2 || SporeInfectionEffects.progressOf(player) != 0) {
-                helper.fail("10 分で感染2 にならない: 段階 " + SporeInfectionEffects.stageOf(player));
+                helper.fail("1 段の量で感染2 にならない: 段階 " + SporeInfectionEffects.stageOf(player));
                 return;
             }
-            SporeInfectionEffects.advance(player, spec.stageTicks() * 8);
+            SporeInfectionEffects.advance(player, (double) stageDose * 8);
             int stage = SporeInfectionEffects.stageOf(player);
             if (stage != spec.maxStage()) {
-                helper.fail("80 分足しても感染10 にならない: " + stage);
+                helper.fail("8 段ぶん足しても感染10 にならない: " + stage);
                 return;
             }
             double expectMax = baseMax - spec.maxHealthPerStage() * (stage - 1);
@@ -172,34 +173,39 @@ public final class SporeInfectionStageGameTests {
         }
     }
 
-    /** 加速は濃度に比例(5% 未満は無し)、過繁茂のバイオームは重ねて掛ける。判定 1 回の進みにも効く。 */
+    /**
+     * 感染中の進み(11-15「混ぜた形」): 体の中で育つ分(growPerSecond)+ 息で浴びた胞子(濃度 5% 以上ならその濃度 × 秒)。
+     * 下限未満の濃度は育つ分だけ。場所の倍率は無い。傷の暴露も段の進みへ積む(感染中も積む)。
+     */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void progressSpeedsUpWithConcentration(GameTestHelper helper) {
+    public static void progressIsDosePlusSlowGrowth(GameTestHelper helper) {
         EffectTable.PlayerInfectionSpec spec = DesignData.effects().playerInfection();
-        double k = spec.concentrationSpeedBonusPer100();
-        double b = spec.overgrownBiomeSpeedBonus();
-        double[][] cases = {
-                {50.0D, 0, 1.0D + k * 0.5D},
-                {100.0D, 0, 1.0D + k},
-                {200.0D, 0, 1.0D + k * 2.0D},
-                {spec.speedUpMinPercent() - 0.5D, 0, 1.0D},
-                {0.0D, 1, 1.0D + b},
-                {100.0D, 1, (1.0D + k) * (1.0D + b)},
-        };
-        for (double[] c : cases) {
-            double r = spec.rate(c[0], c[1] > 0.5D);
-            if (Math.abs(r - c[2]) > 1.0E-9D) {
-                helper.fail("濃度 " + c[0] + "%・過繁茂 " + (c[1] > 0.5D) + " の倍率 " + r + "(期待 " + c[2] + ")");
-                return;
-            }
-        }
+        SporeFieldTable t = DesignData.sporeField();
         FakePlayer player = player(helper, "ov_spore_stage_rate");
         try {
             SporeInfectionEffects.startPlayer(player);
-            SporeExposureTracker.tickWith(helper.getLevel(), player, 2000, 100.0D);
-            int expect = (int) Math.floor(2000 * (1.0D + k) + 1.0E-6D);
+            // 濃度 50% に 100 秒: 育つ分 + 50 × 100
+            SporeExposureTracker.tickWith(helper.getLevel(), player, 2000, 50.0D);
+            int expect = (int) Math.floor((spec.growPerSecond() + 50.0D) * 100.0D + 1.0E-6D);
             if (Math.abs(SporeInfectionEffects.progressOf(player) - expect) > 1) {
-                helper.fail("100% で 2000 tick の進み " + SporeInfectionEffects.progressOf(player) + "(期待 " + expect + ")");
+                helper.fail("50% で 100 秒の進み " + SporeInfectionEffects.progressOf(player) + "(期待 " + expect + ")");
+                return;
+            }
+            // 下限未満の濃度に 100 秒: 育つ分だけ
+            SporeInfectionEffects.setPlayerStage(player, 1);
+            player.getData(ModAttachments.SPORE_EXPOSURE).rateCarry = 0.0D;
+            SporeExposureTracker.tickWith(helper.getLevel(), player, 2000, t.exposureMinPercent() - 0.5D);
+            int grown = (int) Math.floor(spec.growPerSecond() * 100.0D + 1.0E-6D);
+            if (Math.abs(SporeInfectionEffects.progressOf(player) - grown) > 1) {
+                helper.fail("下限未満で 100 秒の進み " + SporeInfectionEffects.progressOf(player) + "(期待 育つ分だけ " + grown + ")");
+                return;
+            }
+            // 傷の暴露も感染中に積む(前の「感染中は積まない」は取り消し)
+            int before = SporeInfectionEffects.progressOf(player);
+            com.yayuy.overgrownvegetation.effect.ParasitizedAttackInfectionHandler.addWoundDose(player, 4.0F);
+            double wound = t.mobInfection().woundDosePlayerPerDamage() * 4.0D;
+            if (Math.abs(SporeInfectionEffects.progressOf(player) - before - wound) > 1) {
+                helper.fail("感染中の傷で段の進みが " + wound + " 進まない: " + (SporeInfectionEffects.progressOf(player) - before));
                 return;
             }
             helper.succeed();
@@ -210,7 +216,7 @@ public final class SporeInfectionStageGameTests {
 
     /**
      * 防護マスク: フィルターの残る間は暴露を積まず、毎秒 濃度 × 秒 ずつ減る(5% 未満では減らない)。0 になっても外れず、効かなくなるだけ。
-     * 効いている間は加速しない・攻撃でもかからない。
+     * 効いている間は息で浴びる分を止める(感染中の進みも)。傷(攻撃の抽選)は止めない(11-15)。
      */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void maskFilterWearsAndBlocks(GameTestHelper helper) {
@@ -237,13 +243,6 @@ public final class SporeInfectionStageGameTests {
                 helper.fail("下限未満でフィルターが減った: " + ProtectiveMaskItem.used(worn));
                 return;
             }
-            for (int i = 0; i < 50; i++) {
-                SporeInfectionEffects.plantAttack(player);
-            }
-            if (SporeInfectionEffects.startPlayer(player) || SporeInfectionEffects.stageOf(player) != 0) {
-                helper.fail("マスクが効いているのにかかった");
-                return;
-            }
             // 残り 10 にする → この 1 秒は防ぐ(使い切る)・次の 1 秒から積む
             int cap = (int) Math.ceil(t.maskCapacity());
             worn.set(ModDataComponents.MASK_FILTER_USED, cap - 10);
@@ -259,14 +258,25 @@ public final class SporeInfectionStageGameTests {
                 helper.fail("詰まったマスクは外れず、普通に積むはず: 暴露 " + SporeExposureTracker.dose(player));
                 return;
             }
-            // 効いているマスクは感染中の加速を止める
+            // 効いているマスクは感染中も息で浴びる分を止める(11-15): 濃度 100% に 100 秒でも、体の中で育つ分だけ進む
             SporeExposureTracker.setDose(player, 0.0D, 0L);
             player.setItemSlot(EquipmentSlot.HEAD, ItemStack.EMPTY);
             SporeInfectionEffects.startPlayer(player);
+            player.getData(ModAttachments.SPORE_EXPOSURE).rateCarry = 0.0D;
             player.setItemSlot(EquipmentSlot.HEAD, new ItemStack(ModItems.PROTECTIVE_MASK.get()));
             SporeExposureTracker.tickWith(level, player, 2000, 100.0D);
-            if (SporeInfectionEffects.progressOf(player) != 2000) {
-                helper.fail("マスクが効いているのに加速した: " + SporeInfectionEffects.progressOf(player));
+            int grown = (int) Math.floor(DesignData.effects().playerInfection().growPerSecond() * 100.0D + 1.0E-6D);
+            if (Math.abs(SporeInfectionEffects.progressOf(player) - grown) > 1) {
+                helper.fail("マスクが効いているのに浴びた分が進んだ: " + SporeInfectionEffects.progressOf(player) + "(期待 育つ分だけ " + grown + ")");
+                return;
+            }
+            // マスクは傷を止めない(11-15): 傷の抽選(30%)はマスクを被っていてもかかる。50 回でかからない見込みは 0.7^50 ≒ 2e-8
+            SporeInfectionEffects.setPlayerStage(player, 0);
+            for (int i = 0; i < 50 && SporeInfectionEffects.stageOf(player) == 0; i++) {
+                SporeInfectionEffects.plantAttack(player);
+            }
+            if (SporeInfectionEffects.stageOf(player) == 0) {
+                helper.fail("マスクを被っていると傷の抽選でかからない");
                 return;
             }
             helper.succeed();
@@ -291,7 +301,7 @@ public final class SporeInfectionStageGameTests {
         }
     }
 
-    /** 10 秒ごとに経験値を吸われる。胞子の無い所では進みは素の速さ。 */
+    /** 10 秒ごとに経験値を吸われる。胞子の無い所では体の中で育つ分だけ進む(11-15)。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void xpDrainsWhileInfected(GameTestHelper helper) {
         FakePlayer player = player(helper, "ov_spore_stage_xp");
@@ -309,8 +319,9 @@ public final class SporeInfectionStageGameTests {
                 helper.fail("10 秒で経験値が " + spec.xpDrainPoints() + " 減らない: " + player.totalExperience);
                 return;
             }
-            if (SporeInfectionEffects.progressOf(player) != spec.xpDrainIntervalTicks()) {
-                helper.fail("進みが判定の間隔ぶん足されない: " + SporeInfectionEffects.progressOf(player));
+            int grown = (int) Math.floor(spec.growPerSecond() * spec.xpDrainIntervalTicks() / 20.0D + 1.0E-6D); // 11-15: 胞子の無い所では体の中で育つ分だけ
+            if (Math.abs(SporeInfectionEffects.progressOf(player) - grown) > 1) {
+                helper.fail("胞子の無い所で育つ分だけ進まない: " + SporeInfectionEffects.progressOf(player) + "(期待 " + grown + ")");
                 return;
             }
             helper.succeed();

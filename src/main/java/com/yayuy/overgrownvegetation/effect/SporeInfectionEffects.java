@@ -25,13 +25,13 @@ import net.minecraft.world.entity.player.Player;
  * プレイヤーの「胞子感染」10 段階の付与と進行(2026-10-14 ユーザー指定、11-04 に parked から戻して書き直した)。
  *
  * <ul>
- *     <li>amplifier = 段階 − 1(0〜9)。持続は無限で、進みは {@link ModAttachments#SPORE_STAGE_TICKS}。
- *     {@code stageTicks}(10 分)ごとに 1 段上がり、感染10 からさらに 10 分で死に、その場に萌芽体が生える({@link #killByInfection})。</li>
+ *     <li>amplifier = 段階 − 1(0〜9)。持続は無限で、進み(%秒)は {@link ModAttachments#SPORE_STAGE_TICKS}(名前は前の「tick」の名残)。
+ *     {@code stageDose} たまるごとに 1 段上がり、感染10 からさらに 1 段ぶんたまると死に、その場に萌芽体が生える({@link #killByInfection})。</li>
  *     <li>上がるたびに {@code damagePerStage}(1)のダメージ。最大体力は治るまで {@code maxHealthPerStage} × (段階 − 1) 減る。</li>
- *     <li>かかるのは暴露量が 1500 %秒に届いたとき({@code spore/SporeExposureTracker}、11-04)と、過繁茂の Mob の攻撃で 30%
- *     ({@link #plantAttack}。攻撃する Mob は今いない)。</li>
- *     <li>進みは {@link #tickInfected} が場所の倍率({@link EffectTable.PlayerInfectionSpec#rate})を掛けて足す。</li>
- *     <li><b>防護マスク</b>(フィルターが残っている間): かからない・加速しない(10 分ごとの昇格はそのまま)。</li>
+ *     <li>かかるのは暴露量が 1500 %秒に届いたとき({@code spore/SporeExposureTracker}、11-04)と、植物側の Mob の傷で 30%({@link #plantAttack})。</li>
+ *     <li>進み(11-15 ユーザー決定「混ぜた形」): 体の中でゆっくり育つ分({@code growStageSeconds} で 1 段、疲労で ×1.5 まで)+ 息で浴びた胞子
+ *     ({@link #tickInfected})+ 傷の暴露・G1 の胞子の技({@link #advance} をその場で)。下がらない。場所の倍率と感染中の被弾 5% の抽選は外した。</li>
+ *     <li><b>防護マスク</b>(フィルターが残っている間): 息で浴びる分だけ止める(未感染の暴露量・感染中の進みとも)。傷の分は止めない。</li>
  * </ul>
  * 前の版にあった薬(MedicineEffects)・布鎧・朝霧・ハイヴノードの加速・Mob の 3 段階は退避のまま外した。
  */
@@ -51,9 +51,12 @@ public final class SporeInfectionEffects {
         return levelOf(entity) + 1;
     }
 
-    /** 未感染のプレイヤーを感染1 にする(フィルターの残った防護マスクをかぶっていればかからない)。 */
+    /**
+     * 未感染のプレイヤーを感染1 にする。マスクは見ない(11-15: マスクが止めるのは息で浴びる分だけで、それは暴露量を積む所で止めている。
+     * 傷の暴露・傷の抽選でかかるのは止めない)。
+     */
     public static boolean startPlayer(Player player) {
-        if (stageOf(player) > 0 || ProtectiveMaskItem.isProtecting(player)) {
+        if (stageOf(player) > 0) {
             return false;
         }
         setPlayerStage(player, 1);
@@ -61,32 +64,24 @@ public final class SporeInfectionEffects {
     }
 
     /**
-     * 過繁茂した Mob に攻撃された。未感染は {@code attackInfectChance}(30%)でかかり、感染中は {@code attackAdvanceChance}(5%)で
-     * 進みが {@code attackAdvanceTicks}(10 秒)進む(マスクが効いていればどちらも無し)。
+     * 植物側の Mob に攻撃された。未感染は {@code attackInfectChance}(30%)でかかる(傷から入るのでマスクでは防げない、11-15)。
+     * 感染中の 5% の抽選(10 秒進む)は 11-15 に傷の暴露({@code ParasitizedAttackInfectionHandler#addWoundDose})へ置き換えた。
      */
     public static void plantAttack(Player player) {
-        if (ProtectiveMaskItem.isProtecting(player)) {
-            return;
-        }
         EffectTable.PlayerInfectionSpec spec = DesignData.effects().playerInfection();
-        if (stageOf(player) == 0) {
-            if (player.getRandom().nextDouble() < spec.attackInfectChance()) {
-                startPlayer(player);
-            }
-        } else if (player.getRandom().nextDouble() < spec.attackAdvanceChance()) {
-            advance(player, spec.attackAdvanceTicks());
+        if (stageOf(player) == 0 && player.getRandom().nextDouble() < spec.attackInfectChance()) {
+            startPlayer(player);
         }
     }
 
     /**
-     * 感染中のプレイヤーの判定 1 回({@code interval} tick ぶん)。経験値を吸い、場所の倍率を掛けて進める。
+     * 感染中のプレイヤーの判定 1 回({@code interval} tick ぶん)。経験値を吸い、段の進みを足す(11-15 の混ぜた形):
+     * 体の中で育つ分 {@code growPerSecond} × 疲労の倍率(×1.5 まで)+ 息で浴びた分 {@code breathedPerSecond}(マスクが効いていれば呼ぶ側が 0 を渡す)。
+     * 傷・G1 の胞子の技の分は、その場で {@link #advance} が足す。
      *
-     * @param percent        その場の胞子濃度(%)
-     * @param overgrownBiome 過繁茂のバイオームにいるか
-     * @param masked         防護マスクが効いているか(効いていれば加速しない)
+     * @param breathedPerSecond 息で浴びている胞子(%秒 / 秒。濃度 5% 以上ならその濃度、それ未満なら閉じた部屋・汚れた装備から染みる分)
      */
-    public static void tickInfected(Player player, SporeExposure ex, int interval, double percent, boolean overgrownBiome,
-                                    boolean masked) {
+    public static void tickInfected(Player player, SporeExposure ex, int interval, double breathedPerSecond) {
         EffectTable.PlayerInfectionSpec spec = DesignData.effects().playerInfection();
         ex.xpDrainTicks += interval;
         if (ex.xpDrainTicks >= spec.xpDrainIntervalTicks()) {
@@ -96,13 +91,10 @@ public final class SporeInfectionEffects {
                 player.giveExperiencePoints(-spec.xpDrainPoints());
             }
         }
-        // 疲労で進みやすくなる(2026-11-13 サバイバル段 1。上限 fatigue.infectionMultiplierMax、マスクが効いていれば掛けない)
-        double rate = masked ? 1.0D : spec.rate(percent, overgrownBiome)
-                * com.yayuy.overgrownvegetation.survival.FatigueTracker.infectionMultiplier(player);
-        double exact = interval * rate + ex.rateCarry;
-        int ticks = (int) Math.floor(exact);
-        ex.rateCarry = exact - ticks;
-        advance(player, ticks);
+        // 体の中でゆっくり育つ(11-15)。疲労で進みやすくなる(2026-11-13 サバイバル段 1。上限 fatigue.infectionMultiplierMax)のはこちらに掛ける
+        double seconds = interval / 20.0D;
+        double grow = spec.growPerSecond() * com.yayuy.overgrownvegetation.survival.FatigueTracker.infectionMultiplier(player);
+        advance(player, (grow + Math.max(0.0D, breathedPerSecond)) * seconds);
         if (player.isAlive()) {
             syncModifiers(player);
         }
@@ -147,25 +139,39 @@ public final class SporeInfectionEffects {
         syncModifiers(player);
     }
 
-    /** 進みを {@code ticks} 進める。{@code stageTicks} に届いたら段階を上げる(届いた分だけ何段でも)。 */
-    public static void advance(Player player, int ticks) {
-        if (ticks <= 0 || stageOf(player) == 0) {
+    /**
+     * 段の進みを {@code amount}(%秒)進める(11-15: 進みの単位は tick から暴露量へ。添付 {@code SPORE_STAGE_TICKS} の整数に %秒 を入れ、
+     * 端数は {@code SporeExposure#rateCarry} に持ち越す)。{@code stageDose} に届いたら段階を上げる(届いた分だけ何段でも)。下がらない。
+     * 未感染なら何もしない。
+     */
+    public static void advance(Player player, double amount) {
+        if (!(amount > 0.0D) || stageOf(player) == 0) {
             return;
         }
-        int stageTicks = DesignData.effects().playerInfection().stageTicks();
-        int progress = player.getData(ModAttachments.SPORE_STAGE_TICKS) + ticks;
-        while (progress >= stageTicks && stageOf(player) > 0 && player.isAlive()) {
-            progress -= stageTicks;
+        SporeExposure ex = player.getData(ModAttachments.SPORE_EXPOSURE);
+        int stageDose = (int) Math.ceil(DesignData.effects().playerInfection().stageDose());
+        double exact = player.getData(ModAttachments.SPORE_STAGE_TICKS) + ex.rateCarry + amount;
+        long whole = (long) Math.floor(exact);
+        ex.rateCarry = exact - whole;
+        while (whole >= stageDose && stageOf(player) > 0 && player.isAlive()) {
+            whole -= stageDose;
             raisePlayerStage(player); // 段階を上げると進みは 0 に戻るので、残りは下で書き直す
         }
         if (stageOf(player) > 0 && player.isAlive()) {
-            player.setData(ModAttachments.SPORE_STAGE_TICKS, progress);
+            player.setData(ModAttachments.SPORE_STAGE_TICKS, (int) Math.min(Integer.MAX_VALUE, whole));
         }
     }
 
-    /** 今の段階に入ってから進んだ tick。 */
+    /** 今の段階に入ってからたまった暴露量(%秒、整数)。 */
     public static int progressOf(Player player) {
         return player.getData(ModAttachments.SPORE_STAGE_TICKS);
+    }
+
+    /** 今の段階の進み(0〜1)。未感染は 0。暴露量のバー({@code survival/SurvivalSync})が塗る値。 */
+    public static float stageFraction(Player player) {
+        if (stageOf(player) <= 0) return 0.0F;
+        double dose = DesignData.effects().playerInfection().stageDose();
+        return (float) Math.max(0.0D, Math.min(1.0D, progressOf(player) / dose));
     }
 
     /** 胞子感染で死なせ、死んだ場所に萌芽体(BlightFernPlacement#spawnFromDeath。近くに十分いれば生えない)を生やす(10-14 ユーザー指定)。 */

@@ -31,11 +31,9 @@ public final class SurvivalSync {
         return stage > 0 ? stageProgress(player) : (float) SporeExposureTracker.fraction(player);
     }
 
-    /** 今の段階に入ってからの進み(0〜1)。未感染は 0。 */
+    /** 今の段階に入ってからの進み(0〜1)。未感染は 0。11-15 から段の進みは暴露量(たまった量 ÷ 1 段の量)。 */
     public static float stageProgress(Player player) {
-        if (SporeInfectionEffects.stageOf(player) <= 0) return 0.0F;
-        int stageTicks = Math.max(1, DesignData.effects().playerInfection().stageTicks());
-        return Mth.clamp((float) SporeInfectionEffects.progressOf(player) / stageTicks, 0.0F, 1.0F);
+        return SporeInfectionEffects.stageFraction(player);
     }
 
     /** 送る値を作る(テストからも呼ぶ)。 */

@@ -12,9 +12,10 @@ import java.util.List;
  * <ul>
  *     <li>かかるのは暴露量が {@code spore_field.json} の exposure.infectDose(1500 %秒)に届いたとき(11-04 ユーザー決定。
  *     前の「濃度 50% に 30 秒」は消した)。過繁茂の Mob の攻撃で {@code attackInfectChance}。</li>
- *     <li>{@code stageTicks}(10 分)ごとに 1 段。感染10 からさらに 10 分で死ぬ。上がるたび {@code damagePerStage}、最大体力 −{@code maxHealthPerStage} × (段階 − 1)。</li>
- *     <li>加速(11-04 ユーザー決定「濃度に比例してなめらかに」・式は仮決め): 進む速さ ×(1 + {@code concentrationSpeedBonusPer100} × 濃度/100)、
- *     濃度 {@code speedUpMinPercent} 未満は加速なし。過繁茂のバイオームで ×(1 + {@code overgrownBiomeSpeedBonus})(重ねて掛ける)。</li>
+ *     <li>段の進み(11-15 ユーザー決定「暴露量 + 体の中でゆっくり育つ」の混ぜた形): 感染中も暴露量(浴びた胞子・傷・G1 の胞子の技)を積み、
+ *     {@code stageDose} たまるごとに 1 段。きれいな空気の中でも {@code growStageSeconds} で 1 段ぶん育つ(疲労で ×1.5 まで)。
+ *     感染10 からさらに 1 段ぶんたまると死ぬ。進みは下がらない【仮】。上がるたび {@code damagePerStage}、最大体力 −{@code maxHealthPerStage} × (段階 − 1)。
+ *     前の「10 分ごとに 1 段 + 場所の倍率(濃度・過繁茂)」と、感染中の被弾 5% の抽選(10 秒進む)は外した(暴露量と二重になるため)。</li>
  *     <li>{@code xpDrainIntervalTicks} ごとに経験値 {@code xpDrainPoints}(量は 10-14 の仮決め)。</li>
  *     <li>{@code stages}: 感染1〜10 の症状(空腹・被検知距離・防御力 / 攻撃力の低下)。被検知距離は探す Mob が退避中なので今は使わない。</li>
  * </ul>
@@ -33,13 +34,11 @@ public final class EffectTable {
     }
 
     public static final class PlayerInfection {
-        public Integer stageTicks;
+        /** 1 段進むのに要る暴露量(%秒。11-15)。 */
+        public Double stageDose;
+        /** きれいな空気の中で体の中の胞子が 1 段ぶん育つ秒数(11-15)。 */
+        public Double growStageSeconds;
         public Double attackInfectChance;
-        public Double speedUpMinPercent;
-        public Double concentrationSpeedBonusPer100;
-        public Double overgrownBiomeSpeedBonus;
-        public Double attackAdvanceChance;
-        public Integer attackAdvanceTicks;
         public Integer xpDrainIntervalTicks;
         public Integer xpDrainPoints;
         public Double damagePerStage;
@@ -63,9 +62,7 @@ public final class EffectTable {
     }
 
     /** プレイヤーの胞子感染の確定値。 */
-    public record PlayerInfectionSpec(int stageTicks, double attackInfectChance, double speedUpMinPercent,
-                                      double concentrationSpeedBonusPer100, double overgrownBiomeSpeedBonus,
-                                      double attackAdvanceChance, int attackAdvanceTicks, int xpDrainIntervalTicks,
+    public record PlayerInfectionSpec(double stageDose, double growStageSeconds, double attackInfectChance, int xpDrainIntervalTicks,
                                       int xpDrainPoints, double damagePerStage, double maxHealthPerStage,
                                       List<StageSpec> stages) {
         /** 段階の数(10)。 */
@@ -78,15 +75,9 @@ public final class EffectTable {
             return stages.get(Math.max(1, Math.min(stages.size(), stage)) - 1);
         }
 
-        /**
-         * 場所による進みの倍率。濃度 {@code percent} が {@link #speedUpMinPercent} 以上なら ×(1 + 係数 × 濃度/100)、
-         * 過繁茂のバイオームならさらに ×(1 + {@link #overgrownBiomeSpeedBonus})。
-         */
-        public double rate(double percent, boolean overgrownBiome) {
-            double r = 1.0D;
-            if (percent >= speedUpMinPercent) r *= 1.0D + concentrationSpeedBonusPer100 * percent / 100.0D;
-            if (overgrownBiome) r *= 1.0D + overgrownBiomeSpeedBonus;
-            return r;
+        /** きれいな空気の中で体の中の胞子が育つ速さ(%秒 / 秒)= 1 段の量 ÷ 1 段の秒数。 */
+        public double growPerSecond() {
+            return stageDose / growStageSeconds;
         }
     }
 
@@ -105,13 +96,9 @@ public final class EffectTable {
                     orElse(s.armorReduction, def.armorReduction), orElse(s.attackDamageReduction, def.attackDamageReduction)));
         }
         this.playerInfection = new PlayerInfectionSpec(
-                Math.max(20, orElse(v.stageTicks, d.stageTicks)),
+                Math.max(1.0D, orElse(v.stageDose, d.stageDose)),
+                Math.max(1.0D, orElse(v.growStageSeconds, d.growStageSeconds)),
                 orElse(v.attackInfectChance, d.attackInfectChance),
-                Math.max(0.0D, orElse(v.speedUpMinPercent, d.speedUpMinPercent)),
-                Math.max(0.0D, orElse(v.concentrationSpeedBonusPer100, d.concentrationSpeedBonusPer100)),
-                Math.max(0.0D, orElse(v.overgrownBiomeSpeedBonus, d.overgrownBiomeSpeedBonus)),
-                orElse(v.attackAdvanceChance, d.attackAdvanceChance),
-                Math.max(0, orElse(v.attackAdvanceTicks, d.attackAdvanceTicks)),
                 Math.max(1, orElse(v.xpDrainIntervalTicks, d.xpDrainIntervalTicks)),
                 Math.max(0, orElse(v.xpDrainPoints, d.xpDrainPoints)),
                 Math.max(0.0D, orElse(v.damagePerStage, d.damagePerStage)),
@@ -129,13 +116,9 @@ public final class EffectTable {
 
     private static PlayerInfection defaults() {
         PlayerInfection p = new PlayerInfection();
-        p.stageTicks = 12000;                    // 10 分ごとに 1 段(10-14 ユーザー指定)
+        p.stageDose = 9000.0D;                   // 1 段に暴露量 9000 %秒(11-15 仮決め。濃度 30% の所で約 5 分)
+        p.growStageSeconds = 3600.0D;            // きれいな空気でも 1 時間に 1 段育つ(11-15 仮決め)
         p.attackInfectChance = 0.30D;            // 過繁茂の Mob の攻撃で 30%(10-14 ユーザー指定)
-        p.speedUpMinPercent = 5.0D;              // 5% 未満は加速なし(11-04 仮決め、暴露の下限と同じ)
-        p.concentrationSpeedBonusPer100 = 0.10D; // 濃度 100% で +10%・50% で +5%(11-04 仮決め)
-        p.overgrownBiomeSpeedBonus = 0.10D;      // 過繁茂のバイオームで +10%(10-14 ユーザー指定)
-        p.attackAdvanceChance = 0.05D;           // 敵の攻撃で 5% の確率で
-        p.attackAdvanceTicks = 200;              // 10 秒進む(10-14 ユーザー指定)
         p.xpDrainIntervalTicks = 200;            // 10 秒に 1 回(10-14 ユーザー指定)
         p.xpDrainPoints = 1;                     // 経験値 1(10-14 仮決め)
         p.damagePerStage = 1.0D;

@@ -68,14 +68,19 @@ public final class ParasitizedAttackInfectionHandler {
     /**
      * 傷の暴露: {@code damage} × 1 ダメージあたりの量(spore_field.json の mobInfection.woundDosePlayerPerDamage・woundDoseMobPerDamage)を
      * 暴露量に足す(感染の量で頭打ち。満ちたら次の暴露量の判定で、プレイヤーは感染 1・Mob は 20 ダメージ)。防護マスクは見ない(傷口から入る)。
-     * 創造・観戦のプレイヤー・感染中のプレイヤー(感染中は積まない決まり。進むのは 5% の抽選)・測らない Mob には足さない。
+     * 感染中のプレイヤーは段の進みへ足す(11-15「混ぜた形」)。創造・観戦のプレイヤー・測らない Mob には足さない。
      */
     public static void addWoundDose(LivingEntity victim, float damage) {
         com.yayuy.overgrownvegetation.data.MobInfectionSpec s = com.yayuy.overgrownvegetation.data.DesignData.sporeField().mobInfection();
         double amount = (victim instanceof Player ? s.woundDosePlayerPerDamage() : s.woundDoseMobPerDamage()) * damage;
         if (amount <= 0.0D || !victim.isAlive()) return;
         if (victim instanceof Player p) {
-            if (p.isCreative() || p.isSpectator() || SporeInfectionEffects.stageOf(p) > 0) return;
+            if (p.isCreative() || p.isSpectator()) return;
+            if (SporeInfectionEffects.stageOf(p) > 0) {
+                // 感染中も積む(11-15 ユーザー決定「混ぜた形」。前の「感染中は積まない」は取り消し): 段の進みへ直に
+                SporeInfectionEffects.advance(p, amount);
+                return;
+            }
         } else if (!com.yayuy.overgrownvegetation.spore.SporeExposureTracker.isMeasuredMob(victim)) {
             return;
         }

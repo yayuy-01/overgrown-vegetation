@@ -21,7 +21,7 @@ import net.minecraft.world.item.ItemStack;
  * <ul>
  *   <li>植物側({@link SporeExposureTracker#isPlantSide})・測らない Mob・創造/観戦のプレイヤーには足さない。</li>
  *   <li>防護マスク(残りあり)を被っていれば足さず、量ぶんフィルターをすり減らす。</li>
- *   <li>感染中のプレイヤーには足さない(感染中は積まない決まり)。</li>
+ *   <li>感染中のプレイヤーは、暴露量の代わりに段の進みへ足す(11-15「混ぜた形」。前は積まない決まりだった)。</li>
  * </ul>
  */
 public final class G1SporeDose {
@@ -50,7 +50,11 @@ public final class G1SporeDose {
             ProtectiveMaskItem.absorb(head, (int) Math.ceil(amount));
             return false;
         }
-        if (e instanceof Player p && SporeInfectionEffects.stageOf(p) > 0) return false;
+        if (e instanceof Player p && SporeInfectionEffects.stageOf(p) > 0) {
+            // 感染中も積む(11-15 ユーザー決定「混ぜた形」。前の「感染中は積まない」は取り消し): 段の進みへ直に
+            SporeInfectionEffects.advance(p, amount);
+            return true;
+        }
         SporeExposure ex = e.getData(ModAttachments.SPORE_EXPOSURE);
         ex.dose = Math.min(DesignData.sporeField().infectDose(), ex.dose + amount);
         // 11-15 ユーザー決定「胞子の技も必ず感染」: 傷の無い胞子の技(根糸・胞子の雲・噴射など。ここを通るのは G1 の技だけ)を浴びた Mob は

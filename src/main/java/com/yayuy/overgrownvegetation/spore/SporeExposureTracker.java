@@ -154,10 +154,13 @@ public final class SporeExposureTracker {
                 ex.lastReachedGameTime = now;
             }
         } else {
-            // 感染中は積まない(減っていくだけ)。進みは場所の倍率を掛けて足す
+            // 感染中(11-15 ユーザー決定「混ぜた形」): 息で浴びた胞子は暴露量の代わりに段の進みへ積む(マスクが効いていれば止める)。
+            // 濃度が境目以上ならその濃度、それ未満なら閉じた部屋・汚れた装備から染みる分(未感染の積み方と同じ)。体の中で育つ分は tickInfected が足す。
+            // 暴露量そのものは減っていくだけ(バーは感染中は段の進みを塗る)
             accumulate(player, 0.0D, 1.0D, interval, now);
-            SporeInfectionEffects.tickInfected(player, ex, interval, percent,
-                    ModBiomes.isFullyOvergrown(level.getBiome(player.blockPosition())), protecting);
+            double seep = roomSeepPerSecond + com.yayuy.overgrownvegetation.survival.decon.GearDirt.seepPerSecond(player);
+            double breathed = protecting ? 0.0D : (percent >= t.exposureMinPercent() && percent > 0.0D ? percent : seep);
+            SporeInfectionEffects.tickInfected(player, ex, interval, breathed);
         }
         // 疲労と、HUD の 2 本のゲージ(2026-11-13 サバイバルの背骨 段 1)
         com.yayuy.overgrownvegetation.survival.FatigueTracker.step(player, interval, percent, SporeInfectionEffects.stageOf(player), protecting);

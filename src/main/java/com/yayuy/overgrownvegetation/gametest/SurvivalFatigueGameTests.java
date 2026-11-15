@@ -207,25 +207,18 @@ public final class SurvivalFatigueGameTests {
             // 実際の進み: 胞子なしで 2000 tick
             SporeInfectionEffects.startPlayer(p);
             FatigueTracker.set(p, 0.0D);
-            SporeInfectionEffects.tickInfected(p, p.getData(ModAttachments.SPORE_EXPOSURE), 2000, 0.0D, false, false);
+            SporeInfectionEffects.tickInfected(p, p.getData(ModAttachments.SPORE_EXPOSURE), 2000, 0.0D);
             int rested = SporeInfectionEffects.progressOf(p);
             SporeInfectionEffects.setPlayerStage(p, 1);
             p.getData(ModAttachments.SPORE_EXPOSURE).rateCarry = 0.0D;
             FatigueTracker.set(p, 100.0D);
-            SporeInfectionEffects.tickInfected(p, p.getData(ModAttachments.SPORE_EXPOSURE), 2000, 0.0D, false, false);
+            SporeInfectionEffects.tickInfected(p, p.getData(ModAttachments.SPORE_EXPOSURE), 2000, 0.0D);
             int tired = SporeInfectionEffects.progressOf(p);
             if (rested <= 0 || tired > rested * s.infectionMultiplierMax() + 1 || tired < rested * s.infectionMultiplierMax() - 1) {
                 helper.fail("疲労 0 の進み " + rested + "・100% の進み " + tired + "(期待 ×" + s.infectionMultiplierMax() + ")");
                 return;
             }
-            // マスクが効いていれば疲労でも加速しない
-            SporeInfectionEffects.setPlayerStage(p, 1);
-            p.getData(ModAttachments.SPORE_EXPOSURE).rateCarry = 0.0D;
-            SporeInfectionEffects.tickInfected(p, p.getData(ModAttachments.SPORE_EXPOSURE), 2000, 0.0D, false, true);
-            if (SporeInfectionEffects.progressOf(p) != 2000) {
-                helper.fail("マスクありで疲労 100% の進み " + SporeInfectionEffects.progressOf(p) + "(期待 2000)");
-                return;
-            }
+            // 11-15: 疲労は体の中で育つ分に掛かる(マスクは息で浴びる分だけ止めるので、育つ分の疲労の倍率は残る)
             helper.succeed();
         } finally {
             reset(p);
@@ -381,7 +374,7 @@ public final class SurvivalFatigueGameTests {
             check(helper, "効き目の出始め", a.effectsFrom(), spec().effectsFrom() / 100.0D);
             // 感染3・進み 1/4
             SporeInfectionEffects.setPlayerStage(p, 3);
-            int stageTicks = DesignData.effects().playerInfection().stageTicks();
+            int stageTicks = (int) Math.ceil(DesignData.effects().playerInfection().stageDose()); // 11-15: 進みは暴露量(1 段の量)
             p.setData(ModAttachments.SPORE_STAGE_TICKS, stageTicks / 4);
             SurvivalHudPayload b = SurvivalSync.payload(p);
             if (b.stage() != 3) {
