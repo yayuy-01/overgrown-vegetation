@@ -126,11 +126,9 @@ public final class PlantSideBurstGameTests {
     public static void transformedHorseBursts(GameTestHelper helper) {
         Mob horse = helper.spawnWithNoFreeWill(EntityType.HORSE, new Vec3(3.5, 2.0, 3.5));
         horse.setNoAi(true);
-        Predicate<LivingEntity> old = PlantSideRules.TRANSFORMED;
-        PlantSideRules.TRANSFORMED = e -> e == horse || old.test(e);
+        markTurned(horse);
         horse.hurt(helper.getLevel().damageSources().generic(), 10000.0F);
         helper.runAtTickTime(helper.getTick() + 19, () -> {
-            PlantSideRules.TRANSFORMED = old;
             helper.assertTrue(horse.isRemoved(), "変わった馬が 19 tick で破裂して消えない");
             helper.succeed();
         });
@@ -209,8 +207,7 @@ public final class PlantSideBurstGameTests {
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 40)
     public static void transformedDragonBurstsAtTheEndOfItsDeath(GameTestHelper helper) {
         Mob dragon = helper.spawnWithNoFreeWill(EntityType.ENDER_DRAGON, new Vec3(3.5, 3.0, 3.5));
-        Predicate<LivingEntity> old = PlantSideRules.TRANSFORMED;
-        PlantSideRules.TRANSFORMED = e -> e == dragon || old.test(e);
+        markTurned(dragon);
         helper.assertTrue(!PlantSideRules.bursts(dragon), "ドラゴンが膨らむ破裂の対象になっている");
         dragon.setHealth(0.0F); // kill() はドラゴンだけその場で消す作りなので、体力 0 で死に際(tickDeath)を通す
         helper.runAtTickTime(helper.getTick() + 3, () -> {
@@ -218,7 +215,6 @@ public final class PlantSideBurstGameTests {
             ((net.minecraft.world.entity.boss.enderdragon.EnderDragon) dragon).dragonDeathTime = 197;
         });
         helper.runAtTickTime(helper.getTick() + 8, () -> {
-            PlantSideRules.TRANSFORMED = old;
             helper.assertTrue(dragon.isRemoved(), "ドラゴンが 200 tick で消えていない");
             helper.assertTrue(PlantSideBurst.AIR_BY_ID.containsKey(dragon.getId()), "ドラゴンが死に際の終わりに破裂していない");
             helper.getLevel().getEntitiesOfClass(net.minecraft.world.entity.ExperienceOrb.class, new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(30.0))
@@ -281,13 +277,8 @@ public final class PlantSideBurstGameTests {
     public static void transformedAttackerInfects(GameTestHelper helper) {
         Mob wolf = helper.spawnWithNoFreeWill(EntityType.WOLF, new Vec3(1.5, 2.0, 1.5));
         Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, new Vec3(3.5, 2.0, 3.5));
-        Predicate<LivingEntity> old = PlantSideRules.TRANSFORMED;
-        PlantSideRules.TRANSFORMED = e -> e == wolf || old.test(e);
-        try {
-            pig.hurt(helper.getLevel().damageSources().mobAttack(wolf), 1.0F);
-        } finally {
-            PlantSideRules.TRANSFORMED = old;
-        }
+        markTurned(wolf);
+        pig.hurt(helper.getLevel().damageSources().mobAttack(wolf), 1.0F);
         helper.assertTrue(MobInfection.isInfected(pig), "変わった狼に殴られた豚が感染していない");
         helper.succeed();
     }
@@ -345,7 +336,42 @@ public final class PlantSideBurstGameTests {
         helper.succeed();
     }
 
+    /**
+     * 一撃で倒されても感染体になる(11-15 ユーザー「一撃で倒されたときも感染体に」): 感染の印も生きていた時間も見ず、死因の元で決める。
+     * G4 の一撃で村人が死体へ崩れ落ちる。飛び道具も撃った Mob を元に見る(G4 が撃った矢の一撃で倒れた村人も死体へ)。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void oneHitKillByG4BecomesCorpse(GameTestHelper helper) {
+        Mob gregaria = helper.spawnWithNoFreeWill(ModCrawlers.GREGARIA.get(), new Vec3(1.5, 2.0, 1.5));
+        Mob villager = helper.spawnWithNoFreeWill(EntityType.VILLAGER, new Vec3(3.5, 2.0, 2.5));
+        Mob villager2 = helper.spawnWithNoFreeWill(EntityType.VILLAGER, new Vec3(3.5, 2.0, 5.0));
+        helper.assertTrue(!MobInfection.isInfected(villager), "殴られる前から感染している");
+        villager.hurt(helper.getLevel().damageSources().mobAttack(gregaria), 1000.0F);
+        Arrow arrow = new Arrow(EntityType.ARROW, helper.getLevel());
+        arrow.setOwner(gregaria);
+        villager2.hurt(helper.getLevel().damageSources().arrow(arrow, gregaria), 1000.0F);
+        helper.assertTrue(villager.isDeadOrDying() && com.yayuy.overgrownvegetation.corpse.CorpseCollapse.isCollapsing(villager),
+                "G4 の一撃で倒れた村人が死体へ崩れ落ちない");
+        helper.assertTrue(villager2.isDeadOrDying() && com.yayuy.overgrownvegetation.corpse.CorpseCollapse.isCollapsing(villager2),
+                "G4 が撃った矢の一撃で倒れた村人が死体へ崩れ落ちない");
+        arrow.discard();
+        helper.succeed();
+    }
+
     // ------------------------------------------------------------------ 道具
+
+    /** テストで「変わった」と見る Mob の id。同じ束のテストは並んで走るので、印の口の差し替え・戻しはせず、1 度だけ表を足して残す。 */
+    private static final java.util.Set<Integer> TEST_TURNED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static volatile boolean testHookInstalled;
+
+    private static synchronized void markTurned(LivingEntity e) {
+        if (!testHookInstalled) {
+            Predicate<LivingEntity> base = PlantSideRules.TRANSFORMED;
+            PlantSideRules.TRANSFORMED = x -> TEST_TURNED.contains(x.getId()) || base.test(x);
+            testHookInstalled = true;
+        }
+        TEST_TURNED.add(e.getId());
+    }
 
     private static Map<BlockPos, BlockState> snapshot(GameTestHelper helper, BlockPos center) {
         Map<BlockPos, BlockState> m = new HashMap<>();
