@@ -96,7 +96,21 @@ public final class VenamnesGameTests {
         double[] maxSide = {0.0D};
         double[] last = {v.getX(), v.getZ()};
         helper.runAfterDelay(2L, () -> walkTo(helper, v, new BlockPos(3, 2, 6), 1.0D));
+        int[] rewalks = {0};
         helper.onEachTick(() -> {
+            // 11-16: ほかのセッションの全体の流しで「着かない(時間切れ)」が 2 回出た(単独 200 個・自分の全体 8 回では 0 件)。
+            // 経路が途中で終わった・止められたら引き直し(ほかの歩くテストと同じ)、時間切れの前に様子を書いて落とす
+            if (helper.getTick() > 10 && v.getNavigation().isDone() && v.getZ() < helper.absoluteVec(new Vec3(0, 0, 5.4D)).z) {
+                rewalks[0]++;
+                walkTo(helper, v, new BlockPos(3, 2, 6), 1.0D);
+            }
+            if (helper.getTick() >= 150) {
+                Vec3 r = v.position().subtract(helper.absoluteVec(Vec3.ZERO));
+                helper.fail(String.format(java.util.Locale.ROOT, "着かない: 位置 (%.2f, %.2f, %.2f) 向き %.0f 引き直し %d 動作 %d 標的 %s 最後に殴った %s 接地 %s",
+                        r.x, r.y, r.z, v.getYRot(), rewalks[0], v.getAction(), v.getTarget() == null ? "-" : v.getTarget().getType().toShortString(),
+                        v.getLastHurtByMob() == null ? "-" : v.getLastHurtByMob().getType().toShortString(), v.onGround()));
+                return;
+            }
             double dx = v.getX() - last[0], dz = v.getZ() - last[1];
             last[0] = v.getX();
             last[1] = v.getZ();
