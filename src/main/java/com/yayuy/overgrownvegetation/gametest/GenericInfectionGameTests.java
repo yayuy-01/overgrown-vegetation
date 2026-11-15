@@ -188,6 +188,27 @@ public final class GenericInfectionGameTests {
         });
     }
 
+    /**
+     * ★ 問い 7: Brain で動き、getTarget を Brain の狙いで上書きする種(ホグリン)も、体当たりで豚を傷付ける(自前の相手を見る)。
+     * オーバーワールドのホグリンは本来ゾグリンに変わるが、変わった個体は変身しない(★ 問い 14)。
+     */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 200)
+    public static void turnedHoglinRamsPig(GameTestHelper helper) {
+        Mob hoglin = helper.spawn(EntityType.HOGLIN, new BlockPos(1, 2, 1));
+        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, new BlockPos(5, 2, 5));
+        GenericInfection.turn(hoglin, true);
+        if (!GenericInfectionAiAccess.usesRam(hoglin)) {
+            helper.fail("ホグリン(Brain の Mob)が体当たりを使わない");
+            return;
+        }
+        helper.succeedWhen(() -> {
+            if (!hoglin.isAlive() || hoglin.isRemoved()) helper.fail("ホグリンが消えた(変身した?)");
+            if (pig.getHealth() >= pig.getMaxHealth()) {
+                helper.fail("豚が傷を受けていない(自前の相手 " + com.yayuy.overgrownvegetation.infect.GenericInfectionAi.targetOf(hoglin) + ")");
+            }
+        });
+    }
+
     /** 変わった Mob と植物側(G1)は互いを狙わない(狙いの変更の知らせで止める)。 */
     @GameTest(template = "gametest_empty7", batch = BATCH)
     public static void turnedAndPlantSideDoNotTargetEachOther(GameTestHelper helper) {

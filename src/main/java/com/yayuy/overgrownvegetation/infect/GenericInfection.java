@@ -190,7 +190,10 @@ public final class GenericInfection {
     /** ★ 問い 14: 変わった Mob はバニラの変身(雷でウィッチ・豚 → ゾンビピグリン・溺れて・ゾンビ化など)をしない。 */
     @SubscribeEvent
     public static void onConvert(LivingConversionEvent.Pre event) {
-        if (isTurned(event.getEntity())) event.setCanceled(true);
+        if (isTurned(event.getEntity())) {
+            event.setCanceled(true);
+            event.setConversionTimer(1200); // 止めるだけだと水の中のハスクなどが毎 tick 試し直すので、時計も戻す
+        }
     }
 
     /** 変わった Mob と植物側が互いを狙うのを止める(Goal の setTarget も Brain の StartAttacking も通る)。null にするのは止めない。 */
@@ -251,7 +254,7 @@ public final class GenericInfection {
 
     /** 呼ばれた先へ歩く(狙う相手がいる間はそちらが先。着いたらやめる)。歩けない Mob は少し寄せる。 */
     private static void marchTick(Mob mob, GenericInfected g) {
-        if (mob.getTarget() != null) return;
+        if (GenericInfectionAi.targetOf(mob) != null) return;
         double dx = g.callX - mob.getX(), dz = g.callZ - mob.getZ();
         if (dx * dx + dz * dz < 16.0D) {
             g.callUntil = Long.MIN_VALUE / 2;
@@ -315,8 +318,11 @@ public final class GenericInfection {
     public static final class Setup {
         @SubscribeEvent
         public static void onCommonSetup(net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent event) {
-            com.yayuy.overgrownvegetation.spore.PlantSideRules.TRANSFORMED = GenericInfection::isTurned;
-            com.yayuy.overgrownvegetation.director.PlantSideCall.registerListener(GenericInfection::call);
+            // 共通の準備は並列のスレッドで走るので、ただの ArrayList への登録は主スレッドへ回す
+            event.enqueueWork(() -> {
+                com.yayuy.overgrownvegetation.spore.PlantSideRules.TRANSFORMED = GenericInfection::isTurned;
+                com.yayuy.overgrownvegetation.director.PlantSideCall.registerListener(GenericInfection::call);
+            });
         }
 
         private Setup() {

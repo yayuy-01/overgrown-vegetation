@@ -34,6 +34,13 @@ public final class GenericInfected {
     /** 監視塔の呼び寄せ(保存しない): 向かう先と、このゲーム時刻まで向かう。 */
     public double callX, callY, callZ;
     public long callUntil = Long.MIN_VALUE / 2;
+    /**
+     * 自前の狙う相手(保存しない)。{@code getTarget()} を Brain の ATTACK_TARGET で上書きする種(ピグリン・ホグリン・ゾグリン・ウォーデン・
+     * ブリーズ・カエル・ウーパールーパー)では setTarget が読み返せないので、体当たり・呼び寄せはこちらを見る(ATTACK_TARGET は書かない = ★ 7:2)。
+     */
+    public net.minecraft.world.entity.LivingEntity prey;
+    /** 外した Goal(戻す用。保存しない。Mob と一緒に消えるようここに置く)。 */
+    Object removedGoals;
 
     private static GenericInfected of(boolean turned, long seed, long start, int transform, boolean boss) {
         GenericInfected g = new GenericInfected();

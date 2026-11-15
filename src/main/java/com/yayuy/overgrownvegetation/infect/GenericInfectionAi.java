@@ -30,8 +30,6 @@ import net.minecraft.world.entity.monster.Shulker;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
-import java.util.WeakHashMap;
 
 /**
  * 汎用の感染体の動き(2026-11-15 ユーザー決定。{@link GenericInfection} から呼ぶ)。
@@ -56,7 +54,7 @@ public final class GenericInfectionAi {
     private record Removed(List<WrappedGoal> targets, List<WrappedGoal> goals) {
     }
 
-    private static final Map<Mob, Removed> REMOVED = new WeakHashMap<>();
+
 
     /** 付けたか(区画の読み直しで二重に付けない)。 */
     public static boolean installed(Mob mob) {
@@ -73,7 +71,7 @@ public final class GenericInfectionAi {
             if (isRemovedGoal(w.getGoal())) goals.add(w);
         }
         for (WrappedGoal w : goals) mob.goalSelector.removeGoal(w.getGoal());
-        REMOVED.put(mob, new Removed(targets, goals));
+        mob.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.GENERIC_INFECTED).removedGoals = new Removed(targets, goals);
 
         mob.goalSelector.addGoal(0, new FreezeGoal(mob));
         mob.targetSelector.addGoal(1, new PreyGoal(mob));
@@ -88,7 +86,10 @@ public final class GenericInfectionAi {
     public static void uninstall(Mob mob) {
         mob.goalSelector.removeAllGoals(g -> g instanceof FreezeGoal || g instanceof RamGoal);
         mob.targetSelector.removeAllGoals(g -> g instanceof PreyGoal || g instanceof HurtByTargetGoal);
-        Removed r = REMOVED.remove(mob);
+        GenericInfected gi = mob.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.GENERIC_INFECTED);
+        Removed r = gi.removedGoals instanceof Removed rr ? rr : null;
+        gi.removedGoals = null;
+        gi.prey = null;
         if (r != null) {
             for (WrappedGoal w : r.targets()) mob.targetSelector.addGoal(w.getPriority(), w.getGoal());
             for (WrappedGoal w : r.goals()) mob.goalSelector.addGoal(w.getPriority(), w.getGoal());
@@ -170,9 +171,34 @@ public final class GenericInfectionAi {
         }
 
         @Override
+        public void start() {
+            super.start();
+            if (target != null) mob.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.GENERIC_INFECTED).prey = target;
+        }
+
+        @Override
         protected double getFollowDistance() {
             return range;
         }
+    }
+
+    /**
+     * 体当たり・呼び寄せが見る狙う相手: {@code getTarget()}、無ければ自前の相手({@link GenericInfected#prey}。Brain で getTarget を上書きする種用)。
+     * 自前の相手は、死んだ・植物側になった・狙う範囲の 1.5 倍より遠くなったら忘れる。
+     */
+    public static LivingEntity targetOf(Mob mob) {
+        LivingEntity t = mob.getTarget();
+        if (t != null) return t;
+        if (!mob.hasData(com.yayuy.overgrownvegetation.registry.ModAttachments.GENERIC_INFECTED)) return null;
+        GenericInfected g = mob.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.GENERIC_INFECTED);
+        LivingEntity p = g.prey;
+        if (p == null) return null;
+        double r = range(mob, GenericInfection.spec()) * 1.5D;
+        if (p.isRemoved() || !isPrey(mob, p) || p.level() != mob.level() || mob.distanceToSqr(p) > r * r) {
+            g.prey = null;
+            return null;
+        }
+        return p;
     }
 
     /** 変わる間: 移動・視線・跳びの旗を全部取り、ほかの Goal を止める。 */
@@ -217,7 +243,7 @@ public final class GenericInfectionAi {
 
         @Override
         public boolean canUse() {
-            LivingEntity t = mob.getTarget();
+            LivingEntity t = targetOf(mob);
             return t != null && t.isAlive() && !GenericInfection.isTransforming(mob);
         }
 
@@ -238,7 +264,7 @@ public final class GenericInfectionAi {
 
         @Override
         public void tick() {
-            LivingEntity t = mob.getTarget();
+            LivingEntity t = targetOf(mob);
             if (t == null) return;
             mob.getLookControl().setLookAt(t, 30.0F, 30.0F);
             if (--repath <= 0) {
@@ -253,7 +279,7 @@ public final class GenericInfectionAi {
      * 歩けない Mob(コウモリなど PathfinderMob でないもの)は、相手の方へ少し寄せる。
      */
     static void ramTick(Mob mob, GenericInfected g, long now) {
-        LivingEntity t = mob.getTarget();
+        LivingEntity t = targetOf(mob);
         if (t == null || !t.isAlive()) return;
         GenericInfectionSpec s = GenericInfection.spec();
         if (!(mob instanceof PathfinderMob) && mob.distanceToSqr(t) < range(mob, s) * range(mob, s)) {
