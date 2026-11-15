@@ -113,7 +113,9 @@ public final class PlantMarch {
             double dx = tx - mob.getX(), dz = tz - mob.getZ();
             double dist = Math.sqrt(dx * dx + dz * dz);
             var base = DesignData.director().base;
-            if (dist <= base.marchArriveBlocks || mob.level().getGameTime() - t.getLong("Since") > base.marchTimeoutTicks) {
+            // 壊す種は拠点の真ん中(2 ブロック)まで来る = 壁に突き当たって壊す(11-16。閉じた部屋の中の人は見えないので、狙う相手が無くても壁まで来させる)
+            double arrive = DirectorHooks.breaker(mob.getType()) ? 2.0D : base.marchArriveBlocks;
+            if (dist <= arrive || mob.level().getGameTime() - t.getLong("Since") > base.marchTimeoutTicks) {
                 end(mob);
                 mob.getNavigation().stop();
                 return;
