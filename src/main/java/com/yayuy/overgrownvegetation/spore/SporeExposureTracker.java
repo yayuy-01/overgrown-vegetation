@@ -186,6 +186,12 @@ public final class SporeExposureTracker {
             ex.atDose = false;
             ex.reachedCount++;
             ex.lastReachedGameTime = now;
+        } else if (com.yayuy.overgrownvegetation.infect.GenericInfection.onSporeHitBlocked(level, mob, amount)) {
+            // 胞子のダメージの種類に耐性を持つ Mob(2026-11-15 ユーザー決定「耐性を無視して胞子で変える」): 弾かれても入ったことにして数える
+            ex.dose = 0.0D;
+            ex.atDose = false;
+            ex.reachedCount++;
+            ex.lastReachedGameTime = now;
         } else {
             ex.atDose = true;
         }

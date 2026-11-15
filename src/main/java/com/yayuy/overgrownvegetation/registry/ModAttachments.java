@@ -326,7 +326,7 @@ public final class ModAttachments {
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<com.yayuy.overgrownvegetation.infect.GenericInfected>> GENERIC_INFECTED =
             ATTACHMENT_TYPES.register("generic_infected",
                     () -> AttachmentType.builder(com.yayuy.overgrownvegetation.infect.GenericInfected::new)
-                            .serialize(com.yayuy.overgrownvegetation.infect.GenericInfected.CODEC, g -> g.turned).build());
+                            .serialize(com.yayuy.overgrownvegetation.infect.GenericInfected.CODEC, com.yayuy.overgrownvegetation.infect.GenericInfected::shouldSave).build());
 
     public static void register(IEventBus modBus) {
         ATTACHMENT_TYPES.register(modBus);

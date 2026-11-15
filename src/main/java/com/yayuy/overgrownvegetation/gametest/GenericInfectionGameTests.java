@@ -644,6 +644,63 @@ public final class GenericInfectionGameTests {
         attacksPig(helper, EntityType.BAT);
     }
 
+    // ------------------------------------------------------------------ 胞子のダメージに耐性を持つ Mob(11-15 ユーザー決定「耐性を無視して胞子で変える」)
+
+    /** テスト用の印: この印を持つ Mob は胞子のダメージの種類を受け付けない(Cataclysm のコボレディエーター・ワジェットの代わり)。 */
+    private static final String SPORE_IMMUNE_TAG = "ov_test_spore_immune";
+
+    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+    public static final class SporeImmunity {
+        @SubscribeEvent
+        public static void onIncoming(net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent event) {
+            if (event.getEntity().getTags().contains(SPORE_IMMUNE_TAG)
+                    && event.getSource().is(com.yayuy.overgrownvegetation.registry.ModDamageTypes.SPORE_INFECTION)) {
+                event.setCanceled(true);
+            }
+        }
+
+        private SporeImmunity() {
+        }
+    }
+
+    /**
+     * 胞子のダメージの種類を受け付けない Mob(体力 100 のラヴェジャー)も、暴露で変わる。弾かれた 20 ダメージを入ったことにして数え、
+     * 体力に届いた回(5 回目)で変わる【仮】。4 回目では変わらない。体力は減らない(弾かれている)。完全な無敵(Invulnerable)の Mob は変わらない。
+     */
+    @GameTest(template = "gametest_empty7", batch = BATCH)
+    public static void sporeImmuneMobStillTurns(GameTestHelper helper) {
+        if (helper.getLevel().getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL) {
+            helper.fail("テストのワールドがピースフル");
+            return;
+        }
+        Mob immune = helper.spawnWithNoFreeWill(EntityType.RAVAGER, new BlockPos(2, 2, 2));
+        Mob invulnerable = helper.spawnWithNoFreeWill(EntityType.RAVAGER, new BlockPos(5, 2, 5));
+        immune.addTag(SPORE_IMMUNE_TAG);
+        invulnerable.setInvulnerable(true);
+        float amount = (float) com.yayuy.overgrownvegetation.data.DesignData.sporeField().mobExposureDamage();
+        int need = (int) Math.ceil(immune.getHealth() / amount);
+        double dose = com.yayuy.overgrownvegetation.data.DesignData.sporeField().infectDose();
+        for (int i = 1; i <= need; i++) {
+            for (Mob m : new Mob[]{immune, invulnerable}) {
+                SporeExposureTracker.setDose(m, dose, helper.getLevel().getGameTime());
+                SporeExposureTracker.tickWith(helper.getLevel(), m, 40, 0.0D);
+            }
+            if (i < need && GenericInfection.isTurned(immune)) {
+                helper.fail("耐性のある Mob が " + i + " 回目で変わった(期待 " + need + " 回目)");
+                return;
+            }
+        }
+        if (!GenericInfection.isTurned(immune)) {
+            helper.fail("耐性のある Mob が " + need + " 回の暴露で変わらない(数え " + immune.getData(ModAttachments.GENERIC_INFECTED).blockedDamage + ")");
+            return;
+        }
+        if (GenericInfection.isTurned(invulnerable)) {
+            helper.fail("完全な無敵の Mob が変わった");
+            return;
+        }
+        helper.succeed();
+    }
+
     /** テストから体当たりの判定を読む口。 */
     private static final class GenericInfectionAiAccess {
         static LivingEntity targetOf(Mob m) {

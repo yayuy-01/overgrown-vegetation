@@ -492,11 +492,6 @@ public final class GenericInfectionAi {
         LivingEntity t = targetOf(mob);
         if (t == null || !t.isAlive()) return;
         GenericInfectionSpec s = GenericInfection.spec();
-        boolean walker = mob instanceof PathfinderMob && !(mob instanceof net.minecraft.world.entity.animal.Squid);
-        if (!walker && mob.distanceToSqr(t) < range(mob, s) * range(mob, s)) {
-            net.minecraft.world.phys.Vec3 to = t.position().add(0.0D, t.getBbHeight() * 0.5D, 0.0D).subtract(mob.position()).normalize();
-            mob.setDeltaMovement(mob.getDeltaMovement().scale(0.9D).add(to.scale(0.06D)));
-        }
         if (now - g.lastRamTick < s.ramCooldownTicks()) return;
         boolean reach = mob.isWithinMeleeAttackRange(t) || mob.getBoundingBox().inflate(0.25D).intersects(t.getBoundingBox());
         if (!reach) return;
@@ -505,8 +500,24 @@ public final class GenericInfectionAi {
         g.lastRamTick = now;
     }
 
-    /** 毎 tick の後(元の処理の後): 攻撃の手段を持たない馬の草食み・後ろ足立ちを止める(Goal ではなく馬の中の処理なので)。 */
+    /**
+     * 毎 tick の後(元の処理の後):
+     * <ul>
+     *     <li>歩けない Mob(コウモリなど PathfinderMob でないもの・イカ)が近接で当てに行く間は、相手の方へ向けて動かす(元の飛び方・泳ぎ方が
+     *     毎 tick 速さを書き換えるので、その後で書く。元の動きは 1 割ほど混ざる)。</li>
+     *     <li>攻撃の手段を持たない馬の草食み・後ろ足立ちを止める(Goal ではなく馬の中の処理なので)。</li>
+     * </ul>
+     */
     static void afterTick(Mob mob) {
+        boolean walker = mob instanceof PathfinderMob && !(mob instanceof net.minecraft.world.entity.animal.Squid);
+        if (!walker && !GenericInfection.isTransforming(mob) && rammingNow(mob)) {
+            LivingEntity t = targetOf(mob);
+            double r = range(mob, GenericInfection.spec());
+            if (t != null && t.isAlive() && mob.distanceToSqr(t) < r * r) {
+                net.minecraft.world.phys.Vec3 to = t.position().add(0.0D, t.getBbHeight() * 0.5D, 0.0D).subtract(mob.position()).normalize();
+                mob.setDeltaMovement(mob.getDeltaMovement().scale(0.3D).add(to.scale(0.25D)));
+            }
+        }
         if (mob instanceof AbstractHorse horse && usesRam(mob)) {
             if (horse.isEating()) horse.setEating(false);
             if (horse.isStanding()) horse.setStanding(false);

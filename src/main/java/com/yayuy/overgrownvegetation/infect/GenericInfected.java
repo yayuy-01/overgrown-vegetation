@@ -16,8 +16,20 @@ public final class GenericInfected {
             Codec.LONG.optionalFieldOf("seed", 0L).forGetter(e -> e.seed),
             Codec.LONG.optionalFieldOf("start", 0L).forGetter(e -> e.startTick),
             Codec.INT.optionalFieldOf("transform", 0).forGetter(e -> e.transformTicks),
-            Codec.BOOL.optionalFieldOf("boss", false).forGetter(e -> e.boss)
+            Codec.BOOL.optionalFieldOf("boss", false).forGetter(e -> e.boss),
+            Codec.FLOAT.optionalFieldOf("blocked", 0.0F).forGetter(e -> e.blockedDamage)
     ).apply(i, GenericInfected::of));
+
+    /** 保存するか(変わった個体か、弾かれた胞子のダメージを数えている途中の個体)。 */
+    public boolean shouldSave() {
+        return turned || blockedDamage > 0.0F;
+    }
+
+    /**
+     * 弾かれた胞子のダメージの合計(変わる前だけ。2026-11-15 ユーザー決定「耐性を無視して胞子で変える」)。胞子のダメージの種類に耐性を持つ Mob は、
+     * 20 ダメージが入らないので、入ったことにしてここへ足し、体力に届いたら変わる。保存する。
+     */
+    public float blockedDamage;
 
     /** 変わったか(変わっている途中も含む)。 */
     public boolean turned;
@@ -48,13 +60,14 @@ public final class GenericInfected {
     /** 外した Goal(戻す用。保存しない。Mob と一緒に消えるようここに置く)。 */
     Object removedGoals;
 
-    private static GenericInfected of(boolean turned, long seed, long start, int transform, boolean boss) {
+    private static GenericInfected of(boolean turned, long seed, long start, int transform, boolean boss, float blocked) {
         GenericInfected g = new GenericInfected();
         g.turned = turned;
         g.seed = seed;
         g.startTick = start;
         g.transformTicks = transform;
         g.boss = boss;
+        g.blockedDamage = blocked;
         return g;
     }
 
@@ -69,5 +82,6 @@ public final class GenericInfected {
         startTick = 0L;
         transformTicks = 0;
         boss = false;
+        blockedDamage = 0.0F;
     }
 }

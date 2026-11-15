@@ -119,6 +119,7 @@ public final class GenericInfection {
         g.startTick = mob.level().getGameTime();
         g.transformTicks = instant ? 0 : spec().transformTicks();
         g.boss = isBossType(mob);
+        g.blockedDamage = 0.0F;
         // 感染の後始末: 暴露量・感染・逃げる向きを消し、弱りの修飾を外す(変わった Mob は植物側なので、もう測らない)
         if (mob.hasData(ModAttachments.SPORE_EXPOSURE)) mob.getData(ModAttachments.SPORE_EXPOSURE).reset();
         AttributeInstance speed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
@@ -177,6 +178,26 @@ public final class GenericInfection {
         entity.setHealth(1.0F); // 死なずに済んだ(この後 applyHealth で満タン)
         doTurn((Mob) entity, false);
     }
+
+    /**
+     * 胞子の 20 ダメージが弾かれた(胞子のダメージの種類に耐性を持つ Mob。Cataclysm のコボレディエーター・ワジェットなど。2026-11-15 ユーザー決定
+     * 「耐性を無視して胞子で変える」)。入ったことにして弾かれた量を足し、その合計が今の体力(+ 衝撃吸収)に届いたら変える【仮】
+     * = 普通の Mob が削られて死ぬのと同じ回数で変わる(G2 の決まりと揃える。胞子の傷 = 最大体力の減りは付けられないので付けない)。
+     * 完全な無敵(NBT の Invulnerable)の Mob・ピースフル・なれない Mob は数えない(呼ぶ側は今までどおり、次の判定でまた試す)。
+     *
+     * @return 数えた(呼ぶ側は暴露量を 0 に戻す)
+     */
+    public static boolean onSporeHitBlocked(ServerLevel level, LivingEntity entity, float amount) {
+        if (entity.isInvulnerable() || level.getDifficulty() == Difficulty.PEACEFUL || !canTurn(entity)) return false;
+        GenericInfected g = entity.getData(ModAttachments.GENERIC_INFECTED);
+        g.blockedDamage += amount;
+        blockedCount++;
+        if (g.blockedDamage >= entity.getHealth() + entity.getAbsorptionAmount()) doTurn((Mob) entity, false);
+        return true;
+    }
+
+    /** 数え(確かめ用): 弾かれた胞子のダメージを数えた回数。 */
+    public static int blockedCount;
 
     /** 変わった Mob が死んだ(★ 問い 11): 飛び火を起こす(萌芽体は isPlantSide で生えない・破裂は PlantSideBurst)。 */
     @SubscribeEvent
