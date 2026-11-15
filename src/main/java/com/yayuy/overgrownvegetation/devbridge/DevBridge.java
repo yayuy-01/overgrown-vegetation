@@ -828,6 +828,24 @@ public final class DevBridge {
                 double r = arg.isBlank() ? 16.0D : Double.parseDouble(arg.trim());
                 log("GENINFECT " + com.yayuy.overgrownvegetation.client.infect.InfectClientEvents.devMark(mc.level, mc.player.position(), r));
             }
+            case "geninfectstate" -> {
+                // 汎用の感染体のクライアントの印(サーバーから届いた分)の数と、いちばん近い印の中身(2026-11-15 土台の同期の確かめ)
+                if (mc.level == null || mc.player == null) return "ワールドが無い";
+                StringBuilder sb = new StringBuilder("GENINFECTSTATE 数 " + com.yayuy.overgrownvegetation.client.infect.GenericInfectionClient.count());
+                net.minecraft.world.entity.Entity best = null;
+                for (net.minecraft.world.entity.Entity e : mc.level.entitiesForRendering()) {
+                    if (com.yayuy.overgrownvegetation.client.infect.GenericInfectionClient.of(e) != null
+                            && (best == null || e.distanceToSqr(mc.player) < best.distanceToSqr(mc.player))) best = e;
+                }
+                if (best != null) {
+                    var s = com.yayuy.overgrownvegetation.client.infect.GenericInfectionClient.of(best);
+                    sb.append(" 近い ").append(best.getType().getDescriptionId()).append(" #").append(best.getId())
+                            .append(" 種 ").append(Long.toHexString(s.seed())).append(" 進み ")
+                            .append(String.format(java.util.Locale.ROOT, "%.2f", s.progress(mc.level.getGameTime(), 0.0F)))
+                            .append(" ボス ").append(s.boss());
+                }
+                log(sb.toString());
+            }
             case "lizard" -> {
                 // 幹のトカゲ(client/atmosphere/TrunkLizards)を決めた木部のブロックの面に 1 匹置く(逃げ・湧きを止める)。lizard <x y z> <nx> <nz> [向き°] / lizard off(2026-11-07 見え方の前後)
                 String[] p = arg.trim().split("\\s+");
