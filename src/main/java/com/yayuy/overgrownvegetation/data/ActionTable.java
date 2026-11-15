@@ -116,6 +116,13 @@ public final class ActionTable {
         Map<String, ActionDef> v = new LinkedHashMap<>();
         v.put("bite", new ActionDef("bite", 30, 0.0D, 0.0D, 1.0D, 1.0D, 1.0D, 0.0D, Map.of()));
         v.put("pounce", new ActionDef("pounce", 100, 7.0D, 11.0D, 1.0D, 1.0D, 0.08D, 12.0D, Map.of("lift", 0.42D)));
+        // 段 B(11-15、すべて仮): 足噛み = 首の横の届く所の相手へ走りながら(間合いは種が見る。maxRange は真ん中からの上限)。
+        // slowTicks・slowAmp = 鈍り(移動の遅さ)の長さ・強さ(1 = II)。
+        v.put("nip", new ActionDef("nip", 40, 0.0D, 5.0D, 1.0D, 1.0D, 1.0D, 4.0D, Map.of("slowTicks", 60.0D, "slowAmp", 1.0D)));
+        // 狩りの疾走 = 背を向けて離れていく(離れる速さ fleeSpeed 以上の)相手へ、10〜28 ブロックで 1 tick ごとに 10%。
+        // damage = 最後の飛びかかり。speedMult = 移動の倍率(地面 0.35 ブロック/tick、ユーザー決定)、sprintTicks = 走る長さ。
+        v.put("hunt", new ActionDef("hunt", 400, 10.0D, 28.0D, 1.0D, 1.0D, 0.1D, 14.0D,
+                Map.of("fleeSpeed", 0.12D, "speedMult", 1.34D, "sprintTicks", 80.0D, "lift", 0.42D)));
         DEFAULT_ACTIONS.put("venamnes", Collections.unmodifiableMap(v));
     }
 

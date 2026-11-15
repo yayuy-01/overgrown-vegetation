@@ -73,7 +73,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
 
     // --- 速さ【仮】 ---
     /** 開けた所で移動の速さに掛ける倍率の上限【仮】。 */
-    public static final double SPRINT_OPEN = 1.45D;
+    public static final double SPRINT_OPEN = 1.16D;   // 11-15 ユーザー決定(案 1): 1.45 → 約 1.16。地面の速さは倍率の 2 乗で効く(バニラの Mob は setSpeed が前への入力にも同じ値を入れる)ので、急ぎの素の 0.194 × 1.16² ≒ 0.26(プレイヤーの全力疾走 0.28 より少し遅い)。1.45 では 0.408 で狩りの疾走 0.35 より速かった
     /** 幹までの距離がこれ以下なら倍率 1、{@link #OPEN_CLEAR} 以上で上限(ブロック)【仮】。森の地図の上限は 6。 */
     static final double FOREST_CLEAR = 2.0D, OPEN_CLEAR = 5.0D;
     /** 倍率が目標へ寄る速さ(1 tick あたり)【仮】。 */
@@ -119,9 +119,43 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
 
     /** 動作(同期する)。段ごとに 1 つ。 */
     public static final int ACT_NONE = 0, ACT_BITE_WINDUP = 1, ACT_BITE = 2, ACT_BITE_RECOVER = 3,
-            ACT_POUNCE_WINDUP = 4, ACT_POUNCE = 5, ACT_POUNCE_RECOVER = 6;
+            ACT_POUNCE_WINDUP = 4, ACT_POUNCE = 5, ACT_POUNCE_RECOVER = 6,
+            // 段 B(11-15): 狩りの疾走。叫び → 疾走(走りながら追う。脚・曲げは止めない = isActing ではない)→ 最後の飛びかかり → 着地 → 息切れ
+            ACT_HUNT_WINDUP = 7, ACT_HUNT_SPRINT = 8, ACT_HUNT_POUNCE = 9, ACT_HUNT_LAND = 10, ACT_HUNT_RECOVER = 11;
+
     /** 動作に入るときの補間(tick)。 */
     static final int LEAD = 4;
+
+    // --- 段 B: 狩りの疾走(時刻は技のアニメの一覧と対)【仮・Claude 11-15。速さはユーザー決定】 ---
+    /** 叫び: 補間 + hunt_windup 1.40 秒(立ち上がって叫び、低く伸びる構えで止まる)。 */
+    public static final int HUNT_WINDUP_T = LEAD + 28;
+    /** 息切れ: hunt_recover 3.00 秒。 */
+    public static final int HUNT_RECOVER_T = 60;
+    /** 疾走の長さの既定(tick。json の sprintTicks)。 */
+    static final int HUNT_SPRINT_T = 80;
+    /** 疾走の移動の倍率: 地面の速さは倍率の 2 乗で効くので、急ぎの素の 0.194 → 0.35 は √(0.35/0.194) ≒ 1.34(11-15 ユーザー決定の 0.35)。開けた所の倍率は掛けない。 */
+    public static final double HUNT_SPEED = 1.34D;
+    /** sprint を速さ 1.0 で流したときの地上速度(ブロック/tick。アニメの一覧: 1 歩 4.9 ブロック・14 tick で 1 巡)。 */
+    public static final double SPRINT_REF = 0.35D;
+    /** 疾走の最後の飛びかかりを始める距離(体の真ん中から。頭から約 2〜6)・正面のずれ(度)。 */
+    static final double HUNT_POUNCE_MIN = 5.0D, HUNT_POUNCE_MAX = 9.3D;
+    static final float HUNT_POUNCE_CONE = 20.0F;
+    /** 叫びの光: 口 0.40〜1.05 秒・腱 0.40 秒から(アニメの頭から。補間 4 を足す)。息切れの頭で腱は 10 tick かけて消える。 */
+    static final float HUNT_MOUTH_ON = LEAD + 8.0F, HUNT_MOUTH_OFF = LEAD + 21.0F, HUNT_TENDON_ON = LEAD + 8.0F, HUNT_TENDON_FADE = 10.0F;
+
+    // --- 段 B: すれ違いざまの足噛み(run に重ねる 2 つ目の層。技の最中ではない = 走りを止めない)【仮・Claude 11-15】 ---
+    /** 足噛みの段(同期する)。0 = なし、1〜3 = 左(前触れ・実行・隙)、4〜6 = 右。左右は自分から見た相手の側。 */
+    public static final int NIP_NONE = 0, NIP_L_WINDUP = 1, NIP_L = 2, NIP_L_RECOVER = 3, NIP_R_WINDUP = 4, NIP_R = 5, NIP_R_RECOVER = 6;
+    /** 長さ: nip_*_windup 0.30 秒・nip_* 0.20 秒・nip_*_recover 0.35 秒。補間なし(頭と終わりは run の首の構え)。 */
+    public static final int NIP_WINDUP_T = 6, NIP_EXEC_T = 4, NIP_RECOVER_T = 7;
+    /** 当たり: nip の 0.08〜0.15 秒 = 実行の 2〜3 tick 目。 */
+    static final int NIP_HIT_FROM = 2, NIP_HIT_TO = 3;
+    /** 噛める所(体の真ん中から見た相手の位置、ブロック): 前へ {@link #NIP_FWD_MIN}〜{@link #NIP_FWD_MAX}・横へ {@link #NIP_SIDE_MIN}〜{@link #NIP_SIDE_MAX}(首を横へ曲げて届く所)。 */
+    static final double NIP_FWD_MIN = 0.5D, NIP_FWD_MAX = 4.5D, NIP_SIDE_MIN = 0.4D, NIP_SIDE_MAX = 3.0D;
+    /** 相手がこちらを向いている(向きのずれがこれ以内、度)と行き過ぎて当たらない(決定「向き合うと行き過ぎる」)。 */
+    static final float NIP_FACING = 70.0F;
+    /** 足噛みを始める速さ(ブロック/tick。走っている間だけ。歩き stalk の首の構えには合わない)。 */
+    static final double NIP_MIN_SPEED = 0.2D;
     /** 噛みつき: bite_windup 0.50 秒・bite 0.35 秒・bite_recover 0.80 秒。 */
     public static final ActionTiming BITE_T = ActionTiming.ofSeconds(LEAD, 0.50D, 0.35D, 0.80D);
     /** 噛みつきの当たり: bite の 0.10〜0.17 秒(口が閉じる瞬間)= 実行の 2〜3 tick 目。 */
@@ -160,6 +194,13 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     private static final RawAnimation POUNCE_WINDUP_ANIM = RawAnimation.begin().thenPlayAndHold("pounce_windup");
     private static final RawAnimation POUNCE_ANIM = RawAnimation.begin().thenPlayAndHold("pounce");
     private static final RawAnimation POUNCE_RECOVER_ANIM = RawAnimation.begin().thenPlayAndHold("pounce_recover");
+    private static final RawAnimation HUNT_WINDUP_ANIM = RawAnimation.begin().thenPlayAndHold("hunt_windup");
+    private static final RawAnimation SPRINT_ANIM = RawAnimation.begin().thenLoop("sprint");
+    private static final RawAnimation HUNT_RECOVER_ANIM = RawAnimation.begin().thenPlayAndHold("hunt_recover");
+    private static final RawAnimation[] NIP_ANIMS = {null,
+            RawAnimation.begin().thenPlayAndHold("nip_l_windup"), RawAnimation.begin().thenPlayAndHold("nip_l"), RawAnimation.begin().thenPlayAndHold("nip_l_recover"),
+            RawAnimation.begin().thenPlayAndHold("nip_r_windup"), RawAnimation.begin().thenPlayAndHold("nip_r"), RawAnimation.begin().thenPlayAndHold("nip_r_recover")};
+    private static final EntityDataAccessor<Integer> DATA_NIP = SynchedEntityData.defineId(VenamnesEntity.class, EntityDataSerializers.INT);
 
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
@@ -197,6 +238,13 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     private boolean steering;
     /** 確かめ用: {@code /data merge entity <個体> {OvForceAction:<番号>}} で次の tick にその技を始める(-1 = なし)。 */
     private int pendingForce = -1;
+    /** 足噛み(サーバー): 今の段に入ってからの tick・この足噛みで当てたか・相手。 */
+    private int nipTicks;
+    private boolean nipHit;
+    @Nullable
+    private LivingEntity nipTarget;
+    /** 足噛みの結果(GameTest 用): 0 = まだ、1 = 当てた、2 = 外した(向き合われた・届かない)。 */
+    private int nipResult;
 
     // --- クライアント: 動作の見え方 ---
     private int clientAct = ACT_NONE, clientSeq = -1, clientActStart, animSeq = -1;
@@ -215,6 +263,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         super.defineSynchedData(builder);
         builder.define(DATA_ACTION, ACT_NONE);
         builder.define(DATA_SEQ, 0);
+        builder.define(DATA_NIP, NIP_NONE);
     }
 
     /** うろつく・見回すに、追う(技を選ぶ)Goal と標的の Goal を足す(標的はファルキムネスと同じ: 殴られたら反撃・プレイヤー・グループの外の生き物)。 */
@@ -296,9 +345,10 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         return 4.5D * this.getScale();
     }
 
+    /** 移動の速さに掛ける倍率: 狩りの疾走の間は {@link #HUNT_SPEED}(開けた所の倍率は掛けない。11-15 ユーザー決定)、ほかは開けた所の倍率。 */
     @Override
     protected double gaitBoost() {
-        return this.sprint;
+        return isHuntSprinting() ? def("hunt").get("speedMult", HUNT_SPEED) : this.sprint;
     }
 
     public double sprintFactor() {
@@ -388,10 +438,28 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         return this.entityData.get(DATA_ACTION);
     }
 
-    /** 技の最中か(同期した動作から。クライアントでも読める = 脚の手続き・体の曲げを止める)。 */
+    /**
+     * 技の最中か(同期した動作から。クライアントでも読める = 脚の手続き・体の曲げを止める)。狩りの疾走の走っている間は技の最中に
+     * 数えない(走りながら曲がるので体の曲げは効かせる。脚は速さで手付けの走りになる。動かすのは追う Goal)。
+     */
     @Override
     public boolean isActing() {
-        return getAction() != ACT_NONE;
+        int a = getAction();
+        return a != ACT_NONE && a != ACT_HUNT_SPRINT;
+    }
+
+    /** 狩りの疾走で走っている間か。 */
+    public boolean isHuntSprinting() {
+        return getAction() == ACT_HUNT_SPRINT;
+    }
+
+    public int getNip() {
+        return this.entityData.get(DATA_NIP);
+    }
+
+    /** 足噛みの結果(GameTest 用): 0 = まだ、1 = 当てた、2 = 外した。 */
+    public int nipResult() {
+        return this.nipResult;
     }
 
     /** 技の調整値(設計データ {@code actions.json} の {@code venamnes})。 */
@@ -401,7 +469,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
 
     /** 選んで出す通常技(段 A: 噛みつき・飛びかかり)。 */
     static List<ActionDef> normalDefs() {
-        return List.of(def("bite"), def("pounce"));
+        return List.of(def("bite"), def("pounce"), def("nip"), def("hunt"));
     }
 
     ActionPicker picker() {
@@ -412,7 +480,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     @Override
     protected float maxTurnPerTick() {
         return switch (getAction()) {
-            case ACT_BITE_WINDUP -> BITE_TRACK_TURN;
+            case ACT_BITE_WINDUP, ACT_HUNT_WINDUP -> BITE_TRACK_TURN;
             case ACT_POUNCE_WINDUP -> POUNCE_TRACK_TURN;
             default -> TURN_PER_TICK;
         };
@@ -452,10 +520,106 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         this.picker.used(d);
         this.actionTarget = target;
         this.actionHit = false;
+        if (d.id().equals("nip")) {
+            startNip(target);
+            return;
+        }
         setAction(switch (d.id()) {
             case "pounce" -> ACT_POUNCE_WINDUP;
+            case "hunt" -> ACT_HUNT_WINDUP;
             default -> ACT_BITE_WINDUP;
         });
+    }
+
+    // ------------------------------------------------------------------ 足噛み(段 B 11-15)
+
+    /** 相手が自分の左にいるか(体の向きに対して)。左 = 向いている向きを右手に 90 度回した逆(Minecraft の向きで (cos, sin))。 */
+    boolean onLeft(Entity t) {
+        float yaw = this.getYRot() * Mth.DEG_TO_RAD;
+        return (t.getX() - this.getX()) * Mth.cos(yaw) + (t.getZ() - this.getZ()) * Mth.sin(yaw) > 0.0D;
+    }
+
+    /** 相手の位置を体の向きで分けた {前, 横(左が +)}(ブロック)。 */
+    double[] relative(Entity t) {
+        float yaw = this.getYRot() * Mth.DEG_TO_RAD;
+        double dx = t.getX() - this.getX(), dz = t.getZ() - this.getZ();
+        return new double[]{dx * -Mth.sin(yaw) + dz * Mth.cos(yaw), dx * Mth.cos(yaw) + dz * Mth.sin(yaw)};
+    }
+
+    /** 足噛みの届く所(首を横へ曲げて届く): 前へ 0.5〜4.5・横へ 0.4〜3.0・高さの差 2 以内。 */
+    boolean inNipZone(LivingEntity t) {
+        double s = this.getScale();
+        double[] r = relative(t);
+        double side = Math.abs(r[1]);
+        return r[0] >= NIP_FWD_MIN * s && r[0] <= NIP_FWD_MAX * s && side >= NIP_SIDE_MIN * s && side <= NIP_SIDE_MAX * s
+                && Math.abs(t.getY() - this.getY()) < 2.0D;
+    }
+
+    /** 相手がこちらを向いているか(相手の向きと「相手から自分への向き」のずれが {@link #NIP_FACING} 度以内)。 */
+    static boolean facesMe(LivingEntity t, Entity me) {
+        float toMe = (float) (Mth.atan2(me.getZ() - t.getZ(), me.getX() - t.getX()) * Mth.RAD_TO_DEG) - 90.0F;
+        return Math.abs(Mth.wrapDegrees(toMe - t.getYHeadRot())) <= NIP_FACING;
+    }
+
+    /** 足噛みを始める(相手のいる側の首を振る)。走りは止めない。 */
+    void startNip(LivingEntity target) {
+        this.nipTarget = target;
+        this.nipHit = false;
+        this.nipResult = 0;
+        setNip(onLeft(target) ? NIP_L_WINDUP : NIP_R_WINDUP);
+    }
+
+    /** 足噛みをいますぐ始める(GameTest・確かめ用)。左右は今の標的の側。 */
+    public void forceNip() {
+        LivingEntity t = this.getTarget();
+        if (t == null) {   // 確かめ用: 標的が無ければ、近く(6 ブロック)のいちばん近い生き物
+            t = this.level().getNearestEntity(LivingEntity.class, net.minecraft.world.entity.ai.targeting.TargetingConditions.forNonCombat().range(6.0D),
+                    this, this.getX(), this.getY(), this.getZ(), this.getBoundingBox().inflate(6.0D));
+        }
+        this.picker.used(def("nip"));
+        if (t != null) startNip(t);
+    }
+
+    /** 確かめ用: {@code /data merge entity <個体> {OvForceNip:1b}} で次の tick に足噛み。 */
+    private boolean pendingNip;
+
+    private void setNip(int n) {
+        this.entityData.set(DATA_NIP, n);
+        this.nipTicks = 0;
+    }
+
+    /** 足噛みを 1 tick 進める。実行の 2〜3 tick 目に、相手が届く所にいて・こちらを向いていなければ噛んで足を鈍らせる。 */
+    private void tickNip() {
+        int n = getNip();
+        if (n == NIP_NONE) return;
+        if (isActing()) {   // ほかの技が始まった(足噛みは捨てる)
+            setNip(NIP_NONE);
+            return;
+        }
+        this.nipTicks++;
+        LivingEntity t = this.nipTarget != null && this.nipTarget.isAlive() && this.nipTarget.level() == this.level() ? this.nipTarget : null;
+        int base = n >= NIP_R_WINDUP ? NIP_R_WINDUP : NIP_L_WINDUP, step = n - base;
+        if (step == 0) {
+            if (this.nipTicks >= NIP_WINDUP_T) setNip(base + 1);
+        } else if (step == 1) {
+            if (!this.nipHit && t != null && this.nipTicks >= NIP_HIT_FROM && this.nipTicks <= NIP_HIT_TO) {
+                if (inNipZone(t) && !facesMe(t, this)) {
+                    this.nipHit = true;
+                    this.nipResult = 1;
+                    ActionDef d = def("nip");
+                    float dmg = (float) d.damage();
+                    if (t.hurt(this.damageSources().mobAttack(this), dmg > 0.0F ? dmg : 4.0F)) this.setLastHurtMob(t);
+                    t.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN,
+                            (int) d.get("slowTicks", 60.0D), (int) d.get("slowAmp", 1.0D)), this);
+                }
+            }
+            if (this.nipTicks >= NIP_EXEC_T) {
+                if (!this.nipHit) this.nipResult = 2;
+                setNip(base + 2);
+            }
+        } else if (this.nipTicks >= NIP_RECOVER_T) {
+            setNip(NIP_NONE);
+        }
     }
 
     /** 技をいますぐ始める(GameTest・確かめ用。間合い・クールダウンは見ない)。標的は今の標的。 */
@@ -465,6 +629,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         switch (act) {
             case ACT_BITE_WINDUP -> this.picker.used(def("bite"));
             case ACT_POUNCE_WINDUP -> this.picker.used(def("pounce"));
+            case ACT_HUNT_WINDUP -> this.picker.used(def("hunt"));
             default -> {
             }
         }
@@ -497,6 +662,11 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
             this.pendingForce = -1;
             forceAction(f);
         }
+        if (this.pendingNip) {
+            this.pendingNip = false;
+            forceNip();
+        }
+        tickNip();
         int act = getAction();
         if (act == ACT_NONE) return;
         if (!this.isAlive()) {
@@ -542,6 +712,43 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
                 if (!this.actionHit && t != null && k <= LAND_HIT_TO && headTouches(t)) hitPounce(t);
                 if (k >= POUNCE_RECOVER_T) setAction(ACT_NONE);
             }
+            // --- 狩りの疾走(段 B) ---
+            case ACT_HUNT_WINDUP -> {
+                // 叫ぶ間は動かない(標的へ向き直るだけ。立ち上がって叫ぶ前触れ = 背を向けて逃げる猶予)
+                if (t != null) wantFacing(yawTo(t), TURN_ACTION);
+                if (k >= HUNT_WINDUP_T) setAction(ACT_HUNT_SPRINT);
+            }
+            case ACT_HUNT_SPRINT -> {
+                // 走らせるのは追う Goal(huntSprintTick)。ここは長さと、最後の飛びかかりへの切り替えだけ
+                int max = (int) def("hunt").get("sprintTicks", HUNT_SPRINT_T);
+                if (t == null || k >= max) {
+                    setAction(ACT_HUNT_RECOVER);   // 見失った・時間切れ: 飛びかからずに息切れへ
+                } else {
+                    double d = Math.sqrt(this.distanceToSqr(t.getX(), this.getY(), t.getZ()));
+                    double s = this.getScale();
+                    if (this.onGround() && d <= HUNT_POUNCE_MAX * s && Math.abs(offFront(t)) <= HUNT_POUNCE_CONE
+                            && Math.abs(t.getY() - this.getY()) < POUNCE_DY) {
+                        this.leapDistance = Mth.clamp(d - HEAD_REACH * s, POUNCE_MIN_LEAP, POUNCE_MAX_LEAP);
+                        this.leftGround = false;
+                        this.actionHit = false;
+                        setAction(ACT_HUNT_POUNCE);
+                    }
+                }
+            }
+            case ACT_HUNT_POUNCE -> {
+                if (k == POUNCE_LIFTOFF) launch(this.leapDistance, def("hunt").get("lift", 0.42D));
+                if (!this.onGround()) this.leftGround = true;
+                if (!this.actionHit && t != null && k >= POUNCE_HIT_FROM && headTouches(t)) hitHunt(t);
+                boolean landed = this.leftGround && this.onGround() && k > POUNCE_LIFTOFF + 1;
+                if (landed || k > POUNCE_LIFTOFF + POUNCE_MAX_AIR) setAction(ACT_HUNT_LAND);
+            }
+            case ACT_HUNT_LAND -> {
+                if (!this.actionHit && t != null && k <= LAND_HIT_TO && headTouches(t)) hitHunt(t);
+                if (k >= POUNCE_RECOVER_T) setAction(ACT_HUNT_RECOVER);
+            }
+            case ACT_HUNT_RECOVER -> {
+                if (k >= HUNT_RECOVER_T) setAction(ACT_NONE);
+            }
             default -> setAction(ACT_NONE);
         }
     }
@@ -560,9 +767,17 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         return t.getBoundingBox().inflate(POUNCE_BITE_RADIUS * this.getScale()).contains(head);
     }
 
+    private void hitHunt(LivingEntity t) {
+        hitWith(t, def("hunt").damage());
+    }
+
     private void hitPounce(LivingEntity t) {
+        hitWith(t, def("pounce").damage());
+    }
+
+    private void hitWith(LivingEntity t, double damage) {
         this.actionHit = true;
-        float dmg = (float) def("pounce").damage();
+        float dmg = (float) damage;
         if (dmg <= 0.0F) dmg = (float) this.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE);
         if (t.hurt(this.damageSources().mobAttack(this), dmg)) {
             this.setLastHurtMob(t);
@@ -605,6 +820,9 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         return switch (this.clientAct) {
             case ACT_BITE_WINDUP -> Mth.clamp(a / GLOW_IN, 0.0F, 1.0F);
             case ACT_BITE -> Mth.clamp(1.0F - (a - MOUTH_OFF_AT) / GLOW_OUT, 0.0F, 1.0F);
+            // 狩りの疾走の叫び: hunt_windup の 0.40〜1.05 秒
+            case ACT_HUNT_WINDUP -> Math.min(Mth.clamp((a - HUNT_MOUTH_ON) / GLOW_IN, 0.0F, 1.0F),
+                    Mth.clamp(1.0F - (a - HUNT_MOUTH_OFF) / GLOW_OUT, 0.0F, 1.0F));
             default -> 0.0F;
         };
     }
@@ -615,6 +833,10 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         return switch (this.clientAct) {
             case ACT_POUNCE_WINDUP -> Mth.clamp(a / GLOW_IN, 0.0F, 1.0F);
             case ACT_POUNCE -> Mth.clamp(1.0F - (a - TENDON_OFF_AT) / GLOW_OUT, 0.0F, 1.0F);
+            // 狩りの疾走: 叫びの 0.40 秒から点き、疾走・最後の飛びかかり・着地の間ずっと。息切れの頭から 10 tick で消える
+            case ACT_HUNT_WINDUP -> Mth.clamp((a - HUNT_TENDON_ON) / GLOW_IN, 0.0F, 1.0F);
+            case ACT_HUNT_SPRINT, ACT_HUNT_POUNCE, ACT_HUNT_LAND -> 1.0F;
+            case ACT_HUNT_RECOVER -> Mth.clamp(1.0F - a / HUNT_TENDON_FADE, 0.0F, 1.0F);
             default -> 0.0F;
         };
     }
@@ -631,6 +853,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         if (tag.contains("OvForceAction")) this.pendingForce = tag.getInt("OvForceAction");
+        if (tag.contains("OvForceNip")) this.pendingNip = true;
     }
 
     // ------------------------------------------------------------------ 脚
@@ -733,7 +956,8 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     @Override
     protected boolean legsFree() {
         if (!super.legsFree()) return false;
-        if (!this.level().isClientSide()) return true;
+        if (!this.level().isClientSide()) return true;   // サーバー: 体の曲げは疾走の間も効かせる
+        if (isHuntSprinting()) return false;   // 疾走の間は手付けの sprint(走り出しの遅い間も足の置き場へ戻さない)
         // 速く走る間は手付けの歩き(足の置き場は二足の宙に浮く走りを持たない)。ヒステリシスで切り替える
         double v = Math.sqrt(sq(this.getX() - this.xo) + sq(this.getZ() - this.zo));
         if (this.keyedRun) {
@@ -754,6 +978,16 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new PhaseKeepingAnimationController<>(this, "main", 4, this::mainState));
+        // 段 B: 足噛みの層(首・頭・顎だけ)。後に登録した方が同じ骨を上書きするので、走りの上に重なる。流していない間は STOP(骨に触らない)。
+        // 頭と終わりは run の首の構えなので補間 0(記憶 geckolib-two-layer-controllers の口パクの層と同じ作り)
+        controllers.add(new AnimationController<>(this, "nip", 0, this::nipState));
+    }
+
+    private PlayState nipState(AnimationState<VenamnesEntity> state) {
+        int n = getNip();
+        if (n == NIP_NONE || this.isDeadOrDying() || n >= NIP_ANIMS.length) return PlayState.STOP;
+        state.getController().transitionLength(0);
+        return state.setAndContinue(NIP_ANIMS[n]);
     }
 
     private PlayState mainState(AnimationState<VenamnesEntity> state) {
@@ -768,15 +1002,27 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
                 this.animSeq = seq;
                 c.forceAnimationReset();
             }
-            boolean first = act == ACT_BITE_WINDUP || act == ACT_POUNCE_WINDUP;
-            c.transitionLength(first ? LEAD : 0);
+            // 補間: 技に入る段は LEAD、継ぎ目が同じ姿の段は 0。疾走 → 最後の飛びかかりは走りの位相がまちまちなので 2、
+            // 息切れは頭が疾走の構え(着地の後は静止の姿)なので LEAD(アニメの一覧の注意)
+            c.transitionLength(switch (act) {
+                case ACT_BITE_WINDUP, ACT_POUNCE_WINDUP, ACT_HUNT_WINDUP, ACT_HUNT_RECOVER -> LEAD;
+                case ACT_HUNT_POUNCE -> 2;
+                default -> 0;
+            });
+            if (act == ACT_HUNT_SPRINT) {
+                // 疾走: 踏む足が滑らないよう実際の速さに合わせて流す(基準 0.35)
+                c.setAnimationSpeed(Mth.clamp(clientForwardSpeed() / (SPRINT_REF * this.getScale()), RUN_SPEED_MIN, RUN_SPEED_MAX));
+            }
             RawAnimation a = switch (act) {
                 case ACT_BITE_WINDUP -> BITE_WINDUP_ANIM;
                 case ACT_BITE -> BITE_ANIM;
                 case ACT_BITE_RECOVER -> BITE_RECOVER_ANIM;
                 case ACT_POUNCE_WINDUP -> POUNCE_WINDUP_ANIM;
-                case ACT_POUNCE -> POUNCE_ANIM;
-                case ACT_POUNCE_RECOVER -> POUNCE_RECOVER_ANIM;
+                case ACT_POUNCE, ACT_HUNT_POUNCE -> POUNCE_ANIM;
+                case ACT_POUNCE_RECOVER, ACT_HUNT_LAND -> POUNCE_RECOVER_ANIM;
+                case ACT_HUNT_WINDUP -> HUNT_WINDUP_ANIM;
+                case ACT_HUNT_SPRINT -> SPRINT_ANIM;
+                case ACT_HUNT_RECOVER -> HUNT_RECOVER_ANIM;
                 default -> IDLE;
             };
             return state.setAndContinue(a);

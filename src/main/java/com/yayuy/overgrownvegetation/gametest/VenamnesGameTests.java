@@ -352,6 +352,100 @@ public final class VenamnesGameTests {
         helper.succeed();
     }
 
+    // ------------------------------------------------------------------ 段 B(11-15): 足噛み・狩りの疾走
+
+    /** 首の横(前へ 2.5・左へ 1.8)に的を置く。{@code facing} なら的はヴェナムネスの方を向く、そうでなければ同じ向き(背を向けて走っている形)。 */
+    private static net.minecraft.world.entity.monster.Husk sideDummy(GameTestHelper helper, VenamnesEntity v, boolean facing) {
+        net.minecraft.world.entity.monster.Husk h = dummy(helper, 3.5D + 1.8D, 0.6D + 2.5D);   // 南向き(yaw 0)の左 = 東(+x)
+        float yaw = facing ? yawTo(h.position(), v.position()) : 0.0F;
+        h.setYRot(yaw);
+        h.setYHeadRot(yaw);
+        h.yHeadRotO = yaw;
+        return h;
+    }
+
+    /** 足噛み: 首の横の背を向けた相手には、前触れ(0.3 秒)の後に当たり、足を鈍らせる(移動の遅さ)。左の相手には左の首振り。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 60)
+    public static void nipHitsSideTargetAndSlows(GameTestHelper helper) {
+        VenamnesEntity v = placeAt(helper, 3.5D, 0.6D, 0.0F);
+        net.minecraft.world.entity.monster.Husk h = sideDummy(helper, v, false);
+        v.setTarget(h);
+        helper.runAfterDelay(1L, () -> {
+            v.forceNip();
+            if (v.getNip() != VenamnesEntity.NIP_L_WINDUP) helper.fail("左の相手に左の足噛みにならない: " + v.getNip());
+        });
+        helper.runAfterDelay(2L + VenamnesEntity.NIP_WINDUP_T + VenamnesEntity.NIP_EXEC_T + 2L, () -> {
+            if (v.nipResult() != 1 || h.getHealth() >= 500.0F || !h.hasEffect(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN)) {
+                helper.fail("足噛みが当たって鈍らせない: 結果 " + v.nipResult() + " 体力 " + h.getHealth());
+                return;
+            }
+            if (v.isActing()) {
+                helper.fail("足噛みが技の最中として走りを止める");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /** 足噛み: 相手がこちらを向いている(振り向いて向き合う)と行き過ぎて当たらない。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 60)
+    public static void nipMissesWhenTargetFacesIt(GameTestHelper helper) {
+        VenamnesEntity v = placeAt(helper, 3.5D, 0.6D, 0.0F);
+        net.minecraft.world.entity.monster.Husk h = sideDummy(helper, v, true);
+        v.setTarget(h);
+        helper.runAfterDelay(1L, v::forceNip);
+        helper.runAfterDelay(2L + VenamnesEntity.NIP_WINDUP_T + VenamnesEntity.NIP_EXEC_T + 2L, () -> {
+            if (v.nipResult() != 2 || h.getHealth() < 500.0F || h.hasEffect(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN)) {
+                helper.fail("向き合った相手に当たった: 結果 " + v.nipResult() + " 体力 " + h.getHealth());
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * 狩りの疾走: 叫び(1.4 秒 + 補間)の間は動かず、疾走から最後の飛びかかりで当て、着地の後の息切れ(3 秒)は動かない。
+     * テスト場は狭いので、叫びの終わりにもう飛びかかれる距離(対角線 7.6)に的を置く。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 200)
+    public static void huntEndsWithPounceAndLongRecovery(GameTestHelper helper) {
+        Vec3 from = new Vec3(0.8D, 2.0D, 0.8D), to = new Vec3(6.2D, 2.0D, 6.2D);
+        VenamnesEntity v = placeAt(helper, from.x, from.z, yawTo(from, to));
+        net.minecraft.world.entity.monster.Husk h = dummy(helper, to.x, to.z);
+        v.setTarget(h);
+        v.forceAction(VenamnesEntity.ACT_HUNT_WINDUP);
+        java.util.List<Integer> seq = new java.util.ArrayList<>();
+        double[] start = {v.getX(), v.getZ()};
+        double[] rest = new double[2];
+        helper.onEachTick(() -> {
+            int act = v.getAction();
+            if (seq.isEmpty() || seq.get(seq.size() - 1) != act) seq.add(act);
+            if (act == VenamnesEntity.ACT_HUNT_WINDUP && Math.hypot(v.getX() - start[0], v.getZ() - start[1]) > 0.05D) {
+                helper.fail("叫びの間に動いた");
+                return;
+            }
+            if (act == VenamnesEntity.ACT_HUNT_RECOVER && v.actionTicks() == 1) {
+                rest[0] = v.getX();
+                rest[1] = v.getZ();
+            }
+            if (act == VenamnesEntity.ACT_HUNT_RECOVER && v.actionTicks() >= VenamnesEntity.HUNT_RECOVER_T - 1) {
+                if (Math.hypot(v.getX() - rest[0], v.getZ() - rest[1]) > 0.05D) {
+                    helper.fail("息切れの間に動いた");
+                    return;
+                }
+                if (!seq.contains(VenamnesEntity.ACT_HUNT_SPRINT) || !seq.contains(VenamnesEntity.ACT_HUNT_POUNCE) || !seq.contains(VenamnesEntity.ACT_HUNT_LAND)) {
+                    helper.fail("疾走 → 飛びかかり → 着地 を通っていない: " + seq);
+                    return;
+                }
+                if (h.getHealth() >= 500.0F) {
+                    helper.fail("最後の飛びかかりが当たらない");
+                    return;
+                }
+                helper.succeed();
+            }
+        });
+    }
+
     /** 開けた所の倍率: 幹まで 2 以下で 1、5 以上で上限、回っている間は 1 へ戻る。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 5)
     public static void sprintOnlyInTheOpen(GameTestHelper helper) {
