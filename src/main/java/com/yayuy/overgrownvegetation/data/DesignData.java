@@ -56,6 +56,13 @@ public final class DesignData {
 
     private static volatile DirectorTable director = DirectorTable.DEFAULT;
 
+    private static volatile com.yayuy.overgrownvegetation.spawn.SpawnTable spawns = com.yayuy.overgrownvegetation.spawn.SpawnTable.DEFAULT;
+
+    /** 敵の湧き方(縁・地下・司令塔が出す G4・G5)の設計値({@code spawns.json}、2026-11-15)。 */
+    public static com.yayuy.overgrownvegetation.spawn.SpawnTable spawns() {
+        return spawns;
+    }
+
     /** 森の知性(司令塔)の設計値({@code director.json}、2026-11-13)。 */
     public static DirectorTable director() {
         return director;
@@ -162,6 +169,7 @@ public final class DesignData {
         sky = SkyTable.fromJson(read(dir, "sky.json", SkyTable.Json.class));
         netherSpread = NetherSpreadTable.fromJson(read(dir, "nether_spread.json", NetherSpreadTable.Json.class));
         director = DirectorTable.fromJson(read(dir, "director.json", DirectorTable.Json.class));
+        spawns = com.yayuy.overgrownvegetation.spawn.SpawnTable.fromJson(read(dir, "spawns.json", com.yayuy.overgrownvegetation.spawn.SpawnTable.Json.class));
 
         OvergrownVegetation.LOGGER.info("設計データを読み込みました({})", dir);
     }

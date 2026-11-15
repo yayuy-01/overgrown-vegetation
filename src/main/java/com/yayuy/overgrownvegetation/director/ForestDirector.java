@@ -510,7 +510,13 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         double spawnStrength = DirectorGates.strength(level, DirectorGates.Gate.SPAWNER);
         if (!DirectorGates.roll(spawnStrength, random)) return null;
         // 孵す Mob を先に選び、そのグループで値段を引く(11-14 ユーザー: G4 12・G5 25・G6 40【仮】)。値段も強さで割る(道と同じ)
-        net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob> type = pool.get(random.nextInt(pool.size())).get();
+        // 選ぶのは、そのグループの送り込みのゲートが開いている種だけ(G5 は F5・G6 以降は F6。G4 と G1 などは苗床のスポナーのゲートのまま。11-15 enemy-spawns)
+        List<java.util.function.Supplier<? extends net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>>> openPool = new ArrayList<>();
+        for (var s : pool) {
+            if (groupGateOpen(level, s.get())) openPool.add(s);
+        }
+        if (openPool.isEmpty()) return null;
+        net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob> type = openPool.get(random.nextInt(openPool.size())).get();
         if (!tryPay(level, stagePrice(spawnCost(type), spawnStrength))) return null;
         spawnsBought++;
         setDirty();
@@ -518,21 +524,17 @@ public final class ForestDirector extends SavedData implements ForestBudget {
     }
 
     /**
-     * G4 以降の自然の湧き(繁茂・過繁茂の縁から)が予算を払う口(11-14 夕 ユーザー「G4 以降の自然の湧きも予算を使う。予算が無ければ湧かない」)。
-     * G4 以降を戻す側が、湧かせる前に 1 体ずつ呼ぶ。払えたら true(湧かせてよい)。今は呼ぶ側が無い(G4 以降は退避中)。
-     * <ul>
-     *   <li>値段は苗床が孵す口と同じ表(G4 costSpawn・G5 costG5・G6 costG6)を、その群れの段の強さで割る。</li>
-     *   <li>大きな襲撃の前触れの間は湧かない(その分が貯まる)。貯めている間も湧かない(予算を使わない)。</li>
-     *   <li>G4 は F4・G5 は F5・G6 は F6 から(送り込みの枠と同じゲート)。</li>
-     * </ul>
+     * 苗床が孵してよいグループか(11-15 enemy-spawns): G5 は送り込みの G5 のゲート(F5)・G6 以降は混ざった群れのゲート(F6)が開いてから。
+     * G4 とグループの無い種は、苗床のスポナーのゲート(buySpawn の頭)のまま。
+     * <p>11-14 夕の「G4 以降の自然の湧きも予算を払う口」(buyNaturalSpawn)は 11-15 に消した: 自然の湧きは縁の湧き({@code spawn/EnemySpawns})で、
+     * 数はフェーズの段だけで決め、予算は払わない(11-15 ユーザー)。
      */
-    public boolean buyNaturalSpawn(ServerLevel level, net.minecraft.world.entity.EntityType<?> type) {
-        if (!DesignData.director().enabled || DirectorGates.plantSpawnsSuppressed(level) || hoarding()) return false;
+    static boolean groupGateOpen(ServerLevel level, net.minecraft.world.entity.EntityType<?> type) {
         com.yayuy.overgrownvegetation.phase.MobGroup g = com.yayuy.overgrownvegetation.phase.MobGroup.of(type);
         int group = g == null ? 4 : g.number();
-        DirectorGates.Gate gate = group >= 6 ? DirectorGates.Gate.WAVE_MIXED : group == 5 ? DirectorGates.Gate.WAVE_G5 : DirectorGates.Gate.WAVE_G4;
-        if (!DirectorGates.open(level, gate)) return false;
-        return tryPay(level, stagePrice(spawnCost(type), DirectorGates.strength(level, gate)));
+        if (group >= 6) return DirectorGates.open(level, DirectorGates.Gate.WAVE_MIXED);
+        if (group == 5) return DirectorGates.open(level, DirectorGates.Gate.WAVE_G5);
+        return true;
     }
 
     /** 孵す Mob の値段(グループで。G5・G6 のほかは G4 の値段)。 */

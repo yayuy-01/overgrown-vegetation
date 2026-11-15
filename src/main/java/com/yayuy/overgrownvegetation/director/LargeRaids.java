@@ -151,7 +151,8 @@ public final class LargeRaids {
     /** 攻め手の数(拠点のまわり countRadius の中の、印の付いた生きている個体)。 */
     public static int alive(ServerLevel level, BaseMemory.Base b) {
         double r = DesignData.director().largeRaid.countRadius;
-        return level.getEntitiesOfClass(AbstractParasitizedMonster.class,
+        // G4・G5 の攻め手も数える(11-15 enemy-spawns。印は同じ)
+        return level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class,
                 new AABB(b.centerX() - r, level.getMinBuildHeight(), b.centerZ() - r, b.centerX() + r, level.getMaxBuildHeight(), b.centerZ() + r),
                 m -> m.isAlive() && m.getTags().contains(ATTACKER_TAG)).size();
     }
@@ -184,13 +185,22 @@ public final class LargeRaids {
         double flank = DesignData.director().base.flankShare * DirectorGates.strength(level, DirectorGates.Gate.LARGE_RAID);
         for (int i = 0; i < Math.min(room, t.spawnPerStep); i++) {
             double roll = random.nextDouble();
-            // 顔ぶれ(11-14 夕): G4〜G6 が plantShare。送る口(G4 以降の群れの側が登録する)があれば、その値段で送る。無い間は段階 0 を湧かせる
+            // 顔ぶれ(11-14 夕): G4〜G6 が plantShare。開いている G4・G5 の地上の種を、G1 と同じ湧かせ方(見通せない地面)で湧かせ、
+            // 印を付けて拠点へ歩かせる(11-15 enemy-spawns)。出せる種が無い・置けない間は段階 0 を湧かせる
             if (roll < t.plantShare) {
-                double plantPrice = ForestDirector.stagePrice(DesignData.director().costSpawn, DirectorGates.strength(level, DirectorGates.Gate.WAVE_G4));
-                if (d.available(level) + 1.0E-9D >= plantPrice && BaseRaids.sendPlantSide(level, b, 1, random) > 0) {
-                    d.tryPay(level, plantPrice);
-                    n++;
-                    continue;
+                net.minecraft.world.entity.EntityType<?> type = com.yayuy.overgrownvegetation.spawn.DirectorHooks.pickPlant(level, random, 0);
+                if (type != null) {
+                    double plantPrice = ForestDirector.stagePrice(ForestDirector.spawnCost(type),
+                            DirectorGates.strength(level, com.yayuy.overgrownvegetation.spawn.DirectorHooks.gateOf(com.yayuy.overgrownvegetation.spawn.DirectorHooks.groupOf(type))));
+                    BlockPos pat = d.available(level) + 1.0E-9D >= plantPrice ? spot(level, b, random) : null;
+                    net.minecraft.world.entity.Mob pm = pat == null ? null : RaidSpawns.spawnPlantAttacker(level, pat, type, random);
+                    if (pm != null) {
+                        d.tryPay(level, plantPrice);
+                        pm.addTag(ATTACKER_TAG);
+                        com.yayuy.overgrownvegetation.spawn.PlantMarch.begin(pm, b);
+                        n++;
+                        continue;
+                    }
                 }
             }
             boolean developed = roll >= t.plantShare && roll < t.plantShare + t.developedShare && d.available(level) + 1.0E-9D >= devPrice;

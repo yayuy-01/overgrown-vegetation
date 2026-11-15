@@ -174,7 +174,7 @@ public final class NurseryGameTests {
         });
     }
 
-    /** 出せる Mob が登録されていない(今の状態): 司令塔は予算があっても払わず、苗床は何も孵さない。 */
+    /** 出せる Mob の一覧が空: 司令塔は予算があっても払わず、苗床は何も孵さない。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void emptySpawnPoolBuysNothing(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -182,7 +182,7 @@ public final class NurseryGameTests {
         long before = director.spawnsBought();
         helper.assertTrue(director.buySpawn(level, RandomSource.create(1L), List.of()) == null, "出せる Mob が無いのに孵そうとした");
         helper.assertTrue(director.spawnsBought() == before, "出せる Mob が無いのに払った");
-        helper.assertTrue(ForestDirector.nurserySpawns().isEmpty(), "G4 以降がまだ退避中なのに、苗床の出せる Mob が登録されている");
+        // 11-15 から G4・G5 の地上の種が登録されている(spawn/DirectorHooks)。どれが入るかは EnemySpawnGameTests で見る
         helper.succeed();
     }
 

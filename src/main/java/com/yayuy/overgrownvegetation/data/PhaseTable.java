@@ -22,8 +22,8 @@ import java.util.List;
  *
  * <p>2026-09-21 に、「どの種がどのフェーズのどこに湧くか」({@code spawnGroups} /
  * {@code outsideSpawns.types} / {@code carrierSpawns.types})は <b>{@code mobs.json} の
- * {@code spawns}</b> へ移した。ここに残っているのは外湧きの<b>枠</b>(頭数・確率・距離)と、
- * ワールドに同時に存在できる群れの数({@code maxPacks})。
+ * {@code spawns}</b> へ移した。2026-11-15 に、読む所の無くなった湧きの欄({@code outsideSpawns}・{@code carrierSpawns}・{@code mixedPacks}・
+ * {@code raidWaveGroups}・{@code raidEnabled}・{@code tdEnabled})を消した。敵の湧き方は {@code spawns.json}({@code spawn/EnemySpawns})。
  *
  * <p>フェーズの内容の既定値は、現行の散在ロジック
  * ({@code OvergrownBiomeSpawner.spawnPoolFor} / {@code GroupPhaseBehavior} /
@@ -148,32 +148,6 @@ public final class PhaseTable {
     }
 
     /**
-     * 過繫茂系バイオームの<b>外</b>へ少数だけ湧かせるときの「枠」(2026-09-19)。
-     * 頭数の上限・確率・距離だけを持ち、<b>湧かせる種は {@code mobs.json} の {@code spawns.outside}</b>
-     * 側にある(2026-09-21 に移動)。{@code phase/OutsideInvaderSpawner} が使う。
-     */
-    public static final class OutsideSpawns {
-        /** プレイヤー周辺にこの数だけ居たら、それ以上は湧かせない(既定 2)。 */
-        public Integer maxNearby;
-        /** 判定 1 回・プレイヤー 1 人あたりに湧きを試す確率(既定 0.12)。 */
-        public Double chance;
-        /** プレイヤーからの最小距離(ブロック、既定 48)。 */
-        public Integer minDistance;
-        /** プレイヤーからの最大距離(ブロック、既定 96)。 */
-        public Integer maxDistance;
-    }
-
-    /** 混成の群れで湧かせるグループと、1 群れの体数。 */
-    public static final class MixedPacks {
-        /** 混成の群れで湧かせる MobGroup 番号(空 / null で無効)。 */
-        public List<Integer> groups;
-        /** 1 群れの最小体数。 */
-        public Integer min;
-        /** 1 群れの最大体数。 */
-        public Integer max;
-    }
-
-    /**
      * 1 グループぶんのフェーズ強化。2026-09-25 まではグループ1 専用({@code group1})だったが、
      * ユーザー指定でグループ 4〜9 も同じ形で強化できるようにした({@link Phase#groups})。
      *
@@ -225,41 +199,10 @@ public final class PhaseTable {
          */
         public Integer maxPacks;
         /**
-         * このフェーズで「混成の群れ」として湧かせるグループ(2026-09-15、既定はフェーズ6以降の
-         * グループ4)。ここに入れたグループは種ごとの群れではなく、1 箇所に
-         * {@code min}〜{@code max} 体の<b>種がばらばらな</b>群れとして湧く
-         * ({@code OvergrownBiomeSpawner#spawnMixedPack})。
-         */
-        public MixedPacks mixedPacks;
-        /**
-         * 過繫茂系バイオームの<b>外</b>にも少数だけ湧かせる種(2026-09-19、既定はフェーズ2〜4 のアルボラ)。
-         * 「過繫茂バイオームの中の生態系」とは別処理で、こちらは<b>その外</b>専用の枠。
-         */
-        public OutsideSpawns outsideSpawns;
-        /**
-         * 過繫茂系バイオームの<b>外</b>に湧かせる<b>媒介種(グループ1)</b>の枠(2026-09-19、既定はフェーズ2〜6)。
-         * {@code outsideSpawns} と同じ形だが、頭数の上限を別に数える(拡大種のはぐれと媒介種が
-         * 互いの枠を食い合わないように)。媒介種は湧いたあと普通の Mob を襲って胞子感染を広げ、
-         * 死体から汚染シダを生やす = 「汚染を運ぶ」役。{@code phase/OutsideInvaderSpawner} が使う。
-         */
-        public OutsideSpawns carrierSpawns;
-        /** レイドの増援ウェーブで湧く MobGroup 番号。{@code RaidWaveSpawner}。 */
-        public List<Integer> raidWaveGroups;
-        /**
          * グループ番号("1" / "4" … {@link #BUFFABLE_GROUPS})→ そのフェーズでの強化。
          * 書かれていないグループは強化なし(倍率 1.0)。2026-09-25 に {@code group1} から移した。
          */
         public java.util.Map<String, GroupBuff> groups;
-        /** このフェーズでレイドイベントが発生しうるか。 */
-        public Boolean raidEnabled;
-        /**
-         * このフェーズで <b>TD(森の侵攻)</b> が起きうるか(2026-09-29 ユーザー指定、既定はフェーズ5以降)。
-         * 2026-09-29 まで {@code td.json} の {@code minPhase} だったものを、レイド・ティタニカ戦と
-         * 同じくフェーズごとの可否へ移した(規則が 2 か所にならないよう {@code minPhase} は廃止)。
-         * 侵攻が始まる残りの条件(バイオマス・ターゲットの近さ・間隔)は {@code td.json} のまま。
-         * {@code td/TdTicker#tryTrigger} が見る。
-         */
-        public Boolean tdEnabled;
         /**
          * このフェーズへ上がったときに攻城戦(ドルガ=アーケロウス・ティタニカ)を始めるか
          * (2026-09-17、既定はフェーズ7以降)。{@code SiegeData#onPhaseAdvanced} が見る。
@@ -552,94 +495,6 @@ public final class PhaseTable {
         return v != null && v > 0 ? v : 0;
     }
 
-    public List<Integer> raidWaveGroups(int n) {
-        List<Integer> g = phase(n).raidWaveGroups;
-        return g != null ? g : List.of();
-    }
-
-    /** 外湧きをプレイヤー周辺に許す最大数(既定 2)。 */
-    public int outsideSpawnMaxNearby(int n) {
-        OutsideSpawns o = phase(n).outsideSpawns;
-        return o != null && o.maxNearby != null ? Math.max(0, o.maxNearby) : 2;
-    }
-
-    /** 外湧きの判定 1 回・プレイヤー 1 人あたりの確率(既定 0.12)。 */
-    public double outsideSpawnChance(int n) {
-        OutsideSpawns o = phase(n).outsideSpawns;
-        return o != null && o.chance != null ? Math.max(0.0D, o.chance) : 0.12D;
-    }
-
-    /** 外湧きのプレイヤーからの最小距離(ブロック、既定 48)。 */
-    public int outsideSpawnMinDistance(int n) {
-        OutsideSpawns o = phase(n).outsideSpawns;
-        return o != null && o.minDistance != null ? Math.max(1, o.minDistance) : 48;
-    }
-
-    /** 外湧きのプレイヤーからの最大距離(ブロック、既定 96。最小より小さければ最小に丸める)。 */
-    public int outsideSpawnMaxDistance(int n) {
-        OutsideSpawns o = phase(n).outsideSpawns;
-        int max = o != null && o.maxDistance != null ? o.maxDistance : 96;
-        return Math.max(outsideSpawnMinDistance(n), max);
-    }
-
-    /**
-     * 外湧き 1 組の「枠」の解決済みの値。<b>湧かせる種は持たない</b> —— 2026-09-21 に
-     * {@code mobs.json} の {@code spawns.outside} へ移したので、こちらは頭数・確率・距離だけ。
-     */
-    public record OutsideSpawnSettings(int maxNearby, double chance, int minDistance, int maxDistance) {
-        public boolean enabled() {
-            return maxNearby > 0 && chance > 0.0D;
-        }
-    }
-
-    private static OutsideSpawnSettings resolve(OutsideSpawns o, int defMaxNearby, double defChance, int defMin, int defMax) {
-        int maxNearby = o != null && o.maxNearby != null ? Math.max(0, o.maxNearby) : defMaxNearby;
-        double chance = o != null && o.chance != null ? Math.max(0.0D, o.chance) : defChance;
-        int min = o != null && o.minDistance != null ? Math.max(8, o.minDistance) : defMin;
-        int max = o != null && o.maxDistance != null ? o.maxDistance : defMax;
-        return new OutsideSpawnSettings(maxNearby, chance, min, Math.max(min, max));
-    }
-
-    /** 拡大種のはぐれ({@code outsideSpawns})。 */
-    public OutsideSpawnSettings outsideSpawns(int n) {
-        return resolve(phase(n).outsideSpawns, 2, 0.12D, 48, 96);
-    }
-
-    /**
-     * 媒介種(グループ1)の外湧き({@code carrierSpawns}、2026-09-19)。既定はフェーズ2〜6 で
-     * グループ1の全 6 種、プレイヤー周辺 4 体まで、確率 0.15、32〜80 ブロック。
-     */
-    public OutsideSpawnSettings carrierSpawns(int n) {
-        return resolve(phase(n).carrierSpawns, 4, 0.15D, 32, 80);
-    }
-
-    /**
-     * このフェーズで「混成の群れ」として湧かせるグループ番号(空なら従来どおり種ごとの群れ)。
-     * 既定ではフェーズ6以降のグループ4。
-     */
-    public List<Integer> mixedPackGroups(int n) {
-        MixedPacks mp = phase(n).mixedPacks;
-        return mp != null && mp.groups != null ? mp.groups : List.of();
-    }
-
-    /** 混成の群れ 1 つの最小体数(既定 3)。 */
-    public int mixedPackMin(int n) {
-        MixedPacks mp = phase(n).mixedPacks;
-        return mp != null && mp.min != null ? Math.max(1, mp.min) : 3;
-    }
-
-    /** 混成の群れ 1 つの最大体数(既定 5。最小より小さければ最小に丸める)。 */
-    public int mixedPackMax(int n) {
-        MixedPacks mp = phase(n).mixedPacks;
-        int max = mp != null && mp.max != null ? mp.max : 5;
-        return Math.max(mixedPackMin(n), max);
-    }
-
-    /** {@code groupNumber} がこのフェーズで混成の群れとして湧くグループか。 */
-    public boolean isMixedPackGroup(int n, int groupNumber) {
-        return mixedPackGroups(n).contains(groupNumber);
-    }
-
     /** このフェーズへ上がったときに攻城戦が始まるか({@code siegeEnabled})。 */
     public boolean siegeEnabled(int n) {
         return Boolean.TRUE.equals(phase(n).siegeEnabled);
@@ -652,21 +507,6 @@ public final class PhaseTable {
     public int siegeDelayTicks(int n) {
         Integer v = phase(n).siegeDelayTicks;
         return v != null ? Math.max(0, v) : 0;
-    }
-
-    /** このフェーズで TD(森の侵攻)が起きうるか({@code tdEnabled})。 */
-    public boolean tdEnabled(int n) {
-        return Boolean.TRUE.equals(phase(n).tdEnabled);
-    }
-
-    /** レイドが発生し始める最小フェーズ(raidEnabled が true の最小 n)。無ければ {@link #MAX_PHASE}+1。 */
-    public int raidMinPhase() {
-        for (int n = MIN_PHASE; n <= MAX_PHASE; n++) {
-            if (Boolean.TRUE.equals(phases[n].raidEnabled)) {
-                return n;
-            }
-        }
-        return MAX_PHASE + 1;
     }
 
     /** フェーズ {@code n} でのグループ {@code group} の強化(書かれていなければ null)。 */
@@ -709,20 +549,6 @@ public final class PhaseTable {
         r.autoAdvance = over != null && over.autoAdvance != null ? over.autoAdvance : def.autoAdvance;
         r.message = over != null && over.message != null ? over.message : def.message;
         r.maxPacks = over != null && over.maxPacks != null ? over.maxPacks : def.maxPacks;
-        MixedPacks dmp = def.mixedPacks;
-        MixedPacks omp = over != null ? over.mixedPacks : null;
-        if (dmp != null || omp != null) {
-            MixedPacks mp = new MixedPacks();
-            mp.groups = omp != null && omp.groups != null ? omp.groups : (dmp != null ? dmp.groups : null);
-            mp.min = omp != null && omp.min != null ? omp.min : (dmp != null ? dmp.min : null);
-            mp.max = omp != null && omp.max != null ? omp.max : (dmp != null ? dmp.max : null);
-            r.mixedPacks = mp;
-        }
-        r.outsideSpawns = mergeOutside(def.outsideSpawns, over != null ? over.outsideSpawns : null);
-        r.carrierSpawns = mergeOutside(def.carrierSpawns, over != null ? over.carrierSpawns : null);
-        r.raidWaveGroups = over != null && over.raidWaveGroups != null ? over.raidWaveGroups : def.raidWaveGroups;
-        r.raidEnabled = over != null && over.raidEnabled != null ? over.raidEnabled : def.raidEnabled;
-        r.tdEnabled = over != null && over.tdEnabled != null ? over.tdEnabled : def.tdEnabled;
         r.siegeEnabled = over != null && over.siegeEnabled != null ? over.siegeEnabled : def.siegeEnabled;
         r.siegeDelayTicks = over != null && over.siegeDelayTicks != null ? over.siegeDelayTicks : def.siegeDelayTicks;
         r.notes = over != null && over.notes != null ? over.notes : def.notes;
@@ -768,19 +594,6 @@ public final class PhaseTable {
             r.put(key, g);
         }
         return r;
-    }
-
-    @javax.annotation.Nullable
-    private static OutsideSpawns mergeOutside(@javax.annotation.Nullable OutsideSpawns dos, @javax.annotation.Nullable OutsideSpawns oos) {
-        if (dos == null && oos == null) {
-            return null;
-        }
-        OutsideSpawns o = new OutsideSpawns();
-        o.maxNearby = oos != null && oos.maxNearby != null ? oos.maxNearby : (dos != null ? dos.maxNearby : null);
-        o.chance = oos != null && oos.chance != null ? oos.chance : (dos != null ? dos.chance : null);
-        o.minDistance = oos != null && oos.minDistance != null ? oos.minDistance : (dos != null ? dos.minDistance : null);
-        o.maxDistance = oos != null && oos.maxDistance != null ? oos.maxDistance : (dos != null ? dos.maxDistance : null);
-        return o;
     }
 
     private static int orElse(Integer v, int def) {
@@ -857,50 +670,6 @@ public final class PhaseTable {
             p.pointsToAdvance = pointsToAdvance[n] > 0 ? Long.valueOf(pointsToAdvance[n]) : null;
             p.normalArea = normalArea[n];
 
-            // フェーズ2〜4 は、過繫茂バイオームの外にもアルボラが少数だけ現れる(2026-09-19)。
-            // 汚染がまだ狭いうちから「はぐれの拡大種」を見かけるようにするための枠。
-            if (n >= 2 && n <= 4) {
-                OutsideSpawns outside = new OutsideSpawns();
-                outside.maxNearby = 2;
-                outside.chance = 0.12D;
-                outside.minDistance = 48;
-                outside.maxDistance = 96;
-                p.outsideSpawns = outside;
-            }
-
-            // フェーズ2〜6 は、媒介種(グループ1)が過繫茂バイオームの外にも湧く(2026-09-19)。
-            // 普通の Mob を襲って胞子感染を広げ、死体から汚染シダを生やす = 汚染を運ぶ役。
-            if (n >= 2 && n <= 6) {
-                OutsideSpawns carrier = new OutsideSpawns();
-                carrier.maxNearby = 4;
-                carrier.chance = 0.15D;
-                carrier.minDistance = 32;
-                carrier.maxDistance = 80;
-                p.carrierSpawns = carrier;
-            }
-
-            // フェーズ6以降、グループ4は「種がばらばらな 3〜5 体の群れ」で湧く(2026-09-15)。
-            if (n >= 6) {
-                MixedPacks mp = new MixedPacks();
-                mp.groups = List.of(4);
-                mp.min = 3;
-                mp.max = 5;
-                p.mixedPacks = mp;
-            }
-
-            // RaidWaveSpawner.poolFor: group1 常時 + group2 が phase>=3 + group3 が phase>=4。
-            List<Integer> wave = new ArrayList<>(List.of(1));
-            if (n >= 3) {
-                wave.add(2);
-            }
-            if (n >= 4) {
-                wave.add(3);
-            }
-            if (n >= 5) {
-                wave.add(4);
-            }
-            p.raidWaveGroups = wave;
-
             // 既定の強化はグループ1 だけ(2026-09-25 にグループ4〜9 の枠も作ったが、既定では強化しない
             // = 書かなければ倍率 1.0。今の挙動を変えないため)。
             // グループ1 の強化(F2〜 体力 2 倍・攻撃力 1.5 倍)は 2026-10-10 ユーザー指定で無し。
@@ -912,9 +681,6 @@ public final class PhaseTable {
             p.groups = new java.util.LinkedHashMap<>();
             p.groups.put("1", g1);
 
-            p.raidEnabled = n >= 5;
-            // TD(森の侵攻)。2026-09-29 まで td.json の minPhase 5 だった値をここへ移した。
-            p.tdEnabled = n >= 5;
             // フェーズ7以降は、上がった瞬間に攻城戦(遠距離ボス)が始まる(2026-09-17、内容は仮)。
             p.siegeEnabled = n >= 7;
             p.notes = "";

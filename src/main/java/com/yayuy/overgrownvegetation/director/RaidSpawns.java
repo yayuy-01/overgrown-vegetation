@@ -63,6 +63,20 @@ public final class RaidSpawns {
     }
 
     /**
+     * G4・G5 の攻め手を 1 体湧かせる(2026-11-15 enemy-spawns)。種は呼ぶ側が {@code spawn.DirectorHooks#pickPlant} で選ぶ。
+     * finalizeSpawn まで済ませる(空の種などは finalizeSpawn で組むものがある)。置けなければ null(予算は呼ぶ側が払う)。
+     */
+    @Nullable
+    public static net.minecraft.world.entity.Mob spawnPlantAttacker(ServerLevel level, BlockPos feet, net.minecraft.world.entity.EntityType<?> type,
+                                                                   RandomSource random) {
+        net.minecraft.world.entity.Mob m = com.yayuy.overgrownvegetation.spawn.EnemySpawns.create(level, type, feet,
+                net.minecraft.world.entity.MobSpawnType.EVENT, random);
+        if (m == null) return null;
+        level.addFreshEntity(m);
+        return m;
+    }
+
+    /**
      * 攻め手を 1 体湧かせる(段階 0 か 1 段目)。湧かせた Mob を返す(置けなければ null。予算は呼ぶ側が払う)。
      *
      * @param developed true なら 1 段目(種の進化体)
