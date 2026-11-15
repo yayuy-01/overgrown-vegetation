@@ -38,7 +38,8 @@ final class InfectParts {
      * 付け根 1 つ: 四角の順番(その RenderType の流れの中で)・確かめ用の絵の上の真ん中・四角の中の位置(4 頂点の重み)・部品・
      * 四角の 1 辺目の長さ(1/16 ブロック単位。今の辺の長さと比べて部品の大きさを決める)・上下の面での向き(ラジアン)。
      */
-    record Anchor(int quad, float uc, float vc, float w0, float w1, float w2, float w3, String part, float edgeUnits, float yaw) {
+    record Anchor(int quad, float uc, float vc, float w0, float w1, float w2, float w3, String part, float edgeUnits, float yaw,
+                  @javax.annotation.Nullable net.minecraft.client.model.geom.ModelPart owner, @javax.annotation.Nullable float[] local) {
     }
 
     /** 覗いた形から付け根を選ぶ。 */
@@ -111,7 +112,7 @@ final class InfectParts {
             placed.add(new float[]{x, y, z});
             float uc = (uv[0] + uv[2] + uv[4] + uv[6]) / 4.0F, vc = (uv[1] + uv[3] + uv[5] + uv[7]) / 4.0F;
             float yaw = (float) (InfectPaint.hash(t, 37, seed) * Math.PI * 2.0);
-            out.add(new Anchor(q, uc, vc, w0, w1, w2, w3, part, edgeUnits, yaw));
+            out.add(new Anchor(q, uc, vc, w0, w1, w2, w3, part, edgeUnits, yaw, quads.get(q).part(), quads.get(q).local()));
             return true;
         }
         return false;
@@ -251,9 +252,8 @@ final class InfectParts {
             }
         }
     }
-
-    /** 拾った付け根の上に部品を描く(位置はカメラからの世界の位置そのまま)。 */
     /**
+     * 頂点の流れから拾った付け根の上に部品を描く(バニラ式でない描き方の Mob 用)。
      * {@code progress} = 変わる動きの進み。植物が突き出る瞬間({@link InfectSkins#STAGE1_AT})から、部品が 1 つずつ少しずれて、
      * 大きさ 0 から行き過ぎて戻る(突き出る)。
      */
@@ -261,71 +261,156 @@ final class InfectParts {
         int index = 0;
         for (Catcher c : tap.catchers.values()) {
             for (int a = 0; a < c.anchors.size(); a++) {
-                if (!c.found[a]) {
-                    continue;
+                if (c.found[a]) {
+                    emit(c.anchors.get(a), c.caught, a * 15, buffers, packedLight, progress, index++);
                 }
-                Anchor an = c.anchors.get(a);
-                PartModels.Model model = PartModels.get(an.part);
-                if (model == null) {
-                    continue;
-                }
-                float[] p = c.caught;
-                int o = a * 15;
-                float x = an.w0 * p[o] + an.w1 * p[o + 3] + an.w2 * p[o + 6] + an.w3 * p[o + 9];
-                float y = an.w0 * p[o + 1] + an.w1 * p[o + 4] + an.w2 * p[o + 7] + an.w3 * p[o + 10];
-                float z = an.w0 * p[o + 2] + an.w1 * p[o + 5] + an.w2 * p[o + 8] + an.w3 * p[o + 11];
-                // 部品の +Y = 面の外
-                float yx = p[o + 12], yy = p[o + 13], yz = p[o + 14];
-                // 面に沿った向き = 四角の 1 辺。その今の長さから、1 単位(1/16 ブロック)の大きさも出す
-                float tx = p[o + 3] - p[o], ty = p[o + 4] - p[o + 1], tz = p[o + 5] - p[o + 2];
-                float tl = (float) Math.sqrt(tx * tx + ty * ty + tz * tz);
-                if (tl < 1.0E-6F) {
-                    continue;
-                }
-                float grow = 1.0F;
-                if (progress < 1.0F) {
-                    float g = (progress - InfectSkins.STAGE1_AT - (index++) * 0.04F) / 0.22F;
-                    if (g <= 0.0F) {
-                        continue;
-                    }
-                    if (g < 1.0F) {
-                        float k = g - 1.0F;
-                        grow = 1.0F + 2.70158F * k * k * k + 1.70158F * k * k;
-                    }
-                }
-                float unit = tl / an.edgeUnits * grow;
-                tx /= tl;
-                ty /= tl;
-                tz /= tl;
-                // 部品の −Z = 面に沿った重力の向き(世界の下を面へ落とした向き)。水平な面では乱数の向き
-                float gx = yx * yy, gy = yy * yy - 1.0F, gz = yz * yy;
-                float gl = (float) Math.sqrt(gx * gx + gy * gy + gz * gz);
-                float zx, zy, zz;
-                if (gl > 0.3F) {
-                    zx = -gx / gl;
-                    zy = -gy / gl;
-                    zz = -gz / gl;
-                } else {
-                    float bx = yy * tz - yz * ty, by = yz * tx - yx * tz, bz = yx * ty - yy * tx;
-                    float cs = (float) Math.cos(an.yaw), sn = (float) Math.sin(an.yaw);
-                    zx = cs * tx + sn * bx;
-                    zy = cs * ty + sn * by;
-                    zz = cs * tz + sn * bz;
-                }
-                // X = Y × Z
-                float xx = yy * zz - yz * zy, xy = yz * zx - yx * zz, xz = yx * zy - yy * zx;
-                VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(model.texture()));
-                int ov = OverlayTexture.NO_OVERLAY;
-                float[] mp = model.pos(), mu = model.uv(), mn = model.normal();
-                for (int q = 0; q < model.quads(); q++) {
-                    float nx0 = mn[q * 3], ny0 = mn[q * 3 + 1], nz0 = mn[q * 3 + 2];
-                    float nx = nx0 * xx + ny0 * yx + nz0 * zx, ny = nx0 * xy + ny0 * yy + nz0 * zy, nz = nx0 * xz + ny0 * yz + nz0 * zz;
-                    for (int v = 0; v < 4; v++) {
-                        float px = mp[q * 12 + v * 3] * unit, py = mp[q * 12 + v * 3 + 1] * unit, pz = mp[q * 12 + v * 3 + 2] * unit;
-                        vc.addVertex(x + px * xx + py * yx + pz * zx, y + px * xy + py * yy + pz * zy, z + px * xz + py * yz + pz * zz,
-                                -1, mu[q * 8 + v * 2], mu[q * 8 + v * 2 + 1], ov, packedLight, nx, ny, nz);
-                    }
-                }
+            }
+        }
+    }
+
+    /** 部位の姿勢から付け根の今の位置を出して部品を描く(バニラ式の模型の Mob 用。頂点の流れは包まない)。 */
+    static void drawPosed(List<Anchor> anchors, Map<net.minecraft.client.model.geom.ModelPart, InfectRender.PoseSlot> slots, int stamp,
+                          MultiBufferSource buffers, int packedLight, float progress) {
+        float[] p = new float[15];
+        org.joml.Vector3f v = new org.joml.Vector3f();
+        int index = 0;
+        for (Anchor an : anchors) {
+            if (an.owner == null || an.local == null) {
+                continue;
+            }
+            InfectRender.PoseSlot slot = slots.get(an.owner);
+            if (slot == null || slot.stamp != stamp) {
+                continue;
+            }
+            for (int i = 0; i < 4; i++) {
+                slot.m.transformPosition(an.local[i * 3], an.local[i * 3 + 1], an.local[i * 3 + 2], v);
+                p[i * 3] = v.x;
+                p[i * 3 + 1] = v.y;
+                p[i * 3 + 2] = v.z;
+            }
+            slot.m.transformDirection(an.local[12], an.local[13], an.local[14], v);
+            if (v.lengthSquared() < 1.0E-12F) {
+                continue;
+            }
+            v.normalize();
+            p[12] = v.x;
+            p[13] = v.y;
+            p[14] = v.z;
+            emit(an, p, 0, buffers, packedLight, progress, index++);
+        }
+    }
+
+    /** 後でまとめて描く部品 1 つぶん(ワールドの中の Mob を描いている間にためる)。 */
+    private record Queued(Anchor an, float[] p, int light, float progress, int index) {
+    }
+
+    private static final List<Queued> QUEUE = new ArrayList<>();
+    /** true の間は、部品をその場で描かずにためる(ワールドの Mob を描く段の間だけ {@link InfectClientEvents} が立てる)。 */
+    static boolean deferring;
+
+    /**
+     * ためた部品を、種類ごとにまとめて描く(Mob 1 体ごとに描画の設定を切り替えると、そのたびに描画の命令が切れて重い:
+     * 馬 60 頭で 1 フレーム約 +4 ms だった)。Mob を描き終えた所で 1 回呼ぶ。
+     */
+    static void flush(MultiBufferSource.BufferSource buffers) {
+        if (QUEUE.isEmpty()) {
+            return;
+        }
+        QUEUE.sort(java.util.Comparator.comparing(q -> q.an().part()));
+        String last = null;
+        for (Queued q : QUEUE) {
+            if (last != null && !last.equals(q.an().part())) {
+                endBatch(buffers, last);
+            }
+            last = q.an().part();
+            emitNow(q.an(), q.p(), 0, buffers, q.light(), q.progress(), q.index());
+        }
+        if (last != null) {
+            endBatch(buffers, last);
+        }
+        QUEUE.clear();
+    }
+
+    private static void endBatch(MultiBufferSource.BufferSource buffers, String part) {
+        PartModels.Model model = PartModels.get(part);
+        if (model != null) {
+            buffers.endBatch(RenderType.entityCutoutNoCull(model.texture()));
+        }
+    }
+
+    static void discardQueue() {
+        QUEUE.clear();
+    }
+
+    private static void emit(Anchor an, float[] p, int o, MultiBufferSource buffers, int packedLight, float progress, int index) {
+        if (deferring) {
+            float[] copy = new float[15];
+            System.arraycopy(p, o, copy, 0, 15);
+            QUEUE.add(new Queued(an, copy, packedLight, progress, index));
+            return;
+        }
+        emitNow(an, p, o, buffers, packedLight, progress, index);
+    }
+
+    /** 付け根 1 つぶん。{@code p[o..]} = 付け根の四角の 4 頂点(カメラからの世界の位置)と面の向き。 */
+    private static void emitNow(Anchor an, float[] p, int o, MultiBufferSource buffers, int packedLight, float progress, int index) {
+        PartModels.Model model = PartModels.get(an.part);
+        if (model == null) {
+            return;
+        }
+        float x = an.w0 * p[o] + an.w1 * p[o + 3] + an.w2 * p[o + 6] + an.w3 * p[o + 9];
+        float y = an.w0 * p[o + 1] + an.w1 * p[o + 4] + an.w2 * p[o + 7] + an.w3 * p[o + 10];
+        float z = an.w0 * p[o + 2] + an.w1 * p[o + 5] + an.w2 * p[o + 8] + an.w3 * p[o + 11];
+        // 部品の +Y = 面の外
+        float yx = p[o + 12], yy = p[o + 13], yz = p[o + 14];
+        // 面に沿った向き = 四角の 1 辺。その今の長さから、1 単位(1/16 ブロック)の大きさも出す
+        float tx = p[o + 3] - p[o], ty = p[o + 4] - p[o + 1], tz = p[o + 5] - p[o + 2];
+        float tl = (float) Math.sqrt(tx * tx + ty * ty + tz * tz);
+        if (tl < 1.0E-6F) {
+            return;
+        }
+        float grow = 1.0F;
+        if (progress < 1.0F) {
+            float g = (progress - InfectSkins.STAGE1_AT - index * 0.04F) / 0.22F;
+            if (g <= 0.0F) {
+                return;
+            }
+            if (g < 1.0F) {
+                float k = g - 1.0F;
+                grow = 1.0F + 2.70158F * k * k * k + 1.70158F * k * k;
+            }
+        }
+        float unit = tl / an.edgeUnits * grow;
+        tx /= tl;
+        ty /= tl;
+        tz /= tl;
+        // 部品の −Z = 面に沿った重力の向き(世界の下を面へ落とした向き)。水平な面では乱数の向き
+        float gx = yx * yy, gy = yy * yy - 1.0F, gz = yz * yy;
+        float gl = (float) Math.sqrt(gx * gx + gy * gy + gz * gz);
+        float zx, zy, zz;
+        if (gl > 0.3F) {
+            zx = -gx / gl;
+            zy = -gy / gl;
+            zz = -gz / gl;
+        } else {
+            float bx = yy * tz - yz * ty, by = yz * tx - yx * tz, bz = yx * ty - yy * tx;
+            float cs = (float) Math.cos(an.yaw), sn = (float) Math.sin(an.yaw);
+            zx = cs * tx + sn * bx;
+            zy = cs * ty + sn * by;
+            zz = cs * tz + sn * bz;
+        }
+        // X = Y × Z
+        float xx = yy * zz - yz * zy, xy = yz * zx - yx * zz, xz = yx * zy - yy * zx;
+        VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(model.texture()));
+        int ov = OverlayTexture.NO_OVERLAY;
+        float[] mp = model.pos(), mu = model.uv(), mn = model.normal();
+        for (int q = 0; q < model.quads(); q++) {
+            float nx0 = mn[q * 3], ny0 = mn[q * 3 + 1], nz0 = mn[q * 3 + 2];
+            float nx = nx0 * xx + ny0 * yx + nz0 * zx, ny = nx0 * xy + ny0 * yy + nz0 * zy, nz = nx0 * xz + ny0 * yz + nz0 * zz;
+            for (int v = 0; v < 4; v++) {
+                float px = mp[q * 12 + v * 3] * unit, py = mp[q * 12 + v * 3 + 1] * unit, pz = mp[q * 12 + v * 3 + 2] * unit;
+                vc.addVertex(x + px * xx + py * yx + pz * zx, y + px * xy + py * yy + pz * zy, z + px * xz + py * yz + pz * zz,
+                        -1, mu[q * 8 + v * 2], mu[q * 8 + v * 2 + 1], ov, packedLight, nx, ny, nz);
             }
         }
     }

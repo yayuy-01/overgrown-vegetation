@@ -54,6 +54,11 @@ public final class InfectRender {
     /** 今描いている 1 体の、変わる動きの進み(0〜1。1 = 変わり終えた)。 */
     private static float currentProgress = 1.0F;
     private static boolean shaking;
+    /** 部品を、部位の姿勢から描ける種(バニラ式の模型)。それ以外(GeckoLib など)は頂点の流れを覗いて描く。 */
+    private static final Set<net.minecraft.world.entity.EntityType<?>> PART_MODE = new HashSet<>();
+    private static final Map<net.minecraft.client.model.geom.ModelPart, PoseSlot> SLOTS = new IdentityHashMap<>();
+    private static boolean watching;
+    private static int renderStamp;
     /**
      * RenderType を作り置きして使う描き方の種(エンダードラゴン: 絵が工場を通らないので差し替えが効かない)。
      * 1 回描いて工場に 1 度も絵が入らなかった種をここに覚え、次からは器の側で RenderType を作り直す({@link Remap})。
@@ -121,6 +126,7 @@ public final class InfectRender {
         tap = null;
         anchorTap = null;
         shaking = false;
+        watching = false;
         if (current == null) {
             return buffers;
         }
@@ -145,6 +151,11 @@ public final class InfectRender {
             return prebuilt(entity, tap);
         }
         if (InfectParts.enabled && camRelX * camRelX + camRelY * camRelY + camRelZ * camRelZ <= PART_RANGE * PART_RANGE) {
+            if (PART_MODE.contains(entity.getType())) {
+                watching = true;
+                renderStamp++;
+                return prebuilt(entity, buffers);
+            }
             anchorTap = new InfectParts.AnchorTap(buffers);
             return prebuilt(entity, anchorTap);
         }
@@ -188,6 +199,8 @@ public final class InfectRender {
         plainBuffers = null;
         boolean was = current != null;
         current = null;
+        boolean watched = watching;
+        watching = false;
         if (was && bodyTexture == null && !entity.isInvisible()) {
             PREBUILT_TYPES.add(entity.getType());
         }
@@ -198,6 +211,12 @@ public final class InfectRender {
         if (was && at != null && plain != null) {
             // ここでは current はもう空 = 部品の絵は差し替えの外
             InfectParts.draw(at, plain, packedLight, currentProgress);
+        }
+        if (was && watched && plain != null && bodyTexture != null) {
+            List<InfectParts.Anchor> anchors = InfectSkins.anchorsFor(bodyTexture);
+            if (anchors != null) {
+                InfectParts.drawPosed(anchors, SLOTS, renderStamp, plain, packedLight, currentProgress);
+            }
         }
     }
 
@@ -230,6 +249,8 @@ public final class InfectRender {
     public static void reset() {
         TYPE_TEXTURE.clear();
         REMAKES.clear();
+        PART_MODE.clear();
+        SLOTS.clear();
         PartModels.clear();
         PENDING.clear();
         REQUESTED.clear();
@@ -240,7 +261,48 @@ public final class InfectRender {
      * 覗いた四角 1 枚。{@code pos} = 4 頂点の位置(その個体の足元から。ブロック単位、x y z × 4)、{@code uv} = 4 頂点の絵の上の位置(0〜1、u v × 4)、
      * {@code ny} = 面の向きの上向き成分(世界)。
      */
-    record Quad(float[] pos, float[] uv, float ny) {
+    record Quad(float[] pos, float[] uv, float ny, @Nullable net.minecraft.client.model.geom.ModelPart part, @Nullable float[] local) {
+    }
+
+    /** 部位(ModelPart)の、今描いている個体での姿勢。{@code stamp} が今の描画の番号と同じなら、この個体の物。 */
+    static final class PoseSlot {
+        final org.joml.Matrix4f m = new org.joml.Matrix4f();
+        int stamp = -1;
+    }
+
+    /**
+     * バニラ式の模型の部位が姿勢を決めた所で呼ばれる({@code ModelPartInfectMixin})。感染体を描いていなければ何もしない。
+     * 覗く番のフレーム = どの四角がどの部位の物かを覚える。ふだん = 部品の付け根がある種だけ、部位の姿勢を控える
+     * (頂点の流れを包まないので、Sodium の速い描き方のまま部品が手足に付いて行く)。
+     */
+    public static void onPartPose(net.minecraft.client.model.geom.ModelPart part, PoseStack poseStack) {
+        if (current == null) {
+            return;
+        }
+        QuadTap t = tap;
+        if (t != null) {
+            t.part = part;
+            t.inverse = new org.joml.Matrix4f(poseStack.last().pose()).invert();
+            return;
+        }
+        if (watching) {
+            PoseSlot s = SLOTS.get(part);
+            if (s == null) {
+                s = new PoseSlot();
+                SLOTS.put(part, s);
+            }
+            s.m.set(poseStack.last().pose());
+            s.stamp = renderStamp;
+        }
+    }
+
+    /** その種の部品を、部位の姿勢から描けるか(付け根がぜんぶバニラ式の部位の上にある)を覚える。 */
+    static void setPartMode(net.minecraft.world.entity.EntityType<?> type, boolean byParts) {
+        if (byParts) {
+            PART_MODE.add(type);
+        } else {
+            PART_MODE.remove(type);
+        }
     }
 
     /** 器を包み、通った頂点を RenderType ごとに四角として覚える(頂点はそのまま元の器へ流す)。 */
@@ -248,6 +310,11 @@ public final class InfectRender {
         private final MultiBufferSource inner;
         private final float ox, oy, oz;
         final Map<RenderType, List<Quad>> quads = new IdentityHashMap<>();
+        /** 今頂点を流している部位と、その姿勢の逆(カメラからの位置 → 部位の中の位置)。バニラ式でない描き方では null のまま。 */
+        @Nullable
+        net.minecraft.client.model.geom.ModelPart part;
+        @Nullable
+        org.joml.Matrix4f inverse;
 
         QuadTap(MultiBufferSource inner, float ox, float oy, float oz) {
             this.inner = inner;
@@ -262,7 +329,7 @@ public final class InfectRender {
             if (!TYPE_TEXTURE.containsKey(type)) {
                 return out;
             }
-            return new Recorder(out, this.quads.computeIfAbsent(type, k -> new ArrayList<>()), this.ox, this.oy, this.oz);
+            return new Recorder(this, out, this.quads.computeIfAbsent(type, k -> new ArrayList<>()), this.ox, this.oy, this.oz);
         }
     }
 
@@ -273,9 +340,11 @@ public final class InfectRender {
         private int n;
         private float[] pos = new float[12];
         private float[] uv = new float[8];
-        private float ny;
+        private float nx, ny, nz;
+        private final QuadTap owner;
 
-        Recorder(VertexConsumer out, List<Quad> list, float ox, float oy, float oz) {
+        Recorder(QuadTap owner, VertexConsumer out, List<Quad> list, float ox, float oy, float oz) {
+            this.owner = owner;
             this.out = out;
             this.list = list;
             this.ox = ox;
@@ -303,7 +372,27 @@ public final class InfectRender {
 
         private void flush() {
             if (this.n == 4) {
-                this.list.add(new Quad(this.pos, this.uv, this.ny));
+                float[] local = null;
+                org.joml.Matrix4f inv = this.owner.inverse;
+                if (this.owner.part != null && inv != null) {
+                    // 部位の中での 4 頂点と面の向き(部位が動いても、姿勢を掛ければ今の位置が出る)
+                    local = new float[15];
+                    org.joml.Vector3f v = new org.joml.Vector3f();
+                    for (int i = 0; i < 4; i++) {
+                        inv.transformPosition(this.pos[i * 3] + this.ox, this.pos[i * 3 + 1] + this.oy, this.pos[i * 3 + 2] + this.oz, v);
+                        local[i * 3] = v.x;
+                        local[i * 3 + 1] = v.y;
+                        local[i * 3 + 2] = v.z;
+                    }
+                    inv.transformDirection(this.nx, this.ny, this.nz, v);
+                    if (v.lengthSquared() > 1.0E-12F) {
+                        v.normalize();
+                    }
+                    local[12] = v.x;
+                    local[13] = v.y;
+                    local[14] = v.z;
+                }
+                this.list.add(new Quad(this.pos, this.uv, this.ny, local == null ? null : this.owner.part, local));
                 this.pos = new float[12];
                 this.uv = new float[8];
             }
@@ -344,7 +433,9 @@ public final class InfectRender {
 
         @Override
         public VertexConsumer setNormal(float nx, float ny, float nz) {
+            this.nx = nx;
             this.ny = ny;
+            this.nz = nz;
             this.out.setNormal(nx, ny, nz);
             if (this.n == 4) {
                 flush();
@@ -357,7 +448,9 @@ public final class InfectRender {
                               float normalX, float normalY, float normalZ) {
             begin(x, y, z);
             uv(u, v);
+            this.nx = normalX;
             this.ny = normalY;
+            this.nz = normalZ;
             this.out.addVertex(x, y, z, color, u, v, packedOverlay, packedLight, normalX, normalY, normalZ);
             if (this.n == 4) {
                 flush();

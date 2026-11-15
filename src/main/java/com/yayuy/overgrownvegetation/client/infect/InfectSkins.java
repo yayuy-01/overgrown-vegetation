@@ -229,6 +229,11 @@ final class InfectSkins {
             Entry entry = new Entry(map);
             if (map != null && texture.equals(bodyTexture)) {
                 entry.anchors = InfectParts.choose(map, e.getValue(), texture.hashCode() * 131L);
+                boolean byParts = !entry.anchors.isEmpty();
+                for (InfectParts.Anchor an : entry.anchors) {
+                    byParts &= an.owner() != null;
+                }
+                InfectRender.setPartMode(entity.getType(), byParts);
             }
             ENTRIES.put(texture, entry);
         }

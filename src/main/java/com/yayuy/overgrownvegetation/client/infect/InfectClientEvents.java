@@ -31,6 +31,19 @@ public final class InfectClientEvents {
 
     @EventBusSubscriber(modid = OvergrownVegetation.MODID, value = Dist.CLIENT)
     public static final class GameBus {
+        /** ワールドの Mob を描く段の間は部品をため、描き終えた所でまとめて描く。 */
+        @SubscribeEvent
+        public static void onRenderStage(net.neoforged.neoforge.client.event.RenderLevelStageEvent event) {
+            var stage = event.getStage();
+            if (stage == net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage.AFTER_SKY) {
+                InfectParts.discardQueue();
+                InfectParts.deferring = true;
+            } else if (stage == net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
+                InfectParts.deferring = false;
+                InfectParts.flush(net.minecraft.client.Minecraft.getInstance().renderBuffers().bufferSource());
+            }
+        }
+
         @SubscribeEvent
         public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
             GenericInfectionClient.clear();
