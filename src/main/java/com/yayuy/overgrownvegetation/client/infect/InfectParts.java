@@ -12,13 +12,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 汎用の感染体の、体から生える部品(シダ・蔦・棘・胞子嚢・小葉類・垂れ苔・莢。形は {@link PartModels})。
+ * 汎用の感染体の、体から生える部品。<b>G1 段階 0 を作った生成器の部品</b>を使う(2026-11-15 ユーザー: 11-04 の 36 個は「少し微妙」)
+ * = 巻きシダの株・胞子の袋・裂けた肋骨・背骨の突起・めくれた皮({@code tools/parasite-parts/G1Parts.java} → {@code G1PartsExport} で書き出し。形は {@link PartModels})。
  * <p>骨の名前を知らずに手足へ付いて行かせるため、感染体を描くたびに頂点の流れを覗き、付け根に選んだ四角(流れの中の順番で覚える)の
- * 今の位置を拾って、その上に部品を描く。付け方の決まりは {@code tools/parasite-parts/README.md} の「自動で貼る決め方」:</p>
+ * 今の位置を拾って、その上に部品を描く。付け方は G1 の決まり({@code tools/parasite-parts/README.md} の「部品の集まり」)に寄せる:</p>
  * <ul>
- *   <li>面の世界での向きで種類を選ぶ: 上 = シダ・胞子嚢・小葉類・棘・莢 / 横 = 蔦・棘・小葉類・小さいシダ / 下(腹)= 垂れ苔。</li>
- *   <li>部品の +Y を面の外へ、−Z を面に沿った重力の向きへ(上下の面では向きは乱数)。</li>
- *   <li>付け根同士は離す。小さな面には付けない。数は体の大きさで 2〜10。体の小さい Mob には小さい部品だけ。</li>
+ *   <li><b>主役は巻きシダの株</b>: 上を向く高い面に 1 株。大きさは体の大きさで 1・2・3。大きな体にはもう 1 株(小さめ)。</li>
+ *   <li><b>胞子の袋は 1 つ</b>: 横の面(無ければ上の面)。</li>
+ *   <li><b>骨</b>: 上の面に背骨の突起、無ければ横の面に裂けた肋骨。小さな体には付けない。</li>
+ *   <li><b>めくれた皮</b>: 横の面に 1 枚。小さな体には付けない。</li>
+ *   <li>部品の +Y を面の外へ、−Z を面に沿った重力の向きへ(上下の面では向きは乱数)。付け根同士は離す。小さな面には付けない。</li>
  * </ul>
  */
 final class InfectParts {
@@ -26,8 +29,7 @@ final class InfectParts {
     /** 確かめ用の切り替え(重さの比べ)。 */
     static boolean enabled = true;
 
-    private static final String[] UP = {"fern", "fern", "fern", "club", "spike", "pod", "sac"};
-    private static final String[] SIDE = {"vine", "vine", "vine", "spike", "club", "fern"};
+    private static final int UP = 1, SIDE = 2;
 
     private InfectParts() {
     }
@@ -43,61 +45,53 @@ final class InfectParts {
     static List<Anchor> choose(InfectSkins.FaceMap m, List<InfectRender.Quad> quads, long seed) {
         List<Anchor> out = new ArrayList<>();
         List<float[]> placed = new ArrayList<>();
-        int n = m.w * m.h;
-        int want = m.extent < 0.8F ? 2 : Math.max(3, Math.min(10, Math.round(m.extent * 5.0F)));
-        // 体の大きさで部品の大きさを選ぶ(1 = 小 だけ、2 = 小・中、3 = 大も)
-        int sizes = m.extent < 0.8F ? 1 : m.extent < 1.6F ? 2 : 3;
-        float minGap = 0.14F * m.extent;
         boolean[] taken = new boolean[quads.size()];
-        boolean sac = false;
-        int drips = 0;
-        for (int t = 0; t < 1500 && out.size() < want; t++) {
+        // 体の大きさ: 小(鶏)= 1、中(ゾンビ・村人)= 2、大(牛・白熊)= 3
+        int size = m.extent < 0.8F ? 1 : m.extent < 1.5F ? 2 : 3;
+        place(out, placed, taken, m, quads, seed + 1, "curled_fern_" + size, UP, 0.5F, 4.0F);
+        if (!place(out, placed, taken, m, quads, seed + 2, "g1_sac_" + size, SIDE, 0.45F, size + 2.0F)) {
+            place(out, placed, taken, m, quads, seed + 3, "g1_sac_" + size, UP, 0.45F, size + 2.0F);
+        }
+        if (size >= 2) {
+            if (!place(out, placed, taken, m, quads, seed + 4, "g1_spine", UP, 0.45F, 6.0F)) {
+                place(out, placed, taken, m, quads, seed + 5, "g1_ribs", SIDE, 0.45F, 5.0F);
+            }
+            place(out, placed, taken, m, quads, seed + 6, "g1_flap", SIDE, 0.4F, 5.0F);
+        }
+        if (size >= 3) {
+            place(out, placed, taken, m, quads, seed + 7, "curled_fern_2", UP, 0.5F, 4.0F);
+        }
+        return out;
+    }
+
+    /**
+     * 部品 1 つの付け根を探して足す。{@code faces} = 付けてよい面の向き、{@code minY} = 高さの下限(0 = 足元〜1 = てっぺん)、
+     * {@code minEdge} = 面の 2 辺の下限(1/16 ブロック)。見つからなければ false。
+     */
+    private static boolean place(List<Anchor> out, List<float[]> placed, boolean[] taken, InfectSkins.FaceMap m, List<InfectRender.Quad> quads,
+                                 long seed, String part, int faces, float minY, float minEdge) {
+        int n = m.w * m.h;
+        float minGap = 0.16F * m.extent;
+        for (int t = 0; t < 500; t++) {
             int i = (int) (InfectPaint.hash(t, 31, seed) * n);
             if (i >= n || m.quad[i] < 0 || taken[m.quad[i]] || (m.argb[i] >>> 24) < 16) {
                 continue;
             }
+            float ny = m.ny[i];
+            int face = ny > 0.5F ? UP : ny < -0.5F ? 0 : SIDE;
+            if ((face & faces) == 0 || m.yRel(i) < minY) {
+                continue;
+            }
             int q = m.quad[i];
             float[] p = quads.get(q).pos(), uv = quads.get(q).uv();
-            // 四角の 2 辺の長さ(1/16 ブロック)。3×3 より小さい面には付けない
             float du = (uv[2] - uv[0]) * m.w, dv = (uv[3] - uv[1]) * m.h;
             float edgeUnits = (float) Math.sqrt(du * du + dv * dv) / m.k;
             float du2 = (uv[6] - uv[0]) * m.w, dv2 = (uv[7] - uv[1]) * m.h;
             float edge2 = (float) Math.sqrt(du2 * du2 + dv2 * dv2) / m.k;
-            if (edgeUnits < 3.0F || edge2 < 3.0F) {
+            if (edgeUnits < minEdge || edge2 < minEdge) {
                 continue;
             }
-            float ny = m.ny[i], yRel = m.yRel(i);
-            String kind;
-            double r = InfectPaint.hash(t, 35, seed);
-            if (ny > 0.5F) {
-                if (yRel < 0.45F) {
-                    continue;
-                }
-                kind = UP[(int) (r * UP.length) % UP.length];
-                if (kind.equals("sac")) {
-                    if (sac) {
-                        kind = "fern";
-                    }
-                    sac = true;
-                }
-            } else if (ny < -0.5F) {
-                // 腹: 垂れ苔を少しだけ。地面に近い面(足の裏)には付けない
-                if (yRel < 0.3F || drips >= 2 || r > 0.5) {
-                    continue;
-                }
-                kind = "drip";
-                drips++;
-            } else {
-                if (yRel < 0.35F) {
-                    continue;
-                }
-                kind = SIDE[(int) (r * SIDE.length) % SIDE.length];
-            }
-            int variant = 1 + (int) (InfectPaint.hash(t, 36, seed) * sizes) % sizes;
-            if (kind.equals("fern") && ny <= 0.5F) {
-                variant = 1;
-            }
-            float s = 0.2F + 0.6F * (float) InfectPaint.hash(t, 32, seed), u = 0.2F + 0.6F * (float) InfectPaint.hash(t, 33, seed);
+            float s = 0.3F + 0.4F * (float) InfectPaint.hash(t, 32, seed), u = 0.3F + 0.4F * (float) InfectPaint.hash(t, 33, seed);
             float w0 = (1 - s) * (1 - u), w1 = s * (1 - u), w2 = s * u, w3 = (1 - s) * u;
             float x = w0 * p[0] + w1 * p[3] + w2 * p[6] + w3 * p[9];
             float y = w0 * p[1] + w1 * p[4] + w2 * p[7] + w3 * p[10];
@@ -117,9 +111,10 @@ final class InfectParts {
             placed.add(new float[]{x, y, z});
             float uc = (uv[0] + uv[2] + uv[4] + uv[6]) / 4.0F, vc = (uv[1] + uv[3] + uv[5] + uv[7]) / 4.0F;
             float yaw = (float) (InfectPaint.hash(t, 37, seed) * Math.PI * 2.0);
-            out.add(new Anchor(q, uc, vc, w0, w1, w2, w3, kind + "_" + variant, edgeUnits, yaw));
+            out.add(new Anchor(q, uc, vc, w0, w1, w2, w3, part, edgeUnits, yaw));
+            return true;
         }
-        return out;
+        return false;
     }
 
     /** 器を包み、付け根の四角の今の位置を拾う(頂点はそのまま元の器へ流す)。 */
