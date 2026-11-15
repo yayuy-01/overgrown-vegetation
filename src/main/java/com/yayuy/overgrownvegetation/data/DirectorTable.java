@@ -83,7 +83,7 @@ public final class DirectorTable {
 
     /** false なら司令塔は見に来ない(予算も貯まらない)。 */
     public final boolean enabled;
-    /** フェーズごとの 1 日の収入の基本(F0〜F10。11-14 ユーザー: F1 20 / F2 35 / F3 60 / F4 125 / F5 240 / F6 360 / F7 420。11-14 夕の決め直し【仮】)。 */
+    /** フェーズごとの 1 日の収入の基本(F0〜F10。11-14 ユーザー: F1 20 / F2 35 / F3 60 / F4 125 / F5 240 / F6 360 / F7 420。11-14 夕の決め直し【仮】。11-16 ユーザー: F5 を 450 に上げた【仮】= F5 の襲撃の予算)。 */
     public final double[] incomeBase;
     /** 面積の割合(今の面積 ÷ そのフェーズのふつうの広さ)を収める幅(0.3〜1.5【仮】)。 */
     public final double areaRatioMin;
@@ -176,7 +176,7 @@ public final class DirectorTable {
     private DirectorTable(Json j) {
         Json s = j != null ? j : new Json();
         this.enabled = s.enabled == null || s.enabled;
-        double[] base = {0, 20, 35, 60, 125, 240, 360, 420, 420, 420, 420};
+        double[] base = {0, 20, 35, 60, 125, 450, 360, 420, 420, 420, 420};
         if (s.incomeBase != null) {
             for (int i = 0; i < Math.min(base.length, s.incomeBase.size()); i++) base[i] = nonNeg(s.incomeBase.get(i), base[i]);
         }
