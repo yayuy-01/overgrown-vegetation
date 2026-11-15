@@ -31,11 +31,14 @@ public final class PlantDeathSwell {
 
     /** 膨らみの進み(0〜1)。サーバーが破裂させる tick と同じ式。 */
     public static float progress(LivingEntity e, float partialTick) {
-        return Mth.clamp((e.deathTime - 1 + partialTick) / (float) PlantSideRules.burstTick(e), 0.0F, 1.0F);
+        // 死に際のアニメを持つ種(フィロセンス・ファルキムネス・アクムネス)は、アニメが終わってから膨らみ始める(11-15 ユーザー決定)
+        int anim = PlantSideRules.deathAnimTicks(e);
+        return Mth.clamp((e.deathTime - anim - 1 + partialTick) / (float) (PlantSideRules.burstTick(e) - anim), 0.0F, 1.0F);
     }
 
-    /** 足元を原点にした姿勢へ、震えと膨らみをかける。 */
+    /** 足元を原点にした姿勢へ、震えと膨らみをかける(アニメの間は何もしない。赤い色と横倒しは呼び出し側で止める)。 */
     public static void apply(PoseStack poseStack, LivingEntity e, float partialTick) {
+        if (e.deathTime <= PlantSideRules.deathAnimTicks(e)) return;
         float t = progress(e, partialTick);
         float ease = t * Mth.sqrt(t); // 終わりほど早く膨らむ
         float age = e.tickCount + partialTick;

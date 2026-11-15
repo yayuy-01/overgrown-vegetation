@@ -423,10 +423,11 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
 
     // ------------------------------------------------------------------ 倒れる
 
+    /** 倒れるアニメ(2 秒)の後に膨らんで破裂する(11-15 ユーザー決定。消すのは {@code corpse/PlantSideBurst}、ここは外されたときの控え)。 */
     @Override
     protected void tickDeath() {
         this.deathTime++;
-        if (this.deathTime >= DEATH_TICKS && !this.level().isClientSide() && !this.isRemoved()) {
+        if (this.deathTime >= Math.max(DEATH_TICKS, com.yayuy.overgrownvegetation.spore.PlantSideRules.burstTick(this) + 2) && !this.level().isClientSide() && !this.isRemoved()) {
             this.level().broadcastEntityEvent(this, (byte) 60);
             this.remove(RemovalReason.KILLED);
         }

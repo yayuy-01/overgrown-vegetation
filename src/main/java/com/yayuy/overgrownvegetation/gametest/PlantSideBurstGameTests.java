@@ -142,12 +142,12 @@ public final class PlantSideBurstGameTests {
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 60)
     public static void othersDoNotBurst(GameTestHelper helper) {
         Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(2.5, 2.0, 2.5));
-        Mob phyllosens = helper.spawnWithNoFreeWill(ModPhyllosens.PHYLLOSENS.get(), new Vec3(4.5, 2.0, 4.5));
+        Mob phyllosens = helper.spawnWithNoFreeWill(com.yayuy.overgrownvegetation.registry.ModEntities.BLIGHT_FERN.get(), new Vec3(4.5, 2.0, 4.5));
         cow.setNoAi(true);
         phyllosens.setNoAi(true);
         helper.assertTrue(!PlantSideRules.bursts(cow), "ただの牛が破裂の対象になっている");
         helper.assertTrue(phyllosens.getType().is(PlantSideRules.DEATH_BURST_EXEMPT) && !PlantSideRules.bursts(phyllosens),
-                "外しのタグのフィロセンスが破裂の対象になっている");
+                "外しのタグの萌芽体が破裂の対象になっている");
         helper.assertTrue(!PlantSideRules.inBurstGroups(cow.getType()), "グループの判定が広すぎる");
         // G2・G3 のタグに入った種は判定の段で外れる(タグは今は空)
         for (var tag : java.util.List.of(ModTags.GROUP_2, ModTags.GROUP_3)) {
@@ -162,9 +162,47 @@ public final class PlantSideBurstGameTests {
         phyllosens.hurt(helper.getLevel().damageSources().generic(), 10000.0F);
         helper.runAtTickTime(helper.getTick() + 18, () -> {
             helper.assertTrue(!cow.isRemoved(), "ただの牛が破裂の tick で消えた");
-            helper.assertTrue(!phyllosens.isRemoved(), "フィロセンスが破裂の tick で消えた(自前の倒れ方は 40 tick)");
+            helper.assertTrue(!phyllosens.isRemoved(), "萌芽体が破裂の tick で消えた(外しのタグ = バニラの 20 tick)");
             helper.succeed();
         });
+    }
+
+    /**
+     * 死に際のアニメを持つ種(11-15 ユーザー決定「アニメの後に破裂」): アニメの長さの間は消えず、その後 15〜18 tick 膨らんで破裂する。
+     * 汚染の球の確かめは上(半径 2 以上の体)で済んでいるので、ここは消える時刻と浮遊だけ。
+     */
+    private static void burstsAfterAnim(GameTestHelper helper, EntityType<? extends Mob> type) {
+        Mob mob = helper.spawnWithNoFreeWill(type, new Vec3(3.5, 2.0, 3.5));
+        mob.setNoAi(true);
+        int anim = PlantSideRules.deathAnimTicks(mob);
+        helper.assertTrue(anim > 0 && PlantSideRules.bursts(mob), type + ": アニメの後に破裂する種になっていない");
+        BlockPos feet = mob.blockPosition();
+        PlantSideBurst.lastAirPercent = 0.0D;
+        mob.hurt(helper.getLevel().damageSources().generic(), 10000.0F);
+        long t0 = helper.getTick();
+        helper.runAtTickTime(t0 + anim + PlantSideRules.BURST_TICK_MIN - 2, () ->
+                helper.assertTrue(!mob.isRemoved(), type + ": アニメと膨らみが終わる前に消えた"));
+        helper.runAtTickTime(t0 + anim + PlantSideRules.BURST_TICK_MIN + PlantSideRules.BURST_TICK_SPREAD, () -> {
+            helper.assertTrue(mob.isRemoved(), type + ": アニメの後に破裂して消えない");
+            helper.assertTrue(PlantSideBurst.lastAirPercent > 0.0D, type + ": 升の浮遊が上がっていない");
+            helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(feet).inflate(5.0)).forEach(e -> e.discard());
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 100)
+    public static void phyllosensBurstsAfterAnim(GameTestHelper helper) {
+        burstsAfterAnim(helper, ModPhyllosens.PHYLLOSENS.get());
+    }
+
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 100)
+    public static void falcimnesBurstsAfterAnim(GameTestHelper helper) {
+        burstsAfterAnim(helper, com.yayuy.overgrownvegetation.registry.ModEntities.FALCIMNES.get());
+    }
+
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 100)
+    public static void acumnesBurstsAfterAnim(GameTestHelper helper) {
+        burstsAfterAnim(helper, com.yayuy.overgrownvegetation.registry.ModFlyers.ACUMNES.get());
     }
 
     // ------------------------------------------------------------------ 攻撃で必ず感染

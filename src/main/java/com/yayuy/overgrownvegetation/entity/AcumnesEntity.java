@@ -476,4 +476,17 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
     public boolean mustMove() {
         return this.mustMove;
     }
+
+    /**
+     * 死に際のアニメ death(1.5 秒)を最後まで流し、その後に膨らんで破裂する(11-15 ユーザー決定「アニメの後に破裂」)。
+     * バニラの 20 tick では消さない。消すのは {@code corpse/PlantSideBurst}、ここは破裂が外されたときの控え。
+     */
+    @Override
+    protected void tickDeath() {
+        this.deathTime++;
+        if (this.deathTime >= com.yayuy.overgrownvegetation.spore.PlantSideRules.burstTick(this) + 2 && !this.level().isClientSide() && !this.isRemoved()) {
+            this.level().broadcastEntityEvent(this, (byte) 60);
+            this.remove(RemovalReason.KILLED);
+        }
+    }
 }
