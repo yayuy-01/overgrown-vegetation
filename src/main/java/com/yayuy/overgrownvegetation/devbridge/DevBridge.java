@@ -820,6 +820,18 @@ public final class DevBridge {
             case "geninfect" -> {
                 // 汎用の感染体の見た目の確かめ(2026-11-15): まわり <半径> の生き物を感染体として描かせる。geninfect 0 で戻す
                 if (mc.level == null || mc.player == null) return "ワールドが無い";
+                if (arg.trim().startsWith("set ")) {
+                    // geninfect set <番号> <値>: 塗りの数をその場で変える(InfectPaint.TUNE)。次の geninfect <半径> で塗り直す
+                    String[] sp = arg.trim().split("\\s+");
+                    log("GENINFECT set " + com.yayuy.overgrownvegetation.client.infect.InfectClientEvents.devTune(Integer.parseInt(sp[1]), Double.parseDouble(sp[2])));
+                    break;
+                }
+                if (arg.trim().equals("dump")) {
+                    // geninfect dump: この後に作る塗り替えた絵と位置の絵を devbridge/infect_dump/ へ書き出す
+                    com.yayuy.overgrownvegetation.client.infect.InfectClientEvents.devDump(dir.resolve("infect_dump"));
+                    log("GENINFECT dump");
+                    break;
+                }
                 if (arg.trim().startsWith("parts")) {
                     // geninfect parts on|off: 体から生える部品(毎フレーム頂点を覗く)の切り替え。重さの比べ用
                     log("GENINFECT parts " + com.yayuy.overgrownvegetation.client.infect.InfectClientEvents.devParts(arg.trim().endsWith("on")));

@@ -56,6 +56,25 @@ final class InfectSkins {
     /** 塗り替えた絵 → 元の絵の 1 枚ぶん(部品の付け根を引く)。 */
     private static final Map<ResourceLocation, Entry> SKIN_OWNER = new HashMap<>();
     private static int serial;
+    /** 確かめ用: ここが null でなければ、塗り替えた絵と、画素ごとの体の位置の絵(赤緑青 = x y z)をこのフォルダへ書き出す。 */
+    @Nullable
+    static java.nio.file.Path dumpDir;
+
+    private static void dump(String name, NativeImage img) {
+        if (dumpDir != null) {
+            try {
+                java.nio.file.Files.createDirectories(dumpDir);
+                img.writeToFile(dumpDir.resolve(name));
+            } catch (Exception ex) {
+                OvergrownVegetation.LOGGER.warn("InfectSkins 書き出せない: {}", name, ex);
+            }
+        }
+    }
+
+    private static String dumpName(ResourceLocation texture) {
+        String p = texture.getPath();
+        return p.substring(p.lastIndexOf('/') + 1).replace(".png", "");
+    }
 
     private InfectSkins() {
     }
@@ -127,6 +146,42 @@ final class InfectSkins {
                 int c = argb[y * map.w + x];
                 img.setPixelRGBA(x, y, (c & 0xFF00FF00) | ((c & 0xFF) << 16) | ((c >> 16) & 0xFF));
             }
+        }
+        dump(dumpName(texture) + "_v" + variant + "_s" + strength + ".png", img);
+        if (dumpDir != null) {
+            NativeImage pos = new NativeImage(map.w, map.h, false);
+            for (int y = 0; y < map.h; y++) {
+                for (int x = 0; x < map.w; x++) {
+                    int i = y * map.w + x;
+                    if (map.quad[i] < 0) {
+                        pos.setPixelRGBA(x, y, 0);
+                        continue;
+                    }
+                    int r = (int) Math.max(0, Math.min(255, 128 + map.px[i] / map.extent * 200));
+                    int g = (int) Math.max(0, Math.min(255, map.yRel(i) * 255));
+                    int b = (int) Math.max(0, Math.min(255, 128 + map.pz[i] / map.extent * 200));
+                    pos.setPixelRGBA(x, y, 0xFF000000 | (b << 16) | (g << 8) | r);
+                }
+            }
+            dump(dumpName(texture) + "_pos.png", pos);
+            for (int pass = 0; pass < 2; pass++) {
+                float[] src = pass == 0 ? InfectPaint.debugCover : InfectPaint.debugNoise;
+                if (src == null) {
+                    continue;
+                }
+                for (int y = 0; y < map.h; y++) {
+                    for (int x = 0; x < map.w; x++) {
+                        int i = y * map.w + x;
+                        float v = src[i];
+                        // 数でない値は赤、範囲の外は青
+                        int c = map.quad[i] < 0 ? 0 : Float.isNaN(v) ? 0xFF0000FF : (v < 0 || v > 1) ? 0xFFFF0000 | ((int) (Math.max(0, Math.min(1, v)) * 255) << 8)
+                                : 0xFF000000 | ((int) (v * 255) * 0x010101);
+                        pos.setPixelRGBA(x, y, c);
+                    }
+                }
+                dump(dumpName(texture) + "_v" + variant + (pass == 0 ? "_cover.png" : "_noise.png"), pos);
+            }
+            pos.close();
         }
         ResourceLocation id = OvergrownVegetation.id(SKIN_PATH + (serial++));
         Minecraft.getInstance().getTextureManager().register(id, new DynamicTexture(img));
@@ -220,7 +275,10 @@ final class InfectSkins {
             }
             // 画素の細かさ = 1/16 ブロックに何画素か(真ん中の値。大人の大きさで)
             dens.sort(null);
-            m.k = Math.max(1, Math.round(dens.get(dens.size() / 2) * scale));
+            float median = dens.get(dens.size() / 2);
+            m.k = Math.max(1, Math.round(median * scale));
+            // 1 単位(= バニラの 1 画素ぶん)が、覗いた個体では何ブロックか(子どもは半分)
+            m.unit = m.k / (16.0F * median);
             return m;
         } finally {
             img.close();
@@ -265,6 +323,8 @@ final class InfectSkins {
         float minY, spanY, extent;
         /** 画素の細かさ(1/16 ブロックに何画素か。バニラは 1)。 */
         int k = 1;
+        /** 1 単位(1/16 ブロックの模型の長さ)の、覗いた個体での長さ(ブロック)。 */
+        float unit = 1.0F / 16.0F;
 
         FaceMap(int w, int h, int quadCount) {
             this.w = w;

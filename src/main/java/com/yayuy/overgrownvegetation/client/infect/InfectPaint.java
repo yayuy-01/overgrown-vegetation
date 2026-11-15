@@ -30,6 +30,13 @@ final class InfectPaint {
     private static final int PITH_WHITE = 0x9C9576;
     private static final double KEEP_RED = 0.15;
 
+    /** 苔のかたまりのむらの大きさ(単位 = バニラの画素)。【仮】 */
+    private static final double BLOB_UNITS = 3.0;
+    /**
+     * 確かめ用にその場で変えられる数(`geninfect set <番号> <値>`): 0 下地の覆い・1 大きなむらの大きさ(単位)・2 小さなむらの大きさ・
+     * 3 小さなむらの重み・4 寄生の中心の半径の倍率・5 むらの濃淡の強さ・6 塊ごとの粒の乱れ。【仮】
+     */
+    static final double[] TUNE = {0.12, 6.0, 2.0, 0.45, 1.45, 3.2, 0.15};
     /** 下地の覆い(寄生の中心から遠い所)。 */
     private static final double BASE_COVER = 0.06;
     /** 寄生の中心の半径(体のいちばん長い辺に対して)。主・反対側・おまけ。 */
@@ -37,6 +44,9 @@ final class InfectPaint {
 
     @Nullable
     private static Tile moss, caveMoss;
+    /** 確かめ用(書き出しのときだけ): 直前に塗った絵の、画素ごとの覆いの濃さとむらの値。 */
+    @Nullable
+    static float[] debugCover, debugNoise;
 
     private record Tile(int w, int h, int[] argb) {
         int at(int x, int y) {
@@ -148,7 +158,16 @@ final class InfectPaint {
         // ---- 寄生の中心(体の位置で。左右差が出るよう、実際の面の上の点から選ぶ)
         int[] centers = new int[CENTER_RADIUS.length];
         int centerCount = 0;
-        int main = pick(m, used, seed + 1, i -> m.ny[i] > 0.3F && m.yRel(i) > 0.5F);
+        // 主の中心は胴(いちばん広い面の半分より広い面)に置く。頭や脚が丸ごと緑にならないように
+        int maxCount = 0;
+        for (int c : qCount) {
+            maxCount = Math.max(maxCount, c);
+        }
+        final int torso = maxCount / 2;
+        int main = pick(m, used, seed + 1, i -> m.ny[i] > 0.3F && m.yRel(i) > 0.5F && qCount[m.quad[i]] >= torso);
+        if (main < 0) {
+            main = pick(m, used, seed + 7, i -> m.yRel(i) > 0.4F && qCount[m.quad[i]] >= torso);
+        }
         if (main < 0) {
             main = pick(m, used, seed + 2, i -> m.yRel(i) > 0.4F);
         }
@@ -171,6 +190,8 @@ final class InfectPaint {
         // ---- 苔の塊
         int cs = 2 * k;
         boolean[] mossy = new boolean[n];
+        debugCover = InfectSkins.dumpDir != null ? new float[n] : null;
+        debugNoise = InfectSkins.dumpDir != null ? new float[n] : null;
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
                 int i = y * w + x;
@@ -178,15 +199,37 @@ final class InfectPaint {
                     continue;
                 }
                 float ny = m.ny[i];
-                double cover = BASE_COVER + (ny > 0.5F ? 0.14 : ny < -0.5F ? -0.25 : 0.0) + 0.12 * (m.yRel(i) - 0.5);
+                double cover = TUNE[0] + (ny > 0.5F ? 0.14 : ny < -0.5F ? -0.25 : 0.0) + 0.12 * (m.yRel(i) - 0.5);
                 for (int c = 0; c < centerCount; c++) {
-                    cover = Math.max(cover, 1.05 - dist(m, i, centers[c]) / (CENTER_RADIUS[c] * m.extent));
+                    cover = Math.max(cover, 1.05 - dist(m, i, centers[c]) / (CENTER_RADIUS[c] * TUNE[4] * m.extent));
                 }
                 if (face[m.quad[i]]) {
                     cover = Math.min(cover * 0.3, 0.2);
                 }
                 cover -= (1.0 - strength) * 0.7;
-                mossy[i] = hash(Math.floorDiv(x, cs), Math.floorDiv(y, cs), seed + 11) < cover;
+                // 塊ごとに(同じ面の、塊の最初の画素の)体の位置で、立体のむらを引く = 箱の辺・箱の境目をまたいで苔のかたまりが続く
+                int rep = i;
+                int bx = Math.floorDiv(x, cs) * cs, by = Math.floorDiv(y, cs) * cs;
+                find:
+                for (int yy = by; yy < Math.min(h, by + cs); yy++) {
+                    for (int xx = bx; xx < Math.min(w, bx + cs); xx++) {
+                        int j = yy * w + xx;
+                        if (used[j] && m.quad[j] == m.quad[i]) {
+                            rep = j;
+                            break find;
+                        }
+                    }
+                }
+                double big = m.unit * TUNE[1], small = m.unit * TUNE[2];
+                double nz = (1.0 - TUNE[3]) * noise3(m.px[rep] / big, m.py[rep] / big, m.pz[rep] / big, seed + 11)
+                        + TUNE[3] * noise3(m.px[rep] / small, m.py[rep] / small, m.pz[rep] / small, seed + 12);
+                nz = Math.max(0.0, Math.min(1.0, (nz - 0.5) * TUNE[5] + 0.5));
+                nz = nz * (1.0 - TUNE[6]) + TUNE[6] * hash(bx, by, seed + 13);
+                mossy[i] = nz < cover;
+                if (debugCover != null) {
+                    debugCover[i] = (float) cover;
+                    debugNoise[i] = (float) nz;
+                }
             }
         }
 
@@ -321,6 +364,26 @@ final class InfectPaint {
         int g = (int) (((a >> 8) & 0xFF) * (1 - t) + ((b >> 8) & 0xFF) * t);
         int bb = (int) ((a & 0xFF) * (1 - t) + (b & 0xFF) * t);
         return (r << 16) | (g << 8) | bb;
+    }
+
+    /**
+     * 立体のむら(0〜1。格子の乱数をなめらかにつないだ物)。近い位置は近い値になるので、面や箱が違っても隣り合う所は同じかたまりに入る。
+     * 真ん中に寄る値を広げて、しきい値(覆いの濃さ)と割合がだいたい合うようにしてある。
+     */
+    private static double noise3(double x, double y, double z, long seed) {
+        int x0 = (int) Math.floor(x), y0 = (int) Math.floor(y), z0 = (int) Math.floor(z);
+        double fx = smooth(x - x0), fy = smooth(y - y0), fz = smooth(z - z0);
+        double v = 0.0;
+        for (int c = 0; c < 8; c++) {
+            int dx = c & 1, dy = (c >> 1) & 1, dz = (c >> 2) & 1;
+            double wgt = (dx == 1 ? fx : 1 - fx) * (dy == 1 ? fy : 1 - fy) * (dz == 1 ? fz : 1 - fz);
+            v += wgt * hash(x0 + dx, (y0 + dy) * 7919 + (z0 + dz), seed);
+        }
+        return v;
+    }
+
+    private static double smooth(double t) {
+        return t * t * (3 - 2 * t);
     }
 
     /** 0〜1 の乱数(同じ引数なら同じ値)。 */
