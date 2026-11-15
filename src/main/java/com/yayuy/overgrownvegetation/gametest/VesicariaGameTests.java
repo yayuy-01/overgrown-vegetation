@@ -47,7 +47,7 @@ public final class VesicariaGameTests {
         v.moveTo(p.x, p.y, p.z, yaw, 0.0F);
         v.snapFacing(yaw);
         v.setNoAi(false);
-        v.setCustomName(Component.literal("nostroll"));
+        v.setCustomName(Component.literal("nostroll_notarget"));
         return v;
     }
 
@@ -197,5 +197,111 @@ public final class VesicariaGameTests {
             }
             helper.succeed();
         });
+    }
+
+    // ------------------------------------------------------------------ 段 2: 突撃・破裂・連鎖(11-15)
+
+    private static net.minecraft.world.entity.animal.Cow cowAt(GameTestHelper helper, double x, double z) {
+        net.minecraft.world.entity.animal.Cow cow = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.COW, new BlockPos(0, 2, 0));
+        Vec3 p = helper.absoluteVec(new Vec3(x, 2.0D, z));
+        cow.moveTo(p.x, p.y, p.z, 0.0F, 0.0F);
+        return cow;
+    }
+
+    /** 相手(牛)が 12 ブロックより近いと突撃し(走りの速さ)、触れた瞬間に弾けて死に、牛に傷を付ける。植物側の死の破裂は重ならない。 */
+    @GameTest(template = "gametest_empty24", timeoutTicks = 160)
+    public static void vesiChargesAndBurstsOnContact(GameTestHelper helper) {
+        // spawnWithNoFreeWill は行動(突撃も)を全部外す(標的の探しは残る)ので、ふつうに出す
+        VesicariaEntity v = helper.spawn(ModCrawlers.VESICARIA.get(), new BlockPos(3, 2, 2));
+        v.setCustomName(Component.literal("nostroll"));   // うろつかない・相手は探す
+        Vec3 vp = helper.absoluteVec(new Vec3(3.5D, 2.0D, 2.5D));
+        v.moveTo(vp.x, vp.y, vp.z, 0.0F, 0.0F);
+        v.snapFacing(0.0F);
+        net.minecraft.world.entity.animal.Cow cow = cowAt(helper, 3.5D, 13.5D);
+        float cowHp = cow.getHealth();
+        int plantBursts = com.yayuy.overgrownvegetation.corpse.PlantSideBurst.burstCount;
+        boolean[] charged = {false};
+        double[] maxSpeed = {0.0D};
+        long[] burstAt = {-1L};
+        helper.onEachTick(() -> {
+            if (v.isCharging()) charged[0] = true;
+            if (v.isAlive()) {
+                double dx = v.getX() - v.xo, dz = v.getZ() - v.zo;
+                maxSpeed[0] = Math.max(maxSpeed[0], Math.sqrt(dx * dx + dz * dz));
+            } else if (burstAt[0] < 0) {
+                burstAt[0] = helper.getTick();
+            }
+            if (burstAt[0] >= 0 && helper.getTick() >= burstAt[0] + VesicariaEntity.REMOVE_TICKS + 3) {
+                if (!charged[0]) { helper.fail("突撃しないまま弾けた"); return; }
+                if (maxSpeed[0] < 0.2D) { helper.fail(String.format("突撃が遅い(最大 %.3f)", maxSpeed[0])); return; }
+                if (!v.hasBurst()) { helper.fail("死んだが破裂していない"); return; }
+                if (cow.getHealth() >= cowHp) { helper.fail("牛に傷が無い: " + cow.getHealth()); return; }
+                if (!v.isRemoved()) { helper.fail("しぼんだ姿のまま消えない(死んでから " + (helper.getTick() - burstAt[0]) + " tick)"); return; }
+                if (com.yayuy.overgrownvegetation.corpse.PlantSideBurst.burstCount != plantBursts) { helper.fail("植物側の死の破裂も起きた(二重)"); return; }
+                helper.succeed();
+            }
+        });
+        helper.runAtTickTime(150L, () -> helper.fail(String.format("触れて弾けない(突撃 %s・最大の速さ %.3f・相手 %s・牛との距離 %.1f・%s)",
+                charged[0], maxSpeed[0], v.getTarget(), v.distanceTo(cow), v.debugState())));
+    }
+
+    /** 矢が当たる(傷が 1 でも)とその場で弾け、半径 3 の仲間 2 体がつられて弾ける。離れた 1 体(6 ブロック)は残る。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 40)
+    public static void vesiArrowBurstsAndChains(GameTestHelper helper) {
+        VesicariaEntity a = placeAt(helper, 1.5D, 1.5D, 0.0F);
+        VesicariaEntity b = placeAt(helper, 3.0D, 1.5D, 0.0F);
+        VesicariaEntity c = placeAt(helper, 4.5D, 1.5D, 0.0F);
+        VesicariaEntity far = placeAt(helper, 1.5D, 6.5D, 0.0F);
+        for (VesicariaEntity v : new VesicariaEntity[]{a, b, c, far}) v.setNoAi(true);
+        helper.runAfterDelay(2L, () -> {
+            net.minecraft.world.entity.projectile.Arrow arrow = new net.minecraft.world.entity.projectile.Arrow(helper.getLevel(),
+                    a.getX(), a.getY() + 3.0D, a.getZ(), new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.ARROW), null);
+            if (!a.hurt(a.damageSources().arrow(arrow, null), 1.0F)) helper.fail("矢の傷が通らない");
+            if (a.isAlive()) helper.fail("矢が当たっても弾けない");
+        });
+        helper.runAtTickTime(4L + VesicariaEntity.CHAIN_DELAY_MAX * 2 + 2, () -> {
+            if (!b.hasBurst() || !c.hasBurst()) { helper.fail("連鎖しない(隣 " + b.hasBurst() + "・その隣 " + c.hasBurst() + ")"); return; }
+            if (far.hasBurst() || !far.isAlive()) { helper.fail("離れた仲間まで弾けた"); return; }
+            helper.succeed();
+        });
+    }
+
+    /** 植物側(グレガリア)は狙わない。死んでも植物側の死の破裂(PlantSideBurst)の対象ではない(自前の破裂だけ)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 60)
+    public static void vesiIgnoresPlantSideAndIsDeathBurstExempt(GameTestHelper helper) {
+        VesicariaEntity v = placeAt(helper, 1.5D, 1.5D, 0.0F);
+        GregariaEntity g = helper.spawnWithNoFreeWill(ModCrawlers.GREGARIA.get(), new BlockPos(5, 2, 5));
+        if (com.yayuy.overgrownvegetation.spore.PlantSideRules.bursts(v)) { helper.fail("植物側の死の破裂の対象に入っている(二重に弾ける)"); return; }
+        if (com.yayuy.overgrownvegetation.entity.AcumnesEntity.isPrey(v, g)) { helper.fail("グレガリア(植物側)を獲物と見なす"); return; }
+        helper.runAtTickTime(50L, () -> {
+            if (v.getTarget() != null) { helper.fail("植物側を狙った: " + v.getTarget()); return; }
+            if (v.isCharging()) { helper.fail("相手がいないのに突撃している"); return; }
+            if (!g.isAlive()) { helper.fail("グレガリアが死んだ"); return; }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * 細い相手(村人。幅 0.6 = プレイヤーと同じ)にも触れて弾ける。経路は「1 ブロック以内で着いた」で止まるので、
+     * 最後はまっすぐ寄る({@code CLOSE_IN})。11-15 テストクライアントで、プレイヤーの 0.9 ブロック手前に立ち止まったのを直した。
+     */
+    @GameTest(template = "gametest_empty24", timeoutTicks = 120)
+    public static void vesiReachesNarrowTarget(GameTestHelper helper) {
+        VesicariaEntity v = helper.spawn(ModCrawlers.VESICARIA.get(), new BlockPos(3, 2, 2));
+        v.setCustomName(Component.literal("nostroll"));
+        Vec3 vp = helper.absoluteVec(new Vec3(3.5D, 2.0D, 2.5D));
+        v.moveTo(vp.x, vp.y, vp.z, 0.0F, 0.0F);
+        v.snapFacing(0.0F);
+        net.minecraft.world.entity.npc.Villager villager = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.VILLAGER, new BlockPos(0, 2, 0));
+        Vec3 p = helper.absoluteVec(new Vec3(3.5D, 2.0D, 9.5D));
+        villager.moveTo(p.x, p.y, p.z, 0.0F, 0.0F);
+        float hp = villager.getHealth();
+        helper.onEachTick(() -> {
+            if (v.hasBurst()) {
+                if (villager.getHealth() >= hp) { helper.fail("弾けたが村人に傷が無い"); return; }
+                helper.succeed();
+            }
+        });
+        helper.runAtTickTime(110L, () -> helper.fail(String.format("細い相手に触れない(距離 %.2f・突撃 %s・%s)", v.distanceTo(villager), v.isCharging(), v.debugState())));
     }
 }

@@ -18,10 +18,8 @@ public final class CrawlerClient {
 
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
-        event.registerEntityRenderer(ModCrawlers.VESICARIA.get(),
-                ctx -> new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.VesicariaEntity>(ctx,
-                        new com.yayuy.overgrownvegetation.client.VesicariaModel(),
-                        com.yayuy.overgrownvegetation.entity.VesicariaEntity.RENDER_SCALE, 0.5F));
+        // 袋の脈の光・死んだ後に赤くしない(11-15 段 2)
+        event.registerEntityRenderer(ModCrawlers.VESICARIA.get(), com.yayuy.overgrownvegetation.client.VesicariaRenderer::new);
         event.registerEntityRenderer(ModCrawlers.GREGARIA.get(),
                 ctx -> new SmallCrawlerRenderer<GregariaEntity>(ctx, new GregariaModel(), GregariaEntity.RENDER_SCALE, 0.4F));
         event.registerEntityRenderer(ModCrawlers.STROBILA.get(), ctx -> {
