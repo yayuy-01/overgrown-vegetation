@@ -89,7 +89,7 @@ public final class InfectClientEvents {
 
     /**
      * 植物が体を破って突き出る瞬間の粒と音(2026-11-15 ユーザー「足す方向で」)。粒 = 胞子の綿毛 + 苔の破片(体の表面から外へ)。
-     * 音 = 苗床の芽吹きの音の流用【仮】(専用の「湿った裂ける音」を作るまで)。数は体の大きさで【仮】。
+     * 音 = 専用の裂ける音(`entity.infect.tear`。11-15 ユーザーが版 1 を採用。作りは tools/g1-sound/TearSound.java)。数は体の大きさで【仮】。
      */
     private static void burst(ClientLevel level, Entity e) {
         net.minecraft.util.RandomSource r = level.random;
@@ -106,7 +106,7 @@ public final class InfectClientEvents {
                 level.addParticle(moss, e.getX() + dx, y, e.getZ() + dz, dx * 0.6, 0.1 + r.nextDouble() * 0.15, dz * 0.6);
             }
         }
-        level.playLocalSound(e.getX(), e.getY() + h * 0.5, e.getZ(), com.yayuy.overgrownvegetation.registry.ModSounds.NURSERY_SPROUT.get(),
+        level.playLocalSound(e.getX(), e.getY() + h * 0.5, e.getZ(), com.yayuy.overgrownvegetation.registry.ModSounds.INFECT_TEAR.get(),
                 e.getSoundSource(), 0.9F, 0.85F + r.nextFloat() * 0.3F, false);
     }
 

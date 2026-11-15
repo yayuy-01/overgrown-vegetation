@@ -61,6 +61,8 @@ public final class ModSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> G1_PLANT_EMERGE = register("entity.g1.plant_emerge");
     /** 生える・短い版(根の守り手の立ち上がり 32 tick。音 1.8 秒。ユーザーの試聴はまだ)。 */
     public static final DeferredHolder<SoundEvent, SoundEvent> G1_PLANT_EMERGE_SHORT = register("entity.g1.plant_emerge_short");
+    /** 汎用の感染体が変わる瞬間 = 体を破って植物が突き出る(音 0.84 秒。11-15 ユーザーが版 1 を採用)。字幕は「生える」と共用。 */
+    public static final DeferredHolder<SoundEvent, SoundEvent> INFECT_TEAR = register("entity.infect.tear");
     /** 枯れて崩れる(death_wither。音 2.4 秒)。 */
     public static final DeferredHolder<SoundEvent, SoundEvent> G1_PLANT_WITHER = register("entity.g1.plant_wither");
     /** 進化の前の震え(音 2.4 秒。前兆の頭から 10 tick 遅らせて鳴らすと、終わりが前兆の 60 tick に合う)。 */

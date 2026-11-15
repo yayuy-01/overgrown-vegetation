@@ -130,6 +130,11 @@
     "subtitle": "subtitles.entity.g1.plant_emerge",
     "sounds": [ "overgrown_vegetation:plant_emerge_short" ]
   },
+  "entity.infect.tear": {
+    "category": "hostile",
+    "subtitle": "subtitles.entity.g1.plant_emerge",
+    "sounds": [ "overgrown_vegetation:infect_tear" ]
+  },
   "entity.g1.plant_wither": {
     "category": "hostile",
     "subtitle": "subtitles.entity.g1.plant_wither",
