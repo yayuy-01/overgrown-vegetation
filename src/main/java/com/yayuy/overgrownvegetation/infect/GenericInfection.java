@@ -127,6 +127,7 @@ public final class GenericInfection {
         mob.clearFire();
         GenericInfectionAi.forgetOwner(mob);
         GenericInfectionAi.install(mob);
+        releaseAttackers(mob); // 変わる前から狙っていた植物側(殴って感染させた G1・G4 など)の狙いを外す
         turnedCount++;
         sync(mob);
     }
@@ -199,6 +200,58 @@ public final class GenericInfection {
     /** 変わった Mob と植物側が互いを狙うのを止める(Goal の setTarget も Brain の StartAttacking も通る)。null にするのは止めない。 */
     @SubscribeEvent
     public static void onChangeTarget(LivingChangeTargetEvent event) {
+        guardTarget(event);
+    }
+
+    /** 見張りの間隔(tick)と半径(ブロック)【仮】。 */
+    static final int RELEASE_INTERVAL = 10;
+    static final double RELEASE_RADIUS = 48.0D;
+
+    /**
+     * 変わった Mob を狙っている植物側の狙いを外す(Goal の狙い・Brain の ATTACK_TARGET・殴られた相手の覚え)。変わったとき + 見張りの間隔ごと。
+     * 狙いの変更の知らせ({@link #onChangeTarget})は新しく狙うときしか止められない —— 殴って感染させた相手が変わっても、握った狙いは残るため
+     * (11-15 ユーザーの不具合「感染後の Mob が依然として G1、4〜 に敵対され続けている」)。
+     *
+     * @return 外した数
+     */
+    public static int releaseAttackers(Mob turned) {
+        if (!(turned.level() instanceof ServerLevel level)) return 0;
+        int n = 0;
+        for (Mob m : level.getEntitiesOfClass(Mob.class, turned.getBoundingBox().inflate(RELEASE_RADIUS),
+                m -> m != turned && SporeExposureTracker.isPlantSide(m))) {
+            boolean hit = false;
+            if (m.getTarget() == turned) {
+                m.setTarget(null);
+                hit = true;
+            }
+            var brain = m.getBrain();
+            if (brain.checkMemory(MemoryModuleType.ATTACK_TARGET, MemoryStatus.REGISTERED)
+                    && brain.getMemory(MemoryModuleType.ATTACK_TARGET).orElse(null) == turned) {
+                brain.eraseMemory(MemoryModuleType.ATTACK_TARGET);
+                hit = true;
+            }
+            if (m.getLastHurtByMob() == turned) m.setLastHurtByMob(null);
+            if (hit) n++;
+        }
+        return n;
+    }
+
+    /**
+     * 植物側と変わった Mob の間のダメージを止める(狙いを通さない技・範囲攻撃・飛び道具・破裂も)。攻め手は {@code getSource().getEntity()}
+     * (飛び道具なら撃った Mob)。自分で自分を傷付けるのは止めない。
+     */
+    @SubscribeEvent
+    public static void onIncomingDamage(net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent event) {
+        LivingEntity victim = event.getEntity();
+        if (victim.level().isClientSide() || !(event.getSource().getEntity() instanceof LivingEntity attacker) || attacker == victim) return;
+        boolean victimTurned = isTurned(victim), attackerTurned = isTurned(attacker);
+        if (!victimTurned && !attackerTurned) return;
+        if ((victimTurned && SporeExposureTracker.isPlantSide(attacker)) || (attackerTurned && SporeExposureTracker.isPlantSide(victim))) {
+            event.setCanceled(true);
+        }
+    }
+
+    private static void guardTarget(LivingChangeTargetEvent event) {
         LivingEntity target = event.getNewAboutToBeSetTarget();
         if (target == null) return;
         LivingEntity self = event.getEntity();
@@ -230,6 +283,7 @@ public final class GenericInfection {
             return;
         }
         if ((mob.tickCount & 15) == 0) GenericInfectionAi.keepOwnerless(mob);
+        if (Math.floorMod(mob.tickCount + mob.getId(), RELEASE_INTERVAL) == 0) releaseAttackers(mob);
         if (GenericInfectionAi.usesRam(mob)) GenericInfectionAi.ramTick(mob, g, now);
         if (now < g.callUntil) marchTick(mob, g);
     }

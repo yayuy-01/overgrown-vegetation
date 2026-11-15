@@ -303,7 +303,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new SeekGoal<>(this, Player.class, e -> true));
         this.targetSelector.addGoal(3, new SeekGoal<>(this, LivingEntity.class,
-                e -> !(e instanceof Player) && !(e instanceof ParasitizedMob) && MobGroup.of(e.getType()) == null && !(e instanceof ArmorStand)));
+                e -> !(e instanceof Player) && !(e instanceof ParasitizedMob) && MobGroup.of(e.getType()) == null && !com.yayuy.overgrownvegetation.spore.PlantSideRules.isTransformed(e) /* 汎用の感染体は狙わない(11-15)*/ && !(e instanceof ArmorStand)));
     }
 
     /**

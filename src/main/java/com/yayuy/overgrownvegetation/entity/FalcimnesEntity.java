@@ -1401,7 +1401,7 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
         this.targetSelector.addGoal(1, new net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal<>(this, Player.class, true));
         this.targetSelector.addGoal(3, new net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, true, false,
-                e -> !(e instanceof Player) && !(e instanceof ParasitizedMob) && MobGroup.of(e.getType()) == null
+                e -> !(e instanceof Player) && !(e instanceof ParasitizedMob) && MobGroup.of(e.getType()) == null && !com.yayuy.overgrownvegetation.spore.PlantSideRules.isTransformed(e) /* 汎用の感染体は狙わない(11-15)*/
                         && !(e instanceof net.minecraft.world.entity.decoration.ArmorStand)));
     }
 

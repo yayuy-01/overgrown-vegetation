@@ -291,6 +291,85 @@ public final class GenericInfectionGameTests {
         helper.succeed();
     }
 
+    /**
+     * 11-15 ユーザーの不具合「感染後の Mob が依然として G1、4〜 に敵対され続けている」: 変わる前から狙っていた植物側(G1・G5)の狙いが、
+     * 変わった瞬間に外れる(G1 に殴られて感染 → 変わる、の流れでは G1 が狙いを握ったまま)。
+     */
+    @GameTest(template = "gametest_empty7", batch = BATCH)
+    public static void turningReleasesPlantSideTargets(GameTestHelper helper) {
+        Horse h = helper.spawnWithNoFreeWill(EntityType.HORSE, new BlockPos(3, 2, 3));
+        Mob g1 = helper.spawnWithNoFreeWill(com.yayuy.overgrownvegetation.corpse.G1Species.ZOMBIE.entityType(), new BlockPos(1, 2, 1));
+        Mob falc = helper.spawnWithNoFreeWill(com.yayuy.overgrownvegetation.registry.ModEntities.FALCIMNES.get(), new BlockPos(5, 2, 5));
+        Mob ven = helper.spawnWithNoFreeWill(com.yayuy.overgrownvegetation.registry.ModRunners.VENAMNES.get(), new BlockPos(1, 2, 5));
+        for (Mob m : new Mob[]{g1, falc, ven}) m.setTarget(h);
+        if (g1.getTarget() != h || falc.getTarget() != h || ven.getTarget() != h) {
+            helper.fail("変わる前の狙いが付かない(テストの前提)");
+            return;
+        }
+        GenericInfection.turn(h, false);
+        for (Mob m : new Mob[]{g1, falc, ven}) {
+            if (m.getTarget() == h) {
+                helper.fail(m.getType().getDescriptionId() + " が変わった馬を狙ったまま");
+                return;
+            }
+            m.setTarget(h);
+            if (m.getTarget() == h) {
+                helper.fail(m.getType().getDescriptionId() + " が変わった馬を狙い直せた");
+                return;
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * 植物側(G1 の近接・G1 の飛び道具・G4・G5 の代表)から変わった Mob へのダメージは入らない(狙いを通さない技・範囲攻撃も止める)。
+     * 変わった Mob から植物側へも入らない。植物側でない豚へは入る。
+     */
+    @GameTest(template = "gametest_empty7", batch = BATCH)
+    public static void plantSideCannotHurtTurned(GameTestHelper helper) {
+        var level = helper.getLevel();
+        Horse h = helper.spawnWithNoFreeWill(EntityType.HORSE, new BlockPos(3, 2, 3));
+        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, new BlockPos(5, 2, 1));
+        Mob[] plant = {
+                helper.spawnWithNoFreeWill(com.yayuy.overgrownvegetation.corpse.G1Species.ZOMBIE.entityType(), new BlockPos(1, 2, 1)),
+                helper.spawnWithNoFreeWill(com.yayuy.overgrownvegetation.corpse.G1Species.SKELETON.entityType(), new BlockPos(1, 2, 3)),
+                helper.spawnWithNoFreeWill(com.yayuy.overgrownvegetation.registry.ModCrawlers.STROBILA.get(), new BlockPos(1, 2, 5)),
+                helper.spawnWithNoFreeWill(com.yayuy.overgrownvegetation.registry.ModEntities.FALCIMNES.get(), new BlockPos(5, 2, 5)),
+                helper.spawnWithNoFreeWill(com.yayuy.overgrownvegetation.registry.ModFlyers.ACUMNES.get(), new BlockPos(3, 2, 5)),
+                helper.spawnWithNoFreeWill(com.yayuy.overgrownvegetation.registry.ModRunners.VENAMNES.get(), new BlockPos(5, 2, 3))};
+        GenericInfection.turn(h, true);
+        float hp = h.getHealth();
+        for (Mob m : plant) {
+            if (!SporeExposureTracker.isPlantSide(m)) {
+                helper.fail(m.getType().getDescriptionId() + " が植物側に数えられていない(テストの前提)");
+                return;
+            }
+            h.invulnerableTime = 0;
+            h.hurt(level.damageSources().mobAttack(m), 4.0F);
+            net.minecraft.world.entity.projectile.Arrow arrow = new net.minecraft.world.entity.projectile.Arrow(EntityType.ARROW, level);
+            h.invulnerableTime = 0;
+            h.hurt(level.damageSources().arrow(arrow, m), 4.0F);
+            if (h.getHealth() < hp) {
+                helper.fail(m.getType().getDescriptionId() + " のダメージが変わった馬に入った: " + h.getHealth() + "/" + hp);
+                return;
+            }
+            float mhp = m.getHealth();
+            m.invulnerableTime = 0;
+            m.hurt(level.damageSources().mobAttack(h), 4.0F);
+            if (m.getHealth() < mhp) {
+                helper.fail("変わった馬のダメージが " + m.getType().getDescriptionId() + " に入った");
+                return;
+            }
+        }
+        float php = pig.getHealth();
+        pig.hurt(level.damageSources().mobAttack(h), 2.0F);
+        if (pig.getHealth() >= php) {
+            helper.fail("変わった馬のダメージが豚に入らない");
+            return;
+        }
+        helper.succeed();
+    }
+
     /** テストから体当たりの判定を読む口。 */
     private static final class GenericInfectionAiAccess {
         static boolean usesRam(Mob m) {

@@ -162,7 +162,7 @@ public class ArboraEntity extends Monster implements GeoEntity, ParasitizedMob, 
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
         this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, true, false,
-                e -> !(e instanceof Player) && !(e instanceof ParasitizedMob) && MobGroup.of(e.getType()) == null));
+                e -> !(e instanceof Player) && !(e instanceof ParasitizedMob) && MobGroup.of(e.getType()) == null && !com.yayuy.overgrownvegetation.spore.PlantSideRules.isTransformed(e) /* 汎用の感染体は狙わない(11-15)*/));
     }
 
     // ------------------------------------------------------------------ 張り付き
