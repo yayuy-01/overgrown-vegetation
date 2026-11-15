@@ -50,7 +50,7 @@ import java.util.EnumSet;
  *   <li>確かめ用: 名前が {@code hop} の個体は {@link #HOP_EVERY} tick ごとに近くへ跳ぶ(ユーザーのクライアントでも効く)。{@code nostroll} で始まる個体は伏せ場所を探さない。</li>
  * </ul>
  */
-public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, ParasitizedMob {
+public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, ParasitizedMob, CaptorMount {
 
     public static final String ID = "saltimnes";
 

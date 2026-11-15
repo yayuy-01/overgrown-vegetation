@@ -43,7 +43,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * 遅い間は walk、速い間は run({@link #RUN_ON}・{@link #RUN_OFF})。技のアニメ(盾打ち・抱え込み・溜めの解放・盾で詰める {@code guard_*})と光は、
  * 能力を入れる段で鳴らす(段の切り替えは補間 0、{@code guard_*} は main の後に登録する 2 つ目のコントローラ)。
  */
-public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, ParasitizedMob {
+public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, ParasitizedMob, CaptorMount {
 
     public static final String ID = "clipeimnes";
 

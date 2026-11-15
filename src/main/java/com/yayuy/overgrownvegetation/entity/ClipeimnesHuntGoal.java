@@ -42,8 +42,11 @@ final class ClipeimnesHuntGoal extends Goal {
     /** 抱え込みの届く所・捕まえたとみる箱(閉じた鉤の先 前 2.1・左右 ±0.35 のまわり)【仮】。 */
     static final float GRAB_DEG = 30.0F;
     static final double GRAB_REACH = 3.4D, GRAB_F_MIN = 1.0D, GRAB_F_MAX = 3.4D, GRAB_LAT = 1.2D;
-    /** 抱えた相手を置く所(体の中心から前へ、ブロック。鉤の輪の中)。 */
-    static final double HOLD_FORWARD = 2.2D;
+    /**
+     * 抱えた相手を置く所(体の中心から前へ、ブロック)。鉤の輪(前 2.1)の少し前: 2.2 だとプレイヤーの目が腕と口の箱の中に入り、一人称の画面が
+     * ほぼ塞がった(11-15 テストクライアント)。11-16 ユーザー決定(案 b)で顔を盾の外へ出す。
+     */
+    static final double HOLD_FORWARD = 2.8D;
     /** 締めの傷(1 回)・締めの時刻(hold の 1 巡の中)・巡の数・放す傷【仮】。 */
     static final float SQUEEZE_DAMAGE = 2.0F;
     static final int[] SQUEEZES = {5, 15};
