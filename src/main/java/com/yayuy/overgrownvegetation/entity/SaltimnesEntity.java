@@ -2,6 +2,7 @@ package com.yayuy.overgrownvegetation.entity;
 
 import com.yayuy.overgrownvegetation.data.MobStats;
 import com.yayuy.overgrownvegetation.entity.leap.AmbushSpots;
+import com.yayuy.overgrownvegetation.entity.leap.GroundFit;
 import com.yayuy.overgrownvegetation.entity.leap.LeapMotion;
 import com.yayuy.overgrownvegetation.entity.leap.LeapPlan;
 import com.yayuy.overgrownvegetation.entity.leap.LeapPlanner;
@@ -42,7 +43,7 @@ import java.util.EnumSet;
  *   <li><b>伏せる</b>({@link AmbushGoal}): まわり 16 ブロックから伏せる場所を選び({@link AmbushSpots})、歩いて行き、通り道へ顔を向けて
  *       {@link #HIDE_MIN}〜{@link #HIDE_MAX} tick 動かない。伏せた姿は待機のアニメ {@code idle}(地面の起伏の姿。腹が 4 秒ごとに息をするように膨らむ)。</li>
  *   <li><b>歩く</b>: 低い這い歩き。体の向きと経路は「② 大型の地上を走る型」の土台({@link LongBodyRunner}: 向きは少しずつ回す・長い体の経路)。
- *       脚の手続き(IK)・体の曲げは使わない(手付けの walk を実際の速さに合わせて流す)。</li>
+ *       脚の手続き(足の置き場)・体の曲げは使わない(手付けの walk を実際の速さに合わせて流す)。坂・段差では体の傾きと脚の上げ下げを地面に合わせる({@link GroundFit}、11-15 段 2)。</li>
  *   <li><b>跳ぶ</b>(「跳ぶ型」{@code entity/leap/}): 伏せ場所への経路が柵・塀・高い段差・水の溝で切れた / 大回りになるときは、その向こうへ跳ぶ。</li>
  *   <li>確かめ用: 名前が {@code hop} の個体は {@link #HOP_EVERY} tick ごとに近くへ跳ぶ(ユーザーのクライアントでも効く)。{@code nostroll} で始まる個体は伏せ場所を探さない。</li>
  * </ul>
@@ -58,8 +59,9 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
 
     /**
      * 跳びの値【仮・Claude 11-14、ユーザー了承の案】: 水平 3〜10 ブロック・上へ 3・下へ 10。頂点は高いほうの端から 2.5〜5.5 ブロック上げる
-     * (平らな所の 6 ブロックの跳びは頂点 2.5・宙 16 tick。練習モデルの leap は 6.25 ブロック先・頂点 3.4・宙 21 tick で、重力 0.08 なら頂点 3.4 は宙 18 tick)。
-     * 体は芯の中心から鼻先まで 20.9 px・腹の先まで 25.4 px(prac2_g5_leaper_r6 の外接)。身を沈める 10 tick = 補間 3 tick + leap の蹴るまで 0.35 秒。着地 8 tick。
+     * (平らな所の 6 ブロックの跳びは頂点 2.5・宙 16 tick)。跳びのアニメ(11-15 段 2)は体ごとの移動を持たない姿だけなので、弧の高さ・長さに依らず合う。
+     * 体は芯の中心から鼻先まで 20.9 px・腹の先まで 25.4 px(prac2_g5_leaper_r6 の外接)。身を沈める 10 tick = 補間 3 tick + {@code leap_windup} 7 tick。
+     * 着地 8 tick = {@code leap_recover} の長さ。
      */
     public static final LeapSpec LEAP = new LeapSpec(3.0D, 10.0D, 3.0D, 10.0D, 2.5D, 5.5D,
             20.9D * PX, 25.4D * PX, 0.6D, 0.08D, 10, 8);
@@ -72,14 +74,17 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
     /** 経路の長い体の重み【仮】(ヴェナムネスと同じ)。 */
     static final OvergrownNodeEvaluator.LongBody LONG_BODY = new OvergrownNodeEvaluator.LongBody(1.8F, 0.8F, 0.35F, 1.3F);
     /**
-     * walk を速さ 1.0 で流したときの地上速度(ブロック/tick)【測り 11-14】: 練習モデルの walk(2.4 秒)を FK で見て、
-     * 地面に着いている中脚が後ろへ送られる速さ 0.018〜0.034(左右で違う)の中ほど。前脚は宙に上げたまま、後脚はほとんど送らない手付けなので、どこかの脚は少し滑る。
+     * walk を速さ 1.0 で流したときの地上速度(ブロック/tick)。11-15 段 2 のアニメ(Fable)で、中脚・後脚の 4 本が着いている間この速さで
+     * 地面に止まるよう IK で焼き直してある(滑り 0.0007 px 以下)。前脚は畳んだまま(歩くのは 4 本。ユーザー了承)。
      */
     public static final double WALK_REF = 0.03D;
     static final double LOOP_SPEED_MIN = 0.3D, LOOP_SPEED_MAX = 2.5D, WALK_MIN_SPEED = 0.005D;
-    static final float TURN_ANIM_MIN = 1.0F;
-    /** leap の宙の部分(0.35〜1.4 秒)の長さ(tick)。実際の宙の tick 数に合わせて流す速さを変える。 */
-    static final double LEAP_ANIM_AIR_TICKS = 21.0D;
+    /** 補間(tick): ふだん / 歩き → 待機(歩幅の途中で止まっても足がゆっくり戻る)【仮】。 */
+    static final int BLEND = 3, BLEND_STOP = 8;
+    /** 跳びのアニメの長さ(tick): 上り {@code leap_rise}・下り {@code leap_fall}。下りは着く「長さ + 補間」前に始める。 */
+    static final int RISE_TICKS = 6, FALL_TICKS = 6;
+    /** 落ちている(弧をやめた)間、地面までこれ(ブロック)より近ければ下りの姿へ。 */
+    static final double FALL_POSE_GROUND = 1.5D;
 
     // --- 伏せ【仮】 ---
     /** 伏せたまま動かない長さ(tick): 1〜3 分。 */
@@ -92,7 +97,16 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
 
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
-    private static final RawAnimation LEAP_ANIM = RawAnimation.begin().thenPlayAndHold("leap");
+    private static final RawAnimation LEAP_WINDUP = RawAnimation.begin().thenPlayAndHold("leap_windup");
+    private static final RawAnimation LEAP_RISE = RawAnimation.begin().thenPlayAndHold("leap_rise");
+    private static final RawAnimation LEAP_AIR = RawAnimation.begin().thenLoop("leap_air");
+    private static final RawAnimation LEAP_FALL = RawAnimation.begin().thenPlayAndHold("leap_fall");
+    private static final RawAnimation LEAP_RECOVER = RawAnimation.begin().thenPlayAndHold("leap_recover");
+
+    /** クライアント: 跳びの段が変わった tick(段ごとの経過から上り・宙・下りを選ぶ)。 */
+    private int clientLeapPhase = LeapMotion.NONE, clientLeapStart;
+    /** クライアント: 地面に合わせる体の傾き・脚の上げ下げ({@link GroundFit})。 */
+    private final GroundFit groundFit = new GroundFit();
 
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
     private final LeapMotion leap = new LeapMotion(LEAP);
@@ -102,6 +116,54 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
     public SaltimnesEntity(EntityType<? extends SaltimnesEntity> type, Level level) {
         super(type, level);
         this.xpReward = MobStats.xpReward(ID, 30);
+        this.groundFit.configure(LEAP.bodyFront(), LEAP.bodyBack(), FEET);
+    }
+
+    /**
+     * 歩く 4 本の足の置き場 {x(+ = 右), z(+ = 後ろ)}(ブロック): 左中・右中・左後・右後。待機の足先(中脚の先 x ±13.5・z 2.6 px、
+     * 後脚の足首 x ±10.5・z 9 px)× 描画倍率。前脚は畳んで宙(歩きでも着かない)。
+     */
+    public static final double[][] FEET = {{-13.5D * PX, 2.6D * PX}, {13.5D * PX, 2.6D * PX}, {-10.5D * PX, 9.0D * PX}, {10.5D * PX, 9.0D * PX}};
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (this.level().isClientSide()) {
+            int phase = LeapMotion.decodePhase(this.entityData.get(DATA_LEAP));
+            if (phase != this.clientLeapPhase) {
+                this.clientLeapPhase = phase;
+                this.clientLeapStart = this.tickCount;
+            }
+            boolean airborne = phase == LeapMotion.AIR || phase == LeapMotion.FALL;
+            this.groundFit.tick(this, !airborne && !this.isDeadOrDying() && !this.isInWater());
+            // 宙: 体の前後の傾きを弧の向き(上り = 鼻上げ・下り = 鼻下げ)へ
+            this.airPitchO = this.airPitch;
+            double target = 0.0D;
+            if (airborne) {
+                double vh = Math.sqrt((this.getX() - this.xo) * (this.getX() - this.xo) + (this.getZ() - this.zo) * (this.getZ() - this.zo));
+                target = Mth.clamp(Math.atan2(this.getY() - this.yo, Math.max(vh, 0.05D)) * AIR_PITCH_GAIN, -AIR_PITCH_MAX, AIR_PITCH_MAX);
+            }
+            this.airPitch += (target - this.airPitch) * 0.5D;
+        }
+    }
+
+    /** 宙の体の傾き: 弧の向きの何割を体に移すか・上限(ラジアン)【仮】。アニメ自体の傾きは ±5 度だけ。 */
+    static final double AIR_PITCH_GAIN = 0.5D, AIR_PITCH_MAX = Math.toRadians(25.0D);   // 11-15: 0.8・40 度では蹴った直後に体が縦に近く立った(テストクライアント)
+    private double airPitch, airPitchO;
+
+    /** クライアント: 宙の体の前後の傾き(ラジアン、+ で鼻が上がる)。 */
+    public double airPitch(float pt) {
+        return Mth.lerp(pt, this.airPitchO, this.airPitch);
+    }
+
+    /** クライアント: 地面に合わせる体の傾き・脚の上げ下げ(描画のモデルが読む)。 */
+    public GroundFit groundFit() {
+        return this.groundFit;
+    }
+
+    /** クライアント: 今の跳びの段({@link LeapMotion} の段)。 */
+    public int clientLeapPhase() {
+        return this.clientLeapPhase;
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -450,24 +512,49 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
         controllers.add(new PhaseKeepingAnimationController<>(this, "main", 3, this::mainState));
     }
 
+    /**
+     * 跳び(11-15 段 2 のアニメ): 身を沈める {@code leap_windup}(補間 3)→ 蹴った tick に {@code leap_rise}(補間 0。補間が入ると宙で溜めの姿のまま固まる)
+     * → 宙が長ければ {@code leap_air}(繰り返し)→ 着く {@link #FALL_TICKS} + 補間 3 tick 前に {@code leap_fall} → 着いた tick に {@code leap_recover}(補間 0。
+     * 補間が入ると地面に入った足が戻るまで残る)。速さはどれも 1.0(宙の長さは leap_air の繰り返しで受ける)。弧をやめて落ちている間は leap_air、地面が近づいたら leap_fall。
+     * 歩き: 前へ進んでいる間だけ walk を実際の速さに合わせて流す。その場で回るだけの間は待機(回る用のアニメは無く、walk だと足が必ず滑る)。
+     * 歩き → 待機は補間 {@link #BLEND_STOP}(歩幅の途中で止まっても足がゆっくり戻る)。
+     */
     private PlayState mainState(AnimationState<SaltimnesEntity> state) {
         AnimationController<SaltimnesEntity> c = state.getController();
         c.setAnimationSpeed(1.0D);
+        c.transitionLength(BLEND);
         int v = this.entityData.get(DATA_LEAP);
         int phase = LeapMotion.decodePhase(v);
         if (phase != LeapMotion.NONE && !this.isDeadOrDying()) {
-            // leap: 0〜0.35 秒(身を沈めて蹴る)は速さ 1、宙の 0.35〜1.4 秒は実際の宙の tick 数に合わせ、着地はそのまま最後のコマで止める
             int ticks = Math.max(1, LeapMotion.decodeTicks(v));
-            if (phase == LeapMotion.AIR || phase == LeapMotion.FALL) c.setAnimationSpeed(LEAP_ANIM_AIR_TICKS / ticks);
-            return state.setAndContinue(LEAP_ANIM);
+            int el = this.tickCount - this.clientLeapStart;
+            switch (phase) {
+                case LeapMotion.CROUCH -> {
+                    return state.setAndContinue(LEAP_WINDUP);
+                }
+                case LeapMotion.AIR -> {
+                    if (el < RISE_TICKS && el < ticks - FALL_TICKS - BLEND) {
+                        c.transitionLength(0);
+                        return state.setAndContinue(LEAP_RISE);
+                    }
+                    return state.setAndContinue(el >= ticks - FALL_TICKS - BLEND ? LEAP_FALL : LEAP_AIR);
+                }
+                case LeapMotion.FALL -> {
+                    boolean near = this.getY() - GroundFit.groundBelow(this) <= FALL_POSE_GROUND;
+                    return state.setAndContinue(near ? LEAP_FALL : LEAP_AIR);
+                }
+                default -> {   // LAND
+                    c.transitionLength(0);
+                    return state.setAndContinue(LEAP_RECOVER);
+                }
+            }
         }
         double ahead = clientForwardSpeed();
-        boolean turning = Math.abs(getTurnRate()) >= TURN_ANIM_MIN;
-        if (!this.isDeadOrDying() && (ahead >= WALK_MIN_SPEED || turning)) {
-            double sp = Math.max(ahead, turning ? WALK_REF * 0.6D : 0.0D);
-            c.setAnimationSpeed(Mth.clamp(sp / (WALK_REF * this.getScale()), LOOP_SPEED_MIN, LOOP_SPEED_MAX));
+        if (!this.isDeadOrDying() && ahead >= WALK_MIN_SPEED) {
+            c.setAnimationSpeed(Mth.clamp(ahead / (WALK_REF * this.getScale()), LOOP_SPEED_MIN, LOOP_SPEED_MAX));
             return state.setAndContinue(WALK);
         }
+        if (c.getCurrentRawAnimation() == WALK) c.transitionLength(BLEND_STOP);
         return state.setAndContinue(IDLE);
     }
 
