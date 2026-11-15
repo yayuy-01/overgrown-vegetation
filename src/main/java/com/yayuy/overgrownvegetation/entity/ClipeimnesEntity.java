@@ -334,12 +334,13 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
 
     /**
      * 盾で弾くか: 構えていて、傷の出どころ(矢の当たった所・殴った相手)が体の正面 ±{@link #GUARD_DEG} 度にあり、盾で受けられる種類
-     * (爆発・炎・盾を貫く傷でない)。
+     * (爆発・炎・魔法・落下・盾を貫く傷でない。決定 11-15)。
      */
     boolean blocksFromFront(net.minecraft.world.damagesource.DamageSource source) {
         if (!guardReady() || act() != ACT_NONE) return false;
         if (source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_SHIELD) || source.is(net.minecraft.tags.DamageTypeTags.IS_EXPLOSION)
-                || source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE)) {
+                || source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE) || source.is(net.minecraft.tags.DamageTypeTags.IS_FALL)
+                || source.is(net.minecraft.world.damagesource.DamageTypes.MAGIC) || source.is(net.minecraft.world.damagesource.DamageTypes.INDIRECT_MAGIC)) {
             return false;
         }
         net.minecraft.world.phys.Vec3 from = source.getSourcePosition();
@@ -559,6 +560,11 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
     /** 確かめ用(テストクライアントだけ): 名前に grabber を含む個体は、届けば盾打ちより抱え込みを選ぶ。 */
     boolean devPreferGrab() {
         return DEV_HOOKS && this.hasCustomName() && this.getCustomName().getString().contains("grabber");
+    }
+
+    /** 弾除けで相手と仲間の間へ割り込みに行っているか(サーバー)。 */
+    public boolean isCovering() {
+        return this.hunt != null && this.hunt.covering && this.hunt.act() == ACT_NONE;
     }
 
     public int guardState() {

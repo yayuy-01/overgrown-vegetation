@@ -26,6 +26,8 @@ import java.util.EnumSet;
  *       → 放す。外から {@link #HOLD_BREAK} の傷を受けたら放して {@code hold_recover}(22 tick のよろけ)。外したら {@code grab_recover}(16 tick)。</li>
  *   <li><b>盾で詰める</b>(通常 ③): 技の合間、相手が遠い・飛び道具を手にしている間は盾を構えて寄る({@link ClipeimnesEntity#setGuard})。
  *       構えている間は前 ±{@link ClipeimnesEntity#GUARD_DEG} 度から来た矢・近接を弾き(横・後ろは通る)、弾くたびに溜めが 1 段増える。</li>
+ *   <li><b>弾除け</b>(決定 11-15): ほかの植物側の Mob が同じ相手を狙っていれば、相手と仲間の間へ割り込み、相手へ盾を向けて構える({@link #coverPoint})。
+ *       相手が届く所に来れば盾打ち・抱え込みに移る。</li>
  *   <li><b>溜めの解放</b>(特殊): 溜めが {@link ClipeimnesEntity#CHARGE_MAX} 段で満ち、相手が前 ±{@link #RELEASE_DEG} 度・{@link #RELEASE_REACH} ブロック以内なら、
  *       {@code release_windup}(補間 3 + 14。光が満ちる)→ {@code release} の 2 tick 目に両の盾を打ち合わせ、前方の扇へ衝撃波 → {@code release_recover}
  *       (26 tick の隙。溜めは 0)。</li>
@@ -162,14 +164,73 @@ final class ClipeimnesHuntGoal extends Goal {
         approach(t, l);
     }
 
-    /** 寄る: 向きを相手へ。遠い・飛び道具を手にした相手には盾を構えたまま寄る(盾で詰める)。 */
+    /**
+     * 寄る: 向きを相手へ。遠い・飛び道具を手にした相手には盾を構えたまま寄る(盾で詰める)。
+     * ほかの植物側の Mob(仲間)が同じ相手を狙っていれば、相手と仲間の間へ割り込んで盾を構える(弾除け。決定 11-15)。
+     */
     private void approach(LivingEntity t, double[] l) {
-        this.mob.setGuard(shouldGuard(t, l[3]));
+        net.minecraft.world.phys.Vec3 cover = coverPoint(t);
         this.mob.wantFacing(yawTo(t), LongBodyRunner.TURN_HUNT);
+        if (cover != null) {
+            this.mob.setGuard(true);
+            this.covering = true;
+            if (--this.repath <= 0) {
+                this.repath = 10;
+                if (cover.distanceToSqr(this.mob.position()) > COVER_NEAR * COVER_NEAR) {
+                    this.mob.getNavigation().moveTo(cover.x, cover.y, cover.z, CHASE_SPEED);
+                } else {
+                    this.mob.getNavigation().stop();   // 割り込めた: 相手へ盾を向けて止まる
+                }
+            }
+            return;
+        }
+        this.covering = false;
+        this.mob.setGuard(shouldGuard(t, l[3]));
         if (--this.repath <= 0) {
             this.repath = 10;
             this.mob.getNavigation().moveTo(t, CHASE_SPEED);
         }
+    }
+
+    /** 弾除け: 仲間を探す範囲(ブロック)・割り込む所(仲間から相手の方へ、仲間と相手の距離の割合と上限)・着いたとみる距離・探し直す間隔(tick)【仮】。 */
+    static final double COVER_RANGE = 24.0D, COVER_SHARE = 0.4D, COVER_MAX = 3.5D, COVER_NEAR = 1.2D;
+    static final int COVER_EVERY = 20;
+    /** 割り込む相手は、仲間がこれ(ブロック)より相手から離れているときだけ(近すぎる仲間はもう組み合っている)【仮】。 */
+    static final double COVER_MIN_GAP = 4.0D;
+    private int coverScan;
+    @Nullable
+    private net.minecraft.world.entity.Mob ally;
+    /** 今、弾除けで割り込みに行っているか(テスト・確かめ用)。 */
+    boolean covering;
+
+    /**
+     * 割り込む所: 相手を狙っている仲間(植物側の Mob。クリペイムネス自身を除く)のうち、相手に一番近い者と相手の間で、仲間から相手の方へ
+     * 仲間と相手の距離の {@link #COVER_SHARE}(最大 {@link #COVER_MAX} ブロック)の所。仲間がいない・自分のほうが相手に近く間にいるなら null。
+     */
+    @Nullable
+    net.minecraft.world.phys.Vec3 coverPoint(LivingEntity t) {
+        if (--this.coverScan <= 0) {
+            this.coverScan = COVER_EVERY;
+            this.ally = null;
+            double best = Double.MAX_VALUE;
+            for (net.minecraft.world.entity.Mob m : this.mob.level().getEntitiesOfClass(net.minecraft.world.entity.Mob.class,
+                    this.mob.getBoundingBox().inflate(COVER_RANGE), m -> m != this.mob && m.isAlive() && m instanceof com.yayuy.overgrownvegetation.phase.ParasitizedMob
+                            && !(m instanceof ClipeimnesEntity) && m.getTarget() == t)) {
+                double d = m.distanceToSqr(t);
+                if (d < best) {
+                    best = d;
+                    this.ally = m;
+                }
+            }
+        }
+        net.minecraft.world.entity.Mob a = this.ally;
+        if (a == null || !a.isAlive() || a.getTarget() != t) return null;
+        net.minecraft.world.phys.Vec3 ap = a.position(), tp = t.position();
+        net.minecraft.world.phys.Vec3 at = tp.subtract(ap);
+        double gap = Math.sqrt(at.x * at.x + at.z * at.z);
+        if (gap < COVER_MIN_GAP) return null;
+        double go = Math.min(COVER_MAX, gap * COVER_SHARE);
+        return new net.minecraft.world.phys.Vec3(ap.x + at.x / gap * go, ap.y, ap.z + at.z / gap * go);
     }
 
     /** 盾を構える: 相手が {@link #GUARD_FAR} ブロックより遠いか、弓・弩・トライデントを手にしている間【仮】。 */

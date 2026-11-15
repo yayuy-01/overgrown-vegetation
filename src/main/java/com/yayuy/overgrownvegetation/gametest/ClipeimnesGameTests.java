@@ -338,4 +338,27 @@ public final class ClipeimnesGameTests {
             if (helper.getTick() > 40 && !released[0] && v.act() == ClipeimnesEntity.ACT_NONE) helper.fail("溜めが満ちても解放しない");
         });
     }
+    /**
+     * 弾除け(決定 11-15): 仲間(植物側の Mob。ここではヴェナムネス)が同じ相手を狙っていると、相手と仲間の間へ割り込み、相手へ盾を構える。
+     * 24 × 24 の場: 相手(弓を持つハスク)は z 20、仲間は z 6、クリペイムネスは横の x 4 から。割り込む所は仲間から相手の方へ 3.5 = z 9.5 あたり。
+     */
+    @GameTest(template = "gametest_empty24", timeoutTicks = 400)
+    public static void clipCoversAllyFromTarget(GameTestHelper helper) {
+        net.minecraft.world.entity.monster.Husk h = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.HUSK, new BlockPos(12, 2, 20));
+        h.setNoAi(true);
+        h.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.BOW));
+        com.yayuy.overgrownvegetation.entity.VenamnesEntity ally = helper.spawnWithNoFreeWill(ModRunners.VENAMNES.get(), new BlockPos(12, 2, 6));
+        ally.setNoAi(true);
+        ally.setTarget(h);
+        ClipeimnesEntity v = placeActive(helper, 4.5D, 10.5D, -90.0F);
+        v.setTarget(h);
+        Vec3 cover = helper.absoluteVec(new Vec3(12.5D, 2.0D, 10.0D));
+        helper.onEachTick(() -> {
+            v.setTarget(h);
+            ally.setTarget(h);
+            double d = Math.hypot(v.getX() - cover.x, v.getZ() - cover.z);
+            if (v.isCovering() && d <= 1.5D && v.guardState() == ClipeimnesEntity.GUARD_UP) helper.succeed();
+            if (helper.getTick() > 390) helper.fail(String.format("割り込めない: 割り込みに行く %s・割り込む所まで %.2f・構え %d", v.isCovering(), d, v.guardState()));
+        });
+    }
 }
