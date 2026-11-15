@@ -34,9 +34,10 @@ final class InfectPaint {
     private static final double BLOB_UNITS = 3.0;
     /**
      * 確かめ用にその場で変えられる数(`geninfect set <番号> <値>`): 0 下地の覆い・1 大きなむらの大きさ(単位)・2 小さなむらの大きさ・
-     * 3 小さなむらの重み・4 寄生の中心の半径の倍率・5 むらの濃淡の強さ・6 塊ごとの粒の乱れ。【仮】
+     * 3 小さなむらの重み・4 寄生の中心の半径の倍率・5 むらの濃淡の強さ・6 塊ごとの粒の乱れ・
+     * 7 鮮やかな色を余分にくすませる強さ。【仮】
      */
-    static final double[] TUNE = {0.12, 6.0, 2.0, 0.45, 1.45, 3.2, 0.15};
+    static final double[] TUNE = {0.12, 6.0, 2.0, 0.45, 1.45, 3.2, 0.15, 0.55};
     /** 根の筋のむらの大きさ(単位)と、筋の太さ(むらの値の幅)。【仮】 */
     private static final double ROOT_UNITS = 9.0, ROOT_BAND = 0.03;
     /** 下地の覆い(寄生の中心から遠い所)。 */
@@ -405,6 +406,12 @@ final class InfectPaint {
         int l = (r * 3 + g * 6 + b) / 10;
         double kk = 0.30 + 0.35 * Math.min(1, Math.max(0, (l - 90) / 130.0));
         double dark = l > 110 ? 0.86 - 0.36 * Math.min(1, (l - 110) / 120.0) : 0.9;
+        // 鮮やかな色ほど余分に死体の色へ寄せる(2026-11-15 ユーザー「くすませる」): 体が緑や鮮やかな Mob(スライムなど)は、
+        // 苔が見分けられず、変わったことに気付けなかった
+        int max = Math.max(r, Math.max(g, b)), min = Math.min(r, Math.min(g, b));
+        double sat = max == 0 ? 0.0 : (max - min) / (double) max;
+        kk = Math.min(0.92, kk + TUNE[7] * sat);
+        dark *= 1.0 - 0.18 * sat;
         double s = l / 135.0;
         int tr = (int) Math.min(255, 0x86 * s), tg = (int) Math.min(255, 0x8C * s), tb = (int) Math.min(255, 0x70 * s);
         r = (int) ((r * (1 - kk) + tr * kk) * dark);
