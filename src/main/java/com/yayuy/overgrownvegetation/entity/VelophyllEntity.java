@@ -101,6 +101,8 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
     public static final double SEARCH_H = 40.0D, SEARCH_DOWN = 40.0D, SEARCH_UP = 10.0D;
     /** 相手を探す間隔(tick。広い箱の検索は重いので先頭だけが間をあけて)。 */
     public static final int SEARCH_EVERY = 20;
+    /** ほかの生き物(プレイヤー以外)の箱の検索は、相手探しの何回に 1 回か(= 100 tick に 1 回)【仮】。 */
+    public static final int MOB_SEARCH_EVERY = 5;
     /** 見失う: 先頭からこれより離れる・この tick 見えない。 */
     public static final double LOSE_RANGE = 64.0D;
     public static final int LOSE_UNSEEN = 400;
@@ -299,7 +301,8 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
             }
         }
         if (!flying) return;
-        if (t == null && this.tickCount % SEARCH_EVERY == 0) {
+        if (DEV && this.tickCount % 200 == 0) LOG.info("VELO_SEARCH 回数 {} 平均 {} us", searchCalls, searchCalls == 0 ? "0" : String.format("%.1f", searchNanos / 1e3 / searchCalls));
+        if (t == null && (this.tickCount + this.getId()) % SEARCH_EVERY == 0) {
             t = findTarget(sl);
             if (t != null) {
                 this.flockTarget = t;
@@ -328,26 +331,52 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
         }
     }
 
-    /** 相手を探す【仮】: 見えるプレイヤー(近い順)→ ほかの生き物(近い順)。植物側・創造・観戦は狙わない。 */
+    /**
+     * 相手を探す【仮】: 見えるプレイヤー(近い順)→ ほかの生き物(近い順)。植物側・創造・観戦は狙わない。
+     * 軽くする作り(11-15 全体管理「1 万の桁の群れ」): プレイヤーは面のプレイヤーの一覧から見る(安い)。ほかの生き物の箱の検索は重いので
+     * {@link #MOB_SEARCH_EVERY} 回に 1 回だけ(群れごとに番号で時刻をずらす)。
+     */
     @org.jetbrains.annotations.Nullable
     private net.minecraft.world.entity.LivingEntity findTarget(net.minecraft.server.level.ServerLevel sl) {
-        net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(this.getX() - SEARCH_H, this.getY() - SEARCH_DOWN, this.getZ() - SEARCH_H,
-                this.getX() + SEARCH_H, this.getY() + SEARCH_UP, this.getZ() + SEARCH_H);
-        net.minecraft.world.entity.LivingEntity best = null;
-        double bestD = Double.MAX_VALUE;
-        boolean bestPlayer = false;
-        for (net.minecraft.world.entity.LivingEntity e : sl.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class, box,
-                e -> validTarget(e) && exposedToSky(e) && e.getY() < this.getY() - MIN_BELOW)) {
-            boolean pl = e instanceof net.minecraft.world.entity.player.Player;
-            double d = e.distanceToSqr(this);
-            if (pl && !bestPlayer || pl == bestPlayer && d < bestD) {
-                best = e;
-                bestD = d;
-                bestPlayer = pl;
+        long t0 = System.nanoTime();
+        try {
+            net.minecraft.world.entity.LivingEntity best = null;
+            double bestD = Double.MAX_VALUE;
+            for (net.minecraft.server.level.ServerPlayer p : sl.players()) {
+                if (!inSearchBox(p) || !validTarget(p) || !exposedToSky(p)) continue;
+                double d = p.distanceToSqr(this);
+                if (d < bestD) {
+                    best = p;
+                    bestD = d;
+                }
             }
+            if (best != null) return best;
+            if ((this.searchCount++ + this.getId()) % MOB_SEARCH_EVERY != 0) return null;
+            net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(this.getX() - SEARCH_H, this.getY() - SEARCH_DOWN, this.getZ() - SEARCH_H,
+                    this.getX() + SEARCH_H, this.getY() - MIN_BELOW, this.getZ() + SEARCH_H);
+            for (net.minecraft.world.entity.Mob e : sl.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, box,
+                    e -> validTarget(e) && exposedToSky(e))) {
+                double d = e.distanceToSqr(this);
+                if (d < bestD) {
+                    best = e;
+                    bestD = d;
+                }
+            }
+            return best;
+        } finally {
+            searchNanos += System.nanoTime() - t0;
+            searchCalls++;
         }
-        return best;
     }
+
+    private boolean inSearchBox(net.minecraft.world.entity.Entity e) {
+        return Math.abs(e.getX() - this.getX()) <= SEARCH_H && Math.abs(e.getZ() - this.getZ()) <= SEARCH_H
+                && e.getY() < this.getY() - MIN_BELOW && e.getY() >= this.getY() - SEARCH_DOWN;
+    }
+
+    /** 計測: 相手探しにかけた時間・回数(サーバー全体)。 */
+    public static volatile long searchNanos, searchCalls;
+    private int searchCount;
 
     /** 急降下を始める(先頭が選ぶ)。 */
     public void startDive(net.minecraft.world.entity.LivingEntity t) {

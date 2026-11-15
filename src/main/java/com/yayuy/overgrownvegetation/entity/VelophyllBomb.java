@@ -22,8 +22,8 @@ import net.minecraft.world.phys.Vec3;
  * (能力の決定 11-14「胞子爆弾を落とす(胞子の雲 + 小さな汚れ)」)。作りはストロビラの球果と同じで、雲を大きくした。
  * <ul>
  *   <li>植物側(G1〜G10・寄生体・汎用の感染体)には当たらず素通りする({@link StrobilaCone#passesThrough})。</li>
- *   <li>体には傷を付けない【仮・全体管理へ問い合わせ中】。</li>
- *   <li>見た目は【仮】: 胞子嚢のアイテムの絵(爆弾の絵はまだ無い)。音は無い。</li>
+ *   <li>【決定 11-15 ユーザー(案 B)】真下に当たった(相手に直に当たった)ときだけ小さな傷 {@link #DIRECT_DAMAGE} を付ける。雲と降り積もりはいつも。</li>
+ *   <li>見た目は当面、胞子嚢のアイテムの絵(11-15 ユーザー)。叫び・爆弾の音は付けない(11-15 ユーザー「付ける予定はない」)。</li>
  * </ul>
  */
 public class VelophyllBomb extends ThrowableItemProjectile {
@@ -34,6 +34,8 @@ public class VelophyllBomb extends ThrowableItemProjectile {
     public static final double CLOUD_DOSE_PER_SECOND = 100.0D;
     /** 落ちた升へ足す降り積もり(発芽のしきい値の %)【仮・Claude 11-15】(球果と同じ)。 */
     public static final double DEPOSIT_PERCENT = 15.0D;
+    /** 直に当たったときの傷【仮・決定 11-15 ユーザー: 小さな傷】。植物側の攻撃なので、当たった相手は既存の仕組みで感染する。 */
+    public static final float DIRECT_DAMAGE = 2.0F;
     /** 何にも当たらないまま落ち続けたら消す(tick)。 */
     static final int MAX_AGE = 200;
 
@@ -66,6 +68,9 @@ public class VelophyllBomb extends ThrowableItemProjectile {
     protected void onHit(HitResult result) {
         super.onHit(result);
         if (!(this.level() instanceof ServerLevel level) || this.isRemoved()) return;
+        if (result instanceof net.minecraft.world.phys.EntityHitResult eh) {
+            eh.getEntity().hurt(this.damageSources().mobProjectile(this, this.getOwner() instanceof LivingEntity o ? o : null), DIRECT_DAMAGE);
+        }
         burst(level, result.getLocation(), this.getOwner());
         this.discard();
     }

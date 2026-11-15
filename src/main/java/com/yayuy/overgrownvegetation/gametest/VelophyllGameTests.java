@@ -327,4 +327,22 @@ public final class VelophyllGameTests {
             }
         });
     }
+
+    /** 【決定 11-15 ユーザー(案 B)】爆弾が相手に直に当たると小さな傷(2)を付け、雲にもなる。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 60)
+    public static void bombDirectHitHurtsLightly(GameTestHelper helper) {
+        net.minecraft.world.entity.animal.Cow cow = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.COW, new BlockPos(3, 2, 3));
+        VelophyllEntity v = spawn(helper, 3.5D, 9.0D, 3.5D);
+        float hp0 = cow.getHealth();
+        Vec3 at = new Vec3(cow.getX(), cow.getY() + 3.0D, cow.getZ());
+        com.yayuy.overgrownvegetation.entity.VelophyllBomb b = new com.yayuy.overgrownvegetation.entity.VelophyllBomb(helper.getLevel(), v, at);
+        b.setDeltaMovement(0.0D, -0.4D, 0.0D);
+        helper.getLevel().addFreshEntity(b);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(b.isRemoved(), "爆弾がまだ落ちている");
+            float lost = hp0 - cow.getHealth();
+            helper.assertTrue(Math.abs(lost - com.yayuy.overgrownvegetation.entity.VelophyllBomb.DIRECT_DAMAGE) < 0.01F,
+                    "直に当たった傷が " + com.yayuy.overgrownvegetation.entity.VelophyllBomb.DIRECT_DAMAGE + " でない: " + lost);
+        });
+    }
 }
