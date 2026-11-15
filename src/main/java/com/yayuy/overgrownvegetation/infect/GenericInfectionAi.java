@@ -65,7 +65,7 @@ public final class GenericInfectionAi {
     public static void install(Mob mob) {
         if (installed(mob)) return;
         List<WrappedGoal> targets = new ArrayList<>(mob.targetSelector.getAvailableGoals());
-        mob.targetSelector.removeAllGoals(g -> true);
+        removeGoals(mob.targetSelector, g -> true);
         List<WrappedGoal> goals = new ArrayList<>();
         for (WrappedGoal w : mob.goalSelector.getAvailableGoals()) {
             if (isRemovedGoal(w.getGoal())) goals.add(w);
@@ -85,8 +85,8 @@ public final class GenericInfectionAi {
 
     /** 付けた動きを外し、外した Goal を戻す。 */
     public static void uninstall(Mob mob) {
-        mob.goalSelector.removeAllGoals(g -> g instanceof FreezeGoal || g instanceof RamGoal);
-        mob.targetSelector.removeAllGoals(g -> g instanceof PreyGoal || g instanceof HurtByTargetGoal);
+        removeGoals(mob.goalSelector, g -> g instanceof FreezeGoal || g instanceof RamGoal);
+        removeGoals(mob.targetSelector, g -> g instanceof PreyGoal || g instanceof HurtByTargetGoal);
         GenericInfected gi = mob.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.GENERIC_INFECTED);
         Removed r = gi.removedGoals instanceof Removed rr ? rr : null;
         gi.removedGoals = null;
@@ -96,6 +96,17 @@ public final class GenericInfectionAi {
             for (WrappedGoal w : r.goals()) mob.goalSelector.addGoal(w.getPriority(), w.getGoal());
         }
         mob.setTarget(null);
+    }
+
+    /**
+     * Goal を外す。バニラの {@code removeAllGoals} は動いている Goal を止めずに外すので、外した Goal が旗(狙い・移動など)を握ったまま残り、
+     * 後から入れた同じ優先度の Goal が動けなくなる(11-15 の調べで分かった)。先に止めてから外す。
+     */
+    static void removeGoals(net.minecraft.world.entity.ai.goal.GoalSelector selector, java.util.function.Predicate<Goal> filter) {
+        for (WrappedGoal w : new ArrayList<>(selector.getAvailableGoals())) {
+            if (filter.test(w.getGoal()) && w.isRunning()) w.stop();
+        }
+        selector.removeAllGoals(filter);
     }
 
     /** 変わったときの 1 回きり: 飼い主を忘れる・乗っている人を振り落とす(★ 問い 9)。 */
@@ -273,6 +284,12 @@ public final class GenericInfectionAi {
             LivingEntity t = targetOf(mob);
             if (t == null) return;
             mob.getLookControl().setLookAt(t, 30.0F, 30.0F);
+            // Brain で動く Mob は Brain が毎 tick 歩く先を書き、こちらの追いかけを上書きする(ヤギなど)→ 追う間は歩く先を消す(ATTACK_TARGET は書かない = ★ 7:2)
+            var brain = mob.getBrain();
+            if (brain.checkMemory(net.minecraft.world.entity.ai.memory.MemoryModuleType.WALK_TARGET,
+                    net.minecraft.world.entity.ai.memory.MemoryStatus.REGISTERED)) {
+                brain.eraseMemory(net.minecraft.world.entity.ai.memory.MemoryModuleType.WALK_TARGET);
+            }
             if (--repath <= 0) {
                 repath = 10;
                 mob.getNavigation().moveTo(t, GenericInfection.spec().ramSpeed());
@@ -297,6 +314,27 @@ public final class GenericInfectionAi {
         int wait = GenericInfection.spec().fallbackTicks();
         if (mob.tickCount - g.targetSince >= wait && mob.tickCount - mob.getLastHurtMobTimestamp() >= wait) g.fallbackOn = true;
     }
+
+    /** 狙いの保険の間隔(tick)【仮】。 */
+    public static final int ACQUIRE_INTERVAL = 20;
+
+    /**
+     * 狙いの保険(種を知らなくても効く形。11-15 ユーザーの不具合「ほかの MOD の Mob が襲いに行かない」): 変わった Mob が狙いを持たない間、
+     * {@link #ACQUIRE_INTERVAL} ごとに、狙う範囲の中でいちばん近い獲物を直に狙わせる(標的の Goal が何かに邪魔されて動かない Mob 用)。
+     */
+    static void acquireIfIdle(Mob mob, GenericInfected g) {
+        if (targetOf(mob) != null || !(mob.level() instanceof net.minecraft.server.level.ServerLevel level)) return;
+        double r = range(mob, GenericInfection.spec());
+        LivingEntity best = level.getNearestEntity(level.getEntitiesOfClass(LivingEntity.class, mob.getBoundingBox().inflate(r, 4.0D, r)),
+                TargetingConditions.forCombat().range(r).ignoreLineOfSight().selector(e -> isPrey(mob, e)), mob, mob.getX(), mob.getEyeY(), mob.getZ());
+        if (best == null) return;
+        mob.setTarget(best);
+        g.prey = best;
+        acquiredCount++;
+    }
+
+    /** 数え(確かめ用): 狙いの保険で狙わせた回数。 */
+    public static int acquiredCount;
 
     /** 今、体当たりで当てに行くか(体当たりの種か、予備に切り替わった)。 */
     public static boolean rammingNow(Mob mob) {

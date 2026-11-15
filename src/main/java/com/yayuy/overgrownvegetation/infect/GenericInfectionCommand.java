@@ -94,6 +94,18 @@ public final class GenericInfectionCommand {
                     e.getHealth(), e.getMaxHealth(),
                     g.transforming(now) ? "変わる途中 " + age + "/" + g.transformTicks + " tick" : "変わり終えた",
                     g.boss ? "・ボス" : "", g.seed));
+            // 狙いと動いている Goal(ほかの MOD の Mob が襲わない不具合の確かめ用、11-15)
+            LivingEntity t = e instanceof net.minecraft.world.entity.Mob m ? GenericInfectionAi.targetOf(m) : null;
+            sb.append("\n  狙い ").append(t == null ? "なし" : BuiltInRegistries.ENTITY_TYPE.getKey(t.getType()) + " #" + t.getId())
+                    .append(" 予備 ").append(g.fallbackOn);
+            if (e instanceof net.minecraft.world.entity.Mob m) {
+                sb.append(" 動いている Goal ");
+                m.goalSelector.getAvailableGoals().stream().filter(net.minecraft.world.entity.ai.goal.WrappedGoal::isRunning)
+                        .forEach(w -> sb.append(w.getGoal().getClass().getSimpleName()).append(' '));
+                sb.append("| 標的 ");
+                m.targetSelector.getAvailableGoals().forEach(w -> sb.append(w.getGoal().getClass().getSimpleName())
+                        .append(w.isRunning() ? "* " : " "));
+            }
         }
         String msg = sb.toString();
         source.sendSuccess(() -> Component.literal(msg), false);

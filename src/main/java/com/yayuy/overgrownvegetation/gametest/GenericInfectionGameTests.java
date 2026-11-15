@@ -496,6 +496,65 @@ public final class GenericInfectionGameTests {
         });
     }
 
+    /**
+     * 11-15 ユーザーの不具合「ほかの MOD の Mob が変わった後に襲いに行かない」: G1 に殴られて仕返しの Goal(HurtByTarget、優先度 1)が
+     * 動いているまま胞子の死で変わった Mob も、豚を狙って傷付ける。以前は動いている標的の Goal を止めずに外していたので、外した Goal が
+     * 狙いの旗を握ったまま残り、同じ優先度 1 の PreyGoal が二度と動けなかった(バニラ・ほかの MOD を問わず、殴られてから変わった Mob で起きる)。
+     */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH)
+    public static void runningTargetGoalDoesNotBlockPreyGoal(GameTestHelper helper) {
+        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, new BlockPos(1, 2, 1));
+        helper.spawnWithNoFreeWill(EntityType.PIG, new BlockPos(3, 2, 3));
+        // 変わる前に動いている標的の Goal(仕返しの Goal と同じ: 優先度 1・狙いの旗)を作る
+        HoldTargetFlag holder = new HoldTargetFlag();
+        husk.targetSelector.addGoal(1, holder);
+        husk.targetSelector.tick();
+        if (!holder.running) {
+            helper.fail("テストの前提: 旗を握る Goal が動いていない");
+            return;
+        }
+        GenericInfection.turn(husk, true);
+        if (holder.running) {
+            helper.fail("変わったときに、動いていた標的の Goal が止められていない(旗を握ったまま残る)");
+            return;
+        }
+        boolean preyRan = false;
+        for (int i = 0; i < 200 && !preyRan; i++) {
+            husk.targetSelector.tick();
+            preyRan = husk.targetSelector.getAvailableGoals().stream()
+                    .anyMatch(w -> w.isRunning() && w.getGoal() instanceof com.yayuy.overgrownvegetation.infect.GenericInfectionAi.PreyGoal);
+        }
+        if (!preyRan) {
+            helper.fail("変わった後に PreyGoal が動けない(旗が残っている)");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** テスト用: いつでも動き、狙いの旗を握る Goal(止められたら running が false)。 */
+    private static final class HoldTargetFlag extends net.minecraft.world.entity.ai.goal.Goal {
+        boolean running;
+
+        HoldTargetFlag() {
+            setFlags(java.util.EnumSet.of(Flag.TARGET));
+        }
+
+        @Override
+        public boolean canUse() {
+            return true;
+        }
+
+        @Override
+        public void start() {
+            running = true;
+        }
+
+        @Override
+        public void stop() {
+            running = false;
+        }
+    }
+
     /** 撃つ種(ラマ = 唾)。 */
     @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
     public static void attackLlama(GameTestHelper helper) {

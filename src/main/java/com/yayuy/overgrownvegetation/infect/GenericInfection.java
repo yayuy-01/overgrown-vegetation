@@ -284,6 +284,7 @@ public final class GenericInfection {
         }
         if ((mob.tickCount & 15) == 0) GenericInfectionAi.keepOwnerless(mob);
         if (Math.floorMod(mob.tickCount + mob.getId(), RELEASE_INTERVAL) == 0) releaseAttackers(mob);
+        if (Math.floorMod(mob.tickCount + mob.getId(), GenericInfectionAi.ACQUIRE_INTERVAL) == 0) GenericInfectionAi.acquireIfIdle(mob, g);
         GenericInfectionAi.trackTarget(mob, g);
         if (GenericInfectionAi.rammingNow(mob)) GenericInfectionAi.ramTick(mob, g, now);
         if (now < g.callUntil) marchTick(mob, g);
