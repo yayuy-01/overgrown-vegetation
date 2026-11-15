@@ -194,6 +194,11 @@ public abstract class SkyFlyer extends Monster {
         return false;
     }
 
+    /** {@link #ownFlight} の間、機首の上下を動く向きに合わせるなら true(2026-11-15 ヴェロフィルの急降下で足した。既定 false = 水平)。 */
+    protected boolean ownFlightPitches() {
+        return false;
+    }
+
     /** {@link #ownFlight} の間に、この tick に動く量(ブロック)を渡す。 */
     protected final void setOwnMotion(double vx, double vy, double vz) {
         this.kinX = vx;
@@ -821,7 +826,9 @@ public abstract class SkyFlyer extends Monster {
             this.setXRot((float) -Math.toDegrees(Math.atan2(this.body.vy, Math.max(this.body.speed, 0.05D))));
         } else {
             v = new Vec3(this.kinX, this.kinY, this.kinZ);
-            this.setXRot(0.0F);
+            // 自前の飛び方で機首を動きに合わせる種(ヴェロフィルの急降下)は、動く向きから機首の上下を出す。ほかは今まで通り水平
+            this.setXRot(this.ownFlightNow && ownFlightPitches()
+                    ? (float) -Math.toDegrees(Math.atan2(this.kinY, Math.max(Math.sqrt(this.kinX * this.kinX + this.kinZ * this.kinZ), 0.05D))) : 0.0F);
         }
         this.move(MoverType.SELF, v);
         this.setDeltaMovement(v);

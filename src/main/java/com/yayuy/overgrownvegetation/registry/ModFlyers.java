@@ -44,6 +44,16 @@ public final class ModFlyers {
             props -> new DeferredSpawnEggItem(VELOPHYLL, 0x2E3A1C, 0xC8E03A, props));
 
     /** セミナリア(2026-11-15 段 1)。当たりは胸の芯だけ(幅 0.8 × 高さ 1.0【仮】)。翅(幅 4.7)と腹は叩ける部位。 */
+    /** ヴェロフィルの胞子爆弾(11-15 能力の段)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.VelophyllBomb>> VELOPHYLL_BOMB =
+            ModEntities.ENTITY_TYPES.register("velophyll_bomb", () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.VelophyllBomb>of(com.yayuy.overgrownvegetation.entity.VelophyllBomb::new, MobCategory.MISC)
+                    .sized(0.4F, 0.4F)
+                    .noSummon()
+                    .clientTrackingRange(8)
+                    .updateInterval(5)
+                    .build("velophyll_bomb"));
+
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.SeminariaEntity>> SEMINARIA =
             ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.SeminariaEntity.ID, () -> EntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.SeminariaEntity>of(com.yayuy.overgrownvegetation.entity.SeminariaEntity::new, MobCategory.MONSTER)

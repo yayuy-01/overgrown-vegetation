@@ -263,4 +263,68 @@ public final class VelophyllGameTests {
             helper.succeed();
         });
     }
+
+    // ------------------------------------------------------------------ 爆撃(2026-11-15、能力の段)
+
+    /** 爆弾は落ちた所で胞子の雲になる(植物側は素通りするが、床には当たる)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 80)
+    public static void bombBurstsIntoSporeCloud(GameTestHelper helper) {
+        VelophyllEntity v = spawn(helper, 3.5D, 6.0D, 3.5D);
+        Vec3 at = helper.absoluteVec(new Vec3(3.5D, 5.0D, 3.5D));
+        com.yayuy.overgrownvegetation.entity.VelophyllBomb b = new com.yayuy.overgrownvegetation.entity.VelophyllBomb(helper.getLevel(), v, at);
+        b.setDeltaMovement(0.0D, -0.3D, 0.0D);
+        helper.getLevel().addFreshEntity(b);
+        helper.succeedWhen(() -> {
+            java.util.List<com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeCloud> c = helper.getLevel().getEntitiesOfClass(
+                    com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeCloud.class, new net.minecraft.world.phys.AABB(at, at).inflate(4.0D, 6.0D, 4.0D));
+            helper.assertTrue(!c.isEmpty(), "爆弾が雲にならない");
+            helper.assertTrue(b.isRemoved(), "爆弾が残っている");
+        });
+    }
+
+    /** 空が見えている相手だけを見つける: 牛の真上 3 ブロックに屋根を置くと見つけない(開けた側はテスト場の並びで上に物が来ることがあるので見ない)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void ignoresTargetsUnderRoof(GameTestHelper helper) {
+        net.minecraft.world.entity.animal.Cow open = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.COW, new BlockPos(1, 2, 1));
+        net.minecraft.world.entity.animal.Cow hidden = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.COW, new BlockPos(5, 2, 5));
+        helper.setBlock(new BlockPos(5, 5, 5), Blocks.OAK_PLANKS);
+        helper.runAfterDelay(2L, () -> {
+            helper.assertFalse(VelophyllEntity.exposedToSky(hidden), "屋根の下の牛が空から見える");
+            helper.succeed();
+        });
+    }
+
+    /**
+     * 急降下: 前触れ(その場の高さを保つ)→ 相手の頭上へ落ちる → 放す → 引き起こす。爆弾は相手の近く(水平 6 ブロック以内)で放す(雲になるのは別のテスト)。
+     * 前触れの間は昇り降りしない。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 260)
+    public static void divesAndBombsTarget(GameTestHelper helper) {
+        net.minecraft.world.entity.animal.Cow cow = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.COW, new BlockPos(3, 2, 3));
+        VelophyllEntity v = spawn(helper, 3.5D, 14.0D, 3.5D);
+        v.roostOverride = Boolean.FALSE;
+        int before = VelophyllEntity.bombsDropped;
+        double[] y0 = {Double.NaN};
+        boolean[] sawFall = {false};
+        helper.runAfterDelay(5L, () -> {
+            y0[0] = v.getY();
+            v.startDive(cow);
+        });
+        helper.runAfterDelay(5L + VelophyllEntity.DIVE_WINDUP - 2, () -> {
+            helper.assertTrue(v.diveState() == VelophyllEntity.DIVE_WINDUP_P, "前触れのまま来ない: " + v.diveState());
+            helper.assertTrue(Math.abs(v.getY() - y0[0]) < 0.3D, String.format("前触れの間に高さが変わった(%.2f)", v.getY() - y0[0]));
+        });
+        helper.onEachTick(() -> {
+            if (v.diveState() == VelophyllEntity.DIVE_FALL) sawFall[0] = true;
+            if (VelophyllEntity.bombsDropped > before && sawFall[0]) {
+                Vec3 b = VelophyllEntity.lastBombAt;
+                double hd = Math.hypot(b.x - cow.getX(), b.z - cow.getZ());
+                if (hd > 6.0D) {
+                    helper.fail(String.format("爆弾を相手から離れた所で放した(水平 %.1f)", hd));
+                    return;
+                }
+                helper.succeed();
+            }
+        });
+    }
 }

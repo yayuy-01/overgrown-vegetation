@@ -16,6 +16,49 @@ public class VelophyllRenderer extends GeoEntityRenderer<VelophyllEntity> {
     /** 回す中心の高さ(ブロック)。胴の骨の付け根 y 8 単位。 */
     static final float PIVOT_Y = 0.5F;
 
+    /** 急降下の影の絵(バニラの影)・濃さ・大きさ(半径。遠いと小さく薄く、近づくと大きく濃く)【仮・Claude 11-15】。 */
+    static final net.minecraft.resources.ResourceLocation SHADOW = net.minecraft.resources.ResourceLocation.withDefaultNamespace("textures/misc/shadow.png");
+    static final float SHADOW_ALPHA_MIN = 0.25F, SHADOW_ALPHA_MAX = 0.75F, SHADOW_R_MIN = 1.2F, SHADOW_R_MAX = 3.0F;
+    /** 影が一番濃く大きくなる高さの差(ブロック)。 */
+    static final float SHADOW_NEAR = 6.0F, SHADOW_FAR = 40.0F;
+
+    @Override
+    public void render(VelophyllEntity entity, float entityYaw, float partialTick, PoseStack poseStack,
+                       net.minecraft.client.renderer.MultiBufferSource bufferSource, int packedLight) {
+        super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
+        net.minecraft.world.entity.Entity t = entity.shadowTarget();
+        if (t != null) renderDiveShadow(entity, t, partialTick, poseStack, bufferSource);
+    }
+
+    /**
+     * 急降下の前触れ・落ちる間、狙う相手の足元に影を描く(能力の決定 11-14「前触れ・地面に影」)。
+     * 影は相手と一緒に動き、ヴェロフィルが近づくほど大きく濃くなる(地面の起伏には沿わない平らな円)。
+     */
+    private static void renderDiveShadow(VelophyllEntity e, net.minecraft.world.entity.Entity t, float pt, PoseStack ps,
+                                         net.minecraft.client.renderer.MultiBufferSource buffers) {
+        double ex = net.minecraft.util.Mth.lerp(pt, e.xo, e.getX()), ey = net.minecraft.util.Mth.lerp(pt, e.yo, e.getY()), ez = net.minecraft.util.Mth.lerp(pt, e.zo, e.getZ());
+        double tx = net.minecraft.util.Mth.lerp(pt, t.xo, t.getX()), ty = net.minecraft.util.Mth.lerp(pt, t.yo, t.getY()), tz = net.minecraft.util.Mth.lerp(pt, t.zo, t.getZ());
+        float near = (float) net.minecraft.util.Mth.clamp((SHADOW_FAR - (ey - ty)) / (SHADOW_FAR - SHADOW_NEAR), 0.0D, 1.0D);
+        float r = net.minecraft.util.Mth.lerp(near, SHADOW_R_MIN, SHADOW_R_MAX);
+        float a = net.minecraft.util.Mth.lerp(near, SHADOW_ALPHA_MIN, SHADOW_ALPHA_MAX);
+        ps.pushPose();
+        ps.translate(tx - ex, ty - ey + 0.03D, tz - ez);
+        PoseStack.Pose pose = ps.last();
+        com.mojang.blaze3d.vertex.VertexConsumer vc = buffers.getBuffer(net.minecraft.client.renderer.RenderType.entityShadow(SHADOW));
+        int alpha = (int) (a * 255.0F);
+        vertex(vc, pose, -r, -r, 0.0F, 0.0F, alpha);
+        vertex(vc, pose, -r, r, 0.0F, 1.0F, alpha);
+        vertex(vc, pose, r, r, 1.0F, 1.0F, alpha);
+        vertex(vc, pose, r, -r, 1.0F, 0.0F, alpha);
+        ps.popPose();
+    }
+
+    private static void vertex(com.mojang.blaze3d.vertex.VertexConsumer vc, PoseStack.Pose pose, float x, float z, float u, float v, int alpha) {
+        vc.addVertex(pose, x, 0.0F, z).setColor(255, 255, 255, alpha).setUv(u, v)
+                .setOverlay(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY)
+                .setLight(net.minecraft.client.renderer.LightTexture.FULL_BRIGHT).setNormal(pose, 0.0F, 1.0F, 0.0F);
+    }
+
     public VelophyllRenderer(EntityRendererProvider.Context context) {
         super(context, new VelophyllModel());
         this.shadowRadius = 0.8F;

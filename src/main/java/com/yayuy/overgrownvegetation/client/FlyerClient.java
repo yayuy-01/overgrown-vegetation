@@ -17,6 +17,9 @@ public final class FlyerClient {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModFlyers.VELOPHYLL.get(), VelophyllRenderer::new);
+        // ヴェロフィルの胞子爆弾(11-15): 絵は【仮】で胞子嚢のアイテム(少し大きく)
+        event.registerEntityRenderer(ModFlyers.VELOPHYLL_BOMB.get(),
+                ctx -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(ctx, 1.8F, false));
         event.registerEntityRenderer(ModFlyers.SEMINARIA.get(), SeminariaRenderer::new);
         event.registerEntityRenderer(ModFlyers.PEDICULA.get(), PediculaRenderer::new);
         event.registerEntityRenderer(ModFlyers.ACUMNES.get(), AcumnesRenderer::new);

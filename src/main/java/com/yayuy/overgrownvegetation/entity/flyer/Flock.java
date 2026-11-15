@@ -266,6 +266,17 @@ public final class Flock {
         this.hasPatrol = false;
     }
 
+    /**
+     * 巡回の行き先を外から決める(2026-11-15 ヴェロフィルの爆撃: 相手の上空を回る)。次に選び直すまで {@link #PATROL_GIVE_UP} tick 粘る。
+     * 呼ぶ側が毎回置き直す前提(着いたら土台がまた選ぶ)。
+     */
+    public void steerPatrol(double x, double z) {
+        this.patrolX = x;
+        this.patrolZ = z;
+        this.hasPatrol = true;
+        this.patrolTicks = PATROL_GIVE_UP;
+    }
+
     /** 先頭の巡回の行き先: 今の向きから ±{@link #PATROL_FAN} 度・{@link #PATROL_MIN}〜{@link #PATROL_MAX} 先。家から離れすぎていたら家の方へ。 */
     private void updatePatrol(SkyFlyer leader, RandomSource rnd) {
         double dx = this.patrolX - leader.getX(), dz = this.patrolZ - leader.getZ();
