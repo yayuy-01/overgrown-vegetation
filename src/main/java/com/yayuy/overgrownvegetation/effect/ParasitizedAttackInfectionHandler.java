@@ -51,12 +51,36 @@ public final class ParasitizedAttackInfectionHandler {
             if (isOvergrownMob(attacker) || PlantSideRules.isTransformed(attacker)) {
                 SporeInfectionEffects.plantAttack(player);
             }
+            // 傷の暴露(11-15 ユーザー決定): G1・G4〜G10・汎用の感染体に付けられた傷はダメージに比例して暴露量を上げる。マスクでは防げない
+            if (event.getNewDamage() > 0.0F && PlantSideRules.isInfector(attacker)) {
+                addWoundDose(player, event.getNewDamage());
+            }
             return;
         }
         // プレイヤー以外の Mob: G1・G4〜G10・汎用の感染体に傷を付けられたら必ず感染(11-15 ユーザー決定。除く相手は無い。G2・G3 は感染させない)
+        // + 1 撃ごとにダメージに比例した暴露量の上乗せ(11-15 ユーザー決定。約 2 分より早く死ぬ)
         if (event.getNewDamage() > 0.0F && PlantSideRules.isInfector(attacker)) {
             MobInfection.infect(victim, level.getGameTime());
+            addWoundDose(victim, event.getNewDamage());
         }
+    }
+
+    /**
+     * 傷の暴露: {@code damage} × 1 ダメージあたりの量(spore_field.json の mobInfection.woundDosePlayerPerDamage・woundDoseMobPerDamage)を
+     * 暴露量に足す(感染の量で頭打ち。満ちたら次の暴露量の判定で、プレイヤーは感染 1・Mob は 20 ダメージ)。防護マスクは見ない(傷口から入る)。
+     * 創造・観戦のプレイヤー・感染中のプレイヤー(感染中は積まない決まり。進むのは 5% の抽選)・測らない Mob には足さない。
+     */
+    public static void addWoundDose(LivingEntity victim, float damage) {
+        com.yayuy.overgrownvegetation.data.MobInfectionSpec s = com.yayuy.overgrownvegetation.data.DesignData.sporeField().mobInfection();
+        double amount = (victim instanceof Player ? s.woundDosePlayerPerDamage() : s.woundDoseMobPerDamage()) * damage;
+        if (amount <= 0.0D || !victim.isAlive()) return;
+        if (victim instanceof Player p) {
+            if (p.isCreative() || p.isSpectator() || SporeInfectionEffects.stageOf(p) > 0) return;
+        } else if (!com.yayuy.overgrownvegetation.spore.SporeExposureTracker.isMeasuredMob(victim)) {
+            return;
+        }
+        com.yayuy.overgrownvegetation.spore.SporeExposure ex = victim.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_EXPOSURE);
+        ex.dose = Math.min(com.yayuy.overgrownvegetation.data.DesignData.sporeField().infectDose(), ex.dose + amount);
     }
 
     /**

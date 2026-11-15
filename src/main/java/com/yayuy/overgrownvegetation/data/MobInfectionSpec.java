@@ -22,6 +22,8 @@ package com.yayuy.overgrownvegetation.data;
  * 感染後は弱って遅くなる(11-14 ユーザー): 歩く速さを {@code infectedSlowdown} 0.4 だけ下げ(属性の修飾・保存される)、逃げる向きから左右に
  * {@code wobbleDegrees} 50 度までふらつき、1 回に {@code infectedStepDistance} 8 ブロックずつ歩く(歩き直すたびに少し立ち止まる)。
  * 死ぬまでの約 2 分は変えず、走る距離を 60〜100 ブロックに縮めて Mob の動く範囲の中で死ぬようにするため。
+ * 傷の暴露(11-15 ユーザー決定「与えたダメージに比例」): 植物側に付けられた傷 1 ダメージあたり、プレイヤー {@code woundDosePlayerPerDamage} 30・
+ * Mob {@code woundDoseMobPerDamage} 60 %秒(4 ダメージの 1 撃でプレイヤー +120 = 感染の量 1500 の 8%)。
  */
 public record MobInfectionSpec(
         boolean enabled,
@@ -40,7 +42,9 @@ public record MobInfectionSpec(
         int particleCount,
         double infectedSlowdown,
         double wobbleDegrees,
-        int infectedStepDistance) {
+        int infectedStepDistance,
+        double woundDosePlayerPerDamage,
+        double woundDoseMobPerDamage) {
 
     /** Gson の受け皿(null は既定値)。 */
     public static final class Json {
@@ -77,6 +81,11 @@ public record MobInfectionSpec(
         public Double wobbleDegrees;
         /** 感染後に 1 回に歩く先の距離(ブロック。短いほど立ち止まりが増える)。 */
         public Integer infectedStepDistance;
+        /**
+         * 植物側(G1・G4〜G10・汎用の感染体)に付けられた傷 1 ダメージあたりに足す暴露量(%秒)。プレイヤー・Mob(11-15 ユーザー決定「与えたダメージに比例」)。
+         * 防護マスクでは防げない(傷口から入る)。防具・盾で 0 ダメージなら上がらない。
+         */
+        public Double woundDosePlayerPerDamage, woundDoseMobPerDamage;
     }
 
     public static final MobInfectionSpec DEFAULT = from(null);
@@ -100,7 +109,9 @@ public record MobInfectionSpec(
                 i(s.particleCount, 2, 0, 64),
                 d(s.infectedSlowdown, 0.4D, 0.0D, 0.95D),
                 d(s.wobbleDegrees, 50.0D, 0.0D, 180.0D),
-                i(s.infectedStepDistance, 8, 2, 64));
+                i(s.infectedStepDistance, 8, 2, 64),
+                d(s.woundDosePlayerPerDamage, 30.0D, 0.0D, 100_000.0D),
+                d(s.woundDoseMobPerDamage, 60.0D, 0.0D, 100_000.0D));
     }
 
     private static int i(Integer v, int def, int lo, int hi) {

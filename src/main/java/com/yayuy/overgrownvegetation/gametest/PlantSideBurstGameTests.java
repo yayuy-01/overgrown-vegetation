@@ -292,6 +292,59 @@ public final class PlantSideBurstGameTests {
         helper.succeed();
     }
 
+    // ------------------------------------------------------------------ 傷の暴露・倒された Mob も感染体に(§4、11-15 ユーザー決定)
+
+    /** Mob: 傷のダメージに比例して暴露量が上がる(G4 の 1 撃)。G2・G3 以外の植物側でない Mob の撃ちでは上がらない。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void woundRaisesMobDoseByDamage(GameTestHelper helper) {
+        Mob gregaria = helper.spawnWithNoFreeWill(ModCrawlers.GREGARIA.get(), new Vec3(1.5, 2.0, 1.5));
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new Vec3(5.5, 2.0, 5.5));
+        Mob a = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, new Vec3(3.5, 2.0, 2.5));
+        Mob b = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, new Vec3(3.5, 2.0, 5.0));
+        double per = com.yayuy.overgrownvegetation.data.DesignData.sporeField().mobInfection().woundDoseMobPerDamage();
+        a.hurt(helper.getLevel().damageSources().mobAttack(gregaria), 3.0F);
+        b.hurt(helper.getLevel().damageSources().mobAttack(zombie), 3.0F);
+        double dose = com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(a);
+        helper.assertTrue(Math.abs(dose - per * 3.0D) < 1.0E-3D, "3 ダメージの傷で暴露量が " + per * 3.0D + " 上がっていない: " + dose);
+        helper.assertTrue(com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(b) == 0.0D, "ただのゾンビの傷で暴露量が上がった");
+        helper.succeed();
+    }
+
+    /** プレイヤー: 傷で暴露量が上がる(防護マスクを被っていても)。今の 30% の抽選で感染に入ったら、その撃ちでは積まない(感染中は積まない決まり)。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void woundRaisesPlayerDoseThroughMask(GameTestHelper helper) {
+        net.minecraft.world.entity.player.Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        player.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD,
+                new net.minecraft.world.item.ItemStack(com.yayuy.overgrownvegetation.registry.ModItems.PROTECTIVE_MASK.get()));
+        double per = com.yayuy.overgrownvegetation.data.DesignData.sporeField().mobInfection().woundDosePlayerPerDamage();
+        com.yayuy.overgrownvegetation.effect.ParasitizedAttackInfectionHandler.addWoundDose(player, 4.0F);
+        double dose = com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(player);
+        helper.assertTrue(Math.abs(dose - per * 4.0D) < 1.0E-3D, "マスクを被ったプレイヤーの暴露量が傷で " + per * 4.0D + " 上がっていない: " + dose);
+        // 入口から: G1 の撃ちで、暴露量が上がるか、抽選で感染に入る
+        Mob g1 = helper.spawnWithNoFreeWill(G1Species.ZOMBIE.entityType(), new Vec3(1.5, 2.0, 1.5));
+        player.hurt(helper.getLevel().damageSources().mobAttack(g1), 2.0F);
+        double after = com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(player);
+        boolean infected = com.yayuy.overgrownvegetation.effect.SporeInfectionEffects.stageOf(player) > 0;
+        helper.assertTrue(infected || after > dose, "G1 の撃ちで暴露量も感染も上がらない: " + after);
+        helper.succeed();
+    }
+
+    /** G4 に倒された Mob も感染の死: 表にある種は死体へ崩れ落ちる(11-15 ユーザー決定)。ただのゾンビに倒されたらならない。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void killedByG4BecomesCorpse(GameTestHelper helper) {
+        Mob venamnes = helper.spawnWithNoFreeWill(ModRunners.VENAMNES.get(), new Vec3(1.5, 2.0, 1.5));
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new Vec3(5.5, 2.0, 5.5));
+        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(3.5, 2.0, 2.5));
+        Mob cow2 = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(3.5, 2.0, 5.0));
+        helper.assertTrue(com.yayuy.overgrownvegetation.corpse.G1Infection.isInfectionDeath(cow, helper.getLevel().damageSources().mobAttack(venamnes)),
+                "G4 の撃ちが感染の死に数えられていない");
+        cow.hurt(helper.getLevel().damageSources().mobAttack(venamnes), 1000.0F);
+        cow2.hurt(helper.getLevel().damageSources().mobAttack(zombie), 1000.0F);
+        helper.assertTrue(com.yayuy.overgrownvegetation.corpse.CorpseCollapse.isCollapsing(cow), "G4 に倒された牛が死体へ崩れ落ちない");
+        helper.assertTrue(!com.yayuy.overgrownvegetation.corpse.CorpseCollapse.isCollapsing(cow2), "ただのゾンビに倒された牛が死体になった");
+        helper.succeed();
+    }
+
     // ------------------------------------------------------------------ 道具
 
     private static Map<BlockPos, BlockState> snapshot(GameTestHelper helper, BlockPos center) {
