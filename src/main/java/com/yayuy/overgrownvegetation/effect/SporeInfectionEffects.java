@@ -26,7 +26,7 @@ import net.minecraft.world.entity.player.Player;
  *
  * <ul>
  *     <li>amplifier = 段階 − 1(0〜9)。持続は無限で、進み(%秒)は {@link ModAttachments#SPORE_STAGE_TICKS}(名前は前の「tick」の名残)。
- *     {@code stageDose} たまるごとに 1 段上がり、感染10 からさらに 1 段ぶんたまると死に、その場に萌芽体が生える({@link #killByInfection})。</li>
+ *     今の段の量(段ごとに +{@code stageDoseGrowth}、後の段ほど多い)たまるごとに 1 段上がり、感染10 からさらに 1 段ぶんたまると死に、その場に萌芽体が生える({@link #killByInfection})。</li>
  *     <li>上がるたびに {@code damagePerStage}(1)のダメージ。最大体力は治るまで {@code maxHealthPerStage} × (段階 − 1) 減る。</li>
  *     <li>かかるのは暴露量が 1500 %秒に届いたとき({@code spore/SporeExposureTracker}、11-04)と、植物側の Mob の傷で 30%({@link #plantAttack})。</li>
  *     <li>進み(11-15 ユーザー決定「混ぜた形」): 体の中でゆっくり育つ分({@code growStageSeconds} で 1 段、疲労で ×1.5 まで)+ 息で浴びた胞子
@@ -93,7 +93,7 @@ public final class SporeInfectionEffects {
         }
         // 体の中でゆっくり育つ(11-15)。疲労で進みやすくなる(2026-11-13 サバイバル段 1。上限 fatigue.infectionMultiplierMax)のはこちらに掛ける
         double seconds = interval / 20.0D;
-        double grow = spec.growPerSecond() * com.yayuy.overgrownvegetation.survival.FatigueTracker.infectionMultiplier(player);
+        double grow = spec.growPerSecond(stageOf(player)) * com.yayuy.overgrownvegetation.survival.FatigueTracker.infectionMultiplier(player);
         advance(player, (grow + Math.max(0.0D, breathedPerSecond)) * seconds);
         if (player.isAlive()) {
             syncModifiers(player);
@@ -141,7 +141,7 @@ public final class SporeInfectionEffects {
 
     /**
      * 段の進みを {@code amount}(%秒)進める(11-15: 進みの単位は tick から暴露量へ。添付 {@code SPORE_STAGE_TICKS} の整数に %秒 を入れ、
-     * 端数は {@code SporeExposure#rateCarry} に持ち越す)。{@code stageDose} に届いたら段階を上げる(届いた分だけ何段でも)。下がらない。
+     * 端数は {@code SporeExposure#rateCarry} に持ち越す)。今の段の量({@link #stageDoseOf}、後の段ほど多い)に届いたら段階を上げる(届いた分だけ何段でも)。下がらない。
      * 未感染なら何もしない。
      */
     public static void advance(Player player, double amount) {
@@ -149,12 +149,13 @@ public final class SporeInfectionEffects {
             return;
         }
         SporeExposure ex = player.getData(ModAttachments.SPORE_EXPOSURE);
-        int stageDose = (int) Math.ceil(DesignData.effects().playerInfection().stageDose());
+        EffectTable.PlayerInfectionSpec spec = DesignData.effects().playerInfection();
         double exact = player.getData(ModAttachments.SPORE_STAGE_TICKS) + ex.rateCarry + amount;
         long whole = (long) Math.floor(exact);
         ex.rateCarry = exact - whole;
-        while (whole >= stageDose && stageOf(player) > 0 && player.isAlive()) {
-            whole -= stageDose;
+        // 1 段の量は今の段で決まる(後の段ほど多く要る、11-15)。上がるたびに次の段の量で比べ直す
+        while (stageOf(player) > 0 && player.isAlive() && whole >= stageDoseOf(spec, stageOf(player))) {
+            whole -= stageDoseOf(spec, stageOf(player));
             raisePlayerStage(player); // 段階を上げると進みは 0 に戻るので、残りは下で書き直す
         }
         if (stageOf(player) > 0 && player.isAlive()) {
@@ -170,8 +171,13 @@ public final class SporeInfectionEffects {
     /** 今の段階の進み(0〜1)。未感染は 0。暴露量のバー({@code survival/SurvivalSync})が塗る値。 */
     public static float stageFraction(Player player) {
         if (stageOf(player) <= 0) return 0.0F;
-        double dose = DesignData.effects().playerInfection().stageDose();
+        double dose = stageDoseOf(DesignData.effects().playerInfection(), stageOf(player));
         return (float) Math.max(0.0D, Math.min(1.0D, progressOf(player) / dose));
+    }
+
+    /** 段 {@code stage} → stage + 1 に要る暴露量(整数に切り上げ。後の段ほど多い)。 */
+    public static int stageDoseOf(EffectTable.PlayerInfectionSpec spec, int stage) {
+        return (int) Math.ceil(spec.stageDose(stage));
     }
 
     /** 胞子感染で死なせ、死んだ場所に萌芽体(BlightFernPlacement#spawnFromDeath。近くに十分いれば生えない)を生やす(10-14 ユーザー指定)。 */

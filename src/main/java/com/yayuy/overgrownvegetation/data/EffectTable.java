@@ -13,7 +13,7 @@ import java.util.List;
  *     <li>かかるのは暴露量が {@code spore_field.json} の exposure.infectDose(1500 %秒)に届いたとき(11-04 ユーザー決定。
  *     前の「濃度 50% に 30 秒」は消した)。過繁茂の Mob の攻撃で {@code attackInfectChance}。</li>
  *     <li>段の進み(11-15 ユーザー決定「暴露量 + 体の中でゆっくり育つ」の混ぜた形): 感染中も暴露量(浴びた胞子・傷・G1 の胞子の技)を積み、
- *     {@code stageDose} たまるごとに 1 段。きれいな空気の中でも {@code growStageSeconds} で 1 段ぶん育つ(疲労で ×1.5 まで)。
+ *     段 n → n+1 に {@code stageDose} × (1 + {@code stageDoseGrowth} × (n − 1)) たまるごとに 1 段(後の段ほど多く要る)。きれいな空気の中でも {@code growStageSeconds} で 1 段ぶん育つ(疲労で ×1.5 まで)。
  *     感染10 からさらに 1 段ぶんたまると死ぬ。進みは下がらない【仮】。上がるたび {@code damagePerStage}、最大体力 −{@code maxHealthPerStage} × (段階 − 1)。
  *     前の「10 分ごとに 1 段 + 場所の倍率(濃度・過繁茂)」と、感染中の被弾 5% の抽選(10 秒進む)は外した(暴露量と二重になるため)。</li>
  *     <li>{@code xpDrainIntervalTicks} ごとに経験値 {@code xpDrainPoints}(量は 10-14 の仮決め)。</li>
@@ -38,6 +38,8 @@ public final class EffectTable {
         public Double stageDose;
         /** きれいな空気の中で体の中の胞子が 1 段ぶん育つ秒数(11-15)。 */
         public Double growStageSeconds;
+        /** 段が上がるほど 1 段に要る暴露量を増やす割合(段 n → n+1 に stageDose × (1 + これ × (n − 1))。11-15)。 */
+        public Double stageDoseGrowth;
         public Double attackInfectChance;
         public Integer xpDrainIntervalTicks;
         public Integer xpDrainPoints;
@@ -62,7 +64,7 @@ public final class EffectTable {
     }
 
     /** プレイヤーの胞子感染の確定値。 */
-    public record PlayerInfectionSpec(double stageDose, double growStageSeconds, double attackInfectChance, int xpDrainIntervalTicks,
+    public record PlayerInfectionSpec(double stageDose, double growStageSeconds, double stageDoseGrowth, double attackInfectChance, int xpDrainIntervalTicks,
                                       int xpDrainPoints, double damagePerStage, double maxHealthPerStage,
                                       List<StageSpec> stages) {
         /** 段階の数(10)。 */
@@ -75,9 +77,20 @@ public final class EffectTable {
             return stages.get(Math.max(1, Math.min(stages.size(), stage)) - 1);
         }
 
-        /** きれいな空気の中で体の中の胞子が育つ速さ(%秒 / 秒)= 1 段の量 ÷ 1 段の秒数。 */
-        public double growPerSecond() {
-            return stageDose / growStageSeconds;
+        /**
+         * 段 {@code stage} → stage + 1 に要る暴露量(%秒)= stageDose × (1 + stageDoseGrowth × (stage − 1))(11-15 ユーザー決定「後の段ほど多く要る」。
+         * 感染10 では、死ぬまでの量)。
+         */
+        public double stageDose(int stage) {
+            return stageDose * (1.0D + stageDoseGrowth * (Math.max(1, stage) - 1));
+        }
+
+        /**
+         * 段 {@code stage} で、きれいな空気の中で体の中の胞子が育つ速さ(%秒 / 秒)= その段の量 ÷ 1 段の秒数。
+         * どの段でも growStageSeconds で 1 段ぶん育つ(育つ速さは段で遅くならない。11-15)。
+         */
+        public double growPerSecond(int stage) {
+            return stageDose(stage) / growStageSeconds;
         }
     }
 
@@ -98,6 +111,7 @@ public final class EffectTable {
         this.playerInfection = new PlayerInfectionSpec(
                 Math.max(1.0D, orElse(v.stageDose, d.stageDose)),
                 Math.max(1.0D, orElse(v.growStageSeconds, d.growStageSeconds)),
+                Math.max(0.0D, orElse(v.stageDoseGrowth, d.stageDoseGrowth)),
                 orElse(v.attackInfectChance, d.attackInfectChance),
                 Math.max(1, orElse(v.xpDrainIntervalTicks, d.xpDrainIntervalTicks)),
                 Math.max(0, orElse(v.xpDrainPoints, d.xpDrainPoints)),
@@ -118,6 +132,7 @@ public final class EffectTable {
         PlayerInfection p = new PlayerInfection();
         p.stageDose = 9000.0D;                   // 1 段に暴露量 9000 %秒(11-15 仮決め。濃度 30% の所で約 5 分)
         p.growStageSeconds = 3600.0D;            // きれいな空気でも 1 時間に 1 段育つ(11-15 仮決め)
+        p.stageDoseGrowth = 0.25D;               // 段ごとに 1 段の量を +25%(段 9 → 10 は 3 倍。11-15 ユーザー「後の段ほど多く要る」、係数は仮決め)
         p.attackInfectChance = 0.30D;            // 過繁茂の Mob の攻撃で 30%(10-14 ユーザー指定)
         p.xpDrainIntervalTicks = 200;            // 10 秒に 1 回(10-14 ユーザー指定)
         p.xpDrainPoints = 1;                     // 経験値 1(10-14 仮決め)

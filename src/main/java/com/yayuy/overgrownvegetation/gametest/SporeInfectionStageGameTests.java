@@ -94,7 +94,7 @@ public final class SporeInfectionStageGameTests {
                 helper.fail("感染1 で最大体力が減った: " + player.getMaxHealth());
                 return;
             }
-            int stageDose = (int) Math.ceil(spec.stageDose());
+            int stageDose = SporeInfectionEffects.stageDoseOf(spec, 1); // 段 1 → 2 の量
             SporeInfectionEffects.advance(player, stageDose - 1);
             if (SporeInfectionEffects.stageOf(player) != 1) {
                 helper.fail("1 段の量がたまる前に上がった");
@@ -105,7 +105,9 @@ public final class SporeInfectionStageGameTests {
                 helper.fail("1 段の量で感染2 にならない: 段階 " + SporeInfectionEffects.stageOf(player));
                 return;
             }
-            SporeInfectionEffects.advance(player, (double) stageDose * 8);
+            double toTen = 0.0D; // 段 2 → 10 の量の和(後の段ほど多い、11-15)
+            for (int s = 2; s < spec.maxStage(); s++) toTen += SporeInfectionEffects.stageDoseOf(spec, s);
+            SporeInfectionEffects.advance(player, toTen);
             int stage = SporeInfectionEffects.stageOf(player);
             if (stage != spec.maxStage()) {
                 helper.fail("8 段ぶん足しても感染10 にならない: " + stage);
@@ -186,7 +188,7 @@ public final class SporeInfectionStageGameTests {
             SporeInfectionEffects.startPlayer(player);
             // 濃度 50% に 100 秒: 育つ分 + 50 × 100
             SporeExposureTracker.tickWith(helper.getLevel(), player, 2000, 50.0D);
-            int expect = (int) Math.floor((spec.growPerSecond() + 50.0D) * 100.0D + 1.0E-6D);
+            int expect = (int) Math.floor((spec.growPerSecond(1) + 50.0D) * 100.0D + 1.0E-6D);
             if (Math.abs(SporeInfectionEffects.progressOf(player) - expect) > 1) {
                 helper.fail("50% で 100 秒の進み " + SporeInfectionEffects.progressOf(player) + "(期待 " + expect + ")");
                 return;
@@ -195,7 +197,7 @@ public final class SporeInfectionStageGameTests {
             SporeInfectionEffects.setPlayerStage(player, 1);
             player.getData(ModAttachments.SPORE_EXPOSURE).rateCarry = 0.0D;
             SporeExposureTracker.tickWith(helper.getLevel(), player, 2000, t.exposureMinPercent() - 0.5D);
-            int grown = (int) Math.floor(spec.growPerSecond() * 100.0D + 1.0E-6D);
+            int grown = (int) Math.floor(spec.growPerSecond(1) * 100.0D + 1.0E-6D);
             if (Math.abs(SporeInfectionEffects.progressOf(player) - grown) > 1) {
                 helper.fail("下限未満で 100 秒の進み " + SporeInfectionEffects.progressOf(player) + "(期待 育つ分だけ " + grown + ")");
                 return;
@@ -265,7 +267,7 @@ public final class SporeInfectionStageGameTests {
             player.getData(ModAttachments.SPORE_EXPOSURE).rateCarry = 0.0D;
             player.setItemSlot(EquipmentSlot.HEAD, new ItemStack(ModItems.PROTECTIVE_MASK.get()));
             SporeExposureTracker.tickWith(level, player, 2000, 100.0D);
-            int grown = (int) Math.floor(DesignData.effects().playerInfection().growPerSecond() * 100.0D + 1.0E-6D);
+            int grown = (int) Math.floor(DesignData.effects().playerInfection().growPerSecond(1) * 100.0D + 1.0E-6D);
             if (Math.abs(SporeInfectionEffects.progressOf(player) - grown) > 1) {
                 helper.fail("マスクが効いているのに浴びた分が進んだ: " + SporeInfectionEffects.progressOf(player) + "(期待 育つ分だけ " + grown + ")");
                 return;
@@ -319,7 +321,7 @@ public final class SporeInfectionStageGameTests {
                 helper.fail("10 秒で経験値が " + spec.xpDrainPoints() + " 減らない: " + player.totalExperience);
                 return;
             }
-            int grown = (int) Math.floor(spec.growPerSecond() * spec.xpDrainIntervalTicks() / 20.0D + 1.0E-6D); // 11-15: 胞子の無い所では体の中で育つ分だけ
+            int grown = (int) Math.floor(spec.growPerSecond(1) * spec.xpDrainIntervalTicks() / 20.0D + 1.0E-6D); // 11-15: 胞子の無い所では体の中で育つ分だけ
             if (Math.abs(SporeInfectionEffects.progressOf(player) - grown) > 1) {
                 helper.fail("胞子の無い所で育つ分だけ進まない: " + SporeInfectionEffects.progressOf(player) + "(期待 " + grown + ")");
                 return;

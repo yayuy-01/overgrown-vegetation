@@ -374,7 +374,7 @@ public final class SurvivalFatigueGameTests {
             check(helper, "効き目の出始め", a.effectsFrom(), spec().effectsFrom() / 100.0D);
             // 感染3・進み 1/4
             SporeInfectionEffects.setPlayerStage(p, 3);
-            int stageTicks = (int) Math.ceil(DesignData.effects().playerInfection().stageDose()); // 11-15: 進みは暴露量(1 段の量)
+            int stageTicks = SporeInfectionEffects.stageDoseOf(DesignData.effects().playerInfection(), 3); // 11-15: 進みは暴露量(段 3 の 1 段の量)
             p.setData(ModAttachments.SPORE_STAGE_TICKS, stageTicks / 4);
             SurvivalHudPayload b = SurvivalSync.payload(p);
             if (b.stage() != 3) {
