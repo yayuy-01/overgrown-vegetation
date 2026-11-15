@@ -246,6 +246,11 @@ public abstract class SkyFlyer extends Monster {
         return FLUSH_RANGE;
     }
 
+    /** 群れが逃げている間({@link Flock.State#FLEE})に先頭が出す速さ(2026-11-16 セミナリアで足した。既定 = 巡航 = 今まで通り)。 */
+    protected double fleeSpeed() {
+        return params().cruise;
+    }
+
     // ------------------------------------------------------------------ 状態
 
     @Override
@@ -547,7 +552,7 @@ public abstract class SkyFlyer extends Monster {
                 double e = FlightBody.wrapDeg(this.cmdHeading - this.body.heading);
                 this.cmdHeading = this.body.heading + Mth.clamp(e, -LEADER_TURN_ERR, LEADER_TURN_ERR);
             }
-            this.cmdSpeed = p.cruise * (f.state == Flock.State.FLEE ? 1.0D : 0.9D);
+            this.cmdSpeed = f.state == Flock.State.FLEE ? fleeSpeed() : p.cruise * 0.9D;
             mustReach = isLeader && f.state == Flock.State.PATROL && f.hasPatrol && f.returningHome;
             this.cmdY = cruiseY;
         } else {

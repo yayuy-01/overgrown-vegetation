@@ -3,6 +3,7 @@ package com.yayuy.overgrownvegetation.gametest;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.entity.SeminariaEntity;
+import com.yayuy.overgrownvegetation.entity.SeminariaSeed;
 import com.yayuy.overgrownvegetation.entity.flyer.FlightBody;
 import com.yayuy.overgrownvegetation.entity.flyer.Flock;
 import com.yayuy.overgrownvegetation.entity.flyer.FlyerWind;
@@ -14,6 +15,7 @@ import com.yayuy.overgrownvegetation.registry.ModFlyers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.phys.Vec3;
@@ -279,6 +281,158 @@ public final class SeminariaGameTests {
             }
             if (v.flock() == null || v.flock().state() != Flock.State.FLEE) {
                 helper.fail("群れが逃げていない: " + (v.flock() == null ? "null" : v.flock().state()));
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * 能力(11-16): 種を落とす升は「台帳に載っていない・まわり 1 チャンクに台帳の升が無く、風上へ 2〜4 チャンク戻ると台帳の升がある」もので、先頭にいちばん近い升。
+     * 台帳の升はテスト場から遠いチャンク(ほかのテストと重ならない所)に置き、終わったら消す。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void seminariaSowTargetIsDownwindOfFront(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        com.yayuy.overgrownvegetation.phase.PhaseData pd = com.yayuy.overgrownvegetation.phase.PhaseData.get(level);
+        int X = 1_500_000, Z = 1_500_000;   // チャンクの番号(ブロック 2400 万。どのテストも使わない所)
+        net.minecraft.world.level.ChunkPos front = new net.minecraft.world.level.ChunkPos(X, Z);
+        boolean added = pd.adoptOvergrownChunk(level, front);   // フェーズのポイントを増やさない方
+        try {
+            long none = SeminariaEntity.findSowTarget(pd, X + 20, Z, 0.1D, 0.0D);
+            if (none != Long.MIN_VALUE) {
+                helper.fail("前線の無い所で升を選んだ");
+                return;
+            }
+            // 東風(+x へ吹く): 前線の東 2 チャンクにいる先頭 → 自分の升(前線から風下へ 2)
+            long east = SeminariaEntity.findSowTarget(pd, X + 2, Z, 0.1D, 0.0D);
+            if (east != net.minecraft.world.level.ChunkPos.asLong(X + 2, Z)) {
+                helper.fail("東風で風下の先の升を選ばない: " + new net.minecraft.world.level.ChunkPos(east));
+                return;
+            }
+            // 西風(−x へ吹く): 同じ所の先頭 → 前線の西 2(風下の先で、前線に接していない升。東側は風上なので選ばない)
+            long west = SeminariaEntity.findSowTarget(pd, X + 2, Z, -0.1D, 0.0D);
+            if (west != net.minecraft.world.level.ChunkPos.asLong(X - 2, Z)) {
+                helper.fail("西風で前線の風下の先(西 2)を選ばない: " + (west == Long.MIN_VALUE ? "無し" : new net.minecraft.world.level.ChunkPos(west)));
+                return;
+            }
+            // 前線に接した升は選ばない: 東隣にいる先頭 → 東 2
+            long gap = SeminariaEntity.findSowTarget(pd, X + 1, Z, 0.1D, 0.0D);
+            if (gap != net.minecraft.world.level.ChunkPos.asLong(X + 2, Z)) {
+                helper.fail("前線に接した升を選んだ・東 2 を選ばない: " + (gap == Long.MIN_VALUE ? "無し" : new net.minecraft.world.level.ChunkPos(gap)));
+                return;
+            }
+            // 台帳に載った升そのものは選ばない
+            long on = SeminariaEntity.findSowTarget(pd, X, Z, 0.1D, 0.0D);
+            if (on == front.toLong()) {
+                helper.fail("台帳に載った升を選んだ");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            if (added) pd.forgetOvergrownChunk(front);
+        }
+    }
+
+    /**
+     * 能力(11-16): 舞い降りて、浮いたまま(足元が地面から 2 ブロック以上)前触れの後に種を 1 粒落とし、種は地面に落ちて降り積もりを足す。
+     * 種が離れるのは落とす段の 3 tick 目。終わると土台の飛び方へ戻る。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 260)
+    public static void seminariaDescendsAndDropsSeedWhileFloating(GameTestHelper helper) {
+        SeminariaEntity v = spawn(helper, 3.5D, 7.0D, 3.5D);
+        v.roostOverride = Boolean.FALSE;
+        v.debugNoSowDrift = true;   // 隣のテストの上へ流されないように
+        int dropped0 = SeminariaEntity.seedsDropped, landed0 = SeminariaSeed.landed;
+        double[] heightAtDrop = {Double.NaN};
+        boolean[] began = {false}, done = {false};
+        helper.onEachTick(() -> {
+            if (done[0]) return;
+            if (!began[0]) {
+                if (v.mode() != SkyFlyer.MODE_FLY) return;
+                began[0] = true;
+                v.debugBeginSow();
+                return;
+            }
+            if (Double.isNaN(heightAtDrop[0]) && SeminariaEntity.seedsDropped > dropped0) {
+                int surface = SeminariaEntity.groundBelow(helper.getLevel(), v.position());
+                heightAtDrop[0] = v.getY() - surface;
+                if (heightAtDrop[0] < 2.0D) {
+                    done[0] = true;
+                    helper.fail(String.format("浮いたまま落とさない: 足元が地面から %.2f(足元 y %.2f・真下の面 %d・テスト場の床 %d)", heightAtDrop[0],
+                            v.getY(), surface, helper.absolutePos(BlockPos.ZERO).getY()));
+                    return;
+                }
+            }
+            if (!Double.isNaN(heightAtDrop[0]) && SeminariaSeed.landed > landed0 && v.sowPhase() == SeminariaEntity.SOW_NONE) {
+                done[0] = true;
+                if (SeminariaEntity.seedsDropped - dropped0 != 1) {
+                    helper.fail("1 回の種まきで落とした数が 1 でない: " + (SeminariaEntity.seedsDropped - dropped0));
+                    return;
+                }
+                helper.succeed();
+            }
+        });
+    }
+
+    /**
+     * 能力(11-16): 種が落ちた升は飛び地になる(場の式。1 日進める)。群れの 3 粒を汚染の無い遠くの升に落とすと、8 か所のうち 1 か所以上で芽が出る
+     * (感染した Mob の飛び火 {@code MobInfectionGameTests#singleJumpGerminatesFarChunk} と同じ確かめ方)。1 粒だけの升の割合も記録に出す。
+     */
+    @GameTest(template = "gametest_empty7", batch = "spore_field_wait", timeoutTicks = 600)
+    public static void seminariaSeedsGerminateEnclave(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData data = com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.get(level.getServer());
+        java.util.Map<com.yayuy.overgrownvegetation.difficulty.DifficultySetting, Double> saved = data.overrides();
+        int trials = 8;
+        int[] sprouted = new int[2];   // [0] = 3 粒、[1] = 1 粒
+        StringBuilder log = new StringBuilder();
+        try {
+            data.set(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.UNLOADED_SPREAD, 0.0D); // 読み込まれていない升は「待ち」で残る
+            for (int seeds = 3, row = 0; row < 2; seeds = 1, row++) {
+                for (int k = 0; k < trials; k++) {
+                    int cx = 1_400_000 + k * 40, cz = -1_400_000 - row * 40;
+                    long key = net.minecraft.world.level.ChunkPos.asLong(cx, cz);
+                    com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.watchForTests(cx, cz);
+                    for (int s = 0; s < seeds; s++) SeminariaSeed.land(level, new Vec3(cx * 16 + 6 + s * 2, 64, cz * 16 + 8));
+                    com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.catchUpForTests(level, 24000L, key);
+                    boolean hit = Boolean.TRUE.equals(com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.withFieldForTests(
+                            f -> f.isWaiting(cx, cz) || f.isCorrupted(cx, cz)));
+                    if (hit) sprouted[row]++;
+                    log.append(hit ? "芽 " : "- ");
+                    com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.withFieldForTests(f -> {
+                        f.unsprout(cx, cz);
+                        f.clearDepositAround(cx, cz, 1.5D);
+                        f.extractAround(cx, cz, 1.5D, Double.POSITIVE_INFINITY);
+                        return null;
+                    });
+                    com.yayuy.overgrownvegetation.phase.PhaseData.get(level).forgetOvergrownChunk(new net.minecraft.world.level.ChunkPos(cx, cz));
+                }
+                log.append(row == 0 ? "| 1 粒: " : "");
+            }
+        } finally {
+            data.replaceAll(saved);
+        }
+        OvergrownVegetation.LOGGER.info("セミナリアの種の飛び地(1 日): 3 粒 {}/{}・1 粒 {}/{} [{}]", sprouted[0], trials, sprouted[1], trials, log);
+        if (sprouted[0] == 0) {
+            helper.fail("3 粒落とした升が 1 日でどこも芽を出さない: " + log);
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** 能力(11-16): 飛んでいる間に叩かれると、群れで逃げる(群れの状態 FLEE)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 60)
+    public static void seminariaFleesWhenHitInFlight(GameTestHelper helper) {
+        SeminariaEntity v = spawn(helper, 3.5D, 6.0D, 3.5D);
+        v.roostOverride = Boolean.FALSE;
+        boolean[] hit = {false};
+        helper.onEachTick(() -> {
+            if (hit[0] || v.mode() != SkyFlyer.MODE_FLY || v.flock() == null) return;
+            hit[0] = true;
+            v.hurt(helper.getLevel().damageSources().generic(), 1.0F);
+            if (v.flock().state() != Flock.State.FLEE) {
+                helper.fail("飛んでいる間に叩かれても逃げない: " + v.flock().state());
                 return;
             }
             helper.succeed();

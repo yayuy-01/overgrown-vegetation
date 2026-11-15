@@ -25,8 +25,9 @@ public class SeminariaModel extends GeoModel<SeminariaEntity> {
     private static final String[] BONES = {
             "wingf_l", "wingf_l", "wingf_r", "wingf_r", "wingb_l", "wingb_l", "wingb_r", "wingb_r",
             "thorax", "head", "ab1", "ab2", "ab3", "pappus", "pappus",
-            "pb0", "pb1", "pb2", "pb3", "pb4", "pb5"};
-    private static final int[] AXES = {0, 1, 0, 1, 0, 1, 0, 1, 2, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
+            "pb0", "pb1", "pb2", "pb3", "pb4", "pb5",
+            "tipf_l", "tipf_r", "tipb_l", "tipb_r"};
+    private static final int[] AXES = {0, 1, 0, 1, 0, 1, 0, 1, 2, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2};
     /** 行ごとの波 [振幅(度、強さ 1 のとき), 周期(tick), 位相(ラジアン)] …。 */
     private static final double[][] WAVES = {
             {14, 23, 0.0, 6, 7.3, 1.1}, {5, 31, 0.4},
@@ -37,7 +38,9 @@ public class SeminariaModel extends GeoModel<SeminariaEntity> {
             {-3, 41, 0.6},
             {4, 43, 0.5}, {6, 43, -0.4}, {9, 43, -1.3, 3, 17, 0.2},
             {8, 43, -2.2}, {5, 26, 0.7},
-            {6, 11, 0.0}, {6, 13, 1.3}, {6, 9.5, 2.9}, {6, 12, 4.1}, {6, 10.5, 5.2}, {6, 14, 0.6}};
+            {6, 11, 0.0}, {6, 13, 1.3}, {6, 9.5, 2.9}, {6, 12, 4.1}, {6, 10.5, 5.2}, {6, 14, 0.6},
+            // 翅の先のばたつき(2026-11-16。Vault 8.9【仮・モデル制作の案】)
+            {7, 5.3, 0.5, 3, 17, 2.0}, {7, 6.1, 2.4, 3, 19, 0.9}, {9, 4.7, 1.6, 4, 23, 3.0}, {9, 5.9, 0.2, 4, 21, 1.3}};
 
     @Override
     public ResourceLocation getModelResource(SeminariaEntity animatable) {

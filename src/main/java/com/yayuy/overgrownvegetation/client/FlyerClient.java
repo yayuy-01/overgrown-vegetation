@@ -20,7 +20,14 @@ public final class FlyerClient {
         // ヴェロフィルの胞子爆弾(11-15): 絵は【仮】で胞子嚢のアイテム(少し大きく)
         event.registerEntityRenderer(ModFlyers.VELOPHYLL_BOMB.get(),
                 ctx -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(ctx, 1.8F, false));
-        event.registerEntityRenderer(ModFlyers.SEMINARIA.get(), SeminariaRenderer::new);
+        event.registerEntityRenderer(ModFlyers.SEMINARIA.get(), ctx -> {
+            var r = new SeminariaRenderer(ctx);
+            r.addRenderLayer(new SeminariaGlowLayer(r));   // 種を落とす間だけ光る筋(11-16)
+            return r;
+        });
+        // セミナリアの種(11-16): 絵は【仮】で胞子嚢のアイテム(小さく)
+        event.registerEntityRenderer(ModFlyers.SEMINARIA_SEED.get(),
+                ctx -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(ctx, 0.6F, false));
         event.registerEntityRenderer(ModFlyers.PEDICULA.get(), PediculaRenderer::new);
         event.registerEntityRenderer(ModFlyers.ACUMNES.get(), AcumnesRenderer::new);
         event.registerEntityRenderer(ModFlyers.ACUMNES_SPINE.get(), AcumnesSpineRenderer::new);

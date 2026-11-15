@@ -267,6 +267,18 @@ public final class Flock {
     }
 
     /**
+     * 飛んでいる群れが驚いた: 全員がその向き(度)へ {@link #FLEE_TICKS} tick 逃げる(2026-11-16 セミナリアの「プレイヤーから逃げる」で足した)。
+     * 止まっている・止まり木へ向かっている群れは今まで通り {@link #flush}。逃げている間に呼ぶと向きと長さを置き直す。
+     */
+    public void spook(double heading) {
+        if (this.state != State.PATROL && this.state != State.FLEE) return;
+        this.fleeHeading = heading;
+        this.fleeTicks = FLEE_TICKS;
+        this.state = State.FLEE;
+        this.hasPatrol = false;
+    }
+
+    /**
      * 巡回の行き先を外から決める(2026-11-15 ヴェロフィルの爆撃: 相手の上空を回る)。次に選び直すまで {@link #PATROL_GIVE_UP} tick 粘る。
      * 呼ぶ側が毎回置き直す前提(着いたら土台がまた選ぶ)。
      */

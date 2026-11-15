@@ -54,6 +54,16 @@ public final class ModFlyers {
                     .updateInterval(5)
                     .build("velophyll_bomb"));
 
+    /** セミナリアの種(11-16 能力の段)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.SeminariaSeed>> SEMINARIA_SEED =
+            ModEntities.ENTITY_TYPES.register("seminaria_seed", () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.SeminariaSeed>of(com.yayuy.overgrownvegetation.entity.SeminariaSeed::new, MobCategory.MISC)
+                    .sized(0.25F, 0.25F)
+                    .noSummon()
+                    .clientTrackingRange(8)
+                    .updateInterval(5)
+                    .build("seminaria_seed"));
+
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.SeminariaEntity>> SEMINARIA =
             ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.SeminariaEntity.ID, () -> EntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.SeminariaEntity>of(com.yayuy.overgrownvegetation.entity.SeminariaEntity::new, MobCategory.MONSTER)
