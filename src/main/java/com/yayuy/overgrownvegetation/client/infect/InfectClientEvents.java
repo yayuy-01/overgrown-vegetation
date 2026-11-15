@@ -48,6 +48,12 @@ public final class InfectClientEvents {
      * 確かめ用: {@code center} から {@code radius} の中の生き物(プレイヤー以外)を、感染体として描かせる。{@code radius <= 0} で全部戻す。
      * 同期(サーバーの印)が入るまでの仮の入口。返り値 = 印を付けた数。
      */
+    /** 確かめ用: 体から生える部品の切り替え(重さの比べ)。 */
+    public static boolean devParts(boolean on) {
+        InfectParts.enabled = on;
+        return on;
+    }
+
     public static int devMark(ClientLevel level, Vec3 center, double radius) {
         GenericInfectionClient.clear();
         InfectRender.reset();

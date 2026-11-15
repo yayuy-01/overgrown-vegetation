@@ -1,11 +1,13 @@
 package com.yayuy.overgrownvegetation.client.infect;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -21,55 +23,96 @@ import java.util.Set;
  *   <li>{@link #begin}〜{@link #end}: 今描いているエンティティが感染体かどうか(EntityRenderDispatcher の差し込みが呼ぶ)。</li>
  *   <li>{@link #swap}: 感染体を描いている間、エンティティ用の RenderType の絵を、塗り替えた絵に差し替える
  *   (RenderType の工場の差し込みが呼ぶ。バニラ・GeckoLib・ほかの MOD の描き方のどれも、絵はここを通る)。</li>
- *   <li>最初の 1 回は頂点の流れを覗き({@link QuadTap})、絵のどの画素がどの向きの面かを知る。箱や骨の名前は見ない。</li>
+ *   <li>まだ塗り替えていない絵が出てきたら、次のフレームでその 1 体の頂点の流れを覗き({@link QuadTap})、
+ *   絵のどの画素が体のどこ(位置・面の向き)かを知る。箱や骨の名前は見ない。絵ごとなので、毛色違い・職業の服・毛も後から拾う。</li>
  * </ul>
  */
 public final class InfectRender {
 
     /** RenderType → 絵(工場の差し込みが覚える)。覗いた頂点がどの絵の物かを引く。 */
     static final Map<RenderType, ResourceLocation> TYPE_TEXTURE = new IdentityHashMap<>();
-    private static final Set<EntityType<?>> CAPTURED = new HashSet<>();
+    /** まだ塗り替えていない絵を使っていた個体(次のフレームで覗く)。 */
+    private static final IntSet PENDING = new IntOpenHashSet();
+    /** 覗いているフレームで、工場に入ってきた絵(頂点が 1 つも来なかった絵を数えるため)。 */
+    private static final Set<ResourceLocation> REQUESTED = new HashSet<>();
 
     @Nullable
     private static GenericInfectionClient.State current;
+    private static int currentId;
     @Nullable
     private static QuadTap tap;
-    private static double baseY;
+    @Nullable
+    private static InfectParts.AnchorTap anchorTap;
+    @Nullable
+    private static MultiBufferSource plainBuffers;
 
     private InfectRender() {
     }
 
-    /** 感染体なら、その 1 体を描く間だけ差し替えを有効にする。最初の 1 回は器を覗き用に包んで返す。 */
-    public static MultiBufferSource begin(Entity entity, double camRelY, MultiBufferSource buffers) {
+    /** 感染体なら、その 1 体を描く間だけ差し替えを有効にする。覗く番のフレームは器を包んで返す。 */
+    public static MultiBufferSource begin(Entity entity, double camRelX, double camRelY, double camRelZ, MultiBufferSource buffers) {
         current = GenericInfectionClient.of(entity);
         tap = null;
+        anchorTap = null;
         if (current == null) {
             return buffers;
         }
-        if (CAPTURED.add(entity.getType())) {
-            baseY = camRelY;
-            tap = new QuadTap(buffers);
+        plainBuffers = buffers;
+        currentId = entity.getId();
+        if (PENDING.contains(currentId) && canCapture(entity, camRelX, camRelY, camRelZ)) {
+            PENDING.remove(currentId);
+            REQUESTED.clear();
+            tap = new QuadTap(buffers, (float) camRelX, (float) camRelY, (float) camRelZ);
             return tap;
+        }
+        if (InfectParts.enabled) {
+            anchorTap = new InfectParts.AnchorTap(buffers);
+            return anchorTap;
         }
         return buffers;
     }
 
-    public static void end(Entity entity) {
+    /** 死にかけ(倒れる回転)・透明・画面の中の見本(位置が 0)は、面の向きが当てにならないので覗かない。 */
+    private static boolean canCapture(Entity entity, double x, double y, double z) {
+        if (entity.isInvisible() || (x == 0.0D && y == 0.0D && z == 0.0D)) {
+            return false;
+        }
+        return !(entity instanceof LivingEntity living) || living.deathTime <= 0;
+    }
+
+    public static void end(Entity entity, int packedLight) {
         QuadTap t = tap;
         tap = null;
+        InfectParts.AnchorTap at = anchorTap;
+        anchorTap = null;
+        MultiBufferSource plain = plainBuffers;
+        plainBuffers = null;
         boolean was = current != null;
         current = null;
         if (was && t != null) {
-            InfectSkins.learn(entity, t, baseY);
+            InfectSkins.learn(entity, t, REQUESTED);
+            REQUESTED.clear();
+        }
+        if (was && at != null && plain != null) {
+            // ここでは current はもう空 = 部品の絵は差し替えの外
+            InfectParts.draw(at, plain, packedLight);
         }
     }
 
     /** 工場に入る絵を差し替える。感染体を描いていなければそのまま。 */
     public static ResourceLocation swap(ResourceLocation texture) {
-        if (current == null) {
+        GenericInfectionClient.State state = current;
+        if (state == null || InfectSkins.isSkin(texture)) {
             return texture;
         }
-        return InfectSkins.skinFor(texture, current);
+        if (!InfectSkins.known(texture)) {
+            PENDING.add(currentId);
+            if (tap != null) {
+                REQUESTED.add(texture);
+            }
+            return texture;
+        }
+        return InfectSkins.skinFor(texture, state);
     }
 
     public static void remember(RenderType type, ResourceLocation texture) {
@@ -80,22 +123,30 @@ public final class InfectRender {
 
     /** 資源の読み込み直し・確かめ用。 */
     public static void reset() {
-        CAPTURED.clear();
         TYPE_TEXTURE.clear();
+        PENDING.clear();
+        REQUESTED.clear();
         InfectSkins.clear();
     }
 
-    /** 覗いた四角 1 枚: 絵の上の範囲(0〜1)と、面の向き(世界の上向き成分)と、足元からの高さ。 */
-    record Quad(float u0, float v0, float u1, float v1, float ny, float y) {
+    /**
+     * 覗いた四角 1 枚。{@code pos} = 4 頂点の位置(その個体の足元から。ブロック単位、x y z × 4)、{@code uv} = 4 頂点の絵の上の位置(0〜1、u v × 4)、
+     * {@code ny} = 面の向きの上向き成分(世界)。
+     */
+    record Quad(float[] pos, float[] uv, float ny) {
     }
 
     /** 器を包み、通った頂点を RenderType ごとに四角として覚える(頂点はそのまま元の器へ流す)。 */
     static final class QuadTap implements MultiBufferSource {
         private final MultiBufferSource inner;
+        private final float ox, oy, oz;
         final Map<RenderType, List<Quad>> quads = new IdentityHashMap<>();
 
-        QuadTap(MultiBufferSource inner) {
+        QuadTap(MultiBufferSource inner, float ox, float oy, float oz) {
             this.inner = inner;
+            this.ox = ox;
+            this.oy = oy;
+            this.oz = oz;
         }
 
         @Override
@@ -104,52 +155,57 @@ public final class InfectRender {
             if (!TYPE_TEXTURE.containsKey(type)) {
                 return out;
             }
-            return new Recorder(out, this.quads.computeIfAbsent(type, k -> new ArrayList<>()));
+            return new Recorder(out, this.quads.computeIfAbsent(type, k -> new ArrayList<>()), this.ox, this.oy, this.oz);
         }
     }
 
     private static final class Recorder implements VertexConsumer {
         private final VertexConsumer out;
         private final List<Quad> list;
+        private final float ox, oy, oz;
         private int n;
-        private float u0, v0, u1, v1, ny, y;
+        private float[] pos = new float[12];
+        private float[] uv = new float[8];
+        private float ny;
 
-        Recorder(VertexConsumer out, List<Quad> list) {
+        Recorder(VertexConsumer out, List<Quad> list, float ox, float oy, float oz) {
             this.out = out;
             this.list = list;
+            this.ox = ox;
+            this.oy = oy;
+            this.oz = oz;
         }
 
-        private void begin(float py) {
+        private void begin(float x, float y, float z) {
             if (this.n == 4) {
                 flush();
             }
-            if (this.n == 0) {
-                this.u0 = this.v0 = Float.POSITIVE_INFINITY;
-                this.u1 = this.v1 = Float.NEGATIVE_INFINITY;
-                this.ny = 0.0F;
-                this.y = 0.0F;
-            }
+            int i = this.n * 3;
+            this.pos[i] = x - this.ox;
+            this.pos[i + 1] = y - this.oy;
+            this.pos[i + 2] = z - this.oz;
             this.n++;
-            this.y += py / 4.0F;
         }
 
         private void uv(float u, float v) {
-            this.u0 = Math.min(this.u0, u);
-            this.v0 = Math.min(this.v0, v);
-            this.u1 = Math.max(this.u1, u);
-            this.v1 = Math.max(this.v1, v);
+            if (this.n >= 1) {
+                this.uv[(this.n - 1) * 2] = u;
+                this.uv[(this.n - 1) * 2 + 1] = v;
+            }
         }
 
         private void flush() {
-            if (this.n == 4 && this.u1 > this.u0 && this.v1 > this.v0) {
-                this.list.add(new Quad(this.u0, this.v0, this.u1, this.v1, this.ny, this.y));
+            if (this.n == 4) {
+                this.list.add(new Quad(this.pos, this.uv, this.ny));
+                this.pos = new float[12];
+                this.uv = new float[8];
             }
             this.n = 0;
         }
 
         @Override
         public VertexConsumer addVertex(float x, float y, float z) {
-            begin(y);
+            begin(x, y, z);
             this.out.addVertex(x, y, z);
             return this;
         }
@@ -192,7 +248,7 @@ public final class InfectRender {
         @Override
         public void addVertex(float x, float y, float z, int color, float u, float v, int packedOverlay, int packedLight,
                               float normalX, float normalY, float normalZ) {
-            begin(y);
+            begin(x, y, z);
             uv(u, v);
             this.ny = normalY;
             this.out.addVertex(x, y, z, color, u, v, packedOverlay, packedLight, normalX, normalY, normalZ);

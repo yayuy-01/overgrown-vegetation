@@ -26,12 +26,14 @@ public abstract class EntityRenderDispatcherInfectMixin {
             require = 0)
     private void overgrown_vegetation$infectScope(EntityRenderer<?> renderer, Entity entity, float yaw, float partialTick, PoseStack poseStack,
                                                   MultiBufferSource buffers, int packedLight, Operation<Void> original,
-                                                  @Local(argsOnly = true, ordinal = 1) double camRelY) {
-        MultiBufferSource use = InfectRender.begin(entity, camRelY, buffers);
+                                                  @Local(argsOnly = true, ordinal = 0) double camRelX,
+                                                  @Local(argsOnly = true, ordinal = 1) double camRelY,
+                                                  @Local(argsOnly = true, ordinal = 2) double camRelZ) {
+        MultiBufferSource use = InfectRender.begin(entity, camRelX, camRelY, camRelZ, buffers);
         try {
             original.call(renderer, entity, yaw, partialTick, poseStack, use, packedLight);
         } finally {
-            InfectRender.end(entity);
+            InfectRender.end(entity, packedLight);
         }
     }
 }

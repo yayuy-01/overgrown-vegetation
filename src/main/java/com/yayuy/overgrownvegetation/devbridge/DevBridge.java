@@ -820,6 +820,11 @@ public final class DevBridge {
             case "geninfect" -> {
                 // 汎用の感染体の見た目の確かめ(2026-11-15): まわり <半径> の生き物を感染体として描かせる。geninfect 0 で戻す
                 if (mc.level == null || mc.player == null) return "ワールドが無い";
+                if (arg.trim().startsWith("parts")) {
+                    // geninfect parts on|off: 体から生える部品(毎フレーム頂点を覗く)の切り替え。重さの比べ用
+                    log("GENINFECT parts " + com.yayuy.overgrownvegetation.client.infect.InfectClientEvents.devParts(arg.trim().endsWith("on")));
+                    break;
+                }
                 double r = arg.isBlank() ? 16.0D : Double.parseDouble(arg.trim());
                 log("GENINFECT " + com.yayuy.overgrownvegetation.client.infect.InfectClientEvents.devMark(mc.level, mc.player.position(), r));
             }
