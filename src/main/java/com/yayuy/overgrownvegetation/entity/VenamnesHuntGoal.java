@@ -111,17 +111,23 @@ final class VenamnesHuntGoal extends Goal {
         float off = Math.abs(this.mob.offFront(t));
         double s = this.mob.getScale();
         double biteStart = VenamnesEntity.BITE_START * s + t.getBbWidth() * 0.5D;
-        double speed = Math.sqrt(sq(this.mob.getX() - this.mob.xo) + sq(this.mob.getZ() - this.mob.zo));
+        // 自分の速さ: 前の tick にこの Goal が見た位置から(サーバーの Goal の時点では xo が今の位置に戻っていて、x − xo は常に 0)
+        double speed = Double.isNaN(this.lastX) || this.mob.tickCount - this.lastTick != 1 ? 0.0D : Math.sqrt(sq(this.mob.getX() - this.lastX) + sq(this.mob.getZ() - this.lastZ));
+        this.lastX = this.mob.getX();
+        this.lastZ = this.mob.getZ();
+        this.lastTick = this.mob.tickCount;
         double tvx = this.tvx, tvz = this.tvz, tSpeed = Math.sqrt(tvx * tvx + tvz * tvz);
         // 相手が離れていく速さ(自分から相手への向きへの、相手の速さの成分)
         double away = d > 1.0E-3D ? (tvx * (t.getX() - this.mob.getX()) + tvz * (t.getZ() - this.mob.getZ())) / d : 0.0D;
         boolean nipping = this.mob.getNip() != VenamnesEntity.NIP_NONE;
         if (prowl(t, d, dy, sees, away)) return;
+        boolean runningAway = tSpeed >= FLEE_SPEED && d <= ALONGSIDE_RANGE * s;
         this.mob.setProwlMode(VenamnesEntity.PROWL_NONE);
 
         ActionDef picked = this.mob.picker().pick(VenamnesEntity.normalDefs(), d, s, biteStart, a -> switch (a.id()) {
             case "bite" -> off <= VenamnesEntity.BITE_START_CONE && Math.abs(dy) < VenamnesEntity.BITE_DY;
-            case "pounce" -> sees && this.mob.onGround() && off <= VenamnesEntity.POUNCE_START_CONE && Math.abs(dy) < VenamnesEntity.POUNCE_DY
+            // 11-15【仮】: 逃げている相手には飛びかからない(後ろから少しずつ詰める間に 8%/tick の飛びかかりがほぼ必ず先に出て、すれ違いざまの足噛みが出なかった)
+            case "pounce" -> !runningAway && sees && this.mob.onGround() && off <= VenamnesEntity.POUNCE_START_CONE && Math.abs(dy) < VenamnesEntity.POUNCE_DY
                     && ChaseSteer.clear(this.mob.level(), this.mob.position(), t.position(), this.mob.getBbWidth() * 0.5D, d);
             // 足噛み: 走っている間・相手が首の横の届く所にいる間だけ(走りは止めない)
             case "nip" -> !nipping && speed >= VenamnesEntity.NIP_MIN_SPEED && this.mob.inNipZone(t);
@@ -135,13 +141,17 @@ final class VenamnesHuntGoal extends Goal {
             if (!picked.id().equals("nip")) return;
         }
 
-        // 逃げる相手には、真後ろでなく斜め後ろ(首の横に相手が来る所)へ並びかける = 足噛みの間合い
-        boolean fleeing = tSpeed >= FLEE_SPEED && d <= ALONGSIDE_RANGE * s;
+        // 逃げる相手には、真後ろでなく相手の横の少し先へ舵を取り、全速のまま脇をすれ違う = すれ違いざまの足噛みの間合い(11-15: 斜め後ろへ並びかけると相手の速さに合わせて遅くなり、走り(0.235 以上)でなくなって足噛みが出なかった)
+        boolean fleeing = runningAway;
+        if (this.mob.devTrace() && this.mob.tickCount % 10 == 0) {
+            com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT, "VEN_HUNT d %.1f 自分 %.3f 相手 %.3f 逃げ %s 舵 %s 前 %.1f 横 %.1f 足噛みの間合い %s", d, speed, tSpeed, fleeing,
+                    this.straight, this.mob.relative(t)[0], this.mob.relative(t)[1], this.mob.inNipZone(t)));
+        }
         if (fleeing) {
             double ux = tvx / tSpeed, uz = tvz / tSpeed;
             double side = (this.mob.getX() - t.getX()) * -uz + (this.mob.getZ() - t.getZ()) * ux >= 0.0D ? 1.0D : -1.0D;   // 相手の進む線のどちら側にいるか
-            Vec3 aim = new Vec3(t.getX() - ux * ALONGSIDE_BACK * s - uz * side * ALONGSIDE_SIDE * s, t.getY(),
-                    t.getZ() - uz * ALONGSIDE_BACK * s + ux * side * ALONGSIDE_SIDE * s);
+            Vec3 aim = new Vec3(t.getX() + ux * ALONGSIDE_AHEAD * s - uz * side * ALONGSIDE_SIDE * s, t.getY(),
+                    t.getZ() + uz * ALONGSIDE_AHEAD * s + ux * side * ALONGSIDE_SIDE * s);
             chase(t, aim.add(ux * tSpeed * 4.0D, 0.0D, uz * tSpeed * 4.0D), dy, sees, 1.0D);   // 4 tick 先へ(並んだまま走る)
             return;
         }
@@ -158,13 +168,16 @@ final class VenamnesHuntGoal extends Goal {
     // --- 段 B(11-15)【仮・Claude】 ---
     /** 逃げているとみる相手の速さ(ブロック/tick)と、並びかける距離(ブロック。体の真ん中から)。 */
     static final double FLEE_SPEED = 0.1D, ALONGSIDE_RANGE = 12.0D;
-    /** 並びかける所: 相手の進む向きの後ろへ・横へ(ブロック)。相手が首の横(前へ 2.5・横へ 1.8)に来る。 */
-    static final double ALONGSIDE_BACK = 2.5D, ALONGSIDE_SIDE = 1.8D;
+    /** すれ違う所: 相手の進む向きの前へ・横へ(ブロック)。そこへ全速で向かうので、相手の脇(首の横の届く所)を走り抜ける。 */
+    static final double ALONGSIDE_AHEAD = 3.0D, ALONGSIDE_SIDE = 1.8D;
     /** 疾走で相手の先回りをする長さの上限(tick。相手の速さ × 着くまでの tick、これで切る)。 */
     static final double LEAD_MAX = 20.0D;
 
     /** 相手の速さ(10 tick 前からの位置の差。サーバーではプレイヤーの deltaMovement が当てにならない)。 */
     private double tvx, tvz;
+    /** 前の tick にこの Goal が見た自分の位置(自分の速さを出す)。 */
+    private double lastX = Double.NaN, lastZ = Double.NaN;
+    private int lastTick;
     private final double[] hx = new double[10], hz = new double[10];
     private int hn;
     @org.jetbrains.annotations.Nullable

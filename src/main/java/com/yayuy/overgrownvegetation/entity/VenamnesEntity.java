@@ -43,9 +43,9 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * ヴェナムネス {@code venamnes}(G5・攻撃特化。11-14 に本名。仮名オイカケ、仮の id {@code g5_pursuer})。G5 の原型: 逃げる人を速く走って追い詰め、口で噛む。
  * ファルキムネスより脆く、長く追う「足の速さ」の Mob(名簿「Mob の名簿と能力の刷新(11-04)」の G5 の表・注文書 g5_pursuer)。
  *
- * <h2>段 1(2026-11-14): 歩くところまで。段 1b(同日): 歩きの見直しと走りのアニメ</h2>
+ * <h2>段 1(2026-11-14): 歩くところまで。段 1b(同日): 歩きの見直しと走りのアニメ。技の段 A〜C(11-15): 追う・噛みつき・飛びかかり・足噛み・狩りの疾走・跳び上がり・泳ぎ・性格</h2>
  * 移動は「② 大型の地上を走る型」({@link LongBodyRunner}。ファルキムネスの作りの写し)を使い回す。攻撃・能力はまだ無い(次の段で相談)。
- * 行動はうろつき(と、テストクライアントの navto)だけ。自然には湧かない(スポーンエッグ・コマンドだけ)。
+ * 技は {@link #tickAction}(前触れ → 実行 → 隙)、追い方と技の選び方は {@link VenamnesHuntGoal}、仕様と仮の値は Vault「Mob の能力/ヴェナムネス」7〜9 節。自然には湧かない(スポーンエッグ・コマンドだけ)。
  *
  * <h3>ヴェナムネスらしさ = 速さ【全部仮・Claude 11-14】</h3>
  * <ul>
@@ -171,7 +171,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     /** 相手がこちらを向いている(向きのずれがこれ以内、度)と行き過ぎて当たらない(決定「向き合うと行き過ぎる」)。 */
     static final float NIP_FACING = 70.0F;
     /** 足噛みを始める速さ(ブロック/tick。走っている間だけ。歩き stalk の首の構えには合わない)。 */
-    static final double NIP_MIN_SPEED = 0.2D;
+    static final double NIP_MIN_SPEED = VenamnesEntity.IK_MAX_SPEED;   // 11-15: 0.2 → 走りへ切り替わる速さ 0.235(それより遅いと歩き stalk の首の構えで、足噛みのアニメが合わない)
     /** 噛みつき: bite_windup 0.50 秒・bite 0.35 秒・bite_recover 0.80 秒。 */
     public static final ActionTiming BITE_T = ActionTiming.ofSeconds(LEAD, 0.50D, 0.35D, 0.80D);
     /** 噛みつきの当たり: bite の 0.10〜0.17 秒(口が閉じる瞬間)= 実行の 2〜3 tick 目。 */
@@ -242,6 +242,8 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     private boolean keyedRun;
     /** クライアント: 足の運びから出す胴・首・尾の動き。 */
     private final GaitSway sway = new GaitSway();
+    /** クライアント: 泳ぐ間に描く体を水面へ下ろす割合(0〜1、前の tick の値も)。体そのものは下げない(岸へ上がれなくなるので)。 */
+    private float swimSink, swimSinkO;
     /** 計測用(サーバー): 速さの倍率を求めた時間。 */
     public static volatile long sprintNanos, sprintCalls;
 
@@ -445,7 +447,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         if (name.contains("trace") && this.tickCount % 10 == 0) {
             double v = Math.sqrt(sq(this.getX() - this.xo) + sq(this.getZ() - this.zo));
             com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
-                    "VEN_GAIT %s pos %.1f %.1f %.1f 速さ %.3f 倍率 %.2f 回る %.1f 経路 %s", name, this.getX(), this.getY(), this.getZ(), v, this.sprint,
+                    "VEN_GAIT %s pos %.1f %.1f %.1f 速さ %.3f 倍率 %.2f 目標 %.2f 急ぎ %.2f 舵 %s 回る %.1f 経路 %s", name, this.getX(), this.getY(), this.getZ(), v, this.sprint, this.sprintGoal, currentSpeedModifier(), this.steering,
                     getTurnRate(), this.getNavigation().isDone() ? "なし" : "あり"));
         }
     }
@@ -537,6 +539,11 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     }
 
     /** 確かめ用: 直す前の追い方(舵・予算・探す数の絞りなし)で追うか。 */
+    /** 確かめ用: 名前に trace を含む個体(開発用のログ)。 */
+    boolean devTrace() {
+        return DEV_HOOKS && this.hasCustomName() && this.getCustomName().getString().contains("trace");
+    }
+
     boolean devPlainChase() {
         return this.hasCustomName() && this.getCustomName().getString().contains("plainchase");
     }
@@ -628,7 +635,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
             protected net.minecraft.world.level.pathfinder.Path createPath(java.util.Set<net.minecraft.core.BlockPos> targets, int regionOffset,
                                                                            boolean offsetUpward, int accuracy, float followRange) {
                 VenamnesEntity v = VenamnesEntity.this;
-                v.pathing = true;
+                v.pathing = !(v.hasCustomName() && v.getCustomName().getString().contains("noleap"));   // 確かめ用: 名前 noleap は跳び上がりを経路に入れない(重さの比べ)
                 try {
                     return super.createPath(targets, regionOffset, offsetUpward, accuracy, followRange);
                 } finally {
@@ -641,6 +648,8 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     /** 跳び上がりの行き先(経路の次の点の足元)。 */
     @Nullable
     private Vec3 leapTo;
+    /** 狩りの疾走の途中で跳んだか(着地の後は疾走へ戻らず息切れへ。段差で疾走が途切れる = 相手の逃げる機会)。 */
+    private boolean leapFromSprint;
 
     /**
      * 段差と水(サーバー、移動の後): 経路の次の点が {@link #LEAP_MIN_RISE} 段以上高く近ければ跳び上がりを始める / 水の中で前へ進む間は
@@ -663,11 +672,12 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         net.minecraft.world.level.pathfinder.Node n = p.getNextNode();
         int rise = n.y - this.getBlockY();
         if (rise < LEAP_MIN_RISE || rise > Mth.ceil(LEAP_HEIGHT)) return;
-        double cx = n.x + 0.5D, cz = n.z + 0.5D;
-        // 大きい体の経路の点は足場の角(体の真ん中は +0.5 ずれる)。近い方を取る
-        double dx = cx - this.getX(), dz = cz - this.getZ();
+        // 体が立つ所(大きい体の経路の点は足場の北西の角で、体は点 + floor(幅 + 1) / 2 に立つ。Path#getEntityPosAtNode)
+        Vec3 at = p.getNextEntityPos(this);
+        double dx = at.x - this.getX(), dz = at.z - this.getZ();
         if (dx * dx + dz * dz > LEAP_REACH * LEAP_REACH * this.getScale() * this.getScale()) return;
-        this.leapTo = new Vec3(cx, n.y, cz);
+        this.leapTo = new Vec3(at.x, n.y, at.z);
+        this.leapFromSprint = isHuntSprinting();
         this.leftGround = false;
         setAction(ACT_LEAP_WINDUP);
     }
@@ -782,6 +792,9 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
             }
             if (this.nipTicks >= NIP_EXEC_T) {
                 if (!this.nipHit) this.nipResult = 2;
+                if (DEV_HOOKS && this.hasCustomName() && this.getCustomName().getString().contains("trace")) {
+                    com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info("VEN_NIP 結果 {} 側 {}", this.nipResult == 1 ? "当てた" : "外した", base == NIP_L_WINDUP ? "左" : "右");
+                }
                 setNip(base + 2);
             }
         } else if (this.nipTicks >= NIP_RECOVER_T) {
@@ -932,7 +945,8 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
             case ACT_LEAP_RECOVER -> {
                 if (k >= LEAP_RECOVER_T) {
                     this.leapTo = null;
-                    setAction(ACT_NONE);
+                    setAction(this.leapFromSprint ? ACT_HUNT_RECOVER : ACT_NONE);
+                    this.leapFromSprint = false;
                 }
             }
             default -> setAction(ACT_NONE);
@@ -1105,6 +1119,8 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     public void tick() {
         super.tick();
         if (!this.level().isClientSide()) return;
+        this.swimSinkO = this.swimSink;
+        this.swimSink = Mth.approach(this.swimSink, this.isInWater() && !this.isActing() ? 1.0F : 0.0F, 0.2F);
         int act = getAction(), seq = this.entityData.get(DATA_SEQ);
         if (act != this.clientAct || seq != this.clientSeq) {
             this.clientAct = act;
@@ -1138,6 +1154,14 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     private static final int[] SWAY_SIDE = {1, -1};
 
     /** 描画: 足の運びから出した胴・首・尾の動き。 */
+    /** 描画: 泳ぐ間に体を下ろす割合(0〜1)。 */
+    public float swimSink(float pt) {
+        return Mth.lerp(pt, this.swimSinkO, this.swimSink);
+    }
+
+    /** 泳ぐ間に描く体を下ろす量(ブロック)【仮】: 浮いている体は足が水面の 0.4 下で、腰は足の 1.6 上 → 腰を水面へ。 */
+    public static final double SWIM_SINK = 1.2D;
+
     public GaitSway sway() {
         return this.sway;
     }

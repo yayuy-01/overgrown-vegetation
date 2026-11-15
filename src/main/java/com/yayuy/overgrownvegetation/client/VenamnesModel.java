@@ -61,6 +61,13 @@ public class VenamnesModel extends GeoModel<VenamnesEntity> {
         applySway(animatable, pt);   // 脚の IK より先(腰の高さ・ひねりを足した姿から脚を解く)
         this.legs.apply(this, animatable, pt);
         this.bend.apply(this, animatable, pt);
+        // 段 C(11-15): 泳ぐ間は描く体を水面まで下ろす(アニメの一覧「水面の高さに体を浮かせるのはコード」。体の当たりは下げない)
+        float sink = animatable.swimSink(pt);
+        GeoBone root = sink > 0.001F ? getAnimationProcessor().getBone("root") : null;
+        if (root != null) {
+            root.setPosY(root.getPosY() - (float) (VenamnesEntity.SWIM_SINK * 16.0D / VenamnesEntity.RENDER_SCALE) * sink);
+            root.resetStateChanges();
+        }
     }
 
     private static final String[] FRONT = {"neck0", "neck1", "neck2", "head"}, TAIL = {"tail0", "tail1", "tail2", "tail3"};
