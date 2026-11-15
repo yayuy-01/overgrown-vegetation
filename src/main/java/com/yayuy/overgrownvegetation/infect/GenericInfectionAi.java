@@ -77,7 +77,8 @@ public final class GenericInfectionAi {
         mob.targetSelector.addGoal(1, new PreyGoal(mob));
         if (mob instanceof PathfinderMob pm) {
             mob.targetSelector.addGoal(2, new HurtByTargetGoal(pm));
-            if (usesRam(mob)) mob.goalSelector.addGoal(1, new RamGoal(pm));
+            if (usesRam(mob)) mob.goalSelector.addGoal(1, new RamGoal(pm, false));
+            else if (!(mob instanceof EnderDragon)) mob.goalSelector.addGoal(2, new RamGoal(pm, true)); // 元の攻撃が当たらないときの予備
         }
         mob.setTarget(null);
     }
@@ -231,20 +232,25 @@ public final class GenericInfectionAi {
         }
     }
 
-    /** 汎用の体当たり: 狙った相手へ歩く(当てるのは {@link #ramTick}。歩けない Mob も触れたら当たる)。 */
+    /**
+     * 汎用の体当たり: 狙った相手へ歩く(当てるのは {@link #ramTick}。歩けない Mob も触れたら当たる)。
+     * {@code fallback} = 元の攻撃を持つ種の予備(元の攻撃が {@code fallbackTicks} 当たらなかったときだけ動く。{@link #rammingNow})。
+     */
     public static final class RamGoal extends Goal {
         private final PathfinderMob mob;
+        private final boolean fallback;
         private int repath;
 
-        RamGoal(PathfinderMob mob) {
+        RamGoal(PathfinderMob mob, boolean fallback) {
             this.mob = mob;
+            this.fallback = fallback;
             setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
         }
 
         @Override
         public boolean canUse() {
             LivingEntity t = targetOf(mob);
-            return t != null && t.isAlive() && !GenericInfection.isTransforming(mob);
+            return t != null && t.isAlive() && !GenericInfection.isTransforming(mob) && (!fallback || rammingNow(mob));
         }
 
         @Override
@@ -272,6 +278,31 @@ public final class GenericInfectionAi {
                 mob.getNavigation().moveTo(t, GenericInfection.spec().ramSpeed());
             }
         }
+    }
+
+    /**
+     * 狙う相手が替わったかを見て、元の攻撃が当たらないまま {@code fallbackTicks} 過ぎたら、その相手の間は体当たりの予備に切り替える
+     * (11-15 ユーザーの不具合「敵対はするが攻撃できていない」: 攻撃の属性はあっても攻撃の Goal を持たない種 = 普通のウサギ・
+     * 武器を持たないピリジャー・ほかの MOD の Mob など)。毎 tick({@code GenericInfection#onTick} から)。
+     */
+    static void trackTarget(Mob mob, GenericInfected g) {
+        LivingEntity t = targetOf(mob);
+        if (t != g.trackedTarget) {
+            g.trackedTarget = t;
+            g.targetSince = mob.tickCount;
+            g.fallbackOn = false;
+            return;
+        }
+        if (t == null || g.fallbackOn || usesRam(mob) || mob instanceof EnderDragon) return;
+        int wait = GenericInfection.spec().fallbackTicks();
+        if (mob.tickCount - g.targetSince >= wait && mob.tickCount - mob.getLastHurtMobTimestamp() >= wait) g.fallbackOn = true;
+    }
+
+    /** 今、体当たりで当てに行くか(体当たりの種か、予備に切り替わった)。 */
+    public static boolean rammingNow(Mob mob) {
+        if (usesRam(mob)) return true;
+        return mob.hasData(com.yayuy.overgrownvegetation.registry.ModAttachments.GENERIC_INFECTED)
+                && mob.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.GENERIC_INFECTED).fallbackOn;
     }
 
     /**

@@ -370,6 +370,117 @@ public final class GenericInfectionGameTests {
         helper.succeed();
     }
 
+    // ------------------------------------------------------------------ 攻撃できるか(11-15 ユーザーの不具合「敵対はするが攻撃できていない」)
+
+    private static final String ATTACK_BATCH = "generic_infection_attack";
+
+    /** {@code type} を変えて、4 ブロック先の豚(動かない)を狙わせ、{@code timeout} の間に豚の体力が減れば成功。 */
+    private static void attacksPig(GameTestHelper helper, EntityType<? extends Mob> type) {
+        attacksPig(helper, type, m -> {
+        });
+    }
+
+    /** {@code setup} = 変える前の支度(自然に湧くときの武器を持たせるなど)。 */
+    private static void attacksPig(GameTestHelper helper, EntityType<? extends Mob> type, java.util.function.Consumer<Mob> setup) {
+        Mob attacker = helper.spawn(type, new BlockPos(1, 2, 1));
+        setup.accept(attacker);
+        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, new BlockPos(5, 2, 5));
+        pig.setHealth(pig.getMaxHealth());
+        if (!GenericInfection.turn(attacker, true)) {
+            helper.fail(EntityType.getKey(type) + " が変わらない");
+            return;
+        }
+        attacker.setTarget(pig);
+        attacker.getData(ModAttachments.GENERIC_INFECTED).prey = pig;
+        helper.succeedWhen(() -> {
+            if (!attacker.isAlive()) helper.fail(EntityType.getKey(type) + " が死んだ");
+            if (pig.getHealth() >= pig.getMaxHealth()) {
+                helper.fail(EntityType.getKey(type) + " が豚を傷付けない(狙い " + com.yayuy.overgrownvegetation.infect.GenericInfectionAi.targetOf(attacker)
+                        + "・体当たり " + GenericInfectionAiAccess.usesRam(attacker) + ")");
+            }
+        });
+    }
+
+    /** 元から近接を持つ種(狼)。 */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
+    public static void attackWolf(GameTestHelper helper) {
+        attacksPig(helper, EntityType.WOLF);
+    }
+
+    /** 元から近接を持つ種(シロクマ)。 */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
+    public static void attackPolarBear(GameTestHelper helper) {
+        attacksPig(helper, EntityType.POLAR_BEAR);
+    }
+
+    /** 元から近接を持つが怒らないと攻めない種(ハチ = NeutralMob)。 */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
+    public static void attackBee(GameTestHelper helper) {
+        attacksPig(helper, EntityType.BEE);
+    }
+
+    /** 元から近接を持つ敵対の種(ヴィンディケーター)。 */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
+    public static void attackVindicator(GameTestHelper helper) {
+        attacksPig(helper, EntityType.VINDICATOR);
+    }
+
+    /** 撃つ種(ストレイ = 弓)。 */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
+    public static void attackStray(GameTestHelper helper) {
+        attacksPig(helper, EntityType.STRAY, m -> m.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND,
+                new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.BOW)));
+    }
+
+    /** 撃つ種(ピリジャー = クロスボウ)。 */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
+    public static void attackPillager(GameTestHelper helper) {
+        attacksPig(helper, EntityType.PILLAGER, m -> m.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND,
+                new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.CROSSBOW)));
+    }
+
+    /** 予備の体当たり: 攻撃の属性はあるが武器を持たないピリジャー(元の攻撃が出ない)も、しばらくして体当たりで当てる。 */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 240)
+    public static void attackUnarmedPillagerFallsBackToRam(GameTestHelper helper) {
+        attacksPig(helper, EntityType.PILLAGER);
+    }
+
+    /** 撃つ種(ラマ = 唾)。 */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
+    public static void attackLlama(GameTestHelper helper) {
+        attacksPig(helper, EntityType.LLAMA);
+    }
+
+    /** 攻撃を持たない種(馬)。 */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
+    public static void attackHorse(GameTestHelper helper) {
+        attacksPig(helper, EntityType.HORSE);
+    }
+
+    /** 攻撃を持たない種(ウサギ)。 */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
+    public static void attackRabbit(GameTestHelper helper) {
+        attacksPig(helper, EntityType.RABBIT);
+    }
+
+    /** Brain で動く種(ヤギ)。 */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
+    public static void attackGoat(GameTestHelper helper) {
+        attacksPig(helper, EntityType.GOAT);
+    }
+
+    /** Brain で動き、getTarget を Brain で上書きする種(ピグリン)。 */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
+    public static void attackPiglin(GameTestHelper helper) {
+        attacksPig(helper, EntityType.PIGLIN);
+    }
+
+    /** 飛ぶ・攻撃を持たない種(コウモリ。歩けない)。 */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
+    public static void attackBat(GameTestHelper helper) {
+        attacksPig(helper, EntityType.BAT);
+    }
+
     /** テストから体当たりの判定を読む口。 */
     private static final class GenericInfectionAiAccess {
         static boolean usesRam(Mob m) {

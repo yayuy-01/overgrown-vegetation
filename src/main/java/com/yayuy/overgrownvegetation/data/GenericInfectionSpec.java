@@ -21,6 +21,7 @@ import java.util.List;
  *     <li>体当たり: ダメージ {@code ramDamage} 3・冷却 {@code ramCooldownTicks} 20・追う速さの倍率 {@code ramSpeed} 1.2。</li>
  *     <li>狙う範囲: 追跡範囲の属性(FOLLOW_RANGE)、無ければ {@code targetRange} 16。</li>
  *     <li>変わらない種 {@code excludedEntities}: 既定は空。</li>
+ *     <li>元の攻撃が当たらないときの予備: 狙って {@code fallbackTicks} 60 当たらなければ、その相手の間は体当たり。</li>
  * </ul>
  */
 public record GenericInfectionSpec(
@@ -32,7 +33,8 @@ public record GenericInfectionSpec(
         double ramDamage,
         int ramCooldownTicks,
         double ramSpeed,
-        double targetRange) {
+        double targetRange,
+        int fallbackTicks) {
 
     /** Gson の受け皿(null は既定値)。 */
     public static final class Json {
@@ -53,6 +55,8 @@ public record GenericInfectionSpec(
         public Double ramSpeed;
         /** 追跡範囲の属性が無い Mob の狙う範囲(ブロック)。 */
         public Double targetRange;
+        /** 元の攻撃を持つ種が、狙った相手に攻撃を当てられないまま この tick 過ぎたら体当たりの予備に切り替える(11-15 不具合の直し)。 */
+        public Integer fallbackTicks;
     }
 
     public static final GenericInfectionSpec DEFAULT = from(null);
@@ -68,7 +72,8 @@ public record GenericInfectionSpec(
                 d(s.ramDamage, 3.0D, 0.0D, 1000.0D),
                 s.ramCooldownTicks == null ? 20 : Math.max(1, Math.min(1200, s.ramCooldownTicks)),
                 d(s.ramSpeed, 1.2D, 0.1D, 5.0D),
-                d(s.targetRange, 16.0D, 1.0D, 256.0D));
+                d(s.targetRange, 16.0D, 1.0D, 256.0D),
+                s.fallbackTicks == null ? 60 : Math.max(1, Math.min(6000, s.fallbackTicks)));
     }
 
     private static double d(Double v, double def, double lo, double hi) {

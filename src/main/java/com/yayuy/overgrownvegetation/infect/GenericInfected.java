@@ -39,6 +39,10 @@ public final class GenericInfected {
      * ブリーズ・カエル・ウーパールーパー)では setTarget が読み返せないので、体当たり・呼び寄せはこちらを見る(ATTACK_TARGET は書かない = ★ 7:2)。
      */
     public net.minecraft.world.entity.LivingEntity prey;
+    /** 体当たりの予備の見張り(保存しない): 見ている相手・その相手を狙い始めた tickCount・予備に切り替わったか。 */
+    public net.minecraft.world.entity.LivingEntity trackedTarget;
+    public int targetSince;
+    public boolean fallbackOn;
     /** 外した Goal(戻す用。保存しない。Mob と一緒に消えるようここに置く)。 */
     Object removedGoals;
 
