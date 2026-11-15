@@ -54,8 +54,10 @@ public final class GregariaGameTests {
     }
 
     private static void walkTo(GregariaEntity g, GameTestHelper helper, Vec3 rel) {
+        // moveTo(x, y, z, 速さ) は着いた扱いの幅 1 で経路を引く(目標の 1 マス手前の点の真ん中で止まる)。
+        // 急ぎを 0.175 に落としてから行き過ぎなくなり、z > 4.5 の判定に届かなかった(11-15)→ 幅 0 で引く
         Vec3 p = helper.absoluteVec(rel);
-        g.getNavigation().moveTo(p.x, p.y, p.z, 1.0D);
+        g.getNavigation().moveTo(g.getNavigation().createPath(net.minecraft.core.BlockPos.containing(p), 0), 1.0D);
     }
 
     /** G4 に入り、自然には湧かず、体の芯は 0.7 × 0.45、過繁茂の Mob と見なされる。 */
