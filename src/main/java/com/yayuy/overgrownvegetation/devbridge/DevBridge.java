@@ -220,6 +220,7 @@ public final class DevBridge {
         // 始められなかった(別のクライアントが使っている等)ら、次の tick からも何もしない(2026-10-20 まで 2 tick 目で dir の null を踏んで落ちていた)
         if (dir == null) return;
         GazeDev.tick();
+        com.yayuy.overgrownvegetation.client.EggFitProbe.tick();
         if (navMob != null && tick % 5 == 0) {
             // navto の続き: 標的のいない Mob は待機の仕草を始めると経路を止めるので、着くまで引き直す
             net.minecraft.client.server.IntegratedServer server = mc.getSingleplayerServer();
@@ -2431,6 +2432,13 @@ public final class DevBridge {
             case "chunkdump" -> log(ChunkDump.dump(mc, dir, arg.isEmpty() ? "chunkdump" : arg));
             case "chunkwatch" -> log(ChunkDump.watch(mc, dir));
             case "echo" -> log("ECHO " + arg);
+            // スポーンエッグの eggFit を実際の描画から測る(2026-11-16)。eggfit [id の一部] [tick 数]。返事は EGGFIT …
+            case "eggfit" -> {
+                String[] ef = arg.trim().split("\\s+");
+                boolean num = ef.length > 0 && ef[ef.length - 1].matches("\\d+");
+                String filter = ef.length > 0 && !ef[0].matches("\\d+") ? ef[0] : "";
+                log(com.yayuy.overgrownvegetation.client.EggFitProbe.start(filter, num ? Integer.parseInt(ef[ef.length - 1]) : 120, DevBridge::log));
+            }
             // 重さを測る(2026-10-18、FxProfiler)。bench は終わるまで次の命令へ進まない。
             case "fxprof" -> log(FxProfiler.command(arg));
             // 予定の雨と種類(2026-11-12 雨の種類、sky.RainIntensity)。今から 12 日分の雨の始まり・終わり(dayTime)・種類・雷雨。返事は RAINS …

@@ -391,7 +391,7 @@ public final class MobStats {
             s.maxHealth = 1000.0; s.movementSpeed = 0.0; s.knockbackResistance = 1.0;
             s.armor = 20.0; s.armorToughness = 0.0; s.followRange = 0.0;
             s.width = 3.0; s.height = 3.0; s.xpReward = 200;
-            s.eggFit = 3.95;
+            s.eggFit = 6.8;
         }));
 
         // 巣の蔦 — ハイヴノードを吊る蔦 1 本。プレイヤーが 1 本ずつ切り落とす。
@@ -856,17 +856,17 @@ public final class MobStats {
         // グループ1(媒介種)は<b>もとの Mob より足が速い</b>(ユーザー指定 2026-09-21)。
         // 寄生されて痛みも疲れも感じなくなった、という想定で一律 +0.05。
         // それ以外(体力・攻撃力・防御)はバニラのまま —— 変えるのは足だけ。
-        m.put("parasitized_cow", stat(s -> { s.attackDamage = 3.0; s.movementSpeed = 0.25; s.width = 0.9; s.height = 1.4; s.eggFit = 2.1; }));
-        m.put("parasitized_sheep", stat(s -> { s.movementSpeed = 0.28; s.attackDamage = 3.0; s.width = 0.9; s.height = 1.3; s.eggFit = 2.0; }));
-        m.put("parasitized_pig", stat(s -> { s.movementSpeed = 0.30; s.attackDamage = 3.0; s.width = 0.9; s.height = 0.9; s.eggFit = 2.33; }));
-        m.put("parasitized_zombie", stat(s -> { s.movementSpeed = 0.28; s.width = 0.6; s.height = 1.95; s.eggFit = 2.07; }));
-        m.put("parasitized_villager", stat(s -> { s.movementSpeed = 0.28; s.width = 0.6; s.height = 1.95; s.eggFit = 2.07; }));
-        m.put("parasitized_chicken", stat(s -> { s.attackDamage = 2.0; s.movementSpeed = 0.3; s.width = 0.4; s.height = 0.7; s.eggFit = 2.4; }));
-        m.put("parasitized_skeleton", stat(s -> { s.movementSpeed = 0.3; s.width = 0.6; s.height = 1.99; s.eggFit = 2.07; }));
-        m.put("parasitized_enderman", stat(s -> { s.movementSpeed = 0.3; s.width = 0.6; s.height = 2.9; s.eggFit = 3.4; }));
-        m.put("parasitized_baby_zombie", stat(s -> { s.movementSpeed = 0.345; s.width = 0.3; s.height = 0.975; s.eggFit = 2.4; }));
-        m.put("parasitized_creeper", stat(s -> { s.movementSpeed = 0.30; s.width = 0.6; s.height = 1.7; s.eggFit = 2.17; }));
-        m.put("parasitized_spider", stat(s -> { s.movementSpeed = 0.3; s.width = 1.4; s.height = 0.9; s.eggFit = 2.15; }));
+        m.put("parasitized_cow", stat(s -> { s.attackDamage = 3.0; s.movementSpeed = 0.25; s.width = 0.9; s.height = 1.4; s.eggFit = 3.6; }));
+        m.put("parasitized_sheep", stat(s -> { s.movementSpeed = 0.28; s.attackDamage = 3.0; s.width = 0.9; s.height = 1.3; s.eggFit = 2.6; }));
+        m.put("parasitized_pig", stat(s -> { s.movementSpeed = 0.30; s.attackDamage = 3.0; s.width = 0.9; s.height = 0.9; s.eggFit = 3.7; }));
+        m.put("parasitized_zombie", stat(s -> { s.movementSpeed = 0.28; s.width = 0.6; s.height = 1.95; s.eggFit = 3.25; }));
+        m.put("parasitized_villager", stat(s -> { s.movementSpeed = 0.28; s.width = 0.6; s.height = 1.95; s.eggFit = 3.5; }));
+        m.put("parasitized_chicken", stat(s -> { s.attackDamage = 2.0; s.movementSpeed = 0.3; s.width = 0.4; s.height = 0.7; s.eggFit = 1.4; }));
+        m.put("parasitized_skeleton", stat(s -> { s.movementSpeed = 0.3; s.width = 0.6; s.height = 1.99; s.eggFit = 2.25; }));
+        m.put("parasitized_enderman", stat(s -> { s.movementSpeed = 0.3; s.width = 0.6; s.height = 2.9; s.eggFit = 3.6; }));
+        m.put("parasitized_baby_zombie", stat(s -> { s.movementSpeed = 0.345; s.width = 0.3; s.height = 0.975; s.eggFit = 2.2; }));
+        m.put("parasitized_creeper", stat(s -> { s.movementSpeed = 0.30; s.width = 0.6; s.height = 1.7; s.eggFit = 3.3; }));
+        m.put("parasitized_spider", stat(s -> { s.movementSpeed = 0.3; s.width = 1.4; s.height = 0.9; s.eggFit = 2.95; }));
         // ネザーの媒介種(2026-10-09)。足は上と同じく元より +0.05(仮)。ガスト・ブレイズの movementSpeed は行き先へ足す加速
         // (バニラのガストは 0.1)。爆弾はバニラの火の玉に近い威力(ユーザー指定「ダメージはもともとの攻撃と同じくらい」)+ 毒(数値は仮)。
         m.put("parasitized_piglin", stat(s -> { s.movementSpeed = 0.4; s.width = 0.6; s.height = 1.95; s.eggFit = 2.5; }));
@@ -889,44 +889,44 @@ public final class MobStats {
         // 2026-10-10: アイアンゴーレム・ウォーデン。自然には湧かない(ユーザー指定: 胞子感染で死んだ個体の死体からだけ)。
         // naturalSpawn false で、汚染したスポナー・レイドなど「G1 から選ぶ」経路からも外れる(死体からの孵化は通る)。
         m.put("parasitized_iron_golem", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.25; // 11-09 G1 段階 0: バニラと同じ 0.25(歩きの ref 0.135 はこの速さから)
-            s.width = 1.4; s.height = 2.7; s.eggFit = 3.7; }));
+            s.width = 1.4; s.height = 2.7; s.eggFit = 3.4; }));
         m.put("parasitized_warden", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; // 11-09 G1 段階 0: 歩きの ref 0.194 はこの速さから
-            s.width = 0.9; s.height = 2.9; s.eggFit = 3.9; }));
+            s.width = 0.9; s.height = 2.9; s.eggFit = 4.25; }));
         // G1 1 段目(2026-11-12、第 1 段): 発達した寄生された○○ 11 種。卵とコマンドだけ(11-09)。速さ・大きさは種ごとの仕様書【仮】。体力・攻撃は entity/g1/G1Developed
-        m.put("developed_parasitized_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.25; s.width = 0.6; s.height = 1.95; }));
-        m.put("developed_parasitized_baby_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.36; s.width = 0.6; s.height = 0.8; }));
-        m.put("developed_parasitized_villager", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.28; s.width = 0.8; s.height = 1.9; }));
-        m.put("developed_parasitized_cow", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.25; s.width = 1.0; s.height = 1.5; }));
-        m.put("developed_parasitized_pig", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 1.0; s.height = 1.0; }));
-        m.put("developed_parasitized_sheep", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.28; s.width = 0.9; s.height = 1.7; }));
-        m.put("developed_parasitized_chicken", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 0.5; s.height = 1.0; }));
-        m.put("developed_parasitized_creeper", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 0.6; s.height = 1.7; }));
-        m.put("developed_parasitized_skeleton", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.28; s.width = 0.6; s.height = 1.99; }));
-        m.put("developed_parasitized_spider", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 1.4; s.height = 1.2; }));
-        m.put("developed_parasitized_enderman", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 0.6; s.height = 3.0; }));
-        m.put("rooted_parasitized_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.0; s.height = 4.4; })); // 根付き(2026-11-13)
-        m.put("rooted_parasitized_baby_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 0.8; s.height = 2.5; }));
-        m.put("rooted_parasitized_villager", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.0; s.height = 4.6; }));
-        m.put("rooted_parasitized_enderman", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.0; s.height = 4.6; }));
-        m.put("rooted_parasitized_skeleton", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.0; s.height = 5.2; }));
-        m.put("root_guardian", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.25; s.width = 1.3; s.height = 1.9; }));
-        m.put("rooted_parasitized_cow", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.4; s.height = 1.6; }));
-        m.put("rooted_parasitized_pig", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.2; }));
-        m.put("rooted_parasitized_sheep", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.3; s.height = 1.6; }));
-        m.put("rooted_parasitized_chicken", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 0.7; s.height = 0.9; }));
-        m.put("rooted_parasitized_spider", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.0; s.height = 1.8; }));
-        m.put("rooted_parasitized_creeper", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 0.8; s.height = 1.8; }));
-        m.put("nursery_parasitized_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.0; }));
-        m.put("nursery_parasitized_baby_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 0.9; s.height = 0.7; }));
-        m.put("nursery_parasitized_villager", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.1; }));
-        m.put("nursery_parasitized_skeleton", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.0; }));
-        m.put("nursery_parasitized_enderman", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.0; }));
-        m.put("nursery_parasitized_cow", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.3; s.height = 1.2; }));
-        m.put("nursery_parasitized_pig", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.1; s.height = 1.0; }));
-        m.put("nursery_parasitized_sheep", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.1; }));
-        m.put("nursery_parasitized_chicken", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 0.8; s.height = 0.6; }));
-        m.put("nursery_parasitized_spider", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.0; }));
-        m.put("nursery_parasitized_creeper", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.0; }));
+        m.put("developed_parasitized_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.25; s.width = 0.6; s.height = 1.95; s.eggFit = 3.15; }));
+        m.put("developed_parasitized_baby_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.36; s.width = 0.6; s.height = 0.8; s.eggFit = 2.05; }));
+        m.put("developed_parasitized_villager", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.28; s.width = 0.8; s.height = 1.9; s.eggFit = 3.6; }));
+        m.put("developed_parasitized_cow", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.25; s.width = 1.0; s.height = 1.5; s.eggFit = 4.0; }));
+        m.put("developed_parasitized_pig", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 1.0; s.height = 1.0; s.eggFit = 2.75; }));
+        m.put("developed_parasitized_sheep", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.28; s.width = 0.9; s.height = 1.7; s.eggFit = 2.85; }));
+        m.put("developed_parasitized_chicken", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 0.5; s.height = 1.0; s.eggFit = 1.8; }));
+        m.put("developed_parasitized_creeper", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 0.6; s.height = 1.7; s.eggFit = 3.05; }));
+        m.put("developed_parasitized_skeleton", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.28; s.width = 0.6; s.height = 1.99; s.eggFit = 3.0; }));
+        m.put("developed_parasitized_spider", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 1.4; s.height = 1.2; s.eggFit = 3.5; }));
+        m.put("developed_parasitized_enderman", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.3; s.width = 0.6; s.height = 3.0; s.eggFit = 3.45; }));
+        m.put("rooted_parasitized_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.0; s.height = 4.4; s.eggFit = 5.55; })); // 根付き(2026-11-13)
+        m.put("rooted_parasitized_baby_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 0.8; s.height = 2.5; s.eggFit = 3.2; }));
+        m.put("rooted_parasitized_villager", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.0; s.height = 4.6; s.eggFit = 5.6; }));
+        m.put("rooted_parasitized_enderman", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.0; s.height = 4.6; s.eggFit = 5.55; }));
+        m.put("rooted_parasitized_skeleton", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.0; s.height = 5.2; s.eggFit = 5.6; }));
+        m.put("root_guardian", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.25; s.width = 1.3; s.height = 1.9; s.eggFit = 2.95; }));
+        m.put("rooted_parasitized_cow", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.4; s.height = 1.6; s.eggFit = 4.95; }));
+        m.put("rooted_parasitized_pig", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.2; s.eggFit = 3.05; }));
+        m.put("rooted_parasitized_sheep", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.3; s.height = 1.6; s.eggFit = 5.15; }));
+        m.put("rooted_parasitized_chicken", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 0.7; s.height = 0.9; s.eggFit = 2.25; }));
+        m.put("rooted_parasitized_spider", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.0; s.height = 1.8; s.eggFit = 5.25; }));
+        m.put("rooted_parasitized_creeper", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 0.8; s.height = 1.8; s.eggFit = 3.2; }));
+        m.put("nursery_parasitized_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.0; s.eggFit = 3.8; }));
+        m.put("nursery_parasitized_baby_zombie", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 0.9; s.height = 0.7; s.eggFit = 2.65; }));
+        m.put("nursery_parasitized_villager", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.1; s.eggFit = 3.9; }));
+        m.put("nursery_parasitized_skeleton", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.0; s.eggFit = 3.8; }));
+        m.put("nursery_parasitized_enderman", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.0; s.eggFit = 4.7; }));
+        m.put("nursery_parasitized_cow", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.3; s.height = 1.2; s.eggFit = 4.1; }));
+        m.put("nursery_parasitized_pig", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.1; s.height = 1.0; s.eggFit = 3.25; }));
+        m.put("nursery_parasitized_sheep", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.1; s.eggFit = 3.9; }));
+        m.put("nursery_parasitized_chicken", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 0.8; s.height = 0.6; s.eggFit = 2.45; }));
+        m.put("nursery_parasitized_spider", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.0; s.eggFit = 3.85; }));
+        m.put("nursery_parasitized_creeper", stat(s -> { s.naturalSpawn = false; s.movementSpeed = 0.0; s.width = 1.2; s.height = 1.0; s.eggFit = 4.05; }));
         // G1 の作り直し 第 1 段(2026-10-22): 進化体 8 種。G1 の一生(司令塔の「進化」)からだけ現れる(naturalSpawn false = レイド・汚染したスポナー・増援にも出ない)。数値は仮決め
         m.put("vinearm_zombie", stat(s -> { s.naturalSpawn = false; s.maxHealth = 26.0; s.movementSpeed = 0.28; s.width = 0.6; s.height = 1.95; s.eggFit = 2.07; }));
         m.put("hollow_villager", stat(s -> { s.naturalSpawn = false; s.maxHealth = 24.0; s.attackDamage = 5.0; s.movementSpeed = 0.29; s.width = 0.6; s.height = 1.95; s.eggFit = 2.07; }));
