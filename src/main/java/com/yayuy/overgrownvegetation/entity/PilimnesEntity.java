@@ -77,7 +77,7 @@ public class PilimnesEntity extends LizardRunner implements GeoEntity, Parasitiz
     public static final double WALK_REF = 0.10D, RUN_REF = 0.194D;
     /**
      * 止まっている間の見回しを look_around(アニメ)でするか、コードの見回し({@code SpineWave})でするか【仮・11-15 段 2】。
-     * どちらを残すかはユーザーの返事待ち。二重にならないよう片方だけが効く。
+     * 【決定 11-15 ユーザー】アニメ版を残す(true で確定)。コードの見回しは使わない・切り替え用に残してある(二重にならないよう片方だけが効く)。
      */
     public static final boolean LOOK_BY_ANIMATION = true;
     static final double LOOP_SPEED_MIN = 0.3D, LOOP_SPEED_MAX = 3.0D;

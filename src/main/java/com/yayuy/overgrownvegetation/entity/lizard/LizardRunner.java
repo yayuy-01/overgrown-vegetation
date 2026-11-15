@@ -110,7 +110,7 @@ public abstract class LizardRunner extends LongBodyRunner {
 
     /**
      * 止まっている間の見回しをアニメ(look_around)でするか。false ならコードの見回し({@link SpineWave} の首上げ・頭の往復)。
-     * 二重にしないため、どちらか片方だけ(11-15 段 2。どちらを残すかはユーザーの返事待ち)。
+     * 二重にしないため、どちらか片方だけ。ピリムネスはアニメ版に決まった(11-15 ユーザー)。コードの見回しはアニメの無い種と切り替え用。
      */
     public boolean lookByAnimation() {
         return false;

@@ -18,6 +18,7 @@ import net.minecraft.util.Mth;
  *
  * <h2>見回し</h2>
  * 止まっている間({@code paused})は首を {@link #LOOK_LIFT} 度上げ、頭を左右へ ±{@link #LOOK_SCAN} 度ゆっくり振る({@link #LOOK_PERIOD} tick で 1 往復)。
+ * ピリムネスでは使わない(11-15 ユーザー決定でアニメ look_around を残した)。アニメの無い種と切り替え用(LizardRunner#lookByAnimation が false の種)。
  * 角はどれも「その骨の先が体に対して左へ向く角(度)」。骨への足し方は描画({@code client/lizard/SpineWaveRig})。
  */
 public final class SpineWave {
