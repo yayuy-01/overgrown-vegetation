@@ -445,6 +445,57 @@ public final class GenericInfectionGameTests {
         attacksPig(helper, EntityType.PILLAGER);
     }
 
+    /**
+     * 相手がスライム(11-15 ユーザーの不具合の場面)。変わった狼が大きさ 2 のスライム(体力 4)に当てる → 体力が減るか、倒されて変わる
+     * (9ff1c2b から、変わった Mob に倒された Mob は死なずに満タンで変わる = 外からは「当たっていない」ように見える)。どちらになったかを記録する。
+     */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
+    public static void attackSlime(GameTestHelper helper) {
+        Mob wolf = helper.spawn(EntityType.WOLF, new BlockPos(1, 2, 1));
+        net.minecraft.world.entity.monster.Slime slime = helper.spawnWithNoFreeWill(EntityType.SLIME, new BlockPos(5, 2, 5));
+        slime.setSize(2, true);
+        GenericInfection.turn(wolf, true);
+        wolf.setTarget(slime);
+        helper.succeedWhen(() -> {
+            boolean hurt = slime.getHealth() < slime.getMaxHealth();
+            boolean turned = GenericInfection.isTurned(slime);
+            if (!hurt && !turned) helper.fail("スライムに当たっていない(体力 " + slime.getHealth() + "/" + slime.getMaxHealth() + ")");
+            if (!lastSlimeLogged) { lastSlimeLogged = true; OvergrownVegetation.LOGGER.info("GENINFECT_SLIME " + (turned ? "倒されて変わった(体力 " + slime.getHealth() + "/" + slime.getMaxHealth() + ")" : "体力が減った")); }
+        });
+    }
+
+    /** 確かめ用: スライムの場面の結果(報告に書く)。 */
+    private static volatile boolean lastSlimeLogged;
+
+    /** 相手が村人(専用の G1 がある種)。変わった狼が村人の体力を減らす。 */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
+    public static void attackVillager(GameTestHelper helper) {
+        Mob wolf = helper.spawn(EntityType.WOLF, new BlockPos(1, 2, 1));
+        Mob villager = helper.spawnWithNoFreeWill(EntityType.VILLAGER, new BlockPos(5, 2, 5));
+        GenericInfection.turn(wolf, true);
+        wolf.setTarget(villager);
+        helper.succeedWhen(() -> {
+            if (villager.getHealth() >= villager.getMaxHealth() && villager.isAlive()) helper.fail("村人に当たっていない");
+        });
+    }
+
+    /**
+     * 体力の少ない相手(大きさ 1 のスライム = 体力 1)を変わった Mob が倒すと、死なずに満タンで変わり、植物側になる(9ff1c2b の連鎖)。
+     * 倒した側の狙いは外れる(植物側どうしは狙わない)。
+     */
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
+    public static void killedByTurnedTurnsToo(GameTestHelper helper) {
+        Mob wolf = helper.spawn(EntityType.WOLF, new BlockPos(1, 2, 1));
+        net.minecraft.world.entity.monster.Slime slime = helper.spawnWithNoFreeWill(EntityType.SLIME, new BlockPos(5, 2, 5));
+        slime.setSize(1, true);
+        GenericInfection.turn(wolf, true);
+        wolf.setTarget(slime);
+        helper.succeedWhen(() -> {
+            if (!GenericInfection.isTurned(slime) || !slime.isAlive()) helper.fail("体力 1 のスライムが倒されて変わらない");
+            if (GenericInfectionAiAccess.targetOf(wolf) == slime) helper.fail("変わったスライムを狼が狙ったまま");
+        });
+    }
+
     /** 撃つ種(ラマ = 唾)。 */
     @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 200)
     public static void attackLlama(GameTestHelper helper) {
@@ -483,6 +534,10 @@ public final class GenericInfectionGameTests {
 
     /** テストから体当たりの判定を読む口。 */
     private static final class GenericInfectionAiAccess {
+        static LivingEntity targetOf(Mob m) {
+            return com.yayuy.overgrownvegetation.infect.GenericInfectionAi.targetOf(m);
+        }
+
         static boolean usesRam(Mob m) {
             return com.yayuy.overgrownvegetation.infect.GenericInfectionAi.usesRam(m);
         }
