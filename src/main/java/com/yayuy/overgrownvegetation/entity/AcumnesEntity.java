@@ -13,8 +13,11 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
+import com.yayuy.overgrownvegetation.spore.SporeExposureTracker;
+import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.targeting.TargetingConditions;
@@ -207,29 +210,61 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
         }
     }
 
+    /**
+     * 狙ってよい相手か【決定 11-15 ユーザー】: 植物側の Mob 以外すべて(プレイヤー・村人・同盟軍・ゴーレム・動物・ほかの敵対 Mob)。
+     * 植物側(G1〜G10・萌芽体・ハイヴノード・汎用の感染体 = {@link SporeExposureTracker#isPlantSide})・創造/観戦のプレイヤー・防具立て・無敵の相手は狙わない。
+     * 狙っている相手が感染して植物側になったら、そこで忘れる。
+     */
+    public static boolean isPrey(LivingEntity self, LivingEntity e) {
+        return e != self && e.isAlive() && !e.isRemoved() && !(e instanceof ArmorStand) && e.canBeSeenAsEnemy()
+                && EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(e)
+                && !(e instanceof ParasitizedMob) && !SporeExposureTracker.isPlantSide(e);
+    }
+
+    /**
+     * 相手の選び方【仮・Claude 11-15】: 叩いた相手 → 見えるプレイヤー → 見えるほかの生き物(近い順)。
+     * プレイヤー以外を狙っている間も、見えるプレイヤーが現れたらそちらへ替える(狙撃手はまずプレイヤーを狙う)。
+     */
     private void tickTargeting(ServerLevel sl) {
         LivingEntity t = this.getTarget();
         double range = this.getAttributeValue(Attributes.FOLLOW_RANGE);
-        if (t != null && (!t.isAlive() || t.isRemoved() || t.level() != this.level() || t instanceof Player p && (p.isCreative() || p.isSpectator())
+        if (t != null && (t.level() != this.level() || !isPrey(this, t)
                 || this.distanceToSqr(t) > range * range * LOSE_FACTOR * LOSE_FACTOR)) {
             this.setTarget(null);
             t = null;
         }
+        // 止まっている間は、叩かれる・近づかれて飛び立つ(土台)まで気付かない
+        boolean looking = this.tickCount % 10 == 0 && mode() != MODE_PERCHED && mode() != MODE_LANDING;
         if (t == null) {
             LivingEntity h = this.getLastHurtByMob();
-            if (h != null && h.isAlive() && !(h instanceof Player p && (p.isCreative() || p.isSpectator())) && this.distanceToSqr(h) < range * range) {
+            if (h != null && h.level() == this.level() && isPrey(this, h) && this.distanceToSqr(h) < range * range) {
                 this.setTarget(h);
                 t = h;
-            } else if (this.tickCount % 10 == 0 && mode() != MODE_PERCHED && mode() != MODE_LANDING) {
-                // 止まっている間は、叩かれる・近づかれて飛び立つ(土台)まで気付かない
-                Player p = sl.getNearestPlayer(TargetingConditions.forCombat().range(range), this);
-                if (p != null) {
-                    this.setTarget(p);
-                    t = p;
-                }
+            } else if (looking) {
+                t = findPrey(sl, range);
+                if (t != null) this.setTarget(t);
+            }
+        } else if (looking && !(t instanceof Player) && t != this.getLastHurtByMob()) {
+            Player p = sl.getNearestPlayer(preyConditions(range), this);
+            if (p != null) {
+                this.setTarget(p);
+                t = p;
             }
         }
         this.idleTicks = t == null ? this.idleTicks + 1 : 0;
+    }
+
+    private TargetingConditions preyConditions(double range) {
+        return TargetingConditions.forCombat().range(range).selector(e -> isPrey(this, e));
+    }
+
+    /** 見える相手: プレイヤーを先に、いなければ近い生き物。 */
+    private LivingEntity findPrey(ServerLevel sl, double range) {
+        TargetingConditions c = preyConditions(range);
+        Player p = sl.getNearestPlayer(c, this);
+        if (p != null) return p;
+        return sl.getNearestEntity(LivingEntity.class, c, this, this.getX(), this.getEyeY(), this.getZ(),
+                this.getBoundingBox().inflate(range, range, range));
     }
 
     // ------------------------------------------------------------------ 止まっては飛ぶ

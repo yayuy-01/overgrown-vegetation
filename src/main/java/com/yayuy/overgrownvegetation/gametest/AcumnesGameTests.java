@@ -290,4 +290,38 @@ public final class AcumnesGameTests {
             helper.succeed();
         });
     }
+
+    /**
+     * 狙う相手【決定 11-15 ユーザー: 植物側の Mob 以外すべて】: 村人・動物・ゴーレムは狙い、植物側(ヴェロフィル・ほかのアクムネス)は狙わない。
+     * 村人とヴェロフィルを並べると村人を選ぶ。プレイヤーを先に選ぶ順は、偽プレイヤーが世界のプレイヤーの一覧に入らないので確かめていない。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 60)
+    public static void targetsEveryoneButPlantSide(GameTestHelper helper) {
+        AcumnesEntity a = spawn(helper, 3.5D, 3.0D, 3.5D);
+        a.roostOverride = Boolean.FALSE;
+        a.debugHoldHere(1000);
+        net.minecraft.world.entity.Mob villager = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.VILLAGER, new BlockPos(1, 2, 1));
+        net.minecraft.world.entity.Mob cow = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.COW, new BlockPos(5, 2, 1));
+        net.minecraft.world.entity.Mob golem = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.IRON_GOLEM, new BlockPos(5, 2, 5));
+        net.minecraft.world.entity.Mob velo = helper.spawnWithNoFreeWill(ModFlyers.VELOPHYLL.get(), new BlockPos(1, 2, 5));
+        AcumnesEntity other = spawn(helper, 1.5D, 4.0D, 3.5D);
+        other.setNoAi(true);
+        if (!AcumnesEntity.isPrey(a, villager) || !AcumnesEntity.isPrey(a, cow) || !AcumnesEntity.isPrey(a, golem)) {
+            helper.fail("村人・牛・ゴーレムを狙わない");
+            return;
+        }
+        if (AcumnesEntity.isPrey(a, velo) || AcumnesEntity.isPrey(a, other) || AcumnesEntity.isPrey(a, a)) {
+            helper.fail("植物側・自分を狙う");
+            return;
+        }
+        cow.discard();
+        golem.discard();
+        helper.runAfterDelay(30L, () -> {
+            if (a.getTarget() != villager) {
+                helper.fail("村人を選ばない: " + a.getTarget());
+                return;
+            }
+            helper.succeed();
+        });
+    }
 }
