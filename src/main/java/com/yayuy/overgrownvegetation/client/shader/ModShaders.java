@@ -211,6 +211,10 @@ public final class ModShaders {
                             ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "phase_tint_blit"),
                             DefaultVertexFormat.POSITION),
                     shader -> phaseTintBlit = shader);
+            event.registerShader(new ShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "fog_sea"),
+                            DefaultVertexFormat.POSITION),
+                    shader -> fogSea = shader);
         } catch (IOException e) {
             OvergrownVegetation.LOGGER.error("フェーズの合図の空のにじみのシェーダーを読み込めなかったので、にじみは掛けない", e);
             phaseTint = null;
@@ -253,6 +257,12 @@ public final class ModShaders {
     private static ShaderInstance phaseTint;
 
     private static ShaderInstance phaseTintBlit;
+    /** 濃霧を上から見た霧の海({@code client/atmosphere/DenseFog}、2026-11-16)。重ねるのは phaseTintBlit(色とアルファをそのまま重ねるだけの物)。 */
+    private static ShaderInstance fogSea;
+
+    public static ShaderInstance fogSea() {
+        return fogSea;
+    }
 
     public static ShaderInstance phaseTint() {
         return phaseTint;

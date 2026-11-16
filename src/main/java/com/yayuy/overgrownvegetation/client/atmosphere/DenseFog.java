@@ -135,8 +135,107 @@ public final class DenseFog {
         rgb[2] = Mth.lerp(a, rgb[2], Math.min(1.0F, b));
     }
 
+    // ------------------------------------------------------------------ 霧の海(第 2 版。11-16 ユーザー「作る」)
+
+    /** 霧の層の上の端の近くで霧が薄くなる深さ(ブロック)・上の端のうねりの高さ(ブロック)。どちらも仮決め。 */
+    private static final float SEA_SOFT = 14.0F;
+    private static final float SEA_WAVE = 5.0F;
+    private static com.mojang.blaze3d.pipeline.TextureTarget seaTarget;
+    private static boolean seaBroken;
+    private static final org.joml.Matrix4f INV = new org.joml.Matrix4f();
+
+    /** 霧の海の度合い(0〜1): カメラが霧の層の上へ出た分。層の中にいる間は 0(距離の霞が受け持つ)。 */
+    static float seaAmount() {
+        float v = level();
+        return v <= 0.001F ? 0.0F : v * (1.0F - heightFactor());
+    }
+
+    /**
+     * 霧の海: 高い所(丘・巨大樹の上)から見下ろすと、下に霧が溜まって見える。カメラが霧の層の上にいる間、描き終えた画面の奥行きから、
+     * 画素ごとに「視線が霧の層の中を通る長さ」を出して霧を重ねる({@code fog_sea.fsh})。地形・Mob・粒にも同じに掛かる(画面全体の処理なので)。
+     * 描くのは世界を描き終えた所(AFTER_LEVEL。手の前。この後では画面の奥行きが消されている)。半分の大きさの器へ描いてから画面へ重ねる
+     * (画面を描き先にしたまま、その奥行きは読めない)。シェーダーパック使用中・地下では掛けない。
+     */
+    @SubscribeEvent
+    public static void onRenderLevel(net.neoforged.neoforge.client.event.RenderLevelStageEvent event) {
+        if (event.getStage() != net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage.AFTER_LEVEL || seaBroken) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        ClientLevel level = mc.level;
+        float amount = seaAmount() * (1.0F - ForestPresence.underground());
+        if (level == null || amount <= 0.002F || com.yayuy.overgrownvegetation.client.shader.ShaderPacks.active()
+                || event.getCamera().getFluidInCamera() != net.minecraft.world.level.material.FogType.NONE) {
+            return;
+        }
+        net.minecraft.client.renderer.ShaderInstance shader = com.yayuy.overgrownvegetation.client.shader.ModShaders.fogSea();
+        net.minecraft.client.renderer.ShaderInstance blit = com.yayuy.overgrownvegetation.client.shader.ModShaders.phaseTintBlit();
+        if (shader == null || blit == null) {
+            return;
+        }
+        try {
+            AtmosphereEye.DenseFogParams p = DesignData.atmosphere().denseFog();
+            float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+            com.mojang.blaze3d.pipeline.RenderTarget main = mc.getMainRenderTarget();
+            int w = Math.max(1, main.width / 2);
+            int h = Math.max(1, main.height / 2);
+            if (seaTarget == null) {
+                seaTarget = new com.mojang.blaze3d.pipeline.TextureTarget(w, h, false, Minecraft.ON_OSX);
+                seaTarget.setFilterMode(org.lwjgl.opengl.GL11.GL_LINEAR);
+            } else if (seaTarget.width != w || seaTarget.height != h) {
+                seaTarget.resize(w, h, Minecraft.ON_OSX);
+                seaTarget.setFilterMode(org.lwjgl.opengl.GL11.GL_LINEAR);
+            }
+            Vec3 cam = event.getCamera().getPosition();
+            INV.set(event.getProjectionMatrix()).mul(event.getModelViewMatrix()).invert();
+            float night = SunLight.night(level, partial);
+            float bright = Mth.lerp(night, 1.0F, p.nightBrightness()) * (1.0F - 0.25F * level.getRainLevel(partial));
+            Vec3 sun = SunLight.lightDirection(level, partial);
+            float low = 1.0F - Mth.clamp((float) sun.y, 0.0F, 1.0F);
+            float glow = p.scatter() * Mth.lerp(night, 0.6F + 0.4F * low, 0.25F);
+            com.mojang.blaze3d.systems.RenderSystem.disableDepthTest();
+            com.mojang.blaze3d.systems.RenderSystem.depthMask(false);
+            com.mojang.blaze3d.systems.RenderSystem.disableBlend();
+            seaTarget.bindWrite(true);
+            shader.setSampler("DepthTex", main.getDepthTextureId());
+            shader.safeGetUniform("InvProjView").set(INV);
+            shader.safeGetUniform("SeaA").set((float) cam.y, level.getSeaLevel() + p.topAbove(), 3.0F / Math.max(8.0F, p.visibility()), amount);
+            shader.safeGetUniform("SeaB").set((float) (cam.x % 4096.0), (float) (cam.z % 4096.0), SEA_SOFT, SEA_WAVE);
+            shader.safeGetUniform("SeaColor").set(p.red() * bright, p.green() * bright, p.blue() * bright, glow);
+            shader.safeGetUniform("SeaSun").set((float) sun.x, (float) sun.y, (float) sun.z, p.scatterPower());
+            shader.safeGetUniform("SeaGlow").set(Mth.lerp(night, 1.0F, 0.55F), Mth.lerp(night, 0.86F + 0.1F * (1.0F - low), 0.62F),
+                    Mth.lerp(night, 0.62F + 0.3F * (1.0F - low), 0.75F), 0.0F);
+            quad(shader);
+            main.bindWrite(true);
+            blit.setSampler("TintTex", seaTarget.getColorTextureId());
+            com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+            com.mojang.blaze3d.systems.RenderSystem.blendFuncSeparate(com.mojang.blaze3d.platform.GlStateManager.SourceFactor.SRC_ALPHA,
+                    com.mojang.blaze3d.platform.GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+                    com.mojang.blaze3d.platform.GlStateManager.SourceFactor.ZERO, com.mojang.blaze3d.platform.GlStateManager.DestFactor.ONE);
+            quad(blit);
+            com.mojang.blaze3d.systems.RenderSystem.defaultBlendFunc();
+            com.mojang.blaze3d.systems.RenderSystem.disableBlend();
+            com.mojang.blaze3d.systems.RenderSystem.depthMask(true);
+            com.mojang.blaze3d.systems.RenderSystem.enableDepthTest();
+        } catch (RuntimeException e) {
+            seaBroken = true;
+            OvergrownVegetation.LOGGER.error("濃霧の霧の海で例外が出たので、このセッションでは掛けない", e);
+        }
+    }
+
+    private static void quad(net.minecraft.client.renderer.ShaderInstance shader) {
+        com.mojang.blaze3d.systems.RenderSystem.setShader(() -> shader);
+        com.mojang.blaze3d.vertex.BufferBuilder buffer = com.mojang.blaze3d.vertex.Tesselator.getInstance()
+                .begin(com.mojang.blaze3d.vertex.VertexFormat.Mode.QUADS, com.mojang.blaze3d.vertex.DefaultVertexFormat.POSITION);
+        buffer.addVertex(-1.0F, -1.0F, 0.0F);
+        buffer.addVertex(1.0F, -1.0F, 0.0F);
+        buffer.addVertex(1.0F, 1.0F, 0.0F);
+        buffer.addVertex(-1.0F, 1.0F, 0.0F);
+        com.mojang.blaze3d.vertex.BufferUploader.drawWithShader(buffer.buildOrThrow());
+    }
+
     /** 確かめ用の 1 行。 */
     public static String describe() {
-        return String.format("濃霧 %.2f(届いた値 %.2f・高さ %.2f・霞 %.4f/ブロック・空 %.2f)", level(), WeatherClient.fog(), heightFactor(), hazeK(), skyFill());
+        return String.format("濃霧 %.2f(届いた値 %.2f・高さ %.2f・霞 %.4f/ブロック・空 %.2f・霧の海 %.2f)", level(), WeatherClient.fog(), heightFactor(), hazeK(), skyFill(), seaAmount());
     }
 }
