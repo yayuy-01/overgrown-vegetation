@@ -62,7 +62,7 @@ public final class CalmLayers {
         }
         WeatherLookEye.Params p = WeatherLook.calmParams();
         float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
-        float amount = WeatherLook.calmAmount() * (1.0F - ForestPresence.underground()) * (1.0F - DenseFog.level()) * (1.0F - level.getRainLevel(partial));
+        float amount = WeatherLook.calmAmount() * (1.0F - Math.max(CaveLights.mix(), ForestPresence.underground())) * (1.0F - DenseFog.level()) * (1.0F - level.getRainLevel(partial));
         int layers = Math.round(p.f("layers"));
         if (amount <= 0.004F || layers <= 0) {
             return;

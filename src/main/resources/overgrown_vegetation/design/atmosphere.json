@@ -1011,10 +1011,10 @@
     "layerNight": 0.12
   },
   "galeLook": {
-    "_comment": "強風の日の見た目(2026-11-16。ユーザー決定: 木々が大きく揺れ、葉や胞子の綿が横に流れる。森のそばは少し澄む。数はすべて仮決め。読み口は data/WeatherLookEye)。gustInterval = 突風の間隔の倍率、gustBonus = 突風に足す強さ、between = 突風の合間の風の強さ(0.22 以上にすると風の音が鳴り続ける。今は鳴らさない 0.2)、forestClear = 森の中の霞を薄める割合。fluff* = 胞子の綿(fluffCount = 数、fluffRange = 出す半径、fluffSpeed = 風の強さ 1 のときの毎秒のブロック、fluffSize = 大きさ、fluffAlpha = 濃さ、fluffColor = 色、fluffOpen = 森の外での数の倍率)。確かめは /ov weather gale 1。",
+    "_comment": "強風の日の見た目(2026-11-16。ユーザー決定: 木々が大きく揺れ、葉や胞子の綿が横に流れる。森のそばは少し澄む。数はすべて仮決め。読み口は data/WeatherLookEye)。gustInterval = 突風の間隔の倍率、gustBonus = 突風に足す強さ、between = 突風の合間の風の強さ(場所ごとのむらが ±25% あるので 0.17 を越えると合間にも風の音が鳴る。今は鳴らさない 0.16)、forestClear = 森の中の霞を薄める割合。fluff* = 胞子の綿(fluffCount = 数、fluffRange = 出す半径、fluffSpeed = 風の強さ 1 のときの毎秒のブロック、fluffSize = 大きさ、fluffAlpha = 濃さ、fluffColor = 色、fluffOpen = 森の外での数の倍率)。確かめは /ov weather gale 1。",
     "gustInterval": 0.22,
     "gustBonus": 0.25,
-    "between": 0.2,
+    "between": 0.16,
     "forestClear": 0.25,
     "fluffCount": 110,
     "fluffRange": 26.0,

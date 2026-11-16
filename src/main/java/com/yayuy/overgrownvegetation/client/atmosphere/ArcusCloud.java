@@ -63,6 +63,9 @@ final class ArcusCloud {
         lastPre = 0.0F;
     }
 
+    /** この雷雨ではもう棚を通した(か、近づく所を見逃した)。天気が落ち着くまで、新しい棚を生まない。 */
+    private static boolean passing;
+
     /** 毎 tick。{@code pre} = 雷雨の前触れ 0〜1(寄せた値)、{@code thunder} = 雷雨の強さ。 */
     static void tick(ClientLevel level, LocalPlayer player, float pre, float thunder) {
         WeatherLookEye.Params p = WeatherLook.storm();
@@ -83,19 +86,41 @@ final class ArcusCloud {
         if (!Double.isNaN(devLead)) {
             lead = devLead;
             present = 1.0F;
-        } else if (pre > 0.02F && pre >= lastPre - 0.002F && thunder < 0.5F) {
-            // 近づいてくる間: 位置は前触れの値から(5 秒ごとの段は WeatherLook が寄せている)。
+        } else {
+            // 前触れが上がっている間か: 届いた生の値が、寄せた値を下回っていない(下がり始めると生の値が先に落ちる)。
+            float raw = WeatherClient.received() ? WeatherClient.preStorm() : 0.0F;
+            boolean rising = pre > 0.02F && raw >= pre - 0.01F && thunder < 0.5F;
             double target = from * (1.0 - pre / overhead);
-            lead = Double.isNaN(lead) ? target : Math.min(lead, lead + (target - lead) * 0.2);
-            present = Math.min(1.0F, present + 0.01F);
-        } else if (!Double.isNaN(lead)) {
-            // 雷雨が始まった・前触れが引いた: 同じ速さで風下へ進み続け、遠ざかったら消える。
-            lead -= speed;
-            if (lead < -(p.f("arcusDepth") + 500.0F) || pre <= 0.02F && thunder <= 0.02F) {
-                present -= 0.01F;
-                if (present <= 0.0F) {
-                    clear();
+            if (Double.isNaN(lead)) {
+                // 生まれるのは、近づく所から見せられるときだけ(前の縁がまだ風上に十分ある)。雷雨の途中で入った・/weather thunder で
+                // いきなり始まった・雷雨が終わって前触れが引いていく間は、生まない(頭上に半分透けた棚が出たり、終わりに置き土産が出たりした)。
+                if (rising && !passing && target > from * 0.4) {
+                    lead = target;
+                    present = 0.0F;
                 }
+            } else if (rising && !passing) {
+                // 近づいてくる間: 位置は前触れの値から(5 秒ごとの段は WeatherLook が寄せている)。後ろへは戻さない。
+                lead = Math.min(lead, lead + (target - lead) * 0.2);
+                present = Math.min(1.0F, present + 0.01F);
+            } else {
+                // 雷雨が始まった・前触れが引いた: 同じ速さで風下へ進み続け、遠ざかったら(前触れが取り消されたらその場で)消える。
+                passing = true;
+                lead -= speed;
+                if (lead < -(p.f("arcusDepth") + 500.0F) || pre <= 0.02F && thunder <= 0.02F) {
+                    present -= 0.01F;
+                    if (present <= 0.0F) {
+                        clear();
+                    }
+                } else {
+                    present = Math.min(1.0F, present + 0.01F);
+                }
+            }
+            if (Double.isNaN(lead) && pre <= 0.02F && thunder <= 0.02F) {
+                // 天気が落ち着いたら、次の雷雨でまた出せるように。
+                passing = false;
+            } else if (Double.isNaN(lead) && (thunder >= 0.5F || !rising)) {
+                // 棚が無いまま雷雨に入った・前触れが引いている: この雷雨では出さない。
+                passing = true;
             }
         }
         lastPre = pre;

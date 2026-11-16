@@ -95,7 +95,8 @@ final class Sprites {
         long now = System.nanoTime();
         LIVE.removeIf(s -> (now - s.startNanos) / 1.0e9 > life);
         float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
-        float gate = p.f("spriteAlpha") * SunLight.night(level, partial) * (1.0F - DenseFog.amount()) * (1.0F - ForestPresence.underground());
+        float gate = p.f("spriteAlpha") * SunLight.night(level, partial) * (1.0F - DenseFog.amount()) * (1.0F - ForestPresence.underground())
+                * (1.0F - 0.9F * ForestPresence.fogForest());
         if (gate <= 0.004F) {
             return;
         }
