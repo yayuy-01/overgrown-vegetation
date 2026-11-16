@@ -70,14 +70,38 @@ public final class CreepingWall {
     final int id;
     final ServerLevel level;
     final BlockPos origin;
-    final long startTick;
+    long startTick;
     long stopTick;
     int swallowed;
+    /** この壁の「進める範囲」(ブロック。0 以下で止めない)。既定は {@link WallTuning#activeRadius}。テストは 0 にする。 */
+    public int activeRadius = WallTuning.activeRadius;
+    /** プレイヤーのほかに「人がいる」と見なす所(テスト用)。 */
+    public final java.util.List<BlockPos> extraAnchors = new java.util.ArrayList<>();
+    private final LongArrayList anchors = new LongArrayList();
+
+    /** どの人からも activeRadius より遠いか。 */
+    private boolean far(long p) {
+        long r2 = (long) activeRadius * activeRadius;
+        int x = BlockPos.getX(p), y = BlockPos.getY(p), z = BlockPos.getZ(p);
+        for (int i = 0; i < anchors.size(); i++) {
+            long a = anchors.getLong(i);
+            long dx = x - BlockPos.getX(a), dy = y - BlockPos.getY(a), dz = z - BlockPos.getZ(a);
+            if (dx * dx + dy * dy + dz * dz <= r2) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** 飲んだ Mob で延びた長さ(tick)。 */
+    int extendedTicks;
+    /** プレイヤーから遠くて止めている升 → その時の距離(決定 その 8 の案 c)。近くにプレイヤーが来たら、その時の距離から進み直す。 */
+    public final Long2IntOpenHashMap dormant = new Long2IntOpenHashMap();
     boolean stopped;
     long stoppedAt;
 
     /** 埋まった升。 */
-    final LongOpenHashSet filled = new LongOpenHashSet();
+    final CellSet filled = new CellSet();
     /** まだ埋まっていない升の、今わかっている最短の距離。 */
     private final Long2IntOpenHashMap tentative = new Long2IntOpenHashMap();
     /** 距離ごとの待ち行列(古い値は {@link #tentative} と比べて読み捨てる)。 */
@@ -110,7 +134,7 @@ public final class CreepingWall {
     /** 跡の待ち行列(升と、置いてよくなる tick)。 */
     private final LongArrayFIFOQueue trailPos = new LongArrayFIFOQueue();
     private final LongArrayFIFOQueue trailTime = new LongArrayFIFOQueue();
-    private final LongOpenHashSet trailSeen = new LongOpenHashSet();
+    private final CellSet trailSeen = new CellSet();
     /** 止まった所の塊を置く升。 */
     private final LongArrayFIFOQueue lumpQueue = new LongArrayFIFOQueue();
 
@@ -198,10 +222,12 @@ public final class CreepingWall {
         roofCache.remove(((long) pos.getX() << 32) | (pos.getZ() & 0xFFFFFFFFL));
     }
 
-    void swallowOne() {
+    public void swallowOne() {
         swallowed++;
-        if (!stopped) {
+        // 延びるのは最大 maxExtensionTicks まで(決定 その 8「最大 60 秒」。止まるまで最長 60 + 60 秒)
+        if (!stopped && extendedTicks + WallTuning.ticksPerSwallow <= WallTuning.maxExtensionTicks) {
             stopTick += WallTuning.ticksPerSwallow;
+            extendedTicks += WallTuning.ticksPerSwallow;
         }
     }
 
@@ -213,8 +239,44 @@ public final class CreepingWall {
     }
 
     /** 1 tick 進める。止まったら true を返す最初の tick で {@link #stopped} になる。 */
+    /** 前触れ(動き出す前の数秒)。null なら前触れなしですぐ動く(テスト・/ov wall at)。 */
+    WallOmen omen;
+    private long lastFlinch = Long.MIN_VALUE / 2;
+
+    /** 前触れから始める: {@link WallTuning#omenTicks} の間は動かず、音が止み・地鳴りが近づき・灯りが奥から消える。 */
+    void beginOmen(long now) {
+        omen = new WallOmen(this, now);
+        startTick = now + WallTuning.omenTicks;
+        stopTick = startTick + WallTuning.baseDurationTicks;
+    }
+
+    /** 前触れの間か。 */
+    public boolean inOmen(long now) {
+        return now < startTick;
+    }
+
+    /**
+     * 攻撃・火でひるむ(決定 その 1「削れるが倒せない。攻撃や火で一瞬ひるむが止められない」)。壁全体が {@code ticks} だけ止まり、止まるまでの時間も同じだけ延びる
+     * (全体を止めるので「どの枝も同じ速さ」は崩れない)。殴り続けて止め続けられないよう、ひるんだ後 {@link WallTuning#flinchCooldownTicks} の間はひるまない。ひるんだら true。
+     */
+    public boolean flinch(long now, int ticks) {
+        if (stopped || inOmen(now) || now - lastFlinch < WallTuning.flinchCooldownTicks) {
+            return false;
+        }
+        lastFlinch = now;
+        startTick += ticks;
+        stopTick += ticks;
+        return true;
+    }
+
     void tick(long now) {
         if (stopped) {
+            return;
+        }
+        if (now < startTick) {
+            if (omen != null) {
+                omen.tick(now);
+            }
             return;
         }
         long t0 = System.nanoTime();
@@ -281,6 +343,35 @@ public final class CreepingWall {
             }
         }
 
+        // プレイヤーから遠い枝(決定 その 8 の案 c): 近くの人の位置
+        anchors.clear();
+        if (activeRadius > 0) {
+            for (net.minecraft.server.level.ServerPlayer pl : level.players()) {
+                if (!pl.isSpectator()) {
+                    anchors.add(pl.blockPosition().asLong());
+                }
+            }
+            for (BlockPos a : extraAnchors) {
+                anchors.add(a.asLong());
+            }
+            // 止めていた升のうち、人が近づいたものを今の距離で戻す(1 秒ごと)
+            if (!dormant.isEmpty() && (now - startTick) % 20 == 0) {
+                LongArrayList wake = new LongArrayList();
+                for (Long2IntOpenHashMap.Entry e : dormant.long2IntEntrySet()) {
+                    if (!far(e.getLongKey())) {
+                        wake.add(e.getLongKey());
+                    }
+                }
+                for (int i = 0; i < wake.size(); i++) {
+                    long p = wake.getLong(i);
+                    int d = Math.max(dormant.remove(p), reach);
+                    if (!filled.contains(p)) {
+                        push(p, d);
+                    }
+                }
+            }
+        }
+
         long t2 = System.nanoTime();
         // 届いた距離までの升を埋める
         while (!queue.isEmpty()) {
@@ -295,6 +386,10 @@ public final class CreepingWall {
                     continue;
                 }
                 tentative.remove(p);
+                if (activeRadius > 0 && far(p)) {
+                    dormant.put(p, Math.min(dormant.getOrDefault(p, Integer.MAX_VALUE), key)); // 遠いので進めない
+                    continue;
+                }
                 settle(p, key, now, m);
             }
         }
@@ -440,6 +535,7 @@ public final class CreepingWall {
         tentative.clear();
         parked.clear();
         chewing.clear();
+        dormant.clear();
     }
 
     /** 先頭の升のうち、隣が全部 埋まった・天然の壁 になったものを外す。 */

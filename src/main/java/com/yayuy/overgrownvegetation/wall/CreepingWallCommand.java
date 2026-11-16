@@ -19,8 +19,8 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 /**
  * 蠢く壁を確かめるコマンド(OP 専用。2026-11-16 試作。手触り・速さ・枝分かれを見るため)。
  * <ul>
- *     <li>{@code /ov wall start [距離]} — 実行した所から洞窟をたどって約 {@code 距離}(既定 48)ブロック先の升から起こす</li>
- *     <li>{@code /ov wall at <座標>} — その升から起こす</li>
+ *     <li>{@code /ov wall start [距離]} — 実行した所から洞窟をたどって約 {@code 距離}(既定 48)ブロック先の升から、前触れ(5 秒)を付けて起こす(自然に起きるときと同じ)</li>
+ *     <li>{@code /ov wall at <座標>} — その升から前触れなしですぐ起こす(撮影・確かめ用)</li>
  *     <li>{@code /ov wall stop} — 全部止める(その場で塊になり、跡は置き続ける)</li>
  *     <li>{@code /ov wall status} — 升の数・残り時間・飲んだ数・重さ(ms/tick)・送った量</li>
  * </ul>
@@ -55,7 +55,7 @@ public final class CreepingWallCommand {
             ctx.getSource().sendFailure(Component.literal("洞窟の中(空の見えない空き)にいない"));
             return 0;
         }
-        CreepingWall w = CreepingWalls.start(level, origin);
+        CreepingWall w = CreepingWalls.startWithOmen(level, origin); // 前触れ(音が止む → 地鳴り → 灯りが奥から消える)から
         ctx.getSource().sendSuccess(() -> Component.literal("蠢く壁 #" + w.id() + " を " + origin.toShortString() + " から起こした(洞窟の道のりで最大 "
                 + distance + "、直線で " + (int) Math.round(Math.sqrt(from.distSqr(origin))) + " ブロック先)"), true);
         return 1;

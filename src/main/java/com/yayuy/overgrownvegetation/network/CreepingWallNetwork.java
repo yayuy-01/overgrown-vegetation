@@ -18,11 +18,20 @@ public final class CreepingWallNetwork {
 
     @SubscribeEvent
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("creeping-wall-1");
+        // 版 2: 前触れ(CreepingWallPayload.OMEN)と、殴った知らせ CreepingWallHitPayload(C2S)を足した(11-16)
+        PayloadRegistrar registrar = event.registrar("creeping-wall-2");
         registrar.playToClient(
                 CreepingWallPayload.TYPE,
                 CreepingWallPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(
                         () -> com.yayuy.overgrownvegetation.client.wall.ClientCreepingWall.accept(payload)));
+        registrar.playToServer(
+                CreepingWallHitPayload.TYPE,
+                CreepingWallHitPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof net.minecraft.server.level.ServerPlayer player) {
+                        com.yayuy.overgrownvegetation.wall.CreepingWalls.onHit(player, payload.cell());
+                    }
+                }));
     }
 }

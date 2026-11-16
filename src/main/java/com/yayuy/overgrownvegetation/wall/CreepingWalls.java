@@ -61,6 +61,50 @@ public final class CreepingWalls {
         return wall;
     }
 
+    /** 前触れから起こす(自然に起きるとき・/ov wall start)。近くの人へ「音を止める」を送る。 */
+    public static CreepingWall startWithOmen(ServerLevel level, BlockPos origin) {
+        CreepingWall wall = start(level, origin);
+        wall.beginOmen(level.getGameTime());
+        int quiet = WallTuning.omenTicks + WallTuning.baseDurationTicks + WallTuning.maxExtensionTicks;
+        for (ServerPlayer p : level.players()) {
+            if (p.blockPosition().distSqr(origin) <= 160 * 160) {
+                sendTo(p, new CreepingWallPayload(wall.id, CreepingWallPayload.OMEN, origin, new int[]{quiet},
+                        (float) (WallTuning.speedBlocksPerSecond / 20.0D)));
+            }
+        }
+        return wall;
+    }
+
+    /** 殴られた(画面の側から)。升が埋まっていて、手の届く所(6 ブロック以内)ならひるませる。火ならもっとひるむ。 */
+    public static void onHit(ServerPlayer player, BlockPos cell) {
+        ServerLevel level = player.serverLevel();
+        if (player.isSpectator() || player.getEyePosition().distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(cell)) > 36.0D) {
+            return;
+        }
+        for (CreepingWall w : walls(level)) {
+            if (w.isStopped() || !w.isFilled(cell)) {
+                continue;
+            }
+            net.minecraft.world.item.ItemStack held = player.getMainHandItem();
+            boolean fire = held.is(net.minecraft.world.item.Items.FLINT_AND_STEEL) || held.is(net.minecraft.world.item.Items.FIRE_CHARGE)
+                    || held.is(net.minecraft.world.item.Items.TORCH) || held.is(net.minecraft.world.item.Items.SOUL_TORCH)
+                    || net.minecraft.world.item.enchantment.EnchantmentHelper.getItemEnchantmentLevel(
+                            level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT)
+                                    .getHolderOrThrow(net.minecraft.world.item.enchantment.Enchantments.FIRE_ASPECT), held) > 0;
+            if (w.flinch(level.getGameTime(), fire ? WallTuning.flinchFireTicks : WallTuning.flinchTicks)) {
+                // 削れる(粒と音だけ。倒せない)
+                level.sendParticles(new net.minecraft.core.particles.BlockParticleOption(net.minecraft.core.particles.ParticleTypes.BLOCK,
+                                net.minecraft.world.level.block.Blocks.MOSS_BLOCK.defaultBlockState()),
+                        cell.getX() + 0.5, cell.getY() + 0.5, cell.getZ() + 0.5, 24, 0.4, 0.4, 0.4, 0.1);
+                if (fire) {
+                    level.sendParticles(net.minecraft.core.particles.ParticleTypes.FLAME, cell.getX() + 0.5, cell.getY() + 0.5, cell.getZ() + 0.5, 12, 0.3, 0.3, 0.3, 0.02);
+                }
+                level.playSound(null, cell, net.minecraft.sounds.SoundEvents.ROOTED_DIRT_BREAK, net.minecraft.sounds.SoundSource.HOSTILE, 1.0F, 0.6F);
+            }
+            return;
+        }
+    }
+
     public static List<CreepingWall> walls(ServerLevel level) {
         return WALLS.getOrDefault(level.dimension(), List.of());
     }
@@ -242,6 +286,9 @@ public final class CreepingWalls {
                 int[] cells = near(base, w.newlySettled.iterator(), r);
                 if (cells.length > 0) {
                     sendTo(player, new CreepingWallPayload(w.id, CreepingWallPayload.ADD, base, cells, bpt));
+                    if (now % 15 == 0) {
+                        roar(level, player, base, cells, now);
+                    }
                 }
             }
             if (snapshot && !w.isStopped() && !w.front.isEmpty()) {
@@ -255,6 +302,36 @@ public final class CreepingWalls {
             }
         }
         w.newlySettled.clear();
+    }
+
+    /**
+     * 進むときの音(決定 その 3「濁流のような擦れる轟音 / 根が軋む音」)。今は仮にバニラの音を低くして、いちばん近い新しい先頭の升で鳴らす
+     * (擦れる轟音 = ウォーデンが地面を掘る音、軋み = 根付いた土の音)。くぐもった声・胞子嚢が弾ける音は、本当の音と一緒に後で。
+     */
+    private static void roar(ServerLevel level, ServerPlayer player, BlockPos base, int[] cells, long now) {
+        int best = -1, bestD = Integer.MAX_VALUE;
+        for (int i = 0; i < cells.length; i++) {
+            int c = cells[i];
+            int d = CreepingWallPayload.dx(c) * CreepingWallPayload.dx(c) + CreepingWallPayload.dy(c) * CreepingWallPayload.dy(c)
+                    + CreepingWallPayload.dz(c) * CreepingWallPayload.dz(c);
+            if (d < bestD) {
+                bestD = d;
+                best = c;
+            }
+        }
+        if (best < 0 || bestD > 48 * 48) {
+            return;
+        }
+        double x = base.getX() + CreepingWallPayload.dx(best) + 0.5, y = base.getY() + CreepingWallPayload.dy(best) + 0.5,
+                z = base.getZ() + CreepingWallPayload.dz(best) + 0.5;
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSoundPacket(
+                net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.wrapAsHolder(net.minecraft.sounds.SoundEvents.WARDEN_DIG),
+                net.minecraft.sounds.SoundSource.HOSTILE, x, y, z, 1.6F, 0.45F + level.random.nextFloat() * 0.1F, level.random.nextLong()));
+        if ((now / 15) % 3 == 0) {
+            player.connection.send(new net.minecraft.network.protocol.game.ClientboundSoundPacket(
+                    net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.wrapAsHolder(net.minecraft.sounds.SoundEvents.ROOTED_DIRT_BREAK),
+                    net.minecraft.sounds.SoundSource.HOSTILE, x, y, z, 1.2F, 0.5F, level.random.nextLong()));
+        }
     }
 
     /** {@code base} から r 以内の升(近い順に {@link WallTuning#sendCap} まで)。 */

@@ -104,6 +104,33 @@ public final class ClientCreepingWall {
 
     private static final Int2ObjectOpenHashMap<View> VIEWS = new Int2ObjectOpenHashMap<>();
     private static ClientLevel lastLevel;
+    /** この時刻まで環境音を止める(前触れと、近くで動いている間)。 */
+    private static long quietUntil = Long.MIN_VALUE;
+
+    /** 今、環境音を止めるか。 */
+    public static boolean isQuiet() {
+        ClientLevel level = Minecraft.getInstance().level;
+        return level != null && level.getGameTime() < quietUntil;
+    }
+
+    /** 視線の先 {@code reach} ブロック以内で、最初に当たる塊の升(無ければ null)。殴ったときに使う。 */
+    @javax.annotation.Nullable
+    public static BlockPos raycast(net.minecraft.world.phys.Vec3 from, net.minecraft.world.phys.Vec3 dir, double reach) {
+        if (VIEWS.isEmpty()) {
+            return null;
+        }
+        BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
+        for (double t = 0.0D; t <= reach; t += 0.1D) {
+            m.set(net.minecraft.util.Mth.floor(from.x + dir.x * t), net.minecraft.util.Mth.floor(from.y + dir.y * t), net.minecraft.util.Mth.floor(from.z + dir.z * t));
+            long p = m.asLong();
+            for (View v : VIEWS.values()) {
+                if (!v.stopped && v.filled.contains(p)) {
+                    return m.immutable();
+                }
+            }
+        }
+        return null;
+    }
 
     private ClientCreepingWall() {
     }
@@ -120,6 +147,7 @@ public final class ClientCreepingWall {
         ClientLevel level = Minecraft.getInstance().level;
         if (level != lastLevel) {
             VIEWS.clear();
+            quietUntil = Long.MIN_VALUE;
             lastLevel = level;
         }
     }
@@ -131,6 +159,14 @@ public final class ClientCreepingWall {
             return;
         }
         long now = level.getGameTime();
+        if (payload.kind() == CreepingWallPayload.OMEN) {
+            // 前触れ: 環境音と水滴の音が止む(決定 その 1)
+            quietUntil = Math.max(quietUntil, now + (payload.cells().length > 0 ? payload.cells()[0] : 100));
+            return;
+        }
+        if (payload.kind() == CreepingWallPayload.ADD) {
+            quietUntil = Math.max(quietUntil, now + 100); // 近くで動いている間は静かなまま(止まって 5 秒で戻る)
+        }
         if (payload.kind() == CreepingWallPayload.CLEAR) {
             VIEWS.remove(payload.wallId());
             return;

@@ -14,8 +14,8 @@ import net.minecraft.world.level.levelgen.Heightmap;
  * 蠢く壁から見た升の種類(決定 その 3・7)。
  * <ul>
  *     <li>{@link Kind#PASS}: 通れる。空気・水・当たりの無いもの(植物・レール・松明)・灯り・BlockEntity を持つもの(チェスト・成れの果て。覆うだけ)。</li>
- *     <li>{@link Kind#CHEW}: 置いたブロック。硬さ × 2 秒で壊して進む。天然の地形でない固いブロック + プレイヤーが置いたと覚えているもの。</li>
- *     <li>{@link Kind#WALL}: 天然の岩・溶岩・壊せないブロック。</li>
+ *     <li>{@link Kind#CHEW}: プレイヤーが置いたと覚えているブロック。硬さ × 2 秒で壊して進む。</li>
+ *     <li>{@link Kind#WALL}: 天然の岩・生成された建物(古代都市・廃坑・ダンジョン。決定 その 8)・溶岩・壊せないブロック。</li>
  *     <li>{@link Kind#SKY}: 真上に空が見える升。日の光の当たる所までは来ない。</li>
  * </ul>
  * 空の判定は光の値を使わない(更新が遅れ、GameTest で揺れる)。列の上から下へ、葉・木を読み飛ばして最初の「屋根になる」ブロックを探し、
@@ -77,25 +77,12 @@ public final class WallCells {
         return isChewable(level, pos, state) ? Kind.CHEW : Kind.WALL;
     }
 
-    /** 置いたブロックとして壊せるか。 */
+    /**
+     * 置いたブロックとして壊せるか。<b>プレイヤーが置いたと覚えているブロックだけ</b>(決定 その 8: 古代都市・廃坑・ダンジョンなど生成された建物は
+     * 壊さず壁として扱う。最初の試作は「天然の地形でない固いブロック」も壊していて、古代都市を一度に数千個かじった)。
+     */
     static boolean isChewable(ServerLevel level, BlockPos pos, BlockState state) {
-        float hardness = state.getDestroySpeed(level, pos);
-        if (hardness < 0.0F) {
-            return false; // 岩盤・バリアなど
-        }
-        if (PlacedBlocks.isPlaced(level, pos.asLong())) {
-            return true;
-        }
-        return !isNaturalTerrain(state);
-    }
-
-    /** 天然の地形(壁が掘り進まないもの)。タグ cave_rock + 洞窟にふつうにある土・氷・スカルクなど。 */
-    static boolean isNaturalTerrain(BlockState state) {
-        return state.is(ModTags.CAVE_ROCK) || state.is(BlockTags.ICE) || state.is(BlockTags.DIRT) || state.is(BlockTags.SAND)
-                || state.is(Blocks.CLAY) || state.is(Blocks.MUD) || state.is(Blocks.SNOW_BLOCK) || state.is(Blocks.POWDER_SNOW)
-                || state.is(Blocks.SCULK) || state.is(Blocks.POINTED_DRIPSTONE) || state.is(Blocks.SMALL_AMETHYST_BUD)
-                || state.is(Blocks.MEDIUM_AMETHYST_BUD) || state.is(Blocks.LARGE_AMETHYST_BUD) || state.is(Blocks.AMETHYST_CLUSTER)
-                || state.is(ModTags.CORRUPTED) || TreeCanopyGroundFinder.isTreePart(state);
+        return state.getDestroySpeed(level, pos) >= 0.0F && PlacedBlocks.isPlaced(level, pos.asLong());
     }
 
     /** 灯り(先頭が来たら消える)。光を出すブロックのうち溶岩・天然の地形でないもの。 */

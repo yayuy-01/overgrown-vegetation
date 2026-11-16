@@ -25,6 +25,43 @@ public final class CreepingWallRendering {
         ClientCreepingWall.tick();
     }
 
+    /**
+     * 前触れと、近くで動いている間は、洞窟の環境音・水滴・水の音を消す(決定 その 1「洞窟の環境音・水滴が急に止む」)。
+     */
+    @SubscribeEvent
+    public static void onPlaySound(net.neoforged.neoforge.client.event.sound.PlaySoundEvent event) {
+        if (event.getSound() == null || !ClientCreepingWall.isQuiet()) {
+            return;
+        }
+        String path = event.getSound().getLocation().getPath();
+        if (event.getSound().getSource() == net.minecraft.sounds.SoundSource.AMBIENT || path.startsWith("block.pointed_dripstone.drip")
+                || path.equals("block.water.ambient") || path.startsWith("ambient.")) {
+            event.setSound(null);
+        }
+    }
+
+    /** 塊を殴った: 視線が塊の升に当たったら(後ろのブロックより手前なら)サーバーへ知らせ、後ろのブロックは叩かない。 */
+    @SubscribeEvent
+    public static void onAttack(net.neoforged.neoforge.client.event.InputEvent.InteractionKeyMappingTriggered event) {
+        if (!event.isAttack() || ClientCreepingWall.isEmpty()) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) {
+            return;
+        }
+        double reach = mc.player.blockInteractionRange();
+        if (mc.hitResult != null && mc.hitResult.getType() != net.minecraft.world.phys.HitResult.Type.MISS) {
+            reach = Math.min(reach, mc.hitResult.getLocation().distanceTo(mc.player.getEyePosition()) + 0.05D);
+        }
+        net.minecraft.core.BlockPos cell = ClientCreepingWall.raycast(mc.player.getEyePosition(), mc.player.getLookAngle(), reach);
+        if (cell != null) {
+            net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.yayuy.overgrownvegetation.network.CreepingWallHitPayload(cell));
+            event.setCanceled(true);
+            event.setSwingHand(true);
+        }
+    }
+
     @SubscribeEvent
     public static void onRenderLevel(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_ENTITIES || ClientCreepingWall.isEmpty()) {

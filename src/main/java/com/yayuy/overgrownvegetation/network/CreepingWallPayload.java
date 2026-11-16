@@ -21,6 +21,8 @@ public record CreepingWallPayload(int wallId, byte kind, BlockPos base, int[] ce
     public static final byte SNAPSHOT = 1;
     public static final byte STOP = 2;
     public static final byte CLEAR = 3;
+    /** 前触れ: base = 始まりの升、cells[0] = 音を止める長さ(tick)。 */
+    public static final byte OMEN = 4;
 
     public static final Type<CreepingWallPayload> TYPE = new Type<>(OvergrownVegetation.id("creeping_wall"));
 

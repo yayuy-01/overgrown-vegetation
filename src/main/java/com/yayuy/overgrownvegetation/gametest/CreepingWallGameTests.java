@@ -122,6 +122,13 @@ public final class CreepingWallGameTests {
         }
     }
 
+    /** 壁を起こす(テスト場にはプレイヤーがいないので、遠い枝を止める範囲は外す)。 */
+    private static CreepingWall startWall(ServerLevel level, BlockPos origin) {
+        CreepingWall wall = CreepingWalls.start(level, origin);
+        wall.activeRadius = 0;
+        return wall;
+    }
+
     /** {@code dist} ブロック(1/32 単位の距離 dist32)に届くのは、始まりから何 tick 目か。 */
     private static double ticksFor(double dist32) {
         return dist32 / (WallTuning.speedBlocksPerSecond / 20.0D * CreepingWall.UNIT);
@@ -134,7 +141,7 @@ public final class CreepingWallGameTests {
     public static void advancesAtSprintSpeedInStraightTunnel(GameTestHelper helper) {
         Site s = Site.build(helper, 0);
         s.tunnelX(2, 65, 4, 12);
-        CreepingWall wall = CreepingWalls.start(s.level(), s.at(2, 4, 12));
+        CreepingWall wall = startWall(s.level(), s.at(2, 4, 12));
         long start = wall.startTick();
         helper.runAtTickTime(110, () -> {
             long t = s.level().getGameTime() - start;
@@ -158,7 +165,7 @@ public final class CreepingWallGameTests {
             s.carve(2 + i, 1 + i, 12);
             s.level().setBlock(s.at(2 + i, 3 + i, 12), Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
         }
-        CreepingWall wall = CreepingWalls.start(s.level(), s.at(2, 1, 12));
+        CreepingWall wall = startWall(s.level(), s.at(2, 1, 12));
         long start = wall.startTick();
         int step = 12;
         double expect = ticksFor(step * 45.0D); // 斜め 1 歩 = √2 ブロック
@@ -197,7 +204,7 @@ public final class CreepingWallGameTests {
             }
         }
         s.carve(21, 4, 2); // 小部屋への入口(枝の先 z=2 から)
-        CreepingWall wall = CreepingWalls.start(s.level(), s.at(2, 4, 12));
+        CreepingWall wall = startWall(s.level(), s.at(2, 4, 12));
         BlockPos right = s.at(20, 4, 20), left = s.at(20, 4, 4);
         long[] tr = {-1}, tl = {-1};
         long start = wall.startTick();
@@ -229,7 +236,7 @@ public final class CreepingWallGameTests {
         Site s = Site.build(helper, 3);
         s.tunnelX(2, LEN + 3, 4, 12); // 箱の外(x = LEN 以降)まで掘る → 外は空の下
         // 箱の外の空き(壁が出てくるか見る所)
-        CreepingWall wall = CreepingWalls.start(s.level(), s.at(LEN - 8, 4, 12));
+        CreepingWall wall = startWall(s.level(), s.at(LEN - 8, 4, 12));
         helper.runAtTickTime(80, () -> {
             boolean inside = wall.isFilled(s.at(LEN - 1, 4, 12)) && wall.isFilled(s.at(LEN, 4, 12)); // x = LEN は箱の壁の列(掘った)。上は石
             boolean outside = wall.isFilled(s.at(LEN + 1, 4, 12)) || wall.isFilled(s.at(LEN + 2, 4, 12));
@@ -251,7 +258,7 @@ public final class CreepingWallGameTests {
     public static void stopsAfterDurationAndLeavesLump(GameTestHelper helper) {
         Site s = Site.build(helper, 4);
         s.tunnelX(2, 65, 4, 12);
-        CreepingWall wall = CreepingWalls.start(s.level(), s.at(2, 4, 12));
+        CreepingWall wall = startWall(s.level(), s.at(2, 4, 12));
         wall.setStopTickForTests(wall.startTick() + 40); // 40 tick ≒ 11 ブロック
         int reachAtStop = (int) Math.floor(40 * WallTuning.speedBlocksPerSecond / 20.0D);
         int[] filledAtStop = {-1};
@@ -286,7 +293,7 @@ public final class CreepingWallGameTests {
         husk.setNoAi(true);
         husk.setPersistenceRequired();
         s.level().addFreshEntity(husk);
-        CreepingWall wall = CreepingWalls.start(s.level(), s.at(2, 4, 12));
+        CreepingWall wall = startWall(s.level(), s.at(2, 4, 12));
         long base = wall.stopTick();
         helper.runAtTickTime(60, () -> {
             boolean gone = husk.isRemoved();
@@ -319,7 +326,7 @@ public final class CreepingWallGameTests {
         player.addItem(new ItemStack(Items.TOTEM_OF_UNDYING)); // トーテムがあっても助からない
         BlockPos at = s.at(8, 4, 12);
         player.moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5);
-        CreepingWall wall = CreepingWalls.start(level, s.at(2, 4, 12));
+        CreepingWall wall = startWall(level, s.at(2, 4, 12));
         boolean[] eaten = {false};
         helper.onEachTick(() -> {
             if (!eaten[0] && CreepingWalls.swallowIfInside(level, wall, player)) {
@@ -359,7 +366,7 @@ public final class CreepingWallGameTests {
 
     // ------------------------------------------------------------------ 置いたブロック・灯り
 
-    /** 丸石の栓(置いたブロック)は硬さ × 2 秒で壊して進み、天然の石の栓は壊さない。プレイヤーが置いた土も壊す。 */
+    /** プレイヤーが置いた丸石の栓は硬さ × 2 秒で壊して進み、置いた土はそれより早い。生成された建物(覚えていない苔むした丸石)は壊さない(決定 その 8)。 */
     @GameTest(template = TEMPLATE, timeoutTicks = 300, batch = "creeping_wall")
     public static void chewsPlacedBlocksByHardness(GameTestHelper helper) {
         Site s = Site.build(helper, 7);
@@ -375,13 +382,16 @@ public final class CreepingWallGameTests {
         }
         BlockPos cobble = s.at(10, 4, 4), stone = s.at(10, 4, 12), dirt = s.at(10, 4, 20);
         for (BlockPos p : new BlockPos[]{cobble, stone, dirt}) {
-            Block b = p == cobble ? Blocks.COBBLESTONE : p == stone ? Blocks.STONE : Blocks.DIRT;
+            Block b = p == cobble ? Blocks.COBBLESTONE : p == stone ? Blocks.MOSSY_COBBLESTONE : Blocks.DIRT;
             level.setBlock(p, b.defaultBlockState(), Block.UPDATE_CLIENTS);
             level.setBlock(p.above(), b.defaultBlockState(), Block.UPDATE_CLIENTS);
         }
         PlacedBlocks.mark(level, dirt);
         PlacedBlocks.mark(level, dirt.above());
-        CreepingWall wall = CreepingWalls.start(level, s.at(2, 12, 12).below(8)); // = (2, 4, 12)
+        PlacedBlocks.mark(level, cobble);
+        PlacedBlocks.mark(level, cobble.above());
+        // stone の所の苔むした丸石は覚えていない = ダンジョンなど生成された建物
+        CreepingWall wall = startWall(level, s.at(2, 12, 12).below(8)); // = (2, 4, 12)
         long start = wall.startTick();
         long[] cobbleOpen = {-1}, dirtOpen = {-1};
         helper.onEachTick(() -> {
@@ -390,14 +400,14 @@ public final class CreepingWallGameTests {
             if (dirtOpen[0] < 0 && wall.isFilled(dirt.east())) dirtOpen[0] = t;
         });
         helper.runAtTickTime(260, () -> {
-            // 天然の石の栓は壊さない(跡で汚染した石には変わる)
+            // 生成された建物の栓は壊さない(跡で汚染したブロックには変わりうる)
             boolean stoneHeld = !level.getBlockState(stone).isAir() && !wall.isFilled(stone) && !wall.isFilled(stone.east());
             s.finish(wall);
             // 栓の手前に着く時刻(道のり: 始まり → 横へ 8 → 前へ 7)+ 壊す時間
             double arrive = ticksFor(15 * 32.0D);
             double cobbleExpect = arrive + 2.0F * WallTuning.chewTicksPerHardness; // 丸石の硬さ 2
             double dirtExpect = ticksFor(7 * 32.0D) + 0.5F * WallTuning.chewTicksPerHardness; // 土 0.5、真ん中は道のり 7
-            if (!stoneHeld) helper.fail("天然の石の栓を壊した");
+            if (!stoneHeld) helper.fail("生成された建物(覚えていない苔むした丸石)の栓を壊した");
             else if (cobbleOpen[0] < 0) helper.fail("丸石の栓を壊さない");
             else if (cobbleOpen[0] < cobbleExpect - 4) helper.fail("丸石を壊すのが早すぎる: t=" + cobbleOpen[0] + "(期待 " + Math.round(cobbleExpect) + " 前後)");
             else if (dirtOpen[0] < 0) helper.fail("置いた土を壊さない");
@@ -419,7 +429,7 @@ public final class CreepingWallGameTests {
         if (level.getBlockEntity(chest) instanceof net.minecraft.world.Container c) {
             c.setItem(0, new ItemStack(Items.APPLE, 3));
         }
-        CreepingWall wall = CreepingWalls.start(level, s.at(2, 4, 12));
+        CreepingWall wall = startWall(level, s.at(2, 4, 12));
         helper.runAtTickTime(80, () -> {
             boolean torchGone = !level.getBlockState(torch).is(Blocks.TORCH);
             boolean lanternGone = !level.getBlockState(lantern).is(Blocks.LANTERN);
@@ -432,6 +442,120 @@ public final class CreepingWallGameTests {
             else if (drops > 0) helper.fail("灯りがアイテムを落とした: " + drops);
             else if (!chestStays) helper.fail("チェスト(中身)が残らない");
             else if (!passed) helper.fail("チェストの先へ進まない");
+            else helper.succeed();
+        });
+    }
+
+    // ------------------------------------------------------------------ 量(決定 その 8)
+
+    /** 飲んだ Mob による延長は最大 60 秒(止まるまで最長 60 + 60 秒)。 */
+    @GameTest(template = TEMPLATE, timeoutTicks = 20, batch = "creeping_wall")
+    public static void swallowExtensionIsCapped(GameTestHelper helper) {
+        Site s = Site.build(helper, 9);
+        s.tunnelX(2, 10, 4, 12);
+        CreepingWall wall = startWall(s.level(), s.at(2, 4, 12));
+        long base = wall.stopTick();
+        for (int i = 0; i < 200; i++) {
+            wall.swallowOne();
+        }
+        long ext = wall.stopTick() - base;
+        int swallowed = wall.swallowed();
+        s.finish(wall);
+        if (swallowed != 200) helper.fail("飲んだ数 " + swallowed);
+        else if (ext != WallTuning.maxExtensionTicks) helper.fail("延びが上限でない: " + ext + " tick(上限 " + WallTuning.maxExtensionTicks + ")");
+        else helper.succeed();
+    }
+
+    /** 人から遠い枝は進めず、人が近づくとその時の距離から進み直す(決定 その 8 の案 c)。 */
+    @GameTest(template = TEMPLATE, timeoutTicks = 200, batch = "creeping_wall")
+    public static void farBranchesWaitForPlayers(GameTestHelper helper) {
+        Site s = Site.build(helper, 10);
+        s.tunnelX(2, 60, 4, 12);
+        CreepingWall wall = startWall(s.level(), s.at(2, 4, 12));
+        wall.activeRadius = 12;
+        wall.extraAnchors.add(s.at(2, 4, 12)); // 始まりのそばに人がいる
+        long[] woke = {-1};
+        helper.runAtTickTime(90, () -> {
+            boolean near = wall.isFilled(s.at(12, 4, 12));
+            boolean beyond = wall.isFilled(s.at(18, 4, 12));
+            if (!near || beyond || wall.dormant.isEmpty()) {
+                s.finish(wall);
+                helper.fail("90 tick: 12 先 " + near + "・18 先 " + beyond + "(埋まってはいけない)・止めた升 " + wall.dormant.size());
+                return;
+            }
+            wall.extraAnchors.clear();
+            wall.extraAnchors.add(s.at(24, 4, 12)); // 人が奥へ移った(止めていた先頭から 10 ブロックほど)
+            woke[0] = s.level().getGameTime();
+        });
+        helper.runAtTickTime(170, () -> {
+            boolean resumed = wall.isFilled(s.at(18, 4, 12)) && wall.isFilled(s.at(26, 4, 12));
+            s.finish(wall);
+            if (!resumed) helper.fail("人が近づいても進み直さない");
+            else helper.succeed();
+        });
+    }
+
+    // ------------------------------------------------------------------ 前触れ・ひるむ
+
+    /** 前触れの間は動かず、灯りが始まりに近い順に消えていく(奥の灯りは後まで残る)。前触れが終わると動き出す。 */
+    @GameTest(template = TEMPLATE, timeoutTicks = 200, batch = "creeping_wall")
+    public static void omenPutsOutLightsFromTheFarSide(GameTestHelper helper) {
+        Site s = Site.build(helper, 11);
+        ServerLevel level = s.level();
+        s.tunnelX(2, 62, 4, 12);
+        BlockPos nearTorch = s.at(6, 4, 12), farTorch = s.at(50, 4, 12);
+        level.setBlock(nearTorch, Blocks.TORCH.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(farTorch, Blocks.TORCH.defaultBlockState(), Block.UPDATE_ALL);
+        CreepingWall wall = CreepingWalls.startWithOmen(level, s.at(2, 4, 12));
+        wall.activeRadius = 0;
+        helper.runAtTickTime(WallTuning.omenTicks / 3, () -> {
+            boolean nearOut = !level.getBlockState(nearTorch).is(Blocks.TORCH);
+            boolean farLit = level.getBlockState(farTorch).is(Blocks.TORCH);
+            int filled = wall.filledCount();
+            if (!nearOut || !farLit || filled != 0) {
+                s.finish(wall);
+                helper.fail("前触れの 1/3: 近い松明が消えた " + nearOut + "・遠い松明が残る " + farLit + "・埋まった升 " + filled + "(0 のはず)");
+            }
+        });
+        helper.runAtTickTime(WallTuning.omenTicks + 30, () -> {
+            boolean farOut = !level.getBlockState(farTorch).is(Blocks.TORCH);
+            boolean moving = wall.filledCount() > 0;
+            s.finish(wall);
+            if (!farOut) helper.fail("前触れの終わりまでに奥の松明が消えない");
+            else if (!moving) helper.fail("前触れの後に動き出さない");
+            else helper.succeed();
+        });
+    }
+
+    /** 殴るとひるんで一瞬止まる(壁全体)。続けて殴っても、間を置かないとひるまない。 */
+    @GameTest(template = TEMPLATE, timeoutTicks = 120, batch = "creeping_wall")
+    public static void flinchesBrieflyWhenHit(GameTestHelper helper) {
+        Site s = Site.build(helper, 12);
+        s.tunnelX(2, 60, 4, 12);
+        CreepingWall wall = startWall(s.level(), s.at(2, 4, 12));
+        int[] at = {-1};
+        boolean[] second = {true};
+        helper.runAtTickTime(20, () -> {
+            long now = s.level().getGameTime();
+            boolean first = wall.flinch(now, 20);
+            second[0] = wall.flinch(now, 20);
+            at[0] = wall.filledCount();
+            if (!first) {
+                s.finish(wall);
+                helper.fail("ひるまない");
+            }
+        });
+        helper.runAtTickTime(36, () -> {
+            int during = wall.filledCount();
+            if (second[0] || during != at[0]) {
+                s.finish(wall);
+                helper.fail("続けてひるんだ " + second[0] + "・ひるんでいる間に進んだ " + at[0] + " → " + during);
+            }
+        });
+        helper.runAtTickTime(80, () -> {
+            boolean resumed = wall.filledCount() > at[0];
+            s.finish(wall);
+            if (!resumed) helper.fail("ひるんだ後に進み直さない");
             else helper.succeed();
         });
     }
