@@ -598,6 +598,11 @@ float ovCaveCavern(vec3 pos) {
 //   camera in, fragment out c (1 - u) (1 - k) -> the outside seen through the mouth: haze over the part past the camera's mouth (as before);
 //   both out (1 - c)(1 - u) -> the surface fog.
 // The weights add up to 1, so walking through a mouth moves them a little per step instead of switching the whole view.
+// 11-16 (user report: the outside seen from inside a cave was a flat pale yellow-green mass): the surface haze over the part of the
+// path that lies outside is scaled by this. At full strength a dense forest put 60 percent haze on terrain 30 blocks past the mouth,
+// and from the dark of a cave that bright flat colour hid the picture. A provisional value.
+const float OV_CAVE_OUTSIDE_HAZE = 0.3;
+
 vec3 ovCaveFogLocal(vec3 fogged, vec3 lit, vec3 surface, float dist, float under) {
     float cam = OvCaveLocal.y;
     float k = ovCaveCavernNow;
@@ -626,12 +631,12 @@ vec3 ovCaveFogLocal(vec3 fogged, vec3 lit, vec3 surface, float dist, float under
         float outPath = max(dist - camMouth, 0.0);
         vec3 base = surface;
         if (ovCaveHaze >= 0.0) {
-            float share = 1.0 - pow(max(1.0 - ovCaveHeight.a, 0.0), outPath / max(dist, 0.001));
+            float share = (1.0 - pow(max(1.0 - ovCaveHeight.a, 0.0), outPath / max(dist, 0.001))) * OV_CAVE_OUTSIDE_HAZE;
             float colorDist = max(OvFogD.w, 1.0);
             vec3 col = clamp(ovCaveHeight.rgb + (OvFogD.rgb - OvFogC.rgb) * (exp(-dist / colorDist) - exp(-outPath / colorDist)), 0.0, 1.0);
             base = mix(lit, col, share);
         }
-        c += mix(base, OvCaveSurf.rgb, 1.0 - exp(-OvCaveSurf.w * outPath)) * wToSurf;
+        c += mix(base, OvCaveSurf.rgb, (1.0 - exp(-OvCaveSurf.w * outPath)) * OV_CAVE_OUTSIDE_HAZE) * wToSurf;
     }
     if (mod(OvCaveFogD.w, 10.0) > 1.5) {
         c = mix(c, vec3(0.0, 0.3, 1.0), 0.8 * s * wToCave);
@@ -689,12 +694,12 @@ vec3 ovCaveFog(vec3 fogged, vec3 lit, vec3 surface, float dist, float under) {
         if (ovCaveHaze >= 0.0) {
             // The height fog of the forest (in surface, over the whole line from the camera) too: it made most of that veil, so it
             // goes over the outside part only, the same way as for a cave seen from outside (ovCaveSetHaze).
-            float share = 1.0 - pow(max(1.0 - ovCaveHeight.a, 0.0), outPath / max(dist, 0.001));
+            float share = (1.0 - pow(max(1.0 - ovCaveHeight.a, 0.0), outPath / max(dist, 0.001))) * OV_CAVE_OUTSIDE_HAZE;
             float colorDist = max(OvFogD.w, 1.0);
             vec3 col = clamp(ovCaveHeight.rgb + (OvFogD.rgb - OvFogC.rgb) * (exp(-dist / colorDist) - exp(-outPath / colorDist)), 0.0, 1.0);
             base = mix(lit, col, share);
         }
-        vec3 hazed = mix(base, OvCaveSurf.rgb, 1.0 - exp(-OvCaveSurf.w * outPath));
+        vec3 hazed = mix(base, OvCaveSurf.rgb, (1.0 - exp(-OvCaveSurf.w * outPath)) * OV_CAVE_OUTSIDE_HAZE);
         c = mix(c, hazed, toSurface);
     }
     // 11-07: a fragment under the hole but inside the cavern (its sunlit walls and floor) seen from the cave takes the cave fog by

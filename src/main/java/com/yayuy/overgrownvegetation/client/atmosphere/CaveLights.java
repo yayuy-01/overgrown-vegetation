@@ -1180,6 +1180,7 @@ public final class CaveLights {
             // 断片の所の地下の霧 20〜28 が、水の霧を掛けた色を差し替えていた)。
             shader.safeGetUniform("OvCaveFogD").set(fogStart(), fogEnd(), inFluid ? 1.0F : 0.0F, (devTintSink ? 2.0F : devTint ? 1.0F : 0.0F) + (devNoCavern ? 10.0F : 0.0F));
             // 洞窟の中から見た口の外: カメラの黒い霧を外した代わりに森の胞子の霞(地上の霧と同じ色・濃さ)を距離で掛ける。
+            // 11-16: 外に掛ける霞は、シェーダーの側で OV_CAVE_OUTSIDE_HAZE(ov_cave.glsl)を掛けて薄くする(洞窟から見た外が平らな黄緑の塊になった)。
             shader.safeGetUniform("OvCaveSurf").set(surf[0], surf[1], surf[2], surfK);
             // カメラが外にいるとき、洞窟の中を口からの距離で黒へ沈める(11-04 地下の光の直し 12。前はカメラからの距離で、遠くから覗くと奥がまるごと黒だった)。
             float mFrom = devMouthFrom >= 0.0F ? devMouthFrom : p.mouthFrom();
