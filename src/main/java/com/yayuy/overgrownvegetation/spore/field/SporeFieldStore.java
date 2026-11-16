@@ -297,7 +297,7 @@ final class SporeFieldStore {
 
     /** 書いた形 {@code tag} が、区画 {@code t} の保存する配列と 1 つ残らず同じか。 */
     private static boolean sameAsTag(SporeField.Tile t, CompoundTag tag, long landSig) {
-        boolean ok = java.util.Arrays.equals(tag.getIntArray("air"), bits(t.air)) && java.util.Arrays.equals(tag.getIntArray("low"), bits(t.low))
+        boolean ok = java.util.Arrays.equals(tag.getIntArray("air"), bits(t.air)) && java.util.Arrays.equals(tag.getIntArray("low"), lowBits(t))
                 && java.util.Arrays.equals(tag.getIntArray("dep"), bits(t.dep)) && java.util.Arrays.equals(tag.getLongArray("sprout"), t.sprout)
                 && java.util.Arrays.equals(tag.getByteArray("count"), t.count) && java.util.Arrays.equals(tag.getByteArray("flags"), t.flags)
                 && java.util.Arrays.equals(tag.getIntArray("under"), bits(t.under)) && java.util.Arrays.equals(tag.getIntArray("underDep"), bits(t.underDep))
@@ -324,7 +324,7 @@ final class SporeFieldStore {
     static CompoundTag tileTag(SporeField.Tile t, long landSig) {
         CompoundTag tag = new CompoundTag();
         tag.putIntArray("air", bits(t.air));
-        tag.putIntArray("low", bits(t.low));
+        tag.putIntArray("low", lowBits(t));
         tag.putIntArray("dep", bits(t.dep));
         tag.putLongArray("sprout", t.sprout.clone());
         tag.putByteArray("count", t.count.clone());
@@ -402,6 +402,13 @@ final class SporeFieldStore {
         return true;
     }
 
+    /** 奥の区画は林床の層の配列を持たない(null = どこも 0。軽量化 M1)。保存の形と指紋は 0 の配列と同じにする。 */
+    private static final int ZERO_LOW_HASH = java.util.Arrays.hashCode(new float[SporeField.TN]);
+
+    private static int[] lowBits(SporeField.Tile t) {
+        return t.low == null ? new int[SporeField.TN] : bits(t.low);
+    }
+
     private static int[] bits(float[] a) {
         int[] b = new int[a.length];
         for (int i = 0; i < a.length; i++) b[i] = Float.floatToRawIntBits(a[i]);
@@ -421,7 +428,7 @@ final class SporeFieldStore {
     private static long hash(SporeField.Tile t) {
         long h = 1469598103934665603L;
         h = h * 31 + java.util.Arrays.hashCode(t.air);
-        h = h * 31 + java.util.Arrays.hashCode(t.low);
+        h = h * 31 + (t.low == null ? ZERO_LOW_HASH : java.util.Arrays.hashCode(t.low));
         h = h * 31 + java.util.Arrays.hashCode(t.dep);
         h = h * 31 + java.util.Arrays.hashCode(t.sprout);
         h = h * 31 + java.util.Arrays.hashCode(t.count);

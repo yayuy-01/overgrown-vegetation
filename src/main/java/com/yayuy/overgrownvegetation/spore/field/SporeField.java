@@ -155,14 +155,28 @@ public final class SporeField {
     static final class Tile {
         final int tx, tz;
         final float[] air = new float[TN], next = new float[TN], dep = new float[TN];
-        /** 林床の低い層(風に乗らず四方へ染み出すだけ)。 */
-        final float[] low = new float[TN], lowNext = new float[TN];
+        /**
+         * 林床の低い層(風に乗らず四方へ染み出すだけ)。本体の奥の区画({@link #interior})は林床を計算せず、入ってきた分も吸われたことにして 0 にするので、
+         * 奥の間は配列を持たない(null = どこも 0。2026-11-16 軽量化 M1。奥でなくなったら {@link SporeField#ensureLow} で作り直す)。
+         */
+        float[] low = new float[TN], lowNext = new float[TN];
         /** 直前の運搬で隣から入ってきた浮遊・低い層(自分の放出を除く。汚染済みの升の 2 回目の発芽に使う)。 */
         // 読む側は 16 ビット(半精度。【決定】10-23 追記 8 の軽量化 2)、貯める側は float
         final short[] inAir = new short[TN], inLow = new short[TN];
         final float[] inAirNext = new float[TN], inLowNext = new float[TN];
         /** 16 ビットにしないとき(half16 = 0)の読む側。 */
         float[] inAirF, inLowF;
+        /** 隣の区画(東・西・南・北)。1 刻みの間だけ覚える(2026-11-16 軽量化 S2。{@link SporeField#near})。 */
+        Tile nbE, nbW, nbS, nbN;
+        long nbEpoch = -1;
+        /**
+         * 谷風の向き(2026-11-16 軽量化 S3): 升ごとに、いちばん高い(夜は低い)隣。-1 = まだ調べていない、0 = 無い、1 東・2 西・3 南・4 北。
+         * 昼夜・その日の逆転層・高さの測り直しが変わったら調べ直す。
+         */
+        byte[] valleyDir;
+        boolean valleyDay;
+        double valleyInv;
+        long valleyLand = -1;
         /** 発芽しない升(水など)の数。 */
         int never;
         /** 本体の奥(自分も周りの 8 区画も全部汚染済み)。林床の層を計算せず、浮遊は 1 回の更新で 1 回だけ進める(軽量化 3)。 */
@@ -517,6 +531,7 @@ public final class SporeField {
         t.flags[i] = 0;
         t.dep[i] = 0;
         t.interior = false;
+        ensureLow(t);
     }
 
     /**
@@ -533,7 +548,7 @@ public final class SporeField {
                 Tile t = tile(cx + dx, cz + dz, false);
                 if (t == null) continue;
                 int i = idx(cx + dx, cz + dz);
-                total += t.air[i] + t.low[i];
+                total += t.air[i] + (t.low == null ? 0f : t.low[i]);
             }
         if (total <= 0) return 0;
         double take = Math.min(cap, total);
@@ -545,7 +560,7 @@ public final class SporeField {
                 if (t == null) continue;
                 int i = idx(cx + dx, cz + dz);
                 t.air[i] *= keep;
-                t.low[i] *= keep;
+                if (t.low != null) t.low[i] *= keep;
             }
         return take;
     }
@@ -571,7 +586,7 @@ public final class SporeField {
     /** 林床の値(/ov の表示)。 */
     public double low(int cx, int cz) {
         Tile t = tile(cx, cz, false);
-        return t == null ? 0 : t.low[idx(cx, cz)];
+        return t == null || t.low == null ? 0 : t.low[idx(cx, cz)];
     }
 
     // ---------------------------------------------------------------- 地下の層(2026-11-04 暴露量ノート 追記 6)
@@ -774,6 +789,7 @@ public final class SporeField {
             java.util.Arrays.fill(t.height, Float.NaN);
         }
         t.height[i] = y;
+        landEpoch++; // 谷風の向きの表を調べ直す(軽量化 S3)
         fillGround(t, i, cx, cz, y, false);
     }
 
@@ -1035,7 +1051,12 @@ public final class SporeField {
         int n = Math.max(nAir, nLow);
         boolean thin = p.thinInterior != 0;
         if (thin && (stepCounter++ % p.interiorRemarkSteps == 0)) markInterior();
-        if (!thin) for (Tile tl : tiles.values()) tl.interior = false;
+        if (!thin) {
+            for (Tile tl : tiles.values()) {
+                tl.interior = false;
+                ensureLow(tl);
+            }
+        }
         // 軽量化 D: 雷雨の間は間引かない(持ち上げ = 飛び地のもとを、ふつうと同じ刻みで数える)。ネザー(寒暖差の風)でも使わない
         int every = thin && thermal == null && !c.thundering() ? Math.max(1, p.deepEvery) : 1;
         if (every > 1) {
@@ -1075,6 +1096,14 @@ public final class SporeField {
 
     private long stepCounter;
 
+    /** 奥でなくなった区画に、林床の層の配列を作り直す(軽量化 M1。奥の間の中身は 0 だったので 0 から)。 */
+    private static void ensureLow(Tile t) {
+        if (t.low == null) {
+            t.low = new float[TN];
+            t.lowNext = new float[TN];
+        }
+    }
+
     /** 本体の奥の印を付け直す(自分も周りの 8 区画も、全部の升が「汚染済みか発芽しない升」)。 */
     private void markInterior() {
         for (Tile tl : tiles.values()) {
@@ -1085,6 +1114,7 @@ public final class SporeField {
                     in = nb != null && nb.corrupted + nb.never >= TN;
                 }
             tl.interior = in;
+            if (!in) ensureLow(tl);
         }
         int nIn = 0, nDeep = 0, nSurf = 0, nDone = 0, nDoneNoWait = 0;
         long twoCells = 0;
@@ -1152,6 +1182,7 @@ public final class SporeField {
                               double keepMN, double toDepMN, double toLiftMN, double[] pqM, double toDepM1, double soakDtM,
                               double keepUN, double toDepUN, double underDepKeepN, double germPUN, double inSelf, float eps) {
         int bx = tl.tx << TB, bz = tl.tz << TB;
+        double soakDefN = 1 - Math.exp(-p.soakPerDay * p.mouthDefault * soakDt), soakDefM = 1 - Math.exp(-p.soakPerDay * p.mouthDefault * soakDtM);
         for (int i = 0; i < TN; i++) {
             double a = tl.air[i];
             double a0 = a;
@@ -1205,7 +1236,7 @@ public final class SporeField {
                 tl.dep[i] = 0;
             }
             if (!doAir) continue;
-            if (under) a = stepUnder(tl, i, cx, cz, a, cSoakDt, keepUN, toDepUN, underDepKeepN, germPUN, t);
+            if (under) a = stepUnder(tl, i, cx, cz, a, cSoakDt, mount ? soakDefM : soakDefN, keepUN, toDepUN, underDepKeepN, germPUN, t);
             double lifted = a * tLift;
             a *= tKeep;
             a += post;
@@ -1372,6 +1403,9 @@ public final class SporeField {
         double soakMulN = 1 - keep < 1e-12 ? every : (1 - keepN) / (1 - keep), soakMulMN = 1 - keepM < 1e-12 ? every : (1 - keepMN) / (1 - keepM);
 
         long devT0 = System.nanoTime();
+        stepEpoch++;
+        // 洞窟の口の多さが既定値の升の、地下へ染み込む割合(2026-11-16 軽量化 S1: 升ごとに Math.exp を呼ばない。値は同じ)
+        double soakDef = 1 - Math.exp(-p.soakPerDay * p.mouthDefault * dtAir);
         List<Tile> list = new ArrayList<>(tiles.values());
         for (Tile tl : list) {
             if (tl.slow != 0) {
@@ -1388,11 +1422,24 @@ public final class SporeField {
                 continue;
             }
             int bx = tl.tx << TB, bz = tl.tz << TB;
+            byte[] vd = null;
+            if (doAir && fValley > 0 && tl.height != null) {
+                vd = tl.valleyDir;
+                if (vd == null || tl.valleyDay != daytime || tl.valleyInv != inversionNow || tl.valleyLand != landEpoch) {
+                    if (vd == null) vd = tl.valleyDir = new byte[TN];
+                    java.util.Arrays.fill(vd, (byte) -1);
+                    tl.valleyDay = daytime;
+                    tl.valleyInv = inversionNow;
+                    tl.valleyLand = landEpoch;
+                }
+            }
             boolean deep = tl.interior;
             boolean lowHere = doLow && !deep;
+            if (!deep) ensureLow(tl); // 念のため(奥でなくなった所で作り直している)
+            float[] lowArr = tl.low;
             boolean riftTile = !fronts.isEmpty() && tileInFront(tl);
             for (int i = 0; i < TN; i++) {
-                double a = tl.air[i], lo = tl.low[i];
+                double a = tl.air[i], lo = lowArr == null ? 0 : lowArr[i];
                 boolean rz = riftTile && inFront(bx + (i & (TS - 1)), bz + (i >> TB));
                 double tDep = rz ? toDepS : toDep, tKeep = rz ? keepS : keep, tLift = rz ? toLiftS : toLift;
                 float hy = tl.height == null ? Float.NaN : tl.height[i];
@@ -1470,7 +1517,7 @@ public final class SporeField {
                                 if (dT <= 0) continue;
                                 double q = lo * Math.min(p.thermalWindCap, dT * p.thermalWindPerDay) * dtLow;
                                 Tile nt = (nx >> TB) == tl.tx && (nz >> TB) == tl.tz ? tl : tile(nx, nz, true);
-                                nt.lowNext[idx(nx, nz)] += (float) q;
+                                if (nt.lowNext != null) nt.lowNext[idx(nx, nz)] += (float) q;
                                 nt.inLowNext[idx(nx, nz)] += (float) q;
                                 out += q;
                             }
@@ -1479,7 +1526,7 @@ public final class SporeField {
                     }
                 }
                 if (!doAir) continue;
-                if (under) a = stepUnder(tl, i, cx, cz, a, dtAir, keepU, toDepU, underDepKeep, germPU, t);
+                if (under) a = stepUnder(tl, i, cx, cz, a, dtAir, soakDef, keepU, toDepU, underDepKeep, germPU, t);
                 double lifted = a * tLift;
                 a *= tKeep;
                 if (lifted > 0) {
@@ -1491,20 +1538,36 @@ public final class SporeField {
                 if (fValley > 0 && !Float.isNaN(hy)) {
                     // 谷風・山風: いちばん高い(夜は低い)隣へ。逆転層より上の隣へは行かない
                     int bestX = 0, bestZ = 0;
-                    float bh = hy;
-                    for (int dir = 0; dir < 4; dir++) {
-                        int nx = cx + (dir == 0 ? 1 : dir == 1 ? -1 : 0), nz = cz + (dir == 2 ? 1 : dir == 3 ? -1 : 0);
-                        Tile nt = (nx >> TB) == tl.tx && (nz >> TB) == tl.tz ? tl : tile(nx, nz, true);
-                        if (nt.height == null) continue;
-                        int ni = idx(nx, nz);
-                        float nh = nt.height[ni];
-                        if (Float.isNaN(nh) || aboveInversion(nt, ni)) continue;
-                        if (daytime ? nh > bh : nh < bh) {
-                            bh = nh;
-                            bestX = nx - cx;
-                            bestZ = nz - cz;
+                    int code = vd[i];
+                    if (code < 0) {
+                        // まだ調べていない升(軽量化 S3: 調べた向きを覚える)
+                        float bh = hy;
+                        code = 0;
+                        for (int dir = 0; dir < 4; dir++) {
+                            int nx = cx + (dir == 0 ? 1 : dir == 1 ? -1 : 0), nz = cz + (dir == 2 ? 1 : dir == 3 ? -1 : 0);
+                            Tile nt = near(tl, nx, nz);
+                            if (nt.height == null) continue;
+                            int ni = idx(nx, nz);
+                            float nh = nt.height[ni];
+                            if (Float.isNaN(nh) || aboveInversion(nt, ni)) continue;
+                            if (daytime ? nh > bh : nh < bh) {
+                                bh = nh;
+                                code = dir + 1;
+                            }
                         }
+                        vd[i] = (byte) code;
+                    } else {
+                        // 覚えている升でも、区画の縁では前と同じ順に隣の区画に触る(無ければ作る。区画ができる順番を変えない)
+                        int lx = i & (TS - 1), lz = i >> TB;
+                        if (lx == TS - 1) near(tl, cx + 1, cz);
+                        if (lx == 0) near(tl, cx - 1, cz);
+                        if (lz == TS - 1) near(tl, cx, cz + 1);
+                        if (lz == 0) near(tl, cx, cz - 1);
                     }
+                    if (code == 1) bestX = 1;
+                    else if (code == 2) bestX = -1;
+                    else if (code == 3) bestZ = 1;
+                    else if (code == 4) bestZ = -1;
                     if (bestX != 0 || bestZ != 0) {
                         double m = a * fValley;
                         a -= m;
@@ -1557,9 +1620,14 @@ public final class SporeField {
                 java.util.Arrays.fill(tl.next, 0f);
             }
             if (doLow) {
-                if (tl.interior) java.util.Arrays.fill(tl.low, 0f); // 奥へ入ってきた林床の分は吸われたことにする
-                else System.arraycopy(tl.lowNext, 0, tl.low, 0, TN);
-                java.util.Arrays.fill(tl.lowNext, 0f);
+                if (tl.interior) {
+                    // 奥へ入ってきた林床の分は吸われたことにする。ここで 0 になるので、奥の間は配列ごと手放す(軽量化 M1)
+                    tl.low = null;
+                    tl.lowNext = null;
+                } else {
+                    System.arraycopy(tl.lowNext, 0, tl.low, 0, TN);
+                    java.util.Arrays.fill(tl.lowNext, 0f);
+                }
             }
             if (!half) {
                 if (tl.inAirF == null) {
@@ -1593,12 +1661,15 @@ public final class SporeField {
      * ({@link #newCaveSprouts} に出すだけ。チャンクの汚染・台帳は変えない)。隣の地下へは伝えない(入り口の無い洞窟には空気では届かない)。
      * 染み込んだ後の地上の浮遊を返す。
      */
-    private double stepUnder(Tile tl, int i, int cx, int cz, double a, double dtAir, double keepU, double toDepU, double underDepKeep,
+    private double stepUnder(Tile tl, int i, int cx, int cz, double a, double dtAir, double soakDef, double keepU, double toDepU, double underDepKeep,
                              double germPU, long t) {
-        double mo = mouthOf(tl, i);
+        float mf = tl.mouth[i];
+        boolean def = Float.isNaN(mf);
+        double mo = def ? p.mouthDefault : mf;
         double u = tl.under[i];
         if (mo > 0 && a > 0 && p.soakPerDay > 0) {
-            double q = a * (1 - Math.exp(-p.soakPerDay * mo * dtAir));
+            // 口の多さが既定値の升は、刻みごとに 1 回だけ計算した割合を使う(軽量化 S1。soakDef = 1 − exp(−soakPerDay × mouthDefault × dtAir))
+            double q = a * (def ? soakDef : 1 - Math.exp(-p.soakPerDay * mo * dtAir));
             a -= q;
             u += q;
         }
@@ -1626,16 +1697,51 @@ public final class SporeField {
             f *= 2.0 * s0 * s1 / Math.max(1e-6, s0 + s1);
         }
         double q = lo * f;
-        Tile t = (cx >> TB) == from.tx && (cz >> TB) == from.tz ? from : tile(cx, cz, true);
-        t.lowNext[idx(cx, cz)] += (float) q;
+        Tile t = near(from, cx, cz);
+        if (t.lowNext != null) t.lowNext[idx(cx, cz)] += (float) q; // 奥の区画へ入った分は吸われる(配列を持たない。軽量化 M1)
         t.inLowNext[idx(cx, cz)] += (float) q;
         return q;
+    }
+
+    /** 1 刻みごとに進む番号(隣の区画の覚え {@link Tile#nbE} が古くないかを見る。刻みの終わりに空の区画を捨てるので、刻みをまたいで持ち越さない)。 */
+    private long stepEpoch;
+    /** 高さを測り直した回数(谷風の向きの表を調べ直す)。 */
+    private long landEpoch;
+
+    /**
+     * 升 (cx, cz) のある区画({@code from} か、その 4 方の隣。無ければ作る)。2026-11-16 軽量化 S2: 隣の区画は 1 刻みの間だけ {@code from} に覚えておき、
+     * 表を引くのは刻みごとに方向 1 つにつき 1 回にする(区画を作る・引く順番は前と同じ = 場の答えは変わらない)。
+     */
+    private Tile near(Tile from, int cx, int cz) {
+        int dx = (cx >> TB) - from.tx, dz = (cz >> TB) - from.tz;
+        if (dx == 0 && dz == 0) return from;
+        if (from.nbEpoch != stepEpoch) {
+            from.nbE = from.nbW = from.nbS = from.nbN = null;
+            from.nbEpoch = stepEpoch;
+        }
+        Tile t;
+        if (dz == 0 && dx == 1) {
+            t = from.nbE;
+            if (t == null) from.nbE = t = tile(cx, cz, true);
+        } else if (dz == 0 && dx == -1) {
+            t = from.nbW;
+            if (t == null) from.nbW = t = tile(cx, cz, true);
+        } else if (dx == 0 && dz == 1) {
+            t = from.nbS;
+            if (t == null) from.nbS = t = tile(cx, cz, true);
+        } else if (dx == 0 && dz == -1) {
+            t = from.nbN;
+            if (t == null) from.nbN = t = tile(cx, cz, true);
+        } else {
+            t = tile(cx, cz, true);
+        }
+        return t;
     }
 
     private float spreadAt(Tile from, int cx, int cz) {
         if ((cx >> TB) == from.tx && (cz >> TB) == from.tz) return from.spread[idx(cx, cz)];
         // 区画が無ければ作る(どのみち直後の pushLow が作る。土地の倍率は高さ込みで区画を作るときに決まる。2026-10-30)
-        Tile t = tile(cx, cz, true);
+        Tile t = near(from, cx, cz);
         return t.spread != null ? t.spread[idx(cx, cz)] : 1f;
     }
 
@@ -1780,7 +1886,7 @@ public final class SporeField {
 
     private boolean isEmpty(Tile tl, float eps) {
         for (int i = 0; i < TN; i++) {
-            if (tl.air[i] >= eps || tl.low[i] >= eps || tl.dep[i] >= eps) return false;
+            if (tl.air[i] >= eps || (tl.low != null && tl.low[i] >= eps) || tl.dep[i] >= eps) return false;
             if (tl.under[i] >= eps || tl.underDep[i] >= eps || tl.caveCount[i] != 0) return false; // 地下の層(2026-11-04)
         }
         return true;
@@ -1788,7 +1894,7 @@ public final class SporeField {
 
     /** 升 {@code fromIdx} の浮遊 q を隣 (cx, cz) へ押し出す。隣が逆転層より上なら入れず、その場(送り元)に降り積もらせる(2026-10-30)。 */
     private void add(Tile from, int fromIdx, int cx, int cz, float q) {
-        Tile t = (cx >> TB) == from.tx && (cz >> TB) == from.tz ? from : tile(cx, cz, true);
+        Tile t = near(from, cx, cz);
         int i = idx(cx, cz);
         if (aboveInversion(t, i)) {
             from.dep[fromIdx] += q;

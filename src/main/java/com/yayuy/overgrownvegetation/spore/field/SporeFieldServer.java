@@ -851,7 +851,7 @@ public final class SporeFieldServer {
             Readout r = new Readout();
             if (t != null) {
                 for (int i = 0; i < SporeField.TN; i++) {
-                    r.conc[i] = t.air[i] + t.low[i];
+                    r.conc[i] = t.air[i] + (t.low == null ? 0f : t.low[i]);
                     r.air[i] = t.air[i];
                     r.dep[i] = t.dep[i];
                     r.under[i] = t.under[i];
