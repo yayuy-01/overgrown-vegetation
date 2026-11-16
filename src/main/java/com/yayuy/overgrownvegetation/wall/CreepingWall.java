@@ -203,7 +203,7 @@ public final class CreepingWall {
     /** 今の時刻に届いている距離(1/32 ブロック)。 */
     int reach(long now) {
         double t = Math.max(0L, Math.min(now, stopTick) - startTick);
-        return (int) Math.floor(t * WallTuning.speedBlocksPerSecond / 20.0D * UNIT);
+        return (int) Math.floor(t * WallTuning.speed() / 20.0D * UNIT);
     }
 
     /** 真上に空が見える升か(列ごとに屋根の y を覚える)。 */

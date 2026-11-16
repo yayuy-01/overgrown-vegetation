@@ -9,8 +9,20 @@ public final class WallTuning {
     private WallTuning() {
     }
 
-    /** 進む速さ(ブロック/秒)。決定 その 2「走る(ダッシュ)のと同じ」。バニラのダッシュは約 5.6。 */
-    public static double speedBlocksPerSecond = 5.6D;
+    /**
+     * 進む速さ(ブロック/秒)。設定 {@code creepingWallSpeed}(common の gameplay)から読む。
+     * 決定 その 2「ダッシュと同じ」(5.6)→ 11-16 ユーザー「ちょっとだけ今より遅く」で既定 5.0(ダッシュの 9 割)【仮】。
+     * 設定がまだ読み込まれていない時(起動の途中)は既定の 5.0。
+     */
+    public static double speed() {
+        try {
+            return com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.creepingWallSpeed.get();
+        } catch (IllegalStateException e) {
+            return DEFAULT_SPEED;
+        }
+    }
+
+    public static final double DEFAULT_SPEED = 5.0D;
     /** 止まるまでの基本の長さ(tick)。決定 その 2・5「60 秒」【仮】。 */
     public static int baseDurationTicks = 60 * 20;
     /** 飲んだ Mob 1 体ごとに延びる長さ(tick)。決定 その 3「1 体で 1 秒」(ユーザー)。 */

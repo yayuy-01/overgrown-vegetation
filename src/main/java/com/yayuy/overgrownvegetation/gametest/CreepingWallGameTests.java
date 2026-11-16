@@ -131,7 +131,7 @@ public final class CreepingWallGameTests {
 
     /** {@code dist} ブロック(1/32 単位の距離 dist32)に届くのは、始まりから何 tick 目か。 */
     private static double ticksFor(double dist32) {
-        return dist32 / (WallTuning.speedBlocksPerSecond / 20.0D * CreepingWall.UNIT);
+        return dist32 / (WallTuning.speed() / 20.0D * CreepingWall.UNIT);
     }
 
     // ------------------------------------------------------------------ 速さ
@@ -145,7 +145,7 @@ public final class CreepingWallGameTests {
         long start = wall.startTick();
         helper.runAtTickTime(110, () -> {
             long t = s.level().getGameTime() - start;
-            int expect = (int) Math.floor(t * WallTuning.speedBlocksPerSecond / 20.0D); // 届いているはずの升
+            int expect = (int) Math.floor(t * WallTuning.speed() / 20.0D); // 届いているはずの升
             boolean reached = wall.isFilled(s.at(2 + expect - 1, 4, 12));
             boolean beyond = wall.isFilled(s.at(2 + expect + 2, 4, 12));
             s.finish(wall);
@@ -260,7 +260,7 @@ public final class CreepingWallGameTests {
         s.tunnelX(2, 65, 4, 12);
         CreepingWall wall = startWall(s.level(), s.at(2, 4, 12));
         wall.setStopTickForTests(wall.startTick() + 40); // 40 tick ≒ 11 ブロック
-        int reachAtStop = (int) Math.floor(40 * WallTuning.speedBlocksPerSecond / 20.0D);
+        int reachAtStop = (int) Math.floor(40 * WallTuning.speed() / 20.0D);
         int[] filledAtStop = {-1};
         helper.runAtTickTime(60, () -> filledAtStop[0] = wall.filledCount());
         helper.runAtTickTime(150, () -> {

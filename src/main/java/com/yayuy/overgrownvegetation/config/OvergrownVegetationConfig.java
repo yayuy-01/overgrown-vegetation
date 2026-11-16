@@ -20,6 +20,8 @@ public final class OvergrownVegetationConfig {
     public static final class Common {
         /** ゲーム内容: 大きな襲撃で、同時に出ている植物側の Mob の上限(−1 = 設計データ director.json の値を使う)。2026-11-14 ユーザー「mod の設定タブで変えれるように」。 */
         public final ModConfigSpec.IntValue largeRaidMaxAlive;
+        /** ゲーム内容: 蠢く壁の進む速さ(ブロック/秒)。2026-11-16 ユーザー「ちょっとだけ今より遅く」で 5.0(ダッシュ約 5.6 の 9 割)【仮】。どの向きの通路でも同じ速さ。 */
+        public final ModConfigSpec.DoubleValue creepingWallSpeed;
         /** 汚染が広がる半径(ブロック)。 */
         public final ModConfigSpec.IntValue corruptionRadius;
         /** 1 回の処理で置き換える最大ブロック数(汚染が進むにつれてこの値から増えていく、開始値)。 */
@@ -2330,6 +2332,12 @@ public final class OvergrownVegetationConfig {
                             "-1 = 設計データ(director.json の largeRaid.maxAlive、仮 150)を使う。20〜500 で上書き。大きいほど重くなる。",
                             "マルチプレイではサーバー側のこの値が効く。")
                     .defineInRange("largeRaidMaxAlive", -1, -1, 500);
+
+            creepingWallSpeed = b
+                    .comment("蠢く壁(洞窟を埋めて追ってくる森)の進む速さ(ブロック/秒)。どの向きの通路でも、分かれたどの枝でもこの速さ。",
+                            "既定 5.0 = ダッシュ(約 5.6)の 9 割【仮】。走り続ければ少しずつ引き離せ、止まる・曲がり角で詰まると追いつかれる。",
+                            "マルチプレイではサーバー側のこの値が効く。")
+                    .defineInRange("creepingWallSpeed", 5.0D, 1.0D, 20.0D);
 
             b.pop();
 

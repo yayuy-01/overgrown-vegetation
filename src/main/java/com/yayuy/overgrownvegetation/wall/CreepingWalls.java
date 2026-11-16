@@ -69,7 +69,7 @@ public final class CreepingWalls {
         for (ServerPlayer p : level.players()) {
             if (p.blockPosition().distSqr(origin) <= 160 * 160) {
                 sendTo(p, new CreepingWallPayload(wall.id, CreepingWallPayload.OMEN, origin, new int[]{quiet},
-                        (float) (WallTuning.speedBlocksPerSecond / 20.0D)));
+                        (float) (WallTuning.speed() / 20.0D)));
             }
         }
         return wall;
@@ -275,7 +275,7 @@ public final class CreepingWalls {
     private static void send(ServerLevel level, CreepingWall w, long now, boolean justStopped) {
         boolean snapshot = (now - w.startTick) % WallTuning.snapshotIntervalTicks == 0;
         int r = WallTuning.sendRadius;
-        float bpt = (float) (WallTuning.speedBlocksPerSecond / 20.0D);
+        float bpt = (float) (WallTuning.speed() / 20.0D);
         for (ServerPlayer player : level.players()) {
             BlockPos base = player.blockPosition();
             if (base.getX() < w.minX - r || base.getX() > w.maxX + r || base.getY() < w.minY - r || base.getY() > w.maxY + r
