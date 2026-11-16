@@ -122,6 +122,7 @@ public final class EcosystemGameTests {
         a = System.nanoTime();
         for (int i = 0; i < 100_000; i++) l.kill(2 + (i & 1), r.nextInt(16000) - 8000, r.nextInt(16000) - 8000, t0 + 200);
         double killNs = (System.nanoTime() - a) / 100_000.0D;
+        l.health(t0 + 200); // 倒した直後の数え直しを先に済ませる(読むだけの時間を測る)
         a = System.nanoTime();
         for (int i = 0; i < 100_000; i++) l.health(t0 + 200);
         double readNs = (System.nanoTime() - a) / 100_000.0D;
@@ -224,7 +225,11 @@ public final class EcosystemGameTests {
             RandomSource rr = RandomSource.create(9L);
             for (int i = 0; i < 40 && last != EcoSpawns.Miss.SPAWNED; i++) last = EcoSpawns.tryInnerAt(level, ocx, ocz, new int[6], cap4, cap5, rr);
             helper.assertTrue(last == EcoSpawns.Miss.SPAWNED, "殺しすぎても内側に守りが湧かない: " + last);
-            List<Mob> inner = level.getEntitiesOfClass(Mob.class, new net.minecraft.world.phys.AABB(origin).inflate(48.0D, 256.0D, 48.0D),
+            // プレイヤーのまわりから選ぶ道(tryInner: 減った升を選ぶ → 置く)も通す
+            last = null;
+            for (int i = 0; i < 60 && last != EcoSpawns.Miss.SPAWNED; i++) last = EcoSpawns.tryInner(level, origin.getX() + 40, origin.getZ(), rr);
+            helper.assertTrue(last == EcoSpawns.Miss.SPAWNED, "tryInner で内側に守りが湧かない: " + last);
+            List<Mob> inner = level.getEntitiesOfClass(Mob.class, new net.minecraft.world.phys.AABB(origin).inflate(160.0D, 256.0D, 160.0D),
                     m -> m.getTags().contains(EcoSpawns.INNER_TAG));
             made.addAll(inner);
             helper.assertTrue(!inner.isEmpty(), "湧いた守りが見つからない");

@@ -46,11 +46,9 @@ public final class Ecosystem {
     public static boolean counted(DamageSource source) {
         Entity killer = source.getEntity();
         if (killer instanceof Player p) return !p.isSpectator();
-        if (killer != null) return false; // 飼い犬・ゴーレム・Mob の捕食
-        for (String id : DesignData.ecosystem().countedDamageTypes) {
-            if (source.typeHolder().unwrapKey().map(k -> k.location().toString().equals(id)).orElse(false)) return true;
-        }
-        return false;
+        // 防衛設備のダメージは、弾や設備の Entity が付いていても数える(殺し手の判定より先に見る)
+        String type = source.typeHolder().unwrapKey().map(k -> k.location().toString()).orElse("");
+        return DesignData.ecosystem().countedDamageTypes.contains(type); // 飼い犬・ゴーレム・Mob の捕食・落下は数えない
     }
 
     @SubscribeEvent

@@ -209,6 +209,11 @@ public final class EcoSpawns {
         int cap4 = innerCap(level, 4), cap5 = innerCap(level, 5);
         if (counts[4] >= cap4 && counts[5] >= cap5) return Miss.FULL;
         long chunk = pickChunk(level, px, pz, t.innerMin, t.innerMax, random);
+        if (!inside(PhaseData.get(level), ChunkPos.getX(chunk), ChunkPos.getZ(chunk))) {
+            // 選んだ減った升のチャンクが内側でない(森の外で倒した・縁だった)ときは、まわりの森へ落とす
+            double ang = random.nextDouble() * Math.PI * 2.0D, d = t.innerMin + random.nextDouble() * (t.innerMax - t.innerMin);
+            chunk = ChunkPos.asLong(Mth.floor(px + Math.cos(ang) * d) >> 4, Mth.floor(pz + Math.sin(ang) * d) >> 4);
+        }
         return tryInnerAt(level, ChunkPos.getX(chunk), ChunkPos.getZ(chunk), counts, cap4, cap5, random);
     }
 
