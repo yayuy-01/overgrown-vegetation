@@ -52,6 +52,13 @@ public final class AtmosphereFxCommand {
                                                     + (payload.hasForest() ? String.format("%.2f, %.2f", payload.dirX(), payload.dirZ()) : "なし") + ")"), false);
                                             return 1;
                                         })))
+                        // 怖い現象 A・D・E の確かめ(11-16。打った人のクライアントだけ・条件を見ずに 1 回)。
+                        .then(Commands.literal("shadow").executes(ctx -> send(ctx.getSource(), AtmosphereFxPayload.SCARY_SHADOW, 0,
+                                "林冠の影を通す(約 6 秒後に真上あたりを通る。昼・雲を描く設定のときだけ見える)")))
+                        .then(Commands.literal("figure").executes(ctx -> send(ctx.getSource(), AtmosphereFxPayload.SCARY_FIGURE, 0,
+                                "霧の影を 1 体、見ている向きの霧の縁に出す(濃霧は /ov weather fog 1)")))
+                        .then(Commands.literal("farsound").executes(ctx -> send(ctx.getSource(), AtmosphereFxPayload.SCARY_FAR_SOUND, 0,
+                                "遠くの音を 1 回鳴らす(見ていない向きから)")))
                         .then(Commands.literal("status").executes(ctx -> send(ctx.getSource(), AtmosphereFxPayload.STATUS, 0, null)))));
     }
 

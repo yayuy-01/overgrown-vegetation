@@ -423,6 +423,41 @@
     "topFade": 40.0,
     "skyFill": 1.0
   },
+  "scary": {
+    "_comment": "「美しいが怖い」の怖い現象 A・D・E(2026-11-16。決定の正本は Vault「美しいが怖い」、作りは「怖い現象 A・D・E(実装の記録)」)。数はすべて【仮】。shadow = D 林冠の影(ユーザー決定: 昼の過繁茂の森で、林冠の上を翼のような横に広い影が通り、木漏れ日が一斉に消えて戻る・正体不明・無音。everyDays = 平均何日に 1 回、speed = 影の速さ(ブロック/秒)、span = 翼の幅、chord = 付け根の前後の長さ、strength = 影の濃さ、dim = 影の真下にいる間、近くの景色を陰らせる割合。確かめは /ov fx shadow)。figures = E 霧の中のシルエット(ユーザー決定: 濃霧の中に G5 の輪郭の影が立つ・動かない・昼と朝だけ・近づくと消えてたどり着けない。everySeconds = 平均何秒に 1 体、nearFraction〜farFraction = 出す距離(濃霧の見通しに対する割合)、vanishFraction = この割合より近づくと消え始める、vanishBand = 消えきるまでの幅、lifeSeconds = 近づかなくても消えるまで、darkness = 影の濃さ、color = 影絵の色(本物は光る層で少し紫がかるので寄せてある)、hazeEase = 影が受ける霞の距離の倍率(1 で地形と同じ・小さいほど霧の中で濃く見える)、minFog = 濃霧の度合いがこれ以上で出す、species = 輪郭に使う G5 の種。確かめは /ov fx figure)。farSound = A 遠くの音だけの存在(ユーザー決定: 汚染地帯とその下の洞窟・警戒状態のときだけ・距離 20〜40・その人にだけ聞こえる・正体は何もいない。enabled は見本の音をユーザーが聞いて選ぶまで false。everySeconds・denseEverySeconds = 警戒状態の間、平均何秒に 1 回(ふつう・汚染の濃い所)、minDistance〜maxDistance = 音のする距離、volume = 大きさ、darkLight = 暗い所とみなす明るさ(0〜15)。確かめは /ov fx farsound)。",
+    "shadow": {
+      "enabled": true,
+      "everyDays": 3.0,
+      "speed": 25.0,
+      "span": 120.0,
+      "chord": 80.0,
+      "strength": 0.9,
+      "dim": 0.45
+    },
+    "figures": {
+      "enabled": true,
+      "everySeconds": 90.0,
+      "nearFraction": 0.72,
+      "farFraction": 0.92,
+      "vanishFraction": 0.6,
+      "vanishBand": 0.15,
+      "lifeSeconds": 60.0,
+      "darkness": 0.95,
+      "hazeEase": 1.0,
+      "color": [0.15, 0.12, 0.17],
+      "minFog": 0.5,
+      "species": ["clipeimnes", "clipeimnes", "falcimnes"]
+    },
+    "farSound": {
+      "enabled": false,
+      "everySeconds": 300.0,
+      "denseEverySeconds": 150.0,
+      "minDistance": 20.0,
+      "maxDistance": 40.0,
+      "volume": 0.6,
+      "darkLight": 7.0
+    }
+  },
   "phaseCue": {
     "_comment": "フェーズが上がったときの合図(2026-11-16。ユーザー決定: 共通の合図は 地鳴りで画面が小さく揺れる・空が数秒だけ黄緑ににじむ・汚染の森の方角から一斉にざわめく音。F6 の印は 拠点の灯りが一瞬揺らいで暗くなる。数はすべて仮決め)。shake = 揺れの大きさ(向きの度)、skyTint = 空のにじみの濃さ(0〜1)、color = にじみの色、nightBrightness = 夜のにじみの色の明るさの倍率、near・far = 景色へにじみが掛かり始める・掛かりきる距離(ブロック。空には全部掛かる)、rumbleVolume・rustleVolume = 地鳴り・ざわめきの大きさ(0 で鳴らさない)、lightDip = F6 で灯りを落とす深さ(0〜1)。確かめは /ov fx phasecue <フェーズ>。",
     "shake": 0.35,

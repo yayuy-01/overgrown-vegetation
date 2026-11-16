@@ -22,6 +22,8 @@ public abstract class GameRendererEyeAdaptMixin {
         // 光るもののにじみ(11-13 仕上げ B)を先に: 目の慣れのまぶしさは、にじみの乗った画面に掛かる。
         // 隙間と根元の陰り(簡易 AO)とフェーズの合図の空のにじみは、ここではなく描画の段 AFTER_LEVEL で掛ける(手の前。ここでは奥行きがもう消されている)。
         com.yayuy.overgrownvegetation.client.atmosphere.GlowBloom.renderPost();
+        // 林冠の影(怖い現象 D、11-17)の陰りを手にも(景色は AFTER_LEVEL で陰らせてある。手だけ明るく浮くのを避ける)。目の慣れより前に。
+        com.yayuy.overgrownvegetation.client.atmosphere.PassingShadow.renderHandDim();
         EyeAdaptation.renderPost();
     }
 }

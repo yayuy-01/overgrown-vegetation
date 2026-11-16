@@ -169,7 +169,8 @@ public final class CloudShadows {
         float d = m.values[(j + 1) * SIZE + i + 1];
         float cloud = Mth.lerp(fz, Mth.lerp(fx, a, b), Mth.lerp(fx, c, d));
         // G4 胞子の風の前触れの影(地図に足した分と同じ。日差しも陰る)。
-        return Math.max(cloud, SporeGale.omenAt(x, z, Atmosphere.time(partialTick)));
+        // 林冠の影(怖い現象 D、11-16)も同じ口。
+        return Math.max(cloud, Math.max(SporeGale.omenAt(x, z, Atmosphere.time(partialTick)), PassingShadow.at(x, z, Atmosphere.time(partialTick))));
     }
 
     private static ShaderInstance[] shaders() {
@@ -223,7 +224,8 @@ public final class CloudShadows {
         lastBase = 0.0F;
         float strength = base * shadowSetting(level, partialTick);
         float coverage = VoxelClouds.coverage(level, partialTick);
-        if (base <= 0.001F || coverage <= 0.0F || strength <= 0.0F && DesignData.sky().rays <= 0.0F) {
+        // 雲の無い日でも、林冠の影(怖い現象 D)が通る間は地図を作る(中身は空で、影だけが載る)。
+        if (base <= 0.001F || coverage <= 0.0F && !PassingShadow.active() || strength <= 0.0F && DesignData.sky().rays <= 0.0F) {
             return false;
         }
         Vec3 cam = event.getCamera().getPosition();
@@ -287,7 +289,7 @@ public final class CloudShadows {
             uploadPending = true;
         }
         // G4 胞子の風の前触れ(11-08): 走る影の帯を地図に足す。帯が出ている間は tick ごとに書き直す(帯は地図の升より速く動くので)。
-        boolean omen = SporeGale.omenActive();
+        boolean omen = SporeGale.omenActive() || PassingShadow.active();
         if (omen && gameTime != omenTick || !omen && omenShown) {
             uploadPending = true;
         }
@@ -314,7 +316,7 @@ public final class CloudShadows {
                             // 升の真ん中(雲の高さ・世界)から光の向きに地面(カメラの高さ)へ戻した点の帯の濃さ。
                             double gx = (m.originX + i + 0.5) * CloudField.CELL_XZ + windX0 - kx * lift;
                             double gz = (m.originZ + j + 0.5) * CloudField.CELL_XZ + windZ0 - kz * lift;
-                            value = Math.max(value, SporeGale.omenAt(gx, gz, t));
+                            value = Math.max(value, Math.max(SporeGale.omenAt(gx, gz, t), PassingShadow.at(gx, gz, t)));
                         }
                         int v = Math.round(value * 255.0F);
                         image.setPixelRGBA(i, j, 0xFF000000 | v);

@@ -15,6 +15,10 @@ public record AtmosphereFxPayload(int action, int arg) implements CustomPacketPa
     public static final int GALE = 0;
     public static final int GLOW_NIGHT = 1;
     public static final int STATUS = 2;
+    /** 怖い現象 A・D・E の確かめ(11-16): 林冠の影を通す・霧の影を 1 体出す・遠くの音を 1 回鳴らす。 */
+    public static final int SCARY_SHADOW = 3;
+    public static final int SCARY_FIGURE = 4;
+    public static final int SCARY_FAR_SOUND = 5;
 
     public static final Type<AtmosphereFxPayload> TYPE = new Type<>(OvergrownVegetation.id("atmosphere_fx"));
 

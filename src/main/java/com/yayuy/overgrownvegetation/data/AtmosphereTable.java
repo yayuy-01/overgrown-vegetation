@@ -52,6 +52,8 @@ public final class AtmosphereTable {
         public AtmosphereEye.PhaseCueJson phaseCue;
         /** 濃霧(天気。11-16、{@link AtmosphereEye})。 */
         public AtmosphereEye.DenseFogJson denseFog;
+        /** 怖い現象 A・D・E(11-16、{@link AtmosphereScary})。 */
+        public AtmosphereScary.Json scary;
         /** 天気の見た目の残り(11-16。雷雨の強化の残り・凪・強風の日。{@link WeatherLookEye})。 */
         public java.util.Map<String, Object> stormExtras, calmLook, galeLook;
         /** 過繁茂の外の洞窟(11-07、{@link AtmosphereEye})。 */
@@ -690,6 +692,7 @@ public final class AtmosphereTable {
     private final AtmosphereEye.SimpleAoParams simpleAo;
     private final AtmosphereEye.PhaseCueParams phaseCue;
     private final AtmosphereEye.DenseFogParams denseFog;
+    private final AtmosphereScary.Params scary;
     private final WeatherLookEye.Params stormExtras, calmLook, galeLook;
     private final AtmosphereEye.CaveOpenParams caveOpen;
     private final AtmosphereEye.CaveShaftsParams caveShafts;
@@ -804,6 +807,7 @@ public final class AtmosphereTable {
         this.simpleAo = AtmosphereEye.SimpleAoParams.of(j != null ? j.simpleAo : null);
         this.phaseCue = AtmosphereEye.PhaseCueParams.of(j != null ? j.phaseCue : null);
         this.denseFog = AtmosphereEye.DenseFogParams.of(j != null ? j.denseFog : null);
+        this.scary = AtmosphereScary.Params.of(j != null ? j.scary : null);
         this.stormExtras = WeatherLookEye.storm(j != null ? j.stormExtras : null);
         this.calmLook = WeatherLookEye.calm(j != null ? j.calmLook : null);
         this.galeLook = WeatherLookEye.gale(j != null ? j.galeLook : null);
@@ -1262,6 +1266,11 @@ public final class AtmosphereTable {
     /** 濃霧(天気。節 denseFog、11-16。{@link AtmosphereEye})。 */
     public AtmosphereEye.DenseFogParams denseFog() {
         return denseFog;
+    }
+
+    /** 怖い現象 A・D・E(節 scary、11-16。{@link AtmosphereScary})。 */
+    public AtmosphereScary.Params scary() {
+        return scary;
     }
 
     /** 天気の見た目の残り(節 stormExtras・calmLook・galeLook、11-16。{@link WeatherLookEye})。 */
