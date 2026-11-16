@@ -216,14 +216,21 @@ void main() {
             discard;
         }
     }
-    // The haze of the overgrown forest (11-13): a cloud at distance dist keeps this share of itself. It thins out so the sky behind
-    // it shows (the haze-filled sky is no longer one flat colour: client/sky/SkyColors.java), and writes no depth while it is not solid.
-    float hazeKeep = (1.0 - ForestHaze.a) * exp(-ForestHazeK.x * dist);
+    // The haze of the overgrown forest (11-13): a cloud at distance dist keeps this share of itself (hazeKeep). Its colour goes to the
+    // haze colour by the lost share (further down). 11-16 (user report: clouds were see-through now and then): the lost share used to
+    // thin the cloud as well, so a half-hazed cloud (forest edge, the seconds after leaving the canopy) was a ghost with the blue sky
+    // and the cirrus showing through it. Now the cloud stays solid while it is less than about half haze, and only thins once it is
+    // mostly haze-coloured anyway (so that a fully hazed cloud still vanishes into the haze-filled sky, which is not one flat colour).
+    // 11-16: the distance term exp(-ForestHazeK.x * dist) is gone too. It took the haze at the camera as reaching all the way to the
+    // cloud, so while the camera was leaving the forest (little haze left, sky dome already mostly blue) clouds a few hundred blocks
+    // away were still mostly hazed: pale ghosts on a blue sky. The share of the dome that is haze-filled is the whole measure now.
+    float hazeKeep = 1.0 - ForestHaze.a;
     if (hazeKeep < 0.999) {
-        if (Look.w > 0.5 && hazeKeep < 0.98) {
+        float hazeSolid = 1.0 - smoothstep(0.55, 1.0, 1.0 - hazeKeep);
+        if (Look.w > 0.5 && hazeSolid < 0.98) {
             discard;
         }
-        alpha *= hazeKeep;
+        alpha *= hazeSolid;
     }
     if (alpha <= 0.003) {
         discard;
