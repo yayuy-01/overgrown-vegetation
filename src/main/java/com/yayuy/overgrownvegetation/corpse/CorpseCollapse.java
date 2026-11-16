@@ -88,7 +88,7 @@ public final class CorpseCollapse {
 
     /**
      * 死体ブロックを置いてよいマスを探す(2026-11-16 コードの見直し ③3)。まず足元、駄目なら近い順に水平 {@link #SPOT_RADIUS}・上下 1 の範囲で、
-     * 下の面がしっかりした空きを探す。見つからなければ null(死体を作らない。G1 にも起き上がらない)。
+     * 下の面がしっかりした空きを探す。見つからなければ null(死体を作らず、萌芽体を生やす = {@link #place})。
      * <ul>
      *   <li>置いてよい = 置き換えられるブロック(空気・草・雪の層・水など {@code canBeReplaced})で、ブロックエンティティを持たない
      *   (チェスト・先の死体を消さない)。ドア・ベッド・ハーフは置き換えられないので外れる。</li>
@@ -144,9 +144,17 @@ public final class CorpseCollapse {
                     be.setPlacement(t.getFloat("Yaw"),
                             here ? entity.getX() - (pos.getX() + 0.5) : 0.0D, here ? entity.getY() - pos.getY() : 0.0D,
                             here ? entity.getZ() - (pos.getZ() + 0.5) : 0.0D);
+                    if (!here) {
+                        // 倒れた Mob も死体のマスへ移す。クライアントは「描いた死体のそば(0.6 ブロック)の Mob」を消して引き継ぐ
+                        // ({@code ClientCorpseCollapse#shouldHide})ので、移さないと猶予の 1 秒、死体と倒れた Mob が並んで見える
+                        entity.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, entity.getYRot(), entity.getXRot());
+                    }
                 }
                 // 2026-11-08: 前はここで粒(コンポスター)と苔の音を出して絵の入れ替わりを隠していた。今の死体は崩れ落ちと同じ
                 // 無傷の絵で始まり、突き破り(corpse_burst)で傷のある絵に替わるので、隠す物が無くなり外した。
+            } else if (level.isLoaded(origin)) {
+                // 置き場が無い(11-16): 死体を作らず、表に無い種・子どもと同じく萌芽体を生やす(密集なら生えない)。元のドロップは止めたまま
+                com.yayuy.overgrownvegetation.entity.BlightFernPlacement.spawnFromDeath(level, origin);
             }
         }
     }

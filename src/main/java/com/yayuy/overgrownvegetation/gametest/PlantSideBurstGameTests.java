@@ -385,11 +385,14 @@ public final class PlantSideBurstGameTests {
         }
         helper.setBlock(slabRel, net.minecraft.world.level.block.Blocks.OAK_SLAB);
         // チェスト・ハーフの上に立った牛(足元のマス = そのブロックのマス)と、同じマスで続けて 2 体
-        sporeKillCow(helper, Vec3.atBottomCenterOf(chestRel).add(0.0D, 0.875D, 0.0D));
+        Mob chestCow = sporeKillCow(helper, Vec3.atBottomCenterOf(chestRel).add(0.0D, 0.875D, 0.0D));
         sporeKillCow(helper, Vec3.atBottomCenterOf(slabRel).add(0.0D, 0.5D, 0.0D));
         sporeKillCow(helper, Vec3.atBottomCenterOf(twinRel));
         long t0 = helper.getTick();
         helper.runAtTickTime(t0 + 25, () -> sporeKillCow(helper, Vec3.atBottomCenterOf(twinRel))); // 先の死体ができてから同じマスで
+        // ずらして置いた死体: 倒れた Mob も死体のマスへ移る(クライアントの引き継ぎが合う)
+        helper.runAtTickTime(t0 + 22, () -> helper.assertTrue(!chestCow.isRemoved() && isCorpse(helper, chestCow.blockPosition())
+                && !chestCow.blockPosition().equals(chestAbs), "ずらした死体のマスへ倒れた牛が移っていない: " + chestCow.blockPosition()));
         helper.runAtTickTime(t0 + 55, () -> {
             helper.assertBlockPresent(net.minecraft.world.level.block.Blocks.CHEST, chestRel);
             boolean diamond = helper.getLevel().getBlockEntity(chestAbs) instanceof net.minecraft.world.level.block.entity.ChestBlockEntity c
