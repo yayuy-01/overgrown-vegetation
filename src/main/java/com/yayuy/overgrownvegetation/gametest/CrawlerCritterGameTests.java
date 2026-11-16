@@ -107,4 +107,27 @@ public final class CrawlerCritterGameTests {
             if (a.getY() >= top - 0.01D && b.getY() >= top - 0.01D) helper.succeed();
         });
     }
+
+    /**
+     * 植物側は汚染された森の茂みで遅くならない(11-16 ユーザー): 茂みを敷き詰めた中を急がせて、20 tick の平均の速さが 0.13 を超える
+     * (急ぎ 0.169。茂みで遅くなると 0.06 ほど)。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 120)
+    public static void plantSideIsNotSlowedByBushes(GameTestHelper helper) {
+        for (int x = 0; x <= 6; x++) {
+            for (int z = 0; z <= 6; z++) helper.setBlock(new BlockPos(x, 2, z), com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_BUSH.get().defaultBlockState());
+        }
+        CrawlerCritter a = placeAt(helper, ModCrawlers.PULMONOSCORPIUS.get(), 3.5D, 0.8D, 0.0F);
+        helper.runAfterDelay(2L, () -> {
+            Vec3 p = helper.absoluteVec(new Vec3(3.5D, 2.0D, 6.0D));
+            a.getNavigation().moveTo(a.getNavigation().createPath(BlockPos.containing(p), 0), 1.0D);
+        });
+        double[] at = new double[1];
+        helper.runAtTickTime(12L, () -> at[0] = a.getZ());
+        helper.runAtTickTime(32L, () -> {
+            double v = (a.getZ() - at[0]) / 20.0D;
+            if (v > 0.13D) helper.succeed();
+            else helper.fail(String.format(java.util.Locale.ROOT, "茂みで遅くなった(20 tick の平均 %.3f ブロック/tick)", v));
+        });
+    }
 }
