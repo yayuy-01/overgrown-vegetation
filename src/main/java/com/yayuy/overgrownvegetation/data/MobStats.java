@@ -271,6 +271,7 @@ public final class MobStats {
         m.put("coelurosauravus", stat(s -> {
             s.maxHealth = 14.0; s.attackDamage = 7.0; s.movementSpeed = 0.24;
             s.knockbackResistance = 0.1; s.followRange = 20.0; s.stepHeight = 1.0;
+            s.scale = 2.2;   // 11-16 ユーザー決定(段 1)。登る形で全長約 4.1 ブロック
             s.width = 0.7; s.height = 0.4;
             s.xpReward = 8; s.eggFit = 2.6;
         }));

@@ -44,5 +44,13 @@ public final class LizardClient {
                                 new String[]{"arm_l", "forearm_l"}, new String[]{"arm_r", "forearm_r"},
                                 new String[]{"thigh_l", "shin_l"}, new String[]{"thigh_r", "shin_r"}), range),
                 com.yayuy.overgrownvegetation.entity.HylonomusEntity.RENDER_SCALE, 0.35F));
+        // コエルロサウラウス(11-16 段 1): 登る・休むは体を立てて幹へ寄せ、滑空は旋回で倒す(CoelurosauravusRenderer)。翼 wing_* は動かさない
+        event.registerEntityRenderer(ModLizards.COELUROSAURAVUS.get(), ctx -> new com.yayuy.overgrownvegetation.client.lizard.CoelurosauravusRenderer(ctx,
+                new com.yayuy.overgrownvegetation.client.lizard.SimpleLizardModel<>(com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity.ID, com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity.RENDER_SCALE,
+                        new com.yayuy.overgrownvegetation.client.lizard.SimpleLizardModel.Bones("body", "hips", "neck", null, null, "head",
+                                new String[]{"tail1", "tail2", "tail3", "tail4"},
+                                new String[]{"arm_l", "forearm_l"}, new String[]{"arm_r", "forearm_r"},
+                                new String[]{"thigh_l", "shin_l"}, new String[]{"thigh_r", "shin_r"}), range),
+                com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity.RENDER_SCALE, 0.55F));
     }
 }

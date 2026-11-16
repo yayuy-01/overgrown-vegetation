@@ -672,6 +672,21 @@
     "xpReward": 2,
     "eggFit": 1.42
   },
+  "coelurosauravus": {
+    "maxHealth": 14,
+    "attackDamage": 7,
+    "movementSpeed": 0.24,
+    "knockbackResistance": 0.1,
+    "followRange": 20,
+    "stepHeight": 1,
+    "scale": 2.2,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.7,
+    "height": 0.4,
+    "xpReward": 8,
+    "eggFit": 2.6
+  },
   "pedicula": {
     "maxHealth": 0.1,
     "armor": 0,

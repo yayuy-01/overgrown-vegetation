@@ -65,6 +65,7 @@ public class SimpleLizardModel<T extends SimpleLizard> extends GeoModel<T> {
     @Override
     public void setCustomAnimations(T animatable, long instanceId, AnimationState<T> animationState) {
         super.setCustomAnimations(animatable, instanceId, animationState);
+        if (animatable.rigsOff()) return;   // 体を立てる・宙を滑る間はアニメに全部任せる(-90 度に立てた胴に横のくねりを足すと捻れになる)
         float pt = animationState.getPartialTick();
         this.spine.apply(this, animatable, pt);   // 脚の IK より先(振った胴から脚を解く)
         this.legs.apply(this, animatable, pt);

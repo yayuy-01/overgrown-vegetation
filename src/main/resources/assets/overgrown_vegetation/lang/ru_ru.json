@@ -399,6 +399,8 @@
   "item.overgrown_vegetation.meganeura_spawn_egg": "Яйцо призыва: Меганевра",
   "entity.overgrown_vegetation.hylonomus": "Гилономус",
   "item.overgrown_vegetation.hylonomus_spawn_egg": "Яйцо призыва: Гилономус",
+  "entity.overgrown_vegetation.coelurosauravus": "Целурозавравус",
+  "item.overgrown_vegetation.coelurosauravus_spawn_egg": "Яйцо призыва: Целурозавравус",
   "effect.overgrown_vegetation.phyllosens_watch": "Взгляд Филлосенса",
   "block.overgrown_vegetation.overgrown_zombie_corpse": "Осквернённый труп зомби",
   "entity.overgrown_vegetation.parasitized_zombie": "Заражённый зомби",

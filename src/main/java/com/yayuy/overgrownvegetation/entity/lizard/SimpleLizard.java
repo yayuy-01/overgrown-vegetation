@@ -5,6 +5,7 @@ import com.yayuy.overgrownvegetation.entity.PhaseKeepingAnimationController;
 import com.yayuy.overgrownvegetation.entity.legs.FootPlanter;
 import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
 import net.minecraft.util.Mth;
+import org.jetbrains.annotations.Nullable;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
 import software.bernie.geckolib.animatable.GeoEntity;
@@ -106,9 +107,24 @@ public abstract class SimpleLizard extends LizardRunner implements GeoEntity, Pa
         controllers.add(new PhaseKeepingAnimationController<>(this, "main", 4, this::mainState));
     }
 
+    /**
+     * 種の技・移動の形(登る・滑空するなど)のアニメ。null なら歩きの決まり(idle・walk・run)。速さは {@code c} に種が決める。
+     */
+    @Nullable
+    protected RawAnimation actAnimation(AnimationController<SimpleLizard> c) {
+        return null;
+    }
+
+    /** 描画: 手続きの背骨のくねり・脚の IK・曲げを止めるか(体を立てる・宙を滑るなど、アニメに全部任せる間)。 */
+    public boolean rigsOff() {
+        return false;
+    }
+
     private PlayState mainState(AnimationState<SimpleLizard> state) {
         AnimationController<SimpleLizard> c = state.getController();
         c.setAnimationSpeed(1.0D);
+        RawAnimation act = actAnimation(c);
+        if (act != null) return state.setAndContinue(act);
         double ahead = clientForwardSpeed();
         boolean turning = Math.abs(getTurnRate()) >= TURN_ANIM_MIN;
         double s = Math.max(this.getScale(), 0.05F);

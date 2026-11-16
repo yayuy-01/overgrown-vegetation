@@ -58,6 +58,7 @@ public final class ModLizards {
         output.accept(PETROLACOSAURUS_SPAWN_EGG.get());
         output.accept(IANTHASAURUS_SPAWN_EGG.get());
         output.accept(HYLONOMUS_SPAWN_EGG.get());
+        output.accept(COELUROSAURAVUS_SPAWN_EGG.get());
     }
 
     // --- G3 のトカゲ 2 種(2026-11-16 段 1。トカゲ型を当てた。自然には湧かない = 生態系の台帳につなぐ予定)
@@ -105,11 +106,25 @@ public final class ModLizards {
             com.yayuy.overgrownvegetation.entity.HylonomusEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(HYLONOMUS, 0x55462E, 0xB09A68, props));
 
+    /** コエルロサウラウス(G3、11-16 段 1)。当たり 0.7 × 0.4(体格 2.2 が掛かる)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity>> COELUROSAURAVUS =
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity.ID, () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity>of(com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity.ID, 0.7F), MobStats.height(com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity.ID, 0.4F))
+                    .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity.ID))
+                    .eyeHeight(0.3F)
+                    .clientTrackingRange(10)
+                    .build(com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity.ID));
+    public static final DeferredItem<DeferredSpawnEggItem> COELUROSAURAVUS_SPAWN_EGG = ModItems.ITEMS.registerItem(
+            com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity.ID + "_spawn_egg",
+            props -> new DeferredSpawnEggItem(COELUROSAURAVUS, 0x4E5A2C, 0xC9A35A, props));
+
     @SubscribeEvent
     public static void onEntityAttributeCreation(EntityAttributeCreationEvent event) {
         event.put(PILIMNES.get(), PilimnesEntity.createAttributes().build());
         event.put(PETROLACOSAURUS.get(), com.yayuy.overgrownvegetation.entity.PetrolacosaurusEntity.createAttributes().build());
         event.put(IANTHASAURUS.get(), com.yayuy.overgrownvegetation.entity.IanthasaurusEntity.createAttributes().build());
         event.put(HYLONOMUS.get(), com.yayuy.overgrownvegetation.entity.HylonomusEntity.createAttributes().build());
+        event.put(COELUROSAURAVUS.get(), com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity.createAttributes().build());
     }
 }

@@ -128,6 +128,11 @@ public final class G3LizardGameTests {
     }
 
     @GameTest(template = "gametest_empty7", timeoutTicks = 200)
+    public static void coelurosauravusWalksForward(GameTestHelper helper) {
+        walksForward(helper, ModLizards.COELUROSAURAVUS.get());
+    }
+
+    @GameTest(template = "gametest_empty7", timeoutTicks = 200)
     public static void petrolacosaurusWalksForward(GameTestHelper helper) {
         walksForward(helper, ModLizards.PETROLACOSAURUS.get());
     }
