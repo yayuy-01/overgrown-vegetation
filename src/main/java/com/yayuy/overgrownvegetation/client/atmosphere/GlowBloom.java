@@ -76,7 +76,9 @@ public final class GlowBloom {
         // 昼の明るさ: getSkyDarken は夜 0.2 〜 昼 1.0(雨で下がる)。
         float day = Mth.clamp((level.getSkyDarken(1.0F) - 0.2F) / 0.8F, 0.0F, 1.0F);
         float lum = sky * sky * day;
-        return 1.0F - SunLight.smooth(Mth.clamp((lum - p.darkFrom()) / Math.max(0.001F, p.darkTo() - p.darkFrom()), 0.0F, 1.0F));
+        float dark = 1.0F - SunLight.smooth(Mth.clamp((lum - p.darkFrom()) / Math.max(0.001F, p.darkTo() - p.darkFrom()), 0.0F, 1.0F));
+        // 濃霧(天気。11-16)の中では、昼でも明かりと霧越しの太陽に暈を付ける(霧の中の光の柔らかいにじみ。0.7 は仮決め)。
+        return Math.max(dark, 0.7F * DenseFog.amount());
     }
 
     /** GameRenderer の renderLevel の直後({@code GameRendererEyeAdaptMixin} から。目の慣れより先)。 */

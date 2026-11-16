@@ -311,7 +311,7 @@ public final class StormStrikes {
         }
         ux /= ul;
         uz /= ul;
-        float vx = -look.y() * uz, vy = look.z() * ux - look.x() * uz, vz = look.y() * ux;
+        float vx = look.y() * uz, vy = look.z() * ux - look.x() * uz, vz = -look.y() * ux;
         for (int i = 0; i < 8; i++) {
             double a0 = i * Math.PI / 4.0;
             double a1 = (i + 1) * Math.PI / 4.0;

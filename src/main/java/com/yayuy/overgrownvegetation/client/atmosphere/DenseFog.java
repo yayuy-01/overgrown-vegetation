@@ -234,6 +234,68 @@ public final class DenseFog {
         com.mojang.blaze3d.vertex.BufferUploader.drawWithShader(buffer.buildOrThrow());
     }
 
+    // ------------------------------------------------------------------ 霧の中の太陽(11-16 ユーザー「ぼかす」)
+
+    /**
+     * 霧の中の太陽・月: 四角い絵は霧に沈めて({@code LevelRendererSkyColorMixin} が空の「雨の度合い」へ霧を足す)、代わりに、その方向へ
+     * ぼやけた丸い光を足す(加算。光の筋と同じ描き先)。真ん中が明るく、縁へ消える 2 重の丸。昼は暖かい白、夜(月)は青白く弱い。
+     * {@link Atmosphere} の加算の光の所から呼ぶ。
+     */
+    static void renderSun(net.neoforged.neoforge.client.event.RenderLevelStageEvent event) {
+        float a = amount();
+        ClientLevel level = Minecraft.getInstance().level;
+        if (a <= 0.01F || level == null) {
+            return;
+        }
+        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        Vec3 sun = SunLight.lightDirection(level, partial);
+        if (sun.y < -0.05) {
+            return;
+        }
+        float night = SunLight.night(level, partial);
+        float rise = Mth.clamp((float) (sun.y + 0.05) / 0.12F, 0.0F, 1.0F);
+        float strength = a * rise * Mth.lerp(night, 0.55F, 0.16F) * (1.0F - level.getRainLevel(partial));
+        if (strength <= 0.004F) {
+            return;
+        }
+        float r = Mth.lerp(night, 1.0F, 0.62F);
+        float g = Mth.lerp(night, 0.93F, 0.72F);
+        float b = Mth.lerp(night, 0.78F, 0.9F);
+        float dist = 300.0F;
+        float x = (float) sun.x * dist, y = (float) sun.y * dist, z = (float) sun.z * dist;
+        net.minecraft.client.renderer.MultiBufferSource.BufferSource buffers = AddLight.buffers();
+        com.mojang.blaze3d.vertex.VertexConsumer c = buffers.getBuffer(AddLight.renderType());
+        // 視線ではなく太陽の方向に直交する面に描く(画面の端でも丸い)。
+        sunDisc(c, x, y, z, sun, dist * 0.26F, r, g, b, strength * 0.55F);
+        sunDisc(c, x, y, z, sun, dist * 0.10F, r, g, b, strength);
+        buffers.endBatch(AddLight.renderType());
+    }
+
+    private static void sunDisc(com.mojang.blaze3d.vertex.VertexConsumer c, float x, float y, float z, Vec3 dir, float radius, float r, float g, float b, float alpha) {
+        double ux = -dir.z, uz = dir.x;
+        double ul = Math.sqrt(ux * ux + uz * uz);
+        if (ul < 1.0e-4) {
+            ux = 1.0;
+            uz = 0.0;
+            ul = 1.0;
+        }
+        ux /= ul;
+        uz /= ul;
+        // v = dir × u(前は x と z の符号が逆で、太陽が高いと丸がつぶれた)。
+        double vx = dir.y * uz, vy = dir.z * ux - dir.x * uz, vz = -dir.y * ux;
+        int n = 16;
+        for (int i = 0; i < n; i++) {
+            double a0 = i * Math.PI * 2.0 / n;
+            double a1 = (i + 1) * Math.PI * 2.0 / n;
+            float c0 = (float) Math.cos(a0) * radius, s0 = (float) Math.sin(a0) * radius;
+            float c1 = (float) Math.cos(a1) * radius, s1 = (float) Math.sin(a1) * radius;
+            c.addVertex(x, y, z).setColor(r, g, b, alpha);
+            c.addVertex((float) (x + ux * c0 + vx * s0), (float) (y + vy * s0), (float) (z + uz * c0 + vz * s0)).setColor(r, g, b, 0.0F);
+            c.addVertex((float) (x + ux * c1 + vx * s1), (float) (y + vy * s1), (float) (z + uz * c1 + vz * s1)).setColor(r, g, b, 0.0F);
+            c.addVertex(x, y, z).setColor(r, g, b, alpha);
+        }
+    }
+
     /** 確かめ用の 1 行。 */
     public static String describe() {
         return String.format("濃霧 %.2f(届いた値 %.2f・高さ %.2f・霞 %.4f/ブロック・空 %.2f・霧の海 %.2f)", level(), WeatherClient.fog(), heightFactor(), hazeK(), skyFill(), seaAmount());

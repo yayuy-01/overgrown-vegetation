@@ -40,4 +40,16 @@ public abstract class LevelRendererSkyColorMixin {
     private float overgrown_vegetation$fogStars(net.minecraft.client.multiplayer.ClientLevel level, float partialTick, Operation<Float> original) {
         return original.call(level, partialTick) * (1.0F - com.yayuy.overgrownvegetation.client.atmosphere.DenseFog.skyFillPublic());
     }
+
+    /**
+     * 濃霧(天気。11-16 ユーザー「霧の中の太陽はぼかす」)の日は、太陽・月の絵を霧に沈める(四角い絵がそのまま見えていた)。
+     * 空を描くときの「雨の度合い」(太陽・月・星の濃さを 1 − 雨 で決めている)へ、霧で満ちた空の割合を足す。太陽のまわりの光は、
+     * 霧の色の前方散乱と光のにじみが受け持つ。
+     */
+    @WrapOperation(method = "renderSky", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/multiplayer/ClientLevel;getRainLevel(F)F"), require = 0)
+    private float overgrown_vegetation$fogSun(net.minecraft.client.multiplayer.ClientLevel level, float partialTick, Operation<Float> original) {
+        float rain = original.call(level, partialTick);
+        return 1.0F - (1.0F - rain) * (1.0F - com.yayuy.overgrownvegetation.client.atmosphere.DenseFog.skyFillPublic());
+    }
 }

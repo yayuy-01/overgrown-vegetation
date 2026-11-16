@@ -319,6 +319,7 @@ public final class Atmosphere {
             guard("galeglow", () -> renderGlowEvents(event));
             guard("caveshafts", () -> CaveShafts.render(event));
             guard("strikes", () -> StormStrikes.render(event)); // 積乱雲からの落雷(11-16 雷雨の強化)
+            guard("fogsun", () -> DenseFog.renderSun(event)); // 濃霧の中のぼやけた太陽(11-16)
             guard("motes", () -> ShaftMotes.render(event));
             guard("dusk", () -> DuskMotes.render(event));
             guard("sporecolumns", () -> SporeColumns.render(event)); // 巨大樹の胞子の柱(11-06 改善案 ①)
