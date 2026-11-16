@@ -180,6 +180,12 @@ public final class SporeFieldServer {
         INPUTS.add(f -> f.depositPoint(cx, cz, amount));
     }
 
+    /** 汚染の森への落雷(オーバーワールドだけ。{@link SporeField#lightningBurst}。2026-11-16 weather-system)。 */
+    public static void lightningBurst(BlockPos pos, double emit, double lift) {
+        int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
+        INPUTS.add(f -> f.lightningBurst(cx, cz, emit, lift));
+    }
+
     /** 台帳に載った(どの経路でも。{@link PhaseData#markOvergrownChunks} など)→ 場でも汚染済み・放出中に。 */
     public static void onLedgerAdded(long chunkKey, long since) {
         int cx = ChunkPos.getX(chunkKey), cz = ChunkPos.getZ(chunkKey);

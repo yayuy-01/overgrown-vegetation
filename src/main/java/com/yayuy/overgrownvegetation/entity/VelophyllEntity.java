@@ -167,6 +167,19 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
         return PARAMS;
     }
 
+    /** 強風の日はこの度合いから止まり木に留まる(飛びにくい。2026-11-16 weather-system【仮】)。 */
+    static final double GALE_GROUNDED = 0.5D;
+
+    /** 夜・雨に加えて、強風の日も止まる(ユーザー「ヴェロフィルは飛びにくい」)。手で決めた止まり木の指定はそのまま。 */
+    @Override
+    public boolean wantsRoost() {
+        if (this.roostOverride == null && this.level() instanceof net.minecraft.server.level.ServerLevel sl
+                && com.yayuy.overgrownvegetation.entity.flyer.FlyerWind.gale(sl) >= GALE_GROUNDED) {
+            return true;
+        }
+        return super.wantsRoost();
+    }
+
     @Override
     protected double layerMin() {
         return LAYER_MIN;

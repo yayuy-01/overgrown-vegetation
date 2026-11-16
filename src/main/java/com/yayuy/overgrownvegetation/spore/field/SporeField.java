@@ -65,6 +65,11 @@ public final class SporeField {
         public double eps = 1e-4;
         /** 強風・嵐の間の沈着と死滅の倍率(小さいほど長く浮く)。 */
         public double loftFactor = 0.3;
+        /**
+         * 天気(2026-11-16 weather-system、【仮】): 凪の日に浮遊の沈着と死滅を落とす割合(× (1 − これ × 凪の度合い)。空気が滞って森のそばが濃くなる)、
+         * 強風の日に林床の層を風下へ運ぶ速さ(風の強さ 1 あたり、1 日に風下の隣へ出す割合)。
+         */
+        public double calmHold = 0.3, galeGroundWind = 20;
         /** 林床の低い層: 低い層への放出(浮遊への放出とは別、同じ放出量に対する倍率)、拡散(1 日に隣 1 升へ。土地の倍率が掛かる)、沈着・死滅(1 日あたり)。 */
         public double groundEmit = 4, groundDiffusion = 30, groundDep = 3, groundDecay = 1;
         /** 嵐の上空の層: 浮遊胞子を持ち上げる速さ(1 日あたり)、塊にまとめる間隔(tick)、1 回にまとめる塊の上限、上空の速さの倍率。 */
@@ -491,6 +496,15 @@ public final class SporeField {
     /** 点の放出(胞子嚢の破裂・G4 の死亡球など)。 */
     public void emitPoint(int cx, int cz, double amount) {
         tile(cx, cz, true).air[idx(cx, cz)] += (float) amount;
+    }
+
+    /**
+     * 汚染の森への落雷(2026-11-16 weather-system、雷雨の強化「落雷した汚染の森が光って胞子を吹き上げる」)。その升へ emit を放出し、
+     * 浮遊の lift を上空の層へ持ち上げる(雲より上の風で遠くへ。飛び地のもと)。
+     */
+    public void lightningBurst(int cx, int cz, double emit, double lift) {
+        if (emit > 0) emitPoint(cx, cz, emit);
+        liftAt(cx, cz, lift);
     }
 
     /**
@@ -1046,9 +1060,11 @@ public final class SporeField {
         refreshTemps(); // ネザーの温度(オーバーワールドは thermal = null で何もしない)
         // 1 回で升の外へ出す割合が 0.5 を超えないように刻む(押し出しの安定と、間隔に依らない答えのため)
         double gmax = ground == null ? 1 : MAX_SPREAD;
-        double moveAir = (4 * p.diffusionPerDay + wind.strength * p.windSpeed * (Math.abs(wind.dirX) + Math.abs(wind.dirZ))
+        // 凪の日は地上の風(wind.ground())で運ぶ(2026-11-16。凪でなければ wind.strength そのもの)
+        double moveAir = (4 * p.diffusionPerDay + wind.ground() * p.windSpeed * (Math.abs(wind.dirX) + Math.abs(wind.dirZ))
                 + (thermal != null ? 4 * p.thermalWindCap : 0)) * full;
         double moveLow = (4 * p.groundDiffusion * gmax + (thermal != null ? 4 * p.thermalWindCap : 0)) * full;
+        if (wind.gale > 0) moveLow += galeLowPerDay(wind) * gmax * (Math.abs(wind.dirX) + Math.abs(wind.dirZ)) * full;
         int nAir = Math.max(1, (int) Math.ceil(moveAir / 0.5));
         int nLow = Math.max(1, (int) Math.ceil(moveLow / 0.5));
         if (p.splitLayers == 0) nAir = nLow = Math.max(nAir, nLow);
@@ -1350,6 +1366,12 @@ public final class SporeField {
             dep *= p.loftFactor;
             decay *= p.loftFactor;
         }
+        // 凪の日は空気が滞る(沈着も死滅も遅く。2026-11-16。放出の巻き上げは上の wind.strength = 凪の前の強さのまま)
+        if (wind.calm > 0) {
+            double hold = 1 - p.calmHold * wind.calm;
+            dep *= hold;
+            decay *= hold;
+        }
         // 嵐の間は浮遊胞子の一部を上空の層へ持ち上げる(飛び地のもと)
         double lift = c.thundering() ? p.liftPerDay * THUNDER_LIFT : 0;
         double k = dep + decay + lift;
@@ -1377,7 +1399,11 @@ public final class SporeField {
 
         // 運搬の割合
         // 雨の間は湿って重く、風で遠くへ運ばれにくい(11-12)。運ぶ速さだけ落とす(雲を流す風 PrevailingWind はそのまま)。
-        double v = wind.strength * p.windSpeed * dtAir * (1.0 - RAIN_DRAG * Math.min(rainK, 1.5));
+        double v = wind.ground() * p.windSpeed * dtAir * (1.0 - RAIN_DRAG * Math.min(rainK, 1.5));
+        // 強風の日: 林床の層も風下へ(2026-11-16。前線は林床の層と発芽で決まるので、浮遊の風だけでは伸びない。memory spore-front-speed-is-germination)
+        double galeLow = wind.gale > 0 ? galeLowPerDay(wind) * dtLow : 0;
+        double galeLx = galeLow * Math.abs(wind.dirX), galeLz = galeLow * Math.abs(wind.dirZ);
+        int galeSx = wind.dirX >= 0 ? 1 : -1, galeSz = wind.dirZ >= 0 ? 1 : -1;
         double ax = wind.dirX * v, az = wind.dirZ * v;
         double fx = Math.abs(ax), fz = Math.abs(az);
         int sx = ax >= 0 ? 1 : -1, sz = az >= 0 ? 1 : -1;
@@ -1525,6 +1551,11 @@ public final class SporeField {
                                 nt.inLowNext[idx(nx, nz)] += (float) q;
                                 out += q;
                             }
+                        }
+                        if (galeLow > 0) {
+                            // 林床の広がりやすさ(乾いた所は壁)は拡散と同じに効かせる
+                            out += pushLow(tl, cx + galeSx, cz, lo, galeLx, s0);
+                            out += pushLow(tl, cx, cz + galeSz, lo, galeLz, s0);
                         }
                         tl.lowNext[i] += (float) (lo - out);
                     }
@@ -1692,6 +1723,11 @@ public final class SporeField {
         }
         tl.underDep[i] = (float) ud;
         return a;
+    }
+
+    /** 強風の日に林床の層を風下へ運ぶ速さ(1 日あたり。強風の度合い × 風の強さ × galeGroundWind。2026-11-16)。 */
+    double galeLowPerDay(PrevailingWind.Sample wind) {
+        return wind.gale * wind.strength * p.galeGroundWind;
     }
 
     private double pushLow(Tile from, int cx, int cz, double lo, double gd, float s0) {

@@ -36,6 +36,8 @@ public final class WindWeatherData extends SavedData {
      */
     private float rainPeak;
     private float lastRainIntensity = RainIntensity.NORMAL;
+    /** 最後に雷雨(雷)が終わった時刻(2026-11-16 weather-system。雷雨の後に風下へ流れる胞子の雲の合図)。無ければ NONE。 */
+    private long lastThunderEnd = PrevailingWind.NONE;
 
     private WindWeatherData() {
     }
@@ -51,6 +53,7 @@ public final class WindWeatherData extends SavedData {
         d.seen = tag.getBoolean("seen");
         d.rainPeak = tag.getFloat("rainPeak");
         d.lastRainIntensity = tag.contains("lastRainIntensity") ? tag.getFloat("lastRainIntensity") : RainIntensity.NORMAL;
+        d.lastThunderEnd = tag.contains("lastThunderEnd") ? tag.getLong("lastThunderEnd") : PrevailingWind.NONE;
         return d;
     }
 
@@ -65,6 +68,7 @@ public final class WindWeatherData extends SavedData {
         tag.putBoolean("seen", seen);
         tag.putFloat("rainPeak", rainPeak);
         tag.putFloat("lastRainIntensity", lastRainIntensity);
+        tag.putLong("lastThunderEnd", lastThunderEnd);
         return tag;
     }
 
@@ -101,6 +105,11 @@ public final class WindWeatherData extends SavedData {
         }
     }
 
+    /** 最後に雷が止んだ時刻(無ければ NONE。11-16)。 */
+    public long lastThunderEnd() {
+        return lastThunderEnd;
+    }
+
     /** 最後の雨の終わり(雨上がりの判定)。降っている最中や無ければ NONE。 */
     public long lastRainEnd() {
         return lastRainEnd != PrevailingWind.NONE && lastRainEnd >= lastRainStart ? lastRainEnd : PrevailingWind.NONE;
@@ -130,6 +139,7 @@ public final class WindWeatherData extends SavedData {
             changed = true;
         }
         if (nowThundering != thundering) {
+            if (thundering) lastThunderEnd = dayTime; // 雷が止んだ(11-16)
             thundering = nowThundering;
             changed = true;
         }

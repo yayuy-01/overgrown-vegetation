@@ -69,7 +69,18 @@ public final class ModNetwork {
         // 2026-11-09 に 28 へ(雲を流した距離に天気の設計値と、雨の予定で天気を決めている間かを足した。雲の段階 2a-5)。
         // 2026-11-10 に 29 へ(ネザーの植物が適応したか HeatForestClockPayload を足した。熱水の森の覆いの絵を 10 分の前後で分ける)。
         // 2026-11-11 U13 で HeatForestClockPayload は parked へ退避(版は 29 のまま)。
-        PayloadRegistrar registrar = event.registrar("29");
+        // 2026-11-16 に 30 へ(今の天気 WeatherPayload・汚染の森への落雷 ForestLightningPayload を足した。weather-system)。
+        PayloadRegistrar registrar = event.registrar("30");
+        registrar.playToClient(
+                WeatherPayload.TYPE,
+                WeatherPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(
+                        () -> com.yayuy.overgrownvegetation.client.atmosphere.WeatherClient.accept(payload)));
+        registrar.playToClient(
+                ForestLightningPayload.TYPE,
+                ForestLightningPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(
+                        () -> com.yayuy.overgrownvegetation.client.atmosphere.WeatherClient.acceptLightning(payload)));
         registrar.playToClient(
                 AtmosphereFxPayload.TYPE,
                 AtmosphereFxPayload.STREAM_CODEC,

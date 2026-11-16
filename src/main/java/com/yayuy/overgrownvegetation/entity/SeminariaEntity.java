@@ -210,6 +210,14 @@ public class SeminariaEntity extends SkyFlyer implements GeoEntity, ParasitizedM
         return PARAMS;
     }
 
+    /** 強風の日に速く流される上乗せ(× (1 + これ × 強風の度合い)。2026-11-16 weather-system【仮】)。 */
+    static final double GALE_BOOST = 0.4D;
+
+    @Override
+    protected double galeBoost() {
+        return GALE_BOOST;
+    }
+
     @Override
     protected double layerMin() {
         return LAYER_MIN;
@@ -300,7 +308,7 @@ public class SeminariaEntity extends SkyFlyer implements GeoEntity, ParasitizedM
         super.tick();
         if (!this.level().isClientSide) {
             if (this.tickCount % 20 == 0 && this.level() instanceof ServerLevel sl) {
-                FlyerWind.now(sl, this.windTmp);
+                FlyerWind.drift(sl, this.windTmp, GALE_BOOST);
                 float s = (float) (Math.sqrt(this.windTmp[0] * this.windTmp[0] + this.windTmp[1] * this.windTmp[1]) / FlyerWind.BLOCKS_PER_STRENGTH);
                 if (Math.abs(this.entityData.get(DATA_WIND) - s) > 0.02F) this.entityData.set(DATA_WIND, s);
             }
@@ -383,7 +391,7 @@ public class SeminariaEntity extends SkyFlyer implements GeoEntity, ParasitizedM
             if (this.sortieCooldown <= 0 && !anySowing && mode() == MODE_FLY && f.state() == com.yayuy.overgrownvegetation.entity.flyer.Flock.State.PATROL
                     && !wantsRoost()) {
                 if (this.tickCount % TARGET_EVERY == 0) {
-                    FlyerWind.now(sl, this.windTmp);
+                    FlyerWind.drift(sl, this.windTmp, GALE_BOOST);
                     this.sowTarget = findSowTarget(com.yayuy.overgrownvegetation.phase.PhaseData.get(sl), this.getBlockX() >> 4, this.getBlockZ() >> 4,
                             this.windTmp[0], this.windTmp[1]);
                 }
@@ -472,7 +480,7 @@ public class SeminariaEntity extends SkyFlyer implements GeoEntity, ParasitizedM
     protected boolean ownFlight(net.minecraft.server.level.ServerLevel sl, com.yayuy.overgrownvegetation.entity.flyer.Flock f) {
         if (this.sowPhase == SOW_NONE) return false;
         this.sowTicks++;
-        FlyerWind.now(sl, this.windTmp);
+        FlyerWind.drift(sl, this.windTmp, GALE_BOOST);
         double wm = this.debugNoSowDrift ? 0.0D : PARAMS.windFactor;
         double wx = this.windTmp[0] * wm, wz = this.windTmp[1] * wm;
         double vx, vy, vz;

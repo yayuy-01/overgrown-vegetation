@@ -63,6 +63,8 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
 
     /** 上下の動き【仮・Claude】と風への任せ具合(1 = 風そのまま)。前へ進む力は無いので巡航などは使わない。 */
     public static final FlightBody.Params PARAMS = new FlightBody.Params();
+    /** 強風の日に速く流される上乗せ(× (1 + これ × 強風の度合い)。2026-11-16 weather-system【仮】)。 */
+    static final double GALE_BOOST = 0.4D;
 
     static {
         PARAMS.windFactor = 1.0D;
@@ -309,7 +311,7 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
         // 高さ選び(行き先へいちばん速く流れる高さ)
         if (--this.chooseIn <= 0 || Double.isNaN(this.targetY)) {
             this.chooseIn = CHOOSE_EVERY + this.random.nextInt(20);
-            FlyerWind.now(sl, this.wind);
+            FlyerWind.drift(sl, this.wind, GALE_BOOST);
             double gx = this.goalX - this.getX(), gz = this.goalZ - this.getZ();
             double gl = Math.sqrt(gx * gx + gz * gz);
             if (!this.hasGoal || gl < 1e-6) gx = gz = 0.0D;
@@ -342,7 +344,7 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
         }
         double hx = this.drift.vx, hz = this.drift.vz, hl = Math.sqrt(hx * hx + hz * hz);
         if (hl < 1e-4) {
-            FlyerWind.now(sl, this.wind);
+            FlyerWind.drift(sl, this.wind, GALE_BOOST);
             hx = this.wind[0];
             hz = this.wind[1];
             hl = Math.sqrt(hx * hx + hz * hz);
@@ -379,7 +381,7 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
 
     private void devLog(ServerLevel sl, double low, double high) {
         if (!this.hasCustomName() || !this.getCustomName().getString().contains("trace") || this.tickCount % 20 != 0) return;
-        FlyerWind.atHeight(sl, this.getY(), this.wind);
+        FlyerWind.driftAtHeight(sl, this.getY(), this.wind, GALE_BOOST);
         LOG.info("PEDICULA_TRACE {} 位置 {} {} {} 地面 {} 帯 {}〜{} 狙い {} 風 {} {} 速さ {} {} {} 行き先まで {}", this.getId(),
                 String.format("%.1f", this.getX()), String.format("%.1f", this.getY()), String.format("%.1f", this.getZ()),
                 String.format("%.0f", this.ground), String.format("%.0f", low), String.format("%.0f", high), String.format("%.1f", this.targetY),
@@ -590,7 +592,7 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
         if (this.isDeadOrDying()) return;   // 破れて落ちるのは tickDeath
         if (this.level().isClientSide || !this.isEffectiveAi() || !(this.level() instanceof ServerLevel sl)) return;
         double cy = this.getY() + this.getBbHeight() * 0.5D;
-        FlyerWind.atHeight(sl, cy, this.wind);
+        FlyerWind.driftAtHeight(sl, cy, this.wind, GALE_BOOST);
         double ty = Double.isNaN(this.targetY) ? this.getY() : this.targetY;
         if (!Double.isNaN(this.bumpY)) {
             ty = Math.max(ty, this.bumpY);

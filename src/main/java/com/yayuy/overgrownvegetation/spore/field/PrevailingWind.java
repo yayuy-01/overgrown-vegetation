@@ -50,6 +50,18 @@ public final class PrevailingWind {
     /** 海陸風・山谷風の強さ(午後の卓越風 1 に対して)と、海風が届く距離の目安(チャンク)。 */
     static final double P_SEA_BREEZE = 0.4, P_SEA_REACH = 4, P_VALLEY_BREEZE = 0.3;
 
+    // ---- 天気の種類(2026-11-16 weather-system。正本 Vault「雨の種類」の「天気の中身」。数はすべて【仮】) ----
+    /** 凪の日になる確率(雨でも強風でもない日のうち)。テストで 0 にすると凪が無くなる(今までと同じ答え)。 */
+    public static volatile double calmChance = 0.08;
+    /** 凪のとき地上の風を落とす割合(地上の強さ × (1 − これ × 凪の度合い))。雲・上空の風は落とさない(11-16 ユーザー決定)。 */
+    public static final double P_CALM_DROP = 0.85;
+    /** 濃霧: 雨が 20 時〜翌 6 時に止んだときの確率・雨の無い朝(4 時から)の確率。テストで 0 にすると濃霧が無くなる。 */
+    public static volatile double fogAfterRainChance = 0.5, fogMorningChance = 0.07;
+    /** 濃霧の長さ(雨上がり 4000〜7000・朝 4000〜5000 tick)と、出入りの立ち上がり(tick)。 */
+    static final int P_FOG_RAIN_MIN = 4000, P_FOG_RAIN_SPAN = 3000, P_FOG_MORNING_MIN = 4000, P_FOG_MORNING_SPAN = 1000, P_FOG_RAMP = 1000;
+    /** 確かめ用(/ov weather)の強制。負なら無し。サーバーの中だけ・保存しない。凪・強風・濃霧の度合い 0〜1。 */
+    public static volatile double forcedCalm = -1, forcedGale = -1, forcedFog = -1;
+
     private PrevailingWind() {
     }
 
@@ -81,6 +93,16 @@ public final class PrevailingWind {
         public double strength;
         /** 嵐・風の強い日。 */
         public boolean storm, strongDay;
+        /**
+         * 凪の度合い 0〜1(2026-11-16)。凪は地上の風だけ: {@link #strength} は雲・上空の風のまま、地上の運びは {@link #ground()}。
+         * 強風の日の度合い 0〜1(風の強い日の包絡。強風の日でなければ 0)。
+         */
+        public double calm, gale;
+
+        /** 地上の風の強さ(凪の日は落ちる。凪でなければ {@link #strength} そのもの)。 */
+        public double ground() {
+            return calm > 0 ? strength * (1 - P_CALM_DROP * calm) : strength;
+        }
 
         /** 向き(度。0 = 東へ、90 = 南へ、時計回り)。 */
         public double angleDeg() {
@@ -108,12 +130,15 @@ public final class PrevailingWind {
 
         boolean storm = w.raining && w.thundering;
         boolean strong = false;
+        double galeEnv = 0;
+        double fGale = forcedGale;
         if (storm) {
             s = STORM * stormScale;
             angle += Math.toRadians(P_STORM_TURB_DEG) * smoothNoise(seed ^ 0x5707L, t / P_STORM_TURB_PERIOD);
-        } else if (isStrongDay(seed, day, w)) {
-            double env = strongEnvelope(tod);
+        } else if (fGale > 0 || isStrongDay(seed, day, w)) {
+            double env = fGale > 0 ? fGale : strongEnvelope(tod);
             if (env > 0) {
+                galeEnv = env;
                 double fixed = synopticAngle(seed, day * DAY - 1000, w); // 夜明けの卓越風で固定
                 double ss = STORM * P_STRONG_OF_STORM * env;
                 if (ss > s) {
@@ -147,6 +172,74 @@ public final class PrevailingWind {
         out.strength = len;
         out.storm = storm;
         out.strongDay = strong;
+        out.gale = galeEnv;
+        double fCalm = forcedCalm;
+        out.calm = fCalm >= 0 ? (storm ? 0 : fCalm) : (w.raining || strong ? 0 : calmLevel(seed, day, tod, w));
+    }
+
+    /**
+     * 凪の度合い(0〜1)。雨でも強風でもない日のうち {@link #calmChance} の日に、夜明け(5 時)から 2 時間で止まり、日没(18〜20 時)にほどける
+     * (強風の日と同じ包絡)。夜はもともと凪に近い。雨の印は強風の日の判定にだけ使う(呼び手が雨の間は 0 にする)。
+     */
+    public static double calmLevel(long seed, long day, double tod, Weather w) {
+        double p = calmChance;
+        if (p <= 0 || isStrongDay(seed, day, w) || unit(hash(seed ^ 0xCA1DL, day)) >= p) return 0;
+        return strongEnvelope(tod);
+    }
+
+    /** 日 day が凪の日か(/ov weather・GameTest 用。包絡は見ない)。 */
+    public static boolean isCalmDay(long seed, long day, Weather w) {
+        double p = calmChance;
+        return p > 0 && !isStrongDay(seed, day, w) && unit(hash(seed ^ 0xCA1DL, day)) < p;
+    }
+
+    /**
+     * 濃霧の度合い(0〜1。2026-11-16)。胞子の濃さは変えない(見た目だけ。クライアントへ送る)。kindOut[0] に 0 = 朝方・1 = 雨上がり。
+     * <ul>
+     *   <li>雨上がり: 直近の雨が 20 時〜翌 6 時(tod 14000〜24000)に止んだら {@link #fogAfterRainChance} で、止んだ時から 4000〜7000 tick。</li>
+     *   <li>朝方: 日ごとに {@link #fogMorningChance} で、4 時(その日の 2000 tick 前)から 4000〜5000 tick。</li>
+     *   <li>雨の間は無し。強風の日は風の強さの分だけ吹き払う(× (1 − 強風の度合い))。出入りは {@link #P_FOG_RAMP} で滑らかに。</li>
+     * </ul>
+     */
+    public static double fogLevel(long seed, long t, Weather w, int[] kindOut) {
+        double forced = forcedFog;
+        if (forced >= 0) {
+            if (kindOut != null) kindOut[0] = 0;
+            return forced;
+        }
+        if (w.raining) return 0;
+        double best = 0;
+        int kind = 0;
+        long end = w.lastRainEnd != NONE && w.lastRainEnd >= w.lastRainStart ? w.lastRainEnd : NONE;
+        if (end != NONE && fogAfterRainChance > 0 && Math.floorMod(end, DAY) >= 14000
+                && unit(hash(seed ^ 0xF06AL, end)) < fogAfterRainChance) {
+            long to = end + P_FOG_RAIN_MIN + Math.round(P_FOG_RAIN_SPAN * unit(hash(seed ^ 0xF06BL, end)));
+            best = fogWindow(t, end, to);
+            kind = 1;
+        }
+        if (fogMorningChance > 0) {
+            long day = Math.floorDiv(t + 2000, DAY);
+            if (unit(hash(seed ^ 0xF06CL, day)) < fogMorningChance) {
+                long from = day * DAY - 2000;
+                long to = from + P_FOG_MORNING_MIN + Math.round(P_FOG_MORNING_SPAN * unit(hash(seed ^ 0xF06DL, day)));
+                double m = fogWindow(t, from, to);
+                if (m > best) {
+                    best = m;
+                    kind = 0;
+                }
+            }
+        }
+        if (best > 0) {
+            long day = Math.floorDiv(t, DAY);
+            if (isStrongDay(seed, day, w)) best *= 1 - strongEnvelope(Math.floorMod(t, DAY));
+        }
+        if (kindOut != null) kindOut[0] = kind;
+        return best;
+    }
+
+    private static double fogWindow(long t, long from, long to) {
+        if (t < from || t >= to) return 0;
+        return smooth(Math.min(t - from, to - t) / (double) P_FOG_RAMP);
     }
 
     /** 土台 + ゆっくりした回転 + 前線(昼夜・嵐の乱れは含まない)。ラジアン。 */

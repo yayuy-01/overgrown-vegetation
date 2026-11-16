@@ -18,30 +18,78 @@ public final class FlyerWind {
     /** 強さの上限【仮】(嵐 3 は雨の間 = 止まり木にいるので効かないが、飛び立った直後の暴れを抑える)。 */
     public static final double STRENGTH_CAP = 1.5D;
 
+    /**
+     * 強風の日(2026-11-16 weather-system、【仮】): 流される型({@link #drift})の強さの上限(強風の度合いで {@link #STRENGTH_CAP} からこれへ)。
+     * 強風の日の強さは 1.95 なので、上限 1.5 のままだと「速く流される」が出ない。
+     */
+    public static final double GALE_CAP = 2.0D;
+
     private static final PrevailingWind.Sample SAMPLE = new PrevailingWind.Sample();
     private static long cachedTick = Long.MIN_VALUE;
-    private static double cx, cz;
+    private static double cx, cz, dirX, dirZ, groundStrength, gale;
 
     private FlyerWind() {
     }
 
-    /** 今の風(ブロック/tick)を out[0..1] へ。 */
-    public static void now(ServerLevel level, double[] out) {
-        if (level.dimension() != Level.OVERWORLD) {
-            out[0] = out[1] = 0.0D;
-            return;
-        }
+    private static boolean refresh(ServerLevel level) {
+        if (level.dimension() != Level.OVERWORLD) return false;
         long t = level.getGameTime();
         if (t != cachedTick) {
             MinecraftServer server = level.getServer();
             PrevailingWind.sample(WindWeatherData.windSeed(server), level.getDayTime(), WindWeatherData.get(server).weather(), SAMPLE);
-            double s = Math.min(SAMPLE.strength, STRENGTH_CAP) * BLOCKS_PER_STRENGTH;
-            cx = SAMPLE.dirX * s;
-            cz = SAMPLE.dirZ * s;
+            // 飛ぶ型は地上の風(凪の日は落ちる。11-16。凪でなければ今までどおり strength)
+            groundStrength = SAMPLE.ground();
+            gale = SAMPLE.gale;
+            dirX = SAMPLE.dirX;
+            dirZ = SAMPLE.dirZ;
+            double s = Math.min(groundStrength, STRENGTH_CAP) * BLOCKS_PER_STRENGTH;
+            cx = dirX * s;
+            cz = dirZ * s;
             cachedTick = t;
+        }
+        return true;
+    }
+
+    /** 今の風(ブロック/tick)を out[0..1] へ。 */
+    public static void now(ServerLevel level, double[] out) {
+        if (!refresh(level)) {
+            out[0] = out[1] = 0.0D;
+            return;
         }
         out[0] = cx;
         out[1] = cz;
+    }
+
+    /** 強風の日の度合い 0〜1(オーバーワールド以外は 0)。 */
+    public static double gale(ServerLevel level) {
+        return refresh(level) ? gale : 0.0D;
+    }
+
+    /**
+     * 流される型(ペディキュラ・セミナリア)の風(2026-11-16)。強風の日でなければ {@link #now} と同じ。強風の日は上限を {@link #GALE_CAP} へ上げ、
+     * さらに × (1 + boost × 強風の度合い)。
+     */
+    public static void drift(ServerLevel level, double[] out, double boost) {
+        if (!refresh(level)) {
+            out[0] = out[1] = 0.0D;
+            return;
+        }
+        if (gale <= 0.0D) {
+            out[0] = cx;
+            out[1] = cz;
+            return;
+        }
+        double cap = STRENGTH_CAP + (GALE_CAP - STRENGTH_CAP) * gale;
+        double s = Math.min(groundStrength, cap) * BLOCKS_PER_STRENGTH * (1.0D + boost * gale);
+        out[0] = dirX * s;
+        out[1] = dirZ * s;
+    }
+
+    /** {@link #atHeight} の流される型の版(強風の日の上乗せ込み)。 */
+    public static void driftAtHeight(ServerLevel level, double y, double[] out, double boost) {
+        drift(level, out, boost);
+        if (out[0] == 0.0D && out[1] == 0.0D) return;
+        BalloonDrift.layerWind(WindWeatherData.windSeed(level.getServer()), level.getDayTime(), y, out[0], out[1], out);
     }
 
     /**

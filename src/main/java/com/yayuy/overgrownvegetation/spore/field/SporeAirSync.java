@@ -46,7 +46,7 @@ public final class SporeAirSync {
             // 卓越風(第 2 段「動き」の林の風の土台)。オーバーワールドの場があるときだけ、無ければ向きは NaN。
             PrevailingWind.Sample wind = player.serverLevel().dimension() == Level.OVERWORLD ? SporeFieldServer.windNow(player.serverLevel()) : null;
             float angle = wind == null ? Float.NaN : (float) Math.atan2(wind.dirZ, wind.dirX);
-            float strength = wind == null ? 0.0F : (float) wind.strength;
+            float strength = wind == null ? 0.0F : (float) wind.ground(); // 地上の風(凪の日は落ちる。11-16 weather-system)
             PacketDistributor.sendToPlayer(player, new SporeAirPayload(percent, angle, strength));
             sendMap(player);
         }

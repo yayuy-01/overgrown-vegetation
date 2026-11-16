@@ -361,7 +361,7 @@ public final class SporeConcentration {
             f *= Math.pow(t.rainFactor(), Math.max(0.3F, Math.min(1.6F, k)));
         }
         PrevailingWind.Sample w = level.dimension() == Level.OVERWORLD ? SporeFieldServer.windNow(level) : null;
-        if (w != null && w.strength > 0.3D) {
+        if (w != null && w.ground() > 0.3D) { // 地上の風(凪の日は落ちる。11-16)
             BlockPos up = pos.offset(-(int) Math.round(w.dirX), 1, -(int) Math.round(w.dirZ));
             if (level.getBlockState(up).isCollisionShapeFullBlock(level, up)) {
                 f *= t.upwindShadeFactor();

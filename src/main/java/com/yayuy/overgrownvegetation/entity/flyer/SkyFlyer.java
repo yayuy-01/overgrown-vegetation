@@ -179,7 +179,7 @@ public abstract class SkyFlyer extends Monster {
     /** 今の風の吹いていく向き(度、Minecraft の yaw)。凪(0.02 ブロック/tick 未満)なら NaN。種の判断用。 */
     protected final double downwindYaw() {
         if (!(this.level() instanceof ServerLevel sl)) return Double.NaN;
-        FlyerWind.now(sl, this.wind);
+        readWind(sl);
         double s = Math.sqrt(this.wind[0] * this.wind[0] + this.wind[1] * this.wind[1]);
         return s < 0.02D ? Double.NaN : FlightBody.yawOf(this.wind[0], this.wind[1]);
     }
@@ -303,6 +303,20 @@ public abstract class SkyFlyer extends Monster {
 
     public HitPartSet hitParts() {
         return this.hitParts;
+    }
+
+    /**
+     * 強風の日に速く流される上乗せ(2026-11-16 weather-system。0 = 今までどおり {@link FlyerWind#now})。流される型(セミナリア)が上書きする。
+     */
+    protected double galeBoost() {
+        return 0.0D;
+    }
+
+    /** 今の風を this.wind へ(強風の日の上乗せは {@link #galeBoost} の種だけ)。 */
+    protected final void readWind(ServerLevel sl) {
+        double b = galeBoost();
+        if (b > 0.0D) FlyerWind.drift(sl, this.wind, b);
+        else FlyerWind.now(sl, this.wind);
     }
 
     /** 夜(18:30〜5:30 ごろ)と雨は止まる。昼夜の無い次元では止まらない。 */
@@ -606,7 +620,7 @@ public abstract class SkyFlyer extends Monster {
 
         // 風に逆らって進路を保つ(種が選んだときだけ・着かねばならない行き先へ向かう間だけ): 空気に対する速さ = 地面に対して行きたい速さ − 風
         if (mustReach && fightsWind()) {
-            FlyerWind.now(sl, this.wind);
+            readWind(sl);
             double h = Math.toRadians(this.cmdHeading);
             double ax = -Math.sin(h) * this.cmdSpeed - this.wind[0] * p.windFactor;
             double az = Math.cos(h) * this.cmdSpeed - this.wind[1] * p.windFactor;
@@ -775,7 +789,7 @@ public abstract class SkyFlyer extends Monster {
             faceToward(FlightBody.yawOf(f.alertX - this.getX(), f.alertZ - this.getZ()), 6.0F);
             return;
         }
-        FlyerWind.now(sl, this.wind);
+        readWind(sl);
         if (this.wind[0] * this.wind[0] + this.wind[1] * this.wind[1] > 1e-6) {
             faceToward(FlightBody.yawOf(-this.wind[0], -this.wind[1]), 1.5F);
         }
@@ -844,7 +858,7 @@ public abstract class SkyFlyer extends Monster {
         }
         Vec3 v;
         if (this.mode == MODE_FLY && !this.ownFlightNow) {
-            if (this.level() instanceof ServerLevel sl) FlyerWind.now(sl, this.wind);
+            if (this.level() instanceof ServerLevel sl) readWind(sl);
             this.body.step(params(), this.cmdHeading, this.cmdSpeed, this.cmdY - this.getY(), this.wind[0], this.wind[1]);
             v = new Vec3(this.body.vx, this.body.vy, this.body.vz);
             this.setYRot((float) this.body.heading);
