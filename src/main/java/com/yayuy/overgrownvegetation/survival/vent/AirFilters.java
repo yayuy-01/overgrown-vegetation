@@ -3,6 +3,7 @@ package com.yayuy.overgrownvegetation.survival.vent;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.data.VentSpec;
 import com.yayuy.overgrownvegetation.registry.ModDataComponents;
+import com.yayuy.overgrownvegetation.registry.ModExpedition;
 import com.yayuy.overgrownvegetation.registry.ModVent;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
@@ -32,7 +33,22 @@ public final class AirFilters {
     }
 
     public static boolean isFilter(ItemStack stack) {
-        return stack.is(ModVent.AIR_FILTER.get());
+        return stack.is(ModVent.AIR_FILTER.get()) || stack.is(ModExpedition.MYCELIAL_FILTER.get());
+    }
+
+    /**
+     * フィルターの格(0 = ふつう・1 = 菌糸のフィルター、2026-11-16 段 4)。フィルターのアイテムは種類で、マスク・換気機の中の物は
+     * {@link ModExpedition#FILTER_GRADE} で決まる。
+     */
+    public static int grade(ItemStack stack) {
+        if (stack.is(ModExpedition.MYCELIAL_FILTER.get())) return 1;
+        if (stack.is(ModVent.AIR_FILTER.get())) return 0;
+        return stack.getOrDefault(ModExpedition.FILTER_GRADE, 0);
+    }
+
+    /** 格の容量の倍率(菌糸のフィルターは {@code expedition.superiorFilterCapacity} 倍)。 */
+    public static double gradeMultiplier(int grade) {
+        return grade >= 1 ? DesignData.sporeField().expedition().superiorFilterCapacity() : 1.0D;
     }
 
     /** 吸い取った量(%秒)。 */
@@ -52,7 +68,7 @@ public final class AirFilters {
 
     /** この 1 枚の容量(%秒。洗うたびに減る)。 */
     public static double capacity(ItemStack stack) {
-        return baseCapacity() * Math.max(0.0D, 1.0D - washes(stack) * spec().filterWashWear());
+        return baseCapacity() * gradeMultiplier(grade(stack)) * Math.max(0.0D, 1.0D - washes(stack) * spec().filterWashWear());
     }
 
     /** 残りの吸い取れる量(%秒)。 */
@@ -85,11 +101,16 @@ public final class AirFilters {
         else to.remove(ModDataComponents.MASK_FILTER_USED);
         if (w > 0) to.set(ModVent.FILTER_WASHES, w);
         else to.remove(ModVent.FILTER_WASHES);
+        if (!isFilter(to)) { // マスクなどの入れ物は格を持つ(フィルターのアイテムは種類で決まる。2026-11-16 段 4)
+            int g = grade(from);
+            if (g > 0) to.set(ModExpedition.FILTER_GRADE, g);
+            else to.remove(ModExpedition.FILTER_GRADE);
+        }
     }
 
     /** {@code holder}(マスク)に入っているフィルターを、フィルターのアイテム 1 枚として取り出した物。 */
     public static ItemStack asFilterItem(ItemStack holder) {
-        ItemStack out = new ItemStack(ModVent.AIR_FILTER.get());
+        ItemStack out = new ItemStack(grade(holder) >= 1 ? ModExpedition.MYCELIAL_FILTER.get() : ModVent.AIR_FILTER.get());
         copyState(holder, out);
         return out;
     }

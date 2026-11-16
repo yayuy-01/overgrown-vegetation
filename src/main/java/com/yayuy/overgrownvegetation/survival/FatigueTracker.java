@@ -172,7 +172,9 @@ public final class FatigueTracker {
         Player player = event.getEntity();
         if (player.level().isClientSide()) return;
         if (player.isSleeping()) {
-            if (isDayRest(player.level())) holdDayRest(player);
+            // 寝袋は夜でも時刻を飛ばさない(2026-11-16 段 4、決定 40)
+            if (isDayRest(player.level())
+                    || com.yayuy.overgrownvegetation.survival.expedition.SleepingBagBlock.isInBag(player)) holdDayRest(player);
             return;
         }
         if (player.isSprinting()) player.getData(ModAttachments.FATIGUE).sprintTicks++;

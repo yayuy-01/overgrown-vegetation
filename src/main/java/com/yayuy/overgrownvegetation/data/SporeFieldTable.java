@@ -54,6 +54,8 @@ public final class SporeFieldTable {
         public DeconSpec.Json decon;
         /** 装備の汚れと部屋の汚れ(2026-11-14 サバイバルの背骨 段 3b・3c。null は既定値)。 */
         public DirtSpec.Json dirt;
+        /** 遠征の見返りと手当て(2026-11-16 サバイバルの背骨 段 4。null は既定値)。 */
+        public ExpeditionSpec.Json expedition;
         /** Mob の胞子感染と飛び火・動物が逃げる(2026-11-14。null は既定値)。 */
         public MobInfectionSpec.Json mobInfection;
         /** 汎用の感染体(2026-11-15。null は既定値)。 */
@@ -262,6 +264,7 @@ public final class SporeFieldTable {
     private final VentSpec vent;
     private final DeconSpec decon;
     private final DirtSpec dirt;
+    private final ExpeditionSpec expedition;
     private final MobInfectionSpec mobInfection;
     private final GenericInfectionSpec genericInfection;
 
@@ -284,6 +287,7 @@ public final class SporeFieldTable {
         this.vent = VentSpec.from(src.vent);
         this.decon = DeconSpec.from(src.decon);
         this.dirt = DirtSpec.from(src.dirt);
+        this.expedition = ExpeditionSpec.from(src.expedition);
         this.mobInfection = MobInfectionSpec.from(src.mobInfection);
         this.genericInfection = GenericInfectionSpec.from(src.genericInfection);
         this.enabled = src.enabled == null || src.enabled;
@@ -537,6 +541,11 @@ public final class SporeFieldTable {
     /** 汎用の感染体の設計値(2026-11-15)。 */
     public GenericInfectionSpec genericInfection() {
         return genericInfection;
+    }
+
+    /** 遠征の見返りと手当ての設計値(2026-11-16 段 4)。 */
+    public ExpeditionSpec expedition() {
+        return expedition;
     }
 
     /** 装備の汚れと部屋の汚れの設計値(2026-11-14 段 3b・3c)。 */

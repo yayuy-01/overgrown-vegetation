@@ -62,6 +62,7 @@ public class OvergrownVegetation {
         com.yayuy.overgrownvegetation.registry.ModLey.init(); // 地脈の最小限: 花・汲み上げ器・柱・電池・線(2026-11-13 サバイバルの背骨 段 2b)
         com.yayuy.overgrownvegetation.registry.ModVent.init(); // 換気の機械とフィルター(2026-11-14 サバイバルの背骨 段 2c)
         com.yayuy.overgrownvegetation.registry.ModDecon.init(); // 除染: 変換表のレシピ・地脈の洗い場(2026-11-14 サバイバルの背骨 段 3a)
+        com.yayuy.overgrownvegetation.registry.ModExpedition.init(); // 遠征の見返りと手当て: 茸・樹皮片・菌糸のフィルター・寝袋(2026-11-16 サバイバルの背骨 段 4)
         com.yayuy.overgrownvegetation.registry.ModCreepingWall.init(); // 蠢く壁の成れの果て・ダメージの型(2026-11-16 試作)
         ModBlocks.register(modBus);
         ModBlockEntities.register(modBus);

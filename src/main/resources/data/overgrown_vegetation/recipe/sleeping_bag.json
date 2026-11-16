@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "WWW",
+    "L L"
+  ],
+  "key": {
+    "L": { "item": "minecraft:leather" },
+    "W": { "tag": "minecraft:wool" }
+  },
+  "result": { "id": "overgrown_vegetation:sleeping_bag", "count": 1 }
+}

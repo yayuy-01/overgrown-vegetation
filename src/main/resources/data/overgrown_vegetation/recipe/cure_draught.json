@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "overgrown_vegetation:roasted_spores" },
+    { "item": "overgrown_vegetation:roasted_spores" },
+    { "tag": "overgrown_vegetation:cure_reagents" },
+    {
+      "type": "neoforge:components",
+      "items": "minecraft:potion",
+      "components": { "minecraft:potion_contents": { "potion": "minecraft:water" } }
+    }
+  ],
+  "result": { "id": "overgrown_vegetation:cure_draught", "count": 1 }
+}
