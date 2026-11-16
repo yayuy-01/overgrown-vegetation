@@ -264,7 +264,7 @@ public final class ModG1 {
                     .<com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeBolt>of(com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeBolt::new, MobCategory.MISC)
                     .sized(0.3F, 0.3F)
                     .noSummon()
-                    .clientTrackingRange(6)
+                    .clientTrackingRange(10) // 11-16: 狙撃の射程 128 に合わせて 160 ブロック先まで見せる(前は 6 = 96)
                     .updateInterval(10)
                     .build("g1_spore_bolt"));
 

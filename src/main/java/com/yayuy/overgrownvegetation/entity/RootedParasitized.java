@@ -176,9 +176,21 @@ public class RootedParasitized extends Monster implements ParasitizedMob, GeoEnt
     static final double REACH_CALL_RING = 3.2D;
     /** 長い腕を向けられる範囲(度。体の正面から左回り。右へは宿主の体を横切るので −10 まで)。見た目だけ。 */
     static final float REACH_AIM_MIN = -10.0F, REACH_AIM_MAX = 100.0F;
-    /** スケルトンの狙撃: 間合い・見つける距離・冷却・弾の速さ・ばらつき・ダメージ・暴露量・弓の回る速さ(度 / tick)。 */
-    static final double BALLISTA_MIN = 5.0D, BALLISTA_MAX = 40.0D;
-    static final double BALLISTA_FOLLOW = 40.0D;
+    /**
+     * スケルトンの狙撃: 間合い・見つける距離・冷却・弾の速さ・ばらつき・ダメージ・暴露量・弓の回る速さ(度 / tick)。
+     * <b>射程 128 はユーザー指定(2026-11-16「遠距離攻撃持ちはもっと射程あってもいい。今のはかなり短すぎる」。前は 40)</b>。
+     * バニラの「見えるか」の判定が 128 までなので、これが上限でもある。以下は【仮・Claude 11-16】:
+     * 遠いほど弾を速く(40 までは 1.8、128 で { #BALLISTA_SPEED_FAR})・ばらつきを小さく(128 で { #BALLISTA_SPREAD_FAR})して、
+     * 低い山なりで 2 秒ほどで届かせる(1.8 のままでは 60 ブロックほどしか飛ばない)。動く相手は弾が着くまでに避けられる。
+     * 探す箱の上下は { #BALLISTA_SEARCH_Y}(丘の上から谷を狙えるように。ほかの根付きは 4〜8)。
+     */
+    static final double BALLISTA_MIN = 5.0D, BALLISTA_MAX = 128.0D;
+    /** 見つける距離の素の値。湧くときにバニラが ±11% ほどの乱数を掛けるので、下振れしても 128 に届くよう多めに取る(テストで 115 に下がり、110 先がぎりぎりだった)。 */
+    static final double BALLISTA_FOLLOW = 144.0D;
+    static final double BALLISTA_NEAR = 40.0D;
+    static final float BALLISTA_SPEED_FAR = 4.0F;
+    static final float BALLISTA_SPREAD_FAR = 0.3F;
+    static final double BALLISTA_SEARCH_Y = 32.0D;
     static final int BALLISTA_COOLDOWN = 60;
     static final float BALLISTA_SPEED = 1.8F;
     static final float BALLISTA_SPREAD = 1.0F;
@@ -296,7 +308,12 @@ public class RootedParasitized extends Monster implements ParasitizedMob, GeoEnt
         // 動かないので行動の Goal は無い(攻撃は tick の中の段取り)。標的だけ選ぶ: 殴ってきた相手 > 段階 0 と同じ「どの生き物も」
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, false, false,
-                e -> G1TargetGoal.isPrey(this, e)));
+                e -> G1TargetGoal.isPrey(this, e)) {
+            
+            protected net.minecraft.world.phys.AABB getTargetSearchArea(double distance) {
+                return RootedParasitized.this.getBoundingBox().inflate(distance, searchY(), distance);
+            }
+        });
     }
 
     @Override
@@ -443,12 +460,17 @@ public class RootedParasitized extends Monster implements ParasitizedMob, GeoEnt
      * 動けないので、最初に選んだ遠い相手を持ち続けると、後から近くへ来た相手を放っておくことになる(標的の Goal は今の標的が有効な間は選び直さない)。
      * 行動していない間、一定の間ごとに「見えていて、いちばん近い獲物」へ切り替える【仮】。標的の Goal を外した個体(テスト)では何もしない。
      */
+    /** 標的を探す箱の上下(狙撃のスケルトンだけ広い)。 */
+    private double searchY() {
+        return rooted().skill == Skill.BALLISTA ? BALLISTA_SEARCH_Y : 8.0D;
+    }
+
     private void retargetNearest() {
         if (this.targetSelector.getAvailableGoals().isEmpty()) return;
         double range = followRange();
         LivingEntity best = null;
         double bestSq = Double.MAX_VALUE;
-        for (LivingEntity e : level().getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(range, 8.0D, range))) {
+        for (LivingEntity e : level().getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(range, searchY(), range))) {
             if (!G1TargetGoal.isPrey(this, e)) continue;
             double d = distanceToSqr(e);
             if (d < bestSq && d <= range * range && getSensing().hasLineOfSight(e)) {
@@ -1085,12 +1107,17 @@ public class RootedParasitized extends Monster implements ParasitizedMob, GeoEnt
     private void shootBolt(LivingEntity target) {
         aimAt(target);
         Vec3 from = new Vec3(getX(), getY() + rooted().shootHeight, getZ());
-        Vec3 dir = G1SporeBolt.launch(from, target.getBoundingBox().getCenter(), BALLISTA_SPEED);
+        Vec3 to = target.getBoundingBox().getCenter();
+        // 遠いほど速く・ばらつきを小さく(BALLISTA_NEAR までは前のまま)
+        double far = Mth.clamp((Math.sqrt(from.distanceToSqr(to)) - BALLISTA_NEAR) / (BALLISTA_MAX - BALLISTA_NEAR), 0.0D, 1.0D);
+        float speed = (float) Mth.lerp(far, BALLISTA_SPEED, BALLISTA_SPEED_FAR), spread = (float) Mth.lerp(far, BALLISTA_SPREAD, BALLISTA_SPREAD_FAR);
+        Vec3 dir = G1SporeBolt.launch(from, to, speed);
         G1SporeBolt bolt = new G1SporeBolt(level(), this).setLoad(BALLISTA_DOSE, BALLISTA_DAMAGE);
         bolt.setPos(from.x, from.y, from.z);
-        bolt.shoot(dir.x, dir.y, dir.z, BALLISTA_SPEED, BALLISTA_SPREAD);
+        bolt.shoot(dir.x, dir.y, dir.z, speed, spread);
         level().addFreshEntity(bolt);
-        level().playSound(null, from.x, from.y, from.z, SoundEvents.SKELETON_SHOOT, SoundSource.HOSTILE, 1.0F, 0.5F);
+        // 射る音は狙われた相手まで届かせる(音量 1 で 16 ブロック。どこから撃たれたかの手がかり)【仮】
+        level().playSound(null, from.x, from.y, from.z, SoundEvents.SKELETON_SHOOT, SoundSource.HOSTILE, (float) Mth.lerp(far, 1.0D, 9.0D), 0.5F);
         level().playSound(null, from.x, from.y, from.z, ModSounds.G1_SAC_SWELL.get(), SoundSource.HOSTILE, 0.6F, 0.9F);
     }
 
