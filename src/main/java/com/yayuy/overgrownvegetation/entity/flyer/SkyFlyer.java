@@ -260,6 +260,14 @@ public abstract class SkyFlyer extends Monster {
         return this.getBbHeight() + 0.02D;
     }
 
+    /**
+     * 止まっている・飛び立ちを待っている間に、風上や気付いた相手の方へ向き直るか(既定 true = 今まで通り)。
+     * false の種は止まった向きのまま(2026-11-16 ステノディクティア: 葉の下面を脚で掴んでいるので、回ると脚が葉の上を滑って見える)。
+     */
+    protected boolean turnsWhilePerched() {
+        return true;
+    }
+
     /** 止まり木を探す(種の止まり方で上か下面か)。 */
     List<BlockPos> findPerchSpots(Level level, BlockPos center, int radius, int n, double gap) {
         return perchUnder() ? SkyProbe.findHangPerches(level, center, radius, n, gap)
@@ -875,6 +883,7 @@ public abstract class SkyFlyer extends Monster {
 
     /** 止まっている・飛び立ちを待っている間の向き: 身構えていれば気付いた相手の方(6 度/tick)、ふだんは風上(1.5 度/tick)。 */
     private void faceWhileWaiting(ServerLevel sl, Flock f) {
+        if (!turnsWhilePerched()) return;
         if (alertRange() > 0.0D && f.alertTicks > 0) {
             faceToward(FlightBody.yawOf(f.alertX - this.getX(), f.alertZ - this.getZ()), 6.0F);
             return;

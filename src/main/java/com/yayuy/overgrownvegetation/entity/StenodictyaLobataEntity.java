@@ -26,7 +26,8 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * G2・G3 は生息しているだけの生き物(胞子を運ばない・亜種なし)。植物側({@link ParasitizedMob}・タグ group_2)。自然には湧かない
  * (生態系の台帳 {@code ecosystem/EcoSpawns} へ後でつなぐ)。食べる・逃げるなどの行動と幼虫 {@code stenodictya_nymph} からの羽化は後の段。
  * 形・骨・アニメは 10-10 製のまま、絵だけ 1/16 画素に塗り直した(正本 {@code デスクトップ\blockbench\mobs\stenodictya_lobata.bbmodel})。
- * アニメは今ある fly・hover・perch・rest・takeoff・eat だけを使う(perch・rest は体を z で 180 度回した逆さの姿)。
+ * アニメ: fly・rest(逆さ)・takeoff と、11-16 にモデル制作が足した下面の 4 本(perch_approach・perch_land・perch_takeoff_windup・perch_takeoff)。
+ * 正立 ⇄ 逆さの返しはアニメの胴の骨(z 0 ⇄ 180)が持つ。hover・perch・eat は今は使わない。
  */
 public class StenodictyaLobataEntity extends SkyFlyer implements GeoEntity, ParasitizedMob {
 
@@ -71,9 +72,32 @@ public class StenodictyaLobataEntity extends SkyFlyer implements GeoEntity, Para
     static final double[] PART_CENTERS = {};
 
     private static final RawAnimation FLY = RawAnimation.begin().thenLoop("fly");
-    private static final RawAnimation HOVER = RawAnimation.begin().thenLoop("hover");
     private static final RawAnimation REST = RawAnimation.begin().thenLoop("rest");
+    /** 寄りの途中(まだ正立)から飛び立つときだけ使う前からの飛び立ち。 */
     private static final RawAnimation TAKEOFF = RawAnimation.begin().thenPlay("takeoff").thenLoop("fly");
+    // 葉の下面へ止まる・飛び立つ(2026-11-16 モデル制作 stenodictya-anim。Vault「ステノディクティア」5 節)
+    private static final RawAnimation APPROACH = RawAnimation.begin().thenLoop("perch_approach");
+    private static final RawAnimation LAND = RawAnimation.begin().thenPlay("perch_land").thenLoop("rest");
+    private static final RawAnimation WINDUP = RawAnimation.begin().thenPlayAndHold("perch_takeoff_windup");
+    private static final RawAnimation PERCH_TAKEOFF = RawAnimation.begin().thenPlay("perch_takeoff").thenLoop("fly");
+
+    /** 溜め(perch_takeoff_windup 4 tick)と、その入りの補間 1 tick【モデル制作の測った値】。 */
+    public static final int WINDUP_TICKS = 4, WINDUP_ENTRY = 1;
+    /**
+     * 入りの補間(tick)【モデル制作の測った値】: 寄り → perch_land 2・途中から perch_takeoff 3・ふつう 5・
+     * perch_land の途中で驚いた → 溜め 4(返しの前は胴の z が最大 180 度違うので、補間の間に逆さへ回り切らせる)。
+     */
+    static final int ENTRY_LAND = 2, ENTRY_TAKEOFF_MID = 3, ENTRY = 5, ENTRY_WINDUP_MID_LAND = 4;
+    /** perch_land の長さ(tick)と、止まった tick から入りの補間を足した長さ(この間に驚いたら溜めを長くする)。 */
+    static final int LAND_TICKS = 16;
+
+    /** サーバー: 止まった tick(下面に着いた所。perch_land の流し始め)。 */
+    private int perchedAt = Integer.MIN_VALUE;
+    private int lastMode = -1;
+
+    /** クライアント: 今流しているつなぎ・流し始めた tick・入りの補間。 */
+    private RawAnimation curAnim;
+    private int curStart, curEntry;
 
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
@@ -122,6 +146,31 @@ public class StenodictyaLobataEntity extends SkyFlyer implements GeoEntity, Para
         return true;
     }
 
+    /** 葉の下面を脚で掴んでいるので、ぶら下がっている間は向きを変えない【仮・Claude 11-16。モデル制作の頼み】。 */
+    @Override
+    protected boolean turnsWhilePerched() {
+        return false;
+    }
+
+    /**
+     * 飛び立つ前に下面で溜める(perch_takeoff_windup 4 + 入りの補間 1)。この間は動かない。口へ抜けるのはその後。
+     * 止まってすぐ(perch_land の途中)に驚いたときは、入りの補間を 4 にして 4 + 4 = 8【モデル制作の測った値・見た目は未確認】。
+     */
+    @Override
+    protected int takeoffWindupTicks() {
+        boolean midLand = this.tickCount - this.perchedAt < ENTRY_LAND + LAND_TICKS;
+        return WINDUP_TICKS + (midLand ? ENTRY_WINDUP_MID_LAND : WINDUP_ENTRY);
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (this.level().isClientSide) return;
+        int m = mode();
+        if (m == MODE_PERCHED && this.lastMode == MODE_LANDING) this.perchedAt = this.tickCount;   // 読み込み直しは寄りから来ないので数えない
+        this.lastMode = m;
+    }
+
     @Override
     protected String[] partNames() {
         return PARTS;
@@ -150,15 +199,52 @@ public class StenodictyaLobataEntity extends SkyFlyer implements GeoEntity, Para
     }
 
     /**
-     * 止まっている間 = rest(逆さにぶら下がって翅を畳む)/ 下面へ寄る間 = hover / 飛び立つ = takeoff → fly / 飛ぶ = fly。
-     * 寄る・飛び立つ姿の逆さ ⇄ 正立は補間 5 tick で回る(専用のアニメはまだ無い。モデル制作へ頼む)。
+     * つなぎを選ぶ(セミナリアと同じ作り。体の返しはアニメの胴の骨が持つので、描画では回さない)。
+     * 寄る = perch_approach / 止まった tick から perch_land → rest(寄りから来たときだけ。読み込み直しは rest へ直に)/
+     * 溜め = perch_takeoff_windup / 口へ抜ける段から perch_takeoff → fly / 寄りの途中(正立)から飛び立つ = takeoff → fly。
+     * 入りの補間は流し始めにだけ使い、それを過ぎたら 0(つないだ段の間は差 0)。
      */
     private PlayState mainState(AnimationState<StenodictyaLobataEntity> state) {
         int m = mode();
-        if (m == MODE_PERCHED || m == MODE_TAKEOFF && takeoffPhase() == 0) return state.setAndContinue(REST);
-        if (m == MODE_LANDING) return state.setAndContinue(HOVER);
-        if (m == MODE_TAKEOFF) return state.setAndContinue(TAKEOFF);
-        return state.setAndContinue(FLY);
+        RawAnimation want;
+        int entry;
+        if (m == MODE_PERCHED || m == MODE_TAKEOFF && takeoffPhase() == 0) {
+            if (this.curAnim == APPROACH || this.curAnim == LAND) {
+                want = LAND;   // 止まった tick に返して掴む
+                entry = this.curAnim == APPROACH ? ENTRY_LAND : this.curEntry;
+            } else {
+                want = REST;
+                entry = this.curAnim == REST ? this.curEntry : ENTRY;
+            }
+        } else if (m == MODE_TAKEOFF && takeoffPhase() == 1) {
+            want = WINDUP;
+            entry = this.curAnim == WINDUP ? this.curEntry : (this.curAnim == LAND ? ENTRY_WINDUP_MID_LAND : WINDUP_ENTRY);
+        } else if (m == MODE_TAKEOFF) {
+            if (this.curAnim == APPROACH || this.curAnim == TAKEOFF) {
+                want = TAKEOFF;   // 寄りの途中から(まだ正立): 前からの飛び立ち
+                entry = this.curAnim == TAKEOFF ? this.curEntry : ENTRY;
+            } else {
+                want = PERCH_TAKEOFF;
+                entry = this.curAnim == WINDUP ? 0 : (this.curAnim == PERCH_TAKEOFF ? this.curEntry : ENTRY_TAKEOFF_MID);
+            }
+        } else if (m == MODE_LANDING) {
+            want = APPROACH;
+            entry = this.curAnim == APPROACH ? this.curEntry : ENTRY;
+        } else if ((this.curAnim == PERCH_TAKEOFF || this.curAnim == TAKEOFF) && flapping()) {
+            want = this.curAnim;   // 飛び立ちの後はそのまま fly を繰り返している
+            entry = this.curEntry;
+        } else {
+            want = FLY;
+            entry = ENTRY;
+        }
+        if (want != this.curAnim) {
+            this.curAnim = want;
+            this.curStart = this.tickCount;
+            this.curEntry = entry;
+        }
+        boolean chained = want == LAND || want == WINDUP || want == PERCH_TAKEOFF || want == TAKEOFF;
+        state.getController().transitionLength(chained && this.tickCount - this.curStart > this.curEntry ? 0 : this.curEntry);
+        return state.setAndContinue(want);
     }
 
     @Override
