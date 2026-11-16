@@ -381,7 +381,7 @@ public final class MobStats {
             s.armor = 4.0; s.followRange = 16.0; s.scale = 1.0;
             // 10-23 萌芽体のモデル(ユーザーのラフ、見た目の背丈 3.65)で体格 1。当たり判定は低く 1 × 2(ユーザー指定: 頭上に 3.6 を使わない = 森の下を歩ける)
             s.width = 1.0; s.height = 2.0;
-            s.eggFit = 4.7;
+            s.eggFit = 5.12;
         }));
 
         // ハイヴノード — 蔦で吊られた球体。動かない。蔦を 7 割切るまでは 99% のダメージカットが
@@ -415,7 +415,7 @@ public final class MobStats {
             // 11-05: 描画倍率 1.8 を geo に焼き込んだので体格は 1、判定は焼き込む前の実効値をそのまま書く(1.65 x 1.7 の 1.8 倍)。
             s.scale = 1.0;
             s.width = 2.97; s.height = 3.06; s.xpReward = 40;
-            s.eggFit = 6.33;
+            s.eggFit = 6.45;
         }));
 
         // グループ5(適応種)の盾役。HP 150・防御 20・攻撃 8・体格 1.6 はユーザー指定(2026-09-23)。
@@ -446,7 +446,7 @@ public final class MobStats {
             s.maxHealth = 40.0; s.attackDamage = 12.0; s.armor = 8.0; s.movementSpeed = 0.3; s.flyingSpeed = 1.0;
             s.knockbackResistance = 0.5; s.followRange = 48.0;
             s.width = 1.2; s.height = 3.0; s.xpReward = 40;
-            s.eggFit = 10.6;
+            s.eggFit = 7.2;
             s.naturalSpawn = false;   // 段 1 は自然には湧かない(スポーンエッグ・コマンドだけ)
         }));
 
@@ -570,7 +570,7 @@ public final class MobStats {
             // モデルは脚を広げると 1.75 x 1.62 x 2.45(幅 x 高さ x 奥行き)あるので、
             // 脚と体は当たり判定からはみ出す(クモと同じ)。
             // eggFit は待機アニメーション中の「画面上の差し渡し」の実測値(2026-09-15 に測り直し)。
-            s.width = 0.98; s.height = 0.98; s.eggFit = 2.25; s.xpReward = 10;
+            s.width = 0.98; s.height = 0.98; s.eggFit = 2.47; s.xpReward = 10;
         }));
 
         // フィロセンス(竹馬型の 1 体目、2026-11-10 作り直し)。数値は全部【仮・依頼 11-10】: 胴の体力 40・防御 4・ノックバック耐性 1.0・
@@ -603,7 +603,7 @@ public final class MobStats {
             s.maxHealth = 34.0; s.attackDamage = 10.0; s.armor = 6.0; s.armorToughness = 0.0; s.movementSpeed = 0.30;
             s.knockbackResistance = 0.4; s.followRange = 48.0; s.stepHeight = 1.5;
             s.scale = 1.0;
-            s.width = 1.2; s.height = 2.4; s.eggFit = 4.6; s.xpReward = 30;
+            s.width = 1.2; s.height = 2.4; s.eggFit = 5.61; s.xpReward = 30;
             s.naturalSpawn = false;   // 自然には湧かない(スポーンエッグ・コマンドだけ)
         }));
 
@@ -615,7 +615,7 @@ public final class MobStats {
             s.maxHealth = 70.0; s.attackDamage = 12.0; s.armor = 16.0; s.armorToughness = 4.0; s.movementSpeed = 0.24;
             s.knockbackResistance = 0.8; s.attackKnockback = 1.0; s.followRange = 32.0; s.stepHeight = 1.5;
             s.scale = 1.0;
-            s.width = 1.4; s.height = 2.6; s.eggFit = 4.8; s.xpReward = 35;
+            s.width = 1.4; s.height = 2.6; s.eggFit = 5.61; s.xpReward = 35;
             s.naturalSpawn = false;   // 自然には湧かない(スポーンエッグ・コマンドだけ)
         }));
 
@@ -626,7 +626,7 @@ public final class MobStats {
             s.maxHealth = 30.0; s.attackDamage = 9.0; s.armor = 4.0; s.armorToughness = 0.0; s.movementSpeed = 0.20;
             s.knockbackResistance = 0.6; s.followRange = 32.0; s.stepHeight = 1.0;
             s.scale = 1.0;
-            s.width = 1.8; s.height = 1.0; s.eggFit = 5.0; s.xpReward = 30;
+            s.width = 1.8; s.height = 1.0; s.eggFit = 5.75; s.xpReward = 30;
             s.naturalSpawn = false;   // 自然には湧かない(スポーンエッグ・コマンドだけ)
         }));
 
@@ -638,7 +638,7 @@ public final class MobStats {
             s.maxHealth = 30.0; s.attackDamage = 6.0; s.armor = 4.0; s.armorToughness = 0.0; s.movementSpeed = 0.30;
             s.knockbackResistance = 0.5; s.followRange = 40.0; s.stepHeight = 1.0;
             s.scale = 1.0;
-            s.width = 1.3; s.height = 1.6; s.eggFit = 4.2; s.xpReward = 30;
+            s.width = 1.3; s.height = 1.6; s.eggFit = 5.17; s.xpReward = 30;
             s.naturalSpawn = false;   // 自然には湧かない(スポーンエッグ・コマンドだけ)
         }));
 
@@ -650,7 +650,7 @@ public final class MobStats {
             s.maxHealth = 6.0; s.attackDamage = 2.0; s.armor = 0.0; s.armorToughness = 0.0; s.movementSpeed = 0.186;
             s.knockbackResistance = 0.0; s.followRange = 24.0; s.stepHeight = 1.0;
             s.scale = 1.0;
-            s.width = 0.8; s.height = 0.6; s.eggFit = 2.8; s.xpReward = 2;
+            s.width = 0.8; s.height = 0.6; s.eggFit = 2.65; s.xpReward = 2;
             s.naturalSpawn = false;   // 自然には湧かない(スポーンエッグ・コマンドだけ)
         }));
 
@@ -663,7 +663,7 @@ public final class MobStats {
             s.maxHealth = 4.0; s.attackDamage = 2.0; s.armor = 0.0; s.armorToughness = 0.0; s.movementSpeed = 0.33;
             s.knockbackResistance = 0.0; s.followRange = 24.0; s.stepHeight = 1.0;
             s.scale = 1.0;
-            s.width = 0.7; s.height = 0.45; s.eggFit = 2.2; s.xpReward = 1;
+            s.width = 0.7; s.height = 0.45; s.eggFit = 2.0; s.xpReward = 1;
             s.naturalSpawn = false;   // 自然には湧かない(スポーンエッグ・コマンドだけ)
         }));
 
@@ -675,7 +675,7 @@ public final class MobStats {
             s.maxHealth = 12.0; s.attackDamage = 2.0; s.armor = 4.0; s.armorToughness = 0.0; s.movementSpeed = 0.36;   // 急ぎで床 約 0.28 = アルボラの床の速さ(11-15 段 2。前は 0.19)
             s.knockbackResistance = 0.2; s.followRange = 32.0; s.stepHeight = 1.0;
             s.scale = 1.0;
-            s.width = 0.95; s.height = 1.2; s.eggFit = 5.5; s.xpReward = 3;
+            s.width = 0.95; s.height = 1.2; s.eggFit = 5.4; s.xpReward = 3;
             s.naturalSpawn = false;   // 自然には湧かない(スポーンエッグ・コマンドだけ)
         }));
 
@@ -701,7 +701,7 @@ public final class MobStats {
             s.maxHealth = 20.0; s.attackDamage = 4.0;
             s.movementSpeed = 0.12; s.flyingSpeed = 0.7; s.armor = 0.0;
             s.knockbackResistance = 0.0; s.followRange = 48.0; s.stepHeight = 1.0;
-            s.width = 1.2; s.height = 0.8; s.eggFit = 6.63; s.xpReward = 10;
+            s.width = 1.2; s.height = 0.8; s.eggFit = 6.3; s.xpReward = 10;
             s.naturalSpawn = false;   // 段 1 は自然には湧かない(スポーンエッグ・コマンドだけ)
         }));
 
@@ -711,7 +711,7 @@ public final class MobStats {
             s.maxHealth = 8.0; s.attackDamage = 0.0;
             s.movementSpeed = 0.1; s.flyingSpeed = 0.3; s.armor = 0.0;
             s.knockbackResistance = 0.0; s.followRange = 32.0; s.stepHeight = 1.0;
-            s.width = 0.8; s.height = 1.0; s.eggFit = 5.0; s.xpReward = 5;
+            s.width = 0.8; s.height = 1.0; s.eggFit = 4.95; s.xpReward = 5;
             s.naturalSpawn = false;   // 段 1 は自然には湧かない(スポーンエッグ・コマンドだけ)
         }));
 
@@ -726,7 +726,7 @@ public final class MobStats {
         // 動き(風任せ・高さの帯)は PediculaEntity・entity/flyer/BalloonDrift の【仮】の値。段 1 は自然には湧かない。
         m.put("pedicula", stat(s -> {
             s.maxHealth = 0.1; s.armor = 0.0; s.movementSpeed = 0.0; s.knockbackResistance = 0.0;
-            s.width = 3.6; s.height = 3.6; s.eggFit = 5.33; s.xpReward = 5;
+            s.width = 3.6; s.height = 3.6; s.eggFit = 6.85; s.xpReward = 5;
             s.naturalSpawn = false;   // 段 1 は自然には湧かない(スポーンエッグ・コマンドだけ)
         }));
 
