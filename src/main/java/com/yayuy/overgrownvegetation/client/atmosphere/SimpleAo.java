@@ -32,13 +32,13 @@ import org.lwjgl.opengl.GL12;
  * 草・シダ・根などの切り抜きの植物や、細かな段差には陰りが無い。重い(画面全体の処理が毎フレーム 2 回)ので既定でオフ。
  *
  * <h2>やり方</h2>
- * 地形・Mob・粒・手を描いた後、GUI の前({@code GameRendererEyeAdaptMixin}。光のにじみ・目の慣れより先)に、
+ * 地形・Mob・粒を描いた後、手を描く前(描画の段 AFTER_LEVEL。光のにじみ・目の慣れより先)に、
  * <ol>
  *     <li>画面の奥行きだけから、半分の大きさの器へ陰りを出す({@code ao_compute.fsh}): 画素ごとに視点からの位置と面の向き(隣の奥行きから)を出し、
  *     まわり {@code radius} ブロックの円の上の 8 点のうち、その面より手前へせり出している点の分だけ暗くする。空と {@code distance} より遠い所は 0。</li>
  *     <li>それを 4 点でならして、画面へ掛け算で重ねる({@code ao_composite.fsh})。</li>
  * </ol>
- * 射影行列は地形を描いたときのもの({@link #onRenderLevel} で控える)。手は別の射影で描かれるので、手のまわりの陰りは正確ではない。
+ * 射影行列は地形を描いたときのもの。手は後から描かれるので、手には陰りが掛からない。
  * 掛けない場合: 見え方の設定「隙間と根元の陰り」({@code simpleAo}、既定オフ)・シェーダーパック使用中。数は design の節 {@code simpleAo}(仮決め)。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, value = Dist.CLIENT)
@@ -53,17 +53,19 @@ public final class SimpleAo {
     private static final Matrix4f PROJECTION = new Matrix4f();
     private static boolean haveProjection;
 
-    /** 地形を描いたときの射影行列を控える。 */
+    /** 世界を描き終えた所(AFTER_LEVEL。手を描く前): 射影行列を控えて、陰りを掛ける。 */
     @SubscribeEvent
     public static void onRenderLevel(RenderLevelStageEvent event) {
-        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_SKY) {
+        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
             PROJECTION.set(event.getProjectionMatrix());
             haveProjection = true;
+            // 2026-11-16: ここで掛ける。前は GameRenderer の renderLevel の直後に掛けていたが、手を描く直前に画面の奥行きが消されるので、この日の時点では
+            // 奥行きが全部「空」になって陰りが 1 つも出ていなかった(11-14 の写真には写っていた。何が変わったかは未特定)。
+            renderPost();
         }
     }
 
-    /** GameRenderer の renderLevel の直後({@code GameRendererEyeAdaptMixin} から。光のにじみより先)。 */
-    public static void renderPost() {
+    private static void renderPost() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || broken || !haveProjection) {
             return;

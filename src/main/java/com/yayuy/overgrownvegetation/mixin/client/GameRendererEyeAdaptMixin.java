@@ -20,8 +20,7 @@ public abstract class GameRendererEyeAdaptMixin {
             require = 0)
     private void overgrownvegetation$eyeAdapt(DeltaTracker deltaTracker, boolean renderLevel, CallbackInfo ci) {
         // 光るもののにじみ(11-13 仕上げ B)を先に: 目の慣れのまぶしさは、にじみの乗った画面に掛かる。
-        // 隙間と根元の陰り(簡易 AO、11-14 仕上げ H。既定オフ)は、にじみより先(暗くした上に光の暈が乗る)。
-        com.yayuy.overgrownvegetation.client.atmosphere.SimpleAo.renderPost();
+        // 隙間と根元の陰り(簡易 AO)とフェーズの合図の空のにじみは、ここではなく描画の段 AFTER_LEVEL で掛ける(手の前。ここでは奥行きがもう消されている)。
         com.yayuy.overgrownvegetation.client.atmosphere.GlowBloom.renderPost();
         EyeAdaptation.renderPost();
     }
