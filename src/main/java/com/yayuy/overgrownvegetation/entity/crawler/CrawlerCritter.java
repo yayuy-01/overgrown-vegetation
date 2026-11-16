@@ -61,6 +61,12 @@ public abstract class CrawlerCritter extends SmallCrawler implements GeoEntity, 
 
     private PlayState mainState(AnimationState<CrawlerCritter> state) {
         GaitAnimationController<CrawlerCritter> c = (GaitAnimationController<CrawlerCritter>) state.getController();
+        RawAnimation special = specialAnimation();
+        if (special != null) {
+            c.setAnimationSpeed(1.0D);
+            c.transitionLength(specialTransition());
+            return state.setAndContinue(special);
+        }
         double v = clientMoveSpeed(state.getPartialTick());
         double s = this.getScale();
         if (!this.isDeadOrDying() && v >= WALK_MIN_SPEED) {
@@ -84,6 +90,17 @@ public abstract class CrawlerCritter extends SmallCrawler implements GeoEntity, 
         c.setAnimationSpeed(1.0D);
         c.switchGait(IDLE, "idle", "-");
         return state.setAndContinue(IDLE);
+    }
+
+    /** 歩き・待機の代わりに流す動作のアニメ(跳ぶ間など。クライアント)。既定 null(2026-11-16、ファランギオタルブスの跳びのため move-leaper が足した)。 */
+    @Nullable
+    protected RawAnimation specialAnimation() {
+        return null;
+    }
+
+    /** {@link #specialAnimation} へ切り替えるときの補間(tick)。既定 3。前の姿とつながる段(宙・着地)は 0 にする。 */
+    protected int specialTransition() {
+        return 3;
     }
 
     @Override

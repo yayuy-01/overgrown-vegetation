@@ -17,5 +17,9 @@ public final class LeaperClient {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModLeapers.SALTIMNES.get(), SaltimnesRenderer::new);
+        // ファランギオタルブス(G3、11-16 段 1): 小さな地這いの虫の型の描画(段のならし・前後の傾き)。描画倍率 1(geo に焼き込み済み)
+        event.registerEntityRenderer(ModLeapers.PHALANGIOTARBUS.get(),
+                ctx -> new com.yayuy.overgrownvegetation.client.crawler.SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.PhalangiotarbusEntity>(ctx,
+                        new com.yayuy.overgrownvegetation.client.crawler.CritterModel<>(com.yayuy.overgrownvegetation.entity.PhalangiotarbusEntity.ID), 1.0F, 0.8F));
     }
 }

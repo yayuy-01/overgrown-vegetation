@@ -235,12 +235,14 @@ public final class MobStats {
             s.eggFit = 4.6;
         }));
 
+        // ファランギオタルブス(G3、2026-11-16 作り直しの段 1)。体力・攻撃は parked のまま【仮】。速さ 0.39 → 0.34(急ぎ 地面 約 0.25、
+        // うろつき ×0.55 で約 0.075。parked はプレイヤーの走りより速すぎた)【仮・Claude】。当たりは胴の芯 1.0 × 0.8(全体 2.28 × 1.55 × 0.80)。
+        // 体格の個体差は段 1 では付けない(1 で固定)。自然には湧かない(湧きは後で生態系の台帳 EcoSpawns へ)。
         m.put("phalangiotarbus", stat(s -> {
-            s.maxHealth = 12.0; s.attackDamage = 8.0; s.movementSpeed = 0.39;
+            s.maxHealth = 12.0; s.attackDamage = 8.0; s.movementSpeed = 0.34;
             s.knockbackResistance = 0.3; s.attackKnockback = 0.0; s.followRange = 24.0; s.stepHeight = 1.0;
-            s.width = 1.0; s.height = 0.9; s.xpReward = 8;
-            s.scaleMin = 0.6; s.scaleMax = 1.0; // 湧いた個体ごとの体格の個体差
-            s.eggFit = 1.82;
+            s.width = 1.0; s.height = 0.8; s.xpReward = 8;
+            s.eggFit = 2.4;
         }));
 
         m.put("protophasma", stat(s -> {
