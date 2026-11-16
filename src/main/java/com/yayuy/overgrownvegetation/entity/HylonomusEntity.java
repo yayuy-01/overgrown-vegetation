@@ -30,8 +30,8 @@ public class HylonomusEntity extends SimpleLizard {
     /** 曲げの付け根: 頭 head(z −3.2。残りは頭の先の目安)、尾 tail1〜tail3(z 2.9・5.9・8.7。4 つ目は尾の先の目安)。 */
     static final double[] BEND_FRONT = {3.2D * PX, 5.0D * PX, 6.0D * PX, 7.0D * PX};
     static final double[] BEND_BACK = {2.9D * PX, 5.9D * PX, 8.7D * PX, 10.5D * PX};
-    /** walk・run を 1.0 倍で流したときの地上速度(ブロック/tick、体格 1)。11-16 に FK で測った(walk は前足 0.054・後ろ足 0.049、run は 0.097・0.068)。 */
-    static final double WALK_REF = 0.05D, RUN_REF = 0.085D;
+    /** walk・run を 1.0 倍で流したときの地上速度(ブロック/tick、体格 1)。11-16 にモデル制作が足先の決まった 1 点で測った値(前後・左右ともそろっている)。 */
+    static final double WALK_REF = 0.060D, RUN_REF = 0.099D;
     public static final double JUMP_STRENGTH = 0.62D;
 
     public HylonomusEntity(EntityType<? extends HylonomusEntity> type, Level level) {
