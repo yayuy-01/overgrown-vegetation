@@ -981,7 +981,7 @@
     "fadeSeconds": 6.0
   },
   "stormExtras": {
-    "_comment": "雷雨の強化の残り(2026-11-16。ユーザー決定: 雷雨のときだけ見られる自然現象 = 地平線の遠い雷・スプライト・雷雨の後の胞子の雲・セントエルモの火・アーク雲と突風。数はすべて仮決めで、絵を見て詰める。読み口は data/WeatherLookEye、確かめは試験用クライアントの wx)。far* = 遠い雷(farEvery = どこかの遠い積乱雲が光る間隔の平均の秒、farMin〜farMax = 相手にする距離、farStrength = 光の強さ、farMaxAlive = 同時に光る数、farPre・farAfter = 前触れ・雷雨の後の出やすさ)。sprite* = スプライト(spriteChance = 遠い雷 1 回あたりの割合(夜だけ)、spriteAbove = 雲の天辺からの高さ、spriteSize = 横の大きさ、spriteLife = 光っている秒、spriteAlpha = 明るさ、spriteMinDistance = これより近い雲には出さない、spriteColor・spriteTailColor = 上と垂れる筋の先の色)。drift* = 雷雨の後の胞子の雲(driftCount = 筋の数、driftAlpha = 濃さ、driftLow〜driftHigh = 高さ、driftRange = 届く距離、driftLength・driftWidth = 筋の長さと幅、driftColor = 色、driftNight = 夜の明るさ)。elmo* = セントエルモの火(elmoFrom = 出始める雷雨の強さ、elmoCount = 木の先の数、elmoRange = 探す半径、elmoSize = 光の大きさ、elmoAlpha = 明るさ、elmoDay = 昼の明るさの倍率、elmoGiantRange・elmoGiantSize = 巨大樹の梢に出す距離と大きさ、elmoColor = 色)。arcus* = アーク雲(arcusBase = 底の高さ、arcusThick = 鼻先の厚み、arcusDepth = 奥行き、arcusLength = 横の長さ、arcusFrom = 来始める距離、arcusOverhead = 頭上を越えるときの前触れの値、arcusAlpha = 濃さ、arcusColor・arcusLitColor = 下面と明るい面の色、arcusGust = 1 で頭上を越える前に突風を 1 つ吹かせる)。",
+    "_comment": "雷雨の強化の残り(2026-11-16。ユーザー決定: 雷雨のときだけ見られる自然現象 = 地平線の遠い雷・スプライト・雷雨の後の胞子の雲・セントエルモの火・アーク雲と突風。数はすべて仮決めで、絵を見て詰める。読み口は data/WeatherLookEye、確かめは試験用クライアントの wx)。far* = 遠い雷(farEvery = どこかの遠い積乱雲が光る間隔の平均の秒、farMin〜farMax = 相手にする距離、farStrength = 光の強さ、farMaxAlive = 同時に光る数、farPre・farAfter = 前触れ・雷雨の後の出やすさ)。sprite* = スプライト(spriteChance = 遠い雷 1 回あたりの割合(夜だけ)、spriteAbove = 雲の天辺からの高さ、spriteSize = 横の大きさ、spriteLife = 光っている秒、spriteAlpha = 明るさ、spriteMinDistance = これより近い雲には出さない、spriteColor・spriteTailColor = 上と垂れる筋の先の色)。drift* = 雷雨の後の胞子の雲(driftCount = 筋の数、driftAlpha = 濃さ、driftLow〜driftHigh = 高さ、driftRange = 届く距離、driftLength・driftWidth = 筋の長さと幅、driftColor = 色、driftNight = 夜の明るさ)。elmo* = セントエルモの火(elmoFrom = 出始める雷雨の強さ、elmoCount = 木の先の数、elmoRange = 探す半径、elmoSize = 光の大きさ、elmoAlpha = 明るさ、elmoDay = 昼の明るさの倍率、elmoGiantRange・elmoGiantSize = 巨大樹の梢に出す距離と大きさ、elmoColor = 色、elmoOmenTicks = 落雷の前触れ: 近くの木への落雷を遅らせてその先を強く光らせる tick(0 で前触れなし)、elmoOmenRange = 前触れを出す距離、elmoOmenSize = 落ちる直前の光の大きさ)。arcus* = アーク雲(arcusBase = 底の高さ、arcusThick = 鼻先の厚み、arcusDepth = 奥行き、arcusLength = 横の長さ、arcusFrom = 来始める距離、arcusOverhead = 頭上を越えるときの前触れの値、arcusAlpha = 濃さ、arcusColor・arcusLitColor = 下面と明るい面の色、arcusGust = 1 で頭上を越える前に突風を 1 つ吹かせる)。",
     "farEvery": 2.5,
     "farMin": 1500.0,
     "farMax": 7000.0,
@@ -1015,6 +1015,9 @@
     "elmoGiantRange": 420.0,
     "elmoGiantSize": 1.6,
     "elmoColor": [0.58, 0.74, 1.0],
+    "elmoOmenTicks": 30,
+    "elmoOmenRange": 320.0,
+    "elmoOmenSize": 0.9,
     "arcusBase": 125.0,
     "arcusThick": 110.0,
     "arcusDepth": 520.0,
@@ -1046,10 +1049,10 @@
     "layerNight": 0.12
   },
   "galeLook": {
-    "_comment": "強風の日の見た目(2026-11-16。ユーザー決定: 木々が大きく揺れ、葉や胞子の綿が横に流れる。森のそばは少し澄む。数はすべて仮決め。読み口は data/WeatherLookEye)。gustInterval = 突風の間隔の倍率、gustBonus = 突風に足す強さ、between = 突風の合間の風の強さ(場所ごとのむらが ±25% あるので 0.17 を越えると合間にも風の音が鳴る。今は鳴らさない 0.16)、forestClear = 森の中の霞を薄める割合。fluff* = 胞子の綿(fluffCount = 数、fluffRange = 出す半径、fluffSpeed = 風の強さ 1 のときの毎秒のブロック、fluffSize = 大きさ、fluffAlpha = 濃さ、fluffColor = 色、fluffOpen = 森の外での数の倍率)。確かめは /ov weather gale 1。",
+    "_comment": "強風の日の見た目(2026-11-16。ユーザー決定: 木々が大きく揺れ、葉や胞子の綿が横に流れる。森のそばは少し澄む。数はすべて仮決め。読み口は data/WeatherLookEye)。gustInterval = 突風の間隔の倍率、gustBonus = 突風に足す強さ、between = 突風の合間の風の強さ(風の音の鳴り出しは 0.22・場所ごとのむらが ±25%。0.3 = 合間も鳴り続ける。11-17 ユーザー決定)、forestClear = 森の中の霞を薄める割合。fluff* = 胞子の綿(fluffCount = 数、fluffRange = 出す半径、fluffSpeed = 風の強さ 1 のときの毎秒のブロック、fluffSize = 大きさ、fluffAlpha = 濃さ、fluffColor = 色、fluffOpen = 森の外での数の倍率)。確かめは /ov weather gale 1。",
     "gustInterval": 0.22,
     "gustBonus": 0.25,
-    "between": 0.16,
+    "between": 0.3,
     "forestClear": 0.25,
     "fluffCount": 110,
     "fluffRange": 26.0,

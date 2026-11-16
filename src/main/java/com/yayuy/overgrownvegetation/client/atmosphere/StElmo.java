@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.yayuy.overgrownvegetation.ModTags;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.data.WeatherLookEye;
+import com.yayuy.overgrownvegetation.network.CloudStrikePayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -59,12 +60,90 @@ final class StElmo {
 
     static void clear() {
         TIPS.clear();
+        OMENS.clear();
         amount = 0.0F;
+    }
+
+    /** 落雷の前触れ(11-17 ユーザー決定): 近くの木へ落ちる雷を少し遅らせ、その間、その木の先で強く光らせる。 */
+    private static final class Omen {
+        double x, y, z;
+        int born, life;
+        long seed;
+        Runnable fire;
+    }
+
+    private static final List<Omen> OMENS = new ArrayList<>();
+
+    /**
+     * 落雷の知らせ {@code s} が、近く({@code elmoOmenRange} 以内)の木の先・巨大樹(当たった所が葉か幹)なら、{@code elmoOmenTicks} だけ遅らせて
+     * {@code fire} を呼ぶことにして true。その間、当たる所でセントエルモの火が強まっていく。当てはまらなければ false(呼び手がすぐ渡す)。
+     */
+    static boolean omen(CloudStrikePayload s, Runnable fire) {
+        Minecraft mc = Minecraft.getInstance();
+        ClientLevel level = mc.level;
+        // 雰囲気の演出が切られている間は遅らせない(毎 tick の受け手が動かず、落雷を抱えたままになる)。
+        if (level == null || mc.player == null || !Atmosphere.enabled(level) || s.hitY() == Integer.MIN_VALUE || OMENS.size() >= 6) {
+            return false;
+        }
+        WeatherLookEye.Params p = WeatherLook.storm();
+        int wait = Math.round(p.f("elmoOmenTicks"));
+        double dx = s.x() - mc.player.getX(), dz = s.z() - mc.player.getZ();
+        if (wait <= 0 || dx * dx + dz * dz > p.f("elmoOmenRange") * p.f("elmoOmenRange")) {
+            return false;
+        }
+        BlockState top = level.getBlockState(BlockPos.containing(s.x(), s.hitY() - 1, s.z()));
+        if (!(top.is(BlockTags.LEAVES) || top.is(ModTags.OVERGROWN_LEAVES) || top.is(BlockTags.LOGS) || top.is(ModTags.GIANT_WOOD))) {
+            return false;
+        }
+        Omen o = new Omen();
+        o.x = s.x();
+        o.y = s.hitY() + 0.2;
+        o.z = s.z();
+        o.born = ticks;
+        o.life = wait;
+        o.seed = s.seed();
+        o.fire = fire;
+        OMENS.add(o);
+        return true;
+    }
+
+    /** 毎 tick: 待ち終えた前触れの落雷を落とす。 */
+    private static void tickOmens() {
+        for (Iterator<Omen> it = OMENS.iterator(); it.hasNext(); ) {
+            Omen o = it.next();
+            if (ticks - o.born >= o.life) {
+                it.remove();
+                o.fire.run();
+            }
+        }
+    }
+
+    /** 前触れの光({@link WeatherLook} の加算の光の所から。雷雨の強さに関係なく描く)。落ちる瞬間へ向けて大きく明るく、震えが速くなる。 */
+    static void renderOmens(RenderLevelStageEvent event, VertexConsumer c) {
+        if (OMENS.isEmpty()) {
+            return;
+        }
+        WeatherLookEye.Params p = WeatherLook.storm();
+        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        Vec3 eye = event.getCamera().getPosition();
+        Vector3f left = event.getCamera().getLeftVector();
+        Vector3f up = event.getCamera().getUpVector();
+        double time = ticks + partial;
+        float[] col = p.rgb("elmoColor");
+        float gate = (1.0F - ForestPresence.underground()) * (1.0F - 0.7F * DenseFog.amount());
+        for (Omen o : OMENS) {
+            float k = Mth.clamp((float) (time - o.born) / Math.max(1.0F, o.life), 0.0F, 1.0F);
+            float dist = (float) Math.sqrt(eye.distanceToSqr(o.x, o.y, o.z));
+            float size = p.f("elmoOmenSize") * (0.35F + 0.65F * k * k) * (1.0F + dist / 60.0F);
+            float a = gate * (0.35F + 0.65F * k) * (0.7F + 0.3F * flicker(o.seed, time * (1.0 + 3.0 * k)));
+            glow(c, (float) (o.x - eye.x), (float) (o.y - eye.y), (float) (o.z - eye.z), size, a, col, left, up, o.seed, time * (1.0 + 2.0 * k));
+        }
     }
 
     /** 毎 tick。{@code drive} = 雷雨の強さ(前触れ込み)0〜1。 */
     static void tick(ClientLevel level, LocalPlayer player, float drive) {
         ticks++;
+        tickOmens();
         WeatherLookEye.Params p = WeatherLook.storm();
         float from = p.f("elmoFrom");
         amount = drive <= from ? 0.0F : Mth.clamp((drive - from) / Math.max(0.05F, 1.0F - from), 0.0F, 1.0F);

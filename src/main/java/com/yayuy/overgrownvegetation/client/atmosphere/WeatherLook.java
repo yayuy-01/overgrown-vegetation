@@ -115,6 +115,11 @@ public final class WeatherLook {
         Consumer<CloudStrikePayload> current = WeatherClient.strikeListener;
         if (current != wrapper) {
             wrapper = s -> {
+                // 近くの木への落雷は、先にその木の先でセントエルモの火を強く光らせ、少し遅らせてから落とす(落雷の前触れ。11-17 ユーザー決定)。
+                // 遅らせるのは見た目だけ(サーバーの胞子の吹き上げは届いた時に済んでいる)。遅らせない物はそのまま渡す。
+                if (!off("elmo") && StElmo.omen(s, () -> current.accept(s))) {
+                    return;
+                }
                 current.accept(s);
                 if (!off("sprite")) {
                     Sprites.onStrike(s);
@@ -181,6 +186,7 @@ public final class WeatherLook {
         }
         if (!off("elmo")) {
             StElmo.render(event, c);
+            StElmo.renderOmens(event, c);
         }
         buffers.endBatch(AddLight.renderType());
     }

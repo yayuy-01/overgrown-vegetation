@@ -59,6 +59,8 @@ public final class WorldWeather {
     static final double STRIKE_RANGE = 256.0D;
 
     private static final PrevailingWind.Sample SAMPLE = new PrevailingWind.Sample();
+    /** 確かめ用の強制(負 = なし): 雷雨の前触れ・雷雨の後の、クライアントへ送る値(アーク雲・胞子の雲の見た目を出すため。11-17)。 */
+    static volatile double forcedPre = -1, forcedAfter = -1;
 
     private WorldWeather() {
     }
@@ -92,8 +94,11 @@ public final class WorldWeather {
             double x = tod >= 23000 ? tod - PrevailingWind.DAY : tod;
             left = Math.max(left, (int) Math.max(0, 14000 - x));
         }
+        // 確かめ用の強制(11-17。/ov weather pre・after): 見た目へ送る値だけ差し替える(天気そのもの・胞子の場は変えない)。
+        float pre = forcedPre >= 0 ? (float) forcedPre : preStorm(overworld, t, thunderNow);
+        if (forcedAfter >= 0) after = forcedAfter;
         return new WeatherPayload((float) fog, (byte) kind[0], (float) SAMPLE.calm, (float) SAMPLE.gale, (float) after, thunder,
-                preStorm(overworld, t, thunderNow), left, t);
+                pre, left, t);
     }
 
     /** 予定の雷雨の雷が始まる前の立ち上がり(0〜1)。雷の間は 1。差し込みの嵐・手で変えた天気は 0。 */
@@ -193,6 +198,13 @@ public final class WorldWeather {
                         .then(Commands.literal("gale").executes(c -> force(c, "gale", 1.0D))
                                 .then(Commands.argument("level", DoubleArgumentType.doubleArg(0.0D, 1.0D))
                                         .executes(c -> force(c, "gale", DoubleArgumentType.getDouble(c, "level")))))
+                        // 確かめ用(11-17 見た目の側): 雷雨の前触れ・雷雨の後の、見た目へ送る値だけを強制する(天気と胞子の場は変えない)。
+                        .then(Commands.literal("pre").executes(c -> force(c, "pre", 1.0D))
+                                .then(Commands.argument("level", DoubleArgumentType.doubleArg(0.0D, 1.0D))
+                                        .executes(c -> force(c, "pre", DoubleArgumentType.getDouble(c, "level")))))
+                        .then(Commands.literal("after").executes(c -> force(c, "after", 1.0D))
+                                .then(Commands.argument("level", DoubleArgumentType.doubleArg(0.0D, 1.0D))
+                                        .executes(c -> force(c, "after", DoubleArgumentType.getDouble(c, "level")))))
                         .then(Commands.literal("clear").executes(WorldWeather::clear))
                         .then(Commands.literal("strike").executes(c -> strike(c, false))
                                 .then(Commands.literal("forest").executes(c -> strike(c, true)))
@@ -205,6 +217,8 @@ public final class WorldWeather {
         switch (what) {
             case "fog" -> PrevailingWind.forcedFog = level;
             case "calm" -> PrevailingWind.forcedCalm = level;
+            case "pre" -> forcedPre = level;
+            case "after" -> forcedAfter = level;
             default -> PrevailingWind.forcedGale = level;
         }
         sendAll(ctx.getSource().getServer());
@@ -263,7 +277,7 @@ public final class WorldWeather {
                     .append(PrevailingWind.isStrongDay(seed, d, w) ? "強風" : PrevailingWind.isCalmDay(seed, d, w) ? "凪" : "-").append(' ');
         }
         String forced = (PrevailingWind.forcedFog >= 0 ? " 濃霧" : "") + (PrevailingWind.forcedCalm >= 0 ? " 凪" : "")
-                + (PrevailingWind.forcedGale >= 0 ? " 強風" : "");
+                + (PrevailingWind.forcedGale >= 0 ? " 強風" : "") + (forcedPre >= 0 ? " 前触れ" : "") + (forcedAfter >= 0 ? " 雷雨の後" : "");
         ctx.getSource().sendSuccess(() -> Component.literal(String.format(
                 "今の天気: 濃霧 %.2f(%s)・凪 %.2f・強風 %.2f・雷雨 %.2f・雷雨の前触れ %.2f・雷雨の後 %.2f・残り %d tick%n地上の風 %.2f・上空の風 %.2f%n%s%n日の種類(雨の印は今のもの): %s%s",
                 p.fog(), p.fogKind() == 1 ? "雨上がり" : "朝方", p.calm(), p.gale(), p.thunder(), p.preStorm(), p.stormAfter(), p.ticksLeft(),
@@ -276,6 +290,8 @@ public final class WorldWeather {
         PrevailingWind.forcedFog = -1;
         PrevailingWind.forcedCalm = -1;
         PrevailingWind.forcedGale = -1;
+        forcedPre = -1;
+        forcedAfter = -1;
     }
 
     @SubscribeEvent
