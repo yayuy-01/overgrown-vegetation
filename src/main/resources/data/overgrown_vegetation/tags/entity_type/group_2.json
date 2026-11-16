@@ -2,6 +2,8 @@
   "replace": false,
   "values": [
     "overgrown_vegetation:protophasma",
-    "overgrown_vegetation:stenodictya_lobata"
+    "overgrown_vegetation:stenodictya_lobata",
+    "overgrown_vegetation:giant_snail",
+    "overgrown_vegetation:arthropleura"
   ]
 }

@@ -118,6 +118,32 @@ public final class ModCrawlers {
     public static final DeferredItem<DeferredSpawnEggItem> PROTOPHASMA_SPAWN_EGG = ModItems.ITEMS.registerItem(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(PROTOPHASMA, 0x2F4A1C, 0x7A5C34, props));
 
+    /** 陸生カタツムリ(G2。id は giant_snail のまま)。当たりは 0.7 × 0.9(MobStats の値)。全体 1.34 × 0.69 × 0.89。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.GiantSnailEntity>> GIANT_SNAIL =
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.GiantSnailEntity.ID, () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.GiantSnailEntity>of(com.yayuy.overgrownvegetation.entity.GiantSnailEntity::new, MobCategory.CREATURE)
+                    .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.GiantSnailEntity.ID, 0.7F), MobStats.height(com.yayuy.overgrownvegetation.entity.GiantSnailEntity.ID, 0.9F))
+                    .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.GiantSnailEntity.ID))
+                    .eyeHeight(0.7F)
+                    .clientTrackingRange(8)
+                    .build(com.yayuy.overgrownvegetation.entity.GiantSnailEntity.ID));
+    /** スポーンエッグ(地は樹皮の焦げ茶、点は髄の淡い色)。 */
+    public static final DeferredItem<DeferredSpawnEggItem> GIANT_SNAIL_SPAWN_EGG = ModItems.ITEMS.registerItem(com.yayuy.overgrownvegetation.entity.GiantSnailEntity.ID + "_spawn_egg",
+            props -> new DeferredSpawnEggItem(GIANT_SNAIL, 0x3A2E1C, 0x8C8250, props));
+
+    /** アースロプレウラ(G2)。当たりは胴の芯 1.1 × 0.55(MobStats の値。頭・脚・後ろの節ははみ出す。全体 3.62 × 1.24 × 0.40)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ArthropleuraEntity>> ARTHROPLEURA =
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.ArthropleuraEntity.ID, () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.ArthropleuraEntity>of(com.yayuy.overgrownvegetation.entity.ArthropleuraEntity::new, MobCategory.CREATURE)
+                    .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.ArthropleuraEntity.ID, 1.1F), MobStats.height(com.yayuy.overgrownvegetation.entity.ArthropleuraEntity.ID, 0.55F))
+                    .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.ArthropleuraEntity.ID))
+                    .eyeHeight(0.35F)
+                    .clientTrackingRange(8)
+                    .build(com.yayuy.overgrownvegetation.entity.ArthropleuraEntity.ID));
+    /** スポーンエッグ(地は樹皮の焦げ茶、点は形成層の黄緑)。 */
+    public static final DeferredItem<DeferredSpawnEggItem> ARTHROPLEURA_SPAWN_EGG = ModItems.ITEMS.registerItem(com.yayuy.overgrownvegetation.entity.ArthropleuraEntity.ID + "_spawn_egg",
+            props -> new DeferredSpawnEggItem(ARTHROPLEURA, 0x33281A, 0x7E8A2C, props));
+
     /** 植物側の Mob のタブへ卵を並べる({@code ModCreativeTabs} から)。 */
     public static void acceptEggs(CreativeModeTab.Output output) {
         output.accept(VESICARIA_SPAWN_EGG.get());
@@ -125,6 +151,8 @@ public final class ModCrawlers {
         output.accept(STROBILA_SPAWN_EGG.get());
         output.accept(PULMONOSCORPIUS_SPAWN_EGG.get());
         output.accept(PROTOPHASMA_SPAWN_EGG.get());
+        output.accept(GIANT_SNAIL_SPAWN_EGG.get());
+        output.accept(ARTHROPLEURA_SPAWN_EGG.get());
     }
 
     @SubscribeEvent
@@ -134,5 +162,7 @@ public final class ModCrawlers {
         event.put(STROBILA.get(), com.yayuy.overgrownvegetation.entity.StrobilaEntity.createAttributes().build());
         event.put(PULMONOSCORPIUS.get(), com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.createAttributes().build());
         event.put(PROTOPHASMA.get(), com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.createAttributes().build());
+        event.put(GIANT_SNAIL.get(), com.yayuy.overgrownvegetation.entity.GiantSnailEntity.createAttributes().build());
+        event.put(ARTHROPLEURA.get(), com.yayuy.overgrownvegetation.entity.ArthropleuraEntity.createAttributes().build());
     }
 }

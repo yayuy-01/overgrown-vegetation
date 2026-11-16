@@ -34,6 +34,10 @@ public final class CrawlerClient {
                 ctx -> new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity>(ctx, new CritterModel<>(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.ID), 1.0F, 0.6F));
         event.registerEntityRenderer(ModCrawlers.PROTOPHASMA.get(),
                 ctx -> new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.ProtophasmaEntity>(ctx, new CritterModel<>(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID), 1.0F, 0.35F));
+        event.registerEntityRenderer(ModCrawlers.GIANT_SNAIL.get(),
+                ctx -> new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.GiantSnailEntity>(ctx, new CritterModel<>(com.yayuy.overgrownvegetation.entity.GiantSnailEntity.ID), 1.0F, 0.4F));
+        event.registerEntityRenderer(ModCrawlers.ARTHROPLEURA.get(),
+                ctx -> new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.ArthropleuraEntity>(ctx, new CritterModel<>(com.yayuy.overgrownvegetation.entity.ArthropleuraEntity.ID), 1.0F, 0.7F));
         // ストロビラの球果(11-15 段 2): 絵は【仮】で胞子嚢のアイテム(少し大きく)
         event.registerEntityRenderer(ModCrawlers.STROBILA_CONE.get(),
                 ctx -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(ctx, 1.4F, false));
