@@ -301,7 +301,9 @@ public final class ForestDirector extends SavedData implements ForestBudget {
             }
             double days = Math.max(0L, now - budgetAt) / 24000.0D;
             carry = Math.max(0.0D, Math.min(carry, budget - cap) - cap * CARRY_DECAY_PER_DAY * days); // 使った分・減った分だけ小さくなる
-            budget = accrued(budget, now - budgetAt, incomePerDay(level), cap + carry);
+            // 生態系の台帳(11-16 全体管理 決定 C): 森の健康は貯まる速さにだけ掛ける(上限には掛けない。健康 100% で倍率 1 = 今までどおり)
+            double factor = com.yayuy.overgrownvegetation.ecosystem.Ecosystem.incomeFactor(level);
+            budget = accrued(budget, now - budgetAt, incomePerDay(level) * factor, cap + carry);
         }
         budgetAt = now;
         setDirty();
@@ -593,8 +595,9 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         PhaseData phase = PhaseData.get(level);
         List<String> out = new ArrayList<>();
         out.add(DirectorGates.describe(level));
-        out.add(String.format(Locale.ROOT, "森の予算 %.1f / 上限 %.1f(ハイヴノード %d)・1 日に +%.1f(過繁茂のチャンク %d)",
-                available(level), cap(level), phase.hiveNodeSnapshot().length, incomePerDay(level), phase.overgrownLedgerSize()));
+        out.add(String.format(Locale.ROOT, "森の予算 %.1f / 上限 %.1f(ハイヴノード %d)・1 日に +%.1f(過繁茂のチャンク %d)× 森の健康の倍率 %.2f",
+                available(level), cap(level), phase.hiveNodeSnapshot().length, incomePerDay(level), phase.overgrownLedgerSize(),
+                com.yayuy.overgrownvegetation.ecosystem.Ecosystem.incomeFactor(level)));
         DirectorTable t = DesignData.director();
         out.add(String.format(Locale.ROOT, "値段: 進化 %.0f・根付き %.0f・苗床 %.0f / これまでの判断: 進化 %d・根付き %d・苗床 %d・何もしない %d",
                 t.costEvolve, t.costRooted, t.costNursery, decided[Route.EVOLVE.ordinal()], decided[Route.ROOTED.ordinal()],

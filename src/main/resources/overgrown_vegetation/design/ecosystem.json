@@ -1,0 +1,39 @@
+{
+  "_comment": "生態系の台帳(2026-11-16 作り直し)。正本は Vault「構想と進捗/生態系の台帳(兵站・バイオマス)」。数はどれも【仮】(全体管理 11-16 了承)。升 = 2^cellShift チャンク四方。升ごとに G2(生産種)・G3(消費種)の仮想の頭数を持ち、満員は fullG2・fullG3。倒すとその升が 1 減り、最後に倒された時から recoveryDays で満員に戻る(減った升だけを持つ)。多様性(森の健康)は世界で 1 つ = 1 − Σ(欠け × 重み) ÷ scale(固定の物差し。森の広さに関わらない)。数えるのはプレイヤーと countedDamageTypes の防衛設備の撃破だけ。森の予算の貯まる速さ × (incomeFloor + (1 − incomeFloor) × 多様性)。上限には掛けない。反映は再起動。",
+  "enabled": true,
+  "cellShift": 2,
+  "fullG2": 12,
+  "fullG3": 4,
+  "recoveryDays": 5.0,
+  "weightG2": 1.0,
+  "weightG3": 2.5,
+  "scale": 50.0,
+  "incomeFloor": 0.5,
+  "countedDamageTypes": [
+    "overgrown_vegetation:autocannon",
+    "overgrown_vegetation:barbed_wire"
+  ],
+  "inner": {
+    "_comment": "汚染地帯の内側(台帳に載っていて縁でないチャンク)の守り。多様性が threshold 以上なら湧かない。下回ると (threshold − 多様性) ÷ threshold に比例して最大 capG4・capG5 × フェーズの段の強さ(開くのは縁と同じ G4 F4・G5 F5)。減った升を優先し、無ければまわりの森。予算は払わない。intervalTicks ごとにプレイヤー 1 人あたり triesPerPlayer 回、minBlocks〜maxBlocks。countRadius の中を数え、despawnBlocks よりどのプレイヤーからも遠くなったら消す。",
+    "threshold": 0.7,
+    "capG4": 8,
+    "capG5": 4,
+    "intervalTicks": 20,
+    "triesPerPlayer": 2,
+    "minBlocks": 24,
+    "maxBlocks": 96,
+    "countRadius": 128,
+    "despawnBlocks": 128
+  },
+  "stub": {
+    "_comment": "G2・G3 の種がそろうまでの仮の種。開発用の操作口(-Dov.devbridge)か GameTest のときだけ湧く(ふつうに遊ぶ人には湧かない)。印の付いた個体だけを G2・G3 として数える。本物の種が group_2・group_3 のタグに入ったら空にする。上限は capG2・capG3 × 多様性、升の頭数 ÷ 満員 の確率で湧く。",
+    "g2": ["minecraft:frog"],
+    "g3": ["minecraft:ocelot"],
+    "capG2": 8,
+    "capG3": 3,
+    "intervalTicks": 40,
+    "triesPerPlayer": 2,
+    "minBlocks": 24,
+    "maxBlocks": 64
+  }
+}
