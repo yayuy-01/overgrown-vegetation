@@ -78,7 +78,8 @@ final class CaveShafts {
     private static final float VIEW_DARK = 0.3F;
 
     static float viewDark() {
-        return SunLight.smooth(Mth.clamp(CaveLights.mix() / VIEW_DARK, 0.0F, 1.0F));
+        // 岩などの屋根の下にいる(真上が空でない)か、暗い洞窟の中にいる。11-16 追記: 地下の度合いだけだと、天井の穴のそば(空の光が強い)で筋がほとんど消えた。
+        return Math.max(ForestPresence.underground(), SunLight.smooth(Mth.clamp(CaveLights.mix() / VIEW_DARK, 0.0F, 1.0F)));
     }
 
     private static boolean on(ClientLevel level) {
