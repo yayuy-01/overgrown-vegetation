@@ -246,6 +246,58 @@ public abstract class SkyFlyer extends Monster {
         return FLUSH_RANGE;
     }
 
+    /**
+     * 葉の層の下面に逆さにぶら下がって止まる種か(2026-11-16 ステノディクティアで足した。既定 false = 林冠のてっぺんの上に止まる = 今まで通り)。
+     * true なら止まり木は {@link SkyProbe#findHangPerches} で選び({@link #perch} = ぶら下がるブロック)、林冠の縁の外の口
+     * ({@link SkyProbe#hangOutside})まで下りてから横へ寄って下面に止まり、飛び立つときは口へ抜けてから昇る。
+     */
+    protected boolean perchUnder() {
+        return false;
+    }
+
+    /** ぶら下がる高さ: 止まるブロックの下面から体の足元までの深さ(既定 = 当たりの高さ + 0.02 = 当たりの上の端が下面に着く)。 */
+    protected double hangDrop() {
+        return this.getBbHeight() + 0.02D;
+    }
+
+    /** 止まり木を探す(種の止まり方で上か下面か)。 */
+    List<BlockPos> findPerchSpots(Level level, BlockPos center, int radius, int n, double gap) {
+        return perchUnder() ? SkyProbe.findHangPerches(level, center, radius, n, gap)
+                : SkyProbe.findPerches(level, center, radius, n, gap, perchClearUp());
+    }
+
+    /** 今の止まり木がまだ使えるか(上: 上が空いた固いブロック / 下面: {@link SkyProbe#hangable})。 */
+    private boolean perchOk(Level level, BlockPos p) {
+        return perchUnder() ? SkyProbe.hangable(level, p) : SkyProbe.perchable(level, p);
+    }
+
+    /** 止まり木に止まったときの足元の高さ。 */
+    private double perchFeetY(BlockPos p) {
+        return perchUnder() ? p.getY() - hangDrop() : p.getY() + 1.0D;
+    }
+
+    /** 下面に止まっている・止まりに行く止まり木の口(下から寄る・抜ける所。止まり木ごとに覚える)。 */
+    @Nullable
+    private BlockPos hangOut;
+    @Nullable
+    private BlockPos hangOutFor;
+    /** 下面から飛び立つとき、口へ抜ける間の残り(tick)と抜ける先。 */
+    private int dropOutLeft;
+    @Nullable
+    private Vec3 dropOutTo;
+    static final int DROP_OUT_TICKS = 12;
+    /** 下面の止まり木の口からこの距離(ブロック)の中は、避けて昇る手続きを止める。 */
+    static final double HANG_FINAL = 6.0D;
+
+    @Nullable
+    private BlockPos hangOutOf(Level level, BlockPos p) {
+        if (!p.equals(this.hangOutFor)) {
+            this.hangOutFor = p;
+            this.hangOut = SkyProbe.hangOutside(level, p);
+        }
+        return this.hangOut;
+    }
+
     /** 群れが逃げている間({@link Flock.State#FLEE})に先頭が出す速さ(2026-11-16 セミナリアで足した。既定 = 巡航 = 今まで通り)。 */
     protected double fleeSpeed() {
         return params().cruise;
@@ -544,13 +596,22 @@ public abstract class SkyFlyer extends Monster {
         double floor = Double.isNaN(this.canopyAhead) ? this.getY() : this.canopyAhead;
         double cruiseY = floor + this.layer + this.personalAlt;
         boolean roostApproach = false;
+        boolean hangFinal = false;
         boolean mustReach = false;
         double needAlong = 0.0D;
 
         if (f.state == Flock.State.ROOST) {
             if (this.perch != null) {
                 roostApproach = true;
-                double tx = this.perch.getX() + 0.5D, ty = this.perch.getY() + 1.0D, tz = this.perch.getZ() + 0.5D;
+                double tx = this.perch.getX() + 0.5D, ty = perchFeetY(this.perch), tz = this.perch.getZ() + 0.5D;
+                if (perchUnder()) {
+                    // 下面の止まり木: 林冠の縁の外の口へ下りる(口の高さ = ぶら下がる高さ。そこから横へ寄るのは降りる段)
+                    BlockPos out = hangOutOf(sl, this.perch);
+                    if (out != null) {
+                        tx = out.getX() + 0.5D;
+                        tz = out.getZ() + 0.5D;
+                    }
+                }
                 double dx = tx - this.getX(), dz = tz - this.getZ();
                 double d = Math.sqrt(dx * dx + dz * dz);
                 this.cmdHeading = FlightBody.yawOf(dx, dz);
@@ -559,10 +620,13 @@ public abstract class SkyFlyer extends Monster {
                     this.cmdY = Math.max(cruiseY, ty + 8.0D);
                 } else {
                     this.cmdSpeed = Mth.lerp(d / 20.0D, p.minSpeed, p.cruise * 0.8D);
-                    this.cmdY = ty + 1.5D + d * 0.4D;
+                    this.cmdY = ty + (perchUnder() ? 0.0D : 1.5D) + d * 0.4D;
                 }
                 mustReach = true;
-                if (d < 2.5D && this.getY() - ty < perchClearUp() || d < 8.0D && this.modeTicks > 400) {
+                // 下面の止まり木へ寄る終わり(口の列の中 = 空まで開いている)は、葉・幹を避けて昇る手続きを止める(林冠の下を見て押し上げられる)
+                hangFinal = perchUnder() && d < HANG_FINAL;
+                boolean arrived = perchUnder() ? d < 1.5D && Math.abs(this.getY() - ty) < 1.5D : d < 2.5D && this.getY() - ty < perchClearUp();
+                if (arrived || d < 8.0D && this.modeTicks > 400) {
                     setMode(MODE_LANDING);
                     return;
                 }
@@ -636,13 +700,16 @@ public abstract class SkyFlyer extends Monster {
         }
 
         // 枝・葉(4 tick ごと)
-        if (this.avoidTicks > 0) {
+        if (hangFinal) {
+            this.avoidTicks = 0;
+            this.climbBoost = 0.0D;
+        } else if (this.avoidTicks > 0) {
             this.avoidTicks--;
             this.cmdHeading = this.avoidHeading;
         } else if (this.tickCount % 4 == 2) {
             feel(sl);
         }
-        if (this.horizontalCollision) {
+        if (this.horizontalCollision && !hangFinal) {
             double l = SkyProbe.blockedWithin(sl, this.getX(), this.getY() + 0.4D, this.getZ(), this.body.heading + 90.0D, FEELER);
             double r = SkyProbe.blockedWithin(sl, this.getX(), this.getY() + 0.4D, this.getZ(), this.body.heading - 90.0D, FEELER);
             this.avoidHeading = this.body.heading + (l >= r ? 120.0D : -120.0D);
@@ -685,18 +752,23 @@ public abstract class SkyFlyer extends Monster {
     }
 
     private void tickLanding(ServerLevel sl, Flock f) {
-        if (this.perch == null || !SkyProbe.perchable(sl, this.perch) || f.state != Flock.State.ROOST) {
+        if (this.perch == null || !perchOk(sl, this.perch) || f.state != Flock.State.ROOST) {
             startTakeoff();
             return;
         }
-        double tx = this.perch.getX() + 0.5D, ty = this.perch.getY() + 1.0D, tz = this.perch.getZ() + 0.5D;
+        double tx = this.perch.getX() + 0.5D, ty = perchFeetY(this.perch), tz = this.perch.getZ() + 0.5D;
         double dx = tx - this.getX(), dy = ty - this.getY(), dz = tz - this.getZ();
         double d = Math.sqrt(dx * dx + dz * dz);
         double hs = Math.min(LAND_H, d);
         this.kinX = d > 1e-4 ? dx / d * hs : 0.0D;
         this.kinZ = d > 1e-4 ? dz / d * hs : 0.0D;
-        // 先に真上へ寄り(低ければ少し昇る)、真上に来てから真下へ降りる(止まり木の上は CLEAR_UP まで空いている)
-        this.kinY = d > 0.3D ? Mth.clamp(dy, 0.0D, 0.05D) : Mth.clamp(dy, -LAND_DOWN, 0.05D);
+        if (perchUnder()) {
+            // 下面: 口(ぶら下がる高さ)から横へ寄りながら高さを合わせる(上も下も少しずつ)
+            this.kinY = Mth.clamp(dy, -LAND_DOWN, LAND_DOWN);
+        } else {
+            // 先に真上へ寄り(低ければ少し昇る)、真上に来てから真下へ降りる(止まり木の上は CLEAR_UP まで空いている)
+            this.kinY = d > 0.3D ? Mth.clamp(dy, 0.0D, 0.05D) : Mth.clamp(dy, -LAND_DOWN, 0.05D);
+        }
         if (d > 0.5D) faceToward(FlightBody.yawOf(dx, dz), 6.0F);
         if (d < 0.05D && Math.abs(dy) < 0.05D) {
             this.setPos(tx, ty, tz);
@@ -707,16 +779,16 @@ public abstract class SkyFlyer extends Monster {
         }
         if (this.modeTicks > 200) {
             // 降りきれない(何かに阻まれた): 近くの別の止まり木へ替えてから飛び直す(同じ所へ降り続けない)
-            this.perch = pickSparePerch(sl, f, this.perch, perchClearUp());
+            this.perch = pickSparePerch(this, sl, f, this.perch);
             startTakeoff();
         }
     }
 
     /** old の近く(半径 10)で、群れのほかの個体が使っていない止まり木。無ければ null(止まり木のまわりを回る)。 */
     @Nullable
-    private static BlockPos pickSparePerch(ServerLevel sl, Flock f, @Nullable BlockPos old, double clearUp) {
+    private static BlockPos pickSparePerch(SkyFlyer self, ServerLevel sl, Flock f, @Nullable BlockPos old) {
         if (old == null) return null;
-        for (BlockPos c : SkyProbe.findPerches(sl, old, 10, 12, Flock.PERCH_GAP, clearUp)) {
+        for (BlockPos c : self.findPerchSpots(sl, old, 10, 12, Flock.PERCH_GAP)) {
             if (c.equals(old)) continue;
             boolean used = false;
             for (SkyFlyer m : f.members) {
@@ -732,6 +804,7 @@ public abstract class SkyFlyer extends Monster {
 
     private void tickPerched(ServerLevel sl, Flock f) {
         this.kinX = this.kinY = this.kinZ = 0.0D;
+        if (perchUnder() && this.perch != null) hangOutOf(sl, this.perch);   // 読み込み直した直後でも、飛び立つ口を覚えておく
         faceWhileWaiting(sl, f);
         if (f.state == Flock.State.WAKE || f.state == Flock.State.PATROL) {
             if (this.takeoffDelay-- <= 0) {
@@ -739,7 +812,7 @@ public abstract class SkyFlyer extends Monster {
                 return;
             }
         }
-        if (this.tickCount % 20 == 0 && (this.perch == null || !SkyProbe.perchable(sl, this.perch))) {
+        if (this.tickCount % 20 == 0 && (this.perch == null || !perchOk(sl, this.perch))) {
             f.flush(sl, this.getX(), this.getZ());
             startTakeoff();
             return;
@@ -769,6 +842,19 @@ public abstract class SkyFlyer extends Monster {
             // その場で溜める(止まった所から動かない)
             this.windupLeft--;
             this.kinX = this.kinY = this.kinZ = 0.0D;
+            return;
+        }
+        if (this.dropOutLeft > 0 && this.dropOutTo != null) {
+            // 下面から飛び立つ: 少し落ちながら林冠の縁の外の口へ抜ける(真上は葉なので昇れない)
+            this.dropOutLeft--;
+            double dx = this.dropOutTo.x - this.getX(), dz = this.dropOutTo.z - this.getZ();
+            double d = Math.sqrt(dx * dx + dz * dz);
+            double s = Math.min(0.15D, d);
+            this.kinX = d > 1e-4 ? dx / d * s : 0.0D;
+            this.kinZ = d > 1e-4 ? dz / d * s : 0.0D;
+            this.kinY = -0.03D;
+            if (d > 0.5D) faceToward(FlightBody.yawOf(dx, dz), 12.0F);
+            if (d < 0.2D) this.dropOutLeft = 0;
             return;
         }
         this.climbTicks++;
@@ -804,6 +890,13 @@ public abstract class SkyFlyer extends Monster {
         if (this.mode == MODE_FLY || this.mode == MODE_TAKEOFF) return;
         int delay = this.takeoffDelay;
         boolean fromPerch = this.mode == MODE_PERCHED;
+        // 下面に止まっていた・寄っていた: 先に口へ抜ける(2026-11-16 ステノディクティア)
+        this.dropOutLeft = 0;
+        this.dropOutTo = null;
+        if (perchUnder() && this.hangOut != null && (fromPerch || this.mode == MODE_LANDING)) {
+            this.dropOutLeft = DROP_OUT_TICKS;
+            this.dropOutTo = new Vec3(this.hangOut.getX() + 0.5D, this.getY(), this.hangOut.getZ() + 0.5D);
+        }
         setMode(MODE_TAKEOFF);
         this.takeoffDelay = Math.max(0, delay);
         this.windupLeft = fromPerch ? takeoffWindupTicks() : 0;   // 降りている途中からは溜めない
@@ -969,7 +1062,7 @@ public abstract class SkyFlyer extends Monster {
     /** テスト用: 止まり木へ直に置く。 */
     public void debugPerchAt(BlockPos top) {
         this.perch = top;
-        this.setPos(top.getX() + 0.5D, top.getY() + 1.0D, top.getZ() + 0.5D);
+        this.setPos(top.getX() + 0.5D, perchFeetY(top), top.getZ() + 0.5D);   // 下面に止まる種は下面にぶら下げる
         setMode(MODE_PERCHED);
     }
 

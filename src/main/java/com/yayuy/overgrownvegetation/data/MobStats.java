@@ -286,7 +286,8 @@ public final class MobStats {
         }));
 
         m.put("stenodictya_lobata", stat(s -> {
-            s.maxHealth = 4.0; s.movementSpeed = 0.28; s.flyingSpeed = 0.8; s.followRange = 16.0;
+            // 2026-11-16 段 1(飛ぶ型)で戻した。飛ぶ速さは飛ぶ型の巡航 0.35 に揃えた(前は 0.8)【仮】
+            s.maxHealth = 4.0; s.movementSpeed = 0.28; s.flyingSpeed = 0.35; s.followRange = 16.0;
             s.width = 0.6; s.height = 0.4; s.xpReward = 3;
             s.eggFit = 1.28;
         }));

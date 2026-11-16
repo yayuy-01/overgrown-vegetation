@@ -557,6 +557,23 @@
     "xpReward": 5,
     "eggFit": 4.95
   },
+  "stenodictya_lobata": {
+    "maxHealth": 4,
+    "attackDamage": 0,
+    "armor": 0,
+    "movementSpeed": 0.28,
+    "flyingSpeed": 0.35,
+    "knockbackResistance": 0,
+    "followRange": 16,
+    "stepHeight": 1,
+    "scale": 1,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.6,
+    "height": 0.4,
+    "xpReward": 3,
+    "eggFit": 1.28
+  },
   "acumnes": {
     "maxHealth": 40,
     "attackDamage": 12,

@@ -28,6 +28,7 @@ public final class FlyerClient {
         // セミナリアの種(11-16): 絵は【仮】で胞子嚢のアイテム(小さく)
         event.registerEntityRenderer(ModFlyers.SEMINARIA_SEED.get(),
                 ctx -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(ctx, 0.6F, false));
+        event.registerEntityRenderer(ModFlyers.STENODICTYA_LOBATA.get(), StenodictyaLobataRenderer::new);   // G2 成虫(11-16)
         event.registerEntityRenderer(ModFlyers.PEDICULA.get(), PediculaRenderer::new);
         event.registerEntityRenderer(ModFlyers.ACUMNES.get(), AcumnesRenderer::new);
         event.registerEntityRenderer(ModFlyers.ACUMNES_SPINE.get(), SpineRenderer::acumnes);

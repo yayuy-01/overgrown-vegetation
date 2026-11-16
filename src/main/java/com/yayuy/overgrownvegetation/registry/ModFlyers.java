@@ -80,6 +80,23 @@ public final class ModFlyers {
             com.yayuy.overgrownvegetation.entity.SeminariaEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(SEMINARIA, 0x3A4A1E, 0x5A1838, props));
 
+    /** ステノディクティア(G2 成虫、2026-11-16 段 1)。当たりは胴の芯 0.6 × 0.4(翅・脚ははみ出す)。生息しているだけの生き物なので CREATURE。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity>> STENODICTYA_LOBATA =
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity.ID, () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity>of(com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity::new, MobCategory.CREATURE)
+                    .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity.ID, 0.6F),
+                            MobStats.height(com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity.ID, 0.4F))
+                    .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity.ID))
+                    .eyeHeight(0.25F)
+                    .clientTrackingRange(10)
+                    .updateInterval(2)
+                    .build(com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity.ID));
+
+    /** スポーンエッグ(地は汚染シダの暗い緑、点は翅の脈の黄緑)。 */
+    public static final DeferredItem<DeferredSpawnEggItem> STENODICTYA_LOBATA_SPAWN_EGG = ModItems.ITEMS.registerItem(
+            com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity.ID + "_spawn_egg",
+            props -> new DeferredSpawnEggItem(STENODICTYA_LOBATA, 0x2E4A1A, 0x9CB83A, props));
+
     /** ペディキュラ(2026-11-15 段 1、漂う型)。当たりは塊の真ん中(3.6 × 3.6、旧版の値)。高い空に浮くので遠くまで送る。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.PediculaEntity>> PEDICULA =
             ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.PediculaEntity.ID, () -> EntityType.Builder
@@ -128,6 +145,7 @@ public final class ModFlyers {
     public static void acceptEggs(CreativeModeTab.Output output) {
         output.accept(VELOPHYLL_SPAWN_EGG.get());
         output.accept(SEMINARIA_SPAWN_EGG.get());
+        output.accept(STENODICTYA_LOBATA_SPAWN_EGG.get());
         output.accept(PEDICULA_SPAWN_EGG.get());
         output.accept(ACUMNES_SPAWN_EGG.get());
     }
@@ -136,6 +154,7 @@ public final class ModFlyers {
     public static void onEntityAttributeCreation(EntityAttributeCreationEvent event) {
         event.put(VELOPHYLL.get(), VelophyllEntity.createAttributes().build());
         event.put(SEMINARIA.get(), com.yayuy.overgrownvegetation.entity.SeminariaEntity.createAttributes().build());
+        event.put(STENODICTYA_LOBATA.get(), com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity.createAttributes().build());
         event.put(PEDICULA.get(), com.yayuy.overgrownvegetation.entity.PediculaEntity.createAttributes().build());
         event.put(ACUMNES.get(), com.yayuy.overgrownvegetation.entity.AcumnesEntity.createAttributes().build());
     }

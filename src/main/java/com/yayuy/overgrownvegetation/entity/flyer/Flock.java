@@ -228,9 +228,12 @@ public final class Flock {
         int n = this.members.size();
         SkyFlyer lead = leader();
         double up = lead != null ? lead.perchClearUp() : SkyProbe.CLEAR_UP;   // 種ごとの真上の空き(既定 6)
-        List<BlockPos> spots = SkyProbe.findPerches(level, center, ROOST_RADIUS, n, PERCH_GAP, up);
+        // 種の止まり方で上か下面か(2026-11-16 ステノディクティア。既定は今まで通り林冠のてっぺん)
+        List<BlockPos> spots = lead != null ? lead.findPerchSpots(level, center, ROOST_RADIUS, n, PERCH_GAP)
+                : SkyProbe.findPerches(level, center, ROOST_RADIUS, n, PERCH_GAP, up);
         if (spots.size() < n) {
-            List<BlockPos> wide = SkyProbe.findPerches(level, center, ROOST_RADIUS_WIDE, n, PERCH_GAP, up);
+            List<BlockPos> wide = lead != null ? lead.findPerchSpots(level, center, ROOST_RADIUS_WIDE, n, PERCH_GAP)
+                    : SkyProbe.findPerches(level, center, ROOST_RADIUS_WIDE, n, PERCH_GAP, up);
             if (wide.size() > spots.size()) spots = wide;
         }
         if (spots.isEmpty()) {
