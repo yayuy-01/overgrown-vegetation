@@ -149,6 +149,7 @@ public final class RoomDirt extends SavedData {
         List<VentBlockEntity> vents = Ventilators.running(level);
         double slow = Math.pow(0.5D, seconds / s.roomHalfLifeSeconds());
         double fast = Math.pow(0.5D, seconds / s.roomVentHalfLifeSeconds());
+        int removed = 0;
         for (ObjectIterator<Long2DoubleMap.Entry> it = mass.long2DoubleEntrySet().fastIterator(); it.hasNext(); ) {
             Long2DoubleMap.Entry e = it.next();
             long k = e.getLongKey();
@@ -167,11 +168,13 @@ public final class RoomDirt extends SavedData {
             }
             if (after < EPSILON) {
                 it.remove();
+                removed++;
                 continue;
             }
             e.setValue(after);
         }
-        pruneBoxes();
+        // 箱の見直しは汚れが消えたときだけ(2026-11-16 コードの見直し ③13: 前は毎秒、箱 × 汚れのマスを全部見直していた。最悪 256 × 4096 で約 60 ms)
+        if (removed > 0) pruneBoxes();
         setDirty();
     }
 
@@ -190,6 +193,19 @@ public final class RoomDirt extends SavedData {
     public static boolean ventCovers(ServerLevel level, BlockPos pos) {
         List<VentBlockEntity> vents = Ventilators.running(level);
         return !vents.isEmpty() && coveringVent(vents, pos.asLong(), DesignData.sporeField().vent()) != null;
+    }
+
+    /**
+     * 計測用(2026-11-16 コードの見直し ③13): 汚れ {@code deposits} 個・汚れの入っていない箱 {@code boxCount} 個(箱の見直しの最悪)で
+     * {@link #decay} 1 回にかかる時間(ns)。保存はしない。
+     */
+    public static long benchDecayForTests(ServerLevel level, int deposits, int boxCount) {
+        RoomDirt d = new RoomDirt();
+        for (int i = 0; i < deposits; i++) d.mass.put(BlockPos.asLong(i, 1000, 0), 1000.0D);
+        for (int i = 0; i < boxCount; i++) d.boxes.add(new int[] {-10 - i, -500, -10, -5 - i, -490, -5});
+        long t0 = System.nanoTime();
+        d.decay(level, 1.0D);
+        return System.nanoTime() - t0;
     }
 
     /** 全部消す(開発用・GameTest)。 */

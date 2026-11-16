@@ -204,7 +204,8 @@ public final class PlantSideBurstGameTests {
      * 汎用の感染体のドラゴン(11-15 ユーザー決定「死に際の後に破裂」): 膨らまず(破裂の対象の判定からは外れる)、バニラの 200 tick の終わりで破裂する。
      * 死に際を 198 tick まで早送りして、消える tick に破裂が数えられることを見る。
      */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 40)
+    // ドラゴンの体(幅 16)はテスト場からはみ出し、隣のテストが終わるときの片付けで消されるので、ひとりの束で流す(11-16)
+    @GameTest(template = TEMPLATE, batch = "plant_side_dragon", timeoutTicks = 40)
     public static void transformedDragonBurstsAtTheEndOfItsDeath(GameTestHelper helper) {
         Mob dragon = helper.spawnWithNoFreeWill(EntityType.ENDER_DRAGON, new Vec3(3.5, 3.0, 3.5));
         markTurned(dragon);
@@ -502,6 +503,78 @@ public final class PlantSideBurstGameTests {
             helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(abs).inflate(5.0)).forEach(e -> e.discard());
             helper.succeed();
         });
+    }
+
+    // ------------------------------------------------------------------ コードの見直し 第 3 便 ③ の計測(11-16。ログに PERF3 の行を出すだけ)
+
+    /**
+     * ③5: 死んだときの汚染の球 1 個の費用(半径 2、草の床)。③10: 植物側 {@code n} 体のそばで「狙いを外す」見張り 1 回の費用。
+     * ③13: 部屋の汚れ 4096 個・汚れの無い箱 256 個で、毎秒の減らし 1 回の費用。
+     */
+    @GameTest(template = TEMPLATE, batch = "plant_side_perf3", timeoutTicks = 100)
+    public static void measureBatch3(GameTestHelper helper) {
+        net.minecraft.server.level.ServerLevel level = helper.getLevel();
+        // ③5 球 1 個(床を草にして毎回作り直す)
+        int spheres = 40;
+        long sphereNs = 0;
+        BlockPos base = helper.absolutePos(new BlockPos(3, 1, 3));
+        for (int i = 0; i < spheres; i++) {
+            for (BlockPos p : BlockPos.betweenClosed(base.offset(-3, -1, -3), base.offset(3, 0, 3))) level.setBlock(p, net.minecraft.world.level.block.Blocks.GRASS_BLOCK.defaultBlockState(), 2);
+            long t0 = System.nanoTime();
+            com.yayuy.overgrownvegetation.corruption.NoisyCorruptionBurst.sphere(level, Vec3.atCenterOf(base.above()), 2, 0.8D);
+            sphereNs += System.nanoTime() - t0;
+        }
+        // ③10 植物側 n 体のそばで見張り 1 回
+        int n = 120;
+        for (int i = 0; i < n; i++) {
+            Mob m = helper.spawnWithNoFreeWill(G1Species.ZOMBIE.entityType(), new Vec3(1.5 + (i % 5), 2.0, 1.5 + (i / 5 % 5)));
+            m.setNoAi(true);
+        }
+        Mob turned = helper.spawnWithNoFreeWill(EntityType.HORSE, new Vec3(3.5, 2.0, 3.5));
+        int calls = 200;
+        long t1 = System.nanoTime();
+        for (int i = 0; i < calls; i++) com.yayuy.overgrownvegetation.infect.GenericInfection.releaseAttackers(turned);
+        long releaseNs = (System.nanoTime() - t1) / calls;
+        // ③13 部屋の汚れの毎秒の減らし
+        long decayNs = com.yayuy.overgrownvegetation.survival.room.RoomDirt.benchDecayForTests(level, 4096, 256);
+        com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(
+                "PERF3 球 1 個 {} us(半径 2・{} 回の平均)/ 狙いを外す見張り 1 回 {} us(植物側 {} 体のそば)/ 部屋の汚れの減らし 1 回 {} us(汚れ 4096・空の箱 256)",
+                sphereNs / spheres / 1000, spheres, releaseNs / 1000, n, decayNs / 1000);
+        helper.getLevel().getEntitiesOfClass(Mob.class, new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(12.0)).forEach(e -> e.discard());
+        helper.succeed();
+    }
+
+    /**
+     * ③5: 死んだときの汚染の球の待ち行列は上限(600)までで、あふれた分は球を作らず胞子の場の降り積もりに替える。
+     * 待ち行列を使い切るので、ほかのテストと同じ束では流さない(計測と同じ束)。
+     */
+    @GameTest(template = TEMPLATE, batch = "plant_side_perf3", timeoutTicks = 20)
+    public static void deathSphereQueueIsCapped(GameTestHelper helper) {
+        net.minecraft.server.level.ServerLevel level = helper.getLevel();
+        long dropped0 = com.yayuy.overgrownvegetation.corruption.NoisyCorruptionBurst.droppedToDeposit;
+        Vec3 c = Vec3.atCenterOf(helper.absolutePos(new BlockPos(3, 2, 3)));
+        try {
+            for (int i = 0; i < 1000; i++) com.yayuy.overgrownvegetation.corruption.NoisyCorruptionBurst.deathSphere(level, c, 1, 0.0D, false);
+            int pending = com.yayuy.overgrownvegetation.corruption.NoisyCorruptionBurst.pendingForTests(level);
+            long dropped = com.yayuy.overgrownvegetation.corruption.NoisyCorruptionBurst.droppedToDeposit - dropped0;
+            helper.assertTrue(pending <= 600, "待ち行列が上限を超えた: " + pending);
+            helper.assertTrue(dropped >= 1000 - 600 - 3, "あふれた球が降り積もりに替わっていない: " + dropped);
+        } finally {
+            com.yayuy.overgrownvegetation.corruption.NoisyCorruptionBurst.clearPendingForTests(level);
+        }
+        helper.succeed();
+    }
+
+    /** ③10: 汎用の感染体が植物側に殴られたら、その相手の狙いをその場で外す(見張りを待たない)。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void hitTurnedMobDropsAttackerTarget(GameTestHelper helper) {
+        Mob horse = helper.spawnWithNoFreeWill(EntityType.HORSE, new Vec3(3.5, 2.0, 3.5));
+        Mob g1 = helper.spawnWithNoFreeWill(G1Species.ZOMBIE.entityType(), new Vec3(1.5, 2.0, 1.5));
+        markTurned(horse);
+        g1.setTarget(horse);
+        com.yayuy.overgrownvegetation.effect.ParasitizedAttackInfectionHandler.onLivingDamageForTests(horse, g1, 2.0F);
+        helper.assertTrue(g1.getTarget() != horse, "汎用の感染体を殴った G1 の狙いが外れていない");
+        helper.succeed();
     }
 
     // ------------------------------------------------------------------ コードの見直し 第 2 便 ③(11-16)

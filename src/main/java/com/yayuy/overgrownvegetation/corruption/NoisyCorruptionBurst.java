@@ -93,7 +93,39 @@ public final class NoisyCorruptionBurst {
             sphere(level, center, radius, noiseAmplitude, emitSpores);
             return;
         }
+        if (budget.pending.size() >= MAX_PENDING) {
+            // 待ち行列があふれた(2026-11-16 コードの見直し ③5: 1 万体の襲撃で約 3 分遅れていた): 球を作らず、胞子の場の降り積もりに替える
+            // (そのチャンクがやがて発芽して汚染が始まる。すぐ汚れないだけで、汚染そのものは消えない)
+            toDeposit(level, center);
+            return;
+        }
         budget.pending.addLast(new PendingBurst(center, radius, noiseAmplitude, emitSpores));
+    }
+
+    /**
+     * 待ち行列の長さの上限(1 tick 3 個で約 10 秒ぶん)【仮】。これより後ろは球を作らず {@link #DEPOSIT_PER_DROPPED} の降り積もりに替える。
+     */
+    static final int MAX_PENDING = 600;
+    /** 作らなかった球 1 個の替わりの降り積もり(場の単位。発芽のしきい値 0.05 と同じ)【仮】。 */
+    static final double DEPOSIT_PER_DROPPED = 0.05D;
+    /** 数え(計測・テスト): 降り積もりに替えた球の数。 */
+    public static long droppedToDeposit;
+
+    /** テスト用: その次元の待ち行列の長さ。 */
+    public static int pendingForTests(ServerLevel level) {
+        DeathBurstBudget b = DEATH_BURSTS.get(level.dimension());
+        return b == null ? 0 : b.pending.size();
+    }
+
+    /** テスト用: その次元の待ち行列を捨てる(ほかのテストの場を汚さない)。 */
+    public static void clearPendingForTests(ServerLevel level) {
+        DeathBurstBudget b = DEATH_BURSTS.get(level.dimension());
+        if (b != null) b.pending.clear();
+    }
+
+    private static void toDeposit(ServerLevel level, Vec3 center) {
+        com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.depositPoint(level, net.minecraft.core.BlockPos.containing(center), DEPOSIT_PER_DROPPED);
+        droppedToDeposit++;
     }
 
     /** tick の頭で数え直し、積んであるぶんを死んだ順に上限まで作る(残りはさらに次の tick)。 */
@@ -118,19 +150,16 @@ public final class NoisyCorruptionBurst {
     }
 
     /**
-     * 止める直前に、積み残しを全部作ってから保存させる(止める数 tick 前にまとめて倒した分の汚染が、
-     * 保存されずに消えないように。以前は死んだ tick のうちに全部作っていた)。
+     * 止める直前: 積み残しは作らず、胞子の場の降り積もりに替えて捨てる(2026-11-16 コードの見直し ③5: 前は全部その場で作り、
+     * 1 万個なら約 2 秒止まっていた)。降り積もりは胞子の場の入力なので、場が写しを取る前に流れるよう優先度を高くする。
      */
-    @SubscribeEvent
+    @SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.HIGH)
     public static void onServerStopping(ServerStoppingEvent event) {
-        // キーの写しで回す(球を作る途中で別の次元の項目が足されても壊れないように)。
+        // キーの写しで回す
         for (ResourceKey<Level> dimension : new ArrayList<>(DEATH_BURSTS.keySet())) {
             ServerLevel level = event.getServer().getLevel(dimension);
             ArrayDeque<PendingBurst> pending = DEATH_BURSTS.get(dimension).pending;
-            while (level != null && !pending.isEmpty()) {
-                PendingBurst burst = pending.pollFirst();
-                sphere(level, burst.center(), burst.radius(), burst.noiseAmplitude(), burst.emitSpores());
-            }
+            while (level != null && !pending.isEmpty()) toDeposit(level, pending.pollFirst().center());
         }
         DEATH_BURSTS.clear();
     }

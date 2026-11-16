@@ -225,7 +225,7 @@ public final class GenericInfection {
     }
 
     /** 見張りの間隔(tick)と半径(ブロック)【仮】。 */
-    static final int RELEASE_INTERVAL = 10;
+    static final int RELEASE_INTERVAL = 60; // 11-16 コードの見直し ③10: 10 → 60(変わった直後の外しと、殴られた瞬間の外し = ParasitizedAttackInfectionHandler があるので保険の役)
     static final double RELEASE_RADIUS = 48.0D;
 
     /**
