@@ -581,13 +581,12 @@ public final class SwampTreeFall {
      * 集めた葉に mod の葉が無いか、近くに mod の原木が無ければ何もしない。
      */
     private static void releaseModTreeLeaves(ServerLevel level, LongOpenHashSet leaves, Long2IntOpenHashMap leafDist) {
-        Block modLeaf = ModBlocks.OVERGROWN_LEAVES.get();
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         // 1. 近くの mod の原木を探す。
         ArrayDeque<long[]> frontier = new ArrayDeque<>();
         LongOpenHashSet seen = new LongOpenHashSet();
         for (long l : leaves) {
-            if (level.getBlockState(cursor.set(l)).is(modLeaf)) {
+            if (level.getBlockState(cursor.set(l)).is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES)) {
                 frontier.add(new long[]{l, 0});
                 seen.add(l);
             }
@@ -607,7 +606,7 @@ public final class SwampTreeFall {
                 BlockState state = level.getBlockState(cursor);
                 if (isModTreeLog(state)) {
                     modLogs.add(nl);
-                } else if (state.is(modLeaf) && dist + 1 < LEAF_REACH) {
+                } else if (state.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES) && dist + 1 < LEAF_REACH) {
                     frontier.add(new long[]{nl, dist + 1});
                     pushed++;
                 }
@@ -636,7 +635,7 @@ public final class SwampTreeFall {
                     continue;
                 }
                 reached.add(nl);
-                if (level.getBlockState(cursor).is(modLeaf)) {
+                if (level.getBlockState(cursor).is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES)) {
                     if (leaves.contains(nl) && dist + 1 <= leafDist.get(nl)) {
                         leaves.remove(nl);
                         leafDist.remove(nl);
@@ -659,8 +658,7 @@ public final class SwampTreeFall {
     /** このMODが生やす木(苗木の木・巨大樹)の原木か(湿地の木・菌類の柱は 2026-10-31 に parked へ退避)。 */
     private static boolean isModTreeLog(BlockState state) {
         return state.is(ModBlocks.OVERGROWN_LOG.get()) || state.is(ModBlocks.OVERGROWN_WOOD.get())
-                || state.is(ModBlocks.GIANT_OVERGROWN_LOG.get()) || state.is(ModBlocks.GIANT_OVERGROWN_CAMBIUM.get())
-                || state.is(ModBlocks.HARDENED_GIANT_TRUNK.get())
+                || state.is(com.yayuy.overgrownvegetation.ModTags.GIANT_WOOD) // 巨大樹の原木・形成層・硬化した幹・汚染の根
                 // 封印木(2026-11-01)。#logs に入っているので名指しで外す。葉(sigillaria_leaves・_fringe)は isTreeLeaves に入れない = 元の木の葉として集めない
                 || state.is(ModBlocks.SIGILLARIA_LOG.get())
                 // 枝の継ぎ目(2026-11-01)。#logs に入っているので名指しで外す(数えないと枝先から mod の木が元の木として片付く)
@@ -679,7 +677,7 @@ public final class SwampTreeFall {
     }
 
     private static boolean isTreeLeaves(BlockState state) {
-        return state.is(BlockTags.LEAVES) || state.is(ModBlocks.OVERGROWN_LEAVES.get());
+        return state.is(BlockTags.LEAVES) || state.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES);
     }
 
     private SwampTreeFall() {

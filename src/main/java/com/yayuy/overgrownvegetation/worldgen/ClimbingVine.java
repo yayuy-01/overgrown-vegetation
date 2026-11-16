@@ -863,7 +863,7 @@ public final class ClimbingVine {
 
     /** 葉(過繁茂の葉はバニラの #leaves を持たないので、自分の葉も見る。TreeSideGrowth と同じ)。 */
     private static boolean isLeaf(BlockState state) {
-        return state.is(net.minecraft.tags.BlockTags.LEAVES) || state.is(ModBlocks.OVERGROWN_LEAVES.get())
+        return state.is(net.minecraft.tags.BlockTags.LEAVES) || state.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES)
                 || state.is(ModBlocks.SIGILLARIA_LEAVES.get());
     }
 

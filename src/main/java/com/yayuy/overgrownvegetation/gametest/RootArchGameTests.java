@@ -138,7 +138,7 @@ public final class RootArchGameTests {
     @GameTest(template = "gametest_empty7")
     public static void diagonalArchPlacesConnectedBlocks(GameTestHelper helper) {
         LongOpenHashSet touched = new LongOpenHashSet();
-        BlockState log = ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState();
+        BlockState log = ModBlocks.ROOT_ARCH_LOG.get().defaultBlockState();
 
         // 斜めのアーチ(床 y=1 の上、x=0,z=0 の角から x=5,z=4 へ)。
         List<BlockPos> arch = new ArrayList<>();
@@ -160,7 +160,7 @@ public final class RootArchGameTests {
     @GameTest(template = "gametest_empty7")
     public static void groundRootTipPlacesLogTipAboveGround(GameTestHelper helper) {
         LongOpenHashSet touched = new LongOpenHashSet();
-        BlockState log = ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState();
+        BlockState log = ModBlocks.ROOT_ARCH_LOG.get().defaultBlockState();
         // 地上の根(床から斜めに立ち上がる短い根)。
         CorruptionRootTip.Shape ground = new CorruptionRootTip.Shape(4, 1, Math.toRadians(45.0D), 40.0D, 55.0D);
         BlockPos g = helper.absolutePos(new BlockPos(1, 1, 1));
@@ -169,7 +169,7 @@ public final class RootArchGameTests {
         CorruptionRootTip.place(helper.getLevel(), gCells, log, touched, gShell);
         CorruptionRootTip.Cell gTip = gCells.get(gCells.size() - 1);
         BlockPos gTipPos = new BlockPos(gTip.x(), gTip.y(), gTip.z());
-        if (!helper.getLevel().getBlockState(gTipPos).is(ModBlocks.GIANT_OVERGROWN_LOG.get())) {
+        if (!helper.getLevel().getBlockState(gTipPos).is(ModBlocks.ROOT_ARCH_LOG.get())) {
             helper.fail("地上の根の先が原木でない: " + helper.getLevel().getBlockState(gTipPos));
             return;
         }
@@ -184,7 +184,7 @@ public final class RootArchGameTests {
     @GameTest(template = "gametest_empty7")
     public static void hangingRootTipPlacesLogTipBelowCeiling(GameTestHelper helper) {
         LongOpenHashSet touched = new LongOpenHashSet();
-        BlockState log = ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState();
+        BlockState log = ModBlocks.ROOT_ARCH_LOG.get().defaultBlockState();
         // 天井の根(高い所の石から斜めに垂れる短い根)。
         BlockPos ceiling = helper.absolutePos(new BlockPos(5, 6, 5));
         helper.getLevel().setBlock(ceiling, net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
@@ -194,7 +194,7 @@ public final class RootArchGameTests {
         CorruptionRootTip.place(helper.getLevel(), hCells, log, touched, hShell);
         CorruptionRootTip.Cell hTip = hCells.get(hCells.size() - 1);
         BlockPos hTipPos = new BlockPos(hTip.x(), hTip.y(), hTip.z());
-        if (!helper.getLevel().getBlockState(hTipPos).is(ModBlocks.GIANT_OVERGROWN_LOG.get())) {
+        if (!helper.getLevel().getBlockState(hTipPos).is(ModBlocks.ROOT_ARCH_LOG.get())) {
             helper.fail("天井の根の先が原木でない: " + helper.getLevel().getBlockState(hTipPos));
             return;
         }

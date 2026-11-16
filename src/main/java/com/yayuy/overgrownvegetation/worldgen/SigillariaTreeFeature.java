@@ -368,9 +368,9 @@ public class SigillariaTreeFeature extends Feature<SigillariaTreeFeature.Config>
         /** 葉を置く。原木・ほかの木の葉・根付いた萌芽体は上書きしない。外の層は空気か置き換えられる所にだけ。 */
         private boolean leaf(BlockPos pos, BlockState state, boolean forced) {
             BlockState here = level.getBlockState(pos);
-            if (TreePlacementRules.treeKeeps(here) || here.is(BlockTags.LOGS) || here.is(ModBlocks.GIANT_OVERGROWN_LOG.get())
+            if (TreePlacementRules.treeKeeps(here) || here.is(BlockTags.LOGS) || here.is(com.yayuy.overgrownvegetation.ModTags.GIANT_WOOD)
                     || here.getBlock() instanceof com.yayuy.overgrownvegetation.block.TreeFernTrunkBlock
-                    || here.is(ModBlocks.GIANT_OVERGROWN_CAMBIUM.get()) || here.getBlock() instanceof OvergrownLeavesBlock
+                    || here.getBlock() instanceof OvergrownLeavesBlock
                     || here.is(BlockTags.LEAVES) || here.getBlock() instanceof SigillariaConeBlock) {
                 return false;
             }

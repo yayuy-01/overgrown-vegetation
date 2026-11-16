@@ -2313,8 +2313,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
     private static boolean rootPassesThrough(BlockState state, Block ownTrunk) {
         return state.is(ownTrunk)
                 || state.is(ModBlocks.OVERGROWN_LOG.get())
-                || state.is(ModBlocks.GIANT_OVERGROWN_LOG.get())
-                || state.is(ModBlocks.GIANT_OVERGROWN_CAMBIUM.get())
+                || state.is(com.yayuy.overgrownvegetation.ModTags.GIANT_WOOD) // 巨大樹の木部・汚染の根(11-16)
                 || state.getBlock() instanceof com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock // 封印木の葉も
                 || state.getBlock() instanceof com.yayuy.overgrownvegetation.block.TreeFernTrunkBlock // 木生シダの幹(#logs でない)
                 || state.is(BlockTags.LOGS)

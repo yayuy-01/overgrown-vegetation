@@ -170,7 +170,7 @@ final class UnderwaterCritters {
         boolean leaves = false;
         for (int i = 1; i <= 10 && !leaves; i++) {
             BlockState s = level.getBlockState(pos.set(x, surface + i, z));
-            leaves = s.is(BlockTags.LEAVES) || s.is(ModBlocks.OVERGROWN_LEAVES.get());
+            leaves = s.is(BlockTags.LEAVES) || s.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES);
         }
         if (!leaves) {
             return;

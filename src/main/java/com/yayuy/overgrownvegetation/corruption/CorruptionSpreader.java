@@ -1535,7 +1535,7 @@ public class CorruptionSpreader {
         }
         List<BlockPos> shell = new ArrayList<>();
         if (Pneumatophores.place(level, random, new BlockPos(hx, groundY, hz),
-                ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState(), touchedChunks, shell)) {
+                ModBlocks.ROOT_ARCH_LOG.get().defaultBlockState(), touchedChunks, shell)) {
             decorateArchShell(level, shell, random, touchedChunks);
         }
     }
@@ -1587,7 +1587,7 @@ public class CorruptionSpreader {
         }
         List<BlockPos> shell = new ArrayList<>();
         if (CorruptionArch.build(level, new BlockPos(hx, groundY, hz), new BlockPos(tx, toY, tz), peak, thickness,
-                ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState(), touchedChunks, null, shell)) {
+                ModBlocks.ROOT_ARCH_LOG.get().defaultBlockState(), touchedChunks, null, shell)) {
             decorateArchShell(level, shell, random, touchedChunks);
         }
     }
@@ -1658,7 +1658,7 @@ public class CorruptionSpreader {
 
         List<BlockPos> shell = new ArrayList<>();
         if (CorruptionArch.build(level, new BlockPos(hx, fromY, hz), new BlockPos(tx, toY, tz), peak,
-                thickness, ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState(), touchedChunks, null, shell)) {
+                thickness, ModBlocks.ROOT_ARCH_LOG.get().defaultBlockState(), touchedChunks, null, shell)) {
             decorateArchShell(level, shell, random, touchedChunks);
         }
     }
@@ -1689,7 +1689,7 @@ public class CorruptionSpreader {
             return;
         }
         List<BlockPos> shell = new ArrayList<>();
-        if (CorruptionRootTip.place(level, cells, ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState(), touchedChunks, shell)) {
+        if (CorruptionRootTip.place(level, cells, ModBlocks.ROOT_ARCH_LOG.get().defaultBlockState(), touchedChunks, shell)) {
             decorateArchShell(level, shell, random, touchedChunks);
         }
     }
@@ -1770,7 +1770,7 @@ public class CorruptionSpreader {
 
             List<BlockPos> shell = new ArrayList<>();
             if (!CorruptionArch.build(level, new BlockPos(hx, fromY, hz), new BlockPos(tx, toY, tz), -dip,
-                    thickness, ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState(), touchedChunks,
+                    thickness, ModBlocks.ROOT_ARCH_LOG.get().defaultBlockState(), touchedChunks,
                     null, shell)) {
                 continue;
             }
@@ -1880,7 +1880,7 @@ public class CorruptionSpreader {
         }
         double growthChance = OvergrownVegetationConfig.COMMON.growthChance.get();
         double grassChance = OvergrownVegetationConfig.COMMON.corruptionArchGrowthChance.get();
-        Block logBlock = ModBlocks.GIANT_OVERGROWN_LOG.get();
+        Block logBlock = ModBlocks.ROOT_ARCH_LOG.get();
         BlockState logState = logBlock.defaultBlockState();
 
         for (BlockPos pos : shell) {
@@ -2011,7 +2011,7 @@ public class CorruptionSpreader {
 
             List<BlockPos> shell = new ArrayList<>();
             if (!CorruptionArch.build(level, from, to, peak, thickness,
-                    ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState(), touchedChunks, null, shell)) {
+                    ModBlocks.ROOT_ARCH_LOG.get().defaultBlockState(), touchedChunks, null, shell)) {
                 return false;
             }
             bridgesBuilt++;

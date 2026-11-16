@@ -277,7 +277,7 @@ final class CanopyDrips {
     }
 
     private static boolean isLeaf(BlockState s) {
-        return s.is(BlockTags.LEAVES) || s.is(ModBlocks.OVERGROWN_LEAVES.get());
+        return s.is(BlockTags.LEAVES) || s.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES);
     }
 
     private static void findPoint(ClientLevel world, LocalPlayer player, BlockPos.MutableBlockPos pos, AtmosphereLife.RainLookParams p) {

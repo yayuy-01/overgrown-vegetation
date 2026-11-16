@@ -1547,7 +1547,7 @@ public final class DevBridge {
                     if (level == null) return;
                     net.minecraft.util.RandomSource random = net.minecraft.util.RandomSource.create(x0 * 31L + z0);
                     net.minecraft.world.level.block.state.BlockState log =
-                            com.yayuy.overgrownvegetation.registry.ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState();
+                            com.yayuy.overgrownvegetation.registry.ModBlocks.ROOT_ARCH_LOG.get().defaultBlockState();
                     it.unimi.dsi.fastutil.longs.LongOpenHashSet touched = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
                     int built = 0;
                     for (int i = 0; i < count; i++) {

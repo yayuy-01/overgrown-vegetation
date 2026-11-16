@@ -100,7 +100,7 @@ final class FallingLeaves {
      * 種類ごとの出やすさは {@link #fallChance}。
      */
     private static boolean isCanopyLeaf(BlockState state) {
-        return state.is(ModBlocks.OVERGROWN_LEAVES.get()) || state.is(ModBlocks.SIGILLARIA_LEAVES.get()) || state.is(ModBlocks.TREE_FERN_LEAVES.get());
+        return state.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES) || state.is(ModBlocks.SIGILLARIA_LEAVES.get()) || state.is(ModBlocks.TREE_FERN_LEAVES.get());
     }
 
     /** その葉から落とす割合(過繁茂の葉は 1、ほかは設計値 leaves.fallSigillaria・fallTreeFern。1 を超える分は 1)。 */

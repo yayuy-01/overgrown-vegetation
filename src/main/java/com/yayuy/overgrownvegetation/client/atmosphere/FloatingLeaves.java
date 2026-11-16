@@ -94,7 +94,7 @@ public final class FloatingLeaves {
             boolean canopy = false;
             for (int i = 1; i <= LEAF_ABOVE && !canopy; i++) {
                 var s = level.getBlockState(pos.set(x, sy + i, z));
-                canopy = s.is(BlockTags.LEAVES) || s.is(ModBlocks.OVERGROWN_LEAVES.get());
+                canopy = s.is(BlockTags.LEAVES) || s.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES);
             }
             if (!canopy) {
                 return;

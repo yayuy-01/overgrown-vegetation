@@ -186,7 +186,7 @@ public final class TreeSideGrowth {
 
     /** 葉(この MOD の葉は #minecraft:leaves に入っていない。封印木の芯の葉と板の葉も)。 */
     private static boolean isLeafLike(BlockState s) {
-        return s.is(BlockTags.LEAVES) || s.is(ModBlocks.OVERGROWN_LEAVES.get()) || s.is(ModBlocks.SIGILLARIA_LEAVES.get())
+        return s.is(BlockTags.LEAVES) || s.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES) || s.is(ModBlocks.SIGILLARIA_LEAVES.get())
                 || s.is(ModBlocks.SIGILLARIA_LEAVES_FRINGE.get());
     }
 
@@ -269,7 +269,7 @@ public final class TreeSideGrowth {
 
     /** 巻き付く幹(コルダイテス・封印木・巨大樹の原木)。 */
     public static boolean isTrunk(BlockState state) {
-        return state.is(ModBlocks.OVERGROWN_LOG.get()) || state.is(ModBlocks.SIGILLARIA_LOG.get()) || state.is(ModBlocks.GIANT_OVERGROWN_LOG.get());
+        return state.is(ModBlocks.OVERGROWN_LOG.get()) || state.is(ModBlocks.SIGILLARIA_LOG.get()) || state.is(ModBlocks.GIANT_OVERGROWN_LOG.get()) || state.is(ModBlocks.ROOT_ARCH_LOG.get());
     }
 
     private TreeSideGrowth() {

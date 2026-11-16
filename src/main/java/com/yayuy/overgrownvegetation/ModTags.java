@@ -209,6 +209,25 @@ public final class ModTags {
     public static final TagKey<Block> BOMB_SHATTERS = BlockTags.create(OvergrownVegetation.id("bomb_shatters"));
 
     /**
+     * <b>過繁茂の葉</b>(2026-11-16): コルダイテスの葉({@code overgrown_leaves})と巨大樹の葉({@code giant_canopy_leaves})。
+     * 見た目が同じ 2 つを、演出・判定で同じに扱うためのタグ(名指しの {@code is(OVERGROWN_LEAVES)} はこれへ)。
+     * 起動時の登録(葉の色 {@code LeafTones}・揺れ {@code SwayModels})はタグがまだ空なので名指しのまま。
+     */
+    public static final TagKey<Block> OVERGROWN_LEAVES = BlockTags.create(OvergrownVegetation.id("overgrown_leaves"));
+
+    /**
+     * <b>巨大樹の太い木部</b>(2026-11-16): 巨大樹の原木・形成層・硬化した幹と、見た目が同じ汚染の根({@code root_arch_log})。
+     * 「巨大樹の原木と同じに扱う」判定(幹に巻き付く・根が通り抜ける・木の一部など)はこれで見る。影絵だけは {@link #GIANT_SILHOUETTE_WOOD}。
+     */
+    public static final TagKey<Block> GIANT_WOOD = BlockTags.create(OvergrownVegetation.id("giant_wood"));
+
+    /** 巨大樹の遠景の影絵が写す木部(巨大樹そのものだけ。汚染の根は入れない。2026-11-16)。 */
+    public static final TagKey<Block> GIANT_SILHOUETTE_WOOD = BlockTags.create(OvergrownVegetation.id("giant_silhouette_wood"));
+
+    /** 巨大樹の遠景の影絵が写す葉(巨大樹の葉だけ。コルダイテスの葉は入れない。2026-11-16)。 */
+    public static final TagKey<Block> GIANT_SILHOUETTE_LEAVES = BlockTags.create(OvergrownVegetation.id("giant_silhouette_leaves"));
+
+    /**
      * 葉ブロックなど「上に乗る/横から生やす」のが不自然な薄い天蓋ブロック。
      * このタグが付いたブロックからは下面(垂れ下がる植物)しか生えない。
      */

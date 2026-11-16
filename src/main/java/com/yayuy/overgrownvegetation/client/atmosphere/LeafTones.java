@@ -71,7 +71,7 @@ public final class LeafTones {
     @SubscribeEvent
     public static void registerColors(RegisterColorHandlersEvent.Block event) {
         // 11-01 夜(見え方の直し 1): 封印木・木生シダの芯と板、胞子昆布の葉も(絵が違うので色は「絵からのずらし」で塗る。ov_leaf.glsl)。
-        event.register(LeafTones::color, ModBlocks.OVERGROWN_LEAVES.get(), ModBlocks.OVERGROWN_LEAVES_TUFT.get(), ModBlocks.SIGILLARIA_LEAVES.get(), ModBlocks.SIGILLARIA_LEAVES_FRINGE.get(),
+        event.register(LeafTones::color, ModBlocks.OVERGROWN_LEAVES.get(), ModBlocks.GIANT_CANOPY_LEAVES.get(), ModBlocks.OVERGROWN_LEAVES_TUFT.get(), ModBlocks.SIGILLARIA_LEAVES.get(), ModBlocks.SIGILLARIA_LEAVES_FRINGE.get(),
                 ModBlocks.TREE_FERN_LEAVES.get(), ModBlocks.TREE_FERN_FROND.get(), ModBlocks.SPORE_KELP_FROND.get());
     }
 
@@ -111,7 +111,7 @@ public final class LeafTones {
      * シェーダーは絵の色を目標の色へ塗り替える代わりに、絵の色から同じだけずらす(絵の色合いを保つ)。胞子昆布の葉は若葉を付けない(水中)。
      */
     static int code(BlockState state, BlockAndTintGetter level, BlockPos pos) {
-        boolean relative = !state.is(ModBlocks.OVERGROWN_LEAVES.get());
+        boolean relative = !state.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES);
         boolean noYoung = state.is(ModBlocks.SPORE_KELP_FROND.get());
         long crown = nearestCrown(pos.getX(), pos.getY(), pos.getZ());
         long here = pos.asLong();

@@ -63,7 +63,7 @@ public final class CaveGrowth {
 
     /** 天井のアーチの種類。{@code caveVineArchShare} で抽選する。 */
     public enum ArchStyle {
-        /** 岩から生えた太い根(巨大樹の原木)。 */
+        /** 岩から生えた太い根(汚染の根 root_arch_log。見た目は巨大樹の原木。2026-11-16 までは巨大樹の原木そのもの)。 */
         ROOT,
         /** 過繁茂した葉に包まれた巨大な蔦。根より深く垂れる。 */
         VINE
@@ -333,7 +333,7 @@ public final class CaveGrowth {
         BlockState core = vine
                 ? ModBlocks.OVERGROWN_WOOD.get()
                         .defaultBlockState().setValue(RotatedPillarBlock.AXIS, axis)
-                : ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState();
+                : ModBlocks.ROOT_ARCH_LOG.get().defaultBlockState();
         List<BlockPos> shell = new ArrayList<>();
         int px = ax;
         int pz = az;
@@ -387,7 +387,7 @@ public final class CaveGrowth {
         if (!CorruptionRootTip.pathIsOpen(cells, pos -> isAirLike(level, pos))) {
             return false;
         }
-        BlockState log = ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState();
+        BlockState log = ModBlocks.ROOT_ARCH_LOG.get().defaultBlockState();
         List<BlockPos> shell = new ArrayList<>();
         if (!CorruptionRootTip.place(level, cells, log, new it.unimi.dsi.fastutil.longs.LongOpenHashSet(), shell)) {
             return false;

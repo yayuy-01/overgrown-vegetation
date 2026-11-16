@@ -258,7 +258,7 @@ public final class TrunkRivulets {
             var ground = level.getBlockState(pos.set(x, top - 1, z));
             // 木の上(林冠・枝・過繁茂の葉。過繁茂の葉はバニラの葉のタグに入っていない)には置かない。
             if (ground.is(BlockTags.LEAVES) || CanopyDrips.isTreeBlock(ground)
-                    || ground.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_LEAVES.get()) || ground.is(BlockTags.SAND) || ground.is(net.minecraft.world.level.block.Blocks.GRAVEL)
+                    || ground.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES) || ground.is(BlockTags.SAND) || ground.is(net.minecraft.world.level.block.Blocks.GRAVEL)
                     || ground.is(BlockTags.SNOW) || ground.is(BlockTags.ICE)
                     || level.getBiome(pos.set(x, top, z)).value().getPrecipitationAt(pos) != net.minecraft.world.level.biome.Biome.Precipitation.RAIN) {
                 continue;

@@ -494,6 +494,21 @@ public final class ModBlocks {
                     .isValidSpawn(ModBlocks::noGiantTreeSpawn));
 
     /**
+     * <b>汚染の根</b>(2026-11-16 ユーザー)。汚染が生やす根のアーチ・溝の逆アーチ・対岸の橋・根の先端と、洞窟のアーチ・垂れる根の木部。
+     * 見た目・性質・落とす物は {@link #GIANT_OVERGROWN_LOG} と同じ(モデルも共有)。巨大樹の遠景の影絵
+     * ({@code client/atmosphere/GiantSilhouettes})が巨大樹の木部だけを写すように、ブロックだけ分けた
+     * (前はアーチも巨大樹の原木で、巨大樹の近くのアーチが木の一部として遠くで浮いて見えた)。
+     * 巨大樹自身の根・根のアーチは巨大樹の原木のまま。「太い木部」として扱う所はタグ {@code #giant_wood} で見る。
+     * {@code displayOrder()} には入れない(アイテムを持たない)。
+     */
+    public static final DeferredBlock<Block> ROOT_ARCH_LOG = BLOCKS.registerBlock(
+            "root_arch_log",
+            RotatedPillarBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .isValidSpawn(ModBlocks::noGiantTreeSpawn));
+
+    /**
      * 葉 → 汚染された葉。
      *
      * <p>バニラの葉から写ってくる「ランダムティックを受ける」印は {@link InertBlock} で外す(素の Block なので
@@ -501,6 +516,20 @@ public final class ModBlocks {
      */
     public static final DeferredBlock<Block> OVERGROWN_LEAVES = BLOCKS.registerBlock(
             "overgrown_leaves",
+            com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .isValidSpawn((state, getter, pos, type) -> false));
+
+    /**
+     * <b>巨大樹の葉</b>(2026-11-16 ユーザー「コルダイテスの葉と同じ見た目の巨大樹の葉」)。巨大樹の傘と枝の葉の房だけに使う。
+     * クラス・性質・絵・揺れ・色合い・落とす物({@link #OVERGROWN_LEAVES} のアイテム)はコルダイテスの葉と同じ。
+     * 巨大樹の遠景の影絵がコルダイテスや汚染でできた木の葉を拾わないよう、ブロックだけ分けた。
+     * 葉として扱う所はタグ {@code #overgrown_vegetation:overgrown_leaves}(過繁茂の葉)で見る。
+     * {@code displayOrder()} には入れない(アイテムを持たない)。
+     */
+    public static final DeferredBlock<Block> GIANT_CANOPY_LEAVES = BLOCKS.registerBlock(
+            "giant_canopy_leaves",
             com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
                     .mapColor(MapColor.COLOR_GREEN)

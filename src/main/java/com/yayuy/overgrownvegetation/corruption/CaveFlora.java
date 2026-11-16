@@ -521,7 +521,7 @@ public final class CaveFlora {
 
     /** 巨大樹の幹(原木・形成層・硬化した幹)とコルダイテスの幹(過繁茂の原木)・板根。 */
     static boolean isTrunk(BlockState s) {
-        return s.is(ModBlocks.GIANT_OVERGROWN_LOG.get()) || s.is(ModBlocks.GIANT_OVERGROWN_CAMBIUM.get()) || s.is(ModBlocks.HARDENED_GIANT_TRUNK.get())
+        return s.is(com.yayuy.overgrownvegetation.ModTags.GIANT_WOOD)
                 || s.is(ModBlocks.OVERGROWN_LOG.get()) || s.is(ModBlocks.CORDAITES_BUTTRESS.get());
     }
 

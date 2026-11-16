@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "axis=x": { "model": "overgrown_vegetation:block/giant_overgrown_log" },
+    "axis=y": { "model": "overgrown_vegetation:block/giant_overgrown_log" },
+    "axis=z": { "model": "overgrown_vegetation:block/giant_overgrown_log" }
+  }
+}

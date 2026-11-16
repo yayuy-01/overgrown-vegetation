@@ -98,6 +98,6 @@ final class RainDrops {
     }
 
     private static boolean isLeaf(BlockState state) {
-        return state.is(BlockTags.LEAVES) || state.is(ModBlocks.OVERGROWN_LEAVES.get());
+        return state.is(BlockTags.LEAVES) || state.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES);
     }
 }

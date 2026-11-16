@@ -203,7 +203,7 @@ final class WaterSigns {
                 return level.getFluidState(pos.set(x, y + 1, z)).isEmpty() && level.getBlockState(pos).isAir() ? y : Integer.MIN_VALUE;
             }
             BlockState s = level.getBlockState(pos);
-            if (!s.isAir() && s.blocksMotion() && !s.is(BlockTags.LEAVES) && !s.is(ModBlocks.OVERGROWN_LEAVES.get()) && !s.is(BlockTags.LOGS)) {
+            if (!s.isAir() && s.blocksMotion() && !s.is(BlockTags.LEAVES) && !s.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES) && !s.is(BlockTags.LOGS)) {
                 return Integer.MIN_VALUE;
             }
         }
@@ -217,7 +217,7 @@ final class WaterSigns {
         }
         for (int y = fromY; y > fromY - depth; y--) {
             BlockState s = level.getBlockState(pos.set(x, y, z));
-            if (s.blocksMotion() && !s.is(BlockTags.LEAVES) && !s.is(ModBlocks.OVERGROWN_LEAVES.get()) && !s.is(BlockTags.LOGS)) {
+            if (s.blocksMotion() && !s.is(BlockTags.LEAVES) && !s.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES) && !s.is(BlockTags.LOGS)) {
                 return level.getBlockState(pos.set(x, y + 1, z)).blocksMotion() ? Integer.MIN_VALUE : y + 1;
             }
         }

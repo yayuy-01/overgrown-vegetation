@@ -15,6 +15,7 @@ import com.yayuy.overgrownvegetation.client.shader.ShaderPacks;
 import com.yayuy.overgrownvegetation.data.AtmosphereTable;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder;
+import com.yayuy.overgrownvegetation.ModTags;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -69,6 +70,9 @@ import java.util.concurrent.CompletableFuture;
  *     <li>写した形の外に面した面だけを、同じ向き・同じ材質の面をまとめて大きな四角にし(別スレッド)、GPU に載せる。</li>
  *     <li>木は伸びたり燃えたりするので、1 分ごとに写し直し、形が変わっていたら作り直す。</li>
  * </ol>
+ * <b>写すのは巨大樹専用のブロックだけ</b>(2026-11-16 ユーザー): 葉は巨大樹の葉 {@code giant_canopy_leaves}、木部は巨大樹の原木・形成層・硬化した幹。
+ * コルダイテス・汚染でできた木の葉と汚染の根のアーチは見た目が同じ別のブロックなので写らない(前は同じブロックで、近くのそれらが遠くで浮いて見えた)。
+ * 古いワールドの巨大樹(葉がコルダイテスの葉のまま)は、巨大樹の葉を 1 つも持たない木として前と同じ範囲の葉を写す({@link Scan#finishLeaves})。
  * 区画の中身の一覧が大きい(256 種類を超える)区画は「含むかも」と答えるので、木部の無い区画を写しに行くことがある(何も見つからず形は作られない。無駄だけ)。
  * 描くかは {@link Atmosphere#enabled}(シェーダーパック使用中は描かない: パックの霧の中で影絵が黒い塊になった、10-23 Complementary)。
  * 地下({@link ForestPresence#underground})では描かない。数値は {@code atmosphere.json} の節 {@code silhouette}。
@@ -89,6 +93,8 @@ final class GiantSilhouettes {
     private static final byte EMPTY = 0;
     private static final byte WOOD = 1;
     private static final byte LEAF = 2;
+    /** 写し取りの途中だけ: 古いワールドの巨大樹の葉(コルダイテスの葉と同じブロックだった頃の葉。写し終えたら LEAF か EMPTY に。{@link Scan#finishLeaves})。 */
+    private static final byte LEGACY_LEAF = 3;
 
     private static ClientLevel trackedLevel;
     private static final LongOpenHashSet WOOD_SECTIONS = new LongOpenHashSet();
@@ -220,12 +226,25 @@ final class GiantSilhouettes {
         }
     }
 
+    /**
+     * 巨大樹そのものの木部(タグ {@code #giant_silhouette_wood}。2026-11-16 から汚染の根 {@code root_arch_log} は入らない =
+     * 巨大樹の近くの根のアーチを木の一部として写さない)。
+     */
     static boolean isWood(BlockState state) {
-        return state.is(ModBlocks.GIANT_OVERGROWN_LOG.get()) || state.is(ModBlocks.GIANT_OVERGROWN_CAMBIUM.get())
-                || state.is(ModBlocks.HARDENED_GIANT_TRUNK.get());
+        return state.is(ModTags.GIANT_SILHOUETTE_WOOD);
     }
 
+    /** 巨大樹の葉(タグ {@code #giant_silhouette_leaves}。2026-11-16 から巨大樹専用の葉 {@code giant_canopy_leaves})。 */
     static boolean isLeaf(BlockState state) {
+        return state.is(ModTags.GIANT_SILHOUETTE_LEAVES);
+    }
+
+    /**
+     * 古いワールドの巨大樹の葉(2026-11-16 より前は巨大樹もコルダイテスの葉 {@code overgrown_leaves} だった)。
+     * 巨大樹の葉を 1 つも持たない木だけ、前と同じ範囲でこれを葉として写す(全体管理・ユーザー決定「A」)。巨大樹は置いた後に伸びないので、
+     * 新しい葉と古い葉が混ざった木はできない。
+     */
+    static boolean isLegacyLeaf(BlockState state) {
         return state.is(ModBlocks.OVERGROWN_LEAVES.get());
     }
 
@@ -352,6 +371,8 @@ final class GiantSilhouettes {
         double axisZ;
         int baseY;
         double crownRadius;
+        /** 巨大樹の葉({@link #isLeaf})を 1 つでも写したか。無ければ古いワールドの木として古い葉を写す({@link #finishLeaves})。 */
+        boolean giantLeaves;
         boolean done;
 
         Scan(Tree tree) {
@@ -385,6 +406,7 @@ final class GiantSilhouettes {
                 copySection(level, this.leafList.getLong(this.leafIndex++), false, true);
                 return;
             }
+            finishLeaves();
             this.done = true;
         }
 
@@ -398,7 +420,7 @@ final class GiantSilhouettes {
                 return;
             }
             LevelChunkSection section = chunk.getSection(index);
-            if (section.hasOnlyAir() || !section.maybeHas(s -> isWood(s) || isLeaf(s))) {
+            if (section.hasOnlyAir() || !section.maybeHas(s -> isWood(s) || isLeaf(s) || isLegacyLeaf(s))) {
                 return;
             }
             byte[] data = this.voxels.get(key);
@@ -414,15 +436,19 @@ final class GiantSilhouettes {
                         byte value = EMPTY;
                         if (wood && isWood(state)) {
                             value = WOOD;
-                        } else if (isLeaf(state)) {
+                        } else if (isLeaf(state) || isLegacyLeaf(state)) {
+                            byte kind = isLeaf(state) ? LEAF : LEGACY_LEAF;
+                            if (kind == LEAF) {
+                                this.giantLeaves = true;
+                            }
                             if (crownLeavesOnly) {
                                 double dx = (sx << 4) + x + 0.5 - this.axisX;
                                 double dz = (sz << 4) + z + 0.5 - this.axisZ;
                                 if (dx * dx + dz * dz <= reach * reach) {
-                                    value = LEAF;
+                                    value = kind;
                                 }
                             } else {
-                                value = LEAF;
+                                value = kind;
                             }
                         }
                         if (value != EMPTY) {
@@ -662,7 +688,7 @@ final class GiantSilhouettes {
                 int oy = SectionPos.y(e.getLongKey()) << 4;
                 byte[] data = e.getValue();
                 for (int i = 0; i < 4096; i++) {
-                    if (data[i] == LEAF && oy + (i >> 8) < this.baseY + 36) {
+                    if ((data[i] == LEAF || data[i] == LEGACY_LEAF) && oy + (i >> 8) < this.baseY + 36) {
                         data[i] = EMPTY;
                     }
                 }
@@ -683,6 +709,18 @@ final class GiantSilhouettes {
                         if (!this.tree.sections.contains(key)) {
                             this.leafList.add(key);
                         }
+                    }
+                }
+            }
+        }
+
+        /** 古い葉の印を片付ける: 巨大樹の葉が 1 つも無い木(古いワールド)なら葉に、あれば(ほかの木の葉なので)空に。 */
+        private void finishLeaves() {
+            byte to = this.giantLeaves ? EMPTY : LEAF;
+            for (byte[] data : this.voxels.values()) {
+                for (int i = 0; i < 4096; i++) {
+                    if (data[i] == LEGACY_LEAF) {
+                        data[i] = to;
                     }
                 }
             }

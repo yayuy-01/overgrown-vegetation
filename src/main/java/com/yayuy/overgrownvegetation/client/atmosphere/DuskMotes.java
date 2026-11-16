@@ -144,7 +144,7 @@ final class DuskMotes {
         int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
         for (int y = top - 1; y > top - 64 && y > level.getMinBuildHeight(); y--) {
             net.minecraft.world.level.block.state.BlockState s = level.getBlockState(pos.set(x, y, z));
-            if (s.blocksMotion() && !s.is(net.minecraft.tags.BlockTags.LEAVES) && !s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_LEAVES.get())
+            if (s.blocksMotion() && !s.is(net.minecraft.tags.BlockTags.LEAVES) && !s.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES)
                     && !s.is(net.minecraft.tags.BlockTags.LOGS)) {
                 return y + 1;
             }

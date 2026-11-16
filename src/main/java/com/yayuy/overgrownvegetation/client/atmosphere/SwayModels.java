@@ -106,6 +106,7 @@ public final class SwayModels {
         Map<ModelResourceLocation, BakedModel> models = event.getModels();
         int wrapped = 0;
         wrapped += wrap(models, ModBlocks.OVERGROWN_LEAVES, state -> Mode.WHOLE);
+        wrapped += wrap(models, ModBlocks.GIANT_CANOPY_LEAVES, state -> Mode.WHOLE); // 巨大樹の葉(11-16。コルダイテスの葉と同じ揺れ)
         wrapped += wrap(models, ModBlocks.OVERGROWN_BUSH, state -> Mode.WHOLE);
         wrapped += wrap(models, ModBlocks.OVERGROWN_GLOW_VINES, state -> Mode.WHOLE);
         wrapped += wrap(models, ModBlocks.OVERGROWN_GLOW_VINES_PLANT, state -> Mode.WHOLE);

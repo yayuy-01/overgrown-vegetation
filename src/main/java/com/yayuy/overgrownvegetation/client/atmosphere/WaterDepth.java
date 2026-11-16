@@ -296,7 +296,7 @@ final class WaterDepth {
             }
             BlockState state = level.getBlockState(pos);
             // 睡蓮の葉は当たり判定があるが水面の飾りなので素通りし、下の水を数える(11-13。岸と数えて泡が立っていた)。
-            if (state.isAir() || state.is(BlockTags.LEAVES) || state.is(ModBlocks.OVERGROWN_LEAVES.get()) || state.is(net.minecraft.world.level.block.Blocks.LILY_PAD)
+            if (state.isAir() || state.is(BlockTags.LEAVES) || state.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES) || state.is(net.minecraft.world.level.block.Blocks.LILY_PAD)
                     || state.getCollisionShape(level, pos).isEmpty()) {
                 continue;
             }

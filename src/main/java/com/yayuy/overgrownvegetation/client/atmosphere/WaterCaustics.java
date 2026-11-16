@@ -209,7 +209,7 @@ public final class WaterCaustics {
             if (state.isAir()) {
                 continue;
             }
-            if (state.is(BlockTags.LEAVES) || state.is(ModBlocks.OVERGROWN_LEAVES.get())) {
+            if (state.is(BlockTags.LEAVES) || state.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES)) {
                 leaves = true;
                 continue;
             }
