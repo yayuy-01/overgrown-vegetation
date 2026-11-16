@@ -69,6 +69,9 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
         PARAMS.minSpeed = 0.2D;
         PARAMS.maxSpeed = 1.0D;
         PARAMS.maxTurnDeg = 6.0D;
+        // 11-16 ユーザー「射程を最大 60 に」: 高さの帯 8〜20(決定)はそのまま、相手から水平に 10〜40 へ広げて遠くから撃つ【仮】(前は 5〜14)
+        SPOTS.radiusMin = 10.0D;
+        SPOTS.radiusMax = 40.0D;
     }
 
     /** 止まる長さ(tick)。相手がいるとき・いないとき【仮】。 */
@@ -170,8 +173,8 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
 
     /** 相手を探す間隔(tick)【決定 11-15: 40 tick おき。見つけた相手は持ち続ける】。 */
     public static final int SEARCH_EVERY = 40;
-    /** 狙撃できる距離(胸から相手の胸、ブロック)【仮・決定 11-15 勧めのまま】・散弾の距離【仮】。 */
-    public static final double SNIPE_MIN = 12.0D, SNIPE_MAX = 40.0D, SCATTER_RANGE = 8.0D;
+    /** 狙撃できる距離(胸から相手の胸、ブロック)【12 は仮。最大 60 は 11-16 ユーザー決定(前は 40)】・散弾の距離【仮】。 */
+    public static final double SNIPE_MIN = 12.0D, SNIPE_MAX = 60.0D, SCATTER_RANGE = 8.0D;
     /** 狙撃の溜め = 入り 4 + aim 2 秒、縫い止め = 入り 4 + aim 2 秒 + aim_hold 1 秒(合わせて約 3 秒)【決定 11-15】。 */
     public static final int AIM_TICKS = ENTRY + 40, PIN_AIM_TICKS = ENTRY + 60;
     /** 狙いの線(見えない)をこれだけ続けて切られたら取りやめる(0.3 秒)【決定 11-15】。 */
@@ -185,8 +188,8 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
     /** ダメージ【決定 11-15 勧めのまま。狙撃は攻撃の値 12】: 縫い止め・散弾 1 発・刺突。縫い止めで動けない tick。 */
     public static final float PIN_DAMAGE = 14.0F, SCATTER_DAMAGE = 3.0F, DIVE_DAMAGE = 10.0F;
     public static final int PIN_TICKS = 20;
-    /** 弾の速さ(ブロック/tick)【仮】。 */
-    static final double SNIPE_SPEED = 3.0D, PIN_SPEED = 2.5D, SCATTER_SPEED = 1.6D;
+    /** 弾の速さ(ブロック/tick)【仮】。11-16 に射程 60 に合わせて狙撃 3.0 → 4.0・縫い止め 2.5 → 3.5(60 ブロックを 15〜17 tick)。 */
+    static final double SNIPE_SPEED = 4.0D, PIN_SPEED = 3.5D, SCATTER_SPEED = 1.6D;
     /** 散弾: 前触れ 10・払い 8(弾は 2〜6 tick に 1 発ずつ 5 発)・隙 12【決定 11-15】。扇の向きのずれ(度、左から)【仮】。 */
     static final int SCATTER_WINDUP_TICKS = 10, SCATTER_TICKS = 8, SCATTER_RECOVER_TICKS = 12;
     static final float[] SCATTER_FAN = {-30.0F, -15.0F, 0.0F, 15.0F, 30.0F};
@@ -213,7 +216,7 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
     static final float SKILL_TURN_DEG = 10.0F;
 
     // サーバーの技の状態
-    private int skillTicks, skillCooldown, losLost, snipeCount, noSightHolds, skillSeq;
+    private int skillTicks, skillCooldown, losLost, snipeCount, noSightHolds, skillSeq, pickFails;
     /** 刺突へ向かう段(0 = 向かっていない、1 = 入り口の真上へ、2 = 入り口へ降りる)と入り口。 */
     private int diveStage;
     private double diveX, diveY, diveZ;
@@ -538,9 +541,9 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
         int m = this.hover.holding() ? (t != null ? MOTION_AIM : MOTION_HOLD) : MOTION_DART;
         if (this.entityData.get(DATA_MOTION) != m) this.entityData.set(DATA_MOTION, (byte) m);
         if (DEV_TRACE && this.hasCustomName() && this.getCustomName().getString().contains("trace") && this.tickCount % 10 == 0) {
-            LOG.info("ACUMNES_TRACE {} 段 {} 位置 {} {} {} 速さ {} 相手 {} 相手の上 {} 移った {}", this.getId(), this.hover.phase,
+            LOG.info("ACUMNES_TRACE {} 段 {} 位置 {} {} {} 速さ {} 相手 {} 相手の上 {} 移った {} 待ち {} 落ち着き {} 移る {} 間 {} 見えない {} 線 {} 段の続き {}", this.getId(), this.hover.phase,
                     String.format("%.2f", x), String.format("%.2f", y), String.format("%.2f", z), String.format("%.3f", this.hover.speed()),
-                    t == null ? "-" : t.getName().getString(), t == null ? "-" : String.format("%.1f", y - t.getY()), this.relocations);
+                    t == null ? "-" : t.getName().getString(), t == null ? "-" : String.format("%.1f", y - t.getY()), this.relocations, this.holdLeft, this.hover.settled(), this.mustMove, this.skillCooldown, this.noSightHolds, t == null ? "-" : hasShotLine(t), this.lastOwnTick);
         }
         return true;
     }
@@ -884,8 +887,24 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
                 t != null, t == null ? 0.0D : t.getX(), t == null ? 0.0D : t.getY(), t == null ? 0.0D : t.getZ(), hx, hz, this.used, this.usedCount);
         if (s == null) {
             this.holdLeft = 10;   // どこも選べない: 少し待って選び直す(移らねばならないなら、そのまま覚えておく)
+            // 葉の中に挟まって 3 回続けて選べないときは、真上の空いている所へ抜ける(11-16 テストクライアントで林冠に挟まったまま動けなくなった)
+            if (++this.pickFails >= 3) {
+                WorldSpace space = new WorldSpace(sl, t);
+                double x = this.getX(), y = this.getY(), z = this.getZ();
+                for (double up = 2.0D; up <= SPOTS.hopMax; up += 2.0D) {
+                    if (!space.clearPath(x, y, z, x, y + up, z)) break;
+                    if (space.fits(x, y + up, z) && space.clearPath(x, y + up, z, x, y + up + 3.0D, z)) {
+                        this.pendX = x;
+                        this.pendY = y + up;
+                        this.pendZ = z;
+                        this.pickFails = 0;
+                        return;   // 移らねばならない印は残す(抜けた所で選び直す)
+                    }
+                }
+            }
             return;
         }
+        this.pickFails = 0;
         this.pendX = s[0];
         this.pendY = s[1];
         this.pendZ = s[2];

@@ -39,7 +39,7 @@ public class AcumnesSpine extends ThrowableProjectile {
 
     public static final int SNIPE = 0, PIN = 1, SCATTER = 2;
     /** 飛んでいられる時間(tick)。 */
-    private static final int LIFETIME = 60;
+    private static final int LIFETIME = 60;   // 4 ブロック/tick で 240 ブロック(射程 60 の 4 倍)
     /** 尾の色(黄緑)。 */
     private static final DustParticleOptions TRAIL = new DustParticleOptions(new Vector3f(0.73F, 1.0F, 0.0F), 0.9F);
     private static final EntityDataAccessor<Byte> DATA_KIND = SynchedEntityData.defineId(AcumnesSpine.class, EntityDataSerializers.BYTE);
@@ -147,7 +147,7 @@ public class AcumnesSpine extends ThrowableProjectile {
 
     @Override
     public boolean shouldRenderAtSqrDistance(double distance) {
-        return distance < 96.0D * 96.0D;
+        return distance < 160.0D * 160.0D;   // 射程 60 の弾を遠くから見ても途中で消えない(追う距離は clientTrackingRange 8 区画 = 128)
     }
 
     @Override

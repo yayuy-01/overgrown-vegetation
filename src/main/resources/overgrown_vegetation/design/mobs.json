@@ -627,7 +627,7 @@
     "movementSpeed": 0.3,
     "flyingSpeed": 1.0,
     "knockbackResistance": 0.5,
-    "followRange": 48,
+    "followRange": 64,
     "stepHeight": 1,
     "scale": 1,
     "scaleMin": 1,

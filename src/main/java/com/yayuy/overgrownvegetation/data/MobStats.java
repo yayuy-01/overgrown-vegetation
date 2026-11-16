@@ -444,7 +444,7 @@ public final class MobStats {
         // 体力・防御・攻撃・追跡は旧版のまま【仮】。動きの速さの本体は entity/flyer/DartHover(鋭く飛ぶ 1.0 ブロック/tick)。
         m.put("acumnes", stat(s -> {
             s.maxHealth = 40.0; s.attackDamage = 12.0; s.armor = 8.0; s.movementSpeed = 0.3; s.flyingSpeed = 1.0;
-            s.knockbackResistance = 0.5; s.followRange = 48.0;
+            s.knockbackResistance = 0.5; s.followRange = 64.0;   // 11-16 ユーザー「射程を最大 60 に」: 狙撃 60 に届くよう 48 → 64【仮】
             s.width = 1.2; s.height = 3.0; s.xpReward = 40;
             s.eggFit = 7.2;
             s.naturalSpawn = false;   // 段 1 は自然には湧かない(スポーンエッグ・コマンドだけ)

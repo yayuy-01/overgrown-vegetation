@@ -580,4 +580,28 @@ public final class AcumnesGameTests {
             helper.succeed();
         });
     }
+
+    /**
+     * 射程 60【11-16 ユーザー決定「遠距離はもっと射程を」】に揃っているか: 相手を見つける距離(followRange)が 60 以上・
+     * 止まり場所の帯(水平 radiusMax・高さ aboveMax)の一番遠い所が射程の中。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void snipeReachIsSixty(GameTestHelper helper) {
+        AcumnesEntity a = spawn(helper, 3.5D, 2.0D, 3.5D);
+        double follow = a.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.FOLLOW_RANGE);
+        if (AcumnesEntity.SNIPE_MAX < 60.0D) {
+            helper.fail("狙撃の射程が 60 でない: " + AcumnesEntity.SNIPE_MAX);
+            return;
+        }
+        if (follow < AcumnesEntity.SNIPE_MAX) {
+            helper.fail("相手を見つける距離 " + follow + " が射程 " + AcumnesEntity.SNIPE_MAX + " より短い(config の写しが古いかも)");
+            return;
+        }
+        double far = Math.sqrt(AcumnesEntity.SPOTS.radiusMax * AcumnesEntity.SPOTS.radiusMax + AcumnesEntity.SPOTS.aboveMax * AcumnesEntity.SPOTS.aboveMax);
+        if (far > AcumnesEntity.SNIPE_MAX) {
+            helper.fail(String.format("止まり場所の一番遠い所 %.1f が射程の外", far));
+            return;
+        }
+        helper.succeed();
+    }
 }
