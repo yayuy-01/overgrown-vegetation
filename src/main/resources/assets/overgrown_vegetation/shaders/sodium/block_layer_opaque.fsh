@@ -185,6 +185,10 @@ void main() {
         vec4 ovGlint = color.a < 0.99 && ovNoGlint < 0.5 ? ovWaterGlint(ovPos, n, ovLight.y, ovUnder, ovWaterSunShade(ovPos)) : vec4(0.0);
         color.rgb += ovGlint.rgb;
         color.a = mix(color.a, 1.0, ovGlint.a);
+        // The glowing tide (ov_water.glsl, 11-16 world event): the water lights up blue-green at night.
+        vec4 ovTide = color.a < 0.99 && ovNoGlint < 0.5 ? ovWaterTide(ovPos, n, ovUnder) : vec4(0.0);
+        color.rgb += ovTide.rgb;
+        color.a = mix(color.a, 1.0, ovTide.a);
     }
     vec3 ovLit = color.rgb;
 

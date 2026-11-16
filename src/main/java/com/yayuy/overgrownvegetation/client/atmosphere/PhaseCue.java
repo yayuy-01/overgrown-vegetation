@@ -86,6 +86,8 @@ public final class PhaseCue {
         dirZ = p.dirZ();
         rustled = false;
         played++;
+        // F7 の胞子の柱(サーバーがその夜に起こす)のために、森の方角を覚えておく(11-16。client/worldevent/WorldEventCues)。F3 の短いオーロラもサーバーが起こす。
+        com.yayuy.overgrownvegetation.client.worldevent.WorldEventCues.onPhaseCue(phase, hasForest, dirX, dirZ);
         AtmosphereEye.PhaseCueParams d = DesignData.atmosphere().phaseCue();
         if (!p.quiet()) {
             PhaseCueSound.rumble(d.rumbleVolume());
@@ -215,7 +217,8 @@ public final class PhaseCue {
             case 5 -> "見られている目が一瞬開く";
             case 6 -> "拠点の灯りが揺らいで暗くなる";
             case 2, 4 -> "サーバー側(phase/PhaseOmens)";
-            case 3, 7 -> "未着手";
+            case 3 -> "その夜に短いオーロラ(サーバーの合図の枠 → client/worldevent/WorldEventSky)";
+            case 7 -> "一夜だけ森の方角に胞子の柱(サーバーの合図の枠 → client/worldevent/SporeRise)";
             default -> "なし";
         };
     }

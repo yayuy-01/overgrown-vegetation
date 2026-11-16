@@ -48,6 +48,7 @@
     "client.LevelRainAboveCloudsMixin",
     "client.LevelRendererRainSoundMixin",
     "client.BiomeClearSkyMixin",
+    "client.ClientLevelEclipseMixin",
     "client.LightTextureCaveTintMixin",
     "client.LightTexturePhaseCueMixin",
     "client.UnderwaterAmbientVolumeMixin",

@@ -48,6 +48,26 @@ public final class LeyVeins {
     private static int minZ;
     private static int size;
     private static int nearCells;
+    /** 届いた升の写し(線までの距離・汚染。地脈の大潮の光 client/worldevent/LeyTide が読む)。 */
+    private static byte[] rawDistance = new byte[0];
+    private static byte[] rawPolluted = new byte[0];
+
+    /** そのブロックの列から地脈の線までの距離(ブロック。0〜63.75)。升の外・届いていなければ負。 */
+    public static float distanceAt(double x, double z) {
+        int i = (int) Math.floor((x - minX) / LeyVeinMapPayload.CELL);
+        int j = (int) Math.floor((z - minZ) / LeyVeinMapPayload.CELL);
+        if (size <= 0 || i < 0 || j < 0 || i >= size || j >= size || rawDistance.length < size * size || level != Minecraft.getInstance().level) {
+            return -1.0F;
+        }
+        return (rawDistance[j * size + i] & 0xFF) / 4.0F;
+    }
+
+    /** その列が汚染地域(過繁茂・繁茂)か。升の外は false。 */
+    public static boolean pollutedAt(double x, double z) {
+        int i = (int) Math.floor((x - minX) / LeyVeinMapPayload.CELL);
+        int j = (int) Math.floor((z - minZ) / LeyVeinMapPayload.CELL);
+        return size > 0 && i >= 0 && j >= 0 && i < size && j < size && rawPolluted.length >= size * size && (rawPolluted[j * size + i] & 0xFF) > 127;
+    }
 
     /** サーバーから升が届いた(描画のスレッドで)。 */
     public static void accept(LeyVeinMapPayload p) {
@@ -59,6 +79,8 @@ public final class LeyVeins {
             size = 0;
             return;
         }
+        rawDistance = p.distance();
+        rawPolluted = p.polluted();
         try {
             if (texture == null || textureSize != size) {
                 if (texture != null) {
@@ -134,10 +156,12 @@ public final class LeyVeins {
         float blocks = size * LeyVeinMapPayload.CELL;
         float time = (float) ((mc.level.getGameTime() % 24000L + event.getPartialTick().getGameTimeDeltaPartialTick(false)) / 20.0);
         shader.setSampler("OvLeyMap", texture.getId());
-        shader.safeGetUniform("OvLey").set((float) (minX - cam.x), (float) (minZ - cam.z), blocks, p.strength());
+        // 地脈の大潮(ワールドイベント。11-16)の間は、筋が明るくなる。
+        float tide = com.yayuy.overgrownvegetation.client.worldevent.LeyTide.veinBoost();
+        shader.safeGetUniform("OvLey").set((float) (minX - cam.x), (float) (minZ - cam.z), blocks, p.strength() * tide);
         shader.safeGetUniform("OvLeyB").set((float) (cam.x - Math.floor(cam.x / 256.0) * 256.0), (float) (cam.y - Math.floor(cam.y / 256.0) * 256.0),
                 (float) (cam.z - Math.floor(cam.z / 256.0) * 256.0), time);
-        shader.safeGetUniform("OvLeyC").set(p.color()[0], p.color()[1], p.color()[2], p.reach());
+        shader.safeGetUniform("OvLeyC").set(p.color()[0], p.color()[1], p.color()[2], p.reach() * (1.0F + 0.5F * (tide - 1.0F)));
         shader.safeGetUniform("OvLeyD").set(p.pollutedColor()[0], p.pollutedColor()[1], p.pollutedColor()[2], 0.0F);
     }
 

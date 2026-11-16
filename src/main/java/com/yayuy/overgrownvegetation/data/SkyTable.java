@@ -23,6 +23,8 @@ public final class SkyTable {
         public CirrusJson cirrus;
         public WeatherJson weather;
         public SkyColorJson skyColor;
+        /** ワールドイベントの見た目(11-16。{@link WorldEventLooks})。 */
+        public WorldEventLooks worldEvents;
     }
 
     public static final class CloudsJson {
@@ -140,6 +142,8 @@ public final class SkyTable {
     public final float[][] skyZenith, skyAway, skyToward, skyGlow;
     public final float[] skyGlowStrength;
     public final float skyHazeGlow, skyHazeZenith;
+    /** ワールドイベントの見た目の値(節 worldEvents。無ければ初期値)。 */
+    public final WorldEventLooks events;
 
     private SkyTable(Json j) {
         CloudsJson c = j == null || j.clouds == null ? new CloudsJson() : j.clouds;
@@ -199,6 +203,7 @@ public final class SkyTable {
                 (float) clamp(sc.glowTwilightStrength, 0.5, 0.0, 2.0)};
         skyHazeGlow = (float) clamp(sc.hazeGlow, 1.0, 0.0, 3.0);
         skyHazeZenith = f(sc.hazeZenith, 0.3);
+        events = j == null || j.worldEvents == null ? new WorldEventLooks() : j.worldEvents;
     }
 
     public static SkyTable fromJson(Json j) {

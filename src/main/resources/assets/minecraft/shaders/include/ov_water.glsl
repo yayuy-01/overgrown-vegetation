@@ -265,3 +265,66 @@ vec4 ovWaterGlint(vec3 pos, vec3 n, float sky, float under, float shade) {
     k = k > 0.6 ? 1.0 : (k > 0.25 ? 0.5 : (k > 0.08 ? 0.2 : 0.0));
     return vec4(OvWaterSpecB.rgb * k, clamp(k, 0.0, 1.0));
 }
+
+// The glowing tide (11-16, world event "glowing tide"; user: at night the sea, the rivers and the lakes glow blue-green, and light
+// runs along the shore and where something swam). client/worldevent/GlowingTide.java sets the uniforms. Setting: tiny living things
+// that fed on the spores light up when the water moves. Up-facing water faces only, not underground. Pixel art like the rest of the
+// water: every 1/16-block texel takes one of a few flat levels.
+// OvTide  = (colour rgb, strength (0 = off))
+// OvTideB = (shore glow, sparks, time in seconds (wraps at 600), wake glow)
+// OvTideP0..5 = (x, z relative to the camera, radius in blocks, strength 0..1): where something moved through the water just now.
+uniform vec4 OvTide;
+uniform vec4 OvTideB;
+uniform vec4 OvTideP0;
+uniform vec4 OvTideP1;
+uniform vec4 OvTideP2;
+uniform vec4 OvTideP3;
+uniform vec4 OvTideP4;
+uniform vec4 OvTideP5;
+
+float ovTideWake(vec2 p, vec4 w) {
+    vec2 d = p - w.xy;
+    return w.w * exp(-dot(d, d) / max(w.z * w.z, 0.01));
+}
+
+// Returns (light to add rgb, extra opacity).
+vec4 ovWaterTide(vec3 pos, vec3 n, float under) {
+    if (OvTide.w <= 0.0 || n.y < 0.5) {
+        return vec4(0.0);
+    }
+    float open = 1.0 - clamp(under, 0.0, 1.0);
+    if (open <= 0.0) {
+        return vec4(0.0);
+    }
+    pos = ovWaterPixel(pos);
+    vec2 w = OvWaterSpecC.zw + pos.xz;
+    float t = OvTideB.z;
+    // Calm water: a faint glow in slow drifting patches.
+    float glow = 0.07 + 0.16 * ovWaterNoise(w * 0.09 + vec2(t * 0.02, -t * 0.015)) * ovWaterNoise(w * 0.31 - vec2(t * 0.03, t * 0.01) + 7.0);
+    // Sparks: single texels flare up and die, each at its own time.
+    vec2 cell = floor(w * 16.0);
+    float ph = t * 0.6 + ovWaterHash(cell * 0.37) * 40.0;
+    float spark = step(0.992, ovWaterHash(cell + floor(ph) * 3.1)) * (1.0 - fract(ph));
+    glow += spark * OvTideB.y;
+    // The shore: light runs in towards the land, wave after wave (the shore distance of the depth map).
+    vec2 uv = pos.xz - OvDepthA.xy;
+    float size = OvDepthA.z;
+    if (OvDepthA.w > 0.0 && uv.x >= 0.0 && uv.y >= 0.0 && uv.x < size && uv.y < size) {
+        vec4 here = texelFetch(OvDepthMap, ivec2(floor(uv)), 0);
+        if (here.a > 0.4) {
+            float dist = here.g * 255.0 / 32.0;
+            float nearK = 1.0 - smoothstep(0.4, 4.5, dist);
+            float run = pow(0.5 + 0.5 * sin(dist * 2.4 + t * 1.7 + ovWaterNoise(w * 0.2) * 3.0), 3.0);
+            float fleck = 0.55 + 0.45 * ovWaterNoise(w * 3.1 + vec2(t * 0.3, 0.0));
+            glow += nearK * (0.25 + 0.75 * run) * fleck * OvTideB.x;
+        }
+    }
+    // Where something moved through the water.
+    float wake = ovTideWake(pos.xz, OvTideP0) + ovTideWake(pos.xz, OvTideP1) + ovTideWake(pos.xz, OvTideP2)
+            + ovTideWake(pos.xz, OvTideP3) + ovTideWake(pos.xz, OvTideP4) + ovTideWake(pos.xz, OvTideP5);
+    glow += min(wake, 1.5) * (0.6 + 0.4 * ovWaterNoise(w * 4.3 - t * 0.4)) * OvTideB.w;
+    // Flat levels.
+    float k = floor(clamp(glow, 0.0, 1.6) * 6.0 + 0.5) / 6.0;
+    k *= OvTide.w * open;
+    return vec4(OvTide.rgb * k, clamp(k * 0.6, 0.0, 1.0));
+}

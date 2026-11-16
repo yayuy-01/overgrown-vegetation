@@ -83,7 +83,8 @@ public final class SunLight {
         float height = smooth(Mth.clamp(((float) sun.y - 0.06F) / 0.3F, 0.0F, 1.0F));
         float rain = level.getRainLevel(partialTick);
         float thunder = level.getThunderLevel(partialTick);
-        return height * (1.0F - 0.75F * rain) * (1.0F - 0.2F * thunder);
+        // 日食(ワールドイベント。11-16)の間は、隠れた分だけ太陽の光が無い(光の筋・木漏れ日・雲の光がまとめて消える)。
+        return height * (1.0F - 0.75F * rain) * (1.0F - 0.2F * thunder) * (1.0F - com.yayuy.overgrownvegetation.client.worldevent.Eclipse.dark(partialTick));
     }
 
     /**
