@@ -960,7 +960,4 @@ public abstract class SkyFlyer extends Monster {
         return this.flock == null ? -1 : this.flock.slotOf(this);
     }
 
-    public boolean isPlayerNear(Player p, double r) {
-        return p.distanceToSqr(this) < r * r;
-    }
 }

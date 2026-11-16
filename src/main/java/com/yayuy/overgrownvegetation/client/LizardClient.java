@@ -17,6 +17,6 @@ public final class LizardClient {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModLizards.PILIMNES.get(), PilimnesRenderer::new);
-        event.registerEntityRenderer(ModLizards.PILIMNES_SPINE.get(), PilimnesSpineRenderer::new);
+        event.registerEntityRenderer(ModLizards.PILIMNES_SPINE.get(), SpineRenderer::pilimnes);
     }
 }

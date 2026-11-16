@@ -609,11 +609,6 @@ public class SeminariaEntity extends SkyFlyer implements GeoEntity, ParasitizedM
         return false;
     }
 
-    /** テスト用: 群れの次の種まきまでの残りを置く(先頭に置けば群れが升を探し始める)。 */
-    public void debugSortieIn(int ticks) {
-        this.sortieCooldown = ticks;
-    }
-
     /** テスト用: 種まきの間に風に流されない(テスト場から隣のテストの上へ流されて、別の高さを地面と読まないように)。 */
     public boolean debugNoSowDrift;
 
@@ -621,11 +616,6 @@ public class SeminariaEntity extends SkyFlyer implements GeoEntity, ParasitizedM
     public void debugBeginSow() {
         this.sowWait = -1;
         setSow(SOW_DESCEND);
-    }
-
-    /** テスト用: 先頭が今選んでいる升(無ければ Long.MIN_VALUE)。 */
-    public long debugSowTarget() {
-        return this.sowTarget;
     }
 
     // ------------------------------------------------------------------ 光る筋(描画)

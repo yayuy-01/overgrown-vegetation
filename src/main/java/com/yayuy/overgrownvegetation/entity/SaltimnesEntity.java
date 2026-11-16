@@ -164,11 +164,6 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
         return this.groundFit;
     }
 
-    /** クライアント: 今の跳びの段({@link LeapMotion} の段)。 */
-    public int clientLeapPhase() {
-        return this.clientLeapPhase;
-    }
-
     public static AttributeSupplier.Builder createAttributes() {
         return MobStats.apply(Monster.createMonsterAttributes(), ID);
     }
@@ -381,7 +376,7 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
         if (!prey.startRiding(this, true)) return false;
         if (prey instanceof net.minecraft.server.level.ServerPlayer sp) {
             sp.setForcedPose(net.minecraft.world.entity.Pose.SWIMMING);   // 地面へ押し倒す(立たせると目が首の中に入る。11-15 テストクライアント)
-            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.SaltimnesPinPayload(com.yayuy.overgrownvegetation.network.SaltimnesPinPayload.START, this.getId()));
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(com.yayuy.overgrownvegetation.network.CaptorPayload.START, this.getId()));
         }
         this.setDeltaMovement(0.0D, this.getDeltaMovement().y, 0.0D);
         return true;
@@ -413,7 +408,7 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
     /** 噛む(押さえ込みの間)。 */
     void bite(LivingEntity v, float damage) {
         if (v instanceof net.minecraft.server.level.ServerPlayer sp) {
-            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.SaltimnesPinPayload(com.yayuy.overgrownvegetation.network.SaltimnesPinPayload.BITE, this.getId()));
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(com.yayuy.overgrownvegetation.network.CaptorPayload.HIT, this.getId()));
         }
         if (v.hurt(this.damageSources().mobAttack(this), damage)) this.setLastHurtMob(v);
         this.playSound(net.minecraft.sounds.SoundEvents.EVOKER_FANGS_ATTACK, 0.6F, 1.3F);
@@ -510,7 +505,7 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
                         && event.getEntityMounting() instanceof net.minecraft.server.level.ServerPlayer sp) {
                     // 押し倒しを戻す(放した・サルティムネスが死んだ・消えた)。押し倒していなくても(読み込み直しで乗ったまま戻った等)知らせる
                     sp.setForcedPose(null);
-                    net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.SaltimnesPinPayload(com.yayuy.overgrownvegetation.network.SaltimnesPinPayload.END, s.getId()));
+                    net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(com.yayuy.overgrownvegetation.network.CaptorPayload.END, s.getId()));
                 }
                 return;
             }
@@ -539,11 +534,6 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
             this.clientAct = v & 0xFF;
             this.clientActStart = this.tickCount;
         }
-    }
-
-    /** クライアント: 今の技の番号と、始まってからの tick。 */
-    public int clientAct() {
-        return this.clientAct;
     }
 
     public float clientActTicks(float pt) {

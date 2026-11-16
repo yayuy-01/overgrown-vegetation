@@ -71,7 +71,7 @@ final class ClipeimnesHuntGoal extends Goal {
     static final double CHASE_SPEED = 1.0D;
 
     private final ClipeimnesEntity mob;
-    private int act = ClipeimnesEntity.ACT_NONE, actTicks, loops;
+    private int act = ClipeimnesEntity.ACT_NONE, actTicks;
     private int bashCd, grabCd, repath;
     /** 次の盾打ちが左の板か(打つたびに入れ替える。最初は右)。 */
     private boolean nextLeft;
@@ -297,7 +297,6 @@ final class ClipeimnesHuntGoal extends Goal {
                     LivingEntity v = this.victim;
                     if (v != null && v.isAlive() && inGrabZone(v) && this.mob.hold(v)) {
                         this.holdDamage = 0.0F;
-                        this.loops = 0;
                         startAct(ClipeimnesEntity.ACT_HOLD);
                         return;
                     }

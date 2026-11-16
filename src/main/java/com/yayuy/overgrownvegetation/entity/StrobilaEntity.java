@@ -145,9 +145,6 @@ public class StrobilaEntity extends SmallCrawler implements GeoEntity, Parasitiz
     /** 払い終わってから次の払いまで(tick)【仮】。 */
     static final int SWEEP_COOLDOWN = 20;
 
-    private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
-    private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
-    private static final RawAnimation RUN = RawAnimation.begin().thenLoop("run");
     /** 投げの 3 本(windup・throw は json が「最後の姿で止まる」。段はサーバーが切り替える)。 */
     private static final RawAnimation WINDUP = RawAnimation.begin().thenPlayAndHold("throw_windup");
     private static final RawAnimation THROW = RawAnimation.begin().thenPlayAndHold("throw");
@@ -181,7 +178,6 @@ public class StrobilaEntity extends SmallCrawler implements GeoEntity, Parasitiz
     private final java.util.Set<Integer> sweepHit = new java.util.HashSet<>();
 
     // --- クライアント ---
-    private boolean running;
     private byte throwPhaseBefore = PHASE_NONE;
     @Nullable
     private AnimationController<StrobilaEntity> throwController;
@@ -603,7 +599,7 @@ public class StrobilaEntity extends SmallCrawler implements GeoEntity, Parasitiz
         }
         if (this.tickCount % 10 == 0) {
             com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
-                    "STROB_ANIM client 速さ %.3f %s", clientMoveSpeed(1.0F), this.running ? "run" : "walk/idle"));
+                    "STROB_ANIM client 速さ %.3f %s", clientMoveSpeed(1.0F), this.gait.running() ? "run" : "walk/idle"));
         }
     }
 
@@ -622,24 +618,12 @@ public class StrobilaEntity extends SmallCrawler implements GeoEntity, Parasitiz
     private PlayState mainState(AnimationState<StrobilaEntity> state) {
         GaitAnimationController<StrobilaEntity> c = (GaitAnimationController<StrobilaEntity>) state.getController();
         double v = clientMoveSpeed(state.getPartialTick());
-        double s = this.getScale();
-        if (!this.isDeadOrDying() && v >= WALK_MIN_SPEED) {
-            if (this.running ? v > RUN_OFF * s : v >= RUN_ON * s) {
-                this.running = true;
-                c.setAnimationSpeed(Mth.clamp(v / (RUN_REF * s), RUN_SPEED_MIN, RUN_SPEED_MAX));
-                c.switchGait(RUN, "run", "walk");
-                return state.setAndContinue(RUN);
-            }
-            this.running = false;
-            c.setAnimationSpeed(Mth.clamp(v / (WALK_REF * s), WALK_SPEED_MIN, WALK_SPEED_MAX));
-            c.switchGait(WALK, "walk", "run");
-            return state.setAndContinue(WALK);
-        }
-        this.running = false;
-        c.setAnimationSpeed(1.0D);
-        c.switchGait(IDLE, "idle", "-");
-        return state.setAndContinue(IDLE);
+        return state.setAndContinue(this.gait.pick(c, v, this.getScale(), !this.isDeadOrDying(), false));
     }
+
+    /** 歩き ⇄ 走りの選び方(共通の部品。数値はこの種のもの)。 */
+    private final com.yayuy.overgrownvegetation.entity.crawler.WalkRunGait gait = new com.yayuy.overgrownvegetation.entity.crawler.WalkRunGait(
+            WALK_MIN_SPEED, RUN_ON, RUN_OFF, WALK_REF, RUN_REF, WALK_SPEED_MIN, WALK_SPEED_MAX, RUN_SPEED_MIN, RUN_SPEED_MAX);
 
     /**
      * 投げの層: サーバーが送る段(前触れ・投げ・隙)ごとに 1 本を流す。json の windup・throw は「最後の姿で止まる」で、1 本の並び(thenPlay)に

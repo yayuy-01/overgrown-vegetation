@@ -75,17 +75,6 @@ public final class ParasitizedAttackInfectionHandler {
         com.yayuy.overgrownvegetation.spore.SporeExposureTracker.addExposure(victim, amount, false);
     }
 
-    /**
-     * 植物側の陣営か。{@link PlantSideRules#isPlantSide} へ委ねる(2026-11-16 コードの見直し ③6: 前はグループ 1〜10 の自前の一覧 + 変わった印で、
-     * 萌芽体・ハイヴノード・ParasitizedMob の扱いが陣営の判定と少し違った)。本体の呼ぶ所は PlantSideRules へ替えた。テストが呼ぶので名前は残す。
-     *
-     * @deprecated {@link PlantSideRules#isPlantSide} を使う
-     */
-    @Deprecated
-    public static boolean isOvergrownMob(LivingEntity e) {
-        return PlantSideRules.isPlantSide(e);
-    }
-
     private ParasitizedAttackInfectionHandler() {
     }
 }

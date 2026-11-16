@@ -88,8 +88,4 @@ public final class SpineWave {
         return Mth.lerp(pt, this.prev[which], this.now[which]);
     }
 
-    /** 見回しの効き(0〜1)。 */
-    public double lookWeight() {
-        return this.look;
-    }
 }

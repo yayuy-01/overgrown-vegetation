@@ -26,7 +26,7 @@ public final class CrawlerClient {
             var r = new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.StrobilaEntity>(ctx,
                     new com.yayuy.overgrownvegetation.client.StrobilaModel(),
                     com.yayuy.overgrownvegetation.entity.StrobilaEntity.RENDER_SCALE, 0.9F);
-            r.addRenderLayer(new com.yayuy.overgrownvegetation.client.StrobilaGlowLayer(r));   // 尾の背の光の筋(投げの前触れ)
+            r.addRenderLayer(new com.yayuy.overgrownvegetation.client.MaskGlowLayer<>(r, com.yayuy.overgrownvegetation.client.MaskGlowLayer.mask("strobila_glowmask"), com.yayuy.overgrownvegetation.entity.StrobilaEntity::tailGlow));   // 尾の背の光の筋(投げの前触れ)
             return r;
         });
         // ストロビラの球果(11-15 段 2): 絵は【仮】で胞子嚢のアイテム(少し大きく)

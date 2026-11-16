@@ -73,7 +73,7 @@ public final class ClipeimnesGameTests {
             helper.fail("芯の大きさが設計値でない: " + v.getBbWidth() + " × " + v.getBbHeight());
             return;
         }
-        if (!com.yayuy.overgrownvegetation.effect.ParasitizedAttackInfectionHandler.isOvergrownMob(v)) {
+        if (!com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(v)) {
             helper.fail("過繁茂の Mob と見なされない(ほかの Mob から敵対されない)");
             return;
         }

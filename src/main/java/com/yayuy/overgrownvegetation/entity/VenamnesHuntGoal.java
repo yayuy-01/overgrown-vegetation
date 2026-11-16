@@ -280,11 +280,6 @@ final class VenamnesHuntGoal extends Goal {
         return Math.abs(net.minecraft.util.Mth.wrapDegrees(toMe - t.getYHeadRot()));
     }
 
-    /** 相手の速さ(GameTest 用)。 */
-    double[] targetVelocity() {
-        return new double[]{this.tvx, this.tvz};
-    }
-
     /**
      * 狩りの疾走で走る(角を切る): 相手が今の速さで進む先(着くまでの tick 分、上限 {@link #LEAD_MAX})へ真っすぐ舵を取る。
      * 間に段差・幹があれば相手へ経路(予算に通す)。最後の飛びかかりへの切り替えは {@code VenamnesEntity#tickAction}。

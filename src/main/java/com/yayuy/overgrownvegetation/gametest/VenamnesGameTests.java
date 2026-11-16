@@ -74,7 +74,7 @@ public final class VenamnesGameTests {
             helper.fail("芯の大きさが 1.2 × 2.4 でない: " + v.getBbWidth() + " × " + v.getBbHeight());
             return;
         }
-        if (!com.yayuy.overgrownvegetation.effect.ParasitizedAttackInfectionHandler.isOvergrownMob(v)) {
+        if (!com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(v)) {
             helper.fail("過繁茂の Mob と見なされない(ほかの Mob から敵対されない)");
             return;
         }

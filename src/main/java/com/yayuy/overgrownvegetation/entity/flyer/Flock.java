@@ -72,6 +72,8 @@ public final class Flock {
     private int roostRetry;
     /** 前の tick に止まりたがっていたか(止まり木探しの始まりをずらす)と、ずらす幅(tick)【仮】。 */
     private boolean wantedRoost;
+    /** 1 度でも回したか(最初の tick はずらさない)。 */
+    private boolean seenTick;
     static final int ROOST_SPREAD = 100;
     /** 止まり木のまわりの中心(止まり木が足りない個体はこの上を回る)。 */
     BlockPos roostCenter;
@@ -108,14 +110,6 @@ public final class Flock {
 
     public State state() {
         return this.state;
-    }
-
-    public boolean returningHome() {
-        return this.returningHome;
-    }
-
-    public int scatterTicks() {
-        return this.scatter;
     }
 
     public List<SkyFlyer> membersView() {
@@ -169,8 +163,11 @@ public final class Flock {
 
         boolean roost = leader.wantsRoost();
         // 夜・雨の始まりに全部の群れが同じ tick に止まり木を探さないよう、群れの番号でずらす(0〜ROOST_SPREAD tick。11-16 見直し 第 3 便)
-        if (roost && !this.wantedRoost && this.state == State.PATROL) this.roostRetry = 1 + Math.floorMod(this.id.hashCode(), ROOST_SPREAD);
+        // ずらすのは夜・雨が始まったときだけ(できたばかりの群れ・読み込み直した群れは最初の tick からすぐ探す。前は最初の tick もずらし、
+        // 待つ間に流れて別の所へ止まった = VelophyllGameTests.perchesOnTreeTopWhenRoosting が揺れた)
+        if (roost && !this.wantedRoost && this.seenTick && this.state == State.PATROL) this.roostRetry = 1 + Math.floorMod(this.id.hashCode(), ROOST_SPREAD);
         this.wantedRoost = roost;
+        this.seenTick = true;
         RandomSource rnd = level.getRandom();
         switch (this.state) {
             case PATROL -> {

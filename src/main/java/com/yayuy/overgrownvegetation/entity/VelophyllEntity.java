@@ -99,7 +99,7 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
 
     // ------------------------------------------------------------------ 爆撃【仮・Claude 11-15】
     /** 相手を探す範囲: 群れの先頭から水平・下・上(ブロック)。空が見えている相手だけ(屋根・林冠の下は見つけない)。 */
-    public static final double SEARCH_H = 40.0D, SEARCH_DOWN = 40.0D, SEARCH_UP = 10.0D;
+    public static final double SEARCH_H = 40.0D, SEARCH_DOWN = 40.0D;
     /** 相手を探す間隔(tick。広い箱の検索は重いので先頭だけが間をあけて)。 */
     public static final int SEARCH_EVERY = 20;
     /** ほかの生き物(プレイヤー以外)の箱の検索は、相手探しの何回に 1 回か(= 100 tick に 1 回)【仮】。 */
@@ -249,13 +249,6 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
         if (d != DIVE_WINDUP_P && d != DIVE_FALL) return null;
         int id = this.entityData.get(DATA_DIVE_TARGET);
         return id < 0 ? null : this.level().getEntity(id);
-    }
-
-    /** 群れの相手(先頭が持つ。テスト・計測用)。 */
-    @org.jetbrains.annotations.Nullable
-    public net.minecraft.world.entity.LivingEntity flockTarget() {
-        net.minecraft.world.entity.LivingEntity t = leaderOrSelf().flockTarget;
-        return t != null && t.isAlive() ? t : null;
     }
 
     private VelophyllEntity leaderOrSelf() {

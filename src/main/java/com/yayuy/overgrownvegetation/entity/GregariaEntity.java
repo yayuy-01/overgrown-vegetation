@@ -55,11 +55,8 @@ public class GregariaEntity extends SmallCrawler implements GeoEntity, Parasitiz
     static final double STROLL_SPEED = 0.545D;   // 地面の速さ ≈ 2.16 × (0.33 × 0.545)² ≈ 0.07
 
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
-    private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
-    private static final RawAnimation RUN = RawAnimation.begin().thenLoop("run");
 
     /** クライアント: 走りにしているか(速さのヒステリシス)。 */
-    private boolean running;
 
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
@@ -105,7 +102,7 @@ public class GregariaEntity extends SmallCrawler implements GeoEntity, Parasitiz
     /** 噛み始める間合い(体の中心どうしの水平の距離、ブロック)・上下の差の上限。 */
     public static final double BITE_START = 1.5D, BITE_DY = 1.0D;
     /** 前触れ 6 + 実行 3 + 隙 8 tick。当たりは前触れの頭から {@link #BITE_HIT_T} tick 目。 */
-    public static final int BITE_WINDUP_T = 6, BITE_HIT_T = 8, BITE_TOTAL_T = 17;
+    public static final int BITE_HIT_T = 8, BITE_TOTAL_T = 17;
     /** 同じ個体が次に噛めるまで(噛み始めから、tick)・1 人を同時に噛める数。 */
     public static final int BITE_COOLDOWN = 40, BITE_MAX_PER_TARGET = 4;
     /** 口の先(体の中心から前へ・高さ、ブロック。大きさ 1)・届く幅。 */
@@ -345,26 +342,14 @@ public class GregariaEntity extends SmallCrawler implements GeoEntity, Parasitiz
     private PlayState mainState(AnimationState<GregariaEntity> state) {
         GaitAnimationController<GregariaEntity> c = (GaitAnimationController<GregariaEntity>) state.getController();
         double v = clientMoveSpeed(state.getPartialTick());
-        double s = this.getScale();
-        if (!this.isDeadOrDying() && v >= WALK_MIN_SPEED) {
-            if (this.running ? v > RUN_OFF * s : v >= RUN_ON * s) {
-                this.running = true;
-                c.setAnimationSpeed(Mth.clamp(v / (RUN_REF * s), RUN_SPEED_MIN, RUN_SPEED_MAX));
-                c.switchGait(RUN, "run", "walk");
-                devGait(c, v);
-                return state.setAndContinue(RUN);
-            }
-            this.running = false;
-            c.setAnimationSpeed(Mth.clamp(v / (WALK_REF * s), WALK_SPEED_MIN, WALK_SPEED_MAX));
-            c.switchGait(WALK, "walk", "run");
-            devGait(c, v);
-            return state.setAndContinue(WALK);
-        }
-        this.running = false;
-        c.setAnimationSpeed(1.0D);
-        c.switchGait(IDLE, "idle", "-");
-        return state.setAndContinue(IDLE);
+        RawAnimation a = this.gait.pick(c, v, this.getScale(), !this.isDeadOrDying(), false);
+        if (a != com.yayuy.overgrownvegetation.entity.crawler.WalkRunGait.IDLE) devGait(c, v);
+        return state.setAndContinue(a);
     }
+
+    /** 歩き ⇄ 走りの選び方(共通の部品。数値はこの種のもの)。 */
+    private final com.yayuy.overgrownvegetation.entity.crawler.WalkRunGait gait = new com.yayuy.overgrownvegetation.entity.crawler.WalkRunGait(
+            WALK_MIN_SPEED, RUN_ON, RUN_OFF, WALK_REF, RUN_REF, WALK_SPEED_MIN, WALK_SPEED_MAX, RUN_SPEED_MIN, RUN_SPEED_MAX);
 
     /** テストクライアント用: 名前に gait を含む個体の、フレームごとの歩き方と 1 巡の中の位置。 */
     private void devGait(GaitAnimationController<GregariaEntity> c, double v) {

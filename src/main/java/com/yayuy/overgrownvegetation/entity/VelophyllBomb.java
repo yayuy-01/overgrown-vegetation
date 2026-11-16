@@ -36,9 +36,8 @@ public class VelophyllBomb extends ThrowableItemProjectile {
     public static final double DEPOSIT_PERCENT = 15.0D;
     /** 直に当たったときの傷【仮・決定 11-15 ユーザー: 小さな傷】。植物側の攻撃なので、当たった相手は既存の仕組みで感染する。 */
     public static final float DIRECT_DAMAGE = 2.0F;
-    /** 計測・テスト用: 当たったもの・放した所(爆弾ごと)。 */
+    /** 確かめ用(開発用のログ): 当たったもの(爆弾ごと)。 */
     public String hitDesc = "";
-    public Vec3 startPos = Vec3.ZERO;
     /** 狙った相手(測る用)。 */
     public LivingEntity aimed;
     /** 確かめ用: 直しの前の当たり方(部位を持ち主で見ない)。 */
@@ -55,7 +54,6 @@ public class VelophyllBomb extends ThrowableItemProjectile {
     public VelophyllBomb(Level level, LivingEntity owner, Vec3 at) {
         super(ModFlyers.VELOPHYLL_BOMB.get(), owner, level);
         this.setPos(at);
-        this.startPos = at;
     }
 
     @Override

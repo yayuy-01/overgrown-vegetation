@@ -78,15 +78,6 @@ public class LongBodyNavigation extends GroundPathNavigation {
         return new PathFinder(this.nodeEvaluator, maxVisitedNodes);
     }
 
-    /** 長い体の重みを差し替える(性格などで個体ごとに変えるとき)。 */
-    public void setWeights(OvergrownNodeEvaluator.LongBody w) {
-        if (this.nodeEvaluator instanceof OvergrownNodeEvaluator ev) ev.setLongBody(w);
-    }
-
-    public OvergrownNodeEvaluator.LongBody baseWeights() {
-        return this.weights;
-    }
-
     private boolean detourMoved() {
         if (this.detourFrom == null) return false;
         BlockPos at = this.owner.blockPosition();

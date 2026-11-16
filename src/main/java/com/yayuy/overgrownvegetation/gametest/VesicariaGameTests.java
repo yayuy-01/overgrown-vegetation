@@ -69,7 +69,7 @@ public final class VesicariaGameTests {
             helper.fail("芯の大きさが 0.8 × 0.6 でない: " + v.getBbWidth() + " × " + v.getBbHeight());
             return;
         }
-        if (!com.yayuy.overgrownvegetation.effect.ParasitizedAttackInfectionHandler.isOvergrownMob(v)) {
+        if (!com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(v)) {
             helper.fail("過繁茂の Mob と見なされない");
             return;
         }

@@ -36,9 +36,8 @@ public class SeminariaSeed extends ThrowableItemProjectile {
     /** 何にも当たらないまま落ち続けたら消す(tick)。 */
     static final int MAX_AGE = 200;
 
-    /** 計測・テスト用: 落ちて降り積もりを足した種の数(サーバー全体)と、最後に落ちた所。 */
+    /** 計測・テスト用: 落ちて降り積もりを足した種の数(サーバー全体)。 */
     public static volatile int landed;
-    public static volatile Vec3 lastLandedAt = Vec3.ZERO;
 
     public SeminariaSeed(EntityType<? extends SeminariaSeed> type, Level level) {
         super(type, level);
@@ -77,7 +76,6 @@ public class SeminariaSeed extends ThrowableItemProjectile {
     public static void land(ServerLevel level, Vec3 at) {
         SporeFieldServer.depositPoint(level, BlockPos.containing(at), DesignData.sporeField().field().germThreshold * DEPOSIT_PERCENT / 100.0D);
         landed++;
-        lastLandedAt = at;
         if (Boolean.getBoolean("ov.devbridge")) com.mojang.logging.LogUtils.getLogger().info("SEMI_LAND 種が落ちた: {} {} {} 升 {} {} 台帳 {}", String.format("%.1f", at.x), String.format("%.1f", at.y),
                 String.format("%.1f", at.z), Mth.floor(at.x) >> 4, Mth.floor(at.z) >> 4,
                 com.yayuy.overgrownvegetation.phase.PhaseData.get(level).isOvergrownKey(net.minecraft.world.level.ChunkPos.asLong(Mth.floor(at.x) >> 4, Mth.floor(at.z) >> 4)));

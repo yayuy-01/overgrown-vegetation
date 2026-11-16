@@ -72,7 +72,7 @@ public final class GregariaGameTests {
             helper.fail("芯の大きさが 0.7 × 0.45 でない: " + g.getBbWidth() + " × " + g.getBbHeight());
             return;
         }
-        if (!com.yayuy.overgrownvegetation.effect.ParasitizedAttackInfectionHandler.isOvergrownMob(g)) {
+        if (!com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(g)) {
             helper.fail("過繁茂の Mob と見なされない");
             return;
         }

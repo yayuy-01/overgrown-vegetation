@@ -53,7 +53,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * <ul>
  *   <li>流れていく先(体の縁の 2 ブロック先)が、エンティティの動くチャンク({@link ServerLevel#isPositionEntityTicking})でなければ:
  *       {@link #GONE_PLAYER_RANGE} 以内にプレイヤー(観戦を除く)がいなければ「風に乗って去った」として消える。いれば横へは進まず留まる。</li>
- *   <li>1 つの世界(読み込まれている所)に {@link #MAX_PER_LEVEL} 体まで。超えて出たものはすぐ消える({@link #canSpawnMore})。</li>
+ *   <li>1 つの世界(読み込まれている所)に {@link #MAX_PER_LEVEL} 体まで。超えて出たものはすぐ消える。</li>
  *   <li>地面の高さは読み込み済みのチャンクだけ({@code getChunkNow})から読む(読めば読み込みが走る)。</li>
  * </ul>
  */
@@ -202,11 +202,6 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
     }
 
     // ------------------------------------------------------------------ 数の上限
-
-    /** この世界(読み込まれている所)にもう 1 体出してよいか。段 2 の湧きもここを通す。 */
-    public static boolean canSpawnMore(ServerLevel level, EntityType<?> type) {
-        return count(level, type, null) < MAX_PER_LEVEL;
-    }
 
     static int count(ServerLevel level, EntityType<?> type, @Nullable Entity except) {
         int[] n = {0};
@@ -713,15 +708,6 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
 
     public double ground() {
         return this.ground;
-    }
-
-    /** テスト用: 行き先を決め打ちする。 */
-    public void debugSetGoal(double x, double z) {
-        this.goalX = x;
-        this.goalZ = z;
-        this.hasGoal = true;
-        this.debugFixedGoal = true;
-        this.chooseIn = 0;
     }
 
     // ------------------------------------------------------------------ アニメ

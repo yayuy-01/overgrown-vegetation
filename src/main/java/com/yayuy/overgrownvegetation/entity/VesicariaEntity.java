@@ -131,8 +131,6 @@ public class VesicariaEntity extends SmallCrawler implements GeoEntity, Parasiti
     private static final EntityDataAccessor<Boolean> DATA_CHARGING = SynchedEntityData.defineId(VesicariaEntity.class, EntityDataSerializers.BOOLEAN);
 
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
-    private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
-    private static final RawAnimation RUN = RawAnimation.begin().thenLoop("run");
     private static final RawAnimation BURST = RawAnimation.begin().thenPlayAndHold("burst");
     private static final RawAnimation WINDUP = RawAnimation.begin().thenPlay("burst_windup").thenLoop("burst_windup_loop");
     private static final RawAnimation WINDUP_CANCEL = RawAnimation.begin().thenPlayAndHold("burst_windup_cancel");
@@ -148,7 +146,6 @@ public class VesicariaEntity extends SmallCrawler implements GeoEntity, Parasiti
 
     // --- クライアント ---
     /** 走りにしているか(速さのヒステリシス)。 */
-    private boolean running;
     /** 突撃を始めた tick(クライアントの tickCount)。突撃していなければ -1。 */
     private int chargeStartClient = -1;
     /** 袋の層: 0 = 止める・1 = 膨らむ・2 = しぼむ。しぼみ始めた tick と、そのときの光。 */
@@ -233,11 +230,6 @@ public class VesicariaEntity extends SmallCrawler implements GeoEntity, Parasiti
     /** もう弾けたか(サーバー)。 */
     public boolean hasBurst() {
         return this.burst;
-    }
-
-    /** 連鎖で弾けるのを待っているか(サーバー・テスト用)。 */
-    public boolean isChainPending() {
-        return this.chainTimer > 0;
     }
 
     // ------------------------------------------------------------------ 破裂
@@ -534,34 +526,21 @@ public class VesicariaEntity extends SmallCrawler implements GeoEntity, Parasiti
         GaitAnimationController<VesicariaEntity> c = (GaitAnimationController<VesicariaEntity>) state.getController();
         if (this.isDeadOrDying()) {
             // 弾けた: burst を頭から(補間なし)。足は地面のまま、しぼんだ姿で止まる
-            this.running = false;
+            this.gait.stop();
             c.setAnimationSpeed(1.0D);
             c.switchGait(BURST, "burst", "-");
             c.transitionLength(0);
             return state.setAndContinue(BURST);
         }
         double v = clientMoveSpeed(state.getPartialTick());
-        double s = this.getScale();
-        boolean charging = isCharging();
-        if (charging || v >= WALK_MIN_SPEED) {
-            if (charging || (this.running ? v > RUN_OFF * s : v >= RUN_ON * s)) {
-                this.running = true;
-                c.setAnimationSpeed(Mth.clamp(v / (RUN_REF * s), RUN_SPEED_MIN, RUN_SPEED_MAX));
-                c.switchGait(RUN, "run", "walk");
-                devGait(c, v);
-                return state.setAndContinue(RUN);
-            }
-            this.running = false;
-            c.setAnimationSpeed(Mth.clamp(v / (WALK_REF * s), WALK_SPEED_MIN, WALK_SPEED_MAX));
-            c.switchGait(WALK, "walk", "run");
-            devGait(c, v);
-            return state.setAndContinue(WALK);
-        }
-        this.running = false;
-        c.setAnimationSpeed(1.0D);
-        c.switchGait(IDLE, "idle", "-");
-        return state.setAndContinue(IDLE);
+        RawAnimation a = this.gait.pick(c, v, this.getScale(), true, isCharging());   // 突撃の間は走りに固定
+        if (a != com.yayuy.overgrownvegetation.entity.crawler.WalkRunGait.IDLE) devGait(c, v);
+        return state.setAndContinue(a);
     }
+
+    /** 歩き ⇄ 走りの選び方(共通の部品。数値はこの種のもの)。 */
+    private final com.yayuy.overgrownvegetation.entity.crawler.WalkRunGait gait = new com.yayuy.overgrownvegetation.entity.crawler.WalkRunGait(
+            WALK_MIN_SPEED, RUN_ON, RUN_OFF, WALK_REF, RUN_REF, WALK_SPEED_MIN, WALK_SPEED_MAX, RUN_SPEED_MIN, RUN_SPEED_MAX);
 
     /**
      * 袋の層({@code sac}・{@code sc0〜7}・{@code fl*} だけにキーがある): 突撃の間は膨らむ → 張って震える。

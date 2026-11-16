@@ -831,12 +831,6 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
         this.duckNow = ((packed >> 8) & 0xFF) / 255.0F;
     }
 
-    /** GameTest 用: 構えの効きを直に置く(サーバー)。 */
-    public void forceShapeForTest(float q, float d) {
-        this.squeezeServer = q;
-        this.duckServer = d;
-    }
-
     /** うろつきを始める、プレイヤーからの距離(ブロック)【仮】。遠くの個体は動かさない(重さのため。バニラの「動きの無い時間」の代わり)。 */
     static final double STROLL_RANGE = 64.0D;
     /** うろつきの間隔(平均の tick)と行き先の範囲(横・縦、ブロック)【仮】。 */
@@ -1525,11 +1519,6 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
     java.util.List<ActionDef> normalDefs() {
         return java.util.List.of(def("sweep"), def("flurry"), def("grab"), def("wave"),
                 def("kiriage"), def("tsukikaki"), def("kosa"), def("fumikomi"), def("kozuki"));
-    }
-
-    /** 選び方(GameTest 用。書き換えない)。 */
-    public ActionPicker getPicker() {
-        return this.picker;
     }
 
     private void endAction() {
@@ -2272,7 +2261,7 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
 
     /**
      * 確かめ用(11-05): {@code /data merge entity <この個体> {OvForceAction:<動作の番号>}} で次の tick にその動作を始める
-     * ({@link #forceAction} と同じ。runClaudeClient で技を 1 つずつ撮るため)。{@code /data get} では今の動作が {@code OvAction} に出る。
+     * ({@link #forceAction} と同じ。runClaudeClient で技を 1 つずつ撮るため)。
      * 動作そのものは保存しない(読み込み直したら何もしていない状態から)ので、普段の保存には影響しない。
      */
     private int pendingForce = -1;
@@ -2280,7 +2269,6 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
     @Override
     public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
         super.addAdditionalSaveData(tag);
-        tag.putInt("OvAction", getAction());
         if (this.personalitySet) {
             net.minecraft.nbt.CompoundTag p = new net.minecraft.nbt.CompoundTag();
             p.putFloat("caution", caution());
@@ -2677,11 +2665,7 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
      */
     @Override
     protected void tickDeath() {
-        this.deathTime++;
-        if (this.deathTime >= Math.max(DEATH_TICKS, com.yayuy.overgrownvegetation.spore.PlantSideRules.burstTick(this) + 2) && !this.level().isClientSide() && !this.isRemoved()) {
-            this.level().broadcastEntityEvent(this, (byte) 60);
-            this.remove(RemovalReason.KILLED);
-        }
+        BurstDeath.tick(this, DEATH_TICKS);
     }
 
     @Override

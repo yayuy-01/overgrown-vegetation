@@ -6,7 +6,7 @@ import software.bernie.geckolib.renderer.GeoEntityRenderer;
 
 /**
  * 「サルティムネス」の描画。描画倍率 2.5(geo に焼き込まない。テクスチャは 1 単位 2.5 テクセルなので画素はブロックの 1 画素に揃う)。
- * 発光マスク(腿の葉脈・T 字の口)は跳び抱えと連続跳躍の間だけ重ねる({@link SaltimnesGlowLayer}、11-15 段 3)。
+ * 発光マスク(腿の葉脈・T 字の口)は跳び抱えと連続跳躍の間だけ重ねる({@link MaskGlowLayer}、11-15 段 3)。
  */
 public class SaltimnesRenderer extends GeoEntityRenderer<SaltimnesEntity> {
 
@@ -14,7 +14,7 @@ public class SaltimnesRenderer extends GeoEntityRenderer<SaltimnesEntity> {
         super(context, new SaltimnesModel());
         this.withScale(SaltimnesEntity.RENDER_SCALE);
         this.shadowRadius = 1.4F;
-        this.addRenderLayer(new SaltimnesGlowLayer(this));
+        this.addRenderLayer(new MaskGlowLayer<>(this, MaskGlowLayer.mask("saltimnes_glowmask"), com.yayuy.overgrownvegetation.entity.SaltimnesEntity::glow));
     }
 
     @Override

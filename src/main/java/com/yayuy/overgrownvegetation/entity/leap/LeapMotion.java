@@ -129,11 +129,6 @@ public final class LeapMotion {
         return this.phase == CROUCH && this.t > 0;
     }
 
-    /** 宙に出てからの tick(AIR の間)。 */
-    public int airTicks() {
-        return this.air;
-    }
-
     /** 跳びをやめる(宙なら落ちるに任せる)。 */
     public void cancel() {
         if (this.phase == CROUCH || this.phase == LAND) this.phase = NONE;

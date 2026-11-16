@@ -22,7 +22,7 @@ public final class FlyerClient {
                 ctx -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(ctx, 1.8F, false));
         event.registerEntityRenderer(ModFlyers.SEMINARIA.get(), ctx -> {
             var r = new SeminariaRenderer(ctx);
-            r.addRenderLayer(new SeminariaGlowLayer(r));   // 種を落とす間だけ光る筋(11-16)
+            r.addRenderLayer(new MaskGlowLayer<>(r, MaskGlowLayer.mask("seminaria_glowmask"), com.yayuy.overgrownvegetation.entity.SeminariaEntity::sowGlow));   // 種を落とす間だけ光る筋(11-16)
             return r;
         });
         // セミナリアの種(11-16): 絵は【仮】で胞子嚢のアイテム(小さく)
@@ -30,6 +30,6 @@ public final class FlyerClient {
                 ctx -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(ctx, 0.6F, false));
         event.registerEntityRenderer(ModFlyers.PEDICULA.get(), PediculaRenderer::new);
         event.registerEntityRenderer(ModFlyers.ACUMNES.get(), AcumnesRenderer::new);
-        event.registerEntityRenderer(ModFlyers.ACUMNES_SPINE.get(), AcumnesSpineRenderer::new);
+        event.registerEntityRenderer(ModFlyers.ACUMNES_SPINE.get(), SpineRenderer::acumnes);
     }
 }

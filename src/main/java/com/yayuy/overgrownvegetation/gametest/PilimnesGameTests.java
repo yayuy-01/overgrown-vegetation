@@ -82,7 +82,7 @@ public final class PilimnesGameTests {
             helper.fail("相手を見つける距離 " + v.getAttributeValue(Attributes.FOLLOW_RANGE) + " が弾きの射程 44 より短い");
             return;
         }
-        if (!com.yayuy.overgrownvegetation.effect.ParasitizedAttackInfectionHandler.isOvergrownMob(v)) {
+        if (!com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(v)) {
             helper.fail("過繁茂の Mob と見なされない(ほかの Mob から敵対されない)");
             return;
         }

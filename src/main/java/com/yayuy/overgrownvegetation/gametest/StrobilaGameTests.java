@@ -67,7 +67,7 @@ public final class StrobilaGameTests {
             helper.fail("芯の大きさが 0.95 × 1.2 でない: " + s.getBbWidth() + " × " + s.getBbHeight());
             return;
         }
-        if (!com.yayuy.overgrownvegetation.effect.ParasitizedAttackInfectionHandler.isOvergrownMob(s)) {
+        if (!com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(s)) {
             helper.fail("過繁茂の Mob と見なされない");
             return;
         }

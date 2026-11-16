@@ -424,8 +424,8 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
         if (!canHold(prey) || !this.getPassengers().isEmpty()) return false;
         if (!prey.startRiding(this, true)) return false;
         if (prey instanceof net.minecraft.server.level.ServerPlayer sp) {
-            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.ClipeimnesHoldPayload(
-                    com.yayuy.overgrownvegetation.network.ClipeimnesHoldPayload.START, this.getId()));
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(
+                    com.yayuy.overgrownvegetation.network.CaptorPayload.START, this.getId()));
         }
         this.setDeltaMovement(0.0D, this.getDeltaMovement().y, 0.0D);
         return true;
@@ -457,8 +457,8 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
     /** 締める(噛む)。 */
     void squeeze(net.minecraft.world.entity.LivingEntity v, float damage) {
         if (v instanceof net.minecraft.server.level.ServerPlayer sp) {
-            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.ClipeimnesHoldPayload(
-                    com.yayuy.overgrownvegetation.network.ClipeimnesHoldPayload.SQUEEZE, this.getId()));
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(
+                    com.yayuy.overgrownvegetation.network.CaptorPayload.HIT, this.getId()));
         }
         if (v.hurt(this.damageSources().mobAttack(this), damage)) this.setLastHurtMob(v);
         this.playSound(net.minecraft.sounds.SoundEvents.EVOKER_FANGS_ATTACK, 0.6F, 0.9F);
@@ -516,8 +516,8 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
                     return;
                 }
                 if (event.getEntityBeingMounted() instanceof ClipeimnesEntity c && event.getEntityMounting() instanceof net.minecraft.server.level.ServerPlayer sp) {
-                    net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.ClipeimnesHoldPayload(
-                            com.yayuy.overgrownvegetation.network.ClipeimnesHoldPayload.END, c.getId()));
+                    net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(
+                            com.yayuy.overgrownvegetation.network.CaptorPayload.END, c.getId()));
                 }
                 return;
             }
@@ -571,7 +571,7 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
     // --- 光(クライアント): 抱え込みと溜めの解放だけ(決定 11-15)。盾打ち・盾で詰めるは溜めの段の光だけ
 
     private int clientAct = ACT_NONE, clientActKey = -1, clientActStart;
-    private int clientGuardKey = -1, clientGuardStart;
+    private int clientGuardKey = -1;
 
     /** クライアント: 技の始まり・構えの変わり目を数える。 */
     private void tickClientAct() {
@@ -588,12 +588,7 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
         int g = this.entityData.get(DATA_GUARD) & ~0xF0;   // 溜めの段の変化では数え直さない
         if (g != this.clientGuardKey) {
             this.clientGuardKey = g;
-            this.clientGuardStart = this.tickCount;
         }
-    }
-
-    public int clientAct() {
-        return this.clientAct;
     }
 
     public float clientActTicks(float pt) {

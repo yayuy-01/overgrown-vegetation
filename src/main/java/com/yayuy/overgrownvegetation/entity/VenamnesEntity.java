@@ -154,7 +154,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     /** sprint を速さ 1.0 で流したときの地上速度(ブロック/tick。アニメの一覧: 1 歩 4.9 ブロック・14 tick で 1 巡)。 */
     public static final double SPRINT_REF = 0.35D;
     /** 疾走の最後の飛びかかりを始める距離(体の真ん中から。頭から約 2〜6)・正面のずれ(度)。 */
-    static final double HUNT_POUNCE_MIN = 5.0D, HUNT_POUNCE_MAX = 9.3D;
+    static final double HUNT_POUNCE_MAX = 9.3D;
     static final float HUNT_POUNCE_CONE = 20.0F;
     /** 叫びの光: 口 0.40〜1.05 秒・腱 0.40 秒から(アニメの頭から。補間 4 を足す)。息切れの頭で腱は 10 tick かけて消える。 */
     static final float HUNT_MOUTH_ON = LEAD + 8.0F, HUNT_MOUTH_OFF = LEAD + 21.0F, HUNT_TENDON_ON = LEAD + 8.0F, HUNT_TENDON_FADE = 10.0F;
@@ -378,10 +378,6 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     @Override
     protected double gaitBoost() {
         return isHuntSprinting() ? def("hunt").get("speedMult", HUNT_SPEED) : this.sprint;
-    }
-
-    public double sprintFactor() {
-        return this.sprint;
     }
 
     // ------------------------------------------------------------------ 速さ
@@ -1045,12 +1041,11 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         };
     }
 
-    // --- 保存(技の状態は保存しない。確かめ用の口だけ) ---
+    // --- 保存(技の状態は保存しない。個体の性格だけ) ---
 
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
-        tag.putInt("OvAction", getAction());
         if (this.personalitySet) {
             CompoundTag p = new CompoundTag();
             p.putFloat("caution", caution());
