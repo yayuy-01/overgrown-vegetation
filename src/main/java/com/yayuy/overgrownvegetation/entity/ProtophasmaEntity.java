@@ -14,13 +14,13 @@ import net.minecraft.world.level.Level;
  * 形・骨・アニメは 10-10 のまま、絵だけ 1/16 画素に塗り直した(正本 Blockbench の protophasma.bbmodel。描画倍率 1 = geo に焼き込み済み)。
  *
  * <p>速さ【仮・Claude 11-16】: ゆっくり歩く(うろつき 約 0.05)・逃げる急ぎ 約 0.157(移動の速さ 0.27)。
- * 今の walk(0.3 秒)は着いている足の平均 {@link #WALK_REF} だが、着いている間の速さが波打つので足が滑る。直した walk・run をモデル制作へ頼んだ(11-16)。
+ * walk・run は 11-16 にモデル制作(g2g3-bug-walk)が足を地面に止めて作り直した(前の walk は着いている間の速さが波打って滑っていた)。
  */
 public class ProtophasmaEntity extends CrawlerCritter {
 
     public static final String ID = "protophasma";
-    /** 今の walk を FK で測った、着いている足の平均の速さ(ブロック/tick)。 */
-    public static final double WALK_REF = 0.106D;
+    /** walk(10 tick で 1 巡)・run(5 tick)を 1 倍で流したとき足が滑らない地面の速さ(11-16 g2g3-bug-walk の確定値)。 */
+    public static final double WALK_REF = 0.05D, RUN_REF = 0.157D;
     static final float TURN_PER_TICK = 10.0F;
     static final double STROLL_SPEED = 0.56D;
 
@@ -36,6 +36,22 @@ public class ProtophasmaEntity extends CrawlerCritter {
     @Override
     protected double walkRef() {
         return WALK_REF;
+    }
+
+    @Override
+    protected double runRef() {
+        return RUN_REF;
+    }
+
+    /** walk 0.4〜2.0 倍(〜0.10)・run 0.55〜1.25 倍(0.086〜0.196)・run へ 0.095 以上 / walk へ 0.088 以下【仮・アニメ側の見立て 11-16】。 */
+    @Override
+    protected double[] walkRange() {
+        return new double[]{0.4D, 2.0D};
+    }
+
+    @Override
+    protected double[] runRange() {
+        return new double[]{0.55D, 1.25D, 0.095D, 0.088D};
     }
 
     @Override
