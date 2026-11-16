@@ -90,11 +90,41 @@ public final class ModCrawlers {
                     .updateInterval(10)
                     .build("strobila_cone"));
 
+    // --- G2・G3 の作り直し 段 1(2026-11-16): 小さな地這いの虫の型で歩くだけ。湧きは生態系の台帳(ecosystem/EcoSpawns)へ後でつなぐ。区分は CREATURE ---
+
+    /** プルモノスコルピウス(G3)。当たりは胴の芯 1.0 × 0.6(尾・脚・鋏ははみ出す。全体 2.46 × 1.11 × 1.04)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity>> PULMONOSCORPIUS =
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.ID, () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity>of(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity::new, MobCategory.CREATURE)
+                    .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.ID, 1.0F), MobStats.height(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.ID, 0.6F))
+                    .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.ID))
+                    .eyeHeight(0.4F)
+                    .clientTrackingRange(8)
+                    .build(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.ID));
+    /** スポーンエッグ(地は樹皮の焦げ茶、点は形成層の黄緑)。 */
+    public static final DeferredItem<DeferredSpawnEggItem> PULMONOSCORPIUS_SPAWN_EGG = ModItems.ITEMS.registerItem(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.ID + "_spawn_egg",
+            props -> new DeferredSpawnEggItem(PULMONOSCORPIUS, 0x3A2E1C, 0x6B6A2A, props));
+
+    /** プロトファスマ(G2)。当たりは胴の芯 0.5 × 0.5(脚・触角ははみ出す。全体 1.91 × 0.77 × 0.46)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ProtophasmaEntity>> PROTOPHASMA =
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID, () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.ProtophasmaEntity>of(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity::new, MobCategory.CREATURE)
+                    .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID, 0.5F), MobStats.height(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID, 0.5F))
+                    .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID))
+                    .eyeHeight(0.3F)
+                    .clientTrackingRange(8)
+                    .build(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID));
+    /** スポーンエッグ(地は汚染シダの暗い緑、点は脚の茶)。 */
+    public static final DeferredItem<DeferredSpawnEggItem> PROTOPHASMA_SPAWN_EGG = ModItems.ITEMS.registerItem(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID + "_spawn_egg",
+            props -> new DeferredSpawnEggItem(PROTOPHASMA, 0x2F4A1C, 0x7A5C34, props));
+
     /** 植物側の Mob のタブへ卵を並べる({@code ModCreativeTabs} から)。 */
     public static void acceptEggs(CreativeModeTab.Output output) {
         output.accept(VESICARIA_SPAWN_EGG.get());
         output.accept(GREGARIA_SPAWN_EGG.get());
         output.accept(STROBILA_SPAWN_EGG.get());
+        output.accept(PULMONOSCORPIUS_SPAWN_EGG.get());
+        output.accept(PROTOPHASMA_SPAWN_EGG.get());
     }
 
     @SubscribeEvent
@@ -102,5 +132,7 @@ public final class ModCrawlers {
         event.put(VESICARIA.get(), com.yayuy.overgrownvegetation.entity.VesicariaEntity.createAttributes().build());
         event.put(GREGARIA.get(), GregariaEntity.createAttributes().build());
         event.put(STROBILA.get(), com.yayuy.overgrownvegetation.entity.StrobilaEntity.createAttributes().build());
+        event.put(PULMONOSCORPIUS.get(), com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.createAttributes().build());
+        event.put(PROTOPHASMA.get(), com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.createAttributes().build());
     }
 }

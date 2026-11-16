@@ -1,5 +1,7 @@
 {
   "replace": false,
   "values": [
+    "overgrown_vegetation:protophasma",
+    "overgrown_vegetation:stenodictya_lobata"
   ]
 }

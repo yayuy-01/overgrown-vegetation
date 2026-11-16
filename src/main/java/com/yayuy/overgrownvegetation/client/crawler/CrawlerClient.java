@@ -29,6 +29,11 @@ public final class CrawlerClient {
             r.addRenderLayer(new com.yayuy.overgrownvegetation.client.MaskGlowLayer<>(r, com.yayuy.overgrownvegetation.client.MaskGlowLayer.mask("strobila_glowmask"), com.yayuy.overgrownvegetation.entity.StrobilaEntity::tailGlow));   // 尾の背の光の筋(投げの前触れ)
             return r;
         });
+        // G2・G3 の作り直し 段 1(11-16): 描画倍率 1(geo に焼き込み済み)
+        event.registerEntityRenderer(ModCrawlers.PULMONOSCORPIUS.get(),
+                ctx -> new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity>(ctx, new CritterModel<>(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.ID), 1.0F, 0.6F));
+        event.registerEntityRenderer(ModCrawlers.PROTOPHASMA.get(),
+                ctx -> new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.ProtophasmaEntity>(ctx, new CritterModel<>(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID), 1.0F, 0.35F));
         // ストロビラの球果(11-15 段 2): 絵は【仮】で胞子嚢のアイテム(少し大きく)
         event.registerEntityRenderer(ModCrawlers.STROBILA_CONE.get(),
                 ctx -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(ctx, 1.4F, false));
