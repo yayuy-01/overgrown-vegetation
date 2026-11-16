@@ -88,6 +88,8 @@ public final class CloudWeather {
 
     /** ワールドの時刻 t にかかる雨(その日か前の日から続く雨)。無ければ null。 */
     public static Rain rainAt(long t) {
+        Rain f = forced;
+        if (f != null && f.raining(t)) return f;
         long day = Math.floorDiv(t + 6000L, 24000L);
         Rain r = rainOfDay(day);
         if (r != null && r.raining(t)) {
@@ -99,14 +101,53 @@ public final class CloudWeather {
 
     /** t より後に始まる次の予定の雨(今日・明日・あさってから探す)。無ければ null。 */
     public static Rain nextRain(long t) {
+        Rain f = forced;
         long day = Math.floorDiv(t + 6000L, 24000L);
         for (long d = day; d <= day + 2; d++) {
             Rain r = rainOfDay(d);
             if (r != null && r.from() > t) {
-                return r;
+                return f != null && f.from() > t && f.from() < r.from() ? f : r;
             }
         }
-        return null;
+        return f != null && f.from() > t ? f : null;
+    }
+
+    // ---------------------------------------------------------------- 差し込みの嵐(2026-11-16 フェーズの合図 F4、enemy-spawns)
+
+    /** 予定の雨とは別に、1 回だけ差し込む雷雨(= 胞子の嵐)。null なら無し。サーバーの中だけ(保存しない。再起動で消える)【仮】。 */
+    @javax.annotation.Nullable
+    private static volatile Rain forced;
+    /** 差し込んだ嵐の雷の間の、嵐の風の強さの倍率(PrevailingWind.stormScale)。 */
+    private static volatile double forcedScale = 1.0D;
+
+    /**
+     * 雷雨を 1 回だけ差し込む(フェーズが F4 に上がった直後の「短く弱い胞子の嵐」。正本は Vault「フェーズの仕組み」の現象)。
+     * dayTime の from から rainTicks 降り、そのうち thunderFrom〜thunderTo(from からの tick)が雷。雷の間は嵐の風を scale 倍にする。
+     */
+    public static void forceStorm(long from, int rainTicks, int thunderFrom, int thunderTo, double scale) {
+        forced = new Rain(from, from + Math.max(1, rainTicks), from + thunderFrom, from + Math.min(rainTicks, thunderTo));
+        forcedScale = scale;
+    }
+
+    @javax.annotation.Nullable
+    public static Rain forcedStorm() {
+        return forced;
+    }
+
+    /** テスト用: 差し込みを消す。 */
+    public static void clearForcedStorm() {
+        forced = null;
+        com.yayuy.overgrownvegetation.spore.field.PrevailingWind.stormScale = 1.0D;
+    }
+
+    /** 差し込みの後始末と、嵐の風の倍率(サーバーの tick の初め)。 */
+    private static void tickForced(long t) {
+        Rain f = forced;
+        if (f != null && t >= f.to()) {
+            forced = null;
+            f = null;
+        }
+        com.yayuy.overgrownvegetation.spore.field.PrevailingWind.stormScale = f != null && f.thundering(t) ? forcedScale : 1.0D;
     }
 
     /**
@@ -175,6 +216,7 @@ public final class CloudWeather {
 
     /** 1 tick ぶん(GameTest からも呼ぶ)。 */
     public static void tick(ServerLevel level) {
+        tickForced(level.getDayTime());
         if (!(level.getLevelData() instanceof ServerLevelData data)) {
             serverActive = false;
             return;

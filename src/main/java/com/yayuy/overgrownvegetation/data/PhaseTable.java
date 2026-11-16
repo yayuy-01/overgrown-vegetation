@@ -166,12 +166,6 @@ public final class PhaseTable {
          * 止めたいだけのときはこちらを使う。
          */
         public Boolean autoAdvance;
-        /**
-         * このフェーズへ上がったときに全員へ流す文(2026-09-29 ユーザー指定)。
-         * 空 / 未設定なら言語ファイルの {@code message.overgrown_vegetation.phase_name.<n>}
-         * (例「フェーズ3-拡大」)。胞子警報器が出す文にもこれが入る。
-         */
-        public String message;
         /** 自由記述の内容メモ(挙動には影響しない — マネージャー表示用)。 */
         public String notes;
         /** このフェーズの小さな段の倍率と区切り(2026-11-14。書いた欄だけ {@code global.stages} を上書き)。{@link Stages}。 */
@@ -420,17 +414,6 @@ public final class PhaseTable {
         Boolean v = phase(n).autoAdvance;
         return v == null || v;
     }
-
-    /**
-     * このフェーズへ上がったときに流す文({@code message})。空 / 未設定なら null =
-     * 言語ファイルのフェーズ名を使う({@code PhaseData#advanceToPhase})。
-     */
-    @javax.annotation.Nullable
-    public String message(int n) {
-        String s = phase(n).message;
-        return s != null && !s.isBlank() ? s : null;
-    }
-
     /** 自動昇格の対象になりうるフェーズ番号か(フェーズ1は開始フェーズなので対象外)。 */
     private static boolean inAdvanceRange(int n) {
         return n >= MIN_PHASE + 1 && n <= MAX_PHASE;
@@ -448,7 +431,6 @@ public final class PhaseTable {
         r.pointsToAdvance = over != null && over.pointsToAdvance != null ? over.pointsToAdvance : def.pointsToAdvance;
         r.normalArea = over != null && over.normalArea != null ? over.normalArea : def.normalArea;
         r.autoAdvance = over != null && over.autoAdvance != null ? over.autoAdvance : def.autoAdvance;
-        r.message = over != null && over.message != null ? over.message : def.message;
         r.notes = over != null && over.notes != null ? over.notes : def.notes;
         // 小さな段(2026-11-14)。フェーズの欄は書いた欄だけ。global との重ね合わせはコンストラクタで行う。
         Stages ds = def.stages;

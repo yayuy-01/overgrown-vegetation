@@ -1188,19 +1188,6 @@ public final class PhaseData extends SavedData {
         }
     }
 
-    /**
-     * フェーズ昇格のときに流す文。{@code phases.json} の {@code message} が書いてあればそれを
-     * <b>そのまま</b>(翻訳を通さない)、無ければ言語ファイルの {@code phase_name.<n>}。
-     * 胞子警報器の文にもこれが埋まる。
-     */
-    public static Component phaseAnnouncement(int phase) {
-        String custom = com.yayuy.overgrownvegetation.data.DesignData.phases().message(phase);
-        return custom != null
-                ? Component.literal(custom)
-                : Component.translatableWithFallback(
-                        "message.overgrown_vegetation.phase_name." + phase, "Phase " + phase);
-    }
-
     private void advanceToPhase(ServerLevel overworld, int newPhase) {
         int oldPhase = this.phase;
         this.phase = newPhase;
@@ -1210,12 +1197,7 @@ public final class PhaseData extends SavedData {
         this.stage = PhaseStage.INTRO;
         setDirty();
         this.phaseWarned = false;
-        if (isLive()) {
-            // 切り替わりに流すのは 1 行だけ。文は phases.json の message(2026-09-29 ユーザー指定)、
-            // 書いていなければ言語ファイルのフェーズ名(「フェーズ3-拡大」など)。
-            Component name = phaseAnnouncement(newPhase);
-            overworld.getServer().getPlayerList().broadcastSystemMessage(name, false);
-        }
+        // 11-16 ユーザー: 上がったときのチャットの 1 行は流さない。地鳴り・空のにじみ・森のざわめき(PhaseCues)だけで知らせる(11-14「数字ではなく現象で知らせる」)
 
         if (newPhase == 1) {
             if (isLive()) {

@@ -41,6 +41,8 @@ public final class PrevailingWind {
     static final double P_RAIN_FLOOR = 0.6;
     /** 嵐(雷雨)の強さ。 */
     public static final double STORM = 3.0;
+    /** 嵐の風の強さに掛ける倍率(既定 1。フェーズが F4 に上がった直後の「弱い」胞子の嵐の間だけ下げる。sky/CloudWeather#forceStorm が書く。2026-11-16)。 */
+    public static volatile double stormScale = 1.0D;
     /** 嵐の向きの乱れ(度)と乱れの周期(tick)。 */
     static final double P_STORM_TURB_DEG = 50, P_STORM_TURB_PERIOD = 1500;
     /** 風の強い日: 強さは嵐の何割か(【案】6〜7 割)、雨の終わりの翌日になる確率、それ以外の日の確率。 */
@@ -107,7 +109,7 @@ public final class PrevailingWind {
         boolean storm = w.raining && w.thundering;
         boolean strong = false;
         if (storm) {
-            s = STORM;
+            s = STORM * stormScale;
             angle += Math.toRadians(P_STORM_TURB_DEG) * smoothNoise(seed ^ 0x5707L, t / P_STORM_TURB_PERIOD);
         } else if (isStrongDay(seed, day, w)) {
             double env = strongEnvelope(tod);
