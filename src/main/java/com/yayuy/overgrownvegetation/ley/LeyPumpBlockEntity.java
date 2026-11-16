@@ -133,7 +133,7 @@ public class LeyPumpBlockEntity extends BlockEntity implements LeyBatteryHolder 
         if (Double.isNaN(eff)) {
             return 0;
         }
-        carry += spec.pumpFePerTick() * eff;
+        carry += spec.pumpFePerTick() * eff * com.yayuy.overgrownvegetation.worldevent.WorldEvents.pumpMultiplier(level); // 地脈の大潮の間は少し速く(11-16 world-events)
         int gen = (int) carry;
         carry -= gen;
         int before = energy;

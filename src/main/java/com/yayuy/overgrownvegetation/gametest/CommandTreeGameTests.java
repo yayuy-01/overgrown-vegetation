@@ -56,6 +56,8 @@ public final class CommandTreeGameTests {
             Map.entry("storm", Set.of("tp", "here")),
             // 2026-11-16 weather-system: 天気 4 つ(濃霧・凪・強風)を見る・強制する weather(確かめ用)。
             Map.entry("weather", Set.of("fog", "calm", "gale", "clear", "strike")),
+            // 2026-11-16 world-events: ワールドイベント 7 つを見る・起こす・止める・くじを引く event(確かめ用)。
+            Map.entry("event", Set.of("status", "start", "stop", "next")),
             // 2026-11-11: ネザーの汚染の骨組み(根の台帳と段階)を見る・進める nether(実装の依頼「段階を見る・進める・速さの倍率を変える命令」)。
             Map.entry("nether", Set.of("status", "stage", "advance", "speed", "seed")),
             // 2026-11-12 ユーザー決定「おすすめ通り」: 実験的要素(今は新しいネザー)を見る・切り替える experimental(設定の画面が parked の間の代わり)。

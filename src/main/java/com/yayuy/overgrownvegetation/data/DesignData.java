@@ -60,6 +60,13 @@ public final class DesignData {
 
     private static volatile com.yayuy.overgrownvegetation.ecosystem.EcoTable ecosystem = com.yayuy.overgrownvegetation.ecosystem.EcoTable.DEFAULT;
 
+    private static volatile com.yayuy.overgrownvegetation.worldevent.WorldEventTable worldEvents = com.yayuy.overgrownvegetation.worldevent.WorldEventTable.DEFAULT;
+
+    /** ワールドイベント 7 つの設計値({@code world_events.json}、2026-11-16 world-events)。サーバー(日程・地脈の大潮)とクライアント(長さ)が読む。 */
+    public static com.yayuy.overgrownvegetation.worldevent.WorldEventTable worldEvents() {
+        return worldEvents;
+    }
+
     /** 生態系の台帳(升ごとの個体群・多様性・内側の湧き)の設計値({@code ecosystem.json}、2026-11-16)。 */
     public static com.yayuy.overgrownvegetation.ecosystem.EcoTable ecosystem() {
         return ecosystem;
@@ -178,6 +185,7 @@ public final class DesignData {
         director = DirectorTable.fromJson(read(dir, "director.json", DirectorTable.Json.class));
         spawns = com.yayuy.overgrownvegetation.spawn.SpawnTable.fromJson(read(dir, "spawns.json", com.yayuy.overgrownvegetation.spawn.SpawnTable.Json.class));
         ecosystem = com.yayuy.overgrownvegetation.ecosystem.EcoTable.fromJson(read(dir, "ecosystem.json", com.yayuy.overgrownvegetation.ecosystem.EcoTable.Json.class));
+        worldEvents = com.yayuy.overgrownvegetation.worldevent.WorldEventTable.fromJson(read(dir, "world_events.json", com.yayuy.overgrownvegetation.worldevent.WorldEventTable.Json.class));
 
         OvergrownVegetation.LOGGER.info("設計データを読み込みました({})", dir);
     }

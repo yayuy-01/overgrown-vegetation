@@ -1,0 +1,21 @@
+{
+  "_comment": "ワールドイベント 7 つ(2026-11-16 world-events。正本は Vault「ワールドイベント 7 つの中身の案(Fable・11-16)」の【決定】と「0.2.0 のワールドイベント」の末尾)。読むのはサーバー(日程・地脈の大潮の効き目)とクライアント(長さ)。反映は再起動。ユーザー決定: 7 つ・どれか 1 つが intervalMinDays〜intervalMaxDays(7〜15)日に 1 回【仮】・同時に 1 つ【仮】・どれが起きるかは weight のくじ(最初の 1 回もくじ)・aurora と glowing_tide は minPhase 3(F3 から)・効き目は ley_tide だけ(leyTidePumpMultiplier【仮】)・日食は約 6 分(length 7200)で暗いのは約 1.5 分(totality 1800)・影は朝か夕の約 10 分(length 12000)で霞か霧の日だけ(needFog)。ほかはすべて仮決め。時刻は 1 日の中の tick(0 = 6 時・6000 = 正午・12000 = 18 時・18000 = 真夜中)。windows = 始まりの時刻を [from, to] の間からくじで選ぶ(from > to は真夜中をまたぐ)。length は tick(実時間 1 分 = 1200)。skipInRain = 始まりに雨なら次の窓へ。needFog = 窓の中で濃霧が shadowMinFog 以上の時に始まり、霧の残りで長さを切る(shadowMinTicks より短ければ始めない)。待ちが fixedWaitDays(霧待ちは fogWaitDays)を過ぎたらその種を外して引き直す。寝て飛ばされたら、見えた割合が carrySeen 未満なら次の同じ時間帯へ持ち越す(maxCarry 回まで)。",
+  "intervalMinDays": 7,
+  "intervalMaxDays": 15,
+  "fixedWaitDays": 3,
+  "fogWaitDays": 10,
+  "carrySeen": 0.5,
+  "maxCarry": 2,
+  "leyTidePumpMultiplier": 1.25,
+  "shadowMinFog": 0.3,
+  "shadowMinTicks": 2400,
+  "events": {
+    "aurora":         { "weight": 1, "minPhase": 3, "windows": [[12500, 12500]], "length": 10500, "skipInRain": true },
+    "glowing_tide":   { "weight": 1, "minPhase": 3, "windows": [[13000, 13000]], "length": 10000, "skipInRain": false },
+    "eclipse":        { "weight": 1, "minPhase": 0, "windows": [[1500, 4500]],   "length": 7200,  "skipInRain": true, "totality": 1800 },
+    "ley_tide":       { "weight": 1, "minPhase": 0, "windows": [[0, 23999]],     "length": 12000, "skipInRain": false },
+    "halo":           { "weight": 1, "minPhase": 0, "windows": [[1000, 5000]],   "length": 3000,  "skipInRain": true },
+    "meteor_shower":  { "weight": 1, "minPhase": 0, "windows": [[13000, 13000]], "length": 10000, "skipInRain": true },
+    "horizon_shadow": { "weight": 1, "minPhase": 0, "windows": [[22500, 1500], [10500, 12000]], "length": 12000, "needFog": true }
+  }
+}

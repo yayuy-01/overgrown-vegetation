@@ -1,0 +1,347 @@
+package com.yayuy.overgrownvegetation.gametest;
+
+import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.corruption.LeyLines;
+import com.yayuy.overgrownvegetation.data.DesignData;
+import com.yayuy.overgrownvegetation.ley.LeyPumpBlockEntity;
+import com.yayuy.overgrownvegetation.network.WorldEventPayload;
+import com.yayuy.overgrownvegetation.registry.ModLey;
+import com.yayuy.overgrownvegetation.worldevent.WorldEventKind;
+import com.yayuy.overgrownvegetation.worldevent.WorldEventSchedule;
+import com.yayuy.overgrownvegetation.worldevent.WorldEventTable;
+import com.yayuy.overgrownvegetation.worldevent.WorldEvents;
+import net.minecraft.core.BlockPos;
+import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.RegisterGameTestsEvent;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import org.slf4j.Logger;
+
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.LongToDoubleFunction;
+
+/**
+ * ワールドイベント 7 つ(2026-11-16 world-events)。日程 {@link WorldEventSchedule} は素の Java なので、ワールドの時刻・フェーズ・本物の保存には触らず
+ * 偽の様子({@link FakeEnv})で何千日も回して比べる(並べて走るほかのテストへ漏れないように)。地脈の大潮の効き目だけは本物の汲み上げ器と本物の日程を使うので、
+ * 別の batch にして最後に止める。期待値は設計値({@code world_events.json})から。
+ */
+@GameTestHolder(OvergrownVegetation.MODID)
+@PrefixGameTestTemplate(false)
+public final class WorldEventGameTests {
+
+    private static final Logger LOG = com.mojang.logging.LogUtils.getLogger();
+    private static final String TEMPLATE = "gametest_empty7";
+    /** 本物の日程を使う(地脈の大潮)。ほかの batch と同時に走らせない。 */
+    private static final String TIDE_BATCH = "world_events_tide";
+    private static final long SEED = 0x1234ABCDL;
+    private static final int STEP = 20;
+
+    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD)
+    public static final class Registration {
+        @SubscribeEvent
+        public static void onRegisterGameTests(RegisterGameTestsEvent event) {
+            event.register(WorldEventGameTests.class);
+        }
+
+        private Registration() {
+        }
+    }
+
+    private WorldEventGameTests() {
+    }
+
+    static final class FakeEnv implements WorldEventSchedule.Env {
+        int phase = 10;
+        boolean rain;
+        LongToDoubleFunction fog = t -> 1.0D;
+
+        @Override
+        public int phase() {
+            return phase;
+        }
+
+        @Override
+        public boolean raining() {
+            return rain;
+        }
+
+        @Override
+        public double fog(long t) {
+            return fog.applyAsDouble(t);
+        }
+    }
+
+    record Run(WorldEventKind kind, long start, long end) {
+    }
+
+    /** from から days 日、STEP tick ごとに回して、起きたイベントを並べる。 */
+    private static List<Run> simulate(WorldEventSchedule s, FakeEnv env, WorldEventTable tab, long from, int days) {
+        List<Run> out = new ArrayList<>();
+        WorldEventKind was = s.active();
+        for (long t = from; t < from + (long) days * WorldEventSchedule.DAY; t += STEP) {
+            s.step(t, SEED, tab, env);
+            WorldEventKind now = s.active();
+            if (now != null && (was == null || out.isEmpty() || out.get(out.size() - 1).start() != s.start())) {
+                out.add(new Run(now, s.start(), s.end()));
+            }
+            was = now;
+        }
+        return out;
+    }
+
+    /** 1 種だけ重さ 1(ほかは 0)の設計値。 */
+    private static WorldEventTable only(WorldEventKind k) {
+        WorldEventTable.Json j = new WorldEventTable.Json();
+        j.events = new HashMap<>();
+        for (WorldEventKind x : WorldEventKind.values()) {
+            WorldEventTable.EventJson e = new WorldEventTable.EventJson();
+            e.weight = x == k ? 1.0D : 0.0D;
+            j.events.put(x.id, e);
+        }
+        return WorldEventTable.fromJson(j);
+    }
+
+    private static long day(long t) {
+        return WorldEventSchedule.day(t);
+    }
+
+    // ---------------------------------------------------------------- 日程の間隔・同時に 1 つ
+
+    /** 次のくじは前の始まりの日から 7〜15 日(雨なし・霧はいつもあるので待ちは 1 日以内)。重なりは無く、F10 なら 7 つとも起きる。 */
+    @GameTest(template = TEMPLATE, timeoutTicks = 200)
+    public static void intervalAndOneAtATime(GameTestHelper helper) {
+        WorldEventTable tab = DesignData.worldEvents();
+        FakeEnv env = new FakeEnv();
+        List<Run> runs = simulate(new WorldEventSchedule(), env, tab, 0L, 1500);
+        helper.assertTrue(runs.size() > 60, "1500 日で " + runs.size() + " 回しか起きない");
+        helper.assertTrue(day(runs.get(0).start()) <= (long) tab.intervalMaxDays + 1, "最初の 1 回が遅い: " + day(runs.get(0).start()) + " 日目");
+        Map<WorldEventKind, Integer> count = new EnumMap<>(WorldEventKind.class);
+        for (int i = 0; i < runs.size(); i++) {
+            Run r = runs.get(i);
+            count.merge(r.kind(), 1, Integer::sum);
+            helper.assertTrue(r.end() > r.start(), "長さが 0: " + r);
+            helper.assertTrue(r.end() - r.start() <= tab.spec(r.kind()).length(), "設計値より長い: " + r);
+            if (i > 0) {
+                Run p = runs.get(i - 1);
+                long gap = day(r.start()) - day(p.start());
+                helper.assertTrue(r.start() >= p.end(), "重なった: " + p + " と " + r);
+                helper.assertTrue(gap >= (long) tab.intervalMinDays && gap <= (long) tab.intervalMaxDays + 1,
+                        "間隔 " + gap + " 日(" + p + " → " + r + ")");
+            }
+        }
+        for (WorldEventKind k : WorldEventKind.values()) {
+            helper.assertTrue(count.getOrDefault(k, 0) > 0, k.id + " が一度も起きない: " + count);
+        }
+        LOG.info("[ワールドイベント] 1500 日で {} 回: {}", runs.size(), count);
+        helper.succeed();
+    }
+
+    /** 起きている間に別のイベントを起こすと、前の物は消えて 1 つだけになる。止めると何も起きていない。 */
+    @GameTest(template = TEMPLATE, timeoutTicks = 20)
+    public static void forcedReplacesAndStops(GameTestHelper helper) {
+        WorldEventTable tab = DesignData.worldEvents();
+        WorldEventSchedule s = new WorldEventSchedule();
+        FakeEnv env = new FakeEnv();
+        s.step(1000L, SEED, tab, env);
+        long due = s.nextDueDay();
+        s.forceStart(WorldEventKind.HALO, 1000L, 0.0D, tab);
+        s.forceStart(WorldEventKind.ECLIPSE, 1000L, 0.5D, tab);
+        helper.assertTrue(s.active() == WorldEventKind.ECLIPSE, "日食になっていない: " + s.active());
+        helper.assertTrue(Math.abs(s.progress(1000L) - 0.5D) < 1e-3, "途中から始まらない: " + s.progress(1000L));
+        s.step(1020L, SEED, tab, env);
+        helper.assertTrue(s.active() == WorldEventKind.ECLIPSE, "1 tick で消えた");
+        s.stop(1040L, SEED, tab);
+        helper.assertTrue(s.active() == null && s.state() == WorldEventSchedule.State.IDLE, "止まらない");
+        helper.assertTrue(s.nextDueDay() == due, "確かめ用の止めで日程が変わった: " + due + " → " + s.nextDueDay());
+        helper.succeed();
+    }
+
+    // ---------------------------------------------------------------- フェーズ
+
+    /** F3 より前は胞子のオーロラと光る潮が出ない(ほかは出る)。 */
+    @GameTest(template = TEMPLATE, timeoutTicks = 200)
+    public static void plantEventsWaitForF3(GameTestHelper helper) {
+        WorldEventTable tab = DesignData.worldEvents();
+        helper.assertTrue(tab.spec(WorldEventKind.AURORA).minPhase() == 3 && tab.spec(WorldEventKind.GLOWING_TIDE).minPhase() == 3,
+                "設計値の minPhase が 3 でない");
+        FakeEnv env = new FakeEnv();
+        env.phase = 2;
+        List<Run> runs = simulate(new WorldEventSchedule(), env, tab, 0L, 1500);
+        helper.assertTrue(runs.size() > 60, "F2 で " + runs.size() + " 回しか起きない");
+        for (Run r : runs) {
+            helper.assertTrue(r.kind() != WorldEventKind.AURORA && r.kind() != WorldEventKind.GLOWING_TIDE, "F2 で起きた: " + r);
+        }
+        env.phase = 3;
+        List<Run> later = simulate(new WorldEventSchedule(), env, tab, 0L, 1500);
+        helper.assertTrue(later.stream().anyMatch(r -> r.kind() == WorldEventKind.AURORA), "F3 でオーロラが起きない");
+        helper.succeed();
+    }
+
+    // ---------------------------------------------------------------- 霧
+
+    /** 地平線を歩く影は霞・霧の日だけ: 霧が無ければ起きず(ほかは起きる)、霧のある朝だけなら必ず霧の中・窓の中で始まり、霧の残りで切れる。 */
+    @GameTest(template = TEMPLATE, timeoutTicks = 200)
+    public static void shadowOnlyOnFoggyDays(GameTestHelper helper) {
+        WorldEventTable tab = DesignData.worldEvents();
+        FakeEnv env = new FakeEnv();
+        env.fog = t -> 0.0D;
+        List<Run> dry = simulate(new WorldEventSchedule(), env, tab, 0L, 1500);
+        helper.assertTrue(dry.size() > 60, "霧なしで " + dry.size() + " 回しか起きない(影で詰まった?)");
+        helper.assertTrue(dry.stream().noneMatch(r -> r.kind() == WorldEventKind.HORIZON_SHADOW), "霧が無いのに影が出た");
+
+        // 4 日に 1 度、4 時〜9 時に霧(9 時に晴れる)
+        LongToDoubleFunction fog = t -> {
+            long tod = Math.floorMod(t, (long) WorldEventSchedule.DAY);
+            long d = day(t + 2000L);
+            return d % 4 == 0 && (tod >= 22000L || tod < 3000L) ? 1.0D : 0.0D;
+        };
+        env.fog = fog;
+        WorldEventTable shadowOnly = only(WorldEventKind.HORIZON_SHADOW);
+        List<Run> foggy = simulate(new WorldEventSchedule(), env, shadowOnly, 0L, 600);
+        helper.assertTrue(foggy.size() > 20, "霧の朝があるのに影が " + foggy.size() + " 回");
+        for (Run r : foggy) {
+            long tod = Math.floorMod(r.start(), (long) WorldEventSchedule.DAY);
+            helper.assertTrue(fog.applyAsDouble(r.start()) >= shadowOnly.shadowMinFog, "霧の無い時に始まった: " + r);
+            helper.assertTrue(tod >= 22500L || tod <= 1500L, "朝の窓の外で始まった: tod " + tod);
+            helper.assertTrue(fog.applyAsDouble(r.end() - 1) > 0 || r.end() - r.start() < shadowOnly.spec(WorldEventKind.HORIZON_SHADOW).length(),
+                    "霧が晴れた後も続く: " + r);
+            long clearAt = (day(r.start() + 2000L)) * WorldEventSchedule.DAY + 3000L;
+            helper.assertTrue(r.end() <= clearAt + 100, "霧が晴れた後まで続く: " + r + "(晴れ " + clearAt + ")");
+        }
+        helper.succeed();
+    }
+
+    /** 空のイベントは雨の夜には始めない(窓を送り、あきらめの日を過ぎたら引き直す)。 */
+    @GameTest(template = TEMPLATE, timeoutTicks = 100)
+    public static void skyEventsWaitOutRain(GameTestHelper helper) {
+        WorldEventTable tab = only(WorldEventKind.METEOR_SHOWER);
+        FakeEnv env = new FakeEnv();
+        env.rain = true;
+        List<Run> runs = simulate(new WorldEventSchedule(), env, tab, 0L, 60);
+        helper.assertTrue(runs.isEmpty(), "雨なのに流星群が起きた: " + runs);
+        env.rain = false;
+        WorldEventSchedule s = new WorldEventSchedule();
+        List<Run> clear = simulate(s, env, tab, 0L, 60);
+        helper.assertTrue(!clear.isEmpty(), "晴れても流星群が起きない");
+        helper.succeed();
+    }
+
+    // ---------------------------------------------------------------- 眠り・時刻を戻す
+
+    /** 寝て夜を飛ばした: ほとんど見えていなければ次の夜へ持ち越し、半分以上見えていたら普通に終わる。時刻を戻すと次のくじの日を数え直す。 */
+    @GameTest(template = TEMPLATE, timeoutTicks = 100)
+    public static void sleepCarriesOverAndTimeRewind(GameTestHelper helper) {
+        WorldEventTable tab = only(WorldEventKind.METEOR_SHOWER);
+        FakeEnv env = new FakeEnv();
+        WorldEventSchedule s = new WorldEventSchedule();
+        long t = 0L;
+        while (s.active() == null && t < 40L * WorldEventSchedule.DAY) {
+            s.step(t, SEED, tab, env);
+            t += STEP;
+        }
+        helper.assertTrue(s.active() == WorldEventKind.METEOR_SHOWER, "流星群が起きない");
+        long start = s.start(), end = s.end();
+        s.step(start + 100L, SEED, tab, env);
+        s.step(end + 50L, SEED, tab, env); // 寝た
+        helper.assertTrue(s.state() == WorldEventSchedule.State.WAITING && s.kind() == WorldEventKind.METEOR_SHOWER && s.carry() == 1,
+                "持ち越さない: " + s.state() + " " + s.kind() + " " + s.carry());
+        helper.assertTrue(s.start() > end && s.start() - end < WorldEventSchedule.DAY, "次の夜でない: " + s.start() + "(前の終わり " + end + ")");
+
+        t = end + 50L;
+        while (s.active() == null && t < end + 2L * WorldEventSchedule.DAY) {
+            t += STEP;
+            s.step(t, SEED, tab, env);
+        }
+        long st2 = s.start(), en2 = s.end();
+        for (long u = t; u < st2 + (en2 - st2) * 6 / 10; u += STEP) s.step(u, SEED, tab, env);
+        s.step(en2 + 50L, SEED, tab, env); // 6 割見てから寝た
+        helper.assertTrue(s.state() == WorldEventSchedule.State.IDLE, "見えていたのに持ち越した: " + s.state());
+        long gap = s.nextDueDay() - day(st2);
+        helper.assertTrue(gap >= (long) tab.intervalMinDays && gap <= (long) tab.intervalMaxDays, "次のくじまで " + gap + " 日");
+
+        s.step(10L, SEED, tab, env); // /time set で 0 日目へ戻した
+        helper.assertTrue(s.nextDueDay() <= (long) tab.intervalMaxDays, "戻した後の次のくじが遠い: " + s.nextDueDay());
+        helper.succeed();
+    }
+
+    // ---------------------------------------------------------------- 保存と復元
+
+    /** 途中で保存して読み直すと、同じ様子・同じくじの並びで続く。 */
+    @GameTest(template = TEMPLATE, timeoutTicks = 200)
+    public static void saveAndRestore(GameTestHelper helper) {
+        WorldEventTable tab = DesignData.worldEvents();
+        FakeEnv env = new FakeEnv();
+        WorldEventSchedule a = new WorldEventSchedule();
+        long mid = 0L;
+        // 起きている途中で止める
+        for (long t = 0; t < 400L * WorldEventSchedule.DAY; t += STEP) {
+            a.step(t, SEED, tab, env);
+            mid = t;
+            if (a.active() != null && a.progress(t) > 0.3) break;
+        }
+        helper.assertTrue(a.active() != null, "起きている所で止まらない");
+        CompoundTag tag = a.save(new CompoundTag());
+        WorldEventSchedule b = WorldEventSchedule.load(tag.copy());
+        helper.assertTrue(b.active() == a.active() && b.start() == a.start() && b.end() == a.end() && b.nextDueDay() == a.nextDueDay(),
+                "読み直した様子が違う");
+        List<Run> ra = simulate(a, env, tab, mid + STEP, 300);
+        List<Run> rb = simulate(b, env, tab, mid + STEP, 300);
+        helper.assertTrue(ra.equals(rb), "読み直した後の並びが違う: " + ra.size() + " / " + rb.size());
+        helper.assertTrue(a.save(new CompoundTag()).equals(b.save(new CompoundTag())), "300 日後の保存が違う");
+        WorldEventSchedule empty = WorldEventSchedule.load(new CompoundTag());
+        helper.assertTrue(empty.state() == WorldEventSchedule.State.IDLE && empty.nextDueDay() == WorldEventSchedule.NONE, "空の保存から読めない");
+        helper.succeed();
+    }
+
+    // ---------------------------------------------------------------- 地脈の大潮(本物の日程と汲み上げ器)
+
+    /** 地脈の大潮の間だけ、汲み上げ器が leyTidePumpMultiplier 倍汲む。止めると元に戻る。送る中身も大潮になる。 */
+    @GameTest(template = TEMPLATE, batch = TIDE_BATCH, timeoutTicks = 20)
+    public static void leyTideSpeedsPump(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        var server = level.getServer();
+        WorldEventTable tab = DesignData.worldEvents();
+        BlockPos pos = helper.absolutePos(new BlockPos(1, 2, 1));
+        level.setBlockAndUpdate(pos, ModLey.PUMP.get().defaultBlockState());
+        LeyPumpBlockEntity pump = (LeyPumpBlockEntity) level.getBlockEntity(pos);
+        helper.assertTrue(pump != null, "汲み上げ器が置けない");
+        double eff = LeyLines.efficiency(level.getSeed(), pos.getX(), pos.getZ());
+        WorldEvents.startNow(server, WorldEventKind.HALO, 0.0D); // 大潮でない物を起こしておく
+        try {
+            helper.assertTrue(WorldEvents.pumpMultiplier(level) == 1.0D, "日暈で倍率が変わった");
+            int ticks = 200;
+            int e0 = pump.energy();
+            for (int i = 0; i < ticks; i++) pump.generate();
+            int base = pump.energy() - e0;
+            WorldEvents.startNow(server, WorldEventKind.LEY_TIDE, 0.0D);
+            helper.assertTrue(WorldEvents.pumpMultiplier(level) == tab.leyTidePumpMultiplier, "大潮の倍率 " + WorldEvents.pumpMultiplier(level));
+            WorldEventPayload p = WorldEvents.payload(server);
+            helper.assertTrue(p.eventKind() == WorldEventKind.LEY_TIDE && p.end() - p.start() == tab.spec(WorldEventKind.LEY_TIDE).length(),
+                    "送る中身が大潮でない: " + p);
+            int e1 = pump.energy();
+            for (int i = 0; i < ticks; i++) pump.generate();
+            int tide = pump.energy() - e1;
+            double expect = base * tab.leyTidePumpMultiplier;
+            helper.assertTrue(base > 0, "汲んでいない(効率 " + eff + ")");
+            helper.assertTrue(Math.abs(tide - expect) <= 2.0D, "大潮で " + tide + " FE(ふだん " + base + "・期待 " + expect + ")");
+            helper.assertTrue(level.getServer().getLevel(net.minecraft.world.level.Level.NETHER) == null
+                    || WorldEvents.pumpMultiplier(level.getServer().getLevel(net.minecraft.world.level.Level.NETHER)) == 1.0D, "ネザーでも速い");
+        } finally {
+            com.yayuy.overgrownvegetation.worldevent.WorldEventData.get(server).schedule()
+                    .stop(level.getDayTime(), WorldEvents.seed(server), tab);
+            level.removeBlock(pos, false);
+        }
+        helper.assertTrue(WorldEvents.pumpMultiplier(level) == 1.0D, "止めても倍率が残る");
+        helper.assertTrue(WorldEvents.payload(server) == WorldEventPayload.NONE, "止めても送る中身が残る");
+        helper.succeed();
+    }
+}

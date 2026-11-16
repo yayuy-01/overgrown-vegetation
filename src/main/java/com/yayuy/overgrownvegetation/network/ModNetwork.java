@@ -71,7 +71,13 @@ public final class ModNetwork {
         // 2026-11-11 U13 で HeatForestClockPayload は parked へ退避(版は 29 のまま)。
         // 2026-11-16 に 30 へ(今の天気 WeatherPayload・汚染の森への落雷 ForestLightningPayload を足した。weather-system)。
         // 2026-11-16 に 31 へ(積乱雲から地面への落雷 CloudStrikePayload を足した。weather-system)。
-        PayloadRegistrar registrar = event.registrar("31");
+        // 2026-11-16 に 32 へ(今のワールドイベント WorldEventPayload を足した。world-events)。
+        PayloadRegistrar registrar = event.registrar("32");
+        registrar.playToClient(
+                WorldEventPayload.TYPE,
+                WorldEventPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(
+                        () -> com.yayuy.overgrownvegetation.client.worldevent.WorldEventClient.accept(payload)));
         registrar.playToClient(
                 CloudStrikePayload.TYPE,
                 CloudStrikePayload.STREAM_CODEC,
