@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:iron_sword",
+    "minecraft:iron_axe",
+    "minecraft:iron_pickaxe",
+    "minecraft:iron_shovel",
+    "minecraft:iron_hoe",
+    "minecraft:trident",
+    "minecraft:lightning_rod",
+    "minecraft:iron_bars",
+    "minecraft:chain",
+    "minecraft:shears"
+  ]
+}

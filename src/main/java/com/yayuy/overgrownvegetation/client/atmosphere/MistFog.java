@@ -118,7 +118,8 @@ public final class MistFog {
      * 地形シェーダーは森を通った長さにこれを掛け、バニラの霧({@link MistView})は 86.4〜96 をこれで割る。
      */
     static float forestReach() {
-        return 1.0F + DesignData.atmosphere().fog().sporeHaze() * sporeShown;
+        // 天気(11-16): 凪の日は森の霞が濃く、強風の日は少し澄む(WeatherLook。地形のシェーダーと Mob・粒の霧の両方がここを読む)。
+        return (1.0F + DesignData.atmosphere().fog().sporeHaze() * sporeShown) * WeatherLook.forestReachScale();
     }
 
     /** 霧の雨上がりの度合い(0〜1。雨が止んでから fog.mistAfterRainMinutes 分かけて 0 へ。雨の間は 0)。 */

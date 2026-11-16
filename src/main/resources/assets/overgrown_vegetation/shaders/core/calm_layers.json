@@ -1,0 +1,15 @@
+{
+    "vertex": "overgrown_vegetation:mist_composite",
+    "fragment": "overgrown_vegetation:calm_layers",
+    "samplers": [
+        { "name": "DepthTex" }
+    ],
+    "uniforms": [
+        { "name": "InvProjView", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "LayA", "type": "float", "count": 4, "values": [ 70.0, 70.0, 13.0, 3.0 ] },
+        { "name": "LayB", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.022, 1.5 ] },
+        { "name": "LayC", "type": "float", "count": 4, "values": [ 10.0, 60.0, 0.62, 0.0 ] },
+        { "name": "LayColor", "type": "float", "count": 4, "values": [ 0.8, 0.84, 0.7, 3.0 ] },
+        { "name": "LaySun", "type": "float", "count": 4, "values": [ 0.0, 1.0, 0.0, 0.15 ] }
+    ]
+}

@@ -98,6 +98,7 @@ public final class Atmosphere {
         CrepuscularRays.clear();
         SporeGale.clear(); // G4 胞子の風・G5 光る胞子の夜(11-08)
         GlowNight.clear();
+        WeatherLook.clear(); // 天気の見た目の残り(11-16。雷雨の強化の残り・凪・強風の日)
     }
 
     @SubscribeEvent
@@ -123,6 +124,8 @@ public final class Atmosphere {
             return;
         }
         ticks++;
+        // 天気の見た目の残り(11-16): 凪・強風の度合いを風の場へ渡すので、風の場を進める前に。
+        guard("weatherlook", () -> WeatherLook.tick(mc, now, player, time(0.0F)));
         guard("wind", () -> {
             GustField.INSTANCE.setPrevailing(PrevailingWindClient.angle(now), PrevailingWindClient.strength(now));
             GustField.INSTANCE.tick(time(0.0F), player.getX(), player.getZ());
@@ -223,6 +226,7 @@ public final class Atmosphere {
             // 霧の向こうの巨大樹のシルエット({@link GiantSilhouettes})。奥行きを書くので霧の細部(AFTER_WEATHER)より前。
             if (lvl != null && lvl == level && enabled(lvl) && !hidden(mc, event.getCamera())) {
                 guard("silhouette", () -> GiantSilhouettes.render(event));
+                guard("arcus", () -> WeatherLook.renderOpaque(event)); // アーク雲(11-16 雷雨の強化の残り。奥行きを書く)
             }
             return;
         }
@@ -310,6 +314,7 @@ public final class Atmosphere {
                 }
             });
         }
+        guard("weatherlook", () -> WeatherLook.render(event)); // 雷雨の後の胞子の雲・強風の日の胞子の綿(11-16)
         boolean main = AddLight.drawToMainTarget();
         try {
             guard("dapple", () -> CanopyDapple.render(event));
@@ -319,6 +324,7 @@ public final class Atmosphere {
             guard("galeglow", () -> renderGlowEvents(event));
             guard("caveshafts", () -> CaveShafts.render(event));
             guard("strikes", () -> StormStrikes.render(event)); // 積乱雲からの落雷(11-16 雷雨の強化)
+            guard("weatherglow", () -> WeatherLook.renderGlow(event)); // スプライト・セントエルモの火(11-16 雷雨の強化の残り)
             guard("fogsun", () -> DenseFog.renderSun(event)); // 濃霧の中のぼやけた太陽(11-16)
             guard("motes", () -> ShaftMotes.render(event));
             guard("dusk", () -> DuskMotes.render(event));

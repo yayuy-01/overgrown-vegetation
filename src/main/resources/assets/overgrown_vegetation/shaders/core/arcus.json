@@ -1,0 +1,16 @@
+{
+    "vertex": "overgrown_vegetation:arcus",
+    "fragment": "overgrown_vegetation:arcus",
+    "samplers": [],
+    "uniforms": [
+        { "name": "ModelViewMat", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "ProjMat", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "ArcOrigin", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+        { "name": "ArcAxes", "type": "float", "count": 4, "values": [ 1.0, 0.0, 0.0, 1.0 ] },
+        { "name": "ArcRemap", "type": "float", "count": 4, "values": [ 300.0, 480.0, 0.0, 0.0 ] },
+        { "name": "ArcLit", "type": "float", "count": 4, "values": [ 0.62, 0.66, 0.7, 1.0 ] },
+        { "name": "ArcDark", "type": "float", "count": 4, "values": [ 0.3, 0.33, 0.38, 1.0 ] },
+        { "name": "ArcFog", "type": "float", "count": 4, "values": [ 0.7, 0.8, 1.0, 0.0 ] },
+        { "name": "ArcFade", "type": "float", "count": 4, "values": [ 0.0, 1.0, 600.0, 1800.0 ] }
+    ]
+}

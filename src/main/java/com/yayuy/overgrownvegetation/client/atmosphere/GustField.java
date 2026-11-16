@@ -154,6 +154,9 @@ public final class GustField implements Wind {
             this.baseRetargetIn = 400 + this.random.nextInt(500);
         }
         double target = this.baseTarget + (p.stormCalm() - this.baseTarget) * this.storm;
+        // 天気(11-16): 凪の日は空気の動きも弱め、強風の日は突風の合間も風を残す(雷雨の値より下には下げない)。
+        target = Math.max(target * (1.0 - (1.0 - this.calmBreath) * this.calmDay) * (1.0 - this.storm) + target * this.storm,
+                this.galeBetween * this.galeDay);
         this.baseStrength += (target - this.baseStrength) * 0.004;
         if (Double.isNaN(this.prevailingAngle)) {
             this.baseAngleVel = this.baseAngleVel * 0.985 + this.random.nextGaussian() * 0.00025;
@@ -163,8 +166,16 @@ public final class GustField implements Wind {
             this.baseAngleVel = 0.0;
         }
         if (--this.nextGustIn <= 0) {
-            spawnGust(camX, camZ, time);
+            // 凪の日(11-16): 突風を生まない(割合 calmGustStop × 凪の度合い)。
+            if (this.random.nextDouble() >= this.calmGustStop * this.calmDay) {
+                spawnGust(camX, camZ, time);
+            }
             this.nextGustIn = nextInterval();
+        }
+        // 凪になったら、吹いている突風もしぼませる。強風の日になったら、次の突風を待たせない。
+        this.gustScale += ((1.0 - this.calmGustStop * this.calmDay) - this.gustScale) * 0.01;
+        if (this.galeDay > 0.5) {
+            this.nextGustIn = Math.min(this.nextGustIn, (int) (p.gustIntervalMax() * 20.0 * this.galeInterval));
         }
         for (Iterator<Gust> it = this.gusts.iterator(); it.hasNext(); ) {
             Gust g = it.next();
@@ -178,7 +189,37 @@ public final class GustField implements Wind {
     private int nextInterval() {
         AtmosphereTable.WindParams p = this.params;
         double seconds = p.gustIntervalMin() + this.random.nextDouble() * (p.gustIntervalMax() - p.gustIntervalMin());
-        return (int) (seconds * 20.0 * (1.0 - (1.0 - p.stormIntervalScale()) * this.storm));
+        return (int) (seconds * 20.0 * (1.0 - (1.0 - p.stormIntervalScale()) * this.storm) * (1.0 - (1.0 - this.galeInterval) * this.galeDay));
+    }
+
+    /**
+     * 天気(2026-11-16。凪・強風の日)を渡す。{@code calm}・{@code gale} = 度合い 0〜1。{@code gustStop} = 凪で突風を止める割合、
+     * {@code breath} = 凪の空気の動きの倍率、{@code interval} = 強風の日の突風の間隔の倍率、{@code bonus} = 強風の日の突風に足す強さ、
+     * {@code between} = 強風の日の突風の合間の風の強さ。渡さなければ今まで通り。
+     */
+    public void setWeather(double calm, double gale, double gustStop, double breath, double interval, double bonus, double between) {
+        this.calmDay = Math.max(0.0, Math.min(1.0, calm));
+        this.galeDay = Math.max(0.0, Math.min(1.0, gale));
+        this.calmGustStop = gustStop;
+        this.calmBreath = breath;
+        this.galeInterval = interval;
+        this.galeBonus = bonus;
+        this.galeBetween = between;
+    }
+
+    private double calmDay;
+    private double galeDay;
+    private double calmGustStop = 1.0;
+    private double calmBreath = 1.0;
+    private double galeInterval = 1.0;
+    private double galeBonus;
+    private double galeBetween;
+    /** 突風の強さに掛ける倍率(凪の日に 0 へ寄る)。 */
+    private double gustScale = 1.0;
+
+    /** 強風の日の度合い(葉の揺れ・音が読む)。 */
+    public double galeDay() {
+        return this.galeDay;
     }
 
     private double between(double min, double max) {
@@ -199,7 +240,7 @@ public final class GustField implements Wind {
         boolean spore = this.random.nextDouble() < this.sporeChance;
         this.gusts.add(new Gust(camX - dx * upwind - dz * lateral, camZ - dz * upwind + dx * lateral, dx, dz,
                 between(p.frontSpeedMin(), p.frontSpeedMax()) / 20.0,
-                between(p.gustStrengthMin(), p.gustStrengthMax()) + 0.2 * this.storm + (spore ? this.sporeBonus : 0.0),
+                between(p.gustStrengthMin(), p.gustStrengthMax()) + 0.2 * this.storm + this.galeBonus * this.galeDay + (spore ? this.sporeBonus : 0.0),
                 between(p.frontAheadMin(), p.frontAheadMax()), between(p.frontBehindMin(), p.frontBehindMax()),
                 between(p.frontHalfWidthMin(), p.frontHalfWidthMax()), time, spore));
     }
@@ -267,7 +308,7 @@ public final class GustField implements Wind {
     public double strength(double x, double z, double time) {
         double w = calmAt(x, z, time);
         for (Gust g : this.gusts) {
-            w += g.at(x, z, time);
+            w += g.at(x, z, time) * this.gustScale;
         }
         return Math.min(MAX_STRENGTH, w) * this.params.strength();
     }
@@ -279,7 +320,7 @@ public final class GustField implements Wind {
         double vx = base * Math.cos(this.baseAngle);
         double vz = base * Math.sin(this.baseAngle);
         for (Gust g : this.gusts) {
-            double a = g.at(x, z, time);
+            double a = g.at(x, z, time) * this.gustScale;
             vx += a * g.dirX;
             vz += a * g.dirZ;
         }
@@ -334,7 +375,7 @@ public final class GustField implements Wind {
             out[at + 1] = (float) (g.centerZ(time) - camZ);
             out[at + 2] = (float) g.dirX;
             out[at + 3] = (float) g.dirZ;
-            out[at + 4] = (float) (g.grownStrength(time) * this.params.strength());
+            out[at + 4] = (float) (g.grownStrength(time) * this.params.strength() * this.gustScale);
             out[at + 5] = (float) g.lenAhead;
             out[at + 6] = (float) g.lenBehind;
             out[at + 7] = (float) g.halfWidth;

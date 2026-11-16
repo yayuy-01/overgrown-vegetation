@@ -169,6 +169,8 @@ final class MistView {
         float a = p.aerialStrength() * Mth.lerp(night, 1.0F, p.aerialNight()) * Mth.lerp(rain, 1.0F, p.aerialRain());
         // 11-12 雨の種類(ユーザー選択「大雨ほど遠くが灰色に霞む」): 大雨の度合いで霞を上乗せ(小雨・普通は雨の強さの掛け算だけ)。仮決め。
         a *= 1.0F + HEAVY_RAIN_AERIAL * RainFeel.heavy();
+        // 天気(11-16): 凪の日は遠くが澄む(胞子が森のそばに溜まり、遠くへ運ばれない)。
+        a *= WeatherLook.aerialScale();
         return Mth.clamp(a * (1.0F - ForestPresence.underground()) * (1.0F - cave) * (1.0F - forest), 0.0F, 1.0F);
     }
 

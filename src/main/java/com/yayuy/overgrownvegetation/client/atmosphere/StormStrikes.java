@@ -229,7 +229,8 @@ public final class StormStrikes {
                 return new float[]{(float) (s.x - camX), (float) (s.top + 40.0 - camY), (float) (s.z - camZ), level * 1.6F};
             }
         }
-        return new float[]{0.0F, 0.0F, 0.0F, 0.0F};
+        // 空いた口は、地平線の遠い雷(サーバーの知らせなしの、遠い雲の中の光。11-16 HorizonLightning)が使う。
+        return HorizonLightning.cloudFlash(i - k, camX, camY, camZ);
     }
 
     /** {@link Atmosphere} の加算の光の所から(光の筋と同じ描き先・同じ足し方)。 */

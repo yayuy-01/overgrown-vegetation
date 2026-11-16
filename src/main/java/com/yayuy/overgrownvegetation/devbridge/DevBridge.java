@@ -886,6 +886,11 @@ public final class DevBridge {
                 log(com.yayuy.overgrownvegetation.client.atmosphere.MistDev.command(arg));
                 return null;
             }
+            case "wx" -> {
+                // 天気の見た目の残り(2026-11-16、client/atmosphere/WeatherLookDev): status / w … / off|on / set / far / sprite / values。返事は WX …
+                log(com.yayuy.overgrownvegetation.client.atmosphere.WeatherLookDev.command(arg));
+                return null;
+            }
             case "wind" -> {
                 // 汚染地域の風(CanopyWind)の gust / calm / hide / leafhist / lookshaft と状態の表示は、林冠の光と風と一緒に 2026-10-30 に parked/ へ退避した
                 LocalPlayer player = mc.player;
