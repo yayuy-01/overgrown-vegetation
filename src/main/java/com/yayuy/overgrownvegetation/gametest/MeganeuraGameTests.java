@@ -105,4 +105,47 @@ public final class MeganeuraGameTests {
             helper.succeed();
         });
     }
+
+    // ------------------------------------------------------------------ 飛び立ちの溜め(11-17 ユーザー決定)
+
+    private static MeganeuraEntity perched(GameTestHelper helper) {
+        helper.setBlock(new BlockPos(3, 1, 3), net.minecraft.world.level.block.Blocks.OAK_LEAVES.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true));
+        MeganeuraEntity m = helper.spawn(ModG23Flyers.MEGANEURA.get(), new BlockPos(3, 2, 3));
+        m.debugSolo = true;
+        m.roostOverride = Boolean.TRUE;
+        m.debugPerchAt(helper.absolutePos(new BlockPos(3, 1, 3)));
+        m.debugTickFlock();
+        return m;
+    }
+
+    /** 朝(自分から飛び立つ)は溜めを流してから昇る。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 80)
+    public static void calmTakeoffWindsUp(GameTestHelper helper) {
+        MeganeuraEntity m = perched(helper);
+        helper.runAfterDelay(5L, () -> m.roostOverride = Boolean.FALSE);
+        helper.onEachTick(() -> {
+            if (m.mode() == com.yayuy.overgrownvegetation.entity.flyer.SkyFlyer.MODE_TAKEOFF && m.takeoffPhase() == 1) helper.succeed();
+        });
+    }
+
+    /** 驚いて飛び立つ(叩かれた)ときは溜めない(すぐ昇る)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 60)
+    public static void startledTakeoffSkipsWindup(GameTestHelper helper) {
+        MeganeuraEntity m = perched(helper);
+        boolean[] sawWindup = {false};
+        double[] y0 = {Double.NaN};
+        helper.runAfterDelay(5L, () -> {
+            y0[0] = m.getY();
+            m.hurt(helper.getLevel().damageSources().generic(), 1.0F);
+        });
+        helper.onEachTick(() -> {
+            if (m.mode() == com.yayuy.overgrownvegetation.entity.flyer.SkyFlyer.MODE_TAKEOFF && m.takeoffPhase() == 1) sawWindup[0] = true;
+        });
+        helper.runAfterDelay(20L, () -> {
+            helper.assertFalse(sawWindup[0], "驚いたのに溜めた");
+            helper.assertTrue(m.getY() - y0[0] > 1.5D, String.format("すぐ昇っていない(%.2f)", m.getY() - y0[0]));
+            helper.succeed();
+        });
+    }
 }

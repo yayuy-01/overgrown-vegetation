@@ -226,6 +226,14 @@ public abstract class SkyFlyer extends Monster {
      * 止まっている間にプレイヤーに気付いて身構える距離(2026-11-15 ヴェロフィル段 2。既定 0 = 身構えない)。
      * 群れの誰かが気付くと群れ全員が身構え、気付いた相手の方を向く。飛び立つのは {@link #flushRange}(既定 {@link #FLUSH_RANGE})。
      */
+    /**
+     * 驚いて飛び立つとき(近づかれた・叩かれた・足場が消えた)の溜め(2026-11-17 メガネウラで足した)。既定は {@link #takeoffWindupTicks} と同じ
+     * (ヴェロフィルは驚いても溜める決定)。メガネウラは 0(ユーザー決定 11-17「自分から飛び立つときだけ溜める」)。
+     */
+    protected int startledWindupTicks() {
+        return takeoffWindupTicks();
+    }
+
     protected double alertRange() {
         return 0.0D;
     }
@@ -820,7 +828,7 @@ public abstract class SkyFlyer extends Monster {
         faceWhileWaiting(sl, f);
         if (f.state == Flock.State.WAKE || f.state == Flock.State.PATROL) {
             if (this.takeoffDelay-- <= 0) {
-                startTakeoff();
+                startTakeoffCalm();   // 朝・雨上がり = 自分から飛び立つ
                 return;
             }
         }
@@ -899,6 +907,16 @@ public abstract class SkyFlyer extends Monster {
     }
 
     /** 飛び立つ(止まっている・降りている途中から)。 */
+    /** 自分から飛び立つ(朝・雨上がり)。驚いて飛び立つのは {@link #startTakeoff}。 */
+    void startTakeoffCalm() {
+        this.calmTakeoff = true;
+        startTakeoff();
+        this.calmTakeoff = false;
+    }
+
+    /** 次の {@link #startTakeoff} が自分から飛び立つものか。 */
+    private boolean calmTakeoff;
+
     void startTakeoff() {
         if (this.mode == MODE_FLY || this.mode == MODE_TAKEOFF) return;
         int delay = this.takeoffDelay;
@@ -912,7 +930,9 @@ public abstract class SkyFlyer extends Monster {
         }
         setMode(MODE_TAKEOFF);
         this.takeoffDelay = Math.max(0, delay);
-        this.windupLeft = fromPerch ? takeoffWindupTicks() : 0;   // 降りている途中からは溜めない
+        // 降りている途中からは溜めない。止まった所からは、自分から飛び立つか驚いたかで溜めを分ける(11-17 メガネウラ)
+        this.windupLeft = !fromPerch ? 0 : this.calmTakeoff ? takeoffWindupTicks() : startledWindupTicks();
+        this.calmTakeoff = false;
         this.climbTicks = 0;
     }
 

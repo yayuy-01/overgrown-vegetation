@@ -110,10 +110,26 @@ public class MeganeuraEntity extends SkyFlyer implements GeoEntity, ParasitizedM
     static final float[] PART_H = {};
     static final double[] PART_CENTERS = {};
 
+    // 段 2 のアニメ(11-17 meganeura-anim。Vault メガネウラ 5 節): 差 0 でつながる段の間は補間 0、途中から入る所だけ ENTRY_SHORT〜ENTRY
     private static final RawAnimation FLY = RawAnimation.begin().thenLoop("fly");
     private static final RawAnimation CHASE = RawAnimation.begin().thenLoop("chase");
-    /** 止まる: 翅を下ろして(relax 1 回)休む(rest)。 */
-    private static final RawAnimation PERCH = RawAnimation.begin().thenPlay("relax").thenLoop("rest");
+    /** 空中で止まる(体を 12 度起こす。止まっている間はコードの機首の上下が 0 なので二重にならない)。 */
+    private static final RawAnimation HOVER = RawAnimation.begin().thenLoop("hover");
+    private static final RawAnimation REST = RawAnimation.begin().thenLoop("rest");
+    private static final RawAnimation WINDUP = RawAnimation.begin().thenPlayAndHold("takeoff_windup");
+    private static final RawAnimation TAKEOFF = RawAnimation.begin().thenPlay("takeoff").thenLoop("fly");
+    private static final RawAnimation LAND = RawAnimation.begin().thenPlay("land_windup").thenLoop("land");
+    private static final RawAnimation LAND_RECOVER = RawAnimation.begin().thenPlay("land_recover").thenLoop("rest");
+    /** 補間(tick): 途中から入る所 / 速さの違う繰り返しどうし。 */
+    static final int ENTRY_SHORT = 3, ENTRY = 4;
+    /** 飛び立ちの溜め(takeoff_windup 3 tick + 入りの補間)。【決定 11-17 ユーザー】自分から飛び立つときだけ溜め、驚いたときは溜めない。 */
+    public static final int WINDUP_TICKS = 3 + ENTRY_SHORT;
+    /** 送る動き: 止まっては飛ぶの「飛んでいる」間(サーバーの動きは {@link #MOOD_HOVER} のまま)。 */
+    public static final int MOOD_HOP = 3;
+
+    /** クライアント: 今流しているつなぎ・流し始めた tick・入りの補間。 */
+    private RawAnimation curAnim;
+    private int curStart, curEntry;
 
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
@@ -296,6 +312,8 @@ public class MeganeuraEntity extends SkyFlyer implements GeoEntity, ParasitizedM
         boolean blocked = this.horizontalCollision || this.verticalCollision;
         this.dart.step(DART, this.getX(), this.getY(), this.getZ(), this.wind[0], this.wind[1], blocked);
         setOwnMotion(this.dart.vx, this.dart.vy, this.dart.vz);
+        byte show = (byte) (this.dart.holding() ? MOOD_HOVER : MOOD_HOP);
+        if (this.entityData.get(DATA_MOOD) != show) this.entityData.set(DATA_MOOD, show);
         if (!this.dart.holding()) {
             double dx = this.dart.tx - this.getX(), dz = this.dart.tz - this.getZ();
             if (dx * dx + dz * dz > 0.04D) turnToward(FlightBody.yawOf(dx, dz), 45.0F);
@@ -365,12 +383,69 @@ public class MeganeuraEntity extends SkyFlyer implements GeoEntity, ParasitizedM
         controllers.add(new AnimationController<>(this, "main", 4, this::mainState));
     }
 
-    /** 止まっている = relax → rest / 急ぐ = chase(羽ばたきが速い)/ ほか(巡航・止まっては飛ぶ・降りる・飛び立つ)= fly。 */
+    @Override
+    protected int takeoffWindupTicks() {
+        return WINDUP_TICKS;
+    }
+
+    /** 驚いて飛び立つときは溜めない(rest → takeoff を補間 3 tick)【決定 11-17 ユーザー】。 */
+    @Override
+    protected int startledWindupTicks() {
+        return 0;
+    }
+
+    /**
+     * つなぎを選ぶ。止まる = rest(降りてきたら land_recover → rest)/ 飛び立つ = (自分からなら takeoff_windup →)takeoff → fly /
+     * 降りる = land_windup → land / 空中で止まる = hover・鋭く飛ぶ = fly / 急ぐ = chase / 巡航 = fly。
+     * 入りの補間は流し始めにだけ使い、過ぎたら 0 にする(つないだ段の間は差 0。GeckoLib は段の間でも補間の長さを使う。ヴェロフィルと同じ作り)。
+     */
     private PlayState mainState(AnimationState<MeganeuraEntity> state) {
         int m = mode();
-        if (m == MODE_PERCHED || m == MODE_TAKEOFF && takeoffPhase() == 0) return state.setAndContinue(PERCH);
-        if (m == MODE_FLY && mood() == MOOD_DASH) return state.setAndContinue(CHASE);
-        return state.setAndContinue(FLY);
+        int md = mood();
+        RawAnimation want;
+        int entry;
+        if (m == MODE_PERCHED || m == MODE_TAKEOFF && takeoffPhase() == 0) {
+            if (this.curAnim == LAND || this.curAnim == LAND_RECOVER) {
+                want = LAND_RECOVER;   // 止まった tick に掴む(降りる繰り返しの途中から入る)
+                entry = this.curAnim == LAND ? ENTRY_SHORT : this.curEntry;
+            } else {
+                want = REST;   // セーブから止まった姿で読み込んだ個体は直に
+                entry = ENTRY;
+            }
+        } else if (m == MODE_TAKEOFF && takeoffPhase() == 1) {
+            want = WINDUP;
+            entry = this.curAnim == WINDUP ? this.curEntry : ENTRY_SHORT;
+        } else if (m == MODE_TAKEOFF) {
+            want = TAKEOFF;
+            // 溜めの終わり = takeoff の 0 秒(差 0)/ 驚いて rest から直に(補間 3)/ 降りている途中から(補間 4)
+            entry = this.curAnim == TAKEOFF ? this.curEntry : this.curAnim == WINDUP ? 0 : this.curAnim == LAND ? ENTRY : ENTRY_SHORT;
+        } else if (m == MODE_LANDING) {
+            want = LAND;
+            entry = this.curAnim == LAND ? this.curEntry : ENTRY_SHORT;
+        } else if (md == MOOD_DASH) {
+            want = CHASE;
+            entry = ENTRY;
+        } else if (md == MOOD_HOVER) {
+            want = HOVER;
+            entry = ENTRY_SHORT;
+        } else if (md == MOOD_HOP) {
+            want = FLY;
+            entry = ENTRY_SHORT;
+        } else if (this.curAnim == TAKEOFF) {
+            want = TAKEOFF;   // takeoff の後はそのまま fly を繰り返している
+            entry = this.curEntry;
+        } else {
+            want = FLY;
+            entry = ENTRY;
+        }
+        if (want != this.curAnim) {
+            this.curAnim = want;
+            this.curStart = this.tickCount;
+            this.curEntry = entry;
+        }
+        boolean chained = want == TAKEOFF || want == LAND || want == LAND_RECOVER || want == WINDUP;
+        state.getController().transitionLength(chained && this.tickCount - this.curStart > this.curEntry ? 0 : this.curEntry);
+        return state.setAndContinue(want);
     }
 
     @Override
