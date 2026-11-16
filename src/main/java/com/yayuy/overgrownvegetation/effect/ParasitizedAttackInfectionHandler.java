@@ -1,27 +1,22 @@
 package com.yayuy.overgrownvegetation.effect;
 
-import com.yayuy.overgrownvegetation.ModTags;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.spore.MobInfection;
 import com.yayuy.overgrownvegetation.spore.PlantSideRules;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 
-import java.util.List;
 
 /**
- * 過繁茂した Mob(グループ 1〜10 のタグ)に攻撃されたプレイヤーの胞子感染(10-14 ユーザー指定:
- * 未感染は 30% でかかり、感染中は 5% で進みが 10 秒進む。{@link SporeInfectionEffects#plantAttack})。
- *
- * <p>2026-11-04 に parked から戻して<b>口だけ</b>にした: 今のコードで攻撃する過繁茂の Mob はいない(汚染シダは攻撃しない。
- * 寄生 Mob・G1・寄生植物装備は退避中)。Mob を戻したら、グループのタグに入っていればそのまま効く。Mob への感染の道は消した
- * (Mob は暴露量で 20 ダメージ、11-04)。
+ * 植物側の攻撃で感染する入口(攻撃の元が {@link PlantSideRules#isInfector} = G1・G4〜G10・汎用の感染体で、傷が 0 より大きいとき)。
+ * <ul>
+ *   <li>プレイヤー: 未感染は 30% でかかる(10-14 ユーザー指定。{@link SporeInfectionEffects#plantAttack})+ 傷の暴露(11-15。{@link #addWoundDose})。
+ *   感染中は傷の暴露が段の進みへ積まれる(11-15「混ぜた形」。前の「感染中は 5% で 10 秒進む」は外した)。</li>
+ * </ul>
  *
  * <p>2026-11-15(ユーザー決定): プレイヤー以外の Mob も、G1・G4〜G10・汎用の感染体({@link PlantSideRules#isInfector})に傷を付けられたら
  * 必ず {@link MobInfection#infect} で感染する(暴露量は減らず上がり続け、約 2 分で死ぬ)。ボス・ゴーレム・ほかの MOD の Mob も除かない
@@ -29,9 +24,6 @@ import java.util.List;
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class ParasitizedAttackInfectionHandler {
-
-    private static final List<TagKey<EntityType<?>>> GROUPS = List.of(ModTags.GROUP_1, ModTags.GROUP_2, ModTags.GROUP_3,
-            ModTags.GROUP_4, ModTags.GROUP_5, ModTags.GROUP_6, ModTags.GROUP_7, ModTags.GROUP_8, ModTags.GROUP_9, ModTags.GROUP_10);
 
     /**
      * 攻撃の元は {@code getSource().getEntity()}(飛び道具なら撃った Mob、爆発なら爆ぜた Mob)で見る。直に当たった物(矢・火の玉)は見ない。
@@ -79,30 +71,19 @@ public final class ParasitizedAttackInfectionHandler {
     public static void addWoundDose(LivingEntity victim, float damage) {
         com.yayuy.overgrownvegetation.data.MobInfectionSpec s = com.yayuy.overgrownvegetation.data.DesignData.sporeField().mobInfection();
         double amount = (victim instanceof Player ? s.woundDosePlayerPerDamage() : s.woundDoseMobPerDamage()) * damage;
-        if (amount <= 0.0D || !victim.isAlive()) return;
-        if (victim instanceof Player p) {
-            if (p.isCreative() || p.isSpectator()) return;
-            if (SporeInfectionEffects.stageOf(p) > 0) {
-                // 感染中も積む(11-15 ユーザー決定「混ぜた形」。前の「感染中は積まない」は取り消し): 段の進みへ直に
-                SporeInfectionEffects.advance(p, amount);
-                return;
-            }
-        } else if (!com.yayuy.overgrownvegetation.spore.SporeExposureTracker.isMeasuredMob(victim)) {
-            return;
-        }
-        com.yayuy.overgrownvegetation.spore.SporeExposure ex = victim.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_EXPOSURE);
-        ex.dose = Math.min(com.yayuy.overgrownvegetation.data.DesignData.sporeField().infectDose(), ex.dose + amount);
+        // 傷口から入る = マスクでは防げない(2026-11-16 ③6 で共通の口 SporeExposureTracker.addExposure へ)
+        com.yayuy.overgrownvegetation.spore.SporeExposureTracker.addExposure(victim, amount, false);
     }
 
     /**
-     * 過繁茂した Mob(グループ 1〜10 のどれかのタグ)か。汎用の感染体(変わった印)も入れる(2026-11-15。ほかの MOD の Mob はタグを変えられないので印で):
-     * G1 に狙われない・ほかの Mob の {@code HuntG1} に狙われる。
+     * 植物側の陣営か。{@link PlantSideRules#isPlantSide} へ委ねる(2026-11-16 コードの見直し ③6: 前はグループ 1〜10 の自前の一覧 + 変わった印で、
+     * 萌芽体・ハイヴノード・ParasitizedMob の扱いが陣営の判定と少し違った)。本体の呼ぶ所は PlantSideRules へ替えた。テストが呼ぶので名前は残す。
+     *
+     * @deprecated {@link PlantSideRules#isPlantSide} を使う
      */
+    @Deprecated
     public static boolean isOvergrownMob(LivingEntity e) {
-        for (TagKey<EntityType<?>> g : GROUPS) {
-            if (e.getType().is(g)) return true;
-        }
-        return PlantSideRules.isTransformed(e);
+        return PlantSideRules.isPlantSide(e);
     }
 
     private ParasitizedAttackInfectionHandler() {

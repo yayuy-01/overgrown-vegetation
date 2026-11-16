@@ -10,7 +10,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 
-import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
@@ -33,10 +32,6 @@ public final class PlantSideRules {
     public static final TagKey<EntityType<?>> DEATH_BURST_EXEMPT =
             TagKey.create(Registries.ENTITY_TYPE, OvergrownVegetation.id("death_burst_exempt"));
 
-    /** 破裂・必ず感染の対象のグループ(G2・G3 を除く)。 */
-    private static final List<TagKey<EntityType<?>>> GROUPS = List.of(ModTags.GROUP_1, ModTags.GROUP_4, ModTags.GROUP_5,
-            ModTags.GROUP_6, ModTags.GROUP_7, ModTags.GROUP_8, ModTags.GROUP_9, ModTags.GROUP_10);
-
     /**
      * 汎用の感染体(変わった印)か。土台の側(汎用感染システム)が自分の印の問い合わせを差し込む口。差し込むまでは誰も変わっていない。
      * サーバー側の判定。クライアントは {@code client/infect/GenericInfectionClient} を見る({@link #burstsWith})。
@@ -50,17 +45,41 @@ public final class PlantSideRules {
         return TRANSFORMED.test(e);
     }
 
-    /** G1・G4〜G10 のタグのどれかか(変わった印は見ない)。 */
+    /**
+     * G1・G4〜G10 のタグのどれかか(変わった印は見ない)。グループの一覧は {@link com.yayuy.overgrownvegetation.phase.MobGroup} の 1 か所
+     * (2026-11-16 コードの見直し ③6: 前はここと ParasitizedAttackInfectionHandler に別の一覧があった)。G2・G3 は生態系で生きているだけなので入れない。
+     */
     public static boolean inBurstGroups(EntityType<?> type) {
-        for (TagKey<EntityType<?>> g : GROUPS) {
-            if (type.is(g)) return true;
+        for (com.yayuy.overgrownvegetation.phase.MobGroup g : com.yayuy.overgrownvegetation.phase.MobGroup.values()) {
+            if (g == com.yayuy.overgrownvegetation.phase.MobGroup.GROUP_2 || g == com.yayuy.overgrownvegetation.phase.MobGroup.GROUP_3) continue;
+            if (g.contains(type)) return true;
         }
         return false;
     }
 
-    /** 殴った相手(プレイヤー以外の Mob)を必ず感染させる側か。 */
+    /**
+     * 「感染させる側か」(2026-11-16 ③6 で 2 つの意味の片方に整理): 殴った・撃った・胞子を浴びせた相手を必ず感染させ、死ぬと破裂する側。
+     * = G1・G4〜G10 のタグ または 汎用の感染体。
+     */
     public static boolean isInfector(LivingEntity attacker) {
         return inBurstGroups(attacker.getType()) || isTransformed(attacker);
+    }
+
+    /**
+     * 「植物側の陣営か」(2026-11-16 ③6 で 2 つの意味のもう片方に整理。暴露量を測らない・互いに狙わない・標的に選ばない側)。
+     * = タグ {@code plant_side}(G1〜G10・萌芽体・ハイヴノード)・どれかのグループ({@link com.yayuy.overgrownvegetation.phase.MobGroup})・
+     * {@code ParasitizedMob} の作り・G1 / 萌芽体 / ハイヴノードのクラス(タグから抜かれても漏れない保険)・汎用の感染体。
+     * 前は SporeExposureTracker.isPlantSide・ParasitizedAttackInfectionHandler.isOvergrownMob・PlantFoes で少しずつ違っていた。今はどれもここを呼ぶ。
+     */
+    public static boolean isPlantSide(LivingEntity e) {
+        EntityType<?> t = e.getType();
+        return t.is(ModTags.PLANT_SIDE)
+                || e instanceof com.yayuy.overgrownvegetation.phase.ParasitizedMob
+                || e instanceof com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster
+                || e instanceof com.yayuy.overgrownvegetation.entity.BlightFernEntity
+                || e instanceof com.yayuy.overgrownvegetation.entity.HiveNodeEntity
+                || com.yayuy.overgrownvegetation.phase.MobGroup.of(t) != null
+                || isTransformed(e);
     }
 
     /** 死ぬと破裂する側か(サーバー)。 */

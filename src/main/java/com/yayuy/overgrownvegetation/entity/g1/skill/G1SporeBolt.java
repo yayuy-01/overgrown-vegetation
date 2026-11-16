@@ -143,7 +143,7 @@ public class G1SporeBolt extends ThrowableItemProjectile {
         if (!(result.getEntity() instanceof LivingEntity living) || living == getOwner()) return;
         DamageSource source = getOwner() instanceof LivingEntity owner ? damageSources().mobProjectile(this, owner) : damageSources().thrown(this, null);
         boolean blocked = living.isDamageSourceBlocked(source);
-        // 暴露量を先に足す(ダメージの中で G1 の攻撃の感染の抽選が走り、当たると「感染中は積まない」で暴露量が足されなくなる。G1SporeBlast と同じ順)
+        // 暴露量を先に足す(ダメージの中で G1 の攻撃の 30% の抽選が走り、当たると感染に入るので、その前の暴露量として数える。G1SporeBlast と同じ順)
         if (!blocked) G1SporeDose.add(living, dose);
         if (damage > 0.0F) living.hurt(source, damage);
     }

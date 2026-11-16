@@ -48,7 +48,7 @@ public class G1TargetGoal extends NearestAttackableTargetGoal<LivingEntity> {
     }
 
     public static boolean isPrey(Mob self, LivingEntity e) {
-        if (e == self || e instanceof ArmorStand || e instanceof ParasitizedMob || ParasitizedAttackInfectionHandler.isOvergrownMob(e)) {
+        if (e == self || e instanceof ArmorStand || e instanceof ParasitizedMob || com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(e)) {
             return false;
         }
         if (com.yayuy.overgrownvegetation.OvergrownVegetation.MODID.equals(net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).getNamespace())) {

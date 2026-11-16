@@ -1,9 +1,7 @@
 package com.yayuy.overgrownvegetation.entity;
 
-import com.yayuy.overgrownvegetation.phase.MobGroup;
 import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
 import com.yayuy.overgrownvegetation.spore.PlantSideRules;
-import com.yayuy.overgrownvegetation.spore.SporeExposureTracker;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.LivingEntity;
@@ -28,8 +26,7 @@ public final class PlantFoes {
 
     /** 植物側でない(陣営だけ。生死・防具立て・創造は見ない)。 */
     public static boolean isOtherSide(LivingEntity e) {
-        return !(e instanceof ParasitizedMob) && MobGroup.of(e.getType()) == null
-                && !SporeExposureTracker.isPlantSide(e) && !PlantSideRules.isTransformed(e);
+        return !PlantSideRules.isPlantSide(e); // 陣営の判定は PlantSideRules の 1 か所(11-16 コードの見直し ③6。中身は前のここの条件と同じ: ParasitizedMob・グループ・植物側のタグ/クラス・汎用の感染体)
     }
 
     /** 狙ってよい・技が当たってよい相手か(陣営 + 除外)。{@code self} は自分(無ければ null)。 */

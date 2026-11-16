@@ -311,57 +311,11 @@ public final class OvergrownVegetationConfig {
         /** 地域が菌湿地帯になる重み。 */
         public final ModConfigSpec.DoubleValue overgrowthVariantWeightFungalSwamp;
 
-        // ---- 湿地の浸水・棚田({@link com.yayuy.overgrownvegetation.corruption.SwampFlooder})----
-        /** 湿地系バイオームのチャンクに池・水路・水たまり・棚田を作るか。 */
-        public final ModConfigSpec.BooleanValue swampFlooding;
-        /** 浸水処理を走らせる間隔(tick)。 */
-        public final ModConfigSpec.IntValue swampFloodIntervalTicks;
-        /** 1 回の処理で扱うチャンク数。 */
-        public final ModConfigSpec.IntValue swampFloodChunksPerPass;
-        /** 同じチャンクを再処理するまでの間隔(tick)。 */
-        public final ModConfigSpec.IntValue swampFloodRescanTicks;
-        /** 人工ブロック(自然の土・石・汚染地面以外)が地表の列は浸水させないか。 */
-        public final ModConfigSpec.BooleanValue swampFloodSkipArtificial;
-        /** 池ノイズの閾値(-1〜1)。下げるほど池が広く多くなる。 */
-        public final ModConfigSpec.DoubleValue swampPondThreshold;
-        /** 水路ノイズの閾値(0〜1)。下げるほど水路が太く増える。 */
-        public final ModConfigSpec.DoubleValue swampCreekThreshold;
-        /** 水たまりノイズの閾値(-1〜1)。下げるほど水たまりが増える(繁茂段階から出る)。 */
-        public final ModConfigSpec.DoubleValue swampPuddleThreshold;
-        /** 棚田 1 段の高さ(ブロック)。 */
-        public final ModConfigSpec.IntValue swampTerraceStep;
-        /** この傾斜(8 ブロック間の高低差の和)以上の場所を棚田にする。平坦な場所は池・水路。 */
-        public final ModConfigSpec.DoubleValue swampTerraceSlope;
-        /** 棚田の畦(あぜ)のうち、水を溢れさせて滝にする割合。 */
-        public final ModConfigSpec.DoubleValue swampSpillwayChance;
-        /** 急斜面での棚田 1 段の最大高さ(ブロック)。傾斜が {@link #swampTerraceSteepSlope} に近づくほどこの値に近づく。 */
-        public final ModConfigSpec.IntValue swampTerraceMaxStep;
-        /** この傾斜で棚田の段差が {@link #swampTerraceMaxStep} に達する。 */
-        public final ModConfigSpec.DoubleValue swampTerraceSteepSlope;
-        /** 棚田で 1 列を掘り下げる最大深さ(ブロック)。これより深く掘る必要がある列は崖として残す。 */
-        public final ModConfigSpec.IntValue swampTerraceMaxCut;
-        /** 棚田で 1 列を盛り上げる最大高さ(ブロック)。泥で地形を足して段を作る。 */
-        public final ModConfigSpec.IntValue swampTerraceMaxFill;
-        /** 隣の列とこれ以上の落差がある列(大穴・崖の縁と底)は棚田・池にしない。 */
-        public final ModConfigSpec.IntValue swampTerraceVoidDrop;
-        /** その落差列の周り何列までを同じく触らないか。 */
-        public final ModConfigSpec.IntValue swampTerraceVoidMargin;
-        /** チャンク地表の汚染列数がこれ以上なら(バイオームが過繁茂でなくても)池・水路・棚田の段階に進む。 */
-        public final ModConfigSpec.IntValue swampFloodStage2Columns;
+        // ---- 湿地(地域は 10-23 から封印中。浸水・棚田の 23 項目は 2026-11-16 コードの見直しで parked の U11 へ退避した。残りは今も読まれている)----
         /** 湿地系の場所での汚染時の装飾植物(下草・蔦)の生成確率に掛ける倍率。 */
         public final ModConfigSpec.DoubleValue swampGrowthChanceMultiplier;
-        /** 泥の上面に生える植物のうち薄い苔の割合(残りは胞子キノコ)。 */
-        public final ModConfigSpec.DoubleValue swampMudMossShare;
         /** 菌湿地帯での苗木の生成確率(treeChance)に掛ける倍率。 */
         public final ModConfigSpec.DoubleValue fungalSwampTreeChanceMultiplier;
-        /** 棚田の水面に泥のハーフブロックを敷いて水深 0.5 にするか。 */
-        public final ModConfigSpec.BooleanValue swampTerraceShallow;
-        /** 棚田の畦(仕切り)を水面より 1 段高い 2 段の土手にするか。false で水面と同じ高さ。 */
-        public final ModConfigSpec.BooleanValue swampTerraceRimAboveWater;
-        /** 生成ストラクチャー(村の民家・道など)の範囲を浸水・棚田から守るか。 */
-        public final ModConfigSpec.BooleanValue swampFloodProtectStructures;
-        /** ストラクチャーの各ピースの箱をこのぶん(ブロック)広げて守る。 */
-        public final ModConfigSpec.IntValue swampFloodStructureMargin;
         /** 湿地系の場所で元の森の木(バニラの原木)が汚染されたとき、木ごと消滅 / 倒木にするか。 */
         public final ModConfigSpec.BooleanValue swampTreeFall;
         /** 木を消滅させる代わりに切り株 + 倒木にする確率。 */
@@ -1439,126 +1393,15 @@ public final class OvergrownVegetationConfig {
                     .comment("地域が菌湿地帯になる重み。既定 2.0。")
                     .defineInRange("overgrowthVariantWeightFungalSwamp", 2.0D, 0.0D, 100.0D);
 
-            swampFlooding = b
-                    .comment("湿地系(湿地 / 菌湿地帯)バイオームのチャンクに、水たまり(繁茂段階から)・池・水路・",
-                            "棚田状の段々と滝(過繁茂段階から)を作るか。ワールドシード固有のノイズで場所が決まる。")
-                    .define("swampFlooding", true);
-
-            swampFloodIntervalTicks = b
-                    .comment("浸水処理を走らせる間隔(tick)。既定 40 = 2 秒。")
-                    .defineInRange("swampFloodIntervalTicks", 40, 1, 24000);
-
-            swampFloodChunksPerPass = b
-                    .comment("1 回の処理で扱うチャンク数。1 チャンク = 256 列をまとめて処理する。既定 1。")
-                    .defineInRange("swampFloodChunksPerPass", 1, 1, 64);
-
-            swampFloodRescanTicks = b
-                    .comment("同じチャンクを再処理するまでの間隔(tick)。処理は冪等(処理済みの列は水・泥で目印が付き二度と触らない)",
-                            "なので再処理は取りこぼしの拾い直し用。既定 2400 = 2 分。")
-                    .defineInRange("swampFloodRescanTicks", 2400, 20, 720000);
-
-            swampFloodSkipArtificial = b
-                    .comment("地表が自然の土・石・砂や汚染地面でない列(建築物など)は、水たまりも池も作らず地形も削らないか。",
-                            "true 推奨(家の中に水が溜まるのを防ぐ)。")
-                    .define("swampFloodSkipArtificial", true);
-
-            swampPondThreshold = b
-                    .comment("池ノイズ(-1〜1)の閾値。これを超えた場所が池になる。下げるほど池が広く多くなる。既定 0.35。")
-                    .defineInRange("swampPondThreshold", 0.35D, -1.0D, 1.0D);
-
-            swampCreekThreshold = b
-                    .comment("水路ノイズ(0〜1、尾根状)の閾値。下げるほど水路が太く増える。既定 0.86。")
-                    .defineInRange("swampCreekThreshold", 0.86D, 0.0D, 1.0D);
-
-            swampPuddleThreshold = b
-                    .comment("水たまりノイズ(-1〜1)の閾値。下げるほど 1 マスの水たまりが増える。繁茂段階から現れる。既定 0.55。")
-                    .defineInRange("swampPuddleThreshold", 0.55D, -1.0D, 1.0D);
-
-            swampTerraceStep = b
-                    .comment("棚田 1 段の高さ(ブロック)。斜面をこの高さごとの平らな段に削り、各段に水を張る。既定 3。")
-                    .defineInRange("swampTerraceStep", 3, 2, 8);
-
-            swampTerraceSlope = b
-                    .comment("この傾斜(東西 8 ブロック間と南北 8 ブロック間の高低差の和)以上の場所を棚田にする。",
-                            "それ未満の平坦な場所は池・水路になる。既定 5.0。")
-                    .defineInRange("swampTerraceSlope", 5.0D, 0.0D, 64.0D);
-
-            swampSpillwayChance = b
-                    .comment("棚田の畦(下の段との境の土手)のうち、土手を切って水を溢れさせ滝にする割合。既定 0.2。")
-                    .defineInRange("swampSpillwayChance", 0.2D, 0.0D, 1.0D);
-
-            swampTerraceMaxStep = b
-                    .comment("急斜面での棚田 1 段の最大高さ(ブロック)。なだらかな斜面は swampTerraceStep の小さな段を",
-                            "何段も重ね、傾斜が swampTerraceSteepSlope に近づくほど段差がこの値まで大きくなり、",
-                            "高い壁を持つ大きな段が数個だけになる。既定 10。")
-                    .defineInRange("swampTerraceMaxStep", 10, 2, 24);
-
-            swampTerraceSteepSlope = b
-                    .comment("この傾斜(東西 8 ブロック間と南北 8 ブロック間の高低差の和)で段差が swampTerraceMaxStep に達する。",
-                            "swampTerraceSlope との間は線形に補間。既定 14.0。")
-                    .defineInRange("swampTerraceSteepSlope", 14.0D, 0.0D, 64.0D);
-
-            swampTerraceMaxCut = b
-                    .comment("棚田で 1 列を掘り下げる最大深さ(ブロック)。段の高さは平滑化した地表に一番近い段を選ぶので、",
-                            "通常の掘り下げは段差の半分以下。これより深く掘る必要がある列(急な出っ張り)は崖として残す。",
-                            "大きくすると段は綺麗に揃うが落とし穴状の深い穴ができやすい。既定 8。")
-                    .defineInRange("swampTerraceMaxCut", 8, 1, 32);
-
-            swampTerraceMaxFill = b
-                    .comment("棚田で 1 列を盛り上げる最大高さ(ブロック)。段の高さに届かない窪みや斜面を過繁茂した泥で埋めて段を作る。",
-                            "掘りすぎになる列は 1 段上の段、盛りすぎになる列は 1 段下の段に寄せるので、削る量と盛る量の両方が",
-                            "この上限と swampTerraceMaxCut の範囲に収まる。既定 12。")
-                    .defineInRange("swampTerraceMaxFill", 12, 1, 48);
-
-            swampTerraceVoidDrop = b
-                    .comment("隣接する列(8 近傍)との地表の落差がこれ(ブロック)以上ある列 — 大きな洞窟へ落ち込む穴や崖の",
-                            "縁と底 — は棚田・池にせず、自然の地面として触らない。穴の縁に泥の壁と水が積み上がるのを防ぐ。",
-                            "既定 10。")
-                    .defineInRange("swampTerraceVoidDrop", 10, 1, 64);
-
-            swampTerraceVoidMargin = b
-                    .comment("上記の落差列から何列以内を同じく触らないか。0 で落差列そのものだけ。既定 2。")
-                    .defineInRange("swampTerraceVoidMargin", 2, 0, 8);
-
-            swampFloodStage2Columns = b
-                    .comment("浸水処理は地域マップ上で湿地になる場所なら、バイオームがまだ書き換わっていなくても汚染された列から順に走る。",
-                            "チャンク地表 256 列のうち汚染列がこの数以上(または既に過繁茂バイオーム)なら池・水路・棚田の段階、",
-                            "それ未満は水たまりだけの段階。既定 64。")
-                    .defineInRange("swampFloodStage2Columns", 64, 1, 256);
-
             swampGrowthChanceMultiplier = b
                     .comment("湿地・菌湿地帯になる場所で汚染したとき、装飾植物(下草・蔦)の生成確率 growthChance に掛ける倍率。",
                             "密林より草を少なくする。既定 0.35。")
                     .defineInRange("swampGrowthChanceMultiplier", 0.35D, 0.0D, 1.0D);
 
-            swampMudMossShare = b
-                    .comment("過繁茂している泥の上面には薄い苔と胞子キノコ(とまれに苗木)しか生えない。そのうち苔の割合。既定 0.8。")
-                    .defineInRange("swampMudMossShare", 0.8D, 0.0D, 1.0D);
-
             fungalSwampTreeChanceMultiplier = b
                     .comment("菌湿地帯になる場所で汚染したとき、苗木を植える確率 treeChance に掛ける倍率。",
                             "菌類の柱を密林の木ほど密に立てないため。既定 0.037(27 分の 1。2026-09-17 に 9 分の 1 から引き下げ)。")
                     .defineInRange("fungalSwampTreeChanceMultiplier", 0.037D, 0.0D, 1.0D);
-
-            swampTerraceShallow = b
-                    .comment("棚田の各段の水面(水深 1)に水没した泥のハーフブロックを敷き、水深 0.5 の浅い段にするか。既定 true。")
-                    .define("swampTerraceShallow", true);
-
-            swampTerraceRimAboveWater = b
-                    .comment("棚田の畦(段と段の仕切り)を水面より 1 段高い 2 段の土手にするか。false(既定)では",
-                            "水面とちょうど同じ高さ(段の泥の 1 段上に泥 1 ブロックだけ)にして、仕切りが水面から",
-                            "飛び出さないようにする。true にすると滝(swampSpillwayChance)の着水で水面の上に広がる",
-                            "流水も枠の中に留められるが、仕切りが水面より 1 段高く見える。既定 false。")
-                    .define("swampTerraceRimAboveWater", false);
-
-            swampFloodProtectStructures = b
-                    .comment("生成ストラクチャー(村の民家・道、前哨基地など)のピースの範囲では、水たまり・池・棚田を作らず",
-                            "地形も削らないか。既定 true。")
-                    .define("swampFloodProtectStructures", true);
-
-            swampFloodStructureMargin = b
-                    .comment("ストラクチャーの各ピース(建物 1 棟ぶんの箱)をこのぶん(ブロック)外側へ広げて守る。軒先・玄関前の余裕。既定 2。")
-                    .defineInRange("swampFloodStructureMargin", 2, 0, 16);
 
             swampTreeFall = b
                     .comment("湿地・菌湿地帯になる場所で元の森の木(バニラの原木)が汚染されたとき、その木を丸ごと",

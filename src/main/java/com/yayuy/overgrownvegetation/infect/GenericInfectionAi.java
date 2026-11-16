@@ -242,7 +242,7 @@ public final class GenericInfectionAi {
         if (e == self || e instanceof ArmorStand || !e.isAlive() || !e.canBeSeenAsEnemy()) return false;
         if (!EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(e)) return false;
         if (self.isPassengerOfSameVehicle(e)) return false;
-        return !SporeExposureTracker.isPlantSide(e) && !ParasitizedAttackInfectionHandler.isOvergrownMob(e);
+        return !com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(e); // 陣営(11-16 ③6 でそろえた)
     }
 
     // ---------------------------------------------------------------- Goal

@@ -85,15 +85,11 @@ public final class SporeExposureTracker {
     }
 
     /**
-     * 植物側の Mob か: タグ {@code overgrown_vegetation:plant_side}(グループ 1〜10・萌芽体・ハイヴノード)、
-     * または G1 の寄生体・萌芽体・ハイヴノードのクラス(タグから抜かれても漏れない保険)。
+     * 植物側の陣営か。中身は {@link PlantSideRules#isPlantSide} の 1 か所(2026-11-16 コードの見直し ③6 でそろえた。
+     * 呼ぶ所が多いので、この名前は残して委ねる)。
      */
     public static boolean isPlantSide(LivingEntity entity) {
-        return entity.getType().is(ModTags.PLANT_SIDE)
-                || entity instanceof com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster
-                || entity instanceof com.yayuy.overgrownvegetation.entity.BlightFernEntity
-                || entity instanceof com.yayuy.overgrownvegetation.entity.HiveNodeEntity
-                || com.yayuy.overgrownvegetation.infect.GenericInfection.isTurned(entity); // 汎用の感染体(2026-11-15。ほかの MOD の Mob はタグを変えられないので印で)
+        return PlantSideRules.isPlantSide(entity);
     }
 
     /** 1 体ぶんの判定({@code interval} tick ぶん)。偽プレイヤーは tick しないので GameTest からも呼ぶ。 */
@@ -320,14 +316,35 @@ public final class SporeExposureTracker {
     }
 
     /**
-     * G1 の攻撃が当たった Mob の暴露量を足す(2026-11-08 G1 段階 0、11-05 ユーザー「Mob に当てたら暴露量を足す → 入れる」。1 撃の量は
-     * {@code G1StrikeGoal#MOB_DOSE})。測る Mob({@link #isMeasuredMob})だけ。感染の量で頭打ち —— 届いたら次の判定で 20 ダメージになる。
-     * プレイヤーは足さない(プレイヤーは {@code ParasitizedAttackInfectionHandler} の 30% / 5% のまま)。
+     * 暴露量を足す共通の口(2026-11-16 コードの見直し ③6 で 3 か所 = 傷の暴露・グレガリアの噛みつき・G1 の胞子の技 をまとめた)。
+     * <ul>
+     *   <li>創造・観戦のプレイヤー・測らない Mob({@link #isMeasuredMob})・死んでいる相手には足さない。</li>
+     *   <li>{@code breathed}(息で浴びる胞子 = G1 の胞子の技): フィルターの残る防護マスクを被っていれば足さず、量ぶんフィルターをすり減らす。
+     *   傷の暴露・噛みつきは false(傷口から入るのでマスクでは防げない。11-15 ユーザー決定)。</li>
+     *   <li>感染中のプレイヤーは、暴露量の代わりに段の進みへ足す(11-15 の「混ぜた形」)。</li>
+     *   <li>それ以外は感染の量で頭打ち(満ちたら次の判定で、プレイヤーは感染 1・Mob は 20 ダメージ)。</li>
+     * </ul>
+     *
+     * @return 足したか(マスク・相手の種類で防がれたら false)
      */
-    public static void addDose(LivingEntity entity, double amount) {
-        if (amount <= 0.0D || entity instanceof Player || !isMeasuredMob(entity) || !entity.isAlive()) return;
+    public static boolean addExposure(LivingEntity entity, double amount, boolean breathed) {
+        if (!(amount > 0.0D) || !entity.isAlive()) return false;
+        if (entity instanceof Player p) {
+            if (p.isCreative() || p.isSpectator()) return false;
+        } else if (!isMeasuredMob(entity)) {
+            return false;
+        }
+        if (breathed && ProtectiveMaskItem.isProtecting(entity)) {
+            ProtectiveMaskItem.absorb(entity.getItemBySlot(EquipmentSlot.HEAD), (int) Math.ceil(amount));
+            return false;
+        }
+        if (entity instanceof Player p && com.yayuy.overgrownvegetation.effect.SporeInfectionEffects.stageOf(p) > 0) {
+            com.yayuy.overgrownvegetation.effect.SporeInfectionEffects.advance(p, amount);
+            return true;
+        }
         SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
         ex.dose = Math.min(DesignData.sporeField().infectDose(), ex.dose + amount);
+        return true;
     }
 
     /** 暴露量(%秒)。添付が無ければ 0(作らない)。 */

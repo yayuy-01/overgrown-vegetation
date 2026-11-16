@@ -39,8 +39,6 @@ public class G1StrikeGoal extends Goal {
     static final int GAP_MAX = 20;
     static final double REACH_SLACK = 0.5D;
     static final float HIT_CONE_DEG = 60.0F;
-    /** Mob に当てたときに足す暴露量(%秒)。5 撃で感染の量 1500(= 20 ダメージ)。 */
-    public static final double MOB_DOSE = 300.0D;
     static final int GIVE_UP_NO_PATH_TICKS = 100;
 
     private final AbstractParasitizedMonster mob;

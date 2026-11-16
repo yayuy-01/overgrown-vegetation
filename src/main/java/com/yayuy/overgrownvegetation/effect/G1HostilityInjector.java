@@ -35,7 +35,7 @@ public final class G1HostilityInjector {
         if (event.getLevel().isClientSide() || !(event.getEntity() instanceof PathfinderMob mob)) {
             return;
         }
-        if (mob instanceof ParasitizedMob || ParasitizedAttackInfectionHandler.isOvergrownMob(mob)
+        if (mob instanceof ParasitizedMob || com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(mob)
                 || !mob.getAttributes().hasAttribute(Attributes.ATTACK_DAMAGE)) {
             return;
         }
@@ -46,7 +46,7 @@ public final class G1HostilityInjector {
     }
 
     private static boolean isOvergrown(LivingEntity e) {
-        return ParasitizedAttackInfectionHandler.isOvergrownMob(e);
+        return com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(e); // 陣営(11-16 ③6 でそろえた)
     }
 
     /** この Mob に足したか(区画の読み直しで二重に足さない・GameTest)。 */

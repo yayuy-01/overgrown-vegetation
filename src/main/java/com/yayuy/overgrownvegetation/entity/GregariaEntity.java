@@ -282,18 +282,7 @@ public class GregariaEntity extends SmallCrawler implements GeoEntity, Parasitiz
 
     /** 暴露量の上乗せ(傷の暴露と同じ扱い: マスクは見ない・感染中のプレイヤーは段の進みへ・創造/観戦・測らない Mob には足さない)。 */
     static void addBiteDose(net.minecraft.world.entity.LivingEntity victim, double amount) {
-        if (amount <= 0.0D || !victim.isAlive()) return;
-        if (victim instanceof net.minecraft.world.entity.player.Player p) {
-            if (p.isCreative() || p.isSpectator()) return;
-            if (com.yayuy.overgrownvegetation.effect.SporeInfectionEffects.stageOf(p) > 0) {
-                com.yayuy.overgrownvegetation.effect.SporeInfectionEffects.advance(p, amount);
-                return;
-            }
-        } else if (!com.yayuy.overgrownvegetation.spore.SporeExposureTracker.isMeasuredMob(victim)) {
-            return;
-        }
-        com.yayuy.overgrownvegetation.spore.SporeExposure ex = victim.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_EXPOSURE);
-        ex.dose = Math.min(com.yayuy.overgrownvegetation.data.DesignData.sporeField().infectDose(), ex.dose + amount);
+        com.yayuy.overgrownvegetation.spore.SporeExposureTracker.addExposure(victim, amount, false); // 11-16 コードの見直し ③6: 共通の口へ(傷と同じ扱い)
     }
 
     /** 走った距離を貯め、{@link #DEPOSIT_EVERY} tick おき(個体ごとにずらす)かチャンクが変わったときに、まとめて 1 回だけ場へ書く。 */
