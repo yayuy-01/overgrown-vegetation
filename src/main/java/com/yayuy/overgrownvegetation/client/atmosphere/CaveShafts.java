@@ -67,7 +67,18 @@ final class CaveShafts {
 
     /** 漂う粒の強さ(筋が無ければ 0)。 */
     static float moteIntensity() {
-        return SHAFTS.isEmpty() || devOff ? 0.0F : DesignData.atmosphere().caveShafts().strength();
+        return SHAFTS.isEmpty() || devOff ? 0.0F : DesignData.atmosphere().caveShafts().strength() * viewDark();
+    }
+
+    /**
+     * 見ている人が暗い所(洞窟の中)にいる度合い(0〜1。11-16 ユーザー報告: 明るい所から見ても筋が出ていた)。洞窟の筋は「暗い中に差す光」なので、
+     * カメラの地下の度合い({@link CaveLights#mix}。空の光と岩の天井から出て、約 4 秒で寄る)が {@link #VIEW_DARK}【仮】で出きる。
+     * 外・空の開いた谷の底・明るい所では 0(筋も漂う粒も出ない)。
+     */
+    private static final float VIEW_DARK = 0.3F;
+
+    static float viewDark() {
+        return SunLight.smooth(Mth.clamp(CaveLights.mix() / VIEW_DARK, 0.0F, 1.0F));
     }
 
     private static boolean on(ClientLevel level) {
@@ -144,22 +155,45 @@ final class CaveShafts {
         }
     }
 
+    /** 輪の点で、空いている所を探す高さの順(床の 2 段上から。洞窟の床と天井の起伏のぶん上下を見る)。 */
+    private static final int[] RING_DY = {0, 1, -1, 2, -2, 3, 4};
+
     /** 床 (x, y, z) が洞窟の天井の穴の下で、太陽の光が穴から届くなら筋を足す。 */
     private static boolean consider(ClientLevel level, BlockPos.MutableBlockPos pos, int x, int y, int z, Vec3 sun, AtmosphereEye.CaveShaftsParams p) {
-        // 洞窟の中: 6・12・20 ブロックの輪のどれか 1 つで、8 方向のうち 6 方向以上に岩の天井がある(穴をぐるりと天井が囲む)。
+        // 洞窟の中: 6・12・20 ブロックの輪のどれか 1 つで、8 方向のうち 3 方向以上が「岩の天井の下の空間」で、空の下は 1 方向まで(11-16。前は 6 方向以上に岩)。
         // 丘や崖の脇の地面は片側にしか天井が無いので外れる(11-07: 前は 24 列のうち 6 列で、fog14 の丘の脇の林床に筋が出た)。
         boolean enclosed = false;
         for (int ring : new int[]{6, 12, 20}) {
             int roofed = 0;
+            int sky = 0;
             for (int[] d : DIRS) {
                 double len = d[0] != 0 && d[1] != 0 ? Math.sqrt(2.0) : 1.0;
                 int rx = x + (int) Math.round(d[0] * ring / len);
                 int rz = z + (int) Math.round(d[1] * ring / len);
-                if (level.hasChunk(rx >> 4, rz >> 4) && CaveMap.thickRoofAbove(level, rx, y + 2, rz, 64)) {
+                if (!level.hasChunk(rx >> 4, rz >> 4)) {
+                    continue;
+                }
+                // 11-16(ユーザー報告: 洞窟でない峡谷の底にも筋が出た): 輪の点が壁の中(岩)なら数えない。前は壁の中の点も「上に岩がある = 天井」に
+                // 数えていたので、谷の壁に囲まれた空の開いた底が洞窟扱いになった。床の高さの近くで空いている所を探し、そこの上に岩の天井があれば
+                // 「天井の下の空間」、空が開いていれば「空の下」。
+                int open = Integer.MIN_VALUE;
+                for (int dy : RING_DY) {
+                    if (air(level, pos, rx, y + 2 + dy, rz)) {
+                        open = y + 2 + dy;
+                        break;
+                    }
+                }
+                if (open == Integer.MIN_VALUE) {
+                    continue;
+                }
+                if (CaveMap.thickRoofAbove(level, rx, open, rz, 64)) {
                     roofed++;
+                } else {
+                    sky++;
                 }
             }
-            if (roofed >= 6) {
+            // 天井の下の空間が 3 方向以上あって、空の下は 1 方向まで(穴そのものが輪に掛かる分)。
+            if (roofed >= 3 && sky <= 1) {
                 enclosed = true;
                 break;
             }
@@ -287,7 +321,7 @@ final class CaveShafts {
             float far = 1.0F - SunLight.smooth(Mth.clamp((float) ((dist - p.radius()) / 12.0), 0.0F, 1.0F));
             float fog = 1.0F - (1.0F - p.fogKeep()) * MistView.fogAmount((float) dist);
             float flicker = (float) (0.96 + 0.04 * Math.sin(2.0 * Math.PI * 0.15 * seconds + s.phase * 5.0));
-            float alpha = s.presence() * day * p.strength() * far * fog * flicker;
+            float alpha = s.presence() * day * p.strength() * far * fog * flicker * viewDark();
             if (alpha <= 0.003F) {
                 continue;
             }
