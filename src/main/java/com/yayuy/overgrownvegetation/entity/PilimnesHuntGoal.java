@@ -63,6 +63,9 @@ final class PilimnesHuntGoal extends Goal {
     /** 追う速さ・経路を引き直す間隔・見えるかを見直す間隔(tick)【仮】。 */
     static final double CHASE_SPEED = 1.0D;
     static final int REPATH = 10, SIGHT_EVERY = 5;
+    /** 追う経路の探す数(バニラの何倍か)【仮。ヴェナムネスは 0.3】と、引き直しの部品(11-16 見直し ①4)。 */
+    static final float NODE_MULT = 0.5F;
+    private final ChasePath chase = new ChasePath();
     /** 撃てる間合いの外へ寄るとき、相手からこの距離(ブロック)まで寄って止まる【仮】。 */
     static final double HOLD_DIST = 40.0D;   // 11-16 射程 2 倍に合わせて 14 → 40(弾きの間合い 44 の少し内側で止まって撃つ)
 
@@ -198,8 +201,8 @@ final class PilimnesHuntGoal extends Goal {
         boolean far = d > HOLD_DIST;
         if (close || far) {
             if (--this.repath <= 0) {
-                this.repath = REPATH;
-                this.mob.getNavigation().moveTo(t, CHASE_SPEED);
+                // サーバー全体の予算・探す数の絞り・届かない探索の控えを通す(前は素の探索を 10 tick おき。届かない相手で 1 回最悪 23 ms。①4)
+                this.repath = this.chase.repath(this.mob, t, CHASE_SPEED, NODE_MULT) ? REPATH : 1;
             }
         } else if (!this.mob.getNavigation().isDone()) {
             this.mob.getNavigation().stop();

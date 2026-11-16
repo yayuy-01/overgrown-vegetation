@@ -652,6 +652,11 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
         @Nullable
         AmbushSpots.Spot spot;
         int pickWait = 40, goTicks, hideLeft, failedLeaps;
+        /** 伏せ場所探しの途中の一番良い点と、試した点の数(数 tick に分ける)。 */
+        @Nullable
+        AmbushSpots.Spot searchBest;
+        int searchTried;
+        static final int PICK_PER_TICK = 4;
         boolean aligned;
         private Vec3 checkPos = Vec3.ZERO;
         private int checkTick;
@@ -696,7 +701,13 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
             switch (this.state) {
                 case PICK -> {
                     if (--this.pickWait > 0) return;
-                    AmbushSpots.Spot s = AmbushSpots.find(m, LEAP);
+                    // 24 点を 1 tick に 4 点ずつ試す(1 tick に千回を超える当たりの点検を出さない。11-16 見直し 第 3 便)
+                    this.searchBest = AmbushSpots.findSome(m, LEAP, PICK_PER_TICK, this.searchBest);
+                    this.searchTried += PICK_PER_TICK;
+                    if (this.searchTried < AmbushSpots.TRIES) return;
+                    AmbushSpots.Spot s = this.searchBest;
+                    this.searchBest = null;
+                    this.searchTried = 0;
                     if (s == null) {
                         this.pickWait = 100;
                         return;

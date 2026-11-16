@@ -78,7 +78,7 @@ public final class CrawlerPack {
         double bestD = JOIN_RADIUS * JOIN_RADIUS;
         for (CrawlerPack p : packs(level).values()) {
             if (p == except || p.type != mob.getType()) continue;
-            p.prune();
+            p.prune(level);
             if (p.members.isEmpty() || p.members.size() >= MAX_SIZE) continue;
             double d = p.leader().distanceToSqr(mob);
             if (d < bestD) {
@@ -103,8 +103,14 @@ public final class CrawlerPack {
         if (this.members.isEmpty()) packs(level).remove(this.id);
     }
 
-    /** 死んだ・消えた個体を外す。 */
-    void prune() {
+    /** 最後に外した tick(群れの 1 tick に 1 回だけ。前は全員が毎 tick 全員を見ていた = 群れの大きさの 2 乗。11-16 見直し 第 3 便)。 */
+    private long prunedAt = Long.MIN_VALUE;
+
+    /** 死んだ・消えた個体を外す(同じ tick の 2 回目からは何もしない)。 */
+    void prune(ServerLevel level) {
+        long now = level.getGameTime();
+        if (now == this.prunedAt) return;
+        this.prunedAt = now;
         this.members.removeIf(m -> !m.isAlive() || m.isRemoved());
     }
 

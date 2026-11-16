@@ -395,6 +395,10 @@ public abstract class SkyFlyer extends Monster {
 
     @Override
     protected void customServerAiStep() {
+        if (!DEV) {   // 計測は開発用だけ(11-16 見直し 第 3 便)
+            serverStep();
+            return;
+        }
         long t0 = System.nanoTime();
         try {
             serverStep();
@@ -466,6 +470,8 @@ public abstract class SkyFlyer extends Monster {
 
     /** 群れに入っていなければ入る(保存された番号があればその群れへ。無ければ自分だけの群れを作る)。1 体の群れは近くの群れへ移る。 */
     private void ensureFlock(ServerLevel sl) {
+        // 群れから外れている(群れが空になって忘れられた・別の口で外された)なら、番号で入り直す(先導役が null の群れを持ち続けない)
+        if (this.flock != null && !this.flock.members.contains(this)) this.flock = null;
         if (this.flock == null) {
             if (this.flockId == null) this.flockId = UUID.randomUUID();
             if (Double.isNaN(this.layer)) this.layer = Mth.lerp(this.random.nextDouble(), layerMin(), layerMax());
@@ -510,6 +516,7 @@ public abstract class SkyFlyer extends Monster {
     private void tickFly(ServerLevel sl, Flock f) {
         FlightBody.Params p = params();
         SkyFlyer leader = f.leader();
+        if (leader == null) leader = this;   // 念のため(群れが空でも落ちない)
         boolean isLeader = leader == this;
         // 先の林冠(4 tick ごと)
         if (this.tickCount % 4 == 0 || Double.isNaN(this.canopyAhead)) {
@@ -814,6 +821,10 @@ public abstract class SkyFlyer extends Monster {
 
     @Override
     public void travel(Vec3 input) {
+        if (!DEV) {
+            travelFlight();
+            return;
+        }
         long t0 = System.nanoTime();
         try {
             travelFlight();

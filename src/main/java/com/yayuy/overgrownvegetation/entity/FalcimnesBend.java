@@ -61,10 +61,30 @@ public final class FalcimnesBend {
 
     // ------------------------------------------------------------------ サーバー
 
+    /** 作業場所(個体ごと。前は毎 tick 配列を 5 つ new していた。11-16 見直し ①3)。向きの計算は {@link com.yayuy.overgrownvegetation.entity.runner.BodyBend#chordDir}。 */
+    private final double[] px = new double[10], pz = new double[10], bx = new double[TRAIL_MAX + 1], bz = new double[TRAIL_MAX + 1];
+    private final double[] pa = new double[2], pb = new double[2], dir = new double[2];
+    private final float[] angles = new float[8];
+    /** 近くにプレイヤーがいるか(20 tick ごとに見直す)。いなければ曲げを計算しない(見た目だけの値)。 */
+    private boolean watched = true;
+    private int watchCheck;
+
     /** 1 tick 進め、送る値を返す(aiStep の移動の後)。 */
     long serverTick(FalcimnesEntity e) {
-        long t0 = System.nanoTime();
+        long t0 = DEV_HOOKS ? System.nanoTime() : 0L;
         double x = e.getX(), z = e.getZ();
+        if (--this.watchCheck <= 0) {
+            this.watchCheck = 20;
+            this.watched = Watched.near(e, Watched.RANGE);
+        }
+        if (!this.watched) {
+            this.lastX = x;
+            this.lastZ = z;
+            this.trailCount = 0;
+            this.weight = 0.0F;
+            if (this.lastPacked != 0L) set(0L);
+            return 0L;
+        }
         float yaw = e.getYRot() * Mth.DEG_TO_RAD;
         double fx = -Mth.sin(yaw), fz = Mth.cos(yaw), lx = Mth.cos(yaw), lz = Mth.sin(yaw);
         double mx = Double.isNaN(this.lastX) ? 0.0D : x - this.lastX, mz = Double.isNaN(this.lastX) ? 0.0D : z - this.lastZ;
@@ -81,7 +101,8 @@ public final class FalcimnesBend {
             this.trailCount = 0;   // 止まった・技を出した: 跡を捨てる(歩き出したら今の向きからまっすぐ後ろ)
         }
         // 跡
-        if (this.trailCount == 0 || Math.hypot(x - this.trailX[0], z - this.trailZ[0]) >= TRAIL_STEP) {
+        double ddx = x - this.trailX[0], ddz = z - this.trailZ[0];
+        if (this.trailCount == 0 || ddx * ddx + ddz * ddz >= TRAIL_STEP * TRAIL_STEP) {
             System.arraycopy(this.trailX, 0, this.trailX, 1, TRAIL_MAX - 1);
             System.arraycopy(this.trailZ, 0, this.trailZ, 1, TRAIL_MAX - 1);
             this.trailX[0] = x;
@@ -89,43 +110,44 @@ public final class FalcimnesBend {
             this.trailCount = Math.min(TRAIL_MAX, this.trailCount + 1);
         }
         this.weight = Mth.clamp(this.weight + (walking ? WEIGHT_RATE : -WEIGHT_RATE), 0.0F, 1.0F);
-        float[] a = new float[8];
+        float[] a = this.angles;
+        java.util.Arrays.fill(a, 0.0F);
         if (this.weight > 0.0F) {
             double s = e.getScale();
             // 前: これから通る経路(今の位置 → 経路の次のノードから先)
             Path path = e.getNavigation().getPath();
             int n = 1;
-            double[] px = new double[10], pz = new double[10];
-            px[0] = x;
-            pz[0] = z;
+            this.px[0] = x;
+            this.pz[0] = z;
             if (path != null && !path.isDone()) {
-                for (int i = path.getNextNodeIndex(); i < path.getNodeCount() && n < px.length; i++) {
-                    Vec3 p = path.getEntityPosAtNode(e, i);
-                    px[n] = p.x;
-                    pz[n] = p.z;
+                double w = (int) (e.getBbWidth() + 1.0F) * 0.5D;   // getEntityPosAtNode と同じ置き方を Vec3 を作らずに
+                for (int i = path.getNextNodeIndex(); i < path.getNodeCount() && n < this.px.length; i++) {
+                    net.minecraft.world.level.pathfinder.Node node = path.getNode(i);
+                    this.px[n] = node.x + w;
+                    this.pz[n] = node.z + w;
                     n++;
                 }
             }
             for (int k = 0; k < 4; k++) {
-                double[] d = chordDir(px, pz, n, FRONT[k] * s, fx, fz);
-                a[k] = (float) Math.toDegrees(Math.atan2(d[0] * lx + d[1] * lz, d[0] * fx + d[1] * fz));
+                com.yayuy.overgrownvegetation.entity.runner.BodyBend.chordDir(this.px, this.pz, n, FRONT[k] * s, fx, fz, this.pa, this.pb, this.dir);
+                a[k] = (float) Math.toDegrees(Math.atan2(this.dir[0] * lx + this.dir[1] * lz, this.dir[0] * fx + this.dir[1] * fz));
                 // 経路がほぼ後ろを指す(引き直した直後・その場で回る途中)ときは、首をそちらへ曲げない(折り返しで横へ振り切れる)
                 if (Math.abs(a[k]) > BEHIND) a[k] = 0.0F;
             }
             // 後ろ: 通ってきた跡(今の位置 → 古い順)。向きは「後ろへ向かう向き」で、左へ振れたら +
-            double[] bx = new double[this.trailCount + 1], bz = new double[this.trailCount + 1];
-            bx[0] = x;
-            bz[0] = z;
+            this.bx[0] = x;
+            this.bz[0] = z;
             int m = 1;
             for (int i = 0; i < this.trailCount; i++) {
-                if (Math.hypot(this.trailX[i] - x, this.trailZ[i] - z) < 1e-3) continue;
-                bx[m] = this.trailX[i];
-                bz[m] = this.trailZ[i];
+                double tx = this.trailX[i] - x, tz = this.trailZ[i] - z;
+                if (tx * tx + tz * tz < 1e-6) continue;
+                this.bx[m] = this.trailX[i];
+                this.bz[m] = this.trailZ[i];
                 m++;
             }
             for (int k = 0; k < 4; k++) {
-                double[] d = chordDir(bx, bz, m, BACK[k] * s, -fx, -fz);
-                a[4 + k] = (float) Math.toDegrees(Math.atan2(d[0] * lx + d[1] * lz, -(d[0] * fx + d[1] * fz)));
+                com.yayuy.overgrownvegetation.entity.runner.BodyBend.chordDir(this.bx, this.bz, m, BACK[k] * s, -fx, -fz, this.pa, this.pb, this.dir);
+                a[4 + k] = (float) Math.toDegrees(Math.atan2(this.dir[0] * lx + this.dir[1] * lz, -(this.dir[0] * fx + this.dir[1] * fz)));
                 if (Math.abs(a[4 + k]) > BEHIND) a[4 + k] = 0.0F;   // 跡が体の前へ回り込んでいる(その場で回った)
             }
             limit(a, 0);
@@ -140,41 +162,11 @@ public final class FalcimnesBend {
         for (int k = 0; k < 8; k++) a[k] = Mth.clamp(a[k], this.now[k] - MAX_STEP, this.now[k] + MAX_STEP);
         long packed = pack(a);
         set(packed);
-        serverNanos += System.nanoTime() - t0;
-        serverCalls++;
+        if (DEV_HOOKS) {
+            serverNanos += System.nanoTime() - t0;
+            serverCalls++;
+        }
         return packed;
-    }
-
-    /**
-     * 折れ線(点 0 から)の弧長 {@code at} あたりの向き(弦 at−CHORD → at+CHORD)。折れ線が足りなければ最後の向き(無ければ {@code dx, dz})で
-     * まっすぐ伸ばす。
-     */
-    static double[] chordDir(double[] xs, double[] zs, int n, double at, double dx, double dz) {
-        double[] a = pointAt(xs, zs, n, Math.max(0.0D, at - CHORD), dx, dz);
-        double[] b = pointAt(xs, zs, n, at + CHORD, dx, dz);
-        double ux = b[0] - a[0], uz = b[1] - a[1];
-        double len = Math.sqrt(ux * ux + uz * uz);
-        return len < 1e-6 ? new double[]{dx, dz} : new double[]{ux / len, uz / len};
-    }
-
-    static double[] pointAt(double[] xs, double[] zs, int n, double at, double dx, double dz) {
-        double left = at;
-        double ex = dx, ez = dz;
-        for (int i = 0; i + 1 < n; i++) {
-            double sx = xs[i + 1] - xs[i], sz = zs[i + 1] - zs[i];
-            double len = Math.sqrt(sx * sx + sz * sz);
-            if (len < 1e-6) continue;
-            ex = sx / len;
-            ez = sz / len;
-            if (left <= len) return new double[]{xs[i] + ex * left, zs[i] + ez * left};
-            left -= len;
-        }
-        double ox = n > 0 ? xs[n - 1] : 0.0D, oz = n > 0 ? zs[n - 1] : 0.0D;
-        if (n <= 1) {
-            ex = dx;
-            ez = dz;
-        }
-        return new double[]{ox + ex * left, oz + ez * left};
     }
 
     /** 体に対する向きの上限と、付け根から順に隣との差の上限。 */

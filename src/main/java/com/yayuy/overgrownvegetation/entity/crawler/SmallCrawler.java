@@ -156,7 +156,8 @@ public abstract class SmallCrawler extends Monster {
 
     /** 群れの毎 tick(サーバー): 入る・組み直す・近くの群れへ合わさる・先導役なら相手を見直す・群れの標的を自分の標的にする。 */
     private void packTick(ServerLevel level) {
-        if (this.pack == null || !this.pack.members.contains(this)) {
+        // 群れに入っているかの確かめは 20 tick に 1 回(contains は群れの大きさぶん見る。外れるのは群れが消えたときだけ)
+        if (this.pack == null || (this.tickCount + this.getId()) % 20 == 0 && !this.pack.members.contains(this)) {
             if (this.packId == null) {
                 CrawlerPack near = CrawlerPack.nearby(level, this, null);
                 this.packId = near != null ? near.id : UUID.randomUUID();
@@ -165,7 +166,7 @@ public abstract class SmallCrawler extends Monster {
             this.pack.add(this);
         }
         CrawlerPack p = this.pack;
-        p.prune();
+        p.prune(level);
         if (p.size() == 1 && (this.tickCount + this.getId()) % CrawlerPack.JOIN_EVERY == 0) {
             CrawlerPack other = CrawlerPack.nearby(level, this, p);
             if (other != null) {
@@ -294,6 +295,9 @@ public abstract class SmallCrawler extends Monster {
         if (this.level().isClientSide()) tickClientPose();
     }
 
+    private float tiltGoal;
+    private final BlockPos.MutableBlockPos groundPos = new BlockPos.MutableBlockPos();
+
     private void tickClientPose() {
         this.tiltO = this.tilt;
         this.liftO = this.lift;
@@ -309,8 +313,9 @@ public abstract class SmallCrawler extends Monster {
         this.lastY = y;
         this.lift = approach(this.lift, 0.0F, 1.0F / LIFT_TICKS);
         // 観戦も数える(getNearestPlayer は観戦を外すので、観戦で見ていると傾かなかった。11-15)
-        float goal = playerWithin(TILT_RANGE) ? groundTilt() : 0.0F;
-        this.tilt += (goal - this.tilt) * TILT_RATE;
+        // 地面の見直しは 4 tick に 1 回(個体ごとにずらす。間は前の目標へ寄せ続ける。11-16 見直し 第 3 便: 数百体で毎 tick 2 列ずつ見ていた)
+        if (((this.tickCount + this.getId()) & 3) == 0) this.tiltGoal = playerWithin(TILT_RANGE) ? groundTilt() : 0.0F;
+        this.tilt += (this.tiltGoal - this.tilt) * TILT_RATE;
     }
 
     private static float approach(float v, float to, float step) {
@@ -340,7 +345,7 @@ public abstract class SmallCrawler extends Monster {
         Level level = this.level();
         int bx = Mth.floor(x), bz = Mth.floor(z);
         double feet = this.getY();
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        BlockPos.MutableBlockPos pos = this.groundPos;
         for (int by = Mth.floor(feet + 1.2D); by >= Mth.floor(feet - 1.2D); by--) {
             pos.set(bx, by, bz);
             BlockState s = level.getBlockState(pos);

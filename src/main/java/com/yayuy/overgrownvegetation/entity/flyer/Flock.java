@@ -70,6 +70,9 @@ public final class Flock {
     int fleeTicks;
     /** 止まり木が見つからなかったときの探し直しまで。 */
     private int roostRetry;
+    /** 前の tick に止まりたがっていたか(止まり木探しの始まりをずらす)と、ずらす幅(tick)【仮】。 */
+    private boolean wantedRoost;
+    static final int ROOST_SPREAD = 100;
     /** 止まり木のまわりの中心(止まり木が足りない個体はこの上を回る)。 */
     BlockPos roostCenter;
 
@@ -165,6 +168,9 @@ public final class Flock {
         if (this.alertTicks > 0) this.alertTicks--;
 
         boolean roost = leader.wantsRoost();
+        // 夜・雨の始まりに全部の群れが同じ tick に止まり木を探さないよう、群れの番号でずらす(0〜ROOST_SPREAD tick。11-16 見直し 第 3 便)
+        if (roost && !this.wantedRoost && this.state == State.PATROL) this.roostRetry = 1 + Math.floorMod(this.id.hashCode(), ROOST_SPREAD);
+        this.wantedRoost = roost;
         RandomSource rnd = level.getRandom();
         switch (this.state) {
             case PATROL -> {
@@ -336,7 +342,9 @@ public final class Flock {
          */
         @net.neoforged.bus.api.SubscribeEvent
         public static void onLeave(net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent event) {
-            if (event.getEntity() instanceof SkyFlyer m && m.flock != null && event.getLevel() instanceof ServerLevel sl) {
+            // 外すのは本当に消えた個体だけ(チャンクの状態が変わっただけでも面から出た知らせが来て、個体はそのまま動き続ける。
+            // それを外すと群れが空になって忘れられ、個体が古い群れの先導役 null を引いて落ちた。11-16 enemy-spawns の全体の GameTest)
+            if (event.getEntity() instanceof SkyFlyer m && m.isRemoved() && m.flock != null && event.getLevel() instanceof ServerLevel sl) {
                 m.flock.remove(m);
                 forget(sl, m.flock);
             }

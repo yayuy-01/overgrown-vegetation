@@ -50,6 +50,13 @@ public final class GroundFit {
         return this.ready;
     }
 
+    /** 前に測った所と目標(測り直さない tick に使う)。 */
+    private double[] tf = new double[0], g = new double[0];
+    private double probeX, probeY, probeZ, tpT, trT, tlT;
+    private float probeYaw, probeScale;
+    private int sinceProbe;
+    private boolean hasTarget;
+
     /** 毎 tick(クライアント)。{@code active} が偽(宙・死)の間は 0 へ戻す。 */
     public void tick(Mob e, boolean active) {
         if (!this.ready) return;
@@ -58,8 +65,27 @@ public final class GroundFit {
         this.liftO = this.lift;
         System.arraycopy(this.foot, 0, this.footO, 0, this.foot.length);
         double tp = 0.0D, tr = 0.0D, tl = 0.0D;
-        double[] tf = new double[this.feet.length];
-        if (active) {
+        if (this.tf.length != this.feet.length) {
+            this.tf = new double[this.feet.length];
+            this.g = new double[this.feet.length];
+        }
+        double[] tf = this.tf;
+        // 動いていない・向きも高さも変わっていない間は地面を測り直さない(前の目標のまま。20 tick に 1 回は測る)。
+        // 前は毎 tick 6 列ずつ縦に見ていた(11-16 見直し 第 3 便)
+        boolean same = active && this.hasTarget && this.sinceProbe < 20 && Math.abs(e.getX() - this.probeX) < 0.02D && Math.abs(e.getZ() - this.probeZ) < 0.02D
+                && Math.abs(e.getY() - this.probeY) < 0.02D && Math.abs(Mth.wrapDegrees(e.getYRot() - this.probeYaw)) < 1.0F && e.getScale() == this.probeScale;
+        if (same) {
+            this.sinceProbe++;
+            tp = this.tpT;
+            tr = this.trT;
+            tl = this.tlT;
+        } else if (active) {
+            this.sinceProbe = 0;
+            this.probeX = e.getX();
+            this.probeY = e.getY();
+            this.probeZ = e.getZ();
+            this.probeYaw = e.getYRot();
+            this.probeScale = e.getScale();
             double sc = e.getScale();
             float r = e.getYRot() * Mth.DEG_TO_RAD;
             double fx = -Mth.sin(r), fz = Mth.cos(r);   // 前
@@ -67,7 +93,7 @@ public final class GroundFit {
             double y = e.getY();
             double gF = ground(e, e.getX() + fx * this.front * sc, y, e.getZ() + fz * this.front * sc);
             double gB = ground(e, e.getX() - fx * this.back * sc, y, e.getZ() - fz * this.back * sc);
-            double[] g = new double[this.feet.length];
+            double[] g = this.g;
             double left = 0.0D, right = 0.0D, lx = 0.0D, rxSum = 0.0D;
             int nl = 0, nr = 0;
             for (int i = 0; i < this.feet.length; i++) {
@@ -102,6 +128,13 @@ public final class GroundFit {
                 double plane = y + tl - z * tanP - x * tanR;
                 tf[i] = Mth.clamp(g[i] - plane, -MAX_FOOT, MAX_FOOT);
             }
+            this.tpT = tp;
+            this.trT = tr;
+            this.tlT = tl;
+            this.hasTarget = true;
+        } else {
+            this.hasTarget = false;
+            java.util.Arrays.fill(tf, 0.0D);
         }
         this.pitch += (tp - this.pitch) * EASE;
         this.roll += (tr - this.roll) * EASE;

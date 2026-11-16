@@ -202,12 +202,17 @@ public class OvergrownNodeEvaluator extends WalkNodeEvaluator {
         this.baseMalus.clear();
     }
 
+    @org.jetbrains.annotations.Nullable
+    private com.yayuy.overgrownvegetation.entity.forest.ForestMap forestMap;
+    private static final boolean DEV = Boolean.getBoolean("ov.devbridge");
+
     /** 長い体の重みを候補に足す。 */
     private void addLongBodyCost(Node[] out, int count, Node from) {
         LongBody lb = this.longBody;
         if (lb == null || !(this.mob.level() instanceof net.minecraft.server.level.ServerLevel server)) return;
-        long t0 = System.nanoTime();
-        com.yayuy.overgrownvegetation.entity.forest.ForestMap map = com.yayuy.overgrownvegetation.entity.forest.ForestMap.of(server);
+        long t0 = DEV ? System.nanoTime() : 0L;   // 計測は開発用だけ(11-16 見直し 第 3 便)
+        if (this.forestMap == null) this.forestMap = com.yayuy.overgrownvegetation.entity.forest.ForestMap.of(server);   // 候補ごとに synchronized の表引きをしない
+        com.yayuy.overgrownvegetation.entity.forest.ForestMap map = this.forestMap;
         // 入ってきた向き(2 つ前のノードから。8 方向の格子なので 1 つ前だけだと向きが粗い)
         Node back = from.cameFrom != null ? (from.cameFrom.cameFrom != null ? from.cameFrom.cameFrom : from.cameFrom) : null;
         double inX = back != null ? from.x - back.x : 0.0D, inZ = back != null ? from.z - back.z : 0.0D;
@@ -246,8 +251,10 @@ public class OvergrownNodeEvaluator extends WalkNodeEvaluator {
             }
             c.costMalus = base + extra;
         }
-        longBodyNanos += System.nanoTime() - t0;
-        longBodyCalls++;
+        if (DEV) {
+            longBodyNanos += System.nanoTime() - t0;
+            longBodyCalls++;
+        }
     }
 
     @Override

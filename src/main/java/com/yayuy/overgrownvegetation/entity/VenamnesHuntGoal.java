@@ -46,7 +46,8 @@ final class VenamnesHuntGoal extends Goal {
     static final int REPATH_FAR = 16;
 
     private final VenamnesEntity mob;
-    private final PathRetryMemo memo = new PathRetryMemo();
+    /** 予算・探す数・届かない探索の控え(共通の部品 {@link ChasePath})。 */
+    private final ChasePath chase = new ChasePath();
     private int repath;
     private int steerCheck;
     private boolean straight;
@@ -288,10 +289,20 @@ final class VenamnesHuntGoal extends Goal {
      * 狩りの疾走で走る(角を切る): 相手が今の速さで進む先(着くまでの tick 分、上限 {@link #LEAD_MAX})へ真っすぐ舵を取る。
      * 間に段差・幹があれば相手へ経路(予算に通す)。最後の飛びかかりへの切り替えは {@code VenamnesEntity#tickAction}。
      */
+    /** 疾走のまっすぐの点検の間隔(tick)【仮】と、前の答え。 */
+    static final int SPRINT_CHECK_EVERY = 3;
+    private int sprintCheck;
+    private boolean sprintClear;
+
     private void sprint(LivingEntity t, double d, double dy, boolean sees) {
         double lead = Math.min(LEAD_MAX, d / VenamnesEntity.SPRINT_REF);
         Vec3 aim = new Vec3(t.getX() + this.tvx * lead, t.getY(), t.getZ() + this.tvz * lead);
-        if (sees && Math.abs(dy) <= STEER_DY && ChaseSteer.clear(this.mob.level(), this.mob.position(), aim, this.mob.getBbWidth() * 0.5D, STEER_LOOK)) {
+        // まっすぐ走れるかの点検(箱を並べて見る)は SPRINT_CHECK_EVERY tick に 1 回(前は疾走の間毎 tick。11-16 見直し 第 3 便)
+        if (--this.sprintCheck <= 0) {
+            this.sprintCheck = SPRINT_CHECK_EVERY;
+            this.sprintClear = Math.abs(dy) <= STEER_DY && ChaseSteer.clear(this.mob.level(), this.mob.position(), aim, this.mob.getBbWidth() * 0.5D, STEER_LOOK);
+        }
+        if (sees && Math.abs(dy) <= STEER_DY && this.sprintClear) {
             this.mob.getNavigation().stop();
             this.mob.setSteering(true);
             this.mob.setSteerSpeed(1.0D);
@@ -345,22 +356,13 @@ final class VenamnesHuntGoal extends Goal {
         if (--this.repath > 0) return;
         if (plain) {
             this.repath = REPATH;
-            this.memo.moveTo(this.mob, t, speed);
+            this.chase.moveTo(this.mob, t, speed);
             return;
         }
-        ServerLevel sl = (ServerLevel) this.mob.level();
-        if (!ChasePathBudget.tryStart(sl)) {
+        if (!this.chase.repath(this.mob, t, speed, NODE_MULT)) {
             this.repath = 1;   // この tick の予算を使い切った: 次の tick にもう一度聞く(今の経路はそのまま歩く)
             return;
         }
         this.repath = this.mob.distanceToSqr(t) > FAR * FAR ? REPATH_FAR : REPATH;
-        long t0 = System.nanoTime();
-        this.mob.getNavigation().setMaxVisitedNodesMultiplier(NODE_MULT);
-        try {
-            this.memo.moveTo(this.mob, t, speed);
-        } finally {
-            this.mob.getNavigation().resetMaxVisitedNodesMultiplier();
-        }
-        ChasePathBudget.spend(sl, System.nanoTime() - t0);
     }
 }

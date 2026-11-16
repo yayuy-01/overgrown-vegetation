@@ -186,7 +186,7 @@ public abstract class LongBodyRunner extends Monster {
             this.bend.clientTick(this.entityData.get(DATA_BEND));
             return;
         }
-        long t0 = System.nanoTime();
+        long t0 = DEV_HOOKS ? System.nanoTime() : 0L;   // 計測は開発用だけ(本番で synchronized を毎 tick 呼ばない。11-16 見直し 第 3 便)
         if (!Float.isNaN(this.heading)) {
             applyFacing();
         }
@@ -196,7 +196,7 @@ public abstract class LongBodyRunner extends Monster {
             tickRunner();
             tickTurn();
         }
-        Perf.add(this.level().getGameTime(), System.nanoTime() - t0);
+        if (DEV_HOOKS) Perf.add(this.level().getGameTime(), System.nanoTime() - t0);
     }
 
     /**

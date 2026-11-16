@@ -392,7 +392,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         if (!this.personalitySet) setCaution(FalcimnesPersonality.roll(this.random));   // 湧いた個体ごとに 1 回(U 字の分布)
         tickAction();
         tickTerrain();
-        long t0 = System.nanoTime();
+        long t0 = DEV_HOOKS ? System.nanoTime() : 0L;   // 計測は開発用だけ
         double target = 1.0D;
         boolean hurrying = currentSpeedModifier() >= 1.0D && this.onGround();
         if (hurrying && this.tickCount % SPRINT_LOOK_EVERY != 0) {
@@ -418,8 +418,10 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         }
         this.sprintGoal = target;
         this.sprint += Mth.clamp(target - this.sprint, -SPRINT_RATE * 2.0D, SPRINT_RATE);   // 落とすのは速く
-        sprintNanos += System.nanoTime() - t0;
-        sprintCalls++;
+        if (DEV_HOOKS) {
+            sprintNanos += System.nanoTime() - t0;
+            sprintCalls++;
+        }
         if (DEV_HOOKS && this.hasCustomName()) devHooks(this.getCustomName().getString());
     }
 

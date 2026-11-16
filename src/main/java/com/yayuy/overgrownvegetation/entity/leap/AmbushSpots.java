@@ -43,9 +43,17 @@ public final class AmbushSpots {
 
     @Nullable
     public static Spot find(Mob mob, LeapSpec spec) {
+        return findSome(mob, spec, TRIES, null);
+    }
+
+    /**
+     * {@code tries} 点だけ試し、{@code best} と比べて良い方を返す(2026-11-16 見直し 第 3 便: 24 点 = 千回を超える当たりの点検を 1 tick にまとめず、
+     * 呼ぶ側が数 tick に分ける)。
+     */
+    @Nullable
+    public static Spot findSome(Mob mob, LeapSpec spec, int tries, @Nullable Spot best) {
         RandomSource rnd = mob.getRandom();
-        Spot best = null;
-        for (int i = 0; i < TRIES; i++) {
+        for (int i = 0; i < tries; i++) {
             double ang = rnd.nextDouble() * Math.PI * 2.0D;
             double r = MIN_MOVE + rnd.nextDouble() * (RADIUS - MIN_MOVE);
             double x = Mth.floor(mob.getX() + Math.cos(ang) * r) + 0.5D;
@@ -76,7 +84,7 @@ public final class AmbushSpots {
             int open = 0, road = 0;
             for (int k = 1; k <= 7; k++) {
                 double px = x + fx * (front + k), pz = z + fz * (front + k);
-                if (level.noCollision(mob, LeapPlanner.coreBox(mob, px, y, pz)) && LeapPlanner.groundBelow(mob, px, y, pz, 1.5D)) {
+                if (level.noBlockCollision(mob, LeapPlanner.coreBox(mob, px, y, pz)) && LeapPlanner.groundBelow(mob, px, y, pz, 1.5D)) {
                     open++;
                     if (level.getBlockState(BlockPos.containing(px, y - 0.5D, pz)).is(ModTags.ROAD_BLOCKS)) road++;
                 }

@@ -101,7 +101,7 @@ public final class LeapPlanner {
             if (maxY > 1.0D || st.is(BlockTags.LEAVES)) continue;
             double y = by + maxY;
             if (y > top + 1e-6 || y < bottom - 1e-6) continue;
-            if (!level.noCollision(mob, coreBox(mob, x, y, z))) continue;
+            if (!level.noBlockCollision(mob, coreBox(mob, x, y, z))) continue;
             if (Double.isNaN(best) || Math.abs(y - prefer) < Math.abs(best - prefer)) best = y;
         }
         return best;
@@ -130,7 +130,7 @@ public final class LeapPlanner {
         double[] along = bodyPoints(spec, sc);
         for (int i = 0; i < along.length; i++) {
             double x = feet.x + fx * along[i], z = feet.z + fz * along[i];
-            if (!level.noCollision(mob, bodyBox(mob, spec, x, feet.y, z))) return false;
+            if (!level.noBlockCollision(mob, bodyBox(mob, spec, x, feet.y, z))) return false;
             if (i == 0 || i == along.length - 1) {
                 if (!groundBelow(mob, x, feet.y, z, 2.5D)) return false;
             }
@@ -149,6 +149,7 @@ public final class LeapPlanner {
         float r = plan.yaw() * Mth.DEG_TO_RAD;
         double fx = -Mth.sin(r), fz = Mth.cos(r);
         double[] along = bodyPoints(spec, sc);
+        if (arcBoundsClear(mob, spec, plan, along)) return true;   // 弧全体を包む箱が空いていれば、点ごとに見ない(開けた所のほとんど)
         for (int i = 1; i < plan.ticks(); i++) {
             double s = i / (double) plan.ticks();
             Vec3 c = plan.pos(s);
@@ -158,7 +159,7 @@ public final class LeapPlanner {
                 double x = c.x + fx * along[j], z = c.z + fz * along[j];
                 double y = plan.heightAt(sj);
                 AABB box = Math.abs(along[j]) < 1.0E-6D ? coreBox(mob, x, y, z) : bodyBox(mob, spec, x, y, z);
-                if (!level.noCollision(mob, box)) return false;
+                if (!level.noBlockCollision(mob, box)) return false;
             }
         }
         return true;
@@ -169,6 +170,26 @@ public final class LeapPlanner {
      * 箱の幅(半幅 × 2)より間隔が狭いので、柵のような薄い物も間をすり抜けない(11-15: 4 点だと柵が腹の下に残った)。
      */
     static double[] bodyPoints(LeapSpec spec, double sc) {
+        return bodyPointsOf(spec, sc);
+    }
+
+    /**
+     * 弧のどの点検の箱も入る大きな箱(出る所・着く所と頂点を、体の長さ・幅・高さぶん広げた箱)がブロックに当たらないか(2026-11-16 見直し 第 3 便)。
+     * 当たらなければ点ごとの点検(1 回の跳びで数百の箱)を省いてよい。当たれば点ごとに見る。
+     */
+    static boolean arcBoundsClear(Mob mob, LeapSpec spec, LeapPlan plan, double[] along) {
+        double sc = mob.getScale();
+        double reach = Math.max(Math.abs(along[0]), Math.abs(along[along.length - 1])) + Math.max(mob.getBbWidth() / 2.0D, spec.bodyHalfWidth() * sc);
+        Vec3 a = plan.pos(0.0D), b = plan.pos(1.0D);
+        double top = Math.max(a.y, b.y);
+        for (int i = 1; i < plan.ticks(); i++) top = Math.max(top, plan.heightAt(i / (double) plan.ticks()));
+        double h = Math.max(mob.getBbHeight(), BOX_LIFT + 0.2D + BODY_BOX_H * sc);
+        AABB box = new AABB(Math.min(a.x, b.x) - reach, Math.min(a.y, b.y) + BOX_LIFT, Math.min(a.z, b.z) - reach,
+                Math.max(a.x, b.x) + reach, top + h, Math.max(a.z, b.z) + reach);
+        return mob.level().noBlockCollision(mob, box);
+    }
+
+    private static double[] bodyPointsOf(LeapSpec spec, double sc) {
         double front = spec.bodyFront() * sc, back = spec.bodyBack() * sc;
         int nf = (int) Math.ceil(front / BODY_STEP), nb = (int) Math.ceil(back / BODY_STEP);
         double[] p = new double[nf + nb + 1];

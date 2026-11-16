@@ -124,6 +124,8 @@ public class VesicariaEntity extends SmallCrawler implements GeoEntity, Parasiti
     public static final int REMOVE_TICKS = 30;
     /** 1 tick・1 次元あたり、全部の粒で弾ける数。それより多い分は粒を減らし、音を鳴らさない(大きな連鎖の重さ)。 */
     static final int FULL_PER_TICK = 8, SOUNDS_PER_TICK = 6;
+    /** 連鎖で弾ける数の上限(面ごと 1 tick)【仮】。 */
+    static final int CHAIN_PER_TICK = 6;
     static final double REDUCED_DETAIL = 0.12D;
 
     private static final EntityDataAccessor<Boolean> DATA_CHARGING = SynchedEntityData.defineId(VesicariaEntity.class, EntityDataSerializers.BOOLEAN);
@@ -319,11 +321,12 @@ public class VesicariaEntity extends SmallCrawler implements GeoEntity, Parasiti
 
     private static long[] budget(ServerLevel level) {
         long now = level.getGameTime();
-        long[] b = BUDGET.computeIfAbsent(level.dimension(), k -> new long[3]);
+        long[] b = BUDGET.computeIfAbsent(level.dimension(), k -> new long[4]);
         if (b[2] != now) {
             b[0] = 0;
             b[1] = 0;
             b[2] = now;
+            b[3] = 0;   // 連鎖で弾けた数
         }
         return b;
     }
@@ -353,7 +356,17 @@ public class VesicariaEntity extends SmallCrawler implements GeoEntity, Parasiti
             tickClientSac();
             return;
         }
-        if (this.chainTimer > 0 && --this.chainTimer == 0) burstNow();
+        if (this.chainTimer > 0 && --this.chainTimer == 0) {
+            // 連鎖で弾けるのは面ごとに 1 tick CHAIN_PER_TICK 体まで(残りは次の tick へ。1 回の破裂ごとに箱の検索と雲・汚染があるので、
+            // 密な群れの連鎖が 1 tick に集まらないように。11-16 見直し 第 3 便)
+            long[] b = budget((ServerLevel) this.level());
+            if (b[3] >= CHAIN_PER_TICK) {
+                this.chainTimer = 1;
+            } else {
+                b[3]++;
+                burstNow();
+            }
+        }
         if (DEV_HOOKS && this.hasCustomName()) devHooks(this.getCustomName().getString());
     }
 

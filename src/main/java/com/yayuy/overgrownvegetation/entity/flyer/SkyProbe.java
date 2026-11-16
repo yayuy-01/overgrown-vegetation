@@ -49,6 +49,8 @@ public final class SkyProbe {
         for (double d = 1.0D; d <= len; d += 1.0D) {
             int bx = (int) Math.floor(x + fx * d), by = (int) Math.floor(y), bz = (int) Math.floor(z + fz * d);
             if (!level.hasChunk(bx >> 4, bz >> 4)) return Double.POSITIVE_INFINITY;
+            // 高さ地図(葉と固いもの)より上は何も無い: ブロックを読まない(空を飛ぶ群れのほとんどの点。11-16 見直し 第 3 便)
+            if (by >= level.getHeight(Heightmap.Types.MOTION_BLOCKING, bx, bz)) continue;
             p.set(bx, by, bz);
             BlockState s = level.getBlockState(p);
             if (!s.isAir() && !s.getCollisionShape(level, p).isEmpty()) return d;
