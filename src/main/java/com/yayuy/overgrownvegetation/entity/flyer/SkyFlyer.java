@@ -628,12 +628,16 @@ public abstract class SkyFlyer extends Monster {
                     this.cmdY = Math.max(cruiseY, ty + 8.0D);
                 } else {
                     this.cmdSpeed = Mth.lerp(d / 20.0D, p.minSpeed, p.cruise * 0.8D);
-                    this.cmdY = ty + (perchUnder() ? 0.0D : 1.5D) + d * 0.4D;
+                    // 下面: 口の列の上(1.5 ブロックの中)ではぶら下がる高さまで下りきる
+                    this.cmdY = perchUnder() ? ty + Math.max(0.0D, d - 1.5D) * 0.4D : ty + 1.5D + d * 0.4D;
                 }
                 mustReach = true;
                 // 下面の止まり木へ寄る終わり(口の列の中 = 空まで開いている)は、葉・幹を避けて昇る手続きを止める(林冠の下を見て押し上げられる)
                 hangFinal = perchUnder() && d < HANG_FINAL;
-                boolean arrived = perchUnder() ? d < 1.5D && Math.abs(this.getY() - ty) < 1.5D : d < 2.5D && this.getY() - ty < perchClearUp();
+                // 下面: 口の列の中で、体がもう葉の層より下にいること(上面に乗った個体を「着いた」と見ない。11-17 stenodictya-anim の見つけた 200 tick 止まり)
+                boolean arrived = perchUnder()
+                        ? d < 1.5D && this.getY() < this.perch.getY() - 0.05D && Math.abs(this.getY() - ty) < 1.0D
+                        : d < 2.5D && this.getY() - ty < perchClearUp();
                 if (arrived || d < 8.0D && this.modeTicks > 400) {
                     setMode(MODE_LANDING);
                     return;

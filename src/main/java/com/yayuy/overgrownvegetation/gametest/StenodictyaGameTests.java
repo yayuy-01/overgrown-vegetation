@@ -121,6 +121,29 @@ public final class StenodictyaGameTests {
     }
 
     /**
+     * 葉の上面に乗った所から止まりに行っても、上面で「着いた」とならず、口の列へ下りてから下面にぶら下がる(11-17 stenodictya-anim が見つけた、
+     * 上面に乗ったまま降りる段に入って 200 tick 動かなかった件)。150 tick の中に下面に止まること。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 170)
+    public static void stenodictyaDoesNotLandOnLeafTop(GameTestHelper helper) {
+        BlockPos leaf = canopy(helper);
+        StenodictyaLobataEntity v = spawn(helper, 3.5D, 7.0D, 3.5D);   // 縁の葉の上面に乗せる
+        v.roostOverride = Boolean.TRUE;
+        v.debugRoostAt(leaf);
+        helper.onEachTick(() -> {
+            if (v.mode() == SkyFlyer.MODE_LANDING && v.getY() > leaf.getY()) {
+                helper.fail(String.format("葉の上面で降りる段に入った: y %.2f(葉 %d)", v.getY(), leaf.getY()));
+                return;
+            }
+            if (v.mode() == SkyFlyer.MODE_PERCHED && leaf.equals(v.perchPos())) helper.succeed();
+        });
+        helper.runAfterDelay(150L, () -> {
+            if (v.mode() == SkyFlyer.MODE_PERCHED) return;
+            helper.fail(String.format("150 tick で下面に止まらない: 動き %d 位置 %.2f %.2f %.2f(葉 %s)", v.mode(), v.getX(), v.getY(), v.getZ(), leaf));
+        });
+    }
+
+    /**
      * 夜(差し込み): 林冠の縁の外の口から寄って、葉の下面に逆さにぶら下がって止まる(足元 = 葉の下面 − 当たりの高さ − 0.02)。
      * 叩くと口へ抜けてから昇る(真上の葉に刺さらない)。
      */
@@ -132,6 +155,7 @@ public final class StenodictyaGameTests {
         v.debugRoostAt(leaf);
         double hangY = leaf.getY() - v.getBbHeight() - 0.02D;
         boolean[] hit = {false};
+        boolean[] wentOut = {false};
         double[] y0 = {Double.NaN};
         int[] hitAt = {-1};
         int[] t = {0};
@@ -158,13 +182,19 @@ public final class StenodictyaGameTests {
                 v.hurt(helper.getLevel().damageSources().generic(), 1.0F);
                 return;
             }
-            if (t[0] - hitAt[0] == 60) {
-                // 口(東)へ抜けてから昇った: 葉の真下より東に出ていて、葉の下面より高い
-                if (v.getX() < leaf.getX() + 1.0D || v.getY() < leaf.getY() + 0.5D) {
-                    helper.fail(String.format("口へ抜けて昇っていない: %.2f %.2f %.2f(葉 %s)・動き %d", v.getX(), v.getY(), v.getZ(), leaf, v.mode()));
+            // 口(東)へ抜けてから昇る: まず葉の層より下のまま葉の列の東へ出て、その後で葉の上面より高く昇る
+            // (逃げる向きは決まらないので、決まった tick の位置ではなく通った道で見る)
+            if (v.getY() < leaf.getY() && v.getX() >= leaf.getX() + 1.0D) wentOut[0] = true;
+            if (v.getY() > leaf.getY() + 1.5D) {
+                if (!wentOut[0]) {
+                    helper.fail(String.format("口へ抜ける前に昇った(葉の中を通った): %.2f %.2f %.2f(葉 %s)", v.getX(), v.getY(), v.getZ(), leaf));
                     return;
                 }
                 helper.succeed();
+                return;
+            }
+            if (t[0] - hitAt[0] == 80) {
+                helper.fail(String.format("80 tick で昇らない: %.2f %.2f %.2f(葉 %s)・動き %d・口へ出た %s", v.getX(), v.getY(), v.getZ(), leaf, v.mode(), wentOut[0]));
             }
         });
         helper.runAfterDelay(400L, () -> {
