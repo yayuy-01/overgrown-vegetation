@@ -16,6 +16,7 @@ import com.yayuy.overgrownvegetation.client.shader.ShaderPacks;
 import com.yayuy.overgrownvegetation.data.AtmosphereEye;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.network.PhaseCuePayload;
+import com.yayuy.overgrownvegetation.network.PhyllosensGazePayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.ShaderInstance;
@@ -42,8 +43,9 @@ import org.lwjgl.opengl.GL11;
  *     空・雲・遠くの霧のどれにも同じに掛かるよう、描き終えた画面の奥行きで決める。地下では出さない。</li>
  *     <li><b>ざわめき</b>(3 秒から約 6.5 秒): 汚染の森の方角から({@link PhaseCueSound#rustle})。森が無い世界・別のディメンションでは鳴らない。</li>
  * </ol>
- * フェーズごとの印のうち、ここで作るのは <b>F6「拠点の灯りが一瞬揺らいで暗くなる」</b>だけ(5〜6.6 秒。ライトマップのブロックの光を空の光だけの色へ寄せる。
- * {@code LightTexturePhaseCueMixin})。ほかの印(F2 芽吹き・F3 オーロラ・F4 弱い嵐・F5 目の印・F7 胞子の柱)は、元になる仕組みがまだ無いので未着手
+ * フェーズごとの印のうち、ここで作るのは <b>F5「見られている目が一瞬開く」</b>(5 秒から約 1.8 秒 + 閉じる余韻。{@link #gazeMark})と
+ * <b>F6「拠点の灯りが一瞬揺らいで暗くなる」</b>(5〜6.6 秒。ライトマップのブロックの光を空の光だけの色へ寄せる。
+ * {@code LightTexturePhaseCueMixin})。ほかの印(F2 芽吹き・F4 弱い嵐はサーバー側 phase/PhaseOmens、F3 オーロラ・F7 胞子の柱は元になる仕組みがまだ無いので未着手
  * ({@link #markFor} に置き場だけある)。
  *
  * <p>数は design の節 {@code phaseCue}(仮決め)。確かめは {@code /ov fx phasecue <フェーズ>}(フェーズは変えずに合図だけ流す)。
@@ -114,8 +116,45 @@ public final class PhaseCue {
                         player.getX() + dirX * 24.0, player.getEyeY() + 6.0, player.getZ() + dirZ * 24.0);
             }
         }
+        if (phase == 5) {
+            gazeMark(ticks - Math.round(DIP_START * 20.0F));
+        }
         if (t >= TOTAL) {
             active = false;
+        }
+    }
+
+    /** F5 の印の「塔」の番号(本物の監視塔のエンティティ id と重ならない負の数)と、目を出している長さ(tick)。 */
+    private static final int GAZE_TOWER = -5005;
+    private static final int GAZE_TICKS = 36;
+
+    /**
+     * F5 の印: 監視塔フィロセンスに「見られている」ときの画面の縁の目({@code client/PhyllosensGazeEdge}・{@code PhyllosensGazeEyes}。ユーザーの絵)を、
+     * 一瞬だけ出す(11-16 ユーザー: 見られているときのエフェクトはもうあるので、フェーズが上がるときに出す)。画面の見た目だけで、
+     * 「見られている」効果(1 分の印)は付けない。本物の塔の知らせと同じ口へ、偽の塔 1 本ぶんの知らせを流す:
+     * 目が出そろった状態から始め(見え始めから 6 秒たった扱い)、次の tick に印(一斉に瞬いてこちらを向く)、約 1.8 秒見られ続けて、切れる
+     * (切れた後は、元の効果のとおり残った目がゆっくり閉じる)。見た目の設定「見られているとき」の強さ・F1 で隠す決まりは元の効果のまま効く。
+     */
+    private static void gazeMark(int age) {
+        if (age < 0 || age > GAZE_TICKS) {
+            return;
+        }
+        byte event;
+        if (age == 0) {
+            event = PhyllosensGazePayload.START;
+        } else if (age == 1) {
+            event = PhyllosensGazePayload.MARK;
+        } else if (age == GAZE_TICKS) {
+            event = PhyllosensGazePayload.LOST;
+        } else if (age % 5 == 0) {
+            event = PhyllosensGazePayload.SEEN;
+        } else {
+            return;
+        }
+        com.yayuy.overgrownvegetation.client.PhyllosensGazeEdge.receive(new PhyllosensGazePayload(event, GAZE_TOWER, 1.0F, 120 + age, age >= 1 ? age - 1 : -1));
+        if (age == 0) {
+            // 目は見られ続けて 6 秒かけて出そろう作りなので、一瞬の印では出そろった所から始める。
+            com.yayuy.overgrownvegetation.client.PhyllosensGazeEyes.showAllNow();
         }
     }
 
@@ -173,8 +212,10 @@ public final class PhaseCue {
     static String markFor(int phase) {
         return switch (phase) {
             case 1 -> "地割れ(サーバー側。前からある)";
+            case 5 -> "見られている目が一瞬開く";
             case 6 -> "拠点の灯りが揺らいで暗くなる";
-            case 2, 3, 4, 5, 7 -> "未着手";
+            case 2, 4 -> "サーバー側(phase/PhaseOmens)";
+            case 3, 7 -> "未着手";
             default -> "なし";
         };
     }

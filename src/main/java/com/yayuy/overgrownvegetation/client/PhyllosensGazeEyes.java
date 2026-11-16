@@ -216,6 +216,14 @@ public final class PhyllosensGazeEyes {
 
     // ------------------------------------------------------------------ 描く
 
+    /**
+     * 目を「出そろった」状態にする(2026-11-16。フェーズ 5 に上がったときの合図 {@code client/atmosphere/PhaseCue} が、目を一瞬だけ見せるのに使う。
+     * ふつうは見られ続けて 6 秒かけて出そろう)。見られている知らせ({@link PhyllosensGazeEdge#receive})を流した直後に呼ぶ。
+     */
+    public static void showAllNow() {
+        presence = 1.0F;
+    }
+
     static void render(GuiGraphics g, DeltaTracker delta) {
         long t0 = System.nanoTime();
         Minecraft mc = Minecraft.getInstance();
