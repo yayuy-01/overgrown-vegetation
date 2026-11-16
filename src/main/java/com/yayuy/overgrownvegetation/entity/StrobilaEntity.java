@@ -91,16 +91,16 @@ public class StrobilaEntity extends SmallCrawler implements GeoEntity, Parasitiz
     /** 的に気付いてから最初の投げまでの間(tick)【仮】。 */
     static final int FIRST_THROW_DELAY = 20;
     /** 届く距離(ブロック、水平)【仮・Claude 11-15】。 */
-    public static final double THROW_MIN = 3.0D, THROW_MAX = 16.0D;
+    public static final double THROW_MIN = 3.0D, THROW_MAX = 32.0D;   // 11-16 ユーザー「射程が短すぎる」で 16 → 32(2 倍)
     /** これより遠ければ急いで寄り、{@link #HOLD_WITHIN} より近ければ止まる(ブロック)【仮】。 */
-    static final double APPROACH_ABOVE = 14.0D, HOLD_WITHIN = 12.0D;
+    static final double APPROACH_ABOVE = 30.0D, HOLD_WITHIN = 24.0D;   // 射程に合わせて伸ばした(11-16。寄るのは射程の端 30 より遠いときだけ)
     /** 投げられる向き: 体の正面の左右(度)。ユーザー決定 11-15(これより外の近い相手は尾の振り回し = 後の段)。 */
     static final float FRONT_HALF_ANGLE = 60.0F;
     /** 球果が離れる所(足元から、体の向きを基準に。アニメの測り「throw 4 tick」): 上・後ろ(ブロック)。 */
     static final double RELEASE_UP = 2.57D, RELEASE_BACK = 1.78D;
     /** 山なりの飛ぶ時間(tick) = これ + 距離 × {@link #FLIGHT_PER_BLOCK}、{@link #FLIGHT_MIN}〜{@link #FLIGHT_MAX}【仮】。 */
-    static final double FLIGHT_BASE = 20.0D, FLIGHT_PER_BLOCK = 1.3D;
-    static final int FLIGHT_MIN = 16, FLIGHT_MAX = 44;
+    static final double FLIGHT_BASE = 22.0D, FLIGHT_PER_BLOCK = 1.0D;   // 32 ブロックで 54 tick・頂は約 9 ブロック上(11-16)
+    static final int FLIGHT_MIN = 24, FLIGHT_MAX = 56;   // 近くても 24 tick(頂が 1 ブロック以上上がる)
     /** 球果の重さ・空気の抵抗(ThrowableProjectile の値)。 */
     static final double CONE_GRAVITY = 0.03D, CONE_DRAG = 0.99D;
 

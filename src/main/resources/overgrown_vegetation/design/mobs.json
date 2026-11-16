@@ -520,7 +520,7 @@
     "armor": 4,
     "movementSpeed": 0.36,
     "knockbackResistance": 0.2,
-    "followRange": 32,
+    "followRange": 48,
     "stepHeight": 1,
     "scale": 1,
     "scaleMin": 1,

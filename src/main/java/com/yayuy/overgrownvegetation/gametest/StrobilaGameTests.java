@@ -196,12 +196,13 @@ public final class StrobilaGameTests {
     }
 
     /**
-     * 山なりの初速は、投げ物の毎 tick の動き(進む → 0.99 倍 → 重さ 0.03)をなぞると的の点を通る(近い・遠い・上・下の 4 通り。誤差 0.1 ブロック以内)。
+     * 山なりの初速は、投げ物の毎 tick の動き(進む → 0.99 倍 → 重さ 0.03)をなぞると的の点を通る(近い・遠い・上・下・射程いっぱいの 7 通り。誤差 0.1 ブロック以内)。
      */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
     public static void strobilaLobVelocityReachesTarget(GameTestHelper helper) {
         Vec3 from = new Vec3(0.0D, 2.57D, 0.0D);
-        Vec3[] targets = {new Vec3(4.0D, 0.3D, 1.0D), new Vec3(-3.0D, 0.0D, 15.0D), new Vec3(8.0D, 3.0D, 0.0D), new Vec3(0.0D, -4.0D, -10.0D)};
+        Vec3[] targets = {new Vec3(4.0D, 0.3D, 1.0D), new Vec3(-3.0D, 0.0D, 15.0D), new Vec3(8.0D, 3.0D, 0.0D), new Vec3(0.0D, -4.0D, -10.0D),
+                new Vec3(2.0D, 0.0D, 30.0D), new Vec3(-22.0D, 2.0D, -21.0D), new Vec3(0.0D, 0.0D, StrobilaEntity.THROW_MAX)};   // 遠く(射程 32、11-16)
         for (Vec3 to : targets) {
             Vec3 v = StrobilaEntity.lobVelocity(from, to);
             Vec3 p = from;
