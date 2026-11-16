@@ -934,6 +934,11 @@ public final class SporeFieldServer {
         }
     }
 
+    /** 計測用(2026-11-16 コードの見直し ③11): 保存の写しの時間(ns。{@code SporeFieldStore#benchSnapshotForTests})。 */
+    public static long[] benchSnapshotForTests(SporeField f) {
+        return SporeFieldStore.benchSnapshotForTests(f);
+    }
+
     /** テスト用: 場の区画 (tx, tz) を保存の形にする(区画が無ければ null)。 */
     public static net.minecraft.nbt.CompoundTag tileTagForTests(SporeField f, int tx, int tz) {
         SporeField.Tile t = f.tiles.get(SporeField.key(tx, tz));

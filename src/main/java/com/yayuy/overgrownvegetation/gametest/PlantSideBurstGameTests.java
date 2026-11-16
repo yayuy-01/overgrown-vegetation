@@ -565,15 +565,61 @@ public final class PlantSideBurstGameTests {
         helper.succeed();
     }
 
-    /** ③10: 汎用の感染体が植物側に殴られたら、その相手の狙いをその場で外す(見張りを待たない)。 */
+    /**
+     * ③10: 汎用の感染体が植物側に殴られたら(撃ちは止める所 = GenericInfection.onIncomingDamage で止まる)、その場で相手の狙いを外す。
+     * 変わった後に握ったままの狙い(見張りの間に残った物)は setTarget では作れない(guardTarget が止める)ので、テストの中だけ直に置く。
+     */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void hitTurnedMobDropsAttackerTarget(GameTestHelper helper) {
         Mob horse = helper.spawnWithNoFreeWill(EntityType.HORSE, new Vec3(3.5, 2.0, 3.5));
         Mob g1 = helper.spawnWithNoFreeWill(G1Species.ZOMBIE.entityType(), new Vec3(1.5, 2.0, 1.5));
-        markTurned(horse);
-        g1.setTarget(horse);
-        com.yayuy.overgrownvegetation.effect.ParasitizedAttackInfectionHandler.onLivingDamageForTests(horse, g1, 2.0F);
+        helper.assertTrue(com.yayuy.overgrownvegetation.infect.GenericInfection.turn(horse, true), "前提: 馬が汎用の感染体に変わらない");
+        try {
+            java.lang.reflect.Field target = Mob.class.getDeclaredField("target");
+            target.setAccessible(true);
+            target.set(g1, horse);
+        } catch (ReflectiveOperationException e) {
+            helper.fail("狙いを直に置けない: " + e);
+            return;
+        }
+        helper.assertTrue(g1.getTarget() == horse, "前提: 狙いを置けない");
+        float hp = horse.getHealth();
+        horse.hurt(helper.getLevel().damageSources().mobAttack(g1), 2.0F); // 本物の撃ち
+        helper.assertTrue(horse.getHealth() == hp, "植物側の撃ちが汎用の感染体に入った(止める所を通っていない)");
         helper.assertTrue(g1.getTarget() != horse, "汎用の感染体を殴った G1 の狙いが外れていない");
+        helper.succeed();
+    }
+
+    /**
+     * ③11 の計測: 区画 {@code n} 個(1 区画 = 1024 チャンク)の場のメモリ(ヒープの増え・粗い)と、保存の写し(鍵を持ったまま)の時間。
+     * 1 回目 = 全部作る、2 回目 = 変わっていない(指紋だけ)。1 回 step した後の 3 回目 = 動いた後(ふだんの自動保存)。ログに PERF3F の行。
+     */
+    @GameTest(template = TEMPLATE, batch = "plant_side_perf3", timeoutTicks = 200)
+    public static void measureSporeFieldSave(GameTestHelper helper) {
+        int n = 2000;
+        Runtime rt = Runtime.getRuntime();
+        System.gc();
+        long heap0 = rt.totalMemory() - rt.freeMemory();
+        com.yayuy.overgrownvegetation.spore.field.SporeField f =
+                new com.yayuy.overgrownvegetation.spore.field.SporeField(42L, com.yayuy.overgrownvegetation.data.SporeFieldTable.gameDefaults());
+        int side = (int) Math.ceil(Math.sqrt(n));
+        for (int i = 0; i < n; i++) {
+            int tx = i % side, tz = i / side;
+            f.setCorrupted(tx << com.yayuy.overgrownvegetation.spore.field.SporeField.TB, tz << com.yayuy.overgrownvegetation.spore.field.SporeField.TB, 1L);
+            f.emitPoint((tx << com.yayuy.overgrownvegetation.spore.field.SporeField.TB) + 3, (tz << com.yayuy.overgrownvegetation.spore.field.SporeField.TB) + 3, 1.0D);
+        }
+        System.gc();
+        long heap1 = rt.totalMemory() - rt.freeMemory();
+        long[] snap = com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.benchSnapshotForTests(f);
+        long t0 = System.nanoTime();
+        f.step(new com.yayuy.overgrownvegetation.spore.field.SporeField.Conditions(100L, false, false, false),
+                new com.yayuy.overgrownvegetation.spore.field.PrevailingWind.Sample());
+        long stepNs = System.nanoTime() - t0;
+        long[] snap2 = com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.benchSnapshotForTests(f);
+        com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info(
+                "PERF3F 区画 {} 個(約 {} 万チャンク)/ ヒープの増え 約 {} MB(区画 1 つ 約 {} KB)/ 写し 1 回目(全部) {} ms・2 回目(変わらず・指紋だけ) {} ms / step 1 回 {} ms / step の後の写し(全部書く想定) {} ms・指紋だけ {} ms",
+                f.tileCount(), f.tileCount() * 1024 / 10000, (heap1 - heap0) / (1024 * 1024), (heap1 - heap0) / 1024 / Math.max(1, f.tileCount()),
+                snap[0] / 1_000_000, snap[1] / 1_000_000, stepNs / 1_000_000, snap2[0] / 1_000_000, snap2[1] / 1_000_000);
         helper.succeed();
     }
 

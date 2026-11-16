@@ -504,6 +504,24 @@ final class SporeFieldStore {
         return new Snapshot(tiles, meta, dirName);
     }
 
+    /**
+     * 計測用(2026-11-16 コードの見直し ③11): {@code f} の写しを 2 回取る時間(ns)。1 回目 = 全部のファイルを作る(初めての保存)、
+     * 2 回目 = 何も変わっていない(指紋だけ取って全部書かない)。どちらも保存の鍵を持ったままの時間に当たる。書き出しはしない。
+     */
+    public static long[] benchSnapshotForTests(SporeField f) {
+        String name = "bench_" + System.nanoTime();
+        try {
+            long t0 = System.nanoTime();
+            snapshot(f, 0L, name);
+            long t1 = System.nanoTime();
+            snapshot(f, 0L, name);
+            long t2 = System.nanoTime();
+            return new long[] {t1 - t0, t2 - t1};
+        } finally {
+            SAVED_HASH.remove(name);
+        }
+    }
+
     /** {@code tiles} の 1 件 = ファイル 1 つ({@code {名前, 中身}}。中身が null = 変わっていないので書かない)。 */
     record Snapshot(List<Object[]> tiles, CompoundTag meta, String dirName) {
     }

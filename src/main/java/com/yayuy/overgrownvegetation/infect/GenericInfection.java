@@ -269,7 +269,26 @@ public final class GenericInfection {
         if (!victimTurned && !attackerTurned) return;
         if ((victimTurned && SporeExposureTracker.isPlantSide(attacker)) || (attackerTurned && SporeExposureTracker.isPlantSide(victim))) {
             event.setCanceled(true);
+            // 変わった Mob を殴った植物側の狙いを、その場で外す(2026-11-16 コードの見直し ③10。見張り releaseAttackers は 60 tick おきの保険に下げた)
+            if (victimTurned && attacker instanceof Mob m) releaseOne(m, victim);
         }
+    }
+
+    /** {@code m}(植物側)が {@code turned} を狙っていたら外す(Goal の狙い・Brain の ATTACK_TARGET・殴られた覚え)。外したら true。 */
+    static boolean releaseOne(Mob m, LivingEntity turned) {
+        boolean hit = false;
+        if (m.getTarget() == turned) {
+            m.setTarget(null);
+            hit = true;
+        }
+        var brain = m.getBrain();
+        if (brain.checkMemory(MemoryModuleType.ATTACK_TARGET, MemoryStatus.REGISTERED)
+                && brain.getMemory(MemoryModuleType.ATTACK_TARGET).orElse(null) == turned) {
+            brain.eraseMemory(MemoryModuleType.ATTACK_TARGET);
+            hit = true;
+        }
+        if (m.getLastHurtByMob() == turned) m.setLastHurtByMob(null);
+        return hit;
     }
 
     private static void guardTarget(LivingChangeTargetEvent event) {

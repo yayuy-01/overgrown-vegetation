@@ -63,20 +63,6 @@ public final class ParasitizedAttackInfectionHandler {
             }
             return;
         }
-        // 汎用の感染体が植物側に殴られた: その相手の狙いだけをその場で外す(2026-11-16 コードの見直し ③10。
-        // 前は感染体 1 体ごとに 10 tick おきに半径 48 で植物側を探して外していた。その見張りは 60 tick おきの保険に下げた)
-        if (attacker instanceof net.minecraft.world.entity.Mob m && PlantSideRules.isTransformed(victim)
-                && com.yayuy.overgrownvegetation.spore.SporeExposureTracker.isPlantSide(m)) {
-            if (m.getTarget() == victim) m.setTarget(null);
-            var brain = m.getBrain();
-            if (brain.checkMemory(net.minecraft.world.entity.ai.memory.MemoryModuleType.ATTACK_TARGET,
-                    net.minecraft.world.entity.ai.memory.MemoryStatus.REGISTERED)
-                    && brain.getMemory(net.minecraft.world.entity.ai.memory.MemoryModuleType.ATTACK_TARGET).orElse(null) == victim) {
-                brain.eraseMemory(net.minecraft.world.entity.ai.memory.MemoryModuleType.ATTACK_TARGET);
-            }
-            if (m.getLastHurtByMob() == victim) m.setLastHurtByMob(null); // releaseAttackers と同じ(殴られた覚えから狙い直さない)
-            return;
-        }
         // プレイヤー以外の Mob: G1・G4〜G10・汎用の感染体に傷を付けられたら必ず感染(11-15 ユーザー決定。除く相手は無い。G2・G3 は感染させない)
         // + 1 撃ごとにダメージに比例した暴露量の上乗せ(11-15 ユーザー決定。約 2 分より早く死ぬ)
         if (newDamage > 0.0F && PlantSideRules.isInfector(attacker)) {
