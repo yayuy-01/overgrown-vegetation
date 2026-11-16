@@ -479,6 +479,31 @@ public final class PlantSideBurstGameTests {
         helper.succeed();
     }
 
+    /** ③3 の続き: 死体の置き場がどこにも無ければ、崩れ落ちを始めずにふつうに死ぬ(元のドロップが出る・萌芽体は生えない)。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 60)
+    public static void noCorpseSpotMeansOrdinaryDeath(GameTestHelper helper) {
+        BlockPos c = new BlockPos(3, 2, 3);
+        for (BlockPos p : BlockPos.betweenClosed(c.offset(-2, -1, -2), c.offset(2, 1, 2))) {
+            BlockPos rel = p.immutable();
+            if (rel.equals(c) || rel.equals(c.above())) continue;
+            helper.setBlock(rel, net.minecraft.world.level.block.Blocks.STONE);
+        }
+        helper.setBlock(c, net.minecraft.world.level.block.Blocks.CHEST); // 足元はチェスト(置けない)・頭の上は下がチェストなので置けない
+        Mob cow = sporeKillCow(helper, Vec3.atBottomCenterOf(c).add(0.0D, 0.875D, 0.0D));
+        helper.assertTrue(!com.yayuy.overgrownvegetation.corpse.CorpseCollapse.isCollapsing(cow), "置き場が無いのに崩れ落ちを始めた");
+        BlockPos abs = helper.absolutePos(c);
+        helper.runAtTickTime(helper.getTick() + 30, () -> {
+            helper.assertTrue(cow.isRemoved(), "ふつうの死(20 tick)で消えていない");
+            helper.assertBlockPresent(net.minecraft.world.level.block.Blocks.CHEST, c);
+            boolean drops = !helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(abs).inflate(3.0)).isEmpty();
+            helper.assertTrue(drops, "ふつうの死なのに元のドロップが出ていない");
+            boolean fern = !helper.getLevel().getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.BlightFernEntity.class, new AABB(abs).inflate(4.0)).isEmpty();
+            helper.assertTrue(!fern, "萌芽体が生えた");
+            helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(abs).inflate(5.0)).forEach(e -> e.discard());
+            helper.succeed();
+        });
+    }
+
     // ------------------------------------------------------------------ コードの見直し 第 2 便 ③(11-16)
 
     /** ③4: プレイヤーの 30% の抽選は植物側(isInfector)の傷だけ。傷 0・植物側でない相手では、何度殴られてもかからない。 */

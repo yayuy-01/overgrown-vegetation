@@ -39,6 +39,12 @@ public final class CorpseCollapse {
 
     /** 崩れ落ちを始める(2026-11-08: 種は {@link G1Species})。羊の毛の色は死体へ引き継ぐ。 */
     public static void begin(LivingEntity entity, G1Species species) {
+        // 死体の置き場が無ければ崩れ落ちを始めず、ふつうに死なせる(元のドロップも出る。2026-11-16 コードの見直し ③3 の続き。
+        // 前は置く瞬間に萌芽体を生やしていたが、11-15 の「萌芽体が湧く道をなくす」方針と合わないので、全体管理の了承した「死体を作らない」にそろえた)
+        if (entity.level() instanceof ServerLevel level && level.isLoaded(entity.blockPosition())
+                && findCorpseSpot(level, entity.blockPosition()) == null) {
+            return;
+        }
         CompoundTag t = new CompoundTag();
         t.putString("Block", BuiltInRegistries.BLOCK.getKey(species.corpseBlock()).toString());
         t.putFloat("Yaw", entity.yBodyRot);
@@ -88,7 +94,7 @@ public final class CorpseCollapse {
 
     /**
      * 死体ブロックを置いてよいマスを探す(2026-11-16 コードの見直し ③3)。まず足元、駄目なら近い順に水平 {@link #SPOT_RADIUS}・上下 1 の範囲で、
-     * 下の面がしっかりした空きを探す。見つからなければ null(死体を作らず、萌芽体を生やす = {@link #place})。
+     * 下の面がしっかりした空きを探す。見つからなければ null(崩れ落ちを始めず、ふつうに死なせる = {@link #begin})。
      * <ul>
      *   <li>置いてよい = 置き換えられるブロック(空気・草・雪の層・水など {@code canBeReplaced})で、ブロックエンティティを持たない
      *   (チェスト・先の死体を消さない)。ドア・ベッド・ハーフは置き換えられないので外れる。</li>
@@ -152,10 +158,8 @@ public final class CorpseCollapse {
                 }
                 // 2026-11-08: 前はここで粒(コンポスター)と苔の音を出して絵の入れ替わりを隠していた。今の死体は崩れ落ちと同じ
                 // 無傷の絵で始まり、突き破り(corpse_burst)で傷のある絵に替わるので、隠す物が無くなり外した。
-            } else if (level.isLoaded(origin)) {
-                // 置き場が無い(11-16): 死体を作らず、表に無い種・子どもと同じく萌芽体を生やす(密集なら生えない)。元のドロップは止めたまま
-                com.yayuy.overgrownvegetation.entity.BlightFernPlacement.spawnFromDeath(level, origin);
             }
+            // 崩れ落ちの 19 tick の間に置き場がふさがった(まれ)ときは死体を作らない(崩れ落ちの初めに置き場があることは確かめてある = begin)
         }
     }
 }
