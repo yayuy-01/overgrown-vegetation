@@ -46,22 +46,28 @@ public final class ParasitizedAttackInfectionHandler {
         if (!(event.getSource().getEntity() instanceof LivingEntity attacker) || attacker == victim) {
             return;
         }
+        handle(level, victim, attacker, event.getNewDamage());
+    }
+
+    /** テスト用: 傷 {@code newDamage} を付けられたことにして、入口の中身を通す。 */
+    public static void onLivingDamageForTests(LivingEntity victim, LivingEntity attacker, float newDamage) {
+        if (victim.level() instanceof ServerLevel level) handle(level, victim, attacker, newDamage);
+    }
+
+    private static void handle(ServerLevel level, LivingEntity victim, LivingEntity attacker, float newDamage) {
         if (victim instanceof Player player) {
-            // プレイヤーは今のまま(10-14: 未感染は 30%・感染中は 5%)。汎用の感染体もここに入れる(11-15)
-            if (isOvergrownMob(attacker) || PlantSideRules.isTransformed(attacker)) {
-                SporeInfectionEffects.plantAttack(player);
-            }
-            // 傷の暴露(11-15 ユーザー決定): G1・G4〜G10・汎用の感染体に付けられた傷はダメージに比例して暴露量を上げる。マスクでは防げない
-            if (event.getNewDamage() > 0.0F && PlantSideRules.isInfector(attacker)) {
-                addWoundDose(player, event.getNewDamage());
+            // 植物側(G1・G4〜G10・汎用の感染体)に傷を付けられたときだけ(2026-11-16 コードの見直し ③4: 前は G2・G3 も入り、傷 0 でも抽選していた)
+            if (newDamage > 0.0F && PlantSideRules.isInfector(attacker)) {
+                SporeInfectionEffects.plantAttack(player); // 未感染は 30%(10-14)
+                addWoundDose(player, newDamage); // 傷の暴露(11-15 ユーザー決定。マスクでは防げない)
             }
             return;
         }
         // プレイヤー以外の Mob: G1・G4〜G10・汎用の感染体に傷を付けられたら必ず感染(11-15 ユーザー決定。除く相手は無い。G2・G3 は感染させない)
         // + 1 撃ごとにダメージに比例した暴露量の上乗せ(11-15 ユーザー決定。約 2 分より早く死ぬ)
-        if (event.getNewDamage() > 0.0F && PlantSideRules.isInfector(attacker)) {
+        if (newDamage > 0.0F && PlantSideRules.isInfector(attacker)) {
             MobInfection.infect(victim, level.getGameTime());
-            addWoundDose(victim, event.getNewDamage());
+            addWoundDose(victim, newDamage);
         }
     }
 

@@ -73,8 +73,45 @@ public final class PlantSideRules {
         if (!transformed && !inBurstGroups(e.getType())) return false;
         if (e.getType().is(DEATH_BURST_EXEMPT)) return false;
         if (e instanceof com.yayuy.overgrownvegetation.entity.DevelopedParasitized) return false;
+        if (ownsLongDeath(e)) return false; // 自前の死に際を持つほかの MOD の Mob は、消える瞬間に破裂させる({@link #burstsAtRemoval})
         return !(e instanceof EnderDragon);
     }
+
+    /**
+     * 死に際を最後まで流し、消える瞬間に破裂する側か(2026-11-16 コードの見直し ③14: 15〜18 tick で消すと、ほかの MOD の Mob の長い死に際が切れた)。
+     * = 破裂の対象で、自前の死に際({@link #ownsLongDeath})を持つ。膨らみの描画は掛けない。エンダードラゴンは別の道(PlantSideBurst#onEntityTickPre)。
+     */
+    public static boolean burstsAtRemoval(LivingEntity e, boolean transformed) {
+        if (!transformed && !inBurstGroups(e.getType())) return false;
+        if (e.getType().is(DEATH_BURST_EXEMPT) || e instanceof EnderDragon) return false;
+        return ownsLongDeath(e);
+    }
+
+    /**
+     * 自前の死に際を持つほかの MOD の Mob か: この MOD の外の種で、クラスが {@code tickDeath} を上書きしている(バニラの 20 tick で消すのと違う)。
+     * この MOD の種は自分で長さを持つ({@link #deathAnimTicks})。クラスごとに 1 回だけ調べて覚える。
+     */
+    public static boolean ownsLongDeath(LivingEntity e) {
+        if (OvergrownVegetation.MODID.equals(BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).getNamespace())) return false;
+        return OVERRIDES_TICK_DEATH.get(e.getClass());
+    }
+
+    private static final ClassValue<Boolean> OVERRIDES_TICK_DEATH = new ClassValue<>() {
+        @Override
+        protected Boolean computeValue(Class<?> type) {
+            for (Class<?> c = type; c != null && c != LivingEntity.class; c = c.getSuperclass()) {
+                try {
+                    c.getDeclaredMethod("tickDeath");
+                    return true;
+                } catch (NoSuchMethodException ignored) {
+                    // 上へ
+                } catch (SecurityException | LinkageError ex) {
+                    return false;
+                }
+            }
+            return false;
+        }
+    };
 
     /**
      * 破裂する tick(deathTime)。15〜18 を個体ごとにずらす(大の襲撃で一斉に死んでも同じ tick に重ならない)。

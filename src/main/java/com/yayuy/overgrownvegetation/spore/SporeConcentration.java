@@ -83,6 +83,14 @@ public final class SporeConcentration {
     private static final Reading NONE = new Reading(0.0D, 0.0D);
 
     public static Reading reading(ServerLevel level, BlockPos pos) {
+        return reading(level, pos, false);
+    }
+
+    /**
+     * {@code priority} = 部屋をたどる 1 tick の上限で断らない(プレイヤーの判定。2026-11-16 コードの見直し ③12: 上限を Mob と分け合っていたので、
+     * 覚えの無い所では閉じた部屋の中のプレイヤーが一度だけ外の濃度を読んでいた)。
+     */
+    public static Reading reading(ServerLevel level, BlockPos pos, boolean priority) {
         if (!useField(level)) return NONE;
         // 地面より下で空の光 0 の所は地下の層の値を読む(2026-11-04 暴露量ノート 追記 6。前の深い洞窟 ×0.5 をやめた)
         boolean deep = level.dimension() == Level.OVERWORLD && undergroundAt(level, pos);
@@ -102,7 +110,7 @@ public final class SporeConcentration {
         // 段 3c で部屋に汚れが積もるようになったら、汚れのある部屋はここでも見ること
         // 部屋に汚れが積もっている所(段 3c)は、外の値が 0 でも調べる
         com.yayuy.overgrownvegetation.survival.room.RoomScan scan = v + rift > 0.0D || com.yayuy.overgrownvegetation.survival.room.RoomAir.dirtNear(level, pos)
-                ? com.yayuy.overgrownvegetation.survival.room.RoomCache.scanAt(level, pos) : null;
+                ? com.yayuy.overgrownvegetation.survival.room.RoomCache.scanAt(level, pos, priority) : null;
         com.yayuy.overgrownvegetation.survival.room.RoomScan room = scan != null && scan.isRoom() ? scan : null;
         // すき間のある建物の中(人の手の壁がある・外へ抜ける)は外と同じ ×1(窪地の ×1.3・屋根の下の ×0.6 を掛けない。11-13 決定 21)
         double factor = room != null

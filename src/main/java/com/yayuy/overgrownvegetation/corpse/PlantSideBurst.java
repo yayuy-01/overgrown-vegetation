@@ -103,6 +103,13 @@ public final class PlantSideBurst {
 
     /** 今すぐ破裂させて消す(テストからも)。 */
     public static void burstNow(ServerLevel level, LivingEntity living) {
+        burstEffects(level, living);
+        living.ejectPassengers();
+        living.remove(Entity.RemovalReason.KILLED);
+    }
+
+    /** 破裂の中身(粒・音・汚染・浮遊。1 tick の上限つき)。消すのは呼ぶ側。 */
+    static void burstEffects(ServerLevel level, LivingEntity living) {
         int[] used = budget(level);
         boolean full = used[0] < FULL_PER_TICK;
         boolean sound = used[1] < SOUNDS_PER_TICK;
@@ -111,8 +118,23 @@ public final class PlantSideBurst {
         record(living, G1DeathBurst.burst(level, living.position(), living.getBbWidth(), living.getBbHeight(), full ? 1.0D : REDUCED_DETAIL, sound));
         burstCount++;
         if (!full) reducedCount++;
-        living.ejectPassengers();
-        living.remove(Entity.RemovalReason.KILLED);
+    }
+
+    /**
+     * 自前の長い死に際を持つほかの MOD の Mob(2026-11-16 コードの見直し ③14、{@link PlantSideRules#burstsAtRemoval}): 死に際を最後まで流させ、
+     * 死んだまま消える瞬間(消える理由が KILLED)に破裂させる。読み込みの外へ出ただけ・コマンドで消した(DISCARDED)のは破裂しない。
+     */
+    @SubscribeEvent
+    public static void onLeave(net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent event) {
+        if (!(event.getEntity() instanceof LivingEntity living) || !(event.getLevel() instanceof ServerLevel level)) return;
+        if (living.getRemovalReason() != Entity.RemovalReason.KILLED || !living.isDeadOrDying()) return;
+        if (!PlantSideRules.burstsAtRemoval(living, PlantSideRules.isTransformed(living))) return;
+        burstAtRemoval(level, living);
+    }
+
+    /** 消える瞬間の破裂(テストからも)。 */
+    public static void burstAtRemoval(ServerLevel level, LivingEntity living) {
+        burstEffects(level, living);
     }
 
     private static int[] budget(ServerLevel level) {

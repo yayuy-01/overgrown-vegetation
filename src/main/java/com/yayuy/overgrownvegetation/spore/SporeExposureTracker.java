@@ -70,7 +70,8 @@ public final class SporeExposureTracker {
         int interval = player ? t.exposurePlayerIntervalTicks() : MobInfection.intervalFor(entity, t.exposureMobIntervalTicks());
         if (interval > 1 && Math.floorMod(entity.tickCount + entity.getId(), interval) != 0) return;
         if (!entity.isAlive()) return;
-        if (player && entity.isSpectator()) {
+        // 観戦・創造のプレイヤーは暴露量をためず、段も進まない(2026-11-16 コードの見直し ③9: 前は観戦だけ外し、創造ではたまっていた。傷・技の側とそろえる)
+        if (player && (entity.isSpectator() || ((Player) entity).isCreative())) {
             if (entity.hasData(ModAttachments.SPORE_EXPOSURE)) entity.getData(ModAttachments.SPORE_EXPOSURE).reset();
             sendWarning((Player) entity);
             return;
@@ -97,7 +98,7 @@ public final class SporeExposureTracker {
 
     /** 1 体ぶんの判定({@code interval} tick ぶん)。偽プレイヤーは tick しないので GameTest からも呼ぶ。 */
     public static void tick(ServerLevel level, LivingEntity entity, int interval) {
-        SporeConcentration.Reading r = SporeConcentration.reading(level, entity.blockPosition());
+        SporeConcentration.Reading r = SporeConcentration.reading(level, entity.blockPosition(), entity instanceof Player); // プレイヤーは部屋の判定を上限で断らない(③12)
         tickWith(level, entity, interval, r.percent(), r.roomSeepPerSecond());
     }
 
@@ -134,6 +135,11 @@ public final class SporeExposureTracker {
     }
 
     private static void tickPlayer(ServerLevel level, Player player, int interval, double percent, double roomSeepPerSecond, long now) {
+        if (player.isCreative() || player.isSpectator()) {
+            // 創造・観戦は外す(11-16 ③9。tick の入口と同じ。GameTest のように直に呼ばれたときも)
+            if (player.hasData(ModAttachments.SPORE_EXPOSURE)) player.getData(ModAttachments.SPORE_EXPOSURE).reset();
+            return;
+        }
         SporeFieldTable t = DesignData.sporeField();
         SporeExposure ex = player.getData(ModAttachments.SPORE_EXPOSURE);
         boolean protecting = wearMask(player, percent, interval);

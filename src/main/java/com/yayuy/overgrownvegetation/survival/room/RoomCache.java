@@ -76,6 +76,14 @@ public final class RoomCache {
 
     /** {@code pos} の結果(覚えから。無ければたどる)。判定を切ってある・上限で断った → null。 */
     public static RoomScan scanAt(ServerLevel level, BlockPos pos) {
+        return scanAt(level, pos, false);
+    }
+
+    /**
+     * {@code priority} = 1 tick にたどる上限で断らない(プレイヤーの判定。2026-11-16 コードの見直し ③12)。数えには入れるので、
+     * その tick の Mob の分は減る。プレイヤーは数が少なく判定も 1 秒に 1 回なので、上限を超えるのはまれ。
+     */
+    public static RoomScan scanAt(ServerLevel level, BlockPos pos, boolean priority) {
         RoomSpec spec = DesignData.sporeField().room();
         if (!spec.enabled()) return null;
         LevelWorld w = new LevelWorld(level);
@@ -95,7 +103,7 @@ public final class RoomCache {
             d.tick = now;
             d.searchesThisTick = 0;
         }
-        if (d.searchesThisTick >= spec.maxSearchesPerTick() && !unlimitedForTests) {
+        if (d.searchesThisTick >= spec.maxSearchesPerTick() && !unlimitedForTests && !priority) {
             // この tick はもうたどらない: 期限の切れた結果があればそれを使う(ブロックの変化で捨てた物は残っていない)。無ければ「部屋でない」
             refused++;
             return e != null ? e.scan : null;

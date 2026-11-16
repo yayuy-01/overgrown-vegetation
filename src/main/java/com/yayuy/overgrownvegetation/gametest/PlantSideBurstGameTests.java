@@ -479,6 +479,89 @@ public final class PlantSideBurstGameTests {
         helper.succeed();
     }
 
+    // ------------------------------------------------------------------ コードの見直し 第 2 便 ③(11-16)
+
+    /** ③4: プレイヤーの 30% の抽選は植物側(isInfector)の傷だけ。傷 0・植物側でない相手では、何度殴られてもかからない。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void playerLotteryOnlyOnPlantSideWounds(GameTestHelper helper) {
+        net.minecraft.world.entity.player.Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        Mob g1 = helper.spawnWithNoFreeWill(G1Species.ZOMBIE.entityType(), new Vec3(1.5, 2.0, 1.5));
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new Vec3(5.5, 2.0, 5.5));
+        for (int i = 0; i < 60; i++) {
+            player.invulnerableTime = 0;
+            player.hurt(helper.getLevel().damageSources().mobAttack(zombie), 1.0F);
+            player.setHealth(player.getMaxHealth());
+        }
+        helper.assertTrue(com.yayuy.overgrownvegetation.effect.SporeInfectionEffects.stageOf(player) == 0, "ただのゾンビの傷で感染した");
+        for (int i = 0; i < 60; i++) {
+            player.invulnerableTime = 0;
+            com.yayuy.overgrownvegetation.effect.ParasitizedAttackInfectionHandler.onLivingDamageForTests(player, g1, 0.0F);
+        }
+        helper.assertTrue(com.yayuy.overgrownvegetation.effect.SporeInfectionEffects.stageOf(player) == 0, "傷 0 の撃ちで感染した");
+        for (int i = 0; i < 60 && com.yayuy.overgrownvegetation.effect.SporeInfectionEffects.stageOf(player) == 0; i++) {
+            com.yayuy.overgrownvegetation.effect.ParasitizedAttackInfectionHandler.onLivingDamageForTests(player, g1, 1.0F);
+        }
+        helper.assertTrue(com.yayuy.overgrownvegetation.effect.SporeInfectionEffects.stageOf(player) > 0, "G1 の傷 60 回で一度も感染しない(30%)");
+        helper.succeed();
+    }
+
+    /** ③9: 創造モードのプレイヤーには暴露量がたまらない(観戦と同じ)。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void creativePlayerGetsNoExposure(GameTestHelper helper) {
+        net.minecraft.world.entity.player.Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
+        com.yayuy.overgrownvegetation.spore.SporeExposureTracker.tickWith(helper.getLevel(), player, 200, 80.0D);
+        helper.assertTrue(com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(player) == 0.0D,
+                "創造モードで暴露量がたまった: " + com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(player));
+        helper.succeed();
+    }
+
+    /**
+     * ③12: 部屋をたどる 1 tick の上限を Mob の分で使い切っても、プレイヤーの判定(priority)は断られない。
+     * 石で囲った小部屋を 3 つ作り、上限 2 回を使い切ってから 3 つ目を引く。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void playerRoomCheckIsNotRefused(GameTestHelper helper) {
+        int max = com.yayuy.overgrownvegetation.data.DesignData.sporeField().room().maxSearchesPerTick();
+        BlockPos[] cells = new BlockPos[max + 1];
+        for (int i = 0; i < cells.length; i++) {
+            BlockPos c = new BlockPos(1 + (i % 3) * 2, 2 + (i / 3) * 3, 1 + (i / 3) * 2);
+            for (BlockPos p : BlockPos.betweenClosed(c.offset(-1, -1, -1), c.offset(1, 2, 1))) helper.setBlock(p, net.minecraft.world.level.block.Blocks.STONE);
+            helper.setBlock(c, net.minecraft.world.level.block.Blocks.AIR);
+            helper.setBlock(c.above(), net.minecraft.world.level.block.Blocks.AIR);
+            cells[i] = helper.absolutePos(c);
+        }
+        net.minecraft.server.level.ServerLevel level = helper.getLevel();
+        boolean was = com.yayuy.overgrownvegetation.survival.room.RoomCache.unlimitedForTests;
+        com.yayuy.overgrownvegetation.survival.room.RoomCache.unlimitedForTests = false;
+        try {
+            for (int i = 0; i < max; i++) com.yayuy.overgrownvegetation.survival.room.RoomCache.scanAt(level, cells[i], false);
+            com.yayuy.overgrownvegetation.survival.room.RoomScan mob = com.yayuy.overgrownvegetation.survival.room.RoomCache.scanAt(level, cells[max], false);
+            com.yayuy.overgrownvegetation.survival.room.RoomScan player = com.yayuy.overgrownvegetation.survival.room.RoomCache.scanAt(level, cells[max], true);
+            // 断られると null(「部屋でない」= 外の濃度を読む)。断られなければ答え(石だけの小部屋は自然の空洞 NATURAL)が返る
+            helper.assertTrue(player != null, "上限を使い切った tick に、プレイヤーの部屋の判定が断られた");
+            // Mob の判定は同じ tick なら断られる(前提の確かめ)
+            helper.assertTrue(mob == null, "上限を使い切った tick に、Mob の判定が断られない(前提が崩れた): " + mob);
+        } finally {
+            com.yayuy.overgrownvegetation.survival.room.RoomCache.unlimitedForTests = was;
+        }
+        helper.succeed();
+    }
+
+    /** ③14: 自前の死に際を持つほかの MOD の Mob の判定(この MOD の種・バニラの 20 tick の種は入らない。ドラゴンは別の道)。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void ownLongDeathIsDetected(GameTestHelper helper) {
+        Mob dragon = helper.spawnWithNoFreeWill(EntityType.ENDER_DRAGON, new Vec3(3.5, 3.0, 3.5));
+        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(1.5, 2.0, 1.5));
+        Mob falcimnes = helper.spawnWithNoFreeWill(com.yayuy.overgrownvegetation.registry.ModEntities.FALCIMNES.get(), new Vec3(5.5, 2.0, 5.5));
+        helper.assertTrue(PlantSideRules.ownsLongDeath(dragon), "tickDeath を上書きするバニラ外の作り(ドラゴン)を見つけない");
+        helper.assertTrue(!PlantSideRules.ownsLongDeath(cow), "牛(バニラの 20 tick)を長い死に際と見た");
+        helper.assertTrue(!PlantSideRules.ownsLongDeath(falcimnes), "この MOD の種(自分で長さを持つ)を長い死に際と見た");
+        helper.assertTrue(!PlantSideRules.burstsWith(dragon, true) && !PlantSideRules.burstsAtRemoval(dragon, true),
+                "ドラゴンが膨らむ破裂・消える瞬間の破裂の対象になった(ドラゴンは死に際の終わりの別の道)");
+        dragon.discard();
+        helper.succeed();
+    }
+
     // ------------------------------------------------------------------ 道具
 
     /** テストで「変わった」と見る Mob の id。同じ束のテストは並んで走るので、印の口の差し替え・戻しはせず、1 度だけ表を足して残す。 */
