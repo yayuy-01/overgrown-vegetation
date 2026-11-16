@@ -645,7 +645,9 @@ public final class VoxelClouds implements CloudRenderer {
         }
         shader.safeGetUniform("Curve").set(sky.curvature, CURVE_FROM, 0.5F / CURVE_RADIUS, 0.0F);
         for (int i = 0; i < 3; i++) {
-            shader.safeGetUniform("Flash" + i).set(0.0F, 0.0F, 0.0F, 0.0F);
+            // 雲の中の光(11-16 雷雨の強化): 積乱雲からの落雷の所を光らせる(前は口だけで 0)。
+            float[] flash = com.yayuy.overgrownvegetation.client.atmosphere.StormStrikes.cloudFlash(i, camX, camY, camZ);
+            shader.safeGetUniform("Flash" + i).set(flash[0], flash[1], flash[2], flash[3]);
         }
         // 雲の中(改善 ②、{@link CloudInterior}): 雲の箱も同じ霧に沈め、内側の面は描かない。
         float inside = CloudInterior.amount(partialTick);

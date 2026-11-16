@@ -318,6 +318,7 @@ public final class Atmosphere {
             // G4 光線の中で光る胞子の波・G5 降る光る胞子(11-08)。薄明光線(月の柱)を描いた後に、その位置で光らせる。
             guard("galeglow", () -> renderGlowEvents(event));
             guard("caveshafts", () -> CaveShafts.render(event));
+            guard("strikes", () -> StormStrikes.render(event)); // 積乱雲からの落雷(11-16 雷雨の強化)
             guard("motes", () -> ShaftMotes.render(event));
             guard("dusk", () -> DuskMotes.render(event));
             guard("sporecolumns", () -> SporeColumns.render(event)); // 巨大樹の胞子の柱(11-06 改善案 ①)
