@@ -261,7 +261,7 @@ public final class StormStrikes {
             if (s.forest && age < GLOW_LIFE) {
                 // 森の光: 林冠の高さに、カメラを向く丸い光(黄緑)。最初は稲妻と一緒に強く、あとはゆっくり消える。
                 float g = (float) Math.pow(1.0F - age / GLOW_LIFE, 1.6) * (0.55F + 0.45F * level);
-                float radius = (float) Math.max(14.0, dist * 0.03) * (1.0F + 0.5F * age / GLOW_LIFE);
+                float radius = (float) Math.max(24.0, dist * 0.05) * (1.0F + 0.5F * age / GLOW_LIFE);
                 disc(c, (float) (dx * scale), (float) ((s.hit - eye.y) * scale), (float) (dz * scale), radius * scale, lookF, 0.675F, 0.89F, 0.10F, g * 0.85F);
                 disc(c, (float) (dx * scale), (float) ((s.hit - eye.y) * scale), (float) (dz * scale), radius * scale * 0.45F, lookF, 0.9F, 1.0F, 0.55F, g * 0.6F);
             }

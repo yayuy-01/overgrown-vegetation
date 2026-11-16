@@ -196,7 +196,9 @@ public final class WorldWeather {
                         .then(Commands.literal("clear").executes(WorldWeather::clear))
                         .then(Commands.literal("strike").executes(c -> strike(c, false))
                                 .then(Commands.literal("forest").executes(c -> strike(c, true)))
-                                .then(Commands.literal("ground").executes(c -> strike(c, false))))));
+                                .then(Commands.literal("ground").executes(c -> strike(c, false)))
+                                // 確かめ用(11-16 見た目の側): 雲に関係なく、打った人の向いている先 150 ブロックに「森への落雷」の知らせを 1 通(見た目だけ)。
+                                .then(Commands.literal("here").executes(WorldWeather::strikeHere)))));
     }
 
     private static int force(CommandContext<CommandSourceStack> ctx, String what, double level) {
@@ -214,6 +216,30 @@ public final class WorldWeather {
     private static int strike(CommandContext<CommandSourceStack> ctx, boolean forest) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         String r = StormLightning.debugStrike(ctx.getSource().getPlayerOrException(), forest);
         ctx.getSource().sendSuccess(() -> Component.literal(r), false);
+        return 1;
+    }
+
+    /**
+     * {@code /ov weather strike here}(確かめ用。11-16): 雲に関係なく、打った人の向いている先 150 ブロックに forest = 1 の
+     * {@code CloudStrikePayload} を、打った人にだけ 1 通送る。見た目だけ(胞子は吹き上げない・雷のエンティティも出さない)。
+     * 森の光と吹き上がりの見た目を、近くで確かめるための口({@code /ov weather strike forest} は遠い雲を選ぶことが多い)。
+     */
+    private static int strikeHere(CommandContext<CommandSourceStack> ctx) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        ServerLevel level = player.serverLevel();
+        net.minecraft.world.phys.Vec3 look = player.getLookAngle();
+        double len = Math.max(1.0e-3, Math.sqrt(look.x * look.x + look.z * look.z));
+        double x = player.getX() + look.x / len * 150.0;
+        double z = player.getZ() + look.z / len * 150.0;
+        int bx = net.minecraft.util.Mth.floor(x);
+        int bz = net.minecraft.util.Mth.floor(z);
+        boolean loaded = level.hasChunk(bx >> 4, bz >> 4);
+        int hitY = loaded ? level.getHeight(Heightmap.Types.MOTION_BLOCKING, bx, bz) : Integer.MIN_VALUE;
+        int groundY = loaded ? level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, bx, bz) : Integer.MIN_VALUE;
+        PacketDistributor.sendToPlayer(player, new com.yayuy.overgrownvegetation.network.CloudStrikePayload(
+                0L, x, z, hitY, groundY, CloudField.LOW_BASE, 1.0F, level.random.nextLong()));
+        ctx.getSource().sendSuccess(() -> Component.literal(String.format("落雷(見た目だけ・森): (%d, %d) 当たった高さ %s・地面 %s", bx, bz,
+                loaded ? String.valueOf(hitY) : "読み込まれていない", loaded ? String.valueOf(groundY) : "-")), false);
         return 1;
     }
 
