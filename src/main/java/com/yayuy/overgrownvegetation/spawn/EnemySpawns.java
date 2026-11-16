@@ -340,6 +340,11 @@ public final class EnemySpawns {
         TRACKED.remove(m);
     }
 
+    /** 縁・地下の湧きの印か(進化で引き継がない。見直し ②4)。 */
+    public static boolean isSpawnTag(String tag) {
+        return tag.equals(EDGE_TAG) || tag.equals(UNDER_TAG) || tag.startsWith(GROUP_TAG);
+    }
+
     public static boolean spawnedHere(Mob m) {
         return m.getTags().contains(EDGE_TAG) || m.getTags().contains(UNDER_TAG);
     }
@@ -355,7 +360,8 @@ public final class EnemySpawns {
             }
             if (m.level() != level) continue;
             if (m.hasCustomName() || m.isPassenger() || m.isVehicle() || m.isLeashed()) continue;
-            if (m instanceof AbstractParasitizedMonster g1 && g1.march().active()) continue;
+            // 拠点へ向かう・司令塔が道(進化・根付き・苗床)を決めた G1 は片付けない(予算を払っているので。見直し ②4)
+            if (m instanceof AbstractParasitizedMonster g1 && (g1.march().active() || g1.fate() != null && g1.fate().route() != com.yayuy.overgrownvegetation.director.ForestDirector.Route.NONE)) continue;
             boolean near = false;
             for (ServerPlayer p : level.players()) {
                 if (!p.isSpectator() && p.distanceToSqr(m) < far * far) {

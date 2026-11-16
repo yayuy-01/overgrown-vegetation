@@ -62,10 +62,19 @@ public final class ForestMoods {
             return;
         }
         double perSample = t.chancePerDay * sampleTicks / 24000.0D;
-        if (canStartHoard(DirectorGates.open(level, DirectorGates.Gate.EVOLVE), DirectorGates.stage(level), omen, day, d.hoardCooldownUntil(),
+        // 見直し ②2: 最初の襲撃が済んでいない拠点があるうちは貯め始めない(貯めた襲撃が最初の襲撃を飲み込まないように)
+        if (!firstRaidOutstanding(level) && canStartHoard(DirectorGates.open(level, DirectorGates.Gate.EVOLVE), DirectorGates.stage(level), omen, day, d.hoardCooldownUntil(),
                 d.available(level), ForestDirector.cap(level), t) && random.nextDouble() < perSample) {
             startHoard(level, day, t.minDays + random.nextDouble() * (t.maxDays - t.minDays));
         }
+    }
+
+    /** 認識していて、まだ最初の襲撃を送っていない拠点があるか。 */
+    public static boolean firstRaidOutstanding(ServerLevel level) {
+        for (BaseMemory.Base b : BaseMemory.get(level.getServer()).bases()) {
+            if (b.stage() == BaseMemory.Stage.RECOGNIZED && BaseMemory.firstRaidPending(b)) return true;
+        }
+        return false;
     }
 
     /** 使わずにふだんに戻す(確かめ用・テスト用)。 */
@@ -95,7 +104,7 @@ public final class ForestMoods {
             BaseMemory memory = BaseMemory.get(level.getServer());
             int sent = 0, waves = 0;
             for (BaseMemory.Base b : List.copyOf(memory.bases())) {
-                if (b.stage() != BaseMemory.Stage.RECOGNIZED) continue;
+                if (b.stage() != BaseMemory.Stage.RECOGNIZED || BaseMemory.firstRaidPending(b)) continue; // 最初の襲撃がまだの拠点には使わない(②2)
                 sent += HoardRaids.begin(level, b, day, random); // まとめた 1 回目 + 継ぎ足し(同時 40・合計 80。11-16 ユーザー)
                 memory.waveSent(b, day, random);
                 waves++;

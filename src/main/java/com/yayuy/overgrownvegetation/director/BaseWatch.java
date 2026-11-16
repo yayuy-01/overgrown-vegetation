@@ -67,7 +67,7 @@ public final class BaseWatch {
             memory.setStructures(chunk, countStructures(level, pos, t.scanHalfHeight), day);
         }
         // 覚える・忘れるは F1 から裏で回す。認識は F5 から、偵察は F4 から、送り込みは F5 から。大きな襲撃の前触れの間は偵察・送り込みを止める(DirectorGates)
-        memory.update(day, DirectorGates.open(level, DirectorGates.Gate.RECOGNIZE));
+        memory.update(day, DirectorGates.open(level, DirectorGates.Gate.RECOGNIZE), BaseMemory.timeOfDay(server));
         // 弱い所を突く: 拠点のまわりの守りの方角を、間を空けて見直す(フェーズを見ない。使う側が見る)
         for (BaseMemory.Base b : memory.bases()) {
             if (day - b.defenseAt() < DesignData.director().base.weakRefreshDays) continue;
@@ -102,6 +102,7 @@ public final class BaseWatch {
                 continue;
             }
             pick.fate().scout().begin(b);
+            com.yayuy.overgrownvegetation.spawn.EnemySpawns.release(pick); // 縁・地下の印を外す(縁の上限・片付けから外す。見直し ②4)
             memory.scoutSent(b, day, level.getRandom(), !DirectorGates.open(level, DirectorGates.Gate.RECOGNIZE)); // F4 は 1〜2 日おき
             ForestDirector.get(level).note(String.format(java.util.Locale.ROOT,
                     "%s → 偵察(拠点 #%d へ)", pick.species().key(), b.id()));

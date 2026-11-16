@@ -30,6 +30,9 @@ public final class AssaultTable {
         public Integer hoardMaxTotal;
         public Integer hoardRefillTicks;
         public Double hoardMaxDays;
+        public Double firstRetryUnloadedDays;
+        public Double firstRetryPoorDays;
+        public Integer nightLastTicks;
     }
 
     /** 最初の襲撃の顔ぶれ(fromDays は使わない)。ユーザー「G1 と G4 を中心に約 15 体」。 */
@@ -59,6 +62,10 @@ public final class AssaultTable {
     public final int hoardMaxTotal;
     public final int hoardRefillTicks;
     public final double hoardMaxDays;
+    /** 最初の襲撃が 0 体だったときの試し直しの間(日。見直し ②1): 拠点のまわりが読み込まれていない・予算が足りない。夜の終わり(tick)を過ぎたら次の夜。【仮】 */
+    public final double firstRetryUnloadedDays;
+    public final double firstRetryPoorDays;
+    public final int nightLastTicks;
 
     private AssaultTable(Json j) {
         Json s = j != null ? j : new Json();
@@ -82,6 +89,9 @@ public final class AssaultTable {
         this.hoardMaxTotal = Math.max(this.hoardMaxAlive, Math.min(500, s.hoardMaxTotal != null ? s.hoardMaxTotal : 80));
         this.hoardRefillTicks = Math.max(20, s.hoardRefillTicks != null ? s.hoardRefillTicks : 200);
         this.hoardMaxDays = Math.max(0.05D, nn(s.hoardMaxDays, 1.0D));
+        this.firstRetryUnloadedDays = Math.max(0.005D, nn(s.firstRetryUnloadedDays, 0.02D));
+        this.firstRetryPoorDays = Math.max(0.005D, nn(s.firstRetryPoorDays, 0.05D));
+        this.nightLastTicks = Math.max(this.nightEndTicks, clampTick(s.nightLastTicks, 23000));
     }
 
     public static AssaultTable fromJson(Json j) {

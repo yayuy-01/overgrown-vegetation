@@ -261,9 +261,18 @@ public final class BaseMemory extends SavedData {
         return new BaseMemory();
     }
 
-    /** ワールドの日付(日。寝て朝にすると進む)。 */
+    /**
+     * 森の日付(日)。11-16 ユーザー決定「時計は 1 つにそろえる・寝て飛ばした時間も森は稼ぐ」: フェーズの暦 {@link com.yayuy.overgrownvegetation.phase.PhaseData#clock}
+     * (ゲームの時間 + 寝て飛ばした分)で数える。予算({@link ForestDirector})も同じ暦。{@code /time set} ではずれない。
+     * 夜かどうか(1 日の中の時刻)だけは {@link #timeOfDay} で見る。
+     */
     public static double today(MinecraftServer server) {
-        return Math.max(0L, server.overworld().getDayTime()) / 24000.0D;
+        return Math.max(0L, com.yayuy.overgrownvegetation.phase.PhaseData.get(server.overworld()).clock(server)) / 24000.0D;
+    }
+
+    /** 1 日の中の時刻(0〜1。0 = 朝 6 時・0.5417 = 13000 tick = 夜の始め)。夜を決めるときだけ使う。 */
+    public static double timeOfDay(MinecraftServer server) {
+        return Math.floorMod(server.overworld().getDayTime(), 24000L) / 24000.0D;
     }
 
     private static BaseMemoryTable table() {
@@ -327,6 +336,15 @@ public final class BaseMemory extends SavedData {
      * (F4 までに偵察済みになった拠点は、F5 になった時点で日数が足りていればすぐ認識 =「森は前から見ていた」)。
      */
     public void update(double day, boolean recognizeOpen) {
+        update(day, recognizeOpen, Double.NaN);
+    }
+
+    /** 今の 1 日の中の時刻(最初の襲撃の夜を決める。NaN なら日付の端数を使う)。 */
+    private double timeOfDayNow = Double.NaN;
+
+    /** 1 日の中の時刻を渡す形(見張りが呼ぶ)。 */
+    public void update(double day, boolean recognizeOpen, double timeOfDay) {
+        this.timeOfDayNow = timeOfDay;
         BaseMemoryTable t = table();
         // つながった升をまとめる(clusterChunks 以内)
         LongOpenHashSet seen = new LongOpenHashSet();
@@ -417,7 +435,8 @@ public final class BaseMemory extends SavedData {
             boolean due = Watchers.active() ? Watchers.confirms(b) : day - b.stageSince >= b.recognizeAfter;
             if (recognizeOpen && b.stage == Stage.SCOUTED && due && confirmed(b, day)) {
                 b.setStage(Stage.RECOGNIZED, day);
-                b.nextWaveDay = firstRaidDay(day, java.util.concurrent.ThreadLocalRandom.current().nextDouble()); // 最初の襲撃は次の夜の始め(11-16 ユーザー)
+                b.nextWaveDay = firstRaidDay(day, Double.isNaN(timeOfDayNow) ? day - Math.floor(day) : timeOfDayNow,
+                        java.util.concurrent.ThreadLocalRandom.current().nextDouble()); // 最初の襲撃は次の夜の始め(11-16 ユーザー)
             }
         }
         // 升に、いる拠点の段を付け直す(次の忘れる日数)
@@ -618,11 +637,28 @@ public final class BaseMemory extends SavedData {
      * nightStartTicks〜nightEndTicks(夜の始め)のどこか。roll は 0〜1。純粋な計算(日 = dayTime / 24000)。
      */
     public static double firstRaidDay(double day, double roll) {
+        return firstRaidDay(day, day - Math.floor(day), roll);
+    }
+
+    /** 1 日の中の時刻 tod(0〜1)から、次の夜の始めまでを足す形(森の日付と 1 日の時刻がずれていてもよい。11-16 時計をそろえた)。 */
+    public static double firstRaidDay(double day, double tod, double roll) {
         com.yayuy.overgrownvegetation.data.AssaultTable a = DesignData.director().assault;
         double start = a.nightStartTicks / 24000.0D, end = a.nightEndTicks / 24000.0D;
-        double whole = Math.floor(day), frac = day - whole;
-        double night = frac < start ? whole : whole + 1.0D;
-        return night + start + Math.max(0.0D, Math.min(1.0D, roll)) * (end - start);
+        double toNight = tod < start ? start - tod : 1.0D - tod + start;
+        return day + toNight + Math.max(0.0D, Math.min(1.0D, roll)) * (end - start);
+    }
+
+    /**
+     * 最初の襲撃が 0 体だったときの試し直し(見直し ②1)。wait 日後に試し直す。ただし、その時刻が夜(nightStartTicks〜nightLastTicks)を
+     * 外れるなら、次の夜の始めにする(最初の襲撃は夜に来る)。送った回数は増やさない。
+     */
+    public void firstRaidRetry(Base b, double day, double wait, double tod, double roll) {
+        com.yayuy.overgrownvegetation.data.AssaultTable a = DesignData.director().assault;
+        double at = tod + wait;
+        double frac = at - Math.floor(at);
+        boolean night = frac >= a.nightStartTicks / 24000.0D && frac <= a.nightLastTicks / 24000.0D;
+        b.nextWaveDay = night ? day + wait : firstRaidDay(day + wait, frac, roll);
+        setDirty();
     }
 
     /** まだ 1 回も送り込んでいない(次が最初の襲撃)か。古いワールドの数え(wavesSent)をそのまま使う。 */

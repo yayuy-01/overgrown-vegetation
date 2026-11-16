@@ -191,12 +191,14 @@ public final class BaseRaids {
         }
         // 払えずに進化させなかった段階 0 も、そこにいるので段階 0 として送る(上限まで)
         for (AbstractParasitizedMonster m : unused) {
-            if (sentZero + sentDev + evolved + g4 >= at.maxWave) break;
+            if (sentZero + sentDev + evolved + g4 + w.g5plus() >= at.maxWave) break; // G5 の枠を残す(見直し ②5)
             go(m, b, flank, random);
             sentZero++;
         }
         // (7) G5
-        int g5 = DirectorGates.open(level, DirectorGates.Gate.WAVE_G5) ? send(G5_PLUS, level, b, w.g5plus(), random) : 0;
+        // 計が上限 40 を超えないように(見直し ②5: 払えずに段階 0 として送った分の後で G5 を足すと超えていた)
+        int g5Room = Math.max(0, Math.min(w.g5plus(), at.maxWave - (sentZero + sentDev + evolved + g4)));
+        int g5 = DirectorGates.open(level, DirectorGates.Gate.WAVE_G5) ? send(G5_PLUS, level, b, g5Room, random) : 0;
         Result res = new Result(waveNo, sentZero, sentDev, evolved, g4, g5, w.stageZero(), w.developed(), w.g4(), w.g5plus(), spawnedZero, first, hoard);
         director.note("拠点 #" + b.id() + " へ送り込み " + res.summary());
         return res;
@@ -219,6 +221,7 @@ public final class BaseRaids {
     /** 拠点へ向かわせる(印があれば付ける)。 */
     private static void go(AbstractParasitizedMonster m, BaseMemory.Base b, double flank, RandomSource random) {
         if (waveTag != null) m.addTag(waveTag);
+        com.yayuy.overgrownvegetation.spawn.EnemySpawns.release(m); // 縁・地下の印を外す(縁の上限・片付けから外す。見直し ②4)
         m.march().beginFlank(b, flank, random);
     }
 
@@ -298,10 +301,20 @@ public final class BaseRaids {
     }
 
     /** 見張りから: 送り込む時が来た拠点へ送る。 */
-    static void dispatch(ServerLevel level, BaseMemory memory, double day) {
+    public static void dispatch(ServerLevel level, BaseMemory memory, double day) {
         for (BaseMemory.Base b : List.copyOf(memory.bases())) {
             if (!BaseMemory.wantsWave(b, day)) continue;
-            sendWave(level, b, day, level.getRandom());
+            boolean first = BaseMemory.firstRaidPending(b);
+            Result r = sendWave(level, b, day, level.getRandom());
+            // 見直し ②1: 最初の襲撃が 0 体なら「送った」と数えず、間を空けて試し直す(読み込まれていない / 予算が足りないで間を分ける。夜を過ぎたら次の夜)
+            if (first && r.total() == 0) {
+                boolean loaded = level.isPositionEntityTicking(BlockPos.containing(b.centerX(), 64.0D, b.centerZ()));
+                com.yayuy.overgrownvegetation.data.AssaultTable at = DesignData.director().assault;
+                memory.firstRaidRetry(b, day, loaded ? at.firstRetryPoorDays : at.firstRetryUnloadedDays, BaseMemory.timeOfDay(level.getServer()),
+                        level.getRandom().nextDouble());
+                ForestDirector.get(level).note("拠点 #" + b.id() + " の最初の襲撃が 0 体(" + (loaded ? "予算が足りない" : "拠点が読み込まれていない") + ")。試し直す");
+                continue;
+            }
             memory.waveSent(b, day, level.getRandom(), DirectorGates.strength(level, DirectorGates.Gate.RAID)); // F5 の導入では送り込みの間が長い(0.3 なら 3.3 倍)
         }
     }

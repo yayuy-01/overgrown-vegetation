@@ -270,7 +270,8 @@ public final class ForestDirector extends SavedData implements ForestBudget {
     }
 
     private void accrue(ServerLevel level) {
-        long now = level.getServer().overworld().getGameTime();
+        // 11-16 ユーザー決定: 時計は 1 つ(フェーズの暦 = ゲームの時間 + 寝て飛ばした分)。寝て飛ばした時間も森は稼ぐ
+        long now = com.yayuy.overgrownvegetation.phase.PhaseData.get(level.getServer().overworld()).clock(level.getServer());
         if (budgetAt < 0L) {
             budgetAt = now;
             setDirty();
