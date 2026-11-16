@@ -18,7 +18,13 @@ public final class PhaseNetwork {
 
     @SubscribeEvent
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("phase-1");
+        // 版 2(2026-11-16): フェーズが上がったときの合図 PhaseCuePayload を足した。
+        PayloadRegistrar registrar = event.registrar("phase-2");
+        registrar.playToClient(
+                PhaseCuePayload.TYPE,
+                PhaseCuePayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(
+                        () -> com.yayuy.overgrownvegetation.client.atmosphere.PhaseCue.accept(payload)));
         registrar.playToClient(
                 PhaseStatePayload.TYPE,
                 PhaseStatePayload.STREAM_CODEC,

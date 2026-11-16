@@ -51,7 +51,7 @@ public final class CommandTreeGameTests {
             Map.entry("perf", Set.of("bench", "fluid", "record", "spore", "g1", "ley", "vent", "spread", "infection", "spawns")), // 11-15 enemy-spawns: 敵の湧き方の確かめ
             // 2026-11-08: 環境ギミック G4 胞子の風・G5 光る胞子の夜を自分のゲームで確かめる fx(依頼「/ov か DevBridge に足す」。要らなければ消す)。
             // 2026-11-14: 任意の SoundEvent を鳴らすときに汚して鳴らす voice(声の加工の試作・voice/VoiceCommand)を足した。
-            Map.entry("fx", Set.of("gale", "glownight", "status", "voice")),
+            Map.entry("fx", Set.of("gale", "glownight", "phasecue", "status", "voice")),
             // 2026-11-09: 雲の段階 2a で積乱雲を探す storm(一覧・tp)を戻した(10-17 ユーザー依頼、11-09 段階 2a の依頼)。
             Map.entry("storm", Set.of("tp", "here")),
             // 2026-11-11: ネザーの汚染の骨組み(根の台帳と段階)を見る・進める nether(実装の依頼「段階を見る・進める・速さの倍率を変える命令」)。

@@ -1,0 +1,8 @@
+{
+    "vertex": "overgrown_vegetation:mist_composite",
+    "fragment": "overgrown_vegetation:phase_tint_blit",
+    "samplers": [
+        { "name": "TintTex" }
+    ],
+    "uniforms": []
+}

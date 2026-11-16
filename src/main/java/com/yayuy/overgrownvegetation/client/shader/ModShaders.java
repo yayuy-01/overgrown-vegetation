@@ -202,6 +202,20 @@ public final class ModShaders {
             aoCompute = null;
             aoComposite = null;
         }
+        try {
+            event.registerShader(new ShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "phase_tint"),
+                            DefaultVertexFormat.POSITION),
+                    shader -> phaseTint = shader);
+            event.registerShader(new ShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "phase_tint_blit"),
+                            DefaultVertexFormat.POSITION),
+                    shader -> phaseTintBlit = shader);
+        } catch (IOException e) {
+            OvergrownVegetation.LOGGER.error("フェーズの合図の空のにじみのシェーダーを読み込めなかったので、にじみは掛けない", e);
+            phaseTint = null;
+            phaseTintBlit = null;
+        }
     }
 
     /** 洞窟の出入りの目の慣れの全画面の補正({@code client/atmosphere/EyeAdaptation}、2026-11-07)。読み込めなかったら null(掛けない)。シェーダーパック使用中は使わない。 */
@@ -233,6 +247,19 @@ public final class ModShaders {
 
     public static ShaderInstance aoComposite() {
         return aoComposite;
+    }
+
+    /** フェーズが上がったときの合図の、空の黄緑のにじみ({@code client/atmosphere/PhaseCue}、2026-11-16)。読み込めなかったら null(掛けない)。 */
+    private static ShaderInstance phaseTint;
+
+    private static ShaderInstance phaseTintBlit;
+
+    public static ShaderInstance phaseTint() {
+        return phaseTint;
+    }
+
+    public static ShaderInstance phaseTintBlit() {
+        return phaseTintBlit;
     }
 
     private ModShaders() {

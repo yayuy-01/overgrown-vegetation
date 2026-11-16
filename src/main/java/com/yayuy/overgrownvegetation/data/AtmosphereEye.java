@@ -154,6 +154,30 @@ public final class AtmosphereEye {
     }
 
     /**
+     * フェーズが上がったときの合図(節 phaseCue、2026-11-16。読むのは {@code client/atmosphere/PhaseCue})。
+     * ユーザー決定: 共通の合図は地鳴り(画面が小さく揺れる)・空が数秒だけ黄緑ににじむ・汚染の森の方角からのざわめき。F6 の印は灯りが一瞬揺らいで暗くなる。
+     * 数は仮決め: {@code shake} = 揺れの大きさ(向きの度)、{@code skyTint} = 空のにじみの濃さ(0〜1)、{@code color} = にじみの色、
+     * {@code nightBrightness} = 夜のにじみの色の明るさの倍率、{@code near}・{@code far} = 景色へにじみが掛かり始める・掛かりきる距離(ブロック)、
+     * {@code rumbleVolume}・{@code rustleVolume} = 地鳴り・ざわめきの大きさ(0 で鳴らさない)、{@code lightDip} = F6 で灯りを落とす深さ(0〜1)。
+     */
+    public static final class PhaseCueJson {
+        public Double shake, skyTint, nightBrightness, near, far, rumbleVolume, rustleVolume, lightDip;
+        public double[] color;
+    }
+
+    public record PhaseCueParams(float shake, float skyTint, float red, float green, float blue, float nightBrightness, float near, float far,
+                                 float rumbleVolume, float rustleVolume, float lightDip) {
+        static PhaseCueParams of(PhaseCueJson j) {
+            PhaseCueJson v = j != null ? j : new PhaseCueJson();
+            double[] col = v.color != null && v.color.length >= 3 ? v.color : new double[]{0.66, 0.85, 0.25};
+            return new PhaseCueParams(c(v.shake, 0.35, 0.0, 3.0), c(v.skyTint, 0.6, 0.0, 1.0),
+                    c(col[0], 0.66, 0.0, 1.0), c(col[1], 0.85, 0.0, 1.0), c(col[2], 0.25, 0.0, 1.0),
+                    c(v.nightBrightness, 0.3, 0.0, 1.0), c(v.near, 96.0, 0.0, 1024.0), c(v.far, 320.0, 1.0, 4096.0),
+                    c(v.rumbleVolume, 0.8, 0.0, 2.0), c(v.rustleVolume, 0.7, 0.0, 2.0), c(v.lightDip, 0.8, 0.0, 1.0));
+        }
+    }
+
+    /**
      * 過繁茂の外の洞窟(節 caveOpen、2026-11-07 判断の後の直し。ユーザー「おすすめで直す」)。地下モードの仕組みは世界全体、過繁茂らしさは色と見通しで出す 2 層の方針で、
      * 過繁茂の外の洞窟だけ値を変える(過繁茂の中は前のまま)。過繁茂の度合い(カメラの所の判定を blendSeconds で寄せたもの)で混ぜる。数はすべて仮決め:
      * <ul>

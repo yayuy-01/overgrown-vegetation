@@ -48,6 +48,8 @@ public final class AtmosphereTable {
         public AtmosphereEye.SurfaceBumpJson surfaceBump;
         /** 隙間と根元の陰り(簡易 AO。11-14 仕上げ H、{@link AtmosphereEye})。 */
         public AtmosphereEye.SimpleAoJson simpleAo;
+        /** フェーズが上がったときの合図(11-16、{@link AtmosphereEye})。 */
+        public AtmosphereEye.PhaseCueJson phaseCue;
         /** 過繁茂の外の洞窟(11-07、{@link AtmosphereEye})。 */
         public AtmosphereEye.CaveOpenJson caveOpen;
         /** 洞窟の天井の穴の光の筋(11-07、{@link AtmosphereEye})。 */
@@ -682,6 +684,7 @@ public final class AtmosphereTable {
     private final AtmosphereEye.LeyVeinsParams leyVeins;
     private final AtmosphereEye.SurfaceBumpParams surfaceBump;
     private final AtmosphereEye.SimpleAoParams simpleAo;
+    private final AtmosphereEye.PhaseCueParams phaseCue;
     private final AtmosphereEye.CaveOpenParams caveOpen;
     private final AtmosphereEye.CaveShaftsParams caveShafts;
     private final AtmosphereEye.CaveBreathParams caveBreath;
@@ -793,6 +796,7 @@ public final class AtmosphereTable {
         this.leyVeins = AtmosphereEye.LeyVeinsParams.of(j != null ? j.leyVeins : null);
         this.surfaceBump = AtmosphereEye.SurfaceBumpParams.of(j != null ? j.surfaceBump : null);
         this.simpleAo = AtmosphereEye.SimpleAoParams.of(j != null ? j.simpleAo : null);
+        this.phaseCue = AtmosphereEye.PhaseCueParams.of(j != null ? j.phaseCue : null);
         this.caveOpen = AtmosphereEye.CaveOpenParams.of(j != null ? j.caveOpen : null);
         this.caveShafts = AtmosphereEye.CaveShaftsParams.of(j != null ? j.caveShafts : null);
         this.caveBreath = AtmosphereEye.CaveBreathParams.of(j != null ? j.caveBreath : null);
@@ -1238,6 +1242,11 @@ public final class AtmosphereTable {
     /** 隙間と根元の陰り(簡易 AO。節 simpleAo、11-14 仕上げ H。{@link AtmosphereEye})。 */
     public AtmosphereEye.SimpleAoParams simpleAo() {
         return simpleAo;
+    }
+
+    /** フェーズが上がったときの合図(節 phaseCue、11-16。{@link AtmosphereEye})。 */
+    public AtmosphereEye.PhaseCueParams phaseCue() {
+        return phaseCue;
     }
 
     public AtmosphereAir.SporeAirParams sporeAir() {

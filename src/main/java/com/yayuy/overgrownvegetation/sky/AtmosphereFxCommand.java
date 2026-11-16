@@ -34,6 +34,24 @@ public final class AtmosphereFxCommand {
                                         "光る胞子の夜: 夜なら起こす(雲の切れ目が無ければ月の柱は出ない)")))
                                 .then(Commands.literal("off").executes(ctx -> send(ctx.getSource(), AtmosphereFxPayload.GLOW_NIGHT, 2, "光る胞子の夜: 起こさない")))
                                 .then(Commands.literal("auto").executes(ctx -> send(ctx.getSource(), AtmosphereFxPayload.GLOW_NIGHT, 0, "光る胞子の夜: 自然に任せる"))))
+                        // フェーズが上がったときの合図だけを流す(フェーズは変えない。11-16)。打った人のクライアントだけ。
+                        .then(Commands.literal("phasecue")
+                                .then(Commands.argument("phase", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 10))
+                                        .executes(ctx -> {
+                                            ServerPlayer player = ctx.getSource().getPlayer();
+                                            if (player == null) {
+                                                ctx.getSource().sendFailure(Component.literal("プレイヤーとして実行してください"));
+                                                return 0;
+                                            }
+                                            int phase = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "phase");
+                                            com.yayuy.overgrownvegetation.network.PhaseCuePayload payload =
+                                                    com.yayuy.overgrownvegetation.phase.PhaseCues.payloadFor(player,
+                                                            com.yayuy.overgrownvegetation.phase.PhaseData.get(ctx.getSource().getServer().overworld()), phase, false);
+                                            PacketDistributor.sendToPlayer(player, payload);
+                                            ctx.getSource().sendSuccess(() -> Component.literal("フェーズ " + phase + " の合図を流した(森の方角: "
+                                                    + (payload.hasForest() ? String.format("%.2f, %.2f", payload.dirX(), payload.dirZ()) : "なし") + ")"), false);
+                                            return 1;
+                                        })))
                         .then(Commands.literal("status").executes(ctx -> send(ctx.getSource(), AtmosphereFxPayload.STATUS, 0, null)))));
     }
 

@@ -49,6 +49,7 @@
     "client.LevelRendererRainSoundMixin",
     "client.BiomeClearSkyMixin",
     "client.LightTextureCaveTintMixin",
+    "client.LightTexturePhaseCueMixin",
     "client.UnderwaterAmbientVolumeMixin",
     "client.LivingEntitySelfEffectParticlesMixin",
     "client.ShaderInstanceSamplerAccessor",
