@@ -92,6 +92,7 @@ public final class Atmosphere {
         CaveCrickets.clear();
         com.yayuy.overgrownvegetation.client.atmosphere.sound.GiantTreeCreakSound.stop();
         CaveLights.clear();
+        FogHalos.clear();
         EyeAdaptation.clear();
         SporePools.clear();
         CloudShadows.clear();
@@ -177,6 +178,7 @@ public final class Atmosphere {
         guard("uwmotes", () -> UnderwaterMotes.tick(now)); // 水中を漂う粒を足す(11-13 水まわり ⑤)
         guard("uwcritters", () -> UnderwaterCritters.tick(now)); // 沈む葉・水生の虫・泥煙(11-13 水まわり ⑥)
         guard("cave", () -> CaveLights.tick(now, mc.gameRenderer.getMainCamera().getPosition(), ticks));
+        guard("foghalos", () -> FogHalos.tick(now, mc.gameRenderer.getMainCamera().getPosition(), ticks)); // 濃霧の中の明かりの暈(11-17)
         guard("eyeadapt", () -> EyeAdaptation.tick(now, mc.gameRenderer.getMainCamera().getPosition()));
         guard("sporepools", () -> SporePools.tick(now, player, ticks)); // 洞窟の胞子の溜まり(地下の植生 2・U6)
         guard("cloudshadow", () -> CloudShadows.tick(now, mc.gameRenderer.getMainCamera().getPosition())); // 雲の影・薄明光線(11-08 雲の段階 1)
@@ -326,6 +328,7 @@ public final class Atmosphere {
             guard("strikes", () -> StormStrikes.render(event)); // 積乱雲からの落雷(11-16 雷雨の強化)
             guard("weatherglow", () -> WeatherLook.renderGlow(event)); // スプライト・セントエルモの火(11-16 雷雨の強化の残り)
             guard("fogsun", () -> DenseFog.renderSun(event)); // 濃霧の中のぼやけた太陽(11-16)
+            guard("foghalos", () -> FogHalos.render(event)); // 濃霧の中の明かりの暈(11-17)
             guard("motes", () -> ShaftMotes.render(event));
             guard("dusk", () -> DuskMotes.render(event));
             guard("sporecolumns", () -> SporeColumns.render(event)); // 巨大樹の胞子の柱(11-06 改善案 ①)

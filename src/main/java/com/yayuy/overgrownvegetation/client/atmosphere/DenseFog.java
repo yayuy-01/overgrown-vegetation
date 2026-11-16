@@ -298,6 +298,6 @@ public final class DenseFog {
 
     /** 確かめ用の 1 行。 */
     public static String describe() {
-        return String.format("濃霧 %.2f(届いた値 %.2f・高さ %.2f・霞 %.4f/ブロック・空 %.2f・霧の海 %.2f)", level(), WeatherClient.fog(), heightFactor(), hazeK(), skyFill(), seaAmount());
+        return String.format("濃霧 %.2f(届いた値 %.2f・高さ %.2f・霞 %.4f/ブロック・空 %.2f・霧の海 %.2f)", level(), WeatherClient.fog(), heightFactor(), hazeK(), skyFill(), seaAmount()) + " / " + FogHalos.describe();
     }
 }
