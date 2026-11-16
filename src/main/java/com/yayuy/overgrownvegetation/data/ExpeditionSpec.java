@@ -14,8 +14,8 @@ package com.yayuy.overgrownvegetation.data;
  * </ul>
  *
  * <h2>仮決め(数はすべて【仮】)</h2>
- * 胞子喰い茸: 200 tick ごとにプレイヤー 1 人のまわり 32 の中で 4 回列を選び、過繁茂のバイオーム・地面の上の空気・空の光 13 以下(葉の下)・
- * まわり 6 に 3 本未満なら 1 本置く。硬い樹皮片: G5 を倒すと 30%(ドロップ増加 1 段で +5%)。
+ * 胞子喰い茸: 600 tick ごとにプレイヤー 1 人のまわり 32 の中で 1 回列を選び、過繁茂のバイオーム・林冠の下の林床・空の光 13 以下(葉の下)・
+ * まわり 8(上下 2)に 2 本未満なら 1 本置く(11-17 ユーザー: 探して採る物。48×48 の森で 25 分に 20 本ほど)。硬い樹皮片: G5 を倒すと 30%(ドロップ増加 1 段で +5%)。
  */
 public record ExpeditionSpec(
         double superiorFilterCapacity,
@@ -72,11 +72,11 @@ public record ExpeditionSpec(
         Json s = j != null ? j : new Json();
         return new ExpeditionSpec(
                 d(s.superiorFilterCapacity, 3.0D, 0.1D, 100.0D),
-                i(s.mushroomSpreadIntervalTicks, 200, 1, 1_000_000),
+                i(s.mushroomSpreadIntervalTicks, 600, 1, 1_000_000),
                 i(s.mushroomSpreadRadius, 32, 1, 128),
-                i(s.mushroomSpreadTries, 4, 0, 1000),
-                i(s.mushroomCrowdRadius, 6, 0, 32),
-                i(s.mushroomCrowdMax, 3, 1, 1000),
+                i(s.mushroomSpreadTries, 1, 0, 1000),
+                i(s.mushroomCrowdRadius, 8, 0, 32),
+                i(s.mushroomCrowdMax, 2, 1, 1000),
                 i(s.mushroomMaxSkyLight, 13, 0, 15),
                 d(s.barkDropChance, 0.3D, 0.0D, 1.0D),
                 d(s.barkLootingBonus, 0.05D, 0.0D, 1.0D),
