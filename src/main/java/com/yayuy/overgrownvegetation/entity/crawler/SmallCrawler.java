@@ -136,11 +136,11 @@ public abstract class SmallCrawler extends Monster {
 
     /** 名前に notarget を含む個体は相手を探さない・nopack は群れに入らない(GameTest で隣のテストの Mob を狙わないように)。 */
     boolean huntsDisabled() {
-        return this.hasCustomName() && this.getCustomName().getString().contains("notarget");
+        return com.yayuy.overgrownvegetation.entity.DevNames.has(this, "notarget");
     }
 
     private boolean packDisabled() {
-        return this.hasCustomName() && this.getCustomName().getString().contains("nopack");
+        return com.yayuy.overgrownvegetation.entity.DevNames.has(this, "nopack");
     }
 
     @Nullable
@@ -430,7 +430,7 @@ public abstract class SmallCrawler extends Monster {
         @Override
         public boolean canUse() {
             if (this.mob.isSteered() || this.mob.isVehicle() || this.mob.getTarget() != null) return false;
-            if (this.mob.hasCustomName() && this.mob.getCustomName().getString().startsWith("nostroll")) return false;
+            if (com.yayuy.overgrownvegetation.entity.DevNames.noStroll(this.mob)) return false;
             if (this.mob.getRandom().nextInt(reducedTickDelay(40)) != 0) return false;
             return this.mob.playerWithin(STROLL_RANGE);
         }

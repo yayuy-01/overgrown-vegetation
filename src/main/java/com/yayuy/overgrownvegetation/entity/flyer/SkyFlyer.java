@@ -404,7 +404,7 @@ public abstract class SkyFlyer extends Monster {
             perfLastNanos = perfNanos;
             perfLastCalls = perfCalls;
         }
-        if (this.hasCustomName() && this.getCustomName().getString().contains("trace") && this.tickCount % 10 == 0 && this.flock != null) {
+        if (this.tickCount % 10 == 0 && this.flock != null && com.yayuy.overgrownvegetation.entity.DevNames.has(this, "trace")) {
             double gs = Math.sqrt(this.body.vx * this.body.vx + this.body.vz * this.body.vz);
             LOG.info("FLYER_TRACE {} 並び {}/{} 群れ {} 動き {} 位置 {} {} {} 林冠 {} 速さ(空気) {} 地面 {} 向き {} 回る {}",
                     this.getId(), this.flock.slotOf(this), this.flock.size(), this.flock.state, this.mode,

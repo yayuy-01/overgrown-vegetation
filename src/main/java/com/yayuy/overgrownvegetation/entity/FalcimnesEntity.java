@@ -862,7 +862,7 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
         @Override
         public boolean canUse() {
             // 確かめ用(テストクライアントだけ): 名前が nostroll で始まる個体はうろつかない(navto の経路を上書きしないように)
-            if (DEV_HOOKS && this.falc.hasCustomName() && this.falc.getCustomName().getString().startsWith("nostroll")) return false;
+            if (DevNames.noStroll(this.falc)) return false;
             return !this.falc.isActing() && this.falc.playerWithin(STROLL_RANGE) && super.canUse();
         }
 

@@ -246,7 +246,7 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
 
         @Override
         public boolean canUse() {
-            if (this.mob.hasCustomName() && this.mob.getCustomName().getString().startsWith("nostroll")) return false;
+            if (com.yayuy.overgrownvegetation.entity.DevNames.noStroll(this.mob)) return false;
             return super.canUse();
         }
     }
@@ -634,6 +634,7 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
     @Override
     protected void tickRunner() {
         tickGuard();
+        CaptorMount.releaseStray(this, act() == ACT_HOLD, () -> releaseHold(0.0D));   // 読み込み直しで技が消え、獲物だけ乗っている(①1)
         if (!DEV_HOOKS || !this.hasCustomName()) return;
         String name = this.getCustomName().getString();
         if (name.contains("charged") && this.charge == 0 && act() == ACT_NONE) setChargeForTests(CHARGE_MAX);   // 確かめ用: 溜めを満たしておく

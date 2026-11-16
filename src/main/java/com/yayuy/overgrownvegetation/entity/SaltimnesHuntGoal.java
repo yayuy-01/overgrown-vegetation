@@ -59,6 +59,11 @@ final class SaltimnesHuntGoal extends Goal {
     static final double ZIG_STEP = 4.5D, ZIG_MIN = 6.0D, ZIG_MAX = 13.0D;
     /** 追う速さ(移動の速さに掛ける)と、遠い相手へ跳んで詰める距離・跳んだ後の残り(ブロック)【仮】。 */
     static final double CHASE_SPEED = 0.9D, LEAP_CLOSE_FROM = 12.0D, LEAP_CLOSE_LEAVE = 6.5D;
+    /**
+     * 1 つの技の段の時間切れ(tick)【仮】(2026-11-16 コードの見直し ①2)。跳び抱え・連続跳躍の宙は跳びの終わりを待つので、
+     * 跳びが終わらないと技のまま固まる。一番長い押さえ込み(40)の何倍もあるので普段は効かない。
+     */
+    static final int ACT_GIVE_UP = 300;
 
     /**
      * 跳び抱えの跳び: 近い相手にも跳ぶ(下限 0.3)。弧は低め(頂点の上げ 1〜4)。身を沈める・着地の長さは技ごとに渡す。
@@ -124,6 +129,12 @@ final class SaltimnesHuntGoal extends Goal {
         if (this.leapCd > 0) this.leapCd--;
         if (this.act != SaltimnesEntity.ACT_NONE) {
             this.actTicks++;
+            if (this.actTicks > ACT_GIVE_UP) {
+                this.mob.leapMotion().cancel();
+                endAct();
+                this.pounceCd = POUNCE_COOLDOWN;
+                return;
+            }
             tickAct(t);
             return;
         }
@@ -226,6 +237,7 @@ final class SaltimnesHuntGoal extends Goal {
 
     /** 跳び抱えを始める(相手の手前 = 首の下が相手に来る所へ)。跳べなければ false。 */
     private boolean startPounce(LivingEntity t, int crouch, int act) {
+        if (!this.mob.onGround() || this.mob.isInWater()) return false;   // 浮いていては蹴れない(構えたまま時間切れを繰り返さない。①2)
         Vec3 dir = new Vec3(t.getX() - this.mob.getX(), 0.0D, t.getZ() - this.mob.getZ());
         double d = dir.length();
         dir = d < 1.0E-3D ? new Vec3(0, 0, 1) : dir.scale(1.0D / d);
@@ -280,7 +292,8 @@ final class SaltimnesHuntGoal extends Goal {
                 boolean landed = lm.consumeLanded();
                 if (landed || !lm.active()) {
                     if (!landed && !this.launched) {
-                        endAct();   // 向きが揃わず跳ばなかった
+                        endAct();   // 向きが揃わず・接地できず跳ばなかった
+                        this.pounceCd = POUNCE_COOLDOWN;   // すぐ構え直して構えたままに見えないよう(①2)
                         return;
                     }
                     if ((this.caught || this.victim != null && inPinZone(this.victim)) && this.victim != null && this.victim.isAlive()

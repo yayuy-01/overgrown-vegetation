@@ -453,6 +453,68 @@ public final class PhyllosensTowerGameTests {
         });
     }
 
+    /**
+     * 倒れている途中で保存して読み直しても、倒れている段から続けて起き上がり、板根が戻る(2026-11-16 コードの見直し ①10)。
+     * 前は段を保存せず、読み直すと閉じた待機に戻って板根が折れたまま残った。{@code legacy} は段の印の無い古い保存(倒れている段の頭から)。
+     */
+    private static void reloadMidStun(GameTestHelper helper, boolean legacy) {
+        PhyllosensEntity[] back = new PhyllosensEntity[1];
+        int[] firstT = {-1};
+        State[] firstState = {null};
+        Set<State> states = EnumSet.noneOf(State.class);
+        run(helper, a -> {
+        }, 16.5, 16.5, 0.0F, (a, e) -> {
+            e.watch().forceWatch();
+            e.hitParts().part(1).hurt(a.level().damageSources().generic(), 40.0F);
+        }, (a, e) -> {
+            PhyllosensEntity b = back[0];
+            if (b != null) {
+                if (firstState[0] == null && b.tickCount > 0) {   // 戻してから 1 回目の tick の後
+                    firstState[0] = b.watch().state();
+                    firstT[0] = b.watch().stateTicks() - b.tickCount;   // 保存したときの経った tick
+                }
+                states.add(b.watch().state());
+                return;
+            }
+            if (a.level().getGameTime() % 20 == 0 && e.brokenPlates() == 1) e.hitParts().part(3).hurt(a.level().damageSources().generic(), 40.0F);
+            if (e.watch().state() == State.STUN && e.watch().stateTicks() >= 30) {
+                CompoundTag t = new CompoundTag();
+                e.saveWithoutId(t);
+                t.remove("UUID");
+                if (legacy) {
+                    t.remove(PhyllosensWatch.TAG_DOWN);
+                    t.remove(PhyllosensWatch.TAG_DOWN_T);
+                }
+                PhyllosensEntity o = ModPhyllosens.PHYLLOSENS.get().create(a.level());
+                o.load(t);
+                e.discard();
+                a.level().addFreshEntity(o);
+                back[0] = o;
+            }
+        }, 380, (a, e) -> {
+            PhyllosensEntity b = back[0];
+            if (b == null) helper.fail("倒れている段まで進まない: " + why(a, e));
+            try {
+                if (firstState[0] != State.STUN) helper.fail("読み直した最初の段が倒れている段でない: " + firstState[0] + " " + why(a, b));
+                if (!legacy && firstT[0] != 30) helper.fail("倒れている段の経った tick が続かない: " + firstT[0] + "(保存したときは 30)");
+                if (!states.contains(State.RISE) || !states.contains(State.CLOSED)) helper.fail("起き上がらない: 段 " + states + " " + why(a, b));
+                if (b.brokenPlates() != 0) helper.fail("読み直した後に板根が戻らない: 折れ " + b.brokenPlates() + " " + why(a, b));
+            } finally {
+                b.discard();
+            }
+        });
+    }
+
+    @GameTest(template = "gametest_empty7", timeoutTicks = 400, batch = BATCH)
+    public static void reloadWhileDownedResumesAndRises(GameTestHelper helper) {
+        reloadMidStun(helper, false);
+    }
+
+    @GameTest(template = "gametest_empty7", timeoutTicks = 400, batch = BATCH)
+    public static void oldSaveWithBrokenRootsStillRises(GameTestHelper helper) {
+        reloadMidStun(helper, true);
+    }
+
     /** 叩かれて吹いた胞子で、近くの Mob の暴露量が上がる。防護マスクを被っていれば上がらない。ダメージは無い。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 200, batch = BATCH)
     public static void sporesRaiseExposureAndTheMaskBlocksIt(GameTestHelper helper) {

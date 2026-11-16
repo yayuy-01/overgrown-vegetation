@@ -158,7 +158,7 @@ public class PilimnesEntity extends LizardRunner implements GeoEntity, Parasitiz
 
         @Override
         public boolean canUse() {
-            if (this.mob.hasCustomName() && this.mob.getCustomName().getString().startsWith("nostroll")) return false;
+            if (com.yayuy.overgrownvegetation.entity.DevNames.noStroll(this.mob)) return false;
             return super.canUse();
         }
     }

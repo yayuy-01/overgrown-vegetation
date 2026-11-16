@@ -317,7 +317,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
 
         @Override
         public boolean canUse() {
-            if (this.mob.hasCustomName() && this.mob.getCustomName().getString().startsWith("nostroll")) return false;
+            if (com.yayuy.overgrownvegetation.entity.DevNames.noStroll(this.mob)) return false;
             return super.canUse();
         }
     }
@@ -545,7 +545,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     }
 
     boolean devPlainChase() {
-        return this.hasCustomName() && this.getCustomName().getString().contains("plainchase");
+        return DevNames.has(this, "plainchase");
     }
 
     /** 標的への向き(度)。 */
@@ -635,7 +635,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
             protected net.minecraft.world.level.pathfinder.Path createPath(java.util.Set<net.minecraft.core.BlockPos> targets, int regionOffset,
                                                                            boolean offsetUpward, int accuracy, float followRange) {
                 VenamnesEntity v = VenamnesEntity.this;
-                v.pathing = !(v.hasCustomName() && v.getCustomName().getString().contains("noleap"));   // 確かめ用: 名前 noleap は跳び上がりを経路に入れない(重さの比べ)
+                v.pathing = !DevNames.has(v, "noleap");   // 確かめ用: 名前 noleap は跳び上がりを経路に入れない(重さの比べ)
                 try {
                     return super.createPath(targets, regionOffset, offsetUpward, accuracy, followRange);
                 } finally {

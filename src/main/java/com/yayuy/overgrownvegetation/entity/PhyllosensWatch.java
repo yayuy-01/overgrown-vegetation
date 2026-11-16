@@ -103,6 +103,10 @@ public final class PhyllosensWatch {
 
     private State state = State.CLOSED;
     private int stateT, serial, lost, tries;
+    /** 読み込んだ倒れ系の段と、その段の tick(最初のサーバーの tick で入る。①10)。 */
+    @Nullable
+    private State pendingDown;
+    private int pendingDownT;
     private boolean locked, visible;
     @Nullable
     private Player target;
@@ -223,6 +227,7 @@ public final class PhyllosensWatch {
         if (!(this.mob.level() instanceof ServerLevel level)) return;
         long t0 = System.nanoTime();
         long now = level.getGameTime();
+        resumeDown();
         this.stateT++;
         if (this.headEst == null) this.headEst = tableHead(State.CLOSED);
         boolean eyesOpen = switch (this.state) {
@@ -309,6 +314,55 @@ public final class PhyllosensWatch {
         statTick = Long.MIN_VALUE;
         statCur = 0L;
     }
+
+    // ------------------------------------------------------------------ 倒れ系の段の保存(2026-11-16 コードの見直し ①10)
+
+    /** 倒れ系の段(崩れる・倒れている・起き上がる)か。板根は起き上がりの終わりで戻るので、この段は読み込み直しても続ける。 */
+    private static boolean isDown(State s) {
+        return s == State.COLLAPSE || s == State.STUN || s == State.RISE;
+    }
+
+    /** 倒れ系の段の途中なら、段と経った tick を書く(ほかの段は短いので保存しない。読み込み直すと閉じた待機から)。 */
+    void save(net.minecraft.nbt.CompoundTag tag) {
+        if (!isDown(this.state)) return;
+        tag.putString(TAG_DOWN, this.state.name());
+        tag.putInt(TAG_DOWN_T, this.stateT);
+    }
+
+    /** 書いた倒れ系の段を読む(入るのは最初のサーバーの tick。読み込みの途中では世界がまだ揃っていない)。 */
+    void load(net.minecraft.nbt.CompoundTag tag) {
+        this.pendingDown = null;
+        if (!tag.contains(TAG_DOWN)) return;
+        try {
+            State s = State.valueOf(tag.getString(TAG_DOWN));
+            if (isDown(s)) {
+                this.pendingDown = s;
+                this.pendingDownT = tag.getInt(TAG_DOWN_T);
+            }
+        } catch (IllegalArgumentException ignored) {
+            // 知らない段: 閉じた待機から
+        }
+    }
+
+    /**
+     * 読み込んだ倒れ系の段へ戻る。印の無い古い保存で板根が 2 枚以上折れたままなら、倒れている段から(起き上がりで板根が戻る)。
+     * 2 枚折れたら必ず崩れるので、倒れ系でないのに 2 枚以上折れているのは読み込み直しのときだけ。
+     */
+    private void resumeDown() {
+        if (this.pendingDown != null) {
+            State s = this.pendingDown;
+            this.pendingDown = null;
+            enter(s);
+            this.stateT = this.pendingDownT;
+            return;
+        }
+        if (!isDown(this.state) && this.state != State.DEAD && this.mob.brokenPlates() >= 2) {
+            this.note = "折れたまま読み込まれた: 倒れている段から";
+            enter(State.STUN);
+        }
+    }
+
+    public static final String TAG_DOWN = "OvDownState", TAG_DOWN_T = "OvDownTicks";
 
     void enter(State s) {
         this.state = s;

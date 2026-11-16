@@ -546,7 +546,7 @@ public abstract class LongBodyRunner extends Monster {
 
         @Override
         public boolean canUse() {
-            if (this.runner.hasCustomName() && this.runner.getCustomName().getString().startsWith("nostroll")) return false;
+            if (com.yayuy.overgrownvegetation.entity.DevNames.noStroll(this.runner)) return false;
             return !this.runner.isActing() && this.runner.playerWithin(STROLL_RANGE) && super.canUse();
         }
 

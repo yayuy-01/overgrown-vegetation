@@ -29,11 +29,19 @@ public final class LeapMotion {
     static final double ABORT_OFF = 0.3D;
     /** 向きが揃わないまま身を沈めていてよい上限(tick)。過ぎたら跳ばずにやめる。 */
     static final int ALIGN_GIVE_UP = 60;
+    /**
+     * 段ごとの時間切れ(tick)【仮】(2026-11-16 コードの見直し ①2)。身を沈める段は「蹴るまでの長さ + 向きを揃える上限 + これ」を、揃い・不揃いに関係なく通しで数える
+     * (水に浮く・クモの巣・段差の途中で接地しないと、向きは揃っても蹴れず永遠に構えていた)。落ちる段はこれを過ぎたら着いたことにする
+     * (クモの巣・つる・ほかの Mob の上で接地しないまま止まる)。
+     */
+    public static final int CROUCH_GIVE_UP = 20, FALL_GIVE_UP = 200;
 
     private final LeapSpec spec;
     private int phase = NONE;
     private int t;
     private int air;
+    /** 今の段に入ってからの tick(時間切れを数える。身を沈める・落ちる段)。 */
+    private int stageAge;
     @Nullable
     private LeapPlan plan;
     private Vec3 expected = Vec3.ZERO;
@@ -97,6 +105,7 @@ public final class LeapMotion {
         this.phase = CROUCH;
         this.t = 0;
         this.air = 0;
+        this.stageAge = 0;
         this.crouchTicks = crouchTicks;
         this.landTicks = landTicks;
         this.alignDeg = alignDeg;
@@ -128,7 +137,12 @@ public final class LeapMotion {
     /** 跳びをやめる(宙なら落ちるに任せる)。 */
     public void cancel() {
         if (this.phase == CROUCH || this.phase == LAND) this.phase = NONE;
-        else if (this.phase == AIR) this.phase = FALL;
+        else if (this.phase == AIR) fall();
+    }
+
+    private void fall() {
+        this.phase = FALL;
+        this.stageAge = 0;
     }
 
     /** バニラの移動の前に呼ぶ。{@code currentYaw} は今の体の向き(度)。 */
@@ -142,6 +156,10 @@ public final class LeapMotion {
             case CROUCH -> {
                 Vec3 v = mob.getDeltaMovement();
                 mob.setDeltaMovement(0.0D, v.y, 0.0D);
+                if (++this.stageAge > Math.max(1, this.crouchTicks) + ALIGN_GIVE_UP + CROUCH_GIVE_UP) {
+                    this.phase = NONE;   // 接地しないまま蹴れない: 跳ばずにやめる
+                    return;
+                }
                 if (Math.abs(Mth.wrapDegrees(yaw() - currentYaw)) <= this.alignDeg) {
                     this.t++;
                 } else if (++this.air > ALIGN_GIVE_UP) {
@@ -161,7 +179,10 @@ public final class LeapMotion {
                 }
             }
             case AIR -> airStep(mob);
-            case FALL -> mob.fallDistance = 0.0F;
+            case FALL -> {
+                mob.fallDistance = 0.0F;
+                if (++this.stageAge > FALL_GIVE_UP) land(mob);   // 接地しないまま止まった: 着いたことにする
+            }
             case LAND -> {
                 Vec3 v = mob.getDeltaMovement();
                 mob.setDeltaMovement(v.x * 0.3D, v.y, v.z * 0.3D);
@@ -190,13 +211,13 @@ public final class LeapMotion {
                 boolean blockedUp = mob.getY() < this.expected.y - ABORT_OFF;
                 boolean groundEarly = mob.onGround() && this.air > 2 && mob.getY() > this.expected.y + 0.05D;
                 if (mob.isInWater() || mob.isInLava()) {
-                    this.phase = FALL;
+                    fall();
                     this.lastAborted = true;
                 } else if (s >= 1.0D || mob.onGround() && this.air > 2 && s > 0.6D) {
                     land(mob);
                 } else if (off > ABORT_OFF || blockedUp || groundEarly) {
                     // ぶつかった: 弧をやめ、横の勢いを捨てて落ちる
-                    this.phase = FALL;
+                    fall();
                     this.lastAborted = true;
                     Vec3 v = mob.getDeltaMovement();
                     mob.setDeltaMovement(v.x * 0.2D, Math.min(0.0D, v.y), v.z * 0.2D);

@@ -327,7 +327,7 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
         }
         this.targetY = Mth.clamp(this.targetY, low, high);   // 夕方・朝や地形で帯が動いたら付いていく
         // 時々、口から胞子をこぼす(見た目だけ。真下の胞子濃度を上げる能力は別に作る)
-        boolean debugSpill = this.hasCustomName() && this.getCustomName().getString().contains("spill");
+        boolean debugSpill = DevNames.has(this, "spill");
         if (this.spillIn < 0 || (debugSpill && this.spillIn > SPILL_DEBUG)) {
             this.spillIn = debugSpill ? SPILL_DEBUG : SPILL_MIN + this.random.nextInt(SPILL_SPAN);
         }

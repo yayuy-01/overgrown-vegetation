@@ -396,7 +396,7 @@ public class StiltPhyllosensEntity extends Monster implements GeoEntity, Parasit
         @Override
         public boolean canUse() {
             // 確かめ用(テストクライアント・GameTest): 名前が nostroll で始まる個体はうろつかない(navto の行き先を上書きしないように)
-            if (this.mob.hasCustomName() && this.mob.getCustomName().getString().startsWith("nostroll")) return false;
+            if (com.yayuy.overgrownvegetation.entity.DevNames.noStroll(this.mob)) return false;
             if (this.mob.walker.moving() || !this.mob.walker.ready()) return false;
             if (this.mob.brain.mode() != StiltPhyllosensBrain.Mode.WALK) return false;   // 段 2: 化けている・見張り・覗きの間はうろつかない
             if (this.mob.getRandom().nextInt(STROLL_INTERVAL) != 0) return false;

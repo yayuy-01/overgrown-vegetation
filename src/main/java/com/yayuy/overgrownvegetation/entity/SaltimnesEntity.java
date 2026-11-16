@@ -47,7 +47,7 @@ import java.util.EnumSet;
  *   <li><b>歩く</b>: 低い這い歩き。体の向きと経路は「② 大型の地上を走る型」の土台({@link LongBodyRunner}: 向きは少しずつ回す・長い体の経路)。
  *       脚の手続き(足の置き場)・体の曲げは使わない(手付けの walk を実際の速さに合わせて流す)。坂・段差では体の傾きと脚の上げ下げを地面に合わせる({@link GroundFit}、11-15 段 2)。</li>
  *   <li><b>跳ぶ</b>(「跳ぶ型」{@code entity/leap/}): 伏せ場所への経路が柵・塀・高い段差・水の溝で切れた / 大回りになるときは、その向こうへ跳ぶ。</li>
- *   <li>確かめ用: 名前が {@code hop} の個体は {@link #HOP_EVERY} tick ごとに近くへ跳ぶ(ユーザーのクライアントでも効く)。{@code nostroll} で始まる個体は伏せ場所を探さない。</li>
+ *   <li>確かめ用({@link DevNames}: 開発用の操作口か GameTest だけ): 名前が {@code hop} の個体は {@link #HOP_EVERY} tick ごとに近くへ跳ぶ。{@code nostroll} で始まる個体は伏せ場所を探さない。</li>
  * </ul>
  */
 public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, ParasitizedMob, CaptorMount {
@@ -283,10 +283,8 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
 
         @Override
         public boolean canUse() {
-            if (this.mob.hasCustomName()) {
-                String n = this.mob.getCustomName().getString();
-                if (n.startsWith("nostroll") || n.equals("hop")) return false;
-            }
+            String n = DevNames.of(this.mob);
+            if (n.startsWith("nostroll") || n.equals("hop")) return false;
             return super.canUse();
         }
     }
@@ -304,6 +302,7 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
         if (server) {
             this.leap.postMove(this);
             this.entityData.set(DATA_LEAP, leapSyncValue());
+            CaptorMount.releaseStray(this, act() == ACT_PIN, this::releasePin);   // 読み込み直しで技が消え、獲物だけ乗っている(①1)
         }
     }
 
@@ -511,8 +510,9 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
                     event.setCanceled(true);
                 }
                 if (!event.isCanceled() && event.getEntityBeingMounted() instanceof SaltimnesEntity s
-                        && event.getEntityMounting() instanceof net.minecraft.server.level.ServerPlayer sp && sp.getForcedPose() != null) {
-                    sp.setForcedPose(null);   // 押し倒しを戻す(放した・サルティムネスが死んだ・消えた)
+                        && event.getEntityMounting() instanceof net.minecraft.server.level.ServerPlayer sp) {
+                    // 押し倒しを戻す(放した・サルティムネスが死んだ・消えた)。押し倒していなくても(読み込み直しで乗ったまま戻った等)知らせる
+                    sp.setForcedPose(null);
                     net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.SaltimnesPinPayload(com.yayuy.overgrownvegetation.network.SaltimnesPinPayload.END, s.getId()));
                 }
                 return;
@@ -600,7 +600,7 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
 
     /** 名前(確かめ用の口)。 */
     private String devName() {
-        return this.hasCustomName() ? this.getCustomName().getString() : "";
+        return DevNames.of(this);   // 開発用の操作口か GameTest のときだけ(11-16 見直し ①6)
     }
 
     // ------------------------------------------------------------------ Goal

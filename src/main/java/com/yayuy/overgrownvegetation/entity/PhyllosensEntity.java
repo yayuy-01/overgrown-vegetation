@@ -408,6 +408,7 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
         super.addAdditionalSaveData(tag);
         tag.putBoolean(TAG_TOWER, true);
         for (int i = 0; i < 4; i++) tag.putFloat("Plate" + i, this.plateHp[i]);
+        this.watch.save(tag);   // 崩れ・倒れ・起き上がりの途中(読み込み直しで板根が折れたまま残らないよう。①10)
     }
 
     @Override
@@ -418,6 +419,7 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
         for (int i = 0; i < 4; i++) {
             if (tag.contains("Plate" + i)) this.plateHp[i] = tag.getFloat("Plate" + i);
         }
+        this.watch.load(tag);
         this.setNoGravity(true);
     }
 

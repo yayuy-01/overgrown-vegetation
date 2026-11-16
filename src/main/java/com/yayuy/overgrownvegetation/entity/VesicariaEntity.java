@@ -182,7 +182,7 @@ public class VesicariaEntity extends SmallCrawler implements GeoEntity, Parasiti
 
     /** 相手を探すか。名前に notarget を含む個体は探さない(GameTest で、隣のテストの Mob を狙って走り出さないように)。 */
     private boolean hunts() {
-        return !this.hasCustomName() || !this.getCustomName().getString().contains("notarget");
+        return !DevNames.has(this, "notarget");
     }
 
     @Override
