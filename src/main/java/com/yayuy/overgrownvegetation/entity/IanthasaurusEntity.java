@@ -30,8 +30,12 @@ public class IanthasaurusEntity extends SimpleLizard {
     /** 曲げの付け根: 首 neck・頭 head(z −5.6・−7.8。残り 2 つは頭の先の目安)、尾 tail1〜tail3(z 6.3・11.8・17.3。4 つ目は尾の先の目安)。 */
     static final double[] BEND_FRONT = {5.6D * PX, 7.8D * PX, 9.5D * PX, 11.0D * PX};
     static final double[] BEND_BACK = {6.3D * PX, 11.8D * PX, 17.3D * PX, 21.0D * PX};
-    /** walk・run を 1.0 倍で流したときの地上速度(ブロック/tick、体格 1。体格 2 で倍)。11-16 に FK で測った(体格 2 で walk は 0.10〜0.12、run は 0.19〜0.21)。 */
-    static final double WALK_REF = 0.055D, RUN_REF = 0.10D;
+    /**
+     * walk・run を 1.0 倍で流したときの地上速度(ブロック/tick、体格 1。体格 2 で倍)。11-16 に G2・G3 の作業セッションが足先の決まった点と
+     * 接地した隅の滑りの谷で測った値(walk 0.09〜0.10・run 0.15〜0.16)。最初の 0.055・0.10 は「いちばん低い隅」が接地の途中で入れ替わる
+     * ぶんを差し引いて小さく出ていた(再生が約 1.8 倍速すぎて足が滑っていた)。
+     */
+    static final double WALK_REF = 0.10D, RUN_REF = 0.155D;
     public static final double JUMP_STRENGTH = 0.62D;
 
     public IanthasaurusEntity(EntityType<? extends IanthasaurusEntity> type, Level level) {
