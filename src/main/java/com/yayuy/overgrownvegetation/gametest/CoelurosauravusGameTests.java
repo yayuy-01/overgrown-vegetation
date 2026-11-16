@@ -201,7 +201,7 @@ public final class CoelurosauravusGameTests {
     @GameTest(template = "gametest_empty24", timeoutTicks = 400)
     public static void findsTrunkAndStartsClimbing(GameTestHelper helper) {
         tree(helper, 12, 12, 7);
-        CoelurosauravusEntity v = helper.spawn(ModLizards.COELUROSAURAVUS.get(), new BlockPos(5, 2, 5));
+        CoelurosauravusEntity v = helper.spawn(ModLizards.COELUROSAURAVUS.get(), new BlockPos(8, 2, 8));   // 幹から約 5 ブロック(遠いと寄るだけで 200 tick を超える)
         v.readyToClimb();
         helper.onEachTick(() -> {
             if (v.climbs > 0) helper.succeed();

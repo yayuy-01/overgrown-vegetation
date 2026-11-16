@@ -100,6 +100,8 @@ public class CoelurosauravusEntity extends SimpleLizard {
     private Trunk trunk;
     private int perchTicks, driftHold, climbCooldown = CLIMB_COOLDOWN_MIN;
     private float drift;
+    /** 確かめ用: 次の 1 回は見込みのくじを引かずに幹を探す。 */
+    private boolean searchNow;
     /** 確かめ用: 登った・休んだ・跳んだ・当たって落ちた・着いた回数(サーバー)。 */
     public int climbs, perches, launches, knocks, landings;
     private float bankNow, bankPrev;
@@ -393,9 +395,10 @@ public class CoelurosauravusEntity extends SimpleLizard {
         return this.goalNote + " 待ち " + this.climbCooldown;
     }
 
-    /** 確かめ用: 次に幹へ向かうまでの待ちを 0 に。 */
+    /** 確かめ用: 次に幹へ向かうまでの待ちを 0 にし、次の 1 回は見込みのくじ(1/40)を引かずに幹を探す(テストが運に左右されない)。 */
     public void readyToClimb() {
         this.climbCooldown = 0;
+        this.searchNow = true;
     }
 
     @Nullable
@@ -421,7 +424,8 @@ public class CoelurosauravusEntity extends SimpleLizard {
         @Override
         public boolean canUse() {
             if (this.mob.mode() != MODE_GROUND || !this.mob.onGround() || this.mob.isInWater() || this.mob.climbCooldown > 0) return false;
-            if (this.mob.getRandom().nextInt(reducedTickDelay(CLIMB_CHANCE)) != 0) return false;
+            if (!this.mob.searchNow && this.mob.getRandom().nextInt(reducedTickDelay(CLIMB_CHANCE)) != 0) return false;
+            this.mob.searchNow = false;
             this.plan = this.mob.findTrunk();
             this.mob.goalNote = this.plan == null ? "幹なし" : "見つけた " + this.plan;
             if (this.plan == null) this.mob.climbCooldown = 100;   // 近くに幹が無い: 少し待って探し直す【仮】
