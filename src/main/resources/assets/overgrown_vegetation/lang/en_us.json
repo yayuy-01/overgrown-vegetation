@@ -239,6 +239,8 @@
   "effect.overgrown_vegetation.spore_infection": "Spore Infection",
   "death.attack.overgrown_vegetation.spore_infection": "%1$s was consumed by spores",
   "death.attack.overgrown_vegetation.spore_infection.player": "%1$s was consumed by spores while fighting %2$s",
+  "death.attack.overgrown_vegetation.creeping_wall": "%1$s was swallowed by the creeping wall",
+  "block.overgrown_vegetation.wall_remains": "Overgrown Remains",
   "item.overgrown_vegetation.spore_meter.needles": "Airborne %s %s%%  Settled %s %s%%  Exposure %s %s%%",
   "item.overgrown_vegetation.spore_meter.wind": "Wind: toward the %s, strength %s",
   "item.overgrown_vegetation.spore_meter.dir.east": "east",

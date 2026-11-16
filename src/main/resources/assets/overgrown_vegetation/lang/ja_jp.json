@@ -239,6 +239,8 @@
   "effect.overgrown_vegetation.spore_infection": "胞子感染",
   "death.attack.overgrown_vegetation.spore_infection": "%1$sは胞子に蝕まれた",
   "death.attack.overgrown_vegetation.spore_infection.player": "%1$sは%2$sと戦いながら胞子に蝕まれた",
+  "death.attack.overgrown_vegetation.creeping_wall": "%1$sは蠢く壁に飲み込まれた",
+  "block.overgrown_vegetation.wall_remains": "成れの果て",
   "item.overgrown_vegetation.spore_meter.needles": "浮遊 %s %s%%  降り積もり %s %s%%  暴露 %s %s%%",
   "item.overgrown_vegetation.spore_meter.wind": "風: %s へ・強さ %s",
   "item.overgrown_vegetation.spore_meter.dir.east": "東",

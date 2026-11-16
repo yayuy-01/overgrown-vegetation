@@ -239,6 +239,8 @@
   "effect.overgrown_vegetation.spore_infection": "Споровая инфекция",
   "death.attack.overgrown_vegetation.spore_infection": "%1$s поглощён спорами",
   "death.attack.overgrown_vegetation.spore_infection.player": "%1$s поглощён спорами в бою с %2$s",
+  "death.attack.overgrown_vegetation.creeping_wall": "%1$s поглощён ползучей стеной",
+  "block.overgrown_vegetation.wall_remains": "Заросшие останки",
   "item.overgrown_vegetation.spore_meter.needles": "В воздухе %s %s%%  Осело %s %s%%  Облучение %s %s%%",
   "item.overgrown_vegetation.spore_meter.wind": "Ветер: на %s, сила %s",
   "item.overgrown_vegetation.spore_meter.dir.east": "восток",

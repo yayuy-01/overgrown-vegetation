@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "overgrown_vegetation:spore_infection"
+    "overgrown_vegetation:spore_infection",
+    "overgrown_vegetation:creeping_wall"
   ]
 }

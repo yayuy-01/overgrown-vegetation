@@ -62,7 +62,9 @@ public final class CommandTreeGameTests {
             Map.entry("experimental", Set.of("on", "off")),
             // 2026-11-13 ユーザー了承: 設計データを起動したまま読み直す design reload を開発用に戻した(新しい mod マネージャーで保存 → 読み直し)。
             // 配布した jar では登録しない(DesignReloadCommand。GameTest は開発環境なので居る)。
-            Map.entry("design", Set.of("reload")));
+            Map.entry("design", Set.of("reload")),
+            // 2026-11-16: 蠢く壁の試作(creeping-wall)。起こす start・場所を指す at・止める stop・重さを見る status。
+            Map.entry("wall", Set.of("start", "at", "stop", "status")));
 
     @GameTest(template = "gametest_empty7")
     public static void ovCommandTreeMatchesAgreedList(GameTestHelper helper) {
