@@ -590,6 +590,38 @@
     "xpReward": 30,
     "eggFit": 5.17
   },
+  "petrolacosaurus": {
+    "maxHealth": 10,
+    "attackDamage": 4,
+    "armor": 1,
+    "movementSpeed": 0.34,
+    "knockbackResistance": 0,
+    "followRange": 18,
+    "stepHeight": 1,
+    "scale": 2,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.6,
+    "height": 0.4,
+    "xpReward": 3,
+    "eggFit": 3.32
+  },
+  "ianthasaurus": {
+    "maxHealth": 18,
+    "attackDamage": 5,
+    "armor": 3,
+    "movementSpeed": 0.24,
+    "knockbackResistance": 0.2,
+    "followRange": 18,
+    "stepHeight": 1,
+    "scale": 2,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.7,
+    "height": 0.6,
+    "xpReward": 4,
+    "eggFit": 2.92
+  },
   "pedicula": {
     "maxHealth": 0.1,
     "armor": 0,

@@ -38,8 +38,12 @@ public final class SpineWaveRig {
         double wChest = s.get(SpineWave.CHEST, pt) * r;
         double wHip = -s.get(SpineWave.HIP, pt) * r;
         addY(model, this.chest, wChest);
-        addY(model, this.hip, wHip - wChest);
-        double before = wHip;
+        // 腰の骨が無い体(胴が 1 本。イアンタサウルスなど、11-16)は、尾が胴に付いている: 尾の付け根は胴の向きからの差
+        double before = wChest;
+        if (this.hip != null) {
+            addY(model, this.hip, wHip - wChest);
+            before = wHip;
+        }
         for (int i = 0; i < this.tails.length && i < SpineWave.TAILS; i++) {
             double w = -s.get(SpineWave.TAIL0 + i, pt) * r;
             addY(model, this.tails[i], w - before);
