@@ -51,6 +51,8 @@ public final class FogLurkers {
 
     /** 立ち止まっている本物の印。 */
     public static final String TAG = "ov_fog_lurker";
+    /** 確かめ用の命令({@code /ov perf spawns lurker})で出した印。霧が晴れても去らない(近づけば動き出す)。 */
+    public static final String MANUAL_TAG = "ov_fog_lurker_manual";
     /** 動き出した後の印(片付けの対象から外れる。ふつうの敵)。 */
     public static final String WOKE_TAG = "ov_fog_lurker_woke";
 
@@ -119,7 +121,7 @@ public final class FogLurkers {
                 continue;
             }
             if (m.level() != level) continue;
-            if (!conditions) {
+            if (!conditions && !m.getTags().contains(MANUAL_TAG)) { // 確かめ用の命令で出したものは、条件を見ずに残す(見比べやすいように。11-17 eerie-look の勧め)
                 m.discard();
                 LURKERS.remove(m);
                 left++;

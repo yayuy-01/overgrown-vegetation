@@ -46,6 +46,7 @@ public final class SpawnCommand {
                             CommandSourceStack src = ctx.getSource();
                             Vec3 p = src.getPosition();
                             net.minecraft.world.entity.Mob m = FogLurkers.trySpawn(src.getLevel(), p.x, p.z, src.getLevel().getRandom());
+                            if (m != null) m.addTag(FogLurkers.MANUAL_TAG); // 条件が外れても残す(見比べ用)
                             src.sendSuccess(() -> Component.literal(m == null ? "出せなかった(汚染地帯の外・見通しの縁に木が無い)"
                                     : "霧の中の本物: " + m.getType().getDescription().getString() + " (" + m.getBlockX() + ", " + m.getBlockY() + ", " + m.getBlockZ() + ")"), false);
                             return m == null ? 0 : 1;
