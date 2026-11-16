@@ -118,6 +118,19 @@ public final class ModCrawlers {
     public static final DeferredItem<DeferredSpawnEggItem> PROTOPHASMA_SPAWN_EGG = ModItems.ITEMS.registerItem(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(PROTOPHASMA, 0x2F4A1C, 0x7A5C34, props));
 
+    /** ステノディクティアの幼虫(G2、2026-11-17 段 1。梢を歩く)。当たりは胴の芯 0.45 × 0.3(0.7 倍に作り直した形。全長 1.11)。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity>> STENODICTYA_NYMPH =
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity.ID, () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity>of(com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity::new, MobCategory.CREATURE)
+                    .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity.ID, 0.45F), MobStats.height(com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity.ID, 0.3F))
+                    .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity.ID))
+                    .eyeHeight(0.2F)
+                    .clientTrackingRange(8)
+                    .build(com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity.ID));
+    /** スポーンエッグ(地は汚染シダの暗い緑、点は翅芽の黄緑)。 */
+    public static final DeferredItem<DeferredSpawnEggItem> STENODICTYA_NYMPH_SPAWN_EGG = ModItems.ITEMS.registerItem(com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity.ID + "_spawn_egg",
+            props -> new DeferredSpawnEggItem(STENODICTYA_NYMPH, 0x2A4418, 0x8EA834, props));
+
     /** 陸生カタツムリ(G2。id は giant_snail のまま)。当たりは 0.7 × 0.9(MobStats の値)。全体 1.34 × 0.69 × 0.89。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.GiantSnailEntity>> GIANT_SNAIL =
             ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.GiantSnailEntity.ID, () -> EntityType.Builder
@@ -151,6 +164,7 @@ public final class ModCrawlers {
         output.accept(STROBILA_SPAWN_EGG.get());
         output.accept(PULMONOSCORPIUS_SPAWN_EGG.get());
         output.accept(PROTOPHASMA_SPAWN_EGG.get());
+        output.accept(STENODICTYA_NYMPH_SPAWN_EGG.get());
         output.accept(GIANT_SNAIL_SPAWN_EGG.get());
         output.accept(ARTHROPLEURA_SPAWN_EGG.get());
     }
@@ -162,6 +176,7 @@ public final class ModCrawlers {
         event.put(STROBILA.get(), com.yayuy.overgrownvegetation.entity.StrobilaEntity.createAttributes().build());
         event.put(PULMONOSCORPIUS.get(), com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.createAttributes().build());
         event.put(PROTOPHASMA.get(), com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.createAttributes().build());
+        event.put(STENODICTYA_NYMPH.get(), com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity.createAttributes().build());
         event.put(GIANT_SNAIL.get(), com.yayuy.overgrownvegetation.entity.GiantSnailEntity.createAttributes().build());
         event.put(ARTHROPLEURA.get(), com.yayuy.overgrownvegetation.entity.ArthropleuraEntity.createAttributes().build());
     }

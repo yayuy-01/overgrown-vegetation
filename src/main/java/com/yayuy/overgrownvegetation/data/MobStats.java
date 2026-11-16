@@ -556,10 +556,11 @@ public final class MobStats {
             s.eggFit = 1.17;
         }));
         m.put("stenodictya_nymph", stat(s -> {
+            // 2026-11-17 段 1 で戻した。形を 0.7 倍に作り直したので当たり・卵の大きさも 0.7 倍・体格の個体差は無し(亜種なし)【仮】
             s.maxHealth = 6.0; s.movementSpeed = 0.22; s.followRange = 10.0; s.stepHeight = 1.0;
-            s.width = 0.6; s.height = 0.45; s.xpReward = 1;
-            s.scaleMin = 0.85; s.scaleMax = 1.15;
-            s.eggFit = 1.03;
+            s.width = 0.45; s.height = 0.3; s.xpReward = 1;
+            s.scaleMin = 1.0; s.scaleMax = 1.0;
+            s.eggFit = 0.72;
         }));
         m.put("eryops", stat(s -> {
             s.maxHealth = 32.0; s.attackDamage = 6.0; s.movementSpeed = 0.1; s.armor = 2.0;

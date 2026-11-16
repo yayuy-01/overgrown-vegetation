@@ -34,6 +34,8 @@ public final class CrawlerClient {
                 ctx -> new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity>(ctx, new CritterModel<>(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.ID), 1.0F, 0.6F));
         event.registerEntityRenderer(ModCrawlers.PROTOPHASMA.get(),
                 ctx -> new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.ProtophasmaEntity>(ctx, new CritterModel<>(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID), 1.0F, 0.35F));
+        event.registerEntityRenderer(ModCrawlers.STENODICTYA_NYMPH.get(),   // 11-17 段 1(0.7 倍の形は geo に焼き込み済み)
+                ctx -> new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity>(ctx, new CritterModel<>(com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity.ID), 1.0F, 0.3F));
         event.registerEntityRenderer(ModCrawlers.GIANT_SNAIL.get(),
                 ctx -> new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.GiantSnailEntity>(ctx, new CritterModel<>(com.yayuy.overgrownvegetation.entity.GiantSnailEntity.ID), 1.0F, 0.4F));
         event.registerEntityRenderer(ModCrawlers.ARTHROPLEURA.get(),

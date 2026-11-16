@@ -383,6 +383,8 @@
   "item.overgrown_vegetation.seminaria_spawn_egg": "Яйцо призыва: Семинария",
   "entity.overgrown_vegetation.stenodictya_lobata": "Стенодиктия",
   "item.overgrown_vegetation.stenodictya_lobata_spawn_egg": "Яйцо призыва: Стенодиктия",
+  "entity.overgrown_vegetation.stenodictya_nymph": "Личинка стенодиктии",
+  "item.overgrown_vegetation.stenodictya_nymph_spawn_egg": "Яйцо призыва: Личинка стенодиктии",
   "entity.overgrown_vegetation.pedicula": "Педикула",
   "item.overgrown_vegetation.pedicula_spawn_egg": "Яйцо призыва: Педикула",
   "entity.overgrown_vegetation.acumnes": "Акумнес",

@@ -574,6 +574,22 @@
     "xpReward": 3,
     "eggFit": 1.28
   },
+  "stenodictya_nymph": {
+    "maxHealth": 6,
+    "attackDamage": 0,
+    "armor": 0,
+    "movementSpeed": 0.22,
+    "knockbackResistance": 0,
+    "followRange": 10,
+    "stepHeight": 1,
+    "scale": 1,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.45,
+    "height": 0.3,
+    "xpReward": 1,
+    "eggFit": 0.72
+  },
   "acumnes": {
     "maxHealth": 40,
     "attackDamage": 12,

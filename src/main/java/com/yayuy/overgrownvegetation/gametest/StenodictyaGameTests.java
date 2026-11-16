@@ -203,4 +203,60 @@ public final class StenodictyaGameTests {
                     v.mode(), v.flock() == null ? "null" : v.flock().state(), v.perchPos(), v.getX(), v.getY(), v.getZ(), leaf, hangY));
         });
     }
+
+    // ------------------------------------------------------------------ 幼虫(11-17 段 1: 梢を歩く)
+
+    /** 幼虫: G2 に入り、植物側で、当たりは胴の芯 0.45 × 0.3(0.7 倍に作り直した形)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void stenodictyaNymphRegisteredAsG2(GameTestHelper helper) {
+        com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity v = helper.spawn(com.yayuy.overgrownvegetation.registry.ModCrawlers.STENODICTYA_NYMPH.get(), new BlockPos(3, 2, 3));
+        if (MobGroup.of(v.getType()) != MobGroup.GROUP_2) {
+            helper.fail("G2 に入っていない: " + MobGroup.of(v.getType()));
+            return;
+        }
+        if (!(v instanceof ParasitizedMob)) {
+            helper.fail("植物側でない");
+            return;
+        }
+        if (Math.abs(v.getBbWidth() - 0.45F) > 1e-3 || Math.abs(v.getBbHeight() - 0.3F) > 1e-3) {
+            helper.fail("芯の大きさが 0.45 × 0.3 でない: " + v.getBbWidth() + " × " + v.getBbHeight());
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * 幼虫のうろつきの行き先は梢(てっぺんが葉の所・今の高さ ±2)の上だけで、地面へは下りない。
+     * テスト場の天井のバリア(高さ 8)を抜き、高さ 3 に 3×3 の葉の台を置いて、台の上から 60 回選ばせる。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void stenodictyaNymphStrollsOnlyOnCanopy(GameTestHelper helper) {
+        for (int x = 0; x <= 6; x++) {
+            for (int z = 0; z <= 6; z++) helper.setBlock(new BlockPos(x, 8, z), Blocks.AIR.defaultBlockState());
+        }
+        for (int x = 2; x <= 4; x++) {
+            for (int z = 2; z <= 4; z++) {
+                helper.setBlock(new BlockPos(x, 3, z), Blocks.OAK_LEAVES.defaultBlockState().setValue(LeavesBlock.PERSISTENT, true));
+            }
+        }
+        BlockPos feet = helper.absolutePos(new BlockPos(3, 4, 3));
+        BlockPos lo = helper.absolutePos(new BlockPos(2, 4, 2)), hi = helper.absolutePos(new BlockPos(4, 4, 4));
+        net.minecraft.util.RandomSource rnd = net.minecraft.util.RandomSource.create(17L);
+        int found = 0;
+        for (int i = 0; i < 60; i++) {
+            Vec3 p = com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity.canopySpot(helper.getLevel(), feet, rnd);
+            if (p == null) continue;
+            found++;
+            BlockPos b = BlockPos.containing(p);
+            if (b.getY() != feet.getY() || b.getX() < lo.getX() || b.getX() > hi.getX() || b.getZ() < lo.getZ() || b.getZ() > hi.getZ()) {
+                helper.fail("葉の台の上でない所を選んだ: " + b + "(台 " + lo + "〜" + hi + ")");
+                return;
+            }
+        }
+        if (found == 0) {
+            helper.fail("葉の台の上を 1 度も選ばない");
+            return;
+        }
+        helper.succeed();
+    }
 }
