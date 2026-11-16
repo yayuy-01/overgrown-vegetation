@@ -99,6 +99,9 @@ public final class FogFigures {
     private static int shown;
     private static int vanishedByApproach;
     private static String lastFail = "";
+    /** 置けなかった升の数(確かめ用): 幹のそばでない・見通せない。 */
+    private static int failTrunk;
+    private static int failSight;
     private static boolean broken;
     /** 確かめ用: 霧の度合い・昼夜の条件を見ない(devbridge)。 */
     public static boolean devAlways;
@@ -222,24 +225,43 @@ public final class FogFigures {
             double dist = visibility * Mth.lerp(RANDOM.nextFloat(), p.nearFraction(), Math.max(p.nearFraction(), p.farFraction()));
             double x = eye.x + Math.cos(angle) * dist;
             double z = eye.z + Math.sin(angle) * dist;
-            int bx = Mth.floor(x);
-            int bz = Mth.floor(z);
-            if (!level.hasChunkAt(pos.set(bx, 0, bz))) {
+            int cx = Mth.floor(x);
+            int cz = Mth.floor(z);
+            if (!level.hasChunkAt(pos.set(cx, 0, cz))) {
                 lastFail = "読み込まれていない";
                 continue;
             }
-            int ground = groundBelow(level, pos, bx, Mth.floor(eye.y) + 6, bz);
-            if (ground == Integer.MIN_VALUE || Math.abs(ground + 1 - eye.y) > 9.0) {
-                lastFail = "立てる地面が無い";
-                continue;
+            // 選んだ点のまわり 3 ブロックから、立てる所(地面・幹のそば・見通せる)を探す(本物の置き方と同じ探し方)。
+            int bx = 0;
+            int bz = 0;
+            int ground = Integer.MIN_VALUE;
+            String why = "立てる地面が無い";
+            search:
+            for (int dx = -3; dx <= 3; dx++) {
+                for (int dz = -3; dz <= 3; dz++) {
+                    int g = groundBelow(level, pos, cx + dx, Mth.floor(eye.y) + 6, cz + dz);
+                    if (g == Integer.MIN_VALUE || Math.abs(g + 1 - eye.y) > 9.0) {
+                        continue;
+                    }
+                    if (!trunkNear(level, pos, cx + dx, g + 1, cz + dz)) {
+                        why = "幹のそばでない";
+                        failTrunk++;
+                        continue;
+                    }
+                    Vec3 chest = new Vec3(cx + dx + 0.5, g + 2.2, cz + dz + 0.5);
+                    if (level.clip(new ClipContext(eye, chest, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, player)).getType() != HitResult.Type.MISS) {
+                        why = "見通せない";
+                        failSight++;
+                        continue;
+                    }
+                    bx = cx + dx;
+                    bz = cz + dz;
+                    ground = g;
+                    break search;
+                }
             }
-            if (!trunkNear(level, pos, bx, ground + 1, bz)) {
-                lastFail = "幹のそばでない";
-                continue;
-            }
-            Vec3 chest = new Vec3(bx + 0.5, ground + 2.2, bz + 0.5);
-            if (level.clip(new ClipContext(eye, chest, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player)).getType() != HitResult.Type.MISS) {
-                lastFail = "見通せない";
+            if (ground == Integer.MIN_VALUE) {
+                lastFail = why;
                 continue;
             }
             String species = p.species().get(RANDOM.nextInt(p.species().size()));
@@ -267,12 +289,15 @@ public final class FogFigures {
         int open = 0;
         for (int y = y0; y > y0 - 20 && y > level.getMinBuildHeight(); y--) {
             BlockState state = level.getBlockState(pos.set(x, y, z));
-            boolean empty = state.getCollisionShape(level, pos).isEmpty() && state.getFluidState().isEmpty();
+            // 本物の側(TreeCanopyGroundFinder#findSpawnSurface)と同じ見方: 動きを止めるブロックで、木の一部でない物が地面。
+            // (前は「不透明な立方体」だけを地面にしていて、汚染された草ブロックの林床で立てる所が見つからなかった。11-17)
+            boolean empty = !state.blocksMotion() && state.getFluidState().isEmpty();
             if (empty) {
                 open++;
                 continue;
             }
-            if (open >= 3 && state.isSolidRender(level, pos) && !state.is(BlockTags.LEAVES) && !state.is(BlockTags.LOGS)) {
+            if (open >= 3 && state.getFluidState().isEmpty() && !state.is(BlockTags.LEAVES)
+                    && !com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder.isTreePart(state)) {
                 return y;
             }
             open = 0;
@@ -280,11 +305,23 @@ public final class FogFigures {
         return Integer.MIN_VALUE;
     }
 
-    /** 足元の高さで、水平 3 ブロック以内に幹(原木)があるか(本物の G5 も木のそばに立つ。開けた所にぽつんと立たせない)。 */
+    /** 幹のそばの、まわりが空いた地面か(本物の G5 と同じ置き方。開けた所にぽつんと立たせない)。 */
     private static boolean trunkNear(ClientLevel level, BlockPos.MutableBlockPos pos, int x, int y, int z) {
+        // 本物の置き方(サーバーの spawn/FogLurkers#besideTrunk)に寄せた決まり(11-17): まわり 4 方向(足と頭の高さ)が空いていて、
+        // 近くに原木がある。幹に接した升には体の幅がはまるので、幹から 1 ブロックは空く。
+        // y は足の高さ(地面の 1 つ上)。
+        for (net.minecraft.core.Direction d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+            if (level.getBlockState(pos.set(x + d.getStepX(), y, z + d.getStepZ())).blocksMotion()
+                    || level.getBlockState(pos.set(x + d.getStepX(), y + 1, z + d.getStepZ())).blocksMotion()) {
+                return false;
+            }
+        }
+        // 幹は水平 3 ブロック以内(足か頭の高さ)。本物は「東西南北の 1〜2 ブロック先」だが、同じにすると森の中でも置ける所がほとんど無かった
+        // (200 回探して 0)。霧の中の 30 ブロック先では見分けが付かない差なので、ここは緩めてある。
         for (int dx = -3; dx <= 3; dx++) {
             for (int dz = -3; dz <= 3; dz++) {
-                if ((dx != 0 || dz != 0) && level.getBlockState(pos.set(x + dx, y + 1, z + dz)).is(BlockTags.LOGS)) {
+                if ((dx != 0 || dz != 0) && (level.getBlockState(pos.set(x + dx, y, z + dz)).is(BlockTags.LOGS)
+                        || level.getBlockState(pos.set(x + dx, y + 1, z + dz)).is(BlockTags.LOGS))) {
                     return true;
                 }
             }
@@ -703,6 +740,7 @@ public final class FogFigures {
             now = String.format("%s (%.1f, %.1f, %.1f) 距離 %.1f 濃さ %.2f%s 三角 %d", f.species, f.x, f.y, f.z,
                     Math.sqrt(Mth.square(mc.player.getX() - f.x) + Mth.square(mc.player.getZ() - f.z)), f.alpha, f.leaving ? " 溶けている" : "", f.tris.length / 9);
         }
-        return String.format("霧の影 %s(これまで %d 体・近づいて消えた %d・置けなかった理由 %s)", now, shown, vanishedByApproach, lastFail.isEmpty() ? "なし" : lastFail);
+        return String.format("霧の影 %s(これまで %d 体・近づいて消えた %d・置けなかった理由 %s・外した升 幹 %d 見通し %d)", now, shown, vanishedByApproach,
+                lastFail.isEmpty() ? "なし" : lastFail, failTrunk, failSight);
     }
 }
