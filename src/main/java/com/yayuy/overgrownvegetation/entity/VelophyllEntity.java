@@ -433,8 +433,9 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
                 }
                 turnToward(com.yayuy.overgrownvegetation.entity.flyer.FlightBody.yawOf(t.getX() - this.getX(), t.getZ() - this.getZ()), WINDUP_TURN);
                 double h = Math.toRadians(this.getYRot());
-                this.dvx = -Math.sin(h) * WINDUP_SPEED;
-                this.dvz = Math.cos(h) * WINDUP_SPEED;
+                double ws = this.debugWindupInPlace ? 0.0D : WINDUP_SPEED;
+                this.dvx = -Math.sin(h) * ws;
+                this.dvz = Math.cos(h) * ws;
                 this.dvy = 0.0D;
                 if (this.diveTicks >= DIVE_WINDUP) setDive(DIVE_FALL);
             }
@@ -573,6 +574,12 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
         this.tpx = t.getX();
         this.tpz = t.getZ();
     }
+
+    /**
+     * テスト用: 前触れの間その場で向き直るだけにする(前へ進まない)。GameTest の場は狭く、前触れの 24 tick で 13 ブロック進むと
+     * エンティティを動かさないチャンクへ出て止まってしまうため(11-17。急降下のテストがいつも時間切れで落ちていた)。
+     */
+    public boolean debugWindupInPlace;
 
     /** 計測・テスト用: 放した爆弾の数(サーバー全体)。 */
     public static volatile int bombsDropped;

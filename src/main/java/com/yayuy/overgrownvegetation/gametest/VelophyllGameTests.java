@@ -288,16 +288,18 @@ public final class VelophyllGameTests {
             helper.succeed();
         });
     }
-
     /**
      * 急降下: 前触れ(その場の高さを保つ)→ 相手の頭上へ落ちる → 放す → 引き起こす。爆弾は相手の近く(水平 6 ブロック以内)で放す(雲になるのは別のテスト)。
      * 前触れの間は昇り降りしない。
+     * 11-17: テスト場は狭く上に天井があるので、ヴェロフィルは場の中(相手の真上 6)に置き、前触れはその場で向き直るだけにする
+     * ({@link VelophyllEntity#debugWindupInPlace})。前は前触れで 13 ブロック進んでエンティティを動かさないチャンクへ出て止まり、時間切れで落ちていた。
      */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 400)
+    @GameTest(template = "gametest_empty7", timeoutTicks = 200)
     public static void divesAndBombsTarget(GameTestHelper helper) {
         net.minecraft.world.entity.animal.Cow cow = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.COW, new BlockPos(3, 2, 3));
-        VelophyllEntity v = spawn(helper, 3.5D, 14.0D, 3.5D);
+        VelophyllEntity v = spawn(helper, 3.5D, 8.0D, 3.5D);
         v.roostOverride = Boolean.FALSE;
+        v.debugWindupInPlace = true;
         int before = VelophyllEntity.bombsDropped;
         double[] y0 = {Double.NaN};
         boolean[] sawFall = {false};
@@ -309,7 +311,9 @@ public final class VelophyllGameTests {
             helper.assertTrue(v.diveState() == VelophyllEntity.DIVE_WINDUP_P, "前触れのまま来ない: " + v.diveState());
             helper.assertTrue(Math.abs(v.getY() - y0[0]) < 0.3D, String.format("前触れの間に高さが変わった(%.2f)", v.getY() - y0[0]));
         });
+        int[] tick = {0};
         helper.onEachTick(() -> {
+            tick[0]++;
             if (v.diveState() == VelophyllEntity.DIVE_FALL) sawFall[0] = true;
             if (VelophyllEntity.bombsDropped > before && sawFall[0]) {
                 Vec3 b = VelophyllEntity.lastBombAt;
@@ -319,6 +323,10 @@ public final class VelophyllGameTests {
                     return;
                 }
                 helper.succeed();
+            } else if (tick[0] == 190) {
+                // 時間切れの前に、どこで止まったかを書いて落とす
+                helper.fail(String.format("爆弾を放さない: 段 %d・動き %d・相手からの位置 (%.1f, %.1f, %.1f)", v.diveState(), v.mode(),
+                        v.getX() - cow.getX(), v.getY() - cow.getY(), v.getZ() - cow.getZ()));
             }
         });
     }
