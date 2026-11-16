@@ -636,7 +636,7 @@ public final class MobStats {
         // 全体 3.7 × 3.4 × 9.5)。描画倍率 2.0 は描画で掛ける(体格は 1)。攻撃は能力の段。
         m.put("pilimnes", stat(s -> {
             s.maxHealth = 30.0; s.attackDamage = 6.0; s.armor = 4.0; s.armorToughness = 0.0; s.movementSpeed = 0.30;
-            s.knockbackResistance = 0.5; s.followRange = 40.0; s.stepHeight = 1.0;
+            s.knockbackResistance = 0.5; s.followRange = 48.0; s.stepHeight = 1.0;   // 11-16 弾きの射程 44 に合わせて 40 → 48
             s.scale = 1.0;
             s.width = 1.3; s.height = 1.6; s.eggFit = 5.17; s.xpReward = 30;
             s.naturalSpawn = false;   // 自然には湧かない(スポーンエッグ・コマンドだけ)

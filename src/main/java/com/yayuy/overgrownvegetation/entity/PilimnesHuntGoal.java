@@ -47,7 +47,7 @@ final class PilimnesHuntGoal extends Goal {
     static final int RAIN_FALL_TICKS = 30;
     static final double RAIN_SPREAD = 2.5D;
     /** 間合い(体の中心から、ブロック)【仮】。 */
-    static final double FLICK_MIN = 6.0D, FLICK_MAX = 22.0D, FAN_MIN = 3.5D, FAN_MAX = 9.0D, RAIN_MIN = 6.0D, RAIN_MAX = 22.0D;
+    static final double FLICK_MIN = 6.0D, FLICK_MAX = 44.0D, FAN_MIN = 3.5D, FAN_MAX = 18.0D, RAIN_MIN = 6.0D, RAIN_MAX = 22.0D;   // 11-16 ユーザー「遠距離はもっと射程があっていい」: 弾き 22 → 44・扇 9 → 18(2 倍)。雨は相手のまわりに降るのでそのまま
     /** 噛みつきの届く所(体の中心から前へ・左右、ブロック。鼻先の通り道 前 3.8〜4.5 のまわり)【仮】。 */
     static final double BITE_F_MIN = 2.4D, BITE_F_MAX = 5.0D, BITE_LAT = 1.3D;
     /** 撃ち始めてよい向きのずれ(度)。前触れの間に相手へ向き直る【仮】。 */
@@ -55,7 +55,7 @@ final class PilimnesHuntGoal extends Goal {
     /** 扇の開き(度。決定 11-15)。 */
     static final float FAN_DEG = 25.0F;
     /** 棘の速さ(ブロック/tick)・傷・鈍足【仮】。 */
-    static final double FLICK_SPEED = 1.6D, FAN_SPEED = 1.3D;
+    static final double FLICK_SPEED = 2.4D, FAN_SPEED = 1.8D;   // 11-16 射程 2 倍に合わせて速く(弾きは 44 ブロック先へ約 21 tick・扇は 18 ブロック先へ約 11 tick。空気の抵抗 0.99/tick 込み)
     static final float FLICK_DAMAGE = 5.0F, FAN_DAMAGE = 4.0F, RAIN_DAMAGE = 4.0F;
     static final int SLOW_TICKS = 80, SLOW_LEVEL = 1;
     /** 待ち(tick)【仮】。 */
@@ -64,7 +64,7 @@ final class PilimnesHuntGoal extends Goal {
     static final double CHASE_SPEED = 1.0D;
     static final int REPATH = 10, SIGHT_EVERY = 5;
     /** 撃てる間合いの外へ寄るとき、相手からこの距離(ブロック)まで寄って止まる【仮】。 */
-    static final double HOLD_DIST = 14.0D;
+    static final double HOLD_DIST = 40.0D;   // 11-16 射程 2 倍に合わせて 14 → 40(弾きの間合い 44 の少し内側で止まって撃つ)
 
     /** 技の番号(PilimnesEntity の ACT_*)。 */
     private final PilimnesEntity mob;

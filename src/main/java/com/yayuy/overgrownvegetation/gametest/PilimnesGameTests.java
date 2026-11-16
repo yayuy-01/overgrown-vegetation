@@ -82,6 +82,11 @@ public final class PilimnesGameTests {
             helper.fail("段差 " + v.maxUpStep() + "・跳ぶ力 " + v.getAttributeValue(Attributes.JUMP_STRENGTH) + " が決まり通りでない");
             return;
         }
+        // 11-16: 弾きの射程 44(ユーザー「遠距離はもっと射程があっていい」で 2 倍)の相手を見つけられること
+        if (v.getAttributeValue(Attributes.FOLLOW_RANGE) < 44.0D) {
+            helper.fail("相手を見つける距離 " + v.getAttributeValue(Attributes.FOLLOW_RANGE) + " が弾きの射程 44 より短い");
+            return;
+        }
         if (!com.yayuy.overgrownvegetation.effect.ParasitizedAttackInfectionHandler.isOvergrownMob(v)) {
             helper.fail("過繁茂の Mob と見なされない(ほかの Mob から敵対されない)");
             return;
