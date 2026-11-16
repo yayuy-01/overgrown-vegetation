@@ -61,7 +61,7 @@ import java.util.Map;
  *     出ていた影は 5 秒で溶かす(2 つ同時に見せない)。</li>
  *     <li><b>霧</b>: 距離の霞(地形・Mob と同じ式 {@link MistView#fogAmount})の分だけ透けさせる。霧の中の物は距離の霞を受ける決まりどおり。
  *     見通しの縁では霞が 9 割なので、影が受ける距離を {@code hazeEase} 倍に縮めて少しだけ濃く見せる(巨大樹のシルエットと同じ考え)。</li>
- *     <li><b>出る所</b>: 濃霧の度合いが {@code minFog} 以上・昼と朝・空の下で、見ている向きの左右 60° の中、見通しの {@code nearFraction}〜{@code farFraction}
+ *     <li><b>出る所</b>: 濃霧の度合いが {@code minFog} 以上・昼と朝・空の下・<b>汚染地帯の中・G5 のフェーズから</b>(本物と同じ条件。11-17 ユーザー決定)で、見ている向きの左右 60° の中、見通しの {@code nearFraction}〜{@code farFraction}
  *     倍の距離の、地面の上・木の幹のそば・目から見通せる所。同時に 1 体。平均 {@code everySeconds} 秒に 1 体。</li>
  *     <li><b>消える</b>: 見通しの {@code vanishFraction} 倍より近づくと霧へ溶け始め、{@code vanishBand} ぶん近づくと消えきる(一度溶けたら戻らない)。
  *     近づかなくても {@code lifeSeconds} 秒で溶ける。霧が晴れても溶ける。当たり判定・音・サーバーとの通信は無い。</li>
@@ -178,7 +178,7 @@ public final class FogFigures {
                 nextAt = now + 200L;
                 return;
             }
-            Figure made = place(level, player, p, 8);
+            Figure made = place(level, player, p, 8, true);
             if (made != null) {
                 figure = made;
                 shown++;
@@ -194,7 +194,22 @@ public final class FogFigures {
         // 昼と朝だけ: サーバーが本物を出す時間帯(dayTime 23000〜12000)と同じにする。
         long time = Math.floorMod(level.getDayTime(), 24000L);
         return DenseFog.amount() >= p.minFog() && (time >= 23000L || time <= 12000L) && ForestPresence.underground() < 0.3F
-                && Atmosphere.enabled(level) && !ShaderPacks.active();
+                && Atmosphere.enabled(level) && !ShaderPacks.active() && lurkerTerritory(level);
+    }
+
+    /**
+     * 本物の G5 が出る所・時期か(11-17 ユーザー決定: 偽の影も本物と同じ条件にそろえる = 汚染地帯の中だけ・G5 のフェーズから)。
+     * フェーズ = サーバーから届いている今のフェーズが、司令塔の門「送り込みの G5〜」(director.json の gates.waveG5)以上。
+     * 汚染地帯 = プレイヤーのいる列が過繁茂の系統のバイオーム(サーバーは過繁茂にしたチャンクの台帳で見る。クライアントにはその台帳が
+     * 無いので、チャンクを過繁茂にするとき書き換わるバイオームで見る)。影を置く所も同じ見方({@link #place})。
+     */
+    private static boolean lurkerTerritory(ClientLevel level) {
+        Minecraft mc = Minecraft.getInstance();
+        var director = DesignData.director();
+        return mc.player != null && director.enabled
+                && com.yayuy.overgrownvegetation.director.DirectorGates.open(director.gates,
+                com.yayuy.overgrownvegetation.director.DirectorGates.Gate.WAVE_G5, com.yayuy.overgrownvegetation.client.phase.ClientPhaseState.phase())
+                && com.yayuy.overgrownvegetation.registry.ModBiomes.isOvergrownLike(level.getBiome(mc.player.blockPosition()));
     }
 
     /** 本物の G5(タグ group_5)が、見通しの 1.6 倍の中にいるか。 */
@@ -216,7 +231,8 @@ public final class FogFigures {
 
     // ------------------------------------------------------------------ 置く
 
-    private static Figure place(ClientLevel level, LocalPlayer player, AtmosphereScary.Figures p, int tries) {
+    /** territory = 汚染地帯の中(過繁茂の系統のバイオーム)にだけ置く(自然に出すとき。確かめ用の命令は見ない)。 */
+    private static Figure place(ClientLevel level, LocalPlayer player, AtmosphereScary.Figures p, int tries, boolean territory) {
         float visibility = visibility();
         Vec3 eye = player.getEyePosition();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -241,6 +257,10 @@ public final class FogFigures {
                 for (int dz = -3; dz <= 3; dz++) {
                     int g = groundBelow(level, pos, cx + dx, Mth.floor(eye.y) + 6, cz + dz);
                     if (g == Integer.MIN_VALUE || Math.abs(g + 1 - eye.y) > 9.0) {
+                        continue;
+                    }
+                    if (territory && !com.yayuy.overgrownvegetation.registry.ModBiomes.isOvergrownLike(level.getBiome(pos.set(cx + dx, g + 1, cz + dz)))) {
+                        why = "汚染地帯の外";
                         continue;
                     }
                     if (!trunkNear(level, pos, cx + dx, g + 1, cz + dz)) {
@@ -716,7 +736,7 @@ public final class FogFigures {
             made.alpha = 1.0F;
             made.pinned = true;
         } else {
-            made = place(mc.level, mc.player, p, 200);
+            made = place(mc.level, mc.player, p, 200, false);
             if (made == null) {
                 return "置ける所が無かった(" + lastFail + ")";
             }
