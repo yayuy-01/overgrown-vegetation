@@ -45,7 +45,7 @@ public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
     /** 見た目の数。どれも【仮】(Fable 11-16。ユーザーの希望を入れた後に design json へ移す)。 */
     public record Style(String name, ResourceLocation base, float amp, float flowU, float flowV, float waveSpeed,
                         float limbChance, float sacChance, int sacCluster, float arcChance, int arcKind,
-                        float veinBase, float veinPulse, int minBlockLight, float tintR, float tintG, float tintB) {
+                        float veinBase, float veinPulse, int minBlockLight, float tintR, float tintG, float tintB, float tentacleChance) {
     }
 
     private static ResourceLocation tex(String name) {
@@ -54,16 +54,19 @@ public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
 
     private static final ResourceLocation ROOTS_FINE = tex("wall_roots_fine");
     private static final ResourceLocation VINES = tex("wall_vines");
+    private static final ResourceLocation COVER = tex("wall_cover");
     private static final ResourceLocation VEINS = tex("wall_veins");
     private static final ResourceLocation PARTS = tex("wall_parts");
     private static final ResourceLocation PARTS_GLOW = tex("wall_parts_glow");
 
     /**
-     * 案 B「飲まれた者たち」(11-16 夜にユーザーが選んだ): 細い蔦の網から、手足と顔がたくさん突き出て揺れる。波は中くらい。
+     * 案 B「飲まれた者たち」(11-16 夜にユーザーが選んだ)に、ユーザーの直し(同じ夜)を入れた物: 蔦の線を和らげた塊に、
+     * 植物に覆われた Mob の体の一部(頭・腕・脚・胴が半分出ている)・蔦の触手・胞子嚢(少なめ)を所々に混ぜる。
+     * 面のうち 体の一部 20%・胞子嚢 7%・触手 14%・根の輪 8%。
      * 比べた案 A「根の濁流」・案 C「胞子嚢と光」は外した(コミット c4369b2 に残る)。
      */
     public static final Style STYLE_B = new Style("b", ROOTS_FINE, 0.24F, 0.008F, 0.016F, 0.8F,
-            0.34F, 0.08F, 1, 0.16F, 2, 0.35F, 0.85F, 5, 0.95F, 1.00F, 0.95F);
+            0.20F, 0.07F, 2, 0.08F, 2, 0.16F, 0.60F, 5, 0.95F, 1.00F, 0.95F, 0.14F);
 
     /** 今の見た目。 */
     public static volatile Style style = STYLE_B;
@@ -166,6 +169,9 @@ public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
             }
             if (flod[f] <= 1) {
                 drawSacs(vc, level, f, st, false);
+                if (fd2[f] < 144.0F) {
+                    drawTentacle(vc, f, st);
+                }
             }
         }
         // 4. 飲まれた Mob(絵ごとにまとめて)と、それをくるむ蔦
@@ -186,9 +192,9 @@ public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
                     drawLimb(vc, f, kind, false);
                 }
             }
-            vc = buffers.getBuffer(RenderType.entityCutoutNoCull(VINES));
+            vc = buffers.getBuffer(RenderType.entityCutoutNoCull(COVER)); // 植物の覆い(苔と細い蔦で半分ほど隠す)
             for (int f = 0; f < faceCount; f++) {
-                if (fd2[f] < 81.0F) {
+                if (fd2[f] < 100.0F) {
                     int kind = limbKind(f, st);
                     if (kind >= 0) {
                         drawLimb(vc, f, kind, true);
@@ -575,6 +581,83 @@ public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
         out[2] = a[0] * b[1] - a[1] * b[0];
     }
 
+    // ------------------------------------------------------------------ 蔦の触手
+
+    /**
+     * 蔦の触手(11-16 夜、ユーザーの直し): 面からうねり出て、しばらく揺れ、また引っ込む。先へ伸びて獲物を探す物ではなく、
+     * 塊の表面で蠢くだけ(長さは 1 ブロックほどまで。決定 その 4 の「先に伸びる触手は無い」とは別物)。
+     * 節は 3〜4 画素の箱の鎖で、長さは整数画素で伸び縮みする(絵は伸ばさない)。
+     */
+    private void drawTentacle(VertexConsumer vc, int f, Style st) {
+        int h = key(f, 21);
+        float r = frac(h), lo = st.limbChance + st.sacChance;
+        if (r < lo || r >= lo + st.tentacleChance) {
+            return;
+        }
+        int d = fdir[f];
+        int[] nn = N[d], uu = U[d], ww = W[d];
+        int h2 = key(f, 41);
+        float period = 150.0F + frac(h2) * 170.0F, phase = frac(h2 >>> 5) * period;
+        float cyc = (t + phase) / period;
+        float c = cyc - Mth.floor(cyc);
+        // 伸びる → うねる → 引っ込む → 休む
+        float ext = c < 0.22F ? c / 0.22F : c < 0.62F ? 1.0F : c < 0.80F ? 1.0F - (c - 0.62F) / 0.18F : 0.0F;
+        ext = ext * ext * (3.0F - 2.0F * ext);
+        int remaining = Math.round(ext * (16 + (h2 >>> 9 & 7))); // いちばん伸びたとき 16〜23 画素
+        if (remaining < 1) {
+            return;
+        }
+        float js = (frac(h2 >>> 12) - 0.5F) * 0.4F, jw = (frac(h2 >>> 17) - 0.5F) * 0.4F;
+        anchor(f, js, jw, -1.0F * PX, o);
+        p0[0] = o[0];
+        p0[1] = o[1];
+        p0[2] = o[2];
+        float ph = frac(h2 >>> 3) * 6.28F;
+        float bendA = (frac(h2 >>> 7) - 0.5F) * 0.5F, bendB = (frac(h2 >>> 14) - 0.5F) * 0.5F;
+        for (int i = 0; i < 7 && remaining > 0; i++) {
+            int th = i < 2 ? 4 : i < 4 ? 3 : 2;
+            int len = Math.min(remaining, i < 2 ? 4 : 3);
+            remaining -= len;
+            bendA += 0.30F * Mth.sin(t * 0.11F + ph + i * 0.9F);
+            bendB += 0.30F * Mth.sin(t * 0.083F + ph * 1.7F + i * 1.1F);
+            float sa = Mth.sin(bendA), ca = Mth.cos(bendA), sb = Mth.sin(bendB), cb = Mth.cos(bendB);
+            float l2 = 0.0F;
+            for (int k = 0; k < 3; k++) {
+                va[k] = nn[k] * ca * cb + uu[k] * sa + ww[k] * sb * ca;
+                l2 += va[k] * va[k];
+            }
+            float il = 1.0F / Mth.sqrt(Math.max(l2, 1.0e-6F));
+            float dot = 0.0F;
+            for (int k = 0; k < 3; k++) {
+                va[k] *= il;
+                dot += uu[k] * va[k];
+            }
+            float bl = 0.0F;
+            for (int k = 0; k < 3; k++) {
+                vb[k] = uu[k] - va[k] * dot;
+                bl += vb[k] * vb[k];
+            }
+            if (bl < 1.0e-3F) {
+                bl = 0.0F;
+                dot = ww[0] * va[0] + ww[1] * va[1] + ww[2] * va[2];
+                for (int k = 0; k < 3; k++) {
+                    vb[k] = ww[k] - va[k] * dot;
+                    bl += vb[k] * vb[k];
+                }
+            }
+            il = 1.0F / Mth.sqrt(Math.max(bl, 1.0e-6F));
+            for (int k = 0; k < 3; k++) {
+                vb[k] *= il;
+            }
+            cross(va, vb, vcx);
+            box(vc, p0, va, vb, vcx, 0, len, -th * 0.5F, th * 0.5F, -th * 0.5F, th * 0.5F,
+                    th == 2 ? 0 : 24, th == 2 ? 18 : th == 3 ? 8 : 0, len, th, th, 64, 64, 1.0F, 1.0F, 1.0F, flight[f]);
+            for (int k = 0; k < 3; k++) {
+                p0[k] += va[k] * len * PX;
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ 胞子嚢
 
     /** 脈打つ胞子嚢。膨らみ切ると弾けて胞子を吹き、しぼんでまた膨らむ。glow = 中の光の層。 */
@@ -660,7 +743,7 @@ public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
             ResourceLocation.withDefaultNamespace("textures/entity/spider/spider.png"),
             ResourceLocation.withDefaultNamespace("textures/entity/player/wide/steve.png"),
     };
-    private static final int HEAD = 0, ARM = 1, LEGS = 2;
+    private static final int HEAD = 0, ARM = 1, LEGS = 2; // HEAD = 正面を外へ向けて半分埋める(頭・胴)、ARM = 長い軸を外へ(腕・脚)
     /** 絵の番号・絵の幅・高さ・箱の展開の左上 u v・箱の大きさ dx dy dz・出し方・重み。 */
     private static final int[][] LIMBS = {
             {0, 64, 64, 0, 0, 8, 8, 8, HEAD, 5},    // ゾンビの頭
@@ -673,6 +756,13 @@ public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
             {5, 64, 32, 18, 0, 16, 2, 2, LEGS, 4},  // クモの脚
             {6, 64, 64, 0, 0, 8, 8, 8, HEAD, 2},    // プレイヤーの頭(前に飲まれた人)
             {6, 64, 64, 40, 16, 4, 12, 4, ARM, 2},  // プレイヤーの腕
+            {0, 64, 64, 0, 16, 4, 12, 4, ARM, 4},   // ゾンビの脚
+            {0, 64, 64, 16, 16, 8, 12, 4, HEAD, 4}, // ゾンビの胴
+            {1, 64, 32, 0, 16, 2, 12, 2, ARM, 3},   // スケルトンの脚
+            {1, 64, 32, 16, 16, 8, 12, 4, HEAD, 2}, // スケルトンの胴
+            {6, 64, 64, 0, 16, 4, 12, 4, ARM, 1},   // プレイヤーの脚
+            {6, 64, 64, 16, 16, 8, 12, 4, HEAD, 2}, // プレイヤーの胴
+            {4, 64, 32, 16, 16, 8, 12, 4, HEAD, 2}, // クリーパーの胴
     };
     private static final int LIMB_WEIGHT;
 
@@ -715,7 +805,8 @@ public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
         float inout = (0.5F + 0.5F * Mth.sin(t * 0.03F + ph * 2.3F));
         int mode = l[8];
         int dx = l[5], dy = l[6], dz = l[7];
-        float tr = wrap ? 0.95F : 0.80F, tg = wrap ? 0.95F : 0.88F, tb = wrap ? 0.95F : 0.70F; // Mob は腐った緑へ寄せる
+        boolean far = fd2[f] >= 100.0F; // 覆いを描かない距離では、緑へ強く寄せて覆われて見せる
+        float tr = wrap ? 0.95F : far ? 0.50F : 0.80F, tg = wrap ? 0.95F : far ? 0.68F : 0.88F, tb = wrap ? 0.95F : far ? 0.42F : 0.70F; // Mob は腐った緑へ寄せる
         float inf = wrap ? 0.5F : 0.0F;
         int tu = wrap ? (h2 >>> 4 & 31) : l[3], tv = wrap ? (h2 >>> 10 & 31) : l[4];
         int tw2 = wrap ? 64 : l[1], th2 = wrap ? 64 : l[2];
@@ -727,7 +818,7 @@ public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
                 yaw = (frac(h2) - 0.5F) * 1.0F + sway * 0.14F + twitch * 0.2F;
                 pitch = (frac(h2 >>> 6) - 0.35F) * 0.8F + sway2 * 0.10F;
                 roll = (frac(h2 >>> 12) - 0.5F) * 0.9F + sway2 * 0.06F;
-                out = 3.0F + 3.5F * inout; // 8 画素のうち外へ出る分
+                out = dz * (0.35F + 0.25F * inout); // 厚みの 35〜60% が外へ出る(半分出ている)
                 triad(uu, ww, nn, yaw, pitch, roll);
                 anchor(f, js, jw, 0.0F, o);
                 box(vc, o, va, vb, vcx, -dx * 0.5F - inf, dx * 0.5F + inf, -dy * 0.5F - inf, dy * 0.5F + inf, out - dz - inf, out + inf,
@@ -736,7 +827,7 @@ public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
                 yaw = (frac(h2) - 0.5F) * 0.9F + sway * 0.22F + twitch * 0.5F;
                 pitch = (frac(h2 >>> 6) - 0.5F) * 0.9F + sway2 * 0.20F + twitch * 0.3F;
                 roll = frac(h2 >>> 12) * 6.28F;
-                out = 6.0F + 4.0F * inout; // 12 画素のうち外へ出る分
+                out = 5.0F + 3.0F * inout; // 12 画素のうち外へ出る分
                 // 腕は長い軸(絵の下 = 手)を外へ向ける: 箱の B = −法線
                 triadArm(uu, ww, nn, yaw, pitch, roll);
                 anchor(f, js, jw, 0.0F, o);
@@ -746,7 +837,7 @@ public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
                 float sg = part == 0 ? 1.0F : -1.0F;
                 yaw = sg * (0.35F + frac(h2 >>> (part * 5)) * 0.5F) + sway * 0.18F * sg + twitch * 0.6F;
                 pitch = (frac(h2 >>> 6 + part * 3) - 0.5F) * 0.7F + sway2 * 0.2F;
-                out = 8.0F + 5.0F * inout; // 16 画素のうち外へ出る分
+                out = 7.0F + 4.0F * inout; // 16 画素のうち外へ出る分
                 // 脚は長い軸(箱の A)を外へ
                 triadLeg(uu, ww, nn, yaw, pitch);
                 anchor(f, js + sg * 0.12F, jw, 0.0F, o);
