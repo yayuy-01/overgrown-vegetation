@@ -56,7 +56,25 @@ import java.util.function.Consumer;
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class SporeFieldServer {
 
-    private static final ReentrantLock LOCK = new ReentrantLock();
+    /**
+     * 場の鍵。計測(2026-11-16): サーバースレッドが鍵を待った回数と時間を数える(裏の計算が鍵を持つ間、サーバースレッドが止まっていないかを見る)。
+     */
+    private static final ReentrantLock LOCK = new ReentrantLock() {
+        @Override
+        public void lock() {
+            MinecraftServer s = current;
+            if (s != null && s.isSameThread() && isLocked() && !isHeldByCurrentThread()) {
+                long t0 = System.nanoTime();
+                super.lock();
+                long w = System.nanoTime() - t0;
+                DevStats.mainLockWaits++;
+                DevStats.mainLockWaitNanos += w;
+                DevStats.mainLockWaitMaxNanos = Math.max(DevStats.mainLockWaitMaxNanos, w);
+            } else {
+                super.lock();
+            }
+        }
+    };
     /** ほかの所からの入力(どのスレッドからでも積める。裏のスレッドが計算の頭で取り込む)。 */
     private static final ConcurrentLinkedQueue<Consumer<SporeField>> INPUTS = new ConcurrentLinkedQueue<>();
     private static final BackgroundTask<Result> TASK = new BackgroundTask<>("胞子の場");
@@ -86,10 +104,13 @@ public final class SporeFieldServer {
         public static volatile long saves, savesSkipped, saveLockNanos, saveSnapNanos, saveSnapMaxNanos, saveLockMaxNanos;
         public static volatile int lastSaveTiles, lastSaveChanged, lastTiles, lastParcels;
         public static volatile long lastWriteNanos, lastWriteBytes, loadNanos;
+        /** サーバースレッドが場の鍵を待った回数・合計・最大(ns)。 */
+        public static volatile long mainLockWaits, mainLockWaitNanos, mainLockWaitMaxNanos;
         /** 場の中の数え(始まってからの累計)。 */
         public static volatile String fieldDev = "";
 
         public static void reset() {
+            mainLockWaits = mainLockWaitNanos = mainLockWaitMaxNanos = 0;
             runs = steps = computeNanos = computeMaxNanos = gatherNanos = gatherMaxNanos = applyNanos = applyMaxNanos = 0;
             saves = savesSkipped = saveLockNanos = saveSnapNanos = saveSnapMaxNanos = saveLockMaxNanos = 0;
         }

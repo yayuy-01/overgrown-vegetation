@@ -998,9 +998,10 @@ public final class SporeField {
 
     /** 計測用(2026-11-15 軽量化 D): 区画の内訳(奥の印を付け直したときの数)。奥 = 周りの 8 区画も全部「汚染済みか発芽しない」、深い奥 = 周りの 8 区画も奥。 */
     public volatile int devInteriorCount, devDeepCount;
+    public volatile String devShapeMore = "";
 
     public String devShape() {
-        return String.format("interior=%d deep=%d", devInteriorCount, devDeepCount);
+        return String.format("interior=%d deep=%d ", devInteriorCount, devDeepCount) + devShapeMore;
     }
 
     public int tileCount() {
@@ -1085,7 +1086,8 @@ public final class SporeField {
                 }
             tl.interior = in;
         }
-        int nIn = 0, nDeep = 0;
+        int nIn = 0, nDeep = 0, nSurf = 0, nDone = 0, nDoneNoWait = 0;
+        long twoCells = 0;
         for (Tile tl : tiles.values()) {
             boolean d = tl.interior;
             for (int dz = -1; d && dz <= 1; dz++)
@@ -1096,9 +1098,27 @@ public final class SporeField {
             tl.deep = d;
             if (tl.interior) nIn++;
             if (d) nDeep++;
+            if (d) {
+                // 計測(2026-11-16): 深い奥のうち、もう発芽しきった区画(地表・洞窟とも上限か発芽しない升)と、待ちの印の無い区画
+                boolean surf = true, cave = true, wait = false;
+                int two = 0;
+                for (int i = 0; i < TN; i++) {
+                    boolean barren = tl.germ != null && tl.germ[i] <= 0;
+                    if (tl.count[i] >= p.maxSprouts) two++;
+                    else if (!barren) surf = false;
+                    if (tl.caveCount[i] < p.maxSprouts && !barren) cave = false;
+                    if ((tl.flags[i] & WAIT) != 0) wait = true;
+                }
+                if (surf) nSurf++;
+                if (surf && cave) nDone++;
+                if (surf && cave && !wait) nDoneNoWait++;
+                twoCells += two;
+            }
         }
         devInteriorCount = nIn;
         devDeepCount = nDeep;
+        devShapeMore = String.format("deepSurfaceDone=%d deepAllDone=%d deepAllDoneNoWait=%d deepTwoShare=%.3f", nSurf, nDone, nDoneNoWait,
+                nDeep == 0 ? 0 : twoCells / (double) ((long) nDeep * TN));
     }
 
     /** この更新で深い奥を何回に 1 回進めているか(1 = 間引いていない)。{@link #step} が決める。 */
