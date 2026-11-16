@@ -41,6 +41,15 @@ public final class SpawnCommand {
                         .then(Commands.literal("clear").executes(ctx -> clear(ctx.getSource())))
                         // 重さの計測(見直し ②10、11-16): count・型の引き・種の判定の 1 回あたりの時間
                         .then(Commands.literal("bench").executes(ctx -> bench(ctx.getSource())))
+                        // 怖い現象 E の「たまに本物」を今すぐ 1 体(確かめ用。条件のうち、汚染地帯の中・木の幹のそばだけを見る。11-16)
+                        .then(Commands.literal("lurker").executes(ctx -> {
+                            CommandSourceStack src = ctx.getSource();
+                            Vec3 p = src.getPosition();
+                            net.minecraft.world.entity.Mob m = FogLurkers.trySpawn(src.getLevel(), p.x, p.z, src.getLevel().getRandom());
+                            src.sendSuccess(() -> Component.literal(m == null ? "出せなかった(汚染地帯の外・見通しの縁に木が無い)"
+                                    : "霧の中の本物: " + m.getType().getDescription().getString() + " (" + m.getBlockX() + ", " + m.getBlockY() + ", " + m.getBlockZ() + ")"), false);
+                            return m == null ? 0 : 1;
+                        }))
                         .then(Commands.literal("march")
                                 .then(Commands.argument("x", IntegerArgumentType.integer())
                                         .then(Commands.argument("z", IntegerArgumentType.integer())

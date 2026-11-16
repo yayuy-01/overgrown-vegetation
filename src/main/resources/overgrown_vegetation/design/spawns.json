@@ -25,6 +25,17 @@
     "nearChunks": 1,
     "minDepth": 8
   },
+  "fogLurker": {
+    "_comment": "怖い現象 E「霧の中のシルエット」の「たまに本物」(11-16 ユーザー了承)。濃霧(度合い minFog 以上)・昼と朝・G5 のフェーズ(director.json の gates の waveG5)から・汚染地帯の中で、プレイヤーごとに平均 meanSeconds 秒に 1 回(偽の影の平均 90 秒の 10 倍 = 偽 10 回に本物 1 回)、見通しの縁 minBlocks〜maxBlocks の木の幹のそばに、立ち止まった G5 を 1 体。wakeBlocks まで近づくか攻撃されると動き出す。霧が晴れたら、まだ動いていないものは去る。weights は種の重み。数はどれも【仮】。",
+    "enabled": true,
+    "minFog": 0.5,
+    "meanSeconds": 900,
+    "minBlocks": 29,
+    "maxBlocks": 37,
+    "wakeBlocks": 12,
+    "tries": 12,
+    "weights": { "clipeimnes": 2.0, "falcimnes": 1.0 }
+  },
   "sender": {
     "_comment": "司令塔の送り込み・大きな襲撃が G4・G5 を出すとき。拠点のまわりにいる個体を先に歩かせ、足りない分は森の方角の見えない地面に湧かせる(司令塔の予算から costSpawn × 段)。",
     "spawnMinBlocks": 40,

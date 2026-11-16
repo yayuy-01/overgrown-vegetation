@@ -40,6 +40,42 @@ public final class SpawnTable {
         public UnderJson underground;
         public SenderJson sender;
         public List<SpeciesJson> species;
+        public FogLurkerJson fogLurker;
+    }
+
+    public static final class FogLurkerJson {
+        public Boolean enabled;
+        public Double minFog, meanSeconds, minBlocks, maxBlocks, wakeBlocks;
+        public Integer tries;
+        public java.util.Map<String, Double> weights;
+    }
+
+    /** 怖い現象 E の「たまに本物」(11-16。{@link FogLurkers})。数はどれも【仮】。 */
+    public static final class FogLurker {
+        public final boolean enabled;
+        public final double minFog, meanSeconds, minBlocks, maxBlocks, wakeBlocks;
+        public final int tries;
+        /** 種の id → 重み(並びを保つ)。 */
+        public final java.util.Map<String, Double> weights;
+
+        FogLurker(@Nullable FogLurkerJson j) {
+            FogLurkerJson s = j != null ? j : new FogLurkerJson();
+            this.enabled = s.enabled == null || s.enabled;
+            this.minFog = s.minFog != null ? s.minFog : 0.5D;
+            this.meanSeconds = Math.max(1.0D, s.meanSeconds != null ? s.meanSeconds : 900.0D);
+            this.minBlocks = Math.max(8.0D, s.minBlocks != null ? s.minBlocks : 29.0D);
+            this.maxBlocks = Math.max(this.minBlocks, s.maxBlocks != null ? s.maxBlocks : 37.0D);
+            this.wakeBlocks = Math.max(1.0D, s.wakeBlocks != null ? s.wakeBlocks : 12.0D);
+            this.tries = Math.max(1, s.tries != null ? s.tries : 12);
+            java.util.Map<String, Double> w = new java.util.LinkedHashMap<>();
+            if (s.weights != null && !s.weights.isEmpty()) {
+                s.weights.forEach((k, v) -> w.put(k.contains(":") ? k : OvergrownVegetation.MODID + ":" + k, Math.max(0.0D, v == null ? 0.0D : v)));
+            } else {
+                w.put(OvergrownVegetation.MODID + ":clipeimnes", 2.0D);
+                w.put(OvergrownVegetation.MODID + ":falcimnes", 1.0D);
+            }
+            this.weights = java.util.Collections.unmodifiableMap(w);
+        }
     }
 
     public static final class EdgeJson {
@@ -89,6 +125,8 @@ public final class SpawnTable {
     public final boolean enabled;
     /** 萌芽体(汚染シダ)の自然発生(地割れなど NATURAL の湧き)を許すか。mobs.json の naturalSpawn の代わり(見直し ④、2026-11-16)。 */
     public final boolean fernNaturalSpawn;
+    /** 怖い現象 E の「たまに本物」。 */
+    public final FogLurker fogLurker;
     /** G1 の縁と地下の湧きが開くフェーズ(G4・G5 は director.json の gates。11-16 見直しで 1 か所にまとめた)。 */
     public final int openG1;
     private final int[] caps = new int[11];
@@ -104,6 +142,7 @@ public final class SpawnTable {
     private SpawnTable(Json j) {
         this.enabled = j.enabled == null || j.enabled;
         this.fernNaturalSpawn = j.fernNaturalSpawn == null || j.fernNaturalSpawn;
+        this.fogLurker = new FogLurker(j.fogLurker);
         this.openG1 = Math.max(1, j.openG1 != null ? j.openG1 : 1);
         EdgeJson e = j.edge != null ? j.edge : new EdgeJson();
         caps[1] = 15;
