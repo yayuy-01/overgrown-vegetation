@@ -48,6 +48,8 @@ neoForge {
         gameTestServer {
             type = "gameTestServer"
             systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+            // 設計データは config の写しでなく classpath の design を直に読む(写しが古くてテストが落ちていた。見直し ④、2026-11-16。DesignData#openOrSeed)
+            systemProperty 'ov.designFromClasspath', 'true'
         }
         // Claude が自分で起動して確かめる用のクライアント(2026-10-02、ユーザー了承)。
         //   gradlew.bat runClaudeClient

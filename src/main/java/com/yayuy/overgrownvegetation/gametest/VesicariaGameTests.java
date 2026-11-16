@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.gametest;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.entity.GregariaEntity;
 import com.yayuy.overgrownvegetation.entity.VesicariaEntity;
 import com.yayuy.overgrownvegetation.phase.MobGroup;
@@ -64,10 +63,6 @@ public final class VesicariaGameTests {
         VesicariaEntity v = placeAt(helper, 3.5D, 3.5D, 0.0F);
         if (MobGroup.of(v.getType()) != MobGroup.GROUP_4) {
             helper.fail("G4 に入っていない: " + MobGroup.of(v.getType()));
-            return;
-        }
-        if (DesignData.mobs().forId(VesicariaEntity.ID).naturalSpawn()) {
-            helper.fail("自然湧きが切れていない");
             return;
         }
         if (Math.abs(v.getBbWidth() - 0.8F) > 1e-3 || Math.abs(v.getBbHeight() - 0.6F) > 1e-3) {

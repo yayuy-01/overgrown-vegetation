@@ -231,9 +231,10 @@ public final class CoverGameTests {
         }
         double[] bounds = {0.0D, 0.5D, 0.7D, 0.85D, 1.0D};
         BlockPos[] cells = new BlockPos[4];
-        for (int y = 2; y <= 4; y += 2) {
-            for (int x = 0; x < 7; x += 2) {
-                for (int z = 0; z < 7; z += 2) {
+        // 見直し ④(11-16): 探す範囲を広げた(前は 1 マスおきの 32 マスで、0.7〜0.85 の区間が無い回が 0.5% ほどあった)
+        for (int y = 2; y <= 6; y++) {
+            for (int x = 0; x < 7; x++) {
+                for (int z = 0; z < 7; z++) {
                     BlockPos at = helper.absolutePos(new BlockPos(x, y, z));
                     double u = OvergrownLayerField.roll(at);
                     for (int k = 0; k < 4; k++) {

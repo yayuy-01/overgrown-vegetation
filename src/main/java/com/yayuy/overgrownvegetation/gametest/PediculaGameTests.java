@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.gametest;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.data.MobStats;
 import com.yayuy.overgrownvegetation.entity.PediculaEntity;
 import com.yayuy.overgrownvegetation.entity.flyer.BalloonDrift;
@@ -50,10 +49,6 @@ public final class PediculaGameTests {
         p.debugGround = helper.absolutePos(new BlockPos(0, 1, 0)).getY();
         if (MobGroup.of(p.getType()) != MobGroup.GROUP_4) {
             helper.fail("G4 に入っていない: " + MobGroup.of(p.getType()));
-            return;
-        }
-        if (DesignData.mobs().forId(PediculaEntity.ID).naturalSpawn()) {
-            helper.fail("自然湧きが切れていない");
             return;
         }
         float w = MobStats.width(PediculaEntity.ID, 3.6F), h = MobStats.height(PediculaEntity.ID, 3.6F);

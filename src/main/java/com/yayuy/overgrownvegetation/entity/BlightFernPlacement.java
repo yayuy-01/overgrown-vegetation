@@ -54,10 +54,10 @@ public final class BlightFernPlacement {
             return null;
         }
         EntityType<? extends BlightFernEntity> type = typeFor(level, pos);
-        // mobs.json で naturalSpawn=false にした種は「自然発生」だけ止める。
+        // 自然発生(地割れなど)の入り切りは spawns.json の fernNaturalSpawn(2026-11-16 見直し ④。前は mobs.json の naturalSpawn)。
         // 死体ブロック・感染死・装置など意図した湧き(MOB_SUMMONED)はそのまま通す。
         if ((reason == MobSpawnType.NATURAL || reason == MobSpawnType.CHUNK_GENERATION)
-                && !com.yayuy.overgrownvegetation.data.MobStats.naturalSpawn(type)) {
+                && !com.yayuy.overgrownvegetation.data.DesignData.spawns().fernNaturalSpawn) {
             return null;
         }
         BlightFernEntity entity = type.create(level, null, pos, reason, false, false);

@@ -147,26 +147,6 @@ public final class PhaseTable {
         public Double g6;
     }
 
-    /**
-     * 1 グループぶんのフェーズ強化。2026-09-25 まではグループ1 専用({@code group1})だったが、
-     * ユーザー指定でグループ 4〜9 も同じ形で強化できるようにした({@link Phase#groups})。
-     *
-     * <p>{@code fleeCorruption} は<b>グループ1 だけ</b>が見る({@code Group1FleeCorruptionGoal})。
-     * グループ4〜9 は過繫茂の中で暮らす種なので、汚染地形から逃げる意味がない。
-     */
-    public static final class GroupBuff {
-        public Boolean buffed;
-        public Double healthMultiplier;
-        public Double attackMultiplier;
-        public Boolean fleeCorruption;
-    }
-
-    /**
-     * フェーズ強化を持てるグループ(ユーザー指定 2026-09-25)。
-     * グループ2・3 は兵站(戦わない)、グループ10 は攻城戦のボス1体なので外してある。
-     */
-    public static final List<Integer> BUFFABLE_GROUPS = List.of(1, 4, 5, 6, 7, 8, 9);
-
     public static final class Phase {
         /**
          * 直前のフェーズ開始時点から、このフェーズへ進むのに必要な累計ポイント(null / 0 で条件なし
@@ -192,28 +172,6 @@ public final class PhaseTable {
          * (例「フェーズ3-拡大」)。胞子警報器が出す文にもこれが入る。
          */
         public String message;
-        /**
-         * ワールドに同時に存在できる「群れ」の数(2026-09-21、0 / null = 無制限)。
-         * 群れ v2(2026-09-25)からは<b>読み込まれている G4 の群れ</b>の数({@code swarm/SwarmManager#budget})。
-         * 上限に達している間は生態系スポーンが新しい群れを湧かせない(種ごとのかたまりはもう数えない)。
-         */
-        public Integer maxPacks;
-        /**
-         * グループ番号("1" / "4" … {@link #BUFFABLE_GROUPS})→ そのフェーズでの強化。
-         * 書かれていないグループは強化なし(倍率 1.0)。2026-09-25 に {@code group1} から移した。
-         */
-        public java.util.Map<String, GroupBuff> groups;
-        /**
-         * このフェーズへ上がったときに攻城戦(ドルガ=アーケロウス・ティタニカ)を始めるか
-         * (2026-09-17、既定はフェーズ7以降)。{@code SiegeData#onPhaseAdvanced} が見る。
-         */
-        public Boolean siegeEnabled;
-        /**
-         * {@code siegeEnabled} のフェーズへ上がってから、攻城戦が実際に始まるまでの待ち時間(tick、
-         * 2026-09-25 ユーザー指定)。0 / null = 突入した瞬間(2026-09-25 までの挙動)。
-         * 24000 = ゲーム内 1 日。プレイヤーが誰も居なければ、居るようになるまでさらに待つ。
-         */
-        public Integer siegeDelayTicks;
         /** 自由記述の内容メモ(挙動には影響しない — マネージャー表示用)。 */
         public String notes;
         /** このフェーズの小さな段の倍率と区切り(2026-11-14。書いた欄だけ {@code global.stages} を上書き)。{@link Stages}。 */
@@ -483,63 +441,6 @@ public final class PhaseTable {
         return phases[clamped];
     }
 
-    /**
-     * このフェーズに、ワールドへ同時に存在できる「群れ」の数(0 / 未設定 = 無制限)。
-     * 群れ v2(2026-09-25)からは読み込まれている G4 の群れの数で数える(旧: 生態系スポーンのひとかたまりごと)。
-     * 上限に達している間は<b>新しい群れを湧かせない</b>だけで、既にいる群れは消えない。
-     *
-     * @see com.yayuy.overgrownvegetation.swarm.SwarmManager#budget
-     */
-    public int maxPacks(int n) {
-        Integer v = phase(n).maxPacks;
-        return v != null && v > 0 ? v : 0;
-    }
-
-    /** このフェーズへ上がったときに攻城戦が始まるか({@code siegeEnabled})。 */
-    public boolean siegeEnabled(int n) {
-        return Boolean.TRUE.equals(phase(n).siegeEnabled);
-    }
-
-    /**
-     * このフェーズへ上がってから攻城戦が始まるまでの待ち時間(tick、既定 0 = その瞬間)。
-     * {@code SiegeData#tickPhaseTrigger} が数える。
-     */
-    public int siegeDelayTicks(int n) {
-        Integer v = phase(n).siegeDelayTicks;
-        return v != null ? Math.max(0, v) : 0;
-    }
-
-    /** フェーズ {@code n} でのグループ {@code group} の強化(書かれていなければ null)。 */
-    @javax.annotation.Nullable
-    public GroupBuff groupBuff(int n, int group) {
-        java.util.Map<String, GroupBuff> map = phase(n).groups;
-        return map != null ? map.get(String.valueOf(group)) : null;
-    }
-
-    /** そのフェーズでグループ {@code group} が強化されるか。 */
-    public boolean groupBuffed(int n, int group) {
-        GroupBuff g = groupBuff(n, group);
-        return g != null && Boolean.TRUE.equals(g.buffed);
-    }
-
-    /** 強化中の体力倍率(強化していない / 未設定なら 1.0)。 */
-    public double groupHealthMultiplier(int n, int group) {
-        GroupBuff g = groupBuff(n, group);
-        return g != null && g.healthMultiplier != null ? g.healthMultiplier : 1.0D;
-    }
-
-    /** 強化中の攻撃力倍率(強化していない / 未設定なら 1.0)。 */
-    public double groupAttackMultiplier(int n, int group) {
-        GroupBuff g = groupBuff(n, group);
-        return g != null && g.attackMultiplier != null ? g.attackMultiplier : 1.0D;
-    }
-
-    /** グループ1 が汚染地形から離れるか({@code Group1FleeCorruptionGoal} だけが見る)。 */
-    public boolean group1FleeCorruption(int n) {
-        GroupBuff g = groupBuff(n, 1);
-        return g != null && Boolean.TRUE.equals(g.fleeCorruption);
-    }
-
     // --- merge helpers ---
 
     private static Phase merge(Phase def, Phase over) {
@@ -548,11 +449,7 @@ public final class PhaseTable {
         r.normalArea = over != null && over.normalArea != null ? over.normalArea : def.normalArea;
         r.autoAdvance = over != null && over.autoAdvance != null ? over.autoAdvance : def.autoAdvance;
         r.message = over != null && over.message != null ? over.message : def.message;
-        r.maxPacks = over != null && over.maxPacks != null ? over.maxPacks : def.maxPacks;
-        r.siegeEnabled = over != null && over.siegeEnabled != null ? over.siegeEnabled : def.siegeEnabled;
-        r.siegeDelayTicks = over != null && over.siegeDelayTicks != null ? over.siegeDelayTicks : def.siegeDelayTicks;
         r.notes = over != null && over.notes != null ? over.notes : def.notes;
-        r.groups = mergeGroups(def.groups, over != null ? over.groups : null);
         // 小さな段(2026-11-14)。フェーズの欄は書いた欄だけ。global との重ね合わせはコンストラクタで行う。
         Stages ds = def.stages;
         Stages os = over != null ? over.stages : null;
@@ -564,34 +461,6 @@ public final class PhaseTable {
             s.establishedFrom = os != null && os.establishedFrom != null ? os.establishedFrom : (ds != null ? ds.establishedFrom : null);
             s.peakFrom = os != null && os.peakFrom != null ? os.peakFrom : (ds != null ? ds.peakFrom : null);
             r.stages = s;
-        }
-        return r;
-    }
-
-    /** グループ強化のマージ。既定と json の<b>両方に出てくるグループ</b>を集めて、項目ごとに json を優先する。 */
-    private static java.util.Map<String, GroupBuff> mergeGroups(
-            @javax.annotation.Nullable java.util.Map<String, GroupBuff> def,
-            @javax.annotation.Nullable java.util.Map<String, GroupBuff> over) {
-        java.util.Map<String, GroupBuff> r = new java.util.LinkedHashMap<>();
-        java.util.Set<String> keys = new java.util.LinkedHashSet<>();
-        if (def != null) {
-            keys.addAll(def.keySet());
-        }
-        if (over != null) {
-            keys.addAll(over.keySet());
-        }
-        for (String key : keys) {
-            GroupBuff d = def != null ? def.get(key) : null;
-            GroupBuff o = over != null ? over.get(key) : null;
-            GroupBuff g = new GroupBuff();
-            g.buffed = o != null && o.buffed != null ? o.buffed : (d != null ? d.buffed : null);
-            g.healthMultiplier = o != null && o.healthMultiplier != null
-                    ? o.healthMultiplier : (d != null ? d.healthMultiplier : null);
-            g.attackMultiplier = o != null && o.attackMultiplier != null
-                    ? o.attackMultiplier : (d != null ? d.attackMultiplier : null);
-            g.fleeCorruption = o != null && o.fleeCorruption != null
-                    ? o.fleeCorruption : (d != null ? d.fleeCorruption : null);
-            r.put(key, g);
         }
         return r;
     }
@@ -670,19 +539,6 @@ public final class PhaseTable {
             p.pointsToAdvance = pointsToAdvance[n] > 0 ? Long.valueOf(pointsToAdvance[n]) : null;
             p.normalArea = normalArea[n];
 
-            // 既定の強化はグループ1 だけ(2026-09-25 にグループ4〜9 の枠も作ったが、既定では強化しない
-            // = 書かなければ倍率 1.0。今の挙動を変えないため)。
-            // グループ1 の強化(F2〜 体力 2 倍・攻撃力 1.5 倍)は 2026-10-10 ユーザー指定で無し。
-            GroupBuff g1 = new GroupBuff();
-            g1.buffed = false;
-            g1.healthMultiplier = 1.0D;
-            g1.attackMultiplier = 1.0D;
-            g1.fleeCorruption = n >= 2;
-            p.groups = new java.util.LinkedHashMap<>();
-            p.groups.put("1", g1);
-
-            // フェーズ7以降は、上がった瞬間に攻城戦(遠距離ボス)が始まる(2026-09-17、内容は仮)。
-            p.siegeEnabled = n >= 7;
             p.notes = "";
             j.phases.put(String.valueOf(n), p);
         }

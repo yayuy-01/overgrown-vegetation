@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.gametest;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.entity.SaltimnesEntity;
 import com.yayuy.overgrownvegetation.entity.leap.AmbushSpots;
 import com.yayuy.overgrownvegetation.entity.leap.LeapMotion;
@@ -89,10 +88,6 @@ public final class SaltimnesGameTests {
         SaltimnesEntity s = placeAt(helper, 12.5D, 2.0D, 12.5D, 0.0F, "nostroll");
         if (MobGroup.of(s.getType()) != MobGroup.GROUP_5) {
             helper.fail("G5 に入っていない: " + MobGroup.of(s.getType()));
-            return;
-        }
-        if (DesignData.mobs().forId(SaltimnesEntity.ID).naturalSpawn()) {
-            helper.fail("自然湧きが切れていない");
             return;
         }
         if (Math.abs(s.getBbWidth() - 1.8F) > 1e-3 || Math.abs(s.getBbHeight() - 1.0F) > 1e-3) {

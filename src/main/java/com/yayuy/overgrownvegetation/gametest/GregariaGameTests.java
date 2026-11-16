@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.gametest;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.entity.GregariaEntity;
 import com.yayuy.overgrownvegetation.phase.MobGroup;
 import com.yayuy.overgrownvegetation.registry.ModCrawlers;
@@ -67,10 +66,6 @@ public final class GregariaGameTests {
         GregariaEntity g = placeAt(helper, 3.5D, 3.5D, 0.0F);
         if (MobGroup.of(g.getType()) != MobGroup.GROUP_4) {
             helper.fail("G4 に入っていない: " + MobGroup.of(g.getType()));
-            return;
-        }
-        if (DesignData.mobs().forId(GregariaEntity.ID).naturalSpawn()) {
-            helper.fail("自然湧きが切れていない");
             return;
         }
         if (Math.abs(g.getBbWidth() - 0.7F) > 1e-3 || Math.abs(g.getBbHeight() - 0.45F) > 1e-3) {

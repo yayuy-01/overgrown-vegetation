@@ -1,7 +1,9 @@
 {
   "_comment": "敵の湧き方(縁・地下・司令塔)。2026-11-15 ユーザー決定。正本は Vault「構想と進捗/敵の湧き方(縁・地下・司令塔)(11-15)」。数はどれも【仮】。縁 = 過繁茂の台帳に載ったチャンクと載っていないチャンクの境目を挟んで内側 1・外側 1。数はフェーズの小さな段の強さだけで決め、森の予算は払わない。明るさでは止まらない。",
   "enabled": true,
-  "openAt": { "1": 1, "4": 4, "5": 5 },
+  "fernNaturalSpawn": true,
+  "_comment_open": "開くフェーズ(11-16 見直し: 1 か所にまとめた)。G1 の縁と地下は openG1。G4・G5 は director.json の gates(waveG4・waveG5)を使う。",
+  "openG1": 1,
   "edge": {
     "_comment": "intervalTicks ごとに、プレイヤー 1 人あたり triesPerPlayer 回、プレイヤーから minBlocks〜maxBlocks のチャンクを引いて試す。上限 caps はグループごと(最盛の値。今の強さを掛ける。合計 40 = ユーザー指定の約 40)。数えるのは countRadius の中の、縁・地下で湧いた個体だけ。despawnBlocks よりどのプレイヤーからも遠くなったら消す。",
     "intervalTicks": 20,
@@ -33,7 +35,7 @@
     "clusterBlocks": 4
   },
   "species": [
-    { "_comment": "habitats: ground(地上)・sky(縁の上空)・sea(海に面した縁)・cave(縁の下の洞窟。G1 は地下の湧きにも)・soil(地中)。g1 は G1 の種の key(段階 0)。id は登録名。登録の無い id は飛ばす。director: false の種は司令塔の口(苗床・送り込み・襲撃)に入れない(空の種は 11-15 全体管理: 最初は縁だけ)。breaker: true の種は、拠点へ向かう・相手を追う途中で道が詰まると壁や扉(タグ raid_breakable)を壊す(11-16 ユーザー: アルボラ・ファルキムネス・クリペイムネス・ヴェナムネス)。", "id": "" },
+    { "_comment": "habitats: ground(地上)・sky(縁の上空)・sea(海に面した縁)・cave(縁の下の洞窟。G1 は地下の湧きにも)・soil(地中)。g1 は G1 の種の key(段階 0)。id は登録名。登録の無い id は飛ばす。director: false の種は司令塔の口(苗床・送り込み・襲撃。G1 は送り込み・大きな襲撃・偵察で森から湧かせる段階 0。11-16 見直し: G1 の重みはここ 1 か所)に入れない(空の種は 11-15 全体管理: 最初は縁だけ)。breaker: true の種は、拠点へ向かう・相手を追う途中で道が詰まると壁や扉(タグ raid_breakable)を壊す(11-16 ユーザー: アルボラ・ファルキムネス・クリペイムネス・ヴェナムネス)。", "id": "" },
     { "id": "overgrown_vegetation:arbora", "group": 4, "habitats": ["ground"], "weight": 1.0, "breaker": true },
     { "id": "overgrown_vegetation:gregaria", "group": 4, "habitats": ["ground"], "weight": 1.0 },
     { "id": "overgrown_vegetation:strobila", "group": 4, "habitats": ["ground"], "weight": 1.0 },
@@ -52,15 +54,15 @@
     { "id": "overgrown_vegetation:erebomnes", "group": 5, "habitats": ["cave"], "weight": 1.0 },
     { "id": "overgrown_vegetation:fodimnes", "group": 5, "habitats": ["cave"], "weight": 1.0 },
     { "g1": "zombie", "group": 1, "habitats": ["ground", "cave"], "weight": 3.0 },
-    { "g1": "baby_zombie", "group": 1, "habitats": ["ground", "cave"], "weight": 0.5 },
+    { "g1": "baby_zombie", "group": 1, "habitats": ["ground", "cave"], "weight": 0.5, "director": false },
     { "g1": "skeleton", "group": 1, "habitats": ["ground", "cave"], "weight": 2.0 },
     { "g1": "spider", "group": 1, "habitats": ["ground", "cave"], "weight": 2.0 },
     { "g1": "creeper", "group": 1, "habitats": ["ground", "cave"], "weight": 1.5 },
-    { "g1": "enderman", "group": 1, "habitats": ["ground", "cave"], "weight": 0.5 },
-    { "g1": "villager", "group": 1, "habitats": ["ground"], "weight": 0.5 },
+    { "g1": "enderman", "group": 1, "habitats": ["ground", "cave"], "weight": 0.5, "director": false },
+    { "g1": "villager", "group": 1, "habitats": ["ground"], "weight": 0.5, "director": false },
     { "g1": "cow", "group": 1, "habitats": ["ground"], "weight": 1.0 },
     { "g1": "pig", "group": 1, "habitats": ["ground"], "weight": 1.0 },
     { "g1": "sheep", "group": 1, "habitats": ["ground"], "weight": 1.0 },
-    { "g1": "chicken", "group": 1, "habitats": ["ground"], "weight": 0.5 }
+    { "g1": "chicken", "group": 1, "habitats": ["ground"], "weight": 0.5, "director": false }
   ]
 }

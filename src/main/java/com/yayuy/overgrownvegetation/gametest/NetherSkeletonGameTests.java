@@ -236,6 +236,7 @@ public final class NetherSkeletonGameTests {
         int minX = a.getMinBlockX(), maxX = b.getMaxBlockX(), minZ = a.getMinBlockZ(), maxZ = a.getMaxBlockZ();
         buildSea(nether, minX, maxX, minZ, maxZ, s, false);
         NetherFloraHooks.Counter counter = new NetherFloraHooks.Counter();
+        NetherTubeTreeGameTests.forgetLedger(nether, ox, oz, 2); // 見直し ④(11-16): 前の回の台帳が残っていると、湖の段が済んだことになる
         NetherFloraHooks.register(counter);
         long now = nether.getGameTime();
         long age5 = t.stageStartTicks[4] + 10;

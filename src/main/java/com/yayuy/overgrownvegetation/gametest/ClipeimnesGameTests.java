@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.gametest;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.entity.ClipeimnesEntity;
 import com.yayuy.overgrownvegetation.phase.MobGroup;
 import com.yayuy.overgrownvegetation.registry.ModRunners;
@@ -65,13 +64,8 @@ public final class ClipeimnesGameTests {
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
     public static void clipRegisteredAsG5WithoutNaturalSpawn(GameTestHelper helper) {
         ClipeimnesEntity v = placeAt(helper, 3.5D, 3.5D, 0.0F);
-        var stat = DesignData.mobs().forId(ClipeimnesEntity.ID);
         if (MobGroup.of(v.getType()) != MobGroup.GROUP_5) {
             helper.fail("G5 に入っていない: " + MobGroup.of(v.getType()));
-            return;
-        }
-        if (stat.naturalSpawn()) {
-            helper.fail("自然湧きが切れていない");
             return;
         }
         if (Math.abs(v.getBbWidth() - com.yayuy.overgrownvegetation.data.MobStats.width(ClipeimnesEntity.ID, 0.0F)) > 1e-3

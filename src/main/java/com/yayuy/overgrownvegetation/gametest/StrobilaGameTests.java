@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.gametest;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.entity.StrobilaEntity;
 import com.yayuy.overgrownvegetation.phase.MobGroup;
 import com.yayuy.overgrownvegetation.registry.ModCrawlers;
@@ -62,10 +61,6 @@ public final class StrobilaGameTests {
         StrobilaEntity s = placeAt(helper, 3.5D, 3.5D, 0.0F);
         if (MobGroup.of(s.getType()) != MobGroup.GROUP_4) {
             helper.fail("G4 に入っていない: " + MobGroup.of(s.getType()));
-            return;
-        }
-        if (DesignData.mobs().forId(StrobilaEntity.ID).naturalSpawn()) {
-            helper.fail("自然湧きが切れていない");
             return;
         }
         if (Math.abs(s.getBbWidth() - 0.95F) > 1e-3 || Math.abs(s.getBbHeight() - 1.2F) > 1e-3) {

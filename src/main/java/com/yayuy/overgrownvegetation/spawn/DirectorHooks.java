@@ -103,6 +103,26 @@ public final class DirectorHooks {
         return sets().marchers.contains(type);
     }
 
+    /**
+     * 司令塔が森から湧かせる G1 の段階 0 を 1 種選ぶ(送り込み・大きな襲撃・偵察。11-16 見直し: 重みは spawns.json の種の表 1 か所)。
+     * 選ぶのは、表の G1 のうち地上に住み、director が false でない種(村人・エンダーマン・チビゾンビ・鶏は出さない)。重みは表の weight。
+     */
+    public static com.yayuy.overgrownvegetation.corpse.G1Species pickG1(RandomSource random) {
+        double total = 0.0D;
+        for (SpawnTable.Species sp : DesignData.spawns().species) {
+            if (sp.g1() != null && sp.director() && sp.habitats().contains(SpawnTable.Habitat.GROUND)) total += sp.weight();
+        }
+        double r = random.nextDouble() * total;
+        com.yayuy.overgrownvegetation.corpse.G1Species last = com.yayuy.overgrownvegetation.corpse.G1Species.ZOMBIE;
+        for (SpawnTable.Species sp : DesignData.spawns().species) {
+            if (sp.g1() == null || !sp.director() || !sp.habitats().contains(SpawnTable.Habitat.GROUND)) continue;
+            last = sp.g1();
+            r -= sp.weight();
+            if (r <= 0.0D) return sp.g1();
+        }
+        return last;
+    }
+
     /** その種のグループの番号(グループの無い種は 4)。 */
     public static int groupOf(EntityType<?> type) {
         com.yayuy.overgrownvegetation.phase.MobGroup g = com.yayuy.overgrownvegetation.phase.MobGroup.of(type);

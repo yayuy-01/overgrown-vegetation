@@ -64,6 +64,7 @@ public final class BaseRaidGameTests {
         m.update(0.0D);
         BaseMemory.Base b = m.bases().get(0);
         m.setStageForTests(b, BaseMemory.Stage.RECOGNIZED, 0.0D);
+        m.waveSent(b, 0.0D, level.getRandom()); // 見直し ④(11-16): 最初の襲撃を済ませてから、ふつうの段(認識して 1 日)を試す
         ForestDirector director = ForestDirector.get(level);
         double before = director.available(level);
         // 11-16: 足りない分を湧かせる所を「無し」に(このテストは、いる個体を歩かせる・進化させる所だけを見る)

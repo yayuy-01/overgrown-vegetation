@@ -220,6 +220,12 @@ public final class DesignData {
      * リソースも無ければ null(呼び出し側は Java 既定値へフォールバック)。
      */
     private static Reader openOrSeed(Path dir, String name) throws IOException {
+        if (Boolean.getBoolean("ov.designFromClasspath")) {
+            // GameTest のサーバー(build.gradle の gameTestServer だけが立てる印): config の写しを使わず、いつも classpath の design を直に読む
+            // (写しは「無いときだけ写す」ので古いまま残り、テストが落ちていた。見直し ④、2026-11-16)。ふつうのクライアントと利用者の config は変えない
+            InputStream in = DesignData.class.getResourceAsStream(RESOURCE_BASE + name);
+            return in == null ? null : new java.io.InputStreamReader(in, StandardCharsets.UTF_8);
+        }
         Path file = dir.resolve(name);
         if (!Files.exists(file)) {
             try (InputStream in = DesignData.class.getResourceAsStream(RESOURCE_BASE + name)) {

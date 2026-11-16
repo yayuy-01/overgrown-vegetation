@@ -34,7 +34,8 @@ public final class SpawnTable {
     // --- Gson DTO ---
     public static final class Json {
         public Boolean enabled;
-        public Map<String, Integer> openAt;
+        public Boolean fernNaturalSpawn;
+        public Integer openG1;
         public EdgeJson edge;
         public UnderJson underground;
         public SenderJson sender;
@@ -86,7 +87,10 @@ public final class SpawnTable {
     private static final java.util.Map<String, java.util.Optional<EntityType<?>>> TYPES = new java.util.concurrent.ConcurrentHashMap<>();
 
     public final boolean enabled;
-    private final int[] openAt = new int[11];
+    /** 萌芽体(汚染シダ)の自然発生(地割れなど NATURAL の湧き)を許すか。mobs.json の naturalSpawn の代わり(見直し ④、2026-11-16)。 */
+    public final boolean fernNaturalSpawn;
+    /** G1 の縁と地下の湧きが開くフェーズ(G4・G5 は director.json の gates。11-16 見直しで 1 か所にまとめた)。 */
+    public final int openG1;
     private final int[] caps = new int[11];
 
     public final int intervalTicks, triesPerPlayer, minBlocks, maxBlocks, countRadius, despawnBlocks, skyMinAbove, skyMaxAbove, caveMinDepth;
@@ -99,11 +103,8 @@ public final class SpawnTable {
 
     private SpawnTable(Json j) {
         this.enabled = j.enabled == null || j.enabled;
-        for (int g = 0; g < 11; g++) openAt[g] = Integer.MAX_VALUE;
-        openAt[1] = 1;
-        openAt[4] = 4;
-        openAt[5] = 5;
-        if (j.openAt != null) j.openAt.forEach((k, v) -> put(openAt, k, v));
+        this.fernNaturalSpawn = j.fernNaturalSpawn == null || j.fernNaturalSpawn;
+        this.openG1 = Math.max(1, j.openG1 != null ? j.openG1 : 1);
         EdgeJson e = j.edge != null ? j.edge : new EdgeJson();
         caps[1] = 15;
         caps[4] = 15;
@@ -188,9 +189,14 @@ public final class SpawnTable {
         return new SpawnTable(j != null ? j : new Json());
     }
 
-    /** そのグループの縁・地下の湧きが開くフェーズ(表に無いグループは開かない)。 */
+    /**
+     * そのグループの縁・地下の湧きが開くフェーズ。G1 は {@link #openG1}、G4 以降は司令塔の送り込みのゲート(director.json の gates: G4 waveG4・G5 waveG5・
+     * G6 以降 waveMixed)と同じ(11-16 見直し: 前は spawns.json の openAt と 2 か所にあった)。G2・G3 は開かない。
+     */
     public int openAt(int group) {
-        return group >= 1 && group <= 10 ? openAt[group] : Integer.MAX_VALUE;
+        if (group == 1) return openG1;
+        if (group < 4 || group > 10) return Integer.MAX_VALUE;
+        return com.yayuy.overgrownvegetation.director.DirectorGates.openAt(com.yayuy.overgrownvegetation.data.DesignData.director().gates, DirectorHooks.gateOf(group));
     }
 
     /** そのグループの縁の上限(最盛の値)。 */

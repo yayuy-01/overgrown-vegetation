@@ -95,28 +95,31 @@ public final class HiveNodeGameTests {
         SporeFieldServer.Cell alive = SporeFieldServer.cell(cx, cz);
 
         HiveNodeEntity node = helper.spawn(ModEntities.HIVE_NODE.get(), new BlockPos(3, 2, 3));
-        node.hurt(level.damageSources().generic(), 100000.0F);
-        boolean dead = pd.isGiantTreeDead(packed);
-        clearField.run();
-        SporeFieldServer.catchUpForTests(level, ticks);
-        SporeFieldServer.Cell after = SporeFieldServer.cell(cx, cz);
-        clearField.run();
-        node.discard();
-        pd.forgetGiantTreeForTests(packed);
+        // 見直し ④(11-16): ノードが最初の tick で記録してから倒す(湧いたその tick に倒すと記録の前で、印が付かなかった)
+        helper.runAfterDelay(1, () -> {
+            node.hurt(level.damageSources().generic(), 100000.0F);
+            boolean dead = pd.isGiantTreeDead(packed);
+            clearField.run();
+            SporeFieldServer.catchUpForTests(level, ticks);
+            SporeFieldServer.Cell after = SporeFieldServer.cell(cx, cz);
+            clearField.run();
+            node.discard();
+            pd.forgetGiantTreeForTests(packed);
 
-        if (alive == null || alive.conc() <= 0.0D) {
-            helper.fail("巨大樹の梢が放出していない: " + alive);
-            return;
-        }
-        if (!dead) {
-            helper.fail("ハイヴノードを倒しても巨大樹の印が付かない");
-            return;
-        }
-        if (after == null || after.conc() > alive.conc() * 0.1D) {
-            helper.fail("ノードを倒した後も梢が放出している: " + alive.conc() + " → " + (after == null ? "null" : after.conc()));
-            return;
-        }
-        helper.succeed();
+            if (alive == null || alive.conc() <= 0.0D) {
+                helper.fail("巨大樹の梢が放出していない: " + alive);
+                return;
+            }
+            if (!dead) {
+                helper.fail("ハイヴノードを倒しても巨大樹の印が付かない");
+                return;
+            }
+            if (after == null || after.conc() > alive.conc() * 0.1D) {
+                helper.fail("ノードを倒した後も梢が放出している: " + alive.conc() + " → " + (after == null ? "null" : after.conc()));
+                return;
+            }
+            helper.succeed();
+        });
     }
 
     /** 巣の蔦を消した後も、巣の球の真ん中(ノードの小部屋)と儀式の広間は掘られた空気になる。 */

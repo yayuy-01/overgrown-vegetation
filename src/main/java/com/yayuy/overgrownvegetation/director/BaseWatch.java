@@ -126,15 +126,6 @@ public final class BaseWatch {
         return ok.isEmpty() ? null : ok.get(random.nextInt(ok.size()));
     }
 
-    /** 森から湧かせる偵察の種と重み【仮】(進化体のある、地面を歩く種。ゴーレム・ウォーデン・エンダーマン・子ども・村人は出さない)。 */
-    private static final com.yayuy.overgrownvegetation.corpse.G1Species[] SCOUT_SPECIES = {
-            com.yayuy.overgrownvegetation.corpse.G1Species.ZOMBIE, com.yayuy.overgrownvegetation.corpse.G1Species.ZOMBIE,
-            com.yayuy.overgrownvegetation.corpse.G1Species.ZOMBIE, com.yayuy.overgrownvegetation.corpse.G1Species.SKELETON,
-            com.yayuy.overgrownvegetation.corpse.G1Species.SKELETON, com.yayuy.overgrownvegetation.corpse.G1Species.SPIDER,
-            com.yayuy.overgrownvegetation.corpse.G1Species.SPIDER, com.yayuy.overgrownvegetation.corpse.G1Species.CREEPER,
-            com.yayuy.overgrownvegetation.corpse.G1Species.COW, com.yayuy.overgrownvegetation.corpse.G1Species.PIG,
-            com.yayuy.overgrownvegetation.corpse.G1Species.SHEEP};
-
     /**
      * 拠点のまわりに出せる段階 0 がいないとき、森のある方角から偵察を 1 体湧かせる(11-14 ユーザー決定 Q3 = 2「森のある方向から」)。
      * <ul>
@@ -168,7 +159,7 @@ public final class BaseWatch {
             if (!level.getBlockState(feet.below()).isFaceSturdy(level, feet.below(), net.minecraft.core.Direction.UP)) continue;
             if (!level.getFluidState(feet).isEmpty() || !level.getFluidState(feet.below()).isEmpty()) continue;
             if (seenByPlayer(level, feet, t.scoutSpawnPlayerMinBlocks)) continue;
-            com.yayuy.overgrownvegetation.corpse.G1Species s = SCOUT_SPECIES[random.nextInt(SCOUT_SPECIES.length)];
+            com.yayuy.overgrownvegetation.corpse.G1Species s = com.yayuy.overgrownvegetation.spawn.DirectorHooks.pickG1(random); // 重みは spawns.json(11-16 見直し: 1 か所に)
             var type = s.entityType();
             AbstractParasitizedMonster m = type.create(level);
             if (m == null) continue;

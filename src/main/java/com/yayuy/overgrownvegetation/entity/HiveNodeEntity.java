@@ -318,9 +318,10 @@ public class HiveNodeEntity extends PathfinderMob
     @Override
     public void die(DamageSource source) {
         if (this.level() instanceof ServerLevel serverLevel) {
-            PhaseData.get(serverLevel).removeHiveNode(this.blockPosition());
+            // 見直し ④(11-16): 先に巨大樹を止め、それからノードの記録を外す(順番を入れ替えた)
             PhaseData.get(serverLevel).killGiantTreeNear(this.blockPosition(),
                     com.yayuy.overgrownvegetation.data.DesignData.sporeField().giantTreeKillRadius());
+            PhaseData.get(serverLevel).removeHiveNode(this.blockPosition());
             removeLight(serverLevel);
         }
         super.die(source);

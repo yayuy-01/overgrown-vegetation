@@ -64,6 +64,13 @@ public final class NetherTubeTreeGameTests {
         return Math.floorMod(NEXT_SLOT.getAndIncrement(), 3000) * 64;
     }
 
+    /** 作る場所のまわり r チャンクの台帳の記録(段・樹の数・湖・覆いの起点など)を消す(テストのワールドは使い回すため)。 */
+    static void forgetLedger(ServerLevel nether, int ox, int oz, int r) {
+        NetherLedgerData d = NetherLedgerData.get(nether);
+        for (int dx = -r; dx <= r; dx++) for (int dz = -r; dz <= r; dz++) d.forgetForTests(ChunkPos.asLong(ox + dx, oz + dz));
+        NetherLedger.resetHeapForTests();
+    }
+
     /** チャンク [cx0, cx1] × [cz0, cz1] に床を作る({@code NetherFloraGameTests} と同じ)。{@code lava} の列は S〜S-2 が溶岩の源。 */
     private static void build(ServerLevel nether, int cx0, int cz0, int cx1, int cz1, BiPredicate<Integer, Integer> lava) {
         int s = NetherLava.surfaceY(nether);
@@ -97,6 +104,7 @@ public final class NetherTubeTreeGameTests {
         int shore = x0 + 4;
         build(nether, ox - 1, oz - 1, ox + 1, oz + 1, (x, z) -> x >= shore);
         NetherTubeTrees.clearForTests();
+        forgetLedger(nether, ox, oz, 2); // 見直し ④(11-16): 前の回の台帳(段・樹の数・記録)が残っていると、段階 2 が済んだことになって樹が立たない
         for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
             NetherLedger.reachForTests(nether, new ChunkPos(ox + dx, oz + dz), 0, new BlockPos(x0 + 2, s, z0 + 8));
         }
@@ -226,6 +234,7 @@ public final class NetherTubeTreeGameTests {
         int ox = BASE + offset(nether), oz = BASE + 3000;
         build(nether, ox, oz, ox, oz, (x, z) -> false);
         NetherTubeTrees.clearForTests();
+        forgetLedger(nether, ox, oz, 1);
         BlockPos floor = new BlockPos((ox << 4) + 8, s, (oz << 4) + 8);
         nether.setBlock(floor, ModBlocks.COOLED_CRUST.get().defaultBlockState(), Block.UPDATE_CLIENTS);
         BlockState stem = ModBlocks.TUBE_TREE_STEM.get().defaultBlockState();

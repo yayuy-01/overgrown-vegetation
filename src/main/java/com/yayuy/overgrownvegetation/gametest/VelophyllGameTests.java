@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.gametest;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.entity.VelophyllEntity;
 import com.yayuy.overgrownvegetation.entity.flyer.FlightBody;
 import com.yayuy.overgrownvegetation.entity.flyer.Flock;
@@ -65,10 +64,6 @@ public final class VelophyllGameTests {
         VelophyllEntity v = spawn(helper, 3.5D, 3.0D, 3.5D);
         if (MobGroup.of(v.getType()) != MobGroup.GROUP_4) {
             helper.fail("G4 に入っていない: " + MobGroup.of(v.getType()));
-            return;
-        }
-        if (DesignData.mobs().forId(VelophyllEntity.ID).naturalSpawn()) {
-            helper.fail("自然湧きが切れていない");
             return;
         }
         if (Math.abs(v.getBbWidth() - 1.2F) > 1e-3 || Math.abs(v.getBbHeight() - 0.8F) > 1e-3) {

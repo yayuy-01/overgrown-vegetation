@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.gametest;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.entity.AcumnesEntity;
 import com.yayuy.overgrownvegetation.entity.flyer.DartHover;
 import com.yayuy.overgrownvegetation.entity.flyer.SkyFlyer;
@@ -57,10 +56,6 @@ public final class AcumnesGameTests {
         AcumnesEntity a = spawn(helper, 3.5D, 2.0D, 3.5D);
         if (MobGroup.of(a.getType()) != MobGroup.GROUP_5) {
             helper.fail("G5 に入っていない: " + MobGroup.of(a.getType()));
-            return;
-        }
-        if (DesignData.mobs().forId(AcumnesEntity.ID).naturalSpawn()) {
-            helper.fail("自然湧きが切れていない");
             return;
         }
         if (Math.abs(a.getScale() - 1.0F) > 1e-3 || Math.abs(a.getBbWidth() - 1.2F) > 1e-3 || Math.abs(a.getBbHeight() - 3.0F) > 1e-3) {

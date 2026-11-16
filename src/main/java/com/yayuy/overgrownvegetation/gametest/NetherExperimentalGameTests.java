@@ -153,6 +153,8 @@ public final class NetherExperimentalGameTests {
         int cx = BASE + nether.getRandom().nextInt(2000) * 4, cz = BASE + 1600;
         ChunkPos a = new ChunkPos(cx, cz), b = new ChunkPos(cx + 1, cz), c = new ChunkPos(cx + 2, cz);
         net.minecraft.commands.CommandSourceStack op = server.createCommandSourceStack().withSuppressedOutput();
+        // 見直し ④(11-16): 前の回の台帳(数えた印など)が残っていると数え方が狂う。使う 3 チャンクとまわりを消してから
+        NetherTubeTreeGameTests.forgetLedger(nether, cx + 1, cz, 2);
         var phase = com.yayuy.overgrownvegetation.phase.PhaseData.get(nether);
         try {
             server.getCommands().performPrefixedCommand(op, "ov experimental off");

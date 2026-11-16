@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.gametest;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.entity.VenamnesEntity;
 import com.yayuy.overgrownvegetation.entity.runner.LongBodyNavigation;
 import com.yayuy.overgrownvegetation.phase.MobGroup;
@@ -69,10 +68,6 @@ public final class VenamnesGameTests {
         VenamnesEntity v = placeAt(helper, 3.5D, 3.5D, 0.0F);
         if (MobGroup.of(v.getType()) != MobGroup.GROUP_5) {
             helper.fail("G5 に入っていない: " + MobGroup.of(v.getType()));
-            return;
-        }
-        if (DesignData.mobs().forId(VenamnesEntity.ID).naturalSpawn()) {
-            helper.fail("自然湧きが切れていない");
             return;
         }
         if (Math.abs(v.getBbWidth() - 1.2F) > 1e-3 || Math.abs(v.getBbHeight() - 2.4F) > 1e-3) {

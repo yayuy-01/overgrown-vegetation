@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.gametest;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.entity.PilimnesEntity;
 import com.yayuy.overgrownvegetation.phase.MobGroup;
 import com.yayuy.overgrownvegetation.registry.ModLizards;
@@ -68,10 +67,6 @@ public final class PilimnesGameTests {
         PilimnesEntity v = placeAt(helper, 3.5D, 3.5D, 0.0F);
         if (MobGroup.of(v.getType()) != MobGroup.GROUP_5) {
             helper.fail("G5 に入っていない: " + MobGroup.of(v.getType()));
-            return;
-        }
-        if (DesignData.mobs().forId(PilimnesEntity.ID).naturalSpawn()) {
-            helper.fail("自然湧きが切れていない");
             return;
         }
         if (Math.abs(v.getBbWidth() - 1.3F) > 1e-3 || Math.abs(v.getBbHeight() - 1.6F) > 1e-3) {
