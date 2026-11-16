@@ -36,6 +36,12 @@ public final class PhaseTicker {
         PhaseSync.tickProgress(serverLevel.getServer(), data);
     }
 
+    /** サーバーを止めた後、台帳の書き出し(IO スレッド)が終わるのを待つ(見直し ②10)。 */
+    @SubscribeEvent
+    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+        PhaseData.awaitLedgerWrites();
+    }
+
     private PhaseTicker() {
     }
 }

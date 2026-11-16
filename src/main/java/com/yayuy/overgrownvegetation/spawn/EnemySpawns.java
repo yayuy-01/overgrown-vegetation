@@ -162,8 +162,10 @@ public final class EnemySpawns {
     /** まわりの数: [0] = 地下の G1、[g] = 縁のグループ g。 */
     public static int[] count(ServerLevel level, double x, double y, double z, double r) {
         int[] out = new int[11];
-        for (Mob m : level.getEntitiesOfClass(Mob.class, new AABB(x - r, level.getMinBuildHeight(), z - r, x + r, level.getMaxBuildHeight(), z + r),
-                m -> m.isAlive() && (m.getTags().contains(EDGE_TAG) || m.getTags().contains(UNDER_TAG)))) {
+        // 見直し ②10(11-16): 全高さの箱で探さず、縁・地下で湧いた個体の集まり(TRACKED)だけを見る
+        for (Mob m : TRACKED) {
+            if (!m.isAlive() || m.level() != level || !spawnedHere(m)) continue;
+            if (Math.abs(m.getX() - x) > r || Math.abs(m.getZ() - z) > r) continue;
             if (m.getTags().contains(UNDER_TAG)) {
                 out[0]++;
                 continue;

@@ -67,17 +67,23 @@ public final class SpawnTable {
 
     /** 表の 1 行。type は登録の有無を起動後に引く(登録の無い id は null = 飛ばす)。 */
     public record Species(@Nullable String id, @Nullable G1Species g1, int group, EnumSet<Habitat> habitats, double weight, boolean director, boolean breaker) {
+        /** 登録された型(起動後は変わらないので、1 回引いたら取っておく。見直し ②10: 毎 tick 登録表を引いていた)。 */
         @Nullable
         public EntityType<?> type() {
             if (g1 != null) return g1.entityType();
-            ResourceLocation rl = ResourceLocation.tryParse(id);
-            return rl == null ? null : BuiltInRegistries.ENTITY_TYPE.getOptional(rl).orElse(null);
+            return TYPES.computeIfAbsent(id, k -> {
+                ResourceLocation rl = ResourceLocation.tryParse(k);
+                return java.util.Optional.ofNullable(rl == null ? null : BuiltInRegistries.ENTITY_TYPE.getOptional(rl).orElse(null));
+            }).orElse(null);
         }
 
         public String label() {
             return g1 != null ? "g1:" + g1.key() : id;
         }
     }
+
+    /** id → 登録された型(取っておく)。 */
+    private static final java.util.Map<String, java.util.Optional<EntityType<?>>> TYPES = new java.util.concurrent.ConcurrentHashMap<>();
 
     public final boolean enabled;
     private final int[] openAt = new int[11];

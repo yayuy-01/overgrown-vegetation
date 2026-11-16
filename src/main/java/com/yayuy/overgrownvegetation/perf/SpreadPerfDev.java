@@ -167,7 +167,7 @@ final class SpreadPerfDev {
         long s1 = System.nanoTime();
         SporeFieldServer.devSave(level.getServer());
         long s2 = System.nanoTime();
-        String line2 = String.format("SPREADSAVETEST2 dataStorage.save=%.1fms fieldSave(serverThread)=%.1fms", (s1 - s0) / 1e6, (s2 - s1) / 1e6);
+        String line2 = String.format("SPREADSAVETEST2 dataStorage.save=%.1fms fieldSave(serverThread)=%.1fms ledgerFlush=%s", (s1 - s0) / 1e6, (s2 - s1) / 1e6, PhaseData.lastLedgerFlush());
         ctx.getSource().sendSuccess(() -> Component.literal(line2), false);
         long t3 = System.nanoTime();
         String line = String.format("SPREADSAVETEST ledger=%d buildTag=%.1fms compressWrite=%.1fms size=%.1fMB cloneLedger=%.1fms",

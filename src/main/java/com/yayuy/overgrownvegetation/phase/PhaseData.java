@@ -308,6 +308,8 @@ public final class PhaseData extends SavedData {
         data.overgrownChunks = tag.getLong("overgrownChunks");
         long[] ledgerKeys = tag.getLongArray("overgrownChunkKeys");
         long[] ledgerTimes = tag.getLongArray("overgrownChunkTimes");
+        data.ledgerFormat = tag.getInt("ledgerFormat");
+        data.legacyLedger = ledgerKeys.length > 0;
         if (ledgerKeys.length == ledgerTimes.length) {
             // 先に大きさを取る(2026-11-15): 保存の並びは表を舐めた順(hash の順)なので、小さい表へ順に入れると同じ所に固まって
             // 桁違いに遅くなる(600 万件で 81 秒)。初めから入る大きさにしておけば固まらない
@@ -379,18 +381,24 @@ public final class PhaseData extends SavedData {
         tag.putDouble("multipliedPointsCarry", multipliedPointsCarry);
         tag.putLong("corruptedBlocks", corruptedBlocks);
         tag.putLong("overgrownChunks", overgrownChunks);
-        long[] ledgerKeys = new long[overgrownSince.size()];
-        long[] ledgerTimes = new long[overgrownSince.size()];
-        int ledgerIndex = 0;
-        // fastIterator: 項目ごとに Entry を作らない(2026-09-25。並びも中身も同じ)。
-        for (it.unimi.dsi.fastutil.longs.Long2LongMap.Entry entry
-                : it.unimi.dsi.fastutil.longs.Long2LongMaps.fastIterable(overgrownSince)) {
-            ledgerKeys[ledgerIndex] = entry.getLongKey();
-            ledgerTimes[ledgerIndex] = entry.getLongValue();
-            ledgerIndex++;
+        if (server != null) {
+            // 見直し ②10(11-16): 台帳は区域ごとのファイルへ、変わった所だけ書く(LedgerStore)。ここには形の印だけ
+            tag.putInt("ledgerFormat", LEDGER_FORMAT_REGIONS);
+            LedgerStore.flush(server, overgrownSince, dirtyRegions);
+        } else {
+            // 世界に付いていない写し(テストの読み書き)は、前の形のまま中に入れる
+            long[] ledgerKeys = new long[overgrownSince.size()];
+            long[] ledgerTimes = new long[overgrownSince.size()];
+            int ledgerIndex = 0;
+            for (it.unimi.dsi.fastutil.longs.Long2LongMap.Entry entry
+                    : it.unimi.dsi.fastutil.longs.Long2LongMaps.fastIterable(overgrownSince)) {
+                ledgerKeys[ledgerIndex] = entry.getLongKey();
+                ledgerTimes[ledgerIndex] = entry.getLongValue();
+                ledgerIndex++;
+            }
+            tag.putLongArray("overgrownChunkKeys", ledgerKeys);
+            tag.putLongArray("overgrownChunkTimes", ledgerTimes);
         }
-        tag.putLongArray("overgrownChunkKeys", ledgerKeys);
-        tag.putLongArray("overgrownChunkTimes", ledgerTimes);
         tag.putLong("sleepSkippedTicks", sleepSkippedTicks);
         net.minecraft.nbt.ListTag advancements = new net.minecraft.nbt.ListTag();
         for (String id : startAdvancementIds) {
@@ -662,7 +670,48 @@ public final class PhaseData extends SavedData {
      */
     public static PhaseData get(ServerLevel level) {
         ServerLevel overworld = level.getServer().overworld();
-        return overworld.getDataStorage().computeIfAbsent(FACTORY, ID);
+        PhaseData data = overworld.getDataStorage().computeIfAbsent(FACTORY, ID);
+        if (data.server != level.getServer()) data.attach(level.getServer());
+        return data;
+    }
+
+    // ---------------------------------------------------------------- 台帳の保存(見直し ②10、11-16。LedgerStore)
+
+    /** 台帳を区域のファイルへ分けた形の印。 */
+    static final int LEDGER_FORMAT_REGIONS = 2;
+    /** 付いている世界(null = テストの写し。台帳は中に入れる)。 */
+    @javax.annotation.Nullable
+    private transient net.minecraft.server.MinecraftServer server;
+    private int ledgerFormat;
+    private boolean legacyLedger;
+    private final it.unimi.dsi.fastutil.longs.LongOpenHashSet dirtyRegions = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+
+    /** 世界に付ける: 区域のファイルを読む。前の形(中に入っていた)なら、全区域を書き直して移す。 */
+    private void attach(net.minecraft.server.MinecraftServer server) {
+        this.server = server;
+        if (ledgerFormat == LEDGER_FORMAT_REGIONS && !legacyLedger) {
+            long t0 = System.nanoTime();
+            int n = LedgerStore.loadAll(server, overgrownSince);
+            com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info("過繁茂の台帳を区域のファイルから読みました: {} チャンク・{} ms", n, (System.nanoTime() - t0) / 1_000_000L);
+        } else if (!overgrownSince.isEmpty()) {
+            for (long key : overgrownSince.keySet()) dirtyRegions.add(LedgerStore.regionOf(key));
+            setDirty();
+        }
+    }
+
+    /** 台帳が変わった(その区域を次の保存で書く)。 */
+    private void ledgerChanged(long key) {
+        dirtyRegions.add(LedgerStore.regionOf(key));
+    }
+
+    /** 確かめ用: 最後の書き出しで写した区域の数と時間(ms)。 */
+    public static String lastLedgerFlush() {
+        return LedgerStore.lastRegions + " 区域・写し " + String.format(java.util.Locale.ROOT, "%.1f", LedgerStore.lastCopyNanos / 1e6) + " ms";
+    }
+
+    /** 台帳の書き出しが終わるのを待つ(サーバーを止めるとき・確かめ用)。 */
+    public static void awaitLedgerWrites() {
+        LedgerStore.await();
     }
 
     public int getPhase() {
@@ -756,6 +805,7 @@ public final class PhaseData extends SavedData {
             long key = pos.toLong();
             if (!overgrownSince.containsKey(key)) {
                 overgrownSince.put(key, now);
+                ledgerChanged(key);
                 added++;
                 // 胞子の場でも汚染済み・放出中に(2026-10-23 第 2 段。どの経路で載っても)
                 com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.onLedgerAdded(key, now);
@@ -777,6 +827,7 @@ public final class PhaseData extends SavedData {
         for (long key : keys) {
             if (!overgrownSince.containsKey(key)) {
                 overgrownSince.put(key, since);
+                ledgerChanged(key);
                 added++;
             }
         }
@@ -807,6 +858,7 @@ public final class PhaseData extends SavedData {
             return false;
         }
         overgrownSince.put(key, clock(level.getServer()));
+        ledgerChanged(key);
         com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.onLedgerAdded(key, clock(level.getServer()));
         setDirty();
         return true;
@@ -834,6 +886,7 @@ public final class PhaseData extends SavedData {
             return false;
         }
         overgrownSince.remove(key);
+        ledgerChanged(key);
         com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.onLedgerRemoved(key);
         setDirty();
         return true;

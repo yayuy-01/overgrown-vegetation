@@ -39,6 +39,8 @@ public final class SpawnCommand {
                                 .then(Commands.argument("times", IntegerArgumentType.integer(1, 200))
                                         .executes(ctx -> tick(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "times")))))
                         .then(Commands.literal("clear").executes(ctx -> clear(ctx.getSource())))
+                        // 重さの計測(見直し ②10、11-16): count・型の引き・種の判定の 1 回あたりの時間
+                        .then(Commands.literal("bench").executes(ctx -> bench(ctx.getSource())))
                         .then(Commands.literal("march")
                                 .then(Commands.argument("x", IntegerArgumentType.integer())
                                         .then(Commands.argument("z", IntegerArgumentType.integer())
@@ -57,6 +59,29 @@ public final class SpawnCommand {
         int fn = n;
         src.sendSuccess(() -> Component.literal(fn + " 体を (" + x + ", " + z + ") へ歩かせた"), false);
         return n;
+    }
+
+    private static int bench(CommandSourceStack src) {
+        ServerLevel level = src.getLevel();
+        Vec3 p = src.getPosition();
+        SpawnTable t = com.yayuy.overgrownvegetation.data.DesignData.spawns();
+        int[] c = null;
+        long a0 = System.nanoTime();
+        for (int i = 0; i < 200; i++) c = EnemySpawns.count(level, p.x, p.y, p.z, t.countRadius);
+        long a1 = System.nanoTime();
+        int sink = 0;
+        for (int i = 0; i < 100_000; i++) for (SpawnTable.Species sp : t.species) if (sp.type() != null) sink++;
+        long a2 = System.nanoTime();
+        net.minecraft.world.entity.EntityType<?> arbora = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(
+                OvergrownVegetation.id("arbora"));
+        for (int i = 0; i < 100_000; i++) if (DirectorHooks.breaker(arbora) && DirectorHooks.marchable(arbora)) sink++;
+        long a3 = System.nanoTime();
+        int[] cc = c;
+        int fs = sink;
+        src.sendSuccess(() -> Component.literal(String.format(java.util.Locale.ROOT,
+                "SPAWNBENCH count=%.3fms(縁 %d・地下 %d) type()=%.1fns/種 breaker+marchable=%.0fns/回 (%d)",
+                (a1 - a0) / 200.0 / 1e6, cc[1] + cc[4] + cc[5], cc[0], (a2 - a1) / 100_000.0 / t.species.size(), (a3 - a2) / 100_000.0, fs)), false);
+        return 1;
     }
 
     private static int show(CommandSourceStack src) {

@@ -73,18 +73,34 @@ public final class DirectorHooks {
 
     /** その種は壁や扉を壊すか(spawns.json の breaker。11-16)。 */
     public static boolean breaker(EntityType<?> type) {
-        for (SpawnTable.Species sp : DesignData.spawns().species) {
-            if (sp.breaker() && sp.type() == type) return true;
+        return sets().breakers.contains(type);
+    }
+
+    /** 種の表から作った「壊す種」「歩かせる種」の組(表が替わったら作り直す。見直し ②10: 毎 tick 表をなめていた)。 */
+    private record Sets(SpawnTable table, java.util.Set<EntityType<?>> breakers, java.util.Set<EntityType<?>> marchers) {
+    }
+
+    private static volatile Sets sets;
+
+    private static Sets sets() {
+        SpawnTable t = DesignData.spawns();
+        Sets s = sets;
+        if (s != null && s.table() == t) return s;
+        java.util.Set<EntityType<?>> b = new java.util.HashSet<>(), m = new java.util.HashSet<>();
+        for (SpawnTable.Species sp : t.species) {
+            EntityType<?> type = sp.type();
+            if (type == null) continue;
+            if (sp.breaker()) b.add(type);
+            if (directorSpecies(sp)) m.add(type);
         }
-        return false;
+        s = new Sets(t, java.util.Set.copyOf(b), java.util.Set.copyOf(m));
+        sets = s;
+        return s;
     }
 
     /** その種を拠点へ歩かせられるか。 */
     public static boolean marchable(EntityType<?> type) {
-        for (SpawnTable.Species sp : DesignData.spawns().species) {
-            if (directorSpecies(sp) && sp.type() == type) return true;
-        }
-        return false;
+        return sets().marchers.contains(type);
     }
 
     /** その種のグループの番号(グループの無い種は 4)。 */
