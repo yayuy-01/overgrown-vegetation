@@ -61,6 +61,11 @@ public final class BreachGoal extends Goal {
     @Override
     public boolean canUse() {
         if (!(mob.level() instanceof ServerLevel level) || !level.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING)) return false;
+        if (!raiding(level)) { // 見直し(疑い): 拠点のまわりの襲撃の間だけ壊す。ほかの所で追っていて詰まっても、斜面や木は掘らない
+            still = 0;
+            lastX = Double.NaN;
+            return false;
+        }
         Vec3 goal = destination();
         if (goal == null) {
             still = 0;
@@ -88,6 +93,25 @@ public final class BreachGoal extends Goal {
         target = find(level, goal);
         return target != null;
     }
+
+    /** 壊してよい時か: 拠点へ歩いている・襲撃の印がある個体で、認識した拠点の真ん中から {@link #BASE_RANGE} の中。 */
+    private boolean raiding(ServerLevel level) {
+        boolean raider = PlantMarch.active(mob) || mob.getTags().contains(com.yayuy.overgrownvegetation.director.HoardRaids.TAG)
+                || mob.getTags().contains(com.yayuy.overgrownvegetation.director.LargeRaids.ATTACKER_TAG);
+        if (!raider) return false;
+        for (com.yayuy.overgrownvegetation.director.BaseMemory.Base b : com.yayuy.overgrownvegetation.director.BaseMemory.get(level.getServer()).bases()) {
+            if (b.stage() != com.yayuy.overgrownvegetation.director.BaseMemory.Stage.RECOGNIZED) continue;
+            double dx = b.centerX() - mob.getX(), dz = b.centerZ() - mob.getZ();
+            if (dx * dx + dz * dz <= BASE_RANGE * BASE_RANGE) return true;
+        }
+        return breakAnywhereForTests;
+    }
+
+    /** 拠点の真ん中からこの半径の中でだけ壊す(ブロック)【仮】。 */
+    public static final double BASE_RANGE = 48.0D;
+
+    /** テスト用: 拠点が無くても壊す(テスト場の壁のテスト)。 */
+    public static boolean breakAnywhereForTests;
 
     /** 進みたい所: 追っている相手(近すぎれば無し = 戦っている)、なければ拠点への行き先。 */
     @Nullable

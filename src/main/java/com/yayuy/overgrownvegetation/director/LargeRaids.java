@@ -53,6 +53,7 @@ public final class LargeRaids {
 
     /** 見張り(20 秒ごと)から: 起こす・前触れから本番へ。 */
     static void tick(ServerLevel level, double day, int sampleTicks) {
+        if (DirectorGates.peaceful(level)) return; // ピースフルの間は始めない・時計を進めない(見直し ②9)
         ForestDirector d = ForestDirector.get(level);
         LargeRaidTable t = DesignData.director().largeRaid;
         RandomSource random = level.getRandom();
@@ -128,6 +129,7 @@ public final class LargeRaids {
         if (server.getTickCount() % t.spawnIntervalTicks != 0) return;
         ServerLevel level = server.overworld();
         if (ForestDirector.get(level).mood() != ForestDirector.Mood.LARGE) return;
+        if (DirectorGates.peaceful(level)) return; // ピースフルの間は湧かせない・払わない(見直し ②9)
         step(level, level.getRandom());
     }
 

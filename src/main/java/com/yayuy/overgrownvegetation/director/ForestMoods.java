@@ -47,6 +47,7 @@ public final class ForestMoods {
     static void tick(ServerLevel level, double day, int sampleTicks) {
         ForestDirector d = ForestDirector.get(level);
         d.syncFlag();
+        if (DirectorGates.peaceful(level)) return; // ピースフルの間は貯め始めず・使わない(見直し ②9)
         // 大きな襲撃の前触れ・本番の間は、貯めない(LargeRaids が受け持つ)
         if (d.mood() == ForestDirector.Mood.LARGE_OMEN || d.mood() == ForestDirector.Mood.LARGE) return;
         HoardTable t = DesignData.director().hoard;

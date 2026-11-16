@@ -221,6 +221,8 @@ public final class ForestDirector extends SavedData implements ForestBudget {
     }
 
     void setMood(Mood m, double since, double until) {
+        // 見直し ②6: 貯める・大きな襲撃の上がった上限から ふだん へ戻るとき、貯めた分を切り捨てない(次に数えるとき carry へ移す)
+        if (m == Mood.NORMAL && mood != Mood.NORMAL) carryPending = true;
         mood = m;
         moodSince = since;
         moodUntil = until;
@@ -269,6 +271,19 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         return Math.max(0.0D, Math.min(cap, grown));
     }
 
+    /**
+     * 上限を超えて残している貯め(見直し ②6、11-16): 貯めた襲撃・大きな襲撃の上がった上限で貯めた分は、ふだんに戻っても切り捨てず、
+     * 使うか、1 日に上限の {@link #CARRY_DECAY_PER_DAY} ずつ減るまで残す【仮】。その間は収入で増えない(上限を超えているので)。
+     * ハイヴノードが倒されて上限が下がったときは、今までどおりすぐ切る(carry にしない)。
+     */
+    private double carry;
+    private boolean carryPending;
+    public static final double CARRY_DECAY_PER_DAY = 0.25D;
+
+    public double carry() {
+        return carry;
+    }
+
     private void accrue(ServerLevel level) {
         // 11-16 ユーザー決定: 時計は 1 つ(フェーズの暦 = ゲームの時間 + 寝て飛ばした分)。寝て飛ばした時間も森は稼ぐ
         long now = com.yayuy.overgrownvegetation.phase.PhaseData.get(level.getServer().overworld()).clock(level.getServer());
@@ -279,7 +294,14 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         }
         if (now == budgetAt) return;
         if (DesignData.director().enabled) {
-            budget = accrued(budget, now - budgetAt, incomePerDay(level), cap(level));
+            double cap = cap(level);
+            if (carryPending) {
+                carry = Math.max(0.0D, budget - cap);
+                carryPending = false;
+            }
+            double days = Math.max(0L, now - budgetAt) / 24000.0D;
+            carry = Math.max(0.0D, Math.min(carry, budget - cap) - cap * CARRY_DECAY_PER_DAY * days); // 使った分・減った分だけ小さくなる
+            budget = accrued(budget, now - budgetAt, incomePerDay(level), cap + carry);
         }
         budgetAt = now;
         setDirty();
@@ -506,7 +528,7 @@ public final class ForestDirector extends SavedData implements ForestBudget {
             List<java.util.function.Supplier<? extends net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>>> pool) {
         if (pool.isEmpty() || !DesignData.director().enabled) return null;
         // 苗床のスポナーは F4 から。大きな襲撃の前触れの間は止める(DirectorGates)
-        if (!DirectorGates.open(level, DirectorGates.Gate.SPAWNER) || DirectorGates.largeRaidOmen(level) || hoarding()) return null; // 貯めている間も孵さない
+        if (!DirectorGates.open(level, DirectorGates.Gate.SPAWNER) || DirectorGates.plantSpawnsSuppressed(level) || hoarding()) return null; // ピースフルも(②9) // 貯めている間も孵さない
         // 小さな段: F4 の中は、導入でまれに・定着で普通に孵す(聞かれた回を強さの確率で通す)【仮】
         double spawnStrength = DirectorGates.strength(level, DirectorGates.Gate.SPAWNER);
         if (!DirectorGates.roll(spawnStrength, random)) return null;
@@ -600,6 +622,8 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         d.hoardCooldownUntil = tag.getDouble("HoardCooldown");
         d.largeRaidTarget = tag.contains("LargeTarget") ? tag.getInt("LargeTarget") : -1;
         d.largeRaidCooldownUntil = tag.getDouble("LargeCooldown");
+        d.carry = Math.max(0.0D, tag.getDouble("Carry"));
+        d.carryPending = tag.getBoolean("CarryPending");
         return d;
     }
 
@@ -615,6 +639,8 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         tag.putDouble("HoardCooldown", hoardCooldownUntil);
         tag.putInt("LargeTarget", largeRaidTarget);
         tag.putDouble("LargeCooldown", largeRaidCooldownUntil);
+        tag.putDouble("Carry", carry);
+        tag.putBoolean("CarryPending", carryPending);
         return tag;
     }
 }

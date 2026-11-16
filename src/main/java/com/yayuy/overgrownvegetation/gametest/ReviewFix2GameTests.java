@@ -137,8 +137,11 @@ public final class ReviewFix2GameTests {
             for (int i = 0; i < 12; i++) helper.spawn((EntityType<? extends Mob>) type("falcimnes"), new Vec3(1.5D + i % 5, 4.0D, 1.5D + i / 5));
             BaseMemory.Base later = b;
             mem.waveSent(later, 1.0D, level.getRandom());
+            director.setBudget(level, 1000.0D);
             BaseRaids.Result big = BaseRaids.sendWave(level, later, 7.0D, level.getRandom());
             helper.assertTrue(big.total() <= DesignData.director().assault.maxWave, "送り込みが 40 体を超えた: " + big.summary());
+            // 疑い(同時の上限が無い): 拠点のまわりにいる個体で足りれば、新しく湧かせない(溜まり続けない)
+            helper.assertTrue(big.spawnedZero() == 0, "まわりに段階 0 が足りているのに湧かせた: " + big.summary());
             clear(helper);
             // ②2: 最初の襲撃がまだの拠点があるうちは貯め始めない(世界の記憶を使う)
             global.clear();
@@ -169,6 +172,107 @@ public final class ReviewFix2GameTests {
             global.clear();
             clear(helper);
         }
+    }
+
+    /** 疑い: 台帳の中の小さな穴(2 チャンク幅まで)は縁にしない。広い空き(3 チャンク幅)は縁のまま。 */
+    @GameTest(template = "gametest_empty7", batch = "review_fix2_pure", timeoutTicks = 20)
+    public static void smallHolesAreNotEdges(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        PhaseData data = PhaseData.get(level);
+        int cx = 610_000, cz = 610_000;
+        java.util.List<ChunkPos> added = new java.util.ArrayList<>();
+        // 13 × 13 の過繁茂に、穴 1 つ(cx, cz)と、3 × 3 の空き(cx + 4..6, cz + 4..6 の右下とは別に cx - 6..-4)
+        for (int dx = -6; dx <= 6; dx++) {
+            for (int dz = -6; dz <= 6; dz++) {
+                boolean hole = dx == 0 && dz == 0;
+                boolean clearing = dx >= -5 && dx <= -3 && dz >= -5 && dz <= -3;
+                if (hole || clearing) continue;
+                ChunkPos p = new ChunkPos(cx + dx, cz + dz);
+                if (data.adoptOvergrownChunk(level, p)) added.add(p);
+            }
+        }
+        try {
+            helper.assertTrue(!EnemySpawns.isEdgeChunk(data, cx, cz), "1 チャンクの穴が縁になった");
+            helper.assertTrue(!EnemySpawns.isEdgeChunk(data, cx + 1, cz) && !EnemySpawns.isEdgeChunk(data, cx - 1, cz - 1), "穴のまわりが縁になった");
+            helper.assertTrue(EnemySpawns.isEdgeChunk(data, cx - 3, cz - 3) && EnemySpawns.isEdgeChunk(data, cx - 2, cz - 4), "3 チャンク幅の空きのまわりが縁にならない");
+            helper.assertTrue(EnemySpawns.isEdgeChunk(data, cx + 6, cz) && EnemySpawns.isEdgeChunk(data, cx + 7, cz), "外の縁が縁にならない");
+            helper.succeed();
+        } finally {
+            for (ChunkPos p : added) data.forgetOvergrownChunk(p);
+        }
+    }
+
+    /** ②6: 貯めた予算は、ふだんに戻っても上限 1 倍で切り捨てない(使うか、ゆっくり減るまで残す)。 */
+    @GameTest(template = "gametest_empty7", batch = "review_fix2_carry", timeoutTicks = 40)
+    public static void hoardedBudgetIsNotCutOnReturn(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ForestDirector director = ForestDirector.get(level);
+        double before = director.available(level);
+        double day = BaseMemory.today(level.getServer());
+        ForestMoods.startHoard(level, day, 1.0D);
+        double hoardCap = ForestDirector.cap(level);
+        director.setBudget(level, hoardCap * 10.0D);
+        helper.runAfterDelay(2, () -> {
+            double held = director.available(level); // 貯める間の上限まで
+            ForestMoods.stopHoard(level, day);
+            double normalCap = ForestDirector.cap(level);
+            helper.runAfterDelay(4, () -> {
+                double after = director.available(level);
+                try {
+                    helper.assertTrue(held > normalCap * 1.5D, "前提: 貯めた予算がふだんの上限の 1.5 倍より少ない: " + held + " / " + normalCap);
+                    helper.assertTrue(after > normalCap * 1.5D && after <= held + 1.0E-6D, "ふだんに戻ったら貯めた分が切られた: " + held + " → " + after + "(上限 " + normalCap + ")");
+                    director.tryPay(level, after - normalCap * 0.5D);
+                    helper.assertTrue(director.available(level) <= normalCap * 0.5D + 1.0E-6D, "使った後も貯めた分が戻った");
+                    helper.succeed();
+                } finally {
+                    director.setBudget(level, before);
+                }
+            });
+        });
+    }
+
+    /** ②9: ピースフルの間は、司令塔も縁も湧かせない・払わない。 */
+    @GameTest(template = "gametest_empty7", batch = "review_fix2_peaceful", timeoutTicks = 20)
+    public static void peacefulStopsDirectorSpawns(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        net.minecraft.world.Difficulty was = level.getDifficulty();
+        ForestDirector director = ForestDirector.get(level);
+        double before = director.available(level);
+        try {
+            level.getServer().setDifficulty(net.minecraft.world.Difficulty.PEACEFUL, true);
+            director.setBudget(level, 1000.0D);
+            helper.assertTrue(DirectorGates.peaceful(level) && DirectorGates.plantSpawnsSuppressed(level), "ピースフルを見ていない");
+            helper.assertTrue(director.buySpawn(level, net.minecraft.util.RandomSource.create(1L),
+                    java.util.List.of(() -> (EntityType<? extends Mob>) type("arbora"))) == null, "ピースフルで苗床が孵した");
+            helper.assertTrue(!EnemySpawns.allowed(level), "ピースフルで縁に湧く");
+            helper.succeed();
+        } finally {
+            level.getServer().setDifficulty(was, true);
+            director.setBudget(level, before);
+        }
+    }
+
+    /** 疑い: 壁を壊すのは拠点のまわりの襲撃の間だけ。拠点の無い所では、歩いている破壊役も板を壊さない。 */
+    @GameTest(template = "gametest_empty7", batch = "review_fix2_breach", timeoutTicks = 700)
+    public static void breakerLeavesWallsAwayFromBases(GameTestHelper helper) {
+        com.yayuy.overgrownvegetation.spawn.BreachGoal.breakAnywhereForTests = false;
+        for (int z = 0; z < 7; z++) {
+            for (int y = 2; y < 8; y++) helper.setBlock(new BlockPos(5, y, z), net.minecraft.world.level.block.Blocks.OAK_PLANKS);
+        }
+        Mob m = (Mob) helper.spawn((EntityType<? extends Mob>) type("falcimnes"), new Vec3(1.5D, 2.0D, 3.5D));
+        m.targetSelector.removeAllGoals(g -> true);
+        BlockPos far = helper.absolutePos(new BlockPos(60, 2, 3));
+        PlantMarch.begin(m, -1, far.getX() + 0.5D, far.getZ() + 0.5D);
+        helper.runAtTickTime(600, () -> {
+            for (int z = 0; z < 7; z++) {
+                for (int y = 2; y < 8; y++) {
+                    helper.assertTrue(!helper.getBlockState(new BlockPos(5, y, z)).isAir(), "拠点の無い所で壁を壊した");
+                }
+            }
+            m.discard();
+            com.yayuy.overgrownvegetation.spawn.BreachGoal.breakAnywhereForTests = true;
+            helper.succeed();
+        });
     }
 
     private static void clear(GameTestHelper helper) {

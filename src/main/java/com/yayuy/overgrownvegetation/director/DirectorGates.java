@@ -124,7 +124,16 @@ public final class DirectorGates {
      * 感染 Mob とバニラの Mob はふだんどおり)。湧かせる側(G1 の自然湧き・萌芽体の湧き・苗床・G4 以降を戻す側)が見る口。
      */
     public static boolean plantSpawnsSuppressed(ServerLevel level) {
-        return largeRaidOmen(level);
+        return largeRaidOmen(level) || peaceful(level);
+    }
+
+    /**
+     * ピースフルか(見直し ②9、11-16)。11-15 以前の決まり(退避した difficulty/Peaceful): ピースフルでは この MOD の敵を出さない・
+     * イベントは始めない・次のイベントまでの時計は進めない(抜けた途端に溜まったものが一度に始まらないように)。
+     * 司令塔の湧き(送り込み・継ぎ足し・大きな襲撃・偵察・苗床・監視塔)は、ピースフルの間は予算を払わず湧かせない。
+     */
+    public static boolean peaceful(ServerLevel level) {
+        return level.getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL;
     }
 
     // ---------------------------------------------------------------- 小さな段の倍率

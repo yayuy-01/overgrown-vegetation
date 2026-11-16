@@ -96,6 +96,12 @@ public final class HoardRaids {
         return r.total();
     }
 
+    /** サーバーを止めたら空にする(static なので、別のワールドを開くと続きが走っていた。見直し ②9)。 */
+    @SubscribeEvent
+    public static void onServerStopping(net.neoforged.neoforge.event.server.ServerStoppingEvent event) {
+        RAIDS.clear();
+    }
+
     @SubscribeEvent
     public static void onLevelTick(LevelTickEvent.Post event) {
         if (!(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD || RAIDS.isEmpty()) return;
@@ -118,6 +124,10 @@ public final class HoardRaids {
             }
             if (DirectorGates.largeRaidOmen(level)) {
                 end(raid, "大きな襲撃の前触れ");
+                continue;
+            }
+            if (DirectorGates.peaceful(level)) {
+                end(raid, "ピースフル");
                 continue;
             }
             if (day - raid.startDay > a.hoardMaxDays) {

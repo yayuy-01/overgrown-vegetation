@@ -111,12 +111,39 @@ public final class EnemySpawns {
 
     // ---------------------------------------------------------------- 縁
 
-    /** そのチャンクは縁か: 台帳での自分の扱い(載っている / いない)と違う隣が 8 方向に 1 つでもある。 */
+    /**
+     * そのチャンクは縁か: 台帳での自分の扱い(載っている / いない)と違う隣が 8 方向に 1 つでもある。ただし「載っていない」側は、
+     * 本当の外(まだ汚れていない土地)でなければ数えない = 森の中の小さな穴(焼いたチャンクなど 2 チャンク幅まで)は縁にしない
+     * (見直しの疑い、11-16: 穴のまわりが縁になり、森の内側に G4 以降が湧いていた)。
+     */
     public static boolean isEdgeChunk(PhaseData data, int cx, int cz) {
         boolean self = data.isOvergrownKey(net.minecraft.world.level.ChunkPos.asLong(cx, cz));
+        if (!self) {
+            if (!outside(data, cx, cz)) return false;
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    if ((dx != 0 || dz != 0) && data.isOvergrownKey(net.minecraft.world.level.ChunkPos.asLong(cx + dx, cz + dz))) return true;
+                }
+            }
+            return false;
+        }
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
-                if ((dx != 0 || dz != 0) && data.isOvergrownKey(net.minecraft.world.level.ChunkPos.asLong(cx + dx, cz + dz)) != self) return true;
+                if ((dx != 0 || dz != 0) && !data.isOvergrownKey(net.minecraft.world.level.ChunkPos.asLong(cx + dx, cz + dz)) && outside(data, cx + dx, cz + dz)) return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 台帳に載っていないチャンクが「本当の外」か: 2 つ離れた輪(16 チャンク)に、載っていないチャンクが 1 つでもある。
+     * 輪が全部台帳なら、2 チャンク幅までの穴の中なので外ではない。純粋な計算(台帳を最大 16 回引く)。
+     */
+    public static boolean outside(PhaseData data, int cx, int cz) {
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                if (Math.max(Math.abs(dx), Math.abs(dz)) != 2) continue;
+                if (!data.isOvergrownKey(net.minecraft.world.level.ChunkPos.asLong(cx + dx, cz + dz))) return true;
             }
         }
         return false;

@@ -233,6 +233,7 @@ public final class F5RaidGameTests {
     }
 
     private static void breachCase(GameTestHelper helper, net.minecraft.world.level.block.state.BlockState wall, boolean expectBreak, String species) {
+        BreachGoal.breakAnywhereForTests = true; // テスト場には認識した拠点が無い(11-16 から壊すのは拠点のまわりだけ)
         // 東の端(x = 5)を床から天井まで壁でふさぐ。Mob は西(x = 1.5)、行き先はずっと東
         for (int z = 0; z < 7; z++) {
             for (int y = 2; y < 8; y++) helper.setBlock(new BlockPos(5, y, z), wall);
