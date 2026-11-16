@@ -215,7 +215,8 @@ final class MistView {
 
     /** 森の中で空を白く飛ばす度合い(0〜1)。 */
     private static float whiteSky() {
-        return ForestPresence.fogForest() * DesignData.atmosphere().fog().forestSky();
+        // 濃霧(天気。11-16)の日は、森の外でも空が霧の色で満ちる。
+        return Math.max(ForestPresence.fogForest() * DesignData.atmosphere().fog().forestSky(), DenseFog.skyFill());
     }
 
     /** 潜っている所のバイオーム(海・川・森の池の 6 つで、盲目・暗闇でないとき。ほかは null)。 */
@@ -434,6 +435,14 @@ final class MistView {
         // 11-04(洞窟の直し 1): ここで黒にすると、この色が空の丸天井・画面の消し色・雲にも使われ、洞窟の中から見た口の外の空が黒くなった。
         // 地上の色のまま返し、黒は地形を描く前(renderFog の FOG_TERRAIN)にシェーダーの霧の色だけへ入れる。
         // 水・溶岩の中は空が見えないので前と同じにここで寄せる(水は caveWaterFactor で光の届く分だけ明るく)。
+        // 濃霧(天気。11-16): 霧の色を濃霧の色へ(前方散乱込み)。水・溶岩の中では掛けない。
+        if (event.getCamera().getFluidInCamera() == FogType.NONE && DenseFog.amount() > 0.001F && Minecraft.getInstance().level != null) {
+            float[] rgb = {r, g, b};
+            DenseFog.tint(Minecraft.getInstance().level, (float) event.getPartialTick(), event.getCamera().getLookVector(), rgb);
+            r = rgb[0];
+            g = rgb[1];
+            b = rgb[2];
+        }
         float cave = CaveLights.mix();
         FogType fluid = event.getCamera().getFluidInCamera();
         if (cave > 0.001F && fluid == FogType.WATER) {
@@ -508,6 +517,11 @@ final class MistView {
         // G4 胞子の風(11-08): 前線がカメラを通る間、霞を一瞬濃く(SporeGale.fogK。地下では足さない)。
         if (!cloudPass && event.getFarPlaneDistance() < 1.0E9F) {
             airK += SporeGale.fogK() * (1.0F - cave);
+        }
+        // 濃霧(天気。11-16): 世界中の距離の霞。森の中でも足す(airAmount の外)。洞窟の中は足さない。雲を描く間も入れる(雲も霧に沈む)。
+        if (event.getFarPlaneDistance() < 1.0E9F) {
+            // 岩の屋根の下(洞窟の中)では足さない。地下の度合いだけだと、天井の穴のそばで霧が洞窟の中へ漏れた(灰色の膜)。
+            airK += DenseFog.hazeK() * (1.0F - Math.max(cave, ForestPresence.underground()));
         }
         if (inside <= 0.001F && storm <= 0.001F && forest <= 0.001F && cave <= 0.001F && caveK <= 0.001F && aerial <= 0.001F && airK <= 0.0F) {
             if (!cloudPass) {

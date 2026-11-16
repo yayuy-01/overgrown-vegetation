@@ -412,6 +412,17 @@
     "radius": 0.9,
     "distance": 48.0
   },
+  "denseFog": {
+    "_comment": "濃霧(天気の 1 つ。2026-11-16。ユーザー決定: たまに雨上がりや朝方に世界中が濃霧に包まれる・前方散乱(太陽の方を向くと霧が光る)・高さで薄くなる。数はすべて仮決めで、絵を見て詰める)。visibility = 見通し(ブロック。ここで 95% が霧)、color = 昼の霧の色、nightBrightness = 夜の霧の色の明るさの倍率、scatter・scatterPower = 太陽の方を向いたときの光り方の強さと鋭さ、topAbove = 霧の層の上の端(海面からの高さ)、topFade = そこから晴れきるまでの段、skyFill = 空を霧の色で満たす割合。確かめは /ov weather fog 1(戻すのは /ov weather clear)。",
+    "visibility": 40.0,
+    "color": [0.78, 0.81, 0.83],
+    "nightBrightness": 0.08,
+    "scatter": 0.25,
+    "scatterPower": 6.0,
+    "topAbove": 70.0,
+    "topFade": 40.0,
+    "skyFill": 1.0
+  },
   "phaseCue": {
     "_comment": "フェーズが上がったときの合図(2026-11-16。ユーザー決定: 共通の合図は 地鳴りで画面が小さく揺れる・空が数秒だけ黄緑ににじむ・汚染の森の方角から一斉にざわめく音。F6 の印は 拠点の灯りが一瞬揺らいで暗くなる。数はすべて仮決め)。shake = 揺れの大きさ(向きの度)、skyTint = 空のにじみの濃さ(0〜1)、color = にじみの色、nightBrightness = 夜のにじみの色の明るさの倍率、near・far = 景色へにじみが掛かり始める・掛かりきる距離(ブロック。空には全部掛かる)、rumbleVolume・rustleVolume = 地鳴り・ざわめきの大きさ(0 で鳴らさない)、lightDip = F6 で灯りを落とす深さ(0〜1)。確かめは /ov fx phasecue <フェーズ>。",
     "shake": 0.35,

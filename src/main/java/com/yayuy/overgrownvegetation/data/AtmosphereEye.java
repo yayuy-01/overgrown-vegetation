@@ -160,6 +160,28 @@ public final class AtmosphereEye {
      * {@code nightBrightness} = 夜のにじみの色の明るさの倍率、{@code near}・{@code far} = 景色へにじみが掛かり始める・掛かりきる距離(ブロック)、
      * {@code rumbleVolume}・{@code rustleVolume} = 地鳴り・ざわめきの大きさ(0 で鳴らさない)、{@code lightDip} = F6 で灯りを落とす深さ(0〜1)。
      */
+    /**
+     * 濃霧(天気。節 denseFog、2026-11-16。読むのは {@code client/atmosphere/DenseFog})。ユーザー決定: たまに世界中が濃霧に包まれる・前方散乱・
+     * 高さで薄くなる。数は仮決め(絵を見て詰める): {@code visibility} = 見通し(ブロック。ここで 95% が霧)、{@code color} = 昼の霧の色、
+     * {@code nightBrightness} = 夜の霧の色の明るさの倍率、{@code scatter}・{@code scatterPower} = 太陽の方を向いたときの光り方の強さと鋭さ、
+     * {@code topAbove} = 霧の層の上の端(海面からの高さ)、{@code topFade} = そこから晴れきるまでの段、{@code skyFill} = 空を霧の色で満たす割合。
+     */
+    public static final class DenseFogJson {
+        public Double visibility, nightBrightness, scatter, scatterPower, topAbove, topFade, skyFill;
+        public double[] color;
+    }
+
+    public record DenseFogParams(float visibility, float red, float green, float blue, float nightBrightness, float scatter, float scatterPower,
+                                 float topAbove, float topFade, float skyFill) {
+        static DenseFogParams of(DenseFogJson j) {
+            DenseFogJson v = j != null ? j : new DenseFogJson();
+            double[] col = v.color != null && v.color.length >= 3 ? v.color : new double[]{0.78, 0.81, 0.83};
+            return new DenseFogParams(c(v.visibility, 40.0, 8.0, 512.0), c(col[0], 0.78, 0.0, 1.0), c(col[1], 0.81, 0.0, 1.0), c(col[2], 0.83, 0.0, 1.0),
+                    c(v.nightBrightness, 0.08, 0.0, 1.0), c(v.scatter, 0.25, 0.0, 2.0), c(v.scatterPower, 6.0, 1.0, 64.0),
+                    c(v.topAbove, 70.0, -64.0, 320.0), c(v.topFade, 40.0, 1.0, 256.0), c(v.skyFill, 1.0, 0.0, 1.0));
+        }
+    }
+
     public static final class PhaseCueJson {
         public Double shake, skyTint, nightBrightness, near, far, rumbleVolume, rustleVolume, lightDip;
         public double[] color;

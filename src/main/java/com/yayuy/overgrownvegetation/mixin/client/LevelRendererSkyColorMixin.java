@@ -33,4 +33,11 @@ public abstract class LevelRendererSkyColorMixin {
     private float[] overgrown_vegetation$fadeSunriseFan(DimensionSpecialEffects effects, float timeOfDay, float partialTick, Operation<float[]> original) {
         return SkyColors.fadeFan(original.call(effects, timeOfDay, partialTick));
     }
+
+    /** 濃霧(天気。11-16)の日は、星を霧に沈める(空を霧の色で満たしても、星は後から描かれて透けて見えた)。 */
+    @WrapOperation(method = "renderSky", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/multiplayer/ClientLevel;getStarBrightness(F)F"), require = 0)
+    private float overgrown_vegetation$fogStars(net.minecraft.client.multiplayer.ClientLevel level, float partialTick, Operation<Float> original) {
+        return original.call(level, partialTick) * (1.0F - com.yayuy.overgrownvegetation.client.atmosphere.DenseFog.skyFillPublic());
+    }
 }
