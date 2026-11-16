@@ -37,8 +37,8 @@ public final class FlyerWind {
         if (t != cachedTick) {
             MinecraftServer server = level.getServer();
             PrevailingWind.sample(WindWeatherData.windSeed(server), level.getDayTime(), WindWeatherData.get(server).weather(), SAMPLE);
-            // 飛ぶ型は地上の風(凪の日は落ちる。11-16。凪でなければ今までどおり strength)
-            groundStrength = SAMPLE.ground();
+            // 凪は飛ぶ型には効かせない(11-16 全体管理了承の案「飛ぶ Mob への効きは強風の日だけ・ほかの種は今のまま」)。上空の風 strength のまま
+            groundStrength = SAMPLE.strength;
             gale = SAMPLE.gale;
             dirX = SAMPLE.dirX;
             dirZ = SAMPLE.dirZ;

@@ -130,9 +130,13 @@ public final class WeatherKindsGameTests {
         helper.succeed();
     }
 
-    /** 天気が無い日は前と同じ: 凪・強風の度合いが 0 の風は、新しい値を持たない風と 1 文字も変わらない答え。 */
+    /**
+     * 天気の無い日は天気の分岐に入らない: 凪でも強風でもない日の風は凪・強風の度合いが 0 で、地上の風 = 上空の風。度合い 0 の風で回した場は、
+     * 度合いの欄に触れない風で回した場と同じ答え。<b>前のコードとの比べではない</b>(前と同じなのは、分岐で素通りする作りと、前からの胞子のテスト
+     * RainKindsGameTests・SporeFieldGameTests が通ることで見ている)。
+     */
     @GameTest(template = "gametest_empty7", timeoutTicks = 400)
-    public static void noWeatherKeepsOldNumbers(GameTestHelper helper) {
+    public static void zeroWeatherTakesNoBranch(GameTestHelper helper) {
         long seed = 12345L;
         // 凪でも強風でもない日を探す
         long day = 0;
@@ -293,6 +297,94 @@ public final class WeatherKindsGameTests {
         WeatherPayload p = WorldWeather.compute(helper.getLevel().getServer().overworld());
         if (!(p.fog() >= 0 && p.fog() <= 1 && p.calm() >= 0 && p.calm() <= 1 && p.gale() >= 0 && p.gale() <= 1)) {
             helper.fail("今の天気の値が 0〜1 の外: " + p);
+            return;
+        }
+        helper.succeed();
+    }
+
+    // ---------------------------------------------------------------- 本物の日の風で測る(風を一定にしない。11-16 見直し)
+
+    /** 場を回すときに風を書き換える(凪・強風を切って比べる)。 */
+    private interface WindEdit {
+        void edit(PrevailingWind.Sample s);
+    }
+
+    /** 日 startDay の 0 時(dayTime = 日 × 24000、6 時)から steps 回、本物の卓越風で回した場。 */
+    private static SporeField runReal(long seed, long startDay, int steps, double galeGroundWind, WindEdit edit) {
+        SporeField f = forest();
+        if (!Double.isNaN(galeGroundWind)) f.p.galeGroundWind = galeGroundWind;
+        PrevailingWind.Sample s = new PrevailingWind.Sample();
+        long base = startDay * PrevailingWind.DAY;
+        for (int k = 1; k <= steps; k++) {
+            long t = base + k * 100L;
+            PrevailingWind.sample(seed, t, PrevailingWind.Weather.CLEAR, s);
+            if (edit != null) edit.edit(s);
+            f.step(new SporeField.Conditions(t, t, false, false, false), s);
+        }
+        return f;
+    }
+
+    /** 森(原点)から汚染された升までのいちばん遠い距離(チャンク。向きは問わない。本物の風は向きが回るので)。 */
+    private static double reach(SporeField f) {
+        double best = 0;
+        for (int x = -90; x <= 90; x++) for (int z = -90; z <= 90; z++) if (f.isCorrupted(x, z)) best = Math.max(best, Math.hypot(x, z));
+        return best;
+    }
+
+    /** 森のそば(原点から 6 チャンク以内)と遠く(12〜40)の浮遊の合計。 */
+    private static double[] nearFarRing(SporeField f) {
+        double near = 0, far = 0;
+        for (int x = -40; x <= 40; x++) {
+            for (int z = -40; z <= 40; z++) {
+                double d = Math.hypot(x, z);
+                if (d <= 6) near += f.air(x, z);
+                else if (d >= 12 && d <= 40) far += f.air(x, z);
+            }
+        }
+        return new double[]{near, far};
+    }
+
+    /**
+     * 本物の凪の日(5 時から 20 時まで凪)の正午 ~ 夕方: 凪をそのまま回した場は、同じ日の凪だけを切った場より森のそばが濃く、遠くが澄む。
+     * 強風の日: 同じ日を、林床を運ばない(前からの強風の扱い)場・ふつうの日と比べて前線の届きを測る(数を決めるため。ログ WEATHER_MEASURE)。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 600)
+    public static void realDaysCalmAndGale(GameTestHelper helper) {
+        long seed = 31337L;
+        long calmDay = -1, galeDay = -1, plainDay = -1;
+        for (long d = 1; d < 400 && (calmDay < 0 || galeDay < 0 || plainDay < 0); d++) {
+            boolean strong = PrevailingWind.isStrongDay(seed, d, PrevailingWind.Weather.CLEAR);
+            boolean calm = PrevailingWind.isCalmDay(seed, d, PrevailingWind.Weather.CLEAR);
+            boolean next = PrevailingWind.isStrongDay(seed, d + 1, PrevailingWind.Weather.CLEAR) || PrevailingWind.isCalmDay(seed, d + 1, PrevailingWind.Weather.CLEAR);
+            if (calm && calmDay < 0) calmDay = d;
+            if (strong && galeDay < 0 && !next) galeDay = d;
+            if (!strong && !calm && !next && plainDay < 0) plainDay = d;
+        }
+        if (calmDay < 0 || galeDay < 0 || plainDay < 0) {
+            helper.fail("凪・強風・ふつうの日が見つからない");
+            return;
+        }
+        // 凪: その日の 6 時から 16 時(100 step)まで。凪を切った場と比べる
+        SporeField calmF = runReal(seed, calmDay, 100, Double.NaN, null);
+        SporeField noCalm = runReal(seed, calmDay, 100, Double.NaN, s -> s.calm = 0);
+        double[] c = nearFarRing(calmF), n = nearFarRing(noCalm);
+        LOG.info("WEATHER_MEASURE 本物の凪の日(6〜16 時) 森のそば {} → {}(×{})・遠く {} → {}(×{})", n[0], c[0], c[0] / n[0], n[1], c[1],
+                c[1] / Math.max(1e-12, n[1]));
+        // 強風: その日の 6 時から 2 日
+        double gale = reach(runReal(seed, galeDay, 480, Double.NaN, null));
+        double galeOld = reach(runReal(seed, galeDay, 480, 0, null));
+        double plain = reach(runReal(seed, plainDay, 480, Double.NaN, null));
+        double[] sweep = new double[4];
+        double[] gs = {10, 40, 80, 160};
+        for (int i = 0; i < gs.length; i++) sweep[i] = reach(runReal(seed, galeDay, 480, gs[i], null));
+        LOG.info("WEATHER_MEASURE 本物の強風の日(2 日) 届き ふつうの日 {}・前からの強風 {}・林床も運ぶ強風 {}(galeGroundWind 10 → {}・40 → {}・80 → {}・160 → {})",
+                plain, galeOld, gale, sweep[0], sweep[1], sweep[2], sweep[3]);
+        if (!(c[0] > n[0] && c[1] < n[1])) {
+            helper.fail("本物の凪の日に森のそばが濃く・遠くが澄む、にならない: そば " + n[0] + " → " + c[0] + " 遠く " + n[1] + " → " + c[1]);
+            return;
+        }
+        if (!(gale > galeOld)) {
+            helper.fail("本物の強風の日に林床を運んでも前線が伸びない: 前からの強風 " + galeOld + " 林床も運ぶ " + gale);
             return;
         }
         helper.succeed();

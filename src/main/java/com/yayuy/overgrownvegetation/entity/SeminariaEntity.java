@@ -210,12 +210,20 @@ public class SeminariaEntity extends SkyFlyer implements GeoEntity, ParasitizedM
         return PARAMS;
     }
 
-    /** 強風の日に速く流される上乗せ(× (1 + これ × 強風の度合い)。2026-11-16 weather-system【仮】)。 */
-    static final double GALE_BOOST = 0.4D;
+    /**
+     * 強風の日に速く流される上乗せ(× (1 + これ × 強風の度合い)。2026-11-16 weather-system【仮】)。セミナリアは風への任せ具合 2.5 で、上限を 2.0 に上げるだけで
+     * 風の分が 0.49 ブロック/tick(最高速 0.45 を越える)になるので、上乗せは 0(0.4 だと 0.68 で群れが戻れなくなる)。流される型(上限 2.0)は {@link #galeDrifter}。
+     */
+    static final double GALE_BOOST = 0.0D;
 
     @Override
     protected double galeBoost() {
         return GALE_BOOST;
+    }
+
+    @Override
+    protected boolean galeDrifter() {
+        return true;
     }
 
     @Override

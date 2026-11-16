@@ -312,10 +312,14 @@ public abstract class SkyFlyer extends Monster {
         return 0.0D;
     }
 
+    /** 強風の日に流される型か(上限を FlyerWind.GALE_CAP へ上げる。上乗せは {@link #galeBoost})。セミナリアが上書きする。 */
+    protected boolean galeDrifter() {
+        return false;
+    }
+
     /** 今の風を this.wind へ(強風の日の上乗せは {@link #galeBoost} の種だけ)。 */
     protected final void readWind(ServerLevel sl) {
-        double b = galeBoost();
-        if (b > 0.0D) FlyerWind.drift(sl, this.wind, b);
+        if (galeDrifter()) FlyerWind.drift(sl, this.wind, galeBoost());
         else FlyerWind.now(sl, this.wind);
     }
 
