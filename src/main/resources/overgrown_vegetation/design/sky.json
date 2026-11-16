@@ -101,7 +101,7 @@
       "colorHigh": [0.72, 0.95, 0.22],
       "riseTicks": 1000.0,
       "fallTicks": 1000.0,
-      "hazeDim": 0.7
+      "hazeDim": 0.35
     },
     "sporeRise": {
       "_comment": "オーロラの盛りに森の梢の上へ昇るまばらな光の粒(ユーザー決定: 弱く匂わせる程度・粒はまばら)。count = 同時の粒の上限・range = カメラからの範囲・speed = 昇る速さ(ブロック/秒)・height = 梢の上どこまで昇るか・size = 粒の大きさ(ブロック)。",

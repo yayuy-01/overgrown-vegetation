@@ -72,6 +72,8 @@ public final class WorldEventSky {
     private static int ticks;
     /** 森の明るい所(世界の x, z, 重さ)。4 つまで。 */
     private static final float[][] SPOTS = new float[4][3];
+    /** 選んだ所(寄せる先)。 */
+    private static final float[][] TARGET = new float[4][3];
     private static int spotCount;
 
     /** 出て消える包み(0〜1): 始まりから rise で出て、終わりの fall で消える。短いときは半分ずつに縮める。 */
@@ -113,20 +115,46 @@ public final class WorldEventSky {
         if (ticks % 40 == 1 && auroraEvent(0.0F) > 0.0F) {
             pickSpots(mc.gameRenderer.getMainCamera().getPosition());
         }
+        easeSpots();
     }
 
     /**
-     * 森の明るい所を選ぶ: カメラのまわり ±512 を 64 おきに胞子の空気の度合いで見て、巨大樹も足し、重い順に 4 つ(選んだ所の近くは次に選ばない)。
+     * 森の明るい所を選ぶ: 世界に固定した 64 ブロックの升(カメラのまわり ±512)を胞子の空気の度合いで見て、巨大樹も足し、重い順に 4 つ(選んだ所の近くは次に選ばない)。
+     * 胞子の空気の地図が無い世界では、読み込まれたチャンクのバイオーム(過繁茂の森)から拾う。
      */
     private static void pickSpots(Vec3 cam) {
         List<float[]> cands = new ArrayList<>();
+        // 見る所は世界に固定した 64 ブロックの升の真ん中(カメラと一緒に動く升だと、歩くたびに選ばれる所が跳ぶ)。
+        double gx = Math.floor(cam.x / 64.0) * 64.0 + 32.0;
+        double gz = Math.floor(cam.z / 64.0) * 64.0 + 32.0;
         for (int j = -8; j <= 8; j++) {
             for (int i = -8; i <= 8; i++) {
-                double x = cam.x + i * 64.0;
-                double z = cam.z + j * 64.0;
+                double x = gx + i * 64.0;
+                double z = gz + j * 64.0;
                 float w = SporeAir.levelAt(x, z);
                 if (w > 0.05F) {
                     cands.add(new float[]{(float) x, (float) z, Math.min(1.0F, w * 1.5F)});
+                }
+            }
+        }
+        if (cands.isEmpty()) {
+            // 胞子の空気の地図が無い(場が止まっている・届いていない): 読み込まれたチャンクのバイオームで、過繁茂の森の升を拾う(±256)。
+            ClientLevel level = Minecraft.getInstance().level;
+            net.minecraft.core.BlockPos.MutableBlockPos pos = new net.minecraft.core.BlockPos.MutableBlockPos();
+            for (int j = -4; j <= 4 && level != null; j++) {
+                for (int i = -4; i <= 4; i++) {
+                    pos.set(gx + i * 64.0, cam.y, gz + j * 64.0);
+                    if (level.hasChunkAt(pos) && com.yayuy.overgrownvegetation.registry.ModBiomes.isOvergrownLike(level.getBiome(pos))) {
+                        // 升のまわり 4 つも森なら重く(森の真ん中ほど先に選ばれる)。
+                        int around = 0;
+                        for (int k = 0; k < 4; k++) {
+                            pos.set(gx + (i + (k == 0 ? 1 : k == 1 ? -1 : 0)) * 64.0, cam.y, gz + (j + (k == 2 ? 1 : k == 3 ? -1 : 0)) * 64.0);
+                            if (level.hasChunkAt(pos) && com.yayuy.overgrownvegetation.registry.ModBiomes.isOvergrownLike(level.getBiome(pos))) {
+                                around++;
+                            }
+                        }
+                        cands.add(new float[]{(float) (gx + i * 64.0), (float) (gz + j * 64.0), 0.45F + 0.1F * around});
+                    }
                 }
             }
         }
@@ -138,20 +166,75 @@ public final class WorldEventSky {
             }
         }
         float radius = DesignData.sky().events.aurora.forestRadius * 0.6F;
-        spotCount = 0;
-        while (spotCount < 4 && !cands.isEmpty()) {
+        List<float[]> picks = new ArrayList<>();
+        while (picks.size() < 4 && !cands.isEmpty()) {
             float[] best = cands.get(0);
             for (float[] c : cands) {
-                if (c[2] > best[2]) {
+                // 同じ重さなら、今選んでいる所を先に(升の並びの順で入れ替わらないように)。
+                if (c[2] > best[2] + 0.001F || Math.abs(c[2] - best[2]) <= 0.001F && isTarget(c) && !isTarget(best)) {
                     best = c;
                 }
             }
-            SPOTS[spotCount][0] = best[0];
-            SPOTS[spotCount][1] = best[1];
-            SPOTS[spotCount][2] = best[2];
-            spotCount++;
+            picks.add(best);
             final float bx = best[0], bz = best[1];
             cands.removeIf(c -> (c[0] - bx) * (c[0] - bx) + (c[1] - bz) * (c[1] - bz) < radius * radius);
+        }
+        // 前と同じ所は同じ枠のまま(枠が入れ替わると、その所の明るさがいちど消えて出直す)。残りは空いた枠へ。
+        boolean[] kept = new boolean[4];
+        for (int i = 0; i < 4; i++) {
+            for (float[] pk : picks) {
+                if (pk[2] >= 0.0F && Math.abs(pk[0] - TARGET[i][0]) < 1.0F && Math.abs(pk[1] - TARGET[i][1]) < 1.0F) {
+                    TARGET[i][2] = pk[2];
+                    pk[2] = -1.0F;
+                    kept[i] = true;
+                    break;
+                }
+            }
+        }
+        for (int i = 0; i < 4; i++) {
+            if (kept[i]) {
+                continue;
+            }
+            TARGET[i][2] = 0.0F;
+            for (float[] pk : picks) {
+                if (pk[2] >= 0.0F) {
+                    TARGET[i][0] = pk[0];
+                    TARGET[i][1] = pk[1];
+                    TARGET[i][2] = pk[2];
+                    pk[2] = -1.0F;
+                    break;
+                }
+            }
+        }
+    }
+
+    private static boolean isTarget(float[] c) {
+        for (int i = 0; i < 4; i++) {
+            if (TARGET[i][2] > 0.0F && Math.abs(c[0] - TARGET[i][0]) < 1.0F && Math.abs(c[1] - TARGET[i][1]) < 1.0F) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 毎 tick: 見せている明るい所を、選んだ所へなめらかに寄せる(所が替わるときは、いちど消えてから移る。約 1.5 秒)。 */
+    private static void easeSpots() {
+        spotCount = 0;
+        for (int i = 0; i < 4; i++) {
+            boolean moved = Math.abs(SPOTS[i][0] - TARGET[i][0]) > 1.0F || Math.abs(SPOTS[i][1] - TARGET[i][1]) > 1.0F;
+            if (moved) {
+                SPOTS[i][2] -= 0.035F;
+                if (SPOTS[i][2] <= 0.0F) {
+                    SPOTS[i][0] = TARGET[i][0];
+                    SPOTS[i][1] = TARGET[i][1];
+                    SPOTS[i][2] = 0.0F;
+                }
+            } else {
+                SPOTS[i][2] += Mth.clamp(TARGET[i][2] - SPOTS[i][2], -0.035F, 0.035F);
+            }
+            if (SPOTS[i][2] > 0.01F) {
+                spotCount++;
+            }
         }
     }
 
@@ -211,7 +294,7 @@ public final class WorldEventSky {
         shader.safeGetUniform("ColorLow").set(rgb(a.colorLow, 0), rgb(a.colorLow, 1), rgb(a.colorLow, 2), 1.0F);
         shader.safeGetUniform("ColorHigh").set(rgb(a.colorHigh, 0), rgb(a.colorHigh, 1), rgb(a.colorHigh, 2), 1.0F);
         for (int i = 0; i < 4; i++) {
-            if (i < spotCount) {
+            if (SPOTS[i][2] > 0.01F) {
                 shader.safeGetUniform("Spot" + i).set((float) (SPOTS[i][0] - cam.x), (float) (SPOTS[i][1] - cam.z), Math.max(50.0F, a.forestRadius), SPOTS[i][2]);
             } else {
                 shader.safeGetUniform("Spot" + i).set(0.0F, 0.0F, 1.0F, 0.0F);

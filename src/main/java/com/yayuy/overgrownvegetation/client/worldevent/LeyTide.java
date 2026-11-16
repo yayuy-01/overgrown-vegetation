@@ -156,10 +156,7 @@ public final class LeyTide {
         }
     }
 
-    private static int calls;
-
     private static void draw(RenderLevelStageEvent event, ClientLevel level) {
-        calls++;
         float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         WorldEventLooks.LeyTide p = DesignData.sky().events.leyTide;
         float night = SunLight.night(level, partial);
@@ -236,8 +233,7 @@ public final class LeyTide {
     public static String describe() {
         List<Emitter> list = emitters;
         String first = list.isEmpty() ? "なし" : String.format("%.0f %.0f %.0f", list.get(list.size() / 2).x, list.get(list.size() / 2).y, list.get(list.size() / 2).z);
-        return String.format("地脈の大潮: %.2f・光の立つ所 %d(描いた %d・いちばん濃い %.2f・1 つの場所 %s・描く段の霧 %.0f〜%.0f・呼ばれた %d)%s", amount(0.0F), list.size(), drawn, maxAlpha, first,
-                EventLight.lastFogStart, EventLight.lastFogEnd, calls,
+        return String.format("地脈の大潮: %.2f・光の立つ所 %d(描いた %d・いちばん濃い %.2f・1 つの場所 %s)%s", amount(0.0F), list.size(), drawn, maxAlpha, first,
                 broken ? "・例外で止めた" : "");
     }
 }

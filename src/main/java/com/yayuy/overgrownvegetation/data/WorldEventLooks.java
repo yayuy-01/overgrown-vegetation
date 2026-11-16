@@ -40,7 +40,7 @@ public final class WorldEventLooks {
         public float riseTicks = 1000.0F;
         public float fallTicks = 1000.0F;
         /** 森の霞の中にいるとき、どれだけ薄くするか(0〜1)。 */
-        public float hazeDim = 0.7F;
+        public float hazeDim = 0.35F;
     }
 
     /** オーロラの盛りに、森の梢の上へ昇るまばらな光の粒(弱く匂わせる。見た目だけ)。 */

@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.client.atmosphere.EventFog;
 import com.yayuy.overgrownvegetation.client.shader.ShaderPacks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -63,22 +64,11 @@ final class EventLight {
 
     /**
      * 地形と同じ霧の掛かり具合(1 = 霧なし、0 = 霧に沈んだ)。色だけの頂点のシェーダーは霧を受けないので、足し算の光はこの分だけ弱める。
+     * 霧の値はこの MOD の印が入っていてそのままでは読めないので、地形のシェーダーと同じ読み方({@link EventFog})で出す。
      */
     static float fogKeep(float distance) {
-        float start = RenderSystem.getShaderFogStart();
-        float end = RenderSystem.getShaderFogEnd();
-        lastFogStart = start;
-        lastFogEnd = end;
-        if (!(end > start) || end > 4096.0F || start < -4096.0F) {
-            // 霧が切ってある・値が普通でない(ほかの描画が入れた値)ときは、描画距離の端でだけ消す。
-            float far = Minecraft.getInstance().gameRenderer.getRenderDistance();
-            return Mth.clamp((far - distance) / Math.max(8.0F, far * 0.2F), 0.0F, 1.0F);
-        }
-        return 1.0F - Mth.clamp((distance - start) / (end - start), 0.0F, 1.0F);
+        return EventFog.keep(distance);
     }
-
-    static float lastFogStart;
-    static float lastFogEnd;
 
     private EventLight() {
     }

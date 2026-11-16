@@ -58,9 +58,9 @@ void main() {
     // curtains, the big patches, the slow pulse and the brighter places over the forest (11-16: the loop was too heavy otherwise).
     vec2 relM = dir.xz * (mix(Layer.x, Layer.y, 0.3) / dir.y);
     vec2 pM = (relM + Field.xy + Field.zw) / scale;
-    vec2 warp = (vec2(ovNoise(pM * 0.7 + vec2(3.1, t * 0.004)), ovNoise(pM * 0.7 + vec2(-7.3, 11.0 - t * 0.003))) - 0.5) * 0.9;
-    float patch = mix(0.3, 1.0, smoothstep(0.25, 0.65, ovNoise(pM * 0.45 + vec2(41.0, t * 0.0015))));
-    float pulse = 0.75 + 0.25 * ovNoise(vec2(pM.x * 3.0 - t * 0.02 * Aurora.z, pM.y * 3.0));
+    vec2 warp = (vec2(ovNoise(pM * 0.7 + vec2(3.1, t * 0.03)), ovNoise(pM * 0.7 + vec2(-7.3, 11.0 - t * 0.024))) - 0.5) * 0.9;
+    float patch = mix(0.3, 1.0, smoothstep(0.25, 0.65, ovNoise(pM * 0.45 + vec2(41.0, t * 0.012))));
+    float pulse = 0.75 + 0.25 * ovNoise(vec2(pM.x * 3.0 - t * 0.12 * Aurora.z, pM.y * 3.0));
     float forest = Layer.z + Layer.w * min(1.0, ovSpot(relM, Spot0) + ovSpot(relM, Spot1) + ovSpot(relM, Spot2) + ovSpot(relM, Spot3));
     vec3 sum = vec3(0.0);
     for (int i = 0; i < STEPS; i++) {
@@ -76,7 +76,7 @@ void main() {
         // A sharp bright core and a soft body around it.
         float line = pow(b1, 12.0) + 0.22 * pow(b1, 3.0) + 0.55 * pow(b2, 18.0) + 0.10 * pow(b2, 4.0);
         // Vertical streaks: depends on the place only, so it reads as rays standing in the curtain; they flicker slowly.
-        float streak = 0.55 + 0.45 * ovNoise(q * 34.0 + vec2(t * 0.05 * Aurora.z, 0.0));
+        float streak = 0.55 + 0.45 * ovNoise(q * 34.0 + vec2(t * 0.45 * Aurora.z, t * 0.2 * Aurora.z));
         // Height profile: brightest just above the lower edge, fading upwards.
         float prof = smoothstep(0.0, 0.07, u) * exp(-u * 2.6);
         sum += mix(ColorLow.rgb, ColorHigh.rgb, smoothstep(0.0, 0.75, u)) * (line * streak * prof);
