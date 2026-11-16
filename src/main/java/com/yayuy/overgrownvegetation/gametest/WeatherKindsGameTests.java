@@ -389,4 +389,40 @@ public final class WeatherKindsGameTests {
         }
         helper.succeed();
     }
+
+    /**
+     * 積乱雲の下の落雷の場所(11-16 ユーザー決定「積乱雲の雷に合わせて汚染の森へも落とす」): 雲の下の半分が汚染の森なら、森を選ぶ方が多い。
+     * 雲の下に巨大樹があれば、巨大樹に落ちることがある。どれも雲の胴の内側。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void cloudStrikesPreferForestAndTrees(GameTestHelper helper) {
+        net.minecraft.util.RandomSource rnd = net.minecraft.util.RandomSource.create(99L);
+        double cx = 1000, cz = 2000, r = 70;
+        // 東半分(x ≥ 1000 のチャンク)だけ汚染の森
+        java.util.function.LongPredicate east = k -> net.minecraft.world.level.ChunkPos.getX(k) * 16 >= 1000;
+        int forest = 0, n = 2000;
+        for (int i = 0; i < n; i++) {
+            com.yayuy.overgrownvegetation.sky.StormLightning.Spot s = com.yayuy.overgrownvegetation.sky.StormLightning.choose(cx, cz, r, rnd, new long[0], east);
+            if (Math.hypot(s.x() - cx, s.z() - cz) > r + 1e-6) {
+                helper.fail("雲の胴の外に落ちた: " + s);
+                return;
+            }
+            if (s.forest()) forest++;
+        }
+        long tree = ((long) 1020 << 32) | (2010 & 0xFFFFFFFFL);
+        int onTree = 0;
+        for (int i = 0; i < n; i++) {
+            if (com.yayuy.overgrownvegetation.sky.StormLightning.choose(cx, cz, r, rnd, new long[]{tree}, k -> false).tree()) onTree++;
+        }
+        LOG.info("WEATHER_MEASURE 雲の落雷 東半分が森のとき森 {}/{}・巨大樹が下にあるとき巨大樹 {}/{}", forest, n, onTree, n);
+        if (!(forest > n * 0.65)) {
+            helper.fail("雲の下の半分が森なのに森を選ぶ方が多くない: " + forest + "/" + n);
+            return;
+        }
+        if (!(onTree > n * 0.35 && onTree < n * 0.65)) {
+            helper.fail("巨大樹に落ちる割合がおかしい: " + onTree + "/" + n);
+            return;
+        }
+        helper.succeed();
+    }
 }

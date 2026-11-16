@@ -193,7 +193,10 @@ public final class WorldWeather {
                         .then(Commands.literal("gale").executes(c -> force(c, "gale", 1.0D))
                                 .then(Commands.argument("level", DoubleArgumentType.doubleArg(0.0D, 1.0D))
                                         .executes(c -> force(c, "gale", DoubleArgumentType.getDouble(c, "level")))))
-                        .then(Commands.literal("clear").executes(WorldWeather::clear))));
+                        .then(Commands.literal("clear").executes(WorldWeather::clear))
+                        .then(Commands.literal("strike").executes(c -> strike(c, false))
+                                .then(Commands.literal("forest").executes(c -> strike(c, true)))
+                                .then(Commands.literal("ground").executes(c -> strike(c, false))))));
     }
 
     private static int force(CommandContext<CommandSourceStack> ctx, String what, double level) {
@@ -205,6 +208,12 @@ public final class WorldWeather {
         sendAll(ctx.getSource().getServer());
         ctx.getSource().sendSuccess(() -> Component.literal("天気を強制: " + what + " = " + String.format("%.2f", level)
                 + "(/ov weather clear で戻す。再起動で消える)"), true);
+        return 1;
+    }
+
+    private static int strike(CommandContext<CommandSourceStack> ctx, boolean forest) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        String r = StormLightning.debugStrike(ctx.getSource().getPlayerOrException(), forest);
+        ctx.getSource().sendSuccess(() -> Component.literal(r), false);
         return 1;
     }
 
@@ -230,9 +239,9 @@ public final class WorldWeather {
         String forced = (PrevailingWind.forcedFog >= 0 ? " 濃霧" : "") + (PrevailingWind.forcedCalm >= 0 ? " 凪" : "")
                 + (PrevailingWind.forcedGale >= 0 ? " 強風" : "");
         ctx.getSource().sendSuccess(() -> Component.literal(String.format(
-                "今の天気: 濃霧 %.2f(%s)・凪 %.2f・強風 %.2f・雷雨 %.2f・雷雨の前触れ %.2f・雷雨の後 %.2f・残り %d tick%n地上の風 %.2f・上空の風 %.2f%n日の種類(雨の印は今のもの): %s%s",
+                "今の天気: 濃霧 %.2f(%s)・凪 %.2f・強風 %.2f・雷雨 %.2f・雷雨の前触れ %.2f・雷雨の後 %.2f・残り %d tick%n地上の風 %.2f・上空の風 %.2f%n%s%n日の種類(雨の印は今のもの): %s%s",
                 p.fog(), p.fogKind() == 1 ? "雨上がり" : "朝方", p.calm(), p.gale(), p.thunder(), p.preStorm(), p.stormAfter(), p.ticksLeft(),
-                SAMPLE.ground(), SAMPLE.strength, days, forced.isEmpty() ? "" : "\n強制中:" + forced)), false);
+                SAMPLE.ground(), SAMPLE.strength, StormLightning.describe(), days, forced.isEmpty() ? "" : "\n強制中:" + forced)), false);
         return 1;
     }
 

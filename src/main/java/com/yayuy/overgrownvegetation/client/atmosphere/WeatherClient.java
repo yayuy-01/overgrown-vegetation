@@ -44,6 +44,14 @@ public final class WeatherClient {
         lightningListener.accept(payload);
     }
 
+    /** 積乱雲から地面への落雷のときに呼ぶ(見た目の側が差し替える。既定は何もしない。11-16 CloudStrikePayload)。 */
+    public static volatile Consumer<com.yayuy.overgrownvegetation.network.CloudStrikePayload> strikeListener = p -> {
+    };
+
+    public static void acceptStrike(com.yayuy.overgrownvegetation.network.CloudStrikePayload payload) {
+        strikeListener.accept(payload);
+    }
+
     private static WeatherPayload now() {
         WeatherPayload o = override;
         return o != null ? o : last;

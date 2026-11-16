@@ -66,7 +66,7 @@ public final class FlyerWind {
     }
 
     /**
-     * 流される型(ペディキュラ・セミナリア)の風(2026-11-16)。強風の日でなければ {@link #now} と同じ。強風の日は上限を {@link #GALE_CAP} へ上げ、
+     * 流される型(セミナリア。ペディキュラは 11-16 の全体管理の決定で今の上限のまま)の風(2026-11-16)。強風の日でなければ {@link #now} と同じ。強風の日は上限を {@link #GALE_CAP} へ上げ、
      * さらに × (1 + boost × 強風の度合い)。
      */
     public static void drift(ServerLevel level, double[] out, double boost) {
@@ -83,13 +83,6 @@ public final class FlyerWind {
         double s = Math.min(groundStrength, cap) * BLOCKS_PER_STRENGTH * (1.0D + boost * gale);
         out[0] = dirX * s;
         out[1] = dirZ * s;
-    }
-
-    /** {@link #atHeight} の流される型の版(強風の日の上乗せ込み)。 */
-    public static void driftAtHeight(ServerLevel level, double y, double[] out, double boost) {
-        drift(level, out, boost);
-        if (out[0] == 0.0D && out[1] == 0.0D) return;
-        BalloonDrift.layerWind(WindWeatherData.windSeed(level.getServer()), level.getDayTime(), y, out[0], out[1], out);
     }
 
     /**

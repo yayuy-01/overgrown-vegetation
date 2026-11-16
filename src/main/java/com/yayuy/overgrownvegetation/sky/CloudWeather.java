@@ -205,6 +205,8 @@ public final class CloudWeather {
     private static int wroteThunderTime;
     /** 手で変えた雨の間(その雨が止むまでバニラに任せる)。 */
     private static boolean manual;
+    /** 前の tick が /weather clear の間だったか(晴れの間に打たれた /weather rain|thunder を見分ける。11-16)。 */
+    private static boolean wasClear;
 
     @SubscribeEvent
     public static void onLevelTick(LevelTickEvent.Pre event) {
@@ -232,7 +234,17 @@ public final class CloudWeather {
             written = false;
             manual = false;
             serverActive = false;
+            wasClear = true;
             return;
+        }
+        if (wasClear) {
+            // /weather clear の間に /weather rain|thunder が打たれた(晴れの残りが 0 にされ、雨が降っている)。覚え(written)が無いので
+            // 下の見比べでは手で変えたと分からず、予定の天気で上書きしていた(2026-11-16 weather-system が見つけた)。手で変えた雨として扱う。
+            // 晴れの残りが自然に尽きたときはバニラが雨を止めるので、ここは雨が降っていないときは何もしない。
+            wasClear = false;
+            if (data.isRaining()) {
+                manual = true;
+            }
         }
         if (written && !manual) {
             // バニラは前の tick に書いた残りを 1 減らすだけ(2 以上を書くので切り替わらない)。違う値なら /weather などで手で変えられた。
@@ -287,6 +299,7 @@ public final class CloudWeather {
     public static void reset() {
         written = false;
         manual = false;
+        wasClear = false;
         serverActive = false;
     }
 
