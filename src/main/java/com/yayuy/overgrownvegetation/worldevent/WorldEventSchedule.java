@@ -18,8 +18,8 @@ import java.util.List;
  *   <li><b>起きている</b>(ACTIVE): 始まりと終わりの時刻(絶対の dayTime)を持つ。同時に 1 つだけ。終わったら、始まりの日 + 7〜15 日【仮】を次のくじの日にする。</li>
  * </ol>
  *
- * <p><b>寝て夜を飛ばしたとき</b>【仮】: 時刻が {@link #JUMP} tick より大きく進んで終わりを越えたら、見えた割合が {@code carrySeen} 未満なら
- * 同じイベントを次の同じ時間帯へ持ち越す({@code maxCarry} 回まで)。見えていれば普通に終わる。始まる前に飛ばされた待ちは、次の窓へ回るだけ。
+ * <p><b>寝て夜を飛ばしたとき</b>(11-16 ユーザー決定「そのまま終わる」= 見逃し): 時刻が {@link #JUMP} tick より大きく進んで終わりを越えたら普通に終わる。
+ * 始まる前に飛ばされた物も見逃しで、次のくじへ進む。持ち越しの仕組みは残してあり、{@code maxCarry} を 1 以上にすると、見えた割合が {@code carrySeen} 未満の物を次の同じ時間帯へ回す(既定 0 = 使わない)。
  * <b>時刻を戻したとき</b>(/time set): 起きている物が始まる前まで戻ったら次の窓へ組み直し、休みの次のくじの日が遠すぎれば今日から数え直す。
  */
 public final class WorldEventSchedule {
@@ -212,6 +212,12 @@ public final class WorldEventSchedule {
             return;
         }
         if (t < omenStart) return;
+        if (t >= omenEnd && tab.maxCarry <= 0) { // 寝て飛ばした: 見逃し(11-16 ユーザー)
+            omenQueue.pollFirst();
+            omenStart = omenEnd = NONE;
+            omenCarry = 0;
+            return;
+        }
         if (t >= omenEnd || state == State.ACTIVE) {
             planOmen(t + 1, tab, k); // 飛ばされた・くじのイベントの夜: 次の日没へ
             return;
@@ -317,7 +323,11 @@ public final class WorldEventSchedule {
         }
         if (t < start) return;
         if (t >= end) {
-            plan(t, seed, tab); // 始まる前に飛ばされた(眠り・/time): 次の窓へ
+            if (tab.maxCarry > 0) {
+                plan(t, seed, tab); // 始まる前に飛ばされた(眠り・/time): 持ち越すなら次の窓へ
+            } else {
+                finish(t, seed, tab); // 見逃し(11-16 ユーザー「寝て夜を飛ばしたらそのまま終わる」)
+            }
             return;
         }
         if (sp.skipInRain() && env.raining()) {

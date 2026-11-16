@@ -78,7 +78,7 @@ public final class WorldEventTable {
         this.fixedWaitDays = nn(s.fixedWaitDays, 3.0D);
         this.fogWaitDays = nn(s.fogWaitDays, 10.0D);
         this.carrySeen = Math.min(1.0D, nn(s.carrySeen, 0.5D));
-        this.maxCarry = Math.max(0, s.maxCarry != null ? s.maxCarry : 2);
+        this.maxCarry = Math.max(0, s.maxCarry != null ? s.maxCarry : 0);
         this.leyTidePumpMultiplier = nn(s.leyTidePumpMultiplier, 1.25D);
         this.shadowMinFog = Math.min(1.0D, nn(s.shadowMinFog, 0.3D));
         this.shadowMinTicks = Math.max(1, s.shadowMinTicks != null ? s.shadowMinTicks : 2400);

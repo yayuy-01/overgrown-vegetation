@@ -270,10 +270,12 @@ public final class WorldEventGameTests {
 
     // ---------------------------------------------------------------- 眠り・時刻を戻す
 
-    /** 寝て夜を飛ばした: ほとんど見えていなければ次の夜へ持ち越し、半分以上見えていたら普通に終わる。時刻を戻すと次のくじの日を数え直す。 */
+
+    /** 寝て夜を飛ばしたら見逃し(11-16 ユーザー「そのまま終わる」): 途中で寝ても、始まる前に寝ても、持ち越さずに次のくじへ。時刻を戻すと次のくじの日を数え直す。 */
     @GameTest(template = TEMPLATE, timeoutTicks = 100)
-    public static void sleepCarriesOverAndTimeRewind(GameTestHelper helper) {
+    public static void sleepMissesAndTimeRewind(GameTestHelper helper) {
         WorldEventTable tab = only(WorldEventKind.METEOR_SHOWER);
+        helper.assertTrue(DesignData.worldEvents().maxCarry == 0, "設計値の maxCarry が 0 でない(持ち越しはやめた)");
         FakeEnv env = new FakeEnv();
         WorldEventSchedule s = new WorldEventSchedule();
         long t = 0L;
@@ -284,22 +286,23 @@ public final class WorldEventGameTests {
         helper.assertTrue(s.active() == WorldEventKind.METEOR_SHOWER, "流星群が起きない");
         long start = s.start(), end = s.end();
         s.step(start + 100L, SEED, tab, env);
-        s.step(end + 50L, SEED, tab, env); // 寝た
-        helper.assertTrue(s.state() == WorldEventSchedule.State.WAITING && s.kind() == WorldEventKind.METEOR_SHOWER && s.carry() == 1,
-                "持ち越さない: " + s.state() + " " + s.kind() + " " + s.carry());
-        helper.assertTrue(s.start() > end && s.start() - end < WorldEventSchedule.DAY, "次の夜でない: " + s.start() + "(前の終わり " + end + ")");
+        s.step(end + 50L, SEED, tab, env); // 始まってすぐ寝た
+        helper.assertTrue(s.state() == WorldEventSchedule.State.IDLE && s.active() == null, "見逃しにならない: " + s.state() + " " + s.kind());
+        long gap = s.nextDueDay() - day(start);
+        helper.assertTrue(gap >= (long) tab.intervalMinDays && gap <= (long) tab.intervalMaxDays, "次のくじまで " + gap + " 日");
 
+        // 次のくじを引いて待っている間(始まる前)に寝た
         t = end + 50L;
-        while (s.active() == null && t < end + 2L * WorldEventSchedule.DAY) {
+        while (s.state() != WorldEventSchedule.State.WAITING && t < end + 40L * WorldEventSchedule.DAY) {
             t += STEP;
             s.step(t, SEED, tab, env);
         }
+        helper.assertTrue(s.state() == WorldEventSchedule.State.WAITING && s.start() > t, "待ちに入らない: " + s.state());
         long st2 = s.start(), en2 = s.end();
-        for (long u = t; u < st2 + (en2 - st2) * 6 / 10; u += STEP) s.step(u, SEED, tab, env);
-        s.step(en2 + 50L, SEED, tab, env); // 6 割見てから寝た
-        helper.assertTrue(s.state() == WorldEventSchedule.State.IDLE, "見えていたのに持ち越した: " + s.state());
-        long gap = s.nextDueDay() - day(st2);
-        helper.assertTrue(gap >= (long) tab.intervalMinDays && gap <= (long) tab.intervalMaxDays, "次のくじまで " + gap + " 日");
+        s.step(en2 + 50L, SEED, tab, env);
+        helper.assertTrue(s.state() == WorldEventSchedule.State.IDLE && s.kind() == null, "始まる前に寝ても見逃しにならない: " + s.state());
+        long gap2 = s.nextDueDay() - day(st2);
+        helper.assertTrue(gap2 >= (long) tab.intervalMinDays && gap2 <= (long) tab.intervalMaxDays, "見逃しの後の次のくじまで " + gap2 + " 日");
 
         s.step(10L, SEED, tab, env); // /time set で 0 日目へ戻した
         helper.assertTrue(s.nextDueDay() <= (long) tab.intervalMaxDays, "戻した後の次のくじが遠い: " + s.nextDueDay());
@@ -385,7 +388,7 @@ public final class WorldEventGameTests {
         helper.succeed();
     }
 
-    /** 合図の夜を寝て飛ばしたら次の日没へ持ち越す。待っている合図・起きている合図は保存して読み直しても同じ(入り直し・再起動)。 */
+    /** 合図の夜を寝て飛ばしたら見逃し(11-16 ユーザー「そのまま終わる」。始まる前に寝ても同じで、次の合図へ進む)。待っている合図・起きている合図は保存して読み直しても同じ(入り直し・再起動)。 */
     @GameTest(template = TEMPLATE, timeoutTicks = 100)
     public static void phaseOmensSurviveSleepAndReload(GameTestHelper helper) {
         WorldEventTable tab = noLottery();
@@ -407,11 +410,22 @@ public final class WorldEventGameTests {
         helper.assertTrue(mid.active() == WorldEventKind.SPORE_PILLARS && mid.activeStart() == st && mid.activeEnd() == en,
                 "起きている合図が読み直しで変わった");
         s.step(en + 50L, SEED, tab, env); // 寝た
-        helper.assertTrue(s.active() == null && s.omens().equals(List.of(WorldEventKind.SPORE_PILLARS)) && day(s.omenStart()) == day(st) + 1,
-                "合図が次の夜へ持ち越されない: " + s.omens() + " " + s.omenStart());
+        helper.assertTrue(s.active() == null && s.omens().isEmpty(), "寝ても合図が残った: " + s.omens() + " " + s.omenStart());
         // 読み直した方も同じに進む
         mid.step(en + 50L, SEED, tab, env);
         helper.assertTrue(mid.omens().equals(s.omens()) && mid.omenStart() == s.omenStart(), "読み直した方の進みが違う");
+
+        // 始まる前に寝た: F2 → F8 で 2 つ並び、オーロラの夜を寝て飛ばすとオーロラは見逃し、胞子の柱は次の夜に残る
+        WorldEventSchedule b = new WorldEventSchedule();
+        env.phase = 2;
+        long u = 5L * WorldEventSchedule.DAY + 2000L;
+        b.step(u, SEED, tab, env);
+        env.phase = 8;
+        b.step(u + STEP, SEED, tab, env);
+        b.step(5L * WorldEventSchedule.DAY + 23500L, SEED, tab, env); // 18:30 の前から翌朝 5:30 まで寝た
+        helper.assertTrue(b.omens().equals(List.of(WorldEventKind.SPORE_PILLARS)), "始まる前に寝たオーロラの後の並び: " + b.omens());
+        long v = runUntilActive(b, env, tab, 5L * WorldEventSchedule.DAY + 23500L + STEP, 8L * WorldEventSchedule.DAY);
+        helper.assertTrue(b.active() == WorldEventKind.SPORE_PILLARS && day(b.activeStart()) == 6, "胞子の柱が次の夜に出ない: " + b.active() + " " + v);
         helper.succeed();
     }
 
