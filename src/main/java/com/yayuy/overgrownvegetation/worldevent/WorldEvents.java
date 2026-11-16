@@ -110,8 +110,13 @@ public final class WorldEvents {
      * 確かめ用の印が付き、終わっても次のくじの日は変えない。
      */
     public static void startNow(MinecraftServer server, WorldEventKind kind, double progress) {
+        startNow(server, kind, progress, DesignData.worldEvents().spec(kind).length());
+    }
+
+    /** 長さ(tick)を指定して今すぐ起こす。 */
+    public static void startNow(MinecraftServer server, WorldEventKind kind, double progress, int lengthTicks) {
         WorldEventData data = WorldEventData.get(server);
-        data.schedule().forceStart(kind, server.overworld().getDayTime(), progress, DesignData.worldEvents());
+        data.schedule().forceStart(kind, server.overworld().getDayTime(), progress, lengthTicks);
         data.setDirty();
         sendAll(server);
     }
@@ -122,7 +127,7 @@ public final class WorldEvents {
         WorldEventSchedule s = WorldEventData.get(server).schedule();
         WorldEventKind k = s.active();
         if (k == null) return WorldEventPayload.NONE;
-        return new WorldEventPayload((byte) k.ordinal(), s.start(), s.end(), server.overworld().getDayTime());
+        return new WorldEventPayload((byte) k.ordinal(), s.activeStart(), s.activeEnd(), server.overworld().getDayTime());
     }
 
     static void sendAll(MinecraftServer server) {
@@ -221,6 +226,13 @@ public final class WorldEvents {
     }
 
     static String describe(WorldEventSchedule s, long t) {
+        String omen = s.omens().isEmpty() ? "" : "\nフェーズの合図: " + String.join(" → ", s.omens().stream().map(k -> k.jaName).toList())
+                + (s.omenActive() ? String.format("(起きている: 進み %.2f)", s.progress(t))
+                : s.omenStart() != WorldEventSchedule.NONE ? "(" + WorldEventSchedule.day(s.omenStart()) + " 日目 " + clock(s.omenStart()) + " から)" : "");
+        return omen.isEmpty() ? describeLottery(s, t) : describeLottery(s, t) + omen;
+    }
+
+    static String describeLottery(WorldEventSchedule s, long t) {
         return switch (s.state()) {
             case IDLE -> "休み。次のくじは " + s.nextDueDay() + " 日目(あと " + (s.nextDueDay() - WorldEventSchedule.day(t)) + " 日)";
             case WAITING -> s.start() == WorldEventSchedule.NONE

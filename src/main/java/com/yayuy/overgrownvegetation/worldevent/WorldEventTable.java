@@ -25,7 +25,15 @@ public final class WorldEventTable {
         public Double leyTidePumpMultiplier;
         public Double shadowMinFog;
         public Integer shadowMinTicks;
+        public Integer omenTod;
+        public Map<String, OmenJson> omens;
         public Map<String, EventJson> events;
+    }
+
+    /** フェーズの合図 1 つ(上がるフェーズと長さ)。 */
+    public static final class OmenJson {
+        public Integer phase;
+        public Integer length;
     }
 
     public static final class EventJson {
@@ -57,6 +65,10 @@ public final class WorldEventTable {
     public final double shadowMinFog;
     public final int shadowMinTicks;
 
+    /** フェーズの合図(くじとは別枠。11-16 全体管理・event-look の頼み): 上がった後の次の日没のこの時刻に始める【仮】。 */
+    public final int omenTod;
+    private final EnumMap<WorldEventKind, int[]> omens = new EnumMap<>(WorldEventKind.class);
+
     private final EnumMap<WorldEventKind, Spec> specs = new EnumMap<>(WorldEventKind.class);
 
     private WorldEventTable(Json j) {
@@ -70,6 +82,19 @@ public final class WorldEventTable {
         this.leyTidePumpMultiplier = nn(s.leyTidePumpMultiplier, 1.25D);
         this.shadowMinFog = Math.min(1.0D, nn(s.shadowMinFog, 0.3D));
         this.shadowMinTicks = Math.max(1, s.shadowMinTicks != null ? s.shadowMinTicks : 2400);
+        this.omenTod = s.omenTod != null ? Math.floorMod(s.omenTod, 24000) : 12500;
+        // F3: その夜にオーロラが短く出る(2400 tick = 2 分【仮】)・F7: 一夜だけ胞子の柱(日没から夜明けまで)
+        omens.put(WorldEventKind.AURORA, new int[]{3, 2400});
+        omens.put(WorldEventKind.SPORE_PILLARS, new int[]{7, 10500});
+        if (s.omens != null) {
+            for (Map.Entry<String, OmenJson> e : s.omens.entrySet()) {
+                WorldEventKind k = WorldEventKind.byId(e.getKey());
+                if (k == null || e.getValue() == null) continue;
+                int[] def = omens.getOrDefault(k, new int[]{-1, 2400});
+                omens.put(k, new int[]{e.getValue().phase != null ? e.getValue().phase : def[0],
+                        e.getValue().length != null ? Math.max(20, e.getValue().length) : def[1]});
+            }
+        }
         for (WorldEventKind k : WorldEventKind.values()) {
             Spec def = defaults(k);
             EventJson e = s.events != null ? s.events.get(k.id) : null;
@@ -102,6 +127,8 @@ public final class WorldEventTable {
             case METEOR_SHOWER -> new Spec(1, 0, new int[][]{{13000, 13000}}, 10000, true, false, 0);
             // 朝(4:30〜7:30)か夕(16:30〜18:00)の約 10 分。霧の残りで切る
             case HORIZON_SHADOW -> new Spec(1, 0, new int[][]{{22500, 1500}, {10500, 12000}}, 12000, false, true, 0);
+            // F7 の合図だけ(くじには出ない。重さ 0)
+            case SPORE_PILLARS -> new Spec(0, 7, new int[][]{{12500, 12500}}, 10500, false, false, 0);
         };
     }
 
@@ -115,6 +142,18 @@ public final class WorldEventTable {
 
     private static double nn(Double v, double fallback) {
         return v != null && Double.isFinite(v) ? Math.max(0.0D, v) : fallback;
+    }
+
+    /** この種がフェーズの合図になるフェーズ(ならなければ -1)。 */
+    public int omenPhase(WorldEventKind k) {
+        int[] o = omens.get(k);
+        return o != null ? o[0] : -1;
+    }
+
+    /** フェーズの合図の長さ(tick)。 */
+    public int omenLength(WorldEventKind k) {
+        int[] o = omens.get(k);
+        return o != null ? o[1] : spec(k).length();
     }
 
     public Spec spec(WorldEventKind k) {

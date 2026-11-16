@@ -23,7 +23,9 @@ public enum WorldEventKind {
     /** 流星群(夜)。火球に音は付けない。 */
     METEOR_SHOWER("meteor_shower", "流星群"),
     /** 地平線を歩く影(朝か夕の約 10 分。霞か霧のある日だけ。監視塔に似せる)。 */
-    HORIZON_SHADOW("horizon_shadow", "地平線を歩く影");
+    HORIZON_SHADOW("horizon_shadow", "地平線を歩く影"),
+    /** 胞子の柱(F7 に上がった次の夜、一夜だけ。フェーズの合図で、くじには出ない)。11-16 全体管理・event-look の頼み。 */
+    SPORE_PILLARS("spore_pillars", "胞子の柱");
 
     public final String id;
     public final String jaName;

@@ -139,6 +139,10 @@ public final class WorldEventGameTests {
             }
         }
         for (WorldEventKind k : WorldEventKind.values()) {
+            if (tab.spec(k).weight() <= 0) {
+                helper.assertTrue(!count.containsKey(k), k.id + " は重さ 0 なのにくじで起きた");
+                continue;
+            }
             helper.assertTrue(count.getOrDefault(k, 0) > 0, k.id + " が一度も起きない: " + count);
         }
         LOG.info("[ワールドイベント] 1500 日で {} 回: {}", runs.size(), count);
@@ -220,6 +224,35 @@ public final class WorldEventGameTests {
         helper.succeed();
     }
 
+    /** 本物の濃霧の予定(雨の無い世界)で 3000 日: 影が起きる回数・長さ・イベントの間隔の最長を測る。影は起き、間隔は延びすぎない。 */
+    @GameTest(template = TEMPLATE, timeoutTicks = 400)
+    public static void shadowWithRealFog(GameTestHelper helper) {
+        WorldEventTable tab = DesignData.worldEvents();
+        FakeEnv env = new FakeEnv();
+        long fogSeed = 98765L;
+        env.fog = t -> com.yayuy.overgrownvegetation.spore.field.PrevailingWind.fogLevel(fogSeed, t,
+                com.yayuy.overgrownvegetation.spore.field.PrevailingWind.Weather.CLEAR, null);
+        List<Run> runs = simulate(new WorldEventSchedule(), env, tab, 0L, 3000);
+        int shadows = 0;
+        long minLen = Long.MAX_VALUE, maxLen = 0, sumLen = 0, maxGap = 0;
+        for (int i = 0; i < runs.size(); i++) {
+            Run r = runs.get(i);
+            if (r.kind() == WorldEventKind.HORIZON_SHADOW) {
+                shadows++;
+                long len = r.end() - r.start();
+                minLen = Math.min(minLen, len);
+                maxLen = Math.max(maxLen, len);
+                sumLen += len;
+            }
+            if (i > 0) maxGap = Math.max(maxGap, day(r.start()) - day(runs.get(i - 1).start()));
+        }
+        LOG.info("[ワールドイベント] 本物の霧で 3000 日: {} 回・影 {} 回・影の長さ {}〜{} tick(平均 {})・間隔の最長 {} 日",
+                runs.size(), shadows, shadows > 0 ? minLen : 0, maxLen, shadows > 0 ? sumLen / shadows : 0, maxGap);
+        helper.assertTrue(shadows > 0, "本物の霧で影が一度も起きない");
+        helper.assertTrue(maxGap <= (long) tab.intervalMaxDays + 1, "間隔の最長 " + maxGap + " 日");
+        helper.succeed();
+    }
+
     /** 空のイベントは雨の夜には始めない(窓を送り、あきらめの日を過ぎたら引き直す)。 */
     @GameTest(template = TEMPLATE, timeoutTicks = 100)
     public static void skyEventsWaitOutRain(GameTestHelper helper) {
@@ -270,6 +303,115 @@ public final class WorldEventGameTests {
 
         s.step(10L, SEED, tab, env); // /time set で 0 日目へ戻した
         helper.assertTrue(s.nextDueDay() <= (long) tab.intervalMaxDays, "戻した後の次のくじが遠い: " + s.nextDueDay());
+        helper.succeed();
+    }
+
+    // ---------------------------------------------------------------- フェーズの合図(F3 の短いオーロラ・F7 の胞子の柱)
+
+    /** くじを止めた設計値(重さを全部 0。合図だけを見る)。 */
+    private static WorldEventTable noLottery() {
+        WorldEventTable.Json j = new WorldEventTable.Json();
+        j.events = new HashMap<>();
+        for (WorldEventKind x : WorldEventKind.values()) {
+            WorldEventTable.EventJson e = new WorldEventTable.EventJson();
+            e.weight = 0.0D;
+            j.events.put(x.id, e);
+        }
+        return WorldEventTable.fromJson(j);
+    }
+
+    /** 回して、合図が起きたら止める。起きなければ until で止まる。 */
+    private static long runUntilActive(WorldEventSchedule s, FakeEnv env, WorldEventTable tab, long from, long until) {
+        long t = from;
+        while (s.active() == null && t < until) {
+            s.step(t, SEED, tab, env);
+            if (s.active() != null) return t;
+            t += STEP;
+        }
+        return t;
+    }
+
+    /**
+     * F3 に上がると次の日没に短いオーロラ、F7 に上がると次の日没から胞子の柱(一夜)。2→8 と飛んでも両方が 1 夜ずつ順に出る。
+     * 初めて見たフェーズ(古いワールドに入れたとき)では出さない。くじのイベントの夜は次の日没へ送る。
+     */
+    @GameTest(template = TEMPLATE, timeoutTicks = 100)
+    public static void phaseOmensAtNextSunset(GameTestHelper helper) {
+        WorldEventTable tab = noLottery();
+        WorldEventTable design = DesignData.worldEvents();
+        helper.assertTrue(design.omenPhase(WorldEventKind.AURORA) == 3 && design.omenPhase(WorldEventKind.SPORE_PILLARS) == 7,
+                "設計値の合図のフェーズが 3・7 でない");
+        helper.assertTrue(design.spec(WorldEventKind.SPORE_PILLARS).weight() == 0, "胞子の柱がくじに入っている");
+        FakeEnv env = new FakeEnv();
+        env.phase = 5;
+        WorldEventSchedule fresh = new WorldEventSchedule();
+        simulate(fresh, env, tab, 0L, 3);
+        helper.assertTrue(fresh.omens().isEmpty(), "初めて見たフェーズで合図が出た: " + fresh.omens());
+
+        WorldEventSchedule s = new WorldEventSchedule();
+        env.phase = 2;
+        long t = 5L * WorldEventSchedule.DAY + 2000L;
+        s.step(t, SEED, tab, env);
+        env.phase = 8; // F2 → F8(F3・F7 をまたぐ)
+        t += STEP;
+        s.step(t, SEED, tab, env);
+        helper.assertTrue(s.omens().equals(List.of(WorldEventKind.AURORA, WorldEventKind.SPORE_PILLARS)), "合図の並び: " + s.omens());
+        helper.assertTrue(s.active() == null, "昼のうちに出た");
+        t = runUntilActive(s, env, tab, t, t + 2L * WorldEventSchedule.DAY);
+        helper.assertTrue(s.active() == WorldEventKind.AURORA && s.omenActive(), "オーロラが出ない: " + s.active());
+        helper.assertTrue(Math.floorMod(s.activeStart(), (long) WorldEventSchedule.DAY) == tab.omenTod && day(s.activeStart()) == 5,
+                "その日の日没でない: " + s.activeStart());
+        helper.assertTrue(s.activeEnd() - s.activeStart() == tab.omenLength(WorldEventKind.AURORA), "短いオーロラの長さ " + (s.activeEnd() - s.activeStart()));
+        helper.assertTrue(s.state() == WorldEventSchedule.State.IDLE, "くじの枠を使った");
+        while (s.active() != null) {
+            t += STEP;
+            s.step(t, SEED, tab, env);
+        }
+        helper.assertTrue(s.omens().equals(List.of(WorldEventKind.SPORE_PILLARS)), "オーロラの後の並び: " + s.omens());
+        t = runUntilActive(s, env, tab, t, t + 2L * WorldEventSchedule.DAY);
+        helper.assertTrue(s.active() == WorldEventKind.SPORE_PILLARS && day(s.activeStart()) == 6, "次の夜に胞子の柱が出ない: " + s.active() + " " + s.activeStart());
+        helper.assertTrue(s.activeEnd() - s.activeStart() == tab.omenLength(WorldEventKind.SPORE_PILLARS), "胞子の柱が一夜でない");
+
+        // くじのイベントが起きている夜は次の日没へ
+        WorldEventSchedule c = new WorldEventSchedule();
+        env.phase = 2;
+        long u = 10L * WorldEventSchedule.DAY + 12000L;
+        c.step(u, SEED, tab, env);
+        c.forceStart(WorldEventKind.METEOR_SHOWER, u, 0.0D, tab);
+        env.phase = 3;
+        for (long v = u + STEP; v < u + 3000L; v += STEP) c.step(v, SEED, tab, env);
+        helper.assertTrue(c.active() == WorldEventKind.METEOR_SHOWER, "同時に 2 つになった・流星群が消えた: " + c.active());
+        helper.assertTrue(day(c.omenStart()) == 11, "合図が次の日没へ送られない: " + c.omenStart());
+        helper.succeed();
+    }
+
+    /** 合図の夜を寝て飛ばしたら次の日没へ持ち越す。待っている合図・起きている合図は保存して読み直しても同じ(入り直し・再起動)。 */
+    @GameTest(template = TEMPLATE, timeoutTicks = 100)
+    public static void phaseOmensSurviveSleepAndReload(GameTestHelper helper) {
+        WorldEventTable tab = noLottery();
+        FakeEnv env = new FakeEnv();
+        WorldEventSchedule s = new WorldEventSchedule();
+        env.phase = 6;
+        long t = 3L * WorldEventSchedule.DAY + 1000L;
+        s.step(t, SEED, tab, env);
+        env.phase = 7;
+        t += STEP;
+        s.step(t, SEED, tab, env);
+        WorldEventSchedule pending = WorldEventSchedule.load(s.save(new CompoundTag()).copy());
+        helper.assertTrue(pending.omens().equals(s.omens()) && pending.omenStart() == s.omenStart(), "待っている合図が読み直しで消えた");
+        t = runUntilActive(s, env, tab, t, t + WorldEventSchedule.DAY);
+        helper.assertTrue(s.active() == WorldEventKind.SPORE_PILLARS, "胞子の柱が出ない");
+        long st = s.activeStart(), en = s.activeEnd();
+        s.step(st + 100L, SEED, tab, env);
+        WorldEventSchedule mid = WorldEventSchedule.load(s.save(new CompoundTag()).copy());
+        helper.assertTrue(mid.active() == WorldEventKind.SPORE_PILLARS && mid.activeStart() == st && mid.activeEnd() == en,
+                "起きている合図が読み直しで変わった");
+        s.step(en + 50L, SEED, tab, env); // 寝た
+        helper.assertTrue(s.active() == null && s.omens().equals(List.of(WorldEventKind.SPORE_PILLARS)) && day(s.omenStart()) == day(st) + 1,
+                "合図が次の夜へ持ち越されない: " + s.omens() + " " + s.omenStart());
+        // 読み直した方も同じに進む
+        mid.step(en + 50L, SEED, tab, env);
+        helper.assertTrue(mid.omens().equals(s.omens()) && mid.omenStart() == s.omenStart(), "読み直した方の進みが違う");
         helper.succeed();
     }
 
@@ -333,6 +475,11 @@ public final class WorldEventGameTests {
             double expect = base * tab.leyTidePumpMultiplier;
             helper.assertTrue(base > 0, "汲んでいない(効率 " + eff + ")");
             helper.assertTrue(Math.abs(tide - expect) <= 2.0D, "大潮で " + tide + " FE(ふだん " + base + "・期待 " + expect + ")");
+            // 後から入った人・入り直した人へ送る中身(ログインで payload をそのまま送る)は、長さを指定した合図も始まり・終わりのまま
+            WorldEvents.startNow(server, WorldEventKind.AURORA, 0.0D, tab.omenLength(WorldEventKind.AURORA));
+            WorldEventPayload late = WorldEvents.payload(server);
+            helper.assertTrue(late.eventKind() == WorldEventKind.AURORA && late.end() - late.start() == tab.omenLength(WorldEventKind.AURORA),
+                    "後から入った人に送る中身が違う: " + late);
             helper.assertTrue(level.getServer().getLevel(net.minecraft.world.level.Level.NETHER) == null
                     || WorldEvents.pumpMultiplier(level.getServer().getLevel(net.minecraft.world.level.Level.NETHER)) == 1.0D, "ネザーでも速い");
         } finally {

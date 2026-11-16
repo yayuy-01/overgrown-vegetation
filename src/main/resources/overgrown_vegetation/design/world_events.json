@@ -16,6 +16,13 @@
     "ley_tide":       { "weight": 1, "minPhase": 0, "windows": [[0, 23999]],     "length": 12000, "skipInRain": false },
     "halo":           { "weight": 1, "minPhase": 0, "windows": [[1000, 5000]],   "length": 3000,  "skipInRain": true },
     "meteor_shower":  { "weight": 1, "minPhase": 0, "windows": [[13000, 13000]], "length": 10000, "skipInRain": true },
-    "horizon_shadow": { "weight": 1, "minPhase": 0, "windows": [[22500, 1500], [10500, 12000]], "length": 12000, "needFog": true }
+    "horizon_shadow": { "weight": 1, "minPhase": 0, "windows": [[22500, 1500], [10500, 12000]], "length": 12000, "needFog": true },
+    "spore_pillars":  { "weight": 0, "minPhase": 7, "windows": [[12500, 12500]], "length": 10500, "skipInRain": false }
+  },
+  "_omens": "フェーズの合図(11-16 全体管理・event-look の頼み。くじとは別枠): フェーズが phase に上がったら、次の日没(omenTod)に length tick だけ起こす。F3 = 短いオーロラ(2400 = 2 分【仮】)・F7 = 胞子の柱(日没から夜明けまで、一夜だけ)。同時に 1 つは守る(くじのイベントの夜は次の日没へ)。寝て飛ばしたらくじと同じ持ち越し。spore_pillars はくじの重さ 0。",
+  "omenTod": 12500,
+  "omens": {
+    "aurora":        { "phase": 3, "length": 2400 },
+    "spore_pillars": { "phase": 7, "length": 10500 }
   }
 }
