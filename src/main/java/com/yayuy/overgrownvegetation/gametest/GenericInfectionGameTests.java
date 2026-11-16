@@ -611,11 +611,11 @@ public final class GenericInfectionGameTests {
      * 11-16 ユーザーの不具合「変わったスライムが攻撃のときだけ跳ねずに水平に滑って飛ぶ」: 変わった小さなスライム(元の攻撃はプレイヤーと
      * アイアンゴーレムにしか出ないので、豚へは予備の近接になる)は、元の跳ねで近づき(宙に浮いたまま長く進まない)、触れて豚を傷付ける。
      */
-    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 300)
+    @GameTest(template = "gametest_empty7", batch = ATTACK_BATCH, timeoutTicks = 400)
     public static void turnedSlimeHopsInsteadOfGliding(GameTestHelper helper) {
         net.minecraft.world.entity.monster.Slime slime = helper.spawn(EntityType.SLIME, new BlockPos(1, 2, 1));
         slime.setSize(1, true);
-        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, new BlockPos(5, 2, 5));
+        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, new BlockPos(3, 2, 3)); // 近くに置く(小さなスライムの跳ねの間は乱数でばらつき、5,5 では 300 tick に届かない回があった。11-16)
         GenericInfection.turn(slime, true);
         slime.setTarget(pig);
         int[] air = {0, 0}; // 今続いている宙の tick・その最長
