@@ -14,8 +14,11 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
 public final class CreepingWallRendering {
 
-    /** 今の描き方。見た目を作り直すときはここを替える。 */
-    public static CreepingWallRenderer renderer = new BoxCreepingWallRenderer();
+    /**
+     * 今の描き方。見た目を作り直すときはここを替える。
+     * 11-16 夜: ユーザーが案 B「飲まれた者たち」を選んだので {@link TorrentCreepingWallRenderer} に(仮の箱 {@link BoxCreepingWallRenderer} は比べ用に残す)。
+     */
+    public static CreepingWallRenderer renderer = new TorrentCreepingWallRenderer();
 
     private CreepingWallRendering() {
     }

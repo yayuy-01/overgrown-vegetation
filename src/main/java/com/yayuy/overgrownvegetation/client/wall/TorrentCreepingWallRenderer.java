@@ -22,7 +22,8 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 /**
- * 蠢く壁の見た目の<b>試作</b>(2026-11-16、Fable。ユーザーが 3 案を比べて選ぶためのもの。選ばれたら残りの案を消して磨く)。
+ * 蠢く壁の見た目(2026-11-16、Fable)。3 案を試作して比べ、ユーザーが案 B「飲まれた者たち」を選んだ(11-16 夜)。
+ * 細かな見た目は、これからユーザーの希望で変える。
  *
  * <p>描くのは先頭の面だけ。中身はユーザーの決定(その 3)の 4 つ:
  * <ul>
@@ -32,16 +33,16 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
  *   <li><b>脈打つ胞子嚢</b>: 小さな箱。膨らんで弾け(胞子の粒を吹く)、また膨らむ。</li>
  *   <li><b>光る筋</b>: 満光の層。拍に合わせて光の帯が走る。</li>
  * </ul>
- * 案({@link Style})はどれも 4 つ全部を持ち、主役と動きの強さが違う。
+ * 主役は、細い蔦の網から突き出て揺れる手足と顔。数は {@link Style} にまとめてある(【仮】)。
  *
  * <p><b>飾りの鍵は「面の向き + 接線 2 軸の升の座標」</b>(法線の向きの座標は入れない)。先頭の升は約 4 tick ごとに次の層へ入れ替わるので、
  * 升の座標から決めると顔も胞子嚢も 0.2 秒ごとに入れ替わる。こうしておくと、面が進んでも同じ顔が同じ所に乗ったまま押してくる。
  *
- * <p>画素は 1/16 ブロック(絵は 4 ブロックで 64 画素。箱の部品は 1 単位 = 1/16 ブロック)。胞子嚢だけは脈で 1 割ほど伸び縮みする。
+ * <p>画素は 1/16 ブロック(絵は 4 ブロックで 64 画素。箱の部品は 1 単位 = 1/16 ブロック)。胞子嚢も伸び縮みさせず、一辺 2・4・6・8 画素の箱へ段で替える。
  */
 public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
 
-    /** 案 1 つ。数はどれも【仮】(Fable 11-16。ユーザーが選んだ後に design json へ移す)。 */
+    /** 見た目の数。どれも【仮】(Fable 11-16。ユーザーの希望を入れた後に design json へ移す)。 */
     public record Style(String name, ResourceLocation base, float amp, float flowU, float flowV, float waveSpeed,
                         float limbChance, float sacChance, int sacCluster, float arcChance, int arcKind,
                         float veinBase, float veinPulse, int minBlockLight, float tintR, float tintG, float tintB) {
@@ -51,25 +52,21 @@ public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
         return ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "textures/entity/creeping_wall/" + name + ".png");
     }
 
-    private static final ResourceLocation ROOTS_THICK = tex("wall_roots_thick");
     private static final ResourceLocation ROOTS_FINE = tex("wall_roots_fine");
     private static final ResourceLocation VINES = tex("wall_vines");
     private static final ResourceLocation VEINS = tex("wall_veins");
     private static final ResourceLocation PARTS = tex("wall_parts");
     private static final ResourceLocation PARTS_GLOW = tex("wall_parts_glow");
 
-    /** 案 A「根の濁流」: 太い根が主役で、波と流れが強い。顔・胞子嚢・光は控えめ。 */
-    public static final Style STYLE_A = new Style("a", ROOTS_THICK, 0.34F, 0.012F, 0.030F, 1.0F,
-            0.07F, 0.06F, 1, 0.55F, 1, 0.35F, 0.85F, 5, 1.00F, 1.00F, 1.00F);
-    /** 案 B「飲まれた者たち」: 細い蔦の網から、手足と顔がたくさん突き出て揺れる。波は中くらい。 */
+    /**
+     * 案 B「飲まれた者たち」(11-16 夜にユーザーが選んだ): 細い蔦の網から、手足と顔がたくさん突き出て揺れる。波は中くらい。
+     * 比べた案 A「根の濁流」・案 C「胞子嚢と光」は外した(コミット c4369b2 に残る)。
+     */
     public static final Style STYLE_B = new Style("b", ROOTS_FINE, 0.24F, 0.008F, 0.016F, 0.8F,
             0.34F, 0.08F, 1, 0.16F, 2, 0.35F, 0.85F, 5, 0.95F, 1.00F, 0.95F);
-    /** 案 C「胞子嚢と光」: 胞子嚢の房が脈打って弾け、光る筋が強い。暗い洞窟で奥から光って近づく。 */
-    public static final Style STYLE_C = new Style("c", ROOTS_FINE, 0.28F, 0.010F, 0.020F, 1.2F,
-            0.09F, 0.26F, 3, 0.14F, 2, 0.65F, 1.40F, 7, 0.90F, 1.00F, 0.85F);
 
-    /** 今の案(確かめ用の切り替えは devbridge の {@code wallstyle})。 */
-    public static volatile Style style = STYLE_A;
+    /** 今の見た目。 */
+    public static volatile Style style = STYLE_B;
 
     private static final double RADIUS = 40.0D;
     private static final int MAX_FACES = 8_000;
@@ -568,7 +565,7 @@ public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
             cross(va, vb, vcx);
             float lpx = len / PX + 0.8F;
             box(vc, p0, va, vb, vcx, -0.4F, lpx - 0.4F, -th * 0.5F, th * 0.5F, -th * 0.5F, th * 0.5F,
-                    0, texV, 6, th, th, 64, 32, k2, k2, k2, flight[f]);
+                    0, texV, 6, th, th, 64, 64, k2, k2, k2, flight[f]);
         }
     }
 
@@ -596,29 +593,30 @@ public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
             float period = 170.0F + frac(hi >>> 9) * 260.0F, phase = frac(hi >>> 3) * period;
             float cyc = (t + phase) / period;
             float c = cyc - Mth.floor(cyc);
-            float size, bright;
+            // 大きさは整数画素の段(一辺 2・4・6・8 画素)。伸び縮みさせると画素の大きさがそろわない。脈は中の光の明滅で見せる
+            int size;
+            float bright;
+            int top = (hi >>> 13 & 3) == 0 ? 6 : 8; // 膨らみ切ったときの一辺
             if (c < 0.03F) {
-                size = 0.35F;
+                size = 2;
                 bright = 1.0F - c / 0.03F * 0.8F;
             } else if (c < 0.30F) {
-                size = 0.35F + 0.65F * (c - 0.03F) / 0.27F;
+                size = c < 0.12F ? 2 : 4;
                 bright = 0.2F;
             } else {
                 float swell = (c - 0.30F) / 0.70F;
                 float pulse = Mth.sin(t * (0.18F + 0.5F * swell * swell) + phase);
-                size = 1.0F + 0.22F * swell + 0.07F * pulse * (0.4F + swell);
+                size = swell < 0.55F ? 6 : top;
                 bright = 0.25F + 0.55F * swell * swell + 0.2F * Math.max(0.0F, pulse) + (swell > 0.96F ? 0.6F : 0.0F);
             }
-            float big = 0.85F + 0.45F * frac(hi >>> 13);
-            size *= big;
             anchor(f, js, jw, -1.0F * PX, o);
             if (!glow && !Float.isNaN(lastT) && t > lastT && t - lastT < 4.0F && Mth.floor((lastT + phase) / period) != Mth.floor(cyc)) {
                 burst(level, o, nn, hi); // 弾けた瞬間(1 回だけ)
             }
             for (int k = 0; k < 3; k++) {
-                va[k] = uu[k] * size;
-                vb[k] = nn[k] * size;
-                vcx[k] = ww[k] * size;
+                va[k] = uu[k];
+                vb[k] = nn[k];
+                vcx[k] = ww[k];
             }
             float cr, cg, cb;
             int light;
@@ -630,11 +628,14 @@ public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
                 light = flight[f];
             }
             float e = glow ? 0.2F : 0.0F; // 光る層は少しふくらませる(同じ奥行きに重ねない)
-            if (!glow) {
-                box(vc, o, va, vb, vcx, -4, 4, 0, 2, -4, 4, 24, 20, 8, 2, 8, 64, 32, cr, cg, cb, light); // 根元(暗い)
+            int hs = size / 2, bh = size - 1; // 胴: 一辺 size・高さ size − 1。絵は箱の大きさぶんだけ切り出す(画素を伸ばさない)
+            if (!glow && size >= 4) {
+                box(vc, o, va, vb, vcx, -hs - 1, hs + 1, 0, 2, -hs - 1, hs + 1, 0, 48, size + 2, 2, size + 2, 64, 64, cr, cg, cb, light); // 根元(暗い)
             }
-            box(vc, o, va, vb, vcx, -3 - e, 3 + e, 0, 5 + e, -3 - e, 3 + e, 24, 0, 6, 5, 6, 64, 32, cr, cg, cb, light);
-            box(vc, o, va, vb, vcx, -2 - e, 2 + e, 5, 7 + e + e, -2 - e, 2 + e, 24, 12, 4, 2, 4, 64, 32, cr, cg, cb, light);
+            box(vc, o, va, vb, vcx, -hs - e, hs + e, 0, bh + e, -hs - e, hs + e, 0, 32, size, bh, size, 64, 64, cr, cg, cb, light);
+            if (size >= 4) {
+                box(vc, o, va, vb, vcx, -hs + 1 - e, hs - 1 + e, bh, bh + 2 + e + e, -hs + 1 - e, hs - 1 + e, 32, 32, size - 2, 2, size - 2, 64, 64, cr, cg, cb, light); // 頭
+            }
         }
     }
 

@@ -8,7 +8,8 @@ import java.util.function.Consumer;
 
 /**
  * 蠢く壁の見た目の案を切り替える(2026-11-16、見た目の試作の撮り比べ用。配布 jar には入らない)。
- * {@code wallstyle a|b|c|box}。a = 根の濁流・b = 飲まれた者たち・c = 胞子嚢と光・box = 仮の箱(既定)。返事は {@code WALLSTYLE …}。
+ * {@code wallstyle b|box}。b = 飲まれた者たち(11-16 夜にユーザーが選んだ。今の既定)・box = 仮の箱(比べ用)。返事は {@code WALLSTYLE …}。
+ * 比べた案 a(根の濁流)・c(胞子嚢と光)は外した。
  */
 final class WallDev {
 
@@ -190,13 +191,11 @@ final class WallDev {
             return;
         }
         TorrentCreepingWallRenderer.Style s = switch (a) {
-            case "a" -> TorrentCreepingWallRenderer.STYLE_A;
             case "b" -> TorrentCreepingWallRenderer.STYLE_B;
-            case "c" -> TorrentCreepingWallRenderer.STYLE_C;
             default -> null;
         };
         if (s == null) {
-            log.accept("WALLSTYLE 使い方: wallstyle a|b|c|box(今 " + (CreepingWallRendering.renderer instanceof TorrentCreepingWallRenderer
+            log.accept("WALLSTYLE 使い方: wallstyle b|box(今 " + (CreepingWallRendering.renderer instanceof TorrentCreepingWallRenderer
                     ? TorrentCreepingWallRenderer.style.name() : "box") + "・直前のフレーム " + String.format("%.3f", TorrentCreepingWallRenderer.lastNanos / 1e6)
                     + " ms・面 " + TorrentCreepingWallRenderer.lastFaces + "(近く " + TorrentCreepingWallRenderer.lastNear + "))");
             return;
