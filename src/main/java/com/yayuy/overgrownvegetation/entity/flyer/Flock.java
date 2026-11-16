@@ -328,6 +328,19 @@ public final class Flock {
         public static void onLevelUnload(net.neoforged.neoforge.event.level.LevelEvent.Unload event) {
             if (event.getLevel() instanceof ServerLevel sl) BY_LEVEL.remove(sl);
         }
+
+        /**
+         * 個体が面から出た(チャンクの外・消えた・死んだ)ら群れから外し、空になった群れを忘れる(2026-11-16 見直し ①8)。
+         * 群れの片付けは群れの個体の tick が回すので、全員がチャンクの外へ出ると群れが台帳に残り続けていた。
+         * 戻ってきた個体は保存された番号で群れに入り直す(群れが無ければ作り直す)。
+         */
+        @net.neoforged.bus.api.SubscribeEvent
+        public static void onLeave(net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent event) {
+            if (event.getEntity() instanceof SkyFlyer m && m.flock != null && event.getLevel() instanceof ServerLevel sl) {
+                m.flock.remove(m);
+                forget(sl, m.flock);
+            }
+        }
     }
 
     /** 空になった群れを忘れる。 */

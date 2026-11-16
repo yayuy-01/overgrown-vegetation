@@ -290,6 +290,17 @@ public abstract class SkyFlyer extends Monster {
         return this.perch;
     }
 
+    /** テスト用: 群れを止まり木へ向かう段にして、この個体に止まり木を割り当てる(まだ飛んでいる = 着地前)。 */
+    public void approachPerchForTests(BlockPos perch) {
+        if (this.flock != null) this.flock.state = Flock.State.ROOST;
+        this.perch = perch;
+    }
+
+    /** テスト用: この面の台帳にこの番号の群れがあるか。 */
+    public static boolean flockKnownForTests(ServerLevel level, UUID id) {
+        return Flock.find(level, id) != null;
+    }
+
     public HitPartSet hitParts() {
         return this.hitParts;
     }
@@ -883,7 +894,11 @@ public abstract class SkyFlyer extends Monster {
         if (this.home != null) tag.put("FlockHome", NbtUtils.writeBlockPos(this.home));
         if (!Double.isNaN(this.layer)) tag.putDouble("FlockLayer", this.layer);
         tag.putInt("FlyMode", this.mode == MODE_PERCHED ? MODE_PERCHED : MODE_FLY);
-        if (this.perch != null && this.mode == MODE_PERCHED) tag.put("Perch", NbtUtils.writeBlockPos(this.perch));
+        // 止まり木は止まっている個体だけでなく、止まり木へ向かう・降りる途中の個体も書く(前は着地前に保存すると止まり木を失い、
+        // 群れの中で止まっている個体がいると止まり木を引き直さないので朝まで回り続けた。群れの一部だけの読み込み直しも同じ。11-16 見直し ①8)
+        if (this.perch != null && (this.mode == MODE_PERCHED || this.flock != null && this.flock.state == Flock.State.ROOST)) {
+            tag.put("Perch", NbtUtils.writeBlockPos(this.perch));
+        }
     }
 
     @Override

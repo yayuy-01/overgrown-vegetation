@@ -183,11 +183,20 @@ final class VenamnesHuntGoal extends Goal {
     @org.jetbrains.annotations.Nullable
     private LivingEntity tracked;
 
+    /** 最後に相手の位置を書いた tick(途切れたら記録をやり直す)。 */
+    private int trackedAt = Integer.MIN_VALUE;
+
+    /**
+     * 相手の位置を 1 tick に 1 つ書き、10 tick 前との差から速さを出す。技の間はこの Goal が回らず記録が途切れるので、
+     * 途切れたら記録をやり直す(前は技の後に 30 tick ほど前の位置を 10 tick 分として割り、速さを約 4 倍に見積もって
+     * しゃがみ歩きも「逃げる」とみた。11-16 見直し ①12)。
+     */
     private void trackTarget(LivingEntity t) {
-        if (t != this.tracked) {
+        if (t != this.tracked || this.mob.tickCount - this.trackedAt != 1) {
             this.tracked = t;
             this.hn = 0;
         }
+        this.trackedAt = this.mob.tickCount;
         int i = this.hn % hx.length;
         if (this.hn >= hx.length) {
             this.tvx = (t.getX() - hx[i]) / hx.length;

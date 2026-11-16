@@ -303,7 +303,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new SeekGoal<>(this, Player.class, e -> true));
         this.targetSelector.addGoal(3, new SeekGoal<>(this, LivingEntity.class,
-                e -> !(e instanceof Player) && !(e instanceof ParasitizedMob) && MobGroup.of(e.getType()) == null && !com.yayuy.overgrownvegetation.spore.PlantSideRules.isTransformed(e) /* 汎用の感染体は狙わない(11-15)*/ && !(e instanceof ArmorStand)));
+                e -> !(e instanceof Player) && PlantFoes.isFoe(this, e)));   // 陣営と除外は共通(①13)
     }
 
     /**
@@ -785,8 +785,10 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
                     this.nipResult = 1;
                     ActionDef d = def("nip");
                     float dmg = (float) d.damage();
-                    if (t.hurt(this.damageSources().mobAttack(this), dmg > 0.0F ? dmg : 4.0F)) this.setLastHurtMob(t);
-                    t.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN,
+                    net.minecraft.world.damagesource.DamageSource src = this.damageSources().mobAttack(this);
+                    boolean blocked = t.isDamageSourceBlocked(src);   // 盾で受けたら鈍足も掛けない(11-16 見直しの疑い)
+                    if (t.hurt(src, dmg > 0.0F ? dmg : 4.0F)) this.setLastHurtMob(t);
+                    if (!blocked) t.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN,
                             (int) d.get("slowTicks", 60.0D), (int) d.get("slowAmp", 1.0D)), this);
                 }
             }

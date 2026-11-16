@@ -1401,8 +1401,7 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
         this.targetSelector.addGoal(1, new net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal<>(this, Player.class, true));
         this.targetSelector.addGoal(3, new net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, true, false,
-                e -> !(e instanceof Player) && !(e instanceof ParasitizedMob) && MobGroup.of(e.getType()) == null && !com.yayuy.overgrownvegetation.spore.PlantSideRules.isTransformed(e) /* 汎用の感染体は狙わない(11-15)*/
-                        && !(e instanceof net.minecraft.world.entity.decoration.ArmorStand)));
+                e -> !(e instanceof Player) && PlantFoes.isFoe(this, e)));   // 陣営と除外は共通(①13)
     }
 
     // ------------------------------------------------------------------ 状態
@@ -2381,12 +2380,14 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
         return best;
     }
 
-    /** 斬ってよい相手か(自分・乗客・汚染側の仲間・クリエイティブ/観戦者は除く)。 */
+    /**
+     * 斬ってよい相手か。乗っている・同じ乗り物の相手と、狙っている相手(殴り返した仲間も)はこの種の用途の条件。
+     * 陣営と除外(防具立て・汎用の感染体・創造/観戦など)は共通の {@link PlantFoes}(11-16 見直し ①9・①13)。
+     */
     private boolean isFoe(LivingEntity e) {
         if (e == this || !e.isAlive() || e.isPassengerOfSameVehicle(this) || e.getVehicle() == this) return false;
-        if (e instanceof Player p && (p.isCreative() || p.isSpectator())) return false;
-        if (e == this.getTarget()) return true;
-        return MobGroup.of(e) == null;
+        if (e == this.getTarget() && !(e instanceof net.minecraft.world.entity.decoration.ArmorStand) && net.minecraft.world.entity.EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(e)) return true;
+        return PlantFoes.isFoe(this, e);
     }
 
     /** 飛ぶ斬撃・光の帯が当たってよい相手か(横薙ぎと同じ。11-05)。 */

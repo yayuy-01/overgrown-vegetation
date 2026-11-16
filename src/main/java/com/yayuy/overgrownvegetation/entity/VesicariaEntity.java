@@ -314,7 +314,7 @@ public class VesicariaEntity extends SmallCrawler implements GeoEntity, Parasiti
 
     /** 破裂のダメージを受ける相手か: 植物側(仲間を含む)・防具立てには効かない。 */
     static boolean hitsByBurst(LivingEntity e) {
-        return !(e instanceof ArmorStand) && !(e instanceof ParasitizedMob) && !SporeExposureTracker.isPlantSide(e);
+        return !(e instanceof ArmorStand) && PlantFoes.isOtherSide(e);   // 陣営は共通(①13)
     }
 
     private static long[] budget(ServerLevel level) {

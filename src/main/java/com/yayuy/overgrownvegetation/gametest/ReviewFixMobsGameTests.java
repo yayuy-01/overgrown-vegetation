@@ -184,6 +184,84 @@ public final class ReviewFixMobsGameTests {
         });
     }
 
+    // ------------------------------------------------------------------ 第 2 便: ①13・①9・①11(陣営と除外の共通判定)
+
+    /** 防具立て・植物側(G5)・自分は狙わない・当てない。ハスクは狙う。標的選び・アクムネスの弾・ファルキムネスの斬りが同じ答え。 */
+    @GameTest(template = ARENA, timeoutTicks = 10)
+    public static void plantFoesShareSideAndExclusions(GameTestHelper helper) {
+        Husk husk = helper.spawn(EntityType.HUSK, new BlockPos(4, 2, 4));
+        husk.setNoAi(true);
+        net.minecraft.world.entity.decoration.ArmorStand stand = helper.spawn(EntityType.ARMOR_STAND, new BlockPos(8, 2, 4));
+        SaltimnesEntity s = place(helper, ModLeapers.SALTIMNES.get(), 12.5D, 12.5D);
+        s.setNoAi(true);
+        com.yayuy.overgrownvegetation.entity.FalcimnesEntity f = helper.spawn(com.yayuy.overgrownvegetation.registry.ModEntities.FALCIMNES.get(), new BlockPos(18, 2, 18));
+        f.setNoAi(true);
+        try {
+            if (!com.yayuy.overgrownvegetation.entity.PlantFoes.isFoe(s, husk)) helper.fail("ハスクが相手にならない");
+            if (com.yayuy.overgrownvegetation.entity.PlantFoes.isFoe(s, stand)) helper.fail("防具立てが相手になる");
+            if (com.yayuy.overgrownvegetation.entity.PlantFoes.isFoe(s, s)) helper.fail("自分が相手になる");
+            if (com.yayuy.overgrownvegetation.entity.PlantFoes.isFoe(null, s)) helper.fail("G5 が相手になる(持ち主の無い技から)");
+            if (com.yayuy.overgrownvegetation.entity.AcumnesEntity.isPrey(s, stand)) helper.fail("アクムネスの判定で防具立てが相手になる");
+            if (!f.isFoeForWave(husk)) helper.fail("ファルキムネスの斬りがハスクに当たらない");
+            if (f.isFoeForWave(stand)) helper.fail("ファルキムネスの斬りが防具立てに当たる(①9)");
+            if (f.isFoeForWave(s)) helper.fail("ファルキムネスの斬りが G5 に当たる");
+        } finally {
+            husk.discard();
+            stand.discard();
+            s.discard();
+            f.discard();
+        }
+        helper.succeed();
+    }
+
+    // ------------------------------------------------------------------ 第 2 便: ①8(群れの止まり木・空の群れ)
+
+    /** 止まり木へ向かう途中(まだ飛んでいる)の個体を保存しても、止まり木が残る。 */
+    @GameTest(template = ARENA, timeoutTicks = 40)
+    public static void flyerApproachingPerchKeepsItThroughReload(GameTestHelper helper) {
+        com.yayuy.overgrownvegetation.entity.VelophyllEntity v = helper.spawn(com.yayuy.overgrownvegetation.registry.ModFlyers.VELOPHYLL.get(), new BlockPos(12, 6, 12));
+        helper.runAtTickTime(5, () -> {
+            try {
+                if (v.flock() == null) {
+                    helper.fail("群れに入らない(テストの前提)");
+                    return;
+                }
+                BlockPos perch = helper.absolutePos(new BlockPos(3, 2, 3));
+                v.approachPerchForTests(perch);
+                if (v.mode() == com.yayuy.overgrownvegetation.entity.flyer.SkyFlyer.MODE_PERCHED) helper.fail("止まっている(テストの前提: 着地前)");
+                CompoundTag t = new CompoundTag();
+                v.saveWithoutId(t);
+                if (!t.contains("Perch")) helper.fail("着地前の止まり木が保存されない");
+                com.yayuy.overgrownvegetation.entity.VelophyllEntity o = com.yayuy.overgrownvegetation.registry.ModFlyers.VELOPHYLL.get().create(helper.getLevel());
+                o.load(t);
+                if (!perch.equals(o.perchPos())) helper.fail("読み直すと止まり木が無い: " + o.perchPos());
+            } finally {
+                v.discard();
+            }
+            helper.succeed();
+        });
+    }
+
+    /** 群れの最後の 1 体が面から出たら、群れを台帳から忘れる(前は誰も群れを回さず残り続けた)。 */
+    @GameTest(template = ARENA, timeoutTicks = 40)
+    public static void flockIsForgottenWhenItsLastFlyerLeaves(GameTestHelper helper) {
+        com.yayuy.overgrownvegetation.entity.VelophyllEntity v = helper.spawn(com.yayuy.overgrownvegetation.registry.ModFlyers.VELOPHYLL.get(), new BlockPos(12, 6, 12));
+        java.util.UUID[] id = new java.util.UUID[1];
+        helper.runAtTickTime(5, () -> {
+            if (v.flock() == null) {
+                helper.fail("群れに入らない(テストの前提)");
+                return;
+            }
+            id[0] = v.flock().id;
+            if (!com.yayuy.overgrownvegetation.entity.flyer.SkyFlyer.flockKnownForTests(helper.getLevel(), id[0])) helper.fail("群れが台帳に無い(テストの前提)");
+            v.discard();
+        });
+        helper.runAtTickTime(8, () -> {
+            if (id[0] != null && com.yayuy.overgrownvegetation.entity.flyer.SkyFlyer.flockKnownForTests(helper.getLevel(), id[0])) helper.fail("空の群れが台帳に残っている");
+            helper.succeed();
+        });
+    }
+
     // ------------------------------------------------------------------ ①6
 
     /** 確かめ用の名札は GameTest のサーバーでは効く(遊ぶ環境で効かない側は、開発用の操作口の有無で決まる静的な値なので GameTest では試せない)。 */

@@ -405,9 +405,7 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
      * 狙っている相手が感染して植物側になったら、そこで忘れる。
      */
     public static boolean isPrey(@javax.annotation.Nullable LivingEntity self, LivingEntity e) {
-        return e != self && e.isAlive() && !e.isRemoved() && !(e instanceof ArmorStand) && e.canBeSeenAsEnemy()
-                && EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(e)
-                && !(e instanceof ParasitizedMob) && !SporeExposureTracker.isPlantSide(e);
+        return PlantFoes.isFoe(self, e);   // 陣営と除外は共通(11-16 見直し ①13)
     }
 
     /**

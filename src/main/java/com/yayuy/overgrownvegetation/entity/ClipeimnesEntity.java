@@ -232,10 +232,7 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
         this.targetSelector.addGoal(1, new net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new SeekGoal<>(this, net.minecraft.world.entity.player.Player.class, e -> true));
         this.targetSelector.addGoal(3, new SeekGoal<>(this, net.minecraft.world.entity.LivingEntity.class,
-                e -> !(e instanceof net.minecraft.world.entity.player.Player) && !(e instanceof ParasitizedMob)
-                        && com.yayuy.overgrownvegetation.phase.MobGroup.of(e.getType()) == null
-                        && !com.yayuy.overgrownvegetation.spore.PlantSideRules.isTransformed(e)
-                        && !(e instanceof net.minecraft.world.entity.decoration.ArmorStand)));
+                e -> !(e instanceof net.minecraft.world.entity.player.Player) && PlantFoes.isFoe(this, e)));   // 陣営と除外は共通(①13)
     }
 
     /** 自分で標的を探す Goal(バニラの最寄り)。名前が {@code nostroll} で始まる個体は自分では探さない(確かめ・GameTest 用。標的はテストが置く)。 */

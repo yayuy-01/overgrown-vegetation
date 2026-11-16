@@ -133,7 +133,7 @@ public class PilimnesSpine extends ThrowableProjectile {
             return parent != this.getOwner() && !(parent instanceof LivingEntity pl && !AcumnesEntity.isPrey(null, pl));
         }
         if (target instanceof LivingEntity le) return AcumnesEntity.isPrey(this.getOwner() instanceof LivingEntity o ? o : null, le);
-        return true;
+        return false;   // 生き物でない物(額縁・絵・ボートなど)は壊さず素通り(11-16 見直しの疑い)
     }
 
     @Override
@@ -143,7 +143,8 @@ public class PilimnesSpine extends ThrowableProjectile {
         Entity target = result.getEntity();
         DamageSource src = server.damageSources().mobProjectile(this, this.getOwner() instanceof LivingEntity o ? o : null);
         boolean blocked = target instanceof LivingEntity le && le.isDamageSourceBlocked(src);
-        if (kind() != FLICK && target instanceof LivingEntity le) le.invulnerableTime = 0;   // 扇・雨の棘が続けて当たっても無敵時間で消えない
+        // 扇・雨の棘が続けて当たっても無敵時間で消えない。消すのは前の棘の無敵時間だけ(直前の傷がほかの攻撃なら消さない。11-16 見直しの疑い)
+        if (kind() != FLICK && target instanceof LivingEntity le && le.getLastDamageSource() != null && le.getLastDamageSource().getDirectEntity() instanceof PilimnesSpine) le.invulnerableTime = 0;
         boolean hurt = target.hurt(src, this.damage);
         if (this.slowTicks > 0 && hurt && !blocked && target instanceof LivingEntity le && le.isAlive()) {
             le.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, this.slowTicks, this.slowLevel), this.getOwner());

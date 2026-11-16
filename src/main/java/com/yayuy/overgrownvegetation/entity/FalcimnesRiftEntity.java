@@ -314,7 +314,7 @@ public class FalcimnesRiftEntity extends Entity {
         for (LivingEntity e : this.level().getEntitiesOfClass(LivingEntity.class, box, e -> e.isAlive() && e != owner)) {
             if (this.hit.contains(e.getUUID())) continue;
             if (e instanceof Player p && (p.isCreative() || p.isSpectator())) continue;
-            if (owner instanceof FalcimnesEntity f && !f.isFoeForWave(e)) continue;
+            if (owner instanceof FalcimnesEntity f ? !f.isFoeForWave(e) : !PlantFoes.isFoe(null, e)) continue;   // 持ち主が消えても植物側には当てない(①9)
             Vec3 c = e.position().subtract(a);
             double along = c.dot(d), er = e.getBbWidth() * 0.5D;
             if (along < -er || along > len + er) continue;
@@ -335,7 +335,7 @@ public class FalcimnesRiftEntity extends Entity {
         for (LivingEntity e : this.level().getEntitiesOfClass(LivingEntity.class, box, e -> e.isAlive() && e != owner)) {
             if (this.hit.contains(e.getUUID())) continue;
             if (e instanceof Player p && (p.isCreative() || p.isSpectator())) continue;
-            if (owner instanceof FalcimnesEntity f && !f.isFoeForWave(e)) continue;
+            if (owner instanceof FalcimnesEntity f ? !f.isFoeForWave(e) : !PlantFoes.isFoe(null, e)) continue;   // 持ち主が消えても植物側には当てない(①9)
             double dx = e.getX() - a.x, dz = e.getZ() - a.z, er = e.getBbWidth() * 0.5D;
             if (dx * dx + dz * dz > (r + er) * (r + er)) continue;
             double g = groundAt(this.level(), e.getX(), e.getZ());

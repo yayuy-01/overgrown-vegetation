@@ -412,7 +412,7 @@ public class StrobilaEntity extends SmallCrawler implements GeoEntity, Parasitiz
         float a0 = Math.min(az[k - 1], az[k]), a1 = Math.max(az[k - 1], az[k]);
         double r = Math.max(reach[k - 1], reach[k]) / 16.0D;
         AABB box = this.getBoundingBox().inflate(r + 1.0D, 1.0D, r + 1.0D);
-        for (LivingEntity e : this.level().getEntitiesOfClass(LivingEntity.class, box, e -> e != this && e.isAlive() && !StrobilaCone.passesThrough(e))) {
+        for (LivingEntity e : this.level().getEntitiesOfClass(LivingEntity.class, box, e -> PlantFoes.isFoe(this, e))) {   // 陣営と除外は共通(防具立て・創造も外す。①13)
             if (this.sweepHit.contains(e.getId())) continue;
             if (e instanceof net.minecraft.world.entity.player.Player p && (p.isCreative() || p.isSpectator())) continue;
             double dx = e.getX() - this.getX(), dz = e.getZ() - this.getZ();

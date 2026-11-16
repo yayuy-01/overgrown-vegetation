@@ -139,6 +139,8 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
     private double circleAngle;
     /** 急降下(この個体)。 */
     private int dive, diveTicks;
+    /** 急降下の途中で相手を見失った(爆弾を放さずに引き起こす。前は見失っても真下へ落とした。11-16 見直しの疑い)。 */
+    private boolean diveLost;
     @org.jetbrains.annotations.Nullable
     private net.minecraft.world.entity.LivingEntity diveTarget;
     private double diveSpeed, dvx, dvy, dvz;
@@ -289,9 +291,11 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
         }
         if (f == null || f.leader() != this) return;
         boolean flying = mode() == MODE_FLY && f.state() == com.yayuy.overgrownvegetation.entity.flyer.Flock.State.PATROL;
+        // 叩かれて止まり木から飛び立つ間(群れは驚いて逃げる段)は、叩いた相手を覚えたまま(前は次の tick に「飛んでいない」で忘れた。11-16 見直し ①7)
+        boolean takingOff = this.targetIsAttacker && f.state() == com.yayuy.overgrownvegetation.entity.flyer.Flock.State.FLEE;
         net.minecraft.world.entity.LivingEntity t = this.flockTarget;
         if (t != null) {
-            if (!validTarget(t) || this.distanceToSqr(t) > LOSE_RANGE * LOSE_RANGE || !flying) {
+            if (!validTarget(t) || this.distanceToSqr(t) > LOSE_RANGE * LOSE_RANGE || !flying && !takingOff) {
                 t = null;
             } else if (exposedToSky(t)) {
                 this.targetSeen = sl.getGameTime();
@@ -387,6 +391,7 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
         this.dive = DIVE_WINDUP_P;
         this.diveTicks = 0;
         this.diveTarget = t;
+        this.diveLost = false;
         this.tpx = Double.NaN;
         this.tvx = this.tvz = 0.0D;
         this.diveSpeed = WINDUP_SPEED;
@@ -429,6 +434,7 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
             }
             case DIVE_FALL -> {
                 if (lost) {
+                    this.diveLost = true;
                     setDive(DIVE_RECOVER_P);
                     break;
                 }
@@ -451,7 +457,7 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
             }
             case DIVE_RECOVER_P -> {
                 // 胞子嚢が弾けて爆弾を放す → 翼を開いて引き起こし、羽ばたいて昇る
-                if (this.diveTicks == BOMB_AT) dropBomb(sl);
+                if (this.diveTicks == BOMB_AT && !this.diveLost && !lost) dropBomb(sl);
                 double h = Math.toRadians(this.getYRot());
                 double k = Math.min(1.0D, this.diveTicks / 8.0D);
                 this.dvx = Mth.lerp(k, this.dvx, -Math.sin(h) * 0.6D);

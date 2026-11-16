@@ -368,7 +368,7 @@ public class SeminariaEntity extends SkyFlyer implements GeoEntity, ParasitizedM
         // プレイヤーから逃げる(飛んでいる間。止まっている間は土台の 10 ブロックの飛び立ち)
         if (mode() == MODE_FLY && (this.tickCount + getId()) % 10 == 0) {
             for (net.minecraft.server.level.ServerPlayer pl : sl.players()) {
-                if (pl.isSpectator() || pl.distanceToSqr(this) > FLEE_RANGE * FLEE_RANGE) continue;
+                if (pl.isSpectator() || !pl.isAlive() || !PlantFoes.isOtherSide(pl) || pl.distanceToSqr(this) > FLEE_RANGE * FLEE_RANGE) continue;   // 死んだ・植物側のプレイヤーからは逃げない(①13)
                 scare(sl, f, pl.getX(), pl.getZ());
                 break;
             }

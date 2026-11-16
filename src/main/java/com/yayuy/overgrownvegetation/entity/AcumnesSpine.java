@@ -106,7 +106,7 @@ public class AcumnesSpine extends ThrowableProjectile {
             return parent != this.getOwner() && !(parent instanceof LivingEntity pl && !AcumnesEntity.isPrey(null, pl));
         }
         if (target instanceof LivingEntity le) return AcumnesEntity.isPrey(this.getOwner() instanceof LivingEntity o ? o : null, le);
-        return true;
+        return false;   // 生き物でない物(額縁・絵・ボートなど)は壊さず素通り(11-16 見直しの疑い)
     }
 
     @Override
@@ -119,7 +119,8 @@ public class AcumnesSpine extends ThrowableProjectile {
                 : ModDamageTypes.acumnesSpine(server, this, this.getOwner());
         boolean blocked = target instanceof LivingEntity le && le.isDamageSourceBlocked(src);
         // 散弾は 1 tick おきに当たるので、無敵時間で 2 発目以降が消えないように(3 × 5 発。決定 11-15)
-        if (k == SCATTER && target instanceof LivingEntity le) le.invulnerableTime = 0;
+        // 前の弾の無敵時間だけ消す(直前の傷がほかの攻撃なら消さない = 剣や溶岩の無敵時間を散弾が消して重ねさせない。11-16 見直しの疑い)
+        if (k == SCATTER && target instanceof LivingEntity le && le.getLastDamageSource() != null && le.getLastDamageSource().getDirectEntity() instanceof AcumnesSpine) le.invulnerableTime = 0;
         target.hurt(src, this.damage);
         if (k == PIN && !blocked && target instanceof LivingEntity le && le.isAlive()) {
             // 地面に縫い止める: 動けず跳べない(属性を 0 に)。今の勢いも止める

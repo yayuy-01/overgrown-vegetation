@@ -140,7 +140,7 @@ public class FalcimnesWaveEntity extends Entity {
         double bestAlong = Double.MAX_VALUE;
         for (LivingEntity e : this.level().getEntitiesOfClass(LivingEntity.class, box, e -> e.isAlive() && e != owner)) {
             if (e instanceof Player p && (p.isCreative() || p.isSpectator())) continue;
-            if (owner instanceof FalcimnesEntity f && !f.isFoeForWave(e)) continue;
+            if (owner instanceof FalcimnesEntity f ? !f.isFoeForWave(e) : !PlantFoes.isFoe(null, e)) continue;   // 持ち主が消えても植物側には当てない(①9)
             Vec3 c = e.getBoundingBox().getCenter().subtract(from);
             double er = e.getBbWidth() * 0.5D;
             double along = c.dot(dir);
