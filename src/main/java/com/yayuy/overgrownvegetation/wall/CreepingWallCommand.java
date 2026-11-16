@@ -87,6 +87,10 @@ public final class CreepingWallCommand {
                     Math.max(0, w.stopTick() - now) / 20.0D, w.trailPending(), w.trailPlaced,
                     w.lastFillNanos / 1e6, w.maxFillNanos / 1e6, w.fillTicks == 0 ? 0.0D : w.totalFillNanos / 1e6 / w.fillTicks);
             ctx.getSource().sendSuccess(() -> Component.literal(line), false);
+            String scale = String.format("  1 升 %.2f µs・1 tick 平均 %d 升・y %d〜%d・x %d〜%d・z %d〜%d・水の升 %d",
+                    w.settledTotal == 0 ? 0.0D : w.settleNanos / 1e3 / w.settledTotal, w.fillTicks == 0 ? 0 : w.settledTotal / w.fillTicks,
+                    w.minY, w.maxY, w.minX, w.maxX, w.minZ, w.maxZ, w.waterCells);
+            ctx.getSource().sendSuccess(() -> Component.literal(scale), false);
             if (!w.chewing.isEmpty()) {
                 // 壊している物の種類(多い順に 5 つ)
                 java.util.Map<String, Integer> kinds = new java.util.HashMap<>();
@@ -109,7 +113,7 @@ public final class CreepingWallCommand {
     static BlockPos farCell(ServerLevel level, BlockPos from, int distance) {
         BlockPos start = null;
         for (BlockPos p : BlockPos.withinManhattan(from, 3, 3, 3)) { // 足元が空きでなければ、近くの洞窟の空きから
-            if (level.isLoaded(p) && WallCells.classify(level, p) == WallCells.Kind.PASS) {
+            if (CreepingWall.loadedNow(level, p) && WallCells.classify(level, p) == WallCells.Kind.PASS) {
                 start = p.immutable();
                 break;
             }
@@ -138,7 +142,7 @@ public final class CreepingWallCommand {
             for (Direction dir : Direction.values()) {
                 n.set(p).move(dir);
                 long np = n.asLong();
-                if (seen.containsKey(np) || !level.isLoaded(n) || WallCells.classify(level, n, roofs) != WallCells.Kind.PASS) {
+                if (seen.containsKey(np) || !CreepingWall.loadedNow(level, n) || WallCells.classify(level, n, roofs) != WallCells.Kind.PASS) {
                     continue;
                 }
                 seen.put(np, d + 1);

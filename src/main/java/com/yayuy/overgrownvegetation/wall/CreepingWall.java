@@ -92,6 +92,17 @@ public final class CreepingWall {
     private LongArrayList frontList = new LongArrayList();
     private int frontCursor;
     private int settledThisTick;
+    /** 計測: 埋めた升の合計・埋めるのに使った時間・水の升の数。 */
+    long settledTotal, settleNanos, waterCells;
+
+    /** チャンクが読み込み済みか(読み込み途中のチャンクで止まらないよう getChunkNow で見る。メモリ pedicula の罠 4)。 */
+    boolean loaded(BlockPos p) {
+        return loadedNow(level, p);
+    }
+
+    public static boolean loadedNow(ServerLevel level, BlockPos p) {
+        return !level.isOutsideBuildHeight(p) && level.getChunkSource().getChunkNow(p.getX() >> 4, p.getZ() >> 4) != null;
+    }
     /** 前に送ってから埋まった升。 */
     final LongArrayList newlySettled = new LongArrayList();
     /** 列 → 屋根の y(空の判定)。 */
@@ -223,7 +234,7 @@ public final class CreepingWall {
                     long p = done.getLong(i);
                     chewing.remove(p);
                     m.set(p);
-                    if (!level.isLoaded(m)) {
+                    if (!loaded(m)) {
                         parked.put(p, Math.min(parked.get(p), reach));
                         continue;
                     }
@@ -231,7 +242,10 @@ public final class CreepingWall {
                     WallCells.Kind k = WallCells.kindOf(level, m, s);
                     if (k == WallCells.Kind.CHEW) {
                         // 壊したブロックも、支えを失って外れた物(レール・松明・鎖)も落とさない(飲まれる。計測で落ちたアイテムが 1 tick の 2 割を食った)
-                        com.yayuy.overgrownvegetation.corruption.CorruptionDropSuppressor.run(() -> level.destroyBlock(m, false));
+                        // 粒・音・周りの更新は出さず差し替えるだけ(destroyBlock だと古代都市を一度に数千個かじった tick が 2.3 秒になった)
+                        BlockState gone = s.getFluidState().createLegacyBlock();
+                        com.yayuy.overgrownvegetation.corruption.CorruptionDropSuppressor.run(
+                                () -> level.setBlock(m, gone, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE));
                         forgetRoof(m);
                         k = WallCells.kindOf(level, m, level.getBlockState(m));
                     }
@@ -241,18 +255,20 @@ public final class CreepingWall {
                 }
             }
         }
+        long t1 = System.nanoTime();
 
-        // 読み込まれたチャンクの升を戻す(1 秒ごと)
+        // 読み込まれたチャンクの升を戻す(1 秒ごと)。戻すのは「今の距離」で(届くはずだった距離で戻すと、遅れた分を 1 tick で一度に進み、
+        // 計測で 1 tick に 37 万升を埋めた。読み込みの外で止まっていた分は、戻ってから同じ速さで進む)
         if (!parked.isEmpty() && (now - startTick) % 20 == 0) {
             LongArrayList back = new LongArrayList();
             for (Long2IntOpenHashMap.Entry e : parked.long2IntEntrySet()) {
-                if (level.isLoaded(m.set(e.getLongKey()))) {
+                if (loaded(m.set(e.getLongKey()))) {
                     back.add(e.getLongKey());
                 }
             }
             for (int i = 0; i < back.size(); i++) {
                 long p = back.getLong(i);
-                int d = parked.remove(p);
+                int d = Math.max(parked.remove(p), reach);
                 if (!filled.contains(p)) {
                     m.set(p);
                     WallCells.Kind k = WallCells.classify(level, m, this);
@@ -265,6 +281,7 @@ public final class CreepingWall {
             }
         }
 
+        long t2 = System.nanoTime();
         // 届いた距離までの升を埋める
         while (!queue.isEmpty()) {
             int key = queue.firstIntKey();
@@ -282,12 +299,18 @@ public final class CreepingWall {
             }
         }
         maxFilled = Math.max(maxFilled, filled.size());
-        pruneFrontStep(2000);
+        long t3 = System.nanoTime();
+        // 先頭の整理: 一巡が約 40 tick になる量(埋まった数に比例。固定の量だと大きな洞窟で追いつかず、先頭が 200 万升に膨らんだ)
+        pruneFrontStep(Math.max(2000, frontList.size() / 40));
 
-        long dt = System.nanoTime() - t0;
+        long t4 = System.nanoTime();
+        long dt = t4 - t0;
+        settleNanos += t3 - t2;
+        settledTotal += settledThisTick;
         if (dt > 100_000_000L) {
-            com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info("[creeping_wall] #{} 重い tick {} ms: 埋めた {} 升・壊し中 {}・脇の升 {}・先頭 {}・待ち行列の距離の数 {}",
-                    id, dt / 1_000_000, settledThisTick, chewing.size(), parked.size(), front.size(), queue.size());
+            com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info("[creeping_wall] #{} 重い tick {} ms(壊す {}・戻す {}・埋める {}・整理 {} ms): 埋めた {} 升・壊し中 {}・脇の升 {}・先頭 {}・埋まり {}",
+                    id, dt / 1_000_000, (t1 - t0) / 1_000_000, (t2 - t1) / 1_000_000, (t3 - t2) / 1_000_000, (t4 - t3) / 1_000_000,
+                    settledThisTick, chewing.size(), parked.size(), front.size(), filled.size());
         }
         settledThisTick = 0;
         lastFillNanos = dt;
@@ -334,6 +357,9 @@ public final class CreepingWall {
         WallSporeTrail.mark(level, pos, now);
 
         BlockState state = level.getBlockState(pos);
+        if (!state.getFluidState().isEmpty()) {
+            waterCells++;
+        }
         if (WallCells.isLight(state)) {
             // 灯りは飲まれて消える(落とさない。決定 その 3)
             // 周りへの更新は出さない(連鎖して重くなり、支えを失った物が落ちる)。見た目と光だけ変わる
@@ -356,7 +382,7 @@ public final class CreepingWall {
                 faceOpen[dir.ordinal()] = true;
                 continue;
             }
-            if (!level.isLoaded(n)) {
+            if (!loaded(n)) {
                 parked.put(np, Math.min(parked.get(np), d + COST_FACE));
                 continue;
             }
@@ -382,7 +408,7 @@ public final class CreepingWall {
             }
             n.set(pos.getX() + e[0], pos.getY() + e[1], pos.getZ() + e[2]);
             long np = n.asLong();
-            if (filled.contains(np) || !level.isLoaded(n)) {
+            if (filled.contains(np) || !loaded(n)) {
                 continue;
             }
             if (WallCells.classify(level, n, this) == WallCells.Kind.PASS) {
@@ -441,7 +467,7 @@ public final class CreepingWall {
             if (filled.contains(n.asLong())) {
                 continue;
             }
-            if (!level.isLoaded(n) || WallCells.classify(level, n, this) != WallCells.Kind.WALL) {
+            if (!loaded(n) || WallCells.classify(level, n, this) != WallCells.Kind.WALL) {
                 return false;
             }
         }
@@ -461,7 +487,7 @@ public final class CreepingWall {
                 if (filled.contains(np)) {
                     continue;
                 }
-                if (!level.isLoaded(n) || WallCells.classify(level, n, this) != WallCells.Kind.WALL) {
+                if (!loaded(n) || WallCells.classify(level, n, this) != WallCells.Kind.WALL) {
                     open = true;
                     break;
                 }
@@ -481,7 +507,7 @@ public final class CreepingWall {
             long p = lumpQueue.dequeueLong();
             m.set(p);
             used++;
-            if (!level.isLoaded(m)) {
+            if (!loaded(m)) {
                 continue;
             }
             BlockState s = level.getBlockState(m);
@@ -499,7 +525,7 @@ public final class CreepingWall {
             m.set(p);
             used++;
             long c0 = System.nanoTime();
-            boolean placed = level.isLoaded(m) && CorruptionSpreader.corruptSingle(level, m.immutable());
+            boolean placed = loaded(m) && CorruptionSpreader.corruptSingle(level, m.immutable());
             long cd = System.nanoTime() - c0;
             if (cd > 50_000_000L) {
                 com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info("[creeping_wall] 重い跡 {} ms: {} {}", cd / 1_000_000, m.toShortString(), level.getBlockState(m));
