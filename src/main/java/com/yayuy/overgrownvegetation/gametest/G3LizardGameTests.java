@@ -67,16 +67,26 @@ public final class G3LizardGameTests {
         }
     }
 
-    /** 2 種とも G3・植物側・体格 2(自然には湧かない = どの湧きの表にも入っていない。11-16 の見直し ④ で mobs.json の湧きの欄は無くなった)。 */
+    /**
+     * 3 種とも G3・植物側・体格 2(自然には湧かない = どの湧きの表にも入っていない。11-16 の見直し ④ で mobs.json の湧きの欄は無くなった)。
+     * ヒロノムスの体格 2 は 11-16 のユーザー決定(前は 2.5)。
+     */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
     public static void registeredAsG3WithoutNaturalSpawn(GameTestHelper helper) {
         PetrolacosaurusEntity p = placeAt(helper, ModLizards.PETROLACOSAURUS.get(), 1.5D, 3.5D, 0.0F);
         IanthasaurusEntity i = placeAt(helper, ModLizards.IANTHASAURUS.get(), 5.5D, 3.5D, 0.0F);
+        com.yayuy.overgrownvegetation.entity.HylonomusEntity h = placeAt(helper, ModLizards.HYLONOMUS.get(), 3.5D, 5.5D, 0.0F);
         helper.runAfterDelay(2L, () -> {
             check(helper, p, PetrolacosaurusEntity.ID, 0.6F, 0.4F);
             check(helper, i, IanthasaurusEntity.ID, 0.7F, 0.6F);
+            check(helper, h, com.yayuy.overgrownvegetation.entity.HylonomusEntity.ID, 0.4F, 0.3F);
             helper.succeed();
         });
+    }
+
+    @GameTest(template = "gametest_empty7", timeoutTicks = 200)
+    public static void hylonomusWalksForward(GameTestHelper helper) {
+        walksForward(helper, ModLizards.HYLONOMUS.get());
     }
 
     /** 平地: 向こうの端まで歩き、体の向きに対して横へ滑らない(1 tick 0.07 ブロック以下)。止まって見回しても着く。 */

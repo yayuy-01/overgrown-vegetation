@@ -486,9 +486,9 @@ public final class MobStats {
         m.put("hylonomus", stat(s -> {
             s.maxHealth = 6.0; s.attackDamage = 3.0; s.movementSpeed = 0.3; s.armor = 0.0;
             s.knockbackResistance = 0.0; s.followRange = 14.0; s.stepHeight = 1.0;
-            s.scale = 2.5;
+            s.scale = 2.0;   // 11-16 ユーザー決定: 2.5 → 2(画素が 1/16 ブロックにそろう)。全長 2.26・高さ 0.58
             s.width = 0.4; s.height = 0.3; s.xpReward = 2;
-            s.eggFit = 1.78;
+            s.eggFit = 1.42;   // 体格 2 に合わせて 1.78 × 2 / 2.5
         }));
 
         m.put("rhizodus", stat(s -> {

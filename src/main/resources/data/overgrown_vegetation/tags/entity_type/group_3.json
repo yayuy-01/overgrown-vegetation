@@ -2,6 +2,8 @@
   "replace": false,
   "values": [
     "overgrown_vegetation:petrolacosaurus",
-    "overgrown_vegetation:ianthasaurus"
+    "overgrown_vegetation:ianthasaurus",
+    "overgrown_vegetation:hylonomus",
+    "overgrown_vegetation:pulmonoscorpius"
   ]
 }

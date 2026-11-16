@@ -36,5 +36,13 @@ public final class LizardClient {
                                 new String[]{"arm_l", "forearm_l"}, new String[]{"arm_r", "forearm_r"},
                                 new String[]{"thigh_l", "shin_l"}, new String[]{"thigh_r", "shin_r"}), range),
                 com.yayuy.overgrownvegetation.entity.IanthasaurusEntity.RENDER_SCALE, 0.6F));
+        // ヒロノムス: 首の骨が無いので、頭を首の付け根の役に(見回しと首の打ち消しは頭で)
+        event.registerEntityRenderer(ModLizards.HYLONOMUS.get(), ctx -> new com.yayuy.overgrownvegetation.client.lizard.SimpleLizardRenderer<>(ctx,
+                new com.yayuy.overgrownvegetation.client.lizard.SimpleLizardModel<>(com.yayuy.overgrownvegetation.entity.HylonomusEntity.ID, com.yayuy.overgrownvegetation.entity.HylonomusEntity.RENDER_SCALE,
+                        new com.yayuy.overgrownvegetation.client.lizard.SimpleLizardModel.Bones("body", "hips", "head", null, null, null,
+                                new String[]{"tail1", "tail2", "tail3"},
+                                new String[]{"arm_l", "forearm_l"}, new String[]{"arm_r", "forearm_r"},
+                                new String[]{"thigh_l", "shin_l"}, new String[]{"thigh_r", "shin_r"}), range),
+                com.yayuy.overgrownvegetation.entity.HylonomusEntity.RENDER_SCALE, 0.35F));
     }
 }

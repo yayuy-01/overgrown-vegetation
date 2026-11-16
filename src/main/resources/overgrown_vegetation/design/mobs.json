@@ -622,6 +622,22 @@
     "xpReward": 4,
     "eggFit": 2.92
   },
+  "hylonomus": {
+    "maxHealth": 6,
+    "attackDamage": 3,
+    "armor": 0,
+    "movementSpeed": 0.3,
+    "knockbackResistance": 0,
+    "followRange": 14,
+    "stepHeight": 1,
+    "scale": 2,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 0.4,
+    "height": 0.3,
+    "xpReward": 2,
+    "eggFit": 1.42
+  },
   "pedicula": {
     "maxHealth": 0.1,
     "armor": 0,
