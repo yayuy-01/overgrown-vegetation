@@ -171,12 +171,12 @@ public final class SporeField {
         long nbEpoch = -1;
         /**
          * 谷風の向き(2026-11-16 軽量化 S3): 升ごとに、いちばん高い(夜は低い)隣。-1 = まだ調べていない、0 = 無い、1 東・2 西・3 南・4 北。
-         * 昼夜・その日の逆転層・高さの測り直しが変わったら調べ直す。
+         * 昼夜・その日の逆転層が変わったら調べ直す。この区画か隣の区画の高さが変わったとき({@link SporeField#staleValley})も調べ直す。
          */
         byte[] valleyDir;
         boolean valleyDay;
         double valleyInv;
-        long valleyLand = -1;
+        boolean valleyStale;
         /** 発芽しない升(水など)の数。 */
         int never;
         /** 本体の奥(自分も周りの 8 区画も全部汚染済み)。林床の層を計算せず、浮遊は 1 回の更新で 1 回だけ進める(軽量化 3)。 */
@@ -385,6 +385,7 @@ public final class SporeField {
         if (t == null && create) {
             // 捨てた空の区画が控えにあれば戻す(2026-11-15 軽量化 A。土地の表を引き直さない。中身は捨てたときに空にしてある)
             Land land = dormant.remove(k);
+            boolean rebuilt = land == null;
             if (land == null) t = newTile(tx, tz);
             else {
                 devRevived++;
@@ -393,6 +394,8 @@ public final class SporeField {
             }
             tiles.put(k, t);
             index.put(k, t);
+            // 土地から作り直した区画は、前に測った高さを持っていないことがある。隣の谷風の向きの表を捨てる(軽量化 S3)
+            if (rebuilt) staleValley(tx, tz);
         }
         return t;
     }
@@ -788,8 +791,9 @@ public final class SporeField {
             t.height = new float[TN];
             java.util.Arrays.fill(t.height, Float.NaN);
         }
+        // 高さが実際に変わったときだけ、この区画と隣の谷風の向きの表を捨てる(軽量化 S3。チャンクが読み込まれるたびに呼ばれる)
+        if (Float.floatToRawIntBits(t.height[i]) != Float.floatToRawIntBits(y)) staleValley(t.tx, t.tz);
         t.height[i] = y;
-        landEpoch++; // 谷風の向きの表を調べ直す(軽量化 S3)
         fillGround(t, i, cx, cz, y, false);
     }
 
@@ -1425,12 +1429,12 @@ public final class SporeField {
             byte[] vd = null;
             if (doAir && fValley > 0 && tl.height != null) {
                 vd = tl.valleyDir;
-                if (vd == null || tl.valleyDay != daytime || tl.valleyInv != inversionNow || tl.valleyLand != landEpoch) {
+                if (vd == null || tl.valleyStale || tl.valleyDay != daytime || tl.valleyInv != inversionNow) {
                     if (vd == null) vd = tl.valleyDir = new byte[TN];
                     java.util.Arrays.fill(vd, (byte) -1);
                     tl.valleyDay = daytime;
                     tl.valleyInv = inversionNow;
-                    tl.valleyLand = landEpoch;
+                    tl.valleyStale = false;
                 }
             }
             boolean deep = tl.interior;
@@ -1705,8 +1709,16 @@ public final class SporeField {
 
     /** 1 刻みごとに進む番号(隣の区画の覚え {@link Tile#nbE} が古くないかを見る。刻みの終わりに空の区画を捨てるので、刻みをまたいで持ち越さない)。 */
     private long stepEpoch;
-    /** 高さを測り直した回数(谷風の向きの表を調べ直す)。 */
-    private long landEpoch;
+    /**
+     * 区画 (tx, tz) の高さが変わった・区画を作り直した: その区画と、今ある 4 方の隣の区画の谷風の向きの表を捨てる(軽量化 S3。向きは隣の升の高さで決まる)。
+     * 隣は引くだけで作らない。
+     */
+    private void staleValley(int tx, int tz) {
+        for (int d = 0; d < 5; d++) {
+            Tile n = index.get(key(tx + (d == 1 ? 1 : d == 2 ? -1 : 0), tz + (d == 3 ? 1 : d == 4 ? -1 : 0)));
+            if (n != null) n.valleyStale = true;
+        }
+    }
 
     /**
      * 升 (cx, cz) のある区画({@code from} か、その 4 方の隣。無ければ作る)。2026-11-16 軽量化 S2: 隣の区画は 1 刻みの間だけ {@code from} に覚えておき、
