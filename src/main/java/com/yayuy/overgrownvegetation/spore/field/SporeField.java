@@ -980,6 +980,15 @@ public final class SporeField {
         return true;
     }
 
+    /** 汚染済みの升を全部たどる(起動時の「場 → 台帳」の照らし合わせ。2026-11-16 コードの見直し ③2)。 */
+    public void forEachCorrupted(java.util.function.LongConsumer v) {
+        for (Tile tl : tiles.values()) {
+            if (tl.corrupted == 0) continue;
+            for (int i = 0; i < TN; i++)
+                if (tl.sprout[i] != NOT) v.accept(chunkKey((tl.tx << TB) + (i & (TS - 1)), (tl.tz << TB) + (i >> TB)));
+        }
+    }
+
     /** 待ちの印の付いた升を全部たどる(読み込み直したときの見張りの作り直し)。 */
     public void forEachWaiting(java.util.function.LongConsumer v) {
         for (Tile tl : tiles.values())

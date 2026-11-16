@@ -310,6 +310,11 @@ public final class SporeFieldServer {
                 int cx = ChunkPos.getX(key), cz = ChunkPos.getZ(key);
                 if (!f.isCorrupted(cx, cz)) f.setCorrupted(cx, cz, phase.overgrownSinceTick(new ChunkPos(key)));
             });
+            // 逆向き(2026-11-16 コードの見直し ③2): 場では汚染済みなのに台帳に無いチャンクは、場の側を取り消す(台帳を正とする)。
+            // 止める直前の入力(台帳が断った発芽の取り消しなど)や、まだ台帳へ渡していない発芽の答えが消えたときに残る食い違い。
+            // 取り消した升は降り積もりが残っていれば、また発芽して台帳へ渡る
+            int stray = reconcileFieldWithLedger(f, phase::isOvergrownKey);
+            if (stray > 0) OvergrownVegetation.LOGGER.info("胞子の場: 台帳に無い汚染済みの升 {} 個を取り消しました(場 → 台帳の照らし合わせ)", stray);
             long ldC = System.nanoTime();
             field = f;
             fieldClock = clock[0];
@@ -327,8 +332,46 @@ public final class SporeFieldServer {
                 DevStats.loadNanos / 1_000_000L, SporeFieldStore.devReadNanos / 1_000_000L, SporeFieldStore.devBuildNanos / 1_000_000L, f.devLandLoaded);
     }
 
+    /**
+     * 場では汚染済みなのに台帳({@code inLedger})に無い升を取り消す。取り消した数を返す(2026-11-16 コードの見直し ③2。テストからも)。
+     * 鍵は呼ぶ側が持つ。
+     */
+    public static int reconcileFieldWithLedger(SporeField f, java.util.function.LongPredicate inLedger) {
+        it.unimi.dsi.fastutil.longs.LongArrayList stray = new it.unimi.dsi.fastutil.longs.LongArrayList();
+        f.forEachCorrupted(key -> {
+            if (!inLedger.test(key)) stray.add(key);
+        });
+        for (int i = 0; i < stray.size(); i++) {
+            long key = stray.getLong(i);
+            f.unsprout(ChunkPos.getX(key), ChunkPos.getZ(key));
+        }
+        return stray.size();
+    }
+
+    /**
+     * 積まれた入力を今すぐ場へ流す(2026-11-16 コードの見直し ③2: 止める直前の入力が、写しを取る前に流れずに消えていた)。
+     * 裏のスレッドが回している途中なら鍵を待つ。流した数を返す。
+     */
+    public static int drainInputsNow() {
+        int n = 0;
+        LOCK.lock();
+        try {
+            SporeField f = field;
+            if (f == null) return 0;
+            Consumer<SporeField> input;
+            while ((input = INPUTS.poll()) != null) {
+                input.accept(f);
+                n++;
+            }
+        } finally {
+            LOCK.unlock();
+        }
+        return n;
+    }
+
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
+        drainInputsNow(); // 写しを取る前に、止める直前の入力を流す(③2)
         save(event.getServer(), true);
         LOCK.lock();
         try {

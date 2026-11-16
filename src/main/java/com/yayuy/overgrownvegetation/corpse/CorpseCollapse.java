@@ -83,12 +83,54 @@ public final class CorpseCollapse {
         }
     }
 
+    /** 足元に置けないときに探す広さ(水平の半径・上下)。【仮】 */
+    static final int SPOT_RADIUS = 2, SPOT_UP = 1, SPOT_DOWN = 1;
+
+    /**
+     * 死体ブロックを置いてよいマスを探す(2026-11-16 コードの見直し ③3)。まず足元、駄目なら近い順に水平 {@link #SPOT_RADIUS}・上下 1 の範囲で、
+     * 下の面がしっかりした空きを探す。見つからなければ null(死体を作らない。G1 にも起き上がらない)。
+     * <ul>
+     *   <li>置いてよい = 置き換えられるブロック(空気・草・雪の層・水など {@code canBeReplaced})で、ブロックエンティティを持たない
+     *   (チェスト・先の死体を消さない)。ドア・ベッド・ハーフは置き換えられないので外れる。</li>
+     *   <li>足元以外は、下が上の面のしっかりしたブロックのときだけ(宙に浮いた死体を作らない)。</li>
+     * </ul>
+     */
+    public static BlockPos findCorpseSpot(ServerLevel level, BlockPos origin) {
+        if (canHoldCorpse(level, origin)) return origin;
+        BlockPos best = null;
+        int bestD = Integer.MAX_VALUE;
+        for (int dy : new int[] {0, SPOT_UP, -SPOT_DOWN}) {
+            for (int dx = -SPOT_RADIUS; dx <= SPOT_RADIUS; dx++) {
+                for (int dz = -SPOT_RADIUS; dz <= SPOT_RADIUS; dz++) {
+                    if (dx == 0 && dz == 0 && dy == 0) continue;
+                    int d = dx * dx + dz * dz + dy * dy * 2;
+                    if (d >= bestD) continue;
+                    BlockPos p = origin.offset(dx, dy, dz);
+                    if (!level.isLoaded(p) || !canHoldCorpse(level, p)) continue;
+                    BlockPos below = p.below();
+                    if (!level.getBlockState(below).isFaceSturdy(level, below, net.minecraft.core.Direction.UP)) continue;
+                    best = p;
+                    bestD = d;
+                }
+            }
+            if (best != null) return best; // 同じ高さで見つかれば上下は見ない
+        }
+        return null;
+    }
+
+    private static boolean canHoldCorpse(ServerLevel level, BlockPos pos) {
+        net.minecraft.world.level.block.state.BlockState s = level.getBlockState(pos);
+        return s.canBeReplaced() && !s.hasBlockEntity() && s.getBlock().defaultDestroyTime() >= 0.0F;
+    }
+
     /** 崩れ落ちの終わり: 死体ブロックを置く(向き・ずれを記録)。Mob はまだ消さない。 */
     private static void place(LivingEntity entity, CompoundTag t) {
         if (entity.level() instanceof ServerLevel level) {
             Block block = BuiltInRegistries.BLOCK.get(ResourceLocation.parse(t.getString("Block")));
-            BlockPos pos = entity.blockPosition();
-            if (level.isLoaded(pos)) {
+            BlockPos origin = entity.blockPosition();
+            // 置いてよい所だけに置く(2026-11-16 コードの見直し ③3。前は足元を無条件に置き換え、チェストの中身・ドア・ベッド・ハーフ・先の死体を消していた)
+            BlockPos pos = level.isLoaded(origin) ? findCorpseSpot(level, origin) : null;
+            if (pos != null) {
                 level.setBlock(pos, block.defaultBlockState(), Block.UPDATE_ALL);
                 if (level.getBlockEntity(pos) instanceof CorruptedCorpseBlockEntity be) {
                     if (t.contains("Color")) {
@@ -97,8 +139,11 @@ public final class CorpseCollapse {
                     if (t.contains("Held")) {
                         be.setHeldItem(net.minecraft.world.item.ItemStack.parseOptional(level.registryAccess(), t.getCompound("Held")));
                     }
+                    // ずれは足元に置けたときだけ(よそのマスへ移したら、そのマスの真ん中に置く。ずれたまま描くと隣の物にめり込むので)
+                    boolean here = pos.equals(origin);
                     be.setPlacement(t.getFloat("Yaw"),
-                            entity.getX() - (pos.getX() + 0.5), entity.getY() - pos.getY(), entity.getZ() - (pos.getZ() + 0.5));
+                            here ? entity.getX() - (pos.getX() + 0.5) : 0.0D, here ? entity.getY() - pos.getY() : 0.0D,
+                            here ? entity.getZ() - (pos.getZ() + 0.5) : 0.0D);
                 }
                 // 2026-11-08: 前はここで粒(コンポスター)と苔の音を出して絵の入れ替わりを隠していた。今の死体は崩れ落ちと同じ
                 // 無傷の絵で始まり、突き破り(corpse_burst)で傷のある絵に替わるので、隠す物が無くなり外した。

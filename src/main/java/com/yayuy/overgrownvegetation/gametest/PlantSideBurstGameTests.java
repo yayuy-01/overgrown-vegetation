@@ -358,6 +358,124 @@ public final class PlantSideBurstGameTests {
         helper.succeed();
     }
 
+    // ------------------------------------------------------------------ コードの見直し 第 1 便 ③(11-16)
+
+    /** 感染の死(胞子の 20 ダメージ)で牛を倒す。 */
+    private static Mob sporeKillCow(GameTestHelper helper, Vec3 at) {
+        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, at);
+        cow.setNoAi(true);
+        cow.hurt(com.yayuy.overgrownvegetation.registry.ModDamageTypes.sporeInfection(helper.getLevel()), 1000.0F);
+        return cow;
+    }
+
+    private static boolean isCorpse(GameTestHelper helper, BlockPos abs) {
+        return helper.getLevel().getBlockEntity(abs) instanceof com.yayuy.overgrownvegetation.block.CorruptedCorpseBlockEntity;
+    }
+
+    /**
+     * ③3: 死体ブロックは足元のチェスト(中身)・ハーフを消さず、近くの空いた所に置く。同じマスで 2 体死んでも、先の死体を上書きしない。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 60)
+    public static void corpseDoesNotReplaceChestSlabOrCorpse(GameTestHelper helper) {
+        BlockPos chestRel = new BlockPos(1, 2, 1), slabRel = new BlockPos(5, 2, 1), twinRel = new BlockPos(3, 2, 5);
+        helper.setBlock(chestRel, net.minecraft.world.level.block.Blocks.CHEST);
+        BlockPos chestAbs = helper.absolutePos(chestRel);
+        if (helper.getLevel().getBlockEntity(chestAbs) instanceof net.minecraft.world.level.block.entity.ChestBlockEntity chest) {
+            chest.setItem(0, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND));
+        }
+        helper.setBlock(slabRel, net.minecraft.world.level.block.Blocks.OAK_SLAB);
+        // チェスト・ハーフの上に立った牛(足元のマス = そのブロックのマス)と、同じマスで続けて 2 体
+        sporeKillCow(helper, Vec3.atBottomCenterOf(chestRel).add(0.0D, 0.875D, 0.0D));
+        sporeKillCow(helper, Vec3.atBottomCenterOf(slabRel).add(0.0D, 0.5D, 0.0D));
+        sporeKillCow(helper, Vec3.atBottomCenterOf(twinRel));
+        long t0 = helper.getTick();
+        helper.runAtTickTime(t0 + 25, () -> sporeKillCow(helper, Vec3.atBottomCenterOf(twinRel))); // 先の死体ができてから同じマスで
+        helper.runAtTickTime(t0 + 55, () -> {
+            helper.assertBlockPresent(net.minecraft.world.level.block.Blocks.CHEST, chestRel);
+            boolean diamond = helper.getLevel().getBlockEntity(chestAbs) instanceof net.minecraft.world.level.block.entity.ChestBlockEntity c
+                    && c.getItem(0).is(net.minecraft.world.item.Items.DIAMOND);
+            helper.assertTrue(diamond, "チェストの中身が消えた");
+            helper.assertBlockPresent(net.minecraft.world.level.block.Blocks.OAK_SLAB, slabRel);
+            helper.assertTrue(isCorpse(helper, helper.absolutePos(twinRel)), "先の死体が残っていない(上書きされた)");
+            int corpses = 0;
+            for (BlockPos p : BlockPos.betweenClosed(helper.absolutePos(new BlockPos(0, 1, 0)), helper.absolutePos(new BlockPos(6, 4, 6)))) {
+                if (isCorpse(helper, p)) corpses++;
+            }
+            helper.assertTrue(corpses == 4, "死体が 4 つ置かれていない(近くの空きへ置けていない): " + corpses);
+            helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(10.0)).forEach(e -> e.discard());
+            helper.succeed();
+        });
+    }
+
+    /**
+     * ③1: エンダードラゴンには胞子の 20 ダメージが入らない(胴の部位が弾いて true を返す)。そのとき最大体力を減らさない。
+     * 弾かれた分は「耐性を無視して胞子で変える」(11-15)に数え、体力を超えたら汎用の感染体に変わる(→ 死に際の後に破裂)。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 40)
+    public static void dragonKeepsMaxHealthAndTurnsFromBlockedSpores(GameTestHelper helper) {
+        Mob dragon = helper.spawnWithNoFreeWill(EntityType.ENDER_DRAGON, new Vec3(3.5, 3.0, 3.5));
+        float max0 = dragon.getMaxHealth();
+        double dose = com.yayuy.overgrownvegetation.data.DesignData.sporeField().infectDose();
+        net.minecraft.server.level.ServerLevel level = helper.getLevel();
+        int hits = 0;
+        while (!com.yayuy.overgrownvegetation.infect.GenericInfection.isTurned(dragon) && hits < 30) {
+            com.yayuy.overgrownvegetation.spore.SporeExposureTracker.setDose(dragon, dose, level.getGameTime());
+            com.yayuy.overgrownvegetation.spore.SporeExposureTracker.tickWith(level, dragon, 40, 0.0D);
+            hits++;
+            helper.assertTrue(com.yayuy.overgrownvegetation.infect.GenericInfection.isTurned(dragon) || dragon.getMaxHealth() == max0,
+                    "胞子が入らないのにドラゴンの最大体力が減った: " + dragon.getMaxHealth());
+        }
+        helper.assertTrue(com.yayuy.overgrownvegetation.infect.GenericInfection.isTurned(dragon),
+                "弾かれた胞子が " + hits + " 回たまってもドラゴンが汎用の感染体に変わらない");
+        dragon.discard();
+        helper.succeed();
+    }
+
+    /** ③1: 吸収体力で受けた胞子の 20 ダメージは「入った」(最大体力の傷が付く。弾かれた扱いにしない)。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void absorbedSporeHitStillLands(GameTestHelper helper) {
+        Mob golem = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, new Vec3(3.5, 2.0, 3.5));
+        // 1.21 は吸収体力の上限の属性があり、効果なしでは 0 に切り詰められる。衝撃吸収 VII(28)を付ける
+        golem.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.ABSORPTION, 600, 6));
+        float abs0 = golem.getAbsorptionAmount();
+        float max0 = golem.getMaxHealth(), hp0 = golem.getHealth();
+        net.minecraft.server.level.ServerLevel level = helper.getLevel();
+        com.yayuy.overgrownvegetation.spore.SporeExposureTracker.setDose(golem, com.yayuy.overgrownvegetation.data.DesignData.sporeField().infectDose(), level.getGameTime());
+        com.yayuy.overgrownvegetation.spore.SporeExposureTracker.tickWith(level, golem, 40, 0.0D);
+        // 吸収体力から 20 減る(体力は最大体力の傷で上限が下がった分だけ切り詰められる)
+        helper.assertTrue(abs0 >= 20.0F && Math.abs(golem.getAbsorptionAmount() - (abs0 - 20.0F)) < 1.0E-3F, "吸収体力で受けていない: 吸収 " + abs0 + " → " + golem.getAbsorptionAmount() + "・体力 " + golem.getHealth() + "(はじめ " + hp0 + ")");
+        helper.assertTrue(golem.getMaxHealth() < max0, "吸収体力で受けた被弾が「入らなかった」扱いになった(傷が付かない)");
+        helper.assertTrue(!com.yayuy.overgrownvegetation.infect.GenericInfection.isTurned(golem), "吸収体力で受けた被弾で変わった");
+        helper.succeed();
+    }
+
+    /** ③2: 場では汚染済みなのに台帳に無い升は、起動時の照らし合わせで取り消す。止める前に入力を流す口が場へ届く。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void fieldReconcilesWithLedgerAndDrainsInputs(GameTestHelper helper) {
+        com.yayuy.overgrownvegetation.spore.field.SporeField f =
+                new com.yayuy.overgrownvegetation.spore.field.SporeField(42L, com.yayuy.overgrownvegetation.data.SporeFieldTable.gameDefaults());
+        f.setCorrupted(0, 0, 1L);
+        f.setCorrupted(5, 3, 1L);
+        f.setCorrupted(-40, 70, 1L);
+        long keep = net.minecraft.world.level.ChunkPos.asLong(5, 3);
+        int stray = com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.reconcileFieldWithLedger(f, k -> k == keep);
+        helper.assertTrue(stray == 2, "台帳に無い升の数が 2 でない: " + stray);
+        helper.assertTrue(f.isCorrupted(5, 3) && !f.isCorrupted(0, 0) && !f.isCorrupted(-40, 70), "台帳に無い升が取り消されていない");
+        // 入力を流す: 遠くのチャンクを台帳に載せた知らせ → 今すぐ流すと場が汚染済みになる
+        int cx = 900_000 >> 4, cz = -900_000 >> 4;
+        com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.onLedgerAdded(net.minecraft.world.level.ChunkPos.asLong(cx, cz), 1L);
+        com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.drainInputsNow();
+        Boolean corrupted = com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.withFieldForTests(live -> live == null ? null : live.isCorrupted(cx, cz));
+        helper.assertTrue(corrupted == null || corrupted, "流した入力が場に届いていない");
+        if (corrupted != null) {
+            com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.withFieldForTests(live -> {
+                live.unsprout(cx, cz); // 片付け
+                return null;
+            });
+        }
+        helper.succeed();
+    }
+
     // ------------------------------------------------------------------ 道具
 
     /** テストで「変わった」と見る Mob の id。同じ束のテストは並んで走るので、印の口の差し替え・戻しはせず、1 度だけ表を足して残す。 */

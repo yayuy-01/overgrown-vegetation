@@ -177,7 +177,16 @@ public final class SporeExposureTracker {
     private static void hurtMob(ServerLevel level, LivingEntity mob, SporeExposure ex, long now) {
         float amount = (float) DesignData.sporeField().mobExposureDamage();
         if (amount <= 0.0F) return;
-        if (mob.hurt(ModDamageTypes.sporeInfection(level), amount)) {
+        // 入ったかは hurt の戻り値だけでは決めない(2026-11-16 コードの見直し ③1): エンダードラゴンの胴の部位はプレイヤー以外のダメージを
+        // 弾いても true を返し、最大体力だけ減っていた。体力 + 吸収体力の前後で比べる(吸収体力で受けた正常な被弾も減ったと数える)。
+        // その撃ちで死んだ・汎用の感染体に変わった(死を止めて満タンに戻る)ときは入ったとみなす
+        float before = mob.getHealth() + mob.getAbsorptionAmount();
+        boolean wasTurned = com.yayuy.overgrownvegetation.infect.GenericInfection.isTurned(mob);
+        boolean returned = mob.hurt(ModDamageTypes.sporeInfection(level), amount);
+        boolean landed = returned && (mob.isDeadOrDying() || mob.isRemoved()
+                || (!wasTurned && com.yayuy.overgrownvegetation.infect.GenericInfection.isTurned(mob))
+                || mob.getHealth() + mob.getAbsorptionAmount() < before - 1.0E-4F);
+        if (landed) {
             // 死ぬ所で汎用の感染体に変わった Mob(2026-11-15)は、傷を外して満タンで変わったので傷を付け直さない
             if (mob.isAlive() && !com.yayuy.overgrownvegetation.infect.GenericInfection.isTurned(mob)) {
                 scarMaxHealth(mob, DesignData.sporeField().mobMaxHealthLossPerHit());
