@@ -369,9 +369,9 @@
     "smoothSeconds": 4.0
   },
   "bloom": {
-    "_comment": "光るもののにじみ(2026-11-13 シェーダーの仕上げ B。ユーザー決定: 既定でオン・切れる(見え方の設定「光のにじみ」)・強さ strength は見本 tools/bloom の「中 1.6」。ほかの数は仮決め)。暗い所で、まわりよりずっと明るい点(松明の炎・ランタン・溶岩・光る植物・光る胞子)にだけ柔らかい暈を付ける。enabled = false で切る。threshold・knee = いちばん明るい色の成分がこれより上の画素が候補(knee の幅で全部)。contrastFrom・contrastTo = まわり(広くぼかした明るさ)よりこれだけ明るければ光る物とみなす。skyContrastFrom・skyContrastTo = 空の画素に要る差(ぽつんとした点だけ通す。夕焼けの帯は通さない)。darkFrom・darkTo = カメラの所の (空の光/15)² × 昼の明るさ がこれより下で全部にじむ・これより上でにじまない(昼の外は掛けない)。",
+    "_comment": "【11-16 ユーザー「まぶしすぎるので少し下げたい」: strength 1.6 → 1.0(仮)】光るもののにじみ(2026-11-13 シェーダーの仕上げ B。ユーザー決定: 既定でオン・切れる(見え方の設定「光のにじみ」)・強さ strength は見本 tools/bloom の「中 1.6」。ほかの数は仮決め)。暗い所で、まわりよりずっと明るい点(松明の炎・ランタン・溶岩・光る植物・光る胞子)にだけ柔らかい暈を付ける。enabled = false で切る。threshold・knee = いちばん明るい色の成分がこれより上の画素が候補(knee の幅で全部)。contrastFrom・contrastTo = まわり(広くぼかした明るさ)よりこれだけ明るければ光る物とみなす。skyContrastFrom・skyContrastTo = 空の画素に要る差(ぽつんとした点だけ通す。夕焼けの帯は通さない)。darkFrom・darkTo = カメラの所の (空の光/15)² × 昼の明るさ がこれより下で全部にじむ・これより上でにじまない(昼の外は掛けない)。",
     "enabled": true,
-    "strength": 1.6,
+    "strength": 1.0,
     "threshold": 0.72,
     "knee": 0.18,
     "contrastFrom": 0.10,

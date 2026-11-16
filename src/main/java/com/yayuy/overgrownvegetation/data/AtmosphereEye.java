@@ -60,7 +60,7 @@ public final class AtmosphereEye {
                               float skyContrastTo, float darkFrom, float darkTo) {
         static BloomParams of(BloomJson j) {
             BloomJson v = j != null ? j : new BloomJson();
-            return new BloomParams(v.enabled == null || v.enabled, c(v.strength, 1.6, 0.0, 8.0), c(v.threshold, 0.72, 0.0, 1.0), c(v.knee, 0.18, 0.01, 1.0),
+            return new BloomParams(v.enabled == null || v.enabled, c(v.strength, 1.0, 0.0, 8.0), c(v.threshold, 0.72, 0.0, 1.0), c(v.knee, 0.18, 0.01, 1.0),
                     c(v.contrastFrom, 0.10, 0.0, 1.0), c(v.contrastTo, 0.35, 0.01, 1.0), c(v.skyContrastFrom, 0.35, 0.0, 1.0),
                     c(v.skyContrastTo, 0.60, 0.01, 1.0), c(v.darkFrom, 0.2, 0.0, 1.0), c(v.darkTo, 0.7, 0.01, 1.0));
         }
