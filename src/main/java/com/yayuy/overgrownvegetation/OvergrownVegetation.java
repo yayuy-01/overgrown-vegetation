@@ -57,6 +57,7 @@ public class OvergrownVegetation {
         com.yayuy.overgrownvegetation.registry.ModLeapers.init(); // 跳ぶ型(サルティムネス)の Mob・卵(2026-11-14)
         com.yayuy.overgrownvegetation.registry.ModCrawlers.init(); // 小さな地這いの虫の型(グレガリア)の Mob・卵(2026-11-15)
         com.yayuy.overgrownvegetation.registry.ModFlyers.init(); // 飛ぶ型(ヴェロフィル)の Mob・卵(2026-11-15)
+        com.yayuy.overgrownvegetation.registry.ModG23Flyers.init(); // G2・G3 の飛ぶ種(メガネウラ)の Mob・卵(2026-11-16)
         com.yayuy.overgrownvegetation.registry.ModLizards.init(); // トカゲ型(ピリムネス)の Mob・卵(2026-11-15)
         com.yayuy.overgrownvegetation.registry.ModLey.init(); // 地脈の最小限: 花・汲み上げ器・柱・電池・線(2026-11-13 サバイバルの背骨 段 2b)
         com.yayuy.overgrownvegetation.registry.ModVent.init(); // 換気の機械とフィルター(2026-11-14 サバイバルの背骨 段 2c)

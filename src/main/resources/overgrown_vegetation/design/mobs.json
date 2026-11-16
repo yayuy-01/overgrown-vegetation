@@ -622,6 +622,23 @@
     "xpReward": 4,
     "eggFit": 2.92
   },
+  "meganeura": {
+    "maxHealth": 10,
+    "attackDamage": 9,
+    "armor": 0,
+    "movementSpeed": 0.32,
+    "flyingSpeed": 0.5,
+    "knockbackResistance": 0,
+    "followRange": 32,
+    "stepHeight": 1,
+    "scale": 1,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 1,
+    "height": 0.5,
+    "xpReward": 8,
+    "eggFit": 2.35
+  },
   "hylonomus": {
     "maxHealth": 6,
     "attackDamage": 3,

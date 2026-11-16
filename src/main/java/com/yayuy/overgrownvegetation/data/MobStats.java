@@ -292,7 +292,8 @@ public final class MobStats {
         }));
 
         m.put("meganeura", stat(s -> {
-            s.maxHealth = 10.0; s.attackDamage = 9.0; s.movementSpeed = 0.32; s.flyingSpeed = 1.2;
+            // 2026-11-16 段 1(飛ぶ型)で戻した。飛ぶ速さは巡航 0.5(急ぐ 1.0)に揃えた(前は 1.2)【仮】。攻撃は狩りの段まで使わない
+            s.maxHealth = 10.0; s.attackDamage = 9.0; s.movementSpeed = 0.32; s.flyingSpeed = 0.5;
             s.armor = 0.0; s.followRange = 32.0; s.attackKnockback = 0.0;
             s.width = 1.0; s.height = 0.5; s.xpReward = 8;
             s.eggFit = 2.35;

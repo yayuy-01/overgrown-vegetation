@@ -147,6 +147,7 @@ public final class ModCreativeTabs {
                         com.yayuy.overgrownvegetation.registry.ModLeapers.acceptEggs(output); // 跳ぶ型(2026-11-14)
                         com.yayuy.overgrownvegetation.registry.ModCrawlers.acceptEggs(output); // 小さな地這いの虫の型(2026-11-15)
                         com.yayuy.overgrownvegetation.registry.ModFlyers.acceptEggs(output); // 飛ぶ型(2026-11-15)
+                        com.yayuy.overgrownvegetation.registry.ModG23Flyers.acceptEggs(output); // G2・G3 の飛ぶ種(2026-11-16)
                         com.yayuy.overgrownvegetation.registry.ModLizards.acceptEggs(output); // トカゲ型(2026-11-15)
 
                         // 植物から採れるもの
