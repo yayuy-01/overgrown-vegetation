@@ -36,6 +36,15 @@ public class VelophyllBomb extends ThrowableItemProjectile {
     public static final double DEPOSIT_PERCENT = 15.0D;
     /** 直に当たったときの傷【仮・決定 11-15 ユーザー: 小さな傷】。植物側の攻撃なので、当たった相手は既存の仕組みで感染する。 */
     public static final float DIRECT_DAMAGE = 2.0F;
+    /** 計測・テスト用: 当たったもの・放した所(爆弾ごと)。 */
+    public String hitDesc = "";
+    public Vec3 startPos = Vec3.ZERO;
+    /** 狙った相手(測る用)。 */
+    public LivingEntity aimed;
+    /** 確かめ用: 直しの前の当たり方(部位を持ち主で見ない)。 */
+    public boolean oldAim;
+    private static final boolean DEV = Boolean.getBoolean("ov.devbridge");
+
     /** 何にも当たらないまま落ち続けたら消す(tick)。 */
     static final int MAX_AGE = 200;
 
@@ -46,11 +55,14 @@ public class VelophyllBomb extends ThrowableItemProjectile {
     public VelophyllBomb(Level level, LivingEntity owner, Vec3 at) {
         super(ModFlyers.VELOPHYLL_BOMB.get(), owner, level);
         this.setPos(at);
+        this.startPos = at;
     }
 
     @Override
     protected boolean canHitEntity(Entity target) {
-        return super.canHitEntity(target) && !StrobilaCone.passesThrough(target);
+        // 叩ける部位(翼など)は持ち主で見る(部位は植物側の印を持たないので、放した直後に自分の翼に当たって弾けていた。11-16)
+        Entity body = target instanceof net.neoforged.neoforge.entity.PartEntity<?> pe ? pe.getParent() : target;
+        return super.canHitEntity(target) && !StrobilaCone.passesThrough(this.oldAim ? target : body);
     }
 
     @Override
@@ -68,6 +80,10 @@ public class VelophyllBomb extends ThrowableItemProjectile {
     protected void onHit(HitResult result) {
         super.onHit(result);
         if (!(this.level() instanceof ServerLevel level) || this.isRemoved()) return;
+        this.hitDesc = (result instanceof net.minecraft.world.phys.EntityHitResult eh0 ? "相手 " + eh0.getEntity().getType().toShortString() : "ブロック " + result.getType())
+                + String.format(" (%.2f, %.2f, %.2f) 放してから %d tick", result.getLocation().x, result.getLocation().y, result.getLocation().z, this.tickCount);
+        if (DEV && this.aimed != null) com.mojang.logging.LogUtils.getLogger().info("VELO_HIT {} 相手との水平の距離 {}", this.hitDesc,
+                String.format("%.2f", Math.hypot(result.getLocation().x - this.aimed.getX(), result.getLocation().z - this.aimed.getZ())));
         if (result instanceof net.minecraft.world.phys.EntityHitResult eh) {
             eh.getEntity().hurt(this.damageSources().mobProjectile(this, this.getOwner() instanceof LivingEntity o ? o : null), DIRECT_DAMAGE);
         }

@@ -5,6 +5,7 @@ import com.yayuy.overgrownvegetation.entity.flyer.FlightBody;
 import com.yayuy.overgrownvegetation.entity.flyer.SkyFlyer;
 import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
 import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.monster.Monster;
@@ -141,6 +142,8 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
     @org.jetbrains.annotations.Nullable
     private net.minecraft.world.entity.LivingEntity diveTarget;
     private double diveSpeed, dvx, dvy, dvz;
+    /** 相手の速さ(位置の差をならしたもの。ブロック/tick)と前の位置。先回りに使う(サーバーのプレイヤーは deltaMovement が 0 なので位置から出す)。 */
+    private double tvx, tvz, tpx = Double.NaN, tpz;
 
     private static final RawAnimation DIVE_WINDUP_A = RawAnimation.begin().thenPlayAndHold("dive_windup");
     private static final RawAnimation DIVE_A = RawAnimation.begin().thenLoop("dive");
@@ -384,6 +387,8 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
         this.dive = DIVE_WINDUP_P;
         this.diveTicks = 0;
         this.diveTarget = t;
+        this.tpx = Double.NaN;
+        this.tvx = this.tvz = 0.0D;
         this.diveSpeed = WINDUP_SPEED;
         this.entityData.set(DATA_DIVE, (byte) this.dive);
         this.entityData.set(DATA_DIVE_TARGET, t.getId());
@@ -407,6 +412,7 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
         this.diveTicks++;
         net.minecraft.world.entity.LivingEntity t = this.diveTarget;
         boolean lost = t == null || !validTarget(t);
+        if (!lost) trackTarget(t);
         switch (this.dive) {
             case DIVE_WINDUP_P -> {
                 // 列を外れて傾きながら相手へ向き直る(叫び)。高さは保つ
@@ -426,8 +432,10 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
                     setDive(DIVE_RECOVER_P);
                     break;
                 }
-                // 相手の頭上 RELEASE_ABOVE へまっすぐ、だんだん速く
-                double rx = t.getX() - this.getX(), ry = t.getEyeY() + RELEASE_ABOVE - this.getY(), rz = t.getZ() - this.getZ();
+                // 相手の先回りの位置の頭上 RELEASE_ABOVE へまっすぐ、だんだん速く(着くまで + 爆弾が落ちる間に相手が進む分だけ先へ)
+                double lead = Math.min(LEAD_MAX, Math.sqrt(Math.pow(t.getX() - this.getX(), 2) + Math.pow(t.getEyeY() + RELEASE_ABOVE - this.getY(), 2)
+                        + Math.pow(t.getZ() - this.getZ(), 2)) / Math.max(this.diveSpeed, 0.3D) + BOMB_AT + FALL_LEAD);
+                double rx = t.getX() + this.tvx * lead - this.getX(), ry = t.getEyeY() + RELEASE_ABOVE - this.getY(), rz = t.getZ() + this.tvz * lead - this.getZ();
                 double d = Math.sqrt(rx * rx + ry * ry + rz * rz);
                 this.diveSpeed = Math.min(DIVE_SPEED, this.diveSpeed + DIVE_ACCEL);
                 double s = Math.min(this.diveSpeed, d);
@@ -479,10 +487,29 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
         this.body.turnRate = 0.0D;
     }
 
-    /** 翼の裏の胞子嚢から爆弾を放す(真下へ、今の速さの半分を持って落ちる)。 */
+    /**
+     * 翼の裏の胞子嚢から爆弾を放す。着く所を逆算して初速を決める(11-16 ユーザー「狙いが下手・着く所を計算できていない」):
+     * 爆弾の落ち方(毎 tick 位置 += 速さ → 速さ × 0.99・下へ 0.03)をそのまま数えて、相手の体の高さまで落ちる tick n を出し、
+     * n tick 後の相手の位置(今の速さで先回り)へ着く横の初速を与える。下への初速は {@link #BOMB_VY}。横の初速は {@link #BOMB_HMAX} まで。
+     * 相手を見失っていれば真下へ落とす。
+     */
     private void dropBomb(net.minecraft.server.level.ServerLevel sl) {
-        VelophyllBomb b = new VelophyllBomb(sl, this, this.position().add(0.0D, 0.2D, 0.0D));
-        b.setDeltaMovement(this.dvx * 0.5D, Math.min(this.dvy, 0.0D) * 0.5D - 0.2D, this.dvz * 0.5D);
+        Vec3 p = this.position().add(0.0D, 0.2D, 0.0D);
+        VelophyllBomb b = new VelophyllBomb(sl, this, p);
+        net.minecraft.world.entity.LivingEntity t = this.diveTarget;
+        double[] v0 = new double[3];
+        if (t != null && t.isAlive()) {
+            aimBomb(p, t.getX(), t.getY() + t.getBbHeight() * 0.5D, t.getZ(), this.tvx, this.tvz, v0);
+        } else {
+            v0[1] = BOMB_VY;
+        }
+        b.setDeltaMovement(v0[0], v0[1], v0[2]);
+        b.aimed = t;
+        if (DEV && this.hasCustomName() && this.getCustomName().getString().contains("oldaim")) {
+            // 確かめ用(開発用クライアントだけ): 11-16 の直しの前の放し方(今の速さの半分 + 下へ 0.2・自分の翼にも当たる)
+            b.setDeltaMovement(this.dvx * 0.5D, Math.min(this.dvy, 0.0D) * 0.5D - 0.2D, this.dvz * 0.5D);
+            b.oldAim = true;
+        }
         sl.addFreshEntity(b);
         bombsDropped++;
         lastBombAt = b.position();
@@ -492,6 +519,48 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
 
     private static final boolean DEV = Boolean.getBoolean("ov.devbridge");
     private static final org.slf4j.Logger LOG = com.mojang.logging.LogUtils.getLogger();
+
+    /** 爆弾の下への初速・横の初速の上限(ブロック/tick)・落ちる tick の上限【仮】。弾の重さ・空気の抵抗は {@code ThrowableProjectile} と同じ値。 */
+    public static final double BOMB_VY = -0.3D, BOMB_HMAX = 1.5D, BOMB_GRAVITY = 0.03D, BOMB_DRAG = 0.99D;
+    static final int BOMB_MAX_TICKS = 60;
+    /** 急降下の先回り: 爆弾が落ちる間の見込み(tick)と、先回りの上限(tick)【仮】。 */
+    static final double FALL_LEAD = 10.0D, LEAD_MAX = 60.0D;
+
+    /**
+     * p から放した爆弾が (tx, ty, tz)(速さ tvx, tvz で動く相手)に着く初速を out へ。素の計算(GameTest からも呼ぶ)。
+     * 下への初速は {@link #BOMB_VY} に決め、ty まで落ちる tick n を数えてから、横は n tick で相手の n tick 後の位置へ着く速さ。
+     */
+    public static void aimBomb(Vec3 p, double tx, double ty, double tz, double tvx, double tvz, double[] out) {
+        double y = p.y, vy = BOMB_VY, sum = 0.0D, k = 1.0D;
+        int n = 0;
+        while (n < BOMB_MAX_TICKS) {
+            sum += k;   // 横の進み = 初速 × (1 + 0.99 + 0.99² + …)
+            k *= BOMB_DRAG;
+            y += vy;
+            vy = vy * BOMB_DRAG - BOMB_GRAVITY;
+            n++;
+            if (y <= ty) break;
+        }
+        double hx = (tx + tvx * n - p.x) / sum, hz = (tz + tvz * n - p.z) / sum;
+        double h = Math.sqrt(hx * hx + hz * hz);
+        if (h > BOMB_HMAX) {
+            hx *= BOMB_HMAX / h;
+            hz *= BOMB_HMAX / h;
+        }
+        out[0] = hx;
+        out[1] = BOMB_VY;
+        out[2] = hz;
+    }
+
+    /** 相手の速さを位置の差から(ならして)出す。 */
+    private void trackTarget(net.minecraft.world.entity.LivingEntity t) {
+        if (!Double.isNaN(this.tpx)) {
+            this.tvx = Mth.lerp(0.5D, this.tvx, t.getX() - this.tpx);
+            this.tvz = Mth.lerp(0.5D, this.tvz, t.getZ() - this.tpz);
+        }
+        this.tpx = t.getX();
+        this.tpz = t.getZ();
+    }
 
     /** 計測・テスト用: 放した爆弾の数(サーバー全体)。 */
     public static volatile int bombsDropped;

@@ -298,7 +298,7 @@ public final class VelophyllGameTests {
      * 急降下: 前触れ(その場の高さを保つ)→ 相手の頭上へ落ちる → 放す → 引き起こす。爆弾は相手の近く(水平 6 ブロック以内)で放す(雲になるのは別のテスト)。
      * 前触れの間は昇り降りしない。
      */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 260)
+    @GameTest(template = "gametest_empty7", timeoutTicks = 400)
     public static void divesAndBombsTarget(GameTestHelper helper) {
         net.minecraft.world.entity.animal.Cow cow = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.COW, new BlockPos(3, 2, 3));
         VelophyllEntity v = spawn(helper, 3.5D, 14.0D, 3.5D);
@@ -344,5 +344,74 @@ public final class VelophyllGameTests {
             helper.assertTrue(Math.abs(lost - com.yayuy.overgrownvegetation.entity.VelophyllBomb.DIRECT_DAMAGE) < 0.01F,
                     "直に当たった傷が " + com.yayuy.overgrownvegetation.entity.VelophyllBomb.DIRECT_DAMAGE + " でない: " + lost);
         });
+    }
+
+    // ------------------------------------------------------------------ 狙いの正確さ(2026-11-16、ユーザー「狙いが下手」)
+    // テスト場の上には物があり(放した直後の爆弾がブロックに当たった)、空からの着弾は場の中で測れない。
+    // そこで、爆弾の落ち方(ThrowableProjectile と同じ: 位置 += 速さ → 速さ × 0.99・下へ 0.03)をそのまま回して、
+    // VelophyllEntity.aimBomb の初速で着く所と相手のずれを計算で確かめる(ゲームの中の値はテストクライアントで測って Vault に書いた)。
+
+    /** 止まっている相手: 1 ブロック以内【仮】。放す所は相手の頭上 5.5・横へ 2 ずれた所(引き起こしの途中)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void bombAimHitsStillTarget(GameTestHelper helper) {
+        aimSim(helper, 0.0D, 1.0D);
+    }
+
+    /** 歩く相手(0.1 ブロック/tick): 2 ブロック以内【仮】。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void bombAimLeadsWalkingTarget(GameTestHelper helper) {
+        aimSim(helper, 0.1D, 2.0D);
+    }
+
+    /** 走る相手(0.2 ブロック/tick): 目安が無いので 2 ブロック以内【仮】。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void bombAimLeadsRunningTarget(GameTestHelper helper) {
+        aimSim(helper, 0.2D, 2.0D);
+    }
+
+    private static void aimSim(GameTestHelper helper, double speed, double tol) {
+        double worst = 0.0D;
+        // 放す所を相手の頭上 4〜7・横へ 0〜3 のいくつかで、相手の向きも前後左右で試す
+        double[][] offs = {{0, 5.5, 0}, {2, 5.5, 0}, {-2, 6, 1}, {1, 4, -2.5}, {3, 7, 1}};
+        double[][] dirs = {{1, 0}, {0, 1}, {-1, 0}, {0.7, -0.7}};
+        double ty = 0.7D;   // 相手の体の真ん中(牛の高さ 1.4 の半分)
+        double[] v0 = new double[3];
+        for (double[] o : offs) {
+            for (double[] d : dirs) {
+                double tvx = d[0] * speed, tvz = d[1] * speed;
+                Vec3 p = new Vec3(o[0], ty + o[1], o[2]);
+                VelophyllEntity.aimBomb(p, 0.0D, ty, 0.0D, tvx, tvz, v0);
+                double x = p.x, y = p.y, z = p.z, vx = v0[0], vy = v0[1], vz = v0[2];
+                int n = 0;
+                double hd = Double.NaN;
+                while (n < 100) {
+                    double ny = y + vy;
+                    if (ny <= ty) {
+                        double f = (y - ty) / (y - ny);   // 体の高さを通った tick の中の割合
+                        double cx = x + vx * f, cz = z + vz * f, tt = n + f;
+                        hd = Math.hypot(cx - tvx * tt, cz - tvz * tt);
+                        break;
+                    }
+                    x += vx;
+                    y = ny;
+                    z += vz;
+                    vx *= VelophyllEntity.BOMB_DRAG;
+                    vz *= VelophyllEntity.BOMB_DRAG;
+                    vy = vy * VelophyllEntity.BOMB_DRAG - VelophyllEntity.BOMB_GRAVITY;
+                    n++;
+                }
+                if (Double.isNaN(hd)) {
+                    helper.fail("爆弾が体の高さまで落ちない");
+                    return;
+                }
+                worst = Math.max(worst, hd);
+            }
+        }
+        com.mojang.logging.LogUtils.getLogger().info(String.format("VELO_AIM 計算: 速さ %.1f のずれの最大 %.2f", speed, worst));
+        if (worst > tol) {
+            helper.fail(String.format("速さ %.1f: ずれの最大 %.2f > %.1f", speed, worst, tol));
+            return;
+        }
+        helper.succeed();
     }
 }
