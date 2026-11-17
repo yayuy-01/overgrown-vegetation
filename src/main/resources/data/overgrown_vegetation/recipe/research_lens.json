@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [" G ", "CIC", " B "],
+  "key": {
+    "G": { "item": "minecraft:glass" },
+    "C": { "item": "overgrown_vegetation:twisted_cord" },
+    "I": { "item": "minecraft:copper_ingot" },
+    "B": { "item": "minecraft:glass_bottle" }
+  },
+  "result": { "id": "overgrown_vegetation:research_lens", "count": 1 }
+}

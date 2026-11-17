@@ -1,0 +1,102 @@
+{
+  "_comment": "研究ツリー(2026-11-17 強くなる道 決定 20・22・23)。節を開くのに払うのは 持ち帰った標本・地脈の力・時間(決定 20)。数・名前・並びはすべて【仮】。名前と説明は lang の research.overgrown_vegetation.<節>.name / .desc。tiers の fe_per_tick × ticks が 1 節の地脈の力(節に fe_per_tick・ticks を書けば上書き)。instruments = その段の研究に要る器具(研究台から instrument_radius ブロック以内に置く。決定 23)。bench_buffer = 研究台にためられる地脈の力(離れていた間はこの蓄えの分だけ進む)。unlocks = 開くまで作業台で作れない作り方の id。段 3 の標本はまだこの版に無い(森の器官と一緒に作る)。",
+  "tiers": {
+    "0": { "fe_per_tick": 0, "ticks": 0, "instruments": [] },
+    "1": { "fe_per_tick": 10, "ticks": 2000, "instruments": [] },
+    "2": { "fe_per_tick": 25, "ticks": 6000, "instruments": ["overgrown_vegetation:research_lens"] },
+    "3": { "fe_per_tick": 60, "ticks": 12000, "instruments": ["overgrown_vegetation:research_lens", "overgrown_vegetation:ley_resonator"] }
+  },
+  "instrument_radius": 4,
+  "bench_buffer": 400000,
+  "bench_max_receive": 2000,
+  "nodes": {
+    "bench": {
+      "tier": 0, "lane": "material", "col": 0, "icon": "overgrown_vegetation:research_bench",
+      "requires": [], "specimens": [], "unlocks": []
+    },
+    "t1_fiber": {
+      "tier": 1, "lane": "material", "col": 0, "icon": "overgrown_vegetation:plant_fiber",
+      "requires": ["bench"],
+      "specimens": [ { "item": "overgrown_vegetation:plant_fiber", "count": 4 } ],
+      "unlocks": ["overgrown_vegetation:grass_cloth", "overgrown_vegetation:twisted_cord"]
+    },
+    "t1_armor": {
+      "tier": 1, "lane": "armor", "col": 1, "icon": "overgrown_vegetation:expedition_hood",
+      "requires": ["t1_fiber"],
+      "specimens": [ { "item": "overgrown_vegetation:plant_fiber", "count": 4 }, { "item": "overgrown_vegetation:overgrown_leather", "count": 2 } ],
+      "unlocks": ["overgrown_vegetation:expedition_hood", "overgrown_vegetation:expedition_coat", "overgrown_vegetation:expedition_trousers", "overgrown_vegetation:expedition_boots", "overgrown_vegetation:research_lens"]
+    },
+    "t1_knife": {
+      "tier": 1, "lane": "melee", "col": 0, "icon": "overgrown_vegetation:machete",
+      "requires": ["bench"],
+      "specimens": [ { "item": "overgrown_vegetation:hard_bark_shard", "count": 2 } ],
+      "unlocks": ["overgrown_vegetation:machete"]
+    },
+    "t1_bow": {
+      "tier": 1, "lane": "ranged", "col": 1, "icon": "overgrown_vegetation:spore_bow",
+      "requires": ["t1_fiber"],
+      "specimens": [ { "item": "overgrown_vegetation:dormancy_sac", "count": 2 }, { "item": "overgrown_vegetation:plant_fiber", "count": 2 } ],
+      "unlocks": ["overgrown_vegetation:spore_bow", "overgrown_vegetation:spore_arrow"]
+    },
+    "t2_ore": {
+      "tier": 2, "lane": "material", "col": 0, "icon": "overgrown_vegetation:raw_fungal_metal",
+      "requires": ["t1_armor"],
+      "specimens": [ { "item": "overgrown_vegetation:raw_fungal_metal", "count": 3 } ],
+      "unlocks": []
+    },
+    "t2_armor": {
+      "tier": 2, "lane": "armor", "col": 1, "icon": "overgrown_vegetation:fungal_plate_chestplate",
+      "requires": ["t2_ore"],
+      "specimens": [ { "item": "overgrown_vegetation:raw_fungal_metal", "count": 2 }, { "item": "overgrown_vegetation:spore_eater_mushroom", "count": 3 } ],
+      "unlocks": ["overgrown_vegetation:fungal_plate_helmet", "overgrown_vegetation:fungal_plate_chestplate", "overgrown_vegetation:fungal_plate_leggings", "overgrown_vegetation:fungal_plate_boots", "overgrown_vegetation:ley_resonator"]
+    },
+    "t2_sword": {
+      "tier": 2, "lane": "melee", "col": 1, "icon": "overgrown_vegetation:greatsword",
+      "requires": ["t2_ore", "t1_knife"],
+      "specimens": [ { "item": "overgrown_vegetation:raw_fungal_metal", "count": 2 }, { "item": "overgrown_vegetation:hard_bark_shard", "count": 4 } ],
+      "unlocks": ["overgrown_vegetation:greatsword"]
+    },
+    "t2_xbow": {
+      "tier": 2, "lane": "ranged", "col": 1, "icon": "overgrown_vegetation:piercing_crossbow",
+      "requires": ["t2_ore", "t1_bow"],
+      "specimens": [ { "item": "overgrown_vegetation:spore_eater_mushroom", "count": 2 }, { "item": "overgrown_vegetation:raw_fungal_metal", "count": 1 } ],
+      "unlocks": ["overgrown_vegetation:piercing_crossbow"]
+    },
+    "t3_crystal": {
+      "tier": 3, "lane": "material", "col": 0, "icon": "minecraft:amethyst_shard",
+      "requires": ["t2_armor"],
+      "specimens": [ { "item": "overgrown_vegetation:root_crystal", "count": 2 } ],
+      "unlocks": []
+    },
+    "t3_armor": {
+      "tier": 3, "lane": "armor", "col": 1, "icon": "minecraft:chainmail_chestplate",
+      "requires": ["t3_crystal"],
+      "specimens": [ { "item": "overgrown_vegetation:organ_tendon", "count": 3 }, { "item": "overgrown_vegetation:root_crystal", "count": 1 } ],
+      "unlocks": []
+    },
+    "t3_thunder": {
+      "tier": 3, "lane": "melee", "col": 1, "icon": "minecraft:lightning_rod",
+      "requires": ["t3_crystal", "t2_sword"],
+      "specimens": [ { "item": "overgrown_vegetation:root_crystal", "count": 1 }, { "item": "overgrown_vegetation:raw_fungal_metal", "count": 2 } ],
+      "unlocks": []
+    },
+    "t3_heat": {
+      "tier": 3, "lane": "melee", "col": 2, "icon": "minecraft:blaze_powder",
+      "requires": ["t3_crystal", "t2_sword"],
+      "specimens": [ { "item": "overgrown_vegetation:spore_sac_membrane", "count": 2 }, { "item": "overgrown_vegetation:root_crystal", "count": 1 } ],
+      "unlocks": []
+    },
+    "t3_staff": {
+      "tier": 3, "lane": "ranged", "col": 1, "icon": "minecraft:end_rod",
+      "requires": ["t3_crystal", "t2_xbow"],
+      "specimens": [ { "item": "overgrown_vegetation:root_crystal", "count": 2 }, { "item": "overgrown_vegetation:organ_tendon", "count": 1 } ],
+      "unlocks": []
+    },
+    "t3_tube": {
+      "tier": 3, "lane": "ranged", "col": 2, "icon": "minecraft:fire_charge",
+      "requires": ["t3_crystal", "t2_xbow"],
+      "specimens": [ { "item": "overgrown_vegetation:spore_sac_membrane", "count": 3 } ],
+      "unlocks": []
+    }
+  }
+}

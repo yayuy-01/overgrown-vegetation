@@ -20,7 +20,8 @@
     "LivingEntityGenericVoiceMixin",
     "VillagerHostilesSensorMixin",
     "ServerLevelRoomInvalidateMixin",
-    "ItemStackDirtWearMixin"
+    "ItemStackDirtWearMixin",
+    "CraftingMenuResearchLockMixin"
   ],
   "client": [
     "client.SoundBufferLibraryCrushedMixin",

@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["AFA", "FLF", "AFA"],
+  "key": {
+    "A": { "item": "minecraft:amethyst_shard" },
+    "F": { "item": "overgrown_vegetation:fungal_metal_ingot" },
+    "L": { "item": "minecraft:lightning_rod" }
+  },
+  "result": { "id": "overgrown_vegetation:ley_resonator", "count": 1 }
+}

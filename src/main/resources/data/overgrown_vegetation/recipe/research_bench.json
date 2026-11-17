@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["BBB", "PCP", "P P"],
+  "key": {
+    "B": { "item": "minecraft:paper" },
+    "C": { "item": "minecraft:crafting_table" },
+    "P": { "tag": "minecraft:planks" }
+  },
+  "result": { "id": "overgrown_vegetation:research_bench", "count": 1 }
+}
