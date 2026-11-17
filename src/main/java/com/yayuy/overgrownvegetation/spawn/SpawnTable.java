@@ -223,8 +223,9 @@ public final class SpawnTable {
         triesPerPlayer = Math.max(0, or(e.triesPerPlayer, 4));
         minBlocks = Math.max(0, or(e.minBlocks, 24));
         maxBlocks = Math.max(minBlocks + 16, or(e.maxBlocks, 96));
-        countRadius = Math.max(16, or(e.countRadius, 128));
         despawnBlocks = Math.max(32, or(e.despawnBlocks, 128));
+        // 数える範囲は片付けの距離より狭くしない(11-17 夜: 72 にしていたら、72〜96 に出た空の種が上限に数えられず消えもしないで、F7 の前線で縁の G4 が上限 40 のほかに約 30 たまった)
+        countRadius = Math.max(despawnBlocks, Math.max(16, or(e.countRadius, 128)));
         skyMinAbove = Math.max(2, or(e.skyMinAbove, 12));
         skyMaxAbove = Math.max(skyMinAbove, or(e.skyMaxAbove, 28));
         caveMinDepth = Math.max(2, or(e.caveMinDepth, 8));

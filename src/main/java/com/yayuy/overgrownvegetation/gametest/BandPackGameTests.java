@@ -109,6 +109,29 @@ public final class BandPackGameTests {
         }
     }
 
+    /** 数える範囲は片付けの距離より狭くない(11-17 夜: 狭いと、間に出た個体が上限にも片付けにも入らずたまった)。片付けの距離のすぐ内の縁の個体は数える。 */
+    @GameTest(template = "gametest_empty7", batch = "band_count", timeoutTicks = 20)
+    public static void countCoversDespawnDistance(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        SpawnTable t = DesignData.spawns();
+        helper.assertTrue(t.countRadius >= t.despawnBlocks, "数える範囲 " + t.countRadius + " が片付けの距離 " + t.despawnBlocks + " より狭い");
+        Mob z = net.minecraft.world.entity.EntityType.ZOMBIE.create(level);
+        BlockPos at = helper.absolutePos(new BlockPos(3, 2, 3));
+        z.moveTo(at.getX() + 0.5D, at.getY(), at.getZ() + 0.5D, 0.0F, 0.0F);
+        z.addTag(EnemySpawns.EDGE_TAG);
+        z.addTag("ov_spawn_g1");
+        level.addFreshEntity(z);
+        try {
+            // プレイヤーが片付けの距離のすぐ内(水平)にいるとき、この個体は消えない = 上限に数えるはず
+            double d = t.despawnBlocks - 2.0D;
+            int[] c = EnemySpawns.count(level, z.getX() + d, z.getY(), z.getZ(), t.countRadius);
+            helper.assertTrue(c[1] >= 1, "片付けの距離の内の縁の個体を数えない(距離 " + d + ")");
+            helper.succeed();
+        } finally {
+            z.discard();
+        }
+    }
+
     /** 群れのまとめ湧き: アルボラ 3〜5 + ストロビラ 1〜2 を 1 か所に置き、アルボラが先導役の群れになる。上限は 1 体ずつ数え、余りの分だけ置く。 */
     @GameTest(template = "gametest_empty7", batch = "band_pack", timeoutTicks = 20)
     public static void packSpawnsTogetherWithArboraLeading(GameTestHelper helper) {
