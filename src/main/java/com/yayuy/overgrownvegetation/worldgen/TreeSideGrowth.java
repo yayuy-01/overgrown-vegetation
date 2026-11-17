@@ -74,6 +74,9 @@ public final class TreeSideGrowth {
         }
 
         // 下面の候補: 腕・枝(幹の列でない原木)と葉で、真下が空気のもの。縁 = 横のどこかも空気。
+        // 2026-11-18 大群の軽量化 B: 巨大樹は葉 20 万マス × 5 回読むので、チャンクを持ち回す読み手で読む(答えは同じ。サーバーの 1 回 150 ms の止まり)
+        com.yayuy.overgrownvegetation.util.ChunkCachedReader reader =
+                level instanceof net.minecraft.world.level.Level lv ? new com.yayuy.overgrownvegetation.util.ChunkCachedReader(lv) : null;
         List<BlockPos> armUnder = new ArrayList<>();
         List<BlockPos> edgeUnder = new ArrayList<>();
         for (LongIterator it = logs.iterator(); it.hasNext(); ) {
@@ -81,15 +84,15 @@ public final class TreeSideGrowth {
             if (trunkColumns.contains(column(BlockPos.getX(p), BlockPos.getZ(p)))) {
                 continue;
             }
-            addUnderside(level, BlockPos.of(p), armUnder, edgeUnder);
+            addUnderside(level, reader, BlockPos.of(p), armUnder, edgeUnder);
         }
         List<BlockPos> leafUnder = new ArrayList<>();
         if (leaves != null) {
             for (LongIterator it = leaves.iterator(); it.hasNext(); ) {
-                addUnderside(level, BlockPos.of(it.nextLong()), leafUnder, edgeUnder);
+                addUnderside(level, reader, BlockPos.of(it.nextLong()), leafUnder, edgeUnder);
             }
         } else {
-            scanLeaves(level, logs, leafUnder, edgeUnder);
+            scanLeaves(level, reader, logs, leafUnder, edgeUnder);
         }
         int scale = giant ? GIANT_SCALE : 1;
 
@@ -145,22 +148,27 @@ public final class TreeSideGrowth {
         return ((long) x << 32) | (z & 0xffffffffL);
     }
 
-    private static void addUnderside(LevelAccessor level, BlockPos host, List<BlockPos> under, List<BlockPos> edge) {
+    private static void addUnderside(LevelAccessor level, @Nullable com.yayuy.overgrownvegetation.util.ChunkCachedReader reader, BlockPos host,
+                                     List<BlockPos> under, List<BlockPos> edge) {
         BlockPos below = host.below();
-        if (!level.getBlockState(below).isAir()) {
+        if (!state(level, reader, below).isAir()) {
             return;
         }
         under.add(host);
         for (Direction d : SIDES) {
-            if (level.getBlockState(host.relative(d)).isAir()) {
+            if (state(level, reader, host.relative(d)).isAir()) {
                 edge.add(host);
                 return;
             }
         }
     }
 
+    private static BlockState state(LevelAccessor level, @Nullable com.yayuy.overgrownvegetation.util.ChunkCachedReader reader, BlockPos pos) {
+        return reader != null ? reader.getBlockState(pos.getX(), pos.getY(), pos.getZ()) : level.getBlockState(pos);
+    }
+
     /** 封印木など葉の座標を持たない木: 原木を包む箱(横 4・上 4 広げる)の葉を探す。 */
-    private static void scanLeaves(LevelAccessor level, LongCollection logs, List<BlockPos> under, List<BlockPos> edge) {
+    private static void scanLeaves(LevelAccessor level, @Nullable com.yayuy.overgrownvegetation.util.ChunkCachedReader reader, LongCollection logs, List<BlockPos> under, List<BlockPos> edge) {
         int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
         for (LongIterator it = logs.iterator(); it.hasNext(); ) {
@@ -176,8 +184,8 @@ public final class TreeSideGrowth {
         for (int x = minX - 4; x <= maxX + 4; x++) {
             for (int z = minZ - 4; z <= maxZ + 4; z++) {
                 for (int y = minY + 2; y <= maxY + 4; y++) {
-                    if (isLeafLike(level.getBlockState(m.set(x, y, z)))) {
-                        addUnderside(level, m.immutable(), under, edge);
+                    if (isLeafLike(state(level, reader, m.set(x, y, z)))) {
+                        addUnderside(level, reader, m.immutable(), under, edge);
                     }
                 }
             }

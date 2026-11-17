@@ -443,8 +443,10 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         final BlockState hiveShellState;
         final BlockState hiveBarkState;
         final BlockState leafState;
-        private final LongOpenHashSet trunkSet = new LongOpenHashSet(1 << 15);
-        private final LongOpenHashSet leafSet = new LongOpenHashSet(1 << 14);
+        // 2026-11-18 大群の軽量化 B: 本物の巨大樹は幹 13 万・葉 20 万マスほどになり、小さく始めると何度も作り直し(再ハッシュ)が起きていた。
+        // 初めから 26 万件ぶん取る(中身は出し入れだけで順には回さないので、形は変わらない)
+        private final LongOpenHashSet trunkSet = new LongOpenHashSet(1 << 18);
+        private final LongOpenHashSet leafSet = new LongOpenHashSet(1 << 18);
         /** 追加中はすべての幹ブロック。{@link #partitionTrunk} 後は「外殻(原木)」だけになる。 */
         final LongArrayList trunk = new LongArrayList();
         /** {@link #partitionTrunk} 後、空気に触れない内側の幹ブロック。 */
@@ -2250,6 +2252,38 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                 || s.is(Blocks.CLAY) || s.is(Blocks.SANDSTONE) || s.is(Blocks.RED_SANDSTONE)
                 || s.is(Blocks.CALCITE) || s.is(Blocks.DRIPSTONE_BLOCK)
                 || s.is(com.yayuy.overgrownvegetation.ModTags.CORRUPTED);
+    }
+
+    /**
+     * 確かめ用(2026-11-18 大群の軽量化 B: 計画を速くしても形が 1 ブロックも変わらないか): 本物と同じ道({@link #buildPlan})で
+     * 種 {@code seed} の計画を作り、計画のすべての一覧(LongArrayList の欄。名前順)と long の欄を順番どおりに混ぜた指紋・かかった ns・
+     * ブロックの数を返す。ワールドには置かない(地形は読む)。
+     */
+    public static long[] planDigestForTests(WorldGenLevel level, BlockPos origin, Config config, long seed) {
+        long t0 = System.nanoTime();
+        Plan plan = buildPlan(level, RandomSource.create(seed), config, origin);
+        long nanos = System.nanoTime() - t0;
+        long h = 1125899906842597L;
+        long blocks = 0;
+        java.lang.reflect.Field[] fields = Plan.class.getDeclaredFields();
+        java.util.Arrays.sort(fields, java.util.Comparator.comparing(java.lang.reflect.Field::getName));
+        try {
+            for (java.lang.reflect.Field f : fields) {
+                if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
+                f.setAccessible(true);
+                if (f.getType() == LongArrayList.class) {
+                    LongArrayList list = (LongArrayList) f.get(plan);
+                    h = 31 * h + f.getName().hashCode();
+                    for (int i = 0; i < list.size(); i++) h = 31 * h + list.getLong(i);
+                    blocks += list.size();
+                } else if (f.getType() == long.class || f.getType() == int.class) {
+                    h = 31 * h + ((Number) f.get(plan)).longValue();
+                }
+            }
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException(e);
+        }
+        return new long[]{h, nanos, blocks};
     }
 
     /**
