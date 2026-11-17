@@ -75,6 +75,8 @@ public final class AtmosphereTable {
         public AtmosphereGiantLife.Json giantLife;
         /** 洞窟の小ネタ(11-07、{@link AtmosphereCaveLife})。 */
         public AtmosphereCaveLife.Json caveLife;
+        /** 見た目だけの小さな生き物(11-17、{@link AtmosphereCritters})。 */
+        public AtmosphereCritters.Json smallCritters;
         /** 巨大樹の胞子の柱・夜の地脈の光(11-06 改善案 ①③、{@link AtmosphereGiantTree})。 */
         public AtmosphereGiantTree.Json giantTree;
         /** G4 胞子の風・G5 光る胞子の夜(11-08、{@link AtmosphereEvents})。 */
@@ -707,6 +709,7 @@ public final class AtmosphereTable {
     private final AtmosphereLife.CreakParams creak;
     private final AtmosphereGiantLife.Params giantLife;
     private final AtmosphereCaveLife.Params caveLife;
+    private final AtmosphereCritters.Params smallCritters;
     private final AtmosphereGiantTree.Params giantTree;
     private final AtmosphereEvents.GaleParams gale;
     private final AtmosphereEvents.GlowNightParams glowNight;
@@ -824,6 +827,7 @@ public final class AtmosphereTable {
         this.creak = AtmosphereLife.CreakParams.of(j != null ? j.creak : null);
         this.giantLife = AtmosphereGiantLife.Params.of(j != null ? j.giantLife : null);
         this.caveLife = AtmosphereCaveLife.Params.of(j != null ? j.caveLife : null);
+        this.smallCritters = AtmosphereCritters.Params.of(j != null ? j.smallCritters : null);
         this.giantTree = AtmosphereGiantTree.Params.of(j != null ? j.giantTree : null);
         this.gale = AtmosphereEvents.GaleParams.of(j != null ? j.gale : null);
         this.glowNight = AtmosphereEvents.GlowNightParams.of(j != null ? j.glowNight : null);
@@ -1329,6 +1333,11 @@ public final class AtmosphereTable {
     /** 洞窟の小ネタ(節 caveLife、11-07)。 */
     public AtmosphereCaveLife.Params caveLife() {
         return caveLife;
+    }
+
+    /** 見た目だけの小さな生き物(節 smallCritters、11-17)。 */
+    public AtmosphereCritters.Params smallCritters() {
+        return smallCritters;
     }
 
     /** 巨大樹のまわりの生き物と音(節 giantLife、11-06 改善案 ⑤)。 */

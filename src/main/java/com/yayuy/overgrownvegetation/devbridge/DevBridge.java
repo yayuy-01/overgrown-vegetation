@@ -861,6 +861,33 @@ public final class DevBridge {
                 }
                 log(sb.toString());
             }
+            case "critters" -> {
+                // 見た目だけの小さな生き物(client/atmosphere/SmallCritters、11-17)。critters status / near <種|all> / only <種|all> /
+                // force biome|time|still on|off / live <0〜1|off>(升の賑わいを差し替え)。返事は CRITTERS …
+                String[] p = arg.trim().split("\\s+");
+                if (mc.level == null || mc.player == null) return "ワールドが無い";
+                String res;
+                switch (p[0]) {
+                    case "near" -> res = com.yayuy.overgrownvegetation.client.atmosphere.SmallCritters.devNearest(p.length > 1 ? p[1] : "all",
+                            mc.player.getX(), mc.player.getEyeY(), mc.player.getZ());
+                    case "only" -> res = "only " + com.yayuy.overgrownvegetation.client.atmosphere.SmallCritters.devOnly(p.length > 1 ? p[1] : "all");
+                    case "force" -> res = p.length < 3 ? "critters force biome|time|still on|off"
+                            : com.yayuy.overgrownvegetation.client.atmosphere.SmallCritters.devForce(p[1], p[2].equals("on"));
+                    case "live" -> {
+                        if (p.length > 1 && !p[1].equals("off")) {
+                            com.yayuy.overgrownvegetation.client.atmosphere.EcoCellsClient.debugOverride(Float.parseFloat(p[1]));
+                        } else {
+                            com.yayuy.overgrownvegetation.client.atmosphere.EcoCellsClient.clearDebugOverride();
+                        }
+                        res = "live " + com.yayuy.overgrownvegetation.client.atmosphere.EcoCellsClient.liveliness(mc.player.getX(), mc.player.getZ());
+                    }
+                    default -> res = com.yayuy.overgrownvegetation.client.atmosphere.SmallCritters.devDescribe() + " 賑わい "
+                            + com.yayuy.overgrownvegetation.client.atmosphere.EcoCellsClient.liveliness(mc.player.getX(), mc.player.getZ())
+                            + " 届いた " + com.yayuy.overgrownvegetation.client.atmosphere.EcoCellsClient.received();
+                }
+                log("CRITTERS " + res);
+                return null;
+            }
             case "lizard" -> {
                 // 幹のトカゲ(client/atmosphere/TrunkLizards)を決めた木部のブロックの面に 1 匹置く(逃げ・湧きを止める)。lizard <x y z> <nx> <nz> [向き°] / lizard off(2026-11-07 見え方の前後)
                 String[] p = arg.trim().split("\\s+");

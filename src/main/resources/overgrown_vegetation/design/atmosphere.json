@@ -704,6 +704,42 @@
       "volume": 0.8
     }
   },
+  "smallCritters": {
+    "_comment": "見た目だけの小さな生き物(2026-11-17 ユーザー決定、client/atmosphere/SmallCritters)。ユーザーが決めたのは: 種は 10・出るのは過繁茂だけ・数は升の G2・G3 の頭数を映す・近づいたときの反応は種ごと・起きるのは食べる/食べられるの演出だけ。ここの数値と食物網の組み合わせはすべて仮決め。range = 出す距離(ブロック)/ fadeHours = 時刻の端のなじませ(時)/ respawnSeconds = 逃げた虫が戻るまで / handMoths = 明かりを持つと手元に寄る蛾の数・handMothSeconds = 揃うまで / lightPullDistance・lightPull = ホタルが明かりへ寄る距離と割合 / eatReach = 口元からの届く距離・eatCooldownSeconds = 同じ Mob が次に食べるまで。species の counts = 同時に出す所の数(重さの段 高・中・低)・chance = 升(8 ブロック)に居る確率・fromHour〜toHour = 出る時刻(from > to は夜をまたぐ)・react = 反応する距離・slotSeconds = 入れ替わる間。prey = 食べる側のエンティティ id → 食べられる種。洞窟のカマドウマは caveLife.crickets(数だけ升の賑わいに合わせる)。",
+    "enabled": true,
+    "range": 28,
+    "fadeHours": 0.5,
+    "respawnSeconds": 20,
+    "handMoths": 3,
+    "handMothSeconds": 8,
+    "lightPullDistance": 14,
+    "lightPull": 0.6,
+    "eatReach": 1.0,
+    "eatCooldownSeconds": 3,
+    "species": {
+      "damselfly": { "enabled": true, "counts": [6, 4, 2], "chance": 0.5, "fromHour": 8, "toHour": 17, "react": 3, "slotSeconds": 120 },
+      "mayfly": { "enabled": true, "counts": [6, 4, 2], "chance": 0.7, "fromHour": 16.5, "toHour": 19.5, "react": 2.5, "slotSeconds": 150 },
+      "moth": { "enabled": true, "counts": [6, 4, 2], "chance": 1.0, "fromHour": 19, "toHour": 5, "react": 0, "slotSeconds": 180 },
+      "firefly": { "enabled": true, "counts": [14, 9, 4], "chance": 0.75, "fromHour": 19.5, "toHour": 4, "react": 0, "slotSeconds": 150 },
+      "spider": { "enabled": true, "counts": [8, 5, 2], "chance": 0.5, "fromHour": 0, "toHour": 24, "react": 1.5, "slotSeconds": 300 },
+      "beetle": { "enabled": true, "counts": [8, 5, 2], "chance": 0.8, "fromHour": 0, "toHour": 24, "react": 2.5, "slotSeconds": 240 },
+      "millipede": { "enabled": true, "counts": [10, 6, 3], "chance": 0.5, "fromHour": 0, "toHour": 24, "react": 1.5, "slotSeconds": 240 },
+      "lizard": { "enabled": true, "counts": [5, 3, 2], "chance": 1.0, "fromHour": 9, "toHour": 16, "react": 4, "slotSeconds": 300 },
+      "strider": { "enabled": true, "counts": [6, 4, 2], "chance": 0.7, "fromHour": 6, "toHour": 19.5, "react": 2.5, "slotSeconds": 200 },
+      "cave": { "enabled": true, "counts": [6, 4, 2], "chance": 0.6, "fromHour": 0, "toHour": 24, "react": 3, "slotSeconds": 240 }
+    },
+    "prey": {
+      "meganeura": ["mayfly", "damselfly", "moth"],
+      "coelurosauravus": ["spider", "moth"],
+      "hylonomus": ["beetle"],
+      "petrolacosaurus": ["beetle"],
+      "pulmonoscorpius": ["millipede"],
+      "ianthasaurus": ["lizard"],
+      "phalangiotarbus": ["lizard"],
+      "arthropleura": ["beetle", "millipede"],
+      "giant_snail": ["beetle", "millipede"]
+    }
+  },
   "caveLife": {
     "_comment": "洞窟の小ネタ(2026-11-07 ユーザー採用)。ユーザー指定は項目と向きだけ(天井の土ボタル = 青緑の冷たい光の点と短く垂れる光る糸、ゆっくり明滅・光を持って近づくと暗くなる/洞窟の口のカマドウマ = 茶色・長い脚と触角・近づくと跳ねて逃げる。設定: 洞窟の生き物も虫と爬虫類だけ、鳥は消え、コウモリは胞子に寄生されて死んだ)。数値はすべて仮決め。enabled で切れる。画質の段で数の上限(counts = 高・中・低)、羽虫の切り替え critters で両方切れる。クライアントだけの描画・素材なし・音なし。11-08 ユーザー: 土ボタルは保留(将来ネザーのバイオームで使う候補。洞窟に入れるとネザーと被るかもしれない)なので glowworms.enabled は false、コードは残す。",
     "glowworms": {

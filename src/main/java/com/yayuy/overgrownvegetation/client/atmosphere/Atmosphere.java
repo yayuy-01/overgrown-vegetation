@@ -90,6 +90,7 @@ public final class Atmosphere {
         TrunkLizards.clear();
         CaveGlowworms.clear(); // 洞窟の小ネタ(11-07)
         CaveCrickets.clear();
+        SmallCritters.clear(); // 見た目だけの小さな生き物(11-17)
         com.yayuy.overgrownvegetation.client.atmosphere.sound.GiantTreeCreakSound.stop();
         CaveLights.clear();
         FogHalos.clear();
@@ -166,6 +167,7 @@ public final class Atmosphere {
         // 洞窟の小ネタ(11-07): 天井の土ボタル・洞窟の口のカマドウマ
         guard("glowworms", () -> CaveGlowworms.tick(now, player));
         guard("crickets", () -> CaveCrickets.tick(now, player));
+        guard("smallcritters", () -> SmallCritters.tick(now, player)); // 見た目だけの小さな生き物 10 種(11-17)
         guard("giantcreak", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.GiantTreeCreakSound.tick(mc, now, player, time(0.0F)));
         guard("algae", () -> GlowAlgae.tick(now, player));
         guard("caustics", () -> WaterCaustics.tick(now, ticks));
@@ -189,6 +191,7 @@ public final class Atmosphere {
             OvergrownVegetation.LOGGER.info("Atmosphere 見え方 {} / {} / {} / {} / {}", SteamWisps.describe(), WaterSigns.describe(), GnatSwarms.describe(), GlowAlgae.describe(), TrunkRivulets.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere 巨大樹の生き物 {} / {}", CanopyGnats.describe(), TrunkLizards.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere 洞窟の小ネタ {} / {}", CaveGlowworms.describe(), CaveCrickets.describe());
+            OvergrownVegetation.LOGGER.info("Atmosphere {}", SmallCritters.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere 水中の光 {} / {} / {} / {} / {}", WaterCaustics.describe(), UnderwaterShafts.describe(), UnderwaterCritters.describe(), WaterMotes.describe(), FloatingLeaves.describe() + " " + FilmWakes.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere {}", CaveLights.describe());
             OvergrownVegetation.LOGGER.info("Atmosphere G4・G5 {} / {} / {}", SporeGale.describe(), GlowNight.describe(now), CloudShadows.describe());
@@ -305,6 +308,18 @@ public final class Atmosphere {
                 }
             });
         }
+        if (SmallCritters.glowing()) {
+            // ホタルの明滅(11-17)。足し算で光らせる。
+            guard("fireflies", () -> {
+                LifeSprites.begin(event, true);
+                try {
+                    SmallCritters.renderGlow(lvl, event.getPartialTick().getGameTimeDeltaPartialTick(false), event.getCamera().getPosition(),
+                            event.getCamera().getLeftVector(), event.getCamera().getUpVector());
+                } finally {
+                    LifeSprites.end();
+                }
+            });
+        }
         if (HollowDwellers.hasEyes()) {
             // 木の洞の目(43)。足し算で光らせる。
             guard("hollow", () -> {
@@ -356,6 +371,7 @@ public final class Atmosphere {
             CanopyGnats.render(partialTick, event.getCamera().getPosition(), left, up); // 巨大樹の傘の羽虫(11-06 ⑤)
             TrunkLizards.render(lvl, partialTick); // 幹のトカゲ(11-06 ⑤)
             CaveCrickets.render(lvl, partialTick); // 洞窟の口のカマドウマ(11-07)
+            SmallCritters.render(lvl, partialTick, event.getCamera().getPosition(), left, up); // 見た目だけの小さな生き物(11-17)
             HollowDwellers.render(left, up); // 木の洞から飛び出す虫(43)
             net.minecraft.world.phys.Vec3 cam = event.getCamera().getPosition();
             SporePools.render(lvl, partialTick, left, up, cam.x, cam.y, cam.z); // 洞窟の胞子の溜まり(地下の植生 2・U6)
