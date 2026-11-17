@@ -42,6 +42,7 @@ public final class SpawnTable {
         public List<SpeciesJson> species;
         public FogLurkerJson fogLurker;
         public GestatrixJson gestatrix;
+        public MergeJson merge;
     }
 
     public static final class GestatrixJson {
@@ -156,11 +157,58 @@ public final class SpawnTable {
         public PackJson pack;
         /** 縁で湧き始めるフェーズの上書き(無ければグループの開くフェーズ。11-17: G6 のゲスタトリクスを F4 から)。 */
         public Integer open;
+        /** 群れの中の役割(front 前衛・back 後衛・harass かく乱・support 支援。11-17 深夜)。無ければ司令塔は群れにまとめない。 */
+        public String role;
+    }
+
+    /** 群れの中の役割(11-17 深夜 ユーザー決定。並びは先導役の選びやすさの順)。 */
+    public enum Role {
+        FRONT, BACK, HARASS, SUPPORT;
+
+        @Nullable
+        static Role byName(@Nullable String s) {
+            if (s == null) return null;
+            for (Role r : values()) if (r.name().equalsIgnoreCase(s)) return r;
+            return null;
+        }
+    }
+
+    public static final class MergeJson {
+        public Boolean enabled;
+        public Integer intervalTicks, minMobs;
+        public Double cellBlocks, scanBlocks;
+        public Map<String, Integer> ratio;
+    }
+
+    /**
+     * 司令塔がたまった Mob を群れにまとめる(11-17 深夜 ユーザー決定。{@link PackMerger})。数はどれも【仮】。
+     * intervalTicks おきに、プレイヤーのまわり scanBlocks の、相手のいない地上の個体を cellBlocks の升に分け、minMobs 以上たまった升で 1 つの群れにする。
+     * ratio は役割の比(前衛:後衛:かく乱:支援)。隊列の幅と、先導役を選ぶ順に使う。
+     */
+    public static final class Merge {
+        public final boolean enabled;
+        public final int intervalTicks, minMobs;
+        public final double cellBlocks, scanBlocks;
+        public final int[] ratio = new int[Role.values().length];
+
+        Merge(@Nullable MergeJson j) {
+            MergeJson s = j != null ? j : new MergeJson();
+            this.enabled = s.enabled == null || s.enabled;
+            this.intervalTicks = Math.max(5, or(s.intervalTicks, 40));
+            this.minMobs = Math.max(2, or(s.minMobs, 6));
+            this.cellBlocks = Math.max(8.0D, or(s.cellBlocks, 32.0D));
+            this.scanBlocks = Math.max(this.cellBlocks, or(s.scanBlocks, 64.0D));
+            int[] def = {5, 3, 2, 1};
+            for (Role r : Role.values()) {
+                Integer v = s.ratio == null ? null : s.ratio.get(r.name().toLowerCase(Locale.ROOT));
+                this.ratio[r.ordinal()] = Math.max(0, v != null ? v : def[r.ordinal()]);
+            }
+        }
     }
 
     /** 表の 1 行。type は登録の有無を起動後に引く(登録の無い id は null = 飛ばす)。 */
     public record Species(@Nullable String id, @Nullable G1Species g1, int group, EnumSet<Habitat> habitats, double weight, boolean director, boolean breaker,
-                          int packMin, int packMax, List<PackWith> packWith, int open) {
+                          int packMin, int packMax, List<PackWith> packWith, int open, @Nullable Role role) {
         /** 群れで湧く種か(頭数の上が 2 以上)。 */
         public boolean packs() {
             return packMax >= 2 || !packWith.isEmpty();
@@ -191,6 +239,8 @@ public final class SpawnTable {
     public final FogLurker fogLurker;
     /** ゲスタトリクスの数(11-17)。 */
     public final Gestatrix gestatrix;
+    /** 群れへのまとめ(11-17 深夜)。 */
+    public final Merge merge;
     /** G1 の縁と地下の湧きが開くフェーズ(G4・G5 は director.json の gates。11-16 見直しで 1 か所にまとめた)。 */
     public final int openG1;
     private final int[] caps = new int[11];
@@ -210,6 +260,7 @@ public final class SpawnTable {
         this.fernNaturalSpawn = j.fernNaturalSpawn == null || j.fernNaturalSpawn;
         this.fogLurker = new FogLurker(j.fogLurker);
         this.gestatrix = new Gestatrix(j.gestatrix);
+        this.merge = new Merge(j.merge);
         this.openG1 = Math.max(1, j.openG1 != null ? j.openG1 : 1);
         EdgeJson e = j.edge != null ? j.edge : new EdgeJson();
         caps[1] = 15;
@@ -277,7 +328,7 @@ public final class SpawnTable {
         if (hs.isEmpty()) hs.add(Habitat.GROUND);
         String id = g1 != null ? null : (sj.id.contains(":") ? sj.id : OvergrownVegetation.MODID + ":" + sj.id);
         return new Species(id, g1, Math.max(1, Math.min(10, sj.group)), hs, Math.max(0.0D, or(sj.weight, 1.0D)), sj.director == null || sj.director, sj.breaker != null && sj.breaker,
-                sj.pack == null ? 1 : Math.max(1, or(sj.pack.min, 1)), sj.pack == null ? 1 : Math.max(Math.max(1, or(sj.pack.min, 1)), or(sj.pack.max, 1)), packWith(sj.pack), sj.open == null ? 0 : Math.max(1, Math.min(10, sj.open)));
+                sj.pack == null ? 1 : Math.max(1, or(sj.pack.min, 1)), sj.pack == null ? 1 : Math.max(Math.max(1, or(sj.pack.min, 1)), or(sj.pack.max, 1)), packWith(sj.pack), sj.open == null ? 0 : Math.max(1, Math.min(10, sj.open)), Role.byName(sj.role));
     }
 
     private static List<PackWith> packWith(@Nullable PackJson p) {

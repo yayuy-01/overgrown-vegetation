@@ -444,6 +444,18 @@ public final class ForestDirector extends SavedData implements ForestBudget {
     }
 
     /**
+     * 升(4×4 チャンク。生態系の台帳と同じ区切り)ごとの根付きの上限(11-17 深夜 ユーザー決定 (b)「升ごとに上限」)。根付きは枯れないので、
+     * 満ちた升では根付きを選べなくして、進化・苗床へ回す。数えるのは読み込まれている根付きだけ。上限は director.json の rootedPerCell【仮】(0 = 上限なし)。
+     */
+    public static boolean rootRoom(ServerLevel level, net.minecraft.core.BlockPos pos) {
+        int cap = DesignData.director().rootedPerCell;
+        if (cap <= 0) return true;
+        int x0 = (pos.getX() >> 6) << 6, z0 = (pos.getZ() >> 6) << 6;
+        net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(x0, level.getMinBuildHeight(), z0, x0 + 64, level.getMaxBuildHeight(), z0 + 64);
+        return level.getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.RootedParasitized.class, box, net.minecraft.world.entity.Entity::isAlive).size() < cap;
+    }
+
+    /**
      * 段階 0 の 1 体を見に来た。道を決め、進化なら予算を払う(前兆の間に倒されても戻さない = 森の損。【仮】)。
      *
      * @param bornAt この個体が起き上がった(世界に出た)ゲーム時刻
@@ -457,7 +469,7 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         G1Fate fate = mob.fate();
         // フェーズで開いていない道は選べない(苗床 F1・根付き F2・進化 F3。DirectorGates)
         Inputs in = new Inputs(G1Fate.developedOf(mob) != null && DirectorGates.open(level, DirectorGates.Gate.EVOLVE),
-                fate != null && fate.rootedForm() != null && DirectorGates.open(level, DirectorGates.Gate.ROOTED),
+                fate != null && fate.rootedForm() != null && DirectorGates.open(level, DirectorGates.Gate.ROOTED) && rootRoom(level, mob.blockPosition()),
                 fate != null && fate.nurseryForm() != null && DirectorGates.open(level, DirectorGates.Gate.NURSERY),
                 available(level), playerDist, ageDays,
                 fate != null ? fate.forest(level).distance(mob.position()) : 0.0D,

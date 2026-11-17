@@ -101,7 +101,9 @@ public final class CrawlerPack {
 
     void remove(ServerLevel level, Mob mob) {
         this.members.remove(mob);
+        if (EXTERNAL.get(mob) == this) EXTERNAL.remove(mob);
         if (this.members.isEmpty()) packs(level).remove(this.id);
+        else if (this.type == null && this.members.get(0) != this.lastLeader) electLeader();
     }
 
     /** 最後に外した tick(群れの 1 tick に 1 回だけ。前は全員が毎 tick 全員を見ていた = 群れの大きさの 2 乗。11-16 見直し 第 3 便)。 */
@@ -112,7 +114,13 @@ public final class CrawlerPack {
         long now = level.getGameTime();
         if (now == this.prunedAt) return;
         this.prunedAt = now;
-        this.members.removeIf(m -> !m.isAlive() || m.isRemoved());
+        this.members.removeIf(m -> {
+            if (m.isAlive() && !m.isRemoved()) return false;
+            if (EXTERNAL.get(m) == this) EXTERNAL.remove(m);
+            return true;
+        });
+        // 外の群れで先導役が倒れたら、1 回だけ選び直す(11-17 深夜)
+        if (this.type == null && !this.members.isEmpty() && this.members.get(0) != this.lastLeader) electLeader();
     }
 
     public Mob leader() {
@@ -346,6 +354,7 @@ public final class CrawlerPack {
             EXTERNAL.put(m, p);
             m.getPersistentData().putUUID(EXTERNAL_KEY, p.id);
         }
+        if (!p.members.isEmpty()) p.lastLeader = p.members.get(0);
         return p;
     }
 
@@ -357,13 +366,132 @@ public final class CrawlerPack {
         EXTERNAL.put(mob, p);
     }
 
-    /** 確かめ用の 1 行: 外から作った群れの数・後続の数・先導役から 12 ブロック以内の後続・後続の先導役までの距離の平均と最大。 */
+
+    /** 外の群れに入っているか(O(1)。自前の群れを止める判定に使う)。 */
+    static boolean inExternal(Mob mob) {
+        return EXTERNAL.containsKey(mob);
+    }
+
+    /** 外の個体の群れ(無ければ null)。並びからの出入りは EXTERNAL と一緒に直すので、ここは引くだけ(群れが大きくても O(1)。11-17 深夜)。 */
+    @Nullable
+    public static CrawlerPack externalOf(Mob mob) {
+        CrawlerPack p = EXTERNAL.get(mob);
+        if (p == null) return null;
+        if (mob.level() instanceof ServerLevel sl) p.prune(sl);
+        return EXTERNAL.get(mob);
+    }
+
+    // ------------------------------------------------------------------ 司令塔のまとめ(2026-11-17 深夜 ユーザー決定)
+
+    /** 外の群れに 1 体足す(ほかの外の群れ・自前の群れからは抜ける)。前衛が来て今の先導役が前衛でなければ、先導役を替える。 */
+    public static void addExternal(ServerLevel level, CrawlerPack p, Mob m) {
+        CrawlerPack old = EXTERNAL.get(m);
+        if (old == p) return;
+        if (old != null) old.remove(level, m);
+        if (m instanceof SmallCrawler sc) sc.leaveOwnPack(level);
+        p.add(m);
+        EXTERNAL.put(m, p);
+        m.getPersistentData().putUUID(EXTERNAL_KEY, p.id);
+        if (p.members.size() == 1) p.lastLeader = m;
+        else if (rank(m) < rank(p.leader())) p.electLeader();
+    }
+
+    /** 外の群れを作る(並びは役割の順 = 前衛が頭)。 */
+    public static CrawlerPack formExternal(ServerLevel level, List<? extends Mob> mobs) {
+        CrawlerPack p = obtain(level, UUID.randomUUID(), null);
+        List<Mob> sorted = new ArrayList<>(mobs);
+        sorted.sort(java.util.Comparator.comparingInt(CrawlerPack::rank));
+        for (Mob m : sorted) addExternal(level, p, m);
+        return p;
+    }
+
+    /** 外の群れから抜ける(腰を据えた・根を下ろした・入れない状態になった)。 */
+    public static void leaveExternal(ServerLevel level, Mob m) {
+        CrawlerPack p = EXTERNAL.get(m);
+        if (p != null) p.remove(level, m);
+        EXTERNAL.remove(m);
+        m.getPersistentData().remove(EXTERNAL_KEY);
+    }
+
+    /** 2 つの外の群れを 1 つに(小さい方を大きい方へ移す)。大きい方を返す。 */
+    public static CrawlerPack mergeExternal(ServerLevel level, CrawlerPack a, CrawlerPack b) {
+        if (a == b) return a;
+        CrawlerPack big = a.size() >= b.size() ? a : b, small = big == a ? b : a;
+        for (Mob m : new ArrayList<>(small.members)) addExternal(level, big, m);
+        return big;
+    }
+
+    /** 役割の順位(前衛 0 … 支援 3。役割の無い種は 4)。先導役は小さい方から。 */
+    static int rank(Mob m) {
+        com.yayuy.overgrownvegetation.spawn.SpawnTable.Role r = com.yayuy.overgrownvegetation.spawn.DirectorHooks.roleOf(m.getType());
+        return r == null ? 4 : r.ordinal();
+    }
+
+    /** 役割の数(前衛・後衛・かく乱・支援。役割の無い種は数えない)。 */
+    public int[] roleCounts() {
+        int[] c = new int[4];
+        for (Mob m : this.members) {
+            int r = rank(m);
+            if (r < 4) c[r]++;
+        }
+        return c;
+    }
+
+    /**
+     * 先導役を選び直す(先導役が倒れた・前衛が入った)。役割の順位がいちばん小さい生きた個体を並びの頭へ入れ替えるだけ(O(n) を 1 回。
+     * 後続は先導役を覚えず群れの頭を見るので、後続ごとの処理は無い。11-17 深夜 ユーザー「先導役の変更の処理は最適化しておきたい」)。
+     */
+    void electLeader() {
+        if (this.members.isEmpty()) return;
+        int best = 0, bestRank = Integer.MAX_VALUE;
+        for (int i = 0; i < this.members.size(); i++) {
+            int r = rank(this.members.get(i));
+            if (r < bestRank) {
+                best = i;
+                bestRank = r;
+                if (r == 0) break;
+            }
+        }
+        if (best != 0) java.util.Collections.swap(this.members, 0, best);
+        this.lastLeader = this.members.get(0);
+        leaderChanges++;
+    }
+
+    /** 外の群れの、前の先導役(替わったかを見る)。 */
+    @Nullable
+    private Mob lastLeader;
+    /** 確かめ用: 先導役を選び直した回数。 */
+    public static long leaderChanges;
+
+    /** 外の群れで誰かが狙っているプレイヤー(群れの全員の相手にする)。同じ tick は使い回す。 */
+    @Nullable
+    LivingEntity sharedTarget(ServerLevel level) {
+        long now = level.getGameTime();
+        if (now == this.sharedAt) return this.shared;
+        this.sharedAt = now;
+        this.shared = null;
+        for (Mob m : this.members) {
+            LivingEntity t = m.getTarget();
+            if (t instanceof net.minecraft.world.entity.player.Player pl && pl.isAlive() && !pl.isCreative() && !pl.isSpectator()) {
+                this.shared = t;
+                break;
+            }
+        }
+        return this.shared;
+    }
+
+    private long sharedAt = Long.MIN_VALUE;
+    @Nullable
+    private LivingEntity shared;
+
+    /** 確かめ用の 1 行: 外から作った群れの数・後続の数・先導役から 12 ブロック以内の後続・距離・いちばん大きい群れ・先導役の交代・後続の経路と舵の数。 */
     public static String externalStats() {
         java.util.Set<CrawlerPack> seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
-        int followers = 0, near = 0;
+        int followers = 0, near = 0, biggest = 0;
         double sum = 0.0D, max = 0.0D;
         for (CrawlerPack p : new ArrayList<>(EXTERNAL.values())) {
             if (!seen.add(p) || p.members.isEmpty()) continue;
+            biggest = Math.max(biggest, p.size());
             Mob l = p.leader();
             for (Mob m : p.members) {
                 if (m == l || !m.isAlive()) continue;
@@ -374,30 +502,27 @@ public final class CrawlerPack {
                 if (d <= 12.0D) near++;
             }
         }
-        return String.format(java.util.Locale.ROOT, "外の群れ %d・後続 %d(先導役から 12 以内 %d)・距離 平均 %.1f・最大 %.1f",
-                seen.size(), followers, near, followers > 0 ? sum / followers : 0.0D, max);
+        return String.format(java.util.Locale.ROOT, "外の群れ %d・後続 %d(先導役から 12 以内 %d)・距離 平均 %.1f・最大 %.1f・いちばん大きい群れ %d・先導役の交代 %d・後続の経路 %d・真っ直ぐ %d",
+                seen.size(), followers, near, followers > 0 ? sum / followers : 0.0D, max, biggest, leaderChanges, pathCalls, steerCalls);
     }
 
-    /** 外の個体の群れ(無ければ null)。 */
-    @Nullable
-    public static CrawlerPack externalOf(Mob mob) {
-        CrawlerPack p = EXTERNAL.get(mob);
-        if (p == null) return null;
-        if (mob.level() instanceof ServerLevel sl) p.prune(sl);
-        if (!p.members.contains(mob)) {
-            EXTERNAL.remove(mob);
-            return null;
-        }
-        return p;
+    /** 群れに入っていてはいけない状態か(腰を据えた・根付いたゲスタトリクス)。 */
+    public static boolean anchored(Mob m) {
+        return m instanceof com.yayuy.overgrownvegetation.entity.GestatrixEntity g && g.state() != com.yayuy.overgrownvegetation.entity.GestatrixEntity.ROAM;
     }
 
     /**
-     * 外の個体の後続: 先導役のまわりへゆるくまとまって付いていく({@link FollowGoal} と同じ考え。種のクラスに手を入れず、湧かせる側が入るときに足す)。
-     * 相手を追っている間・拠点へ歩いている間・自分が先導役の間は付いていかない。箱の検索はしない(群れの一覧の頭を見るだけ)。
+     * 外の群れの後続: 先導役の向きに合わせた役割ごとの持ち場(前衛は前・後衛は後ろ・かく乱は横・支援は後ろの真ん中)へ付いていく。
+     * <b>なるべく経路を探さない</b>: 持ち場が近く段差が小さいうちは移動の舵(MoveControl)で真っ直ぐ寄り、遠い({@link #PATH_FAR} より)・段差がある
+     * ときだけ経路を引く({@link #REPATH} tick おき)。経路を探すのは先導役(と遠く離れた個体)だけ(11-17 深夜 ユーザー「探索経路が一番重い」)。
+     * 群れの誰かがプレイヤーを狙ったら、狙っていない個体にも同じ相手を渡す(そこからは各種の狩りの Goal)。拠点へ歩いている間・自分が先導役の間は付いていかない。
      */
     public static final class ExternalFollowGoal extends Goal {
+        static final double PATH_FAR = 10.0D, STEP_DY = 1.5D;
+        static final int STEER_EVERY = 4, REPATH = 30;
         private final net.minecraft.world.entity.PathfinderMob mob;
         private int timer;
+        private int repath;
 
         public ExternalFollowGoal(net.minecraft.world.entity.PathfinderMob mob) {
             this.mob = mob;
@@ -406,9 +531,22 @@ public final class CrawlerPack {
 
         @Override
         public boolean canUse() {
-            if (this.mob.getTarget() != null || marching(this.mob)) return false;
+            if (marching(this.mob)) return false;
             CrawlerPack p = externalOf(this.mob);
-            return p != null && !p.members.isEmpty() && p.leader() != this.mob;
+            if (p == null || p.members.isEmpty()) return false;
+            if (!(this.mob.level() instanceof ServerLevel sl)) return false;
+            if (anchored(this.mob)) {
+                leaveExternal(sl, this.mob);
+                return false;
+            }
+            if (this.mob.getTarget() == null) {
+                LivingEntity t = p.sharedTarget(sl);
+                if (t != null && this.mob.canAttack(t)) {
+                    this.mob.setTarget(t);
+                    return false;
+                }
+            }
+            return this.mob.getTarget() == null && p.leader() != this.mob;
         }
 
         @Override
@@ -417,34 +555,92 @@ public final class CrawlerPack {
         }
 
         @Override
+        public boolean requiresUpdateEveryTick() {
+            return true;
+        }
+
+        @Override
+        public void start() {
+            this.timer = 0;
+            this.repath = 0;
+        }
+
+        @Override
         public void stop() {
             if (this.mob instanceof com.yayuy.overgrownvegetation.entity.ArboraEntity a) a.mover().stop();
             else this.mob.getNavigation().stop();
         }
 
+        /** 持ち場(先導役の向きの前・右に、役割と個体ごとのずれを掛ける)。{x, z} を返す。 */
+        static double[] slot(Mob l, Mob mob, int size) {
+            double s = 1.6D + Math.sqrt(size) * 0.35D;
+            int h = (mob.getId() * 0x9E3779B1) >>> 8;
+            double fwd, side;
+            switch (rank(mob)) {
+                case 0 -> {
+                    fwd = 1.5D * s;
+                    side = ((h % 5) - 2) * s;
+                }
+                case 1 -> {
+                    fwd = -2.5D * s - (h % 2) * s;
+                    side = ((h % 4) - 1.5D) * s;
+                }
+                case 3 -> {
+                    fwd = -1.5D * s;
+                    side = ((h % 3) - 1) * 0.8D * s;
+                }
+                default -> {
+                    fwd = ((h % 3) - 1) * s;
+                    side = ((h & 1) == 0 ? 1 : -1) * (2.5D + (h >> 1) % 2) * s;
+                }
+            }
+            float yaw = l.getYRot() * net.minecraft.util.Mth.DEG_TO_RAD;
+            double fx = -net.minecraft.util.Mth.sin(yaw), fz = net.minecraft.util.Mth.cos(yaw);
+            return new double[]{l.getX() + fx * fwd - fz * side, l.getZ() + fz * fwd + fx * side};
+        }
+
         @Override
         public void tick() {
             if (--this.timer > 0) return;
-            this.timer = 10 + (this.mob.getId() & 3);
+            this.timer = STEER_EVERY;
             CrawlerPack p = externalOf(this.mob);
             if (p == null || p.members.isEmpty()) return;
             Mob l = p.leader();
-            double slack = 2.0D + Math.sqrt(p.size()) * 0.8D;
-            double a = (this.mob.getId() * 2.399963D) % (Math.PI * 2.0D);
-            double gx = l.getX() + Math.cos(a) * slack * 0.7D, gz = l.getZ() + Math.sin(a) * slack * 0.7D;
-            double dx = gx - this.mob.getX(), dz = gz - this.mob.getZ();
+            double[] g = slot(l, this.mob, p.size());
+            double dx = g[0] - this.mob.getX(), dz = g[1] - this.mob.getZ();
             double d = Math.sqrt(dx * dx + dz * dz);
+            double dy = Math.abs(l.getY() - this.mob.getY());
             // アルボラは自前の歩き(ClingMover)で動く。ナビゲーションに渡しても動かない(11-17 クライアントで群れが散ったので直した)
-            com.yayuy.overgrownvegetation.entity.cling.ClingMover cling =
-                    this.mob instanceof com.yayuy.overgrownvegetation.entity.ArboraEntity arb ? arb.mover() : null;
-            if (d < slack * 0.5D) {
-                if (cling != null) cling.stop();
-                else this.mob.getNavigation().stop();
+            if (this.mob instanceof com.yayuy.overgrownvegetation.entity.ArboraEntity arb) {
+                if (d < 1.5D) {
+                    arb.mover().stop();
+                } else if (--this.repath <= 0) {
+                    this.repath = 3;
+                    arb.mover().moveTo(new net.minecraft.world.phys.Vec3(g[0], l.getY(), g[1]), d > 8.0D ? 1.0D : 0.8D, 1.0D);
+                }
                 return;
             }
-            double speed = d > 8.0D ? 1.0D : 0.8D;
-            if (cling != null) cling.moveTo(new net.minecraft.world.phys.Vec3(gx, l.getY(), gz), speed, 1.0D);
-            else this.mob.getNavigation().moveTo(gx, l.getY(), gz, speed);
+            if (d < 1.2D) {
+                this.mob.getNavigation().stop();
+                return;
+            }
+            double speed = d > 6.0D ? 1.0D : 0.8D;
+            if (d > PATH_FAR || dy > STEP_DY) {
+                // 遠い・段差: 経路(引き直しは間をあける)
+                if (--this.repath <= 0 || this.mob.getNavigation().isDone()) {
+                    this.repath = REPATH / STEER_EVERY;
+                    this.mob.getNavigation().moveTo(g[0], l.getY(), g[1], speed);
+                    pathCalls++;
+                }
+                return;
+            }
+            // 近い: 経路なしで真っ直ぐ寄る
+            this.mob.getNavigation().stop();
+            this.mob.getMoveControl().setWantedPosition(g[0], this.mob.getY(), g[1], speed);
+            steerCalls++;
         }
     }
+
+    /** 確かめ用: 後続が経路を引いた回数・真っ直ぐ寄った回数。 */
+    public static long pathCalls, steerCalls;
 }

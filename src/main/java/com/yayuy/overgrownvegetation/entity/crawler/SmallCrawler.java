@@ -140,7 +140,15 @@ public abstract class SmallCrawler extends Monster {
     }
 
     private boolean packDisabled() {
-        return com.yayuy.overgrownvegetation.entity.DevNames.has(this, "nopack");
+        // 司令塔がまとめた外の群れ(11-17 深夜)に入っている間は、自前の群れに入らない
+        return com.yayuy.overgrownvegetation.entity.DevNames.has(this, "nopack") || CrawlerPack.inExternal(this);
+    }
+
+    /** 自前の群れから抜ける(司令塔が外の群れへまとめたとき。11-17 深夜)。 */
+    void leaveOwnPack(ServerLevel level) {
+        if (this.pack != null) this.pack.remove(level, this);
+        this.pack = null;
+        this.packId = null;
     }
 
     @Nullable

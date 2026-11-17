@@ -609,6 +609,8 @@ public final class EnemySpawns {
                 BandRoster.builds == 0 ? 0.0D : BandRoster.buildNanos / 1e6 / BandRoster.builds, BandRoster.builds,
                 tries == 0 ? 0.0D : tryNanos / 1e6 / tries, tries, packsSpawned));
         out.add("群れ: " + com.yayuy.overgrownvegetation.entity.crawler.CrawlerPack.externalStats());
+        out.add(PackMerger.describe());
+        out.add("印の無い空の種: 遠くで片付けた " + SkyStrays.cleared + "・保存からでなく新しく入った " + SkyStrays.untaggedFresh);
         StringBuilder sb = new StringBuilder("これまで: 縁 " + spawnedEdge + "・地下 " + spawnedUnder + " / 試しの結果: ");
         for (Miss m : Miss.values()) sb.append(m.label).append(' ').append(stats[m.ordinal()]).append("・");
         out.add(sb.toString());

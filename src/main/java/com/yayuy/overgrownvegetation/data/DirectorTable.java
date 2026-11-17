@@ -76,6 +76,8 @@ public final class DirectorTable {
         public Integer nurseryLifeSprouts;
         /** 11-17: 苗床が枯れるまでに孵す回数・孵してよいか司令塔へ聞く間(tick)。 */
         public Integer nurseryLifeHatches, nurseryHatchAskTicks;
+        /** 11-17 深夜: 升(4×4 チャンク)ごとの根付きの上限。 */
+        public Integer rootedPerCell;
     }
 
     /** フェーズで開く口の json。 */
@@ -146,6 +148,8 @@ public final class DirectorTable {
     public final int nurseryLifeSprouts;
     /** 苗床が枯れるまでに G4 以降を孵す回数(11-17 ユーザー「1 つにつき 1 回」をやめる。4 は【仮】)・司令塔へ聞く間(tick。前 1200、600 は【仮】)。 */
     public final int nurseryLifeHatches, nurseryHatchAskTicks;
+    /** 升(4×4 チャンク)ごとの根付きの上限(11-17 深夜 ユーザー決定。根付きは枯れないので、満ちた升では進化・苗床へ回す。3 は【仮】。0 = 上限なし)。 */
+    public final int rootedPerCell;
 
     /**
      * 司令塔が使うものが開くフェーズ(2026-11-14 決定。Vault「フェーズの仕組み」の作り直し): 苗床 1・根付き 2・進化 3・偵察 4・認識 5・送り込み 5・
@@ -228,6 +232,7 @@ public final class DirectorTable {
         this.nurseryLifeSprouts = Math.max(1, s.nurseryLifeSprouts != null ? s.nurseryLifeSprouts : 6);
         this.nurseryLifeHatches = Math.max(1, s.nurseryLifeHatches != null ? s.nurseryLifeHatches : 4);
         this.nurseryHatchAskTicks = Math.max(20, s.nurseryHatchAskTicks != null ? s.nurseryHatchAskTicks : 600);
+        this.rootedPerCell = Math.max(0, s.rootedPerCell != null ? s.rootedPerCell : 3);
     }
 
     private static double nonNeg(Double v, double fallback) {

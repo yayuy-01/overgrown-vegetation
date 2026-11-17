@@ -77,12 +77,19 @@ public final class DirectorHooks {
     }
 
     /** 種の表から作った「壊す種」「歩かせる種」の組(表が替わったら作り直す。見直し ②10: 毎 tick 表をなめていた)。 */
-    private record Sets(SpawnTable table, java.util.Set<EntityType<?>> breakers, java.util.Set<EntityType<?>> marchers, java.util.Set<EntityType<?>> followers) {
+    private record Sets(SpawnTable table, java.util.Set<EntityType<?>> breakers, java.util.Set<EntityType<?>> marchers, java.util.Set<EntityType<?>> followers,
+                        java.util.Map<EntityType<?>, SpawnTable.Role> roles) {
     }
 
     /** 外から作る群れ(11-17)に入って先導役に付いていく種か(群れで湧く種と混ぜる種。グレガリアは自前の群れなので除く)。 */
     public static boolean packFollower(EntityType<?> type) {
         return sets().followers.contains(type);
+    }
+
+    /** 群れの中の役割(spawns.json の role。無ければ null = 司令塔は群れにまとめない。11-17 深夜)。 */
+    @Nullable
+    public static SpawnTable.Role roleOf(EntityType<?> type) {
+        return sets().roles.get(type);
     }
 
     private static volatile Sets sets;
@@ -92,6 +99,7 @@ public final class DirectorHooks {
         Sets s = sets;
         if (s != null && s.table() == t) return s;
         java.util.Set<EntityType<?>> b = new java.util.HashSet<>(), m = new java.util.HashSet<>(), f = new java.util.HashSet<>();
+        java.util.Map<EntityType<?>, SpawnTable.Role> r = new java.util.HashMap<>();
         for (SpawnTable.Species sp : t.species) {
             EntityType<?> type = sp.type();
             if (type == null) continue;
@@ -101,9 +109,11 @@ public final class DirectorHooks {
                 f.add(type);
                 for (SpawnTable.PackWith w : sp.packWith()) if (w.type() != null) f.add(w.type());
             }
+            if (sp.role() != null && sp.habitats().contains(SpawnTable.Habitat.GROUND)) r.put(type, sp.role());
         }
         f.remove(com.yayuy.overgrownvegetation.registry.ModCrawlers.GREGARIA.get());
-        s = new Sets(t, java.util.Set.copyOf(b), java.util.Set.copyOf(m), java.util.Set.copyOf(f));
+        f.addAll(r.keySet()); // 司令塔がまとめた群れ(11-17 深夜)に入る種も付いていく(グレガリアもまとめられたら外の群れへ移る)
+        s = new Sets(t, java.util.Set.copyOf(b), java.util.Set.copyOf(m), java.util.Set.copyOf(f), java.util.Map.copyOf(r));
         sets = s;
         return s;
     }
