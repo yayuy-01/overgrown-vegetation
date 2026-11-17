@@ -1191,6 +1191,8 @@ final class GiantSilhouettes {
         // 11-06 夜: 霞の中は霞の k を hazeStretch 倍に引き延ばして霞ませ、色は林冠の陰で落とす前の霧の色(明るい霞)へ寄せる(giant_silhouette.fsh)。
         float[] terrainFog = RenderSystem.getShaderFogColor().clone();
         float stretch = devForestStretch > 0.0F ? devForestStretch : p.forestHazeStretch();
+        // 濃霧(天気)の日は引き延ばさない(11-17): 見通し 40 の霧の向こうに、180 ブロック先の巨大樹のかけらが浮いて見えた。地形と同じ霞で沈める。
+        stretch = net.minecraft.util.Mth.lerp(DenseFog.amount(), stretch, 1.0F);
         float hazeK = haze ? MistView.markK() / Math.max(stretch, 0.01F) : 0.0F;
         shader.safeGetUniform("HazeK").set(hazeK);
         if (hazeK > 0.0F) {
