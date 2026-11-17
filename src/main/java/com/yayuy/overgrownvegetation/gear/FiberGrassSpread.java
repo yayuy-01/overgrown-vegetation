@@ -51,7 +51,8 @@ public final class FiberGrassSpread {
         for (int i = 0; i < s.tries; i++) {
             int x = center.getX() + random.nextInt(2 * r + 1) - r;
             int z = center.getZ() + random.nextInt(2 * r + 1) - r;
-            if (!level.hasChunkAt(new BlockPos(x, 0, z))) continue;
+            // 11-18 軽量化 ④: 読み込み途中のチャンクを見ない(hasChunkAt は読み込み途中でも真。着いた直後に 2 秒止まっていた)。混み具合を数える分(crowdRadius)+ 1 ブロック
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.areaLoaded(level, new BlockPos(x, 0, z), s.crowdRadius + 1)) continue;
             BlockPos pos = findFloor(level, x, z);
             if (pos != null && tryPlace(level, pos, true)) placed++;
         }

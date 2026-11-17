@@ -71,6 +71,8 @@ public final class HordeMeter {
     private static int blockDepth, tickBlocks;
     private static long blockStartNanos, tickBlockNanos, tickBlockLongest;
     private static String tickBlockWho = "-";
+    private static long saveStartNanos, tickSaveNanos, tickSaveTopNanos;
+    private static String tickSaveTop = "-";
     private static BufferedWriter slowOut;
 
     private HordeMeter() {
@@ -134,6 +136,23 @@ public final class HordeMeter {
         }
     }
 
+    /** SavedData 1 つの保存の始まり(サーバースレッド)。 */
+    public static void saveStart() {
+        saveStartNanos = System.nanoTime();
+    }
+
+    /** SavedData 1 つの保存の終わり。この tick の合計と、いちばん重かった物(クラス名とファイル名)を覚える。 */
+    public static void saveEnd(Object data, java.io.File file) {
+        if (saveStartNanos == 0L) return;
+        long n = System.nanoTime() - saveStartNanos;
+        saveStartNanos = 0L;
+        tickSaveNanos += n;
+        if (n > tickSaveTopNanos) {
+            tickSaveTopNanos = n;
+            tickSaveTop = data.getClass().getSimpleName() + "(" + file.getName() + ")" + String.format(Locale.ROOT, ":%.1f", n / 1e6);
+        }
+    }
+
     private static String shortName(StackTraceElement f) {
         return f.getClassName().substring(f.getClassName().lastIndexOf('.') + 1) + "." + f.getMethodName();
     }
@@ -164,6 +183,9 @@ public final class HordeMeter {
         tickBlocks = 0;
         tickBlockLongest = 0;
         tickBlockWho = "-";
+        tickSaveNanos = 0;
+        tickSaveTopNanos = 0;
+        tickSaveTop = "-";
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -227,8 +249,9 @@ public final class HordeMeter {
             }
         }
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
+        int[] sprouts = com.yayuy.overgrownvegetation.spore.field.SporeSprouts.countsForTests(server.overworld());
         String line = String.format(Locale.ROOT,
-                "%s\t%d\t%s\t%.2f\t%.1f\t%.2f\t%d\t%d\t%d\t%d\t%d\t%d\t%.3f\t%d\t%d\t%d\t%.3f\t%d\t%d\t%.3f\t%d\t%.3f\t%d\t%d\t%s\t%d",
+                "%s\t%d\t%s\t%.2f\t%.1f\t%.2f\t%d\t%d\t%d\t%d\t%d\t%d\t%.3f\t%d\t%d\t%d\t%.3f\t%d\t%d\t%.3f\t%d\t%.3f\t%d\t%d\t%s\t%d\t%d\t%d\t%d",
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss", Locale.ROOT)), server.getTickCount(), tag,
                 sum / 1e6 / ticksInSecond, max / 1e6, cpuPerTick,
                 mods, near, mid, far, targeting, others,
@@ -236,7 +259,9 @@ public final class HordeMeter {
                 pathCalls, pathCallsMod, pathNanos / 1e6 / ticksInSecond,
                 pushCalls, pushFound, pushNanos / 1e6 / ticksInSecond,
                 sendCalls, sendNanos / 1e6 / ticksInSecond, packets, held,
-                (cfg.mobThinkThrottleEnabled.get() ? "thr" : "-") + (cfg.partIndexEnabled.get() ? "+pi" : ""), server.overworld().getPartEntities().size());
+                (cfg.mobThinkThrottleEnabled.get() ? "thr" : "-") + (cfg.partIndexEnabled.get() ? "+pi" : ""), server.overworld().getPartEntities().size(),
+                ChunkEdgeGuard.denied, sprouts[0], sprouts[1]);
+        ChunkEdgeGuard.denied = 0;
         try {
             out.write(line);
             out.write('\t');
@@ -274,10 +299,11 @@ public final class HordeMeter {
         long gc = gcMillis() - tickGcStart;
         long deferrable = TickBudget.thisTickDeferrableNanos();
         try {
-            slowOut.write(String.format(Locale.ROOT, "%s\t%d\t%s\t%.1f\t%.1f\t%d\t%.1f\t%.1f\t%.1f\t%.1f\t%s\t%d\t%.1f\t%d\t%s%n",
+            slowOut.write(String.format(Locale.ROOT, "%s\t%d\t%s\t%.1f\t%.1f\t%d\t%.1f\t%.1f\t%.1f\t%.1f\t%s\t%d\t%.1f\t%d\t%s\t%.1f\t%s%n",
                     LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS", Locale.ROOT)), server.getTickCount(), tag,
                     wall / 1e6, cpu / 1e6, gc, tickEntityNanos / 1e6, tickMobNanos / 1e6, deferrable / 1e6,
-                    (wall - tickEntityNanos - deferrable) / 1e6, TickBudget.thisTickTopJob(), server.getTickCount() % 6000 == 0 ? 1 : 0, tickBlockNanos / 1e6, tickBlocks, tickBlockWho));
+                    (wall - tickEntityNanos - deferrable) / 1e6, TickBudget.thisTickTopJob(), server.getTickCount() % 6000 == 0 ? 1 : 0, tickBlockNanos / 1e6, tickBlocks, tickBlockWho,
+                    tickSaveNanos / 1e6, tickSaveTop));
             slowOut.flush();
         } catch (IOException ex) {
             OvergrownVegetation.LOGGER.warn("[OV] horde meter: {}", ex.toString());
@@ -295,10 +321,10 @@ public final class HordeMeter {
             file = dir.resolve("horde-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.ROOT)) + ".tsv");
             out = Files.newBufferedWriter(file, StandardCharsets.UTF_8);
             out.write("time\ttick\ttag\twall_ms\tmax_ms\tcpu_ms\tmods\tnear32\tmid64\tfar\ttargeting\tothers\tmobtick_ms\tmobticks"
-                    + "\tpath\tpath_mod\tpath_ms\tpush\tpush_found\tpush_ms\tsend\tsend_ms\tpackets\theld\tswitches\tparts\tticks_ms");
+                    + "\tpath\tpath_mod\tpath_ms\tpush\tpush_found\tpush_ms\tsend\tsend_ms\tpackets\theld\tswitches\tparts\tdeferred\tsprout_active\tsprout_waiting\tticks_ms");
             out.newLine();
             slowOut = Files.newBufferedWriter(dir.resolve(file.getFileName().toString().replace("horde-", "horde-slow-")), StandardCharsets.UTF_8);
-            slowOut.write("time\ttick\ttag\twall_ms\tcpu_ms\tgc_ms\tentities_ms\tmodmobs_ms\tjobs_ms\trest_ms\ttop_job\tautosave\tblock_ms\tblocks\tblock_who");
+            slowOut.write("time\ttick\ttag\twall_ms\tcpu_ms\tgc_ms\tentities_ms\tmodmobs_ms\tjobs_ms\trest_ms\ttop_job\tautosave\tblock_ms\tblocks\tblock_who\tsave_ms\tsave_top");
             slowOut.newLine();
         } catch (IOException ex) {
             OvergrownVegetation.LOGGER.warn("[OV] horde meter: {}", ex.toString());
@@ -334,7 +360,7 @@ public final class HordeMeter {
     }
 
     static String describe() {
-        return on ? "書き出し中: " + file + "(窓の名前 " + tag + ")" : "止まっている";
+        return on ? "書き出し中: " + file + "(窓の名前 " + tag + ")" + (ChunkEdgeGuard.lastDenied == null ? "" : "・最後に先送りした所 " + ChunkEdgeGuard.lastDenied.toShortString()) : "止まっている";
     }
 
     @SubscribeEvent

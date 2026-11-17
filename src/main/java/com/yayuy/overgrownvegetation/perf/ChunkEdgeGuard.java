@@ -25,6 +25,20 @@ public final class ChunkEdgeGuard {
      * (そのチャンクに触るとサーバースレッドが終わるまで待つ = 11-18 の止まりの正体)。ここは {@code getChunkNow}(終わっていなければ null)で見る。
      */
     public static boolean areaLoaded(ServerLevel level, BlockPos pos, int margin) {
+        boolean ok = areaReady(level, pos, margin);
+        if (!ok) {
+            denied++;
+            lastDenied = pos.immutable();
+        }
+        return ok;
+    }
+
+    /** 先送りした回数(測り用。{@code HordeMeter} が 1 秒ごとに読んで 0 に戻す)。 */
+    public static int denied;
+    /** 最後に先送りした場所(測り用)。 */
+    public static BlockPos lastDenied;
+
+    private static boolean areaReady(ServerLevel level, BlockPos pos, int margin) {
         int x0 = (pos.getX() - margin) >> 4, x1 = (pos.getX() + margin) >> 4;
         int z0 = (pos.getZ() - margin) >> 4, z1 = (pos.getZ() + margin) >> 4;
         for (int cx = x0; cx <= x1; cx++) {

@@ -96,23 +96,24 @@ final class LedgerStore {
     static volatile int lastRegions;
     static volatile long lastCopyNanos;
 
-    /** 汚れた区域を写して、IO スレッドで書く(サーバースレッド)。書いたら汚れを消す。 */
+    /**
+     * 汚れた区域を写して、IO スレッドで書く(サーバースレッド)。書いたら汚れを消す。
+     *
+     * <p>2026-11-18 大群の軽量化 B の ④: 汚れた区域が多くて台帳全体をなめるときは、サーバースレッドでは台帳を写す(配列の写しだけ。
+     * 50 万升で数 ms)だけにして、区域ごとに分けるのは IO スレッドで行う(前は自動保存のたびにサーバースレッドで約 100 ms)。
+     * 書く中身は写した時点の台帳なので、今までと同じ。
+     */
     static void flush(MinecraftServer server, Long2LongOpenHashMap ledger, LongOpenHashSet dirty) {
         if (dirty.isEmpty()) return;
         long t0 = System.nanoTime();
-        // 汚れた区域ごとに中身を集める(台帳を 1 回なめる。区域が少なければ区域の中だけ見る方が速いが、区域の中の鍵を引く表が無いので 1 回なめる)
-        Long2LongOpenHashMap regionIndex = new Long2LongOpenHashMap();
-        regionIndex.defaultReturnValue(-1L);
-        List<long[]> keys = new ArrayList<>();
-        List<long[]> times = new ArrayList<>();
-        int[] counts = new int[dirty.size()];
-        int idx = 0;
-        for (long r : dirty) regionIndex.put(r, idx++);
-        // 汚れた区域が少なければ、区域の 4096 升を台帳に引く(台帳全体をなめない)。多ければ台帳を 1 回なめる
-        boolean probe = (long) dirty.size() * (1L << (2 * SHIFT)) < ledger.size();
+        long[] regions = dirty.toLongArray();
+        // 汚れた区域が少なければ、区域の 4096 升を台帳に引く(台帳全体をなめない)。多ければ台帳を写して IO スレッドで 1 回なめる
+        boolean probe = (long) regions.length * (1L << (2 * SHIFT)) < ledger.size();
+        Path dir = dir(server);
         if (probe) {
-            for (long r : dirty) {
-                int k = (int) regionIndex.get(r);
+            List<long[]> keys = new ArrayList<>(regions.length);
+            List<long[]> times = new ArrayList<>(regions.length);
+            for (long r : regions) {
                 int bx = ChunkPos.getX(r) << SHIFT, bz = ChunkPos.getZ(r) << SHIFT;
                 it.unimi.dsi.fastutil.longs.LongArrayList ks = new it.unimi.dsi.fastutil.longs.LongArrayList(), ts = new it.unimi.dsi.fastutil.longs.LongArrayList();
                 for (int x = 0; x < (1 << SHIFT); x++) {
@@ -125,26 +126,43 @@ final class LedgerStore {
                         }
                     }
                 }
-                counts[k] = ks.size();
-                while (keys.size() <= k) {
-                    keys.add(null);
-                    times.add(null);
-                }
-                keys.set(k, ks.toLongArray());
-                times.set(k, ts.toLongArray());
+                keys.add(ks.toLongArray());
+                times.add(ts.toLongArray());
             }
+            dirty.clear();
+            lastRegions = regions.length;
+            lastCopyNanos = System.nanoTime() - t0;
+            IO.execute(() -> writeRegions(dir, regions, keys, times));
         } else {
-            for (Long2LongMap.Entry e : Long2LongMaps.fastIterable(ledger)) {
-                long i = regionIndex.get(regionOf(e.getLongKey()));
-                if (i >= 0) counts[(int) i]++;
-            }
-            for (int i = 0; i < counts.length; i++) {
-                keys.add(new long[counts[i]]);
-                times.add(new long[counts[i]]);
-            }
+            Long2LongOpenHashMap copy = ledger.clone();
+            dirty.clear();
+            lastRegions = regions.length;
+            lastCopyNanos = System.nanoTime() - t0;
+            IO.execute(() -> {
+                List<long[]> keys = new ArrayList<>(regions.length);
+                List<long[]> times = new ArrayList<>(regions.length);
+                groupByRegion(copy, regions, keys, times);
+                writeRegions(dir, regions, keys, times);
+            });
+        }
+    }
+
+    /** 台帳を 1 回なめて、{@code regions} の区域ごとに鍵と時刻を集める(並びは {@code regions} と同じ)。 */
+    private static void groupByRegion(Long2LongOpenHashMap ledger, long[] regions, List<long[]> keys, List<long[]> times) {
+        Long2LongOpenHashMap regionIndex = new Long2LongOpenHashMap();
+        regionIndex.defaultReturnValue(-1L);
+        for (int i = 0; i < regions.length; i++) regionIndex.put(regions[i], i);
+        int[] counts = new int[regions.length];
+        for (Long2LongMap.Entry e : Long2LongMaps.fastIterable(ledger)) {
+            long i = regionIndex.get(regionOf(e.getLongKey()));
+            if (i >= 0) counts[(int) i]++;
+        }
+        for (int i = 0; i < counts.length; i++) {
+            keys.add(new long[counts[i]]);
+            times.add(new long[counts[i]]);
         }
         int[] fill = new int[counts.length];
-        for (Long2LongMap.Entry e : (probe ? java.util.Collections.<Long2LongMap.Entry>emptyList() : Long2LongMaps.fastIterable(ledger))) {
+        for (Long2LongMap.Entry e : Long2LongMaps.fastIterable(ledger)) {
             long i = regionIndex.get(regionOf(e.getLongKey()));
             if (i < 0) continue;
             int k = (int) i;
@@ -152,37 +170,33 @@ final class LedgerStore {
             times.get(k)[fill[k]] = e.getLongValue();
             fill[k]++;
         }
-        long[] regions = new long[counts.length];
-        for (long r : dirty) regions[(int) regionIndex.get(r)] = r;
-        dirty.clear();
-        lastRegions = regions.length;
-        lastCopyNanos = System.nanoTime() - t0;
-        Path dir = dir(server);
-        IO.execute(() -> {
+    }
+
+    /** 区域のファイルを書く(IO スレッド)。中身の無い区域はファイルを消す。 */
+    private static void writeRegions(Path dir, long[] regions, List<long[]> keys, List<long[]> times) {
+        try {
+            Files.createDirectories(dir);
+        } catch (IOException e) {
+            OvergrownVegetation.LOGGER.error("台帳のフォルダ {} を作れませんでした", dir, e);
+            return;
+        }
+        for (int i = 0; i < regions.length; i++) {
+            Path f = file(dir, regions[i]);
             try {
-                Files.createDirectories(dir);
-            } catch (IOException e) {
-                OvergrownVegetation.LOGGER.error("台帳のフォルダ {} を作れませんでした", dir, e);
-                return;
-            }
-            for (int i = 0; i < regions.length; i++) {
-                Path f = file(dir, regions[i]);
-                try {
-                    if (keys.get(i).length == 0) {
-                        Files.deleteIfExists(f);
-                        continue;
-                    }
-                    CompoundTag tag = new CompoundTag();
-                    tag.putLongArray("k", keys.get(i));
-                    tag.putLongArray("t", times.get(i));
-                    Path tmp = f.resolveSibling(f.getFileName() + ".tmp");
-                    NbtIo.writeCompressed(tag, tmp);
-                    Files.move(tmp, f, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
-                } catch (IOException e) {
-                    OvergrownVegetation.LOGGER.error("台帳の区域 {} を書けませんでした", f, e);
+                if (keys.get(i).length == 0) {
+                    Files.deleteIfExists(f);
+                    continue;
                 }
+                CompoundTag tag = new CompoundTag();
+                tag.putLongArray("k", keys.get(i));
+                tag.putLongArray("t", times.get(i));
+                Path tmp = f.resolveSibling(f.getFileName() + ".tmp");
+                NbtIo.writeCompressed(tag, tmp);
+                Files.move(tmp, f, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException e) {
+                OvergrownVegetation.LOGGER.error("台帳の区域 {} を書けませんでした", f, e);
             }
-        });
+        }
     }
 
     /** 書き出しが終わるのを待つ(サーバーを止めるとき・確かめ用)。 */
