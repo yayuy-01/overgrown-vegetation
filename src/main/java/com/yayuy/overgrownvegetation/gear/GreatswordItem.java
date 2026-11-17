@@ -66,6 +66,9 @@ public class GreatswordItem extends SwordItem {
     public static int sweep(Player player, Entity target) {
         GearTierTable.Greatsword g = DesignData.gearTiers().greatsword;
         if (g.sweepMaxTargets <= 0 || g.sweepRange <= 0.0D) return 0;
+        // 部位の当たり判定(ファルキムネスなどの HitPart)を狙ったときは本体を狙った相手として外す
+        if (target instanceof net.neoforged.neoforge.entity.PartEntity<?> part) target = part.getParent();
+        final Entity aimed = target;
         Vec3 look = player.getLookAngle();
         Vec3 flat = new Vec3(look.x, 0.0D, look.z);
         flat = flat.lengthSqr() < 1.0E-6D ? Vec3.directionFromRotation(0.0F, player.getYRot()) : flat.normalize();
@@ -73,7 +76,7 @@ public class GreatswordItem extends SwordItem {
         Vec3 eye = player.position();
         double r = g.sweepRange;
         List<LivingEntity> victims = player.level().getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(r, 1.0D, r), e -> {
-            if (e == player || e == target || !e.isAlive() || e.isSpectator() || e instanceof ArmorStand) return false;
+            if (e == player || e == aimed || !e.isAlive() || e.isSpectator() || e instanceof ArmorStand) return false;
             if (e instanceof Player || player.isAlliedTo(e)) return false;
             if (e instanceof OwnableEntity own && player.getUUID().equals(own.getOwnerUUID())) return false;
             Vec3 to = e.position().subtract(eye);
