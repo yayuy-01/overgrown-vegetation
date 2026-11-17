@@ -144,10 +144,12 @@ final class CaveShafts {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         int eyeY = Mth.floor(player.getY());
         for (int y = eyeY + 24; y > eyeY - 32; y--) {
-            if (!air(level, pos, x, y, z) || !air(level, pos, x, y + 1, z) || !solid(level, pos, x, y - 1, z)) {
+            // 軽量化(11-17。描画のスレッドの 14% がここだった): 安い空の明るさを先に見る。地下の列はほとんどが空の光 0 なので、
+            // ブロックの当たりの形を 3 つ引く前に落ちる。条件は同じ 4 つで、順を替えただけ(答えは変わらない)。
+            if (level.getBrightness(LightLayer.SKY, pos.set(x, y, z)) < 9) {
                 continue;
             }
-            if (level.getBrightness(LightLayer.SKY, pos.set(x, y, z)) < 9) {
+            if (!air(level, pos, x, y, z) || !air(level, pos, x, y + 1, z) || !solid(level, pos, x, y - 1, z)) {
                 continue;
             }
             if (consider(level, pos, x, y, z, sun, p)) {

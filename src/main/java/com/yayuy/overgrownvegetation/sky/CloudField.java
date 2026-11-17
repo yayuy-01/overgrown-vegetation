@@ -728,7 +728,16 @@ public final class CloudField {
                     continue;
                 }
                 Storm b = towers.get(j);
-                double d = Math.hypot(b.x() - a.x(), b.z() - a.z());
+                // 軽量化(11-17。描画のスレッドの約 35% がここの hypot だった): 2 乗の距離で、明らかに遠い組と、もう近い順の RIDGE_MAX つに
+                // 入れない組を先に落とす。境目(ゆるみ 100 万分の 1 の内側)は下の hypot が今までどおり決めるので、答えは変わらない。
+                double dx = b.x() - a.x();
+                double dz = b.z() - a.z();
+                double d2 = dx * dx + dz * dz;
+                double worst = bestD[RIDGE_MAX - 1];
+                if (d2 > RIDGE_LINK * RIDGE_LINK * 1.000001 || worst != Double.MAX_VALUE && d2 > worst * worst * 1.000001) {
+                    continue;
+                }
+                double d = Math.hypot(dx, dz);
                 if (d >= RIDGE_LINK || d < a.bodyRadius() + b.bodyRadius() * 0.5) {
                     continue;
                 }

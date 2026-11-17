@@ -125,8 +125,15 @@ final class CloudSelfShadow {
         m.stormKey = stormKey;
         m.values = new float[SIZE * SIZE];
         int top = CloudField.LOW_BASE;
-        for (CloudField.Storm s : storms) {
-            top = Math.max(top, s.topY());
+        // 軽量化(11-17): 雲ごとの広がりと天辺は先に 1 回だけ出す(前は画素 × 高さ × 雲 の回数だけ引き、橋・尾根は毎回 hypot だった。答えは同じ)。
+        int n = storms.size();
+        double[] reach = new double[n];
+        int[] tops = new int[n];
+        for (int k = 0; k < n; k++) {
+            CloudField.Storm s = storms.get(k);
+            reach[k] = s.reach();
+            tops[k] = s.topY();
+            top = Math.max(top, tops[k]);
         }
         for (int j = 0; j < SIZE; j++) {
             for (int i = 0; i < SIZE; i++) {
@@ -137,9 +144,10 @@ final class CloudSelfShadow {
                 for (double y = top; y > CloudField.LOW_BASE + 4.0; y -= STEP) {
                     double x = px + kx * (y - REF);
                     double z = pz + kz * (y - REF);
-                    for (CloudField.Storm s : storms) {
-                        double r = s.reach();
-                        if (y > s.topY() + 8 || Math.abs(x - s.x()) > r || Math.abs(z - s.z()) > r) {
+                    for (int k = 0; k < n; k++) {
+                        CloudField.Storm s = storms.get(k);
+                        double r = reach[k];
+                        if (y > tops[k] + 8 || Math.abs(x - s.x()) > r || Math.abs(z - s.z()) > r) {
                             continue;
                         }
                         if (CloudField.inside(CloudField.puffs(s), x, y, z)) {
