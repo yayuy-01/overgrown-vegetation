@@ -101,24 +101,28 @@ public final class GestatrixGameTests {
         GestatrixEntity g = spawn(helper);
         helper.runAfterDelay(2, () -> {
             g.forceStateForTests(GestatrixEntity.WINDUP, GestatrixEntity.WINDUP_T);
+            // 体(脚・胴)の箱に当たった矢: 取りやめない
             Arrow low = new Arrow(EntityType.ARROW, level);
             low.setPos(g.getX(), g.getY() + 0.05D, g.getZ());
-            DamageSource lowHit = level.damageSources().arrow(low, null);
-            helper.assertFalse(g.hitsSac(lowHit), "脚に当たった矢を嚢に数えた");
-            g.hurt(lowHit, 1.0F);
-            helper.assertTrue(g.state() == GestatrixEntity.WINDUP, "脚に当たっただけで取りやめた");
+            g.hurt(level.damageSources().arrow(low, null), 1.0F);
+            helper.assertTrue(g.state() == GestatrixEntity.WINDUP, "体に当たっただけで取りやめた");
         });
         helper.runAfterDelay(14, () -> {
+            // 嚢の専用の当たり(部位)に当たった矢: 取りやめる。部位は体の箱より高い所(嚢の高さ)にある
+            helper.assertTrue(g.sacPart(0).getY() > g.getY() + 1.5D, "いちばん上の嚢の当たりが高い所に無い: " + (g.sacPart(0).getY() - g.getY()));
             Arrow high = new Arrow(EntityType.ARROW, level);
-            high.setPos(g.getX(), g.getY() + g.getBbHeight() * 0.9D, g.getZ());
-            DamageSource hit = level.damageSources().arrow(high, null);
-            helper.assertTrue(g.hitsSac(hit), "背に当たった矢を嚢に数えない");
-            g.hurt(hit, 1.0F);
+            high.setPos(g.sacPart(3).getX(), g.sacPart(3).getY(), g.sacPart(3).getZ());
+            g.sacPart(3).hurt(level.damageSources().arrow(high, null), 1.0F);
             helper.assertTrue(g.state() == GestatrixEntity.CANCEL && g.cancels() == 1, "嚢に当たっても取りやめない: 状態 " + g.state());
         });
         helper.runAfterDelay(14 + GestatrixEntity.CANCEL_T + 4, () -> {
             helper.assertTrue(g.births() == 0 && brood(helper).isEmpty(), "取りやめたのに産んだ: " + g.births());
             helper.assertTrue(g.state() == GestatrixEntity.REST, "取りやめの後に休まない: " + g.state());
+            // 産んで消えた嚢の当たりは、届かない地下へ
+            g.setBirthsForTests(1);
+        });
+        helper.runAfterDelay(14 + GestatrixEntity.CANCEL_T + 6, () -> {
+            helper.assertTrue(g.sacPart(0).getY() < g.getY() - 32.0D && g.sacPart(1).getY() > g.getY() + 1.0D, "消えた嚢の当たりが残っている");
             helper.succeed();
         });
     }

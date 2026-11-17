@@ -33,8 +33,8 @@ public class GestatrixRenderer extends SmallCrawlerRenderer<GestatrixEntity> {
         }
         // 根付いた後の芽・嚢(sprout_1・hatch_1)は、根付くまで隠す(クリップの外では見えてしまう。モデル制作 11-17 夜の頼み)
         boolean rooted = animatable.rooted();
-        model.getBone("sprout_1").ifPresent(b -> b.setHidden(!rooted));
-        model.getBone("hatch_1").ifPresent(b -> b.setHidden(!rooted));
+        for (int i = 1; i <= GestatrixEntity.SPROUTS; i++) model.getBone("sprout_" + i).ifPresent(b -> b.setHidden(!rooted));
+        for (int i = 1; i <= GestatrixEntity.PODS; i++) model.getBone("hatch_" + i).ifPresent(b -> b.setHidden(!rooted));
         super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
     }
 }

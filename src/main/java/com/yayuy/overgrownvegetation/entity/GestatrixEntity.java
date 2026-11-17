@@ -57,7 +57,7 @@ import java.util.function.Supplier;
  *   {@code settleBlocks} まで近づくか、{@code roamTicks} 歩いたら腰を据える。腰を据えたらもう立たない。</li>
  *   <li><b>産む</b>: 前触れ {@link #WINDUP_T} tick(背の嚢が膨らんで光る・胞子が漏れる)→ グレガリアを {@code broodMin〜broodMax} 匹、背から散らす
  *   → {@code restMin〜restMax} tick 休む → くり返す。産んだ手先は縁の上限とは別に、1 匹につき {@code broodCap} まで(超えるなら休みを延ばす)。</li>
- *   <li><b>止め方</b>: 前触れの間に背の嚢へ当たると、その回は産めない({@link #hitsSac})。産むたびに嚢が 1 つ減り、{@code birthsToRoot} 回産むと
+ *   <li><b>止め方</b>: 前触れの間に背の嚢(専用の当たり = 部位 sac_0〜3。残っている嚢だけ)へ当たると、その回は産めない({@link #hitsSac})。産むたびに嚢が 1 つ減り、{@code birthsToRoot} 回産むと
  *   その場に根を下ろして苗床になる。倒せば苗床にならない。</li>
  *   <li><b>根付いた姿</b>(11-17 enemy-spawns が選んだ: G1 の苗床の型 {@code G1Nursery} は G1 の 11 種と素材の名前に結び付いているので広げず、
  *   この個体が動かなくなって苗床の働きをする): 萌芽体をただで生み(汚染に飲まれたら生まない)、司令塔へ「孵してよいか」を聞いて G4 以降を孵す。
@@ -85,6 +85,8 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
     public static final int SETTLE_T = 30, WINDUP_T = 40, BIRTH_T = 24, BIRTH_AT = 8, CANCEL_T = 20, ROOT_T = 60;
     /** 根付いた姿の芽・嚢の長さと、萌芽体・Mob を出す tick(G1 の苗床のクリップと同じ長さにしておく)【仮】。 */
     public static final int SPROUT_T = 32, SPROUT_AT = 12, HATCH_T = 60, HATCH_AT = 24;
+    /** 根付いた後の芽・孵す嚢の数(クリップ sprout_1〜・hatch_1〜。どれか 1 つをくじで流す。モデル制作 11-17 深夜【仮】)。 */
+    public static final int SPROUTS = 5, PODS = 2;
     /** 背の嚢の高さ(体の高さに掛ける): これより上に当たった弾・ここより上から殴った手は嚢に当たる【仮】。 */
     public static final double SAC_LINE = 0.55D;
     /** 歩く: 行き先を引き直す間(tick)。 */
@@ -124,10 +126,68 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
     public GestatrixEntity(EntityType<? extends GestatrixEntity> type, Level level) {
         super(type, level);
         this.xpReward = MobStats.xpReward(ID, 10);
+        // 背の嚢の専用の当たり(11-17 深夜 ユーザー「ファルキムネスの部位と同じやり方」)。id は本体の続き番号
+        this.sacParts = new com.yayuy.overgrownvegetation.entity.parts.HitPartSet(this, SAC_NAMES, SAC_W, SAC_H);
+        this.sacParts.onHurt((part, src) -> this.lastSacHit = part.name);
+        this.setId(ENTITY_COUNTER.getAndAdd(this.sacParts.count() + 1) + 1);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
         return MobStats.apply(Monster.createMonsterAttributes(), ID);
+    }
+
+    // ------------------------------------------------------------------ 嚢の当たり(部位)
+    /** 嚢の骨の名前(0 がいちばん上・産む順に 0 から消える)。 */
+    static final String[] SAC_NAMES = {"sac_0", "sac_1", "sac_2", "sac_3"};
+    /**
+     * 嚢の箱(ブロック。モデル制作 11-17 深夜の外接の箱。幅は x・z の大きい方、高さは y。前触れの終わりの膨らんだ大きさで取る)。
+     * 中心は [前, 左, 上の真ん中]。立ち・据えた・前触れの 3 つの姿(ノート「ゲスタトリクス_骨とアニメの名前」の更新 2。前 = −z)。
+     */
+    static final float[] SAC_W = {1.03F, 1.08F, 1.69F, 1.45F}, SAC_H = {0.64F, 1.17F, 1.17F, 1.28F};
+    static final double[] SAC_STAND = {-0.33D, -0.04D, 3.19D, 0.09D, 0.58D, 2.92D, -0.87D, -0.69D, 2.49D, -1.57D, 0.31D, 1.58D};
+    static final double[] SAC_SETTLED = {-0.51D, -0.04D, 2.80D, -0.07D, 0.58D, 2.56D, -0.99D, -0.69D, 2.05D, -1.62D, 0.31D, 1.11D};
+    static final double[] SAC_WINDUP = {-0.63D, -0.14D, 2.67D, -0.17D, 0.57D, 2.52D, -1.16D, -0.77D, 1.87D, -1.66D, 0.35D, 0.84D};
+    /** 消えた嚢の箱を置く所(足元からの高さ。届かない地下)。 */
+    static final double SAC_GONE = -64.0D;
+
+    private final com.yayuy.overgrownvegetation.entity.parts.HitPartSet sacParts;
+    private final double[] sacCenters = new double[SAC_NAMES.length * 3];
+    /** 直前に当たった嚢の部位の名前(本体の hurt の前に部位から知らされる)。 */
+    @Nullable
+    private String lastSacHit;
+
+    @Override
+    public void setId(int id) {
+        super.setId(id);
+        if (this.sacParts != null) this.sacParts.assignIds(id + 1);
+    }
+
+    @Override
+    public boolean isMultipartEntity() {
+        return true;
+    }
+
+    @Override
+    public net.neoforged.neoforge.entity.PartEntity<?>[] getParts() {
+        return this.sacParts.parts();
+    }
+
+    public com.yayuy.overgrownvegetation.entity.parts.HitPart sacPart(int i) {
+        return this.sacParts.part(i);
+    }
+
+    /** 嚢の部位を姿に合わせて置く(残っている嚢だけ。消えた嚢は地下へ)。サーバーとクライアントの両方で毎 tick。 */
+    private void placeSacs() {
+        int st = state();
+        double[] pose = st == ROAM ? SAC_STAND : st == WINDUP ? SAC_WINDUP : SAC_SETTLED;
+        int gone = SAC_NAMES.length - sacs();
+        for (int i = 0; i < SAC_NAMES.length; i++) {
+            sacCenters[i * 3] = pose[i * 3];
+            sacCenters[i * 3 + 1] = pose[i * 3 + 1];
+            sacCenters[i * 3 + 2] = i < gone || st == ROOTED ? SAC_GONE : pose[i * 3 + 2];
+        }
+        float yaw = st == ROAM ? this.yBodyRot : Float.isNaN(anchorYaw) ? getYRot() : anchorYaw;
+        this.sacParts.place(this, yaw, sacCenters);
     }
 
     private static SpawnTable.Gestatrix table() {
@@ -238,11 +298,7 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
     // ------------------------------------------------------------------ 弱点
     /** 前触れの間に背の嚢へ当たったか。弾は当たった高さ、手で殴ったのは殴った者の目の高さが嚢の線より上なら当たり【仮】。 */
     public boolean hitsSac(DamageSource source) {
-        double line = getY() + getBbHeight() * SAC_LINE;
-        Entity direct = source.getDirectEntity();
-        if (direct instanceof Projectile) return direct.getY() + direct.getBbHeight() * 0.5D >= line;
-        Entity by = source.getEntity();
-        return by != null && direct == by && by.getEyeY() >= line;
+        return this.lastSacHit != null;
     }
 
     @Override
@@ -256,6 +312,7 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
                 sl.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, getX(), getY() + getBbHeight() * 0.8D, getZ(), 24, 0.5D, 0.2D, 0.5D, 0.02D);
             }
         }
+        this.lastSacHit = null;
         return hurt;
     }
 
@@ -263,6 +320,7 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
     @Override
     public void tick() {
         super.tick();
+        placeSacs();
         if (level().isClientSide()) {
             windupClient = state() == WINDUP ? windupClient + 1 : 0; // 前触れの嚢の光(描画)
             return;
@@ -451,7 +509,7 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
             EntityType<? extends Mob> bought = ForestDirector.get(level).buySpawn(level, getRandom(), pool, position());
             if (bought != null) {
                 hatching = bought;
-                startNurse(-1, HATCH_T);
+                startNurse(-(1 + getRandom().nextInt(PODS)), HATCH_T);
                 return;
             }
         }
@@ -461,7 +519,7 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
                     .isOvergrownChunk(new net.minecraft.world.level.ChunkPos(blockPosition()));
             if (!swallowed && fernsNearby(level) < NurseryParasitized.FERN_LIMIT
                     && !com.yayuy.overgrownvegetation.director.DirectorGates.plantSpawnsSuppressed(level)) {
-                startNurse(1, SPROUT_T);
+                startNurse(1 + getRandom().nextInt(SPROUTS), SPROUT_T);
                 playSound(ModSounds.NURSERY_SPROUT.get(), 1.0F, 1.0F);
             }
         }
