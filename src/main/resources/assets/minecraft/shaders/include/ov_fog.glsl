@@ -184,6 +184,18 @@ float ovForestAt(vec3 p) {
     return m.a * edge * (h <= 0.0 ? 1.0 : exp(-OvFogB.y * h));
 }
 
+// (how much the column at p is forest under a canopy, height of p above the top of the spore fog there).
+vec2 ovForestSample(vec3 p) {
+    vec2 uv = (p.xz - OvFogA.xy) / OvFogA.z;
+    float size = OvFogA.w;
+    if (uv.x < 0.5 || uv.y < 0.5 || uv.x > size - 0.5 || uv.y > size - 0.5) {
+        return vec2(0.0);
+    }
+    vec4 m = textureLod(OvFogMap, uv / size, 0.0);
+    float edge = smoothstep(0.5, 4.0, min(min(uv.x, uv.y), min(size - uv.x, size - uv.y)));
+    return vec2(m.a * edge, p.y - (OvFogB.z + m.g * 255.0 + OvFogK.y));
+}
+
 // The spore fog (0 to 1) at the camera-relative position pos: the length of forest the ray crosses (8 samples along it, measured with
 // the vanilla terrain fog distance, a cylinder) through the smoothstep of vanilla linear fog. Rays too short to reach the start skip the map.
 float ovForestFog(vec3 pos) {
@@ -194,9 +206,15 @@ float ovForestFog(vec3 pos) {
     if (dist <= (OvFogK.w > 0.0 ? 2.0 : OvFogK.x)) {
         return 0.0;
     }
+    // 11-17: the length is integrated piece by piece with the height profile in closed form (ovFogSegment), not counted at 8 points.
+    // Counting made the length jump by dist / 8 when a crown was a little lower or higher, so seen from above the canopy whole crowns
+    // turned into flat plates of the fog colour next to clear ones.
+    vec2 prev = ovForestSample(vec3(0.0));
     float sum = 0.0;
-    for (int i = 0; i < 8; i++) {
-        sum += ovForestAt(pos * ((float(i) + 0.5) / 8.0));
+    for (int i = 1; i <= 8; i++) {
+        vec2 cur = ovForestSample(pos * (float(i) / 8.0));
+        sum += ovFogSegment(prev.y, cur.y, 1.0, OvFogB.y) * 0.5 * (prev.x + cur.x);
+        prev = cur;
     }
     float len = dist * sum / 8.0;
     float wall = len <= OvFogK.x ? 0.0 : (len < OvFogJ.w ? smoothstep(OvFogK.x, OvFogJ.w, len) : 1.0);
