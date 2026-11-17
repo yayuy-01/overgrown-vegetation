@@ -52,6 +52,7 @@ public final class DesignData {
     private static volatile AdaptationTable adaptation = AdaptationTable.DEFAULT;
     private static volatile ActionTable actions = ActionTable.DEFAULT;
     private static volatile SkyTable sky = SkyTable.DEFAULT;
+    private static volatile PerfTable perf = PerfTable.DEFAULT;
     private static volatile NetherSpreadTable netherSpread = NetherSpreadTable.DEFAULT;
 
     private static volatile DirectorTable director = DirectorTable.DEFAULT;
@@ -156,6 +157,11 @@ public final class DesignData {
         return sky;
     }
 
+    /** 重さを軽くする仕組みの設計値({@code perf.json}、2026-11-18 大群のための軽量化 B)。 */
+    public static PerfTable perf() {
+        return perf;
+    }
+
     public static ActionTable actions() {
         return actions;
     }
@@ -194,6 +200,7 @@ public final class DesignData {
         adaptation = AdaptationTable.fromJson(read(dir, "adaptation.json", AdaptationTable.Json.class));
         actions = ActionTable.fromJson(read(dir, "actions.json", ActionTable.Json.class));
         sky = SkyTable.fromJson(read(dir, "sky.json", SkyTable.Json.class));
+        perf = PerfTable.fromJson(read(dir, "perf.json", PerfTable.Json.class));
         netherSpread = NetherSpreadTable.fromJson(read(dir, "nether_spread.json", NetherSpreadTable.Json.class));
         director = DirectorTable.fromJson(read(dir, "director.json", DirectorTable.Json.class));
         spawns = com.yayuy.overgrownvegetation.spawn.SpawnTable.fromJson(read(dir, "spawns.json", com.yayuy.overgrownvegetation.spawn.SpawnTable.Json.class));

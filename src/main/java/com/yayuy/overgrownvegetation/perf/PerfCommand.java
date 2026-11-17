@@ -269,8 +269,9 @@ public final class PerfCommand {
         }
         send(source, String.format(Locale.ROOT, "  エンティティ %,d(この mod の Mob %,d / ほかの Mob %,d / 落ちているアイテム %,d)/ 遠くの Mob の思考の間引き %s(直前の tick に %d 体)",
                 all, modMobs, otherMobs, items,
-                cfg.mobThinkThrottleEnabled.get() ? cfg.mobThinkThrottleDistance.get() + " ブロックより遠く・"
-                        + cfg.mobThinkThrottleInterval.get() + " tick に 1 回" : "§7切ってある§r",
+                cfg.mobThinkThrottleEnabled.get() ? String.format(Locale.ROOT, "%.0f〜%.0f ブロックは %d tick・それより遠くは %d tick に 1 回",
+                        com.yayuy.overgrownvegetation.data.DesignData.perf().nearBlocks, com.yayuy.overgrownvegetation.data.DesignData.perf().midBlocks,
+                        com.yayuy.overgrownvegetation.data.DesignData.perf().midIntervalTicks, com.yayuy.overgrownvegetation.data.DesignData.perf().farIntervalTicks) : "§7切ってある§r",
                 MobThinkThrottle.heldLastTick()));
         if (PerfRecorder.recording()) {
             send(source, "  §e記録中(残り " + PerfRecorder.secondsLeft() + " 秒)§r");

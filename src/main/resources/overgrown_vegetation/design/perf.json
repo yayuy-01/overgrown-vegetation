@@ -1,0 +1,15 @@
+{
+  "_comment": "重さを軽くする仕組みの設計値(2026-11-18 大群のための軽量化 B)。数はどれも【仮】。",
+  "aiTiers": {
+    "_comment": "AI の段階化(11-18 ユーザー決定「入れる。背中側の 2 倍は外す」)。この MOD の Mob は、いちばん近いプレイヤーからの距離で行動の選び直し(標的・逃げ先・歩く先を探す)の間隔を変える。nearBlocks までは毎回(バニラの 2 tick)、midBlocks までは midIntervalTicks、それより遠くは farIntervalTicks に 1 回。今している行動(歩く・追う・群れに付いていく)と移動は毎 tick 続く。間引かないのは、標的がいる・叩かれてから hurtGraceTicks の間・動いている群れ(CrawlerPack.inMovingPack)の Mob。入り切りは common toml の mobThinkThrottleEnabled。",
+    "nearBlocks": 24,
+    "midBlocks": 64,
+    "midIntervalTicks": 4,
+    "farIntervalTicks": 12,
+    "hurtGraceTicks": 60
+  },
+  "push": {
+    "_comment": "植物側の押し合いを間引く(試し。11-18。ユーザー「撮った絵を見てから決める」ので common toml の plantPushThinEnabled は既定 false)。植物側の Mob は自分からの押し合いを intervalTicks に 1 回探す。プレイヤー・ほかの Mob とは相手の押し合いで今までどおり離れ、植物側どうしは約 1/4 の力で軽く離れ合う。",
+    "intervalTicks": 4
+  }
+}

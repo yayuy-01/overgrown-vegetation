@@ -842,10 +842,8 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.DoubleValue tickBudgetTargetMspt;
         /** 遠くの Mob の思考の間引き({@code perf/MobThinkThrottle})を使うか。 */
         public final ModConfigSpec.BooleanValue mobThinkThrottleEnabled;
-        /** 間引きを始める、いちばん近いプレイヤーからの距離(ブロック)。 */
-        public final ModConfigSpec.IntValue mobThinkThrottleDistance;
-        /** 遠くの Mob が行動を選び直す間隔(tick)。 */
-        public final ModConfigSpec.IntValue mobThinkThrottleInterval;
+        /** 植物側の押し合いを間引く({@code perf/PlantPushThin})。試し。 */
+        public final ModConfigSpec.BooleanValue plantPushThinEnabled;
         /** 部位の升目の索引({@code perf/PartIndex})を使うか。 */
         public final ModConfigSpec.BooleanValue partIndexEnabled;
 
@@ -2314,16 +2312,13 @@ public final class OvergrownVegetationConfig {
             mobThinkThrottleEnabled = b
                     .comment("遠くの Mob の思考の間引き。プレイヤーから離れたこの mod の Mob は、行動を選び直す(標的・逃げ先を探す)のを",
                             "数 tick に 1 回にする。歩く・戦うなどの今している行動は毎 tick 続く。",
-                            "遠くでの反応が少し遅くなる(汚染の広がりも少し遅れる)。既定 true。")
+                            "遠くでの反応が少し遅くなる(汚染の広がりも少し遅れる)。距離の段と間隔は design の perf.json(aiTiers、11-18)。既定 true。")
                     .define("mobThinkThrottleEnabled", true);
 
-            mobThinkThrottleDistance = b
-                    .comment("間引きを始める、いちばん近いプレイヤーからの距離(ブロック)。既定 48(仮決め)。")
-                    .defineInRange("mobThinkThrottleDistance", 48, 16, 512);
-
-            mobThinkThrottleInterval = b
-                    .comment("遠くの Mob が行動を選び直す間隔(tick)。バニラは 2。既定 8 = 0.4 秒(仮決め)。")
-                    .defineInRange("mobThinkThrottleInterval", 8, 2, 40);
+            plantPushThinEnabled = b
+                    .comment("植物側の Mob どうしの押し合いを軽くする(試し。11-18)。植物側は自分からの押し合いを数 tick に 1 回にし、",
+                            "プレイヤー・ほかの Mob とは相手の押し合いで今までどおり離れる。植物側どうしは軽く離れ合うだけ。間隔は design の perf.json(push)。既定 false。")
+                    .define("plantPushThinEnabled", false);
 
             partIndexEnabled = b
                     .comment("部位(大きな体の叩ける部位)の升目の索引。近くのエンティティを探すたびに世界じゅうの部位を全部比べていたのを、",

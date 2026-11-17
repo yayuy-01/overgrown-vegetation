@@ -1,30 +1,33 @@
 package com.yayuy.overgrownvegetation.perf;
 
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
+import com.yayuy.overgrownvegetation.data.DesignData;
+import com.yayuy.overgrownvegetation.data.PerfTable;
 import net.minecraft.gametest.framework.GameTestServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 
 /**
- * <b>遠くの Mob の思考の間引き</b>(2026-10-06、ユーザー指定の ⑤。遠くの汚染の広がりが遅くなるのは了承済み)。
+ * <b>AI の段階化</b>(遠くの Mob の思考の間引き。2026-10-06 ユーザー指定の ⑤ → 2026-11-18 大群のための軽量化 B の ②a で距離の段に。
+ * ユーザー決定「入れる。背中側の 2 倍は外す」。値は design の {@code perf.json} の aiTiers【仮】)。
  *
  * <h2>何を間引くか</h2>
  * <p>バニラの Mob は 2 tick に 1 回、持っている全部の行動(Goal)に「今始められるか」を聞き直す({@code GoalSelector#tick})。
- * 標的探し・逃げ先探しのような重い判定はここで走る(2026-10-06 の計測で、グループ1・胞子感染の「汚染から逃げる」だけで
- * サーバースレッドの 13%)。プレイヤーから {@code mobThinkThrottleDistance}(既定 48)ブロックより遠い Mob は、
- * この聞き直しを {@code mobThinkThrottleInterval}(既定 8)tick に 1 回にする。
+ * 標的探し・逃げ先探しのような重い判定はここで走る。この MOD の Mob は、いちばん近いプレイヤーからの距離で間隔を変える:
+ * {@code nearBlocks}(24)までは毎回(バニラのまま)、{@code midBlocks}(64)までは {@code midIntervalTicks}(4)、
+ * それより遠くは {@code farIntervalTicks}(12)tick に 1 回。
  *
  * <p>間引かないもの:
  * <ul>
- *     <li>今している行動の続き(歩く・追う・殴る)。毎 tick 動く行動は毎 tick、それ以外もバニラの奇数 tick と同じ扱いで続く。
- *     移動・当たり判定・経路の追従も毎 tick({@code serverAiStep} の残り)</li>
- *     <li>標的のいる Mob(戦闘中)。遠くの戦い(基地の守備兵とグループ1など)の結果を変えないため</li>
- *     <li>この mod のグループ 1〜10 に入っていない Mob(バニラ・他 MOD の Mob の行動は変えない)。ただし、この mod が全 Mob に
- *     足している「胞子感染で汚染から逃げる」行動({@code FleeCorruptionGoal})だけは、その行動の中で同じ間引きを掛ける</li>
+ *     <li>今している行動の続き(歩く・追う・殴る)のうち毎 tick 動くもの({@code requiresUpdateEveryTick})。それ以外の続きは選び直しと同じ間隔。
+ *     移動・当たり判定・経路の追従は毎 tick({@code serverAiStep} の残り)</li>
+ *     <li>標的のいる Mob・叩かれてから {@code hurtGraceTicks}(60)の間の Mob・動いている群れの一員({@code CrawlerPack#inMovingPack})</li>
+ *     <li>この mod の Mob でないもの(バニラ・他 MOD の Mob の行動は変えない)</li>
  * </ul>
  *
- * <p>シミュレーション距離(既定 12 チャンク = 192 ブロック)より外の Mob はバニラがそもそも動かさないので、効くのは 48〜192 ブロックの帯。
+ * <p>シミュレーション距離(既定 12 チャンク = 192 ブロック)より外の Mob はバニラがそもそも動かさない。11-18 の測り(F7 の前線・Mob 約 400 体)で
+ * 選び直しはサーバースレッドの 7.3%・経路探索 2.1%。
  */
 public final class MobThinkThrottle {
 
@@ -45,19 +48,25 @@ public final class MobThinkThrottle {
         if (phase % 2 != 0 || mob.tickCount <= 1) {
             return false; // バニラが選び直さない tick
         }
-        if (!com.yayuy.overgrownvegetation.OvergrownVegetation.MODID.equals(net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).getNamespace())
-                || mob.getTarget() != null) { // 前は MobGroup.of(mob) == null(グループは 2026-10-30 に parked/ へ)
+        if (!HordeMeter.isMod(mob) || mob.getTarget() != null) {
             return false;
         }
         return holdBack(mob, phase);
     }
 
     /**
-     * mod が他の Mob に足した重い行動({@code FleeCorruptionGoal})の「始められるか」の判定を、遠くではこの tick 飛ばすか。
+     * mod が他の Mob に足した重い行動の「始められるか」の判定を、遠くではこの tick 飛ばすか。
      * 標的の有無もグループも見ない(その行動自身の判定だけを間引く)。
      */
     public static boolean holdCostlyCheck(Mob mob) {
         return holdBack(mob, mob.tickCount + mob.getId());
+    }
+
+    /** 距離の 2 乗から、選び直す間隔(tick)。2 = バニラのまま。 */
+    public static int intervalFor(double distanceSq, PerfTable t) {
+        if (distanceSq <= t.nearBlocks * t.nearBlocks) return 2;
+        if (distanceSq <= t.midBlocks * t.midBlocks) return t.midIntervalTicks;
+        return t.farIntervalTicks;
     }
 
     private static boolean holdBack(Mob mob, int phase) {
@@ -68,18 +77,27 @@ public final class MobThinkThrottle {
             // 「遠い」扱いになり、反応の速さを見るテストが揺れる。プレイヤーが誰もいない普通のサーバーでは間引く(湧き場所のチャンクの Mob など)。
             return false;
         }
-        int interval = Math.max(2, cfg.mobThinkThrottleInterval.get());
-        if (Math.floorMod(phase, interval) < 2) {
-            return false; // 間引いた中でも選び直す番の tick
+        PerfTable t = DesignData.perf();
+        int far = Math.max(t.midIntervalTicks, t.farIntervalTicks);
+        if (Math.floorMod(phase, far) < 2) {
+            return false; // どの段でも選び直す番の tick(ここで帰れば距離を測らずに済む)
         }
-        double range = cfg.mobThinkThrottleDistance.get();
-        double rangeSq = range * range;
+        if (mob.getLastHurtByMob() != null && mob.tickCount - mob.getLastHurtByMobTimestamp() < t.hurtGraceTicks) {
+            return false; // 叩かれた直後
+        }
+        double best = Double.MAX_VALUE;
         for (Player player : level.players()) {
-            if (player.distanceToSqr(mob) <= rangeSq) {
-                return false;
-            }
+            best = Math.min(best, player.distanceToSqr(mob));
+        }
+        int interval = intervalFor(best, t);
+        if (interval <= 2 || Math.floorMod(phase, interval) < 2) {
+            return false;
+        }
+        if (com.yayuy.overgrownvegetation.entity.crawler.CrawlerPack.inMovingPack(mob)) {
+            return false; // 動いている群れ(先導役も後続も)は遠くでも間引かない
         }
         count(level);
+        if (HordeMeter.on) HordeMeter.held();
         return true;
     }
 
@@ -91,7 +109,6 @@ public final class MobThinkThrottle {
             countedTick = tick;
         }
         heldThisTick++;
-        if (HordeMeter.on) HordeMeter.held();
     }
 
     /** {@code /ov perf} の表示用: 直前の tick に選び直しを飛ばした回数。 */

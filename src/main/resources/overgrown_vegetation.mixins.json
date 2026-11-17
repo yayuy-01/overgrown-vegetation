@@ -17,6 +17,7 @@
     "HordeMeterPushMixin",
     "HordeMeterSendMixin",
     "PartIndexLevelMixin",
+    "PlantPushThinMixin",
     "DoorSetOpenCoveredMixin",
     "FallingBlockCoveredMixin",
     "LeavesPushThroughMixin",
