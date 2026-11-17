@@ -41,6 +41,36 @@ public final class SpawnTable {
         public SenderJson sender;
         public List<SpeciesJson> species;
         public FogLurkerJson fogLurker;
+        public GestatrixJson gestatrix;
+    }
+
+    public static final class GestatrixJson {
+        public Integer broodMin, broodMax, broodCap, birthsToRoot, restMin, restMax, roamTicks;
+        public Double settleBlocks, approachBlocks, senderChance;
+    }
+
+    /**
+     * ゲスタトリクス(G6・歩く苗床。11-17 ユーザー)の数。どれも【仮】。産む数 broodMin〜broodMax・産んだ手先の上限 broodCap(1 匹につき・縁の上限とは別)・
+     * 根を下ろすまでに産む回数 birthsToRoot・産む間 restMin〜restMax tick・腰を据えるまで歩く長さ roamTicks・プレイヤー/拠点にこれだけ近づいたら腰を据える settleBlocks・
+     * これより遠いプレイヤーへは寄らない approachBlocks・司令塔の送り込みで G4 を湧かせた回に 1 匹混ぜる確率 senderChance。
+     */
+    public static final class Gestatrix {
+        public final int broodMin, broodMax, broodCap, birthsToRoot, restMin, restMax, roamTicks;
+        public final double settleBlocks, approachBlocks, senderChance;
+
+        Gestatrix(@Nullable GestatrixJson j) {
+            GestatrixJson s = j != null ? j : new GestatrixJson();
+            this.broodMin = Math.max(1, or(s.broodMin, 3));
+            this.broodMax = Math.max(this.broodMin, or(s.broodMax, 5));
+            this.broodCap = Math.max(0, or(s.broodCap, 12));
+            this.birthsToRoot = Math.max(1, or(s.birthsToRoot, 4));
+            this.restMin = Math.max(20, or(s.restMin, 200));
+            this.restMax = Math.max(this.restMin, or(s.restMax, 320));
+            this.roamTicks = Math.max(20, or(s.roamTicks, 600));
+            this.settleBlocks = Math.max(4.0D, or(s.settleBlocks, 20.0D));
+            this.approachBlocks = Math.max(this.settleBlocks, or(s.approachBlocks, 48.0D));
+            this.senderChance = Math.max(0.0D, Math.min(1.0D, or(s.senderChance, 0.25D)));
+        }
     }
 
     public static final class FogLurkerJson {
@@ -124,11 +154,13 @@ public final class SpawnTable {
         public Boolean breaker;
         /** 群れで湧く頭数(この種の分)と、混ぜる種。 */
         public PackJson pack;
+        /** 縁で湧き始めるフェーズの上書き(無ければグループの開くフェーズ。11-17: G6 のゲスタトリクスを F4 から)。 */
+        public Integer open;
     }
 
     /** 表の 1 行。type は登録の有無を起動後に引く(登録の無い id は null = 飛ばす)。 */
     public record Species(@Nullable String id, @Nullable G1Species g1, int group, EnumSet<Habitat> habitats, double weight, boolean director, boolean breaker,
-                          int packMin, int packMax, List<PackWith> packWith) {
+                          int packMin, int packMax, List<PackWith> packWith, int open) {
         /** 群れで湧く種か(頭数の上が 2 以上)。 */
         public boolean packs() {
             return packMax >= 2 || !packWith.isEmpty();
@@ -157,6 +189,8 @@ public final class SpawnTable {
     public final boolean fernNaturalSpawn;
     /** 怖い現象 E の「たまに本物」。 */
     public final FogLurker fogLurker;
+    /** ゲスタトリクスの数(11-17)。 */
+    public final Gestatrix gestatrix;
     /** G1 の縁と地下の湧きが開くフェーズ(G4・G5 は director.json の gates。11-16 見直しで 1 か所にまとめた)。 */
     public final int openG1;
     private final int[] caps = new int[11];
@@ -175,6 +209,7 @@ public final class SpawnTable {
         this.enabled = j.enabled == null || j.enabled;
         this.fernNaturalSpawn = j.fernNaturalSpawn == null || j.fernNaturalSpawn;
         this.fogLurker = new FogLurker(j.fogLurker);
+        this.gestatrix = new Gestatrix(j.gestatrix);
         this.openG1 = Math.max(1, j.openG1 != null ? j.openG1 : 1);
         EdgeJson e = j.edge != null ? j.edge : new EdgeJson();
         caps[1] = 15;
@@ -241,7 +276,7 @@ public final class SpawnTable {
         if (hs.isEmpty()) hs.add(Habitat.GROUND);
         String id = g1 != null ? null : (sj.id.contains(":") ? sj.id : OvergrownVegetation.MODID + ":" + sj.id);
         return new Species(id, g1, Math.max(1, Math.min(10, sj.group)), hs, Math.max(0.0D, or(sj.weight, 1.0D)), sj.director == null || sj.director, sj.breaker != null && sj.breaker,
-                sj.pack == null ? 1 : Math.max(1, or(sj.pack.min, 1)), sj.pack == null ? 1 : Math.max(Math.max(1, or(sj.pack.min, 1)), or(sj.pack.max, 1)), packWith(sj.pack));
+                sj.pack == null ? 1 : Math.max(1, or(sj.pack.min, 1)), sj.pack == null ? 1 : Math.max(Math.max(1, or(sj.pack.min, 1)), or(sj.pack.max, 1)), packWith(sj.pack), sj.open == null ? 0 : Math.max(1, Math.min(10, sj.open)));
     }
 
     private static List<PackWith> packWith(@Nullable PackJson p) {

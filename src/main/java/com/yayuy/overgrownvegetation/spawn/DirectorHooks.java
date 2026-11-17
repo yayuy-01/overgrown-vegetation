@@ -210,8 +210,12 @@ public final class DirectorHooks {
         if (DirectorGates.open(level, DirectorGates.Gate.WAVE_MIXED) && lastSpot != null && lastSpotTime == level.getGameTime() && lastSpotBase == b.id()) {
             spot = lastSpot;
         }
+        int spawnedNow = 0;
+        // ゲスタトリクスを混ぜる回は、G4 の分を 1 つ空けておく(送る数 count を超えない。大きな襲撃の同時の上限を守る)
+        boolean mix = group == 4 && count - sent >= 2 && random.nextDouble() < DesignData.spawns().gestatrix.senderChance;
+        int g4Limit = mix ? count - 1 : count;
         int attempts = (count - sent) * 2;
-        while (sent < count && attempts-- > 0) {
+        while (sent < g4Limit && attempts-- > 0) {
             EntityType<?> type = pickPlant(level, random, group);
             if (type == null) break;
             double price = ForestDirector.stagePrice(ForestDirector.spawnCost(type), DirectorGates.strength(level, gate));
@@ -225,13 +229,40 @@ public final class DirectorHooks {
             tagWave(m);
             sent++;
             sentSpawned++;
+            spawnedNow++;
         }
+        if (mix && spawnedNow > 0 && spot != null && mixGestatrix(level, b, spot, random, d)) sent++;
         if (spot != null) {
             lastSpot = spot;
             lastSpotTime = level.getGameTime();
             lastSpotBase = b.id();
         }
         return sent;
+    }
+
+    /** 確かめ用: 送り込みに混ぜたゲスタトリクスの数。 */
+    public static long sentGestatrix;
+
+    /**
+     * 送り込みで G4 を森の方角から湧かせた回に、ゲスタトリクス(G6・歩く苗床)を 1 匹混ぜる(11-17。確率 {@code gestatrix.senderChance}【仮】は呼ぶ側で引き、送る数のうち 1 つをこれに充てる)。
+     * 拠点のまわり(raidSearchBlocks)の、根付いていないゲスタトリクスが edge.caps の 6 以上なら混ぜない。予算は G6 の値段 × 段の強さ。
+     * 拠点へ歩かせ(MarchGoal ではなく自前の歩き)、拠点のそばで腰を据えて産む。
+     */
+    static boolean mixGestatrix(ServerLevel level, BaseMemory.Base b, BlockPos spot, RandomSource random, ForestDirector d) {
+        EntityType<?> type = com.yayuy.overgrownvegetation.registry.ModCrawlers.GESTATRIX.get();
+        double r = DesignData.director().base.raidSearchBlocks;
+        AABB box = new AABB(b.centerX() - r, level.getMinBuildHeight(), b.centerZ() - r, b.centerX() + r, level.getMaxBuildHeight(), b.centerZ() + r);
+        int cap = Math.max(1, DesignData.spawns().cap(6));
+        if (level.getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.GestatrixEntity.class, box, g -> g.isAlive() && !g.rooted()).size() >= cap) return false;
+        double price = ForestDirector.stagePrice(ForestDirector.spawnCost(type), DirectorGates.strength(level, DirectorGates.Gate.WAVE_G4));
+        if (d.available(level) + 1.0E-9D < price) return false;
+        Mob m = RaidSpawns.spawnPlantAttacker(level, near(level, spot, random), type, random);
+        if (!(m instanceof com.yayuy.overgrownvegetation.entity.GestatrixEntity g)) return false;
+        d.tryPay(level, price);
+        g.sendTo(b);
+        tagWave(m);
+        sentGestatrix++;
+        return true;
     }
 
     /** テスト用: 送り込みで湧かせる所を決め打ちにする(null で戻す。テスト場の高さの地図は天井のバリアを答えるため)。 */

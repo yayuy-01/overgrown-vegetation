@@ -15,7 +15,7 @@
     "g1Band": 16,
     "g45Band": 4,
     "rebuildTicks": 100,
-    "caps": { "1": 25, "4": 40, "5": 15 },
+    "caps": { "1": 25, "4": 40, "5": 15, "6": 2 },
     "skyMinAbove": 12,
     "skyMaxAbove": 28,
     "caveMinDepth": 8
@@ -39,6 +39,19 @@
     "tries": 12,
     "weights": { "clipeimnes": 2.0, "falcimnes": 1.0 }
   },
+  "gestatrix": {
+    "_comment": "ゲスタトリクス(G6・歩く苗床。11-17 ユーザー決定。正本は Vault「歩く苗床(産む G6)と苗床の生産(11-17)」)。縁の帯(G4/G5 と同じ内外 4 チャンク)に F4 から湧く(種の表の open: 4。G6 の送り込みのゲートは F6 のまま)。上限は edge.caps の 6(最盛 2・段の強さを掛ける = プレイヤーのまわりに 1〜2)。歩いて、拠点かプレイヤーに settleBlocks まで近づくか roamTicks 歩いたら腰を据え、前触れ約 2 秒 → グレガリア broodMin〜broodMax 匹 → restMin〜restMax tick 休む をくり返す。前触れの間に背の嚢へ当たるとその回は取りやめ。birthsToRoot 回産むと根を下ろして苗床になる(萌芽体と孵す値は director.json の nursery の値)。産んだ手先は縁の上限とは別に 1 匹につき broodCap まで。プレイヤーへは approachBlocks より遠いと寄らない。司令塔の送り込みで G4 を湧かせた回に senderChance で 1 匹混ぜる(予算は G6 の値段)。数はどれも【仮】。",
+    "broodMin": 3,
+    "broodMax": 5,
+    "broodCap": 12,
+    "birthsToRoot": 4,
+    "restMin": 200,
+    "restMax": 320,
+    "roamTicks": 600,
+    "settleBlocks": 20,
+    "approachBlocks": 48,
+    "senderChance": 0.25
+  },
   "sender": {
     "_comment": "司令塔の送り込み・大きな襲撃が G4・G5 を出すとき。拠点のまわりにいる個体を先に歩かせ、足りない分は森の方角の見えない地面に湧かせる(司令塔の予算から costSpawn × 段)。",
     "spawnMinBlocks": 40,
@@ -49,7 +62,7 @@
     "clusterBlocks": 4
   },
   "species": [
-    { "_comment": "habitats: ground(地上)・sky(縁の上空)・sea(海に面した縁)・cave(縁の下の洞窟。G1 は地下の湧きにも)・soil(地中)。g1 は G1 の種の key(段階 0)。id は登録名。登録の無い id は飛ばす。director: false の種は司令塔の口(苗床・送り込み・襲撃。G1 は送り込み・大きな襲撃・偵察で森から湧かせる段階 0。11-16 見直し: G1 の重みはここ 1 か所)に入れない(空の種は 11-15 全体管理: 最初は縁だけ)。pack: 群れで湧く頭数(min〜max)と混ぜる種(with。11-17 ユーザー: アルボラが先導役・ストロビラは群れの後ろ)。グレガリアは自前の群れ(同じ種どうし)、ほかは湧かせた群れの頭が先導役【仮】。breaker: true の種は、拠点へ向かう・相手を追う途中で道が詰まると壁や扉(タグ raid_breakable)を壊す(11-16 ユーザー: アルボラ・ファルキムネス・クリペイムネス・ヴェナムネス)。", "id": "" },
+    { "_comment": "habitats: ground(地上)・sky(縁の上空)・sea(海に面した縁)・cave(縁の下の洞窟。G1 は地下の湧きにも)・soil(地中)。g1 は G1 の種の key(段階 0)。id は登録名。登録の無い id は飛ばす。director: false の種は司令塔の口(苗床・送り込み・襲撃。G1 は送り込み・大きな襲撃・偵察で森から湧かせる段階 0。11-16 見直し: G1 の重みはここ 1 か所)に入れない(空の種は 11-15 全体管理: 最初は縁だけ)。pack: 群れで湧く頭数(min〜max)と混ぜる種(with。11-17 ユーザー: アルボラが先導役・ストロビラは群れの後ろ)。グレガリアは自前の群れ(同じ種どうし)、ほかは湧かせた群れの頭が先導役【仮】。breaker: true の種は、拠点へ向かう・相手を追う途中で道が詰まると壁や扉(タグ raid_breakable)を壊す(11-16 ユーザー: アルボラ・ファルキムネス・クリペイムネス・ヴェナムネス)。open: 縁で湧き始めるフェーズの上書き(無ければグループの開くフェーズ。11-17: G6 のゲスタトリクスだけ F4 から)。", "id": "" },
     { "id": "overgrown_vegetation:arbora", "group": 4, "habitats": ["ground"], "weight": 1.0, "breaker": true, "pack": { "min": 3, "max": 5, "with": [ { "id": "strobila", "min": 1, "max": 2 } ] } },
     { "id": "overgrown_vegetation:gregaria", "group": 4, "habitats": ["ground"], "weight": 1.0, "pack": { "min": 6, "max": 10 } },
     { "id": "overgrown_vegetation:strobila", "group": 4, "habitats": ["ground"], "weight": 0.5 },
@@ -57,6 +70,7 @@
     { "id": "overgrown_vegetation:velophyll", "group": 4, "habitats": ["sky"], "weight": 0.6, "director": false },
     { "id": "overgrown_vegetation:seminaria", "group": 4, "habitats": ["sky"], "weight": 0.6, "director": false },
     { "id": "overgrown_vegetation:pedicula", "group": 4, "habitats": ["sky"], "weight": 0.4, "director": false },
+    { "id": "overgrown_vegetation:gestatrix", "group": 6, "habitats": ["ground"], "weight": 1.0, "director": false, "open": 4 },
     { "id": "overgrown_vegetation:radicula", "group": 4, "habitats": ["soil"], "weight": 1.0 },
     { "id": "overgrown_vegetation:falcimnes", "group": 5, "habitats": ["ground"], "weight": 1.0, "breaker": true },
     { "id": "overgrown_vegetation:venamnes", "group": 5, "habitats": ["ground"], "weight": 1.0, "breaker": true },

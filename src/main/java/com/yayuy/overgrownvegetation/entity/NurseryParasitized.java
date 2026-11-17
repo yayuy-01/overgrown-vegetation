@@ -70,8 +70,10 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
     static final double FERN_LIMIT_RADIUS = 16.0D;
     /** 萌芽体を出す所: 苗床からこの長さの輪の上(最小〜最大)。 */
     static final double FERN_NEAR = 1.5D, FERN_FAR = 4.0D;
-    /** 司令塔へ「孵してよいか」を聞く間隔(tick)。 */
-    static final int HATCH_ASK_INTERVAL = 1200;
+    /** 司令塔へ「孵してよいか」を聞く間隔(tick)。11-17 から design の nurseryHatchAskTicks(前はここの 1200)。 */
+    static int hatchAskInterval() {
+        return com.yayuy.overgrownvegetation.data.DesignData.director().nurseryHatchAskTicks;
+    }
     /** 飲まれたかを見直す間隔(tick)。 */
     static final int SWALLOWED_CHECK = 100;
 
@@ -89,7 +91,7 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
     private int actionLeft;
     private int actionAge;
     private int sproutIn = -1;
-    private int hatchAskIn = HATCH_ASK_INTERVAL;
+    private int hatchAskIn = -1;
     /** 汚染に飲まれたか(飲まれたら萌芽体を生まない)。見直しは {@link #SWALLOWED_CHECK} ごと。 */
     private boolean swallowed;
     /** 孵す Mob(司令塔が払った分)。hatch の tick 24 に出す。 */
@@ -240,6 +242,7 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         if (tickCount % com.yayuy.overgrownvegetation.entity.g1.G1Unbury.INTERVAL == 0) com.yayuy.overgrownvegetation.entity.g1.G1Unbury.liftIfBuried(this); // 木の幹に埋まったら上へ出る(R6-7)
         if (tickCount % SWALLOWED_CHECK == 1) checkSwallowed(level);
         if (sproutIn < 0) sproutIn = nextSproutDelay();
+        if (hatchAskIn < 0) hatchAskIn = hatchAskInterval();
         int action = action();
         if (action != ACTION_NONE) {
             if (action == ACTION_SPROUT && actionAge == G1Nursery.SPROUT_AT) sproutFern(level);
@@ -250,14 +253,14 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
             actionAge++;
             if (--actionLeft <= 0) {
                 begin(ACTION_NONE, 0);
-                // 寿命(第 3 段 区切り 4。11-14 ユーザー N1): 萌芽体を決めた数だけ生むか、G4 以降を 1 回孵したら、枯れて崩れる
+                // 寿命(第 3 段 区切り 4。11-14 ユーザー N1・11-17): 萌芽体を決めた数だけ生むか、G4 以降を決めた回数孵したら、枯れて崩れる
                 if (spent()) kill();
             }
             return;
         }
         // スポナーの口: 飲まれていても・いなくても働く。司令塔が払ったときだけ孵す
         if (--hatchAskIn <= 0) {
-            hatchAskIn = HATCH_ASK_INTERVAL;
+            hatchAskIn = hatchAskInterval();
             List<Supplier<? extends EntityType<? extends Mob>>> pool = spawnPoolOverride != null ? spawnPoolOverride : ForestDirector.nurserySpawns();
             EntityType<? extends Mob> bought = ForestDirector.get(level).buySpawn(level, random, pool, position());
             if (bought != null) {
@@ -321,7 +324,7 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         hatching = null;
         if (type == null) return;
         BlockPos p = spotAround(level, 1.0D, 2.5D);
-        hatched = true;
+        hatches++;
         Mob mob = type.create(level);
         if (mob == null) return;
         Vec3 at = p != null ? Vec3.atBottomCenterOf(p) : position();
@@ -334,19 +337,26 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
     // ------------------------------------------------------------------ 寿命(第 3 段 区切り 4)
     /**
      * 生んだ萌芽体の数と、G4 以降を孵したか。11-14 ユーザー「苗床は汚染されていない地域に萌芽体をばらまいて周囲を汚染したり、
-     * 周囲の mob を狩るために G4〜を生み出す存在」・N1 = 萌芽体を 6 体【仮】生むか、G4 以降を 1 回孵したら枯れる(どちらか先)。
-     * 飲まれて萌芽体を生まなくなった苗床は、スポナーとして残り、孵したら枯れる。
+     * 周囲の mob を狩るために G4〜を生み出す存在」・N1 = 萌芽体を 6 体【仮】生むか、G4 以降を孵したら枯れる(どちらか先)。
+     * 11-17 ユーザー「1 つにつき 1 回」をやめる: 孵すのは {@code nurseryLifeHatches} 回【仮 4】まで(間は {@code nurseryHatchAskTicks})。
+     * 飲まれて萌芽体を生まなくなった苗床は、スポナーとして残り、孵し終えたら枯れる。
      */
     private int sprouted;
-    private boolean hatched;
+    private int hatches;
 
     /** 役目を終えたか(枯れる)。 */
     public boolean spent() {
-        return hatched || sprouted >= com.yayuy.overgrownvegetation.data.DesignData.director().nurseryLifeSprouts;
+        com.yayuy.overgrownvegetation.data.DirectorTable t = com.yayuy.overgrownvegetation.data.DesignData.director();
+        return hatches >= t.nurseryLifeHatches || sprouted >= t.nurseryLifeSprouts;
     }
 
     public int sprouted() {
         return sprouted;
+    }
+
+    /** G4 以降を孵した回数。 */
+    public int hatches() {
+        return hatches;
     }
 
     // ------------------------------------------------------------------ 枯れて崩れる
@@ -367,7 +377,7 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         tag.putInt("SproutIn", sproutIn);
         tag.putInt("HatchAskIn", hatchAskIn);
         tag.putInt("Sprouted", sprouted);
-        tag.putBoolean("Hatched", hatched);
+        tag.putInt("Hatches", hatches);
     }
 
     @Override
@@ -377,7 +387,7 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         if (tag.contains("SproutIn")) sproutIn = tag.getInt("SproutIn");
         if (tag.contains("HatchAskIn")) hatchAskIn = tag.getInt("HatchAskIn");
         sprouted = tag.getInt("Sprouted");
-        hatched = tag.getBoolean("Hatched");
+        hatches = tag.contains("Hatches") ? tag.getInt("Hatches") : tag.getBoolean("Hatched") ? com.yayuy.overgrownvegetation.data.DesignData.director().nurseryLifeHatches : 0;
     }
 
     // ------------------------------------------------------------------ アニメ
@@ -420,6 +430,10 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
     /** 次に萌芽体を生むまで・次に司令塔へ聞くまでの残り(tick)を決める。 */
     public void setSproutedForTests(int n) {
         this.sprouted = n;
+    }
+
+    public void setHatchesForTests(int n) {
+        this.hatches = n;
     }
 
     public void setTimersForTests(int sproutIn, int hatchAskIn) {

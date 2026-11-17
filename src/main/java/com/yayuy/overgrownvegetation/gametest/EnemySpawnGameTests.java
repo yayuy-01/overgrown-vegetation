@@ -166,6 +166,7 @@ public final class EnemySpawnGameTests {
             int[] full = new int[11];
             full[1] = EnemySpawns.edgeCap(level, 1);
             full[4] = EnemySpawns.edgeCap(level, 4);
+            full[6] = EnemySpawns.edgeCap(level, 6); // 11-17: G6 のゲスタトリクスも F4 から(種の open)
             helper.assertTrue(EnemySpawns.pick(level, full, r, false) == null, "上限なのに選んだ");
             helper.assertTrue(EnemySpawns.tryEdge(level, cx + 1, cz, full, r) == EnemySpawns.Miss.FULL, "上限なのに縁で湧こうとした");
             full[4] = 0;

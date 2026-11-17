@@ -97,9 +97,24 @@ public final class EnemySpawns {
         return PhaseStages.strength(DesignData.phases(), DirectorGates.phase(level), DirectorGates.stage(level), open);
     }
 
+    /** その種の今の強さ(種に開くフェーズの上書き open があればそれで。11-17 ゲスタトリクス)。 */
+    public static double strength(ServerLevel level, SpawnTable.Species sp) {
+        if (sp.open() <= 0) return strength(level, sp.group());
+        return PhaseStages.strength(DesignData.phases(), DirectorGates.phase(level), DirectorGates.stage(level), sp.open());
+    }
+
+    /** グループの強さ: グループの開くフェーズと、上書きのある種のうち大きいほう(G6 はゲスタトリクスだけ F4 から開く)。 */
+    public static double groupStrength(ServerLevel level, int group) {
+        double s = strength(level, group);
+        for (SpawnTable.Species sp : DesignData.spawns().species) {
+            if (sp.group() == group && sp.open() > 0) s = Math.max(s, strength(level, sp));
+        }
+        return s;
+    }
+
     /** 縁の、そのグループの今の上限(基本 × 強さ。四捨五入)。 */
     public static int edgeCap(ServerLevel level, int group) {
-        double s = strength(level, group);
+        double s = groupStrength(level, group);
         return s <= 0.0D ? 0 : (int) Math.round(DesignData.spawns().cap(group) * s);
     }
 
@@ -339,7 +354,7 @@ public final class EnemySpawns {
             if (under && (g != 1 || !sp.habitats().contains(SpawnTable.Habitat.CAVE))) continue;
             if (!under && counts[g] >= edgeCap(level, g)) continue;
             if (str[g] < 0.0D) str[g] = strength(level, g);
-            double w = sp.weight() * str[g];
+            double w = sp.weight() * (sp.open() > 0 ? strength(level, sp) : str[g]);
             if (w <= 0.0D || sp.type() == null) continue;
             cands.add(sp);
             weights.add(w);
@@ -585,9 +600,9 @@ public final class EnemySpawns {
         out.add(String.format(Locale.ROOT, "湧き %s・フェーズ %s・段 %s / まわり %d チャンクの縁 %d(内側 %d・外側 %d)",
                 allowed(level) ? "動く" : "止まっている", DirectorGates.phase(level) == Integer.MAX_VALUE ? "全部開(テスト)" : "F" + DirectorGates.phase(level),
                 DirectorGates.stage(level).name(), (2 * r + 1) * (2 * r + 1), edges, inside, edges - inside));
-        out.add(String.format(Locale.ROOT, "縁: G1 %d/%d・G4 %d/%d・G5 %d/%d / 地下の G1 %d/%d(強さ G1 %.2f・G4 %.2f・G5 %.2f)",
-                c[1], edgeCap(level, 1), c[4], edgeCap(level, 4), c[5], edgeCap(level, 5), c[0], underCap(level),
-                strength(level, 1), strength(level, 4), strength(level, 5)));
+        out.add(String.format(Locale.ROOT, "縁: G1 %d/%d・G4 %d/%d・G5 %d/%d・G6 %d/%d / 地下の G1 %d/%d(強さ G1 %.2f・G4 %.2f・G5 %.2f・G6 %.2f)",
+                c[1], edgeCap(level, 1), c[4], edgeCap(level, 4), c[5], edgeCap(level, 5), c[6], edgeCap(level, 6), c[0], underCap(level),
+                strength(level, 1), strength(level, 4), strength(level, 5), groupStrength(level, 6)));
         BandRoster br = roster(level, COMMAND_KEY, x, z);
         out.add(String.format(Locale.ROOT, "帯の名簿: G1 %d チャンク(外 1〜%d)・G4/G5 %d チャンク(内外 %d)・ここの境目までの距離 %d / 作り直し 平均 %.2f ms(%d 回)・試し 平均 %.3f ms(%d 回)・まとめて湧いた群れ %d",
                 br.g1Size(), t.g1Band, br.g45Size(), t.g45Band, br.distanceAt(net.minecraft.util.Mth.floor(x) >> 4, net.minecraft.util.Mth.floor(z) >> 4),

@@ -90,6 +90,25 @@ public final class ModCrawlers {
                     .updateInterval(10)
                     .build("strobila_cone"));
 
+    /**
+     * ゲスタトリクス(G6・歩く苗床。2026-11-17)。当たりは胴と背の嚢の芯 1.6 × 1.0【仮】(大きさは G5・G6 の格)。脚ははみ出す。
+     * モデル制作(Fable)の形が来るまで、描画はグレガリアの形を大きくした仮のモデル。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.GestatrixEntity>> GESTATRIX =
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.GestatrixEntity.ID, () -> EntityType.Builder
+                    .<com.yayuy.overgrownvegetation.entity.GestatrixEntity>of(com.yayuy.overgrownvegetation.entity.GestatrixEntity::new, MobCategory.MONSTER)
+                    .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.GestatrixEntity.ID, 1.6F),
+                            MobStats.height(com.yayuy.overgrownvegetation.entity.GestatrixEntity.ID, 1.0F))
+                    .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.GestatrixEntity.ID))
+                    .eyeHeight(0.7F)
+                    .clientTrackingRange(10)
+                    .build(com.yayuy.overgrownvegetation.entity.GestatrixEntity.ID));
+
+    /** ゲスタトリクスのスポーンエッグ(地は樹皮の焦げ茶、点は背の嚢の黄緑)【仮】。 */
+    public static final DeferredItem<DeferredSpawnEggItem> GESTATRIX_SPAWN_EGG = ModItems.ITEMS.registerItem(
+            com.yayuy.overgrownvegetation.entity.GestatrixEntity.ID + "_spawn_egg",
+            props -> new DeferredSpawnEggItem(GESTATRIX, 0x3A2A1C, 0xB4D23C, props));
+
     // --- G2・G3 の作り直し 段 1(2026-11-16): 小さな地這いの虫の型で歩くだけ。湧きは生態系の台帳(ecosystem/EcoSpawns)へ後でつなぐ。区分は CREATURE ---
 
     /** プルモノスコルピウス(G3)。当たりは胴の芯 1.0 × 0.6(尾・脚・鋏ははみ出す。全体 2.46 × 1.11 × 1.04)。 */
@@ -162,6 +181,7 @@ public final class ModCrawlers {
         output.accept(VESICARIA_SPAWN_EGG.get());
         output.accept(GREGARIA_SPAWN_EGG.get());
         output.accept(STROBILA_SPAWN_EGG.get());
+        output.accept(GESTATRIX_SPAWN_EGG.get());
         output.accept(PULMONOSCORPIUS_SPAWN_EGG.get());
         output.accept(PROTOPHASMA_SPAWN_EGG.get());
         output.accept(STENODICTYA_NYMPH_SPAWN_EGG.get());
@@ -174,6 +194,7 @@ public final class ModCrawlers {
         event.put(VESICARIA.get(), com.yayuy.overgrownvegetation.entity.VesicariaEntity.createAttributes().build());
         event.put(GREGARIA.get(), GregariaEntity.createAttributes().build());
         event.put(STROBILA.get(), com.yayuy.overgrownvegetation.entity.StrobilaEntity.createAttributes().build());
+        event.put(GESTATRIX.get(), com.yayuy.overgrownvegetation.entity.GestatrixEntity.createAttributes().build());
         event.put(PULMONOSCORPIUS.get(), com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.createAttributes().build());
         event.put(PROTOPHASMA.get(), com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.createAttributes().build());
         event.put(STENODICTYA_NYMPH.get(), com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity.createAttributes().build());

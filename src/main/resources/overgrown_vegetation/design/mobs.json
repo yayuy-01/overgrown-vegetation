@@ -457,6 +457,22 @@
     "xpReward": 1,
     "eggFit": 2.0
   },
+  "gestatrix": {
+    "maxHealth": 40,
+    "attackDamage": 0,
+    "armor": 2,
+    "movementSpeed": 0.2,
+    "knockbackResistance": 0.6,
+    "followRange": 32,
+    "stepHeight": 1,
+    "scale": 1,
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "width": 1.6,
+    "height": 1.0,
+    "xpReward": 10,
+    "eggFit": 1.2
+  },
   "strobila": {
     "maxHealth": 12,
     "attackDamage": 2,

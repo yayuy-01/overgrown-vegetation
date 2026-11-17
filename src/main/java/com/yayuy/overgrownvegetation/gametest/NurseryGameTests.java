@@ -325,9 +325,9 @@ public final class NurseryGameTests {
         });
     }
 
-    /** G4 以降を 1 回孵したら、嚢の動きが終わったところで枯れる(飲まれてスポナーだけになった苗床も同じ)。 */
-    @GameTest(template = TEMPLATE, batch = "g1_nursery_life", timeoutTicks = 200)
-    public static void nurseryWithersAfterOneHatch(GameTestHelper helper) {
+    /** 11-17: 1 回孵しても枯れず、決めた回数(nurseryLifeHatches)孵したら、嚢の動きが終わったところで枯れる(飲まれてスポナーだけになった苗床も同じ)。 */
+    @GameTest(template = TEMPLATE, batch = "g1_nursery_life", timeoutTicks = 300)
+    public static void nurseryWithersAfterLastHatch(GameTestHelper helper) {
         DirectorTable t = DesignData.director();
         ServerLevel level = helper.getLevel();
         ForestDirector director = ForestDirector.get(level);
@@ -341,9 +341,15 @@ public final class NurseryGameTests {
             m.setTimersForTests(99999, 1);
         });
         helper.runAfterDelay(3 + G1Nursery.HATCH + 8, () -> {
+            helper.assertTrue(m.isAlive() && m.hatches() == 1 && !m.spent(), "1 回孵しただけで枯れた(続けて孵すはず): " + m.hatches());
+            m.setHatchesForTests(t.nurseryLifeHatches - 1);
+            director.setBudget(level, t.costSpawn * 2.0D);
+            m.setTimersForTests(99999, 1);
+        });
+        helper.runAfterDelay(3 + 2 * (G1Nursery.HATCH + 8) + 4, () -> {
             director.setBudget(level, before);
             level.getEntitiesOfClass(Pig.class, helper.getBounds()).forEach(net.minecraft.world.entity.Entity::discard);
-            helper.assertTrue(!m.isAlive() && m.spent(), "孵しても枯れない");
+            helper.assertTrue(!m.isAlive() && m.spent(), "決めた回数孵しても枯れない: " + m.hatches());
             helper.succeed();
         });
     }
