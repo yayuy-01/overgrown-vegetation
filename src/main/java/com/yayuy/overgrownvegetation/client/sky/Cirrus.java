@@ -118,6 +118,8 @@ public final class Cirrus {
         // 巻雲と同じ高さでは板を真横から見て、目の高さに白い線が出る(10-18 遠景の確認で見つけた)ので、上下 60 ブロックで薄める。
         float height = height();
         strength *= SunLight.smooth(Mth.clamp((float) (Math.abs(camY - height) / 60.0), 0.0F, 1.0F));
+        // 濃霧(天気)の中からは見えない(11-17: 霧の色で満ちた空に筋だけ透けていた)。霧の層の上へ出れば見える(skyFill は高さ込み)。
+        strength *= 1.0F - com.yayuy.overgrownvegetation.client.atmosphere.DenseFog.skyFillPublic();
         if (amount <= 0.001F || strength <= 0.001F) {
             return;
         }

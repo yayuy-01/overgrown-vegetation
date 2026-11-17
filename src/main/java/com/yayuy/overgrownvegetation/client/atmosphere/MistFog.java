@@ -98,7 +98,8 @@ public final class MistFog {
 
     /** 雷雨の度合い(0〜1、なめらかに寄せた値)と、カメラの所の過繁茂の近さ(0〜1)。嵐でバニラの霧を近づける量({@link MistView})。 */
     static float stormNear() {
-        return stormShown * cameraProx;
+        // 林冠の上の高い所(巨大樹の上)では薄める(11-17: 雷雨のとき、巨大樹の高い所が見通し 28 ブロックの緑の壁になった。森の霧と同じ落ち方)。
+        return stormShown * cameraProx * sporeFade;
     }
 
     /** バニラの霧の色を太陽の方へ暖かい白に寄せる量(B1。見ている向き {@code look}、過繁茂の地域の近くだけ)。 */
