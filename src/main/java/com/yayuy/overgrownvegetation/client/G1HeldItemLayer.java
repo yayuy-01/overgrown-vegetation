@@ -18,8 +18,8 @@ import java.util.function.Function;
  * 立ち姿の Mob と死体ブロックの両方で使う。
  *
  * <p>骨の約束(Vault {@code モデル制作/G1スケルトン作り直し/r1.md}): 骨を回していないとき、弓の長い向き = 骨の +Y、絵の面 = YZ 面、
- * 握りの中心 = 骨の軸。アイテムの絵(バニラの bow.png は左下 → 右上の対角に弓)を {@code NONE}(変換なし、0〜1 の箱)で描き、
- * 真ん中へ寄せてから Z に 45° 回して対角を縦に、Y に 90° 回して絵の面を YZ 面へ。大きさはバニラの手持ちの 0.9 倍(仕様「大きさはバニラの手持ちのまま」)。
+ * 握りの中心 = 骨の軸。アイテムの絵(バニラの bow.png は左下 → 右上の対角に弓)を {@code NONE}(変換なし。ItemRenderer が真ん中を原点に寄せて描く)で描き、
+ * Z に 45° 回して対角を縦に、Y に 90° 回して絵の面を YZ 面へ。大きさはバニラの手持ちの 0.9 倍(仕様「大きさはバニラの手持ちのまま」)。
  * 木の腹・弦の向き(±Z)はゲームで確かめた向きに合わせる({@link #FLIP})。
  */
 public class G1HeldItemLayer<T extends GeoAnimatable> extends BlockAndItemGeoLayer<T> {
@@ -41,7 +41,7 @@ public class G1HeldItemLayer<T extends GeoAnimatable> extends BlockAndItemGeoLay
         poseStack.scale(SCALE, SCALE, SCALE);
         poseStack.mulPose(Axis.YP.rotationDegrees(FLIP ? 270.0F : 90.0F));
         poseStack.mulPose(Axis.ZP.rotationDegrees(45.0F));
-        poseStack.translate(-0.5F, -0.5F, -0.5F);
+        // 真ん中へ寄せる移動は入れない: ItemRenderer が自分で (-0.5, -0.5, -0.5) を掛ける。二重に掛けると弓が手から 0.7 ブロックほど下へ離れる(11-16 ユーザーが発見)
         Minecraft.getInstance().getItemRenderer().renderStatic(stack, ItemDisplayContext.NONE, packedLight, packedOverlay, poseStack,
                 bufferSource, Minecraft.getInstance().level, 0);
         poseStack.popPose();
