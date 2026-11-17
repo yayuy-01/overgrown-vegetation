@@ -88,7 +88,9 @@ public final class LeyVeinSync {
                 int z = minZ + j * cell + cell / 2;
                 double d = LeyLines.distanceToLine(seed, x, z);
                 distance[j * SIZE + i] = (byte) Math.min(255, (int) Math.round(d * 4.0));
-                polluted[j * SIZE + i] = ModBiomes.isOvergrownLike(level.getBiome(pos.set(x, y, z))) ? (byte) 0xFF : 0;
+                // 11-18 軽量化 ④: 読み込まれていない所のバイオームは読まない(着いた直後、生成中のチャンクを待って 1.6 秒止まっていた)。
+                // そこはクライアントにも描かれていない。読み込まれると中身が変わるので次の 1 秒で送り直す
+                polluted[j * SIZE + i] = com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.ready(level, x >> 4, z >> 4) && ModBiomes.isOvergrownLike(level.getBiome(pos.set(x, y, z))) ? (byte) 0xFF : 0;
             }
         }
         long[] sign = {minX, minZ, dim, 31L * Arrays.hashCode(distance) + Arrays.hashCode(polluted)};

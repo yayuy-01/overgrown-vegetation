@@ -481,6 +481,13 @@ public final class SporeSprouts {
                     if (!p.rooted) wait(d, p.origin); // 読み込まれなくなった点は待たせる(株は読み込んだときに走らせ直す。2026-11-04 C)
                     continue;
                 }
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.areaLoaded(level, p.origin,
+                        (p.rooted ? com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.corruptionRadius.get() : t.sproutRadius()) + 4)) {
+                    // 11-18 軽量化 ④: 広がる範囲の端がまだ読み込まれていないチャンクにかかる点は、今回は進めない(同期読み込みで 100〜600 ms 止まっていた)。
+                    // 点の進み具合はそのまま持ち、読み込まれたら続きから
+                    p.next = now + t.sproutTickInterval();
+                    continue;
+                }
                 int before = p.spreader.getCorruptedCount();
                 if (p.rooted) {
                     if (!level.getBlockState(p.origin).is(ModBlocks.BLIGHT_FERN_ROOTED.get())) {

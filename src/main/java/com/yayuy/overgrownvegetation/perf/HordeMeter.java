@@ -120,13 +120,22 @@ public final class HordeMeter {
         if (n > 20_000_000L && n > tickBlockLongest) {
             tickBlockLongest = n;
             tickBlockWho = "(バニラ)";
-            for (StackTraceElement f : Thread.currentThread().getStackTrace()) {
+            StackTraceElement[] st = Thread.currentThread().getStackTrace();
+            for (int i = 0; i < st.length; i++) {
+                StackTraceElement f = st[i];
                 if (f.getClassName().startsWith("com.yayuy.overgrownvegetation.") && !f.getClassName().contains(".perf.") && !f.getClassName().contains(".mixin.")) {
-                    tickBlockWho = f.getClassName().substring(f.getClassName().lastIndexOf('.') + 1) + "." + f.getMethodName() + ":" + f.getLineNumber();
+                    // mod の場所 ← その下のバニラの鎖(待ちに近い側から 8 段)
+                    StringBuilder sb = new StringBuilder(shortName(f) + ":" + f.getLineNumber() + " >");
+                    for (int k = Math.max(0, i - 8); k < i; k++) sb.append(' ').append(shortName(st[k]));
+                    tickBlockWho = sb.toString();
                     break;
                 }
             }
         }
+    }
+
+    private static String shortName(StackTraceElement f) {
+        return f.getClassName().substring(f.getClassName().lastIndexOf('.') + 1) + "." + f.getMethodName();
     }
 
     /** 思考を間引いた 1 回。 */

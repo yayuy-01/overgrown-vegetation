@@ -332,7 +332,7 @@ public final class OvergrownBiomeCreep {
             for (int iz = 0; iz < 18; iz++) {
                 int x = baseX + ix - 1;
                 int z = baseZ + iz - 1;
-                if (!level.hasChunk(x >> 4, z >> 4)) {
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.ready(level, x >> 4, z >> 4)) {
                     continue;
                 }
                 int topY = surfaceTopY(level, x, z);
@@ -783,6 +783,9 @@ public final class OvergrownBiomeCreep {
      * 葉に覆われた列などは従来どおり {@code MOTION_BLOCKING_NO_LEAVES}(葉の下の本体)を返す。
      */
     static int surfaceTopY(ServerLevel level, int x, int z) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.ready(level, x >> 4, z >> 4)) {
+            return level.getMinBuildHeight() - 1; // 11-18 軽量化 ④: 読み込まれていない列は調べない(同期読み込みで 400 ms 止まっていた)。呼ぶ側は「地表なし」で飛ばす
+        }
         int motionBlocking = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
         int oceanFloor = level.getHeight(Heightmap.Types.OCEAN_FLOOR, x, z) - 1;
         // 水中の列だけ oceanFloor(< motionBlocking)。陸(葉の天蓋を含む)は motionBlocking のまま。

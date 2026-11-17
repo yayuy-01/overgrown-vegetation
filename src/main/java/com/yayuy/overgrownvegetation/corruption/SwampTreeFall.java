@@ -192,10 +192,19 @@ public final class SwampTreeFall {
             return;
         }
         int budget = Math.max(1, OvergrownVegetationConfig.COMMON.swampTreeFallPerTick.get());
+        int deferred = 0;
         while (budget-- > 0 && !queue.isEmpty() && blockBudget > 0) {
             long packed = queue.removeFirstLong();
             BlockPos pos = BlockPos.of(packed);
             if (!level.isLoaded(pos)) {
+                continue;
+            }
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.areaLoaded(level, pos, FALL_AREA_MARGIN)) {
+                // 11-18 軽量化 ④: 木のまわりのチャンクが読み込まれていなければ、集めずに後ろへ回す(集める・消すときの同期読み込みで 120〜175 ms 止まっていた)。
+                // 回した数は数えず、1 tick に回すのは列の長さまで
+                queue.add(packed);
+                budget++;
+                if (++deferred >= queue.size()) break;
                 continue;
             }
             PendingFall fall = collectTree(level, pos, queue, blockBudget);
@@ -217,6 +226,9 @@ public final class SwampTreeFall {
      * 前の tick から続いている木はその間にチャンクが外れていることがあるので、読み込まれていないマスは飛ばす
      * (集めた tick のうちに消すぶんは必ず読み込み済み = 以前と同じ)。
      */
+    /** 木を集める前に読み込みを確かめる水平の範囲(ブロック。11-18 軽量化 ④。木の広がり + 隣の形の更新の分)。 */
+    private static final int FALL_AREA_MARGIN = 12;
+
     private static int removeSome(ServerLevel level, PendingFall fall, int budget) {
         BlockState air = Blocks.AIR.defaultBlockState();
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
