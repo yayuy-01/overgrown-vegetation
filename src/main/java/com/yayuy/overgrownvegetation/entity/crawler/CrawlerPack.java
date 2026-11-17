@@ -463,6 +463,40 @@ public final class CrawlerPack {
     /** 確かめ用: 先導役を選び直した回数。 */
     public static long leaderChanges;
 
+    /**
+     * 群れの向き(隊列の前)。先導役が {@link #HEADING_STEP} ブロック以上進んだときだけ、その進んだ向きに替える。
+     * 先導役が立ち止まって見回すたびに持ち場が回って、後続が動き続けるのを防ぐ(11-17 深夜 測りで後続の経路が 10 倍に増えたので直した)。
+     */
+    /** 先導役が止まっている(向きを決めた所から HEADING_STEP 未満)。止まっている群れの後続は、近ければ動かない。 */
+    boolean leaderIdle(Mob l) {
+        if (Double.isNaN(this.headAtX)) return false;
+        double dx = l.getX() - this.headAtX, dz = l.getZ() - this.headAtZ;
+        return dx * dx + dz * dz < HEADING_STEP * HEADING_STEP;
+    }
+
+    double[] heading(Mob l) {
+        if (Double.isNaN(this.headAtX)) {
+            float yaw = l.getYRot() * net.minecraft.util.Mth.DEG_TO_RAD;
+            this.headX = -net.minecraft.util.Mth.sin(yaw);
+            this.headZ = net.minecraft.util.Mth.cos(yaw);
+            this.headAtX = l.getX();
+            this.headAtZ = l.getZ();
+        }
+        double dx = l.getX() - this.headAtX, dz = l.getZ() - this.headAtZ;
+        double d2 = dx * dx + dz * dz;
+        if (d2 >= HEADING_STEP * HEADING_STEP) {
+            double d = Math.sqrt(d2);
+            this.headX = dx / d;
+            this.headZ = dz / d;
+            this.headAtX = l.getX();
+            this.headAtZ = l.getZ();
+        }
+        return new double[]{this.headX, this.headZ};
+    }
+
+    static final double HEADING_STEP = 3.0D;
+    private double headX, headZ = 1.0D, headAtX = Double.NaN, headAtZ;
+
     /** 外の群れで誰かが狙っているプレイヤー(群れの全員の相手にする)。同じ tick は使い回す。 */
     @Nullable
     LivingEntity sharedTarget(ServerLevel level) {
@@ -502,8 +536,8 @@ public final class CrawlerPack {
                 if (d <= 12.0D) near++;
             }
         }
-        return String.format(java.util.Locale.ROOT, "外の群れ %d・後続 %d(先導役から 12 以内 %d)・距離 平均 %.1f・最大 %.1f・いちばん大きい群れ %d・先導役の交代 %d・後続の経路 %d・真っ直ぐ %d",
-                seen.size(), followers, near, followers > 0 ? sum / followers : 0.0D, max, biggest, leaderChanges, pathCalls, steerCalls);
+        return String.format(java.util.Locale.ROOT, "外の群れ %d・後続 %d(先導役から 12 以内 %d)・距離 平均 %.1f・最大 %.1f・いちばん大きい群れ %d・先導役の交代 %d・後続の経路 %d・真っ直ぐ %d・止まっていた %d",
+                seen.size(), followers, near, followers > 0 ? sum / followers : 0.0D, max, biggest, leaderChanges, pathCalls, steerCalls, idleSkips);
     }
 
     /** 群れに入っていてはいけない状態か(腰を据えた・根付いたゲスタトリクス)。 */
@@ -519,6 +553,10 @@ public final class CrawlerPack {
      */
     public static final class ExternalFollowGoal extends Goal {
         static final double PATH_FAR = 10.0D, STEP_DY = 1.5D;
+        /** 持ち場からこれ以内なら止まっている(細かく動き続けない)【仮】。 */
+        static final double SETTLED = 2.0D;
+        /** 群れが止まっている間、先導役からこれ(+ 群れの広がり)以内の後続は動かない【仮】。 */
+        static final double IDLE_NEAR = 8.0D;
         static final int STEER_EVERY = 4, REPATH = 30;
         private final net.minecraft.world.entity.PathfinderMob mob;
         private int timer;
@@ -572,7 +610,7 @@ public final class CrawlerPack {
         }
 
         /** 持ち場(先導役の向きの前・右に、役割と個体ごとのずれを掛ける)。{x, z} を返す。 */
-        static double[] slot(Mob l, Mob mob, int size) {
+        static double[] slot(CrawlerPack p, Mob l, Mob mob, int size) {
             double s = 1.6D + Math.sqrt(size) * 0.35D;
             int h = (mob.getId() * 0x9E3779B1) >>> 8;
             double fwd, side;
@@ -594,8 +632,8 @@ public final class CrawlerPack {
                     side = ((h & 1) == 0 ? 1 : -1) * (2.5D + (h >> 1) % 2) * s;
                 }
             }
-            float yaw = l.getYRot() * net.minecraft.util.Mth.DEG_TO_RAD;
-            double fx = -net.minecraft.util.Mth.sin(yaw), fz = net.minecraft.util.Mth.cos(yaw);
+            double[] f = p.heading(l);
+            double fx = f[0], fz = f[1];
             return new double[]{l.getX() + fx * fwd - fz * side, l.getZ() + fz * fwd + fx * side};
         }
 
@@ -606,13 +644,13 @@ public final class CrawlerPack {
             CrawlerPack p = externalOf(this.mob);
             if (p == null || p.members.isEmpty()) return;
             Mob l = p.leader();
-            double[] g = slot(l, this.mob, p.size());
+            double[] g = slot(p, l, this.mob, p.size());
             double dx = g[0] - this.mob.getX(), dz = g[1] - this.mob.getZ();
             double d = Math.sqrt(dx * dx + dz * dz);
             double dy = Math.abs(l.getY() - this.mob.getY());
             // アルボラは自前の歩き(ClingMover)で動く。ナビゲーションに渡しても動かない(11-17 クライアントで群れが散ったので直した)
             if (this.mob instanceof com.yayuy.overgrownvegetation.entity.ArboraEntity arb) {
-                if (d < 1.5D) {
+                if (d < SETTLED || p.leaderIdle(l) && this.mob.distanceTo(l) < IDLE_NEAR + Math.sqrt(p.size()) * 1.5D) {
                     arb.mover().stop();
                 } else if (--this.repath <= 0) {
                     this.repath = 3;
@@ -620,8 +658,11 @@ public final class CrawlerPack {
                 }
                 return;
             }
-            if (d < 1.2D) {
-                this.mob.getNavigation().stop();
+            // 群れが止まっている間は、先導役の近く(IDLE_NEAR + 群れの広がり)にいれば持ち場へ詰めない(立ち止まった Mob を歩かせ続けない。11-17 深夜の測りで直した)
+            double ld = this.mob.distanceTo(l);
+            if (d < SETTLED || p.leaderIdle(l) && ld < IDLE_NEAR + Math.sqrt(p.size()) * 1.5D && dy <= STEP_DY) {
+                if (!this.mob.getNavigation().isDone()) this.mob.getNavigation().stop();
+                idleSkips++;
                 return;
             }
             double speed = d > 6.0D ? 1.0D : 0.8D;
@@ -642,5 +683,5 @@ public final class CrawlerPack {
     }
 
     /** 確かめ用: 後続が経路を引いた回数・真っ直ぐ寄った回数。 */
-    public static long pathCalls, steerCalls;
+    public static long pathCalls, steerCalls, idleSkips;
 }
