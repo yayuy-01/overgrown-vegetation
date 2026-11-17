@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "BIB",
+    "RHR",
+    " B "
+  ],
+  "key": {
+    "I": { "item": "overgrown_vegetation:fungal_metal_ingot" },
+    "B": { "item": "overgrown_vegetation:hard_bark_shard" },
+    "R": { "item": "overgrown_vegetation:twisted_cord" },
+    "H": { "item": "minecraft:tripwire_hook" }
+  },
+  "result": { "id": "overgrown_vegetation:piercing_crossbow", "count": 1 }
+}

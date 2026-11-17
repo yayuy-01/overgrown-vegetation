@@ -247,6 +247,6 @@ public final class GearDirt {
 
     /** 防護マスクか(フィルターを持つ。洗うとフィルターも洗われる)。 */
     static boolean isMask(ItemStack stack) {
-        return stack.getItem() instanceof ProtectiveMaskItem;
+        return com.yayuy.overgrownvegetation.gear.FilterMask.isMask(stack); // 段の頭も(2026-11-17)
     }
 }

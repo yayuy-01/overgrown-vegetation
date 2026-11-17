@@ -2147,6 +2147,8 @@ public class CorruptionSpreader {
             // 雪のように汚染で消えるだけのブロックの跡地には装飾植物を生やさない。
             return;
         }
+        // 菌が集めた金属の鉱石(2026-11-17 強くなる道 段 2): 地脈の線の近くで汚染された岩が鉱脈に変わる。植物の設定より前(植物ではないので)
+        com.yayuy.overgrownvegetation.gear.FungalOre.tryForm(level, pos, hostState, level.random);
         if (chance <= 0.0D || !OvergrownVegetationConfig.COMMON.spawnGrowthPlants.get()) {
             return;
         }

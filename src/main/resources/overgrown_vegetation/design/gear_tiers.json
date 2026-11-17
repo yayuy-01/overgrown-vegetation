@@ -1,0 +1,68 @@
+{
+  "_comment": "強くなる道 段 1・段 2 の物(2026-11-17)。値はどれも【仮】。防具の防御・耐久・武器の攻撃は再起動で効く。説明は tools/mod-manager2/fields/gear_tiers.json。Java は gear/GearTierTable。",
+  "suit": {
+    "defense": [2, 4, 3, 1],
+    "durability": 12,
+    "toughness": 0.0,
+    "knockbackResistance": 0.0,
+    "enchantability": 15,
+    "exposureCutPerPiece": 0.125,
+    "filterWear": 0.6
+  },
+  "plate": {
+    "defense": [3, 8, 6, 3],
+    "durability": 30,
+    "toughness": 2.0,
+    "knockbackResistance": 0.0,
+    "enchantability": 12,
+    "exposureCutPerPiece": 0.05,
+    "filterWear": 0.85
+  },
+  "machete": {
+    "attackDamage": 5.0,
+    "attackSpeed": 1.8,
+    "durability": 300,
+    "clearSpeed": 15.0,
+    "clearRadius": 1,
+    "clearMax": 8
+  },
+  "sporeShot": {
+    "igniteSeconds": 3,
+    "smolderRadius": 1.5,
+    "smolderSeconds": 2,
+    "bowIgniteSeconds": 5,
+    "bowSmolderRadius": 2.5,
+    "bowSmolderSeconds": 4,
+    "bowPlantDamageMultiplier": 1.5,
+    "bowDurability": 450
+  },
+  "greatsword": {
+    "attackDamage": 10.0,
+    "attackSpeed": 0.8,
+    "durability": 900,
+    "sweepMinCharge": 0.9,
+    "sweepRange": 3.0,
+    "sweepMinDot": 0.0,
+    "sweepMaxTargets": 5,
+    "sweepDamageRatio": 0.75
+  },
+  "crossbow": {
+    "chargeTicks": 50,
+    "pierce": 4,
+    "damageMultiplier": 1.6,
+    "durability": 600
+  },
+  "fiberGrass": {
+    "intervalTicks": 200,
+    "radius": 32,
+    "tries": 4,
+    "crowdRadius": 4,
+    "crowdMax": 4
+  },
+  "ore": {
+    "leyReach": 8.0,
+    "chance": 0.03,
+    "veinMin": 1,
+    "veinMax": 4
+  }
+}

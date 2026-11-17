@@ -112,13 +112,14 @@ public final class SporeExposureTracker {
         }
         double percent = mobPercent(level, entity, rawPercent);
         boolean protecting = wearMask(entity, percent, interval);
+        double gear = com.yayuy.overgrownvegetation.gear.GearSpores.exposureFactor(entity); // 段の防具(2026-11-17)
         boolean wasFull = dose(entity) >= DesignData.sporeField().infectDose(); // 減る前に満ちていた分(コマンドで決めたときなど)も拾う
         if (MobInfection.isInfected(entity)) {
             // 感染した後(2026-11-14): 減らず、体の中の胞子が育つ。濃い所ではその分も足す(マスクが効いていれば外の分は足さない)
             if (!protecting && percent >= DesignData.sporeField().exposureMinPercent()) accumulate(entity, percent, 1.0D, interval, now);
             MobInfection.grow(entity, interval);
         } else {
-            accumulate(entity, percent, protecting ? 0.0D : 1.0D, interval, now, percent > 0.0D ? roomSeepPerSecond : 0.0D);
+            accumulate(entity, percent, protecting ? 0.0D : gear, interval, now, percent > 0.0D ? roomSeepPerSecond : 0.0D);
             MobInfection.countExposure(entity, protecting ? 0.0D : percent, interval, now); // 5 秒で感染(2026-11-14)
         }
         MobInfection.afterCheck(level, entity, percent, now);
@@ -139,6 +140,7 @@ public final class SporeExposureTracker {
         SporeFieldTable t = DesignData.sporeField();
         SporeExposure ex = player.getData(ModAttachments.SPORE_EXPOSURE);
         boolean protecting = wearMask(player, percent, interval);
+        double gear = com.yayuy.overgrownvegetation.gear.GearSpores.exposureFactor(player); // 段の防具(2026-11-17): 息で浴びる分と染みる分を下げる
         int stage = SporeInfectionEffects.stageOf(player);
         if (stage == 0) {
             // 治った・死んだ後の残り(属性と進み)を片付ける
@@ -147,7 +149,7 @@ public final class SporeExposureTracker {
                 player.setData(ModAttachments.SPORE_STAGE_TICKS, 0);
             }
             boolean wasFull = ex.dose >= t.infectDose(); // 減る前に満ちていた分も拾う
-            accumulate(player, percent, protecting ? 0.0D : 1.0D, interval, now, roomSeepPerSecond
+            accumulate(player, percent, protecting ? 0.0D : gear, interval, now, roomSeepPerSecond
                     + com.yayuy.overgrownvegetation.survival.decon.GearDirt.seepPerSecond(player)); // 汚れた装備から吸う(2026-11-14 段 3b)
             if ((wasFull || ex.dose >= t.infectDose()) && SporeInfectionEffects.startPlayer(player)) {
                 ex.dose = 0.0D;
@@ -161,7 +163,7 @@ public final class SporeExposureTracker {
             // 暴露量そのものは減っていくだけ(バーは感染中は段の進みを塗る)
             accumulate(player, 0.0D, 1.0D, interval, now);
             double seep = roomSeepPerSecond + com.yayuy.overgrownvegetation.survival.decon.GearDirt.seepPerSecond(player);
-            double breathed = protecting ? 0.0D : (percent >= t.exposureMinPercent() && percent > 0.0D ? percent : seep);
+            double breathed = protecting ? 0.0D : (percent >= t.exposureMinPercent() && percent > 0.0D ? percent : seep) * gear;
             SporeInfectionEffects.tickInfected(player, ex, interval, breathed);
         }
         // 疲労と、HUD の 2 本のゲージ(2026-11-13 サバイバルの背骨 段 1)
@@ -239,11 +241,12 @@ public final class SporeExposureTracker {
      */
     public static boolean wearMask(LivingEntity entity, double percent, int intervalTicks) {
         ItemStack head = entity.getItemBySlot(EquipmentSlot.HEAD);
-        if (!(head.getItem() instanceof ProtectiveMaskItem) || ProtectiveMaskItem.remaining(head) <= 0.0D) return false;
+        if (!com.yayuy.overgrownvegetation.gear.FilterMask.isMask(head) || ProtectiveMaskItem.remaining(head) <= 0.0D) return false;
         SporeFieldTable t = DesignData.sporeField();
         if (percent >= t.exposureMinPercent() && percent > 0.0D) {
             SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
-            double exact = percent * intervalTicks / 20.0D + ex.maskCarry;
+            // 段の頭はフィルターの減りが遅い(2026-11-17。防護マスクは 1 倍)
+            double exact = percent * intervalTicks / 20.0D * com.yayuy.overgrownvegetation.gear.FilterMask.wearOf(head) + ex.maskCarry;
             int whole = (int) Math.floor(exact);
             ex.maskCarry = exact - whole;
             ProtectiveMaskItem.absorb(head, whole);
@@ -274,7 +277,7 @@ public final class SporeExposureTracker {
 
     /** 暴露の倍率(0〜1)。フィルターの残った防護マスクを被っていれば 0(11-04 ユーザー決定)、そうでなければ 1。 */
     public static double exposureFactor(LivingEntity entity) {
-        return ProtectiveMaskItem.isProtecting(entity) ? 0.0D : 1.0D;
+        return ProtectiveMaskItem.isProtecting(entity) ? 0.0D : com.yayuy.overgrownvegetation.gear.GearSpores.exposureFactor(entity);
     }
 
     /**
@@ -335,8 +338,13 @@ public final class SporeExposureTracker {
             return false;
         }
         if (breathed && ProtectiveMaskItem.isProtecting(entity)) {
-            ProtectiveMaskItem.absorb(entity.getItemBySlot(EquipmentSlot.HEAD), (int) Math.ceil(amount));
+            ItemStack head = entity.getItemBySlot(EquipmentSlot.HEAD);
+            ProtectiveMaskItem.absorb(head, (int) Math.ceil(amount * com.yayuy.overgrownvegetation.gear.FilterMask.wearOf(head)));
             return false;
+        }
+        if (breathed) {
+            amount *= com.yayuy.overgrownvegetation.gear.GearSpores.exposureFactor(entity); // 段の防具(2026-11-17)
+            if (!(amount > 0.0D)) return false;
         }
         if (entity instanceof Player p && com.yayuy.overgrownvegetation.effect.SporeInfectionEffects.stageOf(p) > 0) {
             com.yayuy.overgrownvegetation.effect.SporeInfectionEffects.advance(p, amount);

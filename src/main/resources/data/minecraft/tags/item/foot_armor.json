@@ -1,5 +1,7 @@
 {
   "replace": false,
   "values": [
+    "overgrown_vegetation:expedition_boots",
+    "overgrown_vegetation:fungal_plate_boots"
   ]
 }

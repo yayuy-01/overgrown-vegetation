@@ -1,5 +1,7 @@
 {
   "replace": false,
   "values": [
+    "overgrown_vegetation:machete",
+    "overgrown_vegetation:greatsword"
   ]
 }

@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "  I",
+    " I ",
+    "SR "
+  ],
+  "key": {
+    "I": { "item": "minecraft:iron_ingot" },
+    "S": { "item": "minecraft:stick" },
+    "R": { "item": "overgrown_vegetation:twisted_cord" }
+  },
+  "result": { "id": "overgrown_vegetation:machete", "count": 1 }
+}

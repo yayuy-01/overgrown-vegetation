@@ -60,7 +60,13 @@ public final class CorruptedBonemeal {
                     }
 
                     BlockPos pos = cursor.immutable();
-                    CorruptionSpreader.growSurfacePlants(level, pos, state, growthChance);
+                    // 骨粉で同じ岩を何度も装飾しても鉱石は増やさない(2026-11-17。鉱石は汚染が来たときだけ)
+                    com.yayuy.overgrownvegetation.gear.FungalOre.suppressed = true;
+                    try {
+                        CorruptionSpreader.growSurfacePlants(level, pos, state, growthChance);
+                    } finally {
+                        com.yayuy.overgrownvegetation.gear.FungalOre.suppressed = false;
+                    }
                     LeafClumpGrowth.tryGrow(level, pos, random);
                     any = true;
                 }

@@ -53,7 +53,7 @@ public final class Decon {
 
     /** フィルターを持つ物(フィルターそのもの・防護マスク)。 */
     public static boolean holdsFilter(ItemStack stack) {
-        return AirFilters.isFilter(stack) || stack.getItem() instanceof ProtectiveMaskItem;
+        return AirFilters.isFilter(stack) || com.yayuy.overgrownvegetation.gear.FilterMask.isMask(stack); // 段の頭も(2026-11-17)
     }
 
     /** フィルターが詰まっていて(少しでも吸っていて)、まだ洗える回数が残っているか。 */

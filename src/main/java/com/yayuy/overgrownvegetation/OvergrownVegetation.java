@@ -64,6 +64,7 @@ public class OvergrownVegetation {
         com.yayuy.overgrownvegetation.registry.ModDecon.init(); // 除染: 変換表のレシピ・地脈の洗い場(2026-11-14 サバイバルの背骨 段 3a)
         com.yayuy.overgrownvegetation.registry.ModExpedition.init(); // 遠征の見返りと手当て: 茸・樹皮片・菌糸のフィルター・寝袋(2026-11-16 サバイバルの背骨 段 4)
         com.yayuy.overgrownvegetation.registry.ModCreepingWall.init(); // 蠢く壁の成れの果て・ダメージの型(2026-11-16 試作)
+        com.yayuy.overgrownvegetation.gear.ModGear.init(); // 強くなる道 段 1・段 2: 繊維の草・遠征服・山刀・胞子弾の弓・菌集鉱・札鎧・両手剣・貫きの弩(2026-11-17)
         ModBlocks.register(modBus);
         ModBlockEntities.register(modBus);
         ModArmorMaterials.register(modBus); // 2026-11-04 防護マスクの素材だけ

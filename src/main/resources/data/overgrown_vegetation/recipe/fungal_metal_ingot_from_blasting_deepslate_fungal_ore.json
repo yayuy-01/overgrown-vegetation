@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:blasting",
+  "category": "misc",
+  "group": "fungal_metal_ingot",
+  "ingredient": { "item": "overgrown_vegetation:deepslate_fungal_ore" },
+  "result": { "id": "overgrown_vegetation:fungal_metal_ingot", "count": 1 },
+  "experience": 0.7,
+  "cookingtime": 100
+}

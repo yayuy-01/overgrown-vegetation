@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "CLC",
+    "C C",
+    "C C"
+  ],
+  "key": {
+    "C": { "item": "overgrown_vegetation:grass_cloth" },
+    "L": { "item": "minecraft:leather" }
+  },
+  "result": { "id": "overgrown_vegetation:expedition_trousers", "count": 1 }
+}

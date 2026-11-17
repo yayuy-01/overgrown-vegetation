@@ -46,7 +46,13 @@ import java.util.function.Consumer;
  * </ul>
  * 描画は GeckoLib の立体モデル({@code geo/armor/protective_mask.geo.json}、アイコンも同じモデル)。
  */
-public class ProtectiveMaskItem extends ArmorItem implements GeoItem {
+public class ProtectiveMaskItem extends ArmorItem implements GeoItem, com.yayuy.overgrownvegetation.gear.FilterMask {
+
+    /** フィルターの減りは基準の 1 倍(段の頭は {@code gear_tiers.json} で遅くなる。2026-11-17)。 */
+    @Override
+    public double filterWear() {
+        return 1.0D;
+    }
 
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
@@ -54,15 +60,15 @@ public class ProtectiveMaskItem extends ArmorItem implements GeoItem {
         super(ModArmorMaterials.PROTECTIVE_MASK, Type.HELMET, properties);
     }
 
-    /** {@code entity} が防護マスクを被っているか(フィルターの残りを問わない)。 */
+    /** {@code entity} が防護マスク(か、フィルターを使う段の頭。2026-11-17)を被っているか(フィルターの残りを問わない)。 */
     public static boolean isWearing(LivingEntity entity) {
-        return entity.getItemBySlot(EquipmentSlot.HEAD).getItem() instanceof ProtectiveMaskItem;
+        return com.yayuy.overgrownvegetation.gear.FilterMask.isWearing(entity);
     }
 
-    /** フィルターの残ったマスクを被っていて、胞子を防いでいるか。 */
+    /** フィルターの残ったマスク(か段の頭)を被っていて、胞子を防いでいるか。 */
     public static boolean isProtecting(LivingEntity entity) {
         ItemStack head = entity.getItemBySlot(EquipmentSlot.HEAD);
-        return head.getItem() instanceof ProtectiveMaskItem && remaining(head) > 0.0D;
+        return com.yayuy.overgrownvegetation.gear.FilterMask.isMask(head) && remaining(head) > 0.0D;
     }
 
     /** 吸い取った量(%秒)。式はフィルターと共通({@link AirFilters}、2026-11-14 段 2c)。 */

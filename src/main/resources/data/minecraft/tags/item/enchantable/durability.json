@@ -1,5 +1,7 @@
 {
   "replace": false,
   "values": [
+    "overgrown_vegetation:spore_bow",
+    "overgrown_vegetation:piercing_crossbow"
   ]
 }

@@ -62,6 +62,13 @@ public final class DesignData {
 
     private static volatile com.yayuy.overgrownvegetation.worldevent.WorldEventTable worldEvents = com.yayuy.overgrownvegetation.worldevent.WorldEventTable.DEFAULT;
 
+    private static volatile com.yayuy.overgrownvegetation.gear.GearTierTable gearTiers = com.yayuy.overgrownvegetation.gear.GearTierTable.DEFAULT;
+
+    /** 強くなる道 段 1・段 2 の物の設計値({@code gear_tiers.json}、2026-11-17)。 */
+    public static com.yayuy.overgrownvegetation.gear.GearTierTable gearTiers() {
+        return gearTiers;
+    }
+
     /** ワールドイベント 7 つの設計値({@code world_events.json}、2026-11-16 world-events)。サーバー(日程・地脈の大潮)とクライアント(長さ)が読む。 */
     public static com.yayuy.overgrownvegetation.worldevent.WorldEventTable worldEvents() {
         return worldEvents;
@@ -186,6 +193,8 @@ public final class DesignData {
         spawns = com.yayuy.overgrownvegetation.spawn.SpawnTable.fromJson(read(dir, "spawns.json", com.yayuy.overgrownvegetation.spawn.SpawnTable.Json.class));
         ecosystem = com.yayuy.overgrownvegetation.ecosystem.EcoTable.fromJson(read(dir, "ecosystem.json", com.yayuy.overgrownvegetation.ecosystem.EcoTable.Json.class));
         worldEvents = com.yayuy.overgrownvegetation.worldevent.WorldEventTable.fromJson(read(dir, "world_events.json", com.yayuy.overgrownvegetation.worldevent.WorldEventTable.Json.class));
+        com.yayuy.overgrownvegetation.gear.GearTierTable gt = read(dir, "gear_tiers.json", com.yayuy.overgrownvegetation.gear.GearTierTable.class);
+        gearTiers = gt != null ? gt : com.yayuy.overgrownvegetation.gear.GearTierTable.DEFAULT;
 
         OvergrownVegetation.LOGGER.info("設計データを読み込みました({})", dir);
     }
