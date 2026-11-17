@@ -330,8 +330,9 @@ public final class CloudServerGameTests {
                     return;
                 }
             }
-            if (rainDays < 60 || rainDays > 180) {
-                helper.fail("400 日のうち雨の日が " + rainDays + "(多い日 4 割 × 7.5 割 = 120 前後のはず)");
+            // 11-17 に雲の多い日を 4 割 → 2 割へ(f73f1f4、ユーザー「曇りがあまりにも多い」)。期待は 400 × 0.2 × 0.75 = 60 前後。
+            if (rainDays < 30 || rainDays > 100) {
+                helper.fail("400 日のうち雨の日が " + rainDays + "(多い日 2 割 × 7.5 割 = 60 前後のはず)");
                 return;
             }
             cycle.set(true, level.getServer());
