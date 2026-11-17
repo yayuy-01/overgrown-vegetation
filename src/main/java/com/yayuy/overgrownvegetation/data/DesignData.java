@@ -59,6 +59,7 @@ public final class DesignData {
     private static volatile com.yayuy.overgrownvegetation.spawn.SpawnTable spawns = com.yayuy.overgrownvegetation.spawn.SpawnTable.DEFAULT;
 
     private static volatile com.yayuy.overgrownvegetation.ecosystem.EcoTable ecosystem = com.yayuy.overgrownvegetation.ecosystem.EcoTable.DEFAULT;
+    private static volatile com.yayuy.overgrownvegetation.organ.OrganTable organs = com.yayuy.overgrownvegetation.organ.OrganTable.DEFAULT;
 
     private static volatile com.yayuy.overgrownvegetation.worldevent.WorldEventTable worldEvents = com.yayuy.overgrownvegetation.worldevent.WorldEventTable.DEFAULT;
 
@@ -77,6 +78,11 @@ public final class DesignData {
     /** 生態系の台帳(升ごとの個体群・多様性・内側の湧き)の設計値({@code ecosystem.json}、2026-11-16)。 */
     public static com.yayuy.overgrownvegetation.ecosystem.EcoTable ecosystem() {
         return ecosystem;
+    }
+
+    /** 森の器官(大きい版)の設計値({@code organs.json}、2026-11-17)。 */
+    public static com.yayuy.overgrownvegetation.organ.OrganTable organs() {
+        return organs;
     }
 
     /** 敵の湧き方(縁・地下・司令塔が出す G4・G5)の設計値({@code spawns.json}、2026-11-15)。 */
@@ -192,6 +198,7 @@ public final class DesignData {
         director = DirectorTable.fromJson(read(dir, "director.json", DirectorTable.Json.class));
         spawns = com.yayuy.overgrownvegetation.spawn.SpawnTable.fromJson(read(dir, "spawns.json", com.yayuy.overgrownvegetation.spawn.SpawnTable.Json.class));
         ecosystem = com.yayuy.overgrownvegetation.ecosystem.EcoTable.fromJson(read(dir, "ecosystem.json", com.yayuy.overgrownvegetation.ecosystem.EcoTable.Json.class));
+        organs = com.yayuy.overgrownvegetation.organ.OrganTable.fromJson(read(dir, "organs.json", com.yayuy.overgrownvegetation.organ.OrganTable.Json.class));
         worldEvents = com.yayuy.overgrownvegetation.worldevent.WorldEventTable.fromJson(read(dir, "world_events.json", com.yayuy.overgrownvegetation.worldevent.WorldEventTable.Json.class));
         com.yayuy.overgrownvegetation.gear.GearTierTable gt = read(dir, "gear_tiers.json", com.yayuy.overgrownvegetation.gear.GearTierTable.class);
         gearTiers = gt != null ? gt : com.yayuy.overgrownvegetation.gear.GearTierTable.DEFAULT;

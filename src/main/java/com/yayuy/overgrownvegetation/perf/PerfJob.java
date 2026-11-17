@@ -32,7 +32,9 @@ public enum PerfJob {
     /** 這い上がる苔が最終段を過ぎたら覆う(CoverCreepChain、2026-11-03)。 */
     COVER_CREEP("這い上がる苔の連鎖", true),
     END_OVERGROWTH("エンドの侵食", true),
-    NETHER_LEDGER("ネザーの書き換え", true);
+    NETHER_LEDGER("ネザーの書き換え", true),
+    /** 森の器官を育てる・枯らす(organ.OrganWorld、2026-11-17)。 */
+    ORGAN_BUILD("森の器官の成長", true);
     // 2026-11-14: 退避したもの(基地の工事・チャンク作業・道・整備の見比べ = BASE_*、焼けた荒地 BURNT_LAND、燃え落ちる木 TREE_BURN、
     // 地脈の前兆 LEY_OMEN)の行を消した(どこからも測っていなかった)。戻すときに足し直す。
 

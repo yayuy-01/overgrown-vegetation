@@ -1,0 +1,189 @@
+package com.yayuy.overgrownvegetation.organ;
+
+import javax.annotation.Nullable;
+
+/**
+ * 森の器官の設計値({@code design/organs.json}、2026-11-17)。数は全部【仮】(ユーザーが決めた所は organs.json の説明に書いた)。
+ * 正本の決定は Vault「強くなる道(素材・装備・武器・探索)(11-17)」の決定 14〜16 と「森の器官の形」。
+ */
+public final class OrganTable {
+
+    // --- Gson DTO ---
+    public static final class Json {
+        public Boolean enabled;
+        public Integer minPhase;
+        public Double planIntervalDays;
+        public int[] maxOrgans;
+        public Double price, growDays, minAgeDays;
+        public Integer minDepthChunks, spacingChunks, baseClearChunks, samples, anchorMinChunks, anchorMaxChunks;
+        public Double ruinAgeDays;
+        public double[] kindWeights;
+        public Integer blocksPerTick;
+        public RolesJson roles;
+        public WitherJson wither;
+        public GuardJson guards;
+        public SmallJson small;
+        public TentacleJson tentacles;
+    }
+
+    public static final class RolesJson {
+        public Double phasePercentPerDay, towerSporePerDay, sacHiveNodes;
+        public Integer nurseryIntervalSeconds, nurseryMaxAlive, nurseryPlayerBlocks, nurseryMinBaseChunks, nurseryMaxBaseChunks;
+        public Double leyLineBlocks, crystalRegrowDays;
+        public Double leyHealthPercent, leyAttackPercent, leyArmor, leySpeedPercent, leyKnockbackResist;
+        public Double sacRegrowDays;
+    }
+
+    public static final class WitherJson {
+        public Double pointsPercent, budgetCapShare, phaseOrganPointsFactor, sacBudgetFactor;
+    }
+
+    public static final class GuardJson {
+        public Integer count, playerBlocks, cooldownSeconds;
+    }
+
+    public static final class SmallJson {
+        public Boolean enabled;
+        public Double price, growDays, minAgeDays, strength, sacHiveNodes, maxFactor;
+        public Integer minDepthChunks, spacingChunks, guardCount;
+    }
+
+    public static final class TentacleJson {
+        public Integer min, max, smallCount;
+        public Double reach, knockback, health, reviveSeconds;
+    }
+
+    public final boolean enabled;
+    public final int minPhase;
+    public final double planIntervalDays;
+    public final int[] maxOrgans;
+    public final double price, growDays, minAgeDays;
+    public final int minDepthChunks, spacingChunks, baseClearChunks, samples, anchorMinChunks, anchorMaxChunks;
+    public final double ruinAgeDays;
+    /** 種類ごとの選ばれやすさ({@link OrganKind} の順)。 */
+    public final double[] kindWeights;
+    public final int blocksPerTick;
+
+    public final double phasePercentPerDay, towerSporePerDay, sacHiveNodes;
+    public final int nurseryIntervalSeconds, nurseryMaxAlive, nurseryPlayerBlocks, nurseryMinBaseChunks, nurseryMaxBaseChunks;
+    public final double leyLineBlocks, crystalRegrowDays;
+    /** 地脈を吸う根 1 本(大きい版)の上げ幅({@link LeyBuffs.Stat} の順)。 */
+    public final double[] leyStat;
+
+    public final double witherPointsPercent, witherBudgetCapShare, phaseOrganPointsFactor, sacBudgetFactor;
+
+    public final int guardCount, guardPlayerBlocks, guardCooldownSeconds;
+
+    public final boolean smallEnabled;
+    public final double smallPrice, smallGrowDays, smallMinAgeDays, smallStrength, smallSacHiveNodes, smallMaxFactor;
+    public final int smallMinDepthChunks, smallSpacingChunks, smallGuardCount;
+
+    public final int tentacleMin, tentacleMax, tentacleSmall;
+    public final double tentacleReach, tentacleKnockback, tentacleHealth, tentacleReviveSeconds;
+    /** 破裂した嚢が生え直すまでの日数(1 つあたりの平均)。 */
+    public final double sacRegrowDays;
+
+    public static final OrganTable DEFAULT = fromJson(null);
+
+    private OrganTable(Json j) {
+        RolesJson r = j.roles != null ? j.roles : new RolesJson();
+        WitherJson w = j.wither != null ? j.wither : new WitherJson();
+        GuardJson g = j.guards != null ? j.guards : new GuardJson();
+        SmallJson s = j.small != null ? j.small : new SmallJson();
+        TentacleJson tj = j.tentacles != null ? j.tentacles : new TentacleJson();
+        enabled = j.enabled == null || j.enabled;
+        minPhase = Math.max(0, or(j.minPhase, 3));
+        planIntervalDays = Math.max(0.01D, or(j.planIntervalDays, 0.5D));
+        maxOrgans = j.maxOrgans != null && j.maxOrgans.length > 0 ? j.maxOrgans.clone() : new int[]{0, 0, 0, 1, 2, 3, 5, 7, 9, 11, 13};
+        price = Math.max(0.0D, or(j.price, 120.0D));
+        growDays = Math.max(0.01D, or(j.growDays, 3.0D));
+        minAgeDays = Math.max(0.0D, or(j.minAgeDays, 3.0D));
+        minDepthChunks = Math.max(0, or(j.minDepthChunks, 4));
+        spacingChunks = Math.max(1, or(j.spacingChunks, 12));
+        baseClearChunks = Math.max(0, or(j.baseClearChunks, 6));
+        samples = Math.max(1, or(j.samples, 48));
+        anchorMinChunks = Math.max(0, or(j.anchorMinChunks, 6));
+        anchorMaxChunks = Math.max(anchorMinChunks + 1, or(j.anchorMaxChunks, 40));
+        ruinAgeDays = Math.max(0.01D, or(j.ruinAgeDays, 10.0D));
+        kindWeights = j.kindWeights != null && j.kindWeights.length == OrganKind.values().length ? j.kindWeights.clone()
+                : new double[]{1.0D, 1.2D, 1.0D, 0.8D, 0.8D};
+        blocksPerTick = Math.max(1, or(j.blocksPerTick, 400));
+        phasePercentPerDay = Math.max(0.0D, or(r.phasePercentPerDay, 2.0D));
+        towerSporePerDay = Math.max(0.0D, or(r.towerSporePerDay, 40.0D));
+        sacHiveNodes = Math.max(0.0D, or(r.sacHiveNodes, 3.0D));
+        nurseryIntervalSeconds = Math.max(1, or(r.nurseryIntervalSeconds, 60));
+        nurseryMaxAlive = Math.max(0, or(r.nurseryMaxAlive, 6));
+        nurseryPlayerBlocks = Math.max(1, or(r.nurseryPlayerBlocks, 64));
+        nurseryMinBaseChunks = Math.max(0, or(r.nurseryMinBaseChunks, 8));
+        nurseryMaxBaseChunks = Math.max(nurseryMinBaseChunks + 1, or(r.nurseryMaxBaseChunks, 24));
+        leyLineBlocks = Math.max(1.0D, or(r.leyLineBlocks, 12.0D));
+        crystalRegrowDays = Math.max(0.01D, or(r.crystalRegrowDays, 0.5D));
+        leyStat = new double[]{Math.max(0.0D, or(r.leyHealthPercent, 10.0D)), Math.max(0.0D, or(r.leyAttackPercent, 10.0D)),
+                Math.max(0.0D, or(r.leyArmor, 2.0D)), Math.max(0.0D, or(r.leySpeedPercent, 5.0D)), Math.max(0.0D, or(r.leyKnockbackResist, 0.1D))};
+        witherPointsPercent = Math.max(0.0D, or(w.pointsPercent, 5.0D));
+        witherBudgetCapShare = Math.max(0.0D, or(w.budgetCapShare, 0.5D));
+        phaseOrganPointsFactor = Math.max(0.0D, or(w.phaseOrganPointsFactor, 2.0D));
+        sacBudgetFactor = Math.max(0.0D, or(w.sacBudgetFactor, 2.0D));
+        guardCount = Math.max(0, or(g.count, 4));
+        guardPlayerBlocks = Math.max(1, or(g.playerBlocks, 48));
+        guardCooldownSeconds = Math.max(1, or(g.cooldownSeconds, 120));
+        smallEnabled = s.enabled == null || s.enabled;
+        smallPrice = Math.max(0.0D, or(s.price, 30.0D));
+        smallGrowDays = Math.max(0.01D, or(s.growDays, 1.0D));
+        smallMinAgeDays = Math.max(0.0D, or(s.minAgeDays, 1.0D));
+        smallStrength = Math.max(0.0D, or(s.strength, 0.2D));
+        smallSacHiveNodes = Math.max(0.0D, or(s.sacHiveNodes, 0.2D));
+        smallMaxFactor = Math.max(0.0D, or(s.maxFactor, 6.0D));
+        smallMinDepthChunks = Math.max(0, or(s.minDepthChunks, 2));
+        smallSpacingChunks = Math.max(1, or(s.spacingChunks, 4));
+        smallGuardCount = Math.max(0, or(s.guardCount, 1));
+        tentacleMin = Math.max(0, or(tj.min, 3));
+        tentacleMax = Math.max(tentacleMin, or(tj.max, 5));
+        tentacleSmall = Math.max(0, or(tj.smallCount, 1));
+        tentacleReach = Math.max(1.0D, or(tj.reach, 6.0D));
+        tentacleKnockback = Math.max(0.0D, or(tj.knockback, 1.2D));
+        tentacleHealth = Math.max(1.0D, or(tj.health, 12.0D));
+        tentacleReviveSeconds = Math.max(1.0D, or(tj.reviveSeconds, 90.0D));
+        sacRegrowDays = Math.max(0.01D, or(r.sacRegrowDays, 3.0D));
+    }
+
+    public static OrganTable fromJson(@Nullable Json j) {
+        return new OrganTable(j != null ? j : new Json());
+    }
+
+    /** そのフェーズで生きていてよい器官の数(大きい版)。 */
+    public int maxOrgans(int phase) {
+        if (phase < 0) return 0;
+        return maxOrgans[Math.min(phase, maxOrgans.length - 1)];
+    }
+
+    /** そのフェーズで生きていてよい小さい版の数。 */
+    public int maxSmall(int phase) {
+        return (int) Math.round(maxOrgans(phase) * smallMaxFactor);
+    }
+
+    /** 大きさごとの強さの倍率(大きい版 1、小さい版 smallStrength)。 */
+    public double strength(boolean small) {
+        return small ? smallStrength : 1.0D;
+    }
+
+    public double growDays(boolean small) {
+        return small ? smallGrowDays : growDays;
+    }
+
+    public double price(boolean small) {
+        return small ? smallPrice : price;
+    }
+
+    public double sacHiveNodes(boolean small) {
+        return small ? smallSacHiveNodes : sacHiveNodes;
+    }
+
+    private static int or(@Nullable Integer v, int d) {
+        return v != null ? v : d;
+    }
+
+    private static double or(@Nullable Double v, double d) {
+        return v != null ? v : d;
+    }
+}

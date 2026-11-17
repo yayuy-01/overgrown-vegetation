@@ -159,7 +159,10 @@ public final class ForestDirector extends SavedData implements ForestBudget {
 
     /** 貯蓄の上限 = 1 日の収入 × (1 日分 + ハイヴノードごとに 0.5 日分)。貯める・大きな襲撃の間は倍にする。 */
     public static double cap(ServerLevel level) {
-        double base = DesignData.director().cap(incomePerDay(level), PhaseData.get(level).hiveNodeSnapshot().length);
+        // 森の器官の蓄えの嚢もハイヴノードと同じに上限を上げる(2026-11-17。嚢 1 つ = ハイヴノード sacHiveNodes 個分【仮】)
+        double income = incomePerDay(level);
+        double base = DesignData.director().cap(income, PhaseData.get(level).hiveNodeSnapshot().length)
+                + income * DesignData.director().capPerHiveNodeDays * com.yayuy.overgrownvegetation.organ.OrganWorld.sacHiveEquivalent(level);
         // 貯める間は上限を上げる(第 3 段「貯めて一気に使う」)
         Mood m = get(level).mood;
         if (m == Mood.HOARD) return base * DesignData.director().hoard.capFactor;

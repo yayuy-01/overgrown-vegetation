@@ -70,6 +70,7 @@ public class OvergrownVegetation {
         ModBlockEntities.register(modBus);
         ModArmorMaterials.register(modBus); // 2026-11-04 防護マスクの素材だけ
         ModItems.register(modBus);
+        com.yayuy.overgrownvegetation.organ.OrganBlocks.register(modBus); // 森の器官の専用ブロック(2026-11-17)
         ModEntities.register(modBus);
         ModFeatures.register(modBus);
         ModCreativeTabs.register(modBus);

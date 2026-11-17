@@ -1164,6 +1164,18 @@ public final class PhaseData extends SavedData {
         refreshStage(overworld);
     }
 
+    /**
+     * ポイントを引く(2026-11-17、森の器官の芯を壊したとき)。今のフェーズの中で 0 まで(フェーズ・段は下げない)。
+     * 難易度の倍率は掛けない。引いた量を返す。
+     */
+    public long removePoints(long amount) {
+        if (amount <= 0L || phase < 1) return 0L;
+        long removed = Math.min(points, amount);
+        points -= removed;
+        setDirty();
+        return removed;
+    }
+
     /** GameTest 用: ワールドの難易度の倍率を通さずにポイントを足す(凍結・フェーズの範囲の判定は {@link #addPoints} と同じ)。 */
     public void addPointsUnscaledForTests(ServerLevel overworld, long amount) {
         if (frozen || phase < 1 || phase >= PhaseTable.MAX_PHASE || amount <= 0L) {
