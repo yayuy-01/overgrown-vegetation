@@ -1767,11 +1767,11 @@ public final class CloudField {
     }
 
     /**
-     * 天気の日ごとの量(11-09 段階 2a-4 ユーザー指定「雲の多い日(曇り・雨・雷雨)4 割・雲がそこそこある日 3 割・晴れ 3 割くらい」)。
+     * 天気の日ごとの量(11-09 段階 2a-4 ユーザー指定「雲の多い日(曇り・雨・雷雨)4 割・雲がそこそこある日 3 割・晴れ 3 割くらい」。11-17 ユーザー「曇りがあまりにも多い」で 多い 2・そこそこ 3・晴れ 5 へ)。
      * 日の種類と量(量の範囲は仮決め): 多い日 {@link #MANY_FROM}〜+0.16(一面の雲海に積乱雲の山並み)・そこそこの日 {@link #SOME_FROM}〜+0.35・
      * 晴れの日 0〜{@link #CLEAR_TO}。バニラの雨・雷雨は日と関係なく時間の 16% ほど降り、降っている間は量を 0.9(雷雨 0.97)以上へ寄せる
-     * ({@link #coverage(long, float, float)})ので、晴れ・そこそこの日の雨の分だけ「多い」が増える。時間で 4・3・3 になるよう、日の割合は
-     * 多い {@link #MANY_DAYS}・そこそこ {@link #SOME_DAYS}・残り晴れ(多い 0.286 + 雨 0.16 × 0.714 = 0.40、そこそこ・晴れ 0.357 × 0.84 = 0.30)。
+     * ({@link #coverage(long, float, float)})ので、晴れ・そこそこの日の雨の分だけ「多い」が増える。時間で 2・3・5 になるよう、日の割合は
+     * 多い {@link #MANY_DAYS}・そこそこ {@link #SOME_DAYS}・残り晴れ(多い 0.048 + 雨 0.16 × 0.952 = 0.20、そこそこ・晴れ 0.357 × 0.84 = 0.30)。
      * 前(10-18 夜)は 曇り 18%・晴れ 82%(量 0〜0.5)。
      */
     static float dayCoverage(long day) {
@@ -1781,9 +1781,9 @@ public final class CloudField {
         h ^= h >>> 31;
         float u = (h >>> 40) / (float) (1 << 24);
         float v = ((h >>> 16) & 0xFFFFFF) / (float) (1 << 24);
-        // 雨を雲の多い日に合わせる間(11-09 段階 2a-5)は、雨が多い日にだけ降るので日の割合をユーザー指定のまま 4・3・3 に。合わせないときは雨の分を引いた割合。
+        // 雨を雲の多い日に合わせる間(11-09 段階 2a-5)は、雨が多い日にだけ降るので日の割合をユーザー指定のまま 2・3・5 に(11-17。前は 4・3・3)。合わせないときは雨の分を引いた割合。
         boolean sync = CloudShape.current().syncRain() > 0.0F;
-        float many = sync ? 0.4F : MANY_DAYS;
+        float many = sync ? 0.2F : MANY_DAYS;
         float some = sync ? 0.3F : SOME_DAYS;
         if (u < many) {
             return MANY_FROM + 0.16F * v;
@@ -1794,8 +1794,8 @@ public final class CloudField {
         return CLEAR_TO * v;
     }
 
-    /** 日の種類の割合と量(11-09 段階 2a-4。割合はユーザー指定の 4・3・3 から雨の分を引いたもの、量は仮決め)。 */
-    static final float MANY_DAYS = 0.286F;
+    /** 日の種類の割合と量(11-09 段階 2a-4。割合はユーザー指定の 2・3・5(11-17)から雨の分を引いたもの、量は仮決め)。 */
+    static final float MANY_DAYS = 0.048F;
     static final float SOME_DAYS = 0.357F;
     static final float MANY_FROM = 0.82F;
     static final float SOME_FROM = 0.30F;
