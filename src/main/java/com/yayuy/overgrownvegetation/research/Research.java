@@ -144,7 +144,7 @@ public final class Research {
         if (s == State.DONE) return Component.translatable("research.overgrown_vegetation.why.done");
         if (s == State.LOCKED) return Component.translatable("research.overgrown_vegetation.why.requires");
         if (!n.specimensExist()) return Component.translatable("research.overgrown_vegetation.why.no_specimen");
-        if (!instrumentsPresent(level, bench, n.tier())) return Component.translatable("research.overgrown_vegetation.why.instruments");
+        if (!instrumentsPresent(level, bench, n.instrumentTier())) return Component.translatable("research.overgrown_vegetation.why.instruments");
         for (ResearchTree.Specimen sp : n.specimens()) {
             int have = count(player, sp.asItem());
             if (have < sp.count()) {

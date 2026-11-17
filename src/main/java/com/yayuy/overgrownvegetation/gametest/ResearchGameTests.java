@@ -198,7 +198,7 @@ public final class ResearchGameTests {
         helper.succeed();
     }
 
-    /** 段 2 の研究は器具(拡大鏡と蒸留器)が研究台のそばに無いと始まらない(決定 23)。 */
+    /** 段 2 の門は器具の節で、器具の節は器具なしで調べられ、段 2 の研究は器具(拡大鏡と蒸留器)が研究台のそばに無いと始まらない(決定 23・11-17 夜)。 */
     @GameTest(template = TEMPLATE, batch = "research_instruments", timeoutTicks = 20)
     public static void tierTwoNeedsInstrument(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -208,7 +208,18 @@ public final class ResearchGameTests {
         FakePlayer p = player(level);
         p.getInventory().clearContent();
         Research.open(server, "t1_fiber", false);
-        Research.open(server, "t1_armor", false);
+        // 器具の節(段 2 の門)は器具なしで調べられる(1 つ前の段の器具で調べる)。鎧の節を飛ばしても段 2 へ進める(11-17 夜ユーザー)
+        ResearchTree.Node lens = ResearchTree.get().node("t2_lens");
+        for (ResearchTree.Specimen sp : lens.specimens()) p.getInventory().add(new ItemStack(sp.asItem(), sp.count()));
+        if (Research.whyNot(level, bench, p, "t2_lens") != null) {
+            helper.fail("器具の節を器具なしで始められない: " + Research.whyNot(level, bench, p, "t2_lens").getString());
+            return;
+        }
+        Research.open(server, "t2_lens", false);
+        if (Research.state(server, "t2_ore") != Research.State.AVAILABLE) {
+            helper.fail("器具の節を開いても段 2 の入口が開けない(鎧の節を飛ばせない)");
+            return;
+        }
         ResearchTree.Node ore = ResearchTree.get().node("t2_ore");
         for (ResearchTree.Specimen sp : ore.specimens()) p.getInventory().add(new ItemStack(sp.asItem(), sp.count()));
         if (Research.instrumentsPresent(level, bench, 2) || Research.start(p, bench, "t2_ore") == null) {

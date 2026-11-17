@@ -71,6 +71,8 @@ public final class ResearchTree {
         public List<String> unlocks = new ArrayList<>();
         public Integer fe_per_tick;
         public Integer ticks;
+        /** 器具の節(各段の最初の門。決定 23 の答え 11-17 夜): どの段の器具で調べるか。書かなければその節の段。器具の節は 1 つ前の段の器具で調べる。 */
+        public Integer instruments_of_tier;
     }
 
     public static final class SpecimenJson {
@@ -95,7 +97,8 @@ public final class ResearchTree {
     }
 
     public record Node(String id, int tier, String lane, double col, ResourceLocation icon, List<String> requires,
-                       List<Specimen> specimens, List<ResourceLocation> unlocks, int fePerTick, int ticks) {
+                       List<Specimen> specimens, List<ResourceLocation> unlocks, int fePerTick, int ticks,
+                       int instrumentTier) {
         public boolean isRoot() {
             return tier == 0;
         }
@@ -154,7 +157,8 @@ public final class ResearchTree {
                     icon == null ? ResourceLocation.withDefaultNamespace("barrier") : icon,
                     List.copyOf(nj.requires), List.copyOf(specs), List.copyOf(unlocks),
                     nj.fe_per_tick != null ? nj.fe_per_tick : tier.fePerTick(),
-                    nj.ticks != null ? nj.ticks : tier.ticks()));
+                    nj.ticks != null ? nj.ticks : tier.ticks(),
+                    nj.instruments_of_tier != null ? nj.instruments_of_tier : nj.tier));
         }
         this.nodes = Collections.unmodifiableMap(n);
         this.lockedBy = Collections.unmodifiableMap(lock);

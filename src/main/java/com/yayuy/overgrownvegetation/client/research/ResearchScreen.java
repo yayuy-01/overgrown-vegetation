@@ -207,7 +207,7 @@ public class ResearchScreen extends Screen {
         if (s == Research.State.DONE) return Component.translatable("research.overgrown_vegetation.why.done");
         if (s == Research.State.LOCKED) return Component.translatable("research.overgrown_vegetation.why.requires");
         if (!n.specimensExist()) return Component.translatable("research.overgrown_vegetation.why.no_specimen");
-        if (!instrumentsOk(n.tier())) return Component.translatable("research.overgrown_vegetation.why.instruments");
+        if (!instrumentsOk(n.instrumentTier())) return Component.translatable("research.overgrown_vegetation.why.instruments");
         for (ResearchTree.Specimen sp : n.specimens()) {
             int have = have(sp.asItem());
             if (have < sp.count()) {
@@ -527,9 +527,9 @@ public class ResearchScreen extends Screen {
         ry += 9;
         g.drawString(font, Component.translatable("research.overgrown_vegetation.time", fmtHours(n.ticks()), fmtReal(n.ticks())), rx, ry, 0xD8D8D8, false);
         ry += 11;
-        List<ResourceLocation> inst = tree.tier(n.tier()).instruments();
+        List<ResourceLocation> inst = tree.tier(n.instrumentTier()).instruments();
         if (!inst.isEmpty()) {
-            boolean ok = instrumentsOk(n.tier());
+            boolean ok = instrumentsOk(n.instrumentTier());
             MutableLine l = new MutableLine(Component.translatable("research.overgrown_vegetation.instruments"));
             for (ResourceLocation id : inst) {
                 l.add(BuiltInRegistries.BLOCK.get(id).getName().copy().withStyle(ok ? ChatFormatting.GREEN : ChatFormatting.RED));

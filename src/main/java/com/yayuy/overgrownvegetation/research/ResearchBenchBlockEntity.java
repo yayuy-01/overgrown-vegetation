@@ -110,7 +110,7 @@ public class ResearchBenchBlockEntity extends BlockEntity {
             return 0;
         }
         if (instrumentsCheckedAt == Long.MIN_VALUE || now - instrumentsCheckedAt >= 20) {
-            instrumentsOk = Research.instrumentsPresent(server, worldPosition, node.tier());
+            instrumentsOk = Research.instrumentsPresent(server, worldPosition, node.instrumentTier());
             instrumentsCheckedAt = now;
         }
         if (!instrumentsOk) return 0;
