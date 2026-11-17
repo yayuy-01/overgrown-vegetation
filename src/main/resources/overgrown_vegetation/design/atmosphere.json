@@ -1085,17 +1085,10 @@
     "layerNight": 0.12
   },
   "galeLook": {
-    "_comment": "強風の日の見た目(2026-11-16。ユーザー決定: 木々が大きく揺れ、葉や胞子の綿が横に流れる。森のそばは少し澄む。数はすべて仮決め。読み口は data/WeatherLookEye)。gustInterval = 突風の間隔の倍率、gustBonus = 突風に足す強さ、between = 突風の合間の風の強さ(風の音の鳴り出しは 0.22・場所ごとのむらが ±25%。0.3 = 合間も鳴り続ける。11-17 ユーザー決定)、forestClear = 森の中の霞を薄める割合。fluff* = 胞子の綿(fluffCount = 数、fluffRange = 出す半径、fluffSpeed = 風の強さ 1 のときの毎秒のブロック、fluffSize = 大きさ、fluffAlpha = 濃さ、fluffColor = 色、fluffOpen = 森の外での数の倍率)。確かめは /ov weather gale 1。",
+    "_comment": "強風の日の見た目(2026-11-16。ユーザー決定: 木々が大きく揺れ、葉が横に流れる。森のそばは少し澄む。数はすべて仮決め。読み口は data/WeatherLookEye)。gustInterval = 突風の間隔の倍率、gustBonus = 突風に足す強さ、between = 突風の合間の風の強さ(風の音の鳴り出しは 0.22・場所ごとのむらが ±25%。0.3 = 合間も鳴り続ける。11-17 ユーザー決定)、forestClear = 森の中の霞を薄める割合(胞子の綿は 11-17 ユーザー「無くそう」で外した)。確かめは /ov weather gale 1。",
     "gustInterval": 0.22,
     "gustBonus": 0.25,
     "between": 0.3,
-    "forestClear": 0.25,
-    "fluffCount": 110,
-    "fluffRange": 26.0,
-    "fluffSpeed": 9.0,
-    "fluffSize": 0.12,
-    "fluffAlpha": 0.7,
-    "fluffColor": [0.86, 0.90, 0.66],
-    "fluffOpen": 0.5
+    "forestClear": 0.25
   }
 }

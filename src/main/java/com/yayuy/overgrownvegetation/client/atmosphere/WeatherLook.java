@@ -22,7 +22,7 @@ import java.util.function.Consumer;
  *     <li>雷雨の強化の残り: 地平線の遠い雷 {@link HorizonLightning}・スプライト {@link Sprites}・雷雨の後の胞子の雲 {@link SporeDrift}・
  *     セントエルモの火 {@link StElmo}・アーク雲と突風 {@link ArcusCloud}。</li>
  *     <li>凪: 風の場を止める({@link GustField#setWeather})・遠くの霞を薄め森の霞を濃く({@link #aerialScale}・{@link #forestReachScale})・霞の層 {@link CalmLayers}。</li>
- *     <li>強風の日: 突風を多く強く・森の霞を薄め・胞子の綿 {@link GaleFluff}。</li>
+ *     <li>強風の日: 突風を多く強く・森の霞を薄める(胞子の綿は 11-17 ユーザー「無くそう」で外した)。</li>
  * </ul>
  * 天気の値({@link WeatherClient})は 5 秒ごとの段で届くので、ここで時定数 約 3 秒で寄せてから使う(最初の 1 通は一気に合わせる)。
  * 数は design の節 {@code stormExtras}・{@code calmLook}・{@code galeLook}(すべて仮決め)。確かめは試験用クライアントの命令 {@code wx}({@link WeatherLookDev})。
@@ -98,7 +98,6 @@ public final class WeatherLook {
         Sprites.clear();
         SporeDrift.clear();
         StElmo.clear();
-        GaleFluff.clear();
         ArcusCloud.clear();
         primed = false;
         calm = gale = after = thunder = pre = 0.0F;
@@ -157,7 +156,6 @@ public final class WeatherLook {
         // セントエルモ: 雷雨の間と、前触れの終わり(preStorm 0.7 → 1)。
         float elmo = Math.max(thunder, SunLight.smooth(Mth.clamp((pre - 0.7F) / 0.3F, 0.0F, 1.0F)));
         StElmo.tick(level, player, off("elmo") ? 0.0F : elmo * sky);
-        GaleFluff.tick(level, player, off("fluff") ? 0.0F : galeAmount(), time);
         ArcusCloud.tick(level, player, off("arcus") ? 0.0F : pre, thunder);
     }
 
@@ -166,12 +164,11 @@ public final class WeatherLook {
         ArcusCloud.render(event);
     }
 
-    /** ふつうの混ぜ方の物(胞子の雲・胞子の綿)。AFTER_PARTICLES、加算の光の前。 */
+    /** ふつうの混ぜ方の物(胞子の雲)。AFTER_PARTICLES、加算の光の前。 */
     static void render(RenderLevelStageEvent event) {
         WeatherShapes.begin(event);
         try {
             SporeDrift.render(event);
-            GaleFluff.render(event);
         } finally {
             WeatherShapes.end();
         }
@@ -192,8 +189,8 @@ public final class WeatherLook {
     }
 
     public static String describe() {
-        return String.format("天気の見た目 凪 %.2f 強風 %.2f 雷雨 %.2f 前触れ %.2f 雷雨の後 %.2f / %s / %s / %s / %s / %s / %s / %s", calm, gale, thunder, pre, after,
-                HorizonLightning.describe(), Sprites.describe(), SporeDrift.describe(), StElmo.describe(), GaleFluff.describe(), ArcusCloud.describe(),
+        return String.format("天気の見た目 凪 %.2f 強風 %.2f 雷雨 %.2f 前触れ %.2f 雷雨の後 %.2f / %s / %s / %s / %s / %s / %s", calm, gale, thunder, pre, after,
+                HorizonLightning.describe(), Sprites.describe(), SporeDrift.describe(), StElmo.describe(), ArcusCloud.describe(),
                 CalmLayers.describe());
     }
 }

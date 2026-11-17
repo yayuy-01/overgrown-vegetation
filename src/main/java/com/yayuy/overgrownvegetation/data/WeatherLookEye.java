@@ -135,10 +135,6 @@ public final class WeatherLookEye {
             n("gustInterval", 0.22, 0.05, 1.0), n("gustBonus", 0.25, 0.0, 1.0), n("between", 0.3, 0.0, 1.0),
             // 霞: 森の中の霞を薄める割合
             n("forestClear", 0.25, 0.0, 1.0),
-            // 胞子の綿: 数・出す半径・速さ(ブロック/秒、風の強さ 1 のとき)・大きさ・濃さ・色・森の外でも出す割合
-            n("fluffCount", 110.0, 0.0, 400.0), n("fluffRange", 26.0, 6.0, 64.0), n("fluffSpeed", 9.0, 0.5, 40.0),
-            n("fluffSize", 0.12, 0.01, 0.6), n("fluffAlpha", 0.7, 0.0, 1.0), c("fluffColor", 0.86, 0.90, 0.66),
-            n("fluffOpen", 0.5, 0.0, 1.0),
     };
 
     public static final Params STORM_DEFAULT = of(STORM, null);

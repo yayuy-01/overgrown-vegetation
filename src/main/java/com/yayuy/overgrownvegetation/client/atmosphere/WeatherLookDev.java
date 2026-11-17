@@ -14,7 +14,7 @@ import java.util.Locale;
  *     <li>{@code wx} / {@code wx status}: 今の値と各演出の様子。</li>
  *     <li>{@code wx w <fog> <calm> <gale> <after> <thunder> <pre>}: 届いた天気を上書き({@link WeatherClient#debugOverride})。{@code wx w off} で戻す。
  *     ({@code /ov weather} で強制できるのは fog・calm・gale だけなので、雷雨の後・前触れ・雷雨の強さはここで動かす。)</li>
- *     <li>{@code wx off <名前>} / {@code wx on [名前]}: 演出を 1 つ止める・戻す(far・sprite・drift・elmo・arcus・calm・gale・fluff・layers)。前後の絵と重さの比べ用。</li>
+ *     <li>{@code wx off <名前>} / {@code wx on [名前]}: 演出を 1 つ止める・戻す(far・sprite・drift・elmo・arcus・calm・gale・layers)。前後の絵と重さの比べ用。</li>
  *     <li>{@code wx set <節>.<名前> <数…>}: 値を 1 つ差し替える(節は storm・calm・gale。{@code wx set reset} で全部戻す)。{@code wx values} で一覧。</li>
  *     <li>{@code wx far}: 一番近い遠い積乱雲を今すぐ光らせる。{@code wx sprite [距離] [yaw] [雲の天辺]}: スプライトを 1 つ出す(既定は 2500 ブロック先・見ている向き)。</li>
  * </ul>
