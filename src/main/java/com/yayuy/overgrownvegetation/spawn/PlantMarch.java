@@ -74,7 +74,7 @@ public final class PlantMarch {
         if (event.getLevel() instanceof net.minecraft.server.level.ServerLevel sl && mob.getPersistentData().hasUUID(com.yayuy.overgrownvegetation.entity.crawler.CrawlerPack.EXTERNAL_KEY)) {
             com.yayuy.overgrownvegetation.entity.crawler.CrawlerPack.rejoin(sl, mob); // 外から作った群れ(11-17)を保存から組み直す
         }
-        if (DirectorHooks.packFollower(mob.getType())) mob.goalSelector.addGoal(5, new com.yayuy.overgrownvegetation.entity.crawler.CrawlerPack.ExternalFollowGoal(mob)); // 群れの後続として先導役に付いていく(11-17)
+        if (DirectorHooks.packFollower(mob.getType())) mob.goalSelector.addGoal(0, new com.yayuy.overgrownvegetation.entity.crawler.CrawlerPack.ExternalFollowGoal(mob)); // 群れの後続として先導役に付いていく(11-17)。11-18 A: 動いている群れでは種の狩り・行進より先(相手が遠い間は先導役の経路に乗る)
         if (DirectorHooks.breaker(mob.getType())) mob.goalSelector.addGoal(0, new BreachGoal(mob)); // 壁や扉を壊す(11-16。力のある種だけ)
         if (!DirectorHooks.marchable(mob.getType())) return;
         mob.goalSelector.addGoal(2, new MarchGoal(mob));

@@ -553,6 +553,8 @@ public final class CrawlerPack {
      */
     public static final class ExternalFollowGoal extends Goal {
         static final double PATH_FAR = 10.0D, STEP_DY = 1.5D;
+        /** 相手がこれより近い後続は、群れを離れて各種の戦い方へ(ブロック)【仮】。 */
+        static final double ENGAGE = 10.0D;
         /** 持ち場からこれ以内なら止まっている(細かく動き続けない)【仮】。 */
         static final double SETTLED = 2.0D;
         /** 群れが止まっている間、先導役からこれ(+ 群れの広がり)以内の後続は動かない【仮】。 */
@@ -569,7 +571,6 @@ public final class CrawlerPack {
 
         @Override
         public boolean canUse() {
-            if (marching(this.mob)) return false;
             CrawlerPack p = externalOf(this.mob);
             if (p == null || p.members.isEmpty()) return false;
             if (!(this.mob.level() instanceof ServerLevel sl)) return false;
@@ -577,14 +578,21 @@ public final class CrawlerPack {
                 leaveExternal(sl, this.mob);
                 return false;
             }
-            if (this.mob.getTarget() == null) {
-                LivingEntity t = p.sharedTarget(sl);
-                if (t != null && this.mob.canAttack(t)) {
-                    this.mob.setTarget(t);
-                    return false;
+            // 群れの誰かが見つけたプレイヤーを、狙っていない個体(先導役も)の相手にする
+            LivingEntity t = this.mob.getTarget();
+            if (t == null) {
+                LivingEntity s = p.sharedTarget(sl);
+                if (s != null && this.mob.canAttack(s)) {
+                    this.mob.setTarget(s);
+                    t = s;
                 }
             }
-            return this.mob.getTarget() == null && p.leader() != this.mob;
+            Mob l = p.leader();
+            if (l == this.mob) return false;
+            // 相手が近ければ各種の戦い方へ(11-18 A: 動いている群れでは、遠い間は先導役だけが経路を引き、後続は持ち場へ寄る)
+            if (t != null && this.mob.distanceToSqr(t) < ENGAGE * ENGAGE) return false;
+            // 自分だけ歩かされている(先導役は歩いていない)なら、自分の歩きへ
+            return !marching(this.mob) || marching(l);
         }
 
         @Override

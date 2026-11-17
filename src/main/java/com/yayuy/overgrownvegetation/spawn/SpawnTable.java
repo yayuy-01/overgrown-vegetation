@@ -176,7 +176,7 @@ public final class SpawnTable {
     public static final class MergeJson {
         public Boolean enabled;
         public Integer intervalTicks, minMobs;
-        public Double cellBlocks, scanBlocks;
+        public Double cellBlocks, scanBlocks, joinBlocks;
         public Map<String, Integer> ratio;
     }
 
@@ -188,7 +188,7 @@ public final class SpawnTable {
     public static final class Merge {
         public final boolean enabled;
         public final int intervalTicks, minMobs;
-        public final double cellBlocks, scanBlocks;
+        public final double cellBlocks, scanBlocks, joinBlocks;
         public final int[] ratio = new int[Role.values().length];
 
         Merge(@Nullable MergeJson j) {
@@ -196,7 +196,8 @@ public final class SpawnTable {
             this.enabled = s.enabled == null || s.enabled;
             this.intervalTicks = Math.max(5, or(s.intervalTicks, 40));
             this.minMobs = Math.max(2, or(s.minMobs, 6));
-            this.cellBlocks = Math.max(8.0D, or(s.cellBlocks, 32.0D));
+            this.cellBlocks = Math.max(8.0D, or(s.cellBlocks, 16.0D));
+            this.joinBlocks = Math.max(2.0D, or(s.joinBlocks, 12.0D));
             this.scanBlocks = Math.max(this.cellBlocks, or(s.scanBlocks, 64.0D));
             int[] def = {5, 3, 2, 1};
             for (Role r : Role.values()) {

@@ -56,6 +56,13 @@ public final class PackMergeGameTests {
         return (Mob) helper.spawn((EntityType<Mob>) type(path), new Vec3(x, 2.0D, z));
     }
 
+    /** 動いている個体にする(11-18 A: まとめるのは群れが動くときだけ)。相手に偽のプレイヤーを渡す。 */
+    private static void aim(GameTestHelper helper, List<? extends Mob> ms) {
+        net.minecraft.world.entity.player.Player p = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        p.setPos(Vec3.atCenterOf(helper.absolutePos(new net.minecraft.core.BlockPos(3, 2, 30))));
+        for (Mob m : ms) m.setTarget(p);
+    }
+
     private static void run(GameTestHelper helper) {
         Vec3 c = Vec3.atCenterOf(helper.absolutePos(new net.minecraft.core.BlockPos(3, 2, 3)));
         Double before = PackMerger.cellOverride;
@@ -67,7 +74,7 @@ public final class PackMergeGameTests {
         }
     }
 
-    /** 6 体たまると 1 つの群れになり、先導役は前衛(アルボラ)。グレガリアは自前の群れから抜けて入る。先導役が倒れたら前衛の生き残りが継ぐ。 */
+    /** 動いている 6 体が先導役から 12 以内にたまると 1 つの群れになり、先導役は前衛(アルボラ)。グレガリアは自前の群れから抜けて入る。先導役が倒れたら前衛の生き残りが継ぐ。 */
     @GameTest(template = TEMPLATE, batch = "pack_merge", timeoutTicks = 40)
     public static void formsPackWithFrontLeader(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -79,6 +86,7 @@ public final class PackMergeGameTests {
         ms.add(spawn(helper, "strobila", 1.5, 4.5));
         ms.add(spawn(helper, "arbora", 4.5, 4.5));
         helper.runAfterDelay(3, () -> {
+            aim(helper, ms);
             run(helper);
             CrawlerPack p = CrawlerPack.externalOf(ms.get(0));
             helper.assertTrue(p != null && p.size() == 6, "6 体が 1 つの群れにならない: " + (p == null ? "群れなし" : p.size()));
@@ -108,6 +116,7 @@ public final class PackMergeGameTests {
         Mob single = spawn(helper, "vesicaria", 3.5, 3.5);
         helper.runAfterDelay(3, () -> {
             CrawlerPack pa = CrawlerPack.formExternal(level, a), pb = CrawlerPack.formExternal(level, b);
+            aim(helper, List.of(single));
             helper.assertTrue(pa != pb, "前提: 2 つの群れ");
             run(helper);
             CrawlerPack p = CrawlerPack.externalOf(a.get(0));
@@ -125,6 +134,9 @@ public final class PackMergeGameTests {
         for (int i = 0; i < 5; i++) ms.add(spawn(helper, i < 2 ? "arbora" : "strobila", 1.5 + i, 2.5));
         GestatrixEntity g = (GestatrixEntity) helper.spawn(ModCrawlers.GESTATRIX.get(), new Vec3(3.5, 2.0, 5.0));
         helper.runAfterDelay(3, () -> {
+            List<Mob> all = new ArrayList<>(ms);
+            all.add(g);
+            aim(helper, all);
             run(helper);
             helper.assertTrue(CrawlerPack.externalOf(g) != null, "歩いているゲスタトリクスが群れに入らない");
             g.forceStateForTests(GestatrixEntity.SETTLE, 30);

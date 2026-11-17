@@ -66,9 +66,14 @@ public final class PackMerger {
         return !(m.getTags().contains(FogLurkers.TAG) && !m.getTags().contains(FogLurkers.WOKE_TAG));
     }
 
-    /** 浮いている(群れに入っていない・相手のいない・歩かされていない)。 */
+    /** 動いている(相手のプレイヤーを見つけた・司令塔が歩かせている)。11-18 ユーザー A: まとめるのは群れが動くときだけ。 */
+    static boolean moving(Mob m) {
+        return m.getTarget() instanceof net.minecraft.world.entity.player.Player || PlantMarch.active(m);
+    }
+
+    /** 浮いている(群れに入っていない・動いている)。 */
     static boolean loose(Mob m) {
-        return CrawlerPack.externalOf(m) == null && m.getTarget() == null && !PlantMarch.active(m);
+        return CrawlerPack.externalOf(m) == null && moving(m);
     }
 
     /** 1 人ぶん(テスト・命令からも)。seen は同じ回にほかのプレイヤーで見た個体(二度見ない)。 */
@@ -76,6 +81,7 @@ public final class PackMerger {
         long t0 = System.nanoTime();
         SpawnTable.Merge t = DesignData.spawns().merge;
         double cellSize = cellOverride != null ? cellOverride : t.cellBlocks;
+        double join = t.joinBlocks, join2 = join * join;
         double r = t.scanBlocks;
         AABB box = new AABB(x - r, y - 32.0D, z - r, x + r, y + 32.0D, z + r);
         Map<Long, List<Mob>> looseByCell = new HashMap<>();
@@ -90,66 +96,71 @@ public final class PackMerger {
             long cell = cell(m.getX(), m.getZ(), cellSize);
             CrawlerPack p = CrawlerPack.externalOf(m);
             if (p != null) {
-                if (p.leader() == m) {
-                    List<CrawlerPack> l = packsByCell.computeIfAbsent(cell, k -> new ArrayList<>(2));
-                    if (!l.contains(p)) l.add(p);
-                }
+                if (p.leader() == m) packsByCell.computeIfAbsent(cell, k -> new ArrayList<>(2)).add(p);
             } else if (loose(m)) {
                 looseByCell.computeIfAbsent(cell, k -> new ArrayList<>()).add(m);
             }
         }
-        // 升の群れを 1 つにまとめる
-        Map<Long, CrawlerPack> packOf = new HashMap<>();
-        for (Map.Entry<Long, List<CrawlerPack>> e : packsByCell.entrySet()) {
-            CrawlerPack main = null;
-            for (CrawlerPack p : e.getValue()) {
-                if (main == null) {
-                    main = p;
-                } else {
-                    main = CrawlerPack.mergeExternal(level, main, p);
+        // 同じ升の群れで、先導役どうしが join 以内のものを 1 つにまとめる
+        for (List<CrawlerPack> ps : packsByCell.values()) {
+            for (int i = 0; i < ps.size(); i++) {
+                for (int j = i + 1; j < ps.size(); j++) {
+                    CrawlerPack a = ps.get(i), b = ps.get(j);
+                    if (a.size() == 0 || b.size() == 0 || a.leader().distanceToSqr(b.leader()) > join2) continue;
+                    CrawlerPack big = CrawlerPack.mergeExternal(level, a, b);
+                    ps.set(i, big);
+                    ps.set(j, big == a ? b : a);
                     merged++;
                 }
             }
-            packOf.put(e.getKey(), main);
+            ps.removeIf(p -> p.size() == 0);
         }
-        // 浮いている個体を升の群れへ・たまった升で新しい群れ
+        // 動いている浮いた個体: まわり 9 升の群れのうち、先導役から join 以内で、その役割がいちばん足りない群れへ
         List<Mob> left = new ArrayList<>();
-        for (Map.Entry<Long, List<Mob>> e : looseByCell.entrySet()) {
-            CrawlerPack p = packOf.get(e.getKey());
-            List<Mob> ms = e.getValue();
-            if (p != null) {
-                for (Mob m : ms) CrawlerPack.addExternal(level, p, m);
-                added += ms.size();
-            } else if (ms.size() >= t.minMobs) {
-                packOf.put(e.getKey(), CrawlerPack.formExternal(level, ms));
-                formed++;
-                added += ms.size();
-            } else {
-                left.addAll(ms);
-            }
-        }
-        // それでも浮いている個体: まわり 8 升の群れのうち、その役割が比に足りない群れへ
-        for (Mob m : left) {
-            int role = DirectorHooks.roleOf(m.getType()).ordinal();
-            long c = cell(m.getX(), m.getZ(), cellSize);
-            int cx = (int) (c >> 32), cz = (int) c;
-            CrawlerPack best = null;
-            double bestNeed = 0.0D;
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int dz = -1; dz <= 1; dz++) {
-                    CrawlerPack p = packOf.get(key(cx + dx, cz + dz));
-                    if (p == null) continue;
-                    double need = deficit(p, role, t.ratio);
-                    if (need > bestNeed) {
-                        best = p;
-                        bestNeed = need;
+        for (List<Mob> ms : looseByCell.values()) {
+            for (Mob m : ms) {
+                int role = DirectorHooks.roleOf(m.getType()).ordinal();
+                long c = cell(m.getX(), m.getZ(), cellSize);
+                int cx = (int) (c >> 32), cz = (int) c;
+                CrawlerPack best = null;
+                double bestNeed = Double.NEGATIVE_INFINITY;
+                for (int dx = -1; dx <= 1; dx++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        List<CrawlerPack> ps = packsByCell.get(key(cx + dx, cz + dz));
+                        if (ps == null) continue;
+                        for (CrawlerPack p : ps) {
+                            if (p.size() == 0 || p.leader().distanceToSqr(m) > join2) continue;
+                            double need = deficit(p, role, t.ratio);
+                            if (need > bestNeed) {
+                                best = p;
+                                bestNeed = need;
+                            }
+                        }
                     }
                 }
+                if (best != null) {
+                    CrawlerPack.addExternal(level, best, m);
+                    added++;
+                } else {
+                    left.add(m);
+                }
             }
-            if (best != null) {
-                CrawlerPack.addExternal(level, best, m);
-                added++;
+        }
+        // 残り: 先導役(役割の順)から join 以内に minMobs 以上いれば、新しい群れにする
+        left.sort(java.util.Comparator.comparingInt(m -> DirectorHooks.roleOf(m.getType()).ordinal()));
+        Set<Mob> taken = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+        for (Mob lead : left) {
+            if (taken.contains(lead)) continue;
+            List<Mob> near = new ArrayList<>();
+            near.add(lead);
+            for (Mob m : left) {
+                if (m != lead && !taken.contains(m) && m.distanceToSqr(lead) <= join2) near.add(m);
             }
+            if (near.size() < t.minMobs) continue;
+            taken.addAll(near);
+            CrawlerPack.formExternal(level, near);
+            formed++;
+            added += near.size();
         }
         runs++;
         nanos += System.nanoTime() - t0;
