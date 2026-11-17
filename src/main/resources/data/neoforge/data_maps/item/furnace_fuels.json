@@ -1,0 +1,6 @@
+{
+  "values": {
+    "overgrown_vegetation:heat_sac": { "burn_time": 1600 },
+    "overgrown_vegetation:thermal_membrane": { "burn_time": 800 }
+  }
+}

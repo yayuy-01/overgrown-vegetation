@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [ { "item": "overgrown_vegetation:silk_gland" } ],
+  "result": { "id": "minecraft:string", "count": 3 }
+}

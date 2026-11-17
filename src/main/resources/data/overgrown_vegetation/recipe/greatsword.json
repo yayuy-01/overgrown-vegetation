@@ -2,11 +2,12 @@
   "type": "minecraft:crafting_shaped",
   "category": "equipment",
   "pattern": [
-    " I ",
+    " E ",
     " I ",
     "BRB"
   ],
   "key": {
+    "E": [ { "item": "overgrown_vegetation:fungal_metal_ingot" }, { "item": "overgrown_vegetation:scythe_blade" }, { "item": "overgrown_vegetation:scythe_shard" } ],
     "I": { "item": "overgrown_vegetation:fungal_metal_ingot" },
     "B": { "item": "overgrown_vegetation:hard_bark_shard" },
     "R": { "item": "overgrown_vegetation:twisted_cord" }

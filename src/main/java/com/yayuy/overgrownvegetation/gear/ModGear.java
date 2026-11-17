@@ -53,6 +53,7 @@ public final class ModGear {
 
     /** MOD の構築子から呼ぶ(クラスを読み込ませて登録を走らせる)。 */
     public static void init() {
+        ModMobDrops.init(); // Mob ごとのドロップ(2026-11-17 夜)
     }
 
     private static GearTierTable t() {
@@ -217,5 +218,6 @@ public final class ModGear {
         output.accept(PLATE_BOOTS.get());
         output.accept(GREATSWORD.get());
         output.accept(PIERCING_CROSSBOW.get());
+        ModMobDrops.acceptItems(output);
     }
 }

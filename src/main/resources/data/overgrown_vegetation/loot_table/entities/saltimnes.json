@@ -1,0 +1,40 @@
+{
+  "type": "minecraft:entity",
+  "pools": [
+    {
+      "rolls": 1.0,
+      "bonus_rolls": 0.0,
+      "conditions": [
+        { "condition": "minecraft:killed_by_player" },
+        { "condition": "minecraft:random_chance_with_enchanted_bonus", "enchantment": "minecraft:looting", "unenchanted_chance": 0.40, "enchanted_chance": { "type": "minecraft:linear", "base": 0.45, "per_level_above_first": 0.05 } }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "overgrown_vegetation:hydraulic_pulvinus",
+          "functions": [
+            { "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 1.0, "max": 1.0 }, "add": false }
+          ]
+        }
+      ]
+    },
+    {
+      "rolls": 1.0,
+      "bonus_rolls": 0.0,
+      "conditions": [
+        { "condition": "minecraft:random_chance_with_enchanted_bonus", "enchantment": "minecraft:looting", "unenchanted_chance": 0.30, "enchanted_chance": { "type": "minecraft:linear", "base": 0.35, "per_level_above_first": 0.05 } }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "overgrown_vegetation:spore_gland_tissue",
+          "functions": [
+            { "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 1.0, "max": 1.0 }, "add": false },
+            { "function": "minecraft:enchanted_count_increase", "enchantment": "minecraft:looting", "count": { "type": "minecraft:uniform", "min": 0.0, "max": 1.0 } }
+          ]
+        }
+      ]
+    }
+  ],
+  "random_sequence": "overgrown_vegetation:entities/saltimnes"
+}

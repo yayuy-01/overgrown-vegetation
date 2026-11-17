@@ -8,7 +8,7 @@
   ],
   "key": {
     "C": { "item": "overgrown_vegetation:grass_cloth" },
-    "L": { "item": "minecraft:leather" }
+    "L": [ { "item": "minecraft:leather" }, { "item": "overgrown_vegetation:scaled_hide" } ]
   },
   "result": { "id": "overgrown_vegetation:expedition_trousers", "count": 1 }
 }

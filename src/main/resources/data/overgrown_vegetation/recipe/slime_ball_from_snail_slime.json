@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [ { "item": "overgrown_vegetation:snail_slime" }, { "item": "overgrown_vegetation:snail_slime" } ],
+  "result": { "id": "minecraft:slime_ball", "count": 1 }
+}

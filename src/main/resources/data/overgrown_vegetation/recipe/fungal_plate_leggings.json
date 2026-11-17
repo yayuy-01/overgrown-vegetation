@@ -8,7 +8,7 @@
   ],
   "key": {
     "I": { "item": "overgrown_vegetation:fungal_metal_ingot" },
-    "B": { "item": "overgrown_vegetation:hard_bark_shard" }
+    "B": [ { "item": "overgrown_vegetation:hard_bark_shard" }, { "item": "overgrown_vegetation:shield_scale" } ]
   },
   "result": { "id": "overgrown_vegetation:fungal_plate_leggings", "count": 1 }
 }

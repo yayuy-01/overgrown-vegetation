@@ -7,9 +7,9 @@
     " TR"
   ],
   "key": {
-    "T": { "item": "minecraft:stick" },
+    "T": [ { "item": "minecraft:stick" }, { "item": "overgrown_vegetation:light_rib" } ],
     "R": { "item": "overgrown_vegetation:twisted_cord" },
-    "X": { "item": "overgrown_vegetation:roasted_spores" }
+    "X": [ { "item": "overgrown_vegetation:roasted_spores" }, { "item": "overgrown_vegetation:spore_cone" } ]
   },
   "result": { "id": "overgrown_vegetation:spore_bow", "count": 1 }
 }

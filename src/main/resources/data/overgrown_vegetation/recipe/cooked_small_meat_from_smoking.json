@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:smoking",
+  "category": "food",
+  "ingredient": { "item": "overgrown_vegetation:small_meat" },
+  "result": { "id": "overgrown_vegetation:cooked_small_meat", "count": 1 },
+  "experience": 0.35,
+  "cookingtime": 100
+}

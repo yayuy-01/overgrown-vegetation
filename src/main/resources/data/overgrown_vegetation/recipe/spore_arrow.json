@@ -6,7 +6,7 @@
     { "item": "minecraft:arrow" },
     { "item": "minecraft:arrow" },
     { "item": "minecraft:arrow" },
-    { "item": "overgrown_vegetation:roasted_spores" }
+    [ { "item": "overgrown_vegetation:roasted_spores" }, { "item": "overgrown_vegetation:spore_cone" } ]
   ],
   "result": { "id": "overgrown_vegetation:spore_arrow", "count": 4 }
 }

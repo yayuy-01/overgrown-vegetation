@@ -7,7 +7,7 @@
     "SR "
   ],
   "key": {
-    "I": { "item": "minecraft:iron_ingot" },
+    "I": [ { "item": "minecraft:iron_ingot" }, { "item": "overgrown_vegetation:scythe_shard" } ],
     "S": { "item": "minecraft:stick" },
     "R": { "item": "overgrown_vegetation:twisted_cord" }
   },
