@@ -146,6 +146,15 @@ public class StenodictyaLobataEntity extends SkyFlyer implements GeoEntity, Para
         return true;
     }
 
+    /**
+     * 家へ戻る・止まり木へ寄る間だけ風に逆らって進路を保つ(セミナリアと同じ)。無いと口(林冠の縁の外)の手前で遅くなったとき、
+     * 風(倍率 1.5 で最大 0.225)に押し戻されて口へ着けないことがあった(11-17 軽量化のセッションの GameTest で 5 回中 4 回)。上限 0.55 は風より速い。
+     */
+    @Override
+    protected boolean fightsWind() {
+        return true;
+    }
+
     /** 葉の下面を脚で掴んでいるので、ぶら下がっている間は向きを変えない【仮・Claude 11-16。モデル制作の頼み】。 */
     @Override
     protected boolean turnsWhilePerched() {

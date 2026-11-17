@@ -30,8 +30,11 @@ import javax.annotation.Nullable;
 public class StenodictyaNymphEntity extends CrawlerCritter {
 
     public static final String ID = "stenodictya_nymph";
-    /** walk(0.6 秒で 1 巡)を 1 倍で流したとき足が滑らない地面の速さ【仮・Claude 11-17。脚の長さからの見積もり。モデル制作に測ってもらう】。 */
-    public static final double WALK_REF = 0.03D;
+    /**
+     * walk(0.6 秒 = 脚 2 巡)を 1 倍で流したとき足が滑らない地面の速さ(11-17 g2g3-bug-walk が脚の運びを入れて測った確定値)。
+     * 急ぎ(約 0.10)が 3 倍の上限の中に収まるように 0.035。
+     */
+    public static final double WALK_REF = 0.035D;
     static final float TURN_PER_TICK = 12.0F;
     static final double STROLL_SPEED = 0.5D;
     /** 梢のうろつき: 行き先を探す水平の半径・今の高さからの上下の幅(ブロック)【仮】。 */
