@@ -23,8 +23,7 @@ public final class CrawlerClient {
         event.registerEntityRenderer(ModCrawlers.GREGARIA.get(),
                 ctx -> new SmallCrawlerRenderer<GregariaEntity>(ctx, new GregariaModel(), GregariaEntity.RENDER_SCALE, 0.4F));
         // ゲスタトリクス(11-17): 本物の形が来るまでグレガリアの形を大きくした仮のモデル
-        event.registerEntityRenderer(ModCrawlers.GESTATRIX.get(),
-                ctx -> new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.GestatrixEntity>(ctx, new GestatrixModel(), com.yayuy.overgrownvegetation.entity.GestatrixEntity.RENDER_SCALE, 1.0F));
+        event.registerEntityRenderer(ModCrawlers.GESTATRIX.get(), GestatrixRenderer::new); // 背の嚢を残りの数に合わせて隠す
         event.registerEntityRenderer(ModCrawlers.STROBILA.get(), ctx -> {
             var r = new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.StrobilaEntity>(ctx,
                     new com.yayuy.overgrownvegetation.client.StrobilaModel(),

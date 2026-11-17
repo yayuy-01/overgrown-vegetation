@@ -73,7 +73,7 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
     /** 仮のモデルの描画倍率(グレガリアの形を大きくしている)。 */
     public static final float RENDER_SCALE = 1.6F;
     /**
-     * 本物のアニメ(settle・birth_windup・birth・birth_cancel・root・rooted_idle・death)が来たら true にする。
+     * 本物のアニメ(settle・settled_idle・birth_windup・birth・birth_cancel・root・rooted_idle・death)が来たら true にする。
      * false の間は、仮のモデルにあるクリップ(idle・walk)だけを流す(無いクリップを流すと GeckoLib が毎フレーム警告を出す)。
      */
     public static final boolean FINAL_CLIPS = false;
@@ -560,6 +560,10 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
     // ------------------------------------------------------------------ アニメ(名前は依頼文の仮の名前。本物のモデルが来たら合わせる)
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
+    /** walk を 1 倍で流したときの地面の速さ(ブロック/tick。モデル制作 11-17【仮】)。再生 = 実際の速さ ÷ これ。 */
+    public static final double WALK_REF = 0.08D;
+    /** 歩きの再生速度の幅【仮】。 */
+    static final double WALK_SPEED_MIN = 0.3D, WALK_SPEED_MAX = 2.5D;
     private static final Map<String, RawAnimation> CLIPS = new HashMap<>();
 
     private static RawAnimation clip(String name, boolean loop) {
@@ -571,13 +575,19 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(this, "main", 4, s -> {
             int st = state();
-            if (!FINAL_CLIPS || st == ROAM) {
-                return s.setAndContinue(st == ROAM && clientMoveSpeed(s.getPartialTick()) > 0.01F ? WALK : IDLE);
+            AnimationController<GestatrixEntity> ctl = s.getController();
+            double v = clientMoveSpeed(s.getPartialTick());
+            if (st == ROAM && v > 0.01D) {
+                ctl.setAnimationSpeed(FINAL_CLIPS ? Math.max(WALK_SPEED_MIN, Math.min(WALK_SPEED_MAX, v / WALK_REF)) : 1.0D); // 足を滑らせない(モデル制作 11-17)
+                return s.setAndContinue(WALK);
             }
+            ctl.setAnimationSpeed(1.0D);
+            if (!FINAL_CLIPS || st == ROAM) return s.setAndContinue(IDLE);
             if (isDeadOrDying()) return s.setAndContinue(clip("death", false));
             int nurse = this.entityData.get(NURSE);
             return s.setAndContinue(switch (st) {
                 case SETTLE -> clip("settle", false);
+                case REST -> clip("settled_idle", true); // 産む合間は腰を据えたまま(モデル制作 11-17)
                 case WINDUP -> clip("birth_windup", false);
                 case BIRTH -> clip("birth", false);
                 case CANCEL -> clip("birth_cancel", false);
