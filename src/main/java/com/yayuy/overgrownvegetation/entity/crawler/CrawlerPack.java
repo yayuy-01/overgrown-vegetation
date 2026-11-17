@@ -367,6 +367,26 @@ public final class CrawlerPack {
     }
 
 
+    /**
+     * その Mob が「動いている外の群れ」の一員か(先導役か後続。先導役が司令塔に歩かされている・プレイヤーを狙っている、
+     * または群れの誰かがプレイヤーを狙っている)。群れごとに同じ tick は使い回すので、毎 tick・全員から呼んでも軽い(群れ 1 つにつき 1 tick に O(群れの大きさ) を 1 回)。
+     * horde-perf の AI の段階化(11-18)が、動いている群れを遠くでも間引かないために使う。
+     */
+    public static boolean inMovingPack(Mob m) {
+        CrawlerPack p = EXTERNAL.get(m);
+        if (p == null || p.members.isEmpty() || !(m.level() instanceof ServerLevel sl)) return false;
+        long now = sl.getGameTime();
+        if (p.movingAt != now) {
+            p.movingAt = now;
+            Mob l = p.leader();
+            p.moving = marching(l) || l.getTarget() instanceof net.minecraft.world.entity.player.Player || p.sharedTarget(sl) != null;
+        }
+        return p.moving;
+    }
+
+    private long movingAt = Long.MIN_VALUE;
+    private boolean moving;
+
     /** 外の群れに入っているか(O(1)。自前の群れを止める判定に使う)。 */
     static boolean inExternal(Mob mob) {
         return EXTERNAL.containsKey(mob);
