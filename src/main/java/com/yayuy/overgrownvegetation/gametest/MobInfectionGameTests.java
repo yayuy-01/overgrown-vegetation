@@ -334,8 +334,12 @@ public final class MobInfectionGameTests {
         int trials = 8, sprouted = 0;
         StringBuilder log = new StringBuilder();
         MobInfection.clearJumpCooldownsForTests();
+        long dayTimeBefore = level.getDayTime();
         try {
             data.set(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.UNLOADED_SPREAD, 0.0D); // 読み込まれていない升は「待ち」で残る
+            // 追いつきの 1 日の終わりを夕方にそろえる(11-18 切り分け: 昼に終わる 1 日は 0/4、夕方〜夜に終わる 1 日は 2〜3/4 発芽する。
+            // 前のテストの数で走る時刻がずれ、ほかのテストを足しただけで決まって落ちていた)
+            level.setDayTime(Math.floorDiv(dayTimeBefore, 24000L) * 24000L + 13000L);
             for (int k = 0; k < trials; k++) {
                 int cx = 1_300_000 + k * 40, cz = -1_300_000;
                 long key = ChunkPos.asLong(cx, cz);
@@ -356,6 +360,7 @@ public final class MobInfectionGameTests {
                 phase.forgetOvergrownChunk(new ChunkPos(cx, cz));
             }
         } finally {
+            level.setDayTime(dayTimeBefore);
             data.replaceAll(saved);
             MobInfection.clearJumpCooldownsForTests();
         }

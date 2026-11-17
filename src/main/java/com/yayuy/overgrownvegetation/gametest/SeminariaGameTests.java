@@ -382,8 +382,12 @@ public final class SeminariaGameTests {
         int trials = 8;
         int[] sprouted = new int[2];   // [0] = 3 粒、[1] = 1 粒
         StringBuilder log = new StringBuilder();
+        long dayTimeBefore = level.getDayTime();
         try {
             data.set(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.UNLOADED_SPREAD, 0.0D); // 読み込まれていない升は「待ち」で残る
+            // 追いつきの 1 日の終わりを夕方にそろえる(11-18 切り分け: 発芽は 1 日の終わりの時刻で大きく変わり、昼に終わると芽が出ない。
+            // 前のテストの数で走る時刻がずれ、ほかのテストを足しただけで決まって落ちていた)
+            level.setDayTime(Math.floorDiv(dayTimeBefore, 24000L) * 24000L + 13000L);
             for (int seeds = 3, row = 0; row < 2; seeds = 1, row++) {
                 for (int k = 0; k < trials; k++) {
                     int cx = 1_400_000 + k * 40, cz = -1_400_000 - row * 40;
@@ -406,6 +410,7 @@ public final class SeminariaGameTests {
                 log.append(row == 0 ? "| 1 粒: " : "");
             }
         } finally {
+            level.setDayTime(dayTimeBefore);
             data.replaceAll(saved);
         }
         OvergrownVegetation.LOGGER.info("セミナリアの種の飛び地(1 日): 3 粒 {}/{}・1 粒 {}/{} [{}]", sprouted[0], trials, sprouted[1], trials, log);
