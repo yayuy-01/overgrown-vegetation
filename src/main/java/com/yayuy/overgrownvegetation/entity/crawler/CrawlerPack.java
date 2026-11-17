@@ -357,6 +357,27 @@ public final class CrawlerPack {
         EXTERNAL.put(mob, p);
     }
 
+    /** 確かめ用の 1 行: 外から作った群れの数・後続の数・先導役から 12 ブロック以内の後続・後続の先導役までの距離の平均と最大。 */
+    public static String externalStats() {
+        java.util.Set<CrawlerPack> seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        int followers = 0, near = 0;
+        double sum = 0.0D, max = 0.0D;
+        for (CrawlerPack p : new ArrayList<>(EXTERNAL.values())) {
+            if (!seen.add(p) || p.members.isEmpty()) continue;
+            Mob l = p.leader();
+            for (Mob m : p.members) {
+                if (m == l || !m.isAlive()) continue;
+                double d = m.distanceTo(l);
+                followers++;
+                sum += d;
+                max = Math.max(max, d);
+                if (d <= 12.0D) near++;
+            }
+        }
+        return String.format(java.util.Locale.ROOT, "外の群れ %d・後続 %d(先導役から 12 以内 %d)・距離 平均 %.1f・最大 %.1f",
+                seen.size(), followers, near, followers > 0 ? sum / followers : 0.0D, max);
+    }
+
     /** 外の個体の群れ(無ければ null)。 */
     @Nullable
     public static CrawlerPack externalOf(Mob mob) {
@@ -397,7 +418,8 @@ public final class CrawlerPack {
 
         @Override
         public void stop() {
-            this.mob.getNavigation().stop();
+            if (this.mob instanceof com.yayuy.overgrownvegetation.entity.ArboraEntity a) a.mover().stop();
+            else this.mob.getNavigation().stop();
         }
 
         @Override
@@ -412,11 +434,17 @@ public final class CrawlerPack {
             double gx = l.getX() + Math.cos(a) * slack * 0.7D, gz = l.getZ() + Math.sin(a) * slack * 0.7D;
             double dx = gx - this.mob.getX(), dz = gz - this.mob.getZ();
             double d = Math.sqrt(dx * dx + dz * dz);
+            // アルボラは自前の歩き(ClingMover)で動く。ナビゲーションに渡しても動かない(11-17 クライアントで群れが散ったので直した)
+            com.yayuy.overgrownvegetation.entity.cling.ClingMover cling =
+                    this.mob instanceof com.yayuy.overgrownvegetation.entity.ArboraEntity arb ? arb.mover() : null;
             if (d < slack * 0.5D) {
-                this.mob.getNavigation().stop();
+                if (cling != null) cling.stop();
+                else this.mob.getNavigation().stop();
                 return;
             }
-            this.mob.getNavigation().moveTo(gx, l.getY(), gz, d > 8.0D ? 1.0D : 0.8D);
+            double speed = d > 8.0D ? 1.0D : 0.8D;
+            if (cling != null) cling.moveTo(new net.minecraft.world.phys.Vec3(gx, l.getY(), gz), speed, 1.0D);
+            else this.mob.getNavigation().moveTo(gx, l.getY(), gz, speed);
         }
     }
 }

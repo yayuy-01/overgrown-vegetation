@@ -143,13 +143,22 @@ public final class BandPackGameTests {
             lead = pack.leader();
             helper.assertTrue(lead.getType() == type("arbora") && pack.size() == made.size(), "先導役がアルボラでない・群れの数が違う: " + lead.getType());
             for (Mob x : made) x.discard();
-            // 上限の余りが 2 なら、2 体だけ置く
+            // 上限の余りが群れの最小(3)より少なければ置かない(切れ端を散らさない)
             int[] full = new int[11];
             full[4] = EnemySpawns.edgeCap(level, 4) - 2;
-            EnemySpawns.placePack(level, arbora, arbora.type(), at, full, RandomSource.create(6L));
+            EnemySpawns.Miss m2 = EnemySpawns.placePack(level, arbora, arbora.type(), at, full, RandomSource.create(6L));
             List<Mob> made2 = level.getEntitiesOfClass(Mob.class, new AABB(at).inflate(8.0D), EnemySpawns::spawnedHere);
-            helper.assertTrue(made2.size() == 2 && full[4] == EnemySpawns.edgeCap(level, 4), "上限の余りを超えて置いた: " + made2.size());
-            for (Mob x : made2) x.discard();
+            helper.assertTrue(made2.isEmpty() && m2 == EnemySpawns.Miss.FULL, "余りが群れの最小より少ないのに置いた: " + made2.size() + "(" + m2 + ")");
+            // 余りが 4 なら 4 体だけ。頭の種を先に減らすので、混ぜる種(ストロビラ)は残る
+            int[] room4 = new int[11];
+            room4[4] = EnemySpawns.edgeCap(level, 4) - 4;
+            EnemySpawns.placePack(level, arbora, arbora.type(), at, room4, RandomSource.create(7L));
+            List<Mob> made3 = level.getEntitiesOfClass(Mob.class, new AABB(at).inflate(8.0D), EnemySpawns::spawnedHere);
+            int str3 = 0;
+            for (Mob x : made3) if (x.getType() == type("strobila")) str3++;
+            helper.assertTrue(made3.size() == 4 && room4[4] == EnemySpawns.edgeCap(level, 4) && str3 >= 1,
+                    "上限の余りで切った群れが違う: " + made3.size() + " 体・ストロビラ " + str3);
+            for (Mob x : made3) x.discard();
             helper.succeed();
         } finally {
             DirectorGates.setPhaseForTests(phaseBefore);

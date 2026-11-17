@@ -259,16 +259,24 @@ public final class EnemySpawns {
     /** 群れを 1 か所にまとめて置く(並びの頭 = 先導役。混ぜる種は後ろに)。置けた頭数が 0 なら失敗。 */
     public static Miss placePack(ServerLevel level, SpawnTable.Species sp, EntityType<?> type, BlockPos at, int[] counts, RandomSource random) {
         int room = edgeCap(level, sp.group()) - counts[sp.group()];
-        List<EntityType<?>> plan = new ArrayList<>();
+        // 上限の余りが群れの最小より少なければ湧かせない(切れ端の 1 体ずつが散らばるのを防ぐ。11-17 クライアントで確かめて直した)
+        int headMin = Math.max(1, sp.packMin());
+        if (room < headMin) return Miss.FULL;
+        List<EntityType<?>> with = new ArrayList<>();
         int n = sp.packMin() + random.nextInt(sp.packMax() - sp.packMin() + 1);
-        for (int i = 0; i < n; i++) plan.add(type);
         for (SpawnTable.PackWith w : sp.packWith()) {
             EntityType<?> wt = w.type();
             if (wt == null) continue;
             int k = w.min() + random.nextInt(w.max() - w.min() + 1);
-            for (int i = 0; i < k; i++) plan.add(wt);
+            for (int i = 0; i < k; i++) with.add(wt);
         }
-        if (plan.size() > room) plan = plan.subList(0, Math.max(1, room));
+        // 余りに収まらないときは、まず頭の種を最小まで減らし、それでも多ければ混ぜる種を減らす(混ぜる種が先に消えないように)
+        int over = n + with.size() - room;
+        if (over > 0) n = Math.max(headMin, n - over);
+        if (n + with.size() > room) with = with.subList(0, room - n);
+        List<EntityType<?>> plan = new ArrayList<>();
+        for (int i = 0; i < n; i++) plan.add(type);
+        plan.addAll(with);
         List<Mob> made = new ArrayList<>();
         Miss first = Miss.BLOCKED;
         for (EntityType<?> pt : plan) {
@@ -585,6 +593,7 @@ public final class EnemySpawns {
                 br.g1Size(), t.g1Band, br.g45Size(), t.g45Band, br.distanceAt(net.minecraft.util.Mth.floor(x) >> 4, net.minecraft.util.Mth.floor(z) >> 4),
                 BandRoster.builds == 0 ? 0.0D : BandRoster.buildNanos / 1e6 / BandRoster.builds, BandRoster.builds,
                 tries == 0 ? 0.0D : tryNanos / 1e6 / tries, tries, packsSpawned));
+        out.add("群れ: " + com.yayuy.overgrownvegetation.entity.crawler.CrawlerPack.externalStats());
         StringBuilder sb = new StringBuilder("これまで: 縁 " + spawnedEdge + "・地下 " + spawnedUnder + " / 試しの結果: ");
         for (Miss m : Miss.values()) sb.append(m.label).append(' ').append(stats[m.ordinal()]).append("・");
         out.add(sb.toString());
