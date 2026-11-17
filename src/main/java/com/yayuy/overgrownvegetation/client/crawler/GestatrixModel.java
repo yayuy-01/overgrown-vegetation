@@ -6,14 +6,13 @@ import com.yayuy.overgrownvegetation.entity.GestatrixEntity;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * ゲスタトリクスのモデル(2026-11-17)。<b>今は仮</b>: モデル制作(Fable)の形が来るまで、グレガリアの geo・絵・アニメを大きくして使う
- * (描画倍率 {@link GestatrixEntity#RENDER_SCALE})。本物が来たら下の 3 つを {@code gestatrix} の素材へ替え、{@link GestatrixEntity#FINAL_CLIPS} を true にする。
+ * ゲスタトリクスのモデル(2026-11-17)。素材はモデル制作(Fable)の本物(11-17 夜。正本は Blockbench の gestatrix.bbmodel、骨とアニメの名前は共有ノート「ゲスタトリクス_骨とアニメの名前」)。
  */
 public class GestatrixModel extends LodGeoModel<GestatrixEntity> {
 
-    private static final ResourceLocation MODEL = OvergrownVegetation.id("geo/gregaria.geo.json");
-    private static final ResourceLocation TEXTURE = OvergrownVegetation.id("textures/entity/gregaria.png");
-    private static final ResourceLocation ANIMATION = OvergrownVegetation.id("animations/gregaria.animation.json");
+    private static final ResourceLocation MODEL = OvergrownVegetation.id("geo/gestatrix.geo.json");
+    private static final ResourceLocation TEXTURE = OvergrownVegetation.id("textures/entity/gestatrix.png");
+    private static final ResourceLocation ANIMATION = OvergrownVegetation.id("animations/gestatrix.animation.json");
 
     @Override
     public ResourceLocation getModelResource(GestatrixEntity animatable) {

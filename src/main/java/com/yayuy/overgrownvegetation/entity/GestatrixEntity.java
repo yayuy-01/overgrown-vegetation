@@ -71,12 +71,12 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
     public static final String ID = "gestatrix";
 
     /** 仮のモデルの描画倍率(グレガリアの形を大きくしている)。 */
-    public static final float RENDER_SCALE = 1.6F;
+    public static final float RENDER_SCALE = 1.0F;
     /**
      * 本物のアニメ(settle・settled_idle・birth_windup・birth・birth_cancel・root・rooted_idle・death)が来たら true にする。
      * false の間は、仮のモデルにあるクリップ(idle・walk)だけを流す(無いクリップを流すと GeckoLib が毎フレーム警告を出す)。
      */
-    public static final boolean FINAL_CLIPS = false;
+    public static final boolean FINAL_CLIPS = true; // 11-17 夜 モデル制作の素材が入った
 
     // ------------------------------------------------------------------ 状態
     public static final int ROAM = 0, SETTLE = 1, REST = 2, WINDUP = 3, BIRTH = 4, CANCEL = 5, ROOTING = 6, ROOTED = 7;
@@ -263,7 +263,11 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
     @Override
     public void tick() {
         super.tick();
-        if (level().isClientSide() || !(level() instanceof ServerLevel level) || !isAlive()) return;
+        if (level().isClientSide()) {
+            windupClient = state() == WINDUP ? windupClient + 1 : 0; // 前触れの嚢の光(描画)
+            return;
+        }
+        if (!(level() instanceof ServerLevel level) || !isAlive()) return;
         int state = state();
         if (state == ROOTED) {
             holdYaw();
@@ -346,6 +350,21 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
         if (b != null) return new Vec3(b.centerX(), getY(), b.centerZ());
         Player p = level.getNearestPlayer(getX(), getY(), getZ(), t.approachBlocks, e -> e instanceof Player pl && !pl.isSpectator() && !pl.isCreative());
         return p != null ? p.position() : null;
+    }
+
+    // ------------------------------------------------------------------ 光(描画)
+    /** クライアント: 前触れに入ってからの tick。 */
+    private int windupClient;
+
+    /** 前触れの間だけ嚢が光る(素材 gestatrix_glow_sac。だんだん強く)【仮】。 */
+    public float sacGlow(float pt) {
+        if (state() != WINDUP) return 0.0F;
+        return Math.min(1.0F, 0.35F + 0.65F * (windupClient + pt) / WINDUP_T);
+    }
+
+    /** 目(素材 gestatrix_glowmask)はいつも光る。 */
+    public float eyeGlow(float pt) {
+        return isDeadOrDying() ? 0.0F : 1.0F;
     }
 
     /** 腰を据える(もう立たない)。 */

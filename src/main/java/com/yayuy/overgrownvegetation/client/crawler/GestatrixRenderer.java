@@ -17,7 +17,10 @@ public class GestatrixRenderer extends SmallCrawlerRenderer<GestatrixEntity> {
     private static final String[] SACS = {"sac_0", "sac_1", "sac_2", "sac_3"};
 
     public GestatrixRenderer(EntityRendererProvider.Context context) {
-        super(context, new GestatrixModel(), GestatrixEntity.RENDER_SCALE, 1.0F);
+        super(context, new GestatrixModel(), GestatrixEntity.RENDER_SCALE, 1.4F);
+        // 目はいつも光る・前触れの間だけ背の嚢が光る(素材はモデル制作 11-17 夜)
+        this.addRenderLayer(new com.yayuy.overgrownvegetation.client.MaskGlowLayer<>(this, com.yayuy.overgrownvegetation.client.MaskGlowLayer.mask("gestatrix_glowmask"), GestatrixEntity::eyeGlow));
+        this.addRenderLayer(new com.yayuy.overgrownvegetation.client.MaskGlowLayer<>(this, com.yayuy.overgrownvegetation.client.MaskGlowLayer.mask("gestatrix_glow_sac"), GestatrixEntity::sacGlow));
     }
 
     @Override
@@ -28,6 +31,10 @@ public class GestatrixRenderer extends SmallCrawlerRenderer<GestatrixEntity> {
             boolean hidden = i < SACS.length - left;
             model.getBone(SACS[i]).ifPresent(b -> b.setHidden(hidden));
         }
+        // 根付いた後の芽・嚢(sprout_1・hatch_1)は、根付くまで隠す(クリップの外では見えてしまう。モデル制作 11-17 夜の頼み)
+        boolean rooted = animatable.rooted();
+        model.getBone("sprout_1").ifPresent(b -> b.setHidden(!rooted));
+        model.getBone("hatch_1").ifPresent(b -> b.setHidden(!rooted));
         super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
     }
 }
