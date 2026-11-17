@@ -73,6 +73,16 @@ public final class MistFog {
     static float devForestDensity = -1.0F;
     /** カメラの所の胞子の霧の森の度合い(地図の a。開発用のログ)。 */
     private static float cameraForest;
+    /** カメラが森の胞子の霧の天辺(林冠の床 + forestFogAbove)より上にいるほど 0 へ(地形シェーダーの ovForestSample と同じ減り方。11-17)。 */
+    private static float sporeFade = 1.0F;
+
+    /**
+     * 森の胞子の霧の、カメラの高さの分(1 = 霧の層の中、0 = 層のずっと上)。巨大樹の高い所は頭上に樹冠があるので「森の中」扱いになり、
+     * 林冠のはるか上でも画面じゅうが霧の色一色になっていた(11-17)。霧の層より上では、カメラの側の霧を切って地形シェーダーの霧に任せる。
+     */
+    static float sporeFade() {
+        return sporeFade;
+    }
 
     private MistFog() {
     }
@@ -265,6 +275,12 @@ public final class MistFog {
             cameraProx = (float) AT[2];
             cameraForest = (float) AT[3];
             inside = (float) (MistLayer.inside(cameraAbove, p.insideSoft()) * AT[2]) * mistLevel * (1.0F - ForestPresence.underground());
+        }
+        if (MistMap.at(eye.x, eye.z, AT)) {
+            double over = eye.y - (AT[1] + p.forestFogAbove());
+            sporeFade = over <= 0.0 ? 1.0F : (float) Math.exp(-p.falloff() * over);
+        } else {
+            sporeFade = 1.0F;
         }
         cameraInside = inside > cameraInside ? Math.min(inside, cameraInside + 0.02F) : Math.max(inside, cameraInside - 0.02F);
         float sky = level.getBrightness(LightLayer.SKY, BlockPos.containing(eye)) / 15.0F;

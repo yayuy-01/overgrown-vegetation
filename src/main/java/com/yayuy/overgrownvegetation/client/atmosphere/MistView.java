@@ -48,7 +48,7 @@ final class MistView {
      * {@link ForestPresence#fogForest()}(時定数 transitionForestSeconds)を読む —— 濃い霧の森から薄い所へ出ても霧の距離と色が急に変わらない。
      */
     static float sporeFog() {
-        return DesignData.atmosphere().fog().forestFogEnd() > 0.0F && !MistFog.devForestOff ? ForestPresence.fogForest() : 0.0F;
+        return DesignData.atmosphere().fog().forestFogEnd() > 0.0F && !MistFog.devForestOff ? ForestPresence.fogForest() * MistFog.sporeFade() : 0.0F;
     }
 
     /** 地形を描いた後のバニラの霧が効いていたフレーム(Distant Horizons はふつうの霧を切ると、設定の後で値を 4e19 などの巨大な値に書き換える)。 */
