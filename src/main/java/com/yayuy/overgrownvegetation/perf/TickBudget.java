@@ -128,6 +128,24 @@ public final class TickBudget {
         inPost = true;
     }
 
+    /** この tick にここまで番人の内側で走った後回しにできる処理の合計(ns。{@code HordeMeter} の止まりの内訳用)。 */
+    public static long thisTickDeferrableNanos() {
+        return DEFERRABLE_NANOS[slot];
+    }
+
+    /** この tick にいちばん長く走った周期処理の名前と ms(無ければ "-")。 */
+    public static String thisTickTopJob() {
+        int best = -1;
+        long bestNanos = 0;
+        for (int j = 0; j < JOBS; j++) {
+            if (JOB_NANOS[j][slot] > bestNanos) {
+                bestNanos = JOB_NANOS[j][slot];
+                best = j;
+            }
+        }
+        return best < 0 ? "-" : PerfJob.values()[best].name() + String.format(java.util.Locale.ROOT, ":%.1f", bestNanos / 1e6);
+    }
+
     /** ワールドを閉じたら記録を捨てる(次のワールドの表に前のワールドの数字が混ざらないように)。 */
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {

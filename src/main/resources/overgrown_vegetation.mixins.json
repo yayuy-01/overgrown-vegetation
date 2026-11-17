@@ -16,6 +16,7 @@
     "HordeMeterPathMixin",
     "HordeMeterPushMixin",
     "HordeMeterSendMixin",
+    "HordeMeterBlockMixin",
     "PartIndexLevelMixin",
     "PlantPushThinMixin",
     "DoorSetOpenCoveredMixin",

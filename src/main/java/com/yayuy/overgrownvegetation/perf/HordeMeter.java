@@ -63,6 +63,16 @@ public final class HordeMeter {
     private static long mobTickStart;
     private static boolean measuringMob;
 
+    // ---- 1 tick の止まりの内訳(11-18 ④。100 ms 以上の tick だけ書く)
+    private static final long SLOW_NANOS = 100_000_000L;
+    private static long tickCpuStart, tickGcStart, tickEntityNanos, tickMobNanos, entityStart;
+    private static int entityDepth;
+    private static Thread serverThread;
+    private static int blockDepth, tickBlocks;
+    private static long blockStartNanos, tickBlockNanos, tickBlockLongest;
+    private static String tickBlockWho = "-";
+    private static BufferedWriter slowOut;
+
     private HordeMeter() {
     }
 
@@ -95,6 +105,30 @@ public final class HordeMeter {
         packets++;
     }
 
+    /** 同期の待ち(managedBlock)の始まり。サーバースレッドの外側の待ちだけを数える。 */
+    public static void blockStart() {
+        if (Thread.currentThread() != serverThread || blockDepth++ > 0) return;
+        blockStartNanos = System.nanoTime();
+    }
+
+    /** 同期の待ちの終わり。20 ms を超えた待ちは、呼んだ mod の場所を覚える(この tick でいちばん長いもの)。 */
+    public static void blockEnd() {
+        if (Thread.currentThread() != serverThread || blockDepth == 0 || --blockDepth > 0) return;
+        long n = System.nanoTime() - blockStartNanos;
+        tickBlockNanos += n;
+        tickBlocks++;
+        if (n > 20_000_000L && n > tickBlockLongest) {
+            tickBlockLongest = n;
+            tickBlockWho = "(バニラ)";
+            for (StackTraceElement f : Thread.currentThread().getStackTrace()) {
+                if (f.getClassName().startsWith("com.yayuy.overgrownvegetation.") && !f.getClassName().contains(".perf.") && !f.getClassName().contains(".mixin.")) {
+                    tickBlockWho = f.getClassName().substring(f.getClassName().lastIndexOf('.') + 1) + "." + f.getMethodName() + ":" + f.getLineNumber();
+                    break;
+                }
+            }
+        }
+    }
+
     /** 思考を間引いた 1 回。 */
     public static void held() {
         held++;
@@ -108,11 +142,24 @@ public final class HordeMeter {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onTickPre(ServerTickEvent.Pre event) {
-        if (on) tickStart = System.nanoTime();
+        if (!on) return;
+        tickStart = System.nanoTime();
+        tickCpuStart = THREADS.getCurrentThreadCpuTime();
+        tickGcStart = gcMillis();
+        tickEntityNanos = 0;
+        tickMobNanos = 0;
+        entityDepth = 0;
+        serverThread = Thread.currentThread();
+        blockDepth = 0;
+        tickBlockNanos = 0;
+        tickBlocks = 0;
+        tickBlockLongest = 0;
+        tickBlockWho = "-";
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onEntityPre(EntityTickEvent.Pre event) {
+        if (on && !event.getEntity().level().isClientSide && entityDepth++ == 0) entityStart = System.nanoTime();
         if (on && !event.getEntity().level().isClientSide && event.getEntity() instanceof Mob && isMod(event.getEntity())) {
             measuringMob = true;
             mobTickStart = System.nanoTime();
@@ -121,17 +168,22 @@ public final class HordeMeter {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onEntityPost(EntityTickEvent.Post event) {
+        if (on && !event.getEntity().level().isClientSide && entityDepth > 0 && --entityDepth == 0) tickEntityNanos += System.nanoTime() - entityStart;
         if (measuringMob && !event.getEntity().level().isClientSide) {
             measuringMob = false;
             mobTicks++;
-            mobTickNanos += System.nanoTime() - mobTickStart;
+            long mt = System.nanoTime() - mobTickStart;
+            mobTickNanos += mt;
+            tickMobNanos += mt;
         }
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onTickPost(ServerTickEvent.Post event) {
         if (!on) return;
-        TICK_NANOS[ticksInSecond++] = System.nanoTime() - tickStart;
+        long wall = System.nanoTime() - tickStart;
+        TICK_NANOS[ticksInSecond++] = wall;
+        if (wall >= SLOW_NANOS) slow(event.getServer(), wall);
         if (ticksInSecond < 20) return;
         flush(event.getServer());
     }
@@ -193,6 +245,36 @@ public final class HordeMeter {
         held = 0;
     }
 
+    private static long gcMillis() {
+        long sum = 0;
+        for (java.lang.management.GarbageCollectorMXBean gc : ManagementFactory.getGarbageCollectorMXBeans()) {
+            long t = gc.getCollectionTime();
+            if (t > 0) sum += t;
+        }
+        return sum;
+    }
+
+    /**
+     * 100 ms 以上かかった tick の内訳を {@code horde-slow-*.tsv} へ: 壁の時計・サーバースレッドの CPU 時間・その間の GC(全スレッドの合計。
+     * 止めている時間の目安)・エンティティの tick の合計・うちこの MOD の Mob・番人の内側の周期処理・残り(チャンクの tick・送り・保存など)。
+     * 壁の時計 − CPU が大きければ、ほかのプロセスとの CPU の取り合いか GC の待ち。
+     */
+    private static void slow(MinecraftServer server, long wall) {
+        if (slowOut == null) return;
+        long cpu = THREADS.getCurrentThreadCpuTime() - tickCpuStart;
+        long gc = gcMillis() - tickGcStart;
+        long deferrable = TickBudget.thisTickDeferrableNanos();
+        try {
+            slowOut.write(String.format(Locale.ROOT, "%s\t%d\t%s\t%.1f\t%.1f\t%d\t%.1f\t%.1f\t%.1f\t%.1f\t%s\t%d\t%.1f\t%d\t%s%n",
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS", Locale.ROOT)), server.getTickCount(), tag,
+                    wall / 1e6, cpu / 1e6, gc, tickEntityNanos / 1e6, tickMobNanos / 1e6, deferrable / 1e6,
+                    (wall - tickEntityNanos - deferrable) / 1e6, TickBudget.thisTickTopJob(), server.getTickCount() % 6000 == 0 ? 1 : 0, tickBlockNanos / 1e6, tickBlocks, tickBlockWho));
+            slowOut.flush();
+        } catch (IOException ex) {
+            OvergrownVegetation.LOGGER.warn("[OV] horde meter: {}", ex.toString());
+        }
+    }
+
     // ---------------------------------------------------------------- 命令
 
     /** 書き出しを始める。返すのは書く先(失敗なら null)。 */
@@ -206,6 +288,9 @@ public final class HordeMeter {
             out.write("time\ttick\ttag\twall_ms\tmax_ms\tcpu_ms\tmods\tnear32\tmid64\tfar\ttargeting\tothers\tmobtick_ms\tmobticks"
                     + "\tpath\tpath_mod\tpath_ms\tpush\tpush_found\tpush_ms\tsend\tsend_ms\tpackets\theld\tswitches\tparts\tticks_ms");
             out.newLine();
+            slowOut = Files.newBufferedWriter(dir.resolve(file.getFileName().toString().replace("horde-", "horde-slow-")), StandardCharsets.UTF_8);
+            slowOut.write("time\ttick\ttag\twall_ms\tcpu_ms\tgc_ms\tentities_ms\tmodmobs_ms\tjobs_ms\trest_ms\ttop_job\tautosave\tblock_ms\tblocks\tblock_who");
+            slowOut.newLine();
         } catch (IOException ex) {
             OvergrownVegetation.LOGGER.warn("[OV] horde meter: {}", ex.toString());
             return null;
@@ -225,6 +310,13 @@ public final class HordeMeter {
             } catch (IOException ignored) {
             }
             out = null;
+        }
+        if (slowOut != null) {
+            try {
+                slowOut.close();
+            } catch (IOException ignored) {
+            }
+            slowOut = null;
         }
     }
 
