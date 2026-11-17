@@ -108,7 +108,9 @@ final class LedgerStore {
         long t0 = System.nanoTime();
         long[] regions = dirty.toLongArray();
         // 汚れた区域が少なければ、区域の 4096 升を台帳に引く(台帳全体をなめない)。多ければ台帳を写して IO スレッドで 1 回なめる
-        boolean probe = (long) regions.length * (1L << (2 * SHIFT)) < ledger.size();
+        // 11-18: 引く升の数(区域 × 4096)が台帳の 1/8 より多ければ、台帳を写して IO スレッドで分ける方が速い(写しは配列の写しで数 ms。
+        // 前は「台帳より少なければ引く」で、汚れた区域が 100 前後のとき自動保存のたびにサーバースレッドで 40 万回引いて約 70 ms)
+        boolean probe = (long) regions.length * (1L << (2 * SHIFT)) * 8L < ledger.size();
         Path dir = dir(server);
         if (probe) {
             List<long[]> keys = new ArrayList<>(regions.length);

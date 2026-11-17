@@ -94,7 +94,7 @@ public final class PerfCommand {
                                 })))
                         // 大群の重さの内訳を 1 秒ごとに書き出す(2026-11-18 大群のための軽量化 B。HordeMeter)
                         .then(Commands.literal("horde").executes(ctx -> {
-                                    send(ctx.getSource(), "大群の測り: " + HordeMeter.describe());
+                                    send(ctx.getSource(), "大群の測り: " + HordeMeter.describe(ctx.getSource().getServer()));
                                     return 1;
                                 })
                                 .then(Commands.literal("start").executes(ctx -> {
@@ -110,7 +110,7 @@ public final class PerfCommand {
                                 .then(Commands.literal("tag").then(Commands.argument("name", com.mojang.brigadier.arguments.StringArgumentType.word())
                                         .executes(ctx -> {
                                             HordeMeter.tag(com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "name"));
-                                            send(ctx.getSource(), "大群の測り: " + HordeMeter.describe());
+                                            send(ctx.getSource(), "大群の測り: " + HordeMeter.describe(ctx.getSource().getServer()));
                                             return 1;
                                         }))))
                         .then(Commands.literal("record")

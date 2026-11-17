@@ -359,6 +359,10 @@ public final class HordeMeter {
         tag = t;
     }
 
+    static String describe(MinecraftServer server) {
+        return describe() + "・台帳の書き換え待ち " + com.yayuy.overgrownvegetation.corruption.LedgerSpreadData.get(server).pendingCount();
+    }
+
     static String describe() {
         return on ? "書き出し中: " + file + "(窓の名前 " + tag + ")" + (ChunkEdgeGuard.lastDenied == null ? "" : "・最後に先送りした所 " + ChunkEdgeGuard.lastDenied.toShortString()) : "止まっている";
     }
