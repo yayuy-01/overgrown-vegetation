@@ -98,6 +98,7 @@ public final class TickBudget {
         spentNanos = 0L;
         inPost = false;
         jobDeadline = Long.MAX_VALUE;
+        com.yayuy.overgrownvegetation.corruption.CorruptionDropSuppressor.setInPeriodicJob(false); // 閉じ忘れの保険
 
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
         active = cfg.tickBudgetEnabled.get() && !(server instanceof GameTestServer);
@@ -160,6 +161,7 @@ public final class TickBudget {
     public static long begin() {
         long now = System.nanoTime();
         jobDeadline = capNanos == Long.MAX_VALUE ? Long.MAX_VALUE : now + Math.max(0L, capNanos - spentNanos);
+        com.yayuy.overgrownvegetation.corruption.CorruptionDropSuppressor.setInPeriodicJob(true); // 汚染の周期処理は物を落とさない(11-17)
         return now;
     }
 
@@ -196,6 +198,7 @@ public final class TickBudget {
             LAST_RUN[j] = tick;
         }
         jobDeadline = Long.MAX_VALUE;
+        com.yayuy.overgrownvegetation.corruption.CorruptionDropSuppressor.setInPeriodicJob(false);
     }
 
     // ---------------------------------------------------------------- 表示用

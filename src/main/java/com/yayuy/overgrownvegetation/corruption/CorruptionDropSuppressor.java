@@ -61,9 +61,23 @@ public final class CorruptionDropSuppressor {
         }
     }
 
+    /**
+     * 2026-11-17 軽量化(ユーザー決定「汚染では落とさない」): 予算の番人に配線した周期処理(胞子の芽・菌糸の染み下り・湿地の木の片付け・
+     * 苗木の追いつき成長など、{@link com.yayuy.overgrownvegetation.perf.PerfJob} の全部)の間も範囲の中とみなす。
+     * 前線に落とし物が数百個たまり、サーバーの 1 tick の約 6〜8% を使っていた(F7 の前線・本物の写しで 223〜520 個)。
+     * {@link com.yayuy.overgrownvegetation.perf.TickBudget#begin}〜{@code end} が立て・下ろす(周期処理は入れ子にしない決まり)。
+     * 閉じ忘れても次の tick の頭で下ろす({@code TickBudget#onServerTickPre})。
+     */
+    private static final ThreadLocal<boolean[]> IN_JOB = ThreadLocal.withInitial(() -> new boolean[1]);
+
+    /** 周期処理の範囲を立てる・下ろす({@link com.yayuy.overgrownvegetation.perf.TickBudget} から)。 */
+    public static void setInPeriodicJob(boolean in) {
+        IN_JOB.get()[0] = in;
+    }
+
     /** このスレッドが今、範囲の中にいるか。 */
     public static boolean isActive() {
-        return DEPTH.get()[0] > 0;
+        return DEPTH.get()[0] > 0 || IN_JOB.get()[0];
     }
 
     @SubscribeEvent

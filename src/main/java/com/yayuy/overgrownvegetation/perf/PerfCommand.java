@@ -236,6 +236,13 @@ public final class PerfCommand {
                 if (entity instanceof ItemEntity) {
                     items++;
                 } else if (entity instanceof Mob) {
+                    // 2026-11-17 軽量化: グループの数え(10-30 に parked/ へ)が消えて 0 のままだった。名前空間で分ける(MobThinkThrottle と同じ)
+                    if (com.yayuy.overgrownvegetation.OvergrownVegetation.MODID.equals(
+                            net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).getNamespace())) {
+                        modMobs++;
+                    } else {
+                        otherMobs++;
+                    }
                 }
             }
         }
