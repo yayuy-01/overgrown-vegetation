@@ -2316,9 +2316,9 @@ public final class OvergrownVegetationConfig {
                     .define("mobThinkThrottleEnabled", true);
 
             plantPushThinEnabled = b
-                    .comment("植物側の Mob どうしの押し合いを軽くする(試し。11-18)。植物側は自分からの押し合いを数 tick に 1 回にし、",
-                            "プレイヤー・ほかの Mob とは相手の押し合いで今までどおり離れる。植物側どうしは軽く離れ合うだけ。間隔は design の perf.json(push)。既定 false。")
-                    .define("plantPushThinEnabled", false);
+                    .comment("植物側の Mob どうしの押し合いを軽くする(11-18 ユーザー決定で既定 true)。植物側は自分からの押し合いを数 tick に 1 回にし、",
+                            "プレイヤー・ほかの Mob とは相手の押し合いで今までどおり離れる。植物側どうしは軽く離れ合うだけ。間隔は design の perf.json(push)。既定 true。")
+                    .define("plantPushThinEnabled", true);
 
             partIndexEnabled = b
                     .comment("部位(大きな体の叩ける部位)の升目の索引。近くのエンティティを探すたびに世界じゅうの部位を全部比べていたのを、",

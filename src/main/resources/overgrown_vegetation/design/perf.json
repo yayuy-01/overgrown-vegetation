@@ -9,7 +9,7 @@
     "hurtGraceTicks": 60
   },
   "push": {
-    "_comment": "植物側の押し合いを間引く(試し。11-18。ユーザー「撮った絵を見てから決める」ので common toml の plantPushThinEnabled は既定 false)。植物側の Mob は自分からの押し合いを intervalTicks に 1 回探す。プレイヤー・ほかの Mob とは相手の押し合いで今までどおり離れ、植物側どうしは約 1/4 の力で軽く離れ合う。",
+    "_comment": "植物側の押し合いを間引く(11-18 朝ユーザー決定「入れる」。common toml の plantPushThinEnabled は既定 true)。植物側の Mob は自分からの押し合いを intervalTicks に 1 回探す。プレイヤー・ほかの Mob とは相手の押し合いで今までどおり離れ、植物側どうしは約 1/4 の力で軽く離れ合う。",
     "intervalTicks": 4
   }
 }
