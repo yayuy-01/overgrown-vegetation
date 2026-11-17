@@ -625,7 +625,7 @@ public final class SmallCritters {
                             s.z = z + 0.5;
                             s.axis = st.getValue(FallenLogBlock.AXIS) == Direction.Axis.X ? 0.0 : Math.PI * 0.5;
                             s.variant = h01(seed, 32) < 0.4F ? 1 : 0; // 1 = シロアリの列
-                            s.members = s.variant == 1 ? 8 : 1 + (int) (h01(seed, 30) * 2.0F);
+                            s.members = s.variant == 1 ? 8 : 1; // 甲虫は 1 匹(逃げる向きと位置を所で 1 つ持つため)
                             return true;
                         }
                         if (!(st.is(BlockTags.LOGS) || st.is(ModTags.CLIMBABLE_TRUNK) || GiantSilhouettes.isWood(st)) || !st.canOcclude()) {
