@@ -80,6 +80,7 @@ public final class SpawnTable {
 
     public static final class EdgeJson {
         public Integer intervalTicks, triesPerPlayer, minBlocks, maxBlocks, countRadius, despawnBlocks, skyMinAbove, skyMaxAbove, caveMinDepth;
+        public Integer g1Band, g45Band, rebuildTicks;
         public Map<String, Integer> caps;
     }
 
@@ -92,6 +93,27 @@ public final class SpawnTable {
         public Integer tries;
     }
 
+    public static final class PackJson {
+        public Integer min, max;
+        public List<PackWithJson> with;
+    }
+
+    public static final class PackWithJson {
+        public String id;
+        public Integer min, max;
+    }
+
+    /** 群れに混ぜる種(id と頭数の幅)。 */
+    public record PackWith(String id, int min, int max) {
+        @Nullable
+        public EntityType<?> type() {
+            return TYPES.computeIfAbsent(id, k -> {
+                ResourceLocation rl = ResourceLocation.tryParse(k);
+                return java.util.Optional.ofNullable(rl == null ? null : BuiltInRegistries.ENTITY_TYPE.getOptional(rl).orElse(null));
+            }).orElse(null);
+        }
+    }
+
     public static final class SpeciesJson {
         public String id;
         public String g1;
@@ -100,10 +122,18 @@ public final class SpawnTable {
         public Double weight;
         public Boolean director;
         public Boolean breaker;
+        /** 群れで湧く頭数(この種の分)と、混ぜる種。 */
+        public PackJson pack;
     }
 
     /** 表の 1 行。type は登録の有無を起動後に引く(登録の無い id は null = 飛ばす)。 */
-    public record Species(@Nullable String id, @Nullable G1Species g1, int group, EnumSet<Habitat> habitats, double weight, boolean director, boolean breaker) {
+    public record Species(@Nullable String id, @Nullable G1Species g1, int group, EnumSet<Habitat> habitats, double weight, boolean director, boolean breaker,
+                          int packMin, int packMax, List<PackWith> packWith) {
+        /** 群れで湧く種か(頭数の上が 2 以上)。 */
+        public boolean packs() {
+            return packMax >= 2 || !packWith.isEmpty();
+        }
+
         /** 登録された型(起動後は変わらないので、1 回引いたら取っておく。見直し ②10: 毎 tick 登録表を引いていた)。 */
         @Nullable
         public EntityType<?> type() {
@@ -132,6 +162,8 @@ public final class SpawnTable {
     private final int[] caps = new int[11];
 
     public final int intervalTicks, triesPerPlayer, minBlocks, maxBlocks, countRadius, despawnBlocks, skyMinAbove, skyMaxAbove, caveMinDepth;
+    /** 森からの距離の帯(11-17): G1 は外へ 1〜g1Band チャンク・G4/G5 は内外 g45Band チャンク。名簿の作り直しの間(tick)。 */
+    public final int g1Band, g45Band, rebuildTicks;
     public final int underCap, underTries, underRangeChunks, underNearChunks, underMinDepth;
     public final double senderMin, senderMax, senderSpread, senderPlayerMin, senderCluster;
     public final int senderTries;
@@ -150,6 +182,9 @@ public final class SpawnTable {
         caps[5] = 10;
         if (e.caps != null) e.caps.forEach((k, v) -> put(caps, k, v));
         intervalTicks = Math.max(1, or(e.intervalTicks, 20));
+        g1Band = Math.max(1, Math.min(BandRoster.R - 1, or(e.g1Band, 16)));
+        g45Band = Math.max(1, Math.min(BandRoster.R - 1, or(e.g45Band, 4)));
+        rebuildTicks = Math.max(20, or(e.rebuildTicks, 100));
         triesPerPlayer = Math.max(0, or(e.triesPerPlayer, 4));
         minBlocks = Math.max(0, or(e.minBlocks, 24));
         maxBlocks = Math.max(minBlocks + 16, or(e.maxBlocks, 96));
@@ -205,7 +240,20 @@ public final class SpawnTable {
         }
         if (hs.isEmpty()) hs.add(Habitat.GROUND);
         String id = g1 != null ? null : (sj.id.contains(":") ? sj.id : OvergrownVegetation.MODID + ":" + sj.id);
-        return new Species(id, g1, Math.max(1, Math.min(10, sj.group)), hs, Math.max(0.0D, or(sj.weight, 1.0D)), sj.director == null || sj.director, sj.breaker != null && sj.breaker);
+        return new Species(id, g1, Math.max(1, Math.min(10, sj.group)), hs, Math.max(0.0D, or(sj.weight, 1.0D)), sj.director == null || sj.director, sj.breaker != null && sj.breaker,
+                sj.pack == null ? 1 : Math.max(1, or(sj.pack.min, 1)), sj.pack == null ? 1 : Math.max(Math.max(1, or(sj.pack.min, 1)), or(sj.pack.max, 1)), packWith(sj.pack));
+    }
+
+    private static List<PackWith> packWith(@Nullable PackJson p) {
+        if (p == null || p.with == null) return List.of();
+        List<PackWith> out = new ArrayList<>();
+        for (PackWithJson w : p.with) {
+            if (w == null || w.id == null || w.id.isEmpty()) continue;
+            String id = w.id.contains(":") ? w.id : OvergrownVegetation.MODID + ":" + w.id;
+            int min = Math.max(0, or(w.min, 0));
+            out.add(new PackWith(id, min, Math.max(min, or(w.max, min))));
+        }
+        return List.copyOf(out);
     }
 
     private static void put(int[] arr, String k, Integer v) {

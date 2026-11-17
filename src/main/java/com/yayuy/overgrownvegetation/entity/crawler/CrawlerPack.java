@@ -49,7 +49,8 @@ public final class CrawlerPack {
 
     public final UUID id;
     final EntityType<?> type;
-    final List<SmallCrawler> members = new ArrayList<>();
+    /** 並びの頭が先導役。グレガリアは SmallCrawler、混ぜた群れ(11-17 enemy-spawns)はアルボラなどほかの Mob も入る。 */
+    final List<Mob> members = new ArrayList<>();
     @Nullable
     private LivingEntity target;
     private int searchCount;
@@ -94,11 +95,11 @@ public final class CrawlerPack {
         return packs(level).size();
     }
 
-    void add(SmallCrawler mob) {
+    void add(Mob mob) {
         if (!this.members.contains(mob)) this.members.add(mob);
     }
 
-    void remove(ServerLevel level, SmallCrawler mob) {
+    void remove(ServerLevel level, Mob mob) {
         this.members.remove(mob);
         if (this.members.isEmpty()) packs(level).remove(this.id);
     }
@@ -114,7 +115,7 @@ public final class CrawlerPack {
         this.members.removeIf(m -> !m.isAlive() || m.isRemoved());
     }
 
-    public SmallCrawler leader() {
+    public Mob leader() {
         return this.members.get(0);
     }
 
@@ -122,7 +123,7 @@ public final class CrawlerPack {
         return this.members.size();
     }
 
-    public List<SmallCrawler> membersView() {
+    public List<Mob> membersView() {
         return java.util.Collections.unmodifiableList(this.members);
     }
 
@@ -238,7 +239,7 @@ public final class CrawlerPack {
             this.timer = 10;
             CrawlerPack p = this.mob.pack();
             if (p == null) return;
-            SmallCrawler l = p.leader();
+            Mob l = p.leader();
             double slack = 1.5D + Math.sqrt(p.size()) * 0.6D;   // 群れが大きいほどゆるく
             double a = (this.mob.getId() * 2.399963D) % (Math.PI * 2.0D);   // 個体ごとに先導役のまわりの向きを散らす
             double r = slack * 0.7D;
@@ -324,4 +325,98 @@ public final class CrawlerPack {
         }
     }
 
+
+    // ------------------------------------------------------------------ 外から作る群れ(2026-11-17 enemy-spawns)
+
+    /**
+     * 外から入った個体(SmallCrawler の自前の群れを使わない個体: アルボラ・ストロビラ・ヴェシカリアなど)と、その群れ。
+     * 個体は保存データの {@link #EXTERNAL_KEY} に群れの番号を持ち、読み込み直したら {@link #rejoin} で組み直す。
+     */
+    private static final Map<Mob, CrawlerPack> EXTERNAL = new WeakHashMap<>();
+    public static final String EXTERNAL_KEY = "ov_pack";
+
+    /**
+     * 湧かせた個体から群れを作る(並びの頭が先導役)。種が混ざっていてもよい(混ぜた群れは近くの群れへ自分から合わさらない)。
+     * 自前の群れを使う SmallCrawler(グレガリア)はここに入れない(同じ種の群れへ自分で集まる)。
+     */
+    public static CrawlerPack form(ServerLevel level, List<? extends Mob> mobs) {
+        CrawlerPack p = obtain(level, UUID.randomUUID(), null);
+        for (Mob m : mobs) {
+            p.add(m);
+            EXTERNAL.put(m, p);
+            m.getPersistentData().putUUID(EXTERNAL_KEY, p.id);
+        }
+        return p;
+    }
+
+    /** 保存から戻った外の個体を、同じ番号の群れへ入れ直す(入る種を湧かせる側が EntityJoinLevelEvent から呼ぶ)。 */
+    public static void rejoin(ServerLevel level, Mob mob) {
+        if (!mob.getPersistentData().hasUUID(EXTERNAL_KEY)) return;
+        CrawlerPack p = obtain(level, mob.getPersistentData().getUUID(EXTERNAL_KEY), null);
+        p.add(mob);
+        EXTERNAL.put(mob, p);
+    }
+
+    /** 外の個体の群れ(無ければ null)。 */
+    @Nullable
+    public static CrawlerPack externalOf(Mob mob) {
+        CrawlerPack p = EXTERNAL.get(mob);
+        if (p == null) return null;
+        if (mob.level() instanceof ServerLevel sl) p.prune(sl);
+        if (!p.members.contains(mob)) {
+            EXTERNAL.remove(mob);
+            return null;
+        }
+        return p;
+    }
+
+    /**
+     * 外の個体の後続: 先導役のまわりへゆるくまとまって付いていく({@link FollowGoal} と同じ考え。種のクラスに手を入れず、湧かせる側が入るときに足す)。
+     * 相手を追っている間・拠点へ歩いている間・自分が先導役の間は付いていかない。箱の検索はしない(群れの一覧の頭を見るだけ)。
+     */
+    public static final class ExternalFollowGoal extends Goal {
+        private final net.minecraft.world.entity.PathfinderMob mob;
+        private int timer;
+
+        public ExternalFollowGoal(net.minecraft.world.entity.PathfinderMob mob) {
+            this.mob = mob;
+            this.setFlags(EnumSet.of(Flag.MOVE));
+        }
+
+        @Override
+        public boolean canUse() {
+            if (this.mob.getTarget() != null || marching(this.mob)) return false;
+            CrawlerPack p = externalOf(this.mob);
+            return p != null && !p.members.isEmpty() && p.leader() != this.mob;
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return canUse();
+        }
+
+        @Override
+        public void stop() {
+            this.mob.getNavigation().stop();
+        }
+
+        @Override
+        public void tick() {
+            if (--this.timer > 0) return;
+            this.timer = 10 + (this.mob.getId() & 3);
+            CrawlerPack p = externalOf(this.mob);
+            if (p == null || p.members.isEmpty()) return;
+            Mob l = p.leader();
+            double slack = 2.0D + Math.sqrt(p.size()) * 0.8D;
+            double a = (this.mob.getId() * 2.399963D) % (Math.PI * 2.0D);
+            double gx = l.getX() + Math.cos(a) * slack * 0.7D, gz = l.getZ() + Math.sin(a) * slack * 0.7D;
+            double dx = gx - this.mob.getX(), dz = gz - this.mob.getZ();
+            double d = Math.sqrt(dx * dx + dz * dz);
+            if (d < slack * 0.5D) {
+                this.mob.getNavigation().stop();
+                return;
+            }
+            this.mob.getNavigation().moveTo(gx, l.getY(), gz, d > 8.0D ? 1.0D : 0.8D);
+        }
+    }
 }

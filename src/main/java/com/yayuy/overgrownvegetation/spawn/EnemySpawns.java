@@ -210,6 +210,95 @@ public final class EnemySpawns {
         return m;
     }
 
+    /** プレイヤーごとの名簿(作り直しはチャンクをまたいだとき・rebuildTicks おき)。サーバーの中だけ。 */
+    private static final java.util.Map<java.util.UUID, BandRoster> ROSTERS = new java.util.HashMap<>();
+
+    /** そのプレイヤーの名簿(古ければ作り直す)。 */
+    public static BandRoster roster(ServerLevel level, java.util.UUID who, double px, double pz) {
+        SpawnTable t = DesignData.spawns();
+        int pcx = net.minecraft.util.Mth.floor(px) >> 4, pcz = net.minecraft.util.Mth.floor(pz) >> 4;
+        BandRoster r = ROSTERS.get(who);
+        long now = level.getGameTime();
+        if (r == null || r.cx != pcx || r.cz != pcz || now - r.builtAt >= t.rebuildTicks) {
+            r = BandRoster.build(PhaseData.get(level), px, pz, now, t.g1Band, t.g45Band, t.minBlocks, t.maxBlocks);
+            ROSTERS.put(who, r);
+        }
+        return r;
+    }
+
+    /** 確かめ用: 試しにかけた時間の合計(ns)と回数。 */
+    public static volatile long tryNanos, tries;
+
+    /**
+     * 帯に 1 回試す(11-17): 開いていて上限に余りのあるグループから種を選び、そのグループの名簿(G1 は外の帯・G4/G5 は境目の内外)から
+     * チャンクを重みで引いて、住む場所に置く。群れで湧く種は、1 か所に頭数ぶんまとめて置き、群れにする(上限は 1 体ずつ数える)。
+     */
+    public static Miss tryBand(ServerLevel level, BandRoster roster, int[] counts, RandomSource random) {
+        SpawnTable.Species sp = pick(level, counts, random, false);
+        if (sp == null) return Miss.FULL;
+        EntityType<?> type = sp.type();
+        if (type == null) return Miss.NO_TYPE;
+        long key = roster.draw(sp.group(), random);
+        if (key == Long.MIN_VALUE) return Miss.NOT_EDGE;
+        int cx = net.minecraft.world.level.ChunkPos.getX(key), cz = net.minecraft.world.level.ChunkPos.getZ(key);
+        SpawnTable.Habitat h = sp.habitats().contains(SpawnTable.Habitat.GROUND) && sp.group() == 1 ? SpawnTable.Habitat.GROUND
+                : pickHabitat(sp, random);
+        BlockPos at = spot(level, h, cx, cz, DesignData.spawns().caveMinDepth, random);
+        if (at == null) return Miss.NO_SPOT;
+        if (!sp.packs() || h != SpawnTable.Habitat.GROUND) {
+            Miss m = place(level, type, at, h, EDGE_TAG, sp.group());
+            if (m == Miss.SPAWNED) {
+                counts[sp.group()]++;
+                spawnedEdge++;
+            }
+            return m;
+        }
+        return placePack(level, sp, type, at, counts, random);
+    }
+
+    /** 群れを 1 か所にまとめて置く(並びの頭 = 先導役。混ぜる種は後ろに)。置けた頭数が 0 なら失敗。 */
+    public static Miss placePack(ServerLevel level, SpawnTable.Species sp, EntityType<?> type, BlockPos at, int[] counts, RandomSource random) {
+        int room = edgeCap(level, sp.group()) - counts[sp.group()];
+        List<EntityType<?>> plan = new ArrayList<>();
+        int n = sp.packMin() + random.nextInt(sp.packMax() - sp.packMin() + 1);
+        for (int i = 0; i < n; i++) plan.add(type);
+        for (SpawnTable.PackWith w : sp.packWith()) {
+            EntityType<?> wt = w.type();
+            if (wt == null) continue;
+            int k = w.min() + random.nextInt(w.max() - w.min() + 1);
+            for (int i = 0; i < k; i++) plan.add(wt);
+        }
+        if (plan.size() > room) plan = plan.subList(0, Math.max(1, room));
+        List<Mob> made = new ArrayList<>();
+        Miss first = Miss.BLOCKED;
+        for (EntityType<?> pt : plan) {
+            BlockPos p = made.isEmpty() ? at : DirectorHooks.near(level, at, random);
+            Miss m = place(level, pt, p, SpawnTable.Habitat.GROUND, EDGE_TAG, sp.group());
+            if (m != Miss.SPAWNED && !made.isEmpty()) m = place(level, pt, at, SpawnTable.Habitat.GROUND, EDGE_TAG, sp.group());
+            if (m == Miss.SPAWNED) {
+                made.add(lastPlaced);
+                counts[sp.group()]++;
+                spawnedEdge++;
+            } else if (made.isEmpty()) {
+                first = m;
+                break;
+            }
+        }
+        if (made.isEmpty()) return first;
+        // 自前の群れを使う種(グレガリア)は同じ種どうし自分で集まる。ほかは外から群れにする(先導役 = 並びの頭)
+        List<Mob> external = new ArrayList<>();
+        for (Mob m : made) if (!(m instanceof com.yayuy.overgrownvegetation.entity.GregariaEntity)) external.add(m);
+        if (external.size() >= 2) com.yayuy.overgrownvegetation.entity.crawler.CrawlerPack.form(level, external);
+        packsSpawned++;
+        return Miss.SPAWNED;
+    }
+
+    /** 確かめ用: まとめて湧かせた群れの数。 */
+    public static long packsSpawned;
+    /** place が最後に置いた個体(群れを作るため)。 */
+    @Nullable
+    private static Mob lastPlaced;
+
     /** 地下に 1 回試す: (cx, cz) が過繁茂の真下かそのそばなら、その下の洞窟に G1 の段階 0。 */
     public static Miss tryUnder(ServerLevel level, int cx, int cz, int[] counts, RandomSource random) {
         SpawnTable t = DesignData.spawns();
@@ -334,6 +423,7 @@ public final class EnemySpawns {
         m.addTag(GROUP_TAG + group);
         level.addFreshEntity(m);
         track(m);
+        lastPlaced = m;
         return Miss.SPAWNED;
     }
 
@@ -431,20 +521,35 @@ public final class EnemySpawns {
         RandomSource random = level.getRandom();
         for (ServerPlayer p : level.players()) {
             if (p.isSpectator()) continue;
-            tickPlayer(level, p.getX(), p.getY(), p.getZ(), random);
+            tickPlayer(level, p.getUUID(), p.getX(), p.getY(), p.getZ(), random);
+        }
+        if (time % SWEEP_INTERVAL == 0) {
+            java.util.Set<java.util.UUID> online = new java.util.HashSet<>();
+            for (ServerPlayer p : level.players()) online.add(p.getUUID());
+            ROSTERS.keySet().removeIf(u -> !online.contains(u));
         }
     }
 
-    /** プレイヤー 1 人ぶんの試し(縁を triesPerPlayer 回・地下を underTries 回)。 */
+    /** プレイヤー 1 人ぶんの試し(確かめの命令から。名簿は決まった鍵で持つ)。 */
     public static void tickPlayer(ServerLevel level, double px, double py, double pz, RandomSource random) {
+        tickPlayer(level, COMMAND_KEY, px, py, pz, random);
+    }
+
+    private static final java.util.UUID COMMAND_KEY = new java.util.UUID(0L, 0L);
+
+    /**
+     * プレイヤー 1 人ぶんの試し: 帯の名簿から triesPerPlayer 回(11-17 縁だけを選ぶくじ。前は向きでチャンクを引き、縁でない所は空振り)と、地下を underTries 回。
+     */
+    public static void tickPlayer(ServerLevel level, java.util.UUID who, double px, double py, double pz, RandomSource random) {
         SpawnTable t = DesignData.spawns();
         int[] counts = count(level, px, py, pz, t.countRadius);
+        BandRoster roster = roster(level, who, px, pz);
+        long t0 = System.nanoTime();
         for (int i = 0; i < t.triesPerPlayer; i++) {
-            double ang = random.nextDouble() * Math.PI * 2.0D;
-            double d = t.minBlocks + random.nextDouble() * (t.maxBlocks - t.minBlocks);
-            int cx = net.minecraft.util.Mth.floor(px + Math.cos(ang) * d) >> 4, cz = net.minecraft.util.Mth.floor(pz + Math.sin(ang) * d) >> 4;
-            stats[tryEdge(level, cx, cz, counts, random).ordinal()]++;
+            stats[tryBand(level, roster, counts, random).ordinal()]++;
         }
+        tryNanos += System.nanoTime() - t0;
+        tries += t.triesPerPlayer;
         int pcx = net.minecraft.util.Mth.floor(px) >> 4, pcz = net.minecraft.util.Mth.floor(pz) >> 4;
         for (int i = 0; i < t.underTries; i++) {
             int cx = pcx + random.nextInt(t.underRangeChunks * 2 + 1) - t.underRangeChunks;
@@ -475,6 +580,11 @@ public final class EnemySpawns {
         out.add(String.format(Locale.ROOT, "縁: G1 %d/%d・G4 %d/%d・G5 %d/%d / 地下の G1 %d/%d(強さ G1 %.2f・G4 %.2f・G5 %.2f)",
                 c[1], edgeCap(level, 1), c[4], edgeCap(level, 4), c[5], edgeCap(level, 5), c[0], underCap(level),
                 strength(level, 1), strength(level, 4), strength(level, 5)));
+        BandRoster br = roster(level, COMMAND_KEY, x, z);
+        out.add(String.format(Locale.ROOT, "帯の名簿: G1 %d チャンク(外 1〜%d)・G4/G5 %d チャンク(内外 %d)・ここの境目までの距離 %d / 作り直し 平均 %.2f ms(%d 回)・試し 平均 %.3f ms(%d 回)・まとめて湧いた群れ %d",
+                br.g1Size(), t.g1Band, br.g45Size(), t.g45Band, br.distanceAt(net.minecraft.util.Mth.floor(x) >> 4, net.minecraft.util.Mth.floor(z) >> 4),
+                BandRoster.builds == 0 ? 0.0D : BandRoster.buildNanos / 1e6 / BandRoster.builds, BandRoster.builds,
+                tries == 0 ? 0.0D : tryNanos / 1e6 / tries, tries, packsSpawned));
         StringBuilder sb = new StringBuilder("これまで: 縁 " + spawnedEdge + "・地下 " + spawnedUnder + " / 試しの結果: ");
         for (Miss m : Miss.values()) sb.append(m.label).append(' ').append(stats[m.ordinal()]).append("・");
         out.add(sb.toString());

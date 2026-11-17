@@ -77,7 +77,12 @@ public final class DirectorHooks {
     }
 
     /** 種の表から作った「壊す種」「歩かせる種」の組(表が替わったら作り直す。見直し ②10: 毎 tick 表をなめていた)。 */
-    private record Sets(SpawnTable table, java.util.Set<EntityType<?>> breakers, java.util.Set<EntityType<?>> marchers) {
+    private record Sets(SpawnTable table, java.util.Set<EntityType<?>> breakers, java.util.Set<EntityType<?>> marchers, java.util.Set<EntityType<?>> followers) {
+    }
+
+    /** 外から作る群れ(11-17)に入って先導役に付いていく種か(群れで湧く種と混ぜる種。グレガリアは自前の群れなので除く)。 */
+    public static boolean packFollower(EntityType<?> type) {
+        return sets().followers.contains(type);
     }
 
     private static volatile Sets sets;
@@ -86,14 +91,19 @@ public final class DirectorHooks {
         SpawnTable t = DesignData.spawns();
         Sets s = sets;
         if (s != null && s.table() == t) return s;
-        java.util.Set<EntityType<?>> b = new java.util.HashSet<>(), m = new java.util.HashSet<>();
+        java.util.Set<EntityType<?>> b = new java.util.HashSet<>(), m = new java.util.HashSet<>(), f = new java.util.HashSet<>();
         for (SpawnTable.Species sp : t.species) {
             EntityType<?> type = sp.type();
             if (type == null) continue;
             if (sp.breaker()) b.add(type);
             if (directorSpecies(sp)) m.add(type);
+            if (sp.packs()) {
+                f.add(type);
+                for (SpawnTable.PackWith w : sp.packWith()) if (w.type() != null) f.add(w.type());
+            }
         }
-        s = new Sets(t, java.util.Set.copyOf(b), java.util.Set.copyOf(m));
+        f.remove(com.yayuy.overgrownvegetation.registry.ModCrawlers.GREGARIA.get());
+        s = new Sets(t, java.util.Set.copyOf(b), java.util.Set.copyOf(m), java.util.Set.copyOf(f));
         sets = s;
         return s;
     }
