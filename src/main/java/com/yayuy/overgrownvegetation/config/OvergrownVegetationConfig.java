@@ -846,6 +846,8 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.IntValue mobThinkThrottleDistance;
         /** 遠くの Mob が行動を選び直す間隔(tick)。 */
         public final ModConfigSpec.IntValue mobThinkThrottleInterval;
+        /** 部位の升目の索引({@code perf/PartIndex})を使うか。 */
+        public final ModConfigSpec.BooleanValue partIndexEnabled;
 
         // --- 地割れ(フェーズ1開始演出) ---
         /** フェーズ1開始時の「地割れ・胞子噴出」演出を有効にするか。 */
@@ -2322,6 +2324,11 @@ public final class OvergrownVegetationConfig {
             mobThinkThrottleInterval = b
                     .comment("遠くの Mob が行動を選び直す間隔(tick)。バニラは 2。既定 8 = 0.4 秒(仮決め)。")
                     .defineInRange("mobThinkThrottleInterval", 8, 2, 40);
+
+            partIndexEnabled = b
+                    .comment("部位(大きな体の叩ける部位)の升目の索引。近くのエンティティを探すたびに世界じゅうの部位を全部比べていたのを、",
+                            "近くの部位だけにする。答えは同じ(見た目・遊びは変わらない)。大群で重さを比べるための切り替え。既定 true。")
+                    .define("partIndexEnabled", true);
 
             b.pop();
 

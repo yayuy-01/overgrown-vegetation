@@ -91,6 +91,7 @@ public final class MobThinkThrottle {
             countedTick = tick;
         }
         heldThisTick++;
+        if (HordeMeter.on) HordeMeter.held();
     }
 
     /** {@code /ov perf} の表示用: 直前の tick に選び直しを飛ばした回数。 */

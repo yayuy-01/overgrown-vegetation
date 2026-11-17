@@ -92,6 +92,27 @@ public final class PerfCommand {
                                     FluidSpreadShortcut.resetCounts();
                                     return fluid(ctx);
                                 })))
+                        // 大群の重さの内訳を 1 秒ごとに書き出す(2026-11-18 大群のための軽量化 B。HordeMeter)
+                        .then(Commands.literal("horde").executes(ctx -> {
+                                    send(ctx.getSource(), "大群の測り: " + HordeMeter.describe());
+                                    return 1;
+                                })
+                                .then(Commands.literal("start").executes(ctx -> {
+                                    java.nio.file.Path f = HordeMeter.start(ctx.getSource().getServer());
+                                    send(ctx.getSource(), f == null ? "書き出せなかった" : "大群の測り: " + f);
+                                    return f == null ? 0 : 1;
+                                }))
+                                .then(Commands.literal("stop").executes(ctx -> {
+                                    HordeMeter.stop();
+                                    send(ctx.getSource(), "大群の測り: 止めた");
+                                    return 1;
+                                }))
+                                .then(Commands.literal("tag").then(Commands.argument("name", com.mojang.brigadier.arguments.StringArgumentType.word())
+                                        .executes(ctx -> {
+                                            HordeMeter.tag(com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "name"));
+                                            send(ctx.getSource(), "大群の測り: " + HordeMeter.describe());
+                                            return 1;
+                                        }))))
                         .then(Commands.literal("record")
                                 .executes(ctx -> record(ctx, DEFAULT_RECORD_SECONDS))
                                 .then(Commands.argument("seconds", IntegerArgumentType.integer(5, 300))

@@ -99,7 +99,9 @@ public final class HitPartSet {
             double y = owner.getY() + up;
             double z = owner.getZ() + fz * fwd + lz * left;
             double ox = this.placedOnce ? p.getX() : x, oy = this.placedOnce ? p.getY() : y, oz = this.placedOnce ? p.getZ() : z;
+            double px = p.getX(), pz = p.getZ();
             p.setPos(x, y, z);
+            com.yayuy.overgrownvegetation.perf.PartIndex.moved(owner.level(), p, px, pz); // 11-18 部位の索引: 大きく動いたら(最初の置き場も)作り直す
             p.xo = ox;
             p.yo = oy;
             p.zo = oz;
