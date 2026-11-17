@@ -106,6 +106,38 @@ public final class EcosystemGameTests {
         helper.succeed();
     }
 
+    /** まわりの升の賑わいの送る値(11-17 小さな生き物): 倒すとその升の値だけ下がり、隣は満員のまま。通信で壊れない。 */
+    @GameTest(template = "gametest_empty7", batch = "eco_pure", timeoutTicks = 20)
+    public static void cellsPayloadFollowsHeads(GameTestHelper helper) {
+        EcoTable t = DesignData.ecosystem();
+        EcoLedger l = EcoLedger.createDetachedForTests();
+        long t0 = 700_000L;
+        int chunkX = -3, chunkZ = 5; // 負の座標も
+        int cx = chunkX >> t.cellShift, cz = chunkZ >> t.cellShift;
+        int r = com.yayuy.overgrownvegetation.ecosystem.EcoCellsSender.RADIUS;
+        var before = com.yayuy.overgrownvegetation.ecosystem.EcoCellsSender.build(l, cx, cz, r, t0);
+        int mid = before.index(cx, cz), side = before.index(cx + 1, cz);
+        helper.assertTrue(mid >= 0 && side >= 0 && before.index(cx + r + 1, cz) == -1, "添字が違う");
+        helper.assertTrue(com.yayuy.overgrownvegetation.network.EcoCellsPayload.unpack(before.g2()[mid]) == 1.0F, "満員の升が 1 でない");
+        int n = Math.max(1, t.fullG2 / 2);
+        for (int i = 0; i < n; i++) l.kill(2, chunkX, chunkZ, t0);
+        l.kill(3, chunkX, chunkZ, t0);
+        var after = com.yayuy.overgrownvegetation.ecosystem.EcoCellsSender.build(l, cx, cz, r, t0);
+        float g2 = com.yayuy.overgrownvegetation.network.EcoCellsPayload.unpack(after.g2()[mid]);
+        float g3 = com.yayuy.overgrownvegetation.network.EcoCellsPayload.unpack(after.g3()[mid]);
+        float expect2 = (float) (t.fullG2 - n) / t.fullG2, expect3 = (float) (t.fullG3 - 1) / t.fullG3;
+        helper.assertTrue(Math.abs(g2 - expect2) < 0.005F && Math.abs(g3 - expect3) < 0.005F,
+                "倒した升の値が頭数どおりに下がらない: G2 " + g2 + " / " + expect2 + "・G3 " + g3 + " / " + expect3);
+        helper.assertTrue(com.yayuy.overgrownvegetation.network.EcoCellsPayload.unpack(after.g2()[side]) == 1.0F, "隣の升まで下がった");
+        helper.assertTrue(!after.sameAs(before), "値が変わったのに同じと見なした(送られない)");
+        // 通信で壊れない
+        var buf = new net.minecraft.network.FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
+        com.yayuy.overgrownvegetation.network.EcoCellsPayload.STREAM_CODEC.encode(buf, after);
+        var back = com.yayuy.overgrownvegetation.network.EcoCellsPayload.STREAM_CODEC.decode(buf);
+        helper.assertTrue(back.sameAs(after), "通信で中身が変わった");
+        helper.succeed();
+    }
+
     /** 重さ: 減った升 1 万で、倒す 1 回・数え直し 1 回・保存 1 回の時間を測る(数字はログへ)。 */
     @GameTest(template = "gametest_empty7", batch = "eco_pure", timeoutTicks = 200)
     public static void weight(GameTestHelper helper) {

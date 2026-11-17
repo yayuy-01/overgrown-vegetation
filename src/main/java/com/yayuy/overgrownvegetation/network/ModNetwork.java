@@ -72,7 +72,13 @@ public final class ModNetwork {
         // 2026-11-16 に 30 へ(今の天気 WeatherPayload・汚染の森への落雷 ForestLightningPayload を足した。weather-system)。
         // 2026-11-16 に 31 へ(積乱雲から地面への落雷 CloudStrikePayload を足した。weather-system)。
         // 2026-11-16 に 32 へ(今のワールドイベント WorldEventPayload を足した。world-events)。
-        PayloadRegistrar registrar = event.registrar("32");
+        // 2026-11-17 に 33 へ(まわりの升の G2・G3 の賑わい EcoCellsPayload を足した。見た目だけの小さな生き物)。
+        PayloadRegistrar registrar = event.registrar("33");
+        registrar.playToClient(
+                EcoCellsPayload.TYPE,
+                EcoCellsPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(
+                        () -> com.yayuy.overgrownvegetation.client.atmosphere.EcoCellsClient.accept(payload)));
         registrar.playToClient(
                 WorldEventPayload.TYPE,
                 WorldEventPayload.STREAM_CODEC,
