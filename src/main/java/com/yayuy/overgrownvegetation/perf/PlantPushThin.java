@@ -6,7 +6,7 @@ import com.yayuy.overgrownvegetation.spore.PlantSideRules;
 import net.minecraft.world.entity.LivingEntity;
 
 /**
- * <b>植物側の押し合いを間引く</b>(2026-11-18 大群のための軽量化 B の ②b。<b>試し: 既定は切ってある</b>。ユーザー「撮った絵を見てから決める」)。
+ * <b>植物側の押し合いを間引く</b>(2026-11-18 大群のための軽量化 B の ②b。11-18 朝ユーザー決定で既定は入り)。
  *
  * <p>植物側の Mob は、自分からの押し合いの探し({@code pushEntities})を {@code push.intervalTicks}(perf.json、【仮】4)tick に 1 回にする。
  * 押し合いは「見つけた方が、自分と相手の両方を押す」作りなので:

@@ -150,6 +150,16 @@ public class CorruptedSaplingBlock extends SaplingBlock {
             level.setBlock(pos, state.cycle(STAGE), 4);
             return;
         }
+        // 巨大樹の計画を別スレッドで作る間、苗木を残しておけるように、育てている苗木を知らせる(2026-11-18 案 A。GiantTreePlanner)
+        com.yayuy.overgrownvegetation.worldgen.GiantTreeFeature.setGrowingSapling(state);
+        try {
+            growTree(level, pos, state, random);
+        } finally {
+            com.yayuy.overgrownvegetation.worldgen.GiantTreeFeature.setGrowingSapling(null);
+        }
+    }
+
+    private void growTree(ServerLevel level, BlockPos pos, BlockState state, RandomSource random) {
         if (!usesVariantTree()) {
             super.advanceTree(level, pos, state, random);
             return;

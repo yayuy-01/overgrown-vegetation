@@ -283,6 +283,17 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
      */
     private static final ThreadLocal<Boolean> SAPLING_GROWTH = ThreadLocal.withInitial(() -> Boolean.FALSE);
 
+    /**
+     * 今育てている苗木の状態(2026-11-18 案 A)。計画を別スレッドで作る間、苗木を残しておくのに使う({@link GiantTreePlanner})。
+     * {@link com.yayuy.overgrownvegetation.block.CorruptedSaplingBlock#advanceTree} が置く。サーバースレッドだけ。
+     */
+    private static final ThreadLocal<BlockState> GROWING_SAPLING = new ThreadLocal<>();
+
+    /** 苗木 {@code state} を育て始める(必ず {@code null} で戻すこと)。 */
+    public static void setGrowingSapling(@javax.annotation.Nullable BlockState state) {
+        GROWING_SAPLING.set(state);
+    }
+
     /** 苗木からの成長を開始する(必ず {@link #endSaplingGrowth()} と対にして呼ぶこと)。 */
     public static void beginSaplingGrowth() {
         SAPLING_GROWTH.set(Boolean.TRUE);
@@ -337,7 +348,8 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         // ただし「巨大樹の苗木」から育てるときは、どちらの判定も飛ばして必ず生やす
         // (黙って中止すると「骨粉を使っても苗木のまま」になり、原因も分からないため)。
         boolean forced = forcedBySapling();
-        if (!forced && phaseData.hasGiantTreeOriginWithin(origin.getX(), origin.getZ(), minSpacing)) {
+        if (!forced && (phaseData.hasGiantTreeOriginWithin(origin.getX(), origin.getZ(), minSpacing)
+                || (level instanceof ServerLevel sl && GiantTreePlanner.inFlightWithin(sl, origin.getX(), origin.getZ(), minSpacing)))) {
             OvergrownVegetation.LOGGER.info("GiantTree at {}: 生成中止 —— 既存の巨大樹が giantTreeMinSpacing({}) "
                     + "ブロック以内にあります。", origin, minSpacing);
             return false;
@@ -350,13 +362,28 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             return false;
         }
 
-        Plan plan = buildPlan(level, context.random(), config, origin);
+        // 生きた世界(苗木・/place)では、計画は地形を写して別スレッドで作る(2026-11-18 案 A。{@link GiantTreePlanner})。
+        // 世界生成の並列スレッド(WorldGenRegion)は今までどおりその場で作る
+        if (level instanceof ServerLevel serverLevel
+                && com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.giantTreeAsyncPlan.get()) {
+            return GiantTreePlanner.start(serverLevel, config, origin, context.random().nextLong(), GROWING_SAPLING.get());
+        }
+        Plan plan = buildPlan(TreeTerrain.live(level), context.random(), config, origin);
+        return commit(level.getLevel(), plan, origin);
+    }
+
+    /**
+     * 出来た計画を設置のキューへ積み、巨大樹の位置などを記録する。空の計画なら何もせず false。
+     * 苗木からの計画はサーバースレッドで({@link GiantTreePlanner})、世界生成の計画はその場で呼ぶ。
+     */
+    static boolean commit(ServerLevel level, Plan plan, BlockPos origin) {
         if (plan.trunk.isEmpty() && plan.cambium.isEmpty() && plan.leaves.isEmpty()) {
             return false;
         }
-        GiantTreeGrowthQueue.enqueue(level.getLevel(), plan);
+        com.yayuy.overgrownvegetation.phase.PhaseData phaseData = com.yayuy.overgrownvegetation.phase.PhaseData.get(level);
+        GiantTreeGrowthQueue.enqueue(level, plan);
         phaseData.recordGiantTreeOrigin(origin.getX(), origin.getZ());
-        phaseData.recordGiantTreeBorn(origin.getX(), origin.getZ(), level.getLevel().getGameTime()); // 梢の胞子の育ち具合(胞子の場 D)
+        phaseData.recordGiantTreeBorn(origin.getX(), origin.getZ(), level.getGameTime()); // 梢の胞子の育ち具合(胞子の場 D)
         if (plan.hiveCenter != Long.MIN_VALUE) {
             // 幹の真下の「巣の広間」の中心。ここに湧く「ハイヴノード」が旧「古代樹の核」の役割
             // (胞子感染3 の強制ゾーンの中心)を引き継ぐ。ゾーンの登録は mob 自身が行う。
@@ -366,7 +393,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
     }
 
     /** 木の全ブロック座標を計算して {@link Plan} に貯める(この時点ではブロックは置かない)。 */
-    private static Plan buildPlan(WorldGenLevel level, RandomSource random, Config config, BlockPos origin) {
+    static Plan buildPlan(TreeTerrain level, RandomSource random, Config config, BlockPos origin) {
         long startNanos = System.nanoTime();
         int height = chooseHeight(level, random, config, origin);
         double baseRadius = baseRadiusFor(height, config);
@@ -407,6 +434,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                     origin, plan.trunk.size() + plan.cambium.size() + plan.leaves.size(), e);
         }
 
+        plan.buildNanos = System.nanoTime() - startNanos;
         long ms = (System.nanoTime() - startNanos) / 1_000_000L;
         long total = (long) plan.trunk.size() + plan.cambium.size()
                 + plan.chlorophylliteOre.size() + plan.hardenedSapCrystalOre.size()
@@ -435,7 +463,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
      * 葉は別リスト。実際の設置は {@link GiantTreeGrowthQueue} が複数ティックに分けて行う。
      */
     static final class Plan {
-        final WorldGenLevel level;                       // 地形の読み取り専用
+        final TreeTerrain level;                       // 地形の読み取り専用
         final BlockState trunkState;
         final BlockState cambiumState;
         final BlockState chlorophylliteOreState;
@@ -481,6 +509,8 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         /** 「巣の球」(殻まで)の半径。 */
         int hiveRadius;
         final LongArrayList leaves = new LongArrayList();
+        /** 計画にかかった ns(ログ・測り用)。 */
+        long buildNanos;
         /**
          * 根を1歩這わせるごとに記録する、その足元(地表)の座標。{@link GiantTreeGrowthQueue} の
          * 装飾フェーズが、ここから上へ根の盛り上がりの頂上を探して「汚染時と同じ下草」を生やす
@@ -495,7 +525,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         final LongArrayList danglingTops = new LongArrayList();
         final it.unimi.dsi.fastutil.ints.IntArrayList danglingLens = new it.unimi.dsi.fastutil.ints.IntArrayList();
 
-        Plan(WorldGenLevel level, BlockState trunkState, BlockState leafState) {
+        Plan(TreeTerrain level, BlockState trunkState, BlockState leafState) {
             this.level = level;
             this.trunkState = trunkState;
             this.cambiumState = ModBlocks.GIANT_OVERGROWN_CAMBIUM.get().defaultBlockState();
@@ -673,7 +703,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
      * ({ ModBlocks#GIANT_OVERGROWN_LOG})で覆うので、地上に出た部分は「硬化した幹」がむき出しでは
      * なく<b>樹皮に包まれた球</b>に見える。
      */
-    private static void buildHiveChamber(Plan plan, RandomSource random, WorldGenLevel level, BlockPos origin,
+    private static void buildHiveChamber(Plan plan, RandomSource random, TreeTerrain level, BlockPos origin,
             int groundY, double trunkBaseRadius) {
         var cfg = com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON;
         if (!cfg.giantTreeHiveChamber.get()) {
@@ -809,7 +839,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
      * ランダムに選ぶ。ただし木のてっぺん(頂上の傘)がワールドの高度上限を突き破らないよう、
      * {@code origin} からの余裕でクランプする(高い山の上に生えると自動的に低くなる)。
      */
-    private static int chooseHeight(WorldGenLevel level, RandomSource random, Config config, BlockPos origin) {
+    private static int chooseHeight(TreeTerrain level, RandomSource random, Config config, BlockPos origin) {
         int min = Math.max(16, config.height());
         int max = Math.max(min, min * 2);
         int chosen = max > min ? min + random.nextInt(max - min + 1) : min;
@@ -2037,7 +2067,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
      * 巣の球を置く地面の高さ: {@code gy}(木の根元の面)から下へ、空気・水・構造物・木を読み飛ばして最初の自然の地面。
      * 200 段下まで無ければ {@code gy} のまま。
      */
-    private static int terrainGroundBelow(WorldGenLevel level, BlockPos origin, int gy) {
+    private static int terrainGroundBelow(TreeTerrain level, BlockPos origin, int gy) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         int bottom = Math.max(level.getMinBuildHeight(), gy - 200);
         for (int y = gy; y >= bottom; y--) {
@@ -2052,7 +2082,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
      * 対岸を探す(第 2 段): 向きの先 {@code minDist}〜{@value #ROOT_SPAN_MAX_DIST} マスで、足元の上下
      * {@value #ROOT_SPAN_BANK_UP} 段に固い面があり、その真上が水でない最初の列。川底・水没した段は対岸にしない。
      */
-    private static BankHit findDryBank(WorldGenLevel level, Block trunkBlock, double px, double pz, double dirX,
+    private static BankHit findDryBank(TreeTerrain level, Block trunkBlock, double px, double pz, double dirX,
             double dirZ, int gy, int minDist) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         int gap = 0; // 間にあった「水の上・地面の無い」列の数
@@ -2260,6 +2290,20 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
      * ブロックの数を返す。ワールドには置かない(地形は読む)。
      */
     public static long[] planDigestForTests(WorldGenLevel level, BlockPos origin, Config config, long seed) {
+        return planDigest(TreeTerrain.live(level), origin, config, seed);
+    }
+
+    /**
+     * 確かめ用(案 A): 同じ種の計画を、サーバースレッドで写した地形({@link TreeTerrainSnapshot})から作る。
+     * 返すのは {@link #planDigestForTests} と同じ 3 つに、写しの外を確かめずに読んだ回数・写すのにかかった ns・写したチャンクの数・読んだいちばん遠いチャンクの距離を足したもの。
+     */
+    public static long[] planDigestSnapshotForTests(net.minecraft.server.level.ServerLevel level, BlockPos origin, Config config, long seed) {
+        TreeTerrainSnapshot snap = TreeTerrainSnapshot.capture(level, origin, TreeTerrainSnapshot.RADIUS_CHUNKS);
+        long[] d = planDigest(snap, origin, config, seed);
+        return new long[]{d[0], d[1], d[2], snap.misses.get(), snap.captureNanos, snap.chunkCount, snap.maxReachChunks};
+    }
+
+    private static long[] planDigest(TreeTerrain level, BlockPos origin, Config config, long seed) {
         long t0 = System.nanoTime();
         Plan plan = buildPlan(level, RandomSource.create(seed), config, origin);
         long nanos = System.nanoTime() - t0;
@@ -2270,6 +2314,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         try {
             for (java.lang.reflect.Field f : fields) {
                 if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
+                if (f.getName().equals("buildNanos")) continue; // かかった時間は形ではない
                 f.setAccessible(true);
                 if (f.getType() == LongArrayList.class) {
                     LongArrayList list = (LongArrayList) f.get(plan);
@@ -2290,8 +2335,9 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
      * GameTest 用: 巣の球だけを計画する(ワールドには触らない)。返すのは置く・掘るマスの集合と、球の中心
      * ({@code centerOut[0]}、作らなければ {@link Long#MIN_VALUE})。
      */
-    public static LongOpenHashSet planHiveForTests(net.minecraft.server.level.ServerLevel level, BlockPos origin,
+    public static LongOpenHashSet planHiveForTests(net.minecraft.server.level.ServerLevel serverLevel, BlockPos origin,
             Config config, long seed, long[] centerOut) {
+        TreeTerrain level = TreeTerrain.live(serverLevel);
         Plan plan = new Plan(level, config.trunkState(), config.leavesState());
         double baseRadius = baseRadiusFor(Math.max(16, config.height()), config);
         int gy = findGroundY(level, origin.getX(), origin.getY(), origin.getZ(), config.trunkState().getBlock());
@@ -2320,8 +2366,9 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
      * GameTest 用(第 2 段): {@code stage2} でアーチ・渡り・呼吸根・地下の根も計画する。{@code countsOut} が非 null なら
      * [渡り, 呼吸根の群れ, 洞窟の柱, 洞窟の横切り, 垂れ, 切り口の垂れ] の数を書く。
      */
-    public static LongOpenHashSet planRootsForTests(net.minecraft.server.level.ServerLevel level, BlockPos origin,
+    public static LongOpenHashSet planRootsForTests(net.minecraft.server.level.ServerLevel serverLevel, BlockPos origin,
             Config config, long seed, boolean stage2, int[] countsOut) {
+        TreeTerrain level = TreeTerrain.live(serverLevel);
         Plan plan = new Plan(level, config.trunkState(), config.leavesState());
         RandomSource random = RandomSource.create(seed);
         double baseRadius = baseRadiusFor(Math.max(16, config.height()), config);
@@ -2368,7 +2415,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
      * そのまま<b>谷・川・裂け目の幅</b>になる。見つからなければ {@code null}(=従来どおり崖を這い下りる)。
      * 未ロードのチャンクに当たった時点でも {@code null}(橋の途中で生成が切れないように)。
      */
-    private static BankHit findOppositeBank(WorldGenLevel level, Block trunkBlock,
+    private static BankHit findOppositeBank(TreeTerrain level, Block trunkBlock,
             double px, double pz, double dirX, double dirZ, int gy) {
         for (int d = ROOT_SPAN_MIN_DIST; d <= ROOT_SPAN_MAX_DIST; d++) {
             int x = Mth.floor(px + dirX * d);
@@ -2390,12 +2437,12 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
      * {@link #rootPassesThrough}(=幹自身や既存の木の原木・葉)でもないブロック」の Y を返す。
      * 見つからなければ {@link Integer#MIN_VALUE}。
      */
-    private static int scanGroundY(WorldGenLevel level, int x, int centerY, int z, Block ignore) {
+    private static int scanGroundY(TreeTerrain level, int x, int centerY, int z, Block ignore) {
         return scanGroundY(level, x, centerY, z, ROOT_SEARCH_UP, ROOT_SEARCH_DOWN, ignore);
     }
 
-    /** {@link #scanGroundY(WorldGenLevel, int, int, int, Block)} の探索範囲を指定できる版(対岸探し用)。 */
-    private static int scanGroundY(WorldGenLevel level, int x, int centerY, int z, int up, int down,
+    /** {@link #scanGroundY(TreeTerrain, int, int, int, Block)} の探索範囲を指定できる版(対岸探し用)。 */
+    private static int scanGroundY(TreeTerrain level, int x, int centerY, int z, int up, int down,
             Block ignore) {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         int top = centerY + up;
@@ -2411,7 +2458,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
     }
 
     /** {@link #scanGroundY} と同じだが、見つからなければ {@code centerY} をそのまま返す(木の根本の基準用)。 */
-    private static int findGroundY(WorldGenLevel level, int x, int centerY, int z, Block ignore) {
+    private static int findGroundY(TreeTerrain level, int x, int centerY, int z, Block ignore) {
         int r = scanGroundY(level, x, centerY, z, ignore);
         return r != Integer.MIN_VALUE ? r : centerY;
     }
@@ -2757,8 +2804,8 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
     }
 
     /** 苗木のランダムティック経由で呼ばれるので {@code level} は実際は ServerLevel。未ロード判定に使う。 */
-    private static boolean chunkLoaded(WorldGenLevel level, BlockPos pos) {
-        return level.getLevel().isLoaded(pos);
+    private static boolean chunkLoaded(TreeTerrain level, BlockPos pos) {
+        return level.isLoaded(pos);
     }
 
     /**

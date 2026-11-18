@@ -49,11 +49,20 @@ public final class GiantTreePlanBench {
             return;
         }
         BlockPos origin = new BlockPos(2_000_000, -60, 2_000_000);
+        for (int x = (origin.getX() >> 4) - 16; x <= (origin.getX() >> 4) + 16; x++) { // 写しと比べるため周りを先に読み込む(案 A)
+            for (int z = (origin.getZ() >> 4) - 16; z <= (origin.getZ() >> 4) + 16; z++) level.getChunk(x, z);
+        }
         for (int round = 0; round < 3; round++) { // 1 回目は JIT の慣らしと、遠いチャンクの生成(1 回目だけ地形が出来ていく途中を読む)
             for (long seed = 1; seed <= 3; seed++) {
                 long[] r = GiantTreeFeature.planDigestForTests(level, origin, config, seed);
                 OvergrownVegetation.LOGGER.info("OV_TREE_BENCH round {} seed {} digest {} blocks {} ms {}", round, seed,
                         Long.toHexString(r[0]), r[2], String.format(java.util.Locale.ROOT, "%.1f", r[1] / 1e6));
+                if (round > 0) { // 案 A: 同じ tick に写しから作った計画(指紋が同じか・写す時間・計画の時間)
+                    long[] s = GiantTreeFeature.planDigestSnapshotForTests(level, origin, config, seed);
+                    OvergrownVegetation.LOGGER.info("OV_TREE_BENCH snapshot round {} seed {} same {} capture_ms {} chunks {} plan_ms {} misses {} reach {}", round, seed,
+                            s[0] == r[0], String.format(java.util.Locale.ROOT, "%.2f", s[4] / 1e6), s[5],
+                            String.format(java.util.Locale.ROOT, "%.1f", s[1] / 1e6), s[3], s[6]);
+                }
             }
         }
         helper.succeed();

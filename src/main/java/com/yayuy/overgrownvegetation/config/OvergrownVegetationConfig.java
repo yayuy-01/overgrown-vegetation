@@ -703,6 +703,7 @@ public final class OvergrownVegetationConfig {
          * 同時に複数本生成中の場合も、全部でこの数を超えないよう配分される。
          */
         public final ModConfigSpec.IntValue giantTreeBlocksPerTick;
+        public final ModConfigSpec.BooleanValue giantTreeAsyncPlan;
 
         /**
          * 巨大樹同士がこのブロック数(水平距離)より近くには生えないようにする。新しい巨大樹を生成
@@ -1996,6 +1997,12 @@ public final class OvergrownVegetationConfig {
                             "既定 2500 なら1本あたり約40〜70ティック(2〜3.5秒)かけてゆっくり生える。同時に複数本の",
                             "生成中でも合計でこの数を超えないよう配分する。小さくすると生成は遅いが1ティックの負荷は軽い。")
                     .defineInRange("giantTreeBlocksPerTick", 2500, 50, 50000);
+
+            giantTreeAsyncPlan = b
+                    .comment("苗木から育つ巨大樹の計画(木の全マスの座標)を別スレッドで作る(11-18 ユーザー決定で既定 true)。",
+                            "前は苗木が育つ tick にサーバーが 0.5〜1 秒止まっていた。入れると周りの地形を写すだけになり、育ち始めが最大 1 秒ほど遅れる。",
+                            "計画が出来るまで苗木は残る。false で前のとおりその場で作る。")
+                    .define("giantTreeAsyncPlan", true);
 
             giantTreeMinSpacing = b
                     .comment("巨大樹同士がこのブロック数(水平距離)より近くには生えないようにする。",

@@ -102,6 +102,8 @@ public final class PerfCommand {
                                     send(ctx.getSource(), f == null ? "書き出せなかった" : "大群の測り: " + f);
                                     return f == null ? 0 : 1;
                                 }))
+                                // 巨大樹の計画を、生きた世界から読んだのと写しから読んだので形が同じかを足元で確かめる(案 A。重い: 1 回 1〜2 秒止まる)
+                                .then(Commands.literal("treecheck").executes(ctx -> treeCheck(ctx.getSource())))
                                 .then(Commands.literal("stop").executes(ctx -> {
                                     HordeMeter.stop();
                                     send(ctx.getSource(), "大群の測り: 止めた");
@@ -117,6 +119,32 @@ public final class PerfCommand {
                                 .executes(ctx -> record(ctx, DEFAULT_RECORD_SECONDS))
                                 .then(Commands.argument("seconds", IntegerArgumentType.integer(5, 300))
                                         .executes(ctx -> record(ctx, IntegerArgumentType.getInteger(ctx, "seconds")))))));
+    }
+
+    /** {@code /ov perf horde treecheck}: 足元に種 1〜3 の巨大樹を計画し(置かない)、生きた世界と写しで指紋が同じか・写しの外を読んだ回数・時間を出す。 */
+    private static int treeCheck(CommandSourceStack source) {
+        net.minecraft.server.level.ServerLevel level = source.getLevel();
+        net.minecraft.world.level.levelgen.feature.ConfiguredFeature<?, ?> feature = level.registryAccess()
+                .registryOrThrow(net.minecraft.core.registries.Registries.CONFIGURED_FEATURE)
+                .get(com.yayuy.overgrownvegetation.OvergrownVegetation.id("overgrown_tree_giant"));
+        if (feature == null || !(feature.config() instanceof com.yayuy.overgrownvegetation.worldgen.GiantTreeFeature.Config config)) {
+            send(source, "overgrown_tree_giant の設定が無い");
+            return 0;
+        }
+        net.minecraft.core.BlockPos origin = net.minecraft.core.BlockPos.containing(source.getPosition());
+        int same = 0;
+        for (long seed = 1; seed <= 3; seed++) {
+            long[] live = com.yayuy.overgrownvegetation.worldgen.GiantTreeFeature.planDigestForTests(level, origin, config, seed);
+            long[] snap = com.yayuy.overgrownvegetation.worldgen.GiantTreeFeature.planDigestSnapshotForTests(level, origin, config, seed);
+            boolean eq = live[0] == snap[0];
+            if (eq) same++;
+            String line = String.format(java.util.Locale.ROOT,
+                    "巨大樹の計画 %s 種 %d: %s ブロック %d/%d・生きた世界 %.0f ms・写し %.1f ms(チャンク %d)+ 計画 %.0f ms・写しの外 %d 回",
+                    origin.toShortString(), seed, eq ? "同じ" : "違う", live[2], snap[2], live[1] / 1e6, snap[4] / 1e6, snap[5], snap[1] / 1e6, snap[3]);
+            send(source, line);
+            com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info("OV_TREE_CHECK {}", line);
+        }
+        return same;
     }
 
     private static int spore(CommandContext<CommandSourceStack> ctx) {

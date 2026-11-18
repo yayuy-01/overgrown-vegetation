@@ -265,7 +265,7 @@ public final class GiantTreeGrowthQueue {
 
     /** そのワールドで設置待ち・設置中の巨大樹の数(GameTest から)。 */
     public static int pendingJobs(ServerLevel level) {
-        int n = 0;
+        int n = GiantTreePlanner.inFlight(level); // 計画中(別スレッド)の木も数える(2026-11-18 案 A)
         for (Job job : JOBS) {
             if (job.level == level) {
                 n++;
@@ -283,7 +283,7 @@ public final class GiantTreeGrowthQueue {
     public static int discardJobsForTests(ServerLevel level) {
         int before = JOBS.size();
         JOBS.removeIf(job -> job.level == level);
-        return before - JOBS.size();
+        return before - JOBS.size() + GiantTreePlanner.discard(level);
     }
 
     @SubscribeEvent

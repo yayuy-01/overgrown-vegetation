@@ -97,7 +97,8 @@ public class GiantOvergrownSaplingBlock extends CorruptedSaplingBlock {
         } finally {
             GiantTreeFeature.endSaplingGrowth();
         }
-        if (level.getBlockState(pos).is(this)) {
+        // 計画を別スレッドで作っている間は苗木のまま(2026-11-18 案 A)。それは「育たなかった」ではない
+        if (level.getBlockState(pos).is(this) && !com.yayuy.overgrownvegetation.worldgen.GiantTreePlanner.inFlightAt(level, pos)) {
             OvergrownVegetation.LOGGER.warn("巨大樹の苗木 {} が育ちませんでした(苗木のまま)。"
                     + "configured_feature overgrown_vegetation:overgrown_tree_giant が読み込まれているか、"
                     + "ワールドの高さ上限までの余裕があるかを確認してください。", pos);
