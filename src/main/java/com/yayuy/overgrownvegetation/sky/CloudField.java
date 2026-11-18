@@ -519,6 +519,17 @@ public final class CloudField {
     /** coverage = 日の雲の量(晴れの日の積雲 {@link #fairCumulus} を出すか決める。−1 で出さない)。 */
     public static List<Storm> storms(double minX, double minZ, double maxX, double maxZ, long dayTime, float chance, float thunder, float giantChance,
                                      int style, float coverage) {
+        return storms(minX, minZ, maxX, maxZ, dayTime, chance, thunder, giantChance, style, coverage, false);
+    }
+
+    /** 確かめ用(GameTest): 尾根を総当たりで選ぶ前の作り方での答え。{@link #storms} と同じ並びになるはず。描画・サーバーの処理からは呼ばない。 */
+    public static List<Storm> stormsBruteForTest(double minX, double minZ, double maxX, double maxZ, long dayTime, float chance, float thunder,
+                                                 float giantChance, int style, float coverage) {
+        return storms(minX, minZ, maxX, maxZ, dayTime, chance, thunder, giantChance, style, coverage, true);
+    }
+
+    private static List<Storm> storms(double minX, double minZ, double maxX, double maxZ, long dayTime, float chance, float thunder, float giantChance,
+                                      int style, float coverage, boolean brute) {
         List<Storm> all = new ArrayList<>();
         if (chance <= 0.0F) {
             return all;
@@ -617,18 +628,26 @@ public final class CloudField {
             }
         }
         congestus(all, minX, minZ, maxX, maxZ, dayTime, chance, style);
-        ridges(all, style);
+        if (brute) {
+            ridgesBrute(all, style);
+        } else {
+            ridges(all, style);
+        }
         floating(all, minX, minZ, maxX, maxZ, dayTime, chance, style);
         fairCumulus(all, minX, minZ, maxX, maxZ, dayTime, coverage, style);
         // 巨大な雲どうしは雲海 2 つ分より近ければ、決まった順で 1 つだけ残す(どの範囲で探しても同じ答えになるよう、近くだけで決める)。
         List<Storm> giants = new ArrayList<>();
+        // 軽量化(11-18): 巨大な雲だけを先に抜き出して比べる(前は巨大な雲ごとに全部の雲を回していた。答えは同じ)。
+        List<Storm> giantsAll = new ArrayList<>();
         for (Storm g : all) {
-            if (!g.giant()) {
-                continue;
+            if (g.giant()) {
+                giantsAll.add(g);
             }
+        }
+        for (Storm g : giantsAll) {
             boolean beaten = false;
-            for (Storm o : all) {
-                if (o != g && o.giant() && Math.hypot(o.x() - g.x(), o.z() - g.z()) < GIANT_SPACING
+            for (Storm o : giantsAll) {
+                if (o != g && Math.hypot(o.x() - g.x(), o.z() - g.z()) < GIANT_SPACING
                         && hash01(o.id(), 10) < hash01(g.id(), 10)) {
                     beaten = true;
                     break;
@@ -701,6 +720,71 @@ public final class CloudField {
     /** アーチにする組の離れ方の下限(2 つの胴の太さの和の倍率)。 */
     static final double ARCH_GAP = 1.5; // 11-09 段階 2a-3: 2.2 → 1.5(近めの組もアーチに。台の縁の上を抜ける)
 
+    /** 尾根を作る({@link #ridges} が選んだ組を 1 本ずつ)。made = 作った組の覚え。 */
+    private static void addRidge(List<Storm> all, java.util.Set<Long> made, Storm a, Storm b, int style) {
+        Storm p = a.id() < b.id() ? a : b;
+        Storm q = a.id() < b.id() ? b : a;
+        long pair = p.id() * 0x9E3779B97F4A7C15L ^ q.id() * 0xC2B2AE3D27D4EB4FL ^ 0x81D6EL;
+        if (!made.add(pair)) {
+            return;
+        }
+        // アーチは山の台(胴の 1.4〜1.9 倍の平たい塊)どうしが重ならない離れた組だけ(11-09: 近い組では真ん中が台で埋まり、下が抜けなかった)。
+        double span = Math.hypot(q.x() - p.x(), q.z() - p.z());
+        boolean arch = span > ARCH_GAP * (p.bodyRadius() + q.bodyRadius()) && hash01(pair, 1) < ARCH_SHARE;
+        int low = Math.min(p.topY(), q.topY());
+        // アーチは高く(11-09 段階 2a-4 ユーザー決定「アーチを高くして下が抜けるものを増やす」: 5〜6 割 → 6.8〜8.2 割。仮決め)。
+        float share = arch ? 0.68F + 0.14F * hash01(pair, 2) : 0.3F + 0.2F * hash01(pair, 2);
+        int crest = LOW_BASE + Math.round((low - LOW_BASE) * share);
+        float r = Math.min(p.bodyRadius(), q.bodyRadius()) * (0.38F + 0.18F * hash01(pair, 3));
+        all.add(new Storm(p.x(), p.z(), Math.max(r, 50.0F), crest, arch, false, Math.min(p.maturity(), q.maturity()), pair, style,
+                KIND_RIDGE, q.x(), q.z()));
+    }
+
+    /** 総当たりの選び方(11-17 までの作り。{@link #stormsBruteForTest} だけが使う)。 */
+    private static void ridgesBrute(List<Storm> all, int style) {
+        List<Storm> towers = new ArrayList<>();
+        for (Storm s : all) {
+            if (s.kind() == 0 && !s.giant() && s.maturity() >= 0.3F) {
+                towers.add(s);
+            }
+        }
+        java.util.Set<Long> made = new java.util.HashSet<>();
+        int n = towers.size();
+        for (int i = 0; i < n; i++) {
+            Storm a = towers.get(i);
+            int[] best = new int[RIDGE_MAX];
+            double[] bestD = new double[RIDGE_MAX];
+            java.util.Arrays.fill(best, -1);
+            java.util.Arrays.fill(bestD, Double.MAX_VALUE);
+            for (int j = 0; j < n; j++) {
+                if (j == i) {
+                    continue;
+                }
+                Storm b = towers.get(j);
+                double d = Math.hypot(b.x() - a.x(), b.z() - a.z());
+                if (d >= RIDGE_LINK || d < a.bodyRadius() + b.bodyRadius() * 0.5) {
+                    continue;
+                }
+                for (int k = 0; k < RIDGE_MAX; k++) {
+                    if (d < bestD[k]) {
+                        for (int m = RIDGE_MAX - 1; m > k; m--) {
+                            best[m] = best[m - 1];
+                            bestD[m] = bestD[m - 1];
+                        }
+                        best[k] = j;
+                        bestD[k] = d;
+                        break;
+                    }
+                }
+            }
+            for (int k = 0; k < RIDGE_MAX; k++) {
+                if (best[k] >= 0) {
+                    addRidge(all, made, a, towers.get(best[k]), style);
+                }
+            }
+        }
+    }
+
     /**
      * 隣り合う積乱雲を尾根でつなぐ(11-09 段階 2a-2。ユーザー「大きな雲がポツポツと諸島のよう。理想は地形のように連続した積乱雲群・雲の山やトンネル」)。
      * 巨大でない積乱雲(塔)ごとに、{@link #RIDGE_LINK} より近いものを近い順に {@link #RIDGE_MAX} つ選び、どちらかが選んだ組を 1 本の尾根にする
@@ -714,16 +798,58 @@ public final class CloudField {
                 towers.add(s);
             }
         }
-        java.util.Set<Long> made = new java.util.HashSet<>();
         int n = towers.size();
+        if (n == 0) {
+            return;
+        }
+        // 作った組の覚えは番号の HashSet のまま(11-18): 番号がたまたま同じになった別の組も落とす癖があり、覚え方を替えると尾根が増える(試して 288 通り中 31 で違った)。
+        java.util.Set<Long> made = new java.util.HashSet<>();
+        // 軽量化(11-18。1 回の storms で塔は数百あり、総当たりは数十万組だった): 塔を RIDGE_LINK 四方の升に分け、隣の升(3 × 3)の塔だけを比べる。
+        // RIDGE_LINK より近い塔は必ず隣の升にいる。升の中の順は番号順でないので、同じ距離のときは番号の小さい方を先に(総当たりで番号順に回したのと同じ並び)。
+        int[] cellX = new int[n];
+        int[] cellZ = new int[n];
+        int minCx = Integer.MAX_VALUE;
+        int maxCx = Integer.MIN_VALUE;
+        int minCz = Integer.MAX_VALUE;
+        int maxCz = Integer.MIN_VALUE;
+        for (int i = 0; i < n; i++) {
+            Storm s = towers.get(i);
+            cellX[i] = Mth.floor(s.x() / RIDGE_LINK);
+            cellZ[i] = Mth.floor(s.z() / RIDGE_LINK);
+            minCx = Math.min(minCx, cellX[i]);
+            maxCx = Math.max(maxCx, cellX[i]);
+            minCz = Math.min(minCz, cellZ[i]);
+            maxCz = Math.max(maxCz, cellZ[i]);
+        }
+        int gridW = maxCx - minCx + 1;
+        int gridH = maxCz - minCz + 1;
+        int[] head = new int[gridW * gridH];
+        int[] next = new int[n];
+        java.util.Arrays.fill(head, -1);
+        for (int i = 0; i < n; i++) {
+            int c = (cellZ[i] - minCz) * gridW + cellX[i] - minCx;
+            next[i] = head[c];
+            head[c] = i;
+        }
+        int[] best = new int[RIDGE_MAX];
+        double[] bestD = new double[RIDGE_MAX];
         for (int i = 0; i < n; i++) {
             Storm a = towers.get(i);
             // 近い順に RIDGE_MAX つ。
-            int[] best = new int[RIDGE_MAX];
-            double[] bestD = new double[RIDGE_MAX];
             java.util.Arrays.fill(best, -1);
             java.util.Arrays.fill(bestD, Double.MAX_VALUE);
-            for (int j = 0; j < n; j++) {
+            int z0 = Math.max(cellZ[i] - 1, minCz);
+            int z1 = Math.min(cellZ[i] + 1, maxCz);
+            int x0 = Math.max(cellX[i] - 1, minCx);
+            int x1 = Math.min(cellX[i] + 1, maxCx);
+            // 自分の升を先に(近い相手が先に埋まり、遠い升の相手を 2 乗の距離だけで落とせる。回す順は答えに効かない)。
+            for (int pass = 0; pass < 2; pass++) {
+            for (int cz = z0; cz <= z1; cz++) {
+              for (int cx = x0; cx <= x1; cx++) {
+                if ((cz == cellZ[i] && cx == cellX[i]) != (pass == 0)) {
+                    continue;
+                }
+                for (int j = head[(cz - minCz) * gridW + cx - minCx]; j >= 0; j = next[j]) {
                 if (j == i) {
                     continue;
                 }
@@ -742,7 +868,7 @@ public final class CloudField {
                     continue;
                 }
                 for (int k = 0; k < RIDGE_MAX; k++) {
-                    if (d < bestD[k]) {
+                    if (d < bestD[k] || d == bestD[k] && j < best[k]) {
                         for (int m = RIDGE_MAX - 1; m > k; m--) {
                             best[m] = best[m - 1];
                             bestD[m] = bestD[m - 1];
@@ -752,28 +878,15 @@ public final class CloudField {
                         break;
                     }
                 }
+                }
+              }
+            }
             }
             for (int k = 0; k < RIDGE_MAX; k++) {
                 if (best[k] < 0) {
                     continue;
                 }
-                Storm b = towers.get(best[k]);
-                Storm p = a.id() < b.id() ? a : b;
-                Storm q = a.id() < b.id() ? b : a;
-                long pair = p.id() * 0x9E3779B97F4A7C15L ^ q.id() * 0xC2B2AE3D27D4EB4FL ^ 0x81D6EL;
-                if (!made.add(pair)) {
-                    continue;
-                }
-                // アーチは山の台(胴の 1.4〜1.9 倍の平たい塊)どうしが重ならない離れた組だけ(11-09: 近い組では真ん中が台で埋まり、下が抜けなかった)。
-                double span = Math.hypot(q.x() - p.x(), q.z() - p.z());
-                boolean arch = span > ARCH_GAP * (p.bodyRadius() + q.bodyRadius()) && hash01(pair, 1) < ARCH_SHARE;
-                int low = Math.min(p.topY(), q.topY());
-                // アーチは高く(11-09 段階 2a-4 ユーザー決定「アーチを高くして下が抜けるものを増やす」: 5〜6 割 → 6.8〜8.2 割。仮決め)。
-                float share = arch ? 0.68F + 0.14F * hash01(pair, 2) : 0.3F + 0.2F * hash01(pair, 2);
-                int crest = LOW_BASE + Math.round((low - LOW_BASE) * share);
-                float r = Math.min(p.bodyRadius(), q.bodyRadius()) * (0.38F + 0.18F * hash01(pair, 3));
-                all.add(new Storm(p.x(), p.z(), Math.max(r, 50.0F), crest, arch, false, Math.min(p.maturity(), q.maturity()), pair, style,
-                        KIND_RIDGE, q.x(), q.z()));
+                addRidge(all, made, a, towers.get(best[k]), style);
             }
         }
     }

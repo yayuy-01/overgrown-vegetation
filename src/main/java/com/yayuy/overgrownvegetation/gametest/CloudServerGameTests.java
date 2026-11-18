@@ -15,6 +15,7 @@ import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * サーバー側で引く雲(2026-11-08 雲の段階 1 の仕上げ 6〜9)。空の世界(雲の床を水面のように使う・上昇気流・雲に隠れる)の土台として、
@@ -373,6 +374,57 @@ public final class CloudServerGameTests {
             CloudShape.setOverride(null);
             CloudField.setSeed(before);
         }
+    }
+
+    /**
+     * 尾根の選び方の軽量化(11-18。総当たり → 升で近くだけ比べる)で、積乱雲の一覧が 1 つも変わらない: 並び方 4 つ・時刻・範囲・確率をいくつも振って、
+     * 総当たりの作り({@link CloudField#stormsBruteForTest})と中身も並び順も同じ。壁の並び(塔が等間隔 = 同じ距離の組が出る)も入る。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 200)
+    public static void ridgeGridPicksTheSameRidgesAsBruteForce(GameTestHelper helper) {
+        double[][] rects = {{-2600.0, -2600.0, 2600.0, 2600.0}, {7300.5, -15120.25, 14100.5, -8320.25}, {-40111.0, 30007.0, -39000.0, 31900.0}};
+        float[] chances = {0.05F, 0.35F, 1.0F};
+        int compared = 0;
+        int ridges = 0;
+        for (int style = 0; style <= CloudField.STYLE_MAZE; style++) {
+            for (int t = 0; t < 8; t++) {
+                long dayTime = 1000L + t * 7919L * 13L;
+                for (double[] r : rects) {
+                    for (float chance : chances) {
+                        float thunder = t % 2 == 0 ? 0.0F : 1.0F;
+                        List<CloudField.Storm> fast = CloudField.storms(r[0], r[1], r[2], r[3], dayTime, chance, thunder, 0.1F, style, 0.1F);
+                        List<CloudField.Storm> brute = CloudField.stormsBruteForTest(r[0], r[1], r[2], r[3], dayTime, chance, thunder, 0.1F, style, 0.1F);
+                        if (!fast.equals(brute)) {
+                            StringBuilder diff = new StringBuilder();
+                            for (CloudField.Storm q : fast) {
+                                if (!brute.contains(q) && diff.length() < 600) {
+                                    diff.append(" [升だけ ").append(q).append(']');
+                                }
+                            }
+                            for (CloudField.Storm q : brute) {
+                                if (!fast.contains(q) && diff.length() < 1200) {
+                                    diff.append(" [総当たりだけ ").append(q).append(']');
+                                }
+                            }
+                            helper.fail("尾根の選び方で積乱雲の一覧が変わった: 並び方 " + style + "・時刻 " + dayTime + "・確率 " + chance
+                                    + "・升の版 " + fast.size() + " 個・総当たり " + brute.size() + " 個");
+                            return;
+                        }
+                        compared++;
+                        for (CloudField.Storm s : fast) {
+                            if (s.kind() == CloudField.KIND_RIDGE) {
+                                ridges++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (ridges < 100) {
+            helper.fail("比べた " + compared + " 回で尾根が " + ridges + " 本しか無い(比べになっていない)");
+            return;
+        }
+        helper.succeed();
     }
 
     private CloudServerGameTests() {
