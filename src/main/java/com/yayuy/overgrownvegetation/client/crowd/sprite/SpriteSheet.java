@@ -1,6 +1,6 @@
-package com.yayuy.overgrownvegetation.devbridge.impostor;
+package com.yayuy.overgrownvegetation.client.crowd.sprite;
 
-// 2026-11-18: parked/client/horde から写した(大群の軽量化 C の「絵と粗いモデルの重さ比べ」用。devbridge なので配布の jar に入らない)
+// 2026-11-18: parked/client/horde から戻した(大群の軽量化 C。遠くの群れの絵の板。ユーザー決定「組み合わせを既定に、絵だけ・モデルだけにも切り替えられるように」)
 
 import java.util.List;
 

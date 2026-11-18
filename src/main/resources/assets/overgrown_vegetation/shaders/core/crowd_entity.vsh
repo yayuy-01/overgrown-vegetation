@@ -12,7 +12,8 @@
 in vec3 Position;
 in vec2 UV0;
 in vec3 Normal;
-in int BoneInfo;
+// bone index + flat-cube bits ride in the vanilla UV1 slot (int), so every crowd shader binds it to the same attribute location
+in ivec2 UV1;
 
 uniform sampler2D Sampler1;
 uniform sampler2D Sampler2;
@@ -37,8 +38,9 @@ void main() {
     int inst = (OvCrowdBase + gl_InstanceID) * OvCrowdStride;
     vec4 head = texelFetch(OvCrowdBones, inst);
     vec4 tint = texelFetch(OvCrowdBones, inst + 1);
-    int bone = BoneInfo & 4095;
-    int flatBits = BoneInfo >> 12;
+    int boneInfo = UV1.x;
+    int bone = boneInfo & 4095;
+    int flatBits = boneInfo >> 12;
     int b = inst + 2 + bone * 6;
 
     vec4 p = vec4(Position, 1.0);

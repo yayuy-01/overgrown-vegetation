@@ -2559,6 +2559,17 @@ public final class DevBridge {
                 } else if (arg.equalsIgnoreCase("on")) {
                 }
             }
+            case "visualsettings" -> {
+                // 見た目の設定の画面を開く(2026-11-18。大群の項目を撮る)
+                mc.setScreen(new com.yayuy.overgrownvegetation.client.difficulty.VisualSettingsScreen(mc.screen));
+                if (arg.trim().equalsIgnoreCase("end") && mc.screen != null) {
+                    // 一覧をいちばん下まで(新しい項目は下に足すことが多い)
+                    for (var child : mc.screen.children()) {
+                        if (child instanceof net.minecraft.client.gui.components.AbstractSelectionList<?> list) list.setScrollAmount(list.getMaxScroll());
+                    }
+                }
+                log("VISUALSETTINGS 開いた");
+            }
             case "impostor" -> {
                 // 遠景の身代わりの重さ比べ(devbridge/impostor/ImpostorBench、2026-11-18)
                 log(com.yayuy.overgrownvegetation.devbridge.impostor.ImpostorBench.command(arg, DevBridge::log));
@@ -2574,8 +2585,14 @@ public final class DevBridge {
                     if (p[0].equalsIgnoreCase("gpu")) com.yayuy.overgrownvegetation.client.crowd.CrowdDraw.enabled = !skip;
                     if (p[0].equalsIgnoreCase("tickrate")) com.yayuy.overgrownvegetation.client.crowd.TickRatePose.enabled = !skip;
                     if (p[0].equalsIgnoreCase("ticktrim")) com.yayuy.overgrownvegetation.entity.ClientTickTrim.enabled = !skip;
+                    if (p[0].equalsIgnoreCase("virtual")) com.yayuy.overgrownvegetation.client.crowd.VirtualHordeDraw.enabled = !skip;
+                    if (p[0].equalsIgnoreCase("look")) {
+                        com.yayuy.overgrownvegetation.config.OvergrownClientConfig.CLIENT.hordeLook.set(
+                                com.yayuy.overgrownvegetation.client.crowd.HordeLook.valueOf(p[1].toUpperCase(java.util.Locale.ROOT)));
+                    }
                 }
                 log("CROWD " + com.yayuy.overgrownvegetation.client.crowd.CrowdDraw.status());
+                log("CROWD " + com.yayuy.overgrownvegetation.client.crowd.HordeImpostors.status());
                 log("CROWD アニメを飛ばす " + com.yayuy.overgrownvegetation.client.crowd.CrowdRenderDev.skipAnim
                         + "・描かない " + com.yayuy.overgrownvegetation.client.crowd.CrowdRenderDev.skipDraw
                         + "・頂点を捨てる " + com.yayuy.overgrownvegetation.client.crowd.CrowdRenderDev.sink);

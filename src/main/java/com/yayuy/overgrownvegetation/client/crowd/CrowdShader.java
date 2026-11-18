@@ -32,6 +32,23 @@ public final class CrowdShader {
     private static ShaderInstance shader;
     @Nullable
     private static Locations locations;
+    @Nullable
+    private static ShaderInstance shared;
+    /** 共有の姿勢のシェーダーの uniform の場所: 姿勢・一員の texture buffer・骨の数・始まり。 */
+    record SharedLocations(int poses, int instances, int bones, int base) {
+    }
+    @Nullable
+    private static SharedLocations sharedLocations;
+
+    @Nullable
+    static ShaderInstance shared() {
+        return shared;
+    }
+
+    @Nullable
+    static SharedLocations sharedLocations() {
+        return sharedLocations;
+    }
 
     private CrowdShader() {
     }
@@ -56,7 +73,7 @@ public final class CrowdShader {
                         int id = s.getId();
                         shader = s;
                         locations = new Locations(GL20.glGetAttribLocation(id, "Position"), GL20.glGetAttribLocation(id, "UV0"),
-                                GL20.glGetAttribLocation(id, "Normal"), GL20.glGetAttribLocation(id, "BoneInfo"),
+                                GL20.glGetAttribLocation(id, "Normal"), GL20.glGetAttribLocation(id, "UV1"),
                                 GL20.glGetUniformLocation(id, "OvCrowdBones"), GL20.glGetUniformLocation(id, "OvCrowdStride"),
                                 GL20.glGetUniformLocation(id, "OvCrowdBase"));
                         CrowdDraw.onShaderReloaded();
@@ -66,6 +83,21 @@ public final class CrowdShader {
             shader = null;
             locations = null;
             CrowdDraw.onShaderReloaded();
+        }
+        try {
+            // 遠くの群れ(仮想の群れの身代わり)の粗いモデル。属性の場所は上と同じ結び方なので、同じ形(CrowdMesh)を使える
+            event.registerShader(new ShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "crowd_shared"), DefaultVertexFormat.NEW_ENTITY),
+                    s -> {
+                        int id = s.getId();
+                        shared = s;
+                        sharedLocations = new SharedLocations(GL20.glGetUniformLocation(id, "OvCrowdPoses"), GL20.glGetUniformLocation(id, "OvCrowdInstances"),
+                                GL20.glGetUniformLocation(id, "OvCrowdBones"), GL20.glGetUniformLocation(id, "OvCrowdBase"));
+                    });
+        } catch (IOException e) {
+            OvergrownVegetation.LOGGER.error("遠くの群れの粗いモデルのシェーダーを読み込めなかったので、遠くの群れは絵で描く", e);
+            shared = null;
+            sharedLocations = null;
         }
     }
 }

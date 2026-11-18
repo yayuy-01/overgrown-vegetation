@@ -91,8 +91,9 @@ public final class CrowdDraw {
     }
 
     /** その形・その描き方の溜め場所。形を作れないときは null(いつもの描き方へ)。 */
+    /** その形を GPU に置いたもの(無ければ作る)。シェーダーが無ければ null。遠くの群れの粗いモデル({@link HordeImpostors})も使う。 */
     @Nullable
-    public static Batch batch(BakedGeoModel model, RenderType type) {
+    static CrowdMesh mesh(BakedGeoModel model) {
         CrowdMesh mesh = MESHES.get(model);
         if (mesh == null) {
             CrowdShader.Locations loc = CrowdShader.locations();
@@ -102,6 +103,13 @@ public final class CrowdDraw {
             MESHES.put(model, mesh);
             BufferUploader.invalidate();   // Mob の段の途中で VAO を結び替えたので、バニラが次に自分の器を結び直すように
         }
+        return mesh;
+    }
+
+    @Nullable
+    public static Batch batch(BakedGeoModel model, RenderType type) {
+        CrowdMesh mesh = mesh(model);
+        if (mesh == null) return null;
         Map<RenderType, Batch> byType = BATCHES.computeIfAbsent(mesh, m -> new IdentityHashMap<>());
         Batch b = byType.get(type);
         if (b == null) {
@@ -188,6 +196,7 @@ public final class CrowdDraw {
 
     static void onShaderReloaded() {
         clearMeshes();
+        HordeImpostors.clear();
     }
 
     private static void clearMeshes() {

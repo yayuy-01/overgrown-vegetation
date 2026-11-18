@@ -1,5 +1,9 @@
 package com.yayuy.overgrownvegetation.devbridge.impostor;
 
+import com.yayuy.overgrownvegetation.client.crowd.sprite.SpriteQuads;
+import com.yayuy.overgrownvegetation.client.crowd.sprite.SpriteRasterizer;
+import com.yayuy.overgrownvegetation.client.crowd.sprite.SpriteSheet;
+
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.platform.TextureUtil;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -54,7 +58,7 @@ import java.util.function.Consumer;
  */
 public final class ImpostorBench {
 
-    private enum Mode { OFF, SPRITE, MODEL, COMBO }
+    private enum Mode { OFF, SPRITE, MODEL, COMBO, FAST }
 
     private static Mode mode = Mode.OFF;
     private static EntityType<?> type;
@@ -84,7 +88,7 @@ public final class ImpostorBench {
         type = BuiltInRegistries.ENTITY_TYPE.get(id);
         int n = Integer.parseInt(p[2]);
         float near = Float.parseFloat(p[3]), far = Float.parseFloat(p[4]);
-        mode = p[0].equalsIgnoreCase("sprite") ? Mode.SPRITE : p[0].equalsIgnoreCase("combo") ? Mode.COMBO : Mode.MODEL;
+        mode = p[0].equalsIgnoreCase("sprite") ? Mode.SPRITE : p[0].equalsIgnoreCase("combo") ? Mode.COMBO : p[0].equalsIgnoreCase("fast") ? Mode.FAST : Mode.MODEL;
         place(mc.level, mc.player.position(), mc.player.getYRot(), n, near, far);
         if (!registered) {
             NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, ImpostorBench::onStage);
@@ -122,6 +126,21 @@ public final class ImpostorBench {
 
     private static void onStage(RenderLevelStageEvent event) {
         if (mode == Mode.OFF || count == 0) return;
+        if (mode == Mode.FAST) {
+            // 本番の描き方(client/crowd/HordeImpostors: 共有の姿勢の粗いモデル + 絵の板。振り分けは画面側の設定 hordeLook)
+            if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
+                Vec3 c = event.getCamera().getPosition();
+                com.yayuy.overgrownvegetation.client.crowd.HordeImpostors.begin(c);
+                for (int i = 0; i < count; i++) {
+                    com.yayuy.overgrownvegetation.client.crowd.HordeImpostors.add(type, xs[i], ys[i], zs[i], yaws[i],
+                            com.yayuy.overgrownvegetation.client.crowd.HordePoses.slot(true, 1118L, i), lights[i]);
+                }
+                Minecraft m = Minecraft.getInstance();
+                com.yayuy.overgrownvegetation.client.crowd.HordeImpostors.draw(event.getModelViewMatrix(), event.getProjectionMatrix(),
+                        m.level == null ? 0.0D : m.level.getGameTime() + event.getPartialTick().getGameTimeDeltaPartialTick(false));
+            }
+            return;
+        }
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
         if (dummy == null || dummy.getType() != type) dummy = type.create(mc.level);
