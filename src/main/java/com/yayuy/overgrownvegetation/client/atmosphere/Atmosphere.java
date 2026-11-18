@@ -331,7 +331,11 @@ public final class Atmosphere {
                 }
             });
         }
-        guard("weatherlook", () -> WeatherLook.render(event)); // 雷雨の後の胞子の雲・強風の日の胞子の綿(11-16)
+        // 雲より上にいる間は描かない(2026-11-18 ユーザー「雲より上にいる時、雲の下が緑に見える機能をなくしたい」: 雲の上から見下ろすと、胞子の雲が
+        // 雲の下の黄緑の筋に見えた)。雲の層(y 300〜350)を抜ける間は雲の中の霧で見えないので、切り替わりは目に付かない。
+        if (event.getCamera().getPosition().y < com.yayuy.overgrownvegetation.sky.CloudField.LOW_BASE + 40.0) {
+            guard("weatherlook", () -> WeatherLook.render(event));
+        } // 雷雨の後の胞子の雲・強風の日の胞子の綿(11-16)
         boolean main = AddLight.drawToMainTarget();
         try {
             guard("dapple", () -> CanopyDapple.render(event));
@@ -430,8 +434,11 @@ public final class Atmosphere {
     }
 
     /** 演出 {@code name} を 1 つ動かす。例外が出たらこのセッションではその演出を止める。 */
+    /** 確かめ用(DevBridge の wx amute <名前>|clear): その名前の演出を呼ばない。どの演出の見た目かを切り分ける。 */
+    public static final java.util.Set<String> DEV_MUTE = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     private static void guard(String name, Runnable run) {
-        if (BROKEN.contains(name)) {
+        if (BROKEN.contains(name) || DEV_MUTE.contains(name)) {
             return;
         }
         try {

@@ -53,6 +53,14 @@ public final class WeatherLookDev {
                 case "sky" -> { // 空の試し(11-18): 丸み・地平線のかすみ・低めの筋雲
                     return com.yayuy.overgrownvegetation.client.sky.SkyDev.set(a.length > 1 ? a[1] : "", a.length > 2 ? Float.parseFloat(a[2]) : 0.0F);
                 }
+                case "amute" -> { // 雰囲気の演出を名前で止める(切り分け用)。clear で全部戻す
+                    if (a.length > 1 && a[1].equals("clear")) {
+                        Atmosphere.DEV_MUTE.clear();
+                    } else if (a.length > 1) {
+                        Atmosphere.DEV_MUTE.add(a[1]);
+                    }
+                    return "WX amute " + Atmosphere.DEV_MUTE;
+                }
                 case "shared" -> { // 雲の一覧の使い回し(11-18 試し。前後の絵と bench の比べ用)
                     com.yayuy.overgrownvegetation.client.sky.VoxelClouds.sharedStorms = a.length > 1 && a[1].equals("on");
                     return "WX shared " + com.yayuy.overgrownvegetation.client.sky.VoxelClouds.sharedStorms;

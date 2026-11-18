@@ -32,6 +32,7 @@ final class HazeFloor {
      */
     static final float[] OPEN = {0.64F, 0.61F, 0.47F};
     static final float[] FOREST = {0.20F, 0.31F, 0.20F};
+    /** 11-18 ユーザー「雲より上にいる時、雲の下が緑に見える機能をなくしたい」で、陸の色は混ぜない(SkyDev.landMix = 0。床は霧の色と雲の影だけ)。前の値は 0.7。 */
     static final float LAND_MIX = 0.7F;
     static final float CLOUD_SHADE = 0.35F;
     static final float FOG_FROM = 2500.0F;
@@ -85,7 +86,7 @@ final class HazeFloor {
                 }
                 for (int i = 0; i < 3; i++) {
                     float land = Mth.lerp(n, OPEN[i], FOREST[i]) * bright * shade;
-                    float haze = Mth.lerp(LAND_MIX, fog[i], land);
+                    float haze = Mth.lerp(SkyDev.landMix, fog[i], land);
                     c[i] = Mth.lerp(fogT, haze, fog[i]);
                 }
                 col[r * ns + s] = c;

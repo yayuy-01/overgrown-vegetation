@@ -28,6 +28,8 @@ public final class SkyDev {
     public static volatile float scatter = 1.0F;
     /** 大きなちぎれ雲を小さなかたまりに割る強さ(11-18 ユーザー決定で既定は入。0 = 割らない)。 */
     public static volatile float split = 1.0F;
+    /** 雲の下の霞の床に混ぜる「霞んだ遠い陸」の色の割合(11-18 ユーザー決定で 0 = 緑を出さない。前は 0.7)。 */
+    public static volatile float landMix = 0.0F;
 
     /**
      * ちぎれ雲の柱 1 本の底と天辺(y 300 からの高さ)を、場所ごとの雑音でずらす(11-18 試し。ユーザー「雲同士の高低差がない」)。
@@ -128,6 +130,13 @@ public final class SkyDev {
                 int thick = top[k] - bottom[k];
                 int want = Math.max(q, Math.round((thick + (Math.max(thick, h) - thick) * w) / q) * q);
                 top[k] = Math.max(bottom[k] + q, Math.min(bottom[k] + want, 150));
+                // 11-18 夜(ユーザー「まだ下側が板っぽく見える」): かたまりの縁の柱は底を上げ、下面を平らな板でなく丸い腹にする(近くの細かい柱だけ)。
+                if (size <= 48 && dist[k] <= 2) {
+                    int lift = Math.round((dist[k] == 1 ? 14.0F : 6.0F) * w / 2.0F) * 2;
+                    if (top[k] - bottom[k] - lift >= 8) {
+                        bottom[k] += lift;
+                    }
+                }
             }
         }
     }
@@ -160,7 +169,7 @@ public final class SkyDev {
     /** 今の雲の量(雲を描くたびに覚える)。 */
     static volatile float coverage;
     /** 地上から見るときの丸みの半径(11-18 ユーザー決定。試作 3・4 の値)。 */
-    static final float CURVE_LOW = 14000.0F;
+    static final float CURVE_LOW = 20000.0F; // 11-18 夜: 14000 → 20000(ユーザー「にじみが始まるのが強すぎて」: 雲が近くで沈みすぎ、地平線の上が空いていた)
 
     /**
      * 丸みの半径: 雲より下(y 350 まで)では {@link #CURVE_LOW}(遠くの積乱雲の根元が地平線に沈む)、雲の上(y 600 から)では前からの
@@ -196,6 +205,7 @@ public final class SkyDev {
             case "far" -> farLow = value;
             case "scatter" -> scatter = value;
             case "split" -> split = value;
+            case "land" -> landMix = value;
             case "cover" -> com.yayuy.overgrownvegetation.sky.CloudSky.devCoverage = value; // 雲の量を固定(負で戻す)。1 人用の確かめ用
             case "logstrikes" -> com.yayuy.overgrownvegetation.sky.StormLightning.devLog = value > 0.5F;
             case "real" -> com.yayuy.overgrownvegetation.sky.CloudField.setRealSky(value < 0.0F ? -1 : (value > 0.5F ? 1 : 0));

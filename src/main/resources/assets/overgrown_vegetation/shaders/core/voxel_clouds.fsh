@@ -217,7 +217,8 @@ void main() {
     // lines and flat discs in the haze band). Higher parts stay.
     if (Curve.w > 0.001) {
         float el0 = ovBentY / max(length(vec3(ovPos.xz, ovBentY)), 1.0);
-        alpha *= 1.0 - Curve.w * (1.0 - smoothstep(0.012, 0.06, el0)) * smoothstep(1500.0, 3500.0, d);
+        // Only from below the cloud layer (World.x = camera y): from above, every far cloud lies below the horizon line and would vanish.
+        alpha *= 1.0 - Curve.w * (1.0 - smoothstep(0.0, 0.02, el0)) * smoothstep(2500.0, 5000.0, d) * (1.0 - smoothstep(300.0, 420.0, World.x));
     }
     if (Puff.w > 0.5) {
         alpha *= Puff.y;
@@ -464,7 +465,7 @@ void main() {
     float night = 1.0 - smoothstep(0.4, 0.7, CloudColor.b);
     c = mix(c, max(c, HorizonColor.rgb * 1.05), night * HorizonColor.a * smoothstep(120.0, 700.0, d));
     if (Curve.w > 0.001) {
-        float hz = Curve.w * (1.0 - smoothstep(0.0, 0.07, abs(el))) * smoothstep(1200.0, 4000.0, d);
+        float hz = 0.55 * Curve.w * (1.0 - smoothstep(0.0, 0.05, abs(el))) * smoothstep(2000.0, 5000.0, d) * (1.0 - smoothstep(300.0, 420.0, World.x));
         c = mix(c, mix(HorizonColor.rgb, vec3(1.0), 0.35), hz);
     }
     if (hazeKeep < 0.999) {

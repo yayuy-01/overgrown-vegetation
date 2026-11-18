@@ -116,6 +116,12 @@ final class SporeColumns {
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         Vec3 eye = event.getCamera().getPosition();
         double renderBlocks = mc.options.getEffectiveRenderDistance() * 16.0;
+        // 雲より上にいる間は描かない(2026-11-18 ユーザー「雲より上にいる時、雲の下が緑に見える機能をなくしたい」: 雲の上から見下ろすと、柱が雲の下の
+        // 黄緑の筋に見えた)。雲の底 y 300 から 80 ブロックで消える。地上・雲の下からは今までどおり。
+        float aboveClouds = (float) Mth.clamp((eye.y - com.yayuy.overgrownvegetation.sky.CloudField.LOW_BASE) / 80.0, 0.0, 1.0);
+        if (aboveClouds >= 1.0F) {
+            return;
+        }
         double far = renderBlocks * p.farFade();
         float sky = level.getSkyDarken(partialTick);
         float[] fog = RenderSystem.getShaderFogColor();
@@ -138,7 +144,7 @@ final class SporeColumns {
                     continue;
                 }
             }
-            float s = Math.min(1.5F, strength(level, t.spore(), p));
+            float s = Math.min(1.5F, strength(level, t.spore(), p)) * (1.0F - aboveClouds);
             if (s <= 0.01F) {
                 continue;
             }
