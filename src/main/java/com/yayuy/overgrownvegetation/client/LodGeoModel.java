@@ -30,7 +30,7 @@ public abstract class LodGeoModel<T extends Entity & GeoAnimatable> extends GeoM
             restPose();   // 確かめ用(大群の描画の重さの切り分け)。ふだんは通らない
             return;
         }
-        if (tickRateAnimation() && com.yayuy.overgrownvegetation.client.crowd.TickRatePose.enabled) {
+        if (tickRateAnimation() && com.yayuy.overgrownvegetation.client.crowd.TickRatePose.applies(animatable)) {
             com.yayuy.overgrownvegetation.client.crowd.TickRatePose.handle(this, animatable, instanceId, animationState, partialTick);
             return;
         }

@@ -36,6 +36,16 @@ public final class TickRatePose {
     private TickRatePose() {
     }
 
+    /**
+     * この個体に使うか。カメラから AI の段階化の nearBlocks(perf.json【仮】24)より近い個体は、今まで通りフレームごとに計算する
+     * (11-18 の撮り比べ: 走り(1 巡 5 tick)は tick ごとの直線つなぎだと脚の弧がずれて、近くでは見分けがつく)。
+     */
+    public static boolean applies(Entity animatable) {
+        if (!enabled) return false;
+        double near = com.yayuy.overgrownvegetation.data.DesignData.perf().nearBlocks;
+        return Minecraft.getInstance().gameRenderer.getMainCamera().getPosition().distanceToSqr(animatable.position()) > near * near;
+    }
+
     public static <T extends Entity & GeoAnimatable> void handle(LodGeoModel<T> model, T animatable, long instanceId,
                                                                  AnimationState<T> state, float partialTick) {
         Collection<GeoBone> bones = model.getAnimationProcessor().getRegisteredBones();
@@ -66,8 +76,10 @@ public final class TickRatePose {
             evaluate(model, animatable, instanceId, state, k + 1, bones, c.next);
             c.nextTick = k + 1;
         } else if (c.nextTick != k + 1) {
-            evaluate(model, animatable, instanceId, state, k, bones, c.prev);
+            // 初めて・しばらく描かれなかった・フレームが tick を飛ばした: 計算は 1 回だけにして、この tick の間は次の姿勢のまま
+            // (2 回計算すると 20 FPS を切る場面で前より重くなる)
             evaluate(model, animatable, instanceId, state, k + 1, bones, c.next);
+            System.arraycopy(c.next, 0, c.prev, 0, c.next.length);
             c.nextTick = k + 1;
         }
         apply(bones, c.prev, c.next, f);

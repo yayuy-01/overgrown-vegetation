@@ -90,6 +90,7 @@ public final class CrowdDraw {
             if (MESHES.size() > 64) clearMeshes();   // 資源の読み直しで古い形が残らないように(念のため)
             mesh = CrowdMesh.build(model, loc);
             MESHES.put(model, mesh);
+            BufferUploader.invalidate();   // Mob の段の途中で VAO を結び替えたので、バニラが次に自分の器を結び直すように
         }
         Map<RenderType, Batch> byType = BATCHES.computeIfAbsent(mesh, m -> new IdentityHashMap<>());
         Batch b = byType.get(type);
@@ -100,7 +101,8 @@ public final class CrowdDraw {
         return b;
     }
 
-    @SubscribeEvent
+    // 同じ段のほかの描画(光る藻など)より先に描く: 前の描画が残した GL の状態を引き継がない・半透明の上に後から重ねない
+    @SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.HIGHEST)
     public static void onRenderStage(RenderLevelStageEvent event) {
         RenderLevelStageEvent.Stage stage = event.getStage();
         if (stage == RenderLevelStageEvent.Stage.AFTER_CUTOUT_BLOCKS) {
