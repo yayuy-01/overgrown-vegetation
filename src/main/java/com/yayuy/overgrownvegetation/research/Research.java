@@ -294,6 +294,12 @@ public final class Research {
         }
     }
 
+    /** 止めたら画面を開いている人の表を空にする(次のワールドへ持ち越さない。11-18 見直し ②14)。 */
+    @SubscribeEvent
+    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+        VIEWERS.clear();
+    }
+
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
         MinecraftServer server = event.getServer();

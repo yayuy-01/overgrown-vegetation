@@ -26,18 +26,12 @@ public final class OvergrownMixinPlugin implements IMixinConfigPlugin {
     /** 地形の描画を差し替える MOD の id。 */
     private static final List<String> CHUNK_RENDERER_MODS = List.of("sodium", "embeddium");
 
-    /** 地形の描画を差し替える MOD がいるときに当てないもの(参照用の Accessor は当てたまま。中身の無い一覧を読むだけ)。 */
-    private static final Set<String> VANILLA_CHUNK_RENDER = Set.of(
-            "client.LevelRendererFastChunkDrawMixin",
-            "client.LevelRendererSectionListsMixin",
-            "client.LevelRendererPhaseMarkMixin",
-            "client.LevelRendererFogCullMixin",
-            "client.LevelRendererUploadBudgetMixin",
-            "client.SectionOcclusionGraphFastCullMixin",
-            "client.RenderSectionOriginMixin",
-            "client.RenderSectionDrawableMixin",
-            "client.RenderChunkLazyCopyMixin",
-            "client.RenderRegionCacheLazyCopyMixin");
+    /**
+     * 地形の描画を差し替える MOD がいるときに当てないもの(参照用の Accessor は当てたまま。中身の無い一覧を読むだけ)。
+     * 11-18 見直し ④9: 載っていた 10 個(LevelRendererFastChunkDraw など地形の近道)はどれも退避済みで、もう無い。仕組みだけ残して空にした。
+     * バニラの地形の描画にだけ刺す Mixin を足したら、ここに名前を足す。
+     */
+    private static final Set<String> VANILLA_CHUNK_RENDER = Set.of();
 
     private boolean chunkRendererReplaced;
 

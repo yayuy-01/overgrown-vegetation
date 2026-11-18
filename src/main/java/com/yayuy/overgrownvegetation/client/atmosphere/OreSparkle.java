@@ -104,13 +104,18 @@ public final class OreSparkle {
         NativeImage image = new NativeImage(NativeImage.Format.LUMINANCE, atlasWidth, atlasHeight, true);
         oreSprites = 0;
         grains = 0;
-        for (Map.Entry<ResourceLocation, TextureAtlasSprite> e : all.entrySet()) {
-            String path = e.getKey().getPath();
-            if (!path.startsWith("block/") || !path.endsWith("_ore")) {
-                continue;
+        try {
+            for (Map.Entry<ResourceLocation, TextureAtlasSprite> e : all.entrySet()) {
+                String path = e.getKey().getPath();
+                if (!path.startsWith("block/") || !path.endsWith("_ore")) {
+                    continue;
+                }
+                oreSprites++;
+                grains += mark(image, e.getValue(), all);
             }
-            oreSprites++;
-            grains += mark(image, e.getValue(), all);
+        } catch (RuntimeException ex) {
+            image.close(); // 途中で落ちたらネイティブのメモリを返す(11-18 見直し ④9。DynamicTexture に渡した後は向こうが閉じる)
+            throw ex;
         }
         mask = new DynamicTexture(image);
         mask.upload();

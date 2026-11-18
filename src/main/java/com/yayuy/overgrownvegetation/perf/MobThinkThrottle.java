@@ -54,14 +54,6 @@ public final class MobThinkThrottle {
         return holdBack(mob, phase);
     }
 
-    /**
-     * mod が他の Mob に足した重い行動の「始められるか」の判定を、遠くではこの tick 飛ばすか。
-     * 標的の有無もグループも見ない(その行動自身の判定だけを間引く)。
-     */
-    public static boolean holdCostlyCheck(Mob mob) {
-        return holdBack(mob, mob.tickCount + mob.getId());
-    }
-
     /** 距離の 2 乗から、選び直す間隔(tick)。2 = バニラのまま。 */
     public static int intervalFor(double distanceSq, PerfTable t) {
         if (distanceSq <= t.nearBlocks * t.nearBlocks) return 2;

@@ -63,6 +63,18 @@ public final class EarthquakeData extends SavedData {
         return eruptionActive;
     }
 
+    /** 止めたら噴出の印を下ろす(次のワールドの最初の tick まで侵食が速いままにしない。11-18 見直し ⑤7)。 */
+    @net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.GAME)
+    public static final class StopEvents {
+        private StopEvents() {
+        }
+
+        @net.neoforged.bus.api.SubscribeEvent
+        public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+            eruptionActive = false;
+        }
+    }
+
     /** 進行中の1件の地割れ演出。フィールドは可変(進捗を書き込むため)。 */
     static final class ActiveQuake {
         long id;

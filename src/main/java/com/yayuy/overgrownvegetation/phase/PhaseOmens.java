@@ -110,6 +110,12 @@ public final class PhaseOmens {
         SPROUT_QUEUE.clear();
     }
 
+    /** 止めたら芽吹きの待ち行列を空にする(次のワールドの同じチャンク番号を芽吹かせない。11-18 見直し ⑤7)。 */
+    @SubscribeEvent
+    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+        SPROUT_QUEUE.clear();
+    }
+
     @SubscribeEvent
     public static void onLevelTick(LevelTickEvent.Post event) {
         if (!(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD || SPROUT_QUEUE.isEmpty()) return;

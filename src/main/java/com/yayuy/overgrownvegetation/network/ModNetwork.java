@@ -9,38 +9,11 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 /**
- * このMODの独自ネットワークパケットの登録。
- * <ul>
- *   <li>{@link EarthquakeShakePayload} — 地割れの画面揺れ(S2C)</li>
- *   <li>{@link SiegeBossStatePayload} — 超大型レイドボス(攻城戦)の軌道と体力(S2C)</li>
- *   <li>{@link TdHordePayload} — TD の行進中の群れ(遠景の身代わり、S2C、帳簿のたび)</li>
- *   <li>{@link ShellFiredPayload} / {@link ShellImpactPayload} — 砲台の砲弾の発射・着弾(S2C)</li>
- *   <li>{@link SiegeBarragePayload} — 触手の小ビームの乱射 1 発(S2C)</li>
- *   <li>{@link SiegeBossCryPayload} — ボスの悲鳴(S2C)</li>
- *   <li>{@link ResearchSyncPayload} — 研究の進捗 + ツリー定義(S2C)</li>
- *   <li>{@link PlantArmorGrowthPayload} — 寄生植物装備の装着時間(成長の進み、S2C)</li>
- *   <li>{@link MobVariantPayload} — 亜種の種別(S2C、追跡開始時に 1 回)</li>
- *   <li>{@link ErosionPayload} — 浸食度の % (S2C、整数 % が変わったとき・追跡開始時)</li>
- *   <li>{@link ExtraArmorPayload} — 追加防具の 4 枠の中身(S2C、枠が変わったとき・追跡開始時。見た目用)</li>
- *   <li>{@link OvergrownLayerPayload} — 植物に覆われたマスの記録 (S2C、チャンクを見始めたとき・覆われたとき)</li>
- *   <li>{@link SporeAirPayload} — プレイヤーの所の胞子濃度(S2C、5 秒ごと。密林の雰囲気の光の筋の濃さ)</li>
- *   <li>{@link SporeAirMapPayload} — まわり ±24 チャンクの浮遊の濃度(S2C、5 秒ごとに変わったとき。胞子の空気の霞、2026-11-06)</li>
- *   <li>{@link SporeDustPayload} — 胞子の粉の降り積もり %と払った升の印(S2C、場の更新で変わったとき)</li>
- *   <li>{@link SporeExposurePayload} — 自分の胞子の暴露量(S2C、1/32 刻みが変わったとき。前触れの画面のにじみ、2026-11-04)</li>
- *   <li>{@link ResearchUnlockPayload} — 研究ノードの開放要求(C2S)</li>
- *   <li>{@link PoweredArmorCraftPayload} — パワードアーマー作成テーブルの「作成」(C2S、レシピ id)</li>
- *   <li>{@link CannonControlPayload} — 砲台に乗っている間の発射・装薬(C2S)</li>
- *   <li>{@link HordeSightPayload} — 見える距離(描画距離と霧の終わりの近い方。TD の群れを霧の外で生ませる、C2S、変わったとき)</li>
- *   <li>{@link WorldDifficultyRequestPayload} / {@link WorldDifficultyApplyPayload} — ポーズ画面の難易度の画面を開く・完了(C2S)、
- *   {@link WorldDifficultySyncPayload} — その返事(S2C)</li>
- *   <li>{@link ExperimentalFeaturesPayload} — 実験的要素のオン・オフ(S2C、ログインと切り替えのとき)</li>
- *   <li>{@link OpenGuidebookPayload} — ガイドブックを開く(S2C、本を右クリックしたとき。Mob の章の中身)</li>
- *   <li>{@link LeyFlowPayload} — 地脈の通り道(S2C、線の通るチャンクを見始めたとき。過繁茂の森で時々光が流れる)</li>
- *   <li>{@link SkyBossStatePayload} — 空の巨大生物の動き(S2C、区間が変わるとき・入ってきたとき・雷が避雷針へ落ちるとき。オーバーワールドの全員へ)</li>
- *   <li>{@link SkyBossPartsPayload} — 空の巨大生物の弱点(避雷針・蕾)の壊れ具合(S2C、壊れた・生え直したとき・入ってきたとき)</li>
- *   <li>{@link SkyBossArcPayload} — 空の巨大生物の放電の雷 1 本(S2C、範囲の中の相手に当たったとき。近くのプレイヤーへ)</li>
- *   <li>{@link SkyBossShotPayload} — 空の巨大生物の技の弾(S2C、撃った・終わったとき。近くのプレイヤーへ)</li>
- * </ul>
+ * このMODの独自ネットワークパケットの登録(版の歴史は register の中の注)。どの通信があるかは、この register と、
+ * 持ち場ごとに登録する *Network クラス(ResearchNetwork など)を見る。
+ *
+ * <p>11-18 コードの見直し 第 2 回 ④9: 前はここに通信の一覧を書いていたが、退避した通信(攻城戦・TD・砲台など)が残り、
+ * 今の通信の約 25 個が抜けていたので、一覧は外した(手で揃え続けると、また古くなる)。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD)
 public final class ModNetwork {

@@ -78,6 +78,9 @@ public final class LedgerSpreadData extends SavedData {
 
     /** 変わった区域の中身を写して(サーバースレッド。区域ごとなので小さい)、IO スレッドで書く。 */
     private void flush() {
+        // 前の書き出しで書けなかった区域を書き直す(11-18 見直し ③12)
+        Long failed;
+        while ((failed = LedgerPendingStore.FAILED.poll()) != null) dirtyRegions.add(failed.longValue());
         if (dirtyRegions.isEmpty()) return;
         long[] regions = dirtyRegions.toLongArray();
         dirtyRegions.clear();

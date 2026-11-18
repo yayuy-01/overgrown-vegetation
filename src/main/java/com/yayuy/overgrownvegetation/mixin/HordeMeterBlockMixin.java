@@ -18,11 +18,11 @@ public abstract class HordeMeterBlockMixin {
 
     @Inject(method = "managedBlock", at = @At("HEAD"))
     private void overgrown_vegetation$blockHead(BooleanSupplier isDone, CallbackInfo ci) {
-        if (HordeMeter.on) HordeMeter.blockStart();
+        if (HordeMeter.on && (Object) this instanceof net.minecraft.server.MinecraftServer) HordeMeter.blockStart(); // クライアントの loop は数えない(11-18 見直し ④9)
     }
 
     @Inject(method = "managedBlock", at = @At("RETURN"))
     private void overgrown_vegetation$blockEnd(BooleanSupplier isDone, CallbackInfo ci) {
-        if (HordeMeter.on) HordeMeter.blockEnd();
+        if (HordeMeter.on && (Object) this instanceof net.minecraft.server.MinecraftServer) HordeMeter.blockEnd();
     }
 }

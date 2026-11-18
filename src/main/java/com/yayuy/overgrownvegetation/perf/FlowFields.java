@@ -639,6 +639,10 @@ public final class FlowFields {
         ENTRIES.clear();
         PLAYERS.clear();
         lastSweep = 0L; // 次のワールドへ持ち越さない(11-18 見直し ③2)
+        if (trailOut != null) { // 足跡の記録を開いたまま止めたら閉じる(11-18 見直し ③12)
+            trailOut.close();
+            trailOut = null;
+        }
     }
 
     /** {@code /ov perf flow [on|off]}: 入り切り(toml の値を書き換える。前後を同じ起動で比べる用)と、今の数。 */

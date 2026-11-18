@@ -42,6 +42,9 @@ final class LedgerPendingStore {
         return t;
     });
 
+    /** 書けなかった区域(次の保存で書き直す。11-18 見直し ③12。前は書けなくても書き直さず、その区域の待ちが失われた)。 */
+    static final java.util.concurrent.ConcurrentLinkedQueue<Long> FAILED = new java.util.concurrent.ConcurrentLinkedQueue<>();
+
     /** 確かめ用: 最後の書き出しで書いた区域の数。 */
     static volatile int lastRegions;
 
@@ -93,6 +96,7 @@ final class LedgerPendingStore {
                 Files.createDirectories(dir);
             } catch (IOException e) {
                 OvergrownVegetation.LOGGER.error("書き換え待ちのフォルダ {} を作れませんでした", dir, e);
+                for (long r : regions) FAILED.add(r); // 次の保存で書き直す
                 return;
             }
             for (int i = 0; i < regions.length; i++) {
@@ -108,7 +112,8 @@ final class LedgerPendingStore {
                     NbtIo.writeCompressed(tag, tmp);
                     Files.move(tmp, f, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
                 } catch (IOException e) {
-                    OvergrownVegetation.LOGGER.error("書き換え待ちの区域 {} を書けませんでした", f, e);
+                    OvergrownVegetation.LOGGER.error("書き換え待ちの区域 {} を書けませんでした(次の保存で書き直す)", f, e);
+                    FAILED.add(regions[i]);
                 }
             }
         });
@@ -127,5 +132,6 @@ final class LedgerPendingStore {
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
         await();
+        FAILED.clear(); // 次のワールドへ持ち越さない
     }
 }
