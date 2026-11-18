@@ -2559,6 +2559,10 @@ public final class DevBridge {
                 } else if (arg.equalsIgnoreCase("on")) {
                 }
             }
+            case "impostor" -> {
+                // 遠景の身代わりの重さ比べ(devbridge/impostor/ImpostorBench、2026-11-18)
+                log(com.yayuy.overgrownvegetation.devbridge.impostor.ImpostorBench.command(arg, DevBridge::log));
+            }
             case "crowd" -> {
                 // 大群の描画の重さの切り分け(client.crowd.CrowdRenderDev、2026-11-18)。crowd anim off|on・crowd draw off|on(off = 飛ばす)
                 String[] p = arg.trim().split("\\s+");

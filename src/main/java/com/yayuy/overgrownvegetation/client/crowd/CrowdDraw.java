@@ -76,13 +76,13 @@ public final class CrowdDraw {
     }
 
     /** 今、集めてよいか(ワールドの Mob の段の中・シェーダーがある・シェーダーパックを使っていない)。 */
-    static boolean capturing() {
+    public static boolean capturing() {
         return capturing;
     }
 
     /** その形・その描き方の溜め場所。形を作れないときは null(いつもの描き方へ)。 */
     @Nullable
-    static Batch batch(BakedGeoModel model, RenderType type) {
+    public static Batch batch(BakedGeoModel model, RenderType type) {
         CrowdMesh mesh = MESHES.get(model);
         if (mesh == null) {
             CrowdShader.Locations loc = CrowdShader.locations();
@@ -194,7 +194,7 @@ public final class CrowdDraw {
     }
 
     /** 同じ形・同じ描き方(= 同じ絵)の 1 フレームぶんの溜め場所。1 体 = 頭 2 texel + 骨ごとに 6 texel(RGBA32F)。 */
-    static final class Batch {
+    public static final class Batch {
 
         final CrowdMesh mesh;
         final RenderType type;
@@ -215,7 +215,7 @@ public final class CrowdDraw {
         }
 
         /** 1 体を書き始める。骨は {@link #bone} で描く順に全部書き、{@link #commit} で数に入れる。 */
-        void begin(int packedLight, int packedOverlay, int colour) {
+        public void begin(int packedLight, int packedOverlay, int colour) {
             int need = (this.count + 1) * this.stride * 4;
             if (need > this.data.capacity()) {
                 this.data = MemoryUtil.memRealloc(this.data, Math.max(need, this.data.capacity() * 2));
@@ -230,7 +230,7 @@ public final class CrowdDraw {
         }
 
         /** 次の骨(描く順)の行列。見えない骨は {@code visible = false}(箱が点に潰れる)。 */
-        void bone(PoseStack.Pose pose, boolean visible) {
+        public void bone(PoseStack.Pose pose, boolean visible) {
             if (this.writing < 0 || this.nextBone >= this.mesh.boneCount) {
                 this.nextBone++;
                 return;
@@ -259,7 +259,7 @@ public final class CrowdDraw {
         }
 
         /** 書き終えた 1 体を数に入れる。骨の数が形と合わなければ捨てて false。 */
-        boolean commit() {
+        public boolean commit() {
             boolean ok = this.writing >= 0 && this.nextBone == this.mesh.boneCount;
             if (ok) {
                 if (this.count == 0) ACTIVE.add(this);

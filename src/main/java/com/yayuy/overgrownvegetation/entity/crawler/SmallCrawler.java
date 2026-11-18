@@ -256,6 +256,13 @@ public abstract class SmallCrawler extends Monster {
     }
 
     @Override
+    protected boolean updateInWaterStateAndDoFluidPushing() {
+        // 画面側で、どのプレイヤーからも遠い間は水の判定を省き、前の状態のまま(大群の軽量化 C、11-18 ユーザー了承)
+        if (com.yayuy.overgrownvegetation.entity.ClientTickTrim.farOnClient(this)) return this.isInWater();
+        return super.updateInWaterStateAndDoFluidPushing();
+    }
+
+    @Override
     protected void removeFrost() {
         if (!com.yayuy.overgrownvegetation.entity.ClientTickTrim.skip(this)) super.removeFrost();
     }

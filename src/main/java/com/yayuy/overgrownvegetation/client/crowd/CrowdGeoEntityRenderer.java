@@ -42,6 +42,11 @@ public class CrowdGeoEntityRenderer<T extends Entity & GeoAnimatable> extends Ge
         return this;
     }
 
+    /** 描き手の大きさ(withScale。devbridge の重さ比べ用)。 */
+    public float crowdScale() {
+        return this.scaleWidth;
+    }
+
     protected boolean crowdEligible(T animatable, @Nullable RenderType renderType) {
         if (!this.crowd || renderType == null || !CrowdDraw.capturing() || !getRenderLayers().isEmpty()) return false;
         if (animatable.isInvisible() || Minecraft.getInstance().shouldEntityAppearGlowing(animatable)) return false;
