@@ -213,6 +213,12 @@ void main() {
     float fadeFrom = farRing ? Far.x : (giant ? StormFade.z : (storm ? StormFade.x : Fade.x));
     float fadeTo = farRing ? Far.y : (giant ? StormFade.w : (storm ? StormFade.y : Fade.y));
     float alpha = (1.0 - smoothstep(fadeFrom, fadeTo, d)) * CloudColor.a * (farRing ? Far.z : 1.0);
+    // Horizon trial (11-18, Curve.w): far clouds that sit right on the horizon fade out into the sky behind them (they showed as thin
+    // lines and flat discs in the haze band). Higher parts stay.
+    if (Curve.w > 0.001) {
+        float el0 = ovBentY / max(length(vec3(ovPos.xz, ovBentY)), 1.0);
+        alpha *= 1.0 - Curve.w * (1.0 - smoothstep(0.012, 0.06, el0)) * smoothstep(1500.0, 3500.0, d);
+    }
     if (Puff.w > 0.5) {
         alpha *= Puff.y;
         if (Look.w > 0.5 && Puff.y < 0.98) {

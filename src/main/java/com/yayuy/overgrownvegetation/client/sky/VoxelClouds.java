@@ -1039,7 +1039,8 @@ public final class VoxelClouds implements CloudRenderer {
         }
         float offX = gx0 * (float) size - w.originX * (float) CloudField.CELL_XZ;
         float offZ = gz0 * (float) size - w.originZ * (float) CloudField.CELL_XZ;
-        return layer(b, bottom, top, n, n, offX, offZ, FAR_SEA_TAG, size, false);
+        // 11-18 試し: 地上からも遠景を出すとき(SkyDev.farLow)は下面も作る(無いと、下から見て横の面だけが細い線に見えた)。
+        return layer(b, bottom, top, n, n, offX, offZ, FAR_SEA_TAG, size, SkyDev.farLow > 0.0F);
     }
 
     /** 遠景の格子の四角 1 つ(柱 ti..ti+GRID_TILE, tj..tj+GRID_TILE)。 */
@@ -1070,6 +1071,7 @@ public final class VoxelClouds implements CloudRenderer {
                     int q = size >= FAR_CELL_3 ? 32 : (size >= FAR_CELL_2 ? 16 : 8);
                     bottom[k] = c.bottom() - CloudField.LOW_BASE;
                     top[k] = Math.max(bottom[k] + q, Math.round((c.top() - CloudField.LOW_BASE) / (float) q) * q);
+                    SkyDev.scatter(bottom, top, k, px, pz, coverage);
                 } else if (floor && close > 0.5F) {
                     bottom[k] = 0;
                     top[k] = 2 * CloudField.CELL_Y;
@@ -1259,6 +1261,7 @@ public final class VoxelClouds implements CloudRenderer {
                         if (c.present()) {
                             bottom[k] = c.bottom() - CloudField.LOW_BASE;
                             top[k] = c.top() - CloudField.LOW_BASE;
+                            SkyDev.scatter(bottom, top, k, (gx + 0.5) * size, (gz + 0.5) * size, coverage);
                         }
                     }
                 }
