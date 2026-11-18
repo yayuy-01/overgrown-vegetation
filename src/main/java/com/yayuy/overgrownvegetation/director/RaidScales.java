@@ -257,7 +257,9 @@ public final class RaidScales {
         }
         // 貯めるのは 貯め始め + 上限日数 まで(ピースフル・ほかの拠点の襲撃・前触れで機会が止まっていた間に上限を越えて貯めない)
         double until = Math.min(day, b.saveStart() + maxSaveDays(DirectorGates.phase(level)));
-        double add = credit(ForestDirector.incomePerDay(level), com.yayuy.overgrownvegetation.ecosystem.Ecosystem.incomeFactor(level),
+        // 森の健康に MOD の設定「森の予算の生産量」(11-19、難易度の段で変わる)も掛ける = 予算の貯まり方(ForestDirector#accrue)と同じ倍率
+        double add = credit(ForestDirector.incomePerDay(level), com.yayuy.overgrownvegetation.ecosystem.Ecosystem.incomeFactor(level)
+                        * com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.forestIncome(level.getServer()),
                 purseShare(), until - b.purseCreditedAt(), n);
         memory.addPurse(b, add, day);
     }

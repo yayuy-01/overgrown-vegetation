@@ -42,7 +42,7 @@ import java.util.Map;
  * </ul>
  *
  * <p>今いる Mob にも効かせる【仮: 効かせる。11-19】: ワールドに入るたび({@link EntityJoinLevelEvent})に今の値へ置き直し、
- * 設定のページで変えたときは読み込まれている Mob を全部置き直す({@link #reapplyAll})。体力は割合を保つ(新しく湧いた Mob は満タン)。
+ * 設定のページで変えたときは読み込まれている Mob を全部置き直す({@link #reapplyAll})。体力はいつも割合を保つ(ふつうに湧いた Mob は満タンのまま、進化で出た Mob は減っていた割合のまま)。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class MobStrength {
@@ -103,7 +103,7 @@ public final class MobStrength {
     /**
      * この Mob の修飾を今の値に合わせる。
      *
-     * @param fresh 新しく湧いた(保存から読んだのではない)。体力を満タンにする
+     * @param fresh 新しく湧いた(保存から読んだのではない)。今は体力の扱いは変わらない(どちらも割合を保つ)
      */
     public static void apply(MinecraftServer server, Mob mob, boolean fresh) {
         String id = idOf(mob);
@@ -112,9 +112,9 @@ public final class MobStrength {
                 WorldDifficultyData.mobStat(server, id, DifficultySetting.MOB_HEALTH));
         put(mob, Attributes.ARMOR, DEFENSE_ID, WorldDifficultyData.mobStat(server, id, DifficultySetting.MOB_DEFENSE));
         put(mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_ID, WorldDifficultyData.mobStat(server, id, DifficultySetting.MOB_TOUGHNESS));
-        if (fresh) {
-            if (healthChanged) mob.setHealth(mob.getMaxHealth());
-        } else if (healthChanged && mob.isAlive()) {
+        // 新しく湧いた Mob も割合を保つ(ふつうに湧いた Mob は割合 1 = 満タン。進化・入れ替えで出た Mob は、ワールドに入る前に
+        // AbstractParasitizedMonster#copyConditionTo が減っていた割合を写しているので、満タンに戻さない)
+        if (healthChanged && mob.isAlive()) {
             mob.setHealth(Math.max(0.5F, Math.min(mob.getMaxHealth(), ratio * mob.getMaxHealth())));
         }
     }

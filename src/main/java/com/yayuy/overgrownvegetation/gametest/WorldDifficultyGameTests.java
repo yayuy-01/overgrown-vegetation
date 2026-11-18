@@ -202,8 +202,12 @@ public final class WorldDifficultyGameTests {
             Mob vanilla = helper.spawnWithNoFreeWill(EntityType.HUSK, new BlockPos(5, 2, 1));
             enemy.setNoAi(true);
             vanilla.setNoAi(true);
+            // もとの防御・強靭が 0 だと × 3 も 0 で確かめにならないので、0 でない値を置く(上限 30・20 の内側)
+            enemy.getAttribute(Attributes.ARMOR).setBaseValue(4.0D);
+            enemy.getAttribute(Attributes.ARMOR_TOUGHNESS).setBaseValue(2.0D);
             double baseMax = enemy.getMaxHealth();
             double baseArmor = enemy.getAttributeValue(Attributes.ARMOR);
+            double baseTough = enemy.getAttributeValue(Attributes.ARMOR_TOUGHNESS);
             float enemyBase = damageTaken(helper, level.damageSources().mobAttack(enemy));
             float vanillaBase = damageTaken(helper, level.damageSources().mobAttack(vanilla));
 
@@ -218,6 +222,8 @@ public final class WorldDifficultyGameTests {
                     "体力の割合が保たれない: " + enemy.getHealth() + " / " + enemy.getMaxHealth());
             check(helper, Math.abs(enemy.getAttributeValue(Attributes.ARMOR) - Math.min(30.0D, baseArmor * 3.0D)) < EPS,
                     "防御力が 3 倍にならない: " + baseArmor + " → " + enemy.getAttributeValue(Attributes.ARMOR));
+            check(helper, baseArmor == 4.0D && Math.abs(enemy.getAttributeValue(Attributes.ARMOR_TOUGHNESS) - baseTough * 3.0D) < EPS,
+                    "強靭が 3 倍にならない: " + baseTough + " → " + enemy.getAttributeValue(Attributes.ARMOR_TOUGHNESS));
             float enemyTripled = damageTaken(helper, level.damageSources().mobAttack(enemy));
             float vanillaAfter = damageTaken(helper, level.damageSources().mobAttack(vanilla));
             check(helper, enemyBase > 0.0F && Math.abs(enemyTripled - enemyBase * 3.0F) < EPS,
@@ -236,6 +242,18 @@ public final class WorldDifficultyGameTests {
             Mob fresh = helper.spawnWithNoFreeWill(ModG1.PARASITIZED_ZOMBIE.get(), new BlockPos(3, 2, 3));
             check(helper, Math.abs(fresh.getMaxHealth() - baseMax * 0.5D) < EPS && fresh.getHealth() == fresh.getMaxHealth(),
                     "新しく湧いた Mob に詳細が効かない・満タンでない: " + fresh.getHealth() + " / " + fresh.getMaxHealth());
+
+            // 進化・入れ替えで出た Mob(ワールドに入る前に減っていた割合を写される)は満タンに戻らない
+            Mob evolved = ModG1.PARASITIZED_ZOMBIE.get().create(level);
+            BlockPos at = helper.absolutePos(new BlockPos(4, 2, 4));
+            evolved.moveTo(at.getX() + 0.5D, at.getY(), at.getZ() + 0.5D);
+            evolved.setNoAi(true);
+            evolved.setHealth(evolved.getMaxHealth() * 0.5F);
+            level.addFreshEntity(evolved);
+            check(helper, Math.abs(evolved.getHealth() / evolved.getMaxHealth() - 0.5F) < 0.01F,
+                    "減っていた割合で入った Mob が満タンになった: " + evolved.getHealth() + " / " + evolved.getMaxHealth());
+            evolved.discard();
+            fresh.discard();
 
             // Normal に戻すと修飾が外れる
             WorldDifficultySync.applyAll(server, new DifficultyValues(), new ArrayList<>());
@@ -296,6 +314,26 @@ public final class WorldDifficultyGameTests {
         } finally {
             SporeInfectionEffects.setPlayerStage(player, 0);
             SporeExposureTracker.setDose(player, 0.0D, 0L);
+            data.replaceAll(saved);
+        }
+        helper.succeed();
+    }
+
+    /** OP でもホストでもない人が「完了」を送っても、ワールドの値は変わらない(11-19: サーバーでは OP だけ)。 */
+    @GameTest(template = TEMPLATE, batch = BATCH)
+    public static void nonOperatorCannotApply(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        WorldDifficultyData data = WorldDifficultyData.get(level.getServer());
+        DifficultyValues saved = data.snapshot();
+        FakePlayer player = FakePlayerFactory.get(level,
+                new GameProfile(UUID.nameUUIDFromBytes("ov_settings_guest".getBytes(StandardCharsets.UTF_8)), "ov_settings_guest"));
+        try {
+            check(helper, !WorldDifficultySync.canEdit(player), "OP でもホストでもない人が変えられる扱いになっている");
+            DifficultyValues next = new DifficultyValues();
+            next.applyTier(ModDifficulty.NIGHTMARE);
+            WorldDifficultySync.apply(player, next);
+            check(helper, data.snapshot().equals(saved), "権限の無い人の送った値が書かれた: " + data.snapshot());
+        } finally {
             data.replaceAll(saved);
         }
         helper.succeed();
