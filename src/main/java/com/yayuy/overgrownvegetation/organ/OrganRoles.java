@@ -60,7 +60,7 @@ public final class OrganRoles {
             }
             case NURSERY -> nursery(level, o, now, t, peaceful);
             case LEY -> {
-                if (now - o.crystalAt >= (long) (t.crystalRegrowDays * 24000.0D) && level.hasChunk(o.x >> 4, o.z >> 4)) {
+                if (now - o.crystalAt >= (long) (t.crystalRegrowDays * 24000.0D) && OrganWorld.ready(level, o.x >> 4, o.z >> 4)) {
                     if (OrganWorld.regrowCrystal(level, o)) o.crystalAt = now;
                     else o.crystalAt = now; // 全部生えていても、次はまた半日後に見る
                 }
@@ -79,7 +79,7 @@ public final class OrganRoles {
      * (引いた所のうち嚢の割合で数が釣り合うので、設計図の嚢の数を数えなくてよい)。器官が枯れたら呼ばれない(生え直さない)。
      */
     private static void regrowSacs(ServerLevel level, ForestOrgans.Organ o, OrganTable t) {
-        if (!o.resolved() || !level.hasChunk(o.x >> 4, o.z >> 4)) return;
+        if (!o.resolved() || !OrganWorld.ready(level, o.x >> 4, o.z >> 4)) return;
         OrganBlueprint bp = OrganWorld.blueprint(o);
         if (bp == null || o.placed <= 0) return;
         final int tries = 64;
@@ -91,7 +91,7 @@ public final class OrganRoles {
             if (OrganBlueprint.material(e) != OrganBlueprint.M_SAC) continue;
             if (r.nextDouble() >= p) continue;
             BlockPos at = anchor.offset(OrganBlueprint.dx(e), OrganBlueprint.dy(e), OrganBlueprint.dz(e));
-            if (!level.hasChunk(at.getX() >> 4, at.getZ() >> 4)) continue;
+            if (!OrganWorld.ready(level, at.getX() >> 4, at.getZ() >> 4)) continue;
             var s = level.getBlockState(at);
             if (s.is(OrganBlocks.ORGAN_SAC.get()) && s.getValue(OrganTissueBlock.WITHERED)) {
                 level.setBlock(at, s.setValue(OrganTissueBlock.WITHERED, false), net.minecraft.world.level.block.Block.UPDATE_ALL);
@@ -100,7 +100,7 @@ public final class OrganRoles {
     }
 
     private static void nursery(ServerLevel level, ForestOrgans.Organ o, long now, OrganTable t, boolean peaceful) {
-        if (peaceful || !o.resolved() || !level.hasChunk(o.x >> 4, o.z >> 4)) return;
+        if (peaceful || !o.resolved() || !OrganWorld.ready(level, o.x >> 4, o.z >> 4)) return;
         if (now - o.nurseryAt < (long) (t.nurseryIntervalSeconds * 20L / Math.max(0.05D, t.strength(o.small)))) return; // 小さい版はまれに
         BlockPos at = o.anchor();
         if (!OrganWorld.playerNear(level, at, t.nurseryPlayerBlocks)) return;
@@ -120,7 +120,7 @@ public final class OrganRoles {
 
     private static void guards(ServerLevel level, ForestOrgans.Organ o, long now, OrganTable t, boolean peaceful) {
         int want = o.small ? t.smallGuardCount : t.guardCount;
-        if (peaceful || want <= 0 || !o.resolved() || !level.hasChunk(o.x >> 4, o.z >> 4)) return;
+        if (peaceful || want <= 0 || !o.resolved() || !OrganWorld.ready(level, o.x >> 4, o.z >> 4)) return;
         if (now - o.guardAt < t.guardCooldownSeconds * 20L) return;
         BlockPos at = o.anchor();
         if (!OrganWorld.playerNear(level, at, t.guardPlayerBlocks)) return;

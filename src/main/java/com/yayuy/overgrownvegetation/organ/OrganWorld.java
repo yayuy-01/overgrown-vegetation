@@ -167,15 +167,17 @@ public final class OrganWorld {
             int budget = DesignData.organs().blocksPerTick;
             for (ForestOrgans.Organ o : data.organs()) {
                 if (budget <= 0) break;
-                if (!level.hasChunk(o.x >> 4, o.z >> 4)) continue;
+                if (!OrganWorld.ready(level, o.x >> 4, o.z >> 4)) continue;
                 int before = budget;
                 long s0 = System.nanoTime();
+                long c0 = OrganMeter.cpuNanos(), g0 = OrganMeter.gcMillis();
                 boolean wasResolved = o.resolved();
                 int placedBefore = o.placed;
                 budget = step(level, data, o, now, budget);
                 long took = System.nanoTime() - s0;
-                if (took > 5_000_000L) OrganMeter.slow(String.format(java.util.Locale.ROOT, "#%d %s%s %.1f ms 置いた %d 芽 %s", o.id, o.kind.id,
-                        o.small ? "(小)" : "", took / 1e6, o.placed - placedBefore, wasResolved ? "-" : "置いた"));
+                if (took > 5_000_000L) OrganMeter.slow(String.format(java.util.Locale.ROOT, "#%d %s%s %.1f ms(CPU %.1f・GC %d)置いた %d 芽 %s", o.id, o.kind.id,
+                        o.small ? "(小)" : "", took / 1e6, (OrganMeter.cpuNanos() - c0) / 1e6, OrganMeter.gcMillis() - g0,
+                        o.placed - placedBefore, wasResolved ? "-" : "置いた"));
                 done += before - budget;
                 OrganMeter.blocks(before - budget);
             }
@@ -191,7 +193,7 @@ public final class OrganWorld {
             // (11-18 測り: 移動中に 1 回 20〜90 ms)
             for (int dx = -6; dx <= 6; dx += 12) {
                 for (int dz = -6; dz <= 6; dz += 12) {
-                    if (!level.hasChunk((o.x + dx) >> 4, (o.z + dz) >> 4)) return budget;
+                    if (!OrganWorld.ready(level, (o.x + dx) >> 4, (o.z + dz) >> 4)) return budget;
                 }
             }
             o.y = surface(level, o.x, o.z);
@@ -215,7 +217,7 @@ public final class OrganWorld {
             while (budget > 0 && o.placed < target) {
                 long e = bp.entries[o.placed];
                 p.set(anchor.getX() + OrganBlueprint.dx(e), anchor.getY() + OrganBlueprint.dy(e), anchor.getZ() + OrganBlueprint.dz(e));
-                if (!level.hasChunk(p.getX() >> 4, p.getZ() >> 4)) break; // 読み込まれたら続きから
+                if (!OrganWorld.ready(level, p.getX() >> 4, p.getZ() >> 4)) break; // 読み込まれたら続きから
                 place(level, p, e, false);
                 if (OrganBlueprint.material(e) == OrganBlueprint.M_CORE && !o.budCleared) {
                     clearBud(level, o);
@@ -234,7 +236,7 @@ public final class OrganWorld {
                 while (budget > 0 && o.withered < o.placed) {
                     long e = bp.entries[o.withered];
                     p.set(anchor.getX() + OrganBlueprint.dx(e), anchor.getY() + OrganBlueprint.dy(e), anchor.getZ() + OrganBlueprint.dz(e));
-                    if (!level.hasChunk(p.getX() >> 4, p.getZ() >> 4)) break;
+                    if (!OrganWorld.ready(level, p.getX() >> 4, p.getZ() >> 4)) break;
                     witherAt(level, p);
                     o.withered++;
                     budget = TickBudget.spend(budget);
@@ -305,12 +307,23 @@ public final class OrganWorld {
     }
 
     /** 器官の真ん中の地面のいちばん上(木の幹を拾わないよう、まわり 9 本の低い方)。 */
+    /**
+     * そのチャンクが読み込み済みで生成し終わっているか。{@code level.hasChunk} は「読み込む札が付いている」だけで、生成中でも true を返し、
+     * そこへ setBlock・getHeight すると生成し終わるまで主スレッドが待つ(11-18 測り: 移動中に芽を置く 1 回が 10〜165 ms)。
+     * getChunkNow は生成し終わった LevelChunk だけを返す(主スレッドから呼ぶ)。
+     */
+    static boolean ready(ServerLevel level, int cx, int cz) {
+        if (level.getChunkSource().getChunkNow(cx, cz) != null) return true;
+        if (level.hasChunk(cx, cz)) OrganMeter.notReady();
+        return false;
+    }
+
     static int surface(ServerLevel level, int x, int z) {
         int best = Integer.MAX_VALUE;
         for (int i = -1; i <= 1; i++) {
             for (int j = -1; j <= 1; j++) {
                 int sx = x + i * 5, sz = z + j * 5;
-                if (!level.hasChunk(sx >> 4, sz >> 4)) continue; // 読み込まれていない升を引くとその場で読み込んで止まる(11-18 測り: 最大 71 ms)
+                if (!OrganWorld.ready(level, sx >> 4, sz >> 4)) continue; // 読み込まれていない升を引くとその場で読み込んで止まる(11-18 測り: 最大 71 ms)
                 int h = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, sx, sz) - 1;
                 best = Math.min(best, h);
             }
@@ -338,7 +351,7 @@ public final class OrganWorld {
         o.budCleared = true;
         if (!o.resolved()) return;
         BlockPos c = o.anchor().above();
-        if (!level.hasChunk(c.getX() >> 4, c.getZ() >> 4)) return;
+        if (!OrganWorld.ready(level, c.getX() >> 4, c.getZ() >> 4)) return;
         boolean prev = placing;
         placing = true;
         try {
@@ -425,7 +438,7 @@ public final class OrganWorld {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (int i = 0; i < 12; i++) {
             int dx = level.getRandom().nextInt(7) - 3, dz = level.getRandom().nextInt(7) - 3;
-            if (!level.hasChunk((at.getX() + dx) >> 4, (at.getZ() + dz) >> 4)) continue; // 読み込まれていない升に触らない
+            if (!OrganWorld.ready(level, (at.getX() + dx) >> 4, (at.getZ() + dz) >> 4)) continue; // 読み込まれていない升に触らない
             for (int dy = 3; dy >= -4; dy--) {
                 p.set(at.getX() + dx, at.getY() + dy, at.getZ() + dz);
                 if (level.getBlockState(p).isAir() && level.getBlockState(p.above()).isAir()
@@ -454,7 +467,7 @@ public final class OrganWorld {
         int start = level.getRandom().nextInt(bp.crystals.size());
         for (int i = 0; i < bp.crystals.size(); i++) {
             BlockPos p = anchor.offset(bp.crystals.get((start + i) % bp.crystals.size()));
-            if (!level.hasChunk(p.getX() >> 4, p.getZ() >> 4)) continue;
+            if (!OrganWorld.ready(level, p.getX() >> 4, p.getZ() >> 4)) continue;
             if (!level.getBlockState(p).isAir()) continue;
             // 塊が採られた所: 隣の壁から芽を伸ばす。壁が無ければ塊で埋める
             for (Direction d : Direction.values()) {
