@@ -71,6 +71,12 @@ public final class ForestOrgans extends SavedData {
         /** フェーズのポイントの端数。 */
         public double pointCarry;
         public long nurseryAt, guardAt, crystalAt;
+        /** 置いたときの設計図の形の指紋(0 = まだ・11-18 より前の保存)。違えば置き直す(見直し ②1)。 */
+        public int shapeHash;
+        /** 形の合わせ直しで数を変えた(保存の印を付ける。保存しない)。 */
+        boolean refit;
+        /** この器官が出した守りの Mob(UUID。上限を数える。11-18 見直し ②4・ユーザー決定 3)。 */
+        public final java.util.Set<java.util.UUID> guards = new java.util.LinkedHashSet<>();
 
         Organ(int id, OrganKind kind, boolean small, int variant, int seed, int rot, int x, int z, long plantedAt) {
             this.small = small;
@@ -144,6 +150,12 @@ public final class ForestOrgans extends SavedData {
             t.putLong("NurseryAt", nurseryAt);
             t.putLong("GuardAt", guardAt);
             t.putLong("CrystalAt", crystalAt);
+            t.putInt("ShapeHash", shapeHash);
+            if (!guards.isEmpty()) {
+                ListTag g = new ListTag();
+                for (java.util.UUID u : guards) g.add(net.minecraft.nbt.NbtUtils.createUUID(u));
+                t.put("Guards", g);
+            }
             return t;
         }
 
@@ -170,6 +182,13 @@ public final class ForestOrgans extends SavedData {
             o.nurseryAt = t.getLong("NurseryAt");
             o.guardAt = t.getLong("GuardAt");
             o.crystalAt = t.getLong("CrystalAt");
+            o.shapeHash = t.getInt("ShapeHash");
+            for (Tag g : t.getList("Guards", Tag.TAG_INT_ARRAY)) {
+                try {
+                    o.guards.add(net.minecraft.nbt.NbtUtils.loadUUID(g));
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
             return o;
         }
     }

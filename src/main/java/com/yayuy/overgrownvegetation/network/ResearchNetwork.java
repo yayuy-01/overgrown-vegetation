@@ -47,7 +47,7 @@ public final class ResearchNetwork {
                         Component why = Research.start(player, payload.bench(), payload.node());
                         if (why != null) player.displayClientMessage(why, true);
                     } else if (payload.action() == ResearchActionPayload.CANCEL) {
-                        if (Research.cancel(player.server, player)) {
+                        if (Research.cancelOnBench(player.server, player.serverLevel(), payload.bench())) { // 標本は研究台の上に(見直し ②5)
                             player.displayClientMessage(Component.translatable("research.overgrown_vegetation.cancelled"), true);
                         }
                     }

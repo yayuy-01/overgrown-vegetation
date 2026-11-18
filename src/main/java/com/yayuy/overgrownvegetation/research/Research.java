@@ -171,11 +171,30 @@ public final class Research {
 
     /** 今の研究をやめ、標本を {@code player} に返す(null なら研究台の上に落とす)。決定 23。 */
     public static boolean cancel(MinecraftServer server, @Nullable ServerPlayer player) {
+        return cancel(server, player, null, null);
+    }
+
+    /**
+     * 研究台の画面から「やめる」(11-18 見直し ②5・ユーザー決定 1): 研究は世界に 1 つで仲間と分け合うので、誰でもやめられるまま。
+     * 払った標本はやめた人へは渡さず、走っていた研究台の上に落とす(前はやめた人の手に入り、マルチでほかの人の標本を受け取れた)。
+     * 走っていた研究台のチャンクが読み込まれていなければ、やめた人が使っている研究台 {@code at} の上に落とす(標本を消さない)。
+     */
+    public static boolean cancelOnBench(MinecraftServer server, ServerLevel atLevel, BlockPos at) {
+        return cancel(server, null, atLevel, at);
+    }
+
+    private static boolean cancel(MinecraftServer server, @Nullable ServerPlayer player, @Nullable ServerLevel fallbackLevel, @Nullable BlockPos fallback) {
         ResearchData data = ResearchData.get(server);
         ResearchData.Active a = data.active();
         if (a == null) return false;
         data.setActive(null);
         ServerLevel benchLevel = server.getLevel(a.bench.dimension());
+        BlockPos p = a.bench.pos();
+        if (fallbackLevel != null && fallback != null
+                && (benchLevel == null || benchLevel.getChunkSource().getChunkNow(p.getX() >> 4, p.getZ() >> 4) == null)) {
+            benchLevel = fallbackLevel;
+            p = fallback;
+        }
         for (ItemStack s : a.paid) {
             ItemStack c = s.copy();
             if (player != null) player.getInventory().add(c);
@@ -183,7 +202,6 @@ public final class Research {
             if (player != null) {
                 player.drop(c, false);
             } else if (benchLevel != null) {
-                BlockPos p = a.bench.pos();
                 Containers.dropItemStack(benchLevel, p.getX() + 0.5, p.getY() + 1.0, p.getZ() + 0.5, c);
             }
         }

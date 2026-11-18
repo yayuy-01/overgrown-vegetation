@@ -125,12 +125,33 @@ public final class OrganRoles {
         BlockPos at = o.anchor();
         if (!OrganWorld.playerNear(level, at, t.guardPlayerBlocks)) return;
         o.guardAt = now;
-        int have = countGuards(level, at, o.small ? 16 : OrganBlueprint.MAX_HALF + 16);
+        int have = trackedGuards(level, o, at);
         OrganBlueprint bp = OrganWorld.blueprint(o);
         for (int i = have; i < want; i++) {
             BlockPos spot = bp == null ? at.above() : at.offset(i % 2 == 0 ? bp.entrance : bp.coreCenter);
-            OrganWorld.spawnNear(level, spot, i % 2 == 0 ? 4 : 5);
+            Mob m = OrganWorld.spawnNear(level, spot, i % 2 == 0 ? 4 : 5);
+            if (m != null) o.guards.add(m.getUUID());
         }
+    }
+
+    /**
+     * この器官の守りの数(11-18 見直し ②4・ユーザー決定 3)。前は芯のまわりの箱で数えていたので、守りを外へ連れ出すと
+     * 数に入らず、予算を払わずに 120 秒ごとに増えた(倒すと標本と素材が落ちる = ただで稼げた)。今は出した守りの UUID で数え、
+     * 死んだ・消えた守りだけを外す({@link OrganWorld#onGuardLeave})。読み込みの外へ歩いた守りは数えたまま。
+     * 11-18 より前の保存は UUID を持たないので、空のときはまわりの守りの印の Mob を引き取る。
+     */
+    static int trackedGuards(ServerLevel level, ForestOrgans.Organ o, BlockPos at) {
+        o.guards.removeIf(u -> {
+            net.minecraft.world.entity.Entity e = level.getEntity(u);
+            return e != null && !e.isAlive();
+        });
+        if (o.guards.isEmpty()) {
+            double r = o.small ? 16 : OrganBlueprint.MAX_HALF + 16;
+            for (Mob m : level.getEntitiesOfClass(Mob.class, new AABB(at).inflate(r, 48.0D, r), m -> m.getTags().contains(OrganWorld.GUARD_TAG))) {
+                o.guards.add(m.getUUID());
+            }
+        }
+        return o.guards.size();
     }
 
     private static int countGuards(ServerLevel level, BlockPos at, double r) {

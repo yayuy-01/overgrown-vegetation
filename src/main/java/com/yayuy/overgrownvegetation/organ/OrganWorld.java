@@ -78,6 +78,7 @@ public final class OrganWorld {
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
         BLUEPRINTS.clear();
+        LeyBuffs.forgetApplied();
         invalidateCaches();
     }
 
@@ -91,7 +92,7 @@ public final class OrganWorld {
         }
         if (!f.isDone()) return null;
         try {
-            return f.join();
+            return fit(o, f.join());
         } catch (RuntimeException e) {
             OvergrownVegetation.LOGGER.error("森の器官 #{} の設計図を作れなかった", o.id, e);
             BLUEPRINTS.remove(o.id);
@@ -103,7 +104,38 @@ public final class OrganWorld {
     static OrganBlueprint blueprintNow(ForestOrgans.Organ o) {
         CompletableFuture<OrganBlueprint> f = BLUEPRINTS.computeIfAbsent(o.id,
                 k -> CompletableFuture.completedFuture(OrganBlueprint.create(o.kind, o.small, o.variant, o.seed, o.rot)));
-        return f.join();
+        return fit(o, f.join());
+    }
+
+    /**
+     * 保存された数を設計図に合わせる(11-18 見直し ②1)。形が変わると、保存した {@code placed}・{@code withered} が新しい設計図より長く、
+     * 配列の外を読んでサーバーが落ちていた。役割の処理(OrganRoles)も設計図を読むので、設計図を渡す所で必ず
+     * {@code 0 <= withered <= placed <= entries.length} にする。形の指紋が違えば(形を作り替えた更新)置き直す:
+     * 生きている器官は最初から置き直し、枯れた器官は全部を枯らし直す(枯れの状態に替えるのは器官のブロックだけ)。
+     * 古いブロックのうち新しい形に無い所はそのまま残る。
+     */
+    static OrganBlueprint fit(ForestOrgans.Organ o, OrganBlueprint bp) {
+        int n = bp.entries.length;
+        boolean reshaped = o.shapeHash != 0 ? o.shapeHash != bp.shapeHash : (o.total != 0 && o.total != n);
+        int placed = o.placed, withered = o.withered;
+        if (reshaped) {
+            if (o.state == ForestOrgans.State.WITHERED) {
+                placed = n;
+            } else {
+                placed = 0;
+            }
+            withered = 0;
+        }
+        placed = Math.max(0, Math.min(placed, n));
+        withered = Math.max(0, Math.min(withered, placed));
+        if (placed != o.placed || withered != o.withered || o.shapeHash != bp.shapeHash || o.total != n) {
+            o.placed = placed;
+            o.withered = withered;
+            o.shapeHash = bp.shapeHash;
+            o.total = n;
+            o.refit = true;
+        }
+        return bp;
     }
 
     // ---------------------------------------------------------------- 役割の口(ほかの仕組みから読む)
@@ -203,8 +235,8 @@ public final class OrganWorld {
         }
         OrganBlueprint bp = blueprint(o);
         if (bp == null) return budget;
-        if (o.total != bp.entries.length) {
-            o.total = bp.entries.length;
+        if (o.refit) {
+            o.refit = false;
             data.changed();
         }
         BlockPos anchor = o.anchor();
@@ -432,6 +464,20 @@ public final class OrganWorld {
     }
 
     public static final String GUARD_TAG = "ov_organ_guard";
+
+    /** 守りが死んだ・消えたら器官の数えから外す(11-18 見直し ②4)。チャンクと一緒に外れただけなら数えたまま。 */
+    @SubscribeEvent
+    public static void onGuardLeave(net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent event) {
+        if (!(event.getLevel() instanceof ServerLevel level)) return;
+        net.minecraft.world.entity.Entity e = event.getEntity();
+        if (!e.getTags().contains(GUARD_TAG)) return;
+        net.minecraft.world.entity.Entity.RemovalReason why = e.getRemovalReason();
+        if (why == null || !why.shouldDestroy()) return;
+        ForestOrgans data = ForestOrgans.get(level);
+        boolean any = false;
+        for (ForestOrgans.Organ o : data.organs()) any |= o.guards.remove(e.getUUID());
+        if (any) data.changed();
+    }
 
     @Nullable
     private static BlockPos findFeet(ServerLevel level, BlockPos at) {

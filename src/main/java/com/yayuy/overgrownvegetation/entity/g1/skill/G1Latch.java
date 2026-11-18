@@ -58,9 +58,6 @@ public final class G1Latch {
         this.biteDose = biteDose;
         this.slowAmplifier = slowAmplifier;
         this.follow = follow;
-        if (follow) {
-            holder.setNoGravity(true);
-        }
         holder.getNavigation().stop();
         bite(); // 取り付いた瞬間の 1 噛み(それまでは標的の被弾の声だけで、噛む音が無かった)
     }
@@ -94,6 +91,14 @@ public final class G1Latch {
     /** 取り付いてからの tick。 */
     public int ticks() {
         return ticks;
+    }
+
+    /**
+     * 体に付いて運ばれている間(重力を切る)。前は本物の {@code setNoGravity(true)} を使っていたので、取り付いたまま保存されると
+     * 読み込み後ずっと浮いていた(11-18 見直し ①1)。持ち手の {@code isNoGravity} がこれを見る(保存されない)。
+     */
+    public boolean holdsUp() {
+        return follow && !released;
     }
 
     public boolean released() {
@@ -171,9 +176,6 @@ public final class G1Latch {
         if (released) return;
         released = true;
         this.knocked = knocked;
-        if (follow) {
-            holder.setNoGravity(false);
-        }
         if (knocked) {
             Vec3 away = holder.position().subtract(target.position()).multiply(1.0D, 0.0D, 1.0D);
             if (away.lengthSqr() < 1.0E-4D) away = new Vec3(1.0D, 0.0D, 0.0D);

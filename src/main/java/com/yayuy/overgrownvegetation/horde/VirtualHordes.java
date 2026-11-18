@@ -75,6 +75,36 @@ public final class VirtualHordes extends SavedData {
     public static final String TAG = "ov_virtual_horde";
     /** 本物にしたとき付けた印(戻すとき群れへ持ち帰る)を覚える個体の保存データの鍵。 */
     static final String EXTRA_KEY = "ov_virtual_horde_tag";
+    /** 大規模レイドの群れから本物になった個体が、どの本番のものか(本番の始まった日)を覚える鍵(11-18 見直し ③1)。 */
+    static final String RAID_KEY = "ov_virtual_horde_raid";
+    /** テスト用: 今の大規模レイドの本番の世代(NaN = 本番でない。null = 司令塔から)。 */
+    @Nullable
+    public static Double raidForTests;
+
+    /** 今の大規模レイドの本番の世代(始まった日)。本番でない・的の拠点が無いなら NaN。 */
+    static double liveRaid(ServerLevel level) {
+        if (raidForTests != null) return raidForTests;
+        com.yayuy.overgrownvegetation.director.ForestDirector d = com.yayuy.overgrownvegetation.director.ForestDirector.get(level);
+        if (d.mood() != com.yayuy.overgrownvegetation.director.ForestDirector.Mood.LARGE
+                || com.yayuy.overgrownvegetation.director.LargeRaids.target(level) == null) return Double.NaN;
+        return d.moodSince();
+    }
+
+    /** テスト用: 仮想の群れから本物になった大規模レイドの攻め手の印を付け、行進させる(本番の世代 {@code raid})。 */
+    public static void markRaidAttackerForTests(Mob m, double raid, int baseId, double tx, double tz) {
+        String tag = com.yayuy.overgrownvegetation.director.LargeRaids.ATTACKER_TAG;
+        m.addTag(TAG);
+        m.addTag(tag);
+        m.getPersistentData().putString(EXTRA_KEY, tag);
+        m.getPersistentData().putDouble(RAID_KEY, raid);
+        beginMarch(m, baseId, tx, tz);
+    }
+
+    /** 大規模レイドの群れの本物の個体が、今の本番のものか(印の無い古い個体は今の本番があれば今のものと見る)。 */
+    static boolean ofLiveRaid(Mob m, double live) {
+        if (Double.isNaN(live)) return false;
+        return !m.getPersistentData().contains(RAID_KEY) || m.getPersistentData().getDouble(RAID_KEY) == live;
+    }
     /** 行き先から この距離の中では戻さない(拠点の壁を壊す範囲 = BreachGoal.BASE_RANGE と同じ)。 */
     static final double KEEP_NEAR_TARGET = 48.0D;
     /** 戻すとき、この距離の中にある同じ行き先の群れへ足す。 */
@@ -352,6 +382,9 @@ public final class VirtualHordes extends SavedData {
         PerfTable t = DesignData.perf();
         int tick = server.getTickCount();
         if (!h.swarms.isEmpty() && tick % t.virtualMoveIntervalTicks == 0) {
+            // 大規模レイドが終わった・的の拠点を忘れたのに引き返していない群れ(終わる前の保存から読んだ・取りこぼし)は引き返させる
+            // (11-18 見直し ③1。拠点が無いと本物にする枠が 0 で、64 ブロックの外でずっと待っていた)
+            if (Double.isNaN(liveRaid(level))) h.retreatTag(com.yayuy.overgrownvegetation.director.LargeRaids.ATTACKER_TAG);
             long t0 = System.nanoTime();
             h.move(level, t.virtualMoveIntervalTicks, t);
             moveNanos += System.nanoTime() - t0;
@@ -436,6 +469,7 @@ public final class VirtualHordes extends SavedData {
         int room = (realCapForTests != null ? realCapForTests : t.virtualRealCap) - realHeads(level);
         int budget = Math.min(room, t.virtualSpawnPerRun);
         RandomSource random = level.getRandom();
+        double raid = liveRaid(level);
         Iterator<Swarm> it = swarms.iterator();
         while (it.hasNext()) {
             Swarm s = it.next();
@@ -477,6 +511,7 @@ public final class VirtualHordes extends SavedData {
                     if (!s.extraTag.isEmpty()) m.addTag(s.extraTag);
                     m.setYRot((float) Math.toDegrees(Math.atan2(-s.dirX, s.dirZ)));
                     m.getPersistentData().putString(EXTRA_KEY, s.extraTag);
+                    if (com.yayuy.overgrownvegetation.director.LargeRaids.ATTACKER_TAG.equals(s.extraTag)) m.getPersistentData().putDouble(RAID_KEY, raid);
                     level.addFreshEntity(m);
                     beginMarch(m, s.baseId, s.tx, s.tz);
                     left--;
@@ -561,10 +596,19 @@ public final class VirtualHordes extends SavedData {
             if (nearestPlayerSq(level, m.getX(), m.getZ()) <= far) continue;
             back.add(m);
         }
+        double raid = back.isEmpty() ? Double.NaN : liveRaid(level);
         for (Mob m : back) {
             net.minecraft.world.phys.Vec3 tg = marchTarget(m);
             int baseId = marchBase(m);
             String extra = m.getPersistentData().getString(EXTRA_KEY);
+            if (com.yayuy.overgrownvegetation.director.LargeRaids.ATTACKER_TAG.equals(extra) && !ofLiveRaid(m, raid)) {
+                // 終わった大規模レイドの攻め手(11-18 見直し ③1): 前は引き返さない新しい群れに戻され、また拠点へ歩いて本物になっていた。
+                // プレイヤーから遠いので、群れへ戻さず森へ引き返して消えた扱いにする(死なせない)
+                if (CrawlerPack.externalOf(m) != null) CrawlerPack.leaveExternal(level, m);
+                m.discard();
+                retreated++;
+                continue;
+            }
             Swarm into = null;
             for (Swarm s : swarms) {
                 double ax = s.x - m.getX(), az = s.z - m.getZ();

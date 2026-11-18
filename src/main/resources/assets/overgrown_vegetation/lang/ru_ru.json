@@ -766,7 +766,7 @@
   "research.overgrown_vegetation.running": "Исследуется: %s %s%%",
   "research.overgrown_vegetation.running_elsewhere": "Исследуется на другом столе: %s %s%%",
   "research.overgrown_vegetation.unknown_desc": "Изучите предыдущие узлы, чтобы узнать.",
-  "research.overgrown_vegetation.cancelled": "Исследование прервано. Образцы возвращены (сила и время потеряны)",
+  "research.overgrown_vegetation.cancelled": "Исследование прервано. Образцы выложены на исследовательский стол (сила и время потеряны)",
   "research.overgrown_vegetation.done": "Исследование завершено: %s",
   "research.overgrown_vegetation.why.unknown": "Нельзя исследовать",
   "research.overgrown_vegetation.why.busy": "Уже идёт другое исследование",

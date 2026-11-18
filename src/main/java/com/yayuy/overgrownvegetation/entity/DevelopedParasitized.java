@@ -612,10 +612,14 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
         return dev() == G1Developed.SPIDER ? climbing : super.onClimbable();
     }
 
-    /** クモ (b1): 高い所に張り付いている間は落ちない(保存しない。待ち伏せの Goal が止まれば落ちる)。 */
+    /**
+     * クモ (b1): 高い所に張り付いている間は落ちない(保存しない。待ち伏せの Goal が止まれば落ちる)。チビゾンビが体に取り付いて運ばれている間も。
+     * どちらも保存しない: バニラは {@code isNoGravity()} が真なら NoGravity を書き、読むときに本物の印にするので、
+     * {@link #addAdditionalSaveData} で外す(11-18 見直し ①1)。
+     */
     @Override
     public boolean isNoGravity() {
-        return perched || super.isNoGravity();
+        return perched || latch != null && latch.holdsUp() || super.isNoGravity();
     }
 
     /**
@@ -1922,10 +1926,16 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
     }
 
     // ------------------------------------------------------------------ 保存
+    /** 張り付きの無重力を保存しない形で書いた印(11-18 見直し ①1)。無ければ古い保存。 */
+    private static final String GRAVITY_FIXED = "OvGravityFixed";
+
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putBoolean("MistByHealthUsed", mistByHealthUsed);
+        // 張り付き・取り付きの一時の無重力は書かない(本物の印のときだけ残す。11-18 見直し ①1)
+        if (!super.isNoGravity()) tag.remove("NoGravity");
+        tag.putBoolean(GRAVITY_FIXED, true);
         if (dev() == G1Developed.SHEEP) {
             tag.putInt("Fluff", fluff());
             // 冷却は残りの tick で持つ(読み込み直すたびに 1 回すぐ放つ・食べ直すのを止める。11-13 ユーザー決定)
@@ -1950,6 +1960,9 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         mistByHealthUsed = tag.getBoolean("MistByHealthUsed");
+        // 11-18 より前の保存は、張り付き・取り付きの一時の無重力を本物の印として書いていた(読み込み後ずっと浮く)。
+        // 1 段目に本物の無重力を使う種は無いので、古い保存なら外す(新しい保存の印はコマンドで付けた本物なので残す)
+        if (!tag.getBoolean(GRAVITY_FIXED)) setNoGravity(false);
         if (tag.contains("Fluff")) {
             setFluff(tag.getInt("Fluff"));
         }

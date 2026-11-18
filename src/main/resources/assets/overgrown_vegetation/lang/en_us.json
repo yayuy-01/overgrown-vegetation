@@ -766,7 +766,7 @@
   "research.overgrown_vegetation.running": "Researching: %s %s%%",
   "research.overgrown_vegetation.running_elsewhere": "Researching at another bench: %s %s%%",
   "research.overgrown_vegetation.unknown_desc": "Research the earlier nodes to find out.",
-  "research.overgrown_vegetation.cancelled": "Research stopped. Specimens returned (spent power and time are lost)",
+  "research.overgrown_vegetation.cancelled": "Research stopped. Specimens were dropped on the research bench (spent power and time are lost)",
   "research.overgrown_vegetation.done": "Research complete: %s",
   "research.overgrown_vegetation.why.unknown": "Cannot be researched",
   "research.overgrown_vegetation.why.busy": "Another research is running",

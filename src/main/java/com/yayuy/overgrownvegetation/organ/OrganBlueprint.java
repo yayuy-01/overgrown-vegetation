@@ -38,6 +38,8 @@ public final class OrganBlueprint {
     public final BlockPos entrance;
     /** 触手の付け根のずれ(外側の高い所。外へ向く)。 */
     public final List<BlockPos> tentacleBases;
+    /** 形の指紋(設計図の中身から。保存した値と違えば形が変わった = 置き直す。11-18 見直し ②1)。0 にはしない。 */
+    public final int shapeHash;
 
     private OrganBlueprint(long[] entries, List<BlockPos> cores, BlockPos coreCenter, List<BlockPos> mouths, List<BlockPos> crystals,
                            BlockPos entrance, List<BlockPos> tentacleBases) {
@@ -48,6 +50,8 @@ public final class OrganBlueprint {
         this.crystals = crystals;
         this.entrance = entrance;
         this.tentacleBases = tentacleBases;
+        int h = java.util.Arrays.hashCode(entries) * 31 + entries.length;
+        this.shapeHash = h == 0 ? 1 : h;
     }
 
     public static int dx(long e) {

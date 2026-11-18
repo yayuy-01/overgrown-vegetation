@@ -48,7 +48,17 @@ public class G1CarryGoal extends Goal {
     /** 背に乗せられる小さな G1 か。 */
     public static boolean carriable(AbstractParasitizedMonster m) {
         EntityType<?> type = m.getType();
-        return type == ModG1.PARASITIZED_BABY_ZOMBIE.get() || type == ModG1.developed(G1Developed.BABY_ZOMBIE).get();
+        return (type == ModG1.PARASITIZED_BABY_ZOMBIE.get() || type == ModG1.developed(G1Developed.BABY_ZOMBIE).get()) && !settling(m);
+    }
+
+    /**
+     * 司令塔が道を決めた個体(進化の前兆・根付き・苗床へ歩く途中・根を下ろす前兆)は背負わない(11-18 見直し ①3)。
+     * 前は背負えたので、進化が豚の背の高さで出たり、根付きへ歩く個体が背の上で止まったりした。
+     */
+    static boolean settling(AbstractParasitizedMonster m) {
+        if (m.omen() != 0) return true;
+        com.yayuy.overgrownvegetation.director.G1Fate f = m.fate();
+        return f != null && f.route() != com.yayuy.overgrownvegetation.director.ForestDirector.Route.NONE;
     }
 
     @Override
@@ -113,7 +123,7 @@ public class G1CarryGoal extends Goal {
             load++;
             mob.getNavigation().stop();
             small.getNavigation().stop();
-            if (load == MOUNT_AT && small.isAlive() && !small.isPassenger() && mob.distanceTo(small) <= LOAD_DISTANCE + 1.2D) {
+            if (load == MOUNT_AT && small.isAlive() && !small.isPassenger() && !settling(small) && mob.distanceTo(small) <= LOAD_DISTANCE + 1.2D) {
                 small.startRiding(mob, true);
                 mob.level().playSound(null, mob.getX(), mob.getY() + 1.0D, mob.getZ(), SoundEvents.CAVE_VINES_PLACE, SoundSource.HOSTILE, 1.0F, 0.7F);
             }

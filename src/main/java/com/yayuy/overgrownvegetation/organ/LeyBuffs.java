@@ -27,7 +27,9 @@ import java.util.List;
  *
  * <p>割り当て(11-17 深夜ユーザー「上がる順は設けず、器官が生えた時にランダムで決まるようにしてほしい」): 根が芽吹いたときに
  * 種から 1 つ決まり、枯れるまで変わらない({@link #statIndex})。同じステータスが重なってもよい【仮】。上げ幅は organs.json の {@code roles.ley*}、小さい版は {@code small.strength} 倍。
- * 根が増えた・枯れた・湧いたときに掛け直す(保存しない一時の修飾)。
+ * 根が増えた・枯れた・湧いたときに掛け直す。修飾は保存する(11-18 見直し ②3: 一時の修飾だと読み込みのときに体力が素の最大で
+ * 頭打ちになり、根の分だけ削られていた個体が満タンに戻っていた。保存すれば読むときの最大に根の分が入っている)。
+ * 読み込まれたときにも今の値へ掛け直すので、外れている間に根が枯れても残らない。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class LeyBuffs {
@@ -59,18 +61,30 @@ public final class LeyBuffs {
 
     /** 今の上げ幅({@link Stat} の順。null = 数え直す)。 */
     private static double[] totals;
+    /**
+     * 読み込まれている Mob へ最後に掛けた上げ幅(11-18 見直し ②2)。前は {@link #totals} と比べていたので、数え直しの印が立ってから
+     * {@link #changed} までの間に植物側が 1 体湧くと、{@link #onJoin} が新しい値で埋めて「変わっていない」となり、今いる Mob に掛け直さなかった。
+     */
+    private static double[] applied;
     /** 根(器官の id)→ 上げるステータス。 */
     private static final Int2IntOpenHashMap ASSIGNED = new Int2IntOpenHashMap();
 
-    /** 根が増えた・減った(OrganWorld#invalidateCaches から)。読み込まれている植物側の Mob へ掛け直す。 */
+    /** 根が増えた・減った(OrganWorld#invalidateCaches から)。読み込まれている植物側の Mob(全部の次元)へ掛け直す。 */
     static void changed(ServerLevel level) {
-        double[] before = totals;
         totals = null;
         double[] now = totals(level);
-        if (before != null && java.util.Arrays.equals(before, now)) return;
-        for (Entity e : level.getAllEntities()) {
-            if (e instanceof LivingEntity le && PlantSideRules.isPlantSide(le)) apply(le, now);
+        if (applied != null && java.util.Arrays.equals(applied, now)) return;
+        applied = now.clone();
+        for (ServerLevel l : level.getServer().getAllLevels()) {
+            for (Entity e : l.getAllEntities()) {
+                if (e instanceof LivingEntity le && PlantSideRules.isPlantSide(le)) apply(le, now);
+            }
         }
+    }
+
+    /** サーバーを止めたとき(次のワールドで必ず掛け直す)。 */
+    static void forgetApplied() {
+        applied = null;
     }
 
     /** 今の上げ幅。 */
@@ -122,10 +136,24 @@ public final class LeyBuffs {
             if (v <= 0.0D) {
                 inst.removeModifier(s.id);
             } else {
-                inst.addOrUpdateTransientModifier(new AttributeModifier(s.id, s.percent ? v / 100.0D : v, s.op));
+                double amount = s.percent ? v / 100.0D : v;
+                AttributeModifier cur = inst.getModifier(s.id);
+                if (cur != null && cur.amount() == amount && cur.operation() == s.op) continue;
+                inst.addOrReplacePermanentModifier(new AttributeModifier(s.id, amount, s.op));
             }
         }
         if (e.getHealth() > e.getMaxHealth()) e.setHealth(e.getMaxHealth());
+    }
+
+    /** 一度世界に入った印(保存される)。読み直した個体を「湧いたばかり」と見ない。 */
+    private static final String SEEN = "ov_ley_seen";
+
+    private static boolean hasAny(LivingEntity e) {
+        for (Stat s : Stat.values()) {
+            AttributeInstance inst = e.getAttribute(s.attribute);
+            if (inst != null && inst.getModifier(s.id) != null) return true;
+        }
+        return false;
     }
 
     @SubscribeEvent
@@ -133,10 +161,13 @@ public final class LeyBuffs {
         if (!(event.getLevel() instanceof ServerLevel level) || !(event.getEntity() instanceof LivingEntity le)) return;
         if (!PlantSideRules.isPlantSide(le)) return;
         double[] t = totals(level.getServer().overworld());
+        // 湧いたばかり(保存から読んだ個体ではない)。読んだ個体は修飾も保存されているので、体力は根の分を含めて元のまま
+        boolean fresh = le.tickCount == 0 && !le.getPersistentData().contains(SEEN) && le.getHealth() >= le.getMaxHealth();
+        le.getPersistentData().putBoolean(SEEN, true);
+        // 読み込まれた個体は、保存した修飾が今の値と違えば(外れている間に根が変わった)直す。どれも無ければ何もしない
         boolean any = false;
         for (double v : t) if (v > 0.0D) any = true;
-        if (!any) return;
-        boolean fresh = le.tickCount == 0 && le.getHealth() >= le.getMaxHealth();
+        if (!any && !hasAny(le)) return;
         apply(le, t);
         if (fresh) le.setHealth(le.getMaxHealth()); // 湧いたばかりは満タンで
     }

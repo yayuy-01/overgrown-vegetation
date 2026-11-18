@@ -766,7 +766,7 @@
   "research.overgrown_vegetation.running": "研究中: %s %s%%",
   "research.overgrown_vegetation.running_elsewhere": "ほかの研究台で研究中: %s %s%%",
   "research.overgrown_vegetation.unknown_desc": "前の節を開くと分かる。",
-  "research.overgrown_vegetation.cancelled": "研究をやめた。標本は返した(使った地脈の力と時間は戻らない)",
+  "research.overgrown_vegetation.cancelled": "研究をやめた。標本は研究台の上に落とした(使った地脈の力と時間は戻らない)",
   "research.overgrown_vegetation.done": "研究が終わった: %s",
   "research.overgrown_vegetation.why.unknown": "研究できない節",
   "research.overgrown_vegetation.why.busy": "ほかの研究が走っている",

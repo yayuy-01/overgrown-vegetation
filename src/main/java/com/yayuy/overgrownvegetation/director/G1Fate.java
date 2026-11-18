@@ -58,6 +58,8 @@ public final class G1Fate {
     /** 根付き・苗床: 入らなかったら歩き直す長さ(歩いた tick)と、試す場所の数【仮】。 */
     private static final int NO_ROOM_WALK = 100;
     private static final int NO_ROOM_SITES = 6;
+    /** 根付き・苗床: 歩く時間を使い切った後、根を下ろせる所(地面の上・乗っていない)に出られないまま待つ長さ(tick)【仮】。過ぎたらやめる。 */
+    public static final int STUCK_GIVE_UP = 1200;
     /** 見に来たが今は変われない(起き上がりの途中・乗っている・宙にいる)ときの待ち(tick)。 */
     private static final int BUSY_WAIT = 100;
 
@@ -208,6 +210,7 @@ public final class G1Fate {
             cancel(level);
             return;
         }
+        if (mob.isPassenger()) mob.stopRiding(); // 背負われたまま進化すると背の高さに出る(11-18 見直し ①3)。降ろしてからその場で
         next.moveTo(mob.getX(), mob.getY(), mob.getZ(), mob.getYRot(), mob.getXRot());
         if (!level.noCollision(next)) {
             // 1 段目は段階 0 より体が大きい種がある。壁際で入らなければ少し待ち、それでも駄目ならやめる
@@ -410,6 +413,12 @@ public final class G1Fate {
             omenLeft = t.rootOmenTicks;
             mob.getNavigation().stop();
             mob.setOmen(OMEN_ROOT);
+            return;
+        }
+        // 時間切れの後も根を下ろせない(水に浮いている・背負われている・宙にいる)まま長く経ったら、やめて予算を戻す
+        // (11-18 見直し ①2。前は出口が無く、歩きの段のまま戦いもせず残っていた)。水中・背負われ中に無理に変身させない
+        if (timeout && walkedTicks >= Math.max(t.walkTimeoutTicks, retryAfterWalked) + STUCK_GIVE_UP) {
+            cancel(level);
         }
     }
 
@@ -420,6 +429,7 @@ public final class G1Fate {
             cancel(level);
             return;
         }
+        if (mob.isPassenger()) mob.stopRiding(); // 11-18 見直し ①3
         next.moveTo(mob.getX(), mob.getY(), mob.getZ(), mob.getYRot(), 0.0F);
         if (!level.noCollision(next)) {
             // 根付き・苗床は体が大きい(柱は宿主の 2 倍ほどの高さ)。木の下・斜面で入らなければ、根を下ろすのをやめて少し歩き、
