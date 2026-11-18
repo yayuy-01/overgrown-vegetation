@@ -533,6 +533,7 @@ public final class VoxelClouds implements CloudRenderer {
             endFarSwap();
         }
         float coverage = coverage(level, partialTick);
+        SkyDev.coverage = coverage;
         int style = CloudSky.style();
         int radius = RADIUS_BY_TIER[tier()];
         double fx = CloudField.fieldX(camX, gameTime, partialTick);
@@ -869,10 +870,10 @@ public final class VoxelClouds implements CloudRenderer {
     private static void updateFar(double now, double camY) {
         if (DesignData.sky().farClouds <= 0.0F) {
             farWanted = false;
-        } else if (camY >= FAR_ON_Y || SkyDev.farLow > 0.0F) {
+        } else if (camY >= FAR_ON_Y || SkyDev.farFromGround(1.0F)) {
             farWanted = true;
         } else if (camY < FAR_OFF_Y) {
-            farWanted = false;
+            farWanted = false; // 地上で曇りになったときもここで消える(SkyDev.farFromGround)
         }
         double dt = Mth.clamp(now - farAlphaTime, 0.0, 5.0);
         farAlphaTime = now;
@@ -884,9 +885,9 @@ public final class VoxelClouds implements CloudRenderer {
         }
         // 外の輪(行き来しないよう 850〜950 で切り替える。低の段では使わない)。
         // 11-08 改善 ⑭: 外の輪は高の段だけ(曇りの日に 19 万面・GPU +2.8 ms だった。前は中でも作った)。
-        if ((camY >= FAR3_ON_Y || SkyDev.farLow > 1.5F) && tier() == 0) {
+        if ((camY >= FAR3_ON_Y || SkyDev.farFromGround(2.0F)) && tier() == 0) {
             outerWanted = true;
-        } else if ((camY < FAR3_OFF_Y && SkyDev.farLow <= 1.5F) || tier() > 0) {
+        } else if ((camY < FAR3_OFF_Y && !SkyDev.farFromGround(2.0F)) || tier() > 0) {
             outerWanted = false;
         }
         float reachTo = farShown != null && farShown.outer ? FAR3_RANGE - 400.0F : FAR_FADE_TO;

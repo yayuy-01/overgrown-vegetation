@@ -18,15 +18,17 @@ public final class SkyDev {
     /** 低めの段の筋雲の模様のずらし(場の座標)。 */
     public static volatile float midShift = 23000.0F;
 
-    /** ちぎれ雲の底と厚みを散らす強さ(0 = 今のまま 〜 1)。つながった雲の海の日(量 0.5 以上)は効かない。 */
-    public static volatile float scatter;
+    /** ちぎれ雲の底と厚みを散らす強さ(0 = 今のまま 〜 1)。晴れの日だけ(雲の量 0.2 まで全部・0.3 で 0)。11-18: 量が中くらいの日・雷雨への変わり目では、つながった雲が段々に割れて見えた。 */
+    public static volatile float scatter = 1.0F;
+    /** 大きなちぎれ雲を小さなかたまりに割る強さ(試作 6。0 = 割らない)。 */
+    public static volatile float split;
 
     /**
      * ちぎれ雲の柱 1 本の底と天辺(y 300 からの高さ)を、場所ごとの雑音でずらす(11-18 試し。ユーザー「雲同士の高低差がない」)。
      * 底は 4 段(y 260・308・356・404)。厚みは {@link #heap} が決める。数値は仮決め。
      */
     static void scatter(int[] bottom, int[] top, int k, double fx, double fz, float coverage) {
-        float t = Math.min(Math.max((coverage - 0.30F) / 0.20F, 0.0F), 1.0F);
+        float t = Math.min(Math.max((coverage - 0.20F) / 0.10F, 0.0F), 1.0F);
         float w = scatter * (1.0F - t * t * (3.0F - 2.0F * t));
         if (w <= 0.0F || bottom[k] >= top[k]) {
             return;
@@ -47,10 +49,31 @@ public final class SkyDev {
      * (高さ = 縁からの距離の 0.8 倍 + でこぼこ。天辺は y 450 まで)。薄い板は残らない(どの柱も 16 以上)。つながった雲の海の日は効かない。
      */
     static void heap(int[] bottom, int[] top, int n, int size, int gx0, int gz0, float coverage) {
-        float t = Math.min(Math.max((coverage - 0.30F) / 0.20F, 0.0F), 1.0F);
+        float t = Math.min(Math.max((coverage - 0.20F) / 0.10F, 0.0F), 1.0F);
         float w = scatter * (1.0F - t * t * (3.0F - 2.0F * t));
         if (w <= 0.0F) {
             return;
+        }
+        // 試作 6(11-18): 大きな板を小さなかたまりに割る。雑音の等高線に沿った細い溝で柱を抜く(かたまりは 100〜200 ブロックほど)。
+        // 粗い柱の遠景(96 以上)では割らない(柱 1 本が溝より太く、雲ごと消える)。
+        if (split > 0.0F && size <= 48) {
+            float gap = (size <= 24 ? 0.05F : 0.085F) * split * w;
+            for (int j = 0; j < n; j++) {
+                for (int i = 0; i < n; i++) {
+                    int k = j * n + i;
+                    if (bottom[k] >= top[k]) {
+                        continue;
+                    }
+                    double fx = (gx0 + i + 0.5) * size;
+                    double fz = (gz0 + j + 0.5) * size;
+                    float a = noise(fx / 150.0, fz / 150.0, 71L);
+                    float b2 = noise(fx / 150.0 + 40.5, fz / 150.0 + 17.5, 83L);
+                    if (Math.abs(a - 0.5F) < gap || Math.abs(b2 - 0.5F) < gap) {
+                        bottom[k] = 1;
+                        top[k] = 0;
+                    }
+                }
+            }
         }
         int[] dist = new int[n * n];
         int far = 64;
@@ -128,6 +151,8 @@ public final class SkyDev {
 
     /** カメラの高さ(雲を描くたびに覚える)。 */
     static volatile double camY;
+    /** 今の雲の量(雲を描くたびに覚える)。 */
+    static volatile float coverage;
     /** 地上から見るときの丸みの半径(11-18 ユーザー決定。試作 3・4 の値)。 */
     static final float CURVE_LOW = 14000.0F;
 
@@ -135,12 +160,24 @@ public final class SkyDev {
      * 丸みの半径: 雲より下(y 350 まで)では {@link #CURVE_LOW}(遠くの積乱雲の根元が地平線に沈む)、雲の上(y 600 から)では前からの
      * {@link VoxelClouds#CURVE_RADIUS}(上から見た雲の海の地平線はそのまま)。間はなめらかに。
      */
+    /**
+     * 地上からも遠くの雲の輪を出すか(level = 1 内の輪・2 外の輪)。曇りの日(雲の量 0.5 以上)は出さない(11-18: 晴れから雷雨へ変わる間、
+     * 遠くの雲の海の下面が、斜めに下がる暗い段々の天井に見えた。ユーザー「段々になってる雲は何これ」)。
+     */
+    static boolean farFromGround(float level) {
+        return farLow >= level && coverage < 0.5F;
+    }
+
     static float curveRadius() {
         if (curveRadius > 0.0F) {
             return curveRadius;
         }
         float t = (float) Math.min(Math.max((camY - 350.0) / 250.0, 0.0), 1.0);
         t = t * t * (3.0F - 2.0F * t);
+        // 曇りの天井(雲の量 0.5 から。つながった雲の海・雷雨)では強い丸みを掛けない(11-18 ユーザー「段々になってる雲は何これ」:
+        // 天井が地平線へ下がり、遠景の粗い柱の段が縞に見えた)。晴れの日の遠くの入道雲が地平線から立つ見た目は残る。
+        float c = Math.min(Math.max((coverage - 0.5F) / 0.25F, 0.0F), 1.0F);
+        t = Math.max(t, c * c * (3.0F - 2.0F * c));
         return CURVE_LOW + (VoxelClouds.CURVE_RADIUS - CURVE_LOW) * t;
     }
 
@@ -152,12 +189,13 @@ public final class SkyDev {
             case "cirrus" -> cirrusAmount = value;
             case "far" -> farLow = value;
             case "scatter" -> scatter = value;
+            case "split" -> split = value;
             case "shift" -> midShift = value;
             default -> {
                 return "WX sky: curve <半径>・haze <0〜1>・mid <高さ>・cirrus <量>";
             }
         }
-        return "WX sky curve " + curveRadius + " haze " + horizonHaze + " mid " + midCirrus + " cirrus " + cirrusAmount + " far " + farLow + " shift " + midShift + " scatter " + scatter;
+        return "WX sky curve " + curveRadius + " haze " + horizonHaze + " mid " + midCirrus + " cirrus " + cirrusAmount + " far " + farLow + " shift " + midShift + " scatter " + scatter + " split " + split;
     }
 
     private SkyDev() {
