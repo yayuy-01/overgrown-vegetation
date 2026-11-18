@@ -279,9 +279,23 @@ public final class CloudServerGameTests {
                 helper.fail("浮いた雲の下が雲の中: " + floatBelow + " / " + floats);
                 return;
             }
-            if (ridges == 0 || arches == 0 || floats == 0) {
-                helper.fail("尾根 " + ridges + "・抜けたアーチ " + arches + "・浮いた雲 " + floats + " のどれかが 0");
+            // 11-18(現実寄りの並びが既定): 尾根は足元の低い棚でアーチ(トンネル)は作らない。前の並び(storms.realistic 0)ではアーチも要る。
+            boolean real = CloudField.realSky();
+            if (ridges == 0 || floats == 0 || (real ? arches != 0 : arches == 0)) {
+                helper.fail("尾根 " + ridges + "・抜けたアーチ " + arches + "・浮いた雲 " + floats + "(現実寄り " + real + ": 尾根と浮いた雲は 1 以上、アーチは現実寄りなら 0・前の並びなら 1 以上)");
                 return;
+            }
+            if (real) {
+                for (CloudField.Storm s : a1) {
+                    if (s.kind() == CloudField.KIND_FLOAT && (s.top() < 540 || s.top() > 660)) {
+                        helper.fail("浮いた雲が 1 つの段(y 548〜652)に無い: y " + s.top());
+                        return;
+                    }
+                    if (s.kind() == CloudField.KIND_RIDGE && Math.hypot(s.x2() - s.x(), s.z2() - s.z()) >= 1100.0) {
+                        helper.fail("棚が 1100 ブロックより遠い雲をつないだ");
+                        return;
+                    }
+                }
             }
             // 積乱雲を立てない設計値。
             CloudShape.setOverride(new CloudShape(CloudField.STYLE_VALLEY, 0.6F, 50.0F, 0.75F, 0.0F, 1.0F, -1.0F, 1.0F));

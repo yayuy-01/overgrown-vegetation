@@ -552,7 +552,7 @@ public final class CloudField {
                 float u = (float) (phase - epoch);
                 long cell = home ^ (epoch * 0x165667B19E3779F9L);
                 // 地域の雲の多さで確率を変える(晴れた地域はまれ、雲の多い地域は多い。10-18)。升の真ん中の地域で決める。
-                float here = chance * regionStormsCell(gx, gz, grid) * (realSky ? REAL_STORM_SHARE : 1.0F);
+                float here = chance * regionStormsCell(gx, gz, grid) * (realSky() ? CloudShape.current().stormShare() : 1.0F);
                 float h = hash01(cell, 1);
                 if (h >= here) {
                     continue;
@@ -730,24 +730,27 @@ public final class CloudField {
     static final int RIDGE_MAX = 3;
     /** 尾根のうちアーチ(下を切ったトンネル)にする割合。仮決め。 */
     /**
-     * 雲を現実に寄せる試し(2026-11-18。ユーザー決定の案: 積乱雲は数を減らして目立たせる・尾根は足元の低い棚・トンネルは雲の谷間・浮いた雲は 1 つの段)。
-     * 既定は切(ユーザーが絵を見て決めるまで今のまま)。サーバーとクライアントで同じ値でないと雲の形がずれる(今は確かめ用に、1 人用で DevBridge から替える)。
-     * 雲の床・雲の海・巨大な積乱雲には触らない。数値は仮決め。
+     * 現実寄りの並び(2026-11-18 ユーザー決定「試しが割といい感じだから正式に入れちゃって」): ふつうの積乱雲は少なく(確率に {@link CloudShape#stormShare} を掛ける。
+     * ユーザー指定 0.6)・尾根はいちばん近い隣とだけつなぐ足元の低い棚・近い組の一部はつながず雲の谷間・浮いた雲は 1 つの段。前の山並みとトンネル
+     * (なめらかな大きなドーム)は「不自然だから無くしてもいい」。入り切りは設計値 sky.json storms.realistic(サーバーの値をクライアントへ送る)。
+     * 雲の床・雲の海・巨大な積乱雲には触らない。0.6 以外の数値は仮決め。
      */
-    private static volatile boolean realSky;
-    /** ふつうの積乱雲の立つ確率に掛ける値・つなぐ距離・つながずに谷間として残す組の割合・浮いた雲の段の高さ。 */
-    static final float REAL_STORM_SHARE = 0.4F;
+    private static volatile int devReal = -1;
+    /** つなぐ距離・つながずに谷間として残す組の割合・浮いた雲の段の高さ。 */
     static final double REAL_LINK = 1100.0;
     static final float REAL_GAP_SHARE = 0.4F;
     static final int REAL_FLOAT_Y = 560;
 
     public static boolean realSky() {
-        return realSky;
+        int d = devReal;
+        return d >= 0 ? d == 1 : CloudShape.current().realistic() > 0.5F;
     }
 
-    public static synchronized void setRealSky(boolean on) {
-        if (on != realSky) {
-            realSky = on;
+    /** 確かめ用(DevBridge の wx sky real): 1 = 現実寄り・0 = 前の並び・負 = 設計値どおり。1 人用ではサーバーも同じ値を見る。 */
+    public static synchronized void setRealSky(int mode) {
+        int m = mode < 0 ? -1 : (mode > 0 ? 1 : 0);
+        if (m != devReal) {
+            devReal = m;
             PUFFS.clear();
             PuffIndex.clear();
         }
@@ -770,7 +773,7 @@ public final class CloudField {
         }
         // アーチは山の台(胴の 1.4〜1.9 倍の平たい塊)どうしが重ならない離れた組だけ(11-09: 近い組では真ん中が台で埋まり、下が抜けなかった)。
         double span = Math.hypot(q.x() - p.x(), q.z() - p.z());
-        if (realSky) {
+        if (realSky()) {
             // 雲の谷間: 一部の組はつながない(2 つの積乱雲の間に狭い青空が残る)。残りは足元の低い棚(雲の床のすぐ上の帯。峰もアーチも無い)。
             if (hash01(pair, 1) < REAL_GAP_SHARE) {
                 return;
@@ -794,6 +797,7 @@ public final class CloudField {
 
     /** 総当たりの選び方(11-17 までの作り。{@link #stormsBruteForTest} だけが使う)。 */
     private static void ridgesBrute(List<Storm> all, int style) {
+        boolean real = realSky();
         List<Storm> towers = new ArrayList<>();
         for (Storm s : all) {
             if (s.kind() == 0 && !s.giant() && s.maturity() >= 0.3F) {
@@ -814,7 +818,7 @@ public final class CloudField {
                 }
                 Storm b = towers.get(j);
                 double d = Math.hypot(b.x() - a.x(), b.z() - a.z());
-                if (d >= RIDGE_LINK || d < a.bodyRadius() + b.bodyRadius() * 0.5) {
+                if (d >= (real ? REAL_LINK : RIDGE_LINK) || d < a.bodyRadius() + b.bodyRadius() * 0.5) {
                     continue;
                 }
                 for (int k = 0; k < RIDGE_MAX; k++) {
@@ -829,7 +833,7 @@ public final class CloudField {
                     }
                 }
             }
-            for (int k = 0; k < RIDGE_MAX; k++) {
+            for (int k = 0; k < (real ? 1 : RIDGE_MAX); k++) {
                 if (best[k] >= 0) {
                     addRidge(all, made, a, towers.get(best[k]), style);
                 }
@@ -844,6 +848,7 @@ public final class CloudField {
      * 離れた組({@link #ARCH_GAP})の {@link #ARCH_SHARE} はアーチ: 稜線を高く(5〜6 割)し、真ん中の 6 割の下を切って、雲の床との間を飛んで抜けられるようにする(トンネル)。
      */
     private static void ridges(List<Storm> all, int style) {
+        boolean real = realSky();
         List<Storm> towers = new ArrayList<>();
         for (Storm s : all) {
             if (s.kind() == 0 && !s.giant() && s.maturity() >= 0.3F) {
@@ -916,7 +921,7 @@ public final class CloudField {
                     continue;
                 }
                 double d = Math.hypot(dx, dz);
-                if (d >= (realSky ? REAL_LINK : RIDGE_LINK) || d < a.bodyRadius() + b.bodyRadius() * 0.5) {
+                if (d >= (real ? REAL_LINK : RIDGE_LINK) || d < a.bodyRadius() + b.bodyRadius() * 0.5) {
                     continue;
                 }
                 for (int k = 0; k < RIDGE_MAX; k++) {
@@ -934,7 +939,7 @@ public final class CloudField {
               }
             }
             }
-            for (int k = 0; k < (realSky ? 1 : RIDGE_MAX); k++) { // 現実寄りでは、いちばん近い隣とだけつなぐ
+            for (int k = 0; k < (real ? 1 : RIDGE_MAX); k++) { // 現実寄りでは、いちばん近い隣とだけつなぐ
                 if (best[k] < 0) {
                     continue;
                 }
@@ -1034,14 +1039,14 @@ public final class CloudField {
                 double cx = (gx + 0.2 + 0.6 * hash01(cell, 2)) * grid;
                 double cz = (gz + 0.2 + 0.6 * hash01(cell, 3)) * grid;
                 // 現実寄りでは 1 つの段(y 560〜640)にまとめる(中くらいの高さの雲の層)。
-                int y = realSky ? REAL_FLOAT_Y + Math.round(80.0F * hash01(cell, 5)) : FLOAT_LOW + Math.round((FLOAT_HIGH - FLOAT_LOW) * hash01(cell, 5));
+                int y = realSky() ? REAL_FLOAT_Y + Math.round(80.0F * hash01(cell, 5)) : FLOAT_LOW + Math.round((FLOAT_HIGH - FLOAT_LOW) * hash01(cell, 5));
                 int count = 1 + (int) (hash01(cell, 10) * 4.0F);
                 for (int k = 0; k < count; k++) {
                     long id = cell * 31L + k;
                     double a = hash01(id, 6) * Math.PI * 2.0;
                     double d = k == 0 ? 0.0 : 90.0 + 140.0 * hash01(id, 7);
                     float radius = (45.0F + 85.0F * hash01(id, 4)) * (k == 0 ? 1.0F : 0.75F) * (0.6F + 0.4F * maturity);
-                    int yy = y + Math.round((hash01(id, 8) - 0.5F) * (realSky ? 24.0F : 120.0F));
+                    int yy = y + Math.round((hash01(id, 8) - 0.5F) * (realSky() ? 24.0F : 120.0F));
                     all.add(new Storm(cx + Math.cos(a) * d, cz + Math.sin(a) * d, radius, yy, false, false, maturity, id, style, KIND_FLOAT, cx, cz));
                 }
             }
@@ -1429,7 +1434,7 @@ public final class CloudField {
         }
         // 途中の小さな峰(11-09 段階 2a-3 ユーザー決定「尾根の途中に小さな峰を立てる」): 800 ブロックごとに 1 つ、尾根の上に塔を立てる。
         // 高さは稜線から山の高さの 5〜10 割上(上限は {@link Storm#topY})。アーチの真ん中(トンネル)には立てない。
-        int peaks = lite >= 2 || realSky ? 0 : (int) (len / (RIDGE_PEAK_EVERY * (lite == 1 ? 2.0 : 1.0)));
+        int peaks = lite >= 2 || realSky() ? 0 : (int) (len / (RIDGE_PEAK_EVERY * (lite == 1 ? 2.0 : 1.0)));
         for (int k = 0; k < peaks; k++) {
             double t = (k + 1.0) / (peaks + 1.0) + (hash01(s.id(), 20 + k) - 0.5) * 0.12;
             if (s.anvil() && t > 0.15 && t < 0.85) {

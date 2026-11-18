@@ -60,6 +60,10 @@ public final class SkyTable {
         public Double giantChance;
         /** 足元の裾野(雲の海から山へつなぐ坂)の高さの倍率。 */
         public Double footScale;
+        /** 現実寄りの並び(11-18 ユーザー決定。1 = 積乱雲は少なく・尾根は足元の低い棚・一部は谷間・浮いた雲は 1 段 / 0 = 前の山並みとトンネル)。 */
+        public Double realistic;
+        /** 現実寄りのとき、ふつうの積乱雲の立つ確率に掛ける値(ユーザー指定 0.6)。 */
+        public Double share;
     }
 
     /** 巻雲(2026-11-09 雲の段階 2a)。見た目だけ(送らない)。 */
@@ -83,6 +87,8 @@ public final class SkyTable {
         public Double height;
         /** 下の雲に対する流れる速さの倍率(ユーザー指定 10-18「1.5 倍以下」)。 */
         public Double windScale;
+        /** 板を遠くで下げる丸みの半径(0 = 下げない。11-18: 21000 で板の端が地平線の近くまで下がる。見た目だけ)。 */
+        public Double curve;
     }
 
     public static final class WindJson {
@@ -134,8 +140,8 @@ public final class SkyTable {
     public final float shadows;
     public final float rays;
     public final float highSkyClarity, highSkyClearFrom, highSkyClearTo;
-    public final float storms, stormChance, giantChance, footScale;
-    public final float cirrus, cirrusAmount, cirrusHeight, cirrusWindScale;
+    public final float storms, stormChance, giantChance, footScale, realistic, stormShare;
+    public final float cirrus, cirrusAmount, cirrusHeight, cirrusWindScale, cirrusCurve;
     public final float syncRain, rainDays, thunderShare, preRainTicks;
     /** 空の色(11-13): 強さ、金の時間・日の入り・日没後の順の色(天頂・反対側・太陽の側・暈)と暈の強さ、霞ごしの太陽のにじみ・天頂の抜け。 */
     public final float skyColorStrength;
@@ -185,10 +191,13 @@ public final class SkyTable {
         stormChance = (float) clamp(st.chance, -1.0, -1.0, 1.0);
         giantChance = (float) clamp(st.giantChance, -1.0, -1.0, 1.0);
         footScale = (float) clamp(st.footScale, 1.0, 0.0, 3.0);
+        realistic = f(st.realistic, 1.0);
+        stormShare = (float) clamp(st.share, 0.6, 0.05, 1.0);
         cirrus = f(ci.strength, 1.0);
         cirrusAmount = (float) clamp(ci.amount, -1.0, -1.0, 1.0);
         cirrusHeight = (float) clamp(ci.height, 3500.0, 400.0, 6000.0);
         cirrusWindScale = (float) clamp(ci.windScale, 1.0, 0.0, 1.5);
+        cirrusCurve = (float) clamp(ci.curve, 21000.0, 0.0, 400000.0);
         syncRain = f(we.syncRain, 1.0);
         rainDays = f(we.rainDays, 0.75); // 11-09 段階 2a-6 ユーザー決定: 0.5 → 0.75(雨の時間をバニラ並みの約 15% に。胞子の降り積もりは雨の間 10 倍で、汚染の速さはバニラの雨の量で合わせてある)
         thunderShare = f(we.thunderShare, 0.3);

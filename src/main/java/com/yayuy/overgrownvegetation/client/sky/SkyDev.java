@@ -13,8 +13,12 @@ public final class SkyDev {
     public static volatile float midCirrus;
     /** 巻雲の量の固定(負 = 日ごと)。撮るとき用。 */
     public static volatile float cirrusAmount = -1.0F;
-    /** 巻雲の板を遠くで下げる丸みの半径(0 = 下げない = 今のまま)。21000 ほどで板の端が地平線の近くまで下がる(試し)。 */
-    public static volatile float cirrusCurve;
+    /** 巻雲の板を遠くで下げる丸みの半径の上書き(負 = 設計値 sky.json cirrus.curve どおり・0 = 下げない)。 */
+    public static volatile float cirrusCurve = -1.0F;
+
+    static float cirrusCurve() {
+        return cirrusCurve >= 0.0F ? cirrusCurve : com.yayuy.overgrownvegetation.data.DesignData.sky().cirrusCurve;
+    }
     /** 地上からも遠くの雲の輪を出す(0 = 今のまま y 410 以上だけ・1 = 7680 まで・2 = 外の輪 18432 まで)。 */
     public static volatile float farLow = 2.0F;
     /** 低めの段の筋雲の模様のずらし(場の座標)。 */
@@ -194,7 +198,7 @@ public final class SkyDev {
             case "split" -> split = value;
             case "cover" -> com.yayuy.overgrownvegetation.sky.CloudSky.devCoverage = value; // 雲の量を固定(負で戻す)。1 人用の確かめ用
             case "logstrikes" -> com.yayuy.overgrownvegetation.sky.StormLightning.devLog = value > 0.5F;
-            case "real" -> com.yayuy.overgrownvegetation.sky.CloudField.setRealSky(value > 0.5F);
+            case "real" -> com.yayuy.overgrownvegetation.sky.CloudField.setRealSky(value < 0.0F ? -1 : (value > 0.5F ? 1 : 0));
             case "cirruscurve" -> cirrusCurve = value;
             case "shift" -> midShift = value;
             default -> {

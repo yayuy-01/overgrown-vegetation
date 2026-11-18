@@ -16,7 +16,13 @@ import com.yayuy.overgrownvegetation.data.SkyTable;
  */
 public record CloudShape(int style, float coverage, float floorThickness, float floorFlatness,
                          float storms, float stormChance, float giantChance, float footScale,
-                         float syncRain, float rainDays, float thunderShare, float preRainTicks) {
+                         float syncRain, float rainDays, float thunderShare, float preRainTicks, float realistic, float stormShare) {
+
+    /** 並びの値は今の既定(現実寄り・積乱雲 0.6 倍。11-18)。 */
+    public CloudShape(int style, float coverage, float floorThickness, float floorFlatness, float storms, float stormChance, float giantChance, float footScale,
+                      float syncRain, float rainDays, float thunderShare, float preRainTicks) {
+        this(style, coverage, floorThickness, floorFlatness, storms, stormChance, giantChance, footScale, syncRain, rainDays, thunderShare, preRainTicks, 1.0F, 0.6F);
+    }
 
     /** 天気の値は既定のまま(11-09 段階 2a-5 の前の作り)。 */
     public CloudShape(int style, float coverage, float floorThickness, float floorFlatness, float storms, float stormChance, float giantChance, float footScale) {
@@ -45,7 +51,8 @@ public record CloudShape(int style, float coverage, float floorThickness, float 
         CloudShape c = cached;
         if (c == null || cachedTable != sky) {
             c = new CloudShape(sky.style, (float) sky.coverage, sky.floorThickness, sky.floorFlatness,
-                    sky.storms, sky.stormChance, sky.giantChance, sky.footScale, sky.syncRain, sky.rainDays, sky.thunderShare, sky.preRainTicks);
+                    sky.storms, sky.stormChance, sky.giantChance, sky.footScale, sky.syncRain, sky.rainDays, sky.thunderShare, sky.preRainTicks,
+                    sky.realistic, sky.stormShare);
             cached = c;
             cachedTable = sky;
         }

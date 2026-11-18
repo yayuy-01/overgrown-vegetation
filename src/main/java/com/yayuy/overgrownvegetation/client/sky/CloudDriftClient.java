@@ -39,7 +39,7 @@ public final class CloudDriftClient implements CloudField.Drift {
         CloudField.setSeed(p.seed());
         // 雲の形もサーバーの値で(11-08 仕上げ 8)。
         com.yayuy.overgrownvegetation.sky.CloudShape.setOverride(new com.yayuy.overgrownvegetation.sky.CloudShape(p.style(), p.coverage(), p.floorThickness(), p.floorFlatness(),
-                p.storms(), p.stormChance(), p.giantChance(), p.footScale(), p.syncRain(), p.rainDays(), p.thunderShare(), p.preRainTicks()));
+                p.storms(), p.stormChance(), p.giantChance(), p.footScale(), p.syncRain(), p.rainDays(), p.thunderShare(), p.preRainTicks(), p.realistic(), p.stormShare()));
         // 雨の予定で天気を決めている間か(11-09 段階 2a-5。雨の前の曇りはその間だけ)。
         com.yayuy.overgrownvegetation.sky.CloudWeather.setClientActive(p.weatherActive());
         INSTANCE.receive(p);
