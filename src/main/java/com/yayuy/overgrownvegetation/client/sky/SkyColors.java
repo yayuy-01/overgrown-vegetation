@@ -148,6 +148,7 @@ public final class SkyColors {
             // 濃霧(天気)の日は、真上へ向けて空の色へ薄めない(11-17): 空だけ青みが残り、霧の色に沈んだ遠くの巨大樹が平らな塊として浮いた。
             float thin = t.skyHazeZenith * (1.0F - com.yayuy.overgrownvegetation.client.atmosphere.DenseFog.skyFillPublic());
             shader.safeGetUniform("Haze").set(haze, hazeGlow, thin, dusk);
+            shader.safeGetUniform("Horizon").set(SkyDev.horizonHaze, 0.0F, 0.0F, 0.0F);
             shader.safeGetUniform("HazeWarm").set(1.0F, Mth.lerp(dusk, 0.97F, 0.70F), Mth.lerp(dusk, 0.80F, 0.35F), up);
             devLast = String.format("空の色 濃さ %.2f 太陽の高さ %.2f 天頂 %.2f %.2f %.2f 太陽側 %.2f %.2f %.2f 暈 %.2f 霞 %.2f", shown, y,
                     ZENITH[0], ZENITH[1], ZENITH[2], TOWARD[0], TOWARD[1], TOWARD[2], GLOW[3], haze);

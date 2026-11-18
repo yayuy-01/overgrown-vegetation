@@ -65,6 +65,8 @@ uniform vec4 Puff;
 // of an overcast day melt into the horizon colour, and at night far cloud bases no longer read as black holes.
 // World.y = cloud cover (0..1) for the overcast ceiling.
 uniform vec4 HorizonColor;
+// Curve.w = horizon haze 0..1 (11-18 trial): clouds low over the horizon melt into a pale haze (voxel_clouds.vsh has the rest).
+uniform vec4 Curve;
 // Time-of-day tints (11-08, design sky.json clouds.lit*/shade*, provisional): LitTint multiplies the lit tone, ShadeTint the shadow tone
 // (white by day; peach light and lavender shade at dusk by default). World.z = flatness of the cloud floor (0..1).
 uniform vec4 LitTint;
@@ -85,6 +87,7 @@ uniform vec4 ForestHazeK;
 in vec3 ovPos;
 in vec4 ovInfo;
 in vec2 ovUv;
+in float ovBentY;
 
 out vec4 fragColor;
 
@@ -450,6 +453,11 @@ void main() {
     // towards the horizon colour (the moonlit haze) with the distance.
     float night = 1.0 - smoothstep(0.4, 0.7, CloudColor.b);
     c = mix(c, max(c, HorizonColor.rgb * 1.05), night * HorizonColor.a * smoothstep(120.0, 700.0, d));
+    if (Curve.w > 0.001) {
+        float el = ovBentY / max(length(vec3(ovPos.xz, ovBentY)), 1.0);
+        float hz = Curve.w * (1.0 - smoothstep(0.0, 0.12, abs(el))) * smoothstep(1200.0, 5000.0, d);
+        c = mix(c, mix(HorizonColor.rgb, vec3(1.0), 0.35), hz);
+    }
     if (hazeKeep < 0.999) {
         c = mix(c, ForestHaze.rgb, 1.0 - hazeKeep);
     }

@@ -138,7 +138,7 @@ final class HazeFloor {
     /** 雲と同じ丸み(voxel_clouds.vsh の Curve)。 */
     private static float sink(float d, float curve) {
         float past = Math.max(d - VoxelClouds.CURVE_FROM, 0.0F);
-        return curve * past * past * (0.5F / VoxelClouds.CURVE_RADIUS);
+        return curve * past * past * (0.5F / SkyDev.curveRadius());
     }
 
     /** なめらかな値の雑音(0〜1)。 */

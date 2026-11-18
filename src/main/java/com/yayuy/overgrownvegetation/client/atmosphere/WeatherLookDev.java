@@ -50,6 +50,9 @@ public final class WeatherLookDev {
                     WeatherClient.debugOverride(v[0], v[1], v[2], v[3], v[4], v[5]);
                     return String.format("WX 上書き 濃霧 %.2f 凪 %.2f 強風 %.2f 雷雨の後 %.2f 雷雨 %.2f 前触れ %.2f", v[0], v[1], v[2], v[3], v[4], v[5]);
                 }
+                case "sky" -> { // 空の試し(11-18): 丸み・地平線のかすみ・低めの筋雲
+                    return com.yayuy.overgrownvegetation.client.sky.SkyDev.set(a.length > 1 ? a[1] : "", a.length > 2 ? Float.parseFloat(a[2]) : 0.0F);
+                }
                 case "shared" -> { // 雲の一覧の使い回し(11-18 試し。前後の絵と bench の比べ用)
                     com.yayuy.overgrownvegetation.client.sky.VoxelClouds.sharedStorms = a.length > 1 && a[1].equals("on");
                     return "WX shared " + com.yayuy.overgrownvegetation.client.sky.VoxelClouds.sharedStorms;

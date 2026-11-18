@@ -24,6 +24,8 @@ uniform vec4 HorToward;
 uniform vec4 Glow;
 uniform vec4 Haze;
 uniform vec4 HazeWarm;
+// Horizon.x = horizon haze 0..1 (11-18 trial): a pale band low over the horizon.
+uniform vec4 Horizon;
 
 in vec3 ray;
 
@@ -62,5 +64,7 @@ void main() {
     // The ring at the horizon and everything below it: the fog colour of the frame.
     float ring = 1.0 - smoothstep(0.0, 0.07, d.y);
     c = mix(c, FogColor.rgb, ring);
+    float band = Horizon.x * smoothstep(0.0, 0.05, d.y) * (1.0 - smoothstep(0.05, 0.22, d.y));
+    c = mix(c, mix(FogColor.rgb, vec3(1.0), 0.35), band);
     fragColor = vec4(c, alpha);
 }

@@ -674,7 +674,7 @@ public final class VoxelClouds implements CloudRenderer {
             shader.safeGetUniform("FarHole").set((float) (farShown.holeX - FAR_HOLE - fx), (float) (farShown.holeZ - FAR_HOLE - fz),
                     (float) (farShown.holeX + FAR_HOLE - fx), (float) (farShown.holeZ + FAR_HOLE - fz));
         }
-        shader.safeGetUniform("Curve").set(sky.curvature, CURVE_FROM, 0.5F / CURVE_RADIUS, 0.0F);
+        shader.safeGetUniform("Curve").set(sky.curvature, CURVE_FROM, 0.5F / SkyDev.curveRadius(), SkyDev.horizonHaze);
         for (int i = 0; i < 3; i++) {
             // 雲の中の光(11-16 雷雨の強化): 積乱雲からの落雷の所を光らせる(前は口だけで 0)。
             float[] flash = com.yayuy.overgrownvegetation.client.atmosphere.StormStrikes.cloudFlash(i, camX, camY, camZ);
@@ -868,7 +868,7 @@ public final class VoxelClouds implements CloudRenderer {
     private static void updateFar(double now, double camY) {
         if (DesignData.sky().farClouds <= 0.0F) {
             farWanted = false;
-        } else if (camY >= FAR_ON_Y) {
+        } else if (camY >= FAR_ON_Y || SkyDev.farLow > 0.0F) {
             farWanted = true;
         } else if (camY < FAR_OFF_Y) {
             farWanted = false;
@@ -883,9 +883,9 @@ public final class VoxelClouds implements CloudRenderer {
         }
         // 外の輪(行き来しないよう 850〜950 で切り替える。低の段では使わない)。
         // 11-08 改善 ⑭: 外の輪は高の段だけ(曇りの日に 19 万面・GPU +2.8 ms だった。前は中でも作った)。
-        if (camY >= FAR3_ON_Y && tier() == 0) {
+        if ((camY >= FAR3_ON_Y || SkyDev.farLow > 1.5F) && tier() == 0) {
             outerWanted = true;
-        } else if (camY < FAR3_OFF_Y || tier() > 0) {
+        } else if ((camY < FAR3_OFF_Y && SkyDev.farLow <= 1.5F) || tier() > 0) {
             outerWanted = false;
         }
         float reachTo = farShown != null && farShown.outer ? FAR3_RANGE - 400.0F : FAR_FADE_TO;

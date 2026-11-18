@@ -109,14 +109,22 @@ public final class Cirrus {
      */
     static void draw(ClientLevel level, float partialTick, Matrix4f modelView, Matrix4f projection, double camX, double camY, double camZ,
                      boolean far, float split) {
+        drawLayer(level, partialTick, modelView, projection, camX, camY, camZ, far, split, height(), 0.0);
+        // 試し(11-18、既定は切): 低めの段にもう 1 枚(模様は場をずらして別の所を使う)。
+        if (SkyDev.midCirrus > 0.0F) {
+            drawLayer(level, partialTick, modelView, projection, camX, camY, camZ, far, split, SkyDev.midCirrus, SkyDev.midShift);
+        }
+    }
+
+    private static void drawLayer(ClientLevel level, float partialTick, Matrix4f modelView, Matrix4f projection, double camX, double camY, double camZ,
+                                  boolean far, float split, float height, double shift) {
         ShaderInstance shader = SkyShaders.cirrus();
         float strength = strength();
         if (broken || shader == null || strength <= 0.0F) {
             return;
         }
-        float amount = amount(level);
+        float amount = SkyDev.cirrusAmount >= 0.0F ? SkyDev.cirrusAmount : amount(level);
         // 巻雲と同じ高さでは板を真横から見て、目の高さに白い線が出る(10-18 遠景の確認で見つけた)ので、上下 60 ブロックで薄める。
-        float height = height();
         strength *= SunLight.smooth(Mth.clamp((float) (Math.abs(camY - height) / 60.0), 0.0F, 1.0F));
         // 濃霧(天気)の中からは見えない(11-17: 霧の色で満ちた空に筋だけ透けていた)。霧の層の上へ出れば見える(skyFill は高さ込み)。
         strength *= 1.0F - com.yayuy.overgrownvegetation.client.atmosphere.DenseFog.skyFillPublic();
@@ -138,7 +146,7 @@ public final class Cirrus {
             double cwz = CloudField.WIND_X * sn + CloudField.WIND_Z * cs;
             double ox = CloudField.offsetX(t) * windScale();
             double oz = CloudField.offsetZ(t) * windScale();
-            double fx = camX - (ox * cs - oz * sn);
+            double fx = camX - (ox * cs - oz * sn) + shift;
             double fz = camZ - (ox * sn + oz * cs);
             double wl = Math.sqrt(cwx * cwx + cwz * cwz);
 

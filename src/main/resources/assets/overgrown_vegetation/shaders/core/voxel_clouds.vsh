@@ -31,6 +31,7 @@ uniform vec4 PreRain;
 out vec3 ovPos;
 out vec4 ovInfo;
 out vec2 ovUv;
+out float ovBentY;
 
 void main() {
     vec3 local = Puff.w > 0.5 ? PuffCenter + (Position - PuffCenter) * Puff.x : Position;
@@ -42,6 +43,7 @@ void main() {
     vec3 bent = ovPos;
     float past = max(length(ovPos.xz) - Curve.y, 0.0);
     bent.y -= Curve.x * past * past * Curve.z;
+    ovBentY = bent.y;
     vec4 view = ModelViewMat * vec4(bent, 1.0);
     gl_Position = ProjMat * view;
     if (Split.y > 0.5) {
