@@ -627,6 +627,7 @@ public final class CloudField {
                 }
             }
         }
+        landmarks(all, style);
         congestus(all, minX, minZ, maxX, maxZ, dayTime, chance, style);
         if (brute) {
             ridgesBrute(all, style);
@@ -753,6 +754,68 @@ public final class CloudField {
             devReal = m;
             PUFFS.clear();
             PuffIndex.clear();
+        }
+    }
+
+    /**
+     * ラフ(2026-11-18。ユーザー「両方でいこう、ただ龍の巣は稀にくらいで」→ まず形の案とラフの絵。既定はどちらも 0 = 出さない。DevBridge の wx sky big / nest)。
+     * devBig = ふつうの積乱雲のうち、ずっと大きくする割合(空の目印)。devNest = 巨大な積乱雲のうち、嵐の巣にする割合。数値はすべて仮。
+     */
+    public static volatile float devBig;
+    public static volatile float devNest;
+
+    /** 確かめ用の値が変わったかを見る鍵(雲の一覧の覚えに入れる)。 */
+    public static int devKey() {
+        return Float.floatToIntBits(devBig) * 31 + Float.floatToIntBits(devNest);
+    }
+
+    /**
+     * 大きな主役のラフ。(1) ふつうの積乱雲の一部を、胴 2 倍・天辺 y 1900〜2500 に(地平線の向こうからも見える目印)。
+     * (2) 嵐の巣: 巨大な積乱雲の一部のまわりに、渦を巻く 3 本の腕(背の高い塔の列。外へ行くほど低く細い)と、芯を囲む壁の塔の輪を足す。
+     * 尾根(棚)を作る前に呼ぶ(棚は大きさの決まった雲どうしをつなぐ)。
+     */
+    private static void landmarks(List<Storm> all, int style) {
+        float big = devBig;
+        float nest = devNest;
+        if (big <= 0.0F && nest <= 0.0F) {
+            return;
+        }
+        int n = all.size();
+        for (int i = 0; i < n; i++) {
+            Storm s = all.get(i);
+            if (s.kind() != 0) {
+                continue;
+            }
+            if (!s.giant()) {
+                if (big > 0.0F && hash01(s.id(), 22) < big) {
+                    all.set(i, new Storm(s.x(), s.z(), s.radius() * 2.0F, 1900 + Math.round(600.0F * hash01(s.id(), 23)), true, false, s.maturity(), s.id(), s.style()));
+                }
+                continue;
+            }
+            if (nest <= 0.0F || hash01(s.id(), 24) >= nest) {
+                continue;
+            }
+            double turn = hash01(s.id(), 25) * Math.PI * 2.0;
+            double dir = hash01(s.id(), 26) < 0.5F ? 1.0 : -1.0;
+            // 芯を囲む壁: 半径の 1.25 倍の輪に 9 本の塔(天辺は芯より少し低い)。
+            for (int k = 0; k < 9; k++) {
+                double a = turn + k * Math.PI * 2.0 / 9.0;
+                double r = s.radius() * 1.25;
+                long id = s.id() * 131L + k;
+                all.add(new Storm(s.x() + Math.cos(a) * r, s.z() + Math.sin(a) * r, 330.0F + 90.0F * hash01(id, 4), s.top() - 300 - Math.round(500.0F * hash01(id, 5)),
+                        hash01(id, 8) < 0.3F, false, s.maturity(), id, s.style()));
+            }
+            // 渦の腕: 3 本、それぞれ 7 本の塔が外へ巻きながら並ぶ(半径 1.6 → 3.6 倍、角度は 1 本ごとに 0.33 rad)。
+            for (int arm = 0; arm < 3; arm++) {
+                for (int k = 0; k < 7; k++) {
+                    double a = turn + arm * Math.PI * 2.0 / 3.0 + dir * k * 0.33;
+                    double r = s.radius() * (1.6 + 2.0 * k / 6.0);
+                    long id = s.id() * 131L + 100 + arm * 16 + k;
+                    float fall = 1.0F - k / 7.0F;
+                    all.add(new Storm(s.x() + Math.cos(a) * r, s.z() + Math.sin(a) * r, 200.0F + 160.0F * fall + 40.0F * hash01(id, 4),
+                            900 + Math.round(1300.0F * fall + 200.0F * hash01(id, 5)), false, false, s.maturity(), id, s.style()));
+                }
+            }
         }
     }
 

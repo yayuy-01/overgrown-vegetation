@@ -388,7 +388,7 @@ public final class VoxelClouds implements CloudRenderer {
     static final double SHARED_SNAP = 1024.0;
 
     private record SharedKey(ClientLevel level, long dayTime, float coverage, double minX, double minZ, double maxX, double maxZ,
-                             com.yayuy.overgrownvegetation.sky.CloudShape shape, long seed, boolean real) {
+                             com.yayuy.overgrownvegetation.sky.CloudShape shape, long seed, boolean real, int dev) {
     }
 
     private static final java.util.Map<SharedKey, List<CloudField.Storm>> SHARED = new java.util.LinkedHashMap<>();
@@ -396,7 +396,7 @@ public final class VoxelClouds implements CloudRenderer {
     private static List<CloudField.Storm> shared(ClientLevel level, float coverage, double minX, double minZ, double maxX, double maxZ) {
         SharedKey key = new SharedKey(level, level.getDayTime(), CloudSky.stormCoverage(coverage), Math.floor(minX / SHARED_SNAP) * SHARED_SNAP,
                 Math.floor(minZ / SHARED_SNAP) * SHARED_SNAP, Math.ceil(maxX / SHARED_SNAP) * SHARED_SNAP, Math.ceil(maxZ / SHARED_SNAP) * SHARED_SNAP,
-                com.yayuy.overgrownvegetation.sky.CloudShape.current(), CloudField.seed(), CloudField.realSky()); // real: 確かめ用の切り替えで覚えが古くならないよう
+                com.yayuy.overgrownvegetation.sky.CloudShape.current(), CloudField.seed(), CloudField.realSky(), CloudField.devKey()); // real: 確かめ用の切り替えで覚えが古くならないよう
         if (!SHARED.isEmpty()) {
             SharedKey first = SHARED.keySet().iterator().next();
             if (first.level != level || first.dayTime != key.dayTime || SHARED.size() > 8) {
