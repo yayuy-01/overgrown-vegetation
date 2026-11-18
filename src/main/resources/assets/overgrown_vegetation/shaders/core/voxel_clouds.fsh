@@ -102,14 +102,14 @@ vec3 ovFlash(vec4 f) {
 
 // Storm nest (11-18): the lightning lights the dark walls wide and strong, brighter on the faces turned towards it, so the shape of
 // the wall stands out for the moment of the flash.
-vec3 ovFlashNest(vec4 f, vec3 nrm) {
+float ovFlashNest(vec4 f, vec3 nrm) {
     if (f.w <= 0.0) {
-        return vec3(0.0);
+        return 0.0;
     }
     vec3 d = f.xyz - ovPos;
     float g = exp(-dot(d, d) / (2.0 * 700.0 * 700.0));
-    float facing = 0.35 + 0.65 * max(dot(nrm, normalize(d)), 0.0);
-    return vec3(0.82, 0.88, 1.0) * (f.w * g * facing * 0.6);
+    float facing = 0.3 + 0.7 * max(dot(nrm, normalize(d)), 0.0);
+    return f.w * g * facing * 0.45;
 }
 
 // Direction from the face centre towards its edge e (0: a-b, 1: b-c, 2: c-d, 3: d-a in vertex order; client/VoxelClouds.java uses the
@@ -447,9 +447,26 @@ void main() {
     if (nestCloud) {
         float nh = clamp((worldY - 300.0) / 2300.0, 0.0, 1.0);
         float nk = n.y < -0.5 ? 0.93 : mix(0.90, 0.55, nh * nh);
+        // 11-18 (user: the unlit wall read as a flat slab): slow drifting patches of thicker and thinner cloud (Look2.w = seconds).
+        vec2 nf = ovPos.xz + Field.xy;
+        float nt = Look2.w;
+        float tone = ovNoise(nf / 170.0 + vec2(nt * 0.012, worldY / 260.0 - nt * 0.008));
+        float tone2 = ovNoise(nf / 55.0 + vec2(worldY / 70.0, nt * 0.03));
+        nk = clamp(nk + (tone - 0.5) * 0.36 + (tone2 - 0.5) * 0.16, 0.0, 0.97);
         c = mix(c, CloudColor.rgb * vec3(0.11, 0.12, 0.16), nk);
+        // Rain curtains hanging from the lower part of the walls: paler vertical streaks that fall.
+        if (abs(n.y) < 0.5) {
+            float along = abs(n.x) > 0.5 ? nf.y : nf.x;
+            float col = ovNoise(vec2(along / 22.0, 3.7));
+            float fall = ovNoise(vec2(along / 22.0 + 11.0, worldY / 90.0 + nt * 1.6));
+            float low = 1.0 - smoothstep(520.0, 1100.0, worldY);
+            float curtain = smoothstep(0.45, 0.75, col) * (0.4 + 0.6 * fall) * low;
+            c = mix(c, CloudColor.rgb * vec3(0.30, 0.33, 0.40), curtain * 0.6);
+        }
     }
-    vec3 flashSum = nestCloud ? min(ovFlashNest(Flash0, n) + ovFlashNest(Flash1, n) + ovFlashNest(Flash2, n), vec3(2.0))
+    // 11-18 (user: near bolts blew the picture out to white): the nest clouds take the light with a soft ceiling (0.78 at most), so the
+    // wall brightens but keeps its shape, and the faces turned away from the bolt stay darker.
+    vec3 flashSum = nestCloud ? vec3(0.82, 0.88, 1.0) * (0.78 * (1.0 - exp(-1.1 * (ovFlashNest(Flash0, n) + ovFlashNest(Flash1, n) + ovFlashNest(Flash2, n)))))
             : min(ovFlash(Flash0) + ovFlash(Flash1) + ovFlash(Flash2), vec3(0.35));
     c += flashSum * (1.0 - 0.85 * smoothstep(0.03, 0.3, InsideFog.y));
     // Before a scheduled rain (11-09, clouds stage 2a-6, PreRain.y): the undersides and the low sides darken, so an overcast sky still

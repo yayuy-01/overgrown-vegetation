@@ -744,7 +744,8 @@ public final class VoxelClouds implements CloudRenderer {
         double wl = Math.sqrt(CloudField.WIND_X * CloudField.WIND_X + CloudField.WIND_Z * CloudField.WIND_Z);
         shader.safeGetUniform("Field").set((float) (fx - Math.floor(fx / FIELD_PERIOD) * FIELD_PERIOD),
                 (float) (fz - Math.floor(fz / FIELD_PERIOD) * FIELD_PERIOD), (float) (CloudField.WIND_X / wl), (float) (CloudField.WIND_Z / wl));
-        shader.safeGetUniform("Look2").set(sky.windStreaks, sky.blueHaze, sky.texture, 0.0F);
+        // w = 秒(11-18: 嵐の巣の壁の濃淡の揺れ・雨の帯の動き。4096 秒で一回り)。
+        shader.safeGetUniform("Look2").set(sky.windStreaks, sky.blueHaze, sky.texture, (float) ((level.getGameTime() + (double) partialTick) / 20.0 % 4096.0));
         // 積乱雲が雲に落とす影(11-09 段階 2a、{@link CloudSelfShadow})。
         if (far) {
             CloudSelfShadow.update(level, partialTick, fx, fz, camY, stormsHere, stormKey(stormsHere, fx, fz));
