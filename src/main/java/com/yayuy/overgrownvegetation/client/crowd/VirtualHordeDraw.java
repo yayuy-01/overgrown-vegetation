@@ -92,7 +92,8 @@ public final class VirtualHordeDraw {
             double cx = ClientVirtualHordes.x(e, pt), cz = ClientVirtualHordes.z(e, pt);
             boolean moving = s.speed() > 0.01F;
             float heading = (float) Math.toDegrees(Math.atan2(-s.dirX(), s.dirZ()));
-            int index = 0;
+            // 一員の番号は firstIndex から(本物になった分は番号を詰めずに firstIndex が進む。horde-flow-a 11-18)
+            int index = s.firstIndex();
             for (VirtualHordePayload.Count c : s.counts()) {
                 for (int k = 0; k < c.n(); k++, index++) {
                     long key = s.id() * 4096L + index;
