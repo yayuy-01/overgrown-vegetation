@@ -448,6 +448,8 @@ public final class FloorGrowth {
         for (BlockPos cell : cells) {
             level.setBlock(cell, log, Block.UPDATE_ALL);
         }
+        // 倒木の両端を、座標の乱数で G2・G3 の棲み処(倒木の洞)にする(2026-11-18 生態系。push-back 了承)
+        com.yayuy.overgrownvegetation.ecosystem.life.EcoDens.onFallenLogPlaced(level, cells);
         if (rootPlate) {
             BlockPos base = cells.get(0).relative(dir.getOpposite());
             boolean ok = true;

@@ -25,6 +25,8 @@ public final class EcoTable {
         public List<String> countedDamageTypes;
         public InnerJson inner;
         public StubJson stub;
+        /** 行動の段(11-18): 種の id(名前空間なし)ごとの値。省いた値はコードの既定(EcoBehavior)。 */
+        public java.util.Map<String, com.yayuy.overgrownvegetation.ecosystem.life.EcoBehavior.Json> behavior;
     }
 
     public static final class InnerJson {
@@ -87,6 +89,7 @@ public final class EcoTable {
         stubTries = Math.max(0, or(st.triesPerPlayer, 2));
         stubMin = Math.max(0, or(st.minBlocks, 24));
         stubMax = Math.max(stubMin + 1, or(st.maxBlocks, 64));
+        com.yayuy.overgrownvegetation.ecosystem.life.EcoBehavior.load(j.behavior);
     }
 
     public static EcoTable fromJson(@Nullable Json j) {

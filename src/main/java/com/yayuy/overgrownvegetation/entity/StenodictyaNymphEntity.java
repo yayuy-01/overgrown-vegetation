@@ -53,6 +53,7 @@ public class StenodictyaNymphEntity extends CrawlerCritter {
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
         this.goalSelector.addGoal(6, new CanopyScurryGoal(this));
+        com.yayuy.overgrownvegetation.ecosystem.life.EcoGoals.register(this, this.goalSelector);   // 行動の段(11-18)
     }
 
     @Override

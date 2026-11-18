@@ -20,7 +20,14 @@ import javax.annotation.Nullable;
  * 行動(棲み処・食べる/狩る/休む・群れ)は後の段。種は速さの基準と範囲を返すだけ。
  * G2・G3 は植物側({@link ParasitizedMob}・グループのタグ)= すべての Mob から敵対される。胞子は運ばない。
  */
-public abstract class CrawlerCritter extends SmallCrawler implements GeoEntity, ParasitizedMob {
+public abstract class CrawlerCritter extends SmallCrawler implements GeoEntity, ParasitizedMob, com.yayuy.overgrownvegetation.ecosystem.life.EcoLife {
+
+    /** 行動の段の動作(EcoAct の番号。2026-11-18)。 */
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Byte> DATA_ECO_ACT =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(CrawlerCritter.class, net.minecraft.network.syncher.EntityDataSerializers.BYTE);
+    private final com.yayuy.overgrownvegetation.ecosystem.life.EcoMind ecoMind = new com.yayuy.overgrownvegetation.ecosystem.life.EcoMind();
+    /** クライアント: 見た目だけの虫を食べた後、eat を流す残り tick。 */
+    private int clientAte;
 
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
@@ -68,6 +75,13 @@ public abstract class CrawlerCritter extends SmallCrawler implements GeoEntity, 
             return state.setAndContinue(special);
         }
         double v = clientMoveSpeed(state.getPartialTick());
+        RawAnimation eco = ecoAnimation(v);
+        if (eco != null) {
+            this.running = false;
+            c.setAnimationSpeed(1.0D);
+            c.switchGait(eco, "eco", "-");
+            return state.setAndContinue(eco);
+        }
         double s = this.getScale();
         if (!this.isDeadOrDying() && v >= WALK_MIN_SPEED) {
             double runRef = runRef();
@@ -92,6 +106,73 @@ public abstract class CrawlerCritter extends SmallCrawler implements GeoEntity, 
         return state.setAndContinue(IDLE);
     }
 
+    // ------------------------------------------------------------------ 行動の段(2026-11-18。ecosystem/life)
+
+    private static final java.util.Map<String, RawAnimation> ECO_ANIMS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** 行動の段の動作のアニメ(無ければ null = 歩き・待機)。見た目だけの虫を食べた直後は、止まっていれば eat。 */
+    @Nullable
+    private RawAnimation ecoAnimation(double moveSpeed) {
+        com.yayuy.overgrownvegetation.ecosystem.life.EcoAct act = ecoAct();
+        if (act == com.yayuy.overgrownvegetation.ecosystem.life.EcoAct.NONE && this.clientAte > 0 && moveSpeed < WALK_MIN_SPEED) {
+            act = com.yayuy.overgrownvegetation.ecosystem.life.EcoAct.EAT;
+        }
+        String clip = com.yayuy.overgrownvegetation.ecosystem.life.EcoLife.clip(this, act);
+        if (clip == null) return null;
+        boolean loop = act.loop;
+        return ECO_ANIMS.computeIfAbsent(clip + (loop ? "" : "!"), k -> loop ? RawAnimation.begin().thenLoop(clip) : RawAnimation.begin().thenPlayAndHold(clip));
+    }
+
+    @Override
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(DATA_ECO_ACT, (byte) 0);
+    }
+
+    @Override
+    protected void registerGoals() {
+        super.registerGoals();
+        com.yayuy.overgrownvegetation.ecosystem.life.EcoGoals.register(this, this.goalSelector);
+    }
+
+    @Override
+    public com.yayuy.overgrownvegetation.ecosystem.life.EcoMind ecoMind() {
+        return this.ecoMind;
+    }
+
+    @Override
+    public com.yayuy.overgrownvegetation.ecosystem.life.EcoAct ecoAct() {
+        return com.yayuy.overgrownvegetation.ecosystem.life.EcoAct.of(this.entityData.get(DATA_ECO_ACT));
+    }
+
+    @Override
+    public void ecoSetAct(com.yayuy.overgrownvegetation.ecosystem.life.EcoAct act) {
+        this.entityData.set(DATA_ECO_ACT, (byte) act.ordinal());
+    }
+
+    /** 群れ・殻・跳ぶなどが舵を取っている間は、行動の Goal を始めない。 */
+    @Override
+    public boolean ecoBusy() {
+        return isSteered();
+    }
+
+    @Override
+    public void ecoClientAte() {
+        this.clientAte = 30;
+    }
+
+    @Override
+    public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.put("OvEco", this.ecoMind.save());
+    }
+
+    @Override
+    public void readAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        if (tag.contains("OvEco")) this.ecoMind.load(tag.getCompound("OvEco"));
+    }
+
     /** 歩き・待機の代わりに流す動作のアニメ(跳ぶ間など。クライアント)。既定 null(2026-11-16、ファランギオタルブスの跳びのため move-leaper が足した)。 */
     @Nullable
     protected RawAnimation specialAnimation() {
@@ -112,6 +193,7 @@ public abstract class CrawlerCritter extends SmallCrawler implements GeoEntity, 
     @Override
     public void tick() {
         super.tick();
+        if (this.clientAte > 0) this.clientAte--;
         if (DEV_HOOKS && !this.level().isClientSide() && this.hasCustomName() && this.tickCount % 10 == 0) {
             String name = this.getCustomName().getString();
             if (name.startsWith("nostroll_run") && this.getNavigation().isDone()) {

@@ -69,6 +69,7 @@ public class OvergrownVegetation {
         com.yayuy.overgrownvegetation.registry.ModResearch.init(); // 研究台と研究ツリー・器具(2026-11-17 強くなる道 決定 20・22・23)
         ModBlocks.register(modBus);
         ModBlockEntities.register(modBus);
+        com.yayuy.overgrownvegetation.ecosystem.life.EcoBlocks.register(modBus);   // G2・G3 の棲み処(11-18)
         ModArmorMaterials.register(modBus); // 2026-11-04 防護マスクの素材だけ
         ModItems.register(modBus);
         com.yayuy.overgrownvegetation.organ.OrganBlocks.register(modBus); // 森の器官の専用ブロック(2026-11-17)

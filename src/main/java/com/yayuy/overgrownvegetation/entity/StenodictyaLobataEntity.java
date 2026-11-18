@@ -80,6 +80,12 @@ public class StenodictyaLobataEntity extends SkyFlyer implements GeoEntity, Para
     private static final RawAnimation LAND = RawAnimation.begin().thenPlay("perch_land").thenLoop("rest");
     private static final RawAnimation WINDUP = RawAnimation.begin().thenPlayAndHold("perch_takeoff_windup");
     private static final RawAnimation PERCH_TAKEOFF = RawAnimation.begin().thenPlay("perch_takeoff").thenLoop("fly");
+    /** 梢の繭から羽化する(2026-11-18 生態系・アニメ担当 stenodictya-anim: 50 tick、終わりは rest と差 0・入りの補間 0)。 */
+    private static final RawAnimation EMERGE = RawAnimation.begin().thenPlay("emerge").thenLoop("rest");
+    public static final int EMERGE_TICKS = 50;
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Boolean> DATA_EMERGING =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(StenodictyaLobataEntity.class, net.minecraft.network.syncher.EntityDataSerializers.BOOLEAN);
+    private int emergeUntil;
 
     /** 溜め(perch_takeoff_windup 4 tick)と、その入りの補間 1 tick【モデル制作の測った値】。 */
     public static final int WINDUP_TICKS = 4, WINDUP_ENTRY = 1;
@@ -172,9 +178,23 @@ public class StenodictyaLobataEntity extends SkyFlyer implements GeoEntity, Para
     }
 
     @Override
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(DATA_EMERGING, false);
+    }
+
+    /** 梢の繭から出た: 繭の升(葉のすぐ下)にぶら下がった姿で始め、emerge を流す間は飛び立たない。 */
+    public void emergeFrom(net.minecraft.core.BlockPos cocoon) {
+        startPerchedAt(cocoon.above(), EMERGE_TICKS);
+        this.entityData.set(DATA_EMERGING, true);
+        this.emergeUntil = this.tickCount + EMERGE_TICKS;
+    }
+
+    @Override
     public void tick() {
         super.tick();
         if (this.level().isClientSide) return;
+        if (this.entityData.get(DATA_EMERGING) && this.tickCount >= this.emergeUntil) this.entityData.set(DATA_EMERGING, false);
         int m = mode();
         if (m == MODE_PERCHED && this.lastMode == MODE_LANDING) this.perchedAt = this.tickCount;   // 読み込み直しは寄りから来ないので数えない
         this.lastMode = m;
@@ -217,7 +237,10 @@ public class StenodictyaLobataEntity extends SkyFlyer implements GeoEntity, Para
         int m = mode();
         RawAnimation want;
         int entry;
-        if (m == MODE_PERCHED || m == MODE_TAKEOFF && takeoffPhase() == 0) {
+        if (this.entityData.get(DATA_EMERGING) || m == MODE_PERCHED && this.curAnim == EMERGE) {
+            want = EMERGE;   // 羽化(入りの補間 0)。終わると rest を繰り返す
+            entry = 0;
+        } else if (m == MODE_PERCHED || m == MODE_TAKEOFF && takeoffPhase() == 0) {
             if (this.curAnim == APPROACH || this.curAnim == LAND) {
                 want = LAND;   // 止まった tick に返して掴む
                 entry = this.curAnim == APPROACH ? ENTRY_LAND : this.curEntry;

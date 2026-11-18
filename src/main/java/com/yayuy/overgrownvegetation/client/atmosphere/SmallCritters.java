@@ -138,9 +138,11 @@ public final class SmallCritters {
     private static int lastQuads;
     /**
      * 食べられたときの知らせ(食べた Mob・食べられた種の名前)。G2・G3 の行動の段で「食べるアニメを鳴らす」をここへつなぐ(クライアントだけ。
-     * 今は土台クラスに食べるアニメを鳴らす口が無いので空 = 口元で虫が消えるだけ)。
+     * 11-18 行動の段でつないだ: G2・G3(EcoLife)は止まっていれば eat を少し流す。
      */
-    public static java.util.function.BiConsumer<Entity, String> eatHook;
+    public static java.util.function.BiConsumer<Entity, String> eatHook = (e, name) -> {
+        if (e instanceof com.yayuy.overgrownvegetation.ecosystem.life.EcoLife life) life.ecoClientAte();
+    };
     private static boolean holdLight;
     /** 手元に寄る蛾。 */
     private static float handAlpha;

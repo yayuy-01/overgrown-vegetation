@@ -358,6 +358,20 @@ public abstract class SkyFlyer extends Monster {
         return this.perch;
     }
 
+    /** 止まった姿で動かさない tick の終わり(羽化の直後など。2026-11-18 生態系)。 */
+    private int holdPerchUntil;
+
+    /**
+     * いきなり止まり木に止まった姿で始める(梢の繭から羽化した成虫。2026-11-18 生態系)。{@code hold} tick の間は驚いても飛び立たない(脚が葉を掴んでいる)。
+     */
+    public void startPerchedAt(BlockPos perch, int hold) {
+        this.perch = perch.immutable();
+        this.setPos(perch.getX() + 0.5D, perchFeetY(perch), perch.getZ() + 0.5D);
+        this.kinX = this.kinY = this.kinZ = 0.0D;
+        setMode(MODE_PERCHED);
+        this.holdPerchUntil = this.tickCount + hold;
+    }
+
     /** テスト用: 群れを止まり木へ向かう段にして、この個体に止まり木を割り当てる(まだ飛んでいる = 着地前)。 */
     public void approachPerchForTests(BlockPos perch) {
         if (this.flock != null) this.flock.state = Flock.State.ROOST;
@@ -824,6 +838,7 @@ public abstract class SkyFlyer extends Monster {
 
     private void tickPerched(ServerLevel sl, Flock f) {
         this.kinX = this.kinY = this.kinZ = 0.0D;
+        if (this.tickCount < this.holdPerchUntil) return;   // 羽化の間は動かない
         if (perchUnder() && this.perch != null) hangOutOf(sl, this.perch);   // 読み込み直した直後でも、飛び立つ口を覚えておく
         faceWhileWaiting(sl, f);
         if (f.state == Flock.State.WAKE || f.state == Flock.State.PATROL) {

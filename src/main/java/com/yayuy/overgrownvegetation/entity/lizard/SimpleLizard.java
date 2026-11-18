@@ -27,7 +27,15 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * ({@link #isDashRun()} なら run、でなければ walk)を、実際の速さ ÷ 基準の速さ({@link #walkRef()}・{@link #runRef()}。FK で測った値)で流す。
  * 見回しはコード({@link SpineWave})。この種たちには look_around のアニメが無い。
  */
-public abstract class SimpleLizard extends LizardRunner implements GeoEntity, ParasitizedMob {
+public abstract class SimpleLizard extends LizardRunner implements GeoEntity, ParasitizedMob, com.yayuy.overgrownvegetation.ecosystem.life.EcoLife {
+
+    /** 行動の段の動作(EcoAct の番号。2026-11-18)。 */
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Byte> DATA_ECO_ACT =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(SimpleLizard.class, net.minecraft.network.syncher.EntityDataSerializers.BYTE);
+    private final com.yayuy.overgrownvegetation.ecosystem.life.EcoMind ecoMind = new com.yayuy.overgrownvegetation.ecosystem.life.EcoMind();
+    /** クライアント: 見た目だけの虫を食べた後、eat を流す残り tick。 */
+    private int clientAte;
+    private static final java.util.Map<String, RawAnimation> ECO_ANIMS = new java.util.concurrent.ConcurrentHashMap<>();
 
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
@@ -126,6 +134,8 @@ public abstract class SimpleLizard extends LizardRunner implements GeoEntity, Pa
         RawAnimation act = actAnimation(c);
         if (act != null) return state.setAndContinue(act);
         double ahead = clientForwardSpeed();
+        RawAnimation eco = ecoAnimation(ahead);
+        if (eco != null) return state.setAndContinue(eco);
         boolean turning = Math.abs(getTurnRate()) >= TURN_ANIM_MIN;
         double s = Math.max(this.getScale(), 0.05F);
         if (!this.isDeadOrDying() && !proceduralLegs() && (ahead >= WALK_MIN_SPEED || turning)) {
@@ -138,6 +148,77 @@ public abstract class SimpleLizard extends LizardRunner implements GeoEntity, Pa
             return state.setAndContinue(WALK);
         }
         return state.setAndContinue(IDLE);
+    }
+
+    // ------------------------------------------------------------------ 行動の段(2026-11-18。ecosystem/life)
+
+    /** 行動の段の動作のアニメ(無ければ null)。見た目だけの虫を食べた直後は、止まっていれば eat。 */
+    @Nullable
+    private RawAnimation ecoAnimation(double ahead) {
+        com.yayuy.overgrownvegetation.ecosystem.life.EcoAct a = ecoAct();
+        if (a == com.yayuy.overgrownvegetation.ecosystem.life.EcoAct.NONE && this.clientAte > 0 && ahead < WALK_MIN_SPEED) {
+            a = com.yayuy.overgrownvegetation.ecosystem.life.EcoAct.EAT;
+        }
+        String clip = com.yayuy.overgrownvegetation.ecosystem.life.EcoLife.clip(this, a);
+        if (clip == null) return null;
+        boolean loop = a.loop;
+        return ECO_ANIMS.computeIfAbsent(clip + (loop ? "" : "!"), k -> loop ? RawAnimation.begin().thenLoop(clip) : RawAnimation.begin().thenPlayAndHold(clip));
+    }
+
+    @Override
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(DATA_ECO_ACT, (byte) 0);
+    }
+
+    @Override
+    protected void registerGoals() {
+        super.registerGoals();
+        com.yayuy.overgrownvegetation.ecosystem.life.EcoGoals.register(this, this.goalSelector);
+    }
+
+    @Override
+    public com.yayuy.overgrownvegetation.ecosystem.life.EcoMind ecoMind() {
+        return this.ecoMind;
+    }
+
+    @Override
+    public com.yayuy.overgrownvegetation.ecosystem.life.EcoAct ecoAct() {
+        return com.yayuy.overgrownvegetation.ecosystem.life.EcoAct.of(this.entityData.get(DATA_ECO_ACT));
+    }
+
+    @Override
+    public void ecoSetAct(com.yayuy.overgrownvegetation.ecosystem.life.EcoAct act) {
+        this.entityData.set(DATA_ECO_ACT, (byte) act.ordinal());
+    }
+
+    /** 登る・滑空するなどの技の最中は、行動の Goal を始めない。 */
+    @Override
+    public boolean ecoBusy() {
+        return isActing();
+    }
+
+    @Override
+    public void ecoClientAte() {
+        this.clientAte = 30;
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (this.clientAte > 0) this.clientAte--;
+    }
+
+    @Override
+    public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.put("OvEco", this.ecoMind.save());
+    }
+
+    @Override
+    public void readAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        if (tag.contains("OvEco")) this.ecoMind.load(tag.getCompound("OvEco"));
     }
 
     @Override

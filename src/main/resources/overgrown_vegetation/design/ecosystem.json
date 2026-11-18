@@ -35,5 +35,18 @@
     "triesPerPlayer": 2,
     "minBlocks": 24,
     "maxBlocks": 64
+  },
+  "_comment_behavior": "G2・G3 の行動の段(2026-11-18。正本は Vault「G2 原生生産種・G3 原生消費種」の 11-18 夜)。種の id ごと。省いた値はコードの既定(ecosystem/life/EcoBehavior)。どれも【仮】。active = day・night・wet(雨か夜)・always。forage = log(倒木の上)・ground・leaf・trunk・none。hungerDays = 満腹から空腹まで。forageBelow・huntBelow = これより満腹度が低いとあさる・狩る。fleeRange = プレイヤー・敵から逃げ出す距離(しゃがむと半分)。prey = 狩る G2。defends = 洞を壊した人を襲う。nestRange = 巣(住む洞)のこの距離に来た人を襲う。rests = 休む Goal を使う。",
+  "behavior": {
+    "protophasma": { "active": "always", "forage": "leaf", "hungerDays": 1.5, "fleeRange": 7.0 },
+    "stenodictya_nymph": { "active": "always", "forage": "leaf", "hungerDays": 1.0, "fleeRange": 5.0 },
+    "giant_snail": { "active": "wet", "forage": "ground", "hungerDays": 2.0, "fleeRange": 0.0 },
+    "arthropleura": { "active": "night", "forage": "log", "hungerDays": 2.0, "fleeRange": 5.0 },
+    "hylonomus": { "active": "day", "forage": "log", "hungerDays": 1.5, "fleeRange": 8.0, "prey": ["overgrown_vegetation:stenodictya_nymph", "overgrown_vegetation:protophasma"] },
+    "petrolacosaurus": { "active": "day", "forage": "log", "hungerDays": 1.5, "fleeRange": 8.0, "prey": ["overgrown_vegetation:stenodictya_nymph", "overgrown_vegetation:protophasma"] },
+    "ianthasaurus": { "active": "day", "forage": "ground", "hungerDays": 1.5, "fleeRange": 6.0, "prey": ["overgrown_vegetation:giant_snail", "overgrown_vegetation:protophasma", "overgrown_vegetation:stenodictya_nymph"] },
+    "coelurosauravus": { "active": "day", "forage": "none", "hungerDays": 1.5, "fleeRange": 8.0, "rests": false },
+    "pulmonoscorpius": { "active": "night", "forage": "ground", "hungerDays": 2.0, "fleeRange": 4.0, "defends": true, "prey": ["overgrown_vegetation:protophasma", "overgrown_vegetation:stenodictya_nymph"] },
+    "phalangiotarbus": { "active": "night", "forage": "ground", "hungerDays": 2.0, "fleeRange": 4.0, "defends": true, "nestRange": 6.0, "prey": ["overgrown_vegetation:protophasma", "overgrown_vegetation:stenodictya_nymph"] }
   }
 }
