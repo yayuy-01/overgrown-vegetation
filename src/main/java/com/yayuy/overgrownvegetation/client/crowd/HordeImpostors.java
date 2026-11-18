@@ -217,7 +217,9 @@ public final class HordeImpostors {
                 sp.spriteType = null;
             }
             sp.renderer = geo;
-            sp.scale = geo instanceof CrowdGeoEntityRenderer<?> c ? c.crowdScale() : 1.0F;
+            // 描き手の大きさ × 種の大きさ(属性 SCALE の基礎値。本物は個体差も掛かる)
+            sp.scale = (geo instanceof CrowdGeoEntityRenderer<?> c ? c.crowdScale() : 1.0F)
+                    * (sp.dummy instanceof net.minecraft.world.entity.LivingEntity le ? le.getScale() : 1.0F);
             return true;
         } catch (RuntimeException e) {
             OvergrownVegetation.LOGGER.warn("遠くの群れ: {} の描き方を用意できなかったので描かない", BuiltInRegistries.ENTITY_TYPE.getKey(sp.type), e);
@@ -336,7 +338,7 @@ public final class HordeImpostors {
                     argb[y * w + x] = (abgr & 0xFF00FF00) | ((abgr >> 16) & 0xFF) | ((abgr & 0xFF) << 16);
                 }
             }
-            sp.sheet = SpriteSheet.build(SpriteQuads.of(sp.baked), new SpriteRasterizer.Texture(w, h, argb), 1.0F);
+            sp.sheet = SpriteSheet.build(restPoseQuads(sp.baked), new SpriteRasterizer.Texture(w, h, argb), 1.0F);
         } catch (Exception e) {
             OvergrownVegetation.LOGGER.warn("遠くの群れ: {} の絵を作れなかったので描かない", sp.texture, e);
             sp.broken = true;
@@ -360,6 +362,43 @@ public final class HordeImpostors {
         return true;
     }
 
+    /**
+     * レストポーズの面。骨は本物の Mob と共有で、直前に描いた個体の姿勢が残っているので、集める間だけ初めの値にして、終わったら戻す
+     * (parked の遠景の身代わりで踏んだ罠。描画のスレッドで続けて呼ぶので、ほかの描画と重ならない)。
+     */
+    private static java.util.List<SpriteRasterizer.Quad> restPoseQuads(BakedGeoModel model) {
+        java.util.List<software.bernie.geckolib.cache.object.GeoBone> bones = new java.util.ArrayList<>();
+        for (var b : model.topLevelBones()) collectBones(b, bones);
+        float[] saved = new float[bones.size() * 9];
+        for (int i = 0; i < bones.size(); i++) {
+            var b = bones.get(i);
+            int k = i * 9;
+            saved[k] = b.getRotX(); saved[k + 1] = b.getRotY(); saved[k + 2] = b.getRotZ();
+            saved[k + 3] = b.getPosX(); saved[k + 4] = b.getPosY(); saved[k + 5] = b.getPosZ();
+            saved[k + 6] = b.getScaleX(); saved[k + 7] = b.getScaleY(); saved[k + 8] = b.getScaleZ();
+            var r = b.getInitialSnapshot();
+            b.updateRotation(r.getRotX(), r.getRotY(), r.getRotZ());
+            b.updatePosition(r.getOffsetX(), r.getOffsetY(), r.getOffsetZ());
+            b.updateScale(r.getScaleX(), r.getScaleY(), r.getScaleZ());
+        }
+        try {
+            return SpriteQuads.of(model);
+        } finally {
+            for (int i = 0; i < bones.size(); i++) {
+                var b = bones.get(i);
+                int k = i * 9;
+                b.updateRotation(saved[k], saved[k + 1], saved[k + 2]);
+                b.updatePosition(saved[k + 3], saved[k + 4], saved[k + 5]);
+                b.updateScale(saved[k + 6], saved[k + 7], saved[k + 8]);
+            }
+        }
+    }
+
+    private static void collectBones(software.bernie.geckolib.cache.object.GeoBone b, java.util.List<software.bernie.geckolib.cache.object.GeoBone> out) {
+        out.add(b);
+        for (var c : b.getChildBones()) collectBones(c, out);
+    }
+
     /** 資源の読み直しのとき: 形・絵を作り直させる。 */
     static void clear() {
         SPECIES.clear();
@@ -367,7 +406,12 @@ public final class HordeImpostors {
 
     /** devbridge の crowd status 用。 */
     public static String status() {
-        return "遠くの群れ " + look + "・直前のフレーム 粗いモデル " + lastModels + " 体・絵 " + lastSprites + " 体・描画 " + lastDraws + " 回";
+        StringBuilder sb = new StringBuilder("遠くの群れ " + look + "・直前のフレーム 粗いモデル " + lastModels + " 体・絵 " + lastSprites + " 体・描画 " + lastDraws + " 回・本物のそばで描かなかった " + VirtualHordeDraw.lastHidden + "・アニメ");
+        for (Species sp : SPECIES.values()) {
+            sb.append(" ").append(BuiltInRegistries.ENTITY_TYPE.getKey(sp.type).getPath()).append("=")
+                    .append(sp.broken ? "描けない" : sp.poses == null ? "?" : sp.poses.describe()).append("×").append(sp.scale);
+        }
+        return sb.toString();
     }
 
     /** {@link SpriteSheet} を GPU へ上げたテクスチャ(ミップマップの段ごとに上げる。parked の HordeSpriteTexture と同じ)。 */

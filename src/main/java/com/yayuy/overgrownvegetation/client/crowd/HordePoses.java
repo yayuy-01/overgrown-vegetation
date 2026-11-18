@@ -58,6 +58,11 @@ public final class HordePoses {
         this.data = new float[2 * PHASES * this.bones.size() * FLOATS_PER_BONE];
     }
 
+    /** 選んだアニメの名前(確かめ用)。 */
+    String describe() {
+        return (this.moving == null ? "-" : this.moving.name()) + "/" + (this.still == null ? "-" : this.still.name());
+    }
+
     int slots() {
         return 2 * PHASES;
     }
