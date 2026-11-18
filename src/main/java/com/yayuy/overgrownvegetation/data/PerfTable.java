@@ -32,6 +32,7 @@ public final class PerfTable {
         public Integer raidSwarmMax;
         public Double raidSpawnMin;
         public Double raidSpawnMax;
+        public Double raidReserveShare;
     }
 
     public static final class FlowFieldJson {
@@ -89,6 +90,8 @@ public final class PerfTable {
     /** 仮想の頭数の上限・大規模レイドから仮想の群れを出す間隔(tick)と割合・群れの頭数・拠点からの距離(11-18 ユーザー決定。数は【仮】)。 */
     public final int virtualCap, virtualRaidIntervalTicks, virtualRaidSwarmMin, virtualRaidSwarmMax;
     public final double virtualRaidShare, virtualRaidSpawnMin, virtualRaidSpawnMax;
+    /** 大規模レイドの maxAlive のうち仮想の群れのために空けておく割合(11-18 ユーザー決定 案 B。半分【仮】)。 */
+    public final double virtualRaidReserveShare;
 
     private PerfTable(Json json) {
         AiTiersJson a = json == null || json.aiTiers == null ? new AiTiersJson() : json.aiTiers;
@@ -132,6 +135,7 @@ public final class PerfTable {
         this.virtualRaidSwarmMax = Math.max(this.virtualRaidSwarmMin, v.raidSwarmMax != null ? v.raidSwarmMax : 64);
         this.virtualRaidSpawnMin = Math.max(64.0D, v.raidSpawnMin != null ? v.raidSpawnMin : 200.0D);
         this.virtualRaidSpawnMax = Math.max(this.virtualRaidSpawnMin, v.raidSpawnMax != null ? v.raidSpawnMax : 320.0D);
+        this.virtualRaidReserveShare = Math.max(0.0D, Math.min(1.0D, v.raidReserveShare != null ? v.raidReserveShare : 0.5D));
     }
 
     public static PerfTable fromJson(Json json) {

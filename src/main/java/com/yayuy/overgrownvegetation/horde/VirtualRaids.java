@@ -41,8 +41,35 @@ public final class VirtualRaids {
      */
     public static int room(ServerLevel level, VirtualHordes.Swarm s) {
         if (!LargeRaids.ATTACKER_TAG.equals(s.extraTag)) return Integer.MAX_VALUE;
-        BaseMemory.Base b = BaseMemory.get(level.getServer()).byId(s.baseId);
-        return b == null ? 0 : Math.max(0, LargeRaids.maxAlive() - LargeRaids.alive(level, b));
+        if (BaseMemory.get(level.getServer()).byId(s.baseId) == null) return 0;
+        return Math.max(0, LargeRaids.maxAlive() - attackers(level)[0]);
+    }
+
+    /**
+     * 大規模レイドの攻め手の数 {全部, うち仮想の群れから本物になった分}。読み込まれた世界全体で数える(拠点のまわりの数え方 {@code LargeRaids.alive} は
+     * 半径の中だけなので、64 ブロック先で本物になった分を数えず、上限 60 に 62 体まで出た。11-18)。毎回数え直す(同じ tick に足した分も数える)。
+     */
+    public static int[] attackers(ServerLevel level) {
+        int all = 0, virt = 0;
+        for (net.minecraft.world.entity.Entity e : level.getAllEntities()) {
+            if (!(e instanceof net.minecraft.world.entity.Mob m) || !m.isAlive() || !m.getTags().contains(LargeRaids.ATTACKER_TAG)) continue;
+            all++;
+            if (m.getTags().contains(VirtualHordes.TAG)) virt++;
+        }
+        return new int[]{all, virt};
+    }
+
+    /**
+     * 大規模レイドが近くに本物を出してよい数(11-18 ユーザー決定 案 B): maxAlive のうち {@code raidReserveShare}(半分【仮】)は仮想の群れのために空けておき、
+     * 近くに出す本物(仮想の群れから来ていない攻め手)は残りの枠の中だけ。全体でも maxAlive は超えない。仮想の群れを切っているときは枠を空けない。
+     */
+    public static int nearRoom(ServerLevel level) {
+        int max = LargeRaids.maxAlive();
+        int[] a = attackers(level);
+        int total = Math.max(0, max - a[0]);
+        if (!VirtualHordes.enabled()) return total;
+        int nearCap = (int) Math.floor(max * (1.0D - DesignData.perf().virtualRaidReserveShare));
+        return Math.max(0, Math.min(total, nearCap - (a[0] - a[1])));
     }
 
     /** 大規模レイドの本番の 1 回ぶん(呼ぶ側で予算・ピースフルの門を通った後)。出した頭数を返す(本物を出した数ではない)。 */

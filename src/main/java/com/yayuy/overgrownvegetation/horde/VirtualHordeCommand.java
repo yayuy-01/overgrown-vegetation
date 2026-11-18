@@ -61,7 +61,7 @@ public final class VirtualHordeCommand {
     }
 
     private static int show(CommandSourceStack src) {
-        String s = VirtualHordes.get(src.getServer()).describe(src.getServer().overworld()) + "・大規模レイドから出した 群れ " + VirtualRaids.sentSwarms + "・" + VirtualRaids.sentHeads + " 体";
+        String s = VirtualHordes.get(src.getServer()).describe(src.getServer().overworld()) + "・大規模レイドから出した 群れ " + VirtualRaids.sentSwarms + "・" + VirtualRaids.sentHeads + " 体・攻め手 " + VirtualRaids.attackers(src.getServer().overworld())[0] + "(うち仮想から " + VirtualRaids.attackers(src.getServer().overworld())[1] + ")/ 上限 " + com.yayuy.overgrownvegetation.director.LargeRaids.maxAlive();
         src.sendSuccess(() -> Component.literal(s), false);
         return 1;
     }

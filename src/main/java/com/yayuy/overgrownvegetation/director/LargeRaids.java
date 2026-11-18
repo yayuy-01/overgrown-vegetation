@@ -184,7 +184,8 @@ public final class LargeRaids {
         }
         // 遠く(読み込み範囲の外)に仮想の群れを出して歩かせる(11-18 horde-flow-a・ユーザー決定。値段はここで払う。返り値の n には足さない = n は本物を出した数)
         com.yayuy.overgrownvegetation.horde.VirtualRaids.maybeSend(level, b, random);
-        int room = maxAlive() - alive(level, b);
+        // 近くに出す本物の枠: maxAlive の半分【仮】は仮想の群れのために空けておく(11-18 ユーザー決定 案 B)。数は世界全体の攻め手で数える(上限を超えないように)
+        int room = com.yayuy.overgrownvegetation.horde.VirtualRaids.nearRoom(level);
         int n = 0;
         double devPrice = ForestDirector.stagePrice(DesignData.director().costEvolve, DirectorGates.strength(level, DirectorGates.Gate.EVOLVE));
         double flank = DesignData.director().base.flankShare * DirectorGates.strength(level, DirectorGates.Gate.LARGE_RAID);
