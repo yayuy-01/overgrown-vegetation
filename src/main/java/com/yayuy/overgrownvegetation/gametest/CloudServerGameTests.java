@@ -234,6 +234,7 @@ public final class CloudServerGameTests {
             int arches = 0;
             int floats = 0;
             int floatBelow = 0;
+            int floatAlone = 0;
             for (CloudField.Storm s : a1) {
                 double wx = (s.x() + s.x2()) * 0.5 + CloudField.offsetX(gt);
                 double wz = (s.z() + s.z2()) * 0.5 + CloudField.offsetZ(gt);
@@ -264,8 +265,20 @@ public final class CloudServerGameTests {
                         return;
                     }
                     // 下は空(群れのほかの塊が下にかかることがあるので、半分より多く外れたら落とす)。
-                    if (CloudSky.insideStorm(level, fx, s.top() - s.radius() * 1.3, fz, 0.0F)) {
-                        floatBelow++;
+                    // 11-18: 浮いた雲は 1 つの段(y 560〜640)になり、積乱雲の塔(天辺 y 700〜)と同じ高さに来る。塔に重なる所の浮いた雲は、下が
+                    // 塔の中で当たり前なので数えない(雨の日だけ落ちる揺れになっていた。flaky-tests の調べ)。塔から離れた浮いた雲だけで見る。
+                    boolean alone = true;
+                    for (CloudField.Storm o : a1) {
+                        if ((o.kind() == 0 || o.congestus()) && Math.hypot(o.x() - s.x(), o.z() - s.z()) < o.reach() + s.radius() * 1.4) {
+                            alone = false;
+                            break;
+                        }
+                    }
+                    if (alone) {
+                        floatAlone++;
+                        if (CloudSky.insideStorm(level, fx, s.top() - s.radius() * 1.3, fz, 0.0F)) {
+                            floatBelow++;
+                        }
                     }
                     // 浮いた雲の下は「積乱雲の下」でない(11-09 段階 2a-3 ユーザー決定)。積乱雲の上に浮いている所もあるので、下の y 250 で見る。
                     if (CloudSky.underStorm(level, fx, 250.0, fz, 0.0F) && CloudSky.stormAt(level, fx, fz, 0.0F, true) == null) {
@@ -275,8 +288,8 @@ public final class CloudServerGameTests {
                     floats++;
                 }
             }
-            if (floatBelow * 2 > floats) {
-                helper.fail("浮いた雲の下が雲の中: " + floatBelow + " / " + floats);
+            if (floatBelow * 2 > floatAlone) {
+                helper.fail("塔から離れた浮いた雲の下が雲の中: " + floatBelow + " / " + floatAlone + "(浮いた雲 " + floats + ")");
                 return;
             }
             // 11-18(現実寄りの並びが既定): 尾根は足元の低い棚でアーチ(トンネル)は作らない。前の並び(storms.realistic 0)ではアーチも要る。
