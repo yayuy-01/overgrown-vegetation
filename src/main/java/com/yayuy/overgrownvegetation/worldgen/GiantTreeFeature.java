@@ -145,8 +145,22 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
     private static final int SPLAY_STEPS_MAX = 90;
     private static final int STRUCT_FREE_MAX = 40;
     private static final int SPLAY_LAND_MIN = 24;
-    private static final float SPLAY_FORK_CHANCE = 0.12F;
+    private static final float SPLAY_FORK_CHANCE = 0.05F;
     private static final int SPLAY_FORK_GAP = 9;
+    /**
+     * 壁に張り付く根の網(2026-11-19 試作。ユーザー「その根の網を一度作ってみてほしい」): 構造物の縁に来た根のうち、太い根の {@code WALL_ARC_CHANCE}
+     * (細い根・枝は {@code WALL_ARC_CHANCE_THIN})だけが弧で外へ下り、残りは壁の面に張り付いて下りる。絞め殺しの木の形: 横へ流れながら下り、
+     * 途中で分かれ(反対向きへ流れる子)、ときどき流れの向きを変えて隣の根と重なり(網目)、上は太く下ほど細い。角は回り込む。窓・開口は真っすぐまたぐ。
+     * 地面に着いた太い根はそこから少し這う。値は仮。-Dov.rootWall=0 で網なし(全部弧)。
+     */
+    private static final boolean WALL_NET = !"0".equals(System.getProperty("ov.rootWall"));
+    private static final float WALL_ARC_CHANCE = Float.parseFloat(System.getProperty("ov.rootArc", "0.3"));
+    private static final float WALL_ARC_CHANCE_THIN = 0.0F;
+    private static final float WALL_FORK_CHANCE = 0.05F;
+    private static final int WALL_FORK_GAP = 10;
+    private static final int WALL_MAX_LEVELS = 200;
+    /** 構造物の上の木に足す細い根(壁の網の糸になる)。 */
+    private static final int WALL_THIN_EXTRA = 2;
     /** 構造物の上の木の根の本数の足し(設計値の本数 + これ + 0〜2)。仮の値。 */
     private static final int STRUCT_ROOT_EXTRA = 2;
     /** 高い構造物を回り込むとき 1 回に曲げる角度(rad)と回数の上限。 */
@@ -1022,7 +1036,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             }
         }
         // 板の無い細い根(板根の間から直接)。
-        int thin = 1 + random.nextInt(3);
+        int thin = 1 + random.nextInt(3) + (onBuild && WALL_NET ? WALL_THIN_EXTRA : 0);
         for (int i = 0; i < thin; i++) {
             double angle = random.nextDouble() * TAU;
             double lenMul = Mth.clamp(1.0D + 0.05D * slopeToward(slope, angle), 0.55D, 1.6D);
@@ -1460,6 +1474,33 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                     }
                 }
                 if (SPLAY && standOnStructure) {
+                    // 壁の網(11-19 試作): 太い根の一部だけが弧で外へ。残りは壁に張り付いて下りる。
+                    if (WALL_NET && r.nextFloat() >= (depth == 0 && rad >= 1.6D ? WALL_ARC_CHANCE : WALL_ARC_CHANCE_THIN)) {
+                        int bx = havePrev ? pix : Mth.floor(curX);
+                        int bz = havePrev ? piz : Mth.floor(curZ);
+                        int ddx = Integer.signum(ix - bx);
+                        int ddz = Integer.signum(iz - bz);
+                        if (ddx != 0 && ddz != 0) {
+                            // 斜めの 1 歩: 空いている方の軸を壁の向きにする。
+                            if (!isRootSolid(plan.level.getBlockState(cursor.set(ix, gy, bz)), c.trunkBlock())) {
+                                ddz = 0;
+                            } else {
+                                ddx = 0;
+                            }
+                        }
+                        if (ddx != 0 || ddz != 0) {
+                            int wx = bx + ddx;
+                            int wz = bz + ddz;
+                            if (!isRootSolid(plan.level.getBlockState(cursor.set(wx, gy + 1, wz)), c.trunkBlock())) {
+                                plan.root(wx, gy + 1, wz);
+                            }
+                            int sgn = r.nextBoolean() ? 1 : -1;
+                            wallRoot(c, wx, wz, gy, ddx, ddz, -ddz * sgn, ddx * sgn, Math.max(0.6D, rad), depth, WALL_MAX_LEVELS);
+                            plan.sample("壁の網", wx, gy, wz);
+                            ended = true;
+                            break;
+                        }
+                    }
                     // 構造物の縁(11-18): 真下へ落とさず、外へ斜めに下り始める(上の「斜めに下りている途中」が続きを受け持つ)。
                     air = true;
                     airY = gy + 1.0D;
@@ -1881,6 +1922,130 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                 double qz = tz + Math.sin(bendDir) * b + perpZ * s;
                 double rk = rad * Math.pow(1.0D - u, 0.8D);
                 stampDisc(plan, qx, ty - k, qz, rk);
+            }
+        }
+    }
+
+    /**
+     * 壁に張り付いて下りる根 1 本(壁の網。11-19 試作)。{@code (x, z)} は壁のすぐ外の列、{@code (nX, nZ)} は壁から外への向き(軸に沿う)、
+     * {@code (mX, mZ)} は横へ流れる向き。{@code budget} 段で先が終わる(壁に付いている所でだけ終わる。壁が無い所では地面まで下りる)。
+     */
+    private static void wallRoot(RootCtx c, int x, int z, int topY, int nX, int nZ, int mX, int mZ, double rad, int depth, int budget) {
+        Plan plan = c.plan();
+        RandomSource r = c.random();
+        Block tb = c.trunkBlock();
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        double slope = 0.4D + r.nextDouble() * 0.8D;
+        double acc = r.nextDouble();
+        int flipIn = 6 + r.nextInt(16);
+        int maxForks = depth == 0 ? 2 : depth == 1 ? 1 : 0;
+        int forks = 0;
+        int lastFork = 0;
+        int ledges = 0;
+        int minY = plan.level.getMinBuildHeight() + 2;
+        int y = topY;
+        for (int k = 0; k < WALL_MAX_LEVELS; k++, y--) {
+            if (y <= minY || !chunkLoaded(plan.level, p.set(x, y, z))) {
+                return;
+            }
+            double w = rad * (1.0D - 0.75D * Math.min(1.0D, k / (double) Math.max(30, budget)));
+            if (isRootSolid(plan.level.getBlockState(p.set(x, y, z)), tb)) {
+                if (isGroundForRoots(plan.level, x, y, z)) {
+                    // 地面に着いた: 太い根はそこから少し這う。
+                    if (w >= 1.0D) {
+                        growSurfaceRoot(c, x + 0.5D, z + 0.5D, y, Math.atan2(nZ, nX) + (r.nextDouble() - 0.5D) * 0.9D,
+                                14 + (int) Math.round(w * 10.0D) + r.nextInt(12), Math.max(0.8D, w * 0.9D), depth + 2);
+                    }
+                    return;
+                }
+                // 構造物の出っ張り: 外へ 1 つよけて続ける。
+                if (++ledges > 8 || isRootSolid(plan.level.getBlockState(p.set(x + nX, y, z + nZ)), tb)) {
+                    return;
+                }
+                x += nX;
+                z += nZ;
+                if (!isRootSolid(plan.level.getBlockState(p.set(x, y + 1, z)), tb)) {
+                    plan.root(x, y + 1, z);
+                }
+                k--;
+                y++;
+                continue;
+            }
+            boolean wall = isRootSolid(plan.level.getBlockState(p.set(x - nX, y, z - nZ)), tb);
+            wallSection(plan, x, y, z, nX, nZ, w, wall, tb);
+            if (!wall) {
+                continue; // 窓・開口・壁の下: 真っすぐ下りる
+            }
+            if (k >= budget) {
+                return;
+            }
+            // 横へ流れる(ときどき向きを変える → 隣の根と重なって網目になる)。
+            if (--flipIn <= 0) {
+                mX = -mX;
+                mZ = -mZ;
+                flipIn = 8 + r.nextInt(18);
+                slope = 0.4D + r.nextDouble() * 0.8D;
+            }
+            acc += slope;
+            if (acc >= 1.0D) {
+                acc -= 1.0D;
+                int tx = x + mX;
+                int tz = z + mZ;
+                boolean free = !isRootSolid(plan.level.getBlockState(p.set(tx, y, tz)), tb);
+                boolean behind = isRootSolid(plan.level.getBlockState(p.set(tx - nX, y, tz - nZ)), tb);
+                if (free && behind) {
+                    x = tx;
+                    z = tz;
+                    wallSection(plan, x, y, z, nX, nZ, w, true, tb);
+                } else if (free && r.nextBoolean()
+                        && !isRootSolid(plan.level.getBlockState(p.set(tx - nX, y - 1, tz - nZ)), tb)) {
+                    // 角: 回り込んで隣の面へ。
+                    plan.root(tx, y, tz);
+                    x = tx - nX;
+                    z = tz - nZ;
+                    int oX = nX;
+                    int oZ = nZ;
+                    nX = mX;
+                    nZ = mZ;
+                    mX = -oX;
+                    mZ = -oZ;
+                    wallSection(plan, x, y, z, nX, nZ, w, true, tb);
+                } else {
+                    mX = -mX;
+                    mZ = -mZ;
+                }
+            }
+            // 分かれる: 子は反対向きへ流れる。
+            if (forks < maxForks && k >= 4 && k - lastFork >= WALL_FORK_GAP && r.nextFloat() < WALL_FORK_CHANCE) {
+                forks++;
+                lastFork = k;
+                wallRoot(c, x, z, y, nX, nZ, -mX, -mZ, Math.max(0.6D, w * 0.7D), depth + 1, 14 + r.nextInt(45));
+            }
+        }
+    }
+
+    /** 壁の根の 1 段ぶんの断面: 太さで幅 1・3・5(壁の面に沿って)、太い所は外へもう 1 枚。空気・置き換え可能なマスだけ。 */
+    private static void wallSection(Plan plan, int x, int y, int z, int nX, int nZ, double w, boolean wall, Block tb) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        int half = w >= 2.0D ? 1 : 0;
+        int tX = -nZ;
+        int tZ = nX;
+        for (int i = -half; i <= half; i++) {
+            int cx = x + tX * i;
+            int cz = z + tZ * i;
+            BlockState s = plan.level.getBlockState(p.set(cx, y, cz));
+            if (!(s.isAir() || s.canBeReplaced())) {
+                continue;
+            }
+            if (i != 0 && wall && !isRootSolid(plan.level.getBlockState(p.set(cx - nX, y, cz - nZ)), tb)) {
+                continue; // 窓の前には広げない
+            }
+            plan.root(cx, y, cz);
+            if (w >= 2.8D && i == 0) {
+                BlockState o = plan.level.getBlockState(p.set(cx + nX, y, cz + nZ));
+                if (o.isAir() || o.canBeReplaced()) {
+                    plan.root(cx + nX, y, cz + nZ);
+                }
             }
         }
     }
