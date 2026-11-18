@@ -128,8 +128,11 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
     /** 構造物の壁を面に沿って登る高さの上限(これより高ければ回り込む)。 */
     private static final int ROOT_CLIMB_MAX = 6;
     /** 縁から真下へ地面を探す深さ / 地面が無いとき垂らす長さ。 */
-    private static final int ROOT_DROP_MAX = 160;
+    private static final int ROOT_DROP_MAX = Integer.getInteger("ov.rootDropMax", 160); // 確かめ用に -Dov.rootDropMax で縮められる(高い台を作らずに「下に地面が無い」を試す)
     private static final int ROOT_HANG_MAX = 12;
+    /** 下に地面が無い縁で垂らす長さ: 残りの長さ 1 歩につき足す段数と、上限(11-18 夜。仮決め)。 */
+    private static final double ROOT_HANG_PER_LEFT = 1.6D;
+    private static final int ROOT_HANG_LONG_MAX = 90;
     /** 高い構造物を回り込むとき 1 回に曲げる角度(rad)と回数の上限。 */
     private static final double ROOT_TURN_STEP = 0.6D;
     private static final int ROOT_TURN_MAX = 6;
@@ -141,7 +144,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
     private static final double DOWNHILL_MAX = 0.2D;
     /** 埋もれ: 露出 = START − BURY × (根元からの割合) + WAVE × sin(出ては潜る波)。波の速さは 1 歩あたり FREQ。 */
     private static final double EXP_START = 1.0D;
-    private static final double EXP_BURY = 0.9D;
+    private static final double EXP_BURY = Double.parseDouble(System.getProperty("ov.rootBury", "0.4")); // 11-18 夜: 0.9 → 0.4(ユーザー「根が途中で地中に潜るようになってしまったから、根が短く見える」。先端でも背中が半分ほど出る)
     private static final double EXP_WAVE = 0.45D;
     private static final double EXP_FREQ_MIN = 0.05D;
     private static final double EXP_FREQ_MAX = 0.11D;
@@ -1332,7 +1335,10 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                 // 縁・空中: 真下の地面まで垂直に下りる(斜めに沈まない)。
                 if (far == Integer.MIN_VALUE) {
                     // 空中: ゆるく曲がりながら先へ細って垂れる(2026-11-07 相談 5)。
-                    hangRoot(plan, r, ix + 0.5D, gy + 1, iz + 0.5D, ROOT_HANG_MAX, rr + HANG_RAD_EXTRA, h);
+                    // 11-18 夜(ユーザー: 構造物の上だと根が極端に短い): 下に地面が無い縁では、12 段で終わらせず、その根の残りの長さぶん垂らす
+                    // (高い建物の側面を長く垂れ下がる気根。残り × 1.6 + 12、90 段まで)。
+                    int hangLen = Math.min(ROOT_HANG_LONG_MAX, ROOT_HANG_MAX + (int) Math.round((length - step) * ROOT_HANG_PER_LEFT));
+                    hangRoot(plan, r, ix + 0.5D, gy + 1, iz + 0.5D, hangLen, rr + HANG_RAD_EXTRA, h);
                     plan.caveHangs++;
                     plan.sample("垂れ", ix, gy, iz);
                     ended = true;
