@@ -145,7 +145,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
     private static final int SPLAY_STEPS_MAX = 90;
     private static final int STRUCT_FREE_MAX = 40;
     private static final int SPLAY_LAND_MIN = 24;
-    private static final float SPLAY_FORK_CHANCE = 0.10F;
+    private static final float SPLAY_FORK_CHANCE = 0.14F;
     private static final int SPLAY_FORK_GAP = 9;
     /**
      * 壁に張り付く根の網(2026-11-19 試作。ユーザー「その根の網を一度作ってみてほしい」): 構造物の縁に来た根のうち、太い根の {@code WALL_ARC_CHANCE}
@@ -154,13 +154,13 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
      * 地面に着いた太い根はそこから少し這う。値は仮。-Dov.rootWall=0 で網なし(全部弧)。
      */
     private static final boolean WALL_NET = !"0".equals(System.getProperty("ov.rootWall"));
-    private static final float WALL_ARC_CHANCE = Float.parseFloat(System.getProperty("ov.rootArc", "0.6"));
+    private static final float WALL_ARC_CHANCE = Float.parseFloat(System.getProperty("ov.rootArc", "0.5"));
     private static final float WALL_ARC_CHANCE_THIN = 0.0F;
     private static final float WALL_FORK_CHANCE = 0.04F;
     private static final int WALL_FORK_GAP = 14;
     private static final int WALL_MAX_LEVELS = 200;
     /** 構造物の上の木に足す細い根(壁の網の糸になる)。 */
-    private static final int WALL_THIN_EXTRA = 2;
+    private static final int WALL_THIN_EXTRA = 4;
     /** 構造物の上の木の根の本数の足し(設計値の本数 + これ + 0〜2)。仮の値。 */
     private static final int STRUCT_ROOT_EXTRA = 4;
     /** 高い構造物を回り込むとき 1 回に曲げる角度(rad)と回数の上限。 */
@@ -461,7 +461,15 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             // うねる通路で球面の出口へつながる)を計画する。
             // 巣の球は「自然の地面」の高さに置く(2026-11-07)。空中の足場・建物の屋根の上に生えた木では、
             // その下の地面まで下ろす(足場の高さに置くと下半分が宙に浮く)。
-            buildHiveChamber(plan, random, level, origin, terrainGroundBelow(level, origin, originGroundY), baseRadius);
+            // 2026-11-19(ユーザー「古いほうの巨大樹では生えた場所に hivenode の場所が生まれるようになってなかった?」): 高い構造物の上の木では、真下の地面
+            // (木から遠い建物の足もと・海の底。しかも構造物は掘らないので部屋が開かない)ではなく、木の根元に置く。部屋と通路が屋上より上に来るよう少し
+            // 持ち上げる(屋上より下の球は構造物なので置かれない)。薄い足場のすぐ下に地面がある木(球の半径以内)は 11-07 のまま地面に置く。
+            int hiveGround = terrainGroundBelow(level, origin, originGroundY);
+            var hiveCfg = com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON;
+            if (originGroundY - hiveGround > Math.max(hiveCfg.giantTreeHiveChamberRadius.get(), Mth.ceil(baseRadius) + hiveCfg.giantTreeHiveChamberTrunkMargin.get())) {
+                hiveGround = originGroundY + Math.max(hiveCfg.hiveNodeCavityRadius.get(), hiveCfg.hiveRitualChamberHeight.get()) + 2;
+            }
+            buildHiveChamber(plan, random, level, origin, hiveGround, baseRadius);
         } catch (RuntimeException e) {
             OvergrownVegetation.LOGGER.error("GiantTree plan failed partway at {} ({} blocks so far)",
                     origin, plan.trunk.size() + plan.cambium.size() + plan.leaves.size(), e);
@@ -949,14 +957,24 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                 }
                 int x = origin.getX() + dx;
                 int z = origin.getZ() + dz;
+                // 11-19(ユーザー「長方形の板みたいな部分」): 上限まで下りても固い面が無い列(構造物・崖からはみ出した裾)は、
+                // 上限の深さで平らに切れた板になっていた。そういう列は浅く埋めるだけにして、外ほど浅い丸い下面にする。
+                int depth = FOOTING_MAX_DEPTH;
+                boolean landed = false;
                 for (int d = 1; d <= FOOTING_MAX_DEPTH; d++) {
-                    int y = origin.getY() - d;
-                    cursor.set(x, y, z);
-                    BlockState below = plan.level.getBlockState(cursor);
+                    BlockState below = plan.level.getBlockState(cursor.set(x, origin.getY() - d, z));
                     if (!below.isAir() && !below.canBeReplaced()) {
+                        depth = d - 1;
+                        landed = true;
                         break;
                     }
-                    plan.trunk(x, y, z);
+                }
+                if (!landed) {
+                    double out = baseRadius + 0.5D - Math.sqrt(dx * dx + dz * dz);
+                    depth = Math.min(FOOTING_MAX_DEPTH, 1 + (int) Math.floor(out * 1.2D) + ((x * 31 + z * 17) & 1));
+                }
+                for (int d = 1; d <= depth; d++) {
+                    plan.trunk(x, origin.getY() - d, z);
                 }
             }
         }
@@ -1295,6 +1313,8 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                     airPh = r.nextDouble() * TAU;
                 }
                 double au = (airSteps + 1) / airReach;
+                // 11-19(ユーザー「だんだん細く、枝分かれしていくように。太いままのものがある」): 空中でも下りるにつれて細る(足もとで半分)。
+                rad = Math.max(0.8D, rad * (1.0D - 0.5D * Math.min(1.0D, au)));
                 double fallNow;
                 if (au <= 1.0D) {
                     double target = airTop - airH * (au * au * (3.0D - 2.0D * au));
@@ -1331,13 +1351,14 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                         plan.sample("斜めに下りる根", ix, Mth.floor(airY), iz);
                     }
                     // 空中でも枝分かれする(昔の根と同じ。外へ扇に広がって下りる)。
-                    if (forks < maxForks && airSteps >= 4 && step - lastFork >= SPLAY_FORK_GAP && r.nextFloat() < SPLAY_FORK_CHANCE) {
+                    if (forks < Math.max(maxForks, 3 - depth) && airSteps >= 4 && step - lastFork >= SPLAY_FORK_GAP && r.nextFloat() < SPLAY_FORK_CHANCE) {
                         forks++;
                         lastFork = step;
                         double sign = r.nextBoolean() ? 1.0D : -1.0D;
                         double turn = sign * (0.4D + r.nextDouble() * 0.6D);
                         int childLen = Math.max(SPLAY_LAND_MIN, (int) Math.round((length - step) * (0.5D + r.nextDouble() * 0.45D)));
-                        growSurfaceRoot(c, nx, nz, Mth.floor(airY) - 1, h + turn, childLen, Math.max(0.8D, rad * 0.7D), depth + 1, airY);
+                        growSurfaceRoot(c, nx, nz, Mth.floor(airY) - 1, h + turn, childLen, Math.max(0.7D, rad * 0.65D), depth + 1, airY);
+                        rad0 *= 0.85D; // 分かれるたびに親も細る
                         h -= sign * 0.2D;
                     }
                     pix = ix;
@@ -1349,6 +1370,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                 // 着地: そこからまた這う(少なくとも SPLAY_LAND_MIN 歩)。
                 airSegment(plan, curX, airY, curZ, nx, land + 1.0D, nz, rad);
                 air = false;
+                rad0 = rad / Math.max(0.2D, Math.pow(1.0D - t, 0.7D)); // 着地後は、空中で細った太さからそのまま細り続ける
                 justLanded = true;
                 landG = land;
                 pgy = land;
@@ -1935,20 +1957,24 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         RandomSource r = c.random();
         Block tb = c.trunkBlock();
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
-        double slope = 0.12D + r.nextDouble() * 0.3D;
+        // 11-19 2 回目(ユーザー「細い根の網が悪いわけじゃない、網の形が悪かった(直角のジグザグ)」「長方形の板みたいな部分」「だんだん細く、枝分かれして」):
+        // 1 本の根は同じ傾きで長く斜めに下りる(横へ 1 マス動くのに 2〜5 段。向きはめったに変えない)。分かれた子は反対へ傾き、
+        // 隣の根と交わって縦長のひし形の網目になる。太い根は分かれるたびに細り、下へ行くほど細って最後は 1 マスの糸になる。幅は 3 まで。
+        double slope = 0.2D + r.nextDouble() * 0.25D;
         double acc = r.nextDouble();
-        int flipIn = 20 + r.nextInt(30);
-        int maxForks = depth == 0 ? 2 : depth == 1 ? 1 : 0;
+        int flipIn = 30 + r.nextInt(40);
+        int maxForks = Math.max(0, 4 - depth);
         int forks = 0;
         int lastFork = 0;
         int ledges = 0;
+        int side = r.nextBoolean() ? 1 : -1;
         int minY = plan.level.getMinBuildHeight() + 2;
         int y = topY;
         for (int k = 0; k < WALL_MAX_LEVELS; k++, y--) {
             if (y <= minY || !chunkLoaded(plan.level, p.set(x, y, z))) {
                 return;
             }
-            double w = rad * (1.0D - 0.75D * Math.min(1.0D, k / (double) Math.max(30, budget)));
+            double w = Math.max(0.6D, rad * (1.0D - 0.8D * Math.min(1.0D, k / (double) Math.min(90, Math.max(20, budget)))));
             if (isRootSolid(plan.level.getBlockState(p.set(x, y, z)), tb)) {
                 if (isGroundForRoots(plan.level, x, y, z)) {
                     // 地面に着いた: 太い根はそこから少し這う。
@@ -1972,19 +1998,17 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                 continue;
             }
             boolean wall = isRootSolid(plan.level.getBlockState(p.set(x - nX, y, z - nZ)), tb);
-            wallSection(plan, x, y, z, nX, nZ, w, wall, tb);
+            wallSection(plan, x, y, z, nX, nZ, w, side, wall, tb);
             if (!wall) {
                 continue; // 窓・開口・壁の下: 真っすぐ下りる
             }
             if (k >= budget) {
                 return;
             }
-            // 横へ流れる(ときどき向きを変える → 隣の根と重なって網目になる)。
             if (--flipIn <= 0) {
                 mX = -mX;
                 mZ = -mZ;
-                flipIn = 20 + r.nextInt(30);
-                slope = 0.12D + r.nextDouble() * 0.3D;
+                flipIn = 30 + r.nextInt(40);
             }
             acc += slope;
             if (acc >= 1.0D) {
@@ -1996,7 +2020,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                 if (free && behind) {
                     x = tx;
                     z = tz;
-                    wallSection(plan, x, y, z, nX, nZ, w, true, tb);
+                    wallSection(plan, x, y, z, nX, nZ, w, side, true, tb);
                 } else if (free && r.nextBoolean()
                         && !isRootSolid(plan.level.getBlockState(p.set(tx - nX, y - 1, tz - nZ)), tb)) {
                     // 角: 回り込んで隣の面へ。
@@ -2009,28 +2033,31 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                     nZ = mZ;
                     mX = -oX;
                     mZ = -oZ;
-                    wallSection(plan, x, y, z, nX, nZ, w, true, tb);
+                    wallSection(plan, x, y, z, nX, nZ, w, side, true, tb);
                 } else {
                     mX = -mX;
                     mZ = -mZ;
                 }
             }
-            // 分かれる: 子は反対向きへ流れる。
-            if (forks < maxForks && k >= 4 && k - lastFork >= WALL_FORK_GAP && r.nextFloat() < WALL_FORK_CHANCE) {
+            // 分かれる: 子は反対向きへ傾く。太い根ほどよく分かれ、分かれるたびに親も細る。
+            boolean thick = w >= 1.4D;
+            if (forks < maxForks && k >= 3 && k - lastFork >= (thick ? 8 : WALL_FORK_GAP) && r.nextFloat() < (thick ? 0.09F : WALL_FORK_CHANCE)) {
                 forks++;
                 lastFork = k;
-                wallRoot(c, x, z, y, nX, nZ, -mX, -mZ, Math.max(0.6D, w * 0.6D), depth + 1, 14 + r.nextInt(45));
+                wallRoot(c, x, z, y, nX, nZ, -mX, -mZ, Math.max(0.6D, w * 0.65D), depth + 1, 20 + r.nextInt(50));
+                rad *= 0.82D;
             }
         }
     }
 
-    /** 壁の根の 1 段ぶんの断面: 太さで幅 1・3・5(壁の面に沿って)、太い所は外へもう 1 枚。空気・置き換え可能なマスだけ。 */
-    private static void wallSection(Plan plan, int x, int y, int z, int nX, int nZ, double w, boolean wall, Block tb) {
+    /** 壁の根の 1 段ぶんの断面: 太さで幅 1〜3(幅 2 は片側へ)。いちばん太い所だけ真ん中を外へ 1 枚。空気・置き換え可能なマスだけ。 */
+    private static void wallSection(Plan plan, int x, int y, int z, int nX, int nZ, double w, int side, boolean wall, Block tb) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
-        int half = w >= 2.6D ? 2 : w >= 1.4D ? 1 : 0; // 11-19: 太い根は幅 3〜5・真ん中を外へ 1 枚厚く(丸い断面)。細い 1 マスの根が直角にジグザグして見えたため
-        int tX = -nZ;
-        int tZ = nX;
-        for (int i = -half; i <= half; i++) {
+        int lo = w >= 2.3D ? -1 : 0;
+        int hi = w >= 1.4D ? 1 : 0;
+        int tX = -nZ * side;
+        int tZ = nX * side;
+        for (int i = lo; i <= hi; i++) {
             int cx = x + tX * i;
             int cz = z + tZ * i;
             BlockState s = plan.level.getBlockState(p.set(cx, y, cz));
@@ -2041,7 +2068,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                 continue; // 窓の前には広げない
             }
             plan.root(cx, y, cz);
-            if (Math.abs(i) < half) {
+            if (w >= 2.8D && i == 0) {
                 BlockState o = plan.level.getBlockState(p.set(cx + nX, y, cz + nZ));
                 if (o.isAir() || o.canBeReplaced()) {
                     plan.root(cx + nX, y, cz + nZ);
