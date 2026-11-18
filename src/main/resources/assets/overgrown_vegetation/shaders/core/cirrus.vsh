@@ -10,12 +10,17 @@ uniform mat4 ModelViewMat;
 uniform mat4 ProjMat;
 uniform vec3 Offset;
 uniform vec4 Split;
+// Curve = (strength, start distance, 1 / (2 R), -): 11-18 trial, the sheet sinks with the distance so its far edge comes down near the horizon.
+uniform vec4 Curve;
 
 out vec3 ovPos;
 
 void main() {
     ovPos = Position + Offset;
-    vec4 view = ModelViewMat * vec4(ovPos, 1.0);
+    vec3 bent = ovPos;
+    float past = max(length(ovPos.xz) - Curve.y, 0.0);
+    bent.y -= Curve.x * past * past * Curve.z;
+    vec4 view = ModelViewMat * vec4(bent, 1.0);
     gl_Position = ProjMat * view;
     if (Split.y > 0.5) {
         float n = Split.z;

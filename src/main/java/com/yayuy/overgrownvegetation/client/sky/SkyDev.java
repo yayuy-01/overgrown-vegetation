@@ -13,6 +13,8 @@ public final class SkyDev {
     public static volatile float midCirrus;
     /** 巻雲の量の固定(負 = 日ごと)。撮るとき用。 */
     public static volatile float cirrusAmount = -1.0F;
+    /** 巻雲の板を遠くで下げる丸みの半径(0 = 下げない = 今のまま)。21000 ほどで板の端が地平線の近くまで下がる(試し)。 */
+    public static volatile float cirrusCurve;
     /** 地上からも遠くの雲の輪を出す(0 = 今のまま y 410 以上だけ・1 = 7680 まで・2 = 外の輪 18432 まで)。 */
     public static volatile float farLow = 2.0F;
     /** 低めの段の筋雲の模様のずらし(場の座標)。 */
@@ -190,12 +192,14 @@ public final class SkyDev {
             case "far" -> farLow = value;
             case "scatter" -> scatter = value;
             case "split" -> split = value;
+            case "real" -> com.yayuy.overgrownvegetation.sky.CloudField.setRealSky(value > 0.5F);
+            case "cirruscurve" -> cirrusCurve = value;
             case "shift" -> midShift = value;
             default -> {
                 return "WX sky: curve <半径>・haze <0〜1>・mid <高さ>・cirrus <量>";
             }
         }
-        return "WX sky curve " + curveRadius + " haze " + horizonHaze + " mid " + midCirrus + " cirrus " + cirrusAmount + " far " + farLow + " shift " + midShift + " scatter " + scatter + " split " + split;
+        return "WX sky curve " + curveRadius + " haze " + horizonHaze + " mid " + midCirrus + " cirrus " + cirrusAmount + " far " + farLow + " shift " + midShift + " scatter " + scatter + " split " + split + " real " + com.yayuy.overgrownvegetation.sky.CloudField.realSky() + " cirruscurve " + cirrusCurve;
     }
 
     private SkyDev() {

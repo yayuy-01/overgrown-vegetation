@@ -169,6 +169,7 @@ public final class Cirrus {
 
             shader.safeGetUniform("Offset").set(0.0F, (float) (height - camY), 0.0F);
             shader.safeGetUniform("Split").set(split, far ? 1.0F : -1.0F, VoxelClouds.FAR_NEAR, VoxelClouds.FAR_FAR);
+            shader.safeGetUniform("Curve").set(SkyDev.cirrusCurve > 0.0F ? 1.0F : 0.0F, 1200.0F, SkyDev.cirrusCurve > 0.0F ? 0.5F / SkyDev.cirrusCurve : 0.0F, 0.0F);
             shader.safeGetUniform("Field").set((float) (fx - Math.floor(fx / PERIOD) * PERIOD), (float) (fz - Math.floor(fz / PERIOD) * PERIOD),
                     (float) (cwx / wl), (float) (cwz / wl));
             shader.safeGetUniform("CloudColor").set((float) cloud.x, (float) cloud.y, (float) cloud.z, 1.0F);
