@@ -3,8 +3,8 @@ package com.yayuy.overgrownvegetation.gametest;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.block.OvergrownContainers;
 import com.yayuy.overgrownvegetation.corruption.CorruptionRegistry;
+import com.yayuy.overgrownvegetation.corruption.CorruptionSpreader;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
-import com.yayuy.overgrownvegetation.registry.ModEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
@@ -168,38 +168,18 @@ public final class OvergrownContainerGameTests {
     }
 
     /**
-     * 実際の汚染経路: 汚染シダ(blight_fern)を隣に湧かせ、その侵食でチェストが変換されるのを待つ。
-     * 変換後に落下アイテムが無く、中身がそのままであること。
+     * 実際の汚染経路: 根付いた萌芽体(blight_fern_rooted)を四方から囲む 4 個のチェストが、その株の侵食で変換されても、
+     * 落下アイテムが無く中身がそのままであること。どれか 1 個が変換されたら成功。
      *
-     * <p>チェストは汚染シダを<b>四方から囲むように 4 個</b>置き、<b>どれか 1 個</b>が変換されたら
-     * 成功とする。1 個だけ置いていたときは「たまに落ちるテスト」だった —— 侵食は触手の伸びる向きを
-     * 毎回抽選するので、隣に置いてもその 1 マスを選ぶまでの時間が大きくぶれる。
-     * 距離を詰めても制限時間を 1200 → 2400 → 3600 と伸ばしても数回に 1 回落ち続けた
-     * (2026-09-20)。<b>このテストが見たいのは「変換で中身が複製されないこと」であって
-     * 侵食がどの向きへ伸びるかではない</b>ので、向きの運を持ち込まない形に変えた。
-     * 中身が複製されないこと自体は {@code singleChestKeepsContents} などが
-     * {@code corruptNow} で確かめている。ここが受け持つのは<b>実際の侵食経路でも同じか</b>。
-     *
-     * <p><b>制限時間も 3600 に戻した</b>(2026-09-21)。4 個に増やしてしばらく通っていたが、
-     * テストが増えて走らせ方が変わったら再び数回に 1 回落ちた。
-     * 方角の運(4 個)と時間の余裕(3 倍)は<b>別々に効く</b>ので、両方掛けておく。
-     * 先に成功すればそこで終わるので、ふつうに通るときの所要時間は変わらない。
-     *
-     * <p><b>制限時間では直らないと分かった</b>(2026-09-21、テストが 35 本になった時点で測り直した)。
-     * 実測の成功率は <b>3600 で 0/2、12000 で 5/6、24000 で 5/7</b> ——
-     * 3600 から上げる効果はあったが、<b>12000 と 24000 に差が無い</b>。
-     * 時間さえあれば必ず届く、という性質の失敗ではない。
-     * 上限を 24000 にしてあるのは「上げても通るぶんには 1 tick も損しない」から
-     * (落ちるときだけ上限を使い切る。実際、落ちた回 23.9 秒 対 通った回 20.8 秒)であって、
-     * <b>これで直っているという意味ではない</b>。
-     *
-     * <p><b>残っている本当の原因は未特定</b>。侵食が一度も 4 個のどれにも向かないまま終わる回がある。
-     * 上限を積むのは対症療法(1200 → 2400 → 3600 → 24000)なので、直すなら
-     * <b>触手がどちらへ伸びるかの抽選をテストから追い出す</b> —— 侵食を狙った向きへ 1 回進める
-     * 入口を用意して、そこを通して確かめる形にする。
-     * <b>ここが見たいのは変換で中身が複製されないことであって、侵食の速さでも向きでもない</b>。
+     * <p><b>2026-11-18 作り直し</b>(揺れるテストの調べ・全体管理了承): 前は汚染シダ(萌芽体)を湧かせて最大 24000 tick 待っていたが、
+     * 10-23 から萌芽体は胞子の場の動きで歩き回ってから湿った所に根付く。どこに根付くか・触手の向きの運でチェストに届かない回があり
+     * (11-18 夜の全件 3 回で 2 回、9 月から上限を 1200 → 24000 と積んでも直らなかった)。今は根付いた姿をチェストの真ん中に置き、
+     * 株と同じ広がり({@code SporeSprouts#addRootedPoint} が株の位置から回す {@link CorruptionSpreader})を毎 tick 何回か直に回す。
+     * 広がりは半径の中を塗り終えるまで続くので、隣のチェストには必ず届く(届かずに広げ終えたら、それは本物の不具合として落とす)。
+     * 中身が複製されないこと自体は {@code singleChestKeepsContents} などが {@code corruptNow} で確かめている。
+     * ここが受け持つのは<b>実際の侵食経路でも同じか</b>。
      */
-    @GameTest(template = TEMPLATE, timeoutTicks = 24000, batch = BATCH)
+    @GameTest(template = TEMPLATE, timeoutTicks = 400, batch = BATCH)
     public static void blightFernCorruptsChestWithoutDuplication(GameTestHelper helper) {
         List<BlockPos> spots = List.of(new BlockPos(0, 1, 1), new BlockPos(2, 1, 1),
                 new BlockPos(1, 1, 0), new BlockPos(1, 1, 2));
@@ -209,7 +189,16 @@ public final class OvergrownContainerGameTests {
             chest.setItem(4, new ItemStack(Items.DIAMOND, 13));
             chest.setItem(20, new ItemStack(Items.BREAD, 6));
         }
-        helper.spawn(ModEntities.BLIGHT_FERN.get(), new BlockPos(1, 1, 1));
+        // 株は真ん中の床(1, 1, 1)の上。株の侵食はこの床から始まり、床の高さのチェストへ広がる
+        BlockPos rooted = new BlockPos(1, 2, 1);
+        helper.setBlock(rooted, ModBlocks.BLIGHT_FERN_ROOTED.get().defaultBlockState());
+        ServerLevel level = helper.getLevel();
+        BlockPos origin = helper.absolutePos(rooted);
+        CorruptionSpreader spreader = new CorruptionSpreader();
+        spreader.seedGround(level, origin);
+        helper.onEachTick(() -> {
+            for (int i = 0; i < 8 && !spreader.isFinished(); i++) spreader.tick(level, origin);
+        });
 
         helper.succeedWhen(() -> {
             BlockPos converted = null;
@@ -219,7 +208,9 @@ public final class OvergrownContainerGameTests {
                     break;
                 }
             }
-            helper.assertTrue(converted != null, "どのチェストもまだ変換されていない");
+            helper.assertTrue(converted != null, spreader.isFinished()
+                    ? "株の侵食を広げ終えたのに、どのチェストも変換されていない(" + spreader.getCorruptedCount() + " マス)"
+                    : "どのチェストもまだ変換されていない");
             assertNoDrops(helper);
             assertCount(helper, converted, Items.DIAMOND, 13);
             assertCount(helper, converted, Items.BREAD, 6);
