@@ -251,8 +251,14 @@ final class ArcusCloud {
     }
 
     /** AFTER_CUTOUT_BLOCKS({@link Atmosphere} から。水の中・盲目の間は呼ばれない)。 */
+    /**
+     * 棚の雲を描くか。2026-11-18 ユーザー決定「棚雲はなくてもいいんじゃないかな」で false(暗い段々の板が頭上を覆う見た目だけを外した)。
+     * 前線の位置の計算と突風({@link #tick})はそのまま = 雷雨の前の冷たい突風 → 大雨は残る。戻すならここを true に。
+     */
+    static final boolean CLOUD_SHOWN = false;
+
     static void render(RenderLevelStageEvent event) {
-        if (Double.isNaN(lead) || present <= 0.0F || WeatherLook.off("arcus") || ShaderPacks.active() || ForestPresence.underground() > 0.5F) {
+        if (!CLOUD_SHOWN || Double.isNaN(lead) || present <= 0.0F || WeatherLook.off("arcus") || ShaderPacks.active() || ForestPresence.underground() > 0.5F) {
             return;
         }
         ShaderInstance shader = WeatherShaders.arcus();
