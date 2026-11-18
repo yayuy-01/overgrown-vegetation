@@ -847,6 +847,8 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.BooleanValue plantPushThinEnabled;
         /** 流れの地図({@code perf/FlowFields})で行進と群れの後続を歩かせるか。11-18 大群の軽量化 A。 */
         public final ModConfigSpec.BooleanValue flowFieldEnabled;
+        /** 仮想の群れ({@code horde/VirtualHordes})を動かすか。11-18 大群の軽量化 A。 */
+        public final ModConfigSpec.BooleanValue virtualHordeEnabled;
         /** 部位の升目の索引({@code perf/PartIndex})を使うか。 */
         public final ModConfigSpec.BooleanValue partIndexEnabled;
 
@@ -2332,8 +2334,14 @@ public final class OvergrownVegetationConfig {
             flowFieldEnabled = b
                     .comment("流れの地図(11-18 大群の軽量化 A。試し)。拠点へ歩く Mob と、群れの持ち場から遠い後続は、1 体ずつ経路を探す代わりに、",
                             "行き先ごとに 1 枚作った地図を下って歩く。地図の外・詰まったときは今までの経路探索に戻る。値は design の perf.json(flowField)。",
-                            "群れの歩き方が少し変わるので、ユーザーが見て決めるまで既定 false。")
-                    .define("flowFieldEnabled", false);
+                            "群れは幅広い扇ではなく数本の列にまとまって流れる(11-18 ユーザー決定で入れる。列の幅は perf.json の flowField.laneSpreadBlocks)。既定 true。")
+                    .define("flowFieldEnabled", true);
+
+            virtualHordeEnabled = b
+                    .comment("仮想の群れ(11-18 大群の軽量化 A。ユーザー決定で 0.2.0 に入れる)。遠くから来る群れはデータだけで進み、読み込み範囲の中で",
+                            "プレイヤーに近づくと本物の Mob になる。遠くへ離れた行進中の本物は仮想へ戻る。値は design の perf.json(virtualHorde)。",
+                            "切ると仮想の群れは止まる(消えはしない)。既定 true。")
+                    .define("virtualHordeEnabled", true);
 
             partIndexEnabled = b
                     .comment("部位(大きな体の叩ける部位)の升目の索引。近くのエンティティを探すたびに世界じゅうの部位を全部比べていたのを、",

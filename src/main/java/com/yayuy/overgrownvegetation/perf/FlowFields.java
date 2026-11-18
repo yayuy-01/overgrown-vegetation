@@ -537,11 +537,22 @@ public final class FlowFields {
                 lastCheck = now;
             }
             if (!mob.getNavigation().isDone()) mob.getNavigation().stop();
-            goalX = g.x;
+            double gx = g.x, gz = g.z;
+            double spread = t.flowLaneSpreadBlocks;
+            if (spread > 0.0D) {
+                // 列の幅(11-18 ユーザー「列が細過ぎたら横にずらす」): Mob ごとに決まった量だけ、進む向きの横へずらす
+                double ddx = gx - mob.getX(), ddz = gz - mob.getZ(), dl = Math.sqrt(ddx * ddx + ddz * ddz);
+                if (dl > 1.0E-3D) {
+                    double off = ((((mob.getId() * 0x9E3779B1) >>> 8) % 1000) / 1000.0D - 0.5D) * 2.0D * spread;
+                    gx += -ddz / dl * off;
+                    gz += ddx / dl * off;
+                }
+            }
+            goalX = gx;
             goalY = g.y;
-            goalZ = g.z;
+            goalZ = gz;
             goalSpeed = speed;
-            mob.getMoveControl().setWantedPosition(g.x, g.y, g.z, speed);
+            mob.getMoveControl().setWantedPosition(goalX, goalY, goalZ, speed);
             steering = true;
             steers++;
             return true;

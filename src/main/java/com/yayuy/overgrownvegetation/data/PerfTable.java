@@ -12,6 +12,19 @@ public final class PerfTable {
         public AiTiersJson aiTiers;
         public PushJson push;
         public FlowFieldJson flowField;
+        public VirtualHordeJson virtualHorde;
+    }
+
+    public static final class VirtualHordeJson {
+        public Double speed;
+        public Integer moveIntervalTicks;
+        public Integer materializeIntervalTicks;
+        public Integer dematerializeIntervalTicks;
+        public Double materializeBlocks;
+        public Double dematerializeBlocks;
+        public Integer realCap;
+        public Integer spawnPerRun;
+        public Integer lifeAfterArriveTicks;
     }
 
     public static final class FlowFieldJson {
@@ -21,6 +34,7 @@ public final class PerfTable {
         public Integer stuckTicks;
         public Integer fallbackTicks;
         public Integer lookaheadCells;
+        public Double laneSpreadBlocks;
     }
 
     public static final class AiTiersJson {
@@ -45,6 +59,15 @@ public final class PerfTable {
      * この間ほとんど進まなければ詰まりとみなす・詰まった Mob が普通の経路探索に戻る間(tick)・先読みする升の数。
      */
     public final int flowRadiusBlocks, flowRebuildTicks, flowDropUnusedTicks, flowStuckTicks, flowFallbackTicks, flowLookaheadCells;
+    /** 流れの地図の列の幅: Mob ごとに進む向きの横へずらす最大(ブロック。0 = ずらさない)。11-18 ユーザー「列が細過ぎたら横にずらす」。 */
+    public final double flowLaneSpreadBlocks;
+    /**
+     * 仮想の群れ({@code horde/VirtualHordes}。11-18 大群の軽量化 A): 進む速さ(ブロック/tick)・進める/本物にする/戻す間隔(tick)・
+     * 本物にする距離・戻す距離(ブロック)・本物の総数の上限・1 回に本物にする数・行き先に着いてから消えるまで(tick)。
+     */
+    public final double virtualSpeed, virtualMaterializeBlocks, virtualDematerializeBlocks;
+    public final int virtualMoveIntervalTicks, virtualMaterializeIntervalTicks, virtualDematerializeIntervalTicks, virtualRealCap, virtualSpawnPerRun,
+            virtualLifeAfterArriveTicks;
 
     private PerfTable(Json json) {
         AiTiersJson a = json == null || json.aiTiers == null ? new AiTiersJson() : json.aiTiers;
@@ -61,6 +84,17 @@ public final class PerfTable {
         this.flowStuckTicks = Math.max(10, f.stuckTicks != null ? f.stuckTicks : 40);
         this.flowFallbackTicks = Math.max(0, f.fallbackTicks != null ? f.fallbackTicks : 100);
         this.flowLookaheadCells = Math.max(1, Math.min(8, f.lookaheadCells != null ? f.lookaheadCells : 4));
+        this.flowLaneSpreadBlocks = Math.max(0.0D, Math.min(8.0D, f.laneSpreadBlocks != null ? f.laneSpreadBlocks : 0.0D));
+        VirtualHordeJson v = json == null || json.virtualHorde == null ? new VirtualHordeJson() : json.virtualHorde;
+        this.virtualSpeed = Math.max(0.01D, Math.min(1.0D, v.speed != null ? v.speed : 0.12D));
+        this.virtualMoveIntervalTicks = Math.max(1, v.moveIntervalTicks != null ? v.moveIntervalTicks : 5);
+        this.virtualMaterializeIntervalTicks = Math.max(1, v.materializeIntervalTicks != null ? v.materializeIntervalTicks : 5);
+        this.virtualDematerializeIntervalTicks = Math.max(1, v.dematerializeIntervalTicks != null ? v.dematerializeIntervalTicks : 40);
+        this.virtualMaterializeBlocks = Math.max(16.0D, v.materializeBlocks != null ? v.materializeBlocks : 64.0D);
+        this.virtualDematerializeBlocks = Math.max(this.virtualMaterializeBlocks + 16.0D, v.dematerializeBlocks != null ? v.dematerializeBlocks : 128.0D);
+        this.virtualRealCap = Math.max(0, v.realCap != null ? v.realCap : 300);
+        this.virtualSpawnPerRun = Math.max(1, v.spawnPerRun != null ? v.spawnPerRun : 6);
+        this.virtualLifeAfterArriveTicks = Math.max(20, v.lifeAfterArriveTicks != null ? v.lifeAfterArriveTicks : 24000);
     }
 
     public static PerfTable fromJson(Json json) {

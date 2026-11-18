@@ -674,10 +674,10 @@ public final class CrawlerPack {
         @Override
         public void tick() {
             if (--this.timer > 0) {
-                // 舵(MoveControl)は目標を渡された tick しか歩かせないので、決める回の間も渡し直す(11-18 大群の軽量化 A。toml flowFieldEnabled のときだけ。
-                // 切のときは前のまま = 4 tick に 1 tick だけ歩き、後続が持ち場から遅れて経路を引き直していた)
+                // 舵(MoveControl)は目標を渡された tick しか歩かせないので、決める回の間も渡し直す(11-18 大群の軽量化 A。ユーザー決定で流れの地図とは切り離して常に。
+                // 前は 4 tick に 1 tick だけ歩き、後続が持ち場から遅れて経路を引き直していた)
                 if (this.flow.active()) this.flow.reapply(this.mob);
-                else if (this.direct && com.yayuy.overgrownvegetation.perf.FlowFields.enabled())
+                else if (this.direct)
                     this.mob.getMoveControl().setWantedPosition(this.directX, this.mob.getY(), this.directZ, this.directSpeed);
                 return;
             }
