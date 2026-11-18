@@ -211,6 +211,7 @@ public final class EcoGoals {
             if (off(this.mob) || this.life.ecoBusy() || !every(this.mob, 20)) return false;
             EcoBehavior b = EcoLife.behavior(this.mob);
             if (b.prey.isEmpty() || !awake(this.mob, b)) return false;
+            if (com.yayuy.overgrownvegetation.entity.DevNames.has(this.mob, "nohunt")) return false;   // 確かめ用(隣のテストの獲物を追わない)
             if (fullness(this.mob, this.life, b) >= b.huntBelow) return false;
             double r = b.huntRange;
             LivingEntity best = null;
@@ -368,8 +369,13 @@ public final class EcoGoals {
         }
         BlockPos base = mob.blockPosition();
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
-        for (int i = 0; i < 16; i++) {
-            int dx = mob.getRandom().nextInt(21) - 10, dz = mob.getRandom().nextInt(21) - 10;
+        // 近い輪から順に全部の列を見る(11-18: 当てずっぽう 16 回では、狭い所の倒木を見落として何度も空振りした)。輪の中の始まりは乱数でずらす
+        int start = mob.getRandom().nextInt(80);
+        for (int r = 0; r <= FORAGE_RADIUS; r++) {
+          int ringLen = r == 0 ? 1 : 8 * r;
+          for (int k = 0; k < ringLen; k++) {
+            int[] off = ring(r, (k + start) % ringLen);
+            int dx = off[0], dz = off[1];
             for (int dy = 3; dy >= -3; dy--) {
                 p.set(base.getX() + dx, base.getY() + dy, base.getZ() + dz);
                 BlockState at = level.getBlockState(p);
@@ -394,7 +400,23 @@ public final class EcoGoals {
                 }
             }
         }
+          }
         return null;
+    }
+
+    /** あさる所を探す広さ(横のブロック)。 */
+    static final int FORAGE_RADIUS = 10;
+
+    /** 一辺 2r+1 の正方形の輪の i 番目のマス(r = 0 は真ん中)。 */
+    static int[] ring(int r, int i) {
+        if (r == 0) return new int[]{0, 0};
+        int side = 2 * r, s = i / side, t = i % side;
+        return switch (s) {
+            case 0 -> new int[]{-r + t, -r};
+            case 1 -> new int[]{r, -r + t};
+            case 2 -> new int[]{r - t, r};
+            default -> new int[]{-r, r - t};
+        };
     }
 
     // ================================================================ 休む

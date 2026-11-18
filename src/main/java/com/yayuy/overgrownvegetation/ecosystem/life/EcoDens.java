@@ -65,7 +65,9 @@ public final class EcoDens {
     /** GameTest で回すか(既定は回さない。テストは手で呼ぶ)。 */
     public static boolean tickInGameTests;
     /** 確かめ用の数(/ov perf eco den): 回った回数・後付けで見た・汚染でない・読み込みなし・洞にした端。 */
-    public static final long[] STATS = new long[5];
+    public static final long[] STATS = new long[10];
+    /** 確かめ用: 洞にならなかった端の前のブロック(種類ごとの数)。 */
+    public static final java.util.Map<String, Integer> BLOCKED = new java.util.concurrent.ConcurrentHashMap<>();
 
     private EcoDens() {
     }
@@ -370,15 +372,38 @@ public final class EcoDens {
 
     /** 倒木の 1 マスが端なら(軸の片側が倒木でなく、入口の前が空いている)、座標の乱数で洞にする。 */
     public static boolean tryMakeDen(ServerLevel level, BlockPos pos, BlockState st) {
+        return tryMakeDen(level, pos, st, DEN_CHANCE);
+    }
+
+    /** 確率を決めて試す(GameTest は 1 で)。 */
+    public static boolean tryMakeDen(ServerLevel level, BlockPos pos, BlockState st, double chance) {
         Direction.Axis axis = st.getValue(FallenLogBlock.AXIS);
         for (Direction d : new Direction[]{Direction.fromAxisAndDirection(axis, Direction.AxisDirection.POSITIVE), Direction.fromAxisAndDirection(axis, Direction.AxisDirection.NEGATIVE)}) {
             BlockPos front = pos.relative(d);
             BlockState fs = level.getBlockState(front);
-            if (fs.is(ModBlocks.FALLEN_LOG.get()) || !open(level, front, fs) || !fs.getFluidState().isEmpty()) continue;
+            if (fs.is(ModBlocks.FALLEN_LOG.get()) || !fs.getFluidState().isEmpty()) continue;
             if (!level.getBlockState(pos.relative(d.getOpposite())).is(ModBlocks.FALLEN_LOG.get())) continue;   // 1 マスだけの倒木は洞にしない
+            STATS[5]++;
             long h = net.minecraft.util.Mth.getSeed(pos.getX(), pos.getY() * 31 + d.ordinal(), pos.getZ()) ^ level.getSeed();
             double u = ((h >>> 11) & ((1L << 24) - 1)) / (double) (1L << 24);
-            if (u >= DEN_CHANCE) continue;
+            if (u >= chance) {
+                STATS[6]++;
+                continue;
+            }
+            if (!open(level, front, fs)) {
+                // 塞がった端(11-18 ユーザー「洞をまあ増やしておこう」): 前の 1 マスが植物・柔らかい土なら空けて洞にする。石・建物・中身のあるブロックは空けない
+                if (!clearable(fs)) {
+                    STATS[7]++;
+                    BLOCKED.merge(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(fs.getBlock()).getPath(), 1, Integer::sum);
+                    continue;
+                }
+                if (!level.getBlockState(front.below()).isFaceSturdy(level, front.below(), Direction.UP)) {
+                    STATS[8]++;
+                    continue;
+                }
+                STATS[9]++;
+                level.setBlock(front, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+            }
             level.setBlock(pos, EcoBlocks.DEN.get().defaultBlockState().setValue(EcoDenBlock.FACING, d), Block.UPDATE_ALL);
             return true;
         }
@@ -389,6 +414,14 @@ public final class EcoDens {
     static boolean open(ServerLevel level, BlockPos p, BlockState s) {
         var shape = s.getCollisionShape(level, p);
         return shape.isEmpty() || shape.max(Direction.Axis.Y) <= 0.25D;
+    }
+
+    /** 洞の入口を作るために空けてよいブロック: 葉・下草・山刀で刈れる植物・花・苗・柔らかい土(過繁茂の草と土・泥炭を含む)。中身(ブロックエンティティ)のある物は空けない。 */
+    static boolean clearable(BlockState s) {
+        if (s.hasBlockEntity() || s.isAir()) return false;
+        return s.is(BlockTags.LEAVES) || s.is(BlockTags.REPLACEABLE) || s.is(com.yayuy.overgrownvegetation.gear.MacheteItem.CLEARABLE)
+                || s.is(BlockTags.FLOWERS) || s.is(BlockTags.SAPLINGS) || s.is(BlockTags.DIRT)
+                || s.is(ModBlocks.OVERGROWN_GRASS_BLOCK.get()) || s.is(ModBlocks.OVERGROWN_DIRT.get()) || s.is(ModBlocks.PEAT.get());
     }
 
     /** 倒木を置いた直後(FloorGrowth): 両端を {@link #tryMakeDen} にかける。 */

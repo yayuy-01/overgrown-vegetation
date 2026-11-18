@@ -97,7 +97,7 @@ public final class EcoLifeGameTests {
             helper.setBlock(new BlockPos(x, 2, 5), ModBlocks.FALLEN_LOG.get().defaultBlockState()
                     .setValue(com.yayuy.overgrownvegetation.block.FallenLogBlock.AXIS, Direction.Axis.X));
         }
-        Mob m = place(helper, ModLizards.HYLONOMUS.get(), 3.0D, 2.0D, 1.5D, "nostroll_ecoawake");
+        Mob m = place(helper, ModLizards.HYLONOMUS.get(), 3.0D, 2.0D, 1.5D, "nostroll_ecoawake_nohunt");
         EcoBehavior b = EcoLife.behavior(m);
         setFullness(m, 0.2D);
         boolean[] ate = {false};
@@ -208,6 +208,38 @@ public final class EcoLifeGameTests {
         double l3 = com.yayuy.overgrownvegetation.ecosystem.life.EcoDens.lively(helper.getLevel(), 3, abs);
         ledger.putCellForTests(key, 0.0D, lnow, 0.0D, lnow);
         helper.assertTrue(l2 < 0.01D && l3 > 0.99D, "台帳の頭数が読めない: G2 " + l2 + " G3 " + l3);
+        helper.succeed();
+    }
+
+    /**
+     * 倒木の端の前が葉で塞がっていても、葉を空けて洞にする(11-18 ユーザー「洞をまあ増やしておこう」)。石で塞がった端は空けず、洞にしない。
+     */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 20)
+    public static void blockedLogEndIsClearedIntoDen(GameTestHelper helper) {
+        net.minecraft.world.level.block.state.BlockState log = ModBlocks.FALLEN_LOG.get().defaultBlockState()
+                .setValue(com.yayuy.overgrownvegetation.block.FallenLogBlock.AXIS, Direction.Axis.X);
+        net.minecraft.world.level.block.state.BlockState leaves = net.minecraft.world.level.block.Blocks.OAK_LEAVES.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true);
+        // 1 本目: 東の端の前が葉、西の端の前が石
+        for (int x = 2; x <= 4; x++) helper.setBlock(new BlockPos(x, 2, 2), log);
+        helper.setBlock(new BlockPos(5, 2, 2), leaves);
+        helper.setBlock(new BlockPos(1, 2, 2), net.minecraft.world.level.block.Blocks.STONE);
+        // 2 本目: 両端とも石
+        for (int x = 2; x <= 4; x++) helper.setBlock(new BlockPos(x, 2, 4), log);
+        helper.setBlock(new BlockPos(5, 2, 4), net.minecraft.world.level.block.Blocks.STONE);
+        helper.setBlock(new BlockPos(1, 2, 4), net.minecraft.world.level.block.Blocks.STONE);
+        var level = helper.getLevel();
+        boolean a = com.yayuy.overgrownvegetation.ecosystem.life.EcoDens.tryMakeDen(level, helper.absolutePos(new BlockPos(4, 2, 2)), log, 1.0D);
+        helper.assertTrue(a, "葉で塞がった端が洞にならない");
+        helper.assertBlockPresent(com.yayuy.overgrownvegetation.ecosystem.life.EcoBlocks.DEN.get(), new BlockPos(4, 2, 2));
+        helper.assertBlockPresent(net.minecraft.world.level.block.Blocks.AIR, new BlockPos(5, 2, 2));
+        helper.assertTrue(level.getBlockState(helper.absolutePos(new BlockPos(4, 2, 2))).getValue(com.yayuy.overgrownvegetation.ecosystem.life.EcoDenBlock.FACING) == Direction.EAST,
+                "入口が葉のあった向きでない");
+        boolean b1 = com.yayuy.overgrownvegetation.ecosystem.life.EcoDens.tryMakeDen(level, helper.absolutePos(new BlockPos(2, 2, 4)), log, 1.0D);
+        boolean b2 = com.yayuy.overgrownvegetation.ecosystem.life.EcoDens.tryMakeDen(level, helper.absolutePos(new BlockPos(4, 2, 4)), log, 1.0D);
+        helper.assertTrue(!b1 && !b2, "石で塞がった端が洞になった");
+        helper.assertBlockPresent(net.minecraft.world.level.block.Blocks.STONE, new BlockPos(5, 2, 4));
+        helper.assertBlockPresent(net.minecraft.world.level.block.Blocks.STONE, new BlockPos(1, 2, 4));
         helper.succeed();
     }
 

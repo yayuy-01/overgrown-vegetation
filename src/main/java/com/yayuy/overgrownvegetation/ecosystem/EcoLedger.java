@@ -111,6 +111,7 @@ public final class EcoLedger extends SavedData {
             cells.put(key, c);
         }
         double rt = recoveryTicks(t);
+        double before = weightedLack(c, now, t);
         if (group == 3) {
             c.lack3 = lackNow(c.lack3, now - c.at3, t.fullG3, rt) + 1.0D;
             c.at3 = now;
@@ -120,7 +121,10 @@ public final class EcoLedger extends SavedData {
             c.at2 = now;
             kills2++;
         }
-        stale = true; // すぐ数え直す
+        // 多様性はこの升の重み付きの欠けの増えた分だけ下げる(全升の数え直しは 1 秒に 1 回のまま。コードの見直し 第 2 回 ⑤8: 倒すたびに全升を数え直していた)
+        double after = weightedLack(c, now, t);
+        if (stale || now < cachedAt) stale = true;
+        else cachedHealth = Math.max(0.0D, Math.min(1.0D, cachedHealth - (after - before) / t.scale));
         setDirty();
     }
 
