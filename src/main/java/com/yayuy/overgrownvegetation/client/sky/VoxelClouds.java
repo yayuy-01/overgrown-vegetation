@@ -426,6 +426,7 @@ public final class VoxelClouds implements CloudRenderer {
         for (CloudField.Storm s : storms) {
             key = key * 31 + Math.round(s.maturity() * 32.0F);
             key = key * 31 + (int) (Math.hypot(s.x() - fx, s.z() - fz) / 300.0);
+            key = key * 31 + (int) Math.floor(s.x() / 32.0) * 7 + (int) Math.floor(s.z() / 32.0) * 13; // 嵐の巣が回ったら作り直す
             key = key * 31 + (int) (s.id() ^ (s.id() >>> 32));
         }
         return key;
@@ -480,6 +481,8 @@ public final class VoxelClouds implements CloudRenderer {
                 continue;
             }
             key = key * 31 + Math.round(s.maturity() * 8.0F);
+            // 位置(11-18: 嵐の巣はゆっくり回る。ほかの雲は場の座標で動かないので、鍵は変わらない)。
+            key = key * 31 + (int) Math.floor(s.x() / 32.0) * 7 + (int) Math.floor(s.z() / 32.0) * 13;
             key = key * 31 + (int) (s.id() ^ (s.id() >>> 32));
         }
         return key;

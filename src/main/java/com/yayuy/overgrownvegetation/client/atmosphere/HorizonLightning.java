@@ -49,10 +49,68 @@ final class HorizonLightning {
         refreshIn = 0;
     }
 
+    private static List<CloudField.Storm> nestWalls = List.of();
+    private static CloudField.Storm nestCore;
+    private static int nestRefreshIn;
+    private static int nestGustIn;
+
+    /**
+     * 嵐の巣(2026-11-18): 天気に関係なく、壁の雲の中で絶えず雷が光る(9 km 以内)。芯から 3500 ブロック以内では、強い突風を繰り返し吹かせる
+     * (近いほど間隔が短い。3〜8 秒)。雲の一覧は 10 秒に 1 回だけ引き直す。数値は仮決め。
+     */
+    /** 確かめ用(wx sky nestwhere): いちばん近い嵐の巣の芯の世界の座標と距離。 */
+    public static String describeNest(ClientLevel level, LocalPlayer player) {
+        CloudField.Storm c = nestCore;
+        if (c == null) {
+            return "9 km 以内に嵐の巣は無い(壁 " + nestWalls.size() + ")";
+        }
+        long gt = level.getGameTime();
+        double wx = c.x() + CloudField.offsetX(gt);
+        double wz = c.z() + CloudField.offsetZ(gt);
+        return String.format("NEST %.0f %.0f 距離 %.0f 壁 %d", wx, wz, Math.hypot(wx - player.getX(), wz - player.getZ()), nestWalls.size());
+    }
+
+    private static void nestTick(ClientLevel level, LocalPlayer player) {
+        if (CloudField.devNest <= 0.0F || !VoxelClouds.isActive()) {
+            nestWalls = List.of();
+            nestCore = null;
+            return;
+        }
+        long gameTime = level.getGameTime();
+        double camFx = CloudField.fieldX(player.getX(), gameTime, 0.0F);
+        double camFz = CloudField.fieldZ(player.getZ(), gameTime, 0.0F);
+        if (--nestRefreshIn <= 0) {
+            nestRefreshIn = 200;
+            List<CloudField.Storm> walls = new ArrayList<>();
+            CloudField.Storm core = null;
+            for (CloudField.Storm s : VoxelClouds.storms(level, 0.0F, VoxelClouds.coverage(level, 1.0F), camFx - 9000.0, camFz - 9000.0, camFx + 9000.0, camFz + 9000.0)) {
+                if (CloudField.nestWall(s)) {
+                    walls.add(s);
+                } else if (CloudField.nestCore(s)
+                        && (core == null || Math.hypot(s.x() - camFx, s.z() - camFz) < Math.hypot(core.x() - camFx, core.z() - camFz))) {
+                    core = s;
+                }
+            }
+            nestWalls = walls;
+            nestCore = core;
+        }
+        if (!nestWalls.isEmpty() && FLASHES.size() < 5 && RANDOM.nextFloat() < 0.07F) {
+            spawn(level, nestWalls.get(RANDOM.nextInt(nestWalls.size())), camFx, camFz, player, WeatherLook.storm());
+        }
+        if (nestCore != null) {
+            double d = Math.hypot(nestCore.x() - camFx, nestCore.z() - camFz);
+            if (d < 3500.0 && --nestGustIn <= 0) {
+                nestGustIn = 60 + (int) (100.0 * d / 3500.0);
+                GustField.INSTANCE.forceGust(player.getX(), player.getZ());
+            }
+        }
+    }
+
     /** 毎 tick。{@code drive} = 出やすさ 0〜1。 */
     static void tick(ClientLevel level, LocalPlayer player, float drive) {
         long now = System.nanoTime();
         FLASHES.removeIf(f -> (now - f.startNanos) / 1.0e9 > (devHold ? 20.0F : f.life));
+        nestTick(level, player);
         if (drive <= 0.02F || !VoxelClouds.isActive()) {
             candidates = List.of();
             refreshIn = 0;

@@ -551,6 +551,10 @@ public final class CloudField {
                 long epoch = Mth.floor(phase);
                 float u = (float) (phase - epoch);
                 long cell = home ^ (epoch * 0x165667B19E3779F9L);
+                if (devNest > 0.0F && hash01(home, 31) < NEST_CELL_SHARE * devNest) {
+                    nest(all, gx, gz, grid, home, dayTime, style);
+                    continue;
+                }
                 // 地域の雲の多さで確率を変える(晴れた地域はまれ、雲の多い地域は多い。10-18)。升の真ん中の地域で決める。
                 float here = chance * regionStormsCell(gx, gz, grid) * (realSky() ? CloudShape.current().stormShare() : 1.0F);
                 float h = hash01(cell, 1);
@@ -759,7 +763,8 @@ public final class CloudField {
 
     /**
      * ラフ(2026-11-18。ユーザー「両方でいこう、ただ龍の巣は稀にくらいで」→ まず形の案とラフの絵。既定はどちらも 0 = 出さない。DevBridge の wx sky big / nest)。
-     * devBig = ふつうの積乱雲のうち、ずっと大きくする割合(空の目印)。devNest = 巨大な積乱雲のうち、嵐の巣にする割合。数値はすべて仮。
+     * devBig = ふつうの積乱雲のうち、ずっと大きくする割合(空の目印。ユーザー決定 0.2)。devNest = 嵐の巣のまれさの倍率(1 = 決めたまれさ・0 = 出さない。
+     * 確かめるときは 50 などにして近くに出す)。
      */
     public static volatile float devBig;
     public static volatile float devNest;
@@ -771,50 +776,77 @@ public final class CloudField {
 
     /**
      * 大きな主役のラフ。(1) ふつうの積乱雲の一部を、胴 2 倍・天辺 y 1900〜2500 に(地平線の向こうからも見える目印)。
-     * (2) 嵐の巣: 巨大な積乱雲の一部のまわりに、渦を巻く 3 本の腕(背の高い塔の列。外へ行くほど低く細い)と、芯を囲む壁の塔の輪を足す。
+     * (2) 嵐の巣は {@link #nest}。
      * 尾根(棚)を作る前に呼ぶ(棚は大きさの決まった雲どうしをつなぐ)。
      */
     private static void landmarks(List<Storm> all, int style) {
         float big = devBig;
-        float nest = devNest;
-        if (big <= 0.0F && nest <= 0.0F) {
+        if (big <= 0.0F) {
             return;
         }
         int n = all.size();
         for (int i = 0; i < n; i++) {
             Storm s = all.get(i);
-            if (s.kind() != 0) {
-                continue;
+            if (s.kind() == 0 && !s.giant() && !NEST_IDS.contains(s.id()) && hash01(s.id(), 22) < big) {
+                all.set(i, new Storm(s.x(), s.z(), s.radius() * 2.0F, 1900 + Math.round(600.0F * hash01(s.id(), 23)), true, false, s.maturity(), s.id(), s.style()));
             }
-            if (!s.giant()) {
-                if (big > 0.0F && hash01(s.id(), 22) < big) {
-                    all.set(i, new Storm(s.x(), s.z(), s.radius() * 2.0F, 1900 + Math.round(600.0F * hash01(s.id(), 23)), true, false, s.maturity(), s.id(), s.style()));
-                }
-                continue;
-            }
-            if (nest <= 0.0F || hash01(s.id(), 24) >= nest) {
-                continue;
-            }
-            double turn = hash01(s.id(), 25) * Math.PI * 2.0;
-            double dir = hash01(s.id(), 26) < 0.5F ? 1.0 : -1.0;
-            // 芯を囲む壁: 半径の 1.25 倍の輪に 9 本の塔(天辺は芯より少し低い)。
-            for (int k = 0; k < 9; k++) {
-                double a = turn + k * Math.PI * 2.0 / 9.0;
-                double r = s.radius() * 1.25;
-                long id = s.id() * 131L + k;
-                all.add(new Storm(s.x() + Math.cos(a) * r, s.z() + Math.sin(a) * r, 330.0F + 90.0F * hash01(id, 4), s.top() - 300 - Math.round(500.0F * hash01(id, 5)),
-                        hash01(id, 8) < 0.3F, false, s.maturity(), id, s.style()));
-            }
-            // 渦の腕: 3 本、それぞれ 7 本の塔が外へ巻きながら並ぶ(半径 1.6 → 3.6 倍、角度は 1 本ごとに 0.33 rad)。
-            for (int arm = 0; arm < 3; arm++) {
-                for (int k = 0; k < 7; k++) {
-                    double a = turn + arm * Math.PI * 2.0 / 3.0 + dir * k * 0.33;
-                    double r = s.radius() * (1.6 + 2.0 * k / 6.0);
-                    long id = s.id() * 131L + 100 + arm * 16 + k;
-                    float fall = 1.0F - k / 7.0F;
-                    all.add(new Storm(s.x() + Math.cos(a) * r, s.z() + Math.sin(a) * r, 200.0F + 160.0F * fall + 40.0F * hash01(id, 4),
-                            900 + Math.round(1300.0F * fall + 200.0F * hash01(id, 5)), false, false, s.maturity(), id, s.style()));
-                }
+        }
+    }
+
+    /** 嵐の巣になる升の割合(devNest = 1 のとき。升は 1000 四方ほどなので、約 22 km 四方に 1 つ)・壁の輪の半径と塔の数・腕の数と塔の数・回る速さ(1 回りの tick)と刻み。仮決め。 */
+    static final float NEST_CELL_SHARE = 0.002F;
+    static final double NEST_WALL_R = 1100.0;
+    static final int NEST_WALL_N = 14;
+    static final int NEST_ARMS = 3;
+    static final int NEST_ARM_N = 8;
+    static final long NEST_TURN_TICKS = 480000L;
+    static final long NEST_TURN_STEP = 1200L;
+    /** 嵐の巣の雲の番号(壁・腕・芯)。目の中の雷・風の相手を見分けるのに使う。 */
+    private static final java.util.Set<Long> NEST_IDS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static final java.util.Set<Long> NEST_WALL_IDS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** 嵐の巣の壁の塔か(目の中の雷の相手)。 */
+    public static boolean nestWall(Storm s) {
+        return NEST_WALL_IDS.contains(s.id());
+    }
+
+    /** 嵐の巣の芯か(巣の真ん中。近づくと風が強くなる)。 */
+    public static boolean nestCore(Storm s) {
+        return s.giant() && NEST_IDS.contains(s.id());
+    }
+
+    /**
+     * 嵐の巣(2026-11-18 ユーザー決定: 巨大な積乱雲の 1 割ほど・芯は空洞(目)で中へ飛び込める・とてもゆっくり回す・消えない)。
+     * 升で決まる場所に、いつも育ちきったまま立つ(雲の一生で崩れない)。芯 = 目の底の低い雲(巨大な雲の扱い = まわりに雲海)、
+     * 壁 = 半径 {@link #NEST_WALL_R} の輪に背の高い塔 {@link #NEST_WALL_N} 本(目の内側は差し渡し 1000 ほど空く)、
+     * 腕 = 渦を巻く {@link #NEST_ARMS} 本(外ほど低く細い。差し渡し 約 10 km)。全体が {@link #NEST_TURN_TICKS} tick で 1 回り、
+     * {@link #NEST_TURN_STEP} tick ごとに少し回る(形の作り直しを 1 分に 1 回までに抑える)。数値は仮決め。
+     */
+    private static void nest(List<Storm> all, int gx, int gz, int grid, long home, long dayTime, int style) {
+        double cx = (gx + 0.3 + 0.4 * hash01(home, 32)) * grid;
+        double cz = (gz + 0.3 + 0.4 * hash01(home, 33)) * grid;
+        double dir = hash01(home, 34) < 0.5F ? 1.0 : -1.0;
+        double turn = hash01(home, 35) * Math.PI * 2.0 + dir * Math.PI * 2.0 * (Math.floorDiv(dayTime, NEST_TURN_STEP) * NEST_TURN_STEP % NEST_TURN_TICKS) / NEST_TURN_TICKS;
+        long coreId = home ^ 0x4E455354434F5245L;
+        NEST_IDS.add(coreId);
+        all.add(new Storm(cx, cz, 170.0F, 560, false, true, 1.0F, coreId, style));
+        for (int k = 0; k < NEST_WALL_N; k++) {
+            double a = turn + k * Math.PI * 2.0 / NEST_WALL_N;
+            long id = coreId * 131L + k;
+            NEST_IDS.add(id);
+            NEST_WALL_IDS.add(id);
+            all.add(new Storm(cx + Math.cos(a) * NEST_WALL_R, cz + Math.sin(a) * NEST_WALL_R, 280.0F + 50.0F * hash01(id, 4), 2400 + Math.round(600.0F * hash01(id, 5)),
+                    false, false, 1.0F, id, style));
+        }
+        for (int arm = 0; arm < NEST_ARMS; arm++) {
+            for (int k = 0; k < NEST_ARM_N; k++) {
+                double a = turn + arm * Math.PI * 2.0 / NEST_ARMS + dir * (0.5 + k * 0.3);
+                double r = 1750.0 + 3500.0 * k / (NEST_ARM_N - 1);
+                long id = coreId * 131L + 100 + arm * 16 + k;
+                float fall = 1.0F - k / (float) NEST_ARM_N;
+                NEST_IDS.add(id);
+                all.add(new Storm(cx + Math.cos(a) * r, cz + Math.sin(a) * r, 170.0F + 150.0F * fall + 30.0F * hash01(id, 4),
+                        900 + Math.round(1200.0F * fall + 200.0F * hash01(id, 5)), k < 2 && hash01(id, 8) < 0.5F, false, 1.0F, id, style));
             }
         }
     }
