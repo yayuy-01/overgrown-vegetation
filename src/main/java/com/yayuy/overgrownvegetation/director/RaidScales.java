@@ -222,7 +222,10 @@ public final class RaidScales {
         int phase = DirectorGates.phase(level);
         creditPurse(level, memory, b, day);
         double saved = b.saving() ? Math.max(0.0D, day - b.saveStart()) : 0.0D;
-        Decision dec = decide(phase, saved, roll);
+        // 導入の段では見送り始めない = いつも小(11-14 ユーザー「貯めた襲撃・大きな襲撃は定着と最盛だけ、導入では起こさない」を引き継ぐ(11-19 全体管理が了承))。
+        // 前のフェーズから貯めている最中なら、そのまま続ける
+        boolean intro = DirectorGates.stage(level) == com.yayuy.overgrownvegetation.phase.PhaseStage.INTRO;
+        Decision dec = intro && !b.saving() ? new Decision(false, RaidScale.SMALL) : decide(phase, saved, roll);
         ForestDirector d = ForestDirector.get(level);
         if (dec.skip()) {
             double start = b.saving() ? b.saveStart() : day;
@@ -252,8 +255,10 @@ public final class RaidScales {
         for (BaseMemory.Base c : memory.bases()) {
             if (c.stage() == BaseMemory.Stage.RECOGNIZED) n++;
         }
+        // 貯めるのは 貯め始め + 上限日数 まで(ピースフル・ほかの拠点の襲撃・前触れで機会が止まっていた間に上限を越えて貯めない)
+        double until = Math.min(day, b.saveStart() + maxSaveDays(DirectorGates.phase(level)));
         double add = credit(ForestDirector.incomePerDay(level), com.yayuy.overgrownvegetation.ecosystem.Ecosystem.incomeFactor(level),
-                purseShare(), day - b.purseCreditedAt(), n);
+                purseShare(), until - b.purseCreditedAt(), n);
         memory.addPurse(b, add, day);
     }
 

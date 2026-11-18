@@ -136,6 +136,12 @@ public final class LargeRaids {
     /** 終わる(ふだんへ。次まで cooldownDays)。 */
     public static void end(ServerLevel level, double day, String why) {
         ForestDirector d = ForestDirector.get(level);
+        if (scaled(d)) {
+            // 11-19 大の後: 次の機会は終わってから 1 間あける(前触れ + 本番の間に過ぎた機会が、終わった途端に来ないように)
+            BaseMemory memory = BaseMemory.get(level.getServer());
+            BaseMemory.Base tb = memory.byId(d.largeRaidTarget());
+            if (tb != null) memory.setNextWaveDay(tb, day + memory.nextInterval(level.getRandom()) * Math.max(0.05D, RaidScales.Knobs.intervalFactor));
+        }
         d.setLargeRaidScaledSince(Double.NaN);
         d.setMood(ForestDirector.Mood.NORMAL, day, day);
         d.setLargeRaidCooldownUntil(day + DesignData.director().largeRaid.cooldownDays);

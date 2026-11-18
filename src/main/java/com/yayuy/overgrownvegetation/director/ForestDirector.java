@@ -169,7 +169,8 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         Mood m = get(level).mood;
         if (m == Mood.HOARD) return base * DesignData.director().hoard.capFactor;
         // 大きな襲撃の前触れ・本番の間も上限を上げる(11-14 ユーザー T7: 4 倍【仮】)
-        if (m == Mood.LARGE_OMEN || m == Mood.LARGE) return base * DesignData.director().largeRaid.capFactor;
+        // 11-19 襲撃の規模の「大」の静かな前触れ・本番では上げない(静かな 2 日で森の予算を膨らませない。全体管理・ユーザー「増やさず減らさない」)
+        if ((m == Mood.LARGE_OMEN || m == Mood.LARGE) && !LargeRaids.scaled(get(level))) return base * DesignData.director().largeRaid.capFactor;
         return base;
     }
 

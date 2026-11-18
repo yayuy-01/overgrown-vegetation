@@ -115,6 +115,22 @@ public final class RaidScaleGameTests {
             DirectorHooks.setSpotForTests(() -> spot);
             RandomSource r = RandomSource.create(7L);
 
+            // (0) 見張りの送り込みの口(BaseRaids.dispatch)を通す: 必ず見送る → 送った回数は増えず貯め始める。見送らない → 小を送って回数が増える
+            int sentBefore = b.wavesSent();
+            RaidScales.Knobs.skipChanceFactor = 100.0D;
+            memory.waveNow(b, day);
+            BaseRaids.dispatch(level, memory, day);
+            helper.assertTrue(b.saving() && b.wavesSent() == sentBefore && b.nextWaveDay() > day, "送り込みの口で見送らない: " + RaidScales.lastNote);
+            RaidScales.Knobs.skipChanceFactor = 0.0D;
+            memory.waveNow(b, day + 0.5D);
+            director.setBudget(level, 5000.0D);
+            BaseRaids.dispatch(level, memory, day + 0.5D);
+            helper.assertTrue(!b.saving() && b.wavesSent() == sentBefore + 1 && RaidScales.lastScale == RaidScale.MEDIUM && HoardRaids.raid(b.id()) != null,
+                    "見送りの後の機会で中が来ない: " + RaidScales.lastNote);
+            HoardRaids.clearForTests();
+            clear(helper);
+            RaidScales.Knobs.reset();
+            memory.setPurse(b, 0.0D);
             // (1) 見送る: 貯め始め・財布はまだ 0・次の機会は 2 日以内
             director.setBudget(level, 0.0D);
             helper.assertTrue(RaidScales.skipOrStart(level, memory, b, day, 0.0D, r), "F5 で 0 を引いて見送らない");
