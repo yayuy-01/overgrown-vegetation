@@ -28,7 +28,7 @@ public final class OrganTable {
     }
 
     public static final class RolesJson {
-        public Double phasePercentPerDay, towerSporePerDay, sacHiveNodes;
+        public Double phaseChunks, towerSporePerDay, sacHiveNodes;
         public Integer nurseryIntervalSeconds, nurseryMaxAlive, nurseryPlayerBlocks, nurseryMinBaseChunks, nurseryMaxBaseChunks;
         public Double leyLineBlocks, crystalRegrowDays;
         public Double leyHealthPercent, leyAttackPercent, leyArmor, leySpeedPercent, leyKnockbackResist;
@@ -36,7 +36,7 @@ public final class OrganTable {
     }
 
     public static final class WitherJson {
-        public Double pointsPercent, budgetCapShare, phaseOrganPointsFactor, sacBudgetFactor;
+        public Double pointsDays, budgetCapShare, phaseOrganPointsFactor, sacBudgetFactor;
     }
 
     public static final class GuardJson {
@@ -74,13 +74,15 @@ public final class OrganTable {
     public final double[] kindWeights;
     public final int blocksPerTick;
 
-    public final double phasePercentPerDay, towerSporePerDay, sacHiveNodes;
+    /** フェーズを進める器官(大きい版)1 本 = 過繁茂この数のチャンク分の面積の点(11-19 固定値)。 */
+    public final double phaseChunks, towerSporePerDay, sacHiveNodes;
     public final int nurseryIntervalSeconds, nurseryMaxAlive, nurseryPlayerBlocks, nurseryMinBaseChunks, nurseryMaxBaseChunks;
     public final double leyLineBlocks, crystalRegrowDays;
     /** 地脈を吸う根 1 本(大きい版)の上げ幅({@link LeyBuffs.Stat} の順)。 */
     public final double[] leyStat;
 
-    public final double witherPointsPercent, witherBudgetCapShare, phaseOrganPointsFactor, sacBudgetFactor;
+    /** 枯れたときに引くポイント = フェーズを進める器官(大きい版)の witherPointsDays 日分(11-19 固定値)。 */
+    public final double witherPointsDays, witherBudgetCapShare, phaseOrganPointsFactor, sacBudgetFactor;
 
     public final int guardCount, guardPlayerBlocks, guardCooldownSeconds;
 
@@ -133,7 +135,7 @@ public final class OrganTable {
         kindWeights = j.kindWeights != null && j.kindWeights.length == OrganKind.values().length ? j.kindWeights.clone()
                 : new double[]{1.0D, 1.2D, 1.0D, 0.8D, 0.8D};
         blocksPerTick = Math.max(1, or(j.blocksPerTick, 200));
-        phasePercentPerDay = Math.max(0.0D, or(r.phasePercentPerDay, 2.0D));
+        phaseChunks = Math.max(0.0D, or(r.phaseChunks, 150000.0D));
         towerSporePerDay = Math.max(0.0D, or(r.towerSporePerDay, 40.0D));
         sacHiveNodes = Math.max(0.0D, or(r.sacHiveNodes, 3.0D));
         nurseryIntervalSeconds = Math.max(1, or(r.nurseryIntervalSeconds, 60));
@@ -145,7 +147,7 @@ public final class OrganTable {
         crystalRegrowDays = Math.max(0.01D, or(r.crystalRegrowDays, 0.5D));
         leyStat = new double[]{Math.max(0.0D, or(r.leyHealthPercent, 10.0D)), Math.max(0.0D, or(r.leyAttackPercent, 10.0D)),
                 Math.max(0.0D, or(r.leyArmor, 2.0D)), Math.max(0.0D, or(r.leySpeedPercent, 5.0D)), Math.max(0.0D, or(r.leyKnockbackResist, 0.1D))};
-        witherPointsPercent = Math.max(0.0D, or(w.pointsPercent, 5.0D));
+        witherPointsDays = Math.max(0.0D, or(w.pointsDays, 1.0D));
         witherBudgetCapShare = Math.max(0.0D, or(w.budgetCapShare, 0.5D));
         phaseOrganPointsFactor = Math.max(0.0D, or(w.phaseOrganPointsFactor, 2.0D));
         sacBudgetFactor = Math.max(0.0D, or(w.sacBudgetFactor, 2.0D));

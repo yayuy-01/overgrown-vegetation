@@ -75,6 +75,29 @@ public final class OrganGameTests {
         helper.succeed();
     }
 
+    /**
+     * フェーズを進める器官の点は固定値(11-19 ユーザー了承): 大きい版 1 本 = 過繁茂 phaseChunks チャンク分の面積の点(1 日 = 面積の点の式 × N)、
+     * 小さい版は small.strength 倍、フェーズに依らない。枯れの引きはその 1 日分 × pointsDays(フェーズ器官は × phaseOrganPointsFactor)。
+     */
+    @GameTest(template = "gametest_empty7", batch = "organ_pure", timeoutTicks = 20)
+    public static void phaseOrganPointsAreFixed(GameTestHelper helper) {
+        OrganTable t = DesignData.organs();
+        com.yayuy.overgrownvegetation.data.PhaseTable p = DesignData.phases();
+        ForestOrgans.Organ big = new ForestOrgans.Organ(-1, OrganKind.PHASE, false, 0, 0, 0, 0, 0, 0L);
+        ForestOrgans.Organ small = new ForestOrgans.Organ(-2, OrganKind.PHASE, true, 0, 0, 0, 0, 0, 0L);
+        ForestOrgans.Organ tower = new ForestOrgans.Organ(-3, OrganKind.TOWER, false, 0, 0, 0, 0, 0, 0L);
+        double perChunk = p.areaPointsPerChunkPerSecond() * (com.yayuy.overgrownvegetation.data.PhaseTable.TICKS_PER_DAY / 20.0D); // 1 日 = 1200 秒
+        double want = t.phaseChunks * perChunk;
+        for (int ph = 1; ph <= 7; ph++) {
+            double got = OrganRoles.phasePointsPerDay(ph, big);
+            helper.assertTrue(Math.abs(got - want) < 1.0E-6D * want + 1.0E-6D, "F" + ph + " の大きいフェーズ器官の 1 日の点が違う: " + got + "(欲しい " + want + ")");
+            helper.assertTrue(Math.abs(OrganRoles.phasePointsPerDay(ph, small) - want * t.smallStrength) < 1.0E-6D * want + 1.0E-6D, "F" + ph + " の小さい版が strength 倍でない");
+            helper.assertTrue(Math.abs(ForestOrgans.witherPoints(ph, big) - want * t.witherPointsDays * t.phaseOrganPointsFactor) < 1.0E-6D * want + 1.0E-6D, "F" + ph + " のフェーズ器官の枯れの引きが違う");
+            helper.assertTrue(Math.abs(ForestOrgans.witherPoints(ph, tower) - want * t.witherPointsDays) < 1.0E-6D * want + 1.0E-6D, "F" + ph + " の塔の枯れの引きが違う");
+        }
+        helper.succeed();
+    }
+
     /** 建てられる升: 台帳に載っている・古い・まわりが全部台帳(境目から奥)・ほかの器官から離れている。小さい版は条件がゆるい。 */
     @GameTest(template = "gametest_empty7", batch = "organ_world", timeoutTicks = 100)
     public static void buildableNeedsDepthAgeAndSpacing(GameTestHelper helper) {
@@ -168,8 +191,8 @@ public final class OrganGameTests {
                 planted.add(ph.id);
                 ph.state = ForestOrgans.State.ALIVE;
                 ForestOrgans.Penalty p = data.wither(level, ph, "テスト");
-                long expect = Math.min(before, (long) Math.floor(DesignData.phases().pointsToAdvance(pd.getPhase())
-                        * DesignData.organs().witherPointsPercent / 100.0D * DesignData.organs().phaseOrganPointsFactor));
+                long expect = Math.min(before, (long) Math.floor(OrganRoles.chunkPointsPerDay(DesignData.organs().phaseChunks)
+                        * DesignData.organs().witherPointsDays * DesignData.organs().phaseOrganPointsFactor));
                 helper.assertTrue(p.points() == expect, "フェーズを進める器官のポイントの引きが違う: " + p.points() + "(欲しい " + expect + ")");
                 pd.addPointsUnscaledForTests(level, p.points()); // 戻す
             }

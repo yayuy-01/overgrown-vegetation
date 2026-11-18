@@ -1,6 +1,7 @@
 package com.yayuy.overgrownvegetation.organ;
 
 import com.yayuy.overgrownvegetation.data.DesignData;
+import com.yayuy.overgrownvegetation.data.PhaseTable;
 import com.yayuy.overgrownvegetation.director.DirectorGates;
 import com.yayuy.overgrownvegetation.director.ForestDirector;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
@@ -13,7 +14,7 @@ import net.minecraft.world.phys.AABB;
  * 器官の役割(2026-11-17 ユーザー決定の 5 つ。強さは design/organs.json の【仮】)。育ち切った器官だけが、100 tick ごとに
  * 前に数えた時刻からの時間ぶん働く(寝て飛ばした時間も。時計は {@link PhaseData#clock})。
  * <ul>
- *   <li>フェーズを進める器官: 今のフェーズの閾値の % をポイントに(難易度の倍率は {@link PhaseData#addPoints} が掛ける)。</li>
+ *   <li>フェーズを進める器官: 過繁茂 {@code roles.phaseChunks} チャンク分の面積の点を足す(11-19 固定値。難易度の倍率は {@link PhaseData#addPoints} が掛ける)。</li>
  *   <li>胞子の塔: 口から胞子の場へ点の発生源({@code SporeFieldServer.emitPoint})。</li>
  *   <li>蓄えの嚢: 司令塔の上限(ForestDirector#cap が {@link OrganWorld#sacHiveEquivalent} を読む)。ここでは何もしない。</li>
  *   <li>苗床の群体: プレイヤーが近い間、予算で G4・G5 を産む。</li>
@@ -27,13 +28,19 @@ public final class OrganRoles {
 
     /**
      * フェーズを進める器官 1 本が 1 日に足すポイント(難易度の倍率の前。{@link PhaseData#addPoints} が掛ける)。
-     * 今のフェーズの閾値 {@code pointsToAdvance(phase)} の {@code phasePercentPerDay} %(11-17 の作りのまま。{@code /ov forest} もここを読む)。
+     * 固定値(2026-11-19 ユーザー了承): 過繁茂 {@code roles.phaseChunks} チャンク分の面積の点(面積の点と同じ式)× 小さい版の強さ。
+     * フェーズに依らない({@code phase} は閾値の無い所で 0 にするためだけ)。{@code /ov forest} もここを読む。
      */
     public static double phasePointsPerDay(int phase, ForestOrgans.Organ o) {
+        if (DesignData.phases().pointsToAdvance(phase) <= 0L) return 0.0D;
         OrganTable t = DesignData.organs();
-        long threshold = DesignData.phases().pointsToAdvance(phase);
-        if (threshold <= 0L) return 0.0D;
-        return threshold * t.phasePercentPerDay / 100.0D * t.strength(o.small);
+        return chunkPointsPerDay(t.phaseChunks) * t.strength(o.small);
+    }
+
+    /** 過繁茂 {@code chunks} チャンクが 1 日に稼ぐ面積の点(時間の点は含めない)。 */
+    public static double chunkPointsPerDay(double chunks) {
+        PhaseTable p = DesignData.phases();
+        return (p.pointsPerTick(1L) - p.pointsPerTick(0L)) * chunks * PhaseTable.TICKS_PER_DAY;
     }
 
     /** 胞子の塔 1 本が 1 日に胞子の場へ出す量。 */

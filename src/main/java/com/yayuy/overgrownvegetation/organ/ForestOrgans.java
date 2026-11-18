@@ -319,13 +319,24 @@ public final class ForestOrgans extends SavedData {
         return best;
     }
 
+    /**
+     * 枯れたときに引くポイント(11-19 ユーザー了承の固定値)= フェーズを進める器官(大きい版)1 本の 1 日分 × {@code wither.pointsDays}
+     * × 小さい版の強さ × (フェーズを進める器官なら {@code phaseOrganPointsFactor})。閾値の無いフェーズでは 0。
+     */
+    public static double witherPoints(int phase, Organ o) {
+        if (DesignData.phases().pointsToAdvance(phase) <= 0L) return 0.0D;
+        OrganTable t = DesignData.organs();
+        return OrganRoles.chunkPointsPerDay(t.phaseChunks) * t.witherPointsDays * t.strength(o.small)
+                * (o.kind == OrganKind.PHASE ? t.phaseOrganPointsFactor : 1.0D);
+    }
+
     /** 芯を壊したときに引いた量(テスト・コマンドの表示用)。 */
     public record Penalty(long points, double budget) {
     }
 
     /**
      * 枯らす: 役割を止め、フェーズのポイントと森の予算(バイオマス)を一気に引く(2026-11-17 ユーザー「フェーズのポイントとバイオマスが
-     * 一気に下がるとかにしたいな」)。ポイント = 今のフェーズの閾値 × {@code wither.pointsPercent} %、予算 = 今の上限 × {@code budgetCapShare}。
+     * 一気に下がるとかにしたいな」)。ポイント = フェーズを進める器官(大きい版)の 1 日分 × {@code wither.pointsDays}(11-19 固定値)、予算 = 今の上限 × {@code budgetCapShare}。
      * フェーズを進める器官はポイントを、蓄えの嚢は予算を多めに引く。小さい版は {@code small.strength} 倍。
      * 嚢・卵・光る筋・芯を枯れの状態に替えるのは {@link OrganWorld} が少しずつ(読み込まれたとき)。育つ前の芽を潰したときも同じ量を引く。
      */
@@ -337,9 +348,7 @@ public final class ForestOrgans extends SavedData {
         OrganTable t = DesignData.organs();
         double k = t.strength(o.small);
         PhaseData pd = PhaseData.get(level);
-        long threshold = DesignData.phases().pointsToAdvance(pd.getPhase());
-        double pointShare = t.witherPointsPercent / 100.0D * k * (o.kind == OrganKind.PHASE ? t.phaseOrganPointsFactor : 1.0D);
-        long points = threshold > 0L ? pd.removePoints((long) Math.floor(threshold * pointShare)) : 0L;
+        long points = pd.removePoints((long) Math.floor(witherPoints(pd.getPhase(), o)));
         com.yayuy.overgrownvegetation.director.ForestDirector dir = com.yayuy.overgrownvegetation.director.ForestDirector.get(level);
         double have = dir.available(level);
         double cut = Math.min(have, com.yayuy.overgrownvegetation.director.ForestDirector.cap(level) * t.witherBudgetCapShare * k
