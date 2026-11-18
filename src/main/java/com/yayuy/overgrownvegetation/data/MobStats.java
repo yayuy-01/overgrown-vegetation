@@ -157,7 +157,7 @@ public final class MobStats {
 
         // グループ5(適応種)。HP 50・攻撃 16・防御 14 はユーザー指定(2026-09-23)。
         m.put("falcimnes", stat(s -> {
-            s.maxHealth = 50.0; s.attackDamage = 16.0; s.armor = 14.0; s.movementSpeed = 0.27;
+            s.maxHealth = 50.0; s.attackDamage = 25.0; s.armor = 14.0; s.movementSpeed = 0.27;
             s.knockbackResistance = 0.8; s.attackKnockback = 0.6; s.followRange = 32.0; s.stepHeight = 1.5;
             // 体格 1.8 倍(ユーザー指定 2026-09-23: 1.5 倍 → さらに 1.2 倍)。SCALE は見た目と当たり判定の両方に
             // 掛かるので、素の幅を 2.6 → 1.65 に下げて実効 2.97 に収める(3 を超えると経路探索が通らない。
@@ -353,7 +353,7 @@ public final class MobStats {
         // 「ファルキムネスより脆い・足が速い・長く追う」→ 体力 34(ファルキムネス 50)・防御 6(14)・速さ 0.30(0.27)・追う距離 48(32)。
         // 当たりは胴の芯 1.2 × 2.4(首・尾ははみ出す。全体 2.2 × 3.1 × 8.1)。描画倍率 2.5 は描画で掛ける(体格は 1)。攻撃は次の段。
         m.put("venamnes", stat(s -> {
-            s.maxHealth = 34.0; s.attackDamage = 10.0; s.armor = 6.0; s.armorToughness = 0.0; s.movementSpeed = 0.30;
+            s.maxHealth = 45.0; s.attackDamage = 20.0; s.armor = 6.0; s.armorToughness = 0.0; s.movementSpeed = 0.34;
             s.knockbackResistance = 0.4; s.followRange = 48.0; s.stepHeight = 1.5;
             s.scale = 1.0;
             s.width = 1.2; s.height = 2.4; s.eggFit = 5.61; s.xpReward = 30;
@@ -364,7 +364,7 @@ public final class MobStats {
         // 防御 16 + 防具強度 4(14 / 20)・速さ 0.24(ヴェナムネス 0.30)・ノックバック耐性 0.8。前からの矢・剣を弾く盾は次の段の技。
         // 当たりは胴の芯 1.4 × 2.6(盾の腕・脚・尾ははみ出す。全体 4.45 × 3.43 × 8.58)。描画倍率 2.0 は描画で掛ける(体格は 1)。
         m.put("clipeimnes", stat(s -> {
-            s.maxHealth = 70.0; s.attackDamage = 12.0; s.armor = 16.0; s.armorToughness = 4.0; s.movementSpeed = 0.24;
+            s.maxHealth = 80.0; s.attackDamage = 14.0; s.armor = 20.0; s.armorToughness = 8.0; s.movementSpeed = 0.24;
             s.knockbackResistance = 0.8; s.attackKnockback = 1.0; s.followRange = 32.0; s.stepHeight = 1.5;
             s.scale = 1.0;
             s.width = 1.4; s.height = 2.6; s.eggFit = 5.61; s.xpReward = 35;
@@ -374,7 +374,7 @@ public final class MobStats {
         // 「伏せて待ち、一跳びで詰める」→ 体力 30・防御 4(脆い。跳ぶ前に見つければ勝てる)・地上の速さ 0.20(這い歩き。地面で約 0.045 ブロック/tick)。
         // 当たりは胴の芯 1.8 × 1.0(伏せた姿。脚・翅・頭・腹ははみ出す。全体 4.5 × 2.3 × 7.2)。描画倍率 2.5 は描画で掛ける。段差 1.0(より高い段差・柵・塀は跳ぶ)。攻撃は次の段。
         m.put("saltimnes", stat(s -> {
-            s.maxHealth = 30.0; s.attackDamage = 9.0; s.armor = 4.0; s.armorToughness = 0.0; s.movementSpeed = 0.20;
+            s.maxHealth = 60.0; s.attackDamage = 12.0; s.armor = 6.0; s.armorToughness = 0.0; s.movementSpeed = 0.20;
             s.knockbackResistance = 0.6; s.followRange = 32.0; s.stepHeight = 1.0;
             s.scale = 1.0;
             s.width = 1.8; s.height = 1.0; s.eggFit = 5.75; s.xpReward = 30;
@@ -385,7 +385,7 @@ public final class MobStats {
         // 段差 1(2 段は跳び上がる。跳ぶ力は PilimnesEntity#JUMP_STRENGTH)。当たりは胴の芯 1.3 × 1.6(首・尾・横へ張った脚・背の棘ははみ出す。
         // 全体 3.7 × 3.4 × 9.5)。描画倍率 2.0 は描画で掛ける(体格は 1)。攻撃は能力の段。
         m.put("pilimnes", stat(s -> {
-            s.maxHealth = 30.0; s.attackDamage = 6.0; s.armor = 4.0; s.armorToughness = 0.0; s.movementSpeed = 0.30;
+            s.maxHealth = 30.0; s.attackDamage = 16.0; s.armor = 4.0; s.armorToughness = 0.0; s.movementSpeed = 0.30;
             s.knockbackResistance = 0.5; s.followRange = 48.0; s.stepHeight = 1.0;   // 11-16 弾きの射程 44 に合わせて 40 → 48
             s.scale = 1.0;
             s.width = 1.3; s.height = 1.6; s.eggFit = 5.17; s.xpReward = 30;
@@ -396,8 +396,8 @@ public final class MobStats {
         // → 地面の速さ ≈ 2.16 × 速さ² から 0.186(テストクライアントで測って合わせる)。体力 6・防御 0(破裂の袋は脆い)。
         // 段差 1.0。当たりは腹の袋の芯 0.8 × 0.6(脚・前脚ははみ出す)。破裂のダメージは次の段(攻撃の属性は使わない)。
         m.put("vesicaria", stat(s -> {
-            s.maxHealth = 6.0; s.attackDamage = 2.0; s.armor = 0.0; s.armorToughness = 0.0; s.movementSpeed = 0.186;
-            s.knockbackResistance = 0.0; s.followRange = 24.0; s.stepHeight = 1.0;
+            s.maxHealth = 8.0; s.attackDamage = 2.0; s.armor = 0.0; s.armorToughness = 0.0; s.movementSpeed = 0.186;
+            s.knockbackResistance = 0.0; s.followRange = 32.0; s.stepHeight = 1.0;
             s.scale = 1.0;
             s.width = 0.8; s.height = 0.6; s.eggFit = 2.65; s.xpReward = 2;
         }));
@@ -419,8 +419,8 @@ public final class MobStats {
         // 速さ 0.19: walk(1 倍で約 0.03 ブロック/tick)を 2.5 倍まで = 急ぎ 約 0.075(地面の速さ ≈ 2.16 × 速さ²)。歩幅が短いので遅い。
         // 当たりは胴と背板の芯 0.95 × 1.2(脚・触角・尾ははみ出す。全体 3.6 × 2.8 × 5.5)。段差 1.0。
         m.put("strobila", stat(s -> {
-            s.maxHealth = 12.0; s.attackDamage = 2.0; s.armor = 4.0; s.armorToughness = 0.0; s.movementSpeed = 0.36;   // 急ぎで床 約 0.28 = アルボラの床の速さ(11-15 段 2。前は 0.19)
-            s.knockbackResistance = 0.2; s.followRange = 48.0; s.stepHeight = 1.0;   // 気付く距離 32 → 48(射程 32 より先で気付いて寄る。11-16)
+            s.maxHealth = 20.0; s.attackDamage = 2.0; s.armor = 4.0; s.armorToughness = 0.0; s.movementSpeed = 0.36;   // 急ぎで床 約 0.28 = アルボラの床の速さ(11-15 段 2。前は 0.19)
+            s.knockbackResistance = 0.2; s.followRange = 56.0; s.stepHeight = 1.0;   // 気付く距離 32 → 48(射程 32 より先で気付いて寄る。11-16)→ 56(射程 46。11-18 夜)
             s.scale = 1.0;
             s.width = 0.95; s.height = 1.2; s.eggFit = 5.4; s.xpReward = 3;
         }));
@@ -444,7 +444,7 @@ public final class MobStats {
         // flyingSpeed は巡航の速さとしてそこから読む。体力 20 = 弓で落とせる(溜めきりの矢 3 本ほど)。
         // 当たりの芯は胴だけ(幅 1.2 × 高さ 0.8)。翼(翼幅 5.8)は叩ける部位(VelophyllEntity の WING_*)で、地形とはぶつからない。
         m.put("velophyll", stat(s -> {
-            s.maxHealth = 20.0; s.attackDamage = 4.0;
+            s.maxHealth = 14.0; s.attackDamage = 10.0;
             s.movementSpeed = 0.12; s.flyingSpeed = 0.7; s.armor = 0.0;
             s.knockbackResistance = 0.0; s.followRange = 48.0; s.stepHeight = 1.0;
             s.width = 1.2; s.height = 0.8; s.eggFit = 6.3; s.xpReward = 10;
@@ -453,7 +453,7 @@ public final class MobStats {
         // セミナリア(G4・空の斥候兼種まき、2026-11-15 段 1)。値はどれも【仮】。攻撃しない(attackDamage 0)。
         // 当たりの芯は胸だけ(0.8 × 1.0)。翅(幅 4.7)と腹の松かさは叩ける部位(SeminariaEntity の PARTS)。射落とせば飛び地を防げるので体力は低め。
         m.put("seminaria", stat(s -> {
-            s.maxHealth = 8.0; s.attackDamage = 0.0;
+            s.maxHealth = 10.0; s.attackDamage = 0.0;
             s.movementSpeed = 0.1; s.flyingSpeed = 0.3; s.armor = 0.0;
             s.knockbackResistance = 0.0; s.followRange = 32.0; s.stepHeight = 1.0;
             s.width = 0.8; s.height = 1.0; s.eggFit = 4.95; s.xpReward = 5;

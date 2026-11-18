@@ -141,10 +141,15 @@ public final class FalcimnesGameTests {
                 helper.fail("持ち上げていない(獲物の足 y=" + z.getY() + "、本体 y=" + f.getY() + ")");
             }
         });
-        // 噛みつきは 14・34 tick 目(補間 4 tick + 0.5 秒、以後 1 秒ごと)。36 tick 目には 20 − 8 − 8 = 4 のはず(ダイヤ一式でも減らない)。
+        // 噛みつきは 14・34 tick 目(補間 4 tick + 0.5 秒、以後 1 秒ごと)。36 tick 目には 体力 − 噛み × 2 のはず(ダイヤ一式でも減らない)。
+        // 11-18 夜: 噛みは設計値から引く(攻撃 16 → 25 と同じ比で 8 → 12.5)。2 回で死なないよう、ゾンビの体力を 60 にする
+        float bite = (float) FalcimnesEntity.def("grab").get("bite", 8.0D);
+        z.getAttribute(Attributes.MAX_HEALTH).setBaseValue(60.0D);
+        z.setHealth(60.0F);
+        float want = 60.0F - bite * 2.0F;
         helper.runAfterDelay(36L, () -> {
-            if (Math.abs(z.getHealth() - 4.0F) > 0.01F) {
-                helper.fail("噛みつき 2 回で体力 4 のはずが " + z.getHealth() + "(防具で減っている?)");
+            if (Math.abs(z.getHealth() - want) > 0.01F) {
+                helper.fail("噛みつき 2 回で体力 " + want + " のはずが " + z.getHealth() + "(防具で減っている?)");
                 return;
             }
             helper.succeed();
@@ -183,13 +188,16 @@ public final class FalcimnesGameTests {
         FalcimnesEntity f = placeForGrab(helper);
         IronGolem golem = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, new BlockPos(3, 2, 4));
         golem.getAttribute(Attributes.ARMOR).setBaseValue(0.0D);
+        // 11-18 夜: 技の傷を攻撃と同じ比で上げた(噛み 12.5 × 3 + 止め 46.9 + 胞子感染 20 > 100)。止めで死なないよう体力を 200 にする
+        golem.getAttribute(Attributes.MAX_HEALTH).setBaseValue(200.0D);
+        golem.setHealth(200.0F);
         if (!f.grab(golem)) {
             helper.fail("アイアンゴーレムを掴めない");
             return;
         }
         var g = FalcimnesEntity.def("grab");
         int bites = (int) Math.round(g.get("bites", 3.0D));
-        float afterBites = 100.0F - bites * (float) g.get("bite", 8.0D);
+        float afterBites = 200.0F - bites * (float) g.get("bite", 8.0D);
         // 止めへ移るのは掴んで 4 + 20 × 噛む回数 tick、噛むのはそこから 14 tick、放すのは 28 tick(FINISH_*)。
         long finishStart = 4L + 20L * bites;
         helper.runAfterDelay(finishStart - 2L, () -> {

@@ -47,7 +47,7 @@ final class PilimnesHuntGoal extends Goal {
     static final int RAIN_FALL_TICKS = 30;
     static final double RAIN_SPREAD = 2.5D;
     /** 間合い(体の中心から、ブロック)【仮】。 */
-    static final double FLICK_MIN = 6.0D, FLICK_MAX = 44.0D, FAN_MIN = 3.5D, FAN_MAX = 18.0D, RAIN_MIN = 6.0D, RAIN_MAX = 22.0D;   // 11-16 ユーザー「遠距離はもっと射程があっていい」: 弾き 22 → 44・扇 9 → 18(2 倍)。雨は相手のまわりに降るのでそのまま
+    static final double FLICK_MIN = 6.0D, FLICK_MAX = 44.0D, FAN_MIN = 3.5D, FAN_MAX = 22.0D, RAIN_MIN = 6.0D, RAIN_MAX = 22.0D;   // 11-16 ユーザー「遠距離はもっと射程があっていい」: 弾き 22 → 44・扇 9 → 18(2 倍)。雨は相手のまわりに降るのでそのまま
     /** 噛みつきの届く所(体の中心から前へ・左右、ブロック。鼻先の通り道 前 3.8〜4.5 のまわり)【仮】。 */
     static final double BITE_F_MIN = 2.4D, BITE_F_MAX = 5.0D, BITE_LAT = 1.3D;
     /** 撃ち始めてよい向きのずれ(度)。前触れの間に相手へ向き直る【仮】。 */
@@ -55,8 +55,13 @@ final class PilimnesHuntGoal extends Goal {
     /** 扇の開き(度。決定 11-15)。 */
     static final float FAN_DEG = 25.0F;
     /** 棘の速さ(ブロック/tick)・傷・鈍足【仮】。 */
+    /** 扇の散らし撃ちの届く端(11-18 夜 ユーザー 18 → 22。actions.json の pilimnes/fan の fanMax で直せる)。 */
+    static double fanMax() {
+        return com.yayuy.overgrownvegetation.data.DesignData.actions().num("pilimnes", "fan", "fanMax", FAN_MAX);
+    }
+
     static final double FLICK_SPEED = 2.4D, FAN_SPEED = 1.8D;   // 11-16 射程 2 倍に合わせて速く(弾きは 44 ブロック先へ約 21 tick・扇は 18 ブロック先へ約 11 tick。空気の抵抗 0.99/tick 込み)
-    static final float FLICK_DAMAGE = 5.0F, FAN_DAMAGE = 4.0F, RAIN_DAMAGE = 4.0F;
+    static final float FLICK_DAMAGE = 13.33F, FAN_DAMAGE = 10.67F, RAIN_DAMAGE = 10.67F;   // 11-18 夜: 攻撃 6 → 16 と同じ比(× 16/6)。actions.json の pilimnes/flick・fan・rain
     static final int SLOW_TICKS = 80, SLOW_LEVEL = 1;
     /** 待ち(tick)【仮】。 */
     static final int FLICK_COOLDOWN = 40, FAN_COOLDOWN = 60, BITE_COOLDOWN = 24, RAIN_COOLDOWN = 300;
@@ -172,7 +177,7 @@ final class PilimnesHuntGoal extends Goal {
             this.pacing.onNormalAttack();
             return;
         }
-        boolean canFan = this.fanCd == 0 && this.sees && d >= FAN_MIN && d <= FAN_MAX && off <= AIM_DEG;
+        boolean canFan = this.fanCd == 0 && this.sees && d >= FAN_MIN && d <= fanMax() && off <= AIM_DEG;
         boolean canFlick = this.flickCd == 0 && this.sees && d >= FLICK_MIN && d <= FLICK_MAX && off <= AIM_DEG;
         boolean canRain = this.rainCd == 0 && this.sees && d >= RAIN_MIN && d <= RAIN_MAX && this.mob.onGround();
         // 足が鈍った相手には、撃つより先に詰めて噛む(近いうちは扇も撃たない)
@@ -257,7 +262,7 @@ final class PilimnesHuntGoal extends Goal {
             case PilimnesEntity.ACT_FLICK -> {
                 hold();
                 if (this.actTicks == FLICK_SHOT && v != null && v.isAlive()) {
-                    this.mob.shootFlick(v, FLICK_SPEED, FLICK_DAMAGE, SLOW_TICKS, SLOW_LEVEL);
+                    this.mob.shootFlick(v, FLICK_SPEED, (float) com.yayuy.overgrownvegetation.data.DesignData.actions().num("pilimnes", "flick", "damage", FLICK_DAMAGE), SLOW_TICKS, SLOW_LEVEL);
                     this.flicks++;
                 }
                 if (this.actTicks >= FLICK) startAct(PilimnesEntity.ACT_FLICK_RECOVER);
@@ -276,7 +281,7 @@ final class PilimnesHuntGoal extends Goal {
             case PilimnesEntity.ACT_FAN -> {
                 hold();
                 if (this.actTicks == FAN_SHOT && v != null && v.isAlive()) {
-                    this.mob.shootFan(v, FAN_DEG, FAN_SPEED, FAN_DAMAGE);
+                    this.mob.shootFan(v, FAN_DEG, FAN_SPEED, (float) com.yayuy.overgrownvegetation.data.DesignData.actions().num("pilimnes", "fan", "damage", FAN_DAMAGE));
                     this.fans++;
                 }
                 if (this.actTicks >= FAN) startAct(PilimnesEntity.ACT_FAN_RECOVER);
@@ -321,7 +326,7 @@ final class PilimnesHuntGoal extends Goal {
                 for (int i = 0; i < RAIN_SHOTS.length; i++) {
                     if (this.actTicks == RAIN_SHOTS[i]) {
                         Vec3 at = v != null && v.isAlive() ? v.position() : this.mob.position().add(this.mob.getLookAngle().scale(10.0D));
-                        this.mob.shootRain(i, at, i == 0 ? 0.0D : RAIN_SPREAD, RAIN_FALL_TICKS, RAIN_DAMAGE);
+                        this.mob.shootRain(i, at, i == 0 ? 0.0D : RAIN_SPREAD, RAIN_FALL_TICKS, (float) com.yayuy.overgrownvegetation.data.DesignData.actions().num("pilimnes", "rain", "damage", RAIN_DAMAGE));
                     }
                 }
                 if (this.actTicks >= RAIN) startAct(PilimnesEntity.ACT_RAIN_RECOVER);

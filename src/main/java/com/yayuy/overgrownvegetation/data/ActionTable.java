@@ -62,10 +62,10 @@ public final class ActionTable {
         f.put("flurry", new ActionDef("flurry", 390, 0.0D, 0.0D, 0.45D, 0.25D, 1.0D, 0.0D,
                 m("damageFactor", 0.3D, "moveSpeed", 0.55D, "finishFactor", 1.0D, "cautious", 0.4D, "aggressive", 2.5D)));   // finishFactor = 締めの X 字(段 2、仮)
         // 掴み(近〜中、間隔は長め)。damage = 止め(11-05 即死をやめた。防具は効く)。噛みつき・振りほどきの量・突進の速さ。
-        f.put("grab", new ActionDef("grab", 600, 9.0D, 21.6D, 0.6D, 0.3D, 0.05D, 30.0D,
-                m("bite", 8.0D, "breakFree", 15.0D, "dashSpeed", 0.95D, "bites", 3.0D, "cautious", 0.7D, "aggressive", 1.5D)));
+        f.put("grab", new ActionDef("grab", 600, 9.0D, 21.6D, 0.6D, 0.3D, 0.05D, 46.9D,
+                m("bite", 12.5D, "breakFree", 15.0D, "dashSpeed", 0.95D, "bites", 3.0D, "cautious", 0.7D, "aggressive", 1.5D)));
         // 飛ぶ斬撃(遠、11-05 新規)。毎秒 20 ブロック・16 ブロックで消える・横 3 × 厚み 0.5。盾で防げる。
-        f.put("wave", new ActionDef("wave", 144, 6.0D, 16.0D, 0.8D, 0.3D, 0.06D, 10.0D,
+        f.put("wave", new ActionDef("wave", 144, 6.0D, 16.0D, 0.8D, 0.3D, 0.06D, 15.6D,
                 m("speed", 1.0D, "range", 16.0D, "width", 3.0D, "height", 0.5D, "cautious", 1.5D, "aggressive", 0.8D)));
         // 地走りの光の帯(特殊、11-05 新規)。筋は毎秒 24 ブロック・相手の足元の 2 先まで(最大 18)・幅 1.5。
         // 筋が伸びきって 12 tick 後に高さ 3 の帯が 8 tick 立つ。打ち上げ 0.6。盾では防げない。
@@ -81,17 +81,17 @@ public final class ActionTable {
         rift.put("lift", 0.6D);
         rift.put("burstRadius", 4.0D);
         rift.put("burstUnder", 2.0D);
-        f.put("rift", new ActionDef("rift", 400, 0.0D, 22.0D, 1.0D, 1.0D, 1.0D, 14.0D, rift));
+        f.put("rift", new ActionDef("rift", 400, 0.0D, 22.0D, 1.0D, 1.0D, 1.0D, 21.9D, rift));
         // 段 2(11-07 夜)の小さな通常技。全部【仮】。damage 0 は種の攻撃力。maxRange 0 は種が決める届く距離(交差斬りだけ短く)。
-        f.put("kiriage", new ActionDef("kiriage", 70, 0.0D, 0.0D, 0.7D, 0.4D, 1.0D, 14.0D, m("lift", 0.5D, "shieldBreak", 40.0D, "cautious", 2.0D, "counter", 1.0D, "comboCut", 0.6D,
+        f.put("kiriage", new ActionDef("kiriage", 70, 0.0D, 0.0D, 0.7D, 0.4D, 1.0D, 21.9D, m("lift", 0.5D, "shieldBreak", 40.0D, "cautious", 2.0D, "counter", 1.0D, "comboCut", 0.6D,
                 "next.hit.kozuki", 1.0D, "next.hit.tsukikaki", 0.5D, "next.blocked.kosa", 1.0D, "next.missed.fumikomi", 0.5D)));
-        f.put("tsukikaki", new ActionDef("tsukikaki", 90, 0.0D, 0.0D, 0.6D, 0.4D, 1.0D, 6.0D, m("pull", 0.6D, "cautious", 2.0D, "counter", 1.0D, "comboCut", 0.55D,
+        f.put("tsukikaki", new ActionDef("tsukikaki", 90, 0.0D, 0.0D, 0.6D, 0.4D, 1.0D, 9.4D, m("pull", 0.6D, "cautious", 2.0D, "counter", 1.0D, "comboCut", 0.55D,
                 "next.hit.kozuki", 1.0D, "next.hit.kosa", 1.0D, "next.blocked.kiriage", 1.0D, "next.missed.fumikomi", 1.0D)));
-        f.put("kosa", new ActionDef("kosa", 80, 0.0D, 5.5D, 0.7D, 0.4D, 1.0D, 12.0D, m("cautious", 0.6D, "aggressive", 2.5D, "comboCut", 0.8D,
+        f.put("kosa", new ActionDef("kosa", 80, 0.0D, 5.5D, 0.7D, 0.4D, 1.0D, 18.8D, m("cautious", 0.6D, "aggressive", 2.5D, "comboCut", 0.8D,
                 "next.hit.kozuki", 1.0D, "next.blocked.kiriage", 1.0D, "next.missed.tsukikaki", 1.0D, "next.missed.fumikomi", 1.0D)));
-        f.put("fumikomi", new ActionDef("fumikomi", 80, 0.0D, 0.0D, 0.6D, 0.4D, 1.0D, 12.0D, m("sidestep", 0.16D, "flank", 3.0D, "comboCut", 0.8D,
+        f.put("fumikomi", new ActionDef("fumikomi", 80, 0.0D, 0.0D, 0.6D, 0.4D, 1.0D, 18.8D, m("sidestep", 0.16D, "flank", 3.0D, "comboCut", 0.8D,
                 "next.hit.kozuki", 1.0D, "next.hit.kosa", 0.5D, "next.blocked.kiriage", 1.0D, "next.missed.kosa", 0.5D)));
-        f.put("kozuki", new ActionDef("kozuki", 30, 0.0D, 0.0D, 0.9D, 0.4D, 1.0D, 5.0D, m("cautious", 2.5D, "aggressive", 0.8D, "counter", 1.0D,
+        f.put("kozuki", new ActionDef("kozuki", 30, 0.0D, 0.0D, 0.9D, 0.4D, 1.0D, 7.8D, m("cautious", 2.5D, "aggressive", 0.8D, "counter", 1.0D,
                 "next.hit.kiriage", 1.0D, "next.hit.tsukikaki", 0.5D, "next.blocked.kiriage", 2.0D, "next.missed.tsukikaki", 1.0D, "next.missed.fumikomi", 0.5D)));
         // 段 3(11-08)個体の性格の数値(選ばれない擬似の技。extra だけ)。全部【仮】。FalcimnesPersonality の javadoc。
         f.put("personality", new ActionDef("personality", 0, 0.0D, 0.0D, 0.0D, 1.0D, 0.0D, 0.0D, m(
@@ -115,14 +115,14 @@ public final class ActionTable {
         // 飛びかかり: 頭から相手まで約 4〜8 ブロック(= 真ん中から 7〜11)の相手へ、間合いに入った 1 tick ごとに 8%。lift = 跳ぶ上向きの勢い。
         Map<String, ActionDef> v = new LinkedHashMap<>();
         v.put("bite", new ActionDef("bite", 30, 0.0D, 0.0D, 1.0D, 1.0D, 1.0D, 0.0D, Map.of()));
-        v.put("pounce", new ActionDef("pounce", 100, 7.0D, 11.0D, 1.0D, 1.0D, 0.08D, 12.0D, Map.of("lift", 0.42D)));
+        v.put("pounce", new ActionDef("pounce", 100, 7.0D, 11.0D, 1.0D, 1.0D, 0.08D, 24.0D, Map.of("lift", 0.42D)));
         // 段 B(11-15、すべて仮): 足噛み = 首の横の届く所の相手へ走りながら(間合いは種が見る。maxRange は真ん中からの上限)。
         // slowTicks・slowAmp = 鈍り(移動の遅さ)の長さ・強さ(1 = II)。
-        v.put("nip", new ActionDef("nip", 40, 0.0D, 5.0D, 1.0D, 1.0D, 1.0D, 4.0D, Map.of("slowTicks", 60.0D, "slowAmp", 1.0D)));
+        v.put("nip", new ActionDef("nip", 40, 0.0D, 5.0D, 1.0D, 1.0D, 1.0D, 8.0D, Map.of("slowTicks", 60.0D, "slowAmp", 1.0D)));
         // 狩りの疾走 = 背を向けて離れていく(離れる速さ fleeSpeed 以上の)相手へ、10〜28 ブロックで 1 tick ごとに 10%。
         // damage = 最後の飛びかかり。speedMult = 移動の倍率(地面 0.35 ブロック/tick、ユーザー決定)、sprintTicks = 走る長さ。
-        v.put("hunt", new ActionDef("hunt", 400, 10.0D, 28.0D, 1.0D, 1.0D, 0.1D, 14.0D,
-                Map.of("fleeSpeed", 0.12D, "speedMult", 1.34D, "sprintTicks", 80.0D, "lift", 0.42D)));
+        v.put("hunt", new ActionDef("hunt", 400, 10.0D, 28.0D, 1.0D, 1.0D, 0.1D, 28.0D,
+                Map.of("fleeSpeed", 0.12D, "speedMult", 1.18D, "sprintTicks", 80.0D, "lift", 0.42D)));
         // 段 C(11-15、すべて仮): 性格の擬似の技(選ばれない)。慎重な個体のつけ回しの距離(prowlNear〜prowlFar)、振り向いたとみる向きのずれ
         // (watchCone 度以内で相手がこちらを見ている)、背を向けたとみる向きのずれ(backCone 度より大きい)、待ちきれなくなるまで(patienceTicks × 慎重さの片側)
         // と攻めに行く長さ(commitTicks)、つけ回しの歩きの速さ(prowlSpeed、移動の速さに掛ける)。
@@ -214,6 +214,17 @@ public final class ActionTable {
             throw new IllegalArgumentException("技が無い: " + mob + "/" + id);
         }
         return d;
+    }
+
+    /**
+     * 技の調整値を 1 つ(extra の鍵)。技か鍵が json に無ければ {@code fallback}(Java の定数)。
+     * 2026-11-18 夜 バランス調整: Java の定数だった技の数値を、mod-manager2 から直せるよう json で上書きできるようにした種が使う。
+     */
+    public double num(String mob, String id, String key, double fallback) {
+        ActionDef d = actions(mob).get(id);
+        if (d == null) return fallback;
+        Double v = d.extra().get(key);
+        return v != null ? v : fallback;
     }
 
     /** 種の特殊技の出し方(新しい個体ごとに 1 つ作る)。 */

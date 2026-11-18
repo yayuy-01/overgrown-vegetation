@@ -66,7 +66,7 @@ import java.util.Map;
  *       弱めのダメージ {@link #BURST_DAMAGE}(半径 {@link #BURST_RADIUS} で外へ減る)+ 弾き飛ばし + 胞子の雲(植物側の死の破裂と同じ {@link G1DeathBurst})。
  *       ダメージの元はこの Mob なので、殴られた相手の感染は全体の仕組み({@code ParasitizedAttackInfectionHandler})が受け持つ。
  *       植物側の死の破裂({@code PlantSideBurst})はタグ {@code death_burst_exempt} で外し、二重に弾けない。</li>
- *   <li><b>連鎖</b>: 弾けると、半径 {@link #CHAIN_RADIUS} の仲間が {@link #CHAIN_DELAY_MIN}〜{@link #CHAIN_DELAY_MAX} tick 遅れてつられて弾ける【仮】。</li>
+ *   <li><b>連鎖</b>(11-18 夜 ユーザーがなくした。{@link #chainRadius} が 0 なら起きない): 弾けると、半径 {@link #CHAIN_RADIUS} の仲間が {@link #CHAIN_DELAY_MIN}〜{@link #CHAIN_DELAY_MAX} tick 遅れてつられて弾ける【仮】。</li>
  *   <li><b>死んだ後</b>: {@code burst}(20 tick)でしぼんだ姿になり、{@link #REMOVE_TICKS} tick で消える(バニラの白い煙は出さない)。</li>
  * </ul>
  * 光・音・粒の時刻はアニメの表(ヴェシカリア.md 6 節)に合わせる。数値は全部【仮・Claude 11-15】。
@@ -103,7 +103,7 @@ public class VesicariaEntity extends SmallCrawler implements GeoEntity, Parasiti
     // ------------------------------------------------------------------ 能力の値【仮・Claude 11-15】
 
     /** 相手がこれ(ブロック)に入って見えていたら突撃を始める。0.28 で 1.5 秒膨らむと 8.4 ブロック走るので、膨らみ切ってから届く距離。 */
-    public static final double CHARGE_START_RANGE = 12.0D;
+    public static final double CHARGE_START_RANGE = 16.0D;   // 11-18 夜 ユーザー「見つける範囲を上げる」: 12 → 16【仮】(追う範囲 followRange も 24 → 32)
     /** 突撃をあきらめる長さ(tick。届かない所の相手に走り続けない)と、その後また突撃するまでの間。 */
     static final int CHARGE_MAX_TICKS = 160, CHARGE_COOLDOWN = 60;
     /** 触れた = 体の箱をこれだけ広げて相手の箱と重なる(ブロック)。 */
@@ -113,13 +113,26 @@ public class VesicariaEntity extends SmallCrawler implements GeoEntity, Parasiti
     /** 袋が膨らみ切るまで(tick。アニメ burst_windup の 26 tick で膨らみ切り 30 で止まる)。 */
     public static final int WINDUP_TICKS = 30;
     /** 破裂のダメージ(真ん中。外へ半分まで減る)と届く半径(ブロック)。 */
-    public static final float BURST_DAMAGE = 4.0F;
+    public static final float BURST_DAMAGE = 10.0F;   // 11-18 夜 ユーザー「爆発ダメージ 10」: 4 → 10【仮】
     public static final double BURST_RADIUS = 2.5D;
     /** 弾き飛ばし(横・上。真ん中の値。外へ半分まで減る)。 */
     static final double KNOCK_HORIZONTAL = 0.8D, KNOCK_UP = 0.35D;
     /** 連鎖: この半径(ブロック)の仲間が、この幅(tick)遅れて弾ける。 */
-    public static final double CHAIN_RADIUS = 3.0D;
+    public static final double CHAIN_RADIUS = 0.0D;   // 11-18 夜 ユーザー「連鎖の破裂をなくす」: 3 → 0(0 = 連鎖しない)
     public static final int CHAIN_DELAY_MIN = 2, CHAIN_DELAY_MAX = 4;
+
+    /** 破裂のダメージ・連鎖の半径・突撃を始める距離(actions.json の vesicaria/burst で直せる。無ければ上の定数)。 */
+    public static float burstDamage() {
+        return (float) com.yayuy.overgrownvegetation.data.DesignData.actions().num(ID, "burst", "damage", BURST_DAMAGE);
+    }
+
+    public static double chainRadius() {
+        return com.yayuy.overgrownvegetation.data.DesignData.actions().num(ID, "burst", "chainRadius", CHAIN_RADIUS);
+    }
+
+    public static double chargeStartRange() {
+        return com.yayuy.overgrownvegetation.data.DesignData.actions().num(ID, "burst", "chargeStartRange", CHARGE_START_RANGE);
+    }
     /** 死んでから消えるまで(tick。burst は 20 tick でしぼんだ姿に止まる)。 */
     public static final int REMOVE_TICKS = 30;
     /** 1 tick・1 次元あたり、全部の粒で弾ける数。それより多い分は粒を減らし、音を鳴らさない(大きな連鎖の重さ)。 */
@@ -277,10 +290,10 @@ public class VesicariaEntity extends SmallCrawler implements GeoEntity, Parasiti
         G1DeathBurst.burst(level, new Vec3(sac.x, this.getY(), sac.z), this.getBbWidth(), this.getBbHeight(), full ? 1.0D : REDUCED_DETAIL, sound);
 
         // まわりへのダメージと弾き飛ばし(仲間・植物側には効かない。仲間は連鎖へ)
-        AABB box = new AABB(sac, sac).inflate(Math.max(BURST_RADIUS, CHAIN_RADIUS));
+        AABB box = new AABB(sac, sac).inflate(Math.max(BURST_RADIUS, chainRadius()));
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box, e -> e != this && e.isAlive())) {
             if (e instanceof VesicariaEntity v) {
-                if (!v.burst && v.chainTimer < 0 && v.distanceToSqr(sac) <= CHAIN_RADIUS * CHAIN_RADIUS) {
+                if (!v.burst && v.chainTimer < 0 && chainRadius() > 0.0D && v.distanceToSqr(sac) <= chainRadius() * chainRadius()) {
                     v.chainTimer = CHAIN_DELAY_MIN + this.random.nextInt(CHAIN_DELAY_MAX - CHAIN_DELAY_MIN + 1);
                 }
                 continue;
@@ -290,7 +303,7 @@ public class VesicariaEntity extends SmallCrawler implements GeoEntity, Parasiti
             double d = Math.sqrt(e.getBoundingBox().distanceToSqr(sac));
             if (d > BURST_RADIUS) continue;
             double share = 1.0D - 0.5D * (d / BURST_RADIUS);
-            e.hurt(this.damageSources().explosion(this, this), (float) (BURST_DAMAGE * share));
+            e.hurt(this.damageSources().explosion(this, this), (float) (burstDamage() * share));
             double resist = Mth.clamp(1.0D - e.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE), 0.0D, 1.0D);
             double dx = c.x - sac.x, dz = c.z - sac.z;
             double h = Math.sqrt(dx * dx + dz * dz);
@@ -439,7 +452,7 @@ public class VesicariaEntity extends SmallCrawler implements GeoEntity, Parasiti
             }
             if (this.cooldown > 0) this.cooldown--;
             boolean charging = this.mob.isCharging();
-            if (!charging && this.cooldown == 0 && this.mob.distanceToSqr(t) <= CHARGE_START_RANGE * CHARGE_START_RANGE
+            if (!charging && this.cooldown == 0 && this.mob.distanceToSqr(t) <= chargeStartRange() * chargeStartRange()
                     && this.mob.getSensing().hasLineOfSight(t)) {
                 this.mob.setCharging(true);
                 charging = true;

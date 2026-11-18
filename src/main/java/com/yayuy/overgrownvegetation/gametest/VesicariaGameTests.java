@@ -240,7 +240,10 @@ public final class VesicariaGameTests {
                 charged[0], maxSpeed[0], v.getTarget(), v.distanceTo(cow), v.debugState())));
     }
 
-    /** 矢が当たる(傷が 1 でも)とその場で弾け、半径 3 の仲間 2 体がつられて弾ける。離れた 1 体(6 ブロック)は残る。 */
+    /**
+     * 矢が当たる(傷が 1 でも)とその場で弾ける。11-18 夜 ユーザー決定で連鎖をなくしたので、隣の仲間はつられて弾けない
+     * (前は半径 3 の仲間 2 体がつられて弾けた)。
+     */
     @GameTest(template = "gametest_empty7", timeoutTicks = 40)
     public static void vesiArrowBurstsAndChains(GameTestHelper helper) {
         VesicariaEntity a = placeAt(helper, 1.5D, 1.5D, 0.0F);
@@ -255,7 +258,7 @@ public final class VesicariaGameTests {
             if (a.isAlive()) helper.fail("矢が当たっても弾けない");
         });
         helper.runAtTickTime(4L + VesicariaEntity.CHAIN_DELAY_MAX * 2 + 2, () -> {
-            if (!b.hasBurst() || !c.hasBurst()) { helper.fail("連鎖しない(隣 " + b.hasBurst() + "・その隣 " + c.hasBurst() + ")"); return; }
+            if (b.hasBurst() || c.hasBurst()) { helper.fail("連鎖をなくしたのに連鎖した(隣 " + b.hasBurst() + "・その隣 " + c.hasBurst() + ")"); return; }
             if (far.hasBurst() || !far.isAlive()) { helper.fail("離れた仲間まで弾けた"); return; }
             helper.succeed();
         });

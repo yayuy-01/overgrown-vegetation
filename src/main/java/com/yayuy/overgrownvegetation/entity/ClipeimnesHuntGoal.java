@@ -48,14 +48,14 @@ final class ClipeimnesHuntGoal extends Goal {
      */
     static final double HOLD_FORWARD = 2.8D;
     /** 締めの傷(1 回)・締めの時刻(hold の 1 巡の中)・巡の数・放す傷【仮】。 */
-    static final float SQUEEZE_DAMAGE = 2.0F;
+    static final float SQUEEZE_DAMAGE = 2.33F;   // 11-18 夜: 攻撃 12 → 14 と同じ比(× 14/12)。actions.json の clipeimnes/squeeze
     static final int[] SQUEEZES = {5, 15};
     static final int HOLD_LOOPS = 3;
     static final float HOLD_BREAK = 6.0F;
     /** 溜めの解放: 届く所・向き・扇(前へ、ブロック・度)・傷・弾き【仮】。 */
     static final float RELEASE_DEG = 45.0F;
     static final double RELEASE_REACH = 6.0D, WAVE_REACH = 7.0D;
-    static final float WAVE_DEG = 45.0F, WAVE_DAMAGE = 14.0F;
+    static final float WAVE_DEG = 45.0F, WAVE_DAMAGE = 16.33F;   // 11-18 夜: 攻撃と同じ比(× 14/12)。actions.json の clipeimnes/shockwave
     static final double WAVE_PUSH = 2.0D, WAVE_LIFT = 0.5D;
     /** 盾を構える: 相手がこれ(ブロック)より遠い間【仮】。 */
     static final double GUARD_FAR = 6.0D;
@@ -315,7 +315,7 @@ final class ClipeimnesHuntGoal extends Goal {
                 }
                 int inLoop = this.actTicks % HOLD;
                 for (int s : SQUEEZES) {
-                    if (inLoop == s) this.mob.squeeze(v, SQUEEZE_DAMAGE);
+                    if (inLoop == s) this.mob.squeeze(v, (float) com.yayuy.overgrownvegetation.data.DesignData.actions().num("clipeimnes", "squeeze", "damage", SQUEEZE_DAMAGE));
                 }
                 if (this.actTicks >= HOLD * HOLD_LOOPS) {
                     // 締め終えた: 放す(よろけは無い。腕を開く隙は grab_recover)
@@ -339,7 +339,7 @@ final class ClipeimnesHuntGoal extends Goal {
             }
             case ClipeimnesEntity.ACT_RELEASE -> {
                 if (this.actTicks == RELEASE_HIT) {
-                    this.mob.shockwave(WAVE_REACH, WAVE_DEG, WAVE_DAMAGE, WAVE_PUSH, WAVE_LIFT);
+                    this.mob.shockwave(WAVE_REACH, WAVE_DEG, (float) com.yayuy.overgrownvegetation.data.DesignData.actions().num("clipeimnes", "shockwave", "damage", WAVE_DAMAGE), WAVE_PUSH, WAVE_LIFT);
                     this.mob.resetCharge();
                 }
                 if (this.actTicks >= RELEASE) startAct(ClipeimnesEntity.ACT_RELEASE_RECOVER);

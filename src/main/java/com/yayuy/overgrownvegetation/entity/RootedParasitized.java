@@ -165,12 +165,27 @@ public class RootedParasitized extends Monster implements ParasitizedMob, GeoEnt
     static final double AURA_RADIUS = 8.0D;
     static final double AURA_DOSE_PER_SECOND = 40.0D;
     /** エンダーマンの引き込み: 間合い・冷却・手元の距離・一緒に引き込む Mob(相手のそば何ブロック・何体)・呼び集める G1(何ブロック・何体)。 */
-    static final double REACH_MIN = 4.0D, REACH_MAX = 20.0D;
+    static final double REACH_MIN = 4.0D, REACH_MAX = 48.0D;   // 11-18 夜 ユーザー: 4〜20 → 4〜48。actions.json の rooted_parasitized_enderman/reach の min・max
     static final int REACH_COOLDOWN = 200;
     static final double REACH_LAND = 1.9D;
     static final double REACH_EXTRA_RADIUS = 5.0D;
     static final int REACH_EXTRA_COUNT = 3;
-    static final double REACH_CALL_RADIUS = 24.0D;
+    /** 引き込む根付いたエンダーマンの見つける範囲(追う範囲。11-18 夜 ユーザー: 引き込みの 48 に合わせる)。 */
+    static final double REACH_FOLLOW = 48.0D;
+
+    static double reachMin() {
+        return com.yayuy.overgrownvegetation.data.DesignData.actions().num("rooted_parasitized_enderman", "reach", "min", REACH_MIN);
+    }
+
+    static double reachMax() {
+        return com.yayuy.overgrownvegetation.data.DesignData.actions().num("rooted_parasitized_enderman", "reach", "max", REACH_MAX);
+    }
+
+    static double reachCall() {
+        return com.yayuy.overgrownvegetation.data.DesignData.actions().num("rooted_parasitized_enderman", "reach", "callRadius", REACH_CALL_RADIUS);
+    }
+
+    static final double REACH_CALL_RADIUS = 48.0D;   // 11-18 夜 ユーザー: 24 → 48。actions.json の reach の callRadius
     static final int REACH_CALL_COUNT = 3;
     /** 呼んだ G1 を出す輪の半径(柱から)。 */
     static final double REACH_CALL_RING = 3.2D;
@@ -296,7 +311,7 @@ public class RootedParasitized extends Monster implements ParasitizedMob, GeoEnt
                 .add(Attributes.ATTACK_DAMAGE, 6.0D)
                 .add(Attributes.MOVEMENT_SPEED, 0.0D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D)
-                .add(Attributes.FOLLOW_RANGE, r.skill == Skill.BALLISTA ? BALLISTA_FOLLOW : FOLLOW_RANGE);
+                .add(Attributes.FOLLOW_RANGE, r.skill == Skill.BALLISTA ? BALLISTA_FOLLOW : r.skill == Skill.REACH ? REACH_FOLLOW : FOLLOW_RANGE);
     }
 
     private double followRange() {
@@ -595,7 +610,7 @@ public class RootedParasitized extends Monster implements ParasitizedMob, GeoEnt
             playSound(ModSounds.G1_VINE_LASH.get(), 1.0F, 0.6F);
             return;
         }
-        if (r.skill == Skill.REACH && skillReadyIn <= 0 && reach >= REACH_MIN && reach <= REACH_MAX) {
+        if (r.skill == Skill.REACH && skillReadyIn <= 0 && reach >= reachMin() && reach <= reachMax()) {
             this.entityData.set(AIM_YAW, reachAim(target));
             begin(ACTION_SKILL_WINDUP, r.skillWindup);
             return;
@@ -1264,7 +1279,7 @@ public class RootedParasitized extends Monster implements ParasitizedMob, GeoEnt
      */
     private void pullIn(LivingEntity target) {
         if (!(level() instanceof ServerLevel level)) return;
-        if (reachTo(target) > REACH_MAX + 1.0D || !getSensing().hasLineOfSight(target)) return;
+        if (reachTo(target) > reachMax() + 1.0D || !getSensing().hasLineOfSight(target)) return;
         Vec3 from = target.position();
         double dx = from.x - getX(), dz = from.z - getZ();
         double d = Math.max(1.0E-3D, Math.sqrt(dx * dx + dz * dz));
@@ -1281,7 +1296,7 @@ public class RootedParasitized extends Monster implements ParasitizedMob, GeoEnt
         }
         int called = 0;
         for (AbstractParasitizedMonster g : level.getEntitiesOfClass(AbstractParasitizedMonster.class,
-                getBoundingBox().inflate(REACH_CALL_RADIUS, 8.0D, REACH_CALL_RADIUS))) {
+                getBoundingBox().inflate(reachCall(), 8.0D, reachCall()))) {
             if (called >= REACH_CALL_COUNT) break;
             if (!g.isAlive() || g.isPassenger() || g.isVehicle() || g.isRising() || tooFarForTests(g)) continue;
             // 11-13 ユーザー決定(Q7 = 2): G1 も転移で手元へ呼ぶ(引き込んだ瞬間に囲まれる)。出す場所は、柱から 3.2 ブロックの輪の上で、

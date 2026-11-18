@@ -999,11 +999,11 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
 
     /** エンダーマン (b): 転移の距離(GameTest が場の外へ出ないように縮める)。 */
     public double teleportMin() {
-        return teleportRangeOverride != null ? teleportRangeOverride[0] : G1Blink.MIN;
+        return teleportRangeOverride != null ? teleportRangeOverride[0] : com.yayuy.overgrownvegetation.data.DesignData.actions().num("developed_parasitized_enderman", "blink", "min", G1Blink.MIN);
     }
 
     public double teleportMax() {
-        return teleportRangeOverride != null ? teleportRangeOverride[1] : G1Blink.MAX;
+        return teleportRangeOverride != null ? teleportRangeOverride[1] : com.yayuy.overgrownvegetation.data.DesignData.actions().num("developed_parasitized_enderman", "blink", "max", G1Blink.MAX);
     }
 
     public void setTeleportRangeOverride(double min, double max) {

@@ -82,7 +82,17 @@ public final class VenamnesGameTests {
     }
 
     /**
-     * 平地: 向こうの端まで歩き、体の向きに対して横へ滑らない(進むのは体の前へだけ。横の速さが 1 tick 0.05 ブロック以下)。
+     * 横滑りの上限: 速さ 0.30 のときの 0.05 ブロック/tick を、地面の速さ(≈ 2.16 × 速さ²)の比で伸ばす。
+     * 11-18 夜 ユーザー決定で速さを 0.34 に上げたら、曲がるときの横の速さも同じ割合(地面の速さの約 25%)のまま 0.062 になった。
+     */
+    private static double slipLimit() {
+        Double s = com.yayuy.overgrownvegetation.data.DesignData.mobs().forId(VenamnesEntity.ID).movementSpeed;
+        double speed = s != null ? s : 0.30D;
+        return 0.05D * (speed * speed) / (0.30D * 0.30D) + 0.003D;
+    }
+
+    /**
+     * 平地: 向こうの端まで歩き、体の向きに対して横へ滑らない(進むのは体の前へだけ。横の速さが 1 tick 0.05 ブロック以下 × 地面の速さの比)。
      * 経路の点の左右の位置は体の幅とノードの角で決まるので、まっすぐの線からのずれは見ない(回って向きを変えるのは正しい)。
      */
     @GameTest(template = "gametest_empty7", timeoutTicks = 160)
@@ -113,8 +123,8 @@ public final class VenamnesGameTests {
             double side = Math.abs(dx * net.minecraft.util.Mth.cos(yaw) + dz * net.minecraft.util.Mth.sin(yaw));
             maxSide[0] = Math.max(maxSide[0], side);
             if (v.getZ() > helper.absoluteVec(new Vec3(0, 0, 5.4D)).z) {
-                if (maxSide[0] > 0.05D) {
-                    helper.fail("体の向きに対して横へ滑った(1 tick 最大 " + String.format("%.3f", maxSide[0]) + ")");
+                if (maxSide[0] > slipLimit()) {   // 11-18 夜: 速さ 0.30 → 0.34 に合わせて、地面の速さの比で
+                    helper.fail("ヴェナムネスが体の向きに対して横へ滑った(1 tick 最大 " + String.format("%.3f", maxSide[0]) + ")");
                     return;
                 }
                 helper.succeed();

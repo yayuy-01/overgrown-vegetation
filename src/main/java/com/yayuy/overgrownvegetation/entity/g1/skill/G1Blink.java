@@ -31,8 +31,9 @@ import java.util.function.ToDoubleFunction;
  */
 public final class G1Blink {
 
-    public static final double MIN = 8.0D;
-    public static final double MAX = 16.0D;
+    /** 渡る距離(11-18 夜 ユーザー「範囲を少し上げる」: 8〜16 → 10〜20【仮】。1 段目のエンダーマンは actions.json の developed_parasitized_enderman/blink で直せる)。 */
+    public static final double MIN = 10.0D;
+    public static final double MAX = 20.0D;
     /** 標的のそばへ着くときの、標的からの距離。 */
     static final double NEAR_MIN = 2.5D, NEAR_MAX = 3.5D;
     static final int TRIES = 16;

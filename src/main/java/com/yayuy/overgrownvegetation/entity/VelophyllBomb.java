@@ -35,7 +35,7 @@ public class VelophyllBomb extends ThrowableItemProjectile {
     /** 落ちた升へ足す降り積もり(発芽のしきい値の %)【仮・Claude 11-15】(球果と同じ)。 */
     public static final double DEPOSIT_PERCENT = 15.0D;
     /** 直に当たったときの傷【仮・決定 11-15 ユーザー: 小さな傷】。植物側の攻撃なので、当たった相手は既存の仕組みで感染する。 */
-    public static final float DIRECT_DAMAGE = 2.0F;
+    public static final float DIRECT_DAMAGE = 10.0F;   // 11-18 夜 ユーザー「ヴェロフィルの直撃は 10」(攻撃 4 → 10 を直撃の傷に)。actions.json の velophyll/bomb
     /** 確かめ用(開発用のログ): 当たったもの(爆弾ごと)。 */
     public String hitDesc = "";
     /** 狙った相手(測る用)。 */
@@ -83,7 +83,7 @@ public class VelophyllBomb extends ThrowableItemProjectile {
         if (DEV && this.aimed != null) com.mojang.logging.LogUtils.getLogger().info("VELO_HIT {} 相手との水平の距離 {}", this.hitDesc,
                 String.format("%.2f", Math.hypot(result.getLocation().x - this.aimed.getX(), result.getLocation().z - this.aimed.getZ())));
         if (result instanceof net.minecraft.world.phys.EntityHitResult eh) {
-            eh.getEntity().hurt(this.damageSources().mobProjectile(this, this.getOwner() instanceof LivingEntity o ? o : null), DIRECT_DAMAGE);
+            eh.getEntity().hurt(this.damageSources().mobProjectile(this, this.getOwner() instanceof LivingEntity o ? o : null), (float) com.yayuy.overgrownvegetation.data.DesignData.actions().num("velophyll", "bomb", "damage", DIRECT_DAMAGE));
         }
         burst(level, result.getLocation(), this.getOwner());
         this.discard();

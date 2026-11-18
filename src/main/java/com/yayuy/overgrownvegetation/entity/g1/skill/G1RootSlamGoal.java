@@ -39,7 +39,12 @@ import java.util.List;
  */
 public class G1RootSlamGoal extends G1TechniqueGoal {
 
-    public static final double RADIUS = 4.0D;
+    public static final double RADIUS = 5.0D;   // 11-18 夜 ユーザー「範囲を少し上げる」: 4 → 5【仮】
+
+    /** 根の突き上げの半径(actions.json の developed_parasitized_enderman/rootSlam の radius で直せる。無ければ {@link #RADIUS})。 */
+    static double radius() {
+        return com.yayuy.overgrownvegetation.data.DesignData.actions().num("developed_parasitized_enderman", "rootSlam", "radius", RADIUS);
+    }
     public static final int WINDUP = 14;
     static final int SHAKE_TICK = 8;
     public static final float DAMAGE = 6.0F;
@@ -59,7 +64,7 @@ public class G1RootSlamGoal extends G1TechniqueGoal {
     @Override
     protected boolean ready() {
         if (!mob.rootSkillReady() || target == null || !target.isAlive() || !mob.canAttack(target)) return false;
-        if (mob.distanceTo(target) > RADIUS || !mob.getSensing().hasLineOfSight(target)) return false;
+        if (mob.distanceTo(target) > radius() || !mob.getSensing().hasLineOfSight(target)) return false;
         return mob.level() instanceof ServerLevel level && groundUnder(level, target) != null;
     }
 
@@ -110,9 +115,9 @@ public class G1RootSlamGoal extends G1TechniqueGoal {
         level.playSound(null, mob.getX() + face.x, mob.getY(), mob.getZ() + face.z, SoundEvents.MACE_SMASH_GROUND, SoundSource.HOSTILE, 0.8F, 0.6F);
         // 当たる相手
         List<BlockPos> spikes = new ArrayList<>();
-        AABB box = mob.getBoundingBox().inflate(RADIUS + 1.0D, 3.0D, RADIUS + 1.0D);
+        AABB box = mob.getBoundingBox().inflate(radius() + 1.0D, 3.0D, radius() + 1.0D);
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box)) {
-            if (!G1TargetGoal.isPrey(mob, e) || horizontal(e) > RADIUS) continue;
+            if (!G1TargetGoal.isPrey(mob, e) || horizontal(e) > radius()) continue;
             BlockPos ground = groundUnder(level, e);
             if (ground == null || !cells.contains(ground)) continue;
             spikes.add(ground);
@@ -149,12 +154,12 @@ public class G1RootSlamGoal extends G1TechniqueGoal {
     /** 半径の中の「汚染した地面で、上が空いているマス」を集める(列ごとに、体の高さの少し上から下へ見て最初の地面)。 */
     private void collectCells(ServerLevel level) {
         cells.clear();
-        int r = Mth.ceil(RADIUS);
+        int r = Mth.ceil(radius());
         BlockPos feet = mob.blockPosition();
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (int dx = -r; dx <= r; dx++) {
             for (int dz = -r; dz <= r; dz++) {
-                if (dx * dx + dz * dz > RADIUS * RADIUS) continue;
+                if (dx * dx + dz * dz > radius() * radius()) continue;
                 for (int dy = 1; dy >= -3; dy--) {
                     p.set(feet.getX() + dx, feet.getY() + dy, feet.getZ() + dz);
                     if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) break;

@@ -33,7 +33,12 @@ import javax.annotation.Nullable;
  */
 public class G1GrabGoal extends G1TechniqueGoal {
 
-    public static final double RANGE = 4.0D;
+    public static final double RANGE = 5.0D;   // 11-18 夜 ユーザー「範囲を少し上げる」: 4 → 5【仮】
+
+    /** 掴む届き(actions.json の developed_parasitized_enderman/grab の range で直せる。無ければ {@link #RANGE})。 */
+    static double range() {
+        return com.yayuy.overgrownvegetation.data.DesignData.actions().num("developed_parasitized_enderman", "grab", "range", RANGE);
+    }
     public static final int WINDUP = 14;
     static final int AIM_UNTIL = 11;
     public static final int HOLD = 20;
@@ -59,7 +64,7 @@ public class G1GrabGoal extends G1TechniqueGoal {
     @Override
     protected boolean ready() {
         if (!mob.rootSkillReady() || target == null || !target.isAlive() || !mob.canAttack(target) || target.isPassenger()) return false;
-        return mob.distanceTo(target) <= RANGE && mob.getSensing().hasLineOfSight(target);
+        return mob.distanceTo(target) <= range() && mob.getSensing().hasLineOfSight(target);
     }
 
     @Override
@@ -128,7 +133,7 @@ public class G1GrabGoal extends G1TechniqueGoal {
 
     /** 止めた体の向きの前にいて届くか(盾で弾かれない)。 */
     private boolean reaches(@Nullable LivingEntity e) {
-        if (e == null || !e.isAlive() || e.isPassenger() || mob.distanceTo(e) > RANGE + 0.5D || !mob.getSensing().hasLineOfSight(e)) return false;
+        if (e == null || !e.isAlive() || e.isPassenger() || mob.distanceTo(e) > range() + 0.5D || !mob.getSensing().hasLineOfSight(e)) return false;
         double dx = e.getX() - mob.getX(), dz = e.getZ() - mob.getZ();
         if (dx * dx + dz * dz > 0.25D) {
             float to = (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90.0F;

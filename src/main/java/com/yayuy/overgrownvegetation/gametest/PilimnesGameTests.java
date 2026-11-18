@@ -106,7 +106,7 @@ public final class PilimnesGameTests {
             maxSide[0] = Math.max(maxSide[0], side);
             if (v.getZ() > helper.absoluteVec(new Vec3(0, 0, 5.2D)).z) {   // 11-16: 幅 1.3 の体は最後の点(z 6.5)の 1 ブロック余り手前で「着いた」になる(5.37 で止まった回があった)
                 if (maxSide[0] > 0.05D) {
-                    helper.fail("体の向きに対して横へ滑った(1 tick 最大 " + String.format("%.3f", maxSide[0]) + ")");
+                    helper.fail("ピリムネスが体の向きに対して横へ滑った(1 tick 最大 " + String.format("%.3f", maxSide[0]) + ")");
                     return;
                 }
                 helper.succeed();

@@ -24,7 +24,7 @@ import net.minecraft.world.phys.Vec3;
  *
  * <ul>
  *   <li>植物側(G1〜G10・寄生体・汎用の感染体)には当たらず素通りする(群れの後ろから前の味方越しに投げるため)。</li>
- *   <li>体には傷を付けない(当たっても雲になるだけ)。</li>
+ *   <li>相手に直に当たると傷 {@link #DIRECT_DAMAGE}(11-18 夜。前は傷なし)。地面に落ちたときは雲だけ。</li>
  *   <li>見た目は【仮】: 胞子嚢のアイテムの絵(G1 の胞子の塊と同じ描き方)。球果の絵はまだ無い。</li>
  *   <li>音は無い(音は設定の確認が要るので、能力の段では入れない)。</li>
  * </ul>
@@ -59,6 +59,21 @@ public class StrobilaCone extends ThrowableItemProjectile {
     @Override
     protected Item getDefaultItem() {
         return ModItems.SPORE_SAC.get();
+    }
+
+    /** 直撃の傷(11-18 夜 ユーザー決定「傷の無い飛び道具は、攻撃の値を直撃の傷にする」: ストロビラの攻撃 23。actions.json の strobila/cone で直せる)。 */
+    public static final float DIRECT_DAMAGE = 23.0F;
+
+    public static float directDamage() {
+        return (float) DesignData.actions().num("strobila", "cone", "damage", DIRECT_DAMAGE);
+    }
+
+    @Override
+    protected void onHitEntity(net.minecraft.world.phys.EntityHitResult result) {
+        super.onHitEntity(result);
+        if (this.level().isClientSide()) return;
+        Entity owner = this.getOwner();
+        result.getEntity().hurt(this.damageSources().mobProjectile(this, owner instanceof LivingEntity o ? o : null), directDamage());
     }
 
     @Override

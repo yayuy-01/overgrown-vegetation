@@ -47,7 +47,7 @@ final class SaltimnesHuntGoal extends Goal {
             KICK_WINDUP = LEAD + 8, KICK = 5, KICK_HIT = 2, KICK_RECOVER = 14, ZIG_WINDUP = LEAD + 20, ZIG_TOUCH = 6;
     /** 噛みの時刻(pin の頭から)と 1 回の傷【仮】。蹴りの傷は攻撃の属性。 */
     static final int[] BITES = {10, 19, 28, 37};
-    static final float BITE_DAMAGE = 3.0F;
+    static final float BITE_DAMAGE = 4.0F;   // 11-18 夜: 攻撃 9 → 12 と同じ比。actions.json の saltimnes/bite
     /** 押さえ込みの間にこれだけ傷を受けたら放す【仮】(反撃で逃れられる)。 */
     static final float PIN_BREAK = 6.0F;
     /** 蹴りの弾き(横・上)【仮】。 */
@@ -314,7 +314,7 @@ final class SaltimnesHuntGoal extends Goal {
                     return;
                 }
                 for (int b : BITES) {
-                    if (this.actTicks == b) this.mob.bite(v, BITE_DAMAGE);
+                    if (this.actTicks == b) this.mob.bite(v, (float) com.yayuy.overgrownvegetation.data.DesignData.actions().num("saltimnes", "bite", "damage", BITE_DAMAGE));
                 }
                 if (this.actTicks >= PIN) {
                     this.mob.releasePin();
