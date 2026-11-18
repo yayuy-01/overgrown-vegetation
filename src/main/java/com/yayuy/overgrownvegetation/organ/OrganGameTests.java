@@ -10,6 +10,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
@@ -308,18 +309,38 @@ public final class OrganGameTests {
 
             OrganWorld.buildNow(level, data, o);
             helper.assertTrue(o.y == gy, "器官が地面に建たない: y=" + o.y + "(地面 " + gy + ")");
-            // 芯を壊して枯れた後、払った所に苗木が生え直す
+            // 芯を壊して枯れた後、払った所が段階的に戻る(11-19: 下草 → 苗木)
             data.wither(level, o, "テスト");
-            o.witheredAt = PhaseData.clockNow(level) - (long) (DesignData.organs().regrowDays * 24000.0D) - 1L;
+            OrganTable tt = DesignData.organs();
+            long day = 24000L;
+            // 1 段目の途中: 2 段の草が増え、苗木はまだ無い
+            o.witheredAt = PhaseData.clockNow(level) - (long) (tt.regrowDays * day * tt.regrowUndergrowthShare * 0.9D);
+            for (int k = 0; k < 4000; k++) OrganClearing.regrow(level, o, bp, PhaseData.clockNow(level));
+            int[] mid = countRegrowth(level, c, gy, r);
+            helper.assertTrue(o.regrowUnder > 0, "下草の段が進まない");
+            helper.assertTrue(mid[1] > 0, "下草の段で背の高い草が増えない: " + mid[1]);
+            helper.assertTrue(mid[0] == 0, "下草の段なのに苗木がある: " + mid[0]);
+            // 終わりまで: 苗木が植わり、戻り終える
+            o.witheredAt = PhaseData.clockNow(level) - (long) (tt.regrowDays * day) - 1L;
             for (int k = 0; k < 4000 && o.regrown >= 0; k++) OrganClearing.regrow(level, o, bp, PhaseData.clockNow(level));
-            int saplings = 0;
-            for (int dx = -r; dx <= r; dx++) {
-                for (int dz = -r; dz <= r; dz++) {
-                    if (level.getBlockState(new BlockPos(c.getX() + dx, gy + 1, c.getZ() + dz)).is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_SAPLING.get())) saplings++;
+            int[] end = countRegrowth(level, c, gy, r);
+            helper.assertTrue(o.regrown == -1, "生え直しが終わらない: " + o.regrown);
+            helper.assertTrue(end[0] >= 2, "払った所に苗木が生え直さない: " + end[0]);
+            // 植えた苗木が本当に木になる(育ちを進める)
+            boolean grew = false;
+            net.minecraft.util.RandomSource rs = net.minecraft.util.RandomSource.create(42L);
+            for (int dx = -r; dx <= r && !grew; dx++) {
+                for (int dz = -r; dz <= r && !grew; dz++) {
+                    BlockPos sp = new BlockPos(c.getX() + dx, gy + 1, c.getZ() + dz);
+                    for (int k = 0; k < 6; k++) {
+                        BlockState s = level.getBlockState(sp);
+                        if (!(s.getBlock() instanceof net.minecraft.world.level.block.SaplingBlock sb)) break;
+                        sb.advanceTree(level, sp, s, rs);
+                    }
+                    if (level.getBlockState(sp).is(net.minecraft.tags.BlockTags.LOGS)) grew = true;
                 }
             }
-            helper.assertTrue(o.regrown == -1, "生え直しが終わらない: " + o.regrown);
-            helper.assertTrue(saplings >= 3, "払った所に苗木が生え直さない: " + saplings);
+            helper.assertTrue(grew, "生え直した苗木が木にならない");
             helper.succeed();
         } finally {
             for (int id : planted) data.remove(id);
@@ -338,6 +359,56 @@ public final class OrganGameTests {
                 }
             }
         }
+    }
+
+    /** {@code /ov forest}(11-19): 働いている器官が種類の行に数えられ、育っているだけの種類は「まだ働いていない」と出る。 */
+    @GameTest(template = "gametest_empty7", batch = "organ_forest_cmd", timeoutTicks = 20)
+    public static void forestCommandCountsOrgans(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ForestOrgans data = ForestOrgans.get(level);
+        BlockPos c = helper.absolutePos(new BlockPos(3, 1, 3));
+        List<Integer> planted = new ArrayList<>();
+        try {
+            // 遠くに置く(読み込まれていないので建たない)。同じ呼び出しの中で消すので役割は回らない
+            ForestOrgans.Organ tower = data.plant(level, OrganKind.TOWER, true, 0, 11, 0, c.getX() + 200000, c.getZ() + 200000);
+            ForestOrgans.Organ nursery = data.plant(level, OrganKind.NURSERY, true, 0, 12, 0, c.getX() + 200400, c.getZ() + 200000);
+            planted.add(tower.id);
+            planted.add(nursery.id);
+            tower.state = ForestOrgans.State.ALIVE;
+            OrganWorld.invalidateCaches();
+            String towerLine = null, nurseryLine = null;
+            for (net.minecraft.network.chat.Component line : ForestCommand.lines(level)) {
+                if (!(line.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents tc)) continue;
+                if (!tc.getKey().endsWith(".kind_line")) continue;
+                Object kind = tc.getArgs()[0];
+                if (kind instanceof net.minecraft.network.chat.Component kc && kc.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents kt) {
+                    Object eff = tc.getArgs()[4];
+                    String effKey = eff instanceof net.minecraft.network.chat.Component ec && ec.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents et ? et.getKey() : "?";
+                    if (kt.getKey().endsWith(".tower")) towerLine = tc.getArgs()[2] + "/" + effKey;
+                    if (kt.getKey().endsWith(".nursery")) nurseryLine = tc.getArgs()[3] + "/" + effKey;
+                }
+            }
+            helper.assertTrue(towerLine != null && towerLine.startsWith("1/") && towerLine.endsWith("effect.tower"), "胞子の塔の行が違う: " + towerLine);
+            helper.assertTrue(nurseryLine != null && nurseryLine.startsWith("1/") && nurseryLine.endsWith("effect.inactive"), "育っている苗床の行が違う: " + nurseryLine);
+            helper.succeed();
+        } finally {
+            for (int id : planted) data.remove(id);
+            OrganWorld.invalidateCaches();
+        }
+    }
+
+    /** 円の中の地面の 1 つ上の [過繁茂の苗木, 2 段の大きなシダ・葦] の数。 */
+    private static int[] countRegrowth(ServerLevel level, BlockPos c, int gy, int r) {
+        int[] n = new int[2];
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
+                BlockState s = level.getBlockState(new BlockPos(c.getX() + dx, gy + 1, c.getZ() + dz));
+                if (s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_SAPLING.get())) n[0]++;
+                if (s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_TALL_FERN.get())
+                        || s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_SPORE_REED.get())) n[1]++;
+            }
+        }
+        return n;
     }
 
     /** 巨大樹の根元の近くの升には建てない(11-19 ユーザー「巨大樹は避けて」)。巨大樹の記録は (x << 32) | z で読む(目印にも使う)。 */

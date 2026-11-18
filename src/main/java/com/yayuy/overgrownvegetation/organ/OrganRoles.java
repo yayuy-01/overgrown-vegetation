@@ -25,6 +25,29 @@ public final class OrganRoles {
     private OrganRoles() {
     }
 
+    /**
+     * フェーズを進める器官 1 本が 1 日に足すポイント(難易度の倍率の前。{@link PhaseData#addPoints} が掛ける)。
+     * 今のフェーズの閾値 {@code pointsToAdvance(phase)} の {@code phasePercentPerDay} %(11-17 の作りのまま。{@code /ov forest} もここを読む)。
+     */
+    public static double phasePointsPerDay(int phase, ForestOrgans.Organ o) {
+        OrganTable t = DesignData.organs();
+        long threshold = DesignData.phases().pointsToAdvance(phase);
+        if (threshold <= 0L) return 0.0D;
+        return threshold * t.phasePercentPerDay / 100.0D * t.strength(o.small);
+    }
+
+    /** 胞子の塔 1 本が 1 日に胞子の場へ出す量。 */
+    public static double towerSporePerDay(ForestOrgans.Organ o) {
+        OrganTable t = DesignData.organs();
+        return t.towerSporePerDay * t.strength(o.small);
+    }
+
+    /** 苗床の群体 1 本のまわりに産む数の上限(守りを含む)。 */
+    public static int nurseryMaxNear(ForestOrgans.Organ o) {
+        OrganTable t = DesignData.organs();
+        return Math.max(1, (int) Math.round(t.nurseryMaxAlive * t.strength(o.small))) + t.guardCount;
+    }
+
     static void tick(ServerLevel level, ForestOrgans data, ForestOrgans.Organ o, long now) {
         OrganTable t = DesignData.organs();
         if (o.roleAt < 0L) o.roleAt = now;
@@ -34,10 +57,9 @@ public final class OrganRoles {
         switch (o.kind) {
             case PHASE -> {
                 PhaseData pd = PhaseData.get(level);
-                int phase = pd.getPhase();
-                long threshold = DesignData.phases().pointsToAdvance(phase);
-                if (threshold > 0L && !peaceful) {
-                    double raw = threshold * t.phasePercentPerDay / 100.0D * t.strength(o.small) * days + o.pointCarry;
+                double perDay = phasePointsPerDay(pd.getPhase(), o);
+                if (perDay > 0.0D && !peaceful) {
+                    double raw = perDay * days + o.pointCarry;
                     long whole = (long) Math.floor(raw);
                     o.pointCarry = raw - whole;
                     if (whole > 0L) pd.addPoints(level, whole);
@@ -45,7 +67,7 @@ public final class OrganRoles {
             }
             case TOWER -> {
                 if (!peaceful && t.towerSporePerDay > 0.0D) {
-                    double perDay = t.towerSporePerDay * t.strength(o.small);
+                    double perDay = towerSporePerDay(o);
                     OrganBlueprint bp = OrganWorld.blueprint(o);
                     BlockPos anchor = o.anchor();
                     if (bp == null || bp.mouths.isEmpty()) {
@@ -105,7 +127,7 @@ public final class OrganRoles {
         BlockPos at = o.anchor();
         if (!OrganWorld.playerNear(level, at, t.nurseryPlayerBlocks)) return;
         o.nurseryAt = now;
-        if (countGuards(level, at, t.nurseryPlayerBlocks) >= Math.max(1, (int) Math.round(t.nurseryMaxAlive * t.strength(o.small))) + t.guardCount) return;
+        if (countGuards(level, at, t.nurseryPlayerBlocks) >= nurseryMaxNear(o)) return;
         // 予算で産む(苗床のゲスタトリクスと同じ値段)。G4 と G5 から
         net.minecraft.world.entity.EntityType<?> type = com.yayuy.overgrownvegetation.spawn.DirectorHooks.pickPlant(level, level.getRandom(), 0);
         if (type == null) return;

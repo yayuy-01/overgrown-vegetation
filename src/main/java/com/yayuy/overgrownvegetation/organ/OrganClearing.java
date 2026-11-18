@@ -13,6 +13,7 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.DoublePlantBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 
@@ -107,37 +108,87 @@ public final class OrganClearing {
     // ---------------------------------------------------------------- 枯れた後に生え直す
 
     /**
-     * 芯を壊して枯れた器官の、払った円に苗木を植え直す(11-19 ユーザー「生え直す方向で」)。森の中の開けた場所が時間とともに森へ戻る。
-     * 枯れてから {@code clearing.regrowDays} 日かけて、円の広さ ÷ {@code regrowSpacing}² 本ぶんの所を順に試す(地面が苗木を受け付けない所は飛ばす)。
-     * 植えるのは過繁茂の苗木(汚染の森の木と同じ。育ち方は苗木に任せる)。枯れた器官の形は残り、そのまわりに木が戻る。役割の数え(100 tick ごと)から呼ぶ。
+     * 芯を壊して枯れた器官の、払った円が段階的に森へ戻る(11-19 ユーザー「生え直す方向で」→ 同日「15〜20 日かけて段階的に、下草 → 苗木」。
+     * 理由: 器官を潰した見返り(開けた場所)が長く残るほど、押し返す遊びが報われる)。全部で {@code clearing.regrowDays} 日。
+     * <ol>
+     *   <li>下草(初めの {@code regrowUndergrowthShare}): 円の広さ ÷ {@code regrowUndergrowthSpacing}² か所に汚染の下草。うち {@code regrowTallShare} は
+     *       2 段の大きなシダ・葦(払った林床には背の低い下草が残っているので、背の高い草が増えて「茂ってきた」と見えるように)。</li>
+     *   <li>苗木(残り): 円の広さ ÷ {@code regrowSpacing}² か所に過繁茂の苗木(下草の上でも植える。育ち方は苗木に任せる)。</li>
+     *   <li>{@code regrowGiantSapling} なら最後に巨大樹の苗木を 1 本(既定 off【仮】)。</li>
+     * </ol>
+     * 地面が受け付けない所(器官の上・石)は飛ばす。枯れた器官の形は残る。役割の数え(100 tick ごと)から呼ぶ。
      */
     static boolean regrow(ServerLevel level, ForestOrgans.Organ o, OrganBlueprint bp, long now) {
         OrganTable t = DesignData.organs();
         if (o.regrown < 0 || !t.regrowEnabled || !o.cleared || o.placed <= 0 || o.state != ForestOrgans.State.WITHERED) return false;
         int r = radius(bp, o.small);
-        int target = (int) Math.round(Math.PI * r * r / ((double) t.regrowSpacing * t.regrowSpacing));
-        if (o.regrown >= target) {
-            o.regrown = -1; // 植え終えた(もう設計図を引かない)
+        double area = Math.PI * r * r;
+        double share = t.regrowUndergrowthShare;
+        int underTarget = share <= 0.0D ? 0 : (int) Math.round(area / ((double) t.regrowUndergrowthSpacing * t.regrowUndergrowthSpacing));
+        int treeTarget = (int) Math.round(area / ((double) t.regrowSpacing * t.regrowSpacing));
+        if (o.regrowUnder >= underTarget && o.regrown >= treeTarget) {
+            if (t.regrowGiantSapling) giantSapling(level, o, r);
+            o.regrown = -1; // 戻り終えた(もう設計図を引かない)
             return true;
         }
         double f = (now - o.witheredAt) / (t.regrowDays * 24000.0D);
-        int due = (int) Math.min(target, Math.floor(target * f));
+        int underDue = share <= 0.0D ? underTarget : (int) Math.min(underTarget, Math.floor(underTarget * f / share));
+        int treeDue = f <= share ? 0 : (int) Math.min(treeTarget, Math.floor(treeTarget * (f - share) / (1.0D - share)));
         boolean changed = false;
+        for (int tries = 0; o.regrowUnder < underDue && tries < 8; tries++) {
+            BlockPos p = spot(level, o, r, o.regrowUnder, 101L);
+            if (p == null) break; // 読み込まれたら続きから
+            java.util.Random rnd = new java.util.Random(o.seed * 0x2545F4914F6CDD1DL + o.regrowUnder * 131L);
+            o.regrowUnder++;
+            changed = true;
+            BlockState here = level.getBlockState(p);
+            if (!here.isAir() && !(here.canBeReplaced() && !(here.getBlock() instanceof DoublePlantBlock))) continue;
+            net.minecraft.util.RandomSource pick = net.minecraft.util.RandomSource.create(rnd.nextLong());
+            if (rnd.nextDouble() < t.regrowTallShare) {
+                BlockState tall = com.yayuy.overgrownvegetation.corruption.CorruptionGrowth.randomTall(pick);
+                BlockState above = level.getBlockState(p.above());
+                if ((above.isAir() || above.canBeReplaced()) && tall.canSurvive(level, p) && tall.getBlock() instanceof DoublePlantBlock) {
+                    DoublePlantBlock.placeAt(level, tall, p, Block.UPDATE_ALL);
+                    continue;
+                }
+            }
+            BlockState top = com.yayuy.overgrownvegetation.corruption.CorruptionGrowth.randomTop(pick);
+            if (here.isAir() && top.canSurvive(level, p)) level.setBlock(p, top, Block.UPDATE_ALL);
+        }
         BlockState sapling = com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_SAPLING.get().defaultBlockState();
-        for (int tries = 0; o.regrown < due && tries < 4; tries++) {
-            java.util.Random rnd = new java.util.Random(o.seed * 0x5DEECE66DL + o.regrown * 31L + 17L);
-            double ang = rnd.nextDouble() * Math.PI * 2.0D, d = r * Math.sqrt(rnd.nextDouble());
-            int x = o.x + (int) Math.round(Math.cos(ang) * d), z = o.z + (int) Math.round(Math.sin(ang) * d);
-            if (!OrganWorld.ready(level, x >> 4, z >> 4)) break; // 読み込まれたら続きから
+        for (int tries = 0; o.regrown < treeDue && tries < 4; tries++) {
+            BlockPos p = spot(level, o, r, o.regrown, 17L);
+            if (p == null) break;
             o.regrown++;
             changed = true;
-            BlockPos p = new BlockPos(x, groundY(level, x, z) + 1, z);
+            // 下草(2 段の草も)は苗木で置き換える(下草が苗木の場所を取って森が戻らない、を防ぐ)
             BlockState here = level.getBlockState(p);
-            if (!here.isAir() && !(here.canBeReplaced() && !(here.getBlock() instanceof net.minecraft.world.level.block.DoublePlantBlock))) continue;
+            if (!here.isAir() && !here.canBeReplaced()) continue;
             if (!sapling.canSurvive(level, p)) continue;
             level.setBlock(p, sapling, Block.UPDATE_ALL);
         }
         return changed;
+    }
+
+    /** 生え直す i 番目の所(器官の種から決まる。円の中に一様)の地面の 1 つ上。読み込まれていなければ null。 */
+    private static BlockPos spot(ServerLevel level, ForestOrgans.Organ o, int r, int i, long salt) {
+        java.util.Random rnd = new java.util.Random(o.seed * 0x5DEECE66DL + i * 31L + salt);
+        double ang = rnd.nextDouble() * Math.PI * 2.0D, d = r * Math.sqrt(rnd.nextDouble());
+        int x = o.x + (int) Math.round(Math.cos(ang) * d), z = o.z + (int) Math.round(Math.sin(ang) * d);
+        if (!OrganWorld.ready(level, x >> 4, z >> 4)) return null;
+        return new BlockPos(x, groundY(level, x, z) + 1, z);
+    }
+
+    /** 枯れた器官のそば(円の 6 割の所)に巨大樹の苗木を 1 本(regrowGiantSapling【仮】。受け付けなければ置かない)。 */
+    private static void giantSapling(ServerLevel level, ForestOrgans.Organ o, int r) {
+        java.util.Random rnd = new java.util.Random(o.seed * 0x9E3779B97F4A7C15L + 7L);
+        double ang = rnd.nextDouble() * Math.PI * 2.0D, d = r * 0.6D;
+        int x = o.x + (int) Math.round(Math.cos(ang) * d), z = o.z + (int) Math.round(Math.sin(ang) * d);
+        if (!OrganWorld.ready(level, x >> 4, z >> 4)) return;
+        BlockPos p = new BlockPos(x, groundY(level, x, z) + 1, z);
+        BlockState here = level.getBlockState(p);
+        BlockState giant = com.yayuy.overgrownvegetation.registry.ModBlocks.GIANT_OVERGROWN_SAPLING.get().defaultBlockState();
+        if ((here.isAir() || here.canBeReplaced()) && giant.canSurvive(level, p)) level.setBlock(p, giant, Block.UPDATE_ALL);
     }
 
     // ---------------------------------------------------------------- 進める

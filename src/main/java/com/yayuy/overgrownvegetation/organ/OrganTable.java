@@ -53,8 +53,9 @@ public final class OrganTable {
         public Boolean enabled;
         public Integer marginBlocks, smallMarginBlocks, treeBlocksMax, leafReach;
         public Double giantAvoidBlocks, giantAvoidSmallBlocks, regrowDays;
-        public Boolean regrow;
-        public Integer regrowSpacing;
+        public Boolean regrow, regrowGiantSapling;
+        public Integer regrowSpacing, regrowUndergrowthSpacing;
+        public Double regrowUndergrowthShare, regrowTallShare;
     }
 
     public static final class TentacleJson {
@@ -97,10 +98,14 @@ public final class OrganTable {
     public final int clearMargin, clearSmallMargin, clearTreeMax, clearLeafReach;
     /** 巨大樹の根元からこれより近い升には建てない(11-19 ユーザー「巨大樹は避けて」)。 */
     public final double giantAvoid, giantAvoidSmall;
-    /** 枯れた後、払った所に木が生え直す(11-19 ユーザー「生え直す方向で」)。regrowDays 日で苗木を植え終え、間隔は regrowSpacing。 */
-    public final boolean regrowEnabled;
-    public final double regrowDays;
-    public final int regrowSpacing;
+    /**
+     * 枯れた後、払った所が段階的に森へ戻る(11-19 ユーザー「生え直す方向で」→ 同日「15〜20 日かけて段階的に、下草 → 苗木」)。
+     * 全部で regrowDays 日。初めの regrowUndergrowthShare の間は下草(間隔 regrowUndergrowthSpacing、うち regrowTallShare が 2 段のシダ・葦)、
+     * 残りで苗木(間隔 regrowSpacing)。regrowGiantSapling なら最後に巨大樹の苗木を 1 本(既定 off【仮】)。
+     */
+    public final boolean regrowEnabled, regrowGiantSapling;
+    public final double regrowDays, regrowUndergrowthShare, regrowTallShare;
+    public final int regrowSpacing, regrowUndergrowthSpacing;
 
     public static final OrganTable DEFAULT = fromJson(null);
 
@@ -173,8 +178,12 @@ public final class OrganTable {
         giantAvoid = Math.max(0.0D, or(cj.giantAvoidBlocks, 60.0D));
         giantAvoidSmall = Math.max(0.0D, or(cj.giantAvoidSmallBlocks, 40.0D));
         regrowEnabled = cj.regrow == null || cj.regrow;
-        regrowDays = Math.max(0.01D, or(cj.regrowDays, 6.0D));
-        regrowSpacing = Math.max(2, or(cj.regrowSpacing, 6));
+        regrowDays = Math.max(0.01D, or(cj.regrowDays, 18.0D));
+        regrowSpacing = Math.max(2, or(cj.regrowSpacing, 8));
+        regrowUndergrowthShare = Math.max(0.0D, Math.min(0.95D, or(cj.regrowUndergrowthShare, 0.4D)));
+        regrowUndergrowthSpacing = Math.max(1, or(cj.regrowUndergrowthSpacing, 3));
+        regrowTallShare = Math.max(0.0D, Math.min(1.0D, or(cj.regrowTallShare, 0.3D)));
+        regrowGiantSapling = cj.regrowGiantSapling != null && cj.regrowGiantSapling;
     }
 
     public static OrganTable fromJson(@Nullable Json j) {

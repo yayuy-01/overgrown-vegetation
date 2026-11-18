@@ -43,6 +43,8 @@ public final class CommandTreeGameTests {
             Map.entry("corruption", Set.of("speed", "true", "false")),
             // 2026-11-14: フェーズの小さな段(導入・定着・最盛)を見る・決める stage を足した。
             Map.entry("phase", Set.of("set", "true", "false", "stage")),
+            // 2026-11-19 ユーザー決定: フェーズが上がったときのチャットの代わりに、フェーズ・バイオマス・器官とその働きを見る forest(枝なし)。
+            Map.entry("forest", Set.of()),
             // 2026-11-08: G1 段階 0 の組み込みで perf の g1(死体をすぐ起き上がらせる hatch)を戻した。
             // 2026-11-13: サバイバルの背骨 段 2b で地脈を確かめる ley(線までの距離・効率・近くの線へ飛ぶ near)を足した。
             // 2026-11-14: 段 2c で換気機を確かめる vent(動いている機械・ここが範囲か・まわりを過繁茂の台帳に載せる forest)を足した。

@@ -68,6 +68,8 @@ public final class ForestOrgans extends SavedData {
         public boolean cleared;
         /** 枯れた後に生え直させた苗木の数(試した数。11-19)。 */
         public int regrown; // -1 = 植え終えた
+        /** 枯れた後に生やした下草の数(試した数。11-19 段階の生え直し)。 */
+        public int regrowUnder;
         /** 触手を出したか。 */
         public boolean tentacles;
         /** 役割を最後に数えた時刻。 */
@@ -150,6 +152,7 @@ public final class ForestOrgans extends SavedData {
             t.putBoolean("BudCleared", budCleared);
             t.putBoolean("Cleared", cleared);
             t.putInt("Regrown", regrown);
+            t.putInt("RegrowUnder", regrowUnder);
             t.putBoolean("Tentacles", tentacles);
             t.putLong("RoleAt", roleAt);
             t.putDouble("PointCarry", pointCarry);
@@ -185,6 +188,7 @@ public final class ForestOrgans extends SavedData {
             // 11-19 より前の保存は、置き始めていれば払い済みとみなす(建った後から払わない)
             o.cleared = t.contains("Cleared") ? t.getBoolean("Cleared") : o.placed > 0 || o.budCleared;
             o.regrown = t.getInt("Regrown");
+            o.regrowUnder = t.getInt("RegrowUnder");
             o.tentacles = t.getBoolean("Tentacles");
             o.roleAt = t.getLong("RoleAt");
             o.pointCarry = t.getDouble("PointCarry");
