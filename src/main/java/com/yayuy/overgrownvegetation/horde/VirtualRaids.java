@@ -31,7 +31,7 @@ public final class VirtualRaids {
 
     /** 確かめ用: 出した群れ・頭数。 */
     public static long sentSwarms, sentHeads;
-    private static long lastSend = Long.MIN_VALUE;
+    private static long lastSend = -1_000_000_000L; // Long.MIN_VALUE だと now − lastSend が桁あふれして負になり、二度と出さなかった
 
     private VirtualRaids() {
     }

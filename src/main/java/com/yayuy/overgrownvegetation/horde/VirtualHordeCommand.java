@@ -46,6 +46,7 @@ public final class VirtualHordeCommand {
                                     ctx.getSource().sendSuccess(() -> Component.literal("仮想の群れを消した: " + n + " 体"), false);
                                     return n;
                                 }))
+                                .then(Commands.literal("list").executes(ctx -> list(ctx.getSource())))
                                 .then(Commands.literal("on").executes(ctx -> set(ctx.getSource(), true)))
                                 .then(Commands.literal("off").executes(ctx -> set(ctx.getSource(), false)))
                                 .then(Commands.literal("spawn")
@@ -60,9 +61,27 @@ public final class VirtualHordeCommand {
     }
 
     private static int show(CommandSourceStack src) {
-        String s = VirtualHordes.get(src.getServer()).describe(src.getServer().overworld());
+        String s = VirtualHordes.get(src.getServer()).describe(src.getServer().overworld()) + "・大規模レイドから出した 群れ " + VirtualRaids.sentSwarms + "・" + VirtualRaids.sentHeads + " 体";
         src.sendSuccess(() -> Component.literal(s), false);
         return 1;
+    }
+
+    /** 群れごとに 1 行: プレイヤー(打った人)からの水平の距離・行き先までの距離・頭数・状態。 */
+    private static int list(CommandSourceStack src) {
+        net.minecraft.world.phys.Vec3 p = src.getPosition();
+        long now = src.getServer().overworld().getGameTime();
+        int n = 0;
+        for (VirtualHordes.Swarm s : VirtualHordes.get(src.getServer()).swarms()) {
+            double d = Math.sqrt((s.x - p.x) * (s.x - p.x) + (s.z - p.z) * (s.z - p.z));
+            double dt = Math.sqrt((s.tx - s.x) * (s.tx - s.x) + (s.tz - s.z) * (s.tz - s.z));
+            String state = s.retreating ? "引き返し" : s.arrivedAt >= 0L ? "着いた(" + (now - s.arrivedAt) + " tick)" : s.waiting ? "待ち" : "進む";
+            String line = String.format(java.util.Locale.ROOT, "群れ #%d %d 体 (%.0f %.0f %.0f) 自分から %.0f・行き先まで %.0f・%s%s", s.id, s.size(), s.x, s.y, s.z, d, dt, state,
+                    s.extraTag.isEmpty() ? "" : "・" + s.extraTag);
+            src.sendSuccess(() -> Component.literal(line), false);
+            n++;
+        }
+        if (n == 0) src.sendSuccess(() -> Component.literal("仮想の群れは無い"), false);
+        return n;
     }
 
     private static int set(CommandSourceStack src, boolean on) {
