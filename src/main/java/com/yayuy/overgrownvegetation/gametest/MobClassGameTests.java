@@ -226,6 +226,41 @@ public final class MobClassGameTests {
         return a != null && Math.abs(a - b) < 1.0E-6D;
     }
 
+    /** ストロビラの球果が相手に直に当たると、直撃の傷(設計値 23)を付ける(11-18 夜。前は傷なし)。 */
+    @GameTest(template = "gametest_empty7", batch = "mob_class_world", timeoutTicks = 60)
+    public static void strobilaConeHitDealsDirectDamage(GameTestHelper h) {
+        var level = h.getLevel();
+        com.yayuy.overgrownvegetation.entity.StrobilaEntity owner = h.spawn(com.yayuy.overgrownvegetation.registry.ModCrawlers.STROBILA.get(), new net.minecraft.world.phys.Vec3(0.5, 2.0, 0.5));
+        owner.setNoAi(true);
+        net.minecraft.world.entity.animal.Cow cow = h.spawnWithNoFreeWill(EntityType.COW, new net.minecraft.core.BlockPos(4, 2, 4));
+        cow.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH).setBaseValue(100.0D);
+        cow.setHealth(100.0F);
+        float want = 100.0F - com.yayuy.overgrownvegetation.entity.StrobilaCone.directDamage();
+        h.runAfterDelay(2L, () -> {
+            com.yayuy.overgrownvegetation.entity.StrobilaCone cone = new com.yayuy.overgrownvegetation.entity.StrobilaCone(level, owner);
+            cone.setPos(cow.getX(), cow.getY() + 3.0D, cow.getZ());
+            cone.setDeltaMovement(0.0D, -0.6D, 0.0D);
+            level.addFreshEntity(cone);
+        });
+        h.runAfterDelay(12L, () -> {
+            check(h, Math.abs(cow.getHealth() - want) < 0.01F, "球果の直撃で体力 " + want + " のはずが " + cow.getHealth());
+            h.succeed();
+        });
+    }
+
+    /** ゲスタトリクスは休んでいる間に傷を受けると、休みを切り上げてすぐ前触れへ(11-18 夜 ユーザー「攻撃されたらクールダウンを無視して産む」)。 */
+    @GameTest(template = "gametest_empty7", batch = "mob_class_world", timeoutTicks = 40)
+    public static void gestatrixHurtInRestStartsBirth(GameTestHelper h) {
+        var level = h.getLevel();
+        com.yayuy.overgrownvegetation.entity.GestatrixEntity g = h.spawn(com.yayuy.overgrownvegetation.registry.ModCrawlers.GESTATRIX.get(), new net.minecraft.world.phys.Vec3(3.5, 2.0, 3.5));
+        h.runAfterDelay(2L, () -> {
+            g.forceStateForTests(com.yayuy.overgrownvegetation.entity.GestatrixEntity.REST, 1000);
+            g.hurt(level.damageSources().generic(), 1.0F);
+            check(h, g.state() == com.yayuy.overgrownvegetation.entity.GestatrixEntity.WINDUP, "休み中に傷を受けても前触れへ移らない: 状態 " + g.state());
+            h.succeed();
+        });
+    }
+
     /** フェーズの長さ(11-18 夜 ユーザー決定): 閾値は後ろほど大きいとは限らない(F6 は短い)・段の区切りは 0 < 定着 < 最盛 < 1。 */
     @GameTest(template = "gametest_empty7", batch = "mob_class_pure", timeoutTicks = 20)
     public static void phaseLengthsFollowRoles(GameTestHelper h) {

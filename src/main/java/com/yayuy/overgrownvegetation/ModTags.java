@@ -296,25 +296,23 @@ public final class ModTags {
             TagKey.create(net.minecraft.core.registries.Registries.ENTITY_TYPE, OvergrownVegetation.id("phase_infectable_animals"));
 
     /**
-     * 「過繁茂した Mob」のグループ分け(媒介種〜災害級の 10 分類)。フェーズごとの湧き・強化などは
-     * このタグを基準に行う({@link com.yayuy.overgrownvegetation.phase.MobGroup} 参照)。
+     * 植物側の Mob の「グループ」(group_1〜10)。2026-11-18 夜 ユーザー決定でコード内の分類も組み直す途中:
+     * <b>分類の正本は {@code design/mob_class.json}</b>({@link com.yayuy.overgrownvegetation.phase.MobClassTable}。系統・型・危険度・出るフェーズ)と、
+     * 系統のタグ {@link #LINEAGE_PARASITE} など。group_N は移し替えの 3 段のうち 1 段目が済んだ所で、まだ次に使っている:
+     * 縁の上限を数える箱(spawns.json の group と caps)・キル点の種類・植物側の判定・G5 の適応・遠征のドロップ など
+     * (2 段目でそれぞれ系統のタグか専用のタグへ移し、3 段目で消す)。出るフェーズと森の値段は、もう group では決めない。
      * データパックで所属を差し替え可能。1 体が複数グループに属する場合は
      * {@link com.yayuy.overgrownvegetation.phase.MobGroup#of} が番号の小さいグループを返す。
      *
      * <ul>
-     *     <li>{@link #GROUP_1}: 媒介種 — 現状のバニラ Mob ベースの「過繁茂した(MOB名)」全種。</li>
-     *     <li>{@link #GROUP_2}: 原生生産種 — 未実装(枠のみ)。</li>
-     *     <li>{@link #GROUP_3}: 原生消費種 — 過繁茂したスカトゥリウム。</li>
-     *     <li>{@link #GROUP_4}: 拡大種 — 汚染シダ・アルボラ・フィロセンス・ヴェロフィル・スポロフィル・
-     *     過繁茂したスカトゥリウム、および<b>レイドビーコン</b>(レイドの中核。汚染側から敵対されないよう
-     *     2026-09-17 にここへ入れた)。</li>
-     *     <li>{@link #GROUP_5}: 適応種 — 未実装(枠のみ)。</li>
-     *     <li>{@link #GROUP_6}: 進化種 — 未実装(枠のみ)。</li>
-     *     <li>{@link #GROUP_7}: 脅威種 — 未実装(枠のみ)。</li>
- *     <li>{@link #GROUP_8}: 守護種 — 未実装(枠のみ)。</li>
- *     <li>{@link #GROUP_9}: 侵略級 — 未実装(枠のみ。ハイヴノードの出現条件にする予定)。</li>
- *     <li>{@link #GROUP_10}: 災害級 — {@code dorga_archelaus_titanica}(攻城戦ボス。
- *     2026-09-19 にグループ7 から移動)。</li>
+     *     <li>{@link #GROUP_1}: 寄生種(G1)— 段階 0・1 段目・根付き・苗床・根の番人の 47 体。</li>
+     *     <li>{@link #GROUP_2}: 環境生物(G2)— 生息しているだけの虫など 5 体。</li>
+     *     <li>{@link #GROUP_3}: 環境生物(G3)— 虫を狩る爬虫類・サソリなど 7 体(プレイヤーは基本襲わない)。</li>
+     *     <li>{@link #GROUP_4}: 眷属種(G4)と植物種 — アルボラ・グレガリア・ストロビラ・ヴェシカリア・ヴェロフィル・セミナリア、
+     *     植物種の萌芽体・ペディキュラ。</li>
+     *     <li>{@link #GROUP_5}: 眷属種(G5)— ファルキムネス・ヴェナムネス・サルティムネス・クリペイムネス・ピリムネス・アクムネス。</li>
+     *     <li>{@link #GROUP_6}: ゲスタトリクス(眷属種)と植物種のフィロセンス。</li>
+     *     <li>{@link #GROUP_7}〜{@link #GROUP_10}: 空(0.4.0 以降の枠)。</li>
      * </ul>
      */
     public static final TagKey<EntityType<?>> GROUP_1 = entityTag("group_1");

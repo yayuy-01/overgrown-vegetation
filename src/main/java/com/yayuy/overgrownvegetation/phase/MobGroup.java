@@ -22,69 +22,37 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 「過繁茂した Mob」の 10 分類。所属はエンティティタイプタグ
- * ({@code #overgrown_vegetation:group_1} 〜 {@code group_10}、{@link ModTags} 参照)で定義され、
- * データパックで差し替えできる。
+ * 植物側の Mob のグループ(group_1〜10)。所属はエンティティタイプタグ
+ * ({@code #overgrown_vegetation:group_1} 〜 {@code group_10}、{@link ModTags} 参照)で定義され、データパックで差し替えできる。
  *
- * <p>現時点の分類:
- * <ul>
- *     <li>{@link #GROUP_1}(媒介種): バニラ Mob をベースにした「過繁茂した(MOB名)」全種
- *     ({@code parasitized_cow} 等)。</li>
- *     <li>{@link #GROUP_2}(原生生産種): 未実装(枠のみ)。</li>
- *     <li>{@link #GROUP_3}(原生消費種): ファランギオターブス・メガネウラなどの捕食者。</li>
- *     <li>{@link #GROUP_4}(拡大種): 汚染シダ・アルボラ・フィロセンス・ヴェロフィル・スポロフィル、
- *     <b>過繁茂したスカトゥリウム</b>(2026-09-15 にグループ3 から移動)、および
- *     <b>レイドビーコン</b>({@code overgrown_nexus}。2026-09-17 に追加 —— どのグループにも
- *     属していなかったため、グループ4 の索敵が「まだ寄生されていない野生の Mob」とみなして
- *     レイドの中核を殴りに来ていた。グループに入れたことで索敵からも
- *     {@link MobGroupFriendlyFire} の同士討ち禁止からも味方扱いになる)。<br>
- *     レイドビーコンは移動速度 0・{@code OvergrownSpawnProfile} の重み 0・
- *     {@code RaidWaveSpawner} の編成表にも載っていないので、グループに入れても自然湧き・
- *     混成の群れ・増援ウェーブのどれにも現れない。</li>
- *     <li>{@link #GROUP_5}(適応種): ファルキムネス(2026-09-23)。倒された武器への適応
- *     ({@code adaptation/Adaptation})はこのグループだけの特性。</li>
- *     <li>{@link #GROUP_6}(進化種) / {@link #GROUP_7}(脅威種) /
- *     {@link #GROUP_8}(守護種) / {@link #GROUP_9}(侵略級): 未実装(枠のみ)。
- *     グループ9 は将来ハイヴノードの出現条件にする予定(2026-09-19)。</li>
- *     <li>{@link #GROUP_10}(災害級): {@code dorga_archelaus_titanica}(攻城戦ボス
- *     ドルガ=アーケロウス・ティタニカ)。<b>どのフェーズの湧きプールにも入っていない</b>ので、
- *     このタグに入れても自然湧き・レイドの増援には現れない({@code phases.json} の
- *     {@code spawnGroups}/{@code raidWaveGroups} は 1〜3 だけ)。分類のためのタグ。</li>
- * </ul>
- *
- * <p>フェーズごとの挙動:
- * <ul>
- *     <li>フェーズ1: グループ1が過繁茂バイオームに湧くようになる。</li>
- *     <li>フェーズ2: グループ1が汚染地形から離れて他の Mob を襲い、体力・攻撃力が強化される
- *     ({@link GroupPhaseBehavior} / {@link Group1FleeCorruptionGoal})。</li>
- *     <li>フェーズ3: グループ2も過繁茂バイオームに湧くようになる。</li>
- *     <li>フェーズ4: グループ3も過繁茂バイオームに湧くようになる。</li>
- *     <li>フェーズ5: グループ4も過繁茂バイオームに湧くようになる(突入時にレイドも確定で1回発生)。</li>
- *     <li>フェーズ6: グループ4が「種がばらばらな 3〜5 体の群れ」で湧くようになる
- *     ({@code phases.json} の {@code mixedPacks}、{@link OvergrownBiomeSpawner})。</li>
- * </ul>
+ * <p>2026-11-18 夜 ユーザー決定でコード内の分類を組み直している途中。<b>分類(系統・型・危険度・出るフェーズ)の正本は
+ * {@code design/mob_class.json}</b>({@link MobClassTable})と系統のタグ({@link ModTags#LINEAGE_PARASITE} など)。
+ * 出るフェーズと森の値段は、もうグループでは決めない。グループがまだ使われている所(縁の上限の箱・キル点の種類・植物側の判定・
+ * G5 の適応・遠征のドロップなど)と各グループの中身は {@link ModTags#GROUP_1} の説明を参照。
+ * 移し替えの 2 段目で系統のタグか専用のタグへ移し、3 段目でこの enum ごと消す予定。
+ * (前の説明の「媒介種・原生生産種 …」の 10 分類と、フェーズごとの湧き方は古くなったので消した。)
  */
 public enum MobGroup {
 
-    /** 媒介種。 */
+    /** 寄生種(G1)。 */
     GROUP_1(ModTags.GROUP_1),
-    /** 原生生産種(未実装)。 */
+    /** 環境生物(G2)。 */
     GROUP_2(ModTags.GROUP_2),
-    /** 原生消費種。 */
+    /** 環境生物(G3)。 */
     GROUP_3(ModTags.GROUP_3),
-    /** 拡大種。 */
+    /** 眷属種(G4)と植物種(萌芽体・ペディキュラ)。 */
     GROUP_4(ModTags.GROUP_4),
-    /** 適応種(ファルキムネス)。倒された武器への適応は {@code adaptation/Adaptation} に実装済み。 */
+    /** 眷属種(G5)。倒された武器への適応は {@code adaptation/Adaptation} に実装済み。 */
     GROUP_5(ModTags.GROUP_5),
-    /** 進化種(未実装)。 */
+    /** ゲスタトリクス(眷属種)とフィロセンス(植物種)。 */
     GROUP_6(ModTags.GROUP_6),
-    /** 脅威種(未実装)。 */
+    /** 空(0.4.0 以降の枠)。 */
     GROUP_7(ModTags.GROUP_7),
-    /** 守護種(未実装)。 */
+    /** 空(0.4.0 以降の枠)。 */
     GROUP_8(ModTags.GROUP_8),
-    /** 侵略級(未実装。ハイヴノードの出現条件にする予定)。 */
+    /** 空(0.4.0 以降の枠)。 */
     GROUP_9(ModTags.GROUP_9),
-    /** 災害級。攻城戦ボス(ドルガ=アーケロウス・ティタニカ)。 */
+    /** 空(0.4.0 以降の枠)。 */
     GROUP_10(ModTags.GROUP_10);
 
     /**

@@ -190,7 +190,9 @@ public final class Watchers {
         Object[] f = find(memory, watcherPos);
         BaseMemory.Base b = f != null ? (BaseMemory.Base) f[0]
                 : memory.nearest(watcherPos.getX() + 0.5D, watcherPos.getZ() + 0.5D, t.maxBlocks * 1.5D);
-        if (b != null) {
+        // 11-18 夜: 監視塔は F4 から植わる(フィロセンスの出るフェーズ F4)が、認識は F5 から(gates.recognize)。
+        // F4 の印を覚えておくと F5 に上がった瞬間に認識してしまうので、認識が開くまでは印を数えない(呼び寄せは F4 から効く)
+        if (b != null && DirectorGates.open(level, DirectorGates.Gate.RECOGNIZE)) {
             b.watcherSeenDay = BaseMemory.today(level.getServer());
             memory.setDirty();
             // 偵察済みなら、その場で認識する(W1 = 2)。「覚えた」だけの拠点は、印を覚えておくが認識しない(偵察は感染体、確定は監視塔 = 偵察が済んでいることが要る)。

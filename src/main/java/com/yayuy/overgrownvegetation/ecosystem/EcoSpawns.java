@@ -102,7 +102,7 @@ public final class EcoSpawns {
         EcoTable t = DesignData.ecosystem();
         double f = defenseFactor(Ecosystem.health(level), t.innerThreshold);
         if (f <= 0.0D) return 0;
-        double s = EnemySpawns.strength(level, group);
+        double s = EnemySpawns.groupStrength(level, group);   // 11-18 夜: 種ごとの出るフェーズ(箱の中で出ている種のいちばん強いもの)
         int base = group == 5 ? t.innerCapG5 : group == 4 ? t.innerCapG4 : 0;
         return s <= 0.0D ? 0 : (int) Math.round(base * f * s);
     }
@@ -241,14 +241,11 @@ public final class EcoSpawns {
         List<SpawnTable.Species> cands = new ArrayList<>();
         List<Double> ws = new ArrayList<>();
         double total = 0.0D;
-        double s4 = -1.0D, s5 = -1.0D;
         for (SpawnTable.Species sp : DesignData.spawns().species) {
             int g = sp.group();
             if (g == 4 ? counts[4] >= cap4 : g == 5 ? counts[5] >= cap5 : true) continue;
             if (sp.type() == null) continue;
-            double s;
-            if (g == 4) s = s4 < 0.0D ? (s4 = EnemySpawns.strength(level, 4)) : s4;
-            else s = s5 < 0.0D ? (s5 = EnemySpawns.strength(level, 5)) : s5;
+            double s = EnemySpawns.strength(level, sp);   // 11-18 夜: 種ごとの出るフェーズ(前はグループの開くフェーズ)
             double w = sp.weight() * s;
             if (w <= 0.0D) continue;
             cands.add(sp);

@@ -150,7 +150,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     /** 疾走の長さの既定(tick。json の sprintTicks)。 */
     static final int HUNT_SPRINT_T = 80;
     /** 疾走の移動の倍率: 地面の速さは倍率の 2 乗で効くので、急ぎの素の 0.194 → 0.35 は √(0.35/0.194) ≒ 1.34(11-15 ユーザー決定の 0.35)。開けた所の倍率は掛けない。 */
-    public static final double HUNT_SPEED = 1.34D;
+    public static final double HUNT_SPEED = 1.18D;   // 11-18 夜: 速さ 0.30 → 0.34 でも地面 0.35 を保つ(2.16 × (0.34 × 1.18)² ≒ 0.35)
     /** sprint を速さ 1.0 で流したときの地上速度(ブロック/tick。アニメの一覧: 1 歩 4.9 ブロック・14 tick で 1 巡)。 */
     public static final double SPRINT_REF = 0.35D;
     /** 疾走の最後の飛びかかりを始める距離(体の真ん中から。頭から約 2〜6)・正面のずれ(度)。 */
