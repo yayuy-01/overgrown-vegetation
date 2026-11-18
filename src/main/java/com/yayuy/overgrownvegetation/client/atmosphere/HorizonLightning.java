@@ -94,7 +94,7 @@ final class HorizonLightning {
     }
 
     private static void nestTick(ClientLevel level, LocalPlayer player) {
-        if (CloudField.devNest <= 0.0F || !VoxelClouds.isActive()) {
+        if (CloudField.nestShare() <= 0.0F || !VoxelClouds.isActive()) {
             nestWalls = List.of();
             nestCore = null;
             return;

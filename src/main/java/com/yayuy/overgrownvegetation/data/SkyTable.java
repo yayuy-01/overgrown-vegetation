@@ -64,6 +64,10 @@ public final class SkyTable {
         public Double realistic;
         /** 現実寄りのとき、ふつうの積乱雲の立つ確率に掛ける値(ユーザー指定 0.6)。 */
         public Double share;
+        /** ふつうの積乱雲のうち、ずっと大きくする割合(空の目印。11-18 ユーザー決定 0.2。0 = 出さない)。 */
+        public Double big;
+        /** 嵐の巣のまれさの倍率(11-18 ユーザー決定。1 = 約 22 km 四方に 1 つ・0 = 出さない)。 */
+        public Double nest;
     }
 
     /** 巻雲(2026-11-09 雲の段階 2a)。見た目だけ(送らない)。 */
@@ -140,7 +144,7 @@ public final class SkyTable {
     public final float shadows;
     public final float rays;
     public final float highSkyClarity, highSkyClearFrom, highSkyClearTo;
-    public final float storms, stormChance, giantChance, footScale, realistic, stormShare;
+    public final float storms, stormChance, giantChance, footScale, realistic, stormShare, stormBig, stormNest;
     public final float cirrus, cirrusAmount, cirrusHeight, cirrusWindScale, cirrusCurve;
     public final float syncRain, rainDays, thunderShare, preRainTicks;
     /** 空の色(11-13): 強さ、金の時間・日の入り・日没後の順の色(天頂・反対側・太陽の側・暈)と暈の強さ、霞ごしの太陽のにじみ・天頂の抜け。 */
@@ -193,6 +197,8 @@ public final class SkyTable {
         footScale = (float) clamp(st.footScale, 1.0, 0.0, 3.0);
         realistic = f(st.realistic, 1.0);
         stormShare = (float) clamp(st.share, 0.6, 0.05, 1.0);
+        stormBig = (float) clamp(st.big, 0.2, 0.0, 1.0);
+        stormNest = (float) clamp(st.nest, 1.0, 0.0, 100.0);
         cirrus = f(ci.strength, 1.0);
         cirrusAmount = (float) clamp(ci.amount, -1.0, -1.0, 1.0);
         cirrusHeight = (float) clamp(ci.height, 3500.0, 400.0, 6000.0);

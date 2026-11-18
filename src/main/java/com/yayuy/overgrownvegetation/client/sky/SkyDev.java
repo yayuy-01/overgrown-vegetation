@@ -206,8 +206,8 @@ public final class SkyDev {
             case "scatter" -> scatter = value;
             case "split" -> split = value;
             case "land" -> landMix = value;
-            case "big" -> com.yayuy.overgrownvegetation.sky.CloudField.devBig = value;
-            case "nest" -> com.yayuy.overgrownvegetation.sky.CloudField.devNest = value;
+            case "big" -> com.yayuy.overgrownvegetation.sky.CloudField.devBig = value < 0.0F ? -1.0F : value; // 負 = 設計値どおり
+            case "nest" -> com.yayuy.overgrownvegetation.sky.CloudField.devNest = value < 0.0F ? -1.0F : value;
             case "cover" -> com.yayuy.overgrownvegetation.sky.CloudSky.devCoverage = value; // 雲の量を固定(負で戻す)。1 人用の確かめ用
             case "logstrikes" -> com.yayuy.overgrownvegetation.sky.StormLightning.devLog = value > 0.5F;
             case "real" -> com.yayuy.overgrownvegetation.sky.CloudField.setRealSky(value < 0.0F ? -1 : (value > 0.5F ? 1 : 0));

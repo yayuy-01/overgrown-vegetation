@@ -760,12 +760,25 @@ public final class CloudField {
     }
 
     /**
-     * ラフ(2026-11-18。ユーザー「両方でいこう、ただ龍の巣は稀にくらいで」→ まず形の案とラフの絵。既定はどちらも 0 = 出さない。DevBridge の wx sky big / nest)。
+     * 大きな積乱雲と嵐の巣(2026-11-18 ユーザー「両方でいこう、ただ龍の巣は稀にくらいで」→ 絵を見て「出していいよん」で既定で出す)。値は設計値 sky.json
+     * storms.big・storms.nest(雲の形なので、サーバーの値をクライアントへ送る)。下の 2 つは確かめ用の上書き(負 = 設計値どおり。DevBridge の wx sky big / nest)。
      * devBig = ふつうの積乱雲のうち、ずっと大きくする割合(空の目印。ユーザー決定 0.2)。devNest = 嵐の巣のまれさの倍率(1 = 決めたまれさ・0 = 出さない。
      * 確かめるときは 50 などにして近くに出す)。
      */
-    public static volatile float devBig;
-    public static volatile float devNest;
+    public static volatile float devBig = -1.0F;
+    public static volatile float devNest = -1.0F;
+
+    /** ふつうの積乱雲のうち大きくする割合(確かめ用の上書きが無ければ設計値 sky.json storms.big)。 */
+    public static float bigShare() {
+        float d = devBig;
+        return d >= 0.0F ? d : CloudShape.current().big();
+    }
+
+    /** 嵐の巣のまれさの倍率(確かめ用の上書きが無ければ設計値 sky.json storms.nest)。 */
+    public static float nestShare() {
+        float d = devNest;
+        return d >= 0.0F ? d : CloudShape.current().nest();
+    }
 
     /** 確かめ用の値が変わったかを見る鍵(雲の一覧の覚えに入れる)。 */
     public static int devKey() {
@@ -778,7 +791,7 @@ public final class CloudField {
      * 尾根(棚)を作る前に呼ぶ(棚は大きさの決まった雲どうしをつなぐ)。
      */
     private static void landmarks(List<Storm> all, int style) {
-        float big = devBig;
+        float big = bigShare();
         if (big <= 0.0F) {
             return;
         }
@@ -822,7 +835,7 @@ public final class CloudField {
      * ({@link #NEST_GRID} 四方)で場所を決め、今の風のずれ(600 tick ごとに見直す)を引いて雲の場の座標へ直す。ほかの雲は風で流れるが、巣は動かない。
      */
     private static void nests(List<Storm> all, double minX, double minZ, double maxX, double maxZ, long dayTime, int style) {
-        float share = Math.min(1.0F, NEST_CELL_SHARE * devNest);
+        float share = Math.min(1.0F, NEST_CELL_SHARE * nestShare());
         if (share <= 0.0F) {
             return;
         }

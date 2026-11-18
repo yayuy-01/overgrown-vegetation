@@ -13,7 +13,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 public record CloudDriftPayload(long gameTime, double offsetX, double offsetZ, float velX, float velZ, long seed,
                                 int style, float coverage, float floorThickness, float floorFlatness,
                                 float storms, float stormChance, float giantChance, float footScale,
-                                float syncRain, float rainDays, float thunderShare, float preRainTicks, float realistic, float stormShare,
+                                float syncRain, float rainDays, float thunderShare, float preRainTicks, float realistic, float stormShare, float big, float nest,
                                 boolean weatherActive) implements CustomPacketPayload {
 
     public static final Type<CloudDriftPayload> TYPE = new Type<>(OvergrownVegetation.id("cloud_drift"));
@@ -24,7 +24,7 @@ public record CloudDriftPayload(long gameTime, double offsetX, double offsetZ, f
     private CloudDriftPayload(FriendlyByteBuf buf) {
         this(buf.readLong(), buf.readDouble(), buf.readDouble(), buf.readFloat(), buf.readFloat(), buf.readLong(), buf.readVarInt(), buf.readFloat(), buf.readFloat(), buf.readFloat(),
                 buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(),
-                buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readBoolean());
+                buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readBoolean());
     }
 
     private void write(FriendlyByteBuf buf) {
@@ -48,6 +48,8 @@ public record CloudDriftPayload(long gameTime, double offsetX, double offsetZ, f
         buf.writeFloat(preRainTicks);
         buf.writeFloat(realistic);
         buf.writeFloat(stormShare);
+        buf.writeFloat(big);
+        buf.writeFloat(nest);
         buf.writeBoolean(weatherActive);
     }
 
