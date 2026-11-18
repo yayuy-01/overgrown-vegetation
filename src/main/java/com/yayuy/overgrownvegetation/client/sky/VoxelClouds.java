@@ -381,10 +381,10 @@ public final class VoxelClouds implements CloudRenderer {
     }
 
     /**
-     * 試し(11-18、既定は切。ユーザーが前後を見て決めるまで入れない): 積乱雲の一覧を、範囲を {@link #SHARED_SNAP} の倍数へ広げて引き、同じ時刻の間は使い回して、
+     * 11-18 ユーザー決定「新しい雲はまあ大丈夫そう」で既定は入(切るのは wx shared off か -Dov.cloudsShared=false): 積乱雲の一覧を、範囲を {@link #SHARED_SNAP} の倍数へ広げて引き、同じ時刻の間は使い回して、
      * 各所はそこから絞る。カメラが動いても広げた範囲はほとんど変わらないので、引き直しは 1 tick に 1 回ほどで済む。じかに引くのとは、まれに尾根 1 本が違いうる。
      */
-    public static volatile boolean sharedStorms = Boolean.getBoolean("ov.cloudsShared");
+    public static volatile boolean sharedStorms = !"false".equals(System.getProperty("ov.cloudsShared"));
     static final double SHARED_SNAP = 1024.0;
 
     private record SharedKey(ClientLevel level, long dayTime, float coverage, double minX, double minZ, double maxX, double maxZ,
