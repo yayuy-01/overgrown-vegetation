@@ -45,44 +45,51 @@
     }
 
   },
-  "_comment_phases": "11-18 夜 ユーザー決定: フェーズの長さは役割で変える(F1・F2 1〜3 日・F3 3〜5・F4 6〜8・F5 10〜20・F6 3〜6・F7 10〜20 日。正本は Vault「フェーズの仕組み(ポイント・日数)」の末尾)。pointsToAdvance【仮】は、その長さの真ん中(F1 2・F2 2・F3 4・F4 7・F5 15・F6 4.5・F7 15 日)に合うよう、11-14 夜の計測(普通のワールド・プレイヤーは汚染のそば・撃破なし)の台帳の広がりから出し直した(18 日目より先は全方位の半径が 1 日 15.8 チャンク伸びる見積もり)。F7 に着くのは真ん中で 34.5 日目。計測はフェーズが前の日数(F2 6 日・F3 14 日)で上がった世界なので、眷属種が早く出る今の決まりでは広がりが速まる見込み → 測り直して直す。normalArea(司令塔の物差し)は各フェーズの日の真ん中の台帳。stages の establishedFrom・peakFrom は、そのフェーズの日数を 3 等分した所の点の割合(点は広さとともに加速するので、日数の 1/3 は点の 1/3 より手前)。F8 の pointsToAdvance は F7 の中の段の区切りに使う(F7 の真ん中 15 日)。F9・F10 は仮置き(autoAdvance false)。",
+  "_comment_phases": "11-18 夜 ユーザー決定: フェーズの長さは役割で変える(F1・F2 1〜3 日・F3 3〜5・F4 6〜8・F5 10〜20・F6 3〜6・F7 10〜20 日。正本は Vault「フェーズの仕組み(ポイント・日数)」の末尾)。pointsToAdvance【仮】は、その長さの真ん中(F1 2・F2 2・F3 4・F4 7・F5 15・F6 4.5・F7 15 日)に合うよう、11-14 夜の計測(普通のワールド・プレイヤーは汚染のそば・撃破なし)の台帳の広がりから出し直した(18 日目より先は全方位の半径が 1 日 15.8 チャンク伸びる見積もり)。F7 に着くのは真ん中で 34.5 日目。計測はフェーズが前の日数(F2 6 日・F3 14 日)で上がった世界なので、眷属種が早く出る今の決まりでは広がりが速まる見込み → 測り直して直す。normalArea(司令塔の物差し)は各フェーズの日の真ん中の台帳。stages の establishedFrom・peakFrom は、そのフェーズの日数を 3 等分した所の点の割合(点は広さとともに加速するので、日数の 1/3 は点の 1/3 より手前)。F8 の pointsToAdvance は F7 の中の段の区切りに使う(F7 の真ん中 15 日)。F9・F10 は仮置き(autoAdvance false)。targetDays = ユーザー決定の長さ [短い, 長い] 日(コードは読まない。閾値を出し直すときの元。mod-manager2 のフェーズの画面に出る)。",
   "phases": {
     "1": {
+      "targetDays": [1, 3],
       "normalArea": 900,
       "stages": { "intro": 0.3, "established": 0.7, "peak": 1.0, "establishedFrom": 0.11, "peakFrom": 0.44 },
       "notes": "侵入(導入)。1〜3 日。ワールド 3 日経過 かつ 実績 6 個で突入(地割れの演出)。寄生種の段階 0(寄生アイアンゴーレム・寄生ウォーデンは自然に湧かず感染でのみ)・萌芽体・環境生物。動物が汚染から逃げ、暴露の所に 5 秒いると胞子感染して飛び火する。出る種は design/mob_class.json の phase。"
     },
     "2": {
+      "targetDays": [1, 3],
       "pointsToAdvance": 22000,
       "normalArea": 3600,
       "stages": { "intro": 0.3, "established": 0.7, "peak": 1.0, "establishedFrom": 0.22, "peakFrom": 0.54 },
       "notes": "定着(つなぎ)。1〜3 日。G1 が苗床・根付き(根の番人)になれる(director.json の gates nursery・rooted)。合図は汚染域の一斉の芽吹き。"
     },
     "3": {
+      "targetDays": [3, 5],
       "pointsToAdvance": 90000,
       "normalArea": 14000,
       "stages": { "intro": 0.3, "established": 0.7, "peak": 1.0, "establishedFrom": 0.19, "peakFrom": 0.51 },
       "notes": "進化(最初の脅威)。3〜5 日。G1 の第一進化(gates evolve)。眷属種のアルボラ・グレガリア・セミナリア、植物種のペディキュラが縁から湧き始める。ワールドイベント・環境イベントが解禁。器官もこのフェーズから(organs.json)。"
     },
     "4": {
+      "targetDays": [6, 8],
       "pointsToAdvance": 700000,
       "normalArea": 59000,
       "stages": { "intro": 0.3, "established": 0.7, "peak": 1.0, "establishedFrom": 0.19, "peakFrom": 0.51 },
       "notes": "偵察(籠城の備え)。6〜8 日。ストロビラ・ヴェシカリア・ヴェロフィル・ゲスタトリクス・フィロセンス(監視塔)。司令塔の偵察と苗床のスポナー(孵す)が開く。胞子の嵐が強くなる。上がった直後に弱い嵐 1 回。"
     },
     "5": {
+      "targetDays": [10, 20],
       "pointsToAdvance": 5200000,
       "normalArea": 300000,
       "stages": { "intro": 0.3, "established": 0.7, "peak": 1.0, "establishedFrom": 0.18, "peakFrom": 0.50 },
       "notes": "侵略(本番の籠城と遠征)。10〜20 日。ファルキムネス・ヴェナムネス・サルティムネス・クリペイムネス・ピリムネス・アクムネス。司令塔が拠点を認識し、送り込み(襲撃の小)と貯めた襲撃(中)が始まる。"
     },
     "6": {
+      "targetDays": [3, 6],
       "pointsToAdvance": 56000000,
       "normalArea": 670000,
       "stages": { "intro": 0.3, "established": 0.7, "peak": 1.0, "establishedFrom": 0.30, "peakFrom": 0.63 },
       "notes": "混成(締めつけ)。3〜6 日。眷属種の混ざった群れ(gates waveMixed)。合図は拠点の灯りが一瞬揺らぐ。"
     },
     "7": {
+      "targetDays": [10, 20],
       "pointsToAdvance": 36000000,
       "normalArea": 1190000,
       "stages": { "intro": 0.3, "established": 0.7, "peak": 1.0, "establishedFrom": 0.25, "peakFrom": 0.58 },
