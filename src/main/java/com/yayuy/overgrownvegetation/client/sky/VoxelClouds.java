@@ -511,6 +511,7 @@ public final class VoxelClouds implements CloudRenderer {
 
     private static void draw(ClientLevel level, float partialTick, Matrix4f modelView, Matrix4f projection, double camX, double camY, double camZ,
                              boolean far) {
+        SkyDev.camY = camY;
         if (level != lastLevel) {
             lastLevel = level;
             shown = null;
@@ -1040,6 +1041,7 @@ public final class VoxelClouds implements CloudRenderer {
         float offX = gx0 * (float) size - w.originX * (float) CloudField.CELL_XZ;
         float offZ = gz0 * (float) size - w.originZ * (float) CloudField.CELL_XZ;
         // 11-18 試し: 地上からも遠景を出すとき(SkyDev.farLow)は下面も作る(無いと、下から見て横の面だけが細い線に見えた)。
+        SkyDev.heap(bottom, top, n, size, gx0, gz0, coverage);
         return layer(b, bottom, top, n, n, offX, offZ, FAR_SEA_TAG, size, SkyDev.farLow > 0.0F);
     }
 
@@ -1269,6 +1271,7 @@ public final class VoxelClouds implements CloudRenderer {
         }
         float offX = gx0 * (float) size - w.originX * (float) CloudField.CELL_XZ;
         float offZ = gz0 * (float) size - w.originZ * (float) CloudField.CELL_XZ;
+        SkyDev.heap(bottom, top, n, size, gx0, gz0, coverage);
         int quads = layer(b, bottom, top, n, n, offX, offZ, SEA_TAG, size);
         if (!anyFine) {
             return quads;
