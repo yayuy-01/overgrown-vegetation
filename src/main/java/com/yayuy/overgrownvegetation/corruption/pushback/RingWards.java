@@ -299,6 +299,12 @@ public final class RingWards extends SavedData {
         int x0 = from.getX(), z0 = from.getZ(), x1 = to.getX(), z1 = to.getZ();
         int n = Math.max(Math.abs(x1 - x0), Math.abs(z1 - z0));
         if (n == 0 || n > 256) return Long.MIN_VALUE;
+        // 近道: 線分がかかるチャンク(両端の箱)に帯が 1 枚も無ければたどらない(帯が世界のどこかにあるだけで全部の問い合わせが重くならないように)
+        boolean any = false;
+        for (int cx = Math.min(x0, x1) >> 4; cx <= Math.max(x0, x1) >> 4 && !any; cx++)
+            for (int cz = Math.min(z0, z1) >> 4; cz <= Math.max(z0, z1) >> 4 && !any; cz++)
+                any = bandChunks.contains(ChunkPos.asLong(cx, cz));
+        if (!any) return Long.MIN_VALUE;
         int px = x0, pz = z0;
         for (int i = 1; i <= n; i++) {
             double f = i / (double) n;

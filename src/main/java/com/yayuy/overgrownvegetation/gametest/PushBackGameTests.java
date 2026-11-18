@@ -62,12 +62,12 @@ public final class PushBackGameTests {
     private static LevelChunk overgrownChunk(ServerLevel level, PhaseData pd, int cx, int cz, long since) {
         LevelChunk chunk = level.getChunk(cx, cz);
         BlockState grass = ModBlocks.OVERGROWN_GRASS_BLOCK.get().defaultBlockState();
-        // 地形に頼らない: いちばん高い列より上に、汚染の地面の平らな層を敷く(高さ地図の上がこの層になる)
+        // 地形に頼らない: y = 100 に汚染の地面の平らな層を敷き、その上を 16 段空ける(テスト場の世界は平ら。前の実行の層もここで上書き)
         int top = 100;
-        for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) top = Math.max(top, chunk.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z) + 1);
         for (int x = 0; x < 16; x++) {
             for (int z = 0; z < 16; z++) {
                 level.setBlock(new BlockPos(cx * 16 + x, top, cz * 16 + z), grass, 2);
+                for (int y = top + 1; y <= top + 16; y++) level.setBlock(new BlockPos(cx * 16 + x, y, cz * 16 + z), Blocks.AIR.defaultBlockState(), 2);
             }
         }
         pd.forgetOvergrownChunk(chunk.getPos());
@@ -211,11 +211,13 @@ public final class PushBackGameTests {
         helper.assertTrue(n > 0 && s.is(ModPushBack.WITHERED_SOIL.get()), "枯らし薬で汚染の土が枯れない: " + s);
         helper.assertTrue(helper.getBlockState(new BlockPos(0, 1, 0)).is(ModBlocks.OVERGROWN_GRASS_BLOCK.get())
                 || DesignData.pushBack().spray.radius >= 4.3D, "半径の外まで枯れた");
-        BlockPos abs = helper.absolutePos(rel);
+        // 見直しは台帳だけを見るので、遠くのチャンクの座標で試す(テスト場のチャンクを台帳に載せて外すと、胞子の場のそのチャンクの降り積もりが 0 に戻り、
+        // 同じ世界の暴露量のテストが変わる)
+        BlockPos abs = new BlockPos(630_013 * 16 + 8, 100, 630_001 * 16 + 8);
         ChunkPos cp = new ChunkPos(abs);
-        boolean before = pd.isOvergrownChunk(cp);
+        boolean before = false;
         try {
-            if (!before) pd.devBulkMark(new long[]{cp.toLong()}, pd.clock(level.getServer()));
+            pd.devBulkMark(new long[]{cp.toLong()}, pd.clock(level.getServer()));
             helper.assertTrue(com.yayuy.overgrownvegetation.corruption.pushback.WitheredSoilBlock.reviveTo(level, abs, s).is(ModBlocks.OVERGROWN_GRASS_BLOCK.get()),
                     "台帳に載っているのに汚染の地面へ戻らない");
             pd.forgetOvergrownChunk(cp);
@@ -223,7 +225,7 @@ public final class PushBackGameTests {
                     "台帳から外れたのにふつうの草に戻らない");
             helper.succeed();
         } finally {
-            if (before) pd.devBulkMark(new long[]{cp.toLong()}, pd.clock(level.getServer()));
+            pd.forgetOvergrownChunk(cp);
         }
     }
 

@@ -229,6 +229,13 @@ public final class OvergrownBiomeConverter {
             thresholdReached = corrupted >= (int) Math.ceil(threshold * counted);
         }
 
+        if (thresholdReached && level.dimension() == Level.OVERWORLD) {
+            // 押し返し(11-18 夜): 林冠(汚染の葉)だけで最上部の割合が届いても、葉の下の地面が台帳から外す割合より少なければ載せない
+            // (焼く・枯らす・掘るで外した直後に、残った林冠のせいで載せ直してしまうのを防ぐ。外す側と同じ物差し)
+            com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable.Shrink st = com.yayuy.overgrownvegetation.corruption.pushback.LedgerShrink.table();
+            double ground = com.yayuy.overgrownvegetation.corruption.pushback.LedgerShrink.groundShare(chunk, st.minColumns);
+            if (ground >= 0 && ground < st.threshold) thresholdReached = false;
+        }
         if (thresholdReached) {
             convertTo(level, chunk, targetKey(level, chunkPos, terrain, OvergrowthVariant.Stage.OVERGROWN));
         }

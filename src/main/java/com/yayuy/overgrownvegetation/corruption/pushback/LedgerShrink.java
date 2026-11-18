@@ -184,7 +184,7 @@ public final class LedgerShrink {
                     c.set(bx + x, y, bz + z);
                     BlockState s = chunk.getBlockState(c);
                     if (s.getFluidState().is(FluidTags.WATER)) { water = true; break; }
-                    if (s.isAir() || s.is(BlockTags.LEAVES) || s.is(BlockTags.LOGS) || !s.blocksMotion()) continue;
+                    if (s.isAir() || TreeBurn.isLeaf(s) || s.is(BlockTags.LOGS) || !s.blocksMotion()) continue;
                     ground = s;
                     break;
                 }
