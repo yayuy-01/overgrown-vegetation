@@ -25,6 +25,13 @@ public final class PerfTable {
         public Integer realCap;
         public Integer spawnPerRun;
         public Integer lifeAfterArriveTicks;
+        public Integer virtualCap;
+        public Integer raidIntervalTicks;
+        public Double raidShare;
+        public Integer raidSwarmMin;
+        public Integer raidSwarmMax;
+        public Double raidSpawnMin;
+        public Double raidSpawnMax;
     }
 
     public static final class FlowFieldJson {
@@ -35,6 +42,10 @@ public final class PerfTable {
         public Integer fallbackTicks;
         public Integer lookaheadCells;
         public Double laneSpreadBlocks;
+        public Double chaseNearBlocks;
+        public Double chaseMoveBlocks;
+        public Integer chaseRebuildTicks;
+        public java.util.List<String> chaseSpecies;
     }
 
     public static final class AiTiersJson {
@@ -62,12 +73,22 @@ public final class PerfTable {
     /** 流れの地図の列の幅: Mob ごとに進む向きの横へずらす最大(ブロック。0 = ずらさない)。11-18 ユーザー「列が細過ぎたら横にずらす」。 */
     public final double flowLaneSpreadBlocks;
     /**
+     * 追跡の寄り(11-18 ユーザー「遠くから追いかけるときだけ地図を使う」): 標的のプレイヤーからこの距離より遠い間だけ地図を下り、近づいたら種ごとの狩りに戻る・
+     * プレイヤーがこれだけ動いたら地図を作り直す(ブロック)・作り直しの最短の間隔(tick)・使う種(まず 1〜2 種で試す)。
+     */
+    public final double flowChaseNearBlocks, flowChaseMoveBlocks;
+    public final int flowChaseRebuildTicks;
+    public final java.util.Set<net.minecraft.resources.ResourceLocation> flowChaseSpecies;
+    /**
      * 仮想の群れ({@code horde/VirtualHordes}。11-18 大群の軽量化 A): 進む速さ(ブロック/tick)・進める/本物にする/戻す間隔(tick)・
      * 本物にする距離・戻す距離(ブロック)・本物の総数の上限・1 回に本物にする数・行き先に着いてから消えるまで(tick)。
      */
     public final double virtualSpeed, virtualMaterializeBlocks, virtualDematerializeBlocks;
     public final int virtualMoveIntervalTicks, virtualMaterializeIntervalTicks, virtualDematerializeIntervalTicks, virtualRealCap, virtualSpawnPerRun,
             virtualLifeAfterArriveTicks;
+    /** 仮想の頭数の上限・大規模レイドから仮想の群れを出す間隔(tick)と割合・群れの頭数・拠点からの距離(11-18 ユーザー決定。数は【仮】)。 */
+    public final int virtualCap, virtualRaidIntervalTicks, virtualRaidSwarmMin, virtualRaidSwarmMax;
+    public final double virtualRaidShare, virtualRaidSpawnMin, virtualRaidSpawnMax;
 
     private PerfTable(Json json) {
         AiTiersJson a = json == null || json.aiTiers == null ? new AiTiersJson() : json.aiTiers;
@@ -85,6 +106,15 @@ public final class PerfTable {
         this.flowFallbackTicks = Math.max(0, f.fallbackTicks != null ? f.fallbackTicks : 100);
         this.flowLookaheadCells = Math.max(1, Math.min(8, f.lookaheadCells != null ? f.lookaheadCells : 4));
         this.flowLaneSpreadBlocks = Math.max(0.0D, Math.min(8.0D, f.laneSpreadBlocks != null ? f.laneSpreadBlocks : 0.0D));
+        this.flowChaseNearBlocks = Math.max(4.0D, f.chaseNearBlocks != null ? f.chaseNearBlocks : 20.0D);
+        this.flowChaseMoveBlocks = Math.max(1.0D, f.chaseMoveBlocks != null ? f.chaseMoveBlocks : 8.0D);
+        this.flowChaseRebuildTicks = Math.max(10, f.chaseRebuildTicks != null ? f.chaseRebuildTicks : 40);
+        java.util.Set<net.minecraft.resources.ResourceLocation> cs = new java.util.HashSet<>();
+        for (String s : f.chaseSpecies != null ? f.chaseSpecies : java.util.List.<String>of()) {
+            net.minecraft.resources.ResourceLocation id = net.minecraft.resources.ResourceLocation.tryParse(s.contains(":") ? s : "overgrown_vegetation:" + s);
+            if (id != null) cs.add(id);
+        }
+        this.flowChaseSpecies = java.util.Set.copyOf(cs);
         VirtualHordeJson v = json == null || json.virtualHorde == null ? new VirtualHordeJson() : json.virtualHorde;
         this.virtualSpeed = Math.max(0.01D, Math.min(1.0D, v.speed != null ? v.speed : 0.12D));
         this.virtualMoveIntervalTicks = Math.max(1, v.moveIntervalTicks != null ? v.moveIntervalTicks : 5);
@@ -95,6 +125,13 @@ public final class PerfTable {
         this.virtualRealCap = Math.max(0, v.realCap != null ? v.realCap : 300);
         this.virtualSpawnPerRun = Math.max(1, v.spawnPerRun != null ? v.spawnPerRun : 6);
         this.virtualLifeAfterArriveTicks = Math.max(20, v.lifeAfterArriveTicks != null ? v.lifeAfterArriveTicks : 24000);
+        this.virtualCap = Math.max(0, v.virtualCap != null ? v.virtualCap : 2000);
+        this.virtualRaidIntervalTicks = Math.max(1, v.raidIntervalTicks != null ? v.raidIntervalTicks : 200);
+        this.virtualRaidShare = Math.max(0.0D, Math.min(1.0D, v.raidShare != null ? v.raidShare : 0.5D));
+        this.virtualRaidSwarmMin = Math.max(1, v.raidSwarmMin != null ? v.raidSwarmMin : 32);
+        this.virtualRaidSwarmMax = Math.max(this.virtualRaidSwarmMin, v.raidSwarmMax != null ? v.raidSwarmMax : 64);
+        this.virtualRaidSpawnMin = Math.max(64.0D, v.raidSpawnMin != null ? v.raidSpawnMin : 200.0D);
+        this.virtualRaidSpawnMax = Math.max(this.virtualRaidSpawnMin, v.raidSpawnMax != null ? v.raidSpawnMax : 320.0D);
     }
 
     public static PerfTable fromJson(Json json) {

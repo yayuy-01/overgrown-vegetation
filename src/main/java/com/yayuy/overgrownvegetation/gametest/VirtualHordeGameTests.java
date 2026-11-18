@@ -134,6 +134,47 @@ public final class VirtualHordeGameTests {
         helper.succeed();
     }
 
+    /** 引き返した群れは本物にならず、出発点に着いたら消える。行き先の差し替えは着いた印を外して向きを変える。 */
+    @GameTest(template = "gametest_empty7", batch = "virtual_horde_retreat")
+    public static void retreatVanishesAndRedirectRetargets(GameTestHelper helper) {
+        VirtualHordes h = new VirtualHordes();
+        BlockPos far = helper.absolutePos(new BlockPos(3, 1, 3)).offset(40000, 0, 40000);
+        VirtualHordes.Swarm a = h.spawn(far.getX(), 64.0D, far.getZ(), 3, far.getX() + 100.0D, far.getZ(), "ov_large_raid", Map.of(gregaria(), 5));
+        VirtualHordes.Swarm b = h.spawn(far.getX(), 64.0D, far.getZ() + 50.0D, -1, far.getX() + 100.0D, far.getZ() + 50.0D, "", Map.of(gregaria(), 4));
+        h.move(helper.getLevel(), 100, DesignData.perf()); // 12 ブロックほど進む
+        int n = h.retreatTag("ov_large_raid");
+        for (int i = 0; i < 20; i++) h.move(helper.getLevel(), 100, DesignData.perf());
+        boolean aGone = h.byId(a.id()) == null, bHere = h.byId(b.id()) != null;
+        boolean redirected = h.redirect(b.id(), 9, far.getX() - 300.0D, far.getZ());
+        VirtualHordes.Swarm b2 = h.byId(b.id());
+        expectTrue(helper, n == 1, "引き返させた群れが 1 でない: " + n);
+        expectTrue(helper, aGone, "引き返した群れが出発点で消えていない");
+        expectTrue(helper, bHere, "印の違う群れまで消えた");
+        expectTrue(helper, redirected && b2 != null && b2.dirX() < -0.99F, "行き先の差し替えで向きが変わっていない");
+        helper.succeed();
+    }
+
+    /** G1 の段階 0 も仮想の群れに持て、本物にすると G1 の行進で行き先へ歩く(11-18 ユーザー決定)。 */
+    @GameTest(template = "gametest_empty24", batch = "virtual_horde_g1", timeoutTicks = 100)
+    public static void g1SwarmMaterializesAndMarches(GameTestHelper helper) {
+        VirtualHordes h = new VirtualHordes();
+        Vec3 c = helper.absoluteVec(new Vec3(12.0D, 1.0D, 12.0D));
+        VirtualHordes.playersForTests = List.of(new double[]{c.x, c.z});
+        EntityType<?> g1 = com.yayuy.overgrownvegetation.corpse.G1Species.values()[0].entityType();
+        VirtualHordes.Swarm s = h.spawn(c.x, c.y, c.z, -1, c.x + 300.0D, c.z, "", Map.of(g1, 4));
+        expectTrue(helper, s != null && s.size() == 4, "G1 の群れを作れない");
+        h.materialize(helper.getLevel(), DesignData.perf());
+        AABB box = helper.getBounds().inflate(16.0D);
+        List<com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster> got = helper.getLevel().getEntitiesOfClass(
+                com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster.class, box, m -> m.getTags().contains(VirtualHordes.TAG));
+        boolean marching = !got.isEmpty() && got.stream().allMatch(m -> m.march().active());
+        int real = got.size(), virt = h.virtualHeads();
+        cleanup(helper);
+        expectTrue(helper, real > 0 && real + virt == 4, "G1 の本物化の合計が 4 でない: 本物 " + real + "・仮想 " + virt);
+        expectTrue(helper, marching, "本物になった G1 が行進していない");
+        helper.succeed();
+    }
+
     @GameTest(template = "gametest_empty7", batch = "virtual_horde_unloaded")
     public static void unloadedSwarmStaysVirtual(GameTestHelper helper) {
         VirtualHordes h = new VirtualHordes();

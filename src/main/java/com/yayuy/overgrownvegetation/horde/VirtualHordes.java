@@ -96,7 +96,7 @@ public final class VirtualHordes extends SavedData {
     /** テストで世界の tick から動かす(ふだんの GameTest のサーバーでは動かさない: テストの Mob を勝手に戻さない)。 */
     public static boolean tickInGameTests;
 
-    public static long materialized, dematerialized, placeFailures, expired, moveNanos, moveRuns, materializeNanos, maxMaterializeNanos, runs;
+    public static long materialized, dematerialized, placeFailures, expired, retreated, moveNanos, moveRuns, materializeNanos, maxMaterializeNanos, runs;
 
     /** 群れ 1 つ。 */
     public static final class Swarm {
@@ -105,9 +105,13 @@ public final class VirtualHordes extends SavedData {
         /** 向き(行き先への単位ベクトル。送り・隊列用)。 */
         float dirX = 1.0F, dirZ;
         double speed;
-        /** 行き先(拠点の id。無ければ -1)と座標。 */
-        final int baseId;
-        final double tx, tz;
+        /** 行き先(拠点の id。無ければ -1)と座標。司令塔が {@link #redirect} で差し替えられる。 */
+        int baseId;
+        double tx, tz;
+        /** 出発点(引き返すとき戻る所)。 */
+        double originX, originZ;
+        /** 引き返している(襲撃が終わった)。本物にせず、出発点に着いたら消える。 */
+        boolean retreating;
         /** 本物にしたとき付ける印(襲撃の印など。空なら無し)。 */
         final String extraTag;
         /** 種(エンティティの id)ごとの頭数。 */
@@ -128,6 +132,8 @@ public final class VirtualHordes extends SavedData {
             this.tx = tx;
             this.tz = tz;
             this.extraTag = extraTag;
+            this.originX = x;
+            this.originZ = z;
             faceTarget();
         }
 
@@ -197,8 +203,22 @@ public final class VirtualHordes extends SavedData {
         return OvergrownVegetationConfig.COMMON.virtualHordeEnabled.get();
     }
 
+    /** 仮想にできる種か: 地上の行進できる G4・G5({@link DirectorHooks#marchable})か、G1 の段階 0(11-18 ユーザー: 後で司令塔が G1 の群れで前線を広げるため)。 */
+    public static boolean allowed(EntityType<?> type) {
+        if (DirectorHooks.marchable(type)) return true;
+        for (com.yayuy.overgrownvegetation.corpse.G1Species s : com.yayuy.overgrownvegetation.corpse.G1Species.values()) {
+            if (s.entityType() == type) return true;
+        }
+        return false;
+    }
+
+    /** 仮想の頭数をあと何体足せるか(仮想の上限 {@code virtualCap})。 */
+    public int room() {
+        return Math.max(0, DesignData.perf().virtualCap - virtualHeads());
+    }
+
     /**
-     * 仮想の群れを作る(呼ぶ側が予算を払う)。地上の行進できる種だけを数える(ほかは捨てて、その数を返さない)。
+     * 仮想の群れを作る(呼ぶ側が予算を払う)。{@link #allowed} の種だけを、仮想の上限まで数える(ほかは捨てる。作った頭数は返した群れの size)。
      *
      * @return 作った群れ(頭数 0 なら null)
      */
@@ -206,10 +226,10 @@ public final class VirtualHordes extends SavedData {
     public Swarm spawn(double x, double y, double z, int baseId, double tx, double tz, String extraTag, Map<EntityType<?>, Integer> heads) {
         PerfTable t = DesignData.perf();
         Swarm s = new Swarm(nextId++, x, y, z, t.virtualSpeed, baseId, tx, tz, extraTag == null ? "" : extraTag);
-        int n = 0;
+        int n = 0, cap = Math.min(MAX_SWARM, room());
         for (Map.Entry<EntityType<?>, Integer> e : heads.entrySet()) {
-            if (!DirectorHooks.marchable(e.getKey()) || e.getValue() <= 0) continue;
-            int k = Math.min(e.getValue(), MAX_SWARM - n);
+            if (!allowed(e.getKey()) || e.getValue() <= 0) continue;
+            int k = Math.min(e.getValue(), cap - n);
             if (k <= 0) break;
             s.add(BuiltInRegistries.ENTITY_TYPE.getKey(e.getKey()), k);
             n += k;
@@ -218,6 +238,79 @@ public final class VirtualHordes extends SavedData {
         swarms.add(s);
         setDirty();
         return s;
+    }
+
+    /** id の群れ(無ければ null)。 */
+    @Nullable
+    public Swarm byId(long id) {
+        for (Swarm s : swarms) if (s.id == id) return s;
+        return null;
+    }
+
+    /**
+     * 群れの行き先を差し替える(司令塔が「この群れをここへ」と命じる口。11-18 ユーザー: 後で仮想の G1 の群れを動かして前線を広げる)。
+     * 着いた・待っている印は外し、引き返しもやめる。群れが無ければ false。
+     */
+    public boolean redirect(long id, int baseId, double tx, double tz) {
+        Swarm s = byId(id);
+        if (s == null) return false;
+        s.baseId = baseId;
+        s.tx = tx;
+        s.tz = tz;
+        s.arrivedAt = -1L;
+        s.retreating = false;
+        s.faceTarget();
+        setDirty();
+        return true;
+    }
+
+    /**
+     * 印 {@code extraTag} の群れを出発点へ引き返させる(襲撃が終わった。11-18 ユーザー決定: 森の方へ引き返して消える)。
+     * 引き返している群れは本物にならず、出発点に着いたら消える。引き返させた群れの数を返す。
+     */
+    public static int retreat(ServerLevel level, String extraTag) {
+        return get(level.getServer()).retreatTag(extraTag);
+    }
+
+    /** {@link #retreat} の中身(テストからも)。 */
+    public int retreatTag(String extraTag) {
+        VirtualHordes h = this;
+        int n = 0;
+        for (Swarm s : h.swarms) {
+            if (!s.extraTag.equals(extraTag) || s.retreating) continue;
+            s.retreating = true;
+            s.tx = s.originX;
+            s.tz = s.originZ;
+            s.arrivedAt = -1L;
+            s.faceTarget();
+            n++;
+        }
+        if (n > 0) h.setDirty();
+        return n;
+    }
+
+    /** 本物にしたとき行進させる(G4・G5 は拠点への行進 {@link PlantMarch}、G1 は G1 の行進 {@code G1March#beginTo})。 */
+    static void beginMarch(Mob m, int baseId, double tx, double tz) {
+        if (m instanceof com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster g1) g1.march().beginTo(tx, tz, baseId);
+        else PlantMarch.begin(m, baseId, tx, tz);
+    }
+
+    /** 行進しているか(戻してよい条件の 1 つ)。 */
+    static boolean marching(Mob m) {
+        if (m instanceof com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster g1) return g1.march().active();
+        return PlantMarch.active(m);
+    }
+
+    /** 行進の行き先(無ければ null)。 */
+    @Nullable
+    static net.minecraft.world.phys.Vec3 marchTarget(Mob m) {
+        if (m instanceof com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster g1) return g1.march().active() ? g1.march().target(m.getY()) : null;
+        return PlantMarch.target(m);
+    }
+
+    static int marchBase(Mob m) {
+        if (m instanceof com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster g1) return g1.march().baseId();
+        return PlantMarch.baseId(m);
     }
 
     /** 仮想の頭数の合計。 */
@@ -291,6 +384,11 @@ public final class VirtualHordes extends SavedData {
             if (s.waiting) continue;
             double dx = s.tx - s.x, dz = s.tz - s.z, d = Math.sqrt(dx * dx + dz * dz);
             if (d <= ARRIVE_BLOCKS) {
+                if (s.retreating) {
+                    retreated += s.size(); // 引き返して森に着いた: 消える
+                    it.remove();
+                    continue;
+                }
                 s.arrivedAt = now;
                 continue;
             }
@@ -336,26 +434,28 @@ public final class VirtualHordes extends SavedData {
         while (it.hasNext()) {
             Swarm s = it.next();
             s.waiting = false;
-            if (nearestPlayerSq(level, s.x, s.z) > near) continue;
+            if (s.retreating || nearestPlayerSq(level, s.x, s.z) > near) continue;
             BlockPos center = BlockPos.containing(s.x, s.y, s.z);
             if (level.getChunkSource().getChunkNow(center.getX() >> 4, center.getZ() >> 4) == null || !level.isPositionEntityTicking(center)) {
                 continue; // 読み込み範囲の外・読み込み途中: 仮想のまま(進み続ける)
             }
-            if (budget <= 0) {
-                s.waiting = true; // 本物の上限・この回の数の上限: その場で待つ
+            // 襲撃の群れは、その襲撃の同時の上限(大規模レイドの maxAlive。重さの安全弁)も守る。値段は仮想を出した時に払い済み
+            int own = VirtualRaids.room(level, s);
+            if (budget <= 0 || own <= 0) {
+                s.waiting = true; // 本物の上限・この回の数の上限・襲撃の上限: その場で待つ
                 continue;
             }
+            int before = budget;
+            budget = Math.min(budget, own);
+            int rest = before - budget;
             int placed = 0, slot = 0;
-            float start = (float) ((s.id * 0x9E3779B97F4A7C15L >>> 40) % 6283L) / 1000.0F;
             for (Map.Entry<ResourceLocation, Integer> e : s.counts.entrySet()) {
                 EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(e.getKey());
                 int left = e.getValue();
                 while (left > 0 && budget > 0 && slot < MAX_SWARM) {
-                    // ひまわりの並び(parked の HordeFormation の簡単な形)。体の大きさで間をあける
-                    double r = 1.4D * Math.max(1.0D, type.getWidth()) * Math.sqrt(slot + 0.5D);
-                    double a = start + slot * 2.3999631D;
-                    slot++;
-                    int bx = Mth.floor(s.x + Math.cos(a) * r), bz = Mth.floor(s.z + Math.sin(a) * r);
+                    // ひまわりの並び(遠景の身代わりと同じ式: VirtualHordeLayout)
+                    double[] o = VirtualHordeLayout.offset(s.id, slot++, type);
+                    int bx = Mth.floor(s.x + o[0]), bz = Mth.floor(s.z + o[1]);
                     BlockPos feet = TreeCanopyGroundFinder.findSpawnSurface(level, bx, bz); // 樹冠の上でなく地面(読み込み途中なら null)
                     if (feet == null || !level.isPositionEntityTicking(feet) || !level.getFluidState(feet).isEmpty()) continue;
                     Mob m = EnemySpawns.create(level, type, feet, MobSpawnType.EVENT, random);
@@ -365,7 +465,7 @@ public final class VirtualHordes extends SavedData {
                     m.setYRot((float) Math.toDegrees(Math.atan2(-s.dirX, s.dirZ)));
                     m.getPersistentData().putString(EXTRA_KEY, s.extraTag);
                     level.addFreshEntity(m);
-                    PlantMarch.begin(m, s.baseId, s.tx, s.tz);
+                    beginMarch(m, s.baseId, s.tx, s.tz);
                     left--;
                     budget--;
                     placed++;
@@ -373,6 +473,7 @@ public final class VirtualHordes extends SavedData {
                 e.setValue(left);
             }
             s.counts.values().removeIf(v -> v <= 0);
+            budget += rest;
             materialized += placed;
             if (s.size() <= 0) {
                 it.remove();
@@ -395,10 +496,10 @@ public final class VirtualHordes extends SavedData {
         List<Mob> back = new ArrayList<>();
         for (Entity e : level.getAllEntities()) {
             if (!(e instanceof Mob m) || !m.isAlive() || !m.getTags().contains(TAG)) continue;
-            if (!PlantMarch.active(m) || m.hasCustomName() || m.isPassenger() || m.isVehicle()) continue;
+            if (!marching(m) || m.hasCustomName() || m.isPassenger() || m.isVehicle()) continue;
             if (m.getTarget() instanceof Player || m.getHealth() < m.getMaxHealth()) continue;
             if (m.getLastHurtByMob() != null && m.tickCount - m.getLastHurtByMobTimestamp() < 200) continue;
-            net.minecraft.world.phys.Vec3 tg = PlantMarch.target(m);
+            net.minecraft.world.phys.Vec3 tg = marchTarget(m);
             if (tg == null) continue;
             double dx = tg.x - m.getX(), dz = tg.z - m.getZ();
             if (dx * dx + dz * dz < keep) continue;
@@ -406,8 +507,8 @@ public final class VirtualHordes extends SavedData {
             back.add(m);
         }
         for (Mob m : back) {
-            net.minecraft.world.phys.Vec3 tg = PlantMarch.target(m);
-            int baseId = PlantMarch.baseId(m);
+            net.minecraft.world.phys.Vec3 tg = marchTarget(m);
+            int baseId = marchBase(m);
             String extra = m.getPersistentData().getString(EXTRA_KEY);
             Swarm into = null;
             for (Swarm s : swarms) {
@@ -442,9 +543,9 @@ public final class VirtualHordes extends SavedData {
     /** 確かめ用の 1 行。 */
     public String describe(ServerLevel level) {
         int real = realHeads(level);
-        return String.format(Locale.ROOT, "仮想の群れ: %s・群れ %d・仮想 %d 体・本物 %d 体(合計 %d)・本物にした %d・戻した %d・置けなかった回 %d・寿命で消えた %d・"
+        return String.format(Locale.ROOT, "仮想の群れ: %s・群れ %d・仮想 %d 体・本物 %d 体(合計 %d)・本物にした %d・戻した %d・置けなかった回 %d・寿命で消えた %d・引き返して消えた %d・"
                         + "進める 平均 %.3f ms・本物にする 平均 %.2f ms 最大 %.2f ms(%d 回)",
-                enabled() ? "入" : "切", swarms.size(), virtualHeads(), real, virtualHeads() + real, materialized, dematerialized, placeFailures, expired,
+                enabled() ? "入" : "切", swarms.size(), virtualHeads(), real, virtualHeads() + real, materialized, dematerialized, placeFailures, expired, retreated,
                 moveRuns == 0 ? 0.0D : moveNanos / 1e6 / moveRuns,
                 runs == 0 ? 0.0D : materializeNanos / 1e6 / runs, maxMaterializeNanos / 1e6, runs);
     }
@@ -466,6 +567,9 @@ public final class VirtualHordes extends SavedData {
             c.putDouble("TZ", s.tz);
             c.putString("Tag", s.extraTag);
             c.putLong("Arrived", s.arrivedAt);
+            c.putDouble("OX", s.originX);
+            c.putDouble("OZ", s.originZ);
+            c.putBoolean("Retreat", s.retreating);
             ListTag counts = new ListTag();
             for (Map.Entry<ResourceLocation, Integer> e : s.counts.entrySet()) {
                 CompoundTag ct = new CompoundTag();
@@ -490,6 +594,11 @@ public final class VirtualHordes extends SavedData {
             Swarm s = new Swarm(c.getLong("Id"), c.getDouble("X"), c.getDouble("Y"), c.getDouble("Z"), c.getDouble("Speed"), c.getInt("Base"),
                     c.getDouble("TX"), c.getDouble("TZ"), c.getString("Tag"));
             s.arrivedAt = c.getLong("Arrived");
+            if (c.contains("OX")) {
+                s.originX = c.getDouble("OX");
+                s.originZ = c.getDouble("OZ");
+            }
+            s.retreating = c.getBoolean("Retreat");
             for (Tag ct : c.getList("Counts", Tag.TAG_COMPOUND)) {
                 CompoundTag cc = (CompoundTag) ct;
                 ResourceLocation id = ResourceLocation.tryParse(cc.getString("Type"));

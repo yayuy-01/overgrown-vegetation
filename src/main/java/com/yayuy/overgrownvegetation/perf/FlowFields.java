@@ -213,7 +213,8 @@ public final class FlowFields {
     }
 
     private static final class Entry {
-        final int tx, tz;
+        /** 行き先。行進の地図は変わらない。追跡の地図(プレイヤーごと)は作り直すたびにプレイヤーの今の位置へ。 */
+        int tx, tz;
         @Nullable
         Field field;
         boolean building;
@@ -247,10 +248,39 @@ public final class FlowFields {
         return e.field;
     }
 
+    /** 追跡の地図(標的のプレイヤー 1 人につき 1 枚。11-18 ユーザー「遠くから追いかけるときだけ地図を使う」)。 */
+    private static final java.util.Map<java.util.UUID, Entry> PLAYERS = new java.util.HashMap<>();
+
+    /**
+     * 標的のプレイヤーへの地図。プレイヤーが前の行き先から {@code chaseMoveBlocks} より動き、前に作ってから {@code chaseRebuildTicks} 経っていれば、
+     * 今の位置で作り直す(できるまでは古い地図を返す。近い所では種ごとの狩りに戻るので、地図の遅れはそこで吸収する)。
+     */
+    @Nullable
+    public static Field requestFor(ServerLevel level, net.minecraft.world.entity.player.Player p) {
+        long now = level.getGameTime();
+        PerfTable t = DesignData.perf();
+        sweep(now, t);
+        Entry e = PLAYERS.computeIfAbsent(p.getUUID(), k -> new Entry(net.minecraft.util.Mth.floor(p.getX()), net.minecraft.util.Mth.floor(p.getZ())));
+        e.lastUsed = now;
+        if (e.building && now - e.buildStartedAt > 400L) e.building = false;
+        if (!e.building && !TASK.running()) {
+            double mx = p.getX() - e.tx, mz = p.getZ() - e.tz;
+            boolean moved = mx * mx + mz * mz > t.flowChaseMoveBlocks * t.flowChaseMoveBlocks;
+            long age = e.field == null ? Long.MAX_VALUE : now - e.field.builtAt;
+            if (e.field == null || moved && age >= t.flowChaseRebuildTicks || age >= t.flowRebuildTicks) {
+                e.tx = net.minecraft.util.Mth.floor(p.getX());
+                e.tz = net.minecraft.util.Mth.floor(p.getZ());
+                build(level, e, now, t);
+            }
+        }
+        return e.field;
+    }
+
     private static void sweep(long now, PerfTable t) {
         if (now - lastSweep < 100L) return;
         lastSweep = now;
         ENTRIES.values().removeIf(e -> now - e.lastUsed > t.flowDropUnusedTicks && !e.building);
+        PLAYERS.values().removeIf(e -> now - e.lastUsed > t.flowDropUnusedTicks && !e.building);
     }
 
     private static final BlockState AIR = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
@@ -492,7 +522,19 @@ public final class FlowFields {
             if (!enabled() || !(mob.level() instanceof ServerLevel level) || mob instanceof com.yayuy.overgrownvegetation.entity.ArboraEntity) return false;
             long now = level.getGameTime();
             if (now < fallbackUntil) return false;
-            Field f = request(level, tx, tz);
+            return steerOn(request(level, tx, tz), mob, level, now, speed, maxDistBehind, ahead);
+        }
+
+        /** 標的のプレイヤーへの地図を下る(追跡の寄り。11-18)。 */
+        public boolean steerTo(net.minecraft.world.entity.PathfinderMob mob, net.minecraft.world.entity.player.Player target, double speed) {
+            if (!enabled() || !(mob.level() instanceof ServerLevel level) || mob instanceof com.yayuy.overgrownvegetation.entity.ArboraEntity) return false;
+            long now = level.getGameTime();
+            if (now < fallbackUntil) return false;
+            return steerOn(requestFor(level, target), mob, level, now, speed, 0, null);
+        }
+
+        private boolean steerOn(@Nullable Field f, net.minecraft.world.entity.PathfinderMob mob, ServerLevel level, long now, double speed, int maxDistBehind,
+                                @Nullable net.minecraft.world.entity.Mob ahead) {
             if (f == null) {
                 misses++;
                 active = steering = false;
@@ -594,6 +636,7 @@ public final class FlowFields {
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
         ENTRIES.clear();
+        PLAYERS.clear();
     }
 
     /** {@code /ov perf flow [on|off]}: 入り切り(toml の値を書き換える。前後を同じ起動で比べる用)と、今の数。 */
@@ -711,7 +754,7 @@ public final class FlowFields {
     }
 
     private static int show(net.minecraft.commands.CommandSourceStack src) {
-        String s = describe() + "・後続が地図を下った " + com.yayuy.overgrownvegetation.entity.crawler.CrawlerPack.flowSteers;
+        String s = describe() + "・後続が地図を下った " + com.yayuy.overgrownvegetation.entity.crawler.CrawlerPack.flowSteers + "・追跡の寄り 始めた " + FlowChaseGoal.starts + "・退いた " + FlowChaseGoal.gaveUp;
         src.sendSuccess(() -> net.minecraft.network.chat.Component.literal(s), false);
         return 1;
     }

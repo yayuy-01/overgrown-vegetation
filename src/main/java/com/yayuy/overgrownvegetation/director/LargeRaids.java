@@ -99,6 +99,7 @@ public final class LargeRaids {
         ForestDirector d = ForestDirector.get(level);
         d.setMood(ForestDirector.Mood.NORMAL, day, day);
         d.setLargeRaidCooldownUntil(day + DesignData.director().largeRaid.cooldownDays);
+        com.yayuy.overgrownvegetation.horde.VirtualHordes.retreat(level, ATTACKER_TAG); // 歩いている途中の仮想の群れは森へ引き返して消える(11-18 horde-flow-a・ユーザー決定)
         d.note("大きな襲撃が終わった(" + why + "。予算 " + String.format(Locale.ROOT, "%.1f", d.available(level)) + ")");
     }
 
@@ -181,6 +182,8 @@ public final class LargeRaids {
             end(level, day, "予算を使い切った");
             return 0;
         }
+        // 遠く(読み込み範囲の外)に仮想の群れを出して歩かせる(11-18 horde-flow-a・ユーザー決定。値段はここで払う。返り値の n には足さない = n は本物を出した数)
+        com.yayuy.overgrownvegetation.horde.VirtualRaids.maybeSend(level, b, random);
         int room = maxAlive() - alive(level, b);
         int n = 0;
         double devPrice = ForestDirector.stagePrice(DesignData.director().costEvolve, DirectorGates.strength(level, DirectorGates.Gate.EVOLVE));
@@ -233,17 +236,23 @@ public final class LargeRaids {
     private static BlockPos spot(ServerLevel level, BaseMemory.Base b, RandomSource random) {
         if (spotOverride != null) return spotOverride.get();
         LargeRaidTable t = DesignData.director().largeRaid;
-        Vec3 center = new Vec3(b.centerX(), 64.0D, b.centerZ());
-        double angle;
-        Vec3 away = ForestEdge.of(level).away(center);
-        if (b.weakSector() >= 0 && (away == null || random.nextBoolean())) {
-            angle = BaseDefense.angleOf(b.weakSector(), DesignData.director().base.weakSectors);
-        } else if (away != null) {
-            angle = Math.atan2(-away.z, -away.x);
-        } else {
-            angle = random.nextDouble() * Math.PI * 2.0D;
-        }
+        double angle = spotAngle(level, b, random);
         return RaidSpawns.findHiddenSpot(level, b.centerX(), b.centerZ(), angle, t.spawnSpreadDeg, t.spawnMinBlocks, t.spawnMaxBlocks,
                 t.playerMinBlocks, t.spawnTries, random);
+    }
+
+    /**
+     * 湧かせる向き(ラジアン。広がりはまだ掛けない): 森の方角か、拠点の弱い方角(半々【仮】)。仮想の群れ({@code horde/VirtualRaids})も同じ決め方で
+     * 遠くに置く(11-18 horde-flow-a が spot() から切り出した)。
+     */
+    public static double spotAngle(ServerLevel level, BaseMemory.Base b, RandomSource random) {
+        Vec3 center = new Vec3(b.centerX(), 64.0D, b.centerZ());
+        Vec3 away = ForestEdge.of(level).away(center);
+        if (b.weakSector() >= 0 && (away == null || random.nextBoolean())) {
+            return BaseDefense.angleOf(b.weakSector(), DesignData.director().base.weakSectors);
+        } else if (away != null) {
+            return Math.atan2(-away.z, -away.x);
+        }
+        return random.nextDouble() * Math.PI * 2.0D;
     }
 }
