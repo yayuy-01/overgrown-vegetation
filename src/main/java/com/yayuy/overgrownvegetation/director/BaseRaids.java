@@ -84,6 +84,15 @@ public final class BaseRaids {
      */
     public static Result sendWave(ServerLevel level, BaseMemory.Base b, double day, RandomSource random, boolean hoard,
                                   @javax.annotation.Nullable BaseMemoryTable.Wave override) {
+        // 11-19 襲撃の規模: 財布 → 森の予算 の順に払う(見送って貯めた分・前の襲撃の使い残し)。中(貯めた襲撃)は中の値段の倍率
+        RaidScales.RaidScale scale = hoard ? RaidScales.RaidScale.MEDIUM : RaidScales.RaidScale.SMALL;
+        try (ForestDirector.PurseScope ignored = ForestDirector.openPurse(BaseMemory.get(level.getServer()), b, RaidScales.costFactor(scale))) {
+            return sendWave0(level, b, day, random, hoard, override);
+        }
+    }
+
+    private static Result sendWave0(ServerLevel level, BaseMemory.Base b, double day, RandomSource random, boolean hoard,
+                                    @javax.annotation.Nullable BaseMemoryTable.Wave override) {
         BaseMemoryTable t = DesignData.director().base;
         com.yayuy.overgrownvegetation.data.AssaultTable at = DesignData.director().assault;
         double since = Math.max(0.0D, day - b.stageSince());
@@ -99,7 +108,10 @@ public final class BaseRaids {
             w = new BaseMemoryTable.Wave(w.fromDays(), w.stageZero(), (int) Math.round(w.developed() * at.hoardShareFactor), w.g4(),
                     (int) Math.round(w.g5plus() * at.hoardShareFactor));
         }
-        w = capped(override != null ? override : w, at.maxWave);
+        // 1 回の上限: 小は小の段の合計の上限(既定 assault.maxWave の 40。設定のページで上書き・0 以下 = なし)、中の 1 回は中の同時の上限(40)
+        int smallTotal = RaidScales.maxTotal(RaidScales.RaidScale.SMALL, at.maxWave);
+        int maxWave = hoard ? HoardRaids.maxAlive() : smallTotal > 0 ? smallTotal : Integer.MAX_VALUE / 4;
+        w = capped(override != null ? override : w, maxWave);
         int waveNo = first ? -1 : t.waveIndex(since);
         double r = t.raidSearchBlocks;
         AABB box = new AABB(b.centerX() - r, level.getMinBuildHeight(), b.centerZ() - r, b.centerX() + r, level.getMaxBuildHeight(), b.centerZ() + r);
@@ -191,13 +203,13 @@ public final class BaseRaids {
         }
         // 払えずに進化させなかった段階 0 も、そこにいるので段階 0 として送る(上限まで)
         for (AbstractParasitizedMonster m : unused) {
-            if (sentZero + sentDev + evolved + g4 + w.g5plus() >= at.maxWave) break; // G5 の枠を残す(見直し ②5)
+            if (sentZero + sentDev + evolved + g4 + w.g5plus() >= maxWave) break; // G5 の枠を残す(見直し ②5)
             go(m, b, flank, random);
             sentZero++;
         }
         // (7) G5
         // 計が上限 40 を超えないように(見直し ②5: 払えずに段階 0 として送った分の後で G5 を足すと超えていた)
-        int g5Room = Math.max(0, Math.min(w.g5plus(), at.maxWave - (sentZero + sentDev + evolved + g4)));
+        int g5Room = Math.max(0, Math.min(w.g5plus(), maxWave - (sentZero + sentDev + evolved + g4)));
         int g5 = DirectorGates.open(level, DirectorGates.Gate.WAVE_G5) ? send(G5_PLUS, level, b, g5Room, random) : 0;
         Result res = new Result(waveNo, sentZero, sentDev, evolved, g4, g5, w.stageZero(), w.developed(), w.g4(), w.g5plus(), spawnedZero, first, hoard);
         director.note("拠点 #" + b.id() + " へ送り込み " + res.summary());
@@ -302,9 +314,18 @@ public final class BaseRaids {
 
     /** 見張りから: 送り込む時が来た拠点へ送る。 */
     public static void dispatch(ServerLevel level, BaseMemory memory, double day) {
+        if (!RaidScales.Knobs.raidsEnabled) return; // 設定のページで襲撃を切った
         for (BaseMemory.Base b : List.copyOf(memory.bases())) {
             if (!BaseMemory.wantsWave(b, day)) continue;
             boolean first = BaseMemory.firstRaidPending(b);
+            // 11-19 襲撃の規模: 最初の襲撃が済んだ後の機会は、見送るか、貯めた日数で小・中・大を選んで起こす
+            if (!first && RaidScales.enabled()) {
+                if (RaidScales.skipOrStart(level, memory, b, day, level.getRandom().nextDouble(), level.getRandom())) continue;
+                memory.waveSent(b, day, level.getRandom());
+                rescaleInterval(memory, b, day);
+                if (HoardRaids.active() || ForestDirector.get(level).mood() != ForestDirector.Mood.NORMAL) break; // 中・大の間はほかの拠点も待つ
+                continue;
+            }
             Result r = sendWave(level, b, day, level.getRandom());
             // 見直し ②1: 最初の襲撃が 0 体なら「送った」と数えず、間を空けて試し直す(読み込まれていない / 予算が足りないで間を分ける。夜を過ぎたら次の夜)
             if (first && r.total() == 0) {
@@ -316,6 +337,13 @@ public final class BaseRaids {
                 continue;
             }
             memory.waveSent(b, day, level.getRandom(), DirectorGates.strength(level, DirectorGates.Gate.RAID)); // F5 の導入では送り込みの間が長い(0.3 なら 3.3 倍)
+            rescaleInterval(memory, b, day);
         }
+    }
+
+    /** 設定のページの頻度の倍率を、決めた次の機会までの間に掛ける。 */
+    private static void rescaleInterval(BaseMemory memory, BaseMemory.Base b, double day) {
+        double f = RaidScales.Knobs.intervalFactor;
+        if (Math.abs(f - 1.0D) > 1.0E-9D) memory.setNextWaveDay(b, day + Math.max(0.0D, b.nextWaveDay() - day) * Math.max(0.05D, f));
     }
 }

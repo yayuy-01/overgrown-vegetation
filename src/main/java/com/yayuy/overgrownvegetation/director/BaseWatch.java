@@ -74,6 +74,7 @@ public final class BaseWatch {
             double[] d = BaseDefense.measure(level, b, day);
             b.setDefense(d, BaseDefense.weakest(d), day);
         }
+        RaidScales.refreshSaving(level, memory); // 見送って貯めている間は G1 が遠巻きにうろつく(11-19 ユーザー)
         ForestMoods.tick(level, day, DesignData.director().base.sampleTicks); // 貯めて一気に使う(第 3 段)
         LargeRaids.tick(level, day, DesignData.director().base.sampleTicks); // 大きな襲撃(第 4 段)
         Watchers.tick(level, memory, day); // 監視塔を植える(F5 から。監視塔が組み込まれてから)

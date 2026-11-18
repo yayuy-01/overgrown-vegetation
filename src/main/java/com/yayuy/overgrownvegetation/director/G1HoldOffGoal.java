@@ -34,7 +34,7 @@ public final class G1HoldOffGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        if (!ForestDirector.hoarding() || G1Fate.retaliating(mob) || mob.isRising() || mob.omen() != G1Fate.OMEN_NONE) return false;
+        if (!RaidScales.holdingOff() || G1Fate.retaliating(mob) || mob.isRising() || mob.omen() != G1Fate.OMEN_NONE) return false;
         G1Fate f = mob.fate();
         if (f != null && (f.route() != ForestDirector.Route.NONE || f.scout().active())) return false;
         HoardTable t = DesignData.director().hoard;

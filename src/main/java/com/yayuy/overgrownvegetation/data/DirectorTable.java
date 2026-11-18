@@ -70,6 +70,8 @@ public final class DirectorTable {
         public AssaultTable.Json assault;
         /** 第 4 段: 大きな襲撃(LargeRaidTable)。 */
         public LargeRaidTable.Json largeRaid;
+        /** 11-19: 襲撃の規模(見送りと貯め。RaidScaleTable)。 */
+        public RaidScaleTable.Json raidScale;
         /** 監視塔(WatcherTable)。 */
         public WatcherTable.Json watcher;
         /** 第 3 段 区切り 4: 苗床が枯れるまでに生む萌芽体の数。 */
@@ -142,6 +144,8 @@ public final class DirectorTable {
     public final AssaultTable assault;
     /** 第 4 段(11-14): 大きな襲撃(司令塔の襲撃の大・中・小の「大」)。 */
     public final LargeRaidTable largeRaid;
+    /** 11-19: 襲撃の規模(小・中・大)を見送りと貯めで決める。 */
+    public final RaidScaleTable raidScale;
     /** 11-14: 司令塔が植える監視塔(フィロセンス)。 */
     public final WatcherTable watcher;
     /** 苗床は萌芽体をこれだけ生むか、G4 以降を 1 回孵したら枯れる(11-14 ユーザー N1。数 6 は【仮】)。 */
@@ -228,6 +232,7 @@ public final class DirectorTable {
         this.hoard = HoardTable.fromJson(s.hoard);
         this.assault = AssaultTable.fromJson(s.assault);
         this.largeRaid = LargeRaidTable.fromJson(s.largeRaid);
+        this.raidScale = RaidScaleTable.fromJson(s.raidScale);
         this.watcher = WatcherTable.fromJson(s.watcher);
         this.nurseryLifeSprouts = Math.max(1, s.nurseryLifeSprouts != null ? s.nurseryLifeSprouts : 6);
         this.nurseryLifeHatches = Math.max(1, s.nurseryLifeHatches != null ? s.nurseryLifeHatches : 4);

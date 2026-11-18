@@ -62,6 +62,8 @@ public final class ForestMoods {
             }
             return;
         }
+        // 11-19 襲撃の規模: 認識した拠点がある間の「貯めた襲撃(中)」は、送り込みの機会の見送りと貯めから起こす(RaidScales)。ここでは貯め始めない
+        if (RaidScales.enabled() && DirectorGates.open(level, DirectorGates.Gate.RAID) && LargeRaids.strongestBase(level) != null) return;
         double perSample = t.chancePerDay * sampleTicks / 24000.0D;
         // 見直し ②2: 最初の襲撃が済んでいない拠点があるうちは貯め始めない(貯めた襲撃が最初の襲撃を飲み込まないように)
         if (!firstRaidOutstanding(level) && canStartHoard(DirectorGates.open(level, DirectorGates.Gate.EVOLVE), DirectorGates.stage(level), omen, day, d.hoardCooldownUntil(),

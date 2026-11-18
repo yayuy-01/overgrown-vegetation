@@ -242,6 +242,17 @@ public final class ForestDirector extends SavedData implements ForestBudget {
     /** 本番の的(拠点の番号)と、次に起こしてよい日。 */
     private int largeRaidTarget = -1;
     private double largeRaidCooldownUntil;
+    /** 11-19 襲撃の規模の「大」で始めた本番なら、始めた日(前の起こし方の本番なら NaN)。 */
+    private double largeRaidScaledSince = Double.NaN;
+
+    public double largeRaidScaledSince() {
+        return largeRaidScaledSince;
+    }
+
+    void setLargeRaidScaledSince(double day) {
+        largeRaidScaledSince = day;
+        setDirty();
+    }
 
     public int largeRaidTarget() {
         return largeRaidTarget;
@@ -312,15 +323,58 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         setDirty();
     }
 
+    // ---- 11-19 襲撃の規模: 貯めの財布の口(RaidScales)。襲撃で湧かせる間だけ開く(サーバーの主スレッドだけ)。
+    // 開いている間は、使える量 = (予算 + その拠点の財布) ÷ 値段の倍率、払うときは 値段 × 倍率 を 財布 → 予算 の順に払う。
+    @Nullable
+    private static PurseScope purse;
+
+    /** 財布の口。閉じると前の口に戻る(大きな襲撃の中で仮想の群れが払う・継ぎ足しが送り込みを呼ぶ、の入れ子のため)。 */
+    public static final class PurseScope implements AutoCloseable {
+        final BaseMemory memory;
+        final BaseMemory.Base base;
+        final double costFactor;
+        @Nullable
+        private final PurseScope prev;
+
+        private PurseScope(BaseMemory memory, BaseMemory.Base base, double costFactor, @Nullable PurseScope prev) {
+            this.memory = memory;
+            this.base = base;
+            this.costFactor = Math.max(0.01D, costFactor);
+            this.prev = prev;
+        }
+
+        @Override
+        public void close() {
+            purse = prev;
+        }
+    }
+
+    /** 拠点 b の財布を開く(try-with-resources で閉じる)。 */
+    public static PurseScope openPurse(BaseMemory memory, BaseMemory.Base b, double costFactor) {
+        purse = new PurseScope(memory, b, costFactor, purse);
+        return purse;
+    }
+
     @Override
     public double available(ServerLevel level) {
         accrue(level);
+        PurseScope p = purse;
+        if (p != null) return (budget + p.base.purse()) / p.costFactor;
         return budget;
     }
 
     @Override
     public boolean tryPay(ServerLevel level, double cost) {
         accrue(level);
+        PurseScope p = purse;
+        if (p != null) {
+            double c = cost * p.costFactor;
+            if (c > budget + p.base.purse() + 1.0E-9D) return false;
+            double rest = c - p.memory.spendPurse(p.base, c);
+            budget = Math.max(0.0D, budget - rest);
+            setDirty();
+            return true;
+        }
         if (cost > budget + 1.0E-9D) return false;
         budget = Math.max(0.0D, budget - cost);
         setDirty();
@@ -644,6 +698,7 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         d.hoardCooldownUntil = tag.getDouble("HoardCooldown");
         d.largeRaidTarget = tag.contains("LargeTarget") ? tag.getInt("LargeTarget") : -1;
         d.largeRaidCooldownUntil = tag.getDouble("LargeCooldown");
+        d.largeRaidScaledSince = tag.contains("LargeScaled") ? tag.getDouble("LargeScaled") : Double.NaN;
         d.carry = Math.max(0.0D, tag.getDouble("Carry"));
         d.carryPending = tag.getBoolean("CarryPending");
         return d;
@@ -661,6 +716,7 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         tag.putDouble("HoardCooldown", hoardCooldownUntil);
         tag.putInt("LargeTarget", largeRaidTarget);
         tag.putDouble("LargeCooldown", largeRaidCooldownUntil);
+        if (!Double.isNaN(largeRaidScaledSince)) tag.putDouble("LargeScaled", largeRaidScaledSince);
         tag.putDouble("Carry", carry);
         tag.putBoolean("CarryPending", carryPending);
         return tag;

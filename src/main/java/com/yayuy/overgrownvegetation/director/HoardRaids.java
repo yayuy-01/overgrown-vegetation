@@ -130,15 +130,15 @@ public final class HoardRaids {
                 end(raid, "ピースフル");
                 continue;
             }
-            if (day - raid.startDay > a.hoardMaxDays) {
+            if (day - raid.startDay > maxDays()) {
                 end(raid, "時間切れ");
                 continue;
             }
             int alive = alive(level, b);
             raid.peakAlive = Math.max(raid.peakAlive, alive);
-            int want = Math.min(a.hoardMaxAlive - alive, a.hoardMaxTotal - raid.total);
-            if (raid.total >= a.hoardMaxTotal) {
-                end(raid, "合計 " + a.hoardMaxTotal + " 体を出した");
+            int want = Math.min(maxAlive() - alive, maxTotal() - raid.total);
+            if (raid.total >= maxTotal()) {
+                end(raid, "合計 " + maxTotal() + " 体を出した");
                 continue;
             }
             if (want <= 0) continue;
@@ -154,8 +154,8 @@ public final class HoardRaids {
             raid.peakAlive = Math.max(raid.peakAlive, alive + r.total());
             if (r.total() == 0) {
                 end(raid, "継ぎ足しを払えなかった");
-            } else if (raid.total >= a.hoardMaxTotal) {
-                end(raid, "合計 " + a.hoardMaxTotal + " 体を出した");
+            } else if (raid.total >= maxTotal()) {
+                end(raid, "合計 " + maxTotal() + " 体を出した");
             }
         }
     }
@@ -165,6 +165,20 @@ public final class HoardRaids {
         lastEnded = why;
         lastTotal = raid.total;
         lastPeakAlive = raid.peakAlive;
+    }
+
+    /** 同時の上限・合計の上限・長さ(11-19 襲撃の規模の「中」の段 → 無ければ assault の値。設定のページの倍率も)。 */
+    public static int maxAlive() {
+        return RaidScales.maxAlive(RaidScales.RaidScale.MEDIUM, DesignData.director().assault.hoardMaxAlive);
+    }
+
+    public static int maxTotal() {
+        int n = RaidScales.maxTotal(RaidScales.RaidScale.MEDIUM, DesignData.director().assault.hoardMaxTotal);
+        return n > 0 ? n : Integer.MAX_VALUE / 4; // 0 以下 = 上限なし(設定のページ)
+    }
+
+    public static double maxDays() {
+        return RaidScales.maxDays(RaidScales.RaidScale.MEDIUM, DesignData.director().assault.hoardMaxDays);
     }
 
     /** 拠点のまわり(大きな襲撃の数える半径)の、印のある生きた個体の数。 */

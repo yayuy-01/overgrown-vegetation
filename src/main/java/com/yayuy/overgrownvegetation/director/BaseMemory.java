@@ -96,6 +96,11 @@ public final class BaseMemory extends SavedData {
         /** 次に送り込む日と、これまでに送り込んだ回数。 */
         private double nextWaveDay;
         private int wavesSent;
+        // ---- 11-19 襲撃の規模: 見送りと貯め(RaidScales)
+        /** 見送り始めた日(貯めていなければ NaN)・財布へ最後に足した日・貯めの財布(襲撃の予算。森の予算の上限の外)。 */
+        private double saveStart = Double.NaN;
+        private double purseCreditedAt;
+        private double purse;
         // ---- 第 3 段 区切り 2: 弱い所を突く
         /** いちばん守りの薄い方位(−1 = まだ分からない)と、見た日。方位ごとの守り(保存しない)。 */
         // ---- 監視塔(11-14)
@@ -173,6 +178,24 @@ public final class BaseMemory extends SavedData {
 
         public double nextWaveDay() {
             return nextWaveDay;
+        }
+
+        /** 見送って貯めている最中か。 */
+        public boolean saving() {
+            return !Double.isNaN(saveStart);
+        }
+
+        public double saveStart() {
+            return saveStart;
+        }
+
+        public double purseCreditedAt() {
+            return purseCreditedAt;
+        }
+
+        /** 貯めの財布(襲撃の予算)。 */
+        public double purse() {
+            return purse;
         }
 
         public int wavesSent() {
@@ -688,6 +711,55 @@ public final class BaseMemory extends SavedData {
         setDirty();
     }
 
+    /** 送り込みの間を 1 つ引く(waveIntervalMinDays〜MaxDays)。 */
+    public double nextInterval(net.minecraft.util.RandomSource random) {
+        BaseMemoryTable t = table();
+        return t.waveIntervalMinDays + random.nextDouble() * (t.waveIntervalMaxDays - t.waveIntervalMinDays);
+    }
+
+    /** 次の機会(送り込みの日)を決め直す。 */
+    public void setNextWaveDay(Base b, double next) {
+        b.nextWaveDay = next;
+        setDirty();
+    }
+
+    /** 11-19 襲撃の規模: 機会を見送った(貯め始めは start。次の機会は next。送った回数は増やさない)。 */
+    public void skipWave(Base b, double day, double start, double next) {
+        if (!b.saving()) {
+            b.saveStart = start;
+            b.purseCreditedAt = day;
+        }
+        b.nextWaveDay = Math.max(day, next);
+        setDirty();
+    }
+
+    /** 貯めを終える(襲撃が起きた)。財布は残す(使い残しは後の送り込みへ)。 */
+    public void endSaving(Base b) {
+        b.saveStart = Double.NaN;
+        setDirty();
+    }
+
+    /** 財布へ足す(足した日を day に)。 */
+    public void addPurse(Base b, double amount, double day) {
+        b.purse = Math.max(0.0D, b.purse + Math.max(0.0D, amount));
+        b.purseCreditedAt = day;
+        setDirty();
+    }
+
+    /** 財布から払う(足りない分は払わない)。払えた量を返す。 */
+    public double spendPurse(Base b, double amount) {
+        double paid = Math.min(b.purse, Math.max(0.0D, amount));
+        b.purse -= paid;
+        if (paid > 0.0D) setDirty();
+        return paid;
+    }
+
+    /** 確かめ用・テスト用: 財布をこの値にする。 */
+    public void setPurse(Base b, double value) {
+        b.purse = Math.max(0.0D, value);
+        setDirty();
+    }
+
     /** 確かめ用: 次の送り込みを今にする。 */
     public void waveNow(Base b, double day) {
         b.nextWaveDay = day;
@@ -742,6 +814,8 @@ public final class BaseMemory extends SavedData {
                 BaseMemoryTable.Wave w = t.waveFor(since);
                 out.add(String.format(Locale.ROOT, "     送り込み: 段 %d(段階 0 %d・進化体 %d・G4 %d・G5〜 %d)・送った回数 %d・次まで %.2f 日",
                         t.waveIndex(since), w.stageZero(), w.developed(), w.g4(), w.g5plus(), b.wavesSent, Math.max(0.0D, b.nextWaveDay - day)));
+                out.add(String.format(Locale.ROOT, "     襲撃の規模: %s・財布 %.1f", b.saving() ? String.format(Locale.ROOT, "見送って貯めている(%.2f 日)", day - b.saveStart) : "貯めていない",
+                        b.purse));
             }
             String next = b.stage == Stage.RECOGNIZED ? "" :String.format(Locale.ROOT, "次の偵察まで %.2f 日", Math.max(0.0D, b.nextScoutDay - day));
             out.add(String.format(Locale.ROOT, "     偵察: 眺め終えた %d・倒された %d %s %s", b.scoutsDone, b.scoutKills, scout, next));
@@ -823,6 +897,9 @@ public final class BaseMemory extends SavedData {
             b.nextScoutDay = c.getDouble("NS");
             b.nextWaveDay = c.getDouble("NW");
             b.wavesSent = c.getInt("WS");
+            b.saveStart = c.contains("RSave") ? c.getDouble("RSave") : Double.NaN;
+            b.purseCreditedAt = c.getDouble("RCred");
+            b.purse = c.getDouble("RPurse");
             b.weakSector = c.contains("Weak") ? c.getInt("Weak") : -1;
             b.defenseAt = c.contains("DefAt") ? c.getDouble("DefAt") : Double.NEGATIVE_INFINITY;
             b.watcherSeenDay = c.contains("WSeen") ? c.getDouble("WSeen") : Double.NEGATIVE_INFINITY;
@@ -873,6 +950,9 @@ public final class BaseMemory extends SavedData {
             c.putDouble("NS", b.nextScoutDay);
             c.putDouble("NW", b.nextWaveDay);
             c.putInt("WS", b.wavesSent);
+            if (b.saving()) c.putDouble("RSave", b.saveStart);
+            c.putDouble("RCred", b.purseCreditedAt);
+            c.putDouble("RPurse", b.purse);
             c.putInt("Weak", b.weakSector);
             c.putDouble("DefAt", b.defenseAt);
             c.putDouble("WSeen", b.watcherSeenDay);

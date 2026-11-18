@@ -59,12 +59,18 @@ public final class LargeRaids {
         RandomSource random = level.getRandom();
         switch (d.mood()) {
             case LARGE_OMEN -> {
-                if (day >= d.moodUntil()) begin(level, day);
+                if (day >= d.moodUntil()) {
+                    if (!scaled(d)) begin(level, day);
+                    else if (target(level) != null) beginScaled(level, target(level), day); // 11-19 大: 静かな前触れの後に本番
+                    else end(level, day, "拠点を忘れた");
+                }
             }
             case LARGE -> {
                 if (target(level) == null) end(level, day, "拠点を忘れた");
+                else if (scaled(d) && day - d.largeRaidScaledSince() > RaidScales.maxDays(RaidScales.RaidScale.LARGE, 1.0D)) end(level, day, "時間切れ(使い残しは財布に残す)");
             }
             default -> {
+                if (RaidScales.enabled()) return; // 11-19: 大は「見送りと貯め」から起こす(RaidScales)。前の 1 日 2 割の起こし方は、この仕組みを切ったときだけ
                 double perSample = t.chancePerDay * sampleTicks / 24000.0D;
                 if (canStart(DirectorGates.open(level, DirectorGates.Gate.LARGE_RAID), DirectorGates.stage(level), strongestBase(level) != null,
                         day, d.largeRaidCooldownUntil(), d.mood()) && random.nextDouble() < perSample) {
@@ -94,9 +100,43 @@ public final class LargeRaids {
         d.note(String.format(Locale.ROOT, "大きな襲撃が始まった(拠点 #%d。予算 %.1f)", b.id(), d.available(level)));
     }
 
+    /**
+     * 11-19 襲撃の規模の「大」: 前触れなしで、拠点 b へ本番を始める(見送りの静けさが前兆。11-16「前触れは何も出さない」)。
+     * 払うのは その拠点の財布 → 森の予算。同時の上限は大の段の maxAlive(300【仮】)、長さは maxDays(1 日【仮】)。予算が尽きるか時間で終わる。
+     */
+    public static void beginScaled(ServerLevel level, BaseMemory.Base b, double day) {
+        ForestDirector d = ForestDirector.get(level);
+        scaledTotal = 0;
+        d.setLargeRaidTarget(b.id());
+        d.setLargeRaidScaledSince(day);
+        d.setMood(ForestDirector.Mood.LARGE, day, Double.MAX_VALUE);
+        d.note(String.format(Locale.ROOT, "大規模の襲撃が始まった(拠点 #%d。財布 %.1f・予算 %.1f)", b.id(), b.purse(), d.available(level)));
+    }
+
+    /**
+     * 11-19 全体管理・ユーザー: 大に決まったら、すぐには来ず {@code omenDays}(2 日【仮】)森の湧きが止まって静かになる(前の大きな襲撃の前触れと同じ作り:
+     * {@link DirectorGates#plantSpawnsSuppressed}・送り込みと偵察以外の司令塔の湧きが止まる・G1 は遠巻きにうろつかない)。その間 財布は増えも減りもしない。
+     */
+    public static void startScaledOmen(ServerLevel level, BaseMemory.Base b, double day, double days) {
+        ForestDirector d = ForestDirector.get(level);
+        d.setLargeRaidTarget(b.id());
+        d.setLargeRaidScaledSince(day);
+        d.setMood(ForestDirector.Mood.LARGE_OMEN, day, day + days);
+        d.note(String.format(Locale.ROOT, "大規模の襲撃に決まった(拠点 #%d。%.2f 日静かになってから来る。財布 %.1f)", b.id(), days, b.purse()));
+    }
+
+    /** 大で今の回に湧かせた合計(本物 + 仮想の頭数。保存しない = 再起動で 0 から数え直す)。 */
+    public static int scaledTotal;
+
+    /** 今の本番が、襲撃の規模の「大」で始めたものか。 */
+    public static boolean scaled(ForestDirector d) {
+        return !Double.isNaN(d.largeRaidScaledSince());
+    }
+
     /** 終わる(ふだんへ。次まで cooldownDays)。 */
     public static void end(ServerLevel level, double day, String why) {
         ForestDirector d = ForestDirector.get(level);
+        d.setLargeRaidScaledSince(Double.NaN);
         d.setMood(ForestDirector.Mood.NORMAL, day, day);
         d.setLargeRaidCooldownUntil(day + DesignData.director().largeRaid.cooldownDays);
         com.yayuy.overgrownvegetation.horde.VirtualHordes.retreat(level, ATTACKER_TAG); // 歩いている途中の仮想の群れは森へ引き返して消える(11-18 horde-flow-a・ユーザー決定)
@@ -171,24 +211,40 @@ public final class LargeRaids {
     public static int step(ServerLevel level, RandomSource random) {
         steps++;
         ForestDirector d = ForestDirector.get(level);
-        LargeRaidTable t = DesignData.director().largeRaid;
         double day = BaseMemory.today(level.getServer());
         BaseMemory.Base b = target(level);
         if (b == null) {
             end(level, day, "拠点を忘れた");
             return 0;
         }
+        if (!scaled(d)) return step0(level, random, d, b, day);
+        // 11-19 襲撃の規模の「大」: 拠点の財布 → 森の予算 の順に払う(使い残しは財布に残り、後の送り込みへ)
+        try (ForestDirector.PurseScope ignored = ForestDirector.openPurse(BaseMemory.get(level.getServer()), b, RaidScales.costFactor(RaidScales.RaidScale.LARGE))) {
+            return step0(level, random, d, b, day);
+        }
+    }
+
+    private static int step0(ServerLevel level, RandomSource random, ForestDirector d, BaseMemory.Base b, double day) {
+        LargeRaidTable t = DesignData.director().largeRaid;
         if (d.available(level) + 1.0E-9D < t.costStageZero) {
             end(level, day, "予算を使い切った");
             return 0;
         }
+        // 11-19 大の 1 回の合計の上限(設計は上限なし。設定のページで決めたら、届いたら終わる)
+        int totalCap = scaled(d) ? RaidScales.maxTotal(RaidScales.RaidScale.LARGE, 0) : 0;
+        if (totalCap > 0 && scaledTotal >= totalCap) {
+            end(level, day, "合計 " + totalCap + " 体を出した(使い残しは財布に残す)");
+            return 0;
+        }
         // 遠く(読み込み範囲の外)に仮想の群れを出して歩かせる(11-18 horde-flow-a・ユーザー決定。値段はここで払う。返り値の n には足さない = n は本物を出した数)
-        com.yayuy.overgrownvegetation.horde.VirtualRaids.maybeSend(level, b, random);
+        int virt = com.yayuy.overgrownvegetation.horde.VirtualRaids.maybeSend(level, b, random);
+        if (scaled(d)) scaledTotal += virt;
         // 近くに出す本物の枠: maxAlive の半分【仮】は仮想の群れのために空けておく(11-18 ユーザー決定 案 B)。数は世界全体の攻め手で数える(拠点のまわりの広めの箱。上限を超えないように)
         int room = com.yayuy.overgrownvegetation.horde.VirtualRaids.nearRoom(level, b);
+        if (totalCap > 0) room = Math.min(room, Math.max(0, totalCap - scaledTotal));
         int n = 0;
         double devPrice = ForestDirector.stagePrice(DesignData.director().costEvolve, DirectorGates.strength(level, DirectorGates.Gate.EVOLVE));
-        double flank = DesignData.director().base.flankShare * DirectorGates.strength(level, DirectorGates.Gate.LARGE_RAID);
+        double flank = DesignData.director().base.flankShare * DirectorGates.strength(level, scaled(d) ? DirectorGates.Gate.RAID : DirectorGates.Gate.LARGE_RAID); // 大は F6 から(大きな襲撃の門 F7 の強さは 0)
         for (int i = 0; i < Math.min(room, t.spawnPerStep); i++) {
             double roll = random.nextDouble();
             // 顔ぶれ(11-14 夕): G4〜G6 が plantShare。開いている G4・G5 の地上の種を、G1 と同じ湧かせ方(見通せない地面)で湧かせ、
@@ -221,6 +277,7 @@ public final class LargeRaids {
             m.march().beginFlank(b, flank, random);
             n++;
         }
+        if (scaled(d)) scaledTotal += n;
         return n;
     }
 
