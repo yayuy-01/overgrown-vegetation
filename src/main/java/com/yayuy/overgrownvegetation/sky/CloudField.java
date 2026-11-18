@@ -685,6 +685,22 @@ public final class CloudField {
     }
 
     /**
+     * 広めの範囲で引いた一覧 {@link #storms} から、狭い範囲にかかる雲だけを抜き出す(11-18 試し「広く 1 回引いて使い回す」。絞り方は storms の最後と同じ)。
+     * 狭い範囲でじかに引いた答えとほぼ同じだが、尾根の並び順と、作った組の覚えの癖で、まれに尾根 1 本が違う。
+     */
+    public static List<Storm> within(List<Storm> wide, double minX, double minZ, double maxX, double maxZ) {
+        List<Storm> list = new ArrayList<>();
+        for (Storm s : wide) {
+            double r = s.reach();
+            if (s.x() + r < minX || s.x() - r > maxX || s.z() + r < minZ || s.z() - r > maxZ) {
+                continue;
+            }
+            list.add(s);
+        }
+        return list;
+    }
+
+    /**
      * 場の座標の四角 (minX, minZ)〜(maxX, maxZ) の柱の答え({@link #column}・{@link #baseCovers}・{@link #sea})に効く積乱雲だけ(11-09 段階 2a-2 軽量化)。
      * 効く広さ = 広がり・足元の裾野(胴の 3.3 倍)・巨大な雲の雲海の大きい方。四角ごとに絞ってから柱を引くと、答えは同じで、柱ごとに全部の雲を回さずに済む。
      */

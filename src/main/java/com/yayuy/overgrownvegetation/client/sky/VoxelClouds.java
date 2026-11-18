@@ -372,12 +372,43 @@ public final class VoxelClouds implements CloudRenderer {
         }
         List<CloudField.Storm> memo = STORMS_MEMO.get(key);
         if (memo == null) {
-            memo = CloudSky.storms(level, coverage, minX, minZ, maxX, maxZ);
+            memo = sharedStorms ? shared(level, coverage, minX, minZ, maxX, maxZ) : CloudSky.storms(level, coverage, minX, minZ, maxX, maxZ);
             if (STORMS_MEMO.size() < 8) {
                 STORMS_MEMO.put(key, memo);
             }
         }
         return memo;
+    }
+
+    /**
+     * 試し(11-18、既定は切。ユーザーが前後を見て決めるまで入れない): 積乱雲の一覧を、範囲を {@link #SHARED_SNAP} の倍数へ広げて引き、同じ時刻の間は使い回して、
+     * 各所はそこから絞る。カメラが動いても広げた範囲はほとんど変わらないので、引き直しは 1 tick に 1 回ほどで済む。じかに引くのとは、まれに尾根 1 本が違いうる。
+     */
+    public static volatile boolean sharedStorms = Boolean.getBoolean("ov.cloudsShared");
+    static final double SHARED_SNAP = 1024.0;
+
+    private record SharedKey(ClientLevel level, long dayTime, float coverage, double minX, double minZ, double maxX, double maxZ,
+                             com.yayuy.overgrownvegetation.sky.CloudShape shape, long seed) {
+    }
+
+    private static final java.util.Map<SharedKey, List<CloudField.Storm>> SHARED = new java.util.LinkedHashMap<>();
+
+    private static List<CloudField.Storm> shared(ClientLevel level, float coverage, double minX, double minZ, double maxX, double maxZ) {
+        SharedKey key = new SharedKey(level, level.getDayTime(), CloudSky.stormCoverage(coverage), Math.floor(minX / SHARED_SNAP) * SHARED_SNAP,
+                Math.floor(minZ / SHARED_SNAP) * SHARED_SNAP, Math.ceil(maxX / SHARED_SNAP) * SHARED_SNAP, Math.ceil(maxZ / SHARED_SNAP) * SHARED_SNAP,
+                com.yayuy.overgrownvegetation.sky.CloudShape.current(), CloudField.seed());
+        if (!SHARED.isEmpty()) {
+            SharedKey first = SHARED.keySet().iterator().next();
+            if (first.level != level || first.dayTime != key.dayTime || SHARED.size() > 8) {
+                SHARED.clear();
+            }
+        }
+        List<CloudField.Storm> wide = SHARED.get(key);
+        if (wide == null) {
+            wide = CloudSky.storms(level, coverage, key.minX, key.minZ, key.maxX, key.maxZ);
+            SHARED.put(key, wide);
+        }
+        return CloudField.within(wide, minX, minZ, maxX, maxZ);
     }
 
     private record StormsKey(ClientLevel level, long gameTime, long dayTime, float partialTick, float coverage, double minX, double minZ,
