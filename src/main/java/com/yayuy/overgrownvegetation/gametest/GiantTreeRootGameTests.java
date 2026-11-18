@@ -84,8 +84,9 @@ public final class GiantTreeRootGameTests {
                     // 2026-11-09: 構造物の縁から垂れる根はうねる(横へずれる所は斜め下の根に支えられる)。真下にも斜め下(3×3)にも
                     // 根が無く、真下が空いているマスだけを「浮き」と数える(離れて浮いたかけら)。
                     boolean diagSupport = false;
-                    for (int ox = -1; ox <= 1 && !diagSupport; ox++) {
-                        for (int oz = -1; oz <= 1; oz++) {
+                    // 2026-11-18: 構造物の縁から外へ張り出して弧で下りる根は、出だしがほぼ水平(斜め下 5×5 の根に支えられる)。
+                    for (int ox = -2; ox <= 2 && !diagSupport; ox++) {
+                        for (int oz = -2; oz <= 2; oz++) {
                             if (cells.contains(below.offset(ox, 0, oz).asLong())) {
                                 diagSupport = true;
                                 break;

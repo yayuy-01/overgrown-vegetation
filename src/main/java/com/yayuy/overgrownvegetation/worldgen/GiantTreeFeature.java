@@ -133,6 +133,22 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
     /** 下に地面が無い縁で垂らす長さ: 残りの長さ 1 歩につき足す段数と、上限(11-18 夜。仮決め)。 */
     private static final double ROOT_HANG_PER_LEFT = 1.6D;
     private static final int ROOT_HANG_LONG_MAX = 90;
+    /**
+     * 構造物の縁から斜めに下りる根(2026-11-18 夜 2 回目。ユーザー: 昔の巨大樹は同じ構造物から長い根が外へ斜めに海まで下りていた・今は太い根が
+     * 4 本しか横に伸びず迫力が薄い)。縁では真下に落とさず、外へ 1 歩進むごとに {@code SPLAY_FALL_MIN}〜{@code SPLAY_FALL_MAX} 段ずつ沈み(出だしの 3 歩はゆるく)、
+     * 地面に着いたらまた這う。空中の歩数は根の長さから引かない({@code SPLAY_STEPS_MAX} 歩まで。超えたら垂れて終わる)。空中でも枝分かれする。
+     * 構造物の上を這う歩数も {@code STRUCT_FREE_MAX} 歩までは長さから引かない。着地した根は少なくとも {@code SPLAY_LAND_MIN} 歩這う。仮の値。
+     */
+    private static final boolean SPLAY = !"0".equals(System.getProperty("ov.rootSplay"));
+    private static final double SPLAY_FALL_MIN = 1.0D;
+    private static final double SPLAY_FALL_MAX = 2.0D;
+    private static final int SPLAY_STEPS_MAX = 90;
+    private static final int STRUCT_FREE_MAX = 40;
+    private static final int SPLAY_LAND_MIN = 24;
+    private static final float SPLAY_FORK_CHANCE = 0.12F;
+    private static final int SPLAY_FORK_GAP = 9;
+    /** 構造物の上の木の根の本数の足し(設計値の本数 + これ + 0〜2)。仮の値。 */
+    private static final int STRUCT_ROOT_EXTRA = 2;
     /** 高い構造物を回り込むとき 1 回に曲げる角度(rad)と回数の上限。 */
     private static final double ROOT_TURN_STEP = 0.6D;
     private static final int ROOT_TURN_MAX = 6;
@@ -977,6 +993,11 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         }
 
         int count = Math.max(3, base - 3 + random.nextInt(5));
+        // 構造物の上の木(11-18): 根を多く・長く(縁から斜めに下りて地面まで届かせる。昔の巨大樹の迫力へ)。
+        boolean onBuild = SPLAY && !isGroundForRoots(plan.level, origin.getX(), originGroundY, origin.getZ());
+        if (onBuild) {
+            count = base + STRUCT_ROOT_EXTRA + random.nextInt(3);
+        }
         // 板を立てる根は一部だけ(少なく・高く。11-07 第 1 段の写真の後、Fable・ユーザー)。残りは幹の裾から直に這う。
         int plates = Math.min(count, BUTTRESS_COUNT_MIN + random.nextInt(BUTTRESS_COUNT_MAX - BUTTRESS_COUNT_MIN + 1));
         int platesMade = 0;
@@ -986,6 +1007,9 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             double angle = baseAngle + TAU * i / count + jitter;
             double lenMul = Mth.clamp(1.0D + 0.05D * slopeToward(slope, angle), 0.55D, 1.6D);
             int len = (int) Math.round(length * (0.35D + random.nextDouble() * 0.75D) * lenMul);
+            if (onBuild) {
+                len = Math.max(len, (int) Math.round(length * 0.7D));
+            }
             double rad = thick * (0.8D + random.nextDouble() * 0.45D);
             // 板は根の並びに散らす(残りの本数 ÷ 残りの板の数で抽選)。
             boolean plate = platesMade < plates && random.nextInt(count - i) < plates - platesMade;
@@ -1150,9 +1174,26 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
      */
     private static void growSurfaceRoot(RootCtx c, double sx, double sz, int startGy, double heading, int length,
             double rad0, int depth) {
+        growSurfaceRoot(c, sx, sz, startGy, heading, length, rad0, depth, Double.NaN);
+    }
+
+    /** {@code startAirY} が NaN でなければ、その高さの空中から斜めに下りる所から始める(空中で分かれた子の根)。 */
+    private static void growSurfaceRoot(RootCtx c, double sx, double sz, int startGy, double heading, int length,
+            double rad0, int depth, double startAirY) {
         if (length < 3 || rad0 <= 0.0D) {
             return;
         }
+        final int length0 = length;
+        boolean air = !Double.isNaN(startAirY);
+        double airY = air ? startAirY : 0.0D;
+        double fall = 0.0D;
+        double airTop = 0.0D;
+        double airH = 0.0D;
+        double airReach = 0.0D;
+        double airPh = 0.0D;
+        int airSteps = 0;
+        int freeSteps = 0;
+        int offGround = 0;
         Plan plan = c.plan();
         RandomSource r = c.random();
         double ocx = c.origin().getX() + 0.5D;
@@ -1166,7 +1207,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         int piz = Mth.floor(curZ);
         int pgy = gy;
         double pcy = Double.NaN;
-        boolean havePrev = false;
+        boolean havePrev = air;
         double expPhase = r.nextDouble() * TAU;
         double expFreq = EXP_FREQ_MIN + r.nextDouble() * (EXP_FREQ_MAX - EXP_FREQ_MIN);
         int maxForks = depth < ROOT_MAX_FORKS.length ? ROOT_MAX_FORKS[depth] : 0;
@@ -1195,7 +1236,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             double t = (double) step / length;
             // 蛇行: 曲がり具合がゆっくり揺れる + 幹から外へ弱く引く + 3 歩ごとに下り側へ寄る。
             boolean inArch = step >= archStart && step < archStart + archLen;
-            curv = curv * 0.9D + (r.nextDouble() - 0.5D) * MEANDER * (inArch ? 0.4D : 1.0D);
+            curv = curv * 0.9D + (r.nextDouble() - 0.5D) * MEANDER * (inArch ? 0.4D : air ? 2.2D : 1.0D);
             h += curv;
             double radialOut = Math.atan2(curZ - ocz, curX - ocx);
             h += OUTWARD_PULL * Math.atan2(Math.sin(radialOut - h), Math.cos(radialOut - h));
@@ -1214,14 +1255,98 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             }
             double dist = Math.sqrt((ix + 0.5D - ocx) * (ix + 0.5D - ocx) + (iz + 0.5D - ocz) * (iz + 0.5D - ocz));
             if (dist <= c.trunkR() || (havePrev && ix == pix && iz == piz)) {
+                if (air) {
+                    length++; // 空中の歩は長さから引かない(同じマスに留まった歩も)
+                }
                 curX = nx;
                 curZ = nz;
                 continue;
             }
             double rad = rad0 * Math.pow(1.0D - t, 0.7D);
 
+            // 構造物の縁から斜めに下りている途中(11-18)。
+            boolean justLanded = false;
+            int landG = 0;
+            if (air) {
+                if (fall <= 0.0D) {
+                    fall = SPLAY_FALL_MIN + r.nextDouble() * (SPLAY_FALL_MAX - SPLAY_FALL_MIN);
+                }
+                // 11-18 夜 3 回目(ユーザー「斜めに直線に進むのはちょっと違う」): 直線にしない。縁から外へ張り出してから下へ曲がり、足もとで
+                // また外へ寝る S 字の弧(下の地面までの落差 airH を、横に airReach 歩かけて下りる)。落ち方は波でむらを付け、横の蛇行も空中では強める。
+                if (airReach <= 0.0D) {
+                    int below = scanGroundY(plan.level, ix, Mth.floor(airY) - 2, iz, 0, ROOT_DROP_MAX, c.trunkBlock());
+                    airTop = airY;
+                    airH = below == Integer.MIN_VALUE ? 100.0D : Math.max(4.0D, airY - (below + 1));
+                    airReach = Math.max(4.0D, airH / fall);
+                    airPh = r.nextDouble() * TAU;
+                }
+                double au = (airSteps + 1) / airReach;
+                double fallNow;
+                if (au <= 1.0D) {
+                    double target = airTop - airH * (au * au * (3.0D - 2.0D * au));
+                    fallNow = Mth.clamp((airY - target) * (1.0D + 0.35D * Math.sin(airPh + airSteps * 0.4D)), 0.2D, 4.0D);
+                } else {
+                    fallNow = fall;
+                }
+                int ag = Mth.floor(airY) - 1;
+                if (ag - 3 <= plan.level.getMinBuildHeight()) {
+                    ended = true;
+                    break;
+                }
+                int land = surfaceStep(plan, ix, ag, iz, c.trunkBlock(), (int) Math.ceil(fallNow) + 1);
+                if (land == STEP_WALL) {
+                    // 崖・建物の壁に当たった: そこへ刺さって終わる。
+                    airSegment(plan, curX, airY, curZ, nx, airY - fallNow * 0.5D, nz, rad);
+                    ended = true;
+                    break;
+                }
+                if (land == STEP_NONE) {
+                    if (airSteps >= SPLAY_STEPS_MAX) {
+                        hangRoot(plan, r, curX, Mth.floor(airY), curZ, ROOT_HANG_MAX + (length - step) / 2, Math.max(0.0D, rad - 0.5D) + HANG_RAD_EXTRA, h);
+                        plan.caveHangs++;
+                        ended = true;
+                        break;
+                    }
+                    double ny = airY - fallNow;
+                    airSegment(plan, curX, airY, curZ, nx, ny, nz, rad);
+                    airY = ny;
+                    airSteps++;
+                    length++;
+                    offGround++;
+                    if (airSteps == 6) {
+                        plan.sample("斜めに下りる根", ix, Mth.floor(airY), iz);
+                    }
+                    // 空中でも枝分かれする(昔の根と同じ。外へ扇に広がって下りる)。
+                    if (forks < maxForks && airSteps >= 4 && step - lastFork >= SPLAY_FORK_GAP && r.nextFloat() < SPLAY_FORK_CHANCE) {
+                        forks++;
+                        lastFork = step;
+                        double sign = r.nextBoolean() ? 1.0D : -1.0D;
+                        double turn = sign * (0.4D + r.nextDouble() * 0.6D);
+                        int childLen = Math.max(SPLAY_LAND_MIN, (int) Math.round((length - step) * (0.5D + r.nextDouble() * 0.45D)));
+                        growSurfaceRoot(c, nx, nz, Mth.floor(airY) - 1, h + turn, childLen, Math.max(0.8D, rad * 0.7D), depth + 1, airY);
+                        h -= sign * 0.2D;
+                    }
+                    pix = ix;
+                    piz = iz;
+                    curX = nx;
+                    curZ = nz;
+                    continue;
+                }
+                // 着地: そこからまた這う(少なくとも SPLAY_LAND_MIN 歩)。
+                airSegment(plan, curX, airY, curZ, nx, land + 1.0D, nz, rad);
+                air = false;
+                justLanded = true;
+                landG = land;
+                pgy = land;
+                pcy = Double.NaN;
+                if (length - step < SPLAY_LAND_MIN) {
+                    length = step + SPLAY_LAND_MIN;
+                }
+                plan.sample("根の着地", ix, land, iz);
+            }
+
             // 川: 次の列の、足元と同じ高さか 1 つ下に水がある(岸に来た)。対岸があれば渡る(第 2 段)。
-            if (c.stage2() && havePrev && !inArch
+            if (c.stage2() && havePrev && !inArch && !justLanded
                     && (plan.level.getFluidState(cursor.set(ix, gy, iz)).is(net.minecraft.tags.FluidTags.WATER)
                         || plan.level.getFluidState(cursor.set(ix, gy - 1, iz)).is(net.minecraft.tags.FluidTags.WATER))
                     && !plan.level.getFluidState(cursor.set(pix, gy, piz)).is(net.minecraft.tags.FluidTags.WATER)) {
@@ -1252,7 +1377,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                 }
             }
 
-            int g = surfaceStep(plan, ix, gy, iz, c.trunkBlock(), ROOT_MAX_DROP_PER_STEP);
+            int g = justLanded ? landG : surfaceStep(plan, ix, gy, iz, c.trunkBlock(), ROOT_MAX_DROP_PER_STEP);
             if (g == STEP_WALL) {
                 BlockState wall = plan.level.getBlockState(cursor.set(ix, gy + 1, iz));
                 if (isRootTerrain(wall) && isGroundForRoots(plan.level, ix, gy + 1, iz)) { // 汚染の皮をかぶった構造物の壁には潜らない(11-09)
@@ -1283,7 +1408,9 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                         c.trunkBlock());
                 int rr = Math.max(0, (int) Math.round(rad - 0.5D));
                 // 構造物の上(2026-11-09): 狭い開口(吹き抜け・階段口)は、向こうに同じ高さの床があれば低く渡る(中へ落ちて消えない)。
-                boolean standOnStructure = havePrev && !isGroundForRoots(plan.level, pix, gy, piz);
+                // 11-18: 幹の裾・板根の先がもう縁にある根(まだ 1 歩も這っていない)も、構造物の上の木なら縁の根として扱う(小さな屋上では大半の根がこれ)。
+                boolean standOnStructure = havePrev ? !isGroundForRoots(plan.level, pix, gy, piz)
+                        : SPLAY && gy >= c.originGy() - 2 && !isGroundForRoots(plan.level, c.origin().getX(), c.originGy(), c.origin().getZ());
                 if (standOnStructure) {
                     BankHit open = findOpeningFloor(plan, c.trunkBlock(), curX, curZ, dirX, dirZ, gy);
                     if (open != null) {
@@ -1332,6 +1459,19 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                         }
                     }
                 }
+                if (SPLAY && standOnStructure) {
+                    // 構造物の縁(11-18): 真下へ落とさず、外へ斜めに下り始める(上の「斜めに下りている途中」が続きを受け持つ)。
+                    air = true;
+                    airY = gy + 1.0D;
+                    airSegment(plan, curX, airY, curZ, nx, airY, nz, rad);
+                    pix = ix;
+                    piz = iz;
+                    curX = nx;
+                    curZ = nz;
+                    length++;
+                    offGround++;
+                    continue;
+                }
                 // 縁・空中: 真下の地面まで垂直に下りる(斜めに沈まない)。
                 if (far == Integer.MIN_VALUE) {
                     // 空中: ゆるく曲がりながら先へ細って垂れる(2026-11-07 相談 5)。
@@ -1359,8 +1499,18 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
 
             BlockState surface = plan.level.getBlockState(cursor.set(ix, gy, iz));
             boolean onStructure = !isGroundForRoots(plan.level, ix, gy, iz); // 構造物の上の汚染の皮・薄い床では埋もれない(11-09)
+            // 11-18(ユーザー「根の長さというより、どれだけ横に進めたかで地面に潜るかを決めても良いかも」): 埋もれ具合は本物の地面を這った歩数で決める
+            // (構造物の上・空中の歩数は数えない。地面だけを這う根では前と同じ値)。
+            if (onStructure) {
+                if (SPLAY && freeSteps < STRUCT_FREE_MAX) {
+                    freeSteps++;
+                    length++;
+                }
+                offGround++; // step - offGround = 本物の地面を這った歩数
+            }
+            double tBury = SPLAY ? Math.min(1.0D, (double) (step - offGround) / length0) : t;
             double e = onStructure ? 1.0D
-                    : EXP_START - EXP_BURY * t + EXP_WAVE * Math.sin(expPhase + step * expFreq);
+                    : EXP_START - EXP_BURY * tBury + EXP_WAVE * Math.sin(expPhase + step * expFreq);
             double lift = 0.0D;
             if (!onStructure && archLen > 0) {
                 if (inArch) {
@@ -1429,6 +1579,16 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             havePrev = true;
             curX = nx;
             curZ = nz;
+        }
+        // 空中のまま長さが尽きた(11-18): 宙で切れないよう、真下の地面まで下ろす(地面が遠ければ細って垂れる)。
+        if (air && !ended) {
+            int below = scanGroundY(plan.level, pix, Mth.floor(airY) - 2, piz, 0, ROOT_DROP_MAX, c.trunkBlock());
+            if (below != Integer.MIN_VALUE && airY - below <= 40.0D) {
+                rootColumn(plan, pix, piz, below + 1, Mth.floor(airY), 0);
+            } else {
+                hangRoot(plan, r, pix + 0.5D, Mth.floor(airY), piz + 0.5D, ROOT_HANG_MAX, HANG_RAD_EXTRA, h);
+            }
+            ended = true;
         }
         // 先: 湿った地面なら呼吸根で終わる。根は浅く地下へ続く(崖の切り口に出れば見える)。
         if (c.stage2() && !ended && havePrev) {
@@ -1722,6 +1882,18 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                 double rk = rad * Math.pow(1.0D - u, 0.8D);
                 stampDisc(plan, qx, ty - k, qz, rk);
             }
+        }
+    }
+
+    /** 空中を斜めに下りる根の 1 歩ぶん(11-18): 2 点を結ぶ線に沿って、段ごとに丸い断面を置く(空気・置き換え可能なマスだけ)。 */
+    private static void airSegment(Plan plan, double x0, double y0, double z0, double x1, double y1, double z1, double rad) {
+        int n = Math.max(2, (int) Math.ceil(Math.abs(y0 - y1)) * 2);
+        double rr = Math.max(0.7D, rad * 0.9D);
+        for (int i = 0; i <= n; i++) {
+            double u = (double) i / n;
+            // 2 段重ねる: 斜めの管が痩せない・どのマスも真下に根がある(下が空いたかけらを作らない)。
+            stampDiscIntoAir(plan, Mth.lerp(u, x0, x1), Mth.floor(Mth.lerp(u, y0, y1)), Mth.lerp(u, z0, z1), rr);
+            stampDiscIntoAir(plan, Mth.lerp(u, x0, x1), Mth.floor(Mth.lerp(u, y0, y1)) - 1, Mth.lerp(u, z0, z1), rr);
         }
     }
 
