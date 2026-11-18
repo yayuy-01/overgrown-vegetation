@@ -296,7 +296,7 @@ public final class StormStrikes {
                 continue;
             }
             if (k++ == i) {
-                return new float[]{(float) (nb.mx - camX), (float) (nb.my - camY), (float) (nb.mz - camZ), level * 3.2F};
+                return new float[]{(float) (nb.mx - camX), (float) (nb.my - camY), (float) (nb.mz - camZ), level * 6.0F};
             }
         }
         // 空いた口は、地平線の遠い雷(サーバーの知らせなしの、遠い雲の中の光。11-16 HorizonLightning)が使う。
@@ -348,11 +348,13 @@ public final class StormStrikes {
             double dz = nb.mz - eye.z;
             double dist = Math.sqrt(dx * dx + dz * dz);
             float scale = (float) Math.min(1.0, DRAW_AT / Math.max(dist, 1.0));
-            float width = (float) Math.max(1.2, dist * 0.006);
+            float width = (float) Math.max(5.0, dist * 0.02);
             line(c, nb.main, eye, scale, width, level, 0.6F);
-            line(c, nb.main, eye, scale, width * 4.0F, level * 0.25F, 0.6F);
+            line(c, nb.main, eye, scale, width * 4.5F, level * 0.45F, 0.6F);
+            line(c, nb.main, eye, scale, width * 12.0F, level * 0.12F, 0.6F);
             for (float[] br : nb.branches) {
-                line(c, br, eye, scale, width * 0.6F, level * 0.6F, 0.3F);
+                line(c, br, eye, scale, width * 0.6F, level * 0.7F, 0.3F);
+                line(c, br, eye, scale, width * 2.6F, level * 0.25F, 0.3F);
             }
         }
         buffers.endBatch(AddLight.renderType());

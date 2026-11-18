@@ -109,7 +109,7 @@ vec3 ovFlashNest(vec4 f, vec3 nrm) {
     vec3 d = f.xyz - ovPos;
     float g = exp(-dot(d, d) / (2.0 * 700.0 * 700.0));
     float facing = 0.35 + 0.65 * max(dot(nrm, normalize(d)), 0.0);
-    return vec3(0.80, 0.86, 1.0) * (f.w * g * facing * 0.55);
+    return vec3(0.82, 0.88, 1.0) * (f.w * g * facing * 0.6);
 }
 
 // Direction from the face centre towards its edge e (0: a-b, 1: b-c, 2: c-d, 3: d-a in vertex order; client/VoxelClouds.java uses the
@@ -446,10 +446,10 @@ void main() {
     bool nestCloud = (ovInfo.a > 0.92 && ovInfo.a < 0.98) || (ovInfo.a > 0.17 && ovInfo.a < 0.215);
     if (nestCloud) {
         float nh = clamp((worldY - 300.0) / 2300.0, 0.0, 1.0);
-        float nk = n.y < -0.5 ? 0.85 : mix(0.78, 0.28, nh * nh);
-        c = mix(c, CloudColor.rgb * vec3(0.20, 0.22, 0.28), nk);
+        float nk = n.y < -0.5 ? 0.93 : mix(0.90, 0.55, nh * nh);
+        c = mix(c, CloudColor.rgb * vec3(0.11, 0.12, 0.16), nk);
     }
-    vec3 flashSum = nestCloud ? min(ovFlashNest(Flash0, n) + ovFlashNest(Flash1, n) + ovFlashNest(Flash2, n), vec3(1.5))
+    vec3 flashSum = nestCloud ? min(ovFlashNest(Flash0, n) + ovFlashNest(Flash1, n) + ovFlashNest(Flash2, n), vec3(2.0))
             : min(ovFlash(Flash0) + ovFlash(Flash1) + ovFlash(Flash2), vec3(0.35));
     c += flashSum * (1.0 - 0.85 * smoothstep(0.03, 0.3, InsideFog.y));
     // Before a scheduled rain (11-09, clouds stage 2a-6, PreRain.y): the undersides and the low sides darken, so an overcast sky still
