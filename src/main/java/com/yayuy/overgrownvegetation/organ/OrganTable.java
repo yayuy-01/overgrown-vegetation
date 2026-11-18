@@ -107,7 +107,7 @@ public final class OrganTable {
         ruinAgeDays = Math.max(0.01D, or(j.ruinAgeDays, 10.0D));
         kindWeights = j.kindWeights != null && j.kindWeights.length == OrganKind.values().length ? j.kindWeights.clone()
                 : new double[]{1.0D, 1.2D, 1.0D, 0.8D, 0.8D};
-        blocksPerTick = Math.max(1, or(j.blocksPerTick, 400));
+        blocksPerTick = Math.max(1, or(j.blocksPerTick, 200));
         phasePercentPerDay = Math.max(0.0D, or(r.phasePercentPerDay, 2.0D));
         towerSporePerDay = Math.max(0.0D, or(r.towerSporePerDay, 40.0D));
         sacHiveNodes = Math.max(0.0D, or(r.sacHiveNodes, 3.0D));

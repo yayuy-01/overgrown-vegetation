@@ -53,7 +53,7 @@ public final class ForestOrgans extends SavedData {
         public final int x, z;
         /** 地面の高さ(芽を置くまで {@link Integer#MIN_VALUE})。 */
         public int y = Integer.MIN_VALUE;
-        public final long plantedAt;
+        public long plantedAt;
         public State state = State.GROWING;
         /** 置いた所まで(設計図の順の添字)。 */
         public int placed;

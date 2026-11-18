@@ -42,7 +42,26 @@ public final class OrganCommand {
                 .then(Commands.literal("wither").then(Commands.argument("id", IntegerArgumentType.integer(1)).executes(OrganCommand::wither)))
                 .then(Commands.literal("remove").then(Commands.argument("id", IntegerArgumentType.integer(1)).executes(OrganCommand::remove)))
                 .then(planNode("plan", false))
-                .then(planNode("plansmall", true));
+                .then(planNode("plansmall", true))
+                // 重さの測り(11-18): 足元のまわりにまとめて芽吹かせる・育ち具合を進める・器官の処理の時間
+                .then(Commands.literal("scatter")
+                        .then(Commands.argument("big", IntegerArgumentType.integer(0, 200))
+                                .then(Commands.argument("small", IntegerArgumentType.integer(0, 1000))
+                                        .then(Commands.argument("radius", IntegerArgumentType.integer(16, 4000))
+                                                .executes(OrganCommand::scatter)))))
+                .then(Commands.literal("age")
+                        .then(Commands.argument("percent", IntegerArgumentType.integer(0, 100)).executes(OrganCommand::age)))
+                .then(Commands.literal("stats")
+                        .executes(c -> {
+                            c.getSource().sendSuccess(() -> Component.literal(OrganMeter.summary()), false);
+                            for (String s : OrganMeter.slowLines()) c.getSource().sendSuccess(() -> Component.literal("  遅い: " + s), false);
+                            return 1;
+                        })
+                        .then(Commands.literal("reset").executes(c -> {
+                            OrganMeter.reset();
+                            c.getSource().sendSuccess(() -> Component.literal("器官の処理の物差しを空にした"), false);
+                            return 1;
+                        })));
         event.getDispatcher().register(Commands.literal("ov").then(Commands.literal("perf").requires(s -> s.hasPermission(2)).then(organ)));
     }
 
@@ -143,6 +162,61 @@ public final class OrganCommand {
         String r = OrganPlanner.tryPlan(level, level.getRandom(), kind, small);
         c.getSource().sendSuccess(() -> Component.literal(r == null ? "建てない(フェーズが早い・数が上限・ピースフル)" : r), true);
         return r == null ? 0 : 1;
+    }
+
+    /** 足元のまわり(半径 radius の中、互いに少し離して)に大きい版 big・小さい版 small を芽吹かせる。種類と形はくじ。予算は払わない。 */
+    private static int scatter(CommandContext<CommandSourceStack> c) {
+        ServerLevel level = c.getSource().getServer().overworld();
+        int big = IntegerArgumentType.getInteger(c, "big"), small = IntegerArgumentType.getInteger(c, "small");
+        int radius = IntegerArgumentType.getInteger(c, "radius");
+        var at = net.minecraft.core.BlockPos.containing(c.getSource().getPosition());
+        net.minecraft.util.RandomSource r = level.getRandom();
+        ForestOrgans data = ForestOrgans.get(level);
+        java.util.List<long[]> used = new java.util.ArrayList<>();
+        int made = 0;
+        for (int i = 0; i < big + small; i++) {
+            boolean isSmall = i >= big;
+            int minGap = isSmall ? 24 : 96;
+            for (int tries = 0; tries < 200; tries++) {
+                double ang = r.nextDouble() * Math.PI * 2.0D, d = Math.sqrt(r.nextDouble()) * radius;
+                int x = at.getX() + (int) (Math.cos(ang) * d), z = at.getZ() + (int) (Math.sin(ang) * d);
+                boolean ok = true;
+                for (long[] u : used) {
+                    double dx = u[0] - x, dz = u[1] - z, need = Math.max(minGap, u[2] == 1 ? 24 : 96);
+                    if (dx * dx + dz * dz < need * need) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (!ok) continue;
+                OrganKind kind = OrganKind.values()[r.nextInt(OrganKind.values().length)];
+                int v = r.nextInt(isSmall ? OrganShapes.SMALL_VARIANTS : OrganShapes.variants(kind));
+                data.plant(level, kind, isSmall, v, r.nextInt(), r.nextInt(4), x, z);
+                used.add(new long[]{x, z, isSmall ? 1 : 0});
+                made++;
+                break;
+            }
+        }
+        int n = made;
+        c.getSource().sendSuccess(() -> Component.literal("芽吹かせた " + n), true);
+        return n;
+    }
+
+    /** 枯れていない器官の育ち具合を percent % にする(芽吹いた時刻を戻す。100 で育ち切る)。 */
+    private static int age(CommandContext<CommandSourceStack> c) {
+        ServerLevel level = c.getSource().getServer().overworld();
+        int pct = IntegerArgumentType.getInteger(c, "percent");
+        long now = PhaseData.clockNow(level);
+        int n = 0;
+        for (ForestOrgans.Organ o : ForestOrgans.get(level).organs()) {
+            if (o.state == ForestOrgans.State.WITHERED) continue;
+            o.plantedAt = now - (long) (com.yayuy.overgrownvegetation.data.DesignData.organs().growDays(o.small) * 24000.0D * pct / 100.0D);
+            n++;
+        }
+        ForestOrgans.get(level).changed();
+        int m = n;
+        c.getSource().sendSuccess(() -> Component.literal("育ち具合を " + pct + "% にした: " + m), true);
+        return n;
     }
 
     private static int missing(CommandContext<CommandSourceStack> c) {

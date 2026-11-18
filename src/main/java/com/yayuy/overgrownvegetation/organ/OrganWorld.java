@@ -129,6 +129,15 @@ public final class OrganWorld {
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
         if (!DesignData.organs().enabled) return;
+        long t0 = System.nanoTime();
+        try {
+            tickInner(event);
+        } finally {
+            OrganMeter.record(System.nanoTime() - t0);
+        }
+    }
+
+    private static void tickInner(ServerTickEvent.Post event) {
         MinecraftServer server = event.getServer();
         ServerLevel level = server.overworld();
         ForestOrgans data = ForestOrgans.get(server);
@@ -160,8 +169,15 @@ public final class OrganWorld {
                 if (budget <= 0) break;
                 if (!level.hasChunk(o.x >> 4, o.z >> 4)) continue;
                 int before = budget;
+                long s0 = System.nanoTime();
+                boolean wasResolved = o.resolved();
+                int placedBefore = o.placed;
                 budget = step(level, data, o, now, budget);
+                long took = System.nanoTime() - s0;
+                if (took > 5_000_000L) OrganMeter.slow(String.format(java.util.Locale.ROOT, "#%d %s%s %.1f ms 置いた %d 芽 %s", o.id, o.kind.id,
+                        o.small ? "(小)" : "", took / 1e6, o.placed - placedBefore, wasResolved ? "-" : "置いた"));
                 done += before - budget;
+                OrganMeter.blocks(before - budget);
             }
         } finally {
             TickBudget.end(PerfJob.ORGAN_BUILD, start, done);
@@ -171,6 +187,13 @@ public final class OrganWorld {
     /** 器官 1 つを進める(置く・枯らす)。残りの予算を返す。 */
     static int step(ServerLevel level, ForestOrgans data, ForestOrgans.Organ o, long now, int budget) {
         if (!o.resolved()) {
+            // 地面を引く所(±5)と芽(±1)のチャンクが全部読み込まれるまで待つ。読み込まれていない升に触るとその場で読み込んで止まる
+            // (11-18 測り: 移動中に 1 回 20〜90 ms)
+            for (int dx = -6; dx <= 6; dx += 12) {
+                for (int dz = -6; dz <= 6; dz += 12) {
+                    if (!level.hasChunk((o.x + dx) >> 4, (o.z + dz) >> 4)) return budget;
+                }
+            }
             o.y = surface(level, o.x, o.z);
             if (o.state != ForestOrgans.State.WITHERED) placeBud(level, o);
             data.changed();
@@ -286,7 +309,9 @@ public final class OrganWorld {
         int best = Integer.MAX_VALUE;
         for (int i = -1; i <= 1; i++) {
             for (int j = -1; j <= 1; j++) {
-                int h = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x + i * 5, z + j * 5) - 1;
+                int sx = x + i * 5, sz = z + j * 5;
+                if (!level.hasChunk(sx >> 4, sz >> 4)) continue; // 読み込まれていない升を引くとその場で読み込んで止まる(11-18 測り: 最大 71 ms)
+                int h = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, sx, sz) - 1;
                 best = Math.min(best, h);
             }
         }
@@ -400,6 +425,7 @@ public final class OrganWorld {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (int i = 0; i < 12; i++) {
             int dx = level.getRandom().nextInt(7) - 3, dz = level.getRandom().nextInt(7) - 3;
+            if (!level.hasChunk((at.getX() + dx) >> 4, (at.getZ() + dz) >> 4)) continue; // 読み込まれていない升に触らない
             for (int dy = 3; dy >= -4; dy--) {
                 p.set(at.getX() + dx, at.getY() + dy, at.getZ() + dz);
                 if (level.getBlockState(p).isAir() && level.getBlockState(p.above()).isAir()

@@ -15,7 +15,7 @@
   "anchorMaxChunks": 40,
   "ruinAgeDays": 10.0,
   "kindWeights": [1.0, 1.2, 1.0, 0.8, 0.8],
-  "blocksPerTick": 400,
+  "blocksPerTick": 200,
   "_comment_roles": "役割(育ち切ってから。小さい版は small.strength 倍)。フェーズを進める器官 = 1 日に今のフェーズの閾値の phasePercentPerDay %。胞子の塔 = 1 日に過繁茂のチャンク towerSporePerDay 個分の胞子(口から)。蓄えの嚢 = ハイヴノード sacHiveNodes 個分だけ司令塔の上限を上げる。苗床 = プレイヤーが nurseryPlayerBlocks 以内にいる間、nurseryIntervalSeconds ごとに予算で G4・G5 を 1 体(まわりに nurseryMaxAlive まで)。苗床は認識した拠点から nurseryMin〜MaxBaseChunks の所を好む。地脈を吸う根 = 地脈の線から leyLineBlocks 以内に建つ。根 1 本につき植物側の Mob 全部のステータスを 1 つ上げる(ユーザー 11-17)。上げ幅は 体力 leyHealthPercent %・攻撃 leyAttackPercent %・防御 leyArmor・移動速度 leySpeedPercent %・ノックバック耐性 leyKnockbackResist。根晶は crystalRegrowDays 日に 1 つ、採られた所に生え直す。破裂した嚢(organ_sac)は 1 つあたり平均 sacRegrowDays 日で生え直す(11-17 深夜ユーザー「時間で生え直す」。器官が枯れたら生え直さない)。ステータスの割り当ては 11-17 深夜ユーザーの直しで「芽吹いたときにランダムで 1 つ・枯れるまで変わらない・重なってもよい」。",
   "roles": {
     "phasePercentPerDay": 2.0,
