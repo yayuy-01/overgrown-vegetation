@@ -29,6 +29,15 @@ public abstract class EntityRenderDispatcherInfectMixin {
                                                   @Local(argsOnly = true, ordinal = 0) double camRelX,
                                                   @Local(argsOnly = true, ordinal = 1) double camRelY,
                                                   @Local(argsOnly = true, ordinal = 2) double camRelZ) {
+        if ((com.yayuy.overgrownvegetation.client.crowd.CrowdRenderDev.skipDraw || com.yayuy.overgrownvegetation.client.crowd.CrowdRenderDev.sink)
+                && renderer instanceof software.bernie.geckolib.renderer.GeoEntityRenderer<?> geo
+                && geo.getGeoModel() instanceof com.yayuy.overgrownvegetation.client.LodGeoModel<?>) {
+            // 確かめ用(大群の描画の重さの切り分け)。ふだんは通らない
+            if (!com.yayuy.overgrownvegetation.client.crowd.CrowdRenderDev.skipDraw) {
+                original.call(renderer, entity, yaw, partialTick, poseStack, com.yayuy.overgrownvegetation.client.crowd.CrowdRenderDev.SINK, packedLight);
+            }
+            return;
+        }
         MultiBufferSource use = InfectRender.begin(entity, camRelX, camRelY, camRelZ, partialTick, poseStack, buffers);
         try {
             original.call(renderer, entity, yaw, partialTick, poseStack, use, packedLight);

@@ -6,13 +6,13 @@ import com.yayuy.overgrownvegetation.entity.crawler.SmallCrawler;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.model.GeoModel;
-import software.bernie.geckolib.renderer.GeoEntityRenderer;
+import com.yayuy.overgrownvegetation.client.crowd.CrowdGeoEntityRenderer;
 
 /**
  * 「小さな地這いの虫」の型の描画(2026-11-15)。バニラの向きに、段の上り下りの<b>前後の傾き</b>と、段を這い上がった 1 tick の跳ねの
  * <b>ならし</b>を足す(どちらも {@link SmallCrawler} がクライアントで出す)。傾きの軸は体の真ん中の高さ。
  */
-public class SmallCrawlerRenderer<T extends SmallCrawler & GeoEntity> extends GeoEntityRenderer<T> {
+public class SmallCrawlerRenderer<T extends SmallCrawler & GeoEntity> extends CrowdGeoEntityRenderer<T> {
 
     public SmallCrawlerRenderer(EntityRendererProvider.Context context, GeoModel<T> model, float scale, float shadow) {
         super(context, model);

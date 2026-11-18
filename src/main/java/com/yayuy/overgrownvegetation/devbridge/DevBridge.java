@@ -2559,6 +2559,23 @@ public final class DevBridge {
                 } else if (arg.equalsIgnoreCase("on")) {
                 }
             }
+            case "crowd" -> {
+                // 大群の描画の重さの切り分け(client.crowd.CrowdRenderDev、2026-11-18)。crowd anim off|on・crowd draw off|on(off = 飛ばす)
+                String[] p = arg.trim().split("\\s+");
+                if (p.length == 2) {
+                    boolean skip = p[1].equalsIgnoreCase("off");
+                    if (p[0].equalsIgnoreCase("anim")) com.yayuy.overgrownvegetation.client.crowd.CrowdRenderDev.skipAnim = skip;
+                    if (p[0].equalsIgnoreCase("draw")) com.yayuy.overgrownvegetation.client.crowd.CrowdRenderDev.skipDraw = skip;
+                    if (p[0].equalsIgnoreCase("sink")) com.yayuy.overgrownvegetation.client.crowd.CrowdRenderDev.sink = skip;
+                    if (p[0].equalsIgnoreCase("gpu")) com.yayuy.overgrownvegetation.client.crowd.CrowdDraw.enabled = !skip;
+                    if (p[0].equalsIgnoreCase("tickrate")) com.yayuy.overgrownvegetation.client.crowd.TickRatePose.enabled = !skip;
+                    if (p[0].equalsIgnoreCase("ticktrim")) com.yayuy.overgrownvegetation.entity.ClientTickTrim.enabled = !skip;
+                }
+                log("CROWD " + com.yayuy.overgrownvegetation.client.crowd.CrowdDraw.status());
+                log("CROWD アニメを飛ばす " + com.yayuy.overgrownvegetation.client.crowd.CrowdRenderDev.skipAnim
+                        + "・描かない " + com.yayuy.overgrownvegetation.client.crowd.CrowdRenderDev.skipDraw
+                        + "・頂点を捨てる " + com.yayuy.overgrownvegetation.client.crowd.CrowdRenderDev.sink);
+            }
             case "bench" -> {
                 return FxProfiler.bench(mc, arg, DevBridge::log, dir);
             }

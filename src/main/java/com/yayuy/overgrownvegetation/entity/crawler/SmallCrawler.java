@@ -249,6 +249,22 @@ public abstract class SmallCrawler extends Monster {
 
     // ------------------------------------------------------------------ 押し合い
 
+    @Override
+    public boolean isInWall() {
+        // クライアントでは窒息の傷に使われない(大群の軽量化 C、11-18。com.yayuy.overgrownvegetation.entity.ClientTickTrim)
+        return !com.yayuy.overgrownvegetation.entity.ClientTickTrim.skip(this) && super.isInWall();
+    }
+
+    @Override
+    protected void removeFrost() {
+        if (!com.yayuy.overgrownvegetation.entity.ClientTickTrim.skip(this)) super.removeFrost();
+    }
+
+    @Override
+    protected void tryAddFrost() {
+        if (!com.yayuy.overgrownvegetation.entity.ClientTickTrim.skip(this)) super.tryAddFrost();
+    }
+
     /**
      * バニラの押し合いから仲間(同じ型の虫)を外す。仲間は詰め込みの数にも入れない。真ん中が近すぎる仲間だけ弱く離す
      * (1 回の問い合わせで両方を済ませる。問い合わせの箱は体の箱そのまま = バニラと同じ重さ)。
@@ -257,7 +273,9 @@ public abstract class SmallCrawler extends Monster {
     protected void pushEntities() {
         Level level = this.level();
         if (level.isClientSide()) {
-            super.pushEntities();   // クライアントはプレイヤーだけ(バニラのまま)
+            // クライアントはプレイヤーだけ(バニラのまま)。触れているプレイヤーがいなければ探さない(大群の軽量化 C、11-18)
+            if (!com.yayuy.overgrownvegetation.entity.ClientTickTrim.enabled
+                    || com.yayuy.overgrownvegetation.entity.ClientTickTrim.anyPlayerTouching(this)) super.pushEntities();
             return;
         }
         List<Entity> list = level.getEntities(this, this.getBoundingBox(), EntitySelector.pushableBy(this));

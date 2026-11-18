@@ -271,6 +271,29 @@ public class ArboraEntity extends Monster implements GeoEntity, ParasitizedMob, 
     // ------------------------------------------------------------------ 毎 tick
 
     @Override
+    public boolean isInWall() {
+        // クライアントでは使われない処理を省く(大群の軽量化 C、11-18。ClientTickTrim)
+        return !ClientTickTrim.skip(this) && super.isInWall();
+    }
+
+    @Override
+    protected void removeFrost() {
+        if (!ClientTickTrim.skip(this)) super.removeFrost();
+    }
+
+    @Override
+    protected void tryAddFrost() {
+        if (!ClientTickTrim.skip(this)) super.tryAddFrost();
+    }
+
+    @Override
+    protected void pushEntities() {
+        // クライアントのバニラはプレイヤーだけを押す。触れているプレイヤーがいなければ探さない(結果は同じ)
+        if (ClientTickTrim.skip(this) && !ClientTickTrim.anyPlayerTouching(this)) return;
+        super.pushEntities();
+    }
+
+    @Override
     public void tick() {
         super.tick();
         if (this.level().isClientSide) {

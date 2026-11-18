@@ -21,7 +21,7 @@ public final class CrawlerClient {
         // 袋の脈の光・死んだ後に赤くしない(11-15 段 2)
         event.registerEntityRenderer(ModCrawlers.VESICARIA.get(), com.yayuy.overgrownvegetation.client.VesicariaRenderer::new);
         event.registerEntityRenderer(ModCrawlers.GREGARIA.get(),
-                ctx -> new SmallCrawlerRenderer<GregariaEntity>(ctx, new GregariaModel(), GregariaEntity.RENDER_SCALE, 0.4F));
+                ctx -> new SmallCrawlerRenderer<GregariaEntity>(ctx, new GregariaModel(), GregariaEntity.RENDER_SCALE, 0.4F).crowd(true));   // 大群のまとめ描き(GPU スキニング、11-18)
         // ゲスタトリクス(11-17): 本物の形が来るまでグレガリアの形を大きくした仮のモデル
         event.registerEntityRenderer(ModCrawlers.GESTATRIX.get(), GestatrixRenderer::new); // 背の嚢を残りの数に合わせて隠す
         event.registerEntityRenderer(ModCrawlers.STROBILA.get(), ctx -> {

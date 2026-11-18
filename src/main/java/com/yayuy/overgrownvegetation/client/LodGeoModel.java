@@ -26,6 +26,27 @@ public abstract class LodGeoModel<T extends Entity & GeoAnimatable> extends GeoM
 
     @Override
     public void handleAnimations(T animatable, long instanceId, AnimationState<T> animationState, float partialTick) {
+        if (com.yayuy.overgrownvegetation.client.crowd.CrowdRenderDev.skipAnim) {
+            restPose();   // 確かめ用(大群の描画の重さの切り分け)。ふだんは通らない
+            return;
+        }
+        if (tickRateAnimation() && com.yayuy.overgrownvegetation.client.crowd.TickRatePose.enabled) {
+            com.yayuy.overgrownvegetation.client.crowd.TickRatePose.handle(this, animatable, instanceId, animationState, partialTick);
+            return;
+        }
+        super.handleAnimations(animatable, instanceId, animationState, partialTick);
+    }
+
+    /**
+     * アニメを 1 tick に 1 回だけ計算し、間を骨の値の補間で埋めるか(2026-11-18 大群の軽量化 C。{@link com.yayuy.overgrownvegetation.client.crowd.TickRatePose})。
+     * 手続きの動き({@code setCustomAnimations})がフレームごとの値に頼る種では入れない。既定は入れない。
+     */
+    protected boolean tickRateAnimation() {
+        return false;
+    }
+
+    /** GeckoLib のいつもの計算({@link TickRatePose} から決まった時刻で呼ぶ)。 */
+    public void handleAnimationsNow(T animatable, long instanceId, AnimationState<T> animationState, float partialTick) {
         super.handleAnimations(animatable, instanceId, animationState, partialTick);
     }
 

@@ -6,7 +6,7 @@ import com.yayuy.overgrownvegetation.entity.ArboraEntity;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.util.Mth;
 import org.joml.Quaternionf;
-import software.bernie.geckolib.renderer.GeoEntityRenderer;
+import com.yayuy.overgrownvegetation.client.crowd.CrowdGeoEntityRenderer;
 
 /**
  * アルボラの描画(2026-11-05 作り直し)。体を<b>張り付いている面に沿って回す</b>(上向き = 面の向き、天井では逆さま)。
@@ -14,10 +14,11 @@ import software.bernie.geckolib.renderer.GeoEntityRenderer;
  * 当たり判定は回らないので、体の箱の真ん中を軸に回す —— 箱は 0.98 の立方体なので、どの向きでも足の面が張り付いた面に来る。
  * 床に立っている間はバニラの向き(体の yaw)のまま。
  */
-public class ArboraRenderer extends GeoEntityRenderer<ArboraEntity> {
+public class ArboraRenderer extends CrowdGeoEntityRenderer<ArboraEntity> {
 
     public ArboraRenderer(EntityRendererProvider.Context context) {
         super(context, new ArboraModel());
+        crowd(true);   // 大群のまとめ描き(GPU スキニング、2026-11-18)
         this.shadowRadius = 0.6F;
     }
 
