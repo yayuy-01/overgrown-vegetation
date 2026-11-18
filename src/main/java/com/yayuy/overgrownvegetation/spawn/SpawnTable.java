@@ -47,6 +47,7 @@ public final class SpawnTable {
 
     public static final class GestatrixJson {
         public Integer broodMin, broodMax, broodCap, birthsToRoot, restMin, restMax, roamTicks;
+        public Boolean birthWhenHurt;
         public Double settleBlocks, approachBlocks, senderChance;
     }
 
@@ -57,6 +58,8 @@ public final class SpawnTable {
      */
     public static final class Gestatrix {
         public final int broodMin, broodMax, broodCap, birthsToRoot, restMin, restMax, roamTicks;
+        /** 休んでいる間に傷を受けたら、休みを切り上げてすぐ前触れへ(11-18 夜 ユーザー「攻撃されたらクールダウンを無視して産む」)。 */
+        public final boolean birthWhenHurt;
         public final double settleBlocks, approachBlocks, senderChance;
 
         Gestatrix(@Nullable GestatrixJson j) {
@@ -65,8 +68,9 @@ public final class SpawnTable {
             this.broodMax = Math.max(this.broodMin, or(s.broodMax, 5));
             this.broodCap = Math.max(0, or(s.broodCap, 12));
             this.birthsToRoot = Math.max(1, or(s.birthsToRoot, 4));
-            this.restMin = Math.max(20, or(s.restMin, 200));
-            this.restMax = Math.max(this.restMin, or(s.restMax, 320));
+            this.restMin = Math.max(20, or(s.restMin, 120));
+            this.restMax = Math.max(this.restMin, or(s.restMax, 200));
+            this.birthWhenHurt = s.birthWhenHurt == null || s.birthWhenHurt;
             this.roamTicks = Math.max(20, or(s.roamTicks, 600));
             this.settleBlocks = Math.max(4.0D, or(s.settleBlocks, 20.0D));
             this.approachBlocks = Math.max(this.settleBlocks, or(s.approachBlocks, 48.0D));
@@ -372,6 +376,18 @@ public final class SpawnTable {
         if (group == 1) return openG1;
         if (group < 4 || group > 10) return Integer.MAX_VALUE;
         return com.yayuy.overgrownvegetation.director.DirectorGates.openAt(com.yayuy.overgrownvegetation.data.DesignData.director().gates, DirectorHooks.gateOf(group));
+    }
+
+    /**
+     * その種の縁・地下の湧きが開くフェーズ(2026-11-18 夜 ユーザー決定「出るフェーズは種ごと」)。
+     * 種の open の上書き → G1(段階 0)は {@link #openG1} → {@code mob_class.json} の phase(natural false の種は開かない)→ 表に無ければグループの {@link #openAt}。
+     */
+    public int openOf(Species sp) {
+        if (sp.open() > 0) return sp.open();
+        if (sp.g1() != null) return openG1;
+        com.yayuy.overgrownvegetation.phase.MobClassTable.Entry e = com.yayuy.overgrownvegetation.data.DesignData.mobClass().get(sp.id());
+        if (e != null) return e.natural() ? Math.max(1, e.phase) : Integer.MAX_VALUE;
+        return openAt(sp.group());
     }
 
     /** そのグループの縁の上限(最盛の値)。 */

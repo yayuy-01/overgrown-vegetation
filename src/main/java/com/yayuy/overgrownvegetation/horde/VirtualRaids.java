@@ -119,7 +119,7 @@ public final class VirtualRaids {
             if (type == null) break;
             if (!VirtualHordes.allowed(type)) continue; // 空の種などは仮想にしない(払わない)
             double price = ForestDirector.stagePrice(ForestDirector.spawnCost(type),
-                    DirectorGates.strength(level, DirectorHooks.gateOf(DirectorHooks.groupOf(type))));
+                    DirectorGates.speciesStrength(level, type));
             if (!d.tryPay(level, price)) break;
             heads.merge(type, 1, Integer::sum);
             n++;

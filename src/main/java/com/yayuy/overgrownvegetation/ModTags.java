@@ -329,6 +329,16 @@ public final class ModTags {
     public static final TagKey<EntityType<?>> GROUP_10 = entityTag("group_10");
 
     /**
+     * 系統(2026-11-18 夜 ユーザー決定「○○型-危険度 N-○○種」の「○○種」)。寄生種・眷属種・植物種・環境生物。
+     * 分類の正本は {@code design/mob_class.json}({@link com.yayuy.overgrownvegetation.phase.MobClassTable})で、このタグはそれと同じ中身
+     * (GameTest {@code MobClassGameTests} が突き合わせる)。group_N からの移し替えは段を分けて行う(1 段目 = タグを足しただけ)。
+     */
+    public static final TagKey<EntityType<?>> LINEAGE_PARASITE = entityTag("lineage_parasite");
+    public static final TagKey<EntityType<?>> LINEAGE_KIN = entityTag("lineage_kin");
+    public static final TagKey<EntityType<?>> LINEAGE_PLANT = entityTag("lineage_plant");
+    public static final TagKey<EntityType<?>> LINEAGE_CRITTER = entityTag("lineage_critter");
+
+    /**
      * 「水ぐされ」({@link com.yayuy.overgrownvegetation.registry.ModMobEffects#WATER_ROT})にかからない
      * エンティティタイプ。
      *

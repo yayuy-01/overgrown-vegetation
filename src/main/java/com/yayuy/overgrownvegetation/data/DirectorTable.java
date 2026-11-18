@@ -160,7 +160,7 @@ public final class DirectorTable {
 
         Gates(GatesJson j) {
             GatesJson s = j != null ? j : new GatesJson();
-            nursery = ph(s.nursery, 1);
+            nursery = ph(s.nursery, 2);
             rooted = ph(s.rooted, 2);
             evolve = ph(s.evolve, 3);
             scout = ph(s.scout, 4);
@@ -173,7 +173,7 @@ public final class DirectorTable {
             learn = ph(s.learn, 3);
             learnWave = ph(s.learnWave, 5);
             largeRaid = ph(s.largeRaid, 7);
-            watcher = ph(s.watcher, 5);
+            watcher = ph(s.watcher, 4);
         }
 
         private static int ph(Integer v, int fallback) {

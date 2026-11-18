@@ -552,8 +552,12 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         // 孵す Mob を先に選び、そのグループで値段を引く(11-14 ユーザー: G4 12・G5 25・G6 40【仮】)。値段も強さで割る(道と同じ)
         // 選ぶのは、そのグループの送り込みのゲートが開いている種だけ(G5 は F5・G6 以降は F6。G4 と G1 などは苗床のスポナーのゲートのまま。11-15 enemy-spawns)
         List<java.util.function.Supplier<? extends net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>>> openPool = new ArrayList<>();
+        // 11-18 夜: 出るフェーズは種ごと(groupGateOpen)・値段は危険度と型(spawnCost)。払える種の中から選ぶ
+        // (安い種は数で・高い種は予算が貯まったときに。払えない種を引いて何も孵さない、を無くす)
+        double avail = available(level);
         for (var s : pool) {
-            if (groupGateOpen(level, s.get())) openPool.add(s);
+            net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob> t = s.get();
+            if (groupGateOpen(level, t) && stagePrice(spawnCost(t), spawnStrength) <= avail + 1.0E-9D) openPool.add(s);
         }
         if (openPool.isEmpty()) return null;
         net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob> type = openPool.get(random.nextInt(openPool.size())).get();
@@ -570,17 +574,17 @@ public final class ForestDirector extends SavedData implements ForestBudget {
      * 数はフェーズの段だけで決め、予算は払わない(11-15 ユーザー)。
      */
     static boolean groupGateOpen(ServerLevel level, net.minecraft.world.entity.EntityType<?> type) {
-        com.yayuy.overgrownvegetation.phase.MobGroup g = com.yayuy.overgrownvegetation.phase.MobGroup.of(type);
-        int group = g == null ? 4 : g.number();
-        if (group >= 6) return DirectorGates.open(level, DirectorGates.Gate.WAVE_MIXED);
-        if (group == 5) return DirectorGates.open(level, DirectorGates.Gate.WAVE_G5);
-        return true;
+        // 11-18 夜 ユーザー決定: 出るフェーズは種ごと(mob_class.json の phase。表に無い種は前のグループのゲート)
+        return DirectorGates.speciesOpen(level, type);
     }
 
-    /** 孵す Mob の値段(グループで。G5・G6 のほかは G4 の値段)。 */
+    /**
+     * 森がその Mob を湧かせる値段(段で割る前)。11-18 夜 ユーザー決定「危険度と型を値段の目安に」: mob_class.json の
+     * base × step^(危険度 − 1) × 型の倍率【仮】。表に無い・危険度 0 の種は前の決まり(グループで。G5・G6 のほかは G4 の値段)。
+     */
     public static double spawnCost(net.minecraft.world.entity.EntityType<?> type) {
         com.yayuy.overgrownvegetation.phase.MobGroup g = com.yayuy.overgrownvegetation.phase.MobGroup.of(type);
-        return DesignData.director().spawnCost(g == null ? 4 : g.number());
+        return DesignData.mobClass().price(type, DesignData.director().spawnCost(g == null ? 4 : g.number()));
     }
 
     /** これまでに苗床へ払って孵した数。 */

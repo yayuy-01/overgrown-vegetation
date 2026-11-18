@@ -97,19 +97,23 @@ public final class EnemySpawns {
         return PhaseStages.strength(DesignData.phases(), DirectorGates.phase(level), DirectorGates.stage(level), open);
     }
 
-    /** その種の今の強さ(種に開くフェーズの上書き open があればそれで。11-17 ゲスタトリクス)。 */
+    /** その種の今の強さ(種ごとの出るフェーズ {@link SpawnTable#openOf} で。11-18 夜 ユーザー決定「出るフェーズは種ごと」)。 */
     public static double strength(ServerLevel level, SpawnTable.Species sp) {
-        if (sp.open() <= 0) return strength(level, sp.group());
-        return PhaseStages.strength(DesignData.phases(), DirectorGates.phase(level), DirectorGates.stage(level), sp.open());
+        int open = DesignData.spawns().openOf(sp);
+        if (open == Integer.MAX_VALUE) return 0.0D;
+        return PhaseStages.strength(DesignData.phases(), DirectorGates.phase(level), DirectorGates.stage(level), open);
     }
 
-    /** グループの強さ: グループの開くフェーズと、上書きのある種のうち大きいほう(G6 はゲスタトリクスだけ F4 から開く)。 */
+    /** グループの強さ(縁の上限に掛ける): そのグループの種のうち、いちばん強いもの(11-18 夜: 種ごとの出るフェーズ。グループの開くフェーズは使わない)。 */
     public static double groupStrength(ServerLevel level, int group) {
-        double s = strength(level, group);
+        double s = 0.0D;
+        boolean any = false;
         for (SpawnTable.Species sp : DesignData.spawns().species) {
-            if (sp.group() == group && sp.open() > 0) s = Math.max(s, strength(level, sp));
+            if (sp.group() != group) continue;
+            any = true;
+            s = Math.max(s, strength(level, sp));
         }
-        return s;
+        return any ? s : strength(level, group);
     }
 
     /** 縁の、そのグループの今の上限(基本 × 強さ。四捨五入)。 */
@@ -282,6 +286,8 @@ public final class EnemySpawns {
         for (SpawnTable.PackWith w : sp.packWith()) {
             EntityType<?> wt = w.type();
             if (wt == null) continue;
+            // 混ぜる種も、その種の出るフェーズから(11-18 夜: アルボラ F3 の群れに、ストロビラ F4 は F4 まで混ぜない)
+            if (DirectorGates.phase(level) < DirectorGates.speciesOpenAt(wt)) continue;
             int k = w.min() + random.nextInt(w.max() - w.min() + 1);
             for (int i = 0; i < k; i++) with.add(wt);
         }
@@ -347,14 +353,11 @@ public final class EnemySpawns {
         List<SpawnTable.Species> cands = new ArrayList<>();
         List<Double> weights = new ArrayList<>();
         double total = 0.0D;
-        double[] str = new double[11];
-        for (int g = 1; g <= 10; g++) str[g] = -1.0D;
         for (SpawnTable.Species sp : DesignData.spawns().species) {
             int g = sp.group();
             if (under && (g != 1 || !sp.habitats().contains(SpawnTable.Habitat.CAVE))) continue;
             if (!under && counts[g] >= edgeCap(level, g)) continue;
-            if (str[g] < 0.0D) str[g] = strength(level, g);
-            double w = sp.weight() * (sp.open() > 0 ? strength(level, sp) : str[g]);
+            double w = sp.weight() * strength(level, sp);   // 種ごとの出るフェーズ(11-18 夜)
             if (w <= 0.0D || sp.type() == null) continue;
             cands.add(sp);
             weights.add(w);

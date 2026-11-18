@@ -136,17 +136,28 @@ public final class EnemySpawnGameTests {
             // ---- フェーズで開く・段で上限が変わる(期待値は設計値から)
             SpawnTable t = DesignData.spawns();
             PhaseTable pt = DesignData.phases();
-            DirectorGates.setPhaseForTests(3);
+            // 11-18 夜 ユーザー決定「出るフェーズは種ごと」: G4 の箱はグレガリア・アルボラ・セミナリア・ペディキュラが F3 から開く(ストロビラ・ヴェシカリアは F4)
+            DirectorGates.setPhaseForTests(2);
             DirectorGates.setStageForTests(PhaseStage.PEAK);
-            helper.assertTrue(EnemySpawns.edgeCap(level, 4) == 0 && EnemySpawns.edgeCap(level, 5) == 0, "F3 で G4・G5 の縁が開いている");
-            helper.assertTrue(EnemySpawns.edgeCap(level, 1) == t.cap(1), "F3 で G1 の縁が最盛でない");
-            DirectorGates.setPhaseForTests(4);
+            helper.assertTrue(EnemySpawns.edgeCap(level, 4) == 0 && EnemySpawns.edgeCap(level, 5) == 0, "F2 で G4・G5 の縁が開いている");
+            DirectorGates.setPhaseForTests(3);
             DirectorGates.setStageForTests(PhaseStage.INTRO);
             int g4Intro = EnemySpawns.edgeCap(level, 4);
-            helper.assertTrue(g4Intro == (int) Math.round(t.cap(4) * pt.stageMultiplier(4, PhaseStage.INTRO)), "F4 導入の G4 の上限が違う: " + g4Intro);
-            helper.assertTrue(EnemySpawns.edgeCap(level, 5) == 0, "F4 で G5 の縁が開いている");
+            helper.assertTrue(g4Intro == (int) Math.round(t.cap(4) * pt.stageMultiplier(3, PhaseStage.INTRO)), "F3 導入の G4 の上限が違う: " + g4Intro);
+            helper.assertTrue(EnemySpawns.edgeCap(level, 5) == 0, "F3 で G5 の縁が開いている");
             DirectorGates.setStageForTests(PhaseStage.PEAK);
-            helper.assertTrue(EnemySpawns.edgeCap(level, 4) == t.cap(4) && g4Intro < t.cap(4), "F4 最盛の G4 の上限が違う");
+            helper.assertTrue(EnemySpawns.edgeCap(level, 4) == t.cap(4) && g4Intro < t.cap(4), "F3 最盛の G4 の上限が違う");
+            helper.assertTrue(EnemySpawns.edgeCap(level, 1) == t.cap(1), "F3 で G1 の縁が最盛でない");
+            r = RandomSource.create(9L);
+            for (int i = 0; i < 300; i++) {
+                SpawnTable.Species sp = EnemySpawns.pick(level, new int[11], r, false);
+                String id = sp == null || sp.id() == null ? "" : sp.id();
+                helper.assertTrue(!id.endsWith(":strobila") && !id.endsWith(":vesicaria") && !id.endsWith(":velophyll") && !id.endsWith(":gestatrix"),
+                        "F3 の縁に F4 の種が選ばれた: " + id);
+            }
+            DirectorGates.setPhaseForTests(4);
+            DirectorGates.setStageForTests(PhaseStage.INTRO);
+            helper.assertTrue(EnemySpawns.edgeCap(level, 5) == 0, "F4 で G5 の縁が開いている");
             DirectorGates.setPhaseForTests(5);
             DirectorGates.setStageForTests(PhaseStage.INTRO);
             helper.assertTrue(EnemySpawns.edgeCap(level, 4) == t.cap(4), "F5 導入で G4 が導入に戻った");

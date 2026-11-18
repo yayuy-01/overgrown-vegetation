@@ -95,7 +95,7 @@ public final class PhasePointsGameTests {
         helper.succeed();
     }
 
-    /** 小さな段の区切りは閾値の 1/3・2/3(式が変わっても、閾値が物差しのまま)。 */
+    /** 小さな段の区切りは、閾値に各フェーズの割合を掛けた所(式が変わっても、閾値が物差しのまま)。 */
     @GameTest(template = "gametest_empty7")
     public static void stageBoundsStayAtThirds(GameTestHelper helper) {
         PhaseTable t = DesignData.phases();
@@ -107,10 +107,10 @@ public final class PhasePointsGameTests {
             long expEst = (long) Math.ceil(span * t.stageFrom(p, PhaseStage.ESTABLISHED));
             long expPeak = (long) Math.ceil(span * t.stageFrom(p, PhaseStage.PEAK));
             helper.assertTrue(est == expEst && peak == expPeak, "F" + p + " の区切り " + est + " / " + peak + "(期待 " + expEst + " / " + expPeak + ")");
-            // json は 0.3333 / 0.6667 と 4 桁で書いてあるので、閾値の 0.01% まではずれてよい
-            double tol = span * 1.0E-4D + 1.0D;
-            helper.assertTrue(Math.abs(est - span / 3.0D) <= tol && Math.abs(peak - span * 2.0D / 3.0D) <= tol,
-                    "F" + p + " の区切りが 1/3・2/3 でない: " + est + " / " + peak + "(閾値 " + span + ")");
+            // 11-18 夜: 区切りはフェーズごと(日数の 3 等分に合わせた点の割合。phases.json の各フェーズの stages)。
+            // 点は広さとともに加速するので、日数の 1/3・2/3 は点の 1/3・2/3 より手前 = 0 < 定着 < 最盛 < 閾値 で、定着は 1/3 以下
+            helper.assertTrue(0 < est && est < peak && peak < span && est <= Math.ceil(span / 3.0D) + 1,
+                    "F" + p + " の区切りがおかしい: " + est + " / " + peak + "(閾値 " + span + ")");
         }
         helper.succeed();
     }

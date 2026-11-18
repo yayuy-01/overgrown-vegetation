@@ -51,7 +51,7 @@ public final class DirectorGateGameTests {
     public static void gatesOpenAtAgreedPhases(GameTestHelper helper) {
         DirectorTable.Gates g = DesignData.director().gates;
         Object[][] expected = {
-                {Gate.NURSERY, 1}, {Gate.ROOTED, 2}, {Gate.EVOLVE, 3}, {Gate.SCOUT, 4}, {Gate.RECOGNIZE, 5}, {Gate.RAID, 5},
+                {Gate.NURSERY, 2}, {Gate.ROOTED, 2}, {Gate.EVOLVE, 3}, {Gate.SCOUT, 4}, {Gate.RECOGNIZE, 5}, {Gate.RAID, 5},
                 {Gate.SPAWNER, 4}, {Gate.WAVE_G4, 4}, {Gate.WAVE_G5, 5}, {Gate.WAVE_MIXED, 6}};
         for (Object[] e : expected) {
             Gate gate = (Gate) e[0];

@@ -311,6 +311,10 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
             if (level() instanceof ServerLevel sl) {
                 sl.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, getX(), getY() + getBbHeight() * 0.8D, getZ(), 24, 0.5D, 0.2D, 0.5D, 0.02D);
             }
+        } else if (hurt && !level().isClientSide() && isAlive() && state() == REST && table().birthWhenHurt
+                && level() instanceof ServerLevel sl && broodRoom(sl) > 0) {
+            // 11-18 夜 ユーザー「攻撃されたらクールダウンを無視して産む」: 休みを切り上げてすぐ前触れへ(産む回数 birthsToRoot・手先の上限 broodCap はそのまま効く)
+            enter(WINDUP, WINDUP_T);
         }
         this.lastSacHit = null;
         return hurt;

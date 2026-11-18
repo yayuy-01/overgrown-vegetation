@@ -164,10 +164,10 @@ public final class DirectorHooks {
         double total = 0.0D;
         for (SpawnTable.Species sp : DesignData.spawns().species) {
             if (!directorSpecies(sp) || group != 0 && sp.group() != group) continue;
-            DirectorGates.Gate gate = gateOf(sp.group());
-            if (!DirectorGates.open(level, gate)) continue;
             EntityType<?> type = sp.type();
-            double weight = sp.weight() * DirectorGates.strength(level, gate);
+            // 11-18 夜 ユーザー決定: 出るフェーズは種ごと(mob_class.json の phase。前はグループの送り込みのゲート)
+            if (!DirectorGates.speciesOpen(level, type)) continue;
+            double weight = sp.weight() * DirectorGates.speciesStrength(level, type);
             if (type == null || weight <= 0.0D) continue;
             cands.add(type);
             w.add(weight);
@@ -215,7 +215,6 @@ public final class DirectorHooks {
         }
         // 足りない分は森の方角に湧かせる(予算から)
         ForestDirector d = ForestDirector.get(level);
-        DirectorGates.Gate gate = gateOf(group);
         BlockPos spot = null;
         if (DirectorGates.open(level, DirectorGates.Gate.WAVE_MIXED) && lastSpot != null && lastSpotTime == level.getGameTime() && lastSpotBase == b.id()) {
             spot = lastSpot;
@@ -228,7 +227,7 @@ public final class DirectorHooks {
         while (sent < g4Limit && attempts-- > 0) {
             EntityType<?> type = pickPlant(level, random, group);
             if (type == null) break;
-            double price = ForestDirector.stagePrice(ForestDirector.spawnCost(type), DirectorGates.strength(level, gate));
+            double price = ForestDirector.stagePrice(ForestDirector.spawnCost(type), DirectorGates.speciesStrength(level, type));
             if (d.available(level) + 1.0E-9D < price) break;
             if (spot == null) spot = hiddenSpot(level, b, random);
             if (spot == null) break;
@@ -264,7 +263,8 @@ public final class DirectorHooks {
         AABB box = new AABB(b.centerX() - r, level.getMinBuildHeight(), b.centerZ() - r, b.centerX() + r, level.getMaxBuildHeight(), b.centerZ() + r);
         int cap = Math.max(1, DesignData.spawns().cap(6));
         if (level.getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.GestatrixEntity.class, box, g -> g.isAlive() && !g.rooted()).size() >= cap) return false;
-        double price = ForestDirector.stagePrice(ForestDirector.spawnCost(type), DirectorGates.strength(level, DirectorGates.Gate.WAVE_G4));
+        if (!DirectorGates.speciesOpen(level, type)) return false;   // ゲスタトリクスの出るフェーズ(F4。11-18 夜)
+        double price = ForestDirector.stagePrice(ForestDirector.spawnCost(type), DirectorGates.speciesStrength(level, type));
         if (d.available(level) + 1.0E-9D < price) return false;
         Mob m = RaidSpawns.spawnPlantAttacker(level, near(level, spot, random), type, random);
         if (!(m instanceof com.yayuy.overgrownvegetation.entity.GestatrixEntity g)) return false;

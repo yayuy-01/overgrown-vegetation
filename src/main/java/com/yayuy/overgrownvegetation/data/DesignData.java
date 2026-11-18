@@ -68,6 +68,13 @@ public final class DesignData {
 
     private static volatile com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable pushBack = com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable.DEFAULT;
 
+    private static volatile com.yayuy.overgrownvegetation.phase.MobClassTable mobClass = com.yayuy.overgrownvegetation.phase.MobClassTable.DEFAULT;
+
+    /** Mob の分類(系統・型・危険度・出るフェーズ。{@code mob_class.json}、2026-11-18 夜)。 */
+    public static com.yayuy.overgrownvegetation.phase.MobClassTable mobClass() {
+        return mobClass;
+    }
+
     /** 押し返す用の道具と方法の設計値({@code push_back.json}、2026-11-18 夜)。 */
     public static com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable pushBack() {
         return pushBack;
@@ -218,6 +225,8 @@ public final class DesignData {
         gearTiers = gt != null ? gt : com.yayuy.overgrownvegetation.gear.GearTierTable.DEFAULT;
         com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable pb = read(dir, "push_back.json", com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable.class);
         pushBack = pb != null ? pb : com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable.DEFAULT;
+        com.yayuy.overgrownvegetation.phase.MobClassTable mc = read(dir, "mob_class.json", com.yayuy.overgrownvegetation.phase.MobClassTable.class);
+        mobClass = mc != null ? mc : com.yayuy.overgrownvegetation.phase.MobClassTable.DEFAULT;
 
         OvergrownVegetation.LOGGER.info("設計データを読み込みました({})", dir);
     }

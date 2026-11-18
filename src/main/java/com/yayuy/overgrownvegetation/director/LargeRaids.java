@@ -197,7 +197,7 @@ public final class LargeRaids {
                 net.minecraft.world.entity.EntityType<?> type = com.yayuy.overgrownvegetation.spawn.DirectorHooks.pickPlant(level, random, 0);
                 if (type != null) {
                     double plantPrice = ForestDirector.stagePrice(ForestDirector.spawnCost(type),
-                            DirectorGates.strength(level, com.yayuy.overgrownvegetation.spawn.DirectorHooks.gateOf(com.yayuy.overgrownvegetation.spawn.DirectorHooks.groupOf(type))));
+                            DirectorGates.speciesStrength(level, type));
                     BlockPos pat = d.available(level) + 1.0E-9D >= plantPrice ? spot(level, b, random) : null;
                     net.minecraft.world.entity.Mob pm = pat == null ? null : RaidSpawns.spawnPlantAttacker(level, pat, type, random);
                     if (pm != null) {

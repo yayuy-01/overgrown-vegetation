@@ -167,6 +167,32 @@ public final class DirectorGates {
                 openAt(DesignData.director().gates, gate));
     }
 
+    /**
+     * その種が出るフェーズ(2026-11-18 夜 ユーザー決定「出るフェーズは種ごと」: {@code mob_class.json} の phase)。
+     * 自然に湧かない種(natural false。寄生アイアンゴーレム・寄生ウォーデン)は {@link Integer#MAX_VALUE}。
+     * 表に無い種は前の決まり(グループの送り込みのゲート waveG4・waveG5・waveMixed)。
+     */
+    public static int speciesOpenAt(@javax.annotation.Nullable net.minecraft.world.entity.EntityType<?> type) {
+        if (type == null) return Integer.MAX_VALUE;
+        com.yayuy.overgrownvegetation.phase.MobClassTable.Entry e = DesignData.mobClass().get(type);
+        if (e != null) return e.natural() ? Math.max(1, e.phase) : Integer.MAX_VALUE;
+        return openAt(DesignData.director().gates, com.yayuy.overgrownvegetation.spawn.DirectorHooks.gateOf(com.yayuy.overgrownvegetation.spawn.DirectorHooks.groupOf(type)));
+    }
+
+    /** その種の今の強さ(0〜1。出るフェーズ {@link #speciesOpenAt} から小さな段で)。司令塔が切られていれば 0。 */
+    public static double speciesStrength(ServerLevel level, @javax.annotation.Nullable net.minecraft.world.entity.EntityType<?> type) {
+        if (!DesignData.director().enabled) return 0.0D;
+        int open = speciesOpenAt(type);
+        if (open == Integer.MAX_VALUE) return 0.0D;
+        return com.yayuy.overgrownvegetation.phase.PhaseStages.strength(DesignData.phases(), phase(level), stage(level), open);
+    }
+
+    /** その種がもう出られるか(今のフェーズが出るフェーズ以上)。 */
+    public static boolean speciesOpen(ServerLevel level, @javax.annotation.Nullable net.minecraft.world.entity.EntityType<?> type) {
+        int open = speciesOpenAt(type);
+        return DesignData.director().enabled && open != Integer.MAX_VALUE && phase(level) >= open;
+    }
+
     /** 強さを確率として 1 回引く(道・スポナーを「まれに」する)。 */
     public static boolean roll(double strength, net.minecraft.util.RandomSource random) {
         return strength >= 1.0D || random.nextDouble() < strength;
