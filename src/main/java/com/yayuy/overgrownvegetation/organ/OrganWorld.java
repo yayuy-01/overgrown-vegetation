@@ -73,11 +73,13 @@ public final class OrganWorld {
 
     static void forget(int id) {
         BLUEPRINTS.remove(id);
+        OrganClearing.forget(id);
     }
 
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
         BLUEPRINTS.clear();
+        OrganClearing.clearAll();
         LeyBuffs.forgetApplied();
         invalidateCaches();
     }
@@ -190,6 +192,11 @@ public final class OrganWorld {
                         String.format(java.util.Locale.ROOT, "器官 #%d %s が育ち切った", o.id, o.kind.label));
             }
             if (roles && o.active()) OrganRoles.tick(level, data, o, now);
+            if (roles && o.state == ForestOrgans.State.WITHERED && o.regrown >= 0) {
+                // 枯れた後、払った所に苗木を植え直す(11-19)
+                OrganBlueprint bp = blueprint(o);
+                if (bp != null && OrganClearing.regrow(level, o, bp, now)) data.changed();
+            }
         }
         // 置く・枯らす(予算の中で。器官ごとに順に)
         if (!TickBudget.mayStart(PerfJob.ORGAN_BUILD)) return;
@@ -239,6 +246,12 @@ public final class OrganWorld {
         if (bp == null) return budget;
         if (o.refit) {
             o.refit = false;
+            data.changed();
+        }
+        if (!o.cleared) {
+            // 置き始める前に、建つ所の木を払う(11-19 ユーザー「んじゃ払うか」)
+            budget = OrganClearing.step(level, o, bp, budget);
+            if (!o.cleared) return budget;
             data.changed();
         }
         BlockPos anchor = o.anchor();
@@ -340,7 +353,7 @@ public final class OrganWorld {
         }
     }
 
-    /** 器官の真ん中の地面のいちばん上(木の幹を拾わないよう、まわり 9 本の低い方)。 */
+    /** 器官の真ん中の地面のいちばん上(木を除いた地面。まわり 9 本の低い方から 3 番目)。 */
     /**
      * そのチャンクが読み込み済みで生成し終わっているか。{@code level.hasChunk} は「読み込む札が付いている」だけで、生成中でも true を返し、
      * そこへ setBlock・getHeight すると生成し終わるまで主スレッドが待つ(11-18 測り: 移動中に芽を置く 1 回が 10〜165 ms)。
@@ -353,16 +366,20 @@ public final class OrganWorld {
     }
 
     static int surface(ServerLevel level, int x, int z) {
-        int best = Integer.MAX_VALUE;
+        int[] hs = new int[9];
+        int n = 0;
         for (int i = -1; i <= 1; i++) {
             for (int j = -1; j <= 1; j++) {
                 int sx = x + i * 5, sz = z + j * 5;
                 if (!OrganWorld.ready(level, sx >> 4, sz >> 4)) continue; // 読み込まれていない升を引くとその場で読み込んで止まる(11-18 測り: 最大 71 ms)
-                int h = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, sx, sz) - 1;
-                best = Math.min(best, h);
+                // 木(幹・葉)・下草を除いた地面(11-19: 前は幹を地面と数え、森では樹冠の上 y=236・262 に建っていた)
+                hs[n++] = OrganClearing.groundY(level, sx, sz);
             }
         }
-        return best == Integer.MAX_VALUE ? 64 : best;
+        if (n == 0) return 64;
+        // 低い方から 3 番目(9 本のとき)。いちばん低い 1 本だと、谷・地割れに 1 本落ちただけで器官が沈む(11-19 の撮影で y=25 が 2 つ)
+        java.util.Arrays.sort(hs, 0, n);
+        return hs[Math.min(n - 1, n / 4)];
     }
 
     /** 芽: 地面に仮の芯 1 つと、まわりの嚢。育つ前に見つけて潰せる。 */
@@ -410,6 +427,7 @@ public final class OrganWorld {
             o.y = surface(level, o.x, o.z);
         }
         OrganBlueprint bp = blueprintNow(o);
+        OrganClearing.clearNow(level, o, bp);
         o.total = bp.entries.length;
         BlockPos anchor = o.anchor();
         int n = 0;

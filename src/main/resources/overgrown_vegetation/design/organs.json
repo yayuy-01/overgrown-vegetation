@@ -70,5 +70,18 @@
     "knockback": 1.2,
     "health": 12.0,
     "reviveSeconds": 90.0
+  },
+  "_comment_clearing": "建つ所の木を払う(11-19 ユーザー「昔の器官みたいに生えた場所は木がなくなるとかしても良いかもね」→「んじゃ払うか」)。芽を置いた後、置き始める前に、形の外周 + marginBlocks(小さい版 smallMarginBlocks)の円の中の木(幹・葉)を払う。幹が円の中の木は円の外の葉もまとめて払う(幹から葉 leafReach 段まで・1 本 treeBlocksMax ブロックまで)。巨大樹は払わない(11-19 ユーザー「巨大樹は避けて」: 巨大樹の根元から giantAvoidBlocks(小さい版 giantAvoidSmallBlocks)より近い升には建てない。巨大樹の樹冠は半径 28 前後)。落とし物は出さない。地面と下草は過繁茂のまま。建つ高さは木を除いた地面で決める。芯を壊して枯れた後は、払った所に木が生え直す(11-19 ユーザー「生え直す方向で」): 枯れてから regrowDays 日かけて、円の広さ ÷ regrowSpacing² 本ぶんの所に過繁茂の苗木を植える(苗木はふつうに育って過繁茂の木になる。枯れた器官の形は残る)。数は全部【仮】。",
+  "clearing": {
+    "enabled": true,
+    "marginBlocks": 4,
+    "smallMarginBlocks": 2,
+    "treeBlocksMax": 4000,
+    "leafReach": 5,
+    "giantAvoidBlocks": 60.0,
+    "giantAvoidSmallBlocks": 40.0,
+    "regrow": true,
+    "regrowDays": 6.0,
+    "regrowSpacing": 6
   }
 }

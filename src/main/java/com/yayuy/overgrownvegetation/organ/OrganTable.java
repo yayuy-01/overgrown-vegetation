@@ -24,6 +24,7 @@ public final class OrganTable {
         public GuardJson guards;
         public SmallJson small;
         public TentacleJson tentacles;
+        public ClearingJson clearing;
     }
 
     public static final class RolesJson {
@@ -46,6 +47,14 @@ public final class OrganTable {
         public Boolean enabled;
         public Double price, growDays, minAgeDays, strength, sacHiveNodes, maxFactor;
         public Integer minDepthChunks, spacingChunks, guardCount;
+    }
+
+    public static final class ClearingJson {
+        public Boolean enabled;
+        public Integer marginBlocks, smallMarginBlocks, treeBlocksMax, leafReach;
+        public Double giantAvoidBlocks, giantAvoidSmallBlocks, regrowDays;
+        public Boolean regrow;
+        public Integer regrowSpacing;
     }
 
     public static final class TentacleJson {
@@ -83,6 +92,16 @@ public final class OrganTable {
     /** 破裂した嚢が生え直すまでの日数(1 つあたりの平均)。 */
     public final double sacRegrowDays;
 
+    /** 建つ所の木を払う(11-19。{@link OrganClearing})。 */
+    public final boolean clearEnabled;
+    public final int clearMargin, clearSmallMargin, clearTreeMax, clearLeafReach;
+    /** 巨大樹の根元からこれより近い升には建てない(11-19 ユーザー「巨大樹は避けて」)。 */
+    public final double giantAvoid, giantAvoidSmall;
+    /** 枯れた後、払った所に木が生え直す(11-19 ユーザー「生え直す方向で」)。regrowDays 日で苗木を植え終え、間隔は regrowSpacing。 */
+    public final boolean regrowEnabled;
+    public final double regrowDays;
+    public final int regrowSpacing;
+
     public static final OrganTable DEFAULT = fromJson(null);
 
     private OrganTable(Json j) {
@@ -91,6 +110,7 @@ public final class OrganTable {
         GuardJson g = j.guards != null ? j.guards : new GuardJson();
         SmallJson s = j.small != null ? j.small : new SmallJson();
         TentacleJson tj = j.tentacles != null ? j.tentacles : new TentacleJson();
+        ClearingJson cj = j.clearing != null ? j.clearing : new ClearingJson();
         enabled = j.enabled == null || j.enabled;
         minPhase = Math.max(0, or(j.minPhase, 3));
         planIntervalDays = Math.max(0.01D, or(j.planIntervalDays, 0.5D));
@@ -145,6 +165,16 @@ public final class OrganTable {
         tentacleHealth = Math.max(1.0D, or(tj.health, 12.0D));
         tentacleReviveSeconds = Math.max(1.0D, or(tj.reviveSeconds, 90.0D));
         sacRegrowDays = Math.max(0.01D, or(r.sacRegrowDays, 3.0D));
+        clearEnabled = cj.enabled == null || cj.enabled;
+        clearMargin = Math.max(0, or(cj.marginBlocks, 4));
+        clearSmallMargin = Math.max(0, or(cj.smallMarginBlocks, 2));
+        clearTreeMax = Math.max(1, or(cj.treeBlocksMax, 4000));
+        clearLeafReach = Math.max(0, or(cj.leafReach, 5));
+        giantAvoid = Math.max(0.0D, or(cj.giantAvoidBlocks, 60.0D));
+        giantAvoidSmall = Math.max(0.0D, or(cj.giantAvoidSmallBlocks, 40.0D));
+        regrowEnabled = cj.regrow == null || cj.regrow;
+        regrowDays = Math.max(0.01D, or(cj.regrowDays, 6.0D));
+        regrowSpacing = Math.max(2, or(cj.regrowSpacing, 6));
     }
 
     public static OrganTable fromJson(@Nullable Json j) {

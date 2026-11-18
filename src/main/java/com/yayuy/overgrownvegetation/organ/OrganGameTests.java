@@ -237,4 +237,132 @@ public final class OrganGameTests {
             if (pd.getPoints() < pointsBefore) pd.addPointsUnscaledForTests(level, pointsBefore - pd.getPoints());
         }
     }
+
+    /**
+     * 森の中で建てる(11-19): 高さは木を除いた地面。建つ前に円の中の木を払い、幹が円の中の木は円の外へはみ出した葉もまとめて払う。
+     * 巨大樹・円の外の木(円に差し掛かった葉だけ払う)・地面の下草は残る。
+     */
+    @GameTest(template = "gametest_empty24", batch = "organ_clear", timeoutTicks = 100)
+    public static void clearsTreesAndBuildsOnGround(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ForestOrgans data = ForestOrgans.get(level);
+        BlockPos c = helper.absolutePos(new BlockPos(12, 1, 12));
+        int gy = c.getY() - 1;
+        ForestDirector dir = ForestDirector.get(level);
+        PhaseData pd = PhaseData.get(level);
+        double budgetBefore = dir.available(level);
+        long pointsBefore = pd.getPoints();
+        List<Integer> planted = new ArrayList<>();
+        int span = 0;
+        try {
+            ForestOrgans.Organ o = data.plant(level, OrganKind.SAC, true, 0, 7, 0, c.getX(), c.getZ());
+            planted.add(o.id);
+            OrganBlueprint bp = OrganWorld.blueprintNow(o);
+            int r = OrganClearing.radius(bp, true);
+            span = r + 10;
+            // 地面と空
+            for (int dx = -span; dx <= span; dx++) {
+                for (int dz = -span; dz <= span; dz++) {
+                    level.setBlock(new BlockPos(c.getX() + dx, gy, c.getZ() + dz), com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_GRASS_BLOCK.get().defaultBlockState(), 2);
+                    for (int y = gy + 1; y <= gy + 30; y++) level.setBlock(new BlockPos(c.getX() + dx, y, c.getZ() + dz), Blocks.AIR.defaultBlockState(), 2);
+                }
+            }
+            net.minecraft.world.level.block.state.BlockState log = Blocks.OAK_LOG.defaultBlockState();
+            net.minecraft.world.level.block.state.BlockState leaf = Blocks.OAK_LEAVES.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true);
+            // A: 円の縁の内側の木。葉が円の外へはみ出す
+            BlockPos a = c.offset(r - 1, 0, 0);
+            for (int y = 1; y <= 7; y++) level.setBlock(a.atY(gy + y), log, 2);
+            BlockPos aOut = a.atY(gy + 7).offset(3, 0, 0); // 円の外の葉
+            for (int i = 1; i <= 3; i++) level.setBlock(a.atY(gy + 7).offset(i, 0, 0), leaf, 2);
+            // B: 真ん中寄りの森の木(過繁茂の木)
+            BlockPos b = c.offset(-3, 0, 2);
+            for (int y = 1; y <= 9; y++) level.setBlock(b.atY(gy + y), com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_LOG.get().defaultBlockState(), 2);
+            level.setBlock(b.atY(gy + 10), leaf, 2);
+            // C: 円の外の木。葉の腕が円の中へ差し掛かる
+            BlockPos f = c.offset(0, 0, -(r + 3));
+            for (int y = 1; y <= 8; y++) level.setBlock(f.atY(gy + y), log, 2);
+            for (int i = 1; i <= 5; i++) level.setBlock(f.atY(gy + 8).offset(0, 0, i), leaf, 2); // z = -(r+2) … -(r-2)
+            BlockPos fOuter = f.atY(gy + 8).offset(0, 0, 1), fInner = f.atY(gy + 8).offset(0, 0, 5);
+            // 巨大樹の幹(円の中・形の外)と地面の下草
+            BlockPos g = c.offset(0, 0, r - 1);
+            for (int y = 1; y <= 6; y++) level.setBlock(g.atY(gy + y), com.yayuy.overgrownvegetation.registry.ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState(), 2);
+            BlockPos grass = c.offset(-(r - 1), 1, 0);
+            level.setBlock(grass, Blocks.SHORT_GRASS.defaultBlockState(), 2);
+
+            helper.assertTrue(OrganClearing.groundY(level, a.getX(), a.getZ()) == gy, "幹の上を地面と数える: " + OrganClearing.groundY(level, a.getX(), a.getZ()) + "(地面 " + gy + ")");
+            helper.assertTrue(OrganClearing.groundY(level, g.getX(), g.getZ()) == gy, "巨大樹の幹の上を地面と数える");
+            helper.assertTrue(OrganWorld.surface(level, c.getX(), c.getZ()) == gy, "器官の高さが地面でない: " + OrganWorld.surface(level, c.getX(), c.getZ()));
+
+            OrganClearing.clearNow(level, o, bp);
+            helper.assertTrue(o.cleared, "払い終わらない");
+            for (int y = 1; y <= 7; y++) helper.assertTrue(level.getBlockState(a.atY(gy + y)).isAir(), "円の中の木の幹が残る y+" + y);
+            helper.assertTrue(level.getBlockState(aOut).isAir(), "円の中の木のはみ出した葉が残る");
+            for (int y = 1; y <= 10; y++) helper.assertTrue(level.getBlockState(b.atY(gy + y)).isAir(), "過繁茂の木が残る y+" + y);
+            helper.assertTrue(level.getBlockState(f.atY(gy + 4)).is(Blocks.OAK_LOG), "円の外の木の幹まで払った");
+            helper.assertTrue(level.getBlockState(fOuter).is(Blocks.OAK_LEAVES), "円の外の木の円の外の葉まで払った");
+            helper.assertTrue(level.getBlockState(fInner).isAir(), "円に差し掛かった葉が残る");
+            helper.assertTrue(level.getBlockState(g.atY(gy + 3)).is(com.yayuy.overgrownvegetation.registry.ModBlocks.GIANT_OVERGROWN_LOG.get()), "巨大樹を払った");
+            helper.assertTrue(level.getBlockState(grass).is(Blocks.SHORT_GRASS), "地面の下草を払った");
+            helper.assertTrue(level.getBlockState(c.atY(gy)).is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_GRASS_BLOCK.get()), "地面を払った");
+
+            OrganWorld.buildNow(level, data, o);
+            helper.assertTrue(o.y == gy, "器官が地面に建たない: y=" + o.y + "(地面 " + gy + ")");
+            // 芯を壊して枯れた後、払った所に苗木が生え直す
+            data.wither(level, o, "テスト");
+            o.witheredAt = PhaseData.clockNow(level) - (long) (DesignData.organs().regrowDays * 24000.0D) - 1L;
+            for (int k = 0; k < 4000 && o.regrown >= 0; k++) OrganClearing.regrow(level, o, bp, PhaseData.clockNow(level));
+            int saplings = 0;
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (level.getBlockState(new BlockPos(c.getX() + dx, gy + 1, c.getZ() + dz)).is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_SAPLING.get())) saplings++;
+                }
+            }
+            helper.assertTrue(o.regrown == -1, "生え直しが終わらない: " + o.regrown);
+            helper.assertTrue(saplings >= 3, "払った所に苗木が生え直さない: " + saplings);
+            helper.succeed();
+        } finally {
+            for (int id : planted) data.remove(id);
+            dir.setBudget(level, budgetBefore);
+            if (pd.getPoints() < pointsBefore) pd.addPointsUnscaledForTests(level, pointsBefore - pd.getPoints());
+            if (span > 0) {
+                net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(c).inflate(span + 8);
+                for (OrganTentacle t : level.getEntitiesOfClass(OrganTentacle.class, box)) t.discard();
+                for (int dx = -span; dx <= span; dx++) {
+                    for (int dz = -span; dz <= span; dz++) {
+                        for (int y = gy - 12; y <= gy + 40; y++) {
+                            BlockPos p = new BlockPos(c.getX() + dx, y, c.getZ() + dz);
+                            if (y > gy || !level.getBlockState(p).isAir()) level.setBlock(p, y > gy ? Blocks.AIR.defaultBlockState() : Blocks.DIRT.defaultBlockState(), 2);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** 巨大樹の根元の近くの升には建てない(11-19 ユーザー「巨大樹は避けて」)。巨大樹の記録は (x << 32) | z で読む(目印にも使う)。 */
+    @GameTest(template = "gametest_empty7", batch = "organ_world", timeoutTicks = 20)
+    public static void avoidsGiantTrees(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        PhaseData pd = PhaseData.get(level);
+        OrganTable t = DesignData.organs();
+        int cx = 620_000, cz = 620_000;
+        int gx = cx * 16 + 8 + 20, gz = cz * 16 + 8;
+        long packed = ((long) gx << 32) | (gz & 0xFFFFFFFFL);
+        try {
+            pd.recordGiantTreeOrigin(gx, gz);
+            helper.assertTrue(OrganPlanner.nearGiantTree(pd, cx, cz, false, t), "巨大樹の 20 ブロック先に大きい版が建つ");
+            helper.assertTrue(OrganPlanner.nearGiantTree(pd, cx, cz, true, t), "巨大樹の 20 ブロック先に小さい版が建つ");
+            int far = (int) Math.ceil((t.giantAvoid + 40.0D) / 16.0D);
+            helper.assertTrue(!OrganPlanner.nearGiantTree(pd, cx - far, cz, false, t), "巨大樹から遠い升まで外す");
+            boolean anchored = false;
+            for (long[] a : OrganPlanner.anchors(level, ForestOrgans.get(level), pd)) {
+                if (a[0] == gx >> 4 && a[1] == gz >> 4) anchored = true;
+            }
+            helper.assertTrue(anchored, "巨大樹の升が目印に入らない(記録の読み違い)");
+            helper.succeed();
+        } finally {
+            pd.forgetGiantTreeForTests(packed);
+        }
+    }
 }

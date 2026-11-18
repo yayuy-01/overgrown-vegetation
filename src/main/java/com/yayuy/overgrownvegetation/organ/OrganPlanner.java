@@ -123,6 +123,20 @@ public final class OrganPlanner {
     record Site(ChunkPos chunk, double score, double ageDays) {
     }
 
+    /**
+     * 巨大樹のそばか(11-19 ユーザー「巨大樹は避けて」)。巨大樹は払わないので、器官は巨大樹の根元から {@code clearing.giantAvoidBlocks}
+     * (小さい版 {@code giantAvoidSmallBlocks})より外の升にだけ建てる。升の中で真ん中からずれる分(8)を足して見る。
+     */
+    static boolean nearGiantTree(PhaseData pd, int cx, int cz, boolean small, OrganTable t) {
+        double avoid = (small ? t.giantAvoidSmall : t.giantAvoid) + 8.0D;
+        double mx = cx * 16 + 8, mz = cz * 16 + 8;
+        for (long k : pd.giantTreeOriginSnapshot()) {
+            double dx = (int) (k >> 32) - mx, dz = (int) k - mz;
+            if (dx * dx + dz * dz < avoid * avoid) return true;
+        }
+        return false;
+    }
+
     @Nullable
     static Site findSite(ServerLevel level, ForestOrgans data, OrganKind kind, boolean small, RandomSource random) {
         OrganTable t = DesignData.organs();
@@ -157,7 +171,8 @@ public final class OrganPlanner {
             l.add(new long[]{(long) Math.floor(b.centerX()) >> 4, (long) Math.floor(b.centerZ()) >> 4});
         }
         for (long k : pd.hiveNodeSnapshot()) l.add(new long[]{BlockPos.getX(k) >> 4, BlockPos.getZ(k) >> 4});
-        for (long k : pd.giantTreeOriginSnapshot()) l.add(new long[]{BlockPos.getX(k) >> 4, BlockPos.getZ(k) >> 4});
+        // 巨大樹の記録は (x << 32) | z で詰めてある(BlockPos の詰め方ではない。11-19 に読み違いを直した)
+        for (long k : pd.giantTreeOriginSnapshot()) l.add(new long[]{(int) (k >> 32) >> 4, (int) k >> 4});
         for (ForestOrgans.Organ o : data.organs()) l.add(new long[]{o.x >> 4, o.z >> 4});
         return l;
     }
@@ -167,6 +182,7 @@ public final class OrganPlanner {
                         @Nullable PrevailingWind.Sample wind, RandomSource random) {
         OrganTable t = DesignData.organs();
         if (!buildable(pd, data, cx, cz, now, t, small)) return Double.NEGATIVE_INFINITY;
+        if (nearGiantTree(pd, cx, cz, small, t)) return Double.NEGATIVE_INFINITY;
         // 認識した拠点から離す(苗床は近すぎず遠すぎず)
         double baseDist = Double.POSITIVE_INFINITY;
         for (BaseMemory.Base b : BaseMemory.get(level.getServer()).bases()) {

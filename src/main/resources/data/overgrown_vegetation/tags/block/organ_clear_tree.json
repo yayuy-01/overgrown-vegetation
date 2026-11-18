@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:logs",
+    "#minecraft:leaves",
+    { "id": "overgrown_vegetation:overgrown_leaves", "required": false },
+    { "id": "overgrown_vegetation:giant_canopy_leaves", "required": false },
+    { "id": "overgrown_vegetation:overgrown_leaves_tuft", "required": false },
+    { "id": "overgrown_vegetation:sigillaria_leaves", "required": false },
+    { "id": "overgrown_vegetation:sigillaria_leaves_fringe", "required": false },
+    { "id": "overgrown_vegetation:tree_fern_leaves", "required": false },
+    { "id": "overgrown_vegetation:tree_fern_frond", "required": false },
+    { "id": "overgrown_vegetation:medullosa_crown", "required": false }
+  ]
+}
