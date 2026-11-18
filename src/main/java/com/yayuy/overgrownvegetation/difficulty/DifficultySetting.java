@@ -51,12 +51,42 @@ public enum DifficultySetting {
     QUAKE_DAY("quake_day", Section.SPREAD, Kind.DAYS, 0.0D, 1000.0D, false, true),
     /** 始まりの猶予(実績の数)。0 なら日数だけ。既定値は phases.json の {@code startAdvancements}。 */
     QUAKE_ADVANCEMENTS("quake_advancements", Section.SPREAD, Kind.COUNT, 0.0D, 1000.0D, false, true),
+    /** フェーズの上限(11-19 第 2 便)。これより上のフェーズへは進まない({@code PhaseData#tryAdvance})。下げても今のフェーズは戻らない。 */
+    PHASE_CAP("phase_cap", Section.SPREAD, Kind.COUNT, 1.0D, 10.0D, false, true),
+    /** 建築ブロックも覆うか(置かれた建築へ這い上がる汚染 {@code BuildCorrosion})。既定は COMMON の {@code buildCorrosion}。 */
+    BUILD_CORROSION("build_corrosion", Section.SPREAD, Kind.TOGGLE, 0.0D, 1.0D, false, false),
+    /** ネザー・エンドへ渡るか(ポータルの枠からの越境 {@code PortalCorruption})。もう渡った森は残る。 */
+    PORTAL_CROSSING("portal_crossing", Section.SPREAD, Kind.TOGGLE, 0.0D, 1.0D, false, true),
+    /** 汚染しない場所 = オーバーワールドのスポーン地点のまわりの半径(ブロック。0 = なし)。{@code CorruptionRegistry#canCorrupt}。もう汚染されたブロックは戻らない。 */
+    SPAWN_SAFE_RADIUS("spawn_safe_radius", Section.SPREAD, Kind.COUNT, 0.0D, 10000.0D, false, true),
 
     // ------------------------------------------------------------ ③ 森の力
     /** 森の予算(バイオマス)の生産量 = 貯まる速さの倍率({@code ForestDirector#accrue})。段で変わる。 */
     FOREST_INCOME("forest_income", Section.FOREST, Kind.PERCENT, 0.0D, 256.0D, true, false),
     /** 森の予算(バイオマス)の貯蓄量の上限の倍率({@code ForestDirector#cap})。生産量とは別に掛ける(上限は収入から作るので二重にしない)。段で変わる。 */
     FOREST_CAP("forest_cap", Section.FOREST, Kind.PERCENT, 0.01D, 256.0D, true, false),
+    /** 苗床が Mob を生む速さ(問い合わせの間 {@code NurseryParasitized#hatchAskInterval} を割る)。孵るかは森の予算しだい。 */
+    NURSERY_SPEED("nursery_speed", Section.FOREST, Kind.PERCENT, 0.1D, 10.0D, false, false),
+    /** 森の器官が生えるか({@code OrganPlanner})。オフでも今生えている器官は残す(11-19 ユーザー決定)。 */
+    ORGANS("organs", Section.FOREST, Kind.TOGGLE, 0.0D, 1.0D, false, true),
+    /** 器官の数の上限の倍率(organs.json の maxOrgans・小型の上限に掛ける)。減らしても今ある器官は消さない。 */
+    ORGAN_COUNT("organ_count", Section.FOREST, Kind.PERCENT, 0.0D, 10.0D, false, false),
+    /** 巨大樹が生えるか(世界の生成と苗木 {@code GiantTreeFeature#place})。もう生えた巨大樹は残る。 */
+    GIANT_TREES("giant_trees", Section.FOREST, Kind.TOGGLE, 0.0D, 1.0D, false, true),
+
+    // ------------------------------------------------------------ ④ 襲撃(raid-scale の口 RaidScales.Knobs へ写す = RaidSettings)
+    /** 襲撃があるか(送り込み・貯めた襲撃・大きな襲撃とも。最初の襲撃も)。 */
+    RAIDS("raids", Section.RAID, Kind.TOGGLE, 0.0D, 1.0D, false, false),
+    /** 襲撃の頻度(200% = 機会の間が半分)。 */
+    RAID_FREQUENCY("raid_frequency", Section.RAID, Kind.PERCENT, 0.1D, 10.0D, false, false),
+    /** 小(ふだんの送り込み)で来る数の倍率。 */
+    RAID_COUNT_SMALL("raid_count_small", Section.RAID, Kind.PERCENT, 0.01D, 10.0D, false, false),
+    /** 中(少し貯めた襲撃)で来る数の倍率。 */
+    RAID_COUNT_MEDIUM("raid_count_medium", Section.RAID, Kind.PERCENT, 0.01D, 10.0D, false, false),
+    /** 大(長く貯めた襲撃)で来る数の倍率。 */
+    RAID_COUNT_LARGE("raid_count_large", Section.RAID, Kind.PERCENT, 0.01D, 10.0D, false, false),
+    /** 中の同時の上限。既定は director.json の raidScale の中の maxAlive(40)。 */
+    RAID_MAX_ALIVE_MEDIUM("raid_max_alive_medium", Section.RAID, Kind.COUNT, 1.0D, 500.0D, false, false),
 
     // ------------------------------------------------------------ ④ 襲撃
     /**
@@ -64,6 +94,16 @@ public enum DifficultySetting {
      * 既定値は COMMON の {@code largeRaidMaxAlive}(−1 なら director.json の {@code largeRaid.maxAlive})。
      */
     LARGE_RAID_MAX_ALIVE("large_raid_max_alive", Section.RAID, Kind.COUNT, LargeRaids.MAX_ALIVE_MIN, LargeRaids.MAX_ALIVE_MAX, false, false),
+    /** 小の 1 回の合計の上限(0 = 上限なし)。既定は director.json の assault.maxWave(40)。 */
+    RAID_MAX_TOTAL_SMALL("raid_max_total_small", Section.RAID, Kind.COUNT, 0.0D, 100000.0D, false, false),
+    /** 中の 1 回の合計の上限(0 = 上限なし)。既定は raidScale の中の maxTotal(80)。 */
+    RAID_MAX_TOTAL_MEDIUM("raid_max_total_medium", Section.RAID, Kind.COUNT, 0.0D, 100000.0D, false, false),
+    /** 大の 1 回の合計の上限(0 = 上限なし = 設計どおり)。 */
+    RAID_MAX_TOTAL_LARGE("raid_max_total_large", Section.RAID, Kind.COUNT, 0.0D, 100000.0D, false, false),
+    /** 襲撃で壁や地形を壊すか({@code BreachGoal}。ゲームルール mobGriefing がオフなら、こちらがオンでも壊さない)。 */
+    RAID_BREACH("raid_breach", Section.RAID, Kind.TOGGLE, 0.0D, 1.0D, false, false),
+    /** 大きな襲撃の前触れ(森の湧きが止まって静かになる日)があるか。オフならすぐ来る({@code RaidScales#omenDays})。 */
+    RAID_OMEN("raid_omen", Section.RAID, Kind.TOGGLE, 0.0D, 1.0D, false, false),
 
     // ------------------------------------------------------------ ⑤ Mob(強さ 4 項目。Mob ごとの詳細は WorldDifficultyData#mobOverrides)
     /** Mob の体力(最大体力の属性に掛ける)。{@link MobStrength}。 */
@@ -74,22 +114,44 @@ public enum DifficultySetting {
     MOB_DEFENSE("mob_defense", Section.MOBS, Kind.PERCENT, 0.01D, 256.0D, true, false),
     /** Mob の強靭(防具の強靭さの属性に掛ける。もとが 0 の Mob は 0 のまま。バニラの上限 20)。{@link MobStrength}。 */
     MOB_TOUGHNESS("mob_toughness", Section.MOBS, Kind.PERCENT, 0.01D, 256.0D, true, false),
+    /** 森の縁・地下に自然に湧く量(spawns.json の caps・underCap に掛ける。{@code EnemySpawns})。 */
+    MOB_SPAWN_AMOUNT("mob_spawn_amount", Section.MOBS, Kind.PERCENT, 0.0D, 10.0D, false, false),
+    /** 動物や村人の感染(感染で死んだ生き物が寄生された姿・萌芽体になる。{@code G1Infection#isInfectionDeath})。プレイヤーには関係しない。 */
+    MOB_INFECTION("mob_infection", Section.MOBS, Kind.TOGGLE, 0.0D, 1.0D, false, false),
+    /** G5 の適応(よく使われた攻撃に強くなる。{@code Adaptation#cap})。オフでも記録は消さない。 */
+    ADAPTATION("adaptation", Section.MOBS, Kind.TOGGLE, 0.0D, 1.0D, false, false),
 
     // ------------------------------------------------------------ ⑥ サバイバル
     /** プレイヤーの胞子の暴露量のたまる速さ(息で吸う分・部屋への染み込み・傷や技で入る分)。段で変わる。 */
     EXPOSURE_RATE("exposure_rate", Section.SURVIVAL, Kind.PERCENT, 0.0D, 256.0D, true, false),
     /** プレイヤーの感染の進みやすさ(段階 1〜10 の進み。{@code SporeInfectionEffects#advance})。段で変わる。 */
     INFECTION_RATE("infection_rate", Section.SURVIVAL, Kind.PERCENT, 0.0D, 256.0D, true, false),
+    /** 疲労(オフで疲労がたまらず、効き目も無い。{@code FatigueTracker})。既定は spore_field.json の fatigue.enabled。 */
+    FATIGUE("fatigue", Section.SURVIVAL, Kind.TOGGLE, 0.0D, 1.0D, false, false),
 
     // ------------------------------------------------------------ ⑦ 世界
+    /** ワールドイベントの頻度(200% = 間が半分。{@code WorldEventSchedule#gapDays})。 */
+    EVENT_FREQUENCY("event_frequency", Section.WORLD, Kind.PERCENT, 0.1D, 10.0D, false, false),
+    /** 地割れ(フェーズ 1 の始まりの地震 {@code EarthquakeEvent#trigger})。既定は COMMON の quakeEnabled。オフでもフェーズは始まる。 */
+    QUAKE("quake", Section.WORLD, Kind.TOGGLE, 0.0D, 1.0D, false, false),
+    /** 地形を壊す要素(地割れが地面を裂く {@code EarthquakeFissure})。オフなら揺れるだけ。襲撃が壁を壊すかは襲撃の節。 */
+    TERRAIN_DAMAGE("terrain_damage", Section.WORLD, Kind.TOGGLE, 0.0D, 1.0D, false, false),
     /**
      * 実験的要素(2026-10-09)。2026-11-12 から新しいネザーの汚染。既定はオフ。効かせ方は {@link ExperimentalFeatures}。
      */
-    EXPERIMENTAL("experimental", Section.WORLD, Kind.TOGGLE, 0.0D, 1.0D, false, false);
+    EXPERIMENTAL("experimental", Section.WORLD, Kind.TOGGLE, 0.0D, 1.0D, false, false),
+
+    // ------------------------------------------------------------ ⑧ 重さ
+    /** 遠くの群れを本物の Mob にするときの、本物の上限(perf.json の realCap)。 */
+    REAL_CAP("real_cap", Section.PERF, Kind.COUNT, 10.0D, 2000.0D, false, false),
+    /** 遠くの群れ(身代わりで描く数)の上限(perf.json の virtualCap)。 */
+    VIRTUAL_CAP("virtual_cap", Section.PERF, Kind.COUNT, 0.0D, 20000.0D, false, false),
+    /** 遠くの群れを使うか(オフなら群れは全部本物の Mob)。既定は COMMON の virtualHordeEnabled。 */
+    VIRTUAL_HORDES("virtual_hordes", Section.PERF, Kind.TOGGLE, 0.0D, 1.0D, false, false);
 
     /** 設定のページの節(11-19 全体管理の一覧の番号順。今は項目のある節だけが画面に出る)。 */
     public enum Section {
-        SPREAD("spread"), FOREST("forest"), RAID("raid"), MOBS("mobs"), SURVIVAL("survival"), WORLD("world");
+        SPREAD("spread"), FOREST("forest"), RAID("raid"), MOBS("mobs"), SURVIVAL("survival"), WORLD("world"), PERF("perf");
 
         private final String id;
 
@@ -203,6 +265,21 @@ public enum DifficultySetting {
             case QUAKE_ADVANCEMENTS -> DesignData.phases().startAdvancements();
             case LARGE_RAID_MAX_ALIVE -> LargeRaids.configuredMaxAlive();
             case EXPERIMENTAL -> 0.0D; // オフ(GameTest のサーバーだけはオン扱い —— ExperimentalFeatures#enabled)
+            case PHASE_CAP -> com.yayuy.overgrownvegetation.data.PhaseTable.MAX_PHASE;
+            case BUILD_CORROSION -> OvergrownVegetationConfig.COMMON.buildCorrosion.get() ? 1.0D : 0.0D;
+            case PORTAL_CROSSING, ORGANS, GIANT_TREES, RAIDS, RAID_BREACH, RAID_OMEN, MOB_INFECTION, ADAPTATION, TERRAIN_DAMAGE -> 1.0D;
+            case SPAWN_SAFE_RADIUS -> 0.0D;
+            case NURSERY_SPEED, ORGAN_COUNT, RAID_FREQUENCY, RAID_COUNT_SMALL, RAID_COUNT_MEDIUM, RAID_COUNT_LARGE,
+                 MOB_SPAWN_AMOUNT, EVENT_FREQUENCY -> 1.0D;
+            case RAID_MAX_ALIVE_MEDIUM -> RaidSettings.designMaxAlive(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.MEDIUM, 40);
+            case RAID_MAX_TOTAL_SMALL -> DesignData.director().assault.maxWave;
+            case RAID_MAX_TOTAL_MEDIUM -> RaidSettings.designMaxTotal(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.MEDIUM);
+            case RAID_MAX_TOTAL_LARGE -> RaidSettings.designMaxTotal(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.LARGE);
+            case FATIGUE -> DesignData.sporeField().fatigue().enabled() ? 1.0D : 0.0D;
+            case QUAKE -> OvergrownVegetationConfig.COMMON.quakeEnabled.get() ? 1.0D : 0.0D;
+            case REAL_CAP -> DesignData.perf().virtualRealCap;
+            case VIRTUAL_CAP -> DesignData.perf().virtualCap;
+            case VIRTUAL_HORDES -> OvergrownVegetationConfig.COMMON.virtualHordeEnabled.get() ? 1.0D : 0.0D;
         };
     }
 

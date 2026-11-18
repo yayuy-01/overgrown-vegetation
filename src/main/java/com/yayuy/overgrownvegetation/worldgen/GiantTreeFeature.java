@@ -371,6 +371,10 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             OvergrownVegetation.LOGGER.info("GiantTree at {}: 生成中止 —— TD の侵攻が進行中です。", origin);
             return false;
         }
+        // MOD の設定「巨大樹が生えるか」(11-19)。世界の生成の並列スレッドからも来るので、サーバーは level.getLevel() から
+        if (!com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.onFromAnyThread(level.getLevel().getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.GIANT_TREES)) {
+            return false;
+        }
 
         // 巨大樹同士が近すぎないようにする。既存の巨大樹(このワールドでこれまでに生成された
         // 古代樹の核の位置)が giantTreeMinSpacing の水平距離以内にあれば、ここには生やさない。

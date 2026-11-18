@@ -99,7 +99,7 @@ public final class BuildCorrosion {
         if (!(event.getLevel() instanceof ServerLevel level)) {
             return;
         }
-        if (!OvergrownVegetationConfig.COMMON.buildCorrosion.get()) {
+        if (!com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.on(level.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.BUILD_CORROSION)) { // MOD の設定「建築ブロックも覆うか」(11-19。既定は COMMON の buildCorrosion)
             return;
         }
         BlockState placed = event.getPlacedBlock();
@@ -145,7 +145,7 @@ public final class BuildCorrosion {
             return;
         }
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
-        if (!cfg.buildCorrosion.get() || !cfg.convertToOvergrownBiome.get()) {
+        if (!com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.on(level.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.BUILD_CORROSION) || !cfg.convertToOvergrownBiome.get()) { // 11-19: ワールドの設定(既定は COMMON の buildCorrosion)
             return;
         }
         int interval = Math.max(1, cfg.buildCorrosionIntervalTicks.get());

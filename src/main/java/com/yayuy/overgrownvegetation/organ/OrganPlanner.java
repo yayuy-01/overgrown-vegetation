@@ -38,6 +38,7 @@ public final class OrganPlanner {
     public static void tick(ServerLevel level, double day) {
         OrganTable t = DesignData.organs();
         if (!t.enabled || !DesignData.director().enabled) return;
+        if (!com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.on(level.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.ORGANS)) return; // MOD の設定「器官が生えるか」(11-19)。オフでも今ある器官は残す
         ForestOrgans data = ForestOrgans.get(level);
         if (data.planDay() >= 0.0D && day - data.planDay() < t.planIntervalDays) return;
         data.setPlanDay(day);
@@ -63,7 +64,10 @@ public final class OrganPlanner {
             if (ForestDirector.get(level).mood() != ForestDirector.Mood.NORMAL) return "貯めている間は建てない";
         }
         ForestOrgans data = ForestOrgans.get(level);
-        if (force == null && data.livingCount(small) >= (small ? t.maxSmall(phase) : t.maxOrgans(phase))) return null;
+        if (force == null && !com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.on(level.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.ORGANS)) return null; // 11-19 MOD の設定「器官が生えるか」
+        // MOD の設定「器官の数」(11-19): 上限に倍率を掛ける(減らしても今ある器官は消さない)
+        double countFactor = com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.of(level.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.ORGAN_COUNT);
+        if (force == null && data.livingCount(small) >= Math.round((small ? t.maxSmall(phase) : t.maxOrgans(phase)) * countFactor)) return null;
         double cap = ForestDirector.cap(level);
         double price = price(level, small);
         ForestDirector dir = ForestDirector.get(level);

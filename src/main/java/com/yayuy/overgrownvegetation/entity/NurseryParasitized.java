@@ -72,7 +72,9 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
     static final double FERN_NEAR = 1.5D, FERN_FAR = 4.0D;
     /** 司令塔へ「孵してよいか」を聞く間隔(tick)。11-17 から design の nurseryHatchAskTicks(前はここの 1200)。 */
     static int hatchAskInterval() {
-        return com.yayuy.overgrownvegetation.data.DesignData.director().nurseryHatchAskTicks;
+        // MOD の設定「苗床が Mob を生む速さ」(11-19): 200% なら間が半分
+        double speed = com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.ofCurrent(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.NURSERY_SPEED);
+        return Math.max(1, (int) Math.round(com.yayuy.overgrownvegetation.data.DesignData.director().nurseryHatchAskTicks / Math.max(0.01D, speed)));
     }
     /** 飲まれたかを見直す間隔(tick)。 */
     static final int SWALLOWED_CHECK = 100;

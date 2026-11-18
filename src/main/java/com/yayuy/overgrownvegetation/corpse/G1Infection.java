@@ -70,6 +70,11 @@ public final class G1Infection {
 
     /** 胞子に感染して死んだか(上の javadoc)。 */
     public static boolean isInfectionDeath(LivingEntity entity, DamageSource source) {
+        // MOD の設定「動物や村人の感染」(11-19): オフならプレイヤー以外は感染の死にしない(寄生された姿・萌芽体にならない)
+        if (!(entity instanceof net.minecraft.world.entity.player.Player) && entity.getServer() != null
+                && !com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.on(entity.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.MOB_INFECTION)) {
+            return false;
+        }
         if (source.is(ModDamageTypes.SPORE_INFECTION)) {
             return true;
         }

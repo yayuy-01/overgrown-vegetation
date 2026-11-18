@@ -136,6 +136,7 @@ public final class RaidScales {
 
     /** 大の前触れ(森の湧きが止まって静かになる)の長さ(日)。 */
     public static double omenDays(RaidScale s) {
+        if (!com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.onCurrent(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.RAID_OMEN)) return 0.0D; // MOD の設定「大きな襲撃の前触れ」(11-19)。0 日 = すぐ来る
         RaidScaleTable.Tier t = tier(s);
         return t == null ? 0.0D : t.omenDays();
     }

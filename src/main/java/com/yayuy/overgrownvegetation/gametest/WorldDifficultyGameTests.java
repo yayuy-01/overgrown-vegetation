@@ -319,6 +319,109 @@ public final class WorldDifficultyGameTests {
         helper.succeed();
     }
 
+    /**
+     * 第 2 便の項目(11-19): 既定値が設計データ・config と同じこと、変えると読む所で効くこと(フェーズの上限・汚染しない場所・襲撃の口・
+     * 前触れ・湧く量・動物の感染・適応・疲労・地割れ・遠くの群れ)。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH)
+    public static void secondBatchReadPoints(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        WorldDifficultyData data = WorldDifficultyData.get(server);
+        DifficultyValues saved = data.snapshot();
+        try {
+            data.replaceAll(new DifficultyValues());
+            com.yayuy.overgrownvegetation.difficulty.RaidSettings.push(server);
+            // 既定値
+            check(helper, data.value(DifficultySetting.RAID_MAX_TOTAL_SMALL) == DesignData.director().assault.maxWave
+                    && data.value(DifficultySetting.RAID_MAX_TOTAL_MEDIUM) == 80.0D && data.value(DifficultySetting.RAID_MAX_TOTAL_LARGE) == 0.0D
+                    && data.value(DifficultySetting.RAID_MAX_ALIVE_MEDIUM) == 40.0D,
+                    "襲撃の上限の既定が設計データと違う: 小 " + data.value(DifficultySetting.RAID_MAX_TOTAL_SMALL) + " 中 "
+                            + data.value(DifficultySetting.RAID_MAX_TOTAL_MEDIUM) + " 大 " + data.value(DifficultySetting.RAID_MAX_TOTAL_LARGE));
+            check(helper, data.value(DifficultySetting.REAL_CAP) == DesignData.perf().virtualRealCap
+                    && data.value(DifficultySetting.VIRTUAL_CAP) == DesignData.perf().virtualCap
+                    && data.value(DifficultySetting.PHASE_CAP) == com.yayuy.overgrownvegetation.data.PhaseTable.MAX_PHASE,
+                    "重さ・フェーズの上限の既定が違う");
+            check(helper, com.yayuy.overgrownvegetation.director.RaidScales.Knobs.raidsEnabled
+                    && com.yayuy.overgrownvegetation.director.RaidScales.Knobs.intervalFactor == 1.0D
+                    && com.yayuy.overgrownvegetation.director.RaidScales.maxTotal(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.MEDIUM, -9) == 80,
+                    "既定で襲撃の口が設計どおりでない");
+
+            // フェーズの上限: 切り離したフェーズの記録で、上限 2 なら F2 で止まり、上限を戻すと次の点で上がる
+            com.yayuy.overgrownvegetation.data.PhaseTable pt = DesignData.phases();
+            if (pt.autoAdvance(3) && pt.stageSpanPoints(2) != Long.MAX_VALUE) {
+                com.yayuy.overgrownvegetation.phase.PhaseData pd = com.yayuy.overgrownvegetation.phase.PhaseData.createDetachedForTests(e -> { });
+                pd.setPhase(level, 2);
+                data.set(DifficultySetting.PHASE_CAP, 2.0D);
+                pd.addPointsUnscaledForTests(level, pt.stageSpanPoints(2) + 10);
+                check(helper, pd.getPhase() == 2, "フェーズの上限 2 なのに F" + pd.getPhase() + " へ上がった");
+                data.reset(DifficultySetting.PHASE_CAP);
+                pd.addPointsUnscaledForTests(level, 1);
+                check(helper, pd.getPhase() == 3, "上限を戻しても F3 へ上がらない: F" + pd.getPhase());
+            }
+
+            // 汚染しない場所: スポーン地点の石は、半径を付けると汚染できない
+            BlockPos spawn = level.getSharedSpawnPos();
+            net.minecraft.world.level.block.state.BlockState stone = net.minecraft.world.level.block.Blocks.STONE.defaultBlockState();
+            boolean before = com.yayuy.overgrownvegetation.corruption.CorruptionRegistry.canCorrupt(level, spawn, stone, false);
+            data.set(DifficultySetting.SPAWN_SAFE_RADIUS, 32.0D);
+            check(helper, before && !com.yayuy.overgrownvegetation.corruption.CorruptionRegistry.canCorrupt(level, spawn, stone, false)
+                            && com.yayuy.overgrownvegetation.corruption.CorruptionRegistry.canCorrupt(level, spawn.offset(100, 0, 0), stone, false),
+                    "汚染しない場所が効かない(前 " + before + ")");
+
+            // 襲撃の口(RaidScales.Knobs へ写す)と前触れ
+            double omen = com.yayuy.overgrownvegetation.director.RaidScales.omenDays(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.LARGE);
+            data.set(DifficultySetting.RAIDS, 0.0D);
+            data.set(DifficultySetting.RAID_FREQUENCY, 2.0D);
+            data.set(DifficultySetting.RAID_COUNT_LARGE, 3.0D);
+            data.set(DifficultySetting.RAID_MAX_TOTAL_MEDIUM, 0.0D);
+            data.set(DifficultySetting.RAID_MAX_TOTAL_SMALL, 12.0D);
+            data.set(DifficultySetting.RAID_OMEN, 0.0D);
+            com.yayuy.overgrownvegetation.difficulty.RaidSettings.push(server);
+            check(helper, !com.yayuy.overgrownvegetation.director.RaidScales.Knobs.raidsEnabled
+                            && Math.abs(com.yayuy.overgrownvegetation.director.RaidScales.Knobs.intervalFactor - 0.5D) < EPS
+                            && com.yayuy.overgrownvegetation.director.RaidScales.Knobs.countFactor[2] == 3.0D
+                            && com.yayuy.overgrownvegetation.director.RaidScales.maxTotal(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.MEDIUM, 80) <= 0
+                            && com.yayuy.overgrownvegetation.director.RaidScales.maxTotal(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.SMALL, 40) == 12,
+                    "襲撃の項目が RaidScales.Knobs へ写らない");
+            check(helper, omen > 0.0D && com.yayuy.overgrownvegetation.director.RaidScales.omenDays(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.LARGE) == 0.0D,
+                    "前触れをオフにしても前触れの日数が 0 にならない: " + omen);
+
+            // 湧く量
+            int cap1 = 0, group = 0;
+            for (int g = 1; g <= 10 && cap1 <= 0; g++) {
+                data.reset(DifficultySetting.MOB_SPAWN_AMOUNT);
+                cap1 = com.yayuy.overgrownvegetation.spawn.EnemySpawns.edgeCap(level, g);
+                group = g;
+            }
+            data.set(DifficultySetting.MOB_SPAWN_AMOUNT, 2.0D);
+            int cap2 = com.yayuy.overgrownvegetation.spawn.EnemySpawns.edgeCap(level, group);
+            check(helper, cap1 <= 0 || Math.abs(cap2 - cap1 * 2) <= 1, "湧く量 200% で縁の上限が倍にならない: " + cap1 + " → " + cap2);
+
+            // 動物の感染・適応・疲労・地割れ・遠くの群れ
+            Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, new BlockPos(2, 2, 2));
+            DamageSource spores = com.yayuy.overgrownvegetation.registry.ModDamageTypes.sporeInfection(level);
+            boolean infects = com.yayuy.overgrownvegetation.corpse.G1Infection.isInfectionDeath(pig, spores);
+            double adaptCap = com.yayuy.overgrownvegetation.adaptation.Adaptation.cap(server);
+            data.set(DifficultySetting.MOB_INFECTION, 0.0D);
+            data.set(DifficultySetting.ADAPTATION, 0.0D);
+            data.set(DifficultySetting.FATIGUE, 0.0D);
+            data.set(DifficultySetting.QUAKE, 0.0D);
+            data.set(DifficultySetting.VIRTUAL_HORDES, 0.0D);
+            check(helper, infects && !com.yayuy.overgrownvegetation.corpse.G1Infection.isInfectionDeath(pig, spores),
+                    "動物の感染をオフにしてもブタが感染の死になる");
+            check(helper, adaptCap > 0.0D && com.yayuy.overgrownvegetation.adaptation.Adaptation.cap(server) == 0.0D, "適応をオフにしても上限が 0 にならない");
+            check(helper, !com.yayuy.overgrownvegetation.survival.FatigueTracker.on(), "疲労をオフにしても働いている");
+            check(helper, !com.yayuy.overgrownvegetation.quake.EarthquakeEvent.trigger(level, null), "地割れをオフにしても起きた");
+            check(helper, !com.yayuy.overgrownvegetation.horde.VirtualHordes.enabled(), "遠くの群れをオフにしても使われる");
+            pig.discard();
+        } finally {
+            data.replaceAll(saved);
+            com.yayuy.overgrownvegetation.difficulty.RaidSettings.push(server);
+        }
+        helper.succeed();
+    }
+
     /** OP でもホストでもない人が「完了」を送っても、ワールドの値は変わらない(11-19: サーバーでは OP だけ)。 */
     @GameTest(template = TEMPLATE, batch = BATCH)
     public static void nonOperatorCannotApply(GameTestHelper helper) {

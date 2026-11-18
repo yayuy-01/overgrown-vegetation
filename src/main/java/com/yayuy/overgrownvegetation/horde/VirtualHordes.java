@@ -236,7 +236,8 @@ public final class VirtualHordes extends SavedData {
     }
 
     public static boolean enabled() {
-        return OvergrownVegetationConfig.COMMON.virtualHordeEnabled.get();
+        // MOD の設定「遠くの群れを使うか」(11-19。既定は COMMON の virtualHordeEnabled)
+        return com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.onCurrent(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.VIRTUAL_HORDES);
     }
 
     /** 仮想にできる種か: 地上の行進できる G4・G5({@link DirectorHooks#marchable})か、G1 の段階 0(11-18 ユーザー: 後で司令塔が G1 の群れで前線を広げるため)。 */
@@ -250,7 +251,7 @@ public final class VirtualHordes extends SavedData {
 
     /** 仮想の頭数をあと何体足せるか(仮想の上限 {@code virtualCap})。 */
     public int room() {
-        return Math.max(0, DesignData.perf().virtualCap - virtualHeads());
+        return Math.max(0, (int) Math.round(com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.ofCurrent(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.VIRTUAL_CAP)) - virtualHeads()); // 11-19 MOD の設定(既定は perf.json の virtualCap)
     }
 
     /**
@@ -466,7 +467,7 @@ public final class VirtualHordes extends SavedData {
     /** 本物にする(テストからも)。 */
     public void materialize(ServerLevel level, PerfTable t) {
         double near = t.virtualMaterializeBlocks * t.virtualMaterializeBlocks;
-        int room = (realCapForTests != null ? realCapForTests : t.virtualRealCap) - realHeads(level);
+        int room = (realCapForTests != null ? realCapForTests : (int) Math.round(com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.of(level.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.REAL_CAP))) - realHeads(level); // 11-19 MOD の設定(既定は perf.json の realCap)
         int budget = Math.min(room, t.virtualSpawnPerRun);
         RandomSource random = level.getRandom();
         double raid = liveRaid(level);

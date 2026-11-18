@@ -1453,6 +1453,19 @@ public final class DevBridge {
                 log(String.format(Locale.ROOT, "CLICK %.1f %.1f (画面 %dx%d) → %s/%s", x, y,
                         mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), down, up));
             }
+            case "scroll" -> {
+                // 開いている画面をホイールで回す(GUI の拡大後の座標・回す量。負で下へ)。一覧の続きを撮るため(2026-11-19、設定のページ)
+                if (mc.screen == null) {
+                    log("ERR scroll: 画面が開いていない");
+                    return null;
+                }
+                String[] a = arg.split("\\s+");
+                double x = Double.parseDouble(a[0]);
+                double y = Double.parseDouble(a[1]);
+                double amount = Double.parseDouble(a[2]);
+                boolean done = mc.screen.mouseScrolled(x, y, 0.0D, amount);
+                log(String.format(Locale.ROOT, "SCROLL %.1f %.1f %.1f → %s", x, y, amount, done));
+            }
             case "type" -> {
                 // 開いている画面の入力欄(先に click で選んでおく)へ文字を打つ。"type \b3" のように \b は 1 文字消す(2026-11-14、設定画面の確かめ)
                 if (mc.screen == null) {

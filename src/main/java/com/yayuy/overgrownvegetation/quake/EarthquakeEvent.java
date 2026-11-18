@@ -39,7 +39,7 @@ public final class EarthquakeEvent {
      */
     public static boolean trigger(ServerLevel overworld, @Nullable BlockPos forcedEpicenter) {
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
-        if (!cfg.quakeEnabled.get()) {
+        if (!com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.on(overworld.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.QUAKE)) { // MOD の設定「地割れ」(11-19。既定は COMMON の quakeEnabled)
             return false;
         }
 

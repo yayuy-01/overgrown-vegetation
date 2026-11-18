@@ -1194,7 +1194,9 @@ public final class PhaseData extends SavedData {
         if (frozen || phase < 1) {
             return;
         }
-        while (phase < PhaseTable.MAX_PHASE
+        // MOD の設定「フェーズの上限」(11-19)。下げても今のフェーズは戻さない
+        int cap = (int) Math.round(com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.of(overworld.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.PHASE_CAP));
+        while (phase < PhaseTable.MAX_PHASE && phase < cap
                 && DesignData.phases().canAdvanceTo(phase + 1, points)) {
             advanceToPhase(overworld, phase + 1);
         }

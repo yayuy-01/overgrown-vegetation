@@ -119,13 +119,13 @@ public final class EnemySpawns {
     /** 縁の、そのグループの今の上限(基本 × 強さ。四捨五入)。 */
     public static int edgeCap(ServerLevel level, int group) {
         double s = groupStrength(level, group);
-        return s <= 0.0D ? 0 : (int) Math.round(DesignData.spawns().cap(group) * s);
+        return s <= 0.0D ? 0 : (int) Math.round(DesignData.spawns().cap(group) * s * com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.of(level.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.MOB_SPAWN_AMOUNT)); // 11-19 MOD の設定「湧く量」
     }
 
     /** 地下の G1 の今の上限。 */
     public static int underCap(ServerLevel level) {
         double s = strength(level, 1);
-        return s <= 0.0D ? 0 : (int) Math.round(DesignData.spawns().underCap * s);
+        return s <= 0.0D ? 0 : (int) Math.round(DesignData.spawns().underCap * s * com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.of(level.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.MOB_SPAWN_AMOUNT)); // 11-19 MOD の設定「湧く量」
     }
 
     // ---------------------------------------------------------------- 縁

@@ -126,7 +126,9 @@ public final class PortalCorruption {
             return false; // 火の付いていない枠は普通の黒曜石と同じ
         }
         PortalTable table = DesignData.portal();
-        if (!table.enabled() || (level.dimension() == Level.NETHER && !table.backflow())) {
+        // MOD の設定「ネザー・エンドへ渡るか」(11-19)もここで止める
+        if (!table.enabled() || !com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.on(level.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.PORTAL_CROSSING)
+                || (level.dimension() == Level.NETHER && !table.backflow())) {
             return true; // 伝わらなくても、枠は壊さない
         }
         GlobalPos anchor = GlobalPos.of(level.dimension(), portalRect(level, portal).minCorner.immutable());
@@ -146,7 +148,7 @@ public final class PortalCorruption {
             return;
         }
         PortalTable table = DesignData.portal();
-        if (!table.enabled()) {
+        if (!table.enabled() || !com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.on(level.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.PORTAL_CROSSING)) { // 11-19 MOD の設定「ネザー・エンドへ渡るか」
             return;
         }
         boolean needsEye = table.endFrameNeedsEye();

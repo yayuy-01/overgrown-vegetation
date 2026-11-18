@@ -379,7 +379,7 @@ public final class EarthquakeData extends SavedData {
             EarthquakeFissure f = new EarthquakeFissure(level, q, carveSpan);
             int want = (int) (e - pre);
             while (q.carvedWaves <= want && q.carvedWaves < carveSpan) {
-                f.carveWave(q.carvedWaves);
+                if (terrainDamage(level)) f.carveWave(q.carvedWaves); // 11-19 MOD の設定「地形を壊す要素」
                 q.carvedWaves++;
             }
         }
@@ -419,13 +419,15 @@ public final class EarthquakeData extends SavedData {
         if (e >= formEnd && !q.finalizedFissure) {
             EarthquakeFissure f = new EarthquakeFissure(level, q, carveSpan);
             while (q.carvedWaves < carveSpan) {
-                f.carveWave(q.carvedWaves);
+                if (terrainDamage(level)) f.carveWave(q.carvedWaves); // 11-19 MOD の設定「地形を壊す要素」
                 q.carvedWaves++;
             }
-            f.dryFissure();
-            f.settleWater();
-            f.lineWithCorruption();
-            f.spawnPeripheralCracks();
+            if (terrainDamage(level)) {
+                f.dryFissure();
+                f.settleWater();
+                f.lineWithCorruption();
+                f.spawnPeripheralCracks();
+            }
             if (cfg.quakeConvertBiome.get()) {
                 f.convertBiome();
             }
@@ -468,5 +470,11 @@ public final class EarthquakeData extends SavedData {
             return g.getY();
         }
         return level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+    }
+
+    /** MOD の設定「地形を壊す要素」(11-19): オフなら地割れは揺れと胞子の噴き出しだけで、地面を裂かない(掘る・水を払う・縁の汚染・まわりのひび)。 */
+    private static boolean terrainDamage(ServerLevel level) {
+        return com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.on(level.getServer(),
+                com.yayuy.overgrownvegetation.difficulty.DifficultySetting.TERRAIN_DAMAGE);
     }
 }

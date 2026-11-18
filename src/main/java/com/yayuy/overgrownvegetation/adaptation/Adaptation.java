@@ -47,6 +47,7 @@ public final class Adaptation {
      * 器官が生えたり壊れたりしても台帳は書き直さなくてよい。
      */
     public static double cap(MinecraftServer server) {
+        if (server != null && !com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.on(server, com.yayuy.overgrownvegetation.difficulty.DifficultySetting.ADAPTATION)) return 0.0D; // MOD の設定「G5 の適応」(11-19)。記録は消さない
         return DesignData.adaptation().cap();
     }
 

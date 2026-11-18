@@ -649,6 +649,9 @@ public final class CorruptionRegistry {
             // /ov corruption false(2026-10-10 ユーザー指定): どの経路の汚染も入らない。世界生成(WorldGenRegion)は止めない。
             return false;
         }
+        if (level instanceof ServerLevel sl && com.yayuy.overgrownvegetation.difficulty.SpawnSafeZone.protects(sl, pos)) {
+            return false; // MOD の設定「汚染しない場所」(11-19): スポーン地点のまわり
+        }
         if (state.isAir()) {
             return false;
         }

@@ -71,6 +71,11 @@ public final class FatigueTracker {
         return DesignData.sporeField().fatigue();
     }
 
+    /** 疲労がこのワールドで働くか(設計の enabled と MOD の設定「疲労」(11-19)の両方)。 */
+    public static boolean on() {
+        return spec().enabled() && com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.onCurrent(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.FATIGUE);
+    }
+
     /** 疲労(0〜100)。添付が無ければ 0(作らない)。 */
     public static double value(Player player) {
         return player.hasData(ModAttachments.FATIGUE) ? player.getData(ModAttachments.FATIGUE).value : 0.0D;
@@ -94,7 +99,7 @@ public final class FatigueTracker {
      */
     public static double step(Player player, int interval, double percent, int stage, boolean masked) {
         FatigueSpec s = spec();
-        if (!s.enabled()) {
+        if (!s.enabled() || !on()) {
             if (player.hasData(ModAttachments.FATIGUE) && value(player) != 0.0D) set(player, 0.0D);
             return 0.0D;
         }
@@ -129,13 +134,13 @@ public final class FatigueTracker {
 
     /** 暴露量の半減期の倍率(1〜exposureHalfLifeMax)。プレイヤー以外は 1。 */
     public static double exposureHalfLifeMultiplier(LivingEntity entity) {
-        if (!(entity instanceof Player player) || !spec().enabled()) return 1.0D;
+        if (!(entity instanceof Player player) || !on()) return 1.0D;
         return 1.0D + (spec().exposureHalfLifeMax() - 1.0D) * effectStrength(player);
     }
 
     /** 感染の進みの倍率(1〜infectionMultiplierMax。上限はユーザー指定「上限を付ける」)。 */
     public static double infectionMultiplier(Player player) {
-        if (!spec().enabled()) return 1.0D;
+        if (!on()) return 1.0D;
         double max = spec().infectionMultiplierMax();
         return Math.min(max, 1.0D + (max - 1.0D) * effectStrength(player));
     }
@@ -149,7 +154,7 @@ public final class FatigueTracker {
     /** 動きの鈍り(移動・採掘・攻撃速度)を今の疲労に合わせて張り直す。創造・観戦では外す。 */
     public static void syncModifiers(Player player) {
         FatigueSpec s = spec();
-        double t = s.enabled() && !player.isCreative() && !player.isSpectator() ? spec().effectStrength(value(player)) : 0.0D;
+        double t = on() && !player.isCreative() && !player.isSpectator() ? spec().effectStrength(value(player)) : 0.0D;
         apply(player, Attributes.MOVEMENT_SPEED, MOVE_ID, -s.moveSlow() * t);
         apply(player, Attributes.BLOCK_BREAK_SPEED, MINE_ID, -s.mineSlow() * t);
         apply(player, Attributes.ATTACK_SPEED, ATTACK_SPEED_ID, -s.attackSpeedSlow() * t);
@@ -228,7 +233,7 @@ public final class FatigueTracker {
     /** 昼でもベッドに横になれる(夜しか眠れない、だけを外す)。敵がまわりにいれば夜と同じく横になれない。 */
     @SubscribeEvent
     public static void onCanSleep(CanPlayerSleepEvent event) {
-        if (event.getProblem() != Player.BedSleepingProblem.NOT_POSSIBLE_NOW || !spec().enabled()) return;
+        if (event.getProblem() != Player.BedSleepingProblem.NOT_POSSIBLE_NOW || !on()) return;
         if (sleepCounterField() == null) return; // 夜まで飛ぶのを止められないなら、昼の休みは入れない
         Player player = event.getEntity();
         if (spec().dayRestNeedsSafety() && !player.isCreative() && monstersNear(player, event.getPos())) {
@@ -242,7 +247,7 @@ public final class FatigueTracker {
     @SubscribeEvent
     public static void onCanContinueSleeping(CanContinueSleepingEvent event) {
         if (event.getEntity() instanceof Player && event.getProblem() == Player.BedSleepingProblem.NOT_POSSIBLE_NOW
-                && spec().enabled() && sleepCounterField() != null) {
+                && on() && sleepCounterField() != null) {
             event.setContinueSleeping(true);
         }
     }

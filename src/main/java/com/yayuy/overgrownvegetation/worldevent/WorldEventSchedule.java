@@ -24,6 +24,9 @@ import java.util.List;
  */
 public final class WorldEventSchedule {
 
+    /** MOD の設定「ワールドイベントの頻度」(11-19)。WorldEvents が step の前に書く(保存しない)。200% なら間が半分。 */
+    public double frequency = 1.0D;
+
     public static final long NONE = Long.MIN_VALUE;
     public static final int DAY = 24000;
     /** これより大きく時刻が進んだら「飛んだ」(眠り・/time)とみなす(tick)。 */
@@ -494,7 +497,8 @@ public final class WorldEventSchedule {
     private long gapDays(long seed, WorldEventTable tab) {
         double lo = Math.ceil(tab.intervalMinDays), hi = Math.floor(tab.intervalMaxDays);
         if (hi < lo) hi = lo;
-        return (long) Math.min(hi, lo + Math.floor(unit(seed) * (hi - lo + 1)));
+        long days = (long) Math.min(hi, lo + Math.floor(unit(seed) * (hi - lo + 1)));
+        return Math.max(1L, Math.round(days / Math.max(0.01D, frequency)));
     }
 
     /** 0〜1 のくじ(シードと引いた回数で決まる。保存するので再起動しても同じ並び)。 */

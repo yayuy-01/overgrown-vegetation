@@ -46,8 +46,54 @@ public final class WorldDifficultyData extends SavedData {
     private WorldDifficultyData() {
     }
 
+    /** 最後に引いたサーバーとその値(汚染の判定のように 1 tick に何千回も読む所があるので、保存データの表を毎回引かない)。 */
+    private record Cached(MinecraftServer server, WorldDifficultyData data) {
+    }
+
+    @javax.annotation.Nullable
+    private static volatile Cached cached;
+
     public static WorldDifficultyData get(MinecraftServer server) {
-        return readFrom(server.overworld().getDataStorage());
+        Cached c = cached;
+        if (c != null && c.server == server) return c.data;
+        WorldDifficultyData data = readFrom(server.overworld().getDataStorage());
+        cached = new Cached(server, data);
+        return data;
+    }
+
+    /** この項目の今の値(ワールドの値、無ければ既定値)。 */
+    public static double of(MinecraftServer server, DifficultySetting setting) {
+        return get(server).value(setting);
+    }
+
+    /** オン・オフの項目がオンか。 */
+    public static boolean on(MinecraftServer server, DifficultySetting setting) {
+        return get(server).value(setting) >= 0.5D;
+    }
+
+    /** サーバーを引数で持たない所(static の口)から読むとき。動いているサーバーが無ければ既定値。 */
+    public static double ofCurrent(DifficultySetting setting) {
+        MinecraftServer server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        return server != null ? of(server, setting) : setting.defaultValue();
+    }
+
+    public static boolean onCurrent(DifficultySetting setting) {
+        return ofCurrent(setting) >= 0.5D;
+    }
+
+    /**
+     * 世界の生成の並列スレッドから読むとき: 主スレッドでなく、まだ一度も読んでいなければ既定値(保存データの表は主スレッドの物なので、
+     * 並列スレッドから開けない。起動の途中のスポーン周りの生成がこれに当たる)。
+     */
+    public static boolean onFromAnyThread(MinecraftServer server, DifficultySetting setting) {
+        return ofFromAnyThread(server, setting) >= 0.5D;
+    }
+
+    public static double ofFromAnyThread(MinecraftServer server, DifficultySetting setting) {
+        Cached c = cached;
+        if (c != null && c.server == server) return c.data.value(setting);
+        if (server.isSameThread()) return of(server, setting);
+        return setting.defaultValue();
     }
 
     /** {@link #get} の中身。GameTest が作成画面の書いたファイルを別の置き場から読み直すのにも使う。 */

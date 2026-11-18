@@ -61,6 +61,7 @@ public final class BreachGoal extends Goal {
     @Override
     public boolean canUse() {
         if (!(mob.level() instanceof ServerLevel level) || !level.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING)) return false;
+        if (!com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.on(level.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.RAID_BREACH)) return false; // MOD の設定「襲撃で壁や地形を壊すか」(11-19)
         if (!raiding(level)) { // 見直し(疑い): 拠点のまわりの襲撃の間だけ壊す。ほかの所で追っていて詰まっても、斜面や木は掘らない
             still = 0;
             lastX = Double.NaN;

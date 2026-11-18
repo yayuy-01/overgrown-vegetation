@@ -83,6 +83,7 @@ public final class WorldEvents {
         MinecraftServer server = event.getServer();
         ServerLevel ow = server.overworld();
         WorldEventData data = WorldEventData.get(server);
+        data.schedule().frequency = com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.of(server, com.yayuy.overgrownvegetation.difficulty.DifficultySetting.EVENT_FREQUENCY); // 11-19 MOD の設定「ワールドイベントの頻度」
         boolean changed = data.schedule().step(ow.getDayTime(), seed(server), DesignData.worldEvents(), env(ow));
         data.setDirty();
         if (changed || server.getTickCount() % SEND_EVERY == 0) {

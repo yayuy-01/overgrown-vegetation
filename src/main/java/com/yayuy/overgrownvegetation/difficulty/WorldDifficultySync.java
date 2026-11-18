@@ -95,6 +95,7 @@ public final class WorldDifficultySync {
         }
         if (!changes.isEmpty()) {
             MobStrength.reapplyAll(server);
+            RaidSettings.push(server);
         }
         return changes;
     }
