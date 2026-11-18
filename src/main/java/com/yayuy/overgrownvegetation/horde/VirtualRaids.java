@@ -41,18 +41,29 @@ public final class VirtualRaids {
      */
     public static int room(ServerLevel level, VirtualHordes.Swarm s) {
         if (!LargeRaids.ATTACKER_TAG.equals(s.extraTag)) return Integer.MAX_VALUE;
-        if (BaseMemory.get(level.getServer()).byId(s.baseId) == null) return 0;
-        return Math.max(0, LargeRaids.maxAlive() - attackers(level)[0]);
+        BaseMemory.Base b = BaseMemory.get(level.getServer()).byId(s.baseId);
+        if (b == null) return 0;
+        return Math.max(0, LargeRaids.maxAlive() - attackers(level, b)[0]);
     }
 
     /**
-     * 大規模レイドの攻め手の数 {全部, うち仮想の群れから本物になった分}。読み込まれた世界全体で数える(拠点のまわりの数え方 {@code LargeRaids.alive} は
+     * 大規模レイドの攻め手の数 {全部, うち仮想の群れから本物になった分}。拠点のまわりの広めの箱で数える(拠点のまわりの数え方 {@code LargeRaids.alive} は
      * 半径の中だけなので、64 ブロック先で本物になった分を数えず、上限 60 に 62 体まで出た。11-18)。毎回数え直す(同じ tick に足した分も数える)。
      */
     public static int[] attackers(ServerLevel level) {
+        return attackers(level, null);
+    }
+
+    /**
+     * 拠点 b のまわり(拠点の数える半径 + 本物にする距離 + 32 ブロック)の攻め手。遠くではぐれた・前の襲撃の生き残りが枠を取り続けないように
+     * (11-18 G1 の作成のセッションの指摘)。b が null なら世界全体(表示用)。
+     */
+    public static int[] attackers(ServerLevel level, @javax.annotation.Nullable BaseMemory.Base b) {
         int all = 0, virt = 0;
+        double r = b == null ? 0.0D : com.yayuy.overgrownvegetation.data.DesignData.director().largeRaid.countRadius + DesignData.perf().virtualMaterializeBlocks + 32.0D;
         for (net.minecraft.world.entity.Entity e : level.getAllEntities()) {
             if (!(e instanceof net.minecraft.world.entity.Mob m) || !m.isAlive() || !m.getTags().contains(LargeRaids.ATTACKER_TAG)) continue;
+            if (b != null && (Math.abs(m.getX() - b.centerX()) > r || Math.abs(m.getZ() - b.centerZ()) > r)) continue;
             all++;
             if (m.getTags().contains(VirtualHordes.TAG)) virt++;
         }
@@ -63,9 +74,9 @@ public final class VirtualRaids {
      * 大規模レイドが近くに本物を出してよい数(11-18 ユーザー決定 案 B): maxAlive のうち {@code raidReserveShare}(半分【仮】)は仮想の群れのために空けておき、
      * 近くに出す本物(仮想の群れから来ていない攻め手)は残りの枠の中だけ。全体でも maxAlive は超えない。仮想の群れを切っているときは枠を空けない。
      */
-    public static int nearRoom(ServerLevel level) {
+    public static int nearRoom(ServerLevel level, BaseMemory.Base b) {
         int max = LargeRaids.maxAlive();
-        int[] a = attackers(level);
+        int[] a = attackers(level, b);
         int total = Math.max(0, max - a[0]);
         if (!VirtualHordes.enabled()) return total;
         int nearCap = (int) Math.floor(max * (1.0D - DesignData.perf().virtualRaidReserveShare));

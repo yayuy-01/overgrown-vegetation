@@ -121,6 +121,8 @@ public final class VirtualHordes extends SavedData {
         int failures;
         /** 上限で待っているか(この回は進まない。保存しない)。 */
         boolean waiting;
+        /** 次に本物にする一員の並びの番号(本物にした分だけ進む。詰めないので、残りの身代わりの位置が動かない)。 */
+        int firstIndex;
 
         Swarm(long id, double x, double y, double z, double speed, int baseId, double tx, double tz, String extraTag) {
             this.id = id;
@@ -177,6 +179,10 @@ public final class VirtualHordes extends SavedData {
 
         public float dirZ() {
             return dirZ;
+        }
+
+        public int firstIndex() {
+            return firstIndex;
         }
 
         public double speed() {
@@ -443,23 +449,30 @@ public final class VirtualHordes extends SavedData {
             int own = VirtualRaids.room(level, s);
             if (budget <= 0 || own <= 0) {
                 s.waiting = true; // 本物の上限・この回の数の上限・襲撃の上限: その場で待つ
+                holdOutside(level, s, t);
                 continue;
             }
             int before = budget;
             budget = Math.min(budget, own);
             int rest = before - budget;
-            int placed = 0, slot = 0;
+            int placed = 0;
+            boolean blocked = false;
             for (Map.Entry<ResourceLocation, Integer> e : s.counts.entrySet()) {
+                if (blocked) break;
                 EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(e.getKey());
                 int left = e.getValue();
-                while (left > 0 && budget > 0 && slot < MAX_SWARM) {
-                    // ひまわりの並び(遠景の身代わりと同じ式: VirtualHordeLayout)
-                    double[] o = VirtualHordeLayout.offset(s.id, slot++, type);
+                while (left > 0 && budget > 0) {
+                    // ひまわりの並び(遠景の身代わりと同じ式: VirtualHordeLayout)。番号は前から順に使い、詰めない(firstIndex。身代わりの並びが動かないように)
+                    double[] o = VirtualHordeLayout.offset(s.id, s.firstIndex, type);
                     int bx = Mth.floor(s.x + o[0]), bz = Mth.floor(s.z + o[1]);
                     BlockPos feet = TreeCanopyGroundFinder.findSpawnSurface(level, bx, bz); // 樹冠の上でなく地面(読み込み途中なら null)
-                    if (feet == null || !level.isPositionEntityTicking(feet) || !level.getFluidState(feet).isEmpty()) continue;
-                    Mob m = EnemySpawns.create(level, type, feet, MobSpawnType.EVENT, random);
-                    if (m == null) continue;
+                    Mob m = feet == null || !level.isPositionEntityTicking(feet) || !level.getFluidState(feet).isEmpty() ? null
+                            : EnemySpawns.create(level, type, feet, MobSpawnType.EVENT, random);
+                    if (m == null) {
+                        blocked = true; // この一員が置けない: 順番を崩さないよう、この群れは次の回に(置けない回が続けば横へずれる)
+                        break;
+                    }
+                    s.firstIndex++;
                     m.addTag(TAG);
                     if (!s.extraTag.isEmpty()) m.addTag(s.extraTag);
                     m.setYRot((float) Math.toDegrees(Math.atan2(-s.dirX, s.dirZ)));
@@ -487,6 +500,48 @@ public final class VirtualHordes extends SavedData {
             }
             setDirty();
         }
+    }
+
+    /**
+     * 待っている群れを、並び全体が本物にする距離の外に収まる所まで、いちばん近いプレイヤーから遠ざける(11-18 C の指摘: 64 の内側に仮想のまま
+     * 残る一員は、叩けない身代わりが近くに見える)。
+     */
+    static void holdOutside(ServerLevel level, Swarm s, PerfTable t) {
+        double[] p = nearestPlayer(level, s.x, s.z);
+        if (p == null) return;
+        double maxW = 1.0D;
+        for (ResourceLocation id : s.counts.keySet()) maxW = Math.max(maxW, BuiltInRegistries.ENTITY_TYPE.get(id).getWidth());
+        double keep = t.virtualMaterializeBlocks + 1.4D * maxW * Math.sqrt(s.firstIndex + s.size() + 0.5D) + 2.0D;
+        double dx = s.x - p[0], dz = s.z - p[1], d = Math.sqrt(dx * dx + dz * dz);
+        if (d >= keep || d < 1.0E-3D) return;
+        s.x = p[0] + dx / d * keep;
+        s.z = p[1] + dz / d * keep;
+    }
+
+    /** いちばん近いプレイヤー(観戦を除く)の {x, z}。いなければ null。 */
+    @Nullable
+    static double[] nearestPlayer(ServerLevel level, double x, double z) {
+        double best = Double.MAX_VALUE;
+        double[] out = null;
+        if (playersForTests != null) {
+            for (double[] q : playersForTests) {
+                double d = (q[0] - x) * (q[0] - x) + (q[1] - z) * (q[1] - z);
+                if (d < best) {
+                    best = d;
+                    out = q;
+                }
+            }
+            return out;
+        }
+        for (ServerPlayer q : level.players()) {
+            if (q.isSpectator()) continue;
+            double d = (q.getX() - x) * (q.getX() - x) + (q.getZ() - z) * (q.getZ() - z);
+            if (d < best) {
+                best = d;
+                out = new double[]{q.getX(), q.getZ()};
+            }
+        }
+        return out;
     }
 
     /** 遠い本物を仮想へ戻す(テストからも)。戻した数を返す。 */
@@ -570,6 +625,7 @@ public final class VirtualHordes extends SavedData {
             c.putDouble("OX", s.originX);
             c.putDouble("OZ", s.originZ);
             c.putBoolean("Retreat", s.retreating);
+            c.putInt("First", s.firstIndex);
             ListTag counts = new ListTag();
             for (Map.Entry<ResourceLocation, Integer> e : s.counts.entrySet()) {
                 CompoundTag ct = new CompoundTag();
@@ -599,6 +655,7 @@ public final class VirtualHordes extends SavedData {
                 s.originZ = c.getDouble("OZ");
             }
             s.retreating = c.getBoolean("Retreat");
+            s.firstIndex = Math.max(0, c.getInt("First"));
             for (Tag ct : c.getList("Counts", Tag.TAG_COMPOUND)) {
                 CompoundTag cc = (CompoundTag) ct;
                 ResourceLocation id = ResourceLocation.tryParse(cc.getString("Type"));

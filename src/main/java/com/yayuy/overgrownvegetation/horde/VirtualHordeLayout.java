@@ -8,7 +8,7 @@ import net.minecraft.world.entity.EntityType;
  *
  * <p>ひまわりの並び: 一員 {@code index} の半径 = 1.4 × 幅 × √(index + 0.5)、角度 = 群れの id から決まる始まり + index × 黄金角。
  * 幅は {@link EntityType#getWidth}(1 未満は 1)。向きは世界の向き(群れの進む向きでは回さない)。
- * {@code index} は、送る種ごとの頭数(counts)の並び順に数えた通し番号(0 から)。
+ * {@code index} は、送る群れの firstIndex + 種ごとの頭数(counts)の並び順に数えた通し番号(本物にした分で詰めない)。
  */
 public final class VirtualHordeLayout {
 

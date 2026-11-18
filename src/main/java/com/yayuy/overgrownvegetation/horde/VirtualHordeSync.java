@@ -58,7 +58,7 @@ public final class VirtualHordeSync {
                 for (Map.Entry<ResourceLocation, Integer> e : s.counts().entrySet()) {
                     counts.add(new VirtualHordePayload.Count(BuiltInRegistries.ENTITY_TYPE.get(e.getKey()), e.getValue()));
                 }
-                out.add(new VirtualHordePayload.Swarm(s.id(), s.x(), s.y(), s.z(), s.dirX(), s.dirZ(), (float) s.speed(), counts));
+                out.add(new VirtualHordePayload.Swarm(s.id(), s.x(), s.y(), s.z(), s.dirX(), s.dirZ(), (float) s.speed(), s.firstIndex(), counts));
             }
             PacketDistributor.sendToPlayer(p, new VirtualHordePayload(out));
             SENT.add(p.getUUID());

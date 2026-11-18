@@ -22,8 +22,8 @@ public record VirtualHordePayload(List<Swarm> swarms) implements CustomPacketPay
 
     public static final Type<VirtualHordePayload> TYPE = new Type<>(OvergrownVegetation.id("virtual_horde"));
 
-    /** 群れ 1 つ。速さはブロック/tick(待っている・着いた群れは 0)。 */
-    public record Swarm(long id, double x, double y, double z, float dirX, float dirZ, float speed, List<Count> counts) {
+    /** 群れ 1 つ。速さはブロック/tick(待っている・着いた群れは 0)。firstIndex = counts の先頭の一員の並びの番号(VirtualHordeLayout.offset の index は firstIndex + 通し番号)。 */
+    public record Swarm(long id, double x, double y, double z, float dirX, float dirZ, float speed, int firstIndex, List<Count> counts) {
     }
 
     public record Count(EntityType<?> type, int n) {
@@ -44,6 +44,7 @@ public record VirtualHordePayload(List<Swarm> swarms) implements CustomPacketPay
                     buf.writeFloat(s.dirX);
                     buf.writeFloat(s.dirZ);
                     buf.writeFloat(s.speed);
+                    buf.writeVarInt(s.firstIndex);
                     int c = Math.min(MAX_COUNTS, s.counts.size());
                     buf.writeVarInt(c);
                     for (int k = 0; k < c; k++) {
@@ -59,10 +60,11 @@ public record VirtualHordePayload(List<Swarm> swarms) implements CustomPacketPay
                     long id = buf.readLong();
                     double x = buf.readDouble(), y = buf.readDouble(), z = buf.readDouble();
                     float dx = buf.readFloat(), dz = buf.readFloat(), sp = buf.readFloat();
+                    int first = buf.readVarInt();
                     int c = Math.min(MAX_COUNTS, buf.readVarInt());
                     List<Count> counts = new ArrayList<>(c);
                     for (int k = 0; k < c; k++) counts.add(new Count(TYPE_CODEC.decode(buf), Math.min(512, buf.readVarInt())));
-                    list.add(new Swarm(id, x, y, z, dx, dz, sp, counts));
+                    list.add(new Swarm(id, x, y, z, dx, dz, sp, first, counts));
                 }
                 return new VirtualHordePayload(list);
             });
