@@ -58,6 +58,29 @@ final class HorizonLightning {
      * 嵐の巣(2026-11-18): 天気に関係なく、壁の雲の中で絶えず雷が光る(9 km 以内)。芯から 3500 ブロック以内では、強い突風を繰り返し吹かせる
      * (近いほど間隔が短い。3〜8 秒)。雲の一覧は 10 秒に 1 回だけ引き直す。数値は仮決め。
      */
+    /** いちばん近い巣(芯 core)の壁の塔だけを相手にする(ほかの巣の壁なら、同じ巣の壁から選び直す)。 */
+    private static CloudField.Storm nearWall(CloudField.Storm core, CloudField.Storm pick) {
+        if (Math.hypot(pick.x() - core.x(), pick.z() - core.z()) < 2000.0) {
+            return pick;
+        }
+        for (CloudField.Storm s : nestWalls) {
+            if (Math.hypot(s.x() - core.x(), s.z() - core.z()) < 2000.0) {
+                return s;
+            }
+        }
+        return pick;
+    }
+
+    /** 壁の塔 s の、目(芯)の側の面の上の点(場の座標)。up = 高さの割合(雲の底〜天辺)。 */
+    private static double[] innerFace(CloudField.Storm s, CloudField.Storm core, double up) {
+        double dx = core.x() - s.x();
+        double dz = core.z() - s.z();
+        double d = Math.max(1.0, Math.hypot(dx, dz));
+        double r = s.bodyRadius() * 1.05;
+        double side = (RANDOM.nextDouble() - 0.5) * s.bodyRadius();
+        return new double[]{s.x() + dx / d * r - dz / d * side, CloudField.LOW_BASE + (s.topY() - CloudField.LOW_BASE) * up, s.z() + dz / d * r + dx / d * side};
+    }
+
     /** 確かめ用(wx sky nestwhere): いちばん近い嵐の巣の芯の世界の座標と距離。 */
     public static String describeNest(ClientLevel level, LocalPlayer player) {
         CloudField.Storm c = nestCore;
@@ -96,6 +119,28 @@ final class HorizonLightning {
         }
         if (!nestWalls.isEmpty() && FLASHES.size() < 5 && RANDOM.nextFloat() < 0.07F) {
             spawn(level, nestWalls.get(RANDOM.nextInt(nestWalls.size())), camFx, camFz, player, WeatherLook.storm());
+        }
+        // 稲妻の筋(11-18 ユーザー「目の中で目立つ雷を」): 芯から 4500 ブロック以内にいる間、ばらばらの間隔(平均 1.2 秒に 1 本)で、壁の目の側の面を走らせる。
+        // 4 本に 1 本は、目を横切って向かいの壁へ渡る。
+        if (nestCore != null && !nestWalls.isEmpty() && RANDOM.nextFloat() < 0.042F) {
+            double coreD = Math.hypot(nestCore.x() - camFx, nestCore.z() - camFz);
+            if (coreD < 4500.0) {
+                double ox = player.getX() - camFx;
+                double oz = player.getZ() - camFz;
+                CloudField.Storm a = nearWall(nestCore, nestWalls.get(RANDOM.nextInt(nestWalls.size())));
+                double[] pa = innerFace(a, nestCore, 0.55 + 0.4 * RANDOM.nextDouble());
+                double[] pb;
+                if (RANDOM.nextFloat() < 0.25F) {
+                    CloudField.Storm b = nearWall(nestCore, nestWalls.get(RANDOM.nextInt(nestWalls.size())));
+                    pb = innerFace(b, nestCore, 0.3 + 0.5 * RANDOM.nextDouble());
+                } else {
+                    double turn = (RANDOM.nextDouble() - 0.5) * 0.9;
+                    double dx = pa[0] - nestCore.x();
+                    double dz = pa[2] - nestCore.z();
+                    pb = new double[]{nestCore.x() + dx * Math.cos(turn) - dz * Math.sin(turn), pa[1] - 500.0 - 900.0 * RANDOM.nextDouble(), nestCore.z() + dx * Math.sin(turn) + dz * Math.cos(turn)};
+                }
+                StormStrikes.nestBolt(pa[0] + ox, pa[1], pa[2] + oz, pb[0] + ox, Math.max(pb[1], CloudField.LOW_BASE + 120.0), pb[2] + oz, RANDOM.nextLong());
+            }
         }
         if (nestCore != null) {
             double d = Math.hypot(nestCore.x() - camFx, nestCore.z() - camFz);

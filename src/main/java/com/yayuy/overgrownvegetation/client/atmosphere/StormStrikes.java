@@ -202,6 +202,65 @@ public final class StormStrikes {
         THUNDERS.clear();
     }
 
+    /** 嵐の巣の稲妻(2026-11-18。サーバーの知らせなし・見た目だけ)。{@link HorizonLightning} の巣の雷が足す。 */
+    private static final class NestBolt {
+        float[] main;
+        final List<float[]> branches = new ArrayList<>();
+        long startNanos;
+        float mx, my, mz;
+    }
+
+    private static final List<NestBolt> NEST_BOLTS = new ArrayList<>();
+
+    /**
+     * 嵐の巣の稲妻を 1 本足す: (x0, y0, z0) から (x1, y1, z1) へ、折れ曲がりながら走る筋と枝 2〜3 本。光り方は落雷と同じ({@link #boltLevel})。
+     * 同時に 6 本まで(古い物から消える)。
+     */
+    static void nestBolt(double x0, double y0, double z0, double x1, double y1, double z1, long seed) {
+        Random r = new Random(seed);
+        NestBolt b = new NestBolt();
+        int n = 14;
+        double len = Math.sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0) + (z1 - z0) * (z1 - z0));
+        double amp = len * 0.06;
+        b.main = new float[(n + 1) * 3];
+        for (int i = 0; i <= n; i++) {
+            double t = i / (double) n;
+            double wob = i == 0 || i == n ? 0.0 : amp;
+            b.main[i * 3] = (float) (x0 + (x1 - x0) * t + (r.nextDouble() - 0.5) * wob);
+            b.main[i * 3 + 1] = (float) (y0 + (y1 - y0) * t + (r.nextDouble() - 0.5) * wob);
+            b.main[i * 3 + 2] = (float) (z0 + (z1 - z0) * t + (r.nextDouble() - 0.5) * wob);
+        }
+        int branches = 2 + r.nextInt(2);
+        for (int k = 0; k < branches; k++) {
+            int from = 2 + r.nextInt(n - 5);
+            int bl = 3 + r.nextInt(3);
+            float[] br = new float[(bl + 1) * 3];
+            double bx = b.main[from * 3];
+            double by = b.main[from * 3 + 1];
+            double bz = b.main[from * 3 + 2];
+            double ang = r.nextDouble() * Math.PI * 2.0;
+            double step = len / n * 0.8;
+            for (int i = 0; i <= bl; i++) {
+                br[i * 3] = (float) bx;
+                br[i * 3 + 1] = (float) by;
+                br[i * 3 + 2] = (float) bz;
+                bx += Math.cos(ang) * step * (0.5 + r.nextDouble() * 0.6);
+                bz += Math.sin(ang) * step * (0.5 + r.nextDouble() * 0.6);
+                by -= step * (0.2 + r.nextDouble() * 0.7);
+                ang += (r.nextDouble() - 0.5) * 0.9;
+            }
+            b.branches.add(br);
+        }
+        b.mx = (float) ((x0 + x1) * 0.5);
+        b.my = (float) ((y0 + y1) * 0.5);
+        b.mz = (float) ((z0 + z1) * 0.5);
+        b.startNanos = System.nanoTime();
+        while (NEST_BOLTS.size() >= 6) {
+            NEST_BOLTS.remove(0);
+        }
+        NEST_BOLTS.add(b);
+    }
+
     /** 稲妻の明るさ(0〜1): 最初の閃き → 弱まる → 2 回目の閃き → 消える。 */
     private static float boltLevel(float age) {
         if (age < 0.0F || age > LIFE) {
@@ -229,13 +288,26 @@ public final class StormStrikes {
                 return new float[]{(float) (s.x - camX), (float) (s.top + 40.0 - camY), (float) (s.z - camZ), level * 1.6F};
             }
         }
+        // 嵐の巣の稲妻(11-18): 新しい順に。強さは落雷より強く(暗い壁を一瞬明るく照らす)。
+        for (int q = NEST_BOLTS.size() - 1; q >= 0; q--) {
+            NestBolt nb = NEST_BOLTS.get(q);
+            float level = boltLevel((float) ((now - nb.startNanos) / 1.0e9));
+            if (level <= 0.0F) {
+                continue;
+            }
+            if (k++ == i) {
+                return new float[]{(float) (nb.mx - camX), (float) (nb.my - camY), (float) (nb.mz - camZ), level * 3.2F};
+            }
+        }
         // 空いた口は、地平線の遠い雷(サーバーの知らせなしの、遠い雲の中の光。11-16 HorizonLightning)が使う。
         return HorizonLightning.cloudFlash(i - k, camX, camY, camZ);
     }
 
     /** {@link Atmosphere} の加算の光の所から(光の筋と同じ描き先・同じ足し方)。 */
     static void render(RenderLevelStageEvent event) {
-        if (STRIKES.isEmpty()) {
+        long nowNest = System.nanoTime();
+        NEST_BOLTS.removeIf(b -> (nowNest - b.startNanos) / 1.0e9 > LIFE);
+        if (STRIKES.isEmpty() && NEST_BOLTS.isEmpty()) {
             return;
         }
         Vec3 eye = event.getCamera().getPosition();
@@ -265,6 +337,22 @@ public final class StormStrikes {
                 float radius = (float) Math.max(24.0, dist * 0.05) * (1.0F + 0.5F * age / GLOW_LIFE);
                 disc(c, (float) (dx * scale), (float) ((s.hit - eye.y) * scale), (float) (dz * scale), radius * scale, lookF, 0.675F, 0.89F, 0.10F, g * 0.85F);
                 disc(c, (float) (dx * scale), (float) ((s.hit - eye.y) * scale), (float) (dz * scale), radius * scale * 0.45F, lookF, 0.9F, 1.0F, 0.55F, g * 0.6F);
+            }
+        }
+        for (NestBolt nb : NEST_BOLTS) {
+            float level = boltLevel((float) ((now - nb.startNanos) / 1.0e9));
+            if (level <= 0.003F) {
+                continue;
+            }
+            double dx = nb.mx - eye.x;
+            double dz = nb.mz - eye.z;
+            double dist = Math.sqrt(dx * dx + dz * dz);
+            float scale = (float) Math.min(1.0, DRAW_AT / Math.max(dist, 1.0));
+            float width = (float) Math.max(1.2, dist * 0.006);
+            line(c, nb.main, eye, scale, width, level, 0.6F);
+            line(c, nb.main, eye, scale, width * 4.0F, level * 0.25F, 0.6F);
+            for (float[] br : nb.branches) {
+                line(c, br, eye, scale, width * 0.6F, level * 0.6F, 0.3F);
             }
         }
         buffers.endBatch(AddLight.renderType());

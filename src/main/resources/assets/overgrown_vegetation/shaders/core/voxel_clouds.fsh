@@ -100,6 +100,18 @@ vec3 ovFlash(vec4 f) {
     return vec3(0.82, 0.86, 1.0) * (f.w * g * 0.6);
 }
 
+// Storm nest (11-18): the lightning lights the dark walls wide and strong, brighter on the faces turned towards it, so the shape of
+// the wall stands out for the moment of the flash.
+vec3 ovFlashNest(vec4 f, vec3 nrm) {
+    if (f.w <= 0.0) {
+        return vec3(0.0);
+    }
+    vec3 d = f.xyz - ovPos;
+    float g = exp(-dot(d, d) / (2.0 * 700.0 * 700.0));
+    float facing = 0.35 + 0.65 * max(dot(nrm, normalize(d)), 0.0);
+    return vec3(0.80, 0.86, 1.0) * (f.w * g * facing * 0.55);
+}
+
 // Direction from the face centre towards its edge e (0: a-b, 1: b-c, 2: c-d, 3: d-a in vertex order; client/VoxelClouds.java uses the
 // same vertex order for every face of a direction). The face beyond a convex edge faces this way.
 vec3 ovEdgeDir(int face, int e) {
@@ -431,12 +443,15 @@ void main() {
     // around the camera stand out as hard white rectangles.
     // Storm nest (11-18): vertex alpha 0.95 (near) or 0.19 (far ring) = the dark storm clouds of a nest. Deep grey low down and on the
     // undersides, lighter towards the top, so the walls read as a storm and the lightning stands out (the flashes are added after this).
-    if ((ovInfo.a > 0.92 && ovInfo.a < 0.98) || (ovInfo.a > 0.17 && ovInfo.a < 0.215)) {
+    bool nestCloud = (ovInfo.a > 0.92 && ovInfo.a < 0.98) || (ovInfo.a > 0.17 && ovInfo.a < 0.215);
+    if (nestCloud) {
         float nh = clamp((worldY - 300.0) / 2300.0, 0.0, 1.0);
         float nk = n.y < -0.5 ? 0.85 : mix(0.78, 0.28, nh * nh);
         c = mix(c, CloudColor.rgb * vec3(0.20, 0.22, 0.28), nk);
     }
-    c += min(ovFlash(Flash0) + ovFlash(Flash1) + ovFlash(Flash2), vec3(0.35)) * (1.0 - 0.85 * smoothstep(0.03, 0.3, InsideFog.y));
+    vec3 flashSum = nestCloud ? min(ovFlashNest(Flash0, n) + ovFlashNest(Flash1, n) + ovFlashNest(Flash2, n), vec3(1.5))
+            : min(ovFlash(Flash0) + ovFlash(Flash1) + ovFlash(Flash2), vec3(0.35));
+    c += flashSum * (1.0 - 0.85 * smoothstep(0.03, 0.3, InsideFog.y));
     // Before a scheduled rain (11-09, clouds stage 2a-6, PreRain.y): the undersides and the low sides darken, so an overcast sky still
     // reads as "rain is coming". Strongest on the undersides seen from the ground.
     if (PreRain.y > 0.001) {
