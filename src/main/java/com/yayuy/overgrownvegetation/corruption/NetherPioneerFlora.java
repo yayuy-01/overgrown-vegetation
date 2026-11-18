@@ -221,6 +221,9 @@ public final class NetherPioneerFlora implements NetherFloraHooks.Flora {
     /** 根が入ってよいブロック(空気・草・溶岩・ネザーの地面)。ポータル・建物・菌の木・浮き草には入らない。 */
     static boolean replaceable(BlockState s) {
         if (s.is(Blocks.NETHER_PORTAL) || s.is(ModBlocks.LAVA_FERN_MAT.get())) return false;
+        // 管の樹(管・羽根)にも入らない(2026-11-18 揺れるテストの調べ): 開いた羽根は通り抜けられる = isOpen なので、根の網が羽根を根に置き換え、
+        // 管の先の羽根が無くなっていた(tubeTreesStayUnderTheLake が決まった場所で落ちていた)
+        if (s.is(ModBlocks.TUBE_TREE_STEM.get()) || s.is(ModBlocks.TUBE_TREE_PLUME.get())) return false;
         if (s.hasBlockEntity()) return false;
         if (NetherSurface.isOpen(s)) return true;
         if (!s.getFluidState().isEmpty()) return s.is(Blocks.LAVA) && s.getFluidState().isSource();

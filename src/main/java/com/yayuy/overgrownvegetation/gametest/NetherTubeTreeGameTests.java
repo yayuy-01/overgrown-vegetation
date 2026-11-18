@@ -92,8 +92,19 @@ public final class NetherTubeTreeGameTests {
         }
     }
 
-    /** 3×3 チャンクの床(西 4 列が陸・東が溶岩の海)を作り、全部に前線を届けて段階 2 を終わらせる。真ん中のチャンクを返す。 */
+    /**
+     * {@link #stage2Once} を、真ん中のチャンクに管の樹が 1 本でも立つ場所が出るまで(8 か所まで)試す。群れのノイズ({@link #hasGrove})が濃くても、
+     * 升ごとの抽選(SALT_CELL)が全部外れる所や、先に生えた浮き草が升を塞ぐ所(浮き草の上には立てない = 設計どおり)では 1 本も立たない。
+     * 場所は乱数で選ぶので、前は 1 割ほど「段階 2 で管の樹が立たない」で落ちていた(2026-11-18 揺れるテストの調べ: 200 本並べて 13 本。直した後 0 本)。
+     */
     private static ChunkPos stage2(ServerLevel nether, int oz) {
+        ChunkPos a = stage2Once(nether, oz);
+        for (int tries = 1; tries < 8 && bases(nether, a).isEmpty(); tries++) a = stage2Once(nether, oz);
+        return a;
+    }
+
+    /** 3×3 チャンクの床(西 4 列が陸・東が溶岩の海)を作り、全部に前線を届けて段階 2 を終わらせる。真ん中のチャンクを返す。 */
+    private static ChunkPos stage2Once(ServerLevel nether, int oz) {
         NetherSpreadTable t = DesignData.netherSpread();
         int s = NetherLava.surfaceY(nether);
         // 群れのまだらは座標で決まり、チャンクごと群れの無い所もある。海の側に濃い群れのある所を選ぶ(2026-11-12)
@@ -190,7 +201,7 @@ public final class NetherTubeTreeGameTests {
             }
             int h = height(nether, b);
             if (h < t.tubeSideMin || h > t.tubeMiddleMax) {
-                helper.fail("管の高さが 3〜9 の外(または羽根が無い): " + b + " 高さ " + h);
+                helper.fail("管の高さが 3〜9 の外(または羽根が無い): " + b + " 高さ " + h + " [列] " + java.util.stream.IntStream.rangeClosed(-2, 11).mapToObj(k -> (k == 0 ? "*" : "") + net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(nether.getBlockState(b.above(k)).getBlock()).getPath() + (nether.getBlockState(b.above(k)).hasProperty(com.yayuy.overgrownvegetation.block.TubeTreeStemBlock.BASE) && nether.getBlockState(b.above(k)).getValue(com.yayuy.overgrownvegetation.block.TubeTreeStemBlock.BASE) ? "(B)" : "")).collect(java.util.stream.Collectors.joining(",")) + " 列の持ち主 " + new ChunkPos(NetherJitter.owner(nether.getSeed(), b.getX(), b.getZ(), DesignData.netherSpread().edgeJitterBlocks, DesignData.netherSpread().edgeJitterScale)) + " 真ん中 " + a);
                 return;
             }
             if (h >= t.tubeMiddleMin) tall++;
@@ -284,7 +295,7 @@ public final class NetherTubeTreeGameTests {
         int s = NetherLava.surfaceY(nether);
         List<BlockPos> before = bases(nether, a);
         if (before.isEmpty()) {
-            helper.fail("段階 2 で管の樹が立たない");
+            helper.fail("段階 2 で管の樹が立たない" + " [診断] チャンク " + a + " 群れ " + hasGrove(nether, a.x, a.z) + " 段 " + NetherLedgerData.get(nether).appliedStage(a.toLong()) + " 届いた " + NetherLedgerData.get(nether).arrivalOf(a.toLong()) + " 今 " + nether.getGameTime() + " 床 " + nether.getBlockState(new BlockPos(a.getMinBlockX() + 8, s, a.getMinBlockZ() + 8)) + " 上 " + nether.getBlockState(new BlockPos(a.getMinBlockX() + 8, s + 1, a.getMinBlockZ() + 8)) + " 海側 " + nether.getBlockState(new BlockPos(a.getMinBlockX() + 10, s, a.getMinBlockZ() + 8)));
             return;
         }
         int plumesBefore = 0;
@@ -299,7 +310,7 @@ public final class NetherTubeTreeGameTests {
         for (BlockPos b : after) {
             int h = height(nether, b);
             if (h <= 0) {
-                helper.fail("湖の後に管が途切れた(羽根まで続かない): " + b);
+                helper.fail("湖の後に管が途切れた(羽根まで続かない): " + b + " [列] " + java.util.stream.IntStream.rangeClosed(-2, 11).mapToObj(k -> (k == 0 ? "*" : "") + net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(nether.getBlockState(b.above(k)).getBlock()).getPath() + (nether.getBlockState(b.above(k)).hasProperty(com.yayuy.overgrownvegetation.block.TubeTreeStemBlock.BASE) && nether.getBlockState(b.above(k)).getValue(com.yayuy.overgrownvegetation.block.TubeTreeStemBlock.BASE) ? "(B)" : "")).collect(java.util.stream.Collectors.joining(",")) + " 列の持ち主 " + new ChunkPos(NetherJitter.owner(nether.getSeed(), b.getX(), b.getZ(), DesignData.netherSpread().edgeJitterBlocks, DesignData.netherSpread().edgeJitterScale)) + " 真ん中 " + a);
                 return;
             }
             plumes++;

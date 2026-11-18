@@ -132,7 +132,7 @@ public final class G1Skill2GameTests {
             helper.assertTrue(behind.hasEffect(MobEffects.WEAKNESS), "悪い効果まで消えた");
             helper.assertTrue(SporeExposureTracker.dose(behind) >= 199.0D, "浴びた暴露量が足りない: " + SporeExposureTracker.dose(behind));
             helper.assertTrue(front.hasEffect(MobEffects.DAMAGE_RESISTANCE), "正面の相手まで浴びた");
-            helper.assertTrue(SporeExposureTracker.dose(front) < 1.0D, "正面の相手に暴露量が足された");
+            helper.assertTrue(SporeExposureTracker.dose(front) < 1.0D, "正面の相手に暴露量が足された " + SporeAmbient.describe(helper.getLevel(), front));
             helper.assertTrue(!puddles(helper).isEmpty(), "乳だまりが残っていない");
         });
     }
@@ -149,7 +149,7 @@ public final class G1Skill2GameTests {
         helper.runAtTickTime(t0 + 20, () -> {
             helper.assertTrue(!cow.hasEffect(MobEffects.MOVEMENT_SPEED), "踏んでも良い効果が消えない");
             helper.assertTrue(cow.hasEffect(MobEffects.WEAKNESS), "悪い効果まで消えた");
-            helper.assertTrue(SporeExposureTracker.dose(cow) < 1.0D, "踏んだだけで暴露量が足された");
+            helper.assertTrue(SporeExposureTracker.dose(cow) < 1.0D, "踏んだだけで暴露量が足された " + SporeAmbient.describe(helper.getLevel(), cow));
         });
         helper.runAtTickTime(t0 + 130, () -> {
             helper.assertTrue(puddles(helper).isEmpty(), "乳だまりが 6 秒で消えない");
@@ -494,7 +494,7 @@ public final class G1Skill2GameTests {
         chicken.forceSkillsReady();
         helper.succeedWhen(() -> {
             helper.assertTrue(SporeExposureTracker.dose(cow) >= 220.0D, "円錐の中の暴露量が足りない: " + SporeExposureTracker.dose(cow));
-            helper.assertTrue(SporeExposureTracker.dose(behind) < 1.0D, "後ろまで浴びた");
+            helper.assertTrue(SporeExposureTracker.dose(behind) < 1.0D, "後ろまで浴びた " + SporeAmbient.describe(helper.getLevel(), behind));
         });
     }
 

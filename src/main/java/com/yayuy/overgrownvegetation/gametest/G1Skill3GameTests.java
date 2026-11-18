@@ -161,7 +161,7 @@ public final class G1Skill3GameTests {
         helper.runAtTickTime(t0 + 70, () -> {
             helper.assertTrue(creeper.podsFull(), "離れたのに爆ぜた");
             helper.assertTrue(creeper.action() != G1Move.FUSE.id() && creeper.action() != G1Move.BURST.id(), "導火が止まっていない");
-            helper.assertTrue(SporeExposureTracker.dose(cow) < 1.0D, "離れた相手に暴露量が足された");
+            helper.assertTrue(SporeExposureTracker.dose(cow) < 1.0D, "離れた相手に暴露量が足された " + SporeAmbient.describe(helper.getLevel(), cow));
             helper.succeed();
         });
     }
@@ -269,7 +269,7 @@ public final class G1Skill3GameTests {
             helper.assertTrue(pod.isRemoved(), "叩いた莢が消えない");
         });
         helper.runAtTickTime(t0 + 60, () -> {
-            helper.assertTrue(SporeExposureTracker.dose(cow) < 1.0D, "潰した莢が撒いた");
+            helper.assertTrue(SporeExposureTracker.dose(cow) < 1.0D, "潰した莢が撒いた " + SporeAmbient.describe(helper.getLevel(), cow));
             helper.assertTrue(corruptedFloor(helper) == 0, "潰した莢が床を汚染した");
             helper.succeed();
         });
