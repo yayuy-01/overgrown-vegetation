@@ -48,7 +48,13 @@ public final class CloudSky {
     }
 
     /** 今の雲の量(設計値で固定されていればその値)。 */
+    /** 確かめ用(11-18): 雲の量を固定する(負 = しない)。1 人用ではサーバーも同じ値を見る。DevBridge の wx sky cover。 */
+    public static volatile float devCoverage = -1.0F;
+
     public static float coverage(Level level, float partialTick) {
+        if (devCoverage >= 0.0F) {
+            return devCoverage;
+        }
         double override = CloudShape.current().coverage();
         if (override >= 0.0) {
             return (float) override;

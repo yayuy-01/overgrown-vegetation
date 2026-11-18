@@ -52,6 +52,8 @@ public final class StormLightning {
 
     /** 測り(/ov weather で出す): 落とした数・森に落ちた数・巨大樹に落ちた数・調べにかかった時間の合計(ns)と回数。 */
     static long strikes, forestStrikes, treeStrikes, checkNanos, checks;
+    /** 確かめ用(11-18): 落とすたびに、どの雲のどこへ落としたかをログに書く。 */
+    public static volatile boolean devLog;
 
     private StormLightning() {
     }
@@ -125,6 +127,10 @@ public final class StormLightning {
                 if (f == forced) spot = new Spot(c.x(), c.z(), false, f);
             }
             if (spot == null) spot = new Spot(cx, cz, false, false);
+        }
+        if (devLog) {
+            com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info("STRIKE cloud ({}, {}) inner {} top {} -> ({}, {}) dist {}", Math.round(cx), Math.round(cz), Math.round(r), s.topY(),
+                    Math.round(spot.x()), Math.round(spot.z()), Math.round(Math.hypot(spot.x() - cx, spot.z() - cz)));
         }
         strikeAt(level, s.id(), spot, rnd.nextLong());
         return spot;
