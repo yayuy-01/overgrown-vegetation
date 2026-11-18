@@ -429,6 +429,13 @@ void main() {
     // Capped so a flash lights the cloud from inside without blowing it out to white (user: too dazzling).
     // Inside a cloud the flash lights the fog (client/CloudInterior.java) rather than the box faces: a near flash made the hidden faces
     // around the camera stand out as hard white rectangles.
+    // Storm nest (11-18): vertex alpha 0.95 (near) or 0.19 (far ring) = the dark storm clouds of a nest. Deep grey low down and on the
+    // undersides, lighter towards the top, so the walls read as a storm and the lightning stands out (the flashes are added after this).
+    if ((ovInfo.a > 0.92 && ovInfo.a < 0.98) || (ovInfo.a > 0.17 && ovInfo.a < 0.215)) {
+        float nh = clamp((worldY - 300.0) / 2300.0, 0.0, 1.0);
+        float nk = n.y < -0.5 ? 0.85 : mix(0.78, 0.28, nh * nh);
+        c = mix(c, CloudColor.rgb * vec3(0.20, 0.22, 0.28), nk);
+    }
     c += min(ovFlash(Flash0) + ovFlash(Flash1) + ovFlash(Flash2), vec3(0.35)) * (1.0 - 0.85 * smoothstep(0.03, 0.3, InsideFog.y));
     // Before a scheduled rain (11-09, clouds stage 2a-6, PreRain.y): the undersides and the low sides darken, so an overcast sky still
     // reads as "rain is coming". Strongest on the undersides seen from the ground.

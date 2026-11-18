@@ -492,6 +492,7 @@ public final class CloudField {
 
     /** 場の座標(風で流れた分を引いた座標)。 */
     public static double fieldX(double worldX, long gameTime, float partialTick) {
+        nowTick = gameTime;
         return worldX - offsetX((double) gameTime + partialTick);
     }
 
@@ -551,10 +552,6 @@ public final class CloudField {
                 long epoch = Mth.floor(phase);
                 float u = (float) (phase - epoch);
                 long cell = home ^ (epoch * 0x165667B19E3779F9L);
-                if (devNest > 0.0F && hash01(home, 31) < NEST_CELL_SHARE * devNest) {
-                    nest(all, gx, gz, grid, home, dayTime, style);
-                    continue;
-                }
                 // 地域の雲の多さで確率を変える(晴れた地域はまれ、雲の多い地域は多い。10-18)。升の真ん中の地域で決める。
                 float here = chance * regionStormsCell(gx, gz, grid) * (realSky() ? CloudShape.current().stormShare() : 1.0F);
                 float h = hash01(cell, 1);
@@ -631,6 +628,7 @@ public final class CloudField {
                 }
             }
         }
+        nests(all, minX, minZ, maxX, maxZ, dayTime, style);
         landmarks(all, style);
         congestus(all, minX, minZ, maxX, maxZ, dayTime, chance, style);
         if (brute) {
@@ -793,8 +791,9 @@ public final class CloudField {
         }
     }
 
-    /** 嵐の巣になる升の割合(devNest = 1 のとき。升は 1000 四方ほどなので、約 22 km 四方に 1 つ)・壁の輪の半径と塔の数・腕の数と塔の数・回る速さ(1 回りの tick)と刻み。仮決め。 */
-    static final float NEST_CELL_SHARE = 0.002F;
+    /** 嵐の巣の升(世界の座標)の大きさと、巣になる升の割合(devNest = 1 のとき。約 22 km 四方に 1 つ)・壁の輪の半径と塔の数・腕の数と塔の数・回る速さ(1 回りの tick)と刻み。仮決め。 */
+    static final int NEST_GRID = 8000;
+    static final float NEST_CELL_SHARE = 0.13F;
     static final double NEST_WALL_R = 1100.0;
     static final int NEST_WALL_N = 14;
     static final int NEST_ARMS = 3;
@@ -815,6 +814,44 @@ public final class CloudField {
         return s.giant() && NEST_IDS.contains(s.id());
     }
 
+    /** 最後に雲の場の座標を引いた時刻(gameTime)。嵐の巣を世界に固定するのに、今の風のずれを知るため。 */
+    private static volatile double nowTick;
+
+    /**
+     * 範囲にかかる嵐の巣を足す。巣は<b>世界の座標に固定</b>(2026-11-18 ユーザー決定「巣は場所に固定する。風で流さない」): 世界の座標の升
+     * ({@link #NEST_GRID} 四方)で場所を決め、今の風のずれ(600 tick ごとに見直す)を引いて雲の場の座標へ直す。ほかの雲は風で流れるが、巣は動かない。
+     */
+    private static void nests(List<Storm> all, double minX, double minZ, double maxX, double maxZ, long dayTime, int style) {
+        float share = Math.min(1.0F, NEST_CELL_SHARE * devNest);
+        if (share <= 0.0F) {
+            return;
+        }
+        double t = Math.floor(nowTick / 600.0) * 600.0;
+        double ox = offsetX(t);
+        double oz = offsetZ(t);
+        double margin = 6200.0;
+        int gx0 = Mth.floor((minX + ox - margin) / NEST_GRID);
+        int gx1 = Mth.floor((maxX + ox + margin) / NEST_GRID);
+        int gz0 = Mth.floor((minZ + oz - margin) / NEST_GRID);
+        int gz1 = Mth.floor((maxZ + oz + margin) / NEST_GRID);
+        for (int gz = gz0; gz <= gz1; gz++) {
+            for (int gx = gx0; gx <= gx1; gx++) {
+                long home = (gx * 0x9E3779B97F4A7C15L) ^ (gz * 0xC2B2AE3D27D4EB4FL) ^ 0x4E455354L;
+                if (hash01(home, 31) >= share) {
+                    continue;
+                }
+                double wx = (gx + 0.25 + 0.5 * hash01(home, 32)) * NEST_GRID;
+                double wz = (gz + 0.25 + 0.5 * hash01(home, 33)) * NEST_GRID;
+                nest(all, wx - ox, wz - oz, home, dayTime, style);
+            }
+        }
+    }
+
+    /** 嵐の巣の雲か(壁・腕・芯)。 */
+    public static boolean nestStorm(Storm s) {
+        return NEST_IDS.contains(s.id());
+    }
+
     /**
      * 嵐の巣(2026-11-18 ユーザー決定: 巨大な積乱雲の 1 割ほど・芯は空洞(目)で中へ飛び込める・とてもゆっくり回す・消えない)。
      * 升で決まる場所に、いつも育ちきったまま立つ(雲の一生で崩れない)。芯 = 目の底の低い雲(巨大な雲の扱い = まわりに雲海)、
@@ -822,9 +859,7 @@ public final class CloudField {
      * 腕 = 渦を巻く {@link #NEST_ARMS} 本(外ほど低く細い。差し渡し 約 10 km)。全体が {@link #NEST_TURN_TICKS} tick で 1 回り、
      * {@link #NEST_TURN_STEP} tick ごとに少し回る(形の作り直しを 1 分に 1 回までに抑える)。数値は仮決め。
      */
-    private static void nest(List<Storm> all, int gx, int gz, int grid, long home, long dayTime, int style) {
-        double cx = (gx + 0.3 + 0.4 * hash01(home, 32)) * grid;
-        double cz = (gz + 0.3 + 0.4 * hash01(home, 33)) * grid;
+    private static void nest(List<Storm> all, double cx, double cz, long home, long dayTime, int style) {
         double dir = hash01(home, 34) < 0.5F ? 1.0 : -1.0;
         double turn = hash01(home, 35) * Math.PI * 2.0 + dir * Math.PI * 2.0 * (Math.floorDiv(dayTime, NEST_TURN_STEP) * NEST_TURN_STEP % NEST_TURN_TICKS) / NEST_TURN_TICKS;
         long coreId = home ^ 0x4E455354434F5245L;

@@ -105,6 +105,9 @@ public final class VoxelClouds implements CloudRenderer {
     private static final float GIANT_TAG = 0.8F;
     private static final float STORM_TAG = 1.0F;
     private static final float FAR_STORM_TAG = 0.15F;
+    /** 嵐の巣の雲(11-18): 積乱雲と同じ扱いで、シェーダーが暗い嵐の雲の色にする(近く 0.95・遠景 0.19)。 */
+    private static final float NEST_TAG = 0.95F;
+    private static final float FAR_NEST_TAG = 0.19F;
     /** 積乱雲を形にするタイルの大きさ(ブロック)。 */
     static final int TILE = 768;
     /** 外の輪で形にする積乱雲の天辺の下限(巨大な雲は全部)。 */
@@ -1381,6 +1384,7 @@ public final class VoxelClouds implements CloudRenderer {
                 double tz0 = tz * (double) TILE;
                 java.util.List<CloudField.Puff> here = new java.util.ArrayList<>();
                 boolean giant = false;
+                boolean nest = false;
                 double top = CloudField.LOW_BASE;
                 for (int i = 0; i < storms.size(); i++) {
                     double[] bb = box[i];
@@ -1389,6 +1393,7 @@ public final class VoxelClouds implements CloudRenderer {
                     }
                     here.addAll(puffsOf.get(i));
                     giant |= storms.get(i).giant();
+                    nest |= CloudField.nestStorm(storms.get(i));
                     top = Math.max(top, bb[4]);
                 }
                 if (here.isEmpty()) {
@@ -1397,9 +1402,10 @@ public final class VoxelClouds implements CloudRenderer {
                 double ddx = Math.max(0.0, Math.max(tx0 - cx, cx - (tx0 + TILE)));
                 double ddz = Math.max(0.0, Math.max(tz0 - cz, cz - (tz0 + TILE)));
                 // 遠くのタイルを粗くするのはやめた(粗さの違うタイルの境で面が食い違い、すき間と段の線が出た)。
-                int v = giant ? Math.max(GIANT_VOXEL, voxel) : voxel;
+                // 嵐の巣(11-18): 壁の塔も巨大な雲と同じ粗さに(目の中で 14 本の塔が細かい箱になり、51 FPS まで落ちた)。
+                int v = giant || nest ? Math.max(GIANT_VOXEL, voxel) : voxel;
                 quads += tileMesh(b, here, tx * TILE / v, tz * TILE / v, TILE / v, (int) Math.ceil((top - CloudField.LOW_BASE) / v) + 1, v,
-                        giant ? GIANT_TAG : STORM_TAG, w);
+                        nest ? NEST_TAG : (giant ? GIANT_TAG : STORM_TAG), w);
             }
         }
         return quads;
@@ -1592,6 +1598,7 @@ public final class VoxelClouds implements CloudRenderer {
                 double tz0 = tz * (double) TILE;
                 java.util.List<CloudField.Puff> here = new java.util.ArrayList<>();
                 boolean giant = false;
+                boolean nest = false;
                 double top = CloudField.LOW_BASE;
                 for (int i = 0; i < storms.size(); i++) {
                     double[] bb = box[i];
@@ -1600,6 +1607,7 @@ public final class VoxelClouds implements CloudRenderer {
                     }
                     here.addAll(puffsOf.get(i));
                     giant |= storms.get(i).giant();
+                    nest |= CloudField.nestStorm(storms.get(i));
                     top = Math.max(top, bb[4]);
                 }
                 if (here.isEmpty()) {
@@ -1609,12 +1617,12 @@ public final class VoxelClouds implements CloudRenderer {
                 double ddz = Math.max(0.0, Math.max(tz0 - w.holeZ, w.holeZ - (tz0 + TILE)));
                 double near = Math.hypot(ddx, ddz);
                 int v = near < 2200.0 ? 32 : near < 4400.0 ? 64 : near < 8000.0 ? 128 : 256;
-                if (giant) {
-                    // 巨大な雲(10-18 から胴の半径 1300〜1700)は近くでも 48 より細かくしない(面が多すぎる)。
+                if (giant || nest) {
+                    // 巨大な雲(10-18 から胴の半径 1300〜1700)は近くでも 48 より細かくしない(面が多すぎる)。嵐の巣も同じ(11-18)。
                     v = Math.max(v, GIANT_VOXEL);
                 }
                 quads += tileMesh(b, here, tx * TILE / v, tz * TILE / v, TILE / v, (int) Math.ceil((top - CloudField.LOW_BASE) / v) + 1, v,
-                        FAR_STORM_TAG, w);
+                        nest ? FAR_NEST_TAG : FAR_STORM_TAG, w);
             }
         }
         return quads;
