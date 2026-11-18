@@ -71,7 +71,7 @@
     "health": 12.0,
     "reviveSeconds": 90.0
   },
-  "_comment_clearing": "建つ所の木を払う(11-19 ユーザー「昔の器官みたいに生えた場所は木がなくなるとかしても良いかもね」→「んじゃ払うか」)。芽を置いた後、置き始める前に、形の外周 + marginBlocks(小さい版 smallMarginBlocks)の円の中の木(幹・葉)を払う。幹が円の中の木は円の外の葉もまとめて払う(幹から葉 leafReach 段まで・1 本 treeBlocksMax ブロックまで)。巨大樹は払わない(11-19 ユーザー「巨大樹は避けて」: 巨大樹の根元から giantAvoidBlocks(小さい版 giantAvoidSmallBlocks)より近い升には建てない。巨大樹の樹冠は半径 28 前後)。落とし物は出さない。地面と下草は過繁茂のまま。建つ高さは木を除いた地面で決める。芯を壊して枯れた後は、払った所が段階的に森へ戻る(11-19 ユーザー「生え直す方向で」→ 同日「15〜20 日かけて段階的に、下草 → 苗木」。器官を潰した見返りが長く残るほど押し返す遊びが報われる): 全部で regrowDays 日。初めの regrowUndergrowthShare の間は下草(円の広さ ÷ regrowUndergrowthSpacing² か所。うち regrowTallShare は 2 段の大きなシダ・葦)、残りで過繁茂の苗木(円の広さ ÷ regrowSpacing² か所。下草の上にも植え、ふつうに育って過繁茂の木になる)。regrowGiantSapling = 最後に枯れた器官のそばへ巨大樹の苗木を 1 本(既定 false。育つと巨大樹の記録に載り、まわり giantAvoidBlocks には器官が建たなくなる・枯れた形が樹冠に隠れる)。枯れた器官の形は残る。数は全部【仮】。",
+  "_comment_clearing": "建つ所の木を払う(11-19 ユーザー「昔の器官みたいに生えた場所は木がなくなるとかしても良いかもね」→「んじゃ払うか」)。芽を置いた後、置き始める前に、形の外周 + marginBlocks(小さい版 smallMarginBlocks)の円の中の木(幹・葉)を払う。幹が円の中の木は円の外の葉もまとめて払う(幹から葉 leafReach 段まで・1 本 treeBlocksMax ブロックまで)。巨大樹は払わない(11-19 ユーザー「巨大樹は避けて」: 巨大樹の根元から giantAvoidBlocks(小さい版 giantAvoidSmallBlocks)より近い升には建てない。巨大樹の樹冠は半径 28 前後)。落とし物は出さない。地面と下草は過繁茂のまま。建つ高さは木を除いた地面で決める。芯を壊して枯れた後は、払った所が段階的に森へ戻る(11-19 ユーザー「生え直す方向で」→ 同日「15〜20 日かけて段階的に、下草 → 苗木」。器官を潰した見返りが長く残るほど押し返す遊びが報われる): 全部で regrowDays 日。初めの regrowUndergrowthShare の間は下草(円の広さ ÷ regrowUndergrowthSpacing² か所。うち regrowTallShare は 2 段の大きなシダ・葦)、残りで過繁茂の苗木(円の広さ ÷ regrowSpacing² か所。下草の上にも植え、ふつうに育って過繁茂の木になる)。regrowGiantSapling = 最後に枯れた器官のそばへ巨大樹の苗木を 1 本(11-19 ユーザー決定で既定 true。引き換えは承知: 育つと巨大樹の記録に載り、まわり giantAvoidBlocks には器官が建たなくなる・枯れた形が樹冠に隠れる)。枯れた器官の形は残る。数は全部【仮】。",
   "clearing": {
     "enabled": true,
     "marginBlocks": 4,
@@ -86,6 +86,6 @@
     "regrowUndergrowthSpacing": 3,
     "regrowTallShare": 0.3,
     "regrowSpacing": 8,
-    "regrowGiantSapling": false
+    "regrowGiantSapling": true
   }
 }

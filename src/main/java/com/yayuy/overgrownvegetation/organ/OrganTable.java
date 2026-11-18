@@ -103,7 +103,7 @@ public final class OrganTable {
     /**
      * 枯れた後、払った所が段階的に森へ戻る(11-19 ユーザー「生え直す方向で」→ 同日「15〜20 日かけて段階的に、下草 → 苗木」)。
      * 全部で regrowDays 日。初めの regrowUndergrowthShare の間は下草(間隔 regrowUndergrowthSpacing、うち regrowTallShare が 2 段のシダ・葦)、
-     * 残りで苗木(間隔 regrowSpacing)。regrowGiantSapling なら最後に巨大樹の苗木を 1 本(既定 off【仮】)。
+     * 残りで苗木(間隔 regrowSpacing)。regrowGiantSapling なら最後に巨大樹の苗木を 1 本(11-19 ユーザー決定で既定 on)。
      */
     public final boolean regrowEnabled, regrowGiantSapling;
     public final double regrowDays, regrowUndergrowthShare, regrowTallShare;
@@ -185,7 +185,7 @@ public final class OrganTable {
         regrowUndergrowthShare = Math.max(0.0D, Math.min(0.95D, or(cj.regrowUndergrowthShare, 0.4D)));
         regrowUndergrowthSpacing = Math.max(1, or(cj.regrowUndergrowthSpacing, 3));
         regrowTallShare = Math.max(0.0D, Math.min(1.0D, or(cj.regrowTallShare, 0.3D)));
-        regrowGiantSapling = cj.regrowGiantSapling != null && cj.regrowGiantSapling;
+        regrowGiantSapling = cj.regrowGiantSapling == null || cj.regrowGiantSapling;
     }
 
     public static OrganTable fromJson(@Nullable Json j) {

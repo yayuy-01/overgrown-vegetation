@@ -179,16 +179,25 @@ public final class OrganClearing {
         return new BlockPos(x, groundY(level, x, z) + 1, z);
     }
 
-    /** 枯れた器官のそば(円の 6 割の所)に巨大樹の苗木を 1 本(regrowGiantSapling【仮】。受け付けなければ置かない)。 */
-    private static void giantSapling(ServerLevel level, ForestOrgans.Organ o, int r) {
+    /**
+     * 枯れた器官のそば(払った円の 6〜9 割の所)に巨大樹の苗木を 1 本(11-19 ユーザー「巨大樹の苗も生えるように」)。
+     * 器官の上・石など受け付けない所は向きを変えて 12 回まで試す。置けたら true。
+     */
+    static boolean giantSapling(ServerLevel level, ForestOrgans.Organ o, int r) {
         java.util.Random rnd = new java.util.Random(o.seed * 0x9E3779B97F4A7C15L + 7L);
-        double ang = rnd.nextDouble() * Math.PI * 2.0D, d = r * 0.6D;
-        int x = o.x + (int) Math.round(Math.cos(ang) * d), z = o.z + (int) Math.round(Math.sin(ang) * d);
-        if (!OrganWorld.ready(level, x >> 4, z >> 4)) return;
-        BlockPos p = new BlockPos(x, groundY(level, x, z) + 1, z);
-        BlockState here = level.getBlockState(p);
         BlockState giant = com.yayuy.overgrownvegetation.registry.ModBlocks.GIANT_OVERGROWN_SAPLING.get().defaultBlockState();
-        if ((here.isAir() || here.canBeReplaced()) && giant.canSurvive(level, p)) level.setBlock(p, giant, Block.UPDATE_ALL);
+        for (int i = 0; i < 12; i++) {
+            double ang = rnd.nextDouble() * Math.PI * 2.0D, d = r * (0.6D + 0.3D * rnd.nextDouble());
+            int x = o.x + (int) Math.round(Math.cos(ang) * d), z = o.z + (int) Math.round(Math.sin(ang) * d);
+            if (!OrganWorld.ready(level, x >> 4, z >> 4)) continue;
+            BlockPos p = new BlockPos(x, groundY(level, x, z) + 1, z);
+            BlockState here = level.getBlockState(p);
+            if ((here.isAir() || here.canBeReplaced()) && giant.canSurvive(level, p)) {
+                level.setBlock(p, giant, Block.UPDATE_ALL);
+                return true;
+            }
+        }
+        return false;
     }
 
     // ---------------------------------------------------------------- 進める

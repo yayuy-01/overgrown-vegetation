@@ -349,7 +349,17 @@ public final class OrganGameTests {
             int[] end = countRegrowth(level, c, gy, r);
             helper.assertTrue(o.regrown == -1, "生え直しが終わらない: " + o.regrown);
             helper.assertTrue(end[0] >= 2, "払った所に苗木が生え直さない: " + end[0]);
-            // 植えた苗木が本当に木になる(育ちを進める)
+            // 戻り終えたとき、枯れた器官のそばに巨大樹の苗木が 1 本(11-19 ユーザー決定で既定 on)
+            if (DesignData.organs().regrowGiantSapling) {
+                int giants = 0;
+                for (int dx = -r; dx <= r; dx++) {
+                    for (int dz = -r; dz <= r; dz++) {
+                        if (level.getBlockState(new BlockPos(c.getX() + dx, gy + 1, c.getZ() + dz)).is(com.yayuy.overgrownvegetation.registry.ModBlocks.GIANT_OVERGROWN_SAPLING.get())) giants++;
+                    }
+                }
+                helper.assertTrue(giants == 1, "巨大樹の苗木が 1 本でない: " + giants);
+            }
+            // 植えた苗木が本当に木になる(育ちを進める。巨大樹の苗木は育てない = テスト場に収まらない)
             boolean grew = false;
             net.minecraft.util.RandomSource rs = net.minecraft.util.RandomSource.create(42L);
             for (int dx = -r; dx <= r && !grew; dx++) {
@@ -357,7 +367,8 @@ public final class OrganGameTests {
                     BlockPos sp = new BlockPos(c.getX() + dx, gy + 1, c.getZ() + dz);
                     for (int k = 0; k < 6; k++) {
                         BlockState s = level.getBlockState(sp);
-                        if (!(s.getBlock() instanceof net.minecraft.world.level.block.SaplingBlock sb)) break;
+                        if (!s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_SAPLING.get())
+                                || !(s.getBlock() instanceof net.minecraft.world.level.block.SaplingBlock sb)) break;
                         sb.advanceTree(level, sp, s, rs);
                     }
                     if (level.getBlockState(sp).is(net.minecraft.tags.BlockTags.LOGS)) grew = true;
