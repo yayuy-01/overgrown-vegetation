@@ -444,18 +444,21 @@ void main() {
     vec3 grey = CloudColor.rgb * vec3(0.66, 0.68, 0.72);
     c = mix(c, mix(grey, Rough.rgb * vec3(0.3, 0.35, 0.42), w), 0.55 * ceiling);
     float reachScale = clamp(Far.y / 7600.0, 1.0, 2.4);
-    c = mix(c, haze, Look2.y * (1.0 - 0.7 * ceiling) * (0.45 * (1.0 - exp(-d / 2000.0)) + 0.3 * smoothstep(2500.0, 7000.0 * reachScale, d)));
+    // Horizon trial (11-18, Curve.w): the parts of a far cloud that stand well above the horizon keep their own colour (white tops of
+    // far storm clouds), and only the parts low over the horizon melt into the haze. lift = how much of the distance haze is held back.
+    float el = ovBentY / max(length(vec3(ovPos.xz, ovBentY)), 1.0);
+    float lift = 1.0 - 0.85 * Curve.w * smoothstep(0.015, 0.12, el) * smoothstep(1200.0, 3000.0, d);
+    c = mix(c, haze, lift * Look2.y * (1.0 - 0.7 * ceiling) * (0.45 * (1.0 - exp(-d / 2000.0)) + 0.3 * smoothstep(2500.0, 7000.0 * reachScale, d)));
     // Far clouds fade into the sky colour before they disappear (towards the horizon colour when known: 11-08). The overcast ceiling
     // fades less, so a cloudy sky stays a ceiling to the horizon.
     vec3 skyFar = mix(SkyColor.rgb, HorizonColor.rgb, HorizonColor.a * smoothstep(300.0, 1500.0, d));
-    c = mix(c, skyFar, smoothstep(fadeFrom * (storm ? 0.6 : 0.3), fadeTo, d) * (storm ? 0.4 : 0.55) * (1.0 - 0.6 * ceiling));
+    c = mix(c, skyFar, lift * smoothstep(fadeFrom * (storm ? 0.6 : 0.3), fadeTo, d) * (storm ? 0.4 : 0.55) * (1.0 - 0.6 * ceiling));
     // Night (11-08, improvement 4): far cloud bases were darker than the sky near the horizon and looked like black holes. Lift them
     // towards the horizon colour (the moonlit haze) with the distance.
     float night = 1.0 - smoothstep(0.4, 0.7, CloudColor.b);
     c = mix(c, max(c, HorizonColor.rgb * 1.05), night * HorizonColor.a * smoothstep(120.0, 700.0, d));
     if (Curve.w > 0.001) {
-        float el = ovBentY / max(length(vec3(ovPos.xz, ovBentY)), 1.0);
-        float hz = Curve.w * (1.0 - smoothstep(0.0, 0.12, abs(el))) * smoothstep(1200.0, 5000.0, d);
+        float hz = Curve.w * (1.0 - smoothstep(0.0, 0.07, abs(el))) * smoothstep(1200.0, 4000.0, d);
         c = mix(c, mix(HorizonColor.rgb, vec3(1.0), 0.35), hz);
     }
     if (hazeKeep < 0.999) {
