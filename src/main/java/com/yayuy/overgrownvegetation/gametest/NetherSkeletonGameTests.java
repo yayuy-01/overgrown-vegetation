@@ -146,6 +146,8 @@ public final class NetherSkeletonGameTests {
         for (int s = 1; s <= 5; s++) {
             ChunkPos p = new ChunkPos(ox + s * 3, oz);
             long age = t.stageStartTicks[s - 1] + 5;
+            // 前の回・同じ回のほかの森で届いていたチャンクは古い時刻のままになる(corrupt は届いた所を上書きしない)ので消してから(2026-11-18 揺れるテストの調べ)
+            NetherLedgerData.get(nether).forgetForTests(p.toLong());
             NetherLedger.reachForTests(nether, p, age);
             int got = NetherLedger.stageOf(nether, p.toLong());
             if (got != s) {
@@ -154,6 +156,7 @@ public final class NetherSkeletonGameTests {
             }
             if (s >= 2) {
                 ChunkPos q = new ChunkPos(ox + s * 3, oz + 3);
+                NetherLedgerData.get(nether).forgetForTests(q.toLong());
                 NetherLedger.reachForTests(nether, q, t.stageStartTicks[s - 1] - 5);
                 if (NetherLedger.stageOf(nether, q.toLong()) != s - 1) {
                     helper.fail("段階 " + s + " の始まりより前なのに段階が進んでいる");

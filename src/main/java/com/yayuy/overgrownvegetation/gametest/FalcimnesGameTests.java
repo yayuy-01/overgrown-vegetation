@@ -3,8 +3,10 @@ package com.yayuy.overgrownvegetation.gametest;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.adaptation.Adaptation;
 import com.yayuy.overgrownvegetation.adaptation.AdaptationData;
+import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.entity.FalcimnesEntity;
 import com.yayuy.overgrownvegetation.entity.SpecialPacing;
+import com.yayuy.overgrownvegetation.registry.ModAttachments;
 import com.yayuy.overgrownvegetation.registry.ModEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -191,14 +193,21 @@ public final class FalcimnesGameTests {
         // 止めへ移るのは掴んで 4 + 20 × 噛む回数 tick、噛むのはそこから 14 tick、放すのは 28 tick(FINISH_*)。
         long finishStart = 4L + 20L * bites;
         helper.runAfterDelay(finishStart - 2L, () -> {
-            if (!golem.isAlive() || Math.abs(golem.getHealth() - afterBites) > 0.01F) {
-                helper.fail("止めの前に体力 " + afterBites + " のはずが " + golem.getHealth());
+            // 11-15 から噛まれた Mob は傷の暴露で感染し、暴露量が満ちると胞子感染の 20 を受ける(設計どおり)。満ちる tick は暴露量の判定の
+            // 周期しだいで、止めの前後どちらにも来る(11-18: 200 本中 33 本が止めの直後に受けて落ちていた)。受けた回数ぶんを差し引いて見る
+            float spore = golem.hasData(ModAttachments.SPORE_EXPOSURE)
+                    ? (float) (DesignData.sporeField().mobExposureDamage() * golem.getData(ModAttachments.SPORE_EXPOSURE).reachedCount) : 0.0F;
+            if (!golem.isAlive() || Math.abs(golem.getHealth() - (afterBites - spore)) > 0.01F) {
+                helper.fail("止めの前に体力 " + afterBites + "(胞子感染 " + spore + " を引いて " + (afterBites - spore) + ")のはずが " + golem.getHealth());
             }
         });
         helper.runAfterDelay(finishStart + 20L, () -> {
             float want = afterBites - (float) g.damage();
+            float spore = golem.hasData(ModAttachments.SPORE_EXPOSURE)
+                    ? (float) (DesignData.sporeField().mobExposureDamage() * golem.getData(ModAttachments.SPORE_EXPOSURE).reachedCount) : 0.0F;
+            want -= spore;
             if (!golem.isAlive() || Math.abs(golem.getHealth() - want) > 0.01F) {
-                helper.fail("止めの後の体力 " + want + " のはずが " + golem.getHealth() + "(即死のまま?)");
+                helper.fail("止めの後の体力 " + want + "(胞子感染 " + spore + " を引いた値)のはずが " + golem.getHealth() + "(即死のまま?)");
             }
         });
         helper.runAfterDelay(finishStart + 34L, () -> {

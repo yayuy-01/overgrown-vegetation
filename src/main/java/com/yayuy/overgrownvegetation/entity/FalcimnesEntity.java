@@ -2040,7 +2040,9 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
                     case FalcimnesPersonality.RESULT_BLOCKED -> "comboOnBlocked";
                     default -> "comboOnMissed";
                 }, 1.0D);
-        if (this.random.nextDouble() >= Math.min(0.95D, chance)) return false;
+        // 頭打ち 0.95 は遊びの確率だけ。テストの上書き(setComboChanceForTest)は頭打ちにしない(11-18: 1.0 を渡しても 5% で続かず、
+        // comboFollowsHitWithSecondStepOnly が揺れていた)
+        if (this.random.nextDouble() >= (this.comboChanceOverride >= 0.0D ? chance : Math.min(0.95D, chance))) return false;
         String prefix = "next." + FalcimnesPersonality.resultKey(this.comboResult) + ".";
         double s = bodyScale();
         double d = Math.sqrt(this.distanceToSqr(target.getX(), this.getY(), target.getZ()));

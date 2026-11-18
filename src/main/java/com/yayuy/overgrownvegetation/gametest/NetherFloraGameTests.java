@@ -101,6 +101,8 @@ public final class NetherFloraGameTests {
         NetherSpreadTable t = DesignData.netherSpread();
         int s = NetherLava.surfaceY(nether);
         int ox = BASE + offset(nether), oz = BASE;
+        // 出口のチャンクが前の回・同じ回のほかの森で「もう森」になっていると seedFromPortal は何もしない(null)。使う所の台帳を先に消す(2026-11-18 揺れるテストの調べ)
+        NetherTubeTreeGameTests.forgetLedger(nether, ox, oz, t.firstRootSearchChunks + 1);
         for (int dx = -t.firstRootSearchChunks - 1; dx <= t.firstRootSearchChunks + 1; dx++) {
             for (int dz = -t.firstRootSearchChunks - 1; dz <= t.firstRootSearchChunks + 1; dz++) {
                 NetherLedger.setTerrainForTests(nether, ChunkPos.asLong(ox + dx, oz + dz), dx == 3 && dz == 0);
@@ -168,6 +170,8 @@ public final class NetherFloraGameTests {
         NetherSpreadTable t = DesignData.netherSpread();
         int s = NetherLava.surfaceY(nether);
         int ox = BASE + offset(nether), oz = BASE + 1200;
+        // 出口のチャンクが前の回・同じ回のほかの森で「もう森」になっていると seedFromPortal は何もしない(null)。使う所の台帳を先に消す(2026-11-18 揺れるテストの調べ)
+        NetherTubeTreeGameTests.forgetLedger(nether, ox, oz, t.firstRootSearchChunks + 1);
         for (int dx = -t.firstRootSearchChunks - 1; dx <= t.firstRootSearchChunks + 1; dx++) {
             for (int dz = -t.firstRootSearchChunks - 1; dz <= t.firstRootSearchChunks + 1; dz++) {
                 NetherLedger.setTerrainForTests(nether, ChunkPos.asLong(ox + dx, oz + dz), dx == 3 && dz == 0);

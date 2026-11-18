@@ -97,12 +97,14 @@ public final class NetherFieldGameTests {
         if (nether == null) return;
         NetherLedgerData ledger = NetherLedgerData.get(nether);
         long[] keys = {ChunkPos.asLong(1_220_000, 5), ChunkPos.asLong(1_220_001, 5), ChunkPos.asLong(1_220_002, 5)};
+        for (long k : keys) ledger.forgetForTests(k); // 前の回に残った起点の森(下の 1_220_000, 9)が胞子で届いていると +1・+2 にしかならない(2026-11-18 揺れるテストの調べ)
         NetherLedger.reachForTests(nether, new ChunkPos(1_220_000, 9), 0); // 上限(起点から 128 チャンク)の中にする(2026-11-11)
         int before = ledger.reachedCount(); // 2026-11-11: 発芽は汚染の入口(段階の時計の始まり)
         NetherLedger.acceptFieldSprouts(nether, keys);
         NetherLedger.acceptFieldSprouts(nether, new long[]{keys[0]}); // もう一度来ても数えない
         int after = ledger.reachedCount();
         for (long k : keys) ledger.forgetForTests(k);
+        ledger.forgetForTests(ChunkPos.asLong(1_220_000, 9)); // 起点の森も残さない(次の回にここから胞子が広がらないよう)
         if (after - before != keys.length) {
             helper.fail("記録の数が合わない: " + before + " → " + after + "(期待 +" + keys.length + ")");
             return;
