@@ -580,6 +580,12 @@ public final class CrawlerPack {
         /** 群れが止まっている間、先導役からこれ(+ 群れの広がり)以内の後続は動かない【仮】。 */
         static final double IDLE_NEAR = 8.0D;
         static final int STEER_EVERY = 4, REPATH = 30;
+        /** 流れの地図を使うのは、先導役より道のりでこれだけ(10 = 1 升)後ろにいる後続だけ【仮】。 */
+        static final int FLOW_BEHIND = 40;
+        private final com.yayuy.overgrownvegetation.perf.FlowFields.Steer flow = new com.yayuy.overgrownvegetation.perf.FlowFields.Steer();
+        /** 前の決める回で「真っ直ぐ寄る」にした持ち場(間の tick に舵へ渡し直す)。 */
+        private boolean direct;
+        private double directX, directZ, directSpeed;
         private final net.minecraft.world.entity.PathfinderMob mob;
         private int timer;
         private int repath;
@@ -667,8 +673,17 @@ public final class CrawlerPack {
 
         @Override
         public void tick() {
-            if (--this.timer > 0) return;
+            if (--this.timer > 0) {
+                // 舵(MoveControl)は目標を渡された tick しか歩かせないので、決める回の間も渡し直す(11-18 大群の軽量化 A。toml flowFieldEnabled のときだけ。
+                // 切のときは前のまま = 4 tick に 1 tick だけ歩き、後続が持ち場から遅れて経路を引き直していた)
+                if (this.flow.active()) this.flow.reapply(this.mob);
+                else if (this.direct && com.yayuy.overgrownvegetation.perf.FlowFields.enabled())
+                    this.mob.getMoveControl().setWantedPosition(this.directX, this.mob.getY(), this.directZ, this.directSpeed);
+                return;
+            }
             this.timer = STEER_EVERY;
+            this.direct = false;
+            this.flow.pause();
             CrawlerPack p = externalOf(this.mob);
             if (p == null || p.members.isEmpty()) return;
             Mob l = p.leader();
@@ -695,6 +710,13 @@ public final class CrawlerPack {
             }
             double speed = d > 6.0D ? 1.0D : 0.8D;
             if (d > PATH_FAR || dy > STEP_DY) {
+                // 拠点へ歩いている群れで、先導役より後ろにいれば、流れの地図(11-18 大群の軽量化 A。toml flowFieldEnabled)を下って追いつく
+                net.minecraft.world.phys.Vec3 mt = marching(l) ? com.yayuy.overgrownvegetation.spawn.PlantMarch.target(l) : null;
+                if (mt != null && this.flow.steer(this.mob, mt.x, mt.z, speed, FLOW_BEHIND, l)) {
+                    this.repath = 0;
+                    flowSteers++;
+                    return;
+                }
                 // 遠い・段差: 経路(引き直しは間をあける)
                 if (--this.repath <= 0 || this.mob.getNavigation().isDone()) {
                     this.repath = REPATH / STEER_EVERY;
@@ -706,10 +728,16 @@ public final class CrawlerPack {
             // 近い: 経路なしで真っ直ぐ寄る
             this.mob.getNavigation().stop();
             this.mob.getMoveControl().setWantedPosition(g[0], this.mob.getY(), g[1], speed);
+            this.direct = true;
+            this.directX = g[0];
+            this.directZ = g[1];
+            this.directSpeed = speed;
             steerCalls++;
         }
     }
 
     /** 確かめ用: 後続が経路を引いた回数・真っ直ぐ寄った回数。 */
     public static long pathCalls, steerCalls, idleSkips;
+    /** 確かめ用: 後続が流れの地図を下った回数(11-18 大群の軽量化 A)。 */
+    public static long flowSteers;
 }

@@ -845,6 +845,8 @@ public final class OvergrownVegetationConfig {
         public final ModConfigSpec.BooleanValue mobThinkThrottleEnabled;
         /** 植物側の押し合いを間引く({@code perf/PlantPushThin})。試し。 */
         public final ModConfigSpec.BooleanValue plantPushThinEnabled;
+        /** 流れの地図({@code perf/FlowFields})で行進と群れの後続を歩かせるか。11-18 大群の軽量化 A。 */
+        public final ModConfigSpec.BooleanValue flowFieldEnabled;
         /** 部位の升目の索引({@code perf/PartIndex})を使うか。 */
         public final ModConfigSpec.BooleanValue partIndexEnabled;
 
@@ -2326,6 +2328,12 @@ public final class OvergrownVegetationConfig {
                     .comment("植物側の Mob どうしの押し合いを軽くする(11-18 ユーザー決定で既定 true)。植物側は自分からの押し合いを数 tick に 1 回にし、",
                             "プレイヤー・ほかの Mob とは相手の押し合いで今までどおり離れる。植物側どうしは軽く離れ合うだけ。間隔は design の perf.json(push)。既定 true。")
                     .define("plantPushThinEnabled", true);
+
+            flowFieldEnabled = b
+                    .comment("流れの地図(11-18 大群の軽量化 A。試し)。拠点へ歩く Mob と、群れの持ち場から遠い後続は、1 体ずつ経路を探す代わりに、",
+                            "行き先ごとに 1 枚作った地図を下って歩く。地図の外・詰まったときは今までの経路探索に戻る。値は design の perf.json(flowField)。",
+                            "群れの歩き方が少し変わるので、ユーザーが見て決めるまで既定 false。")
+                    .define("flowFieldEnabled", false);
 
             partIndexEnabled = b
                     .comment("部位(大きな体の叩ける部位)の升目の索引。近くのエンティティを探すたびに世界じゅうの部位を全部比べていたのを、",

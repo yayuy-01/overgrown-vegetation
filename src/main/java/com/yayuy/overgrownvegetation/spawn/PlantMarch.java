@@ -103,11 +103,18 @@ public final class PlantMarch {
         @Override
         public void start() {
             repath = 0;
+            flow.reset();
+        }
+
+        @Override
+        public boolean requiresUpdateEveryTick() {
+            return flow.active(); // 流れの地図を下っている間だけ毎 tick(普通の経路はナビが毎 tick 追う)
         }
 
         @Override
         public void stop() {
             mob.getNavigation().stop();
+            flow.reset();
         }
 
         @Override
@@ -124,12 +131,46 @@ public final class PlantMarch {
                 mob.getNavigation().stop();
                 return;
             }
+            // 流れの地図(11-18 大群の軽量化 A。toml flowFieldEnabled)があれば、経路を探さずそれを下る。無い・詰まったら下の経路探索。
+            // 下っている間は毎 tick 舵に目標を渡し直し(舵は渡された tick しか歩かせない)、目標の計算は 4 tick に 1 回
+            if (flow.active() && (mob.tickCount & 3) != 0) {
+                flow.reapply(mob);
+                return;
+            }
+            if (flow.steer(mob, tx, tz, 1.0D, 0, null)) {
+                repath = 0;
+                return;
+            }
             if (--repath > 0 && !mob.getNavigation().isDone()) return;
             repath = 20;
-            double step = Math.min(dist, 24.0D);
+            double step = Math.min(dist, stepBlocks);
             int wx = net.minecraft.util.Mth.floor(mob.getX() + dx / dist * step), wz = net.minecraft.util.Mth.floor(mob.getZ() + dz / dist * step);
-            int wy = mob.level().getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, wx, wz);
+            int wy = groundY(mob.level(), wx, wz);
             mob.getNavigation().moveTo(wx + 0.5D, wy, wz + 0.5D, 1.0D);
+            // 届かない道(11-18 の測りで行進の探索の 6 割。1 回 3.9 ms)だったら、次は近い点を目指す(探索が軽くなり、途中の点を順に越える)
+            net.minecraft.world.level.pathfinder.Path p = mob.getNavigation().getPath();
+            stepBlocks = p == null || !p.canReach() ? Math.max(MIN_STEP, stepBlocks * 0.5D) : MAX_STEP;
+        }
+
+        static final double MAX_STEP = 24.0D, MIN_STEP = 6.0D;
+        private double stepBlocks = MAX_STEP;
+        private final com.yayuy.overgrownvegetation.perf.FlowFields.Steer flow = new com.yayuy.overgrownvegetation.perf.FlowFields.Steer();
+
+        /**
+         * 途中の点の高さ。葉を除く高さ地図の天辺が幹・枝(丸太)なら、その下の地面まで下りる(11-18: 幹の天辺を目指して届かない探索が多かった)。
+         * 読み込み途中のチャンクは触らない(その時は Mob の高さ)。
+         */
+        private int groundY(net.minecraft.world.level.Level level, int x, int z) {
+            if (!(level instanceof net.minecraft.server.level.ServerLevel sl) || sl.getChunkSource().getChunkNow(x >> 4, z >> 4) == null) return mob.getBlockY();
+            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+            net.minecraft.core.BlockPos.MutableBlockPos p = new net.minecraft.core.BlockPos.MutableBlockPos(x, y - 1, z);
+            int floor = Math.max(level.getMinBuildHeight(), y - 64);
+            while (p.getY() > floor) {
+                net.minecraft.world.level.block.state.BlockState s = level.getBlockState(p);
+                if (!s.is(net.minecraft.tags.BlockTags.LOGS) && !s.is(net.minecraft.tags.BlockTags.LEAVES) && s.blocksMotion()) break;
+                p.move(0, -1, 0);
+            }
+            return p.getY() + 1;
         }
     }
 }

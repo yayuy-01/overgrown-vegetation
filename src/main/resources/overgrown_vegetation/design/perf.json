@@ -11,5 +11,14 @@
   "push": {
     "_comment": "植物側の押し合いを間引く(11-18 朝ユーザー決定「入れる」。common toml の plantPushThinEnabled は既定 true)。植物側の Mob は自分からの押し合いを intervalTicks に 1 回探す。プレイヤー・ほかの Mob とは相手の押し合いで今までどおり離れ、植物側どうしは約 1/4 の力で軽く離れ合う。",
     "intervalTicks": 4
+  },
+  "flowField": {
+    "_comment": "流れの地図(11-18 大群の軽量化 A。common toml の flowFieldEnabled は既定 false = 試し)。拠点へ歩く Mob と群れの持ち場から遠い後続は、行き先ごとに 1 枚作った地図(行き先のまわり radiusBlocks の、歩ける床と行き先までの道のり)を下って歩く。地図は rebuildTicks ごとに別スレッドで作り直し、dropUnusedTicks 使われなければ捨てる。stuckTicks の間ほとんど進まなければ、その Mob は fallbackTicks の間だけ今までの経路探索に戻る。lookaheadCells は平らな所で何升先を目指すか。数はどれも【仮】。",
+    "radiusBlocks": 160,
+    "rebuildTicks": 200,
+    "dropUnusedTicks": 600,
+    "stuckTicks": 40,
+    "fallbackTicks": 100,
+    "lookaheadCells": 4
   }
 }
