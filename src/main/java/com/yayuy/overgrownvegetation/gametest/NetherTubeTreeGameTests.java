@@ -99,7 +99,8 @@ public final class NetherTubeTreeGameTests {
      */
     private static ChunkPos stage2(ServerLevel nether, int oz) {
         ChunkPos a = stage2Once(nether, oz);
-        for (int tries = 1; tries < 8 && bases(nether, a).isEmpty(); tries++) a = stage2Once(nether, oz);
+        // 根元は隣のチャンクの樹のまわりの管も拾うので、a が立てた樹(台帳の数)も 1 本以上を条件にする(11-18: 樹 0・根元 n で 100 本中 3 本)
+        for (int tries = 1; tries < 8 && (bases(nether, a).isEmpty() || NetherLedgerData.get(nether).tubesOf(a.toLong()) <= 0); tries++) a = stage2Once(nether, oz);
         return a;
     }
 

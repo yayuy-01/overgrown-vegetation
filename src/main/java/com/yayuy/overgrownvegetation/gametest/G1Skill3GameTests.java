@@ -147,6 +147,7 @@ public final class G1Skill3GameTests {
     /** (b) 導火の間に 5 ブロックより離れると止まる(爆ぜない・莢は満ちたまま)。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 100)
     public static void creeperFuseStopsWhenTargetLeaves(GameTestHelper helper) {
+        SporeAmbient.isolate(helper, 100); // 隣のテスト場から広がる胞子の場の浮遊を読まない(技が直に与えた分だけを見る。2026-11-18 揺れるテストの調べ)
         DevelopedParasitized creeper = spawnDev(helper, G1Developed.CREEPER, new Vec3(0.7, 2.0, 3.5));
         onlyTechniques(creeper);
         Cow cow = spawnCow(helper, new Vec3(2.7, 2.0, 3.5));
@@ -228,6 +229,7 @@ public final class G1Skill3GameTests {
     /** (c) 莢を落とす: 獲物のそばで背の後ろへ莢を 1 つ落とす。莢は時間で割れ、近くの相手へ暴露量 +150、床を壊さずに汚染する。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 200)
     public static void creeperDropsPodThatBurstsLater(GameTestHelper helper) {
+        SporeAmbient.isolate(helper, 200); // 隣のテスト場から広がる胞子の場の浮遊を読まない(技が直に与えた分だけを見る。2026-11-18 揺れるテストの調べ)
         grassFloor(helper);
         DevelopedParasitized creeper = spawnDev(helper, G1Developed.CREEPER, new Vec3(3.5, 2.0, 3.5));
         onlyTechniques(creeper);
@@ -259,6 +261,7 @@ public final class G1Skill3GameTests {
     /** (c) 落ちた莢を叩くと、割れずに潰れて消える(撒かない)。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 80)
     public static void seedPodSquashedByHitDoesNotSpread(GameTestHelper helper) {
+        SporeAmbient.isolate(helper, 80); // 隣のテスト場から広がる胞子の場の浮遊を読まない(技が直に与えた分だけを見る。2026-11-18 揺れるテストの調べ)
         grassFloor(helper);
         G1SeedPod pod = G1SeedPod.drop(helper.getLevel(), helper.absoluteVec(new Vec3(3.5, 2.2, 3.5)), Vec3.ZERO);
         pod.setFuse(40);
@@ -316,6 +319,7 @@ public final class G1Skill3GameTests {
     /** (b) 盾で受ければ暴露なし。盾が無ければ暴露量 +500。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 40)
     public static void sporeBoltBlockedByShieldGivesNoDose(GameTestHelper helper) {
+        SporeAmbient.isolate(helper, 40); // 隣のテスト場から広がる胞子の場の浮遊を読まない(技が直に与えた分だけを見る。2026-11-18 揺れるテストの調べ)
         DevelopedParasitized skeleton = spawnDev(helper, G1Developed.SKELETON, new Vec3(3.5, 2.0, 1.0));
         skeleton.goalSelector.removeAllGoals(g -> true);
         Vec3 at = helper.absoluteVec(new Vec3(3.5, 2.0, 5.0));

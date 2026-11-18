@@ -338,6 +338,7 @@ public final class G1SkillGameTests {
     /** (c) 2〜3 ブロック正面の標的へ喉袋の円錐: 暴露量 +250。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 80)
     public static void pigThroatPuffDosesCone(GameTestHelper helper) {
+        SporeAmbient.isolate(helper, 80); // 隣のテスト場から広がる胞子の場の浮遊を読まない(技が直に与えた分だけを見る。2026-11-18 揺れるテストの調べ)
         DevelopedParasitized pig = spawnDev(helper, G1Developed.PIG, new Vec3(1.5, 2.0, 3.5));
         pig.goalSelector.removeAllGoals(g -> g instanceof com.yayuy.overgrownvegetation.entity.g1.G1StrikeGoal); // 噛みに行かせない
         pig.setYRot(-90.0F);

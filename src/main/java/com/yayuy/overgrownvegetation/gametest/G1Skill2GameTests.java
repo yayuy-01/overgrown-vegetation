@@ -116,6 +116,7 @@ public final class G1Skill2GameTests {
      */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 100)
     public static void cowMilkStripsBuffsBehindAndLeavesPuddles(GameTestHelper helper) {
+        SporeAmbient.isolate(helper, 100); // 隣のテスト場から広がる胞子の場の浮遊を読まない(技が直に与えた分だけを見る。2026-11-18 揺れるテストの調べ)
         DevelopedParasitized cow = spawnDev(helper, G1Developed.COW, new Vec3(3.5, 2.0, 3.8));
         onlyTechniques(cow);
         face(cow, 0.0F); // 南(+Z)向き
@@ -140,6 +141,7 @@ public final class G1Skill2GameTests {
     /** (b) 乳だまりを踏むと良い効果だけ消える(悪い効果は残る・暴露量は足さない)。6 秒で消える。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 200)
     public static void milkPuddleStripsBuffsOnStepThenFades(GameTestHelper helper) {
+        SporeAmbient.isolate(helper, 200); // 隣のテスト場から広がる胞子の場の浮遊を読まない(技が直に与えた分だけを見る。2026-11-18 揺れるテストの調べ)
         G1MilkPuddle puddle = G1MilkPuddle.spawn(helper.getLevel(), helper.absoluteVec(new Vec3(3.5, 2.0, 3.5)), 1.0F, 120);
         helper.assertTrue(puddle != null, "床の上に乳だまりを置けない");
         Cow cow = spawnCow(helper, new Vec3(3.5, 2.0, 3.5));
@@ -303,6 +305,8 @@ public final class G1Skill2GameTests {
         // 先に升を空にする(降り積もりの入力は列に積まれていて、場を回したときに足される)
         SporeFieldServer.withFieldForTests(field -> {
             field.clearDepositAround(cx, cz, 0.0D);
+            // まわりの浮遊も消す: 隣のテスト場の技・場のテストが撒いた浮遊が 1 刻みの間に降り積もり、+30% ほど多く読めていた(2026-11-18 揺れるテストの調べ)
+            field.extractAround(cx, cz, 2.0D, Double.POSITIVE_INFINITY);
             return null;
         });
         SporeFieldServer.catchUpForTests(level, com.yayuy.overgrownvegetation.data.DesignData.sporeField().updateTicks());
@@ -485,6 +489,7 @@ public final class G1Skill2GameTests {
     /** (c) そ嚢の胞子: 正面の円錐の中に居続けた相手へ 1.5 秒で +225(150 / 秒)。後ろは浴びない。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 120)
     public static void chickenSpewDosesFrontCone(GameTestHelper helper) {
+        SporeAmbient.isolate(helper, 120); // 隣のテスト場から広がる胞子の場の浮遊を読まない(技が直に与えた分だけを見る。2026-11-18 揺れるテストの調べ)
         DevelopedParasitized chicken = spawnDev(helper, G1Developed.CHICKEN, new Vec3(1.8, 2.0, 3.5));
         chicken.goalSelector.removeAllGoals(g -> g instanceof G1StrikeGoal); // つつきに行かせない
         face(chicken, -90.0F); // 東(+X)向き

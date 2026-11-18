@@ -253,6 +253,7 @@ public final class SporeConcentration {
      * オーバーワールドだけ、写しが無い所(プレイヤーから遠い)は 0。
      */
     private static double fieldUnder(ServerLevel level, int cx, int cz) {
+        if (cleanForTests(level, cx, cz)) return 0.0D;
         if (level.dimension() != Level.OVERWORLD) return 0.0D;
         SporeFieldServer.Cell cell = SporeFieldServer.cell(cx, cz);
         return cell == null ? 0.0D : cell.under() / DesignData.sporeField().fullAt() * 100.0D;
@@ -263,6 +264,7 @@ public final class SporeConcentration {
      * 下支え: 汚染されたチャンクは段階ごとの下限より下がらない。写しが無い所(プレイヤーから遠い)は台帳の段階の下限だけ。
      */
     private static double fieldBase(ServerLevel level, int cx, int cz) {
+        if (cleanForTests(level, cx, cz)) return 0.0D;
         SporeFieldTable t = DesignData.sporeField();
         ChunkPos chunk = new ChunkPos(cx, cz);
         SporeFieldServer.Cell cell = SporeFieldServer.cell(level, cx, cz);
@@ -297,6 +299,28 @@ public final class SporeConcentration {
 
     /** テスト用: 過繁茂として読むチャンク(台帳に載せずに、下支えだけを試す)。 */
     public static final it.unimi.dsi.fastutil.longs.LongOpenHashSet OVERGROWN_FOR_TESTS = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+
+    /**
+     * テスト用: 外の場を 0 と読むチャンクと、その期限(ゲーム時刻。2026-11-18 揺れるテストの調べ)。1 回の GameTest の実行ではテスト場が全部隣り合うので、
+     * ほかのテスト場の技・場のテストが撒いた浮遊が広がってきて、技が直に与えた暴露量だけを見たいテストが時々落ちていた。遊びでは空(何も変わらない)。
+     */
+    private static final it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap CLEAN_FOR_TESTS = new it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap();
+
+    /** テスト用: チャンク (cx, cz) を {@code untilGameTime} まで「外の場 0」として読む。覚えも捨てる。 */
+    public static void cleanForTests(int cx, int cz, long untilGameTime) {
+        CLEAN_FOR_TESTS.put(ChunkPos.asLong(cx, cz), untilGameTime);
+        CACHE.clear();
+    }
+
+    private static boolean cleanForTests(ServerLevel level, int cx, int cz) {
+        if (CLEAN_FOR_TESTS.isEmpty()) return false;
+        long key = ChunkPos.asLong(cx, cz);
+        long until = CLEAN_FOR_TESTS.getOrDefault(key, Long.MIN_VALUE);
+        if (until == Long.MIN_VALUE) return false;
+        if (level.getGameTime() < until) return true;
+        CLEAN_FOR_TESTS.remove(key);
+        return false;
+    }
 
     /** テスト用: チャンクの値の覚え(updateTicks の間)を捨てる。 */
     public static void clearCacheForTests() {

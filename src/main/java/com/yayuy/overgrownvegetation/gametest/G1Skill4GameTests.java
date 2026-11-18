@@ -303,6 +303,7 @@ public final class G1Skill4GameTests {
     /** (c) 盾で受ければ絡まらない(暴露もなし)。盾が無ければ絡まって暴露量 +300。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 40)
     public static void rootsilkBlockedByShieldDoesNotTangle(GameTestHelper helper) {
+        SporeAmbient.isolate(helper, 40); // 隣のテスト場から広がる胞子の場の浮遊を読まない(技が直に与えた分だけを見る。2026-11-18 揺れるテストの調べ)
         DevelopedParasitized spider = spawnDev(helper, G1Developed.SPIDER, new Vec3(3.5, 2.0, 1.0));
         spider.goalSelector.removeAllGoals(g -> true);
         Vec3 at = helper.absoluteVec(new Vec3(3.5, 2.0, 5.0));

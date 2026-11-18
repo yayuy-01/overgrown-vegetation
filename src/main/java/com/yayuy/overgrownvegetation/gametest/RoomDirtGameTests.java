@@ -109,6 +109,7 @@ public final class RoomDirtGameTests {
      */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 40)
     public static void dirtyGearContaminatesOnlyTheVestibule(GameTestHelper helper) {
+        SporeAmbient.isolate(helper, 40); // 隣のテスト場から広がる胞子の場の浮遊を読まない(技が直に与えた分だけを見る。2026-11-18 揺れるテストの調べ)
         ServerLevel level = helper.getLevel();
         RoomCache.unlimitedForTests = true;
         RoomDirt.get(level).clearAll();

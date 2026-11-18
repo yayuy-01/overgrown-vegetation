@@ -179,8 +179,9 @@ public final class SeminariaGameTests {
         helper.succeed();
     }
 
-    /** ひらひら: 飛んでいる間、まっすぐ行けと言われても向きが左右に揺れる(60 tick で向きの変わり方の左右が 2 回以上入れ替わる)。 */
-    @GameTest(template = "gametest_empty7", timeoutTicks = 80)
+    /** ひらひら: 飛んでいる間、まっすぐ行けと言われても向きが左右に揺れる(120 tick までに向きの変わり方の左右が 2 回以上入れ替わる)。
+     * 揺れの位相は個体ごとの乱数なので、前の 60 tick の窓では位相しだいで 1 回しか入れ替わらず、時々落ちていた(2026-11-18 揺れるテストの調べ: 過去 273 回中 11 回)。 */
+    @GameTest(template = "gametest_empty7", timeoutTicks = 160)
     public static void seminariaFluttersInFlight(GameTestHelper helper) {
         SeminariaEntity v = spawn(helper, 3.5D, 6.0D, 3.5D);
         v.roostOverride = Boolean.FALSE;
@@ -196,9 +197,12 @@ public final class SeminariaGameTests {
                 if (s != 0) sign[0] = s;
             }
             last[0] = y;
-            if (++ticks[0] >= 60) {
-                if (flips[0] >= 2) helper.succeed();
-                else helper.fail("向きが揺れない(入れ替わり " + flips[0] + " 回)");
+            if (flips[0] >= 2) {
+                helper.succeed();
+                return;
+            }
+            if (++ticks[0] >= 120) {
+                helper.fail("向きが揺れない(入れ替わり " + flips[0] + " 回)");
             }
         });
     }

@@ -17,6 +17,20 @@ import net.minecraft.world.level.ChunkPos;
  */
 final class SporeAmbient {
 
+    /**
+     * テスト場のチャンク(読みは隣のチャンクと混ぜるので、まわり 8 ブロックぶん)を {@code ticks} の間「外の場 0」として読ませる。
+     * 技が直に与えた暴露量だけを見たいテストの頭(技を出す前)で呼ぶ。技が撒いた乳だまり・莢などの物はそのまま(場の浮遊を読まないだけ)。
+     * 場を通して回る分は胞子の場のテストが受け持つ。
+     */
+    static void isolate(net.minecraft.gametest.framework.GameTestHelper helper, int ticks) {
+        ServerLevel level = helper.getLevel();
+        BlockPos a = helper.absolutePos(BlockPos.ZERO), b = helper.absolutePos(new BlockPos(7, 0, 7));
+        int x0 = (Math.min(a.getX(), b.getX()) - 8) >> 4, x1 = (Math.max(a.getX(), b.getX()) + 8) >> 4;
+        int z0 = (Math.min(a.getZ(), b.getZ()) - 8) >> 4, z1 = (Math.max(a.getZ(), b.getZ()) + 8) >> 4;
+        long until = level.getGameTime() + ticks + 20L;
+        for (int cx = x0; cx <= x1; cx++) for (int cz = z0; cz <= z1; cz++) SporeConcentration.cleanForTests(cx, cz, until);
+    }
+
     /** {@code e} のいる所の濃度の読みと内訳。 */
     static String describe(ServerLevel level, LivingEntity e) {
         BlockPos pos = e.blockPosition();
