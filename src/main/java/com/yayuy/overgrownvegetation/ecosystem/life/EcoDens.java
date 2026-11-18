@@ -58,8 +58,6 @@ public final class EcoDens {
     public static final String DEN_TAG = "ov_eco_life";
     public static final int INTERVAL = 40;
     public static final int DEN_RADIUS = 48, COUNT_RADIUS = 96, CAP_G2 = 16, CAP_G3 = 6;
-    /** 端を洞にする確率(1 つの端ごと)【仮】。 */
-    public static final double DEN_CHANCE = 0.35D;
     /** 空になってから詰め直すまで(1 日)【仮】。 */
     public static final long RESTOCK_TICKS = 24000L;
     /** GameTest で回すか(既定は回さない。テストは手で呼ぶ)。 */
@@ -372,7 +370,7 @@ public final class EcoDens {
 
     /** 倒木の 1 マスが端なら(軸の片側が倒木でなく、入口の前が空いている)、座標の乱数で洞にする。 */
     public static boolean tryMakeDen(ServerLevel level, BlockPos pos, BlockState st) {
-        return tryMakeDen(level, pos, st, DEN_CHANCE);
+        return tryMakeDen(level, pos, st, DesignData.ecosystem().denChance);
     }
 
     /** 確率を決めて試す(GameTest は 1 で)。 */

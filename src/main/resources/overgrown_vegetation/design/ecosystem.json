@@ -9,6 +9,7 @@
   "weightG3": 2.5,
   "scale": 50.0,
   "incomeFloor": 0.5,
+  "denChance": 0.7,
   "countedDamageTypes": [
     "overgrown_vegetation:autocannon",
     "overgrown_vegetation:barbed_wire"

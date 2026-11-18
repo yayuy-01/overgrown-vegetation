@@ -22,6 +22,8 @@ public final class EcoTable {
         public Double recoveryDays;
         public Double weightG2, weightG3, scale;
         public Double incomeFloor;
+        /** 倒木の端を洞にする確率(11-18 ユーザー「あげていいよ」で 0.7)。 */
+        public Double denChance;
         public List<String> countedDamageTypes;
         public InnerJson inner;
         public StubJson stub;
@@ -48,6 +50,8 @@ public final class EcoTable {
     public final double weightG2, weightG3, scale;
     /** 予算の貯まる速さの倍率 = floor + (1 − floor) × 多様性(決定 C)。 */
     public final double incomeFloor;
+    /** 倒木の端を G2・G3 の洞にする確率(1 つの端ごと・座標の乱数)【仮 0.7】。 */
+    public final double denChance;
     public final List<String> countedDamageTypes;
 
     public final double innerThreshold;
@@ -70,6 +74,7 @@ public final class EcoTable {
         weightG3 = Math.max(0.0D, or(j.weightG3, 2.5D));
         scale = Math.max(1.0E-6D, or(j.scale, 50.0D));
         incomeFloor = Math.max(0.0D, Math.min(1.0D, or(j.incomeFloor, 0.5D)));
+        denChance = Math.max(0.0D, Math.min(1.0D, or(j.denChance, 0.7D)));
         countedDamageTypes = j.countedDamageTypes != null ? List.copyOf(j.countedDamageTypes)
                 : List.of("overgrown_vegetation:autocannon", "overgrown_vegetation:barbed_wire");
         innerThreshold = Math.max(0.0D, Math.min(1.0D, or(in.threshold, 0.7D)));
