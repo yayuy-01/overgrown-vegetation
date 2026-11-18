@@ -284,7 +284,7 @@ public final class SporeSprouts {
         }
         BlockPos target = null;
         BlockPos.MutableBlockPos m = pos.below().mutable();
-        for (int d = 0; d < 64 && m.getY() > level.getMinBuildHeight() && level.isLoaded(m); d++) {
+        for (int d = 0; d < 64 && m.getY() > level.getMinBuildHeight() && com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, m); d++) {
             if (!level.getFluidState(m).is(net.minecraft.tags.FluidTags.WATER)) break;
             if (!level.getFluidState(m.below()).is(net.minecraft.tags.FluidTags.WATER)) {
                 target = m.immutable();
@@ -449,14 +449,14 @@ public final class SporeSprouts {
         if (!d.pendingRooted.isEmpty()) {
             for (long k : d.pendingRooted.toLongArray()) {
                 BlockPos bp = BlockPos.of(k);
-                if (level.isLoaded(bp) && level.getBlockState(bp).is(ModBlocks.BLIGHT_FERN_ROOTED.get())) addRootedPoint(level, bp);
+                if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, bp) && level.getBlockState(bp).is(ModBlocks.BLIGHT_FERN_ROOTED.get())) addRootedPoint(level, bp);
             }
             d.pendingRooted.clear();
         }
         if (!d.resettle.isEmpty()) {
             for (long k : d.resettle.keySet().toLongArray()) {
                 BlockPos bp = BlockPos.of(k);
-                if (level.isLoaded(bp)) {
+                if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, bp)) {
                     resettleRooted(level, bp);
                     d.resettle.remove(k);
                 } else if (d.resettle.addTo(k, 1) >= RESETTLE_WAIT) {
@@ -476,7 +476,7 @@ public final class SporeSprouts {
                 Point p = it.next();
                 if (p.next > now) continue;
                 if (done > 0 && !TickBudget.timeLeft()) break;
-                if (!level.isLoaded(p.origin)) {
+                if (!level.isLoaded(p.origin)) { // 読み込み途中は外さない(すぐ下の areaLoaded が先送りする)
                     it.remove();
                     if (!p.rooted) wait(d, p.origin); // 読み込まれなくなった点は待たせる(株は読み込んだときに走らせ直す。2026-11-04 C)
                     continue;
@@ -536,7 +536,7 @@ public final class SporeSprouts {
                 if (done > 0 && !TickBudget.timeLeft()) break;
                 long k = d.waiting.removeFirstLong();
                 BlockPos o = BlockPos.of(k);
-                if (!level.isLoaded(o)) {
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, o)) {
                     d.waiting.add(k); // 後ろへ
                     continue;
                 }

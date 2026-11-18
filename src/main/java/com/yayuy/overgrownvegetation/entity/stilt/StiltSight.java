@@ -54,7 +54,7 @@ public final class StiltSight {
             }
             if (x == ex && y == ey && z == ez) return true;
             steps++;
-            if (!level.isLoaded(p.set(x, y, z))) return false;
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p.set(x, y, z))) return false;
             if (blocks(level, p)) return false;
         }
         return true;

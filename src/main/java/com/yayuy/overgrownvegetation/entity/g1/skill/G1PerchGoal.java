@@ -368,7 +368,7 @@ public class G1PerchGoal extends Goal {
      */
     public static int climbable(DevelopedParasitized mob, BlockPos stand, Direction dir) {
         var level = mob.level();
-        if (!level.isLoaded(stand)) return 0;
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, stand)) return 0;
         BlockPos below = stand.below();
         if (!level.getBlockState(below).isFaceSturdy(level, below, Direction.UP)) return 0;
         BlockPos wall = stand.relative(dir);

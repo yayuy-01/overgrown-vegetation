@@ -92,7 +92,7 @@ public final class FloorGrowth {
         if (random.nextDouble() < OvergrownVegetationConfig.COMMON.floorUprightShare.get()) {
             BlockPos upper = pos.above();
             BlockState upright = ModBlocks.LYCOPSID_UPRIGHT.get().defaultBlockState();
-            if (level.isLoaded(upper) && level.getBlockState(upper).isAir() && upright.canSurvive(level, pos)) {
+            if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, upper) && level.getBlockState(upper).isAir() && upright.canSurvive(level, pos)) {
                 DoublePlantBlock.placeAt(level, upright, pos, Block.UPDATE_ALL);
                 return true;
             }
@@ -112,14 +112,14 @@ public final class FloorGrowth {
         }
         for (int dy = 0; dy <= height; dy++) {
             BlockPos p = pos.above(dy);
-            if (!level.isLoaded(p) || !level.getBlockState(p).isAir()) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p) || !level.getBlockState(p).isAir()) {
                 return false;
             }
         }
         BlockPos crownPos = pos.above(height - 1);
         for (Direction side : Direction.Plane.HORIZONTAL) {
             BlockPos p = crownPos.relative(side);
-            if (!level.isLoaded(p) || level.getBlockState(p).isSolidRender(level, p)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p) || level.getBlockState(p).isSolidRender(level, p)) {
                 return false;
             }
         }
@@ -142,7 +142,7 @@ public final class FloorGrowth {
             return hostState;
         }
         BlockPos above = pos.above();
-        if (!level.isLoaded(above)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, above)) {
             return hostState;
         }
         BlockState up = level.getBlockState(above);
@@ -209,7 +209,7 @@ public final class FloorGrowth {
             for (int dz = -WATERSIDE_RADIUS; dz <= WATERSIDE_RADIUS; dz++) {
                 for (int dy = 0; dy <= 1; dy++) {
                     p.set(pos.getX() + dx, pos.getY() + dy, pos.getZ() + dz);
-                    if (level.isLoaded(p) && level.getFluidState(p).is(net.minecraft.tags.FluidTags.WATER)) {
+                    if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p) && level.getFluidState(p).is(net.minecraft.tags.FluidTags.WATER)) {
                         return true;
                     }
                 }
@@ -223,7 +223,7 @@ public final class FloorGrowth {
      * 半分は深さ 2(下のマスも 4 方が塞がっているときだけ)。4 方が必ず塞がっているので水は流れ出さない。
      */
     private static void tryDigPool(ServerLevel level, BlockPos c) {
-        if (!level.isLoaded(c) || !level.getBlockState(c).is(ModBlocks.PEAT.get())) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, c) || !level.getBlockState(c).is(ModBlocks.PEAT.get())) {
             return;
         }
         long h = mix(level.getSeed() ^ POOL_SALT ^ (c.getX() * K1) ^ (c.getZ() * K2) ^ (c.getY() * K3));
@@ -236,7 +236,7 @@ public final class FloorGrowth {
         }
         for (Direction side : Direction.Plane.HORIZONTAL) {
             BlockPos n = c.relative(side);
-            if (!level.isLoaded(n)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, n)) {
                 return;
             }
             BlockState s = level.getBlockState(n);
@@ -323,7 +323,7 @@ public final class FloorGrowth {
      */
     public static boolean tryHorsetail(ServerLevel level, BlockPos ground) {
         int height = horsetailHeightAt(level.getSeed(), ground.getX(), ground.getZ());
-        if (height <= 0 || !level.isLoaded(ground.above(height + 1)) || !isJungle(level, ground)) {
+        if (height <= 0 || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, ground.above(height + 1)) || !isJungle(level, ground)) {
             return false;
         }
         BlockState groundState = level.getBlockState(ground);
@@ -365,7 +365,7 @@ public final class FloorGrowth {
             for (int dz = -radius; dz <= radius; dz++) {
                 for (int dy = -1; dy <= 1; dy++) {
                     p.set(ground.getX() + dx, ground.getY() + dy, ground.getZ() + dz);
-                    if (level.isLoaded(p) && level.getFluidState(p).is(net.minecraft.tags.FluidTags.WATER)) {
+                    if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p) && level.getFluidState(p).is(net.minecraft.tags.FluidTags.WATER)) {
                         return true;
                     }
                 }
@@ -489,7 +489,7 @@ public final class FloorGrowth {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (int y = top; y >= bottom; y--) {
             p.set(x, y, z);
-            if (!level.isLoaded(p)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) {
                 return Integer.MIN_VALUE;
             }
             BlockState s = level.getBlockState(p);
@@ -507,7 +507,7 @@ public final class FloorGrowth {
 
     /** 倒木が入れるマス: 空気か置き換えられる植物(水は不可)。埋まるマスは汚染した土・草・泥炭だけ。 */
     private static boolean canTake(ServerLevel level, BlockPos p, boolean buried) {
-        if (!level.isLoaded(p)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) {
             return false;
         }
         BlockState s = level.getBlockState(p);
@@ -529,7 +529,7 @@ public final class FloorGrowth {
         }
         for (Direction side : Direction.Plane.HORIZONTAL) {
             BlockPos n = hole.relative(side);
-            if (!level.isLoaded(n) || !level.getBlockState(n).isSolidRender(level, n)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, n) || !level.getBlockState(n).isSolidRender(level, n)) {
                 return;
             }
         }

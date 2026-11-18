@@ -49,7 +49,7 @@ public final class LeyFlowerSpread {
         for (int i = 0; i < spec.flowerSpreadTries(); i++) {
             int x = center.getX() + random.nextInt(2 * r + 1) - r;
             int z = center.getZ() + random.nextInt(2 * r + 1) - r;
-            if (!level.hasChunkAt(new BlockPos(x, 0, z)) || !LeyLines.inFlowerBand(level.getSeed(), x, z)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunkAt(level, new BlockPos(x, 0, z)) || !LeyLines.inFlowerBand(level.getSeed(), x, z)) {
                 continue;
             }
             BlockPos pos = new BlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);

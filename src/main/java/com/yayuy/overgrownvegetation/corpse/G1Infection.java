@@ -42,7 +42,7 @@ public final class G1Infection {
             return;
         }
         LivingEntity entity = event.getEntity();
-        if (entity instanceof Player || !(entity.level() instanceof ServerLevel level) || !level.isLoaded(entity.blockPosition())) {
+        if (entity instanceof Player || !(entity.level() instanceof ServerLevel level) || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, entity.blockPosition())) {
             return;
         }
         if (!isInfectionDeath(entity, event.getSource())) {

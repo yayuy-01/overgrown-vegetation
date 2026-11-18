@@ -25,7 +25,7 @@ public final class SkyProbe {
 
     /** (x, z) の林冠の上の空いた高さ(てっぺんのブロックの 1 つ上)。読めなければ NaN。 */
     public static double canopy(Level level, int x, int z) {
-        if (!level.hasChunk(x >> 4, z >> 4)) return Double.NaN;
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, x >> 4, z >> 4)) return Double.NaN;
         return level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
     }
 
@@ -48,7 +48,7 @@ public final class SkyProbe {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (double d = 1.0D; d <= len; d += 1.0D) {
             int bx = (int) Math.floor(x + fx * d), by = (int) Math.floor(y), bz = (int) Math.floor(z + fz * d);
-            if (!level.hasChunk(bx >> 4, bz >> 4)) return Double.POSITIVE_INFINITY;
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, bx >> 4, bz >> 4)) return Double.POSITIVE_INFINITY;
             // 高さ地図(葉と固いもの)より上は何も無い: ブロックを読まない(空を飛ぶ群れのほとんどの点。11-16 見直し 第 3 便)
             if (by >= level.getHeight(Heightmap.Types.MOTION_BLOCKING, bx, bz)) continue;
             p.set(bx, by, bz);
@@ -74,7 +74,7 @@ public final class SkyProbe {
 
     /** 止まってよいブロックか(上が空いた固いブロック。液体は不可)。 */
     public static boolean perchable(Level level, BlockPos top) {
-        if (!level.hasChunk(top.getX() >> 4, top.getZ() >> 4)) return false;
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, top.getX() >> 4, top.getZ() >> 4)) return false;
         BlockState s = level.getBlockState(top);
         if (s.isAir() || !s.getFluidState().isEmpty() || s.getCollisionShape(level, top).isEmpty()) return false;
         BlockPos above = top.above();
@@ -94,7 +94,7 @@ public final class SkyProbe {
      * 横 1〜2 ブロックに空から下りてこられる口({@link #hangOutside})がある。
      */
     public static boolean hangable(Level level, BlockPos leaf) {
-        if (!level.hasChunk(leaf.getX() >> 4, leaf.getZ() >> 4)) return false;
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, leaf.getX() >> 4, leaf.getZ() >> 4)) return false;
         BlockState s = level.getBlockState(leaf);
         if (s.isAir() || !s.getFluidState().isEmpty() || s.getCollisionShape(level, leaf).isEmpty()) return false;
         for (int k = 1; k <= HANG_CLEAR_BELOW; k++) {
@@ -117,7 +117,7 @@ public final class SkyProbe {
                 int d = dx * dx + dz * dz;
                 if (d == 0 || d >= bestD) continue;
                 int x = leaf.getX() + dx, z = leaf.getZ() + dz;
-                if (!level.hasChunk(x >> 4, z >> 4)) continue;
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, x >> 4, z >> 4)) continue;
                 if (level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z) > y) continue;   // 真上が空いていない
                 if (Math.abs(dx) == 2 || Math.abs(dz) == 2) {
                     BlockPos mid = new BlockPos(leaf.getX() + Integer.signum(dx) * (Math.abs(dx) + 1) / 2, y, leaf.getZ() + Integer.signum(dz) * (Math.abs(dz) + 1) / 2);

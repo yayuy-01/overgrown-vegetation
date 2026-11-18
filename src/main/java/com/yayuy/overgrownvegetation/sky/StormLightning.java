@@ -139,7 +139,7 @@ public final class StormLightning {
     static void strikeAt(ServerLevel level, long stormId, Spot spot, long seed, boolean burst) {
         BlockPos pos = BlockPos.containing(spot.x(), 0, spot.z());
         int hitY = Integer.MIN_VALUE, groundY = Integer.MIN_VALUE;
-        if (level.hasChunk(pos.getX() >> 4, pos.getZ() >> 4)) {
+        if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, pos.getX() >> 4, pos.getZ() >> 4)) {
             hitY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, pos.getX(), pos.getZ());
             groundY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, pos.getX(), pos.getZ());
         }

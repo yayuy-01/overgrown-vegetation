@@ -97,7 +97,7 @@ public class HeatBladeItem extends CrystalSwordItem {
         try {
             while (!queue.isEmpty() && n < max) {
                 BlockPos p = queue.poll();
-                if (!seen.add(p) || !level.isLoaded(p) || p.distManhattan(origin) > 8) continue;
+                if (!seen.add(p) || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p) || p.distManhattan(origin) > 8) continue;
                 if (!level.getBlockState(p).is(MacheteItem.CLEARABLE)) continue;
                 if (player != null && !level.mayInteract(player, p)) continue;
                 level.setBlock(p, Blocks.AIR.defaultBlockState(), 3);

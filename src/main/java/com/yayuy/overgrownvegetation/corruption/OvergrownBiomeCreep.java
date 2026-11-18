@@ -269,7 +269,7 @@ public final class OvergrownBiomeCreep {
                     if (now < nextSweep.get(key)) {
                         continue;
                     }
-                    if (!level.hasChunk(cx, cz)) {
+                    if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, cx, cz)) {
                         continue;
                     }
                     if (!neighbourhoodReady(level, cx, cz)) {
@@ -746,7 +746,7 @@ public final class OvergrownBiomeCreep {
         }
         int x = player.getBlockX() + dx;
         int z = player.getBlockZ() + dz;
-        if (!level.hasChunkAt(new BlockPos(x, level.getMinBuildHeight(), z))) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunkAt(level, new BlockPos(x, level.getMinBuildHeight(), z))) {
             return;
         }
 
@@ -827,7 +827,7 @@ public final class OvergrownBiomeCreep {
         for (Direction dir : Direction.Plane.HORIZONTAL) {
             int x = pos.getX() + dir.getStepX();
             int z = pos.getZ() + dir.getStepZ();
-            if (!level.hasChunkAt(new BlockPos(x, minY, z))) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunkAt(level, new BlockPos(x, minY, z))) {
                 continue;
             }
             int y = surfaceTopY(level, x, z);
@@ -925,7 +925,7 @@ public final class OvergrownBiomeCreep {
                     if (cursors.get(key) <= minY) {
                         continue; // このチャンクは深部まで汚染しきった
                     }
-                    if (!level.hasChunk(cx, cz)) {
+                    if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, cx, cz)) {
                         continue;
                     }
                     if (!neighbourhoodReady(level, cx, cz)) {
@@ -980,7 +980,7 @@ public final class OvergrownBiomeCreep {
             long key = batch.keys.dequeueLong();
             int cx = ChunkPos.getX(key);
             int cz = ChunkPos.getZ(key);
-            if (!level.hasChunk(cx, cz) || !neighbourhoodReady(level, cx, cz)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, cx, cz) || !neighbourhoodReady(level, cx, cz)) {
                 continue;
             }
             deepenChunk(level, new ChunkPos(key), cursors, key,
@@ -1233,7 +1233,7 @@ public final class OvergrownBiomeCreep {
         }
         for (Direction dir : DIRECTIONS) {
             scratch.setWithOffset(pos, dir);
-            if (!level.isLoaded(scratch)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, scratch)) {
                 return false;
             }
             BlockState neighbour = level.getBlockState(scratch);

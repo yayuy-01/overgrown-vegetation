@@ -247,7 +247,7 @@ public final class WorldWeather {
         double z = player.getZ() + look.z / len * 150.0;
         int bx = net.minecraft.util.Mth.floor(x);
         int bz = net.minecraft.util.Mth.floor(z);
-        boolean loaded = level.hasChunk(bx >> 4, bz >> 4);
+        boolean loaded = com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, bx >> 4, bz >> 4);
         int hitY = loaded ? level.getHeight(Heightmap.Types.MOTION_BLOCKING, bx, bz) : Integer.MIN_VALUE;
         int groundY = loaded ? level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, bx, bz) : Integer.MIN_VALUE;
         PacketDistributor.sendToPlayer(player, new com.yayuy.overgrownvegetation.network.CloudStrikePayload(

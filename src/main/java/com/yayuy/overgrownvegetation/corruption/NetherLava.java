@@ -104,7 +104,7 @@ public final class NetherLava {
             for (Direction d : Direction.Plane.HORIZONTAL) {
                 if (shore) break;
                 q.set(x + d.getStepX(), s, z + d.getStepZ());
-                if (!level.isLoaded(q)) continue;
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, q)) continue;
                 if (!isLava(level.getBlockState(q))) shore = true;
             }
             if (shore) ring.add(BlockPos.asLong(x, s, z));
@@ -165,7 +165,7 @@ public final class NetherLava {
             for (Direction d : Direction.Plane.HORIZONTAL) {
                 if (shore) break;
                 q.set(x + d.getStepX(), s, z + d.getStepZ());
-                if (!level.isLoaded(q)) continue;
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, q)) continue;
                 BlockState n = level.getBlockState(q);
                 // 岸 = 水、または湖にならない隣(陸・浅い殻)。溶岩のままの隣と、まだ湖になっていない殻の隣は岸ではない
                 if (isWater(n) || (!isLava(n) && (!isCrust(n) || lakeDepth(level, new BlockPos.MutableBlockPos(), q.getX(), s, q.getZ()) < 2))) {
@@ -285,7 +285,7 @@ public final class NetherLava {
                 if (d == Direction.DOWN) continue;
                 next.setWithOffset(cur, d);
                 long k = next.asLong();
-                if (seen.contains(k) || !level.isLoaded(next)) continue;
+                if (seen.contains(k) || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, next)) continue;
                 FluidState o = level.getFluidState(next);
                 if (!o.is(FluidTags.LAVA)) continue;
                 if (d == Direction.UP || o.isSource() || o.getAmount() > amount) {

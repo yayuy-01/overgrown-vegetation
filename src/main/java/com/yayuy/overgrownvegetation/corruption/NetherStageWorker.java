@@ -370,7 +370,7 @@ public final class NetherStageWorker {
         int bestD = Integer.MAX_VALUE;
         for (int c = 0; c < 256; c++) {
             int lx = c & 15, lz = c >> 4;
-            if (!level.isLoaded(p.set(x0 + lx, s, z0 + lz))) continue;
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p.set(x0 + lx, s, z0 + lz))) continue;
             if (!NetherLava.isWater(level.getBlockState(p))) continue;
             int d = (lx - 8) * (lx - 8) + (lz - 8) * (lz - 8);
             if (d < bestD) {

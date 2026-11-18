@@ -574,7 +574,7 @@ public final class CorruptionRegistry {
 
         int topY = origin.getY();
         cursor.set(origin.getX(), origin.getY() + 1, origin.getZ());
-        while (level.hasChunkAt(cursor)
+        while (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunkAt(level, cursor)
                 && isColumnPlantClearedByCorruption(level.getBlockState(cursor))) {
             topY = cursor.getY();
             cursor.move(Direction.UP);
@@ -582,7 +582,7 @@ public final class CorruptionRegistry {
 
         int bottomY = origin.getY();
         cursor.set(origin.getX(), origin.getY() - 1, origin.getZ());
-        while (level.hasChunkAt(cursor)
+        while (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunkAt(level, cursor)
                 && isColumnPlantClearedByCorruption(level.getBlockState(cursor))) {
             bottomY = cursor.getY();
             cursor.move(Direction.DOWN);

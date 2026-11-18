@@ -127,7 +127,7 @@ public final class CorruptionArch {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int dy = 0; dy >= -2; dy--) {
             cursor.set(end.getX(), end.getY() + dy, end.getZ());
-            if (!level.isLoaded(cursor)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
                 return false;
             }
             if (level.getBlockState(cursor).blocksMotion()) {
@@ -150,7 +150,7 @@ public final class CorruptionArch {
                         continue;
                     }
                     cursor.set(cx + dx, cy + dy, cz + dz);
-                    if (!level.isLoaded(cursor)) {
+                    if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
                         continue;
                     }
                     BlockState current = level.getBlockState(cursor);

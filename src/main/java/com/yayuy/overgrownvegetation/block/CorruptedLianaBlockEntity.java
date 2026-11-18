@@ -553,7 +553,7 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
 
         int lightLevel = OvergrownVegetationConfig.COMMON.vineDroopLightLevel.get();
         BlockPos lightPos = droopLightPos(index);
-        if (lightLevel > 0 && lightPos != null && level.isLoaded(lightPos)) {
+        if (lightLevel > 0 && lightPos != null && com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, lightPos)) {
             BlockState at = level.getBlockState(lightPos);
             if (at.isAir() || at.canBeReplaced()) {
                 level.setBlock(lightPos, Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, lightLevel),

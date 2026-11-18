@@ -2,6 +2,8 @@ package com.yayuy.overgrownvegetation.perf;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelReader;
 
 /**
  * <b>周期処理がまだ読み込まれていないチャンクを同期で読み込まないための見張り</b>(2026-11-18 大群のための軽量化 B の ④)。
@@ -47,6 +49,47 @@ public final class ChunkEdgeGuard {
             }
         }
         return true;
+    }
+
+    // ---- 2026-11-18 夕: isLoaded・hasChunk・hasChunkAt の置き換え(全体管理の依頼「生成し終わったかを確かめずに使っている所を直す」) ----
+    // 意味は元のメソッドと同じ(高さの外は false など)だが、サーバーのワールドをサーバースレッドで見るときだけ「読み込み終わっているか」で答える。
+    // それ以外(クライアントのワールド・世界生成の WorldGenRegion・別スレッド)は元のメソッドのまま。読み込み途中のチャンクは「読み込まれていない」扱いになり、
+    // 触る側はいつもどおり飛ばす・先送りする(読み込み終われば次の回に入る)。
+
+    /** {@code Level#isLoaded(pos)} の置き換え。 */
+    public static boolean isLoaded(LevelReader level, BlockPos pos) {
+        if (level instanceof ServerLevel sl && sl.getServer().isSameThread()) {
+            if (sl.isOutsideBuildHeight(pos)) return false;
+            return readyOrOld(sl, pos.getX() >> 4, pos.getZ() >> 4);
+        }
+        return level instanceof Level l ? l.isLoaded(pos) : level.hasChunkAt(pos);
+    }
+
+    /** {@code LevelReader#hasChunk(x, z)} の置き換え。 */
+    public static boolean hasChunk(LevelReader level, int chunkX, int chunkZ) {
+        if (level instanceof ServerLevel sl && sl.getServer().isSameThread()) {
+            return readyOrOld(sl, chunkX, chunkZ);
+        }
+        return level.hasChunk(chunkX, chunkZ);
+    }
+
+    /** 測り用の切り替え(false = 元のメソッドのまま。/ov perf horde edge on|off)。既定 true。 */
+    public static volatile boolean replaceEnabled = true;
+    /** 元のメソッドなら true だったが読み込み途中だった回数(= 前ならサーバースレッドが待っていた所)を、呼んだ所ごとに。サーバースレッドだけ。 */
+    public static final java.util.Map<String, Integer> DIVERGED = new java.util.HashMap<>();
+
+    private static boolean readyOrOld(ServerLevel sl, int chunkX, int chunkZ) {
+        if (ready(sl, chunkX, chunkZ)) return true;
+        if (!sl.getChunkSource().hasChunk(chunkX, chunkZ)) return false; // 元のメソッドでも読み込まれていない
+        String caller = StackWalker.getInstance().walk(s -> s.map(f -> f.getClassName().substring(f.getClassName().lastIndexOf('.') + 1) + "." + f.getMethodName() + ":" + f.getLineNumber())
+                .filter(n -> !n.startsWith("ChunkEdgeGuard.")).findFirst().orElse("?"));
+        DIVERGED.merge(caller, 1, Integer::sum);
+        return !replaceEnabled; // 切ってあれば元のとおり true(読み込みを待つ)
+    }
+
+    /** {@code LevelReader#hasChunkAt(pos)} の置き換え。 */
+    public static boolean hasChunkAt(LevelReader level, BlockPos pos) {
+        return hasChunk(level, pos.getX() >> 4, pos.getZ() >> 4);
     }
 
     /** そのチャンクが読み込み終わっているか(サーバースレッドで呼ぶ)。 */

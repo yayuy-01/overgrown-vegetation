@@ -471,7 +471,7 @@ final class EarthquakeFissure {
             int dist = r.nextInt(radius + 1);
             int x = baseX + (int) Math.round(Math.cos(ang) * dist);
             int z = baseZ + (int) Math.round(Math.sin(ang) * dist);
-            if (!level.hasChunk(x >> 4, z >> 4)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, x >> 4, z >> 4)) {
                 continue;
             }
             int surface = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);

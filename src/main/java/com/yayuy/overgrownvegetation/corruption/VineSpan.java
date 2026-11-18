@@ -239,7 +239,7 @@ public final class VineSpan {
             if (m.getX() == host.getX() && m.getZ() == host.getZ()) {
                 continue;
             }
-            if (!level.isLoaded(m)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, m)) {
                 return null;
             }
             if (isAirLike(level, m)) {
@@ -294,7 +294,7 @@ public final class VineSpan {
     }
 
     private static boolean isSolidTerrain(ServerLevel level, BlockPos pos) {
-        if (!level.isLoaded(pos)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos)) {
             return false;
         }
         BlockState s = level.getBlockState(pos);
@@ -510,7 +510,7 @@ public final class VineSpan {
         // 記録は置き始めに入れる(置いている途中に同じ所へ 2 組目が出ないように)。
         VineSpanRecord.get(level).add(a, b);
         BlockPos midTop = BlockPos.containing(f.cx(0.5D), f.cy(0.5D) + 3.0D, f.cz(0.5D));
-        boolean cave = level.isLoaded(midTop) && !level.canSeeSky(midTop);
+        boolean cave = com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, midTop) && !level.canSeeSky(midTop);
         // 置く順は a の壁から b の壁へ(途中でも、片側から伸びていく糸に見える。ハッシュ順だと組じゅうにばらばらに現れた)
         long[] order = cells.keySet().toLongArray();
         double ox = b.getX() - a.getX(), oz = b.getZ() - a.getZ();
@@ -563,7 +563,7 @@ public final class VineSpan {
                 int x = Mth.floor(s.x()[i] + side * (s.tz()[i]));
                 int z = Mth.floor(s.z()[i] - side * (s.tx()[i]));
                 for (int y = top + 1; y <= top + HEADROOM; y++) {
-                    if (level.isLoaded(m.set(x, y, z)) && level.getBlockState(m).blocksMotion()
+                    if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, m.set(x, y, z)) && level.getBlockState(m).blocksMotion()
                             && !level.getBlockState(m).is(ModTags.NOT_CAVE_ROOF)) { // 苔の膜・垂れ植物はすり抜け、木と葉(NOT_CAVE_ROOF)は切って通れるので天井でない(天井 = 地形)
                         ceiling = Math.min(ceiling, y);
                         lastCeiling = m.toShortString() + " " + level.getBlockState(m).getBlock().getDescriptionId() + " 上面 " + top;
@@ -813,7 +813,7 @@ public final class VineSpan {
     // ---- 共通 ----
 
     private static boolean isEmbeddable(ServerLevel level, BlockPos pos) {
-        if (!level.isLoaded(pos)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos)) {
             return false;
         }
         BlockState s = level.getBlockState(pos);
@@ -821,7 +821,7 @@ public final class VineSpan {
     }
 
     private static boolean isAirLike(ServerLevel level, BlockPos pos) {
-        if (!level.isLoaded(pos)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos)) {
             return false;
         }
         BlockState state = level.getBlockState(pos);

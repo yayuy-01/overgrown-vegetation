@@ -79,7 +79,7 @@ public final class WallPlantGrowth {
             for (int dx = -radius; dx <= radius; dx++) {
                 for (int dz = -radius; dz <= radius; dz++) {
                     m.setWithOffset(pos, dx, dy, dz);
-                    if (level.isLoaded(m) && level.getFluidState(m).is(FluidTags.WATER)) {
+                    if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, m) && level.getFluidState(m).is(FluidTags.WATER)) {
                         return true;
                     }
                 }

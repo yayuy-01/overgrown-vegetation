@@ -157,7 +157,7 @@ public final class LeyGrid {
             }
             List<BlockPos> stale = new ArrayList<>();
             for (BlockPos q : pylon.links()) {
-                if (!level.isLoaded(q)) {
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, q)) {
                     continue;
                 }
                 BlockEntity other = level.getBlockEntity(q);

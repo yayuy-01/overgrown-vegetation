@@ -98,7 +98,7 @@ public final class UnderwaterPlants {
                 continue;
             }
             BlockPos at = pos.relative(direction);
-            if (!level.isLoaded(at) || !isWaterSource(level.getBlockState(at))) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, at) || !isWaterSource(level.getBlockState(at))) {
                 continue;
             }
             switch (direction) {
@@ -207,7 +207,7 @@ public final class UnderwaterPlants {
             BlockPos cell = water.relative(dir, i);
             BlockPos below = cell.below();
             // 先に生えた水底の敷物・シャジクモの上にも寝かせる(11-13: 隣の升が先に埋まり、倒木が 1 本も置けなかった)。
-            BlockState at = level.isLoaded(cell) ? level.getBlockState(cell) : null;
+            BlockState at = com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cell) ? level.getBlockState(cell) : null;
             boolean free = at != null && (isWaterSource(at) || at.is(ModBlocks.SUNKEN_LEAF_LITTER.get()) || at.is(ModBlocks.SUNKEN_TWIGS.get())
                     || at.is(ModBlocks.CHARA.get()));
             if (!free || !level.getBlockState(below).isFaceSturdy(level, below, Direction.UP)) {
@@ -230,7 +230,7 @@ public final class UnderwaterPlants {
         BlockPos.MutableBlockPos cursor = water.mutable();
         for (int i = 0; i <= SURFACE_SCAN; i++) {
             cursor.move(Direction.UP);
-            if (!level.isLoaded(cursor)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
                 return null;
             }
             BlockState state = level.getBlockState(cursor);
@@ -296,7 +296,7 @@ public final class UnderwaterPlants {
         int length = Mth.nextInt(random, ROOT_MIN, ROOT_MAX);
         int placed = 0;
         BlockPos.MutableBlockPos cursor = top.mutable();
-        while (placed < length && level.isLoaded(cursor) && isWaterSource(level.getBlockState(cursor))) {
+        while (placed < length && com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor) && isWaterSource(level.getBlockState(cursor))) {
             placed++;
             cursor.move(Direction.DOWN);
         }
@@ -338,7 +338,7 @@ public final class UnderwaterPlants {
      */
     public static boolean growKelp(ServerLevel level, BlockPos water, RandomSource random) {
         int depth = 0;
-        while (depth < SURFACE_SCAN && level.isLoaded(water.above(depth)) && isWaterSource(level.getBlockState(water.above(depth)))) {
+        while (depth < SURFACE_SCAN && com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, water.above(depth)) && isWaterSource(level.getBlockState(water.above(depth)))) {
             depth++;
         }
         BlockPos hostPos = water.below();
@@ -394,7 +394,7 @@ public final class UnderwaterPlants {
 
     /** 葉を 1 枚。{@code cross} なら板 2 枚(東西 + 南北)の姿(封印木の板の性質 corner を流用し、blockstate で十字の模型にした)。 */
     private static boolean frond(ServerLevel level, BlockPos pos, Direction facing, boolean cross) {
-        if (!level.isLoaded(pos) || !isWaterSource(level.getBlockState(pos))) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos) || !isWaterSource(level.getBlockState(pos))) {
             return false;
         }
         level.setBlock(pos, ModBlocks.SPORE_KELP_FROND.get().defaultBlockState()

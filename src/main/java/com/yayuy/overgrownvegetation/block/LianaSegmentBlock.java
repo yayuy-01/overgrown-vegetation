@@ -168,7 +168,7 @@ public class LianaSegmentBlock extends Block {
         Block self = com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_LIANA_SEGMENT.get();
         for (var e : boxes.long2ObjectEntrySet()) {
             BlockPos c = BlockPos.of(e.getLongKey());
-            if (c.equals(skip) || !level.isLoaded(c)) {
+            if (c.equals(skip) || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, c)) {
                 continue;
             }
             double[] box = e.getValue();

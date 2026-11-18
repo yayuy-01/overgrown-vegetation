@@ -274,7 +274,7 @@ public final class CaveFlora {
         int floorY = Integer.MIN_VALUE;
         for (int i = 0; i < 64; i++) {
             p.move(Direction.DOWN);
-            if (!level.isLoaded(p)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) {
                 return;
             }
             BlockState s = level.getBlockState(p);
@@ -322,7 +322,7 @@ public final class CaveFlora {
             for (int dz = -HORSETAIL_WATER_REACH; dz <= HORSETAIL_WATER_REACH; dz++) {
                 for (int dx = -HORSETAIL_WATER_REACH; dx <= HORSETAIL_WATER_REACH; dx++) {
                     p.set(at.getX() + dx, at.getY() + dy, at.getZ() + dz);
-                    if (level.isLoaded(p) && level.getFluidState(p).is(FluidTags.WATER)) {
+                    if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p) && level.getFluidState(p).is(FluidTags.WATER)) {
                         return true;
                     }
                 }
@@ -459,7 +459,7 @@ public final class CaveFlora {
                 continue;
             }
             n.setWithOffset(cell, d);
-            if (level.isLoaded(n) && MultifaceBlock.canAttachTo(level, d, n, level.getBlockState(n))) {
+            if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, n) && MultifaceBlock.canAttachTo(level, d, n, level.getBlockState(n))) {
                 state = state.setValue(MultifaceBlock.getFaceProperty(d), true);
             }
         }
@@ -482,7 +482,7 @@ public final class CaveFlora {
     }
 
     private static boolean open(ServerLevel level, BlockPos pos) {
-        if (!level.isLoaded(pos)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos)) {
             return false;
         }
         BlockState s = level.getBlockState(pos);
@@ -511,7 +511,7 @@ public final class CaveFlora {
         for (int dy = 1; dy <= CURTAIN_TREE_REACH; dy++) {
             for (int[] c : cols) {
                 p.set(ceiling.getX() + c[0], ceiling.getY() + dy, ceiling.getZ() + c[1]);
-                if (level.isLoaded(p) && isTrunk(level.getBlockState(p))) {
+                if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p) && isTrunk(level.getBlockState(p))) {
                     return true;
                 }
             }
@@ -527,7 +527,7 @@ public final class CaveFlora {
 
     /** 空気のマス {@code cell} の空の光が洞窟の口の帯({@link #MOUTH_SKY_MIN}〜{@link #MOUTH_SKY_MAX})か。 */
     static boolean mouthSky(ServerLevel level, BlockPos cell) {
-        if (!level.isLoaded(cell)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cell)) {
             return false;
         }
         int sky = level.getBrightness(net.minecraft.world.level.LightLayer.SKY, cell);
@@ -604,7 +604,7 @@ public final class CaveFlora {
         int thick = 0;
         while (true) {
             p.set(x, y, z);
-            if (!level.isLoaded(p)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) {
                 return false;
             }
             BlockState s = level.getBlockState(p);
@@ -632,7 +632,7 @@ public final class CaveFlora {
             for (int dz = -side; dz <= side; dz++) {
                 for (int dx = -side; dx <= side; dx++) {
                     p.set(x + dx, y + dy, z + dz);
-                    if (level.isLoaded(p) && isForestTrunk(level.getBlockState(p))) {
+                    if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p) && isForestTrunk(level.getBlockState(p))) {
                         return true;
                     }
                 }
@@ -658,7 +658,7 @@ public final class CaveFlora {
         for (int dz = -radius; dz <= radius; dz++) {
             for (int dx = -radius; dx <= radius; dx++) {
                 p.set(cell.getX() + dx, cell.getY(), cell.getZ() + dz);
-                if (!level.isLoaded(p)) {
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) {
                     continue;
                 }
                 BlockState s = level.getBlockState(p);
@@ -749,7 +749,7 @@ public final class CaveFlora {
      */
     public static boolean placeSporePool(ServerLevel level, BlockPos floor) {
         BlockPos cell = floor.above();
-        if (!level.isLoaded(cell) || !level.getBlockState(cell).isAir()
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cell) || !level.getBlockState(cell).isAir()
                 || sectionsMayHave(level, cell, 0, s -> s.is(ModBlocks.CAVE_SPORE_POOL.get()))) {
             return false;
         }
@@ -775,7 +775,7 @@ public final class CaveFlora {
             boolean rim = false;
             for (int k = 1; k <= POOL_REACH; k++) {
                 p.set(cell.getX() + dirs[i][0] * k, cell.getY(), cell.getZ() + dirs[i][1] * k);
-                if (!level.isLoaded(p)) {
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) {
                     return false;
                 }
                 if (pitFloor(level, p)) {
@@ -824,7 +824,7 @@ public final class CaveFlora {
             for (int dz = -POOL_REACH; dz <= POOL_REACH; dz++) {
                 for (int dx = -POOL_REACH; dx <= POOL_REACH; dx++) {
                     p.set(pos.getX() + dx, pos.getY() - dy, pos.getZ() + dz);
-                    if (level.isLoaded(p) && level.getBlockState(p).is(ModBlocks.CAVE_SPORE_POOL.get())) {
+                    if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p) && level.getBlockState(p).is(ModBlocks.CAVE_SPORE_POOL.get())) {
                         return pitFloor(level, p.set(pos.getX(), pos.getY() - dy, pos.getZ()));
                     }
                 }
@@ -974,7 +974,7 @@ public final class CaveFlora {
 
     /** {@code pos} のチャンクの、{@code pos} のセクションと上下 {@code span} 段のパレットに {@code test} に合う状態があるか(安い下見。古い項目で真になることがある)。 */
     static boolean sectionsMayHave(ServerLevel level, BlockPos pos, int span, Predicate<BlockState> test) {
-        if (!level.isLoaded(pos)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos)) {
             return true; // 読めない所には置かない
         }
         LevelChunk chunk = level.getChunkAt(pos);
@@ -999,7 +999,7 @@ public final class CaveFlora {
         for (int k = 0; k <= reach * 2; k++) {
             int y = y0 + ((k & 1) == 0 ? k / 2 : -(k + 1) / 2);
             p.set(x, y, z);
-            if (!level.isLoaded(p)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) {
                 return null;
             }
             if (isAir(level, p) && level.getBlockState(p.above()).isFaceSturdy(level, p.above(), Direction.DOWN)) {
@@ -1015,7 +1015,7 @@ public final class CaveFlora {
         for (int k = 0; k <= reach * 2; k++) {
             int y = floorY + 1 + ((k & 1) == 0 ? k / 2 : -(k + 1) / 2);
             p.set(x, y, z);
-            if (!level.isLoaded(p)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) {
                 return null;
             }
             if (isAir(level, p) && level.getBlockState(p.below()).isFaceSturdy(level, p.below(), Direction.UP)) {
@@ -1027,7 +1027,7 @@ public final class CaveFlora {
 
     /** 空気か(菌糸は空気と見る = ほかの植生と天井の高さの数えでは菌糸を読み飛ばし、上書きしてよい)。 */
     private static boolean isAir(ServerLevel level, BlockPos pos) {
-        if (!level.isLoaded(pos)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos)) {
             return false;
         }
         BlockState s = level.getBlockState(pos);

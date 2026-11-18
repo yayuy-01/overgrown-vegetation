@@ -236,7 +236,7 @@ public final class SwampTreeFall {
             cursor.set(fall.blocks[fall.next++]);
             budget = TickBudget.spend(budget);
             // 集めた後に生えた封印木は消さない(2026-11-01。数 tick に分けて消す間に苗木が育つことがある)
-            if (level.isLoaded(cursor) && !isSigillariaPart(level.getBlockState(cursor))) {
+            if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor) && !isSigillariaPart(level.getBlockState(cursor))) {
                 level.setBlock(cursor, air, REMOVE_FLAGS);
                 StrandedPlants.clearAround(level, cursor);
             }
@@ -251,7 +251,7 @@ public final class SwampTreeFall {
         LongOpenHashSet removed = new LongOpenHashSet(fall.blocks);
         removeLianasEndingIn(level, removed);
         StrandedPlants.clearUnanchored(level, removed);
-        if (!level.isLoaded(fall.lowest)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, fall.lowest)) {
             return; // 撤去の途中で切り株のチャンクが外れた(集めた tick に終わる木では起きない)。
         }
         RandomSource random = level.getRandom();
@@ -350,7 +350,7 @@ public final class SwampTreeFall {
             }
             for (Direction dir : DIRECTIONS) {
                 scratch.setWithOffset(p, dir);
-                if (level.isLoaded(scratch) && isBuildingBlock(level.getBlockState(scratch))) {
+                if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, scratch) && isBuildingBlock(level.getBlockState(scratch))) {
                     return null; // 木材・柵・階段・ドアなどに接している = 建築物。
                 }
             }
@@ -361,7 +361,7 @@ public final class SwampTreeFall {
                             continue;
                         }
                         BlockPos n = p.offset(dx, dy, dz);
-                        if (logs.contains(n.asLong()) || !level.isLoaded(n)) {
+                        if (logs.contains(n.asLong()) || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, n)) {
                             continue;
                         }
                         if (isTreeLog(level.getBlockState(n))) {
@@ -402,7 +402,7 @@ public final class SwampTreeFall {
             for (Direction dir : DIRECTIONS) {
                 BlockPos n = p.relative(dir);
                 long nl = n.asLong();
-                if (seen.contains(nl) || !level.isLoaded(n)) {
+                if (seen.contains(nl) || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, n)) {
                     continue;
                 }
                 seen.add(nl);
@@ -611,7 +611,7 @@ public final class SwampTreeFall {
             for (Direction dir : DIRECTIONS) {
                 cursor.set(cur[0]).move(dir);
                 long nl = cursor.asLong();
-                if (seen.contains(nl) || !level.isLoaded(cursor)) {
+                if (seen.contains(nl) || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
                     continue;
                 }
                 seen.add(nl);
@@ -643,7 +643,7 @@ public final class SwampTreeFall {
             for (Direction dir : DIRECTIONS) {
                 cursor.set(cur[0]).move(dir);
                 long nl = cursor.asLong();
-                if (reached.contains(nl) || !level.isLoaded(cursor)) {
+                if (reached.contains(nl) || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
                     continue;
                 }
                 reached.add(nl);

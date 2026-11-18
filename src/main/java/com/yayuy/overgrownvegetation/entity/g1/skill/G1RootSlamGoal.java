@@ -157,7 +157,7 @@ public class G1RootSlamGoal extends G1TechniqueGoal {
                 if (dx * dx + dz * dz > RADIUS * RADIUS) continue;
                 for (int dy = 1; dy >= -3; dy--) {
                     p.set(feet.getX() + dx, feet.getY() + dy, feet.getZ() + dz);
-                    if (!level.isLoaded(p)) break;
+                    if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) break;
                     BlockState s = level.getBlockState(p);
                     if (s.getCollisionShape(level, p).isEmpty()) continue;
                     // 最初の地面

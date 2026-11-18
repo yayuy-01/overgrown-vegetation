@@ -100,7 +100,7 @@ public final class G1FluffDrift {
         }
         Vec3 flat = landing(from, dirX, dirZ, strength, random.nextDouble() * 2.0D - 1.0D);
         BlockPos column = BlockPos.containing(flat);
-        double y = level.isLoaded(column) ? level.getHeight(Heightmap.Types.MOTION_BLOCKING, column.getX(), column.getZ()) : from.y;
+        double y = com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, column) ? level.getHeight(Heightmap.Types.MOTION_BLOCKING, column.getX(), column.getZ()) : from.y;
         Vec3 to = new Vec3(flat.x, y, flat.z);
         SporeFieldServer.depositPoint(level, BlockPos.containing(to), DesignData.sporeField().field().germThreshold * depositPercent / 100.0D);
         int duration = Math.max(20, (int) Math.round(Math.sqrt(from.distanceToSqr(to)) / SPEED));

@@ -190,7 +190,7 @@ public final class BuildCorrosion {
             for (int i = 0; i < dirtyList.size(); i++) {
                 long key = dirtyList.getLong(i);
                 ChunkPos cp = new ChunkPos(key);
-                if (!level.hasChunk(cp.x, cp.z)) {
+                if (!level.hasChunk(cp.x, cp.z)) { // 外すのは本当に読み込まれていないときだけ(途中は下の loadingSettled が待たせる)
                     dirty.remove(key);
                     continue;
                 }
@@ -225,7 +225,7 @@ public final class BuildCorrosion {
                     if (now < nextVisit.get(key)) {
                         continue;
                     }
-                    if (!level.hasChunk(cx, cz)) {
+                    if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, cx, cz)) {
                         continue;
                     }
                     if (!loadingSettled(level, cx, cz)) {

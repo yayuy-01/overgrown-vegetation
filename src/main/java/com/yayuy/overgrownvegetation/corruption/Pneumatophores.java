@@ -97,7 +97,7 @@ public final class Pneumatophores {
             }
             kneeCells(x, g, z, h, wide, (cx, cy, cz) -> {
                 p.set(cx, cy, cz);
-                if (!level.isLoaded(p)) {
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) {
                     return;
                 }
                 BlockState s = level.getBlockState(p);
@@ -124,7 +124,7 @@ public final class Pneumatophores {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (int yy = y + 2; yy >= y - 2; yy--) {
             p.set(x, yy, z);
-            if (!level.isLoaded(p)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) {
                 return Integer.MIN_VALUE;
             }
             BlockState s = level.getBlockState(p);

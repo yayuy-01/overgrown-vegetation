@@ -54,7 +54,7 @@ public class RootsilkWebBlock extends Block {
      * 汚染が止まっている・胞子除去装置の中では張らない(汚染と同じ守り)。
      */
     public static boolean placeAt(ServerLevel level, BlockPos pos) {
-        if (!level.isLoaded(pos) || level.isOutsideBuildHeight(pos)) return false;
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos) || level.isOutsideBuildHeight(pos)) return false;
         if (CorruptionSwitch.isOff() || SporeDeviceData.inhibits(level, pos, SporeDeviceData.Inhibit.CORRUPTION)) return false;
         BlockState old = level.getBlockState(pos);
         if (!(old.isAir() || old.canBeReplaced()) || !old.getFluidState().isEmpty() || old.is(ModG1.ROOTSILK_WEB.get())) return false;
@@ -93,7 +93,7 @@ public class RootsilkWebBlock extends Block {
     public static boolean onCorruption(ServerLevel level, BlockPos pos) {
         for (Direction d : Direction.values()) {
             BlockPos p = pos.relative(d);
-            if (level.isLoaded(p) && OvergrownLayerData.isCorruptedCell(level, p, level.getBlockState(p))) return true;
+            if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p) && OvergrownLayerData.isCorruptedCell(level, p, level.getBlockState(p))) return true;
         }
         return false;
     }

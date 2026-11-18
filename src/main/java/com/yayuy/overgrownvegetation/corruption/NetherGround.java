@@ -443,7 +443,7 @@ public final class NetherGround {
             }
             for (Direction d : Direction.Plane.HORIZONTAL) {
                 q.setWithOffset(p, d);
-                if (!level.isLoaded(q)) {
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, q)) {
                     ok = false;
                     continue;
                 }

@@ -106,7 +106,7 @@ public class StenodictyaNymphEntity extends CrawlerCritter {
         for (int i = 0; i < 10; i++) {
             int x = feet.getX() + random.nextInt(CANOPY_REACH * 2 + 1) - CANOPY_REACH;
             int z = feet.getZ() + random.nextInt(CANOPY_REACH * 2 + 1) - CANOPY_REACH;
-            if (!level.hasChunk(x >> 4, z >> 4)) continue;
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, x >> 4, z >> 4)) continue;
             int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
             if (Math.abs(top - feet.getY()) > CANOPY_DY) continue;
             if (!isLeaves(level.getBlockState(new BlockPos(x, top - 1, z)))) continue;

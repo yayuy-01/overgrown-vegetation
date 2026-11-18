@@ -321,7 +321,7 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
         for (int ring = 0; ring <= SEGMENT_SEARCH_CHUNKS; ring++) {
             for (int dx = -ring; dx <= ring; dx++) {
                 for (int dz = -ring; dz <= ring; dz++) {
-                    if (Math.max(Math.abs(dx), Math.abs(dz)) != ring || !level.hasChunk(cx + dx, cz + dz)) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != ring || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, cx + dx, cz + dz)) {
                         continue;
                     }
                     for (BlockEntity be : level.getChunk(cx + dx, cz + dz).getBlockEntities().values()) {
@@ -353,7 +353,7 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
         Vec3 at = Vec3.atCenterOf(pos);
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
-                if (!level.hasChunk(cx + dx, cz + dz)) {
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, cx + dx, cz + dz)) {
                     continue;
                 }
                 for (BlockEntity be : level.getChunk(cx + dx, cz + dz).getBlockEntities().values()) {

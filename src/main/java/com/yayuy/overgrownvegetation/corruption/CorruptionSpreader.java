@@ -285,7 +285,7 @@ public class CorruptionSpreader {
         }
 
         BlockPos belowPos = origin.below();
-        if (!level.isLoaded(belowPos)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, belowPos)) {
             // チャンク未ロードなら次の tick で再試行する
             return;
         }
@@ -1171,7 +1171,7 @@ public class CorruptionSpreader {
     }
 
     private static boolean corruptSingleInScope(ServerLevel level, BlockPos pos) {
-        if (!level.isLoaded(pos)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos)) {
             return false;
         }
         BlockState state = level.getBlockState(pos);
@@ -1216,7 +1216,7 @@ public class CorruptionSpreader {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (Direction direction : EXPOSURE_ORDER) {
             cursor.setWithOffset(pos, direction);
-            if (!level.isLoaded(cursor)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
                 continue;
             }
             BlockState neighbour = level.getBlockState(cursor);
@@ -1339,7 +1339,7 @@ public class CorruptionSpreader {
             return false;
         }
         if (!(isTreeSoil(hostState) || CorruptedSaplingBlock.isCoveredGround(level, hostPos, hostState))
-                || !level.isLoaded(at)) {
+                || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, at)) {
             return false;
         }
         if (!clearForAnchorTree(level, at, level.getBlockState(at))) {
@@ -1416,7 +1416,7 @@ public class CorruptionSpreader {
             return;
         }
         BlockPos above = pos.above();
-        if (!level.isLoaded(above) || !level.getBlockState(above).isAir()) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, above) || !level.getBlockState(above).isAir()) {
             return;
         }
         growUp(level, above, random, corruptedState);
@@ -1467,7 +1467,7 @@ public class CorruptionSpreader {
             for (BlockPos current : frontier) {
                 for (Direction direction : Direction.values()) {
                     scratch.setWithOffset(current, direction);
-                    if (!visited.add(scratch.asLong()) || !level.isLoaded(scratch)) {
+                    if (!visited.add(scratch.asLong()) || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, scratch)) {
                         continue;
                     }
                     BlockState state = level.getBlockState(scratch);
@@ -1571,7 +1571,7 @@ public class CorruptionSpreader {
             int base = (int) Math.round(groundY + (toY - groundY) * f);
             for (int y = base - 1; y <= base + peak + thickness + 1; y++) {
                 p.set(x, y, z);
-                if (!level.isLoaded(p)) {
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) {
                     return;
                 }
                 BlockState s = level.getBlockState(p);
@@ -1680,7 +1680,7 @@ public class CorruptionSpreader {
         // 根元の中心は地表のブロックの 1 つ下 —— 埋まった区間を進むうちに地面から出る。
         List<CorruptionRootTip.Cell> cells = CorruptionRootTip.plan(hx + 0.5D, groundY - 0.5D, hz + 0.5D, shape);
         if (!CorruptionRootTip.pathIsOpen(cells, pos -> {
-            if (!level.isLoaded(pos)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos)) {
                 return false;
             }
             BlockState s = level.getBlockState(pos);
@@ -1817,7 +1817,7 @@ public class CorruptionSpreader {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int d = 0; d < depth; d++) {
             cursor.set(x, rimY - d, z);
-            if (!level.isLoaded(cursor)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
                 return false;
             }
             BlockState state = level.getBlockState(cursor);
@@ -1836,7 +1836,7 @@ public class CorruptionSpreader {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int d = 1; d <= RAVINE_ARCH_FLOOR_PROBE; d++) {
             cursor.set(x, rimY - d, z);
-            if (!level.isLoaded(cursor)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
                 return d;
             }
             BlockState state = level.getBlockState(cursor);
@@ -1884,7 +1884,7 @@ public class CorruptionSpreader {
         BlockState logState = logBlock.defaultBlockState();
 
         for (BlockPos pos : shell) {
-            if (!level.isLoaded(pos) || !level.getBlockState(pos).is(logBlock)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos) || !level.getBlockState(pos).is(logBlock)) {
                 continue;
             }
             if (!isExposed(reader, pos.getX(), pos.getY(), pos.getZ(), exposureScratch)) {
@@ -1892,7 +1892,7 @@ public class CorruptionSpreader {
                 continue;
             }
             BlockPos above = pos.above();
-            boolean aboveIsAir = level.isLoaded(above) && level.getBlockState(above).isAir();
+            boolean aboveIsAir = com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, above) && level.getBlockState(above).isAir();
             if (aboveIsAir && grassChance > 0.0D && random.nextDouble() < grassChance) {
                 BlockState grass = ModBlocks.OVERGROWN_GRASS_BLOCK.get().defaultBlockState();
                 level.setBlock(pos, grass, Block.UPDATE_ALL);
@@ -1961,7 +1961,7 @@ public class CorruptionSpreader {
             int surfaceY = 0;
             for (int y = hy + 2; y >= hy - 4; y--) {
                 scan.set(wx, y, wz);
-                if (!level.isLoaded(scan)) {
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, scan)) {
                     return false;
                 }
                 BlockState s = level.getBlockState(scan);
@@ -2060,7 +2060,7 @@ public class CorruptionSpreader {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int y = refY + 3; y >= refY - 12; y--) {
             cursor.set(x, y, z);
-            if (!level.isLoaded(cursor)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
                 return Integer.MIN_VALUE;
             }
             BlockState s = level.getBlockState(cursor);
@@ -2089,7 +2089,7 @@ public class CorruptionSpreader {
                 }
                 for (int dy = 0; dy <= 3; dy++) {
                     p.set(hx + dx, hy + dy, hz + dz);
-                    if (!level.isLoaded(p)) {
+                    if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) {
                         break;
                     }
                     if (level.getBlockState(p).is(BlockTags.LOGS)) {
@@ -2211,7 +2211,7 @@ public class CorruptionSpreader {
             }
 
             growthPos.setWithOffset(pos, direction);
-            if (!level.isLoaded(growthPos)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, growthPos)) {
                 continue;
             }
             BlockState atGrowth = level.getBlockState(growthPos);
@@ -2312,7 +2312,7 @@ public class CorruptionSpreader {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int y = groundY + TOP_UNDERGROWTH_SCAN_DEPTH; y >= groundY - 2; y--) {
             cursor.set(x, y, z);
-            if (!level.isLoaded(cursor)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
                 return;
             }
             BlockState state = level.getBlockState(cursor);
@@ -2320,7 +2320,7 @@ public class CorruptionSpreader {
                 continue;
             }
             BlockPos above = cursor.above().immutable();
-            if (!level.isLoaded(above)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, above)) {
                 return;
             }
             BlockState aboveState = level.getBlockState(above);
@@ -2548,7 +2548,7 @@ public class CorruptionSpreader {
      */
     private static void growTallPlant(ServerLevel level, BlockPos lowerPos, RandomSource random) {
         BlockPos upperPos = lowerPos.above();
-        if (!level.isLoaded(upperPos) || !level.getBlockState(upperPos).isAir()) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, upperPos) || !level.getBlockState(upperPos).isAir()) {
             return;
         }
 

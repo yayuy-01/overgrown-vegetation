@@ -52,7 +52,7 @@ public final class MeltedIce {
     }
 
     private static boolean isWaterAt(ServerLevel level, BlockPos pos) {
-        return level.isLoaded(pos) && level.getFluidState(pos).is(FluidTags.WATER);
+        return com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos) && level.getFluidState(pos).is(FluidTags.WATER);
     }
 
     /**
@@ -73,7 +73,7 @@ public final class MeltedIce {
     }
 
     private static boolean touchesCorruption(ServerLevel level, BlockPos pos) {
-        if (!level.isLoaded(pos)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos)) {
             return false;
         }
         BlockState state = level.getBlockState(pos);

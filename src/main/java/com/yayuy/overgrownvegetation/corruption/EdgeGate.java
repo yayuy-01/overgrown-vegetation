@@ -95,7 +95,7 @@ public final class EdgeGate {
     }
 
     private static boolean like(ServerLevel level, int cx, int cz) {
-        if (!level.hasChunk(cx, cz)) return false;
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, cx, cz)) return false;
         return ModBiomes.isOvergrownLike(level.getBiome(new BlockPos((cx << 4) + 8, level.getSeaLevel(), (cz << 4) + 8)));
     }
 

@@ -930,7 +930,7 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
 
         @Override
         public boolean fits(double x, double y, double z) {
-            if (!this.sl.hasChunk(Mth.floor(x) >> 4, Mth.floor(z) >> 4)) return false;
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(this.sl, Mth.floor(x) >> 4, Mth.floor(z) >> 4)) return false;
             if (y < this.sl.getMinBuildHeight() + 1 || y + AcumnesEntity.this.getBbHeight() > this.sl.getMaxBuildHeight()) return false;
             AABB box = AcumnesEntity.this.getDimensions(AcumnesEntity.this.getPose()).makeBoundingBox(x, y, z);
             return this.sl.noCollision(AcumnesEntity.this, box) && !this.sl.containsAnyLiquid(box);

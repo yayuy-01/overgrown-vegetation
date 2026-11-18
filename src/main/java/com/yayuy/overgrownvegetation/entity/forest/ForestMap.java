@@ -99,7 +99,7 @@ public final class ForestMap {
         for (int dz = 0; dz < n; dz++) {
             for (int dx = 0; dx < n; dx++) {
                 int x = x0 + dx, z = z0 + dz;
-                if (!this.level.hasChunk(x >> 4, z >> 4)) continue;
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(this.level, x >> 4, z >> 4)) continue;
                 obstacle[dx + dz * n] = blocks(p.set(x, y + 1, z));
             }
         }

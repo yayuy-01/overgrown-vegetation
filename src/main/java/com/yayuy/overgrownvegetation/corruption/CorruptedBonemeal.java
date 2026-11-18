@@ -44,7 +44,7 @@ public final class CorruptedBonemeal {
             for (int dz = -RADIUS; dz <= RADIUS; dz++) {
                 for (int dy = -1; dy <= 1; dy++) {
                     cursor.set(center.getX() + dx, center.getY() + dy, center.getZ() + dz);
-                    if (!level.isLoaded(cursor)) {
+                    if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
                         continue;
                     }
 

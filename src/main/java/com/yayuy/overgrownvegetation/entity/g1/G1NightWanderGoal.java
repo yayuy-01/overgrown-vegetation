@@ -109,7 +109,7 @@ public class G1NightWanderGoal extends Goal {
         for (int i = 0; i < LIGHT_SAMPLES; i++) {
             int x = mob.getBlockX() + mob.getRandom().nextInt(RADIUS * 2 + 1) - RADIUS;
             int z = mob.getBlockZ() + mob.getRandom().nextInt(RADIUS * 2 + 1) - RADIUS;
-            if (!mob.level().hasChunkAt(new BlockPos(x, mob.getBlockY(), z))) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunkAt(mob.level(), new BlockPos(x, mob.getBlockY(), z))) {
                 continue;
             }
             int y = mob.level().getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);

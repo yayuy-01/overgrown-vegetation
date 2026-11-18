@@ -109,7 +109,7 @@ public class CorruptedEggBlock extends Block {
     public static int countAround(ServerLevel level, BlockPos center, int horizontal, int vertical) {
         int n = 0;
         for (BlockPos p : BlockPos.betweenClosed(center.offset(-horizontal, -vertical, -horizontal), center.offset(horizontal, vertical, horizontal))) {
-            if (!level.isLoaded(p)) continue;
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) continue;
             BlockState s = level.getBlockState(p);
             if (s.getBlock() instanceof CorruptedEggBlock) n += s.getValue(EGGS);
         }

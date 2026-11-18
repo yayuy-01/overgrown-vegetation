@@ -102,7 +102,7 @@ public final class LavaSolidifier {
                 }
                 next.setWithOffset(cursor, dir);
                 long nextKey = next.asLong();
-                if (seen.contains(nextKey) || !level.isLoaded(next)) {
+                if (seen.contains(nextKey) || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, next)) {
                     continue;
                 }
                 FluidState other = level.getFluidState(next);

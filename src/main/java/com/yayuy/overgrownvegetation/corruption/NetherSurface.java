@@ -87,7 +87,7 @@ public final class NetherSurface {
      */
     @Nullable
     public static BlockPos standNear(ServerLevel level, int x, int z, int refY) {
-        if (!level.hasChunkAt(new BlockPos(x, level.getMinBuildHeight(), z))) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunkAt(level, new BlockPos(x, level.getMinBuildHeight(), z))) {
             return null;
         }
         LevelChunk chunk = level.getChunkAt(new BlockPos(x, 0, z));

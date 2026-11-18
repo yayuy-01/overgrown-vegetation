@@ -187,7 +187,7 @@ public final class PortalCorruption {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (Direction dir : Direction.values()) {
             cursor.setWithOffset(pos, dir);
-            if (level.isLoaded(cursor) && test.test(level.getBlockState(cursor))) {
+            if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor) && test.test(level.getBlockState(cursor))) {
                 return cursor.immutable();
             }
         }

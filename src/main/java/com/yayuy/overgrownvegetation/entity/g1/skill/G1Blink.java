@@ -52,7 +52,7 @@ public final class G1Blink {
         float w = mob.getBbWidth() * 0.5F, h = mob.getBbHeight();
         for (int y = top; y >= top - 10; y--) {
             p.set(Mth.floor(x), y - 1, Mth.floor(z));
-            if (!level.isLoaded(p)) return null;
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) return null;
             BlockState below = level.getBlockState(p);
             if (!below.blocksMotion()) continue;
             if (below.getFluidState().is(FluidTags.WATER)) return null;
@@ -129,7 +129,7 @@ public final class G1Blink {
             for (int dz = -2; dz <= 2; dz++) {
                 for (int dy = -1; dy <= 1; dy++) {
                     p.set(ground.getX() + dx, ground.getY() + dy, ground.getZ() + dz);
-                    if (!level.isLoaded(p)) continue;
+                    if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) continue;
                     if (OvergrownLayerData.isCorruptedCell(level, p, level.getBlockState(p))) {
                         n++;
                         break;

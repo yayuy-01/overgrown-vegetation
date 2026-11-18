@@ -114,7 +114,7 @@ public final class SporeEaterSpread {
         int ok = 0;
         for (int x = center.getX() - r; x <= center.getX() + r; x++) {
             for (int z = center.getZ() - r; z <= center.getZ() + r; z++) {
-                if (!level.hasChunkAt(new BlockPos(x, 0, z))) { tally.merge("読み込まれていない", 1, Integer::sum); continue; }
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunkAt(level, new BlockPos(x, 0, z))) { tally.merge("読み込まれていない", 1, Integer::sum); continue; }
                 BlockPos found = findFloor(level, x, z);
                 BlockPos pos = found != null ? found : new BlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
                 BlockState here = level.getBlockState(pos);

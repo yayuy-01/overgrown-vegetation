@@ -150,7 +150,7 @@ public final class CaveGrowth {
      *                      地面まで届く大きな値を渡してよい。
      */
     public static boolean isCave(LevelReader level, BlockPos pos, int margin, int roofScanLimit) {
-        if (!level.hasChunkAt(pos)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunkAt(level, pos)) {
             return false;
         }
         int surface = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, pos.getX(), pos.getZ());
@@ -422,7 +422,7 @@ public final class CaveGrowth {
     }
 
     private static void replaceAnchor(ServerLevel level, BlockPos pos, BlockState log) {
-        if (!level.isLoaded(pos)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos)) {
             return;
         }
         BlockState current = level.getBlockState(pos);
@@ -483,7 +483,7 @@ public final class CaveGrowth {
                 continue;
             }
             BlockPos target = pos.below();
-            if (!level.isLoaded(target) || !level.getBlockState(target).isAir()) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, target) || !level.getBlockState(target).isAir()) {
                 continue;
             }
             BlockState hanging = CorruptionGrowth.randomHanging(random);
@@ -495,7 +495,7 @@ public final class CaveGrowth {
 
     /** 空気、または草・下草のような上書き可能ブロック(液体は除く)。 */
     private static boolean isAirLike(ServerLevel level, BlockPos pos) {
-        if (!level.isLoaded(pos)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos)) {
             return false;
         }
         BlockState state = level.getBlockState(pos);
@@ -504,7 +504,7 @@ public final class CaveGrowth {
 
     /** 上に乗れる固体(壁・床・天井の岩)。 */
     private static boolean isSolid(ServerLevel level, BlockPos pos) {
-        if (!level.isLoaded(pos)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos)) {
             return false;
         }
         BlockState state = level.getBlockState(pos);

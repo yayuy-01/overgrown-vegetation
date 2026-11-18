@@ -241,7 +241,7 @@ public final class NoisyCorruptionBurst {
                     }
 
                     pos.set(cx + dx, cy + dy, cz + dz);
-                    if (!level.isLoaded(pos)) {
+                    if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos)) {
                         continue;
                     }
                     BlockState state = level.getBlockState(pos);
@@ -292,7 +292,7 @@ public final class NoisyCorruptionBurst {
      * 汚染・設置・草生やしはどちらでも同じ(どれもバイオームを見ないので、打診が後ろへずれても置かれるものは変わらない)。
      */
     public static boolean single(ServerLevel level, BlockPos pos, @Nullable LongSet touchedChunks) {
-        if (!level.isLoaded(pos)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos)) {
             return false;
         }
         BlockState state = level.getBlockState(pos);

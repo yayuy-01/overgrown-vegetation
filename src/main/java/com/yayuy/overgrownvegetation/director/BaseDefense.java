@@ -46,7 +46,7 @@ public final class BaseDefense {
                 double r = t.weakRingMin + (t.weakRingMax - t.weakRingMin) * ((s * 7 % t.weakSamplesPerSector) + 0.5D) / t.weakSamplesPerSector;
                 int x = (int) Math.floor(b.centerX() + Math.cos(ang) * r);
                 int z = (int) Math.floor(b.centerZ() + Math.sin(ang) * r);
-                if (!level.hasChunk(x >> 4, z >> 4)) continue;
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, x >> 4, z >> 4)) continue;
                 int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
                 BlockPos p = new BlockPos(x, y, z);
                 int light = Math.max(level.getBrightness(LightLayer.BLOCK, p), level.getBrightness(LightLayer.BLOCK, p.above()));

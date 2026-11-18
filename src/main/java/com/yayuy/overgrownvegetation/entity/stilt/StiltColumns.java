@@ -129,7 +129,7 @@ public final class StiltColumns {
 
     /** 測る(使い回さない)。 */
     static Column scan(ServerLevel level, int x, int z, int ref) {
-        if (!level.hasChunk(x >> 4, z >> 4)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, x >> 4, z >> 4)) {
             return new Column(NONE, 0, 0, false, -1, -1);
         }
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();

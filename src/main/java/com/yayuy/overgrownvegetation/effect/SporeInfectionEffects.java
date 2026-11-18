@@ -184,7 +184,7 @@ public final class SporeInfectionEffects {
     public static void killByInfection(ServerLevel level, LivingEntity entity) {
         BlockPos deathPos = entity.blockPosition();
         entity.hurt(ModDamageTypes.sporeInfection(level), Float.MAX_VALUE);
-        if (entity.isDeadOrDying() && level.isLoaded(deathPos)) {
+        if (entity.isDeadOrDying() && com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, deathPos)) {
             BlightFernPlacement.spawnFromDeath(level, deathPos);
         }
     }

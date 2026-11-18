@@ -104,6 +104,11 @@ public final class PerfCommand {
                                 }))
                                 // 巨大樹の計画を、生きた世界から読んだのと写しから読んだので形が同じかを足元で確かめる(案 A。重い: 1 回 1〜2 秒止まる)
                                 .then(Commands.literal("treecheck").executes(ctx -> treeCheck(ctx.getSource())))
+                                // 読み込み途中のチャンクを「読み込まれていない」と答える置き換え(ChunkEdgeGuard)の入り切りと、
+                                // 前なら待っていた所の数(呼んだ所ごと。出したら 0 に戻す)。11-18 夕
+                                .then(Commands.literal("edge").executes(ctx -> edge(ctx.getSource(), null))
+                                        .then(Commands.literal("on").executes(ctx -> edge(ctx.getSource(), true)))
+                                        .then(Commands.literal("off").executes(ctx -> edge(ctx.getSource(), false))))
                                 .then(Commands.literal("stop").executes(ctx -> {
                                     HordeMeter.stop();
                                     send(ctx.getSource(), "大群の測り: 止めた");
@@ -119,6 +124,25 @@ public final class PerfCommand {
                                 .executes(ctx -> record(ctx, DEFAULT_RECORD_SECONDS))
                                 .then(Commands.argument("seconds", IntegerArgumentType.integer(5, 300))
                                         .executes(ctx -> record(ctx, IntegerArgumentType.getInteger(ctx, "seconds")))))));
+    }
+
+    private static int edge(CommandSourceStack source, @javax.annotation.Nullable Boolean on) {
+        java.util.List<java.util.Map.Entry<String, Integer>> rows = new java.util.ArrayList<>(ChunkEdgeGuard.DIVERGED.entrySet());
+        rows.sort(java.util.Map.Entry.<String, Integer>comparingByValue().reversed());
+        int total = rows.stream().mapToInt(java.util.Map.Entry::getValue).sum();
+        StringBuilder b = new StringBuilder("読み込み途中の置き換え " + (ChunkEdgeGuard.replaceEnabled ? "入り" : "切り")
+                + "・前なら待っていた回数 " + total + "(" + rows.size() + " か所)");
+        for (int i = 0; i < Math.min(12, rows.size()); i++) {
+            b.append("\n  ").append(rows.get(i).getValue()).append(" ").append(rows.get(i).getKey());
+        }
+        ChunkEdgeGuard.DIVERGED.clear();
+        if (on != null) {
+            ChunkEdgeGuard.replaceEnabled = on;
+            b.append("\n→ ").append(on ? "入り" : "切り");
+        }
+        send(source, b.toString());
+        com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info("OV_EDGE {}", b.toString().replace('\n', '|'));
+        return total;
     }
 
     /** {@code /ov perf horde treecheck}: 足元に種 1〜3 の巨大樹を計画し(置かない)、生きた世界と写しで指紋が同じか・写しの外を読んだ回数・時間を出す。 */

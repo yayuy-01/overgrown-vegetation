@@ -1100,7 +1100,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
         for (int i = 0; i < SOIL_TRIES; i++) {
             BlockPos p = feet.offset(getRandom().nextInt(SOIL_REACH * 2 + 1) - SOIL_REACH, getRandom().nextInt(3) - 1,
                     getRandom().nextInt(SOIL_REACH * 2 + 1) - SOIL_REACH);
-            if (p.equals(feet.below()) || !level.isLoaded(p)) continue;
+            if (p.equals(feet.below()) || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, p)) continue;
             BlockState s = level.getBlockState(p);
             if (!isSoil(level, p, s)) continue;
             BlockPos above = p.above();
