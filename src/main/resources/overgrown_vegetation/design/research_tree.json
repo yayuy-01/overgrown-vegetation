@@ -45,6 +45,12 @@
       "specimens": [ { "item": "overgrown_vegetation:dormancy_sac", "count": 1 }, { "item": "overgrown_vegetation:plant_fiber", "count": 2 } ],
       "unlocks": ["overgrown_vegetation:research_lens"]
     },
+    "t2_wither": {
+      "tier": 2, "lane": "ranged", "col": 3, "icon": "overgrown_vegetation:wither_draught",
+      "requires": ["t2_lens"],
+      "specimens": [ { "item": "overgrown_vegetation:spore_sac", "count": 2 }, { "item": "overgrown_vegetation:dormancy_sac", "count": 1 } ],
+      "unlocks": ["overgrown_vegetation:wither_draught"]
+    },
     "t2_ore": {
       "tier": 2, "lane": "material", "col": 1, "icon": "overgrown_vegetation:raw_fungal_metal",
       "requires": ["t2_lens"],

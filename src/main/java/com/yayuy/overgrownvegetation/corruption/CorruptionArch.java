@@ -54,6 +54,9 @@ public final class CorruptionArch {
         if (horizontalSteps(from, to) < 2) {
             return false;
         }
+        if (com.yayuy.overgrownvegetation.corruption.pushback.RingWards.crossesBand(level, from, to)) {
+            return false; // 灰と石灰の帯の線を越えては架けない(押し返し 11-18 夜)
+        }
         // 両端に「乗れる地面」が無いなら架けない(空中に浮いたアーチを防ぐ)。
         if (!hasGroundSupport(level, from) || !hasGroundSupport(level, to)) {
             return false;
@@ -161,6 +164,9 @@ public final class CorruptionArch {
                     if (current.getBlock().defaultDestroyTime() < 0.0F) {
                         // 岩盤・バリアなど破壊不能ブロックは避ける。
                         continue;
+                    }
+                    if (com.yayuy.overgrownvegetation.corruption.pushback.RingWards.blocks(level, cursor)) {
+                        continue; // 帯の線の向こう・杭の範囲へは根のアーチ・橋・根の先を置かない(押し返し 11-18 夜)
                     }
                     BlockPos immutable = cursor.immutable();
                     level.setBlock(immutable, block, Block.UPDATE_ALL);

@@ -174,6 +174,9 @@ public final class OvergrownLayerData {
      * @return 新しく覆ったら {@code true}(既に覆われていれば {@code false})
      */
     public static boolean cover(ServerLevel level, BlockPos pos) {
+        if (com.yayuy.overgrownvegetation.corruption.pushback.RingWards.blocks(level, pos)) {
+            return false; // 帯の線の向こう・杭の範囲は覆わない(関門が断ったマスを穴として覆う道も止める。押し返し 11-18 夜)
+        }
         LevelChunk chunk = level.getChunk(pos.getX() >> 4, pos.getZ() >> 4);
         LongOpenHashSet set = chunk.getData(ModAttachments.OVERGROWN_LAYER.get());
         if (!set.add(pos.asLong())) {

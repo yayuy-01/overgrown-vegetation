@@ -372,7 +372,8 @@ public final class GiantTreeGrowthQueue {
                 }
                 cursorPos.set(BlockPos.getX(packed), BlockPos.getY(packed), BlockPos.getZ(packed));
                 // 途中でチャンクがアンロードされた場合はそのブロックは諦める(同期生成を避ける)。
-                if (serverLevel.isLoaded(cursorPos) && !TreePlacementRules.treeKeeps(serverLevel.getBlockState(cursorPos))) { // 根付いた萌芽体は残す
+                if (serverLevel.isLoaded(cursorPos) && !TreePlacementRules.treeKeeps(serverLevel.getBlockState(cursorPos))
+                        && !com.yayuy.overgrownvegetation.corruption.pushback.RingWards.guardedFrom(serverLevel, job.trunk.isEmpty() ? null : BlockPos.of(job.trunk.getLong(0)), cursorPos)) { // 根付いた萌芽体は残す。帯の線の向こう・杭の範囲には置かない(押し返し 11-18 夜)
                     serverLevel.setBlock(cursorPos.immutable(), state, UPDATE_FLAGS);
                 }
                 job.cursor++;

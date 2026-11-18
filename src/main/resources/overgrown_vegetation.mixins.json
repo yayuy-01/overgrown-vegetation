@@ -5,6 +5,7 @@
   "plugin": "com.yayuy.overgrownvegetation.OvergrownMixinPlugin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "FireBlockHiveGuardMixin",
     "BlockCoveredLightMixin",
     "BiomeFreezeNearCorruptionMixin",
     "BucketItemNetherWaterMixin",

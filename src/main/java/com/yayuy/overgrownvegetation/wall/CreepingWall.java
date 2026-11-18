@@ -607,7 +607,7 @@ public final class CreepingWall {
                 continue;
             }
             BlockState s = level.getBlockState(m);
-            if ((s.isAir() || s.canBeReplaced()) && !s.hasBlockEntity()) {
+            if ((s.isAir() || s.canBeReplaced()) && !s.hasBlockEntity() && !com.yayuy.overgrownvegetation.corruption.pushback.RingWards.guarded(level, m)) { // 帯の列・杭の範囲には塊を置かない(押し返し 11-18 夜)
                 level.setBlock(m, com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_DIRT.get().defaultBlockState(), Block.UPDATE_ALL);
                 trailPlaced++;
             }

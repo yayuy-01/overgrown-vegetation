@@ -111,6 +111,8 @@ public final class VineSpanPlacer {
                 }
                 if (job.decorating) {
                     VineSpan.decorateCell(level, key, job.cells, job.tuftTips, job.cave, job.random);
+                } else if (com.yayuy.overgrownvegetation.corruption.pushback.RingWards.blocks(level, BlockPos.of(key))) {
+                    // 帯の線の向こう・杭の範囲へは蔦を渡さない(押し返し 11-18 夜)
                 } else {
                     level.setBlock(BlockPos.of(key), leaf, Block.UPDATE_CLIENTS);
                 }

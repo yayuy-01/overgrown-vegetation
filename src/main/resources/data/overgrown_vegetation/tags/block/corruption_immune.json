@@ -1,6 +1,10 @@
 {
   "replace": false,
   "values": [
+    "overgrown_vegetation:burnt_soil",
+    "overgrown_vegetation:ash_lime_band",
+    "overgrown_vegetation:ley_stake",
+    "overgrown_vegetation:withered_soil",
     "minecraft:bedrock",
     "minecraft:barrier",
     "minecraft:structure_void",

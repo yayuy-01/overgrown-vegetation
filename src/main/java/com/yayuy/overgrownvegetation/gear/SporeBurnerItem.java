@@ -25,7 +25,9 @@ import java.util.Set;
  * 前の扇形(半角 {@code halfAngle}・{@code range} ブロック)を焼く:
  * <ul>
  *   <li>扇の中の相手(撃つ本人・仲間・プレイヤーを除く)は燃え、{@code damage} を受ける。</li>
- *   <li>扇の中の汚染の下草・蔦・胞子嚢(山刀で刈れる物 {@code machete_clearable})を焼き消す(落とし物なし)。火のブロックは置かない。</li>
+ *   <li>扇の中の汚染の下草・蔦・胞子嚢(山刀で刈れる物 {@code machete_clearable})と汚染の葉を焼き消す(落とし物なし)。</li>
+ *   <li>扇の当たった表の汚染の土は燻る灰ブロック、覆いの記録ははがれる(10-08〜10 の火の決まりを 11-18 夜に引き継いだ。{@code corruption/pushback})。</li>
+ *   <li>焼いたマスに {@code fireChance} でふつうの火を付ける(10-09 朝「火を広範囲につける道具」)。</li>
  * </ul>
  * 1 回 {@code cost} FE。結晶が切れたら止まる。
  */
@@ -79,7 +81,23 @@ public class SporeBurnerItem extends CrystalToolItem {
         return to.scale(1.0D / len).dot(look) >= cosHalf;
     }
 
-    /** 1 回焼く(GameTest からも)。焼いた植物の数と燃やした相手の数を返す。 */
+    /** 焼くと燻る灰ブロックになる汚染の地面(10-08 夜のユーザー指定: 過繁茂のブロック・草・土。泥・砂利は今は無い)。 */
+    public static boolean scorches(net.minecraft.world.level.block.state.BlockState s) {
+        return s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_GRASS_BLOCK.get())
+                || s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_DIRT.get())
+                || s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_BLOCK.get());
+    }
+
+    /** どれかの面が空気か植物(炎が届く)に面しているか。 */
+    private static boolean exposed(ServerLevel level, BlockPos p) {
+        for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+            net.minecraft.world.level.block.state.BlockState n = level.getBlockState(p.relative(d));
+            if (n.isAir() || !n.blocksMotion()) return true;
+        }
+        return false;
+    }
+
+    /** 1 回焼く(GameTest からも)。焼いた植物・地面・覆いの数と燃やした相手の数を返す。 */
     public static int[] pulse(ServerLevel level, Player player) {
         GearTierTable.SporeBurner b = DesignData.gearTiers().sporeBurner;
         Vec3 eye = player.getEyePosition();
@@ -100,11 +118,33 @@ public class SporeBurnerItem extends CrystalToolItem {
             int ri = (int) Math.ceil(r);
             BlockPos center = BlockPos.containing(c);
             for (BlockPos p : BlockPos.betweenClosed(center.offset(-ri, -ri, -ri), center.offset(ri, ri, ri))) {
-                if (burned.contains(p) || !level.getBlockState(p).is(MacheteItem.CLEARABLE)) continue;
+                if (burned.contains(p)) continue;
+                net.minecraft.world.level.block.state.BlockState s = level.getBlockState(p);
+                boolean plant = s.is(MacheteItem.CLEARABLE) || s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_LEAVES.get());
+                boolean ground = !plant && scorches(s);
+                boolean covered = !plant && !ground && !s.isAir()
+                        && com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.isCovered(level, p);
+                if (!plant && !ground && !covered) continue;
                 if (!inCone(eye, look, Vec3.atCenterOf(p), b.range, cosHalf) || !level.mayInteract(player, p)) continue;
                 BlockPos fixed = p.immutable();
-                level.setBlock(fixed, Blocks.AIR.defaultBlockState(), 3);
+                if (!plant && !exposed(level, fixed)) continue; // 地面と覆いは、炎の当たる表のマスだけ(地中まで焼かない)
+                if (plant) {
+                    level.setBlock(fixed, Blocks.AIR.defaultBlockState(), 3);
+                } else if (ground) {
+                    // 汚染の土 → 燻る灰ブロック(10-08〜09 のユーザー指定を 11-18 夜に筒へ引き継いだ)
+                    level.setBlock(fixed, com.yayuy.overgrownvegetation.corruption.pushback.SmolderingAshBlock.from(s), 3);
+                } else {
+                    com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.uncover(level, fixed); // 覆いが焼け落ちて元のブロック
+                }
+                com.yayuy.overgrownvegetation.corruption.pushback.LedgerShrink.touch(level, fixed,
+                        com.yayuy.overgrownvegetation.corruption.pushback.LedgerShrink.Cause.FIRE);
                 burned.add(fixed);
+                // ふつうの火を付ける(10-09 朝の決まり「ただ火を広範囲につける道具」を 11-18 夜に筒へ。Q2-2 了承)。焼けた地面の上か、焼け落ちた植物のマスに
+                BlockPos firePos = plant ? fixed : fixed.above();
+                if (level.random.nextFloat() < b.fireChance && level.getBlockState(firePos).isAir()
+                        && net.minecraft.world.level.block.BaseFireBlock.canBePlacedAt(level, firePos, net.minecraft.core.Direction.UP)) {
+                    level.setBlock(firePos, net.minecraft.world.level.block.BaseFireBlock.getState(level, firePos), 11);
+                }
             }
         }
         for (int i = 0; i < 6; i++) {

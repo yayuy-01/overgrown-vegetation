@@ -140,7 +140,7 @@ public final class VineSpan {
         try {
             STATS[0]++;
             Gap g = findGap(level, host, random, true);
-            if (g == null) {
+            if (g == null || com.yayuy.overgrownvegetation.corruption.pushback.RingWards.crossesBand(level, g.a(), g.b())) {
                 return false;
             }
             STATS[1]++;

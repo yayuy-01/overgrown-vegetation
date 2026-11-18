@@ -1,0 +1,4 @@
+{ "type": "minecraft:crafting_shaped", "category": "misc",
+  "pattern": [ "F", "C", "I" ],
+  "key": { "F": { "item": "overgrown_vegetation:ley_flower" }, "C": { "item": "minecraft:copper_ingot" }, "I": { "item": "minecraft:iron_ingot" } },
+  "result": { "id": "overgrown_vegetation:ley_stake", "count": 2 } }

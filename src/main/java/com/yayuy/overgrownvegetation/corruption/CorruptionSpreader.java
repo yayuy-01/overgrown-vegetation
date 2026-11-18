@@ -388,6 +388,13 @@ public class CorruptionSpreader {
      */
     public void tick(ServerLevel level, BlockPos origin, int radius, int maxInteriorDepth, int coreRadius,
                       int initialCount, int maxActive) {
+        // 押し返し(11-18 夜): 出どころを付けて走らせる。灰と石灰の帯の線を、出どころから置く先への線分がまたぐ汚染は止まる(跳ぶ道も)
+        com.yayuy.overgrownvegetation.corruption.pushback.RingWards.withSource(origin,
+                () -> tickFromOrigin(level, origin, radius, maxInteriorDepth, coreRadius, initialCount, maxActive));
+    }
+
+    private void tickFromOrigin(ServerLevel level, BlockPos origin, int radius, int maxInteriorDepth, int coreRadius,
+                      int initialCount, int maxActive) {
         if (CorruptionSwitch.isOff()) {
             return; // /ov corruption false(2026-10-10 ユーザー指定): 侵食しない(触手・終わったかどうかはそのまま残り、オンで続きから)
         }
@@ -1679,6 +1686,10 @@ public class CorruptionSpreader {
         CorruptionRootTip.Shape shape = CorruptionRootTip.rollGround(random);
         // 根元の中心は地表のブロックの 1 つ下 —— 埋まった区間を進むうちに地面から出る。
         List<CorruptionRootTip.Cell> cells = CorruptionRootTip.plan(hx + 0.5D, groundY - 0.5D, hz + 0.5D, shape);
+        if (!cells.isEmpty() && com.yayuy.overgrownvegetation.corruption.pushback.RingWards.crossesBand(level, new BlockPos(hx, groundY, hz),
+                BlockPos.containing(cells.get(cells.size() - 1).x(), cells.get(cells.size() - 1).y(), cells.get(cells.size() - 1).z()))) {
+            return; // 帯の線を越えて根の先を突き出さない(押し返し 11-18 夜)
+        }
         if (!CorruptionRootTip.pathIsOpen(cells, pos -> {
             if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos)) {
                 return false;
@@ -2143,6 +2154,7 @@ public class CorruptionSpreader {
     }
 
     private static void growSurfacePlantsInScope(ServerLevel level, BlockPos pos, BlockState hostState, double chance) {
+        if (com.yayuy.overgrownvegetation.corruption.pushback.RingWards.guarded(level, pos)) return; // 帯の列・帯の線の向こう・杭の範囲には生やさない(押し返し 11-18 夜)
         if (hostState.isAir() || hostState.is(Blocks.WATER)) { // 溶けた氷の跡の水(2026-10-16)も
             // 雪のように汚染で消えるだけのブロックの跡地には装飾植物を生やさない。
             return;
@@ -2211,7 +2223,7 @@ public class CorruptionSpreader {
             }
 
             growthPos.setWithOffset(pos, direction);
-            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, growthPos)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, growthPos) || com.yayuy.overgrownvegetation.corruption.pushback.RingWards.guarded(level, growthPos)) {
                 continue;
             }
             BlockState atGrowth = level.getBlockState(growthPos);

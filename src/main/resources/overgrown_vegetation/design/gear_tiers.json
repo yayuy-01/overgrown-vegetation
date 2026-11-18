@@ -127,6 +127,7 @@
     "damage": 2.0,
     "igniteSeconds": 4,
     "cost": 40,
-    "durability": 900
+    "durability": 900,
+    "fireChance": 0.35
   }
 }

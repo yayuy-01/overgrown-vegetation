@@ -33,19 +33,31 @@ public final class SporeDeviceData {
     }
 
     public static boolean protectsFromCorruption(ServerLevel level, BlockPos pos) {
-        return false;
+        return com.yayuy.overgrownvegetation.corruption.pushback.RingWards.inStakeField(level, pos);
     }
 
+    /**
+     * 2026-11-18 夜(押し返し): 装置は退避したままだが、<b>侵入を止める物</b>(帯 = 線・杭 = 範囲の場。{@code RingWards})と焼けた荒地の守りをここで答える。
+     * ブロックの汚染は帯の線を越えず、杭の範囲に入らない。萌芽体は杭の範囲には湧かない。
+     */
     public static boolean inhibits(ServerLevel level, BlockPos pos, Inhibit what) {
-        return false;
+        if (com.yayuy.overgrownvegetation.corruption.pushback.BurntLand.isBurnt(level, pos)) {
+            return true; // 焼けた荒地の間(1 日【仮】)は汚染が入らない(防火帯。ユーザー指定 10-08 を 11-18 夜に筒へ引き継いだ)
+        }
+        return switch (what) {
+            case CORRUPTION -> com.yayuy.overgrownvegetation.corruption.pushback.RingWards.blocks(level, pos);
+            case FERN_SPAWN -> com.yayuy.overgrownvegetation.corruption.pushback.RingWards.inStakeField(level, pos);
+            default -> false;
+        };
     }
 
     public static boolean inhibits(ServerLevel level, ChunkPos chunk, Inhibit what) {
-        return false;
+        return level.dimension() == net.minecraft.world.level.Level.OVERWORLD && com.yayuy.overgrownvegetation.corruption.pushback.BurntLand.isBurntKey(level.getServer(), chunk.toLong());
     }
 
     public static boolean mayInhibitBlocksIn(ServerLevel level, ChunkPos chunk, Inhibit what) {
-        return false;
+        if (level.dimension() == net.minecraft.world.level.Level.OVERWORLD && com.yayuy.overgrownvegetation.corruption.pushback.BurntLand.isBurntKey(level.getServer(), chunk.toLong())) return true;
+        return what == Inhibit.CORRUPTION && com.yayuy.overgrownvegetation.corruption.pushback.RingWards.mayBlockIn(level, chunk);
     }
 
     public static long[] activePurifiers(ServerLevel level) {

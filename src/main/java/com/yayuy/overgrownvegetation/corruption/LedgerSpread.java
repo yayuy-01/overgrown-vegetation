@@ -128,7 +128,7 @@ public final class LedgerSpread {
      * 台帳に載せ(フェーズに数える = 1 チャンク 5 点と面積)、書き換え待ちに積む —— 読み込まれていれば今すぐ、
      * そうでなければ読み込まれたときに {@link LedgerSpreadCatchUp} が今までどおり過繁茂へ書き換える。
      * 受け取らないもの(世界の縁の外・焼けた荒地・ワールド設定で読み込まれていない範囲への侵食がオフ)を返す(場で取り消す)。
-     * 除去装置の範囲の守りは見ない(新しい設計では除去装置は場から抜く吸い込み口で、範囲を 0 にはしない。2026-10-22 決定)。
+     * 動いている換気機の範囲の発芽も断る(2026-11-18 夜 ユーザー決定。10-22 の「範囲の守りは見ない」を上書き。{@code VentGuard})。
      */
     public static long[] acceptFieldSprouts(ServerLevel level, long[] keys) {
         return acceptFieldSprouts(level, keys, null);
@@ -160,6 +160,14 @@ public final class LedgerSpread {
             }
             if (!border.isWithinBounds(pos) || unloadedBlocked(level, unloadedAllowed, x, z)) {
                 rejected.add(key);
+                continue;
+            }
+            if (com.yayuy.overgrownvegetation.corruption.pushback.BurntLand.isBurntKey(level.getServer(), key)) {
+                rejected.add(key); // 焼けた荒地の間(1 日【仮】)は発芽しない(防火帯)
+                continue;
+            }
+            if (com.yayuy.overgrownvegetation.corruption.pushback.VentGuard.covers(level, x, z) || com.yayuy.overgrownvegetation.corruption.pushback.RingWards.stakeCoversChunk(level, x, z)) {
+                rejected.add(key); // 動いている換気機・FE のある地脈の杭の範囲では発芽しない(押し返し 2026-11-18 夜。10-22 の「範囲の守りは見ない」を上書き)
                 continue;
             }
             picked.add(pos);

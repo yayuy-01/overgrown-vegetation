@@ -150,6 +150,7 @@ public final class SporeSprouts {
     /** 2 体目の萌芽体が発芽した(場の答えから)。読み込まれていれば歩く萌芽体を出す。そうでなければ読み込んだときに根付いた姿で。 */
     static void onSecondSprout(ServerLevel level, long chunkKey) {
         int cx = ChunkPos.getX(chunkKey), cz = ChunkPos.getZ(chunkKey);
+        if (com.yayuy.overgrownvegetation.corruption.pushback.VentGuard.covers(level, cx, cz)) return; // 換気機の範囲では発芽しない(11-18 夜)
         LevelChunk chunk = level.getChunkSource().getChunkNow(cx, cz);
         if (chunk == null) return;
         BlockPos at = surfacePoint(level, chunk, level.random);
@@ -164,6 +165,7 @@ public final class SporeSprouts {
      * 読み込まれていなければ、読み込んだときの見直しで({@link ModAttachments#CAVE_SPROUTS_PLACED} と場の回数を比べる)。
      */
     static void onCaveSprout(ServerLevel level, long chunkKey) {
+        if (com.yayuy.overgrownvegetation.corruption.pushback.VentGuard.covers(level, ChunkPos.getX(chunkKey), ChunkPos.getZ(chunkKey))) return; // 換気機の範囲(11-18 夜)
         if (level.getChunkSource().getChunkNow(ChunkPos.getX(chunkKey), ChunkPos.getZ(chunkKey)) != null) dim(level).check.add(chunkKey);
     }
 
@@ -488,15 +490,19 @@ public final class SporeSprouts {
                     p.next = now + t.sproutTickInterval();
                     continue;
                 }
+                if (com.yayuy.overgrownvegetation.corruption.pushback.VentGuard.covers(level, p.origin)) {
+                    p.next = now + t.sproutTickInterval(); // 動いている換気機の範囲では芽の点が広がらない(11-18 夜。機械が止まれば続きから)
+                    continue;
+                }
                 int before = p.spreader.getCorruptedCount();
                 if (p.rooted) {
                     if (!level.getBlockState(p.origin).is(ModBlocks.BLIGHT_FERN_ROOTED.get())) {
                         it.remove(); // 株が壊された
                         continue;
                     }
-                    p.spreader.tick(level, p.origin);
+                    com.yayuy.overgrownvegetation.corruption.pushback.RingWards.withSource(p.origin, () -> p.spreader.tick(level, p.origin)); // 芽の点は出どころ付き(帯の線をまたぐかを出どころから見る)
                 } else {
-                    p.spreader.tick(level, p.origin, t.sproutRadius(), 1, 0, 2, 4);
+                    com.yayuy.overgrownvegetation.corruption.pushback.RingWards.withSource(p.origin, () -> p.spreader.tick(level, p.origin, t.sproutRadius(), 1, 0, 2, 4));
                 }
                 com.yayuy.overgrownvegetation.phase.CorruptionCounter.record(level, p.spreader.getCorruptedCount() - before);
                 p.next = now + t.sproutTickInterval();

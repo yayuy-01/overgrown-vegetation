@@ -589,6 +589,25 @@ public final class OvergrownBiomeConverter {
      */
     private static final Map<ResourceKey<Level>, LongLinkedOpenHashSet> PENDING_RESEND = new HashMap<>();
 
+    /**
+     * チャンクのバイオームを世界生成のときのものへ戻す(押し返し 2026-11-18。台帳から外したとき)。生成器のバイオームの元に
+     * 同じ座標を聞けば決まる(記録は要らない)。クライアントへは tick の終わりにまとめて送る。
+     */
+    public static void restoreOriginal(ServerLevel level, net.minecraft.world.level.chunk.LevelChunk chunk) {
+        chunk.fillBiomesFromNoise(level.getChunkSource().getGenerator().getBiomeSource(),
+                level.getChunkSource().randomState().sampler());
+        chunk.setUnsaved(true);
+        finishResend(level, List.<ChunkAccess>of(chunk));
+    }
+
+    /** チャンク全体を 1 つのバイオームで塗る(縁のなだらか化なし。焼けた荒地 2026-11-18)。 */
+    public static void paintWhole(ServerLevel level, net.minecraft.world.level.chunk.LevelChunk chunk, ResourceKey<Biome> key) {
+        Holder<Biome> holder = level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.BIOME).getHolderOrThrow(key);
+        chunk.fillBiomesFromNoise((x, y, z, sampler) -> holder, level.getChunkSource().randomState().sampler());
+        chunk.setUnsaved(true);
+        finishResend(level, List.<ChunkAccess>of(chunk));
+    }
+
     private static void finishResend(ServerLevel level, List<ChunkAccess> changed) {
         if (changed.isEmpty()) {
             return;

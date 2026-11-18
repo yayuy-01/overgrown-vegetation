@@ -148,7 +148,7 @@ public final class LedgerSpreadData extends SavedData {
         return set != null && set.contains(chunkKey);
     }
 
-    void removePending(long chunkKey) {
+    public void removePending(long chunkKey) {
         long r = LedgerPendingStore.regionOf(chunkKey);
         LongOpenHashSet set = byRegion.get(r);
         if (set != null && set.remove(chunkKey)) {

@@ -107,6 +107,8 @@ public final class GearTierTable {
         public int igniteSeconds = 4;
         public int cost = 40;
         public int durability = 900;
+        /** 焼いたマスにふつうの火を付ける確率(11-18 夜。燃え移るかは火の決まりどおり)。 */
+        public double fireChance = 0.35D;
     }
 
     /** 防具 1 そろい。{@code defense} は頭・胴・脚・足の順。 */

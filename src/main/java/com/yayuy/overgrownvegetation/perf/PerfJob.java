@@ -34,7 +34,9 @@ public enum PerfJob {
     END_OVERGROWTH("エンドの侵食", true),
     NETHER_LEDGER("ネザーの書き換え", true),
     /** 森の器官を育てる・枯らす(organ.OrganWorld、2026-11-17)。 */
-    ORGAN_BUILD("森の器官の成長", true);
+    ORGAN_BUILD("森の器官の成長", true),
+    /** 押し返したチャンクの数え直し(台帳から外す。2026-11-18)。 */
+    LEDGER_SHRINK("押し返したチャンクの数え直し", true);
     // 2026-11-14: 退避したもの(基地の工事・チャンク作業・道・整備の見比べ = BASE_*、焼けた荒地 BURNT_LAND、燃え落ちる木 TREE_BURN、
     // 地脈の前兆 LEY_OMEN)の行を消した(どこからも測っていなかった)。戻すときに足し直す。
 

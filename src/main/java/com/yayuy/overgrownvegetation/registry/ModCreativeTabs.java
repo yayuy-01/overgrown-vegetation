@@ -178,6 +178,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.PROTECTIVE_MASK.get());
                         com.yayuy.overgrownvegetation.registry.ModLey.acceptItems(output); // 地脈(2026-11-13 段 2b)
                         com.yayuy.overgrownvegetation.registry.ModVent.acceptItems(output); // 換気機・フィルター(2026-11-14 段 2c)
+                        com.yayuy.overgrownvegetation.registry.ModPushBack.acceptItems(output); // 帯・杭・石灰(2026-11-18 押し返し)
                         com.yayuy.overgrownvegetation.registry.ModDecon.acceptItems(output); // 地脈の洗い場(2026-11-14 段 3a)
                         com.yayuy.overgrownvegetation.registry.ModExpedition.acceptItems(output); // 遠征の見返りと手当て(2026-11-16 段 4)
                         com.yayuy.overgrownvegetation.gear.ModGear.acceptItems(output); // 強くなる道 段 1・段 2(2026-11-17)

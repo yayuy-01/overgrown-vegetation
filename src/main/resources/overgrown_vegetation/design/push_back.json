@@ -1,0 +1,30 @@
+{
+  "_comment": "押し返す用の道具と方法(2026-11-18 夜)。値はどれも【仮】(3 割で外す・帯は回数で消える・杭は FE がある限り、はユーザー決定。数は仮)。再起動で効く。説明は tools/mod-manager2/fields/push_back.json。Java は corruption/pushback/PushBackTable。",
+  "shrink": {
+    "threshold": 0.3,
+    "graceDays": 1.0,
+    "recheckSeconds": 10,
+    "chunksPerTick": 4,
+    "minColumns": 32
+  },
+  "ring": {
+    "bandHits": 16,
+    "bandHitCooldownSeconds": 60,
+    "stakeBuffer": 10000,
+    "stakeFePerTick": 2,
+    "stakeFePerBlock": 20,
+    "stakeRadius": 12.0,
+    "below": 8,
+    "above": 24
+  },
+  "fire": {
+    "burntDays": 1.0
+  },
+  "spray": {
+    "radius": 4.0,
+    "reviveDays": 1.0
+  },
+  "vent": {
+    "noSproutRadiusChunks": 2.0
+  }
+}

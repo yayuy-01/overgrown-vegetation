@@ -66,6 +66,13 @@ public final class DesignData {
 
     private static volatile com.yayuy.overgrownvegetation.gear.GearTierTable gearTiers = com.yayuy.overgrownvegetation.gear.GearTierTable.DEFAULT;
 
+    private static volatile com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable pushBack = com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable.DEFAULT;
+
+    /** 押し返す用の道具と方法の設計値({@code push_back.json}、2026-11-18 夜)。 */
+    public static com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable pushBack() {
+        return pushBack;
+    }
+
     /** 強くなる道 段 1・段 2 の物の設計値({@code gear_tiers.json}、2026-11-17)。 */
     public static com.yayuy.overgrownvegetation.gear.GearTierTable gearTiers() {
         return gearTiers;
@@ -209,6 +216,8 @@ public final class DesignData {
         worldEvents = com.yayuy.overgrownvegetation.worldevent.WorldEventTable.fromJson(read(dir, "world_events.json", com.yayuy.overgrownvegetation.worldevent.WorldEventTable.Json.class));
         com.yayuy.overgrownvegetation.gear.GearTierTable gt = read(dir, "gear_tiers.json", com.yayuy.overgrownvegetation.gear.GearTierTable.class);
         gearTiers = gt != null ? gt : com.yayuy.overgrownvegetation.gear.GearTierTable.DEFAULT;
+        com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable pb = read(dir, "push_back.json", com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable.class);
+        pushBack = pb != null ? pb : com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable.DEFAULT;
 
         OvergrownVegetation.LOGGER.info("設計データを読み込みました({})", dir);
     }
