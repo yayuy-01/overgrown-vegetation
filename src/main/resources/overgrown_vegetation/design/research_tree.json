@@ -86,31 +86,31 @@
       "tier": 3, "lane": "armor", "col": 2, "icon": "minecraft:chainmail_chestplate",
       "requires": ["t3_crystal"],
       "specimens": [ { "item": "overgrown_vegetation:shield_scale", "count": 2 }, { "item": "overgrown_vegetation:hydraulic_pulvinus", "count": 2 }, { "item": "overgrown_vegetation:egg_sac", "count": 1 } ],
-      "unlocks": []
+      "unlocks": ["overgrown_vegetation:ley_helmet", "overgrown_vegetation:ley_chestplate", "overgrown_vegetation:ley_leggings", "overgrown_vegetation:ley_boots"]
     },
     "t3_thunder": {
       "tier": 3, "lane": "melee", "col": 2, "icon": "minecraft:lightning_rod",
       "requires": ["t3_crystal", "t2_sword"],
       "specimens": [ { "item": "overgrown_vegetation:light_core", "count": 1 }, { "item": "overgrown_vegetation:root_crystal", "count": 1 } ],
-      "unlocks": []
+      "unlocks": ["overgrown_vegetation:thunder_blade"]
     },
     "t3_heat": {
       "tier": 3, "lane": "melee", "col": 3, "icon": "minecraft:blaze_powder",
       "requires": ["t3_crystal", "t2_sword"],
       "specimens": [ { "item": "overgrown_vegetation:heat_sac", "count": 2 }, { "item": "overgrown_vegetation:thermal_membrane", "count": 1 } ],
-      "unlocks": []
+      "unlocks": ["overgrown_vegetation:heat_blade"]
     },
     "t3_staff": {
       "tier": 3, "lane": "ranged", "col": 2, "icon": "minecraft:end_rod",
       "requires": ["t3_crystal", "t2_xbow"],
       "specimens": [ { "item": "overgrown_vegetation:glowing_spine_tip", "count": 2 }, { "item": "overgrown_vegetation:light_core", "count": 1 } ],
-      "unlocks": []
+      "unlocks": ["overgrown_vegetation:ley_staff"]
     },
     "t3_tube": {
       "tier": 3, "lane": "ranged", "col": 3, "icon": "minecraft:fire_charge",
       "requires": ["t3_crystal", "t2_xbow"],
       "specimens": [ { "item": "overgrown_vegetation:heat_sac", "count": 2 }, { "item": "overgrown_vegetation:spore_sac", "count": 1 } ],
-      "unlocks": []
+      "unlocks": ["overgrown_vegetation:spore_burner"]
     }
   }
 }

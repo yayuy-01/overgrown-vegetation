@@ -1,6 +1,8 @@
 {
   "replace": false,
   "values": [
+    "overgrown_vegetation:ley_staff",
+    "overgrown_vegetation:spore_burner",
     "overgrown_vegetation:spore_bow",
     "overgrown_vegetation:piercing_crossbow"
   ]

@@ -196,6 +196,64 @@ public final class ModGear {
             new Item.Properties().stacksTo(1).durability(DesignData.gearTiers().crossbow.durability)
                     .component(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.EMPTY));
 
+    // ---- 段 3(森の奥。2026-11-18 決定 19。名前・数は仮) ----
+
+    public static final DeferredHolder<ArmorMaterial, ArmorMaterial> LEY_ARMOR_MATERIAL = ModArmorMaterials.ARMOR_MATERIALS.register(
+            "ley_armor", () -> material("ley_armor", t().leyArmor, SoundEvents.ARMOR_EQUIP_NETHERITE,
+                    () -> Ingredient.of(ModGear.FUNGAL_METAL_INGOT.get())));
+
+    /** 段 3 の刃(菌鉄と根晶の刃)。 */
+    static final Tier LEY_BLADE_TIER = new SimpleTier(BlockTags.INCORRECT_FOR_NETHERITE_TOOL, 1800, 9.0F, 0.0F, 15,
+            () -> Ingredient.of(ModGear.FUNGAL_METAL_INGOT.get()));
+
+    public static final DeferredItem<TierHelmetItem> LEY_HELMET = ModItems.ITEMS.registerItem("ley_helmet",
+            p -> new TierHelmetItem(LEY_ARMOR_MATERIAL, () -> t().leyArmor, p),
+            new Item.Properties().fireResistant().durability(ArmorItem.Type.HELMET.getDurability(DesignData.gearTiers().leyArmor.durability)));
+    public static final DeferredItem<LeyChestItem> LEY_CHESTPLATE = ModItems.ITEMS.registerItem("ley_chestplate",
+            p -> new LeyChestItem(LEY_ARMOR_MATERIAL, () -> t().leyArmor, p),
+            new Item.Properties().fireResistant().durability(ArmorItem.Type.CHESTPLATE.getDurability(DesignData.gearTiers().leyArmor.durability)));
+    public static final DeferredItem<TierArmorItem> LEY_LEGGINGS = ModItems.ITEMS.registerItem("ley_leggings",
+            p -> new TierArmorItem(LEY_ARMOR_MATERIAL, ArmorItem.Type.LEGGINGS, () -> t().leyArmor, p),
+            new Item.Properties().fireResistant().durability(ArmorItem.Type.LEGGINGS.getDurability(DesignData.gearTiers().leyArmor.durability)));
+    public static final DeferredItem<TierArmorItem> LEY_BOOTS = ModItems.ITEMS.registerItem("ley_boots",
+            p -> new TierArmorItem(LEY_ARMOR_MATERIAL, ArmorItem.Type.BOOTS, () -> t().leyArmor, p),
+            new Item.Properties().fireResistant().durability(ArmorItem.Type.BOOTS.getDurability(DesignData.gearTiers().leyArmor.durability)));
+
+    public static final DeferredItem<ThunderBladeItem> THUNDER_BLADE = ModItems.ITEMS.registerItem("thunder_blade",
+            p -> new ThunderBladeItem(LEY_BLADE_TIER, p),
+            new Item.Properties().fireResistant().durability(DesignData.gearTiers().thunderBlade.durability)
+                    .attributes(weaponAttributes(LEY_BLADE_TIER, DesignData.gearTiers().thunderBlade.attackDamage, DesignData.gearTiers().thunderBlade.attackSpeed)));
+    public static final DeferredItem<HeatBladeItem> HEAT_BLADE = ModItems.ITEMS.registerItem("heat_blade",
+            p -> new HeatBladeItem(LEY_BLADE_TIER, p),
+            new Item.Properties().fireResistant().durability(DesignData.gearTiers().heatBlade.durability)
+                    .attributes(weaponAttributes(LEY_BLADE_TIER, DesignData.gearTiers().heatBlade.attackDamage, DesignData.gearTiers().heatBlade.attackSpeed)));
+    public static final DeferredItem<LeyStaffItem> LEY_STAFF = ModItems.ITEMS.registerItem("ley_staff", LeyStaffItem::new,
+            new Item.Properties().stacksTo(1).fireResistant().durability(DesignData.gearTiers().leyStaff.durability));
+    public static final DeferredItem<SporeBurnerItem> SPORE_BURNER = ModItems.ITEMS.registerItem("spore_burner", SporeBurnerItem::new,
+            new Item.Properties().stacksTo(1).fireResistant().durability(DesignData.gearTiers().sporeBurner.durability));
+
+    /** 地脈の杖の光の弾。 */
+    public static final DeferredHolder<net.minecraft.world.entity.EntityType<?>, net.minecraft.world.entity.EntityType<LeyBoltEntity>> LEY_BOLT =
+            com.yayuy.overgrownvegetation.registry.ModEntities.ENTITY_TYPES.register("ley_bolt", () -> net.minecraft.world.entity.EntityType.Builder
+                    .<LeyBoltEntity>of(LeyBoltEntity::new, net.minecraft.world.entity.MobCategory.MISC)
+                    .sized(0.3F, 0.3F).clientTrackingRange(6).updateInterval(5)
+                    .build(com.yayuy.overgrownvegetation.OvergrownVegetation.id("ley_bolt").toString()));
+
+    /** 結晶を持つ物に FE の口を付ける(後で充電台などから満たせるように)。 */
+    @net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.MOD)
+    public static final class Capabilities {
+        @net.neoforged.bus.api.SubscribeEvent
+        public static void register(net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent event) {
+            event.registerItem(net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.ITEM,
+                    (stack, ctx) -> new net.neoforged.neoforge.energy.ComponentEnergyStorage(stack, com.yayuy.overgrownvegetation.registry.ModLey.ENERGY.get(),
+                            LeyCrystal.capacity(stack), Math.max(1, LeyCrystal.capacity(stack))),
+                    LEY_CHESTPLATE.get(), THUNDER_BLADE.get(), HEAT_BLADE.get(), LEY_STAFF.get(), SPORE_BURNER.get());
+        }
+
+        private Capabilities() {
+        }
+    }
+
     /** 人類側のタブに並べる({@code ModCreativeTabs} から呼ぶ)。 */
     public static void acceptItems(CreativeModeTab.Output output) {
         output.accept(FIBER_GRASS_ITEM.get());
@@ -218,6 +276,20 @@ public final class ModGear {
         output.accept(PLATE_BOOTS.get());
         output.accept(GREATSWORD.get());
         output.accept(PIERCING_CROSSBOW.get());
+        output.accept(LEY_HELMET.get());
+        output.accept(LEY_CHESTPLATE.get());
+        output.accept(LEY_LEGGINGS.get());
+        output.accept(LEY_BOOTS.get());
+        output.accept(THUNDER_BLADE.get());
+        output.accept(HEAT_BLADE.get());
+        output.accept(LEY_STAFF.get());
+        output.accept(SPORE_BURNER.get());
+        // 結晶を満たした物も 1 つずつ(試す用。電池の満タンと同じ扱い)
+        for (var i : java.util.List.of(LEY_CHESTPLATE, THUNDER_BLADE, HEAT_BLADE, LEY_STAFF, SPORE_BURNER)) {
+            net.minecraft.world.item.ItemStack full = new net.minecraft.world.item.ItemStack(i.get());
+            LeyCrystal.set(full, LeyCrystal.capacity(full));
+            output.accept(full);
+        }
         ModMobDrops.acceptItems(output);
     }
 }

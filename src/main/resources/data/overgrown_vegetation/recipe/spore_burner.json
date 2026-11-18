@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [ "HPH", " I ", "C  " ],
+  "key": {
+    "H": { "item": "overgrown_vegetation:heat_sac" },
+    "P": { "item": "overgrown_vegetation:spore_sac" },
+    "I": { "item": "overgrown_vegetation:fungal_metal_ingot" },
+    "C": { "item": "overgrown_vegetation:twisted_cord" }
+  },
+  "result": { "id": "overgrown_vegetation:spore_burner", "count": 1 }
+}

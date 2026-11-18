@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
+    "overgrown_vegetation:ley_helmet",
     "overgrown_vegetation:expedition_hood",
     "overgrown_vegetation:fungal_plate_helmet",
     "overgrown_vegetation:protective_mask"

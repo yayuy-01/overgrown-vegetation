@@ -24,6 +24,91 @@ public final class GearTierTable {
     public FiberGrass fiberGrass = new FiberGrass();
     public Ore ore = new Ore();
 
+    // ---- 段 3(森の奥。2026-11-18。決定 19) ----
+    /** 段 3 の地脈の装甲(兜・胴・脚・足)。 */
+    public Armor leyArmor = Armor.of(new int[]{3, 8, 6, 3}, 37, 3.0F, 0.0F, 15, 0.05D, 0.75D);
+    public LeyArmorPower leyArmorPower = new LeyArmorPower();
+    public Crystal crystal = new Crystal();
+    public ThunderBlade thunderBlade = new ThunderBlade();
+    public HeatBlade heatBlade = new HeatBlade();
+    public LeyStaff leyStaff = new LeyStaff();
+    public SporeBurner sporeBurner = new SporeBurner();
+
+    /** 結晶にためる地脈の力(FE)。満たし方 = 持ち物の画面で、満ちた地脈の電池をつかんで装備の上で右クリック。 */
+    public static final class Crystal {
+        /** 武器 1 本の結晶の大きさ。 */
+        public int weaponCapacity = 30000;
+        /** 装甲の胴の結晶の大きさ(4 部位の能力をここから払う)。 */
+        public int armorCapacity = 100000;
+        /** 電池から 1 回の右クリックで移す上限。 */
+        public int pourPerClick = 100000;
+    }
+
+    /** 装甲の能力。切れても防御は残る(10-03 の方針)。 */
+    public static final class LeyArmorPower {
+        /** 脚: 押されない(ノックバック耐性 1)。1 回止めるたびの FE。 */
+        public int knockbackCost = 50;
+        /** 足: 落ちても痛まない。消した 1 ダメージにつき FE。 */
+        public int fallCostPerDamage = 200;
+        /** 胴: バフ(11-18 ユーザー決定 = 案 B「常に再生 I + 満腹の減りを遅く」)。体力の割合がこれ以下で効く(1 = 常に)。1 秒ごとの FE。 */
+        public double regenBelowHealth = 1.0D;
+        public int regenCostPerSecond = 60;
+        public int regenAmplifier = 0;
+        public boolean regenEnabled = true;
+        /** 満腹の減りを遅く: 1 秒ごとに消耗(exhaustion)をこれだけ打ち消す(走り 1 秒でおよそ 0.5)。 */
+        public double hungerReliefPerSecond = 0.1D;
+    }
+
+    /** 雷を纏う刃: 振りがたまった一撃で、電撃が近くの敵へ飛び移る。 */
+    public static final class ThunderBlade {
+        public float attackDamage = 9.0F;
+        public float attackSpeed = 1.6F;
+        public int durability = 1800;
+        public double minCharge = 0.9D;
+        public int jumps = 3;
+        public double jumpRange = 5.0D;
+        public double firstDamage = 6.0D;
+        public double falloff = 0.75D;
+        public int cost = 400;
+    }
+
+    /** 熱で焼き切る刃: 当たると燃やし、植物側に余計に効く。刈った蔦・下草・胞子嚢とつながった植物を焼き消す。 */
+    public static final class HeatBlade {
+        public float attackDamage = 8.0F;
+        public float attackSpeed = 1.4F;
+        public int durability = 1800;
+        public int igniteSeconds = 5;
+        public double plantDamageMultiplier = 1.3D;
+        public int hitCost = 200;
+        public float clearSpeed = 15.0F;
+        public int burnMax = 12;
+        public int burnCost = 50;
+    }
+
+    /** 地脈の杖: 黄緑の光の弾。当たると爆ぜて吹き飛ばす(ブロックは壊さない)。 */
+    public static final class LeyStaff {
+        public double damage = 8.0D;
+        public double radius = 2.5D;
+        public double knockback = 1.2D;
+        public float speed = 2.2F;
+        public int cooldownTicks = 20;
+        public int lifeTicks = 60;
+        public int cost = 500;
+        public int durability = 900;
+    }
+
+    /** 胞子を焼く筒: 押している間、前の扇形を焼く。汚染の下草・蔦を焼き消す(押し返す道具)。 */
+    public static final class SporeBurner {
+        public double range = 6.0D;
+        /** 扇の半分の角度(度)。 */
+        public double halfAngle = 30.0D;
+        public int pulseTicks = 4;
+        public double damage = 2.0D;
+        public int igniteSeconds = 4;
+        public int cost = 40;
+        public int durability = 900;
+    }
+
     /** 防具 1 そろい。{@code defense} は頭・胴・脚・足の順。 */
     public static final class Armor {
         public int[] defense = {1, 1, 1, 1};

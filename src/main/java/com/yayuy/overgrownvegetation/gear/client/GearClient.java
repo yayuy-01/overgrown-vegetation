@@ -24,6 +24,12 @@ public final class GearClient {
     private GearClient() {
     }
 
+    /** 地脈の杖の光の弾(2026-11-18)。絵は【仮】で光る棘の先のアイテム。 */
+    @SubscribeEvent
+    public static void registerRenderers(net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers event) {
+        event.registerEntityRenderer(ModGear.LEY_BOLT.get(), ctx -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(ctx, 1.0F, true));
+    }
+
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
         event.enqueueWork(() -> {

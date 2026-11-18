@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
+    "overgrown_vegetation:ley_chestplate",
     "overgrown_vegetation:expedition_coat",
     "overgrown_vegetation:fungal_plate_chestplate"
   ]

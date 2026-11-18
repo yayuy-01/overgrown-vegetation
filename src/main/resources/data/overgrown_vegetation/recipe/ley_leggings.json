@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [ "ISI", "S S", "I I" ],
+  "key": {
+    "I": { "item": "overgrown_vegetation:fungal_metal_ingot" },
+    "S": { "item": "overgrown_vegetation:shield_scale" }
+  },
+  "result": { "id": "overgrown_vegetation:ley_leggings", "count": 1 }
+}

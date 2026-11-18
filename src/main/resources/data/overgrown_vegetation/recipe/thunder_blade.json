@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [ " IL", " RI", "C  " ],
+  "key": {
+    "I": { "item": "overgrown_vegetation:fungal_metal_ingot" },
+    "L": { "item": "overgrown_vegetation:light_core" },
+    "R": { "item": "overgrown_vegetation:root_crystal" },
+    "C": { "item": "overgrown_vegetation:twisted_cord" }
+  },
+  "result": { "id": "overgrown_vegetation:thunder_blade", "count": 1 }
+}
