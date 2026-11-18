@@ -405,9 +405,19 @@ public final class VisualSettingsScreen extends Screen {
         layout.addTitleHeader(TITLE, font);
         list = layout.addToContents(new SettingList(minecraft));
         LinearLayout footer = layout.addToFooter(LinearLayout.horizontal().spacing(8));
-        // 「ゲーム内容」のページへ(2026-11-14。この画面の変更は保存されない = 行き来は「キャンセル」と同じ)
-        footer.addChild(Button.builder(Component.translatable("gui.overgrown_vegetation.gameplay_settings.open"),
-                button -> minecraft.setScreen(new GameplaySettingsScreen(parent))).width(100).build());
+        // 「ゲーム内容」= MOD の設定のページへ(2026-11-14、11-19 にワールドごとの設定のページへ。この画面の変更は保存されない =
+        // 行き来は「キャンセル」と同じ)。設定のページから来たならそこへ戻り、ワールドの中ならサーバーに今の値を聞いて開く。
+        // タイトル画面から来たときはワールドが無いので押せない(ワールドを作る画面の葉っぱのボタンから開く)
+        Button gameplay = footer.addChild(Button.builder(Component.translatable("gui.overgrown_vegetation.gameplay_settings.open"),
+                button -> {
+                    if (parent instanceof WorldDifficultyScreen) minecraft.setScreen(parent);
+                    else ClientWorldDifficulty.request(this);
+                }).width(100).build());
+        gameplay.active = parent instanceof WorldDifficultyScreen || ClientWorldDifficulty.inWorld();
+        if (!gameplay.active) {
+            gameplay.setTooltip(net.minecraft.client.gui.components.Tooltip.create(
+                    Component.translatable("gui.overgrown_vegetation.gameplay_settings.open_no_world")));
+        }
         doneButton = footer.addChild(Button.builder(CommonComponents.GUI_DONE, button -> done()).build());
         footer.addChild(Button.builder(CommonComponents.GUI_CANCEL, button -> onClose()).build());
         layout.visitWidgets(widget -> addRenderableWidget(widget));

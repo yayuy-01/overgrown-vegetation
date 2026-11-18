@@ -163,6 +163,8 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         double income = incomePerDay(level);
         double base = DesignData.director().cap(income, PhaseData.get(level).hiveNodeSnapshot().length)
                 + income * DesignData.director().capPerHiveNodeDays * com.yayuy.overgrownvegetation.organ.OrganWorld.sacHiveEquivalent(level);
+        // MOD の設定「森の予算の上限」(11-19。難易度の段で変わる)。収入の倍率は accrue で掛けるので、ここは上限の倍率だけ
+        base *= com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.forestCap(level.getServer());
         // 貯める間は上限を上げる(第 3 段「貯めて一気に使う」)
         Mood m = get(level).mood;
         if (m == Mood.HOARD) return base * DesignData.director().hoard.capFactor;
@@ -316,7 +318,8 @@ public final class ForestDirector extends SavedData implements ForestBudget {
             double days = Math.max(0L, now - budgetAt) / 24000.0D;
             carry = Math.max(0.0D, Math.min(carry, budget - cap) - cap * CARRY_DECAY_PER_DAY * days); // 使った分・減った分だけ小さくなる
             // 生態系の台帳(11-16 全体管理 決定 C): 森の健康は貯まる速さにだけ掛ける(上限には掛けない。健康 100% で倍率 1 = 今までどおり)
-            double factor = com.yayuy.overgrownvegetation.ecosystem.Ecosystem.incomeFactor(level);
+            double factor = com.yayuy.overgrownvegetation.ecosystem.Ecosystem.incomeFactor(level)
+                    * com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.forestIncome(level.getServer()); // MOD の設定「森の予算の生産量」(11-19)
             budget = accrued(budget, now - budgetAt, incomePerDay(level) * factor, cap + carry);
         }
         budgetAt = now;

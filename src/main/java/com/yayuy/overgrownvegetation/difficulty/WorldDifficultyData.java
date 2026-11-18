@@ -6,7 +6,6 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.neoforged.neoforge.common.IOUtilities;
@@ -14,26 +13,26 @@ import net.neoforged.neoforge.common.IOUtilities;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
-import java.util.EnumMap;
 import java.util.Map;
 import java.util.OptionalDouble;
 
 /**
- * ワールドごとの難易度(2026-09-25、ユーザー指定)。オーバーワールドの {@code data/} に 1 つ。
+ * ワールドごとの設定(MOD の設定ページの値。2026-09-25 に難易度として始まり、11-19 に 1 つのページへまとめた)。
+ * オーバーワールドの {@code data/} に 1 つ。
  *
- * <p><b>持っているのは「このワールドの値」だけ</b>。書かれていない項目は {@link DifficultySetting#defaultValue()}
- * (config・design の今の値)に従う。画面で既定値のまま触らなかった項目・{@code reset} した項目は書かない。
+ * <p><b>持っているのは「このワールドの値」だけ</b>({@link DifficultyValues})。書かれていない項目は
+ * {@link DifficultySetting#defaultValue()}(config・design の今の値)に従う。
  *
  * <p>値の入り口は 3 つ:
  * <ul>
  *     <li>ワールド作成画面の葉っぱのボタン — 「ワールド作成」を押した瞬間、サーバーが起動する前の新しいワールドのフォルダへ
- *     {@link #writeInitial} が直接書く(統合サーバーはふつうに {@link #get} で読み込む)。</li>
- *     <li>ポーズ画面の葉っぱのボタン — {@link WorldDifficultySync}(OP か 1 人プレイのホストだけが変えられる)。</li>
- *     <li>{@code /ov corruption speed}(侵食速度だけ。{@code /ov difficulty} は 2026-10-10 に削除、ほかの項目は葉っぱのボタンの画面)。</li>
+ *     {@link #writeInitial} が直接書く。</li>
+ *     <li>遊んでいる途中の設定のページ(ポーズ画面の葉っぱのボタン・見た目の設定の「ゲーム内容…」)— {@link WorldDifficultySync}
+ *     (OP か 1 人プレイのホストだけが変えられる)。</li>
+ *     <li>{@code /ov corruption speed}(侵食速度だけ)。</li>
  * </ul>
  *
- * <p>効かせる場所は下の static の口から読む(汚染速度・敵の強さ・ポイントの倍率・フェーズ1の時刻・TD の上限)。
+ * <p>効かせる場所は下の static の口から読む。
  */
 public final class WorldDifficultyData extends SavedData {
 
@@ -42,7 +41,7 @@ public final class WorldDifficultyData extends SavedData {
     private static final Factory<WorldDifficultyData> FACTORY =
             new Factory<>(WorldDifficultyData::new, WorldDifficultyData::load);
 
-    private final EnumMap<DifficultySetting, Double> overrides = new EnumMap<>(DifficultySetting.class);
+    private final DifficultyValues values = new DifficultyValues();
 
     private WorldDifficultyData() {
     }
@@ -63,18 +62,43 @@ public final class WorldDifficultyData extends SavedData {
         return get(server).value(DifficultySetting.CORRUPTION_SPEED);
     }
 
-    /** 敵の攻撃力の倍率。 */
-    public static double enemyStrength(MinecraftServer server) {
-        return get(server).value(DifficultySetting.ENEMY_STRENGTH);
-    }
-
-    /** フェーズ進行のポイントの獲得量の倍率。 */
+    /** フェーズ進行のポイントの獲得量の倍率(MOD の難易度の段で変わる)。 */
     public static double phasePointMultiplier(MinecraftServer server) {
         return get(server).value(DifficultySetting.PHASE_POINTS);
     }
 
+    /** 森の予算の生産量(貯まる速さ)の倍率(段で変わる)。 */
+    public static double forestIncome(MinecraftServer server) {
+        return get(server).value(DifficultySetting.FOREST_INCOME);
+    }
+
+    /** 森の予算の貯蓄量の上限の倍率(段で変わる)。 */
+    public static double forestCap(MinecraftServer server) {
+        return get(server).value(DifficultySetting.FOREST_CAP);
+    }
+
+    /** プレイヤーの暴露量のたまる速さの倍率(段で変わる)。 */
+    public static double exposureRate(MinecraftServer server) {
+        return get(server).value(DifficultySetting.EXPOSURE_RATE);
+    }
+
+    /** プレイヤーの感染の進みやすさの倍率(段で変わる)。 */
+    public static double infectionRate(MinecraftServer server) {
+        return get(server).value(DifficultySetting.INFECTION_RATE);
+    }
+
+    /** 大きな襲撃で同時に出ている攻め手の上限。ワールドの値が無ければ COMMON の設定(−1 なら director.json)。 */
+    public static int largeRaidMaxAlive(MinecraftServer server) {
+        return (int) Math.round(get(server).value(DifficultySetting.LARGE_RAID_MAX_ALIVE));
+    }
+
+    /** この Mob(id = {@code namespace:path})のこの強さの項目の倍率 = 詳細、無ければ全体の %。 */
+    public static double mobStat(MinecraftServer server, String mobId, DifficultySetting stat) {
+        return get(server).values.mobValue(mobId, stat);
+    }
+
     /**
-     * フェーズ1(地割れ)が始まれるワールドの経過時刻(tick)。ワールドの値が無ければ phases.json の
+     * フェーズ1(地割れ = 始まりの猶予の終わり)が始まれるワールドの経過時刻(tick)。ワールドの値が無ければ phases.json の
      * {@code startWorldAgeTicks} そのもの(日に換算して丸めない)。
      */
     public static long phase1StartTicks(MinecraftServer server) {
@@ -84,71 +108,84 @@ public final class WorldDifficultyData extends SavedData {
                 : DesignData.phases().startWorldAgeTicks();
     }
 
-    /**
-     * フェーズ1(地割れ)に要る実績の種類数(2026-10-10)。ワールドの値が無ければ phases.json の {@code startAdvancements}。
-     */
+    /** フェーズ1(地割れ)に要る実績の種類数。ワールドの値が無ければ phases.json の {@code startAdvancements}。 */
     public static int phase1Advancements(MinecraftServer server) {
         return (int) Math.round(get(server).value(DifficultySetting.QUAKE_ADVANCEMENTS));
     }
 
-    /**
-     * 読み込まれていないチャンクへも侵食を広げてよいか(2026-10-10、既定はオン)。オフなら台帳の広がり・ネザーの台帳は
-     * 読み込まれているチャンクにだけ印を付け、過繁茂したエンドは読み込まれた本島のチャンクだけを塗る。
-     */
+    /** 読み込まれていないチャンクへも侵食を広げてよいか(2026-10-10、既定はオン)。 */
     public static boolean unloadedSpread(MinecraftServer server) {
         return get(server).value(DifficultySetting.UNLOADED_SPREAD) >= 0.5D;
-    }
-
-    /**
-     * 敵が 1 回に削る量(TD の壁・鉄線・灯り・ターゲットブロック)に敵の強さを掛ける。生き物へのダメージは
-     * {@link EnemyStrengthDamage} が掛けるので、ここは通らない(二重に掛けない)。
-     */
-    public static float scaleEnemyStrike(Entity attacker, float amount) {
-        MinecraftServer server = attacker.getServer();
-        if (server == null || !(amount > 0.0F)) {
-            return amount;
-        }
-        return (float) (amount * enemyStrength(server));
     }
 
     // ------------------------------------------------------------------ 値
 
     /** この項目の今の値(ワールドの値、無ければ既定値)。 */
     public double value(DifficultySetting setting) {
-        Double v = overrides.get(setting);
-        return v != null ? v : setting.defaultValue();
+        return values.valueOr(setting, setting.defaultValue());
     }
 
     /** ワールドの値(無ければ空)。 */
     public OptionalDouble override(DifficultySetting setting) {
-        Double v = overrides.get(setting);
-        return v != null ? OptionalDouble.of(v) : OptionalDouble.empty();
+        return values.override(setting);
     }
 
     public boolean isOverridden(DifficultySetting setting) {
-        return overrides.containsKey(setting);
+        return values.override(setting).isPresent();
     }
 
-    /** ワールドの値の写し(書き換えても元は変わらない)。 */
+    /** 項目ごとのワールドの値の写し(Mob ごとの詳細は入らない。丸ごとは {@link #snapshot})。 */
     public Map<DifficultySetting, Double> overrides() {
-        return Collections.unmodifiableMap(new EnumMap<>(overrides));
+        java.util.EnumMap<DifficultySetting, Double> out = new java.util.EnumMap<>(DifficultySetting.class);
+        out.putAll(values.overrides());
+        return out;
     }
 
+    /** ワールドの値の丸ごとの写し(書き換えても元は変わらない)。 */
+    public DifficultyValues snapshot() {
+        return values.copy();
+    }
+
+    /** 今の MOD の難易度の段(保存はしない。値から求める)。 */
+    public ModDifficulty tier() {
+        return values.tier();
+    }
+
+    /** Mob の強さの項目なら全体の % として書き、詳細のその項目を消す(11-19 ユーザー決定)。 */
     public void set(DifficultySetting setting, double value) {
-        overrides.put(setting, setting.clamp(value));
+        if (setting.mobStat()) values.setGlobalMobStat(setting, value);
+        else values.set(setting, value);
         setDirty();
     }
 
     public void reset(DifficultySetting setting) {
-        if (overrides.remove(setting) != null) {
-            setDirty();
-        }
+        set(setting, Double.NaN);
     }
 
-    /** ワールドの値をまるごと置き換える(入っていない項目は既定値に戻る)。 */
-    public void replaceAll(Map<DifficultySetting, Double> values) {
-        overrides.clear();
-        values.forEach((setting, value) -> overrides.put(setting, setting.clamp(value)));
+    /** Mob ごとの詳細を書く({@code NaN} で消す)。 */
+    public void setMob(String mobId, DifficultySetting stat, double value) {
+        values.setMob(mobId, stat, value);
+        setDirty();
+    }
+
+    /** 段を選ぶ。 */
+    public void applyTier(ModDifficulty tier) {
+        values.applyTier(tier);
+        setDirty();
+    }
+
+    /** 項目ごとのワールドの値をまるごと置き換える(入っていない項目は既定値に戻る)。Mob ごとの詳細はそのまま。 */
+    public void replaceAll(Map<DifficultySetting, Double> overrides) {
+        DifficultyValues next = values.copy();
+        for (DifficultySetting s : DifficultySetting.values()) next.reset(s);
+        overrides.forEach(next::set);
+        values.copyFrom(next);
+        setDirty();
+    }
+
+    /** 詳細も含めて丸ごと置き換える。 */
+    public void replaceAll(DifficultyValues next) {
+        values.copyFrom(next);
         setDirty();
     }
 
@@ -156,21 +193,16 @@ public final class WorldDifficultyData extends SavedData {
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-        CompoundTag values = new CompoundTag();
-        overrides.forEach((setting, value) -> values.putDouble(setting.id(), value));
-        tag.put("overrides", values);
+        CompoundTag saved = values.save();
+        for (String key : saved.getAllKeys()) {
+            tag.put(key, saved.get(key));
+        }
         return tag;
     }
 
     private static WorldDifficultyData load(CompoundTag tag, HolderLookup.Provider registries) {
         WorldDifficultyData data = new WorldDifficultyData();
-        CompoundTag values = tag.getCompound("overrides");
-        for (String key : values.getAllKeys()) {
-            DifficultySetting setting = DifficultySetting.byId(key);
-            if (setting != null) {
-                data.overrides.put(setting, setting.clamp(values.getDouble(key)));
-            }
-        }
+        data.values.copyFrom(DifficultyValues.load(tag));
         return data;
     }
 
@@ -180,19 +212,18 @@ public final class WorldDifficultyData extends SavedData {
      * ({@code data} と {@code DataVersion} の入れ物)なので、起動したサーバーは {@link #get} でふつうに読み込む。
      *
      * @param overworldFolder オーバーワールドの保存先(= ワールドのフォルダ)。この下の {@code data/} に書く
-     * @param values          ワールドの値(空なら何も書かない)
+     * @param initial         ワールドの値(空なら何も書かない)
      */
-    public static void writeInitial(Path overworldFolder, Map<DifficultySetting, Double> values) throws IOException {
-        if (values.isEmpty()) {
+    public static void writeInitial(Path overworldFolder, DifficultyValues initial) throws IOException {
+        if (initial.isEmpty()) {
             return;
         }
         WorldDifficultyData data = new WorldDifficultyData();
-        data.replaceAll(values);
+        data.values.copyFrom(initial);
         Path dataFolder = overworldFolder.resolve("data");
         Files.createDirectories(dataFolder);
-        // SavedData#save(File, …) と同じ形({@code data} + {@code DataVersion})を、その場で書き切る(2026-10-20)。
-        // NeoForge 21.1.2xx の SavedData#save は入出力のスレッドで後から書くので、すぐ起動するサーバーが書き終わる前に読み、
-        // 画面で決めた値が黙って既定値に戻りうる(GameTest createWorldFileLoadsAsSavedData が落ちて気づいた)。
+        // SavedData#save(File, …) と同じ形を、その場で書き切る(2026-10-20。NeoForge 21.1.2xx の SavedData#save は入出力のスレッドで
+        // 後から書くので、すぐ起動するサーバーが書き終わる前に読み、画面で決めた値が黙って既定値に戻りうる)。
         CompoundTag root = new CompoundTag();
         root.put("data", data.save(new CompoundTag(), RegistryAccess.EMPTY));
         NbtUtils.addCurrentDataVersion(root);

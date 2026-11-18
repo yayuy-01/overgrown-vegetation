@@ -188,6 +188,17 @@ public final class LargeRaids {
             return c < 0 ? fallback : Math.max(MAX_ALIVE_MIN, Math.min(MAX_ALIVE_MAX, c));
         } catch (IllegalStateException e) {
             return fallback;
+        // 11-19: 値はワールドごと(MOD の設定ページ)。ワールドの値が無ければ下の COMMON の設定・設計データ
+        net.minecraft.server.MinecraftServer server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        if (server != null) {
+            return Math.max(MAX_ALIVE_MIN, Math.min(MAX_ALIVE_MAX,
+                    com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.largeRaidMaxAlive(server)));
+        }
+        return configuredMaxAlive();
+    }
+
+    /** ワールドの値が無いときの上限(COMMON の設定、−1 なら設計データ)。設定のページの既定値。 */
+    public static int configuredMaxAlive() {
         }
     }
 

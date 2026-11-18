@@ -156,8 +156,9 @@ public final class SporeExposureTracker {
                 player.setData(ModAttachments.SPORE_STAGE_TICKS, 0);
             }
             boolean wasFull = ex.dose >= t.infectDose(); // 減る前に満ちていた分も拾う
+            double rate = com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.exposureRate(player.getServer()); // MOD の設定「暴露量のたまる速さ」(11-19。難易度の段で変わる)
             accumulate(player, percent, protecting ? 0.0D : gear, interval, now, roomSeepPerSecond
-                    + com.yayuy.overgrownvegetation.survival.decon.GearDirt.seepPerSecond(player)); // 汚れた装備から吸う(2026-11-14 段 3b)
+                    + com.yayuy.overgrownvegetation.survival.decon.GearDirt.seepPerSecond(player), rate); // 汚れた装備から吸う(2026-11-14 段 3b)
             if ((wasFull || ex.dose >= t.infectDose()) && SporeInfectionEffects.startPlayer(player)) {
                 ex.dose = 0.0D;
                 ex.atDose = false;
@@ -301,17 +302,25 @@ public final class SporeExposureTracker {
      * 暴露量がこの速さ(%秒 / 秒)でたまり、抜けない。マスクが効いていれば(factor 0)たまらない。境目以上なら今までどおり。
      */
     public static void accumulate(LivingEntity entity, double percent, double factor, int intervalTicks, long gameTime, double roomSeepPerSecond) {
+        accumulate(entity, percent, factor, intervalTicks, gameTime, roomSeepPerSecond, 1.0D);
+    }
+
+    /**
+     * {@code rate} 付き(2026-11-19 MOD の設定「暴露量のたまる速さ」): たまる量だけに掛ける(濃度の境目の判定には掛けない)。
+     */
+    public static void accumulate(LivingEntity entity, double percent, double factor, int intervalTicks, long gameTime,
+                                  double roomSeepPerSecond, double rate) {
         SporeFieldTable t = DesignData.sporeField();
         double seconds = intervalTicks / 20.0D;
         double effective = percent * factor;
         if (effective >= t.exposureMinPercent() && effective > 0.0D) {
             SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
-            ex.dose = Math.min(t.infectDose(), ex.dose + effective * seconds);
+            ex.dose = Math.min(t.infectDose(), ex.dose + effective * seconds * rate);
             return;
         }
         if (roomSeepPerSecond > 0.0D && factor > 0.0D) {
             SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
-            ex.dose = Math.min(t.infectDose(), ex.dose + roomSeepPerSecond * factor * seconds);
+            ex.dose = Math.min(t.infectDose(), ex.dose + roomSeepPerSecond * factor * seconds * rate);
             return;
         }
         if (!entity.hasData(ModAttachments.SPORE_EXPOSURE)) return;
@@ -356,6 +365,10 @@ public final class SporeExposureTracker {
         if (entity instanceof Player p && com.yayuy.overgrownvegetation.effect.SporeInfectionEffects.stageOf(p) > 0) {
             com.yayuy.overgrownvegetation.effect.SporeInfectionEffects.advance(p, amount);
             return true;
+        }
+        if (entity instanceof Player p && p.getServer() != null) {
+            amount *= com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.exposureRate(p.getServer()); // MOD の設定「暴露量のたまる速さ」(11-19)
+            if (!(amount > 0.0D)) return false;
         }
         SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
         ex.dose = Math.min(DesignData.sporeField().infectDose(), ex.dose + amount);

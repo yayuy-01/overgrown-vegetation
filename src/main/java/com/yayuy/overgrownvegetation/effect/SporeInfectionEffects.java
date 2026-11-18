@@ -148,6 +148,10 @@ public final class SporeInfectionEffects {
         if (!(amount > 0.0D) || stageOf(player) == 0) {
             return;
         }
+        if (player.getServer() != null) {
+            amount *= com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.infectionRate(player.getServer()); // MOD の設定「感染の進みやすさ」(11-19。難易度の段で変わる)
+            if (!(amount > 0.0D)) return;
+        }
         SporeExposure ex = player.getData(ModAttachments.SPORE_EXPOSURE);
         EffectTable.PlayerInfectionSpec spec = DesignData.effects().playerInfection();
         double exact = player.getData(ModAttachments.SPORE_STAGE_TICKS) + ex.rateCarry + amount;

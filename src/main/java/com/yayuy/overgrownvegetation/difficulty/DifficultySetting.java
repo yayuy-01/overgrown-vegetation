@@ -2,6 +2,7 @@ package com.yayuy.overgrownvegetation.difficulty;
 
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.data.DesignData;
+import com.yayuy.overgrownvegetation.director.LargeRaids;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 
@@ -10,72 +11,108 @@ import java.math.BigDecimal;
 import java.util.regex.Pattern;
 
 /**
- * ワールドごとの難易度の項目(2026-09-25、ユーザー指定)。ワールド作成画面の葉っぱのボタン・ポーズ画面の葉っぱのボタン・
- * {@code /ov difficulty} の 3 か所が、この列挙を回して同じ項目を扱う。
+ * ワールドごとの設定の項目(MOD の設定ページ。2026-09-25 に難易度として始まり、2026-11-19 に「設定のページを 1 つにまとめる」
+ * ユーザー決定で節・MOD の難易度の段・Mob の強さを足した)。設定のページ({@code client/difficulty/WorldDifficultyScreen})・
+ * 保存({@link WorldDifficultyData})・通信({@code network/WorldDifficulty*Payload})は、この列挙を回して同じ項目を扱う。
  *
  * <p><b>項目を足すとき</b>は、ここに 1 行と言語ファイルの 2 行(名前と説明)を足し、効かせる場所で
- * {@link WorldDifficultyData#value} を読む。画面・コマンド・保存・通信は列挙を回すだけなので触らなくてよい。
+ * {@link WorldDifficultyData#value} を読む。画面・保存・通信は列挙を回すだけなので触らなくてよい。
+ * <b>仕組みが無い項目は足さない</b>(口だけの項目を作らない。11-19 全体管理の決まり)。
  *
  * <p>ワールドに値が書かれていない項目は {@link #defaultValue()}(config・design の<b>今の</b>値)に従う。
- * だから td.json の上限を直せば、その項目を触っていない既存のワールドにも効く。
  *
- * <p>範囲: 敵の強さの上限 256 はユーザー指定。そのほかの上下限は仮決め(汚染速度は旧 config
- * {@code corruptionSpeedMultiplier} と同じ 0.01〜100、TD は td.json の {@code concurrentCap} と同じ 1〜2000)。
+ * <p>{@link #tiered()} の項目は MOD の難易度の段({@link ModDifficulty})でまとめて変わる(11-19 ユーザー決定:
+ * Mob の強さ 4 項目・フェーズの進み・森の予算の上限と生産量・暴露量のたまる速さ・感染の進みやすさ)。既定値はどれも 100%。
  *
- * <p>難易度ではない切り替え({@link Kind#TOGGLE}、値は 0 / 1)も同じ画面・保存・コマンドに相乗りする: 実験的要素
- * ({@link #EXPERIMENTAL}、2026-10-09)・読み込まれていない範囲への侵食({@link #UNLOADED_SPREAD}、2026-10-10)。
+ * <p>{@link #irreversible()} の項目は、途中で変えても<b>すでに起きたことは戻らない</b>(画面に一言出す。11-19)。
+ *
+ * <p>2026-11-19 に消した項目: {@code td_max_mobs}(TD は 2026-10-30 に parked/ へ。読む所が無い)。保存に残っていても読み捨てる。
+ * {@code enemy_strength} は Mob の攻撃力({@link #MOB_ATTACK})へ移した(読み込みで写す)。
  */
 public enum DifficultySetting {
+    // ------------------------------------------------------------ ② 森の広がり
     /**
      * 汚染シダ(と汚染死体ブロック・レイドの汚染の節)の侵食速度の倍率。{@code /ov corruption speed} もこれを書き換える。
-     * 既定値は config の {@code corruptionSpeedMultiplier}(全ワールド共通の既定値として残してある)。
+     * 既定値は config の {@code corruptionSpeedMultiplier}(全ワールド共通の既定値として残してある)。段では変えない。
      */
-    CORRUPTION_SPEED("corruption_speed", Kind.MULTIPLIER, 0.01D, 100.0D),
+    CORRUPTION_SPEED("corruption_speed", Section.SPREAD, Kind.MULTIPLIER, 0.01D, 100.0D, false, false),
+    /** フェーズ進行のポイントの<b>獲得量</b>の倍率(時間・チャンク・Mob・実績・器官のすべて。{@code PhaseData#addPoints})。段で変わる。 */
+    PHASE_POINTS("phase_points", Section.SPREAD, Kind.PERCENT, 0.0D, 256.0D, true, false),
     /**
-     * 読み込まれていない範囲への侵食(2026-10-10、ユーザー指定「読み込まれていない範囲の汚染をありにするかどうかの設定」)。
-     * オン(既定 = 今までどおり)なら台帳の広がりがプレイヤーのいない土地も過繁茂にし、本島のエンドもまとめて塗る。
-     * オフなら、どちらも<b>読み込まれているチャンクだけ</b>(印を付けるのも塗るのも)。もう付いた印は消さない。
-     * 効かせる所は {@link WorldDifficultyData#unloadedSpread} を読む 3 か所(台帳の広がり・ネザーの台帳・過繁茂したエンド)。
+     * 読み込まれていない範囲への侵食(2026-10-10)。オンなら台帳の広がりがプレイヤーのいない土地も過繁茂にし、本島のエンドもまとめて塗る。
+     * オフなら、どちらも読み込まれているチャンクだけ。もう付いた印は消さない。
      */
-    UNLOADED_SPREAD("unloaded_spread", Kind.TOGGLE, 0.0D, 1.0D),
+    UNLOADED_SPREAD("unloaded_spread", Section.SPREAD, Kind.TOGGLE, 0.0D, 1.0D, false, false),
     /**
-     * 敵(グループ 1〜10 の Mob・攻城戦ボス)の攻撃力の倍率。生き物へのダメージ(間接攻撃も)と、TD で壁・鉄線・灯り・
-     * ターゲットブロックを削る量に掛かる(ユーザー指定 2026-09-25)。{@link EnemyStrengthDamage}。
+     * 始まりの猶予(日数)= 地割れ(フェーズ1の開始)が起きる日。ワールドを作ってからこの日数が経ち、<b>かつ</b>実績の条件
+     * ({@link #QUAKE_ADVANCEMENTS})がそろったとき。既定値は phases.json の {@code startWorldAgeTicks} ÷ 24000。
+     * 11-19 の「始まりの猶予」はこれと同じ物(PhaseData の開始判定が読む 2 つ)なので、新しい項目は作らず名前だけ変えた。
      */
-    ENEMY_STRENGTH("enemy_strength", Kind.MULTIPLIER, 0.01D, 256.0D),
-    /** フェーズ進行のポイントの<b>獲得量</b>の倍率(時間・チャンク・Mob・実績のすべて。ユーザー指定 2026-09-25)。 */
-    PHASE_POINTS("phase_points", Kind.MULTIPLIER, 0.0D, 256.0D),
+    QUAKE_DAY("quake_day", Section.SPREAD, Kind.DAYS, 0.0D, 1000.0D, false, true),
+    /** 始まりの猶予(実績の数)。0 なら日数だけ。既定値は phases.json の {@code startAdvancements}。 */
+    QUAKE_ADVANCEMENTS("quake_advancements", Section.SPREAD, Kind.COUNT, 0.0D, 1000.0D, false, true),
+
+    // ------------------------------------------------------------ ③ 森の力
+    /** 森の予算(バイオマス)の生産量 = 貯まる速さの倍率({@code ForestDirector#accrue})。段で変わる。 */
+    FOREST_INCOME("forest_income", Section.FOREST, Kind.PERCENT, 0.0D, 256.0D, true, false),
+    /** 森の予算(バイオマス)の貯蓄量の上限の倍率({@code ForestDirector#cap})。生産量とは別に掛ける(上限は収入から作るので二重にしない)。段で変わる。 */
+    FOREST_CAP("forest_cap", Section.FOREST, Kind.PERCENT, 0.01D, 256.0D, true, false),
+
+    // ------------------------------------------------------------ ④ 襲撃
     /**
-     * 地割れ(フェーズ1の開始)が起きる日。ワールドを作ってからこの日数が経ち、<b>かつ</b>実績の条件
-     * ({@link #QUAKE_ADVANCEMENTS})がそろったとき。既定値は phases.json の
-     * {@code startWorldAgeTicks} ÷ 24000(今は 3 日)。
+     * 大きな襲撃で同時に出ている攻め手の上限(2026-11-14 に COMMON の設定として作り、11-19 にワールドごとへ移した)。
+     * 既定値は COMMON の {@code largeRaidMaxAlive}(−1 なら director.json の {@code largeRaid.maxAlive})。
      */
-    QUAKE_DAY("quake_day", Kind.DAYS, 0.0D, 1000.0D),
+    LARGE_RAID_MAX_ALIVE("large_raid_max_alive", Section.RAID, Kind.COUNT, LargeRaids.MAX_ALIVE_MIN, LargeRaids.MAX_ALIVE_MAX, false, false),
+
+    // ------------------------------------------------------------ ⑤ Mob(強さ 4 項目。Mob ごとの詳細は WorldDifficultyData#mobOverrides)
+    /** Mob の体力(最大体力の属性に掛ける)。{@link MobStrength}。 */
+    MOB_HEALTH("mob_health", Section.MOBS, Kind.PERCENT, 0.01D, 256.0D, true, false),
+    /** Mob の攻撃力(生き物へのダメージに掛ける。矢・爆発などの間接攻撃も)。上限 256 倍は前の「敵の強さ」のユーザー指定。{@link MobStrength}。 */
+    MOB_ATTACK("mob_attack", Section.MOBS, Kind.PERCENT, 0.01D, 256.0D, true, false),
+    /** Mob の防御力(防具の属性に掛ける。もとが 0 の Mob は 0 のまま。バニラの上限 30)。{@link MobStrength}。 */
+    MOB_DEFENSE("mob_defense", Section.MOBS, Kind.PERCENT, 0.01D, 256.0D, true, false),
+    /** Mob の強靭(防具の強靭さの属性に掛ける。もとが 0 の Mob は 0 のまま。バニラの上限 20)。{@link MobStrength}。 */
+    MOB_TOUGHNESS("mob_toughness", Section.MOBS, Kind.PERCENT, 0.01D, 256.0D, true, false),
+
+    // ------------------------------------------------------------ ⑥ サバイバル
+    /** プレイヤーの胞子の暴露量のたまる速さ(息で吸う分・部屋への染み込み・傷や技で入る分)。段で変わる。 */
+    EXPOSURE_RATE("exposure_rate", Section.SURVIVAL, Kind.PERCENT, 0.0D, 256.0D, true, false),
+    /** プレイヤーの感染の進みやすさ(段階 1〜10 の進み。{@code SporeInfectionEffects#advance})。段で変わる。 */
+    INFECTION_RATE("infection_rate", Section.SURVIVAL, Kind.PERCENT, 0.0D, 256.0D, true, false),
+
+    // ------------------------------------------------------------ ⑦ 世界
     /**
-     * 地割れに要る実績の種類数(2026-10-10、ユーザー指定「最初の亀裂発生の条件を n 日と実績 n 個で変えられるように」)。
-     * 数えるのはフェーズ0 の間に誰かが解除した、通知の出る実績(バニラ・MOD を問わない。{@link
-     * com.yayuy.overgrownvegetation.phase.AdvancementPoints})。0 なら日数だけで起きる。既定値は phases.json の
-     * {@code startAdvancements}(今は 6)。上限 1000 は仮決め。
+     * 実験的要素(2026-10-09)。2026-11-12 から新しいネザーの汚染。既定はオフ。効かせ方は {@link ExperimentalFeatures}。
      */
-    QUAKE_ADVANCEMENTS("quake_advancements", Kind.COUNT, 0.0D, 1000.0D),
-    /** TD イベントで同時に出ている攻め手の上限。既定値は td.json の {@code concurrentCap}(今は 500)。 */
-    TD_MAX_MOBS("td_max_mobs", Kind.COUNT, 1.0D, 2000.0D),
-    /**
-     * 実験的要素(2026-10-09、ユーザー指定「設定画面に『実験的要素』の項目を用意し、オンにしたときだけ出るように」)。
-     * 2026-11-12 から新しいネザーの汚染(同盟軍は 10-30 に parked へ)。既定はオフ。効かせ方は {@link ExperimentalFeatures}。
-     * 設定の画面(WorldDifficultyScreen)は 10-30 に parked へ行ったので、今は画面から変えられない。
-     */
-    EXPERIMENTAL("experimental", Kind.TOGGLE, 0.0D, 1.0D);
+    EXPERIMENTAL("experimental", Section.WORLD, Kind.TOGGLE, 0.0D, 1.0D, false, false);
+
+    /** 設定のページの節(11-19 全体管理の一覧の番号順。今は項目のある節だけが画面に出る)。 */
+    public enum Section {
+        SPREAD("spread"), FOREST("forest"), RAID("raid"), MOBS("mobs"), SURVIVAL("survival"), WORLD("world");
+
+        private final String id;
+
+        Section(String id) {
+            this.id = id;
+        }
+
+        public String translationKey() {
+            return "gui.overgrown_vegetation.world_difficulty.section." + id;
+        }
+    }
 
     /** 値の種類。入力の受け付け方と表示の仕方が変わる。 */
     public enum Kind {
         /** 倍率(小数可。表示は「1.0」「1.5」「256.0」)。 */
         MULTIPLIER,
+        /** 割合。<b>値は倍率で持ち</b>、画面では %(「100」「150」「70」)で読み書きする。 */
+        PERCENT,
         /** 日数(小数可。表示は「3」「2.5」)。 */
         DAYS,
         /** 個数(整数だけ)。 */
         COUNT,
-        /** オン・オフ(値は 1 / 0。画面は入力欄の代わりにボタン、コマンドは true / false)。 */
+        /** オン・オフ(値は 1 / 0。画面は入力欄の代わりにボタン)。 */
         TOGGLE
     }
 
@@ -88,26 +125,37 @@ public enum DifficultySetting {
     private static final double SAME_EPSILON = 1.0E-9D;
 
     private final String id;
+    private final Section section;
     private final Kind kind;
     private final double min;
     private final double max;
+    private final boolean tiered;
+    private final boolean irreversible;
 
-    DifficultySetting(String id, Kind kind, double min, double max) {
+    DifficultySetting(String id, Section section, Kind kind, double min, double max, boolean tiered, boolean irreversible) {
         this.id = id;
+        this.section = section;
         this.kind = kind;
         this.min = min;
         this.max = max;
+        this.tiered = tiered;
+        this.irreversible = irreversible;
     }
 
-    /** 保存・通信・コマンドで使う名前(小文字のスネークケース)。 */
+    /** 保存・通信で使う名前(小文字のスネークケース)。 */
     public String id() {
         return id;
+    }
+
+    public Section section() {
+        return section;
     }
 
     public Kind kind() {
         return kind;
     }
 
+    /** 値(倍率)としての下限。%の項目は画面では 100 倍して見せる。 */
     public double min() {
         return min;
     }
@@ -116,7 +164,24 @@ public enum DifficultySetting {
         return max;
     }
 
-    /** 画面・コマンドで出す名前(単位付き)の言語キー。説明は {@link #descriptionKey()}。 */
+    /** MOD の難易度の段でまとめて変わる項目か。 */
+    public boolean tiered() {
+        return tiered;
+    }
+
+    /** 途中で変えても、すでに起きたことは戻らない項目か(画面に一言)。 */
+    public boolean irreversible() {
+        return irreversible;
+    }
+
+    /** Mob の強さの 4 項目のどれか(Mob ごとの詳細を持てる)。 */
+    public boolean mobStat() {
+        return section == Section.MOBS;
+    }
+
+    /** Mob の強さの 4 項目(画面の列の順)。 */
+    public static final DifficultySetting[] MOB_STATS = {MOB_HEALTH, MOB_ATTACK, MOB_DEFENSE, MOB_TOUGHNESS};
+
     public String translationKey() {
         return "gui.overgrown_vegetation.world_difficulty." + id;
     }
@@ -131,11 +196,12 @@ public enum DifficultySetting {
     public double defaultValue() {
         return switch (this) {
             case CORRUPTION_SPEED -> clamp(OvergrownVegetationConfig.COMMON.corruptionSpeedMultiplier.get());
-            case ENEMY_STRENGTH, PHASE_POINTS -> 1.0D;
+            case PHASE_POINTS, FOREST_INCOME, FOREST_CAP, MOB_HEALTH, MOB_ATTACK, MOB_DEFENSE, MOB_TOUGHNESS,
+                 EXPOSURE_RATE, INFECTION_RATE -> 1.0D;
             case UNLOADED_SPREAD -> 1.0D; // オン(今までどおり)
             case QUAKE_DAY -> DesignData.phases().startWorldAgeTicks() / (double) TICKS_PER_DAY;
             case QUAKE_ADVANCEMENTS -> DesignData.phases().startAdvancements();
-            case TD_MAX_MOBS -> 0.0D; // TD は 2026-10-30 に parked/ へ(前は DesignData.td().concurrentCap())
+            case LARGE_RAID_MAX_ALIVE -> LargeRaids.configuredMaxAlive();
             case EXPERIMENTAL -> 0.0D; // オフ(GameTest のサーバーだけはオン扱い —— ExperimentalFeatures#enabled)
         };
     }
@@ -158,8 +224,8 @@ public enum DifficultySetting {
     }
 
     /**
-     * 画面・コマンドの入力を読む。数字と小数点だけ(個数は整数だけ)で、範囲に収まっていなければ NaN。
-     * 空欄も NaN(画面では赤字になり「完了」が押せない)。
+     * 画面の入力を読んで<b>値(倍率)</b>を返す。数字と小数点だけ(個数は整数だけ)で、範囲に収まっていなければ NaN。
+     * % の項目は「150」を 1.5 として読む。空欄も NaN。
      */
     public double parse(String text) {
         String s = text == null ? "" : text.trim();
@@ -179,20 +245,24 @@ public enum DifficultySetting {
         } catch (NumberFormatException e) {
             return Double.NaN;
         }
+        if (kind == Kind.PERCENT) {
+            v /= 100.0D;
+        }
         return v >= min - SAME_EPSILON && v <= max + SAME_EPSILON ? clamp(v) : Double.NaN;
     }
 
-    /**
-     * 画面・チャットに出す値。オン・オフは言語ファイルの「オン」「オフ」、ほかは {@link #format} の数字。
-     */
+    /** 画面・チャットに出す値(% の項目は「150%」)。 */
     public Component display(double value) {
         if (kind == Kind.TOGGLE) {
             return value >= 0.5D ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF;
         }
-        return Component.literal(format(value));
+        return Component.literal(kind == Kind.PERCENT ? format(value) + "%" : format(value));
     }
 
-    /** 文字列(倍率は必ず小数点付き、日数と個数は余分な 0 を付けない、オン・オフは on / off)。人に見せるなら {@link #display}。 */
+    /**
+     * 入力欄に入れる文字列(倍率は必ず小数点付き、% は 100 倍して余分な 0 を付けない、日数と個数は余分な 0 を付けない、
+     * オン・オフは on / off)。{@link #parse} で読み戻せる。
+     */
     public String format(double value) {
         if (kind == Kind.TOGGLE) {
             return value >= 0.5D ? "on" : "off";
@@ -200,7 +270,8 @@ public enum DifficultySetting {
         if (kind == Kind.COUNT) {
             return Long.toString(Math.round(value));
         }
-        String plain = BigDecimal.valueOf(value).setScale(4, java.math.RoundingMode.HALF_UP)
+        double shown = kind == Kind.PERCENT ? value * 100.0D : value;
+        String plain = BigDecimal.valueOf(shown).setScale(kind == Kind.PERCENT ? 2 : 4, java.math.RoundingMode.HALF_UP)
                 .stripTrailingZeros().toPlainString();
         if (kind == Kind.MULTIPLIER && plain.indexOf('.') < 0) {
             return plain + ".0";
