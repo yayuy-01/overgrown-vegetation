@@ -18,6 +18,13 @@ public final class PrevailingWindClient {
     private static double strength;
     private static ClientLevel level;
 
+    /** ログアウトで、前のワールドを手放す(見直し 第 2 回 ④3)。 */
+    static void forget() {
+        level = null;
+        angle = Double.NaN;
+        strength = 0.0;
+    }
+
     public static void accept(SporeAirPayload payload) {
         AirHaze.setSporePercent(payload.percent());
         level = Minecraft.getInstance().level;

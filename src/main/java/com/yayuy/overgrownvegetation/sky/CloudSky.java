@@ -25,6 +25,17 @@ public final class CloudSky {
         return RAW.get()[0] > 0;
     }
 
+    /** 本当の天気で答えを出す(中の getRainLevel・getThunderLevel は弱めない値を返す。見直し 第 2 回 ④4)。 */
+    public static boolean withRawWeather(java.util.function.BooleanSupplier body) {
+        int[] d = RAW.get();
+        d[0]++;
+        try {
+            return body.getAsBoolean();
+        } finally {
+            d[0]--;
+        }
+    }
+
     /** 本当の雨の強さ。 */
     public static float rawRain(Level level, float partialTick) {
         int[] d = RAW.get();

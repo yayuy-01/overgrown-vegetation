@@ -69,6 +69,12 @@ public final class LeyVeins {
         return size > 0 && i >= 0 && j >= 0 && i < size && j < size && rawPolluted.length >= size * size && (rawPolluted[j * size + i] & 0xFF) > 127;
     }
 
+    /** ログアウトで、前のワールドを手放す(見直し 第 2 回 ④3。絵の器は次のワールドで使い回す)。 */
+    static void forget() {
+        level = null;
+        size = 0;
+    }
+
     /** サーバーから升が届いた(描画のスレッドで)。 */
     public static void accept(LeyVeinMapPayload p) {
         level = Minecraft.getInstance().level;

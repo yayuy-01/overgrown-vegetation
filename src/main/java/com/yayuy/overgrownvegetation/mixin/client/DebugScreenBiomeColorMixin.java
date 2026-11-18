@@ -6,7 +6,8 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.gui.components.DebugScreenOverlay;
 
 /**
@@ -30,16 +31,18 @@ public abstract class DebugScreenBiomeColorMixin {
             .map(key -> "Biome: " + key.location())
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
 
-    @Redirect(
+    // 見直し 第 2 回 ④5(11-18): @Redirect → @WrapOperation・require = 0(ほかの MOD と重なっても落ちない。当たらなければ色付けだけ無くなる)。
+    @WrapOperation(
             method = "renderLines",
+            require = 0,
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/GuiGraphics;drawString(Lnet/minecraft/client/gui/Font;Ljava/lang/String;IIIZ)I"))
     private int overgrownvegetation$colorOvergrownBiomeLine(
-            GuiGraphics guiGraphics, Font font, String text, int x, int y, int color, boolean dropShadow) {
+            GuiGraphics guiGraphics, Font font, String text, int x, int y, int color, boolean dropShadow, Operation<Integer> original) {
         if (text != null && OVERGROWN_BIOME_LINES.contains(text)) {
             color = OVERGROWN_BIOME_COLOR;
         }
-        return guiGraphics.drawString(font, text, x, y, color, dropShadow);
+        return original.call(guiGraphics, font, text, x, y, color, dropShadow);
     }
 }

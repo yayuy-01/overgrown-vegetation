@@ -238,13 +238,15 @@ final class DuskMotes {
     private static void uploadFloor() {
         floorUpload.clear();
         floorUpload.put(TEXELS).flip();
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, floorTexture);
+        // 見直し 第 2 回 ⑥1(11-18): 前の絵を覚えて、GlStateManager を通して戻す(直に 0 へ外すと、バニラの控えと実際がずれる)。
+        int previous = com.mojang.blaze3d.platform.GlStateManager._getInteger(GL11.GL_TEXTURE_BINDING_2D);
+        com.mojang.blaze3d.platform.GlStateManager._bindTexture(floorTexture);
         GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, 0);
         GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, 0);
         GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, 0);
         GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 4);
         GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, N, N, GL30.GL_RG, GL11.GL_FLOAT, floorUpload);
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+        com.mojang.blaze3d.platform.GlStateManager._bindTexture(previous);
     }
 
     private static void ensureGl(int slots) {
@@ -254,7 +256,8 @@ final class DuskMotes {
         if (floorTexture < 0) {
             floorUpload = MemoryUtil.memAllocFloat(N * N * 2);
             floorTexture = GL11.glGenTextures();
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, floorTexture);
+            int previous = com.mojang.blaze3d.platform.GlStateManager._getInteger(GL11.GL_TEXTURE_BINDING_2D);
+            com.mojang.blaze3d.platform.GlStateManager._bindTexture(floorTexture);
             // 升の間はなめらかに(林床の高さが升の境で段にならないように)。
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
@@ -262,7 +265,7 @@ final class DuskMotes {
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL11.GL_REPEAT);
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL12.GL_TEXTURE_MAX_LEVEL, 0);
             GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL30.GL_RG32F, N, N, 0, GL30.GL_RG, GL11.GL_FLOAT, (FloatBuffer) null);
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+            com.mojang.blaze3d.platform.GlStateManager._bindTexture(previous);
         }
         if (vbo != null) {
             vbo.close();

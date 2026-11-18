@@ -141,6 +141,15 @@ public final class GiantTrees {
 
     private static final List<Entry> ENTRIES = new ArrayList<>();
     private static ClientLevel level;
+
+    /** ログアウトで、前のワールドと木の一覧を手放す(見直し 第 2 回 ④3)。 */
+    static void forget() {
+        ENTRIES.clear();
+        level = null;
+        snapshot = List.of();
+        running = false;
+        heard = false;
+    }
     private static volatile List<Info> snapshot = List.of();
     /** 胞子の場が動いているか(最後に届いた一覧の。届いていなければ false)。 */
     private static boolean running;

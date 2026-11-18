@@ -8,6 +8,8 @@ import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 
 /**
  * 雲の上では雨・雪を降らせない(2026-10-17 ユーザー「雲の上でも雨や雪が降ってしまうのを直してほしい」)。
@@ -30,5 +32,27 @@ public abstract class LevelRainAboveCloudsMixin {
         rain *= com.yayuy.overgrownvegetation.client.atmosphere.RainFeel.rainScale();
         float c = HighSky.clarity();
         return c > 0.001F ? rain * (1.0F - c) : rain;
+    }
+
+    /**
+     * 見直し 第 2 回 ④4(11-18): 弱めた雨の強さは描画・音・空の暗さのための物。{@code isRaining}・{@code isThundering}(しきい値 0.2・0.9 で決まる
+     * 遊びの判定: 雨に濡れる・激流のトライデント・火が消える など)まで弱めた値で答えると、小雨(× 0.35)や雲の上で、クライアントだけ「降っていない」になり
+     * サーバーと食い違う。この 2 つは本当の天気で答える({@link CloudSky#rawRain} と同じ印を立てて元の計算を呼ぶ)。{@code isRainingAt} は中で
+     * {@code isRaining} を呼ぶので一緒に直る。雨・雪の描画、雨の音と水しぶき、空の色は {@code getRainLevel} をじかに読むので、今までどおり弱まる。
+     */
+    @WrapMethod(method = "isRaining", require = 0)
+    private boolean overgrown_vegetation$rainingByRealWeather(Operation<Boolean> original) {
+        if (!((Object) this instanceof ClientLevel)) {
+            return original.call();
+        }
+        return CloudSky.withRawWeather(original::call);
+    }
+
+    @WrapMethod(method = "isThundering", require = 0)
+    private boolean overgrown_vegetation$thunderingByRealWeather(Operation<Boolean> original) {
+        if (!((Object) this instanceof ClientLevel)) {
+            return original.call();
+        }
+        return CloudSky.withRawWeather(original::call);
     }
 }

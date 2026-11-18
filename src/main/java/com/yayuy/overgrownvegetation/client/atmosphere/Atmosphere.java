@@ -437,6 +437,25 @@ public final class Atmosphere {
     /** 確かめ用(DevBridge の wx amute <名前>|clear): その名前の演出を呼ばない。どの演出の見た目かを切り分ける。 */
     public static final java.util.Set<String> DEV_MUTE = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
+    /**
+     * ログアウトで、前のワールドの物を空にする(見直し 第 2 回 ④3・⑥3、11-18): 地脈の地図・卓越風・巨大樹の一覧・巨木の遠景が、前の ClientLevel を
+     * static で持ったままタイトル画面の間メモリに残っていた。VBO を消すので、描画のスレッドで行う(違うスレッドなら描画の順番待ちへ回す)。
+     */
+    @net.neoforged.bus.api.SubscribeEvent
+    public static void onLoggingOut(net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
+        Runnable forget = () -> {
+            LeyVeins.forget();
+            PrevailingWindClient.forget();
+            GiantTrees.forget();
+            GiantSilhouettes.forget();
+        };
+        if (com.mojang.blaze3d.systems.RenderSystem.isOnRenderThread()) {
+            forget.run();
+        } else {
+            com.mojang.blaze3d.systems.RenderSystem.recordRenderCall(forget::run);
+        }
+    }
+
     private static void guard(String name, Runnable run) {
         if (BROKEN.contains(name) || DEV_MUTE.contains(name)) {
             return;

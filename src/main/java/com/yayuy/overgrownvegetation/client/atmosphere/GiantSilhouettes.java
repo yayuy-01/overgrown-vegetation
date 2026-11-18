@@ -172,6 +172,12 @@ final class GiantSilhouettes {
     /** Claude のテストクライアント(-Dov.devbridge=true)だけ、5 秒ごとにログへ出す。 */
     private static final boolean DEV_LOG = Boolean.getBoolean("ov.devbridge");
 
+    /** ログアウトで、前のワールドと遠景の VBO を手放す(見直し 第 2 回 ④3・⑥3。VBO を消すので描画のスレッドで)。 */
+    static void forget() {
+        clear();
+        trackedLevel = null;
+    }
+
     static void clear() {
         for (Tree t : TREES) {
             t.dispose();

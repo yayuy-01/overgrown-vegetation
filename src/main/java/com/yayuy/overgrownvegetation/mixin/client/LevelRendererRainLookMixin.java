@@ -12,7 +12,8 @@ import net.minecraft.resources.ResourceLocation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.function.Supplier;
@@ -31,27 +32,29 @@ public abstract class LevelRendererRainLookMixin {
         RainLook.prepare(partialTick, camX, camZ);
     }
 
-    @Redirect(method = "renderSnowAndRain", at = @At(value = "INVOKE",
+    // 見直し 第 2 回 ④5(11-18): @Redirect は同じ呼び出しをほかの MOD も差し替えると起動で落ちる。@WrapOperation(重ねられる)・require = 0
+    // (当たらなければ雨の見た目の差し替えだけ無くなる)にした。中身は同じ。
+    @WrapOperation(method = "renderSnowAndRain", require = 0, at = @At(value = "INVOKE",
             target = "Lcom/mojang/blaze3d/systems/RenderSystem;setShader(Ljava/util/function/Supplier;)V"))
-    private void overgrown_vegetation$rainShader(Supplier<ShaderInstance> shader) {
+    private void overgrown_vegetation$rainShader(Supplier<ShaderInstance> shader, Operation<Void> original) {
         ShaderInstance white = ModShaders.rainWhite();
         if (RainLook.active() && white != null) {
-            RenderSystem.setShader(() -> white);
+            original.call((Supplier<ShaderInstance>) () -> white);
         } else {
-            RenderSystem.setShader(shader);
+            original.call(shader);
         }
     }
 
-    @Redirect(method = "renderSnowAndRain", at = @At(value = "INVOKE",
+    @WrapOperation(method = "renderSnowAndRain", require = 0, at = @At(value = "INVOKE",
             target = "Lcom/mojang/blaze3d/systems/RenderSystem;setShaderTexture(ILnet/minecraft/resources/ResourceLocation;)V"))
-    private void overgrown_vegetation$rainTexture(int unit, ResourceLocation texture) {
+    private void overgrown_vegetation$rainTexture(int unit, ResourceLocation texture, Operation<Void> original) {
         RainLook.noteTexture(texture);
-        RenderSystem.setShaderTexture(unit, texture);
+        original.call(unit, texture);
     }
 
-    @Redirect(method = "renderSnowAndRain", at = @At(value = "INVOKE",
+    @WrapOperation(method = "renderSnowAndRain", require = 0, at = @At(value = "INVOKE",
             target = "Lcom/mojang/blaze3d/vertex/BufferBuilder;addVertex(FFF)Lcom/mojang/blaze3d/vertex/VertexConsumer;"))
-    private VertexConsumer overgrown_vegetation$rainVertex(BufferBuilder builder, float x, float y, float z) {
-        return builder.addVertex(RainLook.shiftX(x, y, z), y, RainLook.shiftZ(x, y, z));
+    private VertexConsumer overgrown_vegetation$rainVertex(BufferBuilder builder, float x, float y, float z, Operation<VertexConsumer> original) {
+        return original.call(builder, RainLook.shiftX(x, y, z), y, RainLook.shiftZ(x, y, z));
     }
 }
