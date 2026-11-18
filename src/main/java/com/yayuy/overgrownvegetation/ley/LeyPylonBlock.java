@@ -115,7 +115,9 @@ public class LeyPylonBlock extends BaseEntityBlock {
             LeyBatteryHolder.drop(level, pos, be);
             int wires = be.links().size();
             for (BlockPos other : be.links()) {
-                if (level.isLoaded(other) && level.getBlockEntity(other) instanceof LeyPylonBlockEntity o) {
+                // 相手のチャンクが読まれていなくても読んで線を外す(11-18 見直し ②6。外さないと、相手が後で読まれたときに「切れた線」として
+                // もう 1 本落としていた)。線は 24 ブロックまでで、壊すのはプレイヤーの 1 回の操作なので、まれな同期の読み込みは許す
+                if (level.getBlockEntity(other) instanceof LeyPylonBlockEntity o) {
                     o.removeLink(pos);
                 }
             }

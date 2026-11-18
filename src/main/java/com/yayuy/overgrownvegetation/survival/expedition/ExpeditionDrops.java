@@ -35,7 +35,9 @@ public final class ExpeditionDrops {
     public static void onLivingDrops(LivingDropsEvent event) {
         LivingEntity entity = event.getEntity();
         if (!(entity.level() instanceof ServerLevel level)) return;
-        if (!(event.getSource().getEntity() instanceof Player)) return;
+        // 直接の原因がプレイヤーか、プレイヤーが直前(5 秒以内)に傷を入れていれば落とす(11-18 見直し ②11・ユーザー決定 4:
+        // 胞子弾・焼き切りの刃で火を付けて、燃えて倒れたときも落とす。バニラの「プレイヤーに倒された」と同じ見方)
+        if (!(event.getSource().getEntity() instanceof Player) && !event.isRecentlyHit()) return;
         ItemStack drop = rollDrop(entity, looting(level, event), level.random.nextDouble());
         if (!drop.isEmpty()) {
             event.getDrops().add(new ItemEntity(level, entity.getX(), entity.getY(), entity.getZ(), drop));

@@ -92,6 +92,40 @@ public final class ChunkEdgeGuard {
         return hasChunk(level, pos.getX() >> 4, pos.getZ() >> 4);
     }
 
+    /** {@link #edge} の答え。 */
+    public enum Edge {
+        /** 読み込み終わっている(触ってよい)。 */
+        READY,
+        /** 読み込み・生成の途中(もうすぐ終わる。触らずに、カーソルを進めず次の回に同じ所からやり直す)。 */
+        WAIT,
+        /** 読み込まれていない(元のメソッドでも false。いつもどおり飛ばす)。 */
+        GONE
+    }
+
+    /**
+     * カーソルで順に置く仕事(巨大樹・つる・文法の木)向けの見張り(11-18 見直し ③4)。{@link #isLoaded} に置き換えるだけだと、
+     * 読み込み途中のチャンクも「読み込まれていない」になってカーソルが進み、その所の設置を永久に飛ばす(Codex の注意)。
+     * 真ん中のチャンクが読み込み途中なら {@link Edge#WAIT}、読み込まれていなければ {@link Edge#GONE}。
+     * {@code margin} ブロックの中の隣のチャンクが読み込み途中なら WAIT(隣が読み込まれていないだけなら、前と同じく触る)。
+     */
+    public static Edge edge(ServerLevel level, BlockPos pos, int margin) {
+        if (level.isOutsideBuildHeight(pos)) return Edge.GONE;
+        int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
+        if (!ready(level, cx, cz)) {
+            return level.getChunkSource().hasChunk(cx, cz) ? Edge.WAIT : Edge.GONE;
+        }
+        if (margin > 0) {
+            int x0 = (pos.getX() - margin) >> 4, x1 = (pos.getX() + margin) >> 4;
+            int z0 = (pos.getZ() - margin) >> 4, z1 = (pos.getZ() + margin) >> 4;
+            for (int x = x0; x <= x1; x++) {
+                for (int z = z0; z <= z1; z++) {
+                    if ((x != cx || z != cz) && !ready(level, x, z) && level.getChunkSource().hasChunk(x, z)) return Edge.WAIT;
+                }
+            }
+        }
+        return Edge.READY;
+    }
+
     /** そのチャンクが読み込み終わっているか(サーバースレッドで呼ぶ)。 */
     public static boolean ready(ServerLevel level, int chunkX, int chunkZ) {
         return level.getChunkSource().getChunkNow(chunkX, chunkZ) != null;

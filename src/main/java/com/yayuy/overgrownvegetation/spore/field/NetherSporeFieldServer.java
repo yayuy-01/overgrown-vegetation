@@ -133,6 +133,8 @@ public final class NetherSporeFieldServer {
         LOCK.lock();
         try {
             field = null;
+            epoch++; // 積んだまま走っていない計算は、次のワールドで何もしない(11-18 見直し ⑤4)
+            CURRENT = null; // 前のワールドの熱の場を次のワールドへ見せない
         } finally {
             LOCK.unlock();
         }
@@ -202,8 +204,11 @@ public final class NetherSporeFieldServer {
     }
 
     private record Inputs(long fromClock, int steps, int stepTicks, long dayTimeNow, long clockNow, long[] watchTiles,
-                          SporeFieldTable table, NetherThermal.Snapshot snap) {
+                          SporeFieldTable table, NetherThermal.Snapshot snap, int epoch) {
     }
+
+    /** ワールドの番号(閉じるたびに進める)。前のワールドで積んだ計算が、次のワールドの入力・熱の場に触らないように(11-18 見直し ⑤4)。 */
+    private static volatile int epoch;
 
     private record Result(long toClock, int steps, long[] sprouts, long[] seconds, long nanos, int tiles,
                           long corrupted, Long2ObjectOpenHashMap<SporeFieldServer.Readout> readout) {
@@ -216,7 +221,7 @@ public final class NetherSporeFieldServer {
         int steps = (int) Math.min(table.maxStepsPerRun(), behind / u);
         // 昼夜はオーバーワールドの時計で回す(2026-10-23 相談セッションの答え: ネザーだけ常に速い・遅いにならないように)
         Inputs in = new Inputs(fieldClock, steps, u, nether.getServer().overworld().getDayTime(), clock,
-                watchTiles(nether), table, snapshot(nether));
+                watchTiles(nether), table, snapshot(nether), epoch);
         SporeField f = field;
         TASK.start(nether.getServer(), () -> compute(f, in), r -> apply(nether, r));
         return steps;
@@ -228,6 +233,10 @@ public final class NetherSporeFieldServer {
         LongArrayList seconds = new LongArrayList();
         LOCK.lock();
         try {
+            if (in.epoch != epoch) {
+                // 前のワールドで積んだ計算: 次のワールドの入力・熱の場に触らない(答えは BackgroundTask が捨てる)
+                return new Result(in.fromClock, 0, new long[0], new long[0], 0L, 0, 0L, new Long2ObjectOpenHashMap<>());
+            }
             Consumer<SporeField> input;
             while ((input = INPUTS.poll()) != null) input.accept(f);
             NetherThermal thermal = new NetherThermal(in.snap, LAVA, DesignData.netherSpread());
@@ -368,6 +377,8 @@ public final class NetherSporeFieldServer {
     public static void onChunkLoad(ChunkEvent.Load event) {
         if (!(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.NETHER
                 || !(event.getChunk() instanceof LevelChunk chunk)) return;
+        // 実験的要素がオフ(場が止まっている)なら測らない(11-18 見直し ⑤3。前は読み込むたびに 16 列 × 高さを走査していた)
+        if (!com.yayuy.overgrownvegetation.corruption.NetherLedger.active(level)) return;
         long key = chunk.getPos().toLong();
         if (LAVA.containsKey(key)) return;
         LAVA.put(key, (byte) lavaPercent(level, chunk));

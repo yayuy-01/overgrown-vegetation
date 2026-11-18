@@ -41,6 +41,9 @@ public class HeatBladeItem extends CrystalSwordItem {
 
     /** 今の一撃で熱が乗った相手(攻撃の知らせとダメージの知らせの間だけ。サーバーの 1 本の流れ)。 */
     private static Entity heatedTarget;
+    /** 熱を乗せた人と時刻(当たらなかった一撃の印が、後の別のダメージに倍率を乗せないように。11-18 見直し ②9)。 */
+    private static Entity heatedBy;
+    private static long heatedAt = Long.MIN_VALUE;
     private static boolean burning;
 
     public HeatBladeItem(Tier tier, Properties properties) {
@@ -56,22 +59,33 @@ public class HeatBladeItem extends CrystalSwordItem {
     public static void onAttack(AttackEntityEvent event) {
         Player player = event.getEntity();
         ItemStack stack = player.getMainHandItem();
+        if (!(player.level() instanceof ServerLevel)) return; // 1 人用ではクライアントのスレッドにも来る。印はサーバーだけで触る(②9)
         heatedTarget = null;
-        if (!(player.level() instanceof ServerLevel) || !(stack.getItem() instanceof HeatBladeItem)) return;
+        if (!(stack.getItem() instanceof HeatBladeItem)) return;
         GearTierTable.HeatBlade h = DesignData.gearTiers().heatBlade;
         Entity target = event.getTarget();
         if (target instanceof PartEntity<?> part) target = part.getParent();
         if (!(target instanceof LivingEntity living) || !LeyCrystal.spend(player, stack, h.hitCost)) return;
         living.igniteForSeconds(h.igniteSeconds);
         heatedTarget = living;
+        heatedBy = player;
+        heatedAt = player.level().getGameTime();
         ((ServerLevel) player.level()).sendParticles(ParticleTypes.FLAME, living.getX(), living.getY(0.5D), living.getZ(), 10, 0.3D, 0.4D, 0.3D, 0.02D);
     }
 
     @SubscribeEvent
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
-        if (heatedTarget == null || event.getEntity() != heatedTarget) return;
+        if (heatedTarget == null) return;
+        if (event.getEntity().level().getGameTime() != heatedAt) {
+            heatedTarget = null; // 当たらなかった一撃の印は、その tick のうちに捨てる
+            heatedBy = null;
+            return;
+        }
+        if (event.getEntity() != heatedTarget) return;
         heatedTarget = null;
-        if (event.getSource().getEntity() instanceof Player && PlantSideRules.isPlantSide(event.getEntity())) {
+        Entity by = heatedBy;
+        heatedBy = null;
+        if (event.getSource().getEntity() instanceof Player && event.getSource().getEntity() == by && PlantSideRules.isPlantSide(event.getEntity())) {
             event.setAmount((float) (event.getAmount() * DesignData.gearTiers().heatBlade.plantDamageMultiplier));
         }
     }

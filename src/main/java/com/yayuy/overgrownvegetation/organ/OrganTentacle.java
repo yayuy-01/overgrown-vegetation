@@ -85,6 +85,11 @@ public class OrganTentacle extends Entity {
         return organId;
     }
 
+    /** 揺れの時刻(ゲーム時刻。サーバーとクライアントで同じ。float の細かさを保つため 100000 tick で巻き戻す)。 */
+    public float swayTime() {
+        return (float) (level().getGameTime() % 100_000L);
+    }
+
     /**
      * 節 {@code i}(0 = 付け根)の、付け根からのずれ。外へ弧を描いて出て、先は垂れる。生きている間は揺れる(時刻 {@code t} tick)。
      * 枯れたらまっすぐ垂れて止まる。
@@ -131,7 +136,8 @@ public class OrganTentacle extends Entity {
             return;
         }
         // 先のまわりに来た人を払う
-        Vec3 tip = position().add(point(segments() * 2 / 3, tickCount)), end = position().add(point(segments(), tickCount));
+        float now = swayTime(); // 揺れはゲーム時刻で(クライアントの見た目と当たりを合わせる。11-18 見直し ②7。前は各自の tickCount)
+        Vec3 tip = position().add(point(segments() * 2 / 3, now)), end = position().add(point(segments(), now));
         double reach = com.yayuy.overgrownvegetation.data.DesignData.organs().tentacleReach;
         AABB box = new AABB(tip, end).inflate(reach * 0.5D);
         for (Player p : server.getEntitiesOfClass(Player.class, box)) {

@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.At;
  *
  * <p>バニラの「レシピ本に無い作り方は作れない」({@code doLimitedCrafting})と同じ所 ── {@code CraftingMenu.slotChangedCraftingGrid} の
  * {@code ResultContainer.setRecipeUsed} が false を返すと結果の枠が空になる ── に、研究の鍵を足す。持ち物の 2×2({@code InventoryMenu})も
- * 同じ関数を呼ぶ。クラフター(自動の作業台)は通らない(プレイヤーがいない)ので鍵は掛からない。
+ * 同じ関数を呼ぶ。クラフター(自動の作業台)は {@link CrafterResearchLockMixin} が塞ぐ(11-18 ユーザー決定 5)。
  */
 @Mixin(CraftingMenu.class)
 public abstract class CraftingMenuResearchLockMixin {

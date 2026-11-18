@@ -174,6 +174,99 @@ public final class CodeReview2GameTests {
         }
     }
 
+    // ------------------------------------------------------------------ 第 2 便
+
+    /** ⑦2(ユーザー決定 7): 壁に飲まれて消える灯りは、1 マスを埋めない灯り(松明・ランタン)だけ。グロウストーン・シーランタン・リスポーンアンカーは外す。 */
+    @GameTest(template = "gametest_empty7", batch = "review2_wall_lights", timeoutTicks = 20)
+    public static void onlyThinLightsAreSwallowed(GameTestHelper helper) {
+        helper.assertTrue(com.yayuy.overgrownvegetation.wall.WallCells.isLight(net.minecraft.world.level.block.Blocks.TORCH.defaultBlockState()), "松明が灯りでない");
+        helper.assertTrue(com.yayuy.overgrownvegetation.wall.WallCells.isLight(net.minecraft.world.level.block.Blocks.LANTERN.defaultBlockState()), "ランタンが灯りでない");
+        helper.assertTrue(!com.yayuy.overgrownvegetation.wall.WallCells.isLight(net.minecraft.world.level.block.Blocks.GLOWSTONE.defaultBlockState()), "グロウストーンが飲まれる灯り");
+        helper.assertTrue(!com.yayuy.overgrownvegetation.wall.WallCells.isLight(net.minecraft.world.level.block.Blocks.SEA_LANTERN.defaultBlockState()), "シーランタンが飲まれる灯り");
+        helper.assertTrue(!com.yayuy.overgrownvegetation.wall.WallCells.isLight(net.minecraft.world.level.block.Blocks.RESPAWN_ANCHOR.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.RespawnAnchorBlock.CHARGE, 4)), "充電したリスポーンアンカーが飲まれる灯り");
+        helper.succeed();
+    }
+
+    /** ③4: 読み込み終わった所は READY、読み込まれていない所は GONE(読み込み途中は WAIT = カーソルを進めない)。 */
+    @GameTest(template = "gametest_empty7", batch = "review2_chunk_edge", timeoutTicks = 20)
+    public static void chunkEdgeTellsReadyFromGone(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos here = helper.absolutePos(new BlockPos(3, 2, 3));
+        helper.assertTrue(com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.edge(level, here, 1)
+                == com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.Edge.READY, "テスト場が READY でない");
+        BlockPos far = here.offset(2_000_000, 0, 2_000_000);
+        helper.assertTrue(com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.edge(level, far, 0)
+                == com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.Edge.GONE, "読み込まれていない所が GONE でない");
+        helper.succeed();
+    }
+
+    /** ⑤5: 創造・観戦の間は、数えかけの殴りを捨てる(サバイバルに戻した瞬間に一度に乗らない)。疲労の値そのものは残す。 */
+    @GameTest(template = "gametest_empty7", batch = "review2_fatigue", timeoutTicks = 20)
+    public static void creativeDropsPendingFatigue(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        FakePlayer p = FakePlayerFactory.get(level, new GameProfile(UUID.nameUUIDFromBytes("ov_review2_fatigue".getBytes()), "ov_review2_fatigue"));
+        com.yayuy.overgrownvegetation.survival.FatigueTracker.set(p, 40.0D);
+        for (int i = 0; i < 5; i++) com.yayuy.overgrownvegetation.survival.FatigueTracker.countAttack(p);
+        com.yayuy.overgrownvegetation.survival.FatigueTracker.exempt(p);
+        var f = p.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.FATIGUE);
+        boolean ok = f.attacks == 0.0D && Math.abs(com.yayuy.overgrownvegetation.survival.FatigueTracker.value(p) - 40.0D) < 1.0E-9D;
+        com.yayuy.overgrownvegetation.survival.FatigueTracker.set(p, 0.0D);
+        helper.assertTrue(ok, "数えかけが残る・疲労の値が変わった: 殴り " + f.attacks);
+        helper.succeed();
+    }
+
+    /** ④1(ユーザー決定 6): 当たり判定の大きさは mobs.json から外して Java に固定した(json の width は読まない)。 */
+    @GameTest(template = "gametest_empty7", batch = "review2_mob_sizes", timeoutTicks = 20)
+    public static void mobSizesAreFixedInJava(GameTestHelper helper) {
+        // 実行時の写し(run/config の mobs.json)には古い width が残っていてよい(読まない)。登録された大きさが表のとおりかを見る
+        float w = com.yayuy.overgrownvegetation.data.MobSizes.width("gregaria", -1.0F);
+        helper.assertTrue(w > 0.0F && Math.abs(gregaria().getWidth() - w) < 1.0E-6F, "グレガリアの幅が表と違う: " + gregaria().getWidth() + " / " + w);
+        helper.succeed();
+    }
+
+    /** ②12(ユーザー決定 5): クラフターも、研究の節が開いていない作り方は作れない。開けば作れる。 */
+    @GameTest(template = "gametest_empty7", batch = "review2_crafter_lock", timeoutTicks = 20)
+    public static void crafterHonoursResearchLock(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        ResearchData.get(server).clearAll();
+        try {
+            for (ResearchTree.Node n : ResearchTree.get().nodes().values()) {
+                for (net.minecraft.resources.ResourceLocation id : n.unlocks()) {
+                    var holder = server.getRecipeManager().byKey(id).orElse(null);
+                    if (holder == null || !(holder.value() instanceof net.minecraft.world.item.crafting.ShapedRecipe shaped)) continue;
+                    List<ItemStack> items = new ArrayList<>();
+                    boolean ok = true;
+                    for (net.minecraft.world.item.crafting.Ingredient ing : shaped.getIngredients()) {
+                        if (ing.isEmpty()) {
+                            items.add(ItemStack.EMPTY);
+                            continue;
+                        }
+                        ItemStack[] opts = ing.getItems();
+                        if (opts.length == 0) {
+                            ok = false;
+                            break;
+                        }
+                        items.add(opts[0].copy());
+                    }
+                    if (!ok) continue;
+                    var input = net.minecraft.world.item.crafting.CraftingInput.of(shaped.getWidth(), shaped.getHeight(), items);
+                    var found = net.minecraft.world.level.block.CrafterBlock.getPotentialResults(level, input);
+                    helper.assertTrue(found.isEmpty() || !found.get().id().equals(id), "研究で閉じた作り方 " + id + " をクラフターが作れる");
+                    Research.open(server, n.id(), false);
+                    var after = net.minecraft.world.level.block.CrafterBlock.getPotentialResults(level, input);
+                    helper.assertTrue(after.isPresent(), "研究を開いてもクラフターが " + id + " を作れない");
+                    helper.succeed();
+                    return;
+                }
+            }
+            helper.fail("試せる形のある作り方が研究ツリーに無い");
+        } finally {
+            ResearchData.get(server).clearAll();
+        }
+    }
+
     private static Mob spawnAttacker(ServerLevel level, Vec3 at, double raid, List<Mob> made) {
         Mob m = (Mob) gregaria().create(level);
         m.moveTo(at.x, at.y, at.z);

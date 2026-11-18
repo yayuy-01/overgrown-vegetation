@@ -105,7 +105,7 @@ public final class ClimbingVine {
 
     /** 読み込み済みのマスだけ見る(世界生成の作業スレッドから、まだ揃っていないチャンクを読みに行かない。TreeVineConnector と同じ)。 */
     static boolean trunkAt(Level level, BlockPos pos) {
-        return level.isLoaded(pos) && isTrunk(level.getBlockState(pos));
+        return com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos) && isTrunk(level.getBlockState(pos));
     }
 
     /** {@code pos} を含む幹を返す。原木でなければ null。根元は原木の列を下へたどり、太さは 2×2 が揃うかで見る。 */
@@ -392,7 +392,7 @@ public final class ClimbingVine {
             double t = i / (double) steps;
             BlockPos c = BlockPos.containing(Mth.lerp(t, from[0], to[0]), Mth.lerp(t, from[1], to[1]) - 4.0D * sag * t * (1.0D - t),
                     Mth.lerp(t, from[2], to[2]));
-            if (!level.isLoaded(c)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, c)) {
                 return false;
             }
             BlockState state = level.getBlockState(c);
@@ -450,7 +450,7 @@ public final class ClimbingVine {
                     continue;
                 }
                 m.set(x, y, z);
-                if (!level.isLoaded(m) || !trunkAt(level, m)) {
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, m) || !trunkAt(level, m)) {
                     continue;
                 }
                 boolean known = false;
@@ -506,7 +506,7 @@ public final class ClimbingVine {
             double cand = u0 + (k % 2 == 0 ? 1 : -1) * (k / 2) * 0.25D;
             perimeterPoint(own, cand, rho, tmp);
             BlockPos groundCell = BlockPos.containing(tmp[0] + tmp[2] * 0.75D, own.baseY() + 0.1D, tmp[1] + tmp[3] * 0.75D);
-            if (isOpen(level, groundCell) && level.isLoaded(groundCell.below())
+            if (isOpen(level, groundCell) && com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, groundCell.below())
                     && level.getBlockState(groundCell.below()).isFaceSturdy(level, groundCell.below(), net.minecraft.core.Direction.UP)) {
                 groundRun = true;
                 u0 = cand;
@@ -822,7 +822,7 @@ public final class ClimbingVine {
                         continue;
                     }
                     m.set(cx + dx, y, cz + dz);
-                    if (!level.isLoaded(m)) {
+                    if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, m)) {
                         continue;
                     }
                     BlockState holder = level.getBlockState(m);
@@ -868,7 +868,7 @@ public final class ClimbingVine {
     }
 
     private static boolean isOpen(Level level, BlockPos pos) {
-        if (!level.isLoaded(pos)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos)) {
             return false;
         }
         BlockState state = level.getBlockState(pos);
@@ -885,7 +885,7 @@ public final class ClimbingVine {
     private static boolean blockedAt(Level level, Trunk t, double u, double y, double rho, double[] tmp) {
         perimeterPoint(t, u, rho, tmp);
         BlockPos cell = BlockPos.containing(tmp[0], y, tmp[1]);
-        if (!level.isLoaded(cell)) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cell)) {
             return true;
         }
         BlockState state = level.getBlockState(cell);
@@ -903,7 +903,7 @@ public final class ClimbingVine {
             }
             BlockPos c = BlockPos.containing(Mth.lerp(t, from[0], to[0]), Mth.lerp(t, from[1], to[1]) - 0.2D,
                     Mth.lerp(t, from[2], to[2]));
-            if (!level.isLoaded(c)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, c)) {
                 return false;
             }
             BlockState state = level.getBlockState(c);

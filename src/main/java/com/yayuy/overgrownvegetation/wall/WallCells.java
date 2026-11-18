@@ -89,7 +89,14 @@ public final class WallCells {
     public static boolean isLight(BlockState state) {
         return state.getLightEmission() > 0 && !state.getFluidState().is(FluidTags.LAVA) && !state.is(ModTags.CAVE_ROCK)
                 && !state.is(ModTags.CORRUPTED) && !state.hasBlockEntity() && !state.is(Blocks.MAGMA_BLOCK)
-                && !isNaturalGlow(state);
+                && !isNaturalGlow(state)
+                // 壁にならない灯り(松明・ランタン・ろうそく・エンドロッド等。当たりが無いか、1 マスを埋めない小さな当たり)だけ
+                // (11-18 見直し ⑦2・ユーザー決定 7「当たりの無い灯り(松明・ランタン等)」。バニラのランタン・ろうそくは小さな当たりを持つので、
+                // 「1 マスを埋める当たりがあるか」で分ける)。グロウストーン・シーランタン・フロッグライトなど 1 マスの灯りで作った防壁は、
+                // ほかの置いたブロックと同じく壊す時間がかかる壁になる。リスポーンアンカーも外す
+                && !state.is(Blocks.RESPAWN_ANCHOR)
+                && !net.minecraft.world.level.block.Block.isShapeFullBlock(
+                        state.getCollisionShape(net.minecraft.world.level.EmptyBlockGetter.INSTANCE, net.minecraft.core.BlockPos.ZERO));
     }
 
     /**

@@ -138,7 +138,11 @@ public final class G1Fate {
     public void tick() {
         if (!(mob.level() instanceof ServerLevel level) || !mob.isAlive()) return;
         DirectorTable t = DesignData.director();
-        if (!t.enabled) return;
+        if (!t.enabled) {
+            // 司令塔を切って起動し直した: 前兆・根付きの途中なら取り消す(固まったままにしない。11-18 見直し ①10)
+            if (route != Route.NONE) cancel(level);
+            return;
+        }
         long now = level.getGameTime();
         if (bornAt < 0L) bornAt = now;
         if (nextVisit < 0L) nextVisit = now + firstDelay(t, mob.getRandom());
@@ -236,7 +240,12 @@ public final class G1Fate {
         for (String tag : mob.getTags()) {
             if (tag.startsWith("ov_") && !com.yayuy.overgrownvegetation.spawn.EnemySpawns.isSpawnTag(tag)) next.addTag(tag);
         }
-        level.addFreshEntity(next);
+        mob.copyConditionTo(next); // 減っていた体力・効果・火(11-18 見直し ①4)
+        if (!level.addFreshEntity(next)) { // 加われなかった: 元を消さずに取り消して予算を返す(①4。前は個体も予算も消えた)
+            cancel(level);
+            return;
+        }
+        mob.dropPickedUpForSwap();
         next.startEvolveIn();
         mob.discard();
     }
@@ -452,7 +461,12 @@ public final class G1Fate {
             next.setCustomNameVisible(mob.isCustomNameVisible());
         }
         next.setPersistenceRequired();
-        level.addFreshEntity(next);
+        mob.copyConditionTo(next); // 11-18 見直し ①4
+        if (!level.addFreshEntity(next)) {
+            cancel(level);
+            return;
+        }
+        mob.dropPickedUpForSwap();
         if (next instanceof Emerging e) e.startEmerge();
         mob.discard();
     }
@@ -501,6 +515,8 @@ public final class G1Fate {
         f.putInt("Walked", walkedTicks);
         f.putBoolean("Paid", paid);
         f.putDouble("PaidPrice", paidPrice);
+        f.putInt("NoRoomTries", noRoomTries); // 下ろし直しの回数の上限を読み込みで 0 に戻さない(11-18 見直し ①8)
+        f.putInt("RetryWalked", retryAfterWalked);
         scout.save(f);
         tag.put("Fate", f);
     }
@@ -516,6 +532,8 @@ public final class G1Fate {
         walkedTicks = f.getInt("Walked");
         paid = f.getBoolean("Paid");
         paidPrice = f.getDouble("PaidPrice");
+        noRoomTries = f.getInt("NoRoomTries");
+        retryAfterWalked = f.getInt("RetryWalked");
         scout.load(f);
         mob.setOmen(route == Route.EVOLVE ? OMEN_EVOLVE : route == Route.ROOTED || route == Route.NURSERY ? f.getInt("Omen") : OMEN_NONE);
     }

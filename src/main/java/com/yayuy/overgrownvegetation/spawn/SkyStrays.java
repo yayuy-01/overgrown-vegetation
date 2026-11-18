@@ -80,6 +80,7 @@ public final class SkyStrays {
         double far = DesignData.spawns().despawnBlocks;
         List<ServerPlayer> players = new ArrayList<>();
         for (ServerPlayer p : level.players()) if (!p.isSpectator()) players.add(p);
+        if (players.isEmpty()) return 0; // 誰もいないときは片付けない(前は全部「遠い」になり、印の無い空の種を全部消していた。11-18 見直し ⑦4)
         List<Mob> gone = new ArrayList<>();
         for (Entity e : level.getAllEntities()) {
             if (!stray(e)) continue;

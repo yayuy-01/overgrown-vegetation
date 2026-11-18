@@ -73,6 +73,9 @@ public final class SporeExposureTracker {
         // 観戦・創造のプレイヤーは暴露量をためず、段も進まない(2026-11-16 コードの見直し ③9: 前は観戦だけ外し、創造ではたまっていた。傷・技の側とそろえる)
         if (player && (entity.isSpectator() || ((Player) entity).isCreative())) {
             if (entity.hasData(ModAttachments.SPORE_EXPOSURE)) entity.getData(ModAttachments.SPORE_EXPOSURE).reset();
+            // 疲労・装備の汚れの修飾を外し、数えかけを捨てる(値は残す。11-18 見直し ⑤5)
+            com.yayuy.overgrownvegetation.survival.FatigueTracker.exempt((Player) entity);
+            com.yayuy.overgrownvegetation.survival.decon.GearDirt.applyModifiers((Player) entity);
             sendWarning((Player) entity);
             return;
         }
@@ -135,6 +138,10 @@ public final class SporeExposureTracker {
         if (player.isCreative() || player.isSpectator()) {
             // 創造・観戦は外す(11-16 ③9。tick の入口と同じ。GameTest のように直に呼ばれたときも)
             if (player.hasData(ModAttachments.SPORE_EXPOSURE)) player.getData(ModAttachments.SPORE_EXPOSURE).reset();
+            // 疲労・装備の汚れの修飾を外し、数えかけ(殴った・壊した・走った)を捨てる。ためた値そのものは消さない
+            // (11-18 見直し ⑤5。前はここで戻るので修飾が残り、創造の間の殴りがサバイバルに戻した瞬間に一度に乗った)
+            com.yayuy.overgrownvegetation.survival.FatigueTracker.exempt(player);
+            com.yayuy.overgrownvegetation.survival.decon.GearDirt.applyModifiers(player);
             return;
         }
         SporeFieldTable t = DesignData.sporeField();

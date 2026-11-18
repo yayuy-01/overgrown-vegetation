@@ -89,7 +89,10 @@ public final class GrammarGrowthQueue {
             while (job.cursor < job.blocks.size() && budget > 0) {
                 StagedBlock sb = job.blocks.get(job.cursor);
                 cursor.set(BlockPos.getX(sb.packedPos()), BlockPos.getY(sb.packedPos()), BlockPos.getZ(sb.packedPos()));
-                if (serverLevel.isLoaded(cursor)) {
+                // 読み込み・生成の途中なら触らず、このジョブは次の tick に同じ所から(11-18 見直し ③4。isLoaded は生成中でも true)
+                com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.Edge edge = com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.edge(serverLevel, cursor, 0);
+                if (edge == com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.Edge.WAIT) break;
+                if (edge == com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.Edge.READY) {
                     serverLevel.setBlock(cursor.immutable(), sb.state(), UPDATE_FLAGS);
                 }
                 job.cursor++;

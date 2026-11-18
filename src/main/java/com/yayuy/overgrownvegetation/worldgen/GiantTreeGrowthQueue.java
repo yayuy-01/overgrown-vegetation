@@ -3,6 +3,7 @@ package com.yayuy.overgrownvegetation.worldgen;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.corruption.CorruptionSpreader;
+import com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard;
 import com.yayuy.overgrownvegetation.perf.PerfJob;
 import com.yayuy.overgrownvegetation.perf.TickBudget;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
@@ -240,12 +241,23 @@ public final class GiantTreeGrowthQueue {
      * 洞窟の柱の付け根の天井から {@code dangling_roots} の房を垂らす(2026-11-07)。根を全部置き終えた後に 1 回だけ。
      * 置く所が空気でなくなっていれば、{@code CaveFlora.hangRoots} が短くするか置かない。
      */
+    /** 房を垂らす所のどれかのチャンクが読み込み途中なら、終わりを次の tick へ延ばす(房を永久に飛ばさない。11-18 見直し ③4)。 */
+    private static boolean tuftsWaiting(ServerLevel level, Job job) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int i = 0; i < job.danglingTops.size(); i++) {
+            long k = job.danglingTops.getLong(i);
+            p.set(BlockPos.getX(k), BlockPos.getY(k), BlockPos.getZ(k));
+            if (ChunkEdgeGuard.edge(level, p, 1) == ChunkEdgeGuard.Edge.WAIT) return true;
+        }
+        return false;
+    }
+
     private static void hangPillarTufts(ServerLevel level, Job job) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (int i = 0; i < job.danglingTops.size(); i++) {
             long k = job.danglingTops.getLong(i);
             p.set(BlockPos.getX(k), BlockPos.getY(k), BlockPos.getZ(k));
-            if (level.isLoaded(p) && level.isLoaded(p.above())) {
+            if (ChunkEdgeGuard.isLoaded(level, p) && ChunkEdgeGuard.isLoaded(level, p.above())) { // 11-18 見直し ③4
                 com.yayuy.overgrownvegetation.corruption.CaveFlora.hangRoots(level, p.immutable(), job.danglingLens.getInt(i));
             }
         }
@@ -371,8 +383,11 @@ public final class GiantTreeGrowthQueue {
                     state = job.leafState;
                 }
                 cursorPos.set(BlockPos.getX(packed), BlockPos.getY(packed), BlockPos.getZ(packed));
-                // 途中でチャンクがアンロードされた場合はそのブロックは諦める(同期生成を避ける)。
-                if (serverLevel.isLoaded(cursorPos) && !TreePlacementRules.treeKeeps(serverLevel.getBlockState(cursorPos))
+                // 途中でチャンクがアンロードされた場合はそのブロックは諦める(同期生成を避ける)。読み込み・生成の途中なら触らず、
+                // このジョブは次の tick に同じ所から(11-18 見直し ③4。isLoaded は生成中でも true で、主スレッドが生成を待っていた)
+                ChunkEdgeGuard.Edge edge = ChunkEdgeGuard.edge(serverLevel, cursorPos, 0);
+                if (edge == ChunkEdgeGuard.Edge.WAIT) break;
+                if (edge == ChunkEdgeGuard.Edge.READY && !TreePlacementRules.treeKeeps(serverLevel.getBlockState(cursorPos))
                         && !com.yayuy.overgrownvegetation.corruption.pushback.RingWards.guardedFrom(serverLevel, job.trunk.isEmpty() ? null : BlockPos.of(job.trunk.getLong(0)), cursorPos)) { // 根付いた萌芽体は残す。帯の線の向こう・杭の範囲には置かない(押し返し 11-18 夜)
                     serverLevel.setBlock(cursorPos.immutable(), state, UPDATE_FLAGS);
                 }
@@ -381,7 +396,8 @@ public final class GiantTreeGrowthQueue {
             }
             // フェーズ2: 設置し終えたら、外殻・葉の露出面に装飾植物 + 原木にヒカリゴケを生やす。
             // 1面の判定は setBlock より軽いので、予算1あたり DECOR_PER_BUDGET 個ずつ進める。
-            while (job.cursor >= job.placeTotal && job.hasDecorPhase()
+            boolean stall = false;
+            while (!stall && job.cursor >= job.placeTotal && job.hasDecorPhase()
                     && job.decorCursor < job.decorTotal && budget > 0) {
                 for (int k = 0; k < DECOR_PER_BUDGET && job.decorCursor < job.decorTotal; k++) {
                     long packed;
@@ -405,7 +421,12 @@ public final class GiantTreeGrowthQueue {
                         chance = job.plantChance;
                     }
                     cursorPos.set(BlockPos.getX(packed), BlockPos.getY(packed), BlockPos.getZ(packed));
-                    if (serverLevel.isLoaded(cursorPos)
+                    ChunkEdgeGuard.Edge edge = ChunkEdgeGuard.edge(serverLevel, cursorPos, 1); // 飾りは隣のマスにも生える(③4)
+                    if (edge == ChunkEdgeGuard.Edge.WAIT) {
+                        stall = true;
+                        break;
+                    }
+                    if (edge == ChunkEdgeGuard.Edge.READY
                             && serverLevel.getBlockState(cursorPos).is(host.getBlock())) {
                         BlockPos hostPos = cursorPos.immutable();
                         if (chance > 0.0D) {
@@ -438,7 +459,7 @@ public final class GiantTreeGrowthQueue {
                 }
                 budget = TickBudget.spend(budget);
             }
-            if (job.done()) {
+            if (job.done() && !tuftsWaiting(serverLevel, job)) {
                 // 側面・底面に生えるもの(2026-11-01)。巨大樹は数を増やし、幹の巻き付きは面の一部の列だけ。
                 TreeSideGrowth.decorate(serverLevel, serverLevel.random, new it.unimi.dsi.fastutil.longs.LongOpenHashSet(job.trunk),
                         new it.unimi.dsi.fastutil.longs.LongOpenHashSet(job.leaves), true);
@@ -463,7 +484,7 @@ public final class GiantTreeGrowthQueue {
                 continue;
             }
             p.setWithOffset(hostPos, dir);
-            if (!level.isLoaded(p)) {
+            if (!ChunkEdgeGuard.isLoaded(level, p)) { // 読み込み途中も飛ばす(飾り。11-18 見直し ③4)
                 continue;
             }
             BlockState there = level.getBlockState(p);

@@ -120,10 +120,18 @@ public final class PhaseOmens {
     public static int step(ServerLevel level, int n) {
         RandomSource random = level.getRandom();
         int done = 0;
-        while (done < n && !SPROUT_QUEUE.isEmpty()) {
+        int tries = SPROUT_QUEUE.size(); // 積み直した分を同じ回に繰り返さない
+        while (done < n && tries-- > 0 && !SPROUT_QUEUE.isEmpty()) {
             long key = SPROUT_QUEUE.dequeueLong();
             int cx = ChunkPos.getX(key), cz = ChunkPos.getZ(key);
-            if (!level.hasChunk(cx, cz)) continue;
+            // 読み込み・生成の途中(自分と隣)なら後ろへ積み直す。読み込まれていなければ捨てる(11-18 見直し ③4。hasChunk は生成中でも true で、
+            // 芽吹かせると主スレッドが生成を待っていた)
+            var edge = com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.edge(level, new BlockPos((cx << 4) + 8, level.getMinBuildHeight(), (cz << 4) + 8), 9);
+            if (edge == com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.Edge.WAIT) {
+                SPROUT_QUEUE.enqueue(key);
+                continue;
+            }
+            if (edge != com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.Edge.READY) continue;
             sproutChunk(level, cx, cz, random);
             done++;
             sproutedChunks++;

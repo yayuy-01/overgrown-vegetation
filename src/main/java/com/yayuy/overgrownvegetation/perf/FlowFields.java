@@ -277,6 +277,7 @@ public final class FlowFields {
     }
 
     private static void sweep(long now, PerfTable t) {
+        if (now < lastSweep) lastSweep = now - 100L; // 時刻の若いワールドへ移った(11-18 見直し ③2)
         if (now - lastSweep < 100L) return;
         lastSweep = now;
         ENTRIES.values().removeIf(e -> now - e.lastUsed > t.flowDropUnusedTicks && !e.building);
@@ -637,6 +638,7 @@ public final class FlowFields {
     public static void onServerStopped(ServerStoppedEvent event) {
         ENTRIES.clear();
         PLAYERS.clear();
+        lastSweep = 0L; // 次のワールドへ持ち越さない(11-18 見直し ③2)
     }
 
     /** {@code /ov perf flow [on|off]}: 入り切り(toml の値を書き換える。前後を同じ起動で比べる用)と、今の数。 */

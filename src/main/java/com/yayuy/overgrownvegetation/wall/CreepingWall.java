@@ -357,8 +357,10 @@ public final class CreepingWall {
             // 止めていた升のうち、人が近づいたものを今の距離で戻す(1 秒ごと)
             if (!dormant.isEmpty() && (now - startTick) % 20 == 0) {
                 LongArrayList wake = new LongArrayList();
+                BlockPos.MutableBlockPos w = new BlockPos.MutableBlockPos();
                 for (Long2IntOpenHashMap.Entry e : dormant.long2IntEntrySet()) {
-                    if (!far(e.getLongKey())) {
+                    // 読み込まれていない升は眠らせたまま(起こすと埋めるときに同期で読み込み、主スレッドが待った。11-18 見直し ⑦3)
+                    if (!far(e.getLongKey()) && loaded(w.set(e.getLongKey()))) {
                         wake.add(e.getLongKey());
                     }
                 }

@@ -219,6 +219,31 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
         return com.yayuy.overgrownvegetation.director.G1Fate.developedOf(this) != null;
     }
 
+    /**
+     * 進化・根付きの入れ替えで消える前に、拾った持ち物(手・防具)を足元に落とす(11-18 見直し ①4。前は写されも落ちもせず消えた)。
+     * バニラがプレイヤーに倒されずに死んだときと同じく、落ちるのは拾った物(落とす確率が 1 を超える物)だけ。湧いたときの持ち物は落とさない。
+     */
+    public void dropPickedUpForSwap() {
+        for (net.minecraft.world.entity.EquipmentSlot slot : net.minecraft.world.entity.EquipmentSlot.values()) {
+            net.minecraft.world.item.ItemStack s = getItemBySlot(slot);
+            if (s.isEmpty() || getEquipmentDropChance(slot) <= 1.0F) continue;
+            if (net.minecraft.world.item.enchantment.EnchantmentHelper.has(s,
+                    net.minecraft.world.item.enchantment.EnchantmentEffectComponents.PREVENT_EQUIPMENT_DROP)) continue;
+            spawnAtLocation(s);
+            setItemSlot(slot, net.minecraft.world.item.ItemStack.EMPTY);
+        }
+    }
+
+    /**
+     * 入れ替え先へ、減っていた体力の割合・効果・火を写す(11-18 見直し ①4。前は満タンで出て、効果と火が消えていた)。
+     */
+    public void copyConditionTo(net.minecraft.world.entity.LivingEntity next) {
+        float ratio = getMaxHealth() > 0.0F ? getHealth() / getMaxHealth() : 1.0F;
+        next.setHealth(Math.max(1.0F, next.getMaxHealth() * Math.min(1.0F, ratio)));
+        for (net.minecraft.world.effect.MobEffectInstance e : getActiveEffects()) next.addEffect(new net.minecraft.world.effect.MobEffectInstance(e));
+        next.setRemainingFireTicks(getRemainingFireTicks());
+    }
+
     /** 司令塔との約束。持たない個体は null。 */
     @Nullable
     public com.yayuy.overgrownvegetation.director.G1Fate fate() {

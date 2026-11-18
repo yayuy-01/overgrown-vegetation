@@ -436,11 +436,39 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
     // ------------------------------------------------------------------ 産む
     /** 今産める手先の数(上限 broodCap − 生きている手先)。 */
     public int broodRoom(ServerLevel level) {
+        // 見つからない手先(読み込みの外へ歩いた)は生きているものとして数える。死んだ・消えた手先は onBroodLeave が外す
+        // (11-18 見直し ①7。前は外へ歩いた手先を「死んだ」と数え、上限を超えて産んだ)
         brood.removeIf(id -> {
             Entity e = level.getEntity(id);
-            return e == null || !e.isAlive();
+            return e != null && !e.isAlive();
         });
         return table().broodCap - brood.size();
+    }
+
+    @net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.GAME)
+    public static final class BroodEvents {
+        private BroodEvents() {
+        }
+
+        @net.neoforged.bus.api.SubscribeEvent
+        public static void onLeave(net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent event) {
+            onBroodLeave(event);
+        }
+    }
+
+    /** 手先が覚える親の UUID の鍵(11-18 見直し ①7)。 */
+    public static final String MOTHER_KEY = "ov_gestatrix_mother";
+
+    /**
+     * 手先が死んだ・消えたら、読み込まれている親の数えから外す(11-18 見直し ①7)。チャンクと一緒に外れただけなら数えたまま。
+     * 親が読み込まれていないときに死んだ手先は、親の数えに残る(親のまわりで上限が 1 つ減ったままになる。まれ)。
+     */
+    public static void onBroodLeave(net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent event) {
+        if (!(event.getLevel() instanceof ServerLevel level)) return;
+        Entity e = event.getEntity();
+        Entity.RemovalReason why = e.getRemovalReason();
+        if (why == null || !why.shouldDestroy() || !e.getPersistentData().hasUUID(MOTHER_KEY)) return;
+        if (level.getEntity(e.getPersistentData().getUUID(MOTHER_KEY)) instanceof GestatrixEntity mother) mother.brood.remove(e.getUUID());
     }
 
     public int broodAlive(ServerLevel level) {
@@ -462,6 +490,7 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
             g.moveTo(getX() + Math.cos(a) * 0.4D, getY() + getBbHeight() * 0.8D, getZ() + Math.sin(a) * 0.4D, getRandom().nextFloat() * 360.0F, 0.0F);
             net.neoforged.neoforge.event.EventHooks.finalizeMobSpawn(g, level, level.getCurrentDifficultyAt(g.blockPosition()), MobSpawnType.BREEDING, null);
             g.setDeltaMovement(Math.cos(a) * 0.35D, 0.3D, Math.sin(a) * 0.35D); // 背から散らす
+            g.getPersistentData().putUUID(MOTHER_KEY, getUUID());
             if (level.addFreshEntity(g)) brood.add(g.getUUID()); // 群れ(CrawlerPack)には、グレガリアが近くの仲間と自分で入る
         }
         broodBorn += n;
@@ -608,6 +637,8 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
         tag.putInt("HatchAskIn", hatchAskIn);
         tag.putInt("Sprouted", sprouted);
         tag.putInt("Hatches", hatches);
+        // 払って孵している途中(割れる 24 tick の前)の型。読み込み後に孵し直す(11-18 見直し ①5。前は払った分が出なかった)
+        if (hatching != null) tag.putString("Hatching", net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(hatching).toString());
     }
 
     @Override
@@ -632,6 +663,17 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
         if (tag.contains("HatchAskIn")) hatchAskIn = tag.getInt("HatchAskIn");
         sprouted = tag.getInt("Sprouted");
         hatches = tag.getInt("Hatches");
+        hatching = NurseryParasitized.readHatching(tag);
+        if (hatching != null) {
+            this.entityData.set(NURSE, -1); // 孵す段からやり直す(割れて出る)
+            nurseLeft = HATCH_T;
+            nurseAge = 0;
+        }
+        // 最後に産んだ後、産む演出の途中で保存された: 読み込み後にもう 1 回産まないよう、根を下ろす段へ(11-18 見直し ①6)
+        if (st != ROOTED && births >= table().birthsToRoot) {
+            this.entityData.set(STATE, ROOTING);
+            this.stateLeft = ROOT_T;
+        }
     }
 
     // ------------------------------------------------------------------ アニメ(名前は依頼文の仮の名前。本物のモデルが来たら合わせる)

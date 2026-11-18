@@ -512,7 +512,12 @@ public final class VirtualHordes extends SavedData {
                     m.setYRot((float) Math.toDegrees(Math.atan2(-s.dirX, s.dirZ)));
                     m.getPersistentData().putString(EXTRA_KEY, s.extraTag);
                     if (com.yayuy.overgrownvegetation.director.LargeRaids.ATTACKER_TAG.equals(s.extraTag)) m.getPersistentData().putDouble(RAID_KEY, raid);
-                    level.addFreshEntity(m);
+                    if (!level.addFreshEntity(m)) {
+                        // 断られた(ほかの MOD の湧きの取り消しなど): 頭数を減らさず、この群れは次の回に(11-18 見直し ③5。前は 1 体消えていた)
+                        s.firstIndex--;
+                        blocked = true;
+                        break;
+                    }
                     beginMarch(m, s.baseId, s.tx, s.tz);
                     left--;
                     budget--;
@@ -622,6 +627,9 @@ public final class VirtualHordes extends SavedData {
                 into = new Swarm(nextId++, m.getX(), m.getY(), m.getZ(), DesignData.perf().virtualSpeed, baseId, tg.x, tg.z, extra);
                 swarms.add(into);
             }
+            // 本物にした分だけ進む番号は戻らないので、往復を繰り返すと際限なく増え、群れの真ん中から遠くに本物が出た・クライアントの鍵
+            // (群れの id × 4096 + 番号)が隣の群れとぶつかった(11-18 見直し ③9)。戻すとき(プレイヤーから遠い)に大きければ 0 からに戻す
+            if (into.firstIndex > MAX_SWARM) into.firstIndex = 0;
             into.add(BuiltInRegistries.ENTITY_TYPE.getKey(m.getType()), 1);
             if (CrawlerPack.externalOf(m) != null) CrawlerPack.leaveExternal(level, m);
             m.discard(); // 死なせない(死の破裂で汚染を撒かない)

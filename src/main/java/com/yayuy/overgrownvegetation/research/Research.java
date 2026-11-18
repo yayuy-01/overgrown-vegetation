@@ -235,6 +235,24 @@ public final class Research {
         broadcastState(server);
     }
 
+    /**
+     * 入ってきた人に、開いた節の作り方を覚えさせる(11-18 見直し ②8。前は開いたときにいた人だけが覚え、後から入った人の
+     * レシピ本には出なかった。作るのはできた)。覚えている作り方は awardRecipes が飛ばす。
+     */
+    @net.neoforged.bus.api.SubscribeEvent
+    public static void onLogin(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer p)) return;
+        MinecraftServer server = p.server;
+        ResearchTree tree = ResearchTree.get();
+        List<RecipeHolder<?>> recipes = new ArrayList<>();
+        for (String id : ResearchData.get(server).done()) {
+            ResearchTree.Node n = tree.node(id);
+            if (n == null) continue;
+            for (ResourceLocation r : n.unlocks()) server.getRecipeManager().byKey(r).ifPresent(recipes::add);
+        }
+        if (!recipes.isEmpty()) p.awardRecipes(recipes);
+    }
+
     public static Component nodeName(String id) {
         return Component.translatable("research.overgrown_vegetation." + id + ".name");
     }

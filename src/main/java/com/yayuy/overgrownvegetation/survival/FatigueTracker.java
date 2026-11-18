@@ -140,10 +140,16 @@ public final class FatigueTracker {
         return Math.min(max, 1.0D + (max - 1.0D) * effectStrength(player));
     }
 
-    /** 動きの鈍り(移動・採掘・攻撃速度)を今の疲労に合わせて張り直す。 */
+    /** 創造・観戦の間(11-18 見直し ⑤5): 数えかけを捨て、鈍りの修飾を外す。疲労の値は残す(戻ればまた効く)。 */
+    public static void exempt(Player player) {
+        if (player.hasData(ModAttachments.FATIGUE)) player.getData(ModAttachments.FATIGUE).clearPending();
+        syncModifiers(player);
+    }
+
+    /** 動きの鈍り(移動・採掘・攻撃速度)を今の疲労に合わせて張り直す。創造・観戦では外す。 */
     public static void syncModifiers(Player player) {
         FatigueSpec s = spec();
-        double t = s.enabled() ? spec().effectStrength(value(player)) : 0.0D;
+        double t = s.enabled() && !player.isCreative() && !player.isSpectator() ? spec().effectStrength(value(player)) : 0.0D;
         apply(player, Attributes.MOVEMENT_SPEED, MOVE_ID, -s.moveSlow() * t);
         apply(player, Attributes.BLOCK_BREAK_SPEED, MINE_ID, -s.mineSlow() * t);
         apply(player, Attributes.ATTACK_SPEED, ATTACK_SPEED_ID, -s.attackSpeedSlow() * t);

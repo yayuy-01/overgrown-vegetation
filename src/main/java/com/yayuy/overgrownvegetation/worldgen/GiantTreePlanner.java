@@ -155,6 +155,11 @@ public final class GiantTreePlanner {
                 OvergrownVegetation.LOGGER.info("GiantTree at {}: 計画の間にチャンクが外れたので積みません(苗木は残ります)", f.origin);
                 continue;
             }
+            // 計画の間(0.1〜1 秒)に苗木が壊された・別の物に替わったら生やさない(11-18 見直し ③11)
+            if (f.sapling != null && !level.getBlockState(f.origin).is(f.sapling.getBlock())) {
+                OvergrownVegetation.LOGGER.info("GiantTree at {}: 計画の間に苗木が無くなったので積みません", f.origin);
+                continue;
+            }
             if (!GiantTreeFeature.commit(level, plan, f.origin)) {
                 OvergrownVegetation.LOGGER.warn("GiantTree at {}: 計画が空でした(苗木は残します)", f.origin);
                 continue;

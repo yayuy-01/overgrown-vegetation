@@ -626,7 +626,7 @@ public final class TreeVineConnector {
                 // 建築高さの範囲に切り詰め済みなので、列ごとに1回見れば従来のマスごとの判定と同じ。
                 // (getChunkNow は使わない——読み込み途中のチャンクで null を返し、従来は同期で
                 // 読み込んで走査していた列を飛ばしてしまう。チャンクのキャッシュも書き換える)
-                if (!chunkSource.hasChunk(chunkX, chunkZ)) {
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, chunkX, chunkZ)) { // 11-18 見直し ③4: 読み込み途中の列も飛ばす(下の getChunk が生成を待っていた)
                     continue;
                 }
                 // チャンク本体は、従来 getBlockState が初めて呼ばれていた位置(自分の原木でない

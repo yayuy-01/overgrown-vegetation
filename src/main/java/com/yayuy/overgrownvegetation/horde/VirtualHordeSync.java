@@ -35,6 +35,17 @@ public final class VirtualHordeSync {
     private VirtualHordeSync() {
     }
 
+    /** 抜けた人・止めたサーバーの印を捨てる(11-18 見直し ③7)。 */
+    @SubscribeEvent
+    public static void onLogout(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
+        SENT.remove(event.getEntity().getUUID());
+    }
+
+    @SubscribeEvent
+    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+        SENT.clear();
+    }
+
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
         MinecraftServer server = event.getServer();

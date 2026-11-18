@@ -258,6 +258,12 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
             }
             return;
         }
+        // 払った孵化の途中で保存された(読み込み直した): 孵す段からやり直す(11-18 見直し ①5。前は払った分が出なかった)
+        if (hatching != null) {
+            this.entityData.set(SLOT, 1 + random.nextInt(nursery().pods));
+            begin(ACTION_HATCH, G1Nursery.HATCH);
+            return;
+        }
         // スポナーの口: 飲まれていても・いなくても働く。司令塔が払ったときだけ孵す
         if (--hatchAskIn <= 0) {
             hatchAskIn = hatchAskInterval();
@@ -378,6 +384,20 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         tag.putInt("HatchAskIn", hatchAskIn);
         tag.putInt("Sprouted", sprouted);
         tag.putInt("Hatches", hatches);
+        // 払って孵している途中の型(11-18 見直し ①5)
+        if (hatching != null) tag.putString("Hatching", net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(hatching).toString());
+    }
+
+    /** 保存した孵化の型(無い・読めない・Mob でなければ null)。苗床とゲスタトリクスで共通。 */
+    @SuppressWarnings("unchecked")
+    @Nullable
+    static EntityType<? extends Mob> readHatching(CompoundTag tag) {
+        if (!tag.contains("Hatching")) return null;
+        net.minecraft.resources.ResourceLocation id = net.minecraft.resources.ResourceLocation.tryParse(tag.getString("Hatching"));
+        if (id == null) return null;
+        return net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getOptional(id)
+                .filter(t -> t.getBaseClass() != null && Mob.class.isAssignableFrom(t.getBaseClass()))
+                .map(t -> (EntityType<? extends Mob>) t).orElse(null);
     }
 
     @Override
@@ -388,6 +408,7 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         if (tag.contains("HatchAskIn")) hatchAskIn = tag.getInt("HatchAskIn");
         sprouted = tag.getInt("Sprouted");
         hatches = tag.contains("Hatches") ? tag.getInt("Hatches") : tag.getBoolean("Hatched") ? com.yayuy.overgrownvegetation.data.DesignData.director().nurseryLifeHatches : 0;
+        hatching = readHatching(tag);
     }
 
     // ------------------------------------------------------------------ アニメ

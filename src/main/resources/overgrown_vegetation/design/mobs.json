@@ -8,8 +8,6 @@
     "scale": 1,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 1.0,
-    "height": 2.0,
     "eggFit": 5.12,
     "maxHealth": 15
   },
@@ -22,80 +20,60 @@
     "movementSpeed": 0.28,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.6,
-    "height": 1.95,
     "eggFit": 3.25
   },
   "parasitized_baby_zombie": {
     "movementSpeed": 0.345,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.3,
-    "height": 0.975,
     "eggFit": 2.2
   },
   "parasitized_villager": {
     "movementSpeed": 0.28,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.6,
-    "height": 1.95,
     "eggFit": 3.5
   },
   "parasitized_pig": {
     "movementSpeed": 0.30,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.9,
-    "height": 0.9,
     "eggFit": 3.7
   },
   "parasitized_sheep": {
     "movementSpeed": 0.28,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.9,
-    "height": 1.3,
     "eggFit": 2.6
   },
   "parasitized_chicken": {
     "movementSpeed": 0.3,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.4,
-    "height": 0.7,
     "eggFit": 1.4
   },
   "parasitized_creeper": {
     "movementSpeed": 0.30,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.6,
-    "height": 1.7,
     "eggFit": 3.3
   },
   "parasitized_skeleton": {
     "movementSpeed": 0.3,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.6,
-    "height": 1.99,
     "eggFit": 2.25
   },
   "parasitized_spider": {
     "movementSpeed": 0.3,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 1.4,
-    "height": 0.9,
     "eggFit": 2.95
   },
   "parasitized_enderman": {
     "movementSpeed": 0.3,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.6,
-    "height": 2.9,
     "eggFit": 3.6
   },
   "parasitized_cow": {
@@ -103,297 +81,223 @@
     "attackDamage": 3,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.9,
-    "height": 1.4,
     "eggFit": 3.6
   },
   "parasitized_iron_golem": {
     "movementSpeed": 0.25,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 1.4,
-    "height": 2.7,
     "eggFit": 3.4
   },
   "parasitized_warden": {
     "movementSpeed": 0.3,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.9,
-    "height": 2.9,
     "eggFit": 4.25
   },
   "developed_parasitized_zombie": {
     "eggFit": 3.15,
     "movementSpeed": 0.25,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 0.6,
-    "height": 1.95
+    "scaleMax": 1
   },
   "developed_parasitized_baby_zombie": {
     "eggFit": 2.05,
     "movementSpeed": 0.36,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 0.6,
-    "height": 0.8
+    "scaleMax": 1
   },
   "developed_parasitized_villager": {
     "eggFit": 3.6,
     "movementSpeed": 0.28,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 0.8,
-    "height": 1.9
+    "scaleMax": 1
   },
   "developed_parasitized_cow": {
     "eggFit": 4.0,
     "movementSpeed": 0.25,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.0,
-    "height": 1.5
+    "scaleMax": 1
   },
   "developed_parasitized_pig": {
     "eggFit": 2.75,
     "movementSpeed": 0.3,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.0,
-    "height": 1.0
+    "scaleMax": 1
   },
   "developed_parasitized_sheep": {
     "eggFit": 2.85,
     "movementSpeed": 0.28,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 0.9,
-    "height": 1.7
+    "scaleMax": 1
   },
   "developed_parasitized_chicken": {
     "eggFit": 1.8,
     "movementSpeed": 0.3,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 0.5,
-    "height": 1.0
+    "scaleMax": 1
   },
   "developed_parasitized_creeper": {
     "eggFit": 3.05,
     "movementSpeed": 0.3,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 0.6,
-    "height": 1.7
+    "scaleMax": 1
   },
   "developed_parasitized_skeleton": {
     "eggFit": 3.0,
     "movementSpeed": 0.28,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 0.6,
-    "height": 1.99
+    "scaleMax": 1
   },
   "developed_parasitized_spider": {
     "eggFit": 3.5,
     "movementSpeed": 0.3,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.4,
-    "height": 1.2
+    "scaleMax": 1
   },
   "developed_parasitized_enderman": {
     "eggFit": 3.45,
     "movementSpeed": 0.3,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 0.6,
-    "height": 3.0
+    "scaleMax": 1
   },
   "rooted_parasitized_zombie": {
     "eggFit": 5.55,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.0,
-    "height": 4.4
+    "scaleMax": 1
   },
   "rooted_parasitized_baby_zombie": {
     "eggFit": 3.2,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 0.8,
-    "height": 2.5
+    "scaleMax": 1
   },
   "rooted_parasitized_villager": {
     "eggFit": 5.6,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.0,
-    "height": 4.6
+    "scaleMax": 1
   },
   "rooted_parasitized_enderman": {
     "eggFit": 5.55,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.0,
-    "height": 4.6
+    "scaleMax": 1
   },
   "rooted_parasitized_skeleton": {
     "eggFit": 5.6,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.0,
-    "height": 5.2
+    "scaleMax": 1
   },
   "root_guardian": {
     "eggFit": 2.95,
     "movementSpeed": 0.25,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.3,
-    "height": 1.9
+    "scaleMax": 1
   },
   "rooted_parasitized_cow": {
     "eggFit": 4.95,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.4,
-    "height": 1.6
+    "scaleMax": 1
   },
   "rooted_parasitized_pig": {
     "eggFit": 3.05,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.2,
-    "height": 1.2
+    "scaleMax": 1
   },
   "rooted_parasitized_sheep": {
     "eggFit": 5.15,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.3,
-    "height": 1.6
+    "scaleMax": 1
   },
   "rooted_parasitized_chicken": {
     "eggFit": 2.25,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 0.7,
-    "height": 0.9
+    "scaleMax": 1
   },
   "rooted_parasitized_spider": {
     "eggFit": 5.25,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.0,
-    "height": 1.8
+    "scaleMax": 1
   },
   "rooted_parasitized_creeper": {
     "eggFit": 3.2,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 0.8,
-    "height": 1.8
+    "scaleMax": 1
   },
   "nursery_parasitized_zombie": {
     "eggFit": 3.8,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.2,
-    "height": 1.0
+    "scaleMax": 1
   },
   "nursery_parasitized_baby_zombie": {
     "eggFit": 2.65,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 0.9,
-    "height": 0.7
+    "scaleMax": 1
   },
   "nursery_parasitized_villager": {
     "eggFit": 3.9,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.2,
-    "height": 1.1
+    "scaleMax": 1
   },
   "nursery_parasitized_skeleton": {
     "eggFit": 3.8,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.2,
-    "height": 1.0
+    "scaleMax": 1
   },
   "nursery_parasitized_enderman": {
     "eggFit": 4.7,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.2,
-    "height": 1.0
+    "scaleMax": 1
   },
   "nursery_parasitized_cow": {
     "eggFit": 4.1,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.3,
-    "height": 1.2
+    "scaleMax": 1
   },
   "nursery_parasitized_pig": {
     "eggFit": 3.25,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.1,
-    "height": 1.0
+    "scaleMax": 1
   },
   "nursery_parasitized_sheep": {
     "eggFit": 3.9,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.2,
-    "height": 1.1
+    "scaleMax": 1
   },
   "nursery_parasitized_chicken": {
     "eggFit": 2.45,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 0.8,
-    "height": 0.6
+    "scaleMax": 1
   },
   "nursery_parasitized_spider": {
     "eggFit": 3.85,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.2,
-    "height": 1.0
+    "scaleMax": 1
   },
   "nursery_parasitized_creeper": {
     "eggFit": 4.05,
     "movementSpeed": 0.0,
     "scaleMin": 1,
-    "scaleMax": 1,
-    "width": 1.2,
-    "height": 1.0
+    "scaleMax": 1
   },
   "falcimnes": {
     "maxHealth": 50,
@@ -405,8 +309,6 @@
     "followRange": 32,
     "stepHeight": 1.5,
     "scale": 1,
-    "width": 1.3,
-    "height": 2.1,
     "xpReward": 40,
     "eggFit": 6.45
   },
@@ -420,8 +322,6 @@
     "scale": 1,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 2.6,
-    "height": 13,
     "xpReward": 12,
     "eggFit": 14
   },
@@ -436,8 +336,6 @@
     "scale": 1,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.8,
-    "height": 0.6,
     "xpReward": 2,
     "eggFit": 2.65
   },
@@ -452,8 +350,6 @@
     "scale": 1,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.7,
-    "height": 0.45,
     "xpReward": 1,
     "eggFit": 2.0
   },
@@ -468,8 +364,6 @@
     "scale": 1,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 1.6,
-    "height": 1.0,
     "xpReward": 10,
     "eggFit": 1.2
   },
@@ -484,8 +378,6 @@
     "scale": 1,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.95,
-    "height": 1.2,
     "xpReward": 3,
     "eggFit": 5.4
   },
@@ -500,8 +392,6 @@
     "scale": 1,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 1.2,
-    "height": 2.4,
     "xpReward": 30,
     "eggFit": 5.61
   },
@@ -518,8 +408,6 @@
     "scale": 1,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 1.4,
-    "height": 2.6,
     "xpReward": 35,
     "eggFit": 5.61
   },
@@ -534,8 +422,6 @@
     "scale": 1,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 1.8,
-    "height": 1,
     "xpReward": 30,
     "eggFit": 5.75
   },
@@ -551,8 +437,6 @@
     "scale": 1,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 1.2,
-    "height": 0.8,
     "xpReward": 10,
     "eggFit": 6.3
   },
@@ -568,8 +452,6 @@
     "scale": 1,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.8,
-    "height": 1.0,
     "xpReward": 5,
     "eggFit": 4.95
   },
@@ -585,8 +467,6 @@
     "scale": 1,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.6,
-    "height": 0.4,
     "xpReward": 3,
     "eggFit": 1.28
   },
@@ -601,8 +481,6 @@
     "scale": 1,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.45,
-    "height": 0.3,
     "xpReward": 1,
     "eggFit": 0.72
   },
@@ -618,8 +496,6 @@
     "scale": 1,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 1.2,
-    "height": 3.0,
     "xpReward": 40,
     "eggFit": 7.2
   },
@@ -634,8 +510,6 @@
     "scale": 1,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 1.3,
-    "height": 1.6,
     "xpReward": 30,
     "eggFit": 5.17
   },
@@ -650,8 +524,6 @@
     "scale": 2,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.6,
-    "height": 0.4,
     "xpReward": 3,
     "eggFit": 3.32
   },
@@ -666,8 +538,6 @@
     "scale": 2,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.7,
-    "height": 0.6,
     "xpReward": 4,
     "eggFit": 2.92
   },
@@ -683,8 +553,6 @@
     "scale": 1,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 1,
-    "height": 0.5,
     "xpReward": 8,
     "eggFit": 2.35
   },
@@ -699,8 +567,6 @@
     "scale": 2,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.4,
-    "height": 0.3,
     "xpReward": 2,
     "eggFit": 1.42
   },
@@ -714,8 +580,6 @@
     "scale": 2.2,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 0.7,
-    "height": 0.4,
     "xpReward": 8,
     "eggFit": 2.6
   },
@@ -727,8 +591,6 @@
     "scale": 1,
     "scaleMin": 1,
     "scaleMax": 1,
-    "width": 3.6,
-    "height": 3.6,
     "xpReward": 5,
     "eggFit": 6.85
   },
@@ -740,8 +602,6 @@
     "knockbackResistance": 0,
     "followRange": 32,
     "stepHeight": 1,
-    "width": 0.98,
-    "height": 0.98,
     "xpReward": 10,
     "eggFit": 2.47
   }

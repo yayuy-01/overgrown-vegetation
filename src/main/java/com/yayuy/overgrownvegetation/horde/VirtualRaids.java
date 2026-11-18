@@ -27,6 +27,7 @@ import java.util.Map;
  *     maxAlive に空きがある分だけ({@link #room})。空きが無い間、群れは待つ。</li>
  * </ul>
  */
+@net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.GAME)
 public final class VirtualRaids {
 
     /** 確かめ用: 出した群れ・頭数。 */
@@ -34,6 +35,12 @@ public final class VirtualRaids {
     private static long lastSend = -1_000_000_000L; // Long.MIN_VALUE だと now − lastSend が桁あふれして負になり、二度と出さなかった
 
     private VirtualRaids() {
+    }
+
+    /** サーバーを止めたら時刻を戻す(1 人用でほかのワールドへ持ち越さない。11-18 見直し ③2)。 */
+    @net.neoforged.bus.api.SubscribeEvent
+    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+        lastSend = -1_000_000_000L;
     }
 
     /**
@@ -88,6 +95,7 @@ public final class VirtualRaids {
         if (!VirtualHordes.enabled()) return 0;
         PerfTable t = DesignData.perf();
         long now = level.getGameTime();
+        if (now < lastSend) lastSend = -1_000_000_000L; // 時刻の若いワールドへ移った(11-18 見直し ③2。追いつくまで一度も出なかった)
         if (now - lastSend < t.virtualRaidIntervalTicks) return 0;
         lastSend = now;
         if (random.nextDouble() >= t.virtualRaidShare) return 0;

@@ -34,7 +34,7 @@ public class OrganTentacleRenderer extends EntityRenderer<OrganTentacle> {
     public void render(OrganTentacle e, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
         BlockRenderDispatcher br = Minecraft.getInstance().getBlockRenderer();
         BlockState s = (e.limp() ? ModBlocks.GIANT_OVERGROWN_LOG.get() : ModBlocks.OVERGROWN_LOG.get()).defaultBlockState();
-        float t = e.tickCount + partialTick;
+        float t = e.swayTime() + partialTick; // サーバーと同じゲーム時刻で揺らす(11-18 見直し ②7)
         int n = e.segments();
         for (int i = 0; i <= n; i++) {
             Vec3 p = e.point(i, t);

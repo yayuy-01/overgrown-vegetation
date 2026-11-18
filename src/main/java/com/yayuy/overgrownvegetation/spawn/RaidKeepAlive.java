@@ -35,6 +35,9 @@ public final class RaidKeepAlive {
 
     /** 消さないでおく個体か。 */
     public static boolean keep(Mob m) {
+        // ピースフルでは敵対の個体を守らない(バニラのとおり消える。11-18 見直し ①9・ユーザー決定 2「G1 を全部消す」。
+        // 前は歩いている・襲撃の印の G1 だけ残った)
+        if (m.level().getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL && m instanceof net.minecraft.world.entity.monster.Monster) return false;
         if (PlantMarch.active(m)) return true;
         if (m instanceof AbstractParasitizedMonster g1 && g1.march().active()) return true;
         if (!(m.level() instanceof ServerLevel level)) return false;

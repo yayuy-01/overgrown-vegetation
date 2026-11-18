@@ -77,7 +77,8 @@ public final class NetherStageWorker {
 
     @SubscribeEvent
     public static void onChunkLoad(ChunkEvent.Load event) {
-        if (event.getLevel() instanceof ServerLevel level && NetherLedger.isLedgerLevel(level)) {
+        // 骨組みが止まっている(実験的要素がオフ)間は積まない(11-18 見直し ⑤3。前は tick が回らないまま増える一方だった)
+        if (event.getLevel() instanceof ServerLevel level && NetherLedger.active(level)) {
             LOADED.enqueue(event.getChunk().getPos().toLong());
         }
     }

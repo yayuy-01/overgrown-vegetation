@@ -82,13 +82,16 @@ public final class MobStats {
         }
     }
 
-    /** {@code ModEntities} のヒットボックス指定用。 */
+    /**
+     * {@code ModEntities} のヒットボックス指定用。大きさは mobs.json から外して {@link MobSizes} に固定した
+     * (11-18 見直し ④1・ユーザー決定 6。サーバーとクライアントが別々の json を読んで当たりがずれないように)。
+     */
     public static float width(String path, float fallback) {
-        return DesignData.mobs().forId(path).width(fallback);
+        return MobSizes.width(path, fallback);
     }
 
     public static float height(String path, float fallback) {
-        return DesignData.mobs().forId(path).height(fallback);
+        return MobSizes.height(path, fallback);
     }
 
     /**

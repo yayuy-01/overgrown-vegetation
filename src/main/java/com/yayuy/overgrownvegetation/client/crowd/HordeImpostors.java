@@ -404,6 +404,11 @@ public final class HordeImpostors {
         SPECIES.clear();
     }
 
+    /** ログアウトのとき: 前のワールドを掴む身代わりの Entity を放す(GPU の資源は資源の読み直しまで使い回す。11-18 見直し ③7)。 */
+    public static void forgetLevel() {
+        for (Species sp : SPECIES.values()) sp.dummy = null;
+    }
+
     /** devbridge の crowd status 用。 */
     public static String status() {
         StringBuilder sb = new StringBuilder("遠くの群れ " + look + "・直前のフレーム 粗いモデル " + lastModels + " 体・絵 " + lastSprites + " 体・描画 " + lastDraws + " 回・本物のそばで描かなかった " + VirtualHordeDraw.lastHidden + "・アニメ");

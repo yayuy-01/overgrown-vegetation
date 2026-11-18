@@ -1334,6 +1334,16 @@ public class RootedParasitized extends Monster implements ParasitizedMob, GeoEnt
         }
     }
 
+    /** ピースフルで消えるとき、張った網も枯れて消える(11-18 見直し ①9・ユーザー決定 2。前は網だけ残った)。 */
+    @Override
+    public void remove(RemovalReason reason) {
+        if (reason == RemovalReason.DISCARDED && !level().isClientSide()
+                && level().getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL) {
+            witherWebs();
+        }
+        super.remove(reason);
+    }
+
     // ------------------------------------------------------------------ 枯れて崩れる
     @Override
     protected void tickDeath() {

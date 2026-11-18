@@ -49,7 +49,8 @@ public final class LeyFlowerSpread {
         for (int i = 0; i < spec.flowerSpreadTries(); i++) {
             int x = center.getX() + random.nextInt(2 * r + 1) - r;
             int z = center.getZ() + random.nextInt(2 * r + 1) - r;
-            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunkAt(level, new BlockPos(x, 0, z)) || !LeyLines.inFlowerBand(level.getSeed(), x, z)) {
+            // 混み具合を数える範囲(+1)の隣のチャンクまで読み込み終わっているか(11-18 見直し ②10。綱草・胞子喰い茸と揃える)
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.areaLoaded(level, new BlockPos(x, 0, z), spec.flowerCrowdRadius() + 1) || !LeyLines.inFlowerBand(level.getSeed(), x, z)) {
                 continue;
             }
             BlockPos pos = new BlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);

@@ -202,6 +202,37 @@ public final class CrawlerPack {
         public static void onLevelUnload(net.neoforged.neoforge.event.level.LevelEvent.Unload event) {
             if (event.getLevel() instanceof ServerLevel sl) BY_LEVEL.remove(sl);
         }
+
+        /**
+         * 1 分おきに全部の群れを見直し、空の群れを表から消す(11-18 見直し ⑦1)。{@link #remove} の道は空なら消すが、{@link #prune} の道
+         * (全員が一度に片付けられた・チャンクごと外れて戻らない)は空の群れを残し、消えた Mob 本体への強い参照も持ち続けていた。
+         * prune は群れの表を回している最中にも呼ばれるので、そこでは消さずにここでまとめて消す。
+         */
+        @net.neoforged.bus.api.SubscribeEvent
+        public static void onLevelTick(net.neoforged.neoforge.event.tick.LevelTickEvent.Post event) {
+            if (!(event.getLevel() instanceof ServerLevel sl) || sl.getGameTime() % SWEEP_TICKS != 0) return;
+            sweep(sl);
+        }
+    }
+
+    /** 空の群れを片付ける間(tick)。 */
+    static final int SWEEP_TICKS = 1200;
+
+    /** 全部の群れを prune し、空になった群れを表から消す(テストからも)。消した数を返す。 */
+    public static int sweep(ServerLevel level) {
+        Map<UUID, CrawlerPack> map = BY_LEVEL.get(level);
+        if (map == null || map.isEmpty()) return 0;
+        int n = 0;
+        java.util.Iterator<CrawlerPack> it = map.values().iterator();
+        while (it.hasNext()) {
+            CrawlerPack p = it.next();
+            p.prune(level);
+            if (p.members.isEmpty()) {
+                it.remove();
+                n++;
+            }
+        }
+        return n;
     }
 
 
