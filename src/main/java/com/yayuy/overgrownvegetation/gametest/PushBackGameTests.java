@@ -443,4 +443,51 @@ public final class PushBackGameTests {
             level.setBlock(bandLow, Blocks.AIR.defaultBlockState(), 3);
         }
     }
+
+    // ---------------------------------------------------------------- 水浸しのブロック(11-18 夜 ユーザーの不具合報告)
+
+    /**
+     * 水浸しの階段・ハーフブロックも汚染される(記録で覆う。置き換えないので水はそのまま残る)。海草など水の中の植物は今までどおり汚染しない。
+     * 帯の列の上なら、水浸しでも汚染されない(押し返しの判定はそのまま効く)。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 40)
+    public static void waterloggedStairsAndSlabsGetCovered(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        var wl = net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED;
+        BlockPos stairsRel = new BlockPos(1, 2, 1), slabRel = new BlockPos(3, 2, 1), guardedRel = new BlockPos(5, 2, 1);
+        BlockState stairs = Blocks.OAK_STAIRS.defaultBlockState().setValue(wl, true);
+        BlockState slab = Blocks.STONE_SLAB.defaultBlockState().setValue(wl, true);
+        helper.setBlock(stairsRel, stairs);
+        helper.setBlock(slabRel, slab);
+        helper.setBlock(guardedRel, slab);
+        BlockPos bandRel = new BlockPos(5, 3, 1);
+        try {
+            for (BlockPos rel : new BlockPos[]{stairsRel, slabRel}) {
+                BlockPos p = helper.absolutePos(rel);
+                BlockState before = level.getBlockState(p);
+                helper.assertTrue(CorruptionRegistry.canCorrupt(level, p, before), "水浸しの " + before.getBlock() + " を汚染できない");
+                BlockState after = CorruptionRegistry.corrupt(level, p, before, level.random);
+                if (!CorruptionRegistry.noChange(before, after)) CorruptionRegistry.placeCorrupted(level, p, before, after, 3);
+                BlockState now = level.getBlockState(p);
+                helper.assertTrue(dirty(level, p), "水浸しの " + before.getBlock() + " が汚染されない");
+                helper.assertTrue(now.getBlock() == before.getBlock(), "置き換わった: " + now);
+                helper.assertTrue(now.hasProperty(wl) && now.getValue(wl), "水が消えた: " + now);
+            }
+            // 海草は今までどおり(水の中の植物を地上の植物にしない)
+            BlockPos grass = helper.absolutePos(new BlockPos(1, 2, 5));
+            helper.setBlock(new BlockPos(1, 2, 5), Blocks.SEAGRASS);
+            helper.assertTrue(!CorruptionRegistry.canCorrupt(level, grass, level.getBlockState(grass)), "海草を汚染できる");
+            // 帯の上(帯の列)は水浸しでも汚染されない
+            helper.setBlock(new BlockPos(5, 1, 1), Blocks.STONE);
+            BlockPos gp = helper.absolutePos(guardedRel);
+            helper.setBlock(bandRel, Blocks.AIR);
+            helper.setBlock(new BlockPos(5, 2, 2), Blocks.STONE);
+            level.setBlock(helper.absolutePos(new BlockPos(5, 2, 3)), ModPushBack.ASH_LIME_BAND.get().defaultBlockState()
+                    .setValue(AshLimeBandBlock.ATTACH, net.minecraft.core.Direction.NORTH), 3); // (5,2,2) の石にくっつく = (5,2,1) も 3×3×3 の内
+            helper.assertTrue(!CorruptionRegistry.canCorrupt(level, gp, level.getBlockState(gp)), "帯のそばの水浸しのハーフが汚染できる");
+            helper.succeed();
+        } finally {
+            helper.setBlock(new BlockPos(5, 2, 3), Blocks.AIR);
+        }
+    }
 }

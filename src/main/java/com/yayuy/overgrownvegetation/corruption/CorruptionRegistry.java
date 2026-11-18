@@ -349,6 +349,20 @@ public final class CorruptionRegistry {
         return COVER_IN_PLACE.contains(state.getBlock());
     }
 
+    /** 水浸し(WATERLOGGED が真)のブロックか。 */
+    static boolean isWaterlogged(BlockState state) {
+        return state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED)
+                && state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED);
+    }
+
+    /**
+     * 水浸しの建築ブロック(記録で覆う物)か(2026-11-18 夜)。関門で水に浸かった欠けたブロックを弾く決まり(海草・昆布を地上の植物にしない)の例外。
+     * 置き換えずに記録で覆うので、水はそのまま残る。
+     */
+    public static boolean waterloggedCoverInPlace(BlockState state) {
+        return isWaterlogged(state) && coversInPlace(state);
+    }
+
     /**
      * 記録で覆う(扉は上下とも。2026-10-05〜10-30 の覆われた扉は上下いっしょに置き換えていた)。
      * 固めた溶岩の玄武岩({@link LavaSolidifier})もここを通す。
@@ -650,12 +664,15 @@ public final class CorruptionRegistry {
                     && OvergrownVegetationConfig.COMMON.convertLavaToBasalt.get()
                     && !(level instanceof ServerLevel server && NetherLedger.active(server));
         }
-        if (state.getFluidState().is(FluidTags.WATER) && !state.isCollisionShapeFullBlock(level, pos)) {
+        if (state.getFluidState().is(FluidTags.WATER) && !state.isCollisionShapeFullBlock(level, pos)
+                && !waterloggedCoverInPlace(state)) {
             // 水に浸かった非充填ブロック(海草・昆布・水没した装飾ブロックなど)は汚染対象外。
             // これらを「地上の植物」へ変換しても、水がすぐ流れ込んで壊れ、アイテムが水面に
             // 大量に散らばるだけになる(要望: 地上に生える植物は水中に生えないようにする)。
             // 水中用の汚染植物は今後追加予定。土・砂・石などの水を含まない地面ブロックは
             // fluidState が空なのでこのチェックを通らず、通常どおり汚染される。
+            // 2026-11-18 夜(ユーザーの不具合報告「水を含むブロックが汚染されない。階段とかハーフブロック」): 水浸しの建築ブロック
+            // (階段・ハーフ・フェンス・壁など。記録で覆う物)は通す。置き換えずに記録で覆うので、水はそのまま残る(waterloggedCoverInPlace)。
             return false;
         }
         if (state.is(ModTags.CORRUPTED) || state.is(ModTags.CORRUPTION_IMMUNE)) {
@@ -901,6 +918,9 @@ public final class CorruptionRegistry {
         // 原木・木は 2026-11-01 から過繁茂した木材に化けない(覆われた版 7:過繁茂ブロック 3)。
         // 2026-10-30 から「覆われた版」は元のまま記録で覆うこと —— ここでは元の状態をそのまま返し、位置付きの corrupt() が記録を書く
         // (呼び出し元は noChange で素通りし、対応表に無いブロックを覆ったときと同じ後処理になる)。
+        if (COVER_IN_PLACE.contains(state.getBlock()) && isWaterlogged(state)) {
+            return state; // 水浸しなら置き換えずに記録で覆うだけ(置き換え先が水を持てないと水が消えるため。2026-11-18 夜)
+        }
         if (COVER_IN_PLACE.contains(state.getBlock())) {
             BlockState wood = overgrownWoodCounterpart(state);
             BlockState counterpart = overgrownCounterpart(state);
