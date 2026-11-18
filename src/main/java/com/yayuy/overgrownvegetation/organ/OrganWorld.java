@@ -202,13 +202,15 @@ public final class OrganWorld {
                 if (!OrganWorld.ready(level, o.x >> 4, o.z >> 4)) continue;
                 int before = budget;
                 long s0 = System.nanoTime();
-                long c0 = OrganMeter.cpuNanos(), g0 = OrganMeter.gcMillis();
+                // CPU 時間・GC の合計は、大群の測り(HordeMeter)を回している間だけ取る(11-18 見直し ②13。前は器官ごとに毎 tick 取っていた)
+                boolean detail = com.yayuy.overgrownvegetation.perf.HordeMeter.on;
+                long c0 = detail ? OrganMeter.cpuNanos() : 0L, g0 = detail ? OrganMeter.gcMillis() : 0L;
                 boolean wasResolved = o.resolved();
                 int placedBefore = o.placed;
                 budget = step(level, data, o, now, budget);
                 long took = System.nanoTime() - s0;
                 if (took > 5_000_000L) OrganMeter.slow(String.format(java.util.Locale.ROOT, "#%d %s%s %.1f ms(CPU %.1f・GC %d)置いた %d 芽 %s", o.id, o.kind.id,
-                        o.small ? "(小)" : "", took / 1e6, (OrganMeter.cpuNanos() - c0) / 1e6, OrganMeter.gcMillis() - g0,
+                        o.small ? "(小)" : "", took / 1e6, detail ? (OrganMeter.cpuNanos() - c0) / 1e6 : Double.NaN, detail ? OrganMeter.gcMillis() - g0 : -1L,
                         o.placed - placedBefore, wasResolved ? "-" : "置いた"));
                 done += before - budget;
                 OrganMeter.blocks(before - budget);

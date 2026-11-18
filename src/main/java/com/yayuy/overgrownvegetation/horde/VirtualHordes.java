@@ -470,6 +470,8 @@ public final class VirtualHordes extends SavedData {
         int budget = Math.min(room, t.virtualSpawnPerRun);
         RandomSource random = level.getRandom();
         double raid = liveRaid(level);
+        // 襲撃の上限の数え(拠点ごとの攻め手)はこの回に 1 度だけ数え、出した分を足していく(11-18 見直し ③6。前は群れごとに全エンティティを数え直した)
+        it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap raidCount = new it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap();
         Iterator<Swarm> it = swarms.iterator();
         while (it.hasNext()) {
             Swarm s = it.next();
@@ -480,7 +482,7 @@ public final class VirtualHordes extends SavedData {
                 continue; // 読み込み範囲の外・読み込み途中: 仮想のまま(進み続ける)
             }
             // 襲撃の群れは、その襲撃の同時の上限(大規模レイドの maxAlive。重さの安全弁)も守る。値段は仮想を出した時に払い済み
-            int own = VirtualRaids.room(level, s);
+            int own = VirtualRaids.room(level, s, raidCount);
             if (budget <= 0 || own <= 0) {
                 s.waiting = true; // 本物の上限・この回の数の上限・襲撃の上限: その場で待つ
                 holdOutside(level, s, t);
@@ -527,6 +529,9 @@ public final class VirtualHordes extends SavedData {
             }
             s.counts.values().removeIf(v -> v <= 0);
             budget += rest;
+            if (placed > 0 && raidCount.containsKey(s.baseId) && com.yayuy.overgrownvegetation.director.LargeRaids.ATTACKER_TAG.equals(s.extraTag)) {
+                raidCount.addTo(s.baseId, placed);
+            }
             materialized += placed;
             if (s.size() <= 0) {
                 it.remove();

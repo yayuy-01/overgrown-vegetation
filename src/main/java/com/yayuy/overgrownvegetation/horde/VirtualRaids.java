@@ -46,6 +46,15 @@ public final class VirtualRaids {
     /**
      * 群れのうち、その襲撃の同時の上限で今いくつ本物にしてよいか。大規模レイドの群れは maxAlive − 今の攻め手、ほかは上限なし。
      */
+    public static int room(ServerLevel level, VirtualHordes.Swarm s, it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap counted) {
+        if (!LargeRaids.ATTACKER_TAG.equals(s.extraTag)) return Integer.MAX_VALUE;
+        BaseMemory.Base b = BaseMemory.get(level.getServer()).byId(s.baseId);
+        if (b == null) return 0;
+        // 同じ回の群れどうしは数えを使い回す(呼ぶ側が出した分を足す。11-18 見直し ③6)
+        if (!counted.containsKey(s.baseId)) counted.put(s.baseId, attackers(level, b)[0]);
+        return Math.max(0, LargeRaids.maxAlive() - counted.get(s.baseId));
+    }
+
     public static int room(ServerLevel level, VirtualHordes.Swarm s) {
         if (!LargeRaids.ATTACKER_TAG.equals(s.extraTag)) return Integer.MAX_VALUE;
         BaseMemory.Base b = BaseMemory.get(level.getServer()).byId(s.baseId);

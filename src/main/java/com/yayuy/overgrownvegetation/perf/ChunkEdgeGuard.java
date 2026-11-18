@@ -77,10 +77,18 @@ public final class ChunkEdgeGuard {
     public static volatile boolean replaceEnabled = true;
     /** 元のメソッドなら true だったが読み込み途中だった回数(= 前ならサーバースレッドが待っていた所)を、呼んだ所ごとに。サーバースレッドだけ。 */
     public static final java.util.Map<String, Integer> DIVERGED = new java.util.HashMap<>();
+    /** 測りの外で数えた分の行(呼び元は辿らない)。 */
+    static final String UNTRACED = "(呼び元は /ov perf horde の測りの間だけ)";
 
     private static boolean readyOrOld(ServerLevel sl, int chunkX, int chunkZ) {
         if (ready(sl, chunkX, chunkZ)) return true;
         if (!sl.getChunkSource().hasChunk(chunkX, chunkZ)) return false; // 元のメソッドでも読み込まれていない
+        // 呼び元の文字列づくり(スタックを辿る)は、大群の測り(HordeMeter)を回している間だけ。ふだんは数だけ(11-18 見直し ③3。
+        // 前は読み込みの縁でいつも辿って HashMap に足していた)
+        if (!HordeMeter.on) {
+            DIVERGED.merge(UNTRACED, 1, Integer::sum);
+            return !replaceEnabled;
+        }
         String caller = StackWalker.getInstance().walk(s -> s.map(f -> f.getClassName().substring(f.getClassName().lastIndexOf('.') + 1) + "." + f.getMethodName() + ":" + f.getLineNumber())
                 .filter(n -> !n.startsWith("ChunkEdgeGuard.")).findFirst().orElse("?"));
         DIVERGED.merge(caller, 1, Integer::sum);
