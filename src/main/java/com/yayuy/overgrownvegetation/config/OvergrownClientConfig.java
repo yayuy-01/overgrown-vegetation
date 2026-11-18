@@ -77,6 +77,10 @@ public final class OvergrownClientConfig {
         public final ModConfigSpec.IntValue gazeEyeScale;
         public final ModConfigSpec.BooleanValue gazeInnerEyes;
         public final ModConfigSpec.BooleanValue gazePulse;
+        /** 大群の描画(2026-11-18 大群の軽量化 C。client/crowd): GPU スキニング + まとめ描き・遠くの群れの見た目・粗いモデルを描く遠さ。 */
+        public final ModConfigSpec.BooleanValue crowdGpuSkinning;
+        public final ModConfigSpec.EnumValue<com.yayuy.overgrownvegetation.client.crowd.HordeLook> hordeLook;
+        public final ModConfigSpec.IntValue hordeModelFarBlocks;
 
         Client(ModConfigSpec.Builder b) {
             b.push("visual");
@@ -120,6 +124,14 @@ public final class OvergrownClientConfig {
             gazeEyeScale = b.comment("How many eyes open around the screen edge, in percent of the full number (0 = none).").defineInRange("gazeEyeScale", 100, 0, 100);
             gazeInnerEyes = b.comment("Now and then an eye opens for a moment inside the view, near the crosshair.").define("gazeInnerEyes", true);
             gazePulse = b.comment("The dark screen edge throbs like a heartbeat.").define("gazePulse", true);
+            b.pop();
+            b.comment("Drawing large hordes (2026-11-18).").push("horde");
+            crowdGpuSkinning = b.comment("Draw crowds of the same plant-side mob together on the GPU (GPU skinning). Turn off only if mobs look wrong on your graphics card.")
+                    .define("crowdGpuSkinning", true);
+            hordeLook = b.comment("How far hordes (before they become real mobs) are drawn: COMBINED = rough models up to hordeModelFarBlocks, flat pictures beyond; SPRITE = flat pictures only (lightest); MODEL = rough models only. Provisional default COMBINED.")
+                    .defineEnum("hordeLook", com.yayuy.overgrownvegetation.client.crowd.HordeLook.COMBINED);
+            hordeModelFarBlocks = b.comment("With COMBINED, how far (blocks) far hordes are drawn as rough models before switching to flat pictures. Provisional 128.")
+                    .defineInRange("hordeModelFarBlocks", 128, 64, 512);
             b.pop();
         }
     }

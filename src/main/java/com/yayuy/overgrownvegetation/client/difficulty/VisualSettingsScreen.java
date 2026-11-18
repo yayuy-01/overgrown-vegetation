@@ -100,7 +100,9 @@ public final class VisualSettingsScreen extends Screen {
                 new Toggle("simple_ao", c.simpleAo, atmosphere),
                 new Percent("gaze_eye_scale", c.gazeEyeScale, 0, 100, "%").section("watched"),
                 new Toggle("gaze_inner_eyes", c.gazeInnerEyes),
-                new Toggle("gaze_pulse", c.gazePulse));
+                new Toggle("gaze_pulse", c.gazePulse),
+                new Toggle("crowd_gpu", c.crowdGpuSkinning).section("horde"),   // 大群の描画(11-18 大群の軽量化 C)
+                new Choice<>("horde_look", c.hordeLook, com.yayuy.overgrownvegetation.client.crowd.HordeLook.values()));
     }
 
     /** 今の手元の値がどの段階と全部一致するか(どれとも違えば null = カスタム)。 */

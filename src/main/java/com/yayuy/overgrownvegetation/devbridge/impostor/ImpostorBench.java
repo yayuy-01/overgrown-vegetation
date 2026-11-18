@@ -54,7 +54,7 @@ import java.util.function.Consumer;
  */
 public final class ImpostorBench {
 
-    private enum Mode { OFF, SPRITE, MODEL }
+    private enum Mode { OFF, SPRITE, MODEL, COMBO }
 
     private static Mode mode = Mode.OFF;
     private static EntityType<?> type;
@@ -84,7 +84,7 @@ public final class ImpostorBench {
         type = BuiltInRegistries.ENTITY_TYPE.get(id);
         int n = Integer.parseInt(p[2]);
         float near = Float.parseFloat(p[3]), far = Float.parseFloat(p[4]);
-        mode = p[0].equalsIgnoreCase("sprite") ? Mode.SPRITE : Mode.MODEL;
+        mode = p[0].equalsIgnoreCase("sprite") ? Mode.SPRITE : p[0].equalsIgnoreCase("combo") ? Mode.COMBO : Mode.MODEL;
         place(mc.level, mc.player.position(), mc.player.getYRot(), n, near, far);
         if (!registered) {
             NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, ImpostorBench::onStage);
@@ -112,7 +112,8 @@ public final class ImpostorBench {
             xs[i] = (float) x;
             ys[i] = y;
             zs[i] = (float) z;
-            yaws[i] = r.nextFloat() * 360.0F;
+            // カメラ(置いた時のプレイヤー)の方を向いて迫ってくる向き ± 25°
+            yaws[i] = (float) Math.toDegrees(Math.atan2(-(at.x - x), at.z - z)) + (r.nextFloat() * 2.0F - 1.0F) * 25.0F;
             pos.set(bx, y, bz);
             lights[i] = LevelRenderer.getLightColor(level, pos);
         }
@@ -134,10 +135,12 @@ public final class ImpostorBench {
         BakedGeoModel baked = model.getBakedModel(modelRes);
         Vec3 cam = event.getCamera().getPosition();
         float scale = geo.crowdScale();
-        if (mode == Mode.MODEL && event.getStage() == RenderLevelStageEvent.Stage.AFTER_CUTOUT_BLOCKS) {
-            submitModels(baked, RenderType.entityCutoutNoCull(tex), cam, scale);
-        } else if (mode == Mode.SPRITE && event.getStage() == RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
-            drawSprites(baked, tex, cam, scale);
+        // 組み合わせ: カメラから hordeModelFarBlocks(画面側の設定【仮】128)より近い身代わりは粗いモデル、遠いのは絵の板
+        double split = mode == Mode.COMBO ? farBlocks() : mode == Mode.MODEL ? Double.MAX_VALUE : -1.0D;
+        if (mode != Mode.SPRITE && event.getStage() == RenderLevelStageEvent.Stage.AFTER_CUTOUT_BLOCKS) {
+            submitModels(baked, RenderType.entityCutoutNoCull(tex), cam, scale, split);
+        } else if (mode != Mode.MODEL && event.getStage() == RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
+            drawSprites(baked, tex, cam, scale, split);
         }
     }
 
@@ -147,7 +150,20 @@ public final class ImpostorBench {
     private static final List<Matrix3f> BONE_NORMAL = new ArrayList<>();
     private static final List<Boolean> BONE_VISIBLE = new ArrayList<>();
 
-    private static void submitModels(BakedGeoModel baked, RenderType rt, Vec3 cam, float scale) {
+    private static double farBlocks() {
+        try {
+            return com.yayuy.overgrownvegetation.config.OvergrownClientConfig.CLIENT.hordeModelFarBlocks.get();
+        } catch (IllegalStateException e) {
+            return 128.0D;
+        }
+    }
+
+    private static boolean nearer(int i, Vec3 cam, double split) {
+        double dx = xs[i] - cam.x, dy = ys[i] - cam.y, dz = zs[i] - cam.z;
+        return dx * dx + dy * dy + dz * dz < split * split;
+    }
+
+    private static void submitModels(BakedGeoModel baked, RenderType rt, Vec3 cam, float scale, double split) {
         if (!CrowdDraw.capturing()) return;
         CrowdDraw.Batch batch = CrowdDraw.batch(baked, rt);
         if (batch == null) return;
@@ -160,6 +176,7 @@ public final class ImpostorBench {
         PoseStack inst = new PoseStack();
         PoseStack out = new PoseStack();
         for (int i = 0; i < count; i++) {
+            if (!nearer(i, cam, split)) continue;
             inst.setIdentity();
             inst.translate(xs[i] - cam.x, ys[i] - cam.y, zs[i] - cam.z);
             inst.scale(scale, scale, scale);
@@ -193,7 +210,7 @@ public final class ImpostorBench {
 
     // ------------------------------------------------------------------ 2 次元の絵
 
-    private static void drawSprites(BakedGeoModel baked, ResourceLocation tex, Vec3 cam, float scale) {
+    private static void drawSprites(BakedGeoModel baked, ResourceLocation tex, Vec3 cam, float scale, double split) {
         Minecraft mc = Minecraft.getInstance();
         if (sheet == null || sheetFor != type) buildSheet(baked, tex);
         if (sheet == null) return;
@@ -203,6 +220,7 @@ public final class ImpostorBench {
         float left = -sheet.originX() * px, right = (sheet.frameWidth() - sheet.originX()) * px;
         float top = sheet.originY() * px, bottom = (sheet.originY() - sheet.frameHeight()) * px;
         for (int i = 0; i < count; i++) {
+            if (split > 0.0D && nearer(i, cam, split)) continue;
             double dx = xs[i] - cam.x, dz = zs[i] - cam.z;
             double h = Math.sqrt(dx * dx + dz * dz);
             if (h < 1.0E-4D) continue;

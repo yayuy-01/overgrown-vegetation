@@ -75,6 +75,16 @@ public final class CrowdDraw {
     private CrowdDraw() {
     }
 
+    /** 確かめ用の切り替えと、画面側の設定 crowdGpuSkinning(見た目の設定の「大群」)の両方が入りか。 */
+    public static boolean on() {
+        if (!enabled) return false;
+        try {
+            return com.yayuy.overgrownvegetation.config.OvergrownClientConfig.CLIENT.crowdGpuSkinning.get();
+        } catch (IllegalStateException e) {
+            return true;   // 設定を読む前
+        }
+    }
+
     /** 今、集めてよいか(ワールドの Mob の段の中・シェーダーがある・シェーダーパックを使っていない)。 */
     public static boolean capturing() {
         return capturing;
@@ -108,7 +118,7 @@ public final class CrowdDraw {
         if (stage == RenderLevelStageEvent.Stage.AFTER_CUTOUT_BLOCKS) {
             for (Batch b : ACTIVE) b.reset();   // 前のフレームで描けなかった分は捨てる
             ACTIVE.clear();
-            capturing = enabled && CrowdShader.shader() != null && !ShaderPacks.active();
+            capturing = on() && CrowdShader.shader() != null && !ShaderPacks.active();
         } else if (stage == RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
             capturing = false;
             drawAll(event.getModelViewMatrix(), event.getProjectionMatrix());

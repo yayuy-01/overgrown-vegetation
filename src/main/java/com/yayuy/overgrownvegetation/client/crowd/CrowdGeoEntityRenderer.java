@@ -47,6 +47,22 @@ public class CrowdGeoEntityRenderer<T extends Entity & GeoAnimatable> extends Ge
         return this.scaleWidth;
     }
 
+    /**
+     * まとめ描きに乗る種は、本物になる距離(perf.json の virtualHorde.materializeBlocks【仮】64)まで描く(11-18)。バニラは体の大きさで
+     * 描く遠さを決めるので、グレガリア(幅 0.7)は約 37 ブロックより先を描かず、本物(64 まで)と遠くの身代わり(64 から)の間に何も見えない帯ができた。
+     * まとめ描きで 1 体の重さが小さくなったので広げる。視錐台の外はいつも通り描かない。
+     */
+    @Override
+    public boolean shouldRender(T entity, net.minecraft.client.renderer.culling.Frustum frustum, double camX, double camY, double camZ) {
+        if (this.crowd && CrowdDraw.on() && !ShaderPacks.active()) {
+            double far = com.yayuy.overgrownvegetation.data.DesignData.perf().virtualMaterializeBlocks;
+            if (entity.distanceToSqr(camX, camY, camZ) <= far * far) {
+                return entity.noCulling || frustum.isVisible(entity.getBoundingBoxForCulling().inflate(0.5D));
+            }
+        }
+        return super.shouldRender(entity, frustum, camX, camY, camZ);
+    }
+
     protected boolean crowdEligible(T animatable, @Nullable RenderType renderType) {
         if (!this.crowd || renderType == null || !CrowdDraw.capturing() || !getRenderLayers().isEmpty()) return false;
         if (animatable.isInvisible() || Minecraft.getInstance().shouldEntityAppearGlowing(animatable)) return false;
