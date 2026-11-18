@@ -17,6 +17,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -31,11 +32,16 @@ public class AshLimeBandBlock extends Block {
     public static final MapCodec<AshLimeBandBlock> CODEC = simpleCodec(AshLimeBandBlock::new);
     /** 止めた回数(すり減り)。 */
     public static final IntegerProperty WEAR = IntegerProperty.create("wear", 0, 15);
-    private static final VoxelShape SHAPE = Block.box(0, 0, 0, 16, 1, 16);
+    /** くっついているブロックの向き(下 = 地面・上 = 天井・横 = 壁)。11-18 夜 ユーザー「壁とかブロックの底面にも設置できるように」。 */
+    public static final net.minecraft.world.level.block.state.properties.DirectionProperty ATTACH = BlockStateProperties.FACING;
+    private static final java.util.Map<Direction, VoxelShape> SHAPES = new java.util.EnumMap<>(java.util.Map.of(
+            Direction.DOWN, Block.box(0, 0, 0, 16, 1, 16), Direction.UP, Block.box(0, 15, 0, 16, 16, 16),
+            Direction.NORTH, Block.box(0, 0, 0, 16, 16, 1), Direction.SOUTH, Block.box(0, 0, 15, 16, 16, 16),
+            Direction.WEST, Block.box(0, 0, 0, 1, 16, 16), Direction.EAST, Block.box(15, 0, 0, 16, 16, 16)));
 
     public AshLimeBandBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(WEAR, 0));
+        registerDefaultState(stateDefinition.any().setValue(WEAR, 0).setValue(ATTACH, Direction.DOWN));
     }
 
     @Override
@@ -45,12 +51,12 @@ public class AshLimeBandBlock extends Block {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(WEAR);
+        builder.add(WEAR, ATTACH);
     }
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return SHAPE;
+        return SHAPES.get(state.getValue(ATTACH));
     }
 
     @Override
@@ -60,20 +66,28 @@ public class AshLimeBandBlock extends Block {
 
     @Override
     protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
-        BlockPos below = pos.below();
-        return level.getBlockState(below).isFaceSturdy(level, below, Direction.UP);
+        Direction d = state.getValue(ATTACH);
+        BlockPos support = pos.relative(d);
+        return level.getBlockState(support).isFaceSturdy(level, support, d.getOpposite());
+    }
+
+    /** 撒いた面にくっつく(地面・壁・天井)。くっつけない面なら置けない。 */
+    @Override
+    public BlockState getStateForPlacement(net.minecraft.world.item.context.BlockPlaceContext ctx) {
+        BlockState s = defaultBlockState().setValue(ATTACH, ctx.getClickedFace().getOpposite());
+        return canSurvive(s, ctx.getLevel(), ctx.getClickedPos()) ? s : null;
     }
 
     @Override
     protected BlockState updateShape(BlockState state, Direction dir, BlockState neighbor, LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
-        return dir == Direction.DOWN && !canSurvive(state, level, pos) ? Blocks.AIR.defaultBlockState()
+        return dir == state.getValue(ATTACH) && !canSurvive(state, level, pos) ? Blocks.AIR.defaultBlockState()
                 : super.updateShape(state, dir, neighbor, level, pos, neighborPos);
     }
 
     @Override
     protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState old, boolean moved) {
         super.onPlace(state, level, pos, old, moved);
-        if (level instanceof ServerLevel server && !old.is(this)) RingWards.addBand(server, pos);
+        if (level instanceof ServerLevel server && !old.is(this)) RingWards.addBand(server, pos, state.getValue(ATTACH));
     }
 
     @Override

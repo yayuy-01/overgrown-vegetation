@@ -391,4 +391,56 @@ public final class PushBackGameTests {
             bandLine(helper, Blocks.AIR.defaultBlockState());
         }
     }
+
+    // ---------------------------------------------------------------- 壁・天井の帯(11-18 夜 ユーザー「壁とかブロックの底面にも」)
+
+    private static boolean dirty(ServerLevel level, BlockPos p) {
+        return com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.isCorruptedCell(level, p, level.getBlockState(p));
+    }
+
+    /**
+     * 洞窟の壁を 26 方向に這う汚染は、トンネルの壁と天井に撒いた帯の線で止まる(手前までは這う)。
+     * トンネル(東西に 10・高さ 2・幅 1)の真ん中に、北の壁にくっつく帯と南の壁にくっつく帯を 1 つずつ置いて輪にする。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 100)
+    public static void caveWallCreepStopsAtWallBand(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        int cx = 630_017, cz = 630_001;
+        level.getChunk(cx, cz);
+        int x0 = cx * 16 + 2, z0 = cz * 16 + 4, y0 = 130; // 前の実行の箱(y 100 前後)から離す
+        // 岩は厚く(外の空気に面した箱の外側の面を伝って帯を回り込まないように。本物の洞窟は岩に囲まれている)
+        for (int x = x0 - 2; x <= x0 + 13; x++)
+            for (int y = y0 - 2; y <= y0 + 10; y++)
+                for (int z = z0 - 2; z <= z0 + 6; z++) {
+                    boolean tunnel = x >= x0 + 1 && x <= x0 + 10 && z == z0 + 2 && (y == y0 + 3 || y == y0 + 4);
+                    level.setBlock(new BlockPos(x, y, z), tunnel ? Blocks.AIR.defaultBlockState() : Blocks.STONE.defaultBlockState(), net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
+                }
+        BlockState band = ModPushBack.ASH_LIME_BAND.get().defaultBlockState();
+        BlockPos bandHigh = new BlockPos(x0 + 5, y0 + 4, z0 + 2), bandLow = new BlockPos(x0 + 5, y0 + 3, z0 + 2);
+        level.setBlock(bandHigh, band.setValue(AshLimeBandBlock.ATTACH, net.minecraft.core.Direction.NORTH), 3);
+        level.setBlock(bandLow, band.setValue(AshLimeBandBlock.ATTACH, net.minecraft.core.Direction.SOUTH), 3);
+        try {
+            helper.assertTrue(level.getBlockState(bandHigh).getBlock() instanceof AshLimeBandBlock
+                    && level.getBlockState(bandLow).getBlock() instanceof AshLimeBandBlock, "壁に帯がくっつかない");
+            BlockPos start = new BlockPos(x0 + 1, y0 + 2, z0 + 2);
+            BlockState st = level.getBlockState(start);
+            BlockState corrupted = CorruptionRegistry.corrupt(level, start, st, level.random);
+            if (!CorruptionRegistry.noChange(st, corrupted)) CorruptionRegistry.placeCorrupted(level, start, st, corrupted, net.minecraft.world.level.block.Block.UPDATE_ALL);
+            helper.assertTrue(dirty(level, start), "テストの前提: 元の床が汚染されない");
+            com.yayuy.overgrownvegetation.spore.field.CaveWallCreep.seedForTests(level, start);
+            BlockPos before = new BlockPos(x0 + 3, y0 + 2, z0 + 2);
+            for (int i = 0; i < 400; i++) {
+                com.yayuy.overgrownvegetation.spore.field.CaveWallCreep.runForTests(level, 5);
+            }
+            helper.assertTrue(dirty(level, before), "帯の手前まで這わない(テストの前提)");
+            for (int x = x0 + 4; x <= x0 + 10; x++)
+                for (int y = y0 + 2; y <= y0 + 5; y++)
+                    for (int z = z0 + 1; z <= z0 + 3; z++)
+                        helper.assertTrue(!dirty(level, new BlockPos(x, y, z)), "壁の帯を越えて這った: " + (x - x0) + "," + (y - y0) + "," + (z - z0));
+            helper.succeed();
+        } finally {
+            level.setBlock(bandHigh, Blocks.AIR.defaultBlockState(), 3);
+            level.setBlock(bandLow, Blocks.AIR.defaultBlockState(), 3);
+        }
+    }
 }

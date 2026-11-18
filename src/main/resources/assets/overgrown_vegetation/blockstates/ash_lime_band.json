@@ -1,1 +1,10 @@
-{ "multipart": [ { "apply": { "model": "overgrown_vegetation:block/ash_lime_band" } } ] }
+{
+  "multipart": [
+    { "when": { "facing": "down" },  "apply": { "model": "overgrown_vegetation:block/ash_lime_band" } },
+    { "when": { "facing": "up" },    "apply": { "model": "overgrown_vegetation:block/ash_lime_band", "x": 180 } },
+    { "when": { "facing": "north" }, "apply": { "model": "overgrown_vegetation:block/ash_lime_band", "x": 270 } },
+    { "when": { "facing": "south" }, "apply": { "model": "overgrown_vegetation:block/ash_lime_band", "x": 90 } },
+    { "when": { "facing": "east" },  "apply": { "model": "overgrown_vegetation:block/ash_lime_band", "x": 270, "y": 90 } },
+    { "when": { "facing": "west" },  "apply": { "model": "overgrown_vegetation:block/ash_lime_band", "x": 270, "y": 270 } }
+  ]
+}

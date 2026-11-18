@@ -51,12 +51,16 @@ public final class RingWards extends SavedData {
 
     // --- 保存するもの ---
     final LongOpenHashSet bands = new LongOpenHashSet();
+    /** 地面以外にくっついた帯 → くっついている向き(Direction の 3D の番号)。地面の帯は載せない。 */
+    final it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap bandDirs = new it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap();
 
     // --- 保存しないもの ---
     /** 帯の列(x, z)→ その列の帯の y の [最小, 最大]。 */
     private final Long2ObjectOpenHashMap<int[]> bandCols = new Long2ObjectOpenHashMap<>();
     /** 帯の列を含むチャンク(近道)。 */
     private final LongOpenHashSet bandChunks = new LongOpenHashSet();
+    /** 壁・天井の帯が守るマス(くっついたブロックのまわり 3×3×3)→ その帯のマス。洞窟の壁を 26 方向に這う一歩でも越えられない厚さ。 */
+    private final it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap bandCells = new it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap();
     private boolean rebuild = true;
     /** 帯のマス → 最後に数えた tick。 */
     private final Long2LongOpenHashMap bandLastHit = new Long2LongOpenHashMap();
@@ -93,12 +97,20 @@ public final class RingWards extends SavedData {
     static RingWards load(CompoundTag tag, HolderLookup.Provider registries) {
         RingWards w = new RingWards();
         for (long l : tag.getLongArray("bands")) w.bands.add(l);
+        long[] dk = tag.getLongArray("dirPos");
+        byte[] dv = tag.getByteArray("dirs");
+        for (int i = 0; i < Math.min(dk.length, dv.length); i++) w.bandDirs.put(dk[i], dv[i]);
         return w;
     }
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.put("bands", new LongArrayTag(bands.toLongArray()));
+        tag.putLongArray("dirPos", bandDirs.keySet().toLongArray());
+        byte[] dv = new byte[bandDirs.size()];
+        int i = 0;
+        for (long k : bandDirs.keySet()) dv[i++] = bandDirs.get(k);
+        tag.putByteArray("dirs", dv);
         return tag;
     }
 
@@ -108,9 +120,12 @@ public final class RingWards extends SavedData {
 
     // ------------------------------------------------------------------ 出入り(ブロックから)
 
-    public static void addBand(ServerLevel level, BlockPos pos) {
+    public static void addBand(ServerLevel level, BlockPos pos, net.minecraft.core.Direction attach) {
         RingWards w = get(level);
-        if (w.bands.add(pos.asLong())) {
+        boolean dirChanged = false;
+        if (attach != net.minecraft.core.Direction.DOWN) dirChanged = w.bandDirs.put(pos.asLong(), (byte) attach.get3DDataValue()) != (byte) attach.get3DDataValue();
+        else dirChanged = w.bandDirs.remove(pos.asLong()) != w.bandDirs.defaultReturnValue();
+        if (w.bands.add(pos.asLong()) || dirChanged) {
             w.setDirty();
             w.rebuild = true;
         }
@@ -118,6 +133,7 @@ public final class RingWards extends SavedData {
 
     public static void removeBand(ServerLevel level, BlockPos pos) {
         RingWards w = get(level);
+        w.bandDirs.remove(pos.asLong());
         if (w.bands.remove(pos.asLong())) {
             w.setDirty();
             w.rebuild = true;
@@ -222,8 +238,9 @@ public final class RingWards extends SavedData {
             if (count) w.payStake(level, stake);
             return true;
         }
-        if (w.bandCols.isEmpty()) return false;
+        if (w.bandCols.isEmpty() && w.bandCells.isEmpty()) return false;
         long hit = w.bandOnColumn(pos.getX(), pos.getZ(), pos.getY());
+        if (hit == Long.MIN_VALUE && !w.bandCells.isEmpty()) hit = w.bandCells.get(pos.asLong());
         if (hit == Long.MIN_VALUE) {
             BlockPos src = SOURCE.get();
             if (src != null) hit = w.firstBandOnSegment(src, pos);
@@ -311,6 +328,7 @@ public final class RingWards extends SavedData {
             int x = (int) Math.round(x0 + (x1 - x0) * f), z = (int) Math.round(z0 + (z1 - z0) * f);
             int y = (int) Math.round(from.getY() + (to.getY() - from.getY()) * f);
             long hit = bandOnColumn(x, z, y);
+            if (hit == Long.MIN_VALUE && !bandCells.isEmpty()) hit = bandCells.get(BlockPos.asLong(x, y, z));
             // 斜めの一歩は角の 2 列も見る(斜めにつながった帯の線のすき間を抜けないように)
             if (hit == Long.MIN_VALUE && x != px && z != pz) {
                 long a = bandOnColumn(x, pz, y), b = bandOnColumn(px, z, y);
@@ -349,8 +367,21 @@ public final class RingWards extends SavedData {
             rebuild = false;
             bandCols.clear();
             bandChunks.clear();
+            bandCells.clear();
+            bandCells.defaultReturnValue(Long.MIN_VALUE);
             for (long b : bands) {
                 int x = BlockPos.getX(b), y = BlockPos.getY(b), z = BlockPos.getZ(b);
+                if (bandDirs.containsKey(b)) {
+                    // 壁・天井の帯: くっついたブロックのまわり 3×3×3 と帯のマス
+                    net.minecraft.core.Direction d = net.minecraft.core.Direction.from3DDataValue(bandDirs.get(b));
+                    int sx = x + d.getStepX(), sy = y + d.getStepY(), sz = z + d.getStepZ();
+                    for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) for (int dz = -1; dz <= 1; dz++) {
+                        bandCells.put(BlockPos.asLong(sx + dx, sy + dy, sz + dz), b);
+                        bandChunks.add(ChunkPos.asLong((sx + dx) >> 4, (sz + dz) >> 4));
+                    }
+                    bandCells.put(b, b);
+                    continue;
+                }
                 int[] ys = bandCols.computeIfAbsent(ChunkPos.asLong(x, z), k -> new int[]{Integer.MAX_VALUE, Integer.MIN_VALUE});
                 ys[0] = Math.min(ys[0], y);
                 ys[1] = Math.max(ys[1], y);
