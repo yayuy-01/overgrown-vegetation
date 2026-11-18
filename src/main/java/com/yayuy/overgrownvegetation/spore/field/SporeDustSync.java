@@ -62,6 +62,11 @@ final class SporeDustSync {
         }
     }
 
+    /** そのプレイヤーの前に送った物を忘れる(ログアウト。同じ専用サーバーへ入り直したとき、場が変わるのを待たずに送り直す。見直し第 2 回 ④2)。 */
+    static void forget(UUID player) {
+        LAST.remove(player);
+    }
+
     /** ワールドを閉じたら忘れる(次に入ったときに必ず送り直す)。 */
     static void clear() {
         LAST.clear();

@@ -88,6 +88,7 @@ final class LedgerSpreadCatchUp {
         long key = pos.toLong();
         data.removePending(key);
         if (SporeDeviceData.guardsChunkFromLedger(level, pos.x, pos.z)) {
+            SporeSprouts.clearFresh(level, key); // 書き換えずに終わる: 発芽の印を残さない(見直し第 2 回 ⑤6)
             return false;
         }
         SporeFieldServer.Cell fieldCell = SporeFieldServer.enabled() ? SporeFieldServer.cell(pos.x, pos.z) : null;

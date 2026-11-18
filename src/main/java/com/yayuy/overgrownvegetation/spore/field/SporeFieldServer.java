@@ -315,6 +315,12 @@ public final class SporeFieldServer {
 
     // ---------------------------------------------------------------- 始まりと終わり
 
+    /** ログアウト: 粉の見た目の「前に送った物」を忘れる(入り直しで粉がすぐ見えるように。見直し第 2 回 ④2)。 */
+    @SubscribeEvent
+    public static void onLogout(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
+        SporeDustSync.forget(event.getEntity().getUUID());
+    }
+
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {
         MinecraftServer server = event.getServer();

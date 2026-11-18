@@ -75,6 +75,8 @@ public final class SporeSprouts {
         final LongOpenHashSet fresh = new LongOpenHashSet();
         /** 読み込まれた、萌芽体の数を見直すチャンク。 */
         final LongLinkedOpenHashSet check = new LongLinkedOpenHashSet();
+        /** 見直しで、チャンクがまだ取れなかった回数(読み込みの通知の直後。上限 {@link #CHECK_RETRY} まで積み直す。見直し第 2 回 ⑤1)。 */
+        final it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap checkRetry = new it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap();
         /** 読み込んだチャンクにあった、広げ終えていない株(次の tick で点にする。読み込みの最中にブロックを書かない)。 */
         final LongOpenHashSet pendingRooted = new LongOpenHashSet();
         /**
@@ -91,6 +93,8 @@ public final class SporeSprouts {
 
     private static final java.util.Map<net.minecraft.resources.ResourceKey<Level>, Dim> DIMS = new java.util.HashMap<>();
     private static final int CHECKS_PER_TICK = 8;
+    /** 見直しでチャンクが取れないとき、積み直す回数の上限(1 tick に 1 回まで = 最大この tick 数待つ)。 */
+    private static final int CHECK_RETRY = 40;
 
     /** 胞子の場の芽・萌芽体が動く次元か(オーバーワールドとネザー)。 */
     public static boolean fieldLevel(Level level) {
@@ -110,6 +114,11 @@ public final class SporeSprouts {
         DIMS.computeIfAbsent(Level.OVERWORLD, k -> new Dim()).fresh.add(chunkKey);
     }
 
+    /** 発芽の印を外す(書き換えずに終わった・台帳から外した。見直し第 2 回 ⑤6)。 */
+    public static void clearFresh(ServerLevel level, long chunkKey) {
+        dim(level).fresh.remove(chunkKey);
+    }
+
     /** 読み込まれている間に発芽した(次元を選ぶ版。ネザーの記録から)。 */
     public static void markFresh(ServerLevel level, long chunkKey) {
         dim(level).fresh.add(chunkKey);
@@ -117,6 +126,8 @@ public final class SporeSprouts {
 
     /** 過繁茂にしたばかりのチャンクに芽を置き、萌芽体を出す(サーバースレッド、チャンクと周りが読み込まれていること)。 */
     public static void start(ServerLevel level, ChunkPos pos) {
+        // 印は先に外す(汚染オフ・読み込まれていないで帰るときも残さない。見直し第 2 回 ⑤6)
+        boolean walkers = dim(level).fresh.remove(pos.toLong());
         if (CorruptionSwitch.isOff()) return;
         SporeFieldTable t = DesignData.sporeField();
         RandomSource random = level.random;
@@ -136,7 +147,6 @@ public final class SporeSprouts {
             if (p != null) addPoint(level, p, now + random.nextInt(t.sproutTickInterval() * 4));
         }
         // 萌芽体
-        boolean walkers = dim(level).fresh.remove(pos.toLong());
         int want = sproutCount(level, pos);
         int placed = chunk.getData(ModAttachments.SPROUTS_PLACED);
         for (int k = placed; k < want && !surface.isEmpty(); k++) {
@@ -589,12 +599,23 @@ public final class SporeSprouts {
         if (d.check.isEmpty() || CorruptionSwitch.isOff()) return;
         PhaseData phase = PhaseData.get(level);
         boolean nether = level.dimension() == Level.NETHER;
+        it.unimi.dsi.fastutil.longs.LongArrayList retry = null;
         for (int i = 0; i < CHECKS_PER_TICK && !d.check.isEmpty(); i++) {
             long key = d.check.removeFirstLong();
             ChunkPos pos = new ChunkPos(key);
             LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x, pos.z);
             boolean overgrown = nether ? com.yayuy.overgrownvegetation.corruption.NetherLedgerData.get(level).isOvergrown(key) : phase.isOvergrownChunk(pos);
-            if (chunk == null) continue;
+            if (chunk == null) {
+                // 読み込みの通知の直後はまだ取れないことがある: 捨てずに次の tick へ積み直す(上限付き。同じ tick に同じ鍵を繰り返さない。見直し第 2 回 ⑤1)
+                if (d.checkRetry.addTo(key, 1) < CHECK_RETRY) {
+                    if (retry == null) retry = new it.unimi.dsi.fastutil.longs.LongArrayList();
+                    retry.add(key);
+                } else {
+                    d.checkRetry.remove(key);
+                }
+                continue;
+            }
+            d.checkRetry.remove(key);
             SporeFieldServer.Cell cell = SporeFieldServer.cell(level, pos.x, pos.z);
             if (cell == null) continue;
             // 洞窟の床からの発芽(2026-11-04): 過繁茂かどうかに関わらず、場の回数より少なければ洞窟の床に芽の点を置く
@@ -614,6 +635,7 @@ public final class SporeSprouts {
             }
             if (want > placed) chunk.setData(ModAttachments.SPROUTS_PLACED, want);
         }
+        if (retry != null) d.check.addAll(retry);
     }
 
     @SubscribeEvent

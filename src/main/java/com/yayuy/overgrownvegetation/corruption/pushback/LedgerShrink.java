@@ -202,6 +202,7 @@ public final class LedgerShrink {
         ChunkPos pos = chunk.getPos();
         if (!phase.forgetOvergrownChunk(pos)) return false; // 胞子の場の取り消しもここで
         LedgerSpreadData.get(level.getServer()).removePending(pos.toLong());
+        com.yayuy.overgrownvegetation.spore.field.SporeSprouts.clearFresh(level, pos.toLong());
         chunk.setData(ModAttachments.SPROUTS_PLACED, 0);
         chunk.setData(ModAttachments.CAVE_SPROUTS_PLACED, 0);
         boolean handled = false;
