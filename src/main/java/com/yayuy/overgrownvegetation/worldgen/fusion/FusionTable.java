@@ -31,6 +31,7 @@ public final class FusionTable {
         public Integer heightMin, heightMax, trunkMin, crownMin, crownMax, roots, bendEvery, openMin;
         public int[] trunkRadius, trunkRadiusBelow;
         public Integer scanChunks, scanTicks, blocksPerTick;
+        public Double organChance;
         public Double mediumRootStart, mediumRootEnd, mediumRootReach, saplingTrunkRadius, saplingRootStart, saplingRootEnd;
         public Integer mediumRootSteps, mediumRootTargets, mediumTreesPerHouses, mediumTreesMax, organsMax;
         public Integer saplingHeightMin, saplingHeightMax, saplingCrown, saplingRoots;
@@ -91,6 +92,8 @@ public final class FusionTable {
      *  近くの建物 mediumRootTargets 軒(mediumRootReach 以内)へ太い根(mediumRootStart → mediumRootEnd・mediumRootSteps 歩)。器官は全部で organsMax 個まで(0 = 制限しない)。 */
     public final double mediumRootStart, mediumRootEnd, mediumRootReach;
     public final int mediumRootSteps, mediumRootTargets, mediumTreesPerHouses, mediumTreesMax, organsMax;
+    /** 一番大きい建物のほかの建物(城壁など細長い部品も)に、1 つずつこの確率で小さい器官(段 2d、11-19 ユーザー「器官の数はランダムでいこう」)。 */
+    public final double organChance;
     /** 構造物の上・中に植わった苗の木(段 2b): 高さ・幹の半径・樹冠・根の本数と太さ。幹が通らなければ育てない。 */
     public final int saplingHeightMin, saplingHeightMax, saplingCrown, saplingRoots;
     public final double saplingTrunkRadius, saplingRootStart, saplingRootEnd;
@@ -160,7 +163,8 @@ public final class FusionTable {
         mediumRootTargets = Math.max(0, Math.min(8, or(tj.mediumRootTargets, 2)));
         mediumTreesPerHouses = Math.max(1, or(tj.mediumTreesPerHouses, 3));
         mediumTreesMax = Math.max(0, Math.min(8, or(tj.mediumTreesMax, 2)));
-        organsMax = Math.max(0, or(tj.organsMax, 16)); // 0 = 制限しない。11-19 全体管理: 器官の総数は 16 まで(「制限しない」はフェーズ・苗床を 1 つに絞らない意味)
+        organsMax = Math.max(0, or(tj.organsMax, 0)); // 0 = 制限しない(11-19 ユーザー「上限も無しに」。砂漠の村に 61 個付くのは仕様)
+        organChance = Math.max(0.0D, Math.min(1.0D, or(tj.organChance, 0.4D)));
         saplingHeightMin = Math.max(4, or(tj.saplingHeightMin, 10));
         saplingHeightMax = Math.max(saplingHeightMin, Math.min(40, or(tj.saplingHeightMax, 18)));
         saplingCrown = Math.max(2, Math.min(12, or(tj.saplingCrown, 4)));

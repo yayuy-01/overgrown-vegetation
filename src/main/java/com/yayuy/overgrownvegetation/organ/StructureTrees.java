@@ -218,8 +218,8 @@ public final class StructureTrees extends SavedData {
 
     /**
      * 段 2c(11-19 ユーザー「構造物は巨大樹ではなく、中くらいの木によって根に覆われる感じに。器官と融合するのがメイン」。段 2b の A+B の巨大樹をやめた):
-     * 一番大きい建物(細長い部品を除く体積最大)に大きい器官、ほかの建物に小さい器官を 1 つずつ(大きい建物に近い順)、城壁など細長い部品に 2 つ。
-     * 全部で organsMax 個まで。中くらいの木を家 mediumTreesPerHouses 軒に 1 本(mediumTreesMax 本まで)、大きい器官の付いていない大きめの建物から。
+     * 一番大きい建物(細長い部品を除く体積最大)に大きい器官、ほかの建物・城壁など細長い部品に 1 つずつ確率 organChance で小さい器官(段 2d)。
+     * 全部で organsMax 個まで(0 = 無し)。中くらいの木を家 mediumTreesPerHouses 軒に 1 本(mediumTreesMax 本まで)、大きい器官の付いていない大きめの建物から。
      */
     private Start startLarge(ServerLevel level, StructureFusion.Site s, long k, long seed, FusionTable t) {
         List<StructureFusion.Hit> hits = StructureFusion.hits(s);
@@ -253,21 +253,21 @@ public final class StructureTrees extends SavedData {
             double[] a = centerOf(p), b = centerOf(q);
             return Double.compare(Math.hypot(a[0] - bc[0], a[1] - bc[1]), Math.hypot(b[0] - bc[0], b[1] - bc[1]));
         });
+        // 段 2d(11-19 ユーザー「器官の数はランダムでいこう」): ほかの建物・城壁などの細長い部品は、1 つずつ確率 organChance で小さい器官。
+        // 乱数は構造物ごとの種(読み込み直しで変わらない)。総数の上限は organsMax(0 = 無し)
         for (BoundingBox b : rest) {
             if (t.organsMax > 0 && organs >= t.organsMax) break;
+            if (rnd.nextDouble() >= t.organChance) continue;
             int[] f = SMALL_SHAPES[rnd.nextInt(SMALL_SHAPES.length)];
             plantOn(level, data, OrganKind.values()[f[0]], true, f[1], b, centerOf(b), rnd);
             organs++;
         }
         for (BoundingBox w : walls) {
-            for (int j = 0; j < 2 && (t.organsMax <= 0 || organs < t.organsMax); j++) {
-                double frac = (j + 1) / 3.0D;
-                double[] at = {w.getXSpan() >= w.getZSpan() ? w.minX() + frac * w.getXSpan() : (w.minX() + w.maxX() + 1) / 2.0D,
-                        w.getXSpan() < w.getZSpan() ? w.minZ() + frac * w.getZSpan() : (w.minZ() + w.maxZ() + 1) / 2.0D};
-                int[] f = SMALL_SHAPES[rnd.nextInt(SMALL_SHAPES.length)];
-                plantOn(level, data, OrganKind.values()[f[0]], true, f[1], w, at, rnd);
-                organs++;
-            }
+            if (t.organsMax > 0 && organs >= t.organsMax) break;
+            if (rnd.nextDouble() >= t.organChance) continue;
+            int[] f = SMALL_SHAPES[rnd.nextInt(SMALL_SHAPES.length)];
+            plantOn(level, data, OrganKind.values()[f[0]], true, f[1], w, centerOf(w), rnd);
+            organs++;
         }
         // 中くらいの木: 大きい器官の付いていない大きめの建物から(建物が 1 つしか無ければ生やさない。仮)
         int nTree = Math.max(1, Math.min(t.mediumTreesMax, (int) Math.round(houses.size() / (double) t.mediumTreesPerHouses)));

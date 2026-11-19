@@ -670,7 +670,7 @@ public final class StructureFusionGameTests {
                 }
             }
             helper.assertTrue(bigCount == 1 && bigOnHouse, "一番大きい建物に大きい器官が 1 つ付かない(大 " + bigCount + "・家の上 " + bigOnHouse + ")");
-            helper.assertTrue(smallCount == 3, "ほかの建物に小さい器官が 1 つずつ付かない: " + smallCount);
+            helper.assertTrue(smallCount >= 0 && smallCount <= 3, "ほかの建物の小さい器官が 0〜3 個でない(確率 organChance で 1 つずつ): " + smallCount);
             helper.assertTrue(trees.pendingJobs() - jobsBefore == 1, "中くらいの木が 1 本でない: " + (trees.pendingJobs() - jobsBefore));
         } finally {
             for (ForestOrgans.Organ o : new ArrayList<>(data.organs())) if (!before.contains(o.id)) data.remove(o.id);
