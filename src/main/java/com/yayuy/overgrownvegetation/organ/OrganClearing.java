@@ -96,6 +96,8 @@ public final class OrganClearing {
         int extent = EXTENT.computeIfAbsent(bp, b -> {
             int r2 = 0;
             for (long e : b.entries) {
+                int mm = OrganBlueprint.material(e);
+                if (mm == OrganBlueprint.M_VINE || mm == OrganBlueprint.M_VEIN || mm == OrganBlueprint.M_COVER) continue; // 融合の蔦・脈・覆いは払う円に数えない(11-19)
                 int dx = OrganBlueprint.dx(e), dz = OrganBlueprint.dz(e);
                 r2 = Math.max(r2, dx * dx + dz * dz);
             }
@@ -141,6 +143,7 @@ public final class OrganClearing {
             java.util.Random rnd = new java.util.Random(o.seed * 0x2545F4914F6CDD1DL + o.regrowUnder * 131L);
             o.regrowUnder++;
             changed = true;
+            if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, p)) continue; // 構造物の部品の箱には生やさない(11-19 融合 段 1)
             BlockState here = level.getBlockState(p);
             if (!here.isAir() && !(here.canBeReplaced() && !(here.getBlock() instanceof DoublePlantBlock))) continue;
             net.minecraft.util.RandomSource pick = net.minecraft.util.RandomSource.create(rnd.nextLong());
@@ -161,6 +164,7 @@ public final class OrganClearing {
             if (p == null) break;
             o.regrown++;
             changed = true;
+            if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, p)) continue;
             // 下草(2 段の草も)は苗木で置き換える(下草が苗木の場所を取って森が戻らない、を防ぐ)
             BlockState here = level.getBlockState(p);
             if (!here.isAir() && !here.canBeReplaced()) continue;
@@ -184,6 +188,8 @@ public final class OrganClearing {
      * 器官の上・石など受け付けない所は向きを変えて 12 回まで試す。置けたら true。
      */
     static boolean giantSapling(ServerLevel level, ForestOrgans.Organ o, int r) {
+        // 構造物のそばには巨大樹の苗を植えない(11-19 融合 段 1。全体管理の決め H「苗を置く段で弾く」。巨大樹の融合は段 2)
+        if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.anyNear(level, o.x, o.z, r + com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.table().giantStructureAvoid)) return false;
         java.util.Random rnd = new java.util.Random(o.seed * 0x9E3779B97F4A7C15L + 7L);
         BlockState giant = com.yayuy.overgrownvegetation.registry.ModBlocks.GIANT_OVERGROWN_SAPLING.get().defaultBlockState();
         for (int i = 0; i < 12; i++) {
@@ -237,7 +243,7 @@ public final class OrganClearing {
             if (!q.isEmpty()) {
                 p.set(q.dequeueLong());
                 BlockState s = level.getBlockState(p);
-                if (isTree(s) || s.is(BRUSH)) level.setBlock(p, Blocks.AIR.defaultBlockState(), FLAGS);
+                if ((isTree(s) || s.is(BRUSH)) && !com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, p)) level.setBlock(p, Blocks.AIR.defaultBlockState(), FLAGS);
                 budget = timed ? TickBudget.spend(budget) : budget - 1;
                 continue;
             }
@@ -265,6 +271,7 @@ public final class OrganClearing {
             p.set(x, y, z);
             long key = p.asLong();
             if (seen.contains(key)) continue;
+            if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, p)) continue; // 構造物の部品の箱の木(家の柱・生け垣)は払わない(11-19 融合 段 1)
             BlockState s = level.getBlockState(p);
             if (isLog(s)) {
                 tree(level, o, r, p.immutable(), q, seen, t);
@@ -309,6 +316,7 @@ public final class OrganClearing {
                         if (hx * hx + hz * hz > reach) continue;
                         if (n.getY() <= level.getMinBuildHeight() || n.getY() >= level.getMaxBuildHeight()) continue;
                         if (!OrganWorld.ready(level, n.getX() >> 4, n.getZ() >> 4)) continue;
+                        if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, n)) continue; // 構造物の部品の箱へはたどらない(11-19 融合 段 1)
                         BlockState s = level.getBlockState(n);
                         int nd;
                         if (isLog(s)) {

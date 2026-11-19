@@ -87,5 +87,40 @@
     "regrowTallShare": 0.3,
     "regrowSpacing": 8,
     "regrowGiantSapling": true
+  },
+  "_comment_fusion": "構造物と森の融合(11-19 段 1。ユーザー決定「非破壊的に・判定は A + C・0.2.0 に入れる・構造物の大きさで形を変える」。正本は Vault「構造物と森の融合(壊さずに取り込む)(11-19)」)。構造物の判定はゲームの構造物の記録(部品の箱)+ タグ #overgrown_vegetation:fusion_excluded(外す。既定は要塞・廃坑・古代都市・試練の間・埋もれた宝・海底神殿・海底遺跡・難破船)。部品の上端が地表より surfaceMargin 以上下なら地下として外す。守る範囲 = 地表に出ている部品の箱 + pieceMargin: 森の置き物(器官・根のアーチ・地割れ・木・巨大樹)は空気と草花のマスにしか置かない。巨大樹は構造物の部品から giantStructureAvoid 以内では育たない(段 2 の巨大樹の融合まで)。大きさの段: 長い辺 = 横の長い辺か高さの大きい方。部品は pieceMediumSpan・pieceLargeSpan 以上で中・大。全体(地表の部品をまとめた箱)は wholeMediumSpan・wholeLargeSpan 以上、または床面積 wholeLargeArea 以上で大(全体の境目 18/40 は全体管理の試作の仮)。器官: 大きい版は構造物にかかる升に建てない。小さい版は構造物のそばなら融合の形(根元 = 壁の側面・屋根の上・そばの地面。重み anchors は根元を付ける部品の段ごとに [壁, 屋根, 地面]。軸は面の向きから tilt 度起こす。柄 stalkLength・袋 sacLength × sacRadius・芯 coreRadius)。袋から蔦の触手 vines 本(壁まで vineReach 以内・壁に沿って vineStepsMin〜Max 歩)、根元から脈 veinCrawls 本(veinStepsMin〜Max 歩)。触れた壁は覆う(置き換えない)。入口(扉と、外から 2 マスの高さで歩いて入れる壁の穴)の前後 doorClear と横 ±1 は空ける。芯を壊して枯れると vineFadeSeconds 秒後に触手と脈が消え、器官が覆ったマスが剥がれる。司令塔は小さい版を構造物のそばの升に structureWeight[全体の段 小・中・大] だけ点を足して好む。数は全部【仮】。",
+  "fusion": {
+    "enabled": true,
+    "pieceMargin": 1,
+    "surfaceMargin": 3,
+    "giantStructureAvoid": 60.0,
+    "size": {
+      "pieceMediumSpan": 12,
+      "pieceLargeSpan": 24,
+      "wholeMediumSpan": 18,
+      "wholeLargeSpan": 40,
+      "wholeLargeArea": 2500
+    },
+    "structureWeight": [0.3, 0.5, 0.8],
+    "anchors": {
+      "small": [0.4, 0.2, 0.4],
+      "medium": [0.5, 0.3, 0.2],
+      "large": [0.5, 0.3, 0.2]
+    },
+    "searchRadius": 24,
+    "doorClear": 5,
+    "tilt": 35.0,
+    "stalkLength": 4.5,
+    "sacLength": 4.3,
+    "sacRadius": 3.3,
+    "coreRadius": 1.6,
+    "vines": 5,
+    "vineStepsMin": 45,
+    "vineStepsMax": 90,
+    "vineReach": 10,
+    "veinCrawls": 9,
+    "veinStepsMin": 14,
+    "veinStepsMax": 24,
+    "vineFadeSeconds": 60.0
   }
 }

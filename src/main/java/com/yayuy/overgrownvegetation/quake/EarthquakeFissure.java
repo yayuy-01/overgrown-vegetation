@@ -604,6 +604,9 @@ final class EarthquakeFissure {
         if (s.isAir()) {
             return;
         }
+        if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, p)) {
+            return; // 構造物の部品の箱は掘らない(2026-11-19 構造物と森の融合 段 1。裂け目は構造物の手前で途切れる)
+        }
         if (s.getDestroySpeed(level, p) < 0.0F) {
             return;
         }

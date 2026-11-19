@@ -25,6 +25,7 @@ public final class OrganTable {
         public SmallJson small;
         public TentacleJson tentacles;
         public ClearingJson clearing;
+        public com.yayuy.overgrownvegetation.worldgen.fusion.FusionTable.Json fusion;
     }
 
     public static final class RolesJson {
@@ -109,6 +110,9 @@ public final class OrganTable {
     public final double regrowDays, regrowUndergrowthShare, regrowTallShare;
     public final int regrowSpacing, regrowUndergrowthSpacing;
 
+    /** 構造物と森の融合(11-19 段 1)。 */
+    public final com.yayuy.overgrownvegetation.worldgen.fusion.FusionTable fusion;
+
     public static final OrganTable DEFAULT = fromJson(null);
 
     private OrganTable(Json j) {
@@ -186,6 +190,7 @@ public final class OrganTable {
         regrowUndergrowthSpacing = Math.max(1, or(cj.regrowUndergrowthSpacing, 3));
         regrowTallShare = Math.max(0.0D, Math.min(1.0D, or(cj.regrowTallShare, 0.3D)));
         regrowGiantSapling = cj.regrowGiantSapling == null || cj.regrowGiantSapling;
+        fusion = com.yayuy.overgrownvegetation.worldgen.fusion.FusionTable.fromJson(j.fusion);
     }
 
     public static OrganTable fromJson(@Nullable Json j) {

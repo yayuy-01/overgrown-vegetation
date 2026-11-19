@@ -88,6 +88,11 @@ public final class OrganWorld {
     @Nullable
     static OrganBlueprint blueprint(ForestOrgans.Organ o) {
         CompletableFuture<OrganBlueprint> f = BLUEPRINTS.get(o.id);
+        if (f == null && o.fusion != null) {
+            // 融合の器官(11-19): 保存した列から(世界を見て作った形なので作り直さない)
+            f = CompletableFuture.completedFuture(OrganBlueprint.fromEntries(o.fusion, o.seed));
+            BLUEPRINTS.put(o.id, f);
+        }
         if (f == null) {
             f = CompletableFuture.supplyAsync(() -> OrganBlueprint.create(o.kind, o.small, o.variant, o.seed, o.rot), EXEC);
             BLUEPRINTS.put(o.id, f);
@@ -105,7 +110,8 @@ public final class OrganWorld {
     /** すぐに設計図が要るとき(コマンド・テスト)。 */
     static OrganBlueprint blueprintNow(ForestOrgans.Organ o) {
         CompletableFuture<OrganBlueprint> f = BLUEPRINTS.computeIfAbsent(o.id,
-                k -> CompletableFuture.completedFuture(OrganBlueprint.create(o.kind, o.small, o.variant, o.seed, o.rot)));
+                k -> CompletableFuture.completedFuture(o.fusion != null ? OrganBlueprint.fromEntries(o.fusion, o.seed)
+                        : OrganBlueprint.create(o.kind, o.small, o.variant, o.seed, o.rot)));
         return fit(o, f.join());
     }
 
@@ -224,7 +230,20 @@ public final class OrganWorld {
             }
         } finally {
             TickBudget.end(PerfJob.ORGAN_BUILD, start, done);
+            for (int i = 0; i < CANCELLED.size(); i++) data.remove(CANCELLED.getInt(i)); // 回している間は消せないので後で
+            CANCELLED.clear();
         }
+    }
+
+    /** 構造物にかかるので建てない器官(11-19 融合 段 1)。払った値段を返す。 */
+    private static final it.unimi.dsi.fastutil.ints.IntArrayList CANCELLED = new it.unimi.dsi.fastutil.ints.IntArrayList();
+
+    static void cancel(ServerLevel level, ForestOrgans data, ForestOrgans.Organ o) {
+        if (CANCELLED.contains(o.id)) return;
+        CANCELLED.add(o.id);
+        com.yayuy.overgrownvegetation.director.ForestDirector dir = com.yayuy.overgrownvegetation.director.ForestDirector.get(level);
+        dir.refund(level, OrganPlanner.price(level, o.small));
+        dir.note(String.format(java.util.Locale.ROOT, "器官 #%d %s%s は構造物にかかるので建てない(値段を返した)", o.id, o.kind.label, o.small ? "(小)" : ""));
     }
 
     /** 器官 1 つを進める(置く・枯らす)。残りの予算を返す。 */
@@ -238,8 +257,29 @@ public final class OrganWorld {
                 }
             }
             o.y = surface(level, o.x, o.z);
-            if (o.state != ForestOrgans.State.WITHERED) placeBud(level, o);
             data.changed();
+            budget -= 16;
+        }
+        if (!o.fusionChecked) {
+            // 構造物と森の融合(11-19 段 1): 構造物のそばの小さい版は融合の形に、構造物にかかる大きい版は建てない
+            OrganFusion.Result fr = o.state == ForestOrgans.State.WITHERED ? OrganFusion.Result.NORMAL : OrganFusion.decide(level, o);
+            if (fr == OrganFusion.Result.WAIT) return budget;
+            o.fusionChecked = true;
+            data.changed();
+            if (fr == OrganFusion.Result.CANCEL) {
+                cancel(level, data, o);
+                return budget - 16;
+            }
+            if (fr == OrganFusion.Result.FUSED) {
+                BLUEPRINTS.remove(o.id);
+                o.budCleared = true; // 融合の器官は芽を置かない(芯は形の中にすぐ出る)
+                o.total = 0;
+                o.shapeHash = 0;
+                com.yayuy.overgrownvegetation.director.ForestDirector.get(level).note(String.format(java.util.Locale.ROOT,
+                        "器官 #%d %s(小)は構造物のそばなので融合の形で建てる", o.id, o.kind.label));
+            } else if (o.state != ForestOrgans.State.WITHERED) {
+                placeBud(level, o);
+            }
             budget -= 16;
         }
         OrganBlueprint bp = blueprint(o);
@@ -265,7 +305,7 @@ public final class OrganWorld {
                 long e = bp.entries[o.placed];
                 p.set(anchor.getX() + OrganBlueprint.dx(e), anchor.getY() + OrganBlueprint.dy(e), anchor.getZ() + OrganBlueprint.dz(e));
                 if (!OrganWorld.ready(level, p.getX() >> 4, p.getZ() >> 4)) break; // 読み込まれたら続きから
-                place(level, p, e, false);
+                place(level, o, p, e, false);
                 if (OrganBlueprint.material(e) == OrganBlueprint.M_CORE && !o.budCleared) {
                     clearBud(level, o);
                 }
@@ -290,6 +330,11 @@ public final class OrganWorld {
                     changed = true;
                 }
             }
+            if (o.state == ForestOrgans.State.WITHERED && o.fusion != null && !o.fusionCleaned && o.withered >= o.placed
+                    && now - o.witheredAt >= (long) (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.table().vineFadeSeconds * 20.0D)) {
+                cleanFusion(level, o, bp);
+                changed = true;
+            }
         } finally {
             placing = false;
         }
@@ -297,14 +342,64 @@ public final class OrganWorld {
         return budget;
     }
 
+    /**
+     * 枯れた融合の器官の蔦の触手と脈を消し、この器官が覆ったマスを剥がす(11-19 段 1「器官を潰すと触手と覆いは枯れて消える」)。
+     * 器官の本体(柄・袋・芯)は今までの器官と同じく枯れた形が残る(空気のマスにしか無いので、構造物のブロックは元のまま)。
+     * 読み込まれていない所が残れば、次の tick にまた。
+     */
+    static boolean cleanFusion(ServerLevel level, ForestOrgans.Organ o, OrganBlueprint bp) {
+        BlockPos anchor = o.anchor();
+        boolean all = true;
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (long e : bp.entries) {
+            int m = OrganBlueprint.material(e);
+            if (m != OrganBlueprint.M_VINE && m != OrganBlueprint.M_VEIN) continue;
+            p.set(anchor.getX() + OrganBlueprint.dx(e), anchor.getY() + OrganBlueprint.dy(e), anchor.getZ() + OrganBlueprint.dz(e));
+            if (!ready(level, p.getX() >> 4, p.getZ() >> 4)) {
+                all = false;
+                continue;
+            }
+            BlockState s = level.getBlockState(p);
+            if (s.is(OrganBlocks.ORGAN_VINE.get()) || s.is(OrganBlocks.ORGAN_VEIN.get())) level.setBlock(p, Blocks.AIR.defaultBlockState(), FLAGS);
+        }
+        it.unimi.dsi.fastutil.longs.LongArrayList left = new it.unimi.dsi.fastutil.longs.LongArrayList();
+        for (int i = 0; i < o.covered.size(); i++) {
+            long k = o.covered.getLong(i);
+            if (!ready(level, BlockPos.getX(k) >> 4, BlockPos.getZ(k) >> 4)) {
+                left.add(k);
+                continue;
+            }
+            com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.uncover(level, BlockPos.of(k));
+        }
+        o.covered.clear();
+        o.covered.addAll(left);
+        if (all && left.isEmpty()) o.fusionCleaned = true;
+        return o.fusionCleaned;
+    }
+
     private static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
 
     /** 設計図の 1 つを置く。 */
     static void place(ServerLevel level, BlockPos p, long e, boolean force) {
+        place(level, null, p, e, force);
+    }
+
+    /**
+     * 設計図の 1 つを置く。構造物の部品の箱(地表に出ている物。まだ分からない所も)では、空気と置き換えられる草花のマスにしか置かず、
+     * 掘らない(2026-11-19 構造物と森の融合 段 1「壊さずに取り込む」)。覆いの印({@link OrganBlueprint#M_COVER})は、新しく覆えたマスを器官が覚える。
+     */
+    static void place(ServerLevel level, @Nullable ForestOrgans.Organ o, BlockPos p, long e, boolean force) {
         if (p.getY() <= level.getMinBuildHeight() || p.getY() >= level.getMaxBuildHeight() - 1) return;
         BlockState cur = level.getBlockState(p);
-        if (cur.hasBlockEntity() || cur.getDestroySpeed(level, p) < 0.0F) return; // 箱・機械・岩盤は残す
         int mat = OrganBlueprint.material(e);
+        if (mat == OrganBlueprint.M_COVER) {
+            if (com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.canCover(cur)
+                    && com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.cover(level, p) && o != null) o.covered.add(p.asLong());
+            return;
+        }
+        if (cur.hasBlockEntity() || cur.getDestroySpeed(level, p) < 0.0F) return; // 箱・機械・岩盤は残す
+        if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, p)
+                && (mat == OrganBlueprint.M_CARVE || !(cur.isAir() || cur.canBeReplaced()) || !cur.getFluidState().isEmpty())) return;
         BlockState s = stateOf(mat, OrganBlueprint.faces(e));
         if (s == null) return;
         if (mat == OrganBlueprint.M_CARVE) {
@@ -331,6 +426,7 @@ public final class OrganWorld {
             case OrganBlueprint.M_ROOT -> ModBlocks.STIGMARIA.get().defaultBlockState();
             case OrganBlueprint.M_EGG -> OrganBlocks.ORGAN_EGG_MASS.get().defaultBlockState();
             case OrganBlueprint.M_STONE -> ModBlocks.OVERGROWN_STONE.get().defaultBlockState();
+            case OrganBlueprint.M_VINE -> OrganBlocks.ORGAN_VINE.get().defaultBlockState();
             default -> null;
         };
     }
@@ -348,7 +444,7 @@ public final class OrganWorld {
         BlockState cur = level.getBlockState(p);
         if (cur.hasProperty(OrganTissueBlock.WITHERED) && !cur.getValue(OrganTissueBlock.WITHERED)
                 && (cur.is(OrganBlocks.ORGAN_SAC.get()) || cur.is(OrganBlocks.ORGAN_EGG_MASS.get()) || cur.is(OrganBlocks.ORGAN_CORE.get())
-                || cur.is(OrganBlocks.ORGAN_VEIN.get()))) {
+                || cur.is(OrganBlocks.ORGAN_VEIN.get()) || cur.is(OrganBlocks.ORGAN_VINE.get()))) {
             level.setBlock(p, cur.setValue(OrganTissueBlock.WITHERED, true), FLAGS);
         }
     }
@@ -373,7 +469,9 @@ public final class OrganWorld {
                 int sx = x + i * 5, sz = z + j * 5;
                 if (!OrganWorld.ready(level, sx >> 4, sz >> 4)) continue; // 読み込まれていない升を引くとその場で読み込んで止まる(11-18 測り: 最大 71 ms)
                 // 木(幹・葉)・下草を除いた地面(11-19: 前は幹を地面と数え、森では樹冠の上 y=236・262 に建っていた)
-                hs[n++] = OrganClearing.groundY(level, sx, sz);
+                int gy = OrganClearing.groundY(level, sx, sz);
+                if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, new BlockPos(sx, gy, sz))) continue; // 構造物の屋根を地面と数えない(11-19 融合)
+                hs[n++] = gy;
             }
         }
         if (n == 0) return 64;
@@ -387,14 +485,23 @@ public final class OrganWorld {
         BlockPos c = o.anchor().above();
         placing = true;
         try {
-            level.setBlock(c, OrganBlocks.ORGAN_CORE.get().defaultBlockState(), FLAGS);
+            budSet(level, c, OrganBlocks.ORGAN_CORE.get().defaultBlockState());
             for (Direction d : Direction.Plane.HORIZONTAL) {
-                level.setBlock(c.relative(d), OrganBlocks.ORGAN_SAC.get().defaultBlockState(), FLAGS);
+                budSet(level, c.relative(d), OrganBlocks.ORGAN_SAC.get().defaultBlockState());
             }
-            level.setBlock(c.above(), OrganBlocks.ORGAN_SAC.get().defaultBlockState(), FLAGS);
+            budSet(level, c.above(), OrganBlocks.ORGAN_SAC.get().defaultBlockState());
         } finally {
             placing = false;
         }
+    }
+
+    /** 芽の 1 つ。構造物の部品の箱では空気・草花のマスだけ(11-19 融合 段 1)。 */
+    private static void budSet(ServerLevel level, BlockPos p, BlockState s) {
+        if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, p)) {
+            BlockState cur = level.getBlockState(p);
+            if (!(cur.isAir() || cur.canBeReplaced()) || !cur.getFluidState().isEmpty()) return;
+        }
+        level.setBlock(p, s, FLAGS);
     }
 
     /** 芽を片付ける(本物の芯が出たら。枯れたら芽の芯も枯れの状態へ)。 */
@@ -426,6 +533,20 @@ public final class OrganWorld {
         if (!o.resolved()) {
             o.y = surface(level, o.x, o.z);
         }
+        if (!o.fusionChecked) {
+            // 構造物と森の融合(11-19): コマンド・テストでも同じ判定(読み込み待ちはふつうの器官として。置く所で守る)
+            OrganFusion.Result fr = OrganFusion.decide(level, o);
+            o.fusionChecked = true;
+            if (fr == OrganFusion.Result.CANCEL) {
+                data.remove(o.id);
+                return -1;
+            }
+            if (fr == OrganFusion.Result.FUSED) {
+                BLUEPRINTS.remove(o.id);
+                o.total = 0;
+                o.shapeHash = 0;
+            }
+        }
         OrganBlueprint bp = blueprintNow(o);
         OrganClearing.clearNow(level, o, bp);
         o.total = bp.entries.length;
@@ -437,7 +558,7 @@ public final class OrganWorld {
             for (; o.placed < o.total; o.placed++) {
                 long e = bp.entries[o.placed];
                 p.set(anchor.getX() + OrganBlueprint.dx(e), anchor.getY() + OrganBlueprint.dy(e), anchor.getZ() + OrganBlueprint.dz(e));
-                place(level, p, e, true);
+                place(level, o, p, e, true);
                 n++;
             }
             o.budCleared = true;

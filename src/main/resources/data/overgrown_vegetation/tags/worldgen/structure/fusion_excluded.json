@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:stronghold",
+    "minecraft:mineshaft",
+    "minecraft:mineshaft_mesa",
+    "minecraft:ancient_city",
+    "minecraft:trial_chambers",
+    "minecraft:buried_treasure",
+    "minecraft:monument",
+    "minecraft:ocean_ruin_cold",
+    "minecraft:ocean_ruin_warm",
+    "minecraft:shipwreck"
+  ]
+}

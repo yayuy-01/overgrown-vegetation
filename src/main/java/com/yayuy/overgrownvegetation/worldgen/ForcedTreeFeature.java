@@ -714,6 +714,7 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
 
     private static void setForced(WorldGenLevel level, BlockPos pos, BlockState state) {
         if (TreePlacementRules.treeKeeps(level.getBlockState(pos))) return; // 根付いた萌芽体は残す
+        if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, pos)) return; // 構造物の部品の箱には置かない(11-19 融合 段 1。木は欠ける)
         level.setBlock(pos, state, Block.UPDATE_ALL);
     }
 

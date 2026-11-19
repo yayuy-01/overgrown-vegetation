@@ -388,7 +388,8 @@ public final class GiantTreeGrowthQueue {
                 ChunkEdgeGuard.Edge edge = ChunkEdgeGuard.edge(serverLevel, cursorPos, 0);
                 if (edge == ChunkEdgeGuard.Edge.WAIT) break;
                 if (edge == ChunkEdgeGuard.Edge.READY && !TreePlacementRules.treeKeeps(serverLevel.getBlockState(cursorPos))
-                        && !com.yayuy.overgrownvegetation.corruption.pushback.RingWards.guardedFrom(serverLevel, job.trunk.isEmpty() ? null : BlockPos.of(job.trunk.getLong(0)), cursorPos)) { // 根付いた萌芽体は残す。帯の線の向こう・杭の範囲には置かない(押し返し 11-18 夜)
+                        && !com.yayuy.overgrownvegetation.corruption.pushback.RingWards.guardedFrom(serverLevel, job.trunk.isEmpty() ? null : BlockPos.of(job.trunk.getLong(0)), cursorPos)
+                        && !com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(serverLevel, cursorPos)) { // 構造物の部品の箱には置かない(11-19 融合 段 1。巨大樹の融合は段 2) // 根付いた萌芽体は残す。帯の線の向こう・杭の範囲には置かない(押し返し 11-18 夜)
                     serverLevel.setBlock(cursorPos.immutable(), state, UPDATE_FLAGS);
                 }
                 job.cursor++;

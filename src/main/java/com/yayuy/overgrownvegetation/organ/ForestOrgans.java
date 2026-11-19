@@ -79,6 +79,17 @@ public final class ForestOrgans extends SavedData {
         public long nurseryAt, guardAt, crystalAt;
         /** 置いたときの設計図の形の指紋(0 = まだ・11-18 より前の保存)。違えば置き直す(見直し ②1)。 */
         public int shapeHash;
+        /**
+         * 構造物と森の融合(11-19 段 1)。{@code fusionChecked} = 構造物のそばかを見終えた。{@code fusion} = 融合の器官の置く順の列
+         * (世界を見て作るので保存する。null = 普通の器官)。{@code covered} = この器官が新しく覆ったマス(潰したら剥がす)。
+         * {@code fusionCleaned} = 枯れた後に触手と覆いを片付け終えた。
+         */
+        public boolean fusionChecked, fusionCleaned;
+        /** 融合の判定で読み込みを待った tick(保存しない)。 */
+        public int fusionWait;
+        @Nullable
+        public long[] fusion;
+        public final it.unimi.dsi.fastutil.longs.LongArrayList covered = new it.unimi.dsi.fastutil.longs.LongArrayList();
         /** 形の合わせ直しで数を変えた(保存の印を付ける。保存しない)。 */
         boolean refit;
         /** この器官が出した守りの Mob(UUID。上限を数える。11-18 見直し ②4・ユーザー決定 3)。 */
@@ -160,6 +171,10 @@ public final class ForestOrgans extends SavedData {
             t.putLong("GuardAt", guardAt);
             t.putLong("CrystalAt", crystalAt);
             t.putInt("ShapeHash", shapeHash);
+            t.putBoolean("FusionChecked", fusionChecked);
+            t.putBoolean("FusionCleaned", fusionCleaned);
+            if (fusion != null) t.putLongArray("Fusion", fusion);
+            if (!covered.isEmpty()) t.putLongArray("Covered", covered.toLongArray());
             if (!guards.isEmpty()) {
                 ListTag g = new ListTag();
                 for (java.util.UUID u : guards) g.add(net.minecraft.nbt.NbtUtils.createUUID(u));
@@ -196,6 +211,11 @@ public final class ForestOrgans extends SavedData {
             o.guardAt = t.getLong("GuardAt");
             o.crystalAt = t.getLong("CrystalAt");
             o.shapeHash = t.getInt("ShapeHash");
+            // 11-19 より前の保存は、建ち始めていれば見終えた扱い(建った後から融合に変えない)
+            o.fusionChecked = t.contains("FusionChecked") ? t.getBoolean("FusionChecked") : o.resolved();
+            o.fusionCleaned = t.getBoolean("FusionCleaned");
+            if (t.contains("Fusion")) o.fusion = t.getLongArray("Fusion");
+            for (long c : t.getLongArray("Covered")) o.covered.add(c);
             for (Tag g : t.getList("Guards", Tag.TAG_INT_ARRAY)) {
                 try {
                     o.guards.add(net.minecraft.nbt.NbtUtils.loadUUID(g));

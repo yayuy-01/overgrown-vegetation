@@ -544,14 +544,12 @@ public final class SwampTreeFall {
         return Integer.MIN_VALUE;
     }
 
-    /** 生成ストラクチャーのピース(建物 1 棟ぶんの箱)の中か。 */
+    /**
+     * 生成ストラクチャーのピース(建物 1 棟ぶんの箱)の中か。2026-11-19 から構造物と森の融合の口 {@link com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion} へ寄せた
+     * (タグ fusion_excluded で外した構造物と地下の部品は守らない。まだ分からないときは守る側)。
+     */
     private static boolean isInsideStructurePiece(ServerLevel level, BlockPos pos) {
-        // 構造物の参照が 1 つも無いチャンクなら答えは「無い」(2026-10-10、0.1.9 の前の軽量化。TreeBurn と同じ。結果は同じ)
-        net.minecraft.world.level.chunk.LevelChunk chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
-        if (chunk != null && chunk.getAllReferences().isEmpty()) {
-            return false;
-        }
-        return level.structureManager().getStructureWithPieceAt(pos, holder -> true).isValid();
+        return com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.state(level, pos) != com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.NONE;
     }
 
     /** 樹皮を剥いだ原木・木(stripped_*)か。自然の木には現れない。 */

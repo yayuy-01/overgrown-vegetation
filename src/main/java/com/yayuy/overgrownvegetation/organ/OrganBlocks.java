@@ -49,6 +49,13 @@ public final class OrganBlocks {
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_LIGHT_GREEN).noCollission().strength(0.2F).noOcclusion()
                     .sound(SoundType.GLOW_LICHEN).lightLevel(s -> alive(s) ? 9 : 0).pushReaction(PushReaction.DESTROY));
 
+    /**
+     * 融合の器官の蔦の触手(2026-11-19 構造物と森の融合 段 1)。袋から建物の壁へ伸びて巻きつく。空気のマスにだけ置く。
+     * 器官が枯れると {@link OrganTissueBlock#WITHERED} になり、しばらくして消える。絵は仮(過繁茂の原木・枯れは嚢の枯れ色)→ Fable に頼む。
+     */
+    public static final DeferredBlock<Block> ORGAN_VINE = BLOCKS.registerBlock("organ_vine", OrganTissueBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_GREEN).strength(1.0F).sound(SoundType.ROOTS).pushReaction(PushReaction.DESTROY));
+
     /** 根晶の芽(段 3 の結晶。地脈を吸う根で育つ)。壊すと根晶。 */
     public static final DeferredBlock<Block> ROOT_CRYSTAL_CLUSTER = BLOCKS.registerBlock("root_crystal_cluster",
             p -> new AmethystClusterBlock(7.0F, 3.0F, p),
@@ -64,7 +71,7 @@ public final class OrganBlocks {
     public static final DeferredItem<Item> ROOT_CRYSTAL = ITEMS.registerSimpleItem("root_crystal", new Item.Properties());
 
     static {
-        for (DeferredBlock<Block> b : List.of(ORGAN_SAC, ORGAN_EGG_MASS, ORGAN_CORE, ORGAN_VEIN, ROOT_CRYSTAL_CLUSTER, ROOT_CRYSTAL_BLOCK)) {
+        for (DeferredBlock<Block> b : List.of(ORGAN_SAC, ORGAN_EGG_MASS, ORGAN_CORE, ORGAN_VEIN, ORGAN_VINE, ROOT_CRYSTAL_CLUSTER, ROOT_CRYSTAL_BLOCK)) {
             ITEMS.registerSimpleBlockItem(b);
         }
     }

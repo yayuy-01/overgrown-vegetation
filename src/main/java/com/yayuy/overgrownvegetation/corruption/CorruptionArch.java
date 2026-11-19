@@ -63,8 +63,20 @@ public final class CorruptionArch {
         }
 
         int r = Math.max(0, thickness);
+        List<int[]> line = centers(from, to, peakHeight, r);
+        // 構造物の部品の箱(地表に出ている物)にかかるアーチは架けない(2026-11-19 構造物と森の融合 段 1「壊さずに取り込む」)
+        BlockPos.MutableBlockPos probe = new BlockPos.MutableBlockPos();
+        for (int[] c : line) {
+            for (int d = -r; d <= r; d++) {
+                if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, probe.set(c[0] + d, c[1], c[2]))
+                        || com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, probe.set(c[0], c[1] + d, c[2]))
+                        || com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, probe.set(c[0], c[1], c[2] + d))) {
+                    return false;
+                }
+            }
+        }
         boolean placedAny = false;
-        for (int[] c : centers(from, to, peakHeight, r)) {
+        for (int[] c : line) {
             int cx = c[0];
             int cy = c[1];
             int cz = c[2];
@@ -167,6 +179,9 @@ public final class CorruptionArch {
                     }
                     if (com.yayuy.overgrownvegetation.corruption.pushback.RingWards.blocks(level, cursor)) {
                         continue; // 帯の線の向こう・杭の範囲へは根のアーチ・橋・根の先を置かない(押し返し 11-18 夜)
+                    }
+                    if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, cursor)) {
+                        continue; // 構造物の部品の箱には置かない(11-19 融合 段 1。根の先 CorruptionRootTip もここを通る)
                     }
                     BlockPos immutable = cursor.immutable();
                     level.setBlock(immutable, block, Block.UPDATE_ALL);

@@ -23,6 +23,8 @@ public final class OrganBlueprint {
     // 置く材料(OrganShapes の材料をまとめたもの)
     public static final int M_CARVE = 1, M_MOSS = 2, M_LOG = 3, M_GIANT_LOG = 4, M_SAC = 5, M_SAC_WITHERED = 6, M_VEIN = 7,
             M_CORE = 8, M_CRYSTAL = 9, M_PITH = 10, M_CAP = 11, M_ROOT = 12, M_EGG = 13, M_STONE = 14;
+    /** 融合の器官(11-19): 蔦の触手のブロック・覆い(ブロックは置かず、そのマスを記録で覆う)。 */
+    public static final int M_VINE = 15, M_COVER = 16;
 
     /** 置く順の列。{@link #dx} などで読む。 */
     public final long[] entries;
@@ -75,7 +77,7 @@ public final class OrganBlueprint {
         return (int) (e & 0x3f);
     }
 
-    private static long pack(int dx, int dy, int dz, int mat, int faces) {
+    static long pack(int dx, int dy, int dz, int mat, int faces) {
         return ((long) (dx + 128) & 0xff) << 40 | ((long) (dy + 128) & 0xff) << 32 | ((long) (dz + 128) & 0xff) << 24
                 | ((long) mat & 0xff) << 8 | (faces & 0x3f);
     }
@@ -178,6 +180,41 @@ public final class OrganBlueprint {
                 tentacleBases(sorted, seed));
     }
 
+    /**
+     * 融合の器官(11-19)の設計図: 世界を見て作った置く順の列({@link OrganFusion})から、芯・口・結晶・入口・触手の付け根を拾う。
+     * 列は保存してあるので、再起動しても同じ形になる。
+     */
+    static OrganBlueprint fromEntries(long[] entries, int seed) {
+        List<BlockPos> cores = new ArrayList<>();
+        List<BlockPos> crystals = new ArrayList<>();
+        BlockPos top = null, first = null;
+        long sx = 0, sy = 0, sz = 0;
+        List<long[]> sacs = new ArrayList<>();
+        for (long e : entries) {
+            int m = material(e);
+            BlockPos p = new BlockPos(dx(e), dy(e), dz(e));
+            if (first == null && m != M_COVER) first = p;
+            if (m == M_CORE) {
+                cores.add(p);
+                sx += p.getX();
+                sy += p.getY();
+                sz += p.getZ();
+            } else if (m == M_CRYSTAL) {
+                crystals.add(p);
+            } else if (m == M_SAC) {
+                sacs.add(new long[]{p.asLong()});
+                if (top == null || p.getY() > top.getY()) top = p;
+            }
+        }
+        BlockPos center = cores.isEmpty() ? BlockPos.ZERO
+                : new BlockPos((int) Math.round((double) sx / cores.size()), (int) Math.round((double) sy / cores.size()), (int) Math.round((double) sz / cores.size()));
+        List<BlockPos> mouths = top != null ? List.of(top.above()) : List.of();
+        List<BlockPos> bases = new ArrayList<>();
+        if (!sacs.isEmpty()) bases.add(BlockPos.of(sacs.get(Math.floorMod(seed, sacs.size()))[0]));
+        return new OrganBlueprint(entries, List.copyOf(cores), center, mouths, List.copyOf(crystals), first != null ? first : BlockPos.ZERO,
+                List.copyOf(bases));
+    }
+
     static int rotX(int x, int z, int rot) {
         return switch (rot & 3) {
             case 1 -> -z;
@@ -206,7 +243,7 @@ public final class OrganBlueprint {
 
     /** 確かめ用: 材料ごとの数。 */
     public int[] counts() {
-        int[] c = new int[16];
+        int[] c = new int[32];
         for (long e : entries) c[material(e)]++;
         return c;
     }

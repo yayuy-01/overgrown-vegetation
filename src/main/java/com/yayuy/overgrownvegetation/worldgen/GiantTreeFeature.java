@@ -399,6 +399,14 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             return false;
         }
 
+        // 構造物(地表に出ている物)の近くでは育たない(2026-11-19 構造物と森の融合 段 1。巨大樹の融合は段 2 で形を決めてから)。
+        // プレイヤーが巨大樹の苗木を植えて育てたときは飛ばす(自分で選んだ場所)
+        if (!forced && level instanceof ServerLevel fusionLevel && com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.anyNear(
+                fusionLevel, origin.getX(), origin.getZ(), com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.table().giantStructureAvoid)) {
+            OvergrownVegetation.LOGGER.info("GiantTree at {}: 生成中止 —— 構造物が近くにあります(融合の段 2 まで)。", origin);
+            return false;
+        }
+
         // 生きた世界(苗木・/place)では、計画は地形を写して別スレッドで作る(2026-11-18 案 A。{@link GiantTreePlanner})。
         // 世界生成の並列スレッド(WorldGenRegion)は今までどおりその場で作る
         if (level instanceof ServerLevel serverLevel

@@ -187,6 +187,22 @@ public final class OrganPlanner {
         OrganTable t = DesignData.organs();
         if (!buildable(pd, data, cx, cz, now, t, small)) return Double.NEGATIVE_INFINITY;
         if (nearGiantTree(pd, cx, cz, small, t)) return Double.NEGATIVE_INFINITY;
+        // 構造物(地表に出ている物)のそば(11-19 融合 段 1): 大きい版は建てない、小さい版は全体の大きさの段に応じて少し好む(遠征の目的地)。
+        // 読み込まれていない升は分からないので何もしない(建つ前に OrganFusion がもう一度見る)
+        double structBonus = 0.0D;
+        com.yayuy.overgrownvegetation.worldgen.fusion.FusionTable ft = com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.table();
+        if (ft.enabled && OrganWorld.ready(level, cx, cz)) {
+            int pad = small ? 8 : OrganFusion.LARGE_REACH - 8;
+            net.minecraft.world.level.levelgen.structure.BoundingBox box = new net.minecraft.world.level.levelgen.structure.BoundingBox(
+                    cx * 16 - pad, level.getMinBuildHeight(), cz * 16 - pad, cx * 16 + 15 + pad, level.getMaxBuildHeight(), cz * 16 + 15 + pad);
+            com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.Query q = com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.near(level, box);
+            if (!q.unknown() && !q.hits().isEmpty()) {
+                if (!small) return Double.NEGATIVE_INFINITY;
+                int cls = 0;
+                for (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.Hit h : q.hits()) cls = Math.max(cls, h.wholeClass().ordinal());
+                structBonus = ft.structureWeight[cls];
+            }
+        }
         // 認識した拠点から離す(苗床は近すぎず遠すぎず)
         double baseDist = Double.POSITIVE_INFINITY;
         for (BaseMemory.Base b : BaseMemory.get(level.getServer()).bases()) {
@@ -196,7 +212,7 @@ public final class OrganPlanner {
             if (b.stage() == BaseMemory.Stage.RECOGNIZED) baseDist = Math.min(baseDist, d);
         }
         double ageDays = (now - pd.overgrownSinceTick(new ChunkPos(cx, cz))) / 24000.0D;
-        double s = random.nextDouble() * 0.2D;
+        double s = random.nextDouble() * 0.2D + structBonus;
         switch (kind) {
             case TOWER -> {
                 // 風下に森の外があるほど(近いほど)よい = 広げたい方角の風上
