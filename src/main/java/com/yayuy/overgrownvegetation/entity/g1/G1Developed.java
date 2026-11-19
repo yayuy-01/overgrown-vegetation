@@ -13,7 +13,7 @@ import javax.annotation.Nullable;
  * <ul>
  *   <li>体力・攻撃・速さ・大きさ: 種ごとの仕様書の数値の節(多くは【仮】。体力は段階 0 の 1.5 倍、攻撃は +2 の目安)。</li>
  *   <li>{@code walkRef}: アニメ {@code walk} の足が滑らない速さ(各種のモデルの記録 rN.md の ref)。</li>
- *   <li>{@code recover}: アニメ {@code attack_recover} の長さ(tick)。前触れ 12・実行 3 は全種同じ。</li>
+ *   <li>{@code recover}: アニメ {@code attack_recover} の長さ(tick)。11-19 から通常攻撃は溜めも隙も無いので使っていない(大技に溜めを残すときのために値は残す)。</li>
  *   <li>{@code burst}: アニメ {@code death_burst} の長さ(tick)= 破裂して消える時刻(11-11 の型。{@code corpse/G1DeathBurst})。</li>
  *   <li>{@code reach}・{@code knock}・{@code lunge}: (a) 種ごとの 1 撃の違い(2026-11-13 ユーザー「入れよう」。数は各種の仕様書の (a) 欄、どれも【仮】)。
  *   設計データ {@code mobs.json} ではなくここに置く: 間合いと踏み込みは属性でなく、押し返しは属性にすると跳びつき・取り付きにも効いてしまうので

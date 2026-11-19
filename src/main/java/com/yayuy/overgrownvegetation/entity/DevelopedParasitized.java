@@ -382,11 +382,6 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
         return dev().walkRef;
     }
 
-    @Override
-    public int recoverTicks() {
-        return dev().recover;
-    }
-
     // ------------------------------------------------------------------ Goal・navigation
     @Override
     protected void registerGoals() {

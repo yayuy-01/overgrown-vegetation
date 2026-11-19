@@ -186,8 +186,10 @@ public final class G1StrikeAGameTests {
         keepTarget(helper, mob, cow);
         Vec3 start = mob.position();
         double[] movedBeforeStrike = {0.0D};
+        boolean[] struck = {false};
         helper.onEachTick(() -> {
-            if (mob.action() == AbstractParasitizedMonster.ACTION_WINDUP) {
+            if (mob.action() == AbstractParasitizedMonster.ACTION_STRIKE) struck[0] = true;
+            if (!struck[0]) {
                 movedBeforeStrike[0] = Math.max(movedBeforeStrike[0], horizontal(mob.position().subtract(start)));
             }
         });
@@ -218,23 +220,21 @@ public final class G1StrikeAGameTests {
         lungeHits(helper, G1Developed.SHEEP, 0.45D, 4.0D, 3.0D, 0.8D);
     }
 
-    /** 踏み込みはまっすぐで曲がらない: 向きが止まった後(前触れ 10 tick 目)に横へ出た相手には当たらず、2 ブロック先まで出る。 */
+    /** 踏み込みはまっすぐで曲がらない: 踏み込みの 1 tick 目の後に横へ出た相手には当たらず、2 ブロック先まで出る(11-19 から前触れは無い)。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 120)
     public static void cowLungeGoesStraightAndMissesSidestep(GameTestHelper helper) {
         DevelopedParasitized mob = spawnStriker(helper, G1Developed.COW, new Vec3(3.5, 2.0, 1.0));
         Cow cow = spawnCow(helper, new Vec3(3.5, 2.0, 1.0 + 3.0 + COW_HALF));
         keepTarget(helper, mob, cow);
         Vec3 start = mob.position();
-        int[] windupTicks = {0};
+        boolean[] sidestepped = {false};
         boolean[] done = {false};
         helper.onEachTick(() -> {
-            if (mob.action() == AbstractParasitizedMonster.ACTION_WINDUP) {
-                windupTicks[0]++;
-                if (windupTicks[0] == 10) {
-                    cow.teleportTo(cow.getX() + 2.6D, cow.getY(), cow.getZ()); // 横へ出る
-                }
+            if (!sidestepped[0] && mob.action() == AbstractParasitizedMonster.ACTION_STRIKE) {
+                sidestepped[0] = true;
+                cow.teleportTo(cow.getX() + 2.6D, cow.getY(), cow.getZ()); // 横へ出る
             }
-            if (windupTicks[0] >= 10 && mob.action() == AbstractParasitizedMonster.ACTION_RECOVER) {
+            if (sidestepped[0] && !done[0] && mob.action() == AbstractParasitizedMonster.ACTION_NONE) {
                 done[0] = true;
                 mob.goalSelector.removeAllGoals(g -> true); // 次の 1 撃を振らせない
             }

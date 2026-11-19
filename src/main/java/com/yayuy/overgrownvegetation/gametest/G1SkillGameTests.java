@@ -390,7 +390,7 @@ public final class G1SkillGameTests {
                     if (pig.action() != com.yayuy.overgrownvegetation.entity.g1.skill.G1Move.BITE_RECOVER.id()) bad[0] = "離した後に隙(attack_recover)を流していない: " + pig.action();
                 }
             } else if (helper.getTick() - releasedAt[0] <= DevelopedParasitized.BITE_RECOVER_TICKS + 8
-                    && pig.action() == AbstractParasitizedMonster.ACTION_WINDUP) {
+                    && pig.action() == AbstractParasitizedMonster.ACTION_STRIKE) {
                 bad[0] = "離してすぐにまた噛みに行った: " + (helper.getTick() - releasedAt[0]) + " tick 後";
             }
         });

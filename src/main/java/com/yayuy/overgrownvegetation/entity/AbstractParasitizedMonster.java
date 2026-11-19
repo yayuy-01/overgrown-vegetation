@@ -90,11 +90,6 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
         return species().walkRef();
     }
 
-    /** 3 段の 1 撃の隙(tick、アニメ {@code attack_recover} の長さ)。段階 0 は全種 14。 */
-    public int recoverTicks() {
-        return G1StrikeGoal.RECOVER;
-    }
-
     // ------------------------------------------------------------------ 1 段目の技の口(2026-11-12、能力の第 1 回)
     /** よろけ・転んでいる残り(サーバーだけ。保存しない)。 */
     private int stunTicks;
@@ -161,9 +156,9 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
         return true;
     }
 
-    /** 行動の段に入るときの補間(tick)。段階 0 は前触れ 2・段の間 0・種の行動(クリーパーの puff)4。 */
+    /** 行動の段に入るときの補間(tick)。振り(11-19 から歩きから直に入る)2【仮】・種の行動(クリーパーの puff)4。 */
     protected int actionTransition(int action) {
-        return action == ACTION_WINDUP ? 2 : action > ACTION_RECOVER ? 4 : 0;
+        return action == ACTION_WINDUP || action == ACTION_STRIKE ? 2 : action > ACTION_RECOVER ? 4 : 0;
     }
 
     @Override

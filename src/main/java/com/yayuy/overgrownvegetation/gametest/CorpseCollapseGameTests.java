@@ -6,7 +6,6 @@ import com.yayuy.overgrownvegetation.corpse.CorpseCollapse;
 import com.yayuy.overgrownvegetation.corpse.G1Species;
 import com.yayuy.overgrownvegetation.effect.G1HostilityInjector;
 import com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster;
-import com.yayuy.overgrownvegetation.entity.g1.G1StrikeGoal;
 import com.yayuy.overgrownvegetation.registry.ModDamageTypes;
 import com.yayuy.overgrownvegetation.spore.SporeExposureTracker;
 import net.minecraft.core.BlockPos;
@@ -228,47 +227,7 @@ public final class CorpseCollapseGameTests {
         });
     }
 
-    /**
-     * 3 段の 1 撃: 前触れ 12 tick(この間は当たらない)→ 実行 3 tick の終わりに当たる → 隙 14 tick。段階は同期データで送る。
-     * Mob に当たったら暴露量 +300。
-     */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 120)
-    public static void strikeHasWindupStrikeAndRecover(GameTestHelper helper) {
-        AbstractParasitizedMonster g1 = (AbstractParasitizedMonster) helper.spawn(G1Species.ZOMBIE.entityType(), new Vec3(2.5, 2.0, 3.5));
-        Mob target = helper.spawnWithNoFreeWill(EntityType.PIG, new Vec3(3.6, 2.0, 3.5));
-        target.setNoAi(true);
-        g1.setTarget(target);
-        float hp0 = target.getHealth();
-        int[] windupAt = {-1};
-        int[] hitAt = {-1};
-        int[] recoverAt = {-1};
-        long t0 = helper.getTick();
-        helper.onEachTick(() -> {
-            int now = (int) (helper.getTick() - t0);
-            if (windupAt[0] < 0 && g1.action() == AbstractParasitizedMonster.ACTION_WINDUP) {
-                windupAt[0] = now;
-            }
-            if (windupAt[0] >= 0 && hitAt[0] < 0 && target.getHealth() < hp0) {
-                hitAt[0] = now;
-            }
-            if (recoverAt[0] < 0 && g1.action() == AbstractParasitizedMonster.ACTION_RECOVER) {
-                recoverAt[0] = now;
-            }
-        });
-        helper.runAtTickTime(t0 + 100, () -> {
-            helper.assertTrue(windupAt[0] >= 0, "前触れが始まらない");
-            helper.assertTrue(hitAt[0] >= 0, "当たらない");
-            int gap = hitAt[0] - windupAt[0];
-            helper.assertTrue(gap >= G1StrikeGoal.WINDUP && gap <= G1StrikeGoal.WINDUP + G1StrikeGoal.STRIKE + 1,
-                    "前触れから当たりまでが 12〜16 tick でない: " + gap);
-            helper.assertTrue(recoverAt[0] > hitAt[0] - 1, "当たった後に隙が来ない");
-            helper.assertTrue(com.yayuy.overgrownvegetation.spore.MobInfection.isInfected(target),
-                    "当たった Mob が感染していない(11-15 から 1 撃で必ず感染)");
-            g1.discard();
-            target.discard();
-            helper.succeed();
-        });
-    }
+    // 1 撃の段(溜め無し・当たる tick・間隔)は G1NoWindupGameTests(2026-11-19 に 3 段の 1 撃から作り直した)
 
     /** G1 は日に焼けない(段階 0 の共通: ゾンビ・スケルトンも燃えない)。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 60)
@@ -429,7 +388,7 @@ public final class CorpseCollapseGameTests {
         });
     }
 
-    /** クリーパーは殴らない(前触れに入らない)。数秒おきに袋が縮んで吹く。 */
+    /** クリーパーは殴らない(振りに入らない)。数秒おきに袋が縮んで吹く。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 240)
     public static void creeperNeverStrikesButPuffs(GameTestHelper helper) {
         AbstractParasitizedMonster creeper = (AbstractParasitizedMonster) helper.spawn(G1Species.CREEPER.entityType(), new Vec3(2.5, 2.0, 3.5));
@@ -437,7 +396,7 @@ public final class CorpseCollapseGameTests {
         pig.setNoAi(true);
         boolean[] puffed = {false};
         helper.onEachTick(() -> {
-            helper.assertTrue(creeper.action() != AbstractParasitizedMonster.ACTION_WINDUP, "クリーパーが殴ろうとした");
+            helper.assertTrue(creeper.action() != AbstractParasitizedMonster.ACTION_STRIKE, "クリーパーが殴った");
             if (creeper.action() == com.yayuy.overgrownvegetation.entity.ParasitizedCreeper.ACTION_PUFF) {
                 puffed[0] = true;
             }
