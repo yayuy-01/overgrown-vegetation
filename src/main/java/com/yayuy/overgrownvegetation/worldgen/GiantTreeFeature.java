@@ -163,6 +163,8 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
     private static final int WALL_THIN_EXTRA = 4;
     /** 構造物の上の木の根の本数の足し(設計値の本数 + これ + 0〜2)。仮の値。 */
     private static final int STRUCT_ROOT_EXTRA = 4;
+    /** 構造物の上の木の主根の太さの倍率(案 C: 少数のとても太い根。仮の値)。 */
+    private static final double STRUCT_MAIN_THICK = 1.25D;
     /** 高い構造物を回り込むとき 1 回に曲げる角度(rad)と回数の上限。 */
     private static final double ROOT_TURN_STEP = 0.6D;
     private static final int ROOT_TURN_MAX = 6;
@@ -327,6 +329,18 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         GROWING_SAPLING.set(state);
     }
 
+    /** 大きい構造物の中庭に植える巨大樹(構造物と森の融合 段 2、11-19)。構造物の近くの避けだけ外す。 */
+    private static final ThreadLocal<Boolean> COURTYARD = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
+    /** 中庭の巨大樹を始める(必ず {@link #endCourtyard()} と対にして呼ぶ)。 */
+    public static void beginCourtyard() {
+        COURTYARD.set(Boolean.TRUE);
+    }
+
+    public static void endCourtyard() {
+        COURTYARD.set(Boolean.FALSE);
+    }
+
     /** 苗木からの成長を開始する(必ず {@link #endSaplingGrowth()} と対にして呼ぶこと)。 */
     public static void beginSaplingGrowth() {
         SAPLING_GROWTH.set(Boolean.TRUE);
@@ -399,11 +413,12 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             return false;
         }
 
-        // 構造物(地表に出ている物)の近くでは育たない(2026-11-19 構造物と森の融合 段 1。巨大樹の融合は段 2 で形を決めてから)。
-        // プレイヤーが巨大樹の苗木を植えて育てたときは飛ばす(自分で選んだ場所)
-        if (!forced && level instanceof ServerLevel fusionLevel && com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.anyNear(
-                fusionLevel, origin.getX(), origin.getZ(), com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.table().giantStructureAvoid)) {
-            OvergrownVegetation.LOGGER.info("GiantTree at {}: 生成中止 —— 構造物が近くにあります(融合の段 2 まで)。", origin);
+        // 構造物(地表に出ている物)の部品から giantClearRadius 以内では育たない(2026-11-19 構造物と森の融合。段 1 は 60 で一律に避けた。
+        // 段 2 から: 大きい構造物には中庭に巨大樹を植え(organ.StructureTrees、この避けは外す)、小・中の構造物は構造物の木が生えるので、
+        // ふつうの巨大樹は幹の裾が建物にかからない程度に離すだけ)。プレイヤーが巨大樹の苗木を植えて育てたときは飛ばす(自分で選んだ場所)
+        if (!forced && !COURTYARD.get() && level instanceof ServerLevel fusionLevel && com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.anyNear(
+                fusionLevel, origin.getX(), origin.getZ(), com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.table().giantClearRadius)) {
+            OvergrownVegetation.LOGGER.info("GiantTree at {}: 生成中止 —— 構造物が近くにあります(中庭の巨大樹・構造物の木に任せる)。", origin);
             return false;
         }
 
@@ -516,6 +531,8 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
      * 葉は別リスト。実際の設置は {@link GiantTreeGrowthQueue} が複数ティックに分けて行う。
      */
     static final class Plan {
+        /** 構造物の縁に来た太い主根の通し番号(3 本に 1 本が弧、残りは壁を伝う。11-19 案 C)。 */
+        int edgeSeq;
         final TreeTerrain level;                       // 地形の読み取り専用
         final BlockState trunkState;
         final BlockState cambiumState;
@@ -1040,7 +1057,8 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         // 構造物の上の木(11-18): 根を多く・長く(縁から斜めに下りて地面まで届かせる。昔の巨大樹の迫力へ)。
         boolean onBuild = SPLAY && !isGroundForRoots(plan.level, origin.getX(), originGroundY, origin.getZ());
         if (onBuild) {
-            count = base + STRUCT_ROOT_EXTRA + random.nextInt(3);
+            // 11-19 案 C(ユーザー「じゃあ C でいくか」): 本数を増やすと 1 本ずつが軽く見えるので、本数は設計値のまま、主根を太くする。
+            count = base + random.nextInt(2);
         }
         // 板を立てる根は一部だけ(少なく・高く。11-07 第 1 段の写真の後、Fable・ユーザー)。残りは幹の裾から直に這う。
         int plates = Math.min(count, BUTTRESS_COUNT_MIN + random.nextInt(BUTTRESS_COUNT_MAX - BUTTRESS_COUNT_MIN + 1));
@@ -1054,7 +1072,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             if (onBuild) {
                 len = Math.max(len, (int) Math.round(length * 0.7D));
             }
-            double rad = thick * (0.8D + random.nextDouble() * 0.45D);
+            double rad = thick * (0.8D + random.nextDouble() * 0.45D) * (onBuild ? STRUCT_MAIN_THICK : 1.0D);
             // 板は根の並びに散らす(残りの本数 ÷ 残りの板の数で抽選)。
             boolean plate = platesMade < plates && random.nextInt(count - i) < plates - platesMade;
             if (plate) {
@@ -1509,7 +1527,9 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                 }
                 if (SPLAY && standOnStructure) {
                     // 壁の網(11-19 試作): 太い根の一部だけが弧で外へ。残りは壁に張り付いて下りる。
-                    if (WALL_NET && r.nextFloat() >= (depth == 0 && rad >= 1.6D ? WALL_ARC_CHANCE : WALL_ARC_CHANCE_THIN)) {
+                    // 案 C(11-19): 太い主根は 3 本に 1 本だけが大きな弧で外へ、残りは壁を伝って流れ落ちる。細い根・枝は壁の網。
+                    boolean arcOut = depth == 0 && rad >= 1.6D ? plan.edgeSeq++ % 3 == 2 : r.nextFloat() < WALL_ARC_CHANCE_THIN;
+                    if (WALL_NET && !arcOut) {
                         int bx = havePrev ? pix : Mth.floor(curX);
                         int bz = havePrev ? piz : Mth.floor(curZ);
                         int ddx = Integer.signum(ix - bx);
@@ -1972,7 +1992,9 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         // 11-19 2 回目(ユーザー「細い根の網が悪いわけじゃない、網の形が悪かった(直角のジグザグ)」「長方形の板みたいな部分」「だんだん細く、枝分かれして」):
         // 1 本の根は同じ傾きで長く斜めに下りる(横へ 1 マス動くのに 2〜5 段。向きはめったに変えない)。分かれた子は反対へ傾き、
         // 隣の根と交わって縦長のひし形の網目になる。太い根は分かれるたびに細り、下へ行くほど細って最後は 1 マスの糸になる。幅は 3 まで。
-        double slope = 0.2D + r.nextDouble() * 0.25D;
+        // 案 C: 太い主根(幅 5 以上)はゆるい傾きで地面まで下り、下ほど細り、下のほうで 2〜3 本に分かれる(子も地面まで)。
+        boolean main = rad >= 2.2D;
+        double slope = main ? 0.08D + r.nextDouble() * 0.17D : 0.2D + r.nextDouble() * 0.25D;
         double acc = r.nextDouble();
         int flipIn = 30 + r.nextInt(40);
         int maxForks = Math.max(0, 4 - depth);
@@ -1986,7 +2008,8 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             if (y <= minY || !chunkLoaded(plan.level, p.set(x, y, z))) {
                 return;
             }
-            double w = Math.max(0.6D, rad * (1.0D - 0.8D * Math.min(1.0D, k / (double) Math.min(90, Math.max(20, budget)))));
+            double w = main ? Math.max(1.2D, rad * (1.0D - 0.5D * Math.min(1.0D, k / 130.0D)))
+                    : Math.max(0.6D, rad * (1.0D - 0.8D * Math.min(1.0D, k / (double) Math.min(90, Math.max(20, budget)))));
             if (isRootSolid(plan.level.getBlockState(p.set(x, y, z)), tb)) {
                 if (isGroundForRoots(plan.level, x, y, z)) {
                     // 地面に着いた: 太い根はそこから少し這う。
@@ -2053,10 +2076,10 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
             }
             // 分かれる: 子は反対向きへ傾く。太い根ほどよく分かれ、分かれるたびに親も細る。
             boolean thick = w >= 1.4D;
-            if (forks < maxForks && k >= 3 && k - lastFork >= (thick ? 8 : WALL_FORK_GAP) && r.nextFloat() < (thick ? 0.09F : WALL_FORK_CHANCE)) {
+            if (forks < maxForks && k >= 3 && k - lastFork >= (thick ? 8 : WALL_FORK_GAP) && r.nextFloat() < (main ? (k < 25 ? 0.015F : 0.07F) : thick ? 0.09F : WALL_FORK_CHANCE)) {
                 forks++;
                 lastFork = k;
-                wallRoot(c, x, z, y, nX, nZ, -mX, -mZ, Math.max(0.6D, w * 0.65D), depth + 1, 20 + r.nextInt(50));
+                wallRoot(c, x, z, y, nX, nZ, -mX, -mZ, Math.max(0.6D, w * 0.65D), depth + 1, w >= 2.0D ? WALL_MAX_LEVELS : 20 + r.nextInt(50));
                 rad *= 0.82D;
             }
         }
@@ -2065,8 +2088,11 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
     /** 壁の根の 1 段ぶんの断面: 太さで幅 1〜3(幅 2 は片側へ)。いちばん太い所だけ真ん中を外へ 1 枚。空気・置き換え可能なマスだけ。 */
     private static void wallSection(Plan plan, int x, int y, int z, int nX, int nZ, double w, int side, boolean wall, Block tb) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
-        int lo = w >= 2.3D ? -1 : 0;
-        int hi = w >= 1.4D ? 1 : 0;
+        // 案 C: 断面は壁に貼り付いた半円(太さ w で幅 ≒ 2w・厚み ≒ w)。細い根は幅 1〜2 の 1 枚。
+        double rr = w * 0.9D;
+        int half = w >= 1.9D ? (int) Math.floor(rr) : 0;
+        int lo = -half;
+        int hi = half > 0 ? half : w >= 1.4D ? 1 : 0;
         int tX = -nZ * side;
         int tZ = nX * side;
         for (int i = lo; i <= hi; i++) {
@@ -2080,11 +2106,12 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
                 continue; // 窓の前には広げない
             }
             plan.root(cx, y, cz);
-            if (w >= 2.8D && i == 0) {
-                BlockState o = plan.level.getBlockState(p.set(cx + nX, y, cz + nZ));
-                if (o.isAir() || o.canBeReplaced()) {
-                    plan.root(cx + nX, y, cz + nZ);
+            for (int o = 1; half > 0 && i * i + o * o <= rr * rr; o++) {
+                BlockState os = plan.level.getBlockState(p.set(cx + nX * o, y, cz + nZ * o));
+                if (!(os.isAir() || os.canBeReplaced())) {
+                    break;
                 }
+                plan.root(cx + nX * o, y, cz + nZ * o);
             }
         }
     }
