@@ -15,7 +15,7 @@ import javax.annotation.Nullable;
  *   1 日の生産量 × 森の健康 × {@code purseShare} × たった日数(認識した拠点の数で割る)を足す。財布は森の予算の上限の外に別に持つ(上乗せ。予算からは抜かない)。</li>
  *   <li>貯めた日数(見送り始めてから)が {@code maxSaveDays[フェーズ]} に届いたら必ず起こす(次の機会をその日に合わせる)。</li>
  *   <li>起きたら、貯めた日数とフェーズで段を選ぶ({@link #tierFor})。小 = ふだんの送り込み・中 = {@link HoardRaids}・大 = 静かな前触れ {@link LargeRaids#startScaledOmen}(2 日【仮】)の後に {@link LargeRaids#beginScaled}。</li>
- *   <li>見送って貯めている間は、G1 が遠巻きにうろつく({@link #holdingOff})。大の静かな前触れの間はうろつかない。</li>
+ *   <li>見送って貯めている間(貯めの 2 日目から = {@code holdOffFromDays} 日たった後)は、G1 が遠巻きにうろつく({@link #holdingOff})。大の静かな前触れの間はうろつかない。</li>
  *    <li>襲撃はどれも、財布 → 森の予算 の順に払う({@link ForestDirector} の財布の口)。使い残した財布は後の送り込みへ持ち越す。</li>
  * </ul>
  * 超大(0.01% ほど・Mob の値段 −80%・前触れの地平線の嵐)は 0.2.0 では入れない(11-19 ユーザー)。足すときは
@@ -146,17 +146,24 @@ public final class RaidScales {
     /** 認識した拠点のどれかで見送って貯めている最中か(見張りが 20 秒ごとに付け直す。保存しない)。 */
     private static volatile boolean savingNow;
 
-    /** G1 が遠巻きにうろつくか: 前の「貯める」の気分の間と、見送って貯めている間。大の静かな前触れ・本番の間はうろつかない(静かになる = 大が来る)。 */
+    /** G1 が遠巻きにうろつくか: 前の「貯める」の気分の間と、見送って貯めている間(貯めの 2 日目から)。大の静かな前触れ・本番の間はうろつかない(静かになる = 大が来る)。 */
     public static boolean holdingOff() {
         return ForestDirector.hoarding() || savingNow;
     }
 
-    public static void refreshSaving(ServerLevel level, BaseMemory memory) {
+    /** 見送って貯め始めてから、G1 が遠巻きにうろつき出すまでの日数(既定 1 日 = 貯めの 2 日目から。11-19 ユーザー。1 は【仮】)。 */
+    public static double holdOffFromDays() {
+        return table().holdOffFromDays;
+    }
+
+    public static void refreshSaving(ServerLevel level, BaseMemory memory, double day) {
         boolean any = false;
         ForestDirector.Mood mood = ForestDirector.get(level).mood();
         if (enabled() && mood != ForestDirector.Mood.LARGE_OMEN && mood != ForestDirector.Mood.LARGE && !DirectorGates.peaceful(level)) {
+            // 貯めの 1 日目は出さない: どの見送りでも出ると F5 で時間の約 4 割・F7 で約 6 割うろつき、合図として薄まる(11-19 ユーザー)
+            double from = holdOffFromDays();
             for (BaseMemory.Base b : memory.bases()) {
-                if (b.stage() == BaseMemory.Stage.RECOGNIZED && b.saving()) any = true;
+                if (b.stage() == BaseMemory.Stage.RECOGNIZED && b.saving() && day - b.saveStart() >= from - 1.0E-9D) any = true;
             }
         }
         savingNow = any;

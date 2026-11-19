@@ -135,8 +135,13 @@ public final class RaidScaleGameTests {
             director.setBudget(level, 0.0D);
             helper.assertTrue(RaidScales.skipOrStart(level, memory, b, day, 0.0D, r), "F5 で 0 を引いて見送らない");
             helper.assertTrue(b.saving() && b.nextWaveDay() <= day + 2.0D + 1.0E-9D && b.nextWaveDay() > day, "見送った後の次の機会が違う: " + b.nextWaveDay());
-            RaidScales.refreshSaving(level, memory);
-            helper.assertTrue(RaidScales.holdingOff(), "見送って貯めている間に G1 が遠巻きにうろつかない");
+            // 貯めの 1 日目はうろつかない・2 日目(1 日たった後)からうろつく(11-19 ユーザー)
+            RaidScales.refreshSaving(level, memory, day);
+            helper.assertTrue(!RaidScales.holdingOff(), "貯めの 1 日目(見送った直後)から G1 が遠巻きにうろつく");
+            RaidScales.refreshSaving(level, memory, day + RaidScales.holdOffFromDays() - 0.05D);
+            helper.assertTrue(!RaidScales.holdingOff(), "貯めの 1 日目の終わりに G1 が遠巻きにうろつく");
+            RaidScales.refreshSaving(level, memory, day + RaidScales.holdOffFromDays());
+            helper.assertTrue(RaidScales.holdingOff(), "貯めの 2 日目に G1 が遠巻きにうろつかない");
             // (2) 1.5 日後にもう 1 回見送る: 財布に 1.5 日分の 30%
             double expect = RaidScales.credit(ForestDirector.incomePerDay(level), com.yayuy.overgrownvegetation.ecosystem.Ecosystem.incomeFactor(level),
                     RaidScales.purseShare(), 1.5D, 1);
@@ -176,7 +181,7 @@ public final class RaidScaleGameTests {
             helper.assertTrue(RaidScales.lastScale == RaidScale.LARGE && director.mood() == ForestDirector.Mood.LARGE_OMEN && LargeRaids.scaled(director),
                     "F6 の 3.5 日で大の静かな前触れにならない: " + RaidScales.lastNote + "・" + director.mood());
             // 静かな前触れ: 森の湧きが止まる・G1 はうろつかない・財布は増減しない・前触れの長さは 2 日
-            RaidScales.refreshSaving(level, memory);
+            RaidScales.refreshSaving(level, memory, day + 3.5D);
             helper.assertTrue(DirectorGates.plantSpawnsSuppressed(level) && !RaidScales.holdingOff() && !b.saving(), "大の前触れで静かにならない");
             helper.assertTrue(Math.abs(director.moodUntil() - (day + 3.5D + RaidScales.omenDays(RaidScale.LARGE))) < 1.0E-9D, "前触れの長さが違う");
             LargeRaids.beginScaled(level, b, day + 5.5D);

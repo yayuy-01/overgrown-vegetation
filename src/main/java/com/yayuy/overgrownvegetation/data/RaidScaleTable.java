@@ -24,6 +24,8 @@ public final class RaidScaleTable {
         public List<Double> maxSaveDays;
         /** 見送った間に貯める割合(1 日の生産量に掛ける)。 */
         public Double purseShare;
+        /** 見送って貯め始めてからこの日数がたった後だけ G1 が遠巻きにうろつく(11-19 ユーザー「貯めの 2 日目から」)。 */
+        public Double holdOffFromDays;
         public List<TierJson> tiers;
     }
 
@@ -50,6 +52,7 @@ public final class RaidScaleTable {
     public final double[] skipChance;
     public final double[] maxSaveDays;
     public final double purseShare;
+    public final double holdOffFromDays;
     /** fromDays の小さい順。 */
     public final List<Tier> tiers;
 
@@ -59,6 +62,7 @@ public final class RaidScaleTable {
         this.skipChance = list(s.skipChance, new double[]{0, 0, 0, 0, 0, 0.4, 0.5, 0.6, 0.6, 0.6, 0.6}, 1.0D);
         this.maxSaveDays = list(s.maxSaveDays, new double[]{0, 0, 0, 0, 0, 2, 5, 10, 10, 10, 10}, Double.MAX_VALUE);
         this.purseShare = s.purseShare == null ? 0.3D : Math.max(0.0D, s.purseShare);
+        this.holdOffFromDays = s.holdOffFromDays == null ? 1.0D : Math.max(0.0D, s.holdOffFromDays);
         List<Tier> t = new ArrayList<>();
         if (s.tiers != null) {
             for (TierJson tj : s.tiers) {
