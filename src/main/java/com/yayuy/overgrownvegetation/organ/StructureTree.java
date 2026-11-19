@@ -37,6 +37,8 @@ public final class StructureTree {
     }
 
     public static final byte TRUNK = 1, ROOT = 2, BRANCH = 3, LEAF = 4, GIANT_ROOT = 5;
+    /** 幹が人工のブロックを突き破るマス(段 3 追記 11-20: 屋根・窓・壁を突き破って外へ飛び出す)。置くときに人工のブロックだけを幹に置き換える。 */
+    public static final byte TRUNK_BREAK = 6;
 
     /** 計画。{@code pos} は {@link BlockPos#asLong}、下から順。 */
     public record Plan(long[] pos, byte[] mat, String mode, BlockPos anchor, int height, int cut) {
@@ -172,6 +174,21 @@ public final class StructureTree {
             return true;
         }
 
+        /** 壁(構造物の記録の建物のブロックか、記録の外も含めた人工のブロック。段 3 追記 11-20: プレイヤーの建物の壁も根が伝う)。 */
+        boolean wall(int x, int y, int z) {
+            if (c.struct(x, y, z)) return true;
+            if (!c.loaded(x, y, z)) return false;
+            BlockPos p = new BlockPos(x, y, z);
+            return Takeover.isArtificial(c.level, p, c.state(x, y, z));
+        }
+
+        boolean wallAdj(int x, int y, int z) {
+            for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+                if (wall(x + d.getStepX(), y + d.getStepY(), z + d.getStepZ())) return true;
+            }
+            return false;
+        }
+
         /** 壁・地面(建物のブロックか、動きを止める物)。試作の isStruct || GROUND。 */
         boolean solid(int x, int y, int z) {
             if (c.struct(x, y, z)) return true;
@@ -212,7 +229,7 @@ public final class StructureTree {
                         long k = BlockPos.asLong(nx, ny, nz);
                         if (seen.contains(k) || !w.open(nx, ny, nz)) continue;
                         if (o.spread && s >= 3 && w.nearOtherRoot(nx, ny, nz)) continue;
-                        boolean hug = w.c.structAdj(nx, ny, nz);
+                        boolean hug = w.wallAdj(nx, ny, nz);
                         if (!hug && !o.free && !(o.ground && w.c.solidAdj(nx, ny, nz))) continue;
                         double rx = nx - o.center[0], rz = nz - o.center[1], rl = Math.max(1.0E-3D, Math.hypot(rx, rz));
                         double tx = -rz / rl * o.sign, tz = rx / rl * o.sign;
@@ -454,7 +471,7 @@ public final class StructureTree {
         // 幹の芯の道筋(4 マスごとにうねる)。芯が通らなければ、下のほうなら育てない・上のほうならそこで止める
         double[][] off = new double[ht + 1][2];
         double ox = 0, oz = 0, vx = 0, vz = 0;
-        int top = ht;
+        int top = ht, breaks = 0;
         for (int dy = 0; dy <= ht; dy++) {
             if (dy % 4 == 0) {
                 double a = rnd.nextDouble() * Math.PI * 2.0D, k = (0.15D + rnd.nextDouble() * 0.2D) * t.treeBend;
@@ -469,6 +486,13 @@ public final class StructureTree {
             off[dy][1] = oz;
             int cx = (int) Math.floor(ox0 + ox + 0.5D), cz = (int) Math.floor(oz0 + oz + 0.5D);
             if (!w.open(cx, oy + dy, cz)) {
+                // 人工のブロック(屋根・窓・壁)なら突き破って伸びる(段 3 追記 11-20。中身のあるブロックは突き破らない)
+                if (breaks < t.treeBreakMax && !w.planned.containsKey(BlockPos.asLong(cx, oy + dy, cz)) && w.wall(cx, oy + dy, cz)
+                        && !c.state(cx, oy + dy, cz).hasBlockEntity()) {
+                    w.planned.put(BlockPos.asLong(cx, oy + dy, cz), TRUNK_BREAK);
+                    breaks++;
+                    continue;
+                }
                 if (dy < Math.max(4, t.saplingHeightMin * 6 / 10)) return null;
                 top = dy - 1;
                 break;
@@ -484,16 +508,46 @@ public final class StructureTree {
             }
         }
         // 建物の上の苗: 根を屋根・床から壁を伝って垂らす(浮いた構造物では縁から垂れ下がる)
-        if (c.struct(ox0, oy - 1, oz0)) {
+        boolean onWall = w.wall(ox0, oy - 1, oz0);
+        if (onWall) {
             BoundingBox p = c.pieceAt(ox0, oy - 1, oz0);
             if (p == null) p = nearestPiece(c, ox0, oz0);
-            if (p != null) {
+            if (p == null) p = new BoundingBox(ox0 - 5, oy - 6, oz0 - 5, ox0 + 5, oy, oz0 + 5); // 記録の外(プレイヤーの建物など)はまわりの箱で向きを決める
+            {
                 int rel = Math.max(1, oy - ground);
                 for (int k = 0; k < t.saplingRoots; k++) {
                     double a = k * Math.PI * 2.0D / Math.max(1, t.saplingRoots) + (rnd.nextDouble() - 0.5D) * 0.5D;
                     int sx = (int) Math.round(ox0 + Math.cos(a) * (r + 0.6D)), sz = (int) Math.round(oz0 + Math.sin(a) * (r + 0.6D));
                     drapeRoot(w, sx, oy, sz, p, a, 24 + Math.min(rel, 40) * 3, k % 2 == 1 ? 1 : -1, t.saplingRootStart, t.saplingRootEnd, t);
                 }
+            }
+        }
+        if (!onWall) {
+            // 地面の苗でも、そばの壁(人工のブロック)には根を這い上がらせる(段 3 追記 11-20「木やその根が建物を伝う」)
+            for (int k = 0; k < t.treeClimbRoots; k++) {
+                double a = rnd.nextDouble() * Math.PI * 2.0D;
+                int sx = (int) Math.round(ox0 + Math.cos(a) * (r + 0.6D)), sz = (int) Math.round(oz0 + Math.sin(a) * (r + 0.6D));
+                int[] tgt = null;
+                for (int dd = 2; dd <= 6 && tgt == null; dd++) {
+                    int qx = (int) Math.round(ox0 + Math.cos(a) * dd), qz = (int) Math.round(oz0 + Math.sin(a) * dd);
+                    for (int qy = oy; qy <= oy + 2 && tgt == null; qy++) if (w.wall(qx, qy, qz)) tgt = new int[]{qx, qy, qz};
+                }
+                if (tgt == null) continue;
+                List<int[]> path = new ArrayList<>();
+                path.add(new int[]{sx, oy, sz});
+                Crawl o = new Crawl();
+                o.steps = 20 + rnd.nextInt(30);
+                o.sign = k % 2 == 0 ? 1 : -1;
+                o.upW = 0.8D;
+                o.wrapW = 0.6D;
+                o.noise = 0.5D;
+                o.toward = tgt;
+                o.towardW = 1.2D;
+                o.ground = true;
+                o.spread = true;
+                o.center = new double[]{tgt[0], tgt[2]};
+                crawl(w, sx, oy, sz, o, path);
+                queueTube(w, path, t.saplingRootStart, t.saplingRootEnd);
             }
         }
         flushTubes(w);

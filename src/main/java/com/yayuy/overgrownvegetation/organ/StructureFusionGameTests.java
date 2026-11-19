@@ -457,9 +457,9 @@ public final class StructureFusionGameTests {
         helper.succeed();
     }
 
-    /** 部屋の中の苗で天井まで低いなら育てない(欠けて浮いた木を作らない)。木の機能の入口(tryGrow)から確かめる。 */
+    /** 段 3 追記: 部屋の中の苗は屋根を突き破って外へ飛び出す(突き破るのは人工のブロックだけ・breakMax 個まで)。欠けて浮いた木にはならない。 */
     @GameTest(template = "gametest_empty7", batch = "fusion", timeoutTicks = 100)
-    public static void saplingUnderLowCeilingStaysSapling(GameTestHelper helper) {
+    public static void saplingInRoomBreaksThroughRoof(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         Site s = prepare(level, 6_403_200, 6_400_000);
         BlockPos origin = new BlockPos(s.bx + 2, s.fy + 1, s.bz + 2);
@@ -467,11 +467,25 @@ public final class StructureFusionGameTests {
             register(s, BuiltinStructures.VILLAGE_PLAINS, List.of(s.house));
             Map<BlockPos, BlockState> before = snapshot(level, s.house.inflatedBy(3));
             Boolean r = StructureSaplingTrees.tryGrow(level, origin, RandomSource.create(5L));
-            helper.assertTrue(Boolean.FALSE.equals(r), "天井の低い部屋の苗が育った: " + r);
+            helper.assertTrue(Boolean.TRUE.equals(r), "部屋の中の苗が屋根を突き破って育たない: " + r);
+            int broken = 0;
             for (Map.Entry<BlockPos, BlockState> e : before.entrySet()) {
-                helper.assertTrue(level.getBlockState(e.getKey()).getBlock() == e.getValue().getBlock(), "育てないはずが何か置いた: " + e.getKey());
+                if (e.getValue().isAir()) continue;
+                BlockState now = level.getBlockState(e.getKey());
+                if (now.getBlock() == e.getValue().getBlock()) continue;
+                helper.assertTrue(now.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_WOOD.get()), "幹以外で建物のブロックが変わった: " + e.getKey() + " " + now);
+                broken++;
             }
+            helper.assertTrue(broken >= 1 && broken <= StructureFusion.table().treeBreakMax, "突き破った数が 1〜breakMax でない: " + broken);
+            boolean above = false;
+            for (int y = s.house.maxY() + 1; y <= s.house.maxY() + 4; y++) {
+                for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
+                    if (level.getBlockState(new BlockPos(origin.getX() + dx, y, origin.getZ() + dz)).is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_WOOD.get())) above = true;
+                }
+            }
+            helper.assertTrue(above, "幹が屋根の上へ出ない");
         } finally {
+            clearBox(level, new BoundingBox(s.bx - 12, s.fy + 1, s.bz - 12, s.bx + 20, s.fy + 40, s.bz + 20));
             s.cleanup();
         }
         helper.succeed();

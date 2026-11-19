@@ -240,4 +240,63 @@ public final class TakeoverGameTests {
         }
         helper.succeed();
     }
+    /** 段 3 追記: 記録の外のプレイヤーの壁(板)のそばの苗は、建物に合わせた木になり、根が壁を這い上がる。 */
+    @GameTest(template = "gametest_empty7", batch = "takeover", timeoutTicks = 100)
+    public static void treeRootsClimbPlayerWall(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        StructureFusionGameTests.Site s = StructureFusionGameTests.prepare(level, 6_407_200, 6_400_000);
+        BoundingBox wall = new BoundingBox(s.bx - 20, s.fy + 1, s.bz - 20, s.bx - 20, s.fy + 6, s.bz - 10);
+        try {
+            StructureFusionGameTests.clearBox(level, new BoundingBox(s.house.minX() - 1, s.fy + 1, s.house.minZ() - 1, s.house.maxX() + 1, s.house.maxY() + 1, s.house.maxZ() + 1));
+            for (BlockPos q : BlockPos.betweenClosed(wall.minX(), wall.minY(), wall.minZ(), wall.maxX(), wall.maxY(), wall.maxZ())) {
+                level.setBlock(q, Blocks.OAK_PLANKS.defaultBlockState(), 2);
+            }
+            BlockPos origin = new BlockPos(s.bx - 17, s.fy + 1, s.bz - 15);
+            helper.assertTrue(StructureFusion.state(level, origin) == StructureFusion.NONE, "テストの作りの誤り(記録の中)");
+            Boolean r = StructureSaplingTrees.tryGrow(level, origin, RandomSource.create(9L));
+            helper.assertTrue(Boolean.TRUE.equals(r), "プレイヤーの壁のそばの苗が建物に合わせた木にならない: " + r);
+            int climbing = 0;
+            for (BlockPos q : BlockPos.betweenClosed(wall.maxX() + 1, s.fy + 3, wall.minZ() - 2, wall.maxX() + 3, s.fy + 7, wall.maxZ() + 2)) {
+                if (level.getBlockState(q).is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_WOOD.get())) climbing++;
+            }
+            helper.assertTrue(climbing > 0, "根が壁を這い上がらない");
+        } finally {
+            StructureFusionGameTests.clearBox(level, new BoundingBox(s.bx - 30, s.fy + 1, s.bz - 30, s.bx + 10, s.fy + 40, s.bz + 10));
+            s.cleanup();
+        }
+        helper.succeed();
+    }
+
+    /** 段 3 追記: 建物どうしの狭い間(路地)を隙間と見つけて、草と蔦を生やす。開けた所は隙間と数えない。 */
+    @GameTest(template = "gametest_empty7", batch = "takeover", timeoutTicks = 100)
+    public static void alleysBetweenBuildingsGetGreenery(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        StructureFusionGameTests.Site s = StructureFusionGameTests.prepare(level, 6_407_600, 6_400_000);
+        try {
+            StructureFusionGameTests.clearBox(level, new BoundingBox(s.house.minX() - 1, s.fy + 1, s.house.minZ() - 1, s.house.maxX() + 1, s.house.maxY() + 1, s.house.maxZ() + 1));
+            int cx = (s.bx >> 4) << 4, cz = (s.bz >> 4) << 4;
+            // チャンクいっぱいに南北の路地(幅 1)を 4 本: 板の壁を x = +1, +3, +5, ... に
+            for (int x = cx + 1; x < cx + 16; x += 2) {
+                for (int z = cz; z < cz + 16; z++) {
+                    for (int y = s.fy + 1; y <= s.fy + 4; y++) level.setBlock(new BlockPos(x, y, z), Blocks.OAK_PLANKS.defaultBlockState(), 2);
+                }
+            }
+            net.minecraft.world.level.chunk.LevelChunk ch = level.getChunk(cx >> 4, cz >> 4);
+            int found = 0;
+            for (int k = 0; k < 4; k++) found += Takeover.greenGaps(level, ch, new Random(k), StructureFusion.table());
+            helper.assertTrue(found > 0, "路地を隙間と見つけない");
+            int plants = 0;
+            for (int x = cx; x < cx + 16; x += 2) {
+                for (int z = cz; z < cz + 16; z++) {
+                    BlockState st = level.getBlockState(new BlockPos(x, s.fy + 1, z));
+                    if (!st.isAir()) plants++;
+                }
+            }
+            helper.assertTrue(plants > 0, "路地に草も蔦も生えない(隙間 " + found + ")");
+        } finally {
+            StructureFusionGameTests.clearBox(level, new BoundingBox(s.bx - 30, s.fy + 1, s.bz - 30, s.bx + 30, s.fy + 10, s.bz + 30));
+            s.cleanup();
+        }
+        helper.succeed();
+    }
 }

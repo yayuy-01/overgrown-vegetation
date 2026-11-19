@@ -28,14 +28,14 @@ public final class FusionTable {
     public static final class TreeJson {
         public Boolean enabled;
         public Double bend, rootletStart, rootletEnd, saplingTrunkRadius, saplingRootStart, saplingRootEnd;
-        public Integer blocksPerTick, saplingHeightMin, saplingHeightMax, saplingCrown, saplingRoots;
+        public Integer blocksPerTick, saplingHeightMin, saplingHeightMax, saplingCrown, saplingRoots, breakMax, climbRoots;
     }
 
     /** 乗っ取り(段 3、11-19 夜)。 */
     public static final class TakeoverJson {
         public Boolean enabled;
-        public Integer scanTicks, radiusChunks, chunksPerScan, facesPerOrgan, spacingSmall, spacingBig, vinesSmall, vinesBig;
-        public Double organChancePerVisit, bigChance, holeChance;
+        public Integer scanTicks, radiusChunks, chunksPerScan, facesPerOrgan, spacingSmall, spacingBig, vinesSmall, vinesBig, gapCellsPerVisit, gapReach;
+        public Double organChancePerVisit, bigChance, holeChance, gapPlantChance;
         public double[] smallLength, bigLength;
     }
 
@@ -73,6 +73,8 @@ public final class FusionTable {
     /** 構造物の上・中に植わった苗の木(段 2b): 高さ・幹の半径・樹冠・根の本数と太さ。幹が通らなければ育てない。 */
     public final int saplingHeightMin, saplingHeightMax, saplingCrown, saplingRoots;
     public final double saplingTrunkRadius, saplingRootStart, saplingRootEnd;
+    /** 人工のブロックのそばの木(段 3 追記 11-20「木やその根が建物から飛び出したり建物を伝い」): 幹が突き破る人工のブロックの数と、地面の苗から壁へ這い上がる根の本数。 */
+    public final int treeBreakMax, treeClimbRoots;
 
     // --- 乗っ取り(段 3、11-19 夜 ユーザー「植物に乗っ取られている感じ」)。数は全部【仮】 ---
     public final boolean takeoverEnabled;
@@ -88,6 +90,9 @@ public final class FusionTable {
     public final double[] takeoverSmallLength, takeoverBigLength;
     public final double takeoverHoleChance;
     public final int takeoverVinesSmall, takeoverVinesBig;
+    /** 建物どうしの間・路地・壁と地面の隅(段 3 追記 11-20「建物同士の間や隙間には草の蔦」): 1 回の見回りで見る隙間のマスの数・下草と蔦の確率・挟む壁を探す距離。 */
+    public final int takeoverGapCellsPerVisit, takeoverGapReach;
+    public final double takeoverGapPlantChance;
 
     public static final FusionTable DEFAULT = fromJson(null);
 
@@ -134,6 +139,8 @@ public final class FusionTable {
         saplingTrunkRadius = Math.max(0.5D, Math.min(3.0D, or(tj.saplingTrunkRadius, 1.0D)));
         saplingRootStart = Math.max(0.5D, or(tj.saplingRootStart, 1.0D));
         saplingRootEnd = Math.max(0.5D, or(tj.saplingRootEnd, 0.95D));
+        treeBreakMax = Math.max(0, Math.min(16, or(tj.breakMax, 4)));
+        treeClimbRoots = Math.max(0, Math.min(8, or(tj.climbRoots, 2)));
         TakeoverJson ko = j.takeover != null ? j.takeover : new TakeoverJson();
         takeoverEnabled = ko.enabled == null || ko.enabled;
         takeoverScanTicks = Math.max(20, or(ko.scanTicks, 200));
@@ -149,6 +156,9 @@ public final class FusionTable {
         takeoverHoleChance = Math.max(0.0D, Math.min(1.0D, or(ko.holeChance, 0.3D)));
         takeoverVinesSmall = Math.max(0, Math.min(16, or(ko.vinesSmall, 2)));
         takeoverVinesBig = Math.max(0, Math.min(32, or(ko.vinesBig, 6)));
+        takeoverGapCellsPerVisit = Math.max(0, Math.min(256, or(ko.gapCellsPerVisit, 16)));
+        takeoverGapReach = Math.max(1, Math.min(6, or(ko.gapReach, 3)));
+        takeoverGapPlantChance = Math.max(0.0D, Math.min(1.0D, or(ko.gapPlantChance, 0.9D)));
     }
 
     public static FusionTable fromJson(@Nullable Json j) {

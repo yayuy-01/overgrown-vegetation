@@ -134,7 +134,9 @@
       "saplingCrown": 4,
       "saplingRoots": 4,
       "saplingRootStart": 1.0,
-      "saplingRootEnd": 0.95
+      "saplingRootEnd": 0.95,
+      "breakMax": 4,
+      "climbRoots": 2
     },
     "takeover": {
       "enabled": true,
@@ -150,7 +152,10 @@
       "bigLength": [12.0, 22.0],
       "holeChance": 0.3,
       "vinesSmall": 2,
-      "vinesBig": 6
+      "vinesBig": 6,
+      "gapCellsPerVisit": 16,
+      "gapReach": 3,
+      "gapPlantChance": 0.9
     }
   }
 }

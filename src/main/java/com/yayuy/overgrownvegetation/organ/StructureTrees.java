@@ -86,7 +86,10 @@ public final class StructureTrees extends SavedData {
     /** 1 マス置く(空気・置き換えられる草花・水なしのときだけ)。 */
     static boolean placeOne(ServerLevel level, BlockPos p, byte mat) {
         BlockState cur = level.getBlockState(p);
-        if (!(cur.isAir() || cur.canBeReplaced()) || !cur.getFluidState().isEmpty()) return false;
+        boolean open = (cur.isAir() || cur.canBeReplaced()) && cur.getFluidState().isEmpty();
+        // 幹が突き破るマス(段 3 追記 11-20): 人工のブロック(中身の無い物)だけを置き換える
+        boolean breakThrough = mat == StructureTree.TRUNK_BREAK && !cur.hasBlockEntity() && Takeover.isArtificial(level, p, cur);
+        if (!open && !breakThrough) return false;
         BlockState s = stateOf(mat);
         if (s == null) return false;
         return level.setBlock(p, s, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
@@ -96,7 +99,7 @@ public final class StructureTrees extends SavedData {
     @Nullable
     static BlockState stateOf(byte mat) {
         return switch (mat) {
-            case StructureTree.TRUNK, StructureTree.ROOT, StructureTree.BRANCH -> ModBlocks.OVERGROWN_WOOD.get().defaultBlockState();
+            case StructureTree.TRUNK, StructureTree.TRUNK_BREAK, StructureTree.ROOT, StructureTree.BRANCH -> ModBlocks.OVERGROWN_WOOD.get().defaultBlockState();
             case StructureTree.LEAF -> ModBlocks.OVERGROWN_LEAVES.get().defaultBlockState();
             case StructureTree.GIANT_ROOT -> ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState();
             default -> null;

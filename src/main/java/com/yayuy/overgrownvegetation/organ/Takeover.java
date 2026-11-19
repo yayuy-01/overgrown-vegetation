@@ -153,7 +153,7 @@ public final class Takeover {
         Random rnd = new Random(level.getGameTime() * 0x9E3779B97F4A7C15L ^ level.getSeed());
         List<ServerPlayer> players = new ArrayList<>();
         for (ServerPlayer p : level.players()) if (!p.isSpectator()) players.add(p);
-        for (int i = 0; i < t.takeoverChunksPerScan && !players.isEmpty(); i++) {
+        for (int i = 0; i < t.takeoverChunksPerScan && !players.isEmpty() && (i == 0 || TickBudget.timeLeft()); i++) { // 1 回が重い(隙間の草で最悪 30 ms)ので予算が尽きたら次の回へ
             ServerPlayer pl = players.get(rnd.nextInt(players.size()));
             ChunkPos c = pl.chunkPosition();
             int r = t.takeoverRadiusChunks;
@@ -173,9 +173,10 @@ public final class Takeover {
     public static Visit visit(ServerLevel level, int cx, int cz, Random rnd, FusionTable t, boolean force) {
         LevelChunk ch = level.getChunkSource().getChunkNow(cx, cz);
         if (ch == null) return new Visit(0, 0, null, "読み込まれていない");
-        if (!force && !ModBiomes.isFullyOvergrown(level.getBiome(new BlockPos((cx << 4) + 8, level.getSeaLevel(), (cz << 4) + 8)))) {
-            return new Visit(0, 0, null, "過繁茂でない");
-        }
+        net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome> biome = level.getBiome(new BlockPos((cx << 4) + 8, level.getSeaLevel(), (cz << 4) + 8));
+        if (!force && !ModBiomes.isOvergrownLike(biome)) return new Visit(0, 0, null, "繁茂でない");
+        lastGaps = greenGaps(level, ch, rnd, t); // 建物どうしの間・隙間の草と蔦(繁茂・過繁茂とも)
+        if (!force && !ModBiomes.isFullyOvergrown(biome)) return new Visit(0, 0, null, "繁茂(器官は過繁茂だけ)");
         if (!force && rnd.nextDouble() >= t.takeoverOrganChancePerVisit) return new Visit(0, 0, null, "確率で見送り");
         int[] counted = new int[1];
         List<Face> fs = faces(level, ch, rnd, 512, counted);
@@ -198,6 +199,54 @@ public final class Takeover {
             return new Visit(counted[0], here + 1, o, big ? "大きい器官" : "小さい器官");
         }
         return new Visit(counted[0], here, null, "間を空けられる面が無い");
+    }
+
+    /** 直前の見回りで草と蔦を生やした隙間の数(コマンド・テスト用)。 */
+    static int lastGaps;
+
+    /**
+     * 建物どうしの間・路地・壁と地面の隅(段 3 追記 11-20 ユーザー「建物同士の間や隙間には草の蔦が生えて」)。チャンクの列を選び、地面の上の空いたマスが
+     * 東西南北のうち 2 方向以上で gapReach 以内の人工のブロックに挟まれているか、すぐ隣が人工の壁なら隙間とみなす。地面に下草を、隣の壁に蔦を
+     * 確率 gapPlantChance で生やす(ふつうの汚染の植物の生やし方 {@link com.yayuy.overgrownvegetation.corruption.CorruptionSpreader#growSurfacePlants})。
+     * 屋根の上(足元が人工のブロック)は数えない。押し返す道具の効く所には生やさない。生やした隙間の数を返す。
+     */
+    public static int greenGaps(ServerLevel level, LevelChunk ch, Random rnd, FusionTable t) {
+        int done = 0, bx = ch.getPos().getMinBlockX(), bz = ch.getPos().getMinBlockZ();
+        BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
+        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int i = 0; i < t.takeoverGapCellsPerVisit * 4 && done < t.takeoverGapCellsPerVisit; i++) {
+            int x = bx + rnd.nextInt(16), z = bz + rnd.nextInt(16);
+            int y = ch.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x & 15, z & 15) + 1;
+            BlockPos cell = new BlockPos(x, y, z), ground = cell.below();
+            BlockState c = level.getBlockState(cell), g = level.getBlockState(ground);
+            if (!(c.isAir() || c.canBeReplaced()) || !c.getFluidState().isEmpty() || isArtificial(level, ground, g)) continue;
+            int sides = 0;
+            List<BlockPos> walls = new ArrayList<>();
+            for (int[] d : dirs) {
+                for (int k = 1; k <= t.takeoverGapReach; k++) {
+                    boolean hit = false;
+                    for (int dy = 0; dy <= 1 && !hit; dy++) {
+                        m.set(x + d[0] * k, y + dy, z + d[1] * k);
+                        if (level.getChunkSource().getChunkNow(m.getX() >> 4, m.getZ() >> 4) == null) continue;
+                        BlockState s = level.getBlockState(m);
+                        if (isArtificial(level, m, s)) {
+                            hit = true;
+                            if (k == 1) walls.add(m.immutable());
+                        }
+                    }
+                    if (hit) {
+                        sides++;
+                        break;
+                    }
+                }
+            }
+            if (sides < 2 && walls.isEmpty()) continue;
+            if (RingWards.guarded(level, cell)) continue;
+            com.yayuy.overgrownvegetation.corruption.CorruptionSpreader.growSurfacePlants(level, ground, g, t.takeoverGapPlantChance);
+            for (BlockPos w : walls) com.yayuy.overgrownvegetation.corruption.CorruptionSpreader.growSurfacePlants(level, w, level.getBlockState(w), t.takeoverGapPlantChance);
+            done++;
+        }
+        return done;
     }
 
     private static boolean farFromOthers(ForestOrgans data, Face f, int spacing) {

@@ -91,22 +91,24 @@ public final class FusionCommand {
         ServerLevel level = src.getLevel();
         BlockPos at = BlockPos.containing(src.getPosition());
         java.util.Random rnd = new java.util.Random(level.getGameTime());
-        int planted = 0, big = 0;
+        int planted = 0, big = 0, gaps = 0;
         long t0 = System.nanoTime(), worst = 0;
         for (int i = 0; i < count; i++) {
             long s0 = System.nanoTime();
             Takeover.Visit v = Takeover.visit(level, (at.getX() >> 4) + rnd.nextInt(2 * radius + 1) - radius, (at.getZ() >> 4) + rnd.nextInt(2 * radius + 1) - radius, rnd,
                     StructureFusion.table(), true);
             worst = Math.max(worst, System.nanoTime() - s0);
+            gaps += Takeover.lastGaps;
+            Takeover.lastGaps = 0;
             if (v.planted() != null) {
                 planted++;
                 if (!v.planted().small) big++;
             }
         }
         double ms = (System.nanoTime() - t0) / 1.0e6;
-        int p = planted, b = big;
+        int p = planted, b = big, g = gaps;
         long w = worst;
-        src.sendSuccess(() -> Component.literal(String.format(java.util.Locale.ROOT, "TAKEOVER 見た %d 回・芽吹かせた %d(大 %d)・%.1f ms(1 回平均 %.2f・最悪 %.2f ms)", count, p, b, ms, ms / count, w / 1.0e6)), true);
+        src.sendSuccess(() -> Component.literal(String.format(java.util.Locale.ROOT, "TAKEOVER 見た %d 回・芽吹かせた %d(大 %d)・隙間の草 %d・%.1f ms(1 回平均 %.2f・最悪 %.2f ms)", count, p, b, g, ms, ms / count, w / 1.0e6)), true);
         return planted;
     }
 
