@@ -130,7 +130,7 @@ public final class TakeoverGameTests {
                         for (Direction d : Direction.values()) if (level.getBlockState(q.relative(d)).isAir()) reach = true;
                     }
                     helper.assertTrue(reach, "芯が外の空気に触れない(" + (big ? "大" : "小") + ")");
-                    helper.assertTrue(up > 0, "芯が根元より上に無い(斜め・上へ飛び出していない)");
+                    // 11-20: 形が種類ごとの 5 つになり、芯は根元より下のこともある(嚢は垂れる)。種類ごとの形は TakeoverShapesGameTests で見る
                     helper.assertTrue(!cells.isEmpty(), "形が空");
                 }
             }

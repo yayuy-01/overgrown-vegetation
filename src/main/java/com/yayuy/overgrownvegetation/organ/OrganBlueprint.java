@@ -25,6 +25,8 @@ public final class OrganBlueprint {
             M_CORE = 8, M_CRYSTAL = 9, M_PITH = 10, M_CAP = 11, M_ROOT = 12, M_EGG = 13, M_STONE = 14;
     /** 融合の器官(11-19): 蔦の触手のブロック・覆い(ブロックは置かず、そのマスを記録で覆う)。 */
     public static final int M_VINE = 15, M_COVER = 16;
+    /** 乗っ取りの器官の茎(11-20: 節のある肉質の茎・根・瘤。{@code organ_stalk})。 */
+    public static final int M_STALK = 17;
 
     /** 置く順の列。{@link #dx} などで読む。 */
     public final long[] entries;

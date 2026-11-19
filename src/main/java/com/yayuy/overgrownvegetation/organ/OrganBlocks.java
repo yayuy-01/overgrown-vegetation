@@ -56,6 +56,13 @@ public final class OrganBlocks {
     public static final DeferredBlock<Block> ORGAN_VINE = BLOCKS.registerBlock("organ_vine", OrganTissueBlock::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_GREEN).strength(1.0F).sound(SoundType.ROOTS).pushReaction(PushReaction.DESTROY));
 
+    /**
+     * 器官の茎(2026-11-20 建物用の器官 5 種類の形): 塔の角笛・嚢の柄・井戸の根と瘤。節のある肉質の茎。枯れたら {@link OrganTissueBlock#WITHERED}。
+     * 絵は Fable の仮(ユーザー未確認)。硬さは嚢より少し固い【仮】。
+     */
+    public static final DeferredBlock<Block> ORGAN_STALK = BLOCKS.registerBlock("organ_stalk", OrganTissueBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_GREEN).strength(1.6F).sound(SoundType.ROOTS));
+
     /** 根晶の芽(段 3 の結晶。地脈を吸う根で育つ)。壊すと根晶。 */
     public static final DeferredBlock<Block> ROOT_CRYSTAL_CLUSTER = BLOCKS.registerBlock("root_crystal_cluster",
             p -> new AmethystClusterBlock(7.0F, 3.0F, p),
@@ -71,14 +78,14 @@ public final class OrganBlocks {
     public static final DeferredItem<Item> ROOT_CRYSTAL = ITEMS.registerSimpleItem("root_crystal", new Item.Properties());
 
     static {
-        for (DeferredBlock<Block> b : List.of(ORGAN_SAC, ORGAN_EGG_MASS, ORGAN_CORE, ORGAN_VEIN, ORGAN_VINE, ROOT_CRYSTAL_CLUSTER, ROOT_CRYSTAL_BLOCK)) {
+        for (DeferredBlock<Block> b : List.of(ORGAN_SAC, ORGAN_EGG_MASS, ORGAN_CORE, ORGAN_VEIN, ORGAN_VINE, ORGAN_STALK, ROOT_CRYSTAL_CLUSTER, ROOT_CRYSTAL_BLOCK)) {
             ITEMS.registerSimpleBlockItem(b);
         }
     }
 
     /** クリエイティブタブに載せる(器官のブロックと根晶。2026-11-19 夜 ユーザー「器官のブロックとか、クリエイティブタブにないものはしっかり追加」)。 */
     public static void acceptItems(net.minecraft.world.item.CreativeModeTab.Output output) {
-        for (DeferredBlock<Block> b : List.of(ORGAN_SAC, ORGAN_EGG_MASS, ORGAN_CORE, ORGAN_VEIN, ORGAN_VINE, ROOT_CRYSTAL_CLUSTER, ROOT_CRYSTAL_BLOCK)) {
+        for (DeferredBlock<Block> b : List.of(ORGAN_SAC, ORGAN_EGG_MASS, ORGAN_CORE, ORGAN_VEIN, ORGAN_VINE, ORGAN_STALK, ROOT_CRYSTAL_CLUSTER, ROOT_CRYSTAL_BLOCK)) {
             output.accept(b.get());
         }
         output.accept(ROOT_CRYSTAL.get());

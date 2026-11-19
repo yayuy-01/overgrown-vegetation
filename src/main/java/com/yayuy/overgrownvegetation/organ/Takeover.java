@@ -189,13 +189,18 @@ public final class Takeover {
         int allowed = Math.max(1, counted[0] / t.takeoverFacesPerOrgan);
         if (here >= allowed) return new Visit(counted[0], here, null, "露出面に比べて足りている");
         boolean big = rnd.nextDouble() < t.takeoverBigChance;
+        // 11-20 建物用の 5 種類: 種類を先に決め、その種類の生えやすい面を優先する(合う面が無ければ、どこからでも)
+        OrganKind kind = OrganKind.values()[rnd.nextInt(OrganKind.values().length)];
+        if (TakeoverShapes.forcedKind() != null) kind = TakeoverShapes.forcedKind();
+        if (TakeoverShapes.forcedBig() != null) big = TakeoverShapes.forcedBig();
         int spacing = big ? t.takeoverSpacingBig : t.takeoverSpacingSmall;
-        for (int tries = 0; tries < 24; tries++) {
+        for (int tries = 0; tries < 48; tries++) {
             Face f = fs.get(rnd.nextInt(fs.size()));
-            if (big && f.ny() == -1) continue; // 大きい器官は天井から下げない
+            if (big && f.ny() == -1 && kind != OrganKind.SAC) continue; // 大きい器官は天井から下げない(嚢は垂れる物なのでよい)
+            if (tries < 36 && !TakeoverShapes.faceFits(level, kind, f)) continue;
             if (RingWards.guarded(level, f.out())) continue; // 押し返す道具の効く所
             if (!farFromOthers(data, f, spacing)) continue;
-            ForestOrgans.Organ o = plant(level, data, f, big, rnd);
+            ForestOrgans.Organ o = plant(level, data, f, big, kind, rnd);
             return new Visit(counted[0], here + 1, o, big ? "大きい器官" : "小さい器官");
         }
         return new Visit(counted[0], here, null, "間を空けられる面が無い");
@@ -261,7 +266,11 @@ public final class Takeover {
 
     /** 面に器官を植える(種類はふつうの 5 種類からランダム)。形は器官の側で作る({@link OrganFusion#decide} → {@link #planOrganic})。 */
     public static ForestOrgans.Organ plant(ServerLevel level, ForestOrgans data, Face f, boolean big, Random rnd) {
-        OrganKind kind = OrganKind.values()[rnd.nextInt(OrganKind.values().length)];
+        return plant(level, data, f, big, OrganKind.values()[rnd.nextInt(OrganKind.values().length)], rnd);
+    }
+
+    /** 種類を決めて植える(11-20)。 */
+    public static ForestOrgans.Organ plant(ServerLevel level, ForestOrgans data, Face f, boolean big, OrganKind kind, Random rnd) {
         ForestOrgans.Organ o = data.plant(level, kind, !big, 0, rnd.nextInt(), 0, f.x(), f.z());
         o.y = f.y();
         o.takeover = new int[]{f.x(), f.y(), f.z(), f.nx(), f.ny(), f.nz()};
@@ -308,6 +317,7 @@ public final class Takeover {
      */
     @Nullable
     public static long[] planOrganic(ServerLevel level, ForestOrgans.Organ o, FusionTable t) {
+        if (!"1".equals(System.getProperty("ov.takeoverOldShape"))) return TakeoverShapes.plan(level, o); // 11-20: 種類ごとの 5 つの形(第 10 版の茎 + 嚢は下に残す)
         int[] f = o.takeover;
         if (f == null || f.length < 6) return null;
         boolean big = !o.small;

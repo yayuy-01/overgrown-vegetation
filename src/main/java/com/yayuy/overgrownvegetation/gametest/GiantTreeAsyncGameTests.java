@@ -52,7 +52,7 @@ public final class GiantTreeAsyncGameTests {
     }
 
     /** 確かめの前に読み込んでおく半径(チャンク)。計画が読むのは 7〜9 チャンクまで(11-18 の測り)。 */
-    private static final int PRELOAD_CHUNKS = 10;
+    private static final int PRELOAD_CHUNKS = 14; // 11-20: 10 → 14(構造物の根の作り直しで計画の届く範囲が 12 チャンクまで伸び、1 回目の計画がチャンクを読み込んで 2 回目と違った)
 
     private static GiantTreeFeature.Config giantConfig(GameTestHelper helper) {
         ConfiguredFeature<?, ?> feature = helper.getLevel().registryAccess().registryOrThrow(Registries.CONFIGURED_FEATURE)

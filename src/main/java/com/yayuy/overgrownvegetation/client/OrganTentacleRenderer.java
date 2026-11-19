@@ -33,7 +33,11 @@ public class OrganTentacleRenderer extends EntityRenderer<OrganTentacle> {
     @Override
     public void render(OrganTentacle e, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
         BlockRenderDispatcher br = Minecraft.getInstance().getBlockRenderer();
-        BlockState s = (e.limp() ? ModBlocks.GIANT_OVERGROWN_LOG.get() : ModBlocks.OVERGROWN_LOG.get()).defaultBlockState();
+        // 11-20: 器官の茎のブロックで描く(枯れたら枯れ色)。明るさは節ごとに、その節のある場所から取る
+        // (実体の原点は器官の肉の中にあって明るさ 0 なので、全部の節が真っ黒 =「黒い太い弧」になっていた)。
+        BlockState s = com.yayuy.overgrownvegetation.organ.OrganBlocks.ORGAN_STALK.get().defaultBlockState()
+                .setValue(com.yayuy.overgrownvegetation.organ.OrganTissueBlock.WITHERED, e.limp());
+        net.minecraft.core.BlockPos.MutableBlockPos lp = new net.minecraft.core.BlockPos.MutableBlockPos();
         float t = e.swayTime() + partialTick; // サーバーと同じゲーム時刻で揺らす(11-18 見直し ②7)
         int n = e.segments();
         for (int i = 0; i <= n; i++) {
@@ -42,7 +46,9 @@ public class OrganTentacleRenderer extends EntityRenderer<OrganTentacle> {
             pose.pushPose();
             pose.translate(p.x - size / 2.0F, p.y - size / 2.0F, p.z - size / 2.0F);
             pose.scale(size, size, size);
-            br.renderSingleBlock(s, pose, buffers, light, OverlayTexture.NO_OVERLAY);
+            lp.set(e.getX() + p.x, e.getY() + p.y, e.getZ() + p.z);
+            int segLight = net.minecraft.client.renderer.LevelRenderer.getLightColor(e.level(), lp);
+            br.renderSingleBlock(s, pose, buffers, Math.max(segLight, i == 0 ? light : 0), OverlayTexture.NO_OVERLAY);
             pose.popPose();
         }
         super.render(e, yaw, partialTick, pose, buffers, light);

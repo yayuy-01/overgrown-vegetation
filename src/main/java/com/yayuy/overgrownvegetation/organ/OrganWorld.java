@@ -506,6 +506,7 @@ public final class OrganWorld {
             case OrganBlueprint.M_EGG -> OrganBlocks.ORGAN_EGG_MASS.get().defaultBlockState();
             case OrganBlueprint.M_STONE -> ModBlocks.OVERGROWN_STONE.get().defaultBlockState();
             case OrganBlueprint.M_VINE -> OrganBlocks.ORGAN_VINE.get().defaultBlockState();
+            case OrganBlueprint.M_STALK -> OrganBlocks.ORGAN_STALK.get().defaultBlockState();
             default -> null;
         };
     }
