@@ -210,7 +210,7 @@ public final class CoverRenderer {
                 p.set(origin.getX() + (cell & 15), origin.getY() + (cell >> 8), origin.getZ() + ((cell >> 4) & 15));
                 BlockState state = region.getBlockState(p);
                 // 記録にあっても、いまそこにあるブロックに覆われる資格が無ければ描かない(OvergrownLayerData#isCovered と同じ判定)。
-                if (state.getRenderShape() != RenderShape.MODEL || !OvergrownLayerData.canCoverInStructure(state)) { // 11-19: 構造物の箱の中で覆った土・草も描く(決め A)
+                if (state.getRenderShape() != RenderShape.MODEL || !OvergrownLayerData.canCover(state)) {
                     continue;
                 }
                 if (out == null) {

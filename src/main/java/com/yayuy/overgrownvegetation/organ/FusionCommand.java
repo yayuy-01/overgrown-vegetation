@@ -19,8 +19,6 @@ import java.util.List;
  * 構造物と森の融合の確かめ用(2026-11-19 段 2)。{@code /ov perf organ fusion ...}(/ov perf の下の枝は決まった一覧なので、器官の枝に足す)(権限 2)。
  * <ul>
  *   <li>{@code fusion sites} — まわり 64 ブロックの構造物(種類・全体の段・地表の箱・木が済みか)。</li>
- *   <li>{@code fusion tree} — いちばん近い構造物に、過繁茂でなくても今すぐ木を生やし始める(小・中 = 構造物の木、大 = 中庭の巨大樹)。</li>
- *   <li>{@code fusion forget} — 「木が済み」の印を全部消す(撮り直し用)。</li>
  *   <li>{@code fusion cleanup [半径]} — まわり(既定 48)の構造物のそばで、支えの無い汚染の原木・葉の塊(浮いた木)を消す。{@code cleanup check [半径]} は数えるだけ(段 2b)。</li>
  * </ul>
  */
@@ -37,8 +35,6 @@ public final class FusionCommand {
                         .then(Commands.literal("organ")
                                 .then(Commands.literal("fusion")
                                         .then(Commands.literal("sites").executes(ctx -> sites(ctx.getSource())))
-                                        .then(Commands.literal("tree").executes(ctx -> tree(ctx.getSource())))
-                                        .then(Commands.literal("forget").executes(ctx -> forget(ctx.getSource())))
                                         .then(Commands.literal("cleanup")
                                                 .executes(ctx -> cleanup(ctx.getSource(), 48, false))
                                                 .then(Commands.literal("check")
@@ -75,27 +71,12 @@ public final class FusionCommand {
             src.sendSuccess(() -> Component.literal("まわり 64 に構造物は無い"), false);
             return 0;
         }
-        StructureTrees data = StructureTrees.get(level);
         for (StructureFusion.Site s : ss) {
             String line = s.id() + " 段=" + s.wholeClass() + " 長辺=" + StructureFusion.span(s.surfaceWhole()) + " 箱=" + s.surfaceWhole()
-                    + " 部品=" + s.pieces().length + (data.isDone(s) ? " 木=済み" : "") + (StructureTrees.overgrown(level, s) ? " 過繁茂" : "");
+                    + " 部品=" + s.pieces().length;
             src.sendSuccess(() -> Component.literal(line), false);
         }
         return ss.size();
-    }
-
-    private static int tree(CommandSourceStack src) {
-        ServerLevel level = src.getLevel();
-        BlockPos at = BlockPos.containing(src.getPosition());
-        List<StructureFusion.Site> ss = near(level, at, 64);
-        if (ss.isEmpty()) {
-            src.sendFailure(Component.literal("まわり 64 に構造物は無い"));
-            return 0;
-        }
-        StructureFusion.Site s = ss.get(0);
-        StructureTrees.Start r = StructureTrees.get(level).start(level, s, true);
-        src.sendSuccess(() -> Component.literal("FUSION_TREE " + s.id() + " 段=" + s.wholeClass() + " → " + r + "(詳しくはログ StructureTrees)"), false);
-        return r == StructureTrees.Start.STARTED ? 1 : 0;
     }
 
     private static int cleanup(CommandSourceStack src, int radius, boolean dryRun) {
@@ -105,9 +86,4 @@ public final class FusionCommand {
         return r.clusters();
     }
 
-    private static int forget(CommandSourceStack src) {
-        StructureTrees.get(src.getLevel()).clearForTests();
-        src.sendSuccess(() -> Component.literal("構造物の木の「済み」を消した"), false);
-        return 1;
-    }
 }

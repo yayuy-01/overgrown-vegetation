@@ -49,62 +49,6 @@ public final class StructureTree {
         }
     }
 
-    /** 列ごとの屋根の高さと、空へ開いた中の床(試作の scanPiece)。 */
-    record Col(int x, int z, int topS, int open) {
-    }
-
-    /** 根元(試作の chooseRuinAnchor)。 */
-    record Anchor(boolean inside, int x, int z, int baseY, double openR) {
-    }
-
-    /** 計画を作る(読み込まれていない所があれば Result.fail("wait"))。 */
-    public static Result plan(ServerLevel level, StructureFusion.Site site, long seed) {
-        return plan(level, site, seed, StructureFusion.table(), null);
-    }
-
-    /** 生え方を決めて作る(テスト用。{@code force} = "top" / "inside" / null は自動)。 */
-    public static Result plan(ServerLevel level, StructureFusion.Site site, long seed, FusionTable t, @Nullable String force) {
-        List<StructureFusion.Hit> hits = StructureFusion.hits(site);
-        if (hits.isEmpty()) return Result.fail("地表の部品が無い");
-        OrganFusion.Ctx c = new OrganFusion.Ctx(level, hits, t);
-        c.allowInterior = true;
-        Random rnd = new Random(seed * 0x9E3779B97F4A7C15L + 0x7EE5L);
-        // 建物らしい部品のうち、建材のいちばん多い物に生やす
-        BoundingBox piece = null;
-        int bestN = 0;
-        for (StructureFusion.Hit h : hits) {
-            int n = countStruct(c, h.piece());
-            if (n > bestN) {
-                bestN = n;
-                piece = h.piece();
-            }
-        }
-        if (piece == null || bestN < OrganFusion.BUILDING_BLOCKS) return Result.fail("建物らしい部品が無い");
-        int ground = ground(c, site.surfaceWhole());
-        if (ground == Integer.MIN_VALUE) return Result.fail("wait");
-        c.reserveEntrances();
-        W w = new W(c, ground, rnd);
-        // 寸法(試作の structTreeDims)。建物の高さは全部の部品の屋根の高さ(地面から)
-        int top = ground;
-        for (StructureFusion.Hit h : hits) top = Math.max(top, topStruct(c, h.piece()));
-        int ht = (int) Math.round(Math.min(t.treeHeightMax, Math.max(t.treeHeightMin, (top - ground) * t.treeHeightMul + t.treeHeightAdd)));
-        int size = StructureFusion.span(site.surfaceWhole());
-        int r0 = t.treeTrunkRadius[t.treeTrunkRadius.length - 1];
-        for (int i = 0; i < t.treeTrunkRadiusBelow.length && i < t.treeTrunkRadius.length; i++) {
-            if (size < t.treeTrunkRadiusBelow[i]) {
-                r0 = t.treeTrunkRadius[i];
-                break;
-            }
-        }
-        int crownR = (int) Math.round(Math.min(t.treeCrownMax, Math.max(t.treeCrownMin, t.treeCrownBase + ht * t.treeCrownPerHeight)));
-        Anchor an = chooseAnchor(c, piece, rnd, t, force);
-        if (an == null) return Result.fail(force != null && force.equals("inside") ? "中から生やせない(空へ開いた所が狭い)" : "根元が無い");
-        grow(w, piece, an, ht, r0, r0 * t.treeFlare, crownR, t);
-        if (w.planned.isEmpty()) return Result.fail("置ける所が無い");
-        String mode = an.inside ? "inside" : "top";
-        return new Result(pack(w, mode, new BlockPos(an.x, an.baseY, an.z), ht), mode);
-    }
-
     /** 計画を下から順に並べる(幹が根元から伸びて見えるように)。 */
     static Plan pack(W w, String mode, BlockPos anchor, int height) {
         long[] pos = w.planned.keySet().toLongArray();
@@ -124,31 +68,6 @@ public final class StructureTree {
     }
 
     // ---------------------------------------------------------------- 建物を見る
-
-    private static int countStruct(OrganFusion.Ctx c, BoundingBox b) {
-        if ((long) b.getXSpan() * b.getYSpan() * b.getZSpan() > 400_000L) return 0;
-        int n = 0;
-        for (int x = b.minX(); x <= b.maxX(); x++) {
-            for (int z = b.minZ(); z <= b.maxZ(); z++) {
-                for (int y = b.minY(); y <= b.maxY(); y++) {
-                    if (c.struct(x, y, z)) n++;
-                }
-            }
-        }
-        return n;
-    }
-
-    /** 部品の中の建物のブロックのいちばん高い所(無ければ Integer.MIN_VALUE)。 */
-    static int topStruct(OrganFusion.Ctx c, BoundingBox b) {
-        for (int y = b.maxY(); y >= b.minY(); y--) {
-            for (int x = b.minX(); x <= b.maxX(); x++) {
-                for (int z = b.minZ(); z <= b.maxZ(); z++) {
-                    if (c.struct(x, y, z)) return y;
-                }
-            }
-        }
-        return Integer.MIN_VALUE;
-    }
 
     /** 足を置ける高さ(葉を除いた高さ地図 = 地面の上の最初のマス)。読み込まれていなければ Integer.MIN_VALUE。 */
     static int surfaceAt(OrganFusion.Ctx c, int x, int z) {
@@ -183,114 +102,6 @@ public final class StructureTree {
         }
         hs.sort(Integer::compare);
         return hs.get(hs.size() / 2);
-    }
-
-    /** 列のマスが四方を壁に囲まれているか(部品の箱の中で、その高さから 3 マス上までに建物のブロックがある)。 */
-    private static boolean enclosed(OrganFusion.Ctx c, BoundingBox b, int x, int y, int z) {
-        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        for (int[] d : dirs) {
-            boolean hit = false;
-            for (int k = 1; !hit; k++) {
-                int nx = x + d[0] * k, nz = z + d[1] * k;
-                if (nx < b.minX() - 1 || nx > b.maxX() + 1 || nz < b.minZ() - 1 || nz > b.maxZ() + 1) break;
-                for (int yy = y; yy <= y + 3 && !hit; yy++) hit = c.struct(nx, yy, nz);
-            }
-            if (!hit) return false;
-        }
-        return true;
-    }
-
-    /** 試作の scanPiece。open = 空へ開いた中の床の上のマス(上から見て最初に当たる物の上が、四方を壁に囲まれた空気)。 */
-    static List<Col> scanPiece(OrganFusion.Ctx c, BoundingBox b) {
-        List<Col> cols = new ArrayList<>();
-        for (int x = b.minX(); x <= b.maxX(); x++) {
-            for (int z = b.minZ(); z <= b.maxZ(); z++) {
-                int topS = Integer.MIN_VALUE, open = Integer.MIN_VALUE;
-                for (int y = b.maxY(); y >= b.minY(); y--) {
-                    if (c.struct(x, y, z)) {
-                        topS = y;
-                        break;
-                    }
-                }
-                for (int y = b.maxY() + 1; y >= b.minY() - 2; y--) { // 床は部品の箱の下にあることが多い
-                    if (!c.loaded(x, y, z)) break;
-                    BlockState s = c.state(x, y, z);
-                    if ((s.isAir() || s.canBeReplaced()) && s.getFluidState().isEmpty()) continue;
-                    // 屋根の上は四方に壁が無いので外れる。水の床(井戸など)は外す
-                    if (s.getFluidState().isEmpty() && y + 1 <= b.maxY() && y + 1 >= b.minY()
-                            && !c.reserved.contains(BlockPos.asLong(x, y + 1, z)) && enclosed(c, b, x, y + 1, z)) {
-                        open = y + 1;
-                    }
-                    break;
-                }
-                cols.add(new Col(x, z, topS, open));
-            }
-        }
-        return cols;
-    }
-
-    /** 試作の chooseRuinAnchor。中から(開いた列が覆われた列から openMin 以上)→ だめならてっぺんから。 */
-    @Nullable
-    static Anchor chooseAnchor(OrganFusion.Ctx c, BoundingBox b, Random rnd, FusionTable t, @Nullable String force) {
-        List<Col> cols = scanPiece(c, b);
-        int w = b.getXSpan(), d = b.getZSpan();
-        int[] dist = new int[w * d];
-        Arrays.fill(dist, 999);
-        int[] q = new int[w * d];
-        int qn = 0;
-        for (Col col : cols) {
-            if (col.open == Integer.MIN_VALUE) {
-                int i = (col.x - b.minX()) + w * (col.z - b.minZ());
-                dist[i] = 0;
-                q[qn++] = i;
-            }
-        }
-        for (int h = 0; h < qn; h++) {
-            int cur = q[h], lx = cur % w, lz = cur / w;
-            int[][] n4 = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-            for (int[] a : n4) {
-                int nx = lx + a[0], nz = lz + a[1];
-                if (nx < 0 || nz < 0 || nx >= w || nz >= d) continue;
-                int j = nx + w * nz;
-                if (dist[j] > dist[cur] + 1) {
-                    dist[j] = dist[cur] + 1;
-                    q[qn++] = j;
-                }
-            }
-        }
-        Col best = null;
-        double bd = 0.0D;
-        for (Col col : cols) {
-            if (col.open == Integer.MIN_VALUE) continue;
-            double v = dist[(col.x - b.minX()) + w * (col.z - b.minZ())] + rnd.nextDouble() * 0.3D;
-            if (v > bd) {
-                bd = v;
-                best = col;
-            }
-        }
-        boolean wantTop = "top".equals(force), wantInside = "inside".equals(force);
-        if (best != null && bd >= t.treeOpenMin && !wantTop) {
-            return new Anchor(true, best.x, best.z, best.open, Math.floor(bd) - 0.5D);
-        }
-        if (wantInside) return null;
-        // てっぺんから: 屋根の高い所(煙突のような 1 本だけ高い所は分位で外す)の、真ん中に近い列
-        int[] tops = cols.stream().mapToInt(Col::topS).filter(v -> v != Integer.MIN_VALUE).sorted().toArray();
-        if (tops.length == 0) return null;
-        int lvl = tops[Math.min(tops.length - 1, (int) Math.floor(tops.length * t.treeTopPercentile))];
-        double cx = (b.minX() + b.maxX()) / 2.0D, cz = (b.minZ() + b.maxZ()) / 2.0D;
-        Col pick = null;
-        double pd = 1.0E9D;
-        for (Col col : cols) {
-            if (col.topS < lvl - 1 || col.topS > lvl) continue;
-            if (!c.free(col.x, col.topS + 1, col.z)) continue;
-            double dd = Math.hypot(col.x - cx, col.z - cz) + rnd.nextDouble() * 0.8D;
-            if (dd < pd) {
-                pd = dd;
-                pick = col;
-            }
-        }
-        if (pick == null) return null;
-        return new Anchor(false, pick.x, pick.z, pick.topS + 1, 0.0D);
     }
 
     // ---------------------------------------------------------------- 置く物を決める
@@ -357,7 +168,6 @@ public final class StructureTree {
                 if (c.struct(x, y, z)) cut++;
                 return false;
             }
-            if (m == LEAF && c.interior(x, y, z)) return false; // 部屋の中には葉を茂らせない
             planned.put(k, m);
             return true;
         }
@@ -558,10 +368,6 @@ public final class StructureTree {
     }
 
     /** 試作の drapeRoot: まず一番近い壁の縁へ、そこから壁に沿って地面まで垂らす。 */
-    static void drapeRoot(W w, int sx, int sy, int sz, BoundingBox p, double a, int steps, int sign, double r0, FusionTable t) {
-        drapeRoot(w, sx, sy, sz, p, a, steps, sign, r0, t.treeRootEnd, t);
-    }
-
     static void drapeRoot(W w, int sx, int sy, int sz, BoundingBox p, double a, int steps, int sign, double r0, double r1, FusionTable t) {
         double[] center = {(p.minX() + p.maxX()) / 2.0D, (p.minZ() + p.maxZ()) / 2.0D};
         double half = Math.max(p.maxX() - p.minX(), p.maxZ() - p.minZ()) / 2.0D + 3.0D;
@@ -600,158 +406,6 @@ public final class StructureTree {
         return v * v;
     }
 
-    /** 試作の growRuinTree。 */
-    static void grow(W w, BoundingBox p, Anchor an, int ht, int r0, double flare, int crownR, FusionTable t) {
-        Random rnd = w.rnd;
-        int bx = an.x, bz = an.z, by = an.baseY;
-        int byRel = by - w.ground;
-        int lt = Math.max(t.treeTrunkMin, ht - byRel);
-        int pieceTop = topStruct(w.c, p);
-        int outY = pieceTop + 1; // ここより上は建物の外
-        int outRel = outY - w.ground;
-        double[] center = {(p.minX() + p.maxX()) / 2.0D, (p.minZ() + p.maxZ()) / 2.0D};
-        java.util.function.IntToDoubleFunction rAt = dy -> Math.max(1.0D, r0 * (1.0D - 0.5D * dy / lt)) + (dy < 3 ? flare * sq(1.0D - dy / 3.0D) : 0.0D);
-        java.util.function.IntToDoubleFunction rFit = dy -> an.inside && by + dy <= outY ? Math.min(rAt.applyAsDouble(dy), an.openR + 0.3D) : rAt.applyAsDouble(dy);
-        // 幹の道筋: bendEvery マスごとに向きを変えながらうねる。穴を抜けるまでは穴の中に収める
-        double[][] raw = new double[lt + 1][2];
-        double ox = 0, oz = 0, vx = 0, vz = 0;
-        for (int dy = 0; dy <= lt; dy++) {
-            if (dy % t.treeBendEvery == 0) {
-                double a = rnd.nextDouble() * Math.PI * 2.0D, k = (0.25D + rnd.nextDouble() * 0.35D) * t.treeBend;
-                vx = vx * 0.45D + Math.cos(a) * k;
-                vz = vz * 0.45D + Math.sin(a) * k;
-            }
-            if (dy < 2) continue;
-            ox += vx;
-            oz += vz;
-            if (an.inside && by + dy <= outY) {
-                double lim = Math.max(0.0D, an.openR - rFit.applyAsDouble(dy)), l = Math.hypot(ox, oz);
-                if (l > lim) {
-                    double f = l > 0 ? lim / l : 0.0D;
-                    ox *= f;
-                    oz *= f;
-                    vx *= 0.3D;
-                    vz *= 0.3D;
-                }
-            }
-            raw[dy][0] = ox;
-            raw[dy][1] = oz;
-        }
-        double[][] path = new double[lt + 1][2];
-        for (int i = 0; i <= lt; i++) {
-            double sx = 0, sz = 0;
-            int n = 0;
-            for (int j = Math.max(0, i - 2); j <= Math.min(lt, i + 2); j++) {
-                sx += raw[j][0];
-                sz += raw[j][1];
-                n++;
-            }
-            path[i][0] = sx / n;
-            path[i][1] = sz / n;
-        }
-        if (an.inside) {
-            for (int dy = 0; dy <= lt && by + dy <= outY; dy++) path[dy] = raw[dy]; // 穴の中はならさない
-        }
-        for (int dy = 0; dy <= lt; dy++) {
-            int y = by + dy;
-            double r = rFit.applyAsDouble(dy);
-            double cx = bx + path[dy][0], cz = bz + path[dy][1];
-            for (int x = (int) Math.floor(cx - r - 1); x <= cx + r + 1; x++) {
-                for (int z = (int) Math.floor(cz - r - 1); z <= cz + r + 1; z++) {
-                    if (Math.hypot(x - cx, z - cz) <= r) w.place(x, y, z, TRUNK);
-                }
-            }
-        }
-        double rg = rAt.applyAsDouble(0);
-        int roots = t.treeRoots;
-        if (!an.inside) {
-            // 垂れる根: 根元から太く出て屋根を這い、縁を越えて壁を伝って地面まで(枝分かれしながら細る)
-            for (int k = 0; k < roots; k++) {
-                double a = k * Math.PI * 2.0D / Math.max(1, roots) + (rnd.nextDouble() - 0.5D) * 0.5D;
-                int sx = (int) Math.round(bx + Math.cos(a) * (rg + 0.6D)), sz = (int) Math.round(bz + Math.sin(a) * (rg + 0.6D));
-                drapeRoot(w, sx, by, sz, p, a, 40 + byRel * 4, k % 2 == 1 ? 1 : -1, t.treeRootStart, t);
-            }
-        } else {
-            // 中から: 半分は床を這って内壁を登る。残りは壁の上を越えて外へ垂れる
-            for (int k = 0; k < roots; k++) {
-                double a = k * Math.PI * 2.0D / Math.max(1, roots) + (rnd.nextDouble() - 0.5D) * 0.5D;
-                int sx = (int) Math.round(bx + Math.cos(a) * (rg + 0.6D)), sz = (int) Math.round(bz + Math.sin(a) * (rg + 0.6D));
-                if (k % 2 == 0) {
-                    List<int[]> rp = new ArrayList<>();
-                    rp.add(new int[]{sx, by, sz});
-                    Crawl o = new Crawl();
-                    o.steps = 50 + rnd.nextInt(40);
-                    o.sign = k % 4 != 0 ? 1 : -1;
-                    o.upW = 0.7D;
-                    o.wrapW = 0.9D;
-                    o.noise = 0.6D;
-                    o.spread = true;
-                    o.ground = true;
-                    o.center = center;
-                    crawl(w, sx, by, sz, o, rp);
-                    queueTube(w, rp, t.treeRootStart, t.treeRootEnd);
-                    rootlets(w, rp, center, 1, o.sign, t);
-                } else {
-                    double ex = center[0] + Math.cos(a) * 30.0D, ez = center[1] + Math.sin(a) * 30.0D;
-                    int[] best = null;
-                    double bdd = 1.0E9D;
-                    for (int x = p.minX() - 1; x <= p.maxX() + 1; x++) {
-                        for (int z = p.minZ() - 1; z <= p.maxZ() + 1; z++) {
-                            if (!w.open(x, outY, z) || !w.c.structAdj(x, outY, z)) continue;
-                            double dd = Math.hypot(x - ex, z - ez);
-                            if (dd < bdd) {
-                                bdd = dd;
-                                best = new int[]{x, outY, z};
-                            }
-                        }
-                    }
-                    if (best != null) {
-                        List<int[]> arc = new ArrayList<>();
-                        Crawl o = new Crawl();
-                        o.steps = 30;
-                        o.toward = best;
-                        o.towardW = 3.0D;
-                        o.noise = 0.3D;
-                        o.free = true;
-                        o.center = center;
-                        o.fixed = rnd;
-                        crawl(w, bx, outY, bz, o, arc);
-                        queueTube(w, arc, 1.1D, 1.0D);
-                        drapeRoot(w, best[0], best[1], best[2], p, a, 40 + outRel * 3, k % 4 == 1 ? 1 : -1, 1.35D, t);
-                    }
-                }
-            }
-        }
-        flushTubes(w);
-        // 枝と樹冠(建物の外に出てから)
-        int topY = by + lt;
-        double[] topC = {bx + path[lt][0] + 0.5D, topY, bz + path[lt][1] + 0.5D};
-        int nb = 5 + Math.round(lt / 8.0F);
-        for (int k = 0; k < nb; k++) {
-            int y0 = (int) Math.round(Math.max(outY + 2, by + lt * (0.45D + rnd.nextDouble() * 0.45D)));
-            double[] c0 = path[Math.max(0, Math.min(lt, y0 - by))];
-            double[] pp = {bx + c0[0] + 0.5D, y0 + 0.5D, bz + c0[1] + 0.5D};
-            double a = k * Math.PI * 2.0D / nb + rnd.nextDouble() * 0.8D;
-            double[] d = norm(new double[]{Math.cos(a), 0.25D + rnd.nextDouble() * 0.35D, Math.sin(a)});
-            int len = (int) Math.round(crownR * (0.6D + rnd.nextDouble() * 0.5D));
-            for (int s = 0; s < len; s++) {
-                double[] np = {pp[0] + d[0], pp[1] + d[1], pp[2] + d[2]};
-                int cx = (int) Math.floor(np[0]), cy = (int) Math.floor(np[1]), cz = (int) Math.floor(np[2]);
-                if (!w.c.loaded(cx, cy, cz) || w.c.struct(cx, cy, cz)) break;
-                w.place(cx, cy, cz, BRANCH);
-                if (s < len * 0.4D) w.place(cx, cy - 1, cz, BRANCH);
-                pp = np;
-                d = norm(new double[]{d[0] + (rnd.nextDouble() - 0.5D) * 0.25D, d[1] + (rnd.nextDouble() - 0.6D) * 0.12D, d[2] + (rnd.nextDouble() - 0.5D) * 0.25D});
-            }
-            leafBlob(w, pp[0], pp[1] + 1, pp[2], 3.5D + rnd.nextDouble() * 1.8D, 2.2D + rnd.nextDouble() * 0.8D);
-        }
-        leafBlob(w, topC[0], topC[1] + 1, topC[2], crownR * 0.55D, 3.4D);
-        for (int k = 0; k < 6; k++) {
-            double a = k * Math.PI / 3.0D + rnd.nextDouble() * 0.5D, rr = crownR * (0.55D + rnd.nextDouble() * 0.3D);
-            leafBlob(w, topC[0] + Math.cos(a) * rr, topC[1] - 2 - rnd.nextDouble() * 3.0D, topC[2] + Math.sin(a) * rr, crownR * 0.35D, 2.4D);
-        }
-    }
-
     private static double[] norm(double[] d) {
         double l = Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
         return l < 1.0E-6D ? new double[]{0, 1, 0} : new double[]{d[0] / l, d[1] / l, d[2] / l};
@@ -759,31 +413,8 @@ public final class StructureTree {
 
     // ---------------------------------------------------------------- 大きい構造物: 中くらいの木(段 2c。試作 第 9 版)
 
-    /** 細長い部品(城壁など): 短い辺が 4 以下で長い辺が 12 以上。 */
-    static boolean elongated(BoundingBox b) {
-        int s = Math.min(b.getXSpan(), b.getZSpan()), l = Math.max(b.getXSpan(), b.getZSpan());
-        return s <= 4 && l >= 12;
-    }
-
     private static double[] centerOf(BoundingBox b) {
         return new double[]{(b.minX() + b.maxX() + 1) / 2.0D, (b.minZ() + b.maxZ() + 1) / 2.0D};
-    }
-
-    /** 歩く高さ: 部品の箱の中ならまわりの地面の上、外ならその列の地面の上。 */
-    private static int walkY(W w, int x, int z) {
-        if (w.c.inPiece(x, w.ground + 1, z)) return w.ground + 1;
-        return surfaceAt(w.c, x, z);
-    }
-
-    /** 試作の exitBox: 光線が部品の箱を抜けた先(+2)。 */
-    private static int[] exitBox(int x, int z, double dx, double dz, BoundingBox p) {
-        for (int s = 1; s < 80; s++) {
-            int qx = (int) Math.round(x + dx * s), qz = (int) Math.round(z + dz * s);
-            if (qx < p.minX() - 1 || qx > p.maxX() + 1 || qz < p.minZ() - 1 || qz > p.maxZ() + 1) {
-                return new int[]{(int) Math.round(x + dx * (s + 2)), (int) Math.round(z + dz * (s + 2))};
-            }
-        }
-        return new int[]{(int) Math.round(x + dx * 10), (int) Math.round(z + dz * 10)};
     }
 
     @Nullable
@@ -801,147 +432,11 @@ public final class StructureTree {
         return best;
     }
 
-    /**
-     * 試作の giantRoot: 太い根。地面を這い(幹の裾の中は素通り)、建物に当たったら壁を登って屋根を越え、
-     * 向こう側の壁を垂れて地面でくねる。太さ r0 → r1、枝根 2 本(段 2c から中くらいの木の根)。
-     */
-    static void giantRoot(W w, int bx, int bz, double rg, double a, int len, @Nullable BoundingBox target, double r0, double r1, FusionTable t) {
-        Random rnd = w.rnd;
-        List<int[]> path = new ArrayList<>();
-        double x = bx + Math.cos(a) * (rg - 1), z = bz + Math.sin(a) * (rg - 1);
-        boolean hit = false;
-        for (int s = 0; s < len; s++) {
-            if (target != null) {
-                double[] tc = centerOf(target);
-                double want = Math.atan2(tc[1] - z, tc[0] - x);
-                a += Math.atan2(Math.sin(want - a), Math.cos(want - a)) * 0.22D;
-            }
-            a += (rnd.nextDouble() - 0.5D) * 0.3D;
-            double nx = x + Math.cos(a), nz = z + Math.sin(a);
-            int cx = (int) Math.round(nx), cz = (int) Math.round(nz);
-            if (!w.c.loaded(cx, w.ground, cz)) break;
-            if (Math.hypot(cx - bx, cz - bz) <= rg + 3) { // 幹の裾の中(飲み込んだ建物)は素通り
-                x = nx;
-                z = nz;
-                continue;
-            }
-            int gy = walkY(w, cx, cz);
-            if (gy == Integer.MIN_VALUE) break;
-            boolean wall = false;
-            for (int y = gy; y <= gy + 2 && !wall; y++) wall = w.c.struct(cx, y, cz);
-            if (wall) {
-                hit = true;
-                break;
-            }
-            x = nx;
-            z = nz;
-            path.add(new int[]{cx, gy, cz});
-            if (w.c.structAdj(cx, gy, cz)) {
-                hit = true;
-                break;
-            }
-        }
-        if (hit && !path.isEmpty()) {
-            int[] last = path.get(path.size() - 1);
-            BoundingBox p = nearestPiece(w.c, last[0], last[2]);
-            if (p == null) return;
-            double[] pc = centerOf(p);
-            int top = topStruct(w.c, p);
-            if (top == Integer.MIN_VALUE) top = p.maxY();
-            int topRel = Math.max(1, top - w.ground);
-            int[] f = exitBox(last[0], last[2], Math.cos(a), Math.sin(a), p);
-            // 壁を登って屋根を越える(向こう側の上へ)
-            Crawl up = new Crawl();
-            up.steps = 20 + topRel * 4;
-            up.sign = rnd.nextDouble() < 0.5D ? 1 : -1;
-            up.upW = 0.9D;
-            up.wrapW = 0.15D;
-            up.noise = 0.35D;
-            up.toward = new int[]{f[0], top + 2, f[1]};
-            up.towardW = 1.6D;
-            up.center = pc;
-            up.spread = true;
-            crawl(w, last[0], last[1], last[2], up, path);
-            // 向こう側の壁を垂れて地面へ
-            int[] l2 = path.get(path.size() - 1);
-            Crawl down = new Crawl();
-            down.steps = 30 + topRel * 3;
-            down.upW = -1.2D;
-            down.wrapW = 0.2D;
-            down.noise = 0.4D;
-            down.toward = new int[]{f[0], w.ground + 1, f[1]};
-            down.towardW = 1.2D;
-            down.ground = true;
-            down.center = pc;
-            down.spread = true;
-            crawl(w, l2[0], l2[1], l2[2], down, path);
-            runOut(w, path, pc, 4 + rnd.nextInt(4));
-            queueTube(w, path, r0, r1);
-            rootlets(w, path, pc, 1, 1, t);
-        } else if (!path.isEmpty()) {
-            queueTube(w, path, r0 * 0.9D, r1);
-        }
-    }
-
-    /**
-     * 大きい構造物の中くらいの木(段 2c、試作 第 9 版の growLargeV9・pieceTreeDims)。指定した建物から、小・中の構造物の木と同じ形
-     * (中から/てっぺんから・第 7 版の根)で生やし、近くの建物 {@code mediumRootTargets} 軒(mediumRootReach 以内)へも太い管状の根
-     * (mediumRootStart → mediumRootEnd)を這わせて壁を越える。高さはその建物で決める(建物の高さ × heightMul + heightAdd、heightMin〜heightMax)、
-     * 幹の太さは部品の大きさが 12 未満なら 2、それ以上は 3。
-     */
-    public static Result planOnPiece(ServerLevel level, StructureFusion.Site site, BoundingBox piece, long seed) {
-        return planOnPiece(level, site, piece, seed, StructureFusion.table());
-    }
-
-    static Result planOnPiece(ServerLevel level, StructureFusion.Site site, BoundingBox piece, long seed, FusionTable t) {
-        List<StructureFusion.Hit> hits = StructureFusion.hits(site);
-        OrganFusion.Ctx c = new OrganFusion.Ctx(level, hits, t);
-        c.allowInterior = true;
-        Random rnd = new Random(seed * 0x9E3779B97F4A7C15L + 0x3ED1L);
-        int ground = ground(c, piece);
-        if (ground == Integer.MIN_VALUE) return Result.fail("wait");
-        c.reserveEntrances();
-        W w = new W(c, ground, rnd);
-        int top = topStruct(c, piece);
-        if (top == Integer.MIN_VALUE) return Result.fail("建物のブロックが無い");
-        int ht = (int) Math.round(Math.min(t.treeHeightMax, Math.max(t.treeHeightMin, (top - ground) * t.treeHeightMul + t.treeHeightAdd)));
-        int r0 = StructureFusion.span(piece) < 12 ? 2 : 3;
-        int crownR = (int) Math.round(Math.min(16, Math.max(9, 6 + ht * 0.18D)));
-        Anchor an = chooseAnchor(c, piece, rnd, t, null);
-        if (an == null) return Result.fail("根元が無い");
-        grow(w, piece, an, ht, r0, r0 * t.treeFlare, crownR, t);
-        // 近くの建物へ太い根(段 2b の抱える根を細くした物)
-        double[] pc = centerOf(piece);
-        List<BoundingBox> others = new ArrayList<>();
-        for (StructureFusion.Hit h : hits) {
-            BoundingBox b = h.piece();
-            if (b.equals(piece)) continue;
-            double[] q = centerOf(b);
-            if (Math.hypot(q[0] - an.x, q[1] - an.z) >= t.mediumRootReach) continue;
-            if (!elongated(b) && !c.building(b)) continue;
-            others.add(b);
-        }
-        others.sort((p, q) -> {
-            double[] a = centerOf(p), b = centerOf(q);
-            return Double.compare(sq(a[0] - an.x) + sq(a[1] - an.z), sq(b[0] - an.x) + sq(b[1] - an.z));
-        });
-        for (int k = 0; k < others.size() && k < t.mediumRootTargets; k++) {
-            BoundingBox b = others.get(k);
-            double[] q = centerOf(b);
-            giantRoot(w, an.x, an.z, 1.5D, Math.atan2(q[1] - an.z, q[0] - an.x), t.mediumRootSteps, elongated(b) ? null : b,
-                    t.mediumRootStart, t.mediumRootEnd, t);
-        }
-        flushTubes(w);
-        if (w.planned.isEmpty()) return Result.fail("置ける所が無い");
-        String mode = an.inside ? "inside" : "top";
-        return new Result(pack(w, mode, new BlockPos(an.x, an.baseY, an.z), ht), mode);
-    }
-
     // ---------------------------------------------------------------- 構造物の上・中に植わった苗の木(段 2b)
 
     /**
      * 構造物にかかる所で苗が育つときの形(11-19 ユーザー「構造物は普通に覆われて汚染される。そのうえで木が構造物に対応した生え方に」)。
-     * 苗の場所 {@code origin}(空いている)から幹を伸ばす。幹は空気と草花のマスだけを通り、入口の通り道を空け、部屋の中に葉を茂らせない。
+     * 苗の場所 {@code origin}(空いている)から幹を伸ばす。幹は空気と草花のマスだけを通る(段 3 から入口・部屋の中も空けない)。
      * 苗が建物のブロックの上(屋根・床・浮いた構造物の床)なら、第 7 版の根(管状・壁を伝って垂れる)を小さく出す。
      * 幹が下のほうで通らなければ育てない(null。欠けて浮いた木を作らない)。
      */
@@ -949,13 +444,12 @@ public final class StructureTree {
     public static Plan saplingTree(ServerLevel level, BlockPos origin, List<StructureFusion.Hit> hits, long seed, FusionTable t) {
         OrganFusion.Ctx c = new OrganFusion.Ctx(level, hits, t);
         c.allowInterior = true;
-        c.reserveEntrances();
+        // 段 3: 入口の通り道・部屋の中も空けない(11-19 夜 ユーザー「部屋の中まで入り込み、入口を塞いでもよい」)
         Random rnd = new Random(seed * 0x9E3779B97F4A7C15L + 0x5A9L);
         int ground = ground(c, new BoundingBox(origin.getX() - 10, origin.getY() - 2, origin.getZ() - 10, origin.getX() + 10, origin.getY() + 2, origin.getZ() + 10));
         if (ground == Integer.MIN_VALUE) return null;
         W w = new W(c, ground, rnd);
         int ox0 = origin.getX(), oy = origin.getY(), oz0 = origin.getZ();
-        if (c.reserved.contains(origin.asLong())) return null; // 入口の通り道の苗は育てない
         int ht = t.saplingHeightMin + rnd.nextInt(t.saplingHeightMax - t.saplingHeightMin + 1);
         // 幹の芯の道筋(4 マスごとにうねる)。芯が通らなければ、下のほうなら育てない・上のほうならそこで止める
         double[][] off = new double[ht + 1][2];

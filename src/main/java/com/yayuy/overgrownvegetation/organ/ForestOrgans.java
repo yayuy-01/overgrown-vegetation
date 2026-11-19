@@ -91,6 +91,8 @@ public final class ForestOrgans extends SavedData {
         public long[] fusion;
         /** 構造物に植えた器官(段 2d)が重なる建物の部品の箱 [minX, minY, minZ, maxX, maxY, maxZ]。ふつうの形を建物に重ねて建てる。無ければ null。 */
         public int[] onPiece;
+        /** 乗っ取りの器官(段 3、11-19 夜): 生えた面 [x, y, z, nx, ny, nz]。形は面から斜め・上へ飛び出す有機的な形({@link OrganFusion#planOrganic})。無ければ null。 */
+        public int[] takeover;
         public final it.unimi.dsi.fastutil.longs.LongArrayList covered = new it.unimi.dsi.fastutil.longs.LongArrayList();
         /** 形の合わせ直しで数を変えた(保存の印を付ける。保存しない)。 */
         boolean refit;
@@ -177,6 +179,7 @@ public final class ForestOrgans extends SavedData {
             t.putBoolean("FusionCleaned", fusionCleaned);
             if (fusion != null) t.putLongArray("Fusion", fusion);
             if (onPiece != null) t.putIntArray("FusionPiece", onPiece);
+            if (takeover != null) t.putIntArray("TakeoverFace", takeover);
             if (!covered.isEmpty()) t.putLongArray("Covered", covered.toLongArray());
             if (!guards.isEmpty()) {
                 ListTag g = new ListTag();
@@ -219,6 +222,7 @@ public final class ForestOrgans extends SavedData {
             o.fusionCleaned = t.getBoolean("FusionCleaned");
             if (t.contains("Fusion")) o.fusion = t.getLongArray("Fusion");
             if (t.contains("FusionPiece")) o.onPiece = t.getIntArray("FusionPiece");
+            if (t.contains("TakeoverFace")) o.takeover = t.getIntArray("TakeoverFace");
             for (long c : t.getLongArray("Covered")) o.covered.add(c);
             for (Tag g : t.getList("Guards", Tag.TAG_INT_ARRAY)) {
                 try {

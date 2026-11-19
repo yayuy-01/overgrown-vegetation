@@ -242,7 +242,7 @@ public final class OrganWorld {
         if (CANCELLED.contains(o.id)) return;
         CANCELLED.add(o.id);
         com.yayuy.overgrownvegetation.director.ForestDirector dir = com.yayuy.overgrownvegetation.director.ForestDirector.get(level);
-        if (!StructureTrees.planted(o.id)) dir.refund(level, OrganPlanner.price(level, o.small)); // 構造物に植えた器官(段 2c)は値段を払っていないので返さない
+        if (o.onPiece == null && o.takeover == null) dir.refund(level, OrganPlanner.price(level, o.small)); // 構造物に植えた器官(段 2c・2d)・乗っ取りの器官(段 3)は値段を払っていないので返さない
         dir.note(String.format(java.util.Locale.ROOT, "器官 #%d %s%s は構造物にかかるので建てない(値段を返した)", o.id, o.kind.label, o.small ? "(小)" : ""));
     }
 

@@ -21,20 +21,22 @@ public final class FusionTable {
         public Integer vines, vineStepsMin, vineStepsMax, vineReach, veinCrawls, veinStepsMin, veinStepsMax;
         public Double vineFadeSeconds;
         public TreeJson tree;
+        public TakeoverJson takeover;
     }
 
-    /** 構造物の木と中庭の巨大樹(段 2、11-19)。 */
+    /** 構造物の上の苗の木(段 2b)と、置き残しの構造物の木を置く速さ。 */
     public static final class TreeJson {
         public Boolean enabled;
-        public Double heightMul, heightAdd, crownBase, crownPerHeight, flare, bend, topPercentile;
-        public Double rootStart, rootEnd, rootletStart, rootletEnd;
-        public Integer heightMin, heightMax, trunkMin, crownMin, crownMax, roots, bendEvery, openMin;
-        public int[] trunkRadius, trunkRadiusBelow;
-        public Integer scanChunks, scanTicks, blocksPerTick;
-        public Double organChance;
-        public Double mediumRootStart, mediumRootEnd, mediumRootReach, saplingTrunkRadius, saplingRootStart, saplingRootEnd;
-        public Integer mediumRootSteps, mediumRootTargets, mediumTreesPerHouses, mediumTreesMax, organsMax;
-        public Integer saplingHeightMin, saplingHeightMax, saplingCrown, saplingRoots;
+        public Double bend, rootletStart, rootletEnd, saplingTrunkRadius, saplingRootStart, saplingRootEnd;
+        public Integer blocksPerTick, saplingHeightMin, saplingHeightMax, saplingCrown, saplingRoots;
+    }
+
+    /** 乗っ取り(段 3、11-19 夜)。 */
+    public static final class TakeoverJson {
+        public Boolean enabled;
+        public Integer scanTicks, radiusChunks, chunksPerScan, facesPerOrgan, spacingSmall, spacingBig, vinesSmall, vinesBig;
+        public Double organChancePerVisit, bigChance, holeChance;
+        public double[] smallLength, bigLength;
     }
 
     public static final class SizeJson {
@@ -63,40 +65,29 @@ public final class FusionTable {
     public final double tilt, stalkLength, sacLength, sacRadius, coreRadius;
     public final int vines, vineStepsMin, vineStepsMax, vineReach, veinCrawls, veinStepsMin, veinStepsMax;
     public final double vineFadeSeconds;
-
-    // --- 構造物の木(小・中)と中庭の巨大樹(大)。数は全部【仮】(試作 第 7 版の値) ---
+    // --- 構造物の上・中に植わった苗の木(段 2b)。数は全部【仮】 ---
     public final boolean treeEnabled;
-    /** 高さ = clamp(建物の高さ × heightMul + heightAdd, heightMin, heightMax)。幹は少なくとも trunkMin。 */
-    public final double treeHeightMul, treeHeightAdd;
-    public final int treeHeightMin, treeHeightMax, treeTrunkMin;
-    /** 幹の半径: 全体の大きさが trunkRadiusBelow[i] 未満なら trunkRadius[i]、どれにも当たらなければ最後。 */
-    public final int[] treeTrunkRadius, treeTrunkRadiusBelow;
-    /** 裾の広がり = 幹の半径 × flare。 */
-    public final double treeFlare;
-    /** 樹冠の半径 = clamp(crownBase + 高さ × crownPerHeight, crownMin, crownMax)。 */
-    public final double treeCrownBase, treeCrownPerHeight;
-    public final int treeCrownMin, treeCrownMax;
-    public final int treeRoots;
-    /** 幹のうねり: bendEvery マスごとに向きを変える。強さは試作の bend 倍。 */
-    public final double treeBend;
-    public final int treeBendEvery;
-    /** 「中から」を選ぶ: 空へ開いた列が覆われた列から openMin マス以上離れていること。 */
-    public final int treeOpenMin;
-    /** 「てっぺんから」の高さの目安(屋根の列の高さのこの分位。煙突を外す)。 */
-    public final double treeTopPercentile;
-    /** 根の太さ(根元 → 先)と枝根の太さ。 */
-    public final double treeRootStart, treeRootEnd, treeRootletStart, treeRootletEnd;
-    /** 生やすきっかけを見る: プレイヤーのまわり scanChunks チャンクを scanTicks ごと。置くのは 1 tick に blocksPerTick 個まで。 */
-    public final int treeScanChunks, treeScanTicks, treeBlocksPerTick;
-    /** 大きい構造物(段 2c、11-19 ユーザー「中くらいの木の根 + 器官が主役」。段 2b の A+B の巨大樹をやめた): 中くらいの木は家 mediumTreesPerHouses 軒に 1 本・mediumTreesMax 本まで。
-     *  近くの建物 mediumRootTargets 軒(mediumRootReach 以内)へ太い根(mediumRootStart → mediumRootEnd・mediumRootSteps 歩)。器官は全部で organsMax 個まで(0 = 制限しない)。 */
-    public final double mediumRootStart, mediumRootEnd, mediumRootReach;
-    public final int mediumRootSteps, mediumRootTargets, mediumTreesPerHouses, mediumTreesMax, organsMax;
-    /** 一番大きい建物のほかの建物(城壁など細長い部品も)に、1 つずつこの確率で小さい器官(段 2d、11-19 ユーザー「器官の数はランダムでいこう」)。 */
-    public final double organChance;
+    /** 苗の木の幹のうねりの強さ・枝根の太さ(根元 → 先)・置き残しの木を 1 tick に置く数。 */
+    public final double treeBend, treeRootletStart, treeRootletEnd;
+    public final int treeBlocksPerTick;
     /** 構造物の上・中に植わった苗の木(段 2b): 高さ・幹の半径・樹冠・根の本数と太さ。幹が通らなければ育てない。 */
     public final int saplingHeightMin, saplingHeightMax, saplingCrown, saplingRoots;
     public final double saplingTrunkRadius, saplingRootStart, saplingRootEnd;
+
+    // --- 乗っ取り(段 3、11-19 夜 ユーザー「植物に乗っ取られている感じ」)。数は全部【仮】 ---
+    public final boolean takeoverEnabled;
+    /** scanTicks ごとに、プレイヤーのまわり radiusChunks チャンクから chunksPerScan チャンクを見る。 */
+    public final int takeoverScanTicks, takeoverRadiusChunks, takeoverChunksPerScan;
+    /** 1 回見たチャンクで器官の芽を 1 つ出す確率。出すのは人工の露出面 facesPerOrgan 面につき 1 つまで(面の広さに比べる・上限なし)。 */
+    public final double takeoverOrganChancePerVisit;
+    public final int takeoverFacesPerOrgan;
+    /** 大きい器官になる確率と、器官どうしの間(小・大)。 */
+    public final double takeoverBigChance;
+    public final int takeoverSpacingSmall, takeoverSpacingBig;
+    /** 茎の長さ [最小, 最大](小・大)・小さい器官が根元の面を突き破る確率・根元から這う蔦の本数(小・大)。 */
+    public final double[] takeoverSmallLength, takeoverBigLength;
+    public final double takeoverHoleChance;
+    public final int takeoverVinesSmall, takeoverVinesBig;
 
     public static final FusionTable DEFAULT = fromJson(null);
 
@@ -132,39 +123,10 @@ public final class FusionTable {
         vineFadeSeconds = Math.max(0.0D, or(j.vineFadeSeconds, 60.0D));
         TreeJson tj = j.tree != null ? j.tree : new TreeJson();
         treeEnabled = tj.enabled == null || tj.enabled;
-        treeHeightMul = Math.max(0.0D, or(tj.heightMul, 1.5D));
-        treeHeightAdd = or(tj.heightAdd, 15.0D);
-        treeHeightMin = Math.max(8, or(tj.heightMin, 35));
-        treeHeightMax = Math.max(treeHeightMin, Math.min(120, or(tj.heightMax, 60)));
-        treeTrunkMin = Math.max(4, or(tj.trunkMin, 20));
-        treeTrunkRadius = tj.trunkRadius != null && tj.trunkRadius.length > 0 ? tj.trunkRadius.clone() : new int[]{2, 3, 4};
-        treeTrunkRadiusBelow = tj.trunkRadiusBelow != null ? tj.trunkRadiusBelow.clone() : new int[]{12, 26};
-        treeFlare = Math.max(0.0D, or(tj.flare, 0.6D));
-        treeCrownBase = or(tj.crownBase, 6.0D);
-        treeCrownPerHeight = Math.max(0.0D, or(tj.crownPerHeight, 0.2D));
-        treeCrownMin = Math.max(3, or(tj.crownMin, 10));
-        treeCrownMax = Math.max(treeCrownMin, Math.min(30, or(tj.crownMax, 18)));
-        treeRoots = Math.max(0, Math.min(16, or(tj.roots, 5))); // 段 2d で 8 から(根が板に見えた)
         treeBend = Math.max(0.0D, or(tj.bend, 0.6D));
-        treeBendEvery = Math.max(1, or(tj.bendEvery, 6));
-        treeOpenMin = Math.max(1, or(tj.openMin, 2));
-        treeTopPercentile = Math.max(0.0D, Math.min(1.0D, or(tj.topPercentile, 0.85D)));
-        treeRootStart = Math.max(0.5D, or(tj.rootStart, 1.2D));
-        treeRootEnd = Math.max(0.5D, or(tj.rootEnd, 0.95D));
         treeRootletStart = Math.max(0.5D, or(tj.rootletStart, 1.0D));
         treeRootletEnd = Math.max(0.5D, or(tj.rootletEnd, 0.5D));
-        treeScanChunks = Math.max(1, Math.min(16, or(tj.scanChunks, 6)));
-        treeScanTicks = Math.max(1, or(tj.scanTicks, 40));
         treeBlocksPerTick = Math.max(1, or(tj.blocksPerTick, 200));
-        mediumRootStart = Math.max(0.5D, or(tj.mediumRootStart, 1.2D));
-        mediumRootEnd = Math.max(0.5D, or(tj.mediumRootEnd, 0.9D));
-        mediumRootReach = Math.max(4.0D, or(tj.mediumRootReach, 45.0D));
-        mediumRootSteps = Math.max(10, Math.min(300, or(tj.mediumRootSteps, 60)));
-        mediumRootTargets = Math.max(0, Math.min(8, or(tj.mediumRootTargets, 2)));
-        mediumTreesPerHouses = Math.max(1, or(tj.mediumTreesPerHouses, 3));
-        mediumTreesMax = Math.max(0, Math.min(8, or(tj.mediumTreesMax, 2)));
-        organsMax = Math.max(0, or(tj.organsMax, 0)); // 0 = 制限しない(11-19 ユーザー「上限も無しに」。砂漠の村に 61 個付くのは仕様)
-        organChance = Math.max(0.0D, Math.min(1.0D, or(tj.organChance, 0.4D)));
         saplingHeightMin = Math.max(4, or(tj.saplingHeightMin, 10));
         saplingHeightMax = Math.max(saplingHeightMin, Math.min(40, or(tj.saplingHeightMax, 18)));
         saplingCrown = Math.max(2, Math.min(12, or(tj.saplingCrown, 4)));
@@ -172,10 +134,29 @@ public final class FusionTable {
         saplingTrunkRadius = Math.max(0.5D, Math.min(3.0D, or(tj.saplingTrunkRadius, 1.0D)));
         saplingRootStart = Math.max(0.5D, or(tj.saplingRootStart, 1.0D));
         saplingRootEnd = Math.max(0.5D, or(tj.saplingRootEnd, 0.95D));
+        TakeoverJson ko = j.takeover != null ? j.takeover : new TakeoverJson();
+        takeoverEnabled = ko.enabled == null || ko.enabled;
+        takeoverScanTicks = Math.max(20, or(ko.scanTicks, 200));
+        takeoverRadiusChunks = Math.max(1, Math.min(16, or(ko.radiusChunks, 6)));
+        takeoverChunksPerScan = Math.max(1, Math.min(64, or(ko.chunksPerScan, 4)));
+        takeoverOrganChancePerVisit = Math.max(0.0D, Math.min(1.0D, or(ko.organChancePerVisit, 0.25D)));
+        takeoverFacesPerOrgan = Math.max(1, or(ko.facesPerOrgan, 110));
+        takeoverBigChance = Math.max(0.0D, Math.min(1.0D, or(ko.bigChance, 0.08D)));
+        takeoverSpacingSmall = Math.max(1, or(ko.spacingSmall, 4));
+        takeoverSpacingBig = Math.max(1, or(ko.spacingBig, 14));
+        takeoverSmallLength = two(ko.smallLength, new double[]{3.0D, 9.0D});
+        takeoverBigLength = two(ko.bigLength, new double[]{12.0D, 22.0D});
+        takeoverHoleChance = Math.max(0.0D, Math.min(1.0D, or(ko.holeChance, 0.3D)));
+        takeoverVinesSmall = Math.max(0, Math.min(16, or(ko.vinesSmall, 2)));
+        takeoverVinesBig = Math.max(0, Math.min(32, or(ko.vinesBig, 6)));
     }
 
     public static FusionTable fromJson(@Nullable Json j) {
         return new FusionTable(j != null ? j : new Json());
+    }
+
+    private static double[] two(@Nullable double[] v, double[] d) {
+        return v != null && v.length == 2 && v[0] <= v[1] ? v.clone() : d;
     }
 
     private static double[] three(@Nullable double[] v, double[] d) {

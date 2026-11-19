@@ -364,32 +364,6 @@ public final class CorruptionRegistry {
     }
 
     /**
-     * 構造物の部品の箱の中で、置き換えずに覆うブロックか(11-19 融合 決め A)。守る範囲(まだ分からない所も)にある、
-     * 中身を持たない(スポナーは除く)・置き換えられる草花でない・覆える見た目のブロック。
-     */
-    static boolean inStructure(ServerLevel level, BlockPos pos, BlockState state) {
-        if (state.isAir() || state.canBeReplaced()) return false;
-        if (state.hasBlockEntity() && !SpawnerCorruption.isSpawner(state)) return false;
-        // 地面(土・草・石・砂・雪など)は箱の中でも外と同じく置き換える(11-19 ユーザー決定「地面は汚染する」。
-        // 箱の中だけ緑の四角が残って浮くため。取り込むのは建物だけ)
-        if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.isTerrain(state)) return false;
-        // まだ分からない所(開始のチャンクが無い)は汚染の熱い経路では守らない(置き物の側はマスごとに守る)
-        return com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.isProtected(level, pos);
-    }
-
-    /** 構造物の中の覆い(扉は上下とも)。 */
-    static void coverInStructure(ServerLevel level, BlockPos pos, BlockState state) {
-        if (!OvergrownLayerData.canCoverInStructure(state)) return; // 覆えない物(氷など)はそのまま。地面は inStructure が外す
-        if (state.getBlock() instanceof net.minecraft.world.level.block.DoorBlock
-                && state.hasProperty(net.minecraft.world.level.block.DoorBlock.HALF)) {
-            BlockPos other = state.getValue(net.minecraft.world.level.block.DoorBlock.HALF)
-                    == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER ? pos.above() : pos.below();
-            if (level.getBlockState(other).is(state.getBlock())) OvergrownLayerData.cover(level, other);
-        }
-        OvergrownLayerData.cover(level, pos);
-    }
-
-    /**
      * 記録で覆う(扉は上下とも。2026-10-05〜10-30 の覆われた扉は上下いっしょに置き換えていた)。
      * 固めた溶岩の玄武岩({@link LavaSolidifier})もここを通す。
      */
@@ -771,12 +745,6 @@ public final class CorruptionRegistry {
         init();
         // エンドポータルの枠の隣が汚染されたら、森がエンドへ渡る(2026-10-02。枠そのものは免疫なので隣で気付く)。
         PortalCorruption.noticeEndFrame(level, pos, state);
-        if (inStructure(level, pos, state)) {
-            // 構造物(地表に出ている物)の部品の箱の中は置き換えず、全部記録で覆う(2026-11-19 構造物と森の融合 決め A・ユーザー決定)。
-            // 箱の中の地面(土・草・石・砂・雪)は inStructure が外して下でふつうに置き換える(11-19 ユーザー決定「地面は汚染する」)。中身のあるブロック(チェスト・機械)は今まで通り下で止める(殻にする)。草花は下でふつうに。
-            coverInStructure(level, pos, state);
-            return state;
-        }
         if (MeltedIce.isIce(state)) {
             // 氷は覆わずに溶かす(水に接していれば水、なければ空気。2026-10-16 ユーザー指定「汚染地域に氷が残ってしまう」)。
             // 以前は対応表に無いので苔で覆って残し、凍った湖の上を苔が渡っていた。

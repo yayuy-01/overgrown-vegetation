@@ -138,9 +138,9 @@ public final class StructureFusion {
     /** 守る範囲の中か(分からないときは false)。テスト・コマンド向け。 */
     /**
      * 木・巨大樹を置くときに、そのマスを飛ばすか(11-19 段 2d で、箱の中を全部飛ばしていたのを直した)。守る範囲の外なら置く。
-     * 守る範囲の中では、空気と草花のマス(水なし)で、部屋の中(真上 32 マスまでに建物のブロックがある)でなければ置く。
+     * 守る範囲の中では、空気と草花のマス(水なし)に置く(段 3 から部屋の中も)。
      * 段 1 は箱の中を空気でも全部飛ばしたので、樹冠が部品の箱の形で真四角に欠けた(Cataclysm の神殿のように箱が建物より大きい物で目立った)。
-     * まだ分からない所は飛ばす。この MOD のブロック(木・葉・器官)は屋根に数えない(下から積む木が自分の枝の下を部屋と見ないように)。
+     * まだ分からない所は飛ばす。
      */
     public static boolean keepsOut(LevelAccessor level, BlockPos pos) {
         if (!(level instanceof ServerLevel sl) || !sl.getServer().isSameThread()) return blocks(level, pos);
@@ -148,17 +148,8 @@ public final class StructureFusion {
         if (st == NONE) return false;
         if (st == UNKNOWN) return true;
         net.minecraft.world.level.block.state.BlockState s = level.getBlockState(pos);
-        if (!(s.isAir() || s.canBeReplaced()) || !s.getFluidState().isEmpty()) return true;
-        BlockPos.MutableBlockPos m = pos.mutable();
-        for (int k = 1; k <= 32; k++) {
-            m.move(net.minecraft.core.Direction.UP);
-            if (state(sl, m) != PROTECTED) break;
-            net.minecraft.world.level.block.state.BlockState a = level.getBlockState(m);
-            if (a.isAir() || a.canBeReplaced() || isTerrain(a)) continue;
-            if (OvergrownVegetation.MODID.equals(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(a.getBlock()).getNamespace())) continue;
-            return true; // 部屋の中
-        }
-        return false;
+        // 段 3(11-19 夜 ユーザー「部屋の中まで入り込み、入口を塞いでもよい」): 部屋の中は飛ばさない。建物のブロックだけ飛ばす
+        return !(s.isAir() || s.canBeReplaced()) || !s.getFluidState().isEmpty();
     }
 
     public static boolean isProtected(ServerLevel level, BlockPos pos) {

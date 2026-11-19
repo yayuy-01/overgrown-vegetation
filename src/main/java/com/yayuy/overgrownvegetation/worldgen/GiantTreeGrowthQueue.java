@@ -130,12 +130,8 @@ public final class GiantTreeGrowthQueue {
         /** フェーズ3: 根の足元座標を走査するカーソル(0〜rootTotal)。 */
         long rootCursor;
 
-        /** 大きい構造物の中庭の巨大樹(構造物の部品の箱の中の空気と草花のマスにも置く。構造物と森の融合 段 2)。 */
-        final boolean courtyard;
-
         Job(ServerLevel level, GiantTreeFeature.Plan plan) {
             this.level = level;
-            this.courtyard = !plan.trunk.isEmpty() && com.yayuy.overgrownvegetation.organ.StructureTrees.courtyardAt(level, BlockPos.of(plan.trunk.getLong(0)));
             this.trunkState = plan.trunkState;
             this.cambiumState = plan.cambiumState;
             this.chlorophylliteOreState = plan.chlorophylliteOreState;
@@ -503,11 +499,6 @@ public final class GiantTreeGrowthQueue {
                 level.setBlock(p.immutable(), there.setValue(faceProp, Boolean.TRUE), Block.UPDATE_ALL);
             }
         }
-    }
-
-    /** 構造物の部品の箱の中で置いてよいマス(空気・置き換えられる草花・水なし。構造物と森の融合)。 */
-    private static boolean airOrPlant(BlockState s) {
-        return (s.isAir() || s.canBeReplaced()) && s.getFluidState().isEmpty();
     }
 
     @SubscribeEvent
