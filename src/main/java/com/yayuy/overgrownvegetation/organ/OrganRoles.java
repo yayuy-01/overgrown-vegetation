@@ -149,6 +149,7 @@ public final class OrganRoles {
 
     private static void guards(ServerLevel level, ForestOrgans.Organ o, long now, OrganTable t, boolean peaceful) {
         int want = o.small ? t.smallGuardCount : t.guardCount;
+        if (o.takeover != null) want = takeoverGuards(o); // 乗っ取りの器官は守りを減らす(11-20 ユーザー)
         if (peaceful || want <= 0 || !o.resolved() || !OrganWorld.ready(level, o.x >> 4, o.z >> 4)) return;
         if (now - o.guardAt < t.guardCooldownSeconds * 20L) return;
         BlockPos at = o.anchor();
@@ -161,6 +162,18 @@ public final class OrganRoles {
             Mob m = OrganWorld.spawnNear(level, spot, i % 2 == 0 ? 4 : 5);
             if (m != null) o.guards.add(m.getUUID());
         }
+    }
+
+    /**
+     * 乗っ取りで生えた器官の守りの数(11-20 ユーザー「守りの mob の湧く量を少なくするだけにしとこう」。働きは変えない)。
+     * 小さい器官は guardSmallChance の割りで 1 体(場所と種で決まるので、出し直しのたびに引き直さない)、大きい器官は guardBig 体。値は【仮】。
+     */
+    static int takeoverGuards(ForestOrgans.Organ o) {
+        com.yayuy.overgrownvegetation.worldgen.fusion.FusionTable ft = com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.table();
+        if (!o.small) return ft.takeoverGuardBig;
+        long h = net.minecraft.util.Mth.getSeed(o.x, o.seed, o.z);
+        double roll = ((h >>> 11) & ((1L << 24) - 1)) / (double) (1 << 24);
+        return roll < ft.takeoverGuardSmallChance ? 1 : 0;
     }
 
     /**

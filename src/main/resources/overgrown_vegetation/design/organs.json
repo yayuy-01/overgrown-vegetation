@@ -155,7 +155,10 @@
       "vinesBig": 6,
       "gapCellsPerVisit": 16,
       "gapReach": 3,
-      "gapPlantChance": 0.9
+      "gapPlantChance": 0.9,
+      "_comment_guard": "乗っ取りの器官だけの守りの Mob(11-20 ユーザー「守りの mob の湧く量を少なくするだけにしとこう」。働きは変えない)【仮】: 小さい器官は guardSmallChance の割りで 1 体(器官の場所で決まる)、大きい器官は guardBig 体。司令塔のふつうの器官は上の guardCount のまま。",
+      "guardSmallChance": 0.25,
+      "guardBig": 2
     }
   }
 }

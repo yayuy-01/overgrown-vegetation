@@ -35,7 +35,8 @@ public final class FusionTable {
     public static final class TakeoverJson {
         public Boolean enabled;
         public Integer scanTicks, radiusChunks, chunksPerScan, facesPerOrgan, spacingSmall, spacingBig, vinesSmall, vinesBig, gapCellsPerVisit, gapReach;
-        public Double organChancePerVisit, bigChance, holeChance, gapPlantChance;
+        public Double organChancePerVisit, bigChance, holeChance, gapPlantChance, guardSmallChance;
+        public Integer guardBig;
         public double[] smallLength, bigLength;
     }
 
@@ -93,6 +94,9 @@ public final class FusionTable {
     /** 建物どうしの間・路地・壁と地面の隅(段 3 追記 11-20「建物同士の間や隙間には草の蔦」): 1 回の見回りで見る隙間のマスの数・下草と蔦の確率・挟む壁を探す距離。 */
     public final int takeoverGapCellsPerVisit, takeoverGapReach;
     public final double takeoverGapPlantChance;
+    /** 乗っ取りの器官の守りの Mob(11-20 ユーザー「守りの mob の湧く量を少なくするだけにしとこう」【仮】): 小さい器官は確率で 1 体・大きい器官の数。司令塔のふつうの器官は organs.json の guardCount のまま。 */
+    public final double takeoverGuardSmallChance;
+    public final int takeoverGuardBig;
 
     public static final FusionTable DEFAULT = fromJson(null);
 
@@ -159,6 +163,8 @@ public final class FusionTable {
         takeoverGapCellsPerVisit = Math.max(0, Math.min(256, or(ko.gapCellsPerVisit, 16)));
         takeoverGapReach = Math.max(1, Math.min(6, or(ko.gapReach, 3)));
         takeoverGapPlantChance = Math.max(0.0D, Math.min(1.0D, or(ko.gapPlantChance, 0.9D)));
+        takeoverGuardSmallChance = Math.max(0.0D, Math.min(1.0D, or(ko.guardSmallChance, 0.25D)));
+        takeoverGuardBig = Math.max(0, Math.min(8, or(ko.guardBig, 2)));
     }
 
     public static FusionTable fromJson(@Nullable Json j) {

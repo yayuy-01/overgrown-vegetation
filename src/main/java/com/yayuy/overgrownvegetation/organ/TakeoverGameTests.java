@@ -299,4 +299,26 @@ public final class TakeoverGameTests {
         }
         helper.succeed();
     }
+
+    /** 乗っ取りの器官の守りは減る(11-20 ユーザー): 小さい器官はおよそ guardSmallChance の割りで 1 体、大きい器官は guardBig 体。ふつうの器官は変わらない。同じ器官は何度聞いても同じ。 */
+    @GameTest(template = "gametest_empty7", batch = "takeover", timeoutTicks = 20)
+    public static void takeoverOrgansHaveFewerGuards(GameTestHelper helper) {
+        com.yayuy.overgrownvegetation.worldgen.fusion.FusionTable ft = StructureFusion.table();
+        int n = 2000, ones = 0;
+        Random r = new Random(7);
+        for (int i = 0; i < n; i++) {
+            ForestOrgans.Organ o = new ForestOrgans.Organ(i, OrganKind.PHASE, true, 0, r.nextInt(), 0, r.nextInt(4000) - 2000, r.nextInt(4000) - 2000, 0L);
+            o.takeover = new int[]{o.x, 64, o.z, 1, 0, 0};
+            int g = OrganRoles.takeoverGuards(o);
+            helper.assertTrue(g == 0 || g == 1, "小さい乗っ取りの器官の守りは 0 か 1: " + g);
+            helper.assertTrue(g == OrganRoles.takeoverGuards(o), "同じ器官で守りの数が変わった");
+            ones += g;
+        }
+        double rate = ones / (double) n;
+        helper.assertTrue(Math.abs(rate - ft.takeoverGuardSmallChance) < 0.05, "小さい器官の守りの割り " + rate + " ≠ " + ft.takeoverGuardSmallChance);
+        ForestOrgans.Organ big = new ForestOrgans.Organ(0, OrganKind.PHASE, false, 0, 1, 0, 0, 0, 0L);
+        big.takeover = new int[]{0, 64, 0, 1, 0, 0};
+        helper.assertTrue(OrganRoles.takeoverGuards(big) == ft.takeoverGuardBig, "大きい器官の守り " + OrganRoles.takeoverGuards(big));
+        helper.succeed();
+    }
 }
