@@ -100,8 +100,12 @@ public class AshLimeBandBlock extends Block {
     static void wear(ServerLevel level, BlockPos pos) {
         BlockState s = level.getBlockState(pos);
         if (!(s.getBlock() instanceof AshLimeBandBlock)) return;
+        // MOD の設定「押し返す道具の効き」(11-19): 止められる回数 × %。印(WEAR)は 16 段までなので、16 回を超える分は
+        // 1 回ごとに 16 ÷ 回数 の確かさで 1 段進める(平均でその回数もつ)
+        double hits = Math.max(1.0D, RingWards.table().bandHits * com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.pushbackEfficiency());
+        int max = (int) Math.max(1, Math.min(16, Math.round(hits)));
+        if (hits > 16.0D && level.random.nextDouble() >= 16.0D / hits) return;
         int next = s.getValue(WEAR) + 1;
-        int max = Math.max(1, Math.min(16, RingWards.table().bandHits));
         level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, s), pos.getX() + 0.5D, pos.getY() + 0.1D, pos.getZ() + 0.5D,
                 4, 0.3D, 0.05D, 0.3D, 0.02D);
         if (next >= max) {

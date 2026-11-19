@@ -100,7 +100,8 @@ public final class WorldDifficultyGameTests {
 
         v.applyTier(ModDifficulty.HARD);
         for (DifficultySetting s : DifficultySetting.values()) {
-            if (s.tiered()) check(helper, Math.abs(v.valueOr(s, 1.0D) - 1.5D) < EPS, "Hard で " + s.id() + " が 150% でない");
+            if (s.tiered()) check(helper, Math.abs(v.valueOr(s, s.tierValue(ModDifficulty.NORMAL)) - s.tierValue(ModDifficulty.HARD)) < EPS,
+                    "Hard で " + s.id() + " が段の値でない");
         }
         check(helper, v.tier() == ModDifficulty.HARD, "Hard を選んだのに " + v.tier());
         check(helper, v.override(DifficultySetting.CORRUPTION_SPEED).orElse(-1) == 5.0D, "段を選んだら段でない項目まで変わった");
@@ -418,6 +419,97 @@ public final class WorldDifficultyGameTests {
         } finally {
             data.replaceAll(saved);
             com.yayuy.overgrownvegetation.difficulty.RaidSettings.push(server);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * 第 3 便: 「死んでも感染が残る」は Nightmare だけオン(Nightmare の値でもオフならカスタム)、オンなら死んで復活したとき
+     * 段階と進みが戻る(オフなら治る)。「押し返す道具の効き」は帯の回数 × %、杭の FE と換気機の詰まり ÷ %。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH)
+    public static void thirdBatchKeepInfectionAndPushBack(GameTestHelper helper) throws ReflectiveOperationException {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        // 段
+        DifficultyValues v = new DifficultyValues();
+        check(helper, DifficultySetting.KEEP_INFECTION.defaultValue() == 0.0D, "死んでも感染が残るの既定がオフでない");
+        v.applyTier(ModDifficulty.HARD);
+        check(helper, v.valueOr(DifficultySetting.KEEP_INFECTION, 0.0D) == 0.0D, "Hard で感染が残るがオンになった");
+        v.applyTier(ModDifficulty.NIGHTMARE);
+        check(helper, v.valueOr(DifficultySetting.KEEP_INFECTION, 0.0D) == 1.0D && v.tier() == ModDifficulty.NIGHTMARE,
+                "Nightmare で感染が残るがオンにならない: " + v.tier());
+        v.set(DifficultySetting.KEEP_INFECTION, 0.0D);
+        check(helper, v.tier() == ModDifficulty.CUSTOM, "Nightmare の値で感染が残るをオフにしたのにカスタムでない");
+        v.applyTier(ModDifficulty.NORMAL);
+        check(helper, v.override(DifficultySetting.KEEP_INFECTION).isEmpty() && v.tier() == ModDifficulty.NORMAL,
+                "Normal に戻しても感染が残るの値が残った");
+        v.applyTier(ModDifficulty.HARD);
+        v.set(DifficultySetting.KEEP_INFECTION, 1.0D);
+        check(helper, v.tier() == ModDifficulty.CUSTOM, "Hard で感染が残るをオンにしたのにカスタムでない");
+
+        WorldDifficultyData data = WorldDifficultyData.get(server);
+        DifficultyValues saved = data.snapshot();
+        FakePlayer player = FakePlayerFactory.get(level,
+                new GameProfile(UUID.nameUUIDFromBytes("ov_settings_keep".getBytes(StandardCharsets.UTF_8)), "ov_settings_keep"));
+        BlockPos bandRel = new BlockPos(1, 2, 1);
+        BlockPos stakeRel = new BlockPos(5, 2, 5);
+        try {
+            data.replaceAll(new DifficultyValues());
+            // オフ: 死んでも戻らない
+            SporeInfectionEffects.setPlayerStage(player, 4);
+            player.setData(com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_STAGE_TICKS, 123);
+            DamageSource src = level.damageSources().generic();
+            com.yayuy.overgrownvegetation.effect.InfectionOnDeath.onDeath(new net.neoforged.neoforge.event.entity.living.LivingDeathEvent(player, src));
+            SporeInfectionEffects.setPlayerStage(player, 0); // 新しい体の代わり(感染は写らない)
+            com.yayuy.overgrownvegetation.effect.InfectionOnDeath.onRespawn(new net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerRespawnEvent(player, false));
+            check(helper, SporeInfectionEffects.stageOf(player) == 0, "オフなのに死んだ後も感染が戻った");
+            // オン: 段階と進みが戻る
+            data.set(DifficultySetting.KEEP_INFECTION, 1.0D);
+            SporeInfectionEffects.setPlayerStage(player, 4);
+            player.setData(com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_STAGE_TICKS, 123);
+            com.yayuy.overgrownvegetation.effect.InfectionOnDeath.onDeath(new net.neoforged.neoforge.event.entity.living.LivingDeathEvent(player, src));
+            SporeInfectionEffects.setPlayerStage(player, 0);
+            com.yayuy.overgrownvegetation.effect.InfectionOnDeath.onRespawn(new net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerRespawnEvent(player, false));
+            check(helper, SporeInfectionEffects.stageOf(player) == 4 && SporeInfectionEffects.progressOf(player) == 123,
+                    "オンなのに死んだ後の感染が戻らない: 段階 " + SporeInfectionEffects.stageOf(player) + " 進み " + SporeInfectionEffects.progressOf(player));
+
+            // 押し返す道具の効き: 換気機の詰まり ÷ %
+            com.yayuy.overgrownvegetation.data.SporeFieldTable table = DesignData.sporeField();
+            double per1 = com.yayuy.overgrownvegetation.survival.vent.VentBlockEntity.loadPerUnit(table);
+            data.set(DifficultySetting.PUSHBACK_EFFICIENCY, 2.0D);
+            double per2 = com.yayuy.overgrownvegetation.survival.vent.VentBlockEntity.loadPerUnit(table);
+            check(helper, per1 > 0.0D && Math.abs(per2 - per1 / 2.0D) < 1.0E-9D, "効き 200% で換気機の詰まりが半分にならない: " + per1 + " → " + per2);
+            // 帯: 回数 × %(50% なら 16 → 8 回)
+            data.set(DifficultySetting.PUSHBACK_EFFICIENCY, 0.5D);
+            int expectHits = (int) Math.max(1, Math.round(DesignData.pushBack().ring.bandHits * 0.5D));
+            helper.setBlock(bandRel, com.yayuy.overgrownvegetation.registry.ModPushBack.ASH_LIME_BAND.get().defaultBlockState());
+            java.lang.reflect.Method wear = com.yayuy.overgrownvegetation.corruption.pushback.AshLimeBandBlock.class
+                    .getDeclaredMethod("wear", ServerLevel.class, BlockPos.class);
+            wear.setAccessible(true);
+            int n = 0;
+            while (n < 40 && helper.getBlockState(bandRel).getBlock() instanceof com.yayuy.overgrownvegetation.corruption.pushback.AshLimeBandBlock) {
+                wear.invoke(null, level, helper.absolutePos(bandRel));
+                n++;
+            }
+            check(helper, n == expectHits, "効き 50% で帯の回数が違う: " + n + "(期待 " + expectHits + ")");
+            // 杭: 止めるたびの FE ÷ %(200% なら半分)
+            data.set(DifficultySetting.PUSHBACK_EFFICIENCY, 2.0D);
+            helper.setBlock(stakeRel, com.yayuy.overgrownvegetation.registry.ModPushBack.LEY_STAKE.get().defaultBlockState());
+            com.yayuy.overgrownvegetation.corruption.pushback.LeyStakeBlockEntity stake =
+                    (com.yayuy.overgrownvegetation.corruption.pushback.LeyStakeBlockEntity) helper.getBlockEntity(stakeRel);
+            stake.setEnergy(1000);
+            com.yayuy.overgrownvegetation.corruption.pushback.RingWards.resetCooldownForTests(level);
+            int e0 = stake.energy();
+            boolean blocked = com.yayuy.overgrownvegetation.corruption.pushback.RingWards.blocks(level, helper.absolutePos(new BlockPos(5, 1, 5)));
+            int expectPay = DesignData.pushBack().ring.stakeFePerBlock / 2;
+            check(helper, blocked && e0 - stake.energy() == expectPay,
+                    "効き 200% で杭の払う FE が半分にならない: " + (e0 - stake.energy()) + "(期待 " + expectPay + ")");
+        } finally {
+            SporeInfectionEffects.setPlayerStage(player, 0);
+            helper.setBlock(bandRel, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+            helper.setBlock(stakeRel, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+            data.replaceAll(saved);
         }
         helper.succeed();
     }

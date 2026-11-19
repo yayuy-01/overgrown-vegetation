@@ -154,7 +154,7 @@ public final class DifficultyValues {
         for (ModDifficulty t : ModDifficulty.SELECTABLE) {
             boolean all = true;
             for (DifficultySetting s : DifficultySetting.values()) {
-                if (s.tiered() && !s.same(valueOr(s, 1.0D), t.factor())) {
+                if (s.tiered() && !s.same(valueOr(s, s.tierValue(ModDifficulty.NORMAL)), s.tierValue(t))) {
                     all = false;
                     break;
                 }
@@ -169,8 +169,9 @@ public final class DifficultyValues {
         if (tier == ModDifficulty.CUSTOM) return;
         for (DifficultySetting s : DifficultySetting.values()) {
             if (!s.tiered()) continue;
-            if (s.same(tier.factor(), 1.0D)) overrides.remove(s);
-            else overrides.put(s, s.clamp(tier.factor()));
+            double v = s.tierValue(tier);
+            if (s.same(v, s.tierValue(ModDifficulty.NORMAL))) overrides.remove(s);
+            else overrides.put(s, s.clamp(v));
         }
         mobOverrides.clear();
     }

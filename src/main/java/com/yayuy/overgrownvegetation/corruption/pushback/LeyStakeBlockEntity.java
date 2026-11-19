@@ -18,6 +18,8 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
 public class LeyStakeBlockEntity extends BlockEntity {
 
     private int energy;
+    /** 使う FE の端数(MOD の設定「押し返す道具の効き」で小数になる分)。 */
+    private double feCarry;
 
     private final IEnergyStorage port = new IEnergyStorage() {
         @Override
@@ -82,7 +84,7 @@ public class LeyStakeBlockEntity extends BlockEntity {
 
     /** 止めた分を払う。 */
     void pay(int fe) {
-        energy = Math.max(0, energy - fe);
+        energy = Math.max(0, energy - scaled(fe));
         setChanged();
         sync();
     }
@@ -90,10 +92,19 @@ public class LeyStakeBlockEntity extends BlockEntity {
     public static void serverTick(Level level, BlockPos pos, BlockState state, LeyStakeBlockEntity be) {
         int use = RingWards.table().stakeFePerTick;
         if (be.energy > 0 && use > 0) {
-            be.energy = Math.max(0, be.energy - use);
+            be.energy = Math.max(0, be.energy - be.scaled(use));
             be.setChanged();
         }
         if (level.getGameTime() % 10 == 0) be.sync();
+    }
+
+    /** MOD の設定「押し返す道具の効き」(11-19): 使う FE ÷ %。小数の端数は次へ持ち越す(保存しない)。 */
+    private int scaled(int fe) {
+        if (fe <= 0) return 0;
+        double exact = fe / com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.pushbackEfficiency() + feCarry;
+        int whole = (int) Math.floor(exact);
+        feCarry = exact - whole;
+        return whole;
     }
 
     /** 見た目の印と範囲の場を FE に合わせる。 */

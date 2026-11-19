@@ -174,7 +174,8 @@ public class VentBlockEntity extends BlockEntity {
 
     /** 場の単位 1 を抜いたときのフィルターの詰まり(%秒)。 */
     public static double loadPerUnit(SporeFieldTable table) {
-        return 100.0D / table.fullAt() * (table.updateTicks() / 20.0D) * table.vent().filterLoadFactor();
+        return 100.0D / table.fullAt() * (table.updateTicks() / 20.0D) * table.vent().filterLoadFactor()
+                / com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.pushbackEfficiency(); // MOD の設定「押し返す道具の効き」(11-19)
     }
 
     /**

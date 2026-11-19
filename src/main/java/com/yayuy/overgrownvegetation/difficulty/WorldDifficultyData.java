@@ -128,6 +128,15 @@ public final class WorldDifficultyData extends SavedData {
         return get(server).value(DifficultySetting.EXPOSURE_RATE);
     }
 
+    /**
+     * 押し返す道具の効き(倍率。11-19 第 3 便)。帯の回数 × これ、杭の FE と換気機のフィルターの詰まり ÷ これ。
+     * サーバーを持たない static の口(換気機の詰まりの式)からも読むので、動いているサーバーが無ければ 1、並列スレッドからは覚えた値。
+     */
+    public static double pushbackEfficiency() {
+        MinecraftServer server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        return server == null ? 1.0D : ofFromAnyThread(server, DifficultySetting.PUSHBACK_EFFICIENCY);
+    }
+
     /** プレイヤーの感染の進みやすさの倍率(段で変わる)。 */
     public static double infectionRate(MinecraftServer server) {
         return get(server).value(DifficultySetting.INFECTION_RATE);

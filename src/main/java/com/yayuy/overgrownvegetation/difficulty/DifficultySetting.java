@@ -128,6 +128,17 @@ public enum DifficultySetting {
     INFECTION_RATE("infection_rate", Section.SURVIVAL, Kind.PERCENT, 0.0D, 256.0D, true, false),
     /** 疲労(オフで疲労がたまらず、効き目も無い。{@code FatigueTracker})。既定は spore_field.json の fatigue.enabled。 */
     FATIGUE("fatigue", Section.SURVIVAL, Kind.TOGGLE, 0.0D, 1.0D, false, false),
+    /**
+     * 死んでも感染が残る(11-19 第 3 便のユーザー決定)。オンなら、死んで復活したとき感染の段階と段階の進みを戻す
+     * ({@code effect/InfectionOnDeath})。暴露量・疲労は 0 から。既定はオフ(今までどおり死ぬと治る)。
+     * <b>段で変わる</b>: Nightmare だけオン、Easy・Normal・Hard はオフ({@link #tierValue})。
+     */
+    KEEP_INFECTION("keep_infection", Section.SURVIVAL, Kind.TOGGLE, 0.0D, 1.0D, true, false),
+    /**
+     * 押し返す道具の効き(11-19 第 3 便のユーザー決定「範囲は変えず使い減りを変える」)。灰と石灰の帯が止められる回数 × %、
+     * 地脈の杭の FE の使う量 ÷ %、胞子除去の換気機のフィルターの詰まり ÷ %。範囲・焼け跡・枯らし薬・マスクには掛けない。段では変えない。
+     */
+    PUSHBACK_EFFICIENCY("pushback_efficiency", Section.SURVIVAL, Kind.PERCENT, 0.1D, 10.0D, false, false),
 
     // ------------------------------------------------------------ ⑦ 世界
     /** ワールドイベントの頻度(200% = 間が半分。{@code WorldEventSchedule#gapDays})。 */
@@ -231,6 +242,16 @@ public enum DifficultySetting {
         return tiered;
     }
 
+    /**
+     * 段 {@code tier} でこの項目が取る値。倍率の項目は段の倍率、「死んでも感染が残る」は Nightmare だけオン(11-19 ユーザー指示)。
+     * {@code tierValue(NORMAL)} はワールドに値が無いときと同じ値(Normal は「何も書かれていない」と同じ)。カスタムは NaN。
+     */
+    public double tierValue(ModDifficulty tier) {
+        if (tier == ModDifficulty.CUSTOM) return Double.NaN;
+        if (this == KEEP_INFECTION) return tier == ModDifficulty.NIGHTMARE ? 1.0D : 0.0D;
+        return tier.factor();
+    }
+
     /** 途中で変えても、すでに起きたことは戻らない項目か(画面に一言)。 */
     public boolean irreversible() {
         return irreversible;
@@ -275,6 +296,8 @@ public enum DifficultySetting {
             case RAID_MAX_TOTAL_SMALL -> DesignData.director().assault.maxWave;
             case RAID_MAX_TOTAL_MEDIUM -> RaidSettings.designMaxTotal(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.MEDIUM);
             case RAID_MAX_TOTAL_LARGE -> RaidSettings.designMaxTotal(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.LARGE);
+            case KEEP_INFECTION -> 0.0D; // オフ(死ぬと治る。今までどおり)
+            case PUSHBACK_EFFICIENCY -> 1.0D;
             case FATIGUE -> DesignData.sporeField().fatigue().enabled() ? 1.0D : 0.0D;
             case QUAKE -> OvergrownVegetationConfig.COMMON.quakeEnabled.get() ? 1.0D : 0.0D;
             case REAL_CAP -> DesignData.perf().virtualRealCap;
