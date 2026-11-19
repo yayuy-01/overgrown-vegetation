@@ -31,8 +31,8 @@ public final class FusionTable {
         public Integer heightMin, heightMax, trunkMin, crownMin, crownMax, roots, bendEvery, openMin;
         public int[] trunkRadius, trunkRadiusBelow;
         public Integer scanChunks, scanTicks, blocksPerTick;
-        public Double mediumRootStart, mediumRootEnd, mediumRootReach, bigMantleMax, bigMantleBase, bigMantlePerSize, saplingTrunkRadius, saplingRootStart, saplingRootEnd;
-        public Integer mediumRootSteps, mediumRootTargets, mediumTreesPerHouses, mediumTreesMax, organsMax, collarMinHeight, bigVines;
+        public Double mediumRootStart, mediumRootEnd, mediumRootReach, saplingTrunkRadius, saplingRootStart, saplingRootEnd;
+        public Integer mediumRootSteps, mediumRootTargets, mediumTreesPerHouses, mediumTreesMax, organsMax;
         public Integer saplingHeightMin, saplingHeightMax, saplingCrown, saplingRoots;
     }
 
@@ -88,12 +88,9 @@ public final class FusionTable {
     /** 生やすきっかけを見る: プレイヤーのまわり scanChunks チャンクを scanTicks ごと。置くのは 1 tick に blocksPerTick 個まで。 */
     public final int treeScanChunks, treeScanTicks, treeBlocksPerTick;
     /** 大きい構造物(段 2c、11-19 ユーザー「中くらいの木の根 + 器官が主役」。段 2b の A+B の巨大樹をやめた): 中くらいの木は家 mediumTreesPerHouses 軒に 1 本・mediumTreesMax 本まで。
-     *  近くの建物 mediumRootTargets 軒(mediumRootReach 以内)へ太い根(mediumRootStart → mediumRootEnd・mediumRootSteps 歩)。器官は全部で organsMax 個まで。 */
+     *  近くの建物 mediumRootTargets 軒(mediumRootReach 以内)へ太い根(mediumRootStart → mediumRootEnd・mediumRootSteps 歩)。器官は全部で organsMax 個まで(0 = 制限しない)。 */
     public final double mediumRootStart, mediumRootEnd, mediumRootReach;
     public final int mediumRootSteps, mediumRootTargets, mediumTreesPerHouses, mediumTreesMax, organsMax;
-    /** 大きい器官の外套の厚さ Tmax = min(bigMantleMax, bigMantleBase + 長い辺 / bigMantlePerSize)・襟を巻く建物の高さ・縁から垂らす蔦の本数。 */
-    public final double bigMantleMax, bigMantleBase, bigMantlePerSize;
-    public final int collarMinHeight, bigVines;
     /** 構造物の上・中に植わった苗の木(段 2b): 高さ・幹の半径・樹冠・根の本数と太さ。幹が通らなければ育てない。 */
     public final int saplingHeightMin, saplingHeightMax, saplingCrown, saplingRoots;
     public final double saplingTrunkRadius, saplingRootStart, saplingRootEnd;
@@ -144,31 +141,26 @@ public final class FusionTable {
         treeCrownPerHeight = Math.max(0.0D, or(tj.crownPerHeight, 0.2D));
         treeCrownMin = Math.max(3, or(tj.crownMin, 10));
         treeCrownMax = Math.max(treeCrownMin, Math.min(30, or(tj.crownMax, 18)));
-        treeRoots = Math.max(0, Math.min(16, or(tj.roots, 8)));
+        treeRoots = Math.max(0, Math.min(16, or(tj.roots, 5))); // 段 2d で 8 から(根が板に見えた)
         treeBend = Math.max(0.0D, or(tj.bend, 0.6D));
         treeBendEvery = Math.max(1, or(tj.bendEvery, 6));
         treeOpenMin = Math.max(1, or(tj.openMin, 2));
         treeTopPercentile = Math.max(0.0D, Math.min(1.0D, or(tj.topPercentile, 0.85D)));
-        treeRootStart = Math.max(0.5D, or(tj.rootStart, 1.5D));
+        treeRootStart = Math.max(0.5D, or(tj.rootStart, 1.2D));
         treeRootEnd = Math.max(0.5D, or(tj.rootEnd, 0.95D));
         treeRootletStart = Math.max(0.5D, or(tj.rootletStart, 1.0D));
         treeRootletEnd = Math.max(0.5D, or(tj.rootletEnd, 0.5D));
         treeScanChunks = Math.max(1, Math.min(16, or(tj.scanChunks, 6)));
         treeScanTicks = Math.max(1, or(tj.scanTicks, 40));
         treeBlocksPerTick = Math.max(1, or(tj.blocksPerTick, 200));
-        mediumRootStart = Math.max(0.5D, or(tj.mediumRootStart, 1.5D));
+        mediumRootStart = Math.max(0.5D, or(tj.mediumRootStart, 1.2D));
         mediumRootEnd = Math.max(0.5D, or(tj.mediumRootEnd, 0.9D));
         mediumRootReach = Math.max(4.0D, or(tj.mediumRootReach, 45.0D));
         mediumRootSteps = Math.max(10, Math.min(300, or(tj.mediumRootSteps, 60)));
         mediumRootTargets = Math.max(0, Math.min(8, or(tj.mediumRootTargets, 2)));
         mediumTreesPerHouses = Math.max(1, or(tj.mediumTreesPerHouses, 3));
         mediumTreesMax = Math.max(0, Math.min(8, or(tj.mediumTreesMax, 2)));
-        organsMax = Math.max(1, Math.min(64, or(tj.organsMax, 16)));
-        bigMantleMax = Math.max(1.0D, or(tj.bigMantleMax, 6.0D));
-        bigMantleBase = Math.max(0.0D, or(tj.bigMantleBase, 2.5D));
-        bigMantlePerSize = Math.max(1.0D, or(tj.bigMantlePerSize, 7.0D));
-        collarMinHeight = Math.max(2, or(tj.collarMinHeight, 12));
-        bigVines = Math.max(0, Math.min(40, or(tj.bigVines, 10)));
+        organsMax = Math.max(0, or(tj.organsMax, 16)); // 0 = 制限しない。11-19 全体管理: 器官の総数は 16 まで(「制限しない」はフェーズ・苗床を 1 つに絞らない意味)
         saplingHeightMin = Math.max(4, or(tj.saplingHeightMin, 10));
         saplingHeightMax = Math.max(saplingHeightMin, Math.min(40, or(tj.saplingHeightMax, 18)));
         saplingCrown = Math.max(2, Math.min(12, or(tj.saplingCrown, 4)));

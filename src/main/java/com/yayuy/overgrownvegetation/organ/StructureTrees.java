@@ -227,7 +227,7 @@ public final class StructureTrees extends SavedData {
         List<BoundingBox> houses = new ArrayList<>(), walls = new ArrayList<>();
         for (StructureFusion.Hit h : hits) {
             BoundingBox b = h.piece();
-            if ((long) b.getXSpan() * b.getYSpan() * b.getZSpan() > 400_000L || !c.building(b)) continue;
+            if ((long) b.getXSpan() * b.getYSpan() * b.getZSpan() > 20_000_000L || !c.building(b)) continue;
             if (StructureTree.elongated(b)) walls.add(b);
             else houses.add(b);
         }
@@ -242,9 +242,10 @@ public final class StructureTrees extends SavedData {
         int organs = 0;
         BoundingBox big = houses.isEmpty() ? null : houses.get(0);
         double[] bc = centerOf(big != null ? big : walls.get(0));
+        // 段 2d: 形はふつうの器官の形からランダム(井戸 = 地脈を吸う根 A は除く)。一番大きい建物は大きい版、ほかの建物・城壁は小さい版
         if (big != null) {
-            ForestOrgans.Organ o = data.plant(level, OrganKind.SAC, false, 0, rnd.nextInt(), rnd.nextInt(4), (int) Math.floor(bc[0]), (int) Math.floor(bc[1]));
-            PLANTED.add(o.id);
+            int[] f = LARGE_SHAPES[rnd.nextInt(LARGE_SHAPES.length)];
+            plantOn(level, data, OrganKind.values()[f[0]], false, f[1], big, bc, rnd);
             organs++;
         }
         List<BoundingBox> rest = new ArrayList<>(houses.subList(Math.min(1, houses.size()), houses.size()));
@@ -252,19 +253,19 @@ public final class StructureTrees extends SavedData {
             double[] a = centerOf(p), b = centerOf(q);
             return Double.compare(Math.hypot(a[0] - bc[0], a[1] - bc[1]), Math.hypot(b[0] - bc[0], b[1] - bc[1]));
         });
-        int kind = 0;
         for (BoundingBox b : rest) {
-            if (organs >= t.organsMax) break;
-            int[] at = outside(b, bc, rnd, 0.5D);
-            ForestOrgans.Organ o = data.plant(level, kind++ % 2 == 0 ? OrganKind.TOWER : OrganKind.SAC, true, 0, rnd.nextInt(), rnd.nextInt(4), at[0], at[1]);
-            PLANTED.add(o.id);
+            if (t.organsMax > 0 && organs >= t.organsMax) break;
+            int[] f = SMALL_SHAPES[rnd.nextInt(SMALL_SHAPES.length)];
+            plantOn(level, data, OrganKind.values()[f[0]], true, f[1], b, centerOf(b), rnd);
             organs++;
         }
         for (BoundingBox w : walls) {
-            for (int j = 0; j < 2 && organs < t.organsMax; j++) {
-                int[] at = outside(w, bc, rnd, (j + 1) / 3.0D);
-                ForestOrgans.Organ o = data.plant(level, kind++ % 2 == 0 ? OrganKind.TOWER : OrganKind.SAC, true, 0, rnd.nextInt(), rnd.nextInt(4), at[0], at[1]);
-                PLANTED.add(o.id);
+            for (int j = 0; j < 2 && (t.organsMax <= 0 || organs < t.organsMax); j++) {
+                double frac = (j + 1) / 3.0D;
+                double[] at = {w.getXSpan() >= w.getZSpan() ? w.minX() + frac * w.getXSpan() : (w.minX() + w.maxX() + 1) / 2.0D,
+                        w.getXSpan() < w.getZSpan() ? w.minZ() + frac * w.getZSpan() : (w.minZ() + w.maxZ() + 1) / 2.0D};
+                int[] f = SMALL_SHAPES[rnd.nextInt(SMALL_SHAPES.length)];
+                plantOn(level, data, OrganKind.values()[f[0]], true, f[1], w, at, rnd);
                 organs++;
             }
         }
@@ -284,21 +285,27 @@ public final class StructureTrees extends SavedData {
         return Start.STARTED;
     }
 
-    /** 部品の外のそば(大きい建物から離れる向き、長い辺に沿って frac の所から外へ 3)。器官はここから一番近い建物に融合する。 */
-    private static int[] outside(BoundingBox b, double[] from, java.util.Random rnd, double frac) {
-        double[] c = centerOf(b);
-        double ux = c[0] - from[0], uz = c[1] - from[1], l = Math.hypot(ux, uz);
-        if (l < 1.0E-3D) {
-            double a = rnd.nextDouble() * Math.PI * 2.0D;
-            ux = Math.cos(a);
-            uz = Math.sin(a);
-            l = 1.0D;
-        }
-        ux /= l;
-        uz /= l;
-        double half = Math.abs(ux) * b.getXSpan() / 2.0D + Math.abs(uz) * b.getZSpan() / 2.0D;
-        double alongX = b.getXSpan() >= b.getZSpan() ? (frac - 0.5D) * b.getXSpan() : 0.0D, alongZ = b.getXSpan() < b.getZSpan() ? (frac - 0.5D) * b.getZSpan() : 0.0D;
-        return new int[]{(int) Math.floor(c[0] + alongX + ux * (half + 3.0D)), (int) Math.floor(c[1] + alongZ + uz * (half + 3.0D))};
+    /** 段 2d の形の候補 {種類の番号, 形}。大きい版 11 形: 胞子の塔 A〜D・フェーズ A・B・蓄えの嚢 A・B・苗床 A・B・地脈を吸う根 B(A の沈む根の井戸は除く)。 */
+    static final int[][] LARGE_SHAPES = {
+            {OrganKind.TOWER.ordinal(), 0}, {OrganKind.TOWER.ordinal(), 1}, {OrganKind.TOWER.ordinal(), 2}, {OrganKind.TOWER.ordinal(), 3},
+            {OrganKind.PHASE.ordinal(), 0}, {OrganKind.PHASE.ordinal(), 1}, {OrganKind.SAC.ordinal(), 0}, {OrganKind.SAC.ordinal(), 1},
+            {OrganKind.NURSERY.ordinal(), 0}, {OrganKind.NURSERY.ordinal(), 1}, {OrganKind.LEY.ordinal(), 1}};
+    /** 小さい版 10 形: 5 種類 × a・b(地脈を吸う根の小さい版 a・b はどちらも井戸ではない)。 */
+    static final int[][] SMALL_SHAPES;
+
+    static {
+        List<int[]> s = new ArrayList<>();
+        for (OrganKind k : OrganKind.values()) for (int v = 0; v < OrganShapes.SMALL_VARIANTS; v++) s.add(new int[]{k.ordinal(), v});
+        SMALL_SHAPES = s.toArray(new int[0][]);
+    }
+
+    /** 建物の部品に重ねる器官を植える(段 2d)。形は器官の側で建物に重ねて作る({@link OrganFusion#planOverlay})。 */
+    private static void plantOn(ServerLevel level, ForestOrgans data, OrganKind kind, boolean small, int variant, BoundingBox piece, double[] at,
+                                java.util.Random rnd) {
+        ForestOrgans.Organ o = data.plant(level, kind, small, variant, rnd.nextInt(), rnd.nextInt(4), (int) Math.floor(at[0]), (int) Math.floor(at[1]));
+        o.onPiece = new int[]{piece.minX(), piece.minY(), piece.minZ(), piece.maxX(), piece.maxY(), piece.maxZ()};
+        PLANTED.add(o.id);
+        data.changed();
     }
 
     // ---------------------------------------------------------------- 置く

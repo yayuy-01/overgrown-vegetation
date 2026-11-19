@@ -353,8 +353,8 @@ public final class OrganWorld {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (long e : bp.entries) {
             int m = OrganBlueprint.material(e);
-            // 大きい版(建物と融合した外套・襟・芯、段 2c)は枯れたら本体も剥がす(屋根を覆ったまま残さない)
-            boolean bigBody = !o.small && (m == OrganBlueprint.M_SAC || m == OrganBlueprint.M_CORE || m == OrganBlueprint.M_SAC_WITHERED);
+            // 建物に重ねた器官(段 2d: 構造物に植えた器官・建物の上の大きい版)は、枯れたら本体も剥がす(建物を包んだまま残さない)
+            boolean bigBody = (!o.small || o.onPiece != null) && m != OrganBlueprint.M_COVER && m != OrganBlueprint.M_CARVE;
             if (m != OrganBlueprint.M_VINE && m != OrganBlueprint.M_VEIN && !bigBody) continue;
             p.set(anchor.getX() + OrganBlueprint.dx(e), anchor.getY() + OrganBlueprint.dy(e), anchor.getZ() + OrganBlueprint.dz(e));
             if (!ready(level, p.getX() >> 4, p.getZ() >> 4)) {
@@ -363,7 +363,7 @@ public final class OrganWorld {
             }
             BlockState s = level.getBlockState(p);
             if (s.is(OrganBlocks.ORGAN_VINE.get()) || s.is(OrganBlocks.ORGAN_VEIN.get())
-                    || bigBody && (s.getBlock() instanceof OrganTissueBlock || s.getBlock() instanceof OrganCoreBlock)) level.setBlock(p, Blocks.AIR.defaultBlockState(), FLAGS);
+                    || bigBody && !s.isAir() && com.yayuy.overgrownvegetation.OvergrownVegetation.MODID.equals(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(s.getBlock()).getNamespace())) level.setBlock(p, Blocks.AIR.defaultBlockState(), FLAGS);
         }
         it.unimi.dsi.fastutil.longs.LongArrayList left = new it.unimi.dsi.fastutil.longs.LongArrayList();
         for (int i = 0; i < o.covered.size(); i++) {

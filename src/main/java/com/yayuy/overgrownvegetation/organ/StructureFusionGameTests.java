@@ -623,7 +623,7 @@ public final class StructureFusionGameTests {
         helper.succeed();
     }
 
-    /** 段 2c: 大きい構造物(家 + 小屋 3 つ)には巨大樹を植えず、一番大きい建物に大きい器官、ほかの建物に小さい器官を 1 つずつ。中くらいの木が 1 本。 */
+    /** 段 2c・2d: 大きい構造物(家 + 小屋 3 つ)には巨大樹を植えず、一番大きい建物に大きい器官、ほかの建物に小さい器官を 1 つずつ。中くらいの木が 1 本。 */
     @GameTest(template = "gametest_empty7", batch = "fusion", timeoutTicks = 200)
     public static void largeStructureGetsOrgansAndMediumTree(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -661,6 +661,8 @@ public final class StructureFusionGameTests {
             boolean bigOnHouse = false;
             for (ForestOrgans.Organ o : data.organs()) {
                 if (before.contains(o.id)) continue;
+                helper.assertTrue(o.onPiece != null, "構造物の器官が建物を覚えていない: #" + o.id);
+                helper.assertTrue(o.small || !(o.kind == OrganKind.LEY && o.variant == 0), "大きい器官に井戸が出た");
                 if (o.small) smallCount++;
                 else {
                     bigCount++;
@@ -679,58 +681,124 @@ public final class StructureFusionGameTests {
         helper.succeed();
     }
 
-    /** 段 2c: 大きい器官は建物と融合する。外套は屋根の上で部屋の中に入らず、芯は天辺。建物は変わらず扉から入れ、枯れると外套・蔦・覆いが剥がれる。 */
-    @GameTest(template = "gametest_empty7", batch = "fusion", timeoutTicks = 200)
-    public static void bigOrganMantlesRoofAndPeelsOnWither(GameTestHelper helper) {
+    /**
+     * 段 2d: 構造物の器官はふつうの形(井戸を除く大きい版 11 形)を建物に重ねる。どの形でも、建物のマス・部屋の中・入口の通り道に置かず、
+     * 芯は外の空気に触れる。1 つ(胞子の塔 A)を建てて、建物は変わらず扉から入れ、枯れると本体・蔦・覆いが剥がれる。
+     */
+    @GameTest(template = "gametest_empty7", batch = "fusion", timeoutTicks = 300)
+    public static void structureOrgansOverlayNormalShapes(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         Site s = prepare(level, 6_404_400, 6_400_000);
         ForestOrgans data = ForestOrgans.get(level);
         List<Integer> planted = new ArrayList<>();
         try {
             register(s, BuiltinStructures.VILLAGE_PLAINS, List.of(s.house));
+            for (int[] f : StructureTrees.LARGE_SHAPES) {
+                helper.assertTrue(!(f[0] == OrganKind.LEY.ordinal() && f[1] == 0), "井戸(地脈を吸う根 A)が候補にある");
+            }
+            helper.assertTrue(StructureTrees.LARGE_SHAPES.length == 11 && StructureTrees.SMALL_SHAPES.length == 10, "候補の数が違う");
             Map<BlockPos, BlockState> before = snapshot(level, s.house.inflatedBy(1));
-            ForestOrgans.Organ o = data.plant(level, OrganKind.SAC, false, 0, 4321, 0, s.bx + 4, s.bz + 3);
-            planted.add(o.id);
-            int n = OrganWorld.buildNow(level, data, o);
-            helper.assertTrue(n > 0 && o.fusion != null, "建物の上の大きい器官が融合の形にならない(置いた " + n + ")");
-            BlockPos a = o.anchor();
-            int sacs = 0, cores = 0, coreTop = Integer.MIN_VALUE;
-            List<BlockPos> body = new ArrayList<>();
-            for (long e : o.fusion) {
-                int m = OrganBlueprint.material(e);
-                BlockPos q = a.offset(OrganBlueprint.dx(e), OrganBlueprint.dy(e), OrganBlueprint.dz(e));
-                if (m == OrganBlueprint.M_SAC || m == OrganBlueprint.M_CORE) {
-                    helper.assertTrue(q.getY() > s.house.maxY(), "外套が屋根より下(部屋の中か壁際)にある: " + q);
-                    body.add(q);
-                    if (m == OrganBlueprint.M_SAC) sacs++;
-                    else {
-                        cores++;
-                        coreTop = Math.max(coreTop, q.getY());
+            int[] house = {s.house.minX(), s.house.minY(), s.house.minZ(), s.house.maxX(), s.house.maxY(), s.house.maxZ()};
+            List<StructureFusion.Hit> hits = StructureFusion.near(level, s.house.inflatedBy(40)).hits();
+            OrganFusion.Ctx c = new OrganFusion.Ctx(level, hits, StructureFusion.table());
+            c.reserveEntrances();
+            int ok = 0;
+            for (int[][] pool : new int[][][]{StructureTrees.LARGE_SHAPES, StructureTrees.SMALL_SHAPES}) {
+                for (int[] f : pool) {
+                    boolean small = pool == StructureTrees.SMALL_SHAPES;
+                    ForestOrgans.Organ o = new ForestOrgans.Organ(-500 - ok, OrganKind.values()[f[0]], small, f[1], 777 + ok, 0, s.bx + 4, s.bz + 3, 0L);
+                    o.onPiece = house;
+                    long[] plan = OrganFusion.planOverlay(level, o, hits, StructureFusion.table());
+                    String name = OrganKind.values()[f[0]] + (small ? "・小 " : " ") + f[1];
+                    helper.assertTrue(plan != null, "建物に重ねられない: " + name);
+                    BlockPos a = o.anchor();
+                    java.util.Set<Long> body = new java.util.HashSet<>();
+                    List<BlockPos> cores = new ArrayList<>();
+                    for (long e : plan) {
+                        int m = OrganBlueprint.material(e);
+                        if (m == OrganBlueprint.M_COVER) continue;
+                        BlockPos q = a.offset(OrganBlueprint.dx(e), OrganBlueprint.dy(e), OrganBlueprint.dz(e));
+                        helper.assertTrue(!(before.containsKey(q) && !before.get(q).isAir()), name + " が建物のマスに置く: " + q);
+                        helper.assertTrue(!c.interior(q.getX(), q.getY(), q.getZ()) && !c.reserved.contains(q.asLong()), name + " が部屋の中か入口に置く: " + q);
+                        body.add(q.asLong());
+                        if (m == OrganBlueprint.M_CORE) cores.add(q);
                     }
+                    // 芯から、器官のブロック(掘れる)か外の空気(部屋の中でない)をたどって、家の外(箱 + 2 の外)へ出られるか
+                    boolean reach = false;
+                    BoundingBox out = s.house.inflatedBy(2);
+                    java.util.ArrayDeque<BlockPos> bq = new java.util.ArrayDeque<>(cores);
+                    java.util.Set<Long> seenC = new java.util.HashSet<>();
+                    for (BlockPos q : cores) seenC.add(q.asLong());
+                    while (!bq.isEmpty() && !reach && seenC.size() < 20000) {
+                        BlockPos q = bq.poll();
+                        if (!out.isInside(q)) {
+                            reach = true;
+                            break;
+                        }
+                        for (Direction d : Direction.values()) {
+                            BlockPos nb = q.relative(d);
+                            if (!seenC.add(nb.asLong())) continue;
+                            boolean pass = body.contains(nb.asLong()) || level.getBlockState(nb).isAir() && !c.interior(nb.getX(), nb.getY(), nb.getZ());
+                            if (pass) bq.add(nb);
+                        }
+                    }
+                    helper.assertTrue(!cores.isEmpty() && reach, name + " の芯に外から手が届かない(芯 " + cores.size() + ")");
+                    ok++;
                 }
             }
-            helper.assertTrue(sacs > 20 && cores > 0, "外套・芯が小さい(袋 " + sacs + "・芯 " + cores + ")");
-            int maxY = body.stream().mapToInt(BlockPos::getY).max().orElse(0);
-            helper.assertTrue(coreTop >= maxY - 1, "芯が外套の天辺に無い(芯 " + coreTop + "・天辺 " + maxY + ")");
+            // 1 つ建てて、扉・枯れを見る
+            ForestOrgans.Organ o = data.plant(level, OrganKind.TOWER, false, 0, 4321, 0, s.bx + 4, s.bz + 3);
+            o.onPiece = house;
+            planted.add(o.id);
+            int n = OrganWorld.buildNow(level, data, o);
+            helper.assertTrue(n > 0 && o.fusion != null, "構造物の器官が建たない(置いた " + n + ")");
             helper.assertTrue(changedSolid(level, before) == null, "建物のブロックが変わった: " + changedSolid(level, before));
             helper.assertTrue(walkIn(level, s), "入口から中へ歩いて入れない");
+            List<BlockPos> placed = new ArrayList<>();
+            BlockPos a = o.anchor();
+            for (long e : o.fusion) {
+                if (OrganBlueprint.material(e) == OrganBlueprint.M_COVER) continue;
+                placed.add(a.offset(OrganBlueprint.dx(e), OrganBlueprint.dy(e), OrganBlueprint.dz(e)));
+            }
             data.wither(level, o, "テスト");
             o.witheredAt = PhaseData.clockNow(level) - (long) (StructureFusion.table().vineFadeSeconds * 20.0D) - 40L;
-            for (int k = 0; k < 400 && !o.fusionCleaned; k++) OrganWorld.step(level, data, o, PhaseData.clockNow(level), 100000);
+            for (int k = 0; k < 600 && !o.fusionCleaned; k++) OrganWorld.step(level, data, o, PhaseData.clockNow(level), 100000);
             helper.assertTrue(o.fusionCleaned, "枯れた後に片付けない");
-            for (BlockPos q : body) {
+            int left = 0;
+            for (BlockPos q : placed) {
                 BlockState st = level.getBlockState(q);
-                helper.assertTrue(!(st.getBlock() instanceof OrganTissueBlock || st.getBlock() instanceof OrganCoreBlock), "枯れた後も外套が残る: " + q + " " + st);
+                if (!st.isAir() && OvergrownVegetation.MODID.equals(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(st.getBlock()).getNamespace())) left++;
             }
+            helper.assertTrue(left == 0, "枯れた後も器官のブロックが残る: " + left);
             helper.assertTrue(o.covered.isEmpty(), "覆いの記録が残る");
             helper.assertTrue(changedSolid(level, before) == null, "片付けで建物のブロックが変わった");
         } finally {
             for (int id : planted) {
-                level.getEntities(OrganEntities.TENTACLE.get(), new net.minecraft.world.phys.AABB(s.bx - R, s.fy - 5, s.bz - R, s.bx + R, s.fy + 40, s.bz + R), e -> true)
+                level.getEntities(OrganEntities.TENTACLE.get(), new net.minecraft.world.phys.AABB(s.bx - R, s.fy - 5, s.bz - R, s.bx + R, s.fy + 60, s.bz + R), e -> true)
                         .forEach(net.minecraft.world.entity.Entity::discard);
                 data.remove(id);
             }
-            clearBox(level, new BoundingBox(s.bx - 6, s.fy + 6, s.bz - 6, s.bx + 14, s.fy + 20, s.bz + 12));
+            clearBox(level, new BoundingBox(s.bx - 20, s.fy + 1, s.bz - 20, s.bx + 28, s.fy + 50, s.bz + 26));
+            s.cleanup();
+        }
+        helper.succeed();
+    }
+
+    /** 段 2d: 木は構造物の守る範囲の中でも、空気のマスには置く(箱の形で四角く欠けない)。部屋の中・建物のブロック・まだ分からない所は飛ばす。 */
+    @GameTest(template = "gametest_empty7", batch = "fusion", timeoutTicks = 100)
+    public static void treesSkipOnlyBuildingAndRooms(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Site s = prepare(level, 6_404_800, 6_400_000);
+        try {
+            register(s, BuiltinStructures.VILLAGE_PLAINS, List.of(new BoundingBox(s.bx - 6, s.fy + 1, s.bz - 6, s.bx + 14, s.fy + 20, s.bz + 12)));
+            BlockPos yard = new BlockPos(s.bx - 3, s.fy + 3, s.bz + 3), room = new BlockPos(s.bx + 3, s.fy + 2, s.bz + 3), wall = new BlockPos(s.bx + 2, s.fy + 2, s.bz);
+            BlockPos aboveRoof = new BlockPos(s.bx + 4, s.fy + 12, s.bz + 3);
+            helper.assertTrue(StructureFusion.isProtected(level, yard), "庭が守る範囲でない(テストの作りの誤り)");
+            helper.assertTrue(!StructureFusion.keepsOut(level, yard), "箱の中の庭の空気に木を置かない(四角く欠ける)");
+            helper.assertTrue(!StructureFusion.keepsOut(level, aboveRoof), "屋根の上の空気に木を置かない");
+            helper.assertTrue(StructureFusion.keepsOut(level, room), "部屋の中に木を置く");
+            helper.assertTrue(StructureFusion.keepsOut(level, wall), "建物のブロックに木を置く");
+        } finally {
             s.cleanup();
         }
         helper.succeed();

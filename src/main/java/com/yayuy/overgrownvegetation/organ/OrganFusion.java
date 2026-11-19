@@ -75,12 +75,12 @@ public final class OrganFusion {
         StructureFusion.Query q = StructureFusion.near(level, box);
         if (q.unknown()) return waitOrGiveUp(o);
         if (q.hits().isEmpty()) return Result.NORMAL;
-        if (!o.small) {
-            // 段 2c(11-19 ユーザー「構造物は器官と融合するのがメイン」): 大きい版は建物の上なら建物と融合する(外套・芯・襟・蔦)。
-            // 建物の上でなければ今までどおり建てない(段 1 の決め C)
-            long[] big = planBig(level, o, q.hits(), t);
-            if (big == null) return Result.CANCEL;
-            o.fusion = big;
+        if (!o.small || o.onPiece != null) {
+            // 段 2d(11-19 ユーザー「普通に生える器官のうち、井戸以外のどれかがランダムで生える」): 構造物に植えた器官と、建物の上の大きい版は、
+            // ふつうの形を建物に重ねて建てる(段 2c の外套・襟はやめた)。建物の上でなければ今までどおり建てない(段 1 の決め C)
+            long[] ov = planOverlay(level, o, q.hits(), t);
+            if (ov == null) return Result.CANCEL;
+            o.fusion = ov;
             return Result.FUSED;
         }
         long[] plan = plan(level, o, q.hits());
@@ -452,135 +452,92 @@ public final class OrganFusion {
     }
 
 
-    // ---------------------------------------------------------------- 大きい版が建物と融合する(段 2c、試作 第 9 版の growBigOrgan)
+    // ---------------------------------------------------------------- 構造物に付く器官: ふつうの形を建物に重ねる(段 2d)
 
     /**
-     * 大きい版の器官が建物の上に建つとき(11-19 ユーザー「構造物は器官と融合するのがメイン」)。器官の場所を含む(余白 8)建物らしい部品に:
+     * 構造物に植えた器官と、建物の上に建つ大きい版(11-19 ユーザー「普通に生える器官のうち、井戸以外のどれかがランダムで生える」)。
+     * その器官のふつうの形({@link OrganBlueprint#create})を建物の部品に重ねて建てる。
      * <ul>
-     *   <li><b>外套</b>: 部品の箱 + 1 の各列で、一番上の建物のブロックの上に袋を積む。厚さ = 1 + (1 − 中心からの距離²) × Tmax + ゆらぎ
-     *       (Tmax = min(bigMantleMax, bigMantleBase + 長い辺 / bigMantlePerSize))。屋根に覆いかぶさる。</li>
-     *   <li><b>芯</b>: 外套の天辺に半ば埋める。壊すと枯れる(今の器官と同じ)。</li>
-     *   <li><b>襟</b>: 地面から collarMinHeight 以上の建物は、高さの 5〜8 割の胴に袋を巻く(厚さ 1〜2.6)。</li>
-     *   <li><b>蔦</b>: 外套の縁から蔦の触手を垂らして壁を伝わせ、触れた壁を覆う。</li>
+     *   <li>根元は建物のまわりの地面。置くのは空気と草花のマスだけ(建物のブロック・部屋の中・入口の通り道は切れる)ので、建物が器官の中から突き出て見える。</li>
+     *   <li>芯(弱点)は外から届く所に出す。芯のマスの半分以上が置けて、どれかが外の空気(部屋の中でない)に触れる高さまで、形を持ち上げる。</li>
+     *   <li>器官が触れた建物の壁は覆う(置き換えない)。縁から蔦の触手を垂らして壁を伝わせる。</li>
      * </ul>
-     * 置くのは空気と草花のマスだけ。入口の通り道と部屋の中には入れない。建物が見つからなければ null(今までどおり建てない)。
+     * 建物が見つからない・芯を出せなければ null(建てない)。{@code o.y} は地面の上に直す。
      */
     @Nullable
-    static long[] planBig(ServerLevel level, ForestOrgans.Organ o, List<StructureFusion.Hit> hits, FusionTable t) {
-        Random rnd = new Random(o.seed * 0x9E3779B97F4A7C15L + 0xB16L);
+    static long[] planOverlay(ServerLevel level, ForestOrgans.Organ o, List<StructureFusion.Hit> hits, FusionTable t) {
+        Random rnd = new Random(o.seed * 0x9E3779B97F4A7C15L + 0x0E7AL);
         Ctx c = new Ctx(level, hits, t);
         c.reserveEntrances();
         BoundingBox pb = null;
-        double best = Double.MAX_VALUE;
-        for (StructureFusion.Hit h : hits) {
-            BoundingBox b = h.piece();
-            if (StructureTree.elongated(b) || (long) b.getXSpan() * b.getYSpan() * b.getZSpan() > 400_000L) continue;
-            double dx = Math.max(0, Math.max(b.minX() - o.x, o.x - b.maxX())), dz = Math.max(0, Math.max(b.minZ() - o.z, o.z - b.maxZ()));
-            double d = dx * dx + dz * dz;
-            if (d <= 64.0D && d < best && c.building(b)) {
-                best = d;
-                pb = b;
+        if (o.onPiece != null && o.onPiece.length == 6) {
+            pb = new BoundingBox(o.onPiece[0], o.onPiece[1], o.onPiece[2], o.onPiece[3], o.onPiece[4], o.onPiece[5]);
+        } else {
+            double best = Double.MAX_VALUE;
+            for (StructureFusion.Hit h : hits) {
+                BoundingBox b = h.piece();
+                if ((long) b.getXSpan() * b.getYSpan() * b.getZSpan() > 20_000_000L) continue;
+                double dx = Math.max(0, Math.max(b.minX() - o.x, o.x - b.maxX())), dz = Math.max(0, Math.max(b.minZ() - o.z, o.z - b.maxZ()));
+                double d = dx * dx + dz * dz;
+                if (d <= 64.0D && d < best && c.building(b)) {
+                    best = d;
+                    pb = b;
+                }
             }
         }
         if (pb == null) return null;
         int ground = StructureTree.ground(c, pb);
         int top = StructureTree.topStruct(c, pb);
         if (ground == Integer.MIN_VALUE || top == Integer.MIN_VALUE) return null;
-        double cx = (pb.minX() + pb.maxX() + 1) / 2.0D, cz = (pb.minZ() + pb.maxZ() + 1) / 2.0D;
-        double rx = (pb.maxX() - pb.minX()) / 2.0D + 1.5D, rz = (pb.maxZ() - pb.minZ()) / 2.0D + 1.5D;
-        double tmax = Math.min(t.bigMantleMax, t.bigMantleBase + StructureFusion.span(pb) / t.bigMantlePerSize);
-        double[] center = {cx, cz};
-        java.util.LinkedHashMap<Long, Integer> body = new java.util.LinkedHashMap<>();
-        List<int[]> edge = new ArrayList<>();
-        int[] topC = null;
-        int topY = Integer.MIN_VALUE;
-        for (int x = pb.minX() - 1; x <= pb.maxX() + 1; x++) {
-            for (int z = pb.minZ() - 1; z <= pb.maxZ() + 1; z++) {
-                int topS = Integer.MIN_VALUE;
-                for (int y = pb.maxY(); y >= pb.minY(); y--) {
-                    if (c.struct(x, y, z)) {
-                        topS = y;
+        o.y = ground + 1;
+        BlockPos anchor = o.anchor();
+        OrganBlueprint bp = OrganBlueprint.create(o.kind, o.small, o.variant, o.seed, o.rot);
+        // 芯が外から届く高さまで持ち上げる
+        int shift = -1;
+        for (int dy = 0; dy <= top - ground + 6 && shift < 0; dy++) {
+            int cores = 0, free = 0;
+            boolean exposed = false;
+            for (long e : bp.entries) {
+                if (OrganBlueprint.material(e) != OrganBlueprint.M_CORE) continue;
+                cores++;
+                int x = anchor.getX() + OrganBlueprint.dx(e), y = anchor.getY() + OrganBlueprint.dy(e) + dy, z = anchor.getZ() + OrganBlueprint.dz(e);
+                if (!c.free(x, y, z)) continue;
+                free++;
+                for (Direction d : Direction.values()) {
+                    int nx = x + d.getStepX(), ny = y + d.getStepY(), nz = z + d.getStepZ();
+                    if (c.free(nx, ny, nz) && !isCore(bp, anchor, dy, nx, ny, nz)) {
+                        exposed = true;
                         break;
                     }
                 }
-                if (topS == Integer.MIN_VALUE) continue;
-                double d2 = sq((x + 0.5D - cx) / rx) + sq((z + 0.5D - cz) / rz);
-                if (d2 > 1.0D) continue;
-                double bump = 0.6D * Math.sin(x * 0.9D + z * 0.7D) * Math.cos(z * 1.1D);
-                int th = Math.max(1, (int) Math.round(1 + (1 - d2) * tmax + bump));
-                int placed = topS;
-                for (int y = topS + 1; y <= topS + th; y++) {
-                    if (!c.free(x, y, z)) break;
-                    body.put(BlockPos.asLong(x, y, z), OrganBlueprint.M_SAC);
-                    c.planned.add(BlockPos.asLong(x, y, z));
-                    placed = y;
-                }
-                if (d2 < 0.15D && placed > topY) {
-                    topY = placed;
-                    topC = new int[]{x, placed, z};
-                }
-                if (d2 > 0.6D) edge.add(new int[]{x, topS + 1, z});
             }
+            if (cores > 0 && free * 2 >= cores && exposed) shift = dy;
         }
-        if (topC == null) topC = new int[]{(int) Math.floor(cx), top + 2, (int) Math.floor(cz)};
-        // 芯(弱点)を外套の天辺に半ば埋める
-        boolean core = false;
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                for (int dz = -1; dz <= 1; dz++) {
-                    if (dx * dx + dy * dy + dz * dz > 2) continue;
-                    int x = topC[0] + dx, y = topC[1] + dy, z = topC[2] + dz;
-                    long k = BlockPos.asLong(x, y, z);
-                    if (body.containsKey(k) || c.free(x, y, z)) {
-                        body.put(k, OrganBlueprint.M_CORE);
-                        c.planned.add(k);
-                        core = true;
-                    }
-                }
-            }
-        }
-        if (!core) return null;
-        // 背の高い建物は胴に襟を巻く(高さの 5〜8 割。入口の通り道・部屋の中は c.free が外す)
-        int h = top - ground;
-        if (h >= t.collarMinHeight) {
-            int y0 = ground + (int) Math.round(h * 0.5D), y1 = ground + (int) Math.round(h * 0.8D);
-            for (int y = y0; y <= y1; y++) {
-                double th = 1.0D + 1.6D * Math.sin(Math.PI * (y - y0) / Math.max(1, y1 - y0));
-                for (int x = pb.minX() - 4; x <= pb.maxX() + 4; x++) {
-                    for (int z = pb.minZ() - 4; z <= pb.maxZ() + 4; z++) {
-                        if (!c.free(x, y, z)) continue;
-                        double dmin = 9.0D;
-                        for (int u = -3; u <= 3; u++) {
-                            for (int v = -3; v <= 3; v++) {
-                                if (c.struct(x + u, y, z + v)) dmin = Math.min(dmin, Math.hypot(u, v));
-                            }
-                        }
-                        if (dmin <= th + 0.2D * Math.sin(x * 1.3D + y * 0.8D)) {
-                            long k = BlockPos.asLong(x, y, z);
-                            body.put(k, OrganBlueprint.M_SAC);
-                            c.planned.add(k);
-                        }
-                    }
-                }
-            }
-        }
-        // 下から順に積む(屋根から盛り上がって見えるように)。袋が触れた建物は覆う
+        if (shift < 0) return null;
         List<Cell> cells = new ArrayList<>();
-        for (java.util.Map.Entry<Long, Integer> en : body.entrySet()) {
-            long k = en.getKey();
-            cells.add(new Cell(BlockPos.getX(k), BlockPos.getY(k), BlockPos.getZ(k), en.getValue(), 0,
-                    BlockPos.getY(k) + (en.getValue() == OrganBlueprint.M_CORE ? 0.5D : 0.0D)));
+        List<int[]> touching = new ArrayList<>();
+        double key = 0.0D;
+        for (long e : bp.entries) {
+            int m = OrganBlueprint.material(e);
+            if (m == OrganBlueprint.M_CARVE) continue; // 掘らない(建物を壊さない)
+            int x = anchor.getX() + OrganBlueprint.dx(e), y = anchor.getY() + OrganBlueprint.dy(e) + shift, z = anchor.getZ() + OrganBlueprint.dz(e);
+            if (!c.free(x, y, z)) continue; // 建物のマス・部屋の中・入口の通り道・地面は切れる
+            c.planned.add(BlockPos.asLong(x, y, z));
+            cells.add(new Cell(x, y, z, m, OrganBlueprint.faces(e), key += 1.0D));
+            if (c.structAdj(x, y, z)) touching.add(new int[]{x, y, z});
         }
-        double key = 10_000.0D;
-        for (Cell e : new ArrayList<>(cells)) key = covers(c, e.x(), e.y(), e.z(), cells, key);
-        // 縁から壁を伝って垂れる蔦
-        for (int k = 0; k < t.bigVines && !edge.isEmpty(); k++) {
-            int[] s = edge.get(rnd.nextInt(edge.size()));
+        if (cells.stream().noneMatch(e -> e.mat() == OrganBlueprint.M_CORE)) return null;
+        key += 1.0D;
+        for (int[] p : touching) key = covers(c, p[0], p[1], p[2], cells, key += 0.001D);
+        // 縁から壁を伝って垂れる蔦の触手
+        double[] center = {(pb.minX() + pb.maxX() + 1) / 2.0D, (pb.minZ() + pb.maxZ() + 1) / 2.0D};
+        for (int k = 0; k < t.vines && !touching.isEmpty(); k++) {
+            int[] s = touching.get(rnd.nextInt(touching.size()));
             Crawl cr = new Crawl();
-            cr.steps = 30 + rnd.nextInt(40);
+            cr.steps = t.vineStepsMin + rnd.nextInt(t.vineStepsMax - t.vineStepsMin + 1);
             cr.sign = k % 2 == 0 ? -1 : 1;
-            cr.upW = -0.9D;
-            cr.wrapW = 0.8D;
+            cr.upW = -0.6D;
+            cr.wrapW = 1.0D;
             cr.noise = 0.7D;
             cr.ground = true;
             cr.center = center;
@@ -588,8 +545,6 @@ public final class OrganFusion {
             cr.cover = true;
             key = crawl(c, s[0], s[1], s[2], cr, rnd, cells, key);
         }
-        BlockPos anchor = o.anchor();
-        cells.sort((p, q) -> Double.compare(p.key(), q.key()));
         LongArrayList out = new LongArrayList();
         LongOpenHashSet coverSeen = new LongOpenHashSet();
         for (Cell e : cells) {
@@ -600,6 +555,15 @@ public final class OrganFusion {
         }
         return out.toLongArray();
     }
+
+    private static boolean isCore(OrganBlueprint bp, BlockPos anchor, int shift, int x, int y, int z) {
+        for (long e : bp.entries) {
+            if (OrganBlueprint.material(e) == OrganBlueprint.M_CORE && anchor.getX() + OrganBlueprint.dx(e) == x
+                    && anchor.getY() + OrganBlueprint.dy(e) + shift == y && anchor.getZ() + OrganBlueprint.dz(e) == z) return true;
+        }
+        return false;
+    }
+
     private static double sq(double v) {
         return v * v;
     }

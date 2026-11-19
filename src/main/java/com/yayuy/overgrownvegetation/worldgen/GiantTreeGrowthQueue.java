@@ -393,7 +393,7 @@ public final class GiantTreeGrowthQueue {
                 if (edge == ChunkEdgeGuard.Edge.WAIT) break;
                 if (edge == ChunkEdgeGuard.Edge.READY && !TreePlacementRules.treeKeeps(serverLevel.getBlockState(cursorPos))
                         && !com.yayuy.overgrownvegetation.corruption.pushback.RingWards.guardedFrom(serverLevel, job.trunk.isEmpty() ? null : BlockPos.of(job.trunk.getLong(0)), cursorPos)
-                        && (!com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(serverLevel, cursorPos) || job.courtyard && airOrPlant(serverLevel.getBlockState(cursorPos)))) { // 構造物の部品の箱には置かない(11-19 融合 段 1)。中庭の巨大樹だけは箱の中の空気と草花のマスに置く(段 2) // 根付いた萌芽体は残す。帯の線の向こう・杭の範囲には置かない(押し返し 11-18 夜)
+                        && !com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.keepsOut(serverLevel, cursorPos)) { // 段 2d: 守る範囲では空気と草花のマスだけ・部屋の中は飛ばす(箱を全部飛ばすと四角く欠けた) // 構造物の部品の箱には置かない(11-19 融合 段 1)。中庭の巨大樹だけは箱の中の空気と草花のマスに置く(段 2) // 根付いた萌芽体は残す。帯の線の向こう・杭の範囲には置かない(押し返し 11-18 夜)
                     serverLevel.setBlock(cursorPos.immutable(), state, UPDATE_FLAGS);
                 }
                 job.cursor++;

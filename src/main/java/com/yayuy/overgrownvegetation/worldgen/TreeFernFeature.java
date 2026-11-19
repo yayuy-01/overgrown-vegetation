@@ -241,7 +241,7 @@ public class TreeFernFeature extends Feature<TreeFernFeature.Config> {
                 if (s.hasProperty(RotatedPillarBlock.AXIS)) {
                     s = s.setValue(RotatedPillarBlock.AXIS, Direction.Axis.Y);
                 }
-                if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, p)) continue; // 構造物の部品の箱には置かない(11-19 融合 段 1)
+                if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.keepsOut(level, p)) continue; // 構造物の守る範囲では空気と草花のマスだけ(11-19 段 2d)
                 level.setBlock(p, s, Block.UPDATE_ALL);
             }
             LongOpenHashSet placed = new LongOpenHashSet();
@@ -364,7 +364,7 @@ public class TreeFernFeature extends Feature<TreeFernFeature.Config> {
             if (!forced && !here.isAir() && !here.canBeReplaced()) {
                 return false;
             }
-            if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, pos)) {
+            if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.keepsOut(level, pos)) { // 段 2d: 箱の空気のマスには置く
                 return false; // 構造物の部品の箱には置かない(11-19 融合 段 1)
             }
             level.setBlock(pos, state, Block.UPDATE_ALL);

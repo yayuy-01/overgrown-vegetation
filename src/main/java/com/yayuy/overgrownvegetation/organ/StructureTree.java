@@ -306,6 +306,20 @@ public final class StructureTree {
         final List<Object[]> tubes = new ArrayList<>();
         /** 管で置く根のブロック(巨大樹の抱える根は GIANT_ROOT)。 */
         byte rootMat = ROOT;
+        /** ほかの根の道筋(根どうしを離す。11-19 段 2d「根の密度が高すぎて板が乗ってるみたい」)。 */
+        final LongOpenHashSet rootPaths = new LongOpenHashSet();
+
+        /** ほかの根の道筋の近く(横 ±2・縦 ±1)か。 */
+        boolean nearOtherRoot(int x, int y, int z) {
+            for (int dx = -2; dx <= 2; dx++) {
+                for (int dz = -2; dz <= 2; dz++) {
+                    for (int dy = -1; dy <= 1; dy++) {
+                        if (rootPaths.contains(BlockPos.asLong(x + dx, y + dy, z + dz))) return true;
+                    }
+                }
+            }
+            return false;
+        }
 
         W(OrganFusion.Ctx c, int ground, Random rnd) {
             this.c = c;
@@ -366,6 +380,8 @@ public final class StructureTree {
         double[] center;
         @Nullable
         Random fixed; // 試作で () => 0.5 を渡していた所
+        /** 根: ほかの根の道筋から離れて這う(始めの 3 歩は幹の根元なので見ない)。終わったら道筋を覚える。 */
+        boolean spread;
     }
 
     /** 壁に沿って這い、道筋を積む(置くのは後で tube)。 */
@@ -385,6 +401,7 @@ public final class StructureTree {
                         if (ny < minY) continue;
                         long k = BlockPos.asLong(nx, ny, nz);
                         if (seen.contains(k) || !w.open(nx, ny, nz)) continue;
+                        if (o.spread && s >= 3 && w.nearOtherRoot(nx, ny, nz)) continue;
                         boolean hug = w.c.structAdj(nx, ny, nz);
                         if (!hug && !o.free && !(o.ground && w.c.solidAdj(nx, ny, nz))) continue;
                         double rx = nx - o.center[0], rz = nz - o.center[1], rl = Math.max(1.0E-3D, Math.hypot(rx, rz));
@@ -419,6 +436,7 @@ public final class StructureTree {
             seen.add(BlockPos.asLong(x, y, z));
             path.add(best);
         }
+        if (o.spread) for (int[] p : path) w.rootPaths.add(BlockPos.asLong(p[0], p[1], p[2]));
     }
 
     /** 試作の surfNormal: 壁・地面から離れる向き(まわり 26 マスの固い物の逆向きの和)。弱ければ null。 */
@@ -530,6 +548,7 @@ public final class StructureTree {
             o.upW = -0.5D;
             o.wrapW = 0.9D;
             o.noise = 1.0D;
+            o.spread = true;
             o.ground = true;
             o.center = center;
             crawl(w, q[0], q[1], q[2], o, sp);
@@ -559,10 +578,11 @@ public final class StructureTree {
         o.towardW = 0.9D;
         o.ground = true;
         o.center = center;
+        o.spread = true;
         crawl(w, sx, sy, sz, o, path);
         runOut(w, path, center, 3 + w.rnd.nextInt(4));
         queueTube(w, path, r0, r1);
-        rootlets(w, path, center, 1 + (w.rnd.nextDouble() < 0.6D ? 1 : 0), sign, t);
+        rootlets(w, path, center, w.rnd.nextDouble() < 0.5D ? 1 : 0, sign, t); // 段 2d で 1〜2 本から 0〜1 本へ(根が密すぎた)
     }
 
     static void leafBlob(W w, double cx, double cy, double cz, double rx, double ry) {
@@ -665,6 +685,7 @@ public final class StructureTree {
                     o.upW = 0.7D;
                     o.wrapW = 0.9D;
                     o.noise = 0.6D;
+                    o.spread = true;
                     o.ground = true;
                     o.center = center;
                     crawl(w, sx, by, sz, o, rp);
@@ -839,6 +860,7 @@ public final class StructureTree {
             up.toward = new int[]{f[0], top + 2, f[1]};
             up.towardW = 1.6D;
             up.center = pc;
+            up.spread = true;
             crawl(w, last[0], last[1], last[2], up, path);
             // 向こう側の壁を垂れて地面へ
             int[] l2 = path.get(path.size() - 1);
@@ -851,10 +873,11 @@ public final class StructureTree {
             down.towardW = 1.2D;
             down.ground = true;
             down.center = pc;
+            down.spread = true;
             crawl(w, l2[0], l2[1], l2[2], down, path);
             runOut(w, path, pc, 4 + rnd.nextInt(4));
             queueTube(w, path, r0, r1);
-            rootlets(w, path, pc, 2, 1, t);
+            rootlets(w, path, pc, 1, 1, t);
         } else if (!path.isEmpty()) {
             queueTube(w, path, r0 * 0.9D, r1);
         }

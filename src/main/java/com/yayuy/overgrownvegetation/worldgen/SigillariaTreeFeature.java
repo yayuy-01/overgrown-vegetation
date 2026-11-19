@@ -205,7 +205,7 @@ public class SigillariaTreeFeature extends Feature<SigillariaTreeFeature.Config>
         /** 原木か枝の継ぎ目を置き、葉に上書きされないよう覚える。 */
         void put(BlockPos pos, BlockState state) {
             logs.add(pos.asLong());
-            if (!TreePlacementRules.treeKeeps(level.getBlockState(pos)) && !com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, pos)) { // 構造物の部品の箱には置かない(11-19 融合 段 1)
+            if (!TreePlacementRules.treeKeeps(level.getBlockState(pos)) && !com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.keepsOut(level, pos)) { // 構造物の部品の箱には置かない(11-19 融合 段 1)
                 level.setBlock(pos, state, Block.UPDATE_ALL);
             }
         }
@@ -380,7 +380,7 @@ public class SigillariaTreeFeature extends Feature<SigillariaTreeFeature.Config>
             if (!forced && !here.isAir() && !here.canBeReplaced()) {
                 return false;
             }
-            if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, pos)) {
+            if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.keepsOut(level, pos)) { // 段 2d: 箱の空気のマスには置く
                 return false; // 構造物の部品の箱には置かない(11-19 融合 段 1)
             }
             level.setBlock(pos, state, Block.UPDATE_ALL);
