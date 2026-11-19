@@ -370,13 +370,16 @@ public final class CorruptionRegistry {
     static boolean inStructure(ServerLevel level, BlockPos pos, BlockState state) {
         if (state.isAir() || state.canBeReplaced()) return false;
         if (state.hasBlockEntity() && !SpawnerCorruption.isSpawner(state)) return false;
+        // 地面(土・草・石・砂・雪など)は箱の中でも外と同じく置き換える(11-19 ユーザー決定「地面は汚染する」。
+        // 箱の中だけ緑の四角が残って浮くため。取り込むのは建物だけ)
+        if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.isTerrain(state)) return false;
         // まだ分からない所(開始のチャンクが無い)は汚染の熱い経路では守らない(置き物の側はマスごとに守る)
         return com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.isProtected(level, pos);
     }
 
     /** 構造物の中の覆い(扉は上下とも)。 */
     static void coverInStructure(ServerLevel level, BlockPos pos, BlockState state) {
-        if (!OvergrownLayerData.canCoverInStructure(state)) return; // 地形(土・草・石)は覆わずそのまま残す(覆いの記録は石・土に資格が無い)
+        if (!OvergrownLayerData.canCoverInStructure(state)) return; // 覆えない物(氷など)はそのまま。地面は inStructure が外す
         if (state.getBlock() instanceof net.minecraft.world.level.block.DoorBlock
                 && state.hasProperty(net.minecraft.world.level.block.DoorBlock.HALF)) {
             BlockPos other = state.getValue(net.minecraft.world.level.block.DoorBlock.HALF)
@@ -770,7 +773,7 @@ public final class CorruptionRegistry {
         PortalCorruption.noticeEndFrame(level, pos, state);
         if (inStructure(level, pos, state)) {
             // 構造物(地表に出ている物)の部品の箱の中は置き換えず、全部記録で覆う(2026-11-19 構造物と森の融合 決め A・ユーザー決定)。
-            // 箱の中の地形(土・草・石・雪)は覆いの記録と両立しないので、置き換えも覆いもせずそのまま。中身のあるブロック(チェスト・機械)は今まで通り下で止める(殻にする)。草花は下でふつうに。
+            // 箱の中の地面(土・草・石・砂・雪)は inStructure が外して下でふつうに置き換える(11-19 ユーザー決定「地面は汚染する」)。中身のあるブロック(チェスト・機械)は今まで通り下で止める(殻にする)。草花は下でふつうに。
             coverInStructure(level, pos, state);
             return state;
         }
