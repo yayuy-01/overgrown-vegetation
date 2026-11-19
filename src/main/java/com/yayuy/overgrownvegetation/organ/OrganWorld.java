@@ -79,6 +79,8 @@ public final class OrganWorld {
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
         BLUEPRINTS.clear();
+        CLEAN_AT.clear();
+        CLEAN_MISSED.clear();
         OrganClearing.clearAll();
         LeyBuffs.forgetApplied();
         invalidateCaches();
@@ -197,7 +199,15 @@ public final class OrganWorld {
                 com.yayuy.overgrownvegetation.director.ForestDirector.get(level).note(
                         String.format(java.util.Locale.ROOT, "器官 #%d %s が育ち切った", o.id, o.kind.label));
             }
-            if (roles && o.active()) OrganRoles.tick(level, data, o, now);
+            if (roles && o.active()) {
+                boolean rd = com.yayuy.overgrownvegetation.perf.HordeMeter.on;
+                long r0 = System.nanoTime(), rc0 = rd ? OrganMeter.cpuNanos() : 0L, rg0 = rd ? OrganMeter.gcMillis() : 0L;
+                OrganRoles.tick(level, data, o, now);
+                long rt = System.nanoTime() - r0;
+                if (rt > 5_000_000L) OrganMeter.slow(String.format(java.util.Locale.ROOT, "#%d %s%s 役割 %.1f ms(CPU %.1f・GC %d・%s)", o.id, o.kind.id, o.small ? "(小)" : "", rt / 1e6,
+                        rd ? (OrganMeter.cpuNanos() - rc0) / 1e6 : Double.NaN, rd ? OrganMeter.gcMillis() - rg0 : -1L,
+                        o.takeover != null ? "乗っ取り" : o.fusion != null ? "融合" : "ふつう"));
+            }
             if (roles && o.state == ForestOrgans.State.WITHERED && o.regrown >= 0) {
                 // 枯れた後、払った所に苗木を植え直す(11-19)
                 OrganBlueprint bp = blueprint(o);
@@ -224,7 +234,9 @@ public final class OrganWorld {
                 long took = System.nanoTime() - s0;
                 if (took > 5_000_000L) OrganMeter.slow(String.format(java.util.Locale.ROOT, "#%d %s%s %.1f ms(CPU %.1f・GC %d)置いた %d 芽 %s", o.id, o.kind.id,
                         o.small ? "(小)" : "", took / 1e6, detail ? (OrganMeter.cpuNanos() - c0) / 1e6 : Double.NaN, detail ? OrganMeter.gcMillis() - g0 : -1L,
-                        o.placed - placedBefore, wasResolved ? "-" : "置いた"));
+                        o.placed - placedBefore, wasResolved ? "-" : "置いた")
+                        + String.format(java.util.Locale.ROOT, " %s 内訳 判定 %.1f・設計図 %.1f・払う %.1f・置く %.1f・触手 %.1f・枯らす %.1f",
+                        o.takeover != null ? "乗っ取り" : o.fusion != null ? "融合" : "ふつう", SEG[0] / 1e6, SEG[1] / 1e6, SEG[2] / 1e6, SEG[3] / 1e6, SEG[4] / 1e6, SEG[5] / 1e6));
                 done += before - budget;
                 OrganMeter.blocks(before - budget);
             }
@@ -247,7 +259,19 @@ public final class OrganWorld {
     }
 
     /** 器官 1 つを進める(置く・枯らす)。残りの予算を返す。 */
+    /** 1 回の step の中の時間の内訳(遅い器官の行に出す。2026-11-20 20 構造物の調べの続き): 0 地面と融合の判定・1 設計図・2 払う・3 置く・4 芽と触手・5 枯らす。 */
+    static final long[] SEG = new long[6];
+    private static long segT;
+
+    private static void seg(int i) {
+        long t = System.nanoTime();
+        SEG[i] += t - segT;
+        segT = t;
+    }
+
     static int step(ServerLevel level, ForestOrgans data, ForestOrgans.Organ o, long now, int budget) {
+        java.util.Arrays.fill(SEG, 0L);
+        segT = System.nanoTime();
         if (!o.resolved()) {
             // 地面を引く所(±5)と芽(±1)のチャンクが全部読み込まれるまで待つ。読み込まれていない升に触るとその場で読み込んで止まる
             // (11-18 測り: 移動中に 1 回 20〜90 ms)
@@ -282,7 +306,9 @@ public final class OrganWorld {
             }
             budget -= 16;
         }
+        seg(0);
         OrganBlueprint bp = blueprint(o);
+        seg(1);
         if (bp == null) return budget;
         if (o.refit) {
             o.refit = false;
@@ -294,6 +320,7 @@ public final class OrganWorld {
             if (!o.cleared) return budget;
             data.changed();
         }
+        seg(2);
         BlockPos anchor = o.anchor();
         int target = o.state == ForestOrgans.State.GROWING ? (int) Math.floor(o.growth(now) * o.total) : o.total;
         if (o.state == ForestOrgans.State.WITHERED) target = o.placed; // 枯れたら育たない
@@ -313,11 +340,13 @@ public final class OrganWorld {
                 budget = TickBudget.spend(budget);
                 changed = true;
             }
+            seg(3);
             if (o.state != ForestOrgans.State.WITHERED && o.placed >= o.total && !o.budCleared) clearBud(level, o);
             if (!o.tentacles && o.state != ForestOrgans.State.WITHERED && o.placed >= o.total * 0.7D) {
                 spawnTentacles(level, o, bp);
                 changed = true;
             }
+            seg(4);
             if (o.state == ForestOrgans.State.WITHERED) {
                 if (!o.budCleared) clearBud(level, o);
                 while (budget > 0 && o.withered < o.placed) {
@@ -332,12 +361,15 @@ public final class OrganWorld {
             }
             if (o.state == ForestOrgans.State.WITHERED && o.fusion != null && !o.fusionCleaned && o.withered >= o.placed
                     && now - o.witheredAt >= (long) (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.table().vineFadeSeconds * 20.0D)) {
-                cleanFusion(level, o, bp);
-                changed = true;
+                if (budget > 0) {
+                    budget = cleanFusion(level, o, bp, budget);
+                    changed = true;
+                }
             }
         } finally {
             placing = false;
         }
+        seg(5);
         if (changed) data.changed();
         return budget;
     }
@@ -347,38 +379,70 @@ public final class OrganWorld {
      * 器官の本体(柄・袋・芯)は今までの器官と同じく枯れた形が残る(空気のマスにしか無いので、構造物のブロックは元のまま)。
      * 読み込まれていない所が残れば、次の tick にまた。
      */
-    static boolean cleanFusion(ServerLevel level, ForestOrgans.Organ o, OrganBlueprint bp) {
+    /** 枯れた融合・乗っ取りの器官の剥がしの続きの位置(設計図の添字。保存しない: 読み直したら頭から。済んだマスは見るだけで飛ぶ)。 */
+    private static final it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap CLEAN_AT = new it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap();
+
+    /**
+     * 剥がしは 1 tick に budget マスまで(2026-11-20 20 構造物の調べの続き: 大きい乗っ取りの器官は全部を 1 tick で剥がして 38 ms かかった)。残りの budget を返す。
+     */
+    static int cleanFusion(ServerLevel level, ForestOrgans.Organ o, OrganBlueprint bp, int budget) {
         BlockPos anchor = o.anchor();
-        boolean all = true;
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
-        for (long e : bp.entries) {
+        int at = CLEAN_AT.getOrDefault(o.id, 0);
+        for (; at < bp.entries.length; at++) {
+            if (budget <= 0) {
+                CLEAN_AT.put(o.id, at);
+                return budget;
+            }
+            long e = bp.entries[at];
             int m = OrganBlueprint.material(e);
             // 建物に重ねた器官(段 2d: 構造物に植えた器官・建物の上の大きい版)は、枯れたら本体も剥がす(建物を包んだまま残さない)
             boolean bigBody = (!o.small || o.onPiece != null || o.takeover != null) && m != OrganBlueprint.M_COVER && m != OrganBlueprint.M_CARVE; // 段 3: 乗っ取りの器官も伸びた物ごと剥がす
             if (m != OrganBlueprint.M_VINE && m != OrganBlueprint.M_VEIN && !bigBody) continue;
             p.set(anchor.getX() + OrganBlueprint.dx(e), anchor.getY() + OrganBlueprint.dy(e), anchor.getZ() + OrganBlueprint.dz(e));
             if (!ready(level, p.getX() >> 4, p.getZ() >> 4)) {
-                all = false;
+                CLEAN_MISSED.add(o.id); // 読み込まれていない所は、頭からもう 1 周するときに見る
                 continue;
             }
             BlockState s = level.getBlockState(p);
+            // 剥がすのは、そのマスに器官が置くはずの物と同じブロックだけ(2026-11-20 20 構造物の調べの続き: 前はこの MOD のブロックなら何でも消し、
+            // 器官より先にあった巨大樹の幹・覆われた建材・汚染の地面まで消して、巨大樹の上が浮いていた)
+            BlockState want = stateOf(m, OrganBlueprint.faces(e));
             if (s.is(OrganBlocks.ORGAN_VINE.get()) || s.is(OrganBlocks.ORGAN_VEIN.get())
-                    || bigBody && !s.isAir() && com.yayuy.overgrownvegetation.OvergrownVegetation.MODID.equals(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(s.getBlock()).getNamespace())) level.setBlock(p, Blocks.AIR.defaultBlockState(), FLAGS);
+                    || bigBody && !s.isAir() && want != null && s.is(want.getBlock())) {
+                level.setBlock(p, Blocks.AIR.defaultBlockState(), FLAGS);
+                budget = TickBudget.spend(budget);
+            }
         }
+        CLEAN_AT.put(o.id, at);
         it.unimi.dsi.fastutil.longs.LongArrayList left = new it.unimi.dsi.fastutil.longs.LongArrayList();
-        for (int i = 0; i < o.covered.size(); i++) {
+        int i = 0;
+        for (; i < o.covered.size() && budget > 0; i++) {
             long k = o.covered.getLong(i);
             if (!ready(level, BlockPos.getX(k) >> 4, BlockPos.getZ(k) >> 4)) {
                 left.add(k);
                 continue;
             }
             com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.uncover(level, BlockPos.of(k));
+            budget = TickBudget.spend(budget);
         }
+        for (; i < o.covered.size(); i++) left.add(o.covered.getLong(i)); // 予算が尽きた残り
         o.covered.clear();
         o.covered.addAll(left);
-        if (all && left.isEmpty()) o.fusionCleaned = true;
-        return o.fusionCleaned;
+        if (left.isEmpty()) {
+            if (CLEAN_MISSED.remove(o.id)) {
+                CLEAN_AT.put(o.id, 0); // 読み込まれていなかった所があった: 次の tick に頭からもう 1 周
+            } else {
+                CLEAN_AT.remove(o.id);
+                o.fusionCleaned = true;
+            }
+        }
+        return budget;
     }
+
+    /** 剥がしの途中で読み込まれていない所があった器官。 */
+    private static final it.unimi.dsi.fastutil.ints.IntOpenHashSet CLEAN_MISSED = new it.unimi.dsi.fastutil.ints.IntOpenHashSet();
+
 
     private static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
 

@@ -49,11 +49,17 @@ public final class FusionCommand {
                                                                         com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "radius"))))))
                                         .then(Commands.literal("cleanup")
                                                 .executes(ctx -> cleanup(ctx.getSource(), 48, false))
+                                                .then(Commands.literal("why")
+                                                        .executes(ctx -> why(ctx.getSource(), 64, false))
+                                                        .then(Commands.argument("radius", com.mojang.brigadier.arguments.IntegerArgumentType.integer(4, 256))
+                                                                .executes(ctx -> why(ctx.getSource(), com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "radius"), false))
+                                                                .then(Commands.literal("all")
+                                                                        .executes(ctx -> why(ctx.getSource(), com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "radius"), true)))))
                                                 .then(Commands.literal("check")
                                                         .executes(ctx -> cleanup(ctx.getSource(), 48, true))
-                                                        .then(Commands.argument("radius", com.mojang.brigadier.arguments.IntegerArgumentType.integer(4, 128))
+                                                        .then(Commands.argument("radius", com.mojang.brigadier.arguments.IntegerArgumentType.integer(4, 256))
                                                                 .executes(ctx -> cleanup(ctx.getSource(), com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "radius"), true))))
-                                                .then(Commands.argument("radius", com.mojang.brigadier.arguments.IntegerArgumentType.integer(4, 128))
+                                                .then(Commands.argument("radius", com.mojang.brigadier.arguments.IntegerArgumentType.integer(4, 256))
                                                         .executes(ctx -> cleanup(ctx.getSource(), com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "radius"), false))))))));
     }
 
@@ -140,6 +146,33 @@ public final class FusionCommand {
         long w = worst;
         src.sendSuccess(() -> Component.literal(String.format(java.util.Locale.ROOT, "TAKEOVER 見た %d 回・芽吹かせた %d(大 %d)・隙間の草 %d・%.1f ms(1 回平均 %.2f・最悪 %.2f ms)", count, p, b, g, ms, ms / count, w / 1.0e6)), true);
         return planted;
+    }
+
+    /**
+     * 浮いた木の中身(数えるだけ。2026-11-20 20 構造物の調べの続き): 種類(木部・樹冠の縁の葉・離れた葉)・ブロックの名前・構造物の箱の中か・
+     * 地面からの高さ・大きい塊の場所。all を付けると構造物のそばでなくても数える(山の高さのせいかを分ける)。
+     */
+    private static int why(CommandSourceStack src, int radius, boolean all) {
+        FloatingTreeCleanup.Why w = new FloatingTreeCleanup.Why();
+        FloatingTreeCleanup.Result r = FloatingTreeCleanup.run(src.getLevel(), BlockPos.containing(src.getPosition()), radius, true, all, w);
+        java.util.List<String> lines = new ArrayList<>();
+        lines.add(String.format(java.util.Locale.ROOT, "FUSION_WHY 半径 %d%s: 塊 %d・ブロック %d(調べた木 %d)", radius, all ? " 構造物のそば以外も" : "", r.clusters(), r.blocks(), r.scanned()));
+        w.kinds.forEach((k, v) -> lines.add("  種類 " + k + ": " + v[0] + " 塊・" + v[1] + " ブロック(" + w.kindBlocks.getOrDefault(k, java.util.Map.of()).entrySet().stream()
+                .sorted((a, b) -> b.getValue() - a.getValue()).limit(4).map(e -> e.getKey() + "×" + e.getValue()).reduce((a, b) -> a + ", " + b).orElse("") + ")"));
+        lines.add("  構造物の箱の中: " + w.inBox[0] + " 塊・" + w.inBox[1] + " ブロック / 地面から 0〜8: " + w.height[0] + "・9〜24: " + w.height[1] + "・25〜: " + w.height[2] + " 塊");
+        lines.add("  ブロック: " + w.blocks.entrySet().stream().sorted((a, b) -> b.getValue() - a.getValue()).limit(6)
+                .map(e -> e.getKey() + "×" + e.getValue()).reduce((a, b) -> a + ", " + b).orElse("なし"));
+        lines.add("  浮いた木部のうち 2 マス以内に器官がある塊: " + w.nearOrgan);
+        lines.add("  浮いた木部が触れている物: " + w.touching.entrySet().stream().sorted((a, b) -> b.getValue() - a.getValue()).limit(8)
+                .map(e -> e.getKey() + "×" + e.getValue()).reduce((a, b) -> a + ", " + b).orElse("なし"));
+        for (String s : w.biggest(6)) lines.add("  例 " + s);
+        w.biggest(100000).stream().filter(s -> s.startsWith("木部(どこ")).limit(6).forEach(s -> lines.add("  浮いた木部の例 " + s));
+        w.biggest(100000).stream().filter(s -> s.startsWith("葉(離れた")).limit(3).forEach(s -> lines.add("  離れた葉の例 " + s));
+        for (String s : lines) {
+            OvergrownVegetation.LOGGER.info(s);
+            src.sendSuccess(() -> Component.literal(s), false);
+        }
+        return r.clusters();
     }
 
     private static int cleanup(CommandSourceStack src, int radius, boolean dryRun) {

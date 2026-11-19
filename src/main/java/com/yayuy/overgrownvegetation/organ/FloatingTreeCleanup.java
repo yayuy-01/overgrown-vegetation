@@ -62,6 +62,14 @@ public final class FloatingTreeCleanup {
     }
 
     public static Result run(ServerLevel level, BlockPos center, int radius, boolean dryRun) {
+        return run(level, center, radius, dryRun, false, null);
+    }
+
+    /**
+     * all = 構造物のそばでなくても数える(高さのせいか構造物のせいかを分ける確かめ。2026-11-20 20 構造物の調べの続き)。
+     * why が null でなければ、消す(数える)塊ごとの中身を {@link Why} に集める。
+     */
+    public static Result run(ServerLevel level, BlockPos center, int radius, boolean dryRun, boolean all, @javax.annotation.Nullable Why why) {
         int cx0 = (center.getX() - radius) >> 4, cx1 = (center.getX() + radius) >> 4;
         int cz0 = (center.getZ() - radius) >> 4, cz1 = (center.getZ() + radius) >> 4;
         LongOpenHashSet tree = new LongOpenHashSet();
@@ -99,6 +107,7 @@ public final class FloatingTreeCleanup {
         LongOpenHashSet keptLogs = new LongOpenHashSet(), floatLogs = new LongOpenHashSet();
         LongOpenHashSet seen = new LongOpenHashSet();
         LongArrayList comp = new LongArrayList();
+        java.util.List<long[]> floatComps = new java.util.ArrayList<>();
         // 1. 木部の塊(26 方向)。どれかが固い物(支え)に触れていれば支えあり
         for (long start : logs.toLongArray()) {
             if (seen.contains(start)) continue;
@@ -109,19 +118,36 @@ public final class FloatingTreeCleanup {
             } else if (g.atEdge) {
                 keptLogs.addAll(comp);
                 edge++;
-            } else if (!nearStructure(level, comp)) {
+            } else if (!all && !nearStructure(level, comp)) {
                 keptLogs.addAll(comp);
                 kept++;
             } else {
-                floatLogs.addAll(comp);
-                remove.addAll(comp);
-                clusters++;
+                floatComps.add(comp.toLongArray());
             }
         }
-        // 2. 葉: 支えのある木部から葉をたどって 6 以内は残す。浮いた木部から 6 以内で、残す葉でない物は消す
+        // 2. 支えの無い木部でも、支えのある木の葉に触れていれば、樹冠の中の枝先(巨大樹の枝など)。同じ木として残す
+        //    (2026-11-20 20 構造物の調べの続き: 浮いた木と数えた物の多くがこれと、下の樹冠の縁の葉だった)
         LongOpenHashSet keptLeaves = leafReach(leaves, keptLogs, 6);
+        boolean grew = false;
+        for (long[] c : floatComps) {
+            LongArrayList cl = LongArrayList.wrap(c);
+            if (touches(cl, keptLeaves)) {
+                keptLogs.addAll(cl);
+                kept++;
+                grew = true;
+                if (why != null) why.add(level, "木部(支えのある木の葉に触れる・残す)", cl, false);
+            } else {
+                floatLogs.addAll(cl);
+                remove.addAll(cl);
+                clusters++;
+                if (why != null) why.add(level, "木部(どこにもつながらない)", cl, false);
+            }
+        }
+        if (grew) keptLeaves = leafReach(leaves, keptLogs, 6);
+        // 3. 葉: 支えのある木部から葉をたどって 6 以内は残す。浮いた木部から 6 以内で、残す葉でない物は消す
         for (long p : leafReach(leaves, floatLogs, 6)) if (!keptLeaves.contains(p)) remove.add(p);
-        // 3. 木部から離れた葉だけの塊: 支えが無く、範囲の端でなく、構造物のそばなら消す
+        // 4. 木部から離れた葉だけの塊: 支えが無く、範囲の端でなく、構造物のそばなら消す。
+        //    支えのある木の葉に触れる塊は、大きな樹冠の縁(木部から 7 以上離れた葉)なので残す
         LongOpenHashSet near = leafReach(leaves, logs, 6);
         LongOpenHashSet lonely = new LongOpenHashSet();
         for (long p : leaves) if (!near.contains(p)) lonely.add(p);
@@ -129,8 +155,13 @@ public final class FloatingTreeCleanup {
         for (long start : lonely.toLongArray()) {
             if (seen.contains(start)) continue;
             Group g = group(level, lonely, start, seen, comp, center, radius, false, m);
-            if (g.tooBig || g.supported || g.atEdge || !nearStructure(level, comp)) continue;
+            if (g.tooBig || g.supported || g.atEdge || (!all && !nearStructure(level, comp))) continue;
+            if (touches(comp, keptLeaves)) {
+                if (why != null) why.add(level, "葉(樹冠の縁・残す)", comp, true);
+                continue;
+            }
             remove.addAll(comp);
+            if (why != null) why.add(level, "葉(離れた塊)", comp, true);
             clusters++;
         }
         if (!dryRun) {
@@ -140,6 +171,115 @@ public final class FloatingTreeCleanup {
         OvergrownVegetation.LOGGER.info("FloatingTreeCleanup at {} r={}{}: 浮いた木 {} 塊・{} ブロック(木 {}・残した {}・端 {})", center, radius,
                 dryRun ? "(数えただけ)" : "", clusters, blocks, scanned, kept, edge);
         return new Result(clusters, blocks, scanned, kept, edge);
+    }
+
+    /** 塊のどれかが set(支えのある木の葉)に 6 方向で触れているか。 */
+    private static boolean touches(LongArrayList comp, LongOpenHashSet set) {
+        for (int i = 0; i < comp.size(); i++) {
+            long p = comp.getLong(i);
+            for (Direction d : Direction.values()) {
+                if (set.contains(BlockPos.offset(p, d))) return true;
+            }
+        }
+        return false;
+    }
+
+    /** 浮いた木の中身の集計(2026-11-20 20 構造物の調べの続き。どの仕組みが置いた木か・どこか)。 */
+    public static final class Why {
+        /** 種類 → [塊, ブロック]。 */
+        public final java.util.Map<String, int[]> kinds = new java.util.LinkedHashMap<>();
+        /** ブロックの名前 → 数。 */
+        public final java.util.Map<String, Integer> blocks = new java.util.HashMap<>();
+        /** 種類 → ブロックの名前 → 数。 */
+        public final java.util.Map<String, java.util.Map<String, Integer>> kindBlocks = new java.util.LinkedHashMap<>();
+        /** 浮いた木部が触れている物(空気・木でない物。支えに数えなかった物)→ 数。 */
+        public final java.util.Map<String, Integer> touching = new java.util.HashMap<>();
+        /** 浮いた木部のうち、2 マス以内に器官のブロックがある塊の数。 */
+        public int nearOrgan;
+        /** 構造物の箱の中([塊, ブロック])・地面からの高さの分け([0〜8, 9〜24, 25〜]の塊)。 */
+        public final int[] inBox = new int[2];
+        public final int[] height = new int[3];
+        /** 大きい塊から順の例(種類・数・中心・地面からの高さ・多いブロック)。 */
+        public final java.util.List<String> samples = new java.util.ArrayList<>();
+        private final java.util.List<long[]> sizes = new java.util.ArrayList<>();
+
+        void add(ServerLevel level, String kind, LongArrayList comp, boolean leafOnly) {
+            int[] k = kinds.computeIfAbsent(kind, x -> new int[2]);
+            k[0]++;
+            k[1] += comp.size();
+            long sx = 0, sy = 0, sz = 0;
+            int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+            java.util.Map<String, Integer> local = new java.util.HashMap<>();
+            BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
+            for (int i = 0; i < comp.size(); i++) {
+                long p = comp.getLong(i);
+                int x = BlockPos.getX(p), y = BlockPos.getY(p), z = BlockPos.getZ(p);
+                sx += x;
+                sy += y;
+                sz += z;
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                minZ = Math.min(minZ, z);
+                maxX = Math.max(maxX, x);
+                maxY = Math.max(maxY, y);
+                maxZ = Math.max(maxZ, z);
+                String id = BuiltInRegistries.BLOCK.getKey(level.getBlockState(m.set(p)).getBlock()).getPath();
+                local.merge(id, 1, Integer::sum);
+                blocks.merge(id, 1, Integer::sum);
+                kindBlocks.computeIfAbsent(kind, kk -> new java.util.HashMap<>()).merge(id, 1, Integer::sum);
+            }
+            if (!leafOnly && kind.startsWith("木部(どこ")) {
+                boolean organ = false;
+                for (int i = 0; i < comp.size() && !organ; i += Math.max(1, comp.size() / 32)) {
+                    long p = comp.getLong(i);
+                    for (int ax = -2; ax <= 2 && !organ; ax++) for (int ay = -2; ay <= 2 && !organ; ay++) for (int az = -2; az <= 2 && !organ; az++) {
+                        Block b = level.getBlockState(m.set(BlockPos.getX(p) + ax, BlockPos.getY(p) + ay, BlockPos.getZ(p) + az)).getBlock();
+                        if (b instanceof OrganTissueBlock || b instanceof OrganCoreBlock || b instanceof OrganVeinBlock) organ = true;
+                    }
+                }
+                if (organ) nearOrgan++;
+                java.util.Set<Long> in = new java.util.HashSet<>();
+                for (int i = 0; i < comp.size(); i++) in.add(comp.getLong(i));
+                for (int i = 0; i < comp.size(); i++) {
+                    long p = comp.getLong(i);
+                    for (Direction d : Direction.values()) {
+                        long q = BlockPos.offset(p, d);
+                        if (in.contains(q)) continue;
+                        BlockState s = level.getBlockState(m.set(q));
+                        if (s.isAir() || isLeaf(s)) continue;
+                        touching.merge(BuiltInRegistries.BLOCK.getKey(s.getBlock()).toString(), 1, Integer::sum);
+                    }
+                }
+            }
+            int n = comp.size();
+            int cx = (int) (sx / n), cy = (int) (sy / n), cz = (int) (sz / n);
+            // 地面: 塊の真下へ、木でも空気でもない固い物まで
+            int ground = minY;
+            for (int y = minY - 1; y > level.getMinBuildHeight(); y--) {
+                BlockState s = level.getBlockState(m.set(cx, y, cz));
+                if (!s.isAir() && !isTreePart(s) && s.blocksMotion()) {
+                    ground = y;
+                    break;
+                }
+                ground = y;
+            }
+            int gap = minY - ground - 1;
+            height[gap <= 8 ? 0 : gap <= 24 ? 1 : 2]++;
+            boolean box = !StructureFusion.near(level, new net.minecraft.world.level.levelgen.structure.BoundingBox(minX, minY, minZ, maxX, maxY, maxZ)).hits().isEmpty();
+            if (box) {
+                inBox[0]++;
+                inBox[1] += n;
+            }
+            String top = local.entrySet().stream().sorted((a, b) -> b.getValue() - a.getValue()).limit(2)
+                    .map(e -> e.getKey() + "×" + e.getValue()).reduce((a, b) -> a + "," + b).orElse("");
+            sizes.add(new long[]{n, samples.size()});
+            samples.add(String.format(java.util.Locale.ROOT, "%s %d 個 (%d,%d,%d) 下の地面まで %d%s %s", kind, n, cx, cy, cz, gap, box ? " 箱の中" : "", top));
+        }
+
+        /** 大きい順に count 個。 */
+        public java.util.List<String> biggest(int count) {
+            return sizes.stream().sorted((a, b) -> Long.compare(b[0], a[0])).limit(count).map(a -> samples.get((int) a[1])).toList();
+        }
     }
 
     private static final class Group {
