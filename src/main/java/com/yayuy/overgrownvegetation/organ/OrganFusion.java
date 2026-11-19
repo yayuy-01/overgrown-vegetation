@@ -100,6 +100,8 @@ public final class OrganFusion {
         final Long2ByteOpenHashMap structCache = new Long2ByteOpenHashMap();
         final Long2ByteOpenHashMap interiorCache = new Long2ByteOpenHashMap();
         final BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
+        /** 部屋の中にも置けるか(構造物の木の幹・根。葉は置く側で部屋の中を外す)。器官は false。 */
+        boolean allowInterior;
 
         Ctx(ServerLevel level, List<StructureFusion.Hit> hits, FusionTable t) {
             this.level = level;
@@ -190,7 +192,7 @@ public final class OrganFusion {
             if (planned.contains(k) || reserved.contains(k)) return false;
             BlockState s = state(x, y, z);
             if (!(s.isAir() || s.canBeReplaced()) || !s.getFluidState().isEmpty()) return false;
-            return !interior(x, y, z);
+            return allowInterior || !interior(x, y, z);
         }
 
         boolean structAdj(int x, int y, int z) {

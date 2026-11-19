@@ -189,7 +189,7 @@ public final class OrganClearing {
      */
     static boolean giantSapling(ServerLevel level, ForestOrgans.Organ o, int r) {
         // 構造物のそばには巨大樹の苗を植えない(11-19 融合 段 1。全体管理の決め H「苗を置く段で弾く」。巨大樹の融合は段 2)
-        if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.anyNear(level, o.x, o.z, r + com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.table().giantStructureAvoid)) return false;
+        if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.anyNear(level, o.x, o.z, r + com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.table().giantClearRadius)) return false;
         java.util.Random rnd = new java.util.Random(o.seed * 0x9E3779B97F4A7C15L + 7L);
         BlockState giant = com.yayuy.overgrownvegetation.registry.ModBlocks.GIANT_OVERGROWN_SAPLING.get().defaultBlockState();
         for (int i = 0; i < 12; i++) {

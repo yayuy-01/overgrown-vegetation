@@ -153,6 +153,21 @@ public final class StructureFusion {
         return null;
     }
 
+    /** そのチャンクに参照のある構造物(地表の部品を持つ物)。読み込まれていない・開始のチャンクが無ければ null。 */
+    @Nullable
+    public static Site[] sitesAt(ServerLevel level, int cx, int cz) {
+        if (!table().enabled) return NO_SITES;
+        ChunkEntry e = entry(level, cx, cz);
+        return e == null ? null : e.sites;
+    }
+
+    /** 構造物の地表の部品を全部、当たりの形で(構造物の木が建物を見るため)。 */
+    public static List<Hit> hits(Site s) {
+        List<Hit> out = new ArrayList<>(s.pieces.length);
+        for (BoundingBox b : s.pieces) out.add(new Hit(s, b, pieceClass(b)));
+        return out;
+    }
+
     /** 箱にかかる(余白込み)部品を全部。同じ部品は 1 回。 */
     public static Query near(ServerLevel level, BoundingBox box) {
         FusionTable t = table();
