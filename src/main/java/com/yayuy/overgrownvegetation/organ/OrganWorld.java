@@ -354,7 +354,7 @@ public final class OrganWorld {
         for (long e : bp.entries) {
             int m = OrganBlueprint.material(e);
             // 建物に重ねた器官(段 2d: 構造物に植えた器官・建物の上の大きい版)は、枯れたら本体も剥がす(建物を包んだまま残さない)
-            boolean bigBody = (!o.small || o.onPiece != null) && m != OrganBlueprint.M_COVER && m != OrganBlueprint.M_CARVE;
+            boolean bigBody = (!o.small || o.onPiece != null || o.takeover != null) && m != OrganBlueprint.M_COVER && m != OrganBlueprint.M_CARVE; // 段 3: 乗っ取りの器官も伸びた物ごと剥がす
             if (m != OrganBlueprint.M_VINE && m != OrganBlueprint.M_VEIN && !bigBody) continue;
             p.set(anchor.getX() + OrganBlueprint.dx(e), anchor.getY() + OrganBlueprint.dy(e), anchor.getZ() + OrganBlueprint.dz(e));
             if (!ready(level, p.getX() >> 4, p.getZ() >> 4)) {
@@ -401,6 +401,18 @@ public final class OrganWorld {
             return;
         }
         if (cur.hasBlockEntity() || cur.getDestroySpeed(level, p) < 0.0F) return; // 箱・機械・岩盤は残す
+        if (o != null && o.takeover != null) {
+            // 乗っ取りの器官(段 3): 突き破る穴は人工のブロックだけ、ほかは空気と草花のマスだけ(部屋の中・入口も塞いでよい)。押し返す道具の効く所には置かない
+            if (com.yayuy.overgrownvegetation.corruption.pushback.RingWards.guarded(level, p)) return;
+            if (mat == OrganBlueprint.M_CARVE) {
+                if (!Takeover.isArtificial(level, p, cur)) return;
+            } else if (!(cur.isAir() || cur.canBeReplaced()) || !cur.getFluidState().isEmpty()) {
+                return;
+            }
+            BlockState ts = stateOf(mat, OrganBlueprint.faces(e));
+            if (ts != null) level.setBlock(p, ts, FLAGS);
+            return;
+        }
         if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, p)
                 && (mat == OrganBlueprint.M_CARVE || !(cur.isAir() || cur.canBeReplaced()) || !cur.getFluidState().isEmpty())) return;
         BlockState s = stateOf(mat, OrganBlueprint.faces(e));

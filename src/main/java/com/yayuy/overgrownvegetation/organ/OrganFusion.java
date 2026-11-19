@@ -63,6 +63,18 @@ public final class OrganFusion {
      */
     public static Result decide(ServerLevel level, ForestOrgans.Organ o) {
         FusionTable t = StructureFusion.table();
+        if (o.takeover != null) {
+            // 乗っ取りの器官(段 3): 生えた面から有機的な形を作る。芯の置き場が無ければ建てない(値段は払っていない)
+            for (int cx = (o.x - 40) >> 4; cx <= (o.x + 40) >> 4; cx++) {
+                for (int cz = (o.z - 40) >> 4; cz <= (o.z + 40) >> 4; cz++) {
+                    if (!OrganWorld.ready(level, cx, cz)) return waitOrGiveUp(o);
+                }
+            }
+            long[] p = Takeover.planOrganic(level, o, t);
+            if (p == null) return Result.CANCEL;
+            o.fusion = p;
+            return Result.FUSED;
+        }
         if (!t.enabled) return Result.NORMAL;
         int r = o.small ? t.searchRadius : LARGE_REACH;
         int reach = r + (o.small ? t.vineReach + 4 : 0);
