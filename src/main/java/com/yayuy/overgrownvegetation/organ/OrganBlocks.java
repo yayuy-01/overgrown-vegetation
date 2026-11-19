@@ -76,6 +76,14 @@ public final class OrganBlocks {
         }
     }
 
+    /** クリエイティブタブに載せる(器官のブロックと根晶。2026-11-19 夜 ユーザー「器官のブロックとか、クリエイティブタブにないものはしっかり追加」)。 */
+    public static void acceptItems(net.minecraft.world.item.CreativeModeTab.Output output) {
+        for (DeferredBlock<Block> b : List.of(ORGAN_SAC, ORGAN_EGG_MASS, ORGAN_CORE, ORGAN_VEIN, ORGAN_VINE, ROOT_CRYSTAL_CLUSTER, ROOT_CRYSTAL_BLOCK)) {
+            output.accept(b.get());
+        }
+        output.accept(ROOT_CRYSTAL.get());
+    }
+
     public static void register(IEventBus modBus) {
         BLOCKS.register(modBus);
         ITEMS.register(modBus);

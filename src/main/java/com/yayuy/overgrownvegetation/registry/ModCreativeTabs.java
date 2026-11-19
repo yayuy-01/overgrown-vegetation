@@ -139,9 +139,11 @@ public final class ModCreativeTabs {
                         // 植物側の Mob
                         output.accept(ModItems.HIVE_NODE_SPAWN_EGG.get());
                         output.accept(ModItems.BLIGHT_FERN_SPAWN_EGG.get());
+                        output.accept(ModItems.BLIGHT_FERN_ROOTED_ITEM.get()); // 根付いた萌芽体(11-19 夜 タブの載せ漏れ)
                         output.accept(ModItems.FALCIMNES_SPAWN_EGG.get());
                         output.accept(ModItems.ARBORA_SPAWN_EGG.get());
                         ModG1.acceptEggs(output); // G1 段階 0(2026-11-08)
+                        output.accept(ModG1.ROOTSILK_WEB_ITEM.get()); // 根糸の巣(11-19 夜 タブの載せ漏れ)
                         com.yayuy.overgrownvegetation.registry.ModPhyllosens.acceptEggs(output); // 監視塔フィロセンス(11-14。竹馬型は卵無し)
                         com.yayuy.overgrownvegetation.registry.ModRunners.acceptEggs(output); // ② 大型の地上を走る型(2026-11-14)
                         com.yayuy.overgrownvegetation.registry.ModLeapers.acceptEggs(output); // 跳ぶ型(2026-11-14)
@@ -183,6 +185,7 @@ public final class ModCreativeTabs {
                         com.yayuy.overgrownvegetation.registry.ModExpedition.acceptItems(output); // 遠征の見返りと手当て(2026-11-16 段 4)
                         com.yayuy.overgrownvegetation.gear.ModGear.acceptItems(output); // 強くなる道 段 1・段 2(2026-11-17)
                         com.yayuy.overgrownvegetation.registry.ModResearch.acceptItems(output); // 研究台・器具(2026-11-17)
+                        com.yayuy.overgrownvegetation.organ.OrganBlocks.acceptItems(output); // 森の器官のブロック・根晶(11-19 夜 タブの載せ漏れ)
                         output.accept(ModItems.INFECTION_PROBE.get()); // 感染の試し棒(2026-11-19 確かめ用)
 
                     })
