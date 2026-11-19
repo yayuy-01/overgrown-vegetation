@@ -36,7 +36,7 @@ public class G1VineLashGoal extends G1TechniqueGoal {
     static final int COOLDOWN = 160;
 
     public G1VineLashGoal(DevelopedParasitized mob) {
-        super(mob, new G1Move[]{G1Move.VINE_WINDUP, G1Move.VINE_LASH, G1Move.VINE_RECOVER}, new int[]{16, 4, 10});
+        super(mob, new G1Move[]{G1Move.VINE_WINDUP, G1Move.VINE_LASH, G1Move.VINE_RECOVER}, new int[]{G1SkillTiming.VINE_WINDUP, 4, 10});
     }
 
     @Override
@@ -48,7 +48,13 @@ public class G1VineLashGoal extends G1TechniqueGoal {
 
     @Override
     protected int aimUntil() {
-        return 12;
+        return G1SkillTiming.VINE_WINDUP + 4; // 振り下ろす tick まで
+    }
+
+    /** 当たる tick まで向き続けるが、1 tick に回れる角度に上限(回り込めばよけられる。11-19 溜めを外す 2 便)。 */
+    @Override
+    protected float turnRate() {
+        return G1SkillTiming.AIM_TURN_DEG;
     }
 
     @Override

@@ -29,7 +29,7 @@ public class G1SporePuffGoal extends G1TechniqueGoal {
     static final int COOLDOWN = 120;
 
     public G1SporePuffGoal(DevelopedParasitized mob) {
-        super(mob, new G1Move[]{G1Move.SPORE_PUFF_WINDUP, G1Move.SPORE_PUFF}, new int[]{16, 10});
+        super(mob, new G1Move[]{G1Move.SPORE_PUFF_WINDUP, G1Move.SPORE_PUFF}, new int[]{G1SkillTiming.SPORE_PUFF_WINDUP, 10});
     }
 
     @Override

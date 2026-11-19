@@ -34,7 +34,7 @@ public class G1TossGoal extends G1TechniqueGoal {
     static final int COOLDOWN = 100;
 
     public G1TossGoal(DevelopedParasitized mob) {
-        super(mob, new G1Move[]{G1Move.TOSS_WINDUP, G1Move.TOSS}, new int[]{10, 10});
+        super(mob, new G1Move[]{G1Move.TOSS_WINDUP, G1Move.TOSS}, new int[]{G1SkillTiming.TOSS_WINDUP, 10});
     }
 
     @Override
@@ -47,7 +47,7 @@ public class G1TossGoal extends G1TechniqueGoal {
 
     @Override
     protected int aimUntil() {
-        return 8;
+        return G1SkillTiming.TOSS_WINDUP + 2; // 投げる tick まで
     }
 
     @Override

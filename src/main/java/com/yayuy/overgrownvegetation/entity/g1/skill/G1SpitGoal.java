@@ -22,8 +22,9 @@ public class G1SpitGoal extends G1TechniqueGoal {
 
     public static final double MIN_RANGE = 6.0D;
     public static final double MAX_RANGE = 10.0D;
-    public static final int WINDUP = 15;
-    static final int AIM_UNTIL = 12;
+    public static final int WINDUP = G1SkillTiming.SPIT_WINDUP;
+    /** 向きを追う最後の tick = 吐く tick(11-19 溜めを外す 2 便。元 12)。 */
+    static final int AIM_UNTIL = WINDUP + 1;
     public static final int COOLDOWN = 160;
     public static final float SPEED = 1.2F;
     /** ばらつき(バニラの shoot の inaccuracy)。 */
@@ -45,6 +46,12 @@ public class G1SpitGoal extends G1TechniqueGoal {
     @Override
     protected int aimUntil() {
         return AIM_UNTIL;
+    }
+
+    /** 当たる tick まで向き続けるが、1 tick に回れる角度に上限(回り込めばよけられる。11-19 溜めを外す 2 便)。 */
+    @Override
+    protected float turnRate() {
+        return G1SkillTiming.AIM_TURN_DEG;
     }
 
     @Override

@@ -27,10 +27,11 @@ public class G1LeapGoal extends G1TechniqueGoal {
 
     public static final double MIN_RANGE = 2.0D;
     public static final double MAX_RANGE = 4.0D;
-    public static final int WINDUP = 10;
+    public static final int WINDUP = G1SkillTiming.LEAP_WINDUP;
     public static final int FLIGHT = 10;
     public static final int RECOVER = 16;
-    static final int AIM_UNTIL = 8;
+    /** 向きを追う最後の tick = 跳ぶ tick(11-19 溜めを外す 2 便。元 8)。 */
+    static final int AIM_UNTIL = WINDUP + 1;
     public static final int COOLDOWN = 120;
     static final double UP = 0.4D;
     static final double H_MIN = 0.4D, H_MAX = 0.62D;
@@ -56,6 +57,12 @@ public class G1LeapGoal extends G1TechniqueGoal {
     @Override
     protected int aimUntil() {
         return AIM_UNTIL;
+    }
+
+    /** 当たる tick まで向き続けるが、1 tick に回れる角度に上限(回り込めばよけられる。11-19 溜めを外す 2 便)。 */
+    @Override
+    protected float turnRate() {
+        return G1SkillTiming.AIM_TURN_DEG;
     }
 
     @Override

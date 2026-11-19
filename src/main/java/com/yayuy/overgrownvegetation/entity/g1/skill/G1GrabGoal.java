@@ -40,7 +40,8 @@ public class G1GrabGoal extends G1TechniqueGoal {
         return com.yayuy.overgrownvegetation.data.DesignData.actions().num("developed_parasitized_enderman", "grab", "range", RANGE);
     }
     public static final int WINDUP = 14;
-    static final int AIM_UNTIL = 11;
+    /** 向きを追う最後の tick = 掴めたかを見る tick(11-19 溜めを外す 2 便。元 11)。 */
+    static final int AIM_UNTIL = WINDUP + 2;
     public static final int HOLD = 20;
     public static final int COOLDOWN = 300;
     public static final float RELEASE_DAMAGE = 6.0F;
@@ -70,6 +71,12 @@ public class G1GrabGoal extends G1TechniqueGoal {
     @Override
     protected int aimUntil() {
         return AIM_UNTIL;
+    }
+
+    /** 当たる tick まで向き続けるが、1 tick に回れる角度に上限(回り込めばよけられる。11-19 溜めを外す 2 便)。 */
+    @Override
+    protected float turnRate() {
+        return G1SkillTiming.AIM_TURN_DEG;
     }
 
     @Override

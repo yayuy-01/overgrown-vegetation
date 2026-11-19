@@ -17,7 +17,9 @@ import net.minecraft.world.phys.Vec3;
  * <ul>
  *   <li>使う間合い: 標的が見えていて {@value #MIN_RANGE}〜{@value #RANGE} ブロック({@value #MIN_RANGE} 未満は (a) の薙ぎ)。
  *   (c) 根を張って据えている間は {@value #ANCHORED_MIN_RANGE}〜{@value #ANCHORED_RANGE} ブロック。</li>
- *   <li>段: shoot_windup 20({@value #AIM_UNTIL} tick まで向きを追う)→ shoot 2(1 tick 目に放つ)→ shoot_recover 16。</li>
+ *   <li>段: shoot_windup 20({@value #AIM_UNTIL} tick = 放つ tick まで向きを追う)→ shoot 2(1 tick 目に放つ)→ shoot_recover 16。</li>
+ *   <li>据えていない間は、引く間も横へ歩く(2026-11-19 溜めを外す 2 便。バニラのスケルトンの横歩きと同じ形【仮】)。
+ *   向きは 1 tick {@link G1SkillTiming#AIM_TURN_DEG}° まで(回り込めばよけられる)。</li>
  *   <li>射る向きは<b>止めた体の向き</b>(標的の今の位置へまっすぐではない)。弾が遅いので、横へ歩けばよけられる。</li>
  *   <li>据えている間は 弾速 {@value #SPEED} → {@value #ANCHORED_SPEED}・ばらつき {@value #SPREAD} → {@value #ANCHORED_SPREAD}・射程が伸びる
  *   【決定 11-09: 射程と精度と弾速が良くなる】。代わりに振り向きが遅い(1 tick {@value #ANCHORED_TURN}° = 1 秒 120°【仮】。走って回り込みで勝てるのは約 2.7 ブロックより内側だけ = 近接の距離)。間隔は変えない。</li>
@@ -39,9 +41,18 @@ public class G1BowShotGoal extends G1TechniqueGoal {
     public static final double DOSE = 500.0D;
     static final int INTERVAL = 60;
     static final int INTERVAL_JITTER = 20;
-    static final int AIM_UNTIL = 18;
+    /** 弦を引く段の長さ。 */
+    static final int DRAW = 20;
+    /** 向きを追う最後の tick = 放つ tick(11-19 溜めを外す 2 便。元 18)。 */
+    static final int AIM_UNTIL = DRAW + 1;
+    /** 横歩きの向きを変えるか見る間隔(tick)と、変える割合(バニラの RangedBowAttackGoal と同じ)【仮】。 */
+    static final int STRAFE_FLIP_EVERY = 20;
+    static final float STRAFE_FLIP_CHANCE = 0.3F;
+    /** 横歩きの速さ(MoveControl.strafe に渡す。バニラと同じ 0.5)【仮】。 */
+    static final float STRAFE_SPEED = 0.5F;
     public static final float ANCHORED_TURN = 6.0F;
-    private static final int[] LENGTHS = {20, 2, 16};
+    private static final int[] LENGTHS = {DRAW, 2, 16};
+    private boolean clockwise;
 
     public G1BowShotGoal(DevelopedParasitized mob) {
         super(mob, new G1Move[]{G1Move.SHOOT_WINDUP, G1Move.SHOOT, G1Move.SHOOT_RECOVER}, LENGTHS);
@@ -72,18 +83,42 @@ public class G1BowShotGoal extends G1TechniqueGoal {
 
     @Override
     protected float turnRate() {
-        return mob.anchored() ? ANCHORED_TURN : 30.0F;
+        return mob.anchored() ? ANCHORED_TURN : G1SkillTiming.AIM_TURN_DEG;
+    }
+
+    /** 据えていなければ足を止めない(引く間も横へ歩く)。 */
+    @Override
+    protected boolean holdStill() {
+        return mob.anchored();
+    }
+
+    @Override
+    public void start() {
+        super.start();
+        clockwise = mob.getRandom().nextBoolean();
+    }
+
+    /**
+     * 横歩きの入力を消す。バニラの {@code MoveControl} は横歩きの後に横の入力({@code xxa})を戻さないので、そのままだと技の後も横へ滑り続ける
+     * (据えた後に動いていた。11-19)。
+     */
+    @Override
+    public void stop() {
+        super.stop();
+        mob.setXxa(0.0F);
+        mob.setZza(0.0F);
     }
 
     @Override
     protected int cooldown() {
-        // 技の長さ(20 + 2 + 16)を引いて、放ってから放つまでを INTERVAL + 乱数にそろえる
+        // 技の長さ(DRAW + 2 + 16)を引いて、放ってから放つまでを INTERVAL + 乱数にそろえる
         return Math.max(0, INTERVAL + mob.getRandom().nextInt(INTERVAL_JITTER + 1) - (LENGTHS[0] + LENGTHS[1] + LENGTHS[2]));
     }
 
     @Override
     protected void onTick(int stageIndex, int tickInStage) {
         if (!(mob.level() instanceof ServerLevel level)) return;
+        if (!mob.anchored()) strafe(stageIndex, tickInStage);
         if (stageIndex == 0 && tickInStage == 7) {
             // 胸の袋から塊をちぎり取る
             level.playSound(null, mob.getX(), mob.getY() + 1.2D, mob.getZ(), ModSounds.G1_SAC_SWELL.get(), SoundSource.HOSTILE, 0.8F, 0.6F);
@@ -93,6 +128,22 @@ public class G1BowShotGoal extends G1TechniqueGoal {
         } else if (stageIndex == 1 && tickInStage == 1) {
             shoot(level);
         }
+    }
+
+    /**
+     * 引く・放つ・戻す間、標的のまわりを横へ歩く(バニラの {@code RangedBowAttackGoal} の横歩きと同じ形)。遠すぎれば前へ、近すぎれば後ろへ。
+     * 経路の歩きは止める(経路の目標が毎 tick 横歩きを上書きするため)。
+     */
+    private void strafe(int stageIndex, int tickInStage) {
+        mob.getNavigation().stop();
+        if (tickInStage % STRAFE_FLIP_EVERY == 0 && mob.getRandom().nextFloat() < STRAFE_FLIP_CHANCE) clockwise = !clockwise;
+        float forward = 0.0F;
+        if (target != null && target.isAlive()) {
+            double d = mob.distanceTo(target);
+            if (d > RANGE * 0.75D) forward = STRAFE_SPEED;
+            else if (d < RANGE * 0.25D) forward = -STRAFE_SPEED;
+        }
+        mob.getMoveControl().strafe(forward, clockwise ? STRAFE_SPEED : -STRAFE_SPEED);
     }
 
     private void shoot(ServerLevel level) {

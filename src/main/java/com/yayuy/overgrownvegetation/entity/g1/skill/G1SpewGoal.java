@@ -36,7 +36,7 @@ public class G1SpewGoal extends G1TechniqueGoal {
     static final int COOLDOWN = 200;
 
     public G1SpewGoal(DevelopedParasitized mob) {
-        super(mob, new G1Move[]{G1Move.SPEW_WINDUP, G1Move.SPEW, G1Move.SPEW_RECOVER}, new int[]{20, 30, 14});
+        super(mob, new G1Move[]{G1Move.SPEW_WINDUP, G1Move.SPEW, G1Move.SPEW_RECOVER}, new int[]{G1SkillTiming.SPEW_WINDUP, 30, 14});
     }
 
     @Override
@@ -50,7 +50,13 @@ public class G1SpewGoal extends G1TechniqueGoal {
 
     @Override
     protected int aimUntil() {
-        return 15;
+        return G1SkillTiming.SPEW_WINDUP + 1 + 2 * PULSE_TICKS; // 3 回目を吐く tick まで向き続ける
+    }
+
+    /** 当たる tick まで向き続けるが、1 tick に回れる角度に上限(回り込めばよけられる。11-19 溜めを外す 2 便)。 */
+    @Override
+    protected float turnRate() {
+        return G1SkillTiming.AIM_TURN_DEG;
     }
 
     @Override
@@ -60,8 +66,8 @@ public class G1SpewGoal extends G1TechniqueGoal {
 
     @Override
     protected void onTick(int stageIndex, int tickInStage) {
-        if (stageIndex == 0 && (tickInStage == 3 || tickInStage == 9 || tickInStage == 15)) {
-            // そ嚢の脈打ち(3 回)
+        if (stageIndex == 0 && tickInStage == 2) {
+            // そ嚢の脈打ち(11-19 から前触れが短いので 1 回)
             mob.level().playSound(null, mob.getX(), mob.getY() + 0.4D, mob.getZ(), ModSounds.G1_SAC_SWELL.get(), SoundSource.HOSTILE, 0.6F, 0.7F);
         }
         if (stageIndex == 1 && tickInStage % PULSE_TICKS == 1 && mob.level() instanceof ServerLevel level) {

@@ -31,7 +31,7 @@ public class G1ThroatPuffGoal extends G1TechniqueGoal {
     static final int COOLDOWN = 160;
 
     public G1ThroatPuffGoal(DevelopedParasitized mob) {
-        super(mob, new G1Move[]{G1Move.PUFF_WINDUP, G1Move.PUFF, G1Move.PUFF_RECOVER}, new int[]{15, 8, 12});
+        super(mob, new G1Move[]{G1Move.PUFF_WINDUP, G1Move.PUFF, G1Move.PUFF_RECOVER}, new int[]{G1SkillTiming.THROAT_PUFF_WINDUP, 8, 12});
     }
 
     @Override
@@ -45,7 +45,13 @@ public class G1ThroatPuffGoal extends G1TechniqueGoal {
 
     @Override
     protected int aimUntil() {
-        return 11;
+        return G1SkillTiming.THROAT_PUFF_WINDUP + 1; // 吹く tick まで
+    }
+
+    /** 当たる tick まで向き続けるが、1 tick に回れる角度に上限(回り込めばよけられる。11-19 溜めを外す 2 便)。 */
+    @Override
+    protected float turnRate() {
+        return G1SkillTiming.AIM_TURN_DEG;
     }
 
     @Override
@@ -55,7 +61,7 @@ public class G1ThroatPuffGoal extends G1TechniqueGoal {
 
     @Override
     protected void onTick(int stageIndex, int tickInStage) {
-        if (stageIndex == 0 && (tickInStage == 3 || tickInStage == 9) && mob.level() instanceof ServerLevel voiceLevel) {
+        if (stageIndex == 0 && tickInStage == 2 && mob.level() instanceof ServerLevel voiceLevel) {
             com.yayuy.overgrownvegetation.voice.G1Voice.playAt(voiceLevel, mob.getX(), mob.getY() + 0.6D, mob.getZ(), mob.species(), SoundEvents.PIG_HURT, 0.5F, 0.45F);
         }
         if (stageIndex == 1 && tickInStage == 1 && mob.level() instanceof ServerLevel level) {

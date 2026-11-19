@@ -344,16 +344,16 @@ public final class G1Skill3GameTests {
         helper.succeed();
     }
 
-    /** 弓の間合い(3〜16 ブロックで見えている)では、近づかずに立って射る。 */
+    /** 弓の間合い(3〜16 ブロックで見えている)では、近づかずに射る(11-19 から引く間は横へ歩く。寄らないことだけを見る)。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 120)
     public static void skeletonHoldsGroundInBowRange(GameTestHelper helper) {
         DevelopedParasitized skeleton = spawnDev(helper, G1Developed.SKELETON, new Vec3(3.5, 2.0, 1.0));
         Cow cow = spawnCow(helper, new Vec3(3.5, 2.0, 5.6));
         keepTarget(helper, skeleton, cow);
-        Vec3 start = skeleton.position();
+        double startDist = skeleton.distanceTo(cow);
         helper.runAfterDelay(100, () -> {
-            helper.assertTrue(skeleton.position().distanceTo(start) < 0.6D, "弓の間合いなのに近づいた: " + skeleton.position().distanceTo(start));
-            helper.assertTrue(skeleton.boltsShot() >= 1, "立ったまま射ていない");
+            helper.assertTrue(skeleton.distanceTo(cow) > startDist - 0.6D, "弓の間合いなのに近づいた: " + startDist + " → " + skeleton.distanceTo(cow));
+            helper.assertTrue(skeleton.boltsShot() >= 1, "射ていない");
             helper.succeed();
         });
     }
