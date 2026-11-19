@@ -38,6 +38,8 @@ public final class FusionTable {
         public Double organChancePerVisit, bigChance, holeChance, gapPlantChance, guardSmallChance;
         public Integer guardBig;
         public double[] smallLength, bigLength;
+        /** 建物用の器官 5 種類の形の調整値(11-20。{@link com.yayuy.overgrownvegetation.organ.TakeoverShapes})。 */
+        public com.yayuy.overgrownvegetation.organ.TakeoverShapes.ShapesJson shapes;
     }
 
     public static final class SizeJson {
@@ -91,6 +93,8 @@ public final class FusionTable {
     public final double[] takeoverSmallLength, takeoverBigLength;
     public final double takeoverHoleChance;
     public final int takeoverVinesSmall, takeoverVinesBig;
+    /** 建物用の器官 5 種類の形の調整値(11-20。大きさ・本数。どれも仮)。 */
+    public final com.yayuy.overgrownvegetation.organ.TakeoverShapes.Tuning takeoverShapes;
     /** 建物どうしの間・路地・壁と地面の隅(段 3 追記 11-20「建物同士の間や隙間には草の蔦」): 1 回の見回りで見る隙間のマスの数・下草と蔦の確率・挟む壁を探す距離。 */
     public final int takeoverGapCellsPerVisit, takeoverGapReach;
     public final double takeoverGapPlantChance;
@@ -165,6 +169,7 @@ public final class FusionTable {
         takeoverGapPlantChance = Math.max(0.0D, Math.min(1.0D, or(ko.gapPlantChance, 0.9D)));
         takeoverGuardSmallChance = Math.max(0.0D, Math.min(1.0D, or(ko.guardSmallChance, 0.25D)));
         takeoverGuardBig = Math.max(0, Math.min(8, or(ko.guardBig, 2)));
+        takeoverShapes = new com.yayuy.overgrownvegetation.organ.TakeoverShapes.Tuning(ko.shapes);
     }
 
     public static FusionTable fromJson(@Nullable Json j) {

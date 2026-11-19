@@ -158,7 +158,15 @@
       "gapPlantChance": 0.9,
       "_comment_guard": "乗っ取りの器官だけの守りの Mob(11-20 ユーザー「守りの mob の湧く量を少なくするだけにしとこう」。働きは変えない)【仮】: 小さい器官は guardSmallChance の割りで 1 体(器官の場所で決まる)、大きい器官は guardBig 体。司令塔のふつうの器官は上の guardCount のまま。",
       "guardSmallChance": 0.25,
-      "guardBig": 2
+      "guardBig": 2,
+      "_comment_shapes": "建物用の器官 5 種類の形(11-20 試作 第 13 版の値)【仮】。size = 長さ・太さ・広がりにまとめて掛ける倍率。count = 数の [最小, 最大](フェーズ = 襞の塊・苗床 = 莢・井戸 = 根)。length = 長さの [最小, 最大](塔 = 角笛・嚢 = 袋の縦の半径)。veins = 壁を這う光る脈の本数。extraBig = 大きい版にだけ付く物 [最小, 最大](塔 = 小さい角笛・嚢 = 房の袋)",
+      "shapes": {
+        "phase": { "sizeSmall": 1.0, "sizeBig": 1.0, "countSmall": [3, 4], "countBig": [8, 11], "veinsSmall": 3, "veinsBig": 9 },
+        "tower": { "sizeSmall": 1.0, "sizeBig": 1.0, "lengthSmall": [5.0, 9.0], "lengthBig": [18.0, 28.0], "extraBig": [2, 3] },
+        "sac": { "sizeSmall": 1.0, "sizeBig": 1.0, "lengthSmall": [1.7, 2.3], "lengthBig": [4.5, 6.0], "extraBig": [2, 4] },
+        "nursery": { "sizeSmall": 1.0, "sizeBig": 1.0, "countSmall": [6, 9], "countBig": [26, 37], "veinsSmall": 2, "veinsBig": 6 },
+        "ley": { "sizeSmall": 1.0, "sizeBig": 1.0, "countSmall": [3, 4], "countBig": [9, 12] }
+      }
     }
   }
 }

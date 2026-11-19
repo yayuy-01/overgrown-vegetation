@@ -30,8 +30,95 @@ import java.util.Set;
  * 試作の光る脈(VEIN)は 1 マスの塊だが、ゲームの {@code organ_vein} は面に貼り付く薄いブロックなので、脈のマスは「まわりの固い面に貼り付く筋」にする
  * (襞の溝・ラッパの縁・袋の筋は、1 マス凹んだ溝の内側が光る形になる)。大きさ・本数は試作の値のまま(Claude の仮置き。FusionTable にはまだ出していない)。
  */
-final class TakeoverShapes {
+public final class TakeoverShapes {
     private TakeoverShapes() {
+    }
+
+    // ---------------------------------------------------------------- 調整値(design の organs.json → fusion.takeover.shapes。どれも仮)
+
+    /** design json の形(種類ごと)。 */
+    public static final class ShapesJson {
+        public KindJson phase, tower, sac, nursery, ley;
+    }
+
+    /**
+     * 種類ごとの調整値。size は長さ・太さ・広がりにまとめて掛ける倍率。count は数の [最小, 最大](フェーズ = 襞の塊・苗床 = 莢・井戸 = 根)。
+     * length は長さの [最小, 最大](塔 = 角笛の長さ・嚢 = 袋の縦の半径)。veins は壁を這う光る脈の本数(フェーズ・苗床)。
+     * extraBig は大きい版にだけ付く物の数 [最小, 最大](塔 = 小さい角笛・嚢 = 房の袋)。
+     */
+    public static final class KindJson {
+        public Double sizeSmall, sizeBig;
+        public double[] countSmall, countBig, lengthSmall, lengthBig, extraBig;
+        public Integer veinsSmall, veinsBig;
+    }
+
+    /** 読んだ後の値(範囲を直した物)。 */
+    public static final class Kind {
+        final double sizeS, sizeB;
+        final double[] countS, countB, lenS, lenB, extraB;
+        final int veinsS, veinsB;
+
+        Kind(@Nullable KindJson j, double[] countS, double[] countB, double[] lenS, double[] lenB, double[] extraB, int veinsS, int veinsB) {
+            KindJson k = j != null ? j : new KindJson();
+            this.sizeS = Math.max(0.3D, Math.min(3.0D, k.sizeSmall != null ? k.sizeSmall : 1.0D));
+            this.sizeB = Math.max(0.3D, Math.min(3.0D, k.sizeBig != null ? k.sizeBig : 1.0D));
+            this.countS = two(k.countSmall, countS);
+            this.countB = two(k.countBig, countB);
+            this.lenS = two(k.lengthSmall, lenS);
+            this.lenB = two(k.lengthBig, lenB);
+            this.extraB = two(k.extraBig, extraB);
+            this.veinsS = Math.max(0, Math.min(16, k.veinsSmall != null ? k.veinsSmall : veinsS));
+            this.veinsB = Math.max(0, Math.min(32, k.veinsBig != null ? k.veinsBig : veinsB));
+        }
+
+        private static double[] two(@Nullable double[] v, double[] d) {
+            return v != null && v.length == 2 && v[0] >= 0 && v[0] <= v[1] ? v.clone() : d;
+        }
+
+        double size(boolean big) {
+            return big ? sizeB : sizeS;
+        }
+
+        int count(boolean big, Random r) {
+            return irange(big ? countB : countS, r);
+        }
+
+        double len(boolean big, Random r) {
+            double[] v = big ? lenB : lenS;
+            return v[0] + r.nextDouble() * (v[1] - v[0]);
+        }
+
+        int extra(Random r) {
+            return irange(extraB, r);
+        }
+
+        int veins(boolean big) {
+            return big ? veinsB : veinsS;
+        }
+
+        private static int irange(double[] v, Random r) {
+            int lo = (int) Math.round(v[0]), hi = (int) Math.round(v[1]);
+            return lo + r.nextInt(Math.max(1, hi - lo + 1));
+        }
+    }
+
+    /** 5 種類の調整値(既定は試作 第 13 版の値)。 */
+    public static final class Tuning {
+        final Kind phase, tower, sac, nursery, ley;
+
+        public Tuning(@Nullable ShapesJson j) {
+            ShapesJson s = j != null ? j : new ShapesJson();
+            double[] none = {0, 0};
+            phase = new Kind(s.phase, new double[]{3, 4}, new double[]{8, 11}, none, none, none, 3, 9);
+            tower = new Kind(s.tower, none, none, new double[]{5, 9}, new double[]{18, 28}, new double[]{2, 3}, 0, 0);
+            sac = new Kind(s.sac, none, none, new double[]{1.7D, 2.3D}, new double[]{4.5D, 6.0D}, new double[]{2, 4}, 0, 0);
+            nursery = new Kind(s.nursery, new double[]{6, 9}, new double[]{26, 37}, none, none, none, 2, 6);
+            ley = new Kind(s.ley, new double[]{3, 4}, new double[]{9, 12}, none, none, none, 0, 0);
+        }
+    }
+
+    private static Tuning tuning() {
+        return com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.table().takeoverShapes;
     }
 
     private static final int STALK = OrganBlueprint.M_STALK, SAC = OrganBlueprint.M_SAC, CORE = OrganBlueprint.M_CORE, VEIN = OrganBlueprint.M_VEIN,
@@ -395,9 +482,11 @@ final class TakeoverShapes {
         double[] n = {f[3], f[4], f[5]};
         double[][] t = tangents(n);
         hole(c, f, big ? 2 : 1);
-        veins(c, f, big ? 9 : 3, big ? 18 : 8, big ? 40 : 14); // 塊より先に(塊の中からは這い出せない)
-        int lobes = big ? 8 + r.nextInt(4) : 3 + r.nextInt(2);
-        double spread = big ? 4.5D : 1.4D, out = big ? 2.0D : 0.8D, up = f[4] == 0 ? (big ? 1.2D : 0.3D) : 0.0D;
+        Kind tn = tuning().phase;
+        double sz = tn.size(big);
+        veins(c, f, tn.veins(big), big ? 18 : 8, big ? 40 : 14); // 塊より先に(塊の中からは這い出せない)
+        int lobes = tn.count(big, r);
+        double spread = (big ? 4.5D : 1.4D) * sz, out = (big ? 2.0D : 0.8D) * sz, up = f[4] == 0 ? (big ? 1.2D : 0.3D) * sz : 0.0D;
         double[] c0 = {f[0] + 0.5D + n[0] * out, f[1] + 0.5D + n[1] * out + up, f[2] + 0.5D + n[2] * out};
         MatFn fold = (x, y, z, s, rad, ang) -> {
             double g = Math.sin(x * 1.25D + y * 0.6D + z * 0.3D) * Math.sin(z * 1.15D - y * 0.95D + x * 0.2D) + 0.35D * Math.sin(y * 1.7D + x * 0.4D);
@@ -406,10 +495,10 @@ final class TakeoverShapes {
         for (int k = 0; k < lobes; k++) {
             double a = gauss(r) * spread, b = gauss(r) * spread * 0.8D, e = (r.nextDouble() - 0.35D) * spread * 0.7D;
             double[] cen = {c0[0] + t[0][0] * a + t[1][0] * b + n[0] * e, c0[1] + t[0][1] * a + t[1][1] * b + n[1] * e, c0[2] + t[0][2] * a + t[1][2] * b + n[2] * e};
-            double rr = big ? 2.4D + r.nextDouble() * 1.8D : 0.9D + r.nextDouble() * 0.7D;
+            double rr = (big ? 2.4D + r.nextDouble() * 1.8D : 0.9D + r.nextDouble() * 0.7D) * sz;
             blob(c, cen, nrm(n[0] + gauss(r) * 0.6D, n[1] + gauss(r) * 0.6D, n[2] + gauss(r) * 0.6D), rr * 1.1D, rr, fold, 0.2D, null);
         }
-        double ko = big ? 2.4D : 1.0D;
+        double ko = (big ? 2.4D : 1.0D) * sz;
         double[] k = {c0[0] + n[0] * ko, c0[1] + n[1] * ko, c0[2] + n[2] * ko};
         core(c, k, big ? 1.5D : 0.65D);
         return new double[][]{k, n};
@@ -424,7 +513,9 @@ final class TakeoverShapes {
         double[] d = ny == 1 ? nrm((r.nextDouble() - 0.5D) * lean * 2, 1, (r.nextDouble() - 0.5D) * lean * 2)
                 : nrm(nx * 0.45D + (r.nextDouble() - 0.5D) * 0.3D, 1.4D, nz * 0.45D + (r.nextDouble() - 0.5D) * 0.3D);
         double[] base = {f[0] + 0.5D + nx * 0.7D, f[1] + 0.5D + ny * 0.7D, f[2] + 0.5D + nz * 0.7D};
-        double footR = big ? 2.8D : sub ? 0.9D : 1.2D;
+        Kind tn = tuning().tower;
+        double sz = tn.size(big);
+        double footR = (big ? 2.8D : sub ? 0.9D : 1.2D) * sz;
         if (!sub) {
             for (int k = 0; k < (big ? 5 : 2); k++) { // 屋根を掴む根
                 Crawl o = new Crawl();
@@ -439,11 +530,11 @@ final class TakeoverShapes {
             }
         }
         blob(c, base, new double[]{0, 1, 0}, footR * 0.8D, footR, (x, y, z, s, rad, ang) -> SAC, 0.3D, null);
-        double len = big ? 18 + r.nextDouble() * 10 : sub ? 4 + r.nextDouble() * 4 : 5 + r.nextDouble() * 4;
-        double r0 = big ? 1.9D : sub ? 0.6D : 0.8D, r1 = big ? 1.2D : sub ? 0.45D : 0.55D;
+        double len = sub ? (4 + r.nextDouble() * 4) * sz : tn.len(big, r);
+        double r0 = (big ? 1.9D : sub ? 0.6D : 0.8D) * sz, r1 = (big ? 1.2D : sub ? 0.45D : 0.55D) * sz;
         Stalk st = stalk(c, base, d, len, r0, r1, big ? 0.05D : 0.09D, -0.004D, big ? 3 : 2);
         // ラッパの口: 筒の殻(中は空)。縁は光る脈
-        double ml = big ? 4.5D : 2.0D, rm = big ? 3.6D : sub ? 1.2D : 1.6D;
+        double ml = (big ? 4.5D : 2.0D) * sz, rm = (big ? 3.6D : sub ? 1.2D : 1.6D) * sz;
         double[] p = st.p, dd = st.d;
         int big2 = (int) Math.ceil(rm + ml + 1);
         for (int x = fl(p[0] - big2); x <= p[0] + big2; x++) {
@@ -465,7 +556,7 @@ final class TakeoverShapes {
             ret = new double[][]{k, ny == 1 ? nrm(d[0] == 0 && d[2] == 0 ? 1 : -d[0], 0.3D, -d[2]) : new double[]{nx, 0.2D, nz}};
         }
         if (big && !sub) {
-            for (int k = 0, m = 2 + r.nextInt(2); k < m; k++) {
+            for (int k = 0, m = tn.extra(r); k < m; k++) {
                 double a = r.nextDouble() * Math.PI * 2.0D;
                 tower(c, new int[]{(int) Math.round(f[0] + Math.cos(a) * 2.5D), f[1], (int) Math.round(f[2] + Math.sin(a) * 2.5D), nx, ny, nz}, false, true);
             }
@@ -482,17 +573,19 @@ final class TakeoverShapes {
         double[] d = ny == -1 ? nrm((r.nextDouble() - 0.5D) * 0.4D, -1, (r.nextDouble() - 0.5D) * 0.4D)
                 : nrm(nx + (r.nextDouble() - 0.5D) * 0.4D, ny == 1 ? 0.8D : 0.35D, nz + (r.nextDouble() - 0.5D) * 0.4D);
         double len = big ? 4 + r.nextDouble() * 3 : 1.5D + r.nextDouble() * 2;
-        double want = big ? 4.5D + r.nextDouble() * 1.5D : 1.7D + r.nextDouble() * 0.6D;
+        Kind tn = tuning().sac;
+        double sz = tn.size(big);
+        double want = tn.len(big, r);
         // 柄が長いと袋の下の空きが無くなって袋が小さくなる(実物の壁は試作より低い)。袋が入るぶんを先に取り、残りを柄にする
         int drop0 = c.drop(f[0] + nx, f[1] + ny, f[2] + nz, 24);
         len = Math.max(big ? 2.0D : 1.2D, Math.min(len, drop0 - 2.0D * want - 1.0D));
-        Stalk st = stalk(c, p, d, len, big ? 1.2D : 0.6D, big ? 0.9D : 0.45D, 0.06D, big ? 0.16D : 0.22D, 0);
+        Stalk st = stalk(c, p, d, len, (big ? 1.2D : 0.6D) * sz, (big ? 0.9D : 0.45D) * sz, 0.06D, big ? 0.16D : 0.22D, 0);
         Width tear = tt -> 0.55D + 0.45D * (tt + 1) / 2; // 軸は下向き: 上(t = -1)が細く下が太い
         MatFn ribs = (x, y, z, s, rad, ang) -> rad > 1.2D && Math.cos(ang * 5 + y * 0.15D) > 0.95D ? VEIN : SAC; // 筋は外側だけ(芯のまわりまで溝にすると袋が割れて見える)
         double[] down = {0, -1, 0};
         // 袋の大きさは、下の空き(地面まで)に合わせる。低い軒では小ぶりの袋が地面すれすれに垂れる
         int drop = c.drop(fl(st.p[0]), fl(st.p[1]), fl(st.p[2]), 16);
-        double ra = Math.max(big ? 2.2D : 1.1D, Math.min(want, drop * 0.5D)), rb = ra * (big ? 0.7D : 0.66D);
+        double ra = Math.max(big ? 2.2D : 1.1D, Math.min(want, drop * 0.5D)), rb = ra * (big ? 0.7D : 0.66D) * sz;
         double[] top = clearOfWalls(c, st.p, ra, rb);
         double[] cen = {top[0], top[1] - ra * 0.85D, top[2]};
         // 下に空きが無い面(屋根の上・床のすぐ上)から生えた嚢は、垂れずにその面の上に座る(合う面が無いときはどこからでも生える)
@@ -501,11 +594,11 @@ final class TakeoverShapes {
         if (rests) cen[1] = Math.max(cen[1], top[1] - room + ra * 0.8D);
         blob(c, cen, down, ra, rb, ribs, 0.12D, tear);
         if (big) {
-            for (int k = 0, m = 2 + r.nextInt(3); k < m; k++) {
+            for (int k = 0, m = tn.extra(r); k < m; k++) {
                 double a = r.nextDouble() * Math.PI * 2.0D, h = r.nextDouble() * ra * 0.6D;
                 double[] top2 = {top[0] + Math.cos(a) * rb * 0.9D, top[1] - h, top[2] + Math.sin(a) * rb * 0.9D};
                 Stalk s2 = stalk(c, top2, nrm(Math.cos(a), 0.2D, Math.sin(a)), 1.5D + r.nextDouble() * 1.5D, 0.6D, 0.45D, 0.05D, 0.3D, 0);
-                double ra2 = 1.8D + r.nextDouble() * 1.2D, rb2 = 1.2D + r.nextDouble() * 0.7D;
+                double ra2 = (1.8D + r.nextDouble() * 1.2D) * sz, rb2 = (1.2D + r.nextDouble() * 0.7D) * sz;
                 blob(c, new double[]{s2.p[0], s2.p[1] - ra2 * 0.85D, s2.p[2]}, down, ra2, rb2, ribs, 0.12D, tear);
             }
         }
@@ -554,9 +647,11 @@ final class TakeoverShapes {
         Random r = c.rnd;
         double[] n = {f[3], f[4], f[5]};
         double[][] t = tangents(n);
-        int pods = big ? 26 + r.nextInt(12) : 6 + r.nextInt(4);
-        double spread = big ? 6.5D : 2.2D;
-        veins(c, f, big ? 6 : 2, big ? 14 : 6, big ? 26 : 10);
+        Kind tn = tuning().nursery;
+        double sz = tn.size(big);
+        int pods = tn.count(big, r);
+        double spread = (big ? 6.5D : 2.2D) * sz;
+        veins(c, f, tn.veins(big), big ? 14 : 6, big ? 26 : 10);
         for (int k = 0; k < pods; k++) {
             double a = gauss(r) * spread, b = gauss(r) * spread;
             double[] p = {f[0] + 0.5D + t[0][0] * a + t[1][0] * b, f[1] + 0.5D + t[0][1] * a + t[1][1] * b, f[2] + 0.5D + t[0][2] * a + t[1][2] * b};
@@ -564,7 +659,7 @@ final class TakeoverShapes {
             boolean onWall = c.solid(bx, by, bz);
             if (!onWall && r.nextDouble() < 0.7D) continue; // 面から外れた莢は少しだけ(縁からはみ出す)
             boolean mouth = big && r.nextDouble() < 0.18D;
-            double rr = mouth ? 1.6D + r.nextDouble() * 0.8D : 0.55D + r.nextDouble() * 0.6D;
+            double rr = (mouth ? 1.6D + r.nextDouble() * 0.8D : 0.55D + r.nextDouble() * 0.6D) * sz;
             double[] dd = nrm(n[0] + gauss(r) * 0.5D, n[1] + gauss(r) * 0.5D + 0.15D, n[2] + gauss(r) * 0.5D);
             double off = 0.5D + rr * 0.8D;
             double[] cen = {p[0] + n[0] * off, p[1] + n[1] * off, p[2] + n[2] * off};
@@ -599,10 +694,12 @@ final class TakeoverShapes {
         Random r = c.rnd;
         double[] n = {f[3], f[4], f[5]};
         if (big) hole(c, f, 1);
-        double kr = big ? 2.6D : 1.1D;
+        Kind tn = tuning().ley;
+        double sz = tn.size(big);
+        double kr = (big ? 2.6D : 1.1D) * sz;
         double[] kc = {f[0] + 0.5D + n[0] * kr * 0.6D, f[1] + 0.5D + n[1] * kr * 0.6D, f[2] + 0.5D + n[2] * kr * 0.6D};
         // 根を先に伸ばしてから瘤を被せる(瘤の中からは這い出せないため)
-        int roots = big ? 9 + r.nextInt(4) : 3 + r.nextInt(2);
+        int roots = tn.count(big, r);
         for (int k = 0; k < roots; k++) {
             Crawl o = new Crawl();
             o.mat = STALK;
