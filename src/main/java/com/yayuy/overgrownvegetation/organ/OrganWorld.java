@@ -242,7 +242,7 @@ public final class OrganWorld {
         if (CANCELLED.contains(o.id)) return;
         CANCELLED.add(o.id);
         com.yayuy.overgrownvegetation.director.ForestDirector dir = com.yayuy.overgrownvegetation.director.ForestDirector.get(level);
-        dir.refund(level, OrganPlanner.price(level, o.small));
+        if (!StructureTrees.planted(o.id)) dir.refund(level, OrganPlanner.price(level, o.small)); // 構造物に植えた器官(段 2c)は値段を払っていないので返さない
         dir.note(String.format(java.util.Locale.ROOT, "器官 #%d %s%s は構造物にかかるので建てない(値段を返した)", o.id, o.kind.label, o.small ? "(小)" : ""));
     }
 
@@ -353,14 +353,17 @@ public final class OrganWorld {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (long e : bp.entries) {
             int m = OrganBlueprint.material(e);
-            if (m != OrganBlueprint.M_VINE && m != OrganBlueprint.M_VEIN) continue;
+            // 大きい版(建物と融合した外套・襟・芯、段 2c)は枯れたら本体も剥がす(屋根を覆ったまま残さない)
+            boolean bigBody = !o.small && (m == OrganBlueprint.M_SAC || m == OrganBlueprint.M_CORE || m == OrganBlueprint.M_SAC_WITHERED);
+            if (m != OrganBlueprint.M_VINE && m != OrganBlueprint.M_VEIN && !bigBody) continue;
             p.set(anchor.getX() + OrganBlueprint.dx(e), anchor.getY() + OrganBlueprint.dy(e), anchor.getZ() + OrganBlueprint.dz(e));
             if (!ready(level, p.getX() >> 4, p.getZ() >> 4)) {
                 all = false;
                 continue;
             }
             BlockState s = level.getBlockState(p);
-            if (s.is(OrganBlocks.ORGAN_VINE.get()) || s.is(OrganBlocks.ORGAN_VEIN.get())) level.setBlock(p, Blocks.AIR.defaultBlockState(), FLAGS);
+            if (s.is(OrganBlocks.ORGAN_VINE.get()) || s.is(OrganBlocks.ORGAN_VEIN.get())
+                    || bigBody && (s.getBlock() instanceof OrganTissueBlock || s.getBlock() instanceof OrganCoreBlock)) level.setBlock(p, Blocks.AIR.defaultBlockState(), FLAGS);
         }
         it.unimi.dsi.fastutil.longs.LongArrayList left = new it.unimi.dsi.fastutil.longs.LongArrayList();
         for (int i = 0; i < o.covered.size(); i++) {

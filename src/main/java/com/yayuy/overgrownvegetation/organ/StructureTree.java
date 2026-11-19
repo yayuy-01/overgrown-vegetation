@@ -139,7 +139,7 @@ public final class StructureTree {
     }
 
     /** 部品の中の建物のブロックのいちばん高い所(無ければ Integer.MIN_VALUE)。 */
-    private static int topStruct(OrganFusion.Ctx c, BoundingBox b) {
+    static int topStruct(OrganFusion.Ctx c, BoundingBox b) {
         for (int y = b.maxY(); y >= b.minY(); y--) {
             for (int x = b.minX(); x <= b.maxX(); x++) {
                 for (int z = b.minZ(); z <= b.maxZ(); z++) {
@@ -736,11 +736,7 @@ public final class StructureTree {
         return l < 1.0E-6D ? new double[]{0, 1, 0} : new double[]{d[0] / l, d[1] / l, d[2] / l};
     }
 
-    // ---------------------------------------------------------------- 大きい構造物: 建物から生える巨大樹(段 2b の A+B。試作 第 8 版)
-
-    /** A の芯の場所。{@code host} = 芯を据える建物の部品、{@code ground} = まわりの地面のブロックの高さ。 */
-    public record Embed(BlockPos origin, BoundingBox host, int ground) {
-    }
+    // ---------------------------------------------------------------- 大きい構造物: 中くらいの木(段 2c。試作 第 9 版)
 
     /** 細長い部品(城壁など): 短い辺が 4 以下で長い辺が 12 以上。 */
     static boolean elongated(BoundingBox b) {
@@ -750,94 +746,6 @@ public final class StructureTree {
 
     private static double[] centerOf(BoundingBox b) {
         return new double[]{(b.minX() + b.maxX() + 1) / 2.0D, (b.minZ() + b.maxZ() + 1) / 2.0D};
-    }
-
-    /**
-     * 試作の chooseEmbedSite。細長い部品を除いた、体積(幅 × 奥 × 高さ)が最大の建物らしい部品を選び、幹の芯をその中心から
-     * 戸口と逆向きへ「giantRadius × hugOffset」ずらす。建物は幹の裾に半ば飲み込まれる。見つからなければ null。
-     */
-    @Nullable
-    public static Embed embedSite(ServerLevel level, StructureFusion.Site site, long seed) {
-        return embedSite(level, site, seed, StructureFusion.table());
-    }
-
-    @Nullable
-    static Embed embedSite(ServerLevel level, StructureFusion.Site site, long seed, FusionTable t) {
-        List<StructureFusion.Hit> hits = StructureFusion.hits(site);
-        OrganFusion.Ctx c = new OrganFusion.Ctx(level, hits, t);
-        Random rnd = new Random(seed * 0x9E3779B97F4A7C15L + 0xE3BEDL);
-        BoundingBox host = null;
-        long bv = -1;
-        for (StructureFusion.Hit h : hits) {
-            BoundingBox b = h.piece();
-            if (elongated(b)) continue;
-            long v = (long) b.getXSpan() * b.getZSpan() * b.getYSpan();
-            if (v > bv && v <= 400_000L && c.building(b)) {
-                bv = v;
-                host = b;
-            }
-        }
-        if (host == null) return null;
-        int ground = ground(c, host);
-        if (ground == Integer.MIN_VALUE) return null;
-        c.reserveEntrances();
-        double[] ctr = centerOf(host);
-        BlockPos door = null;
-        double bd = Double.MAX_VALUE;
-        BoundingBox near = host.inflatedBy(1);
-        for (BlockPos d : c.doors) {
-            if (!near.isInside(d)) continue;
-            double dd = sq(d.getX() + 0.5D - ctr[0]) + sq(d.getZ() + 0.5D - ctr[1]);
-            if (dd < bd) {
-                bd = dd;
-                door = d;
-            }
-        }
-        double ux, uz;
-        if (door != null) {
-            ux = ctr[0] - (door.getX() + 0.5D);
-            uz = ctr[1] - (door.getZ() + 0.5D);
-        } else {
-            double a = rnd.nextDouble() * Math.PI * 2.0D;
-            ux = Math.cos(a);
-            uz = Math.sin(a);
-        }
-        double l = Math.hypot(ux, uz);
-        if (l < 1.0E-3D) {
-            ux = 1.0D;
-            uz = 0.0D;
-            l = 1.0D;
-        }
-        double off = t.giantRadius * t.hugOffset;
-        int ox = (int) Math.floor(ctr[0] + ux / l * off), oz = (int) Math.floor(ctr[1] + uz / l * off);
-        return new Embed(new BlockPos(ox, ground + 1, oz), host, ground);
-    }
-
-    /**
-     * 巨大樹の幹の裾が置かないマス: 芯から {@code radius} にかかる部品の、部屋の中(真上の箱の中に建物のブロックがある空いたマス)と
-     * 入口の通り道。建物は幹の中の空洞として残る(試作の growGiantTree で inn を空ける所)。
-     */
-    public static LongOpenHashSet hugSkip(ServerLevel level, StructureFusion.Site site, BlockPos origin, double radius) {
-        FusionTable t = StructureFusion.table();
-        List<StructureFusion.Hit> hits = StructureFusion.hits(site);
-        OrganFusion.Ctx c = new OrganFusion.Ctx(level, hits, t);
-        c.reserveEntrances();
-        LongOpenHashSet out = new LongOpenHashSet(c.reserved);
-        int ox = origin.getX(), oz = origin.getZ();
-        for (StructureFusion.Hit h : hits) {
-            BoundingBox b = h.piece();
-            double dx = Math.max(0, Math.max(b.minX() - ox, ox - b.maxX())), dz = Math.max(0, Math.max(b.minZ() - oz, oz - b.maxZ()));
-            if (dx * dx + dz * dz > radius * radius || (long) b.getXSpan() * b.getYSpan() * b.getZSpan() > 400_000L) continue;
-            for (int x = b.minX(); x <= b.maxX(); x++) {
-                for (int z = b.minZ(); z <= b.maxZ(); z++) {
-                    if (Math.hypot(x - ox, z - oz) > radius) continue;
-                    for (int y = b.minY(); y <= b.maxY(); y++) {
-                        if (!c.struct(x, y, z) && c.interior(x, y, z)) out.add(BlockPos.asLong(x, y, z));
-                    }
-                }
-            }
-        }
-        return out;
     }
 
     /** 歩く高さ: 部品の箱の中ならまわりの地面の上、外ならその列の地面の上。 */
@@ -873,10 +781,10 @@ public final class StructureTree {
     }
 
     /**
-     * 試作の giantRoot: 巨大樹の太い根。地面を這い(幹の裾の中 = 飲み込んだ建物は素通り)、建物に当たったら壁を登って屋根を越え、
-     * 向こう側の壁を垂れて地面でくねる。太さ hugRootStart → hugRootEnd、枝根 2 本。
+     * 試作の giantRoot: 太い根。地面を這い(幹の裾の中は素通り)、建物に当たったら壁を登って屋根を越え、
+     * 向こう側の壁を垂れて地面でくねる。太さ r0 → r1、枝根 2 本(段 2c から中くらいの木の根)。
      */
-    static void giantRoot(W w, int bx, int bz, double rg, double a, int len, @Nullable BoundingBox target, FusionTable t) {
+    static void giantRoot(W w, int bx, int bz, double rg, double a, int len, @Nullable BoundingBox target, double r0, double r1, FusionTable t) {
         Random rnd = w.rnd;
         List<int[]> path = new ArrayList<>();
         double x = bx + Math.cos(a) * (rg - 1), z = bz + Math.sin(a) * (rg - 1);
@@ -945,133 +853,65 @@ public final class StructureTree {
             down.center = pc;
             crawl(w, l2[0], l2[1], l2[2], down, path);
             runOut(w, path, pc, 4 + rnd.nextInt(4));
-            queueTube(w, path, t.hugRootStart, t.hugRootEnd);
+            queueTube(w, path, r0, r1);
             rootlets(w, path, pc, 2, 1, t);
         } else if (!path.isEmpty()) {
-            queueTube(w, path, t.hugRootStart * 0.9D, t.hugRootEnd);
+            queueTube(w, path, r0 * 0.9D, r1);
         }
-    }
-
-    /** B の太い根: ほかの建物らしい部品へ、近い順に 1 部品 hugRootsPerPiece 本(細長い部品は hugRootsPerWall 本)、全部で hugRootsMax 本まで。 */
-    public static Plan hugRoots(ServerLevel level, StructureFusion.Site site, Embed e, long seed) {
-        return hugRoots(level, site, e, seed, StructureFusion.table());
-    }
-
-    static Plan hugRoots(ServerLevel level, StructureFusion.Site site, Embed e, long seed, FusionTable t) {
-        List<StructureFusion.Hit> hits = StructureFusion.hits(site);
-        OrganFusion.Ctx c = new OrganFusion.Ctx(level, hits, t);
-        c.allowInterior = true;
-        c.reserveEntrances();
-        Random rnd = new Random(seed * 0x9E3779B97F4A7C15L + 0x4B6L);
-        W w = new W(c, e.ground(), rnd);
-        w.rootMat = GIANT_ROOT;
-        int bx = e.origin().getX(), bz = e.origin().getZ();
-        double rg = t.giantRadius + 1.5D;
-        List<BoundingBox> near = new ArrayList<>();
-        for (StructureFusion.Hit h : hits) {
-            BoundingBox b = h.piece();
-            if (b.equals(e.host())) continue;
-            double[] pc = centerOf(b);
-            if (Math.hypot(pc[0] - bx, pc[1] - bz) >= 120.0D) continue;
-            if (!elongated(b) && !c.building(b)) continue; // 道・畑の部品は抱えない
-            near.add(b);
-        }
-        near.sort((p, q) -> {
-            double[] a = centerOf(p), b = centerOf(q);
-            return Double.compare(sq(a[0] - bx) + sq(a[1] - bz), sq(b[0] - bx) + sq(b[1] - bz));
-        });
-        int k = 0;
-        for (BoundingBox b : near) {
-            boolean wall = elongated(b);
-            int n = wall ? t.hugRootsPerWall : t.hugRootsPerPiece;
-            double[] pc = centerOf(b);
-            for (int j = 0; j < n && k < t.hugRootsMax; j++, k++) {
-                double a = Math.atan2(pc[1] - bz, pc[0] - bx) + (j - (n - 1) / 2.0D) * 0.5D;
-                giantRoot(w, bx, bz, rg, a, t.hugRootSteps, wall ? null : b, t);
-            }
-            if (k >= t.hugRootsMax) break;
-        }
-        flushTubes(w);
-        return pack(w, "hug", e.origin(), 0);
     }
 
     /**
-     * 試作の hangRoot(巨大樹が育った後に作る): 巨大樹の葉・枝が建物の屋根の上に張り出している所に、1 マスの細い気根を屋根まで垂らし、
-     * 屋根の上を少し這わせる。真下に屋根がある所だけ(地面へ落ちるだけの気根は作らない)。1 部品に hangsPerPiece 本まで。
+     * 大きい構造物の中くらいの木(段 2c、試作 第 9 版の growLargeV9・pieceTreeDims)。指定した建物から、小・中の構造物の木と同じ形
+     * (中から/てっぺんから・第 7 版の根)で生やし、近くの建物 {@code mediumRootTargets} 軒(mediumRootReach 以内)へも太い管状の根
+     * (mediumRootStart → mediumRootEnd)を這わせて壁を越える。高さはその建物で決める(建物の高さ × heightMul + heightAdd、heightMin〜heightMax)、
+     * 幹の太さは部品の大きさが 12 未満なら 2、それ以上は 3。
      */
-    public static Plan hangRoots(ServerLevel level, StructureFusion.Site site, Embed e, long seed) {
-        FusionTable t = StructureFusion.table();
+    public static Result planOnPiece(ServerLevel level, StructureFusion.Site site, BoundingBox piece, long seed) {
+        return planOnPiece(level, site, piece, seed, StructureFusion.table());
+    }
+
+    static Result planOnPiece(ServerLevel level, StructureFusion.Site site, BoundingBox piece, long seed, FusionTable t) {
         List<StructureFusion.Hit> hits = StructureFusion.hits(site);
         OrganFusion.Ctx c = new OrganFusion.Ctx(level, hits, t);
         c.allowInterior = true;
+        Random rnd = new Random(seed * 0x9E3779B97F4A7C15L + 0x3ED1L);
+        int ground = ground(c, piece);
+        if (ground == Integer.MIN_VALUE) return Result.fail("wait");
         c.reserveEntrances();
-        Random rnd = new Random(seed * 0x9E3779B97F4A7C15L + 0x4A9L);
-        W w = new W(c, e.ground(), rnd);
-        net.minecraft.world.level.block.Block canopy = com.yayuy.overgrownvegetation.registry.ModBlocks.GIANT_CANOPY_LEAVES.get();
-        net.minecraft.world.level.block.Block log = com.yayuy.overgrownvegetation.registry.ModBlocks.GIANT_OVERGROWN_LOG.get();
-        int total = 0;
-        List<StructureFusion.Hit> order = new ArrayList<>(hits);
-        java.util.Collections.shuffle(order, rnd); // 全部で hangsMax 本まで。どの家に垂らすかは片寄らせない
-        for (StructureFusion.Hit h : order) {
-            if (total >= t.hangsMax) break;
+        W w = new W(c, ground, rnd);
+        int top = topStruct(c, piece);
+        if (top == Integer.MIN_VALUE) return Result.fail("建物のブロックが無い");
+        int ht = (int) Math.round(Math.min(t.treeHeightMax, Math.max(t.treeHeightMin, (top - ground) * t.treeHeightMul + t.treeHeightAdd)));
+        int r0 = StructureFusion.span(piece) < 12 ? 2 : 3;
+        int crownR = (int) Math.round(Math.min(16, Math.max(9, 6 + ht * 0.18D)));
+        Anchor an = chooseAnchor(c, piece, rnd, t, null);
+        if (an == null) return Result.fail("根元が無い");
+        grow(w, piece, an, ht, r0, r0 * t.treeFlare, crownR, t);
+        // 近くの建物へ太い根(段 2b の抱える根を細くした物)
+        double[] pc = centerOf(piece);
+        List<BoundingBox> others = new ArrayList<>();
+        for (StructureFusion.Hit h : hits) {
             BoundingBox b = h.piece();
-            if (b.equals(e.host()) || !c.building(b)) continue;
-            List<int[]> cols = new ArrayList<>();
-            for (int x = b.minX(); x <= b.maxX(); x += 3) {
-                for (int z = b.minZ(); z <= b.maxZ(); z += 3) cols.add(new int[]{x, z});
-            }
-            java.util.Collections.shuffle(cols, rnd);
-            int n = 0;
-            for (int[] col : cols) {
-                if (n >= t.hangsPerPiece || total >= t.hangsMax) break;
-                int roof = Integer.MIN_VALUE;
-                for (int y = b.maxY(); y >= b.minY(); y--) {
-                    if (c.struct(col[0], y, col[1])) {
-                        roof = y;
-                        break;
-                    }
-                }
-                if (roof == Integer.MIN_VALUE) continue;
-                int y = roof + 1, limit = Math.min(level.getMaxBuildHeight() - 2, roof + 200);
-                boolean found = false;
-                while (y < limit && c.loaded(col[0], y, col[1])) {
-                    BlockState s = c.state(col[0], y, col[1]);
-                    if (s.is(canopy) || s.is(log)) {
-                        found = true;
-                        break;
-                    }
-                    if (!s.isAir()) break;
-                    y++;
-                }
-                if (!found || y - roof < 4) continue;
-                List<int[]> path = new ArrayList<>();
-                int cx = col[0], cz = col[1];
-                for (int yy = y - 1; yy > roof; yy--) {
-                    if (!w.open(cx, yy, cz)) break;
-                    path.add(new int[]{cx, yy, cz});
-                    if (rnd.nextDouble() < 0.06D) {
-                        if (rnd.nextBoolean()) cx += rnd.nextBoolean() ? 1 : -1;
-                        else cz += rnd.nextBoolean() ? 1 : -1;
-                    }
-                }
-                if (path.size() <= 3) continue;
-                int[] last = path.get(path.size() - 1);
-                Crawl o = new Crawl();
-                o.steps = 5 + rnd.nextInt(10);
-                o.sign = rnd.nextBoolean() ? 1 : -1;
-                o.upW = -0.8D;
-                o.wrapW = 0.6D;
-                o.noise = 0.9D;
-                o.ground = true;
-                o.center = new double[]{cx, cz};
-                crawl(w, last[0], last[1], last[2], o, path);
-                queueTube(w, path, 0.5D, 0.5D); // 細い 1 マスの気根
-                n++;
-                total++;
-            }
+            if (b.equals(piece)) continue;
+            double[] q = centerOf(b);
+            if (Math.hypot(q[0] - an.x, q[1] - an.z) >= t.mediumRootReach) continue;
+            if (!elongated(b) && !c.building(b)) continue;
+            others.add(b);
+        }
+        others.sort((p, q) -> {
+            double[] a = centerOf(p), b = centerOf(q);
+            return Double.compare(sq(a[0] - an.x) + sq(a[1] - an.z), sq(b[0] - an.x) + sq(b[1] - an.z));
+        });
+        for (int k = 0; k < others.size() && k < t.mediumRootTargets; k++) {
+            BoundingBox b = others.get(k);
+            double[] q = centerOf(b);
+            giantRoot(w, an.x, an.z, 1.5D, Math.atan2(q[1] - an.z, q[0] - an.x), t.mediumRootSteps, elongated(b) ? null : b,
+                    t.mediumRootStart, t.mediumRootEnd, t);
         }
         flushTubes(w);
-        return pack(w, "hang", e.origin(), 0);
+        if (w.planned.isEmpty()) return Result.fail("置ける所が無い");
+        String mode = an.inside ? "inside" : "top";
+        return new Result(pack(w, mode, new BlockPos(an.x, an.baseY, an.z), ht), mode);
     }
 
     // ---------------------------------------------------------------- 構造物の上・中に植わった苗の木(段 2b)

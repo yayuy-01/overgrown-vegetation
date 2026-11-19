@@ -31,8 +31,8 @@ public final class FusionTable {
         public Integer heightMin, heightMax, trunkMin, crownMin, crownMax, roots, bendEvery, openMin;
         public int[] trunkRadius, trunkRadiusBelow;
         public Integer scanChunks, scanTicks, blocksPerTick;
-        public Double hugOffset, giantRadius, hugRootStart, hugRootEnd, saplingTrunkRadius, saplingRootStart, saplingRootEnd;
-        public Integer hugRootSteps, hugRootsPerPiece, hugRootsPerWall, hugRootsMax, hangsPerPiece, hangsMax;
+        public Double mediumRootStart, mediumRootEnd, mediumRootReach, bigMantleMax, bigMantleBase, bigMantlePerSize, saplingTrunkRadius, saplingRootStart, saplingRootEnd;
+        public Integer mediumRootSteps, mediumRootTargets, mediumTreesPerHouses, mediumTreesMax, organsMax, collarMinHeight, bigVines;
         public Integer saplingHeightMin, saplingHeightMax, saplingCrown, saplingRoots;
     }
 
@@ -87,11 +87,13 @@ public final class FusionTable {
     public final double treeRootStart, treeRootEnd, treeRootletStart, treeRootletEnd;
     /** 生やすきっかけを見る: プレイヤーのまわり scanChunks チャンクを scanTicks ごと。置くのは 1 tick に blocksPerTick 個まで。 */
     public final int treeScanChunks, treeScanTicks, treeBlocksPerTick;
-    /** 大きい構造物の巨大樹(段 2b の A+B): 一番大きい建物の中心から戸口と逆へ「幹の半径 giantRadius × hugOffset」ずらした所が芯。 */
-    public final double hugOffset, giantRadius;
-    /** B: ほかの建物を抱える太い根(太さ hugRootStart → hugRootEnd・長さ hugRootSteps 歩・1 部品に hugRootsPerPiece 本、細長い部品は hugRootsPerWall 本・全部で hugRootsMax 本まで)と、屋根へ垂らす細い気根(1 部品に hangsPerPiece 本・全部で hangsMax 本まで。11-19 クライアントで 1 部品 6 本だと村が気根の簾になった)。 */
-    public final double hugRootStart, hugRootEnd;
-    public final int hugRootSteps, hugRootsPerPiece, hugRootsPerWall, hugRootsMax, hangsPerPiece, hangsMax;
+    /** 大きい構造物(段 2c、11-19 ユーザー「中くらいの木の根 + 器官が主役」。段 2b の A+B の巨大樹をやめた): 中くらいの木は家 mediumTreesPerHouses 軒に 1 本・mediumTreesMax 本まで。
+     *  近くの建物 mediumRootTargets 軒(mediumRootReach 以内)へ太い根(mediumRootStart → mediumRootEnd・mediumRootSteps 歩)。器官は全部で organsMax 個まで。 */
+    public final double mediumRootStart, mediumRootEnd, mediumRootReach;
+    public final int mediumRootSteps, mediumRootTargets, mediumTreesPerHouses, mediumTreesMax, organsMax;
+    /** 大きい器官の外套の厚さ Tmax = min(bigMantleMax, bigMantleBase + 長い辺 / bigMantlePerSize)・襟を巻く建物の高さ・縁から垂らす蔦の本数。 */
+    public final double bigMantleMax, bigMantleBase, bigMantlePerSize;
+    public final int collarMinHeight, bigVines;
     /** 構造物の上・中に植わった苗の木(段 2b): 高さ・幹の半径・樹冠・根の本数と太さ。幹が通らなければ育てない。 */
     public final int saplingHeightMin, saplingHeightMax, saplingCrown, saplingRoots;
     public final double saplingTrunkRadius, saplingRootStart, saplingRootEnd;
@@ -110,7 +112,7 @@ public final class FusionTable {
         wholeMediumSpan = Math.max(1, or(s.wholeMediumSpan, 18));
         wholeLargeSpan = Math.max(wholeMediumSpan, or(s.wholeLargeSpan, 40));
         wholeLargeArea = Math.max(1, or(s.wholeLargeArea, 2500));
-        structureWeight = three(j.structureWeight, new double[]{0.3D, 0.5D, 0.8D});
+        structureWeight = three(j.structureWeight, new double[]{0.5D, 0.8D, 1.2D}); // 段 2c で 0.3/0.5/0.8 から上げた(器官を構造物に集める)
         anchorWeights = new double[][]{three(a.small, new double[]{0.4D, 0.2D, 0.4D}), three(a.medium, new double[]{0.5D, 0.3D, 0.2D}),
                 three(a.large, new double[]{0.5D, 0.3D, 0.2D})};
         searchRadius = Math.max(4, Math.min(100, or(j.searchRadius, 24)));
@@ -154,16 +156,19 @@ public final class FusionTable {
         treeScanChunks = Math.max(1, Math.min(16, or(tj.scanChunks, 6)));
         treeScanTicks = Math.max(1, or(tj.scanTicks, 40));
         treeBlocksPerTick = Math.max(1, or(tj.blocksPerTick, 200));
-        hugOffset = Math.max(0.0D, Math.min(1.5D, or(tj.hugOffset, 0.55D)));
-        giantRadius = Math.max(2.0D, or(tj.giantRadius, 11.0D));
-        hugRootStart = Math.max(0.5D, or(tj.hugRootStart, 2.4D));
-        hugRootEnd = Math.max(0.5D, or(tj.hugRootEnd, 1.0D));
-        hugRootSteps = Math.max(10, Math.min(400, or(tj.hugRootSteps, 130)));
-        hugRootsPerPiece = Math.max(0, Math.min(6, or(tj.hugRootsPerPiece, 2)));
-        hugRootsPerWall = Math.max(0, Math.min(6, or(tj.hugRootsPerWall, 3)));
-        hugRootsMax = Math.max(0, Math.min(64, or(tj.hugRootsMax, 16)));
-        hangsPerPiece = Math.max(0, Math.min(32, or(tj.hangsPerPiece, 2)));
-        hangsMax = Math.max(0, Math.min(256, or(tj.hangsMax, 24)));
+        mediumRootStart = Math.max(0.5D, or(tj.mediumRootStart, 1.5D));
+        mediumRootEnd = Math.max(0.5D, or(tj.mediumRootEnd, 0.9D));
+        mediumRootReach = Math.max(4.0D, or(tj.mediumRootReach, 45.0D));
+        mediumRootSteps = Math.max(10, Math.min(300, or(tj.mediumRootSteps, 60)));
+        mediumRootTargets = Math.max(0, Math.min(8, or(tj.mediumRootTargets, 2)));
+        mediumTreesPerHouses = Math.max(1, or(tj.mediumTreesPerHouses, 3));
+        mediumTreesMax = Math.max(0, Math.min(8, or(tj.mediumTreesMax, 2)));
+        organsMax = Math.max(1, Math.min(64, or(tj.organsMax, 16)));
+        bigMantleMax = Math.max(1.0D, or(tj.bigMantleMax, 6.0D));
+        bigMantleBase = Math.max(0.0D, or(tj.bigMantleBase, 2.5D));
+        bigMantlePerSize = Math.max(1.0D, or(tj.bigMantlePerSize, 7.0D));
+        collarMinHeight = Math.max(2, or(tj.collarMinHeight, 12));
+        bigVines = Math.max(0, Math.min(40, or(tj.bigVines, 10)));
         saplingHeightMin = Math.max(4, or(tj.saplingHeightMin, 10));
         saplingHeightMax = Math.max(saplingHeightMin, Math.min(40, or(tj.saplingHeightMax, 18)));
         saplingCrown = Math.max(2, Math.min(12, or(tj.saplingCrown, 4)));

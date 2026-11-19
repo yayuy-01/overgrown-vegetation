@@ -623,15 +623,17 @@ public final class StructureFusionGameTests {
         helper.succeed();
     }
 
-    /** 大きい構造物の巨大樹(A+B): 一番大きい建物に芯を据え(戸口と逆へずらす)、部屋の中は空ける。ほかの建物へ太い根が登り、建物は変わらず、扉から入れる。 */
+    /** 段 2c: 大きい構造物(家 + 小屋 3 つ)には巨大樹を植えず、一番大きい建物に大きい器官、ほかの建物に小さい器官を 1 つずつ。中くらいの木が 1 本。 */
     @GameTest(template = "gametest_empty7", batch = "fusion", timeoutTicks = 200)
-    public static void largeStructureGiantGrowsFromBiggestBuilding(GameTestHelper helper) {
+    public static void largeStructureGetsOrgansAndMediumTree(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         Site s = prepare(level, 6_403_600, 6_400_000);
         List<BoundingBox> pieces = new ArrayList<>();
-        StructureTree.Plan roots = null;
+        ForestOrgans data = ForestOrgans.get(level);
+        StructureTrees trees = StructureTrees.get(level);
+        java.util.Set<Integer> before = new java.util.HashSet<>();
+        for (ForestOrgans.Organ o : data.organs()) before.add(o.id);
         try {
-            // 家(s.house、扉は南)を一番大きい建物にし、まわりに小屋を 3 つ
             pieces.add(s.house);
             BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
             int[][] huts = {{-26, -4}, {20, -4}, {-4, 22}};
@@ -646,37 +648,89 @@ public final class StructureFusionGameTests {
             register(s, BuiltinStructures.VILLAGE_PLAINS, pieces);
             StructureFusion.Site site = StructureFusion.at(level, new BlockPos(s.bx + 1, s.fy + 2, s.bz + 1)).site();
             helper.assertTrue(site.wholeClass() == StructureFusion.SizeClass.LARGE, "村が大でない: " + site.wholeClass());
-            StructureTree.Embed e = StructureTree.embedSite(level, site, 3L);
-            helper.assertTrue(e != null && e.host().equals(s.house), "一番大きい建物から生えない: " + (e == null ? null : e.host()));
-            // 扉は南(z 大)なので、芯は北(z 小)へずれる
-            helper.assertTrue(e.origin().getZ() < (s.house.minZ() + s.house.maxZ() + 1) / 2.0D, "芯が戸口と逆へずれていない: " + e.origin());
-            helper.assertTrue(e.origin().getY() == s.fy + 1, "芯が地面の上でない: " + e.origin());
-            it.unimi.dsi.fastutil.longs.LongOpenHashSet skip = StructureTree.hugSkip(level, site, e.origin(), 24.0D);
-            helper.assertTrue(skip.contains(BlockPos.asLong(s.bx + 3, s.fy + 2, s.bz + 3)), "部屋の中を空けない");
-            helper.assertTrue(skip.contains(s.door.offset(0, 0, 2).asLong()), "入口の通り道を空けない");
-            Map<BlockPos, BlockState> before = new HashMap<>();
-            for (BoundingBox b : pieces) before.putAll(snapshot(level, b.inflatedBy(1)));
-            roots = StructureTree.hugRoots(level, site, e, 3L);
-            int climbed = 0;
-            for (int i = 0; i < roots.pos().length; i++) {
-                BlockPos q = BlockPos.of(roots.pos()[i]);
-                for (BoundingBox h : pieces.subList(1, pieces.size())) {
-                    if (q.getX() >= h.minX() && q.getX() <= h.maxX() && q.getZ() >= h.minZ() && q.getZ() <= h.maxZ() && q.getY() > h.maxY()) climbed++;
+            int giantsBefore = com.yayuy.overgrownvegetation.worldgen.GiantTreeGrowthQueue.pendingJobs(level);
+            int jobsBefore = trees.pendingJobs();
+            BoundingBox area = site.surfaceWhole().inflatedBy(StructureFusion.table().treeCrownMax + 26);
+            for (int cx = area.minX() >> 4; cx <= area.maxX() >> 4; cx++) {
+                for (int cz = area.minZ() >> 4; cz <= area.maxZ() >> 4; cz++) level.getChunk(cx, cz); // 生やし始めはまわりの読み込みを待つ
+            }
+            StructureTrees.Start r = trees.start(level, site, true);
+            helper.assertTrue(r == StructureTrees.Start.STARTED, "生やし始めない: " + r);
+            helper.assertTrue(com.yayuy.overgrownvegetation.worldgen.GiantTreeGrowthQueue.pendingJobs(level) == giantsBefore, "大きい構造物に巨大樹を植えた");
+            int bigCount = 0, smallCount = 0;
+            boolean bigOnHouse = false;
+            for (ForestOrgans.Organ o : data.organs()) {
+                if (before.contains(o.id)) continue;
+                if (o.small) smallCount++;
+                else {
+                    bigCount++;
+                    bigOnHouse = s.house.inflatedBy(1).isInside(new BlockPos(o.x, s.house.minY(), o.z));
                 }
             }
-            helper.assertTrue(roots.pos().length > 0 && climbed > 0, "太い根が建物の屋根を越えない(根 " + roots.pos().length + "・屋根の上 " + climbed + ")");
-            StructureTrees.placeAllNow(level, roots);
-            String changed = changedSolid(level, before);
-            helper.assertTrue(changed == null, "建物のブロックが変わった: " + changed);
-            helper.assertTrue(walkIn(level, s), "入口から中へ歩いて入れない");
+            helper.assertTrue(bigCount == 1 && bigOnHouse, "一番大きい建物に大きい器官が 1 つ付かない(大 " + bigCount + "・家の上 " + bigOnHouse + ")");
+            helper.assertTrue(smallCount == 3, "ほかの建物に小さい器官が 1 つずつ付かない: " + smallCount);
+            helper.assertTrue(trees.pendingJobs() - jobsBefore == 1, "中くらいの木が 1 本でない: " + (trees.pendingJobs() - jobsBefore));
         } finally {
-            if (roots != null) {
-                for (long q : roots.pos()) {
-                    BlockPos b = BlockPos.of(q);
-                    if (level.getBlockState(b).is(com.yayuy.overgrownvegetation.registry.ModBlocks.GIANT_OVERGROWN_LOG.get())) level.setBlock(b, Blocks.AIR.defaultBlockState(), 2 | 16);
+            for (ForestOrgans.Organ o : new ArrayList<>(data.organs())) if (!before.contains(o.id)) data.remove(o.id);
+            trees.clearForTests();
+            for (BoundingBox b : pieces.subList(Math.min(1, pieces.size()), pieces.size())) clearBox(level, b);
+            s.cleanup();
+        }
+        helper.succeed();
+    }
+
+    /** 段 2c: 大きい器官は建物と融合する。外套は屋根の上で部屋の中に入らず、芯は天辺。建物は変わらず扉から入れ、枯れると外套・蔦・覆いが剥がれる。 */
+    @GameTest(template = "gametest_empty7", batch = "fusion", timeoutTicks = 200)
+    public static void bigOrganMantlesRoofAndPeelsOnWither(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Site s = prepare(level, 6_404_400, 6_400_000);
+        ForestOrgans data = ForestOrgans.get(level);
+        List<Integer> planted = new ArrayList<>();
+        try {
+            register(s, BuiltinStructures.VILLAGE_PLAINS, List.of(s.house));
+            Map<BlockPos, BlockState> before = snapshot(level, s.house.inflatedBy(1));
+            ForestOrgans.Organ o = data.plant(level, OrganKind.SAC, false, 0, 4321, 0, s.bx + 4, s.bz + 3);
+            planted.add(o.id);
+            int n = OrganWorld.buildNow(level, data, o);
+            helper.assertTrue(n > 0 && o.fusion != null, "建物の上の大きい器官が融合の形にならない(置いた " + n + ")");
+            BlockPos a = o.anchor();
+            int sacs = 0, cores = 0, coreTop = Integer.MIN_VALUE;
+            List<BlockPos> body = new ArrayList<>();
+            for (long e : o.fusion) {
+                int m = OrganBlueprint.material(e);
+                BlockPos q = a.offset(OrganBlueprint.dx(e), OrganBlueprint.dy(e), OrganBlueprint.dz(e));
+                if (m == OrganBlueprint.M_SAC || m == OrganBlueprint.M_CORE) {
+                    helper.assertTrue(q.getY() > s.house.maxY(), "外套が屋根より下(部屋の中か壁際)にある: " + q);
+                    body.add(q);
+                    if (m == OrganBlueprint.M_SAC) sacs++;
+                    else {
+                        cores++;
+                        coreTop = Math.max(coreTop, q.getY());
+                    }
                 }
             }
-            for (BoundingBox b : pieces.subList(Math.min(1, pieces.size()), pieces.size())) clearBox(level, b);
+            helper.assertTrue(sacs > 20 && cores > 0, "外套・芯が小さい(袋 " + sacs + "・芯 " + cores + ")");
+            int maxY = body.stream().mapToInt(BlockPos::getY).max().orElse(0);
+            helper.assertTrue(coreTop >= maxY - 1, "芯が外套の天辺に無い(芯 " + coreTop + "・天辺 " + maxY + ")");
+            helper.assertTrue(changedSolid(level, before) == null, "建物のブロックが変わった: " + changedSolid(level, before));
+            helper.assertTrue(walkIn(level, s), "入口から中へ歩いて入れない");
+            data.wither(level, o, "テスト");
+            o.witheredAt = PhaseData.clockNow(level) - (long) (StructureFusion.table().vineFadeSeconds * 20.0D) - 40L;
+            for (int k = 0; k < 400 && !o.fusionCleaned; k++) OrganWorld.step(level, data, o, PhaseData.clockNow(level), 100000);
+            helper.assertTrue(o.fusionCleaned, "枯れた後に片付けない");
+            for (BlockPos q : body) {
+                BlockState st = level.getBlockState(q);
+                helper.assertTrue(!(st.getBlock() instanceof OrganTissueBlock || st.getBlock() instanceof OrganCoreBlock), "枯れた後も外套が残る: " + q + " " + st);
+            }
+            helper.assertTrue(o.covered.isEmpty(), "覆いの記録が残る");
+            helper.assertTrue(changedSolid(level, before) == null, "片付けで建物のブロックが変わった");
+        } finally {
+            for (int id : planted) {
+                level.getEntities(OrganEntities.TENTACLE.get(), new net.minecraft.world.phys.AABB(s.bx - R, s.fy - 5, s.bz - R, s.bx + R, s.fy + 40, s.bz + R), e -> true)
+                        .forEach(net.minecraft.world.entity.Entity::discard);
+                data.remove(id);
+            }
+            clearBox(level, new BoundingBox(s.bx - 6, s.fy + 6, s.bz - 6, s.bx + 14, s.fy + 20, s.bz + 12));
             s.cleanup();
         }
         helper.succeed();

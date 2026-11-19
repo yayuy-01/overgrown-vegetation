@@ -99,7 +99,6 @@ public final class StructureTrees extends SavedData {
         if (!t.enabled || !t.treeEnabled) return;
         StructureTrees data = get(level);
         if (!data.jobs.isEmpty()) data.placeSome(level, t);
-        if (!HANGS.isEmpty() && level.getGameTime() % 100L == 0L) data.hangWhenGrown(level);
         if (level.getGameTime() % t.treeScanTicks != 0 || level.players().isEmpty()) return;
         data.scan(level, t);
     }
@@ -162,24 +161,7 @@ public final class StructureTrees extends SavedData {
         }
         long seed = k ^ level.getSeed();
         if (s.wholeClass() == StructureFusion.SizeClass.LARGE) {
-            // 段 2b(11-19 ユーザー決定 A+B): 一番大きい建物から生え(A)、ほかの建物を太い根で抱える(B)。段 2 の中庭の巨大樹を置き換えた
-            StructureTree.Embed e = StructureTree.embedSite(level, s, seed);
-            markDone(k);
-            if (e == null) {
-                OvergrownVegetation.LOGGER.info("StructureTrees: {} に巨大樹を生やせない(建物らしい部品が無い)", s.id());
-                return Start.GAVE_UP;
-            }
-            HUG_SKIPS.put(e.origin().asLong(), StructureTree.hugSkip(level, s, e.origin(), t.giantRadius * 1.6D + 6.0D));
-            courtyards.add(e.origin().asLong());
-            setDirty();
-            boolean ok = plantCourtyardGiant(level, e.origin(), seed);
-            if (ok) {
-                StructureTree.Plan roots = StructureTree.hugRoots(level, s, e, seed);
-                if (roots.pos().length > 0) jobs.add(new Job(k, roots.pos(), roots.mat(), 0));
-                HANGS.add(new Hang(k, e, seed, level.getGameTime()));
-            }
-            OvergrownVegetation.LOGGER.info("StructureTrees: {} の建物 {} から巨大樹(芯 {}): {}", s.id(), e.host(), e.origin(), ok ? "植えた" : "育たなかった");
-            return ok ? Start.STARTED : Start.GAVE_UP;
+            return startLarge(level, s, k, seed, t);
         }
         StructureTree.Result r = StructureTree.plan(level, s, seed);
         if (r.plan() == null) {
@@ -223,45 +205,100 @@ public final class StructureTrees extends SavedData {
         return false;
     }
 
-    /** 構造物から生える巨大樹の、幹の裾が置かないマス(部屋の中・入口)。芯の位置ごと。巨大樹の設置と同じく保存しない。 */
-    private static final java.util.Map<Long, LongOpenHashSet> HUG_SKIPS = new java.util.HashMap<>();
+    /** 段 2c で構造物に植えた器官(司令塔の予算を払っていない。建てないときに値段を返さない)。保存しない(建てる・やめるの判定はすぐ済む)。 */
+    private static final it.unimi.dsi.fastutil.ints.IntOpenHashSet PLANTED = new it.unimi.dsi.fastutil.ints.IntOpenHashSet();
 
-    /** 巨大樹が育ち終わったら垂らす気根の予定(保存しない)。 */
-    private record Hang(long site, StructureTree.Embed e, long seed, long since) {
+    public static boolean planted(int organId) {
+        return PLANTED.contains(organId);
     }
 
-    private static final List<Hang> HANGS = new ArrayList<>();
+    private static double[] centerOf(BoundingBox b) {
+        return new double[]{(b.minX() + b.maxX() + 1) / 2.0D, (b.minZ() + b.maxZ() + 1) / 2.0D};
+    }
 
-    /** GiantTreeGrowthQueue が仕事を作るときに 1 回: 幹の最初のマスから 40 以内の芯の「置かないマス」。 */
-    @Nullable
-    public static LongOpenHashSet hugSkipAt(ServerLevel level, BlockPos trunk) {
-        for (java.util.Map.Entry<Long, LongOpenHashSet> en : HUG_SKIPS.entrySet()) {
-            BlockPos p = BlockPos.of(en.getKey());
-            double dx = p.getX() - trunk.getX(), dz = p.getZ() - trunk.getZ();
-            if (dx * dx + dz * dz <= 40.0D * 40.0D) return en.getValue();
+    /**
+     * 段 2c(11-19 ユーザー「構造物は巨大樹ではなく、中くらいの木によって根に覆われる感じに。器官と融合するのがメイン」。段 2b の A+B の巨大樹をやめた):
+     * 一番大きい建物(細長い部品を除く体積最大)に大きい器官、ほかの建物に小さい器官を 1 つずつ(大きい建物に近い順)、城壁など細長い部品に 2 つ。
+     * 全部で organsMax 個まで。中くらいの木を家 mediumTreesPerHouses 軒に 1 本(mediumTreesMax 本まで)、大きい器官の付いていない大きめの建物から。
+     */
+    private Start startLarge(ServerLevel level, StructureFusion.Site s, long k, long seed, FusionTable t) {
+        List<StructureFusion.Hit> hits = StructureFusion.hits(s);
+        OrganFusion.Ctx c = new OrganFusion.Ctx(level, hits, t);
+        List<BoundingBox> houses = new ArrayList<>(), walls = new ArrayList<>();
+        for (StructureFusion.Hit h : hits) {
+            BoundingBox b = h.piece();
+            if ((long) b.getXSpan() * b.getYSpan() * b.getZSpan() > 400_000L || !c.building(b)) continue;
+            if (StructureTree.elongated(b)) walls.add(b);
+            else houses.add(b);
         }
-        return null;
-    }
-
-    /** 巨大樹の設置が全部終わってから、気根を作って積む。 */
-    private void hangWhenGrown(ServerLevel level) {
-        if (HANGS.isEmpty() || com.yayuy.overgrownvegetation.worldgen.GiantTreeGrowthQueue.pendingJobs(level) > 0) return;
-        long now = level.getGameTime();
-        for (java.util.Iterator<Hang> it = HANGS.iterator(); it.hasNext(); ) {
-            Hang h = it.next();
-            if (now - h.since() < 200L) continue;
-            BoundingBox hb = h.e().host();
-            StructureFusion.Site[] ss = StructureFusion.sitesAt(level, ((hb.minX() + hb.maxX()) >> 1) >> 4, ((hb.minZ() + hb.maxZ()) >> 1) >> 4);
-            if (ss == null) continue; // 読み込まれていない。また見る
-            it.remove();
-            for (StructureFusion.Site s : ss) {
-                if (key(s) != h.site()) continue;
-                StructureTree.Plan p = StructureTree.hangRoots(level, s, h.e(), h.seed());
-                if (p.pos().length > 0) jobs.add(new Job(h.site(), p.pos(), p.mat(), 0));
-                OvergrownVegetation.LOGGER.info("StructureTrees: {} の巨大樹の気根 {} 個", s.id(), p.pos().length);
+        markDone(k);
+        if (houses.isEmpty() && walls.isEmpty()) {
+            OvergrownVegetation.LOGGER.info("StructureTrees: {} に器官を付けられない(建物らしい部品が無い)", s.id());
+            return Start.GAVE_UP;
+        }
+        houses.sort((p, q) -> Long.compare((long) q.getXSpan() * q.getYSpan() * q.getZSpan(), (long) p.getXSpan() * p.getYSpan() * p.getZSpan()));
+        java.util.Random rnd = new java.util.Random(seed);
+        ForestOrgans data = ForestOrgans.get(level);
+        int organs = 0;
+        BoundingBox big = houses.isEmpty() ? null : houses.get(0);
+        double[] bc = centerOf(big != null ? big : walls.get(0));
+        if (big != null) {
+            ForestOrgans.Organ o = data.plant(level, OrganKind.SAC, false, 0, rnd.nextInt(), rnd.nextInt(4), (int) Math.floor(bc[0]), (int) Math.floor(bc[1]));
+            PLANTED.add(o.id);
+            organs++;
+        }
+        List<BoundingBox> rest = new ArrayList<>(houses.subList(Math.min(1, houses.size()), houses.size()));
+        rest.sort((p, q) -> {
+            double[] a = centerOf(p), b = centerOf(q);
+            return Double.compare(Math.hypot(a[0] - bc[0], a[1] - bc[1]), Math.hypot(b[0] - bc[0], b[1] - bc[1]));
+        });
+        int kind = 0;
+        for (BoundingBox b : rest) {
+            if (organs >= t.organsMax) break;
+            int[] at = outside(b, bc, rnd, 0.5D);
+            ForestOrgans.Organ o = data.plant(level, kind++ % 2 == 0 ? OrganKind.TOWER : OrganKind.SAC, true, 0, rnd.nextInt(), rnd.nextInt(4), at[0], at[1]);
+            PLANTED.add(o.id);
+            organs++;
+        }
+        for (BoundingBox w : walls) {
+            for (int j = 0; j < 2 && organs < t.organsMax; j++) {
+                int[] at = outside(w, bc, rnd, (j + 1) / 3.0D);
+                ForestOrgans.Organ o = data.plant(level, kind++ % 2 == 0 ? OrganKind.TOWER : OrganKind.SAC, true, 0, rnd.nextInt(), rnd.nextInt(4), at[0], at[1]);
+                PLANTED.add(o.id);
+                organs++;
             }
-            setDirty();
         }
+        // 中くらいの木: 大きい器官の付いていない大きめの建物から(建物が 1 つしか無ければ生やさない。仮)
+        int nTree = Math.max(1, Math.min(t.mediumTreesMax, (int) Math.round(houses.size() / (double) t.mediumTreesPerHouses)));
+        int trees = 0, blocks = 0;
+        for (int i = 1; i < houses.size() && trees < nTree; i++) {
+            StructureTree.Result r = StructureTree.planOnPiece(level, s, houses.get(i), seed ^ (i * 0x9E37L));
+            if (r.plan() == null) continue;
+            jobs.add(new Job(k, r.plan().pos(), r.plan().mat(), 0));
+            trees++;
+            blocks += r.plan().pos().length;
+        }
+        setDirty();
+        OvergrownVegetation.LOGGER.info("StructureTrees: {}(大)に器官 {} 個(大きい器官 {}・城壁 {} 本)・中くらいの木 {} 本({} 個)", s.id(), organs,
+                big != null ? big : "無し", walls.size(), trees, blocks);
+        return Start.STARTED;
+    }
+
+    /** 部品の外のそば(大きい建物から離れる向き、長い辺に沿って frac の所から外へ 3)。器官はここから一番近い建物に融合する。 */
+    private static int[] outside(BoundingBox b, double[] from, java.util.Random rnd, double frac) {
+        double[] c = centerOf(b);
+        double ux = c[0] - from[0], uz = c[1] - from[1], l = Math.hypot(ux, uz);
+        if (l < 1.0E-3D) {
+            double a = rnd.nextDouble() * Math.PI * 2.0D;
+            ux = Math.cos(a);
+            uz = Math.sin(a);
+            l = 1.0D;
+        }
+        ux /= l;
+        uz /= l;
+        double half = Math.abs(ux) * b.getXSpan() / 2.0D + Math.abs(uz) * b.getZSpan() / 2.0D;
+        double alongX = b.getXSpan() >= b.getZSpan() ? (frac - 0.5D) * b.getXSpan() : 0.0D, alongZ = b.getXSpan() < b.getZSpan() ? (frac - 0.5D) * b.getZSpan() : 0.0D;
+        return new int[]{(int) Math.floor(c[0] + alongX + ux * (half + 3.0D)), (int) Math.floor(c[1] + alongZ + uz * (half + 3.0D))};
     }
 
     // ---------------------------------------------------------------- 置く

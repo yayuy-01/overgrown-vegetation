@@ -132,14 +132,10 @@ public final class GiantTreeGrowthQueue {
 
         /** 大きい構造物の中庭の巨大樹(構造物の部品の箱の中の空気と草花のマスにも置く。構造物と森の融合 段 2)。 */
         final boolean courtyard;
-        /** 構造物から生える巨大樹(段 2b)が置かないマス(部屋の中・入口の通り道)。無ければ null。 */
-        @javax.annotation.Nullable
-        final it.unimi.dsi.fastutil.longs.LongOpenHashSet hugSkip;
 
         Job(ServerLevel level, GiantTreeFeature.Plan plan) {
             this.level = level;
             this.courtyard = !plan.trunk.isEmpty() && com.yayuy.overgrownvegetation.organ.StructureTrees.courtyardAt(level, BlockPos.of(plan.trunk.getLong(0)));
-            this.hugSkip = this.courtyard ? com.yayuy.overgrownvegetation.organ.StructureTrees.hugSkipAt(level, BlockPos.of(plan.trunk.getLong(0))) : null;
             this.trunkState = plan.trunkState;
             this.cambiumState = plan.cambiumState;
             this.chlorophylliteOreState = plan.chlorophylliteOreState;
@@ -397,8 +393,7 @@ public final class GiantTreeGrowthQueue {
                 if (edge == ChunkEdgeGuard.Edge.WAIT) break;
                 if (edge == ChunkEdgeGuard.Edge.READY && !TreePlacementRules.treeKeeps(serverLevel.getBlockState(cursorPos))
                         && !com.yayuy.overgrownvegetation.corruption.pushback.RingWards.guardedFrom(serverLevel, job.trunk.isEmpty() ? null : BlockPos.of(job.trunk.getLong(0)), cursorPos)
-                        && (!com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(serverLevel, cursorPos) || job.courtyard && airOrPlant(serverLevel.getBlockState(cursorPos)))
-                        && (job.hugSkip == null || !job.hugSkip.contains(cursorPos.asLong()))) { // 構造物の部品の箱には置かない(11-19 融合 段 1)。中庭の巨大樹だけは箱の中の空気と草花のマスに置く(段 2) // 根付いた萌芽体は残す。帯の線の向こう・杭の範囲には置かない(押し返し 11-18 夜)
+                        && (!com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(serverLevel, cursorPos) || job.courtyard && airOrPlant(serverLevel.getBlockState(cursorPos)))) { // 構造物の部品の箱には置かない(11-19 融合 段 1)。中庭の巨大樹だけは箱の中の空気と草花のマスに置く(段 2) // 根付いた萌芽体は残す。帯の線の向こう・杭の範囲には置かない(押し返し 11-18 夜)
                     serverLevel.setBlock(cursorPos.immutable(), state, UPDATE_FLAGS);
                 }
                 job.cursor++;
