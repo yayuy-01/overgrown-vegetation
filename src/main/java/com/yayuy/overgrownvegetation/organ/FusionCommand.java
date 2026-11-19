@@ -19,6 +19,7 @@ import java.util.List;
  * 構造物と森の融合の確かめ用(2026-11-19 段 2)。{@code /ov perf organ fusion ...}(/ov perf の下の枝は決まった一覧なので、器官の枝に足す)(権限 2)。
  * <ul>
  *   <li>{@code fusion sites} — まわり 64 ブロックの構造物(種類・全体の段・地表の箱・木が済みか)。</li>
+ *   <li>{@code fusion count [半径]} — まわり(既定 96)の乗っ取りの器官(小・大)・司令塔の器官・守りの印の Mob の数(11-20)。</li>
  *   <li>{@code fusion cleanup [半径]} — まわり(既定 48)の構造物のそばで、支えの無い汚染の原木・葉の塊(浮いた木)を消す。{@code cleanup check [半径]} は数えるだけ(段 2b)。</li>
  * </ul>
  */
@@ -35,6 +36,10 @@ public final class FusionCommand {
                         .then(Commands.literal("organ")
                                 .then(Commands.literal("fusion")
                                         .then(Commands.literal("sites").executes(ctx -> sites(ctx.getSource())))
+                                        .then(Commands.literal("count")
+                                                .executes(ctx -> count(ctx.getSource(), 96))
+                                                .then(Commands.argument("radius", com.mojang.brigadier.arguments.IntegerArgumentType.integer(8, 512))
+                                                        .executes(ctx -> count(ctx.getSource(), com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "radius")))))
                                         .then(Commands.literal("takeover")
                                                 .executes(ctx -> takeover(ctx.getSource(), 20, 2))
                                                 .then(Commands.argument("count", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 2000))
@@ -50,6 +55,31 @@ public final class FusionCommand {
                                                                 .executes(ctx -> cleanup(ctx.getSource(), com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "radius"), true))))
                                                 .then(Commands.argument("radius", com.mojang.brigadier.arguments.IntegerArgumentType.integer(4, 128))
                                                         .executes(ctx -> cleanup(ctx.getSource(), com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "radius"), false))))))));
+    }
+
+    /** まわり radius ブロック(横)の器官の数(乗っ取りの小・大/司令塔の器官)と、守りの印の Mob の数(20 構造物の調べ 11-20)。 */
+    private static int count(CommandSourceStack src, int radius) {
+        ServerLevel level = src.getLevel();
+        BlockPos at = BlockPos.containing(src.getPosition());
+        int tkSmall = 0, tkBig = 0, other = 0, guardsWanted = 0;
+        long r2 = (long) radius * radius;
+        for (ForestOrgans.Organ o : ForestOrgans.get(level).organs()) {
+            long dx = o.x - at.getX(), dz = o.z - at.getZ();
+            if (dx * dx + dz * dz > r2) continue;
+            if (o.takeover == null) {
+                other++;
+                continue;
+            }
+            if (o.small) tkSmall++;
+            else tkBig++;
+            guardsWanted += OrganRoles.takeoverGuards(o);
+        }
+        int guards = level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, new net.minecraft.world.phys.AABB(at).inflate(radius, 96.0D, radius),
+                m -> m.getTags().contains(OrganWorld.GUARD_TAG)).size();
+        int a = tkSmall, b = tkBig, c = other, w = guardsWanted;
+        src.sendSuccess(() -> Component.literal(String.format(java.util.Locale.ROOT,
+                "FUSION_COUNT 半径 %d: 乗っ取りの器官 小 %d・大 %d(守りの決まり %d 体)・司令塔の器官 %d・守りの印の Mob %d 体", radius, a, b, w, c, guards)), false);
+        return a + b;
     }
 
     private static List<StructureFusion.Site> near(ServerLevel level, BlockPos at, int r) {
