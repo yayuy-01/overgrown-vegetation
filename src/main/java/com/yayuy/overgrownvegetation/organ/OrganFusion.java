@@ -148,11 +148,7 @@ public final class OrganFusion {
 
         /** 地面・地形のブロック(部品の箱に入っていても建物と数えない。村の道の部品は地面ごと箱に入る)。 */
         static boolean natural(BlockState s) {
-            return s.is(BlockTags.DIRT) || s.is(BlockTags.BASE_STONE_OVERWORLD) || s.is(BlockTags.SAND) || s.is(net.minecraft.world.level.block.Blocks.GRAVEL)
-                    || s.is(net.minecraft.world.level.block.Blocks.DIRT_PATH) || s.is(net.minecraft.world.level.block.Blocks.FARMLAND) || s.is(BlockTags.SNOW)
-                    || s.is(BlockTags.LEAVES) || s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_GRASS_BLOCK.get())
-                    || s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_DIRT.get()) || s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_STONE.get())
-                    || !s.getFluidState().isEmpty();
+            return StructureFusion.isTerrain(s);
         }
 
         /** 建物らしい部品か(建材が {@value #BUILDING_BLOCKS} 個以上)。道・畑の部品には根元を付けない。 */

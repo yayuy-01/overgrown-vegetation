@@ -285,6 +285,41 @@ public final class StructureFusionGameTests {
         helper.succeed();
     }
 
+    /**
+     * 汚染は構造物の部品の箱の中を置き換えず、記録で覆う(11-19 決め A)。地形(土・石)は覆いの記録と両立しないのでそのまま残す。中身のあるチェストは今まで通り止める。
+     * 箱の外の石は今まで通り置き換わる。
+     */
+    @GameTest(template = "gametest_empty7", batch = "fusion", timeoutTicks = 100)
+    public static void corruptionOnlyCoversInsideStructure(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Site s = prepare(level, 6_401_600, 6_400_000);
+        try {
+            register(s, BuiltinStructures.VILLAGE_PLAINS, List.of(s.house));
+            RandomSource r = RandomSource.create(1L);
+            BlockPos wall = new BlockPos(s.bx + 2, s.fy + 2, s.bz), plank = new BlockPos(s.bx + 3, s.fy + 5, s.bz + 3);
+            BlockPos dirt = new BlockPos(s.bx + 3, s.fy + 1, s.bz + 3), chest = new BlockPos(s.bx + 5, s.fy + 1, s.bz + 3);
+            level.setBlock(dirt, Blocks.DIRT.defaultBlockState(), 2);
+            level.setBlock(chest, Blocks.CHEST.defaultBlockState(), 2);
+            for (BlockPos p : List.of(wall, plank, dirt)) {
+                BlockState before = level.getBlockState(p);
+                BlockState after = com.yayuy.overgrownvegetation.corruption.CorruptionRegistry.corrupt(level, p, before, r);
+                helper.assertTrue(after == before, "構造物の中の " + before + " を置き換えようとした: " + after);
+                if (p != dirt) helper.assertTrue(OvergrownLayerData.isCovered(level, p), "構造物の中の " + before + " が覆われない");
+                else helper.assertTrue(!OvergrownLayerData.isCovered(level, p), "構造物の中の地形(土)を覆った(地形はそのまま残す)");
+            }
+            BlockState chestAfter = com.yayuy.overgrownvegetation.corruption.CorruptionRegistry.corrupt(level, chest, level.getBlockState(chest), r);
+            helper.assertTrue(chestAfter != level.getBlockState(chest), "構造物の中のチェストが今まで通り止まらない");
+            BlockPos outside = new BlockPos(s.bx - 10, s.fy, s.bz - 10);
+            BlockState stone = level.getBlockState(outside);
+            BlockState stoneAfter = com.yayuy.overgrownvegetation.corruption.CorruptionRegistry.corrupt(level, outside, stone, r);
+            helper.assertTrue(stoneAfter != stone, "構造物の外の石が置き換わらない");
+            for (BlockPos p : List.of(wall, plank, dirt)) OvergrownLayerData.uncover(level, p);
+        } finally {
+            s.cleanup();
+        }
+        helper.succeed();
+    }
+
     // ---------------------------------------------------------------- 器官の融合
 
     /** 壁の根元から斜めに生える(柄の付け根は壁に接し、芯は壁から離れて高い所)。建物のブロックは変わらない。 */

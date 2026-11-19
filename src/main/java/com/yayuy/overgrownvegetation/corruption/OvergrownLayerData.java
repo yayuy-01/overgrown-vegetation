@@ -113,7 +113,7 @@ public final class OvergrownLayerData {
         if (set == null || set.isEmpty() || !set.contains(pos.asLong())) {
             return false;
         }
-        if (canCover(state)) {
+        if (canCoverInStructure(state)) { // 11-19: 構造物の箱の中で覆った土・草・石も(決め A)
             return true;
         }
         // 記録は残っているが、そこにあるブロックはもう覆われる資格が無い(壊して置き直された)。
@@ -150,6 +150,19 @@ public final class OvergrownLayerData {
         // 建築タブのブロック(板材・原木・階段など対応表にあるものも)は 2026-10-30 から元のまま記録で覆う(CorruptionRegistry#coversInPlace)
         // ネザーの地面(ネザーラック・ソウルサンドなど・搾られた岩・泥炭)は行き先があっても覆う(2026-11-11 ネザーの覆い。ネザーでは汚染が置き換えない)
         return CorruptionRegistry.hasNoCorruptedForm(state) || CorruptionRegistry.coversInPlace(state) || state.is(ModTags.NETHER_COVERABLE);
+    }
+
+    /**
+     * 構造物の部品の箱の中で覆えるブロック(11-19 構造物と森の融合 決め A)。{@link #canCover} より広く、汚染の行き先がある土・草・石なども入る
+     * (箱の中は置き換えずに覆うため)。記録は構造物の箱の中でしか作らないので、読むときの資格({@link #isCovered})はこちらで見る。
+     */
+    public static boolean canCoverInStructure(BlockState state) {
+        if (canCover(state)) return true;
+        if (state.isAir() || state.hasBlockEntity() && !SpawnerCorruption.isSpawner(state) || state.getRenderShape() != RenderShape.MODEL) return false;
+        if (state.is(ModTags.CORRUPTED) || state.is(ModTags.CORRUPTION_IMMUNE)) return false;
+        if (MeltedIce.isIce(state)) return false;
+        if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.isTerrain(state)) return false;
+        return state.getBlock().defaultDestroyTime() >= 0.0F;
     }
 
     // --- 書く(サーバー) ---

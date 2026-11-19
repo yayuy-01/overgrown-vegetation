@@ -197,6 +197,19 @@ public final class StructureFusion {
         return false;
     }
 
+    /**
+     * 地面・地形のブロック(部品の箱に入っていても建物と数えない・汚染の覆いにしない)。村の道の部品は地面ごと箱に入る。
+     * 覆いの記録は「石・土に置き直したら消える」決まりなので、箱の中の地形は覆わずそのまま残す(11-19 決め A)。
+     */
+    public static boolean isTerrain(net.minecraft.world.level.block.state.BlockState s) {
+        return s.is(net.minecraft.tags.BlockTags.DIRT) || s.is(net.minecraft.tags.BlockTags.BASE_STONE_OVERWORLD) || s.is(net.minecraft.tags.BlockTags.SAND)
+                || s.is(net.minecraft.world.level.block.Blocks.GRAVEL) || s.is(net.minecraft.world.level.block.Blocks.DIRT_PATH)
+                || s.is(net.minecraft.world.level.block.Blocks.FARMLAND) || s.is(net.minecraft.tags.BlockTags.SNOW) || s.is(net.minecraft.tags.BlockTags.LEAVES)
+                || s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_GRASS_BLOCK.get())
+                || s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_DIRT.get()) || s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_STONE.get())
+                || !s.getFluidState().isEmpty();
+    }
+
     // ---------------------------------------------------------------- 大きさの段
 
     /** 長い辺 = 横の長い辺か高さの大きい方(11-19 全体管理: 塔は横 11・高さ 23 なので横だけだと小になる)。 */
