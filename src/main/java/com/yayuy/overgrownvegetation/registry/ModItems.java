@@ -242,6 +242,10 @@ public final class ModItems {
     public static final DeferredItem<com.yayuy.overgrownvegetation.item.ProtectiveMaskItem> PROTECTIVE_MASK = ITEMS.registerItem(
             "protective_mask", com.yayuy.overgrownvegetation.item.ProtectiveMaskItem::new, new Item.Properties().stacksTo(1));
 
+    /** 「感染の試し棒」— 確かめ用(2026-11-19。殴ると感染の死で即死させ、汎用の感染体・G1 のどちらになったかを出す。レシピ無し)。中身は infect/InfectionProbe。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.item.InfectionProbeItem> INFECTION_PROBE = ITEMS.registerItem(
+            "infection_probe", com.yayuy.overgrownvegetation.item.InfectionProbeItem::new, new Item.Properties().stacksTo(1));
+
     public static void register(IEventBus modBus) {
         // 消した壁の植物(2026-11-08)のアイテムも新しい植物へ写す(ModBlocks#register の別名と同じ組)
         ITEMS.addAlias(OvergrownVegetation.id("overgrown_creeping_vine"), OvergrownVegetation.id("wall_lycopsid"));

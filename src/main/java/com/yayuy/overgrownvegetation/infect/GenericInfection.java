@@ -89,10 +89,42 @@ public final class GenericInfection {
     }
 
     private static boolean canTurnIgnoringLife(LivingEntity entity) {
-        GenericInfectionSpec s = spec();
-        if (!s.enabled() || !(entity instanceof Mob) || entity instanceof Player || entity.isRemoved()) return false;
-        if (SporeExposureTracker.isPlantSide(entity) || G1Species.ofVictim(entity) != null) return false;
-        return !s.excludedEntities().contains(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString());
+        return refusal(entity, spec()) == null;
+    }
+
+    /**
+     * なれない理由({@link #canTurn} の中身。2026-11-19 感染の試し棒が理由を出すために分けた —— 判定と理由がずれないよう、判定はこれだけを見る)。
+     * {@link #PEACEFUL}・{@link #ALREADY_TURNED} は死の所({@link #deathTurnRefusal})だけの理由。
+     */
+    public enum Refusal {
+        DISABLED, NOT_MOB, PLAYER, REMOVED, PLANT_SIDE, HAS_G1, EXCLUDED, PEACEFUL, ALREADY_TURNED;
+
+        /** 言語の鍵の末尾(例 {@code has_g1})。 */
+        public String key() {
+            return name().toLowerCase(java.util.Locale.ROOT);
+        }
+    }
+
+    /** なれない理由(生きているかは見ない)。なれるなら null。{@code s} は設計値(GameTest から別の値を渡せる)。 */
+    @javax.annotation.Nullable
+    public static Refusal refusal(LivingEntity entity, GenericInfectionSpec s) {
+        if (!s.enabled()) return Refusal.DISABLED;
+        if (entity instanceof Player) return Refusal.PLAYER;
+        if (!(entity instanceof Mob)) return Refusal.NOT_MOB;
+        if (entity.isRemoved()) return Refusal.REMOVED;
+        if (SporeExposureTracker.isPlantSide(entity)) return Refusal.PLANT_SIDE;
+        if (G1Species.ofVictim(entity) != null) return Refusal.HAS_G1;
+        if (s.excludedEntities().contains(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString())) return Refusal.EXCLUDED;
+        return null;
+    }
+
+    /** 感染の死の所で変わらない理由({@link #onDeathTurn} の判定。感染の死かどうかは見ない)。変わるなら null。 */
+    @javax.annotation.Nullable
+    public static Refusal deathTurnRefusal(LivingEntity entity) {
+        if (entity instanceof Player) return Refusal.PLAYER;
+        if (isTurned(entity)) return Refusal.ALREADY_TURNED;
+        if (entity.level().getDifficulty() == Difficulty.PEACEFUL) return Refusal.PEACEFUL;
+        return refusal(entity, spec());
     }
 
     /** ボスとして扱う種か(タグ {@code c:bosses} か、{@code bossEntities})。 */
@@ -171,9 +203,8 @@ public final class GenericInfection {
     public static void onDeathTurn(LivingDeathEvent event) {
         if (event.isCanceled()) return;
         LivingEntity entity = event.getEntity();
-        if (!(entity.level() instanceof ServerLevel level) || entity instanceof Player) return;
-        if (isTurned(entity) || level.getDifficulty() == Difficulty.PEACEFUL) return;
-        if (!G1Infection.isInfectionDeath(entity, event.getSource()) || !canTurnIgnoringLife(entity)) return;
+        if (!(entity.level() instanceof ServerLevel) || deathTurnRefusal(entity) != null) return;
+        if (!G1Infection.isInfectionDeath(entity, event.getSource())) return;
         event.setCanceled(true);
         entity.setHealth(1.0F); // 死なずに済んだ(この後 applyHealth で満タン)
         doTurn((Mob) entity, false);

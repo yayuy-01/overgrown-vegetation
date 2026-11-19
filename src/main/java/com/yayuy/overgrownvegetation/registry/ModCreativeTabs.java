@@ -183,6 +183,7 @@ public final class ModCreativeTabs {
                         com.yayuy.overgrownvegetation.registry.ModExpedition.acceptItems(output); // 遠征の見返りと手当て(2026-11-16 段 4)
                         com.yayuy.overgrownvegetation.gear.ModGear.acceptItems(output); // 強くなる道 段 1・段 2(2026-11-17)
                         com.yayuy.overgrownvegetation.registry.ModResearch.acceptItems(output); // 研究台・器具(2026-11-17)
+                        output.accept(ModItems.INFECTION_PROBE.get()); // 感染の試し棒(2026-11-19 確かめ用)
 
                     })
                     .build());
