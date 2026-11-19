@@ -133,8 +133,8 @@
       "saplingTrunkRadius": 1.0,
       "saplingCrown": 4,
       "saplingRoots": 4,
-      "saplingRootStart": 1.0,
-      "saplingRootEnd": 0.95,
+      "saplingRootStart": 0.9,
+      "saplingRootEnd": 0.6,
       "breakMax": 4,
       "climbRoots": 2
     },

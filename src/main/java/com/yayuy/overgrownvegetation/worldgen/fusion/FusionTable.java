@@ -137,8 +137,8 @@ public final class FusionTable {
         saplingCrown = Math.max(2, Math.min(12, or(tj.saplingCrown, 4)));
         saplingRoots = Math.max(0, Math.min(12, or(tj.saplingRoots, 4)));
         saplingTrunkRadius = Math.max(0.5D, Math.min(3.0D, or(tj.saplingTrunkRadius, 1.0D)));
-        saplingRootStart = Math.max(0.5D, or(tj.saplingRootStart, 1.0D));
-        saplingRootEnd = Math.max(0.5D, or(tj.saplingRootEnd, 0.95D));
+        saplingRootStart = Math.max(0.5D, or(tj.saplingRootStart, 0.9D)); // 11-20 ユーザー「ちょいと根が太すぎるかも」で 1.0 から
+        saplingRootEnd = Math.max(0.5D, or(tj.saplingRootEnd, 0.6D)); // 同 0.95 から(先は 1 マスの筋になる)
         treeBreakMax = Math.max(0, Math.min(16, or(tj.breakMax, 4)));
         treeClimbRoots = Math.max(0, Math.min(8, or(tj.climbRoots, 2)));
         TakeoverJson ko = j.takeover != null ? j.takeover : new TakeoverJson();
