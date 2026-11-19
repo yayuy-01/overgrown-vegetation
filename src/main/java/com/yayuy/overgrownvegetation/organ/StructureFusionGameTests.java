@@ -568,38 +568,146 @@ public final class StructureFusionGameTests {
         helper.succeed();
     }
 
-    /** 大きい構造物(家 4 軒の村)の巨大樹は、中庭・広場(建物のブロックから一番離れた所)に植える。 */
+    /** 屋根の上の苗は、構造物に合わせた木になる(幹は屋根から切れずに伸び、根は壁を伝って地面へ。建物は変わらず、扉から入れる)。 */
     @GameTest(template = "gametest_empty7", batch = "fusion", timeoutTicks = 100)
-    public static void largeStructurePlantsGiantInCourtyard(GameTestHelper helper) {
+    public static void saplingOnRoofGrowsWholeTree(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         Site s = prepare(level, 6_402_800, 6_400_000);
-        List<BoundingBox> houses = new ArrayList<>();
+        StructureFusion.Query q = null;
+        BlockPos origin = new BlockPos(s.bx + 4, s.fy + 6, s.bz + 3);
+        StructureTree.Plan plan = null;
         try {
-            clearBox(level, new BoundingBox(s.house.minX() - 1, s.fy + 1, s.house.minZ() - 1, s.house.maxX() + 1, s.house.maxY() + 1, s.house.maxZ() + 1)); // 床(fy)は残す
-            int cx = s.bx, cz = s.bz;
-            int[][] corners = {{-28, -28}, {20, -28}, {-28, 20}, {20, 20}};
+            register(s, BuiltinStructures.VILLAGE_PLAINS, List.of(s.house));
+            Map<BlockPos, BlockState> before = snapshot(level, s.house.inflatedBy(1));
+            q = StructureFusion.near(level, new BoundingBox(origin).inflatedBy(14));
+            plan = StructureTree.saplingTree(level, origin, q.hits(), 91L, StructureFusion.table());
+            helper.assertTrue(plan != null, "屋根の上の苗が育たない");
+            // 幹は苗の場所から上へ切れずに続く(浮かない)
+            java.util.Set<Integer> trunkYs = new java.util.HashSet<>();
+            boolean rootLow = false;
+            for (int i = 0; i < plan.pos().length; i++) {
+                BlockPos p = BlockPos.of(plan.pos()[i]);
+                if (plan.mat()[i] == StructureTree.TRUNK) trunkYs.add(p.getY());
+                if (plan.mat()[i] == StructureTree.ROOT && p.getY() <= s.fy + 2 && !s.house.isInside(p)) rootLow = true;
+            }
+            helper.assertTrue(trunkYs.contains(origin.getY()), "幹が苗の場所から始まらない");
+            for (int y = origin.getY(); y <= origin.getY() + plan.height(); y++) helper.assertTrue(trunkYs.contains(y), "幹が途中で切れている: y=" + y);
+            helper.assertTrue(rootLow, "根が壁を伝って地面まで垂れない");
+            StructureTrees.placeAllNow(level, plan);
+            helper.assertTrue(changedSolid(level, before) == null, "建物のブロックが変わった: " + changedSolid(level, before));
+            helper.assertTrue(walkIn(level, s), "入口から中へ歩いて入れない");
+        } finally {
+            clearTree(level, plan);
+            s.cleanup();
+        }
+        helper.succeed();
+    }
+
+    /** 部屋の中の苗で天井まで低いなら育てない(欠けて浮いた木を作らない)。木の機能の入口(tryGrow)から確かめる。 */
+    @GameTest(template = "gametest_empty7", batch = "fusion", timeoutTicks = 100)
+    public static void saplingUnderLowCeilingStaysSapling(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Site s = prepare(level, 6_403_200, 6_400_000);
+        BlockPos origin = new BlockPos(s.bx + 2, s.fy + 1, s.bz + 2);
+        try {
+            register(s, BuiltinStructures.VILLAGE_PLAINS, List.of(s.house));
+            Map<BlockPos, BlockState> before = snapshot(level, s.house.inflatedBy(3));
+            Boolean r = StructureSaplingTrees.tryGrow(level, origin, RandomSource.create(5L));
+            helper.assertTrue(Boolean.FALSE.equals(r), "天井の低い部屋の苗が育った: " + r);
+            for (Map.Entry<BlockPos, BlockState> e : before.entrySet()) {
+                helper.assertTrue(level.getBlockState(e.getKey()).getBlock() == e.getValue().getBlock(), "育てないはずが何か置いた: " + e.getKey());
+            }
+        } finally {
+            s.cleanup();
+        }
+        helper.succeed();
+    }
+
+    /** 大きい構造物の巨大樹(A+B): 一番大きい建物に芯を据え(戸口と逆へずらす)、部屋の中は空ける。ほかの建物へ太い根が登り、建物は変わらず、扉から入れる。 */
+    @GameTest(template = "gametest_empty7", batch = "fusion", timeoutTicks = 200)
+    public static void largeStructureGiantGrowsFromBiggestBuilding(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Site s = prepare(level, 6_403_600, 6_400_000);
+        List<BoundingBox> pieces = new ArrayList<>();
+        StructureTree.Plan roots = null;
+        try {
+            // 家(s.house、扉は南)を一番大きい建物にし、まわりに小屋を 3 つ
+            pieces.add(s.house);
             BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
-            for (int[] c : corners) {
-                BoundingBox h = new BoundingBox(cx + c[0], s.fy + 1, cz + c[1], cx + c[0] + 7, s.fy + 4, cz + c[1] + 7);
-                houses.add(h);
+            int[][] huts = {{-26, -4}, {20, -4}, {-4, 22}};
+            for (int[] c : huts) {
+                BoundingBox h = new BoundingBox(s.bx + c[0], s.fy + 1, s.bz + c[1], s.bx + c[0] + 5, s.fy + 4, s.bz + c[1] + 5);
+                pieces.add(h);
                 for (BlockPos q : BlockPos.betweenClosed(h.minX(), h.minY(), h.minZ(), h.maxX(), h.maxY(), h.maxZ())) {
                     boolean edge = q.getX() == h.minX() || q.getX() == h.maxX() || q.getZ() == h.minZ() || q.getZ() == h.maxZ() || q.getY() == h.maxY();
                     if (edge) level.setBlock(p.set(q), Blocks.STONE_BRICKS.defaultBlockState(), 2);
                 }
             }
-            register(s, BuiltinStructures.VILLAGE_PLAINS, houses);
-            StructureFusion.Site site = StructureFusion.at(level, new BlockPos(houses.get(0).minX(), s.fy + 2, houses.get(0).minZ())).site();
-            helper.assertTrue(site.wholeClass() == StructureFusion.SizeClass.LARGE, "家 4 軒の村が大でない: " + site.wholeClass());
-            BlockPos at = StructureTree.courtyard(level, site, 5L, StructureFusion.table());
-            helper.assertTrue(at != null, "中庭が見つからない");
-            helper.assertTrue(site.surfaceWhole().isInside(new BlockPos(at.getX(), site.surfaceWhole().minY(), at.getZ())), "中庭が全体の箱の外: " + at);
-            for (BoundingBox h : houses) {
-                double dx = Math.max(0, Math.max(h.minX() - at.getX(), at.getX() - h.maxX())), dz = Math.max(0, Math.max(h.minZ() - at.getZ(), at.getZ() - h.maxZ()));
-                helper.assertTrue(Math.max(dx, dz) >= 12, "中庭が家に近い: " + at + " と " + h);
+            register(s, BuiltinStructures.VILLAGE_PLAINS, pieces);
+            StructureFusion.Site site = StructureFusion.at(level, new BlockPos(s.bx + 1, s.fy + 2, s.bz + 1)).site();
+            helper.assertTrue(site.wholeClass() == StructureFusion.SizeClass.LARGE, "村が大でない: " + site.wholeClass());
+            StructureTree.Embed e = StructureTree.embedSite(level, site, 3L);
+            helper.assertTrue(e != null && e.host().equals(s.house), "一番大きい建物から生えない: " + (e == null ? null : e.host()));
+            // 扉は南(z 大)なので、芯は北(z 小)へずれる
+            helper.assertTrue(e.origin().getZ() < (s.house.minZ() + s.house.maxZ() + 1) / 2.0D, "芯が戸口と逆へずれていない: " + e.origin());
+            helper.assertTrue(e.origin().getY() == s.fy + 1, "芯が地面の上でない: " + e.origin());
+            it.unimi.dsi.fastutil.longs.LongOpenHashSet skip = StructureTree.hugSkip(level, site, e.origin(), 24.0D);
+            helper.assertTrue(skip.contains(BlockPos.asLong(s.bx + 3, s.fy + 2, s.bz + 3)), "部屋の中を空けない");
+            helper.assertTrue(skip.contains(s.door.offset(0, 0, 2).asLong()), "入口の通り道を空けない");
+            Map<BlockPos, BlockState> before = new HashMap<>();
+            for (BoundingBox b : pieces) before.putAll(snapshot(level, b.inflatedBy(1)));
+            roots = StructureTree.hugRoots(level, site, e, 3L);
+            int climbed = 0;
+            for (int i = 0; i < roots.pos().length; i++) {
+                BlockPos q = BlockPos.of(roots.pos()[i]);
+                for (BoundingBox h : pieces.subList(1, pieces.size())) {
+                    if (q.getX() >= h.minX() && q.getX() <= h.maxX() && q.getZ() >= h.minZ() && q.getZ() <= h.maxZ() && q.getY() > h.maxY()) climbed++;
+                }
             }
-            helper.assertTrue(at.getY() == s.fy + 1, "中庭の根元が地面の上でない: " + at);
+            helper.assertTrue(roots.pos().length > 0 && climbed > 0, "太い根が建物の屋根を越えない(根 " + roots.pos().length + "・屋根の上 " + climbed + ")");
+            StructureTrees.placeAllNow(level, roots);
+            String changed = changedSolid(level, before);
+            helper.assertTrue(changed == null, "建物のブロックが変わった: " + changed);
+            helper.assertTrue(walkIn(level, s), "入口から中へ歩いて入れない");
         } finally {
-            for (BoundingBox h : houses) clearBox(level, h);
+            if (roots != null) {
+                for (long q : roots.pos()) {
+                    BlockPos b = BlockPos.of(q);
+                    if (level.getBlockState(b).is(com.yayuy.overgrownvegetation.registry.ModBlocks.GIANT_OVERGROWN_LOG.get())) level.setBlock(b, Blocks.AIR.defaultBlockState(), 2 | 16);
+                }
+            }
+            for (BoundingBox b : pieces.subList(Math.min(1, pieces.size()), pieces.size())) clearBox(level, b);
+            s.cleanup();
+        }
+        helper.succeed();
+    }
+
+    /** 片付けのコマンド: 構造物のそばの浮いた木の塊は消し、地面・建物に支えられた木は消さない。 */
+    @GameTest(template = "gametest_empty7", batch = "fusion", timeoutTicks = 100)
+    public static void cleanupRemovesOnlyFloatingTrees(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Site s = prepare(level, 6_404_000, 6_400_000);
+        BlockState wood = com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_WOOD.get().defaultBlockState();
+        BlockState leaf = com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_LEAVES.get().defaultBlockState();
+        BlockPos floatAt = new BlockPos(s.bx + 4, s.fy + 14, s.bz + 3), groundAt = new BlockPos(s.bx - 6, s.fy + 1, s.bz + 3), roofAt = new BlockPos(s.bx + 2, s.fy + 6, s.bz + 2);
+        try {
+            register(s, BuiltinStructures.VILLAGE_PLAINS, List.of(s.house));
+            for (int y = 0; y < 3; y++) level.setBlock(floatAt.above(y), wood, 2);
+            level.setBlock(floatAt.above(3), leaf, 2);
+            level.setBlock(floatAt.above(2).east(), leaf, 2);
+            for (int y = 0; y < 4; y++) level.setBlock(groundAt.above(y), wood, 2);
+            level.setBlock(groundAt.above(4), leaf, 2);
+            for (int y = 0; y < 3; y++) level.setBlock(roofAt.above(y), wood, 2);
+            FloatingTreeCleanup.Result check = FloatingTreeCleanup.run(level, new BlockPos(s.bx, s.fy, s.bz), 24, true);
+            helper.assertTrue(check.clusters() == 1, "数えただけの回で浮いた塊が 1 つでない: " + check);
+            helper.assertTrue(level.getBlockState(floatAt).is(wood.getBlock()), "数えただけの回で消した");
+            FloatingTreeCleanup.Result r = FloatingTreeCleanup.run(level, new BlockPos(s.bx, s.fy, s.bz), 24, false);
+            helper.assertTrue(r.clusters() == 1 && r.blocks() == 5, "浮いた塊を消さない: " + r);
+            helper.assertTrue(level.getBlockState(floatAt).isAir() && level.getBlockState(floatAt.above(3)).isAir(), "浮いた木が残る");
+            helper.assertTrue(level.getBlockState(groundAt).is(wood.getBlock()) && level.getBlockState(groundAt.above(4)).is(leaf.getBlock()), "地面の木を消した");
+            helper.assertTrue(level.getBlockState(roofAt).is(wood.getBlock()), "屋根の上の木を消した");
+        } finally {
+            for (BlockPos b : List.of(floatAt, groundAt, roofAt)) clearBox(level, new BoundingBox(b.getX() - 1, b.getY(), b.getZ() - 1, b.getX() + 1, b.getY() + 4, b.getZ() + 1));
             s.cleanup();
         }
         helper.succeed();

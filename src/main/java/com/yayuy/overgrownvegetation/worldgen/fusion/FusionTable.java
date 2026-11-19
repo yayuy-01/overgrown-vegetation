@@ -30,7 +30,10 @@ public final class FusionTable {
         public Double rootStart, rootEnd, rootletStart, rootletEnd;
         public Integer heightMin, heightMax, trunkMin, crownMin, crownMax, roots, bendEvery, openMin;
         public int[] trunkRadius, trunkRadiusBelow;
-        public Integer scanChunks, scanTicks, blocksPerTick, courtyardTrunkRadius, courtyardMinClear;
+        public Integer scanChunks, scanTicks, blocksPerTick;
+        public Double hugOffset, giantRadius, hugRootStart, hugRootEnd, saplingTrunkRadius, saplingRootStart, saplingRootEnd;
+        public Integer hugRootSteps, hugRootsPerPiece, hugRootsPerWall, hugRootsMax, hangsPerPiece, hangsMax;
+        public Integer saplingHeightMin, saplingHeightMax, saplingCrown, saplingRoots;
     }
 
     public static final class SizeJson {
@@ -84,8 +87,14 @@ public final class FusionTable {
     public final double treeRootStart, treeRootEnd, treeRootletStart, treeRootletEnd;
     /** 生やすきっかけを見る: プレイヤーのまわり scanChunks チャンクを scanTicks ごと。置くのは 1 tick に blocksPerTick 個まで。 */
     public final int treeScanChunks, treeScanTicks, treeBlocksPerTick;
-    /** 中庭の巨大樹: 幹の裾の半径の目安と、建物のブロックからの最小の離れ。 */
-    public final int courtyardTrunkRadius, courtyardMinClear;
+    /** 大きい構造物の巨大樹(段 2b の A+B): 一番大きい建物の中心から戸口と逆へ「幹の半径 giantRadius × hugOffset」ずらした所が芯。 */
+    public final double hugOffset, giantRadius;
+    /** B: ほかの建物を抱える太い根(太さ hugRootStart → hugRootEnd・長さ hugRootSteps 歩・1 部品に hugRootsPerPiece 本、細長い部品は hugRootsPerWall 本・全部で hugRootsMax 本まで)と、屋根へ垂らす細い気根(1 部品に hangsPerPiece 本・全部で hangsMax 本まで。11-19 クライアントで 1 部品 6 本だと村が気根の簾になった)。 */
+    public final double hugRootStart, hugRootEnd;
+    public final int hugRootSteps, hugRootsPerPiece, hugRootsPerWall, hugRootsMax, hangsPerPiece, hangsMax;
+    /** 構造物の上・中に植わった苗の木(段 2b): 高さ・幹の半径・樹冠・根の本数と太さ。幹が通らなければ育てない。 */
+    public final int saplingHeightMin, saplingHeightMax, saplingCrown, saplingRoots;
+    public final double saplingTrunkRadius, saplingRootStart, saplingRootEnd;
 
     public static final FusionTable DEFAULT = fromJson(null);
 
@@ -145,8 +154,23 @@ public final class FusionTable {
         treeScanChunks = Math.max(1, Math.min(16, or(tj.scanChunks, 6)));
         treeScanTicks = Math.max(1, or(tj.scanTicks, 40));
         treeBlocksPerTick = Math.max(1, or(tj.blocksPerTick, 200));
-        courtyardTrunkRadius = Math.max(1, or(tj.courtyardTrunkRadius, 12));
-        courtyardMinClear = Math.max(0, or(tj.courtyardMinClear, 6));
+        hugOffset = Math.max(0.0D, Math.min(1.5D, or(tj.hugOffset, 0.55D)));
+        giantRadius = Math.max(2.0D, or(tj.giantRadius, 11.0D));
+        hugRootStart = Math.max(0.5D, or(tj.hugRootStart, 2.4D));
+        hugRootEnd = Math.max(0.5D, or(tj.hugRootEnd, 1.0D));
+        hugRootSteps = Math.max(10, Math.min(400, or(tj.hugRootSteps, 130)));
+        hugRootsPerPiece = Math.max(0, Math.min(6, or(tj.hugRootsPerPiece, 2)));
+        hugRootsPerWall = Math.max(0, Math.min(6, or(tj.hugRootsPerWall, 3)));
+        hugRootsMax = Math.max(0, Math.min(64, or(tj.hugRootsMax, 16)));
+        hangsPerPiece = Math.max(0, Math.min(32, or(tj.hangsPerPiece, 2)));
+        hangsMax = Math.max(0, Math.min(256, or(tj.hangsMax, 24)));
+        saplingHeightMin = Math.max(4, or(tj.saplingHeightMin, 10));
+        saplingHeightMax = Math.max(saplingHeightMin, Math.min(40, or(tj.saplingHeightMax, 18)));
+        saplingCrown = Math.max(2, Math.min(12, or(tj.saplingCrown, 4)));
+        saplingRoots = Math.max(0, Math.min(12, or(tj.saplingRoots, 4)));
+        saplingTrunkRadius = Math.max(0.5D, Math.min(3.0D, or(tj.saplingTrunkRadius, 1.0D)));
+        saplingRootStart = Math.max(0.5D, or(tj.saplingRootStart, 1.0D));
+        saplingRootEnd = Math.max(0.5D, or(tj.saplingRootEnd, 0.95D));
     }
 
     public static FusionTable fromJson(@Nullable Json j) {

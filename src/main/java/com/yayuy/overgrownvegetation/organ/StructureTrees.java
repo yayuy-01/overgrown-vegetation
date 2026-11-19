@@ -99,6 +99,7 @@ public final class StructureTrees extends SavedData {
         if (!t.enabled || !t.treeEnabled) return;
         StructureTrees data = get(level);
         if (!data.jobs.isEmpty()) data.placeSome(level, t);
+        if (!HANGS.isEmpty() && level.getGameTime() % 100L == 0L) data.hangWhenGrown(level);
         if (level.getGameTime() % t.treeScanTicks != 0 || level.players().isEmpty()) return;
         data.scan(level, t);
     }
@@ -161,16 +162,23 @@ public final class StructureTrees extends SavedData {
         }
         long seed = k ^ level.getSeed();
         if (s.wholeClass() == StructureFusion.SizeClass.LARGE) {
-            BlockPos at = StructureTree.courtyard(level, s, seed);
+            // 段 2b(11-19 ユーザー決定 A+B): 一番大きい建物から生え(A)、ほかの建物を太い根で抱える(B)。段 2 の中庭の巨大樹を置き換えた
+            StructureTree.Embed e = StructureTree.embedSite(level, s, seed);
             markDone(k);
-            if (at == null) {
-                OvergrownVegetation.LOGGER.info("StructureTrees: {} の中庭に巨大樹を植えられない(広場が無い)", s.id());
+            if (e == null) {
+                OvergrownVegetation.LOGGER.info("StructureTrees: {} に巨大樹を生やせない(建物らしい部品が無い)", s.id());
                 return Start.GAVE_UP;
             }
-            courtyards.add(at.asLong());
+            HUG_SKIPS.put(e.origin().asLong(), StructureTree.hugSkip(level, s, e.origin(), t.giantRadius * 1.6D + 6.0D));
+            courtyards.add(e.origin().asLong());
             setDirty();
-            boolean ok = plantCourtyardGiant(level, at, seed);
-            OvergrownVegetation.LOGGER.info("StructureTrees: {} の中庭 {} に巨大樹: {}", s.id(), at, ok ? "植えた" : "育たなかった");
+            boolean ok = plantCourtyardGiant(level, e.origin(), seed);
+            if (ok) {
+                StructureTree.Plan roots = StructureTree.hugRoots(level, s, e, seed);
+                if (roots.pos().length > 0) jobs.add(new Job(k, roots.pos(), roots.mat(), 0));
+                HANGS.add(new Hang(k, e, seed, level.getGameTime()));
+            }
+            OvergrownVegetation.LOGGER.info("StructureTrees: {} の建物 {} から巨大樹(芯 {}): {}", s.id(), e.host(), e.origin(), ok ? "植えた" : "育たなかった");
             return ok ? Start.STARTED : Start.GAVE_UP;
         }
         StructureTree.Result r = StructureTree.plan(level, s, seed);
@@ -210,9 +218,50 @@ public final class StructureTrees extends SavedData {
         for (long c : get(level).courtyards) {
             BlockPos p = BlockPos.of(c);
             double dx = p.getX() - trunk.getX(), dz = p.getZ() - trunk.getZ();
-            if (dx * dx + dz * dz <= 24.0D * 24.0D) return true;
+            if (dx * dx + dz * dz <= 40.0D * 40.0D) return true;
         }
         return false;
+    }
+
+    /** 構造物から生える巨大樹の、幹の裾が置かないマス(部屋の中・入口)。芯の位置ごと。巨大樹の設置と同じく保存しない。 */
+    private static final java.util.Map<Long, LongOpenHashSet> HUG_SKIPS = new java.util.HashMap<>();
+
+    /** 巨大樹が育ち終わったら垂らす気根の予定(保存しない)。 */
+    private record Hang(long site, StructureTree.Embed e, long seed, long since) {
+    }
+
+    private static final List<Hang> HANGS = new ArrayList<>();
+
+    /** GiantTreeGrowthQueue が仕事を作るときに 1 回: 幹の最初のマスから 40 以内の芯の「置かないマス」。 */
+    @Nullable
+    public static LongOpenHashSet hugSkipAt(ServerLevel level, BlockPos trunk) {
+        for (java.util.Map.Entry<Long, LongOpenHashSet> en : HUG_SKIPS.entrySet()) {
+            BlockPos p = BlockPos.of(en.getKey());
+            double dx = p.getX() - trunk.getX(), dz = p.getZ() - trunk.getZ();
+            if (dx * dx + dz * dz <= 40.0D * 40.0D) return en.getValue();
+        }
+        return null;
+    }
+
+    /** 巨大樹の設置が全部終わってから、気根を作って積む。 */
+    private void hangWhenGrown(ServerLevel level) {
+        if (HANGS.isEmpty() || com.yayuy.overgrownvegetation.worldgen.GiantTreeGrowthQueue.pendingJobs(level) > 0) return;
+        long now = level.getGameTime();
+        for (java.util.Iterator<Hang> it = HANGS.iterator(); it.hasNext(); ) {
+            Hang h = it.next();
+            if (now - h.since() < 200L) continue;
+            BoundingBox hb = h.e().host();
+            StructureFusion.Site[] ss = StructureFusion.sitesAt(level, ((hb.minX() + hb.maxX()) >> 1) >> 4, ((hb.minZ() + hb.maxZ()) >> 1) >> 4);
+            if (ss == null) continue; // 読み込まれていない。また見る
+            it.remove();
+            for (StructureFusion.Site s : ss) {
+                if (key(s) != h.site()) continue;
+                StructureTree.Plan p = StructureTree.hangRoots(level, s, h.e(), h.seed());
+                if (p.pos().length > 0) jobs.add(new Job(h.site(), p.pos(), p.mat(), 0));
+                OvergrownVegetation.LOGGER.info("StructureTrees: {} の巨大樹の気根 {} 個", s.id(), p.pos().length);
+            }
+            setDirty();
+        }
     }
 
     // ---------------------------------------------------------------- 置く
@@ -251,6 +300,7 @@ public final class StructureTrees extends SavedData {
         return switch (mat) {
             case StructureTree.TRUNK, StructureTree.ROOT, StructureTree.BRANCH -> ModBlocks.OVERGROWN_WOOD.get().defaultBlockState();
             case StructureTree.LEAF -> ModBlocks.OVERGROWN_LEAVES.get().defaultBlockState();
+            case StructureTree.GIANT_ROOT -> ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState();
             default -> null;
         };
     }

@@ -53,6 +53,9 @@ public class TreeFernFeature extends Feature<TreeFernFeature.Config> {
         RandomSource random = context.random();
         Config config = context.config();
         BlockPos origin = context.origin();
+        // 構造物にかかる所の苗は構造物に合わせた形で育つ(11-19 構造物と森の融合 段 2b。欠けて浮いた木を作らない)
+        Boolean fusionTree = com.yayuy.overgrownvegetation.organ.StructureSaplingTrees.tryGrow(level, origin, random);
+        if (fusionTree != null) return fusionTree;
         if (TreePlacementRules.isEnclosed(level, origin)) {
             return false; // 高さ 8 以上なので洞窟の中には立てない
         }

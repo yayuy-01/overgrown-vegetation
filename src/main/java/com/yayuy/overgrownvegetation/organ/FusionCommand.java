@@ -21,6 +21,7 @@ import java.util.List;
  *   <li>{@code fusion sites} — まわり 64 ブロックの構造物(種類・全体の段・地表の箱・木が済みか)。</li>
  *   <li>{@code fusion tree} — いちばん近い構造物に、過繁茂でなくても今すぐ木を生やし始める(小・中 = 構造物の木、大 = 中庭の巨大樹)。</li>
  *   <li>{@code fusion forget} — 「木が済み」の印を全部消す(撮り直し用)。</li>
+ *   <li>{@code fusion cleanup [半径]} — まわり(既定 48)の構造物のそばで、支えの無い汚染の原木・葉の塊(浮いた木)を消す。{@code cleanup check [半径]} は数えるだけ(段 2b)。</li>
  * </ul>
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
@@ -37,7 +38,15 @@ public final class FusionCommand {
                                 .then(Commands.literal("fusion")
                                         .then(Commands.literal("sites").executes(ctx -> sites(ctx.getSource())))
                                         .then(Commands.literal("tree").executes(ctx -> tree(ctx.getSource())))
-                                        .then(Commands.literal("forget").executes(ctx -> forget(ctx.getSource())))))));
+                                        .then(Commands.literal("forget").executes(ctx -> forget(ctx.getSource())))
+                                        .then(Commands.literal("cleanup")
+                                                .executes(ctx -> cleanup(ctx.getSource(), 48, false))
+                                                .then(Commands.literal("check")
+                                                        .executes(ctx -> cleanup(ctx.getSource(), 48, true))
+                                                        .then(Commands.argument("radius", com.mojang.brigadier.arguments.IntegerArgumentType.integer(4, 128))
+                                                                .executes(ctx -> cleanup(ctx.getSource(), com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "radius"), true))))
+                                                .then(Commands.argument("radius", com.mojang.brigadier.arguments.IntegerArgumentType.integer(4, 128))
+                                                        .executes(ctx -> cleanup(ctx.getSource(), com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "radius"), false))))))));
     }
 
     private static List<StructureFusion.Site> near(ServerLevel level, BlockPos at, int r) {
@@ -87,6 +96,13 @@ public final class FusionCommand {
         StructureTrees.Start r = StructureTrees.get(level).start(level, s, true);
         src.sendSuccess(() -> Component.literal("FUSION_TREE " + s.id() + " 段=" + s.wholeClass() + " → " + r + "(詳しくはログ StructureTrees)"), false);
         return r == StructureTrees.Start.STARTED ? 1 : 0;
+    }
+
+    private static int cleanup(CommandSourceStack src, int radius, boolean dryRun) {
+        FloatingTreeCleanup.Result r = FloatingTreeCleanup.run(src.getLevel(), BlockPos.containing(src.getPosition()), radius, dryRun);
+        src.sendSuccess(() -> Component.literal((dryRun ? "FUSION_CLEANUP 数えただけ: " : "FUSION_CLEANUP 消した: ") + "浮いた木 " + r.clusters() + " 塊・" + r.blocks()
+                + " ブロック(調べた木のブロック " + r.scanned() + "・支えのある塊 " + r.kept() + "・端にかかって残した塊 " + r.edge() + ")"), true);
+        return r.clusters();
     }
 
     private static int forget(CommandSourceStack src) {

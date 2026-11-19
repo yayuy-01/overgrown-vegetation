@@ -407,7 +407,7 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         }
 
         // 巨大樹は洞窟内(空が見えない場所)には生やさない。
-        if (!forced && TreePlacementRules.isEnclosed(level, origin)) {
+        if (!forced && !COURTYARD.get() && TreePlacementRules.isEnclosed(level, origin)) { // 構造物から生える巨大樹(段 2b)は建物の屋根の下が起点になりうる
             OvergrownVegetation.LOGGER.info("GiantTree at {}: 生成中止 —— 空が見えない場所(洞窟・厚い天井の下)です。",
                     origin);
             return false;
@@ -419,6 +419,12 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
         if (!forced && !COURTYARD.get() && level instanceof ServerLevel fusionLevel && com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.anyNear(
                 fusionLevel, origin.getX(), origin.getZ(), com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.table().giantClearRadius)) {
             OvergrownVegetation.LOGGER.info("GiantTree at {}: 生成中止 —— 構造物が近くにあります(中庭の巨大樹・構造物の木に任せる)。", origin);
+            return false;
+        }
+        // 構造物の上の苗からは巨大樹を出さない(段 2b、11-19 ユーザー決定。浮いた構造物の上で起点ができかけた)
+        if (!forced && !COURTYARD.get() && level instanceof ServerLevel onLevel
+                && com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.state(onLevel, origin.below()) != com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.NONE) {
+            OvergrownVegetation.LOGGER.info("GiantTree at {}: 生成中止 —— 構造物の上の苗です。", origin);
             return false;
         }
 
