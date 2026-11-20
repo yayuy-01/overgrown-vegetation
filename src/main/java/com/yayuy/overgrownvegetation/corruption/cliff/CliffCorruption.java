@@ -84,6 +84,17 @@ public final class CliffCorruption {
         return processed;
     }
 
+    /** まわり 1 チャンク(3 × 3)のどこかに縄を生やしたか(経路の延長 {@link RootPath#climbAllowance} の近道)。 */
+    public static boolean ropesNear(ServerLevel level, BlockPos pos) {
+        Data d = Data.get(level);
+        if (d.done.isEmpty()) return false;
+        int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
+        for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
+            if ((d.done.get(ChunkPos.asLong(cx + dx, cz + dz)) & ROPES) != 0) return true;
+        }
+        return false;
+    }
+
     /** チャンクの汚染の段(0 = なし・1 = 繁茂・2 = 過繁茂)。チャンクの真ん中の地面のバイオームで見る。 */
     static int stage(ServerLevel level, ChunkPos c) {
         int x = c.getMiddleBlockX(), z = c.getMiddleBlockZ();

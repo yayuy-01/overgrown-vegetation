@@ -188,13 +188,18 @@ public final class CliffShapes {
                 }
                 if (ropes) {
                     if (isAnchor(u, t.rope.spacing, t.rope.spacingJitter, d, 1)) {
-                        if (chance(c, d, 2) < t.rope.chance) rope(put, level, hs, c, d, side, height, t, r);
+                        if (chance(c, d, 2) < t.rope.chance) rope(put, level, hs, c, d, side, height, !bestCliff[lane], t, r);
                     } else if (isAnchor(u - t.rope.spacing / 2, t.rope.spacing, t.rope.spacingJitter, d, 1) && chance(c, d, 4) < t.rope.chance) {
                         thin(put, level, hs, c, d, side, height, t, r);
                     }
                     if (bestCliff[lane] && chance(c, d, 6) < t.rope.edgeTuftChance && !isAnchorNear(u, t, d)) edgeTuft(put, level, c, d);
                 }
             }
+        }
+        if (ropes && r.roots > 0) {
+            // 縄を生やした印(経路の延長が縄の近くか見る。コマンド・テストから直に呼んだときも付ける)
+            CliffCorruption.Data data = CliffCorruption.Data.get(level);
+            data.mark(chunk, (byte) (data.get(chunk) | CliffCorruption.ROPES));
         }
         r.nanos = System.nanoTime() - start;
         return r;
@@ -223,9 +228,12 @@ public final class CliffShapes {
         return Math.floorMod(u, spacing) == Math.floorMod(off, spacing);
     }
 
-    /** u のまわり 1 マスに縄があるか(割れ目・縁の房を縄に重ねない)。 */
+    /**
+     * u が縄の付け根の 2 マス(縄の場所とその右)に当たるか(割れ目・縁の房を縄の真上に重ねない)。
+     * 11-20 に縄を 5 マスおきにしたら、前の「まわり 1 マス」では割れ目がほとんど置けなくなったので、縄そのものの 2 マスだけにした。
+     */
     static boolean isAnchorNear(int u, CliffTable t, Direction d) {
-        for (int k = -1; k <= 2; k++) if (isAnchor(u + k, t.rope.spacing, t.rope.spacingJitter, d, 1)) return true;
+        for (int k = -1; k <= 0; k++) if (isAnchor(u + k, t.rope.spacing, t.rope.spacingJitter, d, 1)) return true;
         return false;
     }
 
@@ -306,7 +314,15 @@ public final class CliffShapes {
      * 面 = 後ろ(内側)が固く、そのマスが空いている所。前の段の面から外へ最大 maxStepOut マス探す。外へ 2 マス以上ずれたら棚の上を這ってつなぐ。
      */
     static int run(Placer put, ServerLevel level, BlockPos c, Direction d, Direction side, int[] lat, int from, int to, int tipDangle, CliffTable t) {
-        int prevT = 0, last = -1, prevL = Integer.MIN_VALUE;
+        return run(put, level, c, d, side, lat, from, to, tipDangle, t, null);
+    }
+
+    /** 張り出しの下へ真下に垂れる最大の段数【仮】。 */
+    static final int HANG_MAX = 8;
+
+    /** {@code faces} が null でなければ、段ごとの面の位置(外へのマス数。置けなかった段は MIN_VALUE)を書く。 */
+    static int run(Placer put, ServerLevel level, BlockPos c, Direction d, Direction side, int[] lat, int from, int to, int tipDangle, CliffTable t, int[] faces) {
+        int prevT = 0, last = -1, prevL = Integer.MIN_VALUE, hang = 0;
         BlockPos lastPos = null;
         for (int k = from; k < to; k++) {
             int y = c.getY() - k;
@@ -322,8 +338,19 @@ public final class CliffShapes {
             }
             if (face == Integer.MIN_VALUE) {
                 if (k - from < 2) continue; // 縁が引っ込んだ列: 次の段で探し直す
-                break; // 下の地面・広い棚・張り出しの下: ここで終わる
+                // 張り出し・岩棚の縁の下(後ろに岩が無い): 前の段の真下へまっすぐ垂れる(11-20。前は棚で縄が切れ、棚の下に縄が無かった)
+                if (lastPos != null && hang < HANG_MAX) {
+                    BlockPos below = lastPos.below();
+                    if (open(level.getBlockState(below)) && put.root(below)) {
+                        hang++;
+                        last = k;
+                        lastPos = below;
+                        continue;
+                    }
+                }
+                break; // 下の地面・広い棚: ここで終わる
             }
+            hang = 0;
             if (k > from && face > prevT + 1) {
                 for (int tt = prevT + 1; tt < face; tt++) put.root(at(c, d, side, l, tt, y + 1)); // 棚の上を這う
             }
@@ -338,6 +365,7 @@ public final class CliffShapes {
                 last = k;
                 lastPos = p;
             }
+            if (faces != null && k < faces.length) faces[k] = face;
             prevL = l;
             prevT = face;
         }
@@ -346,7 +374,7 @@ public final class CliffShapes {
     }
 
     /** A1 太い縄の滝 1 本。 */
-    static void rope(Placer put, ServerLevel level, Heights hs, BlockPos c, Direction d, Direction side, int height, CliffTable t, Result r) {
+    static void rope(Placer put, ServerLevel level, Heights hs, BlockPos c, Direction d, Direction side, int height, boolean slope, CliffTable t, Result r) {
         CliffTable.Rope rp = t.rope;
         int seed = hash(c, d, 9) % 1000;
         int len = Math.min(rp.maxLength, height) - seed % 3;
@@ -361,7 +389,11 @@ public final class CliffShapes {
         }
         r.ropes++;
         run(put, level, c, d, side, a, 0, len, rp.tipDangle, t);
-        run(put, level, c, d, side, b, 0, Math.max(1, (int) (len * rp.shortBranch)), rp.tipDangle, t);
+        int bLen = Math.max(1, (int) (len * rp.shortBranch));
+        int[] bFaces = new int[len];
+        java.util.Arrays.fill(bFaces, Integer.MIN_VALUE);
+        run(put, level, c, d, side, b, 0, bLen, rp.tipDangle, t, bFaces);
+        if (slope && rp.slopeLinkEvery > 0) link(put, level, c, d, side, b, bFaces, bLen, t);
         // 二股の付け根を太らせる(3 マス幅を 2 段)
         int[] fat = new int[len];
         for (int k = 0; k < len; k++) fat[k] = a[k] - 1;
@@ -373,6 +405,24 @@ public final class CliffShapes {
             for (int i = 0; i < n; i++) {
                 if (i > 0 && i % 2 == 0) l += rr;
                 crawl(put, level, hs, c, d, side, l, -i);
+            }
+        }
+    }
+
+    /**
+     * 急斜面の横の根(2026-11-20 ユーザー決定「急斜面は縄の間を横の根でつないで網に見せる」)。縄の右の股から {@code slopeLinkEvery} 段おきに、
+     * 次の縄(横へ {@code spacing} マス先)まで、斜面の面をなぞって 1 マス幅の根を渡す。網も登れる(絡む根)。
+     */
+    static void link(Placer put, ServerLevel level, BlockPos c, Direction d, Direction side, int[] lat, int[] faces, int len, CliffTable t) {
+        int every = t.rope.slopeLinkEvery, span = Math.max(2, t.rope.spacing);
+        for (int k = every; k < len; k += every) {
+            if (faces[k] == Integer.MIN_VALUE) continue;
+            int y = c.getY() - k, prevT = faces[k];
+            for (int l = lat[k] + 1; l < lat[k] + span; l++) {
+                int face = faceAt(level, c, d, side, l, y, prevT, t);
+                if (face == Integer.MIN_VALUE) break; // 斜面が切れた(端・張り出し)
+                put.root(at(c, d, side, l, face, y));
+                prevT = face;
             }
         }
     }

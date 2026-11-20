@@ -252,30 +252,59 @@ public final class CliffGameTests {
     @GameTest(template = TEMPLATE, batch = "cliff_f", timeoutTicks = 900) // 上りきるまで 133〜493 tick(縄の形で揺れる)
     public static void plantMobClimbsRopeToTarget(GameTestHelper h) {
         cliff(h);
+        climbToTop(h);
+    }
+
+    /**
+     * でこぼこで岩棚と二股のある崖でも、植物側の Mob が縄を経路に入れて上りきる(11-20 ユーザー決定「二股のすき間で止まらず上りきること」)。
+     * 面は 4 マスに 1 つ 1 マス出っ張り、高さ 9 まで 2 マス出た岩棚(下は岩)。縄は二股・ゆらぎのある本物の形。
+     */
+    @GameTest(template = TEMPLATE, batch = "cliff_g", timeoutTicks = 1200)
+    public static void plantMobClimbsUnevenCliff(GameTestHelper h) {
+        cliff(h);
+        for (int y = 2; y <= TOP - 1; y++) {
+            for (int z = 0; z < 24; z++) {
+                if (CliffShapes.hash(y, z, 77) % 4 == 0) h.setBlock(new BlockPos(CLIFF_X + 1, y, z), Blocks.STONE);
+            }
+        }
+        // 岩棚 = 下に岩のある段(高さ 9 まで 2 マス出た台)。下が空いた張り出しは、縄が真下へ垂れるだけで登りは確かめていない(報告)
+        for (int z = 4; z <= 13; z++) for (int x = CLIFF_X + 1; x <= CLIFF_X + 2; x++) for (int y = 2; y <= 9; y++) h.setBlock(new BlockPos(x, y, z), Blocks.STONE);
+        climbToTop(h);
+    }
+
+    /** 縄を生やし、崖の上の村人を相手にした寄生ゾンビが、崖の上(高さ TOP + 1)まで上るのを待つ。 */
+    static void climbToTop(GameTestHelper h) {
         decorate(h, true, false);
         Villager prey = h.spawn(EntityType.VILLAGER, new Vec3(3.5D, TOP + 1.0D, 12.5D));
         prey.setNoAi(true);
-        prey.setInvulnerable(true);
+        // 無敵にしない(無敵の相手はバニラの canBeSeenAsEnemy で攻撃の相手から外れ、G1 の追う Goal が動かない)
         Mob z = h.spawn(ModG1.PARASITIZED_ZOMBIE.get(), new Vec3(16.5D, 2.0D, 12.5D));
         z.setPersistenceRequired();
-        boolean[] used = new boolean[1];
+        // G1 の相手選びは、動かない村人を毎 tick 外す(テストの都合)。相手選びを外して村人だけを追わせる(ゲーム内ではプレイヤーを追って上りきるのを確かめた)
+        z.targetSelector.removeAllGoals(g -> true);
+        z.setTarget(prey);
+        int topY = h.absolutePos(new BlockPos(0, TOP + 1, 0)).getY();
+        double[] best = {z.getY()};
         h.onEachTick(() -> {
             if (z.getTarget() != prey) z.setTarget(prey);
-            if (RootClimbAssist.engaged(z)) used[0] = true;
+            best[0] = Math.max(best[0], z.getY());
             if (h.getTick() % 40 == 0) {
+                if (h.getTick() == 40) {
+                    net.minecraft.world.level.pathfinder.Path probe = z.getNavigation().createPath(prey, 0);
+                    StringBuilder sb = new StringBuilder();
+                    if (probe != null) for (int i = 0; i < probe.getNodeCount(); i++) sb.append(h.relativePos(probe.getNode(i).asBlockPos())).append(" ");
+                    OvergrownVegetation.LOGGER.info("[cliff test] 追う距離 {} / 調べる節の倍率の元 {}", z.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.FOLLOW_RANGE), RootPath.climbAllowance(z, java.util.Set.of(prey.blockPosition())));
+                    OvergrownVegetation.LOGGER.info("[cliff test] 試しの経路 届く {} 節 {} / 縄の節 足した {} 取り付き {}", probe != null && probe.canReach(), sb, RootPath.addedCount, RootPath.touchCount);
+                }
                 net.minecraft.world.level.pathfinder.Path pa = z.getNavigation().getPath();
-                OvergrownVegetation.LOGGER.info("[cliff test] 登り {} tick: 位置 {} 地面 {} 目標 {} 経路 {} 届く {} 手当て {} 触れる {}", h.getTick(), h.relativePos(z.blockPosition()),
-                        z.onGround(), z.getTarget() == null ? "なし" : z.getTarget().getType().toShortString(), pa == null ? "なし" : (pa.isDone() ? "終わり" : pa.getNodeCount() + " 節"),
-                        pa != null && pa.canReach(), RootClimbAssist.engaged(z), RootClimb.touching(z));
-                BlockPos[] fr = RootClimbAssist.findRope(h.getLevel(), z, DesignData.cliff().climb.seekRadius, prey);
-                OvergrownVegetation.LOGGER.info("[cliff test] 縄の候補 {} / 植物側 {} / 足元 {} / id {} tickCount {}", fr == null ? "なし" : h.relativePos(fr[0]) + " 立つ " + h.relativePos(fr[1]),
-                        com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(z), z.blockPosition(), z.getId(), z.tickCount);
+                OvergrownVegetation.LOGGER.info("[cliff test] 登り {} tick: 高さ {} 地面 {} 経路 {} 届く {} 次の節 {} 触れる {}", h.getTick(), String.format("%.1f", z.getY() - (topY - TOP - 1)),
+                        z.onGround(), pa == null ? "なし" : (pa.isDone() ? "終わり" : pa.getNodeCount() + " 節"), pa != null && pa.canReach(),
+                        pa == null || pa.isDone() ? "-" : h.relativePos(pa.getNextNodePos()), RootClimb.touching(z));
             }
         });
         h.succeedWhen(() -> {
-            BlockPos at = h.relativePos(z.blockPosition());
-            h.assertTrue(at.getY() >= TOP + 1 && at.getX() <= CLIFF_X + 1, "まだ崖の上にいない: " + at + " / 縄を使った " + used[0]);
-            OvergrownVegetation.LOGGER.info("[cliff test] 上った tick {} / 縄の手当て {}", h.getTick(), used[0]);
+            h.assertTrue(z.getY() >= topY - 0.01D && z.onGround(), String.format("まだ崖の上にいない: 高さ %.1f(いちばん高く %.1f)", z.getY() - (topY - TOP - 1), best[0] - (topY - TOP - 1)));
+            OvergrownVegetation.LOGGER.info("[cliff test] 上った tick {}", h.getTick());
         });
     }
 }

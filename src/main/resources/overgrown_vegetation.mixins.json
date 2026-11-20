@@ -32,7 +32,10 @@
     "ServerLevelRoomInvalidateMixin",
     "ItemStackDirtWearMixin",
     "CraftingMenuResearchLockMixin",
-    "LivingEntityRootClimbMixin"
+    "LivingEntityRootClimbMixin",
+    "WalkNodeEvaluatorRootMixin",
+    "GroundPathNavigationRootMixin",
+    "PathNavigationRootRangeMixin"
   ],
   "client": [
     "client.CreateWorldScreenMixin",

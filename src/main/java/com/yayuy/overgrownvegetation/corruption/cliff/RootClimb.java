@@ -26,16 +26,22 @@ public final class RootClimb {
     private RootClimb() {
     }
 
-    /** 体の横を広げる幅(ブロック)。押し付けをやめても、すぐには離れない。 */
+    /** 体の横を広げる幅(ブロック)。押し付けをやめても、すぐには離れない。プレイヤーは押し付けたときだけ登れるよう狭く。 */
     static final double REACH = 0.08D;
+    /**
+     * Mob の幅。経路の節(縄の隣のマスの真ん中)に立つ Mob は根の面から 0.5 − 体の半幅(幅 0.6 なら 0.2)離れるので、それより広く
+     * (経路で縄を上る。{@link RootPath})。
+     */
+    static final double MOB_REACH = 0.25D;
 
     /** 体の横(足元から 1.4 ブロックまで)が絡む根に触れているか。 */
     public static boolean touching(LivingEntity e) {
         Level level = e.level();
         AABB b = e.getBoundingBox();
         double top = b.minY + Math.min(1.4D, e.getBbHeight());
-        int x0 = Mth.floor(b.minX - REACH), x1 = Mth.floor(b.maxX + REACH);
-        int z0 = Mth.floor(b.minZ - REACH), z1 = Mth.floor(b.maxZ + REACH);
+        double reach = e instanceof Player ? REACH : MOB_REACH;
+        int x0 = Mth.floor(b.minX - reach), x1 = Mth.floor(b.maxX + reach);
+        int z0 = Mth.floor(b.minZ - reach), z1 = Mth.floor(b.maxZ + reach);
         int y0 = Mth.floor(b.minY + 0.01D), y1 = Mth.floor(top);
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (int y = y0; y <= y1; y++) {

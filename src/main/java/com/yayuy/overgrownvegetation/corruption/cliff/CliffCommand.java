@@ -18,7 +18,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 /**
  * {@code /ov perf cliff grow <半径チャンク> [ropes|sacs|both]} — 汚染の段に関係なく、まわりのチャンクの崖・急斜面に今すぐ生やす
  * (2026-11-20 崖の汚染の撮影・確認用。OP 専用)。生やしたチャンクには巡回の済みの印も付ける。
- * {@code /ov perf cliff info} — 今いるチャンクの段・印と、巡回の直近の結果。
+ * {@code /ov perf cliff info} — 今いるチャンクの段・印と、巡回の直近の結果。{@code mobs}・{@code target} は縄を登る Mob の調べと撮影用。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class CliffCommand {
@@ -95,7 +95,7 @@ public final class CliffCommand {
         return n;
     }
 
-    /** 調べ: まわり 24 ブロックの植物側の Mob の相手・縄の手当て・見つかる縄。 */
+    /** 調べ: まわり 24 ブロックの植物側の Mob の相手・経路(届くか・次の節)・縄の上で相手を保っているか。 */
     private static int mobs(CommandContext<CommandSourceStack> c) {
         CommandSourceStack src = c.getSource();
         ServerLevel level = src.getLevel();
@@ -104,10 +104,9 @@ public final class CliffCommand {
             if (!com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(m)) continue;
             net.minecraft.world.entity.LivingEntity t = m.getTarget();
             net.minecraft.world.level.pathfinder.Path p = m.getNavigation().getPath();
-            BlockPos[] fr = t == null ? null : RootClimbAssist.findRope(level, m, com.yayuy.overgrownvegetation.data.DesignData.cliff().climb.seekRadius, t);
             String line = m.getType().toShortString() + " " + m.blockPosition().toShortString() + " 地面 " + m.onGround() + " 相手 " + (t == null ? "なし" : t.getType().toShortString() + String.format(" %.1f 上", t.getY() - m.getY()))
-                    + " 経路 " + (p == null ? "なし" : (p.isDone() ? "終わり" : p.getNodeCount() + " 節") + (p.canReach() ? " 届く" : " 届かない")) + " 手当て " + RootClimbAssist.engaged(m)
-                    + " 縄 " + (fr == null ? "なし" : fr[0].toShortString() + " 立つ " + fr[1].toShortString()) + " 触れる " + RootClimb.touching(m);
+                    + " 経路 " + (p == null ? "なし" : (p.isDone() ? "終わり" : p.getNodeCount() + " 節") + (p.canReach() ? " 届く" : " 届かない")) + " 縄の上で相手を保つ " + RootClimbAssist.holding(m)
+                    + " 触れる " + RootClimb.touching(m) + " 次の節 " + (p == null || p.isDone() ? "なし" : p.getNextNodePos().toShortString());
             src.sendSuccess(() -> Component.literal(line), false);
             n++;
         }

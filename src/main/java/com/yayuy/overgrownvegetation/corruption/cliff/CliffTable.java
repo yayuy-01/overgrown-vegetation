@@ -33,10 +33,10 @@ public final class CliffTable {
     /** A1 太い縄の滝。 */
     public static final class Rope {
         /** 縄の間隔(縁に沿ってこのマスおき。ずれは座標のハッシュで ±{@link #spacingJitter})。 */
-        public int spacing = 6;
+        public int spacing = 5;
         public int spacingJitter = 1;
-        /** 縄の場所に縄が実際に垂れる割合。 */
-        public double chance = 0.8D;
+        /** 縄の場所に縄が実際に垂れる割合(11-20 ユーザー決定で 0.8 → 1.0・間隔 6 → 5【仮】)。 */
+        public double chance = 1.0D;
         /** 縄の長さの上限(段)。崖がこれより高いと途中で終わる。 */
         public int maxLength = 40;
         /** 左右のゆらぎ(マス)と、1 段あたりの位相(約 20 段で 1 往復 = 0.3)。 */
@@ -59,6 +59,8 @@ public final class CliffTable {
         public double thinSpread = 0.25D;
         /** 縁の垂れる根の房: 縁の列のうちこの割合に付ける。 */
         public double edgeTuftChance = 0.5D;
+        /** 急斜面の横の根: 縄の上からこの段おきに、次の縄まで横に根を渡して網にする(11-20 ユーザー決定)。0 で渡さない。 */
+        public int slopeLinkEvery = 3;
     }
 
     public Sacs sacs = new Sacs();
@@ -89,11 +91,6 @@ public final class CliffTable {
         public double player = 0.85D;
         /** 植物側でない Mob(バニラの動物・村人など)。 */
         public double other = 0.85D;
-        /** 植物側の Mob が縄を探す半径(水平・ブロック)と、相手がこれだけ上にいたら縄へ向かう(段)。 */
-        public int seekRadius = 8;
-        public int seekMinRise = 3;
-        /** 縄へ向かうのを諦めるまで(tick)。 */
-        public int giveUpTicks = 200;
     }
 
     public Burst burst = new Burst();

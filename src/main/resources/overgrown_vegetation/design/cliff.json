@@ -9,10 +9,10 @@
     "maxStepOut": 4
   },
   "rope": {
-    "_comment": "A1 太い縄の滝。縄は 2 マス幅の絡む根。spacing ± spacingJitter マスおき、その chance で垂れる。二股は長さの forkFrom〜forkFrom+forkSpread、短い股は shortBranch。崖の上で crawlMin〜+crawlSpread マス奥へ 3 本に分かれて這う。先に垂れる根 tipDangle 段。縄の間に細い根(崖の thinFrom〜+thinSpread)。縁の垂れる根の房 edgeTuftChance",
-    "spacing": 6,
+    "_comment": "A1 太い縄の滝。縄は 2 マス幅の絡む根。spacing ± spacingJitter マスおき、その chance で垂れる。二股は長さの forkFrom〜forkFrom+forkSpread、短い股は shortBranch。崖の上で crawlMin〜+crawlSpread マス奥へ 3 本に分かれて這う。先に垂れる根 tipDangle 段。縄の間に細い根(崖の thinFrom〜+thinSpread)。縁の垂れる根の房 edgeTuftChance。急斜面は slopeLinkEvery 段おきに縄の間を横の根でつなぐ(網)",
+    "spacing": 5,
     "spacingJitter": 1,
-    "chance": 0.8,
+    "chance": 1.0,
     "maxLength": 40,
     "sway": 1.7,
     "swayPhasePerStep": 0.3,
@@ -25,7 +25,8 @@
     "tipDangle": 2,
     "thinFrom": 0.25,
     "thinSpread": 0.25,
-    "edgeTuftChance": 0.5
+    "edgeTuftChance": 0.5,
+    "slopeLinkEvery": 3
   },
   "sacs": {
     "_comment": "B2 嚢の房(芯なし)。割れ目は spacing マスおき(縄と半分ずらす)・chance。うねり wiggle マス。嚢の房は clusterEvery 段おき。縁の下 marginTop 段・地面の上 marginBottom 段は空ける",
@@ -37,13 +38,10 @@
     "marginBottom": 1
   },
   "climb": {
-    "_comment": "絡む根を登る速さ(はしご = 1)。ユーザー決定: 植物側の Mob のほうが速い。seekRadius / seekMinRise = 植物側の Mob が、相手がこれだけ上にいるとき縄を探す半径。giveUpTicks で諦める",
+    "_comment": "絡む根を登る速さ(はしご = 1)。ユーザー決定: 植物側の Mob のほうが速い。植物側の Mob は縄を経路に入れて登る(RootPath)",
     "plantSide": 1.75,
     "player": 0.85,
-    "other": 0.85,
-    "seekRadius": 8,
-    "seekMinRise": 3,
-    "giveUpTicks": 200
+    "other": 0.85
   },
   "burst": {
     "_comment": "崖の嚢を壊したときの霧。durationTicks の間 pulseTicks ごとに、radius の中の生き物へ dosePerPulse(息で浴びる)。升の浮遊を合計 airPercent %(100 = spore_field の fullAt)・降り積もり deposit。chain = 隣の嚢も続けて割れる",
