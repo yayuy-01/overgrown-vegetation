@@ -39,6 +39,7 @@ public class OrganCoreBlock extends Block {
         // 同じブロックの状態の変わり目(枯れ)は数えない。器官の手順が置き換えるときも数えない(OrganWorld.placing)
         if (!newState.is(this) && !state.getValue(WITHERED) && level instanceof ServerLevel server && !OrganWorld.placing()) {
             ForestOrgans.onCoreRemoved(server, pos);
+            com.yayuy.overgrownvegetation.corruption.fissure.FissureWorld.onCoreRemoved(server, pos); // 亀裂の巣の芯(2026-11-20。器官の芯と同じブロック)
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
     }

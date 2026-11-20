@@ -79,6 +79,7 @@ public final class BaseWatch {
         LargeRaids.tick(level, day, DesignData.director().base.sampleTicks); // 大きな襲撃(第 4 段)
         Watchers.tick(level, memory, day); // 監視塔を植える(F5 から。監視塔が組み込まれてから)
         com.yayuy.overgrownvegetation.organ.OrganPlanner.tick(level, day); // 森の器官を芽吹かせる(2026-11-17。organs.json の間隔で)
+        com.yayuy.overgrownvegetation.corruption.fissure.FissurePlanner.tick(level, day); // 地下に小さな亀裂を開く(2026-11-20。F4 から・fissure.json の間隔で。プレイヤーの位置を見ない)
         // 送り込み・危ない所へ送るのを止める: 大きな襲撃の前触れ・本番の間と、貯めている間。偵察は止めない(11-14 ユーザー T1 = 2)
         ForestDirector.Mood mood = ForestDirector.get(level).mood();
         boolean omen = DirectorGates.largeRaidOmen(level) || ForestDirector.hoarding() || mood == ForestDirector.Mood.LARGE

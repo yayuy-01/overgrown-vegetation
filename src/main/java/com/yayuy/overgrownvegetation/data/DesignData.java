@@ -72,6 +72,13 @@ public final class DesignData {
 
     private static volatile com.yayuy.overgrownvegetation.corruption.cliff.CliffTable cliff = com.yayuy.overgrownvegetation.corruption.cliff.CliffTable.DEFAULT;
 
+    private static volatile com.yayuy.overgrownvegetation.corruption.fissure.FissureTable fissure = com.yayuy.overgrownvegetation.corruption.fissure.FissureTable.DEFAULT;
+
+    /** 地下の小さな亀裂と亀裂の巣({@code fissure.json}、2026-11-20)。 */
+    public static com.yayuy.overgrownvegetation.corruption.fissure.FissureTable fissure() {
+        return fissure;
+    }
+
     /** 崖・急斜面の汚染(根の縄・嚢の房・登り・嚢の霧。{@code cliff.json}、2026-11-20)。 */
     public static com.yayuy.overgrownvegetation.corruption.cliff.CliffTable cliff() {
         return cliff;
@@ -236,6 +243,8 @@ public final class DesignData {
         mobClass = mc != null ? mc : com.yayuy.overgrownvegetation.phase.MobClassTable.DEFAULT;
         com.yayuy.overgrownvegetation.corruption.cliff.CliffTable cl = read(dir, "cliff.json", com.yayuy.overgrownvegetation.corruption.cliff.CliffTable.class);
         cliff = cl != null ? cl : com.yayuy.overgrownvegetation.corruption.cliff.CliffTable.DEFAULT;
+        com.yayuy.overgrownvegetation.corruption.fissure.FissureTable fi = read(dir, "fissure.json", com.yayuy.overgrownvegetation.corruption.fissure.FissureTable.class);
+        fissure = fi != null ? fi : com.yayuy.overgrownvegetation.corruption.fissure.FissureTable.DEFAULT;
 
         OvergrownVegetation.LOGGER.info("設計データを読み込みました({})", dir);
     }
