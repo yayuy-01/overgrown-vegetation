@@ -50,7 +50,8 @@ public final class FissureCommand {
                                         .then(Commands.argument("hours", DoubleArgumentType.doubleArg(0.0D, 24.0D * 30.0D)).executes(FissureCommand::shift))))
                                 .then(Commands.literal("tp").then(Commands.argument("id", IntegerArgumentType.integer(1))
                                         .executes(c -> tp(c, false))
-                                        .then(Commands.literal("mouth").executes(c -> tp(c, true)))))
+                                        .then(Commands.literal("mouth").executes(c -> tp(c, true)))
+                                        .then(Commands.literal("borer").executes(FissureCommand::tpBorer))))
                                 .then(Commands.literal("kill").then(Commands.argument("id", IntegerArgumentType.integer(1)).executes(FissureCommand::kill)))
                                 .then(Commands.literal("remove").then(Commands.argument("id", IntegerArgumentType.integer(1)).executes(FissureCommand::remove))))));
     }
@@ -68,6 +69,8 @@ public final class FissureCommand {
         c.getSource().sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "重さ: 働いた tick %d・平均 %.3f ms・最大 %.2f ms・洞窟探し 最後 %.1f ms・最大 %.1f ms(床を集める %.1f ms・道を探す 1 回 %.1f ms・巣を置く %.1f ms)",
                 FissureWorld.statTicks, FissureWorld.statTicks == 0 ? 0.0D : FissureWorld.statTickSumNs / 1e6 / FissureWorld.statTicks, FissureWorld.statTickMaxNs / 1e6,
                 FissureWorld.statResolveLastNs / 1e6, FissureWorld.statResolveMaxNs / 1e6, FissureWorld.statScanMaxNs / 1e6, FissureWorld.statSearchMaxNs / 1e6, FissureWorld.statOpenNs / 1e6)), false);
+        c.getSource().sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "台帳: マス %d・見立て %d・前線の計算 最大 %.2f ms・測る 最大 %.2f ms(1 ms 超 %d 回・10 ms 超 %d 回)・追いつき 最大 %.2f ms",
+                data.ledger().size(), data.knownCount(), FissureWorld.statUpdateMaxNs / 1e6, FissureWorld.statMeasureMaxNs / 1e6, FissureWorld.statMeasureOver1, FissureWorld.statMeasureOver10, FissureWorld.statApplyMaxNs / 1e6)), false);
         return data.fissures().size();
     }
 
@@ -125,12 +128,11 @@ public final class FissureCommand {
             return 0;
         }
         long ticks = (long) (DoubleArgumentType.getDouble(c, "hours") * 1000.0D);
-        f.openedAt -= ticks;
-        if (f.reachedMouth()) f.mouthAt -= ticks;
+        data.shiftBack(f, ticks);
         long now = PhaseData.clockNow(level);
         int n = 0;
         for (int i = 0; i < 400; i++) {
-            int a = FissureWorld.grow(level, data, f, now, 64);
+            int a = FissureWorld.grow(level, data, f, now, 64) + FissureLedger.update(level, data, f, now);
             int b = f.reachedMouth() ? FissureWorld.overflow(level, data, f, now, 64) : 0;
             n += a + b;
             if (a + b == 0) break;
@@ -156,13 +158,17 @@ public final class FissureCommand {
         FissureData.Fissure f = data.byId(IntegerArgumentType.getInteger(c, "id"));
         if (f == null) return 0;
         long ticks = (long) (DoubleArgumentType.getDouble(c, "hours") * 1000.0D);
-        f.openedAt -= ticks;
-        if (f.reachedMouth()) f.mouthAt -= ticks;
+        data.shiftBack(f, ticks);
         FissureWorld.statTickMaxNs = 0L;
         FissureWorld.statTickSumNs = 0L;
         FissureWorld.statTicks = 0L;
         FissureWorld.statResolveMaxNs = 0L;
         FissureWorld.statScanMaxNs = 0L;
+        FissureWorld.statUpdateMaxNs = 0L;
+        FissureWorld.statMeasureMaxNs = 0L;
+        FissureWorld.statApplyMaxNs = 0L;
+        FissureWorld.statMeasureOver10 = 0L;
+        FissureWorld.statMeasureOver1 = 0L;
         data.changed();
         c.getSource().sendSuccess(() -> Component.literal("ずらした: " + f.describe()), false);
         return 1;
@@ -178,6 +184,21 @@ public final class FissureCommand {
         }
         p.teleportTo(level, to.getX() + 0.5D, to.getY() + (mouth ? 1.0D : 0.0D), to.getZ() + 0.5D, p.getYRot(), p.getXRot());
         return 1;
+    }
+
+    /** 根を送り込む器官の芯の横へ飛ぶ(形になっていれば)。 */
+    private static int tpBorer(CommandContext<CommandSourceStack> c) {
+        ServerLevel level = overworld(c);
+        FissureData.Fissure f = FissureData.get(level).byId(IntegerArgumentType.getInteger(c, "id"));
+        if (f == null || !(c.getSource().getEntity() instanceof ServerPlayer p)) return 0;
+        for (FissureData.Borer b : f.borers) {
+            if (b.core == null) continue;
+            p.teleportTo(level, b.core.getX() + 3.5D, b.core.getY() + 3.0D, b.core.getZ() + 3.5D, 135.0F, 35.0F);
+            c.getSource().sendSuccess(() -> Component.literal("送り込む器官の芯 " + b.core.toShortString() + (b.alive ? "" : "(枯れた)") + (b.done ? "(役目を終えた)" : "")), false);
+            return 1;
+        }
+        c.getSource().sendFailure(Component.literal("形になった送り込む器官が無い"));
+        return 0;
     }
 
     private static int kill(CommandContext<CommandSourceStack> c) {

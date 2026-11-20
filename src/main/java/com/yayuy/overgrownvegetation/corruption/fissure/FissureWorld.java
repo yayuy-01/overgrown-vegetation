@@ -26,6 +26,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -70,7 +71,7 @@ public final class FissureWorld {
     private static final int FLAGS = Block.UPDATE_ALL;
 
     /** 計測(/ov perf fissure list に出す。保存しない)。 */
-    static long statTickMaxNs, statTickSumNs, statTicks, statResolveMaxNs, statResolveLastNs, statScanMaxNs, statOpenNs, statSearchMaxNs;
+    static long statTickMaxNs, statTickSumNs, statTicks, statResolveMaxNs, statResolveLastNs, statScanMaxNs, statOpenNs, statSearchMaxNs, statUpdateMaxNs, statMeasureMaxNs, statApplyMaxNs, statMeasureOver10, statMeasureOver1;
 
     // ---------------------------------------------------------------- 毎 tick
 
@@ -97,16 +98,37 @@ public final class FissureWorld {
                     }
                     case OPEN -> {
                         if (!t.enabled) continue;
+                        // 地下の台帳の前線(粗い間隔。読み込まれていない所も時刻で進む)
+                        if ((game + f.id) % Math.max(1, t.ledger.intervalTicks) == 0) {
+                            long u0 = System.nanoTime();
+                            units += 1 + FissureLedger.update(level, data, f, now);
+                            statUpdateMaxNs = Math.max(statUpdateMaxNs, System.nanoTime() - u0);
+                        }
+                        if ((game + f.id) % 20 == 0) units += FissureLedger.formBorers(level, data, f);
                         int used = grow(level, data, f, now, budget);
                         budget -= used;
                         units += used;
                         if (f.reachedMouth()) units += overflow(level, data, f, now, Math.max(1, budget));
                         if (t.omen.puffTicks > 0 && (game + f.id) % t.omen.puffTicks == 0) puff(level, f, false);
                     }
-                    case DEAD -> units += witherSome(level, data, f, t.roots.witherPerTick);
+                    case DEAD -> {
+                        // 死んだ時刻までに届く分は台帳に足す(1 回で済む)
+                        if ((game + f.id) % Math.max(1, t.ledger.intervalTicks) == 0) units += FissureLedger.update(level, data, f, now);
+                        units += witherSome(level, data, f, t.roots.witherPerTick);
+                    }
                 }
+                units += FissureLedger.witherBorers(level, data, f, t.roots.witherPerTick);
                 if (budget <= 0 || !TickBudget.timeLeft()) break;
             }
+            // 地下の見立てを測る・読み込まれたチャンクの洞窟を追いつかせる
+            long m0 = System.nanoTime();
+            if (TickBudget.timeLeft()) units += FissureLedger.measureTick(level, data);
+            long a0 = System.nanoTime();
+            statMeasureMaxNs = Math.max(statMeasureMaxNs, a0 - m0);
+            if (a0 - m0 > 10_000_000L) statMeasureOver10++;
+            if (a0 - m0 > 1_000_000L) statMeasureOver1++;
+            if (TickBudget.timeLeft()) units += FissureLedger.applyTick(level, data, now);
+            statApplyMaxNs = Math.max(statApplyMaxNs, System.nanoTime() - a0);
         } finally {
             if (units > 0) {
                 long ns = System.nanoTime() - start;
@@ -165,19 +187,32 @@ public final class FissureWorld {
                 tmp.floor = BlockPos.of(k);
                 job.search.applyTo(tmp);
                 job.search = null;
-                if (tmp.routeHitsMouth) floor = tmp.floor;
-                else if (job.next < job.floors.size()) return "wait: 口に届くか試している(" + job.next + "/" + job.floors.size() + ")";
-                else tmp = null;
+                // 口までの道が短い床は洞窟の入口そのもの(地上から亀裂が見える。追記 1)なので使わない
+                boolean tooClose = tmp.routeHitsMouth && tmp.route.length < t.cave.minMouthRoute;
+                if (tmp.routeHitsMouth && !tooClose) floor = tmp.floor;
+                else {
+                    if (!tooClose && job.fallback == Long.MIN_VALUE) job.fallback = k;
+                    if (job.next < job.floors.size()) return "wait: 口に届くか試している(" + job.next + "/" + job.floors.size() + ")";
+                    tmp = null;
+                }
             }
-            if (floor == null) floor = BlockPos.of(job.floors.getLong(0));
+            if (floor == null) {
+                if (!t.cave.preferMouth) floor = BlockPos.of(job.floors.getLong(0));
+                else if (job.fallback != Long.MIN_VALUE) floor = BlockPos.of(job.fallback);
+                else {
+                    JOBS.remove(f.id);
+                    return relocate(level, data, f, "洞窟の入口に近すぎる");
+                }
+            }
             JOBS.remove(f.id);
             if (FissurePlanner.nearKnownPump(data, floor.getX(), floor.getZ())) return relocate(level, data, f, "汲み上げ器が近い");
             long o0 = System.nanoTime();
             open(level, data, f, floor);
             statOpenNs = System.nanoTime() - o0;
-            if (tmp != null) { // 試した道をそのまま使う(作り直さない)
+            if (tmp != null) { // 試した道をそのまま使う(作り直さない)。道が通るチャンクは洞窟、口のチャンクは口と分かった
                 f.route = tmp.route;
                 f.routeHitsMouth = tmp.routeHitsMouth;
+                FissureLedger.markRoute(data, f.route, f.routeHitsMouth);
                 data.changed();
             }
             return "opened";
@@ -196,6 +231,8 @@ public final class FissureWorld {
         final int x, z;
         final LongArrayList floors;
         int next;
+        /** 口に届かないが使える床(最初の 1 つ)。 */
+        long fallback = Long.MIN_VALUE;
         @Nullable
         RouteSearch search;
 
@@ -219,6 +256,7 @@ public final class FissureWorld {
         }
         f.x = site[0];
         f.z = site[1];
+        f.plannedAt = PhaseData.clockNow(level); // 選び直した時刻から育つ
         data.changed();
         return "moved: " + why;
     }
@@ -237,27 +275,66 @@ public final class FissureWorld {
      * つながった空気が {@code minAir} 以上)。線に近い物から(同じ距離なら種のくじ)。無ければ null。
      */
     static LongArrayList caveFloors(ServerLevel level, int cx, int cz, int seed) {
+        return caveFloors(level, cx, cz, seed, true);
+    }
+
+    /** {@code nearLine} = 地脈の線から lineBlocks 以内の列だけ(亀裂を開くとき)。台帳の見立てでは線を見ない。 */
+    static LongArrayList caveFloors(ServerLevel level, int cx, int cz, int seed, boolean nearLine) {
+        FissureTable t = DesignData.fissure();
+        return caveFloors(level, cx, cz, seed, nearLine, Math.max(1, t.cave.preferMouth ? t.cave.mouthTries : 1), 64);
+    }
+
+    /** {@code maxFloors} 個まで・空気の数を見る候補は {@code maxTries} 個まで。 */
+    static LongArrayList caveFloors(ServerLevel level, int cx, int cz, int seed, boolean nearLine, int maxFloors, int maxTries) {
+        long[] order = caveCandidates(level, cx, cz, seed, nearLine, 1);
+        LongArrayList floors = new LongArrayList();
+        int tried = 0;
+        for (long k : order) {
+            if (tried++ >= maxTries || floors.size() >= maxFloors) break;
+            BlockPos p = BlockPos.of(k);
+            // すぐ隣の床は同じ答えになるので、選んだ床から 6 マス以内は飛ばす
+            boolean near = false;
+            for (long q : floors) if (p.distSqr(BlockPos.of(q)) < 36.0D) near = true;
+            if (near) continue;
+            if (goodFloor(level, p)) floors.add(k);
+        }
+        return floors;
+    }
+
+    /** 床の候補として使えるか(空が見えない・押し返す道具の効く所でない・つながった空気が minAir 以上)。 */
+    static boolean goodFloor(ServerLevel level, BlockPos p) {
+        FissureTable t = DesignData.fissure();
+        return !skyOpen(level, p) && !RingWards.guarded(level, p) && countAir(level, p, t.cave.airScanCap) >= t.cave.minAir;
+    }
+
+    /**
+     * そのチャンクの洞窟の床の候補(真下が固い空気のマス・地面から minDepth 下・nearLine なら地脈の線から lineBlocks 以内)を、
+     * 線に近い順(同じなら種のくじ)に。{@code stride} 列おきに見る(見立てを測るときは 2 で 1/4 の重さ)。
+     */
+    static long[] caveCandidates(ServerLevel level, int cx, int cz, int seed, boolean nearLine, int stride) {
         FissureTable t = DesignData.fissure();
         LevelChunk chunk = level.getChunkSource().getChunkNow(cx, cz);
-        if (chunk == null) return new LongArrayList();
+        if (chunk == null) return new long[0];
         long wseed = level.getSeed();
         int minY = level.getMinBuildHeight() + t.cave.floorMargin;
         LongArrayList cands = new LongArrayList();
         it.unimi.dsi.fastutil.doubles.DoubleArrayList score = new it.unimi.dsi.fastutil.doubles.DoubleArrayList();
         RandomSource r = RandomSource.create(seed ^ 0x5F15_5E7DL);
         BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
-        for (int lx = 0; lx < 16; lx++) {
-            for (int lz = 0; lz < 16; lz++) {
+        int st = Math.max(1, stride);
+        for (int lx = 0; lx < 16; lx += st) {
+            for (int lz = 0; lz < 16; lz += st) {
                 int x = (cx << 4) + lx, z = (cz << 4) + lz;
-                double d = LeyLines.distanceToLine(wseed, x, z);
+                double d = nearLine ? LeyLines.distanceToLine(wseed, x, z) : 0.0D;
                 if (d > t.plan.lineBlocks) continue;
-                int ground = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR, lx, lz);
+                // 本当の地面(梢・幹・下草をくぐる。OCEAN_FLOOR は幹と葉を地面と数え、タイガで入口の床を深いと見ていた)
+                int ground = com.yayuy.overgrownvegetation.spore.field.CaveMouths.groundTop(chunk, x, chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz), z, level.getMinBuildHeight());
                 boolean solidBelow = false;
                 for (int y = minY; y <= ground - t.cave.minDepth; y++) {
                     m.set(x, y, z);
                     BlockState s = chunk.getBlockState(m);
                     boolean air = s.isAir();
-                    if (air && solidBelow && !RingWards.guarded(level, m)) {
+                    if (air && solidBelow) {
                         cands.add(m.asLong());
                         score.add(d + r.nextDouble() * 2.0D);
                     }
@@ -265,25 +342,13 @@ public final class FissureWorld {
                 }
             }
         }
-        if (cands.isEmpty()) return new LongArrayList();
-        // 点の小さい順に、空気の多さを見る(数を絞る)
-        Integer[] order = new Integer[cands.size()];
-        for (int i = 0; i < order.length; i++) order[i] = i;
-        java.util.Arrays.sort(order, (a, b) -> Double.compare(score.getDouble(a), score.getDouble(b)));
-        LongArrayList floors = new LongArrayList();
-        int tried = 0;
-        for (Integer i : order) {
-            if (tried++ >= 64 || floors.size() >= Math.max(1, t.cave.preferMouth ? t.cave.mouthTries : 1)) break;
-            BlockPos p = BlockPos.of(cands.getLong(i));
-            if (skyOpen(level, p)) continue;
-            // すぐ隣の床は同じ答えになるので、選んだ床から 6 マス以内は飛ばす
-            boolean near = false;
-            for (long q : floors) if (p.distSqr(BlockPos.of(q)) < 36.0D) near = true;
-            if (near) continue;
-            if (countAir(level, p, t.cave.airScanCap) < t.cave.minAir) continue;
-            floors.add(p.asLong());
-        }
-        return floors;
+        int n = cands.size();
+        int[] idx = new int[n];
+        for (int i = 0; i < n; i++) idx[i] = i;
+        it.unimi.dsi.fastutil.ints.IntArrays.quickSort(idx, (a, b) -> Double.compare(score.getDouble(a), score.getDouble(b)));
+        long[] out = new long[n];
+        for (int i = 0; i < n; i++) out[i] = cands.getLong(idx[i]);
+        return out;
     }
 
     /**
@@ -294,15 +359,18 @@ public final class FissureWorld {
     public static BlockPos findCaveFloor(ServerLevel level, int cx, int cz, int seed) {
         LongArrayList floors = caveFloors(level, cx, cz, seed);
         if (floors.isEmpty()) return null;
-        if (DesignData.fissure().cave.preferMouth) {
-            for (long k : floors) {
-                FissureData.Fissure tmp = new FissureData.Fissure(0, BlockPos.getX(k), BlockPos.getZ(k), 0, 0L);
-                tmp.floor = BlockPos.of(k);
-                buildRoute(level, tmp);
-                if (tmp.routeHitsMouth) return tmp.floor;
-            }
+        FissureTable.Cave c = DesignData.fissure().cave;
+        if (!c.preferMouth) return BlockPos.of(floors.getLong(0));
+        BlockPos fallback = null;
+        for (long k : floors) {
+            FissureData.Fissure tmp = new FissureData.Fissure(0, BlockPos.getX(k), BlockPos.getZ(k), 0, 0L);
+            tmp.floor = BlockPos.of(k);
+            buildRoute(level, tmp);
+            boolean tooClose = tmp.routeHitsMouth && tmp.route.length < c.minMouthRoute;
+            if (tmp.routeHitsMouth && !tooClose) return tmp.floor;
+            if (!tooClose && fallback == null) fallback = tmp.floor;
         }
-        return BlockPos.of(floors.getLong(0));
+        return fallback;
     }
 
     /** つながった空気の数(上限まで)。読み込まれていないチャンクは数えない。 */
@@ -356,32 +424,42 @@ public final class FissureWorld {
         }
         f.floor = floor.immutable();
         f.state = FissureData.State.OPEN;
-        f.openedAt = PhaseData.clockNow(level);
+        // 時計の起点は司令塔が場所を決めた時刻(誰も来ないうちも育っていたことにする。読み込まれたときに巣・根・台帳が追いつく)
+        long now = PhaseData.clockNow(level);
+        f.openedAt = Math.min(now, f.plannedAt);
+        long nest = ChunkPos.asLong(floor.getX() >> 4, floor.getZ() >> 4);
+        if (data.known(nest) == 0) data.setKnown(nest, FissureData.K_CAVE, null);
         data.changed();
+        ForestDirector.get(level).note(String.format(Locale.ROOT, "亀裂 #%d が開いた(%s)", f.id, floor.toShortString()));
+        if (now - f.plannedAt > t.omen.windowTicks) return; // 追いつきで開いた(前から開いていたことになる): 前触れは無し
         // 前触れ(全体管理の案【仮】): F1 の地割れの音を小さく・高めに + 胞子の噴き上げ
+        // 洞窟の中にいるプレイヤーにだけ(追記 1: 前触れは洞窟の中だけ。地上には鳴らさない)
         if (t.omen.rumbleVolume > 0.0F) {
-            level.playSound(null, floor.getX() + 0.5D, floor.getY(), floor.getZ() + 0.5D, ModSounds.EARTHQUAKE_FISSURE.get(), SoundSource.HOSTILE,
-                    t.omen.rumbleVolume, 1.35F);
+            for (ServerPlayer p : level.players()) {
+                if (!underground(level, p) || p.distanceToSqr(floor.getX(), floor.getY(), floor.getZ()) > (double) t.omen.puffRange * t.omen.puffRange) continue;
+                p.connection.send(new net.minecraft.network.protocol.game.ClientboundSoundPacket(ModSounds.EARTHQUAKE_FISSURE, SoundSource.HOSTILE,
+                        floor.getX() + 0.5D, floor.getY(), floor.getZ() + 0.5D, t.omen.rumbleVolume, 1.35F, level.getRandom().nextLong()));
+            }
         }
         puff(level, f, true);
-        ForestDirector.get(level).note(String.format(Locale.ROOT, "亀裂 #%d が開いた(%s)", f.id, floor.toShortString()));
     }
 
     /** 亀裂から胞子が漏れる(場所の手がかり)。開いたときは多め。 */
     static void puff(ServerLevel level, FissureData.Fissure f, boolean big) {
         if (f.floor == null) return;
         int range = DesignData.fissure().omen.puffRange;
-        boolean seen = false;
-        for (ServerPlayer p : level.players()) {
-            if (p.distanceToSqr(f.floor.getX(), f.floor.getY(), f.floor.getZ()) <= (double) range * range) {
-                seen = true;
-                break;
-            }
-        }
-        if (!seen) return;
         double x = f.floor.getX() + 0.5D, y = f.floor.getY() + 0.2D, z = f.floor.getZ() + 0.5D;
-        level.sendParticles(new DustParticleOptions(SPORE_GREEN, big ? 1.6F : 1.0F), x, y, z, big ? 60 : 4, 0.8D, big ? 1.5D : 0.4D, 0.8D, 0.02D);
-        if (big) level.sendParticles(ParticleTypes.LARGE_SMOKE, x, y, z, 20, 0.6D, 0.3D, 0.6D, 0.02D);
+        // 洞窟の中にいるプレイヤーにだけ見せる(追記 1。地上の人には胞子も出さない)
+        for (ServerPlayer p : level.players()) {
+            if (!underground(level, p) || p.distanceToSqr(x, y, z) > (double) range * range) continue;
+            level.sendParticles(p, new DustParticleOptions(SPORE_GREEN, big ? 1.6F : 1.0F), false, x, y, z, big ? 60 : 4, 0.8D, big ? 1.5D : 0.4D, 0.8D, 0.02D);
+            if (big) level.sendParticles(p, ParticleTypes.LARGE_SMOKE, false, x, y, z, 20, 0.6D, 0.3D, 0.6D, 0.02D);
+        }
+    }
+
+    /** プレイヤーが空の見えない所(洞窟の中)にいるか。 */
+    static boolean underground(ServerLevel level, ServerPlayer p) {
+        return !skyOpen(level, BlockPos.containing(p.getEyePosition()));
     }
 
     // ---------------------------------------------------------------- 根
@@ -409,6 +487,7 @@ public final class FissureWorld {
             if (!s.step(level, Math.max(1, t.roots.searchPerTick))) return done + 1;
             s.applyTo(f);
             GROW_SEARCH.remove(f.id);
+            FissureLedger.markRoute(data, f.route, f.routeHitsMouth);
             data.changed();
             done++;
         }
@@ -427,13 +506,7 @@ public final class FissureWorld {
             done++;
             data.changed();
         }
-        if (f.grown >= f.route.length && f.routeHitsMouth && !f.reachedMouth()) {
-            // 口に着いた時刻は「着くはずだった時刻」(追いつきでも地上の進みがずれない)
-            f.mouthAt = f.openedAt + (long) (t.nest.rootDelayDays * 24000.0D) + (long) f.route.length * Math.max(1, t.roots.ticksPerCell);
-            f.armDone = new int[Math.max(0, t.mouth.arms)];
-            data.changed();
-            ForestDirector.get(level).note(String.format(Locale.ROOT, "亀裂 #%d の根が洞窟の口に着いた(%s)", f.id, BlockPos.of(f.route[f.route.length - 1]).toShortString()));
-        }
+        // 口に着く時刻は地下の台帳だけが決める(追記 2。根の道は読み込まれた所の根の置き方だけ)
         return done;
     }
 
@@ -612,7 +685,7 @@ public final class FissureWorld {
         return true;
     }
 
-    private static void growPlants(ServerLevel level, BlockPos at, BlockState host) {
+    static void growPlants(ServerLevel level, BlockPos at, BlockState host) {
         if (!com.yayuy.overgrownvegetation.corruption.FloorGrowth.tryHorsetail(level, at)) {
             com.yayuy.overgrownvegetation.corruption.CorruptionSpreader.growSurfacePlants(level, at, host,
                     com.yayuy.overgrownvegetation.corruption.CorruptionSpreader.surfaceGrowthChance(level, at));
@@ -726,6 +799,7 @@ public final class FissureWorld {
                 return;
             }
         }
+        FissureLedger.onBorerCoreRemoved(level, data, pos); // 根を送り込む器官の芯
     }
 
     /** 枯らす(根が止まる。置いた根・巣は少しずつ枯れの姿へ)。 */

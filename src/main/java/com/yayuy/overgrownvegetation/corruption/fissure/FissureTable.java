@@ -61,6 +61,8 @@ public final class FissureTable {
         public boolean preferMouth = true;
         /** 口に届くか試す床の数(重さ)。 */
         public int mouthTries = 4;
+        /** 口までの根の道がこれより短い床は使わない(洞窟の入口そのものに開くと地上から亀裂が見える。追記 1)。 */
+        public int minMouthRoute = 24;
     }
 
     public Nest nest = new Nest();
@@ -117,6 +119,38 @@ public final class FissureTable {
         public int maxPoints = 8;
     }
 
+    public Ledger ledger = new Ledger();
+
+    /** 地下の台帳と前線(追記 2。1 チャンク 1 マス、読み込まれていない所でも時間で進む)。 */
+    public static final class Ledger {
+        /** 前線を計算する間(tick)。粗くてよい(ユーザー案)。 */
+        public int intervalTicks = 100;
+        /** 洞窟があると分かっているチャンクへ進む時間(tick)。6000 = 5 分(1/4 日)。 */
+        public int caveChunkTicks = 6000;
+        /** 洞窟が無い・まだ分からないチャンク(根が岩を掘る)へ進む時間(tick)。送り込む器官が掘っている間だけ。36000 = 1.5 日。 */
+        public int rockChunkTicks = 36000;
+        /** 届いたチャンクの洞窟を汚染し切るまでの時間(tick。読み込んだときの追いつきの割合)。 */
+        public int fillTicks = 12000;
+        /** 洞窟を広がり切ってから、根を送り込む器官ができるまで(tick)。 */
+        public int borerDelayTicks = 24000;
+        /** 1 つの亀裂の送り込む器官の数の上限。 */
+        public int maxBorers = 3;
+        /** 1 つの亀裂の台帳のマスの上限。 */
+        public int maxCells = 300;
+        /** 巣からのチャンクの距離の上限(チェビシェフ)。 */
+        public int maxRadiusChunks = 16;
+        /** 1 回の計算で足すマスの上限。 */
+        public int addsPerUpdate = 64;
+        /** 読み込んだチャンクの追いつきで 1 tick に汚染する列の数。 */
+        public int columnsPerTick = 6;
+        /** 追いつきに 1 tick で使う時間の上限(ミリ秒)。 */
+        public double applyMillis = 2.0D;
+        /** 1 tick に測るチャンクの数。 */
+        public int measuresPerTick = 1;
+        /** 地表からこの深さより下だけを汚染する(地上を割らない。追記 1)。 */
+        public int surfaceKeep = 4;
+    }
+
     public Wither wither = new Wither();
 
     /** 芯を壊したとき(器官と同じ扱いにするかは報告で聞く。既定は引かない)。 */
@@ -137,5 +171,7 @@ public final class FissureTable {
         public int puffRange = 40;
         /** 生きている間、亀裂から胞子が漏れる間(tick。0 で出さない)。 */
         public int puffTicks = 30;
+        /** 場所を決めてからこの時間(tick)のうちに開いたときだけ前触れを出す(後で読み込まれて追いつきで開いたときは出さない)。 */
+        public int windowTicks = 1200;
     }
 }

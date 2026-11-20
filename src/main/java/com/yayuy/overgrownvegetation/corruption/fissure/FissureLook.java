@@ -52,6 +52,31 @@ public final class FissureLook {
     /** 今の巣の形(差し替える所)。 */
     public static NestShape NEST = FissureLook::slitNest;
 
+    /** 根を送り込む器官の形(差し替える所。追記 2)。 */
+    public static NestShape BORER = FissureLook::borer;
+
+    /**
+     * 仮の形: 洞窟の床に座る肉の球根(2 段)の根元に芯を半分埋め、横と下を殻で覆う。殻の下から絡む根が岩の中へ斜めに 4 本、5 段ずつ潜る。
+     */
+    static List<Cell> borer(BlockPos floor, Direction.Axis axis, RandomSource random, FissureTable.Nest t) {
+        List<Cell> out = new ArrayList<>();
+        BlockPos core = floor.below();
+        for (Direction d : Direction.Plane.HORIZONTAL) out.add(new Cell(core.relative(d), Part.SHELL));
+        out.add(new Cell(core.below(), Part.SHELL));
+        out.add(new Cell(floor, Part.COVER));
+        out.add(new Cell(floor.above(), Part.COVER));
+        for (Direction d : Direction.Plane.HORIZONTAL) {
+            BlockPos p = core.below();
+            for (int k = 1; k <= 5; k++) {
+                p = p.below();
+                if (k % 2 == 0) p = p.relative(d);
+                out.add(new Cell(p, Part.ROOT));
+            }
+        }
+        out.add(new Cell(core, Part.CORE));
+        return out;
+    }
+
     /** 役の素材(差し替える所)。 */
     public static BlockState state(Part part) {
         return switch (part) {

@@ -21,7 +21,8 @@
     "minAir": 48,
     "airScanCap": 400,
     "preferMouth": true,
-    "mouthTries": 4
+    "mouthTries": 4,
+    "minMouthRoute": 24
   },
   "nest": {
     "depth": 5,
@@ -47,6 +48,21 @@
     "ticksPerPoint": 2400,
     "maxPoints": 8
   },
+  "ledger": {
+    "intervalTicks": 100,
+    "caveChunkTicks": 6000,
+    "rockChunkTicks": 36000,
+    "fillTicks": 12000,
+    "borerDelayTicks": 24000,
+    "maxBorers": 3,
+    "maxCells": 300,
+    "maxRadiusChunks": 16,
+    "addsPerUpdate": 64,
+    "columnsPerTick": 6,
+    "applyMillis": 2.0,
+    "measuresPerTick": 1,
+    "surfaceKeep": 4
+  },
   "wither": {
     "points": 0,
     "budgetCapShare": 0.0
@@ -54,6 +70,7 @@
   "omen": {
     "rumbleVolume": 2.5,
     "puffRange": 40,
-    "puffTicks": 30
+    "puffTicks": 30,
+    "windowTicks": 1200
   }
 }

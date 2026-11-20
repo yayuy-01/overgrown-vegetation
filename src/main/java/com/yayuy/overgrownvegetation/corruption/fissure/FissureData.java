@@ -73,6 +73,13 @@ public final class FissureData extends SavedData {
         /** 枯らし終えた数。 */
         public int withered;
         public long diedAt = -1L;
+        /** 地上へあふれる口(地下の台帳の前線が口のあるチャンクに届いたときに決まる)。null = まだ。 */
+        @Nullable
+        public BlockPos outletMouth;
+        /** 根を送り込む器官(閉じた洞窟を汚染し切ったときにできる。追記 2)。 */
+        public final List<Borer> borers = new ArrayList<>();
+        /** 台帳でこの亀裂が持つチャンク(地下の台帳の鍵)。 */
+        public final LongArrayList cells = new LongArrayList();
 
         Fissure(int id, int x, int z, int seed, long plannedAt) {
             this.id = id;
@@ -93,7 +100,7 @@ public final class FissureData extends SavedData {
 
         @Nullable
         public BlockPos mouth() {
-            return route != null && routeHitsMouth && route.length > 0 ? BlockPos.of(route[route.length - 1]) : null;
+            return outletMouth;
         }
 
         public String describe() {
@@ -105,8 +112,11 @@ public final class FissureData extends SavedData {
             };
             int len = route == null ? 0 : route.length;
             String end = route != null && route.length > 0 ? " 道の終わり " + BlockPos.of(route[route.length - 1]).toShortString() : "";
-            return String.format(java.util.Locale.ROOT, "#%d (%s) %s 根 %d/%d%s%s", id, where, s, grown, len,
-                    routeHitsMouth ? "(口まで)" : route != null ? "(口なし)" : "", end);
+            int alive = 0;
+            for (Borer b : borers) if (b.digging()) alive++;
+            return String.format(java.util.Locale.ROOT, "#%d (%s) %s 巣の根 %d/%d%s%s・台帳 %d マス・送り込む器官 %d(掘っている %d)%s", id, where, s, grown, len,
+                    routeHitsMouth ? "(口まで)" : route != null ? "(口なし)" : "", end, cells.size(), borers.size(), alive,
+                    outletMouth != null ? "・出口 " + outletMouth.toShortString() : "");
         }
 
         CompoundTag save() {
@@ -133,6 +143,11 @@ public final class FissureData extends SavedData {
             t.putLongArray("Placed", placed.toLongArray());
             t.putInt("Withered", withered);
             t.putLong("Died", diedAt);
+            if (outletMouth != null) t.putLong("Outlet", outletMouth.asLong());
+            ListTag bl = new ListTag();
+            for (Borer b : borers) bl.add(b.save());
+            t.put("Borers", bl);
+            t.putLongArray("Cells", cells.toLongArray());
             return t;
         }
 
@@ -159,8 +174,167 @@ public final class FissureData extends SavedData {
             for (long p : t.getLongArray("Placed")) f.placed.add(p);
             f.withered = t.getInt("Withered");
             f.diedAt = t.getLong("Died");
+            if (t.contains("Outlet")) f.outletMouth = BlockPos.of(t.getLong("Outlet"));
+            ListTag bl = t.getList("Borers", Tag.TAG_COMPOUND);
+            for (int i = 0; i < bl.size(); i++) f.borers.add(Borer.load(bl.getCompound(i)));
+            for (long c : t.getLongArray("Cells")) f.cells.add(c);
             return f;
         }
+    }
+
+    /**
+     * 根を送り込む器官 1 つ(閉じた洞窟で、亀裂の前線が洞窟を広がり切ったときにできる。2026-11-20 追記 2)。生きていて役目を終えていない間だけ、
+     * 前線が洞窟の無い・まだ分からないチャンク(岩)へ遅く進む。別の洞窟に当たったら役目を終える。芯を壊すと止まる。
+     */
+    public static final class Borer {
+        /** 台帳のチャンク(この器官がいる所)。 */
+        public final long chunk;
+        public long createdAt;
+        /** 岩を掘る根の先(台帳のチャンク)。岩へはここからだけ進む(根が 1 本ずつ地中へ伸びる)。 */
+        public long tip;
+        /** 置いた芯(読み込まれて形になるまで null)。 */
+        @Nullable
+        public BlockPos core;
+        public boolean alive = true;
+        /** 別の洞窟に当たって役目を終えた。 */
+        public boolean done;
+        /** 置いたブロック(枯らすとき)。 */
+        public final LongArrayList placed = new LongArrayList();
+        public int withered;
+
+        public Borer(long chunk, long createdAt) {
+            this.chunk = chunk;
+            this.createdAt = createdAt;
+            this.tip = chunk;
+        }
+
+        public boolean digging() {
+            return alive && !done;
+        }
+
+        CompoundTag save() {
+            CompoundTag t = new CompoundTag();
+            t.putLong("Chunk", chunk);
+            t.putLong("At", createdAt);
+            t.putLong("Tip", tip);
+            if (core != null) t.putLong("Core", core.asLong());
+            t.putBoolean("Alive", alive);
+            t.putBoolean("Done", done);
+            t.putLongArray("Placed", placed.toLongArray());
+            t.putInt("Withered", withered);
+            return t;
+        }
+
+        static Borer load(CompoundTag t) {
+            Borer b = new Borer(t.getLong("Chunk"), t.getLong("At"));
+            if (t.contains("Tip")) b.tip = t.getLong("Tip");
+            if (t.contains("Core")) b.core = BlockPos.of(t.getLong("Core"));
+            b.alive = t.getBoolean("Alive");
+            b.done = t.getBoolean("Done");
+            for (long p : t.getLongArray("Placed")) b.placed.add(p);
+            b.withered = t.getInt("Withered");
+            return b;
+        }
+    }
+
+    /** 地下の台帳の 1 マス(1 チャンク)。前線が届いた所にだけある(追記 2)。 */
+    public static final class Cell {
+        public final int fissure;
+        /** 前線が届いた時刻(時計)。 */
+        public long reachedAt;
+        /** 岩を掘って届いた(根を送り込む器官の前線)。 */
+        public final boolean rock;
+        /** このマスから岩へ掘っている送り込む器官の番号(亀裂の borers の添字。-1 = なし)。 */
+        public int borer;
+        /** 読み込んだときの追いつきで、汚染し終えた列の数(0〜256)。 */
+        public int applied;
+        /** 途中で止めた列の続きの高さ(保存しない。失っても列の頭からやり直すだけ)。 */
+        public transient int resumeY = Integer.MAX_VALUE;
+
+        public Cell(int fissure, long reachedAt, boolean rock, int borer) {
+            this.fissure = fissure;
+            this.reachedAt = reachedAt;
+            this.rock = rock;
+            this.borer = borer;
+        }
+    }
+
+    /** 見立て: 洞窟が無い・洞窟がある・洞窟が地上へ口を開けている(無い = まだ分からない)。 */
+    public static final byte K_NONE = 1, K_CAVE = 2, K_MOUTH = 3;
+
+    /** 地下の台帳(チャンク → マス)。世界全体には持たず、亀裂の前線が届いたマスだけ。 */
+    private final it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<Cell> ledger = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
+    /** チャンクの地下の見立て(読み込んだときに測った物)。 */
+    private final it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap known = new it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap();
+    /** 口のあるチャンクの、地上へ出る口のマス(BlockPos#asLong)。 */
+    private final it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap mouths = new it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap();
+
+    public it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<Cell> ledger() {
+        return ledger;
+    }
+
+    /** 見立て(0 = まだ分からない)。 */
+    public byte known(long chunk) {
+        return known.get(chunk);
+    }
+
+    public int knownCount() {
+        return known.size();
+    }
+
+    /** 見立ての版(変わるたびに増える。保存しない)。 */
+    private int knownVersion;
+
+    public int knownVersion() {
+        return knownVersion;
+    }
+
+    public void setKnown(long chunk, byte kind, @Nullable BlockPos mouth) {
+        knownVersion++;
+        known.put(chunk, kind);
+        if (mouth != null) mouths.put(chunk, mouth.asLong());
+        else mouths.remove(chunk);
+        setDirty();
+    }
+
+    @Nullable
+    public BlockPos mouthOf(long chunk) {
+        return mouths.containsKey(chunk) ? BlockPos.of(mouths.get(chunk)) : null;
+    }
+
+    public void addCell(long chunk, Cell c) {
+        ledger.put(chunk, c);
+        Fissure f = byId(c.fissure);
+        if (f != null) f.cells.add(chunk);
+        setDirty();
+    }
+
+    public void removeCell(long chunk) {
+        Cell c = ledger.remove(chunk);
+        if (c != null) {
+            Fissure f = byId(c.fissure);
+            if (f != null) f.cells.rem(chunk);
+            setDirty();
+        }
+    }
+
+    /** 確かめ用: その亀裂の時刻を ticks だけ前へずらす(台帳・送り込む器官・口も)。 */
+    public void shiftBack(Fissure f, long ticks) {
+        f.openedAt -= ticks;
+        if (f.reachedMouth()) f.mouthAt -= ticks;
+        for (long k : f.cells) {
+            Cell c = ledger.get(k);
+            if (c != null) c.reachedAt -= ticks;
+        }
+        for (Borer b : f.borers) b.createdAt -= ticks;
+        setDirty();
+    }
+
+    /** テスト用: 見立てを消す。 */
+    public void forgetKnown(long chunk) {
+        knownVersion++;
+        known.remove(chunk);
+        mouths.remove(chunk);
     }
 
     private final List<Fissure> fissures = new ArrayList<>();
@@ -206,6 +380,8 @@ public final class FissureData extends SavedData {
     }
 
     public boolean remove(int id) {
+        Fissure gone = byId(id);
+        if (gone != null) for (long k : gone.cells.toLongArray()) ledger.remove(k);
         boolean r = fissures.removeIf(f -> f.id == id);
         if (r) setDirty();
         return r;
@@ -247,6 +423,18 @@ public final class FissureData extends SavedData {
             d.nextId = Math.max(d.nextId, f.id + 1);
         }
         for (long p : tag.getLongArray("Pumps")) d.pumps.add(p);
+        ListTag cl = tag.getList("Ledger", Tag.TAG_COMPOUND);
+        for (int i = 0; i < cl.size(); i++) {
+            CompoundTag c = cl.getCompound(i);
+            Cell cell = new Cell(c.getInt("F"), c.getLong("T"), c.getBoolean("R"), c.contains("B") ? c.getInt("B") : -1);
+            cell.applied = c.getInt("A");
+            d.ledger.put(c.getLong("K"), cell);
+        }
+        long[] kk = tag.getLongArray("KnownKeys");
+        byte[] kv = tag.getByteArray("KnownVals");
+        for (int i = 0; i < Math.min(kk.length, kv.length); i++) d.known.put(kk[i], kv[i]);
+        long[] mk = tag.getLongArray("MouthKeys"), mv = tag.getLongArray("MouthVals");
+        for (int i = 0; i < Math.min(mk.length, mv.length); i++) d.mouths.put(mk[i], mv[i]);
         return d;
     }
 
@@ -258,6 +446,28 @@ public final class FissureData extends SavedData {
         for (Fissure f : fissures) list.add(f.save());
         tag.put("Fissures", list);
         tag.putLongArray("Pumps", pumps.toLongArray());
+        ListTag cl = new ListTag();
+        for (it.unimi.dsi.fastutil.longs.Long2ObjectMap.Entry<Cell> e : ledger.long2ObjectEntrySet()) {
+            CompoundTag c = new CompoundTag();
+            c.putLong("K", e.getLongKey());
+            c.putInt("F", e.getValue().fissure);
+            c.putLong("T", e.getValue().reachedAt);
+            c.putBoolean("R", e.getValue().rock);
+            c.putInt("B", e.getValue().borer);
+            c.putInt("A", e.getValue().applied);
+            cl.add(c);
+        }
+        tag.put("Ledger", cl);
+        long[] kk = known.keySet().toLongArray();
+        byte[] kv = new byte[kk.length];
+        for (int i = 0; i < kk.length; i++) kv[i] = known.get(kk[i]);
+        tag.putLongArray("KnownKeys", kk);
+        tag.putByteArray("KnownVals", kv);
+        long[] mk = mouths.keySet().toLongArray();
+        long[] mv = new long[mk.length];
+        for (int i = 0; i < mk.length; i++) mv[i] = mouths.get(mk[i]);
+        tag.putLongArray("MouthKeys", mk);
+        tag.putLongArray("MouthVals", mv);
         return tag;
     }
 }
