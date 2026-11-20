@@ -40,7 +40,9 @@ public enum PerfJob {
     /** 汚染された崖・急斜面に根の縄と嚢の房を生やす(corruption.cliff、2026-11-20)。 */
     CLIFF_CORRUPTION("崖の汚染", true),
     /** 地下の小さな亀裂: 洞窟を探して開く・巣の根を伸ばす・口からあふれる・枯らす(corruption.fissure、2026-11-20)。 */
-    UNDERGROUND_FISSURE("地下の亀裂", true);
+    UNDERGROUND_FISSURE("地下の亀裂", true),
+    /** 汚染された洞窟の飾り(柱・水ぶくれ・縄。corruption.cave、2026-11-20)。 */
+    CAVE_DECOR("洞窟の飾り", true);
     // 2026-11-14: 退避したもの(基地の工事・チャンク作業・道・整備の見比べ = BASE_*、焼けた荒地 BURNT_LAND、燃え落ちる木 TREE_BURN、
     // 地脈の前兆 LEY_OMEN)の行を消した(どこからも測っていなかった)。戻すときに足し直す。
 

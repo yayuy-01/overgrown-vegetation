@@ -72,7 +72,7 @@ public final class FissureTable {
         /** 亀裂の深さ(洞窟の床から下へ)。 */
         public int depth = 5;
         /** 亀裂の長さ(床の上の切れ目)。 */
-        public int length = 7;
+        public int length = 9;
         /** 開いてから根が伸び始めるまで(日)。 */
         public double rootDelayDays = 0.1D;
         /** 巣のまわりを汚染する半径(根が伸び始めたときに一度)。 */
@@ -106,9 +106,9 @@ public final class FissureTable {
     /** 洞窟の口から地上へあふれる根。 */
     public static final class Mouth {
         /** 口から地面を這う根の本数。 */
-        public int arms = 5;
+        public int arms = 6;
         /** 這う根の長さの上限(マス)。 */
-        public int armLength = 9;
+        public int armLength = 11;
         /** 這う根が 1 マス伸びる時間(tick)。 */
         public int ticksPerArmCell = 400;
         /** 口のまわりの地面の高さの差がこれを超える所へは這わない。 */

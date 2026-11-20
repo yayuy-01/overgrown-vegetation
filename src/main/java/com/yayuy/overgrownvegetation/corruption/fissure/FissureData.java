@@ -76,6 +76,9 @@ public final class FissureData extends SavedData {
         /** 地上へあふれる口(地下の台帳の前線が口のあるチャンクに届いたときに決まる)。null = まだ。 */
         @Nullable
         public BlockPos outletMouth;
+        /** 口の外向き(ラジアン。NaN = 全周)と、床に根を積もらせ終えたか(入口 B)。 */
+        public double outletYaw = Double.NaN;
+        public boolean moundDone;
         /** 根を送り込む器官(閉じた洞窟を汚染し切ったときにできる。追記 2)。 */
         public final List<Borer> borers = new ArrayList<>();
         /** 台帳でこの亀裂が持つチャンク(地下の台帳の鍵)。 */
@@ -144,6 +147,8 @@ public final class FissureData extends SavedData {
             t.putInt("Withered", withered);
             t.putLong("Died", diedAt);
             if (outletMouth != null) t.putLong("Outlet", outletMouth.asLong());
+            t.putDouble("OutletYaw", outletYaw);
+            t.putBoolean("Mound", moundDone);
             ListTag bl = new ListTag();
             for (Borer b : borers) bl.add(b.save());
             t.put("Borers", bl);
@@ -175,6 +180,8 @@ public final class FissureData extends SavedData {
             f.withered = t.getInt("Withered");
             f.diedAt = t.getLong("Died");
             if (t.contains("Outlet")) f.outletMouth = BlockPos.of(t.getLong("Outlet"));
+            f.outletYaw = t.contains("OutletYaw") ? t.getDouble("OutletYaw") : Double.NaN;
+            f.moundDone = t.getBoolean("Mound");
             ListTag bl = t.getList("Borers", Tag.TAG_COMPOUND);
             for (int i = 0; i < bl.size(); i++) f.borers.add(Borer.load(bl.getCompound(i)));
             for (long c : t.getLongArray("Cells")) f.cells.add(c);

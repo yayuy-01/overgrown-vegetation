@@ -26,7 +26,7 @@
   },
   "nest": {
     "depth": 5,
-    "length": 7,
+    "length": 9,
     "rootDelayDays": 0.1,
     "spreadRadius": 6
   },
@@ -41,8 +41,8 @@
     "witherPerTick": 32
   },
   "mouth": {
-    "arms": 5,
-    "armLength": 9,
+    "arms": 6,
+    "armLength": 11,
     "ticksPerArmCell": 400,
     "maxStep": 4,
     "ticksPerPoint": 2400,

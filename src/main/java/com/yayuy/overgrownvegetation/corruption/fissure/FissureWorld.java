@@ -128,6 +128,8 @@ public final class FissureWorld {
             if (a0 - m0 > 10_000_000L) statMeasureOver10++;
             if (a0 - m0 > 1_000_000L) statMeasureOver1++;
             if (TickBudget.timeLeft()) units += FissureLedger.applyTick(level, data, now);
+            // 巣・器官・口の形の残り(置く列。2 ms まで)
+            if (TickBudget.timeLeft()) units += FissureLook.drain(System.nanoTime() + 2_000_000L);
             statApplyMaxNs = Math.max(statApplyMaxNs, System.nanoTime() - a0);
         } finally {
             if (units > 0) {
@@ -408,20 +410,8 @@ public final class FissureWorld {
         RandomSource r = RandomSource.create(f.seed);
         Direction.Axis axis = r.nextBoolean() ? Direction.Axis.X : Direction.Axis.Z;
         List<FissureLook.Cell> cells = FissureLook.NEST.build(floor, axis, r, t.nest);
-        for (FissureLook.Cell c : cells) {
-            if (level.getChunkSource().getChunkNow(c.pos().getX() >> 4, c.pos().getZ() >> 4) == null) continue;
-            BlockState cur = level.getBlockState(c.pos());
-            if (cur.getDestroySpeed(level, c.pos()) < 0.0F || cur.hasBlockEntity()) continue;
-            if (c.part() == FissureLook.Part.CARVE) {
-                if (cur.isAir() || !cur.getFluidState().isEmpty()) continue;
-                level.setBlock(c.pos(), FissureLook.state(c.part()), FLAGS);
-                continue;
-            }
-            if (c.part() == FissureLook.Part.ROOT && !FissureLook.hostable(level, c.pos())) continue;
-            level.setBlock(c.pos(), FissureLook.state(c.part()), FLAGS);
-            f.placed.add(c.pos().asLong());
-            if (c.part() == FissureLook.Part.CORE) f.core = c.pos().immutable();
-        }
+        // 芯と、芯のまわり(割れ目・殻・膜)はすぐ。肋・根・光る筋は置く列で何 tick かに分ける
+        f.core = FissureLook.placeWithCore(level, cells, f.placed);
         f.floor = floor.immutable();
         f.state = FissureData.State.OPEN;
         // 時計の起点は司令塔が場所を決めた時刻(誰も来ないうちも育っていたことにする。読み込まれたときに巣・根・台帳が追いつく)
@@ -666,7 +656,7 @@ public final class FissureWorld {
     }
 
     /** 1 マス汚染する(できたら true)。 */
-    static boolean corruptOne(ServerLevel level, BlockPos at, BlockState state, RandomSource random, double plantShare) {
+    public static boolean corruptOne(ServerLevel level, BlockPos at, BlockState state, RandomSource random, double plantShare) {
         if (RingWards.guarded(level, at)) return false;
         if (OvergrownLayerData.isCorruptedCell(level, at, state)) return false;
         if (!CorruptionRegistry.canCorrupt(level, at, state)) return false;
@@ -702,41 +692,53 @@ public final class FissureWorld {
         if (!neighbourhoodReady(level, mouth.getX() >> 4, mouth.getZ() >> 4)) return 0;
         long elapsed = Math.max(0L, now - f.mouthAt);
         int done = 0;
-        double[] angles = armAngles(f);
-        int target = (int) Math.min(t.armLength, elapsed / Math.max(1, t.ticksPerArmCell) + 1);
+        // 入口 B 吐き出す根(11-20 ユーザーが選んだ形): 口の外向きを決め、床に根を積もらせ、6 本の腕を扇に這わせる
+        if (!f.moundDone) {
+            f.outletYaw = outwardYaw(level, mouth);
+            f.armDone = new int[Math.max(0, t.arms)];
+            FissureLook.enqueue(level, FissureLook.mouthMound(moundBase(level, mouth), f.outletYaw, f.seed), f.placed);
+            f.moundDone = true;
+            data.changed();
+            done++;
+        }
+        int step = (int) Math.min(64, elapsed / Math.max(1, t.ticksPerArmCell) + 1);
         for (int i = 0; i < f.armDone.length && done < budget; i++) {
-            double ang = angles[i];
+            int[][] path = FissureLook.armPath(i, f.armDone.length, f.outletYaw, f.seed);
+            int target = Math.min(path.length, step);
             while (f.armDone[i] < target && done < budget) {
-                int k = f.armDone[i] + 1;
-                BlockPos ground = armGround(level, mouth, ang, k);
-                if (ground == null) {
-                    f.armDone[i] = t.armLength; // 崖・水・読み込まれていない: この腕は終わり(読み込まれていないときは待つ)
-                    if (level.getChunkSource().getChunkNow((mouth.getX() + (int) Math.round(Math.cos(ang) * k)) >> 4,
-                            (mouth.getZ() + (int) Math.round(Math.sin(ang) * k)) >> 4) == null) f.armDone[i] = k - 1;
+                int k = f.armDone[i];
+                int x = mouth.getX() + path[k][0], z = mouth.getZ() + path[k][1];
+                if (level.getChunkSource().getChunkNow(x >> 4, z >> 4) == null) break; // 読み込まれたら続き
+                BlockPos ground = groundAt(level, x, z);
+                if (ground == null || Math.abs(ground.getY() - (moundBase(level, mouth).getY() - 1)) > t.maxStep + k / 2) {
+                    f.armDone[i] = path.length; // 崖・水: この腕は終わり
                     break;
                 }
-                if (Math.abs(ground.getY() - mouth.getY()) > t.maxStep + k / 2) {
-                    f.armDone[i] = t.armLength;
-                    break;
+                // 腕は地面に埋まる。口に近い 2 マスは上にも積もる。わきの地面はまばらに汚染(草の点)
+                FissureLook.place(level, new FissureLook.Cell(ground, FissureLook.Part.SPILL), f.placed);
+                if (k < 2) FissureLook.place(level, new FissureLook.Cell(ground.above(), FissureLook.Part.SPILL, FissureLook.Mode.PUT), f.placed);
+                for (Direction d : Direction.Plane.HORIZONTAL) {
+                    if (FissureLook.hs(x + d.getStepX(), z + d.getStepZ(), f.seed + 13) % 10 < 4) {
+                        BlockPos g = groundAt(level, x + d.getStepX(), z + d.getStepZ());
+                        if (g != null) corruptOne(level, g, level.getBlockState(g), level.getRandom(), 0.5D);
+                    }
                 }
-                if (FissureLook.hostable(level, ground) && !RingWards.guarded(level, ground)) {
-                    level.setBlock(ground, FissureLook.state(FissureLook.Part.SPILL), FLAGS);
-                    f.placed.add(ground.asLong());
-                    corruptAround(level, ground, 1, 0.5D);
-                }
-                f.armDone[i] = k;
+                f.armDone[i] = k + 1;
                 done++;
                 data.changed();
             }
         }
-        // 地上の汚染の点(芽の点)。腕の先のまわりから
+        // 地上の汚染の点(芽の点)。腕の先から
         int points = (int) Math.min(t.maxPoints, elapsed / Math.max(1, t.ticksPerPoint) + 1);
         while (f.pointsDone < points && done < budget) {
             int i = f.pointsDone % Math.max(1, f.armDone.length);
-            double ang = angles.length == 0 ? 0.0D : angles[i];
-            int len = f.armDone.length == 0 ? 2 : Math.max(2, Math.min(t.armLength, f.armDone[i]));
-            BlockPos g = armGround(level, mouth, ang, len);
-            if (g == null) g = armGround(level, mouth, ang, 1);
+            BlockPos g = null;
+            if (f.armDone.length > 0 && f.armDone[i] > 0) {
+                int[][] path = FissureLook.armPath(i, f.armDone.length, f.outletYaw, f.seed);
+                int[] p = path[Math.min(path.length, f.armDone[i]) - 1];
+                g = groundAt(level, mouth.getX() + p[0], mouth.getZ() + p[1]);
+            }
+            if (g == null) g = groundAt(level, mouth.getX(), mouth.getZ());
             if (g != null && !RingWards.guarded(level, g)) com.yayuy.overgrownvegetation.spore.field.SporeSprouts.addPoint(level, g);
             f.pointsDone++;
             done++;
@@ -745,13 +747,47 @@ public final class FissureWorld {
         return done;
     }
 
-    /** 腕の向き(種で決まる。tick をまたいでも同じ)。 */
-    static double[] armAngles(FissureData.Fissure f) {
-        RandomSource jitter = RandomSource.create(f.seed ^ 0x0C0FFEEL);
-        double base = jitter.nextDouble() * Math.PI * 2.0D;
-        double[] a = new double[f.armDone.length];
-        for (int i = 0; i < a.length; i++) a[i] = base + Math.PI * 2.0D * i / a.length + (jitter.nextDouble() - 0.5D) * 0.6D;
-        return a;
+    /** 口のまわりの地面の上の高さ(穴の中ではなく、まわり 4 方向 2 マス先の地面の低い方から 2 番目 + 1)。積もる根と腕はこの高さから。 */
+    static BlockPos moundBase(ServerLevel level, BlockPos mouth) {
+        int[] hs = new int[4];
+        int n = 0;
+        for (Direction d : Direction.Plane.HORIZONTAL) {
+            BlockPos g = groundAt(level, mouth.getX() + d.getStepX() * 2, mouth.getZ() + d.getStepZ() * 2);
+            if (g != null) hs[n++] = g.getY();
+        }
+        if (n == 0) return mouth;
+        java.util.Arrays.sort(hs, 0, n);
+        return new BlockPos(mouth.getX(), hs[Math.min(n - 1, 1)] + 1, mouth.getZ());
+    }
+
+    /** その列の地面のいちばん上(葉を除く)。読み込まれていない・水なら null。 */
+    @Nullable
+    static BlockPos groundAt(ServerLevel level, int x, int z) {
+        LevelChunk c = level.getChunkSource().getChunkNow(x >> 4, z >> 4);
+        if (c == null) return null;
+        int top = c.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x & 15, z & 15);
+        BlockPos p = new BlockPos(x, top, z);
+        if (!level.getBlockState(p).getFluidState().isEmpty()) return null;
+        return p;
+    }
+
+    /**
+     * 口の外向き(ラジアン): まわり 8 方向 4 マス先の地面がいちばん低い向き(丘の横穴なら坂の下)。どの向きもほぼ同じ高さ(平らな所の縦穴)なら NaN = 全周。
+     */
+    static double outwardYaw(ServerLevel level, BlockPos mouth) {
+        int lo = Integer.MAX_VALUE, hi = Integer.MIN_VALUE;
+        double best = Double.NaN;
+        for (int i = 0; i < 8; i++) {
+            double a = Math.PI * 2.0D * i / 8.0D;
+            BlockPos g = groundAt(level, mouth.getX() + (int) Math.round(Math.cos(a) * 4), mouth.getZ() + (int) Math.round(Math.sin(a) * 4));
+            if (g == null) continue;
+            if (g.getY() < lo) {
+                lo = g.getY();
+                best = a;
+            }
+            hi = Math.max(hi, g.getY());
+        }
+        return hi - lo <= 1 ? Double.NaN : best;
     }
 
     /**

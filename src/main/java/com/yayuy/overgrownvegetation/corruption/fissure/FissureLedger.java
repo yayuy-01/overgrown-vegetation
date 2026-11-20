@@ -419,25 +419,22 @@ public final class FissureLedger {
             if (b.core != null || !b.alive) continue;
             int cx = ChunkPos.getX(b.chunk), cz = ChunkPos.getZ(b.chunk);
             if (!FissureWorld.neighbourhoodReady(level, cx, cz)) continue;
-            LongArrayList floors = FissureWorld.caveFloors(level, cx, cz, f.seed + i, false);
+            LongArrayList floors = FissureWorld.caveFloors(level, cx, cz, f.seed + i, false, 4, 32);
             if (floors.isEmpty()) continue; // 洞窟の床が無い(岩の中): 形は無いまま働く
-            BlockPos floor = BlockPos.of(floors.getLong(0));
-            RandomSource r = RandomSource.create(f.seed * 31L + i);
-            List<FissureLook.Cell> cells = FissureLook.BORER.build(floor, r.nextBoolean() ? Direction.Axis.X : Direction.Axis.Z, r, DesignData.fissure().nest);
-            for (FissureLook.Cell c : cells) {
-                if (level.getChunkSource().getChunkNow(c.pos().getX() >> 4, c.pos().getZ() >> 4) == null) continue;
-                BlockState cur = level.getBlockState(c.pos());
-                if (cur.getDestroySpeed(level, c.pos()) < 0.0F || cur.hasBlockEntity() || !cur.getFluidState().isEmpty()) continue;
-                if (RingWards.guarded(level, c.pos())) continue;
-                if (c.part() == FissureLook.Part.CARVE) {
-                    if (!cur.isAir()) level.setBlock(c.pos(), FissureLook.state(c.part()), Block.UPDATE_ALL);
-                    continue;
+            // 送1 根株(高さ 8)が入る床を先に。入らなければ小さい形【仮】
+            BlockPos floor = null;
+            for (long k : floors) {
+                if (FissureLook.rootStockFits(level, BlockPos.of(k))) {
+                    floor = BlockPos.of(k);
+                    break;
                 }
-                if (c.part() == FissureLook.Part.ROOT && !FissureLook.hostable(level, c.pos())) continue;
-                level.setBlock(c.pos(), FissureLook.state(c.part()), Block.UPDATE_ALL);
-                b.placed.add(c.pos().asLong());
-                if (c.part() == FissureLook.Part.CORE) b.core = c.pos().immutable();
             }
+            boolean small = floor == null;
+            if (small) floor = BlockPos.of(floors.getLong(0));
+            RandomSource r = RandomSource.create(f.seed * 31L + i);
+            List<FissureLook.Cell> cells = (small ? FissureLook.BORER_SMALL : FissureLook.BORER).build(floor, r.nextBoolean() ? Direction.Axis.X : Direction.Axis.Z, r,
+                    DesignData.fissure().nest);
+            b.core = FissureLook.placeWithCore(level, cells, b.placed);
             if (b.core == null) b.core = floor; // 芯を置けなかった: 床の場所を控えて置き直さない
             data.changed();
             n++;

@@ -163,7 +163,16 @@ public final class FissureGameTests {
             h.assertTrue("opened".equals(r), "開かない: " + r);
             h.assertTrue(f.route != null && f.routeHitsMouth, "開くときに試した道を使っていない");
             h.assertTrue(f.core != null && level.getBlockState(f.core).is(OrganBlocks.ORGAN_CORE.get()), "芯が無い: " + f.core);
-            h.assertTrue(level.getBlockState(f.core.above()).is(OrganBlocks.ORGAN_FLESH.get()), "芯の上の栓が無い");
+            h.assertTrue(level.getBlockState(f.core.above()).is(OrganBlocks.ORGAN_MEMBRANE.get()), "芯の上が膜でない(巣1 縫い目)");
+            FissureLook.drainAll(); // 肋・根・光る筋は置く列から
+            int ribs = 0, veins = 0;
+            for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) for (int y = ROOM_Y0; y <= ROOM_Y0 + 1; y++) {
+                BlockState s = level.getBlockState(new BlockPos((c[0] << 4) + x, y, (c[1] << 4) + z));
+                if (s.is(OrganBlocks.ORGAN_RIB.get())) ribs++;
+                if (s.is(OrganBlocks.ORGAN_VEIN.get())) veins++;
+            }
+            h.assertTrue(ribs >= 4, "割れ目をまたぐ肋が少ない: " + ribs);
+            h.assertTrue(veins >= 4, "床の光る筋が少ない: " + veins);
             h.assertTrue(f.core.getY() < ROOM_Y0, "芯が床の下に無い: " + f.core);
             // 追記 1: 亀裂は洞窟の中だけ。床から空は見えず、部屋より上の石(地表まで)は縦穴のほかは割れていない
             h.assertTrue(!FissureWorld.skyOpen(level, f.floor), "床から空が見える");
@@ -206,6 +215,12 @@ public final class FissureGameTests {
             int spill = 0;
             for (int i : f.armDone) spill += i;
             h.assertTrue(spill > 0, "口から根があふれない");
+            FissureLook.drainAll();
+            int mound = 0;
+            BlockPos base = FissureWorld.moundBase(level, mouth);
+            for (int a = -3; a <= 3; a++) for (int b = -3; b <= 3; b++) if (level.getBlockState(base.offset(a, 0, b)).is(OrganBlocks.TANGLED_ROOT.get())) mound++;
+            h.assertTrue(mound >= 4, "入口 B: 口の床に根が積もらない: " + mound);
+            h.assertTrue(f.armDone.length == DesignData.fissure().mouth.arms, "入口 B: 腕の数が違う: " + f.armDone.length);
             h.assertTrue(f.pointsDone > 0, "地上の汚染の点が無い");
             // 芯を壊す → 止まって枯れる
             int grownBefore = f.grown;
@@ -367,6 +382,40 @@ public final class FissureGameTests {
         h.succeed();
     }
 
+    /** 送1 根株: 高い洞窟では立った球根・殻の笠・横腹の芯になり、芯は外から届き(空気に面し)、壊すと止まる。 */
+    @GameTest(template = TEMPLATE, batch = "fissure_i", timeoutTicks = 60)
+    public static void borerRootStockInTallCave(GameTestHelper h) {
+        ServerLevel level = h.getLevel();
+        FissureData data = FissureData.get(level);
+        int[] c = chunkByLine(level, 11_520_000, true);
+        build(level, c[0], c[1], true, false, ROOM_Y0 + 9); // 高さ 10 の部屋
+        long now = PhaseData.clockNow(level);
+        FissureData.Fissure f = ledgerFissure(level, data, c[0] + 40, c[1], now - 100_000L);
+        long k = key(c[0], c[1]);
+        data.addCell(k, new FissureData.Cell(f.id, now - 1000L, false, 0));
+        f.borers.add(new FissureData.Borer(k, now - 1000L));
+        try {
+            FissureLedger.formBorers(level, data, f);
+            FissureLook.drainAll();
+            FissureData.Borer b = f.borers.get(0);
+            h.assertTrue(b.core != null && level.getBlockState(b.core).is(OrganBlocks.ORGAN_CORE.get()), "送り込む器官の芯が無い: " + b.core);
+            BlockPos floor = b.core.offset(-1, -2, -1);
+            h.assertTrue(level.getBlockState(floor.above(2)).is(OrganBlocks.ORGAN_FLESH.get()), "立った球根(肉)が無い");
+            h.assertTrue(level.getBlockState(floor.above(6)).is(OrganBlocks.ORGAN_SHELL.get()), "殻の笠が無い");
+            boolean faces = false;
+            for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) if (level.getBlockState(b.core.relative(d)).isAir()) faces = true;
+            h.assertTrue(faces, "芯が空気に面していない(外から届かない)");
+            int roots = 0;
+            for (long p : b.placed) if (level.getBlockState(BlockPos.of(p)).is(OrganBlocks.TANGLED_ROOT.get())) roots++;
+            h.assertTrue(roots >= 12, "支柱根が少ない: " + roots);
+            level.destroyBlock(b.core, false);
+            h.assertTrue(!b.alive, "芯を壊しても止まらない");
+        } finally {
+            data.remove(f.id);
+        }
+        h.succeed();
+    }
+
     // ---------------------------------------------------------------- 場所
 
     /** x0 から東へ、真ん中が地脈の線に近い(near)・遠いチャンクを探す。 */
@@ -386,6 +435,11 @@ public final class FissureGameTests {
      * 周り 8 チャンクも読み込む。
      */
     static void build(ServerLevel level, int cx, int cz, boolean room, boolean shaft) {
+        build(level, cx, cz, room, shaft, ROOM_Y1);
+    }
+
+    /** 部屋の天井の高さ roomTop(部屋は y ROOM_Y0〜roomTop)。 */
+    static void build(ServerLevel level, int cx, int cz, boolean room, boolean shaft, int roomTop) {
         for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) level.getChunk(cx + dx, cz + dz);
         BlockState stone = Blocks.STONE.defaultBlockState(), air = Blocks.AIR.defaultBlockState();
         BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
@@ -395,8 +449,8 @@ public final class FissureGameTests {
             for (int z = 0; z < 16; z++) {
                 for (int y = level.getMinBuildHeight() + 1; y <= TOP + 24; y++) {
                     boolean open = y > TOP
-                            || room && x >= 4 && x <= 11 && z >= 4 && z <= 11 && y >= ROOM_Y0 && y <= ROOM_Y1
-                            || shaft && x == 5 && z == 5 && y > ROOM_Y1 && y <= TOP;
+                            || room && x >= 4 && x <= 11 && z >= 4 && z <= 11 && y >= ROOM_Y0 && y <= roomTop
+                            || shaft && x == 5 && z == 5 && y > roomTop && y <= TOP;
                     m.set(bx + x, y, bz + z);
                     BlockState want = open ? air : stone;
                     if (level.getBlockState(m) != want) level.setBlock(m, want, flags);

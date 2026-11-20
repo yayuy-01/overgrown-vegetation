@@ -37,6 +37,8 @@
     { "id": "overgrown_vegetation:organ_flesh", "required": false },
     { "id": "overgrown_vegetation:tangled_root", "required": false },
     { "id": "overgrown_vegetation:cliff_sac", "required": false },
+    { "id": "overgrown_vegetation:woven_vine", "required": false },
+    { "id": "overgrown_vegetation:cave_blister", "required": false },
     "overgrown_vegetation:root_crystal_cluster",
     "overgrown_vegetation:root_crystal_block"
   ]

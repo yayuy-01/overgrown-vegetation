@@ -126,6 +126,14 @@ public final class OrganBlocks {
     public static final DeferredBlock<Block> CLIFF_SAC = BLOCKS.registerBlock("cliff_sac", com.yayuy.overgrownvegetation.corruption.cliff.CliffSacBlock::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_LIGHT_GREEN).strength(0.8F).sound(SoundType.SLIME_BLOCK));
 
+    /** 編んだ蔦(2026-11-20 洞窟の作り 柱1 ねじれた太い柱)。斜めの帯の編み目・透けない・登れない(崖の絡む根と分ける)。絵は仮(Fable の模型)→ Fable が描き替える。 */
+    public static final DeferredBlock<Block> WOVEN_VINE = BLOCKS.registerBlock("woven_vine", Block::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_GREEN).strength(1.5F).sound(SoundType.MANGROVE_ROOTS));
+
+    /** 洞窟の水ぶくれ(2026-11-20 洞窟の作り 嚢2)。ぼんやり光る(光 4【仮】)・芯なし・壊すと胞子の霧({@link com.yayuy.overgrownvegetation.corruption.cave.CaveBlisterBlock})。 */
+    public static final DeferredBlock<Block> CAVE_BLISTER = BLOCKS.registerBlock("cave_blister", com.yayuy.overgrownvegetation.corruption.cave.CaveBlisterBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_LIGHT_GREEN).strength(0.8F).sound(SoundType.SLIME_BLOCK).lightLevel(s -> 4));
+
     /** 根晶の芽(段 3 の結晶。地脈を吸う根で育つ)。壊すと根晶。 */
     public static final DeferredBlock<Block> ROOT_CRYSTAL_CLUSTER = BLOCKS.registerBlock("root_crystal_cluster",
             p -> new AmethystClusterBlock(7.0F, 3.0F, p),
@@ -141,7 +149,7 @@ public final class OrganBlocks {
     public static final DeferredItem<Item> ROOT_CRYSTAL = ITEMS.registerSimpleItem("root_crystal", new Item.Properties());
 
     static {
-        for (DeferredBlock<Block> b : List.of(ORGAN_SAC, ORGAN_EGG_MASS, ORGAN_CORE, ORGAN_VEIN, ORGAN_VINE, ORGAN_STALK, ROOT_CRYSTAL_CLUSTER, ROOT_CRYSTAL_BLOCK, TANGLED_ROOT, ORGAN_FLESH, CLIFF_SAC)) {
+        for (DeferredBlock<Block> b : List.of(ORGAN_SAC, ORGAN_EGG_MASS, ORGAN_CORE, ORGAN_VEIN, ORGAN_VINE, ORGAN_STALK, ROOT_CRYSTAL_CLUSTER, ROOT_CRYSTAL_BLOCK, TANGLED_ROOT, ORGAN_FLESH, CLIFF_SAC, WOVEN_VINE, CAVE_BLISTER)) {
             ITEMS.registerSimpleBlockItem(b);
         }
         for (DeferredBlock<Block> b : STRUCTURE_BLOCKS) ITEMS.registerSimpleBlockItem(b);
@@ -149,7 +157,7 @@ public final class OrganBlocks {
 
     /** クリエイティブタブに載せる(器官のブロックと根晶。2026-11-19 夜 ユーザー「器官のブロックとか、クリエイティブタブにないものはしっかり追加」)。 */
     public static void acceptItems(net.minecraft.world.item.CreativeModeTab.Output output) {
-        for (DeferredBlock<Block> b : List.of(ORGAN_SAC, ORGAN_EGG_MASS, ORGAN_CORE, ORGAN_VEIN, ORGAN_VINE, ORGAN_STALK, ROOT_CRYSTAL_CLUSTER, ROOT_CRYSTAL_BLOCK, TANGLED_ROOT, ORGAN_FLESH, CLIFF_SAC)) {
+        for (DeferredBlock<Block> b : List.of(ORGAN_SAC, ORGAN_EGG_MASS, ORGAN_CORE, ORGAN_VEIN, ORGAN_VINE, ORGAN_STALK, ROOT_CRYSTAL_CLUSTER, ROOT_CRYSTAL_BLOCK, TANGLED_ROOT, ORGAN_FLESH, CLIFF_SAC, WOVEN_VINE, CAVE_BLISTER)) {
             output.accept(b.get());
         }
         for (DeferredBlock<Block> b : STRUCTURE_BLOCKS) output.accept(b.get());
