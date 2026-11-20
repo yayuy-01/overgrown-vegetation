@@ -323,28 +323,25 @@ public final class ForestOrgans extends SavedData {
     public static void onCoreRemoved(ServerLevel level, BlockPos pos) {
         if (level.dimension() != net.minecraft.world.level.Level.OVERWORLD) return;
         ForestOrgans data = get(level);
-        Organ hit = data.containing(pos);
+        Organ hit = data.coreOwner(pos);
         if (hit == null || hit.state == State.WITHERED) return;
         data.wither(level, hit, "芯が壊れた");
     }
 
-    /** その場所を含む器官(芯のまわりの箱で見る)。 */
+    /**
+     * その芯を置いた器官(2026-11-20: 前は箱にかかる器官のうち横にいちばん近い物を枯らしていて、器官が重なる所では隣を枯らしえた)。
+     * 芽の芯か、設計図の芯のマスが pos に重なる器官。どの器官の芯でもなければ null(枯らさない)。
+     */
     @Nullable
-    Organ containing(BlockPos pos) {
-        Organ best = null;
-        double bestD = Double.MAX_VALUE;
+    Organ coreOwner(BlockPos pos) {
         for (Organ o : organs) {
             if (!o.resolved()) continue;
-            double dx = pos.getX() - o.x, dz = pos.getZ() - o.z, dy = pos.getY() - o.y;
+            int dx = pos.getX() - o.x, dz = pos.getZ() - o.z, dy = pos.getY() - o.y;
             if (Math.abs(dx) > OrganBlueprint.MAX_HALF || Math.abs(dz) > OrganBlueprint.MAX_HALF || dy < -OrganBlueprint.MAX_DOWN
                     || dy > OrganBlueprint.MAX_UP) continue;
-            double d = dx * dx + dz * dz;
-            if (d < bestD) {
-                bestD = d;
-                best = o;
-            }
+            if (OrganWorld.ownsCore(o, pos)) return o;
         }
-        return best;
+        return null;
     }
 
     /**

@@ -20,6 +20,17 @@
     "minecraft:end_gateway",
     "minecraft:nether_portal",
     "minecraft:reinforced_deepslate",
-    "minecraft:budding_amethyst"
+    "minecraft:budding_amethyst",
+    "overgrown_vegetation:organ_core",
+    "overgrown_vegetation:organ_sac",
+    "overgrown_vegetation:organ_egg_mass",
+    "overgrown_vegetation:organ_vein",
+    "overgrown_vegetation:organ_vine",
+    "overgrown_vegetation:organ_stalk",
+    { "id": "overgrown_vegetation:organ_flesh", "required": false },
+    { "id": "overgrown_vegetation:tangled_root", "required": false },
+    { "id": "overgrown_vegetation:cliff_sac", "required": false },
+    "overgrown_vegetation:root_crystal_cluster",
+    "overgrown_vegetation:root_crystal_block"
   ]
 }

@@ -109,6 +109,21 @@ public final class OrganWorld {
         }
     }
 
+    /**
+     * pos がこの器官の芯のマスか(芽の芯、または設計図の芯。2026-11-20 芯が壊れたときに持ち主の器官だけを枯らす)。
+     * 設計図がまだ無ければここで作る(芯が壊れたときだけ・箱にかかる器官だけなので、主スレッドで作ってよい)。
+     */
+    static boolean ownsCore(ForestOrgans.Organ o, BlockPos pos) {
+        BlockPos a = o.anchor();
+        if (pos.equals(a.above())) return true;
+        OrganBlueprint bp = blueprint(o);
+        if (bp == null) bp = blueprintNow(o);
+        for (BlockPos c : bp.cores) {
+            if (a.getX() + c.getX() == pos.getX() && a.getY() + c.getY() == pos.getY() && a.getZ() + c.getZ() == pos.getZ()) return true;
+        }
+        return false;
+    }
+
     /** すぐに設計図が要るとき(コマンド・テスト)。 */
     static OrganBlueprint blueprintNow(ForestOrgans.Organ o) {
         CompletableFuture<OrganBlueprint> f = BLUEPRINTS.computeIfAbsent(o.id,
@@ -235,8 +250,9 @@ public final class OrganWorld {
                 if (took > 5_000_000L) OrganMeter.slow(String.format(java.util.Locale.ROOT, "#%d %s%s %.1f ms(CPU %.1f・GC %d)置いた %d 芽 %s", o.id, o.kind.id,
                         o.small ? "(小)" : "", took / 1e6, detail ? (OrganMeter.cpuNanos() - c0) / 1e6 : Double.NaN, detail ? OrganMeter.gcMillis() - g0 : -1L,
                         o.placed - placedBefore, wasResolved ? "-" : "置いた")
-                        + String.format(java.util.Locale.ROOT, " %s 内訳 判定 %.1f・設計図 %.1f・払う %.1f・置く %.1f・触手 %.1f・枯らす %.1f",
-                        o.takeover != null ? "乗っ取り" : o.fusion != null ? "融合" : "ふつう", SEG[0] / 1e6, SEG[1] / 1e6, SEG[2] / 1e6, SEG[3] / 1e6, SEG[4] / 1e6, SEG[5] / 1e6));
+                        + String.format(java.util.Locale.ROOT, " %s 内訳 判定 %.1f・設計図 %.1f・払う %.1f・置く %.1f・触手 %.1f・枯らす %.1f・外 %.1f",
+                        o.takeover != null ? "乗っ取り" : o.fusion != null ? "融合" : "ふつう", SEG[0] / 1e6, SEG[1] / 1e6, SEG[2] / 1e6, SEG[3] / 1e6, SEG[4] / 1e6, SEG[5] / 1e6,
+                        (took - SEG[0] - SEG[1] - SEG[2] - SEG[3] - SEG[4] - SEG[5]) / 1e6));
                 done += before - budget;
                 OrganMeter.blocks(before - budget);
             }
@@ -287,11 +303,15 @@ public final class OrganWorld {
         if (!o.fusionChecked) {
             // 構造物と森の融合(11-19 段 1): 構造物のそばの小さい版は融合の形に、構造物にかかる大きい版は建てない
             OrganFusion.Result fr = o.state == ForestOrgans.State.WITHERED ? OrganFusion.Result.NORMAL : OrganFusion.decide(level, o);
-            if (fr == OrganFusion.Result.WAIT) return budget;
+            if (fr == OrganFusion.Result.WAIT) {
+                seg(0); // 判定の待ちも内訳に入れる(11-20: 遅い行の内訳が全部 0 だった)
+                return budget;
+            }
             o.fusionChecked = true;
             data.changed();
             if (fr == OrganFusion.Result.CANCEL) {
                 cancel(level, data, o);
+                seg(0);
                 return budget - 16;
             }
             if (fr == OrganFusion.Result.FUSED) {
@@ -317,7 +337,10 @@ public final class OrganWorld {
         if (!o.cleared) {
             // 置き始める前に、建つ所の木を払う(11-19 ユーザー「んじゃ払うか」)
             budget = OrganClearing.step(level, o, bp, budget);
-            if (!o.cleared) return budget;
+            if (!o.cleared) {
+                seg(2); // 払い終わっていない tick も「払う」に入れる
+                return budget;
+            }
             data.changed();
         }
         seg(2);
