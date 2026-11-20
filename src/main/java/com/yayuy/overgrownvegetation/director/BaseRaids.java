@@ -174,16 +174,7 @@ public final class BaseRaids {
         for (int tries = 0; sentZero < w.stageZero() && tries < w.stageZero() * 2; tries++) {
             if (director.available(level) + 1.0E-9D < at.stageZeroCost) break;
             if (spot == null) spot = com.yayuy.overgrownvegetation.spawn.DirectorHooks.hiddenSpot(level, b, random);
-            if (spot == null) {
-                // 11-20 drift-mimic: 拠点が島(まわりが水)なら、段階 0 を流れ木もどきに乗せて運ぶ(乗せる分を足して払う)
-                int ferried = com.yayuy.overgrownvegetation.drift.DriftRaids.ferry(level, b.centerX(), b.centerZ(), random, w.stageZero() - sentZero,
-                        at.stageZeroCost, (p, rnd) -> RaidSpawns.spawnAttacker(level, p, false, rnd),
-                        mob -> go((AbstractParasitizedMonster) mob, b, flank, random));
-                sentZero += ferried;
-                spawnedZero += ferried;
-                if (ferried > 0) continue;
-                break;
-            }
+            if (spot == null) break;
             AbstractParasitizedMonster m = RaidSpawns.spawnAttacker(level, com.yayuy.overgrownvegetation.spawn.DirectorHooks.near(level, spot, random), false, random);
             if (m == null) continue;
             director.tryPay(level, at.stageZeroCost);
