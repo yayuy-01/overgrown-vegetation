@@ -35,8 +35,8 @@ public final class CliffTable {
         /** 縄の間隔(縁に沿ってこのマスおき。ずれは座標のハッシュで ±{@link #spacingJitter})。 */
         public int spacing = 5;
         public int spacingJitter = 1;
-        /** 縄の場所に縄が実際に垂れる割合(11-20 ユーザー決定で 0.8 → 1.0・間隔 6 → 5【仮】)。 */
-        public double chance = 1.0D;
+        /** 縄の場所に縄が実際に垂れる割合(11-20 ユーザー決定で 0.8 → 1.0・間隔 6 → 5、同じ日の夕方「少し多い」で 0.8 に戻した【仮】。縄の間の細い根もこの割合)。 */
+        public double chance = 0.8D;
         /** 縄の長さの上限(段)。崖がこれより高いと途中で終わる。 */
         public int maxLength = 40;
         /** 左右のゆらぎ(マス)と、1 段あたりの位相(約 20 段で 1 往復 = 0.3)。 */
@@ -58,9 +58,9 @@ public final class CliffTable {
         public double thinFrom = 0.25D;
         public double thinSpread = 0.25D;
         /** 縁の垂れる根の房: 縁の列のうちこの割合に付ける。 */
-        public double edgeTuftChance = 0.5D;
+        public double edgeTuftChance = 0.35D;
         /** 急斜面の横の根: 縄の上からこの段おきに、次の縄まで横に根を渡して網にする(11-20 ユーザー決定)。0 で渡さない。 */
-        public int slopeLinkEvery = 3;
+        public int slopeLinkEvery = 4;
     }
 
     public Sacs sacs = new Sacs();
