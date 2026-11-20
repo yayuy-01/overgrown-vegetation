@@ -40,7 +40,25 @@ public final class OrganClearing {
     /** 山刀で払える下草・蔦(地面と数えない。高い所にぶら下がっている物は払う)。 */
     static final TagKey<Block> BRUSH = BlockTags.create(OvergrownVegetation.id("machete_clearable"));
 
+    /** 汚染のブロック全部(このうち当たりの無い物 = 幹や葉に付く草・垂れ根・苔)。 */
+    static final TagKey<Block> CORRUPTED = BlockTags.create(OvergrownVegetation.id("corrupted"));
+
     private static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
+
+    /**
+     * 木に付いている物か(2026-11-20 ユーザー「周囲の木にあった草とか垂れ根とかがめっちゃ浮いてる」): 山刀で払える下草・蔦、
+     * または汚染のブロックのうち当たりの無い物(垂れる根・気根・苔・壁のシダなど)。木を払うとき一緒に払う。プレイヤーの置いた物は入らない。
+     */
+    static boolean isAttached(BlockState s) {
+        if (s.isAir() || !s.getFluidState().isEmpty() || isTree(s)) return false;
+        return s.is(BRUSH) || (s.is(CORRUPTED) && !s.blocksMotion() && !(s.getBlock() instanceof OrganVeinBlock));
+    }
+
+    /** 地面に立っている草か(下が木でない固いブロック)。木のわきの林床の草は残す。 */
+    private static boolean onGround(ServerLevel level, BlockPos p) {
+        BlockState below = level.getBlockState(p.below());
+        return below.blocksMotion() && !isTree(below) && !isLog(below);
+    }
 
     /** 払いかけの器官ごとの、これから消す所と、もう入れた所(保存しない)。 */
     private static final Int2ObjectOpenHashMap<LongArrayFIFOQueue> QUEUE = new Int2ObjectOpenHashMap<>();
@@ -243,7 +261,7 @@ public final class OrganClearing {
             if (!q.isEmpty()) {
                 p.set(q.dequeueLong());
                 BlockState s = level.getBlockState(p);
-                if ((isTree(s) || s.is(BRUSH)) && !com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, p)) level.setBlock(p, Blocks.AIR.defaultBlockState(), FLAGS);
+                if ((isTree(s) || isAttached(s)) && !com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, p)) level.setBlock(p, Blocks.AIR.defaultBlockState(), FLAGS);
                 budget = timed ? TickBudget.spend(budget) : budget - 1;
                 continue;
             }
@@ -275,7 +293,7 @@ public final class OrganClearing {
             BlockState s = level.getBlockState(p);
             if (isLog(s)) {
                 tree(level, o, r, p.immutable(), q, seen, t);
-            } else if (isTree(s) || (s.is(BRUSH) && y >= ground + 3)) {
+            } else if (isTree(s) || (isAttached(s) && y >= ground + 3)) {
                 seen.add(key);
                 q.enqueue(key);
             }
@@ -302,6 +320,21 @@ public final class OrganClearing {
             long cur = open.dequeueLong();
             p.set(cur);
             int d = depth.get(cur);
+            if (d < 0) {
+                // 木に付いていた物: 上下にだけ続きをたどる(垂れ下がる房・2 段の草)
+                for (int oy = -1; oy <= 1; oy += 2) {
+                    n.set(p.getX(), p.getY() + oy, p.getZ());
+                    long key = n.asLong();
+                    if (seen.contains(key) || n.getY() <= level.getMinBuildHeight() || n.getY() >= level.getMaxBuildHeight()) continue;
+                    if (!isAttached(level.getBlockState(n)) || (oy < 0 && onGround(level, n))) continue;
+                    seen.add(key);
+                    q.enqueue(key);
+                    depth.put(key, -1);
+                    open.enqueue(key);
+                    if (++count >= t.clearTreeMax) return;
+                }
+                continue;
+            }
             boolean fromLog = d == 0;
             for (int ox = -1; ox <= 1; ox++) {
                 for (int oy = -1; oy <= 1; oy++) {
@@ -329,6 +362,8 @@ public final class OrganClearing {
                         } else if (s.is(Blocks.VINE) && face) {
                             nd = Math.max(1, d); // 蔦は葉と同じ段で下へたどる
                             if (oy > 0) continue;
+                        } else if (face && isAttached(s) && !(oy <= 0 && onGround(level, n))) {
+                            nd = -1; // 幹・葉に付いた草・垂れ根・苔(11-20)
                         } else {
                             continue;
                         }
