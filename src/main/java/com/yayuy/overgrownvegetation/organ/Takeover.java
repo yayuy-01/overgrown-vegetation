@@ -99,15 +99,42 @@ public final class Takeover {
 
     /** チャンクの人工のブロックの露出面を集める(区画は maybeHas で飛ばす)。多いときは max 個まで間引いて返す。数は {@code counted[0]} に。 */
     public static List<Face> faces(ServerLevel level, LevelChunk ch, Random rnd, int max, int[] counted) {
-        List<Face> out = new ArrayList<>();
-        int seen = 0;
+        FaceScan sc = new FaceScan(max);
+        scanSome(level, ch, rnd, sc, Integer.MAX_VALUE);
+        counted[0] = sc.seen;
+        return sc.out;
+    }
+
+    /**
+     * チャンクの露出面を集める途中の状態(2026-11-20 見回りの重さ: 構造物の詰まったチャンクを 1 回でなめると 8〜14 ms、起動直後は 100 ms を超えた)。
+     * 区画を少しずつなめ、続きは次の見回りで。集め終わった物はしばらく覚えておく({@link #FACE_CACHE})。
+     */
+    static final class FaceScan {
+        final List<Face> out = new ArrayList<>();
+        final int max;
+        int seen, next;
+        boolean done;
+        long doneAt;
+
+        FaceScan(int max) {
+            this.max = max;
+        }
+    }
+
+    /** 区画を {@code sectionBudget} 個(中身のある区画だけ数える)までなめて続きの位置を進める。なめ終わったら true。 */
+    static boolean scanSome(ServerLevel level, LevelChunk ch, Random rnd, FaceScan sc, int sectionBudget) {
+        List<Face> out = sc.out;
+        int max = sc.max;
+        int seen = sc.seen;
         LevelChunkSection[] sections = ch.getSections();
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos(), q = new BlockPos.MutableBlockPos();
         int bx = ch.getPos().getMinBlockX(), bz = ch.getPos().getMinBlockZ();
         Direction[] dirs = Direction.values();
-        for (int si = 0; si < sections.length; si++) {
+        int si = sc.next;
+        for (; si < sections.length && sectionBudget > 0; si++) {
             LevelChunkSection sec = sections[si];
             if (sec == null || sec.hasOnlyAir() || !sec.maybeHas(Takeover::maybeArtificial)) continue;
+            sectionBudget--;
             int by = level.getSectionYFromSectionIndex(si) << 4;
             for (int y = 0; y < 16; y++) {
                 for (int z = 0; z < 16; z++) {
@@ -136,8 +163,57 @@ public final class Takeover {
                 }
             }
         }
-        counted[0] = seen;
-        return out;
+        sc.seen = seen;
+        sc.next = si;
+        sc.done = si >= sections.length;
+        return sc.done;
+    }
+
+    /** 集め終わった露出面を覚えておく時間(tick)【仮】。この間にチャンクの建物が変わっても、使う前に面を 1 つずつ見直す。 */
+    static final int FACE_CACHE_TICKS = 6000;
+    /** 1 回の見回りでなめる区画の数【仮】(中身のある区画 1 つ 0.3〜1 ms ほど。温まる前は数 ms)。 */
+    static final int SECTIONS_PER_VISIT = 3;
+    /** 覚えておくチャンクの上限(超えたら古い物から捨てる)。 */
+    static final int FACE_CACHE_MAX = 2048;
+    private static final it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap<FaceScan> FACE_CACHE = new it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap<>();
+
+    /**
+     * そのチャンクの露出面(覚えている物か、続きをなめる)。{@code whole} なら最後までなめる(命令・テスト)。なめ終わっていなければ null。
+     */
+    @Nullable
+    static FaceScan cachedFaces(ServerLevel level, LevelChunk ch, Random rnd, boolean whole) {
+        long key = ch.getPos().toLong();
+        long now = level.getGameTime();
+        FaceScan sc = FACE_CACHE.get(key);
+        if (whole || (sc != null && sc.done && now - sc.doneAt > FACE_CACHE_TICKS)) sc = null; // 命令・テストはいつも新しくなめる
+        if (sc == null) {
+            sc = new FaceScan(512);
+            FACE_CACHE.putAndMoveToLast(key, sc);
+            while (FACE_CACHE.size() > FACE_CACHE_MAX) FACE_CACHE.removeFirst();
+        }
+        if (!sc.done) {
+            scanSome(level, ch, rnd, sc, whole ? Integer.MAX_VALUE : SECTIONS_PER_VISIT);
+            if (sc.done) sc.doneAt = now;
+        }
+        return sc.done ? sc : null;
+    }
+
+    /** 覚えた面が今もそのままか(人工のブロックで、外が空いている)。 */
+    static boolean stillFace(ServerLevel level, Face f) {
+        BlockPos p = f.pos(), o = f.out();
+        if (level.getChunkSource().getChunkNow(o.getX() >> 4, o.getZ() >> 4) == null) return false;
+        BlockState s = level.getBlockState(p), n = level.getBlockState(o);
+        return isArtificial(level, p, s) && (n.isAir() || n.canBeReplaced()) && n.getFluidState().isEmpty();
+    }
+
+    /** 覚えた面を捨てる(テスト・サーバーの停止)。 */
+    static void forgetFaces() {
+        FACE_CACHE.clear();
+    }
+
+    @SubscribeEvent
+    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+        forgetFaces();
     }
 
     // ---------------------------------------------------------------- 広がり
@@ -171,15 +247,25 @@ public final class Takeover {
      * チャンクを 1 回見る。過繁茂(force なら段階を見ない)で、まだ器官が露出面に比べて少なければ、確率で器官を 1 つ芽吹かせる。
      */
     public static Visit visit(ServerLevel level, int cx, int cz, Random rnd, FusionTable t, boolean force) {
+        return visit(level, cx, cz, rnd, t, force, !force);
+    }
+
+    /**
+     * {@code split} なら露出面を何回かの見回りに分けて集める(ふつうの広がり)。集め終わるまでは芽吹かせない。
+     * 命令・テストは force で最後までなめる(split = false)。
+     */
+    public static Visit visit(ServerLevel level, int cx, int cz, Random rnd, FusionTable t, boolean force, boolean split) {
         LevelChunk ch = level.getChunkSource().getChunkNow(cx, cz);
         if (ch == null) return new Visit(0, 0, null, "読み込まれていない");
         net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome> biome = level.getBiome(new BlockPos((cx << 4) + 8, level.getSeaLevel(), (cz << 4) + 8));
         if (!force && !ModBiomes.isOvergrownLike(biome)) return new Visit(0, 0, null, "繁茂でない");
         lastGaps = greenGaps(level, ch, rnd, t); // 建物どうしの間・隙間の草と蔦(繁茂・過繁茂とも)
         if (!force && !ModBiomes.isFullyOvergrown(biome)) return new Visit(0, 0, null, "繁茂(器官は過繁茂だけ)");
+        FaceScan sc = cachedFaces(level, ch, rnd, !split);
+        if (sc == null) return new Visit(0, 0, null, "露出面を集めている途中");
         if (!force && rnd.nextDouble() >= t.takeoverOrganChancePerVisit) return new Visit(0, 0, null, "確率で見送り");
-        int[] counted = new int[1];
-        List<Face> fs = faces(level, ch, rnd, 512, counted);
+        int[] counted = {sc.seen};
+        List<Face> fs = sc.out;
         if (fs.isEmpty()) return new Visit(0, 0, null, "人工の露出面が無い");
         ForestOrgans data = ForestOrgans.get(level);
         int here = 0;
@@ -197,6 +283,7 @@ public final class Takeover {
         for (int tries = 0; tries < 48; tries++) {
             Face f = fs.get(rnd.nextInt(fs.size()));
             if (big && f.ny() == -1 && kind != OrganKind.SAC) continue; // 大きい器官は天井から下げない(嚢は垂れる物なのでよい)
+            if (!stillFace(level, f)) continue; // 覚えた面が今も露出しているか(11-20 面を覚えるようにした)
             if (tries < 36 && !TakeoverShapes.faceFits(level, kind, f)) continue;
             if (RingWards.guarded(level, f.out())) continue; // 押し返す道具の効く所
             if (!farFromOthers(data, f, spacing)) continue;

@@ -46,7 +46,9 @@ public final class FusionCommand {
                                                         .executes(ctx -> takeover(ctx.getSource(), com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "count"), 2))
                                                         .then(Commands.argument("radius", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0, 8))
                                                                 .executes(ctx -> takeover(ctx.getSource(), com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "count"),
-                                                                        com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "radius"))))))
+                                                                        com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "radius")))
+                                                                .then(Commands.literal("split").executes(ctx -> takeover(ctx.getSource(), com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "count"),
+                                                                        com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "radius"), true))))))
                                         .then(Commands.literal("cleanup")
                                                 .executes(ctx -> cleanup(ctx.getSource(), 48, false))
                                                 .then(Commands.literal("why")
@@ -124,6 +126,11 @@ public final class FusionCommand {
 
     /** 乗っ取りを今すぐ count 回(まわり radius チャンクからランダム。過繁茂でなくても・確率を見ずに)。建てるのは器官の手順に任せる。 */
     private static int takeover(CommandSourceStack src, int count, int radius) {
+        return takeover(src, count, radius, false);
+    }
+
+    /** split = ふつうの広がりと同じく露出面を何回かに分けて集め、覚えた物を使う(11-20 見回りの重さの確かめ)。 */
+    private static int takeover(CommandSourceStack src, int count, int radius, boolean split) {
         ServerLevel level = src.getLevel();
         BlockPos at = BlockPos.containing(src.getPosition());
         java.util.Random rnd = new java.util.Random(level.getGameTime());
@@ -132,7 +139,7 @@ public final class FusionCommand {
         for (int i = 0; i < count; i++) {
             long s0 = System.nanoTime();
             Takeover.Visit v = Takeover.visit(level, (at.getX() >> 4) + rnd.nextInt(2 * radius + 1) - radius, (at.getZ() >> 4) + rnd.nextInt(2 * radius + 1) - radius, rnd,
-                    StructureFusion.table(), true);
+                    StructureFusion.table(), true, split);
             worst = Math.max(worst, System.nanoTime() - s0);
             gaps += Takeover.lastGaps;
             Takeover.lastGaps = 0;
