@@ -6,6 +6,7 @@ import com.yayuy.overgrownvegetation.drift.DriftCosts;
 import com.yayuy.overgrownvegetation.drift.DriftFerry;
 import com.yayuy.overgrownvegetation.drift.DriftLaunches;
 import com.yayuy.overgrownvegetation.drift.DriftMimicEntity;
+import com.yayuy.overgrownvegetation.drift.DriftRaids;
 import com.yayuy.overgrownvegetation.drift.SwollenIslands;
 import com.yayuy.overgrownvegetation.organ.OrganBlocks;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
@@ -305,6 +306,63 @@ public final class DriftMimicGameTests {
             DriftCosts.payer = prev;
             dir.setBudget(level, before);
         }
+    }
+
+    /**
+     * 島の拠点への襲撃: 拠点のまわりが水なら、攻め手を流れ木もどきに乗せて運ぶ(1 体に 6 席まで)。攻め手の値段に乗せる分を足して
+     * 森の予算から払い、着いたら島に降ろす。
+     */
+    @GameTest(template = T, batch = "drift_budget", timeoutTicks = 600)
+    public static void islandRaidFerriesAttackers(GameTestHelper h) {
+        pool(h);
+        land(h, 12, 12, 12, 12);
+        ServerLevel level = h.getLevel();
+        BlockPos c = h.absolutePos(new BlockPos(12, WY, 12));
+        com.yayuy.overgrownvegetation.director.ForestDirector dir = com.yayuy.overgrownvegetation.director.ForestDirector.get(level);
+        double before = dir.available(level);
+        boolean enabled = com.yayuy.overgrownvegetation.data.DesignData.director().enabled;
+        List<net.minecraft.world.entity.Mob> sent = new ArrayList<>();
+        DriftMimicEntity[] boat = {null};
+        int n;
+        double spent;
+        try {
+            DriftRaids.ringForTests = new int[]{9, 11, c.getY(), 2};
+            DriftRaids.onFerryForTests = e -> {
+                e.forcedWind = Vec3.ZERO;
+                e.stayMaterial = true;
+                small(e);
+                boat[0] = e;
+            };
+            dir.setBudget(level, 500.0D);
+            n = DriftRaids.ferry(level, c.getX() + 0.5D, c.getZ() + 0.5D, level.getRandom(), 3, 1.0D, (p, r) -> {
+                var m = com.yayuy.overgrownvegetation.registry.ModG1.PARASITIZED_ZOMBIE.get().create(level);
+                if (m == null) return null;
+                m.moveTo(p.getX() + 0.5D, p.getY(), p.getZ() + 0.5D, 0.0F, 0.0F);
+                m.setInvulnerable(true);
+                level.addFreshEntity(m);
+                return m;
+            }, sent::add);
+            spent = 500.0D - dir.available(level);
+        } finally {
+            DriftRaids.ringForTests = null;
+            DriftRaids.onFerryForTests = null;
+            dir.setBudget(level, before);
+        }
+        h.assertTrue(n == 3 && sent.size() == 3, "3 体を運んでいない: " + n);
+        h.assertTrue(boat[0] != null && sent.stream().allMatch(m -> m.getVehicle() == boat[0]), "流れ木もどきに乗っていない");
+        if (enabled) {
+            double want = 3 * 1.0D + DriftCosts.ferryPrice(sent);
+            h.assertTrue(Math.abs(spent - want) < 1e-6, "払った額が違う: " + spent + "(期待 " + want + ")");
+        }
+        int landTop = h.absolutePos(new BlockPos(0, 5, 0)).getY();
+        h.succeedWhen(() -> {
+            h.assertTrue(boat[0].isRemoved(), "まだ島に着いていない: " + h.relativeVec(boat[0].position()));
+            for (var m : sent) {
+                h.assertTrue(m.getVehicle() == null && m.getY() >= landTop - 0.5D, "島に降ろしていない: " + h.relativeVec(m.position()));
+            }
+            forgetIslands(h);
+            for (var m : sent) m.discard();
+        });
     }
 
     /** 乗せて運ぶ: 乗せる分も払い、岸へまっすぐ漕いで、着いたら乗せた Mob を陸に降ろす。 */

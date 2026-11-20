@@ -28,8 +28,8 @@ public final class DriftFerry {
     }
 
     /**
-     * 陸の {@code from} から拠点 {@code to} へ、海を越える道があるか。まっすぐの線をたどり、最初の水の列を出す所、
-     * 拠点の側の最後の陸の列を着く所にする。水が {@link DriftTable.Launch#minOpenWater} 列以上続かない(歩いて行ける)・
+     * 陸の {@code from} から拠点 {@code to} へ、海を越える道があるか。まっすぐの線をたどり、深い水の最初の列を出す所、
+     * その先の最初の陸の列を着く所にする。水が {@link DriftTable.Launch#minOpenWater} 列以上続かない(歩いて行ける)・
      * 読み込まれていない列に当たった、なら null。{@code wy} は水面の段。
      */
     @Nullable
@@ -57,7 +57,7 @@ public final class DriftFerry {
                 water = Math.max(water, run);
             } else {
                 run = 0;
-                if (launch != null) landing = new BlockPos(x, wy, z);
+                if (deep != null && landing == null) landing = new BlockPos(x, wy, z); // 深い水を渡った先の最初の陸
             }
         }
         if (launch == null || deep == null || water < DesignData.drift().launch.minOpenWater) return null;

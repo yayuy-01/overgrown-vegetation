@@ -286,7 +286,15 @@ public final class LargeRaids {
             double price = developed ? devPrice : t.costStageZero;
             if (d.available(level) + 1.0E-9D < price) break;
             BlockPos at = spot(level, b, random);
-            if (at == null) break; // 見通せない地面が見つからない回は休む(次の回にまた探す)
+            if (at == null) {
+                // 11-20 drift-mimic: 拠点が島(まわりが水)なら、流れ木もどきに乗せて運ぶ(乗せる分を足して払う)。運べなければ休む(次の回にまた探す)
+                n += com.yayuy.overgrownvegetation.drift.DriftRaids.ferry(level, b.centerX(), b.centerZ(), random, Math.min(room, t.spawnPerStep) - i, price,
+                        (p, rnd) -> RaidSpawns.spawnAttacker(level, p, developed, rnd), mob -> {
+                            mob.addTag(ATTACKER_TAG);
+                            if (mob instanceof AbstractParasitizedMonster am) am.march().beginFlank(b, flank, random);
+                        });
+                break;
+            }
             AbstractParasitizedMonster m = RaidSpawns.spawnAttacker(level, at, developed, random);
             if (m == null) continue;
             d.tryPay(level, price);
