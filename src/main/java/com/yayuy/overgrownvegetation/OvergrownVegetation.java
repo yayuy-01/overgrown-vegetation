@@ -74,6 +74,7 @@ public class OvergrownVegetation {
         ModArmorMaterials.register(modBus); // 2026-11-04 防護マスクの素材だけ
         ModItems.register(modBus);
         com.yayuy.overgrownvegetation.organ.OrganBlocks.register(modBus); // 森の器官の専用ブロック(2026-11-17)
+        com.yayuy.overgrownvegetation.director.ThornHedges.register(modBus); // 森の防衛設備: 棘の生垣(2026-11-20)
         ModEntities.register(modBus);
         ModFeatures.register(modBus);
         ModCreativeTabs.register(modBus);

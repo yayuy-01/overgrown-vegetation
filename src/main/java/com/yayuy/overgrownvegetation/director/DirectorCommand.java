@@ -202,6 +202,13 @@ public final class DirectorCommand {
         for (String line : ForestDirector.get(level).describe(level)) {
             source.sendSuccess(() -> Component.literal(line), false);
         }
+        // 11-20: 森の視界(ここが見えているか)・探りの偵察・棘の生垣
+        source.sendSuccess(() -> Component.literal("ここは森に " + (ForestVision.sees(level, net.minecraft.core.BlockPos.containing(source.getPosition()))
+                ? "見えている(" + ForestVision.why(level, net.minecraft.core.BlockPos.containing(source.getPosition())) + ")" : "見えていない")), false);
+        for (String line : ScoutSearch.get(level.getServer()).describe(level)) {
+            source.sendSuccess(() -> Component.literal(line), false);
+        }
+        source.sendSuccess(() -> Component.literal(ThornHedges.describe()), false);
         long now = level.getGameTime();
         List<AbstractParasitizedMonster> near = stageZero(source, 32);
         for (AbstractParasitizedMonster m : near) {

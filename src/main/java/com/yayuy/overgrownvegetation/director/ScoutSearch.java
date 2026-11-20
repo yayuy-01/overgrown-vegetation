@@ -503,6 +503,12 @@ public final class ScoutSearch extends SavedData {
         return e;
     }
 
+    /** テスト用: 森の真ん中と半径を決め打ちにする(台帳の大きさが変わるまで)。 */
+    public void pinCenterForTests(ServerLevel level, double x, double z, double radius) {
+        center = new double[]{x, z, radius};
+        centerSize = PhaseData.get(level).overgrownLedgerSize();
+    }
+
     public int extraOnKill() {
         return extraOnKill;
     }

@@ -118,6 +118,28 @@
     "sweepStepBlocks": 96,
     "sweepMaxBlocks": 768
   },
+  "hedge": {
+    "_comment": "11-20 ユーザー決定「森の防衛設備はいったん棘の生垣だけ」: 器官の周りに司令塔がバイオマスで置き、壊されたらまた置き直す・予算なしで自分でも少しずつ伸びる・密集させない・有刺鉄線のような物(植物側でない者が触れると傷と鈍り)・植物側の Mob は傷つかない・押し返す道具の効く所(輪の守り・杭・焼けた荒地)には置かない・伸びない。数は全部【仮】。育ち切った器官ごとに、プレイヤーが playerBlocks 以内の間 intervalSeconds ごとに見直し、半径 radiusBig / radiusSmall の輪に切れ目のある列(segmentsBig / segmentsSmall 本 × segmentLength マス。入口の向き ± entranceGapDeg は空ける)の欠けた所を 1 マス cost で置く(1 回 placePerCheck まで)。触れると damageIntervalTicks ごとに damage・横の速さ × slow。plantSidePasses なら植物側の Mob は鈍らずに通る(森の側の道【仮】)。伸びる: ランダム tick ごとに growChance で隣へ。まわり growNearRadius(上下 1)に growMaxNear 本あれば伸びない・器官の輪 ± growOrganPad の外へは伸びない。絵は仮(甘い実の茂みの若い姿)。",
+    "enabled": true,
+    "cost": 2.0,
+    "intervalSeconds": 60,
+    "placePerCheck": 4,
+    "playerBlocks": 96,
+    "radiusBig": 20,
+    "radiusSmall": 7,
+    "segmentsBig": 8,
+    "segmentsSmall": 4,
+    "segmentLength": 3,
+    "entranceGapDeg": 30,
+    "damage": 1.0,
+    "slow": 0.5,
+    "damageIntervalTicks": 10,
+    "growChance": 0.05,
+    "growNearRadius": 2,
+    "growMaxNear": 5,
+    "growOrganPad": 4,
+    "plantSidePasses": true
+  },
   "watcher": {
     "_comment": "司令塔が植える監視塔(フィロセンス。11-14 ユーザー決定: F5 から・覚えた拠点の森の側 48〜96・拠点 1 つに最大 2 本・約半日で育つ・値段 15(仮)・視線の印で認識が確定・刈られると遅れる/戻る・印の 1 分の間 半径 64(仮)の植物側の Mob を呼ぶ)。ほかは【仮】。監視塔の本体が組み込まれる(Watchers.registerPlanter)までは植えない・払わない・確定に印は要らない。",
     "maxPerBase": 2,

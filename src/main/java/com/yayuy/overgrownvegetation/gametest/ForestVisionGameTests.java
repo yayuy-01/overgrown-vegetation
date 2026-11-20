@@ -181,14 +181,29 @@ public final class ForestVisionGameTests {
         p.setItemSlot(EquipmentSlot.HEAD, ItemStack.EMPTY); // 汚れを落とした = 跡が消える
         helper.assertTrue(ScoutSearch.trailStrength(p, null, 5.0D) == 0.0D, "汚れを落としても跡が出る");
 
-        // 明かり: 光の伝わりは次の tick 以降に反映されるので、置いてから待つ
-        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) helper.setBlock(new BlockPos(3 + dx, 1, 3 + dz), Blocks.SEA_LANTERN);
+        // 明かり: 高さ地図のいちばん上のブロック(空の見える地表)を明かりに替える。光の伝わりは次の tick 以降なので、置いてから待つ。
+        // 終わったら元のブロックへ戻す(テスト場の外にかかることがあるので)
+        java.util.Map<BlockPos, net.minecraft.world.level.block.state.BlockState> was = new java.util.HashMap<>();
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                int x = center.getX() + dx, z = center.getZ() + dz;
+                BlockPos top = new BlockPos(x, level.getChunkAt(new BlockPos(x, 0, z)).getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x & 15, z & 15), z);
+                was.put(top, level.getBlockState(top));
+                level.setBlock(top, Blocks.SEA_LANTERN.defaultBlockState(), 3);
+            }
+        }
         helper.runAfterDelay(10, () -> {
             int lit = ScoutSearch.lightsAround(level, center, t, RandomSource.create(1));
-            helper.assertTrue(lit >= 2, "地表の明かりを数えない: " + lit);
-            for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) helper.setBlock(new BlockPos(3 + dx, 1, 3 + dz), Blocks.STONE);
+            BlockPos c0 = was.keySet().iterator().next();
+            int h0 = level.getChunkAt(c0).getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, c0.getX() & 15, c0.getZ() & 15);
+            helper.assertTrue(lit >= 2, "地表の明かりを数えない: " + lit + "(置いた " + c0 + "・高さ " + h0 + "・その上の光 "
+                    + level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, new BlockPos(c0.getX(), h0 + 1, c0.getZ())) + "・置いた所 "
+                    + level.getBlockState(c0) + ")");
+            for (BlockPos q : was.keySet()) level.setBlock(q, Blocks.STONE.defaultBlockState(), 3);
             helper.runAfterDelay(10, () -> {
-                helper.assertTrue(ScoutSearch.lightsAround(level, center, t, RandomSource.create(1)) == 0, "明かりを消しても数える");
+                int dark = ScoutSearch.lightsAround(level, center, t, RandomSource.create(1));
+                was.forEach((q, st) -> level.setBlock(q, st, 3));
+                helper.assertTrue(dark == 0, "明かりを消しても数える: " + dark);
                 helper.succeed();
             });
         });
@@ -206,6 +221,7 @@ public final class ForestVisionGameTests {
         List<ChunkPos> forest = plantForest(level, FX, FZ, 2);
         try {
             dir.setBudget(level, 100000.0D);
+            search.pinCenterForTests(level, FX * 16 + 8, FZ * 16 + 8, 40.0D); // テストのワールドの台帳にはほかのテストの升も混ざるので、森の真ん中を決め打ち
             double[] c = search.forestCenter(level);
             helper.assertTrue(c != null, "森の真ん中が分からない");
             // 隠れたプレイヤー: 適当な方角(どの区切りの真ん中でもない)、森の縁から 3 歩先

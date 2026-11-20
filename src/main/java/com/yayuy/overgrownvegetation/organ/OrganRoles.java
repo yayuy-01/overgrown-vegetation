@@ -102,6 +102,7 @@ public final class OrganRoles {
         }
         regrowSacs(level, o, t);
         guards(level, o, now, t, peaceful);
+        com.yayuy.overgrownvegetation.director.ThornHedges.tend(level, o, now); // 11-20: 棘の生垣を置く・置き直す(森の防衛設備)
         data.changed();
     }
 
@@ -149,6 +150,13 @@ public final class OrganRoles {
         Mob m = OrganWorld.spawnNear(level, spot, 0);
         if (m == null) dir.refund(level, cost);
         else com.yayuy.overgrownvegetation.director.ForestEconomy.markPaid(m, cost); // 森の中で倒されたら一部が戻る(11-20)
+    }
+
+    /** 器官の入口の向き(ラジアン。芯の真ん中から入口へ)。設計図がまだ無ければ NaN(生垣の切れ目に使う)。 */
+    public static double entranceAngle(ForestOrgans.Organ o) {
+        OrganBlueprint bp = OrganWorld.blueprint(o);
+        if (bp == null || bp.entrance == null) return Double.NaN;
+        return Math.atan2(bp.entrance.getZ(), bp.entrance.getX());
     }
 
     /**

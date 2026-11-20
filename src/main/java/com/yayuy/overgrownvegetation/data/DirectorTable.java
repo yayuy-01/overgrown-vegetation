@@ -77,6 +77,7 @@ public final class DirectorTable {
         /** 11-20: 森の資源の収支(EconomyTable)・視界と偵察(VisionTable)・棘の生垣(HedgeTable)。 */
         public EconomyTable.Json economy;
         public VisionTable.Json vision;
+        public HedgeTable.Json hedge;
         /** 第 3 段 区切り 4: 苗床が枯れるまでに生む萌芽体の数。 */
         public Integer nurseryLifeSprouts;
         /** 11-17: 苗床が枯れるまでに孵す回数・孵してよいか司令塔へ聞く間(tick)。 */
@@ -155,6 +156,8 @@ public final class DirectorTable {
     public final EconomyTable economy;
     /** 11-20: 森の視界(戦場の霧)と偵察。 */
     public final VisionTable vision;
+    /** 11-20: 棘の生垣(森の防衛設備)。 */
+    public final HedgeTable hedge;
     /** 苗床は萌芽体をこれだけ生むか、G4 以降を 1 回孵したら枯れる(11-14 ユーザー N1。数 6 は【仮】)。 */
     public final int nurseryLifeSprouts;
     /** 苗床が枯れるまでに G4 以降を孵す回数(11-17 ユーザー「1 つにつき 1 回」をやめる。4 は【仮】)・司令塔へ聞く間(tick。前 1200、600 は【仮】)。 */
@@ -243,6 +246,7 @@ public final class DirectorTable {
         this.watcher = WatcherTable.fromJson(s.watcher);
         this.economy = EconomyTable.fromJson(s.economy);
         this.vision = VisionTable.fromJson(s.vision);
+        this.hedge = HedgeTable.fromJson(s.hedge);
         this.nurseryLifeSprouts = Math.max(1, s.nurseryLifeSprouts != null ? s.nurseryLifeSprouts : 6);
         this.nurseryLifeHatches = Math.max(1, s.nurseryLifeHatches != null ? s.nurseryLifeHatches : 4);
         this.nurseryHatchAskTicks = Math.max(20, s.nurseryHatchAskTicks != null ? s.nurseryHatchAskTicks : 600);
