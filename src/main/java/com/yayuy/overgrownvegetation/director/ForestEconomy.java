@@ -26,7 +26,7 @@ import java.util.Locale;
  * 予算そのもの(貯まる・払う・上限)は {@link ForestDirector}。ここは「何が稼ぎ、何が払い、何が戻すか」を 1 か所に集めた口。
  * 数は {@code director.json} の {@code economy}({@link EconomyTable})の【仮】。
  * <ul>
- *   <li><b>稼ぎ</b>(毎秒少しずつ。{@link #incomeFactor}): 過繁茂のチャンクの数(面積の割合)+ 井戸の器官 + 生きている巨大樹。</li>
+ *   <li><b>稼ぎ</b>(毎秒少しずつ。{@link #incomePerDay}): √(過繁茂のチャンク数) × 0.8 + 井戸の器官 1 本 40(小 10)+ 生きている巨大樹 1 本 8 / 日(11-20 夜。フェーズの基本は使わない)。</li>
  *   <li><b>まとまって入る</b>({@link #onInfected}): 生き物が感染体に変わったとき(汎用の感染体になった・死体になって G1 が起きる)。</li>
  *   <li><b>自然湧きも払う</b>({@link #payNatural}): 縁・地下・霧の中の本物。払えなければ湧かない。消えた(デスポーン)ら戻る。</li>
  *   <li><b>戻る</b>({@link #onDeath}): 払って出した植物側の Mob が森(過繁茂のチャンク)の中で倒されたら一部が戻る。外では戻らない。</li>
@@ -54,7 +54,20 @@ public final class ForestEconomy {
     // ---------------------------------------------------------------- 稼ぎ
 
     /** 稼ぎの元の今の値(表示とテスト用)。leyOrgans は大きい版に直した本数。 */
-    public record Sources(double areaRatio, double leyOrgans, int giantTrees, double factor) {
+    public record Sources(int chunks, int leyBig, int leySmall, int giantTrees, double perDay) {
+    }
+
+    /** テスト用: 1 日の稼ぎを決め打ちにする(null で戻す)。テストのワールドは台帳が空に近く、稼ぎも上限もほぼ 0 になるため。 */
+    @javax.annotation.Nullable
+    private static Double incomeOverride;
+
+    public static void setIncomeForTests(@javax.annotation.Nullable Double perDay) {
+        incomeOverride = perDay;
+    }
+
+    @javax.annotation.Nullable
+    public static Double incomeOverride() {
+        return incomeOverride;
     }
 
     /** 井戸の器官(育ち切ったもの)の本数。小さい版は small.strength 倍。 */
@@ -78,17 +91,23 @@ public final class ForestEconomy {
 
     /** 稼ぎの元を読む(過繁茂の台帳・器官の一覧・巨大樹の記録。どれも数えるだけで軽い)。 */
     public static Sources sources(ServerLevel level) {
-        double ratio = ForestDirector.areaRatio(level);
-        var t = DesignData.director();
-        ratio = Math.max(t.areaRatioMin, Math.min(t.areaRatioMax, ratio));
-        double ley = leyOrgans(level);
+        int chunks = PhaseData.get(level).overgrownLedgerSize();
+        int big = 0, small = 0;
+        if (DesignData.organs().enabled) {
+            for (ForestOrgans.Organ o : ForestOrgans.get(level).organs()) {
+                if (o.kind != OrganKind.LEY || !o.active()) continue;
+                if (o.small) small++;
+                else big++;
+            }
+        }
         int trees = PhaseData.get(level).livingGiantTreeCount();
-        return new Sources(ratio, ley, trees, table().incomeFactor(ratio, ley, trees));
+        return new Sources(chunks, big, small, trees, table().incomePerDay(chunks, big, small, trees));
     }
 
-    /** 稼ぎの倍率(フェーズの基本 incomeBase に掛ける)。 */
-    public static double incomeFactor(ServerLevel level) {
-        return sources(level).factor();
+    /** 1 日の稼ぎ(森の健康・設定の倍率の前)。 */
+    public static double incomePerDay(ServerLevel level) {
+        Double o = incomeOverride;
+        return o != null ? o : sources(level).perDay();
     }
 
     // ---------------------------------------------------------------- 値段
@@ -204,9 +223,9 @@ public final class ForestEconomy {
     public static String describe(ServerLevel level) {
         Sources s = sources(level);
         return String.format(Locale.ROOT,
-                "稼ぎの元: 面積の割合 %.2f・井戸 %.1f 本・巨大樹 %d 本 → 倍率 %.2f / 値段の倍率 %.2f(苗床の群体 %.1f 本)/ これまで: 感染 %d 回 +%.0f・"
+                "稼ぎの元: 過繁茂 %d チャンク・井戸 大 %d 小 %d・巨大樹 %d 本 → 1 日 %.1f / 値段の倍率 %.2f(苗床の群体 %.1f 本)/ これまで: 感染 %d 回 +%.0f・"
                         + "倒されて戻った +%.0f・消えて戻った +%.0f・自然湧き −%.0f(払えず見送り %d)・フェーズの器官 −%.0f・塔の飛翔 −%.0f",
-                s.areaRatio(), s.leyOrgans(), s.giantTrees(), s.factor(), priceFactor(level), nurseryOrgans(level), infections, gainedInfect,
+                s.chunks(), s.leyBig(), s.leySmall(), s.giantTrees(), s.perDay(), priceFactor(level), nurseryOrgans(level), infections, gainedInfect,
                 refundedDeath, refundedDespawn, paidNatural, naturalSkipped, spentPhase, spentTower);
     }
 }

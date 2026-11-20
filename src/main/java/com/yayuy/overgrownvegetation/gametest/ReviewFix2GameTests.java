@@ -137,9 +137,10 @@ public final class ReviewFix2GameTests {
             for (int i = 0; i < 12; i++) helper.spawn((EntityType<? extends Mob>) type("falcimnes"), new Vec3(1.5D + i % 5, 4.0D, 1.5D + i / 5));
             BaseMemory.Base later = b;
             mem.waveSent(later, 1.0D, level.getRandom());
-            director.setBudget(level, 1000.0D);
+            // 11-20 夜: 体数は予算だけで決まり(まわりにいる個体はただ)、上限は重さのための同時の上限だけ
+            director.setBudget(level, 0.0D);
             BaseRaids.Result big = BaseRaids.sendWave(level, later, 7.0D, level.getRandom());
-            helper.assertTrue(big.total() <= DesignData.director().assault.maxWave, "送り込みが 40 体を超えた: " + big.summary());
+            helper.assertTrue(big.total() <= com.yayuy.overgrownvegetation.director.LargeRaids.maxAlive(), "送り込みが同時の上限を超えた: " + big.summary());
             // 疑い(同時の上限が無い): 拠点のまわりにいる個体で足りれば、新しく湧かせない(溜まり続けない)
             helper.assertTrue(big.spawnedZero() == 0, "まわりに段階 0 が足りているのに湧かせた: " + big.summary());
             clear(helper);

@@ -47,6 +47,8 @@ public final class HoardRaids {
         public int total;
         public int peakAlive;
         public int steps;
+        /** この回で出してよい合計(11-20 夜: 予算から。始めたときの財布 + 1 日の稼ぎ × hoardIncomeDays を顔ぶれの平均の値段で割った数)。 */
+        public int limit = Integer.MAX_VALUE / 4;
         /** 1 回目の顔ぶれ(継ぎ足しはこの割合を縮める)。 */
         final BaseMemoryTable.Wave shape;
 
@@ -81,6 +83,7 @@ public final class HoardRaids {
 
     /** 始める: まとめた 1 回目を出して、継ぎ足しを始める。出した数を返す。 */
     public static int begin(ServerLevel level, BaseMemory.Base b, double day, RandomSource random) {
+        double purseBefore = b.purse();
         BaseRaids.setWaveTag(TAG);
         BaseRaids.Result r;
         try {
@@ -91,6 +94,8 @@ public final class HoardRaids {
         Raid raid = new Raid(b.id(), day, new BaseMemoryTable.Wave(0.0D, r.wantStageZero(), r.wantDeveloped(), r.wantG4(), r.wantG5plus()));
         raid.total = r.total();
         raid.peakAlive = r.total();
+        raid.limit = Math.max(r.total(), BaseRaids.sizeByBudget(level, raid.shape,
+                purseBefore + ForestDirector.incomePerDay(level) * ForestEconomy.table().hoardIncomeDays).total());
         RAIDS.put(b.id(), raid);
         ForestDirector.get(level).note(String.format(Locale.ROOT, "貯めた襲撃が始まった: 拠点 #%d へ %d 体(%s)", b.id(), r.total(), r.summary()));
         return r.total();
@@ -136,9 +141,10 @@ public final class HoardRaids {
             }
             int alive = alive(level, b);
             raid.peakAlive = Math.max(raid.peakAlive, alive);
-            int want = Math.min(maxAlive() - alive, maxTotal() - raid.total);
-            if (raid.total >= maxTotal()) {
-                end(raid, "合計 " + maxTotal() + " 体を出した");
+            int lim = Math.min(maxTotal(), raid.limit);
+            int want = Math.min(maxAlive() - alive, lim - raid.total);
+            if (raid.total >= lim) {
+                end(raid, "合計 " + lim + " 体を出した(予算から決めた数)");
                 continue;
             }
             if (want <= 0) continue;
@@ -154,8 +160,8 @@ public final class HoardRaids {
             raid.peakAlive = Math.max(raid.peakAlive, alive + r.total());
             if (r.total() == 0) {
                 end(raid, "継ぎ足しを払えなかった");
-            } else if (raid.total >= maxTotal()) {
-                end(raid, "合計 " + maxTotal() + " 体を出した");
+            } else if (raid.total >= lim) {
+                end(raid, "合計 " + lim + " 体を出した(予算から決めた数)");
             }
         }
     }
@@ -173,8 +179,9 @@ public final class HoardRaids {
     }
 
     public static int maxTotal() {
-        int n = RaidScales.maxTotal(RaidScales.RaidScale.MEDIUM, DesignData.director().assault.hoardMaxTotal);
-        return n > 0 ? n : Integer.MAX_VALUE / 4; // 0 以下 = 上限なし(設定のページ)
+        // 11-20 夜 ユーザー決定: 合計の体数は予算だけで決める(払える間・時間の間は継ぎ足す)。設定のページで合計を決めたときだけ効く
+        int n = RaidScales.maxTotal(RaidScales.RaidScale.MEDIUM, 0);
+        return n > 0 ? n : Integer.MAX_VALUE / 4; // 0 以下 = 上限なし
     }
 
     public static double maxDays() {

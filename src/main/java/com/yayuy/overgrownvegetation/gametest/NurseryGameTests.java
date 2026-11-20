@@ -165,8 +165,9 @@ public final class NurseryGameTests {
             helper.assertTrue(hatchTicks[0] >= G1Nursery.HATCH_AT, "嚢が割れる前に出た: " + hatchTicks[0]);
             double left = director.available(level);
             double slack = ForestDirector.incomePerDay(level) * 300.0D / 24000.0D + 1.0E-6D;
-            helper.assertTrue(left >= cap - t.costSpawn - 1.0E-6D && left <= cap - t.costSpawn + slack,
-                    "払った量が違う: 残り " + left + "(上限 " + cap + "・値段 " + t.costSpawn + ")");
+            double price = t.costSpawn * com.yayuy.overgrownvegetation.director.ForestEconomy.table().nurseryLocalFactor; // 11-20: Mob から苗床になった物は孵す Mob を安く
+            helper.assertTrue(left >= cap - price - 1.0E-6D && left <= cap - price + slack,
+                    "払った量が違う: 残り " + left + "(上限 " + cap + "・値段 " + price + ")");
             pigs.forEach(net.minecraft.world.entity.Entity::discard);
             m.discard();
             director.setBudget(level, 0.0D);

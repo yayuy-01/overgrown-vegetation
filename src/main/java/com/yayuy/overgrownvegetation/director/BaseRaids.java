@@ -108,10 +108,6 @@ public final class BaseRaids {
             w = new BaseMemoryTable.Wave(w.fromDays(), w.stageZero(), (int) Math.round(w.developed() * at.hoardShareFactor), w.g4(),
                     (int) Math.round(w.g5plus() * at.hoardShareFactor));
         }
-        // 1 回の上限: 小は小の段の合計の上限(既定 assault.maxWave の 40。設定のページで上書き・0 以下 = なし)、中の 1 回は中の同時の上限(40)
-        int smallTotal = RaidScales.maxTotal(RaidScales.RaidScale.SMALL, at.maxWave);
-        int maxWave = hoard ? HoardRaids.maxAlive() : smallTotal > 0 ? smallTotal : Integer.MAX_VALUE / 4;
-        w = capped(override != null ? override : w, maxWave);
         int waveNo = first ? -1 : t.waveIndex(since);
         double r = t.raidSearchBlocks;
         AABB box = new AABB(b.centerX() - r, level.getMinBuildHeight(), b.centerZ() - r, b.centerX() + r, level.getMaxBuildHeight(), b.centerZ() + r);
@@ -131,6 +127,19 @@ public final class BaseRaids {
         }
         Collections.shuffle(zeros, new java.util.Random(random.nextLong()));
         Collections.shuffle(developed, new java.util.Random(random.nextLong()));
+        // 11-20 夜 ユーザー決定「襲撃の大きさは貯めた予算だけで決める」: 顔ぶれの表は割合として使い、体数 = まわりにいる段階 0・進化体(ただで歩かせる)
+        // + 使える予算 × waveBudgetShare(中の最初の 1 回は hoardBudgetShare)÷ 顔ぶれの平均の値段。最初の襲撃(11-16 ユーザー 15 体)はそのまま【仮】
+        if (override == null && !first) {
+            com.yayuy.overgrownvegetation.data.EconomyTable e = ForestEconomy.table();
+            double budget = ForestDirector.get(level).available(level) * (hoard ? e.hoardBudgetShare : e.waveBudgetShare);
+            if (!hoard) budget = Math.min(budget, ForestDirector.incomePerDay(level) * e.waveIncomeDays); // 1 回は 1 日の稼ぎの waveIncomeDays 日分まで
+            w = sizeByBudget(level, w, budget,
+                    zeros.size(), developed.size());
+        }
+        // 体数の上限は重さのための「同時に何体まで」だけ(11-20 夜): 小は設定のページで決めたときだけ・決めていなければ大きな襲撃の同時の上限、中は中の同時の上限
+        int smallTotal = RaidScales.maxTotal(RaidScales.RaidScale.SMALL, 0);
+        int maxWave = hoard ? HoardRaids.maxAlive() : smallTotal > 0 ? smallTotal : LargeRaids.maxAlive();
+        w = capped(override != null ? override : w, maxWave);
         // 弱い所を突く: 守りの薄い方角から回り込む割合(F5 の送り込みの段の強さを掛ける。11-14 ユーザー)
         double flank = DesignData.director().base.flankShare * DirectorGates.strength(level, DirectorGates.Gate.RAID);
         ForestDirector director = ForestDirector.get(level);
@@ -242,6 +251,60 @@ public final class BaseRaids {
         m.fate().markPaid(cost);
         go(m, b, flank, random); // 進化で入れ替わるときに引き継ぐ(G1Fate#finishEvolve)
         director.record(ForestDirector.Route.EVOLVE, m.species().key() + " → 進化(拠点 #" + b.id() + " へ送るため)");
+    }
+
+    /**
+     * 顔ぶれの割合のまま、予算 {@code budget} で払える体数にする(11-20 夜)。1 体の値段は送り手が実際に払うのと同じ:
+     * 段階 0 = stageZeroCost・進化体 = costEvolve・G4 / G5 = 出せる種の stagePrice(spawnCost, 種の段の強さ)の平均(決まったくじで 8 回引く)。
+     * いる個体を歩かせる分はただなので、実際の払いはこれより少ないことがある。端数は大きい順に配る。
+     */
+    public static BaseMemoryTable.Wave sizeByBudget(ServerLevel level, BaseMemoryTable.Wave w, double budget) {
+        return sizeByBudget(level, w, budget, 0, 0);
+    }
+
+    /** まわりにいる段階 0・進化体(ただ)の数を、それぞれの枠に足す形。 */
+    public static BaseMemoryTable.Wave sizeByBudget(ServerLevel level, BaseMemoryTable.Wave w, double budget, int freeZeros, int freeDeveloped) {
+        int[] c = {w.stageZero(), w.developed(), w.g4(), w.g5plus()};
+        int sum = c[0] + c[1] + c[2] + c[3];
+        if (sum <= 0) return new BaseMemoryTable.Wave(w.fromDays(), Math.max(0, freeZeros), Math.max(0, freeDeveloped), 0, 0);
+        com.yayuy.overgrownvegetation.data.AssaultTable at = DesignData.director().assault;
+        double[] p = {at.stageZeroCost, DesignData.director().costEvolve, plantPrice(level, 4), plantPrice(level, 5)};
+        double avg = 0.0D;
+        for (int i = 0; i < 4; i++) avg += c[i] * p[i];
+        avg /= sum;
+        int n = avg <= 0.0D ? sum : (int) Math.floor(Math.max(0.0D, budget) / avg);
+        int[] out = new int[4];
+        double[] rem = new double[4];
+        int given = 0;
+        for (int i = 0; i < 4; i++) {
+            double exact = (double) n * c[i] / sum;
+            out[i] = (int) Math.floor(exact);
+            rem[i] = exact - out[i];
+            given += out[i];
+        }
+        while (given < n) {
+            int best = -1;
+            for (int i = 0; i < 4; i++) if (c[i] > 0 && (best < 0 || rem[i] > rem[best])) best = i;
+            if (best < 0) break;
+            out[best]++;
+            rem[best] = -1.0D;
+            given++;
+        }
+        return new BaseMemoryTable.Wave(w.fromDays(), out[0] + Math.max(0, freeZeros), out[1] + Math.max(0, freeDeveloped), out[2], out[3]);
+    }
+
+    /** そのグループで出せる種の値段の平均(段の強さで割った値段。出せる種が無ければ控えの値段)。 */
+    static double plantPrice(ServerLevel level, int group) {
+        RandomSource r = RandomSource.create(group * 7919L);
+        double sum = 0.0D;
+        int n = 0;
+        for (int i = 0; i < 8; i++) {
+            net.minecraft.world.entity.EntityType<?> type = com.yayuy.overgrownvegetation.spawn.DirectorHooks.pickPlant(level, r, group);
+            if (type == null) break;
+            sum += ForestDirector.stagePrice(ForestDirector.spawnCost(type), DirectorGates.speciesStrength(level, type));
+            n++;
+        }
+        return n > 0 ? sum / n : DesignData.director().spawnCost(group);
     }
 
     /** 計 max 体に収める(多ければ 段階 0 → G4 → 進化体 → G5 の順に削る = 安いものから)。 */

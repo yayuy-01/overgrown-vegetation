@@ -161,12 +161,12 @@ public final class OrganRoles {
 
     /**
      * フェーズを進める器官がバイオマスを使って点を足す(11-20 ユーザー決定「毎秒バイオマスを消費する代わりに、消費した分に応じてフェーズの点数を増やす」)。
-     * 使いたい量 = その日の稼ぎの基本 × {@code economy.phaseSpendShare} × 小さい版の強さ × たった日数。払えた分だけ(足りなければあるだけ)、
+     * 使いたい量 = {@code economy.phaseSpendPerDay}(決まった量。11-20 夜)× 小さい版の強さ × たった日数。払えた分だけ(足りなければあるだけ)、
      * 今の点({@code perDay})× {@code phaseSpendPointsFactor} × 払えた割合 を足す。数は【仮】。
      */
     public static void phaseSpend(ServerLevel level, ForestOrgans.Organ o, PhaseData pd, double perDay, double days) {
         com.yayuy.overgrownvegetation.data.EconomyTable e = com.yayuy.overgrownvegetation.director.ForestEconomy.table();
-        double want = ForestDirector.incomeBase(level) * e.phaseSpendShare * DesignData.organs().strength(o.small) * days;
+        double want = e.phaseSpendPerDay * DesignData.organs().strength(o.small) * days;
         if (want <= 0.0D || e.phaseSpendPointsFactor <= 0.0D) return;
         ForestDirector dir = ForestDirector.get(level);
         double pay = Math.min(want, dir.available(level));
@@ -181,7 +181,7 @@ public final class OrganRoles {
     /**
      * 胞子の塔が、バイオマスを払って長距離の飛翔をわざと起こす(11-20 ユーザー決定。今までは嵐の間だけ)。
      * {@code towerFlightIntervalDays} ごとに見直し、予算が上限の {@code towerFlightMinBudgetShare} より多いときだけ、{@code towerFlightChance} の確率で
-     * 値段(稼ぎの基本 × {@code towerFlightCostShare} × 強さ)を払い、塔の 1 日の放出 × {@code towerFlightMassDays} を上空の塊として風下へ飛ばす。【仮】
+     * 値段({@code towerFlightCost}(決まった量)× 強さ)を払い、塔の 1 日の放出 × {@code towerFlightMassDays} を上空の塊として風下へ飛ばす。【仮】
      */
     static boolean towerFlight(ServerLevel level, ForestOrgans.Organ o, long now) {
         com.yayuy.overgrownvegetation.data.EconomyTable e = com.yayuy.overgrownvegetation.director.ForestEconomy.table();
@@ -199,7 +199,7 @@ public final class OrganRoles {
     public static boolean launchFlight(ServerLevel level, ForestOrgans.Organ o) {
         com.yayuy.overgrownvegetation.data.EconomyTable e = com.yayuy.overgrownvegetation.director.ForestEconomy.table();
         double k = DesignData.organs().strength(o.small);
-        double price = ForestDirector.incomeBase(level) * e.towerFlightCostShare * k;
+        double price = e.towerFlightCost * k;
         ForestDirector dir = ForestDirector.get(level);
         if (!dir.tryPay(level, price)) return false;
         com.yayuy.overgrownvegetation.director.ForestEconomy.noteTowerSpend(price);

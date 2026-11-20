@@ -194,6 +194,10 @@ public final class BaseMemoryTable {
      * 進化体が足りなければ、段階 0 を予算で進化させて送る。G4・G5 以降は退避中なので、今は出せない(口だけ)。
      */
     public record Wave(double fromDays, int stageZero, int developed, int g4, int g5plus) {
+        /** 合わせた体数(11-20 夜)。 */
+        public int total() {
+            return stageZero + developed + g4 + g5plus;
+        }
     }
 
     /** 認識してからの日数で、今の段。 */

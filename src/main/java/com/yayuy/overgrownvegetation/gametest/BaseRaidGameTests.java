@@ -77,13 +77,13 @@ public final class BaseRaidGameTests {
             helper.assertTrue(poor.g4() == 0 && poor.g5plus() == 0, "G4 以降はまだ出せないはず");
             helper.assertTrue(poor.stageZero() == Math.min(wave.stageZero(), 4), "段階 0 を段の数だけ送っていない: " + poor.summary());
             for (AbstractParasitizedMonster z : mine) z.march().cancel();
-            director.setBudget(level, DesignData.director().costEvolve * wave.developed());
+            director.setBudget(level, 1000.0D); // 11-20 夜: 体数は予算で決まるので、進化に回る分が出るだけの予算
             BaseRaids.Result rich = BaseRaids.sendWave(level, b, 1.0D, level.getRandom());
             int evolving = 0;
             for (AbstractParasitizedMonster z : mine) {
                 if (z.fate().route() == ForestDirector.Route.EVOLVE && z.march().active()) evolving++;
             }
-            helper.assertTrue(rich.evolved() == Math.min(wave.developed(), 4) && evolving == rich.evolved(),
+            helper.assertTrue(rich.evolved() >= 1 && rich.evolved() <= 4 && evolving == rich.evolved(),
                     "予算があるのに進化させて送らない: " + rich.summary());
         } finally {
             com.yayuy.overgrownvegetation.spawn.DirectorHooks.setSpotForTests(null);

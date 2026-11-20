@@ -143,11 +143,11 @@ public final class ForestDirector extends SavedData implements ForestBudget {
      */
     public static double incomePerDay(ServerLevel level) {
         if (!DesignData.director().enabled) return 0.0D;
-        // 11-20 ユーザー決定「バイオマスを森の資源に」: 稼ぎ = フェーズの基本 × (過繁茂の面積の分 + 井戸の器官 + 巨大樹)。ForestEconomy
-        return incomeBase(level) * ForestEconomy.incomeFactor(level);
+        // 11-20 夜 ユーザー決定「フェーズの基本の物差しをやめる」: 稼ぎ = √(過繁茂のチャンク数) × 0.8 + 井戸 + 巨大樹(1 つあたり何ぼ)。ForestEconomy
+        return ForestEconomy.incomePerDay(level);
     }
 
-    /** そのフェーズの 1 日の稼ぎの基本(稼ぎの物差し。器官・塔の値段もこれに掛ける)。 */
+    /** そのフェーズの incomeBase(11-20 夜から稼ぎには使わない。古い保存・表示のため残す)。 */
     public static double incomeBase(ServerLevel level) {
         double[] b = DesignData.director().incomeBase;
         return b[Math.max(0, Math.min(b.length - 1, DirectorGates.phase(level)))];

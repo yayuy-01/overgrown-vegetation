@@ -155,7 +155,7 @@ public final class ForestVisionGameTests {
     }
 
     /** A 夜の明かり: 地表の明かりがあれば数え、明かりを消すと数えない。B 汚れ: 汚れた装備・最近森にいたことで強くなり、無ければ 0。 */
-    @GameTest(template = "gametest_empty7", batch = "director_vision_light", timeoutTicks = 60)
+    @GameTest(template = "gametest_empty7", batch = "director_vision_light", timeoutTicks = 120)
     public static void lightAndTrailClues(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         VisionTable.Json j = new VisionTable.Json();
@@ -200,7 +200,7 @@ public final class ForestVisionGameTests {
                     + level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, new BlockPos(c0.getX(), h0 + 1, c0.getZ())) + "・置いた所 "
                     + level.getBlockState(c0) + ")");
             for (BlockPos q : was.keySet()) level.setBlock(q, Blocks.STONE.defaultBlockState(), 3);
-            helper.runAfterDelay(10, () -> {
+            helper.runAfterDelay(40, () -> { // 暗くなる側の光の伝わりは遅いことがある
                 int dark = ScoutSearch.lightsAround(level, center, t, RandomSource.create(1));
                 was.forEach((q, st) -> level.setBlock(q, st, 3));
                 helper.assertTrue(dark == 0, "明かりを消しても数える: " + dark);
