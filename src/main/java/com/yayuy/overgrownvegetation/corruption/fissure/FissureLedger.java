@@ -449,7 +449,8 @@ public final class FissureLedger {
                 if (b.alive && pos.equals(b.core)) {
                     b.alive = false;
                     data.changed();
-                    ForestDirector.get(level).note(String.format(Locale.ROOT, "亀裂 #%d の根を送り込む器官が枯れた(芯が壊れた)", f.id));
+                    double cut = FissureWorld.takeBudget(level, DesignData.fissure().wither.borerBudget);
+                    ForestDirector.get(level).note(String.format(Locale.ROOT, "亀裂 #%d の根を送り込む器官が枯れた(芯が壊れた)。予算 −%.0f", f.id, cut));
                     return true;
                 }
             }

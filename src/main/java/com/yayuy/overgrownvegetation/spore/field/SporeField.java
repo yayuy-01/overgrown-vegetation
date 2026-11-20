@@ -650,6 +650,40 @@ public final class SporeField {
         if (t != null) t.mouth[idx(cx, cz)] = Math.max(0f, Math.min(1f, m));
     }
 
+    /**
+     * 洞窟の呼吸(2026-11-20 洞窟が胞子を吸い込む・吐き出す。corruption.cave.CaveBreathing が入れる)。チャンク({@link #chunkKey}) → 地上から地下への
+     * 染み込みの倍率。風が吹き込む口は 1 より大きく、吹き出す口・凪の口は 0(吸わない)。載っていない升は 1(今までどおり)。null なら全部 1。
+     */
+    public volatile it.unimi.dsi.fastutil.longs.Long2FloatOpenHashMap breathSoak;
+    /** 地下の発芽を地脈の線の近くで早める(世界の種・線から何ブロックまで・線の真上でのしきい値の割り算)。leyGermMax <= 1 なら効かない。 */
+    public volatile long leySeed;
+    public volatile double leyNearBlocks = 48.0, leyGermMax = 1.0;
+
+    float breathOf(int cx, int cz) {
+        it.unimi.dsi.fastutil.longs.Long2FloatOpenHashMap m = breathSoak;
+        if (m == null || m.isEmpty()) return 1f;
+        long k = chunkKey(cx, cz);
+        return m.containsKey(k) ? m.get(k) : 1f;
+    }
+
+    /** 地下の発芽のしきい値の割り算(地脈の線の真上で leyGermMax、leyNearBlocks 離れると 1)。 */
+    double leyGerm(int cx, int cz) {
+        if (leyGermMax <= 1.0) return 1.0;
+        double d = com.yayuy.overgrownvegetation.corruption.LeyLines.distanceToLine(leySeed, cx * 16 + 8, cz * 16 + 8);
+        return 1.0 + (leyGermMax - 1.0) * Math.max(0.0, 1.0 - d / Math.max(1.0, leyNearBlocks));
+    }
+
+    /** 地下の浮遊を隣の升へ移す(洞窟の口から奥の洞窟へ。量は保存)。 */
+    public void moveUnder(int fx, int fz, int tx, int tz, double frac) {
+        Tile a = tile(fx, fz, false);
+        if (a == null || frac <= 0) return;
+        int i = idx(fx, fz);
+        double q = a.under[i] * Math.min(1.0, frac);
+        if (q <= 0) return;
+        a.under[i] -= (float) q;
+        tile(tx, tz, true).under[idx(tx, tz)] += (float) q;
+    }
+
     /** 地下の降り積もりを直に足す(テスト・開発用)。 */
     public void depositUnderPoint(int cx, int cz, double amount) {
         tile(cx, cz, true).underDep[idx(cx, cz)] += (float) amount;
@@ -1700,11 +1734,12 @@ public final class SporeField {
                              double germPU, long t) {
         float mf = tl.mouth[i];
         boolean def = Float.isNaN(mf);
-        double mo = def ? p.mouthDefault : mf;
+        float bf = breathOf(cx, cz); // 洞窟の呼吸: 吹き込む口は多く、吹き出す・凪の口は吸わない(11-20)
+        double mo = (def ? p.mouthDefault : mf) * bf;
         double u = tl.under[i];
         if (mo > 0 && a > 0 && p.soakPerDay > 0) {
             // 口の多さが既定値の升は、刻みごとに 1 回だけ計算した割合を使う(軽量化 S1。soakDef = 1 − exp(−soakPerDay × mouthDefault × dtAir))
-            double q = a * (def ? soakDef : 1 - Math.exp(-p.soakPerDay * mo * dtAir));
+            double q = a * (def && bf == 1f ? soakDef : 1 - Math.exp(-p.soakPerDay * mo * dtAir));
             a -= q;
             u += q;
         }
@@ -1713,7 +1748,7 @@ public final class SporeField {
         tl.under[i] = u < p.eps * 1e-2 ? 0f : (float) u;
         if (tl.caveCount[i] < p.maxSprouts && ud > 0) {
             float g = tl.germ == null ? 1f : tl.germ[i];
-            double need = tl.caveCount[i] == 0 ? p.germThreshold : p.secondThreshold;
+            double need = (tl.caveCount[i] == 0 ? p.germThreshold : p.secondThreshold) / leyGerm(cx, cz); // 地下は地脈で育つ(11-20)
             if (g > 0 && ud * g >= need && !barrenHigh(tl, i, cx, cz)
                     && PrevailingWind.unit(PrevailingWind.hash(seed ^ 0xCA7E5EEDL ^ t, ((long) cx << 32) ^ cz)) < germPU) {
                 tl.caveCount[i]++;

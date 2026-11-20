@@ -40,4 +40,33 @@ public final class CaveTable {
     public int surfaceKeep = 4;
     /** 置く列に使う 1 tick の時間(ミリ秒)。 */
     public double placeMillis = 2.0D;
+
+    public Breath breath = new Breath();
+
+    /**
+     * 洞窟が胞子を吸い込む・吐き出す(2026-11-20。{@link CaveBreathing})。値はどれも【仮】。吸う・吐くの決まりは見た目の CaveBreath と同じ
+     * (卓越風と口の外向きの内積。吹き込む = 吸う、吹き出す = 吐く、{@code flowThreshold} 未満は凪。縦穴は夜に吸い・昼に吐く)。
+     */
+    public static final class Breath {
+        public boolean enabled = true;
+        /** 計算の間(tick)。 */
+        public int intervalTicks = 200;
+        /** 凪とみる内積(見た目の caveBreath.flowThreshold と同じ値にする)。 */
+        public double flowThreshold = 0.2D;
+        /** 吹き込む口の染み込みの倍率(風がまっすぐ吹き込み、強さ 1 のとき)。今の染み込み(口の多さ × soakPerDay)に掛ける。 */
+        public double inhaleGain = 4.0D;
+        /** 縦穴が夜に吸う倍率。 */
+        public double shaftInhaleGain = 2.0D;
+        /** 吸った地下の浮遊のうち、1 回の計算で隣の洞窟のチャンク(見立てで洞窟・口と分かった所)へ渡す割合。 */
+        public double inwardShare = 0.25D;
+        /** 吐く量(1 日あたり。胞子が満ちた濃さ fullAt に対する割合。中の汚染の度合い 1・風の強さ 1 のとき)。 */
+        public double exhalePerDay = 0.6D;
+        /** 亀裂の前線が届いてあふれた口(入口 B)の吐く量の倍率(いちばん強い)。 */
+        public double outletBoost = 3.0D;
+        /** 地下の発芽を早める地脈の線からの距離(ブロック)と、線の真上でのしきい値の割り算。 */
+        public double leyNearBlocks = 48.0D;
+        public double leyGermMax = 2.5D;
+        /** 口を探して 1 tick に測るチャンクの数。 */
+        public int measuresPerTick = 1;
+    }
 }

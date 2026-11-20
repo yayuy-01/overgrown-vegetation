@@ -539,6 +539,16 @@ final class CaveBreath {
         f.r = c[0] - tint;
         f.g = c[1];
         f.b = c[2] - tint;
+        // 11-20 洞窟が胞子を吐く(corruption.cave.CaveBreathing): 中が汚染された洞窟の吐く口は胞子の場の発生源になり、口のまわりの胞子が濃くなる。
+        // その濃さで霞を胞子の色へ寄せる(仕組みが目で分かるように。濃さ 0.5 で胞子の色そのもの)
+        float s = Math.min(1.0F, sporeAt(v.x, v.z) * 2.0F);
+        if (s > 0.0F) {
+            float[] sc = p.sporeColor();
+            f.r += (sc[0] - f.r) * s;
+            f.g += (sc[1] - f.g) * s;
+            f.b += (sc[2] - f.b) * s;
+            if (s > 0.5F) f.cool = false;
+        }
     }
 
     /** その所の胞子の濃さ(0〜1)。確かめ用に {@code cavedev air <度合い>} で固定した値があればそれ(平らな試験のワールドでは胞子の場が 0 のまま撮れないので)。 */

@@ -15,5 +15,18 @@
   "partialRopeChance": 0.33,
   "coreClear": 8,
   "surfaceKeep": 4,
-  "placeMillis": 2.0
+  "placeMillis": 2.0,
+  "breath": {
+    "enabled": true,
+    "intervalTicks": 200,
+    "flowThreshold": 0.2,
+    "inhaleGain": 4.0,
+    "shaftInhaleGain": 2.0,
+    "inwardShare": 0.25,
+    "exhalePerDay": 0.6,
+    "outletBoost": 3.0,
+    "leyNearBlocks": 48.0,
+    "leyGermMax": 2.5,
+    "measuresPerTick": 1
+  }
 }

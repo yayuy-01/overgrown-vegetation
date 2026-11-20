@@ -846,14 +846,18 @@ public final class FissureWorld {
         f.withered = 0;
         FissureTable.Wither w = DesignData.fissure().wither;
         long points = w.points > 0 ? PhaseData.get(level).removePoints(w.points) : 0L;
-        double cut = 0.0D;
-        if (w.budgetCapShare > 0.0D) {
-            ForestDirector dir = ForestDirector.get(level);
-            cut = Math.min(dir.available(level), ForestDirector.cap(level) * w.budgetCapShare);
-            dir.tryPay(level, cut);
-        }
+        double cut = takeBudget(level, w.budget + ForestDirector.cap(level) * w.budgetCapShare);
         data.changed();
         ForestDirector.get(level).note(String.format(Locale.ROOT, "亀裂 #%d が枯れた(%s)。ポイント −%d・予算 −%.0f", f.id, why, points, cut));
+    }
+
+    /** 森の予算から amount 引く(足りなければ 0 まで)。引いた量を返す。 */
+    static double takeBudget(ServerLevel level, double amount) {
+        if (amount <= 0.0D) return 0.0D;
+        ForestDirector dir = ForestDirector.get(level);
+        double cut = Math.min(dir.available(level), amount);
+        if (cut > 0.0D) dir.tryPay(level, cut);
+        return cut;
     }
 
     /** 枯れの姿へ少しずつ(読み込まれていない所で止まり、読み込まれたら続き)。 */

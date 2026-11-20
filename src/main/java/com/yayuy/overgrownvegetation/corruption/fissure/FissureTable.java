@@ -157,8 +157,12 @@ public final class FissureTable {
     public static final class Wither {
         /** 引くフェーズのポイント。 */
         public long points = 0L;
-        /** 引く森の予算(上限に対する割合)。 */
+        /** 引く森の予算(上限に対する割合)。量の {@link #budget} と足す。 */
         public double budgetCapShare = 0.0D;
+        /** 巣の芯を壊したときに引く森の予算(バイオマス)の量(11-20 ユーザー「壊したらバイオマス −40」。亀裂の値段と同じ)。足りなければ 0 まで。 */
+        public double budget = 40.0D;
+        /** 根を送り込む器官の芯を壊したときに引く量【全体管理の仮】。 */
+        public double borerBudget = 40.0D;
     }
 
     public Omen omen = new Omen();

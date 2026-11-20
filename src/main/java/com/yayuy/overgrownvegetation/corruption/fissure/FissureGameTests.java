@@ -224,7 +224,12 @@ public final class FissureGameTests {
             h.assertTrue(f.pointsDone > 0, "地上の汚染の点が無い");
             // 芯を壊す → 止まって枯れる
             int grownBefore = f.grown;
+            com.yayuy.overgrownvegetation.director.ForestDirector dir = com.yayuy.overgrownvegetation.director.ForestDirector.get(level);
+            double budgetBefore = dir.available(level);
             level.destroyBlock(f.core, false);
+            double budgetAfter = dir.available(level);
+            double want = Math.min(DesignData.fissure().wither.budget, budgetBefore);
+            h.assertTrue(budgetAfter <= budgetBefore - want + 1.0D, "芯を壊しても森の予算が減らない: " + budgetBefore + " → " + budgetAfter);
             h.assertTrue(f.state == FissureData.State.DEAD, "芯を壊しても枯れない");
             h.assertTrue(FissureWorld.grow(level, data, f, now + 240000L, 64) == 0 || f.state == FissureData.State.DEAD, "枯れた後も伸びる");
             for (int i = 0; i < 100 && f.withered < f.placed.size(); i++) FissureWorld.witherSome(level, data, f, 64);

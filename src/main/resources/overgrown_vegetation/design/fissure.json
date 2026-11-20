@@ -65,7 +65,9 @@
   },
   "wither": {
     "points": 0,
-    "budgetCapShare": 0.0
+    "budgetCapShare": 0.0,
+    "budget": 40.0,
+    "borerBudget": 40.0
   },
   "omen": {
     "rumbleVolume": 2.5,

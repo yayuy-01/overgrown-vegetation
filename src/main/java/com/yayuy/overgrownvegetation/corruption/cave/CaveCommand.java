@@ -105,6 +105,7 @@ public final class CaveCommand {
         ServerLevel level = c.getSource().getServer().overworld();
         c.getSource().sendSuccess(() -> Component.literal("洞窟の飾り: 飾ったチャンク " + CaveDecor.Data.get(level).size() + "・置く列の残り "
                 + FissureLook.queued() + "・直近 " + CaveDecor.last), false);
+        c.getSource().sendSuccess(() -> Component.literal("洞窟の呼吸: 覚えた口 " + CaveBreathing.Data.get(level).mouthCount() + "・直近 " + CaveBreathing.last), false);
         return 1;
     }
 

@@ -76,7 +76,7 @@ public final class SporeFieldServer {
         }
     };
     /** ほかの所からの入力(どのスレッドからでも積める。裏のスレッドが計算の頭で取り込む)。 */
-    private static final ConcurrentLinkedQueue<Consumer<SporeField>> INPUTS = new ConcurrentLinkedQueue<>();
+    static final ConcurrentLinkedQueue<Consumer<SporeField>> INPUTS = new ConcurrentLinkedQueue<>(); // 11-20: 洞窟の呼吸(CaveBreathField)からも入れる
     private static final BackgroundTask<Result> TASK = new BackgroundTask<>("胞子の場");
 
     private static SporeField field;
