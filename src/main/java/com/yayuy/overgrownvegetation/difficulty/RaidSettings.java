@@ -64,10 +64,4 @@ public final class RaidSettings {
         RaidScaleTable.Tier t = RaidScales.tier(s);
         return t != null && t.maxAlive() > 0 ? t.maxAlive() : fallback;
     }
-
-    /** 設計データのその段の 1 回の合計の上限(無ければ 0 = 上限なし)。設定のページの既定値。 */
-    public static int designMaxTotal(RaidScale s) {
-        RaidScaleTable.Tier t = RaidScales.tier(s);
-        return t != null && t.maxTotal() > 0 ? t.maxTotal() : 0;
-    }
 }

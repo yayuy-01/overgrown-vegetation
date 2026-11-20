@@ -334,8 +334,11 @@ public final class WorldDifficultyGameTests {
             data.replaceAll(new DifficultyValues());
             com.yayuy.overgrownvegetation.difficulty.RaidSettings.push(server);
             // 既定値
-            check(helper, data.value(DifficultySetting.RAID_MAX_TOTAL_SMALL) == DesignData.director().assault.maxWave
-                    && data.value(DifficultySetting.RAID_MAX_TOTAL_MEDIUM) == 80.0D && data.value(DifficultySetting.RAID_MAX_TOTAL_LARGE) == 0.0D
+            // 合計の上限の既定は 3 つとも上限なし(11-20 夜「襲撃の大きさは貯めた予算だけで決める」)
+            check(helper, data.value(DifficultySetting.RAID_MAX_TOTAL_SMALL) == 0.0D
+                    && data.value(DifficultySetting.RAID_MAX_TOTAL_MEDIUM) == 0.0D && data.value(DifficultySetting.RAID_MAX_TOTAL_LARGE) == 0.0D
+                    && com.yayuy.overgrownvegetation.director.RaidScales.maxTotal(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.SMALL, 0) <= 0
+                    && com.yayuy.overgrownvegetation.director.RaidScales.maxTotal(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.MEDIUM, 0) <= 0
                     && data.value(DifficultySetting.RAID_MAX_ALIVE_MEDIUM) == 40.0D,
                     "襲撃の上限の既定が設計データと違う: 小 " + data.value(DifficultySetting.RAID_MAX_TOTAL_SMALL) + " 中 "
                             + data.value(DifficultySetting.RAID_MAX_TOTAL_MEDIUM) + " 大 " + data.value(DifficultySetting.RAID_MAX_TOTAL_LARGE));
@@ -345,8 +348,8 @@ public final class WorldDifficultyGameTests {
                     "重さ・フェーズの上限の既定が違う");
             check(helper, com.yayuy.overgrownvegetation.director.RaidScales.Knobs.raidsEnabled
                     && com.yayuy.overgrownvegetation.director.RaidScales.Knobs.intervalFactor == 1.0D
-                    && com.yayuy.overgrownvegetation.director.RaidScales.maxTotal(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.MEDIUM, -9) == 80,
-                    "既定で襲撃の口が設計どおりでない");
+                    && com.yayuy.overgrownvegetation.director.RaidScales.maxTotal(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.MEDIUM, -9) <= 0,
+                    "既定で襲撃の口が上限なしでない");
 
             // フェーズの上限: 切り離したフェーズの記録で、上限 2 なら F2 で止まり、上限を戻すと次の点で上がる
             com.yayuy.overgrownvegetation.data.PhaseTable pt = DesignData.phases();

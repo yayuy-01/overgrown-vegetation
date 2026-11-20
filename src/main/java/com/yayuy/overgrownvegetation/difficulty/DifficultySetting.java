@@ -94,9 +94,9 @@ public enum DifficultySetting {
      * 既定値は COMMON の {@code largeRaidMaxAlive}(−1 なら director.json の {@code largeRaid.maxAlive})。
      */
     LARGE_RAID_MAX_ALIVE("large_raid_max_alive", Section.RAID, Kind.COUNT, LargeRaids.MAX_ALIVE_MIN, LargeRaids.MAX_ALIVE_MAX, false, false),
-    /** 小の 1 回の合計の上限(0 = 上限なし)。既定は director.json の assault.maxWave(40)。 */
+    /** 小の 1 回の合計の上限(0 = 上限なし)。既定は上限なし(11-20 夜 ユーザー決定「襲撃の大きさは貯めた予算だけで決める」。前は assault.maxWave の 40)。 */
     RAID_MAX_TOTAL_SMALL("raid_max_total_small", Section.RAID, Kind.COUNT, 0.0D, 100000.0D, false, false),
-    /** 中の 1 回の合計の上限(0 = 上限なし)。既定は raidScale の中の maxTotal(80)。 */
+    /** 中の 1 回の合計の上限(0 = 上限なし)。既定は上限なし(11-20 夜。前は 80)。重さの上限は同時の上限が受け持つ。 */
     RAID_MAX_TOTAL_MEDIUM("raid_max_total_medium", Section.RAID, Kind.COUNT, 0.0D, 100000.0D, false, false),
     /** 大の 1 回の合計の上限(0 = 上限なし = 設計どおり)。 */
     RAID_MAX_TOTAL_LARGE("raid_max_total_large", Section.RAID, Kind.COUNT, 0.0D, 100000.0D, false, false),
@@ -293,9 +293,7 @@ public enum DifficultySetting {
             case NURSERY_SPEED, ORGAN_COUNT, RAID_FREQUENCY, RAID_COUNT_SMALL, RAID_COUNT_MEDIUM, RAID_COUNT_LARGE,
                  MOB_SPAWN_AMOUNT, EVENT_FREQUENCY -> 1.0D;
             case RAID_MAX_ALIVE_MEDIUM -> RaidSettings.designMaxAlive(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.MEDIUM, 40);
-            case RAID_MAX_TOTAL_SMALL -> DesignData.director().assault.maxWave;
-            case RAID_MAX_TOTAL_MEDIUM -> RaidSettings.designMaxTotal(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.MEDIUM);
-            case RAID_MAX_TOTAL_LARGE -> RaidSettings.designMaxTotal(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.LARGE);
+            case RAID_MAX_TOTAL_SMALL, RAID_MAX_TOTAL_MEDIUM, RAID_MAX_TOTAL_LARGE -> 0.0D; // 上限なし(11-20 夜。決めたときだけ効く)
             case KEEP_INFECTION -> 0.0D; // オフ(死ぬと治る。今までどおり)
             case PUSHBACK_EFFICIENCY -> 1.0D;
             case FATIGUE -> DesignData.sporeField().fatigue().enabled() ? 1.0D : 0.0D;
