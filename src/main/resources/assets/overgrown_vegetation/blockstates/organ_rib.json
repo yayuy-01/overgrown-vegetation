@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "withered=false": { "model": "overgrown_vegetation:block/organ_rib" },
+    "withered=true": { "model": "overgrown_vegetation:block/organ_rib_withered" }
+  }
+}

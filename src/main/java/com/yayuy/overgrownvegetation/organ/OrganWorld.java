@@ -516,15 +516,15 @@ public final class OrganWorld {
         return switch (mat) {
             case OrganBlueprint.M_CARVE -> Blocks.AIR.defaultBlockState();
             case OrganBlueprint.M_MOSS -> ModBlocks.OVERGROWN_BLOCK.get().defaultBlockState();
-            case OrganBlueprint.M_LOG -> ModBlocks.OVERGROWN_LOG.get().defaultBlockState();
-            case OrganBlueprint.M_GIANT_LOG -> ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState();
+            case OrganBlueprint.M_LOG -> OrganBlocks.ORGAN_RIB.get().defaultBlockState();
+            case OrganBlueprint.M_GIANT_LOG -> OrganBlocks.ORGAN_SHELL.get().defaultBlockState();
             case OrganBlueprint.M_SAC -> OrganBlocks.ORGAN_SAC.get().defaultBlockState();
             case OrganBlueprint.M_SAC_WITHERED -> OrganBlocks.ORGAN_SAC.get().defaultBlockState().setValue(OrganTissueBlock.WITHERED, true);
             case OrganBlueprint.M_VEIN -> vein(faces);
             case OrganBlueprint.M_CORE -> OrganBlocks.ORGAN_CORE.get().defaultBlockState();
             case OrganBlueprint.M_CRYSTAL -> OrganBlocks.ROOT_CRYSTAL_BLOCK.get().defaultBlockState();
-            case OrganBlueprint.M_PITH -> ModBlocks.GIANT_OVERGROWN_CAMBIUM.get().defaultBlockState();
-            case OrganBlueprint.M_CAP -> ModBlocks.PROTOTAXITES_CAP.get().defaultBlockState();
+            case OrganBlueprint.M_PITH -> OrganBlocks.ORGAN_PITH.get().defaultBlockState();
+            case OrganBlueprint.M_CAP -> OrganBlocks.ORGAN_SHELF.get().defaultBlockState();
             case OrganBlueprint.M_ROOT -> ModBlocks.STIGMARIA.get().defaultBlockState();
             case OrganBlueprint.M_EGG -> OrganBlocks.ORGAN_EGG_MASS.get().defaultBlockState();
             case OrganBlueprint.M_STONE -> ModBlocks.OVERGROWN_STONE.get().defaultBlockState();
@@ -547,7 +547,7 @@ public final class OrganWorld {
         BlockState cur = level.getBlockState(p);
         if (cur.hasProperty(OrganTissueBlock.WITHERED) && !cur.getValue(OrganTissueBlock.WITHERED)
                 && (cur.is(OrganBlocks.ORGAN_SAC.get()) || cur.is(OrganBlocks.ORGAN_EGG_MASS.get()) || cur.is(OrganBlocks.ORGAN_CORE.get())
-                || cur.is(OrganBlocks.ORGAN_VEIN.get()) || cur.is(OrganBlocks.ORGAN_VINE.get()))) {
+                || cur.is(OrganBlocks.ORGAN_VEIN.get()) || cur.is(OrganBlocks.ORGAN_VINE.get()) || cur.getBlock() instanceof OrganTissueBlock)) {
             level.setBlock(p, cur.setValue(OrganTissueBlock.WITHERED, true), FLAGS);
         }
     }

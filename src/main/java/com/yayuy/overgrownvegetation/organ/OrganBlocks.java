@@ -63,6 +63,50 @@ public final class OrganBlocks {
     public static final DeferredBlock<Block> ORGAN_STALK = BLOCKS.registerBlock("organ_stalk", OrganTissueBlock::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_GREEN).strength(1.6F).sound(SoundType.ROOTS));
 
+    // ---- 器官を組むブロック(2026-11-20 ユーザー決定「そろい 3 樹皮と髄」。外 = 暗い樹皮、柔らかい所と中 = 淡い髄)。硬さ・光は【仮】 ----
+    /** 根の肋: 骨組み(今までの代用 = 過繁茂の原木)。 */
+    public static final DeferredBlock<Block> ORGAN_RIB = BLOCKS.registerBlock("organ_rib", OrganTissueBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.PODZOL).strength(2.0F).sound(SoundType.WOOD));
+
+    /** 硬い殻: 固い外側(今までの代用 = 巨大樹の原木)。 */
+    public static final DeferredBlock<Block> ORGAN_SHELL = BLOCKS.registerBlock("organ_shell", OrganTissueBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.TERRACOTTA_BLACK).strength(3.0F, 6.0F).sound(SoundType.NETHER_WOOD));
+
+    /** 髄: 柔らかい中身(今までの代用 = 巨大樹の形成層)。 */
+    public static final DeferredBlock<Block> ORGAN_PITH = BLOCKS.registerBlock("organ_pith", OrganTissueBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_LIGHT_GREEN).strength(0.8F).sound(SoundType.WART_BLOCK));
+
+    /** 膜: 半透明(まだ形では使っていない)。 */
+    public static final DeferredBlock<Block> ORGAN_MEMBRANE = BLOCKS.registerBlock("organ_membrane", p -> new OrganTissueBlock(p) {
+                @Override
+                protected boolean skipRendering(BlockState state, BlockState adjacent, net.minecraft.core.Direction dir) {
+                    return adjacent.is(this) || super.skipRendering(state, adjacent, dir);
+                }
+            },
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_LIGHT_GREEN).strength(0.4F).sound(SoundType.SLIME_BLOCK).noOcclusion()
+                    .isSuffocating((s, l, q) -> false).isViewBlocking((s, l, q) -> false).isRedstoneConductor((s, l, q) -> false));
+
+    /** 菌糸の床: 中の床と通路(まだ形では使っていない)。 */
+    public static final DeferredBlock<Block> ORGAN_HYPHA_FLOOR = BLOCKS.registerBlock("organ_hypha_floor", OrganTissueBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_GREEN).strength(1.0F).sound(SoundType.MOSS));
+
+    /** 棚の足場: 外を登る道(今までの代用 = プロトタキシーテスの笠)。 */
+    public static final DeferredBlock<Block> ORGAN_SHELF = BLOCKS.registerBlock("organ_shelf", OrganTissueBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_GREEN).strength(1.2F).sound(SoundType.FUNGUS));
+
+    /** 蜜: 蓄えの嚢の中身(まだ形では使っていない)。半透明・光 6、枯れたら 0。 */
+    public static final DeferredBlock<Block> ORGAN_HONEY = BLOCKS.registerBlock("organ_honey", p -> new OrganTissueBlock(p) {
+                @Override
+                protected boolean skipRendering(BlockState state, BlockState adjacent, net.minecraft.core.Direction dir) {
+                    return adjacent.is(this) || super.skipRendering(state, adjacent, dir);
+                }
+            },
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_YELLOW).strength(0.6F).sound(SoundType.HONEY_BLOCK).noOcclusion()
+                    .lightLevel(s -> alive(s) ? 6 : 0).isSuffocating((s, l, q) -> false).isViewBlocking((s, l, q) -> false));
+
+    /** 器官を組むブロック 7 つ(アイテムとクリエイティブタブ用)。 */
+    private static final List<DeferredBlock<Block>> STRUCTURE_BLOCKS = List.of(ORGAN_RIB, ORGAN_SHELL, ORGAN_PITH, ORGAN_MEMBRANE, ORGAN_HYPHA_FLOOR, ORGAN_SHELF, ORGAN_HONEY);
+
     /** 根晶の芽(段 3 の結晶。地脈を吸う根で育つ)。壊すと根晶。 */
     public static final DeferredBlock<Block> ROOT_CRYSTAL_CLUSTER = BLOCKS.registerBlock("root_crystal_cluster",
             p -> new AmethystClusterBlock(7.0F, 3.0F, p),
@@ -81,6 +125,7 @@ public final class OrganBlocks {
         for (DeferredBlock<Block> b : List.of(ORGAN_SAC, ORGAN_EGG_MASS, ORGAN_CORE, ORGAN_VEIN, ORGAN_VINE, ORGAN_STALK, ROOT_CRYSTAL_CLUSTER, ROOT_CRYSTAL_BLOCK)) {
             ITEMS.registerSimpleBlockItem(b);
         }
+        for (DeferredBlock<Block> b : STRUCTURE_BLOCKS) ITEMS.registerSimpleBlockItem(b);
     }
 
     /** クリエイティブタブに載せる(器官のブロックと根晶。2026-11-19 夜 ユーザー「器官のブロックとか、クリエイティブタブにないものはしっかり追加」)。 */
@@ -88,6 +133,7 @@ public final class OrganBlocks {
         for (DeferredBlock<Block> b : List.of(ORGAN_SAC, ORGAN_EGG_MASS, ORGAN_CORE, ORGAN_VEIN, ORGAN_VINE, ORGAN_STALK, ROOT_CRYSTAL_CLUSTER, ROOT_CRYSTAL_BLOCK)) {
             output.accept(b.get());
         }
+        for (DeferredBlock<Block> b : STRUCTURE_BLOCKS) output.accept(b.get());
         output.accept(ROOT_CRYSTAL.get());
     }
 
