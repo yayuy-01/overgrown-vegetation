@@ -178,16 +178,29 @@ public final class EconomySoak {
             }
         }
         double avgMs = tickCount == 0 ? 0.0D : tickSum / 1.0E6D / tickCount;
-        String line = String.format(Locale.ROOT, "%d,%d,%s,%d,%d,%d,%d,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%d,%d,%.2f,%.1f,%d,\"%s\"%n",
+        // 器官の数(種類ごと: 育ち切った+育っている。大小は合わせる)と亀裂の数(場所だけ決めた / 開いた / 枯れた)。どれも台帳・データの上の数
+        StringBuilder organs = new StringBuilder();
+        for (com.yayuy.overgrownvegetation.organ.OrganKind k : com.yayuy.overgrownvegetation.organ.OrganKind.values()) {
+            int alive = 0, growing = 0;
+            for (com.yayuy.overgrownvegetation.organ.ForestOrgans.Organ o : com.yayuy.overgrownvegetation.organ.ForestOrgans.get(level).organs()) {
+                if (o.kind != k) continue;
+                if (o.active()) alive++;
+                else if (o.state == com.yayuy.overgrownvegetation.organ.ForestOrgans.State.GROWING) growing++;
+            }
+            organs.append(k.id).append('=').append(alive).append('+').append(growing).append(' ');
+        }
+        int[] fis = new int[3];
+        for (var fz : com.yayuy.overgrownvegetation.corruption.fissure.FissureData.get(level).fissures()) fis[fz.state.ordinal()]++;
+        String line = String.format(Locale.ROOT, "%d,%d,%s,%d,%d,%d,%d,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%d,%d,%.2f,%.1f,%d,%s,%d,%d,%d,\"%s\"%n",
                 day, pd.getPhase(), pd.getStage().key(), pd.getPoints(), s.chunks(), s.leyBig() + s.leySmall(), s.giantTrees(),
                 pd.hiveNodeSnapshot().length,
                 incForest, incLey, incTree, ForestEconomy.gainedInfect - base0Infect, ForestEconomy.refundedDeath - base0Death,
                 ForestEconomy.refundedDespawn - base0Despawn, spentTotal, dir0.available(level), ForestDirector.cap(level),
                 repelled[0], repelled[1], repelled[2], repelled[3], avgMs, tickMax / 1.0E6D,
-                countEntities(level), spent);
+                countEntities(level), organs.toString().trim(), fis[0], fis[1], fis[2], spent);
         append("economy-days.csv",
                 "day,phase,stage,points,overgrownChunks,leyOrgans,giantTrees,hiveNodes,incForest,incLey,incTree,incInfect,refundDeath,refundDespawn,"
-                        + "spentTotal,budget,cap,repelWave,repelHoard,repelLarge,repelPlantMarch,tickAvgMs,tickMaxMs,entities,spentByCaller\n", line);
+                        + "spentTotal,budget,cap,repelWave,repelHoard,repelLarge,repelPlantMarch,tickAvgMs,tickMaxMs,entities,organs(alive+growing),fissurePending,fissureOpen,fissureDead,spentByCaller\n", line);
     }
 
     private static int countEntities(ServerLevel level) {
