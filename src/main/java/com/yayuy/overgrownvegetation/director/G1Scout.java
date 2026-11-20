@@ -37,6 +37,9 @@ public final class G1Scout {
     /** その段に入ってからの tick と、眺める長さ。 */
     private int ticks;
     private int watchTicks;
+    /** 探りの使い(2026-11-20。拠点ではなく場所へ。{@link ScoutSearch})か・森へ帰る途中か。 */
+    private boolean explore;
+    private boolean returning;
 
     G1Scout(AbstractParasitizedMonster mob) {
         this.mob = mob;
@@ -54,6 +57,11 @@ public final class G1Scout {
         return baseId;
     }
 
+    /** 探りの使いか(拠点の番号は -1)。 */
+    public boolean exploring() {
+        return explore;
+    }
+
     public Vec3 baseCenter() {
         return new Vec3(baseX, mob.getY(), baseZ);
     }
@@ -66,6 +74,9 @@ public final class G1Scout {
     public void begin(BaseMemory.Base base) {
         BaseMemoryTable t = DesignData.director().base;
         phase = Phase.GO;
+        explore = false;
+        returning = false;
+        ForestVision.addBaseScout(mob); // 偵察の周りは森の視界(11-20)
         baseId = base.id();
         baseX = base.centerX();
         baseZ = base.centerZ();
@@ -92,6 +103,24 @@ public final class G1Scout {
         mob.setTarget(null);
     }
 
+    /**
+     * 探りの使いを渡す(2026-11-20 {@link ScoutSearch})。(gx, gz) へ歩き、着いたら {@code explorerWatchDays} 眺めて、そこから離れて終わる。
+     * {@code back} なら森へ帰る途中: 着いたら終わる。拠点の段は進めない。
+     */
+    public void beginExplore(double gx, double gz, boolean back) {
+        phase = Phase.GO;
+        explore = true;
+        returning = back;
+        baseId = -1;
+        baseX = gx;
+        baseZ = gz;
+        watchX = gx;
+        watchZ = gz;
+        ticks = 0;
+        watchTicks = back ? 0 : (int) Math.round(ScoutSearch.table().explorerWatchDays * 24000.0D);
+        mob.setTarget(null);
+    }
+
     /** 毎 tick(サーバー。{@link G1Fate#tick} から)。 */
     void tick(ServerLevel level) {
         if (phase == Phase.NONE) return;
@@ -115,8 +144,8 @@ public final class G1Scout {
             }
             case WATCH -> {
                 if (ticks >= watchTicks) {
-                    BaseMemory.get(level.getServer()).onScouted(baseId, BaseMemory.today(level.getServer()), mob.getRandom());
-                    phase = Phase.LEAVE;
+                    if (!explore) BaseMemory.get(level.getServer()).onScouted(baseId, BaseMemory.today(level.getServer()), mob.getRandom());
+                    phase = returning ? Phase.NONE : Phase.LEAVE; // 森へ帰り着いたら終わり
                     ticks = 0;
                 }
             }
@@ -136,7 +165,11 @@ public final class G1Scout {
     /** 倒された(呼ぶのは死の知らせ)。プレイヤーに倒されたら、拠点の認識が進む。 */
     void onKilledByPlayer(ServerLevel level) {
         if (phase == Phase.NONE) return;
-        BaseMemory.get(level.getServer()).onScoutKilled(baseId, BaseMemory.today(level.getServer()), mob.getRandom());
+        if (!explore) BaseMemory.get(level.getServer()).onScoutKilled(baseId, BaseMemory.today(level.getServer()), mob.getRandom());
+        // 11-20 ユーザー決定: 偵察がプレイヤーに殺されたら、その方向に何かがいると認識して偵察を足す(視界の外で倒された Mob は知らない)
+        ScoutSearch search = ScoutSearch.get(level.getServer());
+        search.onScoutKilled(level, mob.getX(), mob.getZ());
+        if (explore) search.forgetBody(mob.getUUID());
         phase = Phase.NONE;
     }
 
@@ -159,6 +192,8 @@ public final class G1Scout {
         s.putDouble("WZ", watchZ);
         s.putInt("Ticks", ticks);
         s.putInt("Watch", watchTicks);
+        if (explore) s.putBoolean("Explore", true);
+        if (returning) s.putBoolean("Returning", true);
         f.put("Scout", s);
     }
 
@@ -178,6 +213,8 @@ public final class G1Scout {
         watchZ = s.getDouble("WZ");
         ticks = s.getInt("Ticks");
         watchTicks = s.getInt("Watch");
+        explore = s.getBoolean("Explore");
+        returning = s.getBoolean("Returning");
     }
 
     // ---------------------------------------------------------------- テスト用

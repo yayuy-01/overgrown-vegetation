@@ -157,6 +157,14 @@ public final class SporeFieldServer {
      * 点の放出(汚染の球・G1/G4 の死・寄生クリーパーなど)。量は過繁茂 1 チャンクの 1 日の放出が 1。
      * オーバーワールドとネザー(2026-11-12 ユーザー決定: 同じ生き物がネザーにも来るので、ネザーの場へ回す。量の単位は同じ)。ほかの次元は捨てる。
      */
+    /** 上空の塊を放つ(胞子の塔の長距離の飛翔。2026-11-20)。オーバーワールドだけ。 */
+    public static void launchParcel(ServerLevel level, BlockPos pos, double mass) {
+        if (mass <= 0 || level.dimension() != Level.OVERWORLD) return;
+        int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
+        long tick = PhaseData.get(level.getServer().overworld()).clock(level.getServer());
+        INPUTS.add(f -> f.launchParcel(cx, cz, mass, tick));
+    }
+
     public static void emitPoint(ServerLevel level, BlockPos pos, double amount) {
         if (amount <= 0) return;
         int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;

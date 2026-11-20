@@ -148,6 +148,8 @@ public final class GenericInfection {
         GenericInfected g = mob.getData(ModAttachments.GENERIC_INFECTED);
         g.turned = true;
         g.seed = mob.getRandom().nextLong();
+        // 11-20 ユーザー決定: 感染体への変化で森にまとまったバイオマスが入る
+        if (mob.level() instanceof net.minecraft.server.level.ServerLevel sl) com.yayuy.overgrownvegetation.director.ForestEconomy.onInfected(sl, mob);
         g.startTick = mob.level().getGameTime();
         g.transformTicks = instant ? 0 : spec().transformTicks();
         g.boss = isBossType(mob);

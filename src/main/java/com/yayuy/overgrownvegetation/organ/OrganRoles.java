@@ -71,6 +71,8 @@ public final class OrganRoles {
                     o.pointCarry = raw - whole;
                     if (whole > 0L) pd.addPoints(level, whole);
                 }
+                // 11-20 ユーザー決定: 毎秒バイオマスを使う代わりに、使った分に応じてフェーズの点を足す(今の点に足す。【仮】)
+                if (perDay > 0.0D && !peaceful) phaseSpend(level, o, pd, perDay, days);
             }
             case TOWER -> {
                 if (!peaceful && t.towerSporePerDay > 0.0D) {
@@ -85,6 +87,7 @@ public final class OrganRoles {
                             com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.emitPoint(level, anchor.offset(m), each);
                         }
                     }
+                    towerFlight(level, o, now); // 11-20: バイオマスを払って長距離の飛翔をわざと起こす
                 }
             }
             case NURSERY -> nursery(level, o, now, t, peaceful);
@@ -145,6 +148,56 @@ public final class OrganRoles {
         BlockPos spot = bp != null ? at.offset(bp.coreCenter) : at.above();
         Mob m = OrganWorld.spawnNear(level, spot, 0);
         if (m == null) dir.refund(level, cost);
+        else com.yayuy.overgrownvegetation.director.ForestEconomy.markPaid(m, cost); // 森の中で倒されたら一部が戻る(11-20)
+    }
+
+    /**
+     * フェーズを進める器官がバイオマスを使って点を足す(11-20 ユーザー決定「毎秒バイオマスを消費する代わりに、消費した分に応じてフェーズの点数を増やす」)。
+     * 使いたい量 = その日の稼ぎの基本 × {@code economy.phaseSpendShare} × 小さい版の強さ × たった日数。払えた分だけ(足りなければあるだけ)、
+     * 今の点({@code perDay})× {@code phaseSpendPointsFactor} × 払えた割合 を足す。数は【仮】。
+     */
+    public static void phaseSpend(ServerLevel level, ForestOrgans.Organ o, PhaseData pd, double perDay, double days) {
+        com.yayuy.overgrownvegetation.data.EconomyTable e = com.yayuy.overgrownvegetation.director.ForestEconomy.table();
+        double want = ForestDirector.incomeBase(level) * e.phaseSpendShare * DesignData.organs().strength(o.small) * days;
+        if (want <= 0.0D || e.phaseSpendPointsFactor <= 0.0D) return;
+        ForestDirector dir = ForestDirector.get(level);
+        double pay = Math.min(want, dir.available(level));
+        if (pay <= 0.0D || !dir.tryPay(level, pay)) return;
+        com.yayuy.overgrownvegetation.director.ForestEconomy.notePhaseSpend(pay);
+        double raw = perDay * days * e.phaseSpendPointsFactor * (pay / want) + o.spendCarry;
+        long whole = (long) Math.floor(raw);
+        o.spendCarry = raw - whole;
+        if (whole > 0L) pd.addPoints(level, whole);
+    }
+
+    /**
+     * 胞子の塔が、バイオマスを払って長距離の飛翔をわざと起こす(11-20 ユーザー決定。今までは嵐の間だけ)。
+     * {@code towerFlightIntervalDays} ごとに見直し、予算が上限の {@code towerFlightMinBudgetShare} より多いときだけ、{@code towerFlightChance} の確率で
+     * 値段(稼ぎの基本 × {@code towerFlightCostShare} × 強さ)を払い、塔の 1 日の放出 × {@code towerFlightMassDays} を上空の塊として風下へ飛ばす。【仮】
+     */
+    static boolean towerFlight(ServerLevel level, ForestOrgans.Organ o, long now) {
+        com.yayuy.overgrownvegetation.data.EconomyTable e = com.yayuy.overgrownvegetation.director.ForestEconomy.table();
+        if (e.towerFlightChance <= 0.0D || e.towerFlightMassDays <= 0.0D) return false;
+        if (o.flightAt < 0L) o.flightAt = now;
+        if (now - o.flightAt < (long) (e.towerFlightIntervalDays * 24000.0D)) return false;
+        o.flightAt = now;
+        ForestDirector dir = ForestDirector.get(level);
+        if (dir.available(level) < ForestDirector.cap(level) * e.towerFlightMinBudgetShare) return false;
+        if (level.getRandom().nextDouble() >= e.towerFlightChance) return false;
+        return launchFlight(level, o);
+    }
+
+    /** 払って飛ばす(見直しの間・確率を見ない。テストとコマンドから)。払えなければ false。 */
+    public static boolean launchFlight(ServerLevel level, ForestOrgans.Organ o) {
+        com.yayuy.overgrownvegetation.data.EconomyTable e = com.yayuy.overgrownvegetation.director.ForestEconomy.table();
+        double k = DesignData.organs().strength(o.small);
+        double price = ForestDirector.incomeBase(level) * e.towerFlightCostShare * k;
+        ForestDirector dir = ForestDirector.get(level);
+        if (!dir.tryPay(level, price)) return false;
+        com.yayuy.overgrownvegetation.director.ForestEconomy.noteTowerSpend(price);
+        com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.launchParcel(level, o.anchor(), towerSporePerDay(o) * e.towerFlightMassDays);
+        dir.note(String.format(java.util.Locale.ROOT, "胞子の塔 #%d が長距離の飛翔を起こした(予算 −%.0f)", o.id, price));
+        return true;
     }
 
     private static void guards(ServerLevel level, ForestOrgans.Organ o, long now, OrganTable t, boolean peaceful) {

@@ -99,6 +99,8 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
     /** 孵す Mob(司令塔が払った分)。hatch の tick 24 に出す。 */
     @Nullable
     private EntityType<? extends Mob> hatching;
+    /** 孵している Mob に払った額(11-20。孵した Mob に書き、森の中で倒されたら一部が戻る)。 */
+    private double hatchPaid;
     private float anchorYaw = Float.NaN;
     /** テスト用の差し替え: 飲まれたか・出せる Mob。 */
     @Nullable
@@ -270,9 +272,11 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         if (--hatchAskIn <= 0) {
             hatchAskIn = hatchAskInterval();
             List<Supplier<? extends EntityType<? extends Mob>>> pool = spawnPoolOverride != null ? spawnPoolOverride : ForestDirector.nurserySpawns();
-            EntityType<? extends Mob> bought = ForestDirector.get(level).buySpawn(level, random, pool, position());
+            EntityType<? extends Mob> bought = ForestDirector.get(level).buySpawn(level, random, pool, position(),
+                    com.yayuy.overgrownvegetation.director.ForestEconomy.table().nurseryLocalFactor); // 11-20: Mob から苗床になった物は孵す Mob を安く
             if (bought != null) {
                 hatching = bought;
+                hatchPaid = ForestDirector.get(level).lastBoughtPrice();
                 this.entityData.set(SLOT, 1 + random.nextInt(nursery().pods));
                 begin(ACTION_HATCH, G1Nursery.HATCH);
                 return;
@@ -338,6 +342,8 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         Vec3 at = p != null ? Vec3.atBottomCenterOf(p) : position();
         mob.moveTo(at.x, at.y, at.z, random.nextFloat() * 360.0F, 0.0F);
         net.neoforged.neoforge.event.EventHooks.finalizeMobSpawn(mob, level, level.getCurrentDifficultyAt(mob.blockPosition()), MobSpawnType.SPAWNER, null);
+        com.yayuy.overgrownvegetation.director.ForestEconomy.markPaid(mob, hatchPaid);
+        hatchPaid = 0.0D;
         level.addFreshEntity(mob);
         com.yayuy.overgrownvegetation.director.BaseRaids.onNurseryHatched(level, mob); // 認識した拠点のそばの苗床から孵った Mob は拠点へ向かう(第 2 段)
     }
@@ -388,6 +394,7 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         tag.putInt("Hatches", hatches);
         // 払って孵している途中の型(11-18 見直し ①5)
         if (hatching != null) tag.putString("Hatching", net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(hatching).toString());
+        if (hatchPaid > 0.0D) tag.putDouble("HatchPaid", hatchPaid);
     }
 
     /** 保存した孵化の型(無い・読めない・Mob でなければ null)。苗床とゲスタトリクスで共通。 */
@@ -411,6 +418,7 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         sprouted = tag.getInt("Sprouted");
         hatches = tag.contains("Hatches") ? tag.getInt("Hatches") : tag.getBoolean("Hatched") ? com.yayuy.overgrownvegetation.data.DesignData.director().nurseryLifeHatches : 0;
         hatching = readHatching(tag);
+        hatchPaid = tag.getDouble("HatchPaid");
     }
 
     // ------------------------------------------------------------------ アニメ

@@ -164,7 +164,7 @@ public final class ForestMoods {
     private static List<Vec3> centers(ServerLevel level) {
         List<Vec3> out = new ArrayList<>();
         for (ServerPlayer p : level.players()) {
-            if (!p.isSpectator() && !p.isCreative()) out.add(p.position());
+            if (!p.isSpectator() && !p.isCreative() && ForestVision.sees(level, p.blockPosition())) out.add(p.position()); // 11-20 戦場の霧: 見えているプレイヤーだけ
         }
         for (BaseMemory.Base b : BaseMemory.get(level.getServer()).bases()) {
             if (b.stage() == BaseMemory.Stage.RECOGNIZED) out.add(new Vec3(b.centerX(), 64.0D, b.centerZ()));

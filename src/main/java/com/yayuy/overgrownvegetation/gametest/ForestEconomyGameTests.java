@@ -1,0 +1,286 @@
+package com.yayuy.overgrownvegetation.gametest;
+
+import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.data.DesignData;
+import com.yayuy.overgrownvegetation.data.EconomyTable;
+import com.yayuy.overgrownvegetation.director.DirectorGates;
+import com.yayuy.overgrownvegetation.director.ForestDirector;
+import com.yayuy.overgrownvegetation.director.ForestEconomy;
+import com.yayuy.overgrownvegetation.infect.GenericInfection;
+import com.yayuy.overgrownvegetation.organ.ForestOrgans;
+import com.yayuy.overgrownvegetation.organ.OrganKind;
+import com.yayuy.overgrownvegetation.organ.OrganRoles;
+import com.yayuy.overgrownvegetation.phase.PhaseData;
+import com.yayuy.overgrownvegetation.spawn.EnemySpawns;
+import com.yayuy.overgrownvegetation.spawn.SpawnTable;
+import net.minecraft.core.BlockPos;
+import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.ChunkPos;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.RegisterGameTestsEvent;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 森の資源(バイオマス)の収支(2026-11-20 司令塔の作り直し 区切り 1)。稼ぎの元・感染体への変化・自然湧きの払い・森の中での戻り・
+ * 苗床の割引・フェーズの器官の消費・塔の飛翔。どれも世界の予算を触るので 1 つの束で順に。
+ */
+@GameTestHolder(OvergrownVegetation.MODID)
+@PrefixGameTestTemplate(false)
+public final class ForestEconomyGameTests {
+
+    private static final String BATCH = "director_economy";
+
+    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD)
+    public static final class Registration {
+        @SubscribeEvent
+        public static void onRegisterGameTests(RegisterGameTestsEvent event) {
+            event.register(ForestEconomyGameTests.class);
+        }
+
+        private Registration() {
+        }
+    }
+
+    private ForestEconomyGameTests() {
+    }
+
+    /** 稼ぎは過繁茂の面積・井戸の器官・巨大樹で増え、押し返して面積が減ると減る(純粋な式と、世界の台帳の両方)。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void incomeFollowsChunksLeyAndTrees(GameTestHelper helper) {
+        EconomyTable e = ForestEconomy.table();
+        double base = e.incomeFactor(1.0D, 0.0D, 0);
+        helper.assertTrue(e.incomeFactor(0.5D, 0.0D, 0) < base, "面積が減っても稼ぎが減らない");
+        helper.assertTrue(e.incomeFactor(1.0D, 1.0D, 0) > base, "井戸の器官で稼ぎが増えない");
+        helper.assertTrue(e.incomeFactor(1.0D, 0.0D, 3) > base, "巨大樹で稼ぎが増えない");
+        helper.assertTrue(e.incomeFactor(1.0D, 0.0D, 1000) - base <= e.treeMax + 1.0E-9D, "巨大樹の分が頭打ちにならない");
+
+        ServerLevel level = helper.getLevel();
+        PhaseData pd = PhaseData.get(level);
+        ForestOrgans data = ForestOrgans.get(level);
+        Integer phaseBefore = DirectorGates.phaseOverride();
+        List<ChunkPos> added = new ArrayList<>();
+        List<Integer> planted = new ArrayList<>();
+        try {
+            DirectorGates.setPhaseForTests(1); // ふつうの広さ 900 チャンク = 台帳を少し足しただけで割合が動く
+            int normal = DesignData.phases().normalArea(1);
+            // 割合が下限より上になるまで、遠くの升を台帳に足す
+            int want = (int) Math.ceil(normal * (DesignData.director().areaRatioMin + 0.3D)) - pd.overgrownLedgerSize();
+            for (int i = 0; i < Math.max(0, want); i++) added.add(new ChunkPos(200000 + i % 64, 200000 + i / 64));
+            pd.markOvergrownChunks(level, added);
+            double withForest = ForestDirector.incomePerDay(level);
+            // 押し返す: 足した分の半分を台帳から外す
+            for (int i = 0; i < added.size() / 2; i++) pd.forgetOvergrownChunk(added.get(i));
+            double pushed = ForestDirector.incomePerDay(level);
+            helper.assertTrue(pushed < withForest - 1.0E-6D, "押し返して森が縮んでも稼ぎが減らない: " + withForest + " → " + pushed);
+            // 井戸の器官(育ち切った)で増える
+            ForestOrgans.Organ ley = data.plant(level, OrganKind.LEY, false, 0, 3, 0, 3_000_000, 3_000_000);
+            planted.add(ley.id);
+            ley.state = ForestOrgans.State.ALIVE;
+            double withLey = ForestDirector.incomePerDay(level);
+            double expect = ForestDirector.incomeBase(level) * e.leyShare;
+            helper.assertTrue(Math.abs(withLey - pushed - expect) < 1.0E-6D, "井戸の器官の稼ぎが違う: +" + (withLey - pushed) + "(欲しい " + expect + ")");
+            helper.succeed();
+        } finally {
+            for (int id : planted) data.remove(id);
+            for (ChunkPos c : added) pd.forgetOvergrownChunk(c);
+            DirectorGates.setPhaseForTests(phaseBefore);
+        }
+    }
+
+    /** 生き物が汎用の感染体に変わると、元の最大体力に応じた量がまとまって入る。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void infectionPaysTheForest(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ForestDirector dir = ForestDirector.get(level);
+        double before = dir.available(level);
+        try {
+            dir.setBudget(level, 0.0D);
+            LivingEntity victim = null;
+            for (EntityType<?> t : List.of(EntityType.FOX, EntityType.LLAMA, EntityType.GOAT, EntityType.PANDA, EntityType.CAT, EntityType.OCELOT)) {
+                if (helper.spawn(t, new BlockPos(3, 2, 3)) instanceof LivingEntity le) {
+                    if (GenericInfection.canTurn(le)) {
+                        victim = le;
+                        break;
+                    }
+                    le.discard();
+                }
+            }
+            helper.assertTrue(victim != null, "汎用の感染体になれる生き物が見つからない");
+            double gain = ForestEconomy.table().infectGain(victim.getMaxHealth());
+            helper.assertTrue(GenericInfection.turn(victim, true), "感染体に変わらない");
+            double got = dir.available(level);
+            helper.assertTrue(Math.abs(got - gain) < 1.0E-6D, "感染体への変化で入った量が違う: " + got + "(欲しい " + gain + ")");
+            helper.succeed();
+        } finally {
+            dir.setBudget(level, before);
+        }
+    }
+
+    /** 自然湧きは値段を払う(払えなければ湧かない)。消えたら戻り、森の中で倒されたら一部が戻り、森の外では戻らない。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void naturalSpawnsPayAndRefund(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ForestDirector dir = ForestDirector.get(level);
+        PhaseData pd = PhaseData.get(level);
+        double before = dir.available(level);
+        BlockPos at = helper.absolutePos(new BlockPos(3, 2, 3));
+        ChunkPos chunk = new ChunkPos(at);
+        boolean wasForest = pd.isOvergrownChunk(chunk);
+        try {
+            EntityType<?> type = com.yayuy.overgrownvegetation.spawn.DirectorHooks.pickG1(level.getRandom()).entityType();
+            dir.setBudget(level, 0.0D);
+            EnemySpawns.Miss miss = EnemySpawns.place(level, type, at, SpawnTable.Habitat.GROUND, EnemySpawns.EDGE_TAG, 1);
+            helper.assertTrue(miss == EnemySpawns.Miss.NO_BUDGET, "予算 0 でも湧いた: " + miss);
+
+            dir.setBudget(level, 10.0D);
+            miss = EnemySpawns.place(level, type, at, SpawnTable.Habitat.GROUND, EnemySpawns.EDGE_TAG, 1);
+            helper.assertTrue(miss == EnemySpawns.Miss.SPAWNED, "予算があるのに湧かない: " + miss);
+            Mob m = EnemySpawns.lastPlaced();
+            double price = ForestEconomy.paid(m);
+            helper.assertTrue(price > 0.0D && Math.abs(dir.available(level) - (10.0D - price)) < 1.0E-6D, "自然湧きが払っていない: " + price);
+            // デスポーン = 森へ戻る
+            m.discard();
+            helper.assertTrue(Math.abs(dir.available(level) - 10.0D) < 1.0E-6D, "消えた自然湧きの払いが戻らない: " + dir.available(level));
+
+            // 森の外で倒される → 戻らない
+            if (wasForest) pd.forgetOvergrownChunk(chunk);
+            EnemySpawns.place(level, type, at, SpawnTable.Habitat.GROUND, EnemySpawns.EDGE_TAG, 1);
+            m = EnemySpawns.lastPlaced();
+            double afterPay = dir.available(level);
+            m.kill();
+            helper.assertTrue(Math.abs(dir.available(level) - afterPay) < 1.0E-6D, "森の外で倒されたのに戻った");
+
+            // 森の中で倒される → refundShare だけ戻る
+            pd.markOvergrownChunks(level, List.of(chunk));
+            EnemySpawns.place(level, type, at, SpawnTable.Habitat.GROUND, EnemySpawns.EDGE_TAG, 1);
+            m = EnemySpawns.lastPlaced();
+            price = ForestEconomy.paid(m);
+            afterPay = dir.available(level);
+            m.kill();
+            double back = price * ForestEconomy.table().refundShare;
+            helper.assertTrue(Math.abs(dir.available(level) - afterPay - back) < 1.0E-6D,
+                    "森の中で倒されたときの戻りが違う: +" + (dir.available(level) - afterPay) + "(欲しい " + back + ")");
+            helper.succeed();
+        } finally {
+            if (!wasForest) pd.forgetOvergrownChunk(chunk);
+            else pd.markOvergrownChunks(level, List.of(chunk));
+            dir.setBudget(level, before);
+        }
+    }
+
+    /** 苗床の群体は全体の値段を軽くし(下限あり)、Mob から苗床になった物の口は値段に倍率を掛ける。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void nurseriesMakeMobsCheaper(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ForestOrgans data = ForestOrgans.get(level);
+        ForestDirector dir = ForestDirector.get(level);
+        double before = dir.available(level);
+        List<Integer> planted = new ArrayList<>();
+        EconomyTable e = ForestEconomy.table();
+        helper.assertTrue(e.nurseryFactor(1.0D) < 1.0D && e.nurseryFactor(1000.0D) == e.nurseryMinFactor, "苗床の割引の式が違う");
+        try {
+            double f0 = ForestEconomy.priceFactor(level);
+            ForestOrgans.Organ n = data.plant(level, OrganKind.NURSERY, false, 0, 4, 0, 3_100_000, 3_100_000);
+            planted.add(n.id);
+            n.state = ForestOrgans.State.ALIVE;
+            double f1 = ForestEconomy.priceFactor(level);
+            helper.assertTrue(f1 < f0 - 1.0E-9D, "苗床の群体で値段が軽くならない: " + f0 + " → " + f1);
+
+            // Mob から苗床になった物の口: 同じ種を、倍率つきの口と無しの口で買い比べる
+            List<java.util.function.Supplier<? extends EntityType<? extends Mob>>> pool = new ArrayList<>(ForestDirector.nurserySpawns());
+            if (pool.isEmpty()) {
+                helper.succeed(); // 苗床から出せる種がまだ無い(戻していない)ときは、全体の割引だけ確かめる
+                return;
+            }
+            pool = List.of(pool.get(0));
+            net.minecraft.world.phys.Vec3 at = new net.minecraft.world.phys.Vec3(3_100_000, 64, 3_100_000);
+            dir.setBudget(level, 1000.0D);
+            EntityType<?> a = dir.buySpawn(level, level.getRandom(), pool, at);
+            double full = dir.lastBoughtPrice();
+            EntityType<?> b = dir.buySpawn(level, level.getRandom(), pool, at, e.nurseryLocalFactor);
+            double local = dir.lastBoughtPrice();
+            if (a == null || b == null) {
+                helper.succeed(); // 段の強さのくじで見送られた(フェーズの段しだい)。全体の割引は確かめた
+                return;
+            }
+            helper.assertTrue(Math.abs(local - full * e.nurseryLocalFactor) < 1.0E-6D, "苗床から孵す値段が軽くならない: " + full + " → " + local);
+            helper.succeed();
+        } finally {
+            for (int id : planted) data.remove(id);
+            dir.setBudget(level, before);
+        }
+    }
+
+    /** フェーズを進める器官は予算を使って点を足す。予算が無ければ足さない。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void phaseOrganSpendsForPoints(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ForestOrgans data = ForestOrgans.get(level);
+        ForestDirector dir = ForestDirector.get(level);
+        PhaseData pd = PhaseData.get(level);
+        double before = dir.available(level);
+        List<Integer> planted = new ArrayList<>();
+        try {
+            ForestOrgans.Organ o = data.plant(level, OrganKind.PHASE, false, 0, 6, 0, 3_200_000, 3_200_000);
+            planted.add(o.id);
+            o.state = ForestOrgans.State.ALIVE;
+            double perDay = 100.0D;
+            dir.setBudget(level, 0.0D);
+            long p0 = pd.getPoints();
+            OrganRoles.phaseSpend(level, o, pd, perDay, 1.0D);
+            helper.assertTrue(pd.getPoints() == p0, "予算 0 なのに点が増えた");
+            dir.setBudget(level, 10000.0D);
+            long p1 = pd.getPoints();
+            OrganRoles.phaseSpend(level, o, pd, perDay, 1.0D);
+            double spent = 10000.0D - dir.available(level);
+            double want = ForestDirector.incomeBase(level) * ForestEconomy.table().phaseSpendShare;
+            helper.assertTrue(Math.abs(spent - want) < 1.0E-6D, "1 日に使う量が違う: " + spent + "(欲しい " + want + ")");
+            // 点が増えるか(このワールドのフェーズで点を足せるときだけ。足せないフェーズ = 閾値が無い・最上段では足さない)
+            long probe = pd.getPoints();
+            pd.addPoints(level, 1L);
+            boolean canAdd = pd.getPoints() > probe;
+            if (canAdd) pd.removePoints(pd.getPoints() - probe);
+            helper.assertTrue(!canAdd || pd.getPoints() > p1, "予算を使ったのに点が増えない");
+            pd.removePoints(Math.max(0L, pd.getPoints() - p0));
+            helper.succeed();
+        } finally {
+            for (int id : planted) data.remove(id);
+            dir.setBudget(level, before);
+        }
+    }
+
+    /** 胞子の塔は予算を払って長距離の飛翔を起こす(払えなければ起こさない)。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void towerPaysForLongFlight(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ForestOrgans data = ForestOrgans.get(level);
+        ForestDirector dir = ForestDirector.get(level);
+        double before = dir.available(level);
+        List<Integer> planted = new ArrayList<>();
+        try {
+            ForestOrgans.Organ o = data.plant(level, OrganKind.TOWER, false, 0, 9, 0, 3_300_000, 3_300_000);
+            planted.add(o.id);
+            o.state = ForestOrgans.State.ALIVE;
+            dir.setBudget(level, 0.0D);
+            helper.assertTrue(!OrganRoles.launchFlight(level, o), "予算 0 で飛翔を起こせた");
+            dir.setBudget(level, 1000.0D);
+            helper.assertTrue(OrganRoles.launchFlight(level, o), "予算があるのに飛翔を起こせない");
+            double price = ForestDirector.incomeBase(level) * ForestEconomy.table().towerFlightCostShare;
+            helper.assertTrue(Math.abs(1000.0D - dir.available(level) - price) < 1.0E-6D, "飛翔の値段が違う");
+            helper.succeed();
+        } finally {
+            for (int id : planted) data.remove(id);
+            dir.setBudget(level, before);
+        }
+    }
+}

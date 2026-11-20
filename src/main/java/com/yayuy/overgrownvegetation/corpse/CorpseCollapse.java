@@ -138,6 +138,7 @@ public final class CorpseCollapse {
             BlockPos pos = level.isLoaded(origin) ? findCorpseSpot(level, origin) : null;
             if (pos != null) {
                 level.setBlock(pos, block.defaultBlockState(), Block.UPDATE_ALL);
+                com.yayuy.overgrownvegetation.director.ForestEconomy.onInfected(level, entity); // 11-20: 死体になった = 感染体への変化。森にまとまって入る
                 if (level.getBlockEntity(pos) instanceof CorruptedCorpseBlockEntity be) {
                     if (t.contains("Color")) {
                         be.setWoolColor(t.getInt("Color"));

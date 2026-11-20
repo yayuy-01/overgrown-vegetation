@@ -143,7 +143,14 @@ public final class ForestDirector extends SavedData implements ForestBudget {
      */
     public static double incomePerDay(ServerLevel level) {
         if (!DesignData.director().enabled) return 0.0D;
-        return DesignData.director().income(DirectorGates.phase(level), areaRatio(level));
+        // 11-20 ユーザー決定「バイオマスを森の資源に」: 稼ぎ = フェーズの基本 × (過繁茂の面積の分 + 井戸の器官 + 巨大樹)。ForestEconomy
+        return incomeBase(level) * ForestEconomy.incomeFactor(level);
+    }
+
+    /** そのフェーズの 1 日の稼ぎの基本(稼ぎの物差し。器官・塔の値段もこれに掛ける)。 */
+    public static double incomeBase(ServerLevel level) {
+        double[] b = DesignData.director().incomeBase;
+        return b[Math.max(0, Math.min(b.length - 1, DirectorGates.phase(level)))];
     }
 
     /**
@@ -587,6 +594,24 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         return buySpawn(level, random, pool);
     }
 
+    /** Mob から苗床になった物の口(11-20): そこから孵す Mob の値段に {@code localFactor}(economy.nurseryLocalFactor)を掛ける。 */
+    @Nullable
+    public net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob> buySpawn(
+            ServerLevel level, RandomSource random,
+            List<java.util.function.Supplier<? extends net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>>> pool,
+            net.minecraft.world.phys.Vec3 at, double localFactor) {
+        if (pool.isEmpty()) return null;
+        if (skipFarNursery(level, at, random)) return null;
+        return buySpawnPriced(level, random, pool, localFactor);
+    }
+
+    /** 直前の buySpawn で払った額(孵した Mob に書く。ForestEconomy の markPaid)。 */
+    private double lastBoughtPrice;
+
+    public double lastBoughtPrice() {
+        return lastBoughtPrice;
+    }
+
     /** 拠点から遠い苗床を断るか。 */
     public static boolean skipFarNursery(ServerLevel level, net.minecraft.world.phys.Vec3 at, RandomSource random) {
         boolean anyRecognized = false;
@@ -601,6 +626,14 @@ public final class ForestDirector extends SavedData implements ForestBudget {
     public net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob> buySpawn(
             ServerLevel level, RandomSource random,
             List<java.util.function.Supplier<? extends net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>>> pool) {
+        return buySpawnPriced(level, random, pool, 1.0D);
+    }
+
+    @Nullable
+    private net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob> buySpawnPriced(
+            ServerLevel level, RandomSource random,
+            List<java.util.function.Supplier<? extends net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>>> pool, double localFactor) {
+        lastBoughtPrice = 0.0D;
         if (pool.isEmpty() || !DesignData.director().enabled) return null;
         // 苗床のスポナーは F4 から。大きな襲撃の前触れの間は止める(DirectorGates)
         if (!DirectorGates.open(level, DirectorGates.Gate.SPAWNER) || DirectorGates.plantSpawnsSuppressed(level) || hoarding()) return null; // ピースフルも(②9) // 貯めている間も孵さない
@@ -615,11 +648,13 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         double avail = available(level);
         for (var s : pool) {
             net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob> t = s.get();
-            if (groupGateOpen(level, t) && stagePrice(spawnCost(t), spawnStrength) <= avail + 1.0E-9D) openPool.add(s);
+            if (groupGateOpen(level, t) && stagePrice(spawnCost(t) * localFactor, spawnStrength) <= avail + 1.0E-9D) openPool.add(s);
         }
         if (openPool.isEmpty()) return null;
         net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob> type = openPool.get(random.nextInt(openPool.size())).get();
-        if (!tryPay(level, stagePrice(spawnCost(type), spawnStrength))) return null;
+        double bought = stagePrice(spawnCost(type) * localFactor, spawnStrength);
+        if (!tryPay(level, bought)) return null;
+        lastBoughtPrice = bought;
         spawnsBought++;
         setDirty();
         return type;
@@ -642,7 +677,8 @@ public final class ForestDirector extends SavedData implements ForestBudget {
      */
     public static double spawnCost(net.minecraft.world.entity.EntityType<?> type) {
         com.yayuy.overgrownvegetation.phase.MobGroup g = com.yayuy.overgrownvegetation.phase.MobGroup.of(type);
-        return DesignData.mobClass().price(type, DesignData.director().spawnCost(g == null ? 4 : g.number()));
+        // 11-20: 苗床の群体はワールド全体の Mob の値段を軽くする(ForestEconomy#priceFactor)
+        return DesignData.mobClass().price(type, DesignData.director().spawnCost(g == null ? 4 : g.number())) * ForestEconomy.priceFactor();
     }
 
     /** これまでに苗床へ払って孵した数。 */
@@ -675,6 +711,7 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         out.add(String.format(Locale.ROOT, "森の予算 %.1f / 上限 %.1f(ハイヴノード %d)・1 日に +%.1f(過繁茂のチャンク %d)× 森の健康の倍率 %.2f",
                 available(level), cap(level), phase.hiveNodeSnapshot().length, incomePerDay(level), phase.overgrownLedgerSize(),
                 com.yayuy.overgrownvegetation.ecosystem.Ecosystem.incomeFactor(level)));
+        out.add(ForestEconomy.describe(level));
         DirectorTable t = DesignData.director();
         out.add(String.format(Locale.ROOT, "値段: 進化 %.0f・根付き %.0f・苗床 %.0f / これまでの判断: 進化 %d・根付き %d・苗床 %d・何もしない %d",
                 t.costEvolve, t.costRooted, t.costNursery, decided[Route.EVOLVE.ordinal()], decided[Route.ROOTED.ordinal()],

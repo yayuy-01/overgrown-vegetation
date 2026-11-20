@@ -318,6 +318,12 @@ public final class BaseMemory extends SavedData {
         setDirty();
     }
 
+    /** 升にいた時間(減りを焼き込む前。無ければ 0。テスト・確かめ用)。 */
+    public double presenceAt(long chunk) {
+        Cell c = cells.get(chunk);
+        return c == null ? 0.0D : c.presence;
+    }
+
     private Cell touch(long chunk, double day) {
         Cell c = cells.get(chunk);
         if (c == null) {

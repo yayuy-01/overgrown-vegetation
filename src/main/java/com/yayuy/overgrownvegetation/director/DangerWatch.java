@@ -63,6 +63,7 @@ public final class DangerWatch {
         LivingEntity e = event.getEntity();
         if (!(e.level() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD || !isG1(e)) return;
         if (!DesignData.director().enabled || !byPlayer(event.getSource().getEntity())) return;
+        if (!ForestVision.sees(level, e.blockPosition())) return; // 11-20 戦場の霧: 視界の外で倒された Mob は森は知らない
         KillMemory.get(level.getServer()).record(ChunkPos.asLong(e.getBlockX() >> 4, e.getBlockZ() >> 4), BaseMemory.today(level.getServer()));
     }
 

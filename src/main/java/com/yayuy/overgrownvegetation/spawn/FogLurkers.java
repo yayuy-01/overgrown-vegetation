@@ -197,6 +197,10 @@ public final class FogLurkers {
                     != net.minecraft.world.phys.HitResult.Type.MISS) continue; // 目から見通せる所だけ
             Mob m = EnemySpawns.create(level, type, feet, MobSpawnType.EVENT, random);
             if (m == null) continue;
+            if (!com.yayuy.overgrownvegetation.director.ForestEconomy.payNatural(level, m)) { // 11-20: 霧の中の本物も森の予算を払う
+                m.discard();
+                return null;
+            }
             float yaw = (float) (Math.toDegrees(Math.atan2(z - (feet.getZ() + 0.5D), x - (feet.getX() + 0.5D))) - 90.0D);
             m.moveTo(feet.getX() + 0.5D, feet.getY(), feet.getZ() + 0.5D, yaw, 0.0F);
             m.setYHeadRot(yaw);

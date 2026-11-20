@@ -493,6 +493,20 @@ public final class SporeField {
         return t == null ? 0 : t.dep[idx(cx, cz)];
     }
 
+    /**
+     * 上空の塊を 1 つ、その区画から放つ(2026-11-20 胞子の塔が森の資源を払って起こす長距離の飛翔)。嵐の持ち上げと同じ塊で、
+     * 落ちる距離(対数で一様)・風からのずれは嵐の塊と同じ決め方。{@code tick} は汚染の暦。
+     */
+    public void launchParcel(int cx, int cz, double mass, long tick) {
+        if (mass <= 0) return;
+        long h = PrevailingWind.hash(seed ^ 0x70E3L, tick * 31 + cx * 7L + cz);
+        double dropAt = p.dropMin * Math.pow(p.dropMax / p.dropMin, PrevailingWind.unit(h));
+        double turn = Math.toRadians(30) * (PrevailingWind.unit(PrevailingWind.hash(h, 7)) * 2 - 1);
+        if (p.parcelRandomDir != 0) turn = 2 * Math.PI * PrevailingWind.unit(PrevailingWind.hash(h, 7));
+        parcels.add(new Parcel(cx + 0.5, cz + 0.5, mass, dropAt, tick, turn));
+        launched++;
+    }
+
     /** 点の放出(胞子嚢の破裂・G4 の死亡球など)。 */
     public void emitPoint(int cx, int cz, double amount) {
         tile(cx, cz, true).air[idx(cx, cz)] += (float) amount;

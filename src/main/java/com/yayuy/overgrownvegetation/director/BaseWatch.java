@@ -60,11 +60,7 @@ public final class BaseWatch {
         double hours = t.sampleTicks / 1000.0D;
         for (ServerPlayer p : level.players()) {
             if (p.isSpectator() || p.isCreative() || !p.isAlive()) continue;
-            BlockPos pos = p.blockPosition();
-            long chunk = ChunkPos.asLong(pos.getX() >> 4, pos.getZ() >> 4);
-            boolean inRoom = RoomCache.roomAt(level, pos) != null;
-            memory.addPresence(chunk, hours * (inRoom ? t.roomFactor : 1.0D), day);
-            memory.setStructures(chunk, countStructures(level, pos, t.scanHalfHeight), day);
+            observe(level, memory, p.blockPosition(), hours, day);
         }
         // 覚える・忘れるは F1 から裏で回す。認識は F5 から、偵察は F4 から、送り込みは F5 から。大きな襲撃の前触れの間は偵察・送り込みを止める(DirectorGates)
         memory.update(day, DirectorGates.open(level, DirectorGates.Gate.RECOGNIZE), BaseMemory.timeOfDay(server));
@@ -85,9 +81,28 @@ public final class BaseWatch {
         boolean omen = DirectorGates.largeRaidOmen(level) || ForestDirector.hoarding() || mood == ForestDirector.Mood.LARGE
                 || HoardRaids.active() // 貯めた襲撃の継ぎ足しの間も、ふつうの送り込みは止める(11-16)
                 || DirectorGates.peaceful(level); // ピースフルの間は送り込まない(時計も進めない。見直し ②9)
-        if (DirectorGates.open(level, DirectorGates.Gate.SCOUT) && !DirectorGates.peaceful(level)) dispatchScouts(level, memory, day);
+        if (DirectorGates.open(level, DirectorGates.Gate.SCOUT) && !DirectorGates.peaceful(level)) {
+            dispatchScouts(level, memory, day);
+            ScoutSearch.get(server).tick(level, day, BaseMemory.timeOfDay(server)); // 探りの偵察(11-20。手がかり A・B・殺された所・D 広がる探し方)
+        }
         if (!omen && DirectorGates.open(level, DirectorGates.Gate.RAID)) BaseRaids.dispatch(level, memory, day);
         if (!omen && DirectorGates.open(level, DirectorGates.Gate.LEARN)) DangerWatch.dispatch(level, day); // 学ぶ: 危ない所へ進化体(F3 から)
+    }
+
+    /**
+     * プレイヤー 1 人がいる所を見る(見張り 1 回ぶん)。11-20 ユーザー決定(戦場の霧): 森の視界({@link ForestVision})の中だけ升に点を足す
+     * (森の縁 64・偵察の周り 32・地脈の線の地下・フィロセンスの周り)。見えなければ何も覚えない。
+     *
+     * @return 見えて覚えたか
+     */
+    public static boolean observe(ServerLevel level, BaseMemory memory, BlockPos pos, double hours, double day) {
+        if (!ForestVision.sees(level, pos)) return false;
+        BaseMemoryTable t = DesignData.director().base;
+        long chunk = ChunkPos.asLong(pos.getX() >> 4, pos.getZ() >> 4);
+        boolean inRoom = RoomCache.roomAt(level, pos) != null;
+        memory.addPresence(chunk, hours * (inRoom ? t.roomFactor : 1.0D), day);
+        memory.setStructures(chunk, countStructures(level, pos, t.scanHalfHeight), day);
+        return true;
     }
 
     /**
@@ -217,6 +232,7 @@ public final class BaseWatch {
         if (event.getSource().getEntity() instanceof net.minecraft.world.entity.player.Player) {
             f.scout().onKilledByPlayer(level);
         } else {
+            if (f.scout().exploring()) ScoutSearch.get(level.getServer()).forgetBody(m.getUUID());
             f.scout().cancel();
         }
     }

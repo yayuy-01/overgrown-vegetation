@@ -78,7 +78,7 @@ public final class EnemySpawns {
     /** 1 回の試しの結果。 */
     public enum Miss {
         SPAWNED("湧いた"), NOT_EDGE("縁でない"), NOT_NEAR("汚染の下でない"), FULL("上限・開いていない"), NO_SPOT("置き場が無い"),
-        NEAR_PLAYER("プレイヤーに近い"), NOT_TICKING("動いていない"), BLOCKED("体がはまる"), NO_TYPE("種が無い");
+        NEAR_PLAYER("プレイヤーに近い"), NOT_TICKING("動いていない"), BLOCKED("体がはまる"), NO_TYPE("種が無い"), NO_BUDGET("森の予算が足りない");
 
         public final String label;
 
@@ -328,6 +328,11 @@ public final class EnemySpawns {
     @Nullable
     private static Mob lastPlaced;
 
+    /** 直前に置いた個体(テスト用)。 */
+    public static Mob lastPlaced() {
+        return lastPlaced;
+    }
+
     /** 地下に 1 回試す: (cx, cz) が過繁茂の真下かそのそばなら、その下の洞窟に G1 の段階 0。 */
     public static Miss tryUnder(ServerLevel level, int cx, int cz, int[] counts, RandomSource random) {
         SpawnTable t = DesignData.spawns();
@@ -445,6 +450,11 @@ public final class EnemySpawns {
         }
         Mob m = create(level, type, at, MobSpawnType.NATURAL, level.getRandom());
         if (m == null) return Miss.BLOCKED;
+        // 11-20 ユーザー決定: 自然湧きも森の予算を払う(払えなければ湧かない。ForestEconomy)
+        if (!com.yayuy.overgrownvegetation.director.ForestEconomy.payNatural(level, m)) {
+            m.discard();
+            return Miss.NO_BUDGET;
+        }
         m.addTag(tag);
         m.addTag(GROUP_TAG + group);
         level.addFreshEntity(m);

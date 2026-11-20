@@ -77,6 +77,10 @@ public final class ForestOrgans extends SavedData {
         /** フェーズのポイントの端数。 */
         public double pointCarry;
         public long nurseryAt, guardAt, crystalAt;
+        /** 胞子の塔が最後に長距離の飛翔を見直した時刻(11-20。森の資源で起こす)。 */
+        public long flightAt = -1L;
+        /** フェーズの器官がバイオマスで足す点の端数(保存しない)。 */
+        public double spendCarry;
         /** 置いたときの設計図の形の指紋(0 = まだ・11-18 より前の保存)。違えば置き直す(見直し ②1)。 */
         public int shapeHash;
         /**
@@ -172,6 +176,7 @@ public final class ForestOrgans extends SavedData {
             t.putLong("RoleAt", roleAt);
             t.putDouble("PointCarry", pointCarry);
             t.putLong("NurseryAt", nurseryAt);
+            t.putLong("FlightAt", flightAt);
             t.putLong("GuardAt", guardAt);
             t.putLong("CrystalAt", crystalAt);
             t.putInt("ShapeHash", shapeHash);
@@ -214,6 +219,7 @@ public final class ForestOrgans extends SavedData {
             o.roleAt = t.getLong("RoleAt");
             o.pointCarry = t.getDouble("PointCarry");
             o.nurseryAt = t.getLong("NurseryAt");
+            o.flightAt = t.contains("FlightAt") ? t.getLong("FlightAt") : -1L;
             o.guardAt = t.getLong("GuardAt");
             o.crystalAt = t.getLong("CrystalAt");
             o.shapeHash = t.getInt("ShapeHash");
