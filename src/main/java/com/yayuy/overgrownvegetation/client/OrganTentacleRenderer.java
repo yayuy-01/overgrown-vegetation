@@ -30,7 +30,7 @@ import org.joml.Quaternionf;
  * 器官の蔦の触手の描き方(2026-11-20 作り直し。ユーザー「太い蔦の鞭にしたい」)。{@link OrganTentacle#point} の節に沿って、
  * 器官のブロックの箱を節の向きへ回して並べる(根元が太く先へ細る)。形の式(当たりも同じ)は触手の側のまま、ここは見た目だけ。
  *
- * <p>見た目の案({@link #style}。0 が既定):
+ * <p>見た目の案({@link #style}。3 = ぜんまいの鞭が既定。11-20 ユーザー決定):
  * <ul>
  *   <li>0 太い蔦の鞭: 根の肋の胴・根元に硬い殻の襟・先に髄の瘤(叩く所)。</li>
  *   <li>1 棘の鞭: 0 の胴に硬い殻の棘。先は尖る。</li>
@@ -42,7 +42,7 @@ import org.joml.Quaternionf;
 public class OrganTentacleRenderer extends EntityRenderer<OrganTentacle> {
 
     /** 既定の見た目。 */
-    private static final int DEFAULT_STYLE = 0;
+    private static final int DEFAULT_STYLE = 3; // 11-20 ユーザー「ゼンマイの蔦をメインにしようかな」
     private static final boolean DEV = "true".equals(System.getProperty("ov.devbridge"));
     private static int devStyle = DEFAULT_STYLE;
     private static long devReadAt;
