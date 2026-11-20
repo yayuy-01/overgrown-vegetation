@@ -384,11 +384,13 @@ public final class ForestDirector extends SavedData implements ForestBudget {
             double rest = c - p.memory.spendPurse(p.base, c);
             budget = Math.max(0.0D, budget - rest);
             setDirty();
+            EconomySoak.spent(c); // 計測の間だけ(呼び元ごとに数える)
             return true;
         }
         if (cost > budget + 1.0E-9D) return false;
         budget = Math.max(0.0D, budget - cost);
         setDirty();
+        EconomySoak.spent(cost); // 計測の間だけ
         return true;
     }
 

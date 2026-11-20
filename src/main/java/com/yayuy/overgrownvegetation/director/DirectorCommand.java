@@ -130,6 +130,10 @@ public final class DirectorCommand {
                                                         .then(Commands.literal("recognized").executes(ctx -> baseStage(ctx.getSource(), BaseMemory.Stage.RECOGNIZED))))
                                                 .then(Commands.literal("forget")
                                                         .executes(ctx -> baseForget(ctx.getSource())))))
+                                .then(Commands.literal("soak") // 計測用(11-20 F7 までの通しの放置)
+                                        .then(Commands.literal("start").executes(ctx -> say(ctx.getSource(), EconomySoak.start(ctx.getSource().getServer()))))
+                                        .then(Commands.literal("stop").executes(ctx -> say(ctx.getSource(), EconomySoak.stop())))
+                                        .then(Commands.literal("status").executes(ctx -> say(ctx.getSource(), EconomySoak.status(ctx.getSource().getLevel())))))
                                 .then(Commands.literal("budget")
                                         .then(Commands.argument("amount", DoubleArgumentType.doubleArg(0.0D, 1.0E6D))
                                                 .executes(ctx -> budget(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "amount")))))
@@ -195,6 +199,11 @@ public final class DirectorCommand {
             if (m.isAlive() && m.fate() != null) out.add(m);
         }
         return out;
+    }
+
+    private static int say(CommandSourceStack source, String line) {
+        source.sendSuccess(() -> Component.literal(line), false);
+        return 1;
     }
 
     private static int describe(CommandSourceStack source) {
