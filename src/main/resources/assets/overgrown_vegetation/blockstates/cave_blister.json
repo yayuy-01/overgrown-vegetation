@@ -2,6 +2,6 @@
   "variants": {
     "form=full": { "model": "overgrown_vegetation:block/cave_blister" },
     "form=lump": { "model": "overgrown_vegetation:block/cave_blister_lump" },
-    "form=lump_hanging": { "model": "overgrown_vegetation:block/cave_blister_lump", "x": 180 }
+    "form=lump_hanging": { "model": "overgrown_vegetation:block/cave_blister_drop" }
   }
 }
