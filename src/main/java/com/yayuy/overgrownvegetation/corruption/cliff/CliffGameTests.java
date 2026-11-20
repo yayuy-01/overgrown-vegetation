@@ -274,7 +274,16 @@ public final class CliffGameTests {
 
     /** 縄を生やし、崖の上の村人を相手にした寄生ゾンビが、崖の上(高さ TOP + 1)まで上るのを待つ。 */
     static void climbToTop(GameTestHelper h) {
-        decorate(h, true, false);
+        // 縄の位置は世界の座標のハッシュと割合(既定 0.8)で決まるので、テスト場の置かれた所しだいで Mob の近くに縄が出ない回があった
+        // (11-20 夜の全件で、経路が縄に一度も触れず崖の下で止まった)。上りを確かめるテストなので、ここだけ割合を 1 にする(同じ tick の中で戻す)
+        CliffTable.Rope rope = DesignData.cliff().rope;
+        double was = rope.chance;
+        rope.chance = 1.0D;
+        try {
+            decorate(h, true, false);
+        } finally {
+            rope.chance = was;
+        }
         Villager prey = h.spawn(EntityType.VILLAGER, new Vec3(3.5D, TOP + 1.0D, 12.5D));
         prey.setNoAi(true);
         // 無敵にしない(無敵の相手はバニラの canBeSeenAsEnemy で攻撃の相手から外れ、G1 の追う Goal が動かない)
