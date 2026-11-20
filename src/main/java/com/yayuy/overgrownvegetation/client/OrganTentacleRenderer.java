@@ -63,6 +63,13 @@ public class OrganTentacleRenderer extends EntityRenderer<OrganTentacle> {
             } catch (Exception ex) {
                 devStyle = DEFAULT_STYLE;
             }
+            try {
+                java.nio.file.Path p = java.nio.file.Path.of("devbridge", "tentacle_unfurl.txt");
+                String s = java.nio.file.Files.exists(p) ? java.nio.file.Files.readString(p).trim() : "";
+                devUnfurl = s.isEmpty() ? -1.0F : s.equals("loop") ? -2.0F : Float.parseFloat(s);
+            } catch (Exception ex) {
+                devUnfurl = -1.0F;
+            }
         }
         return devStyle < 0 ? Math.floorMod(e.getId(), 4) : devStyle;
     }
@@ -80,7 +87,7 @@ public class OrganTentacleRenderer extends EntityRenderer<OrganTentacle> {
         int n = e.segments();
         Vec3[] pts = new Vec3[n + 1];
         for (int i = 0; i <= n; i++) pts[i] = e.point(i, t);
-        if (st == 3 && !limp) coil(pts, n);
+        if (st == 3 && !limp) coil(pts, n, unfurl(e, partialTick)); // 叩く直前にほどけ、叩いた後に巻き戻る(11-20 合図)
         BlockState body = state(st == 2 ? OrganBlocks.TANGLED_ROOT : OrganBlocks.ORGAN_RIB, limp);
         BlockState shell = state(OrganBlocks.ORGAN_SHELL, limp), pith = state(OrganBlocks.ORGAN_PITH, limp), stalk = state(OrganBlocks.ORGAN_STALK, limp);
         BlockPos.MutableBlockPos lp = new BlockPos.MutableBlockPos();
@@ -134,8 +141,25 @@ public class OrganTentacleRenderer extends EntityRenderer<OrganTentacle> {
         super.render(e, yaw, partialTick, pose, buffers, light);
     }
 
-    /** 先の 3 割を、ぜんまいのように内へ巻く(見た目だけ)。 */
-    private static void coil(Vec3[] pts, int n) {
+    private static float devUnfurl = -1.0F;
+
+    /** ほどけ具合(0 = 巻き、1 = 伸びきった = 当たりの形)。開発用クライアントでは devbridge/tentacle_unfurl.txt(0〜1 か loop)で見比べる。 */
+    private static float unfurl(OrganTentacle e, float partialTick) {
+        if (DEV) {
+            style(e); // 読み直しの時刻を進める
+            if (devUnfurl >= 0.0F) return devUnfurl;
+            if (devUnfurl < -1.5F) return (float) (0.5D - 0.5D * Math.cos((System.currentTimeMillis() % 3000L) / 3000.0D * Math.PI * 2.0D));
+        }
+        float u = e.unfurl(partialTick);
+        return u * u * (3.0F - 2.0F * u); // 出だしと終わりをなめらかに
+    }
+
+    /**
+     * 先の 3 割を、ぜんまいのように内へ巻く(見た目だけ)。{@code u} = ほどけ具合。ほどけるにつれて巻き数が減って輪が開き、
+     * 最後は元の節の位置({@link OrganTentacle#point} = 当たりの形)にぴったり重なる。
+     */
+    private static void coil(Vec3[] pts, int n, float u) {
+        if (u >= 0.999F) return;
         int c0 = (int) (n * 0.7D);
         if (c0 < 1 || c0 >= n) return;
         Vec3 d0 = pts[c0].subtract(pts[c0 - 1]).normalize();
@@ -144,11 +168,14 @@ public class OrganTentacleRenderer extends EntityRenderer<OrganTentacle> {
         if (w.lengthSqr() < 1.0E-4D) w = new Vec3(1, 0, 0);
         w = w.normalize().scale(-1.0D); // 下へ巻き込む
         double total = pts[n].subtract(pts[c0]).length();
-        double r0 = Math.max(0.8D, total / 5.0D);
+        double turns = Math.PI * 2.0D * 2.25D * (1.0D - u);                 // 巻きの角度の合計
+        double r0 = Math.max(0.8D, total / 5.0D) / Math.max(0.12D, 1.0D - u); // 巻きが減るほど輪が大きい
         Vec3 c = pts[c0].add(w.scale(r0));
+        double mix = u * u;                                                  // 終わりに元の形へ寄せる
         for (int i = c0; i <= n; i++) {
-            double f = (i - c0) / (double) (n - c0), th = f * Math.PI * 2.0D * 2.25D, r = r0 * (1.0D - 0.78D * f);
-            pts[i] = c.add(w.scale(-Math.cos(th) * r)).add(d0.scale(Math.sin(th) * r));
+            double f = (i - c0) / (double) (n - c0), th = f * turns, r = r0 * (1.0D - 0.78D * f * (1.0D - u));
+            Vec3 q = c.add(w.scale(-Math.cos(th) * r)).add(d0.scale(Math.sin(th) * r));
+            pts[i] = q.lerp(pts[i], mix);
         }
     }
 
