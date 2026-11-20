@@ -188,12 +188,6 @@ public final class LargeRaids {
      * ({@code director.json} の {@code largeRaid.maxAlive})。設定がまだ読めないとき(起動の途中)は設計データ。
      */
     public static int maxAlive() {
-        int fallback = DesignData.director().largeRaid.maxAlive;
-        try {
-            int c = com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.largeRaidMaxAlive.get();
-            return c < 0 ? fallback : Math.max(MAX_ALIVE_MIN, Math.min(MAX_ALIVE_MAX, c));
-        } catch (IllegalStateException e) {
-            return fallback;
         // 11-19: 値はワールドごと(MOD の設定ページ)。ワールドの値が無ければ下の COMMON の設定・設計データ
         net.minecraft.server.MinecraftServer server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
         if (server != null) {
@@ -205,6 +199,12 @@ public final class LargeRaids {
 
     /** ワールドの値が無いときの上限(COMMON の設定、−1 なら設計データ)。設定のページの既定値。 */
     public static int configuredMaxAlive() {
+        int fallback = DesignData.director().largeRaid.maxAlive;
+        try {
+            int c = com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.largeRaidMaxAlive.get();
+            return c < 0 ? fallback : Math.max(MAX_ALIVE_MIN, Math.min(MAX_ALIVE_MAX, c));
+        } catch (IllegalStateException e) {
+            return fallback;
         }
     }
 
