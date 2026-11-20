@@ -50,7 +50,7 @@ public final class EconomyTable {
         infectBase = nn(s.infectBase, 2.0D);
         infectPerHealth = nn(s.infectPerHealth, 0.1D);
         infectMax = Math.max(infectBase, nn(s.infectMax, 15.0D));
-        naturalCostFactor = nn(s.naturalCostFactor, 0.1D);
+        naturalCostFactor = nn(s.naturalCostFactor, 0.05D);
         refundShare = Math.min(1.0D, nn(s.refundShare, 0.5D));
         despawnRefund = Math.min(1.0D, nn(s.despawnRefund, 1.0D));
         nurseryOrganDiscount = Math.min(1.0D, nn(s.nurseryOrganDiscount, 0.05D));

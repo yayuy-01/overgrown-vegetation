@@ -58,7 +58,7 @@
     "watcher": 4
   },
   "economy": {
-    "_comment": "11-20 ユーザー決定「バイオマスを森の資源に」(正本は Vault「森の知性(司令塔)」の 11-20 の節)。数は全部【仮】。稼ぎ(毎秒少しずつ。予算は今までどおり聞かれたときに時間ぶん足す)= incomeBase[フェーズ] × (chunkShare × 面積の割合(areaRatioMin〜Max)+ leyShare × 井戸の器官(育ち切った大きい版 1 本 = 1・小さい版は small.strength)+ min(treeMax, treeShare × 生きている巨大樹))。上限・貯めの 2 倍/4 倍・1 日 25% の減りは前のまま(1 日の稼ぎから)。感染体への変化(汎用の感染体になる・死体になる)1 回 = infectBase + 元の最大体力 × infectPerHealth(infectMax まで)。自然湧き(縁・地下・霧の中の本物)は値段(G1 の段階 0 は largeRaid.costStageZero、ほかは mob_class の値段)× naturalCostFactor を払い、払えなければ湧かない・デスポーンしたら despawnRefund 戻る。払って出した Mob が過繁茂のチャンクの中で倒されたら払った額 × refundShare が戻る(外では戻らない)。苗床の群体 1 本で Mob の値段 −nurseryOrganDiscount(nurseryMinFactor まで)・Mob から苗床になった物が孵す Mob は × nurseryLocalFactor。フェーズを進める器官は 1 日に incomeBase × phaseSpendShare を使い、使えた割合 × phaseSpendPointsFactor × 今の器官の点を足す。胞子の塔は towerFlightIntervalDays ごとに、予算が上限の towerFlightMinBudgetShare より多ければ towerFlightChance で incomeBase × towerFlightCostShare を払い、塔の放出 towerFlightMassDays 日分を上空の塊にして飛ばす。driftCost・driftPassengerFactor は後の漂流する擬態 Mob の値段の行(今は使わない)。試算(F5・面積の割合 1・井戸 1・巨大樹 7): 稼ぎ 443 + 感染 約 60 − フェーズの器官 18 − 塔 18 − 自然湧きの倒され 約 20 ≒ 447/日(前 450)。",
+    "_comment": "11-20 ユーザー決定「バイオマスを森の資源に」(正本は Vault「森の知性(司令塔)」の 11-20 の節)。数は全部【仮】。稼ぎ(毎秒少しずつ。予算は今までどおり聞かれたときに時間ぶん足す)= incomeBase[フェーズ] × (chunkShare × 面積の割合(areaRatioMin〜Max)+ leyShare × 井戸の器官(育ち切った大きい版 1 本 = 1・小さい版は small.strength)+ min(treeMax, treeShare × 生きている巨大樹))。上限・貯めの 2 倍/4 倍・1 日 25% の減りは前のまま(1 日の稼ぎから)。感染体への変化(汎用の感染体になる・死体になる)1 回 = infectBase + 元の最大体力 × infectPerHealth(infectMax まで)。自然湧き(縁・地下・霧の中の本物)は値段(G1 の段階 0 は largeRaid.costStageZero、ほかは mob_class の値段)× naturalCostFactor(0.05。縁の上限いっぱいでプレイヤー 1 人あたり約 50 を預ける)を払い、払えなければ湧かない・デスポーンしたら despawnRefund 戻る。払って出した Mob が過繁茂のチャンクの中で倒されたら払った額 × refundShare が戻る(外では戻らない)。苗床の群体 1 本で Mob の値段 −nurseryOrganDiscount(nurseryMinFactor まで)・Mob から苗床になった物が孵す Mob は × nurseryLocalFactor。フェーズを進める器官は 1 日に incomeBase × phaseSpendShare を使い、使えた割合 × phaseSpendPointsFactor × 今の器官の点を足す。胞子の塔は towerFlightIntervalDays ごとに、予算が上限の towerFlightMinBudgetShare より多ければ towerFlightChance で incomeBase × towerFlightCostShare を払い、塔の放出 towerFlightMassDays 日分を上空の塊にして飛ばす。driftCost・driftPassengerFactor は後の漂流する擬態 Mob の値段の行(今は使わない)。試算(F5・面積の割合 1・井戸 1・巨大樹 7): 稼ぎ 443 + 感染 約 60 − フェーズの器官 18 − 塔 18 − 自然湧きの倒され 約 20 ≒ 447/日(前 450)。",
     "chunkShare": 0.8,
     "leyShare": 0.08,
     "treeShare": 0.015,
@@ -66,7 +66,7 @@
     "infectBase": 2.0,
     "infectPerHealth": 0.1,
     "infectMax": 15.0,
-    "naturalCostFactor": 0.1,
+    "naturalCostFactor": 0.05,
     "refundShare": 0.5,
     "despawnRefund": 1.0,
     "nurseryOrganDiscount": 0.05,

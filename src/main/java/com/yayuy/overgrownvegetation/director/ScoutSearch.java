@@ -259,12 +259,16 @@ public final class ScoutSearch extends SavedData {
         bodies(level);
         int max = (int) Math.round(t.maxExplorers * Math.max(0.34D, DirectorGates.strength(level, DirectorGates.Gate.SCOUT)));
         boolean planTime = lastPlanDay < 0.0D || day - lastPlanDay >= t.exploreIntervalDays;
-        while (extraOnKill > 0 || planTime && explorers.size() < max) {
+        extraOnKill = Math.min(extraOnKill, t.explorersOnKill * 2); // 倒し続けても倍々に増えない
+        // 殺された分は同時の上限 + explorersOnKill まで、ふだんの分は見直しの時に上限まで
+        while (true) {
+            boolean extra = extraOnKill > 0 && explorers.size() < max + t.explorersOnKill;
+            boolean plan = planTime && explorers.size() < max;
+            if (!extra && !plan) break;
             if (!launch(level, day, level.getRandom())) break;
-            if (extraOnKill > 0) extraOnKill--;
-            else planTime = explorers.size() < max;
+            if (extra) extraOnKill--;
         }
-        if (planTime || lastPlanDay < 0.0D) lastPlanDay = day;
+        if (planTime) lastPlanDay = day;
         setDirty();
     }
 
@@ -446,6 +450,11 @@ public final class ScoutSearch extends SavedData {
         var chunk = level.getChunkSource().getChunkNow(x >> 4, z >> 4);
         if (chunk == null) return;
         int y = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x & 15, z & 15) + 1;
+        BlockPos feet = new BlockPos(x, y, z);
+        // 森の方角から湧かせる偵察と同じ条件: 足元が固い・水でない・プレイヤーの目から見通せない(見える所なら、体を出さずに司令塔の側で進む)
+        if (!level.getBlockState(feet.below()).isFaceSturdy(level, feet.below(), net.minecraft.core.Direction.UP)) return;
+        if (!level.getFluidState(feet).isEmpty() || !level.getFluidState(feet.below()).isEmpty()) return;
+        if (BaseWatch.seenByPlayer(level, feet, DesignData.director().base.scoutSpawnPlayerMinBlocks)) return;
         com.yayuy.overgrownvegetation.corpse.G1Species s = com.yayuy.overgrownvegetation.spawn.DirectorHooks.pickG1(level.getRandom());
         AbstractParasitizedMonster m = s.entityType().create(level);
         if (m == null) return;

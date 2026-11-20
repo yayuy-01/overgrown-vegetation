@@ -97,6 +97,10 @@ public final class ThornHedges {
         if (!level.getFluidState(pos).isEmpty()) return false;
         BlockPos below = pos.below();
         if (!level.getBlockState(below).isFaceSturdy(level, below, Direction.UP)) return false;
+        // 器官の体・幹・葉の上には載せない(地面だけ)
+        BlockState under = level.getBlockState(below);
+        if (under.is(net.minecraft.tags.BlockTags.LOGS) || under.is(net.minecraft.tags.BlockTags.LEAVES)
+                || under.getBlock().getClass().getPackageName().endsWith(".organ")) return false;
         return !pushedBack(level, pos);
     }
 
