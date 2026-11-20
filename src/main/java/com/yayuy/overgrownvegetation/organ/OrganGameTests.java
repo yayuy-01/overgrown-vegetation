@@ -495,6 +495,48 @@ public final class OrganGameTests {
         helper.succeed();
     }
 
+    /**
+     * 器官を見に飛ぶ・知らせ(11-20 ユーザー「器官ができたらその場所に飛べるコマンドを」): tp latest はいちばん新しい器官を選び、
+     * 器官の中ではなく少し離れた所から器官の方を向く。知らせが off なら出ず、on なら [飛ぶ] がその器官へのコマンドになる。
+     */
+    @GameTest(template = "gametest_empty7", batch = "organ_notice", timeoutTicks = 20)
+    public static void organTpLatestAndNotice(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ForestOrgans data = ForestOrgans.get(level);
+        BlockPos c = helper.absolutePos(new BlockPos(3, 1, 3));
+        List<Integer> planted = new ArrayList<>();
+        boolean before = OrganNotices.enabled();
+        try {
+            ForestOrgans.Organ older = data.plant(level, OrganKind.SAC, true, 0, 21, 0, c.getX() - 6, c.getZ());
+            ForestOrgans.Organ newer = data.plant(level, OrganKind.TOWER, true, 0, 22, 0, c.getX() + 2, c.getZ() + 2);
+            planted.add(older.id);
+            planted.add(newer.id);
+            ForestOrgans.Organ pick = OrganCommand.latest(data);
+            helper.assertTrue(pick != null && pick.id == newer.id, "tp latest がいちばん新しい器官を選ばない: " + (pick == null ? "無し" : pick.id));
+            net.minecraft.world.phys.Vec3 from = new net.minecraft.world.phys.Vec3(c.getX() + 40, c.getY(), c.getZ() + 2);
+            OrganNotices.View v = OrganNotices.viewFrom(level, newer, from, true);
+            double d = Math.hypot(v.at().x - (newer.x + 0.5D), v.at().z - (newer.z + 0.5D));
+            helper.assertTrue(d > 8.0D && d < 40.0D, "飛ぶ先が器官の中か遠すぎる: " + d);
+            // 器官の方を向いている(yaw から向きを出して、器官への向きと比べる)
+            double yr = Math.toRadians(v.yaw());
+            net.minecraft.world.phys.Vec3 facing = new net.minecraft.world.phys.Vec3(-Math.sin(yr), 0.0D, Math.cos(yr));
+            net.minecraft.world.phys.Vec3 toOrgan = new net.minecraft.world.phys.Vec3(newer.x + 0.5D - v.at().x, 0.0D, newer.z + 0.5D - v.at().z).normalize();
+            helper.assertTrue(facing.dot(toOrgan) > 0.95D, "器官の方を向いていない: " + facing.dot(toOrgan));
+            // 知らせ: off なら出ない・on なら [飛ぶ] がその器官へのコマンド
+            OrganNotices.setEnabled(false);
+            OrganNotices.lastSent = null;
+            OrganNotices.organ(level, newer);
+            helper.assertTrue(OrganNotices.lastSent == null, "知らせが off なのに出た");
+            OrganNotices.setEnabled(true);
+            OrganNotices.organ(level, newer);
+            helper.assertTrue(("/ov perf organ tp " + newer.id).equals(OrganNotices.lastSent), "[飛ぶ] のコマンドが違う: " + OrganNotices.lastSent);
+            helper.succeed();
+        } finally {
+            OrganNotices.setEnabled(before);
+            for (int id : planted) data.remove(id);
+        }
+    }
+
     /** 円の中の地面の 1 つ上の [過繁茂の苗木, 2 段の大きなシダ・葦] の数。 */
     private static int[] countRegrowth(ServerLevel level, BlockPos c, int gy, int r) {
         int[] n = new int[2];

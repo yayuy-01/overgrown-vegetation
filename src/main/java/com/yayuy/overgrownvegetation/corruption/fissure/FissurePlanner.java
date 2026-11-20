@@ -64,6 +64,7 @@ public final class FissurePlanner {
         if (site == null) return "地脈の線の下に場所が見つからない";
         if (!force && !dir.tryPay(level, price)) return "払えなかった";
         FissureData.Fissure f = data.add(site[0], site[1], random.nextInt(), PhaseData.clockNow(level), force ? 0.0D : price);
+        com.yayuy.overgrownvegetation.organ.OrganNotices.fissure(level, f.id, f.x, f.z, false); // 開発用の知らせ(11-20)
         String line = String.format(Locale.ROOT, "亀裂 #%d を (%d, %d) の地下に開く(地脈の線まで %.0f・%.0f 払った)", f.id, f.x, f.z,
                 LeyLines.distanceToLine(level.getSeed(), f.x, f.z), f.paid);
         dir.note(line);

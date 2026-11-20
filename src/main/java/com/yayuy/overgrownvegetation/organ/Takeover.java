@@ -288,6 +288,7 @@ public final class Takeover {
             if (RingWards.guarded(level, f.out())) continue; // 押し返す道具の効く所
             if (!farFromOthers(data, f, spacing)) continue;
             ForestOrgans.Organ o = plant(level, data, f, big, kind, rnd);
+            OrganNotices.organ(level, o); // 開発用の知らせ(11-20)
             return new Visit(counted[0], here + 1, o, big ? "大きい器官" : "小さい器官");
         }
         return new Visit(counted[0], here, null, "間を空けられる面が無い");

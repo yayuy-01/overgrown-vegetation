@@ -36,6 +36,14 @@ public final class OrganCommand {
     public static void onRegisterCommands(RegisterCommandsEvent event) {
         LiteralArgumentBuilder<CommandSourceStack> organ = Commands.literal("organ")
                 .then(Commands.literal("list").executes(OrganCommand::list))
+                // 11-20 ユーザー「器官が育つところを見たいから、器官ができたらその場所に飛べるコマンドを」: 器官全体が見える所へ飛ぶ・できたときの知らせ
+                .then(Commands.literal("tp")
+                        .then(Commands.literal("latest").executes(c -> tp(c, -1)))
+                        .then(Commands.argument("id", IntegerArgumentType.integer(1)).executes(c -> tp(c, IntegerArgumentType.getInteger(c, "id")))))
+                .then(Commands.literal("notify")
+                        .executes(c -> notifyStatus(c))
+                        .then(Commands.literal("on").executes(c -> setNotify(c, true)))
+                        .then(Commands.literal("off").executes(c -> setNotify(c, false))))
                 .then(plantNode("plant", false))
                 .then(plantNode("plantsmall", true))
                 .then(Commands.literal("build").then(Commands.argument("id", IntegerArgumentType.integer(1)).executes(OrganCommand::build)))
@@ -217,6 +225,40 @@ public final class OrganCommand {
         int m = n;
         c.getSource().sendSuccess(() -> Component.literal("育ち具合を " + pct + "% にした: " + m), true);
         return n;
+    }
+
+    /** いちばん新しい器官(id が最大)。無ければ null。 */
+    static ForestOrgans.Organ latest(ForestOrgans data) {
+        ForestOrgans.Organ best = null;
+        for (ForestOrgans.Organ o : data.organs()) if (best == null || o.id > best.id) best = o;
+        return best;
+    }
+
+    /** 器官全体が見える所へ飛ぶ({@code id} = -1 でいちばん新しい器官)。 */
+    private static int tp(CommandContext<CommandSourceStack> c, int id) {
+        ServerLevel level = c.getSource().getServer().overworld();
+        ForestOrgans data = ForestOrgans.get(level);
+        ForestOrgans.Organ o = id < 0 ? latest(data) : data.byId(id);
+        if (o == null) return missing(c);
+        if (!(c.getSource().getEntity() instanceof net.minecraft.server.level.ServerPlayer p)) {
+            c.getSource().sendFailure(Component.translatable("commands.overgrown_vegetation.organ_notice.not_player"));
+            return 0;
+        }
+        OrganNotices.tp(level, p, o);
+        c.getSource().sendSuccess(() -> Component.translatable("commands.overgrown_vegetation.organ_notice.tp", o.id,
+                Component.translatable("commands.overgrown_vegetation.forest.kind." + o.kind.id), o.x, o.resolved() ? Integer.toString(o.y) : "?", o.z), false);
+        return o.id;
+    }
+
+    private static int notifyStatus(CommandContext<CommandSourceStack> c) {
+        c.getSource().sendSuccess(() -> Component.translatable("commands.overgrown_vegetation.organ_notice."
+                + (OrganNotices.enabled() ? "status_on" : "status_off")), false);
+        return OrganNotices.enabled() ? 1 : 0;
+    }
+
+    private static int setNotify(CommandContext<CommandSourceStack> c, boolean on) {
+        OrganNotices.setEnabled(on);
+        return notifyStatus(c);
     }
 
     private static int missing(CommandContext<CommandSourceStack> c) {

@@ -126,6 +126,7 @@ public final class FissureLedger {
             if (pick != Long.MIN_VALUE && at > eff) nextAt = Math.min(nextAt, at);
             if (pick != Long.MIN_VALUE && at <= eff) {
                 f.borers.add(new FissureData.Borer(pick, at));
+                com.yayuy.overgrownvegetation.organ.OrganNotices.fissure(level, f.id, ChunkPos.getX(pick) * 16 + 8, ChunkPos.getZ(pick) * 16 + 8, true); // 開発用の知らせ(11-20)
                 data.ledger().get(pick).borer = f.borers.size() - 1;
                 data.changed();
                 ForestDirector.get(level).note(String.format(Locale.ROOT, "亀裂 #%d: 閉じた洞窟から根を送り込む器官ができた(チャンク %d, %d)", f.id,

@@ -86,6 +86,7 @@ public final class OrganPlanner {
                 small ? "(小)" : "", small ? (variant == 0 ? "a" : "b") : OrganShapes.variantName(variant), at.getX(), at.getZ(),
                 force == null ? price : 0.0D, best.ageDays);
         dir.note(line);
+        OrganNotices.organ(level, o); // 開発用の知らせ(11-20)
         return line;
     }
 
