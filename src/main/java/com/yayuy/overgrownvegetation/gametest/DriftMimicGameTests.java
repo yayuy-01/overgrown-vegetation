@@ -78,7 +78,15 @@ public final class DriftMimicGameTests {
         DriftMimicEntity e = h.spawn(ModDrift.DRIFT_MIMIC.get(), new Vec3(x, WY + 0.6D, z));
         e.forcedWind = wind;
         e.stayMaterial = true;
+        small(e);
         return e;
+    }
+
+    /** テスト場の池は深さ 2 なので、要る深さ・体の半径・鉤の届く距離を池に合わせて縮める(形の 3 倍の値は浅すぎて動けない)。 */
+    static void small(DriftMimicEntity e) {
+        e.minDepthOverride = 2;
+        e.bodyRadiusOverride = 2.3D;
+        e.gripReachOverride = 4.5D; // 体の前(半径 + 1 = 3.3)が岸に着いて止まっても届く長さ
     }
 
     static int countIn(GameTestHelper h, net.minecraft.world.level.block.Block block, int y0, int y1) {
@@ -109,7 +117,7 @@ public final class DriftMimicGameTests {
         h.assertTrue(t.is(ModTags.GROUP_4), "group_4 に入っていない");
         h.assertTrue(t.is(net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ENTITY_TYPE,
                 OvergrownVegetation.id("lineage_plant"))), "植物の系統に入っていない");
-        h.assertTrue(Math.abs(t.getWidth() - com.yayuy.overgrownvegetation.data.MobStats.width(DriftMimicEntity.ID, 1.6F)) < 1e-4, "幅が設計値と違う");
+        h.assertTrue(Math.abs(t.getWidth() - com.yayuy.overgrownvegetation.data.MobStats.width(DriftMimicEntity.ID, 4.5F)) < 1e-4, "幅が設計値と違う");
         h.succeed();
     }
 
@@ -141,6 +149,51 @@ public final class DriftMimicGameTests {
             h.assertTrue(countIn(h, ModBlocks.BLIGHT_FERN_ROOTED.get(), 4, 7) >= 1, "岸に萌芽体の株が無い");
             forgetIslands(h);
         });
+    }
+
+    /** 岸の手前の浅瀬(深さ 1)には入らず手前で止まり、鉤の届かない岸は断る。 */
+    @GameTest(template = T, batch = BATCH, timeoutTicks = 300)
+    public static void stopsBeforeShallows(GameTestHelper h) {
+        pool(h);
+        shelf(h, 12, 19);
+        land(h, 0, 23, 20, 23);
+        DriftMimicEntity e = mimic(h, 12.5D, 5.5D, Vec3.ZERO);
+        double[] maxZ = {e.getZ()};
+        int shelfZ = h.absolutePos(new BlockPos(0, 0, 12)).getZ();
+        h.onEachTick(() -> maxZ[0] = Math.max(maxZ[0], e.getZ()));
+        h.runAfterDelay(260, () -> {
+            h.assertTrue(e.isAlive(), "鉤が届かないのに根付いた");
+            h.assertTrue(maxZ[0] + 2.3D < shelfZ + 0.5D, "浅瀬に入った: 体の前 " + (maxZ[0] + 2.3D) + "(浅瀬 " + shelfZ + ")");
+            h.assertTrue(e.refusedCount() >= 1, "届かない岸を断っていない");
+            h.assertTrue(countIn(h, ModBlocks.BLIGHT_FERN_ROOTED.get(), 4, 7) == 0, "株を置いた");
+            e.discard();
+            h.succeed();
+        });
+    }
+
+    /** 浅瀬の手前からでも、鉤の房が届く岸はつかんで根付く(浅瀬には入らない)。 */
+    @GameTest(template = T, batch = BATCH, timeoutTicks = 400)
+    public static void gripsShoreAcrossShallows(GameTestHelper h) {
+        pool(h);
+        shelf(h, 16, 19);
+        land(h, 0, 23, 20, 23);
+        DriftMimicEntity e = mimic(h, 12.5D, 5.5D, Vec3.ZERO);
+        e.gripReachOverride = 9.0D;
+        double[] maxZ = {e.getZ()};
+        int shelfZ = h.absolutePos(new BlockPos(0, 0, 16)).getZ();
+        h.onEachTick(() -> { if (!e.isRemoved()) maxZ[0] = Math.max(maxZ[0], e.getZ()); });
+        h.succeedWhen(() -> {
+            h.assertTrue(e.isRemoved(), "まだつかんでいない: " + h.relativeVec(e.position()));
+            h.assertTrue(countIn(h, ModBlocks.BLIGHT_FERN_ROOTED.get(), 4, 7) >= 1, "岸に株が無い");
+            h.assertTrue(maxZ[0] + 2.3D < shelfZ + 0.5D, "浅瀬に入った");
+            forgetIslands(h);
+        });
+    }
+
+    /** 浅瀬(z0..z1 の深さ 1。床の上に石を 1 段)。 */
+    static void shelf(GameTestHelper h, int z0, int z1) {
+        for (int x = 0; x < 24; x++)
+            for (int z = z0; z <= z1; z++) h.setBlock(new BlockPos(x, 2, z), Blocks.STONE);
     }
 
     /** 小さい島に根付くと腫れた島の帳面に載り、育つと肉と水ぶくれの山になる。 */
@@ -217,8 +270,8 @@ public final class DriftMimicGameTests {
         h.assertTrue(refused == null, "払えないのに流した");
         ok.discard();
         // 岸の選び: 陸から沖へ(-z)吹く風なら選ぶ・陸へ(+z)吹く風なら選ばない(入り江と同じ)
-        h.assertTrue(DriftLaunches.siteAt(level, water.getX(), water.getZ(), water.getY(), 0.0D, -1.0D) != null, "沖へ吹く岸を選ばない");
-        h.assertTrue(DriftLaunches.siteAt(level, water.getX(), water.getZ(), water.getY(), 0.0D, 1.0D) == null, "陸へ吹く岸を選んだ");
+        h.assertTrue(DriftLaunches.siteAt(level, water.getX(), water.getZ(), water.getY(), 0.0D, -1.0D, 2) != null, "沖へ吹く岸を選ばない");
+        h.assertTrue(DriftLaunches.siteAt(level, water.getX(), water.getZ(), water.getY(), 0.0D, 1.0D, 2) == null, "陸へ吹く岸を選んだ");
         h.succeed();
     }
 
@@ -279,6 +332,7 @@ public final class DriftMimicGameTests {
         h.assertTrue(e != null, "運べない");
         e.forcedWind = Vec3.ZERO;
         e.stayMaterial = true;
+        small(e);
         h.assertTrue(Math.abs(paid[0] - DriftCosts.ferryPrice(List.of(husk))) < 1e-9, "乗せる分の払いが違う: " + paid[0] + "(期待 " + DriftCosts.ferryPrice(List.of(husk)) + ")");
         h.assertTrue(husk.getVehicle() == e && riders.isEmpty(), "乗っていない");
         int landTop = h.absolutePos(new BlockPos(0, 5, 0)).getY();

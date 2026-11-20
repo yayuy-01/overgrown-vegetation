@@ -26,14 +26,13 @@ public final class ModDrift {
     public static void init() {
     }
 
-    /** 当たりは流木の塊(幅 1.6 × 高さ 0.5【仮】。寄生種 1〜3 体を乗せられる広さ)。海の上を遠くまで流れるので遠くまで送る。 */
+    /** 当たりは真ん中のこぶの塊だけ(幅 4.5 × 高さ 1.2【仮】。形は幅 約 15 で、傘の縁・水中の房ははみ出す)。海の上を遠くまで流れるので遠くまで送る。 */
     public static final DeferredHolder<EntityType<?>, EntityType<DriftMimicEntity>> DRIFT_MIMIC =
             ModEntities.ENTITY_TYPES.register(DriftMimicEntity.ID, () -> EntityType.Builder
                     .<DriftMimicEntity>of(DriftMimicEntity::new, MobCategory.MONSTER)
-                    .sized(MobStats.width(DriftMimicEntity.ID, 1.6F), MobStats.height(DriftMimicEntity.ID, 0.5F))
+                    .sized(MobStats.width(DriftMimicEntity.ID, 4.5F), MobStats.height(DriftMimicEntity.ID, 1.2F))
                     .spawnDimensionsScale(MobStats.spawnScale(DriftMimicEntity.ID))
-                    .eyeHeight(0.35F)
-                    .passengerAttachments(0.45F)
+                    .eyeHeight(0.9F)
                     .clientTrackingRange(12)
                     .updateInterval(3)
                     .build(DriftMimicEntity.ID));

@@ -600,7 +600,7 @@
     "movementSpeed": 0,
     "knockbackResistance": 0.5,
     "xpReward": 3,
-    "eggFit": 3.3
+    "eggFit": 5.0
   },
   "arbora": {
     "maxHealth": 8,

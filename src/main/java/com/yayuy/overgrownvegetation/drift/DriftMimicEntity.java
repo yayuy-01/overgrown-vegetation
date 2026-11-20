@@ -73,6 +73,23 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
     public int seekRadiusOverride = -1;
     /** 確かめ用: 読み込みの外へ移らない。 */
     public boolean stayMaterial;
+    /** 確かめ用: 要る水の深さ・体の半径・鉤の届く距離を差し替える(負なら設計値。テスト場の池は浅い)。 */
+    public int minDepthOverride = -1;
+    public double bodyRadiusOverride = -1.0D, gripReachOverride = -1.0D;
+    /** この tick、進む先が浅くて止まった。 */
+    boolean shallowAhead;
+
+    int minDepth() {
+        return minDepthOverride >= 0 ? minDepthOverride : DesignData.drift().drift.minDepth;
+    }
+
+    double bodyRadius() {
+        return bodyRadiusOverride >= 0 ? bodyRadiusOverride : DesignData.drift().drift.bodyRadius;
+    }
+
+    double gripReach() {
+        return gripReachOverride >= 0 ? gripReachOverride : DesignData.drift().drift.gripReach;
+    }
 
     public DriftMimicEntity(EntityType<? extends DriftMimicEntity> type, Level level) {
         super(type, level);
@@ -150,15 +167,19 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
     }
 
     /**
-     * 席: 2 列 × 3 段(6 席、ユーザー決定 11-20)。仮の箱の上に並べる。モデル制作の形(座の骨 seat_0〜5)が届いたらその骨の位置へ寄せる。
+     * 席 6 つ(ユーザー決定 11-20)。位置は形 B 改 3/4 の座の骨 seat_0〜5(1/16 ブロック。前 = −z、左 = +x、水面 = y 0。モデル制作の報告)。
+     * 体の当たりの底は水面の {@link #SUBMERGE} 下にある。
      */
+    static final double[][] SEATS = {{62, 4, 8}, {64, 4, 42}, {28, 4, 62}, {-52, 3, 30}, {-56, 3, 58}, {-6, 4, 84}};
+    /** 当たりの底が水面より沈む深さ(ブロック)。 */
+    static final double SUBMERGE = 0.2D;
+
     @Override
     protected Vec3 getPassengerAttachmentPoint(Entity passenger, EntityDimensions dimensions, float partialTick) {
-        int i = Math.max(0, getPassengers().indexOf(passenger));
-        double side = getPassengers().size() <= 1 ? 0.0D : (i % 2 == 0 ? -0.35D : 0.35D);
-        int rows = (getPassengers().size() + 1) / 2;
-        double along = ((i / 2) - (rows - 1) / 2.0D) * 0.7D;
-        return new Vec3(side, dimensions.height() * 0.85D, along).yRot(-getYRot() * Mth.DEG_TO_RAD);
+        int i = Math.max(0, getPassengers().indexOf(passenger)) % SEATS.length;
+        double[] s = SEATS[i];
+        // 体の向き: 本体の +z が前(バニラ)。形の前は −z なので z を裏返す
+        return new Vec3(s[0] / 16.0D, SUBMERGE + s[1] / 16.0D, -s[2] / 16.0D).yRot(-getYRot() * Mth.DEG_TO_RAD);
     }
 
     // ------------------------------------------------------------ 動き
@@ -191,13 +212,25 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
                 dz = dz * 0.3D + tz / d * t.paddleSpeed;
             }
         }
+        // 浅瀬の手前で止まる(体の水中の房が底に着く所へは進まない)
+        shallowAhead = false;
+        double ml = Math.hypot(dx, dz);
+        if (ml > 1e-9) {
+            int wy = DriftShore.waterSurfaceY((ServerLevel) level(), blockPosition());
+            double r = bodyRadius() + 1.0D;
+            if (wy != Integer.MIN_VALUE && DriftShore.depth((ServerLevel) level(), Mth.floor(getX() + dx / ml * r), Mth.floor(getZ() + dz / ml * r), wy, minDepth()) < minDepth()) {
+                shallowAhead = true;
+                dx = 0.0D;
+                dz = 0.0D;
+            }
+        }
         // 横の速さは自分で持つ(バニラは毎 tick 0.003 未満の速さを 0 にするので、deltaMovement でゆっくり加速させると動き出せない)
         Vec3 v = getDeltaMovement();
         double k = Mth.clamp(t.inertia, 0.0D, 1.0D);
         driftVx += (dx - driftVx) * k;
         driftVz += (dz - driftVz) * k;
         double fh = getFluidHeight(FluidTags.WATER);
-        double vy = v.y * 0.7D + (fh - getBbHeight() * 0.55D) * 0.08D;
+        double vy = v.y * 0.7D + (fh - SUBMERGE) * 0.08D;
         setDeltaMovement(driftVx, Mth.clamp(vy, -0.1D, 0.1D), driftVz);
         move(MoverType.SELF, getDeltaMovement());
         // 体の向きは流れる向きへゆっくり(流木は向きをすぐ変えない)
@@ -227,13 +260,27 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
             if (mode != Mode.FERRY && (tickCount + getId()) % Math.max(1, t.seekEvery) == 0) seek(level, t);
             if (target != null) {
                 double d = Math.hypot(target.getX() + 0.5D - getX(), target.getZ() + 0.5D - getZ());
-                if (d < 1.0D + getBbWidth() * 0.5D || horizontalCollision && d < 4.0D) {
-                    rootAt(level, target);
+                if (d <= gripReach()) {
+                    rootAt(level, target); // 鉤の房が届く: 岸をつかんで根付く
                     return;
                 }
-            } else if (horizontalCollision) {
-                // 風に流されて岸にぶつかった
-                BlockPos hit = landAhead(level);
+                if (shallowAhead || horizontalCollision) {
+                    // 浅瀬に阻まれて鉤が届かない: 届く岸があればそこをつかむ。無ければ(寄る岸なら)この岸を断る
+                    BlockPos near = landWithinGrip(level);
+                    if (near != null) {
+                        rootAt(level, near);
+                        return;
+                    }
+                    if (mode == Mode.SEEK) {
+                        refused.add(net.minecraft.world.level.ChunkPos.asLong(target.getX() >> 4, target.getZ() >> 4));
+                        target = null;
+                        mode = Mode.DRIFT;
+                        DriftStats.refused++;
+                    }
+                }
+            } else if (shallowAhead || horizontalCollision) {
+                // 風に流されて浅瀬・岸に着いた: 鉤の届く岸をつかむ
+                BlockPos hit = landWithinGrip(level);
                 if (hit != null) {
                     rootAt(level, hit);
                     return;
@@ -264,20 +311,12 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
         DriftStats.seek(System.nanoTime() - t0);
     }
 
-    /** 進む向きの 1〜2 ブロック先の陸の列(水面の段で見る)。無ければ null。 */
+    /** 鉤の房が届く(体の真ん中から {@link #gripReach} 以内の)いちばん近い岸の列。断った岸は除く。無ければ null。 */
     @Nullable
-    private BlockPos landAhead(ServerLevel level) {
+    private BlockPos landWithinGrip(ServerLevel level) {
         int wy = DriftShore.waterSurfaceY(level, blockPosition());
         if (wy == Integer.MIN_VALUE) return null;
-        Vec3 v = driftVelocity();
-        double l = Math.sqrt(v.horizontalDistanceSqr());
-        if (l < 1e-6) return null;
-        for (double r = 1.0D; r <= 2.0D; r += 0.5D) {
-            int x = Mth.floor(getX() + v.x / l * (r + getBbWidth() * 0.5D)), z = Mth.floor(getZ() + v.z / l * (r + getBbWidth() * 0.5D));
-            if (refused.contains(net.minecraft.world.level.ChunkPos.asLong(x >> 4, z >> 4))) return null;
-            if (DriftShore.column(level, x, z, wy) == DriftShore.Col.LAND) return new BlockPos(x, wy, z);
-        }
-        return null;
+        return DriftShore.findShore(level, getX(), getZ(), wy, (int) Math.floor(gripReach()), 1, refused::contains);
     }
 
     // ------------------------------------------------------------ 根付く

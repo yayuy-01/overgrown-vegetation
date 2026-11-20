@@ -34,11 +34,17 @@ public final class DriftFerry {
      */
     @Nullable
     public static Route route(ServerLevel level, BlockPos from, BlockPos to, int wy) {
+        return route(level, from, to, wy, DesignData.drift().drift.minDepth);
+    }
+
+    /** {@link #route} の深さを渡す版。出す所は、線の上で最初に {@code minDepth} 以上の深さになる水の列(浅瀬からは出さない)。 */
+    @Nullable
+    public static Route route(ServerLevel level, BlockPos from, BlockPos to, int wy, int minDepth) {
         double dx = to.getX() - from.getX(), dz = to.getZ() - from.getZ(), l = Math.hypot(dx, dz);
         if (l < 1) return null;
         dx /= l;
         dz /= l;
-        BlockPos launch = null, landing = null;
+        BlockPos launch = null, landing = null, deep = null;
         int water = 0, run = 0;
         for (int r = 0; r <= (int) l; r++) {
             int x = Mth.floor(from.getX() + 0.5D + dx * r), z = Mth.floor(from.getZ() + 0.5D + dz * r);
@@ -46,6 +52,7 @@ public final class DriftFerry {
             if (c == DriftShore.Col.UNKNOWN) return null;
             if (c == DriftShore.Col.WATER) {
                 if (launch == null) launch = new BlockPos(x, wy, z);
+                if (deep == null && DriftShore.depth(level, x, z, wy, minDepth) >= minDepth) deep = new BlockPos(x, wy, z);
                 run++;
                 water = Math.max(water, run);
             } else {
@@ -53,9 +60,9 @@ public final class DriftFerry {
                 if (launch != null) landing = new BlockPos(x, wy, z);
             }
         }
-        if (launch == null || water < DesignData.drift().launch.minOpenWater) return null;
+        if (launch == null || deep == null || water < DesignData.drift().launch.minOpenWater) return null;
         if (landing == null) landing = new BlockPos(to.getX(), wy, to.getZ());
-        return new Route(launch, landing);
+        return new Route(deep, landing);
     }
 
     /**

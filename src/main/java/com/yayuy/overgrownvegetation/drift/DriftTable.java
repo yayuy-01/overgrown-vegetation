@@ -37,6 +37,15 @@ public final class DriftTable {
         public int ignoreHomeTicks = 1200;
         /** 陸に打ち上げられて水に戻れないまま、この tick たったらその場に根付く。 */
         public int strandedRootTicks = 60;
+        /**
+         * 体に要る水の深さ(ブロック)。形 B 改 3/4 は水中に 約 10 の房を垂らす(ユーザー決定 11-20: 3 倍の大きさ)。
+         * これより浅い所へは進まない(浅瀬の手前で止まる)。流す所・渡し船の出す所もこの深さの水だけ。
+         */
+        public int minDepth = 10;
+        /** 体の半径(ブロック)。浅いかは体の真ん中からこの先 + 1 の水で見る(形の幅 約 15 の半分)。 */
+        public double bodyRadius = 7.5D;
+        /** 岸をつかむ鉤の房が届く距離(体の真ん中から岸の列まで。形の鉤を伸ばした長さ 約 18.9 から)。届けば浅瀬の手前からつかんで根付く。 */
+        public double gripReach = 11.0D;
         /** 一度も岸に着けずに海の上にいる上限(日)。過ぎたら沈んで消える。 */
         public double lifetimeDays = 4.0D;
     }

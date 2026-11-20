@@ -72,6 +72,22 @@ public final class DriftShore {
         return !s.isAir() && !s.is(BlockTags.LEAVES) && !s.is(net.minecraft.world.level.block.Blocks.BARRIER) && s.isCollisionShapeFullBlock(c, p);
     }
 
+    /**
+     * 列 (x, z) の水の深さ(水面の段 {@code wy} から下へ続く水のマスの数。{@code cap} で打ち切る)。
+     * 読み込まれていない列は {@code cap}(深い扱い。動かない所へは体も進まない)。
+     */
+    public static int depth(ServerLevel level, int x, int z, int wy, int cap) {
+        LevelChunk c = chunk(level, x, z);
+        if (c == null) return cap;
+        BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos(x, wy, z);
+        int n = 0;
+        while (n < cap && c.getBlockState(m).getFluidState().is(FluidTags.WATER)) {
+            n++;
+            m.move(0, -1, 0);
+        }
+        return n;
+    }
+
     /** 列 (x, z) の立てる所(水面の段から上へ {@code maxUp} まで、上から見ていちばん上の固い物の 1 つ上)。無ければ null。 */
     @Nullable
     public static BlockPos standOn(ServerLevel level, int x, int z, int wy, int maxUp) {

@@ -11,6 +11,9 @@
     "seekRingStep": 3,
     "ignoreHomeTicks": 1200,
     "strandedRootTicks": 60,
+    "minDepth": 10,
+    "bodyRadius": 7.5,
+    "gripReach": 11.0,
     "lifetimeDays": 4.0
   },
   "root": {

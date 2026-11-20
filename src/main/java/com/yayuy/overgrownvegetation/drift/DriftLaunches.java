@@ -128,9 +128,18 @@ public final class DriftLaunches {
         return null;
     }
 
-    /** 列 (x, z) が流す岸に向いた水の列なら、その水面の列を返す({@code sea} の段の近くの水面で見る)。 */
+    /** 列 (x, z) が流す岸に向いた水の列なら、流し出す深い水の列を返す({@code sea} の段の近くの水面で見る)。 */
     @Nullable
     public static BlockPos siteAt(ServerLevel level, int x, int z, int sea, double wx, double wz) {
+        return siteAt(level, x, z, sea, wx, wz, DesignData.drift().drift.minDepth);
+    }
+
+    /**
+     * {@link #siteAt} の深さを渡す版。岸の水の列から風下へ、体の半径 + 鉤の届く距離の中で {@code minDepth} 以上の深さの列を
+     * 流し出す所にする(形 B 改 3/4 は水中に 約 10 の房を垂らす。浅瀬には出さない)。
+     */
+    @Nullable
+    public static BlockPos siteAt(ServerLevel level, int x, int z, int sea, double wx, double wz, int minDepth) {
         DriftTable.Launch t = DesignData.drift().launch;
         int wy = DriftShore.waterSurfaceY(level, new BlockPos(x, sea, z));
         if (wy == Integer.MIN_VALUE) return null;
@@ -148,7 +157,14 @@ public final class DriftLaunches {
                 continue;
             }
             if (water < t.minOpenWater) return null; // 入り江・岸沿い
-            return new BlockPos(x, wy, z); // 陸に届く・先は分からない
+            // 陸に届く・先は分からない: 風下の深い水の列から流す
+            DriftTable.Drift d = DesignData.drift().drift;
+            int reach = (int) Math.ceil(d.bodyRadius + d.gripReach);
+            for (int k = 0; k <= Math.min(reach, r - 1); k++) {
+                int qx = Mth.floor(x + 0.5D + wx * k), qz = Mth.floor(z + 0.5D + wz * k);
+                if (DriftShore.depth(level, qx, qz, wy, minDepth) >= minDepth) return new BlockPos(qx, wy, qz);
+            }
+            return null; // 岸の近くに深い水が無い
         }
         return null; // 届く範囲に陸が無い
     }
