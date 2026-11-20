@@ -61,7 +61,7 @@ public final class OrganTable {
 
     public static final class TentacleJson {
         public Integer min, max, smallCount;
-        public Double reach, knockback, health, reviveSeconds;
+        public Double reach, knockback, health, reviveSeconds, windupSeconds, hitSeconds, recoverSeconds, cooldownSeconds;
     }
 
     public final boolean enabled;
@@ -92,6 +92,8 @@ public final class OrganTable {
     public final int smallMinDepthChunks, smallSpacingChunks, smallGuardCount;
 
     public final int tentacleMin, tentacleMax, tentacleSmall;
+    /** 叩く合図(巻きがほどける)・当たり・巻き戻り・次まで(秒。11-20 ユーザー「叩く直前に巻きがほどける短い合図」。全部【仮】)。 */
+    public final double tentacleWindupSeconds, tentacleHitSeconds, tentacleRecoverSeconds, tentacleCooldownSeconds;
     public final double tentacleReach, tentacleKnockback, tentacleHealth, tentacleReviveSeconds;
     /** 破裂した嚢が生え直すまでの日数(1 つあたりの平均)。 */
     public final double sacRegrowDays;
@@ -175,6 +177,10 @@ public final class OrganTable {
         tentacleKnockback = Math.max(0.0D, or(tj.knockback, 1.2D));
         tentacleHealth = Math.max(1.0D, or(tj.health, 12.0D));
         tentacleReviveSeconds = Math.max(1.0D, or(tj.reviveSeconds, 90.0D));
+        tentacleWindupSeconds = Math.max(0.05D, Math.min(10.0D, or(tj.windupSeconds, 0.3D)));
+        tentacleHitSeconds = Math.max(0.05D, Math.min(10.0D, or(tj.hitSeconds, 0.2D)));
+        tentacleRecoverSeconds = Math.max(0.05D, Math.min(10.0D, or(tj.recoverSeconds, 0.5D)));
+        tentacleCooldownSeconds = Math.max(0.0D, or(tj.cooldownSeconds, 1.5D));
         sacRegrowDays = Math.max(0.01D, or(r.sacRegrowDays, 3.0D));
         clearEnabled = cj.enabled == null || cj.enabled;
         clearMargin = Math.max(0, or(cj.marginBlocks, 4));

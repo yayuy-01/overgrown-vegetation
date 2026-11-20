@@ -29,12 +29,17 @@ public class OrganTentacle extends Entity {
     private static final EntityDataAccessor<Boolean> WITHERED = SynchedEntityData.defineId(OrganTentacle.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Float> HEADING = SynchedEntityData.defineId(OrganTentacle.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Boolean> CUT = SynchedEntityData.defineId(OrganTentacle.class, EntityDataSerializers.BOOLEAN);
+    /** 叩く(当たりの始まり)のゲーム時刻。-1 = まだ叩いていない。終わっても残す(巻き戻りの見た目に使う)。 */
+    static final EntityDataAccessor<Long> STRIKE_AT = SynchedEntityData.defineId(OrganTentacle.class, EntityDataSerializers.LONG);
+    /** 合図 | 当たり << 8 | 巻き戻り << 16(tick。サーバーの設計値をクライアントへ)。 */
+    static final EntityDataAccessor<Integer> TIMING = SynchedEntityData.defineId(OrganTentacle.class, EntityDataSerializers.INT);
 
     /** 節の数 = 長さ(ブロック)× この数。 */
     public static final int SEGMENTS_PER_BLOCK = 4;
 
     private int organId;
-    private int knockCooldown;
+    /** この一振りで払った人(1 振り 1 回)。 */
+    private final java.util.Set<java.util.UUID> struck = new java.util.HashSet<>();
     /** 斬られた傷の合計(health に届くと垂れる)と、また動き出す時刻。 */
     private float wounds;
     private long cutUntil;
@@ -57,6 +62,97 @@ public class OrganTentacle extends Entity {
         builder.define(WITHERED, false);
         builder.define(HEADING, 0.0F);
         builder.define(CUT, false);
+        builder.define(STRIKE_AT, -1L);
+        builder.define(TIMING, 6 | 4 << 8 | 10 << 16);
+    }
+
+    // ---------------------------------------------------------------- 叩く合図(11-20 ユーザー「叩く直前に巻きがほどける短い合図を入れ、ほどけた瞬間だけ当てる」)
+
+    public long strikeAt() {
+        return entityData.get(STRIKE_AT);
+    }
+
+    public int windupTicks() {
+        return entityData.get(TIMING) & 0xFF;
+    }
+
+    public int hitTicks() {
+        return entityData.get(TIMING) >> 8 & 0xFF;
+    }
+
+    public int recoverTicks() {
+        return entityData.get(TIMING) >> 16 & 0xFF;
+    }
+
+    /**
+     * 巻きのほどけ具合(描画用。partialTick 込みで滑らか)。0 = 巻いている、1 = ほどけて伸びた({@link #point} の形 = 当たりの形)。
+     * 合図の間に 0→1(直線)、当たりの間は 1、巻き戻りの間に 1→0。
+     */
+    public float unfurl(float partialTick) {
+        return unfurlAt(level().getGameTime() + partialTick);
+    }
+
+    /** ゲーム時刻 {@code now}(tick、小数あり)でのほどけ具合。 */
+    public float unfurlAt(double now) {
+        long at = strikeAt();
+        if (at < 0L) return 0.0F;
+        int w = Math.max(1, windupTicks()), h = hitTicks(), r = Math.max(1, recoverTicks());
+        double d = now - at;
+        if (d < -w) return 0.0F;
+        if (d < 0.0D) return (float) (1.0D + d / w);
+        if (d < h) return 1.0F;
+        if (d < h + r) return (float) (1.0D - (d - h) / r);
+        return 0.0F;
+    }
+
+    /** 当たりの間か(ほどけて伸びた瞬間だけ当てる)。 */
+    public boolean striking(long now) {
+        long at = strikeAt();
+        return at >= 0L && now >= at && now < at + hitTicks();
+    }
+
+    /** 叩く範囲(ほどけて伸びた形の、節 2/3 と先のまわり)。 */
+    public AABB strikeBox(long now) {
+        float t = (float) (now % 100_000L); // swayTime と同じ時刻
+        Vec3 tip = position().add(point(segments() * 2 / 3, t)), end = position().add(point(segments(), t));
+        double reach = com.yayuy.overgrownvegetation.data.DesignData.organs().tentacleReach;
+        return new AABB(tip, end).inflate(reach * 0.5D);
+    }
+
+    private static int ticks(double seconds) {
+        return Math.max(1, Math.min(255, (int) Math.round(seconds * 20.0D)));
+    }
+
+    /**
+     * 1 tick ぶんの叩き(サーバー)。{@code near} = 叩く範囲のまわりの人(GameTest は偽の人を渡す)。
+     * 休み → 範囲に人が来たら合図を始める(STRIKE_AT = 今 + 合図)→ 合図の間は当てない → 当たりの間だけ範囲の人を払う(1 振り 1 回)
+     * → 巻き戻り・次まで(cooldownSeconds)は始めない。
+     */
+    void strikeStep(long now, java.util.List<? extends Player> near) {
+        OrganTable t = com.yayuy.overgrownvegetation.data.DesignData.organs();
+        long at = strikeAt();
+        if (at >= 0L && now < at) return; // 合図の間(巻きがほどけている)は当てない
+        AABB box = strikeBox(now);
+        if (striking(now)) {
+            for (Player p : near) {
+                if (p.isCreative() || p.isSpectator() || !p.getBoundingBox().intersects(box) || !struck.add(p.getUUID())) continue;
+                Vec3 away = new Vec3(p.getX() - getX(), 0.0D, p.getZ() - getZ());
+                if (away.lengthSqr() < 1.0E-4D) away = new Vec3(Math.cos(heading()), 0.0D, Math.sin(heading()));
+                away = away.normalize();
+                double k = t.tentacleKnockback;
+                p.push(away.x * k, 0.35D * k, away.z * k);
+                p.hurtMarked = true;
+            }
+            return;
+        }
+        if (at >= 0L && now < at + hitTicks() + ticks(t.tentacleCooldownSeconds)) return; // 次まで
+        for (Player p : near) {
+            if (p.isCreative() || p.isSpectator() || !p.getBoundingBox().intersects(box)) continue;
+            struck.clear();
+            entityData.set(TIMING, ticks(t.tentacleWindupSeconds) | ticks(t.tentacleHitSeconds) << 8 | ticks(t.tentacleRecoverSeconds) << 16);
+            entityData.set(STRIKE_AT, now + windupTicks());
+            return;
+        }
     }
 
     public int length() {
@@ -131,25 +227,9 @@ public class OrganTentacle extends Entity {
             }
             return;
         }
-        if (knockCooldown > 0) {
-            knockCooldown--;
-            return;
-        }
-        // 先のまわりに来た人を払う
-        float now = swayTime(); // 揺れはゲーム時刻で(クライアントの見た目と当たりを合わせる。11-18 見直し ②7。前は各自の tickCount)
-        Vec3 tip = position().add(point(segments() * 2 / 3, now)), end = position().add(point(segments(), now));
-        double reach = com.yayuy.overgrownvegetation.data.DesignData.organs().tentacleReach;
-        AABB box = new AABB(tip, end).inflate(reach * 0.5D);
-        for (Player p : server.getEntitiesOfClass(Player.class, box)) {
-            if (p.isCreative() || p.isSpectator()) continue;
-            Vec3 away = new Vec3(p.getX() - getX(), 0.0D, p.getZ() - getZ());
-            if (away.lengthSqr() < 1.0E-4D) away = new Vec3(Math.cos(heading()), 0.0D, Math.sin(heading()));
-            away = away.normalize();
-            double k = com.yayuy.overgrownvegetation.data.DesignData.organs().tentacleKnockback;
-            p.push(away.x * k, 0.35D * k, away.z * k);
-            p.hurtMarked = true;
-            knockCooldown = 30;
-        }
+        // 先のまわりに来た人を、合図(巻きがほどける)の後に払う。揺れはゲーム時刻で(クライアントの見た目と当たりを合わせる。11-18 見直し ②7)
+        long now = server.getGameTime();
+        strikeStep(now, server.getEntitiesOfClass(Player.class, strikeBox(now)));
     }
 
     @Override
@@ -164,6 +244,7 @@ public class OrganTentacle extends Entity {
         wounds += amount;
         if (wounds >= com.yayuy.overgrownvegetation.data.DesignData.organs().tentacleHealth) {
             entityData.set(CUT, true);
+            entityData.set(STRIKE_AT, -1L); // 合図の途中で斬られたら叩かない
             cutUntil = server.getGameTime() + (long) (com.yayuy.overgrownvegetation.data.DesignData.organs().tentacleReviveSeconds * 20.0D);
             server.playSound(null, getX(), getY(), getZ(), net.minecraft.sounds.SoundEvents.WOOD_BREAK, net.minecraft.sounds.SoundSource.HOSTILE, 1.0F, 0.7F);
         }

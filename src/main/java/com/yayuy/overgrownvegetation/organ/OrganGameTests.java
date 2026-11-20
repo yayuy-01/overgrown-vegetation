@@ -431,6 +431,70 @@ public final class OrganGameTests {
         }
     }
 
+    /**
+     * 触手の叩く合図(11-20 ユーザー「叩く直前に巻きがほどける短い合図を入れ、ほどけた瞬間だけ当てる」): 人が来ると合図が始まり、
+     * 合図(巻きがほどける)の間は当たらない・ほどけて伸びた瞬間に当たる・1 振り 1 回・叩く時刻と長さがクライアントへ送られる・ほどけ具合が 0→1→0。
+     */
+    @GameTest(template = "gametest_empty7", batch = "organ_tentacle", timeoutTicks = 20)
+    public static void tentacleTelegraphsBeforeStrike(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        OrganTentacle t = new OrganTentacle(OrganEntities.TENTACLE.get(), level); // 世界に入れない(tick させず、時刻を手で進める)
+        BlockPos c = helper.absolutePos(new BlockPos(3, 4, 3));
+        t.setPos(c.getX() + 0.5D, c.getY(), c.getZ() + 0.5D);
+        t.setup(0, 8, 0.0F);
+        OrganTable tt = DesignData.organs();
+        long now = 1000L;
+        net.minecraft.world.phys.Vec3 end = t.position().add(t.point(t.segments(), (float) now));
+        net.minecraft.world.entity.player.Player p = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        p.setPos(end.x, end.y - 0.5D, end.z);
+        p.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+        t.getEntityData().packDirty(); // ここまでの変化は数えない
+        List<net.minecraft.world.entity.player.Player> near = List.of(p);
+
+        helper.assertTrue(t.unfurlAt(now) == 0.0F, "叩く前から巻きがほどけている");
+        t.strikeStep(now, near);
+        int w = t.windupTicks();
+        helper.assertTrue(w == Math.max(1, (int) Math.round(tt.tentacleWindupSeconds * 20.0D)), "合図の長さが設計値と違う: " + w);
+        helper.assertTrue(t.strikeAt() == now + w, "合図が始まらない: " + t.strikeAt());
+        var dirty = t.getEntityData().packDirty();
+        boolean sentAt = false;
+        if (dirty != null) {
+            for (var v : dirty) {
+                if (v.id() == OrganTentacle.STRIKE_AT.id()) sentAt = true;
+            }
+        }
+        helper.assertTrue(sentAt, "叩く時刻がクライアントへ送られない");
+        // 長さは同期する値(変わったときだけ送られ、既定と同じなら現れたときの値で届く)。中身が設計値か
+        helper.assertTrue(t.hitTicks() == Math.max(1, (int) Math.round(tt.tentacleHitSeconds * 20.0D))
+                && t.recoverTicks() == Math.max(1, (int) Math.round(tt.tentacleRecoverSeconds * 20.0D)), "当たり・巻き戻りの長さが設計値と違う");
+        // 合図の間(巻きがほどけている)は当たらない
+        for (int k = 0; k < w; k++) {
+            t.strikeStep(now + k, near);
+            helper.assertTrue(p.getDeltaMovement().lengthSqr() < 1.0E-8D, "合図の間に当たった: " + k + " tick 目");
+            float u = t.unfurlAt(now + k + 0.5D);
+            helper.assertTrue(u > 0.0F && u < 1.0F, "合図の間のほどけ具合が 0〜1 の間でない: " + u);
+        }
+        // ほどけて伸びた瞬間に当たる
+        t.strikeStep(now + w, near);
+        helper.assertTrue(t.unfurlAt(now + w) == 1.0F, "当たりの瞬間に伸び切っていない");
+        helper.assertTrue(p.getDeltaMovement().horizontalDistanceSqr() > 1.0E-4D, "伸びた瞬間に当たらない");
+        // 1 振りで 2 回は当てない
+        p.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+        for (int k = 1; k < t.hitTicks(); k++) t.strikeStep(now + w + k, near);
+        helper.assertTrue(p.getDeltaMovement().lengthSqr() < 1.0E-8D, "1 振りで 2 回当たった");
+        // 巻き戻る(当たりの後は当てない)
+        long after = now + w + t.hitTicks();
+        t.strikeStep(after, near);
+        helper.assertTrue(p.getDeltaMovement().lengthSqr() < 1.0E-8D, "当たりの後に当たった");
+        float back = t.unfurlAt(after + t.recoverTicks() / 2.0D);
+        helper.assertTrue(back > 0.0F && back < 1.0F, "巻き戻りの途中のほどけ具合が 0〜1 の間でない: " + back);
+        helper.assertTrue(t.unfurlAt(after + t.recoverTicks() + 1) == 0.0F, "巻き戻らない");
+        // 次まで(cooldown)は始めない
+        t.strikeStep(after + 1, near);
+        helper.assertTrue(t.strikeAt() == now + w, "次までの間に次の合図が始まった");
+        helper.succeed();
+    }
+
     /** 円の中の地面の 1 つ上の [過繁茂の苗木, 2 段の大きなシダ・葦] の数。 */
     private static int[] countRegrowth(ServerLevel level, BlockPos c, int gy, int r) {
         int[] n = new int[2];
