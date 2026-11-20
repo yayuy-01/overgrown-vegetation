@@ -53,11 +53,11 @@ public final class MobClassGameTests {
         if (!ok) h.fail(what);
     }
 
-    /** 表の 75 体: 系統のタグと json が食い違わない・group_1〜6 の全員が表にいる・環境生物は型も危険度も無い・ほかは型 1〜2 と危険度 1〜12。 */
+    /** 表の 76 体(11-20 漂流する擬態 Mob を足した): 系統のタグと json が食い違わない・group_1〜6 の全員が表にいる・環境生物は型も危険度も無い・ほかは型 1〜2 と危険度 1〜12。 */
     @GameTest(template = "gametest_empty7", batch = "mob_class_pure", timeoutTicks = 20)
     public static void classTableMatchesTagsAndRules(GameTestHelper h) {
         MobClassTable t = DesignData.mobClass();
-        check(h, t.mobs.size() == 75, "mob_class.json の数が 75 でない: " + t.mobs.size());
+        check(h, t.mobs.size() == 76, "mob_class.json の数が 76 でない: " + t.mobs.size());
         Map<Lineage, TagKey<EntityType<?>>> tags = Map.of(Lineage.PARASITE, ModTags.LINEAGE_PARASITE, Lineage.KIN, ModTags.LINEAGE_KIN,
                 Lineage.PLANT, ModTags.LINEAGE_PLANT, Lineage.CRITTER, ModTags.LINEAGE_CRITTER);
         for (Map.Entry<String, MobClassTable.Entry> e : t.mobs.entrySet()) {

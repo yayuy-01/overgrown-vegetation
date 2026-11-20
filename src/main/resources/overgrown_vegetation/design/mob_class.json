@@ -73,6 +73,7 @@
 
     "blight_fern": { "lineage": "plant", "roles": ["spread"], "danger": 1, "phase": 1 },
     "pedicula":    { "lineage": "plant", "roles": ["scout", "spread"], "danger": 1, "phase": 3 },
+    "drift_mimic": { "lineage": "plant", "roles": ["spread"], "danger": 1, "phase": 4 },
     "phyllosens":  { "lineage": "plant", "roles": ["scout"], "danger": 5, "phase": 4 },
 
     "arthropleura":       { "lineage": "critter", "roles": [], "danger": 0, "phase": 1 },

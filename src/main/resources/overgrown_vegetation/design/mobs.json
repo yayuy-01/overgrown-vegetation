@@ -594,6 +594,14 @@
     "xpReward": 5,
     "eggFit": 6.85
   },
+  "drift_mimic": {
+    "maxHealth": 16,
+    "armor": 0,
+    "movementSpeed": 0,
+    "knockbackResistance": 0.5,
+    "xpReward": 3,
+    "eggFit": 3.3
+  },
   "arbora": {
     "maxHealth": 8,
     "attackDamage": 8,
