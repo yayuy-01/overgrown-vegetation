@@ -624,7 +624,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
     @Override
     public net.minecraft.world.phys.Vec3 handleRelativeFrictionAndCalculateMovement(net.minecraft.world.phys.Vec3 deltaMovement, float friction) {
         net.minecraft.world.phys.Vec3 v = super.handleRelativeFrictionAndCalculateMovement(deltaMovement, friction);
-        if (climbing && !perched) {
+        if (climbing && !perched && !com.yayuy.overgrownvegetation.corruption.cliff.RootClimb.touching(this)) { // 絡む根の上はクモも根の速さ(植物側の倍率。11-20 崖の汚染)
             double rise = getGravity() + CLIMB_SPEED / 0.98D;
             if (v.y > rise) v = new net.minecraft.world.phys.Vec3(v.x, rise, v.z);
         }

@@ -70,6 +70,13 @@ public final class DesignData {
 
     private static volatile com.yayuy.overgrownvegetation.phase.MobClassTable mobClass = com.yayuy.overgrownvegetation.phase.MobClassTable.DEFAULT;
 
+    private static volatile com.yayuy.overgrownvegetation.corruption.cliff.CliffTable cliff = com.yayuy.overgrownvegetation.corruption.cliff.CliffTable.DEFAULT;
+
+    /** 崖・急斜面の汚染(根の縄・嚢の房・登り・嚢の霧。{@code cliff.json}、2026-11-20)。 */
+    public static com.yayuy.overgrownvegetation.corruption.cliff.CliffTable cliff() {
+        return cliff;
+    }
+
     /** Mob の分類(系統・型・危険度・出るフェーズ。{@code mob_class.json}、2026-11-18 夜)。 */
     public static com.yayuy.overgrownvegetation.phase.MobClassTable mobClass() {
         return mobClass;
@@ -227,6 +234,8 @@ public final class DesignData {
         pushBack = pb != null ? pb : com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable.DEFAULT;
         com.yayuy.overgrownvegetation.phase.MobClassTable mc = read(dir, "mob_class.json", com.yayuy.overgrownvegetation.phase.MobClassTable.class);
         mobClass = mc != null ? mc : com.yayuy.overgrownvegetation.phase.MobClassTable.DEFAULT;
+        com.yayuy.overgrownvegetation.corruption.cliff.CliffTable cl = read(dir, "cliff.json", com.yayuy.overgrownvegetation.corruption.cliff.CliffTable.class);
+        cliff = cl != null ? cl : com.yayuy.overgrownvegetation.corruption.cliff.CliffTable.DEFAULT;
 
         OvergrownVegetation.LOGGER.info("設計データを読み込みました({})", dir);
     }

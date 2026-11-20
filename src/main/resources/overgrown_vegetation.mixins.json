@@ -31,7 +31,8 @@
     "VillagerHostilesSensorMixin",
     "ServerLevelRoomInvalidateMixin",
     "ItemStackDirtWearMixin",
-    "CraftingMenuResearchLockMixin"
+    "CraftingMenuResearchLockMixin",
+    "LivingEntityRootClimbMixin"
   ],
   "client": [
     "client.CreateWorldScreenMixin",

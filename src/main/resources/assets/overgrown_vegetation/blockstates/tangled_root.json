@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "withered=false": { "model": "overgrown_vegetation:block/tangled_root" },
+    "withered=true": { "model": "overgrown_vegetation:block/tangled_root_withered" }
+  }
+}
