@@ -306,7 +306,7 @@ public final class CliffShapes {
      * 面 = 後ろ(内側)が固く、そのマスが空いている所。前の段の面から外へ最大 maxStepOut マス探す。外へ 2 マス以上ずれたら棚の上を這ってつなぐ。
      */
     static int run(Placer put, ServerLevel level, BlockPos c, Direction d, Direction side, int[] lat, int from, int to, int tipDangle, CliffTable t) {
-        int prevT = 0, last = -1;
+        int prevT = 0, last = -1, prevL = Integer.MIN_VALUE;
         BlockPos lastPos = null;
         for (int k = from; k < to; k++) {
             int y = c.getY() - k;
@@ -327,11 +327,18 @@ public final class CliffShapes {
             if (k > from && face > prevT + 1) {
                 for (int tt = prevT + 1; tt < face; tt++) put.root(at(c, d, side, l, tt, y + 1)); // 棚の上を這う
             }
+            if (lastPos != null && prevL != Integer.MIN_VALUE && l != prevL) {
+                // 横へずれた段: 前の段の高さで、前の横の位置から今の横の位置まで根を足す(角だけでつながる縄にしない。
+                // 角だけだと見た目が途切れ、Mob も次の根を見失う。クライアントで踏んだ)
+                int step = l > prevL ? 1 : -1;
+                for (int ll = prevL + step; ll != l + step; ll += step) put.root(at(c, d, side, ll, prevT, y + 1));
+            }
             BlockPos p = at(c, d, side, l, face, y);
             if (put.root(p) || level.getBlockState(p).is(OrganBlocks.TANGLED_ROOT.get())) {
                 last = k;
                 lastPos = p;
             }
+            prevL = l;
             prevT = face;
         }
         if (lastPos != null && tipDangle > 0) put.dangle(lastPos.below(), tipDangle);

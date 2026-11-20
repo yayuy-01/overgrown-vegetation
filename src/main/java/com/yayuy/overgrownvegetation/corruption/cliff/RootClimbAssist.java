@@ -73,10 +73,16 @@ public final class RootClimbAssist {
         LivingEntity target = m.getTarget();
         if (target == null || !target.isAlive()) return;
         if (target.getY() - m.getY() < c.seekMinRise) return;
-        if (!m.onGround()) return;
         Path path = m.getNavigation().getPath();
         if (path != null && !path.isDone() && path.canReach()) return; // ふつうに歩いて届く
-        BlockPos[] found = findRope(level, m, c.seekRadius, target);
+        BlockPos[] found;
+        BlockPos near = ropeInFront(level, m);
+        if (near != null) {
+            found = new BlockPos[]{near, m.blockPosition()}; // もう縄に取り付いている(縄の途中の段で止まった・落ちかけ): その場から続ける
+        } else {
+            if (!m.onGround()) return;
+            found = findRope(level, m, c.seekRadius, target);
+        }
         if (found == null) return;
         State s = prev != null ? prev : new State();
         s.root = found[0];
@@ -93,7 +99,7 @@ public final class RootClimbAssist {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         BlockPos[] best = null;
         double bestScore = Double.MAX_VALUE;
-        for (int dy = -1; dy <= 1; dy++) {
+        for (int dy = -1; dy <= 3; dy++) { // 縄の先が地面から少し浮いていても、跳べば届く高さ(3 段)まで
             for (int dx = -radius; dx <= radius; dx++) {
                 for (int dz = -radius; dz <= radius; dz++) {
                     p.set(feet.getX() + dx, feet.getY() + dy, feet.getZ() + dz);
@@ -101,6 +107,7 @@ public final class RootClimbAssist {
                     {
                         // 立つのは縄の外側(面と反対の側)だけ。縄の横(面の列)のすき間から登ると、ゆらいだ上の段の根に頭がつかえる
                         BlockPos stand = p.relative(outward(level, p, m));
+                        for (int i = 0; i < 3 && !standable(level, stand); i++) stand = stand.below(); // 浮いた縄の先の下の地面
                         if (!standable(level, stand)) continue;
                         double score = stand.distSqr(feet) + 0.25D * stand.distSqr(target.blockPosition());
                         if (score < bestScore) {
@@ -149,7 +156,14 @@ public final class RootClimbAssist {
         double horiz = (m.getX() - sx) * (m.getX() - sx) + (m.getZ() - sz) * (m.getZ() - sz);
         boolean onRope = RootClimb.touching(m);
         if (!onRope && horiz > 2.0D * 2.0D) {
-            if (s.ticks % 10 == 1) m.getNavigation().moveTo(sx, s.stand.getY(), sz, 1.0D);
+            // 根元へ歩く。遠ければ経路で、近ければ(縄を探す半径の中)まっすぐ。種の Goal が相手へ経路を引き直して取り合うので、
+            // 近い間は経路を止めて MoveControl に毎 tick 渡す(行き先は 1 tick しか効かない)
+            if (horiz > 10.0D * 10.0D) {
+                if (s.ticks % 10 == 1) m.getNavigation().moveTo(sx, s.stand.getY(), sz, 1.0D);
+            } else {
+                m.getNavigation().stop();
+                m.getMoveControl().setWantedPosition(sx, s.stand.getY(), sz, 1.0D);
+            }
             return;
         }
         // 縄に沿って登る(毎 tick)。縄の外側(面と反対の側)のマスに体を置き、跳ぶ(= はしごの上り)。縄の上の端を越えたら相手へ
@@ -160,7 +174,17 @@ public final class RootClimbAssist {
         }
         BlockPos front = ropeInFront(level, m);
         double tx, ty, tz;
-        if (front != null) {
+        BlockPos head = BlockPos.containing(m.getX(), m.getBoundingBox().maxY + 0.2D, m.getZ());
+        if (isRoot(level, head)) {
+            // 縄の列のすき間に入り込み、頭の上が根でつかえている: 先に縄の外側へ出る(ゆらいだ縄の段の下にはまる。クライアントで踏んだ)
+            Direction out = outward(level, head, m);
+            tx = head.getX() + 0.5D + out.getStepX();
+            ty = m.getY();
+            tz = head.getZ() + 0.5D + out.getStepZ();
+            net.minecraft.world.phys.Vec3 hv = m.getDeltaMovement();
+            if (hv.y < 0.0D) m.setDeltaMovement(hv.x, 0.0D, hv.z); // 出る間も根にしがみつく
+            m.resetFallDistance();
+        } else if (front != null) {
             Direction out = outward(level, front, m);
             tx = front.getX() + 0.5D + out.getStepX();
             ty = front.getY() + 1.0D;
@@ -206,7 +230,7 @@ public final class RootClimbAssist {
         BlockPos feet = m.blockPosition();
         BlockPos best = null;
         double bestD = Double.MAX_VALUE;
-        for (int dy = 2; dy >= 0; dy--) {
+        for (int dy = 3; dy >= 0; dy--) { // 頭の上 2 段まで(浮いた縄の先へ跳びつく)
             for (int dx = -1; dx <= 1; dx++) {
                 for (int dz = -1; dz <= 1; dz++) {
                     if (dx == 0 && dz == 0) continue;

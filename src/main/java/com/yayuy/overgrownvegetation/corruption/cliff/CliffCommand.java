@@ -32,6 +32,8 @@ public final class CliffCommand {
                         .requires(s -> s.hasPermission(2))
                         .then(Commands.literal("cliff")
                                 .then(Commands.literal("info").executes(CliffCommand::info))
+                                .then(Commands.literal("mobs").executes(CliffCommand::mobs))
+                                .then(Commands.literal("target").executes(CliffCommand::target))
                                 .then(Commands.literal("grow")
                                         .then(Commands.argument("radius", IntegerArgumentType.integer(0, 8))
                                                 .executes(c -> grow(c, "both"))
@@ -76,6 +78,42 @@ public final class CliffCommand {
         s.sacs += r.sacs;
         s.flesh += r.flesh;
         s.nanos += r.nanos;
+    }
+
+    /** 撮影用: まわり 32 ブロックの植物側の Mob の相手を、コマンドを打った者にする(崖の上の相手へ縄を登る所を撮るため。G1 は遠い上の相手に気付かない)。 */
+    private static int target(CommandContext<CommandSourceStack> c) {
+        CommandSourceStack src = c.getSource();
+        if (!(src.getEntity() instanceof net.minecraft.world.entity.LivingEntity me)) return 0;
+        int n = 0;
+        for (net.minecraft.world.entity.Mob m : src.getLevel().getEntitiesOfClass(net.minecraft.world.entity.Mob.class, me.getBoundingBox().inflate(32))) {
+            if (!com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(m)) continue;
+            m.setTarget(me);
+            n++;
+        }
+        final int count = n;
+        src.sendSuccess(() -> Component.literal("相手を決めた植物側の Mob " + count), false);
+        return n;
+    }
+
+    /** 調べ: まわり 24 ブロックの植物側の Mob の相手・縄の手当て・見つかる縄。 */
+    private static int mobs(CommandContext<CommandSourceStack> c) {
+        CommandSourceStack src = c.getSource();
+        ServerLevel level = src.getLevel();
+        int n = 0;
+        for (net.minecraft.world.entity.Mob m : level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, new net.minecraft.world.phys.AABB(BlockPos.containing(src.getPosition())).inflate(24))) {
+            if (!com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(m)) continue;
+            net.minecraft.world.entity.LivingEntity t = m.getTarget();
+            net.minecraft.world.level.pathfinder.Path p = m.getNavigation().getPath();
+            BlockPos[] fr = t == null ? null : RootClimbAssist.findRope(level, m, com.yayuy.overgrownvegetation.data.DesignData.cliff().climb.seekRadius, t);
+            String line = m.getType().toShortString() + " " + m.blockPosition().toShortString() + " 地面 " + m.onGround() + " 相手 " + (t == null ? "なし" : t.getType().toShortString() + String.format(" %.1f 上", t.getY() - m.getY()))
+                    + " 経路 " + (p == null ? "なし" : (p.isDone() ? "終わり" : p.getNodeCount() + " 節") + (p.canReach() ? " 届く" : " 届かない")) + " 手当て " + RootClimbAssist.engaged(m)
+                    + " 縄 " + (fr == null ? "なし" : fr[0].toShortString() + " 立つ " + fr[1].toShortString()) + " 触れる " + RootClimb.touching(m);
+            src.sendSuccess(() -> Component.literal(line), false);
+            n++;
+        }
+        final int count = n;
+        src.sendSuccess(() -> Component.literal("植物側の Mob " + count), false);
+        return n;
     }
 
     private static int info(CommandContext<CommandSourceStack> c) {

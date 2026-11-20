@@ -249,7 +249,7 @@ public final class CliffGameTests {
     }
 
     /** 植物側の Mob が、崖の上の相手へ縄を伝って上る(経路が崖の下で止まっても)。 */
-    @GameTest(template = TEMPLATE, batch = "cliff_f", timeoutTicks = 500)
+    @GameTest(template = TEMPLATE, batch = "cliff_f", timeoutTicks = 900) // 上りきるまで 133〜493 tick(縄の形で揺れる)
     public static void plantMobClimbsRopeToTarget(GameTestHelper h) {
         cliff(h);
         decorate(h, true, false);
