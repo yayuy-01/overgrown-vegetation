@@ -1,6 +1,10 @@
 {
   "variants": {
-    "withered=false": { "model": "overgrown_vegetation:block/organ_rib" },
-    "withered=true": { "model": "overgrown_vegetation:block/organ_rib_withered" }
+    "axis=y,withered=false": { "model": "overgrown_vegetation:block/organ_rib" },
+    "axis=z,withered=false": { "model": "overgrown_vegetation:block/organ_rib", "x": 90 },
+    "axis=x,withered=false": { "model": "overgrown_vegetation:block/organ_rib", "x": 90, "y": 90 },
+    "axis=y,withered=true": { "model": "overgrown_vegetation:block/organ_rib_withered" },
+    "axis=z,withered=true": { "model": "overgrown_vegetation:block/organ_rib_withered", "x": 90 },
+    "axis=x,withered=true": { "model": "overgrown_vegetation:block/organ_rib_withered", "x": 90, "y": 90 }
   }
 }

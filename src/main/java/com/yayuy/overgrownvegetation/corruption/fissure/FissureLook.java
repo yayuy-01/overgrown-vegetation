@@ -38,7 +38,7 @@ public final class FissureLook {
 
     /** 置くものの役。素材は {@link #state} が決める。 */
     public enum Part {
-        CARVE, CORE, COVER, SHELL, ROOT, SPILL, RIB, MEMBRANE, VEIN, FLESH, HYPHA, BRAID, BLISTER
+        CARVE, CORE, COVER, SHELL, ROOT, SPILL, RIB, RIB_X, RIB_Z, MEMBRANE, VEIN, FLESH, HYPHA, BRAID, BLISTER, BLISTER_LUMP, BLISTER_HANG
     }
 
     /** 置き方(模型の set / put / embed)。 */
@@ -86,10 +86,16 @@ public final class FissureLook {
             case SHELL -> OrganBlocks.ORGAN_SHELL.get().defaultBlockState();
             case ROOT, SPILL -> OrganBlocks.TANGLED_ROOT.get().defaultBlockState();
             case RIB -> OrganBlocks.ORGAN_RIB.get().defaultBlockState();
+            case RIB_X -> OrganBlocks.ORGAN_RIB.get().defaultBlockState().setValue(com.yayuy.overgrownvegetation.organ.OrganRibBlock.AXIS, Direction.Axis.X);
+            case RIB_Z -> OrganBlocks.ORGAN_RIB.get().defaultBlockState().setValue(com.yayuy.overgrownvegetation.organ.OrganRibBlock.AXIS, Direction.Axis.Z);
             case MEMBRANE -> OrganBlocks.ORGAN_MEMBRANE.get().defaultBlockState();
             case HYPHA -> OrganBlocks.ORGAN_HYPHA_FLOOR.get().defaultBlockState();
             case BRAID -> OrganBlocks.WOVEN_VINE.get().defaultBlockState();
             case BLISTER -> OrganBlocks.CAVE_BLISTER.get().defaultBlockState();
+            case BLISTER_LUMP -> OrganBlocks.CAVE_BLISTER.get().defaultBlockState().setValue(com.yayuy.overgrownvegetation.corruption.cave.CaveBlisterBlock.FORM,
+                    com.yayuy.overgrownvegetation.corruption.cave.CaveBlisterBlock.Form.LUMP);
+            case BLISTER_HANG -> OrganBlocks.CAVE_BLISTER.get().defaultBlockState().setValue(com.yayuy.overgrownvegetation.corruption.cave.CaveBlisterBlock.FORM,
+                    com.yayuy.overgrownvegetation.corruption.cave.CaveBlisterBlock.Form.LUMP_HANGING);
             case VEIN -> OrganBlocks.ORGAN_VEIN.get().defaultBlockState().setValue(MultifaceBlock.getFaceProperty(Direction.DOWN), true);
         };
     }
@@ -224,12 +230,16 @@ public final class FissureLook {
         }
         out.add(new Cell(core.above(), Part.MEMBRANE));
         out.add(new Cell(core, Part.CORE));
-        // 肋: 割れ目をまたいで縫う(両脇の床の上と、割れ目の真上 1 段)
+        // 肋: 割れ目の片側の床から立ち上がり、割れ目の上を越えて反対の床へ下りる弧(5 マス)。割れ目をまたぐ向きに寝かせて置く
+        // (年輪の面は弧の両端の外側だけ。11-20 ユーザー: 縦に置くと上から年輪が見えて 2 段の切り株に見えた)
+        Part rib = side.getAxis() == Direction.Axis.X ? Part.RIB_X : Part.RIB_Z;
         for (int s = -(half - 1); s <= half - 1; s += 2) {
             BlockPos p = floor.relative(along, s);
-            out.add(new Cell(p.relative(side.getOpposite()), Part.RIB, Mode.PUT));
-            out.add(new Cell(p.above(), Part.RIB, Mode.PUT));
-            out.add(new Cell(p.relative(side), Part.RIB, Mode.PUT));
+            out.add(new Cell(p.relative(side.getOpposite(), 2), rib, Mode.PUT));
+            out.add(new Cell(p.relative(side.getOpposite()).above(), rib, Mode.PUT));
+            out.add(new Cell(p.above(), rib, Mode.PUT));
+            out.add(new Cell(p.relative(side).above(), rib, Mode.PUT));
+            out.add(new Cell(p.relative(side, 2), rib, Mode.PUT));
         }
         // 床の根(割れ目の両端から外へ)と光る筋(両脇へ放射状)
         run(out, floor.relative(along, -(half + 1)).below(), along.getOpposite(), side, 5, Part.ROOT, seed + 5);

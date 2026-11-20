@@ -297,21 +297,43 @@ public final class CaveDecor {
     /** 嚢2 大きな水ぶくれ: 床なら半径 2.4 の丸い塊 + 横に 2 つ・まわり半径 4 の菌糸の床。天井なら下へ 5 段すぼまる塊・まわり半径 3.4 の菌糸。 */
     static void blister(List<FissureLook.Cell> out, Run r, boolean ceiling, int seed) {
         int x0 = r.x(), z0 = r.z();
+        // 大きさをばらつかせる(0.8〜1.25 倍)。塊の中は満ちたブロック、上(天井なら下)の縁と角は丸いこぶ(11-20 ユーザー「丸い膨らみに」)
+        double k = 0.8D + (FissureLook.hs(x0, z0, seed) % 1000) / 1000.0D * 0.45D;
+        java.util.Set<BlockPos> blob = new java.util.LinkedHashSet<>();
         if (ceiling) {
             int cy = r.y0() + r.h(); // 天井の固いマス
-            disk(out, x0, cy, z0, 3.4, seed);
+            disk(out, x0, cy, z0, 3.4 * k, seed);
             double[] rr = {1.7, 1.7, 1.3, 0.8, 0.5};
-            for (int k = 0; k < rr.length; k++) for (int a = -2; a <= 2; a++) for (int b = -2; b <= 2; b++)
-                if (a * a + b * b <= rr[k] * rr[k] + 0.3) out.add(new FissureLook.Cell(new BlockPos(x0 + a, cy - 1 - k, z0 + b), FissureLook.Part.BLISTER, FissureLook.Mode.PUT));
+            int layers = Math.max(3, (int) Math.round(rr.length * k));
+            for (int i = 0; i < layers; i++) {
+                double ri = rr[Math.min(rr.length - 1, (int) (i / k))] * k;
+                for (int a = -3; a <= 3; a++) for (int b = -3; b <= 3; b++)
+                    if (a * a + b * b <= ri * ri + 0.3) blob.add(new BlockPos(x0 + a, cy - 1 - i, z0 + b));
+            }
         } else {
             int fy = r.y0();
-            disk(out, x0, fy - 1, z0, 4.2, seed);
-            for (int x = -3; x <= 3; x++) for (int y = 0; y <= 3; y++) for (int z = -3; z <= 3; z++) {
-                double d = x * x / (2.4 * 2.4) + y * y / (2.3 * 2.3) + z * z / (2.4 * 2.4);
-                if (d <= 1.0) out.add(new FissureLook.Cell(new BlockPos(x0 + x, fy + y, z0 + z), FissureLook.Part.BLISTER, FissureLook.Mode.PUT));
+            disk(out, x0, fy - 1, z0, 4.2 * k, seed);
+            double rx = 2.4 * k, ry = 2.3 * k;
+            for (int x = -4; x <= 4; x++) for (int y = 0; y <= 4; y++) for (int z = -4; z <= 4; z++) {
+                double d = x * x / (rx * rx) + y * y / (ry * ry) + z * z / (rx * rx);
+                if (d <= 1.0) blob.add(new BlockPos(x0 + x, fy + y, z0 + z));
             }
-            out.add(new FissureLook.Cell(new BlockPos(x0 + 3, fy, z0 + 2), FissureLook.Part.BLISTER, FissureLook.Mode.PUT));
-            out.add(new FissureLook.Cell(new BlockPos(x0 - 3, fy, z0 + 1), FissureLook.Part.BLISTER, FissureLook.Mode.PUT));
+            // まわりの小さいこぶ(2〜4 つ)
+            int n = 2 + FissureLook.hs(x0, z0, seed + 1) % 3;
+            for (int i = 0; i < n; i++) {
+                double a = Math.PI * 2.0D * (i + (FissureLook.hs(i, z0, seed + 2) % 100) / 100.0D) / n;
+                int rr = (int) Math.round(rx) + 1;
+                out.add(new FissureLook.Cell(new BlockPos(x0 + (int) Math.round(Math.cos(a) * rr), fy, z0 + (int) Math.round(Math.sin(a) * rr)),
+                        FissureLook.Part.BLISTER_LUMP, FissureLook.Mode.PUT));
+            }
+        }
+        for (BlockPos p : blob) {
+            BlockPos open = ceiling ? p.below() : p.above();
+            boolean edge = !blob.contains(open);
+            boolean side = false;
+            for (Direction d : Direction.Plane.HORIZONTAL) if (!blob.contains(p.relative(d))) side = true;
+            FissureLook.Part part = edge && side ? (ceiling ? FissureLook.Part.BLISTER_HANG : FissureLook.Part.BLISTER_LUMP) : FissureLook.Part.BLISTER;
+            out.add(new FissureLook.Cell(p, part, FissureLook.Mode.PUT));
         }
     }
 

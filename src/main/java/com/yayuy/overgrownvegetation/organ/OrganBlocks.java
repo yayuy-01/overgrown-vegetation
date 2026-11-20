@@ -65,7 +65,7 @@ public final class OrganBlocks {
 
     // ---- 器官を組むブロック(2026-11-20 ユーザー決定「そろい 3 樹皮と髄」。外 = 暗い樹皮、柔らかい所と中 = 淡い髄)。硬さ・光は【仮】 ----
     /** 根の肋: 骨組み(今までの代用 = 過繁茂の原木)。 */
-    public static final DeferredBlock<Block> ORGAN_RIB = BLOCKS.registerBlock("organ_rib", OrganTissueBlock::new,
+    public static final DeferredBlock<Block> ORGAN_RIB = BLOCKS.registerBlock("organ_rib", OrganRibBlock::new, // 11-20 向き(axis)を足した。既定は縦
             BlockBehaviour.Properties.of().mapColor(MapColor.PODZOL).strength(2.0F).sound(SoundType.WOOD));
 
     /** 硬い殻: 固い外側(今までの代用 = 巨大樹の原木)。 */

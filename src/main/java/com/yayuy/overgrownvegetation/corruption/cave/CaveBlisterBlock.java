@@ -20,8 +20,53 @@ public class CaveBlisterBlock extends Block {
 
     public static final MapCodec<CaveBlisterBlock> CODEC = simpleCodec(CaveBlisterBlock::new);
 
+    /**
+     * 形(11-20 ユーザー「形も直そう」: 四角い積み重ねに見えた)。塊の中は満ちたブロック、上の縁と角は床から盛り上がる丸いこぶ、
+     * 天井から垂れる塊の下の縁は天井から下がるこぶ。こぶは周りの面を隠さない。
+     */
+    public enum Form implements net.minecraft.util.StringRepresentable {
+        FULL("full"), LUMP("lump"), LUMP_HANGING("lump_hanging");
+
+        private final String name;
+
+        Form(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String getSerializedName() {
+            return name;
+        }
+    }
+
+    public static final net.minecraft.world.level.block.state.properties.EnumProperty<Form> FORM =
+            net.minecraft.world.level.block.state.properties.EnumProperty.create("form", Form.class);
+    private static final net.minecraft.world.phys.shapes.VoxelShape LUMP = Block.box(1, 0, 1, 15, 14, 15);
+    private static final net.minecraft.world.phys.shapes.VoxelShape LUMP_HANGING = Block.box(1, 2, 1, 15, 16, 15);
+
     public CaveBlisterBlock(BlockBehaviour.Properties properties) {
         super(properties);
+        registerDefaultState(defaultBlockState().setValue(FORM, Form.FULL));
+    }
+
+    @Override
+    protected void createBlockStateDefinition(net.minecraft.world.level.block.state.StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(FORM);
+    }
+
+    @Override
+    protected net.minecraft.world.phys.shapes.VoxelShape getShape(BlockState state, net.minecraft.world.level.BlockGetter level, BlockPos pos,
+                                                                 net.minecraft.world.phys.shapes.CollisionContext ctx) {
+        return switch (state.getValue(FORM)) {
+            case FULL -> net.minecraft.world.phys.shapes.Shapes.block();
+            case LUMP -> LUMP;
+            case LUMP_HANGING -> LUMP_HANGING;
+        };
+    }
+
+    @Override
+    protected net.minecraft.world.phys.shapes.VoxelShape getOcclusionShape(BlockState state, net.minecraft.world.level.BlockGetter level, BlockPos pos) {
+        return state.getValue(FORM) == Form.FULL ? net.minecraft.world.phys.shapes.Shapes.block() : net.minecraft.world.phys.shapes.Shapes.empty();
     }
 
     @Override
