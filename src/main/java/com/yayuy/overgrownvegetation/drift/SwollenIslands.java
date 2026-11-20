@@ -213,8 +213,15 @@ public final class SwollenIslands extends SavedData {
         }
         // 3. 枯れ木と根の簾
         for (int[] tr : DEAD) {
-            int x = i.cx + (int) Math.round(tr[0] * s), z = i.cz + (int) Math.round(tr[1] * s);
-            if (DriftShore.column(level, x, z, i.wy) != DriftShore.Col.LAND) continue;
+            // 模型の枯れ木は島の縁に立つ。本物の島では縁の外(水)に出ることがあるので、陸に乗るまで中心へ寄せる
+            int x = 0, z = 0;
+            boolean onLand = false;
+            for (double f = 1.0D; f >= 0.3D && !onLand; f -= 0.1D) {
+                x = i.cx + (int) Math.round(tr[0] * s * f);
+                z = i.cz + (int) Math.round(tr[1] * s * f);
+                onLand = DriftShore.column(level, x, z, i.wy) == DriftShore.Col.LAND;
+            }
+            if (!onLand) continue;
             BlockPos stand = DriftShore.standOn(level, x, z, i.wy, maxH);
             if (stand == null) continue;
             int y0 = Math.max(stand.getY(), colTop.get(BlockPos.asLong(x, 0, z)) + 1);
