@@ -515,7 +515,7 @@ public final class OrganWorld {
     static BlockState stateOf(int mat, int faces) {
         return switch (mat) {
             case OrganBlueprint.M_CARVE -> Blocks.AIR.defaultBlockState();
-            case OrganBlueprint.M_MOSS -> ModBlocks.OVERGROWN_BLOCK.get().defaultBlockState();
+            case OrganBlueprint.M_MOSS -> OrganBlocks.ORGAN_FLESH.get().defaultBlockState(); // 11-20 そろい 3: 代用をやめた
             case OrganBlueprint.M_LOG -> OrganBlocks.ORGAN_RIB.get().defaultBlockState();
             case OrganBlueprint.M_GIANT_LOG -> OrganBlocks.ORGAN_SHELL.get().defaultBlockState();
             case OrganBlueprint.M_SAC -> OrganBlocks.ORGAN_SAC.get().defaultBlockState();
@@ -525,7 +525,7 @@ public final class OrganWorld {
             case OrganBlueprint.M_CRYSTAL -> OrganBlocks.ROOT_CRYSTAL_BLOCK.get().defaultBlockState();
             case OrganBlueprint.M_PITH -> OrganBlocks.ORGAN_PITH.get().defaultBlockState();
             case OrganBlueprint.M_CAP -> OrganBlocks.ORGAN_SHELF.get().defaultBlockState();
-            case OrganBlueprint.M_ROOT -> ModBlocks.STIGMARIA.get().defaultBlockState();
+            case OrganBlueprint.M_ROOT -> OrganBlocks.TANGLED_ROOT.get().defaultBlockState();
             case OrganBlueprint.M_EGG -> OrganBlocks.ORGAN_EGG_MASS.get().defaultBlockState();
             case OrganBlueprint.M_STONE -> ModBlocks.OVERGROWN_STONE.get().defaultBlockState();
             case OrganBlueprint.M_VINE -> OrganBlocks.ORGAN_VINE.get().defaultBlockState();
