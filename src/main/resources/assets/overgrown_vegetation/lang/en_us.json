@@ -613,6 +613,8 @@
   "item.overgrown_vegetation.stenodictya_nymph_spawn_egg": "Stenodictya Nymph Spawn Egg",
   "entity.overgrown_vegetation.pedicula": "Pedicula",
   "item.overgrown_vegetation.pedicula_spawn_egg": "Pedicula Spawn Egg",
+  "entity.overgrown_vegetation.drift_mimic": "Drift Mimic",
+  "item.overgrown_vegetation.drift_mimic_spawn_egg": "Drift Mimic Spawn Egg",
   "entity.overgrown_vegetation.acumnes": "Acumnes",
   "item.overgrown_vegetation.acumnes_spawn_egg": "Acumnes Spawn Egg",
   "entity.overgrown_vegetation.acumnes_spine": "Acumnes Spine",

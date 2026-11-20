@@ -613,6 +613,8 @@
   "item.overgrown_vegetation.stenodictya_nymph_spawn_egg": "Яйцо призыва: Личинка стенодиктии",
   "entity.overgrown_vegetation.pedicula": "Педикула",
   "item.overgrown_vegetation.pedicula_spawn_egg": "Яйцо призыва: Педикула",
+  "entity.overgrown_vegetation.drift_mimic": "Плавучий мимик",
+  "item.overgrown_vegetation.drift_mimic_spawn_egg": "Яйцо призыва: Плавучий мимик",
   "entity.overgrown_vegetation.acumnes": "Акумнес",
   "item.overgrown_vegetation.acumnes_spawn_egg": "Яйцо призыва: Акумнес",
   "entity.overgrown_vegetation.acumnes_spine": "Шип акумнеса",
