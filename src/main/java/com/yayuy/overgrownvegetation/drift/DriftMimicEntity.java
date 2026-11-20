@@ -149,12 +149,16 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
         return null;
     }
 
-    /** 席: 体の長い向きに並べる(1 人なら真ん中、2〜3 人なら前後に)。 */
+    /**
+     * 席: 2 列 × 3 段(6 席、ユーザー決定 11-20)。仮の箱の上に並べる。モデル制作の形(座の骨 seat_0〜5)が届いたらその骨の位置へ寄せる。
+     */
     @Override
     protected Vec3 getPassengerAttachmentPoint(Entity passenger, EntityDimensions dimensions, float partialTick) {
-        int n = getPassengers().size(), i = Math.max(0, getPassengers().indexOf(passenger));
-        double along = n <= 1 ? 0.0D : (i - (n - 1) / 2.0D) * 0.7D;
-        return new Vec3(0.0D, dimensions.height() * 0.85D, along).yRot(-getYRot() * Mth.DEG_TO_RAD);
+        int i = Math.max(0, getPassengers().indexOf(passenger));
+        double side = getPassengers().size() <= 1 ? 0.0D : (i % 2 == 0 ? -0.35D : 0.35D);
+        int rows = (getPassengers().size() + 1) / 2;
+        double along = ((i / 2) - (rows - 1) / 2.0D) * 0.7D;
+        return new Vec3(side, dimensions.height() * 0.85D, along).yRot(-getYRot() * Mth.DEG_TO_RAD);
     }
 
     // ------------------------------------------------------------ 動き

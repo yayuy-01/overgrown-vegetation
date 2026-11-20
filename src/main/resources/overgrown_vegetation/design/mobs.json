@@ -595,7 +595,7 @@
     "eggFit": 6.85
   },
   "drift_mimic": {
-    "maxHealth": 16,
+    "maxHealth": 200,
     "armor": 0,
     "movementSpeed": 0,
     "knockbackResistance": 0.5,

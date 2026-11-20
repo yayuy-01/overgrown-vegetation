@@ -473,9 +473,9 @@ public final class MobStats {
         }));
 
         // 漂流する擬態 Mob(2026-11-20、植物種・拡散)。流木・藻の塊に化けて海を渡る。攻撃しない。値は【仮・Claude】。
-        // 当たりは流木の塊 1.6 × 0.5(寄生種 1〜3 体を乗せる広さ)。体力 16 = 沖で叩けば数発で沈む。歩かないので movementSpeed 0(動きは風と漕ぎ)。
+        // 当たりは流木の塊 1.6 × 0.5(寄生種 1〜3 体を乗せる広さ)。体力 200(ユーザー決定 11-20)。歩かないので movementSpeed 0(動きは風と漕ぎ)。
         m.put("drift_mimic", stat(s -> {
-            s.maxHealth = 16.0; s.armor = 0.0; s.movementSpeed = 0.0; s.knockbackResistance = 0.5;
+            s.maxHealth = 200.0; s.armor = 0.0; s.movementSpeed = 0.0; s.knockbackResistance = 0.5;
             s.width = 1.6; s.height = 0.5; s.eggFit = 3.3; s.xpReward = 3;
         }));
 

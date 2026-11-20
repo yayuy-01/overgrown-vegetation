@@ -103,7 +103,7 @@ public final class DriftTable {
 
     /** 寄生種を乗せて運ぶ(島の拠点への襲撃)。値段は司令塔の表(director.json の economy.driftCost・driftPassengerFactor)。 */
     public static final class Ferry {
-        /** 1 体に乗せる数。 */
-        public int seats = 3;
+        /** 1 体に乗せる数(ユーザー決定 11-20: 6 体まで)。 */
+        public int seats = 6;
     }
 }
