@@ -151,7 +151,11 @@ public final class FusionCommand {
         double ms = (System.nanoTime() - t0) / 1.0e6;
         int p = planted, b = big, g = gaps;
         long w = worst;
-        src.sendSuccess(() -> Component.literal(String.format(java.util.Locale.ROOT, "TAKEOVER 見た %d 回・芽吹かせた %d(大 %d)・隙間の草 %d・%.1f ms(1 回平均 %.2f・最悪 %.2f ms)", count, p, b, g, ms, ms / count, w / 1.0e6)), true);
+        src.sendSuccess(() -> Component.literal(String.format(java.util.Locale.ROOT, "TAKEOVER 見た %d 回・芽吹かせた %d(大 %d)・隙間の草 %d・%.1f ms(1 回平均 %.2f・最悪 %.2f ms)", count, p, b, g, ms, ms / count, w / 1.0e6) + String.format(java.util.Locale.ROOT, "・地形の写し %d 回・平均 %.2f・最大 %.2f ms(うち守る範囲 %.2f)", OrganFusion.captures, OrganFusion.captures == 0 ? 0.0D : OrganFusion.sumCaptureNanos / 1e6 / OrganFusion.captures, OrganFusion.maxCaptureNanos / 1e6, OrganFusion.maxProtectNanos / 1e6)), true);
+        OrganFusion.captures = 0;
+        OrganFusion.sumCaptureNanos = 0;
+        OrganFusion.maxCaptureNanos = 0;
+        OrganFusion.maxProtectNanos = 0;
         return planted;
     }
 

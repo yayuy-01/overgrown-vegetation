@@ -302,7 +302,7 @@ public final class OrganWorld {
         }
         if (!o.fusionChecked) {
             // 構造物と森の融合(11-19 段 1): 構造物のそばの小さい版は融合の形に、構造物にかかる大きい版は建てない
-            OrganFusion.Result fr = o.state == ForestOrgans.State.WITHERED ? OrganFusion.Result.NORMAL : OrganFusion.decide(level, o);
+            OrganFusion.Result fr = o.state == ForestOrgans.State.WITHERED ? OrganFusion.Result.NORMAL : OrganFusion.decideAsync(level, o); // 11-20 乗っ取りの形は別スレッドで
             if (fr == OrganFusion.Result.WAIT) {
                 seg(0); // 判定の待ちも内訳に入れる(11-20: 遅い行の内訳が全部 0 だった)
                 return budget;

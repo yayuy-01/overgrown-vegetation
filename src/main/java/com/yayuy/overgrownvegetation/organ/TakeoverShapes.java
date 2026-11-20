@@ -139,24 +139,77 @@ public final class TakeoverShapes {
 
     // ---------------------------------------------------------------- 世界の読み取り
 
+    /**
+     * 形作りが世界を読む口(2026-11-20 形作りを別スレッドへ)。生きた世界({@link #live})か、主スレッドで写した地形({@link TakeoverSnapshot})。
+     */
+    interface World {
+        int minY();
+
+        int maxY();
+
+        /** そのマスの状態。読み込まれていないチャンクなら null。 */
+        @Nullable
+        BlockState state(int x, int y, int z);
+
+        /** 人工のブロックか({@link Takeover#isArtificial} と同じ答え)。 */
+        boolean artificial(int x, int y, int z, BlockState s);
+
+        /** 空の見える高さ(MOTION_BLOCKING。{@code level.getHeight} と同じ)。読み込まれていなければ {@link Integer#MIN_VALUE}。 */
+        int height(int x, int z);
+    }
+
+    static World live(ServerLevel level) {
+        return new World() {
+            final BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+
+            @Override
+            public int minY() {
+                return level.getMinBuildHeight();
+            }
+
+            @Override
+            public int maxY() {
+                return level.getMaxBuildHeight();
+            }
+
+            @Override
+            public BlockState state(int x, int y, int z) {
+                if (level.getChunkSource().getChunkNow(x >> 4, z >> 4) == null) return null;
+                return level.getBlockState(p.set(x, y, z));
+            }
+
+            @Override
+            public boolean artificial(int x, int y, int z, BlockState s) {
+                return Takeover.isArtificial(level, p.set(x, y, z), s);
+            }
+
+            @Override
+            public int height(int x, int z) {
+                if (level.getChunkSource().getChunkNow(x >> 4, z >> 4) == null) return Integer.MIN_VALUE;
+                return level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
+            }
+        };
+    }
+
     private static final class Ctx {
-        final ServerLevel level;
+        final World w;
         final Random rnd;
         final Map<Long, Integer> cells = new LinkedHashMap<>();
         final BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
         int reads;
 
-        Ctx(ServerLevel level, Random rnd) {
-            this.level = level;
+        Ctx(World w, Random rnd) {
+            this.w = w;
             this.rnd = rnd;
         }
 
         @Nullable
         BlockState state(int x, int y, int z) {
-            if (y <= level.getMinBuildHeight() || y >= level.getMaxBuildHeight()) return null;
-            if (level.getChunkSource().getChunkNow(x >> 4, z >> 4) == null) return null;
+            if (y <= w.minY() || y >= w.maxY()) return null;
+            BlockState s = w.state(x, y, z);
+            if (s == null) return null;
             reads++;
-            return level.getBlockState(m.set(x, y, z));
+            return s;
         }
 
         /** 物を置けるマス(空気・草花。水は不可)。 */
@@ -173,7 +226,7 @@ public final class TakeoverShapes {
 
         boolean artificial(int x, int y, int z) {
             BlockState s = state(x, y, z);
-            return s != null && Takeover.isArtificial(level, m.set(x, y, z), s);
+            return s != null && w.artificial(x, y, z, s);
         }
 
         boolean touchesSolid(int x, int y, int z) {
@@ -207,8 +260,8 @@ public final class TakeoverShapes {
         }
 
         private boolean sky(int x, int y, int z) {
-            if (level.getChunkSource().getChunkNow(x >> 4, z >> 4) == null) return false;
-            return level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z) <= y;
+            int h = w.height(x, z);
+            return h != Integer.MIN_VALUE && h <= y;
         }
 
         // ---- 置く物
@@ -375,7 +428,7 @@ public final class TakeoverShapes {
 
     private static void hole1(Ctx c, int x, int y, int z) {
         BlockState s = c.state(x, y, z);
-        if (s == null || s.hasBlockEntity() || !Takeover.isArtificial(c.level, c.m.set(x, y, z), s)) return;
+        if (s == null || s.hasBlockEntity() || !c.w.artificial(x, y, z, s)) return;
         c.cells.put(BlockPos.asLong(x, y, z), CARVE);
         if (s.getBlock() instanceof net.minecraft.world.level.block.DoorBlock && s.hasProperty(net.minecraft.world.level.block.DoorBlock.HALF)) {
             int oy = s.getValue(net.minecraft.world.level.block.DoorBlock.HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER ? y + 1 : y - 1;
@@ -761,7 +814,7 @@ public final class TakeoverShapes {
 
     /** 種類ごとの生えやすい面(合う面が無ければ、どこからでも生えてよい)。 */
     static boolean faceFits(ServerLevel level, OrganKind kind, Takeover.Face f) {
-        Ctx c = new Ctx(level, new Random(0L));
+        Ctx c = new Ctx(live(level), new Random(0L));
         int x = f.x() + f.nx(), y = f.y() + f.ny(), z = f.z() + f.nz(), ny = f.ny();
         switch (kind) {
             case TOWER:
@@ -798,11 +851,30 @@ public final class TakeoverShapes {
      */
     @Nullable
     static long[] plan(ServerLevel level, ForestOrgans.Organ o) {
+        long[] e = plan(live(level), o);
+        return e == null ? null : dropGuarded(level, o, e);
+    }
+
+    /** 押し返す道具の効く所のマスを落とす(主スレッドで。形作りの後に。11-20 形作りを別スレッドへ回すので形作りの中から出した)。 */
+    static long[] dropGuarded(ServerLevel level, ForestOrgans.Organ o, long[] entries) {
+        int[] f = o.takeover;
+        BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
+        LongArrayList out = new LongArrayList(entries.length);
+        for (long e : entries) {
+            m.set(f[0] + OrganBlueprint.dx(e), f[1] + OrganBlueprint.dy(e), f[2] + OrganBlueprint.dz(e));
+            if (!com.yayuy.overgrownvegetation.corruption.pushback.RingWards.guarded(level, m)) out.add(e); // 押し返す道具の効く所には伸ばさない
+        }
+        return out.size() == entries.length ? entries : out.toLongArray();
+    }
+
+    /** 形作りの本体(世界は w からだけ読む。別スレッドからも呼べる)。押し返す道具の所は落としていない({@link #dropGuarded})。 */
+    @Nullable
+    static long[] plan(World w, ForestOrgans.Organ o) {
         int[] f = o.takeover;
         if (f == null || f.length < 6) return null;
         long t0 = System.nanoTime();
         boolean big = !o.small;
-        Ctx c = new Ctx(level, new Random(o.seed * 0x9E3779B97F4A7C15L + 0x7A0EL));
+        Ctx c = new Ctx(w, new Random(o.seed * 0x9E3779B97F4A7C15L + 0x7A0EL));
         double[][] k = switch (o.kind) {
             case PHASE -> phase(c, f, big);
             case TOWER -> tower(c, f, big, false);
@@ -825,7 +897,6 @@ public final class TakeoverShapes {
         if (!core) return null;
         int ax = f[0], ay = f[1], az = f[2];
         LongArrayList out = new LongArrayList(c.cells.size());
-        BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
         // 穴 → 本体 → 光る脈(脈は支えの面より後に置く)
         for (int pass = 0; pass < 3; pass++) {
             for (Map.Entry<Long, Integer> e : c.cells.entrySet()) {
@@ -835,7 +906,6 @@ public final class TakeoverShapes {
                 int x = BlockPos.getX(key), y = BlockPos.getY(key), z = BlockPos.getZ(key);
                 int dx = x - ax, dy = y - ay, dz = z - az;
                 if (Math.abs(dx) > 120 || Math.abs(dy) > 120 || Math.abs(dz) > 120) continue;
-                if (com.yayuy.overgrownvegetation.corruption.pushback.RingWards.guarded(level, m.set(x, y, z))) continue; // 押し返す道具の効く所には伸ばさない
                 int faces = 0;
                 if (mat == VEIN) {
                     // 脈は、まわりの固い面(器官の肉・建物・地面)に貼り付く。貼り付く面が無ければ肉にする

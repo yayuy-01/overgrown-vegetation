@@ -262,6 +262,71 @@ public final class StructureFusion {
         return s >= t.wholeMediumSpan ? SizeClass.MEDIUM : SizeClass.SMALL;
     }
 
+    /**
+     * 守る範囲の写し(2026-11-20 乗っ取りの器官の形を別スレッドで作る)。主スレッドで {@link #capture} し、どのスレッドからでも
+     * {@link #state(int, int, int)} が {@link StructureFusion#state(ServerLevel, BlockPos)} と同じ答えを返す。写したチャンクの外を聞いたら
+     * {@link #misses} を数えて {@link #UNKNOWN}。
+     */
+    public static final class Protect {
+        private final boolean enabled;
+        private final int margin, cx0, cz0, cx1, cz1;
+        private final ChunkEntry[] entries;
+        /** 写したチャンクの外を聞いた回数(計画のスレッドだけが書く)。 */
+        public int misses;
+
+        private Protect(boolean enabled, int margin, int cx0, int cz0, int cx1, int cz1, ChunkEntry[] entries) {
+            this.enabled = enabled;
+            this.margin = margin;
+            this.cx0 = cx0;
+            this.cz0 = cz0;
+            this.cx1 = cx1;
+            this.cz1 = cz1;
+            this.entries = entries;
+        }
+
+        public int state(int x, int y, int z) {
+            if (!enabled) return NONE;
+            int m = margin;
+            int c0x = (x - m) >> 4, c1x = (x + m) >> 4, c0z = (z - m) >> 4, c1z = (z + m) >> 4;
+            boolean unknown = false;
+            for (int cx = c0x; cx <= c1x; cx++) {
+                for (int cz = c0z; cz <= c1z; cz++) {
+                    if (cx < cx0 || cx > cx1 || cz < cz0 || cz > cz1) {
+                        misses++;
+                        unknown = true;
+                        continue;
+                    }
+                    ChunkEntry e = entries[(cx - cx0) * (cz1 - cz0 + 1) + (cz - cz0)];
+                    if (e == null) {
+                        unknown = true;
+                        continue;
+                    }
+                    for (Site s : e.sites) {
+                        for (BoundingBox b : s.pieces) {
+                            if (x >= b.minX() - m && x <= b.maxX() + m && y >= b.minY() - m && y <= b.maxY() + m && z >= b.minZ() - m
+                                    && z <= b.maxZ() + m) return PROTECTED;
+                        }
+                    }
+                }
+            }
+            return unknown ? UNKNOWN : NONE;
+        }
+    }
+
+    /** チャンクの範囲(両端を含む)の守る範囲を写す(主スレッドで)。余白のぶん外のチャンクも写す。 */
+    public static Protect capture(ServerLevel level, int cx0, int cz0, int cx1, int cz1) {
+        FusionTable t = table();
+        int m = t.pieceMargin, pad = (m + 15) >> 4;
+        int ax = cx0 - pad, az = cz0 - pad, bx = cx1 + pad, bz = cz1 + pad;
+        ChunkEntry[] es = new ChunkEntry[(bx - ax + 1) * (bz - az + 1)];
+        if (t.enabled) {
+            for (int cx = ax; cx <= bx; cx++) {
+                for (int cz = az; cz <= bz; cz++) es[(cx - ax) * (bz - az + 1) + (cz - az)] = entry(level, cx, cz);
+            }
+        }
+        return new Protect(t.enabled, m, ax, az, bx, bz, es);
+    }
+
     // ---------------------------------------------------------------- 写し
 
     @Nullable

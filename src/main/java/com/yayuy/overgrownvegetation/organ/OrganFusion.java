@@ -58,6 +58,74 @@ public final class OrganFusion {
     /** 根元を付けられる建物の部品が無い印。 */
     static final long[] NO_BUILDING = new long[0];
 
+    // ---------------------------------------------------------------- 乗っ取りの形作りを別スレッドで(11-20 全体管理の決定「案 2」)
+
+    /** 写す範囲(面から水平・下・上のブロック)【仮】。写しの外を読んだら 2 倍に広げて 1 回だけ作り直す。 */
+    static final int SNAP_REACH = 48, SNAP_DOWN = 48, SNAP_UP = 96;
+
+    private record Pending(TakeoverSnapshot snap, java.util.concurrent.CompletableFuture<long[]> plan) {
+    }
+
+    /** 形作りの途中の器官(主スレッドだけが触る。器官の記録が消えたら一緒に消える)。 */
+    private static final java.util.Map<ForestOrgans.Organ, Pending> PENDING = new java.util.WeakHashMap<>();
+    private static final java.util.concurrent.ExecutorService PLANNER = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+        Thread th = new Thread(r, "OV takeover planner");
+        th.setDaemon(true);
+        th.setPriority(Thread.MIN_PRIORITY);
+        return th;
+    });
+    /** 直前の写しにかかった時間(ns)と区画の数(測り用)。 */
+    static volatile long lastCaptureNanos;
+    static volatile int lastCaptureSections;
+    /** 写しの最大の時間(ns。全体・うち守る範囲)と回数(測り用。fusion takeover の行で出して空にする)。 */
+    static long maxCaptureNanos, maxProtectNanos, captures, sumCaptureNanos;
+
+    /**
+     * {@link #decide} の、乗っ取りの器官の形作りを別スレッドへ回す版(ふつうの器官の手順 {@code OrganWorld.step} から)。
+     * 1 回目は面のまわりを写して計算を始め {@link Result#WAIT}。でき上がるまで WAIT。写しの外を読んだ計画は捨てて、広げて写し直す
+     * (2 回目も外なら取りやめ)。命令・テストの {@code buildNow} は今までどおり {@link #decide} で主スレッドで作る。
+     */
+    public static Result decideAsync(ServerLevel level, ForestOrgans.Organ o) {
+        if (o.takeover == null || "1".equals(System.getProperty("ov.takeoverOldShape"))) return decide(level, o);
+        Pending p = PENDING.get(o);
+        if (p == null) return startPlan(level, o, 1);
+        if (!p.plan.isDone()) return Result.WAIT;
+        PENDING.remove(o);
+        long[] plan;
+        try {
+            plan = p.plan.join();
+        } catch (RuntimeException e) {
+            com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.error("乗っ取りの器官 #{} の形を作れなかった", o.id, e);
+            return Result.CANCEL;
+        }
+        if (p.snap.totalMisses() > 0) {
+            if (p.snap.reach > SNAP_REACH) return Result.CANCEL; // 広げても外に出た
+            return startPlan(level, o, 2);
+        }
+        if (plan == null) return Result.CANCEL;
+        o.fusion = TakeoverShapes.dropGuarded(level, o, plan);
+        return Result.FUSED;
+    }
+
+    private static Result startPlan(ServerLevel level, ForestOrgans.Organ o, int scale) {
+        int[] f = o.takeover;
+        int r = SNAP_REACH * scale;
+        for (int cx = (f[0] - r) >> 4; cx <= (f[0] + r) >> 4; cx++) {
+            for (int cz = (f[2] - r) >> 4; cz <= (f[2] + r) >> 4; cz++) {
+                if (!OrganWorld.ready(level, cx, cz)) return waitOrGiveUp(o);
+            }
+        }
+        TakeoverSnapshot s = TakeoverSnapshot.capture(level, f[0], f[1], f[2], r, SNAP_DOWN * scale, SNAP_UP * scale);
+        lastCaptureNanos = s.captureNanos;
+        maxCaptureNanos = Math.max(maxCaptureNanos, s.captureNanos);
+        maxProtectNanos = Math.max(maxProtectNanos, s.protectNanos);
+        captures++;
+        sumCaptureNanos += s.captureNanos;
+        lastCaptureSections = s.sectionCount;
+        PENDING.put(o, new Pending(s, java.util.concurrent.CompletableFuture.supplyAsync(() -> TakeoverShapes.plan(s, o), PLANNER)));
+        return Result.WAIT;
+    }
+
     /**
      * 芽を置く前に 1 回(高さが決まった後)。{@code o.fusion} を埋めるのは {@link Result#FUSED} のときだけ。
      */
