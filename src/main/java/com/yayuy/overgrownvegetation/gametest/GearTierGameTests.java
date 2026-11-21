@@ -206,11 +206,15 @@ public final class GearTierGameTests {
     public static void conduitDropsSmeltsAndCrafts(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos at = helper.absolutePos(new BlockPos(2, 2, 2));
+        // 汚染されていない導晶鉱 → 導晶の原石 / 飲み込まれた導晶鉱 → 黄緑の導晶の原石(別のアイテム。11-21 夜ユーザー決定)
         for (var ore : List.of(ModGear.CONDUIT_ORE, ModGear.DEEPSLATE_CONDUIT_ORE, ModGear.OVERGROWN_CONDUIT_ORE, ModGear.OVERGROWN_DEEPSLATE_CONDUIT_ORE)) {
+            boolean engulfed = ore == ModGear.OVERGROWN_CONDUIT_ORE || ore == ModGear.OVERGROWN_DEEPSLATE_CONDUIT_ORE;
+            var want = engulfed ? ModGear.OVERGROWN_RAW_CONDUIT.get() : ModGear.RAW_CONDUIT.get();
+            var other = engulfed ? ModGear.RAW_CONDUIT.get() : ModGear.OVERGROWN_RAW_CONDUIT.get();
             List<ItemStack> drops = net.minecraft.world.level.block.Block.getDrops(ore.get().defaultBlockState(), level, at, null, null,
                     new ItemStack(Items.IRON_PICKAXE));
-            if (drops.stream().noneMatch(d -> d.is(ModGear.RAW_CONDUIT.get()))) {
-                helper.fail(ore.getId() + " から導晶の原石が落ちない: " + drops);
+            if (drops.stream().noneMatch(d -> d.is(want)) || drops.stream().anyMatch(d -> d.is(other))) {
+                helper.fail(ore.getId() + " から落ちる原石が違う: " + drops);
                 return;
             }
         }
@@ -220,13 +224,25 @@ public final class GearTierGameTests {
                 helper.fail(type + " で原石が地金にならない");
                 return;
             }
+            var g = level.getRecipeManager().getRecipeFor(type, new SingleRecipeInput(new ItemStack(ModGear.OVERGROWN_RAW_CONDUIT.get())), level);
+            if (g.isEmpty() || !g.get().value().getResultItem(level.registryAccess()).is(ModGear.OVERGROWN_CONDUIT_INGOT.get())) {
+                helper.fail(type + " で黄緑の原石が黄緑の地金にならない");
+                return;
+            }
+            var go = level.getRecipeManager().getRecipeFor(type, new SingleRecipeInput(new ItemStack(ModGear.OVERGROWN_CONDUIT_ORE.get())), level);
+            if (go.isEmpty() || !go.get().value().getResultItem(level.registryAccess()).is(ModGear.OVERGROWN_CONDUIT_INGOT.get())) {
+                helper.fail(type + " で飲み込まれた導晶鉱が黄緑の地金にならない");
+                return;
+            }
         }
-        var plate = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING,
-                CraftingInput.of(1, 1, List.of(new ItemStack(ModGear.CONDUIT_INGOT.get()))), level);
-        if (plate.isEmpty() || !plate.get().value().getResultItem(level.registryAccess()).is(ModGear.CONDUIT_PLATE.get())
-                || plate.get().value().getResultItem(level.registryAccess()).getCount() != 1) {
-            helper.fail("地金 1 → 板 1 の作り方が無い");
-            return;
+        // 道具は青・黄緑のどちらからでも: どちらの地金も同じ導晶の板 1 つになる
+        for (var ingot : List.of(ModGear.CONDUIT_INGOT.get(), ModGear.OVERGROWN_CONDUIT_INGOT.get())) {
+            var plate = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, CraftingInput.of(1, 1, List.of(new ItemStack(ingot))), level);
+            if (plate.isEmpty() || !plate.get().value().getResultItem(level.registryAccess()).is(ModGear.CONDUIT_PLATE.get())
+                    || plate.get().value().getResultItem(level.registryAccess()).getCount() != 1) {
+                helper.fail(ingot + " 1 → 板 1 の作り方が無い");
+                return;
+            }
         }
         ItemStack p = new ItemStack(ModGear.CONDUIT_PLATE.get()), s = new ItemStack(Items.STICK), e = ItemStack.EMPTY;
         var pick = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, CraftingInput.of(3, 3, List.of(p, p, p, e, s, e, e, s, e)), level);

@@ -106,7 +106,7 @@ public final class ModGear {
                     .strength(4.5F, 3.0F)
                     .sound(SoundType.DEEPSLATE));
 
-    /** 汚染に飲み込まれた導晶鉱(石)。変質はしない(落とすのは同じ導晶の原石)。緑に変わり、表面に小さな根晶が生える。 */
+    /** 汚染に飲み込まれた導晶鉱(石)。変質はしない(菌集鉱にはならない)。緑に変わり、落とすのは黄緑の導晶の原石(11-21 夜)。表面に小さな根晶が生える。 */
     public static final DeferredBlock<DropExperienceBlock> OVERGROWN_CONDUIT_ORE = ModBlocks.BLOCKS.registerBlock(
             "overgrown_conduit_ore", p -> new DropExperienceBlock(UniformInt.of(0, 2), p),
             BlockBehaviour.Properties.of()
@@ -149,6 +149,10 @@ public final class ModGear {
     public static final DeferredItem<Item> CONDUIT_INGOT = ModItems.ITEMS.registerSimpleItem("conduit_ingot", new Item.Properties());
     /** 導晶の板(中間素材。作業台で地金 1 → 板 1)。 */
     public static final DeferredItem<Item> CONDUIT_PLATE = ModItems.ITEMS.registerSimpleItem("conduit_plate", new Item.Properties());
+    /** 黄緑の導晶の原石(飲み込まれた導晶鉱から出る。汚染されていない導晶とは別のアイテム = 11-21 夜ユーザー決定。焼くと黄緑の導晶の地金)。 */
+    public static final DeferredItem<Item> OVERGROWN_RAW_CONDUIT = ModItems.ITEMS.registerSimpleItem("overgrown_raw_conduit", new Item.Properties());
+    /** 黄緑の導晶の地金(作業台で導晶の板にもなる = 道具は青・黄緑のどちらからでも作れる。黄緑だけの使い道は後で決める)。 */
+    public static final DeferredItem<Item> OVERGROWN_CONDUIT_INGOT = ModItems.ITEMS.registerSimpleItem("overgrown_conduit_ingot", new Item.Properties());
 
     /** 導晶の道具の格(硬さはダイヤと同じ)。壊れにくさ・速さは登録の時に読む(変えたら再起動)。 */
     public static final Tier CONDUIT_TIER = new SimpleTier(BlockTags.INCORRECT_FOR_DIAMOND_TOOL,
@@ -197,6 +201,8 @@ public final class ModGear {
         output.accept(SMALL_ROOT_CRYSTAL_ITEM.get());
         output.accept(RAW_CONDUIT.get());
         output.accept(CONDUIT_INGOT.get());
+        output.accept(OVERGROWN_RAW_CONDUIT.get());
+        output.accept(OVERGROWN_CONDUIT_INGOT.get());
         output.accept(CONDUIT_PLATE.get());
         for (DeferredItem<? extends DiggerItem> tool : java.util.List.of(CONDUIT_PICKAXE, CONDUIT_AXE, CONDUIT_SHOVEL, CONDUIT_HOE)) {
             output.accept(tool.get());

@@ -1,9 +1,9 @@
 {
   "type": "minecraft:smelting",
   "category": "misc",
-  "group": "conduit_ingot",
+  "group": "overgrown_conduit_ingot",
   "ingredient": { "item": "overgrown_vegetation:overgrown_deepslate_conduit_ore" },
-  "result": { "id": "overgrown_vegetation:conduit_ingot", "count": 1 },
+  "result": { "id": "overgrown_vegetation:overgrown_conduit_ingot", "count": 1 },
   "experience": 0.7,
   "cookingtime": 200
 }

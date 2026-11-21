@@ -856,6 +856,8 @@
   "block.overgrown_vegetation.small_root_crystal": "Маленький корневой кристалл",
   "item.overgrown_vegetation.raw_conduit": "Необработанный кондуктит",
   "item.overgrown_vegetation.conduit_ingot": "Кондуктитовый слиток",
+  "item.overgrown_vegetation.overgrown_raw_conduit": "Необработанный поглощённый кондуктит",
+  "item.overgrown_vegetation.overgrown_conduit_ingot": "Поглощённый кондуктитовый слиток",
   "item.overgrown_vegetation.conduit_plate": "Кондуктитовая пластина",
   "item.overgrown_vegetation.conduit_pickaxe": "Кондуктитовая кирка",
   "item.overgrown_vegetation.conduit_axe": "Кондуктитовый топор",

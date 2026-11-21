@@ -856,6 +856,8 @@
   "block.overgrown_vegetation.small_root_crystal": "小さな根晶",
   "item.overgrown_vegetation.raw_conduit": "導晶の原石",
   "item.overgrown_vegetation.conduit_ingot": "導晶の地金",
+  "item.overgrown_vegetation.overgrown_raw_conduit": "黄緑の導晶の原石",
+  "item.overgrown_vegetation.overgrown_conduit_ingot": "黄緑の導晶の地金",
   "item.overgrown_vegetation.conduit_plate": "導晶の板",
   "item.overgrown_vegetation.conduit_pickaxe": "導晶のつるはし",
   "item.overgrown_vegetation.conduit_axe": "導晶の斧",

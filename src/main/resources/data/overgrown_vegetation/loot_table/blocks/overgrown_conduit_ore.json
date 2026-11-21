@@ -20,7 +20,7 @@
                 { "enchantment": "minecraft:fortune", "formula": "minecraft:ore_drops", "function": "minecraft:apply_bonus" },
                 { "function": "minecraft:explosion_decay" }
               ],
-              "name": "overgrown_vegetation:raw_conduit"
+              "name": "overgrown_vegetation:overgrown_raw_conduit"
             }
           ]
         }
