@@ -43,9 +43,9 @@ public abstract class FireBlockHiveGuardMixin {
         if (!(level instanceof ServerLevel server)) return;
         BlockState state = level.getBlockState(pos);
         boolean hive = HiveFireGuard.protects(server, pos);
-        if (hive || com.yayuy.overgrownvegetation.gear.SporeBurnerItem.scorches(state)) {
+        if (hive || com.yayuy.overgrownvegetation.corruption.pushback.TreeBurn.scorches(state)) {
             if (random.nextInt(chance) < state.getFlammability(level, pos, face)) {
-                if (com.yayuy.overgrownvegetation.gear.SporeBurnerItem.scorches(state)) {
+                if (com.yayuy.overgrownvegetation.corruption.pushback.TreeBurn.scorches(state)) {
                     // 汚染の地面は燃え尽きると燻る灰ブロック(10-08 夜のユーザー指定。空気にしない)
                     level.setBlock(pos, com.yayuy.overgrownvegetation.corruption.pushback.SmolderingAshBlock.from(state), 3);
                     com.yayuy.overgrownvegetation.corruption.pushback.LedgerShrink.touch(level, pos,

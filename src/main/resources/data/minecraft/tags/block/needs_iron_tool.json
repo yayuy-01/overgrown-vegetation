@@ -1,6 +1,10 @@
 {
   "replace": false,
   "values": [
+    "overgrown_vegetation:overgrown_deepslate_conduit_ore",
+    "overgrown_vegetation:overgrown_conduit_ore",
+    "overgrown_vegetation:deepslate_conduit_ore",
+    "overgrown_vegetation:conduit_ore",
     "overgrown_vegetation:fungal_ore",
     "overgrown_vegetation:deepslate_fungal_ore",
     "overgrown_vegetation:overgrown_diamond_ore",

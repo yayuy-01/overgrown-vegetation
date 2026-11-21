@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.corruption.pushback;
 
 import com.yayuy.overgrownvegetation.corruption.OvergrownLayerData;
-import com.yayuy.overgrownvegetation.gear.MacheteItem;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import com.yayuy.overgrownvegetation.registry.ModPushBack;
 import net.minecraft.core.BlockPos;
@@ -68,7 +67,7 @@ public class WitherDraughtEntity extends ThrowableItemProjectile {
             BlockState s = level.getBlockState(p);
             BlockPos fixed = p.immutable();
             boolean changed = false;
-            if (s.is(MacheteItem.CLEARABLE) || s.is(ModBlocks.OVERGROWN_LEAVES.get())) {
+            if (s.is(com.yayuy.overgrownvegetation.ModTags.CLEARABLE_BRUSH) || s.is(ModBlocks.OVERGROWN_LEAVES.get())) {
                 level.setBlock(fixed, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
                 changed = true;
             } else if (WitheredSoilBlock.withers(s)) {

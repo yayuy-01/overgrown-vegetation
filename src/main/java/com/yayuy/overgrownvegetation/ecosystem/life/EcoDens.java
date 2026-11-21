@@ -417,7 +417,7 @@ public final class EcoDens {
     /** 洞の入口を作るために空けてよいブロック: 葉・下草・山刀で刈れる植物・花・苗・柔らかい土(過繁茂の草と土・泥炭を含む)。中身(ブロックエンティティ)のある物は空けない。 */
     static boolean clearable(BlockState s) {
         if (s.hasBlockEntity() || s.isAir()) return false;
-        return s.is(BlockTags.LEAVES) || s.is(BlockTags.REPLACEABLE) || s.is(com.yayuy.overgrownvegetation.gear.MacheteItem.CLEARABLE)
+        return s.is(BlockTags.LEAVES) || s.is(BlockTags.REPLACEABLE) || s.is(com.yayuy.overgrownvegetation.ModTags.CLEARABLE_BRUSH)
                 || s.is(BlockTags.FLOWERS) || s.is(BlockTags.SAPLINGS) || s.is(BlockTags.DIRT)
                 || s.is(ModBlocks.OVERGROWN_GRASS_BLOCK.get()) || s.is(ModBlocks.OVERGROWN_DIRT.get()) || s.is(ModBlocks.PEAT.get());
     }

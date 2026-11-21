@@ -45,7 +45,7 @@ public final class CliffShapes {
     }
 
     static final TagKey<Block> TREE = BlockTags.create(OvergrownVegetation.id("organ_clear_tree"));
-    static final TagKey<Block> BRUSH = BlockTags.create(OvergrownVegetation.id("machete_clearable"));
+    static final TagKey<Block> BRUSH = com.yayuy.overgrownvegetation.ModTags.CLEARABLE_BRUSH;
     /** 置く印: 近くの形だけを更新(大量の setBlock で植物が落ちないよう UPDATE_KNOWN_SHAPE も)。 */
     static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
     /** 見る範囲: チャンクの外へ何マスまで高さを読むか。 */

@@ -2,48 +2,44 @@ package com.yayuy.overgrownvegetation.gametest;
 
 import com.mojang.authlib.GameProfile;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.corruption.CorruptionRegistry;
 import com.yayuy.overgrownvegetation.corruption.CorruptionSpreader;
+import com.yayuy.overgrownvegetation.corruption.LeyLines;
 import com.yayuy.overgrownvegetation.data.DesignData;
-import com.yayuy.overgrownvegetation.data.SporeFieldTable;
-import com.yayuy.overgrownvegetation.effect.SporeInfectionEffects;
-import com.yayuy.overgrownvegetation.gear.FiberGrassSpread;
-import com.yayuy.overgrownvegetation.gear.FilterMask;
+import com.yayuy.overgrownvegetation.gear.ConduitOre;
 import com.yayuy.overgrownvegetation.gear.FungalOre;
-import com.yayuy.overgrownvegetation.gear.GearSpores;
 import com.yayuy.overgrownvegetation.gear.GearTierTable;
-import com.yayuy.overgrownvegetation.gear.GreatswordItem;
-import com.yayuy.overgrownvegetation.gear.MacheteItem;
+import com.yayuy.overgrownvegetation.gear.LeyCharge;
 import com.yayuy.overgrownvegetation.gear.ModGear;
-import com.yayuy.overgrownvegetation.gear.PiercingCrossbowItem;
-import com.yayuy.overgrownvegetation.gear.SporeShots;
-import com.yayuy.overgrownvegetation.item.ProtectiveMaskItem;
+import com.yayuy.overgrownvegetation.ley.LeyBatteryHolder;
+import com.yayuy.overgrownvegetation.ley.LeyPumpBlockEntity;
+import com.yayuy.overgrownvegetation.ley.LeyPylonBlockEntity;
+import com.yayuy.overgrownvegetation.organ.OrganBlocks;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
-import com.yayuy.overgrownvegetation.registry.ModDataComponents;
-import com.yayuy.overgrownvegetation.registry.ModEntities;
-import com.yayuy.overgrownvegetation.registry.ModItems;
-import com.yayuy.overgrownvegetation.spore.PlantSideRules;
-import com.yayuy.overgrownvegetation.spore.SporeExposureTracker;
-import com.yayuy.overgrownvegetation.survival.decon.Decon;
+import com.yayuy.overgrownvegetation.registry.ModLey;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.monster.Husk;
-import net.minecraft.world.entity.projectile.AbstractArrow;
-import net.minecraft.world.entity.projectile.Arrow;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
+import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -53,9 +49,10 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 強くなる道 段 1・段 2(2026-11-17): 遠征服・札鎧の暴露の倍率とフィルターの減り・山刀の刈り・胞子弾の燻り・両手剣の薙ぎ・クロスボウの貫き・
- * 鉱石のでき方(本物の装飾の口を通す)・繊維の草の生え方。期待値は {@code gear_tiers.json}({@link GearTierTable})から引く。
- * テスト場は繁茂でも地脈の上でもないので、バイオーム・地脈を見ない口で確かめ、鉱石は確率と地脈の距離だけ一時的に開けて本物の口を通す。
+ * 装備・鉱石: 菌集鉱のでき方(2026-11-17。本物の装飾の口を通す)と、グレード 1 の導晶(2026-11-21: 導晶鉱が地脈の近くにだけできる・
+ * 原石と精錬と板・道具の硬さと速さと壊れにくさ・充電で速くなり 1 ブロックで減り切れると戻る・汲み上げ器と鉄塔と電池から充電・
+ * 飲み込まれると緑になり小さな根晶から 25%・保存と復元)。期待値は {@code gear_tiers.json}({@link GearTierTable})から引く。
+ * 11-17〜18 の段 1〜3 の装備のテストは 11-21 に装備ごと消した。
  */
 @GameTestHolder(OvergrownVegetation.MODID)
 @PrefixGameTestTemplate(false)
@@ -77,7 +74,7 @@ public final class GearTierGameTests {
 
     private static final String TEMPLATE = "gametest_empty7";
     private static final String BATCH = "gear_tiers";
-    private static final double EPS = 1.0E-6D;
+    private static final double EPS = 1.0E-4D;
 
     private static GearTierTable t() {
         return DesignData.gearTiers();
@@ -86,215 +83,12 @@ public final class GearTierGameTests {
     private static FakePlayer player(GameTestHelper helper, String name) {
         ServerLevel level = helper.getLevel();
         FakePlayer player = FakePlayerFactory.get(level, new GameProfile(UUID.nameUUIDFromBytes(name.getBytes(StandardCharsets.UTF_8)), name));
-        SporeInfectionEffects.setPlayerStage(player, 0);
-        SporeExposureTracker.setDose(player, 0.0D, 0L);
-        for (EquipmentSlot s : EquipmentSlot.values()) player.setItemSlot(s, ItemStack.EMPTY);
         Vec3 at = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(3, 2, 3)));
         player.moveTo(at.x, at.y, at.z, 0.0F, 0.0F);
+        player.getAbilities().instabuild = false;
         return player;
     }
 
-    private static void clear(FakePlayer player) {
-        SporeExposureTracker.setDose(player, 0.0D, 0L);
-        for (EquipmentSlot s : EquipmentSlot.values()) player.setItemSlot(s, ItemStack.EMPTY);
-    }
-
-    /**
-     * 遠征服: 3 部位(頭なし)で暴露が 1 − 3 × cut 倍、頭巾のフィルターが残る間は 0 でフィルターは filterWear 倍で減る、
-     * フィルターが詰まると 4 部位の 1 − 4 × cut 倍。札鎧は遠征服より胞子に弱い。頭巾・兜はマスクとして除染に通る。
-     */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void suitCutsExposureAndSlowsFilter(GameTestHelper helper) {
-        FakePlayer player = player(helper, "ov_gear_suit");
-        ServerLevel level = helper.getLevel();
-        SporeFieldTable sf = DesignData.sporeField();
-        try {
-            double cut = t().suit.exposureCutPerPiece;
-            player.setItemSlot(EquipmentSlot.CHEST, new ItemStack(ModGear.EXPEDITION_COAT.get()));
-            player.setItemSlot(EquipmentSlot.LEGS, new ItemStack(ModGear.EXPEDITION_TROUSERS.get()));
-            player.setItemSlot(EquipmentSlot.FEET, new ItemStack(ModGear.EXPEDITION_BOOTS.get()));
-            for (int i = 0; i < 10; i++) SporeExposureTracker.tickWith(level, player, 20, 50.0D);
-            double want = 500.0D * (1.0D - 3.0D * cut);
-            if (Math.abs(SporeExposureTracker.dose(player) - want) > 1.0E-3D) {
-                helper.fail("3 部位で暴露が " + want + " でない: " + SporeExposureTracker.dose(player));
-                return;
-            }
-            SporeExposureTracker.setDose(player, 0.0D, 0L);
-            player.setItemSlot(EquipmentSlot.HEAD, new ItemStack(ModGear.EXPEDITION_HOOD.get()));
-            ItemStack hood = player.getItemBySlot(EquipmentSlot.HEAD);
-            for (int i = 0; i < 10; i++) SporeExposureTracker.tickWith(level, player, 20, 50.0D);
-            int wantUsed = (int) Math.floor(500.0D * t().suit.filterWear + EPS);
-            if (SporeExposureTracker.dose(player) != 0.0D || Math.abs(ProtectiveMaskItem.used(hood) - wantUsed) > 1) {
-                helper.fail("頭巾: 暴露 " + SporeExposureTracker.dose(player) + "(0 のはず)・フィルター " + ProtectiveMaskItem.used(hood) + "(" + wantUsed + " のはず)");
-                return;
-            }
-            hood.set(ModDataComponents.MASK_FILTER_USED, (int) Math.ceil(sf.maskCapacity()) + 1);
-            for (int i = 0; i < 10; i++) SporeExposureTracker.tickWith(level, player, 20, 50.0D);
-            want = 500.0D * (1.0D - 4.0D * cut);
-            if (Math.abs(SporeExposureTracker.dose(player) - want) > 1.0E-3D) {
-                helper.fail("詰まった頭巾 + 4 部位で暴露が " + want + " でない: " + SporeExposureTracker.dose(player));
-                return;
-            }
-            if (!FilterMask.isMask(hood) || !Decon.holdsFilter(hood) || !Decon.holdsFilter(new ItemStack(ModGear.PLATE_HELMET.get()))) {
-                helper.fail("頭巾・兜がフィルターを持つ物として扱われない");
-                return;
-            }
-            clear(player);
-            for (EquipmentSlot s : new EquipmentSlot[]{EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
-                player.setItemSlot(s, new ItemStack(s == EquipmentSlot.CHEST ? ModGear.PLATE_CHESTPLATE.get()
-                        : s == EquipmentSlot.LEGS ? ModGear.PLATE_LEGGINGS.get() : ModGear.PLATE_BOOTS.get()));
-            }
-            double plate = GearSpores.exposureFactor(player);
-            if (Math.abs(plate - (1.0D - 3.0D * t().plate.exposureCutPerPiece)) > EPS || plate <= 1.0D - 3.0D * cut) {
-                helper.fail("札鎧の倍率がおかしい(遠征服より胞子に弱いはず): " + plate);
-                return;
-            }
-            helper.succeed();
-        } finally {
-            clear(player);
-        }
-    }
-
-    /** 山刀: 刈れる植物を速く刈り、まわりの同じ植物をまとめて刈る(上限 clearMax)。刈れない物は残す。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void macheteClearsUndergrowth(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos origin = new BlockPos(3, 2, 3);
-        int placed = 0;
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                if (dx == 0 && dz == 0) continue;
-                helper.setBlock(origin.offset(dx, 0, dz), Blocks.COBWEB);
-                placed++;
-            }
-        }
-        helper.setBlock(origin.offset(0, 1, 0), Blocks.STONE);
-        ItemStack machete = new ItemStack(ModGear.MACHETE.get());
-        float speed = machete.getDestroySpeed(Blocks.COBWEB.defaultBlockState());
-        if (Math.abs(speed - t().machete.clearSpeed) > 1.0E-4F) {
-            helper.fail("刈る速さが " + t().machete.clearSpeed + " でない: " + speed);
-            return;
-        }
-        int n = MacheteItem.clearAround(level, helper.absolutePos(origin), null);
-        int want = Math.min(placed, t().machete.clearMax);
-        if (n != want) {
-            helper.fail("まとめて刈った数が " + want + " でない: " + n);
-            return;
-        }
-        if (!helper.getBlockState(origin.offset(0, 1, 0)).is(Blocks.STONE)) {
-            helper.fail("刈れない石まで壊した");
-            return;
-        }
-        helper.succeed();
-    }
-
-    /** 胞子弾: 当たった所のまわりの植物側だけ燃える。弓の印で半径・時間が伸びる。矢 1 本につき燻りは 1 回。胞子弾の矢は撃つと印が付く。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void sporeShotSmoldersPlantSide(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        Mob plant = helper.spawnWithNoFreeWill(ModEntities.FALCIMNES.get(), new BlockPos(2, 2, 3));
-        plant.setNoAi(true);
-        Husk husk = helper.spawnWithNoFreeWill(EntityType.HUSK, new BlockPos(4, 2, 3));
-        husk.setNoAi(true);
-        if (!PlantSideRules.isPlantSide(plant) || PlantSideRules.isPlantSide(husk)) {
-            helper.fail("植物側の判定が思った通りでない(テストの前提)");
-            return;
-        }
-        Arrow arrow = EntityType.ARROW.create(level);
-        SporeShots.markSpore(arrow);
-        SporeShots.markBow(arrow);
-        Vec3 at = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(3, 2, 3)));
-        double r = t().sporeShot.bowSmolderRadius;
-        if (r < 1.2D) {
-            helper.succeed(); // 半径を縮めた設計値ではこの配置で確かめられない
-            return;
-        }
-        int n = SporeShots.impact(level, arrow, at, null);
-        if (n != 1 || plant.getRemainingFireTicks() <= 0 || husk.getRemainingFireTicks() > 0) {
-            helper.fail("燻り: 燃えた数 " + n + "(1 のはず)・植物側の火 " + plant.getRemainingFireTicks() + "・ハスクの火 " + husk.getRemainingFireTicks());
-            return;
-        }
-        if (SporeShots.impact(level, arrow, at, null) != 0) {
-            helper.fail("同じ矢で 2 度燻った");
-            return;
-        }
-        FakePlayer shooter = player(helper, "ov_gear_archer");
-        AbstractArrow shot = ((net.minecraft.world.item.ArrowItem) ModGear.SPORE_ARROW.get())
-                .createArrow(level, new ItemStack(ModGear.SPORE_ARROW.get()), shooter, new ItemStack(ModGear.SPORE_BOW.get()));
-        shot = ModGear.SPORE_BOW.get().customArrow(shot, new ItemStack(ModGear.SPORE_ARROW.get()), new ItemStack(ModGear.SPORE_BOW.get()));
-        if (!SporeShots.isSpore(shot) || !SporeShots.fromBow(shot)) {
-            helper.fail("胞子弾の弓で撃った胞子弾の矢に印が付かない");
-            return;
-        }
-        if (!new ItemStack(ModGear.SPORE_ARROW.get()).is(net.minecraft.tags.ItemTags.ARROWS)) {
-            helper.fail("胞子弾の矢が矢のタグに無い(弓で撃てない)");
-            return;
-        }
-        helper.succeed();
-    }
-
-    /** 両手剣: 前の半円の相手だけ斬る(後ろは斬らない・上限 sweepMaxTargets)。オフハンドを止める。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void greatswordSweepsFrontHalf(GameTestHelper helper) {
-        FakePlayer player = player(helper, "ov_gear_sword");
-        try {
-            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModGear.GREATSWORD.get()));
-            // 向き 0 = 南(+z)。前に 3 体・後ろに 2 体
-            BlockPos[] front = {new BlockPos(2, 2, 5), new BlockPos(3, 2, 5), new BlockPos(4, 2, 5)};
-            BlockPos[] back = {new BlockPos(2, 2, 1), new BlockPos(4, 2, 1)};
-            List<Husk> fronts = new java.util.ArrayList<>();
-            List<Husk> backs = new java.util.ArrayList<>();
-            for (BlockPos p : front) fronts.add(spawnHusk(helper, p));
-            for (BlockPos p : back) backs.add(spawnHusk(helper, p));
-            Husk target = fronts.remove(1);
-            int n = GreatswordItem.sweep(player, target);
-            int want = Math.min(fronts.size(), t().greatsword.sweepMaxTargets);
-            boolean backHit = backs.stream().anyMatch(h -> h.getHealth() < h.getMaxHealth());
-            boolean targetHit = target.getHealth() < target.getMaxHealth();
-            if (n != want || backHit || targetHit) {
-                helper.fail("薙ぎ: 斬った数 " + n + "(" + want + " のはず)・後ろを斬った " + backHit + "・狙った相手を二重に斬った " + targetHit);
-                return;
-            }
-            player.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(Items.SHIELD));
-            if (!GreatswordItem.blocksOffhand(player)) {
-                helper.fail("両手剣でオフハンドの盾が止まらない");
-                return;
-            }
-            helper.succeed();
-        } finally {
-            clear(player);
-        }
-    }
-
-    private static Husk spawnHusk(GameTestHelper helper, BlockPos p) {
-        Husk h = helper.spawnWithNoFreeWill(EntityType.HUSK, p);
-        h.setNoAi(true);
-        return h;
-    }
-
-    /** クロスボウ: 太い矢は貫く数と重さが設計値どおり。装填は chargeTicks。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void crossbowBoltPierces(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        FakePlayer player = player(helper, "ov_gear_xbow");
-        Arrow arrow = EntityType.ARROW.create(level);
-        double base = arrow.getBaseDamage();
-        PiercingCrossbowItem.heavyBolt(arrow);
-        if (arrow.getPierceLevel() != Math.min(127, t().crossbow.pierce)) {
-            helper.fail("貫く数が " + t().crossbow.pierce + " でない: " + arrow.getPierceLevel());
-            return;
-        }
-        if (Math.abs(arrow.getBaseDamage() - base * t().crossbow.damageMultiplier) > EPS) {
-            helper.fail("太い矢の重さが違う: " + arrow.getBaseDamage());
-            return;
-        }
-        int charge = PiercingCrossbowItem.chargeTicks(new ItemStack(ModGear.PIERCING_CROSSBOW.get()), player);
-        if (charge != t().crossbow.chargeTicks) {
-            helper.fail("装填が " + t().crossbow.chargeTicks + " tick でない: " + charge);
-            return;
-        }
-        helper.succeed();
-    }
 
     /**
      * 菌集鉱: 汚染された岩(過繁茂の石・深層岩)だけが変わる。本物の装飾の口({@code growSurfacePlants}。植物の確率 0 でも)を通る。
@@ -353,28 +147,323 @@ public final class GearTierGameTests {
         helper.succeed();
     }
 
-    /** 繊維の草: しっかりした面の上に生え、混み具合の上限で止まる。刈ると草の繊維が 1〜2(ルートテーブル)。 */
+    // ---- グレード 1: 導晶(2026-11-21) ----
+
+    /** 導晶鉱は地脈の線の近く(leyReach 以内)の芯にだけ置かれる。鉱脈は石・深層岩だけを変え、原点のチャンクの外へ出ない。世界生成に足してある。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void fiberGrassGrowsAndDropsFiber(GameTestHelper helper) {
+    public static void conduitOreOnlyNearLey(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        GearTierTable.FiberGrass f = t().fiberGrass;
-        int placed = 0;
-        for (int x = 1; x <= 5 && placed < f.crowdMax; x++) {
-            if (FiberGrassSpread.tryPlace(level, helper.absolutePos(new BlockPos(x, 2, 3)), false)) placed++;
+        long seed = level.getSeed();
+        double reach = t().conduit.leyReach;
+        int near = 0, far = 0;
+        for (int i = 0; i < 4000 && (near == 0 || far == 0); i++) {
+            int x = (i * 977) % 40000 - 20000, z = (i * 1601) % 40000 - 20000;
+            double d = LeyLines.distanceToLine(seed, x, z);
+            if (ConduitOre.nearLey(seed, x, z) != (d <= reach)) {
+                helper.fail("地脈の近さの判定が距離と合わない: (" + x + ", " + z + ") 距離 " + d);
+                return;
+            }
+            if (d <= reach) near++;
+            else far++;
         }
-        if (placed != f.crowdMax) {
-            helper.fail("繊維の草が " + f.crowdMax + " 本生えない: " + placed);
+        if (near == 0 || far == 0) {
+            helper.fail("地脈の近く・遠くの両方が見つからない(近く " + near + "・遠く " + far + ")");
             return;
         }
-        if (f.crowdRadius >= 2 && FiberGrassSpread.tryPlace(level, helper.absolutePos(new BlockPos(3, 2, 4)), false)) {
-            helper.fail("混み具合の上限を超えて生えた");
+        // 鉱脈: 石・深層岩だけが変わる(土は変えない)
+        BlockPos stone = new BlockPos(2, 2, 2), deep = new BlockPos(3, 2, 2), dirt = new BlockPos(4, 2, 2);
+        helper.setBlock(stone, Blocks.STONE);
+        helper.setBlock(deep, Blocks.DEEPSLATE);
+        helper.setBlock(dirt, Blocks.DIRT);
+        if (ConduitOre.oreFor(Blocks.STONE.defaultBlockState()) != ModGear.CONDUIT_ORE.get()
+                || ConduitOre.oreFor(Blocks.DEEPSLATE.defaultBlockState()) != ModGear.DEEPSLATE_CONDUIT_ORE.get()
+                || ConduitOre.oreFor(Blocks.DIRT.defaultBlockState()) != null) {
+            helper.fail("鉱脈が変える岩が違う");
             return;
         }
-        List<ItemStack> drops = net.minecraft.world.level.block.Block.getDrops(ModGear.FIBER_GRASS.get().defaultBlockState(), level,
-                helper.absolutePos(new BlockPos(1, 2, 3)), null);
-        int n = drops.stream().filter(d -> d.is(ModItems.PLANT_FIBER.get())).mapToInt(ItemStack::getCount).sum();
-        if (n < 1 || n > 2) { // ルートテーブルの 1〜2
-            helper.fail("繊維の数が 1〜2 でない: " + n);
+        BlockPos abs = helper.absolutePos(stone);
+        ConduitOre.vein(level, abs, level.random, 1, abs.getX() >> 4, abs.getZ() >> 4);
+        if (!helper.getBlockState(stone).is(ModGear.CONDUIT_ORE.get())) {
+            helper.fail("芯の石が導晶鉱にならない: " + helper.getBlockState(stone));
+            return;
+        }
+        BlockPos absDeep = helper.absolutePos(deep);
+        int out = ConduitOre.vein(level, absDeep, level.random, 1, (absDeep.getX() >> 4) + 5, absDeep.getZ() >> 4);
+        if (out != 0 || !helper.getBlockState(deep).is(Blocks.DEEPSLATE)) {
+            helper.fail("原点のチャンクの外に鉱石を置いた");
+            return;
+        }
+        var key = ResourceKey.create(Registries.PLACED_FEATURE, OvergrownVegetation.id("conduit_ore"));
+        if (level.registryAccess().registryOrThrow(Registries.PLACED_FEATURE).getHolder(key).isEmpty()) {
+            helper.fail("導晶鉱の placed_feature が読み込まれていない");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** 導晶鉱から原石が落ち、焼くと地金(かまど・溶鉱炉)、作業台で地金 1 → 板 1、板と棒で道具 4 本。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void conduitDropsSmeltsAndCrafts(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos at = helper.absolutePos(new BlockPos(2, 2, 2));
+        for (var ore : List.of(ModGear.CONDUIT_ORE, ModGear.DEEPSLATE_CONDUIT_ORE, ModGear.OVERGROWN_CONDUIT_ORE, ModGear.OVERGROWN_DEEPSLATE_CONDUIT_ORE)) {
+            List<ItemStack> drops = net.minecraft.world.level.block.Block.getDrops(ore.get().defaultBlockState(), level, at, null, null,
+                    new ItemStack(Items.IRON_PICKAXE));
+            if (drops.stream().noneMatch(d -> d.is(ModGear.RAW_CONDUIT.get()))) {
+                helper.fail(ore.getId() + " から導晶の原石が落ちない: " + drops);
+                return;
+            }
+        }
+        for (var type : List.of(RecipeType.SMELTING, RecipeType.BLASTING)) {
+            var r = level.getRecipeManager().getRecipeFor(type, new SingleRecipeInput(new ItemStack(ModGear.RAW_CONDUIT.get())), level);
+            if (r.isEmpty() || !r.get().value().getResultItem(level.registryAccess()).is(ModGear.CONDUIT_INGOT.get())) {
+                helper.fail(type + " で原石が地金にならない");
+                return;
+            }
+        }
+        var plate = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING,
+                CraftingInput.of(1, 1, List.of(new ItemStack(ModGear.CONDUIT_INGOT.get()))), level);
+        if (plate.isEmpty() || !plate.get().value().getResultItem(level.registryAccess()).is(ModGear.CONDUIT_PLATE.get())
+                || plate.get().value().getResultItem(level.registryAccess()).getCount() != 1) {
+            helper.fail("地金 1 → 板 1 の作り方が無い");
+            return;
+        }
+        ItemStack p = new ItemStack(ModGear.CONDUIT_PLATE.get()), s = new ItemStack(Items.STICK), e = ItemStack.EMPTY;
+        var pick = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, CraftingInput.of(3, 3, List.of(p, p, p, e, s, e, e, s, e)), level);
+        if (pick.isEmpty() || !pick.get().value().getResultItem(level.registryAccess()).is(ModGear.CONDUIT_PICKAXE.get())) {
+            helper.fail("板と棒でつるはしが作れない");
+            return;
+        }
+        for (String id : List.of("conduit_axe", "conduit_shovel", "conduit_hoe")) {
+            if (level.getRecipeManager().byKey(OvergrownVegetation.id(id)).isEmpty()) {
+                helper.fail("作り方が無い: " + id);
+                return;
+            }
+        }
+        helper.succeed();
+    }
+
+    /** 道具の硬さはダイヤと同じ(黒曜石を掘れる)・速さ 7・壊れにくさ 1,200(設計値)。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void conduitToolStats(GameTestHelper helper) {
+        GearTierTable.Conduit c = t().conduit;
+        ItemStack pick = new ItemStack(ModGear.CONDUIT_PICKAXE.get());
+        if (!pick.isCorrectToolForDrops(Blocks.OBSIDIAN.defaultBlockState()) || !pick.isCorrectToolForDrops(Blocks.DIAMOND_ORE.defaultBlockState())) {
+            helper.fail("導晶のつるはしで黒曜石・ダイヤ鉱石を掘れない");
+            return;
+        }
+        if (Math.abs(pick.getDestroySpeed(Blocks.STONE.defaultBlockState()) - c.speed) > EPS) {
+            helper.fail("つるはしの速さ " + pick.getDestroySpeed(Blocks.STONE.defaultBlockState()) + " ≠ " + c.speed);
+            return;
+        }
+        if (Math.abs(new ItemStack(ModGear.CONDUIT_AXE.get()).getDestroySpeed(Blocks.OAK_LOG.defaultBlockState()) - c.speed) > EPS
+                || Math.abs(new ItemStack(ModGear.CONDUIT_SHOVEL.get()).getDestroySpeed(Blocks.DIRT.defaultBlockState()) - c.speed) > EPS
+                || Math.abs(new ItemStack(ModGear.CONDUIT_HOE.get()).getDestroySpeed(Blocks.HAY_BLOCK.defaultBlockState()) - c.speed) > EPS) {
+            helper.fail("斧・シャベル・クワの速さが設計値と違う");
+            return;
+        }
+        for (var tool : List.of(ModGear.CONDUIT_PICKAXE, ModGear.CONDUIT_AXE, ModGear.CONDUIT_SHOVEL, ModGear.CONDUIT_HOE)) {
+            if (new ItemStack(tool.get()).getMaxDamage() != c.durability) {
+                helper.fail(tool.getId() + " の壊れにくさ " + new ItemStack(tool.get()).getMaxDamage() + " ≠ " + c.durability);
+                return;
+            }
+        }
+        if (Math.abs(pick.getDestroySpeed(Blocks.DIRT.defaultBlockState()) - 1.0F) > EPS) {
+            helper.fail("つるはしが土で速い");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** 力がある間は速さ 1.5 倍・1 ブロックで 100 FE 減る・足りなくなるとふつうの速さに戻る(壊れにくさは減る)。創造モードは減らない。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void conduitChargeBoostsAndDrains(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        GearTierTable.Conduit c = t().conduit;
+        FakePlayer player = player(helper, "ov_conduit_miner");
+        BlockPos at = helper.absolutePos(new BlockPos(2, 2, 2));
+        BlockState stone = Blocks.STONE.defaultBlockState();
+        ItemStack pick = new ItemStack(ModGear.CONDUIT_PICKAXE.get());
+        LeyCharge.set(pick, c.capacity);
+        float boosted = pick.getDestroySpeed(stone);
+        if (Math.abs(boosted - c.speed * c.chargedSpeedMultiplier) > EPS) {
+            helper.fail("充電中の速さ " + boosted + " ≠ " + c.speed * c.chargedSpeedMultiplier);
+            return;
+        }
+        pick.mineBlock(level, stone, at, player);
+        if (LeyCharge.stored(pick) != c.capacity - c.fePerBlock || pick.getDamageValue() != 1) {
+            helper.fail("1 ブロックで減った力 " + (c.capacity - LeyCharge.stored(pick)) + "(期待 " + c.fePerBlock + ")・傷 " + pick.getDamageValue());
+            return;
+        }
+        // 道具の効かないブロックでは減らない
+        int before = LeyCharge.stored(pick);
+        pick.mineBlock(level, Blocks.DIRT.defaultBlockState(), at, player);
+        if (LeyCharge.stored(pick) != before) {
+            helper.fail("土を掘って力が減った");
+            return;
+        }
+        LeyCharge.set(pick, c.fePerBlock - 1);
+        if (Math.abs(pick.getDestroySpeed(stone) - c.speed) > EPS) {
+            helper.fail("力が足りないのに速い: " + pick.getDestroySpeed(stone));
+            return;
+        }
+        pick.mineBlock(level, stone, at, player);
+        if (LeyCharge.stored(pick) != c.fePerBlock - 1) {
+            helper.fail("足りないのに力が減った");
+            return;
+        }
+        player.getAbilities().instabuild = true;
+        LeyCharge.set(pick, c.capacity);
+        pick.mineBlock(level, stone, at, player);
+        player.getAbilities().instabuild = false;
+        if (LeyCharge.stored(pick) != c.capacity) {
+            helper.fail("創造モードで力が減った");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** 汲み上げ器・鉄塔の電池の口に差せて、口から受け取れる(出さない = 網に吸い出されない)。満ちた電池を右クリックで重ねると移る。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void conduitChargesFromPumpPylonAndBattery(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        GearTierTable.Conduit c = t().conduit;
+        FakePlayer player = player(helper, "ov_conduit_charger");
+        BlockPos pumpPos = new BlockPos(1, 2, 1), pylonPos = new BlockPos(5, 2, 5);
+        helper.setBlock(pumpPos, ModLey.PUMP.get());
+        helper.setBlock(pylonPos, ModLey.PYLON.get());
+        int n = 0;
+        for (BlockPos rel : new BlockPos[]{pumpPos, pylonPos}) {
+            BlockPos abs = helper.absolutePos(rel);
+            BlockState state = level.getBlockState(abs);
+            if (!(level.getBlockEntity(abs) instanceof LeyBatteryHolder holder)) {
+                helper.fail("電池の口が無い: " + state);
+                return;
+            }
+            ItemStack tool = new ItemStack(n == 0 ? ModGear.CONDUIT_PICKAXE.get() : ModGear.CONDUIT_SHOVEL.get());
+            player.setItemInHand(InteractionHand.MAIN_HAND, tool);
+            if (!LeyBatteryHolder.insert(level, abs, state, player, player.getMainHandItem(), holder) || holder.battery().isEmpty()) {
+                helper.fail("道具を電池の口に差せない: " + state);
+                return;
+            }
+            IEnergyStorage port = holder.batteryStorage();
+            if (port == null || !port.canReceive() || port.canExtract()) {
+                helper.fail("差した道具の口が受け取るだけになっていない");
+                return;
+            }
+            int got = port.receiveEnergy(Integer.MAX_VALUE, false);
+            if (got != Math.min(c.maxReceive, c.capacity) || LeyCharge.stored(holder.battery()) != got || port.extractEnergy(100, false) != 0) {
+                helper.fail("口からの充電 " + got + "・中身 " + LeyCharge.stored(holder.battery()));
+                return;
+            }
+            if (Math.abs(LeyBatteryHolder.fraction(holder.battery()) - got / (double) c.capacity) > EPS) {
+                helper.fail("たまり具合の表示が合わない");
+                return;
+            }
+            n++;
+        }
+        // 電池から: 持ち物の画面で満ちた電池を重ねて右クリック
+        ItemStack tool = new ItemStack(ModGear.CONDUIT_AXE.get());
+        ItemStack battery = new ItemStack(ModLey.BATTERY.get());
+        battery.set(ModLey.ENERGY.get(), com.yayuy.overgrownvegetation.ley.LeyBatteryItem.capacity());
+        int batteryBefore = com.yayuy.overgrownvegetation.ley.LeyBatteryItem.stored(battery);
+        boolean handled = LeyCharge.onStackedOn(tool, battery, net.minecraft.world.inventory.ClickAction.SECONDARY, player);
+        int moved = LeyCharge.stored(tool);
+        int expect = Math.min(Math.min(c.capacity, batteryBefore), c.pourPerClick);
+        if (!handled || moved != expect || com.yayuy.overgrownvegetation.ley.LeyBatteryItem.stored(battery) != batteryBefore - moved) {
+            helper.fail("電池から移らない: 移った " + moved + "(期待 " + expect + ")・電池 " + com.yayuy.overgrownvegetation.ley.LeyBatteryItem.stored(battery));
+            return;
+        }
+        if (tool.getCapability(Capabilities.EnergyStorage.ITEM) == null) {
+            helper.fail("道具に FE の口が無い");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** 飲み込まれた導晶鉱は緑の版になり(菌集鉱にはならない)、空気に面した所に小さな根晶が生える(骨粉の装飾し直しでは生えない)。小さな根晶は 25% で根晶。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void conduitOreTurnsGreenWithRootBuds(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        if (!CorruptionRegistry.corrupt(ModGear.CONDUIT_ORE.get().defaultBlockState(), level.random).is(ModGear.OVERGROWN_CONDUIT_ORE.get())
+                || !CorruptionRegistry.corrupt(ModGear.DEEPSLATE_CONDUIT_ORE.get().defaultBlockState(), level.random).is(ModGear.OVERGROWN_DEEPSLATE_CONDUIT_ORE.get())) {
+            helper.fail("飲み込まれた導晶鉱が緑の版にならない");
+            return;
+        }
+        GearTierTable.Conduit c = t().conduit;
+        double chance = c.budChance;
+        int max = c.budMax;
+        try {
+            c.budChance = 1.0D;
+            c.budMax = 2;
+            BlockPos ore = new BlockPos(3, 3, 3);
+            helper.setBlock(ore, ModGear.OVERGROWN_CONDUIT_ORE.get());
+            FungalOre.suppressed = true;
+            try {
+                CorruptionSpreader.growSurfacePlants(level, helper.absolutePos(ore), helper.getBlockState(ore), 0.0D);
+            } finally {
+                FungalOre.suppressed = false;
+            }
+            if (buds(helper, ore) != 0) {
+                helper.fail("骨粉の装飾し直しで小さな根晶が生えた");
+                return;
+            }
+            CorruptionSpreader.growSurfacePlants(level, helper.absolutePos(ore), helper.getBlockState(ore), 0.0D);
+            if (buds(helper, ore) != 2 || !helper.getBlockState(ore).is(ModGear.OVERGROWN_CONDUIT_ORE.get())) {
+                helper.fail("小さな根晶の数 " + buds(helper, ore) + "(期待 2)・鉱石 " + helper.getBlockState(ore));
+                return;
+            }
+            CorruptionSpreader.growSurfacePlants(level, helper.absolutePos(ore), helper.getBlockState(ore), 0.0D);
+            if (buds(helper, ore) != 2) {
+                helper.fail("上限を越えて生えた: " + buds(helper, ore));
+                return;
+            }
+        } finally {
+            c.budChance = chance;
+            c.budMax = max;
+        }
+        BlockPos at = helper.absolutePos(new BlockPos(1, 2, 1));
+        int hits = 0, rolls = 800;
+        for (int i = 0; i < rolls; i++) {
+            List<ItemStack> drops = net.minecraft.world.level.block.Block.getDrops(ModGear.SMALL_ROOT_CRYSTAL.get().defaultBlockState(), level, at, null, null,
+                    new ItemStack(Items.IRON_PICKAXE));
+            if (drops.stream().anyMatch(d -> d.is(OrganBlocks.ROOT_CRYSTAL.get()))) hits++;
+        }
+        double rate = hits / (double) rolls;
+        if (rate < 0.18D || rate > 0.32D) {
+            helper.fail("小さな根晶から根晶が出る割合 " + rate + "(期待 0.25)");
+            return;
+        }
+        helper.succeed();
+    }
+
+    private static int buds(GameTestHelper helper, BlockPos ore) {
+        int n = 0;
+        for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+            BlockState s = helper.getBlockState(ore.relative(d));
+            if (s.is(ModGear.SMALL_ROOT_CRYSTAL.get())) n++;
+        }
+        return n;
+    }
+
+    /** 道具の力は保存して読み直しても残る(電池の口に差したまま汲み上げ器を保存しても)。 */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void conduitChargeSurvivesSave(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        var reg = level.registryAccess();
+        ItemStack pick = new ItemStack(ModGear.CONDUIT_PICKAXE.get());
+        LeyCharge.set(pick, 12345);
+        pick.setDamageValue(7);
+        ItemStack back = ItemStack.parseOptional(reg, (CompoundTag) pick.save(reg));
+        if (!back.is(ModGear.CONDUIT_PICKAXE.get()) || LeyCharge.stored(back) != 12345 || back.getDamageValue() != 7) {
+            helper.fail("道具を読み直すと力・傷が違う: " + LeyCharge.stored(back) + "・" + back.getDamageValue());
+            return;
+        }
+        CompoundTag tag = new CompoundTag();
+        LeyBatteryHolder.save(tag, reg, pick);
+        ItemStack held = LeyBatteryHolder.load(tag, reg);
+        if (LeyCharge.stored(held) != 12345) {
+            helper.fail("電池の口に差したまま保存すると力が消える: " + LeyCharge.stored(held));
             return;
         }
         helper.succeed();

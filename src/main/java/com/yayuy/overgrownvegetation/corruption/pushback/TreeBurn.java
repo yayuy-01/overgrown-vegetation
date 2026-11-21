@@ -1,8 +1,6 @@
 package com.yayuy.overgrownvegetation.corruption.pushback;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.gear.MacheteItem;
-import com.yayuy.overgrownvegetation.gear.SporeBurnerItem;
 import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -60,6 +58,13 @@ public final class TreeBurn {
     private TreeBurn() {
     }
 
+    /** 火で燻る灰になる汚染の土(過繁茂の草・土・覆われたブロック)。11-21 に胞子焼きの筒(gear/SporeBurnerItem)を消したので、判定をここへ移した。 */
+    public static boolean scorches(BlockState s) {
+        return s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_GRASS_BLOCK.get())
+                || s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_DIRT.get())
+                || s.is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_BLOCK.get());
+    }
+
     // ------------------------------------------------------------------ 燃えにくさの表
 
     /** サーバーが動き始めたら(タグが読めるので)この MOD のブロックの燃え方を表に入れる。 */
@@ -72,8 +77,8 @@ public final class TreeBurn {
             int burn;
             if (s.is(BlockTags.LOGS)) burn = 2;
             else if (isLeaf(s)) burn = 10;
-            else if (s.is(MacheteItem.CLEARABLE)) burn = 15;
-            else if (SporeBurnerItem.scorches(s)) burn = 5;
+            else if (s.is(com.yayuy.overgrownvegetation.ModTags.CLEARABLE_BRUSH)) burn = 15;
+            else if (scorches(s)) burn = 5;
             else continue;
             fire.setFlammable(b, 0, burn);
         }

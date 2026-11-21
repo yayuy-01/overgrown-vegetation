@@ -203,6 +203,9 @@ public final class CorruptionRegistry {
         put(exact, ironOre, Blocks.IRON_ORE);
         put(exact, lapisOre, Blocks.LAPIS_ORE);
         put(exact, redstoneOre, Blocks.REDSTONE_ORE);
+        // 導晶鉱(2026-11-21 グレード 1): 飲み込まれても変質しない。緑の版になるだけ(落とすのは同じ導晶の原石)
+        put(exact, com.yayuy.overgrownvegetation.gear.ModGear.OVERGROWN_CONDUIT_ORE.get(), com.yayuy.overgrownvegetation.gear.ModGear.CONDUIT_ORE.get());
+        put(exact, com.yayuy.overgrownvegetation.gear.ModGear.OVERGROWN_DEEPSLATE_CONDUIT_ORE.get(), com.yayuy.overgrownvegetation.gear.ModGear.DEEPSLATE_CONDUIT_ORE.get());
 
         // 砂・赤い砂・砂岩・砂利(と怪しげな砂・砂利)の専用ブロックも 2026-10-31 に削除(ユーザー指定)。砂岩は建築タブなので元のまま覆われ、
         // 砂・砂利は「対応表に無いブロック」として覆われる(落下ブロックだが覆いは記録だけなので落ちない限りそのまま)。

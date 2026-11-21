@@ -134,30 +134,7 @@ public final class PushBackGameTests {
     }
 
     // ---------------------------------------------------------------- 2. 筒の火
-
-    /** 筒の扇が当たった汚染の土は燻る灰ブロックになる(表のマスだけ。地中は焼かない)。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 40)
-    public static void burnerScorchesGroundToAsh(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockState grass = ModBlocks.OVERGROWN_GRASS_BLOCK.get().defaultBlockState();
-        for (int x = 0; x <= 6; x++) for (int z = 0; z <= 6; z++) helper.setBlock(new BlockPos(x, 1, z), grass);
-        net.minecraft.world.entity.player.Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
-        BlockPos at = helper.absolutePos(new BlockPos(3, 2, 0));
-        player.moveTo(at.getX() + 0.5D, at.getY(), at.getZ() + 0.5D, 0.0F, 35.0F); // 南(+z)を向き、下へ 35 度
-        // 相対の z が絶対の +z と同じ向きとは限らないので、扇の中心を床の真ん中へ向け直す
-        net.minecraft.world.phys.Vec3 eye = player.getEyePosition();
-        net.minecraft.world.phys.Vec3 target = net.minecraft.world.phys.Vec3.atCenterOf(helper.absolutePos(new BlockPos(3, 1, 3)));
-        player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, target);
-        int[] r = com.yayuy.overgrownvegetation.gear.SporeBurnerItem.pulse(level, player);
-        int ash = 0, buriedAsh = 0;
-        for (int x = 0; x <= 6; x++) for (int z = 0; z <= 6; z++) {
-            if (helper.getBlockState(new BlockPos(x, 1, z)).is(ModPushBack.SMOLDERING_ASH.get())) ash++;
-            if (helper.getBlockState(new BlockPos(x, 0, z)).is(ModPushBack.SMOLDERING_ASH.get())) buriedAsh++;
-        }
-        helper.assertTrue(ash > 0 && r[0] >= ash, "扇の当たった汚染の土が燻る灰にならない: " + ash + "(焼いた数 " + r[0] + "・目 " + eye + ")");
-        helper.assertTrue(buriedAsh == 0, "地中まで焼いた");
-        helper.succeed();
-    }
+    // 胞子焼きの筒の火で汚染の土が灰になるテスト(burnerScorchesGroundToAsh)は、11-21 に筒ごと消した(装備の作り直し)。
 
     /**
      * 火で地面の割合が 3 割を切ると焼けた荒地になる: 台帳から外れ・バイオームが焼けた荒地・その間は汚染の関門も発芽も断る(防火帯)。

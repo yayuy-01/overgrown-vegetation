@@ -1,6 +1,9 @@
 {
   "replace": false,
   "values": [
+    "overgrown_vegetation:small_root_crystal",
+    "overgrown_vegetation:overgrown_deepslate_conduit_ore",
+    "overgrown_vegetation:overgrown_conduit_ore",
     "overgrown_vegetation:fungal_ore",
     "overgrown_vegetation:deepslate_fungal_ore",
     "overgrown_vegetation:nether_root",

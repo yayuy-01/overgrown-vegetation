@@ -193,7 +193,7 @@ public class LeyPumpBlockEntity extends BlockEntity implements LeyBatteryHolder 
                 LeyText.fe(energy), LeyText.fe(spec.pumpBuffer()));
         if (!battery.isEmpty()) {
             line = line.copy().append(Component.translatable("message.overgrown_vegetation.ley.battery_part",
-                    LeyText.percent(LeyBatteryItem.stored(battery) / (double) LeyBatteryItem.capacity())));
+                    LeyText.percent(LeyBatteryHolder.fraction(battery))));
         }
         return line;
     }

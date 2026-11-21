@@ -68,7 +68,7 @@ public final class ResearchGameTests {
     @GameTest(template = TEMPLATE, batch = "research_data", timeoutTicks = 20)
     public static void treeDataIsConsistent(GameTestHelper helper) {
         ResearchTree tree = ResearchTree.get();
-        if (tree.nodes().size() < 15) {
+        if (tree.nodes().size() < 6) { // 11-21: 段 1〜3 の装備の節を消して 6 節(研究台・繊維・拡大鏡・枯らし薬・菌集鉱・共鳴器)。研究ツリーは作り直す
             helper.fail("節が足りない: " + tree.nodes().size());
             return;
         }
@@ -113,7 +113,7 @@ public final class ResearchGameTests {
         p.getInventory().clearContent();
         ResearchTree.Node fiber = ResearchTree.get().node("t1_fiber");
         ResearchTree.Specimen sp = fiber.specimens().get(0);
-        if (Research.whyNot(level, bench, p, "t1_armor") == null) {
+        if (Research.whyNot(level, bench, p, "t2_lens") == null) {
             helper.fail("前提が無いのに始められた");
             return;
         }
@@ -130,7 +130,7 @@ public final class ResearchGameTests {
             helper.fail("標本が取られていない: " + Research.count(p, sp.asItem()));
             return;
         }
-        if (Research.start(p, bench, "t1_knife") == null) {
+        if (Research.start(p, bench, "t2_lens") == null) {
             helper.fail("ほかの研究が走っているのに始められた");
             return;
         }
@@ -156,14 +156,15 @@ public final class ResearchGameTests {
         }
         FakePlayer p = player(level);
         p.getInventory().clearContent();
-        ResearchTree.Node knife = ResearchTree.get().node("t1_knife");
+        Research.open(server, "t1_fiber", false); // 11-21: 山刀の節を消したので、作り方を開く節は拡大鏡の節(前提 = 繊維の節)で確かめる
+        ResearchTree.Node knife = ResearchTree.get().node("t2_lens");
         ResourceLocation recipe = knife.unlocks().get(0);
         if (!Research.recipeLocked(server, recipe)) {
             helper.fail("開く前なのに作り方の鍵が無い: " + recipe);
             return;
         }
         for (ResearchTree.Specimen sp : knife.specimens()) p.getInventory().add(new ItemStack(sp.asItem(), sp.count()));
-        if (Research.start(p, bench, "t1_knife") != null) {
+        if (Research.start(p, bench, "t2_lens") != null) {
             helper.fail("始められない");
             return;
         }
@@ -186,7 +187,7 @@ public final class ResearchGameTests {
         be.pretendAway(knife.ticks() * 2L);
         be.tickOnce();
         ResearchTree tree = ResearchTree.get();
-        if (!ResearchData.get(server).isDone(tree, "t1_knife") || ResearchData.get(server).active() != null) {
+        if (!ResearchData.get(server).isDone(tree, "t2_lens") || ResearchData.get(server).active() != null) {
             helper.fail("離れていた分で終わっていない");
             return;
         }

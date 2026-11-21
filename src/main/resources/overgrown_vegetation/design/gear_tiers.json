@@ -1,133 +1,27 @@
 {
-  "_comment": "強くなる道 段 1・段 2 の物(2026-11-17)。値はどれも【仮】。防具の防御・耐久・武器の攻撃は再起動で効く。説明は tools/mod-manager2/fields/gear_tiers.json。Java は gear/GearTierTable。",
-  "suit": {
-    "defense": [2, 4, 3, 1],
-    "durability": 12,
-    "toughness": 0.0,
-    "knockbackResistance": 0.0,
-    "enchantability": 15,
-    "exposureCutPerPiece": 0.125,
-    "filterWear": 0.6
-  },
-  "plate": {
-    "defense": [3, 8, 6, 3],
-    "durability": 30,
-    "toughness": 2.0,
-    "knockbackResistance": 0.0,
-    "enchantability": 12,
-    "exposureCutPerPiece": 0.05,
-    "filterWear": 0.85
-  },
-  "machete": {
-    "attackDamage": 5.0,
-    "attackSpeed": 1.8,
-    "durability": 300,
-    "clearSpeed": 15.0,
-    "clearRadius": 1,
-    "clearMax": 8
-  },
-  "sporeShot": {
-    "igniteSeconds": 3,
-    "smolderRadius": 1.5,
-    "smolderSeconds": 2,
-    "bowIgniteSeconds": 5,
-    "bowSmolderRadius": 2.5,
-    "bowSmolderSeconds": 4,
-    "bowPlantDamageMultiplier": 1.5,
-    "bowDurability": 450
-  },
-  "greatsword": {
-    "attackDamage": 10.0,
-    "attackSpeed": 0.8,
-    "durability": 900,
-    "sweepMinCharge": 0.9,
-    "sweepRange": 3.0,
-    "sweepMinDot": 0.0,
-    "sweepMaxTargets": 5,
-    "sweepDamageRatio": 0.75
-  },
-  "crossbow": {
-    "chargeTicks": 50,
-    "pierce": 4,
-    "damageMultiplier": 1.6,
-    "durability": 600
-  },
-  "fiberGrass": {
-    "intervalTicks": 200,
-    "radius": 32,
-    "tries": 4,
-    "crowdRadius": 4,
-    "crowdMax": 4
-  },
+  "_comment": "装備・鉱石の設計値(2026-11-17 作成・11-21 に段 1〜3 の装備を消して作り直し)。値はどれも【仮】。道具の硬さ・速さ・壊れにくさは再起動で効く。説明は tools/mod-manager2/fields/gear_tiers.json。Java は gear/GearTierTable。",
   "ore": {
     "leyReach": 8.0,
     "chance": 0.03,
     "veinMin": 1,
     "veinMax": 4
   },
-  "leyArmor": {
-    "defense": [3, 8, 6, 3],
-    "durability": 37,
-    "toughness": 3.0,
-    "knockbackResistance": 0.0,
-    "enchantability": 15,
-    "exposureCutPerPiece": 0.05,
-    "filterWear": 0.75
-  },
-  "leyArmorPower": {
-    "knockbackCost": 50,
-    "fallCostPerDamage": 200,
-    "regenBelowHealth": 1.0,
-    "regenCostPerSecond": 60,
-    "regenAmplifier": 0,
-    "regenEnabled": true,
-    "hungerReliefPerSecond": 0.1
-  },
-  "crystal": {
-    "weaponCapacity": 30000,
-    "armorCapacity": 100000,
-    "pourPerClick": 100000
-  },
-  "thunderBlade": {
-    "attackDamage": 9.0,
-    "attackSpeed": 1.6,
-    "durability": 1800,
-    "minCharge": 0.9,
-    "jumps": 3,
-    "jumpRange": 5.0,
-    "firstDamage": 6.0,
-    "falloff": 0.75,
-    "cost": 400
-  },
-  "heatBlade": {
-    "attackDamage": 8.0,
-    "attackSpeed": 1.4,
-    "durability": 1800,
-    "igniteSeconds": 5,
-    "plantDamageMultiplier": 1.3,
-    "hitCost": 200,
-    "clearSpeed": 15.0,
-    "burnMax": 12,
-    "burnCost": 50
-  },
-  "leyStaff": {
-    "damage": 8.0,
-    "radius": 2.5,
-    "knockback": 1.2,
-    "speed": 2.2,
-    "cooldownTicks": 20,
-    "lifeTicks": 60,
-    "cost": 500,
-    "durability": 900
-  },
-  "sporeBurner": {
-    "range": 6.0,
-    "halfAngle": 30.0,
-    "pulseTicks": 4,
-    "damage": 2.0,
-    "igniteSeconds": 4,
-    "cost": 40,
-    "durability": 900,
-    "fireChance": 0.35
+  "conduit": {
+    "leyReach": 12.0,
+    "veinsPerChunk": 8,
+    "veinSize": 8,
+    "minY": -48,
+    "maxY": 48,
+    "budChance": 0.3,
+    "budMax": 2,
+    "durability": 1200,
+    "speed": 7.0,
+    "attackBonus": 3.0,
+    "enchantability": 14,
+    "capacity": 50000,
+    "maxReceive": 1000,
+    "pourPerClick": 50000,
+    "chargedSpeedMultiplier": 1.5,
+    "fePerBlock": 100
   }
 }

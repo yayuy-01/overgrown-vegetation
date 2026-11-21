@@ -97,6 +97,9 @@ public final class MobDropGameTests {
 
     /** 研究の標本・後の段 3 の材料として置くだけの物(使い道の確かめから外す)。 */
     private static final Set<String> SPECIMEN_ONLY = Set.of("hydraulic_pulvinus", "glowing_spine_tip", "light_core", "egg_sac");
+    /** 2026-11-21 に段 1〜3 の装備を消したので、作り直すグレードの材料になるまで使い道が無い物(ユーザー了承「mob ドロップは残していて ok」)。 */
+    private static final Set<String> AWAITING_GEAR_REMAKE = Set.of("arthropleura_plate", "cone_scale", "glowing_tendon", "light_rib", "scythe_blade",
+            "scythe_shard", "spore_cone", "shield_scale", "heat_sac", "thermal_membrane");
 
     private static Item item(String id) {
         return BuiltInRegistries.ITEM.get(OvergrownVegetation.id(id));
@@ -177,7 +180,7 @@ public final class MobDropGameTests {
         List<String> unused = new ArrayList<>();
         for (var d : ModMobDrops.all()) {
             String id = d.getId().getPath();
-            if (SPECIMEN_ONLY.contains(id)) continue;
+            if (SPECIMEN_ONLY.contains(id) || AWAITING_GEAR_REMAKE.contains(id)) continue;
             ItemStack stack = new ItemStack(d.get());
             boolean use = stack.has(net.minecraft.core.component.DataComponents.FOOD)
                     || d.get().builtInRegistryHolder().getData(NeoForgeDataMaps.FURNACE_FUELS) != null
@@ -196,8 +199,7 @@ public final class MobDropGameTests {
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void editedRecipesLoad(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        String[] ids = {"expedition_hood", "expedition_coat", "expedition_trousers", "expedition_boots", "machete", "spore_bow", "spore_arrow",
-                "fungal_plate_helmet", "fungal_plate_chestplate", "fungal_plate_leggings", "fungal_plate_boots", "greatsword", "piercing_crossbow",
+        String[] ids = {
                 "sleeping_bag", "arrow_from_meganeura_wing", "arrow_from_hydraulic_spine", "string_from_silk_gland", "slime_ball_from_snail_slime",
                 "glass_pane_from_wing_membrane", "poison_arrow_from_venom_gland", "cooked_phasmid_meat_from_smelting", "cooked_small_meat_from_campfire_cooking"};
         List<String> missing = new ArrayList<>();

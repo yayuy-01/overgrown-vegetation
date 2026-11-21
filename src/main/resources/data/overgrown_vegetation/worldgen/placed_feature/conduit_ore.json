@@ -1,0 +1,6 @@
+{
+  "feature": "overgrown_vegetation:conduit_ore",
+  "placement": [
+    { "type": "minecraft:biome" }
+  ]
+}

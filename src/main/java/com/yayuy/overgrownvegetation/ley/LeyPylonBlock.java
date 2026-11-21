@@ -104,7 +104,7 @@ public class LeyPylonBlock extends BaseEntityBlock {
                 net.pylons.size(), net.producers.size(), net.consumers.size(), net.buffers.size());
         if (!be.battery().isEmpty()) {
             line = line.copy().append(Component.translatable("message.overgrown_vegetation.ley.battery_part",
-                    LeyText.percent(LeyBatteryItem.stored(be.battery()) / (double) LeyBatteryItem.capacity())));
+                    LeyText.percent(LeyBatteryHolder.fraction(be.battery()))));
         }
         return line;
     }

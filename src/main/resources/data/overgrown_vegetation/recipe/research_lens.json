@@ -4,7 +4,7 @@
   "pattern": [" G ", "CIC", " B "],
   "key": {
     "G": { "item": "minecraft:glass" },
-    "C": { "item": "overgrown_vegetation:twisted_cord" },
+    "C": { "item": "minecraft:string" },
     "I": { "item": "minecraft:copper_ingot" },
     "B": { "item": "minecraft:glass_bottle" }
   },

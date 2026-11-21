@@ -115,7 +115,7 @@ public final class SporeExposureTracker {
         }
         double percent = mobPercent(level, entity, rawPercent);
         boolean protecting = wearMask(entity, percent, interval);
-        double gear = com.yayuy.overgrownvegetation.gear.GearSpores.exposureFactor(entity); // 段の防具(2026-11-17)
+        double gear = 1.0D; // 段の防具の暴露の下げ(2026-11-17)は 11-21 に装備ごと消した。防具を作り直したらここへ
         boolean wasFull = dose(entity) >= DesignData.sporeField().infectDose(); // 減る前に満ちていた分(コマンドで決めたときなど)も拾う
         if (MobInfection.isInfected(entity)) {
             // 感染した後(2026-11-14): 減らず、体の中の胞子が育つ。濃い所ではその分も足す(マスクが効いていれば外の分は足さない)
@@ -147,7 +147,7 @@ public final class SporeExposureTracker {
         SporeFieldTable t = DesignData.sporeField();
         SporeExposure ex = player.getData(ModAttachments.SPORE_EXPOSURE);
         boolean protecting = wearMask(player, percent, interval);
-        double gear = com.yayuy.overgrownvegetation.gear.GearSpores.exposureFactor(player); // 段の防具(2026-11-17): 息で浴びる分と染みる分を下げる
+        double gear = 1.0D; // 段の防具の暴露の下げ(2026-11-17)は 11-21 に装備ごと消した。防具を作り直したらここへ
         int stage = SporeInfectionEffects.stageOf(player);
         if (stage == 0) {
             // 治った・死んだ後の残り(属性と進み)を片付ける
@@ -285,7 +285,7 @@ public final class SporeExposureTracker {
 
     /** 暴露の倍率(0〜1)。フィルターの残った防護マスクを被っていれば 0(11-04 ユーザー決定)、そうでなければ 1。 */
     public static double exposureFactor(LivingEntity entity) {
-        return ProtectiveMaskItem.isProtecting(entity) ? 0.0D : com.yayuy.overgrownvegetation.gear.GearSpores.exposureFactor(entity);
+        return ProtectiveMaskItem.isProtecting(entity) ? 0.0D : 1.0D;
     }
 
     /**
@@ -359,7 +359,6 @@ public final class SporeExposureTracker {
             return false;
         }
         if (breathed) {
-            amount *= com.yayuy.overgrownvegetation.gear.GearSpores.exposureFactor(entity); // 段の防具(2026-11-17)
             if (!(amount > 0.0D)) return false;
         }
         if (entity instanceof Player p && com.yayuy.overgrownvegetation.effect.SporeInfectionEffects.stageOf(p) > 0) {

@@ -38,7 +38,7 @@ public final class OrganClearing {
     /** 払う木(幹と葉)。巨大樹は {@link #isTree} で除く。 */
     static final TagKey<Block> TREE = BlockTags.create(OvergrownVegetation.id("organ_clear_tree"));
     /** 山刀で払える下草・蔦(地面と数えない。高い所にぶら下がっている物は払う)。 */
-    static final TagKey<Block> BRUSH = BlockTags.create(OvergrownVegetation.id("machete_clearable"));
+    static final TagKey<Block> BRUSH = com.yayuy.overgrownvegetation.ModTags.CLEARABLE_BRUSH;
 
     /** 汚染のブロック全部(このうち当たりの無い物 = 幹や葉に付く草・垂れ根・苔)。 */
     static final TagKey<Block> CORRUPTED = BlockTags.create(OvergrownVegetation.id("corrupted"));

@@ -1,212 +1,22 @@
 package com.yayuy.overgrownvegetation.gear;
 
 /**
- * 強くなる道 段 1・段 2 の物の設計値({@code gear_tiers.json}、2026-11-17)。<b>値はどれも【仮】</b>(ユーザーが決めたのは役目だけ:
- * 段 1 = 胞子に強い軽装・鉄より低い防御・山刀は蔦や下草を切り開く・胞子弾の弓は森の敵に効く。段 2 = ダイヤ並みの防御で胞子への強さは段 1 より下・
- * 両手剣は前の半円を薙ぐ・クロスボウは一列を貫き装填が遅い)。正本は Vault「強くなる道(素材・装備・武器・探索)(11-17)」の決定 17・18。
+ * 装備・鉱石の設計値({@code gear_tiers.json})。<b>値はどれも【仮】</b>。正本は Vault「強くなる道(素材・装備・武器・探索)(11-17)」の
+ * 11-21 の節(鉱石は 4 種・装備のグレード)。
  *
- * <p>Gson で直に読む(鍵が無ければこの既定値)。防具の防御・耐久・武器の攻撃は登録の時に読むので、変えたら再起動。暴露・刈り・薙ぎ・貫き・鉱石は毎回読む。
+ * <p>11-21 に 11-17〜18 の段 1〜3 の装備を消した。残るのは菌集鉱のでき方({@link #ore})と、グレード 1 の導晶({@link #conduit})。
+ * Gson で直に読む(鍵が無ければこの既定値)。道具の硬さ・速さ・壊れにくさは登録の時に読むので、変えたら再起動。ほかは毎回読む。
  * 名前の {@code gear.json} は 10-30 に退避した前の装備の表が run/config に残っているので使わない。
  */
 public final class GearTierTable {
 
     public static final GearTierTable DEFAULT = new GearTierTable();
 
-    /** 段 1 の遠征服(頭巾・上衣・脚衣・足袋)。 */
-    public Armor suit = Armor.of(new int[]{2, 4, 3, 1}, 12, 0.0F, 0.0F, 15, 0.125D, 0.6D);
-    /** 段 2 の札鎧(兜・胴・草摺・脛当て)。 */
-    public Armor plate = Armor.of(new int[]{3, 8, 6, 3}, 30, 2.0F, 0.0F, 12, 0.05D, 0.85D);
-
-    public Machete machete = new Machete();
-    public SporeShot sporeShot = new SporeShot();
-    public Greatsword greatsword = new Greatsword();
-    public Crossbow crossbow = new Crossbow();
-    public FiberGrass fiberGrass = new FiberGrass();
+    /** 菌集鉱(汚染された岩にできる。グレード 2 の菌鉄の元)。 */
     public Ore ore = new Ore();
+    /** 導晶(グレード 1 の地脈技術の金属)の鉱石と道具。 */
+    public Conduit conduit = new Conduit();
 
-    // ---- 段 3(森の奥。2026-11-18。決定 19) ----
-    /** 段 3 の地脈の装甲(兜・胴・脚・足)。 */
-    public Armor leyArmor = Armor.of(new int[]{3, 8, 6, 3}, 37, 3.0F, 0.0F, 15, 0.05D, 0.75D);
-    public LeyArmorPower leyArmorPower = new LeyArmorPower();
-    public Crystal crystal = new Crystal();
-    public ThunderBlade thunderBlade = new ThunderBlade();
-    public HeatBlade heatBlade = new HeatBlade();
-    public LeyStaff leyStaff = new LeyStaff();
-    public SporeBurner sporeBurner = new SporeBurner();
-
-    /** 結晶にためる地脈の力(FE)。満たし方 = 持ち物の画面で、満ちた地脈の電池をつかんで装備の上で右クリック。 */
-    public static final class Crystal {
-        /** 武器 1 本の結晶の大きさ。 */
-        public int weaponCapacity = 30000;
-        /** 装甲の胴の結晶の大きさ(4 部位の能力をここから払う)。 */
-        public int armorCapacity = 100000;
-        /** 電池から 1 回の右クリックで移す上限。 */
-        public int pourPerClick = 100000;
-    }
-
-    /** 装甲の能力。切れても防御は残る(10-03 の方針)。 */
-    public static final class LeyArmorPower {
-        /** 脚: 押されない(ノックバック耐性 1)。1 回止めるたびの FE。 */
-        public int knockbackCost = 50;
-        /** 足: 落ちても痛まない。消した 1 ダメージにつき FE。 */
-        public int fallCostPerDamage = 200;
-        /** 胴: バフ(11-18 ユーザー決定 = 案 B「常に再生 I + 満腹の減りを遅く」)。体力の割合がこれ以下で効く(1 = 常に)。1 秒ごとの FE。 */
-        public double regenBelowHealth = 1.0D;
-        public int regenCostPerSecond = 60;
-        public int regenAmplifier = 0;
-        public boolean regenEnabled = true;
-        /** 満腹の減りを遅く: 1 秒ごとに消耗(exhaustion)をこれだけ打ち消す(走り 1 秒でおよそ 0.5)。 */
-        public double hungerReliefPerSecond = 0.1D;
-    }
-
-    /** 雷を纏う刃: 振りがたまった一撃で、電撃が近くの敵へ飛び移る。 */
-    public static final class ThunderBlade {
-        public float attackDamage = 9.0F;
-        public float attackSpeed = 1.6F;
-        public int durability = 1800;
-        public double minCharge = 0.9D;
-        public int jumps = 3;
-        public double jumpRange = 5.0D;
-        public double firstDamage = 6.0D;
-        public double falloff = 0.75D;
-        public int cost = 400;
-    }
-
-    /** 熱で焼き切る刃: 当たると燃やし、植物側に余計に効く。刈った蔦・下草・胞子嚢とつながった植物を焼き消す。 */
-    public static final class HeatBlade {
-        public float attackDamage = 8.0F;
-        public float attackSpeed = 1.4F;
-        public int durability = 1800;
-        public int igniteSeconds = 5;
-        public double plantDamageMultiplier = 1.3D;
-        public int hitCost = 200;
-        public float clearSpeed = 15.0F;
-        public int burnMax = 12;
-        public int burnCost = 50;
-    }
-
-    /** 地脈の杖: 黄緑の光の弾。当たると爆ぜて吹き飛ばす(ブロックは壊さない)。 */
-    public static final class LeyStaff {
-        public double damage = 8.0D;
-        public double radius = 2.5D;
-        public double knockback = 1.2D;
-        public float speed = 2.2F;
-        public int cooldownTicks = 20;
-        public int lifeTicks = 60;
-        public int cost = 500;
-        public int durability = 900;
-    }
-
-    /** 胞子を焼く筒: 押している間、前の扇形を焼く。汚染の下草・蔦を焼き消す(押し返す道具)。 */
-    public static final class SporeBurner {
-        public double range = 6.0D;
-        /** 扇の半分の角度(度)。 */
-        public double halfAngle = 30.0D;
-        public int pulseTicks = 4;
-        public double damage = 2.0D;
-        public int igniteSeconds = 4;
-        public int cost = 40;
-        public int durability = 900;
-        /** 焼いたマスにふつうの火を付ける確率(11-18 夜。燃え移るかは火の決まりどおり)。 */
-        public double fireChance = 0.35D;
-    }
-
-    /** 防具 1 そろい。{@code defense} は頭・胴・脚・足の順。 */
-    public static final class Armor {
-        public int[] defense = {1, 1, 1, 1};
-        /** 耐久の倍率(バニラの革 5・鉄 15・ダイヤ 33)。 */
-        public int durability = 15;
-        public float toughness = 0.0F;
-        public float knockbackResistance = 0.0F;
-        public int enchantability = 10;
-        /** 1 部位ごとに暴露のたまり方を下げる割合(4 部位で足す。0.125 なら 4 部位で半分)。マスクが効いている間は元から 0。 */
-        public double exposureCutPerPiece = 0.0D;
-        /** 頭(フィルターを使う)のフィルターの減りの倍率(防護マスクは 1)。 */
-        public double filterWear = 1.0D;
-
-        static Armor of(int[] defense, int durability, float toughness, float kb, int ench, double cut, double filterWear) {
-            Armor a = new Armor();
-            a.defense = defense;
-            a.durability = durability;
-            a.toughness = toughness;
-            a.knockbackResistance = kb;
-            a.enchantability = ench;
-            a.exposureCutPerPiece = cut;
-            a.filterWear = filterWear;
-            return a;
-        }
-
-        int defense(int index) {
-            return defense != null && index < defense.length ? defense[index] : 1;
-        }
-    }
-
-    /** 山刀。攻撃は剣より少し弱く速い。 */
-    public static final class Machete {
-        /** 攻撃(素手 1 を含めた合計)と 1 秒の振り。 */
-        public float attackDamage = 5.0F;
-        public float attackSpeed = 1.8F;
-        public int durability = 300;
-        /** タグ {@code machete_clearable} の植物を刈る速さ(剣が蜘蛛の巣を切る 15 と同じ)。 */
-        public float clearSpeed = 15.0F;
-        /** 刈った所のまわり(水平 ±radius・上下 ±1)の同じタグの植物をまとめて刈る数の上限(0 で切る)。しゃがむとまとめない。 */
-        public int clearRadius = 1;
-        public int clearMax = 8;
-    }
-
-    /** 胞子弾(焼いた胞子を付けた矢)と、胞子弾の弓。 */
-    public static final class SporeShot {
-        /** 当たった相手を燃やす秒数(どの弓で撃っても)。 */
-        public int igniteSeconds = 3;
-        /** 当たった所で燻る半径と、その中の植物側の Mob を燃やす秒数。 */
-        public double smolderRadius = 1.5D;
-        public int smolderSeconds = 2;
-        /** 胞子弾の弓で撃ったときの上乗せ: 燃やす秒数・燻る半径・植物側へのダメージの倍率。 */
-        public int bowIgniteSeconds = 5;
-        public double bowSmolderRadius = 2.5D;
-        public int bowSmolderSeconds = 4;
-        public double bowPlantDamageMultiplier = 1.5D;
-        public int bowDurability = 450;
-    }
-
-    /** 両手剣。 */
-    public static final class Greatsword {
-        public float attackDamage = 10.0F;
-        public float attackSpeed = 0.8F;
-        public int durability = 900;
-        /** 振りがこれ以上たまっていれば薙ぐ(0〜1)。 */
-        public double sweepMinCharge = 0.9D;
-        /** 薙ぐ範囲: 自分からの距離・前の半円(前向きとの内積がこれ以上。0 なら真横まで)。 */
-        public double sweepRange = 3.0D;
-        public double sweepMinDot = 0.0D;
-        /** 狙った相手のほかに斬る数と、そのダメージ(攻撃の何倍)。 */
-        public int sweepMaxTargets = 5;
-        public double sweepDamageRatio = 0.75D;
-    }
-
-    /** 貫きのクロスボウ。 */
-    public static final class Crossbow {
-        /** 装填にかかる tick(バニラ 25)。 */
-        public int chargeTicks = 50;
-        /** 貫く数(バニラの貫通のエンチャントの段と同じ数え方。4 なら 5 体目で止まる)。 */
-        public int pierce = 4;
-        /** 太い矢のダメージの倍率(矢の基本 2 に掛ける)。 */
-        public double damageMultiplier = 1.6D;
-        public int durability = 600;
-    }
-
-    /** 繊維の草(縁 = 繁茂のバイオームに、プレイヤーのまわりで少しずつ生える。胞子喰い茸と同じ作り)。 */
-    public static final class FiberGrass {
-        public int intervalTicks = 200;
-        public int radius = 32;
-        public int tries = 4;
-        /** まわり crowdRadius に crowdMax 本あれば生やさない。 */
-        public int crowdRadius = 4;
-        public int crowdMax = 4;
-        // 刈ったときの繊維の数(1〜2)はルートテーブル loot_table/blocks/fiber_grass.json が正本(mod マネージャー 2 のルートの画面で変える)
-    }
-
-    /** 菌が集めた金属の鉱石(汚染が岩に来たとき、地脈の線の近くなら岩が変わる)。 */
     public static final class Ore {
         /** 地脈の線からこの距離(ブロック)以内の、汚染された岩(過繁茂の石・深層岩)だけ。 */
         public double leyReach = 8.0D;
@@ -215,5 +25,44 @@ public final class GearTierTable {
         /** 芯のまわりに広げる数(芯を含めた鉱脈の大きさ)。 */
         public int veinMin = 1;
         public int veinMax = 4;
+    }
+
+    /** 導晶(11-21 ユーザー決定: 電子の代わりに地脈の力で結びついた金属。熱・電気・地脈の力をよく通す)。 */
+    public static final class Conduit {
+        // ---- 導晶鉱の世界生成(地脈の線の近くの地下に最初からある) ----
+        /** 鉱脈の芯が地脈の線からこの距離(ブロック)以内のときだけ置く。 */
+        public double leyReach = 12.0D;
+        /** 1 チャンクで鉱脈を試す回数(芯が線の近くに入らなければ置かない)。 */
+        public int veinsPerChunk = 8;
+        /** 1 つの鉱脈の大きさ(置く数の上限)。 */
+        public int veinSize = 8;
+        /** 高さの範囲(この中で一様)。0 より下は深層岩版になる。 */
+        public int minY = -48;
+        public int maxY = 48;
+
+        // ---- 汚染に飲み込まれた導晶鉱(緑の版・表面に小さな根晶) ----
+        /** 飲み込まれた導晶鉱 1 つにつき、空気に面した 1 面ごとに小さな根晶が生える確率。 */
+        public double budChance = 0.3D;
+        /** 1 つの鉱石に生える小さな根晶の上限。 */
+        public int budMax = 2;
+
+        // ---- 道具(つるはし・斧・シャベル・クワ。硬さはダイヤと同じ) ----
+        public int durability = 1200;
+        public float speed = 7.0F;
+        /** 攻撃の上乗せ(ダイヤは 3)。 */
+        public float attackBonus = 3.0F;
+        public int enchantability = 14;
+
+        // ---- 充電(地脈の力。電池と同じ口) ----
+        /** 道具 1 本にためられる FE。 */
+        public int capacity = 50000;
+        /** 汲み上げ器・鉄塔の電池の口から 1 tick に受け取れる FE。 */
+        public int maxReceive = 1000;
+        /** 持ち物の画面で電池を右クリックで重ねたとき、1 回で移す上限。 */
+        public int pourPerClick = 50000;
+        /** 力が残っている間の掘る速さの倍率。 */
+        public double chargedSpeedMultiplier = 1.5D;
+        /** 力が残っている間、1 ブロック掘るごとに使う FE(足りなければ速くならない)。 */
+        public int fePerBlock = 100;
     }
 }

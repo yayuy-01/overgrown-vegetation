@@ -413,6 +413,13 @@ public final class ModTags {
      */
     public static final TagKey<EntityType<?>> NETHER_NATIVE = entityTag("nether_native");
 
+    /**
+     * <b>刈れる下草</b>(バニラの草・蔦・蜘蛛の巣と、この MOD の下草・壁の植物・蔓・蔦)。枯らし薬・木焼き・崖と器官の払い・生態系の巣が使う。
+     * 2026-11-17 に山刀のタグ {@code machete_clearable} として作り、11-21 に山刀を消したので名前だけ外した(中身は同じ。
+     * {@code data/overgrown_vegetation/tags/block/clearable_brush.json})。
+     */
+    public static final TagKey<Block> CLEARABLE_BRUSH = BlockTags.create(OvergrownVegetation.id("clearable_brush"));
+
     private static TagKey<EntityType<?>> entityTag(String path) {
         return TagKey.create(net.minecraft.core.registries.Registries.ENTITY_TYPE, OvergrownVegetation.id(path));
     }

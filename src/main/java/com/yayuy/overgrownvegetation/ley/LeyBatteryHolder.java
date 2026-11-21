@@ -34,9 +34,15 @@ public interface LeyBatteryHolder {
         return b.isEmpty() ? null : b.getCapability(Capabilities.EnergyStorage.ITEM);
     }
 
-    /** 持っている電池を差す。差せたら true。 */
+    /** 差している物(電池・地脈の力をためる道具)のたまり具合 0〜1。 */
+    static double fraction(ItemStack stack) {
+        IEnergyStorage s = stack.isEmpty() ? null : stack.getCapability(Capabilities.EnergyStorage.ITEM);
+        return s == null || s.getMaxEnergyStored() <= 0 ? 0.0D : s.getEnergyStored() / (double) s.getMaxEnergyStored();
+    }
+
+    /** 持っている電池(か地脈の力をためる道具 = 2026-11-21 グレード 1)を差す。差せたら true。 */
     static boolean insert(Level level, BlockPos pos, BlockState state, Player player, ItemStack held, LeyBatteryHolder holder) {
-        if (!held.is(ModLey.BATTERY.get()) || !holder.battery().isEmpty()) {
+        if (!(held.is(ModLey.BATTERY.get()) || com.yayuy.overgrownvegetation.gear.LeyCharge.has(held)) || !holder.battery().isEmpty()) {
             return false;
         }
         if (!level.isClientSide) {

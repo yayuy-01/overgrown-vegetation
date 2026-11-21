@@ -2,29 +2,32 @@ package com.yayuy.overgrownvegetation.gear;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.data.DesignData;
-import com.yayuy.overgrownvegetation.registry.ModArmorMaterials;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
+import com.yayuy.overgrownvegetation.registry.ModFeatures;
 import com.yayuy.overgrownvegetation.registry.ModItems;
-import net.minecraft.core.Holder;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.sounds.SoundEvents;
+import com.yayuy.overgrownvegetation.registry.ModLey;
 import net.minecraft.tags.BlockTags;
-import net.minecraft.world.item.ArmorItem;
-import net.minecraft.world.item.ArmorMaterial;
+import net.minecraft.util.valueproviders.ConstantInt;
+import net.minecraft.util.valueproviders.UniformInt;
+import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.DiggerItem;
+import net.minecraft.world.item.HoeItem;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.SwordItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.PickaxeItem;
+import net.minecraft.world.item.ShovelItem;
 import net.minecraft.world.item.Tier;
-import net.minecraft.world.item.component.ChargedProjectiles;
 import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.util.valueproviders.ConstantInt;
+import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.DropExperienceBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
+import net.minecraft.world.level.levelgen.feature.Feature;
+import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
 import net.neoforged.neoforge.common.SimpleTier;
@@ -32,19 +35,17 @@ import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 
-import java.util.EnumMap;
-import java.util.List;
-import java.util.function.Supplier;
-
 /**
- * <b>強くなる道 段 1・段 2 の物</b>(2026-11-17)の登録。名前・絵は仮。数値は {@code gear_tiers.json}({@link GearTierTable})。
- * 正本は Vault「強くなる道(素材・装備・武器・探索)(11-17)」の決定 17・18・21。入れ物は共有の {@code DeferredRegister} を使い、
- * {@link #init()} を MOD の構築子から呼ぶ({@code ModExpedition} と同じ作り)。レシピは今は最初から作れる(研究ツリーへのつなぎは後)。
+ * 装備・鉱石の登録。数値は {@code gear_tiers.json}({@link GearTierTable})。正本は Vault「強くなる道(素材・装備・武器・探索)(11-17)」の 11-21 の節。
+ * 入れ物は共有の {@code DeferredRegister} を使い、{@link #init()} を MOD の構築子から呼ぶ。
  *
+ * <p>2026-11-21 に 11-17〜18 の段 1〜3 の装備を消して作り直し始めた(グレードごとに 道具 → 装備 → 役に立つ道具)。今あるのは:
  * <ul>
- *   <li>段 1(縁): 繊維の草 → 草の繊維({@code plant_fiber} を流用)→ 草布・撚り紐 / 遠征服 4 部位 / 山刀 / 胞子弾の弓・胞子弾の矢。</li>
- *   <li>段 2(過繁茂の林床): 菌集鉱(石・深層岩)→ 菌鉄の原石 → 菌鉄 / 札鎧 4 部位 / 両手剣 / 貫きのクロスボウ。</li>
+ *   <li>菌集鉱(石・深層岩)→ 菌鉄の原石 → 菌鉄(グレード 2 で使う。でき方は {@link FungalOre})。</li>
+ *   <li>グレード 1: 導晶鉱(石・深層岩。地脈の線の近くの地下 = {@link ConduitOre})→ 導晶の原石 → 導晶の地金 → 導晶の板 /
+ *   導晶の道具 4 本({@link ConduitTools}。地脈の力で速くなる = {@link LeyCharge})/ 飲み込まれた導晶鉱(緑)と小さな根晶。</li>
  * </ul>
+ * 名前・絵・数はすべて【仮】。
  */
 public final class ModGear {
 
@@ -56,58 +57,7 @@ public final class ModGear {
         ModMobDrops.init(); // Mob ごとのドロップ(2026-11-17 夜)
     }
 
-    private static GearTierTable t() {
-        return DesignData.gearTiers();
-    }
-
-    // ---- 防具の素材 ----
-
-    public static final DeferredHolder<ArmorMaterial, ArmorMaterial> SUIT_MATERIAL = ModArmorMaterials.ARMOR_MATERIALS.register(
-            "expedition_suit", () -> material("expedition_suit", t().suit, SoundEvents.ARMOR_EQUIP_LEATHER,
-                    () -> Ingredient.of(ModGear.GRASS_CLOTH.get())));
-
-    public static final DeferredHolder<ArmorMaterial, ArmorMaterial> PLATE_MATERIAL = ModArmorMaterials.ARMOR_MATERIALS.register(
-            "fungal_plate", () -> material("fungal_plate", t().plate, SoundEvents.ARMOR_EQUIP_IRON,
-                    () -> Ingredient.of(ModGear.FUNGAL_METAL_INGOT.get())));
-
-    private static ArmorMaterial material(String name, GearTierTable.Armor a, Holder<net.minecraft.sounds.SoundEvent> sound, Supplier<Ingredient> repair) {
-        EnumMap<ArmorItem.Type, Integer> defense = new EnumMap<>(ArmorItem.Type.class);
-        defense.put(ArmorItem.Type.HELMET, a.defense(0));
-        defense.put(ArmorItem.Type.CHESTPLATE, a.defense(1));
-        defense.put(ArmorItem.Type.LEGGINGS, a.defense(2));
-        defense.put(ArmorItem.Type.BOOTS, a.defense(3));
-        defense.put(ArmorItem.Type.BODY, a.defense(1));
-        return new ArmorMaterial(defense, a.enchantability, sound, repair,
-                List.of(new ArmorMaterial.Layer(OvergrownVegetation.id(name))), a.toughness, a.knockbackResistance);
-    }
-
-    // ---- 道具の格 ----
-
-    /** 山刀(鉄の刃)。採掘には使わない。 */
-    static final Tier MACHETE_TIER = new SimpleTier(BlockTags.INCORRECT_FOR_IRON_TOOL, 300, 6.0F, 0.0F, 14, () -> Ingredient.of(Items.IRON_INGOT));
-    /** 両手剣(菌鉄の刃)。 */
-    static final Tier GREATSWORD_TIER = new SimpleTier(BlockTags.INCORRECT_FOR_DIAMOND_TOOL, 900, 8.0F, 0.0F, 12,
-            () -> Ingredient.of(ModGear.FUNGAL_METAL_INGOT.get()));
-
-    /** 攻撃の合計 {@code damage}(素手 1 込み)と 1 秒の振り {@code speed} にする属性。 */
-    static net.minecraft.world.item.component.ItemAttributeModifiers weaponAttributes(Tier tier, float damage, float speed) {
-        return SwordItem.createAttributes(tier, damage - 1.0F - tier.getAttackDamageBonus(), speed - 4.0F);
-    }
-
-    // ---- ブロック ----
-
-    /** 繊維の草(縁に生える)。 */
-    public static final DeferredBlock<FiberGrassBlock> FIBER_GRASS = ModBlocks.BLOCKS.registerBlock(
-            "fiber_grass", FiberGrassBlock::new,
-            BlockBehaviour.Properties.of()
-                    .mapColor(MapColor.PLANT)
-                    .replaceable()
-                    .noCollission()
-                    .instabreak()
-                    .sound(SoundType.GRASS)
-                    .offsetType(BlockBehaviour.OffsetType.XZ)
-                    .ignitedByLava()
-                    .pushReaction(PushReaction.DESTROY));
+    // ---- 菌集鉱(グレード 2 の元) ----
 
     /** 菌集鉱(過繁茂の石から)。 */
     public static final DeferredBlock<DropExperienceBlock> FUNGAL_ORE = ModBlocks.BLOCKS.registerBlock(
@@ -128,42 +78,6 @@ public final class ModGear {
                     .strength(4.5F, 3.0F)
                     .sound(SoundType.DEEPSLATE));
 
-    // ---- 段 1 の素材 ----
-
-    public static final DeferredItem<BlockItem> FIBER_GRASS_ITEM = ModItems.ITEMS.registerSimpleBlockItem(FIBER_GRASS);
-    /** 草布(草の繊維を織った布)。 */
-    public static final DeferredItem<Item> GRASS_CLOTH = ModItems.ITEMS.registerSimpleItem("grass_cloth", new Item.Properties());
-    /** 撚り紐(草の繊維を撚った紐。弦にもなる)。 */
-    public static final DeferredItem<Item> TWISTED_CORD = ModItems.ITEMS.registerSimpleItem("twisted_cord", new Item.Properties());
-
-    // ---- 段 1 の遠征服 ----
-
-    public static final DeferredItem<TierHelmetItem> EXPEDITION_HOOD = ModItems.ITEMS.registerItem("expedition_hood",
-            p -> new TierHelmetItem(SUIT_MATERIAL, () -> t().suit, p),
-            new Item.Properties().durability(ArmorItem.Type.HELMET.getDurability(DesignData.gearTiers().suit.durability)));
-    public static final DeferredItem<TierArmorItem> EXPEDITION_COAT = ModItems.ITEMS.registerItem("expedition_coat",
-            p -> new TierArmorItem(SUIT_MATERIAL, ArmorItem.Type.CHESTPLATE, () -> t().suit, p),
-            new Item.Properties().durability(ArmorItem.Type.CHESTPLATE.getDurability(DesignData.gearTiers().suit.durability)));
-    public static final DeferredItem<TierArmorItem> EXPEDITION_TROUSERS = ModItems.ITEMS.registerItem("expedition_trousers",
-            p -> new TierArmorItem(SUIT_MATERIAL, ArmorItem.Type.LEGGINGS, () -> t().suit, p),
-            new Item.Properties().durability(ArmorItem.Type.LEGGINGS.getDurability(DesignData.gearTiers().suit.durability)));
-    public static final DeferredItem<TierArmorItem> EXPEDITION_BOOTS = ModItems.ITEMS.registerItem("expedition_boots",
-            p -> new TierArmorItem(SUIT_MATERIAL, ArmorItem.Type.BOOTS, () -> t().suit, p),
-            new Item.Properties().durability(ArmorItem.Type.BOOTS.getDurability(DesignData.gearTiers().suit.durability)));
-
-    // ---- 段 1 の武器 ----
-
-    public static final DeferredItem<MacheteItem> MACHETE = ModItems.ITEMS.registerItem("machete",
-            p -> new MacheteItem(MACHETE_TIER, p),
-            new Item.Properties().durability(DesignData.gearTiers().machete.durability)
-                    .attributes(weaponAttributes(MACHETE_TIER, DesignData.gearTiers().machete.attackDamage, DesignData.gearTiers().machete.attackSpeed)));
-    public static final DeferredItem<SporeBowItem> SPORE_BOW = ModItems.ITEMS.registerItem("spore_bow", SporeBowItem::new,
-            new Item.Properties().durability(DesignData.gearTiers().sporeShot.bowDurability));
-    public static final DeferredItem<SporeArrowItem> SPORE_ARROW = ModItems.ITEMS.registerItem("spore_arrow", SporeArrowItem::new,
-            new Item.Properties());
-
-    // ---- 段 2 の素材 ----
-
     public static final DeferredItem<BlockItem> FUNGAL_ORE_ITEM = ModItems.ITEMS.registerSimpleBlockItem(FUNGAL_ORE);
     public static final DeferredItem<BlockItem> DEEPSLATE_FUNGAL_ORE_ITEM = ModItems.ITEMS.registerSimpleBlockItem(DEEPSLATE_FUNGAL_ORE);
     /** 菌鉄の原石(菌集鉱を掘ると落ちる。焼くと菌鉄)。 */
@@ -171,83 +85,103 @@ public final class ModGear {
     /** 菌鉄(菌が集めた金属を焼いて固めた地金)。 */
     public static final DeferredItem<Item> FUNGAL_METAL_INGOT = ModItems.ITEMS.registerSimpleItem("fungal_metal_ingot", new Item.Properties());
 
-    // ---- 段 2 の札鎧 ----
+    // ---- グレード 1: 導晶(2026-11-21) ----
 
-    public static final DeferredItem<TierHelmetItem> PLATE_HELMET = ModItems.ITEMS.registerItem("fungal_plate_helmet",
-            p -> new TierHelmetItem(PLATE_MATERIAL, () -> t().plate, p),
-            new Item.Properties().durability(ArmorItem.Type.HELMET.getDurability(DesignData.gearTiers().plate.durability)));
-    public static final DeferredItem<TierArmorItem> PLATE_CHESTPLATE = ModItems.ITEMS.registerItem("fungal_plate_chestplate",
-            p -> new TierArmorItem(PLATE_MATERIAL, ArmorItem.Type.CHESTPLATE, () -> t().plate, p),
-            new Item.Properties().durability(ArmorItem.Type.CHESTPLATE.getDurability(DesignData.gearTiers().plate.durability)));
-    public static final DeferredItem<TierArmorItem> PLATE_LEGGINGS = ModItems.ITEMS.registerItem("fungal_plate_leggings",
-            p -> new TierArmorItem(PLATE_MATERIAL, ArmorItem.Type.LEGGINGS, () -> t().plate, p),
-            new Item.Properties().durability(ArmorItem.Type.LEGGINGS.getDurability(DesignData.gearTiers().plate.durability)));
-    public static final DeferredItem<TierArmorItem> PLATE_BOOTS = ModItems.ITEMS.registerItem("fungal_plate_boots",
-            p -> new TierArmorItem(PLATE_MATERIAL, ArmorItem.Type.BOOTS, () -> t().plate, p),
-            new Item.Properties().durability(ArmorItem.Type.BOOTS.getDurability(DesignData.gearTiers().plate.durability)));
+    /** 導晶鉱(石の版)。色は地脈と同じ黄緑。 */
+    public static final DeferredBlock<DropExperienceBlock> CONDUIT_ORE = ModBlocks.BLOCKS.registerBlock(
+            "conduit_ore", p -> new DropExperienceBlock(UniformInt.of(0, 2), p),
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE)
+                    .instrument(NoteBlockInstrument.BASEDRUM)
+                    .requiresCorrectToolForDrops()
+                    .strength(3.0F, 3.0F));
 
-    // ---- 段 2 の武器 ----
+    /** 導晶鉱(深層岩の版)。 */
+    public static final DeferredBlock<DropExperienceBlock> DEEPSLATE_CONDUIT_ORE = ModBlocks.BLOCKS.registerBlock(
+            "deepslate_conduit_ore", p -> new DropExperienceBlock(UniformInt.of(0, 2), p),
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.DEEPSLATE)
+                    .instrument(NoteBlockInstrument.BASEDRUM)
+                    .requiresCorrectToolForDrops()
+                    .strength(4.5F, 3.0F)
+                    .sound(SoundType.DEEPSLATE));
 
-    public static final DeferredItem<GreatswordItem> GREATSWORD = ModItems.ITEMS.registerItem("greatsword",
-            p -> new GreatswordItem(GREATSWORD_TIER, p),
-            new Item.Properties().durability(DesignData.gearTiers().greatsword.durability)
-                    .attributes(weaponAttributes(GREATSWORD_TIER, DesignData.gearTiers().greatsword.attackDamage, DesignData.gearTiers().greatsword.attackSpeed)));
-    public static final DeferredItem<PiercingCrossbowItem> PIERCING_CROSSBOW = ModItems.ITEMS.registerItem("piercing_crossbow", PiercingCrossbowItem::new,
-            new Item.Properties().stacksTo(1).durability(DesignData.gearTiers().crossbow.durability)
-                    .component(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.EMPTY));
+    /** 汚染に飲み込まれた導晶鉱(石)。変質はしない(落とすのは同じ導晶の原石)。緑に変わり、表面に小さな根晶が生える。 */
+    public static final DeferredBlock<DropExperienceBlock> OVERGROWN_CONDUIT_ORE = ModBlocks.BLOCKS.registerBlock(
+            "overgrown_conduit_ore", p -> new DropExperienceBlock(UniformInt.of(0, 2), p),
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .instrument(NoteBlockInstrument.BASEDRUM)
+                    .requiresCorrectToolForDrops()
+                    .strength(3.0F, 3.0F));
 
-    // ---- 段 3(森の奥。2026-11-18 決定 19。名前・数は仮) ----
+    /** 汚染に飲み込まれた導晶鉱(深層岩)。 */
+    public static final DeferredBlock<DropExperienceBlock> OVERGROWN_DEEPSLATE_CONDUIT_ORE = ModBlocks.BLOCKS.registerBlock(
+            "overgrown_deepslate_conduit_ore", p -> new DropExperienceBlock(UniformInt.of(0, 2), p),
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_GREEN)
+                    .instrument(NoteBlockInstrument.BASEDRUM)
+                    .requiresCorrectToolForDrops()
+                    .strength(4.5F, 3.0F)
+                    .sound(SoundType.DEEPSLATE));
 
-    public static final DeferredHolder<ArmorMaterial, ArmorMaterial> LEY_ARMOR_MATERIAL = ModArmorMaterials.ARMOR_MATERIALS.register(
-            "ley_armor", () -> material("ley_armor", t().leyArmor, SoundEvents.ARMOR_EQUIP_NETHERITE,
-                    () -> Ingredient.of(ModGear.FUNGAL_METAL_INGOT.get())));
+    /** 小さな根晶(飲み込まれた導晶鉱の表面に生える。掘ると 25% で根晶 = ルートテーブル)。 */
+    public static final DeferredBlock<AmethystClusterBlock> SMALL_ROOT_CRYSTAL = ModBlocks.BLOCKS.registerBlock(
+            "small_root_crystal", p -> new AmethystClusterBlock(3.0F, 4.0F, p),
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_LIGHT_GREEN)
+                    .forceSolidOn()
+                    .noOcclusion()
+                    .strength(1.0F)
+                    .sound(SoundType.SMALL_AMETHYST_BUD)
+                    .lightLevel(s -> 2)
+                    .pushReaction(PushReaction.DESTROY));
 
-    /** 段 3 の刃(菌鉄と根晶の刃)。 */
-    static final Tier LEY_BLADE_TIER = new SimpleTier(BlockTags.INCORRECT_FOR_NETHERITE_TOOL, 1800, 9.0F, 0.0F, 15,
-            () -> Ingredient.of(ModGear.FUNGAL_METAL_INGOT.get()));
+    public static final DeferredItem<BlockItem> CONDUIT_ORE_ITEM = ModItems.ITEMS.registerSimpleBlockItem(CONDUIT_ORE);
+    public static final DeferredItem<BlockItem> DEEPSLATE_CONDUIT_ORE_ITEM = ModItems.ITEMS.registerSimpleBlockItem(DEEPSLATE_CONDUIT_ORE);
+    public static final DeferredItem<BlockItem> OVERGROWN_CONDUIT_ORE_ITEM = ModItems.ITEMS.registerSimpleBlockItem(OVERGROWN_CONDUIT_ORE);
+    public static final DeferredItem<BlockItem> OVERGROWN_DEEPSLATE_CONDUIT_ORE_ITEM = ModItems.ITEMS.registerSimpleBlockItem(OVERGROWN_DEEPSLATE_CONDUIT_ORE);
+    public static final DeferredItem<BlockItem> SMALL_ROOT_CRYSTAL_ITEM = ModItems.ITEMS.registerSimpleBlockItem(SMALL_ROOT_CRYSTAL);
 
-    public static final DeferredItem<TierHelmetItem> LEY_HELMET = ModItems.ITEMS.registerItem("ley_helmet",
-            p -> new TierHelmetItem(LEY_ARMOR_MATERIAL, () -> t().leyArmor, p),
-            new Item.Properties().fireResistant().durability(ArmorItem.Type.HELMET.getDurability(DesignData.gearTiers().leyArmor.durability)));
-    public static final DeferredItem<LeyChestItem> LEY_CHESTPLATE = ModItems.ITEMS.registerItem("ley_chestplate",
-            p -> new LeyChestItem(LEY_ARMOR_MATERIAL, () -> t().leyArmor, p),
-            new Item.Properties().fireResistant().durability(ArmorItem.Type.CHESTPLATE.getDurability(DesignData.gearTiers().leyArmor.durability)));
-    public static final DeferredItem<TierArmorItem> LEY_LEGGINGS = ModItems.ITEMS.registerItem("ley_leggings",
-            p -> new TierArmorItem(LEY_ARMOR_MATERIAL, ArmorItem.Type.LEGGINGS, () -> t().leyArmor, p),
-            new Item.Properties().fireResistant().durability(ArmorItem.Type.LEGGINGS.getDurability(DesignData.gearTiers().leyArmor.durability)));
-    public static final DeferredItem<TierArmorItem> LEY_BOOTS = ModItems.ITEMS.registerItem("ley_boots",
-            p -> new TierArmorItem(LEY_ARMOR_MATERIAL, ArmorItem.Type.BOOTS, () -> t().leyArmor, p),
-            new Item.Properties().fireResistant().durability(ArmorItem.Type.BOOTS.getDurability(DesignData.gearTiers().leyArmor.durability)));
+    /** 導晶の原石(導晶鉱を掘ると落ちる。焼くと導晶の地金)。 */
+    public static final DeferredItem<Item> RAW_CONDUIT = ModItems.ITEMS.registerSimpleItem("raw_conduit", new Item.Properties());
+    /** 導晶の地金。 */
+    public static final DeferredItem<Item> CONDUIT_INGOT = ModItems.ITEMS.registerSimpleItem("conduit_ingot", new Item.Properties());
+    /** 導晶の板(中間素材。作業台で地金 1 → 板 1)。 */
+    public static final DeferredItem<Item> CONDUIT_PLATE = ModItems.ITEMS.registerSimpleItem("conduit_plate", new Item.Properties());
 
-    public static final DeferredItem<ThunderBladeItem> THUNDER_BLADE = ModItems.ITEMS.registerItem("thunder_blade",
-            p -> new ThunderBladeItem(LEY_BLADE_TIER, p),
-            new Item.Properties().fireResistant().durability(DesignData.gearTiers().thunderBlade.durability)
-                    .attributes(weaponAttributes(LEY_BLADE_TIER, DesignData.gearTiers().thunderBlade.attackDamage, DesignData.gearTiers().thunderBlade.attackSpeed)));
-    public static final DeferredItem<HeatBladeItem> HEAT_BLADE = ModItems.ITEMS.registerItem("heat_blade",
-            p -> new HeatBladeItem(LEY_BLADE_TIER, p),
-            new Item.Properties().fireResistant().durability(DesignData.gearTiers().heatBlade.durability)
-                    .attributes(weaponAttributes(LEY_BLADE_TIER, DesignData.gearTiers().heatBlade.attackDamage, DesignData.gearTiers().heatBlade.attackSpeed)));
-    public static final DeferredItem<LeyStaffItem> LEY_STAFF = ModItems.ITEMS.registerItem("ley_staff", LeyStaffItem::new,
-            new Item.Properties().stacksTo(1).fireResistant().durability(DesignData.gearTiers().leyStaff.durability));
-    public static final DeferredItem<SporeBurnerItem> SPORE_BURNER = ModItems.ITEMS.registerItem("spore_burner", SporeBurnerItem::new,
-            new Item.Properties().stacksTo(1).fireResistant().durability(DesignData.gearTiers().sporeBurner.durability));
+    /** 導晶の道具の格(硬さはダイヤと同じ)。壊れにくさ・速さは登録の時に読む(変えたら再起動)。 */
+    public static final Tier CONDUIT_TIER = new SimpleTier(BlockTags.INCORRECT_FOR_DIAMOND_TOOL,
+            DesignData.gearTiers().conduit.durability, DesignData.gearTiers().conduit.speed,
+            DesignData.gearTiers().conduit.attackBonus, DesignData.gearTiers().conduit.enchantability,
+            () -> Ingredient.of(ModGear.CONDUIT_PLATE.get()));
 
-    /** 地脈の杖の光の弾。 */
-    public static final DeferredHolder<net.minecraft.world.entity.EntityType<?>, net.minecraft.world.entity.EntityType<LeyBoltEntity>> LEY_BOLT =
-            com.yayuy.overgrownvegetation.registry.ModEntities.ENTITY_TYPES.register("ley_bolt", () -> net.minecraft.world.entity.EntityType.Builder
-                    .<LeyBoltEntity>of(LeyBoltEntity::new, net.minecraft.world.entity.MobCategory.MISC)
-                    .sized(0.3F, 0.3F).clientTrackingRange(6).updateInterval(5)
-                    .build(com.yayuy.overgrownvegetation.OvergrownVegetation.id("ley_bolt").toString()));
+    public static final DeferredItem<ConduitTools.Pickaxe> CONDUIT_PICKAXE = ModItems.ITEMS.registerItem("conduit_pickaxe",
+            p -> new ConduitTools.Pickaxe(CONDUIT_TIER, p),
+            new Item.Properties().attributes(PickaxeItem.createAttributes(CONDUIT_TIER, 1.0F, -2.8F)));
+    public static final DeferredItem<ConduitTools.Axe> CONDUIT_AXE = ModItems.ITEMS.registerItem("conduit_axe",
+            p -> new ConduitTools.Axe(CONDUIT_TIER, p),
+            new Item.Properties().attributes(AxeItem.createAttributes(CONDUIT_TIER, 5.0F, -3.0F)));
+    public static final DeferredItem<ConduitTools.Shovel> CONDUIT_SHOVEL = ModItems.ITEMS.registerItem("conduit_shovel",
+            p -> new ConduitTools.Shovel(CONDUIT_TIER, p),
+            new Item.Properties().attributes(ShovelItem.createAttributes(CONDUIT_TIER, 1.5F, -3.0F)));
+    public static final DeferredItem<ConduitTools.Hoe> CONDUIT_HOE = ModItems.ITEMS.registerItem("conduit_hoe",
+            p -> new ConduitTools.Hoe(CONDUIT_TIER, p),
+            new Item.Properties().attributes(HoeItem.createAttributes(CONDUIT_TIER, -3.0F, 0.0F)));
 
-    /** 結晶を持つ物に FE の口を付ける(後で充電台などから満たせるように)。 */
-    @net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.MOD)
+    /** 導晶鉱を地脈の線の近くの地下に置く(biome_modifier {@code conduit_ore})。 */
+    public static final DeferredHolder<Feature<?>, ConduitOre.Placer> CONDUIT_ORE_FEATURE =
+            ModFeatures.FEATURES.register("conduit_ore", () -> new ConduitOre.Placer(NoneFeatureConfiguration.CODEC));
+
+    /** 地脈の力の口(電池と同じ。受け取るだけで出さない = 鉄塔の網に吸い出されない)。 */
+    @net.neoforged.fml.common.EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.MOD)
     public static final class Capabilities {
         @net.neoforged.bus.api.SubscribeEvent
         public static void register(net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent event) {
             event.registerItem(net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.ITEM,
-                    (stack, ctx) -> new net.neoforged.neoforge.energy.ComponentEnergyStorage(stack, com.yayuy.overgrownvegetation.registry.ModLey.ENERGY.get(),
-                            LeyCrystal.capacity(stack), Math.max(1, LeyCrystal.capacity(stack))),
-                    LEY_CHESTPLATE.get(), THUNDER_BLADE.get(), HEAT_BLADE.get(), LEY_STAFF.get(), SPORE_BURNER.get());
+                    (stack, ctx) -> new net.neoforged.neoforge.energy.ComponentEnergyStorage(stack, ModLey.ENERGY.get(),
+                            LeyCharge.capacity(), LeyCharge.maxReceive(), 0),
+                    CONDUIT_PICKAXE.get(), CONDUIT_AXE.get(), CONDUIT_SHOVEL.get(), CONDUIT_HOE.get());
         }
 
         private Capabilities() {
@@ -256,40 +190,24 @@ public final class ModGear {
 
     /** 人類側のタブに並べる({@code ModCreativeTabs} から呼ぶ)。 */
     public static void acceptItems(CreativeModeTab.Output output) {
-        output.accept(FIBER_GRASS_ITEM.get());
-        output.accept(GRASS_CLOTH.get());
-        output.accept(TWISTED_CORD.get());
-        output.accept(EXPEDITION_HOOD.get());
-        output.accept(EXPEDITION_COAT.get());
-        output.accept(EXPEDITION_TROUSERS.get());
-        output.accept(EXPEDITION_BOOTS.get());
-        output.accept(MACHETE.get());
-        output.accept(SPORE_BOW.get());
-        output.accept(SPORE_ARROW.get());
+        output.accept(CONDUIT_ORE_ITEM.get());
+        output.accept(DEEPSLATE_CONDUIT_ORE_ITEM.get());
+        output.accept(OVERGROWN_CONDUIT_ORE_ITEM.get());
+        output.accept(OVERGROWN_DEEPSLATE_CONDUIT_ORE_ITEM.get());
+        output.accept(SMALL_ROOT_CRYSTAL_ITEM.get());
+        output.accept(RAW_CONDUIT.get());
+        output.accept(CONDUIT_INGOT.get());
+        output.accept(CONDUIT_PLATE.get());
+        for (DeferredItem<? extends DiggerItem> tool : java.util.List.of(CONDUIT_PICKAXE, CONDUIT_AXE, CONDUIT_SHOVEL, CONDUIT_HOE)) {
+            output.accept(tool.get());
+            ItemStack full = new ItemStack(tool.get()); // 満たした物も 1 つずつ(試す用。電池の満タンと同じ扱い)
+            LeyCharge.set(full, LeyCharge.capacity());
+            output.accept(full);
+        }
         output.accept(FUNGAL_ORE_ITEM.get());
         output.accept(DEEPSLATE_FUNGAL_ORE_ITEM.get());
         output.accept(RAW_FUNGAL_METAL.get());
         output.accept(FUNGAL_METAL_INGOT.get());
-        output.accept(PLATE_HELMET.get());
-        output.accept(PLATE_CHESTPLATE.get());
-        output.accept(PLATE_LEGGINGS.get());
-        output.accept(PLATE_BOOTS.get());
-        output.accept(GREATSWORD.get());
-        output.accept(PIERCING_CROSSBOW.get());
-        output.accept(LEY_HELMET.get());
-        output.accept(LEY_CHESTPLATE.get());
-        output.accept(LEY_LEGGINGS.get());
-        output.accept(LEY_BOOTS.get());
-        output.accept(THUNDER_BLADE.get());
-        output.accept(HEAT_BLADE.get());
-        output.accept(LEY_STAFF.get());
-        output.accept(SPORE_BURNER.get());
-        // 結晶を満たした物も 1 つずつ(試す用。電池の満タンと同じ扱い)
-        for (var i : java.util.List.of(LEY_CHESTPLATE, THUNDER_BLADE, HEAT_BLADE, LEY_STAFF, SPORE_BURNER)) {
-            net.minecraft.world.item.ItemStack full = new net.minecraft.world.item.ItemStack(i.get());
-            LeyCrystal.set(full, LeyCrystal.capacity(full));
-            output.accept(full);
-        }
         ModMobDrops.acceptItems(output);
     }
 }
