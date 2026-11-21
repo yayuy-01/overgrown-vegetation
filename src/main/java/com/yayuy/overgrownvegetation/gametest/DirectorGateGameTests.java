@@ -191,7 +191,7 @@ public final class DirectorGateGameTests {
         double inc7 = dt.income(7, 1.0D);
         for (int hives : new int[]{0, 2}) {
             for (double during : new double[]{0.0D, 0.5D}) {
-                double budget = Math.min(dt.cap(inc7, hives) * dt.largeRaid.capFactor, dt.cap(inc7, hives) + inc7 * 2.0D) + inc7 * during;
+                double budget = Math.min(dt.cap(hives) * dt.largeRaid.capFactor, dt.cap(hives) + inc7 * 2.0D) + inc7 * during;
                 double n = budget / avg;
                 OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
                         "[司令塔の段の試算] F7 の大きな襲撃(ハイヴノード %d・襲撃の間の収入 %.1f 日分): 予算 %.0f → 約 %.0f 体(段階 0 %.0f・1 段目 %.0f・G2〜G4 %.0f)",
@@ -204,7 +204,7 @@ public final class DirectorGateGameTests {
     /** 試算 1 つ: [進化, 根付き, 苗床, まま] の平均。 */
     private static double[] simulate(PhaseTable pt, int phase, PhaseStage stage, int runs) {
         DirectorTable t = DesignData.director();
-        double income = t.income(phase, 1.0D), cap = t.cap(income, 2); // 面積の割合 1.0・ハイヴノード 2
+        double income = t.income(phase, 1.0D), cap = t.cap(2); // 面積の割合 1.0・ハイヴノード 2
         double[] sum = new double[5]; // [進化, 根付き, 苗床, まま, G1 の道に払った予算]
         RandomSource rnd = RandomSource.create(42L);
         double sEvolve = com.yayuy.overgrownvegetation.phase.PhaseStages.strength(pt, phase, stage, t.gates.evolve);

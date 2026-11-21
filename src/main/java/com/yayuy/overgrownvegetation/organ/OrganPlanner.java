@@ -69,12 +69,13 @@ public final class OrganPlanner {
         double countFactor = com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.of(level.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.ORGAN_COUNT);
         if (force == null && data.livingCount(small) >= Math.round((small ? t.maxSmall(phase) : t.maxOrgans(phase)) * countFactor)) return null;
         double cap = ForestDirector.cap(level);
-        double price = price(level, small);
+        OrganKind kind = force != null ? force : pickKind(level, data, random);
+        // 11-22 ユーザー決定: 蓄えの嚢は 2 つ目から値段が上がる(今ある嚢 1 つごとに × sacPriceGrowth【仮】)
+        double price = kind == OrganKind.SAC ? sacPrice(level, data, small) : price(level, small);
         ForestDirector dir = ForestDirector.get(level);
         if (force == null && dir.available(level) < price) {
-            return String.format(Locale.ROOT, "予算が足りない(%.0f / 値段 %.0f・上限 %.0f)", dir.available(level), price, cap);
+            return String.format(Locale.ROOT, "予算が足りない(%s・%.0f / 値段 %.0f・上限 %.0f)", kind.label, dir.available(level), price, cap);
         }
-        OrganKind kind = force != null ? force : pickKind(level, data, random);
         Site best = findSite(level, data, kind, small, random);
         if (best == null) return kind.label + " を建てる升が見つからない";
         if (force == null && !dir.tryPay(level, price)) return "払えなかった";
@@ -95,6 +96,12 @@ public final class OrganPlanner {
         return Math.min(DesignData.organs().price(small), ForestDirector.cap(level) * 0.95D);
     }
 
+    /** 蓄えの嚢の値段(11-22 ユーザー決定): 器官の値段 × sacPriceGrowth^(今ある同じ大きさの嚢の数)。上限の 95% で切る。 */
+    public static double sacPrice(ServerLevel level, ForestOrgans data, boolean small) {
+        double p = DesignData.organs().price(small) * Math.pow(DesignData.director().sacPriceGrowth, data.livingCount(OrganKind.SAC, small));
+        return Math.min(p, ForestDirector.cap(level) * 0.95D);
+    }
+
     static OrganKind pickKind(ServerLevel level, ForestOrgans data, RandomSource random) {
         OrganTable t = DesignData.organs();
         boolean anyBase = false;
@@ -106,7 +113,13 @@ public final class OrganPlanner {
         double total = 0.0D;
         for (int i = 0; i < ks.length; i++) {
             if (ks[i] == OrganKind.NURSERY && !anyBase) continue;
-            w[i] = t.kindWeights[i] / (1.0D + data.count(ks[i], false)); // 足りない種類ほど
+            if (ks[i] == OrganKind.SAC) {
+                // 11-22 ユーザー決定: 蓄えの嚢の重みは直近に上限からあふれた量で決める(あふれていなければ建てない。数の上限は付けない。高くなるのは値段で)
+                double cap = Math.max(1.0D, ForestDirector.cap(level));
+                w[i] = t.kindWeights[i] * DesignData.director().sacOverflowWeight * com.yayuy.overgrownvegetation.director.StorageOverflow.recent() / cap;
+            } else {
+                w[i] = t.kindWeights[i] / (1.0D + data.count(ks[i], false)); // 足りない種類ほど
+            }
             total += w[i];
         }
         double r = random.nextDouble() * total;

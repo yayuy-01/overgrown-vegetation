@@ -145,7 +145,7 @@ public final class ForestEconomyGameTests {
                 for (int half = 0; half <= 1; half++) {
                     int chunks = half == 0 ? area : area / 2;
                     double income = e.incomePerDay(chunks, ley[p], 0, trees[p]);
-                    double cap = income * (dt.capDays + dt.capPerHiveNodeDays * trees[p]);
+                    double cap = dt.cap(trees[p]); // 11-22: 基礎値 + ハイヴノード
                     var w6 = dt.base.waveFor(6.0D);
                     double perWave = income * e.waveIncomeDays; // 1 回は 1 日の稼ぎの waveIncomeDays 日分まで
                     int full = com.yayuy.overgrownvegetation.director.BaseRaids.sizeByBudget(level, w6, Math.min(cap * e.waveBudgetShare, perWave)).total();

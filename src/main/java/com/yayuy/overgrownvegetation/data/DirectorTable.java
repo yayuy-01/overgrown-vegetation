@@ -29,6 +29,7 @@ public final class DirectorTable {
         public Double areaRatioMax;
         public Double capDays;
         public Double capPerHiveNodeDays;
+        public Double capBase, capPerHiveNode, overflowSporeFactor, overflowRecentDays, sacOverflowWeight, sacPriceGrowth;
         public Double costG3;
         public Double costG4;
         public Double costEvolve;
@@ -101,6 +102,13 @@ public final class DirectorTable {
     /** 上限 = 1 日の収入 × (capDays + capPerHiveNodeDays × ハイヴノード)。1 日分 + ハイヴノード 1 つで 0.5 日分【仮】。 */
     public final double capDays;
     public final double capPerHiveNodeDays;
+    /**
+     * 11-22 ユーザー決定「貯蓄の上限の一日の稼ぎをなくし、基礎値 + ハイヴノード + 器官に」: 上限 = capBase + capPerHiveNode × (ハイヴノード + 蓄えの嚢のハイヴノード換算)。
+     * 上限からあふれた分は捨てずに森全体の胞子へ(あふれた量 ÷ 上限 × 過繁茂のチャンク × overflowSporeFactor = 胞子の場の量。上限 1 つ分あふれると森全体の 1 日分)。
+     * 蓄えの嚢を建てる重み = 嚢の重み × sacOverflowWeight × 直近(overflowRecentDays 日で減る)にあふれた量 ÷ 上限(あふれていなければ 0)。
+     * 嚢の値段は今ある嚢 1 つごとに × sacPriceGrowth。数は全部【仮】。capDays・capPerHiveNodeDays はもう使わない。
+     */
+    public final double capBase, capPerHiveNode, overflowSporeFactor, overflowRecentDays, sacOverflowWeight, sacPriceGrowth;
     /** G3・G4 を孵す値段(G2 は costSpawn)。今は使われない(G2 以降が退避中)【仮】。 */
     public final double costG3;
     public final double costG4;
@@ -207,6 +215,12 @@ public final class DirectorTable {
         this.areaRatioMax = Math.max(this.areaRatioMin, nonNeg(s.areaRatioMax, 1.5D));
         this.capDays = nonNeg(s.capDays, 1.0D);
         this.capPerHiveNodeDays = nonNeg(s.capPerHiveNodeDays, 0.5D);
+        this.capBase = nonNeg(s.capBase, 100000.0D);
+        this.capPerHiveNode = nonNeg(s.capPerHiveNode, 100000.0D);
+        this.overflowSporeFactor = nonNeg(s.overflowSporeFactor, 1.0D);
+        this.overflowRecentDays = Math.max(0.1D, nonNeg(s.overflowRecentDays, 3.0D));
+        this.sacOverflowWeight = nonNeg(s.sacOverflowWeight, 1.0D);
+        this.sacPriceGrowth = Math.max(1.0D, nonNeg(s.sacPriceGrowth, 1.5D));
         this.costG3 = nonNeg(s.costG3, 2000.0D);
         this.costG4 = nonNeg(s.costG4, 3000.0D);
         this.costEvolve = nonNeg(s.costEvolve, 1000.0D);
@@ -267,9 +281,9 @@ public final class DirectorTable {
         return incomeBase[Math.max(0, Math.min(incomeBase.length - 1, phase))] * r;
     }
 
-    /** 貯蓄の上限 = 1 日の収入 × (1 日分 + ハイヴノードごとに 0.5 日分)。 */
-    public double cap(double incomePerDay, int hiveNodes) {
-        return incomePerDay * (capDays + capPerHiveNodeDays * Math.max(0, hiveNodes));
+    /** 貯蓄の上限(11-22 ユーザー決定): 基礎値 + ハイヴノード(蓄えの嚢の換算を含む)ごとに capPerHiveNode。1 日の稼ぎには比例しない。 */
+    public double cap(double hiveEquivalent) {
+        return capBase + capPerHiveNode * Math.max(0.0D, hiveEquivalent);
     }
 
     /** 孵す Mob のグループの値段(G3・G4。ほかは G2 の値段 costSpawn)。 */

@@ -181,6 +181,8 @@ public final class EconomySoak {
         maxSavedDays = 0.0D;
         largeBegun = largeOmen = 0L;
         tickSum = tickMax = tickCount = 0L;
+        prevOverflow = StorageOverflow.total;
+        prevOverflowSpore = StorageOverflow.sporeTotal;
     }
 
     /** 11-22 tick の最大の訳を見る: 1 tick が SPIKE_MS を超えたら、見張りのスレッドがサーバーのスレッドの今の積み重ねを soak/spikes.txt に書く(計測の間だけ)。 */
@@ -330,7 +332,7 @@ public final class EconomySoak {
                 RaidSpawns.lastWidened[0] - base0Widen[0], RaidSpawns.lastWidened[1] - base0Widen[1], RaidSpawns.lastWidened[2] - base0Widen[2],
                 RaidSpawns.lastWidened[3] - base0Widen[3], com.yayuy.overgrownvegetation.drift.DriftRaids.ferried - base0Ferried,
                 decisions[0], decisions[1], decisions[2], decisions[3], decisions[4], maxSavedDays, largeOmen, largeBegun, LargeRaids.scaledTotal,
-                front + "," + expandStats() + "," + String.format(Locale.ROOT, "%.1f", ForestDirector.cap(level) * DesignData.front().reserveCapShare) + "," + baseStages(level),
+                front + "," + expandStats() + "," + String.format(Locale.ROOT, "%.1f", ForestDirector.cap(level) * DesignData.front().reserveCapShare) + "," + storageStats(level) + "," + baseStages(level),
                 spent);
         append("economy-days.csv",
                 "day,phase,stage,points,overgrownChunks,leyOrgans,giantTrees,hiveNodes,incForest,incLey,incTree,incInfect,refundDeath,refundDespawn,"
@@ -338,7 +340,7 @@ public final class EconomySoak {
                         + "missUnloaded,missGround,missSeen,foundSpread,found90,found360,foundNone,ferries,"
                         + "skip,small,medium,large,introSmall,maxSavedDays,largeOmen,largeBegun,largeScaledTotal,"
                         + "fronts,units,headsDefend,headsExpand,headsHunt,headsRaid,headsBuild,upkeepPerDay,upkeepHeads,produced,frontRaids,frontRaidHeads,"
-                        + "frontRepels,treesPlaced,repelFrontRaid,repelHunt,expandSends,expandDistAvg,expandDistMax,expandArrivals,expandArriveDaysAvg,expandArriveDaysMax,reserve,bases,spentByCaller\n", line);
+                        + "frontRepels,treesPlaced,repelFrontRaid,repelHunt,expandSends,expandDistAvg,expandDistMax,expandArrivals,expandArriveDaysAvg,expandArriveDaysMax,reserve,capBase,capHive,capSac,sacs,sacsSmall,overflow,overflowSpore,overflowRecent,bases,spentByCaller\n", line);
     }
 
     /** 広げる部隊を出した数・距離(ブロック)の平均と最大・着いた数・着くまでの日数の平均と最大(累計。11-21 夜)。 */
@@ -350,6 +352,22 @@ public final class EconomySoak {
     }
 
     /** 拠点ごとの「段/送った回数/次の送り込みの日」(11-21 前線の襲撃が出ない訳を見る)。 */
+    /** 11-22 貯蓄の上限の内訳(基礎値・ハイヴノード分・蓄えの嚢分)・嚢の数・この日あふれた量・この日胞子に回した量(胞子の場の単位)。 */
+    private static double prevOverflow, prevOverflowSpore;
+
+    private static String storageStats(ServerLevel level) {
+        var t = DesignData.director();
+        double hives = PhaseData.get(level).hiveNodeSnapshot().length;
+        double sacs = com.yayuy.overgrownvegetation.organ.OrganWorld.sacHiveEquivalent(level);
+        var organs = com.yayuy.overgrownvegetation.organ.ForestOrgans.get(level);
+        int sacBig = organs.livingCount(com.yayuy.overgrownvegetation.organ.OrganKind.SAC, false), sacSmall = organs.livingCount(com.yayuy.overgrownvegetation.organ.OrganKind.SAC, true);
+        double over = StorageOverflow.total - prevOverflow, spore = StorageOverflow.sporeTotal - prevOverflowSpore;
+        prevOverflow = StorageOverflow.total;
+        prevOverflowSpore = StorageOverflow.sporeTotal;
+        return String.format(Locale.ROOT, "%.0f,%.0f,%.0f,%d,%d,%.1f,%.1f,%.1f", t.capBase, t.capPerHiveNode * hives, t.capPerHiveNode * sacs, sacBig, sacSmall,
+                over, spore, StorageOverflow.recent());
+    }
+
     private static String baseStages(ServerLevel level) {
         StringBuilder sb = new StringBuilder();
         for (BaseMemory.Base b : BaseMemory.get(level.getServer()).bases()) {

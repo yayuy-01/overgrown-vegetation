@@ -162,14 +162,14 @@ public final class OrganGameTests {
             sac.state = ForestOrgans.State.ALIVE;
             OrganWorld.invalidateCaches();
             double income = ForestDirector.incomePerDay(level);
-            double want = income * DesignData.director().capPerHiveNodeDays * DesignData.organs().sacHiveNodes;
+            double want = DesignData.director().capPerHiveNode * DesignData.organs().sacHiveNodes; // 11-22: 基礎値 + ハイヴノード
             double cap1 = ForestDirector.cap(level);
             helper.assertTrue(Math.abs(cap1 - cap0 - want) < 1.0E-6D, "嚢の上限の上がりが違う: " + (cap1 - cap0) + "(欲しい " + want + ")");
             ForestOrgans.Organ small = data.plant(level, OrganKind.SAC, true, 0, 8, 0, floor.getX() + 3000, floor.getZ());
             planted.add(small.id);
             small.state = ForestOrgans.State.ALIVE;
             OrganWorld.invalidateCaches();
-            double want2 = income * DesignData.director().capPerHiveNodeDays * DesignData.organs().smallSacHiveNodes;
+            double want2 = DesignData.director().capPerHiveNode * DesignData.organs().smallSacHiveNodes;
             helper.assertTrue(Math.abs(ForestDirector.cap(level) - cap1 - want2) < 1.0E-6D, "小さい嚢の上限の上がりが違う");
             data.remove(small.id);
 

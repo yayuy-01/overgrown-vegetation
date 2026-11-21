@@ -193,10 +193,9 @@ public final class ForestDirector extends SavedData implements ForestBudget {
 
     /** 貯蓄の上限 = 1 日の収入 × (1 日分 + ハイヴノードごとに 0.5 日分)。貯める・大きな襲撃の間は倍にする。 */
     public static double cap(ServerLevel level) {
-        // 森の器官の蓄えの嚢もハイヴノードと同じに上限を上げる(2026-11-17。嚢 1 つ = ハイヴノード sacHiveNodes 個分【仮】)
-        double income = incomePerDay(level);
-        double base = DesignData.director().cap(income, PhaseData.get(level).hiveNodeSnapshot().length)
-                + income * DesignData.director().capPerHiveNodeDays * com.yayuy.overgrownvegetation.organ.OrganWorld.sacHiveEquivalent(level);
+        // 11-22 ユーザー決定: 上限 = 基礎値 + ハイヴノード × a + 蓄えの嚢(ハイヴノード sacHiveNodes 個分。11-17)× a。1 日の稼ぎには比例しない
+        double base = DesignData.director().cap(PhaseData.get(level).hiveNodeSnapshot().length
+                + com.yayuy.overgrownvegetation.organ.OrganWorld.sacHiveEquivalent(level));
         // MOD の設定「森の予算の上限」(11-19。難易度の段で変わる)。収入の倍率は accrue で掛けるので、ここは上限の倍率だけ
         base *= com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.forestCap(level.getServer());
         // 貯める間は上限を上げる(第 3 段「貯めて一気に使う」)
@@ -357,7 +356,13 @@ public final class ForestDirector extends SavedData implements ForestBudget {
                     * com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.forestIncome(level.getServer()); // MOD の設定「森の予算の生産量」(11-19)
             // 11-21 維持費: 稼ぎ − 植物側の Mob の維持費(毎秒)を積む。維持費は稼ぎの倍率(森の健康・MOD の設定)には掛けない
             double net = incomePerDay(level) * factor - ForestUpkeep.perDay(level);
-            budget = accrued(budget, now - budgetAt, net, cap + carry);
+            double limit = cap + carry;
+            double grown = budget + net * days;
+            // 11-22 ユーザー決定: 上限からあふれた分(この間に稼いで入りきらなかった分)は捨てずに森全体の胞子へ
+            double over = Math.max(0.0D, grown - Math.max(limit, budget));
+            if (over > 0.0D) StorageOverflow.add(over);
+            StorageOverflow.decay(days);
+            budget = accrued(budget, now - budgetAt, net, limit);
         }
         budgetAt = now;
         setDirty();

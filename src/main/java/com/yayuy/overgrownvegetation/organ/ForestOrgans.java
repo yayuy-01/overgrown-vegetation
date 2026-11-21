@@ -273,6 +273,13 @@ public final class ForestOrgans extends SavedData {
         return n;
     }
 
+    /** 枯れていない、ある種類・ある大きさの器官の数(11-22 蓄えの嚢の値段)。 */
+    public int livingCount(OrganKind kind, boolean small) {
+        int n = 0;
+        for (Organ o : organs) if (o.kind == kind && o.state != State.WITHERED && o.small == small) n++;
+        return n;
+    }
+
     /** 枯れていない器官の数(大きさを問わない)。 */
     public int livingCount() {
         return livingCount(false) + livingCount(true);

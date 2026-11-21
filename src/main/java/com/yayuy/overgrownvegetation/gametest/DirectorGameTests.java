@@ -73,8 +73,9 @@ public final class DirectorGameTests {
                 "フェーズの基本で貯まっていない");
         helper.assertTrue(Math.abs(t.income(5, 0.0D) - t.incomeBase[5] * t.areaRatioMin) < 1.0E-9D
                 && Math.abs(t.income(5, 99.0D) - t.incomeBase[5] * t.areaRatioMax) < 1.0E-9D, "面積の割合が幅に収まっていない");
-        helper.assertTrue(Math.abs(t.cap(100.0D, 0) - 100.0D * t.capDays) < 1.0E-9D
-                && Math.abs(t.cap(100.0D, 3) - t.cap(100.0D, 0) - 3 * t.capPerHiveNodeDays * 100.0D) < 1.0E-9D, "上限が 1 日分とハイヴノードで決まっていない");
+        // 11-22 ユーザー決定: 上限 = 基礎値 + ハイヴノード × capPerHiveNode(1 日の稼ぎには比例しない)
+        helper.assertTrue(Math.abs(t.cap(0) - t.capBase) < 1.0E-9D
+                && Math.abs(t.cap(3) - t.cap(0) - 3 * t.capPerHiveNode) < 1.0E-9D, "上限が基礎値とハイヴノードで決まっていない");
 
         double cap = 1000.0D;
         double oneDay = ForestDirector.accrued(0.0D, 24000L, 7.0D, cap);

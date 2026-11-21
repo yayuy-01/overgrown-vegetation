@@ -137,9 +137,8 @@ public final class ForestCommand {
             }
             case SAC -> {
                 double hives = OrganWorld.sacHiveEquivalent(level);
-                double income = ForestDirector.incomePerDay(level);
-                double base = DesignData.director().cap(income, PhaseData.get(level).hiveNodeSnapshot().length);
-                double add = income * DesignData.director().capPerHiveNodeDays * hives;
+                double base = DesignData.director().cap(PhaseData.get(level).hiveNodeSnapshot().length); // 11-22: 基礎値 + ハイヴノード
+                double add = DesignData.director().capPerHiveNode * hives;
                 String pct = base > 0.0D ? f0(100.0D * add / base) : "?";
                 return Component.translatable(K + "effect.sac", pct, f1(hives));
             }
