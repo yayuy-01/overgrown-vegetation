@@ -356,4 +356,16 @@ public final class ArmorAttachGameTests {
         h.assertTrue(BeltPouchMenu.allowed(new ItemStack(Items.LEATHER_LEGGINGS)), "素の防具がベルトに入らない");
         h.succeed();
     }
+
+    /** 体の見た目の設計値: 当て板は付けた部位の骨だけを見せる(1 つの geo に 4 部位ぶん入れても、ほかの部位が出ない)。 */
+    @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
+    public static void barkShowsOnlyItsPartBones(GameTestHelper h) {
+        var e = ArmorAttachments.entry(bark());
+        h.assertTrue(e != null && e.bones.getOrDefault("legs", java.util.List.of()).contains("armorRightLeg")
+                && !e.bones.getOrDefault("legs", java.util.List.of()).contains("armorBody")
+                && e.bones.getOrDefault("chest", java.util.List.of()).contains("armorBody"), "当て板の部位ごとの骨が読めていない: " + (e == null ? null : e.bones));
+        var belt = ArmorAttachments.entry(new ItemStack(ModArmorAttach.STORAGE_BELT.get()));
+        h.assertTrue(belt != null && belt.bones.isEmpty(), "ベルトは全部の骨を見せる(脚の防具だが胴の骨に描く)");
+        h.succeed();
+    }
 }

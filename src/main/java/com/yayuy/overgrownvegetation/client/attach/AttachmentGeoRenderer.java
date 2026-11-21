@@ -53,14 +53,46 @@ public class AttachmentGeoRenderer extends GeoArmorRenderer<ArmorAttachmentItem>
     @Override
     protected void applyBoneVisibilityBySlot(EquipmentSlot currentSlot) {
         HumanoidModel<?> m = (HumanoidModel<?>) this;
-        setBoneVisible(this.head, m.head.visible);
-        setBoneVisible(this.body, m.body.visible);
-        setBoneVisible(this.rightArm, m.rightArm.visible);
-        setBoneVisible(this.leftArm, m.leftArm.visible);
-        setBoneVisible(this.rightLeg, m.rightLeg.visible);
-        setBoneVisible(this.leftLeg, m.leftLeg.visible);
-        setBoneVisible(this.rightBoot, m.rightLeg.visible);
-        setBoneVisible(this.leftBoot, m.leftLeg.visible);
+        // 部位ごとに見せる骨(armor_attachments.json の bones。書いていなければ全部)
+        com.yayuy.overgrownvegetation.gear.attach.AttachTable.Entry e =
+                com.yayuy.overgrownvegetation.gear.attach.ArmorAttachments.entry(getCurrentStack());
+        java.util.List<String> only = e == null ? null : e.bones.get(part(currentSlot));
+        java.util.function.Predicate<String> show = name -> only == null || only.isEmpty() || only.contains(name);
+        setBoneVisible(this.head, m.head.visible && show.test("armorHead"));
+        setBoneVisible(this.body, m.body.visible && show.test("armorBody"));
+        setBoneVisible(this.rightArm, m.rightArm.visible && show.test("armorRightArm"));
+        setBoneVisible(this.leftArm, m.leftArm.visible && show.test("armorLeftArm"));
+        setBoneVisible(this.rightLeg, m.rightLeg.visible && show.test("armorRightLeg"));
+        setBoneVisible(this.leftLeg, m.leftLeg.visible && show.test("armorLeftLeg"));
+        setBoneVisible(this.rightBoot, m.rightLeg.visible && show.test("armorRightBoot"));
+        setBoneVisible(this.leftBoot, m.leftLeg.visible && show.test("armorLeftBoot"));
+    }
+
+    /** 同じ防具に付いている同じ付け物の数(2 枚目・3 枚目の骨を出すため。{@link AttachmentLayer} が描く前に入れる)。 */
+    private int count = 1;
+
+    public void setCount(int count) {
+        this.count = count;
+    }
+
+    @Override
+    public void preRender(com.mojang.blaze3d.vertex.PoseStack poseStack, ArmorAttachmentItem animatable, software.bernie.geckolib.cache.object.BakedGeoModel model,
+            @Nullable net.minecraft.client.renderer.MultiBufferSource bufferSource, @Nullable com.mojang.blaze3d.vertex.VertexConsumer buffer, boolean isReRender,
+            float partialTick, int packedLight, int packedOverlay, int colour) {
+        super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
+        for (software.bernie.geckolib.cache.object.GeoBone b : model.topLevelBones()) hideByCount(b);
+    }
+
+    /** 名前が count2・count3 で始まる骨は、同じ付け物がその枚数以上付いたときだけ見せる(子の骨ごと)。 */
+    private void hideByCount(software.bernie.geckolib.cache.object.GeoBone bone) {
+        String n = bone.getName();
+        if (n.startsWith("count2") || n.startsWith("count3")) {
+            // 骨の隠れは描くたびに戻らない(親の骨を見せても子の hidden は残る)ので、毎回はっきり決める
+            boolean hide = n.startsWith("count2") ? count < 2 : count < 3;
+            bone.setHidden(hide);
+            if (hide) return;
+        }
+        for (software.bernie.geckolib.cache.object.GeoBone c : bone.getChildBones()) hideByCount(c);
     }
 
     private static final class Model extends GeoModel<ArmorAttachmentItem> {

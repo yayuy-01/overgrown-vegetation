@@ -35,6 +35,11 @@ public final class AttachTable {
         public double leyDrainReduction = 0.0D;
         /** 口覆いの布のフィルターの減りの倍率(1 = 防護マスクと同じ)。 */
         public double filterWear = 1.0D;
+        /**
+         * 体の見た目で、部位ごとに見せる骨(鍵 = head / chest / legs / feet、値 = armorHead などの骨の名前)。
+         * 1 つの geo に全部位ぶんの形を入れたとき(部位ごとの geo が無いとき)に、付けた部位の骨だけを見せる。書かない部位は全部の骨を見せる。
+         */
+        public Map<String, List<String>> bones = Map.of();
 
         Entry() {
         }
@@ -51,6 +56,8 @@ public final class AttachTable {
         m.put("storage_belt", new Entry(List.of("legs"), 1));
         Entry bark = new Entry(List.of("head", "chest", "legs", "feet"), 3);
         bark.armor = 1.0D;
+        bark.bones = Map.of("head", List.of("armorHead"), "chest", List.of("armorBody", "armorRightArm", "armorLeftArm"),
+                "legs", List.of("armorRightLeg", "armorLeftLeg"), "feet", List.of("armorRightBoot", "armorLeftBoot"));
         m.put("bark_plate", bark);
         Entry sash = new Entry(List.of("legs"), 1);
         sash.leyDrainReduction = 0.1D;

@@ -1,11 +1,12 @@
 {
-  "_comment": "防具の付け物(2026-11-21 夜)。値はどれも【仮】(働きはユーザーが見て決める)。slots = 防具 1 つの枠の数(1〜3)。beltSlots = 収納付きベルトの小物入れの枠(1〜9)。attachments の鍵 = この MOD のアイテムの id。parts = 付けられる部位(head / chest / legs / feet)、max = 1 つの防具に同じ物をいくつまで、armor = 1 枚ごとの防御の上乗せ、leyDrainReduction = 着けている人の地脈の力の減りを減らす割合、filterWear = 口覆いの布のフィルターの減りの倍率(1 = 防護マスクと同じ)。付け物を足すときはアイテムを登録してここに 1 節足す。",
+  "_comment": "防具の付け物(2026-11-21 夜)。値はどれも【仮】(働きはユーザーが見て決める)。slots = 防具 1 つの枠の数(1〜3)。beltSlots = 収納付きベルトの小物入れの枠(1〜9)。attachments の鍵 = この MOD のアイテムの id。parts = 付けられる部位(head / chest / legs / feet)、max = 1 つの防具に同じ物をいくつまで、armor = 1 枚ごとの防御の上乗せ、leyDrainReduction = 着けている人の地脈の力の減りを減らす割合、filterWear = 口覆いの布のフィルターの減りの倍率(1 = 防護マスクと同じ)。bones = 体の見た目で部位ごとに見せる骨(1 つの geo に全部位ぶんを入れたとき。部位ごとの geo <id>_<部位>.geo.json があればそちらを読む)。geo の中で名前が count2・count3 で始まる骨は、同じ付け物がその枚数以上付いたときだけ見える(2 枚目・3 枚目の形)。付け物を足すときはアイテムを登録してここに 1 節足す。",
   "slots": 3,
   "beltSlots": 4,
   "attachments": {
     "mouth_cloth": { "parts": ["head"], "max": 1, "filterWear": 1.0 },
     "storage_belt": { "parts": ["legs"], "max": 1 },
-    "bark_plate": { "parts": ["head", "chest", "legs", "feet"], "max": 3, "armor": 1.0 },
+    "bark_plate": { "parts": ["head", "chest", "legs", "feet"], "max": 3, "armor": 1.0,
+      "bones": { "head": ["armorHead"], "chest": ["armorBody", "armorRightArm", "armorLeftArm"], "legs": ["armorRightLeg", "armorLeftLeg"], "feet": ["armorRightBoot", "armorLeftBoot"] } },
     "conduit_sash": { "parts": ["legs"], "max": 1, "leyDrainReduction": 0.1 }
   }
 }

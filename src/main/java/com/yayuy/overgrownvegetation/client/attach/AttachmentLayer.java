@@ -2,6 +2,7 @@ package com.yayuy.overgrownvegetation.client.attach;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.yayuy.overgrownvegetation.gear.attach.ArmorAttachmentItem;
+import com.yayuy.overgrownvegetation.gear.attach.ArmorAttachments;
 import com.yayuy.overgrownvegetation.registry.ModArmorAttach;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -49,6 +50,7 @@ public class AttachmentLayer<T extends LivingEntity, M extends HumanoidModel<T>>
                 if (!(s.getItem() instanceof ArmorAttachmentItem item) || !drawn.add(item)) continue;
                 if (AttachmentGeoRenderer.modelFor(item, slot) == null) continue;
                 AttachmentGeoRenderer r = RENDERERS.computeIfAbsent(item, k -> new AttachmentGeoRenderer());
+                r.setCount(ArmorAttachments.count(armor, item));
                 r.prepForRender(entity, s, slot, getParentModel(), buffer, partialTick, limbSwing, limbSwingAmount, netHeadYaw, headPitch);
                 copyPose(getParentModel(), r);
                 r.renderToBuffer(poseStack, null, packedLight, OverlayTexture.NO_OVERLAY, -1);
