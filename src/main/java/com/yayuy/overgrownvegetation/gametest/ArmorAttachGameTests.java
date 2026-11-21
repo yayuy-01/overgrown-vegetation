@@ -310,4 +310,50 @@ public final class ArmorAttachGameTests {
         h.assertTrue(c != null && c.getStackInSlot(0).is(Items.TORCH), "外したベルトに中身が無い");
         h.succeed();
     }
+
+    /**
+     * 布の付いた兜(バニラの物)の上で、持ち物の画面からフィルターを右クリックすると入れ替わる(防護マスクと同じ手つき)。
+     * 兜は新しいフィルター(詰まり 0)に、手には詰まったままの古いフィルターが来る。布の付いていない兜では何も起きない。
+     */
+    @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
+    public static void filterSwapsOnClothHelmet(GameTestHelper h) {
+        Player player = h.makeMockPlayer(GameType.SURVIVAL);
+        var menu = player.inventoryMenu;
+        ItemStack helmet = new ItemStack(Items.IRON_HELMET);
+        ArmorAttachments.attach(helmet, 0, new ItemStack(ModArmorAttach.MOUTH_CLOTH.get()));
+        int cap = (int) Math.ceil(AirFilters.capacity(helmet));
+        helmet.set(ModDataComponents.MASK_FILTER_USED, cap); // 詰まり切った
+        player.getInventory().setItem(9, helmet);
+        menu.setCarried(new ItemStack(com.yayuy.overgrownvegetation.registry.ModVent.AIR_FILTER.get()));
+        menu.clicked(9, 1, ClickType.PICKUP, player); // 兜の上で右クリック
+        ItemStack after = player.getInventory().getItem(9);
+        ItemStack hand = menu.getCarried();
+        h.assertTrue(after.is(Items.IRON_HELMET) && AirFilters.used(after) == 0, "兜のフィルターが入れ替わらない: " + after + " 詰まり " + AirFilters.used(after));
+        h.assertTrue(AirFilters.isFilter(hand) && AirFilters.used(hand) == cap, "手に古いフィルターが来ない: " + hand + " 詰まり " + AirFilters.used(hand));
+        // 布の付いていない兜には効かない(兜とフィルターが入れ替わるだけ = バニラの持ち替え)
+        ItemStack plain = new ItemStack(Items.IRON_HELMET);
+        player.getInventory().setItem(10, plain);
+        menu.setCarried(new ItemStack(com.yayuy.overgrownvegetation.registry.ModVent.AIR_FILTER.get()));
+        menu.clicked(10, 1, ClickType.PICKUP, player);
+        h.assertFalse(player.getInventory().getItem(10).has(ModDataComponents.MASK_FILTER_USED) && player.getInventory().getItem(10).is(Items.IRON_HELMET)
+                && FilterMask.isMask(player.getInventory().getItem(10)), "布の無い兜がフィルターを使う頭になった");
+        h.succeed();
+    }
+
+    /** 洗い場: 詰まった布そのもの・詰まった布の付いた兜は「フィルターを洗える物」。ベルトの中にベルトの付いた防具は入らない。 */
+    @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
+    public static void washableAndNoNestedBelt(GameTestHelper h) {
+        ItemStack cloth = new ItemStack(ModArmorAttach.MOUTH_CLOTH.get());
+        cloth.set(ModDataComponents.MASK_FILTER_USED, 500);
+        h.assertTrue(com.yayuy.overgrownvegetation.survival.decon.Decon.filterWashable(cloth), "詰まった布が洗えない");
+        ItemStack helmet = new ItemStack(Items.IRON_HELMET);
+        ArmorAttachments.attach(helmet, 0, cloth);
+        h.assertTrue(com.yayuy.overgrownvegetation.survival.decon.Decon.filterWashable(helmet), "詰まった布の付いた兜が洗えない");
+        h.assertFalse(com.yayuy.overgrownvegetation.survival.decon.Decon.filterWashable(new ItemStack(Items.IRON_HELMET)), "素の兜が洗える物になった");
+        ItemStack legs = new ItemStack(Items.LEATHER_LEGGINGS);
+        ArmorAttachments.attach(legs, 0, new ItemStack(ModArmorAttach.STORAGE_BELT.get()));
+        h.assertFalse(BeltPouchMenu.allowed(legs), "ベルトの付いた防具がベルトの中に入る");
+        h.assertTrue(BeltPouchMenu.allowed(new ItemStack(Items.LEATHER_LEGGINGS)), "素の防具がベルトに入らない");
+        h.succeed();
+    }
 }

@@ -87,9 +87,10 @@ public class BeltPouchMenu extends AbstractContainerMenu {
         return size;
     }
 
-    /** 小物入れに入れられる物(ベルトそのもの・ほかの入れ物の中に入れられない物は入れない)。 */
+    /** 小物入れに入れられる物(ベルトそのもの・ベルトの付いた防具・ほかの入れ物の中に入れられない物は入れない)。 */
     public static boolean allowed(ItemStack stack) {
-        return !stack.is(ModArmorAttach.STORAGE_BELT.get()) && stack.getItem().canFitInsideContainerItems();
+        return !stack.is(ModArmorAttach.STORAGE_BELT.get()) && stack.getItem().canFitInsideContainerItems()
+                && ArmorAttachments.count(stack, ModArmorAttach.STORAGE_BELT.get()) == 0; // ベルトの付いた防具も入れない(入れ子)
     }
 
     private ItemStack belt() {
