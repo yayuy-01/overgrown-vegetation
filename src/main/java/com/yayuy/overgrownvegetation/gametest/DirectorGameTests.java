@@ -256,8 +256,9 @@ public final class DirectorGameTests {
             if (zombie.fate().route() == ForestDirector.Route.EVOLVE) {
                 double left = director.available(level);
                 double slack = ForestDirector.incomePerDay(level) * 400.0D / 24000.0D + 1.0E-6D;
-                helper.assertTrue(left >= cap - t.costEvolve - 1.0E-6D && left <= cap - t.costEvolve + slack,
-                        "払った量が違う: 残り " + left + "(上限 " + cap + "・値段 " + t.costEvolve + ")");
+                double price = ForestDirector.routeCost(t, ForestDirector.Route.EVOLVE, zombie); // 11-21 進化先の危険度に応じた追加の費用
+                helper.assertTrue(left >= cap - price - 1.0E-6D && left <= cap - price + slack,
+                        "払った量が違う: 残り " + left + "(上限 " + cap + "・値段 " + price + ")");
                 zombie.discard();
                 director.setBudget(level, 0.0D); // 世界に 1 つの予算を残さない(ほかのテストの段階 0 が進化しないように)
                 helper.succeed();

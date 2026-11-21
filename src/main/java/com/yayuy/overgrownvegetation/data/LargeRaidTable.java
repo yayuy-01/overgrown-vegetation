@@ -72,7 +72,7 @@ public final class LargeRaidTable {
         this.spawnPerStep = Math.max(1, Math.min(64, s.spawnPerStep != null ? s.spawnPerStep : 3));
         this.developedShare = Math.min(1.0D, nn(s.developedShare, 0.1D));
         this.plantShare = Math.min(1.0D - this.developedShare, nn(s.plantShare, 0.05D));
-        this.costStageZero = Math.max(0.01D, nn(s.costStageZero, 1.0D));
+        this.costStageZero = Math.max(0.01D, nn(s.costStageZero, 100.0D));
         this.spawnMinBlocks = Math.max(8.0D, nn(s.spawnMinBlocks, 48.0D));
         this.spawnMaxBlocks = Math.max(this.spawnMinBlocks, nn(s.spawnMaxBlocks, 96.0D));
         this.spawnSpreadDeg = Math.min(180.0D, nn(s.spawnSpreadDeg, 45.0D));

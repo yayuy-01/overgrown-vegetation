@@ -144,7 +144,7 @@ public final class OrganRoles {
         if (type == null) return;
         ForestDirector dir = ForestDirector.get(level);
         double cost = ForestDirector.spawnCost(type);
-        if (!dir.tryPay(level, cost)) return;
+        if (!dir.tryPayUnit(level, cost, cost, true)) return; // 11-21 維持費の 8 割の関所
         OrganBlueprint bp = OrganWorld.blueprint(o);
         BlockPos spot = bp != null ? at.offset(bp.coreCenter) : at.above();
         Mob m = OrganWorld.spawnNear(level, spot, 0);

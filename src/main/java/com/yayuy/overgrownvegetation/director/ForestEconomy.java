@@ -26,7 +26,7 @@ import java.util.Locale;
  * 予算そのもの(貯まる・払う・上限)は {@link ForestDirector}。ここは「何が稼ぎ、何が払い、何が戻すか」を 1 か所に集めた口。
  * 数は {@code director.json} の {@code economy}({@link EconomyTable})の【仮】。
  * <ul>
- *   <li><b>稼ぎ</b>(毎秒少しずつ。{@link #incomePerDay}): √(過繁茂のチャンク数) × 0.8 + 井戸の器官 1 本 40(小 10)+ 生きている巨大樹 1 本 8 / 日(11-20 夜。フェーズの基本は使わない)。</li>
+ *   <li><b>稼ぎ</b>(毎秒少しずつ。{@link #incomePerDay}): 11-21 から毎秒 = 過繁茂 1 チャンク 0.004 + 井戸 + 巨大樹(広さに比例。物差しは段階 0 の感染 Mob = 100)。維持費は {@link ForestUpkeep}。</li>
  *   <li><b>まとまって入る</b>({@link #onInfected}): 生き物が感染体に変わったとき(汎用の感染体になった・死体になって G1 が起きる)。</li>
  *   <li><b>自然湧きも払う</b>({@link #payNatural}): 縁・地下・霧の中の本物。払えなければ湧かない。消えた(デスポーン)ら戻る。</li>
  *   <li><b>戻る</b>({@link #onDeath}): 払って出した植物側の Mob が森(過繁茂のチャンク)の中で倒されたら一部が戻る。外では戻らない。</li>
@@ -147,7 +147,8 @@ public final class ForestEconomy {
         if (!DesignData.director().enabled) return true;
         double price = naturalPrice(m);
         if (price <= 0.0D) return true;
-        if (!ForestDirector.get(level).tryPay(level, price)) {
+        // 11-21: 払うのは値段 × naturalCostFactor、維持費は定価で数える(8 割の関所)
+        if (!ForestDirector.get(level).tryPayUnit(level, price, ForestUpkeep.unitPrice(m), inForest(level, m.getX(), m.getZ()))) {
             naturalSkipped++;
             return false;
         }
@@ -223,9 +224,10 @@ public final class ForestEconomy {
     public static String describe(ServerLevel level) {
         Sources s = sources(level);
         return String.format(Locale.ROOT,
-                "稼ぎの元: 過繁茂 %d チャンク・井戸 大 %d 小 %d・巨大樹 %d 本 → 1 日 %.1f / 値段の倍率 %.2f(苗床の群体 %.1f 本)/ これまで: 感染 %d 回 +%.0f・"
+                "稼ぎの元: 過繁茂 %d チャンク・井戸 大 %d 小 %d・巨大樹 %d 本 → 1 日 %.1f(毎秒 %.2f)/ %s(上限 毎秒 %.2f・関所で断った %d)/ 値段の倍率 %.2f(苗床の群体 %.1f 本)/ これまで: 感染 %d 回 +%.0f・"
                         + "倒されて戻った +%.0f・消えて戻った +%.0f・自然湧き −%.0f(払えず見送り %d)・フェーズの器官 −%.0f・塔の飛翔 −%.0f",
-                s.chunks(), s.leyBig(), s.leySmall(), s.giantTrees(), s.perDay(), priceFactor(level), nurseryOrgans(level), infections, gainedInfect,
+                s.chunks(), s.leyBig(), s.leySmall(), s.giantTrees(), s.perDay(), s.perDay() / com.yayuy.overgrownvegetation.data.EconomyTable.SECONDS_PER_DAY,
+                ForestUpkeep.describe(level), ForestDirector.upkeepLimitPerSecond(level), ForestDirector.fieldRefused, priceFactor(level), nurseryOrgans(level), infections, gainedInfect,
                 refundedDeath, refundedDespawn, paidNatural, naturalSkipped, spentPhase, spentTower);
     }
 }

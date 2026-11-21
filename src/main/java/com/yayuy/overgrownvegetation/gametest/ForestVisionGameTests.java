@@ -141,7 +141,7 @@ public final class ForestVisionGameTests {
                     && Math.hypot(c.x - m.getX(), c.z - m.getZ()) < 1.0D);
             helper.assertTrue(clue, "殺された所が手がかりにならない");
             helper.assertTrue(search.extraOnKill() == ForestVision.table().explorersOnKill, "足す偵察の数が違う: " + search.extraOnKill());
-            dir.setBudget(level, 1000.0D);
+            dir.setBudget(level, 100000.0D);
             helper.assertTrue(search.launch(level, 1.0D, level.getRandom()), "偵察を出せない");
             ScoutSearch.Explorer e = search.explorers().get(search.explorers().size() - 1);
             helper.assertTrue(e.kind == ScoutSearch.ClueKind.KILLED && Math.hypot(e.tx - m.getX(), e.tz - m.getZ()) < 1.0D,
@@ -220,7 +220,7 @@ public final class ForestVisionGameTests {
         VisionTable t = ForestVision.table();
         List<ChunkPos> forest = plantForest(level, FX, FZ, 2);
         try {
-            dir.setBudget(level, 100000.0D);
+            dir.setBudget(level, 10000000.0D);
             search.pinCenterForTests(level, FX * 16 + 8, FZ * 16 + 8, 40.0D); // テストのワールドの台帳にはほかのテストの升も混ざるので、森の真ん中を決め打ち
             double[] c = search.forestCenter(level);
             helper.assertTrue(c != null, "森の真ん中が分からない");

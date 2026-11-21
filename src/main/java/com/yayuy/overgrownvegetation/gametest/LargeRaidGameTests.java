@@ -83,7 +83,7 @@ public final class LargeRaidGameTests {
             helper.assertTrue(DirectorGates.largeRaidOmen(level) && DirectorGates.plantSpawnsSuppressed(level), "前触れで植物側の湧きが止まらない");
             helper.assertTrue(Math.abs(ForestDirector.cap(level) - capBefore * DesignData.director().largeRaid.capFactor) < 1.0E-6D, "前触れの上限が 4 倍でない");
             Supplier<EntityType<? extends Mob>> pig = () -> EntityType.PIG;
-            director.setBudget(level, 100.0D);
+            director.setBudget(level, 10000.0D);
             helper.assertTrue(director.buySpawn(level, RandomSource.create(1L), List.of(pig)) == null, "前触れの間に苗床が孵した");
             LargeRaids.begin(level, day);
             helper.assertTrue(director.mood() == ForestDirector.Mood.LARGE && LargeRaids.target(level) != null, "本番が始まらない");

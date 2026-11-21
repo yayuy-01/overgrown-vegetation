@@ -6,7 +6,7 @@
     "maxActive": 3,
     "intervalDays": 1.0,
     "chance": 0.5,
-    "price": 40.0,
+    "price": 4000.0,
     "reachBlocks": 768,
     "lineBlocks": 16,
     "avoidOvergrown": true,
@@ -66,8 +66,8 @@
   "wither": {
     "points": 0,
     "budgetCapShare": 0.0,
-    "budget": 40.0,
-    "borerBudget": 40.0
+    "budget": 4000.0,
+    "borerBudget": 4000.0
   },
   "omen": {
     "rumbleVolume": 2.5,

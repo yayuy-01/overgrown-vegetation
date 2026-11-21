@@ -56,32 +56,35 @@ public final class ForestEconomyGameTests {
 
     /**
      * テストのワールドは台帳がほぼ空で、11-20 夜の稼ぎ(√チャンク数 × 0.8 + …)では稼ぎも上限もほぼ 0 になり、tick をまたいで予算を持つ
-     * ほかのテストが成り立たない。GameTest のサーバーでは、前の形のテストのワールドの稼ぎ(F10 の 550 × 下限 0.3 = 1 日 165)に決め打ちにする。
+     * ほかのテストが成り立たない。GameTest のサーバーでは、前の形のテストのワールドの稼ぎ(F10 の 550 × 下限 0.3 = 1 日 165。11-21 に物差しを 100 倍にしたので 16500)に決め打ちにする。
      * 稼ぎそのものを見るテストは、自分の間だけ決め打ちを外す。
      */
     @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
     public static final class TestIncome {
         @SubscribeEvent
         public static void onStarted(net.neoforged.neoforge.event.server.ServerStartedEvent event) {
-            if (event.getServer() instanceof net.minecraft.gametest.framework.GameTestServer) ForestEconomy.setIncomeForTests(165.0D);
+            if (event.getServer() instanceof net.minecraft.gametest.framework.GameTestServer) ForestEconomy.setIncomeForTests(16500.0D);
+            // 11-21 維持費: テストのワールドの Mob 全部に維持費が掛かると、時間をまたぐ予算のテストが成り立たない。0 に決め打ち(維持費のテストは自分の間だけ外す)
+            if (event.getServer() instanceof net.minecraft.gametest.framework.GameTestServer) com.yayuy.overgrownvegetation.director.ForestUpkeep.setForTests(0.0D);
         }
 
         @SubscribeEvent
         public static void onStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
             ForestEconomy.setIncomeForTests(null);
+            com.yayuy.overgrownvegetation.director.ForestUpkeep.setForTests(null);
         }
 
         private TestIncome() {
         }
     }
 
-    /** 稼ぎは √(過繁茂のチャンク数) で増え、押し返すと減る。井戸の器官は 1 本 40(小 10)・巨大樹は 1 本 8 を足す(11-20 夜)。 */
+    /** 稼ぎは過繁茂のチャンク数に比例して増え(11-21)、押し返すと減る。井戸の器官・巨大樹は 1 本ごとに決まった量を足す。 */
     @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
     public static void incomeFollowsChunksLeyAndTrees(GameTestHelper helper) {
         EconomyTable e = ForestEconomy.table();
-        helper.assertTrue(Math.abs(e.incomePerDay(300000, 0, 0, 0) - e.chunkSqrtPerDay * Math.sqrt(300000)) < 1.0E-6D, "稼ぎが √ でない");
-        helper.assertTrue(Math.abs(e.incomePerDay(40000, 0, 0, 0) - 2.0D * e.incomePerDay(10000, 0, 0, 0)) < 1.0E-6D, "広さ 4 倍で稼ぎが 2 倍にならない");
-        helper.assertTrue(Math.abs(e.incomePerDay(900, 1, 1, 3) - e.incomePerDay(900, 0, 0, 0) - (e.leyPerDay + e.leySmallPerDay + 3 * e.treePerDay)) < 1.0E-6D,
+        helper.assertTrue(Math.abs(e.incomePerSecond(300000, 0, 0, 0) - e.chunkPerSecond * 300000) < 1.0E-6D, "稼ぎが広さに比例しない");
+        helper.assertTrue(Math.abs(e.incomePerDay(40000, 0, 0, 0) - 4.0D * e.incomePerDay(10000, 0, 0, 0)) < 1.0E-6D, "広さ 4 倍で稼ぎが 4 倍にならない");
+        helper.assertTrue(Math.abs(e.incomePerDay(900, 1, 1, 3) - e.incomePerDay(900, 0, 0, 0) - (e.leyPerSecond + e.leySmallPerSecond + 3 * e.treePerSecond) * EconomyTable.SECONDS_PER_DAY) < 1.0E-6D,
                 "井戸と巨大樹が決まった量を足さない");
 
         ServerLevel level = helper.getLevel();
@@ -104,7 +107,7 @@ public final class ForestEconomyGameTests {
             planted.add(ley.id);
             ley.state = ForestOrgans.State.ALIVE;
             double withLey = ForestDirector.incomePerDay(level);
-            helper.assertTrue(Math.abs(withLey - pushed - e.leyPerDay) < 1.0E-6D, "井戸の器官の稼ぎが違う: +" + (withLey - pushed) + "(欲しい " + e.leyPerDay + ")");
+            helper.assertTrue(Math.abs(withLey - pushed - e.leyPerSecond * EconomyTable.SECONDS_PER_DAY) < 1.0E-6D, "井戸の器官の稼ぎが違う: +" + (withLey - pushed));
             helper.succeed();
         } finally {
             for (int id : planted) data.remove(id);
@@ -158,7 +161,9 @@ public final class ForestEconomyGameTests {
                             p >= 6 ? large + " 体" : "-"));
                 }
             }
-            helper.assertTrue(f5Wave >= 25 && f5Wave <= 60, "F5 のふつうの広さの送り込みが目安(40 前後)から大きくずれた: " + f5Wave);
+            // 11-21 稼ぎを広さに比例にしたので、F5 のふつうの広さ(30 万チャンク)では予算から決める送り込みは上限 maxWave まで膨らむ。
+            // 襲撃は前線と部隊の区切り 3 で「前線から襲う部隊を出す」1 本に置き換えるので、ここは少なくとも目安の下(25)を割らないことだけ見る
+            helper.assertTrue(f5Wave >= 25, "F5 のふつうの広さの送り込みが目安(40 前後)の下を割った: " + f5Wave);
             helper.succeed();
         } finally {
             DirectorGates.setPhaseForTests(phaseBefore);
@@ -211,15 +216,15 @@ public final class ForestEconomyGameTests {
             EnemySpawns.Miss miss = EnemySpawns.place(level, type, at, SpawnTable.Habitat.GROUND, EnemySpawns.EDGE_TAG, 1);
             helper.assertTrue(miss == EnemySpawns.Miss.NO_BUDGET, "予算 0 でも湧いた: " + miss);
 
-            dir.setBudget(level, 10.0D);
+            dir.setBudget(level, 1000.0D);
             miss = EnemySpawns.place(level, type, at, SpawnTable.Habitat.GROUND, EnemySpawns.EDGE_TAG, 1);
             helper.assertTrue(miss == EnemySpawns.Miss.SPAWNED, "予算があるのに湧かない: " + miss);
             Mob m = EnemySpawns.lastPlaced();
             double price = ForestEconomy.paid(m);
-            helper.assertTrue(price > 0.0D && Math.abs(dir.available(level) - (10.0D - price)) < 1.0E-6D, "自然湧きが払っていない: " + price);
+            helper.assertTrue(price > 0.0D && Math.abs(dir.available(level) - (1000.0D - price)) < 1.0E-6D, "自然湧きが払っていない: " + price);
             // デスポーン = 森へ戻る
             m.discard();
-            helper.assertTrue(Math.abs(dir.available(level) - 10.0D) < 1.0E-6D, "消えた自然湧きの払いが戻らない: " + dir.available(level));
+            helper.assertTrue(Math.abs(dir.available(level) - 1000.0D) < 1.0E-6D, "消えた自然湧きの払いが戻らない: " + dir.available(level));
 
             // 森の外で倒される → 戻らない
             if (wasForest) pd.forgetOvergrownChunk(chunk);
@@ -273,7 +278,7 @@ public final class ForestEconomyGameTests {
             }
             pool = List.of(pool.get(0));
             net.minecraft.world.phys.Vec3 at = new net.minecraft.world.phys.Vec3(3_100_000, 64, 3_100_000);
-            dir.setBudget(level, 1000.0D);
+            dir.setBudget(level, 100000.0D);
             EntityType<?> a = dir.buySpawn(level, level.getRandom(), pool, at);
             double full = dir.lastBoughtPrice();
             EntityType<?> b = dir.buySpawn(level, level.getRandom(), pool, at, e.nurseryLocalFactor);
@@ -308,10 +313,10 @@ public final class ForestEconomyGameTests {
             long p0 = pd.getPoints();
             OrganRoles.phaseSpend(level, o, pd, perDay, 1.0D);
             helper.assertTrue(pd.getPoints() == p0, "予算 0 なのに点が増えた");
-            dir.setBudget(level, 10000.0D);
+            dir.setBudget(level, 1000000.0D);
             long p1 = pd.getPoints();
             OrganRoles.phaseSpend(level, o, pd, perDay, 1.0D);
-            double spent = 10000.0D - dir.available(level);
+            double spent = 1000000.0D - dir.available(level);
             double want = ForestEconomy.table().phaseSpendPerDay;
             helper.assertTrue(Math.abs(spent - want) < 1.0E-6D, "1 日に使う量が違う: " + spent + "(欲しい " + want + ")");
             // 点が増えるか(このワールドのフェーズで点を足せるときだけ。足せないフェーズ = 閾値が無い・最上段では足さない)
@@ -342,10 +347,10 @@ public final class ForestEconomyGameTests {
             o.state = ForestOrgans.State.ALIVE;
             dir.setBudget(level, 0.0D);
             helper.assertTrue(!OrganRoles.launchFlight(level, o), "予算 0 で飛翔を起こせた");
-            dir.setBudget(level, 1000.0D);
+            dir.setBudget(level, 100000.0D);
             helper.assertTrue(OrganRoles.launchFlight(level, o), "予算があるのに飛翔を起こせない");
             double price = ForestEconomy.table().towerFlightCost;
-            helper.assertTrue(Math.abs(1000.0D - dir.available(level) - price) < 1.0E-6D, "飛翔の値段が違う");
+            helper.assertTrue(Math.abs(100000.0D - dir.available(level) - price) < 1.0E-6D, "飛翔の値段が違う");
             helper.succeed();
         } finally {
             for (int id : planted) data.remove(id);

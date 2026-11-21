@@ -65,7 +65,7 @@ public final class VisionTable {
         materializeBlocks = nn(s.materializeBlocks, 96.0D);
         dematerializeBlocks = Math.max(materializeBlocks + 16.0D, nn(s.dematerializeBlocks, 144.0D));
         spotHours = nn(s.spotHours, 8.0D);
-        exploreCost = nn(s.exploreCost, 3.0D);
+        exploreCost = nn(s.exploreCost, 300.0D);
         clueDays = Math.max(0.01D, nn(s.clueDays, 2.0D));
         killClueWeight = nn(s.killClueWeight, 3.0D);
         lightClueWeight = nn(s.lightClueWeight, 2.0D);

@@ -2,6 +2,7 @@ package com.yayuy.overgrownvegetation.director;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.data.DesignData;
+import com.yayuy.overgrownvegetation.data.EconomyTable;
 import com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
 import net.minecraft.server.MinecraftServer;
@@ -193,9 +194,9 @@ public final class EconomySoak {
         ForestEconomy.Sources s = ForestEconomy.sources(level);
         var e = ForestEconomy.table();
         double k = 20.0D / 24000.0D;
-        incForest += e.chunkSqrtPerDay * Math.sqrt(s.chunks()) * k;
-        incLey += (e.leyPerDay * s.leyBig() + e.leySmallPerDay * s.leySmall()) * k;
-        incTree += e.treePerDay * s.giantTrees() * k;
+        incForest += e.chunkPerSecond * s.chunks() * EconomyTable.SECONDS_PER_DAY * k;
+        incLey += (e.leyPerSecond * s.leyBig() + e.leySmallPerSecond * s.leySmall()) * EconomyTable.SECONDS_PER_DAY * k;
+        incTree += e.treePerSecond * s.giantTrees() * EconomyTable.SECONDS_PER_DAY * k;
         // プレイヤーは倒れない・腹が減らない
         for (ServerPlayer p : level.players()) {
             p.setInvulnerable(true);

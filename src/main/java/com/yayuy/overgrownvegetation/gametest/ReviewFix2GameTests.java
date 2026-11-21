@@ -241,7 +241,7 @@ public final class ReviewFix2GameTests {
         double before = director.available(level);
         try {
             level.getServer().setDifficulty(net.minecraft.world.Difficulty.PEACEFUL, true);
-            director.setBudget(level, 1000.0D);
+            director.setBudget(level, 100000.0D);
             helper.assertTrue(DirectorGates.peaceful(level) && DirectorGates.plantSpawnsSuppressed(level), "ピースフルを見ていない");
             helper.assertTrue(director.buySpawn(level, net.minecraft.util.RandomSource.create(1L),
                     java.util.List.of(() -> (EntityType<? extends Mob>) type("arbora"))) == null, "ピースフルで苗床が孵した");

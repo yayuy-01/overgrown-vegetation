@@ -72,7 +72,7 @@ public final class MobClassTable {
 
     /** 値段の式【仮】。 */
     public static final class Price {
-        public double base = 3.0D;
+        public double base = 300.0D;
         public double step = 1.6D;
         public Map<String, Double> roles = new LinkedHashMap<>();
 

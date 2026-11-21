@@ -73,10 +73,10 @@ public final class ThornHedgeGameTests {
         try {
             dir.setBudget(level, 0.0D);
             helper.assertTrue(ThornHedges.placeRing(level, c.getX() + 0.5D, c.getZ() + 0.5D, 2.0D, 4, 7L, Double.NaN, 100) == 0, "予算 0 で置いた");
-            dir.setBudget(level, 100.0D);
+            dir.setBudget(level, 10000.0D);
             int placed = ThornHedges.placeRing(level, c.getX() + 0.5D, c.getZ() + 0.5D, 2.0D, 4, 7L, Double.NaN, 100);
             helper.assertTrue(placed > 0, "輪に置かない");
-            helper.assertTrue(Math.abs(100.0D - dir.available(level) - placed * t.cost) < 1.0E-6D, "置いた数の値段を払っていない");
+            helper.assertTrue(Math.abs(10000.0D - dir.available(level) - placed * t.cost) < 1.0E-6D, "置いた数の値段を払っていない");
             // 1 マス壊す → 置き直す(払う)
             helper.assertTrue(ThornHedges.LAST_RING.size() == placed, "置いた所の記録が合わない");
             for (BlockPos p : ThornHedges.LAST_RING) helper.assertTrue(ThornHedges.isHedge(level.getBlockState(p)), "置いたはずの所に生垣が無い: " + p);

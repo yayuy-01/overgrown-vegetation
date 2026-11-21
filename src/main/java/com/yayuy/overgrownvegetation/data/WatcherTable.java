@@ -53,7 +53,7 @@ public final class WatcherTable {
     private WatcherTable(Json j) {
         Json s = j != null ? j : new Json();
         this.maxPerBase = Math.max(0, Math.min(8, s.maxPerBase != null ? s.maxPerBase : 2));
-        this.cost = nn(s.cost, 15.0D);
+        this.cost = nn(s.cost, 1500.0D);
         this.minBlocks = Math.max(8.0D, nn(s.minBlocks, 48.0D));
         this.maxBlocks = Math.max(this.minBlocks, nn(s.maxBlocks, 96.0D));
         this.spreadDeg = Math.min(180.0D, nn(s.spreadDeg, 45.0D));

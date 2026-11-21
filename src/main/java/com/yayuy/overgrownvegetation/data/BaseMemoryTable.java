@@ -257,7 +257,7 @@ public final class BaseMemoryTable {
         this.scoutSpawnSpreadDeg = Math.min(180.0D, nonNeg(s.scoutSpawnSpreadDeg, 30.0D));
         this.scoutSpawnTries = Math.max(1, Math.min(32, s.scoutSpawnTries != null ? s.scoutSpawnTries : 8));
         this.scoutSpawnPlayerMinBlocks = nonNeg(s.scoutSpawnPlayerMinBlocks, 48.0D);
-        this.scoutSpawnCost = nonNeg(s.scoutSpawnCost, 3.0D);
+        this.scoutSpawnCost = nonNeg(s.scoutSpawnCost, 300.0D);
         this.marchArriveBlocks = Math.max(2.0D, nonNeg(s.marchArriveBlocks, 10.0D));
         this.marchTimeoutTicks = Math.max(20, s.marchTimeoutTicks != null ? s.marchTimeoutTicks : 6000);
         this.raidSearchBlocks = Math.max(16.0D, nonNeg(s.raidSearchBlocks, 128.0D));

@@ -128,7 +128,7 @@ public final class OrganTable {
         minPhase = Math.max(0, or(j.minPhase, 3));
         planIntervalDays = Math.max(0.01D, or(j.planIntervalDays, 0.5D));
         maxOrgans = j.maxOrgans != null && j.maxOrgans.length > 0 ? j.maxOrgans.clone() : new int[]{0, 0, 0, 1, 2, 3, 5, 7, 9, 11, 13};
-        price = Math.max(0.0D, or(j.price, 120.0D));
+        price = Math.max(0.0D, or(j.price, 12000.0D));
         growDays = Math.max(0.01D, or(j.growDays, 3.0D));
         minAgeDays = Math.max(0.0D, or(j.minAgeDays, 3.0D));
         minDepthChunks = Math.max(0, or(j.minDepthChunks, 4));
@@ -161,7 +161,7 @@ public final class OrganTable {
         guardPlayerBlocks = Math.max(1, or(g.playerBlocks, 48));
         guardCooldownSeconds = Math.max(1, or(g.cooldownSeconds, 120));
         smallEnabled = s.enabled == null || s.enabled;
-        smallPrice = Math.max(0.0D, or(s.price, 30.0D));
+        smallPrice = Math.max(0.0D, or(s.price, 3000.0D));
         smallGrowDays = Math.max(0.01D, or(s.growDays, 1.0D));
         smallMinAgeDays = Math.max(0.0D, or(s.minAgeDays, 1.0D));
         smallStrength = Math.max(0.0D, or(s.strength, 0.2D));

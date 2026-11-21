@@ -75,7 +75,7 @@ public final class AssaultTable {
         this.nightStartTicks = clampTick(s.nightStartTicks, 13000);
         this.nightEndTicks = Math.max(this.nightStartTicks, clampTick(s.nightEndTicks, 15000));
         this.maxWave = Math.max(1, Math.min(200, s.maxWave != null ? s.maxWave : 40));
-        this.stageZeroCost = nn(s.stageZeroCost, 1.0D);
+        this.stageZeroCost = nn(s.stageZeroCost, 100.0D);
         this.hoardShareFactor = Math.max(1.0D, nn(s.hoardShareFactor, 1.5D));
         this.foulRadius = Math.max(4.0D, nn(s.foulRadius, 24.0D));
         this.foulAirPercentPerMinute = nn(s.foulAirPercentPerMinute, 1.0D);

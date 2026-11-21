@@ -113,9 +113,9 @@ public final class F5RaidGameTests {
             DirectorGates.setPhaseForTests(5);
             DirectorGates.setStageForTests(PhaseStage.PEAK);
             DirectorHooks.setSpotForTests(() -> spot);
-            com.yayuy.overgrownvegetation.director.ForestEconomy.setIncomeForTests(3000.0D); // 11-20 夜: 1 回の予算は 1 日の稼ぎの日数分まで。ここでは予算の側で決まるように稼ぎを大きく
+            com.yayuy.overgrownvegetation.director.ForestEconomy.setIncomeForTests(300000.0D); // 11-20 夜: 1 回の予算は 1 日の稼ぎの日数分まで。ここでは予算の側で決まるように稼ぎを大きく
             // 最初の襲撃
-            director.setBudget(level, 5000.0D);
+            director.setBudget(level, 500000.0D);
             helper.assertTrue(BaseMemory.firstRaidPending(b), "まだ送っていないのに最初の襲撃でない");
             BaseRaids.Result first = BaseRaids.sendWave(level, b, 0.0D, level.getRandom());
             helper.assertTrue(first.first() && first.total() == 15 && first.g3plus() == 0 && first.g2() == a.firstRaid.g2(),
@@ -129,14 +129,14 @@ public final class F5RaidGameTests {
             clear(helper);
             // 6 日たった回: 11-20 夜から体数は予算だけで決まる(予算 × waveBudgetShare ÷ 顔ぶれの平均の値段)。予算が倍なら体数もほぼ倍・40 で切られない
             BaseMemoryTable.Wave w6 = bt.waveFor(6.0D);
-            int n300 = BaseRaids.sizeByBudget(level, w6, 300.0D).total(), n600 = BaseRaids.sizeByBudget(level, w6, 600.0D).total();
+            int n300 = BaseRaids.sizeByBudget(level, w6, 30000.0D).total(), n600 = BaseRaids.sizeByBudget(level, w6, 60000.0D).total();
             helper.assertTrue(n300 > 0 && Math.abs(n600 - 2 * n300) <= 2, "体数が予算に比例しない: 300 → " + n300 + "・600 → " + n600);
-            helper.assertTrue(BaseRaids.sizeByBudget(level, w6, 3000.0D).total() > a.maxWave, "体数が前の上限 40 で切られた");
+            helper.assertTrue(BaseRaids.sizeByBudget(level, w6, 300000.0D).total() > a.maxWave, "体数が前の上限 40 で切られた");
             int alive = com.yayuy.overgrownvegetation.director.LargeRaids.maxAlive();
-            helper.assertTrue(BaseRaids.capped(BaseRaids.sizeByBudget(level, w6, 1.0E6D), alive).total() == alive, "同時の上限で切られない");
-            director.setBudget(level, 400.0D);
+            helper.assertTrue(BaseRaids.capped(BaseRaids.sizeByBudget(level, w6, 1.0E8D), alive).total() == alive, "同時の上限で切られない");
+            director.setBudget(level, 40000.0D);
             BaseRaids.Result late = BaseRaids.sendWave(level, b, 6.0D, level.getRandom());
-            int want = BaseRaids.sizeByBudget(level, w6, 400.0D * com.yayuy.overgrownvegetation.director.ForestEconomy.table().waveBudgetShare).total();
+            int want = BaseRaids.sizeByBudget(level, w6, 40000.0D * com.yayuy.overgrownvegetation.director.ForestEconomy.table().waveBudgetShare).total();
             helper.assertTrue(late.total() >= want - 4 && late.total() <= want + 4 && late.g3plus() > 0, "6 日目が予算どおり(約 " + want + " 体・G3 入り)でない: " + late.summary());
             clear(helper);
             // 予算が少ない: 安い段階 0 から(進化・G3 は払えない)
@@ -147,7 +147,7 @@ public final class F5RaidGameTests {
                     "予算が少ないのに多く・高いものを送った: " + poor.summary());
             clear(helper);
             // 貯めた襲撃: 進化体と G3 の枠が 1.5 倍、計は上限のまま
-            director.setBudget(level, 5000.0D);
+            director.setBudget(level, 500000.0D);
             BaseRaids.Result hoard = BaseRaids.sendWave(level, b, 2.0D, level.getRandom(), true);
             BaseMemoryTable.Wave base2 = bt.waveFor(2.0D);
             // 11-20 夜: 体数は予算で決まり、同時の上限(中の maxAlive)で切られる。進化体・G3 の割合は 1.5 倍のまま
@@ -157,7 +157,7 @@ public final class F5RaidGameTests {
             clear(helper);
             // 貯めた襲撃の継ぎ足し: 同時 40 まで、倒された分を継ぎ足して合計 80 まで(11-16 ユーザー)
             com.yayuy.overgrownvegetation.director.HoardRaids.clearForTests();
-            director.setBudget(level, 100000.0D);
+            director.setBudget(level, 10000000.0D);
             int firstHoard = com.yayuy.overgrownvegetation.director.HoardRaids.begin(level, b, 6.0D, level.getRandom());
             helper.assertTrue(firstHoard > 0 && firstHoard <= a.hoardMaxAlive, "貯めた襲撃の 1 回目が 1〜40 体でない: " + firstHoard);
             var raid = com.yayuy.overgrownvegetation.director.HoardRaids.raid(b.id());
@@ -166,7 +166,7 @@ public final class F5RaidGameTests {
             com.yayuy.overgrownvegetation.director.HoardRaids.step(level, 6.01D, level.getRandom(), List.of(b));
             helper.assertTrue(com.yayuy.overgrownvegetation.director.HoardRaids.alive(level, b) <= a.hoardMaxAlive, "同時に 40 体を超えた");
             // 全部倒されたことにして継ぎ足しを繰り返す → 11-20 夜から合計の上限は無く、予算が尽きたら終わる(前は合計 80)
-            director.setBudget(level, 1500.0D);
+            director.setBudget(level, 150000.0D);
             for (int i = 0; i < 30 && com.yayuy.overgrownvegetation.director.HoardRaids.raid(b.id()) != null; i++) {
                 for (Mob m : level.getEntitiesOfClass(Mob.class, new AABB(spot).inflate(16.0D), m -> m.getTags().contains(com.yayuy.overgrownvegetation.director.HoardRaids.TAG))) m.discard();
                 com.yayuy.overgrownvegetation.director.HoardRaids.step(level, 6.02D + i * 0.01D, level.getRandom(), List.of(b));
@@ -184,7 +184,7 @@ public final class F5RaidGameTests {
         } finally {
             com.yayuy.overgrownvegetation.director.HoardRaids.clearForTests();
             DirectorHooks.setSpotForTests(null);
-            com.yayuy.overgrownvegetation.director.ForestEconomy.setIncomeForTests(165.0D);
+            com.yayuy.overgrownvegetation.director.ForestEconomy.setIncomeForTests(16500.0D);
             DirectorGates.setPhaseForTests(phaseBefore);
             DirectorGates.setStageForTests(stageBefore);
             director.setBudget(level, budgetBefore);

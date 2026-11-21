@@ -207,11 +207,11 @@ public final class DirectorTable {
         this.areaRatioMax = Math.max(this.areaRatioMin, nonNeg(s.areaRatioMax, 1.5D));
         this.capDays = nonNeg(s.capDays, 1.0D);
         this.capPerHiveNodeDays = nonNeg(s.capPerHiveNodeDays, 0.5D);
-        this.costG3 = nonNeg(s.costG3, 20.0D);
-        this.costG4 = nonNeg(s.costG4, 30.0D);
-        this.costEvolve = nonNeg(s.costEvolve, 10.0D);
-        this.costRooted = nonNeg(s.costRooted, 6.0D);
-        this.costNursery = nonNeg(s.costNursery, 8.0D);
+        this.costG3 = nonNeg(s.costG3, 2000.0D);
+        this.costG4 = nonNeg(s.costG4, 3000.0D);
+        this.costEvolve = nonNeg(s.costEvolve, 1000.0D);
+        this.costRooted = nonNeg(s.costRooted, 600.0D);
+        this.costNursery = nonNeg(s.costNursery, 800.0D);
         this.firstVisitMinTicks = Math.max(1, s.firstVisitMinTicks != null ? s.firstVisitMinTicks : 2400);
         this.firstVisitMaxTicks = Math.max(this.firstVisitMinTicks, s.firstVisitMaxTicks != null ? s.firstVisitMaxTicks : 72000);
         this.revisitMinTicks = Math.max(1, s.revisitMinTicks != null ? s.revisitMinTicks : 6000);
@@ -233,7 +233,7 @@ public final class DirectorTable {
         this.rootedAge = nonNeg(s.rootedAge, 0.2D);
         this.nurseryBase = nonNeg(s.nurseryBase, 0.5D);
         this.nurseryAge = nonNeg(s.nurseryAge, 0.2D);
-        this.costSpawn = nonNeg(s.costSpawn, 8.0D);
+        this.costSpawn = nonNeg(s.costSpawn, 800.0D);
         this.nurseryFar = nonNeg(s.nurseryFar, 0.4D);
         this.nurseryFarBlocks = Math.max(1.0D, s.nurseryFarBlocks != null ? s.nurseryFarBlocks : 96.0D);
         this.base = BaseMemoryTable.fromJson(s.base);

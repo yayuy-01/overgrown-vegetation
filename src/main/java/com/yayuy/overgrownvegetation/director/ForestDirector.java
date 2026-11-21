@@ -106,6 +106,33 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         };
     }
 
+    /**
+     * 11-21 ユーザー決定: 進化・根付きは「進化先の危険度に応じた追加の費用」= 進化先の値段(危険度と型。mob_class.json)− 段階 0 の生産の値段。
+     * 表に無い進化先は前の決まった値段(costEvolve・costRooted)。苗床化は生産と同じ値段(段階 0 の 1 体 = costStageZero)。
+     */
+    public static double routeCost(DirectorTable t, Route route, AbstractParasitizedMonster mob) {
+        double stageZero = t.largeRaid.costStageZero * ForestEconomy.priceFactor();
+        switch (route) {
+            case EVOLVE -> {
+                com.yayuy.overgrownvegetation.entity.g1.G1Developed dev = G1Fate.developedOf(mob);
+                var e = dev != null ? DesignData.mobClass().get("developed_parasitized_" + dev.key()) : null;
+                return e != null ? Math.max(0.0D, DesignData.mobClass().priceOf(e) * ForestEconomy.priceFactor() - stageZero) : t.costEvolve;
+            }
+            case ROOTED -> {
+                G1Fate fate = mob.fate();
+                var form = fate != null ? fate.rootedForm() : null;
+                var e = form != null ? DesignData.mobClass().get(form.get()) : null;
+                return e != null ? Math.max(0.0D, DesignData.mobClass().priceOf(e) * ForestEconomy.priceFactor() - stageZero) : t.costRooted;
+            }
+            case NURSERY -> {
+                return stageZero;
+            }
+            default -> {
+                return 0.0D;
+            }
+        }
+    }
+
     /** その道になるときに払う値段。 */
     public static double cost(DirectorTable t, Route route) {
         return switch (route) {
@@ -328,11 +355,51 @@ public final class ForestDirector extends SavedData implements ForestBudget {
             // 生態系の台帳(11-16 全体管理 決定 C): 森の健康は貯まる速さにだけ掛ける(上限には掛けない。健康 100% で倍率 1 = 今までどおり)
             double factor = com.yayuy.overgrownvegetation.ecosystem.Ecosystem.incomeFactor(level)
                     * com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.forestIncome(level.getServer()); // MOD の設定「森の予算の生産量」(11-19)
-            budget = accrued(budget, now - budgetAt, incomePerDay(level) * factor, cap + carry);
+            // 11-21 維持費: 稼ぎ − 植物側の Mob の維持費(毎秒)を積む。維持費は稼ぎの倍率(森の健康・MOD の設定)には掛けない
+            double net = incomePerDay(level) * factor - ForestUpkeep.perDay(level);
+            budget = accrued(budget, now - budgetAt, net, cap + carry);
         }
         budgetAt = now;
         setDirty();
     }
+
+    // ---------------------------------------------------------------- 維持費の関所(11-21)
+
+    /** 毎秒の稼ぎ(森の健康・MOD の設定の倍率込み)。 */
+    public static double incomePerSecond(ServerLevel level) {
+        if (!DesignData.director().enabled) return 0.0D;
+        return incomePerDay(level) * com.yayuy.overgrownvegetation.ecosystem.Ecosystem.incomeFactor(level)
+                * com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.forestIncome(level.getServer())
+                / com.yayuy.overgrownvegetation.data.EconomyTable.SECONDS_PER_DAY;
+    }
+
+    /** 維持費の上限(毎秒) = 稼ぎ × upkeepIncomeShare(8 割)。 */
+    public static double upkeepLimitPerSecond(ServerLevel level) {
+        return incomePerSecond(level) * ForestEconomy.table().upkeepIncomeShare;
+    }
+
+    /**
+     * 定価 {@code listPrice} の 1 体をもう 1 体出しても、維持費の合計が稼ぎの 8 割を超えないか(11-21 ユーザー「ふつうに出しているだけで
+     * 足りなくなって衰えることは無い」)。Mob を作る道はどれもここを通す。司令塔が止まっているときは通す。
+     */
+    public static boolean canField(ServerLevel level, double listPrice, boolean inForest) {
+        if (!DesignData.director().enabled || listPrice <= 0.0D) return true;
+        return ForestUpkeep.perSecond(level) + ForestUpkeep.unitPerSecond(listPrice, inForest) <= upkeepLimitPerSecond(level) + 1.0E-9D;
+    }
+
+    /** 8 割の関所を通り、{@code pay} を払えたら true(出した 1 体を維持費に足す)。 */
+    public boolean tryPayUnit(ServerLevel level, double pay, double listPrice, boolean inForest) {
+        if (!canField(level, listPrice, inForest)) {
+            fieldRefused++;
+            return false;
+        }
+        if (!tryPay(level, pay)) return false;
+        ForestUpkeep.noteFielded(listPrice, inForest);
+        return true;
+    }
+
+    /** 8 割の関所で断った数(保存しない)。 */
+    public static long fieldRefused;
 
     // ---- 11-19 襲撃の規模: 貯めの財布の口(RaidScales)。襲撃で湧かせる間だけ開く(サーバーの主スレッドだけ)。
     // 開いている間は、使える量 = (予算 + その拠点の財布) ÷ 値段の倍率、払うときは 値段 × 倍率 を 財布 → 予算 の順に払う。
@@ -552,7 +619,7 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         if (d.route() != Route.NONE && !DirectorGates.roll(strength, mob.getRandom())) {
             d = new Decision(Route.NONE, d.nothing(), d.evolve(), d.rooted(), d.nursery(), d.summary() + "・段で見送り");
         }
-        double price = d.route() == Route.NONE ? 0.0D : stagePrice(cost(t, d.route()), strength);
+        double price = d.route() == Route.NONE ? 0.0D : stagePrice(routeCost(t, d.route(), mob), strength);
         EconomySoak.payRoute = d.route().name(); // 計測の間だけ(「G1 の道ほか」の中身)
         boolean paidRoute = d.route() == Route.NONE || tryPay(level, price);
         EconomySoak.payRoute = null;
@@ -658,7 +725,7 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         if (openPool.isEmpty()) return null;
         net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob> type = openPool.get(random.nextInt(openPool.size())).get();
         double bought = stagePrice(spawnCost(type) * localFactor, spawnStrength);
-        if (!tryPay(level, bought)) return null;
+        if (!tryPayUnit(level, bought, spawnCost(type) * localFactor, true)) return null; // 11-21 維持費の 8 割の関所(苗床は森の中)
         lastBoughtPrice = bought;
         spawnsBought++;
         setDirty();
@@ -747,6 +814,11 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         d.largeRaidScaledSince = tag.contains("LargeScaled") ? tag.getDouble("LargeScaled") : Double.NaN;
         d.carry = Math.max(0.0D, tag.getDouble("Carry"));
         d.carryPending = tag.getBoolean("CarryPending");
+        // 11-21 物差しを 100 倍に: 前の単位で保存された予算・貯めを 1 回だけ 100 倍する
+        if (tag.getInt("Scale") < 100) {
+            d.budget *= 100.0D;
+            d.carry *= 100.0D;
+        }
         return d;
     }
 
@@ -765,6 +837,7 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         if (!Double.isNaN(largeRaidScaledSince)) tag.putDouble("LargeScaled", largeRaidScaledSince);
         tag.putDouble("Carry", carry);
         tag.putBoolean("CarryPending", carryPending);
+        tag.putInt("Scale", 100);
         return tag;
     }
 }

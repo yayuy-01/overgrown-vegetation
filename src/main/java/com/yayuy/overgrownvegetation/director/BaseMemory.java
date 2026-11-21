@@ -101,6 +101,8 @@ public final class BaseMemory extends SavedData {
         private double saveStart = Double.NaN;
         private double purseCreditedAt;
         private double purse;
+        /** 撃退した回数(11-21 前線と部隊「拠点の強さを覚え、撃退されるほど次は大きく」)。 */
+        private int repelled;
         // ---- 第 3 段 区切り 2: 弱い所を突く
         /** いちばん守りの薄い方位(−1 = まだ分からない)と、見た日。方位ごとの守り(保存しない)。 */
         // ---- 監視塔(11-14)
@@ -200,6 +202,10 @@ public final class BaseMemory extends SavedData {
 
         public int wavesSent() {
             return wavesSent;
+        }
+
+        public int repelled() {
+            return repelled;
         }
 
         public int weakSector() {
@@ -761,6 +767,12 @@ public final class BaseMemory extends SavedData {
     }
 
     /** 確かめ用・テスト用: 財布をこの値にする。 */
+    /** 拠点が襲撃を撃退した(11-21)。 */
+    public void addRepelled(Base b) {
+        b.repelled++;
+        setDirty();
+    }
+
     public void setPurse(Base b, double value) {
         b.purse = Math.max(0.0D, value);
         setDirty();
@@ -905,7 +917,8 @@ public final class BaseMemory extends SavedData {
             b.wavesSent = c.getInt("WS");
             b.saveStart = c.contains("RSave") ? c.getDouble("RSave") : Double.NaN;
             b.purseCreditedAt = c.getDouble("RCred");
-            b.purse = c.getDouble("RPurse");
+            b.repelled = c.getInt("Repel");
+            b.purse = c.getDouble("RPurse") * (tag.getInt("Scale") < 100 ? 100.0D : 1.0D); // 11-21 物差しを 100 倍に(前の単位の保存を 1 回だけ直す)
             b.weakSector = c.contains("Weak") ? c.getInt("Weak") : -1;
             b.defenseAt = c.contains("DefAt") ? c.getDouble("DefAt") : Double.NEGATIVE_INFINITY;
             b.watcherSeenDay = c.contains("WSeen") ? c.getDouble("WSeen") : Double.NEGATIVE_INFINITY;
@@ -930,6 +943,7 @@ public final class BaseMemory extends SavedData {
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.putInt("NextId", nextId);
+        tag.putInt("Scale", 100);
         tag.putLong("Forgotten", forgotten);
         ListTag cl = new ListTag();
         for (var en : cells.long2ObjectEntrySet()) {
@@ -959,6 +973,7 @@ public final class BaseMemory extends SavedData {
             if (b.saving()) c.putDouble("RSave", b.saveStart);
             c.putDouble("RCred", b.purseCreditedAt);
             c.putDouble("RPurse", b.purse);
+            c.putInt("Repel", b.repelled);
             c.putInt("Weak", b.weakSector);
             c.putDouble("DefAt", b.defenseAt);
             c.putDouble("WSeen", b.watcherSeenDay);

@@ -123,7 +123,7 @@ public final class RaidScaleGameTests {
             helper.assertTrue(b.saving() && b.wavesSent() == sentBefore && b.nextWaveDay() > day, "送り込みの口で見送らない: " + RaidScales.lastNote);
             RaidScales.Knobs.skipChanceFactor = 0.0D;
             memory.waveNow(b, day + 0.5D);
-            director.setBudget(level, 5000.0D);
+            director.setBudget(level, 500000.0D);
             BaseRaids.dispatch(level, memory, day + 0.5D);
             helper.assertTrue(!b.saving() && b.wavesSent() == sentBefore + 1 && RaidScales.lastScale == RaidScale.MEDIUM && HoardRaids.raid(b.id()) != null,
                     "見送りの後の機会で中が来ない: " + RaidScales.lastNote);
@@ -149,14 +149,14 @@ public final class RaidScaleGameTests {
             helper.assertTrue(expect > 1.0D && Math.abs(b.purse() - expect) < 1.0E-6D, "財布が貯まっていない: " + b.purse() + " / " + expect);
             helper.assertTrue(b.nextWaveDay() <= day + 2.0D + 1.0E-9D, "次の機会が上限の 2 日を越えた: " + (b.nextWaveDay() - day));
             // (3) 2 日: 0 を引いても必ず起き、F5 なので中。財布を足して大きくしてから(払う順を見る)
-            memory.setPurse(b, 5000.0D);
+            memory.setPurse(b, 500000.0D);
             director.setBudget(level, 0.0D);
             helper.assertTrue(!RaidScales.skipOrStart(level, memory, b, day + 2.0D, 0.0D, r), "上限の日数で起きない");
             helper.assertTrue(RaidScales.lastScale == RaidScale.MEDIUM && !b.saving() && HoardRaids.raid(b.id()) != null, "F5 の 2 日で中が起きない: " + RaidScales.lastNote);
             int alive = HoardRaids.alive(level, b);
             helper.assertTrue(alive > 0 && alive <= HoardRaids.maxAlive(), "中が同時の上限 40 を守らない: " + alive);
             double left = b.purse();
-            helper.assertTrue(left < 5000.0D && left > 0.0D, "中が財布から払っていない・使い残しが無い: " + left);
+            helper.assertTrue(left < 500000.0D && left > 0.0D, "中が財布から払っていない・使い残しが無い: " + left);
             HoardRaids.clearForTests();
             clear(helper);
             // (4) 使い残しは後の送り込み(小)が使う(森の予算は 0 のまま)
@@ -165,7 +165,7 @@ public final class RaidScaleGameTests {
             helper.assertTrue(next.total() > 0 && b.purse() < left, "使い残しの財布で次の送り込みが出ない: " + next.summary() + "・財布 " + b.purse());
             clear(helper);
             // (5) 財布が少ないと中の数が減る
-            memory.setPurse(b, 20.0D);
+            memory.setPurse(b, 2000.0D);
             director.setBudget(level, 0.0D);
             int few = HoardRaids.begin(level, b, day + 3.0D, r);
             HoardRaids.clearForTests();
@@ -198,7 +198,7 @@ public final class RaidScaleGameTests {
             clear(helper);
             // (7) 設定のページの合計の上限(大 3 体): 財布が残っていても 3 体で終わり、使い残しは財布に残る
             RaidScales.Knobs.maxTotal[RaidScale.LARGE.ordinal()] = 3;
-            memory.setPurse(b, 1000.0D);
+            memory.setPurse(b, 100000.0D);
             LargeRaids.beginScaled(level, b, day + 6.0D);
             int capped = 0;
             for (int i = 0; i < 12 && director.mood() == ForestDirector.Mood.LARGE; i++) {

@@ -7,7 +7,7 @@ package com.yayuy.overgrownvegetation.data;
  * 塔 = 払って胞子を遠くへ・フェーズ = 払って点・苗床 = 値段を軽く)。<b>数はどれも【仮】</b>。
  *
  * <p>11-20 夜 ユーザー決定「フェーズの基本の物差しをやめる」: 稼ぎは「1 つあたり何ぼ」。1 日の稼ぎ =
- * {@code chunkSqrtPerDay × √(過繁茂のチャンク数) + leyPerDay × 井戸(大)+ leySmallPerDay × 井戸(小)+ treePerDay × 生きている巨大樹}。
+ * (11-20 夜の形。11-21 に毎秒・広さに比例へ置き換えた: 毎秒の稼ぎ = chunkPerSecond × 過繁茂のチャンク数 + leyPerSecond × 井戸(大)+ leySmallPerSecond × 井戸(小)+ treePerSecond × 巨大樹。物差しは段階 0 の感染 Mob の生産 = 100)。
  * 森は大きくなるほど自分を養うのに使い、余りは伸びる縁からだけ出る(縁の長さは広さの √)。incomeBase と面積の割合は稼ぎに使わない。
  */
 public final class EconomyTable {
@@ -15,7 +15,8 @@ public final class EconomyTable {
     public static final EconomyTable DEFAULT = new EconomyTable(null);
 
     public static final class Json {
-        public Double chunkSqrtPerDay, leyPerDay, leySmallPerDay, treePerDay;
+        public Double chunkPerSecond, leyPerSecond, leySmallPerSecond, treePerSecond;
+        public Double upkeepPerSecond, upkeepOutsideFactor, upkeepIncomeShare;
         public Double infectBase, infectPerHealth, infectMax;
         public Double naturalCostFactor, refundShare, despawnRefund;
         public Double nurseryOrganDiscount, nurseryMinFactor, nurseryLocalFactor;
@@ -25,8 +26,13 @@ public final class EconomyTable {
         public Double waveBudgetShare, hoardBudgetShare, waveIncomeDays, hoardIncomeDays;
     }
 
-    /** 稼ぎ: 過繁茂のチャンク数の √ に掛ける量・井戸の器官 1 本(大・小)・巨大樹 1 本(どれも 1 日あたり)。 */
-    public final double chunkSqrtPerDay, leyPerDay, leySmallPerDay, treePerDay;
+    /** 1 日の秒数(24000 tick = 1200 秒)。稼ぎ・維持費は毎秒で持ち、古い「1 日あたり」の口はこれを掛けて答える。 */
+    public static final double SECONDS_PER_DAY = 1200.0D;
+
+    /** 稼ぎ(11-21 ユーザー決定「毎秒・広さに比例」): 過繁茂 1 チャンク・井戸の器官 1 本(大・小)・巨大樹 1 本(どれも毎秒)。 */
+    public final double chunkPerSecond, leyPerSecond, leySmallPerSecond, treePerSecond;
+    /** 維持費(11-21): 植物側の 1 体が毎秒払う = 値段 × upkeepPerSecond。森(過繁茂)の外は × upkeepOutsideFactor。司令塔は維持費の合計が稼ぎの upkeepIncomeShare を超えないように出す。 */
+    public final double upkeepPerSecond, upkeepOutsideFactor, upkeepIncomeShare;
     /** 感染体への変化 1 回で入る量 = infectBase + 元の生き物の最大体力 × infectPerHealth(infectMax で頭打ち)。 */
     public final double infectBase, infectPerHealth, infectMax;
     /** 自然湧き(縁・地下・霧の中の本物)が払う割合(値段 × これ)。払えなければ湧かない。 */
@@ -48,27 +54,30 @@ public final class EconomyTable {
 
     private EconomyTable(Json j) {
         Json s = j != null ? j : new Json();
-        chunkSqrtPerDay = nn(s.chunkSqrtPerDay, 0.8D);
-        leyPerDay = nn(s.leyPerDay, 40.0D);
-        leySmallPerDay = nn(s.leySmallPerDay, 10.0D);
-        treePerDay = nn(s.treePerDay, 8.0D);
-        infectBase = nn(s.infectBase, 2.0D);
-        infectPerHealth = nn(s.infectPerHealth, 0.1D);
-        infectMax = Math.max(infectBase, nn(s.infectMax, 15.0D));
+        chunkPerSecond = nn(s.chunkPerSecond, 0.004D);
+        leyPerSecond = nn(s.leyPerSecond, 4000.0D / SECONDS_PER_DAY);
+        leySmallPerSecond = nn(s.leySmallPerSecond, 1000.0D / SECONDS_PER_DAY);
+        treePerSecond = nn(s.treePerSecond, 800.0D / SECONDS_PER_DAY);
+        upkeepPerSecond = nn(s.upkeepPerSecond, 0.00004D);
+        upkeepOutsideFactor = nn(s.upkeepOutsideFactor, 1.5D);
+        upkeepIncomeShare = Math.min(1.0D, nn(s.upkeepIncomeShare, 0.8D));
+        infectBase = nn(s.infectBase, 200.0D);
+        infectPerHealth = nn(s.infectPerHealth, 10.0D);
+        infectMax = Math.max(infectBase, nn(s.infectMax, 1500.0D));
         naturalCostFactor = nn(s.naturalCostFactor, 0.05D);
         refundShare = Math.min(1.0D, nn(s.refundShare, 0.5D));
         despawnRefund = Math.min(1.0D, nn(s.despawnRefund, 1.0D));
         nurseryOrganDiscount = Math.min(1.0D, nn(s.nurseryOrganDiscount, 0.05D));
         nurseryMinFactor = Math.max(0.05D, Math.min(1.0D, nn(s.nurseryMinFactor, 0.7D)));
         nurseryLocalFactor = Math.max(0.05D, Math.min(1.0D, nn(s.nurseryLocalFactor, 0.75D)));
-        phaseSpendPerDay = nn(s.phaseSpendPerDay, 18.0D);
+        phaseSpendPerDay = nn(s.phaseSpendPerDay, 1800.0D);
         phaseSpendPointsFactor = nn(s.phaseSpendPointsFactor, 1.0D);
         towerFlightIntervalDays = Math.max(0.05D, nn(s.towerFlightIntervalDays, 1.0D));
         towerFlightChance = Math.min(1.0D, nn(s.towerFlightChance, 0.5D));
-        towerFlightCost = nn(s.towerFlightCost, 36.0D);
+        towerFlightCost = nn(s.towerFlightCost, 3600.0D);
         towerFlightMassDays = nn(s.towerFlightMassDays, 0.5D);
         towerFlightMinBudgetShare = Math.min(1.0D, nn(s.towerFlightMinBudgetShare, 0.5D));
-        driftCost = nn(s.driftCost, 12.0D);
+        driftCost = nn(s.driftCost, 1200.0D);
         driftPassengerFactor = nn(s.driftPassengerFactor, 1.0D);
         waveBudgetShare = Math.min(1.0D, nn(s.waveBudgetShare, 0.75D));
         hoardBudgetShare = Math.min(1.0D, nn(s.hoardBudgetShare, 1.0D));
@@ -84,10 +93,20 @@ public final class EconomyTable {
         return j == null ? DEFAULT : new EconomyTable(j);
     }
 
-    /** 1 日の稼ぎ(純粋な計算)。 */
+    /** 毎秒の稼ぎ(純粋な計算。11-21: 過繁茂の広さに比例 + 井戸 + 巨大樹)。 */
+    public double incomePerSecond(int overgrownChunks, int leyBig, int leySmall, int giantTrees) {
+        return chunkPerSecond * Math.max(0, overgrownChunks) + leyPerSecond * Math.max(0, leyBig) + leySmallPerSecond * Math.max(0, leySmall)
+                + treePerSecond * Math.max(0, giantTrees);
+    }
+
+    /** 1 日の稼ぎ(毎秒 × 1200。古い口)。 */
     public double incomePerDay(int overgrownChunks, int leyBig, int leySmall, int giantTrees) {
-        return chunkSqrtPerDay * Math.sqrt(Math.max(0, overgrownChunks)) + leyPerDay * Math.max(0, leyBig) + leySmallPerDay * Math.max(0, leySmall)
-                + treePerDay * Math.max(0, giantTrees);
+        return incomePerSecond(overgrownChunks, leyBig, leySmall, giantTrees) * SECONDS_PER_DAY;
+    }
+
+    /** 値段の合計(森の中・外)から毎秒の維持費(純粋な計算)。 */
+    public double upkeepPerSecond(double priceInForest, double priceOutside) {
+        return (Math.max(0.0D, priceInForest) + Math.max(0.0D, priceOutside) * upkeepOutsideFactor) * upkeepPerSecond;
     }
 
     /** 感染体への変化 1 回で入る量(純粋な計算)。 */

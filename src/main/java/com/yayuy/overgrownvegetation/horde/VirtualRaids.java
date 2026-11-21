@@ -120,7 +120,7 @@ public final class VirtualRaids {
             if (!VirtualHordes.allowed(type)) continue; // 空の種などは仮想にしない(払わない)
             double price = ForestDirector.stagePrice(ForestDirector.spawnCost(type),
                     DirectorGates.speciesStrength(level, type));
-            if (!d.tryPay(level, price)) break;
+            if (!d.tryPayUnit(level, price, ForestDirector.spawnCost(type), false)) break; // 11-21 維持費の 8 割の関所(森の外へ出る)
             heads.merge(type, 1, Integer::sum);
             n++;
         }

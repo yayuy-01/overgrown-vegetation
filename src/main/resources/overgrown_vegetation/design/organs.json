@@ -4,7 +4,7 @@
   "minPhase": 3,
   "planIntervalDays": 0.5,
   "maxOrgans": [0, 0, 0, 1, 2, 3, 5, 7, 9, 11, 13],
-  "price": 120.0,
+  "price": 12000.0,
   "growDays": 3.0,
   "minAgeDays": 3.0,
   "minDepthChunks": 4,
@@ -51,7 +51,7 @@
   "_comment_small": "小さい版(林床の家〜小屋の大きさ。2026-11-17 ユーザー了承「おおむねあなたの案に賛成」)。条件はゆるく(境目から minDepthChunks 奥・過繁茂になって minAgeDays 日)、値段 price、器官どうし spacingChunks おき。数の上限は大きい版の maxFactor 倍。働き・芯を壊したときの引き・根のステータスは大きい版の strength 倍。守りは guardCount 体。",
   "small": {
     "enabled": true,
-    "price": 30.0,
+    "price": 3000.0,
     "growDays": 1.0,
     "minAgeDays": 1.0,
     "minDepthChunks": 2,

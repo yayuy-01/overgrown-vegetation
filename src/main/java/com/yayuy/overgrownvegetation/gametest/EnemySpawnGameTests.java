@@ -198,11 +198,11 @@ public final class EnemySpawnGameTests {
             // ---- 司令塔の口: 苗床は F4 で G3 を孵さず、F5 で孵す
             List<Supplier<? extends EntityType<? extends Mob>>> g3Pool = List.of(() -> (EntityType<? extends Mob>) type("falcimnes"));
             DirectorGates.setPhaseForTests(4);
-            director.setBudget(level, 1000.0D);
+            director.setBudget(level, 100000.0D);
             helper.assertTrue(director.buySpawn(level, RandomSource.create(1L), g3Pool) == null, "F4 で苗床が G3 を孵した");
             DirectorGates.setPhaseForTests(5);
             DirectorGates.setStageForTests(PhaseStage.PEAK);
-            director.setBudget(level, 1000.0D);
+            director.setBudget(level, 100000.0D);
             helper.assertTrue(director.buySpawn(level, RandomSource.create(1L), g3Pool) == type("falcimnes"), "F5 で苗床が G3 を孵さない");
             // 出す種: F4 は G2 の地上の種だけ・F5 から G3
             DirectorGates.setPhaseForTests(4);
@@ -229,7 +229,7 @@ public final class EnemySpawnGameTests {
             helper.assertTrue(MobGroup.of(arbora) != null && MobGroup.of(arbora).number() == 2, "アルボラが G2 でない");
 
             // ---- 送り込み: まわりにいなければ、森の方角(テストでは決め打ちの所)に湧かせて歩かせ、予算から払う
-            director.setBudget(level, 1000.0D);
+            director.setBudget(level, 100000.0D);
             DirectorHooks.setSpotForTests(() -> helper.absolutePos(new BlockPos(5, 2, 5)));
             long spawnedBefore = DirectorHooks.sentSpawned;
             double budget0 = director.available(level);

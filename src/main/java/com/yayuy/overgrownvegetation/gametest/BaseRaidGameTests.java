@@ -77,7 +77,7 @@ public final class BaseRaidGameTests {
             helper.assertTrue(poor.g2() == 0 && poor.g3plus() == 0, "G2 以降はまだ出せないはず");
             helper.assertTrue(poor.stageZero() == Math.min(wave.stageZero(), 4), "段階 0 を段の数だけ送っていない: " + poor.summary());
             for (AbstractParasitizedMonster z : mine) z.march().cancel();
-            director.setBudget(level, 1000.0D); // 11-20 夜: 体数は予算で決まるので、進化に回る分が出るだけの予算
+            director.setBudget(level, 100000.0D); // 11-20 夜: 体数は予算で決まるので、進化に回る分が出るだけの予算
             BaseRaids.Result rich = BaseRaids.sendWave(level, b, 1.0D, level.getRandom());
             int evolving = 0;
             for (AbstractParasitizedMonster z : mine) {

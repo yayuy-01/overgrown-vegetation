@@ -28,7 +28,7 @@ public final class FissureTable {
         /** 開く確率(考えた回ごと)。「いつ来るか分からない」ように。 */
         public double chance = 0.5D;
         /** 値段(森の予算)。器官の小さい版 30 と大きい版 120 の間。 */
-        public double price = 40.0D;
+        public double price = 4000.0D;
         /** 森が知っている地下の範囲: 森の目印(地割れ・ハイヴノード・巨大樹・器官)からこのブロック以内の地脈の線の下。 */
         public int reachBlocks = 768;
         /** 地脈の線からこのブロック以内(場所の候補・開く洞窟のマスとも)。 */
@@ -160,9 +160,9 @@ public final class FissureTable {
         /** 引く森の予算(上限に対する割合)。量の {@link #budget} と足す。 */
         public double budgetCapShare = 0.0D;
         /** 巣の芯を壊したときに引く森の予算(バイオマス)の量(11-20 ユーザー「壊したらバイオマス −40」。亀裂の値段と同じ)。足りなければ 0 まで。 */
-        public double budget = 40.0D;
+        public double budget = 4000.0D;
         /** 根を送り込む器官の芯を壊したときに引く量【全体管理の仮】。 */
-        public double borerBudget = 40.0D;
+        public double borerBudget = 4000.0D;
     }
 
     public Omen omen = new Omen();

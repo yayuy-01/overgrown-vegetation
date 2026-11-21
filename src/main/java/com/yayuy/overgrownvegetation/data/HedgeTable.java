@@ -51,7 +51,7 @@ public final class HedgeTable {
     private HedgeTable(Json j) {
         Json s = j != null ? j : new Json();
         enabled = s.enabled == null || s.enabled;
-        cost = nn(s.cost, 2.0D);
+        cost = nn(s.cost, 200.0D);
         intervalSeconds = Math.max(1, s.intervalSeconds != null ? s.intervalSeconds : 60);
         placePerCheck = Math.max(1, s.placePerCheck != null ? s.placePerCheck : 4);
         playerBlocks = nn(s.playerBlocks, 96.0D);

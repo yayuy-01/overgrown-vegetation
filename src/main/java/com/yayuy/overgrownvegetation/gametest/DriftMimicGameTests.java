@@ -333,7 +333,7 @@ public final class DriftMimicGameTests {
                 small(e);
                 boat[0] = e;
             };
-            dir.setBudget(level, 500.0D);
+            dir.setBudget(level, 10000.0D); // 11-21: 上限(テストの稼ぎ 1 日 16500)より下に
             n = DriftRaids.ferry(level, c.getX() + 0.5D, c.getZ() + 0.5D, level.getRandom(), 3, 1.0D, (p, r) -> {
                 var m = com.yayuy.overgrownvegetation.registry.ModG1.PARASITIZED_ZOMBIE.get().create(level);
                 if (m == null) return null;
@@ -342,7 +342,7 @@ public final class DriftMimicGameTests {
                 level.addFreshEntity(m);
                 return m;
             }, sent::add);
-            spent = 500.0D - dir.available(level);
+            spent = 10000.0D - dir.available(level);
         } finally {
             DriftRaids.ringForTests = null;
             DriftRaids.onFerryForTests = null;
@@ -351,7 +351,7 @@ public final class DriftMimicGameTests {
         h.assertTrue(n == 3 && sent.size() == 3, "3 体を運んでいない: " + n);
         h.assertTrue(boat[0] != null && sent.stream().allMatch(m -> m.getVehicle() == boat[0]), "流れ木もどきに乗っていない");
         if (enabled) {
-            double want = 3 * 1.0D + DriftCosts.ferryPrice(sent);
+            double want = 3 * 1.0D + DriftCosts.ferryPrice(sent); // 乗せる 1 体の値段はこのテストが渡す 1.0
             h.assertTrue(Math.abs(spent - want) < 1e-6, "払った額が違う: " + spent + "(期待 " + want + ")");
         }
         int landTop = h.absolutePos(new BlockPos(0, 5, 0)).getY();
