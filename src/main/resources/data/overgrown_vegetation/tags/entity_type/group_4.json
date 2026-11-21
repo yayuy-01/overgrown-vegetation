@@ -2,6 +2,7 @@
   "replace": false,
   "values": [
     "overgrown_vegetation:phyllosens",
-    "overgrown_vegetation:gestatrix"
+    "overgrown_vegetation:gestatrix",
+    "overgrown_vegetation:drift_mimic"
   ]
 }

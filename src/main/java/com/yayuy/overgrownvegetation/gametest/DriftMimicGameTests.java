@@ -115,7 +115,7 @@ public final class DriftMimicGameTests {
     @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
     public static void isPlantSpreader(GameTestHelper h) {
         EntityType<?> t = ModDrift.DRIFT_MIMIC.get();
-        h.assertTrue(t.is(ModTags.GROUP_2), "group_2(拡散の群)に入っていない");
+        h.assertTrue(t.is(ModTags.GROUP_4), "group_4(補助・支援の群。11-21 ユーザー決定)に入っていない");
         h.assertTrue(t.is(net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ENTITY_TYPE,
                 OvergrownVegetation.id("lineage_plant"))), "植物の系統に入っていない");
         h.assertTrue(Math.abs(t.getWidth() - com.yayuy.overgrownvegetation.data.MobStats.width(DriftMimicEntity.ID, 4.5F)) < 1e-4, "幅が設計値と違う");
