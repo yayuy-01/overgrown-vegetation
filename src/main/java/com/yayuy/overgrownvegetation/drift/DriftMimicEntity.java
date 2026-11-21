@@ -167,10 +167,10 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
     }
 
     /**
-     * 席 6 つ(ユーザー決定 11-20)。位置は形 B 改 3/4 の座の骨 seat_0〜5(1/16 ブロック。前 = −z、左 = +x、水面 = y 0。モデル制作の報告)。
+     * 席 6 つ(ユーザー決定 11-20)。位置は形 B 改 6(座は B 改 4 から変わらない)の座の骨 seat_0〜5(1/16 ブロック。前 = −z、左 = +x、水面 = y 0。モデル制作の報告)。
      * 体の当たりの底は水面の {@link #SUBMERGE} 下にある。
      */
-    static final double[][] SEATS = {{62, 4, 8}, {64, 4, 42}, {28, 4, 62}, {-52, 3, 30}, {-56, 3, 58}, {-6, 4, 84}};
+    static final double[][] SEATS = {{82, 7, 2}, {86, 7, 34}, {80, 7, 64}, {-84, 4, 22}, {-86, 4, 54}, {-6, 6, 86}};
     /** 当たりの底が水面より沈む深さ(ブロック)。 */
     static final double SUBMERGE = 0.2D;
 
