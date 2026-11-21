@@ -16,6 +16,57 @@ public final class GearTierTable {
     public Ore ore = new Ore();
     /** 導晶(グレード 1 の地脈技術の金属)の鉱石と道具。 */
     public Conduit conduit = new Conduit();
+    /** 導晶の剣(グレード 1 の武器。11-21 夜)。 */
+    public Sword sword = new Sword();
+    /** 導晶の弩(導晶機関で弦を巻く。11-21 夜)。 */
+    public Crossbow crossbow = new Crossbow();
+    /** 導晶の防具(兜・胸当て・脚当て・靴。11-21 夜。兜は防護マスクと一体にしない)。 */
+    public Armor armor = new Armor();
+
+    /** 導晶の剣。攻撃・振り・壊れにくさは登録の時に読む(変えたら再起動)。 */
+    public static final class Sword {
+        /** 力が無いときの攻撃(素手の 1 を含めた値。鉄の剣と同じ 6)。 */
+        public float damage = 6.0F;
+        /** 1 秒に振れる回数(剣は 1.6)。 */
+        public float attackSpeed = 1.6F;
+        /** 力がある間の攻撃の上乗せ(+2 で 8。ダイヤの剣の 7 を少し超える)。 */
+        public float chargedBonus = 2.0F;
+        /** 1 回当てるごとに使う FE。 */
+        public int fePerHit = 100;
+        /** ためられる FE。壊れにくさは道具と同じ {@code conduit.durability}(同じ格)。 */
+        public int capacity = 50000;
+    }
+
+    /** 導晶の弩(バニラの弩が元。矢はバニラの矢)。壊れにくさは登録の時に読む。 */
+    public static final class Crossbow {
+        /** 力がある間の装填の時間の倍率(0.5 = 半分)。 */
+        public double chargedLoadMultiplier = 0.5D;
+        /** 1 回撃つごとに使う FE。 */
+        public int fePerShot = 200;
+        public int capacity = 50000;
+        /** バニラの弩は 465。 */
+        public int durability = 1200;
+    }
+
+    /** 導晶の防具。防御・強度・壊れにくさは登録の時に読む(変えたら再起動)。強さは鉄(15)とダイヤ(20)の間。 */
+    public static final class Armor {
+        public int helmetDefense = 2;
+        public int chestplateDefense = 7;
+        public int leggingsDefense = 5;
+        public int bootsDefense = 2;
+        /** 防具の強度(ダイヤは 2)。 */
+        public float toughness = 1.0F;
+        public float knockbackResistance = 0.0F;
+        /** 壊れにくさの倍率(鉄 15・ダイヤ 33)。 */
+        public int durabilityMultiplier = 24;
+        public int enchantability = 12;
+        /** 力がある 1 部位につき、受ける傷を減らす割合(4 部位で 4 倍)。 */
+        public double reductionPerPiece = 0.04D;
+        /** 傷を受けるたびに、力がある 1 部位が使う FE。 */
+        public int fePerHit = 50;
+        /** 1 部位にためられる FE。 */
+        public int capacity = 20000;
+    }
 
     public static final class Ore {
         /** 地脈の線からこの距離(ブロック)以内の、汚染された岩(過繁茂の石・深層岩)だけ。 */

@@ -9,6 +9,7 @@ import com.yayuy.overgrownvegetation.registry.ModLey;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.valueproviders.ConstantInt;
 import net.minecraft.util.valueproviders.UniformInt;
+import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
@@ -175,6 +176,48 @@ public final class ModGear {
             p -> new ConduitTools.Hoe(CONDUIT_TIER, p),
             new Item.Properties().attributes(HoeItem.createAttributes(CONDUIT_TIER, -3.0F, 0.0F)));
 
+    // ---- 導晶の武器(11-21 夜。剣と、導晶機関で弦を巻く弩) ----
+    /** 導晶の剣(攻撃は力の有無で変わるので、部品の攻撃の値は持たせない = {@link ConduitWeapons.Sword#getDefaultAttributeModifiers})。 */
+    public static final DeferredItem<ConduitWeapons.Sword> CONDUIT_SWORD = ModItems.ITEMS.registerItem("conduit_sword",
+            p -> new ConduitWeapons.Sword(CONDUIT_TIER, p), new Item.Properties());
+    public static final DeferredItem<ConduitWeapons.Crossbow> CONDUIT_CROSSBOW = ModItems.ITEMS.registerItem("conduit_crossbow",
+            ConduitWeapons.Crossbow::new,
+            new Item.Properties().stacksTo(1).durability(DesignData.gearTiers().crossbow.durability)
+                    .component(net.minecraft.core.component.DataComponents.CHARGED_PROJECTILES,
+                            net.minecraft.world.item.component.ChargedProjectiles.EMPTY));
+
+    // ---- 導晶の防具(11-21 夜。兜は防護マスクと一体にしない) ----
+    /** 導晶の防具の素材(防御・強度・エンチャントは登録の時に読む)。体の絵は {@code textures/models/armor/conduit_layer_1・2}。 */
+    public static final DeferredHolder<net.minecraft.world.item.ArmorMaterial, net.minecraft.world.item.ArmorMaterial> CONDUIT_ARMOR_MATERIAL =
+            com.yayuy.overgrownvegetation.registry.ModArmorMaterials.ARMOR_MATERIALS.register("conduit", () -> {
+                GearTierTable.Armor a = DesignData.gearTiers().armor;
+                java.util.EnumMap<ArmorItem.Type, Integer> defense = new java.util.EnumMap<>(ArmorItem.Type.class);
+                defense.put(ArmorItem.Type.HELMET, a.helmetDefense);
+                defense.put(ArmorItem.Type.CHESTPLATE, a.chestplateDefense);
+                defense.put(ArmorItem.Type.LEGGINGS, a.leggingsDefense);
+                defense.put(ArmorItem.Type.BOOTS, a.bootsDefense);
+                defense.put(ArmorItem.Type.BODY, a.chestplateDefense);
+                return new net.minecraft.world.item.ArmorMaterial(defense, a.enchantability,
+                        net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_IRON, () -> Ingredient.of(CONDUIT_PLATE.get()),
+                        java.util.List.of(new net.minecraft.world.item.ArmorMaterial.Layer(OvergrownVegetation.id("conduit"))),
+                        a.toughness, a.knockbackResistance);
+            });
+    public static final DeferredItem<ConduitArmor.Piece> CONDUIT_HELMET = armorPiece("conduit_helmet", ArmorItem.Type.HELMET);
+    public static final DeferredItem<ConduitArmor.Piece> CONDUIT_CHESTPLATE = armorPiece("conduit_chestplate", ArmorItem.Type.CHESTPLATE);
+    public static final DeferredItem<ConduitArmor.Piece> CONDUIT_LEGGINGS = armorPiece("conduit_leggings", ArmorItem.Type.LEGGINGS);
+    public static final DeferredItem<ConduitArmor.Piece> CONDUIT_BOOTS = armorPiece("conduit_boots", ArmorItem.Type.BOOTS);
+
+    private static DeferredItem<ConduitArmor.Piece> armorPiece(String name, ArmorItem.Type type) {
+        return ModItems.ITEMS.registerItem(name, p -> new ConduitArmor.Piece(CONDUIT_ARMOR_MATERIAL, type, p),
+                new Item.Properties().durability(type.getDurability(DesignData.gearTiers().armor.durabilityMultiplier)));
+    }
+
+    /** 地脈の力をためる導晶の物すべて(口の登録・タブ・試験で使う)。 */
+    public static java.util.List<DeferredItem<? extends Item>> chargeables() {
+        return java.util.List.of(CONDUIT_PICKAXE, CONDUIT_AXE, CONDUIT_SHOVEL, CONDUIT_HOE, CONDUIT_SWORD, CONDUIT_CROSSBOW,
+                CONDUIT_HELMET, CONDUIT_CHESTPLATE, CONDUIT_LEGGINGS, CONDUIT_BOOTS);
+    }
+
     /** 導晶鉱を地脈の線の近くの地下に置く(biome_modifier {@code conduit_ore})。 */
     public static final DeferredHolder<Feature<?>, ConduitOre.Placer> CONDUIT_ORE_FEATURE =
             ModFeatures.FEATURES.register("conduit_ore", () -> new ConduitOre.Placer(NoneFeatureConfiguration.CODEC));
@@ -186,8 +229,8 @@ public final class ModGear {
         public static void register(net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent event) {
             event.registerItem(net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.ITEM,
                     (stack, ctx) -> new net.neoforged.neoforge.energy.ComponentEnergyStorage(stack, ModLey.ENERGY.get(),
-                            LeyCharge.capacity(), LeyCharge.maxReceive(), 0),
-                    CONDUIT_PICKAXE.get(), CONDUIT_AXE.get(), CONDUIT_SHOVEL.get(), CONDUIT_HOE.get());
+                            LeyCharge.capacity(stack), LeyCharge.maxReceive(), 0),
+                    chargeables().stream().map(DeferredItem::get).toArray(Item[]::new));
         }
 
         private Capabilities() {
@@ -207,11 +250,9 @@ public final class ModGear {
         output.accept(OVERGROWN_CONDUIT_INGOT.get());
         output.accept(CONDUIT_PLATE.get());
         output.accept(CONDUIT_ENGINE.get());
-        for (DeferredItem<? extends DiggerItem> tool : java.util.List.of(CONDUIT_PICKAXE, CONDUIT_AXE, CONDUIT_SHOVEL, CONDUIT_HOE)) {
-            output.accept(tool.get());
-            ItemStack full = new ItemStack(tool.get()); // 満たした物も 1 つずつ(試す用。電池の満タンと同じ扱い)
-            LeyCharge.set(full, LeyCharge.capacity());
-            output.accept(full);
+        for (DeferredItem<? extends Item> item : chargeables()) { // 道具 4・剣・弩・防具 4
+            output.accept(item.get());
+            output.accept(LeyCharge.full(new ItemStack(item.get()))); // 満たした物も 1 つずつ(試す用。電池の満タンと同じ扱い)
         }
         output.accept(FUNGAL_ORE_ITEM.get());
         output.accept(DEEPSLATE_FUNGAL_ORE_ITEM.get());

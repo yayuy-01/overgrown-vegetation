@@ -235,19 +235,15 @@ public final class GearTierGameTests {
                 return;
             }
         }
-        // 道具は青・黄緑のどちらからでも: どちらの地金も同じ導晶の板 1 つになる
+        // 道具は青・黄緑のどちらからでも: どちらの地金にも導晶の板になる作り方がある(数と形はユーザーが mod マネージャー 2 で決めるので見ない)
         for (var ingot : List.of(ModGear.CONDUIT_INGOT.get(), ModGear.OVERGROWN_CONDUIT_INGOT.get())) {
-            var plate = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, CraftingInput.of(1, 1, List.of(new ItemStack(ingot))), level);
-            if (plate.isEmpty() || !plate.get().value().getResultItem(level.registryAccess()).is(ModGear.CONDUIT_PLATE.get())
-                    || plate.get().value().getResultItem(level.registryAccess()).getCount() != 1) {
-                helper.fail(ingot + " 1 → 板 1 の作り方が無い");
+            if (!craftedFrom(level, ModGear.CONDUIT_PLATE.get(), ingot)) {
+                helper.fail(ingot + " から板になる作り方が無い");
                 return;
             }
         }
-        ItemStack p = new ItemStack(ModGear.CONDUIT_PLATE.get()), s = new ItemStack(Items.STICK), e = ItemStack.EMPTY;
-        var pick = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, CraftingInput.of(3, 3, List.of(p, p, p, e, s, e, e, s, e)), level);
-        if (pick.isEmpty() || !pick.get().value().getResultItem(level.registryAccess()).is(ModGear.CONDUIT_PICKAXE.get())) {
-            helper.fail("板と棒でつるはしが作れない");
+        if (!craftedFrom(level, ModGear.CONDUIT_PICKAXE.get(), ModGear.CONDUIT_PLATE.get())) {
+            helper.fail("板からつるはしになる作り方が無い");
             return;
         }
         if (new ItemStack(ModGear.CONDUIT_ENGINE.get()).getMaxStackSize() != 64) {
@@ -261,6 +257,16 @@ public final class GearTierGameTests {
             }
         }
         helper.succeed();
+    }
+
+    /** 作業台の作り方のどれかが {@code result} を作り、材料に {@code ingredient} を使うか。 */
+    static boolean craftedFrom(ServerLevel level, net.minecraft.world.item.Item result, net.minecraft.world.item.Item ingredient) {
+        for (var holder : level.getRecipeManager().getAllRecipesFor(RecipeType.CRAFTING)) {
+            var r = holder.value();
+            if (!r.getResultItem(level.registryAccess()).is(result)) continue;
+            for (var ing : r.getIngredients()) if (ing.test(new ItemStack(ingredient))) return true;
+        }
+        return false;
     }
 
     /** 道具の硬さはダイヤと同じ(黒曜石を掘れる)・速さ 7・壊れにくさ 1,200(設計値)。 */

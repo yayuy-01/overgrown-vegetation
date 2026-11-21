@@ -35,7 +35,8 @@
     "LivingEntityRootClimbMixin",
     "WalkNodeEvaluatorRootMixin",
     "GroundPathNavigationRootMixin",
-    "PathNavigationRootRangeMixin"
+    "PathNavigationRootRangeMixin",
+    "CrossbowItemConduitMixin"
   ],
   "client": [
     "client.CreateWorldScreenMixin",

@@ -63,6 +63,11 @@ public final class ConduitTools {
         }
 
         @Override
+        public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
+            return slotChanged || !LeyCharge.onlyChargeChanged(oldStack, newStack);
+        }
+
+        @Override
         public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
             LeyCharge.tooltip(stack, tooltip);
         }
@@ -87,6 +92,11 @@ public final class ConduitTools {
         @Override
         public boolean overrideOtherStackedOnMe(ItemStack stack, ItemStack other, Slot slot, ClickAction action, Player player, SlotAccess access) {
             return LeyCharge.onStackedOn(stack, other, action, player) || super.overrideOtherStackedOnMe(stack, other, slot, action, player, access);
+        }
+
+        @Override
+        public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
+            return slotChanged || !LeyCharge.onlyChargeChanged(oldStack, newStack);
         }
 
         @Override
@@ -117,6 +127,11 @@ public final class ConduitTools {
         }
 
         @Override
+        public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
+            return slotChanged || !LeyCharge.onlyChargeChanged(oldStack, newStack);
+        }
+
+        @Override
         public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
             LeyCharge.tooltip(stack, tooltip);
         }
@@ -141,6 +156,11 @@ public final class ConduitTools {
         @Override
         public boolean overrideOtherStackedOnMe(ItemStack stack, ItemStack other, Slot slot, ClickAction action, Player player, SlotAccess access) {
             return LeyCharge.onStackedOn(stack, other, action, player) || super.overrideOtherStackedOnMe(stack, other, slot, action, player, access);
+        }
+
+        @Override
+        public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
+            return slotChanged || !LeyCharge.onlyChargeChanged(oldStack, newStack);
         }
 
         @Override
