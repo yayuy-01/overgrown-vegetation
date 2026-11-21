@@ -680,6 +680,19 @@ public final class SporeField {
         return m.containsKey(k) ? m.get(k) : 1f;
     }
 
+    /**
+     * 地図の上の生態系(2026-11-21 {@code ecosystem.map.MapEcology} が入れる): 升の生き物の感染の割合で下がる、地表の発芽のしきい値の倍率。null なら全部 1。
+     * 地表の発芽のしきい値を比べる所(発芽・待ちの印を外す・読み込まれて発芽・断られて戻す)はどれも {@link #germNeedMul} を掛ける(洞窟の床は掛けない)。
+     */
+    public volatile GermMul germMul;
+
+    /** チャンクの地表の発芽のしきい値の倍率(1 = 今までどおり)。 */
+    public float germNeedMul(int cx, int cz) {
+        GermMul m = germMul;
+        if (m == null || m.isEmpty() || !m.hasTile(cx >> TB, cz >> TB)) return 1f;
+        return m.at(cx, cz);
+    }
+
     /** 地下の発芽のしきい値の割り算(地脈の線の真上で leyGermMax、leyNearBlocks 離れると 1)。 */
     double leyGerm(int cx, int cz) {
         if (leyGermMax <= 1.0) return 1.0;
@@ -1028,7 +1041,7 @@ public final class SporeField {
         Tile t = tile(cx, cz, false);
         if (t == null) return;
         int i = idx(cx, cz);
-        float before = sproutDep.containsKey(chunkKey(cx, cz)) ? sproutDep.remove(chunkKey(cx, cz)) : (float) p.germThreshold;
+        float before = sproutDep.containsKey(chunkKey(cx, cz)) ? sproutDep.remove(chunkKey(cx, cz)) : (float) (p.germThreshold * germNeedMul(cx, cz));
         if (t.sprout[i] != NOT) {
             t.sprout[i] = NOT;
             t.corrupted--;
@@ -1052,7 +1065,7 @@ public final class SporeField {
         if ((t.flags[i] & WAIT) == 0) return false;
         t.flags[i] &= ~WAIT;
         float g = t.germ == null ? 1f : t.germ[i];
-        if (t.sprout[i] != NOT || t.dep[i] * g < p.germThreshold) return false;
+        if (t.sprout[i] != NOT || t.dep[i] * g < p.germThreshold * germNeedMul(cx, cz)) return false;
         t.sprout[i] = now;
         t.corrupted++;
         corruptedCount++;
@@ -1250,6 +1263,8 @@ public final class SporeField {
                               double keepMN, double toDepMN, double toLiftMN, double[] pqM, double toDepM1, double soakDtM,
                               double keepUN, double toDepUN, double underDepKeepN, double germPUN, double inSelf, float eps) {
         int bx = tl.tx << TB, bz = tl.tz << TB;
+        GermMul gm = germMul; // 地図の上の生態系(2026-11-21): 升の感染の割合で地表の発芽のしきい値を下げる
+        boolean gmTile = gm != null && !gm.isEmpty() && gm.hasTile(tl.tx, tl.tz);
         double soakDefN = 1 - Math.exp(-p.soakPerDay * p.mouthDefault * soakDt), soakDefM = 1 - Math.exp(-p.soakPerDay * p.mouthDefault * soakDtM);
         for (int i = 0; i < TN; i++) {
             double a = tl.air[i];
@@ -1281,9 +1296,10 @@ public final class SporeField {
                 boolean first = sp == NOT;
                 double dd = tl.dep[i] * depKeepN + (doAir ? (first ? a * tDep : a0 * inSelf * tDepIn) : 0);
                 float g = tl.germ == null ? 1f : tl.germ[i];
-                double need = first ? p.germThreshold : p.secondThreshold;
+                float gmul = gmTile ? gm.at(cx, cz) : 1f;
+                double need = (first ? p.germThreshold : p.secondThreshold) * gmul;
                 if (moonNight) need *= p.fullMoonGermMul;
-                if ((tl.flags[i] & WAIT) != 0 && dd * g < p.germThreshold) tl.flags[i] &= ~WAIT;
+                if ((tl.flags[i] & WAIT) != 0 && dd * g < p.germThreshold * gmul) tl.flags[i] &= ~WAIT;
                 if (g > 0 && (tl.flags[i] & WAIT) == 0 && dd * g >= need && (first || t - sp >= secondGap)
                         && (moist || (tl.wet != null && tl.wet[i]))
                         && !barrenHigh(tl, i, cx, cz)
@@ -1500,6 +1516,8 @@ public final class SporeField {
                 continue;
             }
             int bx = tl.tx << TB, bz = tl.tz << TB;
+            GermMul gm = germMul; // 地図の上の生態系(2026-11-21): 升の感染の割合で地表の発芽のしきい値を下げる
+            boolean gmTile = gm != null && !gm.isEmpty() && gm.hasTile(tl.tx, tl.tz);
             byte[] vd = null;
             if (doAir && fValley > 0 && tl.height != null) {
                 vd = tl.valleyDir;
@@ -1551,10 +1569,11 @@ public final class SporeField {
                             + (first ? (doAir ? a * tDep : 0) + (lowHere ? lo * toDepLow : 0)
                             : (doAir ? inA * tDep : 0) + (lowHere ? inL * toDepLow : 0));
                     float g = tl.germ == null ? 1f : tl.germ[i];
-                    double need = first ? p.germThreshold : p.secondThreshold;
+                    float gmul = gmTile ? gm.at(bx + (i & (TS - 1)), bz + (i >> TB)) : 1f; // 地図の上の生態系(2026-11-21)
+                    double need = (first ? p.germThreshold : p.secondThreshold) * gmul;
                     if (moonNight) need *= p.fullMoonGermMul; // ネザー: 満月の夜だけ発芽しやすい(前線の波、2026-11-11)
                     // 読み込まれるまで待つ印(下回ったら外す。印の間は発芽を試み直さない。2026-10-24)
-                    if ((tl.flags[i] & WAIT) != 0 && dd * g < p.germThreshold) tl.flags[i] &= ~WAIT;
+                    if ((tl.flags[i] & WAIT) != 0 && dd * g < p.germThreshold * gmul) tl.flags[i] &= ~WAIT;
                     if (g > 0 && (tl.flags[i] & WAIT) == 0 && dd * g >= need && (first || t - sp >= secondGap)
                             && (moist || (tl.wet != null && tl.wet[i]))
                             && !barrenHigh(tl, i, bx + (i & (TS - 1)), bz + (i >> TB)) // 逆転層より上は発芽しない(巨大樹の近くは例外。2026-11-04)

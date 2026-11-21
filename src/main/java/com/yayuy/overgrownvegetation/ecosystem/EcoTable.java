@@ -29,6 +29,8 @@ public final class EcoTable {
         public StubJson stub;
         /** 行動の段(11-18): 種の id(名前空間なし)ごとの値。省いた値はコードの既定(EcoBehavior)。 */
         public java.util.Map<String, com.yayuy.overgrownvegetation.ecosystem.life.EcoBehavior.Json> behavior;
+        /** 地図の上の生態系(2026-11-21): 升ごとのバニラの動物・村人の頭数と感染。 */
+        public com.yayuy.overgrownvegetation.ecosystem.map.MapTable.Json map;
     }
 
     public static final class InnerJson {
@@ -59,6 +61,9 @@ public final class EcoTable {
 
     public final List<String> stubPrey, stubHunter;
     public final int stubCapPrey, stubCapHunter, stubInterval, stubTries, stubMin, stubMax;
+
+    /** 地図の上の生態系(2026-11-21)。 */
+    public final com.yayuy.overgrownvegetation.ecosystem.map.MapTable map;
 
     public static final EcoTable DEFAULT = fromJson(null);
 
@@ -94,6 +99,7 @@ public final class EcoTable {
         stubTries = Math.max(0, or(st.triesPerPlayer, 2));
         stubMin = Math.max(0, or(st.minBlocks, 24));
         stubMax = Math.max(stubMin + 1, or(st.maxBlocks, 64));
+        map = com.yayuy.overgrownvegetation.ecosystem.map.MapTable.fromJson(j.map);
         com.yayuy.overgrownvegetation.ecosystem.life.EcoBehavior.load(j.behavior);
     }
 

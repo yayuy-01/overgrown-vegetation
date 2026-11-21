@@ -49,5 +49,34 @@
     "coelurosauravus": { "active": "day", "forage": "none", "hungerDays": 1.5, "fleeRange": 8.0, "rests": false },
     "pulmonoscorpius": { "active": "night", "forage": "ground", "hungerDays": 2.0, "fleeRange": 4.0, "defends": true, "prey": ["overgrown_vegetation:protophasma", "overgrown_vegetation:stenodictya_nymph"] },
     "phalangiotarbus": { "active": "night", "forage": "ground", "hungerDays": 2.0, "fleeRange": 4.0, "defends": true, "nestRange": 6.0, "prey": ["overgrown_vegetation:protophasma", "overgrown_vegetation:stenodictya_nymph"] }
+  },
+  "map": {
+    "_comment": "地図の上の生態系(2026-11-21。正本は Vault「前線と部隊(地図の上の森の軍勢)(11-21)」)。升(上の cellShift と同じ 4×4 チャンク)ごとにバニラの動物と村人の頭数を持つ。広げる部隊が居ると 1 体あたり毎秒 infectPerMobPerSecond 頭が感染し(森の稼ぎは司令塔の economy の infectGain)、感染の割合 f でその升の胞子の発芽のしきい値が × (1 − (1 − germMinMul) × f) に下がり、健康な生き物がいなくなったら 16 チャンクを過繁茂の印にする。満員は biomeFull(バイオームの id か #タグ。上に書いたものが勝つ)→ 無ければ動物の湧きの表があれば defaultFull・無ければ 0。村の起点が来る升は villageFull 人を足す。満員が barrenBelow 未満の升はこの道を使わず胞子だけ。森の外で殺された分は lackRecoveryDays で戻る。プレイヤーのまわりの升は syncIntervalTicks ごとに実物を台帳の割合に合わせて感染させる(1 回に 1 升 reconcilePerSync 体まで)。数はどれも【仮】。反映は再起動。",
+    "enabled": true,
+    "defaultFull": 16,
+    "villageFull": 20,
+    "barrenBelow": 6,
+    "biomeFull": {
+      "minecraft:plains": 24,
+      "minecraft:sunflower_plains": 24,
+      "minecraft:meadow": 20,
+      "minecraft:savanna": 20,
+      "minecraft:desert": 2,
+      "minecraft:jagged_peaks": 1,
+      "minecraft:frozen_peaks": 1,
+      "minecraft:stony_peaks": 0,
+      "minecraft:snowy_slopes": 2,
+      "minecraft:ice_spikes": 2,
+      "#minecraft:is_ocean": 0,
+      "#minecraft:is_beach": 0,
+      "#minecraft:is_badlands": 0
+    },
+    "infectPerMobPerSecond": 0.03333333333333333,
+    "germMinMul": 0.3,
+    "lackRecoveryDays": 10.0,
+    "syncIntervalTicks": 100,
+    "reconcilePerSync": 3,
+    "publishIntervalTicks": 100,
+    "retryOvergrownTicks": 1200
   }
 }
