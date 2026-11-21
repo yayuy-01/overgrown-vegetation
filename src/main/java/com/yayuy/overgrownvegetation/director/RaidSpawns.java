@@ -25,6 +25,30 @@ public final class RaidSpawns {
     /** 確かめ用: 湧かせる所を探して弾かれた数(動いていないチャンク・地面が向かない・プレイヤーから見える)。 */
     public static final long[] lastMisses = new long[3];
 
+    /** 確かめ用: {@link #findHiddenSpotWidening} が見つけた段(0 = 決めた扇・1 = ±90°・2 = 全周)と、全周でも無かった数(3)。 */
+    public static final long[] lastWidened = new long[4];
+
+    /**
+     * {@link #findHiddenSpot} を、見つからなければ角度を広げて探し直す(2026-11-21 全体管理・ユーザー「直して測り直す」):
+     * 決めた扇(±spreadDeg)→ ±90° → 全周の順。どの段も {@code tries} 回ずつ。「見えない地面」の決まり(動いている・固い地面・水でない・見えない)はそのまま。
+     * 森の方角が海の上を向く拠点(島ではない)でも、陸の側に湧かせられるようにするため。島の拠点(全周が水)は null のまま = 呼ぶ側が流れ木もどきで運ぶ。
+     */
+    @Nullable
+    public static BlockPos findHiddenSpotWidening(ServerLevel level, double cx, double cz, double angle, double spreadDeg, double min, double max,
+                                                  double playerMin, int tries, RandomSource random) {
+        double[] spreads = {spreadDeg, Math.max(spreadDeg, 90.0D), 180.0D};
+        for (int stage = 0; stage < spreads.length; stage++) {
+            if (stage > 0 && spreads[stage] <= spreads[stage - 1]) continue; // もう広い扇で探した
+            BlockPos p = findHiddenSpot(level, cx, cz, angle, spreads[stage], min, max, playerMin, tries, random);
+            if (p != null) {
+                lastWidened[stage]++;
+                return p;
+            }
+        }
+        lastWidened[3]++;
+        return null;
+    }
+
     /**
      * 湧かせてよい地面を探す: 真ん中 (cx, cz) から角度 {@code angle}(ラジアン)±{@code spreadDeg} の向きへ {@code min}〜{@code max} ブロック、
      * 動いているチャンク・足元が固い・水でない・どのプレイヤーからも {@code playerMin} より遠く見通せない所。見つからなければ null。

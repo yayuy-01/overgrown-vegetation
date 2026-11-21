@@ -1,6 +1,7 @@
 package com.yayuy.overgrownvegetation.director;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
 import net.minecraft.server.MinecraftServer;
@@ -49,6 +50,15 @@ public final class EconomySoak {
     private static final long[] repelled = new long[4]; // 送り込み・貯めた・大きな・植物側の行進
     private static long tickSum, tickMax, tickCount, tickStart;
     private static Path dir;
+    // 2 回目(11-21): 湧かせる所で弾いた数(理由ごと)・広げた段・流れ木もどき・襲撃の流れ(見送り・小・中・大)を日ごとに
+    private static final long[] base0Miss = new long[3];
+    private static final long[] base0Widen = new long[4];
+    private static int base0Ferried;
+    private static final long[] decisions = new long[5]; // 見送り・小・中・大・導入で小
+    private static double maxSavedDays;
+    private static long largeBegun, largeOmen;
+    /** G1Fate から払う道(ForestDirector#visit が払う前に置く。払ったら消す)。 */
+    static volatile String payRoute;
 
     // ---------------------------------------------------------------- 口
 
@@ -58,18 +68,42 @@ public final class EconomySoak {
         String who = StackWalker.getInstance().walk(s -> s
                 .filter(f -> !f.getClassName().endsWith(".ForestDirector") && !f.getClassName().endsWith(".EconomySoak"))
                 .findFirst().map(f -> f.getClassName().substring(f.getClassName().lastIndexOf('.') + 1) + "." + f.getMethodName()).orElse("?"));
+        String route = payRoute;
+        if (route != null && who.startsWith("G1Fate.")) who = who + ":" + route; // 「G1 の道ほか」の中身(進化・根付き・苗床)
         synchronized (SPENT) {
             SPENT.merge(who, amount, Double::sum);
         }
     }
 
     /** 送り込み 1 回(BaseRaids から)。 */
-    static void wave(ServerLevel level, BaseRaids.Result r, boolean hoard) {
+    static void wave(ServerLevel level, BaseRaids.Result r, boolean hoard, long[] missBefore, long[] widenBefore, int ferriedBefore) {
         if (!on || dir == null) return;
-        String line = String.format(Locale.ROOT, "%.3f,%d,%s,%s,%d,%d,%d,%d,%d,%d,%.1f%n", PhaseData.clockNow(level) / 24000.0D,
+        long[] m = RaidSpawns.lastMisses, w = RaidSpawns.lastWidened;
+        String line = String.format(Locale.ROOT, "%.3f,%d,%s,%s,%d,%d,%d,%d,%d,%d,%.1f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d%n", PhaseData.clockNow(level) / 24000.0D,
                 PhaseData.get(level).getPhase(), r.first() ? "first" : hoard ? "hoard" : "wave", r.first() ? "y" : "n",
-                r.total(), r.stageZero(), r.developed() + r.evolved(), r.g4(), r.g5plus(), r.spawnedZero(), ForestDirector.get(level).available(level));
-        append("raids.csv", "day,phase,kind,first,total,stage0,developed,g4,g5plus,spawned0,budgetAfter\n", line);
+                r.total(), r.stageZero(), r.developed() + r.evolved(), r.g4(), r.g5plus(), r.spawnedZero(), ForestDirector.get(level).available(level),
+                r.wantStageZero(), r.wantDeveloped(), r.wantG4(), r.wantG5plus(),
+                m[0] - missBefore[0], m[1] - missBefore[1], m[2] - missBefore[2],
+                w[0] - widenBefore[0], w[1] - widenBefore[1], w[2] - widenBefore[2], w[3] - widenBefore[3],
+                com.yayuy.overgrownvegetation.drift.DriftRaids.ferried - ferriedBefore);
+        append("raids.csv", "day,phase,kind,first,total,stage0,developed,g4,g5plus,spawned0,budgetAfter,"
+                + "wantStage0,wantDeveloped,wantG4,wantG5plus,missUnloaded,missGround,missSeen,foundSpread,found90,found360,foundNone,ferries\n", line);
+    }
+
+    /** 襲撃の機会ごとの決め(RaidScales#skipOrStart から)。 */
+    static void decision(boolean skip, RaidScales.RaidScale scale, boolean introSmall, double savedDays) {
+        if (!on) return;
+        if (skip) decisions[0]++;
+        else if (introSmall) decisions[4]++;
+        else decisions[1 + scale.ordinal()]++;
+        maxSavedDays = Math.max(maxSavedDays, savedDays);
+    }
+
+    /** 大きな襲撃: 前触れに入った(omen = true)・本番が始まった。 */
+    static void large(boolean omen) {
+        if (!on) return;
+        if (omen) largeOmen++;
+        else largeBegun++;
     }
 
     // ---------------------------------------------------------------- 動かす
@@ -94,7 +128,32 @@ public final class EconomySoak {
 
     public static String status(ServerLevel level) {
         return String.format(Locale.ROOT, "計測 %s・%d 日目・撃退 送り込み %d / 貯めた %d / 大きな %d / 植物の行進 %d", on ? "中" : "止まっている",
-                dayIndex, repelled[0], repelled[1], repelled[2], repelled[3]);
+                dayIndex, repelled[0], repelled[1], repelled[2], repelled[3]) + ringWater(level);
+    }
+
+    /**
+     * 拠点ごとの、流れ木もどきの道が島とみなすかの輪(大きな襲撃の湧かせる距離の真ん中・24 点)の水の割合(11-21: ferry が 0 体だったのが仕様どおりかの確かめ)。
+     * 島とみなすのは 読めた点が 1/3 以上で 水が {@link com.yayuy.overgrownvegetation.drift.DriftRaids#WATER_SHARE} 以上。
+     */
+    private static String ringWater(ServerLevel level) {
+        var t = DesignData.director().largeRaid;
+        double r = (t.spawnMinBlocks + t.spawnMaxBlocks) * 0.5D;
+        StringBuilder sb = new StringBuilder();
+        for (BaseMemory.Base b : BaseMemory.get(level.getServer()).bases()) {
+            int water = 0, known = 0;
+            for (int i = 0; i < 24; i++) {
+                double a = 2.0D * Math.PI * i / 24;
+                var c = com.yayuy.overgrownvegetation.drift.DriftShore.column(level, net.minecraft.util.Mth.floor(b.centerX() + Math.cos(a) * r),
+                        net.minecraft.util.Mth.floor(b.centerZ() + Math.sin(a) * r), level.getSeaLevel() - 1);
+                if (c == com.yayuy.overgrownvegetation.drift.DriftShore.Col.UNKNOWN) continue;
+                known++;
+                if (c == com.yayuy.overgrownvegetation.drift.DriftShore.Col.WATER) water++;
+            }
+            sb.append(String.format(Locale.ROOT, "・拠点 #%d (%.0f, %.0f) の輪(半径 %.0f)の水 %d / 読めた %d → %s", b.id(), b.centerX(), b.centerZ(), r, water, known,
+                    com.yayuy.overgrownvegetation.drift.DriftRaids.acrossWater(level, b.centerX(), b.centerZ(),
+                            new int[]{(int) t.spawnMinBlocks, (int) t.spawnMaxBlocks, level.getSeaLevel() - 1, DesignData.drift().drift.minDepth}) ? "島" : "島ではない"));
+        }
+        return sb.toString();
     }
 
     private static void resetDay() {
@@ -106,6 +165,12 @@ public final class EconomySoak {
         base0Death = ForestEconomy.refundedDeath;
         base0Despawn = ForestEconomy.refundedDespawn;
         java.util.Arrays.fill(repelled, 0L);
+        System.arraycopy(RaidSpawns.lastMisses, 0, base0Miss, 0, 3);
+        System.arraycopy(RaidSpawns.lastWidened, 0, base0Widen, 0, 4);
+        base0Ferried = com.yayuy.overgrownvegetation.drift.DriftRaids.ferried;
+        java.util.Arrays.fill(decisions, 0L);
+        maxSavedDays = 0.0D;
+        largeBegun = largeOmen = 0L;
         tickSum = tickMax = tickCount = 0L;
     }
 
@@ -191,16 +256,23 @@ public final class EconomySoak {
         }
         int[] fis = new int[3];
         for (var fz : com.yayuy.overgrownvegetation.corruption.fissure.FissureData.get(level).fissures()) fis[fz.state.ordinal()]++;
-        String line = String.format(Locale.ROOT, "%d,%d,%s,%d,%d,%d,%d,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%d,%d,%.2f,%.1f,%d,%s,%d,%d,%d,\"%s\"%n",
+        String line = String.format(Locale.ROOT, "%d,%d,%s,%d,%d,%d,%d,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%d,%d,%.2f,%.1f,%d,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.2f,%d,%d,%d,\"%s\"%n",
                 day, pd.getPhase(), pd.getStage().key(), pd.getPoints(), s.chunks(), s.leyBig() + s.leySmall(), s.giantTrees(),
                 pd.hiveNodeSnapshot().length,
                 incForest, incLey, incTree, ForestEconomy.gainedInfect - base0Infect, ForestEconomy.refundedDeath - base0Death,
                 ForestEconomy.refundedDespawn - base0Despawn, spentTotal, dir0.available(level), ForestDirector.cap(level),
                 repelled[0], repelled[1], repelled[2], repelled[3], avgMs, tickMax / 1.0E6D,
-                countEntities(level), organs.toString().trim(), fis[0], fis[1], fis[2], spent);
+                countEntities(level), organs.toString().trim(), fis[0], fis[1], fis[2], 
+                RaidSpawns.lastMisses[0] - base0Miss[0], RaidSpawns.lastMisses[1] - base0Miss[1], RaidSpawns.lastMisses[2] - base0Miss[2],
+                RaidSpawns.lastWidened[0] - base0Widen[0], RaidSpawns.lastWidened[1] - base0Widen[1], RaidSpawns.lastWidened[2] - base0Widen[2],
+                RaidSpawns.lastWidened[3] - base0Widen[3], com.yayuy.overgrownvegetation.drift.DriftRaids.ferried - base0Ferried,
+                decisions[0], decisions[1], decisions[2], decisions[3], decisions[4], maxSavedDays, largeOmen, largeBegun, LargeRaids.scaledTotal,
+                spent);
         append("economy-days.csv",
                 "day,phase,stage,points,overgrownChunks,leyOrgans,giantTrees,hiveNodes,incForest,incLey,incTree,incInfect,refundDeath,refundDespawn,"
-                        + "spentTotal,budget,cap,repelWave,repelHoard,repelLarge,repelPlantMarch,tickAvgMs,tickMaxMs,entities,organs(alive+growing),fissurePending,fissureOpen,fissureDead,spentByCaller\n", line);
+                        + "spentTotal,budget,cap,repelWave,repelHoard,repelLarge,repelPlantMarch,tickAvgMs,tickMaxMs,entities,organs(alive+growing),fissurePending,fissureOpen,fissureDead,"
+                        + "missUnloaded,missGround,missSeen,foundSpread,found90,found360,foundNone,ferries,"
+                        + "skip,small,medium,large,introSmall,maxSavedDays,largeOmen,largeBegun,largeScaledTotal,spentByCaller\n", line);
     }
 
     private static int countEntities(ServerLevel level) {

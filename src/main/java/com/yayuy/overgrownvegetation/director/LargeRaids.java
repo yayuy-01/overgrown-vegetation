@@ -105,6 +105,7 @@ public final class LargeRaids {
      * 払うのは その拠点の財布 → 森の予算。同時の上限は大の段の maxAlive(300【仮】)、長さは maxDays(1 日【仮】)。予算が尽きるか時間で終わる。
      */
     public static void beginScaled(ServerLevel level, BaseMemory.Base b, double day) {
+        EconomySoak.large(false); // 計測の間だけ
         ForestDirector d = ForestDirector.get(level);
         scaledTotal = 0;
         d.setLargeRaidTarget(b.id());
@@ -118,6 +119,7 @@ public final class LargeRaids {
      * {@link DirectorGates#plantSpawnsSuppressed}・送り込みと偵察以外の司令塔の湧きが止まる・G1 は遠巻きにうろつかない)。その間 財布は増えも減りもしない。
      */
     public static void startScaledOmen(ServerLevel level, BaseMemory.Base b, double day, double days) {
+        EconomySoak.large(true); // 計測の間だけ
         ForestDirector d = ForestDirector.get(level);
         d.setLargeRaidTarget(b.id());
         d.setLargeRaidScaledSince(day);
@@ -320,7 +322,7 @@ public final class LargeRaids {
         if (spotOverride != null) return spotOverride.get();
         LargeRaidTable t = DesignData.director().largeRaid;
         double angle = spotAngle(level, b, random);
-        return RaidSpawns.findHiddenSpot(level, b.centerX(), b.centerZ(), angle, t.spawnSpreadDeg, t.spawnMinBlocks, t.spawnMaxBlocks,
+        return RaidSpawns.findHiddenSpotWidening(level, b.centerX(), b.centerZ(), angle, t.spawnSpreadDeg, t.spawnMinBlocks, t.spawnMaxBlocks,
                 t.playerMinBlocks, t.spawnTries, random);
     }
 

@@ -296,7 +296,7 @@ public final class DirectorHooks {
         SpawnTable t = DesignData.spawns();
         Vec3 away = ForestEdge.of(level).away(new Vec3(b.centerX(), 64.0D, b.centerZ()));
         double angle = away != null ? Math.atan2(-away.z, -away.x) : random.nextDouble() * Math.PI * 2.0D;
-        return RaidSpawns.findHiddenSpot(level, b.centerX(), b.centerZ(), angle, t.senderSpread, t.senderMin, t.senderMax, t.senderPlayerMin, t.senderTries, random);
+        return RaidSpawns.findHiddenSpotWidening(level, b.centerX(), b.centerZ(), angle, t.senderSpread, t.senderMin, t.senderMax, t.senderPlayerMin, t.senderTries, random);
     }
 
     /** 固まって出す: 真ん中から clusterBlocks の中の地面(見つからなければ真ん中)。 */

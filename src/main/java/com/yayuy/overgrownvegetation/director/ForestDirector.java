@@ -553,7 +553,10 @@ public final class ForestDirector extends SavedData implements ForestBudget {
             d = new Decision(Route.NONE, d.nothing(), d.evolve(), d.rooted(), d.nursery(), d.summary() + "・段で見送り");
         }
         double price = d.route() == Route.NONE ? 0.0D : stagePrice(cost(t, d.route()), strength);
-        if (d.route() != Route.NONE && !tryPay(level, price)) {
+        EconomySoak.payRoute = d.route().name(); // 計測の間だけ(「G1 の道ほか」の中身)
+        boolean paidRoute = d.route() == Route.NONE || tryPay(level, price);
+        EconomySoak.payRoute = null;
+        if (!paidRoute) {
             d = new Decision(Route.NONE, d.nothing(), d.evolve(), d.rooted(), d.nursery(), d.summary());
         } else if (d.route() != Route.NONE) {
             lastPrice = price;

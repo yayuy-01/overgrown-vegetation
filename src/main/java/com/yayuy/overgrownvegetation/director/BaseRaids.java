@@ -87,8 +87,10 @@ public final class BaseRaids {
         // 11-19 襲撃の規模: 財布 → 森の予算 の順に払う(見送って貯めた分・前の襲撃の使い残し)。中(貯めた襲撃)は中の値段の倍率
         RaidScales.RaidScale scale = hoard ? RaidScales.RaidScale.MEDIUM : RaidScales.RaidScale.SMALL;
         try (ForestDirector.PurseScope ignored = ForestDirector.openPurse(BaseMemory.get(level.getServer()), b, RaidScales.costFactor(scale))) {
+            long[] miss0 = RaidSpawns.lastMisses.clone(), widen0 = RaidSpawns.lastWidened.clone(); // 計測の間だけ
+            int ferried0 = com.yayuy.overgrownvegetation.drift.DriftRaids.ferried;
             Result r = sendWave0(level, b, day, random, hoard, override);
-            EconomySoak.wave(level, r, hoard); // 計測の間だけ
+            EconomySoak.wave(level, r, hoard, miss0, widen0, ferried0); // 計測の間だけ
             return r;
         }
     }

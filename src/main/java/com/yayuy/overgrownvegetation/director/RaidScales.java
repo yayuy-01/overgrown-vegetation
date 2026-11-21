@@ -234,6 +234,7 @@ public final class RaidScales {
         // 前のフェーズから貯めている最中なら、そのまま続ける
         boolean intro = DirectorGates.stage(level) == com.yayuy.overgrownvegetation.phase.PhaseStage.INTRO;
         Decision dec = intro && !b.saving() ? new Decision(false, RaidScale.SMALL) : decide(phase, saved, roll);
+        EconomySoak.decision(dec.skip(), dec.scale(), intro && !b.saving(), saved); // 計測の間だけ
         ForestDirector d = ForestDirector.get(level);
         if (dec.skip()) {
             double start = b.saving() ? b.saveStart() : day;
