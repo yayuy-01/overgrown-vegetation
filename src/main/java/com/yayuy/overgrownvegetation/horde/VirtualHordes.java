@@ -305,6 +305,7 @@ public final class VirtualHordes extends SavedData {
             Iterator<Map.Entry<ResourceLocation, Integer>> it = counts.entrySet().iterator();
             while (it.hasNext() && left > 0) {
                 Map.Entry<ResourceLocation, Integer> e = it.next();
+                if (STATIONARY.test(e.getKey())) continue; // 根付いた姿は動けない(狩り・襲撃・建てるに抜かない。11-21)
                 int k = Math.min(left, e.getValue());
                 e.setValue(e.getValue() - k);
                 out.merge(e.getKey(), k, Integer::sum);
@@ -408,6 +409,9 @@ public final class VirtualHordes extends SavedData {
         setDirty();
         return s;
     }
+
+    /** 動けない種(根付きの姿)。部隊から頭数を抜くとき残す(前線の側が差し込む。既定は無し)。 */
+    public static java.util.function.Predicate<ResourceLocation> STATIONARY = id -> false;
 
     /** 部隊から実物になった個体が、どの部隊(群れの id)のものかを覚える鍵(11-21 前線と部隊)。 */
     public static final String UNIT_KEY = "ov_unit";

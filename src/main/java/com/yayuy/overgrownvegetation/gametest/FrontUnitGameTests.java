@@ -261,6 +261,43 @@ public final class FrontUnitGameTests {
         }
     }
 
+    /** 部隊の中の根付き(11-21): 守りの持ち場に着いた部隊の段階 0 が根付きの姿へ。根付いた頭数は狩り・襲撃に抜かれない。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void defendersRootAndStayPut(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ForestDirector d = ForestDirector.get(level);
+        double budget = d.available(level);
+        Integer phase = DirectorGates.phaseOverride();
+        var stage = DirectorGates.stageOverride();
+        Fronts fronts = Fronts.load(new CompoundTag());
+        VirtualHordes h = VirtualHordes.load(new CompoundTag());
+        try {
+            DirectorGates.setPhaseForTests(3);
+            DirectorGates.setStageForTests(com.yayuy.overgrownvegetation.phase.PhaseStage.PEAK);
+            ForestUpkeep.setSampleForTests(0.0D, 0.0D);
+            d.setBudget(level, 1.0E9D);
+            Fronts.Front f = fronts.addSourceForTests(42_000_000.5D, 42_000_000.5D);
+            VirtualHordes.Swarm s = h.newUnit(42_000_100, 64, 42_000_000, f.id(), UnitPurpose.DEFEND, level.getGameTime()); // 持ち場(前線の真ん中から離れた所)
+            s.addHeads(zombie(), 10, 100.0D);
+            FrontDirector.root(level, h, f);
+            net.minecraft.world.entity.EntityType<?> rt = com.yayuy.overgrownvegetation.director.G1Fate.rootedTypeOf(G1Species.ZOMBIE);
+            if (rt == null) {
+                helper.succeed(); // ゾンビの根付きの姿が無い構成
+                return;
+            }
+            ResourceLocation rid = BuiltInRegistries.ENTITY_TYPE.getKey(rt);
+            int n = s.counts().getOrDefault(rid, 0);
+            helper.assertTrue(n == DesignData.front().rootedPerUnit, "守りの部隊が根付かない: " + s.counts());
+            var taken = s.takeHeads(s.size());
+            helper.assertTrue(!taken.containsKey(rid) && s.counts().getOrDefault(rid, 0) == n, "根付いた姿が抜き出された: " + taken);
+            helper.succeed();
+        } finally {
+            ForestUpkeep.setSampleForTests(null, null);
+            DirectorGates.setPhaseForTests(phase);
+            DirectorGates.setStageForTests(stage);
+            d.setBudget(level, budget);
+        }
+    }
     /** 広げる部隊は升の生き物を感染させ、稼ぎが入り、感染した数だけ部隊が太る。 */
     @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
     public static void expandUnitInfectsCellAndGrows(GameTestHelper helper) {

@@ -42,6 +42,20 @@ public final class G1Fate {
             java.util.function.Supplier<? extends net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>>> ROOTED =
             new java.util.EnumMap<>(com.yayuy.overgrownvegetation.corpse.G1Species.class);
 
+    /** 種の根付きの姿の型(無ければ null。前線の部隊の中の根付き、11-21)。 */
+    @Nullable
+    public static net.minecraft.world.entity.EntityType<?> rootedTypeOf(com.yayuy.overgrownvegetation.corpse.G1Species species) {
+        var s = ROOTED.get(species);
+        return s == null ? null : s.get();
+    }
+
+    /** 種の苗床の姿の型(無ければ null。前線の現地の苗床の実物、11-21)。 */
+    @Nullable
+    public static net.minecraft.world.entity.EntityType<?> nurseryTypeOf(com.yayuy.overgrownvegetation.corpse.G1Species species) {
+        var s = NURSERY.get(species);
+        return s == null ? null : s.get();
+    }
+
     public static void registerRooted(com.yayuy.overgrownvegetation.corpse.G1Species species,
                                       java.util.function.Supplier<? extends net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>> type) {
         ROOTED.put(species, type);

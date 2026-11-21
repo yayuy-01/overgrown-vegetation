@@ -57,6 +57,27 @@ public final class FrontDirector {
     private FrontDirector() {
     }
 
+    static {
+        VirtualHordes.STATIONARY = FrontDirector::isRootedForm;
+    }
+
+    @Nullable
+    private static java.util.Set<ResourceLocation> rootedIds;
+
+    /** 根付きの姿(動けない)か。初めて聞かれたときに G1 の根付きの表から作る。 */
+    public static boolean isRootedForm(ResourceLocation id) {
+        java.util.Set<ResourceLocation> s = rootedIds;
+        if (s == null) {
+            s = new java.util.HashSet<>();
+            for (G1Species g : G1Species.values()) {
+                EntityType<?> r = com.yayuy.overgrownvegetation.director.G1Fate.rootedTypeOf(g);
+                if (r != null) s.add(BuiltInRegistries.ENTITY_TYPE.getKey(r));
+            }
+            rootedIds = s;
+        }
+        return s.contains(id);
+    }
+
     public static boolean enabled() {
         return DesignData.front().enabled && DesignData.director().enabled && VirtualHordes.enabled();
     }
@@ -301,6 +322,7 @@ public final class FrontDirector {
             sentDefend++;
         }
         evolve(level, hordes, f);
+        root(level, hordes, f);
         mergeDefenders(level, hordes, f);
     }
 
@@ -352,6 +374,56 @@ public final class FrontDirector {
         hordes.touch();
     }
 
+    // ---------------------------------------------------------------- 部隊の中の根付き(11-21 ユーザー了承)
+
+    public static long rooted;
+
+    /**
+     * 根付きの道が開いていれば(F2 から)、守りの持ち場に着いた部隊の段階 0 を 1 回の見直しに rootedPerUnit 体まで根付きの姿へ替える
+     * (1 部隊のうち rootedMaxShare まで)。値段は根付きの姿の値段 − 段階 0(進化と同じ「進化先の危険度に応じた追加の費用」)。
+     * 予算は上限の reserveCapShare を残し、維持費の差は 8 割の関所を通す。
+     */
+    public static void root(ServerLevel level, VirtualHordes hordes, Fronts.Front f) {
+        FrontTable t = DesignData.front();
+        if (t.rootedPerUnit <= 0 || !DirectorGates.open(level, DirectorGates.Gate.ROOTED)) return;
+        ForestDirector dir = ForestDirector.get(level);
+        double reserve = ForestDirector.cap(level) * t.reserveCapShare;
+        double stageZero = DesignData.director().largeRaid.costStageZero * com.yayuy.overgrownvegetation.director.ForestEconomy.priceFactor();
+        java.util.Set<EntityType<?>> rootedTypes = new java.util.HashSet<>();
+        for (G1Species g : G1Species.values()) {
+            EntityType<?> r = com.yayuy.overgrownvegetation.director.G1Fate.rootedTypeOf(g);
+            if (r != null) rootedTypes.add(r);
+        }
+        for (VirtualHordes.Swarm s : hordes.swarms()) {
+            if (s.front() != f.id || s.purpose() != UnitPurpose.DEFEND || !s.arrived() || s.size() <= 0) continue;
+            if (near(s, f.x, f.z, 8.0D)) continue; // 作る途中の部隊(前線の真ん中)は根付かせない
+            int now = 0;
+            for (var e : s.counts().entrySet()) if (rootedTypes.contains(BuiltInRegistries.ENTITY_TYPE.get(e.getKey()))) now += e.getValue();
+            int max = (int) Math.floor(t.rootedMaxShare * s.size());
+            int done = 0;
+            for (var e : new ArrayList<>(s.counts().entrySet())) {
+                if (done >= t.rootedPerUnit || now >= max) break;
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(e.getKey());
+                G1Species sp = null;
+                for (G1Species g : G1Species.values()) if (g.entityType() == type) sp = g;
+                if (sp == null) continue;
+                EntityType<?> rType = com.yayuy.overgrownvegetation.director.G1Fate.rootedTypeOf(sp);
+                if (rType == null) continue;
+                double rPrice = ForestUpkeep.unitPrice(rType, false);
+                double cost = Math.max(0.0D, rPrice - stageZero);
+                while (done < t.rootedPerUnit && now < max && s.counts().getOrDefault(e.getKey(), 0) > 0) {
+                    if (dir.available(level) - cost < reserve) return;
+                    if (!dir.tryPayUnit(level, cost, cost, true)) return;
+                    s.takeHeadsOf(e.getKey(), 1);
+                    s.addHeads(BuiltInRegistries.ENTITY_TYPE.getKey(rType), 1, cost);
+                    done++;
+                    now++;
+                    rooted++;
+                }
+            }
+        }
+        hordes.touch();
+    }
     // ---------------------------------------------------------------- 部隊に入っていない Mob を吸い込む(区切り 6)
 
     public static long absorbed;

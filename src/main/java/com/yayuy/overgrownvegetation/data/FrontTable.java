@@ -26,6 +26,8 @@ public final class FrontTable {
         public Boolean replaceOldSpawns;
         public Integer evolvePerUnit, absorbBlocks;
         public Double evolveMaxShare;
+        public Integer rootedPerUnit;
+        public Double rootedMaxShare;
         public Double treeManageBlocks, treeSpacingBlocks, treeCost, treeGrowDays, treeStopCooldownDays, treeCheckSeconds;
         public Integer treeClusterChunks, treeCellChunks;
         public Double raidShareSmall, raidShareMedium, raidShareLarge, raidGatherBlocks, raidGatherMaxDays, raidRangeBlocks, repelGrowth, repelMaxFactor, raidLossRepelShare;
@@ -62,6 +64,9 @@ public final class FrontTable {
     public final int evolvePerUnit, absorbBlocks;
     /** 1 部隊のうち進化体(1 段目)はこの割合まで【仮】。 */
     public final double evolveMaxShare;
+    /** 根付き(11-21 ユーザー了承): 守りの持ち場に着いた部隊の段階 0 を 1 回の見直しにこの数まで根付きの姿へ・1 部隊のうち根付きはこの割合まで【仮】。 */
+    public final int rootedPerUnit;
+    public final double rootedMaxShare;
     public final double treeManageBlocks, treeSpacingBlocks, treeCost, treeGrowDays, treeStopCooldownDays, treeCheckSeconds;
     public final int treeClusterChunks, treeCellChunks;
     public final double raidShareSmall, raidShareMedium, raidShareLarge, raidGatherBlocks, raidGatherMaxDays, raidRangeBlocks, repelGrowth, repelMaxFactor, raidLossRepelShare;
@@ -117,6 +122,8 @@ public final class FrontTable {
         evolvePerUnit = Math.max(0, s.evolvePerUnit != null ? s.evolvePerUnit : 2);
         absorbBlocks = Math.max(32, s.absorbBlocks != null ? s.absorbBlocks : 128);
         evolveMaxShare = Math.min(1.0D, nn(s.evolveMaxShare, 0.4D));
+        rootedPerUnit = Math.max(0, s.rootedPerUnit != null ? s.rootedPerUnit : 1);
+        rootedMaxShare = Math.min(1.0D, nn(s.rootedMaxShare, 0.2D));
     }
 
     private static double nn(Double v, double fallback) {
