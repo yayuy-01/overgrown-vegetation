@@ -54,7 +54,7 @@ public final class EconomyTable {
 
     private EconomyTable(Json j) {
         Json s = j != null ? j : new Json();
-        chunkPerSecond = nn(s.chunkPerSecond, 0.004D);
+        chunkPerSecond = nn(s.chunkPerSecond, 0.008D);
         leyFrontBonus = nn(s.leyFrontBonus, 0.10D);
         treePerSecond = nn(s.treePerSecond, 800.0D / SECONDS_PER_DAY);
         upkeepPerSecond = nn(s.upkeepPerSecond, 0.00004D);

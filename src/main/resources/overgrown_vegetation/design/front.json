@@ -44,7 +44,7 @@
   "treeGrowDays": 1.5,
   "treeStopCooldownDays": 3.0,
   "treeCheckSeconds": 60.0,
-  "_comment_treeIncomeShare": "巨大樹に払う予算は毎秒 稼ぎの treeIncomeShare まで・払うのは前線ごとに古い 1 か所ずつ(11-21 放置 1 回目で巨大樹が予算を全部使い部隊を作れなかったため。仕様の「残りの 2 割で器官・巨大樹…」に合わせた【仮】)。育ち切って読み込まれていない所も巨大樹として数える(前線・稼ぎ・管理された森)。",
+  "_comment_treeIncomeShare": "【11-21 夜 ユーザー決定】巨大樹に払う予算は毎秒 稼ぎの 2 割まで(treeIncomeShare 0.2)・払うのは前線ごとに古い 1 か所ずつ(放置 1 回目で巨大樹が予算を全部使い部隊を作れなかったため)。育ち切って読み込まれていない所も巨大樹として数え(前線・稼ぎ・管理された森)、読み込まれたら実物を置く(ユーザー決定)。【仮】なし。",
   "treeIncomeShare": 0.2,
   "treeClusterChunks": 64,
   "treeCellChunks": 12,
