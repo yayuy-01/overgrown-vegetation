@@ -7,7 +7,7 @@ package com.yayuy.overgrownvegetation.data;
  * 塔 = 払って胞子を遠くへ・フェーズ = 払って点・苗床 = 値段を軽く)。<b>数はどれも【仮】</b>。
  *
  * <p>11-20 夜 ユーザー決定「フェーズの基本の物差しをやめる」: 稼ぎは「1 つあたり何ぼ」。1 日の稼ぎ =
- * (11-20 夜の形。11-21 に毎秒・広さに比例へ置き換えた: 毎秒の稼ぎ = chunkPerSecond × 過繁茂のチャンク数 + leyPerSecond × 井戸(大)+ leySmallPerSecond × 井戸(小)+ treePerSecond × 巨大樹。物差しは段階 0 の感染 Mob の生産 = 100)。
+ * (11-20 夜の形。11-21 に毎秒・広さに比例へ置き換えた: 毎秒の稼ぎ = Σ前線(その前線の過繁茂のチャンク数 × chunkPerSecond × (1 + leyFrontBonus × その前線の井戸))+ treePerSecond × 巨大樹。物差しは段階 0 の感染 Mob の生産 = 100)。
  * 森は大きくなるほど自分を養うのに使い、余りは伸びる縁からだけ出る(縁の長さは広さの √)。incomeBase と面積の割合は稼ぎに使わない。
  */
 public final class EconomyTable {
@@ -15,7 +15,7 @@ public final class EconomyTable {
     public static final EconomyTable DEFAULT = new EconomyTable(null);
 
     public static final class Json {
-        public Double chunkPerSecond, leyPerSecond, leySmallPerSecond, treePerSecond;
+        public Double chunkPerSecond, leyFrontBonus, treePerSecond;
         public Double upkeepPerSecond, upkeepOutsideFactor, upkeepIncomeShare;
         public Double infectBase, infectPerHealth, infectMax;
         public Double naturalCostFactor, refundShare, despawnRefund;
@@ -29,8 +29,8 @@ public final class EconomyTable {
     /** 1 日の秒数(24000 tick = 1200 秒)。稼ぎ・維持費は毎秒で持ち、古い「1 日あたり」の口はこれを掛けて答える。 */
     public static final double SECONDS_PER_DAY = 1200.0D;
 
-    /** 稼ぎ(11-21 ユーザー決定「毎秒・広さに比例」): 過繁茂 1 チャンク・井戸の器官 1 本(大・小)・巨大樹 1 本(どれも毎秒)。 */
-    public final double chunkPerSecond, leyPerSecond, leySmallPerSecond, treePerSecond;
+    /** 稼ぎ(11-21 ユーザー決定「毎秒・広さに比例」): 過繁茂 1 チャンク(毎秒)・井戸の器官 1 本が自分の前線の稼ぎに足す割合(11-21 案 c。小さい版は small.strength 倍・足し算)・巨大樹 1 本(毎秒)。 */
+    public final double chunkPerSecond, leyFrontBonus, treePerSecond;
     /** 維持費(11-21): 植物側の 1 体が毎秒払う = 値段 × upkeepPerSecond。森(過繁茂)の外は × upkeepOutsideFactor。司令塔は維持費の合計が稼ぎの upkeepIncomeShare を超えないように出す。 */
     public final double upkeepPerSecond, upkeepOutsideFactor, upkeepIncomeShare;
     /** 感染体への変化 1 回で入る量 = infectBase + 元の生き物の最大体力 × infectPerHealth(infectMax で頭打ち)。 */
@@ -55,8 +55,7 @@ public final class EconomyTable {
     private EconomyTable(Json j) {
         Json s = j != null ? j : new Json();
         chunkPerSecond = nn(s.chunkPerSecond, 0.004D);
-        leyPerSecond = nn(s.leyPerSecond, 4000.0D / SECONDS_PER_DAY);
-        leySmallPerSecond = nn(s.leySmallPerSecond, 1000.0D / SECONDS_PER_DAY);
+        leyFrontBonus = nn(s.leyFrontBonus, 0.10D);
         treePerSecond = nn(s.treePerSecond, 800.0D / SECONDS_PER_DAY);
         upkeepPerSecond = nn(s.upkeepPerSecond, 0.00004D);
         upkeepOutsideFactor = nn(s.upkeepOutsideFactor, 1.5D);
@@ -93,10 +92,17 @@ public final class EconomyTable {
         return j == null ? DEFAULT : new EconomyTable(j);
     }
 
-    /** 毎秒の稼ぎ(純粋な計算。11-21: 過繁茂の広さに比例 + 井戸 + 巨大樹)。 */
+    /** 井戸の器官(大 leyBig 本・小 leySmall 本)が 1 つの前線の稼ぎに足す割合(純粋な計算。小さい版は器官の small.strength 倍・足し算)。 */
+    public double leyBonus(int leyBig, int leySmall) {
+        return leyFrontBonus * (Math.max(0, leyBig) + DesignData.organs().strength(true) * Math.max(0, leySmall));
+    }
+
+    /**
+     * 毎秒の稼ぎ(純粋な計算・前線が 1 つで井戸が全部そこにある形): 過繁茂のチャンク × chunkPerSecond × (1 + 井戸の上乗せ)+ 巨大樹。
+     * 本物は前線ごとに数える(ForestEconomy#sources)。
+     */
     public double incomePerSecond(int overgrownChunks, int leyBig, int leySmall, int giantTrees) {
-        return chunkPerSecond * Math.max(0, overgrownChunks) + leyPerSecond * Math.max(0, leyBig) + leySmallPerSecond * Math.max(0, leySmall)
-                + treePerSecond * Math.max(0, giantTrees);
+        return chunkPerSecond * Math.max(0, overgrownChunks) * (1.0D + leyBonus(leyBig, leySmall)) + treePerSecond * Math.max(0, giantTrees);
     }
 
     /** 1 日の稼ぎ(毎秒 × 1200。古い口)。 */

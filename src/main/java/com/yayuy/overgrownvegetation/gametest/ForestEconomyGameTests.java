@@ -84,8 +84,10 @@ public final class ForestEconomyGameTests {
         EconomyTable e = ForestEconomy.table();
         helper.assertTrue(Math.abs(e.incomePerSecond(300000, 0, 0, 0) - e.chunkPerSecond * 300000) < 1.0E-6D, "稼ぎが広さに比例しない");
         helper.assertTrue(Math.abs(e.incomePerDay(40000, 0, 0, 0) - 4.0D * e.incomePerDay(10000, 0, 0, 0)) < 1.0E-6D, "広さ 4 倍で稼ぎが 4 倍にならない");
-        helper.assertTrue(Math.abs(e.incomePerDay(900, 1, 1, 3) - e.incomePerDay(900, 0, 0, 0) - (e.leyPerSecond + e.leySmallPerSecond + 3 * e.treePerSecond) * EconomyTable.SECONDS_PER_DAY) < 1.0E-6D,
-                "井戸と巨大樹が決まった量を足さない");
+        // 11-21 案 c: 井戸はその前線の森の稼ぎを +leyFrontBonus(小さい版は small.strength 倍)、巨大樹は決まった量
+        helper.assertTrue(Math.abs(e.incomePerDay(900, 1, 1, 3) - e.incomePerDay(900, 0, 0, 0)
+                - (e.chunkPerSecond * 900 * e.leyBonus(1, 1) + 3 * e.treePerSecond) * EconomyTable.SECONDS_PER_DAY) < 1.0E-6D, "井戸の上乗せと巨大樹が式どおりでない");
+        helper.assertTrue(Math.abs(e.leyBonus(1, 0) - e.leyFrontBonus) < 1.0E-12D, "大きい井戸 1 本の上乗せが leyFrontBonus でない");
 
         ServerLevel level = helper.getLevel();
         PhaseData pd = PhaseData.get(level);
@@ -102,12 +104,14 @@ public final class ForestEconomyGameTests {
             for (int i = 0; i < added.size() / 2; i++) pd.forgetOvergrownChunk(added.get(i));
             double pushed = ForestDirector.incomePerDay(level);
             helper.assertTrue(pushed < withForest - 1.0E-6D, "押し返して森が縮んでも稼ぎが減らない: " + withForest + " → " + pushed);
-            // 井戸の器官(育ち切った)で決まった量だけ増える
+            // 井戸の器官(育ち切った)で森の稼ぎが leyFrontBonus だけ増える(前線が無いテストのワールドは森を 1 つの前線とみなす)
             ForestOrgans.Organ ley = data.plant(level, OrganKind.LEY, false, 0, 3, 0, 3_000_000, 3_000_000);
             planted.add(ley.id);
             ley.state = ForestOrgans.State.ALIVE;
             double withLey = ForestDirector.incomePerDay(level);
-            helper.assertTrue(Math.abs(withLey - pushed - e.leyPerSecond * EconomyTable.SECONDS_PER_DAY) < 1.0E-6D, "井戸の器官の稼ぎが違う: +" + (withLey - pushed));
+            double want = e.chunkPerSecond * pd.overgrownLedgerSize() * e.leyFrontBonus * EconomyTable.SECONDS_PER_DAY;
+            helper.assertTrue(com.yayuy.overgrownvegetation.front.Fronts.get(level.getServer()).fronts().size() > 0
+                    || Math.abs(withLey - pushed - want) < 1.0E-6D, "井戸の器官の上乗せが違う: +" + (withLey - pushed) + "(欲しい " + want + ")");
             helper.succeed();
         } finally {
             for (int id : planted) data.remove(id);

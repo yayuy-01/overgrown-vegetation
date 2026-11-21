@@ -54,7 +54,7 @@ public final class ForestEconomy {
     // ---------------------------------------------------------------- 稼ぎ
 
     /** 稼ぎの元の今の値(表示とテスト用)。leyOrgans は大きい版に直した本数。 */
-    public record Sources(int chunks, int leyBig, int leySmall, int giantTrees, double perDay) {
+    public record Sources(int chunks, int leyBig, int leySmall, int giantTrees, double perDay, double forestPerDay, double leyPerDay, double treePerDay) {
     }
 
     /** テスト用: 1 日の稼ぎを決め打ちにする(null で戻す)。テストのワールドは台帳が空に近く、稼ぎも上限もほぼ 0 になるため。 */
@@ -101,7 +101,100 @@ public final class ForestEconomy {
             }
         }
         int trees = PhaseData.get(level).livingGiantTreeCount();
-        return new Sources(chunks, big, small, trees, table().incomePerDay(chunks, big, small, trees));
+        double[] split = frontSplit(level, chunks, big + small);
+        EconomyTable e = table();
+        double forest = split[0] * EconomyTable.SECONDS_PER_DAY, ley = split[1] * EconomyTable.SECONDS_PER_DAY;
+        double tree = e.treePerSecond * trees * EconomyTable.SECONDS_PER_DAY;
+        return new Sources(chunks, big, small, trees, forest + ley + tree, forest, ley, tree);
+    }
+
+    // ---------------------------------------------------------------- 前線ごとの稼ぎ(11-21 ユーザー決定 案 c)
+
+    /** 前線の id → その前線のチャンク数(最後に数えたとき。表示用)。 */
+    private static final java.util.Map<Integer, Integer> CHUNKS_BY_FRONT = new java.util.HashMap<>();
+    private static long splitAt = Long.MIN_VALUE;
+    private static int splitSize, splitFronts = -1, splitLeys = -1;
+    private static double splitBase, splitLey;
+
+    /** 次に聞かれたとき前線ごとに数え直す(テスト・前線が変わったとき)。 */
+    public static void invalidateSplit() {
+        splitAt = Long.MIN_VALUE;
+    }
+
+    /**
+     * 過繁茂のチャンクの稼ぎを前線ごとに分ける(毎秒の {森の稼ぎ, 井戸の上乗せ})。チャンクはいちばん近い前線(巨大樹・序盤は発生源)のもの【仮】、
+     * 井戸の器官もいちばん近い前線のものにし、<b>自分の前線の稼ぎだけ</b>を +leyFrontBonus(小さい版は small.strength 倍・足し算)。
+     * 前線がまだ無ければ森を 1 つの前線とみなす。全部のチャンクを数え直すのは 60 秒に 1 回(4×4 チャンクの升で前線を引く)、
+     * その間は台帳の広さの比で伸び縮みさせる。
+     */
+    static double[] frontSplit(ServerLevel level, int chunks, int leyCount) {
+        EconomyTable e = table();
+        if (chunks <= 0) return new double[]{0.0D, 0.0D};
+        java.util.List<com.yayuy.overgrownvegetation.front.Fronts.Front> fronts =
+                level.getServer() != null ? com.yayuy.overgrownvegetation.front.Fronts.get(level.getServer()).fronts() : java.util.List.of();
+        if (fronts.isEmpty()) {
+            int big = 0, small = 0;
+            if (DesignData.organs().enabled) {
+                for (ForestOrgans.Organ o : ForestOrgans.get(level).organs()) {
+                    if (o.kind != OrganKind.LEY || !o.active()) continue;
+                    if (o.small) small++;
+                    else big++;
+                }
+            }
+            double base = e.chunkPerSecond * chunks;
+            return new double[]{base, base * e.leyBonus(big, small)};
+        }
+        long now = level.getGameTime();
+        if (splitAt == Long.MIN_VALUE || now - splitAt >= 1200L || now < splitAt || fronts.size() != splitFronts || leyCount != splitLeys || splitSize <= 0) {
+            int n = fronts.size();
+            int[] byFront = new int[n];
+            it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap cells = new it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap();
+            PhaseData.get(level).forEachOvergrownChunk(k -> cells.addTo(ChunkPos.asLong(ChunkPos.getX(k) >> 2, ChunkPos.getZ(k) >> 2), 1));
+            for (var en : cells.long2IntEntrySet()) {
+                double cx = (ChunkPos.getX(en.getLongKey()) * 4 + 2) * 16.0D, cz = (ChunkPos.getZ(en.getLongKey()) * 4 + 2) * 16.0D;
+                byFront[nearestIndex(fronts, cx, cz)] += en.getIntValue();
+            }
+            double[] bonus = new double[n];
+            if (DesignData.organs().enabled) {
+                for (ForestOrgans.Organ o : ForestOrgans.get(level).organs()) {
+                    if (o.kind != OrganKind.LEY || !o.active()) continue;
+                    bonus[nearestIndex(fronts, o.x + 0.5D, o.z + 0.5D)] += e.leyFrontBonus * DesignData.organs().strength(o.small);
+                }
+            }
+            double base = 0.0D, ley = 0.0D;
+            CHUNKS_BY_FRONT.clear();
+            for (int i = 0; i < n; i++) {
+                base += byFront[i] * e.chunkPerSecond;
+                ley += byFront[i] * e.chunkPerSecond * bonus[i];
+                CHUNKS_BY_FRONT.put(fronts.get(i).id(), byFront[i]);
+            }
+            splitAt = now;
+            splitSize = Math.max(1, PhaseData.get(level).overgrownLedgerSize());
+            splitFronts = n;
+            splitLeys = leyCount;
+            splitBase = base;
+            splitLey = ley;
+        }
+        double scale = chunks / (double) splitSize;
+        return new double[]{splitBase * scale, splitLey * scale};
+    }
+
+    private static int nearestIndex(java.util.List<com.yayuy.overgrownvegetation.front.Fronts.Front> fronts, double x, double z) {
+        int best = 0;
+        double bd = Double.MAX_VALUE;
+        for (int i = 0; i < fronts.size(); i++) {
+            double dx = fronts.get(i).x() - x, dz = fronts.get(i).z() - z, d = dx * dx + dz * dz;
+            if (d < bd) {
+                bd = d;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    /** 前線の id のチャンク数(最後に数えたとき。無ければ 0)。 */
+    public static int chunksOfFront(int frontId) {
+        return CHUNKS_BY_FRONT.getOrDefault(frontId, 0);
     }
 
     /** 1 日の稼ぎ(森の健康・設定の倍率の前)。 */

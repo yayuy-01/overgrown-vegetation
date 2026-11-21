@@ -194,9 +194,9 @@ public final class EconomySoak {
         ForestEconomy.Sources s = ForestEconomy.sources(level);
         var e = ForestEconomy.table();
         double k = 20.0D / 24000.0D;
-        incForest += e.chunkPerSecond * s.chunks() * EconomyTable.SECONDS_PER_DAY * k;
-        incLey += (e.leyPerSecond * s.leyBig() + e.leySmallPerSecond * s.leySmall()) * EconomyTable.SECONDS_PER_DAY * k;
-        incTree += e.treePerSecond * s.giantTrees() * EconomyTable.SECONDS_PER_DAY * k;
+        incForest += s.forestPerDay() * k; // 11-21: 前線ごとの森の稼ぎの合計
+        incLey += s.leyPerDay() * k; // 井戸の上乗せ(自分の前線の稼ぎ × 割合)
+        incTree += s.treePerDay() * k;
         // プレイヤーは倒れない・腹が減らない
         for (ServerPlayer p : level.players()) {
             p.setInvulnerable(true);
