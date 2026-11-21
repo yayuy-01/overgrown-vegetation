@@ -249,7 +249,14 @@ public final class RaidScales {
         lastNote = String.format(java.util.Locale.ROOT, "拠点 #%d: %s規模の襲撃(貯め %.2f 日・財布 %.1f)", b.id(), dec.scale().label, saved, b.purse());
         d.note(lastNote);
         lastScale = dec.scale();
-        start(level, b, day, dec.scale(), random);
+        int sent = start(level, b, day, dec.scale(), random);
+        // 11-22: 樹域から 1 体も出せなかった小・中は、送ったと数えずに少し後で試し直す
+        if (sent == 0 && dec.scale() != RaidScale.LARGE && com.yayuy.overgrownvegetation.front.FrontRaids.retryEmpty(memory, b, day, sent)) {
+            lastNote = String.format(java.util.Locale.ROOT, "拠点 #%d: 樹域から出せる部隊が無く、%.2f 日後に試し直す", b.id(), b.nextWaveDay() - day);
+            d.note(lastNote);
+            return true;
+        }
+        if (sent > 0) com.yayuy.overgrownvegetation.front.FrontRaids.retryEmpty(memory, b, day, sent);
         return false;
     }
 
@@ -274,7 +281,7 @@ public final class RaidScales {
     }
 
     /** 段の作りで起こす。 */
-    public static void start(ServerLevel level, BaseMemory.Base b, double day, RaidScale scale, net.minecraft.util.RandomSource random) {
+    public static int start(ServerLevel level, BaseMemory.Base b, double day, RaidScale scale, net.minecraft.util.RandomSource random) {
         // 11-21 前線と部隊: 湧かせず、前線から襲う部隊を出す(大は前触れの森の気分はそのまま使い、部隊は前触れの間に集まる所へ歩く)
         if (com.yayuy.overgrownvegetation.front.FrontRaids.active(level)) {
             if (scale == RaidScale.LARGE) {
@@ -282,8 +289,7 @@ public final class RaidScales {
                 if (omen > 0.0D) LargeRaids.startScaledOmen(level, b, day, omen);
                 else LargeRaids.beginScaled(level, b, day);
             }
-            com.yayuy.overgrownvegetation.front.FrontRaids.send(level, b, day, scale);
-            return;
+            return com.yayuy.overgrownvegetation.front.FrontRaids.send(level, b, day, scale);
         }
         switch (scale) {
             case SMALL -> BaseRaids.sendWave(level, b, day, random);
@@ -295,5 +301,6 @@ public final class RaidScales {
                 else LargeRaids.beginScaled(level, b, day);
             }
         }
+        return -1; // 前の形(湧かせる): 数はここでは見ない
     }
 }

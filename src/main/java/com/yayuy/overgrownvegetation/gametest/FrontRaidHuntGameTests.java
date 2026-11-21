@@ -161,7 +161,7 @@ public final class FrontRaidHuntGameTests {
             d.addHeads(zombie(), 40, 100.0D);
             int raidable = 40 - (int) Math.ceil(DesignData.front().defendShareQuiet * 40);
             int sent = FrontRaids.send(level, b, day, RaidScales.RaidScale.MEDIUM);
-            int want = Math.min(raidable, (int) Math.ceil(raidable * DesignData.front().raidShareMedium));
+            int want = Math.min(FrontRaids.cap(b, day, RaidScales.RaidScale.MEDIUM), Math.min(raidable, (int) Math.ceil(raidable * DesignData.front().raidShareMedium)));
             helper.assertTrue(sent == want && heads(h, f.id(), UnitPurpose.RAID) == want, "出した数が違う: " + sent + "(欲しい " + want + ")");
             FrontRaids.Raid r = data.raids().get(data.raids().size() - 1);
             helper.assertTrue(r.gathering(), "中の襲撃が集まる所へ行かない");
@@ -196,6 +196,121 @@ public final class FrontRaidHuntGameTests {
             memory.clear();
             data.clearForTests();
             cleanup(h, fronts, f.id());
+        }
+    }
+
+    /** 11-22 ユーザー決定 案 3: 太い前線でも、最初の襲撃は 15・小は認識からの日数の上限(認識した日は raidCapStart)・中は同時 40 で、日数の上限(小の 2 倍)まで継ぎ足す。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void raidSizesFollowDayCaps(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Fronts fronts = Fronts.get(level.getServer());
+        VirtualHordes h = VirtualHordes.get(level.getServer());
+        BaseMemory memory = BaseMemory.get(level.getServer());
+        FrontRaids data = FrontRaids.get(level.getServer());
+        double x = 13_000_000.5D, z = 13_000_000.5D;
+        Fronts.Front f = fronts.addSourceForTests(x, z);
+        boolean ticking = FrontDirector.tickInGameTests;
+        try {
+            FrontDirector.tickInGameTests = true;
+            UnitTerrain.terrainForTests = (cx, cz) -> UnitTerrain.LAND;
+            memory.clear();
+            double day = BaseMemory.today(level.getServer());
+            int bcx = ((int) x + 600) >> 4, bcz = (int) z >> 4;
+            memory.addPresence(ChunkPos.asLong(bcx, bcz), DesignData.director().base.rememberScore * 2.0D, day);
+            memory.update(day);
+            BaseMemory.Base b = memory.bases().get(0);
+            memory.setStageForTests(b, BaseMemory.Stage.RECOGNIZED, day);
+            for (int i = 0; i < 20; i++) {
+                VirtualHordes.Swarm d = h.newUnit(x + 10 + i, 64, z, f.id(), UnitPurpose.DEFEND, level.getGameTime());
+                d.addHeads(zombie(), 50, 100.0D);
+            }
+            int first = FrontRaids.send(level, b, day, RaidScales.RaidScale.SMALL);
+            int firstWant = DesignData.director().assault.firstRaid.total();
+            helper.assertTrue(first == firstWant, "最初の襲撃が約 15 でない: " + first + "(欲しい " + firstWant + ")");
+            memory.waveSent(b, day, level.getRandom());
+            int small = FrontRaids.send(level, b, day, RaidScales.RaidScale.SMALL);
+            int smallWant = DesignData.front().raidCapSmall(0.0D);
+            helper.assertTrue(small == smallWant, "認識した日の送り込みが日数の上限でない: " + small + "(欲しい " + smallWant + ")");
+            int medium = FrontRaids.send(level, b, day, RaidScales.RaidScale.MEDIUM);
+            int alive = com.yayuy.overgrownvegetation.director.HoardRaids.maxAlive();
+            helper.assertTrue(medium == alive, "貯めた襲撃の 1 回目が同時の上限でない: " + medium + "(欲しい " + alive + ")");
+            FrontRaids.Raid r = data.raids().get(data.raids().size() - 1);
+            for (int i = 0; i < 200; i++) h.move(level, 100, DesignData.perf());
+            FrontRaids.tick(level); // 集まり終えて拠点へ
+            helper.assertTrue(!r.gathering(), "貯めた襲撃が拠点へ進まない");
+            // 半分倒された → 継ぎ足しで同時の上限へ戻る。日数の合計の上限で止まる
+            int total = FrontRaids.mediumTotal(b, day);
+            for (int round = 0; round < 10; round++) {
+                int left = alive / 2;
+                for (VirtualHordes.Swarm s : h.swarms()) {
+                    if (s.purpose() != UnitPurpose.RAID || !r.group().equals(s.hunt()) || left <= 0) continue;
+                    left -= s.takeHeads(Math.min(left, s.size())).values().stream().mapToInt(Integer::intValue).sum();
+                }
+                int now = 0;
+                for (VirtualHordes.Swarm s : h.swarms()) if (s.purpose() == UnitPurpose.RAID && r.group().equals(s.hunt())) now += s.size();
+                FrontRaids.refill(level, h, r, b, now, new it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap());
+            }
+            helper.assertTrue(r.sent() == total, "継ぎ足しが合計の上限で止まらない: " + r.sent() + "(欲しい " + total + ")");
+            helper.succeed();
+        } finally {
+            FrontDirector.tickInGameTests = ticking;
+            UnitTerrain.terrainForTests = null;
+            memory.clear();
+            data.clearForTests();
+            cleanup(h, fronts, f.id());
+        }
+    }
+
+    /** 11-22: いちばん近い樹域に出せる部隊が無ければ、範囲の中で次に近い樹域から出す。どこからも出せなければ送ったと数えず試し直す(回数を超えたら数える)。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void raidFallsBackToNextTerritoryAndRetries(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Fronts fronts = Fronts.get(level.getServer());
+        VirtualHordes h = VirtualHordes.get(level.getServer());
+        BaseMemory memory = BaseMemory.get(level.getServer());
+        FrontRaids data = FrontRaids.get(level.getServer());
+        double x = 14_000_000.5D, z = 14_000_000.5D;
+        Fronts.Front empty = fronts.addSourceForTests(x + 300, z); // 拠点にいちばん近いが部隊がいない(建ったばかりの巨大樹)
+        Fronts.Front full = fronts.addSourceForTests(x, z);
+        boolean ticking = FrontDirector.tickInGameTests;
+        try {
+            FrontDirector.tickInGameTests = true;
+            UnitTerrain.terrainForTests = (cx, cz) -> UnitTerrain.LAND;
+            memory.clear();
+            double day = BaseMemory.today(level.getServer());
+            int bcx = ((int) x + 600) >> 4, bcz = (int) z >> 4;
+            memory.addPresence(ChunkPos.asLong(bcx, bcz), DesignData.director().base.rememberScore * 2.0D, day);
+            memory.update(day);
+            BaseMemory.Base b = memory.bases().get(0);
+            memory.setStageForTests(b, BaseMemory.Stage.RECOGNIZED, day);
+            memory.waveSent(b, day, level.getRandom()); // 最初の襲撃は済んだ
+            helper.assertTrue(DesignData.front().raidRangeBlocks >= 600.0D, "テストの前提: 範囲が狭い");
+            VirtualHordes.Swarm d = h.newUnit(x + 10, 64, z, full.id(), UnitPurpose.DEFEND, level.getGameTime());
+            d.addHeads(zombie(), 50, 100.0D);
+            int sent = FrontRaids.send(level, b, day, RaidScales.RaidScale.SMALL);
+            helper.assertTrue(sent > 0 && heads(h, full.id(), UnitPurpose.RAID) == sent, "次に近い樹域から出さない: " + sent);
+            helper.assertTrue(heads(h, empty.id(), UnitPurpose.RAID) == 0, "部隊のいない樹域から出した");
+            // どこからも出せない: 送ったと数えず試し直す
+            cleanup(h, fronts, full.id());
+            fronts.fronts().add(full);
+            int waves = b.wavesSent();
+            int zero = FrontRaids.send(level, b, day, RaidScales.RaidScale.SMALL);
+            helper.assertTrue(zero == 0, "部隊がいないのに出した: " + zero);
+            int max = DesignData.front().raidRetryMax;
+            for (int i = 0; i < max; i++) {
+                helper.assertTrue(FrontRaids.retryEmpty(memory, b, day, 0), "出せなかったのに試し直さない(" + (i + 1) + " 回目)");
+                helper.assertTrue(Math.abs(b.nextWaveDay() - (day + DesignData.front().raidRetryDays)) < 1.0E-6D, "試し直しの日が違う: " + b.nextWaveDay());
+            }
+            helper.assertTrue(!FrontRaids.retryEmpty(memory, b, day, 0), "回数を超えても試し直し続ける");
+            helper.assertTrue(b.wavesSent() == waves, "試し直しで送った回数が増えた");
+            helper.succeed();
+        } finally {
+            FrontDirector.tickInGameTests = ticking;
+            UnitTerrain.terrainForTests = null;
+            memory.clear();
+            data.clearForTests();
+            cleanup(h, fronts, empty.id());
+            cleanup(h, fronts, full.id());
         }
     }
 }

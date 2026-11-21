@@ -696,6 +696,12 @@ public final class BaseMemory extends SavedData {
         setDirty();
     }
 
+    /** 送り込み・貯めた襲撃が樹域から 1 体も出せなかったときの試し直し(11-22。FrontRaids.retryEmpty から)。送った回数は増やさない。 */
+    public void retryWave(Base b, double at) {
+        b.nextWaveDay = at;
+        setDirty();
+    }
+
     /** まだ 1 回も送り込んでいない(次が最初の襲撃)か。古いワールドの数え(wavesSent)をそのまま使う。 */
     public static boolean firstRaidPending(Base b) {
         return b.wavesSent == 0;

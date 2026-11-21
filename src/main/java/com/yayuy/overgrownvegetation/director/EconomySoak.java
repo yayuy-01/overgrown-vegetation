@@ -76,6 +76,14 @@ public final class EconomySoak {
         }
     }
 
+    /** 11-22 樹域から出した襲撃 1 回・継ぎ足し 1 回(FrontRaids から)。どの樹域から何体出したか(from = "#樹域の id=体数 …")・上限。 */
+    public static void frontRaid(ServerLevel level, long raidId, String kind, int baseId, String pick, String from, int sent, int cap) {
+        if (!on || dir == null) return;
+        append("front-raids.csv", "day,phase,raid,kind,base,pick,sent,cap,from\n", String.format(Locale.ROOT, "%.3f,%d,%d,%s,%d,%s,%d,%d,%s%n",
+                PhaseData.clockNow(level) / 24000.0D, PhaseData.get(level).getPhase(), raidId, kind, baseId, pick, sent,
+                cap >= Integer.MAX_VALUE / 4 ? -1 : cap, from));
+    }
+
     /** 送り込み 1 回(BaseRaids から)。 */
     static void wave(ServerLevel level, BaseRaids.Result r, boolean hoard, long[] missBefore, long[] widenBefore, int ferriedBefore) {
         if (!on || dir == null) return;
@@ -175,9 +183,43 @@ public final class EconomySoak {
         tickSum = tickMax = tickCount = 0L;
     }
 
+    /** 11-22 tick の最大の訳を見る: 1 tick が SPIKE_MS を超えたら、見張りのスレッドがサーバーのスレッドの今の積み重ねを soak/spikes.txt に書く(計測の間だけ)。 */
+    private static final long SPIKE_MS = 500L;
+    private static volatile Thread serverThread;
+    private static volatile long spikeTickStart, spikeDumpedFor = -1L;
+    private static Thread watchdog;
+
     @SubscribeEvent
     public static void onTickPre(ServerTickEvent.Pre event) {
-        if (on) tickStart = System.nanoTime();
+        if (!on) return;
+        tickStart = System.nanoTime();
+        spikeTickStart = tickStart;
+        serverThread = Thread.currentThread();
+        startWatchdog();
+    }
+
+    private static synchronized void startWatchdog() {
+        if (watchdog != null && watchdog.isAlive()) return;
+        watchdog = new Thread(() -> {
+            while (on) {
+                try {
+                    Thread.sleep(100L);
+                } catch (InterruptedException e) {
+                    return;
+                }
+                long st = spikeTickStart;
+                Thread t = serverThread;
+                long ms = (System.nanoTime() - st) / 1_000_000L;
+                if (t == null || st == spikeDumpedFor || ms < SPIKE_MS) continue;
+                spikeDumpedFor = st;
+                StringBuilder sb = new StringBuilder("--- tick ").append(ms).append(" ms で見た積み重ね(").append(java.time.LocalTime.now()).append(")\n");
+                StackTraceElement[] es = t.getStackTrace();
+                for (int i = 0; i < Math.min(40, es.length); i++) sb.append("  ").append(es[i]).append('\n');
+                append("spikes.txt", "", sb.toString());
+            }
+        }, "ov-soak-spike-watch");
+        watchdog.setDaemon(true);
+        watchdog.start();
     }
 
     @SubscribeEvent
@@ -288,7 +330,7 @@ public final class EconomySoak {
                 RaidSpawns.lastWidened[0] - base0Widen[0], RaidSpawns.lastWidened[1] - base0Widen[1], RaidSpawns.lastWidened[2] - base0Widen[2],
                 RaidSpawns.lastWidened[3] - base0Widen[3], com.yayuy.overgrownvegetation.drift.DriftRaids.ferried - base0Ferried,
                 decisions[0], decisions[1], decisions[2], decisions[3], decisions[4], maxSavedDays, largeOmen, largeBegun, LargeRaids.scaledTotal,
-                front + "," + expandStats() + "," + baseStages(level),
+                front + "," + expandStats() + "," + String.format(Locale.ROOT, "%.1f", ForestDirector.cap(level) * DesignData.front().reserveCapShare) + "," + baseStages(level),
                 spent);
         append("economy-days.csv",
                 "day,phase,stage,points,overgrownChunks,leyOrgans,giantTrees,hiveNodes,incForest,incLey,incTree,incInfect,refundDeath,refundDespawn,"
@@ -296,7 +338,7 @@ public final class EconomySoak {
                         + "missUnloaded,missGround,missSeen,foundSpread,found90,found360,foundNone,ferries,"
                         + "skip,small,medium,large,introSmall,maxSavedDays,largeOmen,largeBegun,largeScaledTotal,"
                         + "fronts,units,headsDefend,headsExpand,headsHunt,headsRaid,headsBuild,upkeepPerDay,upkeepHeads,produced,frontRaids,frontRaidHeads,"
-                        + "frontRepels,treesPlaced,repelFrontRaid,repelHunt,expandSends,expandDistAvg,expandDistMax,expandArrivals,expandArriveDaysAvg,expandArriveDaysMax,bases,spentByCaller\n", line);
+                        + "frontRepels,treesPlaced,repelFrontRaid,repelHunt,expandSends,expandDistAvg,expandDistMax,expandArrivals,expandArriveDaysAvg,expandArriveDaysMax,reserve,bases,spentByCaller\n", line);
     }
 
     /** 広げる部隊を出した数・距離(ブロック)の平均と最大・着いた数・着くまでの日数の平均と最大(累計。11-21 夜)。 */

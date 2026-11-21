@@ -31,6 +31,9 @@ public final class FrontTable {
         public Double nurseryIntervalSeconds, nurseryPriceFactor;
         public Double treeManageBlocks, treeSpacingBlocks, treeCost, treeGrowDays, treeStopCooldownDays, treeCheckSeconds, treeIncomeShare;
         public Integer treeClusterChunks, treeCellChunks;
+        public Double raidCapStart, raidCapEnd, raidCapRampDays, raidCapMediumFactor;
+        public Double raidRetryDays;
+        public Integer raidRetryMax;
         public Double raidShareSmall, raidShareMedium, raidShareLarge, raidGatherBlocks, raidGatherMaxDays, raidRangeBlocks, repelGrowth, repelMaxFactor, raidLossRepelShare;
     }
 
@@ -74,7 +77,23 @@ public final class FrontTable {
     public final double nurseryIntervalSeconds, nurseryPriceFactor;
     public final double treeManageBlocks, treeSpacingBlocks, treeCost, treeGrowDays, treeStopCooldownDays, treeCheckSeconds, treeIncomeShare;
     public final int treeClusterChunks, treeCellChunks;
+    /** 11-22 ユーザー決定 案 3: 送り込み(小)の上限は認識した日 raidCapStart → raidCapRampDays 日後に raidCapEnd(直線)。貯めた襲撃(中)は × raidCapMediumFactor。値は【仮】。 */
+    public final double raidCapStart, raidCapEnd, raidCapRampDays, raidCapMediumFactor;
+    /** 11-22: 樹域から 1 体も出せなかった送り込み・貯めた襲撃は「送った」と数えず raidRetryDays 日後に試し直す(raidRetryMax 回まで。超えたら送ったと数える)。【仮】 */
+    public final double raidRetryDays;
+    public final int raidRetryMax;
     public final double raidShareSmall, raidShareMedium, raidShareLarge, raidGatherBlocks, raidGatherMaxDays, raidRangeBlocks, repelGrowth, repelMaxFactor, raidLossRepelShare;
+
+    /** 送り込み(小)の上限(認識してからの日数 since。0 = 認識した日)。 */
+    public int raidCapSmall(double since) {
+        double k = raidCapRampDays <= 0.0D ? 1.0D : Math.max(0.0D, Math.min(1.0D, since / raidCapRampDays));
+        return (int) Math.round(raidCapStart + (raidCapEnd - raidCapStart) * k);
+    }
+
+    /** 貯めた襲撃(中)の合計の上限。 */
+    public int raidCapMedium(double since) {
+        return (int) Math.round(raidCapSmall(since) * raidCapMediumFactor);
+    }
 
     private FrontTable(Json j) {
         Json s = j != null ? j : new Json();
@@ -105,6 +124,12 @@ public final class FrontTable {
         huntLostSeconds = nn(s.huntLostSeconds, 30.0D);
         huntSearchSeconds = nn(s.huntSearchSeconds, 30.0D);
         raidsFromFronts = s.raidsFromFronts == null || s.raidsFromFronts;
+        raidCapStart = Math.max(0.0D, nn(s.raidCapStart, 40.0D));
+        raidCapEnd = Math.max(raidCapStart, nn(s.raidCapEnd, 200.0D));
+        raidCapRampDays = Math.max(0.0D, nn(s.raidCapRampDays, 6.0D));
+        raidCapMediumFactor = Math.max(0.0D, nn(s.raidCapMediumFactor, 2.0D));
+        raidRetryDays = Math.max(0.005D, nn(s.raidRetryDays, 0.1D));
+        raidRetryMax = Math.max(0, s.raidRetryMax != null ? s.raidRetryMax : 3);
         raidShareSmall = Math.min(1.0D, nn(s.raidShareSmall, 0.3D));
         raidShareMedium = Math.min(1.0D, nn(s.raidShareMedium, 0.7D));
         raidShareLarge = Math.min(1.0D, nn(s.raidShareLarge, 1.0D));
