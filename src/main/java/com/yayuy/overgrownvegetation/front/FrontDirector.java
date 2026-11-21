@@ -120,6 +120,7 @@ public final class FrontDirector {
             }
         }
         expand(level, hordes, seconds);
+        FrontNurseries.get(level.getServer()).tick(level, hordes);
         if (replacesOldSpawns(level) && level.getGameTime() % 200L < 20L) absorbLoose(level, fronts, hordes);
         // 空の部隊(実物も残っていない)を片付ける
         for (VirtualHordes.Swarm s : new ArrayList<>(hordes.swarms())) {
@@ -259,11 +260,30 @@ public final class FrontDirector {
 
     /** 前線の真ん中で作っている途中の守る部隊(満員でないもの)。無ければ作る。 */
     static VirtualHordes.Swarm formingUnit(ServerLevel level, VirtualHordes hordes, Fronts.Front f, int max) {
+        // 作る所 = 前線の真ん中 + 過繁茂になった現地の苗床(出す所。11-21 夜)。作った数で順に回す
+        List<double[]> spots = formingSpots(level, f);
+        double[] at = spots.get((int) Math.floorMod(produced, (long) spots.size()));
         for (VirtualHordes.Swarm s : hordes.swarms()) {
-            if (s.front() == f.id && s.purpose() == UnitPurpose.DEFEND && s.size() < max && near(s, f.x, f.z, 8.0D) && near(s.tx(), s.tz(), f.x, f.z, 8.0D)) return s;
+            if (s.front() == f.id && s.purpose() == UnitPurpose.DEFEND && s.size() < max && near(s, at[0], at[1], 8.0D) && near(s.tx(), s.tz(), at[0], at[1], 8.0D)) return s;
         }
-        double y = surfaceY(level, f.x, f.z);
-        return hordes.newUnit(f.x, y, f.z, f.id, UnitPurpose.DEFEND, level.getGameTime());
+        double y = surfaceY(level, at[0], at[1]);
+        return hordes.newUnit(at[0], y, at[1], f.id, UnitPurpose.DEFEND, level.getGameTime());
+    }
+
+    /** 前線の作る所(真ん中と、過繁茂になった現地の苗床)。 */
+    static List<double[]> formingSpots(ServerLevel level, Fronts.Front f) {
+        List<double[]> spots = new ArrayList<>();
+        spots.add(new double[]{f.x, f.z});
+        if (level.getServer() != null) {
+            for (FrontNurseries.Nursery n : FrontNurseries.get(level.getServer()).sitesOf(f.id)) spots.add(new double[]{n.x(), n.z()});
+        }
+        return spots;
+    }
+
+    /** (x, z) が前線の作る所(8 ブロック以内)か。 */
+    static boolean atFormingSpot(ServerLevel level, Fronts.Front f, double x, double z) {
+        for (double[] p : formingSpots(level, f)) if (near(x, z, p[0], p[1], 8.0D)) return true;
+        return false;
     }
 
     // ---------------------------------------------------------------- 割り振り
@@ -303,7 +323,7 @@ public final class FrontDirector {
         // 下限に届いた作りたての部隊を出す
         for (VirtualHordes.Swarm s : mine) {
             if (s.purpose() != UnitPurpose.DEFEND || s.size() < t.unitMin) continue;
-            if (!near(s.tx(), s.tz(), f.x, f.z, 8.0D)) continue; // もう持ち場へ出た
+            if (!atFormingSpot(level, f, s.tx(), s.tz())) continue; // もう持ち場へ出た
             int n = s.size();
             int defendOthers = defend - n; // この部隊を除いた守り
             if (!attacked && defendOthers >= defendShare * total && expand < t.expandShareQuiet * total) {
@@ -396,7 +416,7 @@ public final class FrontDirector {
         }
         for (VirtualHordes.Swarm s : hordes.swarms()) {
             if (s.front() != f.id || s.purpose() != UnitPurpose.DEFEND || !s.arrived() || s.size() <= 0) continue;
-            if (near(s, f.x, f.z, 8.0D)) continue; // 作る途中の部隊(前線の真ん中)は根付かせない
+            if (atFormingSpot(level, f, s.x(), s.z())) continue; // 作る途中の部隊(前線の真ん中)は根付かせない
             int now = 0;
             for (var e : s.counts().entrySet()) if (rootedTypes.contains(BuiltInRegistries.ENTITY_TYPE.get(e.getKey()))) now += e.getValue();
             int max = (int) Math.floor(t.rootedMaxShare * s.size());
@@ -471,7 +491,7 @@ public final class FrontDirector {
         double mb = DesignData.front().mergeBlocks;
         List<VirtualHordes.Swarm> at = new ArrayList<>();
         for (VirtualHordes.Swarm s : hordes.swarms()) {
-            if (s.front() == f.id && s.purpose() == UnitPurpose.DEFEND && s.arrived() && s.size() > 0 && !near(s, f.x, f.z, 8.0D)) at.add(s);
+            if (s.front() == f.id && s.purpose() == UnitPurpose.DEFEND && s.arrived() && s.size() > 0 && !atFormingSpot(level, f, s.x(), s.z())) at.add(s);
         }
         for (int i = 0; i < at.size(); i++) {
             VirtualHordes.Swarm a = at.get(i);
@@ -574,6 +594,7 @@ public final class FrontDirector {
             if ((now - s.purposeSince()) % (long) (t.expandIntervalSeconds * 20.0D) >= (long) (seconds * 20.0D)) continue;
             long cell = cellKey(s.tx(), s.tz());
             int cx = (int) (cell >> 32), cz = (int) cell;
+            FrontNurseries.get(level.getServer()).tryMake(level, s, cx, cz); // 11-21 夜: 着いた升に苗床を 1 つ
             CellLife.Result r = CellLife.get().infect(level, cx, cz, s.size(), t.expandIntervalSeconds);
             if (r.gain() > 0.0D) {
                 ForestDirector.get(level).refund(level, r.gain());

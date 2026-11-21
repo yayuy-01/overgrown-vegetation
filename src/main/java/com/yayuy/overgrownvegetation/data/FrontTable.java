@@ -28,6 +28,7 @@ public final class FrontTable {
         public Double evolveMaxShare;
         public Integer rootedPerUnit;
         public Double rootedMaxShare;
+        public Double nurseryIntervalSeconds, nurseryPriceFactor;
         public Double treeManageBlocks, treeSpacingBlocks, treeCost, treeGrowDays, treeStopCooldownDays, treeCheckSeconds;
         public Integer treeClusterChunks, treeCellChunks;
         public Double raidShareSmall, raidShareMedium, raidShareLarge, raidGatherBlocks, raidGatherMaxDays, raidRangeBlocks, repelGrowth, repelMaxFactor, raidLossRepelShare;
@@ -67,6 +68,8 @@ public final class FrontTable {
     /** 根付き(11-21 ユーザー了承): 守りの持ち場に着いた部隊の段階 0 を 1 回の見直しにこの数まで根付きの姿へ・1 部隊のうち根付きはこの割合まで【仮】。 */
     public final int rootedPerUnit;
     public final double rootedMaxShare;
+    /** 現地の苗床(11-21 夜 ユーザー決定): 補充の間(秒。20 はユーザー決定)・萌芽体の値段の倍率(1/8 はユーザー決定)。 */
+    public final double nurseryIntervalSeconds, nurseryPriceFactor;
     public final double treeManageBlocks, treeSpacingBlocks, treeCost, treeGrowDays, treeStopCooldownDays, treeCheckSeconds;
     public final int treeClusterChunks, treeCellChunks;
     public final double raidShareSmall, raidShareMedium, raidShareLarge, raidGatherBlocks, raidGatherMaxDays, raidRangeBlocks, repelGrowth, repelMaxFactor, raidLossRepelShare;
@@ -124,6 +127,8 @@ public final class FrontTable {
         evolveMaxShare = Math.min(1.0D, nn(s.evolveMaxShare, 0.4D));
         rootedPerUnit = Math.max(0, s.rootedPerUnit != null ? s.rootedPerUnit : 1);
         rootedMaxShare = Math.min(1.0D, nn(s.rootedMaxShare, 0.2D));
+        nurseryIntervalSeconds = Math.max(1.0D, nn(s.nurseryIntervalSeconds, 20.0D));
+        nurseryPriceFactor = Math.min(1.0D, nn(s.nurseryPriceFactor, 0.125D));
     }
 
     private static double nn(Double v, double fallback) {

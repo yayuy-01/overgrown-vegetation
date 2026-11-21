@@ -53,5 +53,8 @@
   "_comment_rooted": "根付き(11-21 ユーザー了承「守りの部隊の一部を根付きの姿に」): 守りの持ち場に着いた部隊の段階 0 を、F2 から(根付きの道のゲート)1 回の見直しに rootedPerUnit 体まで根付きの姿へ。1 部隊のうち根付きは rootedMaxShare まで。値段は根付きの姿の値段 − 段階 0(進化先の危険度に応じた追加の費用)。数は【仮】。",
   "rootedPerUnit": 1,
   "rootedMaxShare": 0.2,
+  "_comment_nursery": "現地の苗床(11-21 夜 ユーザー決定。依頼書 front-nursery-brief.md): 広げる部隊が升に着いたら 1 体が苗床になる(苗床化 = 生産と同じ値段・1 升に 1 つ)。苗床は nurseryIntervalSeconds(20・ユーザー決定)ごとに、その升の広げる部隊へ 1 体補充(萌芽体は定価 × nurseryPriceFactor = 1/8・ユーザー決定、G2 以降は定価)。苗床も維持費を払う。升が過繁茂になったら萌芽体は生まず前線の出す所に。",
+  "nurseryIntervalSeconds": 20.0,
+  "nurseryPriceFactor": 0.125,
   "absorbBlocks": 128
 }
