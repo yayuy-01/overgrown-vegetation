@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
+    "overgrown_vegetation:attachment_bench",
     "overgrown_vegetation:nether_root",
     "overgrown_vegetation:strangled_stem",
     "overgrown_vegetation:fallen_log",

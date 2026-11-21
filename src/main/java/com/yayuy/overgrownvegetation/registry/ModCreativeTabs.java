@@ -186,6 +186,7 @@ public final class ModCreativeTabs {
                         com.yayuy.overgrownvegetation.registry.ModExpedition.acceptItems(output); // 遠征の見返りと手当て(2026-11-16 段 4)
                         com.yayuy.overgrownvegetation.gear.ModGear.acceptItems(output); // 強くなる道 段 1・段 2(2026-11-17)
                         com.yayuy.overgrownvegetation.registry.ModResearch.acceptItems(output); // 研究台・器具(2026-11-17)
+                        com.yayuy.overgrownvegetation.registry.ModArmorAttach.acceptItems(output); // 付け物の台・付け物(2026-11-21 夜)
                         com.yayuy.overgrownvegetation.organ.OrganBlocks.acceptItems(output); // 森の器官のブロック・根晶(11-19 夜 タブの載せ漏れ)
                         output.accept(ModItems.INFECTION_PROBE.get()); // 感染の試し棒(2026-11-19 確かめ用)
 

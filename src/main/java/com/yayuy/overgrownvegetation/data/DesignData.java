@@ -67,6 +67,7 @@ public final class DesignData {
     private static volatile com.yayuy.overgrownvegetation.worldevent.WorldEventTable worldEvents = com.yayuy.overgrownvegetation.worldevent.WorldEventTable.DEFAULT;
 
     private static volatile com.yayuy.overgrownvegetation.gear.GearTierTable gearTiers = com.yayuy.overgrownvegetation.gear.GearTierTable.DEFAULT;
+    private static volatile com.yayuy.overgrownvegetation.gear.attach.AttachTable armorAttachments = com.yayuy.overgrownvegetation.gear.attach.AttachTable.DEFAULT; // 防具の付け物(2026-11-21 夜)
 
     private static volatile com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable pushBack = com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable.DEFAULT;
 
@@ -113,6 +114,11 @@ public final class DesignData {
     /** 強くなる道 段 1・段 2 の物の設計値({@code gear_tiers.json}、2026-11-17)。 */
     public static com.yayuy.overgrownvegetation.gear.GearTierTable gearTiers() {
         return gearTiers;
+    }
+
+    /** 防具の付け物の設計値({@code armor_attachments.json}、2026-11-21 夜)。 */
+    public static com.yayuy.overgrownvegetation.gear.attach.AttachTable armorAttachments() {
+        return armorAttachments;
     }
 
     /** ワールドイベント 7 つの設計値({@code world_events.json}、2026-11-16 world-events)。サーバー(日程・地脈の大潮)とクライアント(長さ)が読む。 */
@@ -259,6 +265,8 @@ public final class DesignData {
         worldEvents = com.yayuy.overgrownvegetation.worldevent.WorldEventTable.fromJson(read(dir, "world_events.json", com.yayuy.overgrownvegetation.worldevent.WorldEventTable.Json.class));
         com.yayuy.overgrownvegetation.gear.GearTierTable gt = read(dir, "gear_tiers.json", com.yayuy.overgrownvegetation.gear.GearTierTable.class);
         gearTiers = gt != null ? gt : com.yayuy.overgrownvegetation.gear.GearTierTable.DEFAULT;
+        com.yayuy.overgrownvegetation.gear.attach.AttachTable aa = read(dir, "armor_attachments.json", com.yayuy.overgrownvegetation.gear.attach.AttachTable.class);
+        armorAttachments = aa != null ? aa : com.yayuy.overgrownvegetation.gear.attach.AttachTable.DEFAULT; // 防具の付け物(2026-11-21 夜)
         com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable pb = read(dir, "push_back.json", com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable.class);
         pushBack = pb != null ? pb : com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable.DEFAULT;
         com.yayuy.overgrownvegetation.phase.MobClassTable mc = read(dir, "mob_class.json", com.yayuy.overgrownvegetation.phase.MobClassTable.class);

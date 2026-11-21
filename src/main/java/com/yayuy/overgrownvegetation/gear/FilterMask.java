@@ -18,7 +18,8 @@ public interface FilterMask {
 
     /** {@code stack} がフィルターを使う頭か。 */
     static boolean isMask(ItemStack stack) {
-        return stack.getItem() instanceof FilterMask;
+        return stack.getItem() instanceof FilterMask
+                || com.yayuy.overgrownvegetation.gear.attach.ArmorAttachments.hasMouthCloth(stack); // 口覆いの布の付いた頭の防具も(2026-11-21 夜)
     }
 
     /** {@code entity} がフィルターを使う頭を被っているか(残りを問わない)。 */
@@ -28,6 +29,8 @@ public interface FilterMask {
 
     /** {@code stack} のフィルターの減りの倍率。フィルターを使う頭でなければ 1。 */
     static double wearOf(ItemStack stack) {
-        return stack.getItem() instanceof FilterMask m ? Math.max(0.0D, m.filterWear()) : 1.0D;
+        if (stack.getItem() instanceof FilterMask m) return Math.max(0.0D, m.filterWear());
+        return com.yayuy.overgrownvegetation.gear.attach.ArmorAttachments.hasMouthCloth(stack)
+                ? com.yayuy.overgrownvegetation.gear.attach.ArmorAttachments.mouthClothWear() : 1.0D;
     }
 }

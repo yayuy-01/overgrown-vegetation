@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": ["SWS", " P "],
+  "key": {
+    "S": { "item": "minecraft:string" },
+    "W": { "tag": "minecraft:wool" },
+    "P": { "item": "minecraft:paper" }
+  },
+  "result": { "id": "overgrown_vegetation:mouth_cloth", "count": 1 }
+}

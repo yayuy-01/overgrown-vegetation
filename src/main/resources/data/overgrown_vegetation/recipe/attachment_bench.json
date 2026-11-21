@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["SLS", "PCP"],
+  "key": {
+    "S": { "item": "minecraft:string" },
+    "L": { "item": "minecraft:leather" },
+    "P": { "tag": "minecraft:planks" },
+    "C": { "item": "minecraft:crafting_table" }
+  },
+  "result": { "id": "overgrown_vegetation:attachment_bench", "count": 1 }
+}

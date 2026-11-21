@@ -68,6 +68,7 @@ public class OvergrownVegetation {
         com.yayuy.overgrownvegetation.registry.ModCreepingWall.init(); // 蠢く壁の成れの果て・ダメージの型(2026-11-16 試作)
         com.yayuy.overgrownvegetation.gear.ModGear.init(); // 装備・鉱石(11-21 作り直し: 菌集鉱・導晶鉱と導晶の道具・Mob のドロップ)
         com.yayuy.overgrownvegetation.registry.ModResearch.init(); // 研究台と研究ツリー・器具(2026-11-17 強くなる道 決定 20・22・23)
+        com.yayuy.overgrownvegetation.registry.ModArmorAttach.init(); // 防具の付け物: 付け物の台・枠・最初の 4 種(2026-11-21 夜)
         ModBlocks.register(modBus);
         ModBlockEntities.register(modBus);
         com.yayuy.overgrownvegetation.ecosystem.life.EcoBlocks.register(modBus);   // 環境生物の棲み処(11-18)

@@ -1,0 +1,71 @@
+package com.yayuy.overgrownvegetation.client.attach;
+
+import com.mojang.blaze3d.platform.InputConstants;
+import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.gear.attach.AttachNetwork;
+import com.yayuy.overgrownvegetation.registry.ModArmorAttach;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+import net.minecraft.client.resources.PlayerSkin;
+import net.minecraft.world.entity.EntityType;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
+import org.lwjgl.glfw.GLFW;
+
+/**
+ * 防具の付け物のクライアント側(2026-11-21 夜): 台とベルトの画面・ベルトを開くキー(既定 B【仮】)・体に付け物を描く層。
+ */
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+public final class AttachClient {
+
+    public static final KeyMapping OPEN_BELT = new KeyMapping("key.overgrown_vegetation.belt_pouch",
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, "key.categories.overgrown_vegetation");
+
+    private AttachClient() {
+    }
+
+    @SubscribeEvent
+    public static void onScreens(RegisterMenuScreensEvent event) {
+        event.register(ModArmorAttach.BENCH_MENU.get(), AttachBenchScreen::new);
+        event.register(ModArmorAttach.BELT_MENU.get(), BeltPouchScreen::new);
+    }
+
+    @SubscribeEvent
+    public static void onKeys(RegisterKeyMappingsEvent event) {
+        event.register(OPEN_BELT);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SubscribeEvent
+    public static void onAddLayers(EntityRenderersEvent.AddLayers event) {
+        for (PlayerSkin.Model skin : event.getSkins()) {
+            EntityRenderer<?> r = event.getSkin(skin);
+            if (r instanceof LivingEntityRenderer lr) lr.addLayer(new AttachmentLayer(lr));
+        }
+        EntityRenderer<?> stand = event.getRenderer(EntityType.ARMOR_STAND);
+        if (stand instanceof LivingEntityRenderer lr) lr.addLayer(new AttachmentLayer(lr));
+    }
+
+    /** キーを押したらサーバーへ知らせる(ゲームのバス)。 */
+    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+    public static final class Keys {
+        private Keys() {
+        }
+
+        @SubscribeEvent
+        public static void onTick(ClientTickEvent.Post event) {
+            Minecraft mc = Minecraft.getInstance();
+            while (OPEN_BELT.consumeClick()) {
+                if (mc.player != null && mc.screen == null) PacketDistributor.sendToServer(AttachNetwork.OpenBelt.INSTANCE);
+            }
+        }
+    }
+}
