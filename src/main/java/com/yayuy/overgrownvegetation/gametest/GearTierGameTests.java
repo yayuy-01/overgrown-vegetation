@@ -381,7 +381,7 @@ public final class GearTierGameTests {
         helper.succeed();
     }
 
-    /** 飲み込まれた導晶鉱は緑の版になり(菌集鉱にはならない)、空気に面した所に小さな根晶が生える(骨粉の装飾し直しでは生えない)。小さな根晶は 25% で根晶。 */
+    /** 飲み込まれた導晶鉱は緑の版になり(菌集鉱にはならない)、置き換わった 1 回だけ空気に面した所に小さな根晶が生える(掘った後は生え直さない)。小さな根晶は 25% で根晶。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void conduitOreTurnsGreenWithRootBuds(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -397,25 +397,28 @@ public final class GearTierGameTests {
             c.budChance = 1.0D;
             c.budMax = 2;
             BlockPos ore = new BlockPos(3, 3, 3);
-            helper.setBlock(ore, ModGear.OVERGROWN_CONDUIT_ORE.get());
-            FungalOre.suppressed = true;
-            try {
-                CorruptionSpreader.growSurfacePlants(level, helper.absolutePos(ore), helper.getBlockState(ore), 0.0D);
-            } finally {
-                FungalOre.suppressed = false;
-            }
-            if (buds(helper, ore) != 0) {
-                helper.fail("骨粉の装飾し直しで小さな根晶が生えた");
-                return;
-            }
-            CorruptionSpreader.growSurfacePlants(level, helper.absolutePos(ore), helper.getBlockState(ore), 0.0D);
+            BlockPos abs = helper.absolutePos(ore);
+            helper.setBlock(ore, ModGear.CONDUIT_ORE.get());
+            // 本物の置き換えの口(汚染が広がるときと同じ)で緑の版にする → その 1 回だけ生える
+            BlockState before = helper.getBlockState(ore);
+            CorruptionRegistry.placeCorrupted(level, abs, before, CorruptionRegistry.corrupt(before, level.random),
+                    net.minecraft.world.level.block.Block.UPDATE_ALL);
             if (buds(helper, ore) != 2 || !helper.getBlockState(ore).is(ModGear.OVERGROWN_CONDUIT_ORE.get())) {
                 helper.fail("小さな根晶の数 " + buds(helper, ore) + "(期待 2)・鉱石 " + helper.getBlockState(ore));
                 return;
             }
-            CorruptionSpreader.growSurfacePlants(level, helper.absolutePos(ore), helper.getBlockState(ore), 0.0D);
-            if (buds(helper, ore) != 2) {
-                helper.fail("上限を越えて生えた: " + buds(helper, ore));
+            // 掘った後、装飾の口(前触れ・染み下がり・骨粉など何度も来る)を通しても生え直さない
+            for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+                if (helper.getBlockState(ore.relative(d)).is(ModGear.SMALL_ROOT_CRYSTAL.get())) helper.setBlock(ore.relative(d), Blocks.AIR);
+            }
+            CorruptionSpreader.growSurfacePlants(level, abs, helper.getBlockState(ore), 0.0D);
+            if (buds(helper, ore) != 0) {
+                helper.fail("掘った後に装飾の口で小さな根晶が生え直した: " + buds(helper, ore));
+                return;
+            }
+            // 既に緑の版の物を置き換え直しても生えない(導晶鉱から変わった 1 回だけ)
+            if (ConduitOre.onConverted(level, abs, helper.getBlockState(ore), helper.getBlockState(ore)) != 0) {
+                helper.fail("緑の版から緑の版で小さな根晶が生えた");
                 return;
             }
         } finally {

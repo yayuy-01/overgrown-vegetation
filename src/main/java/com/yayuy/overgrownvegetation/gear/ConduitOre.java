@@ -27,7 +27,7 @@ import java.util.List;
  *   <li>世界生成: {@link Placer} が地下の鉱石の段(underground_ores)で、原点のチャンクの中に鉱脈の芯を {@code veinsPerChunk} 回選び、
  *   芯が地脈の線から {@code leyReach} 以内のときだけ、まわりの石・深層岩を {@code veinSize} 個まで導晶鉱にする(チャンクの外へは出さない)。</li>
  *   <li>汚染: 飲み込まれても変質しない(菌集鉱にも置き換えない。ユーザー「菌集鉱を採るのに導晶鉱を残す必要が出てしまう」)。
- *   緑の版へ変わるのは {@code CorruptionRegistry} の個別の表。変わった直後の装飾の口({@link #onCorrupted})で、空気に面した所に小さな根晶が生える。</li>
+ *   緑の版へ変わるのは {@code CorruptionRegistry} の個別の表。置き換わったその 1 回({@link #onConverted})だけ、空気に面した所に小さな根晶が生える。</li>
  * </ul>
  * 値は {@code gear_tiers.json} の {@code conduit}【仮】。
  */
@@ -103,12 +103,13 @@ public final class ConduitOre {
     }
 
     /**
-     * 汚染したブロックの装飾の口({@code CorruptionSpreader#growSurfacePlantsInScope})から。飲み込まれた導晶鉱なら、空気に面した面に小さな根晶を生やす。
-     * 汚染の骨粉の装飾し直し({@link FungalOre#suppressed})では生やさない(掘っては生やす畑にしない)。既に {@code budMax} 本あれば足さない。生やした数を返す。
+     * 汚染でブロックが置き換わったとき({@code CorruptionRegistry#placeCorrupted})。導晶鉱が緑の版になったその 1 回だけ、空気に面した面に小さな根晶を生やす。
+     * 装飾の口(フェーズの前触れ・菌糸の染み下がり・骨粉など何度も来る)では生やさないので、掘った小さな根晶は生え直さない(根晶の本筋は器官のまま)。
+     * 生やした数を返す。
      */
-    public static int onCorrupted(ServerLevel level, BlockPos pos, BlockState hostState, RandomSource random) {
-        if (FungalOre.suppressed || !isOvergrownOre(hostState)) return 0;
-        return growBuds(level, pos, random);
+    public static int onConverted(ServerLevel level, BlockPos pos, BlockState previous, BlockState now) {
+        if (!(previous.is(ModGear.CONDUIT_ORE.get()) || previous.is(ModGear.DEEPSLATE_CONDUIT_ORE.get())) || !isOvergrownOre(now)) return 0;
+        return growBuds(level, pos, level.random);
     }
 
     /** {@code pos} の飲み込まれた導晶鉱のまわりに小さな根晶を生やす(確率と上限は設計値。GameTest からも)。 */

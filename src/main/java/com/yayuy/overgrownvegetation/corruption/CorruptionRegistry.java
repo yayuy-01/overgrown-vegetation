@@ -504,6 +504,10 @@ public final class CorruptionRegistry {
         if (level instanceof ServerLevel serverLevel && CoverCreepData.source(level.getBlockState(pos))) {
             CoverCreepData.spreadFrom(serverLevel, pos);
         }
+        // 飲み込まれた導晶鉱(2026-11-21 グレード 1): 緑の版に置き換わったその 1 回だけ、表面に小さな根晶を生やす(装飾の口では生やさない = 掘っては生え直す畑にしない)
+        if (level instanceof ServerLevel serverLevel) {
+            com.yayuy.overgrownvegetation.gear.ConduitOre.onConverted(serverLevel, pos, previous, level.getBlockState(pos));
+        }
     }
 
     /** {@link #placeCorrupted} の中身。ドロップを消す範囲の中から呼ぶ。 */
