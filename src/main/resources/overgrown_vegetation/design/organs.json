@@ -1,5 +1,5 @@
 {
-  "_comment": "森の器官の設計値(2026-11-17)。ユーザーが決めた値: 値段 price 120(大きい版)・small.price 30(小さい版)・蓄えの嚢は大きい版 = 巨大樹 3 本分(roles.sacHiveNodes 3。巨大樹 1 本 = ハイヴノード 1 つ)・小さい版 = 0.2 本分(small.sacHiveNodes)。ほかは全部【仮】。正本の決定は Vault「強くなる道(素材・装備・武器・探索)(11-17)」の決定 14〜16 と「森の器官の形」。司令塔が予算を払って、境目から奥(まわり minDepthChunks チャンクが全部過繁茂)で、過繁茂になってから minAgeDays 日たった升に芽吹かせ、growDays 日で育つ。値段が上限を超えるときは上限の 95% に切る(F3 の上限は 60 なので、ハイヴノードが無いと大きい版は 57 で建つ)。器官の数の上限は maxOrgans[フェーズ](F0〜F10)、間隔は spacingChunks。候補はプレイヤー・拠点・ハイヴノード・巨大樹・器官のまわり anchorMin〜MaxChunks を samples 回くじで引く(台帳全体はなめない)。崩れた版は升が古いほど出やすい(ruinAgeDays で半分)。kindWeights はフェーズ・塔・嚢・苗床・根の順。",
+  "_comment": "森の器官の設計値(2026-11-17)。ユーザーが決めた値: 値段 price 120(大きい版)・small.price 30(小さい版)・蓄えの嚢は大きい版 = 巨大樹 3 本分(roles.sacHiveNodes 3。巨大樹 1 本 = ハイヴノード 1 つ)・小さい版 = 0.2 本分(small.sacHiveNodes)・苗床の間隔 nurseryIntervalSeconds 20 秒(11-21 夜。60 から)。ほかは全部【仮】。正本の決定は Vault「強くなる道(素材・装備・武器・探索)(11-17)」の決定 14〜16 と「森の器官の形」。司令塔が予算を払って、境目から奥(まわり minDepthChunks チャンクが全部過繁茂)で、過繁茂になってから minAgeDays 日たった升に芽吹かせ、growDays 日で育つ。値段が上限を超えるときは上限の 95% に切る(F3 の上限は 60 なので、ハイヴノードが無いと大きい版は 57 で建つ)。器官の数の上限は maxOrgans[フェーズ](F0〜F10)、間隔は spacingChunks。候補はプレイヤー・拠点・ハイヴノード・巨大樹・器官のまわり anchorMin〜MaxChunks を samples 回くじで引く(台帳全体はなめない)。崩れた版は升が古いほど出やすい(ruinAgeDays で半分)。kindWeights はフェーズ・塔・嚢・苗床・根の順。",
   "enabled": true,
   "minPhase": 3,
   "planIntervalDays": 0.5,
@@ -21,7 +21,7 @@
     "phaseChunks": 150000.0,
     "towerSporePerDay": 40.0,
     "sacHiveNodes": 3.0,
-    "nurseryIntervalSeconds": 60,
+    "nurseryIntervalSeconds": 20,
     "nurseryMaxAlive": 6,
     "nurseryPlayerBlocks": 64,
     "nurseryMinBaseChunks": 8,

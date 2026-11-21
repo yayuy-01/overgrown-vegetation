@@ -144,7 +144,7 @@ public final class OrganTable {
         phaseChunks = Math.max(0.0D, or(r.phaseChunks, 150000.0D));
         towerSporePerDay = Math.max(0.0D, or(r.towerSporePerDay, 40.0D));
         sacHiveNodes = Math.max(0.0D, or(r.sacHiveNodes, 3.0D));
-        nurseryIntervalSeconds = Math.max(1, or(r.nurseryIntervalSeconds, 60));
+        nurseryIntervalSeconds = Math.max(1, or(r.nurseryIntervalSeconds, 20));
         nurseryMaxAlive = Math.max(0, or(r.nurseryMaxAlive, 6));
         nurseryPlayerBlocks = Math.max(1, or(r.nurseryPlayerBlocks, 64));
         nurseryMinBaseChunks = Math.max(0, or(r.nurseryMinBaseChunks, 8));
