@@ -992,7 +992,7 @@
   "item.overgrown_vegetation.storage_belt": "収納付きベルト",
   "item.overgrown_vegetation.storage_belt.desc": "脚の防具に付けると小物入れになる(キーで開く。既定 B)",
   "item.overgrown_vegetation.bark_plate": "樹皮の当て板",
-  "item.overgrown_vegetation.bark_plate.desc": "付けた防具の防御 +1(1 つの防具に 3 枚まで)",
+  "item.overgrown_vegetation.bark_plate.desc": "付けた防具の防御 +1",
   "item.overgrown_vegetation.conduit_sash": "導晶装飾の布",
   "item.overgrown_vegetation.conduit_sash.desc": "脚の防具に付けると、地脈の道具・武器・防具の力の減りが 1 割減る",
   "armor_attachment.overgrown_vegetation.part.head": "頭",

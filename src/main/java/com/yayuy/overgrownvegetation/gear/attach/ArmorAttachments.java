@@ -162,6 +162,61 @@ public final class ArmorAttachments {
         return s;
     }
 
+    /** {@code armor} に何か付いているか。 */
+    public static boolean hasAny(ItemStack armor) {
+        return !armor.isEmpty() && armor.has(ModArmorAttach.ATTACHMENTS.get());
+    }
+
+    /** 付いている物を全部外して返す(口覆いの布はフィルターの状態を連れる)。防具が壊れたとき。 */
+    public static java.util.List<ItemStack> detachAll(ItemStack armor) {
+        java.util.List<ItemStack> out = new java.util.ArrayList<>();
+        for (int i = 0; i < slotCount(); i++) {
+            ItemStack s = detach(armor, i);
+            if (!s.isEmpty()) out.add(s);
+        }
+        return out;
+    }
+
+    /**
+     * 修理(砥石・金床・作業台の合成)で付け物を引き継ぐ(2026-11-22 ユーザー「修理では消えない」)。
+     * {@code output} の付け物をいったん空にし、{@code inputs} の順に付いていた物を付け直す。付けられなかった物(枠が足りない・同じ物が 2 つ)を返す
+     * (呼ぶ側が持ち主へ返す)。{@code output} が付け物を持てない物なら全部を返す。入力のどれにも付いていなければ何もせず空を返す。
+     * 決まった順で決まった結果になるので、結果の見本と、受け取ったときの返す物の計算で同じ答えになる。
+     */
+    public static java.util.List<ItemStack> carryOver(ItemStack output, ItemStack... inputs) {
+        java.util.List<ItemStack> rest = new java.util.ArrayList<>();
+        boolean any = false;
+        for (ItemStack in : inputs) any |= hasAny(in);
+        if (!any) return rest;
+        if (hasAny(output)) detachAll(output); // 写しで付いてきた物(とフィルターの状態)を捨てて、入力から付け直す
+        for (ItemStack in : inputs) {
+            if (!hasAny(in)) continue;
+            for (int i = 0; i < slotCount(); i++) {
+                ItemStack a = peek(in, i);
+                if (a.isEmpty()) continue;
+                boolean placed = false;
+                if (!output.isEmpty() && canHold(output)) {
+                    for (int k = 0; k < slotCount() && !placed; k++) placed = attach(output, k, a);
+                }
+                if (!placed) rest.add(a);
+            }
+        }
+        return rest;
+    }
+
+    /** 物を持ち物へ。入らなければ足元へ落とす(プレイヤーでなければその場に落とす)。 */
+    public static void giveBack(@Nullable net.minecraft.world.entity.LivingEntity to, java.util.List<ItemStack> stacks) {
+        if (to == null || to.level().isClientSide) return;
+        for (ItemStack s : stacks) {
+            if (s.isEmpty()) continue;
+            if (to instanceof net.minecraft.world.entity.player.Player p) {
+                if (!p.getInventory().add(s)) p.drop(s, false);
+            } else {
+                to.spawnAtLocation(s);
+            }
+        }
+    }
+
     /** 付いている枠の物を差し替える(中身だけ変わるとき。ベルトの小物入れ)。種類が同じでなければ何もしない。 */
     public static void replace(ItemStack armor, int index, ItemStack same) {
         NonNullList<ItemStack> l = list(armor);

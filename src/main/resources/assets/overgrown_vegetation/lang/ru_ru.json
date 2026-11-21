@@ -992,7 +992,7 @@
   "item.overgrown_vegetation.storage_belt": "Пояс с подсумком",
   "item.overgrown_vegetation.storage_belt.desc": "На поножи: маленький подсумок (открыть клавишей, по умолчанию B)",
   "item.overgrown_vegetation.bark_plate": "Накладка из коры",
-  "item.overgrown_vegetation.bark_plate.desc": "+1 к броне детали (до 3 на деталь)",
+  "item.overgrown_vegetation.bark_plate.desc": "+1 к броне детали",
   "item.overgrown_vegetation.conduit_sash": "Кушак с кондуктитом",
   "item.overgrown_vegetation.conduit_sash.desc": "На поножи: снаряжение жил тратит силу на 10% меньше",
   "armor_attachment.overgrown_vegetation.part.head": "Голова",

@@ -992,7 +992,7 @@
   "item.overgrown_vegetation.storage_belt": "Storage Belt",
   "item.overgrown_vegetation.storage_belt.desc": "Attach to leg armor for a small pouch (open with a key, default B)",
   "item.overgrown_vegetation.bark_plate": "Bark Plate",
-  "item.overgrown_vegetation.bark_plate.desc": "+1 armor on the piece it is attached to (up to 3 per piece)",
+  "item.overgrown_vegetation.bark_plate.desc": "+1 armor on the piece it is attached to",
   "item.overgrown_vegetation.conduit_sash": "Conductite Sash",
   "item.overgrown_vegetation.conduit_sash.desc": "Attach to leg armor: ley gear drains 10% less power",
   "armor_attachment.overgrown_vegetation.part.head": "Head",

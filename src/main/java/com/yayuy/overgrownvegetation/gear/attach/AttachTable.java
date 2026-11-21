@@ -54,7 +54,7 @@ public final class AttachTable {
         Map<String, Entry> m = new LinkedHashMap<>();
         m.put("mouth_cloth", new Entry(List.of("head"), 1));
         m.put("storage_belt", new Entry(List.of("legs"), 1));
-        Entry bark = new Entry(List.of("head", "chest", "legs", "feet"), 3);
+        Entry bark = new Entry(List.of("head", "chest", "legs", "feet"), 1); // 11-22 ユーザー: 同じ付け物は 1 つの防具に 1 つまで
         bark.armor = 1.0D;
         bark.bones = Map.of("head", List.of("armorHead"), "chest", List.of("armorBody", "armorRightArm", "armorLeftArm"),
                 "legs", List.of("armorRightLeg", "armorLeftLeg"), "feet", List.of("armorRightBoot", "armorLeftBoot"));

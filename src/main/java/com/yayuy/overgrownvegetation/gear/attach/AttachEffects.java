@@ -59,6 +59,44 @@ public final class AttachEffects {
         event.setCanceled(true);
     }
 
+    // ---- 修理で付け物を引き継ぐ(2026-11-22 ユーザー「修理では消えない」)。結果に載せ切れなかった物を持ち主へ ----
+
+    /** 金床で受け取った(結果への引き継ぎは {@code AnvilAttachCarryMixin})。 */
+    @SubscribeEvent
+    public static void onAnvilTake(net.neoforged.neoforge.event.entity.player.AnvilRepairEvent event) {
+        ItemStack scratch = event.getOutput().copy();
+        ArmorAttachments.giveBack(event.getEntity(), ArmorAttachments.carryOver(scratch, event.getLeft(), event.getRight()));
+    }
+
+    /** 砥石で受け取った(結果への引き継ぎは {@code GrindstoneAttachCarryMixin})。 */
+    @SubscribeEvent
+    public static void onGrindstoneTake(net.neoforged.neoforge.event.GrindstoneEvent.OnTakeItem event) {
+        ItemStack top = event.getTopItem(), bottom = event.getBottomItem();
+        ItemStack scratch = new ItemStack(!top.isEmpty() ? top.getItem() : bottom.getItem());
+        ArmorAttachments.giveBack(event.getPlayer(), ArmorAttachments.carryOver(scratch, top, bottom));
+    }
+
+    /**
+     * 作業台で同じ防具 2 つを合わせて直した(バニラの修理のレシピは新しい物を作るので、付け物が消える)。結果へ付け直し、載らない物を返す。
+     * 防具が 2 つ以上入っているときだけ(革の防具の染め直しなど、防具 1 つを写すレシピは結果がもう付け物を持っているので触らない)。
+     * シフトで受け取ったときは結果がもう持ち物へ移っているので、付け物は全部持ち主へ返る(消えはしない)。
+     */
+    @SubscribeEvent
+    public static void onCrafted(net.neoforged.neoforge.event.entity.player.PlayerEvent.ItemCraftedEvent event) {
+        var grid = event.getInventory();
+        java.util.List<ItemStack> armors = new java.util.ArrayList<>();
+        boolean any = false;
+        for (int i = 0; i < grid.getContainerSize(); i++) {
+            ItemStack s = grid.getItem(i);
+            if (ArmorAttachments.canHold(s)) {
+                armors.add(s);
+                any |= ArmorAttachments.hasAny(s);
+            }
+        }
+        if (armors.size() < 2 || !any) return;
+        ArmorAttachments.giveBack(event.getEntity(), ArmorAttachments.carryOver(event.getCrafting(), armors.toArray(ItemStack[]::new)));
+    }
+
     @SubscribeEvent
     public static void onTooltip(ItemTooltipEvent event) {
         ItemStack stack = event.getItemStack();

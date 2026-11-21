@@ -3,6 +3,7 @@ package com.yayuy.overgrownvegetation.gametest;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.gear.FilterMask;
 import com.yayuy.overgrownvegetation.gear.attach.ArmorAttachments;
+import com.yayuy.overgrownvegetation.gear.attach.AttachEffects;
 import com.yayuy.overgrownvegetation.gear.attach.AttachBenchMenu;
 import com.yayuy.overgrownvegetation.gear.attach.BeltPouchMenu;
 import com.yayuy.overgrownvegetation.item.ProtectiveMaskItem;
@@ -95,8 +96,8 @@ public final class ArmorAttachGameTests {
         h.assertFalse(ArmorAttachments.attach(legs, 2, bark()), "埋まった枠に付いた");
         h.assertFalse(ArmorAttachments.fits(legs, new ItemStack(ModArmorAttach.STORAGE_BELT.get())), "ベルトが 2 本付く");
         ItemStack chest = new ItemStack(Items.IRON_CHESTPLATE);
-        for (int i = 0; i < 3; i++) h.assertTrue(ArmorAttachments.attach(chest, i, bark()), "樹皮の " + (i + 1) + " 枚目が付かない");
-        h.assertTrue(ArmorAttachments.count(chest, ModArmorAttach.BARK_PLATE.get()) == 3, "樹皮が 3 枚でない");
+        h.assertTrue(ArmorAttachments.attach(chest, 0, bark()), "樹皮の 1 枚目が付かない");
+        h.assertFalse(ArmorAttachments.attach(chest, 1, bark()) || ArmorAttachments.fits(chest, bark()), "樹皮が 2 枚付く(11-22 ユーザー: 同じ物は 1 つの防具に 1 つまで)");
         // 外す
         ItemStack off = ArmorAttachments.detach(legs, 0);
         h.assertTrue(off.is(ModArmorAttach.STORAGE_BELT.get()) && ArmorAttachments.get(legs, 0).isEmpty(), "ベルトが外れない");
@@ -158,7 +159,7 @@ public final class ArmorAttachGameTests {
         husk.setItemSlot(EquipmentSlot.FEET, boots);
         // ハスクは素で防御 2。鉄の胸当て 6 + 靴 2 + 樹皮 3
         h.runAfterDelay(5, () -> {
-            int expect = 2 + 6 + 2 + 3;
+            int expect = 2 + 6 + 2 + 2; // 樹皮は胸 1 枚(2 枚目は付かない)・靴 1 枚
             h.assertTrue(husk.getArmorValue() == expect, "防御 " + husk.getArmorValue() + "(期待 " + expect + ")");
             husk.setItemSlot(EquipmentSlot.FEET, new ItemStack(Items.IRON_BOOTS));
             h.runAfterDelay(3, () -> {
@@ -245,18 +246,20 @@ public final class ArmorAttachGameTests {
         h.assertTrue(ArmorAttachments.count(menu.armor(), ModArmorAttach.BARK_PLATE.get()) == 1 && menu.getCarried().getCount() == 4,
                 "手で置いたら 1 枚だけはまらない: 付いた " + ArmorAttachments.count(menu.armor(), ModArmorAttach.BARK_PLATE.get()) + "・手 " + menu.getCarried().getCount());
         menu.clicked(hot1, 0, ClickType.PICKUP, player); // 手の残りを戻す
-        // シフトで 2 枚目・3 枚目・4 枚目(4 枚目は入らない)
-        for (int i = 0; i < 3; i++) menu.quickMoveStack(player, hot1);
-        h.assertTrue(ArmorAttachments.count(menu.armor(), ModArmorAttach.BARK_PLATE.get()) == 3 && inv.getItem(1).getCount() == 2,
-                "シフトで樹皮が 3 枚まで入らない: 付いた " + ArmorAttachments.count(menu.armor(), ModArmorAttach.BARK_PLATE.get()) + "・残り " + inv.getItem(1).getCount());
-        // シフトで外す
-        menu.quickMoveStack(player, AttachBenchMenu.FIRST_ATTACH + 1);
-        h.assertTrue(ArmorAttachments.count(menu.armor(), ModArmorAttach.BARK_PLATE.get()) == 2 && inv.getItem(1).getCount() == 3, "シフトで外れない");
+        // シフトで 2 枚目を入れようとしても入らない(同じ物は 1 つまで)
+        for (int i = 0; i < 2; i++) menu.quickMoveStack(player, hot1);
+        h.assertTrue(ArmorAttachments.count(menu.armor(), ModArmorAttach.BARK_PLATE.get()) == 1 && inv.getItem(1).getCount() == 4,
+                "シフトで樹皮が 2 枚入った: 付いた " + ArmorAttachments.count(menu.armor(), ModArmorAttach.BARK_PLATE.get()) + "・残り " + inv.getItem(1).getCount());
+        // シフトで外す → シフトで付け直す
+        menu.quickMoveStack(player, AttachBenchMenu.FIRST_ATTACH);
+        h.assertTrue(ArmorAttachments.count(menu.armor(), ModArmorAttach.BARK_PLATE.get()) == 0 && inv.getItem(1).getCount() == 5, "シフトで外れない");
+        menu.quickMoveStack(player, hot1);
+        h.assertTrue(ArmorAttachments.count(menu.armor(), ModArmorAttach.BARK_PLATE.get()) == 1 && inv.getItem(1).getCount() == 4, "シフトで付かない");
         // 閉じると付け物を付けたまま防具が戻る
         menu.removed(player);
         int found = -1;
         for (int i = 0; i < inv.getContainerSize(); i++) if (inv.getItem(i).is(Items.IRON_CHESTPLATE)) found = i;
-        h.assertTrue(found >= 0 && ArmorAttachments.count(inv.getItem(found), ModArmorAttach.BARK_PLATE.get()) == 2, "閉じた後に防具が戻らない・付け物が消えた");
+        h.assertTrue(found >= 0 && ArmorAttachments.count(inv.getItem(found), ModArmorAttach.BARK_PLATE.get()) == 1, "閉じた後に防具が戻らない・付け物が消えた");
         h.succeed();
     }
 
@@ -366,6 +369,121 @@ public final class ArmorAttachGameTests {
                 && e.bones.getOrDefault("chest", java.util.List.of()).contains("armorBody"), "当て板の部位ごとの骨が読めていない: " + (e == null ? null : e.bones));
         var belt = ArmorAttachments.entry(new ItemStack(ModArmorAttach.STORAGE_BELT.get()));
         h.assertTrue(belt != null && belt.bones.isEmpty(), "ベルトは全部の骨を見せる(脚の防具だが胴の骨に描く)");
+        h.succeed();
+    }
+
+    // ---- 11-22 ユーザー: 防具が壊れたら付け物は手元へ・修理では消えない ----
+
+    private static ItemStack helmetWith(int damage, ItemStack... attachments) {
+        ItemStack h = new ItemStack(Items.IRON_HELMET);
+        h.setDamageValue(damage);
+        for (int i = 0; i < attachments.length; i++) ArmorAttachments.attach(h, i, attachments[i]);
+        return h;
+    }
+
+    private static ItemStack usedCloth(int used) {
+        ItemStack c = new ItemStack(ModArmorAttach.MOUTH_CLOTH.get());
+        c.set(ModDataComponents.MASK_FILTER_USED, used);
+        return c;
+    }
+
+    private static int countIn(Player p, Item item) {
+        int n = 0;
+        for (int i = 0; i < p.getInventory().getContainerSize(); i++) {
+            if (p.getInventory().getItem(i).is(item)) n += p.getInventory().getItem(i).getCount();
+        }
+        return n;
+    }
+
+    /** 着ている兜が壊れると、付け物(布はフィルターの詰まりごと)がプレイヤーの持ち物へ入る。Mob の物は足元に落ちる。 */
+    @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
+    public static void brokenArmorDropsAttachments(GameTestHelper h) {
+        Player player = h.makeMockPlayer(GameType.SURVIVAL);
+        int max = new ItemStack(Items.IRON_HELMET).getMaxDamage();
+        ItemStack helmet = helmetWith(max - 1, bark(), usedCloth(300));
+        player.setItemSlot(EquipmentSlot.HEAD, helmet);
+        helmet.hurtAndBreak(5, h.getLevel(), player, item -> { });
+        h.assertTrue(player.getItemBySlot(EquipmentSlot.HEAD).isEmpty(), "兜が壊れない");
+        h.assertTrue(countIn(player, ModArmorAttach.BARK_PLATE.get()) == 1, "樹皮が持ち物に戻らない");
+        ItemStack cloth = ItemStack.EMPTY;
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            if (player.getInventory().getItem(i).is(ModArmorAttach.MOUTH_CLOTH.get())) cloth = player.getInventory().getItem(i);
+        }
+        h.assertTrue(!cloth.isEmpty() && AirFilters.used(cloth) == 300, "布が戻らない・詰まりが消えた: " + cloth);
+        Husk husk = h.spawnWithNoFreeWill(EntityType.HUSK, 3, 2, 3);
+        ItemStack mobHelmet = helmetWith(max - 1, bark());
+        husk.setItemSlot(EquipmentSlot.HEAD, mobHelmet);
+        mobHelmet.hurtAndBreak(5, h.getLevel(), husk, item -> { });
+        h.runAfterDelay(2, () -> {
+            boolean dropped = !h.getLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, husk.getBoundingBox().inflate(3),
+                    e -> e.getItem().is(ModArmorAttach.BARK_PLATE.get())).isEmpty();
+            h.assertTrue(dropped, "Mob の兜が壊れても樹皮が落ちない");
+            h.succeed();
+        });
+    }
+
+    /** 金床: 2 つの兜を合わせて直すと、両方の付け物が結果に載る(同じ物の 2 つ目は受け取ったときに持ち物へ返る)。 */
+    @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
+    public static void anvilRepairKeepsAttachments(GameTestHelper h) {
+        Player player = h.makeMockPlayer(GameType.CREATIVE);
+        var access = ContainerLevelAccess.create(h.getLevel(), h.absolutePos(new net.minecraft.core.BlockPos(1, 2, 1)));
+        var menu = new net.minecraft.world.inventory.AnvilMenu(1, player.getInventory(), access);
+        ItemStack left = helmetWith(100, bark());
+        ItemStack right = helmetWith(100, bark(), usedCloth(200));
+        menu.getSlot(0).set(left);
+        menu.getSlot(1).set(right);
+        menu.createResult();
+        ItemStack out = menu.getSlot(2).getItem();
+        h.assertTrue(out.is(Items.IRON_HELMET) && out.getDamageValue() < 100, "金床で直らない(前提): " + out);
+        h.assertTrue(ArmorAttachments.count(out, ModArmorAttach.BARK_PLATE.get()) == 1 && ArmorAttachments.hasMouthCloth(out) && AirFilters.used(out) == 200,
+                "結果に付け物が載らない・布の詰まりが違う: " + ArmorAttachments.list(out) + " 詰まり " + AirFilters.used(out));
+        AttachEffects.onAnvilTake(new net.neoforged.neoforge.event.entity.player.AnvilRepairEvent(player, left, right, out));
+        h.assertTrue(countIn(player, ModArmorAttach.BARK_PLATE.get()) == 1, "載らなかった 2 枚目の樹皮が持ち物へ返らない");
+        h.succeed();
+    }
+
+    /** 砥石: 2 つの兜を合わせると、両方の付け物が結果に載る。載らない物は受け取ったときに返る。1 つだけ置いても付け物は残る。 */
+    @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
+    public static void grindstoneKeepsAttachments(GameTestHelper h) {
+        Player player = h.makeMockPlayer(GameType.SURVIVAL);
+        var access = ContainerLevelAccess.create(h.getLevel(), h.absolutePos(new net.minecraft.core.BlockPos(1, 2, 1)));
+        var menu = new net.minecraft.world.inventory.GrindstoneMenu(1, player.getInventory(), access);
+        ItemStack top = helmetWith(100, bark());
+        ItemStack bottom = helmetWith(100, bark(), usedCloth(200));
+        menu.getSlot(0).set(top);
+        menu.getSlot(1).set(bottom);
+        ItemStack out = menu.getSlot(2).getItem();
+        h.assertTrue(out.is(Items.IRON_HELMET) && ArmorAttachments.count(out, ModArmorAttach.BARK_PLATE.get()) == 1 && ArmorAttachments.hasMouthCloth(out)
+                && AirFilters.used(out) == 200, "砥石の結果に付け物が載らない: " + out + " " + ArmorAttachments.list(out));
+        AttachEffects.onGrindstoneTake(new net.neoforged.neoforge.event.GrindstoneEvent.OnTakeItem(access, player, top, bottom, 0));
+        h.assertTrue(countIn(player, ModArmorAttach.BARK_PLATE.get()) == 1, "載らなかった樹皮が返らない");
+        menu.getSlot(1).set(ItemStack.EMPTY);
+        ItemStack single = menu.getSlot(2).getItem();
+        h.assertTrue(single.isEmpty() || ArmorAttachments.count(single, ModArmorAttach.BARK_PLATE.get()) == 1, "1 つだけ置いたら付け物が消えた: " + single);
+        h.succeed();
+    }
+
+    /** 作業台の修理(兜 2 つ): 結果に両方の付け物を載せ、載らない物を返す。染め直し(防具 1 つ)は触らない(増えない)。 */
+    @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
+    public static void craftingRepairKeepsAttachments(GameTestHelper h) {
+        Player player = h.makeMockPlayer(GameType.SURVIVAL);
+        net.minecraft.world.SimpleContainer grid = new net.minecraft.world.SimpleContainer(4);
+        grid.setItem(0, helmetWith(150, bark()));
+        grid.setItem(1, helmetWith(150, bark(), usedCloth(50)));
+        ItemStack out = new ItemStack(Items.IRON_HELMET);
+        AttachEffects.onCrafted(new net.neoforged.neoforge.event.entity.player.PlayerEvent.ItemCraftedEvent(player, out, grid));
+        h.assertTrue(ArmorAttachments.count(out, ModArmorAttach.BARK_PLATE.get()) == 1 && ArmorAttachments.hasMouthCloth(out) && AirFilters.used(out) == 50,
+                "作業台の修理の結果に付け物が載らない: " + ArmorAttachments.list(out));
+        h.assertTrue(countIn(player, ModArmorAttach.BARK_PLATE.get()) == 1, "載らなかった樹皮が返らない");
+        Player p2 = h.makeMockPlayer(GameType.SURVIVAL);
+        net.minecraft.world.SimpleContainer dye = new net.minecraft.world.SimpleContainer(4);
+        ItemStack leather = new ItemStack(Items.LEATHER_HELMET);
+        ArmorAttachments.attach(leather, 0, bark());
+        dye.setItem(0, leather);
+        dye.setItem(1, new ItemStack(Items.RED_DYE));
+        ItemStack dyed = leather.copy();
+        AttachEffects.onCrafted(new net.neoforged.neoforge.event.entity.player.PlayerEvent.ItemCraftedEvent(p2, dyed, dye));
+        h.assertTrue(ArmorAttachments.count(dyed, ModArmorAttach.BARK_PLATE.get()) == 1 && countIn(p2, ModArmorAttach.BARK_PLATE.get()) == 0, "染め直しで樹皮が増えた");
         h.succeed();
     }
 }
