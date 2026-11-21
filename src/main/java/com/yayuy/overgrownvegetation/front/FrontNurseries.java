@@ -45,7 +45,7 @@ import java.util.UUID;
  *   <li>苗床は nurseryIntervalSeconds(20 秒。ユーザー決定)ごとに、その升にいる広げる部隊へ 1 体補充する(部隊の上限まで)。
  *       萌芽体(段階 0)は定価 × nurseryPriceFactor(1/8。ユーザー決定)、G2 以降は定価(前線の作り方と同じフェーズの割合で選ぶ)。8 割の関所・予算の 2 割は残す。</li>
  *   <li>苗床も維持費を払う(値段は苗床の値段 = 段階 0)。</li>
- *   <li>台帳の上では升の印。読み込まれたら実物の苗床(G1 の苗床の姿を仮に流用)を置き、プレイヤーが壊せる。壊されたらその升の補充は止まる。</li>
+ *   <li>台帳の上では升の印。読み込まれたら実物の苗床(G1 の苗床の姿。11-21 夜 ユーザー決定で本採用)を置き、プレイヤーが壊せる。壊されたらその升の補充は止まる。</li>
  *   <li>升が過繁茂になったら萌芽体は生まなくなり、前線の「出す所」(作る途中の部隊が生まれる所)として残る。</li>
  * </ul>
  */
@@ -207,7 +207,7 @@ public final class FrontNurseries extends SavedData {
         hordes.touch();
     }
 
-    /** 読み込まれていれば実物の苗床を置く(G1 の苗床の姿を仮に流用。無ければ置かない)。 */
+    /** 読み込まれていれば実物の苗床を置く(G1 の苗床の姿。11-21 夜 ユーザー決定で本採用。無ければ置かない)。 */
     void ensureReal(ServerLevel level, Nursery n) {
         BlockPos center = BlockPos.containing(n.x(), 64.0D, n.z());
         if (level.getChunkSource().getChunkNow(center.getX() >> 4, center.getZ() >> 4) == null || !level.isPositionEntityTicking(center)) return;
