@@ -81,13 +81,13 @@ public final class EconomySoak {
         long[] m = RaidSpawns.lastMisses, w = RaidSpawns.lastWidened;
         String line = String.format(Locale.ROOT, "%.3f,%d,%s,%s,%d,%d,%d,%d,%d,%d,%.1f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d%n", PhaseData.clockNow(level) / 24000.0D,
                 PhaseData.get(level).getPhase(), r.first() ? "first" : hoard ? "hoard" : "wave", r.first() ? "y" : "n",
-                r.total(), r.stageZero(), r.developed() + r.evolved(), r.g4(), r.g5plus(), r.spawnedZero(), ForestDirector.get(level).available(level),
-                r.wantStageZero(), r.wantDeveloped(), r.wantG4(), r.wantG5plus(),
+                r.total(), r.stageZero(), r.developed() + r.evolved(), r.g2(), r.g3plus(), r.spawnedZero(), ForestDirector.get(level).available(level),
+                r.wantStageZero(), r.wantDeveloped(), r.wantG2(), r.wantG3plus(),
                 m[0] - missBefore[0], m[1] - missBefore[1], m[2] - missBefore[2],
                 w[0] - widenBefore[0], w[1] - widenBefore[1], w[2] - widenBefore[2], w[3] - widenBefore[3],
                 com.yayuy.overgrownvegetation.drift.DriftRaids.ferried - ferriedBefore);
-        append("raids.csv", "day,phase,kind,first,total,stage0,developed,g4,g5plus,spawned0,budgetAfter,"
-                + "wantStage0,wantDeveloped,wantG4,wantG5plus,missUnloaded,missGround,missSeen,foundSpread,found90,found360,foundNone,ferries\n", line);
+        append("raids.csv", "day,phase,kind,first,total,stage0,developed,g2,g3plus,spawned0,budgetAfter,"
+                + "wantStage0,wantDeveloped,wantG2,wantG3plus,missUnloaded,missGround,missSeen,foundSpread,found90,found360,foundNone,ferries\n", line);
     }
 
     /** 襲撃の機会ごとの決め(RaidScales#skipOrStart から)。 */

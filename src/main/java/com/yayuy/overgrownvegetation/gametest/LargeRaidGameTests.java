@@ -95,7 +95,7 @@ public final class LargeRaidGameTests {
             for (int i = 0; i < 10 && director.mood() == ForestDirector.Mood.LARGE; i++) {
                 total += LargeRaids.step(level, RandomSource.create(10L + i));
             }
-            // G4・G5 の攻め手も印を持つ(11-15 enemy-spawns。顔ぶれの plantShare に当たった回)
+            // G2・G3 の攻め手も印を持つ(11-15 enemy-spawns。顔ぶれの plantShare に当たった回)
             List<Mob> attackers = level.getEntitiesOfClass(Mob.class, helper.getBounds().inflate(8.0D),
                     m -> m.getTags().contains(LargeRaids.ATTACKER_TAG));
             helper.assertTrue(total >= 1 && attackers.size() == total, "攻め手が湧かない・印が無い: " + total + " / " + attackers.size());

@@ -142,9 +142,9 @@ public final class PhaseTable {
     public static final class KillPoints {
         public Double stage0;
         public Double evolved;
+        public Double g2;
+        public Double g3;
         public Double g4;
-        public Double g5;
-        public Double g6;
     }
 
     public static final class Phase {
@@ -184,7 +184,7 @@ public final class PhaseTable {
     private final int pointsPerAdvancement;
     private final double timePointsPerDay;
     private final double areaPointsPerChunkPerSecond;
-    private final double[] killPercent = new double[5]; // stage0・evolved・g4・g5・g6(閾値の %)
+    private final double[] killPercent = new double[5]; // stage0・evolved・g2・g3・g4(閾値の %)
     private final Phase[] phases; // index 1..10
     private final Omen omen;
 
@@ -203,9 +203,9 @@ public final class PhaseTable {
         KillPoints dk = dp.kills;
         this.killPercent[0] = Math.max(0.0D, orElse(k.stage0, dk.stage0));
         this.killPercent[1] = Math.max(0.0D, orElse(k.evolved, dk.evolved));
-        this.killPercent[2] = Math.max(0.0D, orElse(k.g4, dk.g4));
-        this.killPercent[3] = Math.max(0.0D, orElse(k.g5, dk.g5));
-        this.killPercent[4] = Math.max(0.0D, orElse(k.g6, dk.g6));
+        this.killPercent[2] = Math.max(0.0D, orElse(k.g2, dk.g2));
+        this.killPercent[3] = Math.max(0.0D, orElse(k.g3, dk.g3));
+        this.killPercent[4] = Math.max(0.0D, orElse(k.g4, dk.g4));
         OmenJson o = g.omen != null ? g.omen : new OmenJson();
         OmenJson od = dg.omen;
         this.omen = new Omen(orElse(o.leadTicks, od.leadTicks), orElse(o.sampleLeadTicks, od.sampleLeadTicks),
@@ -369,7 +369,7 @@ public final class PhaseTable {
         return timePointsPerDay / TICKS_PER_DAY + Math.max(0L, area) * areaPointsPerChunkPerSecond / 20.0D;
     }
 
-    /** 撃破 1 体の、閾値に対する %。{@code kind}: 0 = 段階 0・1 = 進化体・2 = G4・3 = G5・4 = G6。 */
+    /** 撃破 1 体の、閾値に対する %。{@code kind}: 0 = 段階 0・1 = 進化体・2 = G2・3 = G3・4 = G4。 */
     public double killPercent(int kind) {
         return kind >= 0 && kind < killPercent.length ? killPercent[kind] : 0.0D;
     }
@@ -473,9 +473,9 @@ public final class PhaseTable {
         KillPoints kp = new KillPoints();
         kp.stage0 = 0.1D;
         kp.evolved = 0.3D;
-        kp.g4 = 0.3D;
-        kp.g5 = 0.6D;
-        kp.g6 = 1.0D;
+        kp.g2 = 0.3D;
+        kp.g3 = 0.6D;
+        kp.g4 = 1.0D;
         j.global.points.kills = kp;
         // 前兆(2026-10-24 地脈技術の 4 段目。全部仮決め)。
         OmenJson o = new OmenJson();

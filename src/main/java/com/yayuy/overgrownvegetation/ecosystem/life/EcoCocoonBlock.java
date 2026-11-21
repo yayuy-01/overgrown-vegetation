@@ -26,7 +26,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 /**
- * 梢の繭(2026-11-18、G2・G3 の棲み処の 2 つ目・羽化。11-16「羽化は続ける」・11-18「羽化は繭を通す」)。
+ * 梢の繭(2026-11-18、環境生物の棲み処の 2 つ目・羽化。11-16「羽化は続ける」・11-18「羽化は繭を通す」)。
  * ステノディクティアの幼虫が育ち切ると葉の下面に作って入り、{@link #EMERGE_TICKS} で成虫が出る。繭は段 {@link #STAGE} 0→2 で膨らむ。
  * 壊すと(押し返しで消えても)幼虫が出てくる。tick しない(予定の tick を 3 回だけ)。絵は仮(Claude 11-18)。
  */

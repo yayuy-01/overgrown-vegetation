@@ -30,7 +30,7 @@ import org.joml.Vector3f;
  *   <li>{@link #FAN} 扇の散らし撃ち: 重力なしでまっすぐ。傷だけ。</li>
  *   <li>{@link #RAIN} 棘の雨: 空へ放たれ、約 1.5 秒({@link PilimnesHuntGoal#RAIN_FALL_TICKS})後に決めた所へ落ちてくる弧。落ちる所の印は出さない(決定 11-15)。</li>
  * </ul>
- * 傷はバニラの mobProjectile(防具・盾が効く。撃った本人が攻撃した者になるので、感染の仕組みはほかの G5 と同じに働く)。植物側・撃った本人・
+ * 傷はバニラの mobProjectile(防具・盾が効く。撃った本人が攻撃した者になるので、感染の仕組みはほかの G3 と同じに働く)。植物側・撃った本人・
  * 創造/観戦のプレイヤーには当たらない。ブロックに当たると消える(物陰で受けられる)。保存しない。見た目は【仮】でバニラの矢の絵 + 黄緑の尾。
  */
 public class PilimnesSpine extends ThrowableProjectile {

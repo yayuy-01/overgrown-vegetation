@@ -17,7 +17,7 @@ import java.util.Map;
 /**
  * 植物側の死の破裂(2026-11-15 ユーザー決定。正本は Vault「構想と進捗/植物側の死の破裂と攻撃の感染(11-15)」)。
  *
- * <p>G1(段階 0 も)・G4〜G10・汎用の感染体({@link PlantSideRules#bursts})は、死ぬと {@link PlantSideRules#burstTick}(15〜18 tick)のあいだ
+ * <p>G1(段階 0 も)・G2〜G8・汎用の感染体({@link PlantSideRules#bursts})は、死ぬと {@link PlantSideRules#burstTick}(15〜18 tick)のあいだ
  * 震えながら膨らみ(描画 = {@code client/PlantDeathSwell})、そこで {@link G1DeathBurst} の破裂を起こして消える。バニラの 20 tick 目の白い煙は出ない。
  * ドロップと経験値はバニラどおり死んだ瞬間に出る。アニメは作らない(どの Mob にも効くように、膨らみは描画のコードだけ)。
  *

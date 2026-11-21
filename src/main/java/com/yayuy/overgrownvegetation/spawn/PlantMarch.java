@@ -15,7 +15,7 @@ import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import java.util.EnumSet;
 
 /**
- * G4・G5 を拠点へ歩かせる使い(2026-11-15、司令塔の {@code BaseRaids.registerMarcher} の中身)。G1 の {@code G1March} と同じ形の、もっと簡単なもの:
+ * G2・G3 を拠点へ歩かせる使い(2026-11-15、司令塔の {@code BaseRaids.registerMarcher} の中身)。G1 の {@code G1March} と同じ形の、もっと簡単なもの:
  * 拠点の真ん中へ歩き、{@code marchArriveBlocks} まで来たら終わり(そこからはその種のいつもの狙い方)。{@code marchTimeoutTicks} 歩いても着かなければ終わり。
  * 途中で相手がいれば、そちらが先(相手がいる間は歩かない)。
  *

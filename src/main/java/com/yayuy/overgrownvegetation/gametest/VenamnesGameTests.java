@@ -62,12 +62,12 @@ public final class VenamnesGameTests {
         return true;
     }
 
-    /** G5 に入り、自然には湧かず、体の芯は 1.2 × 2.4。 */
+    /** G3 に入り、自然には湧かず、体の芯は 1.2 × 2.4。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
-    public static void registeredAsG5WithoutNaturalSpawn(GameTestHelper helper) {
+    public static void registeredAsG3WithoutNaturalSpawn(GameTestHelper helper) {
         VenamnesEntity v = placeAt(helper, 3.5D, 3.5D, 0.0F);
-        if (MobGroup.of(v.getType()) != MobGroup.GROUP_5) {
-            helper.fail("G5 に入っていない: " + MobGroup.of(v.getType()));
+        if (MobGroup.of(v.getType()) != MobGroup.GROUP_3) {
+            helper.fail("G3 に入っていない: " + MobGroup.of(v.getType()));
             return;
         }
         if (Math.abs(v.getBbWidth() - 1.2F) > 1e-3 || Math.abs(v.getBbHeight() - 2.4F) > 1e-3) {

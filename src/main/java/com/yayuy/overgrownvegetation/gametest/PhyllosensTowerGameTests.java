@@ -547,13 +547,13 @@ public final class PhyllosensTowerGameTests {
     // ------------------------------------------------------------------ 見つけた後
 
     /**
-     * 印を付けると、半径 64 の G5 が相手へ向かう(司令塔の口 Watchers.markSeen → PlantSideCall → この MOD の口)。
+     * 印を付けると、半径 64 の G3 が相手へ向かう(司令塔の口 Watchers.markSeen → PlantSideCall → この MOD の口)。
      * ファルキムネスは相手を標的に持ち、ヴェナムネス(まだ攻撃が無い)は相手の居場所へ歩く。
      */
     @GameTest(template = "gametest_empty7", timeoutTicks = 520, batch = BATCH)
-    public static void markedPlayerDrawsNearbyG5(GameTestHelper helper) {
+    public static void markedPlayerDrawsNearbyG3(GameTestHelper helper) {
         Player[] pl = new Player[1];
-        net.minecraft.world.entity.Mob[] g5 = new net.minecraft.world.entity.Mob[2];
+        net.minecraft.world.entity.Mob[] g3 = new net.minecraft.world.entity.Mob[2];
         double[] d0 = {-1};
         long[] markedAt = {-1};
         run(helper, a -> {
@@ -561,11 +561,11 @@ public final class PhyllosensTowerGameTests {
             pl[0] = player(helper, a, 16.5, FLOOR, 28.5);
             e.watch().forcedTarget = pl[0];
             e.watch().forceWatch();
-            g5[0] = com.yayuy.overgrownvegetation.registry.ModEntities.FALCIMNES.get().create(a.level());
-            g5[1] = com.yayuy.overgrownvegetation.registry.ModRunners.VENAMNES.get().create(a.level());
-            g5[0].moveTo(a.x0() + 3.5, FLOOR, a.z0() + 3.5, 0, 0);
-            g5[1].moveTo(a.x0() + 29.5, FLOOR, a.z0() + 3.5, 0, 0);
-            for (net.minecraft.world.entity.Mob m : g5) {
+            g3[0] = com.yayuy.overgrownvegetation.registry.ModEntities.FALCIMNES.get().create(a.level());
+            g3[1] = com.yayuy.overgrownvegetation.registry.ModRunners.VENAMNES.get().create(a.level());
+            g3[0].moveTo(a.x0() + 3.5, FLOOR, a.z0() + 3.5, 0, 0);
+            g3[1].moveTo(a.x0() + 29.5, FLOOR, a.z0() + 3.5, 0, 0);
+            for (net.minecraft.world.entity.Mob m : g3) {
                 m.targetSelector.removeAllGoals(g -> true);   // 標的はこのテストの呼びかけだけで
                 a.level().addFreshEntity(m);
             }
@@ -573,13 +573,13 @@ public final class PhyllosensTowerGameTests {
             long now = a.level().getGameTime();
             if (markedAt[0] < 0 && marked(pl[0])) {
                 markedAt[0] = now;
-                d0[0] = g5[1].distanceTo(pl[0]);
+                d0[0] = g3[1].distanceTo(pl[0]);
             }
         }, 500, (a, e) -> {
-            boolean falc = g5[0].getTarget() == pl[0];
-            double d1 = g5[1].distanceTo(pl[0]);
-            boolean venGuided = com.yayuy.overgrownvegetation.entity.PhyllosensCall.guided(g5[1]) || g5[1].getTarget() == pl[0];
-            for (net.minecraft.world.entity.Mob m : g5) m.discard();
+            boolean falc = g3[0].getTarget() == pl[0];
+            double d1 = g3[1].distanceTo(pl[0]);
+            boolean venGuided = com.yayuy.overgrownvegetation.entity.PhyllosensCall.guided(g3[1]) || g3[1].getTarget() == pl[0];
+            for (net.minecraft.world.entity.Mob m : g3) m.discard();
             if (markedAt[0] < 0) helper.fail("印が付かない: " + why(a, e));
             if (!falc) helper.fail("ファルキムネスが印の相手を標的に持たない");
             if (!venGuided) helper.fail("ヴェナムネスが呼ばれていない");

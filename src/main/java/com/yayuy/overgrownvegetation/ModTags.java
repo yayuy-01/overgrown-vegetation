@@ -45,7 +45,7 @@ public final class ModTags {
             net.minecraft.tags.ItemTags.create(OvergrownVegetation.id("spore_contamination_immune"));
 
     /**
-     * G5 の「適応の記録」7 種(順 1 の着手順 11)と、パワードアーマーのスキルツリーの本ごとの支払いに使える記録
+     * G3 の「適応の記録」7 種(順 1 の着手順 11)と、パワードアーマーのスキルツリーの本ごとの支払いに使える記録
      * (ユーザー指定 2026-10-04: 防御 ← 盾・喰らい / 強靭 ← 狙い・掴み / 耐久 ← 水・闇・掘削)。
      * 支払いは {@code gear.json} の {@code poweredArmor.levels[].branches} から {@code #overgrown_vegetation:adaptation_records/<本>} で引く。
      */
@@ -59,7 +59,7 @@ public final class ModTags {
             net.minecraft.tags.ItemTags.create(OvergrownVegetation.id("adaptation_records/durability"));
 
     /**
-     * <b>汚染特効</b>の武器。このタグのアイテムで殴ると、グループ1〜10 の Mob に入るダメージが
+     * <b>汚染特効</b>の武器。このタグのアイテムで殴ると、グループ1〜8・環境生物の Mob に入るダメージが
      * {@code overgrowthBaneMultiplier}(既定 1.5)倍になる
      * ({@link com.yayuy.overgrownvegetation.phase.OvergrowthBaneDamage})。
      *
@@ -104,7 +104,7 @@ public final class ModTags {
 
     /**
      * <b>汚染耐性</b>の防具。樹液結晶を打ち込んだ({@code sap_crystal_treated})状態で身に着けていると、
-     * グループ1〜10 の Mob から受けるダメージが軽くなる
+     * グループ1〜8・環境生物の Mob から受けるダメージが軽くなる
      * ({@link com.yayuy.overgrownvegetation.phase.OvergrowthWardDamage})。
      *
      * <p>既定の中身はクロロフィライトとクロロフィライト合金の防具 4 部位ずつ
@@ -115,7 +115,7 @@ public final class ModTags {
             net.minecraft.tags.ItemTags.create(OvergrownVegetation.id("overgrowth_ward"));
 
     /**
-     * <b>素材そのものに汚染耐性がある</b>防具。身に着けているだけで、グループ1〜10 の Mob から受ける
+     * <b>素材そのものに汚染耐性がある</b>防具。身に着けているだけで、グループ1〜8・環境生物の Mob から受ける
      * ダメージが 1 部位につき {@code overgrowthResistantPerPiece}(既定 10%)減る
      * ({@link com.yayuy.overgrownvegetation.phase.OvergrowthWardDamage})。
      *
@@ -296,26 +296,31 @@ public final class ModTags {
             TagKey.create(net.minecraft.core.registries.Registries.ENTITY_TYPE, OvergrownVegetation.id("phase_infectable_animals"));
 
     /**
-     * 植物側の Mob の「グループ」(group_1〜10)。2026-11-18 夜 ユーザー決定でコード内の分類も組み直す途中:
-     * <b>分類の正本は {@code design/mob_class.json}</b>({@link com.yayuy.overgrownvegetation.phase.MobClassTable}。系統・型・危険度・出るフェーズ)と、
-     * 系統のタグ {@link #LINEAGE_PARASITE} など。group_N は移し替えの 3 段のうち 1 段目が済んだ所で、まだ次に使っている:
-     * 縁の上限を数える箱(spawns.json の group と caps)・キル点の種類・植物側の判定・G5 の適応・遠征のドロップ など
-     * (2 段目でそれぞれ系統のタグか専用のタグへ移し、3 段目で消す)。出るフェーズと森の値段は、もう group では決めない。
-     * データパックで所属を差し替え可能。1 体が複数グループに属する場合は
-     * {@link com.yayuy.overgrownvegetation.phase.MobGroup#of} が番号の小さいグループを返す。
+     * 植物側の Mob の「グループ」(役割の印)。<b>2026-11-21 に番号を 11-19 のユーザー決定に揃えた</b>
+     * (正本は Vault「構想と進捗/G の区分の付け替え(11-19)」): 旧 G2・G3 = 環境生物(番号で呼ばない。タグ critter_prey・critter_hunter)、
+     * 旧 G4〜G10 = 新 G2〜G8(タグ group_2〜group_8)。11-21 より前のノート・依頼・セーブの番号は旧番号のまま。
+     *
+     * <p>分類の正本は {@code design/mob_class.json}({@link com.yayuy.overgrownvegetation.phase.MobClassTable}。系統・型・危険度・出るフェーズ)と、
+     * 系統のタグ {@link #LINEAGE_PARASITE} など。グループのタグは消さずに「役割の印」として残す(11-19 ユーザー: 適応のような群ごとの仕組み・
+     * データパック・コマンド・ほかの MOD から {@code #overgrown_vegetation:group_3} のように指定できる)。今使っている所:
+     * 縁の上限を数える箱(spawns.json の group と caps)・キル点の種類・植物側の判定・G3 の適応・遠征のドロップ など。
+     * 出るフェーズと森の値段は、もう group では決めない。データパックで所属を差し替え可能。1 体が複数に属する場合は
+     * {@link com.yayuy.overgrownvegetation.phase.MobGroup#of} が {@link com.yayuy.overgrownvegetation.phase.MobGroup} の並びで先の方を返す。
      *
      * <ul>
      *     <li>{@link #GROUP_1}: 寄生種(G1)— 段階 0・1 段目・根付き・苗床・根の番人の 47 体。</li>
-     *     <li>{@link #GROUP_2}: 環境生物(G2)— 生息しているだけの虫など 5 体。</li>
-     *     <li>{@link #GROUP_3}: 環境生物(G3)— 虫を狩る爬虫類・サソリなど 7 体(プレイヤーは基本襲わない)。</li>
-     *     <li>{@link #GROUP_4}: 眷属種(G4)と植物種 — アルボラ・グレガリア・ストロビラ・ヴェシカリア・ヴェロフィル・セミナリア、
+     *     <li>{@link #CRITTER_PREY}: 環境生物の獲物の側(旧 G2)— 生息しているだけの虫など 5 体。</li>
+     *     <li>{@link #CRITTER_HUNTER}: 環境生物の狩る側(旧 G3)— 虫を狩る爬虫類・サソリなど 7 体(プレイヤーは基本襲わない)。</li>
+     *     <li>{@link #GROUP_2}: 眷属種(G2)と植物種 — アルボラ・グレガリア・ストロビラ・ヴェシカリア・ヴェロフィル・セミナリア、
      *     植物種の萌芽体・ペディキュラ。</li>
-     *     <li>{@link #GROUP_5}: 眷属種(G5)— ファルキムネス・ヴェナムネス・サルティムネス・クリペイムネス・ピリムネス・アクムネス。</li>
-     *     <li>{@link #GROUP_6}: ゲスタトリクス(眷属種)と植物種のフィロセンス。</li>
-     *     <li>{@link #GROUP_7}〜{@link #GROUP_10}: 空(0.4.0 以降の枠)。</li>
+     *     <li>{@link #GROUP_3}: 眷属種(G3)— ファルキムネス・ヴェナムネス・サルティムネス・クリペイムネス・ピリムネス・アクムネス。</li>
+     *     <li>{@link #GROUP_4}: ゲスタトリクス(眷属種)と植物種のフィロセンス・流れ木もどき(11-21 に G2 から移した)。</li>
+     *     <li>{@link #GROUP_5}〜{@link #GROUP_8}: 空(0.4.0 以降の枠)。</li>
      * </ul>
      */
     public static final TagKey<EntityType<?>> GROUP_1 = entityTag("group_1");
+    public static final TagKey<EntityType<?>> CRITTER_PREY = entityTag("critter_prey");
+    public static final TagKey<EntityType<?>> CRITTER_HUNTER = entityTag("critter_hunter");
     public static final TagKey<EntityType<?>> GROUP_2 = entityTag("group_2");
     public static final TagKey<EntityType<?>> GROUP_3 = entityTag("group_3");
     public static final TagKey<EntityType<?>> GROUP_4 = entityTag("group_4");
@@ -323,8 +328,6 @@ public final class ModTags {
     public static final TagKey<EntityType<?>> GROUP_6 = entityTag("group_6");
     public static final TagKey<EntityType<?>> GROUP_7 = entityTag("group_7");
     public static final TagKey<EntityType<?>> GROUP_8 = entityTag("group_8");
-    public static final TagKey<EntityType<?>> GROUP_9 = entityTag("group_9");
-    public static final TagKey<EntityType<?>> GROUP_10 = entityTag("group_10");
 
     /**
      * 系統(2026-11-18 夜 ユーザー決定「○○型-危険度 N-○○種」の「○○種」)。寄生種・眷属種・植物種・環境生物。
@@ -363,7 +366,7 @@ public final class ModTags {
     public static final TagKey<EntityType<?>> SPORE_EXPOSURE_IMMUNE = entityTag("spore_exposure_immune");
 
     /**
-     * 植物側の Mob(2026-11-09、暴露量を測らない・感染の死で萌芽体にしない)。グループ 1〜10 のタグ全部 + 萌芽体 + ハイヴノード。
+     * 植物側の Mob(2026-11-09、暴露量を測らない・感染の死で萌芽体にしない)。グループ1〜8・環境生物のタグ全部 + 萌芽体 + ハイヴノード。
      * コード側でも G1 の寄生体({@code AbstractParasitizedMonster})・萌芽体・ハイヴノードはクラスで外す(タグから抜かれても漏れない保険)。
      */
     public static final TagKey<EntityType<?>> PLANT_SIDE = entityTag("plant_side");
@@ -384,12 +387,12 @@ public final class ModTags {
     public static final TagKey<EntityType<?>> RANGED_ATTACKER = entityTag("ranged_attacker");
 
     /**
-     * 難易度ピースフルでも<b>消さない・湧かせてよい</b>グループの種(2026-09-26)。グループ 1〜10 の種のうち、ここに無いものは
+     * 難易度ピースフルでも<b>消さない・湧かせてよい</b>グループの種(2026-09-26)。グループ1〜8・環境生物の種のうち、ここに無いものは
      * ピースフルで敵として消える({@link com.yayuy.overgrownvegetation.difficulty.Peaceful})。
-     * 既定は<b>環境生物</b>(グループ 2 の原生生産種・グループ 3 の原生消費種。どちらもプレイヤーを襲わない)と
+     * 既定は<b>環境生物</b>(旧グループ 2 の原生生産種・旧グループ 3 の原生消費種。今は critter_prey・critter_hunter。どちらもプレイヤーを襲わない)と
      * 汚染シダ・汚染水草(動かない植物)
      * ({@code data/overgrown_vegetation/tags/entity_type/peaceful_allowed.json})。
-     * グループ 3 は 2026-10-03 に足した(プレイヤーを襲わなくなったので)。
+     * 狩る側(旧グループ 3)は 2026-10-03 に足した(プレイヤーを襲わなくなったので)。
      */
     public static final TagKey<EntityType<?>> PEACEFUL_ALLOWED = entityTag("peaceful_allowed");
 

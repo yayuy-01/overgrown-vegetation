@@ -12,13 +12,13 @@ import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 
 
 /**
- * 植物側の攻撃で感染する入口(攻撃の元が {@link PlantSideRules#isInfector} = G1・G4〜G10・汎用の感染体で、傷が 0 より大きいとき)。
+ * 植物側の攻撃で感染する入口(攻撃の元が {@link PlantSideRules#isInfector} = G1・G2〜G8・汎用の感染体で、傷が 0 より大きいとき)。
  * <ul>
  *   <li>プレイヤー: 未感染は 30% でかかる(10-14 ユーザー指定。{@link SporeInfectionEffects#plantAttack})+ 傷の暴露(11-15。{@link #addWoundDose})。
  *   感染中は傷の暴露が段の進みへ積まれる(11-15「混ぜた形」。前の「感染中は 5% で 10 秒進む」は外した)。</li>
  * </ul>
  *
- * <p>2026-11-15(ユーザー決定): プレイヤー以外の Mob も、G1・G4〜G10・汎用の感染体({@link PlantSideRules#isInfector})に傷を付けられたら
+ * <p>2026-11-15(ユーザー決定): プレイヤー以外の Mob も、G1・G2〜G8・汎用の感染体({@link PlantSideRules#isInfector})に傷を付けられたら
  * 必ず {@link MobInfection#infect} で感染する(暴露量は減らず上がり続け、約 2 分で死ぬ)。ボス・ゴーレム・ほかの MOD の Mob も除かない
  * (ただし {@code spore_exposure_immune} のタグと植物側は感染の仕組みそのものが測らない)。G1 の 1 撃ごとの +300 の暴露は、これに置き換えた。
  */
@@ -48,14 +48,14 @@ public final class ParasitizedAttackInfectionHandler {
 
     private static void handle(ServerLevel level, LivingEntity victim, LivingEntity attacker, float newDamage) {
         if (victim instanceof Player player) {
-            // 植物側(G1・G4〜G10・汎用の感染体)に傷を付けられたときだけ(2026-11-16 コードの見直し ③4: 前は G2・G3 も入り、傷 0 でも抽選していた)
+            // 植物側(G1・G2〜G8・汎用の感染体)に傷を付けられたときだけ(2026-11-16 コードの見直し ③4: 前は環境生物も入り、傷 0 でも抽選していた)
             if (newDamage > 0.0F && PlantSideRules.isInfector(attacker)) {
                 SporeInfectionEffects.plantAttack(player); // 未感染は 30%(10-14)
                 addWoundDose(player, newDamage); // 傷の暴露(11-15 ユーザー決定。マスクでは防げない)
             }
             return;
         }
-        // プレイヤー以外の Mob: G1・G4〜G10・汎用の感染体に傷を付けられたら必ず感染(11-15 ユーザー決定。除く相手は無い。G2・G3 は感染させない)
+        // プレイヤー以外の Mob: G1・G2〜G8・汎用の感染体に傷を付けられたら必ず感染(11-15 ユーザー決定。除く相手は無い。環境生物は感染させない)
         // + 1 撃ごとにダメージに比例した暴露量の上乗せ(11-15 ユーザー決定。約 2 分より早く死ぬ)
         if (newDamage > 0.0F && PlantSideRules.isInfector(attacker)) {
             MobInfection.infect(victim, level.getGameTime());

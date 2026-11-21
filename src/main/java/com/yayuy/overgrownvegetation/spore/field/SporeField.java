@@ -507,7 +507,7 @@ public final class SporeField {
         launched++;
     }
 
-    /** 点の放出(胞子嚢の破裂・G4 の死亡球など)。 */
+    /** 点の放出(胞子嚢の破裂・G2 の死亡球など)。 */
     public void emitPoint(int cx, int cz, double amount) {
         tile(cx, cz, true).air[idx(cx, cz)] += (float) amount;
     }

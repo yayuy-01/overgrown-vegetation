@@ -1,7 +1,4 @@
 {
   "replace": false,
-  "values": [
-    "overgrown_vegetation:phyllosens",
-    "overgrown_vegetation:gestatrix"
-  ]
+  "values": []
 }

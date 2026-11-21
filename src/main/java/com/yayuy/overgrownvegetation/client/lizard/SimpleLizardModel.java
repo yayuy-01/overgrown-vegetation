@@ -8,7 +8,7 @@ import software.bernie.geckolib.animation.AnimationState;
 import software.bernie.geckolib.model.GeoModel;
 
 /**
- * 「トカゲ型」の小さな生き物のモデル(2026-11-16、G3 のトカゲ 2 種のために)。骨の名前を渡すだけで、背骨のくねり({@link SpineWaveRig})・
+ * 「トカゲ型」の小さな生き物のモデル(2026-11-16、狩る側の環境生物のトカゲ 2 種のために)。骨の名前を渡すだけで、背骨のくねり({@link SpineWaveRig})・
  * 横へ張った脚の IK({@link SprawlLegRig})・経路に沿った首と尾の曲げ({@link BodyBendRig})をピリムネスと同じ順に足す。
  * 骨の名前を変えるとこれらが黙って効かなくなる(正本は Blockbench の .bbmodel)。
  *

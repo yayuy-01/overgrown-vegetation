@@ -3,9 +3,9 @@ package com.yayuy.overgrownvegetation.data;
 /**
  * F5 の襲撃の設計値({@code director.json} の {@code assault}、2026-11-16)。正本は Vault「F5 の襲撃(最初の襲撃と送り込み)(11-16)」。
  *
- * <p>ユーザーが決めたのは: 最初の襲撃は認識した次の夜に G1 と G4 を中心に約 15 体・前触れなし / 送り込みは 1 回 10 体から最大 40 体・20〜40 分おき /
+ * <p>ユーザーが決めたのは: 最初の襲撃は認識した次の夜に G1 と G2 を中心に約 15 体・前触れなし / 送り込みは 1 回 10 体から最大 40 体・20〜40 分おき /
  * 着いた敵は拠点を汚す(1 体 1 分で空気 +1%・降り積もりは空気の 1/4)/ 壁や扉を壊せるのは木・ガラス・土と扉だけ(タグ {@code raid_breakable})・
- * 壊すのは力のある種だけ / 貯めた襲撃は送り込みを 1〜2 回飛ばしてまとめた 1 回(上限 40・進化体と G5 を 1.5 倍)。<b>ほかの数は【仮】</b>。
+ * 壊すのは力のある種だけ / 貯めた襲撃は送り込みを 1〜2 回飛ばしてまとめた 1 回(上限 40・進化体と G3 を 1.5 倍)。<b>ほかの数は【仮】</b>。
  */
 public final class AssaultTable {
 
@@ -35,7 +35,7 @@ public final class AssaultTable {
         public Integer nightLastTicks;
     }
 
-    /** 最初の襲撃の顔ぶれ(fromDays は使わない)。ユーザー「G1 と G4 を中心に約 15 体」。 */
+    /** 最初の襲撃の顔ぶれ(fromDays は使わない)。ユーザー「G1 と G2 を中心に約 15 体」。 */
     public final BaseMemoryTable.Wave firstRaid;
     /** 最初の襲撃が来る時刻の幅(1 日の中の tick。13000 = 夜の始め)。 */
     public final int nightStartTicks;
@@ -44,7 +44,7 @@ public final class AssaultTable {
     public final int maxWave;
     /** 送り込みで段階 0 を湧かせる値段(1 体)。 */
     public final double stageZeroCost;
-    /** 貯めた襲撃の回の、進化体と G5 の割合の倍率(ユーザー 1.5)。 */
+    /** 貯めた襲撃の回の、進化体と G3 の割合の倍率(ユーザー 1.5)。 */
     public final double hoardShareFactor;
     /** 拠点を汚す: 拠点の真ん中からの半径(ブロック)・1 体 1 分で上げる空気(%)・降り積もりの割合・間(tick)。 */
     public final double foulRadius;
@@ -71,7 +71,7 @@ public final class AssaultTable {
         Json s = j != null ? j : new Json();
         BaseMemoryTable.WaveJson f = s.firstRaid;
         this.firstRaid = f == null ? new BaseMemoryTable.Wave(0.0D, 7, 2, 6, 0)
-                : new BaseMemoryTable.Wave(0.0D, cnt(f.stageZero, 7), cnt(f.developed, 2), cnt(f.g4, 6), cnt(f.g5plus, 0));
+                : new BaseMemoryTable.Wave(0.0D, cnt(f.stageZero, 7), cnt(f.developed, 2), cnt(f.g2, 6), cnt(f.g3plus, 0));
         this.nightStartTicks = clampTick(s.nightStartTicks, 13000);
         this.nightEndTicks = Math.max(this.nightStartTicks, clampTick(s.nightEndTicks, 15000));
         this.maxWave = Math.max(1, Math.min(200, s.maxWave != null ? s.maxWave : 40));

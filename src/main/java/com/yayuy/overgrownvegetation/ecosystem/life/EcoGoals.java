@@ -21,7 +21,7 @@ import javax.annotation.Nullable;
 import java.util.EnumSet;
 
 /**
- * G2・G3 の行動の段の Goal(2026-11-18)。優先は 守る 1 → 逃げる 2 → 洞へ帰る 3 → 狩る・あさる 4 → 休む 5(土台のうろつきは 6)。
+ * 環境生物の行動の段の Goal(2026-11-18)。優先は 守る 1 → 逃げる 2 → 洞へ帰る 3 → 狩る・あさる 4 → 休む 5(土台のうろつきは 6)。
  * 数はどれも【仮】({@link EcoBehavior})。満腹なら狩らない・あさらない(10-22 の決定)。
  */
 public final class EcoGoals {
@@ -62,7 +62,7 @@ public final class EcoGoals {
 
     // ================================================================ 逃げる
 
-    /** 何から逃げるか: 叩いた相手・サバイバルのプレイヤー(しゃがむと半分の距離)・植物側でない生き物・自分を獲物にする G3。 */
+    /** 何から逃げるか: 叩いた相手・サバイバルのプレイヤー(しゃがむと半分の距離)・植物側でない生き物・自分を獲物にする狩る側の環境生物。 */
     @Nullable
     static LivingEntity threat(PathfinderMob mob, EcoBehavior b) {
         double r = b.fleeRange;
@@ -85,7 +85,7 @@ public final class EcoGoals {
         for (LivingEntity e : mob.level().getEntitiesOfClass(LivingEntity.class, box, e -> e != mob && e.isAlive() && !(e instanceof Player))) {
             boolean danger;
             if (e instanceof EcoLife && e instanceof PathfinderMob) {
-                danger = EcoLife.behavior(e).isPrey(mob.getType());   // 自分を食べる G3
+                danger = EcoLife.behavior(e).isPrey(mob.getType());   // 自分を食べる狩る側の環境生物
             } else {
                 danger = !PlantSideRules.isPlantSide(e);
             }

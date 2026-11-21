@@ -12,11 +12,11 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 
 /**
- * 「G1〜G10 は、すべての Mob から平等に敵対される」(11-05 ユーザー、問い 12 への答え。鉄のゴーレムなども、元の Mob が何であっても G1 を狙う)。
+ * 「G1〜G8・環境生物は、すべての Mob から平等に敵対される」(11-05 ユーザー、問い 12 への答え。鉄のゴーレムなども、元の Mob が何であっても G1 を狙う)。
  *
  * <p>攻撃の力を持つ Mob(属性 ATTACK_DAMAGE がある {@link PathfinderMob}: ゾンビ・スケルトン・クモ・狼・鉄のゴーレム・ホグリンなど)に、
- * G1〜G10(グループのタグ)を狙う標的の Goal を 1 つ足す。牛・羊・村人のように攻撃を持たない Mob には足さない(足しても殴れない)。
- * 寄生体どうしは足さない(G1 はもともと G1〜G10 を襲わない)。視線は要る(バニラの敵対 Mob と同じ見つけ方)。
+ * G1〜G8・環境生物(グループのタグ)を狙う標的の Goal を 1 つ足す。牛・羊・村人のように攻撃を持たない Mob には足さない(足しても殴れない)。
+ * 寄生体どうしは足さない(G1 はもともと G1〜G8・環境生物を襲わない)。視線は要る(バニラの敵対 Mob と同じ見つけ方)。
  * 旧 {@code effect/ParasitizedHostilityInjector}(parked。バニラの敵対 Mob だけに足していた)を広げて書き直した。
  *
  * <p>鉄のゴーレム・スノーゴーレムはこれが無くても G1 を狙う(G1 は Monster = {@code Enemy})。弓を持つスケルトンは自分の攻撃の Goal で撃つ。
@@ -54,7 +54,7 @@ public final class G1HostilityInjector {
         return mob.targetSelector.getAvailableGoals().stream().anyMatch(g -> g.getGoal() instanceof HuntG1);
     }
 
-    /** G1〜G10 を狙う標的の Goal(印のための型)。 */
+    /** G1〜G8・環境生物を狙う標的の Goal(印のための型)。 */
     static final class HuntG1 extends NearestAttackableTargetGoal<LivingEntity> {
         HuntG1(Mob mob) {
             super(mob, LivingEntity.class, 10, true, false, G1HostilityInjector::isOvergrown);

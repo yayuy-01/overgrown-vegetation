@@ -41,7 +41,7 @@ public final class ModLeapers {
     public static final DeferredItem<DeferredSpawnEggItem> SALTIMNES_SPAWN_EGG = ModItems.ITEMS.registerItem(SaltimnesEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(SALTIMNES, 0x3A4220, 0x6A2450, props));
 
-    /** ファランギオタルブス(G3、11-16 段 1)。当たりは胴の芯 1.0 × 0.8【仮】(脚ははみ出す。全体 2.28 × 1.55 × 0.80)。地上は小さな地這いの虫の型。 */
+    /** ファランギオタルブス(狩る側の環境生物、11-16 段 1)。当たりは胴の芯 1.0 × 0.8【仮】(脚ははみ出す。全体 2.28 × 1.55 × 0.80)。地上は小さな地這いの虫の型。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.PhalangiotarbusEntity>> PHALANGIOTARBUS =
             ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.PhalangiotarbusEntity.ID, () -> EntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.PhalangiotarbusEntity>of(com.yayuy.overgrownvegetation.entity.PhalangiotarbusEntity::new, MobCategory.CREATURE)

@@ -20,7 +20,7 @@ import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
- * ヴェロフィル {@code velophyll}(G4・空の爆撃。V 字の群れ)。Vault「Mob の能力/ヴェロフィル」。
+ * ヴェロフィル {@code velophyll}(G2・空の爆撃。V 字の群れ)。Vault「Mob の能力/ヴェロフィル」。
  *
  * <h2>段 1(2026-11-15): 飛ぶ・V 字の群れ・林冠に止まって休むまで</h2>
  * 動きは「飛ぶ型」の土台 {@link SkyFlyer}。爆撃(群れの端から 1 体ずつ急降下して胞子爆弾)は次の段。自然には湧かない。

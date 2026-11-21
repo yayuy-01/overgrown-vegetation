@@ -17,10 +17,10 @@ import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 
 /**
- * <b>グループ5(適応種)だけの特性</b> —— 同じ武器種で倒され続けると、その武器種への耐性が付く(2026-09-23)。
+ * <b>グループ3(適応種)だけの特性</b> —— 同じ武器種で倒され続けると、その武器種への耐性が付く(2026-09-23)。
  *
  * <ul>
- *     <li><b>種ごと</b>に記録する(G5 全体で共有しない)。カマキリを剣で倒しても、別の種の剣耐性は上がらない。</li>
+ *     <li><b>種ごと</b>に記録する(G3 全体で共有しない)。カマキリを剣で倒しても、別の種の剣耐性は上がらない。</li>
  *     <li>1 キルで 2%、全武器種の合計は最大 30%。上限を超えたら全欄を比例して縮める
  *     ({@link AdaptationData} の「B 方式」)。</li>
  *     <li><b>プレイヤー以外に倒されても数える</b>(ゴーレム・砲台・他の Mob・落下や溶岩も)。</li>
@@ -32,14 +32,14 @@ import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
  * 「被ダメージが 30% 減る」をそのまま実現するため。防具の前(素のダメージ)で掛けると、防具の軽減量が
  * ダメージ量で変わるぶん実際の減り方が 30% からずれる。
  *
- * <p>グループ5の所属は {@code #overgrown_vegetation:group_5}。(2026-09-23 時点ではファルキムネスだけ。)
+ * <p>グループ3の所属は {@code #overgrown_vegetation:group_3}。(2026-09-23 時点ではファルキムネスだけ。)
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class Adaptation {
 
     /** 適応する種か。 */
     public static boolean isAdaptive(EntityType<?> type) {
-        return MobGroup.GROUP_5.contains(type);
+        return MobGroup.GROUP_3.contains(type);
     }
 
     /**
@@ -47,7 +47,7 @@ public final class Adaptation {
      * 器官が生えたり壊れたりしても台帳は書き直さなくてよい。
      */
     public static double cap(MinecraftServer server) {
-        if (server != null && !com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.on(server, com.yayuy.overgrownvegetation.difficulty.DifficultySetting.ADAPTATION)) return 0.0D; // MOD の設定「G5 の適応」(11-19)。記録は消さない
+        if (server != null && !com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.on(server, com.yayuy.overgrownvegetation.difficulty.DifficultySetting.ADAPTATION)) return 0.0D; // MOD の設定「G3 の適応」(11-19)。記録は消さない
         return DesignData.adaptation().cap();
     }
 

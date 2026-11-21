@@ -18,14 +18,14 @@ import net.minecraft.world.phys.Vec3;
 import javax.annotation.Nullable;
 
 /**
- * ステノディクティアの幼虫 {@code stenodictya_nymph}(G2・原生生産種。翅芽のある 6 本脚の虫で、成虫と同じ顔)。Vault「Mob の能力/ステノディクティア」。
+ * ステノディクティアの幼虫 {@code stenodictya_nymph}(獲物の環境生物・原生生産種。翅芽のある 6 本脚の虫で、成虫と同じ顔)。Vault「Mob の能力/ステノディクティア」。
  *
  * <h2>段 1(2026-11-17): 梢(林冠の葉の上)を歩くまで</h2>
  * 「小さな地這いの虫」の型({@link CrawlerCritter})で歩く。うろつきの行き先は**林冠の葉の上だけ**(今の高さ ±2 の、てっぺんが葉の所)を選ぶ
  * ので、梢から地面へは下りていかない(行き先が無ければその場に留まる)。
  * 形は 11-16 に 0.7 倍の寸法で作り直した(全長 1.11。名前から「巨大」を外した)。正本 {@code デスクトップ\blockbench\mobs\stenodictya_nymph.bbmodel}。
  * アニメは idle・walk(と、後の段の eat・rest・flee)。走り(run)は無いので急ぐ間も walk を速く流す。
- * G2・G3 は生息しているだけの生き物(胞子を運ばない・亜種なし)。植物側(タグ group_2)。自然には湧かない。食べる・休む・逃げる、成虫への羽化は後の段。
+ * 環境生物は生息しているだけの生き物(胞子を運ばない・亜種なし)。植物側(タグ critter_prey)。自然には湧かない。食べる・休む・逃げる、成虫への羽化は後の段。
  */
 public class StenodictyaNymphEntity extends CrawlerCritter {
 

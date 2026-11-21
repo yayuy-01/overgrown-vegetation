@@ -60,12 +60,12 @@ public final class GregariaGameTests {
         g.getNavigation().moveTo(g.getNavigation().createPath(net.minecraft.core.BlockPos.containing(p), 0), 1.0D);
     }
 
-    /** G4 に入り、自然には湧かず、体の芯は 0.7 × 0.45、過繁茂の Mob と見なされる。 */
+    /** G2 に入り、自然には湧かず、体の芯は 0.7 × 0.45、過繁茂の Mob と見なされる。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
-    public static void registeredAsG4WithoutNaturalSpawn(GameTestHelper helper) {
+    public static void registeredAsG2WithoutNaturalSpawn(GameTestHelper helper) {
         GregariaEntity g = placeAt(helper, 3.5D, 3.5D, 0.0F);
-        if (MobGroup.of(g.getType()) != MobGroup.GROUP_4) {
-            helper.fail("G4 に入っていない: " + MobGroup.of(g.getType()));
+        if (MobGroup.of(g.getType()) != MobGroup.GROUP_2) {
+            helper.fail("G2 に入っていない: " + MobGroup.of(g.getType()));
             return;
         }
         if (Math.abs(g.getBbWidth() - 0.7F) > 1e-3 || Math.abs(g.getBbHeight() - 0.45F) > 1e-3) {

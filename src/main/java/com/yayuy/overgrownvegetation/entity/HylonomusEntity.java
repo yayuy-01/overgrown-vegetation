@@ -9,8 +9,8 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
 
 /**
- * ヒロノムス {@code hylonomus}(G3・原生消費種。石炭紀のいちばん小さな爬虫類)。G3 はその環境に生息しているだけの生き物(胞子を運ばない)。
- * G1〜G10 なので、ほかのすべての Mob から敵対される(タグ group_3 → plant_side)。
+ * ヒロノムス {@code hylonomus}(狩る側の環境生物・原生消費種。石炭紀のいちばん小さな爬虫類)。狩る側の環境生物はその環境に生息しているだけの生き物(胞子を運ばない)。
+ * G1〜G8・環境生物なので、ほかのすべての Mob から敵対される(タグ critter_hunter → plant_side)。
  *
  * <h2>段 1(2026-11-16): 歩く・走るところまで</h2>
  * 移動は「トカゲ型」({@link SimpleLizard})。首の骨が無く、頭が胴に直に付いている(見回し・首の打ち消しは頭で)。行動(食べる・休む・隠れる)は後の段。

@@ -18,12 +18,12 @@ import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
- * ステノディクティア {@code stenodictya_lobata}(G2・原生生産種の成虫。翅 2 対、翅は汚染シダの色)。Vault「Mob の能力/ステノディクティア」。
+ * ステノディクティア {@code stenodictya_lobata}(獲物の環境生物・原生生産種の成虫。翅 2 対、翅は汚染シダの色)。Vault「Mob の能力/ステノディクティア」。
  *
  * <h2>段 1(2026-11-16): 飛ぶ・ゆるい群れ・葉の下面にぶら下がって休むまで</h2>
  * 動きは「飛ぶ型」の土台 {@link SkyFlyer}(セミナリアと同じ、風に半分任せる)。【決定 11-16 全体管理・ユーザー】林冠 +2〜8 の低め・風の倍率 1.5・
  * 1〜3 匹のゆるい群れ・**夜と雨は葉の層の下面に逆さにぶら下がって止まる**(10-10 のユーザー指定の姿。土台の口 {@link #perchUnder})。
- * G2・G3 は生息しているだけの生き物(胞子を運ばない・亜種なし)。植物側({@link ParasitizedMob}・タグ group_2)。自然には湧かない
+ * 環境生物は生息しているだけの生き物(胞子を運ばない・亜種なし)。植物側({@link ParasitizedMob}・タグ critter_prey)。自然には湧かない
  * (生態系の台帳 {@code ecosystem/EcoSpawns} へ後でつなぐ)。食べる・逃げるなどの行動と幼虫 {@code stenodictya_nymph} からの羽化は後の段。
  * 形・骨・アニメは 10-10 製のまま、絵だけ 1/16 画素に塗り直した(正本 {@code デスクトップ\blockbench\mobs\stenodictya_lobata.bbmodel})。
  * アニメ: fly・rest(逆さ)・takeoff と、11-16 にモデル制作が足した下面の 4 本(perch_approach・perch_land・perch_takeoff_windup・perch_takeoff)。

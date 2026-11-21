@@ -14,9 +14,9 @@ import java.util.List;
  *
  * <p>使い道の無い素材を増やさない(10-03 の反省): どの素材にも 1 つ以上の使い道を付けた。
  * <ul>
- *   <li>G2・G3(生活の素材): 食べ物(焼いて食べる)・バニラの物を作る(矢・糸・毒の矢・スライムボール・板ガラス)・段 1 の物の材料の「または」。</li>
- *   <li>G4・G5(段の素材 + 研究の標本): 段 1・2 の物の材料の「または」・かまどの燃料(熱の器官)・研究の標本。</li>
- *   <li>G6・段 3 向けの物(葉枕・棘の先・花芯・卵嚢): 研究の標本と、後の段 3 の作り方の材料として置くだけ。</li>
+ *   <li>環境生物(生活の素材): 食べ物(焼いて食べる)・バニラの物を作る(矢・糸・毒の矢・スライムボール・板ガラス)・段 1 の物の材料の「または」。</li>
+ *   <li>G2・G3(段の素材 + 研究の標本): 段 1・2 の物の材料の「または」・かまどの燃料(熱の器官)・研究の標本。</li>
+ *   <li>G4・段 3 向けの物(葉枕・棘の先・花芯・卵嚢): 研究の標本と、後の段 3 の作り方の材料として置くだけ。</li>
  * </ul>
  */
 public final class ModMobDrops {
@@ -36,7 +36,7 @@ public final class ModMobDrops {
                 .nutrition(nutrition).saturationModifier(saturation).build()));
     }
 
-    // ---- G2 ----
+    // ---- 獲物の環境生物 ----
     /** アースロプレウラ: 体節の甲殻板(軽くて丈夫。遠征服の当て物)。 */
     public static final DeferredItem<Item> ARTHROPLEURA_PLATE = simple("arthropleura_plate");
     /** 陸生カタツムリ: 粘液(接着。スライムボールになる)。 */
@@ -47,7 +47,7 @@ public final class ModMobDrops {
     /** ステノディクティア: 薄い翅膜(窓の代わり = 板ガラス)。 */
     public static final DeferredItem<Item> WING_MEMBRANE = simple("wing_membrane");
 
-    // ---- G3 ----
+    // ---- 狩る側の環境生物 ----
     /** メガネウラ: 大きな翅(鳥のいない世界の矢羽根)。 */
     public static final DeferredItem<Item> MEGANEURA_WING = simple("meganeura_wing");
     /** プルモノスコルピウス: 尾の毒腺(毒の矢)。 */
@@ -64,7 +64,7 @@ public final class ModMobDrops {
     /** コエルロサウラウス: 細く軽い肋の骨(弓の材料)。 */
     public static final DeferredItem<Item> LIGHT_RIB = simple("light_rib");
 
-    // ---- G4(段 1・2 + 標本) ----
+    // ---- G2(段 1・2 + 標本) ----
     /** アルボラ: 鎌の欠片(山刀の刃)。 */
     public static final DeferredItem<Item> SCYTHE_SHARD = simple("scythe_shard");
     /** グレガリア: 球果の鱗(遠征服の当て物)。 */
@@ -78,7 +78,7 @@ public final class ModMobDrops {
     /** セミナリア: 飛び地を作る種(押し返しの研究の標本)。 */
     public static final DeferredItem<Item> COLONY_SEED = simple("colony_seed");
 
-    // ---- G5(段 2・3 + 標本) ----
+    // ---- G3(段 2・3 + 標本) ----
     /** ファルキムネス: 大鎌の刃(大剣の刃)。 */
     public static final DeferredItem<Item> SCYTHE_BLADE = simple("scythe_blade");
     /** ヴェナムネス: 光る腱(弩の弦)。 */
@@ -92,7 +92,7 @@ public final class ModMobDrops {
     /** アクムネス: 光る棘の先(段 3 地脈の杖の弾の標本)。 */
     public static final DeferredItem<Item> GLOWING_SPINE_TIP = simple("glowing_spine_tip");
 
-    // ---- G6(段 3 + 標本) ----
+    // ---- G4(段 3 + 標本) ----
     /** フィロセンス: 光を集める花芯。 */
     public static final DeferredItem<Item> LIGHT_CORE = simple("light_core");
     /** ゲスタトリクス: 卵嚢。 */

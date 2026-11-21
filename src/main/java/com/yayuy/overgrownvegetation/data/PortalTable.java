@@ -8,7 +8,7 @@ package com.yayuy.overgrownvegetation.data;
  *     <li>{@code backflow} … 向こうの侵食がポータル経由でこちらへ戻ってくるか(既定 true = 両向き)</li>
  *     <li>{@code endFrameNeedsEye} … 目のはまっていないエンドポータルの枠でも取り込めるか(既定 false = 目は要らない)</li>
  * </ul>
- * {@code seedRadius}・{@code seedNoise} は仮決め(G4 の死亡時の汚染球と同じ作り方で、向こう側の出口のまわりに置く球)。
+ * {@code seedRadius}・{@code seedNoise} は仮決め(G2 の死亡時の汚染球と同じ作り方で、向こう側の出口のまわりに置く球)。
  */
 public final class PortalTable {
 

@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * G2・G3 の行動の段(2026-11-18)に乗る生き物。土台クラス(地這い {@code CrawlerCritter}・トカゲ {@code SimpleLizard})が実装する。
+ * 環境生物の行動の段(2026-11-18)に乗る生き物。土台クラス(地這い {@code CrawlerCritter}・トカゲ {@code SimpleLizard})が実装する。
  * サーバーの心({@link EcoMind})と、同期する動作({@link EcoAct})と、Goal({@link EcoGoals})の口。
  */
 public interface EcoLife {

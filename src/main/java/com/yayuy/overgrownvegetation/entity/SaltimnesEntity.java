@@ -36,7 +36,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 import java.util.EnumSet;
 
 /**
- * サルティムネス {@code saltimnes}(G5・跳ぶ型・待ち伏せ。11-14 に本名。仮名ハネフセ、仮の id {@code g5_leaper})。
+ * サルティムネス {@code saltimnes}(G3・跳ぶ型・待ち伏せ。11-14 に本名。仮名ハネフセ、仮の id {@code g5_leaper})。
  * 地面の起伏に化けて伏せ、水圧(オジギソウの葉枕)で一気に跳ぶ。柵・低い塀は跳び越える(「G4〜G6 の能力の決定(11-14)」)。
  *
  * <h2>段 1(2026-11-14): 歩く・伏せる・跳ぶまで</h2>
@@ -251,7 +251,7 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
     /**
      * 浮く・襲う({@link SaltimnesHuntGoal})・確かめ用の hop・伏せ場所を探して伏せる。辺りを見回さない(伏せている間に体ごと回らない)。
      * 標的(11-15 段 3。ノートに決まりが無いので【仮】= アクムネス・ヴェナムネスと同じ): 殴った相手・プレイヤー(サバイバル・アドベンチャー)・
-     * 植物側でない生き物(G1〜G10・感染体・汎用の感染体・防具立ては狙わない)。
+     * 植物側でない生き物(G1〜G8・環境生物・感染体・汎用の感染体・防具立ては狙わない)。
      */
     @Override
     protected void registerGoals() {

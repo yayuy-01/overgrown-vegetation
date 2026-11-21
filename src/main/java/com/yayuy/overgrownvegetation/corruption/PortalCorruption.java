@@ -50,7 +50,7 @@ import java.util.function.Predicate;
  *     座標を次元の倍率で割り、{@code PortalForcer#findClosestPortalPosition}、無ければ {@code createPortal})。
  *     エンティティが通ったときと同じ出口になる。</li>
  *     <li>両端のポータルを<b>同時に</b>侵食済みとして覚え({@link PortalCorruptionData})、出口のまわりに
- *     {@link NoisyCorruptionBurst#sphere} で汚染の球を置く(G4 の死亡時の球と同じ。バイオームの書き換えも
+ *     {@link NoisyCorruptionBurst#sphere} で汚染の球を置く(G2 の死亡時の球と同じ。バイオームの書き換えも
  *     いつもの閾値任せ)。両端を先に覚えるので、球が出口の枠に触れても戻ってこない。</li>
  * </ol>
  * ネザー側で広がった侵食が<b>別の</b>ポータルに届いたときの逆流は {@link PortalTable#backflow()}(返事待ち・既定 true)。

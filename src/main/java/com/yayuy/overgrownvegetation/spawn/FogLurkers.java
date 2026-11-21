@@ -35,9 +35,9 @@ import java.util.WeakHashMap;
 
 /**
  * 怖い現象 E「霧の中のシルエット」の「たまに本物」(2026-11-16 ユーザー了承。正本は Vault「怖い現象 A・D・E(実装の記録)」)。
- * 見た目だけの偽の影はクライアント(eerie-look)。こちらはサーバーが本物の G5 を出す。
+ * 見た目だけの偽の影はクライアント(eerie-look)。こちらはサーバーが本物の G3 を出す。
  * <ul>
- *   <li>出る時: 濃霧(度合い {@code minFog} 以上)・昼と朝・G5 のフェーズ(司令塔の gates の waveG5)から・汚染地帯の中(プレイヤーのいるチャンクが過繁茂の台帳)・
+ *   <li>出る時: 濃霧(度合い {@code minFog} 以上)・昼と朝・G3 のフェーズ(司令塔の gates の waveG3)から・汚染地帯の中(プレイヤーのいるチャンクが過繁茂の台帳)・
  *   ピースフルでない・{@code doMobSpawning}。</li>
  *   <li>頻度: その状態の間、プレイヤーごとに平均 {@code meanSeconds} 秒に 1 回(偽の影の平均 90 秒の 10 倍 = 偽 10 回に本物 1 回)。同時に 1 体まで。</li>
  *   <li>場所: 見通しの縁({@code minBlocks}〜{@code maxBlocks})の、木の幹のそばの地面。プレイヤーの方を向いて立つ。</li>
@@ -89,7 +89,7 @@ public final class FogLurkers {
         SpawnTable.FogLurker f = DesignData.spawns().fogLurker;
         if (!f.enabled || level.dimension() != Level.OVERWORLD || level.getDifficulty() == Difficulty.PEACEFUL) return false;
         if (!level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) return false;
-        if (!DirectorGates.open(level, DirectorGates.Gate.WAVE_G5)) return false;
+        if (!DirectorGates.open(level, DirectorGates.Gate.WAVE_G3)) return false;
         if (fogOverride == null && !dayOrMorning(level.getDayTime())) return false;
         return fog(level) >= f.minFog;
     }

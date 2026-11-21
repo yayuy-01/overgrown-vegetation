@@ -9,12 +9,12 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
 
 /**
- * ペトロラコサウルス {@code petrolacosaurus}(G3・原生消費種。石炭紀の小さな爬虫類。鞭のような長い尾)。G3 はその環境に生息しているだけの生き物
- * (胞子を運ばない)。G1〜G10 なので、ほかのすべての Mob から敵対される(タグ group_3 → plant_side)。
+ * ペトロラコサウルス {@code petrolacosaurus}(狩る側の環境生物・原生消費種。石炭紀の小さな爬虫類。鞭のような長い尾)。狩る側の環境生物はその環境に生息しているだけの生き物
+ * (胞子を運ばない)。G1〜G8・環境生物なので、ほかのすべての Mob から敵対される(タグ critter_hunter → plant_side)。
  *
  * <h2>段 1(2026-11-16): 歩く・走るところまで</h2>
  * 移動はピリムネスで作った「トカゲ型」({@link SimpleLizard} → {@code LizardRunner})。行動(食べる・休む・日向ぼっこ・群れ・棲み処)は後の段。
- * 自然には湧かない(G2・G3 の湧きは生態系の台帳 {@code ecosystem/EcoSpawns} につなぐ予定)。素材は 10-30 に parked へ退避したものを戻した
+ * 自然には湧かない(環境生物の湧きは生態系の台帳 {@code ecosystem/EcoSpawns} につなぐ予定)。素材は 10-30 に parked へ退避したものを戻した
  * (正本 {@code デスクトップ\blockbench\mobs\petrolacosaurus.bbmodel} と往復の違い 0)。大きさは体格 2(MobStats の scale。10-10 の決定。寸法へ焼き込むかはモデル制作がユーザーに聞いている)。
  * 数値は前(10-10)の design の値を引き継いだ【仮】。
  */

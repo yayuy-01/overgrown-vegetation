@@ -193,7 +193,7 @@ public final class ModItems {
     public static final DeferredItem<Item> PLANT_FIBER =
             ITEMS.registerSimpleItem("plant_fiber", new Item.Properties());
 
-    /** 「胞子腺の組織」— G4(汚染を広げる側)共通。胞子の因子の元。 */
+    /** 「胞子腺の組織」— G2(汚染を広げる側)共通。胞子の因子の元。 */
     public static final DeferredItem<Item> SPORE_GLAND_TISSUE =
             ITEMS.registerSimpleItem("spore_gland_tissue", new Item.Properties());
 

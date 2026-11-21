@@ -12,7 +12,7 @@ import javax.annotation.Nullable;
  *
  * <ul>
  *   <li>{@code buds}: 芽の数(クリップ {@code sprout_1}〜)。萌芽体を出すとき、どれか 1 つを流す。</li>
- *   <li>{@code pods}: 大きな嚢の数(クリップ {@code hatch_1}〜)。G4〜G8 を孵すとき、どれか 1 つを流す。</li>
+ *   <li>{@code pods}: 大きな嚢の数(クリップ {@code hatch_1}〜)。G2〜G6 を孵すとき、どれか 1 つを流す。</li>
  *   <li>体力は【仮】根付きと同じ(1 段目の 1.5 倍。11-13 ユーザー「後で決める」)。当たり判定は殻と嚢のかたまり【仮】(床の根は外)。</li>
  * </ul>
  * クリップの長さ(tick。11 種で共通): 待機 120・{@code sprout_N} 32(萌芽体は tick 12)・{@code hatch_N} 60(孵すのは tick 24)・生える 60・枯れる 44。

@@ -74,14 +74,14 @@ public final class ModExpedition {
 
     public static final DeferredItem<BlockItem> SPORE_EATER_MUSHROOM_ITEM = ModItems.ITEMS.registerSimpleBlockItem(SPORE_EATER_MUSHROOM);
 
-    /** 硬い樹皮片(G5 のドロップ。上位のフィルターの枠・後の版の道具)。 */
+    /** 硬い樹皮片(G3 のドロップ。上位のフィルターの枠・後の版の道具)。 */
     public static final DeferredItem<Item> HARD_BARK_SHARD = ModItems.ITEMS.registerSimpleItem("hard_bark_shard", new Item.Properties());
 
     /** 菌糸のフィルター(上位のフィルター。容量 3 倍【仮】)。 */
     public static final DeferredItem<AirFilterItem> MYCELIAL_FILTER = ModItems.ITEMS.registerItem(
             "mycelial_filter", AirFilterItem::new, new Item.Properties().stacksTo(16));
 
-    /** 休眠嚢(G4 のドロップ。G4 が胞子を眠らせて運ぶ袋。駆胞薬で茸の代わりに使える)。 */
+    /** 休眠嚢(G2 のドロップ。G2 が胞子を眠らせて運ぶ袋。駆胞薬で茸の代わりに使える)。 */
     public static final DeferredItem<Item> DORMANCY_SAC = ModItems.ITEMS.registerSimpleItem("dormancy_sac", new Item.Properties());
 
     /** 駆胞薬(1 本で感染が 1 段下がる)。 */

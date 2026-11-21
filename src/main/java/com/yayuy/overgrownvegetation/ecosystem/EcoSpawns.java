@@ -31,19 +31,19 @@ import java.util.WeakHashMap;
 /**
  * 汚染地帯の内側の湧き(2026-11-16)。縁の湧き({@link EnemySpawns})とは別の口で、縁の見分けは緩めない。
  *
- * <h2>内側の守り(G4・G5)</h2>
- * 「汚染地帯の内側には G2・G3 が住む。殺しすぎると、だんだん内側にも G4 以降が湧く」(11-15 ユーザー 決定 3)。
+ * <h2>内側の守り(G2・G3)</h2>
+ * 「汚染地帯の内側には環境生物が住む。殺しすぎると、だんだん内側にも G2 以降が湧く」(11-15 ユーザー 決定 3)。
  * <ul>
  *   <li>多様性がしきい値(70%【仮】)以上なら 0 体(森は自分を守らない)。下回ると (しきい値 − 健康) ÷ しきい値 に比例して、
- *   最大 G4 8・G5 4【仮】× フェーズの段の強さ(縁と同じ {@link EnemySpawns#strength}。G4 F4・G5 F5 から)。</li>
- *   <li>場所は<b>減った升を優先</b>(「守りの G4〜6 もその升へ」)。プレイヤーから 24〜96 ブロックの減った升を欠けの重みで選ぶ。
+ *   最大 G2 8・G3 4【仮】× フェーズの段の強さ(縁と同じ {@link EnemySpawns#strength}。G2 F4・G3 F5 から)。</li>
+ *   <li>場所は<b>減った升を優先</b>(「守りの G2〜4 もその升へ」)。プレイヤーから 24〜96 ブロックの減った升を欠けの重みで選ぶ。
  *   無ければまわりの森。どちらも「台帳に載っていて縁でない」チャンクだけ。</li>
- *   <li>予算は払わない(全体管理 11-16 決定 B。縁と同じく数はフェーズの段だけ)。G6 は種が無いので G4・G5 だけ。</li>
+ *   <li>予算は払わない(全体管理 11-16 決定 B。縁と同じく数はフェーズの段だけ)。G4 は種が無いので G2・G3 だけ。</li>
  *   <li>印 {@link #INNER_TAG}。どのプレイヤーからも 128 ブロックより遠くなったら消す。司令塔が歩かせ始めたら印を外す。</li>
  * </ul>
  *
- * <h2>仮の G2・G3(開発用のスイッチがあるときだけ)</h2>
- * G2・G3 の種がそろうまで、{@code stub} の種(素のカエル・ヤマネコ【仮】)に印を付けて内側に湧かせる。
+ * <h2>仮の環境生物(開発用のスイッチがあるときだけ)</h2>
+ * 環境生物の種がそろうまで、{@code stub} の種(素のカエル・ヤマネコ【仮】)に印を付けて内側に湧かせる。
  * <b>{@code -Dov.devbridge}(Claude のクライアント)か GameTest のときだけ</b>(全体管理 11-16 決定 D: ふつうに遊ぶと紛らわしく、設定にも合わない)。
  * 升の頭数 ÷ 満員 の割合で湧きやすさが下がる(倒した升には湧きにくい)。
  */
@@ -103,14 +103,14 @@ public final class EcoSpawns {
         double f = defenseFactor(Ecosystem.health(level), t.innerThreshold);
         if (f <= 0.0D) return 0;
         double s = EnemySpawns.groupStrength(level, group);   // 11-18 夜: 種ごとの出るフェーズ(箱の中で出ている種のいちばん強いもの)
-        int base = group == 5 ? t.innerCapG5 : group == 4 ? t.innerCapG4 : 0;
+        int base = group == 3 ? t.innerCapG3 : group == 2 ? t.innerCapG2 : 0;
         return s <= 0.0D ? 0 : (int) Math.round(base * f * s);
     }
 
     /** 仮の種の上限(健康に比例)。 */
-    public static int stubCap(ServerLevel level, int group) {
+    public static int stubCap(ServerLevel level, int kind) {
         EcoTable t = DesignData.ecosystem();
-        return (int) Math.round((group == 3 ? t.stubCapG3 : t.stubCapG2) * Ecosystem.health(level));
+        return (int) Math.round((kind == Ecosystem.HUNTER ? t.stubCapHunter : t.stubCapPrey) * Ecosystem.health(level));
     }
 
     // ---------------------------------------------------------------- 数える・片付け
@@ -121,18 +121,18 @@ public final class EcoSpawns {
         return m.getTags().contains(INNER_TAG) || m.getTags().contains(STUB_TAG);
     }
 
-    /** まわりの数: [4]・[5] = 内側の守り、[2]・[3] = 仮の G2・G3。 */
+    /** まわりの数: [2]・[3] = 内側の守り(G2・G3)、[Ecosystem.PREY]・[Ecosystem.HUNTER](0・1)= 仮の環境生物。 */
     public static int[] count(ServerLevel level, double x, double z, double r) {
-        int[] out = new int[6];
+        int[] out = new int[4];
         for (Mob m : TRACKED) {
             if (!m.isAlive() || m.level() != level || !ours(m)) continue;
             if (Math.abs(m.getX() - x) > r || Math.abs(m.getZ() - z) > r) continue;
             if (m.getTags().contains(STUB_TAG)) {
-                int g = Ecosystem.residentGroup(m);
-                if (g == 2 || g == 3) out[g]++;
+                int g = Ecosystem.critterKind(m);
+                if (g != Ecosystem.NONE) out[g]++;
             } else {
-                if (m.getTags().contains(INNER_GROUP_TAG + 5)) out[5]++;
-                else out[4]++;
+                if (m.getTags().contains(INNER_GROUP_TAG + 3)) out[3]++;
+                else out[2]++;
             }
         }
         return out;
@@ -206,21 +206,21 @@ public final class EcoSpawns {
         EcoTable t = DesignData.ecosystem();
         if (defenseFactor(Ecosystem.health(level), t.innerThreshold) <= 0.0D) return Miss.HEALTHY;
         int[] counts = count(level, px, pz, t.innerCountRadius);
-        int cap4 = innerCap(level, 4), cap5 = innerCap(level, 5);
-        if (counts[4] >= cap4 && counts[5] >= cap5) return Miss.FULL;
+        int capG2 = innerCap(level, 2), capG3 = innerCap(level, 3);
+        if (counts[2] >= capG2 && counts[3] >= capG3) return Miss.FULL;
         long chunk = pickChunk(level, px, pz, t.innerMin, t.innerMax, random);
         if (!inside(PhaseData.get(level), ChunkPos.getX(chunk), ChunkPos.getZ(chunk))) {
             // 選んだ減った升のチャンクが内側でない(森の外で倒した・縁だった)ときは、まわりの森へ落とす
             double ang = random.nextDouble() * Math.PI * 2.0D, d = t.innerMin + random.nextDouble() * (t.innerMax - t.innerMin);
             chunk = ChunkPos.asLong(Mth.floor(px + Math.cos(ang) * d) >> 4, Mth.floor(pz + Math.sin(ang) * d) >> 4);
         }
-        return tryInnerAt(level, ChunkPos.getX(chunk), ChunkPos.getZ(chunk), counts, cap4, cap5, random);
+        return tryInnerAt(level, ChunkPos.getX(chunk), ChunkPos.getZ(chunk), counts, capG2, capG3, random);
     }
 
     /** そのチャンクに内側の守りを 1 回試す(GameTest も直に呼ぶ)。 */
-    public static Miss tryInnerAt(ServerLevel level, int cx, int cz, int[] counts, int cap4, int cap5, RandomSource random) {
+    public static Miss tryInnerAt(ServerLevel level, int cx, int cz, int[] counts, int capG2, int capG3, RandomSource random) {
         if (!inside(PhaseData.get(level), cx, cz)) return Miss.NOT_INSIDE;
-        SpawnTable.Species sp = pickDefender(level, counts, cap4, cap5, random);
+        SpawnTable.Species sp = pickDefender(level, counts, capG2, capG3, random);
         if (sp == null) return Miss.FULL;
         EntityType<?> type = sp.type();
         if (type == null) return Miss.NO_TYPE;
@@ -237,13 +237,13 @@ public final class EcoSpawns {
     }
 
     @Nullable
-    private static SpawnTable.Species pickDefender(ServerLevel level, int[] counts, int cap4, int cap5, RandomSource random) {
+    private static SpawnTable.Species pickDefender(ServerLevel level, int[] counts, int capG2, int capG3, RandomSource random) {
         List<SpawnTable.Species> cands = new ArrayList<>();
         List<Double> ws = new ArrayList<>();
         double total = 0.0D;
         for (SpawnTable.Species sp : DesignData.spawns().species) {
             int g = sp.group();
-            if (g == 4 ? counts[4] >= cap4 : g == 5 ? counts[5] >= cap5 : true) continue;
+            if (g == 2 ? counts[2] >= capG2 : g == 3 ? counts[3] >= capG3 : true) continue;
             if (sp.type() == null) continue;
             double s = EnemySpawns.strength(level, sp);   // 11-18 夜: 種ごとの出るフェーズ(前はグループの開くフェーズ)
             double w = sp.weight() * s;
@@ -291,9 +291,9 @@ public final class EcoSpawns {
         return ChunkPos.asLong(Mth.floor(px + Math.cos(ang) * d) >> 4, Mth.floor(pz + Math.sin(ang) * d) >> 4);
     }
 
-    // ---------------------------------------------------------------- 仮の G2・G3
+    // ---------------------------------------------------------------- 仮の環境生物
 
-    /** プレイヤーのまわりで仮の G2・G3 を 1 回試す(開発用のスイッチがあるときだけ)。 */
+    /** プレイヤーのまわりで仮の環境生物を 1 回試す(開発用のスイッチがあるときだけ)。 */
     public static Miss tryStub(ServerLevel level, double px, double pz, RandomSource random) {
         if (!stubAllowed(level)) return Miss.NOT_DEV;
         EcoTable t = DesignData.ecosystem();
@@ -303,14 +303,14 @@ public final class EcoSpawns {
         return tryStubAt(level, cx, cz, count(level, px, pz, t.innerCountRadius), random);
     }
 
-    /** そのチャンクに仮の G2・G3 を 1 回試す。升の頭数 ÷ 満員 の確率で湧く。 */
+    /** そのチャンクに仮の環境生物を 1 回試す。升の頭数 ÷ 満員 の確率で湧く。 */
     public static Miss tryStubAt(ServerLevel level, int cx, int cz, int[] counts, RandomSource random) {
         if (!stubAllowed(level)) return Miss.NOT_DEV;
         if (!inside(PhaseData.get(level), cx, cz)) return Miss.NOT_INSIDE;
         EcoTable t = DesignData.ecosystem();
-        int g = random.nextInt(t.fullG2 + t.fullG3) < t.fullG2 ? 2 : 3;
+        int g = random.nextInt(t.fullPrey + t.fullHunter) < t.fullPrey ? Ecosystem.PREY : Ecosystem.HUNTER;
         if (counts[g] >= stubCap(level, g)) {
-            g = 5 - g;
+            g = 1 - g;
             if (counts[g] >= stubCap(level, g)) return Miss.FULL;
         }
         double ratio = EcoLedger.get(level).heads(g, cx, cz, EcoLedger.now(level)) / t.full(g);
@@ -320,7 +320,7 @@ public final class EcoSpawns {
         EntityType<?> type = types.get(random.nextInt(types.size()));
         BlockPos at = EnemySpawns.spot(level, SpawnTable.Habitat.GROUND, cx, cz, 0, random);
         if (at == null) return Miss.NO_SPOT;
-        Miss m = place(level, type, at, t.stubMin, STUB_TAG, g == 3 ? Ecosystem.STUB_TAG_G3 : Ecosystem.STUB_TAG_G2);
+        Miss m = place(level, type, at, t.stubMin, STUB_TAG, g == Ecosystem.HUNTER ? Ecosystem.STUB_TAG_HUNTER : Ecosystem.STUB_TAG_PREY);
         if (m == Miss.SPAWNED) {
             counts[g]++;
             spawnedStub++;

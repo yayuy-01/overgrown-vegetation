@@ -20,7 +20,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * <p>当たり判定は無いので通り抜けられるが、中に入っている間は
  * {@link net.minecraft.world.level.block.SweetBerryBushBlock} と同じ要領で移動速度が下がる
  * (ダメージは無い)。減速の強さは {@code bushSlowMultiplier}(0.0〜1.0、1.0 で無効)で調整できる。
- * ただし植物側({@link com.yayuy.overgrownvegetation.spore.PlantSideRules#isPlantSide}。G1〜G10・萌芽体など)は茂み(=侵食植物)に
+ * ただし植物側({@link com.yayuy.overgrownvegetation.spore.PlantSideRules#isPlantSide}。G1〜G8・環境生物・萌芽体など)は茂み(=侵食植物)に
  * 適応済みという扱いで減速しない(ユーザー要望。11-16 にこの判定を戻した = 一時は植物側も遅くなっていた)。プレイヤーは植物側に付いても今は遅くなる。
  *
  * <p>{@code noCollission()} だと本来「支持面」も空になり、上に植物などを置けなくなる。
@@ -55,7 +55,7 @@ public class OvergrownBushBlock extends Block {
         if (!(entity instanceof LivingEntity living)) {
             return;
         }
-        // 植物側(G1〜G10・萌芽体など)は茂みに慣れていて遅くならない(11-16 ユーザー)。プレイヤーは植物側に付いても今は遅くなる(0.3.0 で見直す)
+        // 植物側(G1〜G8・環境生物・萌芽体など)は茂みに慣れていて遅くならない(11-16 ユーザー)。プレイヤーは植物側に付いても今は遅くなる(0.3.0 で見直す)
         if (!(living instanceof net.minecraft.world.entity.player.Player)
                 && com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(living)) {
             return;

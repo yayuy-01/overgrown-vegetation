@@ -13,7 +13,7 @@ import java.util.List;
  *     {@code nearFraction}・{@code farFraction} = 出す距離(濃霧の見通しに対する割合)、{@code vanishFraction} = この割合より近づくと消え始める、
  *     {@code vanishBand} = 消えきるまでの幅(見通しに対する割合)、{@code lifeSeconds} = 近づかなくても消えるまでの秒、
  *     {@code darkness} = 影の濃さ(0〜1)、{@code hazeEase} = 影が受ける霞の距離の倍率(1 で地形と同じ。小さいほど霧の中で濃く見える)、
- *     {@code minFog} = 濃霧の度合いがこれ以上で出す、{@code species} = 輪郭に使う G5 の種。</li>
+ *     {@code minFog} = 濃霧の度合いがこれ以上で出す、{@code species} = 輪郭に使う G3 の種。</li>
  *     <li>{@code farSound}(A 遠くの音だけの存在。{@code client/atmosphere/sound/FarPresenceSound}): {@code enabled} は既定で false
  *     (見本の音をユーザーが聞いて選ぶまで鳴らさない)。{@code everySeconds}・{@code denseEverySeconds} = 警戒状態の間、平均何秒に 1 回
  *     (ふつう・汚染の濃い所)、{@code minDistance}・{@code maxDistance} = 音のする距離(ブロック)、{@code volume} = 大きさ、

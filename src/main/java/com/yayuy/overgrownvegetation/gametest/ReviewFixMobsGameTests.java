@@ -30,7 +30,7 @@ import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
- * コードの見直し(2026-11-16)第 1 便のうち「① G4・G5 の Mob と移動の型」の直しを確かめる。
+ * コードの見直し(2026-11-16)第 1 便のうち「① G2・G3 の Mob と移動の型」の直しを確かめる。
  * <ul>
  *   <li>①1 獲物を乗せたまま保存して読み直すと、技は消えて獲物だけ乗っている —— 次の tick に放す(サルティムネス・クリペイムネス)。</li>
  *   <li>①2 跳ぶ型が水に浮いて接地しないと、向きは揃っても蹴れず身を沈めたまま —— 時間切れで跳ばずにやめる。</li>
@@ -186,7 +186,7 @@ public final class ReviewFixMobsGameTests {
 
     // ------------------------------------------------------------------ 第 2 便: ①13・①9・①11(陣営と除外の共通判定)
 
-    /** 防具立て・植物側(G5)・自分は狙わない・当てない。ハスクは狙う。標的選び・アクムネスの弾・ファルキムネスの斬りが同じ答え。 */
+    /** 防具立て・植物側(G3)・自分は狙わない・当てない。ハスクは狙う。標的選び・アクムネスの弾・ファルキムネスの斬りが同じ答え。 */
     @GameTest(template = ARENA, timeoutTicks = 10)
     public static void plantFoesShareSideAndExclusions(GameTestHelper helper) {
         Husk husk = helper.spawn(EntityType.HUSK, new BlockPos(4, 2, 4));
@@ -200,11 +200,11 @@ public final class ReviewFixMobsGameTests {
             if (!com.yayuy.overgrownvegetation.entity.PlantFoes.isFoe(s, husk)) helper.fail("ハスクが相手にならない");
             if (com.yayuy.overgrownvegetation.entity.PlantFoes.isFoe(s, stand)) helper.fail("防具立てが相手になる");
             if (com.yayuy.overgrownvegetation.entity.PlantFoes.isFoe(s, s)) helper.fail("自分が相手になる");
-            if (com.yayuy.overgrownvegetation.entity.PlantFoes.isFoe(null, s)) helper.fail("G5 が相手になる(持ち主の無い技から)");
+            if (com.yayuy.overgrownvegetation.entity.PlantFoes.isFoe(null, s)) helper.fail("G3 が相手になる(持ち主の無い技から)");
             if (com.yayuy.overgrownvegetation.entity.AcumnesEntity.isPrey(s, stand)) helper.fail("アクムネスの判定で防具立てが相手になる");
             if (!f.isFoeForWave(husk)) helper.fail("ファルキムネスの斬りがハスクに当たらない");
             if (f.isFoeForWave(stand)) helper.fail("ファルキムネスの斬りが防具立てに当たる(①9)");
-            if (f.isFoeForWave(s)) helper.fail("ファルキムネスの斬りが G5 に当たる");
+            if (f.isFoeForWave(s)) helper.fail("ファルキムネスの斬りが G3 に当たる");
         } finally {
             husk.discard();
             stand.discard();

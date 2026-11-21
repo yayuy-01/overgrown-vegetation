@@ -6,7 +6,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 /**
- * サーバー → クライアントへ「まわりの升の G2・G3 の賑わい」(2026-11-17。見た目だけの小さな生き物の数を升の頭数に合わせる。
+ * サーバー → クライアントへ「まわりの升の環境生物の賑わい」(2026-11-17。見た目だけの小さな生き物の数を升の頭数に合わせる。
  * Vault「G2 原生生産種・G3 原生消費種」の【決定 11-17 ユーザー】)。{@code ecosystem.EcoCellsSender} が送り、
  * {@code client.atmosphere.EcoCellsClient} が受ける。
  *
@@ -14,7 +14,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
  * x が内側・z が外側の順に並べる(添字 = (dz + r) × (2r + 1) + (dx + r))。値は頭数 ÷ 満員 を 0〜255 に丸めたもの(符号なし)。
  * 配列が空 = 値なし(オーバーワールドの外・台帳が切ってある)。クライアントは値なしを満員(1.0)として読む。
  */
-public record EcoCellsPayload(int centerX, int centerZ, byte shift, byte radius, byte[] g2, byte[] g3) implements CustomPacketPayload {
+public record EcoCellsPayload(int centerX, int centerZ, byte shift, byte radius, byte[] prey, byte[] hunter) implements CustomPacketPayload {
 
     public static final EcoCellsPayload NONE = new EcoCellsPayload(0, 0, (byte) 2, (byte) 0, new byte[0], new byte[0]);
 
@@ -34,12 +34,12 @@ public record EcoCellsPayload(int centerX, int centerZ, byte shift, byte radius,
         buf.writeVarInt(centerZ);
         buf.writeByte(shift);
         buf.writeByte(radius);
-        buf.writeByteArray(g2);
-        buf.writeByteArray(g3);
+        buf.writeByteArray(prey);
+        buf.writeByteArray(hunter);
     }
 
     public boolean empty() {
-        return g2.length == 0;
+        return prey.length == 0;
     }
 
     /** 一辺の升の数。 */
@@ -52,7 +52,7 @@ public record EcoCellsPayload(int centerX, int centerZ, byte shift, byte radius,
         int dx = cellX - centerX, dz = cellZ - centerZ;
         if (empty() || Math.abs(dx) > radius || Math.abs(dz) > radius) return -1;
         int i = (dz + radius) * side() + (dx + radius);
-        return i < g2.length && i < g3.length ? i : -1;
+        return i < prey.length && i < hunter.length ? i : -1;
     }
 
     /** 0〜255 の値を 0〜1 に。 */
@@ -67,7 +67,7 @@ public record EcoCellsPayload(int centerX, int centerZ, byte shift, byte radius,
     /** 中身が同じか(record の equals は配列を中身で比べないため)。 */
     public boolean sameAs(EcoCellsPayload o) {
         return o != null && centerX == o.centerX && centerZ == o.centerZ && shift == o.shift && radius == o.radius
-                && java.util.Arrays.equals(g2, o.g2) && java.util.Arrays.equals(g3, o.g3);
+                && java.util.Arrays.equals(prey, o.prey) && java.util.Arrays.equals(hunter, o.hunter);
     }
 
     @Override

@@ -8,8 +8,8 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
 
 /**
- * アースロプレウラ {@code arthropleura}(G2・原生生産種。石炭紀の大きなヤスデ。林床の倒木と落ち葉を食べる)。
- * 2026-11-16 G2・G3 の作り直しの段 1: 「小さな地這いの虫」の型({@link CrawlerCritter})で歩く・急ぐまで。行動は後の段。
+ * アースロプレウラ {@code arthropleura}(獲物の環境生物・原生生産種。石炭紀の大きなヤスデ。林床の倒木と落ち葉を食べる)。
+ * 2026-11-16 環境生物の作り直しの段 1: 「小さな地這いの虫」の型({@link CrawlerCritter})で歩く・急ぐまで。行動は後の段。
  * 形は 11-16 夜に「外」へ直した(全長 3.62・幅 1.24・高さ 0.40。脚 8 対が 2 節 = 先の節 {@code legN_l_tip}・{@code legN_r_tip} が増えた)。
  *
  * <p>walk(0.05)・run(0.12)は 11-16 にモデル制作(g2g3-bug-walk)が足を地面に止めて作った(左右の対は同時・後ろから前への波。前の walk は脚のキーが無く、手続きの CritterRig・LegSet が振っていた)。

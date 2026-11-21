@@ -89,8 +89,8 @@ public final class BaseMemoryTable {
         public Double fromDays;
         public Integer stageZero;
         public Integer developed;
-        public Integer g4;
-        public Integer g5plus;
+        public Integer g2;
+        public Integer g3plus;
     }
 
     public final boolean enabled;
@@ -190,13 +190,13 @@ public final class BaseMemoryTable {
     public final double flankShare;
 
     /**
-     * 送り込みの段 1 つ: 認識してから {@code fromDays} 日たったら、1 回の送り込みで 段階 0・進化体・G4・G5 以降をこの数ずつ送る。
-     * 進化体が足りなければ、段階 0 を予算で進化させて送る。G4・G5 以降は退避中なので、今は出せない(口だけ)。
+     * 送り込みの段 1 つ: 認識してから {@code fromDays} 日たったら、1 回の送り込みで 段階 0・進化体・G2・G3 以降をこの数ずつ送る。
+     * 進化体が足りなければ、段階 0 を予算で進化させて送る。G2・G3 以降は退避中なので、今は出せない(口だけ)。
      */
-    public record Wave(double fromDays, int stageZero, int developed, int g4, int g5plus) {
+    public record Wave(double fromDays, int stageZero, int developed, int g2, int g3plus) {
         /** 合わせた体数(11-20 夜)。 */
         public int total() {
-            return stageZero + developed + g4 + g5plus;
+            return stageZero + developed + g2 + g3plus;
         }
     }
 
@@ -282,17 +282,17 @@ public final class BaseMemoryTable {
         this.flankShare = Math.min(1.0D, nonNeg(s.flankShare, 1.0D));
     }
 
-    /** 既定の段【仮】: 最初は段階 0 数体と G4、日がたつと進化体が混ざって増え、G4 以降も増える(11-14 ユーザー「徐々に強い個体が攻めてくる」)。 */
+    /** 既定の段【仮】: 最初は段階 0 数体と G2、日がたつと進化体が混ざって増え、G2 以降も増える(11-14 ユーザー「徐々に強い個体が攻めてくる」)。 */
     private static java.util.List<Wave> readWaves(java.util.List<WaveJson> js) {
         java.util.List<Wave> out = new java.util.ArrayList<>();
         if (js != null) {
             for (WaveJson w : js) {
                 if (w == null) continue;
-                out.add(new Wave(nonNeg(w.fromDays, 0.0D), cnt(w.stageZero), cnt(w.developed), cnt(w.g4), cnt(w.g5plus)));
+                out.add(new Wave(nonNeg(w.fromDays, 0.0D), cnt(w.stageZero), cnt(w.developed), cnt(w.g2), cnt(w.g3plus)));
             }
         }
         if (out.isEmpty()) {
-            // 11-16 ユーザー: 1 回 10 体から日がたつほど増えて最大 40 体。G1・G4 から始まり G5 が少しずつ混ざる(段の分け方は【仮】)
+            // 11-16 ユーザー: 1 回 10 体から日がたつほど増えて最大 40 体。G1・G2 から始まり G3 が少しずつ混ざる(段の分け方は【仮】)
             out.add(new Wave(0.0D, 5, 1, 4, 0));
             out.add(new Wave(1.0D, 6, 2, 6, 1));
             out.add(new Wave(2.0D, 7, 3, 7, 3));

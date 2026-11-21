@@ -48,7 +48,7 @@ import java.util.List;
  *   <li><b>洞</b>: まわり 48 ブロックの洞(POI)を見て、まだ詰めていなければ升の頭数 ÷ 満員 の確率で中身を詰め、住む種の起きている時間なら出す。</li>
  *   <li><b>洞を持たない種</b>(プロトファスマ・幼虫・ステノディクティア成虫・メガネウラ・コエルロサウラウス)は住む所(梢の葉の上・林冠の上・地面)へ直に湧かせる。</li>
  * </ol>
- * 生きている数の上限はプレイヤーのまわり 96 ブロックで G2 16・G3 6 × 升の頭数 ÷ 満員【仮】。環境生物は F1 から湧く(11-18 ユーザー)。湧くのは過繁茂の内側(台帳に載り縁でない)だけ。
+ * 生きている数の上限はプレイヤーのまわり 96 ブロックで獲物の環境生物 16・狩る側の環境生物 6 × 升の頭数 ÷ 満員【仮】。環境生物は F1 から湧く(11-18 ユーザー)。湧くのは過繁茂の内側(台帳に載り縁でない)だけ。
  * 入る・出る・遠くで消えるは台帳を減らさない(減るのはプレイヤーが倒したときだけ = {@link Ecosystem})。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
@@ -57,7 +57,7 @@ public final class EcoDens {
     /** 洞・台帳から湧いた個体の印。 */
     public static final String DEN_TAG = "ov_eco_life";
     public static final int INTERVAL = 40;
-    public static final int DEN_RADIUS = 48, COUNT_RADIUS = 96, CAP_G2 = 16, CAP_G3 = 6;
+    public static final int DEN_RADIUS = 48, COUNT_RADIUS = 96, CAP_PREY = 16, CAP_HUNTER = 6;
     /** 空になってから詰め直すまで(1 日)【仮】。 */
     public static final long RESTOCK_TICKS = 24000L;
     /** GameTest で回すか(既定は回さない。テストは手で呼ぶ)。 */
@@ -73,30 +73,30 @@ public final class EcoDens {
     // ================================================================ 種の表【仮・ecosystem-plan.md】
 
     /** 洞に住む種: id・グループ・重み・群れの下限・上限。 */
-    record Den(String id, int group, int weight, int min, int max) {
+    record Den(String id, int kind, int weight, int min, int max) {
     }
 
     static final List<Den> DEN_SPECIES = List.of(
-            new Den("giant_snail", 2, 2, 2, 3),
-            new Den("arthropleura", 2, 1, 1, 1),
-            new Den("hylonomus", 3, 2, 2, 3),
-            new Den("petrolacosaurus", 3, 1, 1, 2),
-            new Den("ianthasaurus", 3, 1, 1, 1),
-            new Den("pulmonoscorpius", 3, 1, 1, 1),
-            new Den("phalangiotarbus", 3, 1, 1, 1));
+            new Den("giant_snail", Ecosystem.PREY, 2, 2, 3),
+            new Den("arthropleura", Ecosystem.PREY, 1, 1, 1),
+            new Den("hylonomus", Ecosystem.HUNTER, 2, 2, 3),
+            new Den("petrolacosaurus", Ecosystem.HUNTER, 1, 1, 2),
+            new Den("ianthasaurus", Ecosystem.HUNTER, 1, 1, 1),
+            new Den("pulmonoscorpius", Ecosystem.HUNTER, 1, 1, 1),
+            new Den("phalangiotarbus", Ecosystem.HUNTER, 1, 1, 1));
 
     enum Habitat { LEAF_TOP, ABOVE_CANOPY, GROUND }
 
     /** 洞を持たない種: id・グループ・重み・住む所・群れの下限・上限。 */
-    record Free(String id, int group, int weight, Habitat habitat, int min, int max) {
+    record Free(String id, int kind, int weight, Habitat habitat, int min, int max) {
     }
 
     static final List<Free> FREE_SPECIES = List.of(
-            new Free("protophasma", 2, 2, Habitat.LEAF_TOP, 1, 3),
-            new Free("stenodictya_nymph", 2, 2, Habitat.LEAF_TOP, 2, 4),
-            new Free("stenodictya_lobata", 2, 1, Habitat.ABOVE_CANOPY, 1, 3),
-            new Free("meganeura", 3, 1, Habitat.ABOVE_CANOPY, 1, 1),
-            new Free("coelurosauravus", 3, 1, Habitat.GROUND, 1, 1));
+            new Free("protophasma", Ecosystem.PREY, 2, Habitat.LEAF_TOP, 1, 3),
+            new Free("stenodictya_nymph", Ecosystem.PREY, 2, Habitat.LEAF_TOP, 2, 4),
+            new Free("stenodictya_lobata", Ecosystem.PREY, 1, Habitat.ABOVE_CANOPY, 1, 3),
+            new Free("meganeura", Ecosystem.HUNTER, 1, Habitat.ABOVE_CANOPY, 1, 1),
+            new Free("coelurosauravus", Ecosystem.HUNTER, 1, Habitat.GROUND, 1, 1));
 
     @Nullable
     static EntityType<?> type(String id) {
@@ -121,25 +121,25 @@ public final class EcoDens {
         }
     }
 
-    /** まわりの G2・G3(行動の段の生き物)の数 [2]・[3]。 */
+    /** まわりの環境生物(行動の段の生き物)の数 [Ecosystem.PREY]・[Ecosystem.HUNTER]。 */
     public static int[] live(ServerLevel level, double x, double z) {
-        int[] out = new int[4];
+        int[] out = new int[2];
         AABB box = new AABB(x - COUNT_RADIUS, level.getMinBuildHeight(), z - COUNT_RADIUS, x + COUNT_RADIUS, level.getMaxBuildHeight(), z + COUNT_RADIUS);
-        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box, e -> e.isAlive() && Ecosystem.residentGroup(e) != 0)) {
-            out[Ecosystem.residentGroup(e)]++;
+        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box, e -> e.isAlive() && Ecosystem.critterKind(e) != Ecosystem.NONE)) {
+            out[Ecosystem.critterKind(e)]++;
         }
         return out;
     }
 
     /** 頭数 ÷ 満員(0〜1)。 */
-    public static double lively(ServerLevel level, int group, BlockPos at) {
+    public static double lively(ServerLevel level, int kind, BlockPos at) {
         EcoTable t = DesignData.ecosystem();
-        double h = EcoLedger.get(level).heads(group, at.getX() >> 4, at.getZ() >> 4, EcoLedger.now(level));
-        return Math.max(0.0D, Math.min(1.0D, h / t.full(group)));
+        double h = EcoLedger.get(level).heads(kind, at.getX() >> 4, at.getZ() >> 4, EcoLedger.now(level));
+        return Math.max(0.0D, Math.min(1.0D, h / t.full(kind)));
     }
 
-    static int cap(ServerLevel level, int group, BlockPos at) {
-        return (int) Math.round((group == 3 ? CAP_G3 : CAP_G2) * lively(level, group, at));
+    static int cap(ServerLevel level, int kind, BlockPos at) {
+        return (int) Math.round((kind == Ecosystem.HUNTER ? CAP_HUNTER : CAP_PREY) * lively(level, kind, at));
     }
 
     static boolean inside(ServerLevel level, BlockPos at) {
@@ -173,19 +173,19 @@ public final class EcoDens {
             den.setChanged();
             return;
         }
-        stockWith(den, now, random, lively(level, 2, pos), lively(level, 3, pos));
+        stockWith(den, now, random, lively(level, Ecosystem.PREY, pos), lively(level, Ecosystem.HUNTER, pos));
     }
 
-    /** 詰める決まり: G2・G3 を満員の比で選び、その升の 頭数 ÷ 満員 の確率で、選んだ種の群れを詰める(狩られた升の洞は空のまま)。詰めた数を返す。 */
-    public static int stockWith(EcoDenBlockEntity den, long now, RandomSource random, double lively2, double lively3) {
+    /** 詰める決まり: 環境生物を満員の比で選び、その升の 頭数 ÷ 満員 の確率で、選んだ種の群れを詰める(狩られた升の洞は空のまま)。詰めた数を返す。 */
+    public static int stockWith(EcoDenBlockEntity den, long now, RandomSource random, double livelyPrey, double livelyHunter) {
         EcoTable t = DesignData.ecosystem();
-        int group = random.nextInt(t.fullG2 + t.fullG3) < t.fullG2 ? 2 : 3;
+        int kind = random.nextInt(t.fullPrey + t.fullHunter) < t.fullPrey ? Ecosystem.PREY : Ecosystem.HUNTER;
         den.stockedAt = now;
-        if (random.nextDouble() >= (group == 3 ? lively3 : lively2)) {
+        if (random.nextDouble() >= (kind == Ecosystem.HUNTER ? livelyHunter : livelyPrey)) {
             den.setChanged();
             return 0;
         }
-        Den pick = pickDen(group, random);
+        Den pick = pickDen(kind, random);
         EntityType<?> type = pick != null ? type(pick.id) : null;
         if (type == null) return 0;
         int n = pick.min + random.nextInt(pick.max - pick.min + 1);
@@ -194,13 +194,13 @@ public final class EcoDens {
     }
 
     @Nullable
-    static Den pickDen(int group, RandomSource random) {
+    static Den pickDen(int kind, RandomSource random) {
         int total = 0;
-        for (Den d : DEN_SPECIES) if (d.group == group) total += d.weight;
+        for (Den d : DEN_SPECIES) if (d.kind == kind) total += d.weight;
         if (total <= 0) return null;
         int r = random.nextInt(total);
         for (Den d : DEN_SPECIES) {
-            if (d.group != group) continue;
+            if (d.kind != kind) continue;
             r -= d.weight;
             if (r < 0) return d;
         }
@@ -213,13 +213,13 @@ public final class EcoDens {
         if (sp == null) return;
         EntityType<?> type = type(sp);
         if (type == null) return;
-        int group = groupOf(sp);
+        int kind = kindOf(sp);
         if (!EcoBehavior.of(sp).awake(level)) return;
-        if (live[group] + den.count() > cap(level, group, pos)) return;
+        if (live[kind] + den.count() > cap(level, kind, pos)) return;
         BlockPos front = pos.relative(state.getValue(EcoDenBlock.FACING));
         if (!open(level, front, level.getBlockState(front))) return;
         Direction out = state.getValue(EcoDenBlock.FACING);
-        live[group] += den.releaseAll(level, EcoDenBlock.mouth(pos, state), EcoDenBlock.outYaw(state), m -> crawlOut(m, out));
+        live[kind] += den.releaseAll(level, EcoDenBlock.mouth(pos, state), EcoDenBlock.outYaw(state), m -> crawlOut(m, out));
     }
 
     /** 出た個体を入口より奥へ戻し、exit_den を流しながら外へ這い出させる(アニメの無い種はそのまま)。 */
@@ -233,10 +233,10 @@ public final class EcoDens {
         life.ecoMind().exiting = (int) g[0];
     }
 
-    static int groupOf(String id) {
-        for (Den d : DEN_SPECIES) if (d.id.equals(id)) return d.group;
-        for (Free f : FREE_SPECIES) if (f.id.equals(id)) return f.group;
-        return 2;
+    static int kindOf(String id) {
+        for (Den d : DEN_SPECIES) if (d.id.equals(id)) return d.kind;
+        for (Free f : FREE_SPECIES) if (f.id.equals(id)) return f.kind;
+        return Ecosystem.PREY;
     }
 
     /** 個体を洞にしまう(入れたら true。呼んだ側は何もしなくてよい = ここで消す)。 */
@@ -279,8 +279,8 @@ public final class EcoDens {
                 break;
             }
         }
-        if (live[pick.group] >= cap(level, pick.group, col)) return;
-        if (random.nextDouble() >= lively(level, pick.group, col)) return;
+        if (live[pick.kind] >= cap(level, pick.kind, col)) return;
+        if (random.nextDouble() >= lively(level, pick.kind, col)) return;
         EntityType<?> type = type(pick.id);
         if (type == null) return;
         BlockPos at = habitat(level, col, pick.habitat);
@@ -293,7 +293,7 @@ public final class EcoDens {
             Mob m = com.yayuy.overgrownvegetation.spawn.EnemySpawns.create(level, type, q, MobSpawnType.NATURAL, random);
             if (m == null) continue;
             m.addTag(DEN_TAG);
-            if (level.addFreshEntity(m)) live[pick.group]++;
+            if (level.addFreshEntity(m)) live[pick.kind]++;
         }
     }
 

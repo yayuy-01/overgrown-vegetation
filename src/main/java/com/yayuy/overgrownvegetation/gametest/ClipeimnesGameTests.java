@@ -60,12 +60,12 @@ public final class ClipeimnesGameTests {
         return true;
     }
 
-    /** G5 に入り、自然には湧かず、体の芯は設計値の幅 × 高さ、ほかの Mob から敵対される。 */
+    /** G3 に入り、自然には湧かず、体の芯は設計値の幅 × 高さ、ほかの Mob から敵対される。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
-    public static void clipRegisteredAsG5WithoutNaturalSpawn(GameTestHelper helper) {
+    public static void clipRegisteredAsG3WithoutNaturalSpawn(GameTestHelper helper) {
         ClipeimnesEntity v = placeAt(helper, 3.5D, 3.5D, 0.0F);
-        if (MobGroup.of(v.getType()) != MobGroup.GROUP_5) {
-            helper.fail("G5 に入っていない: " + MobGroup.of(v.getType()));
+        if (MobGroup.of(v.getType()) != MobGroup.GROUP_3) {
+            helper.fail("G3 に入っていない: " + MobGroup.of(v.getType()));
             return;
         }
         if (Math.abs(v.getBbWidth() - com.yayuy.overgrownvegetation.data.MobStats.width(ClipeimnesEntity.ID, 0.0F)) > 1e-3

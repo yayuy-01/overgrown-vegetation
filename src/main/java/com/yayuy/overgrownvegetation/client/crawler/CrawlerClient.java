@@ -31,7 +31,7 @@ public final class CrawlerClient {
             r.addRenderLayer(new com.yayuy.overgrownvegetation.client.MaskGlowLayer<>(r, com.yayuy.overgrownvegetation.client.MaskGlowLayer.mask("strobila_glowmask"), com.yayuy.overgrownvegetation.entity.StrobilaEntity::tailGlow));   // 尾の背の光の筋(投げの前触れ)
             return r;
         });
-        // G2・G3 の作り直し 段 1(11-16): 描画倍率 1(geo に焼き込み済み)
+        // 環境生物の作り直し 段 1(11-16): 描画倍率 1(geo に焼き込み済み)
         event.registerEntityRenderer(ModCrawlers.PULMONOSCORPIUS.get(),
                 ctx -> new SmallCrawlerRenderer<com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity>(ctx, new CritterModel<>(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.ID), 1.0F, 0.6F));
         event.registerEntityRenderer(ModCrawlers.PROTOPHASMA.get(),

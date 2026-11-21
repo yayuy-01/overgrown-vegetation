@@ -42,13 +42,13 @@ public final class PediculaGameTests {
 
     private static final long SEED = 0x5EEDL;
 
-    /** G4 に入り、自然には湧かず、当たりは設計値どおり、飛ぶ型の群れ({@code SkyFlyer})ではない。 */
+    /** G2 に入り、自然には湧かず、当たりは設計値どおり、飛ぶ型の群れ({@code SkyFlyer})ではない。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
-    public static void pediculaRegisteredAsG4(GameTestHelper helper) {
+    public static void pediculaRegisteredAsG2(GameTestHelper helper) {
         PediculaEntity p = helper.spawn(ModFlyers.PEDICULA.get(), new BlockPos(3, 2, 3));
         p.debugGround = helper.absolutePos(new BlockPos(0, 1, 0)).getY();
-        if (MobGroup.of(p.getType()) != MobGroup.GROUP_4) {
-            helper.fail("G4 に入っていない: " + MobGroup.of(p.getType()));
+        if (MobGroup.of(p.getType()) != MobGroup.GROUP_2) {
+            helper.fail("G2 に入っていない: " + MobGroup.of(p.getType()));
             return;
         }
         float w = MobStats.width(PediculaEntity.ID, 3.6F), h = MobStats.height(PediculaEntity.ID, 3.6F);

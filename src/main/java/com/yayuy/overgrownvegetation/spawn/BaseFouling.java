@@ -20,7 +20,7 @@ import net.neoforged.neoforge.event.tick.LevelTickEvent;
 /**
  * 拠点を汚す(2026-11-16 F5 の襲撃。ユーザー決定: 拠点に着いた敵は拠点の中や周りに胞子を降らせ、籠城の空気を悪くする。1 体 1 分で空気 +1%・降り積もりは空気の 1/4)。
  *
- * <p>認識した拠点の真ん中から {@code assault.foulRadius}(24【仮】)ブロックの中にいる植物側の Mob(G1・G4 以降。G2・G3 は数えない)を
+ * <p>認識した拠点の真ん中から {@code assault.foulRadius}(24【仮】)ブロックの中にいる植物側の Mob(G1・G2 以降。環境生物は数えない)を
  * {@code foulIntervalTicks} ごとに数え、その個体のいる升の空気(浮遊)を {@link SporeFieldServer#emitPoint} で、地面を {@link SporeFieldServer#depositPoint} で上げる。
  * 量の単位: 空気 100% = 胞子の場の {@code fullAt}。倒したときの破裂(11-15)は別に足される。
  */
@@ -74,10 +74,10 @@ public final class BaseFouling {
         return n;
     }
 
-    /** 汚す側か: 生きている植物側の Mob(G1・G4 以降)。 */
+    /** 汚す側か: 生きている植物側の Mob(G1・G2 以降)。 */
     public static boolean fouls(Mob m) {
         if (!m.isAlive()) return false;
         MobGroup g = MobGroup.of(m);
-        return g != null && g.number() != 2 && g.number() != 3;
+        return g != null && !g.isCritter();
     }
 }

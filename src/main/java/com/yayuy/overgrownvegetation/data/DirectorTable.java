@@ -29,8 +29,8 @@ public final class DirectorTable {
         public Double areaRatioMax;
         public Double capDays;
         public Double capPerHiveNodeDays;
-        public Double costG5;
-        public Double costG6;
+        public Double costG3;
+        public Double costG4;
         public Double costEvolve;
         public Double costRooted;
         public Double costNursery;
@@ -88,7 +88,7 @@ public final class DirectorTable {
 
     /** フェーズで開く口の json。 */
     public static final class GatesJson {
-        public Integer nursery, rooted, evolve, scout, recognize, raid, spawner, waveG4, waveG5, waveMixed, learn, learnWave, largeRaid, watcher;
+        public Integer nursery, rooted, evolve, scout, recognize, raid, spawner, waveG2, waveG3, waveMixed, learn, learnWave, largeRaid, watcher;
     }
 
     /** false なら司令塔は見に来ない(予算も貯まらない)。 */
@@ -101,9 +101,9 @@ public final class DirectorTable {
     /** 上限 = 1 日の収入 × (capDays + capPerHiveNodeDays × ハイヴノード)。1 日分 + ハイヴノード 1 つで 0.5 日分【仮】。 */
     public final double capDays;
     public final double capPerHiveNodeDays;
-    /** G5・G6 を孵す値段(G4 は costSpawn)。今は使われない(G4 以降が退避中)【仮】。 */
-    public final double costG5;
-    public final double costG6;
+    /** G3・G4 を孵す値段(G2 は costSpawn)。今は使われない(G2 以降が退避中)【仮】。 */
+    public final double costG3;
+    public final double costG4;
     public final double costEvolve;
     public final double costRooted;
     public final double costNursery;
@@ -129,7 +129,7 @@ public final class DirectorTable {
     public final int forestSearchChunks;
     public final double rootedBase;
     public final double rootedAge;
-    // ---- 区切り 6: 苗床(どれも【仮】)。nurseryBase・nurseryAge = 苗床の点、costSpawn = 苗床から G4 を 1 体出すときに司令塔が払う値段(11-14: G4 の値段 12。G5・G6 は costG5・costG6)
+    // ---- 区切り 6: 苗床(どれも【仮】)。nurseryBase・nurseryAge = 苗床の点、costSpawn = 苗床から G2 を 1 体出すときに司令塔が払う値段(11-14: G2 の値段 12。G3・G4 は costG3・costG4)
     public final double nurseryBase;
     public final double nurseryAge;
     public final double costSpawn;
@@ -158,19 +158,19 @@ public final class DirectorTable {
     public final VisionTable vision;
     /** 11-20: 棘の生垣(森の防衛設備)。 */
     public final HedgeTable hedge;
-    /** 苗床は萌芽体をこれだけ生むか、G4 以降を 1 回孵したら枯れる(11-14 ユーザー N1。数 6 は【仮】)。 */
+    /** 苗床は萌芽体をこれだけ生むか、G2 以降を 1 回孵したら枯れる(11-14 ユーザー N1。数 6 は【仮】)。 */
     public final int nurseryLifeSprouts;
-    /** 苗床が枯れるまでに G4 以降を孵す回数(11-17 ユーザー「1 つにつき 1 回」をやめる。4 は【仮】)・司令塔へ聞く間(tick。前 1200、600 は【仮】)。 */
+    /** 苗床が枯れるまでに G2 以降を孵す回数(11-17 ユーザー「1 つにつき 1 回」をやめる。4 は【仮】)・司令塔へ聞く間(tick。前 1200、600 は【仮】)。 */
     public final int nurseryLifeHatches, nurseryHatchAskTicks;
     /** 升(4×4 チャンク)ごとの根付きの上限(11-17 深夜 ユーザー決定。根付きは枯れないので、満ちた升では進化・苗床へ回す。3 は【仮】。0 = 上限なし)。 */
     public final int rootedPerCell;
 
     /**
      * 司令塔が使うものが開くフェーズ(2026-11-14 決定。Vault「フェーズの仕組み」の作り直し): 苗床 1・根付き 2・進化 3・偵察 4・認識 5・送り込み 5・
-     * 苗床のスポナー 4・送り込みの G4 4・G5〜 5・G4〜G6 の混ざった群れ 6。
+     * 苗床のスポナー 4・送り込みの G2 4・G3〜 5・G2〜G4 の混ざった群れ 6。
      */
     public static final class Gates {
-        public final int nursery, rooted, evolve, scout, recognize, raid, spawner, waveG4, waveG5, waveMixed, learn, learnWave, largeRaid, watcher;
+        public final int nursery, rooted, evolve, scout, recognize, raid, spawner, waveG2, waveG3, waveMixed, learn, learnWave, largeRaid, watcher;
 
         Gates(GatesJson j) {
             GatesJson s = j != null ? j : new GatesJson();
@@ -181,8 +181,8 @@ public final class DirectorTable {
             recognize = ph(s.recognize, 5);
             raid = ph(s.raid, 5);
             spawner = ph(s.spawner, 4);
-            waveG4 = ph(s.waveG4, 4);
-            waveG5 = ph(s.waveG5, 5);
+            waveG2 = ph(s.waveG2, 4);
+            waveG3 = ph(s.waveG3, 5);
             waveMixed = ph(s.waveMixed, 6);
             learn = ph(s.learn, 3);
             learnWave = ph(s.learnWave, 5);
@@ -207,8 +207,8 @@ public final class DirectorTable {
         this.areaRatioMax = Math.max(this.areaRatioMin, nonNeg(s.areaRatioMax, 1.5D));
         this.capDays = nonNeg(s.capDays, 1.0D);
         this.capPerHiveNodeDays = nonNeg(s.capPerHiveNodeDays, 0.5D);
-        this.costG5 = nonNeg(s.costG5, 20.0D);
-        this.costG6 = nonNeg(s.costG6, 30.0D);
+        this.costG3 = nonNeg(s.costG3, 20.0D);
+        this.costG4 = nonNeg(s.costG4, 30.0D);
         this.costEvolve = nonNeg(s.costEvolve, 10.0D);
         this.costRooted = nonNeg(s.costRooted, 6.0D);
         this.costNursery = nonNeg(s.costNursery, 8.0D);
@@ -272,8 +272,8 @@ public final class DirectorTable {
         return incomePerDay * (capDays + capPerHiveNodeDays * Math.max(0, hiveNodes));
     }
 
-    /** 孵す Mob のグループの値段(G5・G6。ほかは G4 の値段 costSpawn)。 */
+    /** 孵す Mob のグループの値段(G3・G4。ほかは G2 の値段 costSpawn)。 */
     public double spawnCost(int group) {
-        return group >= 6 ? costG6 : group == 5 ? costG5 : costSpawn;
+        return group >= 4 ? costG4 : group == 3 ? costG3 : costSpawn;
     }
 }

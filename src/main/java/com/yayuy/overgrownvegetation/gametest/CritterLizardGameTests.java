@@ -21,25 +21,25 @@ import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
- * G3 のトカゲ 2 種(ペトロラコサウルス・イアンタサウルス)の段 1(2026-11-16): 「トカゲ型」で歩くこと。G3 に入り、植物側として扱われ
+ * 狩る側の環境生物のトカゲ 2 種(ペトロラコサウルス・イアンタサウルス)の段 1(2026-11-16): 「トカゲ型」で歩くこと。狩る側の環境生物に入り、植物側として扱われ
  * (ほかのすべての Mob から敵対される)、自然には湧かない。体格 2(10-10 の決定)で当たりは 2 倍。
  */
 @GameTestHolder(OvergrownVegetation.MODID)
 @PrefixGameTestTemplate(false)
-public final class G3LizardGameTests {
+public final class CritterLizardGameTests {
 
     @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD)
     public static final class Registration {
         @SubscribeEvent
         public static void onRegisterGameTests(RegisterGameTestsEvent event) {
-            event.register(G3LizardGameTests.class);
+            event.register(CritterLizardGameTests.class);
         }
 
         private Registration() {
         }
     }
 
-    private G3LizardGameTests() {
+    private CritterLizardGameTests() {
     }
 
     private static <T extends SimpleLizard> T placeAt(GameTestHelper helper, EntityType<T> type, double x, double z, float yaw) {
@@ -53,8 +53,8 @@ public final class G3LizardGameTests {
     }
 
     private static void check(GameTestHelper helper, SimpleLizard v, String id, float width, float height) {
-        if (MobGroup.of(v.getType()) != MobGroup.GROUP_3) {
-            helper.fail(id + " が G3 に入っていない: " + MobGroup.of(v.getType()));
+        if (MobGroup.of(v.getType()) != MobGroup.CRITTER_HUNTER) {
+            helper.fail(id + " が狩る側の環境生物に入っていない: " + MobGroup.of(v.getType()));
             return;
         }
         if (!com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(v)) {
@@ -68,11 +68,11 @@ public final class G3LizardGameTests {
     }
 
     /**
-     * 3 種とも G3・植物側・体格 2(自然には湧かない = どの湧きの表にも入っていない。11-16 の見直し ④ で mobs.json の湧きの欄は無くなった)。
+     * 3 種とも狩る側の環境生物・植物側・体格 2(自然には湧かない = どの湧きの表にも入っていない。11-16 の見直し ④ で mobs.json の湧きの欄は無くなった)。
      * ヒロノムスの体格 2 は 11-16 のユーザー決定(前は 2.5)。
      */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
-    public static void registeredAsG3WithoutNaturalSpawn(GameTestHelper helper) {
+    public static void registeredAsHunterWithoutNaturalSpawn(GameTestHelper helper) {
         PetrolacosaurusEntity p = placeAt(helper, ModLizards.PETROLACOSAURUS.get(), 1.5D, 3.5D, 0.0F);
         IanthasaurusEntity i = placeAt(helper, ModLizards.IANTHASAURUS.get(), 5.5D, 3.5D, 0.0F);
         com.yayuy.overgrownvegetation.entity.HylonomusEntity h = placeAt(helper, ModLizards.HYLONOMUS.get(), 3.5D, 5.5D, 0.0F);

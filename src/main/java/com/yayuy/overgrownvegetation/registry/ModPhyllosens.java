@@ -17,7 +17,7 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 
 /**
- * 監視塔フィロセンス(G6「森の目」、2026-11-14 に竹馬型から作り直し)の登録。共有の登録クラスは並行するセッションが触るので、
+ * 監視塔フィロセンス(G4「森の目」、2026-11-14 に竹馬型から作り直し)の登録。共有の登録クラスは並行するセッションが触るので、
  * ModStilt・ModG1 と同じくここへ寄せた。{@link #init()} を MOD の構築子から呼ぶ。
  * 自然湧きは無い(植えるのは司令塔の持ち場。まだつないでいない)。湧くのはスポーンエッグ・コマンドだけ。
  */

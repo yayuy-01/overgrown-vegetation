@@ -23,7 +23,7 @@ import java.util.Map;
  * 貯めた襲撃の継ぎ足し(2026-11-16 F5 の襲撃。ユーザー「貯めた襲撃は普通の襲撃より難易度を高くしたいので、同時に湧くのは 40。そこから継ぎ足し継ぎ足しで、最大 80 体まで」)。
  *
  * <ul>
- *   <li>始まり({@link #begin}): 貯める間が明けたら({@link ForestMoods#spend})、認識した拠点ごとに「まとめた 1 回」(進化体と G5 は 1.5 倍)を出す。出した個体に印 {@link #TAG}。</li>
+ *   <li>始まり({@link #begin}): 貯める間が明けたら({@link ForestMoods#spend})、認識した拠点ごとに「まとめた 1 回」(進化体と G3 は 1.5 倍)を出す。出した個体に印 {@link #TAG}。</li>
  *   <li>継ぎ足し({@link #step}): {@code hoardRefillTicks} ごとに拠点のまわりで印のある生きた個体を数え、{@code hoardMaxAlive}(40)に足りない分を
  *   同じ割合で出す。その回の合計が {@code hoardMaxTotal}(80)に届くまで。予算は払える限り(大きな襲撃と同じ)。</li>
  *   <li>終わり: 合計 80 / 1 回の継ぎ足しで 1 体も出せなかった / 始めて {@code hoardMaxDays} / 拠点を忘れた / 大きな襲撃の前触れ。出した個体は残る。</li>
@@ -91,7 +91,7 @@ public final class HoardRaids {
         } finally {
             BaseRaids.setWaveTag(null);
         }
-        Raid raid = new Raid(b.id(), day, new BaseMemoryTable.Wave(0.0D, r.wantStageZero(), r.wantDeveloped(), r.wantG4(), r.wantG5plus()));
+        Raid raid = new Raid(b.id(), day, new BaseMemoryTable.Wave(0.0D, r.wantStageZero(), r.wantDeveloped(), r.wantG2(), r.wantG3plus()));
         raid.total = r.total();
         raid.peakAlive = r.total();
         raid.limit = Math.max(r.total(), BaseRaids.sizeByBudget(level, raid.shape,
@@ -198,7 +198,7 @@ public final class HoardRaids {
 
     /** 顔ぶれの割合を保って n 体に縮める(端数は大きい余りから)。純粋な計算。 */
     public static BaseMemoryTable.Wave shrink(BaseMemoryTable.Wave w, int n) {
-        int[] c = {w.stageZero(), w.developed(), w.g4(), w.g5plus()};
+        int[] c = {w.stageZero(), w.developed(), w.g2(), w.g3plus()};
         int sum = c[0] + c[1] + c[2] + c[3];
         if (sum <= 0 || n <= 0) return new BaseMemoryTable.Wave(0.0D, Math.max(0, n), 0, 0, 0);
         if (n >= sum) return w;

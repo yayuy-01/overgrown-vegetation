@@ -45,8 +45,8 @@ import java.util.function.Supplier;
  *   <b>その場所が汚染に飲まれたら生まなくなる</b>(11-13 ユーザー「汚染に飲まれたら萌芽体を生まなくなる」)。「飲まれた」= 苗床のいる升が
  *   過繁茂の台帳に入った【仮】。</li>
  *   <li><b>スポナーの口</b>(D-9・D-14): 一定の間ごとに司令塔へ「孵してよいか」を聞く({@link ForestDirector#buySpawn})。司令塔が予算を払えば、
- *   大きな嚢を 1 つ割って({@code hatch_N})G4〜G8 を 1 体出す。汚染に飲まれていても・いなくても働く(11-13 ユーザー)。
- *   <b>今は出せる Mob が登録されていない</b>(G4 以降は退避中)ので、何も孵さず予算も払わない。</li>
+ *   大きな嚢を 1 つ割って({@code hatch_N})G2〜G6 を 1 体出す。汚染に飲まれていても・いなくても働く(11-13 ユーザー)。
+ *   <b>今は出せる Mob が登録されていない</b>(G2 以降は退避中)ので、何も孵さず予算も払わない。</li>
  *   <li><b>弱らない</b>(11-13 ユーザー「B 案」): 明かり・乾きで弱る仕組みは無い。</li>
  *   <li>生える {@code emerge}(入れ替わった直後。その間は何も生まない)・枯れて崩れる {@code death_wither}(倒すと消える。ドロップなし【仮】)。</li>
  * </ul>
@@ -257,7 +257,7 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
             actionAge++;
             if (--actionLeft <= 0) {
                 begin(ACTION_NONE, 0);
-                // 寿命(第 3 段 区切り 4。11-14 ユーザー N1・11-17): 萌芽体を決めた数だけ生むか、G4 以降を決めた回数孵したら、枯れて崩れる
+                // 寿命(第 3 段 区切り 4。11-14 ユーザー N1・11-17): 萌芽体を決めた数だけ生むか、G2 以降を決めた回数孵したら、枯れて崩れる
                 if (spent()) kill();
             }
             return;
@@ -350,8 +350,8 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
 
     // ------------------------------------------------------------------ 寿命(第 3 段 区切り 4)
     /**
-     * 生んだ萌芽体の数と、G4 以降を孵したか。11-14 ユーザー「苗床は汚染されていない地域に萌芽体をばらまいて周囲を汚染したり、
-     * 周囲の mob を狩るために G4〜を生み出す存在」・N1 = 萌芽体を 6 体【仮】生むか、G4 以降を孵したら枯れる(どちらか先)。
+     * 生んだ萌芽体の数と、G2 以降を孵したか。11-14 ユーザー「苗床は汚染されていない地域に萌芽体をばらまいて周囲を汚染したり、
+     * 周囲の mob を狩るために G2〜を生み出す存在」・N1 = 萌芽体を 6 体【仮】生むか、G2 以降を孵したら枯れる(どちらか先)。
      * 11-17 ユーザー「1 つにつき 1 回」をやめる: 孵すのは {@code nurseryLifeHatches} 回【仮 4】まで(間は {@code nurseryHatchAskTicks})。
      * 飲まれて萌芽体を生まなくなった苗床は、スポナーとして残り、孵し終えたら枯れる。
      */
@@ -368,7 +368,7 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         return sprouted;
     }
 
-    /** G4 以降を孵した回数。 */
+    /** G2 以降を孵した回数。 */
     public int hatches() {
         return hatches;
     }

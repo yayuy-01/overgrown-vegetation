@@ -18,11 +18,11 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
 
 /**
- * 濃い所の素材のドロップ(2026-11-16 段 4、決定 39 の「倒す道」)。G4・G5 は種がこれからも増えるので、ルートテーブルではなくグループのタグ
- * ({@code group_4}・{@code group_5})で落とす。プレイヤーが倒したときだけ【仮】。
+ * 濃い所の素材のドロップ(2026-11-16 段 4、決定 39 の「倒す道」)。G2・G3 は種がこれからも増えるので、ルートテーブルではなくグループのタグ
+ * ({@code group_2}・{@code group_3})で落とす。プレイヤーが倒したときだけ【仮】。
  * <ul>
- *     <li>G5 → 硬い樹皮片 {@code barkDropChance} 30% + ドロップ増加 1 段ごとに {@code barkLootingBonus} 5%【仮】</li>
- *     <li>G4 → 休眠嚢 {@code cureDropChance} 25% + ドロップ増加 1 段ごとに {@code cureLootingBonus} 5%【仮】(11-16 夜ユーザー了承)</li>
+ *     <li>G3 → 硬い樹皮片 {@code barkDropChance} 30% + ドロップ増加 1 段ごとに {@code barkLootingBonus} 5%【仮】</li>
+ *     <li>G2 → 休眠嚢 {@code cureDropChance} 25% + ドロップ増加 1 段ごとに {@code cureLootingBonus} 5%【仮】(11-16 夜ユーザー了承)</li>
  * </ul>
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
@@ -47,11 +47,11 @@ public final class ExpeditionDrops {
     /** 倒した {@code entity} が落とす素材(無ければ空)。{@code roll} は 0〜1 の乱数(GameTest から決めて呼ぶ)。 */
     public static ItemStack rollDrop(LivingEntity entity, int looting, double roll) {
         ExpeditionSpec s = DesignData.sporeField().expedition();
-        if (entity.getType().is(ModTags.GROUP_5)) {
+        if (entity.getType().is(ModTags.GROUP_3)) {
             double chance = s.barkDropChance() + s.barkLootingBonus() * looting;
             if (roll < chance) return new ItemStack(ModExpedition.HARD_BARK_SHARD.get());
         }
-        if (entity.getType().is(ModTags.GROUP_4)) {
+        if (entity.getType().is(ModTags.GROUP_2)) {
             double chance = s.cureDropChance() + s.cureLootingBonus() * looting;
             if (roll < chance) return new ItemStack(ModExpedition.DORMANCY_SAC.get());
         }

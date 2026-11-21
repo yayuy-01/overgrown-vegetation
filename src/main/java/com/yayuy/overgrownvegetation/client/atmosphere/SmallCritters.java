@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * <b>見た目だけの小さな生き物</b>(2026-11-17 ユーザー決定。設定: この世界では鳥は消えていて、生き物は虫と爬虫類。G2・G3 だけでは作り切れない
+ * <b>見た目だけの小さな生き物</b>(2026-11-17 ユーザー決定。設定: この世界では鳥は消えていて、生き物は虫と爬虫類。環境生物だけでは作り切れない
  * 「生きている森」を、小さな虫が飛び交い這う様子で見せる)。
  *
  * <p><b>1 つの仕組み + 種の表</b>(節 {@code smallCritters}、{@link AtmosphereCritters})。エンティティにしない(当たり判定・ドロップ・通信なし。プレイヤーは触れない)。
@@ -48,10 +48,10 @@ import java.util.Map;
  *     {@code level.getGameTime()}(サーバーと同じ)なので、マルチでも同じ所に同じ虫が見える。動きも時刻の式。プレイヤーに合わせるのは反応と出し入れのなじませだけ。</li>
  *     <li><b>出る所</b>: 過繁茂だけ({@link ModBiomes#isFullyOvergrown}。繁茂段階・汚染の外には出さない)。洞窟の虫は真上の地表が過繁茂の所。</li>
  *     <li><b>数</b>: 種ごとに同時に出す所の上限(重さの段)。所ごとに決まったしきい値があり、升の賑わい({@link EcoCellsClient#liveliness} =
- *     台帳の G2・G3 の頭数 ÷ 満員)がそれを下回ると消える。狩りすぎた升は虫が減って静かになる。</li>
+ *     台帳の環境生物の頭数 ÷ 満員)がそれを下回ると消える。狩りすぎた升は虫が減って静かになる。</li>
  *     <li><b>反応</b>: トカゲ・甲虫・クモ・ゲジは逃げる / 羽虫の群れ・アメンボ・イトトンボは割れてまた集まる / ヤスデは丸まる /
  *     明かりを持っていると蛾が手元に寄り、ホタルが近づく。</li>
- *     <li><b>食べられる</b>: 近くの G2・G3(食物網 {@code prey})の口元に入った虫はその場で消える(クライアントだけ。仕組みへの効き目なし)。</li>
+ *     <li><b>食べられる</b>: 近くの環境生物(食物網 {@code prey})の口元に入った虫はその場で消える(クライアントだけ。仕組みへの効き目なし)。</li>
  *     <li><b>描き方</b>: {@link LifeSprites} の四角(頂点の色だけ・素材なし)。体は 1/16 ブロックの画素の単位で組み、色は置かれる所の明るさで暗くする。
  *     遠い物は 1 つの四角か点。ホタルの光だけ足し算。</li>
  * </ul>
@@ -137,8 +137,8 @@ public final class SmallCritters {
     private static int quads;
     private static int lastQuads;
     /**
-     * 食べられたときの知らせ(食べた Mob・食べられた種の名前)。G2・G3 の行動の段で「食べるアニメを鳴らす」をここへつなぐ(クライアントだけ。
-     * 11-18 行動の段でつないだ: G2・G3(EcoLife)は止まっていれば eat を少し流す。
+     * 食べられたときの知らせ(食べた Mob・食べられた種の名前)。環境生物の行動の段で「食べるアニメを鳴らす」をここへつなぐ(クライアントだけ。
+     * 11-18 行動の段でつないだ: 環境生物(EcoLife)は止まっていれば eat を少し流す。
      */
     public static java.util.function.BiConsumer<Entity, String> eatHook = (e, name) -> {
         if (e instanceof com.yayuy.overgrownvegetation.ecosystem.life.EcoLife life) life.ecoClientAte();
@@ -965,7 +965,7 @@ public final class SmallCritters {
         return predators;
     }
 
-    /** 近くの G2・G3 の口元に入った虫を消す(クライアントだけ。台帳には響かない)。 */
+    /** 近くの環境生物の口元に入った虫を消す(クライアントだけ。台帳には響かない)。 */
     private static void eat(ClientLevel level, AtmosphereCritters.Params p, Vec3 eye, long now, double t) {
         if (SITES.isEmpty()) {
             return;

@@ -65,7 +65,7 @@ import java.util.Map;
  * 流れの地図を下らせるのは後(ユーザー決定: まっすぐ + 横へ避けるから始める)。
  *
  * <p>入口は今のところ確かめの命令 {@code /ov perf virtual} と {@link #spawn} だけ。司令塔の襲撃へのつなぎは全体管理と相談してから(既定では呼ばれない)。
- * 空の種・G1 は入れない(地上の行進できる G4・G5 = {@link DirectorHooks#marchable} だけ)。
+ * 空の種・G1 は入れない(地上の行進できる G2・G3 = {@link DirectorHooks#marchable} だけ)。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class VirtualHordes extends SavedData {
@@ -240,7 +240,7 @@ public final class VirtualHordes extends SavedData {
         return com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.onCurrent(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.VIRTUAL_HORDES);
     }
 
-    /** 仮想にできる種か: 地上の行進できる G4・G5({@link DirectorHooks#marchable})か、G1 の段階 0(11-18 ユーザー: 後で司令塔が G1 の群れで前線を広げるため)。 */
+    /** 仮想にできる種か: 地上の行進できる G2・G3({@link DirectorHooks#marchable})か、G1 の段階 0(11-18 ユーザー: 後で司令塔が G1 の群れで前線を広げるため)。 */
     public static boolean allowed(EntityType<?> type) {
         if (DirectorHooks.marchable(type)) return true;
         for (com.yayuy.overgrownvegetation.corpse.G1Species s : com.yayuy.overgrownvegetation.corpse.G1Species.values()) {
@@ -326,7 +326,7 @@ public final class VirtualHordes extends SavedData {
         return n;
     }
 
-    /** 本物にしたとき行進させる(G4・G5 は拠点への行進 {@link PlantMarch}、G1 は G1 の行進 {@code G1March#beginTo})。 */
+    /** 本物にしたとき行進させる(G2・G3 は拠点への行進 {@link PlantMarch}、G1 は G1 の行進 {@code G1March#beginTo})。 */
     static void beginMarch(Mob m, int baseId, double tx, double tz) {
         if (m instanceof com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster g1) g1.march().beginTo(tx, tz, baseId);
         else PlantMarch.begin(m, baseId, tx, tz);

@@ -20,7 +20,7 @@ import java.util.Locale;
 
 /**
  * コエルロサウラウスの段 1(2026-11-16): 幹を真上へ登り、葉の下で休み、跳んで「5 進んで 1 落ちる」で滑空し、当たったら落ちる(痛みなし)。
- * G3・植物側・体格 2.2・自然には湧かない。テスト場 gametest_empty24 は 24 × 10 × 24(高さが足りないので、滑空の比は 20 tick で測る)。
+ * 狩る側の環境生物・植物側・体格 2.2・自然には湧かない。テスト場 gametest_empty24 は 24 × 10 × 24(高さが足りないので、滑空の比は 20 tick で測る)。
  */
 @GameTestHolder(OvergrownVegetation.MODID)
 @PrefixGameTestTemplate(false)
@@ -61,13 +61,13 @@ public final class CoelurosauravusGameTests {
         return helper.absolutePos(new BlockPos(x, 2, z));
     }
 
-    /** G3・植物側・体格 2.2(11-16 ユーザー決定)で当たりは 0.7 × 0.4 の 2.2 倍。自然には湧かない(湧きの表に無い)。 */
+    /** 狩る側の環境生物・植物側・体格 2.2(11-16 ユーザー決定)で当たりは 0.7 × 0.4 の 2.2 倍。自然には湧かない(湧きの表に無い)。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
-    public static void registeredAsG3AtScale22(GameTestHelper helper) {
+    public static void registeredAsHunterAtScale22(GameTestHelper helper) {
         CoelurosauravusEntity v = placeAt(helper, 3.5D, 2.0D, 3.5D, 0.0F);
         helper.runAfterDelay(2L, () -> {
-            if (MobGroup.of(v.getType()) != MobGroup.GROUP_3) {
-                helper.fail("G3 に入っていない: " + MobGroup.of(v.getType()));
+            if (MobGroup.of(v.getType()) != MobGroup.CRITTER_HUNTER) {
+                helper.fail("狩る側の環境生物に入っていない: " + MobGroup.of(v.getType()));
                 return;
             }
             if (!com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(v)) {

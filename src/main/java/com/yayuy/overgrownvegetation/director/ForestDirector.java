@@ -567,8 +567,8 @@ public final class ForestDirector extends SavedData implements ForestBudget {
 
     // ---------------------------------------------------------------- 苗床のスポナーの口(区切り 6。D-9・D-14)
     /**
-     * 苗床から出せる Mob(G4〜G8)。<b>今は空</b>: G4 以降は退避中なので、戻した種を {@link #registerNurserySpawn} で足す(D-14「仕組みだけ先に入れ、
-     * G4〜G6 が戻ったらつなぐ」)。空の間は、苗床は何も孵さず、予算も払わない。
+     * 苗床から出せる Mob(G2〜G6)。<b>今は空</b>: G2 以降は退避中なので、戻した種を {@link #registerNurserySpawn} で足す(D-14「仕組みだけ先に入れ、
+     * G2〜G4 が戻ったらつなぐ」)。空の間は、苗床は何も孵さず、予算も払わない。
      */
     private static final List<java.util.function.Supplier<? extends net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>>> NURSERY_SPAWNS =
             new ArrayList<>();
@@ -645,8 +645,8 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         // 小さな段: F4 の中は、導入でまれに・定着で普通に孵す(聞かれた回を強さの確率で通す)【仮】
         double spawnStrength = DirectorGates.strength(level, DirectorGates.Gate.SPAWNER);
         if (!DirectorGates.roll(spawnStrength, random)) return null;
-        // 孵す Mob を先に選び、そのグループで値段を引く(11-14 ユーザー: G4 12・G5 25・G6 40【仮】)。値段も強さで割る(道と同じ)
-        // 選ぶのは、そのグループの送り込みのゲートが開いている種だけ(G5 は F5・G6 以降は F6。G4 と G1 などは苗床のスポナーのゲートのまま。11-15 enemy-spawns)
+        // 孵す Mob を先に選び、そのグループで値段を引く(11-14 ユーザー: G2 12・G3 25・G4 40【仮】)。値段も強さで割る(道と同じ)
+        // 選ぶのは、そのグループの送り込みのゲートが開いている種だけ(G3 は F5・G4 以降は F6。G2 と G1 などは苗床のスポナーのゲートのまま。11-15 enemy-spawns)
         List<java.util.function.Supplier<? extends net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>>> openPool = new ArrayList<>();
         // 11-18 夜: 出るフェーズは種ごと(groupGateOpen)・値段は危険度と型(spawnCost)。払える種の中から選ぶ
         // (安い種は数で・高い種は予算が貯まったときに。払えない種を引いて何も孵さない、を無くす)
@@ -666,9 +666,9 @@ public final class ForestDirector extends SavedData implements ForestBudget {
     }
 
     /**
-     * 苗床が孵してよいグループか(11-15 enemy-spawns): G5 は送り込みの G5 のゲート(F5)・G6 以降は混ざった群れのゲート(F6)が開いてから。
-     * G4 とグループの無い種は、苗床のスポナーのゲート(buySpawn の頭)のまま。
-     * <p>11-14 夕の「G4 以降の自然の湧きも予算を払う口」(buyNaturalSpawn)は 11-15 に消した: 自然の湧きは縁の湧き({@code spawn/EnemySpawns})で、
+     * 苗床が孵してよいグループか(11-15 enemy-spawns): G3 は送り込みの G3 のゲート(F5)・G4 以降は混ざった群れのゲート(F6)が開いてから。
+     * G2 とグループの無い種は、苗床のスポナーのゲート(buySpawn の頭)のまま。
+     * <p>11-14 夕の「G2 以降の自然の湧きも予算を払う口」(buyNaturalSpawn)は 11-15 に消した: 自然の湧きは縁の湧き({@code spawn/EnemySpawns})で、
      * 数はフェーズの段だけで決め、予算は払わない(11-15 ユーザー)。
      */
     static boolean groupGateOpen(ServerLevel level, net.minecraft.world.entity.EntityType<?> type) {
@@ -678,12 +678,12 @@ public final class ForestDirector extends SavedData implements ForestBudget {
 
     /**
      * 森がその Mob を湧かせる値段(段で割る前)。11-18 夜 ユーザー決定「危険度と型を値段の目安に」: mob_class.json の
-     * base × step^(危険度 − 1) × 型の倍率【仮】。表に無い・危険度 0 の種は前の決まり(グループで。G5・G6 のほかは G4 の値段)。
+     * base × step^(危険度 − 1) × 型の倍率【仮】。表に無い・危険度 0 の種は前の決まり(グループで。G3・G4 のほかは G2 の値段)。
      */
     public static double spawnCost(net.minecraft.world.entity.EntityType<?> type) {
         com.yayuy.overgrownvegetation.phase.MobGroup g = com.yayuy.overgrownvegetation.phase.MobGroup.of(type);
         // 11-20: 苗床の群体はワールド全体の Mob の値段を軽くする(ForestEconomy#priceFactor)
-        return DesignData.mobClass().price(type, DesignData.director().spawnCost(g == null ? 4 : g.number())) * ForestEconomy.priceFactor();
+        return DesignData.mobClass().price(type, DesignData.director().spawnCost(g == null ? 2 : g.number())) * ForestEconomy.priceFactor();
     }
 
     /** これまでに苗床へ払って孵した数。 */

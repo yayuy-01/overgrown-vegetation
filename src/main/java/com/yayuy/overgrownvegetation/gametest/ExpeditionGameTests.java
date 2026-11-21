@@ -49,7 +49,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * サバイバルの背骨 段 4(2026-11-16): 濃い所の素材(胞子喰い茸の生える決まり・G5 の硬い樹皮片)・焼いた胞子・菌糸のフィルターの持ち・寝袋。
+ * サバイバルの背骨 段 4(2026-11-16): 濃い所の素材(胞子喰い茸の生える決まり・G3 の硬い樹皮片)・焼いた胞子・菌糸のフィルターの持ち・寝袋。
  * 期待値は設計値({@code spore_field.json} の {@code expedition}・{@code fatigue}・{@code vent})から引く。
  * テスト場は過繁茂のバイオームでないので、茸の「過繁茂だけ」は生えないことを、ほかの決まりはバイオームを見ない口で確かめる。
  * 偽プレイヤーは tick しないので、寝袋は横になる口と tick の受け口を直に叩く。ネザーで横になれること・時刻が進むままなことは Claude 用クライアントで確かめる。
@@ -160,58 +160,58 @@ public final class ExpeditionGameTests {
         helper.succeed();
     }
 
-    // ---------------------------------------------------------------- G5 の硬い樹皮片
+    // ---------------------------------------------------------------- G3 の硬い樹皮片
 
-    /** G5 は確率どおりに硬い樹皮片を落とし、ドロップ増加で確率が上がる。G5 でない Mob は落とさない。 */
+    /** G3 は確率どおりに硬い樹皮片を落とし、ドロップ増加で確率が上がる。G3 でない Mob は落とさない。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void g5DropsHardBark(GameTestHelper helper) {
+    public static void g3DropsHardBark(GameTestHelper helper) {
         ExpeditionSpec s = spec();
-        Mob g5 = helper.spawnWithNoFreeWill(ModEntities.FALCIMNES.get(), new BlockPos(3, 2, 3));
+        Mob g3 = helper.spawnWithNoFreeWill(ModEntities.FALCIMNES.get(), new BlockPos(3, 2, 3));
         Mob other = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new BlockPos(5, 2, 5));
         try {
             double c = s.barkDropChance();
-            if (c > 0.0D && !ExpeditionDrops.rollDrop(g5, 0, c - 1.0E-4D).is(ModExpedition.HARD_BARK_SHARD.get())) {
-                helper.fail("G5 が確率の内側で樹皮片を落とさない");
+            if (c > 0.0D && !ExpeditionDrops.rollDrop(g3, 0, c - 1.0E-4D).is(ModExpedition.HARD_BARK_SHARD.get())) {
+                helper.fail("G3 が確率の内側で樹皮片を落とさない");
                 return;
             }
-            if (c < 1.0D && !ExpeditionDrops.rollDrop(g5, 0, c + 1.0E-4D).isEmpty()) {
-                helper.fail("G5 が確率の外側でも落とす");
+            if (c < 1.0D && !ExpeditionDrops.rollDrop(g3, 0, c + 1.0E-4D).isEmpty()) {
+                helper.fail("G3 が確率の外側でも落とす");
                 return;
             }
             double c3 = c + s.barkLootingBonus() * 3;
-            if (c3 < 1.0D && s.barkLootingBonus() > 0.0D && !ExpeditionDrops.rollDrop(g5, 3, c3 - 1.0E-4D).is(ModExpedition.HARD_BARK_SHARD.get())) {
+            if (c3 < 1.0D && s.barkLootingBonus() > 0.0D && !ExpeditionDrops.rollDrop(g3, 3, c3 - 1.0E-4D).is(ModExpedition.HARD_BARK_SHARD.get())) {
                 helper.fail("ドロップ増加 3 で確率が上がらない");
                 return;
             }
             if (!ExpeditionDrops.rollDrop(other, 3, 0.0D).isEmpty()) {
-                helper.fail("G5 でない Mob が素材を落とす");
+                helper.fail("G3 でない Mob が素材を落とす");
                 return;
             }
             helper.succeed();
         } finally {
-            g5.discard();
+            g3.discard();
             other.discard();
         }
     }
 
-    /** G4 は確率どおりに休眠嚢を落とし、G5 は落とさない(G5 は樹皮片)。 */
+    /** G2 は確率どおりに休眠嚢を落とし、G3 は落とさない(G3 は樹皮片)。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void g4DropsDormancySac(GameTestHelper helper) {
+    public static void g2DropsDormancySac(GameTestHelper helper) {
         ExpeditionSpec s = spec();
-        Mob g4 = helper.spawnWithNoFreeWill(ModEntities.ARBORA.get(), new BlockPos(3, 2, 3));
+        Mob g2 = helper.spawnWithNoFreeWill(ModEntities.ARBORA.get(), new BlockPos(3, 2, 3));
         try {
             double c = s.cureDropChance();
-            if (c > 0.0D && !ExpeditionDrops.rollDrop(g4, 0, c - 1.0E-4D).is(ModExpedition.DORMANCY_SAC.get())) {
-                helper.fail("G4 が確率の内側で休眠嚢を落とさない");
+            if (c > 0.0D && !ExpeditionDrops.rollDrop(g2, 0, c - 1.0E-4D).is(ModExpedition.DORMANCY_SAC.get())) {
+                helper.fail("G2 が確率の内側で休眠嚢を落とさない");
                 return;
             }
-            if (c < 1.0D && !ExpeditionDrops.rollDrop(g4, 0, c + 1.0E-4D).isEmpty()) {
-                helper.fail("G4 が確率の外側でも落とす");
+            if (c < 1.0D && !ExpeditionDrops.rollDrop(g2, 0, c + 1.0E-4D).isEmpty()) {
+                helper.fail("G2 が確率の外側でも落とす");
                 return;
             }
             helper.succeed();
         } finally {
-            g4.discard();
+            g2.discard();
         }
     }
 
@@ -454,14 +454,14 @@ public final class ExpeditionGameTests {
         BlockPos bag = helper.absolutePos(bagRel);
         FakePlayer p = player(helper, "ov_bag_unsafe", new BlockPos(2, 2, 3));
         p.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
-        LivingEntity g5 = helper.spawnWithNoFreeWill(ModEntities.FALCIMNES.get(), new BlockPos(5, 2, 5));
+        LivingEntity g3 = helper.spawnWithNoFreeWill(ModEntities.FALCIMNES.get(), new BlockPos(5, 2, 5));
         LivingEntity zombie = null;
         try {
             if (SleepingBagBlock.tryLieDown(p, bag) || p.isSleeping()) {
-                helper.fail("G5 がそばにいても横になれる");
+                helper.fail("G3 がそばにいても横になれる");
                 return;
             }
-            g5.discard();
+            g3.discard();
             zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new BlockPos(5, 2, 1));
             if (SleepingBagBlock.tryLieDown(p, bag) || p.isSleeping()) {
                 helper.fail("ゾンビがそばにいても横になれる");
@@ -475,7 +475,7 @@ public final class ExpeditionGameTests {
             }
             helper.succeed();
         } finally {
-            if (g5.isAlive()) g5.discard();
+            if (g3.isAlive()) g3.discard();
             if (zombie != null) zombie.discard();
             reset(p);
         }

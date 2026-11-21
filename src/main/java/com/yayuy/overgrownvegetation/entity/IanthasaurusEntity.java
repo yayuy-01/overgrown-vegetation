@@ -9,8 +9,8 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
 
 /**
- * イアンタサウルス {@code ianthasaurus}(G3・原生消費種。背に帆を持つ石炭紀の爬虫類。帆は今の大きさのまま = 10-10 の決定)。G3 はその環境に
- * 生息しているだけの生き物(胞子を運ばない)。G1〜G10 なので、ほかのすべての Mob から敵対される(タグ group_3 → plant_side)。
+ * イアンタサウルス {@code ianthasaurus}(狩る側の環境生物・原生消費種。背に帆を持つ石炭紀の爬虫類。帆は今の大きさのまま = 10-10 の決定)。狩る側の環境生物はその環境に
+ * 生息しているだけの生き物(胞子を運ばない)。G1〜G8・環境生物なので、ほかのすべての Mob から敵対される(タグ critter_hunter → plant_side)。
  *
  * <h2>段 1(2026-11-16): 歩く・走るところまで</h2>
  * 移動は「トカゲ型」({@link SimpleLizard})。胴は 1 本(腰の骨が無く、尾と後ろ脚が胴に付いている)なので、背骨のくねりは胴の振りと尾の波だけ。
@@ -31,7 +31,7 @@ public class IanthasaurusEntity extends SimpleLizard {
     static final double[] BEND_FRONT = {5.6D * PX, 7.8D * PX, 9.5D * PX, 11.0D * PX};
     static final double[] BEND_BACK = {6.3D * PX, 11.8D * PX, 17.3D * PX, 21.0D * PX};
     /**
-     * walk・run を 1.0 倍で流したときの地上速度(ブロック/tick、体格 1。体格 2 で倍)。11-16 に G2・G3 の作業セッションが足先の決まった点と
+     * walk・run を 1.0 倍で流したときの地上速度(ブロック/tick、体格 1。体格 2 で倍)。11-16 に環境生物の作業セッションが足先の決まった点と
      * 接地した隅の滑りの谷で測った値(walk 0.09〜0.10・run 0.15〜0.16)。最初の 0.055・0.10 は「いちばん低い隅」が接地の途中で入れ替わる
      * ぶんを差し引いて小さく出ていた(再生が約 1.8 倍速すぎて足が滑っていた)。
      */

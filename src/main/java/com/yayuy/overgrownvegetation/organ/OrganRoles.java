@@ -17,7 +17,7 @@ import net.minecraft.world.phys.AABB;
  *   <li>フェーズを進める器官: 過繁茂 {@code roles.phaseChunks} チャンク分の面積の点を足す(11-19 固定値。難易度の倍率は {@link PhaseData#addPoints} が掛ける)。</li>
  *   <li>胞子の塔: 口から胞子の場へ点の発生源({@code SporeFieldServer.emitPoint})。</li>
  *   <li>蓄えの嚢: 司令塔の上限(ForestDirector#cap が {@link OrganWorld#sacHiveEquivalent} を読む)。ここでは何もしない。</li>
- *   <li>苗床の群体: プレイヤーが近い間、予算で G4・G5 を産む。</li>
+ *   <li>苗床の群体: プレイヤーが近い間、予算で G2・G3 を産む。</li>
  *   <li>地脈を吸う根: 植物側の Mob のステータス({@link LeyBuffs}。ワールド全体)と、根晶の生え直し。</li>
  * </ul>
  * どれも、守りの Mob(プレイヤーが近いとき、入口と芯の近く)を置く。
@@ -139,7 +139,7 @@ public final class OrganRoles {
         if (!OrganWorld.playerNear(level, at, t.nurseryPlayerBlocks)) return;
         o.nurseryAt = now;
         if (countGuards(level, at, t.nurseryPlayerBlocks) >= nurseryMaxNear(o)) return;
-        // 予算で産む(苗床のゲスタトリクスと同じ値段)。G4 と G5 から
+        // 予算で産む(苗床のゲスタトリクスと同じ値段)。G2 と G3 から
         net.minecraft.world.entity.EntityType<?> type = com.yayuy.overgrownvegetation.spawn.DirectorHooks.pickPlant(level, level.getRandom(), 0);
         if (type == null) return;
         ForestDirector dir = ForestDirector.get(level);

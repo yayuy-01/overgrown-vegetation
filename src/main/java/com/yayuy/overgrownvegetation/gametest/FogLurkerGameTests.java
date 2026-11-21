@@ -22,7 +22,7 @@ import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
- * 怖い現象 E の「たまに本物」(FogLurkers、2026-11-16): 濃霧の間・G5 のフェーズから・昼と朝だけ / 汚染地帯の外では出ない /
+ * 怖い現象 E の「たまに本物」(FogLurkers、2026-11-16): 濃霧の間・G3 のフェーズから・昼と朝だけ / 汚染地帯の外では出ない /
  * 近づかれる(攻撃される)まで動かない / 霧が晴れたら去る。フェーズと霧の差し替えは世界に 1 つなので自分だけのバッチで 1 本にまとめる。
  * (見通しの縁の木を探す所は、テスト場の高さの地図が天井を答えるので、Claude のクライアントで確かめる。)
  */
@@ -46,7 +46,7 @@ public final class FogLurkerGameTests {
 
     @SuppressWarnings("unchecked")
     @GameTest(template = "gametest_empty7", batch = "fog_lurker", timeoutTicks = 20)
-    public static void onlyInFogFromG5AndStandsUntilWokenThenLeaves(GameTestHelper helper) {
+    public static void onlyInFogFromG3AndStandsUntilWokenThenLeaves(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         Integer phaseBefore = DirectorGates.phaseOverride();
         PhaseStage stageBefore = DirectorGates.stageOverride();
@@ -64,7 +64,7 @@ public final class FogLurkerGameTests {
             helper.assertTrue(!FogLurkers.conditions(level), "霧が薄いのに出る");
             FogLurkers.fogOverride = 0.8D;
             DirectorGates.setPhaseForTests(4);
-            helper.assertTrue(!FogLurkers.conditions(level), "G5 のフェーズより前に出る");
+            helper.assertTrue(!FogLurkers.conditions(level), "G3 のフェーズより前に出る");
             DirectorGates.setPhaseForTests(5);
             // 昼と朝だけ
             helper.assertTrue(FogLurkers.dayOrMorning(1000L) && FogLurkers.dayOrMorning(23500L) && !FogLurkers.dayOrMorning(15000L), "昼と朝の判定が違う");

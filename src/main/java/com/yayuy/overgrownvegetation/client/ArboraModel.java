@@ -5,7 +5,7 @@ import com.yayuy.overgrownvegetation.entity.ArboraEntity;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * 「アルボラ」(G4・拡大種)の GeoModel(2026-11-05 parked から戻した。亜種の絵 {@code MobVariantTextures} は parked のままなので素の絵だけ)。
+ * 「アルボラ」(G2・拡大種)の GeoModel(2026-11-05 parked から戻した。亜種の絵 {@code MobVariantTextures} は parked のままなので素の絵だけ)。
  */
 public class ArboraModel extends LodGeoModel<ArboraEntity> {
 

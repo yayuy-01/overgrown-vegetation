@@ -242,7 +242,7 @@ public final class CorpseCollapseGameTests {
         });
     }
 
-    /** 攻撃の力を持つ Mob には G1〜G10 を狙う Goal が足され、持たない Mob には足されない。鉄のゴーレムは G1 を狙う。 */
+    /** 攻撃の力を持つ Mob には G1〜G8・環境生物を狙う Goal が足され、持たない Mob には足されない。鉄のゴーレムは G1 を狙う。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 120)
     public static void otherMobsTurnOnG1(GameTestHelper helper) {
         Skeleton skeleton = helper.spawn(EntityType.SKELETON, new Vec3(1.5, 2.0, 1.5));

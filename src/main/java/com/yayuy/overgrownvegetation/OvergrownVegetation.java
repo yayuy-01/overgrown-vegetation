@@ -58,7 +58,7 @@ public class OvergrownVegetation {
         com.yayuy.overgrownvegetation.registry.ModCrawlers.init(); // 小さな地這いの虫の型(グレガリア)の Mob・卵(2026-11-15)
         com.yayuy.overgrownvegetation.registry.ModFlyers.init(); // 飛ぶ型(ヴェロフィル)の Mob・卵(2026-11-15)
         com.yayuy.overgrownvegetation.registry.ModDrift.init(); // 漂流する擬態 Mob(海を越える、2026-11-20)
-        com.yayuy.overgrownvegetation.registry.ModG23Flyers.init(); // G2・G3 の飛ぶ種(メガネウラ)の Mob・卵(2026-11-16)
+        com.yayuy.overgrownvegetation.registry.ModCritterFlyers.init(); // 環境生物の飛ぶ種(メガネウラ)の Mob・卵(2026-11-16)
         com.yayuy.overgrownvegetation.registry.ModLizards.init(); // トカゲ型(ピリムネス)の Mob・卵(2026-11-15)
         com.yayuy.overgrownvegetation.registry.ModLey.init(); // 地脈の最小限: 花・汲み上げ器・柱・電池・線(2026-11-13 サバイバルの背骨 段 2b)
         com.yayuy.overgrownvegetation.registry.ModVent.init(); // 換気の機械とフィルター(2026-11-14 サバイバルの背骨 段 2c)
@@ -70,7 +70,7 @@ public class OvergrownVegetation {
         com.yayuy.overgrownvegetation.registry.ModResearch.init(); // 研究台と研究ツリー・器具(2026-11-17 強くなる道 決定 20・22・23)
         ModBlocks.register(modBus);
         ModBlockEntities.register(modBus);
-        com.yayuy.overgrownvegetation.ecosystem.life.EcoBlocks.register(modBus);   // G2・G3 の棲み処(11-18)
+        com.yayuy.overgrownvegetation.ecosystem.life.EcoBlocks.register(modBus);   // 環境生物の棲み処(11-18)
         ModArmorMaterials.register(modBus); // 2026-11-04 防護マスクの素材だけ
         ModItems.register(modBus);
         com.yayuy.overgrownvegetation.organ.OrganBlocks.register(modBus); // 森の器官の専用ブロック(2026-11-17)

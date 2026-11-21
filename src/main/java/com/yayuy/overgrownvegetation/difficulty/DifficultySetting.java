@@ -118,7 +118,7 @@ public enum DifficultySetting {
     MOB_SPAWN_AMOUNT("mob_spawn_amount", Section.MOBS, Kind.PERCENT, 0.0D, 10.0D, false, false),
     /** 動物や村人の感染(感染で死んだ生き物が寄生された姿・萌芽体になる。{@code G1Infection#isInfectionDeath})。プレイヤーには関係しない。 */
     MOB_INFECTION("mob_infection", Section.MOBS, Kind.TOGGLE, 0.0D, 1.0D, false, false),
-    /** G5 の適応(よく使われた攻撃に強くなる。{@code Adaptation#cap})。オフでも記録は消さない。 */
+    /** G3 の適応(よく使われた攻撃に強くなる。{@code Adaptation#cap})。オフでも記録は消さない。 */
     ADAPTATION("adaptation", Section.MOBS, Kind.TOGGLE, 0.0D, 1.0D, false, false),
 
     // ------------------------------------------------------------ ⑥ サバイバル

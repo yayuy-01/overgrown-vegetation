@@ -32,7 +32,7 @@ import java.util.function.Predicate;
 
 /**
  * 植物側の死の破裂と攻撃の感染(2026-11-15 ユーザー決定。{@link PlantSideBurst}・{@code ParasitizedAttackInfectionHandler}・{@link PlantSideRules})。
- * 膨らみの見た目はクライアントで確かめる。G2・G3 のタグは今は空(種がいない)ので、湧かせて試せない —— 判定の段で外れることだけを見る。
+ * 膨らみの見た目はクライアントで確かめる。環境生物のタグは今は空(種がいない)ので、湧かせて試せない —— 判定の段で外れることだけを見る。
  */
 @GameTestHolder(OvergrownVegetation.MODID)
 @PrefixGameTestTemplate(false)
@@ -106,12 +106,12 @@ public final class PlantSideBurstGameTests {
     }
 
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 60)
-    public static void g4GregariaBursts(GameTestHelper helper) {
+    public static void g2GregariaBursts(GameTestHelper helper) {
         burstsAndPollutes(helper, ModCrawlers.GREGARIA.get(), false);
     }
 
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 60)
-    public static void g5VenamnesBursts(GameTestHelper helper) {
+    public static void g3VenamnesBursts(GameTestHelper helper) {
         burstsAndPollutes(helper, ModRunners.VENAMNES.get(), false);
     }
 
@@ -134,7 +134,7 @@ public final class PlantSideBurstGameTests {
         });
     }
 
-    /** 破裂しない: 植物側でないバニラ(20 tick 目にバニラの煙で消える)・自前の死に方の種(外しのタグ)。G2・G3 は判定で外れる。 */
+    /** 破裂しない: 植物側でないバニラ(20 tick 目にバニラの煙で消える)・自前の死に方の種(外しのタグ)。環境生物は判定で外れる。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 60)
     public static void othersDoNotBurst(GameTestHelper helper) {
         Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(2.5, 2.0, 2.5));
@@ -145,13 +145,13 @@ public final class PlantSideBurstGameTests {
         helper.assertTrue(phyllosens.getType().is(PlantSideRules.DEATH_BURST_EXEMPT) && !PlantSideRules.bursts(phyllosens),
                 "外しのタグの萌芽体が破裂の対象になっている");
         helper.assertTrue(!PlantSideRules.inBurstGroups(cow.getType()), "グループの判定が広すぎる");
-        // G2・G3 のタグに入った種は判定の段で外れる(タグは今は空)
-        for (var tag : java.util.List.of(ModTags.GROUP_2, ModTags.GROUP_3)) {
+        // 環境生物のタグに入った種は判定の段で外れる(タグは今は空)
+        for (var tag : java.util.List.of(ModTags.CRITTER_PREY, ModTags.CRITTER_HUNTER)) {
             for (var holder : net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getTagOrEmpty(tag)) {
                 EntityType<?> t = holder.value();
-                boolean other = t.is(ModTags.GROUP_1) || t.is(ModTags.GROUP_4) || t.is(ModTags.GROUP_5) || t.is(ModTags.GROUP_6)
-                        || t.is(ModTags.GROUP_7) || t.is(ModTags.GROUP_8) || t.is(ModTags.GROUP_9) || t.is(ModTags.GROUP_10);
-                helper.assertTrue(other || !PlantSideRules.inBurstGroups(t), t + ": G2・G3 の種が破裂・感染の対象になっている");
+                boolean other = t.is(ModTags.GROUP_1) || t.is(ModTags.GROUP_2) || t.is(ModTags.GROUP_3) || t.is(ModTags.GROUP_4)
+                        || t.is(ModTags.GROUP_5) || t.is(ModTags.GROUP_6) || t.is(ModTags.GROUP_7) || t.is(ModTags.GROUP_8);
+                helper.assertTrue(other || !PlantSideRules.inBurstGroups(t), t + ": 環境生物の種が破裂・感染の対象になっている");
             }
         }
         cow.hurt(helper.getLevel().damageSources().generic(), 10000.0F);
@@ -248,9 +248,9 @@ public final class PlantSideBurstGameTests {
         helper.succeed();
     }
 
-    /** G4・G5 と、植物側の撃った矢でも感染する。植物側でない Mob の撃ちでは感染しない。 */
+    /** G2・G3 と、植物側の撃った矢でも感染する。植物側でない Mob の撃ちでは感染しない。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void g4G5AndProjectilesInfectButOthersDoNot(GameTestHelper helper) {
+    public static void g2G5AndProjectilesInfectButOthersDoNot(GameTestHelper helper) {
         Mob gregaria = helper.spawnWithNoFreeWill(ModCrawlers.GREGARIA.get(), new Vec3(1.5, 2.0, 1.5));
         Mob venamnes = helper.spawnWithNoFreeWill(ModRunners.VENAMNES.get(), new Vec3(1.5, 2.0, 5.5));
         Mob skeleton = helper.spawnWithNoFreeWill(G1Species.SKELETON.entityType(), new Vec3(5.5, 2.0, 1.5));
@@ -265,8 +265,8 @@ public final class PlantSideBurstGameTests {
         arrow.setOwner(skeleton);
         c.hurt(helper.getLevel().damageSources().arrow(arrow, skeleton), 1.0F);
         d.hurt(helper.getLevel().damageSources().mobAttack(zombie), 1.0F);
-        helper.assertTrue(MobInfection.isInfected(a), "G4 に殴られた豚が感染していない");
-        helper.assertTrue(MobInfection.isInfected(b), "G5 に殴られた豚が感染していない");
+        helper.assertTrue(MobInfection.isInfected(a), "G2 に殴られた豚が感染していない");
+        helper.assertTrue(MobInfection.isInfected(b), "G3 に殴られた豚が感染していない");
         helper.assertTrue(MobInfection.isInfected(c), "G1 のスケルトンの矢で感染していない");
         helper.assertTrue(!MobInfection.isInfected(d), "ただのゾンビに殴られた羊が感染した");
         arrow.discard();
@@ -286,7 +286,7 @@ public final class PlantSideBurstGameTests {
 
     // ------------------------------------------------------------------ 傷の暴露・倒された Mob も感染体に(§4、11-15 ユーザー決定)
 
-    /** Mob: 傷のダメージに比例して暴露量が上がる(G4 の 1 撃)。G2・G3 以外の植物側でない Mob の撃ちでは上がらない。 */
+    /** Mob: 傷のダメージに比例して暴露量が上がる(G2 の 1 撃)。環境生物以外の植物側でない Mob の撃ちでは上がらない。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void woundRaisesMobDoseByDamage(GameTestHelper helper) {
         Mob gregaria = helper.spawnWithNoFreeWill(ModCrawlers.GREGARIA.get(), new Vec3(1.5, 2.0, 1.5));
@@ -321,28 +321,28 @@ public final class PlantSideBurstGameTests {
         helper.succeed();
     }
 
-    /** G4 に倒された Mob も感染の死: 表にある種は死体へ崩れ落ちる(11-15 ユーザー決定)。ただのゾンビに倒されたらならない。 */
+    /** G2 に倒された Mob も感染の死: 表にある種は死体へ崩れ落ちる(11-15 ユーザー決定)。ただのゾンビに倒されたらならない。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void killedByG4BecomesCorpse(GameTestHelper helper) {
+    public static void killedByG2BecomesCorpse(GameTestHelper helper) {
         Mob venamnes = helper.spawnWithNoFreeWill(ModRunners.VENAMNES.get(), new Vec3(1.5, 2.0, 1.5));
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new Vec3(5.5, 2.0, 5.5));
         Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(3.5, 2.0, 2.5));
         Mob cow2 = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(3.5, 2.0, 5.0));
         helper.assertTrue(com.yayuy.overgrownvegetation.corpse.G1Infection.isInfectionDeath(cow, helper.getLevel().damageSources().mobAttack(venamnes)),
-                "G4 の撃ちが感染の死に数えられていない");
+                "G2 の撃ちが感染の死に数えられていない");
         cow.hurt(helper.getLevel().damageSources().mobAttack(venamnes), 1000.0F);
         cow2.hurt(helper.getLevel().damageSources().mobAttack(zombie), 1000.0F);
-        helper.assertTrue(com.yayuy.overgrownvegetation.corpse.CorpseCollapse.isCollapsing(cow), "G4 に倒された牛が死体へ崩れ落ちない");
+        helper.assertTrue(com.yayuy.overgrownvegetation.corpse.CorpseCollapse.isCollapsing(cow), "G2 に倒された牛が死体へ崩れ落ちない");
         helper.assertTrue(!com.yayuy.overgrownvegetation.corpse.CorpseCollapse.isCollapsing(cow2), "ただのゾンビに倒された牛が死体になった");
         helper.succeed();
     }
 
     /**
      * 一撃で倒されても感染体になる(11-15 ユーザー「一撃で倒されたときも感染体に」): 感染の印も生きていた時間も見ず、死因の元で決める。
-     * G4 の一撃で村人が死体へ崩れ落ちる。飛び道具も撃った Mob を元に見る(G4 が撃った矢の一撃で倒れた村人も死体へ)。
+     * G2 の一撃で村人が死体へ崩れ落ちる。飛び道具も撃った Mob を元に見る(G2 が撃った矢の一撃で倒れた村人も死体へ)。
      */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void oneHitKillByG4BecomesCorpse(GameTestHelper helper) {
+    public static void oneHitKillByG2BecomesCorpse(GameTestHelper helper) {
         Mob gregaria = helper.spawnWithNoFreeWill(ModCrawlers.GREGARIA.get(), new Vec3(1.5, 2.0, 1.5));
         Mob villager = helper.spawnWithNoFreeWill(EntityType.VILLAGER, new Vec3(3.5, 2.0, 2.5));
         Mob villager2 = helper.spawnWithNoFreeWill(EntityType.VILLAGER, new Vec3(3.5, 2.0, 5.0));
@@ -352,9 +352,9 @@ public final class PlantSideBurstGameTests {
         arrow.setOwner(gregaria);
         villager2.hurt(helper.getLevel().damageSources().arrow(arrow, gregaria), 1000.0F);
         helper.assertTrue(villager.isDeadOrDying() && com.yayuy.overgrownvegetation.corpse.CorpseCollapse.isCollapsing(villager),
-                "G4 の一撃で倒れた村人が死体へ崩れ落ちない");
+                "G2 の一撃で倒れた村人が死体へ崩れ落ちない");
         helper.assertTrue(villager2.isDeadOrDying() && com.yayuy.overgrownvegetation.corpse.CorpseCollapse.isCollapsing(villager2),
-                "G4 が撃った矢の一撃で倒れた村人が死体へ崩れ落ちない");
+                "G2 が撃った矢の一撃で倒れた村人が死体へ崩れ落ちない");
         arrow.discard();
         helper.succeed();
     }

@@ -15,10 +15,10 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 import javax.annotation.Nullable;
 
 /**
- * 「小さな地這いの虫」の型で歩くだけの生き物の土台(2026-11-16、G2・G3 の作り直しの段 1。1 体目はプルモノスコルピウス・プロトファスマ)。
+ * 「小さな地這いの虫」の型で歩くだけの生き物の土台(2026-11-16、環境生物の作り直しの段 1。1 体目はプルモノスコルピウス・プロトファスマ)。
  * 待機 idle・歩き walk・(あれば)走り run を、実際の速さに合わせて流す。walk ⇄ run は 1 巡の中の位置を引き継ぐ({@link GaitAnimationController})。
  * 行動(棲み処・食べる/狩る/休む・群れ)は後の段。種は速さの基準と範囲を返すだけ。
- * G2・G3 は植物側({@link ParasitizedMob}・グループのタグ)= すべての Mob から敵対される。胞子は運ばない。
+ * 環境生物は植物側({@link ParasitizedMob}・グループのタグ)= すべての Mob から敵対される。胞子は運ばない。
  */
 public abstract class CrawlerCritter extends SmallCrawler implements GeoEntity, ParasitizedMob, com.yayuy.overgrownvegetation.ecosystem.life.EcoLife {
 

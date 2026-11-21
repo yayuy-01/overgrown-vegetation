@@ -58,12 +58,12 @@ public final class VelophyllGameTests {
         return v;
     }
 
-    /** G4 に入り、自然には湧かず、芯は 1.2 × 0.8、翼と頭の叩ける部位がある。 */
+    /** G2 に入り、自然には湧かず、芯は 1.2 × 0.8、翼と頭の叩ける部位がある。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
-    public static void registeredAsG4WithWingParts(GameTestHelper helper) {
+    public static void registeredAsG2WithWingParts(GameTestHelper helper) {
         VelophyllEntity v = spawn(helper, 3.5D, 3.0D, 3.5D);
-        if (MobGroup.of(v.getType()) != MobGroup.GROUP_4) {
-            helper.fail("G4 に入っていない: " + MobGroup.of(v.getType()));
+        if (MobGroup.of(v.getType()) != MobGroup.GROUP_2) {
+            helper.fail("G2 に入っていない: " + MobGroup.of(v.getType()));
             return;
         }
         if (Math.abs(v.getBbWidth() - 1.2F) > 1e-3 || Math.abs(v.getBbHeight() - 0.8F) > 1e-3) {

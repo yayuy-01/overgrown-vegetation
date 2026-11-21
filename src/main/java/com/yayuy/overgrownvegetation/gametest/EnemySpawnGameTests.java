@@ -78,10 +78,10 @@ public final class EnemySpawnGameTests {
         for (String ground : List.of("arbora", "gregaria", "strobila", "vesicaria", "falcimnes", "venamnes", "clipeimnes", "pilimnes", "saltimnes")) {
             helper.assertTrue(DirectorHooks.marchable(type(ground)), ground + " が司令塔の口に入っていない");
         }
-        // 苗床に登録されたのは地上の G4・G5 だけ
+        // 苗床に登録されたのは地上の G2・G3 だけ
         List<EntityType<?>> nursery = new ArrayList<>();
         for (Supplier<? extends EntityType<? extends Mob>> s : ForestDirector.nurserySpawns()) nursery.add(s.get());
-        helper.assertTrue(nursery.contains(type("arbora")) && nursery.contains(type("falcimnes")), "苗床に G4・G5 が登録されていない: " + nursery);
+        helper.assertTrue(nursery.contains(type("arbora")) && nursery.contains(type("falcimnes")), "苗床に G2・G3 が登録されていない: " + nursery);
         helper.assertTrue(!nursery.contains(type("velophyll")) && !nursery.contains(fern), "苗床に空の種か萌芽体が入っている");
         helper.succeed();
     }
@@ -136,17 +136,17 @@ public final class EnemySpawnGameTests {
             // ---- フェーズで開く・段で上限が変わる(期待値は設計値から)
             SpawnTable t = DesignData.spawns();
             PhaseTable pt = DesignData.phases();
-            // 11-18 夜 ユーザー決定「出るフェーズは種ごと」: G4 の箱はグレガリア・アルボラ・セミナリア・ペディキュラが F3 から開く(ストロビラ・ヴェシカリアは F4)
+            // 11-18 夜 ユーザー決定「出るフェーズは種ごと」: G2 の箱はグレガリア・アルボラ・セミナリア・ペディキュラが F3 から開く(ストロビラ・ヴェシカリアは F4)
             DirectorGates.setPhaseForTests(2);
             DirectorGates.setStageForTests(PhaseStage.PEAK);
-            helper.assertTrue(EnemySpawns.edgeCap(level, 4) == 0 && EnemySpawns.edgeCap(level, 5) == 0, "F2 で G4・G5 の縁が開いている");
+            helper.assertTrue(EnemySpawns.edgeCap(level, 2) == 0 && EnemySpawns.edgeCap(level, 3) == 0, "F2 で G2・G3 の縁が開いている");
             DirectorGates.setPhaseForTests(3);
             DirectorGates.setStageForTests(PhaseStage.INTRO);
-            int g4Intro = EnemySpawns.edgeCap(level, 4);
-            helper.assertTrue(g4Intro == (int) Math.round(t.cap(4) * pt.stageMultiplier(3, PhaseStage.INTRO)), "F3 導入の G4 の上限が違う: " + g4Intro);
-            helper.assertTrue(EnemySpawns.edgeCap(level, 5) == 0, "F3 で G5 の縁が開いている");
+            int g2Intro = EnemySpawns.edgeCap(level, 2);
+            helper.assertTrue(g2Intro == (int) Math.round(t.cap(2) * pt.stageMultiplier(3, PhaseStage.INTRO)), "F3 導入の G2 の上限が違う: " + g2Intro);
+            helper.assertTrue(EnemySpawns.edgeCap(level, 3) == 0, "F3 で G3 の縁が開いている");
             DirectorGates.setStageForTests(PhaseStage.PEAK);
-            helper.assertTrue(EnemySpawns.edgeCap(level, 4) == t.cap(4) && g4Intro < t.cap(4), "F3 最盛の G4 の上限が違う");
+            helper.assertTrue(EnemySpawns.edgeCap(level, 2) == t.cap(2) && g2Intro < t.cap(2), "F3 最盛の G2 の上限が違う");
             helper.assertTrue(EnemySpawns.edgeCap(level, 1) == t.cap(1), "F3 で G1 の縁が最盛でない");
             r = RandomSource.create(9L);
             for (int i = 0; i < 300; i++) {
@@ -157,14 +157,14 @@ public final class EnemySpawnGameTests {
             }
             DirectorGates.setPhaseForTests(4);
             DirectorGates.setStageForTests(PhaseStage.INTRO);
-            helper.assertTrue(EnemySpawns.edgeCap(level, 5) == 0, "F4 で G5 の縁が開いている");
+            helper.assertTrue(EnemySpawns.edgeCap(level, 3) == 0, "F4 で G3 の縁が開いている");
             DirectorGates.setPhaseForTests(5);
             DirectorGates.setStageForTests(PhaseStage.INTRO);
-            helper.assertTrue(EnemySpawns.edgeCap(level, 4) == t.cap(4), "F5 導入で G4 が導入に戻った");
-            helper.assertTrue(EnemySpawns.edgeCap(level, 5) == (int) Math.round(t.cap(5) * pt.stageMultiplier(5, PhaseStage.INTRO)), "F5 導入の G5 の上限が違う");
+            helper.assertTrue(EnemySpawns.edgeCap(level, 2) == t.cap(2), "F5 導入で G2 が導入に戻った");
+            helper.assertTrue(EnemySpawns.edgeCap(level, 3) == (int) Math.round(t.cap(3) * pt.stageMultiplier(5, PhaseStage.INTRO)), "F5 導入の G3 の上限が違う");
             DirectorGates.setStageForTests(PhaseStage.PEAK);
-            int total = EnemySpawns.edgeCap(level, 1) + EnemySpawns.edgeCap(level, 4) + EnemySpawns.edgeCap(level, 5);
-            helper.assertTrue(total == t.cap(1) + t.cap(4) + t.cap(5), "最盛の合計が表と違う: " + total);
+            int total = EnemySpawns.edgeCap(level, 1) + EnemySpawns.edgeCap(level, 2) + EnemySpawns.edgeCap(level, 3);
+            helper.assertTrue(total == t.cap(1) + t.cap(2) + t.cap(3), "最盛の合計が表と違う: " + total);
             helper.assertTrue(EnemySpawns.underCap(level) == t.underCap, "地下の上限が表と違う");
 
             // ---- 開いたグループだけ選ぶ・上限に達したグループは選ばない
@@ -172,49 +172,49 @@ public final class EnemySpawnGameTests {
             r = RandomSource.create(7L);
             for (int i = 0; i < 300; i++) {
                 SpawnTable.Species sp = EnemySpawns.pick(level, new int[11], r, false);
-                helper.assertTrue(sp != null && sp.group() != 5, "F4 の縁に G5 が選ばれた");
+                helper.assertTrue(sp != null && sp.group() != 3, "F4 の縁に G3 が選ばれた");
             }
             int[] full = new int[11];
             full[1] = EnemySpawns.edgeCap(level, 1);
-            full[4] = EnemySpawns.edgeCap(level, 4);
-            full[6] = EnemySpawns.edgeCap(level, 6); // 11-17: G6 のゲスタトリクスも F4 から(種の open)
+            full[2] = EnemySpawns.edgeCap(level, 2);
+            full[4] = EnemySpawns.edgeCap(level, 4); // 11-17: G4 のゲスタトリクスも F4 から(種の open)
             helper.assertTrue(EnemySpawns.pick(level, full, r, false) == null, "上限なのに選んだ");
             helper.assertTrue(EnemySpawns.tryEdge(level, cx + 1, cz, full, r) == EnemySpawns.Miss.FULL, "上限なのに縁で湧こうとした");
-            full[4] = 0;
+            full[2] = 0;
             for (int i = 0; i < 100; i++) {
                 SpawnTable.Species sp = EnemySpawns.pick(level, full, r, false);
-                helper.assertTrue(sp != null && sp.group() == 4, "G1 が上限なのに G1 を選んだ");
+                helper.assertTrue(sp != null && sp.group() == 2, "G1 が上限なのに G1 を選んだ");
             }
 
             // ---- 置く: 印が付き、数えられる
             BlockPos at = helper.absolutePos(new BlockPos(3, 2, 3));
-            helper.assertTrue(EnemySpawns.place(level, type("arbora"), at, SpawnTable.Habitat.GROUND, EnemySpawns.EDGE_TAG, 4) == EnemySpawns.Miss.SPAWNED, "縁の個体を置けない");
+            helper.assertTrue(EnemySpawns.place(level, type("arbora"), at, SpawnTable.Habitat.GROUND, EnemySpawns.EDGE_TAG, 2) == EnemySpawns.Miss.SPAWNED, "縁の個体を置けない");
             Mob arbora = level.getEntitiesOfClass(Mob.class, new net.minecraft.world.phys.AABB(at).inflate(2.0D), EnemySpawns::spawnedHere).stream().findFirst().orElse(null);
             helper.assertTrue(arbora != null, "置いた個体が見つからない");
             made.add(arbora);
             int[] c = EnemySpawns.count(level, at.getX(), at.getY(), at.getZ(), 16.0D);
-            helper.assertTrue(c[4] >= 1, "置いた G4 が数えられない");
+            helper.assertTrue(c[2] >= 1, "置いた G2 が数えられない");
 
-            // ---- 司令塔の口: 苗床は F4 で G5 を孵さず、F5 で孵す
-            List<Supplier<? extends EntityType<? extends Mob>>> g5Pool = List.of(() -> (EntityType<? extends Mob>) type("falcimnes"));
+            // ---- 司令塔の口: 苗床は F4 で G3 を孵さず、F5 で孵す
+            List<Supplier<? extends EntityType<? extends Mob>>> g3Pool = List.of(() -> (EntityType<? extends Mob>) type("falcimnes"));
             DirectorGates.setPhaseForTests(4);
             director.setBudget(level, 1000.0D);
-            helper.assertTrue(director.buySpawn(level, RandomSource.create(1L), g5Pool) == null, "F4 で苗床が G5 を孵した");
+            helper.assertTrue(director.buySpawn(level, RandomSource.create(1L), g3Pool) == null, "F4 で苗床が G3 を孵した");
             DirectorGates.setPhaseForTests(5);
             DirectorGates.setStageForTests(PhaseStage.PEAK);
             director.setBudget(level, 1000.0D);
-            helper.assertTrue(director.buySpawn(level, RandomSource.create(1L), g5Pool) == type("falcimnes"), "F5 で苗床が G5 を孵さない");
-            // 出す種: F4 は G4 の地上の種だけ・F5 から G5
+            helper.assertTrue(director.buySpawn(level, RandomSource.create(1L), g3Pool) == type("falcimnes"), "F5 で苗床が G3 を孵さない");
+            // 出す種: F4 は G2 の地上の種だけ・F5 から G3
             DirectorGates.setPhaseForTests(4);
-            helper.assertTrue(DirectorHooks.pickPlant(level, r, 5) == null, "F4 で送り込みに G5 を選んだ");
+            helper.assertTrue(DirectorHooks.pickPlant(level, r, 3) == null, "F4 で送り込みに G3 を選んだ");
             for (int i = 0; i < 100; i++) {
                 EntityType<?> pt4 = DirectorHooks.pickPlant(level, r, 0);
-                helper.assertTrue(pt4 != null && DirectorHooks.groupOf(pt4) == 4 && DirectorHooks.marchable(pt4), "F4 の出す種が違う: " + pt4);
+                helper.assertTrue(pt4 != null && DirectorHooks.groupOf(pt4) == 2 && DirectorHooks.marchable(pt4), "F4 の出す種が違う: " + pt4);
             }
             DirectorGates.setPhaseForTests(5);
-            helper.assertTrue(DirectorHooks.pickPlant(level, r, 5) != null, "F5 で送り込みに G5 を選べない");
+            helper.assertTrue(DirectorHooks.pickPlant(level, r, 3) != null, "F5 で送り込みに G3 を選べない");
 
-            // ---- 送り込み: 拠点のまわりにいる G4 を歩かせる(縁の印は外れる)
+            // ---- 送り込み: 拠点のまわりにいる G2 を歩かせる(縁の印は外れる)
             BaseMemory mem = BaseMemory.createForTests();
             ChunkPos baseChunk = new ChunkPos((arbora.blockPosition().getX() >> 4) + 3, arbora.blockPosition().getZ() >> 4);
             mem.addPresence(baseChunk.toLong(), DesignData.director().base.rememberScore * 2.0D, 0.0D);
@@ -223,31 +223,31 @@ public final class EnemySpawnGameTests {
             double dist = Math.hypot(arbora.getX() - b.centerX(), arbora.getZ() - b.centerZ());
             helper.assertTrue(dist > DesignData.director().base.raidFromMinBlocks && dist < DesignData.director().base.raidSearchBlocks, "拠点までの距離の前提が違う: " + dist);
             director.setBudget(level, 0.0D); // 湧かせる分は払えない = いる個体だけ
-            int sent = DirectorHooks.send(level, b, 1, RandomSource.create(3L), 4);
-            helper.assertTrue(sent >= 1 && PlantMarch.active(arbora) && PlantMarch.baseId(arbora) == b.id(), "まわりの G4 を送り込めない(" + sent + ")");
+            int sent = DirectorHooks.send(level, b, 1, RandomSource.create(3L), 2);
+            helper.assertTrue(sent >= 1 && PlantMarch.active(arbora) && PlantMarch.baseId(arbora) == b.id(), "まわりの G2 を送り込めない(" + sent + ")");
             helper.assertTrue(!EnemySpawns.spawnedHere(arbora), "送った個体に縁の印が残っている");
-            helper.assertTrue(MobGroup.of(arbora) != null && MobGroup.of(arbora).number() == 4, "アルボラが G4 でない");
+            helper.assertTrue(MobGroup.of(arbora) != null && MobGroup.of(arbora).number() == 2, "アルボラが G2 でない");
 
             // ---- 送り込み: まわりにいなければ、森の方角(テストでは決め打ちの所)に湧かせて歩かせ、予算から払う
             director.setBudget(level, 1000.0D);
             DirectorHooks.setSpotForTests(() -> helper.absolutePos(new BlockPos(5, 2, 5)));
             long spawnedBefore = DirectorHooks.sentSpawned;
             double budget0 = director.available(level);
-            int sentG5 = DirectorHooks.send(level, b, 1, RandomSource.create(4L), 5);
-            List<Mob> g5s = level.getEntitiesOfClass(Mob.class, helper.getBounds().inflate(4.0D),
-                    m -> PlantMarch.active(m) && DirectorHooks.groupOf(m.getType()) == 5);
-            made.addAll(g5s);
-            helper.assertTrue(sentG5 == 1 && DirectorHooks.sentSpawned == spawnedBefore + 1 && g5s.size() == 1,
-                    "足りない G5 を湧かせて送れない: 送った " + sentG5 + "・湧かせた " + (DirectorHooks.sentSpawned - spawnedBefore) + "・見つけた " + g5s.size());
+            int sentG3 = DirectorHooks.send(level, b, 1, RandomSource.create(4L), 3);
+            List<Mob> g3s = level.getEntitiesOfClass(Mob.class, helper.getBounds().inflate(4.0D),
+                    m -> PlantMarch.active(m) && DirectorHooks.groupOf(m.getType()) == 3);
+            made.addAll(g3s);
+            helper.assertTrue(sentG3 == 1 && DirectorHooks.sentSpawned == spawnedBefore + 1 && g3s.size() == 1,
+                    "足りない G3 を湧かせて送れない: 送った " + sentG3 + "・湧かせた " + (DirectorHooks.sentSpawned - spawnedBefore) + "・見つけた " + g3s.size());
             double paid = budget0 - director.available(level);
-            double price = ForestDirector.stagePrice(ForestDirector.spawnCost(g5s.get(0).getType()), DirectorGates.strength(level, DirectorGates.Gate.WAVE_G5));
+            double price = ForestDirector.stagePrice(ForestDirector.spawnCost(g3s.get(0).getType()), DirectorGates.strength(level, DirectorGates.Gate.WAVE_G3));
             helper.assertTrue(Math.abs(paid - price) < 1.0E-6D, "湧かせた分の払いが違う: " + paid + "(値段 " + price + ")");
-            helper.assertTrue(!EnemySpawns.spawnedHere(g5s.get(0)), "送り込みで湧かせた個体に縁の印が付いている");
+            helper.assertTrue(!EnemySpawns.spawnedHere(g3s.get(0)), "送り込みで湧かせた個体に縁の印が付いている");
 
-            // ---- 大きな襲撃: 印の付いた G4 も数える
+            // ---- 大きな襲撃: 印の付いた G2 も数える
             int aliveBefore = LargeRaids.alive(level, b);
             arbora.addTag(LargeRaids.ATTACKER_TAG);
-            helper.assertTrue(LargeRaids.alive(level, b) == aliveBefore + 1, "大きな襲撃が G4 の攻め手を数えない");
+            helper.assertTrue(LargeRaids.alive(level, b) == aliveBefore + 1, "大きな襲撃が G2 の攻め手を数えない");
             helper.succeed();
         } finally {
             DirectorHooks.setSpotForTests(null);

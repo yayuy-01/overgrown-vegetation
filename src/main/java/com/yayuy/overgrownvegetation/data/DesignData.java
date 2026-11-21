@@ -128,7 +128,7 @@ public final class DesignData {
         return organs;
     }
 
-    /** 敵の湧き方(縁・地下・司令塔が出す G4・G5)の設計値({@code spawns.json}、2026-11-15)。 */
+    /** 敵の湧き方(縁・地下・司令塔が出す G2・G3)の設計値({@code spawns.json}、2026-11-15)。 */
     public static com.yayuy.overgrownvegetation.spawn.SpawnTable spawns() {
         return spawns;
     }
@@ -208,7 +208,7 @@ public final class DesignData {
         return actions;
     }
 
-    /** グループ5(適応種)の武器への適応({@code adaptation.json}。11-05 にファルキムネスと一緒に戻した)。 */
+    /** グループ3(適応種)の武器への適応({@code adaptation.json}。11-05 にファルキムネスと一緒に戻した)。 */
     public static AdaptationTable adaptation() {
         return adaptation;
     }

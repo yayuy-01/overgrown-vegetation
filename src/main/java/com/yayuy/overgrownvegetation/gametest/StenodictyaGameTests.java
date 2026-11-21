@@ -23,7 +23,7 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import java.util.List;
 
 /**
- * ステノディクティア(G2 成虫)の段 1(2026-11-16): 飛ぶ型の土台で飛び、葉の層の下面に逆さにぶら下がって止まる。
+ * ステノディクティア(獲物の環境生物の成虫)の段 1(2026-11-16): 飛ぶ型の土台で飛び、葉の層の下面に逆さにぶら下がって止まる。
  * 下面の止まり木は土台の口({@code SkyFlyer#perchUnder})。上に止まる種(セミナリア・ヴェロフィル)の止まり方は、それぞれのテストで見ている。
  */
 @GameTestHolder(OvergrownVegetation.MODID)
@@ -70,12 +70,12 @@ public final class StenodictyaGameTests {
         return helper.absolutePos(new BlockPos(3, 6, 3));
     }
 
-    /** G2 に入り、植物側で、当たりは胴の芯 0.6 × 0.4、叩ける部位は無い。群れは 3 まで・下面に止まる種。 */
+    /** 獲物の環境生物に入り、植物側で、当たりは胴の芯 0.6 × 0.4、叩ける部位は無い。群れは 3 まで・下面に止まる種。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
-    public static void stenodictyaRegisteredAsG2(GameTestHelper helper) {
+    public static void stenodictyaRegisteredAsPrey(GameTestHelper helper) {
         StenodictyaLobataEntity v = spawn(helper, 3.5D, 6.0D, 3.5D);
-        if (MobGroup.of(v.getType()) != MobGroup.GROUP_2) {
-            helper.fail("G2 に入っていない: " + MobGroup.of(v.getType()));
+        if (MobGroup.of(v.getType()) != MobGroup.CRITTER_PREY) {
+            helper.fail("獲物の環境生物に入っていない: " + MobGroup.of(v.getType()));
             return;
         }
         if (!(v instanceof ParasitizedMob)) {
@@ -206,12 +206,12 @@ public final class StenodictyaGameTests {
 
     // ------------------------------------------------------------------ 幼虫(11-17 段 1: 梢を歩く)
 
-    /** 幼虫: G2 に入り、植物側で、当たりは胴の芯 0.45 × 0.3(0.7 倍に作り直した形)。 */
+    /** 幼虫: 獲物の環境生物に入り、植物側で、当たりは胴の芯 0.45 × 0.3(0.7 倍に作り直した形)。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
-    public static void stenodictyaNymphRegisteredAsG2(GameTestHelper helper) {
+    public static void stenodictyaNymphRegisteredAsPrey(GameTestHelper helper) {
         com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity v = helper.spawn(com.yayuy.overgrownvegetation.registry.ModCrawlers.STENODICTYA_NYMPH.get(), new BlockPos(3, 2, 3));
-        if (MobGroup.of(v.getType()) != MobGroup.GROUP_2) {
-            helper.fail("G2 に入っていない: " + MobGroup.of(v.getType()));
+        if (MobGroup.of(v.getType()) != MobGroup.CRITTER_PREY) {
+            helper.fail("獲物の環境生物に入っていない: " + MobGroup.of(v.getType()));
             return;
         }
         if (!(v instanceof ParasitizedMob)) {

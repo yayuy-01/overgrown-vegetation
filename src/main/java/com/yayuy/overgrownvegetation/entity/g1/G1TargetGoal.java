@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * G1 段階 0 はどの生き物も襲う(11-05 共通の決定)。プレイヤーだけでなく、周りの Mob を種を問わず狙う(G1〜G10 どうしは襲わない)。
+ * G1 段階 0 はどの生き物も襲う(11-05 共通の決定)。プレイヤーだけでなく、周りの Mob を種を問わず狙う(G1〜G8・環境生物どうしは襲わない)。
  * 旧 {@code effect/ParasitizedTargetGoal}(parked、567 行。群れ・茂みの隠れ・汚染の優先などに依存)の残すべき 3 つだけを小さく書き直した:
  *
  * <ul>
@@ -42,7 +42,7 @@ public class G1TargetGoal extends NearestAttackableTargetGoal<LivingEntity> {
                 .selector(this::isPrey);
     }
 
-    /** 狙ってよい相手か(自分・G1〜G10・寄生体・防具立ては外す)。 */
+    /** 狙ってよい相手か(自分・G1〜G8・環境生物・寄生体・防具立ては外す)。 */
     private boolean isPrey(LivingEntity e) {
         return isPrey(this.mob, e);
     }
@@ -52,7 +52,7 @@ public class G1TargetGoal extends NearestAttackableTargetGoal<LivingEntity> {
             return false;
         }
         if (com.yayuy.overgrownvegetation.OvergrownVegetation.MODID.equals(net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).getNamespace())) {
-            return false; // この MOD の Mob(萌芽体・ハイヴノード・G4 以降)は襲わない(仕様「G1・萌芽体どうしは襲わない」。グループのタグに無い物も)
+            return false; // この MOD の Mob(萌芽体・ハイヴノード・G2 以降)は襲わない(仕様「G1・萌芽体どうしは襲わない」。グループのタグに無い物も)
         }
         if (!e.isAlive() || !e.canBeSeenAsEnemy() || !net.minecraft.world.entity.EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(e)) {
             return false; // 創造・観戦のプレイヤー・無敵の相手(夜歩きの行き先にも数えない)

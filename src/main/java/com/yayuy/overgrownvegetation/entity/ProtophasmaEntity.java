@@ -8,8 +8,8 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
 
 /**
- * プロトファスマ {@code protophasma}(G2・原生生産種。古生代のナナフシ。翅は汚染シダの色で、茂みと枝に棲む)。
- * 2026-11-16 G2・G3 の作り直しの段 1: 「小さな地這いの虫」の型({@link CrawlerCritter})で地面を歩く・逃げるまで。
+ * プロトファスマ {@code protophasma}(獲物の環境生物・原生生産種。古生代のナナフシ。翅は汚染シダの色で、茂みと枝に棲む)。
+ * 2026-11-16 環境生物の作り直しの段 1: 「小さな地這いの虫」の型({@link CrawlerCritter})で地面を歩く・逃げるまで。
  * 梢で枝を歩く・茂みに隠れる・鳴くは後の段(梢を歩くのは張り付く型の方が合う = 全体管理へ案)。
  * 形・骨・アニメは 10-10 のまま、絵だけ 1/16 画素に塗り直した(正本 Blockbench の protophasma.bbmodel。描画倍率 1 = geo に焼き込み済み)。
  *

@@ -38,7 +38,7 @@ import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
- * アクムネス {@code acumnes}(G5・空の狙撃)。Vault「Mob の能力/アクムネス」。
+ * アクムネス {@code acumnes}(G3・空の狙撃)。Vault「Mob の能力/アクムネス」。
  *
  * <h2>段 1(2026-11-15): 飛ぶ・止まる・移るまで</h2>
  * 動きは「飛ぶ型」の土台 {@link SkyFlyer} の上に、トンボの「止まっては飛ぶ」({@link DartHover})を {@link #ownFlight} で載せる。
@@ -281,7 +281,7 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
         return 8.0D;
     }
 
-    /** 1 体ずつ(群れは組まない。G5 は 1 体ずつ湧く)。 */
+    /** 1 体ずつ(群れは組まない。G3 は 1 体ずつ湧く)。 */
     @Override
     protected int flockMax() {
         return 1;
@@ -401,7 +401,7 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
 
     /**
      * 狙ってよい相手か【決定 11-15 ユーザー】: 植物側の Mob 以外すべて(プレイヤー・村人・同盟軍・ゴーレム・動物・ほかの敵対 Mob)。
-     * 植物側(G1〜G10・萌芽体・ハイヴノード・汎用の感染体 = {@link SporeExposureTracker#isPlantSide})・創造/観戦のプレイヤー・防具立て・無敵の相手は狙わない。
+     * 植物側(G1〜G8・環境生物・萌芽体・ハイヴノード・汎用の感染体 = {@link SporeExposureTracker#isPlantSide})・創造/観戦のプレイヤー・防具立て・無敵の相手は狙わない。
      * 狙っている相手が感染して植物側になったら、そこで忘れる。
      */
     public static boolean isPrey(@javax.annotation.Nullable LivingEntity self, LivingEntity e) {

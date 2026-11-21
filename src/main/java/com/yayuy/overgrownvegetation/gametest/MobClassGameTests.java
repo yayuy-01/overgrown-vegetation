@@ -81,7 +81,7 @@ public final class MobClassGameTests {
         }
         for (MobGroup g : MobGroup.values()) {
             for (EntityType<?> ty : BuiltInRegistries.ENTITY_TYPE) {
-                if (ty.is(g.tag())) check(h, t.get(ty) != null, "group_" + g.number() + " の " + BuiltInRegistries.ENTITY_TYPE.getKey(ty) + " が mob_class.json に無い");
+                if (ty.is(g.tag())) check(h, t.get(ty) != null, g.tag().location().getPath() + " の " + BuiltInRegistries.ENTITY_TYPE.getKey(ty) + " が mob_class.json に無い");
             }
         }
         h.succeed();

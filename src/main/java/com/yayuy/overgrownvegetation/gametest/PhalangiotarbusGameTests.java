@@ -49,12 +49,12 @@ public final class PhalangiotarbusGameTests {
         return s;
     }
 
-    /** G3 に入り、体の芯は 1.0 × 0.8(自然湧きは湧きの表の持ち場。11-16 に MobStats から外れた)。 */
+    /** 狩る側の環境生物に入り、体の芯は 1.0 × 0.8(自然湧きは湧きの表の持ち場。11-16 に MobStats から外れた)。 */
     @GameTest(template = ARENA, timeoutTicks = 20)
-    public static void registeredAsG3(GameTestHelper helper) {
+    public static void registeredAsHunter(GameTestHelper helper) {
         PhalangiotarbusEntity s = placeAt(helper, 12.5D, 2.0D, 12.5D, 0.0F, "nostroll");
-        if (MobGroup.of(s.getType()) != MobGroup.GROUP_3) {
-            helper.fail("G3 に入っていない: " + MobGroup.of(s.getType()));
+        if (MobGroup.of(s.getType()) != MobGroup.CRITTER_HUNTER) {
+            helper.fail("狩る側の環境生物に入っていない: " + MobGroup.of(s.getType()));
         } else if (Math.abs(s.getBbWidth() - 1.0F) > 1e-3 || Math.abs(s.getBbHeight() - 0.8F) > 1e-3) {
             helper.fail("芯の大きさが 1.0 × 0.8 でない: " + s.getBbWidth() + " × " + s.getBbHeight());
         } else {

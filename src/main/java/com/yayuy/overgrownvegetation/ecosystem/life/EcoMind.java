@@ -5,7 +5,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 
 /**
- * G2・G3 の 1 体のサーバー側の心(2026-11-18、行動の段)。満腹度は「最後に量った値と時刻」だけを持ち、読むときに減らす(毎 tick 数えない)。
+ * 環境生物の 1 体のサーバー側の心(2026-11-18、行動の段)。満腹度は「最後に量った値と時刻」だけを持ち、読むときに減らす(毎 tick 数えない)。
  * 満腹度 0〜1。{@link EcoBehavior#hungerTicks} で 1 → 0 まで減る。保存は Mob の追加データ {@code OvEco}。
  */
 public final class EcoMind {

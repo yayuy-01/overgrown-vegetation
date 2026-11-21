@@ -145,7 +145,7 @@ public final class ForestEconomyGameTests {
                     double steadyB = Math.min(Math.min(1.5D * income * 0.65D, cap * e.waveBudgetShare), perWave);
                     int steady = com.yayuy.overgrownvegetation.director.BaseRaids.sizeByBudget(level, w6, steadyB).total();
                     var hoardW = new com.yayuy.overgrownvegetation.data.BaseMemoryTable.Wave(0.0D, w6.stageZero(),
-                            (int) Math.round(w6.developed() * dt.assault.hoardShareFactor), w6.g4(), (int) Math.round(w6.g5plus() * dt.assault.hoardShareFactor));
+                            (int) Math.round(w6.developed() * dt.assault.hoardShareFactor), w6.g2(), (int) Math.round(w6.g3plus() * dt.assault.hoardShareFactor));
                     double purse = income * dt.raidScale.purseShare;
                     int medium = com.yayuy.overgrownvegetation.director.BaseRaids.sizeByBudget(level, hoardW, purse * 1.5D + income * e.hoardIncomeDays).total();
                     double largeAvg = (1.0D - dt.largeRaid.developedShare - dt.largeRaid.plantShare) * dt.largeRaid.costStageZero

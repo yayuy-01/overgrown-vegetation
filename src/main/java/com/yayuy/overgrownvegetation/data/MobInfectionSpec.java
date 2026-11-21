@@ -82,7 +82,7 @@ public record MobInfectionSpec(
         /** 感染後に 1 回に歩く先の距離(ブロック。短いほど立ち止まりが増える)。 */
         public Integer infectedStepDistance;
         /**
-         * 植物側(G1・G4〜G10・汎用の感染体)に付けられた傷 1 ダメージあたりに足す暴露量(%秒)。プレイヤー・Mob(11-15 ユーザー決定「与えたダメージに比例」)。
+         * 植物側(G1・G2〜G8・汎用の感染体)に付けられた傷 1 ダメージあたりに足す暴露量(%秒)。プレイヤー・Mob(11-15 ユーザー決定「与えたダメージに比例」)。
          * 防護マスクでは防げない(傷口から入る)。防具・盾で 0 ダメージなら上がらない。
          */
         public Double woundDosePlayerPerDamage, woundDoseMobPerDamage;

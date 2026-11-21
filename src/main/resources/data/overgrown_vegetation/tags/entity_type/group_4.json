@@ -1,14 +1,8 @@
 {
   "replace": false,
   "values": [
-    "overgrown_vegetation:blight_fern",
-    "overgrown_vegetation:arbora",
-    "overgrown_vegetation:gregaria",
-    "overgrown_vegetation:vesicaria",
-    "overgrown_vegetation:strobila",
-    "overgrown_vegetation:velophyll",
-    "overgrown_vegetation:seminaria",
-    "overgrown_vegetation:pedicula",
+    "overgrown_vegetation:phyllosens",
+    "overgrown_vegetation:gestatrix",
     "overgrown_vegetation:drift_mimic"
   ]
 }

@@ -61,7 +61,7 @@ public final class ModLizards {
         output.accept(COELUROSAURAVUS_SPAWN_EGG.get());
     }
 
-    // --- G3 のトカゲ 2 種(2026-11-16 段 1。トカゲ型を当てた。自然には湧かない = 生態系の台帳につなぐ予定)
+    // --- 狩る側の環境生物のトカゲ 2 種(2026-11-16 段 1。トカゲ型を当てた。自然には湧かない = 生態系の台帳につなぐ予定)
 
     /** ペトロラコサウルス: 当たりは 0.6 × 0.4(体格 2 が掛かって 1.2 × 0.8。10-10 のまま)。尾ははみ出す(全長 4.70)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.PetrolacosaurusEntity>> PETROLACOSAURUS =
@@ -106,7 +106,7 @@ public final class ModLizards {
             com.yayuy.overgrownvegetation.entity.HylonomusEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(HYLONOMUS, 0x55462E, 0xB09A68, props));
 
-    /** コエルロサウラウス(G3、11-16 段 1)。当たり 0.7 × 0.4(体格 2.2 が掛かる)。 */
+    /** コエルロサウラウス(狩る側の環境生物、11-16 段 1)。当たり 0.7 × 0.4(体格 2.2 が掛かる)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity>> COELUROSAURAVUS =
             ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity.ID, () -> EntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity>of(com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity::new, MobCategory.MONSTER)

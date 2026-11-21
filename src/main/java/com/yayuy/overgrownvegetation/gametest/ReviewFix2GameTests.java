@@ -122,16 +122,16 @@ public final class ReviewFix2GameTests {
             z.addTag(EnemySpawns.GROUP_TAG + "1");
             BaseRaids.sendWave(level, b, 1.0D, level.getRandom());
             helper.assertTrue(z.march().active() && !EnemySpawns.spawnedHere(z), "送り込んだ G1 に縁の印が残っている");
-            // ②3: 拠点へ歩いている G4 は消えない。歩いていなければ消えてよい
-            Mob g4 = (Mob) type("gregaria").create(level);
-            g4.moveTo(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D);
-            level.addFreshEntity(g4);
-            helper.assertTrue(!RaidKeepAlive.keep(g4), "ただの G4 まで消さないことになっている");
-            PlantMarch.begin(g4, b);
-            helper.assertTrue(RaidKeepAlive.keep(g4), "拠点へ歩いている G4 が消えうる");
-            g4.discard();
+            // ②3: 拠点へ歩いている G2 は消えない。歩いていなければ消えてよい
+            Mob g2 = (Mob) type("gregaria").create(level);
+            g2.moveTo(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D);
+            level.addFreshEntity(g2);
+            helper.assertTrue(!RaidKeepAlive.keep(g2), "ただの G2 まで消さないことになっている");
+            PlantMarch.begin(g2, b);
+            helper.assertTrue(RaidKeepAlive.keep(g2), "拠点へ歩いている G2 が消えうる");
+            g2.discard();
             z.discard();
-            // ②5: いる個体(段階 0・G4・G5)が多くても、計は 40 を超えない
+            // ②5: いる個体(段階 0・G2・G3)が多くても、計は 40 を超えない
             for (int i = 0; i < 20; i++) helper.spawn(G1Species.ZOMBIE.entityType(), new Vec3(1.5D + i % 5, 2.0D, 1.5D + i / 5));
             for (int i = 0; i < 13; i++) helper.spawn((EntityType<? extends Mob>) type("gregaria"), new Vec3(1.5D + i % 5, 3.0D, 4.5D + i / 5));
             for (int i = 0; i < 12; i++) helper.spawn((EntityType<? extends Mob>) type("falcimnes"), new Vec3(1.5D + i % 5, 4.0D, 1.5D + i / 5));

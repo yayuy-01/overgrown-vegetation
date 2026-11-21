@@ -156,7 +156,7 @@ public final class CaveCrickets {
                 c.light = 0.3F + 0.7F * Math.max(sky, block);
             }
         }
-        // 数は升の賑わい(台帳の G2・G3 の頭数)を映す(11-17 見た目だけの小さな生き物。洞窟の虫のカマドウマはここが受け持つ)。
+        // 数は升の賑わい(台帳の環境生物の頭数)を映す(11-17 見た目だけの小さな生き物。洞窟の虫のカマドウマはここが受け持つ)。
         int cap = Math.round(p.counts()[Math.min(2, VisualQuality.atmosphereTier())] * SmallCritters.liveliness(player.getX(), player.getZ()));
         if (CRICKETS.size() + p.group() <= cap && now >= nextSpawnAt) {
             int added = trySpawnGroup(level, player, p, pos, false);

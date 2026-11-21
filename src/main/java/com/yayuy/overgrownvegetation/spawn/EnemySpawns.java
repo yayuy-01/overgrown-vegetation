@@ -43,8 +43,8 @@ import java.util.WeakHashMap;
  *   <li><b>縁</b> = 過繁茂の台帳({@link PhaseData#isOvergrownKey})に載ったチャンクと載っていないチャンクの境目を挟んで、内側 1・外側 1。
  *   あるチャンクが縁かは、そのチャンクと隣 8 つの台帳を引くだけで分かる({@link #isEdgeChunk})。プレイヤーのまわりから引いたチャンクだけを
  *   調べるので、過繁茂が数百万チャンクあっても重さは変わらない。</li>
- *   <li>湧くのは G1(段階 0)・G4・G5。開くフェーズは {@code spawns.json} の {@code openAt}(G1 F1・G4 F4・G5 F5【仮】)。</li>
- *   <li>数はフェーズの小さな段の強さだけで決める(森の予算は払わない)。上限はグループごとに 基本の数 × 強さ(最盛で G1 15・G4 15・G5 10【仮】)。</li>
+ *   <li>湧くのは G1(段階 0)・G2・G3。開くフェーズは {@code spawns.json} の {@code openAt}(G1 F1・G2 F4・G3 F5【仮】)。</li>
+ *   <li>数はフェーズの小さな段の強さだけで決める(森の予算は払わない)。上限はグループごとに 基本の数 × 強さ(最盛で G1 15・G2 15・G3 10【仮】)。</li>
  *   <li>昼も夜も同じ。明るさでは止まらない。ピースフル・{@code doMobSpawning} が切れているとき・大きな襲撃の前触れの間は湧かない。</li>
  *   <li>種は住む場所で分ける({@link SpawnTable.Habitat})。</li>
  *   <li><b>地下</b>: 過繁茂の真下と、そこから {@code nearChunks} チャンクまでの洞窟に G1 の段階 0。上限は縁とは別。</li>
@@ -59,7 +59,7 @@ public final class EnemySpawns {
     public static final String EDGE_TAG = "ov_edge_spawn";
     /** 地下で湧いた印。 */
     public static final String UNDER_TAG = "ov_under_spawn";
-    /** グループの印の頭({@code ov_spawn_g4} など)。 */
+    /** グループの印の頭({@code ov_spawn_g2} など)。 */
     public static final String GROUP_TAG = "ov_spawn_g";
 
     /** 片付けの間(tick)。 */
@@ -133,7 +133,7 @@ public final class EnemySpawns {
     /**
      * そのチャンクは縁か: 台帳での自分の扱い(載っている / いない)と違う隣が 8 方向に 1 つでもある。ただし「載っていない」側は、
      * 本当の外(まだ汚れていない土地)でなければ数えない = 森の中の小さな穴(焼いたチャンクなど 2 チャンク幅まで)は縁にしない
-     * (見直しの疑い、11-16: 穴のまわりが縁になり、森の内側に G4 以降が湧いていた)。
+     * (見直しの疑い、11-16: 穴のまわりが縁になり、森の内側に G2 以降が湧いていた)。
      */
     public static boolean isEdgeChunk(PhaseData data, int cx, int cz) {
         boolean self = data.isOvergrownKey(net.minecraft.world.level.ChunkPos.asLong(cx, cz));
@@ -239,7 +239,7 @@ public final class EnemySpawns {
         BandRoster r = ROSTERS.get(who);
         long now = level.getGameTime();
         if (r == null || r.cx != pcx || r.cz != pcz || now - r.builtAt >= t.rebuildTicks) {
-            r = BandRoster.build(PhaseData.get(level), px, pz, now, t.g1Band, t.g45Band, t.minBlocks, t.maxBlocks);
+            r = BandRoster.build(PhaseData.get(level), px, pz, now, t.g1Band, t.g23Band, t.minBlocks, t.maxBlocks);
             ROSTERS.put(who, r);
         }
         return r;
@@ -249,7 +249,7 @@ public final class EnemySpawns {
     public static volatile long tryNanos, tries;
 
     /**
-     * 帯に 1 回試す(11-17): 開いていて上限に余りのあるグループから種を選び、そのグループの名簿(G1 は外の帯・G4/G5 は境目の内外)から
+     * 帯に 1 回試す(11-17): 開いていて上限に余りのあるグループから種を選び、そのグループの名簿(G1 は外の帯・G2/G3 は境目の内外)から
      * チャンクを重みで引いて、住む場所に置く。群れで湧く種は、1 か所に頭数ぶんまとめて置き、群れにする(上限は 1 体ずつ数える)。
      */
     public static Miss tryBand(ServerLevel level, BandRoster roster, int[] counts, RandomSource random) {
@@ -613,12 +613,12 @@ public final class EnemySpawns {
         out.add(String.format(Locale.ROOT, "湧き %s・フェーズ %s・段 %s / まわり %d チャンクの縁 %d(内側 %d・外側 %d)",
                 allowed(level) ? "動く" : "止まっている", DirectorGates.phase(level) == Integer.MAX_VALUE ? "全部開(テスト)" : "F" + DirectorGates.phase(level),
                 DirectorGates.stage(level).name(), (2 * r + 1) * (2 * r + 1), edges, inside, edges - inside));
-        out.add(String.format(Locale.ROOT, "縁: G1 %d/%d・G4 %d/%d・G5 %d/%d・G6 %d/%d / 地下の G1 %d/%d(強さ G1 %.2f・G4 %.2f・G5 %.2f・G6 %.2f)",
-                c[1], edgeCap(level, 1), c[4], edgeCap(level, 4), c[5], edgeCap(level, 5), c[6], edgeCap(level, 6), c[0], underCap(level),
-                strength(level, 1), strength(level, 4), strength(level, 5), groupStrength(level, 6)));
+        out.add(String.format(Locale.ROOT, "縁: G1 %d/%d・G2 %d/%d・G3 %d/%d・G4 %d/%d / 地下の G1 %d/%d(強さ G1 %.2f・G2 %.2f・G3 %.2f・G4 %.2f)",
+                c[1], edgeCap(level, 1), c[2], edgeCap(level, 2), c[3], edgeCap(level, 3), c[4], edgeCap(level, 4), c[0], underCap(level),
+                strength(level, 1), strength(level, 2), strength(level, 3), groupStrength(level, 4)));
         BandRoster br = roster(level, COMMAND_KEY, x, z);
-        out.add(String.format(Locale.ROOT, "帯の名簿: G1 %d チャンク(外 1〜%d)・G4/G5 %d チャンク(内外 %d)・ここの境目までの距離 %d / 作り直し 平均 %.2f ms(%d 回)・試し 平均 %.3f ms(%d 回)・まとめて湧いた群れ %d",
-                br.g1Size(), t.g1Band, br.g45Size(), t.g45Band, br.distanceAt(net.minecraft.util.Mth.floor(x) >> 4, net.minecraft.util.Mth.floor(z) >> 4),
+        out.add(String.format(Locale.ROOT, "帯の名簿: G1 %d チャンク(外 1〜%d)・G2/G3 %d チャンク(内外 %d)・ここの境目までの距離 %d / 作り直し 平均 %.2f ms(%d 回)・試し 平均 %.3f ms(%d 回)・まとめて湧いた群れ %d",
+                br.g1Size(), t.g1Band, br.g23Size(), t.g23Band, br.distanceAt(net.minecraft.util.Mth.floor(x) >> 4, net.minecraft.util.Mth.floor(z) >> 4),
                 BandRoster.builds == 0 ? 0.0D : BandRoster.buildNanos / 1e6 / BandRoster.builds, BandRoster.builds,
                 tries == 0 ? 0.0D : tryNanos / 1e6 / tries, tries, packsSpawned));
         out.add("群れ: " + com.yayuy.overgrownvegetation.entity.crawler.CrawlerPack.externalStats());

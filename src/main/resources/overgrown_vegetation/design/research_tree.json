@@ -1,5 +1,5 @@
 {
-  "_comment": "研究ツリー(2026-11-17 強くなる道 決定 20・22・23)。節を開くのに払うのは 持ち帰った標本・地脈の力・時間(決定 20)。数・名前・並びはすべて【仮】。名前と説明は lang の research.overgrown_vegetation.<節>.name / .desc。tiers の fe_per_tick × ticks が 1 節の地脈の力(節に fe_per_tick・ticks を書けば上書き)。instruments = その段の研究に要る器具(研究台から instrument_radius ブロック以内に置く。決定 23)。各段の最初の節は「器具」の節(11-17 夜ユーザー: 次の段への門をはっきりさせ、鎧を飛ばしても進めるように)で、instruments_of_tier で 1 つ前の段の器具で調べる。bench_buffer = 研究台にためられる地脈の力(離れていた間はこの蓄えの分だけ進む)。unlocks = 開くまで作業台で作れない作り方の id(炉の精錬は鍵を掛けない。11-17 夜ユーザー)。段 3 の標本は G4〜G6 のドロップ(tier12-gear の id。11-17 夜)と根晶(森の器官と一緒に作る。まだ無い)。",
+  "_comment": "研究ツリー(2026-11-17 強くなる道 決定 20・22・23)。節を開くのに払うのは 持ち帰った標本・地脈の力・時間(決定 20)。数・名前・並びはすべて【仮】。名前と説明は lang の research.overgrown_vegetation.<節>.name / .desc。tiers の fe_per_tick × ticks が 1 節の地脈の力(節に fe_per_tick・ticks を書けば上書き)。instruments = その段の研究に要る器具(研究台から instrument_radius ブロック以内に置く。決定 23)。各段の最初の節は「器具」の節(11-17 夜ユーザー: 次の段への門をはっきりさせ、鎧を飛ばしても進めるように)で、instruments_of_tier で 1 つ前の段の器具で調べる。bench_buffer = 研究台にためられる地脈の力(離れていた間はこの蓄えの分だけ進む)。unlocks = 開くまで作業台で作れない作り方の id(炉の精錬は鍵を掛けない。11-17 夜ユーザー)。段 3 の標本は G2〜G4 のドロップ(tier12-gear の id。11-17 夜)と根晶(森の器官と一緒に作る。まだ無い)。",
   "tiers": {
     "0": { "fe_per_tick": 0, "ticks": 0, "instruments": [] },
     "1": { "fe_per_tick": 10, "ticks": 2000, "instruments": [] },

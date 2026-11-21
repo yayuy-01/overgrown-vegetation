@@ -5,7 +5,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 
 /**
- * 殴ってきた相手へ向き直る(バニラの {@link HurtByTargetGoal})。ただし G1〜G10 どうしでは仕返ししない(流れ弾・巻き込みで同士討ちを始めない)。
+ * 殴ってきた相手へ向き直る(バニラの {@link HurtByTargetGoal})。ただし G1〜G8・環境生物どうしでは仕返ししない(流れ弾・巻き込みで同士討ちを始めない)。
  */
 public class G1HurtByTargetGoal extends HurtByTargetGoal {
 

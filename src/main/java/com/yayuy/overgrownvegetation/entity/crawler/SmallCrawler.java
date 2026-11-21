@@ -129,7 +129,7 @@ public abstract class SmallCrawler extends Monster {
         return null;
     }
 
-    /** 群れが狙う相手か。既定: プレイヤーと植物側以外の生き物(ほかの G4・G5 と同じ)。 */
+    /** 群れが狙う相手か。既定: プレイヤーと植物側以外の生き物(ほかの G2・G3 と同じ)。 */
     protected boolean isPackPrey(LivingEntity e) {
         return com.yayuy.overgrownvegetation.entity.AcumnesEntity.isPrey(this, e);
     }

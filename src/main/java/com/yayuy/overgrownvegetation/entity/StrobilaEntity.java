@@ -32,8 +32,8 @@ import javax.annotation.Nullable;
 import java.util.EnumSet;
 
 /**
- * ストロビラ {@code strobila}(G4・軽い投手。11-14 に本名。仮名タマナゲ、練習の id {@code g4_lobber})。
- * アルボラの後ろから、動きながら尾の先の球果を山なりに投げる(Vault {@code Mob の能力/ストロビラ.md})。G4 の中で少し丈夫だが、詰められると弱い。
+ * ストロビラ {@code strobila}(G2・軽い投手。11-14 に本名。仮名タマナゲ、練習の id {@code g4_lobber})。
+ * アルボラの後ろから、動きながら尾の先の球果を山なりに投げる(Vault {@code Mob の能力/ストロビラ.md})。G2 の中で少し丈夫だが、詰められると弱い。
  * エネルギーは運動(尾の弾性。膨圧で張って一気に放す)。
  *
  * <h2>段 1(2026-11-15): うろつく・急ぐ</h2>

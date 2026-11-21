@@ -47,21 +47,21 @@ import java.util.Map;
 
 /**
  * <b>霧の中のシルエット</b>(「美しいが怖い」E。2026-11-16。ユーザー決定: 濃霧の中に、木ではない影が立っている。<b>近づくと消えて、たどり着けない</b>。
- * 形は<b>G5 の輪郭</b>・<b>動かない</b>・<b>昼と朝だけ</b>。たまに本物の G5 が混ざる(本物を湧かせるのはサーバー側。ここは見た目だけの偽物)。
+ * 形は<b>G3 の輪郭</b>・<b>動かない</b>・<b>昼と朝だけ</b>。たまに本物の G3 が混ざる(本物を湧かせるのはサーバー側。ここは見た目だけの偽物)。
  *
  * <p>理由(設定): 濃霧({@link DenseFog})の日は見通しが落ち、遠征に危ない朝になる。霧の縁に「何かが立っている」気配を置き、本物が混ざる事で
  * 「どうせ幻だ」と油断させない。
  *
  * <h2>作り</h2>
  * <ul>
- *     <li><b>形</b>: 本物の G5 の立ち姿をそのまま影絵にする。その種の Mob をワールドに入れずに 1 体だけ作り、本物の描き手に描かせて頂点の位置だけを
+ *     <li><b>形</b>: 本物の G3 の立ち姿をそのまま影絵にする。その種の Mob をワールドに入れずに 1 体だけ作り、本物の描き手に描かせて頂点の位置だけを
  *     受け取り({@link #capture}。影 1 体につき 1 回)、暗い 1 色で描く。テクスチャは使わない。厚みの無い板(葉・羽根)は、絵の抜きが無いと
  *     四角い板になるので描かない。素材は増やさない。取れなかったときは、geo の動かす前の姿勢({@link #shape})を使う。
- *     種は本物(サーバーの fogLurker)と同じ: クリペイムネス 2・ファルキムネス 1 の重み。本物(タグ group_5)が近くにいる間は偽の影を出さず、
+ *     種は本物(サーバーの fogLurker)と同じ: クリペイムネス 2・ファルキムネス 1 の重み。本物(タグ group_3)が近くにいる間は偽の影を出さず、
  *     出ていた影は 5 秒で溶かす(2 つ同時に見せない)。</li>
  *     <li><b>霧</b>: 距離の霞(地形・Mob と同じ式 {@link MistView#fogAmount})の分だけ透けさせる。霧の中の物は距離の霞を受ける決まりどおり。
  *     見通しの縁では霞が 9 割なので、影が受ける距離を {@code hazeEase} 倍に縮めて少しだけ濃く見せる(巨大樹のシルエットと同じ考え)。</li>
- *     <li><b>出る所</b>: 濃霧の度合いが {@code minFog} 以上・昼と朝・空の下・<b>汚染地帯の中・G5 のフェーズから</b>(本物と同じ条件。11-17 ユーザー決定)で、見ている向きの左右 60° の中、見通しの {@code nearFraction}〜{@code farFraction}
+ *     <li><b>出る所</b>: 濃霧の度合いが {@code minFog} 以上・昼と朝・空の下・<b>汚染地帯の中・G3 のフェーズから</b>(本物と同じ条件。11-17 ユーザー決定)で、見ている向きの左右 60° の中、見通しの {@code nearFraction}〜{@code farFraction}
  *     倍の距離の、地面の上・木の幹のそば・目から見通せる所。同時に 1 体。平均 {@code everySeconds} 秒に 1 体。</li>
  *     <li><b>消える</b>: 見通しの {@code vanishFraction} 倍より近づくと霧へ溶け始め、{@code vanishBand} ぶん近づくと消えきる(一度溶けたら戻らない)。
  *     近づかなくても {@code lifeSeconds} 秒で溶ける。霧が晴れても溶ける。当たり判定・音・サーバーとの通信は無い。</li>
@@ -144,7 +144,7 @@ public final class FogFigures {
             if (!f.leaving && (f.age > p.lifeSeconds() || !stage || d > visibility * 1.6F)) {
                 f.leaving = true;
             }
-            // 本物の G5 が近くに現れたら、偽は 5 秒で溶ける(2 つ同時に見せない。11-16 enemy-spawns とのすり合わせ)。
+            // 本物の G3 が近くに現れたら、偽は 5 秒で溶ける(2 つ同時に見せない。11-16 enemy-spawns とのすり合わせ)。
             if (!f.leaving && now % 10L == 0L && realNear(level, player)) {
                 f.leaving = true;
             }
@@ -172,9 +172,9 @@ public final class FogFigures {
             nextAt = now + wait(p) / 2L;
         }
         if (now >= nextAt && now % 10L == 0L) {
-            // 本物の G5 が霧の中に立っている間は、偽の影を休む(本物と偽物を同時に見せない。サーバーとの通信は要らない: 見えている Mob を数えるだけ)。
+            // 本物の G3 が霧の中に立っている間は、偽の影を休む(本物と偽物を同時に見せない。サーバーとの通信は要らない: 見えている Mob を数えるだけ)。
             if (realNear(level, player)) {
-                lastFail = "本物の G5 が近くにいる";
+                lastFail = "本物の G3 が近くにいる";
                 nextAt = now + 200L;
                 return;
             }
@@ -198,8 +198,8 @@ public final class FogFigures {
     }
 
     /**
-     * 本物の G5 が出る所・時期か(11-17 ユーザー決定: 偽の影も本物と同じ条件にそろえる = 汚染地帯の中だけ・G5 のフェーズから)。
-     * フェーズ = サーバーから届いている今のフェーズが、司令塔の門「送り込みの G5〜」(director.json の gates.waveG5)以上。
+     * 本物の G3 が出る所・時期か(11-17 ユーザー決定: 偽の影も本物と同じ条件にそろえる = 汚染地帯の中だけ・G3 のフェーズから)。
+     * フェーズ = サーバーから届いている今のフェーズが、司令塔の門「送り込みの G3〜」(director.json の gates.waveG3)以上。
      * 汚染地帯 = プレイヤーのいる列が過繁茂の系統のバイオーム(サーバーは過繁茂にしたチャンクの台帳で見る。クライアントにはその台帳が
      * 無いので、チャンクを過繁茂にするとき書き換わるバイオームで見る)。影を置く所も同じ見方({@link #place})。
      */
@@ -208,15 +208,15 @@ public final class FogFigures {
         var director = DesignData.director();
         return mc.player != null && director.enabled
                 && com.yayuy.overgrownvegetation.director.DirectorGates.open(director.gates,
-                com.yayuy.overgrownvegetation.director.DirectorGates.Gate.WAVE_G5, com.yayuy.overgrownvegetation.client.phase.ClientPhaseState.phase())
+                com.yayuy.overgrownvegetation.director.DirectorGates.Gate.WAVE_G3, com.yayuy.overgrownvegetation.client.phase.ClientPhaseState.phase())
                 && com.yayuy.overgrownvegetation.registry.ModBiomes.isOvergrownLike(level.getBiome(mc.player.blockPosition()));
     }
 
-    /** 本物の G5(タグ group_5)が、見通しの 1.6 倍の中にいるか。 */
+    /** 本物の G3(タグ group_3)が、見通しの 1.6 倍の中にいるか。 */
     private static boolean realNear(ClientLevel level, LocalPlayer player) {
         double reach = visibility() * 1.6;
         return !level.getEntities((net.minecraft.world.entity.Entity) null, player.getBoundingBox().inflate(reach, 24.0, reach),
-                e -> e.getType().is(com.yayuy.overgrownvegetation.ModTags.GROUP_5)).isEmpty();
+                e -> e.getType().is(com.yayuy.overgrownvegetation.ModTags.GROUP_3)).isEmpty();
     }
 
     private static long wait(AtmosphereScary.Figures p) {
@@ -325,7 +325,7 @@ public final class FogFigures {
         return Integer.MIN_VALUE;
     }
 
-    /** 幹のそばの、まわりが空いた地面か(本物の G5 と同じ置き方。開けた所にぽつんと立たせない)。 */
+    /** 幹のそばの、まわりが空いた地面か(本物の G3 と同じ置き方。開けた所にぽつんと立たせない)。 */
     private static boolean trunkNear(ClientLevel level, BlockPos.MutableBlockPos pos, int x, int y, int z) {
         // 本物の置き方(サーバーの spawn/FogLurkers#besideTrunk)に寄せた決まり(11-17): まわり 4 方向(足と頭の高さ)が空いていて、
         // 近くに原木がある。幹に接した升には体の幅がはまるので、幹から 1 ブロックは空く。
@@ -349,7 +349,7 @@ public final class FogFigures {
         return false;
     }
 
-    // ------------------------------------------------------------------ 形(G5 の立ち姿)
+    // ------------------------------------------------------------------ 形(G3 の立ち姿)
 
     /** 種の立ち姿の三角形(モデルの座標・ブロック)。まだ読み込まれていなければ null(次のときにまた試す)。 */
     private static float[] shape(String species) {

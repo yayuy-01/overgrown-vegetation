@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * まわりの升の G2・G3 の賑わいをプレイヤーへ送る(2026-11-17。{@link EcoCellsPayload})。
+ * まわりの升の環境生物の賑わいをプレイヤーへ送る(2026-11-17。{@link EcoCellsPayload})。
  * 見た目だけの小さな生き物の数を、その升の頭数に合わせるため(狩りすぎた升は虫も減る。ユーザー 11-17)。台帳は読むだけ。
  * <ul>
  *   <li>{@link #CHECK_EVERY} tick ごとに調べ、中心の升か値(1/255 刻み)が変わったプレイヤーにだけ送る。</li>
@@ -44,17 +44,17 @@ public final class EcoCellsSender {
     public static EcoCellsPayload build(EcoLedger ledger, int centerX, int centerZ, int radius, long now) {
         EcoTable t = DesignData.ecosystem();
         int side = 2 * radius + 1;
-        byte[] g2 = new byte[side * side], g3 = new byte[side * side];
+        byte[] prey = new byte[side * side], hunter = new byte[side * side];
         int i = 0;
         for (int dz = -radius; dz <= radius; dz++) {
             for (int dx = -radius; dx <= radius; dx++) {
                 int chunkX = (centerX + dx) << t.cellShift, chunkZ = (centerZ + dz) << t.cellShift;
-                g2[i] = EcoCellsPayload.pack(ledger.heads(2, chunkX, chunkZ, now) / t.fullG2);
-                g3[i] = EcoCellsPayload.pack(ledger.heads(3, chunkX, chunkZ, now) / t.fullG3);
+                prey[i] = EcoCellsPayload.pack(ledger.heads(Ecosystem.PREY, chunkX, chunkZ, now) / t.fullPrey);
+                hunter[i] = EcoCellsPayload.pack(ledger.heads(Ecosystem.HUNTER, chunkX, chunkZ, now) / t.fullHunter);
                 i++;
             }
         }
-        return new EcoCellsPayload(centerX, centerZ, (byte) t.cellShift, (byte) radius, g2, g3);
+        return new EcoCellsPayload(centerX, centerZ, (byte) t.cellShift, (byte) radius, prey, hunter);
     }
 
     /** そのプレイヤーに送る中身。 */

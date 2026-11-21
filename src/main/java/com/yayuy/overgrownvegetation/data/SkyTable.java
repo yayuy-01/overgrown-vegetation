@@ -42,7 +42,7 @@ public final class SkyTable {
         public Double nightClouds;
         public Double curvature;
         public Double farClouds;
-        /** 谷のある雲の海(並び方 2・3)の厚さの上限(ブロック。y 300 から)。ユーザー指定 11-08「下の層 y 300〜350 を守る」で 50。空のボス(G10)が戻るときに 252(前の 1.3 倍の厚さ)へ上げ直せるように値にした。 */
+        /** 谷のある雲の海(並び方 2・3)の厚さの上限(ブロック。y 300 から)。ユーザー指定 11-08「下の層 y 300〜350 を守る」で 50。空のボス(G8)が戻るときに 252(前の 1.3 倍の厚さ)へ上げ直せるように値にした。 */
         public Double floorThickness;
         /** 雲の海の上面の平らさ(0 = 丘のまま 〜 1 = ほぼ平ら)。11-08 ユーザーの見本(ナウシカ 11〜23 秒「なめらかな薄紫の床」)と、雲の床を水面のように使う決定から。仮決め 0.75。 */
         public Double floorFlatness;

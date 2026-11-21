@@ -15,13 +15,13 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 大規模レイドから仮想の群れを出す口(2026-11-18 大群の軽量化 A。ユーザー決定: 大規模レイドの G4・G5 の一部を、拠点から遠く(読み込み範囲の外)に
+ * 大規模レイドから仮想の群れを出す口(2026-11-18 大群の軽量化 A。ユーザー決定: 大規模レイドの G2・G3 の一部を、拠点から遠く(読み込み範囲の外)に
  * 仮想の群れで出して歩かせる)。{@code LargeRaids.step} が予算の確かめの後に {@link #maybeSend} を呼び、{@code LargeRaids.end} が
  * {@link VirtualHordes#retreat} を呼ぶ(G1 の作成のセッション了承 11-18)。
  *
  * <ul>
  *     <li>{@code virtualHorde.raidIntervalTicks} に 1 回、割合 {@code raidShare} で群れを 1 つ出す。頭数は {@code raidSwarmMin}〜{@code raidSwarmMax}
- *     (仮想の上限 {@code virtualCap} まで)。1 体ずつ今の G4・G5 と同じ値段を払う(払えなければそこまで)。値段は出した時に払い、本物化では払わない。</li>
+ *     (仮想の上限 {@code virtualCap} まで)。1 体ずつ今の G2・G3 と同じ値段を払う(払えなければそこまで)。値段は出した時に払い、本物化では払わない。</li>
  *     <li>置く所: 拠点から {@code raidSpawnMin}〜{@code raidSpawnMax} ブロック、角度は大規模レイドの湧かせる所と同じ決め方(森の方角か弱い方角)。</li>
  *     <li>仮想は大規模レイドの maxAlive に数えない。本物になった分は印 {@link LargeRaids#ATTACKER_TAG} が付くので数える。本物化は
  *     maxAlive に空きがある分だけ({@link #room})。空きが無い間、群れは待つ。</li>

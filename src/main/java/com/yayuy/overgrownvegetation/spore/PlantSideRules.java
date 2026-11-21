@@ -18,7 +18,7 @@ import java.util.function.Predicate;
  * 「構想と進捗/植物側の死の破裂と攻撃の感染(11-15)」)。
  *
  * <ul>
- *   <li>対象 = G1(段階 0 も)・G4〜G10 のタグ、または汎用の感染体(変わった印 = {@link #TRANSFORMED})。G2・G3 は入れない
+ *   <li>対象 = G1(段階 0 も)・G2〜G8 のタグ、または汎用の感染体(変わった印 = {@link #TRANSFORMED})。環境生物は入れない
  *   (生態系で生きているだけ)。</li>
  *   <li>破裂だけの外し = タグ {@code overgrown_vegetation:death_burst_exempt}(11-15 ユーザー決定: 根付き・苗床・根の守り手は「枯れて崩れる」のまま、
  *   萌芽体は外す、ペディキュラは段 2 で自前の破れ方)、
@@ -46,12 +46,12 @@ public final class PlantSideRules {
     }
 
     /**
-     * G1・G4〜G10 のタグのどれかか(変わった印は見ない)。グループの一覧は {@link com.yayuy.overgrownvegetation.phase.MobGroup} の 1 か所
-     * (2026-11-16 コードの見直し ③6: 前はここと ParasitizedAttackInfectionHandler に別の一覧があった)。G2・G3 は生態系で生きているだけなので入れない。
+     * G1・G2〜G8 のタグのどれかか(変わった印は見ない)。グループの一覧は {@link com.yayuy.overgrownvegetation.phase.MobGroup} の 1 か所
+     * (2026-11-16 コードの見直し ③6: 前はここと ParasitizedAttackInfectionHandler に別の一覧があった)。環境生物は生態系で生きているだけなので入れない。
      */
     public static boolean inBurstGroups(EntityType<?> type) {
         for (com.yayuy.overgrownvegetation.phase.MobGroup g : com.yayuy.overgrownvegetation.phase.MobGroup.values()) {
-            if (g == com.yayuy.overgrownvegetation.phase.MobGroup.GROUP_2 || g == com.yayuy.overgrownvegetation.phase.MobGroup.GROUP_3) continue;
+            if (g == com.yayuy.overgrownvegetation.phase.MobGroup.CRITTER_PREY || g == com.yayuy.overgrownvegetation.phase.MobGroup.CRITTER_HUNTER) continue;
             if (g.contains(type)) return true;
         }
         return false;
@@ -59,7 +59,7 @@ public final class PlantSideRules {
 
     /**
      * 「感染させる側か」(2026-11-16 ③6 で 2 つの意味の片方に整理): 殴った・撃った・胞子を浴びせた相手を必ず感染させ、死ぬと破裂する側。
-     * = G1・G4〜G10 のタグ または 汎用の感染体。
+     * = G1・G2〜G8 のタグ または 汎用の感染体。
      */
     public static boolean isInfector(LivingEntity attacker) {
         return inBurstGroups(attacker.getType()) || isTransformed(attacker);
@@ -67,7 +67,7 @@ public final class PlantSideRules {
 
     /**
      * 「植物側の陣営か」(2026-11-16 ③6 で 2 つの意味のもう片方に整理。暴露量を測らない・互いに狙わない・標的に選ばない側)。
-     * = タグ {@code plant_side}(G1〜G10・萌芽体・ハイヴノード)・どれかのグループ({@link com.yayuy.overgrownvegetation.phase.MobGroup})・
+     * = タグ {@code plant_side}(G1〜G8・環境生物・萌芽体・ハイヴノード)・どれかのグループ({@link com.yayuy.overgrownvegetation.phase.MobGroup})・
      * {@code ParasitizedMob} の作り・G1 / 萌芽体 / ハイヴノードのクラス(タグから抜かれても漏れない保険)・汎用の感染体。
      * 前は SporeExposureTracker.isPlantSide・ParasitizedAttackInfectionHandler.isOvergrownMob・PlantFoes で少しずつ違っていた。今はどれもここを呼ぶ。
      */

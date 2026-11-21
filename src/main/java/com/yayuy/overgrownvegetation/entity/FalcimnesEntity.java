@@ -72,10 +72,10 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 「ファルキムネス」(Falcimnes)— <b>グループ5(適応種)</b>の陸の純粋な攻撃役(2026-09-23)。
+ * 「ファルキムネス」(Falcimnes)— <b>グループ3(適応種)</b>の陸の純粋な攻撃役(2026-09-23)。
  * カマキリの姿をした爬虫類。前脚の鎌({@code wepon} / {@code wepon2})で斬る。
  *
- * <p>適応種なので、倒された武器種への耐性が種ごとに付いていく({@link Adaptation}、{@code group_5.json} に所属)。
+ * <p>適応種なので、倒された武器種への耐性が種ごとに付いていく({@link Adaptation}、{@code group_3.json} に所属)。
  *
  * <h2>行動(ユーザー指定)</h2>
  * <ul>

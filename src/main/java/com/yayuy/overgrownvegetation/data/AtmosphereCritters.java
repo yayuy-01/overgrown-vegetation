@@ -11,7 +11,7 @@ import static com.yayuy.overgrownvegetation.data.AtmosphereLife.tiers;
  * 見た目だけの小さな生き物(2026-11-17 ユーザー決定)の設計値。{@code atmosphere.json} の節 {@code smallCritters} の受け皿。
  * 読むのはクライアントの {@code client/atmosphere/SmallCritters} だけ。
  *
- * <p><b>ユーザーが決めたこと</b>: 種は 10・出るのは過繁茂だけ・数は升の G2・G3 の頭数を映す・近づいたときの反応は種ごと・
+ * <p><b>ユーザーが決めたこと</b>: 種は 10・出るのは過繁茂だけ・数は升の環境生物の頭数を映す・近づいたときの反応は種ごと・
  * 起きるのは食べる/食べられるの演出だけ・プレイヤーは触れない。<b>それ以外(時刻・数・距離・速さ・食物網の組み合わせ)はすべて仮決め</b>。
  * 写しが古くてこの節が無くても同じに動くよう、Java の既定値を json と揃えてある。
  */

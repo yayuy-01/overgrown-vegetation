@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * ゲスタトリクス(G6・歩く苗床。2026-11-17)。期待値は design/spawns.json の {@code gestatrix} と director.json の苗床の値から。
+ * ゲスタトリクス(G4・歩く苗床。2026-11-17)。期待値は design/spawns.json の {@code gestatrix} と director.json の苗床の値から。
  * 産む数・上限・前触れの取りやめ・根を下ろす・根付いた後も続けて孵す、を見る。
  */
 @GameTestHolder(OvergrownVegetation.MODID)
@@ -129,7 +129,7 @@ public final class GestatrixGameTests {
 
     /**
      * birthsToRoot 回産むと根を下ろして苗床になる(縁の印が外れる)。根付いた後は、司令塔が払うたびに続けて孵し、
-     * nurseryLifeHatches 回孵したら枯れる。ここでは G4 以降の代わりに豚を出す。
+     * nurseryLifeHatches 回孵したら枯れる。ここでは G2 以降の代わりに豚を出す。
      */
     @GameTest(template = TEMPLATE, batch = "gestatrix_root", timeoutTicks = 600)
     public static void rootsThenKeepsHatching(GameTestHelper helper) {
@@ -182,7 +182,7 @@ public final class GestatrixGameTests {
         });
     }
 
-    /** 縁の湧き: G6 の送り込みのゲートは F6 でも、ゲスタトリクスは種の open で F4 から湧き、上限は edge.caps の 6 × 段の強さ。 */
+    /** 縁の湧き: G4 の送り込みのゲートは F6 でも、ゲスタトリクスは種の open で F4 から湧き、上限は edge.caps の 6 × 段の強さ。 */
     @GameTest(template = TEMPLATE, batch = "gestatrix_open", timeoutTicks = 20)
     public static void opensAtF4OnTheEdge(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -191,10 +191,10 @@ public final class GestatrixGameTests {
         try {
             DirectorGates.setPhaseForTests(3);
             DirectorGates.setStageForTests(PhaseStage.PEAK);
-            helper.assertTrue(EnemySpawns.edgeCap(level, 6) == 0, "F3 で G6 の枠が開いている: " + EnemySpawns.edgeCap(level, 6));
+            helper.assertTrue(EnemySpawns.edgeCap(level, 4) == 0, "F3 で G4 の枠が開いている: " + EnemySpawns.edgeCap(level, 4));
             DirectorGates.setPhaseForTests(4);
-            int cap = EnemySpawns.edgeCap(level, 6);
-            helper.assertTrue(cap >= 1 && cap <= DesignData.spawns().cap(6), "F4 で G6 の枠が開かない: " + cap);
+            int cap = EnemySpawns.edgeCap(level, 4);
+            helper.assertTrue(cap >= 1 && cap <= DesignData.spawns().cap(4), "F4 で G4 の枠が開かない: " + cap);
             int[] counts = new int[11];
             boolean picked = false;
             net.minecraft.util.RandomSource rnd = net.minecraft.util.RandomSource.create(9L);
@@ -203,7 +203,7 @@ public final class GestatrixGameTests {
                 if (sp != null && sp.type() == ModCrawlers.GESTATRIX.get()) picked = true;
             }
             helper.assertTrue(picked, "F4 でゲスタトリクスが選ばれない");
-            counts[6] = cap;
+            counts[4] = cap;
             for (int i = 0; i < 400; i++) {
                 SpawnTable.Species sp = EnemySpawns.pick(level, counts, rnd, false);
                 helper.assertTrue(sp == null || sp.type() != ModCrawlers.GESTATRIX.get(), "上限なのにゲスタトリクスを選んだ");

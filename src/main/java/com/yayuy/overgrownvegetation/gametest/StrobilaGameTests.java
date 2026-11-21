@@ -55,12 +55,12 @@ public final class StrobilaGameTests {
         s.getNavigation().moveTo(p.x, p.y, p.z, 1.0D);
     }
 
-    /** G4 に入り、自然には湧かず、芯は 0.95 × 1.2、過繁茂の Mob と見なされる。描画の外接箱は脚と尾(全体 3.6 × 2.8 × 5.5)を覆う。 */
+    /** G2 に入り、自然には湧かず、芯は 0.95 × 1.2、過繁茂の Mob と見なされる。描画の外接箱は脚と尾(全体 3.6 × 2.8 × 5.5)を覆う。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
-    public static void strobilaRegisteredAsG4WithWideCullingBox(GameTestHelper helper) {
+    public static void strobilaRegisteredAsG2WithWideCullingBox(GameTestHelper helper) {
         StrobilaEntity s = placeAt(helper, 3.5D, 3.5D, 0.0F);
-        if (MobGroup.of(s.getType()) != MobGroup.GROUP_4) {
-            helper.fail("G4 に入っていない: " + MobGroup.of(s.getType()));
+        if (MobGroup.of(s.getType()) != MobGroup.GROUP_2) {
+            helper.fail("G2 に入っていない: " + MobGroup.of(s.getType()));
             return;
         }
         if (Math.abs(s.getBbWidth() - 0.95F) > 1e-3 || Math.abs(s.getBbHeight() - 1.2F) > 1e-3) {

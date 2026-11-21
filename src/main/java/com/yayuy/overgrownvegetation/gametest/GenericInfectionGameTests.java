@@ -292,7 +292,7 @@ public final class GenericInfectionGameTests {
     }
 
     /**
-     * 11-15 ユーザーの不具合「感染後の Mob が依然として G1、4〜 に敵対され続けている」: 変わる前から狙っていた植物側(G1・G5)の狙いが、
+     * 11-15 ユーザーの不具合「感染後の Mob が依然として G1、4〜 に敵対され続けている」: 変わる前から狙っていた植物側(G1・G3)の狙いが、
      * 変わった瞬間に外れる(G1 に殴られて感染 → 変わる、の流れでは G1 が狙いを握ったまま)。
      */
     @GameTest(template = "gametest_empty7", batch = BATCH)
@@ -322,7 +322,7 @@ public final class GenericInfectionGameTests {
     }
 
     /**
-     * 植物側(G1 の近接・G1 の飛び道具・G4・G5 の代表)から変わった Mob へのダメージは入らない(狙いを通さない技・範囲攻撃も止める)。
+     * 植物側(G1 の近接・G1 の飛び道具・G2・G3 の代表)から変わった Mob へのダメージは入らない(狙いを通さない技・範囲攻撃も止める)。
      * 変わった Mob から植物側へも入らない。植物側でない豚へは入る。
      */
     @GameTest(template = "gametest_empty7", batch = BATCH)

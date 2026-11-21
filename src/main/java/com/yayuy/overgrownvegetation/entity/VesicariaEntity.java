@@ -43,7 +43,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * ヴェシカリア {@code vesicaria}(G4・自爆特攻。11-14 に本名。練習名ハゼブクロ {@code g4_burster})。
+ * ヴェシカリア {@code vesicaria}(G2・自爆特攻。11-14 に本名。練習名ハゼブクロ {@code g4_burster})。
  * 突撃中に熱で袋を膨らませて黄緑に光り、触れた瞬間に破裂する。矢で射るとその場で破裂し、近くの仲間も連鎖する
  * (Vault {@code Mob の能力/G4〜G6 の能力の決定(11-14).md}・{@code Mob の能力/ヴェシカリア.md})。
  *

@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * G2・G3 の 1 種の行動の値(2026-11-18、行動の段)。{@code design/ecosystem.json} の {@code behavior} の節(種の id ごと)。
+ * 環境生物の 1 種の行動の値(2026-11-18、行動の段)。{@code design/ecosystem.json} の {@code behavior} の節(種の id ごと)。
  * 節に無い値は {@link #DEFAULTS}(コードの既定)から取る。値はどれも【仮・Claude 11-18】(全体管理の答え待ち。ecosystem-plan.md)。
  */
 public final class EcoBehavior {
@@ -103,12 +103,12 @@ public final class EcoBehavior {
     }
 
     static {
-        // G2(食べられる側)。葉を食べる 2 種・地面をあさる 2 種【仮】
+        // 獲物の環境生物(食べられる側)。葉を食べる 2 種・地面をあさる 2 種【仮】
         DEFAULTS.put("protophasma", d("always", "leaf", 1.5D, 7.0D));
         DEFAULTS.put("stenodictya_nymph", d("always", "leaf", 1.0D, 5.0D));
         DEFAULTS.put("giant_snail", d("wet", "ground", 2.0D, 0.0D));       // 逃げずに殻へ(段 1 のまま)
         DEFAULTS.put("arthropleura", d("night", "log", 2.0D, 5.0D));
-        // G3(食べる側)。トカゲ 3 種は昼、虫は夜【仮】
+        // 狩る側の環境生物(食べる側)。トカゲ 3 種は昼、虫は夜【仮】
         DEFAULTS.put("hylonomus", d("day", "log", 1.5D, 8.0D, "overgrown_vegetation:stenodictya_nymph", "overgrown_vegetation:protophasma"));
         DEFAULTS.put("petrolacosaurus", d("day", "log", 1.5D, 8.0D, "overgrown_vegetation:stenodictya_nymph", "overgrown_vegetation:protophasma"));
         DEFAULTS.put("ianthasaurus", d("day", "ground", 1.5D, 6.0D, "overgrown_vegetation:giant_snail", "overgrown_vegetation:protophasma", "overgrown_vegetation:stenodictya_nymph"));

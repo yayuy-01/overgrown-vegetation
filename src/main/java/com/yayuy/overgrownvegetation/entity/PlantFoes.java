@@ -10,12 +10,12 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * 植物側の Mob から見た「相手の側か」の共通の判定(2026-11-16 コードの見直し ①13)。前は標的の絞り込みが 3 系統
- * (G4・G5 の SeekGoal のラムダ・{@link AcumnesEntity#isPrey}・ストロビラなどの素の検索)に分かれ、防具立て・汎用の感染体・グループの種の
+ * (G2・G3 の SeekGoal のラムダ・{@link AcumnesEntity#isPrey}・ストロビラなどの素の検索)に分かれ、防具立て・汎用の感染体・グループの種の
  * 外し方が少しずつ違った(弾は当たるのに標的には選ばない、など)。
  *
  * <p><b>ここで揃えるのは陣営と除外だけ</b>(Codex の注意)。見えるか・乗っているか・体格・距離など、用途ごとの条件は呼ぶ側に残す。</p>
  * <ul>
- *   <li>{@link #isOtherSide}: 陣営だけ。植物側(G1〜G10 のグループ・萌芽体・汚染シダ・ハイヴノード・汎用の感染体・{@link ParasitizedMob})でない。</li>
+ *   <li>{@link #isOtherSide}: 陣営だけ。植物側(G1〜G8・環境生物のグループ・萌芽体・汚染シダ・ハイヴノード・汎用の感染体・{@link ParasitizedMob})でない。</li>
  *   <li>{@link #isFoe}: 陣営 + 除外。自分でない・生きている・防具立てでない・無敵でない({@code canBeSeenAsEnemy})・創造/観戦のプレイヤーでない。</li>
  * </ul>
  */

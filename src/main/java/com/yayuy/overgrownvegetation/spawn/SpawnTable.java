@@ -52,9 +52,9 @@ public final class SpawnTable {
     }
 
     /**
-     * ゲスタトリクス(G6・歩く苗床。11-17 ユーザー)の数。どれも【仮】。産む数 broodMin〜broodMax・産んだ手先の上限 broodCap(1 匹につき・縁の上限とは別)・
+     * ゲスタトリクス(G4・歩く苗床。11-17 ユーザー)の数。どれも【仮】。産む数 broodMin〜broodMax・産んだ手先の上限 broodCap(1 匹につき・縁の上限とは別)・
      * 根を下ろすまでに産む回数 birthsToRoot・産む間 restMin〜restMax tick・腰を据えるまで歩く長さ roamTicks・プレイヤー/拠点にこれだけ近づいたら腰を据える settleBlocks・
-     * これより遠いプレイヤーへは寄らない approachBlocks・司令塔の送り込みで G4 を湧かせた回に 1 匹混ぜる確率 senderChance。
+     * これより遠いプレイヤーへは寄らない approachBlocks・司令塔の送り込みで G2 を湧かせた回に 1 匹混ぜる確率 senderChance。
      */
     public static final class Gestatrix {
         public final int broodMin, broodMax, broodCap, birthsToRoot, restMin, restMax, roamTicks;
@@ -115,7 +115,7 @@ public final class SpawnTable {
 
     public static final class EdgeJson {
         public Integer intervalTicks, triesPerPlayer, minBlocks, maxBlocks, countRadius, despawnBlocks, skyMinAbove, skyMaxAbove, caveMinDepth;
-        public Integer g1Band, g45Band, rebuildTicks;
+        public Integer g1Band, g23Band, rebuildTicks;
         public Map<String, Integer> caps;
     }
 
@@ -159,7 +159,7 @@ public final class SpawnTable {
         public Boolean breaker;
         /** 群れで湧く頭数(この種の分)と、混ぜる種。 */
         public PackJson pack;
-        /** 縁で湧き始めるフェーズの上書き(無ければグループの開くフェーズ。11-17: G6 のゲスタトリクスを F4 から)。 */
+        /** 縁で湧き始めるフェーズの上書き(無ければグループの開くフェーズ。11-17: G4 のゲスタトリクスを F4 から)。 */
         public Integer open;
         /** 群れの中の役割(front 前衛・back 後衛・harass かく乱・support 支援。11-17 深夜)。無ければ司令塔は群れにまとめない。 */
         public String role;
@@ -246,13 +246,13 @@ public final class SpawnTable {
     public final Gestatrix gestatrix;
     /** 群れへのまとめ(11-17 深夜)。 */
     public final Merge merge;
-    /** G1 の縁と地下の湧きが開くフェーズ(G4・G5 は director.json の gates。11-16 見直しで 1 か所にまとめた)。 */
+    /** G1 の縁と地下の湧きが開くフェーズ(G2・G3 は director.json の gates。11-16 見直しで 1 か所にまとめた)。 */
     public final int openG1;
     private final int[] caps = new int[11];
 
     public final int intervalTicks, triesPerPlayer, minBlocks, maxBlocks, countRadius, despawnBlocks, skyMinAbove, skyMaxAbove, caveMinDepth;
-    /** 森からの距離の帯(11-17): G1 は外へ 1〜g1Band チャンク・G4/G5 は内外 g45Band チャンク。名簿の作り直しの間(tick)。 */
-    public final int g1Band, g45Band, rebuildTicks;
+    /** 森からの距離の帯(11-17): G1 は外へ 1〜g1Band チャンク・G2/G3 は内外 g23Band チャンク。名簿の作り直しの間(tick)。 */
+    public final int g1Band, g23Band, rebuildTicks;
     public final int underCap, underTries, underRangeChunks, underNearChunks, underMinDepth;
     public final double senderMin, senderMax, senderSpread, senderPlayerMin, senderCluster;
     public final int senderTries;
@@ -269,18 +269,18 @@ public final class SpawnTable {
         this.openG1 = Math.max(1, j.openG1 != null ? j.openG1 : 1);
         EdgeJson e = j.edge != null ? j.edge : new EdgeJson();
         caps[1] = 15;
-        caps[4] = 15;
-        caps[5] = 10;
+        caps[2] = 15;
+        caps[3] = 10;
         if (e.caps != null) e.caps.forEach((k, v) -> put(caps, k, v));
         intervalTicks = Math.max(1, or(e.intervalTicks, 20));
         g1Band = Math.max(1, Math.min(BandRoster.R - 1, or(e.g1Band, 16)));
-        g45Band = Math.max(1, Math.min(BandRoster.R - 1, or(e.g45Band, 4)));
+        g23Band = Math.max(1, Math.min(BandRoster.R - 1, or(e.g23Band, 4)));
         rebuildTicks = Math.max(20, or(e.rebuildTicks, 100));
         triesPerPlayer = Math.max(0, or(e.triesPerPlayer, 4));
         minBlocks = Math.max(0, or(e.minBlocks, 24));
         maxBlocks = Math.max(minBlocks + 16, or(e.maxBlocks, 96));
         despawnBlocks = Math.max(32, or(e.despawnBlocks, 128));
-        // 数える範囲は片付けの距離より狭くしない(11-17 夜: 72 にしていたら、72〜96 に出た空の種が上限に数えられず消えもしないで、F7 の前線で縁の G4 が上限 40 のほかに約 30 たまった)
+        // 数える範囲は片付けの距離より狭くしない(11-17 夜: 72 にしていたら、72〜96 に出た空の種が上限に数えられず消えもしないで、F7 の前線で縁の G2 が上限 40 のほかに約 30 たまった)
         countRadius = Math.max(despawnBlocks, Math.max(16, or(e.countRadius, 128)));
         skyMinAbove = Math.max(2, or(e.skyMinAbove, 12));
         skyMaxAbove = Math.max(skyMinAbove, or(e.skyMaxAbove, 28));
@@ -369,12 +369,12 @@ public final class SpawnTable {
     }
 
     /**
-     * そのグループの縁・地下の湧きが開くフェーズ。G1 は {@link #openG1}、G4 以降は司令塔の送り込みのゲート(director.json の gates: G4 waveG4・G5 waveG5・
-     * G6 以降 waveMixed)と同じ(11-16 見直し: 前は spawns.json の openAt と 2 か所にあった)。G2・G3 は開かない。
+     * そのグループの縁・地下の湧きが開くフェーズ。G1 は {@link #openG1}、G2 以降は司令塔の送り込みのゲート(director.json の gates: G2 waveG2・G3 waveG3・
+     * G4 以降 waveMixed)と同じ(11-16 見直し: 前は spawns.json の openAt と 2 か所にあった)。環境生物は開かない。
      */
     public int openAt(int group) {
         if (group == 1) return openG1;
-        if (group < 4 || group > 10) return Integer.MAX_VALUE;
+        if (group < 2 || group > com.yayuy.overgrownvegetation.phase.MobGroup.MAX_NUMBER) return Integer.MAX_VALUE;
         return com.yayuy.overgrownvegetation.director.DirectorGates.openAt(com.yayuy.overgrownvegetation.data.DesignData.director().gates, DirectorHooks.gateOf(group));
     }
 
@@ -392,6 +392,6 @@ public final class SpawnTable {
 
     /** そのグループの縁の上限(最盛の値)。 */
     public int cap(int group) {
-        return group >= 1 && group <= 10 ? caps[group] : 0;
+        return group >= 1 && group <= com.yayuy.overgrownvegetation.phase.MobGroup.MAX_NUMBER ? caps[group] : 0;
     }
 }

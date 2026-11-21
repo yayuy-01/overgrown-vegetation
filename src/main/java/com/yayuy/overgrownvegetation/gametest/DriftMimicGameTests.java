@@ -111,7 +111,7 @@ public final class DriftMimicGameTests {
         }
     }
 
-    /** 植物種(G4 = 拡散の群・植物の系統)に入り、当たりは設計値どおり。 */
+    /** 植物種(G4 = 補助の群・植物の系統。11-21 ユーザー「補助役になるから、分類に従えば G4」)に入り、当たりは設計値どおり。 */
     @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
     public static void isPlantSpreader(GameTestHelper h) {
         EntityType<?> t = ModDrift.DRIFT_MIMIC.get();

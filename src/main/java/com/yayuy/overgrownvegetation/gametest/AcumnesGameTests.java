@@ -50,12 +50,12 @@ public final class AcumnesGameTests {
         return a;
     }
 
-    /** G5 に入り、自然には湧かず、芯は 1.2 × 3.0(体格 1)、翅・頭・腹の叩ける部位がある。 */
+    /** G3 に入り、自然には湧かず、芯は 1.2 × 3.0(体格 1)、翅・頭・腹の叩ける部位がある。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
-    public static void registeredAsG5WithParts(GameTestHelper helper) {
+    public static void registeredAsG3WithParts(GameTestHelper helper) {
         AcumnesEntity a = spawn(helper, 3.5D, 2.0D, 3.5D);
-        if (MobGroup.of(a.getType()) != MobGroup.GROUP_5) {
-            helper.fail("G5 に入っていない: " + MobGroup.of(a.getType()));
+        if (MobGroup.of(a.getType()) != MobGroup.GROUP_3) {
+            helper.fail("G3 に入っていない: " + MobGroup.of(a.getType()));
             return;
         }
         if (Math.abs(a.getScale() - 1.0F) > 1e-3 || Math.abs(a.getBbWidth() - 1.2F) > 1e-3 || Math.abs(a.getBbHeight() - 3.0F) > 1e-3) {

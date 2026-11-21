@@ -57,12 +57,12 @@ public final class VesicariaGameTests {
         v.getNavigation().moveTo(v.getNavigation().createPath(BlockPos.containing(p), 0), speed);
     }
 
-    /** G4 に入り、自然には湧かず、体の芯は 0.8 × 0.6、過繁茂の Mob と見なされる。急ぎの口は種の値を返し、グレガリアは既定の 1.0 のまま。 */
+    /** G2 に入り、自然には湧かず、体の芯は 0.8 × 0.6、過繁茂の Mob と見なされる。急ぎの口は種の値を返し、グレガリアは既定の 1.0 のまま。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
-    public static void vesiRegisteredAsG4WithoutNaturalSpawn(GameTestHelper helper) {
+    public static void vesiRegisteredAsG2WithoutNaturalSpawn(GameTestHelper helper) {
         VesicariaEntity v = placeAt(helper, 3.5D, 3.5D, 0.0F);
-        if (MobGroup.of(v.getType()) != MobGroup.GROUP_4) {
-            helper.fail("G4 に入っていない: " + MobGroup.of(v.getType()));
+        if (MobGroup.of(v.getType()) != MobGroup.GROUP_2) {
+            helper.fail("G2 に入っていない: " + MobGroup.of(v.getType()));
             return;
         }
         if (Math.abs(v.getBbWidth() - 0.8F) > 1e-3 || Math.abs(v.getBbHeight() - 0.6F) > 1e-3) {

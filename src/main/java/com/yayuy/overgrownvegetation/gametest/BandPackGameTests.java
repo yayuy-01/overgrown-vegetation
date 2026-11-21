@@ -54,7 +54,7 @@ public final class BandPackGameTests {
         return BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, path));
     }
 
-    /** 帯の距離の数え方(外 +・内 −)と、名簿の重み(G1 は森に近いほど重い・G4/G5 は内外 4)。遠くの 7 × 7 の過繁茂で。 */
+    /** 帯の距離の数え方(外 +・内 −)と、名簿の重み(G1 は森に近いほど重い・G2/G3 は内外 4)。遠くの 7 × 7 の過繁茂で。 */
     @GameTest(template = "gametest_empty7", batch = "band_pure", timeoutTicks = 20)
     public static void bandDistancesAndRosterWeights(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -77,8 +77,8 @@ public final class BandPackGameTests {
                     "内の距離が違う: " + r.distanceAt(cx + 3, cz) + "・" + r.distanceAt(cx + 2, cz) + "・" + r.distanceAt(cx, cz));
             helper.assertTrue(BandRoster.g1Weight(1, 16) == 1.0D && BandRoster.g1Weight(16, 16) < 0.01D && BandRoster.g1Weight(17, 16) == 0.0D
                     && BandRoster.g1Weight(2, 16) > BandRoster.g1Weight(8, 16), "G1 の重みが近いほど重くない");
-            // G4/G5 の名簿は内外 4 だけ: 7 × 7 の全部(内 −1〜−4)+ 外 1〜4 の輪(15 × 15 − 7 × 7 = 176)
-            helper.assertTrue(r.g45Size() == 7 * 7 + (15 * 15 - 7 * 7), "G4/G5 の名簿の数が違う: " + r.g45Size());
+            // G2/G3 の名簿は内外 4 だけ: 7 × 7 の全部(内 −1〜−4)+ 外 1〜4 の輪(15 × 15 − 7 × 7 = 176)
+            helper.assertTrue(r.g23Size() == 7 * 7 + (15 * 15 - 7 * 7), "G2/G3 の名簿の数が違う: " + r.g23Size());
             // G1 の名簿から引くと、1 チャンクあたりでは森に近いほど多く出る(遠い帯はチャンクの数が多いので、数の合計ではなく 1 チャンクあたりで比べる)
             RandomSource rnd = RandomSource.create(3L);
             int near = 0, far = 0, n = 4000;
@@ -99,9 +99,9 @@ public final class BandPackGameTests {
             }
             helper.assertTrue(near / (double) nearCells > 1.8D * far / farCells, "G1 が 1 チャンクあたりで森の近くに寄らない: 近く " + near + "/" + nearCells + "・遠く " + far + "/" + farCells);
             for (int i = 0; i < 500; i++) {
-                long k = r.draw(4, rnd);
+                long k = r.draw(2, rnd);
                 int d = r.distanceAt(ChunkPos.getX(k), ChunkPos.getZ(k));
-                helper.assertTrue(d != 0 && Math.abs(d) <= 4, "G4/G5 が内外 4 の外から引かれた: " + d);
+                helper.assertTrue(d != 0 && Math.abs(d) <= 4, "G2/G3 が内外 4 の外から引かれた: " + d);
             }
             helper.succeed();
         } finally {
@@ -155,7 +155,7 @@ public final class BandPackGameTests {
             }
             helper.assertTrue(m == EnemySpawns.Miss.SPAWNED && arb >= arbora.packMin() && arb <= arbora.packMax() && str >= 1,
                     "群れがそろって湧かない: アルボラ " + arb + "・ストロビラ " + str + "(" + m + ")");
-            helper.assertTrue(counts[4] == made.size(), "上限を 1 体ずつ数えていない: " + counts[4] + " / " + made.size());
+            helper.assertTrue(counts[2] == made.size(), "上限を 1 体ずつ数えていない: " + counts[2] + " / " + made.size());
             Mob lead = null;
             CrawlerPack pack = null;
             for (Mob x : made) {
@@ -168,18 +168,18 @@ public final class BandPackGameTests {
             for (Mob x : made) x.discard();
             // 上限の余りが群れの最小(3)より少なければ置かない(切れ端を散らさない)
             int[] full = new int[11];
-            full[4] = EnemySpawns.edgeCap(level, 4) - 2;
+            full[2] = EnemySpawns.edgeCap(level, 2) - 2;
             EnemySpawns.Miss m2 = EnemySpawns.placePack(level, arbora, arbora.type(), at, full, RandomSource.create(6L));
             List<Mob> made2 = level.getEntitiesOfClass(Mob.class, new AABB(at).inflate(8.0D), EnemySpawns::spawnedHere);
             helper.assertTrue(made2.isEmpty() && m2 == EnemySpawns.Miss.FULL, "余りが群れの最小より少ないのに置いた: " + made2.size() + "(" + m2 + ")");
             // 余りが 4 なら 4 体だけ。頭の種を先に減らすので、混ぜる種(ストロビラ)は残る
             int[] room4 = new int[11];
-            room4[4] = EnemySpawns.edgeCap(level, 4) - 4;
+            room4[2] = EnemySpawns.edgeCap(level, 2) - 4;
             EnemySpawns.placePack(level, arbora, arbora.type(), at, room4, RandomSource.create(7L));
             List<Mob> made3 = level.getEntitiesOfClass(Mob.class, new AABB(at).inflate(8.0D), EnemySpawns::spawnedHere);
             int str3 = 0;
             for (Mob x : made3) if (x.getType() == type("strobila")) str3++;
-            helper.assertTrue(made3.size() == 4 && room4[4] == EnemySpawns.edgeCap(level, 4) && str3 >= 1,
+            helper.assertTrue(made3.size() == 4 && room4[2] == EnemySpawns.edgeCap(level, 2) && str3 >= 1,
                     "上限の余りで切った群れが違う: " + made3.size() + " 体・ストロビラ " + str3);
             for (Mob x : made3) x.discard();
             helper.succeed();

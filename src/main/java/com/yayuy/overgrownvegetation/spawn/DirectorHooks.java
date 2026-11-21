@@ -27,11 +27,11 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 司令塔の空いていた口に、今ある G4・G5 をつなぐ(2026-11-15)。起動のときに 1 回だけ登録する。
+ * 司令塔の空いていた口に、今ある G2・G3 をつなぐ(2026-11-15)。起動のときに 1 回だけ登録する。
  * <ul>
- *   <li>苗床から孵す({@link ForestDirector#registerNurserySpawn}): 表の「司令塔の口に入れる地上の G4・G5」。G5 は F5 まで孵さない(buySpawn がグループのゲートを見る)。</li>
+ *   <li>苗床から孵す({@link ForestDirector#registerNurserySpawn}): 表の「司令塔の口に入れる地上の G2・G3」。G3 は F5 まで孵さない(buySpawn がグループのゲートを見る)。</li>
  *   <li>拠点への送り込み({@link BaseRaids#registerSender}): 拠点のまわりにいる個体を先に歩かせ、足りない分は森の方角の見えない地面に湧かせて歩かせる
- *   (司令塔の予算から costSpawn × 段。11-15 全体管理)。F6(混ざった群れ)からは G4 と G5 を同じ所に固めて出す。</li>
+ *   (司令塔の予算から costSpawn × 段。11-15 全体管理)。F6(混ざった群れ)からは G2 と G3 を同じ所に固めて出す。</li>
  *   <li>歩かせる({@link BaseRaids#registerMarcher}): {@link PlantMarch}。</li>
  * </ul>
  * 空の種(velophyll・seminaria・pedicula・acumnes)は表で {@code director: false}。最初は縁だけ(11-15 全体管理)。
@@ -61,14 +61,14 @@ public final class DirectorHooks {
             EntityType<? extends Mob> mobType = (EntityType<? extends Mob>) type;
             ForestDirector.registerNurserySpawn(() -> mobType);
         }
-        BaseRaids.registerSender(true, (level, base, count, random) -> send(level, base, count, random, 4));
-        BaseRaids.registerSender(false, (level, base, count, random) -> send(level, base, count, random, 5));
+        BaseRaids.registerSender(true, (level, base, count, random) -> send(level, base, count, random, 2));
+        BaseRaids.registerSender(false, (level, base, count, random) -> send(level, base, count, random, 3));
         BaseRaids.registerMarcher(PlantMarch::begin);
     }
 
-    /** 司令塔の口に入れる種か(G4・G5 の、地上に住む、director が false でない種)。 */
+    /** 司令塔の口に入れる種か(G2・G3 の、地上に住む、director が false でない種)。 */
     static boolean directorSpecies(SpawnTable.Species sp) {
-        return sp.director() && sp.g1() == null && (sp.group() == 4 || sp.group() == 5) && sp.habitats().contains(SpawnTable.Habitat.GROUND);
+        return sp.director() && sp.g1() == null && (sp.group() == 2 || sp.group() == 3) && sp.habitats().contains(SpawnTable.Habitat.GROUND);
     }
 
     /** その種は壁や扉を壊すか(spawns.json の breaker。11-16)。 */
@@ -146,16 +146,16 @@ public final class DirectorHooks {
     /** その種のグループの番号(グループの無い種は 4)。 */
     public static int groupOf(EntityType<?> type) {
         com.yayuy.overgrownvegetation.phase.MobGroup g = com.yayuy.overgrownvegetation.phase.MobGroup.of(type);
-        return g == null ? 4 : g.number();
+        return g == null ? 2 : g.number();
     }
 
     /** そのグループの、送り込みのゲート。 */
     public static DirectorGates.Gate gateOf(int group) {
-        return group >= 6 ? DirectorGates.Gate.WAVE_MIXED : group == 5 ? DirectorGates.Gate.WAVE_G5 : DirectorGates.Gate.WAVE_G4;
+        return group >= 4 ? DirectorGates.Gate.WAVE_MIXED : group == 3 ? DirectorGates.Gate.WAVE_G3 : DirectorGates.Gate.WAVE_G2;
     }
 
     /**
-     * 司令塔が出せる G4・G5 を 1 種選ぶ(group 0 = どちらでも)。そのグループの送り込みのゲートが開いている種だけ、重み × 段の強さで。無ければ null。
+     * 司令塔が出せる G2・G3 を 1 種選ぶ(group 0 = どちらでも)。そのグループの送り込みのゲートが開いている種だけ、重み × 段の強さで。無ければ null。
      */
     @Nullable
     public static EntityType<?> pickPlant(ServerLevel level, RandomSource random, int group) {
@@ -182,7 +182,7 @@ public final class DirectorHooks {
         return cands.get(cands.size() - 1);
     }
 
-    /** 送り込みで最後に湧かせた所(混ざった群れ: 同じ回の G4 と G5 を同じ所に固める)。 */
+    /** 送り込みで最後に湧かせた所(混ざった群れ: 同じ回の G2 と G3 を同じ所に固める)。 */
     private static BlockPos lastSpot;
     private static long lastSpotTime = -1L;
     private static int lastSpotBase = -1;
@@ -190,7 +190,7 @@ public final class DirectorHooks {
     /** 確かめ用: 送り込みで歩かせた数・湧かせた数。 */
     public static long sentExisting, sentSpawned;
 
-    /** G4(group 4)か G5(group 5)を count 体まで拠点へ送る。送れた数を返す。 */
+    /** G2(group 2)か G3(group 3)を count 体まで拠点へ送る。送れた数を返す。 */
     public static int send(ServerLevel level, BaseMemory.Base b, int count, RandomSource random, int group) {
         if (count <= 0) return 0;
         BaseMemoryTable bt = DesignData.director().base;
@@ -220,11 +220,11 @@ public final class DirectorHooks {
             spot = lastSpot;
         }
         int spawnedNow = 0;
-        // ゲスタトリクスを混ぜる回は、G4 の分を 1 つ空けておく(送る数 count を超えない。大きな襲撃の同時の上限を守る)
-        boolean mix = group == 4 && count - sent >= 2 && random.nextDouble() < DesignData.spawns().gestatrix.senderChance;
-        int g4Limit = mix ? count - 1 : count;
+        // ゲスタトリクスを混ぜる回は、G2 の分を 1 つ空けておく(送る数 count を超えない。大きな襲撃の同時の上限を守る)
+        boolean mix = group == 2 && count - sent >= 2 && random.nextDouble() < DesignData.spawns().gestatrix.senderChance;
+        int g2Limit = mix ? count - 1 : count;
         int attempts = (count - sent) * 2;
-        while (sent < g4Limit && attempts-- > 0) {
+        while (sent < g2Limit && attempts-- > 0) {
             EntityType<?> type = pickPlant(level, random, group);
             if (type == null) break;
             double price = ForestDirector.stagePrice(ForestDirector.spawnCost(type), DirectorGates.speciesStrength(level, type));
@@ -253,15 +253,15 @@ public final class DirectorHooks {
     public static long sentGestatrix;
 
     /**
-     * 送り込みで G4 を森の方角から湧かせた回に、ゲスタトリクス(G6・歩く苗床)を 1 匹混ぜる(11-17。確率 {@code gestatrix.senderChance}【仮】は呼ぶ側で引き、送る数のうち 1 つをこれに充てる)。
-     * 拠点のまわり(raidSearchBlocks)の、根付いていないゲスタトリクスが edge.caps の 6 以上なら混ぜない。予算は G6 の値段 × 段の強さ。
+     * 送り込みで G2 を森の方角から湧かせた回に、ゲスタトリクス(G4・歩く苗床)を 1 匹混ぜる(11-17。確率 {@code gestatrix.senderChance}【仮】は呼ぶ側で引き、送る数のうち 1 つをこれに充てる)。
+     * 拠点のまわり(raidSearchBlocks)の、根付いていないゲスタトリクスが edge.caps の 6 以上なら混ぜない。予算は G4 の値段 × 段の強さ。
      * 拠点へ歩かせ(MarchGoal ではなく自前の歩き)、拠点のそばで腰を据えて産む。
      */
     static boolean mixGestatrix(ServerLevel level, BaseMemory.Base b, BlockPos spot, RandomSource random, ForestDirector d) {
         EntityType<?> type = com.yayuy.overgrownvegetation.registry.ModCrawlers.GESTATRIX.get();
         double r = DesignData.director().base.raidSearchBlocks;
         AABB box = new AABB(b.centerX() - r, level.getMinBuildHeight(), b.centerZ() - r, b.centerX() + r, level.getMaxBuildHeight(), b.centerZ() + r);
-        int cap = Math.max(1, DesignData.spawns().cap(6));
+        int cap = Math.max(1, DesignData.spawns().cap(4));
         if (level.getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.GestatrixEntity.class, box, g -> g.isAlive() && !g.rooted()).size() >= cap) return false;
         if (!DirectorGates.speciesOpen(level, type)) return false;   // ゲスタトリクスの出るフェーズ(F4。11-18 夜)
         double price = ForestDirector.stagePrice(ForestDirector.spawnCost(type), DirectorGates.speciesStrength(level, type));

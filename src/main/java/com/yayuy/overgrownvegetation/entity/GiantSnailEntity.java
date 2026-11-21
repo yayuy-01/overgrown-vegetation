@@ -8,8 +8,8 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
 
 /**
- * 陸生カタツムリ {@code giant_snail}(G2・原生生産種。名前から「巨大」は外したが id はそのまま。11-16 ユーザー)。
- * 2026-11-16 G2・G3 の作り直しの段 1: 「小さな地這いの虫」の型({@link CrawlerCritter})で這うだけ。行動は後の段。
+ * 陸生カタツムリ {@code giant_snail}(獲物の環境生物・原生生産種。名前から「巨大」は外したが id はそのまま。11-16 ユーザー)。
+ * 2026-11-16 環境生物の作り直しの段 1: 「小さな地這いの虫」の型({@link CrawlerCritter})で這うだけ。行動は後の段。
  * 形は 11-16 夜に「A 丸い殻」へ直した(全長 1.34・幅 0.69・高さ 0.89。殻は普通の樹皮 = 矢や弾は弾かない)。正本 Blockbench の giant_snail.bbmodel。
  *
  * <p>脚が無いので足の滑りは無い。walk(2 秒)は頭と殻が前後するだけ。這う速さに合わせた walk の基準はモデル制作と合わせる【仮 {@link #WALK_REF}】。

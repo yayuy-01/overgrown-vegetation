@@ -59,7 +59,7 @@ public final class G1DeathBurst {
     static final double RADIUS_BASE = 0.5D;
     /** 汚染の球の半径の上限。【仮】 */
     static final int MAX_RADIUS = 3;
-    /** 汚染の球の輪郭の揺らぎ(ブロック、±)。【仮】(G4 の死の球は 1.2) */
+    /** 汚染の球の輪郭の揺らぎ(ブロック、±)。【仮】(G2 の死の球は 1.2) */
     static final double SPHERE_NOISE = 0.8D;
 
     /**

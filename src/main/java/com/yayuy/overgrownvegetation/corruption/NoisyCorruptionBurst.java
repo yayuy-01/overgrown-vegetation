@@ -40,7 +40,7 @@ import java.util.Map;
  * <ul>
  *   <li>{@link com.yayuy.overgrownvegetation.effect.ParasitizedCreeperDetonation} — 過繁茂した
  *       クリーパーの爆発。</li>
- *   <li>{@link com.yayuy.overgrownvegetation.entity.AbstractOvergrownInvaderEntity} — グループ4
+ *   <li>{@link com.yayuy.overgrownvegetation.entity.AbstractOvergrownInvaderEntity} — グループ2
  *       (拡大種)の死亡時({@link #deathSphere})。</li>
  * </ul>
  */
@@ -193,7 +193,7 @@ public final class NoisyCorruptionBurst {
         if (radius <= 0) {
             return 0;
         }
-        // 胞子の場にも点の放出を足す(2026-10-23 胞子の場と風 第 2 段 C。G4 の死・寄生クリーパーなどの汚染の球。
+        // 胞子の場にも点の放出を足す(2026-10-23 胞子の場と風 第 2 段 C。G2 の死・寄生クリーパーなどの汚染の球。
         // G1 進化体の破裂は 11-12 から自分の小さな量で放出するので、ここでは足さない = emitSpores false)
         if (emitSpores && !CorruptionSwitch.isOff()) {
             com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.emitPoint(level, net.minecraft.core.BlockPos.containing(center),
@@ -273,7 +273,7 @@ public final class NoisyCorruptionBurst {
     }
 
     /**
-     * 1 ブロックだけ汚染する(グループ4の「じわじわ広がる弱い浸食」用)。
+     * 1 ブロックだけ汚染する(グループ2の「じわじわ広がる弱い浸食」用)。
      * 既に汚染済み・汚染できないブロックなら何もせず {@code false}。
      *
      * <p>{@link #sphere} の 1 マス分と同じ手順 — 変換・設置・地表の草生やし・カウント・

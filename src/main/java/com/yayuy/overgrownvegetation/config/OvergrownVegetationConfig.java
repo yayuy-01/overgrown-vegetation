@@ -631,9 +631,9 @@ public final class OvergrownVegetationConfig {
         //  level2DetectionRangeBonus / sporeInfectionConcentrationThreshold + 旧ハードコードの
         //  防御力/移動速度低下率)。→ com.yayuy.overgrownvegetation.data.EffectTable
 
-        // --- グループ4(拡大種): AbstractOvergrownInvaderEntity / InvaderSporeCrouchGoal ---
+        // --- グループ2(拡大種): AbstractOvergrownInvaderEntity / InvaderSporeCrouchGoal ---
 
-        // 旧いグループ4 の群れ(InvaderPack 系)の設定 invaderPack* 28 個・invaderPreyIntel* 2 個・velophyllPackLeash は
+        // 旧いグループ2 の群れ(InvaderPack 系)の設定 invaderPack* 28 個・invaderPreyIntel* 2 個・velophyllPackLeash は
         // 2026-09-25 に群れ v2(swarm/、数値は design/swarm.json)へ置き換えて消した。toml に残った行は NeoForge が直すときに消える。
 
         // --- 過繁茂したスカトゥリウム: 迫撃砲と座り込み(ユーザー要望 2026-09-15)---
@@ -645,7 +645,7 @@ public final class OvergrownVegetationConfig {
         // --- アルボラの坑道掘り(ArboraTunnelGoal。ユーザー要望 2026-09-17)---
 
         // --- うずくまって胞子を撒く(InvaderSporeCrouchGoal・群れの SPREAD)---
-        // --- フィロセンス(グループ4・索敵役): PhyllosensEntity / PhyllosensScoutGoal / PhyllosensBeamGoal ---
+        // --- フィロセンス(グループ2・索敵役): PhyllosensEntity / PhyllosensScoutGoal / PhyllosensBeamGoal ---
         /** 「視線」の持続(tick)。範囲外へ出てからこれだけで切れる。 */
         /** 「誘導」の持続(tick)。切れた Mob は追跡をやめて元の行動へ戻る。 */
 
@@ -657,7 +657,7 @@ public final class OvergrownVegetationConfig {
         /** 狙点を固定してから発射するまで(tick)。既定 10 = 0.5 秒。 */
         /** 撃ったあと次に撃てるまで(tick)。 */
 
-        // --- ヴェロフィル(グループ4・爆撃役): VelophyllEntity / VelophyllBombGoal / VelophyllGroundSporeGoal ---
+        // --- ヴェロフィル(グループ2・爆撃役): VelophyllEntity / VelophyllBombGoal / VelophyllGroundSporeGoal ---
 
         // --- 噛みつき(空中の相手。ユーザー要望 2026-09-17)---
         /** 1 回の爆撃で落とす爆弾の数。1 発ずつ順に落とす。 */
@@ -673,14 +673,14 @@ public final class OvergrownVegetationConfig {
         /** 爆風で胞子感染させる半径(ブロック)。0 で無効。 */
         /** 爆発したときに葉を薙ぎ払う半径(ブロック)。0 で無効。 */
 
-        // --- スポロフィル(グループ4・支援役): SporophyllEntity / SporophyllAura ---
+        // --- スポロフィル(グループ2・支援役): SporophyllEntity / SporophyllAura ---
         /** 味方に配るバフの持続(tick)。範囲内に居る限り配り直されるので途切れない。 */
         /** 敵に配るデバフの持続(tick)。 */
         /** 味方バフ(再生・攻撃力上昇・耐性)の強さ。0 = I、1 = II。 */
         /** 敵デバフ「纏わりついた胞子」(移動速度低下・攻撃力低下を含む)の段階。0 = I、1 = II。 */
         /** 「スポロフィルの胞子」持ちの攻撃が無視する防御力の割合(0〜1)。 */
         /** 「スポロフィルの胞子」持ちの攻撃が防具の耐久値を削る量(与ダメージ × この値)。 */
-        /** 「纏わりついた胞子」を持つ相手が、グループ4 の Mob から余計に見つかる距離(ブロック)。 */
+        /** 「纏わりついた胞子」を持つ相手が、グループ2 の Mob から余計に見つかる距離(ブロック)。 */
         /** 範囲内で胞子感染が満了したとき、1 段階進める(過繫茂バイオームと同じ扱いにする)か。 */
 
         /**

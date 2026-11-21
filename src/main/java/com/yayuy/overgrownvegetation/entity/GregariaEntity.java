@@ -19,7 +19,7 @@ import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
- * グレガリア {@code gregaria}(G4・大群の先触れ。11-14 に本名。仮名ムラガリ、仮の id {@code g4_swarm})。
+ * グレガリア {@code gregaria}(G2・大群の先触れ。11-14 に本名。仮名ムラガリ、仮の id {@code g4_swarm})。
  * 群れで地面を走り回り、通った所に胞子を降らせる「地面を覆う胞子の潮」(Vault {@code Mob の能力/グレガリア.md})。
  *
  * <h2>段 1(2026-11-15): 歩く・走るところまで</h2>

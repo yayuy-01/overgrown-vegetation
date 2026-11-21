@@ -37,7 +37,7 @@ import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
- * ファルキムネス(グループ5)のテスト(2026-09-23)。
+ * ファルキムネス(グループ3)のテスト(2026-09-23)。
  *
  * <p>AI は止めて({@code spawnWithNoFreeWill})、動作は {@link FalcimnesEntity#forceAction} /
  * {@link FalcimnesEntity#grab} で直接始める。動作は {@code aiStep} で進むので AI が無くても進む。

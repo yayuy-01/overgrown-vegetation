@@ -48,7 +48,7 @@ public final class LargeRaidTable {
     public final int spawnPerStep;
     /** 湧かせる攻め手のうち 1 段目の割合(値段は進化の値段)。段階 0 の値段は costStageZero。 */
     public final double developedShare;
-    /** 湧かせる攻め手のうち G4〜G6 の割合(11-14 夕: 5%)。G4 以降が退避中のうちは送る口が無いので、その分は段階 0 を湧かせる。 */
+    /** 湧かせる攻め手のうち G2〜G4 の割合(11-14 夕: 5%)。G2 以降が退避中のうちは送る口が無いので、その分は段階 0 を湧かせる。 */
     public final double plantShare;
     public final double costStageZero;
     /** 湧かせる所: 拠点の真ん中から森の方角・弱い方角へこの幅。向きの振れ(度)。プレイヤーからこれより遠く、見通せない所。試す数。 */

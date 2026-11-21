@@ -80,7 +80,7 @@ public final class ModFlyers {
             com.yayuy.overgrownvegetation.entity.SeminariaEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(SEMINARIA, 0x3A4A1E, 0x5A1838, props));
 
-    /** ステノディクティア(G2 成虫、2026-11-16 段 1)。当たりは胴の芯 0.6 × 0.4(翅・脚ははみ出す)。生息しているだけの生き物なので CREATURE。 */
+    /** ステノディクティア(獲物の環境生物の成虫、2026-11-16 段 1)。当たりは胴の芯 0.6 × 0.4(翅・脚ははみ出す)。生息しているだけの生き物なので CREATURE。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity>> STENODICTYA_LOBATA =
             ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity.ID, () -> EntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity>of(com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity::new, MobCategory.CREATURE)

@@ -45,7 +45,7 @@ public final class BaseRaidGameTests {
 
     /**
      * 認識して 1 日の段: 段階 0 を歩かせ、進化体が足りない分は予算で段階 0 を進化させて送る。予算が無ければ進化させない。
-     * G4・G5〜 は口だけ(まだ出せない)。
+     * G2・G3〜 は口だけ(まだ出せない)。
      */
     @GameTest(template = "gametest_empty7", batch = "base_raid", timeoutTicks = 20)
     public static void waveSendsStageZeroAndEvolvesWithBudget(GameTestHelper helper) {
@@ -74,7 +74,7 @@ public final class BaseRaidGameTests {
             director.setBudget(level, 0.0D);
             BaseRaids.Result poor = BaseRaids.sendWave(level, b, 1.0D, level.getRandom());
             helper.assertTrue(poor.evolved() == 0, "予算が無いのに進化させた");
-            helper.assertTrue(poor.g4() == 0 && poor.g5plus() == 0, "G4 以降はまだ出せないはず");
+            helper.assertTrue(poor.g2() == 0 && poor.g3plus() == 0, "G2 以降はまだ出せないはず");
             helper.assertTrue(poor.stageZero() == Math.min(wave.stageZero(), 4), "段階 0 を段の数だけ送っていない: " + poor.summary());
             for (AbstractParasitizedMonster z : mine) z.march().cancel();
             director.setBudget(level, 1000.0D); // 11-20 夜: 体数は予算で決まるので、進化に回る分が出るだけの予算

@@ -15,7 +15,7 @@ import java.util.Arrays;
  * 台帳の中の小さな穴(2 チャンク幅まで。{@link EnemySpawns#outside})は内とみなす。
  * <ul>
  *   <li>G1 の名簿: 外へ 1〜{@code g1Band} チャンク。森に近いほど重い(重み = ((g1Band + 1 − d) / g1Band)²【仮】。16 チャンク先でほぼ 0)。</li>
- *   <li>G4・G5 の名簿: 境目の内側 1〜{@code g45Band}・外側 1〜{@code g45Band} チャンク。重みは同じ【仮】。</li>
+ *   <li>G2・G3 の名簿: 境目の内側 1〜{@code g23Band}・外側 1〜{@code g23Band} チャンク。重みは同じ【仮】。</li>
  *   <li>どちらも、プレイヤーから湧かせてよい距離(チャンクの真ん中が minBlocks〜maxBlocks + 8)の中だけ。</li>
  * </ul>
  * 世界全体の距離の地図は持たない。作り直しはプレイヤーがチャンクをまたいだときか、{@code rebuildTicks} おきだけ。毎回の試しは名簿から重みで引くだけ。
@@ -30,19 +30,19 @@ public final class BandRoster {
     public final int cx, cz;
     public final long builtAt;
     /** 名簿(チャンクの鍵)と重みの累積。 */
-    final long[] g1Keys, g45Keys;
-    final double[] g1Cum, g45Cum;
+    final long[] g1Keys, g23Keys;
+    final double[] g1Cum, g23Cum;
     /** 確かめ用: 窓の中の各チャンクの境目までの距離(外 +・内 −・境目が窓に無ければ 0)。 */
     final int[] dist;
 
-    private BandRoster(int cx, int cz, long builtAt, long[] g1Keys, double[] g1Cum, long[] g45Keys, double[] g45Cum, int[] dist) {
+    private BandRoster(int cx, int cz, long builtAt, long[] g1Keys, double[] g1Cum, long[] g23Keys, double[] g23Cum, int[] dist) {
         this.cx = cx;
         this.cz = cz;
         this.builtAt = builtAt;
         this.g1Keys = g1Keys;
         this.g1Cum = g1Cum;
-        this.g45Keys = g45Keys;
-        this.g45Cum = g45Cum;
+        this.g23Keys = g23Keys;
+        this.g23Cum = g23Cum;
         this.dist = dist;
     }
 
@@ -53,8 +53,8 @@ public final class BandRoster {
         return g1Keys.length;
     }
 
-    public int g45Size() {
-        return g45Keys.length;
+    public int g23Size() {
+        return g23Keys.length;
     }
 
     /** 窓の中のチャンク (x, z) の、境目までの距離(外 +・内 −・分からなければ 0)。窓の外は 0。 */
@@ -74,7 +74,7 @@ public final class BandRoster {
     /**
      * 名簿を作る。px, pz はプレイヤーの位置(ブロック)。
      */
-    public static BandRoster build(PhaseData data, double px, double pz, long now, int g1Band, int g45Band, double minBlocks, double maxBlocks) {
+    public static BandRoster build(PhaseData data, double px, double pz, long now, int g1Band, int g23Band, double minBlocks, double maxBlocks) {
         long t0 = System.nanoTime();
         int pcx = (int) Math.floor(px) >> 4, pcz = (int) Math.floor(pz) >> 4;
         boolean[] in = new boolean[W * W];
@@ -123,8 +123,8 @@ public final class BandRoster {
             }
         }
         // 名簿
-        long[] g1 = new long[W * W], g45 = new long[W * W];
-        double[] g1c = new double[W * W], g45c = new double[W * W];
+        long[] g1 = new long[W * W], g23 = new long[W * W];
+        double[] g1c = new double[W * W], g23c = new double[W * W];
         int n1 = 0, n45 = 0;
         double s1 = 0.0D, s45 = 0.0D;
         double lo = minBlocks, hi = maxBlocks + 8.0D;
@@ -145,23 +145,23 @@ public final class BandRoster {
                         g1c[n1++] = s1;
                     }
                 }
-                if (Math.abs(d) <= g45Band) {
+                if (Math.abs(d) <= g23Band) {
                     s45 += 1.0D;
-                    g45[n45] = key;
-                    g45c[n45++] = s45;
+                    g23[n45] = key;
+                    g23c[n45++] = s45;
                 }
             }
         }
-        BandRoster r = new BandRoster(pcx, pcz, now, Arrays.copyOf(g1, n1), Arrays.copyOf(g1c, n1), Arrays.copyOf(g45, n45), Arrays.copyOf(g45c, n45), dist);
+        BandRoster r = new BandRoster(pcx, pcz, now, Arrays.copyOf(g1, n1), Arrays.copyOf(g1c, n1), Arrays.copyOf(g23, n45), Arrays.copyOf(g23c, n45), dist);
         buildNanos += System.nanoTime() - t0;
         builds++;
         return r;
     }
 
-    /** G1(group 1)か G4・G5(それ以外)の名簿から、重みで 1 チャンク引く。名簿が空なら Long.MIN_VALUE。 */
+    /** G1(group 1)か G2・G3(それ以外)の名簿から、重みで 1 チャンク引く。名簿が空なら Long.MIN_VALUE。 */
     public long draw(int group, RandomSource random) {
-        long[] keys = group == 1 ? g1Keys : g45Keys;
-        double[] cum = group == 1 ? g1Cum : g45Cum;
+        long[] keys = group == 1 ? g1Keys : g23Keys;
+        double[] cum = group == 1 ? g1Cum : g23Cum;
         if (keys.length == 0) return Long.MIN_VALUE;
         double r = random.nextDouble() * cum[cum.length - 1];
         int lo = 0, hi = cum.length - 1;

@@ -39,7 +39,7 @@ import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
- * ペディキュラ {@code pedicula}(G4・漂う胞子の雲。熱気球)。Vault「Mob の能力/ペディキュラ」。
+ * ペディキュラ {@code pedicula}(G2・漂う胞子の雲。熱気球)。Vault「Mob の能力/ペディキュラ」。
  *
  * <h2>段 1(2026-11-15): MOD に入れて漂うところまで</h2>
  * 【決定 11-14】攻撃しない。卓越風に流されて漂う。自分では高さしか変えられず、高さごとに違う風を選んで行き先へ向かう。

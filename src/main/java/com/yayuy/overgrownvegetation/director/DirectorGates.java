@@ -17,7 +17,7 @@ import java.util.Locale;
  * <ul>
  *   <li>道: 苗床 = F1・根付き = F2・進化(1 段目)= F3。送り込みの枠を埋める進化も F3 から。</li>
  *   <li>偵察 = F4 から(前兆として)。拠点を覚えるのは F1 から裏で回す。認識と送り込み(襲撃)= F5 から。</li>
- *   <li>苗床のスポナー(G4 以降)= F4。送り込みの枠は 進化体 F3・G4 F4・G5〜 F5・G4〜G6 の混ざった群れ F6。</li>
+ *   <li>苗床のスポナー(G2 以降)= F4。送り込みの枠は 進化体 F3・G2 F4・G3〜 F5・G2〜G4 の混ざった群れ F6。</li>
  *   <li>根付きの向きはフェーズを見ない(F5 より前から、覚えた拠点の方を向く =「森は前から見ていた」の静かな前兆。ユーザー)。</li>
  *   <li>大きな襲撃(司令塔の襲撃の大・中・小の「大」)の前触れの間は、植物側の湧き(苗床・送り込み・危ない所へ送る・貯める)を止める。偵察は続ける(11-14 ユーザー T1 = 2)。
  *   それ以外の前触れの元は外から足す口({@link #registerLargeRaidOmen})。
@@ -33,7 +33,7 @@ public final class DirectorGates {
     /** 開くもの。 */
     public enum Gate {
         NURSERY("苗床"), ROOTED("根付き"), EVOLVE("進化"), SCOUT("偵察"), RECOGNIZE("認識"), RAID("送り込み"),
-        SPAWNER("苗床のスポナー"), WAVE_G4("送り込みの G4"), WAVE_G5("送り込みの G5〜"), WAVE_MIXED("G4〜G6 の混ざった群れ"),
+        SPAWNER("苗床のスポナー"), WAVE_G2("送り込みの G2"), WAVE_G3("送り込みの G3〜"), WAVE_MIXED("G2〜G4 の混ざった群れ"),
         LEARN("学ぶ(危ない所へ進化体)"), LEARN_WAVE("学ぶ(送り込みの進化体を増やす)"), LARGE_RAID("大きな襲撃"), WATCHER("監視塔を植える");
 
         public final String label;
@@ -53,8 +53,8 @@ public final class DirectorGates {
             case RECOGNIZE -> g.recognize;
             case RAID -> g.raid;
             case SPAWNER -> g.spawner;
-            case WAVE_G4 -> g.waveG4;
-            case WAVE_G5 -> g.waveG5;
+            case WAVE_G2 -> g.waveG2;
+            case WAVE_G3 -> g.waveG3;
             case WAVE_MIXED -> g.waveMixed;
             case LEARN -> g.learn;
             case LEARN_WAVE -> g.learnWave;
@@ -120,8 +120,8 @@ public final class DirectorGates {
     }
 
     /**
-     * 植物側の湧きを止めるか(大きな襲撃の前触れの間。11-14 ユーザー: 自然の湧き・苗床・送り込み・G4 以降が止まる。胞子の暴露から生まれる
-     * 感染 Mob とバニラの Mob はふだんどおり)。湧かせる側(G1 の自然湧き・萌芽体の湧き・苗床・G4 以降を戻す側)が見る口。
+     * 植物側の湧きを止めるか(大きな襲撃の前触れの間。11-14 ユーザー: 自然の湧き・苗床・送り込み・G2 以降が止まる。胞子の暴露から生まれる
+     * 感染 Mob とバニラの Mob はふだんどおり)。湧かせる側(G1 の自然湧き・萌芽体の湧き・苗床・G2 以降を戻す側)が見る口。
      */
     public static boolean plantSpawnsSuppressed(ServerLevel level) {
         return largeRaidOmen(level) || peaceful(level);
@@ -170,7 +170,7 @@ public final class DirectorGates {
     /**
      * その種が出るフェーズ(2026-11-18 夜 ユーザー決定「出るフェーズは種ごと」: {@code mob_class.json} の phase)。
      * 自然に湧かない種(natural false。寄生アイアンゴーレム・寄生ウォーデン)は {@link Integer#MAX_VALUE}。
-     * 表に無い種は前の決まり(グループの送り込みのゲート waveG4・waveG5・waveMixed)。
+     * 表に無い種は前の決まり(グループの送り込みのゲート waveG2・waveG3・waveMixed)。
      */
     public static int speciesOpenAt(@javax.annotation.Nullable net.minecraft.world.entity.EntityType<?> type) {
         if (type == null) return Integer.MAX_VALUE;

@@ -29,14 +29,14 @@ import java.util.WeakHashMap;
  * <ul>
  *   <li>{@link #seen}: 視線の印を付けた →「この相手をここで見た」を {@link Watchers#markSeen} へ渡す。そばの覚えた拠点の認識の確定と、
  *   半径 64【仮・director.json の watcher.callRadius】の植物側の Mob の呼び寄せ({@link PlantSideCall#towards})は司令塔の側で起きる。
- *   G1 は司令塔が歩かせる。G4 以降はここで登録する口 {@link #call} が受ける。</li>
+ *   G1 は司令塔が歩かせる。G2 以降はここで登録する口 {@link #call} が受ける。</li>
  *   <li>{@link #cut}: 倒された → {@link Watchers#onCut}(司令塔が植えた塔なら、認識が遅れる・1 段戻る)。</li>
  * </ul>
  * <b>植える口({@code Watchers.registerPlanter})は登録しない</b>: 登録すると司令塔が植え始め(予算を払う)、認識の確定に監視塔の印が要るようになる。
  * 植えるのは司令塔の持ち場で、育つ途中の姿もまだ無い(このセッションの範囲外)。
  *
- * <h2>G4・G5 の向かわせ方【仮・Claude 11-14】</h2>
- * 今ゲームにいる G4・G5 は アルボラ(G4)・ファルキムネス・ヴェナムネス(G5)。
+ * <h2>G2・G3 の向かわせ方【仮・Claude 11-14】</h2>
+ * 今ゲームにいる G2・G3 は アルボラ(G2)・ファルキムネス・ヴェナムネス(G3)。
  * <ul>
  *   <li>アルボラ・ファルキムネス: 標的があれば距離を問わず追う作り(各種の HuntGoal)なので、標的の無い個体に印の相手を標的として渡す。</li>
  *   <li>それ以外(ヴェナムネスはまだ攻撃が無い段 1): 入ってきたときに {@link GuideGoal} を差し、呼ばれている間 印の相手の居場所へ歩かせる
@@ -51,8 +51,8 @@ public final class PhyllosensCall {
     private PhyllosensCall() {
     }
 
-    static final TagKey<EntityType<?>> G4 = TagKey.create(Registries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "group_4"));
-    static final TagKey<EntityType<?>> G5 = TagKey.create(Registries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "group_5"));
+    static final TagKey<EntityType<?>> G2 = TagKey.create(Registries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "group_2"));
+    static final TagKey<EntityType<?>> G3 = TagKey.create(Registries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "group_3"));
     /** ここまで寄ったら標的として渡す(ブロック)【仮】。 */
     static final double ENGAGE = 12.0D;
 
@@ -73,10 +73,10 @@ public final class PhyllosensCall {
     }
 
     static boolean calledKind(Mob m) {
-        return m.getType().is(G4) || m.getType().is(G5);
+        return m.getType().is(G2) || m.getType().is(G3);
     }
 
-    /** {@link PlantSideCall.Listener}: 半径の中の G4・G5 を相手へ向かわせる。 */
+    /** {@link PlantSideCall.Listener}: 半径の中の G2・G3 を相手へ向かわせる。 */
     static int call(ServerLevel level, Vec3 at, LivingEntity target, double radius, int ticks) {
         int n = 0;
         long until = level.getGameTime() + ticks;

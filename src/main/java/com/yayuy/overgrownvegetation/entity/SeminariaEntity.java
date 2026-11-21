@@ -25,7 +25,7 @@ import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
- * セミナリア {@code seminaria}(G4・空の斥候兼種まき。和名の元はフリマキ)。Vault「Mob の能力/セミナリア」。
+ * セミナリア {@code seminaria}(G2・空の斥候兼種まき。和名の元はフリマキ)。Vault「Mob の能力/セミナリア」。
  *
  * <h2>段 1(2026-11-15): 飛ぶ・ゆるい群れ・林冠に止まって休むまで</h2>
  * 動きは「飛ぶ型」の土台 {@link SkyFlyer}。【決定 11-14】風に半分任せる: 羽ばたいて向きは変えられるが、風下へは速く、風上へはほとんど進めない。

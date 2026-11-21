@@ -1,7 +1,7 @@
 package com.yayuy.overgrownvegetation.ecosystem.life;
 
 /**
- * G2・G3 の行動の段(2026-11-18)で流す「その場の動作」。サーバーが決めて同期し、クライアントは種のアニメを流す。
+ * 環境生物の行動の段(2026-11-18)で流す「その場の動作」。サーバーが決めて同期し、クライアントは種のアニメを流す。
  * アニメの名前は既定で {@link #clip}。種に無いアニメは {@link EcoLife#ecoClip} が null を返し、歩き・待機のままになる。
  */
 public enum EcoAct {

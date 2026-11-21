@@ -19,8 +19,8 @@ import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
- * クリペイムネス {@code clipeimnes}(G5・攻撃特化。11-14 に本名。仮名ハガネカワ、仮の id {@code g5_bulwark})。
- * 腕の盾で矢・剣を弾きながら詰め、腕の鉤で抱え込む、小回りの利く盾持ちの前衛(名簿「Mob の名簿と能力の刷新(11-04)」の G5 の表・
+ * クリペイムネス {@code clipeimnes}(G3・攻撃特化。11-14 に本名。仮名ハガネカワ、仮の id {@code g5_bulwark})。
+ * 腕の盾で矢・剣を弾きながら詰め、腕の鉤で抱え込む、小回りの利く盾持ちの前衛(名簿「Mob の名簿と能力の刷新(11-04)」の G3 の表・
  * 注文書 g5_bulwark。能力は Vault「G4〜G6 の能力の決定(11-14)」の第 1 陣)。
  *
  * <h2>段 1(2026-11-15): 歩くところまで</h2>
@@ -222,7 +222,7 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
     /**
      * 段 1 の Goal(浮く・うろつく・見回す)に、襲う Goal({@link ClipeimnesHuntGoal})と標的を足す。
      * 標的はサルティムネス・ヴェナムネスと同じ: 殴った相手・プレイヤー(サバイバル・アドベンチャー)・植物側でない生き物
-     * (G1〜G10・感染体・植物側へ変わった生き物・防具立ては狙わない)。
+     * (G1〜G8・環境生物・感染体・植物側へ変わった生き物・防具立ては狙わない)。
      */
     @Override
     protected void registerGoals() {

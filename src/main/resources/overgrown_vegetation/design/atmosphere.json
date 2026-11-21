@@ -424,7 +424,7 @@
     "skyFill": 1.0
   },
   "scary": {
-    "_comment": "「美しいが怖い」の怖い現象 A・D・E(2026-11-16。決定の正本は Vault「美しいが怖い」、作りは「怖い現象 A・D・E(実装の記録)」)。数はすべて【仮】。shadow = D 林冠の影(ユーザー決定: 昼の過繁茂の森で、林冠の上を翼のような横に広い影が通り、木漏れ日が一斉に消えて戻る・正体不明・無音。everyDays = 平均何日に 1 回、speed = 影の速さ(ブロック/秒)、span = 翼の幅、chord = 付け根の前後の長さ、strength = 影の濃さ、dim = 影の真下にいる間、近くの景色を陰らせる割合。確かめは /ov fx shadow)。figures = E 霧の中のシルエット(ユーザー決定: 濃霧の中に G5 の輪郭の影が立つ・動かない・昼と朝だけ・近づくと消えてたどり着けない。everySeconds = 平均何秒に 1 体、nearFraction〜farFraction = 出す距離(濃霧の見通しに対する割合)、vanishFraction = この割合より近づくと消え始める、vanishBand = 消えきるまでの幅、lifeSeconds = 近づかなくても消えるまで、darkness = 影の濃さ、color = 影絵の色(本物は光る層で少し紫がかるので寄せてある)、hazeEase = 影が受ける霞の距離の倍率(1 で地形と同じ・小さいほど霧の中で濃く見える)、minFog = 濃霧の度合いがこれ以上で出す、species = 輪郭に使う G5 の種。確かめは /ov fx figure)。farSound = A 遠くの音だけの存在(ユーザー決定: 汚染地帯とその下の洞窟・警戒状態のときだけ・距離 20〜40・その人にだけ聞こえる・正体は何もいない。enabled は見本の音をユーザーが聞いて選ぶまで false。everySeconds・denseEverySeconds = 警戒状態の間、平均何秒に 1 回(ふつう・汚染の濃い所)、minDistance〜maxDistance = 音のする距離、volume = 大きさ、darkLight = 暗い所とみなす明るさ(0〜15)。確かめは /ov fx farsound)。",
+    "_comment": "「美しいが怖い」の怖い現象 A・D・E(2026-11-16。決定の正本は Vault「美しいが怖い」、作りは「怖い現象 A・D・E(実装の記録)」)。数はすべて【仮】。shadow = D 林冠の影(ユーザー決定: 昼の過繁茂の森で、林冠の上を翼のような横に広い影が通り、木漏れ日が一斉に消えて戻る・正体不明・無音。everyDays = 平均何日に 1 回、speed = 影の速さ(ブロック/秒)、span = 翼の幅、chord = 付け根の前後の長さ、strength = 影の濃さ、dim = 影の真下にいる間、近くの景色を陰らせる割合。確かめは /ov fx shadow)。figures = E 霧の中のシルエット(ユーザー決定: 濃霧の中に G3 の輪郭の影が立つ・動かない・昼と朝だけ・近づくと消えてたどり着けない。everySeconds = 平均何秒に 1 体、nearFraction〜farFraction = 出す距離(濃霧の見通しに対する割合)、vanishFraction = この割合より近づくと消え始める、vanishBand = 消えきるまでの幅、lifeSeconds = 近づかなくても消えるまで、darkness = 影の濃さ、color = 影絵の色(本物は光る層で少し紫がかるので寄せてある)、hazeEase = 影が受ける霞の距離の倍率(1 で地形と同じ・小さいほど霧の中で濃く見える)、minFog = 濃霧の度合いがこれ以上で出す、species = 輪郭に使う G3 の種。確かめは /ov fx figure)。farSound = A 遠くの音だけの存在(ユーザー決定: 汚染地帯とその下の洞窟・警戒状態のときだけ・距離 20〜40・その人にだけ聞こえる・正体は何もいない。enabled は見本の音をユーザーが聞いて選ぶまで false。everySeconds・denseEverySeconds = 警戒状態の間、平均何秒に 1 回(ふつう・汚染の濃い所)、minDistance〜maxDistance = 音のする距離、volume = 大きさ、darkLight = 暗い所とみなす明るさ(0〜15)。確かめは /ov fx farsound)。",
     "shadow": {
       "enabled": true,
       "everyDays": 3.0,
@@ -705,7 +705,7 @@
     }
   },
   "smallCritters": {
-    "_comment": "見た目だけの小さな生き物(2026-11-17 ユーザー決定、client/atmosphere/SmallCritters)。ユーザーが決めたのは: 種は 10・出るのは過繁茂だけ・数は升の G2・G3 の頭数を映す・近づいたときの反応は種ごと・起きるのは食べる/食べられるの演出だけ。ここの数値と食物網の組み合わせはすべて仮決め。range = 出す距離(ブロック)/ fadeHours = 時刻の端のなじませ(時)/ respawnSeconds = 逃げた虫が戻るまで / handMoths = 明かりを持つと手元に寄る蛾の数・handMothSeconds = 揃うまで / lightPullDistance・lightPull = ホタルが明かりへ寄る距離と割合 / eatReach = 口元からの届く距離・eatCooldownSeconds = 同じ Mob が次に食べるまで。species の counts = 同時に出す所の数(重さの段 高・中・低)・chance = 升(8 ブロック)に居る確率・fromHour〜toHour = 出る時刻(from > to は夜をまたぐ)・react = 反応する距離・slotSeconds = 入れ替わる間。prey = 食べる側のエンティティ id → 食べられる種。洞窟のカマドウマは caveLife.crickets(数だけ升の賑わいに合わせる)。",
+    "_comment": "見た目だけの小さな生き物(2026-11-17 ユーザー決定、client/atmosphere/SmallCritters)。ユーザーが決めたのは: 種は 10・出るのは過繁茂だけ・数は升の環境生物の頭数を映す・近づいたときの反応は種ごと・起きるのは食べる/食べられるの演出だけ。ここの数値と食物網の組み合わせはすべて仮決め。range = 出す距離(ブロック)/ fadeHours = 時刻の端のなじませ(時)/ respawnSeconds = 逃げた虫が戻るまで / handMoths = 明かりを持つと手元に寄る蛾の数・handMothSeconds = 揃うまで / lightPullDistance・lightPull = ホタルが明かりへ寄る距離と割合 / eatReach = 口元からの届く距離・eatCooldownSeconds = 同じ Mob が次に食べるまで。species の counts = 同時に出す所の数(重さの段 高・中・低)・chance = 升(8 ブロック)に居る確率・fromHour〜toHour = 出る時刻(from > to は夜をまたぐ)・react = 反応する距離・slotSeconds = 入れ替わる間。prey = 食べる側のエンティティ id → 食べられる種。洞窟のカマドウマは caveLife.crickets(数だけ升の賑わいに合わせる)。",
     "enabled": true,
     "range": 28,
     "fadeHours": 0.5,

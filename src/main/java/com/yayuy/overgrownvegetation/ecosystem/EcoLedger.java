@@ -19,7 +19,7 @@ import java.util.Iterator;
  * オーバーワールドに 1 つの保存データ。
  *
  * <h2>升ごとの個体群</h2>
- * 升 = 2^cellShift × 2^cellShift チャンク(既定 4×4)。升ごとに生産種(G2)・消費種(G3)の仮想の頭数を持つ。満員は G2 12・G3 4【仮】。
+ * 升 = 2^cellShift × 2^cellShift チャンク(既定 4×4)。升ごとに生産種(獲物の環境生物)・消費種(狩る側の環境生物)の仮想の頭数を持つ。満員は獲物の環境生物 12・狩る側の環境生物 4【仮】。
  * <b>持つのは減った升だけ</b>(欠け = 満員から減った数と、その時刻)。満員の升は持たない。戻りは読むときに計算する(tick しない):
  * 欠けは「最後に倒された時から recoveryDays で 0 に戻る」直線(深く減った升ほど速く戻る = どの升も最後の殺しから 5 日で満員)。
  * 頭数 = max(0, 満員 − 欠け)。欠けは満員を超えて積める(頭数 0 の升で倒しても多様性は下がる)。
@@ -42,13 +42,13 @@ public final class EcoLedger extends SavedData {
 
     /** 1 つの升(減った升だけ)。 */
     static final class Cell {
-        double lack2, lack3;
-        long at2, at3;
+        double lackPrey, lackHunter;
+        long atPrey, atHunter;
     }
 
     private final Long2ObjectOpenHashMap<Cell> cells = new Long2ObjectOpenHashMap<>();
-    /** これまでに数えた殺し(G2・G3。表示用・保存する)。 */
-    private long kills2, kills3;
+    /** これまでに数えた殺し(環境生物。表示用・保存する)。 */
+    private long killsPrey, killsHunter;
 
     /** 取っておいた多様性と、数えた時刻(保存しない)。 */
     private double cachedHealth = 1.0D;
@@ -101,8 +101,8 @@ public final class EcoLedger extends SavedData {
 
     // ---------------------------------------------------------------- 読む・書く
 
-    /** 倒した: その升の頭数を 1 減らす(group は 2 か 3)。 */
-    public void kill(int group, int chunkX, int chunkZ, long now) {
+    /** 倒した: その升の頭数を 1 減らす(kind は Ecosystem.PREY か HUNTER)。 */
+    public void kill(int kind, int chunkX, int chunkZ, long now) {
         EcoTable t = DesignData.ecosystem();
         long key = cellOf(chunkX, chunkZ, t.cellShift);
         Cell c = cells.get(key);
@@ -112,14 +112,14 @@ public final class EcoLedger extends SavedData {
         }
         double rt = recoveryTicks(t);
         double before = weightedLack(c, now, t);
-        if (group == 3) {
-            c.lack3 = lackNow(c.lack3, now - c.at3, t.fullG3, rt) + 1.0D;
-            c.at3 = now;
-            kills3++;
+        if (kind == Ecosystem.HUNTER) {
+            c.lackHunter = lackNow(c.lackHunter, now - c.atHunter, t.fullHunter, rt) + 1.0D;
+            c.atHunter = now;
+            killsHunter++;
         } else {
-            c.lack2 = lackNow(c.lack2, now - c.at2, t.fullG2, rt) + 1.0D;
-            c.at2 = now;
-            kills2++;
+            c.lackPrey = lackNow(c.lackPrey, now - c.atPrey, t.fullPrey, rt) + 1.0D;
+            c.atPrey = now;
+            killsPrey++;
         }
         // 多様性はこの升の重み付きの欠けの増えた分だけ下げる(全升の数え直しは 1 秒に 1 回のまま。コードの見直し 第 2 回 ⑤8: 倒すたびに全升を数え直していた)
         double after = weightedLack(c, now, t);
@@ -128,13 +128,13 @@ public final class EcoLedger extends SavedData {
         setDirty();
     }
 
-    /** その升の今の頭数(group 2・3)。 */
-    public double heads(int group, int chunkX, int chunkZ, long now) {
+    /** その升の今の頭数(kind = Ecosystem.PREY・HUNTER)。 */
+    public double heads(int kind, int chunkX, int chunkZ, long now) {
         EcoTable t = DesignData.ecosystem();
         Cell c = cells.get(cellOf(chunkX, chunkZ, t.cellShift));
-        int full = t.full(group);
+        int full = t.full(kind);
         if (c == null) return full;
-        double lack = group == 3 ? lackNow(c.lack3, now - c.at3, full, recoveryTicks(t)) : lackNow(c.lack2, now - c.at2, full, recoveryTicks(t));
+        double lack = kind == Ecosystem.HUNTER ? lackNow(c.lackHunter, now - c.atHunter, full, recoveryTicks(t)) : lackNow(c.lackPrey, now - c.atPrey, full, recoveryTicks(t));
         return Math.max(0.0D, full - lack);
     }
 
@@ -146,7 +146,7 @@ public final class EcoLedger extends SavedData {
 
     private static double weightedLack(Cell c, long now, EcoTable t) {
         double rt = recoveryTicks(t);
-        return lackNow(c.lack2, now - c.at2, t.fullG2, rt) * t.weightG2 + lackNow(c.lack3, now - c.at3, t.fullG3, rt) * t.weightG3;
+        return lackNow(c.lackPrey, now - c.atPrey, t.fullPrey, rt) * t.weightPrey + lackNow(c.lackHunter, now - c.atHunter, t.fullHunter, rt) * t.weightHunter;
     }
 
     /** 多様性(0〜1)。1 秒に 1 回だけ数え直す。 */
@@ -190,8 +190,8 @@ public final class EcoLedger extends SavedData {
         }
     }
 
-    public long kills(int group) {
-        return group == 3 ? kills3 : kills2;
+    public long kills(int kind) {
+        return kind == Ecosystem.HUNTER ? killsHunter : killsPrey;
     }
 
     /** 全部を満員に戻す(確かめ用のコマンド・GameTest の後片付け)。 */
@@ -202,12 +202,12 @@ public final class EcoLedger extends SavedData {
     }
 
     /** 確かめ用: 升を直に置く(重さの計測・保存の確かめ)。 */
-    public void putCellForTests(long key, double lack2, long at2, double lack3, long at3) {
+    public void putCellForTests(long key, double lackPrey, long atPrey, double lackHunter, long atHunter) {
         Cell c = new Cell();
-        c.lack2 = lack2;
-        c.at2 = at2;
-        c.lack3 = lack3;
-        c.at3 = at3;
+        c.lackPrey = lackPrey;
+        c.atPrey = atPrey;
+        c.lackHunter = lackHunter;
+        c.atHunter = atHunter;
         cells.put(key, c);
         stale = true;
         setDirty();
@@ -218,20 +218,26 @@ public final class EcoLedger extends SavedData {
     public static EcoLedger load(CompoundTag tag) {
         EcoLedger d = new EcoLedger();
         long[] keys = tag.getLongArray("Keys");
-        long[] at2 = tag.getLongArray("At2"), at3 = tag.getLongArray("At3");
-        net.minecraft.nbt.ListTag l2 = tag.getList("Lack2", net.minecraft.nbt.Tag.TAG_DOUBLE), l3 = tag.getList("Lack3", net.minecraft.nbt.Tag.TAG_DOUBLE);
-        int n = Math.min(Math.min(keys.length, at2.length), Math.min(at3.length, Math.min(l2.size(), l3.size())));
+        // 2026-11-21 に保存のキーを旧 G2・G3 の番号(At2・Lack2・Kills2 など)から Prey・Hunter へ付け替えた。古いセーブは古いキーで読む
+        long[] atPrey = tag.getLongArray(key(tag, "AtPrey", "At2")), atHunter = tag.getLongArray(key(tag, "AtHunter", "At3"));
+        net.minecraft.nbt.ListTag lPrey = tag.getList(key(tag, "LackPrey", "Lack2"), net.minecraft.nbt.Tag.TAG_DOUBLE), lHunter = tag.getList(key(tag, "LackHunter", "Lack3"), net.minecraft.nbt.Tag.TAG_DOUBLE);
+        int n = Math.min(Math.min(keys.length, atPrey.length), Math.min(atHunter.length, Math.min(lPrey.size(), lHunter.size())));
         for (int i = 0; i < n; i++) {
             Cell c = new Cell();
-            c.lack2 = l2.getDouble(i);
-            c.at2 = at2[i];
-            c.lack3 = l3.getDouble(i);
-            c.at3 = at3[i];
+            c.lackPrey = lPrey.getDouble(i);
+            c.atPrey = atPrey[i];
+            c.lackHunter = lHunter.getDouble(i);
+            c.atHunter = atHunter[i];
             d.cells.put(keys[i], c);
         }
-        d.kills2 = tag.getLong("Kills2");
-        d.kills3 = tag.getLong("Kills3");
+        d.killsPrey = tag.getLong(key(tag, "KillsPrey", "Kills2"));
+        d.killsHunter = tag.getLong(key(tag, "KillsHunter", "Kills3"));
         return d;
+    }
+
+    /** 新しいキーがあればそれ、無ければ古いキー(旧番号の保存)。 */
+    private static String key(CompoundTag tag, String now, String old) {
+        return tag.contains(now) ? now : old;
     }
 
     @Override
@@ -242,25 +248,25 @@ public final class EcoLedger extends SavedData {
     /** 保存の中身(確かめ用にも)。 */
     public CompoundTag write(CompoundTag tag) {
         int n = cells.size();
-        long[] keys = new long[n], at2 = new long[n], at3 = new long[n];
-        net.minecraft.nbt.ListTag l2 = new net.minecraft.nbt.ListTag(), l3 = new net.minecraft.nbt.ListTag();
+        long[] keys = new long[n], atPrey = new long[n], atHunter = new long[n];
+        net.minecraft.nbt.ListTag lPrey = new net.minecraft.nbt.ListTag(), lHunter = new net.minecraft.nbt.ListTag();
         int i = 0;
         for (Long2ObjectMap.Entry<Cell> e : Long2ObjectMaps.fastIterable(cells)) {
             Cell c = e.getValue();
             keys[i] = e.getLongKey();
-            at2[i] = c.at2;
-            at3[i] = c.at3;
-            l2.add(net.minecraft.nbt.DoubleTag.valueOf(c.lack2));
-            l3.add(net.minecraft.nbt.DoubleTag.valueOf(c.lack3));
+            atPrey[i] = c.atPrey;
+            atHunter[i] = c.atHunter;
+            lPrey.add(net.minecraft.nbt.DoubleTag.valueOf(c.lackPrey));
+            lHunter.add(net.minecraft.nbt.DoubleTag.valueOf(c.lackHunter));
             i++;
         }
         tag.putLongArray("Keys", keys);
-        tag.putLongArray("At2", at2);
-        tag.putLongArray("At3", at3);
-        tag.put("Lack2", l2);
-        tag.put("Lack3", l3);
-        tag.putLong("Kills2", kills2);
-        tag.putLong("Kills3", kills3);
+        tag.putLongArray("AtPrey", atPrey);
+        tag.putLongArray("AtHunter", atHunter);
+        tag.put("LackPrey", lPrey);
+        tag.put("LackHunter", lHunter);
+        tag.putLong("KillsPrey", killsPrey);
+        tag.putLong("KillsHunter", killsHunter);
         return tag;
     }
 }

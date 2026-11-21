@@ -61,25 +61,25 @@ public final class EcosystemGameTests {
         EcoTable t = DesignData.ecosystem();
         EcoLedger l = EcoLedger.createDetachedForTests();
         long t0 = 1_000_000L;
-        helper.assertTrue(l.heads(2, 0, 0, t0) == t.fullG2 && l.health(t0) == 1.0D, "空の台帳が満員でない");
-        l.kill(2, 1, 1, t0);
-        l.kill(3, 2, 3, t0); // 同じ升(4×4 チャンクなら 0,0)
-        helper.assertTrue(Math.abs(l.heads(2, 0, 0, t0) - (t.fullG2 - 1)) < 1e-9 && Math.abs(l.heads(3, 0, 0, t0) - (t.fullG3 - 1)) < 1e-9, "倒しても升が減らない");
-        helper.assertTrue(l.heads(2, 1 << t.cellShift, 0, t0) == t.fullG2, "隣の升まで減った");
-        double expect = 1.0D - (t.weightG2 + t.weightG3) / t.scale;
+        helper.assertTrue(l.heads(Ecosystem.PREY, 0, 0, t0) == t.fullPrey && l.health(t0) == 1.0D, "空の台帳が満員でない");
+        l.kill(Ecosystem.PREY, 1, 1, t0);
+        l.kill(Ecosystem.HUNTER, 2, 3, t0); // 同じ升(4×4 チャンクなら 0,0)
+        helper.assertTrue(Math.abs(l.heads(Ecosystem.PREY, 0, 0, t0) - (t.fullPrey - 1)) < 1e-9 && Math.abs(l.heads(Ecosystem.HUNTER, 0, 0, t0) - (t.fullHunter - 1)) < 1e-9, "倒しても升が減らない");
+        helper.assertTrue(l.heads(Ecosystem.PREY, 1 << t.cellShift, 0, t0) == t.fullPrey, "隣の升まで減った");
+        double expect = 1.0D - (t.weightPrey + t.weightHunter) / t.scale;
         helper.assertTrue(Math.abs(l.health(t0) - expect) < 1e-9, "多様性が物差しどおりでない: " + l.health(t0) + " / " + expect);
         // 半分の日数で半分戻る(欠け 1 < 満員 → 満員 ÷ 日数 の速さ)
         long half = (long) (t.recoveryDays * DAY / 2);
-        double h2 = l.heads(2, 0, 0, t0 + half);
-        helper.assertTrue(h2 == t.fullG2, "欠け 1 は半日もかからず戻るはず(満員 ÷ 日数の速さ): " + h2);
+        double h2 = l.heads(Ecosystem.PREY, 0, 0, t0 + half);
+        helper.assertTrue(h2 == t.fullPrey, "欠け 1 は半日もかからず戻るはず(満員 ÷ 日数の速さ): " + h2);
         // 頭数 0 の升でさらに倒しても多様性は下がる。深く減った升も recoveryDays で満員へ
-        for (int i = 0; i < t.fullG2 * 3; i++) l.kill(2, 40, 40, t0);
-        helper.assertTrue(l.heads(2, 40, 40, t0) == 0.0D, "頭数が 0 より下か、0 にならない");
+        for (int i = 0; i < t.fullPrey * 3; i++) l.kill(Ecosystem.PREY, 40, 40, t0);
+        helper.assertTrue(l.heads(Ecosystem.PREY, 40, 40, t0) == 0.0D, "頭数が 0 より下か、0 にならない");
         double deep = l.health(t0);
         helper.assertTrue(deep < expect, "頭数 0 の升で倒しても多様性が下がらない");
         long back = (long) Math.ceil(t.recoveryDays * DAY);
-        helper.assertTrue(l.heads(2, 40, 40, t0 + back - DAY) < t.fullG2, "深い升が早く戻りすぎる");
-        helper.assertTrue(l.heads(2, 40, 40, t0 + back) == t.fullG2, "深い升が recoveryDays で戻らない");
+        helper.assertTrue(l.heads(Ecosystem.PREY, 40, 40, t0 + back - DAY) < t.fullPrey, "深い升が早く戻りすぎる");
+        helper.assertTrue(l.heads(Ecosystem.PREY, 40, 40, t0 + back) == t.fullPrey, "深い升が recoveryDays で戻らない");
         l.recount(t0 + back);
         helper.assertTrue(l.damagedCells() == 0 && l.health(t0 + back) == 1.0D, "戻った升が消えない・多様性が戻らない");
         // 予算の倍率: 健康 100% で 1、0% で incomeFloor
@@ -94,14 +94,14 @@ public final class EcosystemGameTests {
     public static void saveAndLoad(GameTestHelper helper) {
         EcoLedger l = EcoLedger.createDetachedForTests();
         long t0 = 500_000L;
-        l.kill(2, 3, 3, t0);
-        l.kill(2, 3, 3, t0 + 100);
-        l.kill(3, -20, 7, t0 + 200);
+        l.kill(Ecosystem.PREY, 3, 3, t0);
+        l.kill(Ecosystem.PREY, 3, 3, t0 + 100);
+        l.kill(Ecosystem.HUNTER, -20, 7, t0 + 200);
         CompoundTag tag = l.write(new CompoundTag());
         EcoLedger r = EcoLedger.load(tag);
         long at = t0 + 5000;
-        helper.assertTrue(r.damagedCells() == l.damagedCells() && r.kills(2) == 2 && r.kills(3) == 1, "升の数・殺しの数が戻らない");
-        helper.assertTrue(r.heads(2, 3, 3, at) == l.heads(2, 3, 3, at) && r.heads(3, -20, 7, at) == l.heads(3, -20, 7, at)
+        helper.assertTrue(r.damagedCells() == l.damagedCells() && r.kills(Ecosystem.PREY) == 2 && r.kills(Ecosystem.HUNTER) == 1, "升の数・殺しの数が戻らない");
+        helper.assertTrue(r.heads(Ecosystem.PREY, 3, 3, at) == l.heads(Ecosystem.PREY, 3, 3, at) && r.heads(Ecosystem.HUNTER, -20, 7, at) == l.heads(Ecosystem.HUNTER, -20, 7, at)
                 && r.health(at) == l.health(at), "読み戻した頭数・多様性が違う");
         helper.succeed();
     }
@@ -118,17 +118,17 @@ public final class EcosystemGameTests {
         var before = com.yayuy.overgrownvegetation.ecosystem.EcoCellsSender.build(l, cx, cz, r, t0);
         int mid = before.index(cx, cz), side = before.index(cx + 1, cz);
         helper.assertTrue(mid >= 0 && side >= 0 && before.index(cx + r + 1, cz) == -1, "添字が違う");
-        helper.assertTrue(com.yayuy.overgrownvegetation.network.EcoCellsPayload.unpack(before.g2()[mid]) == 1.0F, "満員の升が 1 でない");
-        int n = Math.max(1, t.fullG2 / 2);
-        for (int i = 0; i < n; i++) l.kill(2, chunkX, chunkZ, t0);
-        l.kill(3, chunkX, chunkZ, t0);
+        helper.assertTrue(com.yayuy.overgrownvegetation.network.EcoCellsPayload.unpack(before.prey()[mid]) == 1.0F, "満員の升が 1 でない");
+        int n = Math.max(1, t.fullPrey / 2);
+        for (int i = 0; i < n; i++) l.kill(Ecosystem.PREY, chunkX, chunkZ, t0);
+        l.kill(Ecosystem.HUNTER, chunkX, chunkZ, t0);
         var after = com.yayuy.overgrownvegetation.ecosystem.EcoCellsSender.build(l, cx, cz, r, t0);
-        float g2 = com.yayuy.overgrownvegetation.network.EcoCellsPayload.unpack(after.g2()[mid]);
-        float g3 = com.yayuy.overgrownvegetation.network.EcoCellsPayload.unpack(after.g3()[mid]);
-        float expect2 = (float) (t.fullG2 - n) / t.fullG2, expect3 = (float) (t.fullG3 - 1) / t.fullG3;
-        helper.assertTrue(Math.abs(g2 - expect2) < 0.005F && Math.abs(g3 - expect3) < 0.005F,
-                "倒した升の値が頭数どおりに下がらない: G2 " + g2 + " / " + expect2 + "・G3 " + g3 + " / " + expect3);
-        helper.assertTrue(com.yayuy.overgrownvegetation.network.EcoCellsPayload.unpack(after.g2()[side]) == 1.0F, "隣の升まで下がった");
+        float prey = com.yayuy.overgrownvegetation.network.EcoCellsPayload.unpack(after.prey()[mid]);
+        float hunter = com.yayuy.overgrownvegetation.network.EcoCellsPayload.unpack(after.hunter()[mid]);
+        float expect2 = (float) (t.fullPrey - n) / t.fullPrey, expect3 = (float) (t.fullHunter - 1) / t.fullHunter;
+        helper.assertTrue(Math.abs(prey - expect2) < 0.005F && Math.abs(hunter - expect3) < 0.005F,
+                "倒した升の値が頭数どおりに下がらない: 獲物の環境生物 " + prey + " / " + expect2 + "・狩る側の環境生物 " + hunter + " / " + expect3);
+        helper.assertTrue(com.yayuy.overgrownvegetation.network.EcoCellsPayload.unpack(after.prey()[side]) == 1.0F, "隣の升まで下がった");
         helper.assertTrue(!after.sameAs(before), "値が変わったのに同じと見なした(送られない)");
         // 通信で壊れない
         var buf = new net.minecraft.network.FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
@@ -172,7 +172,7 @@ public final class EcosystemGameTests {
 
     /**
      * 世界を通す確かめ(1 本にまとめる): 数える殺し手(プレイヤーは数え、落下・Mob は数えない)・死の口で升が減る・
-     * 予算の倍率(健康 100% で 1・上限は変わらない)・内側の守り(健康で 0 体・殺しすぎると減った升に G4・内側でない所には湧かない)・仮の種の印。
+     * 予算の倍率(健康 100% で 1・上限は変わらない)・内側の守り(健康で 0 体・殺しすぎると減った升に G2・内側でない所には湧かない)・仮の種の印。
      */
     @GameTest(template = "gametest_empty7", batch = "eco_world", timeoutTicks = 60)
     public static void killsHealthBudgetAndInnerDefense(GameTestHelper helper) {
@@ -195,28 +195,28 @@ public final class EcosystemGameTests {
             Player player = helper.makeMockPlayer(GameType.SURVIVAL);
             Mob frog = EntityType.FROG.create(level);
             frog.moveTo(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
-            frog.addTag(Ecosystem.STUB_TAG_G2);
+            frog.addTag(Ecosystem.STUB_TAG_PREY);
             level.addFreshEntity(frog);
             made.add(frog);
-            helper.assertTrue(Ecosystem.residentGroup(frog) == 2, "印の付いたカエルが G2 にならない");
+            helper.assertTrue(Ecosystem.critterKind(frog) == Ecosystem.PREY, "印の付いたカエルが獲物の環境生物にならない");
             Mob plainFrog = EntityType.FROG.create(level);
-            helper.assertTrue(Ecosystem.residentGroup(plainFrog) == 0, "印の無いカエルまで G2 になる");
+            helper.assertTrue(Ecosystem.critterKind(plainFrog) == Ecosystem.NONE, "印の無いカエルまで獲物の環境生物になる");
             plainFrog.discard();
             helper.assertTrue(Ecosystem.counted(level.damageSources().playerAttack(player)), "プレイヤーの殺しを数えない");
             helper.assertTrue(!Ecosystem.counted(level.damageSources().fall()) && !Ecosystem.counted(level.damageSources().mobAttack(frog)), "落下・Mob の殺しを数える");
             frog.hurt(level.damageSources().playerAttack(player), 1000.0F);
             helper.assertTrue(!frog.isAlive(), "カエルが倒れない");
-            helper.assertTrue(Math.abs(ledger.heads(2, ocx, ocz, now) - (t.fullG2 - 1)) < 1e-6 && ledger.kills(2) >= 1, "倒しても升が減らない");
+            helper.assertTrue(Math.abs(ledger.heads(Ecosystem.PREY, ocx, ocz, now) - (t.fullPrey - 1)) < 1e-6 && ledger.kills(Ecosystem.PREY) >= 1, "倒しても升が減らない");
             helper.assertTrue(Ecosystem.health(level) < 1.0D, "倒しても多様性が下がらない");
-            // 落下で死んだ G2 は数えない
-            long killsBefore = ledger.kills(2);
+            // 落下で死んだ獲物の環境生物は数えない
+            long killsBefore = ledger.kills(Ecosystem.PREY);
             Mob frog2 = EntityType.FROG.create(level);
             frog2.moveTo(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
-            frog2.addTag(Ecosystem.STUB_TAG_G2);
+            frog2.addTag(Ecosystem.STUB_TAG_PREY);
             level.addFreshEntity(frog2);
             made.add(frog2);
             frog2.hurt(level.damageSources().fall(), 1000.0F);
-            helper.assertTrue(ledger.kills(2) == killsBefore, "落下で死んだ G2 を数えた");
+            helper.assertTrue(ledger.kills(Ecosystem.PREY) == killsBefore, "落下で死んだ獲物の環境生物を数えた");
 
             // ---- 内側の守り: 5×5 の過繁茂の真ん中は内側、縁は内側でない
             for (int dx = -2; dx <= 2; dx++) {
@@ -231,17 +231,17 @@ public final class EcosystemGameTests {
             DirectorGates.setStageForTests(PhaseStage.PEAK);
             ledger.reset();
             double capBefore = ForestDirector.cap(level); // 面積(過繁茂のチャンク)を足した後に測る。ここから変わるのは健康だけ
-            helper.assertTrue(EcoSpawns.innerCap(level, 4) == 0 && EcoSpawns.innerCap(level, 5) == 0, "健康 100% で内側の守りが開いている");
+            helper.assertTrue(EcoSpawns.innerCap(level, 2) == 0 && EcoSpawns.innerCap(level, 3) == 0, "健康 100% で内側の守りが開いている");
             helper.assertTrue(EcoSpawns.tryInner(level, origin.getX(), origin.getZ(), RandomSource.create(1L)) == EcoSpawns.Miss.HEALTHY, "健康なのに守りを試した");
-            // 殺しすぎる: 多様性をしきい値の半分まで下げる(この升で G2 を倒す)
-            int need = (int) Math.ceil((1.0D - t.innerThreshold / 2.0D) * t.scale / t.weightG2);
-            for (int i = 0; i < need; i++) ledger.kill(2, ocx, ocz, EcoLedger.now(level));
+            // 殺しすぎる: 多様性をしきい値の半分まで下げる(この升で獲物の環境生物を倒す)
+            int need = (int) Math.ceil((1.0D - t.innerThreshold / 2.0D) * t.scale / t.weightPrey);
+            for (int i = 0; i < need; i++) ledger.kill(Ecosystem.PREY, ocx, ocz, EcoLedger.now(level));
             double h = Ecosystem.health(level);
             helper.assertTrue(h <= t.innerThreshold / 2.0D + 1e-6, "多様性が下がりきらない: " + h);
-            int cap4 = EcoSpawns.innerCap(level, 4), cap5 = EcoSpawns.innerCap(level, 5);
+            int capG2 = EcoSpawns.innerCap(level, 2), capG3 = EcoSpawns.innerCap(level, 3);
             double f = EcoSpawns.defenseFactor(h, t.innerThreshold);
-            helper.assertTrue(cap4 == (int) Math.round(t.innerCapG4 * f) && cap5 == (int) Math.round(t.innerCapG5 * f) && cap4 > 0,
-                    "内側の上限が設計値と違う: G4 " + cap4 + "・G5 " + cap5);
+            helper.assertTrue(capG2 == (int) Math.round(t.innerCapG2 * f) && capG3 == (int) Math.round(t.innerCapG3 * f) && capG2 > 0,
+                    "内側の上限が設計値と違う: G2 " + capG2 + "・G3 " + capG3);
             // 予算: 倍率は健康どおり・上限は変わらない
             helper.assertTrue(Math.abs(Ecosystem.incomeFactor(level) - EcoLedger.incomeFactor(h, t.incomeFloor)) < 1e-9, "予算の倍率が健康どおりでない");
             helper.assertTrue(Math.abs(ForestDirector.cap(level) - capBefore) < 1e-9, "健康で上限が変わった");
@@ -250,12 +250,12 @@ public final class EcosystemGameTests {
             long cell = EcoLedger.cellOf(ChunkPos.getX(chunk), ChunkPos.getZ(chunk), t.cellShift);
             helper.assertTrue(cell == EcoLedger.cellOf(ocx, ocz, t.cellShift), "減った升を選ばない");
             // 内側でないチャンクには湧かない
-            helper.assertTrue(EcoSpawns.tryInnerAt(level, ocx + 2, ocz, new int[6], cap4, cap5, RandomSource.create(1L)) == EcoSpawns.Miss.NOT_INSIDE, "縁に内側の守りが湧こうとした");
-            helper.assertTrue(EcoSpawns.tryInnerAt(level, ocx, ocz, new int[] {0, 0, 0, 0, cap4, cap5}, cap4, cap5, RandomSource.create(1L)) == EcoSpawns.Miss.FULL, "上限なのに湧こうとした");
+            helper.assertTrue(EcoSpawns.tryInnerAt(level, ocx + 2, ocz, new int[4], capG2, capG3, RandomSource.create(1L)) == EcoSpawns.Miss.NOT_INSIDE, "縁に内側の守りが湧こうとした");
+            helper.assertTrue(EcoSpawns.tryInnerAt(level, ocx, ocz, new int[] {0, 0, capG2, capG3}, capG2, capG3, RandomSource.create(1L)) == EcoSpawns.Miss.FULL, "上限なのに湧こうとした");
             // 真ん中に湧く(置き場は乱数なので何回か)
             EcoSpawns.Miss last = null;
             RandomSource rr = RandomSource.create(9L);
-            for (int i = 0; i < 40 && last != EcoSpawns.Miss.SPAWNED; i++) last = EcoSpawns.tryInnerAt(level, ocx, ocz, new int[6], cap4, cap5, rr);
+            for (int i = 0; i < 40 && last != EcoSpawns.Miss.SPAWNED; i++) last = EcoSpawns.tryInnerAt(level, ocx, ocz, new int[4], capG2, capG3, rr);
             helper.assertTrue(last == EcoSpawns.Miss.SPAWNED, "殺しすぎても内側に守りが湧かない: " + last);
             // プレイヤーのまわりから選ぶ道(tryInner: 減った升を選ぶ → 置く)も通す
             last = null;
@@ -266,12 +266,12 @@ public final class EcosystemGameTests {
             made.addAll(inner);
             helper.assertTrue(!inner.isEmpty(), "湧いた守りが見つからない");
             int[] c = EcoSpawns.count(level, origin.getX(), origin.getZ(), 64.0D);
-            helper.assertTrue(c[4] + c[5] >= 1, "湧いた守りが数えられない");
+            helper.assertTrue(c[2] + c[3] >= 1, "湧いた守りが数えられない");
             // 仮の種: GameTest では湧かせてよい。倒した升(頭数 0)には湧かない
             helper.assertTrue(EcoSpawns.stubAllowed(level), "GameTest で仮の種が許されていない");
-            for (int i = 0; i < t.fullG3 * 2; i++) ledger.kill(3, ocx, ocz, EcoLedger.now(level));
-            helper.assertTrue(ledger.heads(2, ocx, ocz, EcoLedger.now(level)) == 0.0D && ledger.heads(3, ocx, ocz, EcoLedger.now(level)) == 0.0D, "頭数が 0 にならない");
-            EcoSpawns.Miss s = EcoSpawns.tryStubAt(level, ocx, ocz, new int[6], RandomSource.create(2L));
+            for (int i = 0; i < t.fullHunter * 2; i++) ledger.kill(Ecosystem.HUNTER, ocx, ocz, EcoLedger.now(level));
+            helper.assertTrue(ledger.heads(Ecosystem.PREY, ocx, ocz, EcoLedger.now(level)) == 0.0D && ledger.heads(Ecosystem.HUNTER, ocx, ocz, EcoLedger.now(level)) == 0.0D, "頭数が 0 にならない");
+            EcoSpawns.Miss s = EcoSpawns.tryStubAt(level, ocx, ocz, new int[4], RandomSource.create(2L));
             helper.assertTrue(s == EcoSpawns.Miss.THIN || s == EcoSpawns.Miss.FULL, "頭数 0 の升に仮の種が湧こうとした: " + s);
             helper.succeed();
         } finally {

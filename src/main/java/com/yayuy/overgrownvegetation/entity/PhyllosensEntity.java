@@ -37,7 +37,7 @@ import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
- * 「フィロセンス」(G6・森の目)— <b>監視塔</b>(2026-11-14 に竹馬型から作り直し。仕様の正本は Vault「Mob の能力/フィロセンス」の
+ * 「フィロセンス」(G4・森の目)— <b>監視塔</b>(2026-11-14 に竹馬型から作り直し。仕様の正本は Vault「Mob の能力/フィロセンス」の
  * 「作り直し: 竹馬型をやめて『監視塔』にする」以降)。竹馬の体は {@link StiltPhyllosensEntity}(内部用の id {@code phyllosens_stilt})。
  *
  * <p>蔦で編まれた太い塔(閉じて約 13 ブロック)が森に立ち、<b>動かない・押されない・重力で落ちない</b>。てっぺんがほどけて 10 節・15 ブロックの

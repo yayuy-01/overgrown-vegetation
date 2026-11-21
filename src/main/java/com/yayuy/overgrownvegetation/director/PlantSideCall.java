@@ -16,7 +16,7 @@ import java.util.List;
  * <ul>
  *   <li>G1(段階 0・1 段目): 印の相手の今の居場所へ {@link G1March} で歩かせる(長さの上限つき)。道が決まった個体(進化・根付き・苗床の途中)・
  *   偵察の途中・起き上がりの途中・ほかの使いの途中(拠点へ送られている)は呼ばない。着いたら、あとはいつもの狙い方で襲う。</li>
- *   <li>G4 以降: 戻したら {@link #registerListener} で、その群れの側が向かわせ方を登録する。</li>
+ *   <li>G2 以降: 戻したら {@link #registerListener} で、その群れの側が向かわせ方を登録する。</li>
  *   <li><b>貯めている間は呼ばない</b>(貯める間は「襲わず遠巻きにうろつく」決まり。呼ぶと遠巻きが崩れる)。
  *   大きな襲撃の前触れの間は通す(止めるのは植物側の「湧き」だけで、いる個体を動かすのは偵察と同じく続ける)。</li>
  * </ul>
@@ -29,7 +29,7 @@ public final class PlantSideCall {
     /** 呼びかけの印(G1March の拠点の番号の代わり)。 */
     public static final int CALL_ID = -2;
 
-    /** G4 以降を向かわせる口。向かわせた数を返す。 */
+    /** G2 以降を向かわせる口。向かわせた数を返す。 */
     public interface Listener {
         int call(ServerLevel level, Vec3 at, LivingEntity target, double radius, int ticks);
     }
@@ -43,7 +43,7 @@ public final class PlantSideCall {
     /**
      * {@code at} から半径 {@code radius} の植物側の Mob を、{@code target} の居場所へ {@code ticks} の間向かわせる。
      *
-     * @return 向かわせた数(G1 + 登録された G4 以降)
+     * @return 向かわせた数(G1 + 登録された G2 以降)
      */
     public static int towards(ServerLevel level, Vec3 at, LivingEntity target, double radius, int ticks) {
         if (ForestDirector.hoarding()) return 0;

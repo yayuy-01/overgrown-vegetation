@@ -75,24 +75,24 @@ public final class F5RaidGameTests {
         int prev = -1;
         for (double d : new double[] {0.0D, 1.0D, 2.0D, 4.0D, 6.0D, 30.0D}) {
             BaseMemoryTable.Wave w = t.waveFor(d);
-            int sum = w.stageZero() + w.developed() + w.g4() + w.g5plus();
+            int sum = w.stageZero() + w.developed() + w.g2() + w.g3plus();
             helper.assertTrue(sum >= prev, "日がたつと数が減った: " + d + " 日 " + sum);
             prev = sum;
         }
         BaseMemoryTable.Wave w0 = t.waveFor(0.0D);
-        helper.assertTrue(w0.stageZero() + w0.developed() + w0.g4() + w0.g5plus() == 10 && w0.g5plus() == 0, "最初の段が 10 体・G5 なしでない");
+        helper.assertTrue(w0.stageZero() + w0.developed() + w0.g2() + w0.g3plus() == 10 && w0.g3plus() == 0, "最初の段が 10 体・G3 なしでない");
         helper.assertTrue(prev == a.maxWave, "最後の段が上限の " + a.maxWave + " でない: " + prev);
         BaseMemoryTable.Wave f = a.firstRaid;
-        helper.assertTrue(f.stageZero() + f.developed() + f.g4() + f.g5plus() == 15 && f.g5plus() == 0, "最初の襲撃が 15 体・G1 と G4 だけでない");
-        // 上限に収める: 安いもの(段階 0 → G4)から削る
+        helper.assertTrue(f.stageZero() + f.developed() + f.g2() + f.g3plus() == 15 && f.g3plus() == 0, "最初の襲撃が 15 体・G1 と G2 だけでない");
+        // 上限に収める: 安いもの(段階 0 → G2)から削る
         BaseMemoryTable.Wave big = BaseRaids.capped(new BaseMemoryTable.Wave(0.0D, 20, 10, 20, 10), 40);
-        helper.assertTrue(big.stageZero() + big.developed() + big.g4() + big.g5plus() == 40 && big.stageZero() == 0 && big.developed() == 10 && big.g5plus() == 10,
+        helper.assertTrue(big.stageZero() + big.developed() + big.g2() + big.g3plus() == 40 && big.stageZero() == 0 && big.developed() == 10 && big.g3plus() == 10,
                 "上限の削り方が違う: " + big);
         helper.succeed();
     }
 
     /**
-     * 世界を通す送り込み: 最初の襲撃(15 体・湧かせて払う)→ 日がたった回(40 体まで)→ 予算が少なければ安い段階 0 から送る → 貯めた襲撃は進化体と G5 が 1.5 倍。
+     * 世界を通す送り込み: 最初の襲撃(15 体・湧かせて払う)→ 日がたった回(40 体まで)→ 予算が少なければ安い段階 0 から送る → 貯めた襲撃は進化体と G3 が 1.5 倍。
      * 湧かせる所はテスト場に決め打ち(テスト場の高さの地図は天井を答えるため)。
      */
     @GameTest(template = "gametest_empty7", batch = "f5_raid_world", timeoutTicks = 60)
@@ -118,8 +118,8 @@ public final class F5RaidGameTests {
             director.setBudget(level, 5000.0D);
             helper.assertTrue(BaseMemory.firstRaidPending(b), "まだ送っていないのに最初の襲撃でない");
             BaseRaids.Result first = BaseRaids.sendWave(level, b, 0.0D, level.getRandom());
-            helper.assertTrue(first.first() && first.total() == 15 && first.g5plus() == 0 && first.g4() == a.firstRaid.g4(),
-                    "最初の襲撃が 15 体(G1 と G4)でない: " + first.summary());
+            helper.assertTrue(first.first() && first.total() == 15 && first.g3plus() == 0 && first.g2() == a.firstRaid.g2(),
+                    "最初の襲撃が 15 体(G1 と G2)でない: " + first.summary());
             helper.assertTrue(first.spawnedZero() > 0, "段階 0 の足りない分を湧かせていない: " + first.summary());
             mem.waveSent(b, 0.0D, level.getRandom());
             helper.assertTrue(!BaseMemory.firstRaidPending(b), "送った後も最初の襲撃のまま");
@@ -137,22 +137,22 @@ public final class F5RaidGameTests {
             director.setBudget(level, 400.0D);
             BaseRaids.Result late = BaseRaids.sendWave(level, b, 6.0D, level.getRandom());
             int want = BaseRaids.sizeByBudget(level, w6, 400.0D * com.yayuy.overgrownvegetation.director.ForestEconomy.table().waveBudgetShare).total();
-            helper.assertTrue(late.total() >= want - 4 && late.total() <= want + 4 && late.g5plus() > 0, "6 日目が予算どおり(約 " + want + " 体・G5 入り)でない: " + late.summary());
+            helper.assertTrue(late.total() >= want - 4 && late.total() <= want + 4 && late.g3plus() > 0, "6 日目が予算どおり(約 " + want + " 体・G3 入り)でない: " + late.summary());
             clear(helper);
-            // 予算が少ない: 安い段階 0 から(進化・G5 は払えない)
+            // 予算が少ない: 安い段階 0 から(進化・G3 は払えない)
             director.setBudget(level, a.stageZeroCost * 5.0D + 0.5D);
             BaseRaids.Result poor = BaseRaids.sendWave(level, b, 6.0D, level.getRandom());
-            // 11-20 夜: 体数は予算で決まる(5.5 × 0.75 ÷ 平均の値段 = 0 体)。少ない予算で、高い進化体・G5 を出さない
-            helper.assertTrue(poor.total() <= BaseRaids.sizeByBudget(level, bt.waveFor(6.0D), 5.5D).total() && poor.evolved() == 0 && poor.g5plus() == 0,
+            // 11-20 夜: 体数は予算で決まる(5.5 × 0.75 ÷ 平均の値段 = 0 体)。少ない予算で、高い進化体・G3 を出さない
+            helper.assertTrue(poor.total() <= BaseRaids.sizeByBudget(level, bt.waveFor(6.0D), 5.5D).total() && poor.evolved() == 0 && poor.g3plus() == 0,
                     "予算が少ないのに多く・高いものを送った: " + poor.summary());
             clear(helper);
-            // 貯めた襲撃: 進化体と G5 の枠が 1.5 倍、計は上限のまま
+            // 貯めた襲撃: 進化体と G3 の枠が 1.5 倍、計は上限のまま
             director.setBudget(level, 5000.0D);
             BaseRaids.Result hoard = BaseRaids.sendWave(level, b, 2.0D, level.getRandom(), true);
             BaseMemoryTable.Wave base2 = bt.waveFor(2.0D);
-            // 11-20 夜: 体数は予算で決まり、同時の上限(中の maxAlive)で切られる。進化体・G5 の割合は 1.5 倍のまま
+            // 11-20 夜: 体数は予算で決まり、同時の上限(中の maxAlive)で切られる。進化体・G3 の割合は 1.5 倍のまま
             helper.assertTrue(hoard.hoard() && hoard.total() > 0 && hoard.total() <= com.yayuy.overgrownvegetation.director.HoardRaids.maxAlive()
-                            && hoard.wantG5plus() * base2.g4() >= base2.g5plus() * hoard.wantG4() - hoard.wantG4(),
+                            && hoard.wantG3plus() * base2.g2() >= base2.g3plus() * hoard.wantG2() - hoard.wantG2(),
                     "貯めた襲撃の枠が違う: " + hoard.summary() + "(表 " + base2 + ")");
             clear(helper);
             // 貯めた襲撃の継ぎ足し: 同時 40 まで、倒された分を継ぎ足して合計 80 まで(11-16 ユーザー)
@@ -178,7 +178,7 @@ public final class F5RaidGameTests {
                     "予算が尽きるまで継ぎ足さない: 合計 " + com.yayuy.overgrownvegetation.director.HoardRaids.lastTotal + "・理由 " + com.yayuy.overgrownvegetation.director.HoardRaids.lastEnded);
             // 割合を保って縮める
             BaseMemoryTable.Wave s = com.yayuy.overgrownvegetation.director.HoardRaids.shrink(new BaseMemoryTable.Wave(0.0D, 2, 8, 13, 17), 10);
-            helper.assertTrue(s.stageZero() + s.developed() + s.g4() + s.g5plus() == 10 && s.g5plus() >= 4 && s.g4() >= 3, "縮め方が違う: " + s);
+            helper.assertTrue(s.stageZero() + s.developed() + s.g2() + s.g3plus() == 10 && s.g3plus() >= 4 && s.g2() >= 3, "縮め方が違う: " + s);
             clear(helper);
             helper.succeed();
         } finally {
@@ -236,9 +236,9 @@ public final class F5RaidGameTests {
         breachCase(helper, Blocks.STONE.defaultBlockState(), false);
     }
 
-    /** 小さな G4(グレガリア)は板の壁も壊さない。 */
+    /** 小さな G2(グレガリア)は板の壁も壊さない。 */
     @GameTest(template = "gametest_empty7", batch = "f5_raid_breach", timeoutTicks = 900)
-    public static void smallG4LeavesPlankWall(GameTestHelper helper) {
+    public static void smallG2LeavesPlankWall(GameTestHelper helper) {
         breachCase(helper, Blocks.OAK_PLANKS.defaultBlockState(), false, "gregaria");
     }
 

@@ -23,8 +23,8 @@ import software.bernie.geckolib.animation.RawAnimation;
 import java.util.EnumSet;
 
 /**
- * ファランギオタルブス {@code phalangiotarbus}(G3・原生消費種。石炭紀の大きなクモ型。張り付いて飛びかかる狩り)。
- * 2026-11-16 G2・G3 の作り直しの段 1: 地上は「小さな地這いの虫」の型({@link CrawlerCritter})で歩く・急ぐ、跳びは「跳ぶ型」({@code entity/leap/})。
+ * ファランギオタルブス {@code phalangiotarbus}(狩る側の環境生物・原生消費種。石炭紀の大きなクモ型。張り付いて飛びかかる狩り)。
+ * 2026-11-16 環境生物の作り直しの段 1: 地上は「小さな地這いの虫」の型({@link CrawlerCritter})で歩く・急ぐ、跳びは「跳ぶ型」({@code entity/leap/})。
  * 行動(巣だけで暮らす・食べる・休む・巣の近くだけ襲う・幹に張り付く)は後の段。自然には湧かない。
  *
  * <ul>

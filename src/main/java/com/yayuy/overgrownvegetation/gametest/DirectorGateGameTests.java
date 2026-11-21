@@ -46,13 +46,13 @@ public final class DirectorGateGameTests {
     private DirectorGateGameTests() {
     }
 
-    /** 割り当てどおりのフェーズで開く(苗床 1・根付き 2・進化 3・偵察 4・認識 5・送り込み 5・スポナー 4・G4 4・G5〜 5・混ざった群れ 6)。 */
+    /** 割り当てどおりのフェーズで開く(苗床 1・根付き 2・進化 3・偵察 4・認識 5・送り込み 5・スポナー 4・G2 4・G3〜 5・混ざった群れ 6)。 */
     @GameTest(template = "gametest_empty7", batch = "director_gates_pure", timeoutTicks = 20)
     public static void gatesOpenAtAgreedPhases(GameTestHelper helper) {
         DirectorTable.Gates g = DesignData.director().gates;
         Object[][] expected = {
                 {Gate.NURSERY, 2}, {Gate.ROOTED, 2}, {Gate.EVOLVE, 3}, {Gate.SCOUT, 4}, {Gate.RECOGNIZE, 5}, {Gate.RAID, 5},
-                {Gate.SPAWNER, 4}, {Gate.WAVE_G4, 4}, {Gate.WAVE_G5, 5}, {Gate.WAVE_MIXED, 6}};
+                {Gate.SPAWNER, 4}, {Gate.WAVE_G2, 4}, {Gate.WAVE_G3, 5}, {Gate.WAVE_MIXED, 6}};
         for (Object[] e : expected) {
             Gate gate = (Gate) e[0];
             int at = (Integer) e[1];
@@ -177,11 +177,11 @@ public final class DirectorGateGameTests {
             double[] r = simulate(pt, phase, PhaseStage.PEAK, 40);
             DirectorTable st = DesignData.director();
             double income = st.income(phase, 1.0D);
-            // G4 以降(戻したら): 10 日の収入から G1 の道に払った分を引いた残りを、全部 G4 の湧き(1 体 costSpawn)に使ったら 1 日何体か
-            double g4PerDay = Math.max(0.0D, income * 10.0D - r[4]) / 10.0D / st.costSpawn;
+            // G2 以降(戻したら): 10 日の収入から G1 の道に払った分を引いた残りを、全部 G2 の湧き(1 体 costSpawn)に使ったら 1 日何体か
+            double g2PerDay = Math.max(0.0D, income * 10.0D - r[4]) / 10.0D / st.costSpawn;
             OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
-                    "[司令塔の段の試算] F%d(道はどれも最盛・収入 %.0f/日): 進化 %.1f・根付き %.1f・苗床 %.1f・段階 0 のまま %.1f・G1 の道に払った %.0f → 残りで G4 なら 1 日 %.1f 体",
-                    phase, income, r[0], r[1], r[2], r[3], r[4], g4PerDay));
+                    "[司令塔の段の試算] F%d(道はどれも最盛・収入 %.0f/日): 進化 %.1f・根付き %.1f・苗床 %.1f・段階 0 のまま %.1f・G1 の道に払った %.0f → 残りで G2 なら 1 日 %.1f 体",
+                    phase, income, r[0], r[1], r[2], r[3], r[4], g2PerDay));
         }
         // F7 の大きな襲撃: 前触れの間に上限(1 日分 × 4 倍)まで貯めて、段階 0(1)と 1 段目(進化の値段)を決めた割合で湧かせると何体か
         DirectorTable dt = DesignData.director();
@@ -194,7 +194,7 @@ public final class DirectorGateGameTests {
                 double budget = Math.min(dt.cap(inc7, hives) * dt.largeRaid.capFactor, dt.cap(inc7, hives) + inc7 * 2.0D) + inc7 * during;
                 double n = budget / avg;
                 OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
-                        "[司令塔の段の試算] F7 の大きな襲撃(ハイヴノード %d・襲撃の間の収入 %.1f 日分): 予算 %.0f → 約 %.0f 体(段階 0 %.0f・1 段目 %.0f・G4〜G6 %.0f)",
+                        "[司令塔の段の試算] F7 の大きな襲撃(ハイヴノード %d・襲撃の間の収入 %.1f 日分): 予算 %.0f → 約 %.0f 体(段階 0 %.0f・1 段目 %.0f・G2〜G4 %.0f)",
                         hives, during, budget, n, n * (1.0D - dt.largeRaid.developedShare - dt.largeRaid.plantShare), n * dt.largeRaid.developedShare, n * dt.largeRaid.plantShare));
             }
         }

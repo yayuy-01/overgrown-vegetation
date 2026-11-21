@@ -8,8 +8,8 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
 
 /**
- * プルモノスコルピウス {@code pulmonoscorpius}(G3・原生消費種。石炭紀の大きなサソリ。倒木の下に棲む)。
- * 2026-11-16 G2・G3 の作り直しの段 1: 「小さな地這いの虫」の型({@link CrawlerCritter})で歩く・急ぐまで。行動(狩る・休む・棲み処)は後の段。
+ * プルモノスコルピウス {@code pulmonoscorpius}(狩る側の環境生物・原生消費種。石炭紀の大きなサソリ。倒木の下に棲む)。
+ * 2026-11-16 環境生物の作り直しの段 1: 「小さな地這いの虫」の型({@link CrawlerCritter})で歩く・急ぐまで。行動(狩る・休む・棲み処)は後の段。
  * 形・骨・アニメは 10-22 のまま、絵だけ 1/16 画素に塗り直した(正本 Blockbench の pulmonoscorpius.bbmodel。描画倍率 1 = geo に焼き込み済み)。
  *
  * <p>速さ【仮・Claude 11-16】: 急ぎ 地面 約 0.17(移動の速さ 0.28)・うろつき ×0.6 で 約 0.06。

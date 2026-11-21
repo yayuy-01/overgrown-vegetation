@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * {@code adaptation.json} — グループ5(適応種)の「倒された武器への適応」の設計値(2026-09-23)。
+ * {@code adaptation.json} — グループ3(適応種)の「倒された武器への適応」の設計値(2026-09-23)。
  *
  * <p>仕組みは {@code adaptation/Adaptation}。ここにあるのは数値と、<b>一撃を武器種のキーへ読み替える規則</b>だけ。
  * <ul>

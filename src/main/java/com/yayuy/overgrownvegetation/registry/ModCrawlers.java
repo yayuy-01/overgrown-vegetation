@@ -91,7 +91,7 @@ public final class ModCrawlers {
                     .build("strobila_cone"));
 
     /**
-     * ゲスタトリクス(G6・歩く苗床。2026-11-17)。当たりは胴と背の嚢の芯 1.6 × 1.0【仮】(大きさは G5・G6 の格)。脚ははみ出す。
+     * ゲスタトリクス(G4・歩く苗床。2026-11-17)。当たりは胴と背の嚢の芯 1.6 × 1.0【仮】(大きさは G3・G4 の格)。脚ははみ出す。
      * モデル制作(Fable)の形が来るまで、描画はグレガリアの形を大きくした仮のモデル。
      */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.GestatrixEntity>> GESTATRIX =
@@ -109,9 +109,9 @@ public final class ModCrawlers {
             com.yayuy.overgrownvegetation.entity.GestatrixEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(GESTATRIX, 0x3A2A1C, 0xB4D23C, props));
 
-    // --- G2・G3 の作り直し 段 1(2026-11-16): 小さな地這いの虫の型で歩くだけ。湧きは生態系の台帳(ecosystem/EcoSpawns)へ後でつなぐ。区分は CREATURE ---
+    // --- 環境生物の作り直し 段 1(2026-11-16): 小さな地這いの虫の型で歩くだけ。湧きは生態系の台帳(ecosystem/EcoSpawns)へ後でつなぐ。区分は CREATURE ---
 
-    /** プルモノスコルピウス(G3)。当たりは胴の芯 1.0 × 0.6(尾・脚・鋏ははみ出す。全体 2.46 × 1.11 × 1.04)。 */
+    /** プルモノスコルピウス(狩る側の環境生物)。当たりは胴の芯 1.0 × 0.6(尾・脚・鋏ははみ出す。全体 2.46 × 1.11 × 1.04)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity>> PULMONOSCORPIUS =
             ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.ID, () -> EntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity>of(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity::new, MobCategory.CREATURE)
@@ -124,7 +124,7 @@ public final class ModCrawlers {
     public static final DeferredItem<DeferredSpawnEggItem> PULMONOSCORPIUS_SPAWN_EGG = ModItems.ITEMS.registerItem(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(PULMONOSCORPIUS, 0x3A2E1C, 0x6B6A2A, props));
 
-    /** プロトファスマ(G2)。当たりは胴の芯 0.5 × 0.5(脚・触角ははみ出す。全体 1.91 × 0.77 × 0.46)。 */
+    /** プロトファスマ(獲物の環境生物)。当たりは胴の芯 0.5 × 0.5(脚・触角ははみ出す。全体 1.91 × 0.77 × 0.46)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ProtophasmaEntity>> PROTOPHASMA =
             ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID, () -> EntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.ProtophasmaEntity>of(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity::new, MobCategory.CREATURE)
@@ -137,7 +137,7 @@ public final class ModCrawlers {
     public static final DeferredItem<DeferredSpawnEggItem> PROTOPHASMA_SPAWN_EGG = ModItems.ITEMS.registerItem(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(PROTOPHASMA, 0x2F4A1C, 0x7A5C34, props));
 
-    /** ステノディクティアの幼虫(G2、2026-11-17 段 1。梢を歩く)。当たりは胴の芯 0.45 × 0.3(0.7 倍に作り直した形。全長 1.11)。 */
+    /** ステノディクティアの幼虫(獲物の環境生物、2026-11-17 段 1。梢を歩く)。当たりは胴の芯 0.45 × 0.3(0.7 倍に作り直した形。全長 1.11)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity>> STENODICTYA_NYMPH =
             ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity.ID, () -> EntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity>of(com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity::new, MobCategory.CREATURE)
@@ -150,7 +150,7 @@ public final class ModCrawlers {
     public static final DeferredItem<DeferredSpawnEggItem> STENODICTYA_NYMPH_SPAWN_EGG = ModItems.ITEMS.registerItem(com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(STENODICTYA_NYMPH, 0x2A4418, 0x8EA834, props));
 
-    /** 陸生カタツムリ(G2。id は giant_snail のまま)。当たりは 0.7 × 0.9(MobStats の値)。全体 1.34 × 0.69 × 0.89。 */
+    /** 陸生カタツムリ(獲物の環境生物。id は giant_snail のまま)。当たりは 0.7 × 0.9(MobStats の値)。全体 1.34 × 0.69 × 0.89。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.GiantSnailEntity>> GIANT_SNAIL =
             ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.GiantSnailEntity.ID, () -> EntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.GiantSnailEntity>of(com.yayuy.overgrownvegetation.entity.GiantSnailEntity::new, MobCategory.CREATURE)
@@ -163,7 +163,7 @@ public final class ModCrawlers {
     public static final DeferredItem<DeferredSpawnEggItem> GIANT_SNAIL_SPAWN_EGG = ModItems.ITEMS.registerItem(com.yayuy.overgrownvegetation.entity.GiantSnailEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(GIANT_SNAIL, 0x3A2E1C, 0x8C8250, props));
 
-    /** アースロプレウラ(G2)。当たりは胴の芯 1.1 × 0.55(MobStats の値。頭・脚・後ろの節ははみ出す。全体 3.62 × 1.24 × 0.40)。 */
+    /** アースロプレウラ(獲物の環境生物)。当たりは胴の芯 1.1 × 0.55(MobStats の値。頭・脚・後ろの節ははみ出す。全体 3.62 × 1.24 × 0.40)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ArthropleuraEntity>> ARTHROPLEURA =
             ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.ArthropleuraEntity.ID, () -> EntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.ArthropleuraEntity>of(com.yayuy.overgrownvegetation.entity.ArthropleuraEntity::new, MobCategory.CREATURE)

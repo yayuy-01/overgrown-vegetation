@@ -27,7 +27,7 @@ import java.util.Locale;
  *   <li><b>起こる</b>: F7 から(DirectorGates.Gate.LARGE_RAID)・今の段が定着か最盛・認識した拠点がある・前の大きな襲撃から {@code cooldownDays}・
  *   ふだんか貯めている最中(貯めた予算はそのまま持ち越す)。1 日に {@code chancePerDay} の割合。</li>
  *   <li><b>前触れ</b>(約 2 日): 植物側の湧きが止まる({@link DirectorGates#plantSpawnsSuppressed}: 苗床の萌芽体とスポナー・送り込み・危ない所へ送る・
- *   貯める。G1 の自然湧き・G4 以降を戻す側もこの口を見る)。偵察は続ける。すでにいる個体はそのまま。予算の上限は {@code capFactor} 倍。</li>
+ *   貯める。G1 の自然湧き・G2 以降を戻す側もこの口を見る)。偵察は続ける。すでにいる個体はそのまま。予算の上限は {@code capFactor} 倍。</li>
  *   <li><b>本番</b>: 認識した拠点へ、予算が尽きるまで途切れずに攻め手を湧かせ続ける(波で休まない)。{@code spawnIntervalTicks} ごとに
  *   {@code spawnPerStep} 体まで。同時にいる攻め手が {@code maxAlive}(重さのための安全弁)に達している間は待ち、倒された分はすぐ補う。
  *   湧かせる所は森の方角か弱い方角の、プレイヤーから見通せない地面({@link RaidSpawns})。湧いた攻め手は弱い方角から拠点へ回り込む。
@@ -213,7 +213,7 @@ public final class LargeRaids {
     /** 攻め手の数(拠点のまわり countRadius の中の、印の付いた生きている個体)。 */
     public static int alive(ServerLevel level, BaseMemory.Base b) {
         double r = DesignData.director().largeRaid.countRadius;
-        // G4・G5 の攻め手も数える(11-15 enemy-spawns。印は同じ)
+        // G2・G3 の攻め手も数える(11-15 enemy-spawns。印は同じ)
         return level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class,
                 new AABB(b.centerX() - r, level.getMinBuildHeight(), b.centerZ() - r, b.centerX() + r, level.getMaxBuildHeight(), b.centerZ() + r),
                 m -> m.isAlive() && m.getTags().contains(ATTACKER_TAG)).size();
@@ -266,7 +266,7 @@ public final class LargeRaids {
         double flank = DesignData.director().base.flankShare * DirectorGates.strength(level, scaled(d) ? DirectorGates.Gate.RAID : DirectorGates.Gate.LARGE_RAID); // 大は F6 から(大きな襲撃の門 F7 の強さは 0)
         for (int i = 0; i < Math.min(room, t.spawnPerStep); i++) {
             double roll = random.nextDouble();
-            // 顔ぶれ(11-14 夕): G4〜G6 が plantShare。開いている G4・G5 の地上の種を、G1 と同じ湧かせ方(見通せない地面)で湧かせ、
+            // 顔ぶれ(11-14 夕): G2〜G4 が plantShare。開いている G2・G3 の地上の種を、G1 と同じ湧かせ方(見通せない地面)で湧かせ、
             // 印を付けて拠点へ歩かせる(11-15 enemy-spawns)。出せる種が無い・置けない間は段階 0 を湧かせる
             if (roll < t.plantShare) {
                 net.minecraft.world.entity.EntityType<?> type = com.yayuy.overgrownvegetation.spawn.DirectorHooks.pickPlant(level, random, 0);

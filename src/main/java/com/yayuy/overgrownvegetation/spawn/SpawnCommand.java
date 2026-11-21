@@ -58,7 +58,7 @@ public final class SpawnCommand {
                                                         IntegerArgumentType.getInteger(ctx, "z")))))))));
     }
 
-    /** まわり 32 ブロックの、歩かせられる G4・G5 を (x, z) へ歩かせる(司令塔の送り込みと同じ歩き。確かめ用)。 */
+    /** まわり 32 ブロックの、歩かせられる G2・G3 を (x, z) へ歩かせる(司令塔の送り込みと同じ歩き。確かめ用)。 */
     private static int march(CommandSourceStack src, int x, int z) {
         ServerLevel level = src.getLevel();
         Vec3 p = src.getPosition();

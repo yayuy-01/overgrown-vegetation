@@ -59,7 +59,7 @@ import java.util.List;
  *   <li><b>鼓動</b> — {@code hiveNodePulseIntervalTicks}(既定 80 = 4秒)ごとに 1 回脈打ち、
  *       胞子のパーティクルと低い鼓動音を出す。<b>周囲には何の影響も与えない</b>
  *       (2026-09-19 にユーザー指定で、周囲の mob へ再生能力・攻撃力上昇を配る処理を
- *       設定 2 つごと撤去した。今後はグループ9(侵略級)の出現条件として作り直す予定)。</li>
+ *       設定 2 つごと撤去した。今後はグループ7(侵略級)の出現条件として作り直す予定)。</li>
  * </ul>
  *
  * <p>動かない(AI ゴールを一切持たない)。見た目は GeckoLib 経由で、
@@ -254,7 +254,7 @@ public class HiveNodeEntity extends PathfinderMob
      *
      * <p>2026-09-19 にユーザー指定で、周囲の Mob へ再生能力・攻撃力上昇を配る処理を撤去した
      * ({@code hiveNodeBuffRadius} / {@code hiveNodeBuffDurationTicks} の 2 つの設定ごと削除)。
-     * ハイヴノードは今後<b>グループ9(侵略級)の出現条件</b>として作り直す予定で、それまでは
+     * ハイヴノードは今後<b>グループ7(侵略級)の出現条件</b>として作り直す予定で、それまでは
      * 「巨大樹の中に居る、殴って倒せる置物」として振る舞う(倒すとその巨大樹の胞子の生産が止まる)。
      */
     private void pulse(ServerLevel level) {

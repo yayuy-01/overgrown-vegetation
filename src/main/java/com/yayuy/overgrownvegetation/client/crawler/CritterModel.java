@@ -6,7 +6,7 @@ import com.yayuy.overgrownvegetation.entity.crawler.CrawlerCritter;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * 「小さな地這いの虫」の型で歩く G2・G3 のモデル(2026-11-16)。geo・絵・アニメを種の id から引くだけ(亜種の絵は用意しない = ユーザー決定)。
+ * 「小さな地這いの虫」の型で歩く環境生物のモデル(2026-11-16)。geo・絵・アニメを種の id から引くだけ(亜種の絵は用意しない = ユーザー決定)。
  * 脚は手付けの walk・run だけ(IK なし)。体の傾き・段のならしは描画({@link SmallCrawlerRenderer})。
  */
 public class CritterModel<T extends CrawlerCritter> extends LodGeoModel<T> {

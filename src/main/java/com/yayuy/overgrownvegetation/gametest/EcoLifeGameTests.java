@@ -22,7 +22,7 @@ import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
- * G2・G3 の行動の段(2026-11-18、ecosystem/life): 腹が減ると狩って食べ、満腹になると狩らない・倒木の上で虫をあさる・眠い時間は休む・敵から逃げる。
+ * 環境生物の行動の段(2026-11-18、ecosystem/life): 腹が減ると狩って食べ、満腹になると狩らない・倒木の上で虫をあさる・眠い時間は休む・敵から逃げる。
  * 時刻に左右されないよう、名前の ecoawake / ecosleep で起きている時間を決める。
  */
 @GameTestHolder(OvergrownVegetation.MODID)
@@ -198,16 +198,16 @@ public final class EcoLifeGameTests {
         helper.assertTrue(full == 40, "満員の升で詰めない回がある: " + full);
         helper.assertTrue(empty == 0, "頭数 0 の升で詰めた: " + empty);
         helper.assertTrue(half > 8 && half < 32, "半分の升の詰め方が外れ: " + half + " / 40");
-        // 台帳の読み口: この升の G2 を満員ぶん欠けさせると 0 になる(終わったら戻す)
+        // 台帳の読み口: この升の獲物の環境生物を満員ぶん欠けさせると 0 になる(終わったら戻す)
         var t = com.yayuy.overgrownvegetation.data.DesignData.ecosystem();
         var ledger = com.yayuy.overgrownvegetation.ecosystem.EcoLedger.get(helper.getLevel());
         long key = com.yayuy.overgrownvegetation.ecosystem.EcoLedger.cellOf(abs.getX() >> 4, abs.getZ() >> 4, t.cellShift);
         long lnow = com.yayuy.overgrownvegetation.ecosystem.EcoLedger.now(helper.getLevel());
-        ledger.putCellForTests(key, t.fullG2, lnow, 0.0D, lnow);
-        double l2 = com.yayuy.overgrownvegetation.ecosystem.life.EcoDens.lively(helper.getLevel(), 2, abs);
-        double l3 = com.yayuy.overgrownvegetation.ecosystem.life.EcoDens.lively(helper.getLevel(), 3, abs);
+        ledger.putCellForTests(key, t.fullPrey, lnow, 0.0D, lnow);
+        double lPrey = com.yayuy.overgrownvegetation.ecosystem.life.EcoDens.lively(helper.getLevel(), com.yayuy.overgrownvegetation.ecosystem.Ecosystem.PREY, abs);
+        double lHunter = com.yayuy.overgrownvegetation.ecosystem.life.EcoDens.lively(helper.getLevel(), com.yayuy.overgrownvegetation.ecosystem.Ecosystem.HUNTER, abs);
         ledger.putCellForTests(key, 0.0D, lnow, 0.0D, lnow);
-        helper.assertTrue(l2 < 0.01D && l3 > 0.99D, "台帳の頭数が読めない: G2 " + l2 + " G3 " + l3);
+        helper.assertTrue(lPrey < 0.01D && lHunter > 0.99D, "台帳の頭数が読めない: 獲物の環境生物 " + lPrey + " 狩る側の環境生物 " + lHunter);
         helper.succeed();
     }
 

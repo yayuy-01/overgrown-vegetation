@@ -21,11 +21,11 @@ import java.util.Locale;
  * <b>送り込めるのは読み込まれた範囲にいる G1 だけ</b>(プレイヤーが拠点にいれば拠点のまわりは読み込まれている)。
  *
  * <p>1 回の送り込みの顔ぶれは、認識してからの日数で決まる段({@link BaseMemoryTable#waveFor})。11-14 ユーザー決定
- * 「最初は数体の 0 段階や G4、そこから徐々に進化体が混ざったり増えたり、G4 以降の Mob が混ざったり増えたりする」。
+ * 「最初は数体の 0 段階や G2、そこから徐々に進化体が混ざったり増えたり、G2 以降の Mob が混ざったり増えたりする」。
  * <ul>
  *   <li>段階 0: 拠点の外にいる段階 0 を歩かせる({@link G1March})。</li>
  *   <li>進化体: 拠点の外にいる 1 段目を歩かせる。足りなければ、段階 0 を予算で進化させ(前兆も流す)、進化したら歩かせる。</li>
- *   <li>G4・G5 以降: 退避中なので、今は口だけ({@link #registerSender})。戻した群れの側で送り方を登録する。</li>
+ *   <li>G2・G3 以降: 退避中なので、今は口だけ({@link #registerSender})。戻した群れの側で送り方を登録する。</li>
  * </ul>
  * 拠点に近すぎる個体(raidFromMinBlocks の中)は選ばない(もう拠点にいる)。
  */
@@ -34,30 +34,30 @@ public final class BaseRaids {
     private BaseRaids() {
     }
 
-    /** G4 以降を拠点へ送る口。count 体まで送り、送れた数を返す。 */
+    /** G2 以降を拠点へ送る口。count 体まで送り、送れた数を返す。 */
     public interface Sender {
         int send(ServerLevel level, BaseMemory.Base base, int count, RandomSource random);
     }
 
-    private static final List<Sender> G4 = new ArrayList<>();
-    private static final List<Sender> G5_PLUS = new ArrayList<>();
+    private static final List<Sender> G2 = new ArrayList<>();
+    private static final List<Sender> G3_PLUS = new ArrayList<>();
 
-    /** G4(g4 = true)か G5 以降の送り方を足す。今は何も登録されていない(G4 以降は退避中。D-14「仕組みだけ先に」)。 */
-    public static void registerSender(boolean g4, Sender sender) {
-        (g4 ? G4 : G5_PLUS).add(sender);
+    /** G2(g2 = true)か G3 以降の送り方を足す。今は何も登録されていない(G2 以降は退避中。D-14「仕組みだけ先に」)。 */
+    public static void registerSender(boolean g2, Sender sender) {
+        (g2 ? G2 : G3_PLUS).add(sender);
     }
 
     /** 1 回の送り込みの結果。spawnedZero = stageZero のうち今湧かせた数。first = 最初の襲撃。hoard = 貯めた襲撃のまとめた回。 */
-    public record Result(int wave, int stageZero, int developed, int evolved, int g4, int g5plus, int wantStageZero, int wantDeveloped,
-                         int wantG4, int wantG5plus, int spawnedZero, boolean first, boolean hoard) {
+    public record Result(int wave, int stageZero, int developed, int evolved, int g2, int g3plus, int wantStageZero, int wantDeveloped,
+                         int wantG2, int wantG3plus, int spawnedZero, boolean first, boolean hoard) {
         public int total() {
-            return stageZero + developed + evolved + g4 + g5plus;
+            return stageZero + developed + evolved + g2 + g3plus;
         }
 
         public String summary() {
-            return String.format(Locale.ROOT, "%s段 %d: 段階 0 %d/%d(うち湧かせた %d)・進化体 %d/%d(うち今進化させた %d)・G4 %d/%d・G5〜 %d/%d・計 %d",
+            return String.format(Locale.ROOT, "%s段 %d: 段階 0 %d/%d(うち湧かせた %d)・進化体 %d/%d(うち今進化させた %d)・G2 %d/%d・G3〜 %d/%d・計 %d",
                     first ? "最初の襲撃・" : hoard ? "貯めた襲撃・" : "", wave, stageZero, wantStageZero, spawnedZero, developed + evolved, wantDeveloped, evolved,
-                    g4, wantG4, g5plus, wantG5plus, total());
+                    g2, wantG2, g3plus, wantG3plus, total());
         }
     }
 
@@ -70,9 +70,9 @@ public final class BaseRaids {
      * 拠点 1 つへ 1 回送り込む(11-16 作り直し。正本は Vault「F5 の襲撃(11-16)」)。
      * <ul>
      *   <li>顔ぶれ: まだ 1 回も送っていなければ「最初の襲撃」({@code assault.firstRaid})、そうでなければ認識してからの日数の段。
-     *   hoard(貯めた襲撃のまとめた回)なら進化体と G5 を {@code hoardShareFactor} 倍。どれも計 {@code maxWave}(40)まで。</li>
-     *   <li>いる個体(拠点のまわりの段階 0・進化体・G4・G5)を先に歩かせ、足りない分は森の方角の見えない地面に湧かせて予算を払う。
-     *   払う順は 段階 0 → G4 → 進化体 → G5(ユーザー)。払えない分は送らない。</li>
+     *   hoard(貯めた襲撃のまとめた回)なら進化体と G3 を {@code hoardShareFactor} 倍。どれも計 {@code maxWave}(40)まで。</li>
+     *   <li>いる個体(拠点のまわりの段階 0・進化体・G2・G3)を先に歩かせ、足りない分は森の方角の見えない地面に湧かせて予算を払う。
+     *   払う順は 段階 0 → G2 → 進化体 → G3(ユーザー)。払えない分は送らない。</li>
      * </ul>
      */
     public static Result sendWave(ServerLevel level, BaseMemory.Base b, double day, RandomSource random, boolean hoard) {
@@ -101,16 +101,16 @@ public final class BaseRaids {
         com.yayuy.overgrownvegetation.data.AssaultTable at = DesignData.director().assault;
         double since = Math.max(0.0D, day - b.stageSince());
         boolean first = BaseMemory.firstRaidPending(b);
-        // 小さな段: 送り込みの枠に、その枠が開いたフェーズの強さを掛ける(進化体 F3・G4 F4・G5〜 F5。導入で少なく・最盛で表どおり。端数は確率)【仮】
+        // 小さな段: 送り込みの枠に、その枠が開いたフェーズの強さを掛ける(進化体 F3・G2 F4・G3〜 F5。導入で少なく・最盛で表どおり。端数は確率)【仮】
         BaseMemoryTable.Wave w = scaled(level, first ? at.firstRaid : t.waveFor(since), random);
         // 学ぶ: 拠点の中に危ない所があれば(拠点を守りの固い所と覚えた)、進化体の枠を増やす(F5 から)
         if (DirectorGates.open(level, DirectorGates.Gate.LEARN_WAVE) && level.dimension() == net.minecraft.world.level.Level.OVERWORLD
                 && KillMemory.get(level.getServer()).nearest(b.centerX(), b.centerZ(), t.matchBlocks, day) != null) {
-            w = new BaseMemoryTable.Wave(w.fromDays(), w.stageZero(), w.developed() + DesignData.director().kills.baseDangerExtraDeveloped, w.g4(), w.g5plus());
+            w = new BaseMemoryTable.Wave(w.fromDays(), w.stageZero(), w.developed() + DesignData.director().kills.baseDangerExtraDeveloped, w.g2(), w.g3plus());
         }
         if (hoard) {
-            w = new BaseMemoryTable.Wave(w.fromDays(), w.stageZero(), (int) Math.round(w.developed() * at.hoardShareFactor), w.g4(),
-                    (int) Math.round(w.g5plus() * at.hoardShareFactor));
+            w = new BaseMemoryTable.Wave(w.fromDays(), w.stageZero(), (int) Math.round(w.developed() * at.hoardShareFactor), w.g2(),
+                    (int) Math.round(w.g3plus() * at.hoardShareFactor));
         }
         int waveNo = first ? -1 : t.waveIndex(since);
         double r = t.raidSearchBlocks;
@@ -154,7 +154,7 @@ public final class BaseRaids {
             go(m, b, flank, random);
             sentDev++;
         }
-        // (2) 進化体の足りない分のために、進化できる段階 0 を取り置く(払うのは後: 払う順は 段階 0 → G4 → 進化体 → G5)
+        // (2) 進化体の足りない分のために、進化できる段階 0 を取り置く(払うのは後: 払う順は 段階 0 → G2 → 進化体 → G3)
         boolean canEvolve = DirectorGates.open(level, DirectorGates.Gate.EVOLVE); // 送り込みのための進化も F3 から
         int devNeed = Math.max(0, w.developed() - sentDev);
         List<AbstractParasitizedMonster> toEvolve = new ArrayList<>();
@@ -193,8 +193,8 @@ public final class BaseRaids {
             sentZero++;
             spawnedZero++;
         }
-        // (5) G4 は F4・G5〜 は F5 から(G4〜G6 の混ざった群れ = F6 は、登録する側が DirectorGates.Gate.WAVE_MIXED を見る)
-        int g4 = DirectorGates.open(level, DirectorGates.Gate.WAVE_G4) ? send(G4, level, b, w.g4(), random) : 0;
+        // (5) G2 は F4・G3〜 は F5 から(G2〜G4 の混ざった群れ = F6 は、登録する側が DirectorGates.Gate.WAVE_MIXED を見る)
+        int g2 = DirectorGates.open(level, DirectorGates.Gate.WAVE_G2) ? send(G2, level, b, w.g2(), random) : 0;
         // (6) 進化体の足りない分: 取り置いた段階 0 を予算で進化させて送る。足りなければ段階 0 を湧かせて進化させる
         int evolved = 0;
         double cost = DesignData.director().costEvolve;
@@ -225,15 +225,15 @@ public final class BaseRaids {
         }
         // 払えずに進化させなかった段階 0 も、そこにいるので段階 0 として送る(上限まで)
         for (AbstractParasitizedMonster m : unused) {
-            if (sentZero + sentDev + evolved + g4 + w.g5plus() >= maxWave) break; // G5 の枠を残す(見直し ②5)
+            if (sentZero + sentDev + evolved + g2 + w.g3plus() >= maxWave) break; // G3 の枠を残す(見直し ②5)
             go(m, b, flank, random);
             sentZero++;
         }
-        // (7) G5
-        // 計が上限 40 を超えないように(見直し ②5: 払えずに段階 0 として送った分の後で G5 を足すと超えていた)
-        int g5Room = Math.max(0, Math.min(w.g5plus(), maxWave - (sentZero + sentDev + evolved + g4)));
-        int g5 = DirectorGates.open(level, DirectorGates.Gate.WAVE_G5) ? send(G5_PLUS, level, b, g5Room, random) : 0;
-        Result res = new Result(waveNo, sentZero, sentDev, evolved, g4, g5, w.stageZero(), w.developed(), w.g4(), w.g5plus(), spawnedZero, first, hoard);
+        // (7) G3
+        // 計が上限 40 を超えないように(見直し ②5: 払えずに段階 0 として送った分の後で G3 を足すと超えていた)
+        int g3Room = Math.max(0, Math.min(w.g3plus(), maxWave - (sentZero + sentDev + evolved + g2)));
+        int g3 = DirectorGates.open(level, DirectorGates.Gate.WAVE_G3) ? send(G3_PLUS, level, b, g3Room, random) : 0;
+        Result res = new Result(waveNo, sentZero, sentDev, evolved, g2, g3, w.stageZero(), w.developed(), w.g2(), w.g3plus(), spawnedZero, first, hoard);
         director.note("拠点 #" + b.id() + " へ送り込み " + res.summary());
         return res;
     }
@@ -268,7 +268,7 @@ public final class BaseRaids {
 
     /**
      * 顔ぶれの割合のまま、予算 {@code budget} で払える体数にする(11-20 夜)。1 体の値段は送り手が実際に払うのと同じ:
-     * 段階 0 = stageZeroCost・進化体 = costEvolve・G4 / G5 = 出せる種の stagePrice(spawnCost, 種の段の強さ)の平均(決まったくじで 8 回引く)。
+     * 段階 0 = stageZeroCost・進化体 = costEvolve・G2 / G3 = 出せる種の stagePrice(spawnCost, 種の段の強さ)の平均(決まったくじで 8 回引く)。
      * いる個体を歩かせる分はただなので、実際の払いはこれより少ないことがある。端数は大きい順に配る。
      */
     public static BaseMemoryTable.Wave sizeByBudget(ServerLevel level, BaseMemoryTable.Wave w, double budget) {
@@ -277,11 +277,11 @@ public final class BaseRaids {
 
     /** まわりにいる段階 0・進化体(ただ)の数を、それぞれの枠に足す形。 */
     public static BaseMemoryTable.Wave sizeByBudget(ServerLevel level, BaseMemoryTable.Wave w, double budget, int freeZeros, int freeDeveloped) {
-        int[] c = {w.stageZero(), w.developed(), w.g4(), w.g5plus()};
+        int[] c = {w.stageZero(), w.developed(), w.g2(), w.g3plus()};
         int sum = c[0] + c[1] + c[2] + c[3];
         if (sum <= 0) return new BaseMemoryTable.Wave(w.fromDays(), Math.max(0, freeZeros), Math.max(0, freeDeveloped), 0, 0);
         com.yayuy.overgrownvegetation.data.AssaultTable at = DesignData.director().assault;
-        double[] p = {at.stageZeroCost, DesignData.director().costEvolve, plantPrice(level, 4), plantPrice(level, 5)};
+        double[] p = {at.stageZeroCost, DesignData.director().costEvolve, plantPrice(level, 2), plantPrice(level, 3)};
         double avg = 0.0D;
         for (int i = 0; i < 4; i++) avg += c[i] * p[i];
         avg /= sum;
@@ -320,9 +320,9 @@ public final class BaseRaids {
         return n > 0 ? sum / n : DesignData.director().spawnCost(group);
     }
 
-    /** 計 max 体に収める(多ければ 段階 0 → G4 → 進化体 → G5 の順に削る = 安いものから)。 */
+    /** 計 max 体に収める(多ければ 段階 0 → G2 → 進化体 → G3 の順に削る = 安いものから)。 */
     public static BaseMemoryTable.Wave capped(BaseMemoryTable.Wave w, int max) {
-        int[] c = {w.stageZero(), w.g4(), w.developed(), w.g5plus()};
+        int[] c = {w.stageZero(), w.g2(), w.developed(), w.g3plus()};
         int over = c[0] + c[1] + c[2] + c[3] - max;
         for (int i = 0; i < 4 && over > 0; i++) {
             int cut = Math.min(c[i], over);
@@ -332,10 +332,10 @@ public final class BaseRaids {
         return new BaseMemoryTable.Wave(w.fromDays(), c[0], c[2], c[1], c[3]);
     }
 
-    /** G4 以降を count 体まで拠点へ送る(G4 の口から、足りなければ G5 以降の口から)。大きな襲撃・後の超大規模の襲撃が呼ぶ。 */
+    /** G2 以降を count 体まで拠点へ送る(G2 の口から、足りなければ G3 以降の口から)。大きな襲撃・後の超大規模の襲撃が呼ぶ。 */
     public static int sendPlantSide(ServerLevel level, BaseMemory.Base b, int count, RandomSource random) {
-        int n = send(G4, level, b, count, random);
-        return n + send(G5_PLUS, level, b, count - n, random);
+        int n = send(G2, level, b, count, random);
+        return n + send(G3_PLUS, level, b, count - n, random);
     }
 
     private static int send(List<Sender> senders, ServerLevel level, BaseMemory.Base b, int count, RandomSource random) {
@@ -349,21 +349,21 @@ public final class BaseRaids {
 
     // ---------------------------------------------------------------- 苗床から孵った Mob(区切り 4)
 
-    /** G4 以降の Mob を拠点へ歩かせる口(その Mob の群れの側が登録する)。歩かせられたら true。 */
+    /** G2 以降の Mob を拠点へ歩かせる口(その Mob の群れの側が登録する)。歩かせられたら true。 */
     public interface Marcher {
         boolean march(net.minecraft.world.entity.Mob mob, BaseMemory.Base base);
     }
 
     private static final List<Marcher> MARCHERS = new ArrayList<>();
 
-    /** G4 以降を戻したら、その Mob を拠点へ歩かせる方法を足す(今は何も登録されていない)。 */
+    /** G2 以降を戻したら、その Mob を拠点へ歩かせる方法を足す(今は何も登録されていない)。 */
     public static void registerMarcher(Marcher marcher) {
         MARCHERS.add(marcher);
     }
 
     /**
      * 苗床から孵った Mob(区切り 4。D-14): 苗床が認識した拠点のそば(evolveBaseBlocks の中)なら、拠点へ向かわせる。
-     * G1 なら {@link G1March}、それ以外(G4 以降)は登録された {@link Marcher} に任せる。
+     * G1 なら {@link G1March}、それ以外(G2 以降)は登録された {@link Marcher} に任せる。
      *
      * @return 拠点へ向かわせたか
      */
@@ -384,8 +384,8 @@ public final class BaseRaids {
     static BaseMemoryTable.Wave scaled(ServerLevel level, BaseMemoryTable.Wave w, RandomSource random) {
         return new BaseMemoryTable.Wave(w.fromDays(), w.stageZero(),
                 DirectorGates.scaleCount(w.developed(), DirectorGates.strength(level, DirectorGates.Gate.EVOLVE), random),
-                DirectorGates.scaleCount(w.g4(), DirectorGates.strength(level, DirectorGates.Gate.WAVE_G4), random),
-                DirectorGates.scaleCount(w.g5plus(), DirectorGates.strength(level, DirectorGates.Gate.WAVE_G5), random));
+                DirectorGates.scaleCount(w.g2(), DirectorGates.strength(level, DirectorGates.Gate.WAVE_G2), random),
+                DirectorGates.scaleCount(w.g3plus(), DirectorGates.strength(level, DirectorGates.Gate.WAVE_G3), random));
     }
 
     /** 見張りから: 送り込む時が来た拠点へ送る。 */

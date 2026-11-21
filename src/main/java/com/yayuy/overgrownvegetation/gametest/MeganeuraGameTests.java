@@ -5,7 +5,7 @@ import com.yayuy.overgrownvegetation.entity.MeganeuraEntity;
 import com.yayuy.overgrownvegetation.entity.flyer.DartHover;
 import com.yayuy.overgrownvegetation.entity.flyer.FlightBody;
 import com.yayuy.overgrownvegetation.phase.MobGroup;
-import com.yayuy.overgrownvegetation.registry.ModG23Flyers;
+import com.yayuy.overgrownvegetation.registry.ModCritterFlyers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -38,11 +38,11 @@ public final class MeganeuraGameTests {
     private MeganeuraGameTests() {
     }
 
-    /** G3 に入り、当たりは 1.0 × 0.5、植物側(ほかの Mob から敵対される)。 */
+    /** 狩る側の環境生物に入り、当たりは 1.0 × 0.5、植物側(ほかの Mob から敵対される)。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
-    public static void registeredAsG3(GameTestHelper helper) {
-        MeganeuraEntity m = helper.spawn(ModG23Flyers.MEGANEURA.get(), new BlockPos(3, 3, 3));
-        helper.assertTrue(MobGroup.of(m.getType()) == MobGroup.GROUP_3, "G3 に入っていない: " + MobGroup.of(m.getType()));
+    public static void registeredAsHunter(GameTestHelper helper) {
+        MeganeuraEntity m = helper.spawn(ModCritterFlyers.MEGANEURA.get(), new BlockPos(3, 3, 3));
+        helper.assertTrue(MobGroup.of(m.getType()) == MobGroup.CRITTER_HUNTER, "狩る側の環境生物に入っていない: " + MobGroup.of(m.getType()));
         helper.assertTrue(Math.abs(m.getBbWidth() - 1.0F) < 1e-3 && Math.abs(m.getBbHeight() - 0.5F) < 1e-3,
                 "当たりが 1.0 × 0.5 でない: " + m.getBbWidth() + " × " + m.getBbHeight());
         helper.assertTrue(com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(m), "植物側と見なされない");
@@ -94,7 +94,7 @@ public final class MeganeuraGameTests {
     /** 飛んでいる間に叩かれると急ぐ(chase の羽ばたき)。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 40)
     public static void dashesWhenHit(GameTestHelper helper) {
-        MeganeuraEntity m = helper.spawn(ModG23Flyers.MEGANEURA.get(), new BlockPos(3, 3, 3));
+        MeganeuraEntity m = helper.spawn(ModCritterFlyers.MEGANEURA.get(), new BlockPos(3, 3, 3));
         Vec3 p = helper.absoluteVec(new Vec3(3.5D, 4.0D, 3.5D));
         m.moveTo(p.x, p.y, p.z, 0.0F, 0.0F);
         m.roostOverride = Boolean.FALSE;
@@ -111,7 +111,7 @@ public final class MeganeuraGameTests {
     private static MeganeuraEntity perched(GameTestHelper helper) {
         helper.setBlock(new BlockPos(3, 1, 3), net.minecraft.world.level.block.Blocks.OAK_LEAVES.defaultBlockState()
                 .setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true));
-        MeganeuraEntity m = helper.spawn(ModG23Flyers.MEGANEURA.get(), new BlockPos(3, 2, 3));
+        MeganeuraEntity m = helper.spawn(ModCritterFlyers.MEGANEURA.get(), new BlockPos(3, 2, 3));
         m.debugSolo = true;
         m.roostOverride = Boolean.TRUE;
         m.debugPerchAt(helper.absolutePos(new BlockPos(3, 1, 3)));

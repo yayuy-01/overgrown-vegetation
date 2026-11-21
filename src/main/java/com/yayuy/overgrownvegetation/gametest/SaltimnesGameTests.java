@@ -82,12 +82,12 @@ public final class SaltimnesGameTests {
                 s.leapMotion().phase(), s.leapMotion().leaps(), s.isAlive(), s.isNoAi());
     }
 
-    /** G5 に入り、自然には湧かず、体の芯は 1.8 × 1.0。 */
+    /** G3 に入り、自然には湧かず、体の芯は 1.8 × 1.0。 */
     @GameTest(template = ARENA, timeoutTicks = 20)
-    public static void registeredAsG5WithoutNaturalSpawn(GameTestHelper helper) {
+    public static void registeredAsG3WithoutNaturalSpawn(GameTestHelper helper) {
         SaltimnesEntity s = placeAt(helper, 12.5D, 2.0D, 12.5D, 0.0F, "nostroll");
-        if (MobGroup.of(s.getType()) != MobGroup.GROUP_5) {
-            helper.fail("G5 に入っていない: " + MobGroup.of(s.getType()));
+        if (MobGroup.of(s.getType()) != MobGroup.GROUP_3) {
+            helper.fail("G3 に入っていない: " + MobGroup.of(s.getType()));
             return;
         }
         if (Math.abs(s.getBbWidth() - 1.8F) > 1e-3 || Math.abs(s.getBbHeight() - 1.0F) > 1e-3) {

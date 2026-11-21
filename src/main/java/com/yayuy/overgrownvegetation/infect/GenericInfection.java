@@ -162,7 +162,7 @@ public final class GenericInfection {
         mob.clearFire();
         GenericInfectionAi.forgetOwner(mob);
         GenericInfectionAi.install(mob);
-        releaseAttackers(mob); // 変わる前から狙っていた植物側(殴って感染させた G1・G4 など)の狙いを外す
+        releaseAttackers(mob); // 変わる前から狙っていた植物側(殴って感染させた G1・G2 など)の狙いを外す
         turnedCount++;
         sync(mob);
     }
@@ -215,7 +215,7 @@ public final class GenericInfection {
     /**
      * 胞子の 20 ダメージが弾かれた(胞子のダメージの種類に耐性を持つ Mob。Cataclysm のコボレディエーター・ワジェットなど。2026-11-15 ユーザー決定
      * 「耐性を無視して胞子で変える」)。入ったことにして弾かれた量を足し、その合計が今の体力(+ 衝撃吸収)に届いたら変える【仮】
-     * = 普通の Mob が削られて死ぬのと同じ回数で変わる(G2 の決まりと揃える。胞子の傷 = 最大体力の減りは付けられないので付けない)。
+     * = 普通の Mob が削られて死ぬのと同じ回数で変わる(獲物の環境生物の決まりと揃える。胞子の傷 = 最大体力の減りは付けられないので付けない)。
      * 完全な無敵(NBT の Invulnerable)の Mob・ピースフル・なれない Mob は数えない(呼ぶ側は今までどおり、次の判定でまた試す)。
      *
      * @return 数えた(呼ぶ側は暴露量を 0 に戻す)

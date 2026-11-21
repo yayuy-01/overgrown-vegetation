@@ -129,7 +129,7 @@ public final class NurseryGameTests {
 
     /**
      * スポナーの口: 出せる Mob があって予算が足りれば、司令塔が払い、大きな嚢の動きの tick 24 に 1 体出る。足りなければ何もしない。
-     * 飲まれていても働く。ここでは G4 以降の代わりに豚を出す。
+     * 飲まれていても働く。ここでは G2 以降の代わりに豚を出す。
      */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 300)
     public static void directorPaysToHatchFromNursery(GameTestHelper helper) {
@@ -183,7 +183,7 @@ public final class NurseryGameTests {
         long before = director.spawnsBought();
         helper.assertTrue(director.buySpawn(level, RandomSource.create(1L), List.of()) == null, "出せる Mob が無いのに孵そうとした");
         helper.assertTrue(director.spawnsBought() == before, "出せる Mob が無いのに払った");
-        // 11-15 から G4・G5 の地上の種が登録されている(spawn/DirectorHooks)。どれが入るかは EnemySpawnGameTests で見る
+        // 11-15 から G2・G3 の地上の種が登録されている(spawn/DirectorHooks)。どれが入るかは EnemySpawnGameTests で見る
         helper.succeed();
     }
 

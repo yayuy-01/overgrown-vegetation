@@ -87,8 +87,8 @@ public final class PhasePointsGameTests {
         int more = (int) Math.max(1, Math.floor(0.5D * span / one) - 1); // フェーズが上がらない数(上がると 1 体の点が変わる)
         for (int i = 0; i < more; i++) data.addKillPoints(level, 0);
         helper.assertTrue(near(data.killPointsTotal(), (more + 1) * one), "上限があるように見える: " + data.killPointsTotal() + "(期待 " + (more + 1) * one + ")");
-        double g6 = t.killPoints(1, 4);
-        helper.assertTrue(near(g6, span * t.killPercent(4) / 100.0D) && g6 > one, "G6 の点 " + g6);
+        double g4 = t.killPoints(1, 4);
+        helper.assertTrue(near(g4, span * t.killPercent(4) / 100.0D) && g4 > one, "G4 の点 " + g4);
         helper.assertTrue(KillPoints.kindOf(BuiltInRegistries.ENTITY_TYPE.get(OvergrownVegetation.id("parasitized_zombie"))) == 0, "段階 0 のゾンビが stage0 でない");
         helper.assertTrue(KillPoints.kindOf(BuiltInRegistries.ENTITY_TYPE.get(OvergrownVegetation.id("developed_parasitized_zombie"))) == 1, "1 段目のゾンビが evolved でない");
         helper.assertTrue(KillPoints.kindOf(EntityType.ZOMBIE) == -1, "バニラのゾンビを数えた");

@@ -19,7 +19,7 @@ import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
- * G2・G3 の作り直し 段 1(2026-11-16): プルモノスコルピウス(G3)・プロトファスマ(G2)が「小さな地這いの虫」の型で歩く。
+ * 環境生物の作り直し 段 1(2026-11-16): プルモノスコルピウス(狩る側の環境生物)・プロトファスマ(獲物の環境生物)が「小さな地這いの虫」の型で歩く。
  * グループのタグ(= 植物側・すべての Mob から敵対される)に入り、平地を歩いて着き、1 ブロックの段を這い上がる。
  */
 @GameTestHolder(OvergrownVegetation.MODID)
@@ -63,13 +63,13 @@ public final class CrawlerCritterGameTests {
         }
     }
 
-    /** プルモノスコルピウスは G3・プロトファスマは G2 に入り、植物側(すべての Mob から敵対される)。 */
+    /** プルモノスコルピウスは狩る側の環境生物・プロトファスマは獲物の環境生物に入り、植物側(すべての Mob から敵対される)。 */
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
     public static void groupsAndPlantSide(GameTestHelper helper) {
-        check(helper, placeAt(helper, ModCrawlers.PULMONOSCORPIUS.get(), 2.5D, 3.5D, 0.0F), MobGroup.GROUP_3);
-        check(helper, placeAt(helper, ModCrawlers.PROTOPHASMA.get(), 4.5D, 3.5D, 0.0F), MobGroup.GROUP_2);
-        check(helper, placeAt(helper, ModCrawlers.GIANT_SNAIL.get(), 1.5D, 5.5D, 0.0F), MobGroup.GROUP_2);
-        check(helper, placeAt(helper, ModCrawlers.ARTHROPLEURA.get(), 4.5D, 5.5D, 0.0F), MobGroup.GROUP_2);
+        check(helper, placeAt(helper, ModCrawlers.PULMONOSCORPIUS.get(), 2.5D, 3.5D, 0.0F), MobGroup.CRITTER_HUNTER);
+        check(helper, placeAt(helper, ModCrawlers.PROTOPHASMA.get(), 4.5D, 3.5D, 0.0F), MobGroup.CRITTER_PREY);
+        check(helper, placeAt(helper, ModCrawlers.GIANT_SNAIL.get(), 1.5D, 5.5D, 0.0F), MobGroup.CRITTER_PREY);
+        check(helper, placeAt(helper, ModCrawlers.ARTHROPLEURA.get(), 4.5D, 5.5D, 0.0F), MobGroup.CRITTER_PREY);
         helper.succeed();
     }
 

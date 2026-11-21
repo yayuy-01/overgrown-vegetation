@@ -129,7 +129,7 @@ public class SleepingBagBlock extends HorizontalDirectionalBlock {
                 .orElse(false);
     }
 
-    /** 横になれない敵: バニラの「休めない」敵と、植物側の感染させる側(G1・G4〜G10。モンスターの作りでない種もいる)。 */
+    /** 横になれない敵: バニラの「休めない」敵と、植物側の感染させる側(G1・G2〜G8。モンスターの作りでない種もいる)。 */
     private static boolean enemiesNear(Player player, BlockPos pos, double radius) {
         Vec3 c = Vec3.atBottomCenterOf(pos);
         AABB box = new AABB(c.x - radius, c.y - 5.0D, c.z - radius, c.x + radius, c.y + 5.0D, c.z + radius);

@@ -9,12 +9,12 @@ import net.minecraft.server.level.ServerLevel;
  * Mob の湧き・イベント・嵐・合図などはここから読む。クライアントは {@code client.phase.ClientPhaseState}。
  *
  * <h2>使い方</h2>
- * 物が解禁されるフェーズ(例: G4 なら 4)を渡して {@link #strength(ServerLevel, int)} を掛ける:
+ * 物が解禁されるフェーズ(例: G2 なら 4)を渡して {@link #strength(ServerLevel, int)} を掛ける:
  * <pre>{@code double chance = baseChance * PhaseStages.strength(level, 4);}</pre>
  * <ul>
  *   <li>今のフェーズ &lt; 解禁フェーズ → 0(まだ出ない)</li>
  *   <li>今のフェーズ = 解禁フェーズ → 今の段の倍率(【仮】導入 0.3 / 定着 0.7 / 最盛 1.0)</li>
- *   <li>今のフェーズ &gt; 解禁フェーズ → 解禁フェーズの最盛の倍率(前のフェーズの物は出そろっている。F5 の導入で G4 が 0.3 に戻らない)</li>
+ *   <li>今のフェーズ &gt; 解禁フェーズ → 解禁フェーズの最盛の倍率(前のフェーズの物は出そろっている。F5 の導入で G2 が 0.3 に戻らない)</li>
  * </ul>
  * フェーズ 0 では何を渡しても 0。
  */

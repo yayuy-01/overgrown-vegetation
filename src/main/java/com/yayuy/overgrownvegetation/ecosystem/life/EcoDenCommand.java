@@ -21,7 +21,7 @@ import java.util.Locale;
 /**
  * 確かめ用: {@code /ov perf eco den}(2026-11-18、行動の段)。
  * <ul>
- *   <li>(引数なし)まわり 48 ブロックの洞の数・中の数・まわりの G2・G3 の数と上限</li>
+ *   <li>(引数なし)まわり 48 ブロックの洞の数・中の数・まわりの環境生物の数と上限</li>
  *   <li>{@code stock <種> <数>} いちばん近い洞(16 ブロック)に詰める / {@code release} 出す(這い出る)</li>
  *   <li>{@code scan} 今いるチャンクの倒木の端を洞に変える(後付けを今すぐ)</li>
  * </ul>
@@ -53,8 +53,8 @@ public final class EcoDenCommand {
             if (level.getBlockEntity(r.getPos()) instanceof EcoDenBlockEntity d) dens[1] += d.count();
         });
         int[] live = EcoDens.live(level, p.getX(), p.getZ());
-        String s = String.format(Locale.ROOT, "洞 %d 個(中に %d 体)・まわりの G2 %d / %d・G3 %d / %d・後付けで見たチャンク %d・回った %d・見た %d・汚染でない %d・読み込みなし %d・洞にした %d・端 %d・乱数で外れ %d・空けられない %d・床なし %d・空けた %d・塞いだ物 %s",
-                dens[0], dens[1], live[2], EcoDens.cap(level, 2, p), live[3], EcoDens.cap(level, 3, p), EcoDens.Scanned.get(level).done.size(), EcoDens.STATS[0], EcoDens.STATS[1], EcoDens.STATS[2], EcoDens.STATS[3], EcoDens.STATS[4], EcoDens.STATS[5], EcoDens.STATS[6], EcoDens.STATS[7], EcoDens.STATS[8], EcoDens.STATS[9], EcoDens.BLOCKED);
+        String s = String.format(Locale.ROOT, "洞 %d 個(中に %d 体)・まわりの獲物 %d / %d・狩る側 %d / %d・後付けで見たチャンク %d・回った %d・見た %d・汚染でない %d・読み込みなし %d・洞にした %d・端 %d・乱数で外れ %d・空けられない %d・床なし %d・空けた %d・塞いだ物 %s",
+                dens[0], dens[1], live[com.yayuy.overgrownvegetation.ecosystem.Ecosystem.PREY], EcoDens.cap(level, com.yayuy.overgrownvegetation.ecosystem.Ecosystem.PREY, p), live[com.yayuy.overgrownvegetation.ecosystem.Ecosystem.HUNTER], EcoDens.cap(level, com.yayuy.overgrownvegetation.ecosystem.Ecosystem.HUNTER, p), EcoDens.Scanned.get(level).done.size(), EcoDens.STATS[0], EcoDens.STATS[1], EcoDens.STATS[2], EcoDens.STATS[3], EcoDens.STATS[4], EcoDens.STATS[5], EcoDens.STATS[6], EcoDens.STATS[7], EcoDens.STATS[8], EcoDens.STATS[9], EcoDens.BLOCKED);
         src.sendSuccess(() -> Component.literal(s), false);
         return dens[0];
     }

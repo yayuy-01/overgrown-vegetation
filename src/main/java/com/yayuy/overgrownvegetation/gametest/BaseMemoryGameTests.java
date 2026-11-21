@@ -298,16 +298,16 @@ public final class BaseMemoryGameTests {
 
     // ------------------------------------------------------------------ 区切り 3: 認識の後の送り込み
 
-    /** 段: 最初は進化体・G5〜を送らない(段階 0 と G4 だけ)。日がたつほど、強い顔ぶれの数は減らない。 */
+    /** 段: 最初は進化体・G3〜を送らない(段階 0 と G2 だけ)。日がたつほど、強い顔ぶれの数は減らない。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void wavesGrowStrongerOverDays(GameTestHelper helper) {
         BaseMemoryTable.Wave first = t().waveFor(0.0D);
-        // 11-16 作り直し(F5 の襲撃): 最初の段は G1 と G4 が中心(進化体は少し、G5 は無し)
-        helper.assertTrue(first.g5plus() == 0 && first.developed() <= first.stageZero(), "最初の段に G5 が入っている・進化体が段階 0 より多い");
+        // 11-16 作り直し(F5 の襲撃): 最初の段は G1 と G2 が中心(進化体は少し、G3 は無し)
+        helper.assertTrue(first.g3plus() == 0 && first.developed() <= first.stageZero(), "最初の段に G3 が入っている・進化体が段階 0 より多い");
         BaseMemoryTable.Wave prev = first;
         for (double d = 0.5D; d <= 10.0D; d += 0.5D) {
             BaseMemoryTable.Wave w = t().waveFor(d);
-            helper.assertTrue(w.developed() >= prev.developed() && w.g4() >= prev.g4() && w.g5plus() >= prev.g5plus(),
+            helper.assertTrue(w.developed() >= prev.developed() && w.g2() >= prev.g2() && w.g3plus() >= prev.g3plus(),
                     d + " 日目で顔ぶれが弱くなった");
             prev = w;
         }

@@ -29,7 +29,7 @@ import java.util.Map;
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class VirtualHordeCommand {
 
-    /** spawn で混ぜる種(地上の行進できる G4・G5)。 */
+    /** spawn で混ぜる種(地上の行進できる G2・G3)。 */
     static final String[] MIX = {"gregaria", "vesicaria", "strobila", "falcimnes", "pilimnes", "saltimnes", "venamnes"};
 
     private VirtualHordeCommand() {

@@ -15,7 +15,7 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 /**
- * G2・G3 の棲み処のブロック・中身・目印(POI)の登録(2026-11-18、行動の段)。共有の ModBlocks を太らせないよう、ここで別に登録する。
+ * 環境生物の棲み処のブロック・中身・目印(POI)の登録(2026-11-18、行動の段)。共有の ModBlocks を太らせないよう、ここで別に登録する。
  */
 public final class EcoBlocks {
 

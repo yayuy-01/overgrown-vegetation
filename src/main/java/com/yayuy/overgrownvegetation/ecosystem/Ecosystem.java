@@ -16,30 +16,37 @@ import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 /**
  * 生態系の台帳の口(2026-11-16)。
  * <ul>
- *   <li>G2・G3 が倒されたら、その升の頭数を 1 減らす({@link EcoLedger#kill})。どこで倒しても多様性が下がる(10-14 ユーザー)。</li>
+ *   <li>環境生物が倒されたら、その升の頭数を 1 減らす({@link EcoLedger#kill})。どこで倒しても多様性が下がる(10-14 ユーザー)。</li>
  *   <li>数えるのはプレイヤー(本人・飛び道具・TNT など持ち主がプレイヤーの間接攻撃)と、{@code countedDamageTypes} の防衛設備だけ。
- *   飼い犬・ゴーレム・G3 の捕食・落下では減らない(10-14 ユーザー指定を保つ)。オーバーワールドだけ。</li>
- *   <li>G2・G3 かは、タグ {@code group_2}・{@code group_3} か、仮の種の印 {@link #STUB_TAG_G2}・{@link #STUB_TAG_G3}
- *   (G2・G3 の種がそろうまでの口。全体管理 11-16 決定 D)。</li>
+ *   飼い犬・ゴーレム・狩る側の環境生物の捕食・落下では減らない(10-14 ユーザー指定を保つ)。オーバーワールドだけ。</li>
+ *   <li>環境生物かは、タグ {@code critter_prey}・{@code critter_hunter} か、仮の種の印 {@link #STUB_TAG_PREY}・{@link #STUB_TAG_HUNTER}
+ *   (環境生物の種がそろうまでの口。全体管理 11-16 決定 D)。</li>
  * </ul>
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class Ecosystem {
 
-    public static final String STUB_TAG_G2 = "ov_eco_g2";
-    public static final String STUB_TAG_G3 = "ov_eco_g3";
+    public static final String STUB_TAG_PREY = "ov_eco_prey";
+    public static final String STUB_TAG_HUNTER = "ov_eco_hunter";
+
+    /**
+     * 環境生物の 2 つの側(2026-11-21 に旧 G2・G3 の番号から付け替え)。台帳・洞・仮の種の配列の添え字にも使う。
+     * {@link #PREY} = 獲物の側(タグ critter_prey。生息しているだけの虫・カタツムリなど)、
+     * {@link #HUNTER} = 狩る側(タグ critter_hunter。虫を狩る爬虫類・サソリなど)。
+     */
+    public static final int NONE = -1, PREY = 0, HUNTER = 1;
 
     private Ecosystem() {
     }
 
-    /** G2・G3 のどちらか(2 か 3)。どちらでもなければ 0。 */
-    public static int residentGroup(Entity e) {
+    /** 環境生物のどちらの側か({@link #PREY} か {@link #HUNTER})。どちらでもなければ {@link #NONE}。 */
+    public static int critterKind(Entity e) {
         MobGroup g = MobGroup.of(e);
-        if (g == MobGroup.GROUP_2) return 2;
-        if (g == MobGroup.GROUP_3) return 3;
-        if (e.getTags().contains(STUB_TAG_G2)) return 2;
-        if (e.getTags().contains(STUB_TAG_G3)) return 3;
-        return 0;
+        if (g == MobGroup.CRITTER_PREY) return PREY;
+        if (g == MobGroup.CRITTER_HUNTER) return HUNTER;
+        if (e.getTags().contains(STUB_TAG_PREY)) return PREY;
+        if (e.getTags().contains(STUB_TAG_HUNTER)) return HUNTER;
+        return NONE;
     }
 
     /** 数える殺し手か(プレイヤーか、数える防衛設備のダメージ)。 */
@@ -56,8 +63,8 @@ public final class Ecosystem {
         LivingEntity e = event.getEntity();
         if (!(e.level() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
         if (!DesignData.ecosystem().enabled) return;
-        int g = residentGroup(e);
-        if (g == 0 || !counted(event.getSource())) return;
+        int g = critterKind(e);
+        if (g == NONE || !counted(event.getSource())) return;
         EcoLedger.get(level).kill(g, e.getBlockX() >> 4, e.getBlockZ() >> 4, EcoLedger.now(level));
     }
 

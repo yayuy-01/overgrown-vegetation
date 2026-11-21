@@ -40,8 +40,8 @@ import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
- * ヴェナムネス {@code venamnes}(G5・攻撃特化。11-14 に本名。仮名オイカケ、仮の id {@code g5_pursuer})。G5 の原型: 逃げる人を速く走って追い詰め、口で噛む。
- * ファルキムネスより脆く、長く追う「足の速さ」の Mob(名簿「Mob の名簿と能力の刷新(11-04)」の G5 の表・注文書 g5_pursuer)。
+ * ヴェナムネス {@code venamnes}(G3・攻撃特化。11-14 に本名。仮名オイカケ、仮の id {@code g5_pursuer})。G3 の原型: 逃げる人を速く走って追い詰め、口で噛む。
+ * ファルキムネスより脆く、長く追う「足の速さ」の Mob(名簿「Mob の名簿と能力の刷新(11-04)」の G3 の表・注文書 g5_pursuer)。
  *
  * <h2>段 1(2026-11-14): 歩くところまで。段 1b(同日): 歩きの見直しと走りのアニメ。技の段 A〜C(11-15): 追う・噛みつき・飛びかかり・足噛み・狩りの疾走・跳び上がり・泳ぎ・性格</h2>
  * 移動は「② 大型の地上を走る型」({@link LongBodyRunner}。ファルキムネスの作りの写し)を使い回す。攻撃・能力はまだ無い(次の段で相談)。

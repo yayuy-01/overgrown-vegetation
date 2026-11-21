@@ -818,8 +818,8 @@ public final class BaseMemory extends SavedData {
             if (b.stage == Stage.RECOGNIZED) {
                 double since = Math.max(0.0D, day - b.stageSince);
                 BaseMemoryTable.Wave w = t.waveFor(since);
-                out.add(String.format(Locale.ROOT, "     送り込み: 段 %d(段階 0 %d・進化体 %d・G4 %d・G5〜 %d)・送った回数 %d・次まで %.2f 日",
-                        t.waveIndex(since), w.stageZero(), w.developed(), w.g4(), w.g5plus(), b.wavesSent, Math.max(0.0D, b.nextWaveDay - day)));
+                out.add(String.format(Locale.ROOT, "     送り込み: 段 %d(段階 0 %d・進化体 %d・G2 %d・G3〜 %d)・送った回数 %d・次まで %.2f 日",
+                        t.waveIndex(since), w.stageZero(), w.developed(), w.g2(), w.g3plus(), b.wavesSent, Math.max(0.0D, b.nextWaveDay - day)));
                 out.add(String.format(Locale.ROOT, "     襲撃の規模: %s・財布 %.1f", b.saving() ? String.format(Locale.ROOT, "見送って貯めている(%.2f 日)", day - b.saveStart) : "貯めていない",
                         b.purse));
             }

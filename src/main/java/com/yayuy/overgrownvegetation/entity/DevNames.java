@@ -6,7 +6,7 @@ import net.minecraft.world.entity.Entity;
 /**
  * 確かめ用の名札({@code nostroll}・{@code hop}・{@code notarget}・{@code nopack} など)を読む口(2026-11-16、コードの見直し ①6)。
  * 名札が効くのは<b>開発用の操作口({@code -Dov.devbridge}。runClaudeClient・runCompatClient)か GameTest のサーバー</b>のときだけ。
- * 前は守りが無く、遊ぶ人が金床の名札で G4・G5 を「うろつかない・標的を探さない」にできた。
+ * 前は守りが無く、遊ぶ人が金床の名札で G2・G3 を「うろつかない・標的を探さない」にできた。
  * ユーザーの runClient(run-client.bat)には操作口が付かないので、そこでは名札は効かない。
  */
 public final class DevNames {

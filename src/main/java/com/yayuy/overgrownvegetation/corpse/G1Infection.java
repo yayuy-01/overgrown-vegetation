@@ -19,10 +19,10 @@ import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
  *
  * <ul>
  *   <li>感染の死 = ダメージの種類 {@code spore_infection} で死んだ(暴露量 1500 %秒で 20 ダメージ。{@code SporeExposureTracker})。</li>
- *   <li>【決定 11-08 ユーザー「死体にする」】G1 の攻撃で死んだ Mob も感染の死に数える(噛まれて死んだ = 噛み傷から感染した。G1 のタグだけ。G4 以降に殺されたものは入れない)。
+ *   <li>【決定 11-08 ユーザー「死体にする」】G1 の攻撃で死んだ Mob も感染の死に数える(噛まれて死んだ = 噛み傷から感染した。G1 のタグだけ。G2 以降に殺されたものは入れない)。
  *   1 撃 +300 %秒の暴露は 5 撃で 20 ダメージだが、牛(10)・鶏(4)・豚(10)は 5 撃より前に殴られて死ぬので、これが無いと
  *   「噛まれた家畜・村人も G1 になる鎖」(11-05 ユーザー「入れる」)がつながらない。
- *   【決定 11-15 ユーザー】G4〜G10・汎用の感染体({@code PlantSideRules#isInfector})に倒された Mob も同じに数える(G2・G3 は入れない)。</li>
+ *   【決定 11-15 ユーザー】G2〜G8・汎用の感染体({@code PlantSideRules#isInfector})に倒された Mob も同じに数える(環境生物は入れない)。</li>
  *   <li>表({@link G1Species})にある種の大人 → 死体の姿勢へ崩れ落ちてから死体ブロック({@link CorpseCollapse})。</li>
  *   <li>表にある種の子ども(子どもの村人・牛・豚・羊・鶏)→ 死体を作らず萌芽体がその場から生える(11-05 共通「子どもの動物は汚染シダ」= 萌芽体)。</li>
  *   <li>表に無い種(オオカミ・ウマ・他 mod の Mob・人類側など)→ 萌芽体が生える(2026-11-09 ユーザー決定。前は普通に死ぬだけ)。
@@ -78,7 +78,7 @@ public final class G1Infection {
         if (source.is(ModDamageTypes.SPORE_INFECTION)) {
             return true;
         }
-        // 11-15 ユーザー決定: G1 だけでなく G4〜G10・汎用の感染体に倒された Mob も感染の死(傷口から胞子が入る)
+        // 11-15 ユーザー決定: G1 だけでなく G2〜G8・汎用の感染体に倒された Mob も感染の死(傷口から胞子が入る)
         return source.getEntity() instanceof LivingEntity attacker && com.yayuy.overgrownvegetation.spore.PlantSideRules.isInfector(attacker);
     }
 }

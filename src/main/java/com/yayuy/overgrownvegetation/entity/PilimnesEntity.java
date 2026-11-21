@@ -21,7 +21,7 @@ import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
- * ピリムネス {@code pilimnes}(G5・地上の遠距離。11-14 に本名。仮名ナゲトゲ、仮の id {@code g5_lancer}。pilum = 投槍)。
+ * ピリムネス {@code pilimnes}(G3・地上の遠距離。11-14 に本名。仮名ナゲトゲ、仮の id {@code g5_lancer}。pilum = 投槍)。
  * 人の弓に対抗して、背の葉を棘に変え、葉枕(水圧の関節)で弾き飛ばして離れた人の足を止め、近づいて T 字の口で仕留める(注文書 g5_lancer)。
  * 体の土台は背に棘の帆を持つ這う爬虫類(エダフォサウルス)。
  *
@@ -31,7 +31,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * 自然には湧かない(湧き方は全体の仕組みが決める)。
  *
  * <h2>能力の段(2026-11-16): 敵として襲う</h2>
- * 標的はほかの G5 と同じ(殴った相手・プレイヤー・植物側でない生き物。探すのは 20〜40 tick おき)。技は {@link PilimnesHuntGoal}:
+ * 標的はほかの G3 と同じ(殴った相手・プレイヤー・植物側でない生き物。探すのは 20〜40 tick おき)。技は {@link PilimnesHuntGoal}:
  * 棘の弾き(足を鈍らせる)・扇の散らし撃ち・噛みつき・棘の雨(特殊)。どれも止まって出し、前触れは殴っても潰せない。棘は {@link PilimnesSpine}。
  * 光は棘の列(spine)と T 字の口(mouth)の 2 枚(脇腹 flank は使わない)。
  *
@@ -129,8 +129,8 @@ public class PilimnesEntity extends LizardRunner implements GeoEntity, Parasitiz
     }
 
     /**
-     * 段 1 の Goal(浮く・うろつく・見回す)に、襲う Goal と標的を足す。標的はほかの G5(クリペイムネス・サルティムネス・ヴェナムネス)と同じ:
-     * 殴った相手・プレイヤー(サバイバル・アドベンチャー)・植物側でない生き物(G1〜G10・感染体・植物側へ変わった生き物・防具立ては狙わない)。
+     * 段 1 の Goal(浮く・うろつく・見回す)に、襲う Goal と標的を足す。標的はほかの G3(クリペイムネス・サルティムネス・ヴェナムネス)と同じ:
+     * 殴った相手・プレイヤー(サバイバル・アドベンチャー)・植物側でない生き物(G1〜G8・環境生物・感染体・植物側へ変わった生き物・防具立ては狙わない)。
      * 探すのは {@link #SEEK_INTERVAL} tick に 1 回くらい(軽く)。
      */
     @Override

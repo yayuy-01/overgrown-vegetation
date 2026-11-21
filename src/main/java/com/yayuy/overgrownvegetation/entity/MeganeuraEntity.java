@@ -29,7 +29,7 @@ import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
- * メガネウラ {@code meganeura}(G3・原生消費種。大きなトンボ・狩る側)。Vault「Mob の能力/メガネウラ」。
+ * メガネウラ {@code meganeura}(狩る側の環境生物・原生消費種。大きなトンボ・狩る側)。Vault「Mob の能力/メガネウラ」。
  *
  * <h2>段 1(2026-11-16): 飛ぶ・止まる・急ぐまで</h2>
  * 動きは「飛ぶ型」の土台 {@link SkyFlyer} に、トンボの飛び方を自前の飛び方({@link #ownFlight})で載せる。
@@ -41,7 +41,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  *   <li>{@link #MOOD_DASH 急ぐ}: 速さ {@link #DASH_SPEED} でまっすぐ。叩かれたら叩いた相手から離れる向きへ、飛び立った直後と巡航のたまにも。</li>
  * </ul>
  * 夜と雨は木のてっぺんに止まる(土台のまま。1 匹ずつ = 群れを作らない)。風はあまり受けない(強く飛ぶ虫)。
- * G2・G3 は生息しているだけの生き物(胞子を運ばない・亜種なし)。植物側({@link ParasitizedMob}・タグ group_3 = ほかの Mob から敵対される)。
+ * 環境生物は生息しているだけの生き物(胞子を運ばない・亜種なし)。植物側({@link ParasitizedMob}・タグ critter_hunter = ほかの Mob から敵対される)。
  * 自然には湧かない(生態系の台帳 {@code ecosystem/EcoSpawns} へ後でつなぐ)。狩り(chase・bite・chew)は後の段。
  * 形は 9 月製のまま、絵は MOD の色に塗り直し(翅の黄色は残す。ユーザー決定 11-16)。正本 {@code デスクトップ\blockbench\mobs\meganeura.bbmodel}。
  */
