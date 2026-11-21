@@ -41,6 +41,8 @@ public final class FrontCommand {
         src.sendSuccess(() -> Component.literal(FrontDirector.describe(level)), false);
         src.sendSuccess(() -> Component.literal(ForestUpkeep.describe(level)), false);
         src.sendSuccess(() -> Component.literal(FrontRaids.describe(level)), false);
+        src.sendSuccess(() -> Component.literal(FrontTrees.describe(level)), false);
+        src.sendSuccess(() -> Component.literal(ForeignInfection.describe(level)), false);
         src.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "狩り: 始めた %d 回・抜いた %d 体・終えた %d", FrontHunts.started, FrontHunts.pulled, FrontHunts.ended)), false);
         return 1;
     }

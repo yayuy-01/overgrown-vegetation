@@ -580,8 +580,8 @@ public final class FrontDirector {
         StringBuilder sb = new StringBuilder();
         sb.append(String.format(Locale.ROOT, "前線と部隊: %s・前線 %d・部隊 %d(", enabled() ? "入" : "切", fronts.fronts().size(), units));
         for (UnitPurpose p : UnitPurpose.values()) if (byPurpose[p.ordinal()] > 0) sb.append(p.label).append(' ').append(byPurpose[p.ordinal()]).append(' ');
-        sb.append(String.format(Locale.ROOT, ")/ 作った %d(G2 以降 %d)・関所で止まった %d・守りへ %d・広げるへ %d・呼び戻し %d・合わさった %d・合流 %d・升で感染 %d(+%.0f)",
-                produced, producedPlant, refusedByGate, sentDefend, sentExpand, recalled, merged, joined, expandInfected, expandGain));
+        sb.append(String.format(Locale.ROOT, ")/ 作った %d(G2 以降 %d)・関所で止まった %d・守りへ %d・広げるへ %d・呼び戻し %d・合わさった %d・合流 %d・升で感染 %d(+%.0f)・部隊の中の進化 %d・吸い込み %d",
+                produced, producedPlant, refusedByGate, sentDefend, sentExpand, recalled, merged, joined, expandInfected, expandGain, evolved, absorbed));
         return sb.toString();
     }
 }

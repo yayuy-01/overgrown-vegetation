@@ -727,6 +727,12 @@ public final class VirtualHordes extends SavedData {
                     BlockPos feet = TreeCanopyGroundFinder.findSpawnSurface(level, bx, bz); // 樹冠の上でなく地面(読み込み途中なら null)
                     Mob m = feet == null || !level.isPositionEntityTicking(feet) || !level.getFluidState(feet).isEmpty() ? null
                             : EnemySpawns.create(level, type, feet, MobSpawnType.EVENT, random);
+                    // 11-21 森が密だと並びの位置に体が入らない(幹・根・茂み): 前線の部隊はまわり 3 ブロックを数か所試す
+                    for (int tr = 0; m == null && s.unit() && tr < 6; tr++) {
+                        int ax = bx + random.nextInt(7) - 3, az = bz + random.nextInt(7) - 3;
+                        BlockPos f2 = TreeCanopyGroundFinder.findSpawnSurface(level, ax, az);
+                        if (f2 != null && level.isPositionEntityTicking(f2) && level.getFluidState(f2).isEmpty()) m = EnemySpawns.create(level, type, f2, MobSpawnType.EVENT, random);
+                    }
                     if (m == null) {
                         blocked = true; // この一員が置けない: 順番を崩さないよう、この群れは次の回に(置けない回が続けば横へずれる)
                         break;
