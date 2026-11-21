@@ -195,6 +195,12 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
 
     @Override
     public void travel(Vec3 input) {
+        if (!level().isClientSide && isDeadOrDying()) {
+            // 倒れた: 沈む(11-22 ユーザー決定。沈む姿勢のアニメ death はモデル制作から。移動はここ)
+            setDeltaMovement(0.0D, -SINK_SPEED, 0.0D);
+            move(MoverType.SELF, getDeltaMovement());
+            return;
+        }
         if (level().isClientSide || !isInWater()) {
             super.travel(input);
             return;
@@ -344,6 +350,10 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
             return false;
         }
         ejectRiders(stand);
+        // 着いたら胞子嚢の塊が破裂して、根付く所に胞子を撒く(11-22 ユーザー決定「弱点 + 着いたら胞子」)。
+        // 破裂は植物側の死の破裂と同じ口(汚染の球・升の浮遊・胞子の雲)。株と芽の点はその後に置く(球に上書きされないように)
+        com.yayuy.overgrownvegetation.corpse.G1DeathBurst.burst(level, Vec3.atBottomCenterOf(stand), getBbWidth(), getBbHeight());
+        DriftStats.bursts++;
         BlockPos spot = SporeSprouts.rootedSpot(level, stand);
         if (spot != null) SporeSprouts.placeRootedAt(level, spot, getYRot(), true);
         // 陸の奥へ芽の点を足す(岸から陸の向き)
@@ -387,6 +397,22 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
                 e.teleportTo(at.getX() + 0.5D + ox, at.getY(), at.getZ() + 0.5D);
             }
             i++;
+        }
+    }
+
+    /** 倒れてから沈む速さ(ブロック/tick)と、消えるまでの tick【仮】。 */
+    static final double SINK_SPEED = 0.05D;
+    static final int SINK_TICKS = 60;
+
+    /**
+     * 倒れたら破裂せずに沈む(11-22 ユーザー決定。植物側の死の破裂からはタグ death_burst_exempt で外してある)。
+     * バニラの 20 tick の白い煙は出さず、{@link #SINK_TICKS} 沈んでから消える。
+     */
+    @Override
+    protected void tickDeath() {
+        deathTime++;
+        if (deathTime >= SINK_TICKS && !level().isClientSide && !isRemoved()) {
+            remove(RemovalReason.KILLED);
         }
     }
 

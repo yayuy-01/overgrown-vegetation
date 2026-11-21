@@ -9,7 +9,7 @@ public final class DriftStats {
     public static volatile long seeks, seekNanos, seekMaxNanos;
     public static volatile long swellSteps, swellNanos, swellMaxNanos, swellBlocks;
     public static volatile long ledgerSteps, ledgerNanos, ledgerMaxNanos;
-    public static volatile int rooted, refused, launched, ferried, wentVirtual, cameBack, lost;
+    public static volatile int rooted, refused, launched, ferried, wentVirtual, cameBack, lost, bursts;
 
     static void seek(long nanos) {
         seeks++;
@@ -44,6 +44,6 @@ public final class DriftStats {
         seeks = seekNanos = seekMaxNanos = 0;
         swellSteps = swellNanos = swellMaxNanos = swellBlocks = 0;
         ledgerSteps = ledgerNanos = ledgerMaxNanos = 0;
-        rooted = refused = launched = ferried = wentVirtual = cameBack = lost = 0;
+        rooted = refused = launched = ferried = wentVirtual = cameBack = lost = bursts = 0;
     }
 }

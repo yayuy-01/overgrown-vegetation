@@ -145,10 +145,33 @@ public final class DriftMimicGameTests {
         pool(h);
         land(h, 0, 23, 20, 23);
         DriftMimicEntity e = mimic(h, 4.5D, 11.5D, new Vec3(1.0D, 0.0D, 0.0D));
+        int bursts = com.yayuy.overgrownvegetation.drift.DriftStats.bursts;
         h.succeedWhen(() -> {
             h.assertTrue(e.isRemoved(), "まだ根付いていない: " + e.position() + " mode " + e.mode());
+            h.assertTrue(com.yayuy.overgrownvegetation.drift.DriftStats.bursts > bursts, "着いても胞子嚢の塊が破裂していない");
             h.assertTrue(countIn(h, ModBlocks.BLIGHT_FERN_ROOTED.get(), 4, 7) >= 1, "岸に萌芽体の株が無い");
             forgetIslands(h);
+        });
+    }
+
+    /** 胞子嚢の塊を壊す = 倒す: 乗せていた Mob は水へ落ち、本体は破裂せずに沈んでから消える(11-22 ユーザー決定)。 */
+    @GameTest(template = T, batch = BATCH, timeoutTicks = 200)
+    public static void killedSinksAndDropsRiders(GameTestHelper h) {
+        pool(h);
+        DriftMimicEntity e = mimic(h, 12.5D, 12.5D, Vec3.ZERO);
+        var rider = h.spawn(com.yayuy.overgrownvegetation.registry.ModG1.PARASITIZED_ZOMBIE.get(), new Vec3(12.5D, 5.0D, 12.5D));
+        rider.setInvulnerable(true);
+        rider.startRiding(e, true);
+        h.assertTrue(rider.getVehicle() == e, "乗っていない");
+        h.assertTrue(e.getType().is(com.yayuy.overgrownvegetation.spore.PlantSideRules.DEATH_BURST_EXEMPT), "死の破裂から外れていない");
+        double y0 = e.getY();
+        e.hurt(h.getLevel().damageSources().generic(), 10000.0F);
+        h.assertTrue(e.isDeadOrDying(), "倒れていない");
+        h.assertTrue(rider.getVehicle() == null, "乗せていた Mob を落としていない");
+        h.runAfterDelay(8, () -> h.assertTrue(e.getY() < y0 - 0.2D, "沈んでいない: " + (e.getY() - y0)));
+        h.succeedWhen(() -> {
+            h.assertTrue(e.isRemoved(), "まだ消えていない(死んでから " + e.deathTime + " tick)");
+            rider.discard();
         });
     }
 

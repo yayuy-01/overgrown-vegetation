@@ -26,7 +26,7 @@ public final class ModDrift {
     public static void init() {
     }
 
-    /** 当たりは真ん中のこぶの塊だけ(幅 4.5 × 高さ 1.2【仮】。形は幅 約 15 で、傘の縁・水中の房ははみ出す)。海の上を遠くまで流れるので遠くまで送る。 */
+    /** 当たりは真ん中の胞子嚢の塊だけ(幅 4.5 × 高さ 1.2。ユーザー決定: 塊が弱点・塊を壊す = 倒す。形は幅 約 15 で、傘の縁・水中の房ははみ出す)。海の上を遠くまで流れるので遠くまで送る。 */
     public static final DeferredHolder<EntityType<?>, EntityType<DriftMimicEntity>> DRIFT_MIMIC =
             ModEntities.ENTITY_TYPES.register(DriftMimicEntity.ID, () -> EntityType.Builder
                     .<DriftMimicEntity>of(DriftMimicEntity::new, MobCategory.MONSTER)
