@@ -288,7 +288,7 @@ public final class EconomySoak {
                 RaidSpawns.lastWidened[0] - base0Widen[0], RaidSpawns.lastWidened[1] - base0Widen[1], RaidSpawns.lastWidened[2] - base0Widen[2],
                 RaidSpawns.lastWidened[3] - base0Widen[3], com.yayuy.overgrownvegetation.drift.DriftRaids.ferried - base0Ferried,
                 decisions[0], decisions[1], decisions[2], decisions[3], decisions[4], maxSavedDays, largeOmen, largeBegun, LargeRaids.scaledTotal,
-                front,
+                front + "," + baseStages(level),
                 spent);
         append("economy-days.csv",
                 "day,phase,stage,points,overgrownChunks,leyOrgans,giantTrees,hiveNodes,incForest,incLey,incTree,incInfect,refundDeath,refundDespawn,"
@@ -296,7 +296,17 @@ public final class EconomySoak {
                         + "missUnloaded,missGround,missSeen,foundSpread,found90,found360,foundNone,ferries,"
                         + "skip,small,medium,large,introSmall,maxSavedDays,largeOmen,largeBegun,largeScaledTotal,"
                         + "fronts,units,headsDefend,headsExpand,headsHunt,headsRaid,headsBuild,upkeepPerDay,upkeepHeads,produced,frontRaids,frontRaidHeads,"
-                        + "frontRepels,treesPlaced,repelFrontRaid,repelHunt,spentByCaller\n", line);
+                        + "frontRepels,treesPlaced,repelFrontRaid,repelHunt,bases,spentByCaller\n", line);
+    }
+
+    /** 拠点ごとの「段/送った回数/次の送り込みの日」(11-21 前線の襲撃が出ない訳を見る)。 */
+    private static String baseStages(ServerLevel level) {
+        StringBuilder sb = new StringBuilder();
+        for (BaseMemory.Base b : BaseMemory.get(level.getServer()).bases()) {
+            if (sb.length() > 0) sb.append(';');
+            sb.append(b.stage().name(), 0, 3).append('/').append(b.wavesSent()).append('/').append(String.format(Locale.ROOT, "%.2f", b.nextWaveDay()));
+        }
+        return sb.length() == 0 ? "none" : sb.toString();
     }
 
     private static int countEntities(ServerLevel level) {
