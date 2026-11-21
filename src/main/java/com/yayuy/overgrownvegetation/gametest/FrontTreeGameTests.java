@@ -70,8 +70,9 @@ public final class FrontTreeGameTests {
             FrontTrees.Site s = trees.sites().stream().filter(x -> Math.abs((x.x() >> 4) - base - cell / 2) < cell && Math.abs((x.z() >> 4) - base - cell / 2) < cell)
                     .findFirst().orElse(null);
             helper.assertTrue(s != null, "かたまりに建てる所ができない");
-            helper.assertTrue(s.remaining() <= 1.0E-6D, "予算があるのに払っていない: 残り " + s.remaining());
+            trees.allowanceForTests(DesignData.front().treeCost); // 稼ぎの 2 割ずつ貯まる額を 1 本分にしておく
             trees.tick(level);
+            helper.assertTrue(s.remaining() <= 1.0E-6D, "予算があるのに払っていない: 残り " + s.remaining());
             helper.assertTrue(s.state() == FrontTrees.State.GROWING, "払い終えても育ち始めない: " + s.state());
             helper.succeed();
         } finally {
@@ -135,6 +136,7 @@ public final class FrontTreeGameTests {
         try {
             d.setBudget(level, DesignData.front().treeCost * 2.0D);
             FrontTrees.Site s = trees.addSite(level, at.getX(), at.getZ(), Long.MIN_VALUE);
+            trees.allowanceForTests(DesignData.front().treeCost);
             trees.tick(level); // 育ち始める
             trees.tick(level); // 育ち途中のノードを置く
             HiveNodeEntity node = null;
@@ -170,6 +172,7 @@ public final class FrontTreeGameTests {
             trees.findSites(level);
             FrontTrees.Site s = trees.sites().stream().filter(FrontTrees.Site::rebuild).filter(x -> x.x() == at.getX() && x.z() == at.getZ()).findFirst().orElse(null);
             helper.assertTrue(s != null, "倒された跡に建て直す所ができない");
+            trees.allowanceForTests(DesignData.front().treeCost);
             trees.tick(level);
             trees.readyForTests(s);
             trees.tick(level);
@@ -184,6 +187,104 @@ public final class FrontTreeGameTests {
                     n.discard();
                 }
             }
+        }
+    }
+
+    /** 巨大樹に払うのは毎秒 稼ぎの treeIncomeShare まで・前線ごとに古い 1 か所だけ(11-21 放置 1 回目: 巨大樹が予算を全部使って部隊を作れなかった)。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void treeSpendIsCappedAndOneSitePerFront(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ForestDirector d = ForestDirector.get(level);
+        double budget = d.available(level);
+        Fronts fronts = Fronts.get(level.getServer());
+        FrontTrees trees = FrontTrees.load(new CompoundTag());
+        int x = 31_000_000, z = 31_000_000;
+        Fronts.Front f = fronts.addSourceForTests(x + 0.5D, z + 0.5D);
+        try {
+            d.setBudget(level, 1.0E6D);
+            double cost = DesignData.front().treeCost;
+            FrontTrees.Site s1 = trees.addSite(level, x + 100, z, Long.MIN_VALUE);
+            FrontTrees.Site s2 = trees.addSite(level, x - 100, z, Long.MIN_VALUE);
+            helper.assertTrue(s1.remaining() == cost && d.available(level) == 1.0E6D, "建てる所を足しただけで払った");
+            trees.allowanceForTests(cost * 0.25D);
+            double cap = cost * 0.25D + DesignData.front().treeIncomeShare * ForestDirector.incomePerSecond(level) + 1.0E-6D;
+            trees.tick(level);
+            double paid = 1.0E6D - d.available(level);
+            helper.assertTrue(paid > 0.0D && paid <= cap, "払った額が稼ぎの割合を超えた: " + paid + "(上限 " + cap + ")");
+            helper.assertTrue(Math.abs((cost - s1.remaining()) - paid) < 1.0E-6D, "古い所に払っていない: 残り " + s1.remaining());
+            helper.assertTrue(s2.remaining() == cost, "同じ前線で 2 か所に払った: 残り " + s2.remaining());
+            helper.succeed();
+        } finally {
+            d.setBudget(level, budget);
+            fronts.fronts().remove(f);
+        }
+    }
+
+    /** 建てる部隊を出しても前線の守りを unitMin より減らさない(11-21 放置 1 回目で守りが 244 → 0)。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void buildersKeepDefenders(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ForestDirector d = ForestDirector.get(level);
+        double budget = d.available(level);
+        Fronts fronts = Fronts.get(level.getServer());
+        VirtualHordes h = VirtualHordes.get(level.getServer());
+        FrontTrees trees = FrontTrees.load(new CompoundTag());
+        int x = 33_000_000, z = 33_000_000;
+        Fronts.Front f = fronts.addSourceForTests(x + 0.5D, z + 0.5D);
+        try {
+            UnitTerrain.terrainForTests = (cx, cz) -> UnitTerrain.LAND;
+            d.setBudget(level, 0.0D);
+            int min = DesignData.front().unitMin;
+            VirtualHordes.Swarm u = h.newUnit(x + 30, 64, z, f.id(), UnitPurpose.DEFEND, level.getGameTime());
+            u.addHeads(BuiltInRegistries.ENTITY_TYPE.getKey(G1Species.ZOMBIE.entityType()), min + 3, 100.0D);
+            trees.addSite(level, x + 100, z, Long.MIN_VALUE); // 値段は頭数の合計より高い
+            for (int i = 0; i < 5; i++) {
+                trees.tick(level);
+                for (int k = 0; k < 20; k++) h.move(level, 100, DesignData.perf());
+            }
+            int defend = 0;
+            for (VirtualHordes.Swarm w : h.swarms()) if (w.front() == f.id() && w.purpose() == UnitPurpose.DEFEND) defend += w.size();
+            helper.assertTrue(defend >= min, "建てる部隊に抜かれて守りが unitMin を割った: " + defend);
+            helper.succeed();
+        } finally {
+            UnitTerrain.terrainForTests = null;
+            d.setBudget(level, budget);
+            for (VirtualHordes.Swarm w : new ArrayList<>(h.swarms())) if (w.front() == f.id()) h.removeUnit(w);
+            fronts.fronts().remove(f);
+        }
+    }
+
+    /** 育ち切って読み込まれていない巨大樹も前線・巨大樹の稼ぎ・管理された森になる(11-21 放置 1 回目: 置かれず前線が 1 つのままだった)。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void pendingTreeCountsAsTree(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        boolean ticking = com.yayuy.overgrownvegetation.front.FrontDirector.tickInGameTests;
+        Fronts fronts = Fronts.get(level.getServer());
+        VirtualHordes h = VirtualHordes.get(level.getServer());
+        FrontTrees trees = FrontTrees.get(level.getServer());
+        int x = 35_000_000, z = 35_000_000;
+        long key = ((long) x << 32) | (z & 0xFFFFFFFFL);
+        try {
+            com.yayuy.overgrownvegetation.front.FrontDirector.tickInGameTests = true; // FrontTrees.active を開く
+            int treesBefore = com.yayuy.overgrownvegetation.director.ForestEconomy.sources(level).giantTrees();
+            FrontTrees.Site s = trees.addSite(level, x, z, Long.MIN_VALUE);
+            helper.assertTrue(!FrontTrees.managed(level, x + 50, z), "前提: 払う前から管理された森になっている");
+            trees.readyForTests(s);
+            helper.assertTrue(FrontTrees.managed(level, x + 50, z), "置く待ちの巨大樹のまわりが管理された森にならない");
+            com.yayuy.overgrownvegetation.front.FrontDirector.sync(level, fronts, h);
+            helper.assertTrue(fronts.byTree(key) != null, "置く待ちの巨大樹が前線にならない");
+            int treesAfter = com.yayuy.overgrownvegetation.director.ForestEconomy.sources(level).giantTrees();
+            helper.assertTrue(treesAfter == treesBefore + 1, "置く待ちの巨大樹が稼がない: " + treesBefore + " → " + treesAfter);
+            // 止められたら前線も消える
+            trees.clearForTests();
+            com.yayuy.overgrownvegetation.front.FrontDirector.sync(level, fronts, h);
+            helper.assertTrue(fronts.byTree(key) == null, "置く待ちの所が消えても前線が残った");
+            helper.succeed();
+        } finally {
+            com.yayuy.overgrownvegetation.front.FrontDirector.tickInGameTests = ticking;
+            trees.clearForTests();
+            Fronts.Front f = fronts.byTree(key);
+            if (f != null) fronts.fronts().remove(f);
         }
     }
 }

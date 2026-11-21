@@ -100,7 +100,8 @@ public final class ForestEconomy {
                 else big++;
             }
         }
-        int trees = PhaseData.get(level).livingGiantTreeCount();
+        // 育ち切って置く待ち(読み込まれていない)の巨大樹も稼ぐ(11-21 放置 1 回目)。建て直しの所は倒された巨大樹のキーなので重ならない
+        int trees = PhaseData.get(level).livingGiantTreeCount() + com.yayuy.overgrownvegetation.front.FrontTrees.pendingTreeKeys(level).length;
         double[] split = frontSplit(level, chunks, big + small);
         EconomyTable e = table();
         double forest = split[0] * EconomyTable.SECONDS_PER_DAY, ley = split[1] * EconomyTable.SECONDS_PER_DAY;

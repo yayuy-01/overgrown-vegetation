@@ -29,7 +29,7 @@ public final class FrontTable {
         public Integer rootedPerUnit;
         public Double rootedMaxShare;
         public Double nurseryIntervalSeconds, nurseryPriceFactor;
-        public Double treeManageBlocks, treeSpacingBlocks, treeCost, treeGrowDays, treeStopCooldownDays, treeCheckSeconds;
+        public Double treeManageBlocks, treeSpacingBlocks, treeCost, treeGrowDays, treeStopCooldownDays, treeCheckSeconds, treeIncomeShare;
         public Integer treeClusterChunks, treeCellChunks;
         public Double raidShareSmall, raidShareMedium, raidShareLarge, raidGatherBlocks, raidGatherMaxDays, raidRangeBlocks, repelGrowth, repelMaxFactor, raidLossRepelShare;
     }
@@ -70,7 +70,7 @@ public final class FrontTable {
     public final double rootedMaxShare;
     /** 現地の苗床(11-21 夜 ユーザー決定): 補充の間(秒。20 はユーザー決定)・萌芽体の値段の倍率(1/8 はユーザー決定)。 */
     public final double nurseryIntervalSeconds, nurseryPriceFactor;
-    public final double treeManageBlocks, treeSpacingBlocks, treeCost, treeGrowDays, treeStopCooldownDays, treeCheckSeconds;
+    public final double treeManageBlocks, treeSpacingBlocks, treeCost, treeGrowDays, treeStopCooldownDays, treeCheckSeconds, treeIncomeShare;
     public final int treeClusterChunks, treeCellChunks;
     public final double raidShareSmall, raidShareMedium, raidShareLarge, raidGatherBlocks, raidGatherMaxDays, raidRangeBlocks, repelGrowth, repelMaxFactor, raidLossRepelShare;
 
@@ -119,6 +119,7 @@ public final class FrontTable {
         treeGrowDays = nn(s.treeGrowDays, 1.5D);
         treeStopCooldownDays = nn(s.treeStopCooldownDays, 3.0D);
         treeCheckSeconds = Math.max(1.0D, nn(s.treeCheckSeconds, 60.0D));
+        treeIncomeShare = Math.max(0.0D, Math.min(1.0D, nn(s.treeIncomeShare, 0.2D)));
         treeClusterChunks = Math.max(1, s.treeClusterChunks != null ? s.treeClusterChunks : 64);
         treeCellChunks = Math.max(4, s.treeCellChunks != null ? s.treeCellChunks : 12);
         replaceOldSpawns = s.replaceOldSpawns == null || s.replaceOldSpawns;

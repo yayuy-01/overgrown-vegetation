@@ -40,6 +40,9 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -129,6 +132,40 @@ public final class FrontTrees extends SavedData {
     /** 育ち途中のノードを倒された所(升のキー → 休み明けのゲーム時刻)。 */
     private final Long2LongOpenHashMap stopped = new Long2LongOpenHashMap();
     private long nextId = 1L;
+    /** 巨大樹に払える額(毎秒 稼ぎの treeIncomeShare ずつ貯まる。上限は巨大樹 1 本)。 */
+    private double allowance;
+
+    /** 払う所: 前線(いちばん近い前線)ごとに、いちばん古い FUNDING の所 1 つ。 */
+    Set<Long> activeSites(ServerLevel level) {
+        Fronts fronts = Fronts.get(level.getServer());
+        Map<Long, Site> oldest = new HashMap<>();
+        for (Site s : sites) {
+            if (s.state != State.FUNDING) continue;
+            Fronts.Front f = fronts.nearest(s.x, s.z, -1);
+            long key = f != null ? f.id : -1L;
+            Site o = oldest.get(key);
+            if (o == null || s.id < o.id) oldest.put(key, s);
+        }
+        Set<Long> ids = new HashSet<>();
+        for (Site s : oldest.values()) ids.add(s.id);
+        return ids;
+    }
+
+    /**
+     * 育ち切ったがまだ置かれていない所(読み込まれていない)。巨大樹として数える: 前線・巨大樹の稼ぎ・管理された森(11-21 放置 1 回目)。
+     * キーは巨大樹の中心と同じ詰め方(建て直しは倒された巨大樹のキー)。
+     */
+    public static long[] pendingTreeKeys(ServerLevel level) {
+        if (!active(level)) return new long[0];
+        List<Site> ss = get(level.getServer()).sites;
+        long[] out = new long[ss.size()];
+        int n = 0;
+        for (Site s : ss) {
+            if (s.state != State.READY) continue;
+            out[n++] = s.rebuild() ? s.rebuildOf : ((long) s.x << 32) | (s.z & 0xFFFFFFFFL);
+        }
+        return java.util.Arrays.copyOf(out, n);
+    }
     public static long started, rebuilt, builtByBudget, usedHeads, stoppedCount, placed;
     public static double usedValue;
     /** テスト用: 置く(苗木を育てる)代わりに呼ぶ(null で本物)。 */
@@ -156,6 +193,10 @@ public final class FrontTrees extends SavedData {
         double r = DesignData.front().treeManageBlocks;
         for (long k : pd.giantTreeOriginSnapshot()) {
             if (pd.isGiantTreeDead(k)) continue;
+            double dx = (int) (k >> 32) + 0.5D - x, dz = (int) k + 0.5D - z;
+            if (dx * dx + dz * dz <= r * r) return true;
+        }
+        for (long k : pendingTreeKeys(level)) {
             double dx = (int) (k >> 32) + 0.5D - x, dz = (int) k + 0.5D - z;
             if (dx * dx + dz * dz <= r * r) return true;
         }
@@ -258,14 +299,11 @@ public final class FrontTrees extends SavedData {
         return null;
     }
 
-    /** 建てる所を足す: 払える分はすぐ予算から払う。 */
+    /** 建てる所を足す。払うのは tick で(毎秒 稼ぎの treeIncomeShare まで・前線ごとに古い 1 か所ずつ)。 */
     public Site addSite(ServerLevel level, int x, int z, long rebuildOf) {
         Site s = new Site(nextId++, x, z, rebuildOf, DesignData.front().treeCost);
         sites.add(s);
         started++;
-        ForestDirector dir = ForestDirector.get(level);
-        double pay = Math.min(s.remaining, dir.available(level));
-        if (pay > 0.0D && dir.tryPay(level, pay)) s.remaining -= pay;
         setDirty();
         ForestDirector.get(level).note(String.format(Locale.ROOT, "巨大樹を%s(%d, %d)。残り %.0f", rebuildOf != Long.MIN_VALUE ? "建て直す" : "建てる", x, z, s.remaining));
         return s;
@@ -273,16 +311,28 @@ public final class FrontTrees extends SavedData {
 
     /** 1 回まわす(テストからも)。 */
     public void tick(ServerLevel level) {
+        tick(level, 1.0D);
+    }
+
+    /** seconds = 前の回からの秒(巨大樹に払える額が貯まる)。 */
+    public void tick(ServerLevel level, double seconds) {
         VirtualHordes hordes = VirtualHordes.get(level.getServer());
         double day = PhaseData.clockNow(level) / 24000.0D;
         ForestDirector dir = ForestDirector.get(level);
+        FrontTable t = DesignData.front();
+        // 巨大樹に払える額: 毎秒 稼ぎの treeIncomeShare まで(部隊を作る分を食べ尽くさない。11-21 放置 1 回目)
+        allowance = Math.min(t.treeCost, allowance + t.treeIncomeShare * ForestDirector.incomePerSecond(level) * seconds);
+        Set<Long> active = activeSites(level);
         for (Site s : new ArrayList<>(sites)) {
             switch (s.state) {
                 case FUNDING -> {
-                    // 予算が貯まった分も払う
-                    double pay = Math.min(s.remaining, dir.available(level));
-                    if (pay > 0.0D && dir.tryPay(level, pay)) s.remaining -= pay;
                     useArrived(level, hordes, s);
+                    if (!active.contains(s.id) && s.remaining > 1.0E-6D) continue; // 前線ごとに古い 1 か所ずつ
+                    double pay = Math.min(s.remaining, Math.min(allowance, dir.available(level)));
+                    if (pay > 0.0D && dir.tryPay(level, pay)) {
+                        s.remaining -= pay;
+                        allowance -= pay;
+                    }
                     if (s.remaining <= 1.0E-6D) {
                         s.state = State.GROWING;
                         s.growStartDay = day;
@@ -357,7 +407,7 @@ public final class FrontTrees extends SavedData {
             if (u.purpose() == UnitPurpose.DEFEND) defend += n;
             if ((u.purpose() == UnitPurpose.DEFEND || u.purpose() == UnitPurpose.EXPAND) && u.size() > 0) src.add(u);
         }
-        int floor = (int) Math.ceil(t.defendShareQuiet * total);
+        int floor = Math.max(t.unitMin, (int) Math.ceil(t.defendShareQuiet * total)); // 守りを空にしない(11-21 放置 1 回目で 244 → 0)
         src.sort(Comparator.<VirtualHordes.Swarm>comparingInt(u -> u.purpose() == UnitPurpose.EXPAND ? 0 : 1)
                 .thenComparingDouble(u -> (u.x() - s.x) * (u.x() - s.x) + (u.z() - s.z) * (u.z() - s.z)));
         long now = level.getGameTime();
@@ -521,6 +571,11 @@ public final class FrontTrees extends SavedData {
         return sb.toString();
     }
 
+    /** テスト用: 巨大樹に払える額を決める。 */
+    public void allowanceForTests(double v) {
+        allowance = v;
+    }
+
     /** テスト用: 育ち切ったことにする。 */
     public void readyForTests(Site s) {
         s.state = State.READY;
@@ -528,6 +583,7 @@ public final class FrontTrees extends SavedData {
 
     public void clearForTests() {
         sites.clear();
+        allowance = 0.0D;
         stopped.clear();
         setDirty();
     }
@@ -557,12 +613,14 @@ public final class FrontTrees extends SavedData {
         }
         tag.put("Stopped", st);
         tag.putLong("NextId", nextId);
+        tag.putDouble("Allow", allowance);
         return tag;
     }
 
     public static FrontTrees load(CompoundTag tag) {
         FrontTrees d = new FrontTrees();
         d.nextId = Math.max(1L, tag.getLong("NextId"));
+        d.allowance = tag.getDouble("Allow");
         for (Tag t : tag.getList("Sites", Tag.TAG_COMPOUND)) {
             CompoundTag c = (CompoundTag) t;
             Site s = new Site(c.getLong("Id"), c.getInt("X"), c.getInt("Z"), c.getLong("Of"), c.getDouble("Left"));

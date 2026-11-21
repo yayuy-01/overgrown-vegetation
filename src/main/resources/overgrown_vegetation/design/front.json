@@ -44,6 +44,8 @@
   "treeGrowDays": 1.5,
   "treeStopCooldownDays": 3.0,
   "treeCheckSeconds": 60.0,
+  "_comment_treeIncomeShare": "巨大樹に払う予算は毎秒 稼ぎの treeIncomeShare まで・払うのは前線ごとに古い 1 か所ずつ(11-21 放置 1 回目で巨大樹が予算を全部使い部隊を作れなかったため。仕様の「残りの 2 割で器官・巨大樹…」に合わせた【仮】)。育ち切って読み込まれていない所も巨大樹として数える(前線・稼ぎ・管理された森)。",
+  "treeIncomeShare": 0.2,
   "treeClusterChunks": 64,
   "treeCellChunks": 12,
   "_comment_replace": "区切り 6 片付け: replaceOldSpawns = 縁・地下・森の中の湧き(EnemySpawns・BandRoster・EcoSpawns)と実物の G1 の進化・根付き・苗床(G1Fate)を止め、前線の部隊に任せる。部隊の中で 1 回の見直しに進化させる頭数 evolvePerUnit・部隊に入っていない植物側の Mob をプレイヤーから absorbBlocks より遠ければ部隊へ吸い込む。【仮】。",

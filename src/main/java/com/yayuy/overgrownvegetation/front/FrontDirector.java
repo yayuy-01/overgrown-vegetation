@@ -133,15 +133,22 @@ public final class FrontDirector {
     public static void sync(ServerLevel level, Fronts fronts, VirtualHordes hordes) {
         PhaseData pd = PhaseData.get(level);
         long[] trees = pd.giantTreeOriginSnapshot();
+        // 育ち切って置く待ち(読み込まれていない)の巨大樹も前線にする(11-21 放置 1 回目)
+        long[] pending = FrontTrees.pendingTreeKeys(level);
         boolean anyTree = false;
         for (long key : trees) {
-            if (pd.isGiantTreeDead(key)) continue;
+            if (pd.isGiantTreeDead(key) && !contains(pending, key)) continue;
+            anyTree = true;
+            if (fronts.byTree(key) == null) fronts.add(Fronts.Kind.TREE, key, (int) (key >> 32) + 0.5D, (int) key + 0.5D);
+        }
+        for (long key : pending) {
             anyTree = true;
             if (fronts.byTree(key) == null) fronts.add(Fronts.Kind.TREE, key, (int) (key >> 32) + 0.5D, (int) key + 0.5D);
         }
         // 倒された(ハイヴノードを倒された・記録から消えた)巨大樹の前線: 部隊は近くの前線へ合流
         for (Fronts.Front f : new ArrayList<>(fronts.fronts())) {
-            boolean gone = f.kind == Fronts.Kind.TREE && (pd.isGiantTreeDead(f.treeKey) || !contains(trees, f.treeKey));
+            boolean alive = contains(pending, f.treeKey) || (contains(trees, f.treeKey) && !pd.isGiantTreeDead(f.treeKey));
+            boolean gone = f.kind == Fronts.Kind.TREE && !alive;
             boolean handOver = f.kind == Fronts.Kind.SOURCE && anyTree; // 最初の巨大樹ができたら発生源の前線は引き継ぐ
             if (!gone && !handOver) continue;
             fronts.remove(f);
