@@ -1,10 +1,16 @@
 {
   "type": "minecraft:crafting_shaped",
   "category": "equipment",
-  "pattern": ["PP", "PS", " S"],
+  "pattern": ["PA", "PB", " S"],
   "key": {
     "P": { "item": "overgrown_vegetation:conduit_plate" },
-    "S": { "item": "minecraft:stick" }
+    "S": { "item": "minecraft:stick" },
+    "A": {
+      "item": "overgrown_vegetation:conduit_ingot"
+    },
+    "B": {
+      "item": "overgrown_vegetation:conduit_engine"
+    }
   },
   "result": { "id": "overgrown_vegetation:conduit_axe", "count": 1 }
 }
