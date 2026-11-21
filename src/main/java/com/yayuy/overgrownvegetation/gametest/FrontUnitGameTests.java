@@ -332,4 +332,56 @@ public final class FrontUnitGameTests {
             d.setBudget(level, budget);
         }
     }
+
+    /** 11-21 夜: 胞子で森の縁が expandSearchChunks より遠くへ出ても、上限 expandSearchMaxChunks まで探し広げて、いちばん近い森の縁の升へ向かう。ほかが向かっている升は選ばない。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void expandSearchWidensBeyondForestEdge(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Fronts fronts = Fronts.get(level.getServer());
+        VirtualHordes h = VirtualHordes.load(new CompoundTag());
+        com.yayuy.overgrownvegetation.phase.PhaseData pd = com.yayuy.overgrownvegetation.phase.PhaseData.get(level);
+        int x = 27_000_000, z = 27_000_000;
+        int fcx = (x >> 4) >> 2, fcz = (z >> 4) >> 2;
+        int edge = 11; // 森は前線から 10 升(40 チャンク)。縁の外は 11 升 = 44 チャンク > 24
+        Fronts.Front f = fronts.addSourceForTests(x + 0.5D, z + 0.5D);
+        java.util.List<net.minecraft.world.level.ChunkPos> marked = new java.util.ArrayList<>();
+        try {
+            com.yayuy.overgrownvegetation.front.UnitTerrain.terrainForTests = (cx, cz) -> com.yayuy.overgrownvegetation.front.UnitTerrain.LAND;
+            CellLife.register(new CellLife() {
+                @Override
+                public Result infect(ServerLevel l, int cellX, int cellZ, int attackers, double seconds) {
+                    return new Result(0, 0, 0.0D, false);
+                }
+
+                @Override
+                public View view(ServerLevel l, int cellX, int cellZ) {
+                    return new View(20, 3, false);
+                }
+            });
+            for (int dx = -(edge - 1); dx <= edge - 1; dx++) {
+                for (int dz = -(edge - 1); dz <= edge - 1; dz++) {
+                    net.minecraft.world.level.ChunkPos c = new net.minecraft.world.level.ChunkPos((fcx + dx) * 4 + 2, (fcz + dz) * 4 + 2);
+                    pd.markOvergrownChunk(level, c);
+                    marked.add(c);
+                }
+            }
+            helper.assertTrue(DesignData.front().expandSearchMaxChunks / 4 > edge, "テストの前提: 上限が縁より狭い");
+            long t1 = FrontDirector.expandTargetForTests(level, h, f);
+            helper.assertTrue(t1 != Long.MIN_VALUE, "24 チャンクの外の森の縁を探さない");
+            int r1 = Math.max(Math.abs((int) (t1 >> 32) - fcx), Math.abs((int) t1 - fcz));
+            helper.assertTrue(r1 == edge, "いちばん近い森の縁の升でない: " + r1 + " 升");
+            // その升へ 1 部隊が向かったら、次はほかの升
+            VirtualHordes.Swarm s = h.newUnit(x, 64, z, f.id(), UnitPurpose.EXPAND, level.getGameTime());
+            s.addHeads(zombie(), 10, 100.0D);
+            s.assign(UnitPurpose.EXPAND, ((int) (t1 >> 32) * 4 + 2) * 16.0D + 8.0D, ((int) t1 * 4 + 2) * 16.0D + 8.0D, level.getGameTime());
+            long t2 = FrontDirector.expandTargetForTests(level, h, f);
+            helper.assertTrue(t2 != Long.MIN_VALUE && t2 != t1, "ほかの部隊が向かっている升を選んだ");
+            helper.succeed();
+        } finally {
+            com.yayuy.overgrownvegetation.front.UnitTerrain.terrainForTests = null;
+            CellLife.register(null);
+            for (net.minecraft.world.level.ChunkPos c : marked) pd.forgetOvergrownChunk(c);
+            fronts.fronts().remove(f);
+        }
+    }
 }

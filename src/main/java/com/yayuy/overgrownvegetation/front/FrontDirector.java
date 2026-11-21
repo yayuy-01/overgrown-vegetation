@@ -53,6 +53,27 @@ public final class FrontDirector {
     /** 確かめ用の数(保存しない)。 */
     public static long produced, producedPlant, refusedByGate, sentDefend, sentExpand, recalled, merged, joined, expandInfected;
     public static double expandGain;
+    /** 11-21 夜 確かめ用: 広げる部隊を出した距離(ブロック)の合計・最大、着いた数と着くまでの日数の合計・最大。 */
+    public static double expandDistSum, expandDistMax, expandArriveDaysSum, expandArriveDaysMax;
+    public static long expandSends, expandArrivals;
+    private static final it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap EXPAND_LEG_START = new it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap();
+
+    static void noteExpandSend(VirtualHordes.Swarm s, double tx, double tz, long now) {
+        if (EXPAND_LEG_START.size() > 4096) EXPAND_LEG_START.clear();
+        EXPAND_LEG_START.put(s.id(), now);
+        double d = Math.sqrt((s.x() - tx) * (s.x() - tx) + (s.z() - tz) * (s.z() - tz));
+        expandDistSum += d;
+        expandDistMax = Math.max(expandDistMax, d);
+        expandSends++;
+    }
+
+    static void noteExpandArrival(VirtualHordes.Swarm s, long now) {
+        if (!EXPAND_LEG_START.containsKey(s.id())) return;
+        double days = (now - EXPAND_LEG_START.remove(s.id())) / 24000.0D;
+        expandArriveDaysSum += days;
+        expandArriveDaysMax = Math.max(expandArriveDaysMax, days);
+        expandArrivals++;
+    }
 
     private FrontDirector() {
     }
@@ -337,6 +358,7 @@ public final class FrontDirector {
                 long cell = expandTarget(level, hordes, f);
                 if (cell != Long.MIN_VALUE) {
                     double cx = ((int) (cell >> 32) * 4 + 2) * 16.0D + 8.0D, cz = ((int) cell * 4 + 2) * 16.0D + 8.0D;
+                    noteExpandSend(s, cx, cz, now);
                     s.assign(UnitPurpose.EXPAND, cx, cz, now);
                     defend -= n;
                     expand += n;
@@ -526,6 +548,8 @@ public final class FrontDirector {
         PhaseData pd = PhaseData.get(level);
         int fcx = (Mth.floor(f.x) >> 4) >> 2, fcz = (Mth.floor(f.z) >> 4) >> 2;
         int rc = Math.max(1, DesignData.front().expandSearchChunks / 4);
+        // 11-21 夜: 胞子で森の縁が遠くへ出たら、上限 expandSearchMaxChunks まで外へ探し広げる(全体管理了承)
+        int rcMax = Math.max(rc, DesignData.front().expandSearchMaxChunks / 4);
         java.util.Set<Long> taken = new java.util.HashSet<>();
         for (VirtualHordes.Swarm s : hordes.swarms()) {
             if (s.purpose() == UnitPurpose.EXPAND) taken.add(cellKey(s.tx(), s.tz()));
@@ -546,7 +570,7 @@ public final class FrontDirector {
             }
             if (best != Long.MIN_VALUE) return best;
         }
-        for (int r = 1; r <= rc; r++) {
+        for (int r = 1; r <= rcMax; r++) {
             long best = Long.MIN_VALUE;
             double bd = Double.MAX_VALUE;
             for (int dx = -r; dx <= r; dx++) {
@@ -598,6 +622,7 @@ public final class FrontDirector {
         PhaseData pd = PhaseData.get(level);
         for (VirtualHordes.Swarm s : new ArrayList<>(hordes.swarms())) {
             if (s.purpose() != UnitPurpose.EXPAND || !s.arrived() || s.size() <= 0) continue;
+            noteExpandArrival(s, now);
             if ((now - s.purposeSince()) % (long) (t.expandIntervalSeconds * 20.0D) >= (long) (seconds * 20.0D)) continue;
             long cell = cellKey(s.tx(), s.tz());
             int cx = (int) (cell >> 32), cz = (int) cell;
@@ -621,6 +646,7 @@ public final class FrontDirector {
             if (f == null) continue;
             long next = expandTarget(level, hordes, f);
             if (next != Long.MIN_VALUE) {
+                noteExpandSend(s, ((int) (next >> 32) * 4 + 2) * 16.0D + 8.0D, ((int) next * 4 + 2) * 16.0D + 8.0D, now);
                 s.assign(UnitPurpose.EXPAND, ((int) (next >> 32) * 4 + 2) * 16.0D + 8.0D, ((int) next * 4 + 2) * 16.0D + 8.0D, now);
             } else {
                 double[] post = post(level, f, level.getRandom());

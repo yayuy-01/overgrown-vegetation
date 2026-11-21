@@ -288,7 +288,7 @@ public final class EconomySoak {
                 RaidSpawns.lastWidened[0] - base0Widen[0], RaidSpawns.lastWidened[1] - base0Widen[1], RaidSpawns.lastWidened[2] - base0Widen[2],
                 RaidSpawns.lastWidened[3] - base0Widen[3], com.yayuy.overgrownvegetation.drift.DriftRaids.ferried - base0Ferried,
                 decisions[0], decisions[1], decisions[2], decisions[3], decisions[4], maxSavedDays, largeOmen, largeBegun, LargeRaids.scaledTotal,
-                front + "," + baseStages(level),
+                front + "," + expandStats() + "," + baseStages(level),
                 spent);
         append("economy-days.csv",
                 "day,phase,stage,points,overgrownChunks,leyOrgans,giantTrees,hiveNodes,incForest,incLey,incTree,incInfect,refundDeath,refundDespawn,"
@@ -296,7 +296,15 @@ public final class EconomySoak {
                         + "missUnloaded,missGround,missSeen,foundSpread,found90,found360,foundNone,ferries,"
                         + "skip,small,medium,large,introSmall,maxSavedDays,largeOmen,largeBegun,largeScaledTotal,"
                         + "fronts,units,headsDefend,headsExpand,headsHunt,headsRaid,headsBuild,upkeepPerDay,upkeepHeads,produced,frontRaids,frontRaidHeads,"
-                        + "frontRepels,treesPlaced,repelFrontRaid,repelHunt,bases,spentByCaller\n", line);
+                        + "frontRepels,treesPlaced,repelFrontRaid,repelHunt,expandSends,expandDistAvg,expandDistMax,expandArrivals,expandArriveDaysAvg,expandArriveDaysMax,bases,spentByCaller\n", line);
+    }
+
+    /** 広げる部隊を出した数・距離(ブロック)の平均と最大・着いた数・着くまでの日数の平均と最大(累計。11-21 夜)。 */
+    private static String expandStats() {
+        long n = com.yayuy.overgrownvegetation.front.FrontDirector.expandSends, a = com.yayuy.overgrownvegetation.front.FrontDirector.expandArrivals;
+        return String.format(Locale.ROOT, "%d,%.0f,%.0f,%d,%.2f,%.2f", n,
+                n > 0 ? com.yayuy.overgrownvegetation.front.FrontDirector.expandDistSum / n : 0.0D, com.yayuy.overgrownvegetation.front.FrontDirector.expandDistMax,
+                a, a > 0 ? com.yayuy.overgrownvegetation.front.FrontDirector.expandArriveDaysSum / a : 0.0D, com.yayuy.overgrownvegetation.front.FrontDirector.expandArriveDaysMax);
     }
 
     /** 拠点ごとの「段/送った回数/次の送り込みの日」(11-21 前線の襲撃が出ない訳を見る)。 */

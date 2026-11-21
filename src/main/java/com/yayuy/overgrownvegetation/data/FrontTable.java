@@ -17,7 +17,7 @@ public final class FrontTable {
         public double[] plantShareByPhase;
         public Double defendShareQuiet, defendShareAttacked, expandShareQuiet;
         public Double attackedLossShare, attackDecayDays;
-        public Integer postRadiusChunks, expandSearchChunks;
+        public Integer postRadiusChunks, expandSearchChunks, expandSearchMaxChunks;
         public Double mergeBlocks, assignIntervalSeconds, expandIntervalSeconds;
         public int[] huntMaxByPhase;
         public Double huntRangeBlocks, huntCooldownSeconds, huntLostSeconds, huntSearchSeconds;
@@ -51,6 +51,8 @@ public final class FrontTable {
     public final double attackedLossShare, attackDecayDays;
     /** 守りの持ち場を置く前線のまわり(チャンク)・広げる升を探す前線のまわり(チャンク)。 */
     public final int postRadiusChunks, expandSearchChunks;
+    /** 広げる升が expandSearchChunks の中に無いとき、外へ探し広げる上限(チャンク。11-21 夜 全体管理了承・値は【仮】)。 */
+    public final int expandSearchMaxChunks;
     /** 同じ目的の部隊が合わさる距離・割り振りを見直す間(秒)・広げる部隊が升を食べる間(秒)。 */
     public final double mergeBlocks, assignIntervalSeconds, expandIntervalSeconds;
     /** 狩り(区切り 3): フェーズごとの上限の体数(F0〜F10。ユーザー了承の仮 F1 5〜F7 60)・部隊を探す広さ・同じプレイヤーにあける秒・見失ってから探しに行くまで・最後に見た所で探す秒。 */
@@ -93,6 +95,7 @@ public final class FrontTable {
         attackDecayDays = Math.max(0.01D, nn(s.attackDecayDays, 0.5D));
         postRadiusChunks = Math.max(0, s.postRadiusChunks != null ? s.postRadiusChunks : 12);
         expandSearchChunks = Math.max(1, s.expandSearchChunks != null ? s.expandSearchChunks : 24);
+        expandSearchMaxChunks = Math.max(expandSearchChunks, s.expandSearchMaxChunks != null ? s.expandSearchMaxChunks : 256);
         mergeBlocks = nn(s.mergeBlocks, 24.0D);
         assignIntervalSeconds = Math.max(1.0D, nn(s.assignIntervalSeconds, 10.0D));
         expandIntervalSeconds = Math.max(1.0D, nn(s.expandIntervalSeconds, 20.0D));
