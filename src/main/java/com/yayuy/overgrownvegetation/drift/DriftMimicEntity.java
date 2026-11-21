@@ -27,6 +27,18 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import software.bernie.geckolib.animatable.GeoEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.AnimationState;
+import software.bernie.geckolib.animation.PlayState;
+import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.util.GeckoLibUtil;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,14 +60,36 @@ import java.util.List;
  *       読み込みの外を風で粗く流れ、読み込まれた所に着いたら姿に戻る。</li>
  * </ul>
  *
- * <p>擬態: 今は形が仮(流木に見える箱。{@code client/DriftMimicRenderer})。近づいたときに正体を見せる合図は、モデル制作の形が決まってから。
- * 攻撃はしない・プレイヤーを探さない(探すなら {@code PlantArmor.isHost} を通す決まり)。沖で叩けば沈む(体力は mobs.json)。
+ * <p>形はモデル制作の B 改 6(11-22 ユーザー決定。{@code client/DriftMimicRenderer})。ふだんは藻と流木の筏に見え、観戦でないプレイヤー
+ * (植物側の者は除く)が {@link DriftTable.Drift#revealDistance} 以内に来ると胞子嚢の塊が膨らんで光り、鉤が上がる(正体を見せる。11-22 全体管理２)。
+ * 攻撃はしない。当たりは真ん中の胞子嚢の塊だけで、壊す = 倒す(沈んで、乗せていた Mob は水へ落ちる)。
+ * 岸に着いたら鉤で岸をつかみ(grip 2.5 秒)、塊が破裂して(burst)胞子を撒き、根付いて消える。
  */
-public class DriftMimicEntity extends Monster implements ParasitizedMob {
+public class DriftMimicEntity extends Monster implements ParasitizedMob, GeoEntity {
 
     public static final String ID = "drift_mimic";
 
     public enum Mode { DRIFT, SEEK, FERRY }
+
+    // ------------------------------------------------------------ 見た目の状態(サーバーが決めて送る。アニメと光はこれで流す)
+
+    static final EntityDataAccessor<Byte> DATA_FLAGS = SynchedEntityData.defineId(DriftMimicEntity.class, EntityDataSerializers.BYTE);
+    /** 正体を見せている(嚢が膨らんで光る・鉤が上がる)。 */
+    static final byte F_REVEALED = 1;
+    /** 岸へ漕いでいる(swim)。 */
+    static final byte F_PADDLING = 2;
+    /** 岸に鉤を掛けている(grip)。 */
+    static final byte F_GRIPPING = 4;
+    /** 胞子嚢の塊が破裂している(burst)。 */
+    static final byte F_BURSTING = 8;
+
+    /** 着いてからの段取り(tick): 鉤を掛ける grip 2.5 秒 → 破裂 burst 3.0 秒。破裂のしぼむ瞬間(burst の 1.45 秒)に胞子を撒いて根付く。 */
+    public static final int GRIP_TICKS = 50, BURST_PEAK_TICKS = 29, BURST_TICKS = 60;
+
+    /** 着いた岸(破裂を待っている間)。null なら海の上。 */
+    @Nullable
+    BlockPos arrivalShore, arrivalStand;
+    int arrivalTick;
 
     Mode mode = Mode.DRIFT;
     /** 寄っていく岸の列(y は水面の段)。 */
@@ -99,6 +133,32 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
 
     public static AttributeSupplier.Builder createAttributes() {
         return MobStats.apply(Monster.createMonsterAttributes(), ID);
+    }
+
+    @Override
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(DATA_FLAGS, (byte) 0);
+    }
+
+    boolean flag(byte f) {
+        return (entityData.get(DATA_FLAGS) & f) != 0;
+    }
+
+    void setFlag(byte f, boolean on) {
+        byte v = entityData.get(DATA_FLAGS);
+        byte n = (byte) (on ? v | f : v & ~f);
+        if (n != v) entityData.set(DATA_FLAGS, n);
+    }
+
+    /** 正体を見せているか。 */
+    public boolean revealed() {
+        return flag(F_REVEALED);
+    }
+
+    /** 岸に着いて、鉤を掛けている・破裂している最中か。 */
+    public boolean arriving() {
+        return arrivalStand != null || flag(F_GRIPPING) || flag(F_BURSTING);
     }
 
     // ------------------------------------------------------------ 状態
@@ -173,13 +233,18 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
     static final double[][] SEATS = {{82, 7, 2}, {86, 7, 34}, {80, 7, 64}, {-84, 4, 22}, {-86, 4, 54}, {-6, 6, 86}};
     /** 当たりの底が水面より沈む深さ(ブロック)。 */
     static final double SUBMERGE = 0.2D;
+    /**
+     * 形の胞子嚢の塊(sac_cluster、body の (0, 3, −14))は体の真ん中より 14/16 前にある。当たり(= 塊)を本体の位置の真ん中に置くので、
+     * 形はこの分だけ後ろへずらして描く(描画 {@code client/DriftMimicRenderer})。席も同じだけずらす。
+     */
+    public static final double MODEL_BACK = 14.0D / 16.0D;
 
     @Override
     protected Vec3 getPassengerAttachmentPoint(Entity passenger, EntityDimensions dimensions, float partialTick) {
         int i = Math.max(0, getPassengers().indexOf(passenger)) % SEATS.length;
         double[] s = SEATS[i];
         // 体の向き: 本体の +z が前(バニラ)。形の前は −z なので z を裏返す
-        return new Vec3(s[0] / 16.0D, SUBMERGE + s[1] / 16.0D, -s[2] / 16.0D).yRot(-getYRot() * Mth.DEG_TO_RAD);
+        return new Vec3(s[0] / 16.0D, SUBMERGE + s[1] / 16.0D, -s[2] / 16.0D - MODEL_BACK).yRot(-getYRot() * Mth.DEG_TO_RAD);
     }
 
     // ------------------------------------------------------------ 動き
@@ -210,7 +275,12 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
         double s = Math.min(t.windCap, Math.hypot(wind[0], wind[1]));
         double wl = Math.hypot(wind[0], wind[1]);
         double dx = wl > 1e-9 ? wind[0] / wl * s * t.blocksPerWind : 0.0D, dz = wl > 1e-9 ? wind[1] / wl * s * t.blocksPerWind : 0.0D;
-        if (target != null && (mode == Mode.SEEK || mode == Mode.FERRY)) {
+        boolean holding = arrivalStand != null; // 鉤を掛けている・破裂している間はその場で浮く
+        if (holding) {
+            dx = 0.0D;
+            dz = 0.0D;
+        }
+        if (!holding && target != null && (mode == Mode.SEEK || mode == Mode.FERRY)) {
             double tx = target.getX() + 0.5D - getX(), tz = target.getZ() + 0.5D - getZ();
             double d = Math.hypot(tx, tz);
             if (d > 1e-6) {
@@ -256,6 +326,12 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
         ServerLevel level = (ServerLevel) level();
         if (born == Long.MIN_VALUE) born = level.getGameTime();
         DriftTable.Drift t = DesignData.drift().drift;
+        if (arrivalStand != null) {
+            tickArrival(level);
+            return;
+        }
+        if ((tickCount + getId()) % 10 == 0) setFlag(F_REVEALED, revealTo(level, t.revealDistance));
+        setFlag(F_PADDLING, target != null && (mode == Mode.SEEK || mode == Mode.FERRY) && !shallowAhead);
         if (age() > (long) (t.lifetimeDays * 24000.0D)) {
             ejectRiders(null);
             discard(); // 岸に着けないまま沈んだ
@@ -350,8 +426,38 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
             return false;
         }
         ejectRiders(stand);
-        // 着いたら胞子嚢の塊が破裂して、根付く所に胞子を撒く(11-22 ユーザー決定「弱点 + 着いたら胞子」)。
-        // 破裂は植物側の死の破裂と同じ口(汚染の球・升の浮遊・胞子の雲)。株と芽の点はその後に置く(球に上書きされないように)
+        // 鉤の房で岸をつかみ(grip)、胞子嚢の塊が破裂して(burst)根付く。破裂のしぼむ瞬間に burstAndRoot
+        arrivalShore = shore.immutable();
+        arrivalStand = stand.immutable();
+        arrivalTick = 0;
+        target = null;
+        driftVx = 0.0D;
+        driftVz = 0.0D;
+        setFlag(F_PADDLING, false);
+        setFlag(F_REVEALED, true);
+        setFlag(F_GRIPPING, true);
+        return true;
+    }
+
+    /** 着いてからの段取りを 1 tick 進める(grip → burst → 消える)。 */
+    void tickArrival(ServerLevel level) {
+        arrivalTick++;
+        if (arrivalTick == GRIP_TICKS) {
+            setFlag(F_GRIPPING, false);
+            setFlag(F_REVEALED, false);
+            setFlag(F_BURSTING, true);
+        }
+        if (arrivalTick == GRIP_TICKS + BURST_PEAK_TICKS && arrivalShore != null) burstAndRoot(level, arrivalShore, arrivalStand);
+        if (arrivalTick >= GRIP_TICKS + BURST_TICKS) discard();
+    }
+
+    /**
+     * 胞子嚢の塊が破裂して、根付く所に胞子を撒く(11-22 ユーザー決定「弱点 + 着いたら胞子」)。破裂は植物側の死の破裂と同じ口
+     * (汚染の球・升の浮遊・胞子の雲)。萌芽体の株と芽の点はその後に置く(球に上書きされないように)。
+     */
+    void burstAndRoot(ServerLevel level, BlockPos shore, BlockPos stand) {
+        DriftTable.Root t = DesignData.drift().root;
+        if (RingWards.guarded(level, stand)) return; // 鉤を掛けている間に押し返しの道具が置かれた: 根付かない
         com.yayuy.overgrownvegetation.corpse.G1DeathBurst.burst(level, Vec3.atBottomCenterOf(stand), getBbWidth(), getBbHeight());
         DriftStats.bursts++;
         BlockPos spot = SporeSprouts.rootedSpot(level, stand);
@@ -378,8 +484,6 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
         if (island != null) SwollenIslands.start(level, island, shore.getY());
         DriftStats.rooted++;
         lastRoot = stand;
-        discard();
-        return true;
     }
 
     /** 確かめ用: 最後に根付いた所。 */
@@ -423,6 +527,107 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
         super.die(source);
     }
 
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        boolean hit = super.hurt(source, amount);
+        if (hit && !level().isClientSide && isAlive()) triggerAnim("hurt", "hurt");
+        return hit;
+    }
+
+    /**
+     * 正体を見せる相手がいるか: 観戦でないプレイヤーが {@code r} 以内(植物側の者 = 植物の装備の宿主などは除く)。
+     * 11-22 全体管理２の了承(距離は【仮】で drift.json の revealDistance)。
+     */
+    boolean revealTo(ServerLevel level, double r) {
+        if (r <= 0) return false;
+        for (Player p : level.players()) {
+            if (p.isSpectator() || com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(p)) continue;
+            if (p.distanceToSqr(this) < r * r) return true;
+        }
+        return false;
+    }
+
+    // ------------------------------------------------------------ アニメ(形 B 改 6・モデル制作の正本。11-22)
+
+    static final RawAnimation A_DRIFT = RawAnimation.begin().thenLoop("drift");
+    static final RawAnimation A_SWIM = RawAnimation.begin().thenLoop("swim");
+    static final RawAnimation A_REVEAL = RawAnimation.begin().thenPlay("reveal").thenLoop("reveal_hold");
+    static final RawAnimation A_GRIP = RawAnimation.begin().thenPlayAndHold("grip");
+    static final RawAnimation A_BURST = RawAnimation.begin().thenPlayAndHold("burst");
+    static final RawAnimation A_DEATH = RawAnimation.begin().thenPlayAndHold("death");
+    static final RawAnimation A_HURT = RawAnimation.begin().thenPlay("hurt");
+
+    private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
+
+    @Override
+    public AnimatableInstanceCache getAnimatableInstanceCache() {
+        return cache;
+    }
+
+    /**
+     * 層の順(後に登録した層が同じ骨の同じチャンネルで勝つ。GeckoLib 4.7.6): 体全体(漂う・漕ぐ・破裂・沈む)→ 嚢と鉤(正体・つかむ)→ 傷。
+     * 破裂と沈む姿は全身なので、その間は嚢と鉤の層を止める(嚢の拡大が掛け算にならないように。モデル制作の「重ね方の前提」)。
+     */
+    @Override
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        controllers.add(new AnimationController<>(this, "main", 10, this::mainState));
+        controllers.add(new AnimationController<>(this, "sacs", 5, this::sacState));
+        controllers.add(new AnimationController<>(this, "hurt", 0, s -> PlayState.STOP).triggerableAnim("hurt", A_HURT));
+    }
+
+    private PlayState mainState(AnimationState<DriftMimicEntity> state) {
+        if (isDeadOrDying()) return state.setAndContinue(A_DEATH);
+        if (flag(F_BURSTING)) return state.setAndContinue(A_BURST);
+        return state.setAndContinue(flag(F_PADDLING) ? A_SWIM : A_DRIFT);
+    }
+
+    private PlayState sacState(AnimationState<DriftMimicEntity> state) {
+        if (isDeadOrDying() || flag(F_BURSTING)) return PlayState.STOP;
+        if (flag(F_GRIPPING)) return state.setAndContinue(A_GRIP);
+        if (flag(F_REVEALED)) return state.setAndContinue(A_REVEAL);
+        return PlayState.STOP;
+    }
+
+    // 光(クライアント): モデル制作の「光る区間」の表のとおり
+    private long revealSince = Long.MIN_VALUE, burstSince = Long.MIN_VALUE;
+
+    @Override
+    public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (key == DATA_FLAGS && level() != null) {
+            long now = level().getGameTime();
+            if (flag(F_REVEALED) || flag(F_GRIPPING)) {
+                if (revealSince == Long.MIN_VALUE) revealSince = now;
+            } else if (!flag(F_BURSTING)) {
+                revealSince = Long.MIN_VALUE;
+            }
+            if (flag(F_BURSTING)) {
+                if (burstSince == Long.MIN_VALUE) burstSince = now;
+            } else {
+                burstSince = Long.MIN_VALUE;
+            }
+        }
+    }
+
+    /** 光の層の強さ 0〜1(描画から)。 */
+    public float glow(float partialTick) {
+        float now = level().getGameTime() + partialTick;
+        if (isDeadOrDying()) return revealSince == Long.MIN_VALUE ? 0.0F : Math.max(0.0F, 1.0F - (deathTime + partialTick) / 18.0F);
+        if (burstSince != Long.MIN_VALUE) {
+            float t = (now - burstSince) / 20.0F;
+            if (t < 1.3F) return Mth.clamp(t / 1.3F, 0.0F, 1.0F) * (0.75F + 0.25F * Mth.sin(t * 40.0F)); // 震えに合わせて明滅
+            return t < 1.45F ? 1.0F : 0.0F;
+        }
+        if (flag(F_GRIPPING)) return 1.0F;
+        if (revealSince != Long.MIN_VALUE) {
+            float t = (now - revealSince) / 20.0F;
+            if (t < 0.3F) return 0.0F;
+            float g = Math.min(1.0F, (t - 0.3F) / 0.9F);
+            return t > 1.75F ? g * (0.9F + 0.1F * Mth.sin(t * Mth.PI)) : g; // reveal_hold の脈に合わせてゆらぐ
+        }
+        return 0.0F;
+    }
+
     // ------------------------------------------------------------ 保存
 
     @Override
@@ -432,6 +637,11 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
         if (target != null) tag.put("DriftTarget", NbtUtils.writeBlockPos(target));
         tag.putLong("DriftBorn", born);
         tag.putLongArray("DriftRefused", refused.toLongArray());
+        if (arrivalStand != null && arrivalShore != null) {
+            tag.put("DriftArrivalShore", NbtUtils.writeBlockPos(arrivalShore));
+            tag.put("DriftArrivalStand", NbtUtils.writeBlockPos(arrivalStand));
+            tag.putInt("DriftArrivalTick", arrivalTick);
+        }
     }
 
     @Override
@@ -446,6 +656,9 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob {
         born = tag.contains("DriftBorn") ? tag.getLong("DriftBorn") : Long.MIN_VALUE;
         refused.clear();
         for (long k : tag.getLongArray("DriftRefused")) refused.add(k);
+        arrivalShore = NbtUtils.readBlockPos(tag, "DriftArrivalShore").orElse(null);
+        arrivalStand = arrivalShore == null ? null : NbtUtils.readBlockPos(tag, "DriftArrivalStand").orElse(null);
+        arrivalTick = tag.getInt("DriftArrivalTick");
     }
 
     /** 近くにプレイヤー(観戦を除く)がいるか。 */

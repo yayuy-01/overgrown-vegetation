@@ -362,6 +362,7 @@ public final class DriftMimicGameTests {
                 if (m == null) return null;
                 m.moveTo(p.getX() + 0.5D, p.getY(), p.getZ() + 0.5D, 0.0F, 0.0F);
                 m.setInvulnerable(true);
+                m.setNoAi(true); // 降ろした所を確かめる(破裂を待つ間に歩かないように)
                 level.addFreshEntity(m);
                 return m;
             }, sent::add);
@@ -397,6 +398,7 @@ public final class DriftMimicGameTests {
         // 乗せるのは寄生種(G1 の寄生ゾンビ)。バニラの敵対 Mob は植物側の Mob を狙うので、乗せると降りて殴りかかる(11-20 確かめた)
         var husk = h.spawn(com.yayuy.overgrownvegetation.registry.ModG1.PARASITIZED_ZOMBIE.get(), new Vec3(12.5D, 5.0D, 21.5D));
         husk.setInvulnerable(true);
+        husk.setNoAi(true); // 降ろした所を確かめる(破裂を待つ 5.5 秒の間に歩いて水へ入らないように)
         List<net.minecraft.world.entity.Mob> riders = new ArrayList<>(List.of(husk));
         double[] paid = {0};
         DriftCosts.Payer prev = DriftCosts.payer;

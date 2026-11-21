@@ -46,6 +46,8 @@ public final class DriftTable {
         public double bodyRadius = 7.5D;
         /** 岸をつかむ鉤の房が届く距離(体の真ん中から岸の列まで。形の鉤を伸ばした長さ 約 18.9 から)。届けば浅瀬の手前からつかんで根付く。 */
         public double gripReach = 11.0D;
+        /** 正体を見せる距離(ブロック): 観戦でないプレイヤー(植物側の者は除く)がこの中に来ると、胞子嚢の塊が膨らんで光り、鉤が上がる(11-22 全体管理２の了承・値は【仮】)。 */
+        public double revealDistance = 24.0D;
         /** 一度も岸に着けずに海の上にいる上限(日)。過ぎたら沈んで消える。 */
         public double lifetimeDays = 4.0D;
     }
