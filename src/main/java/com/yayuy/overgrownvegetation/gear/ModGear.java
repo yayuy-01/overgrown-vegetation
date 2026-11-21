@@ -149,6 +149,8 @@ public final class ModGear {
     public static final DeferredItem<Item> CONDUIT_INGOT = ModItems.ITEMS.registerSimpleItem("conduit_ingot", new Item.Properties());
     /** 導晶の板(中間素材。作業台で地金 1 → 板 1)。 */
     public static final DeferredItem<Item> CONDUIT_PLATE = ModItems.ITEMS.registerSimpleItem("conduit_plate", new Item.Properties());
+    /** 導晶機関(中間素材。11-21 夜ユーザー「名前は導晶機関」。今は持つだけで使い道・説明は無い。作り方はユーザーが mod マネージャー 2 で決める = 今のレシピは【仮】)。 */
+    public static final DeferredItem<Item> CONDUIT_ENGINE = ModItems.ITEMS.registerSimpleItem("conduit_engine", new Item.Properties());
     /** 黄緑の導晶の原石(飲み込まれた導晶鉱から出る。汚染されていない導晶とは別のアイテム = 11-21 夜ユーザー決定。焼くと黄緑の導晶の地金)。 */
     public static final DeferredItem<Item> OVERGROWN_RAW_CONDUIT = ModItems.ITEMS.registerSimpleItem("overgrown_raw_conduit", new Item.Properties());
     /** 黄緑の導晶の地金(作業台で導晶の板にもなる = 道具は青・黄緑のどちらからでも作れる。黄緑だけの使い道は後で決める)。 */
@@ -204,6 +206,7 @@ public final class ModGear {
         output.accept(OVERGROWN_RAW_CONDUIT.get());
         output.accept(OVERGROWN_CONDUIT_INGOT.get());
         output.accept(CONDUIT_PLATE.get());
+        output.accept(CONDUIT_ENGINE.get());
         for (DeferredItem<? extends DiggerItem> tool : java.util.List.of(CONDUIT_PICKAXE, CONDUIT_AXE, CONDUIT_SHOVEL, CONDUIT_HOE)) {
             output.accept(tool.get());
             ItemStack full = new ItemStack(tool.get()); // 満たした物も 1 つずつ(試す用。電池の満タンと同じ扱い)

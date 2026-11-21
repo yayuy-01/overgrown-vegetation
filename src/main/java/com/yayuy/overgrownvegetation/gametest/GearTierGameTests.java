@@ -250,7 +250,11 @@ public final class GearTierGameTests {
             helper.fail("板と棒でつるはしが作れない");
             return;
         }
-        for (String id : List.of("conduit_axe", "conduit_shovel", "conduit_hoe")) {
+        if (new ItemStack(ModGear.CONDUIT_ENGINE.get()).getMaxStackSize() != 64) {
+            helper.fail("導晶機関のスタックが 64 でない");
+            return;
+        }
+        for (String id : List.of("conduit_axe", "conduit_shovel", "conduit_hoe", "conduit_engine")) { // 導晶機関(11-21 夜)の作り方は【仮】。ユーザーが mod マネージャー 2 で決める
             if (level.getRecipeManager().byKey(OvergrownVegetation.id(id)).isEmpty()) {
                 helper.fail("作り方が無い: " + id);
                 return;
