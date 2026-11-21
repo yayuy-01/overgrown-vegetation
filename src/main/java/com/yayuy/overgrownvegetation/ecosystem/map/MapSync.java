@@ -3,7 +3,6 @@ package com.yayuy.overgrownvegetation.ecosystem.map;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.corpse.G1Infection;
 import com.yayuy.overgrownvegetation.infect.GenericInfection;
-import com.yayuy.overgrownvegetation.registry.ModDamageTypes;
 import com.yayuy.overgrownvegetation.spore.SporeExposureTracker;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -29,19 +28,16 @@ import java.util.List;
  * 地図の上の生態系と実物の照らし合わせ(2026-11-21)。<b>台帳が正</b>。
  * <ul>
  *   <li><b>台帳 → 実物</b>: プレイヤーのまわりの升(中心とまわり 8 升・真ん中のチャンクが読み込まれている)を {@link MapTable#syncIntervalTicks} ごとに見て、
- *   台帳で増えた感染(まだ実物に反映していない分)の割合だけ、升の中の実物の動物・村人を感染させる。感染は胞子の感染の死({@code spore_infection} の
- *   ダメージ)= 今の仕組みのまま(表の種の大人は死体 → G1、それ以外は汎用の感染体)。1 回に 1 升 {@link MapTable#reconcilePerSync} 体まで。
- *   こうして感染させた個体には印({@link #TAG})を付け、下の「実物 → 台帳」で二重に数えない・森の稼ぎも二重に払わない(地図の上の感染のときに払った)。</li>
- *   <li><b>実物 → 台帳</b>: プレイヤーのそばで実物が感染した({@link #onRealInfected}。汎用の感染体になった・死体になった所から呼ばれる)→ 感染 +1。
- *   感染でなく死んだ → 欠け +1(森の外では戻る)。生まれた → 欠け −1。</li>
+ *   台帳で増えた感染(まだ実物に反映していない分)の割合だけ、升の中の実物の動物・村人を<b>消す</b>(11-21 夜 ユーザー決定「まあ消しとこか」:
+ *   台帳で感染した分はもう G1 として部隊に入っているので、実物は部隊に連れて行かれた扱い。感染の死にはせず、死体・G1・汎用の感染体・ドロップ・経験値は出さない)。
+ *   プレイヤーから見えていない個体・遠い個体から先に消す(目の前で消えるのを減らす)。1 回に 1 升 {@link MapTable#reconcilePerSync} 体まで。全部感染した升は残りも全部。</li>
+ *   <li><b>実物 → 台帳</b>: プレイヤーのそばで実物が感染した({@link #onRealInfected}。汎用の感染体になった・死体になった所から呼ばれる)→ 感染 +1(実物に反映済み)。
+ *   感染でなく死んだ → 欠け +1(森の外では戻る)。生まれた → 欠け −1。消した個体は死なないので、ここには来ない(二重に数えない)。</li>
  * </ul>
  * 数えるのは動物({@link Animal})と村人({@link AbstractVillager})。植物側・この MOD の生き物・飼われている動物は数えない。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class MapSync {
-
-    /** 照らし合わせで感染させた個体の印。 */
-    public static final String TAG = "ov_map_reconciled";
 
     private MapSync() {
     }
@@ -56,20 +52,14 @@ public final class MapSync {
 
     // ---------------------------------------------------------------- 実物 → 台帳
 
-    /**
-     * 実物が感染体に変わった(汎用の感染体になった・死体になった)。{@code GenericInfection}・{@code CorpseCollapse} が森の稼ぎを払う前に呼ぶ。
-     *
-     * @return 森の稼ぎを払ってよいか(照らし合わせで感染させた個体は、地図の上で払ったので false)
-     */
-    public static boolean onRealInfected(ServerLevel level, LivingEntity entity) {
-        if (entity.getTags().contains(TAG)) return false;
-        if (level.dimension() != Level.OVERWORLD || !tracked(entity) || !MapEcology.active(level)) return true;
+    /** 実物が感染体に変わった(汎用の感染体になった・死体になった)。{@code GenericInfection}・{@code CorpseCollapse} から呼ばれる。 */
+    public static void onRealInfected(ServerLevel level, LivingEntity entity) {
+        if (level.dimension() != Level.OVERWORLD || !tracked(entity) || !MapEcology.active(level)) return;
         try {
             MapEcology.addInfected(level, MapEcology.cellOf(entity.getBlockX() >> 4, entity.getBlockZ() >> 4), 1.0D, true);
         } catch (RuntimeException e) {
             OvergrownVegetation.LOGGER.error("地図の上の生態系: 実物の感染を台帳へ返せなかった", e);
         }
-        return true;
     }
 
     /** 感染でない死 → 欠け +1。感染の死は {@link #onRealInfected} が数える。 */
@@ -78,7 +68,7 @@ public final class MapSync {
         if (event.isCanceled()) return;
         LivingEntity e = event.getEntity();
         if (!(e.level() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
-        if (e.getTags().contains(TAG) || !tracked(e) || !MapEcology.active(level)) return;
+        if (!tracked(e) || !MapEcology.active(level)) return;
         if (G1Infection.isInfectionDeath(e, event.getSource()) || GenericInfection.isTurned(e)) return;
         changeLack(level, e, 1.0D);
     }
@@ -116,7 +106,7 @@ public final class MapSync {
 
     /** この照らし合わせの回で見た升(同じ回に 2 人のまわりが重なっても 1 回)。 */
     private static final LongOpenHashSet SEEN = new LongOpenHashSet();
-    /** これまでに照らし合わせで感染させた数(表示用)。 */
+    /** これまでに照らし合わせで消した数(表示用)。 */
     public static long reconciled;
 
     static void clear() {
@@ -153,9 +143,10 @@ public final class MapSync {
     }
 
     /**
-     * 1 升を照らし合わせる: 台帳で増えた感染のうち実物に反映していない分の割合(増えた感染 ÷ その前の健康な数)だけ、升の中の実物を感染させる。
+     * 1 升を照らし合わせる: 台帳で増えた感染のうち実物に反映していない分の割合(増えた感染 ÷ その前の健康な数)だけ、升の中の実物を消す
+     * (部隊に連れて行かれた。プレイヤーから見えていない・遠い個体から)。
      *
-     * @return 感染させた数
+     * @return 消した数
      */
     public static int reconcile(ServerLevel level, long cellKey, int cap) {
         MapLedger ledger = MapLedger.get(level.getServer());
@@ -172,10 +163,10 @@ public final class MapSync {
         if (healthy < 0.5D) want = real.size(); // 全部感染した升: 残りも全部
         int done = 0;
         if (want > 0 && cap > 0) {
-            real.sort(java.util.Comparator.comparingInt(Entity::getId)); // 並びを決める(確かめのため)
+            sortHiddenFarFirst(level, real);
             for (LivingEntity e : real) {
                 if (done >= Math.min(want, cap)) break;
-                if (infectReal(level, e)) done++;
+                if (removeReal(e)) done++;
             }
         }
         // 反映した分を基準に足す(上限で途中までなら、その割合だけ。実物がいなければ全部反映したことにする)
@@ -186,27 +177,50 @@ public final class MapSync {
         return done;
     }
 
-    /** 升の中の数える実物(読み込まれた分だけ)。 */
+    /**
+     * 升の中の、消してよい実物(読み込まれた分だけ)。名前を付けた・リードでつないだ・乗り物になっている・乗っている個体はプレイヤーのものとして外す
+     * (消すと持ち物を失わせるので。数にも入れない)。
+     */
     static List<LivingEntity> candidates(ServerLevel level, long cellKey) {
         int s = MapEcology.shift(), size = 16 << s;
         int x0 = ChunkPos.getX(cellKey) << (s + 4), z0 = ChunkPos.getZ(cellKey) << (s + 4);
         AABB box = new AABB(x0, level.getMinBuildHeight(), z0, x0 + size, level.getMaxBuildHeight(), z0 + size);
         List<LivingEntity> out = new ArrayList<>();
-        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box, e -> e.isAlive() && tracked(e) && !GenericInfection.isTurned(e))) out.add(e);
+        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box, e -> e.isAlive() && tracked(e) && !GenericInfection.isTurned(e)
+                && !e.hasCustomName() && !e.isVehicle() && !e.isPassenger() && !(e instanceof net.minecraft.world.entity.Mob m && m.isLeashed()))) {
+            out.add(e);
+        }
         return out;
     }
 
-    /** 実物 1 体を今の感染の仕組みで感染させる(胞子の感染の死)。無敵・感染できない場合は false。 */
-    static boolean infectReal(ServerLevel level, LivingEntity e) {
-        if (e.isInvulnerable() || !e.isAlive()) return false;
-        e.addTag(TAG);
-        float hp = e.getHealth() + e.getAbsorptionAmount() + 1000.0F;
-        boolean hurt = e.hurt(ModDamageTypes.sporeInfection(level), hp);
-        boolean infected = !e.isAlive() || GenericInfection.isTurned(e);
-        if (!hurt || !infected) {
-            e.removeTag(TAG);
-            return false;
+    /**
+     * 消す順(全体管理の希望 11-21 夜): プレイヤーから見えていない個体 → 見えている個体、それぞれいちばん近いプレイヤーから遠い順。
+     * 見えている = 128 ブロック以内のプレイヤーの視線の前(向きとの内積 0.5 以上)で、間に遮るものが無い。
+     */
+    static void sortHiddenFarFirst(ServerLevel level, List<LivingEntity> list) {
+        java.util.Map<LivingEntity, double[]> key = new java.util.IdentityHashMap<>();
+        for (LivingEntity e : list) {
+            double near = Double.MAX_VALUE;
+            boolean seen = false;
+            for (ServerPlayer p : level.players()) {
+                if (p.isSpectator()) continue;
+                double d2 = p.distanceToSqr(e);
+                near = Math.min(near, d2);
+                if (!seen && d2 < 128.0D * 128.0D) {
+                    net.minecraft.world.phys.Vec3 to = e.getEyePosition().subtract(p.getEyePosition()).normalize();
+                    if (p.getViewVector(1.0F).dot(to) >= 0.5D && p.hasLineOfSight(e)) seen = true;
+                }
+            }
+            key.put(e, new double[]{seen ? 1 : 0, -near, e.getId()});
         }
+        list.sort(java.util.Comparator.<LivingEntity>comparingDouble(e -> key.get(e)[0])
+                .thenComparingDouble(e -> key.get(e)[1]).thenComparingDouble(e -> key.get(e)[2]));
+    }
+
+    /** 実物 1 体を消す(部隊に連れて行かれた。死なせない = 死体・G1・ドロップ・経験値・死の知らせは無い)。 */
+    static boolean removeReal(LivingEntity e) {
+        if (!e.isAlive()) return false;
+        e.discard();
         return true;
     }
 }

@@ -149,8 +149,10 @@ public final class GenericInfection {
         g.turned = true;
         g.seed = mob.getRandom().nextLong();
         // 11-20 ユーザー決定: 感染体への変化で森にまとまったバイオマスが入る
-        // 地図の上の生態系(2026-11-21): 台帳へ返す。照らし合わせで感染させた個体は地図の上で払ったので、ここでは払わない
-        if (mob.level() instanceof net.minecraft.server.level.ServerLevel sl && com.yayuy.overgrownvegetation.ecosystem.map.MapSync.onRealInfected(sl, mob)) com.yayuy.overgrownvegetation.director.ForestEconomy.onInfected(sl, mob);
+        if (mob.level() instanceof net.minecraft.server.level.ServerLevel sl) {
+            com.yayuy.overgrownvegetation.director.ForestEconomy.onInfected(sl, mob);
+            com.yayuy.overgrownvegetation.ecosystem.map.MapSync.onRealInfected(sl, mob); // 地図の上の生態系の台帳へ返す(2026-11-21)
+        }
         g.startTick = mob.level().getGameTime();
         g.transformTicks = instant ? 0 : spec().transformTicks();
         g.boss = isBossType(mob);

@@ -52,7 +52,7 @@ import java.util.Map;
  *   <li>感染が進むと発芽のしきい値が下がる(倍率と、胞子の場の発芽)</li>
  *   <li>全部感染した升が過繁茂の印になり、読み込まれたら地形が変わる・知らせが来る</li>
  *   <li>生き物の少ない升はこの道を使わない</li>
- *   <li>読み込んだときに実物が台帳に合う(照らし合わせ)・実物の死が台帳へ返る</li>
+ *   <li>読み込んだときに実物が台帳に合う(照らし合わせで消える)・実物の死が台帳へ返る</li>
  *   <li>保存と復元・升が数万あるときの重さ</li>
  * </ul>
  * 世界(台帳・過繁茂)を触るテストは自分だけのバッチ。座標は実行ごとにずらす(GameTest のワールドに台帳が残っても重ならない)。
@@ -231,7 +231,7 @@ public final class MapEcologyGameTests {
 
     // ---------------------------------------------------------------- 実物
 
-    /** 台帳で半分感染した升に入ると、実物の牛の半分が感染する(印が付き、二重に数えない)。感染でない死は欠けになる。 */
+    /** 台帳で半分感染した升に入ると、実物の牛の半分が消える(部隊に連れて行かれた。死なない・感染体にならない)。感染でない死は欠けになる。 */
     @GameTest(template = "gametest_empty7", batch = REAL_BATCH, timeoutTicks = 200)
     public static void realAnimalsFollowLedger(GameTestHelper h) {
         ServerLevel level = h.getLevel();
@@ -249,14 +249,16 @@ public final class MapEcologyGameTests {
         ledger.putForTests(cell, 16, 0, 8, 0, 0, 0, MapLedger.NONE);
         int done = MapSync.reconcile(level, cell, 1000);
         int want = (int) Math.round(realInCell * 0.5);
-        long infected = cows.stream().filter(c -> !c.isAlive() || GenericInfection.isTurned(c)).count();
-        long tagged = cows.stream().filter(c -> c.getTags().contains(MapSync.TAG)).count();
-        String info = "升の実物 " + realInCell + "・感染させた " + done + "・牛で感染 " + infected + "・印 " + tagged + "・のはず " + want;
-        h.assertTrue(want >= 1 && done == want && tagged <= done && tagged == infected, info);
+        // 消える(部隊に連れて行かれた): 死なない・感染体にならない・死体ブロックも無い
+        long removed = cows.stream().filter(c -> c.isRemoved() && c.getRemovalReason() == net.minecraft.world.entity.Entity.RemovalReason.DISCARDED).count();
+        long turned = cows.stream().filter(c -> GenericInfection.isTurned(c) || c.isDeadOrDying()).count();
+        String info = "升の実物 " + realInCell + "・消した " + done + "・消えた牛 " + removed + "・死んだ/感染した牛 " + turned + "・のはず " + want;
+        h.assertTrue(want >= 1 && done == want && removed <= done && removed >= 1 && turned == 0, info);
+        h.assertTrue(MapSyncTestView.count(level, cell) == realInCell - done, "升の実物が消した分だけ減っていない(" + info + ")");
         MapLedger.Cell c = ledger.get(cell);
         h.assertTrue(c.synced == 8 && Math.abs(c.infected - 8) < 1e-6, "照らし合わせで台帳の感染が増えた・基準が進まない: 感染 " + c.infected + "・基準 " + c.synced + "(" + info + ")");
         // 2 回目は何もしない
-        h.assertTrue(MapSync.reconcile(level, cell, 1000) == 0, "2 回目でまた感染させた");
+        h.assertTrue(MapSync.reconcile(level, cell, 1000) == 0, "2 回目でまた消した");
         // 感染でない死 → 欠け +1(健康が 1 減る)
         double healthyBefore = MapEcology.view(level, cell).healthy();
         Cow alive = cows.stream().filter(LivingEntity::isAlive).filter(x -> !GenericInfection.isTurned(x))

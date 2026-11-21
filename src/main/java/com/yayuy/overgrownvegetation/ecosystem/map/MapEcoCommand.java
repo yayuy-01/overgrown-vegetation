@@ -56,7 +56,7 @@ public final class MapEcoCommand {
         ServerLevel level = src.getServer().overworld();
         long key = here(src);
         MapLedger ledger = MapLedger.get(src.getServer());
-        say(src, String.format(Locale.ROOT, "地図の上の生態系: %s・台帳の升 %d・胞子の場へ渡した升 %d・これまでの感染 地図 %d・実物 %d・照らし合わせ %d・過繁茂にした升 %d",
+        say(src, String.format(Locale.ROOT, "地図の上の生態系: %s・台帳の升 %d・胞子の場へ渡した升 %d・これまでの感染 地図 %d・実物 %d・照らし合わせで消した %d・過繁茂にした升 %d",
                 MapEcology.active(level) ? "動いている" : "止まっている", ledger.size(), MapEcology.publishedCells(),
                 ledger.infectedMap(), ledger.infectedReal(), MapSync.reconciled, ledger.overgrownCells()));
         int cx = net.minecraft.world.level.ChunkPos.getX(key), cz = net.minecraft.world.level.ChunkPos.getZ(key);
@@ -94,7 +94,7 @@ public final class MapEcoCommand {
 
     private static int sync(CommandSourceStack src) {
         int n = MapSync.reconcile(src.getServer().overworld(), here(src), 1000);
-        say(src, "実物を " + n + " 体感染させた");
+        say(src, "実物を " + n + " 体消した(部隊に連れて行かれた)");
         return n;
     }
 
