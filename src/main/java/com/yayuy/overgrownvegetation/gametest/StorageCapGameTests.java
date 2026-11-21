@@ -53,7 +53,7 @@ public final class StorageCapGameTests {
         try {
             StorageOverflow.resetForTests();
             double cap = ForestDirector.cap(level);
-            int hives = PhaseData.get(level).hiveNodeSnapshot().length;
+            int hives = PhaseData.get(level).livingGiantTreeCount(); // 生きている巨大樹 = ハイヴノード
             double plain = DesignData.director().cap(hives);
             helper.assertTrue(cap + 1.0E-6D >= plain, "上限が基礎値 + ハイヴノードより小さい: " + cap + " < " + plain);
             double over = cap * 0.5D; // 150% たまっていた
