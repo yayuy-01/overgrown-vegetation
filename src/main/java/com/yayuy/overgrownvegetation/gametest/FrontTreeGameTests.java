@@ -81,6 +81,50 @@ public final class FrontTreeGameTests {
         }
     }
 
+    /**
+     * 11-22 ユーザー決定「巨大樹の場所は 300〜500 間隔でかなり揺れる」: 半径は場所から決まり(同じ場所なら同じ・保存と読み込みで変わらない)、
+     * 2 本の間は半径の和(treeSpacingMinBlocks 未満にならない・treeSpacingMaxBlocks を超えない)。揺れは広く散る。
+     */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void treeSpacingVariesButNeverUnderMin(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        PhaseData pd = PhaseData.get(level);
+        var t = DesignData.front();
+        long seed = level.getSeed();
+        double lo = Double.MAX_VALUE, hi = 0.0D;
+        java.util.Random rnd = new java.util.Random(7L);
+        for (int i = 0; i < 2000; i++) {
+            int x = rnd.nextInt(2_000_000) - 1_000_000, z = rnd.nextInt(2_000_000) - 1_000_000;
+            double r = FrontTrees.spacingRadius(seed, x, z);
+            helper.assertTrue(r == FrontTrees.spacingRadius(seed, x, z), "同じ場所で半径が変わる");
+            helper.assertTrue(r >= t.treeSpacingMinBlocks * 0.5D - 1.0E-9D && r <= t.treeSpacingMaxBlocks * 0.5D + 1.0E-9D, "半径が範囲の外: " + r);
+            lo = Math.min(lo, r);
+            hi = Math.max(hi, r);
+        }
+        helper.assertTrue(hi - lo > (t.treeSpacingMaxBlocks - t.treeSpacingMinBlocks) * 0.5D * 0.8D, "半径があまり揺れない: " + lo + "〜" + hi);
+        FrontTrees trees = FrontTrees.load(new CompoundTag());
+        int x0 = 22_000_000, z0 = 22_000_000;
+        trees.addSite(level, x0, z0, Long.MIN_VALUE);
+        double r0 = FrontTrees.spacingRadius(seed, x0, z0);
+        // 東へ 1 ブロックずつ: 半径の和より近ければ近すぎ、遠ければ空いている。どちらも 300〜500 の中
+        int firstFree = -1;
+        for (int d = 250; d <= 560; d++) {
+            boolean close = trees.tooClose(level, pd, x0 + d, z0);
+            double sum = r0 + FrontTrees.spacingRadius(seed, x0 + d, z0);
+            helper.assertTrue(close == (d < sum), "近すぎの判定が半径の和と合わない: 間 " + d + "・和 " + sum);
+            if (d < t.treeSpacingMinBlocks) helper.assertTrue(close, "300 ブロック未満なのに置ける: " + d);
+            if (d >= t.treeSpacingMaxBlocks) helper.assertTrue(!close, "500 ブロック以上なのに近すぎ: " + d);
+            if (!close && firstFree < 0) firstFree = d;
+        }
+        helper.assertTrue(firstFree >= t.treeSpacingMinBlocks, "300 ブロック未満で空いた: " + firstFree);
+        // 保存して読み直しても同じ判定
+        FrontTrees again = FrontTrees.load(trees.save(new CompoundTag(), level.registryAccess()));
+        for (int d = 250; d <= 560; d += 7) {
+            helper.assertTrue(again.tooClose(level, pd, x0 + d, z0) == trees.tooClose(level, pd, x0 + d, z0), "読み直すと間隔が変わる: " + d);
+        }
+        helper.succeed();
+    }
+
     /** 予算が足りなければ、前線の部隊を建てる所へ集めて使う(使った分の頭数は消える)。 */
     @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
     public static void shortBudgetUsesMobs(GameTestHelper helper) {

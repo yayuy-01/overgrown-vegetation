@@ -192,15 +192,22 @@ public final class FrontNurseries extends SavedData {
             break;
         }
         if (into == null) return;
+        // 樹域の頭数が目標に届いていたら補充しない(11-22 ユーザー決定)
+        int front = into.front() >= 0 ? into.front() : n.front;
+        if (FrontDirector.atTarget(front)) {
+            FrontDirector.nurseryAtTargetSkips++;
+            return;
+        }
         EntityType<?> type = FrontDirector.pickType(level, level.getRandom(), DirectorGates.phase(level));
         if (type == null) return;
         boolean g1 = FrontDirector.isG1(type);
         double list = ForestUpkeep.unitPrice(type, g1);
         double pay = g1 ? list * t.nurseryPriceFactor : list;
         ForestDirector dir = ForestDirector.get(level);
-        if (dir.available(level) - pay < ForestDirector.cap(level) * t.reserveCapShare) return;
+        if (dir.available(level) - pay < FrontDirector.reserve(level)) return;
         if (!dir.tryPayUnit(level, pay, list, false)) return;
         into.addHeads(BuiltInRegistries.ENTITY_TYPE.getKey(type), 1, pay);
+        FrontDirector.addHead(front);
         refilled++;
         if (!g1) refilledPlant++;
         refillPaid += pay;

@@ -39,7 +39,7 @@ import java.util.Locale;
  * <ol>
  *   <li>前線を巨大樹の記録に合わせる(巨大樹ごとに 1 つ・無ければ汚染の発生源 1 つ)。倒された前線の部隊は近くの前線へ合流する。</li>
  *   <li>前線ごとに Mob を作り、作る途中の部隊(前線の真ん中の守る部隊)へ足す。払うのは定価、維持費の 8 割の関所を通る分だけ。
- *       予算が上限の reserveCapShare より多い分だけを使う(残りは器官・巨大樹・進化)。</li>
+ *       予算のうち 1 日の稼ぎ × reserveIncomeDays(半日分)を残し、樹域の頭数が目標(過繁茂のチャンク数 × unitTargetPerChunk)に届いたら作らずに貯める(11-22)。</li>
  *   <li>割り振り: 下限に届いた部隊を、守りの持ち場(前線の森の中)か広げる升へ出す。攻められた前線は広げる部隊を守りへ呼び戻す。</li>
  *   <li>広げる部隊: 升に着いたら {@link CellLife} で感染を進め、稼ぎを入れ、感染した生き物を G1 として部隊に足す。升が森になったら隣の升へ。</li>
  * </ol>
@@ -129,6 +129,8 @@ public final class FrontDirector {
         Long2IntOpenHashMap real = realByUnit(level);
         long now = level.getGameTime();
         FrontTable t = DesignData.front();
+        countHeads(hordes, real);
+        if (territoryAt == Long.MIN_VALUE || now - territoryAt >= TERRITORY_INTERVAL) countTerritory(level, fronts);
         for (Fronts.Front f : new ArrayList<>(fronts.fronts())) {
             decayLosses(level, f, t);
             produce(level, fronts, hordes, f, seconds);
@@ -242,8 +244,15 @@ public final class FrontDirector {
         f.produceCarry = Math.min(t.producePerFrontPerSecond * 4.0D + 1.0D, f.produceCarry + t.producePerFrontPerSecond * seconds);
         int n = (int) Math.floor(f.produceCarry);
         if (n <= 0) return;
+        // 目標の頭数に届いた樹域は作らずに貯める(11-22 ユーザー決定。倒されて減ったらまた作る)
+        int room = target(f.id) - heads(f.id);
+        if (room <= 0) {
+            atTargetSkips++;
+            return;
+        }
+        n = Math.min(n, room);
         ForestDirector dir = ForestDirector.get(level);
-        double reserve = ForestDirector.cap(level) * t.reserveCapShare;
+        double reserve = reserve(level);
         int phase = DirectorGates.phase(level);
         int max = t.unitMax(phase);
         RandomSource random = level.getRandom();
@@ -263,11 +272,112 @@ public final class FrontDirector {
             if (forming == null || forming.size() >= max) forming = formingUnit(level, hordes, f, max);
             forming.addHeads(BuiltInRegistries.ENTITY_TYPE.getKey(type), 1, price);
             f.produceCarry -= 1.0D;
+            HEADS.addTo(f.id, 1);
             produced++;
             if (!g1) producedPlant++;
         }
         hordes.touch();
         fronts.touch();
+    }
+
+    // ---------------------------------------------------------------- 取り置きと目標の頭数(11-22 ユーザー決定)
+
+    /** 作る・苗床の補充・進化・根付きで残す予算 = 1 日の稼ぎの見積もり × reserveIncomeDays(半日分)。 */
+    public static double reserve(ServerLevel level) {
+        return ForestDirector.incomePerSecond(level) * com.yayuy.overgrownvegetation.data.EconomyTable.SECONDS_PER_DAY * DesignData.front().reserveIncomeDays;
+    }
+
+    /** 樹域ごとの過繁茂のチャンク数(いちばん近い樹域に数える)・守る + 広げるの頭数。run が数え直す。 */
+    private static final it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap TERRITORY = new it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap();
+    private static final it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap HEADS = new it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap();
+    private static final long TERRITORY_INTERVAL = 1200L;
+    private static long territoryAt = Long.MIN_VALUE;
+    public static long atTargetSkips, nurseryAtTargetSkips;
+
+    /** 樹域の目標の頭数 = 過繁茂のチャンク数 × unitTargetPerChunk(下限 unitTargetMin)。 */
+    public static int target(int front) {
+        FrontTable t = DesignData.front();
+        return Math.max(t.unitTargetMin, (int) Math.ceil(TERRITORY.get(front) * t.unitTargetPerChunk));
+    }
+
+    /** 樹域の今の頭数(守る + 広げる。襲撃・狩り・建てるに出た分は数えない)。 */
+    public static int heads(int front) {
+        return HEADS.get(front);
+    }
+
+    static void addHead(int front) {
+        HEADS.addTo(front, 1);
+    }
+
+    public static int territoryChunks(int front) {
+        return TERRITORY.get(front);
+    }
+
+    /** 目標に届いた樹域か(苗床の補充もやめる)。 */
+    public static boolean atTarget(int front) {
+        return heads(front) >= target(front);
+    }
+
+    static void countHeads(VirtualHordes hordes, Long2IntOpenHashMap real) {
+        HEADS.clear();
+        for (VirtualHordes.Swarm s : hordes.swarms()) {
+            if (s.front() < 0 || (s.purpose() != UnitPurpose.DEFEND && s.purpose() != UnitPurpose.EXPAND)) continue;
+            HEADS.addTo(s.front(), s.size() + real.get(s.id()));
+        }
+    }
+
+    /** 過繁茂の台帳の各チャンクを、いちばん近い樹域に数える。 */
+    public static void countTerritory(ServerLevel level, Fronts fronts) {
+        territoryAt = level.getGameTime();
+        TERRITORY.clear();
+        List<Fronts.Front> fs = fronts.fronts();
+        int n = fs.size();
+        if (n == 0) return;
+        double[] xs = new double[n], zs = new double[n];
+        int[] ids = new int[n], counts = new int[n];
+        for (int i = 0; i < n; i++) {
+            xs[i] = fs.get(i).x;
+            zs[i] = fs.get(i).z;
+            ids[i] = fs.get(i).id;
+        }
+        PhaseData.get(level).forEachOvergrownChunk(k -> {
+            double x = ChunkPos.getX(k) * 16.0D + 8.0D, z = ChunkPos.getZ(k) * 16.0D + 8.0D;
+            int best = 0;
+            double bd = Double.MAX_VALUE;
+            for (int i = 0; i < n; i++) {
+                double dx = xs[i] - x, dz = zs[i] - z, d = dx * dx + dz * dz;
+                if (d < bd) {
+                    bd = d;
+                    best = i;
+                }
+            }
+            counts[best]++;
+        });
+        for (int i = 0; i < n; i++) TERRITORY.put(ids[i], counts[i]);
+    }
+
+    /** 目標の合計・届いた樹域の数(計測の CSV 用)。 */
+    public static String targetStats(Fronts fronts) {
+        long sum = 0;
+        int full = 0;
+        for (Fronts.Front f : fronts.fronts()) {
+            sum += target(f.id);
+            if (atTarget(f.id)) full++;
+        }
+        return sum + "," + full + "," + atTargetSkips + "," + nurseryAtTargetSkips;
+    }
+
+    /** テスト用: 樹域の過繁茂の広さと頭数を決める。 */
+    public static void setCountsForTests(int front, int chunks, int heads) {
+        TERRITORY.put(front, chunks);
+        HEADS.put(front, heads);
+        territoryAt = Long.MAX_VALUE / 2;
+    }
+
+    public static void clearCountsForTests() {
+        TERRITORY.clear();
+        HEADS.clear();
+        territoryAt = Long.MIN_VALUE;
     }
 
     /** 作る中の 1 体の種(段階 0 の感染 Mob か、フェーズの割合で G2 以降)。 */
@@ -381,13 +491,13 @@ public final class FrontDirector {
 
     /**
      * 進化の道が開いていれば(F3 から)、前線の部隊の段階 0 を 1 回に evolvePerUnit 体まで 1 段目へ進化させる。値段は進化先の値段 − 段階 0
-     * (11-21 ユーザー決定)、維持費は差の分だけ増えるので 8 割の関所を通す。予算が上限の reserveCapShare より多い分だけ使う。
+     * (11-21 ユーザー決定)、維持費は差の分だけ増えるので 8 割の関所を通す。予算は半日分の稼ぎ(reserveIncomeDays)を残す。
      */
     public static void evolve(ServerLevel level, VirtualHordes hordes, Fronts.Front f) {
         FrontTable t = DesignData.front();
         if (t.evolvePerUnit <= 0 || !DirectorGates.open(level, DirectorGates.Gate.EVOLVE)) return;
         ForestDirector dir = ForestDirector.get(level);
-        double reserve = ForestDirector.cap(level) * t.reserveCapShare;
+        double reserve = reserve(level);
         double stageZero = DesignData.director().largeRaid.costStageZero * com.yayuy.overgrownvegetation.director.ForestEconomy.priceFactor();
         for (VirtualHordes.Swarm s : hordes.swarms()) {
             if (s.front() != f.id || s.size() <= 0) continue;
@@ -430,13 +540,13 @@ public final class FrontDirector {
     /**
      * 根付きの道が開いていれば(F2 から)、守りの持ち場に着いた部隊の段階 0 を 1 回の見直しに rootedPerUnit 体まで根付きの姿へ替える
      * (1 部隊のうち rootedMaxShare まで)。値段は根付きの姿の値段 − 段階 0(進化と同じ「進化先の危険度に応じた追加の費用」)。
-     * 予算は上限の reserveCapShare を残し、維持費の差は 8 割の関所を通す。
+     * 予算は半日分の稼ぎ(reserveIncomeDays)を残し、維持費の差は 8 割の関所を通す。
      */
     public static void root(ServerLevel level, VirtualHordes hordes, Fronts.Front f) {
         FrontTable t = DesignData.front();
         if (t.rootedPerUnit <= 0 || !DirectorGates.open(level, DirectorGates.Gate.ROOTED)) return;
         ForestDirector dir = ForestDirector.get(level);
-        double reserve = ForestDirector.cap(level) * t.reserveCapShare;
+        double reserve = reserve(level);
         double stageZero = DesignData.director().largeRaid.costStageZero * com.yayuy.overgrownvegetation.director.ForestEconomy.priceFactor();
         java.util.Set<EntityType<?>> rootedTypes = new java.util.HashSet<>();
         for (G1Species g : G1Species.values()) {

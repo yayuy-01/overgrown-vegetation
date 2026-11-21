@@ -211,6 +211,7 @@ public final class FrontUnitGameTests {
             ForestUpkeep.setSampleForTests(0.0D, 0.0D);
             d.setBudget(level, 1.0E9D);
             Fronts.Front f = fronts.addSourceForTests(8_000_000.5D, 8_000_000.5D);
+            FrontDirector.setCountsForTests(f.id(), 1_000_000, 0); // 目標の頭数で止まらないように(広い樹域)
             for (int i = 0; i < 2000; i++) FrontDirector.produce(level, fronts, h, f, 1.0D);
             int heads = 0;
             for (VirtualHordes.Swarm s : h.swarms()) heads += s.size();
@@ -222,6 +223,58 @@ public final class FrontUnitGameTests {
             helper.assertTrue(h.swarms().stream().allMatch(s -> s.size() <= max), "部隊の上限を超えた");
             helper.succeed();
         } finally {
+            FrontDirector.clearCountsForTests();
+            ForestUpkeep.setSampleForTests(null, null);
+            ForestEconomy.setIncomeForTests(income);
+            DirectorGates.setPhaseForTests(phase);
+            d.setBudget(level, budget);
+        }
+    }
+
+    /**
+     * 11-22 ユーザー決定: 取り置き = 1 日の稼ぎ × reserveIncomeDays(半日分)。樹域の頭数が目標(過繁茂のチャンク数 × unitTargetPerChunk)に
+     * 届いたら作らずに貯め、減ったらまた作る。
+     */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void productionStopsAtTerritoryTarget(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ForestDirector d = ForestDirector.get(level);
+        Double income = ForestEconomy.incomeOverride();
+        double budget = d.available(level);
+        Integer phase = DirectorGates.phaseOverride();
+        Fronts fronts = Fronts.load(new CompoundTag());
+        VirtualHordes h = VirtualHordes.load(new CompoundTag());
+        try {
+            DirectorGates.setPhaseForTests(3);
+            ForestEconomy.setIncomeForTests(1.0E7D);
+            ForestUpkeep.setSampleForTests(0.0D, 0.0D);
+            var t = DesignData.front();
+            double want = ForestDirector.incomePerSecond(level) * com.yayuy.overgrownvegetation.data.EconomyTable.SECONDS_PER_DAY * t.reserveIncomeDays;
+            helper.assertTrue(Math.abs(FrontDirector.reserve(level) - want) < 1.0E-6D * Math.max(1.0D, want), "取り置きが半日分の稼ぎでない: " + FrontDirector.reserve(level) + "(欲しい " + want + ")");
+            d.setBudget(level, 1.0E12D);
+            Fronts.Front f = fronts.addSourceForTests(9_000_000.5D, 9_000_000.5D);
+            int chunks = 1000;
+            FrontDirector.setCountsForTests(f.id(), chunks, 0);
+            int target = FrontDirector.target(f.id());
+            helper.assertTrue(target == Math.max(t.unitTargetMin, (int) Math.ceil(chunks * t.unitTargetPerChunk)), "目標の頭数が違う: " + target);
+            for (int i = 0; i < 4000 && !FrontDirector.atTarget(f.id()); i++) FrontDirector.produce(level, fronts, h, f, 1.0D);
+            int heads = 0;
+            for (VirtualHordes.Swarm s : h.swarms()) heads += s.size();
+            helper.assertTrue(heads == target, "目標で止まらない: " + heads + " 体(目標 " + target + ")");
+            double before = d.available(level);
+            for (int i = 0; i < 50; i++) FrontDirector.produce(level, fronts, h, f, 1.0D);
+            int after = 0;
+            for (VirtualHordes.Swarm s : h.swarms()) after += s.size();
+            helper.assertTrue(after == heads && d.available(level) >= before, "目標に届いたのに作った: " + after);
+            // 倒されて減った: また作る
+            FrontDirector.setCountsForTests(f.id(), chunks, target - 5);
+            for (int i = 0; i < 50; i++) FrontDirector.produce(level, fronts, h, f, 1.0D);
+            int again = 0;
+            for (VirtualHordes.Swarm s : h.swarms()) again += s.size();
+            helper.assertTrue(again == heads + 5, "減った分を作り直さない: " + again);
+            helper.succeed();
+        } finally {
+            FrontDirector.clearCountsForTests();
             ForestUpkeep.setSampleForTests(null, null);
             ForestEconomy.setIncomeForTests(income);
             DirectorGates.setPhaseForTests(phase);

@@ -216,7 +216,7 @@ public final class DirectorTable {
         this.capDays = nonNeg(s.capDays, 1.0D);
         this.capPerHiveNodeDays = nonNeg(s.capPerHiveNodeDays, 0.5D);
         this.capBase = nonNeg(s.capBase, 100000.0D);
-        this.capPerHiveNode = nonNeg(s.capPerHiveNode, 100000.0D);
+        this.capPerHiveNode = nonNeg(s.capPerHiveNode, 20000.0D);
         this.overflowSporeFactor = nonNeg(s.overflowSporeFactor, 1.0D);
         this.overflowRecentDays = Math.max(0.1D, nonNeg(s.overflowRecentDays, 3.0D));
         this.sacOverflowWeight = nonNeg(s.sacOverflowWeight, 1.0D);

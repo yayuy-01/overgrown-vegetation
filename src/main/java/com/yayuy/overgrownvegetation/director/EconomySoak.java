@@ -5,6 +5,7 @@ import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.data.EconomyTable;
 import com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -332,7 +333,7 @@ public final class EconomySoak {
                 RaidSpawns.lastWidened[0] - base0Widen[0], RaidSpawns.lastWidened[1] - base0Widen[1], RaidSpawns.lastWidened[2] - base0Widen[2],
                 RaidSpawns.lastWidened[3] - base0Widen[3], com.yayuy.overgrownvegetation.drift.DriftRaids.ferried - base0Ferried,
                 decisions[0], decisions[1], decisions[2], decisions[3], decisions[4], maxSavedDays, largeOmen, largeBegun, LargeRaids.scaledTotal,
-                front + "," + expandStats() + "," + String.format(Locale.ROOT, "%.1f", ForestDirector.cap(level) * DesignData.front().reserveCapShare) + "," + storageStats(level) + "," + baseStages(level),
+                front + "," + expandStats() + "," + String.format(Locale.ROOT, "%.1f", com.yayuy.overgrownvegetation.front.FrontDirector.reserve(level)) + "," + com.yayuy.overgrownvegetation.front.FrontDirector.targetStats(com.yayuy.overgrownvegetation.front.Fronts.get(level.getServer())) + "," + storageStats(level) + "," + treeStats(level) + "," + baseStages(level),
                 spent);
         append("economy-days.csv",
                 "day,phase,stage,points,overgrownChunks,leyOrgans,giantTrees,hiveNodes,incForest,incLey,incTree,incInfect,refundDeath,refundDespawn,"
@@ -340,7 +341,7 @@ public final class EconomySoak {
                         + "missUnloaded,missGround,missSeen,foundSpread,found90,found360,foundNone,ferries,"
                         + "skip,small,medium,large,introSmall,maxSavedDays,largeOmen,largeBegun,largeScaledTotal,"
                         + "fronts,units,headsDefend,headsExpand,headsHunt,headsRaid,headsBuild,upkeepPerDay,upkeepHeads,produced,frontRaids,frontRaidHeads,"
-                        + "frontRepels,treesPlaced,repelFrontRaid,repelHunt,expandSends,expandDistAvg,expandDistMax,expandArrivals,expandArriveDaysAvg,expandArriveDaysMax,reserve,capBase,capHive,capSac,sacs,sacsSmall,overflow,overflowSpore,overflowRecent,bases,spentByCaller\n", line);
+                        + "frontRepels,treesPlaced,repelFrontRaid,repelHunt,expandSends,expandDistAvg,expandDistMax,expandArrivals,expandArriveDaysAvg,expandArriveDaysMax,reserve,targetHeads,frontsAtTarget,atTargetSkips,nurseryAtTargetSkips,capBase,capHive,capSac,sacs,sacsSmall,overflow,overflowSpore,overflowRecent,treeManagedShare,edgeToTreeMedian,edgeToTreeP90,treeSitesPending,bases,spentByCaller\n", line);
     }
 
     /** 広げる部隊を出した数・距離(ブロック)の平均と最大・着いた数・着くまでの日数の平均と最大(累計。11-21 夜)。 */
@@ -366,6 +367,81 @@ public final class EconomySoak {
         prevOverflowSpore = StorageOverflow.sporeTotal;
         return String.format(Locale.ROOT, "%.0f,%.0f,%.0f,%d,%d,%.1f,%.1f,%.1f", t.capBase, t.capPerHiveNode * hives, t.capPerHiveNode * sacs, sacBig, sacSmall,
                 over, spore, StorageOverflow.recent());
+    }
+
+    /**
+     * 11-22 全体管理２の頼み(前線に巨大樹が追い付いているか): 過繁茂のうち生きている巨大樹の管理の中(treeManageBlocks)の割合・
+     * 森の縁の升(4×4 チャンク。真ん中のチャンクが過繁茂でなく、上下左右の升のどれかの真ん中が過繁茂)の真ん中から最寄りの生きている巨大樹までの距離の中央値と 9 割の点(ブロック)・
+     * 巨大樹の予定地のうち FUNDING の数。巨大樹が無ければ距離は空。決め方は試算(director-sim-report の 3 回目)とそろえた。生きている巨大樹 = FrontTrees.managed と同じ(置く待ちも含む)。
+     */
+    private static String treeStats(ServerLevel level) {
+        PhaseData pd = PhaseData.get(level);
+        it.unimi.dsi.fastutil.longs.LongArrayList trees = new it.unimi.dsi.fastutil.longs.LongArrayList();
+        for (long k : pd.giantTreeOriginSnapshot()) if (!pd.isGiantTreeDead(k)) trees.add(k);
+        for (long k : com.yayuy.overgrownvegetation.front.FrontTrees.pendingTreeKeys(level)) if (!trees.contains(k)) trees.add(k);
+        int n = trees.size();
+        double[] tx = new double[n], tz = new double[n];
+        for (int i = 0; i < n; i++) {
+            tx[i] = (int) (trees.getLong(i) >> 32) + 0.5D;
+            tz[i] = (int) trees.getLong(i) + 0.5D;
+        }
+        double r2 = DesignData.front().treeManageBlocks * DesignData.front().treeManageBlocks;
+        long[] total = {0L}, managed = {0L};
+        // 縁の升(試算 director-sim-report の 3 回目と同じ決め方): 4×4 チャンクの升で、真ん中のチャンク(cx×4+2, cz×4+2)が過繁茂でなく、
+        // 上下左右の升のどれかの真ん中が過繁茂(FrontDirector.cellForest・nextToForest と同じ形。生き物・水は見ない)
+        it.unimi.dsi.fastutil.longs.LongOpenHashSet edgeCells = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+        // 管理の中の判定は、巨大樹を管理の広さの升に分けて近くの升だけ見る(25 日目で過繁茂 100 万・巨大樹 600 本でも 1 日 1 回で軽く)
+        double bucket = Math.max(16.0D, DesignData.front().treeManageBlocks);
+        it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<it.unimi.dsi.fastutil.ints.IntArrayList> grid = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
+        for (int i = 0; i < n; i++) grid.computeIfAbsent(ChunkPos.asLong((int) Math.floor(tx[i] / bucket), (int) Math.floor(tz[i] / bucket)), q -> new it.unimi.dsi.fastutil.ints.IntArrayList()).add(i);
+        pd.forEachOvergrownChunk(k -> {
+            total[0]++;
+            int cx = ChunkPos.getX(k), cz = ChunkPos.getZ(k);
+            double x = cx * 16.0D + 8.0D, z = cz * 16.0D + 8.0D;
+            int bx = (int) Math.floor(x / bucket), bz = (int) Math.floor(z / bucket);
+            boolean in = false;
+            for (int ox = -1; ox <= 1 && !in; ox++) {
+                for (int oz = -1; oz <= 1 && !in; oz++) {
+                    var list = grid.get(ChunkPos.asLong(bx + ox, bz + oz));
+                    if (list == null) continue;
+                    for (int q = 0; q < list.size(); q++) {
+                        int i = list.getInt(q);
+                        double dx = tx[i] - x, dz = tz[i] - z;
+                        if (dx * dx + dz * dz <= r2) {
+                            in = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (in) managed[0]++;
+            if (Math.floorMod(cx, 4) != 2 || Math.floorMod(cz, 4) != 2) return; // 升の真ん中のチャンクだけ
+            int gx = Math.floorDiv(cx, 4), gz = Math.floorDiv(cz, 4);
+            for (int[] o : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                int nx = gx + o[0], nz = gz + o[1];
+                if (!pd.isOvergrownKey(ChunkPos.asLong(nx * 4 + 2, nz * 4 + 2))) edgeCells.add(ChunkPos.asLong(nx, nz));
+            }
+        });
+        String median = "", p90 = ""; // 巨大樹が無ければ空(試算と同じ)
+        if (n > 0 && !edgeCells.isEmpty()) {
+            double[] a = new double[edgeCells.size()];
+            int j = 0;
+            for (long c : edgeCells) {
+                double x = ChunkPos.getX(c) * 64.0D + 32.0D, z = ChunkPos.getZ(c) * 64.0D + 32.0D; // 升の真ん中から巨大樹の根元まで
+                double best = Double.MAX_VALUE;
+                for (int i = 0; i < n; i++) {
+                    double dx = tx[i] - x, dz = tz[i] - z, d = dx * dx + dz * dz;
+                    if (d < best) best = d;
+                }
+                a[j++] = Math.sqrt(best);
+            }
+            java.util.Arrays.sort(a);
+            median = String.valueOf(Math.round(a[(int) Math.floor(a.length * 0.5D)]));
+            p90 = String.valueOf(Math.round(a[Math.min(a.length - 1, (int) Math.floor(a.length * 0.9D))]));
+        }
+        int funding = 0;
+        for (var s : com.yayuy.overgrownvegetation.front.FrontTrees.get(level.getServer()).sites()) if (s.state() == com.yayuy.overgrownvegetation.front.FrontTrees.State.FUNDING) funding++;
+        return String.format(Locale.ROOT, "%.3f,%s,%s,%d", total[0] > 0 ? (double) managed[0] / total[0] : 0.0D, median, p90, funding);
     }
 
     private static String baseStages(ServerLevel level) {

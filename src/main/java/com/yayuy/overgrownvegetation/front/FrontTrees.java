@@ -52,7 +52,7 @@ import java.util.UUID;
  * <b>巨大樹の建て方と建て直し</b>(2026-11-21 前線と部隊 区切り 4。正本は Vault「前線と部隊」の 11-21 の決定と「森の知性(司令塔)」の 11-21 の節)。
  * <ul>
  *   <li>巨大樹の無い過繁茂がチャンク treeClusterChunks(64)ほどのかたまり(treeCellChunks 四方の升で数える)になったら、真ん中あたりに建てる。
- *       巨大樹どうしは treeSpacingBlocks(384)あける。苗木の 0.25% のくじは外した(森が決めた所にだけ生える)。</li>
+ *       巨大樹どうしは、それぞれの場所から決まる半径の和(300〜500 で揺れる。treeSpacingMinBlocks・treeSpacingMaxBlocks。11-22)だけあけ、置く点は升の重心から treeSiteJitterBlocks まで揺らす(水の上は避ける)。苗木の 0.25% のくじは外した(森が決めた所にだけ生える)。</li>
  *   <li>倒された巨大樹(ハイヴノードを倒された)の跡も同じやり方で建て直す。</li>
  *   <li>予算で建てられれば払う。足りなければ足りない分を Mob で補う: 前線の部隊から「建てる」部隊を出して建てる所へ集め、着いたら使う(使った Mob は消える = 体が木になる)。</li>
  *   <li>払い終えたら台帳の上で treeGrowDays 育つ。読み込まれている間は「育ち途中のハイヴノード」が建てる所にいて、<b>それを倒されたときだけ</b>建て直しが止まる。</li>
@@ -259,26 +259,109 @@ public final class FrontTrees extends SavedData {
             sumX.addTo(key, cx);
             sumZ.addTo(key, cz);
         });
-        List<Long> keys = new ArrayList<>(count.keySet());
+        // 置く点(11-22 ユーザー「かなり揺れる」): 升の重心から、升ごとに決まる向き・長さ(treeSiteJitterBlocks まで)ずらした点に近い過繁茂のチャンク。
+        // 近い順に SITE_PICKS 個まで覚え、水の上(元のバイオームが海・川)でないものを使う
+        long seed = level.getSeed();
+        it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<double[]> aim = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
+        for (var e : count.long2IntEntrySet()) {
+            long key = e.getLongKey();
+            int n = e.getIntValue();
+            if (n < t.treeClusterChunks) continue;
+            double gx = (double) sumX.get(key) / n * 16.0D + 8.0D, gz = (double) sumZ.get(key) / n * 16.0D + 8.0D;
+            double a = hash01(seed, key, 1) * Math.PI * 2.0D, len = Math.sqrt(hash01(seed, key, 2)) * t.treeSiteJitterBlocks;
+            aim.put(key, new double[]{gx + Math.cos(a) * len, gz + Math.sin(a) * len});
+        }
+        it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<long[]> pickKeys = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
+        it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<double[]> pickDist = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
+        if (!aim.isEmpty()) pd.forEachOvergrownChunk(k -> {
+            if (managedChunks.contains(k)) return;
+            int cx = ChunkPos.getX(k), cz = ChunkPos.getZ(k);
+            long key = ChunkPos.asLong(Math.floorDiv(cx, cell), Math.floorDiv(cz, cell));
+            double[] p = aim.get(key);
+            if (p == null) return;
+            double dx = cx * 16.0D + 8.0D - p[0], dz = cz * 16.0D + 8.0D - p[1], d = dx * dx + dz * dz;
+            long[] ks = pickKeys.computeIfAbsent(key, q -> {
+                long[] arr = new long[SITE_PICKS];
+                java.util.Arrays.fill(arr, Long.MIN_VALUE);
+                return arr;
+            });
+            double[] ds = pickDist.computeIfAbsent(key, q -> {
+                double[] arr = new double[SITE_PICKS];
+                java.util.Arrays.fill(arr, Double.MAX_VALUE);
+                return arr;
+            });
+            for (int i = 0; i < SITE_PICKS; i++) {
+                if (d >= ds[i]) continue;
+                for (int j = SITE_PICKS - 1; j > i; j--) {
+                    ds[j] = ds[j - 1];
+                    ks[j] = ks[j - 1];
+                }
+                ds[i] = d;
+                ks[i] = k;
+                break;
+            }
+        });
+        List<Long> keys = new ArrayList<>(aim.keySet());
         keys.sort(Comparator.comparingInt(k -> -count.get((long) k)));
         for (long key : keys) {
-            int n = count.get(key);
-            if (n < t.treeClusterChunks) break;
-            int bx = (int) Math.round((double) sumX.get(key) / n) * 16 + 8, bz = (int) Math.round((double) sumZ.get(key) / n) * 16 + 8;
-            if (tooClose(pd, bx, bz, t.treeSpacingBlocks) || stoppedAt(bx, bz, now)) continue;
-            addSite(level, bx, bz, Long.MIN_VALUE);
+            long[] ks = pickKeys.get(key);
+            if (ks == null) continue;
+            for (long k : ks) {
+                if (k == Long.MIN_VALUE) break;
+                int cx = ChunkPos.getX(k), cz = ChunkPos.getZ(k);
+                // チャンクの中でも揺らす(±6 ブロック。チャンクの外へは出ない = 升も変わらない)
+                int bx = cx * 16 + 8 + (int) Math.floor((hash01(seed, k, 3) - 0.5D) * 12.0D);
+                int bz = cz * 16 + 8 + (int) Math.floor((hash01(seed, k, 4) - 0.5D) * 12.0D);
+                if (onWater(level, bx, bz)) continue;
+                if (!tooClose(level, pd, bx, bz) && !stoppedAt(bx, bz, now)) addSite(level, bx, bz, Long.MIN_VALUE);
+                break; // 水でない一番近い点だけを見る(近すぎれば、この升は今回は見送り)
+            }
         }
     }
 
-    private boolean tooClose(PhaseData pd, int x, int z, double spacing) {
-        double s2 = spacing * spacing;
-        for (long k : pd.giantTreeOriginSnapshot()) {
-            double dx = (int) (k >> 32) - x, dz = (int) k - z;
-            if (dx * dx + dz * dz < s2) return true;
+    private static final int SITE_PICKS = 4;
+
+    /** 場所から決まる 0〜1(世界の seed 込み。保存・読み込みで変わらない)。 */
+    static double hash01(long seed, long key, int salt) {
+        long h = seed * 0x9E3779B97F4A7C15L + key * 0xC2B2AE3D27D4EB4FL + salt * 0x165667B19E3779F9L;
+        h ^= h >>> 33;
+        h *= 0xFF51AFD7ED558CCDL;
+        h ^= h >>> 33;
+        h *= 0xC4CEB9FE1A85EC53L;
+        h ^= h >>> 33;
+        return (h >>> 11) * 0x1.0p-53;
+    }
+
+    /** 巨大樹・予定地の (x, z) の半径(treeSpacingMinBlocks/2〜treeSpacingMaxBlocks/2)。2 本は半径の和だけあける。 */
+    public static double spacingRadius(long seed, int x, int z) {
+        FrontTable t = DesignData.front();
+        double lo = t.treeSpacingMinBlocks * 0.5D, hi = t.treeSpacingMaxBlocks * 0.5D;
+        return lo + (hi - lo) * hash01(seed, ChunkPos.asLong(x, z), 7);
+    }
+
+    /** 元のバイオーム(生成器の値。チャンクを読み込まない)が海・川か。 */
+    static boolean onWater(ServerLevel level, int x, int z) {
+        try {
+            var src = level.getChunkSource();
+            var biome = src.getGenerator().getBiomeSource().getNoiseBiome(x >> 2, 64 >> 2, z >> 2, src.randomState().sampler());
+            return biome.is(net.minecraft.tags.BiomeTags.IS_OCEAN) || biome.is(net.minecraft.tags.BiomeTags.IS_RIVER);
+        } catch (RuntimeException e) {
+            return false;
         }
-        for (Site s : sites) {
-            double dx = s.x - x, dz = s.z - z;
-            if (dx * dx + dz * dz < s2) return true;
+    }
+
+    /** (x, z) が、ほかの巨大樹・予定地から半径の和より近いか。 */
+    public boolean tooClose(ServerLevel level, PhaseData pd, int x, int z) {
+        long seed = level.getSeed();
+        double r = spacingRadius(seed, x, z);
+        for (long k : pd.giantTreeOriginSnapshot()) {
+            int tx = (int) (k >> 32), tz = (int) k;
+            double s = r + spacingRadius(seed, tx, tz), dx = tx - x, dz = tz - z;
+            if (dx * dx + dz * dz < s * s) return true;
+        }
+        for (Site st : sites) {
+            double s = r + spacingRadius(seed, st.x, st.z), dx = st.x - x, dz = st.z - z;
+            if (dx * dx + dz * dz < s * s) return true;
         }
         return false;
     }

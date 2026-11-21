@@ -13,7 +13,8 @@ public final class FrontTable {
         public Double unitSpeed, mountainSpeedFactor;
         public Integer unitMin;
         public int[] unitMaxByPhase;
-        public Double producePerFrontPerSecond, reserveCapShare;
+        public Double producePerFrontPerSecond, reserveIncomeDays, unitTargetPerChunk;
+        public Integer unitTargetMin;
         public double[] plantShareByPhase;
         public Double defendShareQuiet, defendShareAttacked, expandShareQuiet;
         public Double attackedLossShare, attackDecayDays;
@@ -29,7 +30,7 @@ public final class FrontTable {
         public Integer rootedPerUnit;
         public Double rootedMaxShare;
         public Double nurseryIntervalSeconds, nurseryPriceFactor;
-        public Double treeManageBlocks, treeSpacingBlocks, treeCost, treeGrowDays, treeStopCooldownDays, treeCheckSeconds, treeIncomeShare;
+        public Double treeManageBlocks, treeSpacingMinBlocks, treeSpacingMaxBlocks, treeSiteJitterBlocks, treeCost, treeGrowDays, treeStopCooldownDays, treeCheckSeconds, treeIncomeShare;
         public Integer treeClusterChunks, treeCellChunks;
         public Double raidCapStart, raidCapEnd, raidCapRampDays, raidCapMediumFactor;
         public Double raidRetryDays;
@@ -48,7 +49,12 @@ public final class FrontTable {
     public final int unitMin;
     private final int[] unitMaxByPhase;
     /** 前線 1 つが 1 秒に作れる体数の上限・作るのは予算が上限のこの割合より多い分だけ(残りは器官・巨大樹・進化に)。 */
-    public final double producePerFrontPerSecond, reserveCapShare;
+    public final double producePerFrontPerSecond;
+    /** 11-22 ユーザー決定: 作る・苗床・進化・根付きは「予算 − 値段 ≥ 1 日の稼ぎ × reserveIncomeDays」のときだけ(半日分を取り置く)。日数は【仮】でなくユーザー決定の 0.5。 */
+    public final double reserveIncomeDays;
+    /** 11-22 ユーザー決定: 樹域ごとの部隊の目標の頭数 = その樹域の過繁茂のチャンク数 × unitTargetPerChunk(下限 unitTargetMin)。届いた樹域は作る・苗床の補充をやめて貯める。係数は【仮】。 */
+    public final double unitTargetPerChunk;
+    public final int unitTargetMin;
     /** 作る中の G2 以降(眷属種・植物種)の割合(F0〜F10。残りは段階 0 の感染 Mob)。 */
     private final double[] plantShareByPhase;
     /** 守りに置く割合(静かな前線・攻められた前線)・静かな前線で広げるに出す割合(残りは襲う = 区切り 3)。 */
@@ -78,7 +84,9 @@ public final class FrontTable {
     public final double rootedMaxShare;
     /** 現地の苗床(11-21 夜 ユーザー決定): 補充の間(秒。20 はユーザー決定)・萌芽体の値段の倍率(1/8 はユーザー決定)。 */
     public final double nurseryIntervalSeconds, nurseryPriceFactor;
-    public final double treeManageBlocks, treeSpacingBlocks, treeCost, treeGrowDays, treeStopCooldownDays, treeCheckSeconds, treeIncomeShare;
+    /** 11-22 ユーザー決定「巨大樹は 300〜500 間隔でかなり揺れる」: 巨大樹と予定地はそれぞれ場所から決まる半径(treeSpacingMinBlocks/2〜treeSpacingMaxBlocks/2)を持ち、2 本は半径の和だけあける。置く点は升の過繁茂の重心から treeSiteJitterBlocks まで揺らす。数は【仮】。 */
+    public final double treeSpacingMinBlocks, treeSpacingMaxBlocks, treeSiteJitterBlocks;
+    public final double treeManageBlocks, treeCost, treeGrowDays, treeStopCooldownDays, treeCheckSeconds, treeIncomeShare;
     public final int treeClusterChunks, treeCellChunks;
     /** 11-22 ユーザー決定 案 3: 送り込み(小)の上限は認識した日 raidCapStart → raidCapRampDays 日後に raidCapEnd(直線)。貯めた襲撃(中)は × raidCapMediumFactor。値は【仮】。 */
     public final double raidCapStart, raidCapEnd, raidCapRampDays, raidCapMediumFactor;
@@ -111,7 +119,9 @@ public final class FrontTable {
         unitMaxByPhase = s.unitMaxByPhase != null && s.unitMaxByPhase.length > 0 ? s.unitMaxByPhase.clone()
                 : new int[]{10, 10, 15, 20, 25, 30, 40, 50, 50, 50, 50};
         producePerFrontPerSecond = nn(s.producePerFrontPerSecond, 0.5D);
-        reserveCapShare = Math.min(1.0D, nn(s.reserveCapShare, 0.2D));
+        reserveIncomeDays = nn(s.reserveIncomeDays, 0.5D);
+        unitTargetPerChunk = nn(s.unitTargetPerChunk, 0.2D);
+        unitTargetMin = Math.max(0, s.unitTargetMin != null ? s.unitTargetMin : 50);
         plantShareByPhase = s.plantShareByPhase != null && s.plantShareByPhase.length > 0 ? s.plantShareByPhase.clone()
                 : new double[]{0.0D, 0.05D, 0.1D, 0.2D, 0.3D, 0.4D, 0.5D, 0.6D, 0.6D, 0.6D, 0.6D};
         defendShareQuiet = Math.min(1.0D, nn(s.defendShareQuiet, 0.4D));
@@ -168,7 +178,9 @@ public final class FrontTable {
         treesByForest = s.treesByForest == null || s.treesByForest;
         treeVisionOnlyManaged = s.treeVisionOnlyManaged == null || s.treeVisionOnlyManaged;
         treeManageBlocks = nn(s.treeManageBlocks, 200.0D);
-        treeSpacingBlocks = nn(s.treeSpacingBlocks, 384.0D);
+        treeSpacingMinBlocks = nn(s.treeSpacingMinBlocks, 300.0D);
+        treeSpacingMaxBlocks = Math.max(treeSpacingMinBlocks, nn(s.treeSpacingMaxBlocks, 500.0D));
+        treeSiteJitterBlocks = nn(s.treeSiteJitterBlocks, 96.0D);
         treeCost = nn(s.treeCost, 20000.0D);
         treeGrowDays = nn(s.treeGrowDays, 1.5D);
         treeStopCooldownDays = nn(s.treeStopCooldownDays, 3.0D);
