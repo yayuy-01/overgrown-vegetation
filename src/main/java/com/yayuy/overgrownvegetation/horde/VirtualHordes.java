@@ -153,6 +153,18 @@ public final class VirtualHordes extends SavedData {
         boolean waiting;
         /** 次に本物にする一員の並びの番号(本物にした分だけ進む。詰めないので、残りの身代わりの位置が動かない)。 */
         int firstIndex;
+        // ---- 11-21 前線と部隊: 群れ = 部隊。前線の無い古い群れは front −1・目的 MARCH
+        /** 属する前線の id(−1 = 前線なし)。 */
+        int front = -1;
+        /** 目的。 */
+        UnitPurpose purpose = UnitPurpose.MARCH;
+        /** 払った額の合計(作ったとき・補充したとき足す)。 */
+        double paid;
+        /** 狩りの的のプレイヤー(狩る部隊だけ。無ければ null)。 */
+        @Nullable
+        java.util.UUID hunt;
+        /** 今の目的になったゲーム時刻。 */
+        long purposeSince;
 
         Swarm(long id, double x, double y, double z, double speed, int baseId, double tx, double tz, String extraTag) {
             this.id = id;
@@ -222,6 +234,114 @@ public final class VirtualHordes extends SavedData {
         public Map<ResourceLocation, Integer> counts() {
             return counts;
         }
+
+        public int front() {
+            return front;
+        }
+
+        public UnitPurpose purpose() {
+            return purpose;
+        }
+
+        public double paid() {
+            return paid;
+        }
+
+        @Nullable
+        public java.util.UUID hunt() {
+            return hunt;
+        }
+
+        public long purposeSince() {
+            return purposeSince;
+        }
+
+        public double tx() {
+            return tx;
+        }
+
+        public double tz() {
+            return tz;
+        }
+
+        public int baseId() {
+            return baseId;
+        }
+
+        public boolean arrived() {
+            return arrivedAt >= 0L;
+        }
+
+        public boolean retreating() {
+            return retreating;
+        }
+
+        /** 進めずに待っている(囲まれた・本物の上限)。島の拠点へ流れ木もどきで運ぶきっかけ。 */
+        public boolean blocked() {
+            return waiting;
+        }
+
+        /** 前線の部隊か。 */
+        public boolean unit() {
+            return front >= 0;
+        }
+
+        /** 頭数を足す(払った額も)。上限 {@link #MAX_SWARM} を超える分は足さない。足した数を返す。 */
+        public int addHeads(ResourceLocation type, int n, double paidEach) {
+            int k = Math.max(0, Math.min(n, MAX_SWARM - size()));
+            if (k <= 0) return 0;
+            add(type, k);
+            paid += paidEach * k;
+            return k;
+        }
+
+        /** 種ごとに頭数を抜く(分かれる・使う)。抜いた分の払った額も比で移す。抜いた中身を返す。 */
+        public LinkedHashMap<ResourceLocation, Integer> takeHeads(int n) {
+            LinkedHashMap<ResourceLocation, Integer> out = new LinkedHashMap<>();
+            int total = size();
+            if (n <= 0 || total <= 0) return out;
+            int want = Math.min(n, total);
+            int left = want;
+            Iterator<Map.Entry<ResourceLocation, Integer>> it = counts.entrySet().iterator();
+            while (it.hasNext() && left > 0) {
+                Map.Entry<ResourceLocation, Integer> e = it.next();
+                int k = Math.min(left, e.getValue());
+                e.setValue(e.getValue() - k);
+                out.merge(e.getKey(), k, Integer::sum);
+                left -= k;
+                if (e.getValue() <= 0) it.remove();
+            }
+            paid -= paid * (want - left) / (double) total;
+            return out;
+        }
+
+        /** 目的と行き先を変える(着いた印・引き返しを外す)。 */
+        public void assign(UnitPurpose p, double tx, double tz, long now) {
+            if (p != purpose) purposeSince = now;
+            purpose = p;
+            this.tx = tx;
+            this.tz = tz;
+            arrivedAt = -1L;
+            retreating = false;
+            faceTarget();
+        }
+
+        /** 払った額を足す(合わさったとき)。 */
+        public void paidAdd(double v) {
+            paid = Math.max(0.0D, paid + v);
+        }
+
+        public void setFront(int front) {
+            this.front = front;
+        }
+
+        public void setHunt(@Nullable java.util.UUID hunt) {
+            this.hunt = hunt;
+        }
+
+        public void setBase(int baseId) {
+            this.baseId = baseId;
+        }
     }
 
     private final List<Swarm> swarms = new ArrayList<>();
@@ -277,6 +397,64 @@ public final class VirtualHordes extends SavedData {
         return s;
     }
 
+    /** 部隊から実物になった個体が、どの部隊(群れの id)のものかを覚える鍵(11-21 前線と部隊)。 */
+    public static final String UNIT_KEY = "ov_unit";
+    /** 部隊から実物になった個体の前線の id。 */
+    public static final String FRONT_KEY = "ov_unit_front";
+    /** 部隊から実物になった個体の目的。 */
+    static final String PURPOSE_KEY = "ov_unit_purpose";
+
+    /**
+     * 前線の部隊を作る(11-21)。頭数 0 から始め、呼ぶ側が {@link Swarm#addHeads} で足す(0 のまま次に進めると消える)。
+     * 仮想の上限 {@code virtualCap} は見ない: 部隊の数は維持費の 8 割の関所で決まる。
+     */
+    public Swarm newUnit(double x, double y, double z, int front, UnitPurpose purpose, long now) {
+        Swarm s = new Swarm(nextId++, x, y, z, DesignData.front().unitSpeed, -1, x, z, "");
+        s.front = front;
+        s.purpose = purpose;
+        s.purposeSince = now;
+        s.arrivedAt = now; // 作った所 = 持ち場
+        swarms.add(s);
+        setDirty();
+        return s;
+    }
+
+    /**
+     * 部隊の 1 体を、足元 feet に実物として出す(流れ木もどきに乗せるときなど)。頭数を 1 減らし、部隊の印を付ける。行進はさせない(呼ぶ側が決める)。
+     * 置けなければ null(頭数は減らさない)。
+     */
+    @Nullable
+    public Mob materializeOne(ServerLevel level, Swarm s, BlockPos feet, RandomSource random) {
+        for (Map.Entry<ResourceLocation, Integer> e : s.counts.entrySet()) {
+            if (e.getValue() <= 0) continue;
+            Mob m = EnemySpawns.create(level, BuiltInRegistries.ENTITY_TYPE.get(e.getKey()), feet, MobSpawnType.EVENT, random);
+            if (m == null) return null;
+            m.addTag(TAG);
+            m.getPersistentData().putString(EXTRA_KEY, s.extraTag);
+            m.getPersistentData().putLong(UNIT_KEY, s.id);
+            m.getPersistentData().putInt(FRONT_KEY, s.front);
+            m.getPersistentData().putString(PURPOSE_KEY, s.purpose.name());
+            int before = s.size();
+            if (before > 0) com.yayuy.overgrownvegetation.director.ForestEconomy.markPaid(m, s.paid / before);
+            s.paid -= before > 0 ? s.paid / before : 0.0D;
+            e.setValue(e.getValue() - 1);
+            s.counts.values().removeIf(v -> v <= 0);
+            setDirty();
+            return m;
+        }
+        return null;
+    }
+
+    /** 部隊を消す(使い切った・合わさった)。 */
+    public void removeUnit(Swarm s) {
+        if (swarms.remove(s)) setDirty();
+    }
+
+    /** 変えたことを保存に知らせる(前線の側から)。 */
+    public void touch() {
+        setDirty();
+    }
+
     /** id の群れ(無ければ null)。 */
     @Nullable
     public Swarm byId(long id) {
@@ -330,6 +508,11 @@ public final class VirtualHordes extends SavedData {
     static void beginMarch(Mob m, int baseId, double tx, double tz) {
         if (m instanceof com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster g1) g1.march().beginTo(tx, tz, baseId);
         else PlantMarch.begin(m, baseId, tx, tz);
+    }
+
+    /** 前線の側から: 実物を (tx, tz) へ行進させ直す(狩りの的が動いたとき・襲撃の集まる所から拠点へ)。 */
+    public static void marchTo(Mob m, int baseId, double tx, double tz) {
+        beginMarch(m, baseId, tx, tz);
     }
 
     /** 行進しているか(戻してよい条件の 1 つ)。 */
@@ -411,10 +594,12 @@ public final class VirtualHordes extends SavedData {
         while (it.hasNext()) {
             Swarm s = it.next();
             if (s.size() <= 0) {
-                it.remove();
+                if (!s.unit()) it.remove(); // 部隊の空は前線の側が片付ける(実物が戻る先)
                 continue;
             }
             if (s.arrivedAt >= 0L) {
+                // 前線の部隊は着いた所で待つ(守る = 持ち場・広げる = 升・襲う = 拠点の前。戦いは読み込まれてから。11-21)
+                if (s.unit()) continue;
                 if (now - s.arrivedAt > t.virtualLifeAfterArriveTicks) {
                     expired += s.size();
                     it.remove();
@@ -433,8 +618,20 @@ public final class VirtualHordes extends SavedData {
                 continue;
             }
             double step = Math.min(s.speed * ticks, d - ARRIVE_BLOCKS * 0.5D);
-            s.x += dx / d * step;
-            s.z += dz / d * step;
+            if (s.unit()) {
+                // 11-21 地図の上の動き: 山の升は半分の速さ・水の升は避けて回り道(深い海は流れ木もどき = 区切り 3)
+                double[] dir = com.yayuy.overgrownvegetation.front.UnitTerrain.stepDir(level, s.x, s.z, dx / d, dz / d, step);
+                if (dir == null) {
+                    s.waiting = true; // 囲まれて進めない: この回は待つ
+                    continue;
+                }
+                step *= dir[2];
+                s.x += dir[0] * step;
+                s.z += dir[1] * step;
+            } else {
+                s.x += dx / d * step;
+                s.z += dz / d * step;
+            }
             s.faceTarget();
             double g = surfaceY(level, s.x, s.z);
             if (!Double.isNaN(g)) s.y = g;
@@ -473,9 +670,10 @@ public final class VirtualHordes extends SavedData {
         double raid = liveRaid(level);
         // 襲撃の上限の数え(拠点ごとの攻め手)はこの回に 1 度だけ数え、出した分を足していく(11-18 見直し ③6。前は群れごとに全エンティティを数え直した)
         it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap raidCount = new it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap();
-        Iterator<Swarm> it = swarms.iterator();
-        while (it.hasNext()) {
-            Swarm s = it.next();
+        // 11-21 戦っている部隊を先に出す: 行進する部隊(狩る・襲う・古い行進)→ ほか(守る・広げる・建てる)の順。同じ順の中は前の並びのまま
+        List<Swarm> order = new ArrayList<>(swarms);
+        order.sort(java.util.Comparator.comparingInt(s -> s.purpose.marches ? 0 : 1));
+        for (Swarm s : order) {
             s.waiting = false;
             if (s.retreating || nearestPlayerSq(level, s.x, s.z) > near) continue;
             BlockPos center = BlockPos.containing(s.x, s.y, s.z);
@@ -514,6 +712,12 @@ public final class VirtualHordes extends SavedData {
                     if (!s.extraTag.isEmpty()) m.addTag(s.extraTag);
                     m.setYRot((float) Math.toDegrees(Math.atan2(-s.dirX, s.dirZ)));
                     m.getPersistentData().putString(EXTRA_KEY, s.extraTag);
+                    if (s.unit()) {
+                        m.getPersistentData().putLong(UNIT_KEY, s.id);
+                        m.getPersistentData().putInt(FRONT_KEY, s.front);
+                        m.getPersistentData().putString(PURPOSE_KEY, s.purpose.name());
+                        if (s.size() > 0) com.yayuy.overgrownvegetation.director.ForestEconomy.markPaid(m, s.paid / s.size());
+                    }
                     if (com.yayuy.overgrownvegetation.director.LargeRaids.ATTACKER_TAG.equals(s.extraTag)) m.getPersistentData().putDouble(RAID_KEY, raid);
                     if (!level.addFreshEntity(m)) {
                         // 断られた(ほかの MOD の湧きの取り消しなど): 頭数を減らさず、この群れは次の回に(11-18 見直し ③5。前は 1 体消えていた)
@@ -521,21 +725,23 @@ public final class VirtualHordes extends SavedData {
                         blocked = true;
                         break;
                     }
-                    beginMarch(m, s.baseId, s.tx, s.tz);
+                    if (s.purpose.marches) beginMarch(m, s.baseId, s.tx, s.tz);
                     left--;
                     budget--;
                     placed++;
                 }
                 e.setValue(left);
             }
+            int before2 = s.size() + placed;
             s.counts.values().removeIf(v -> v <= 0);
+            if (placed > 0 && before2 > 0) s.paid -= s.paid * placed / (double) before2;
             budget += rest;
             if (placed > 0 && raidCount.containsKey(s.baseId) && com.yayuy.overgrownvegetation.director.LargeRaids.ATTACKER_TAG.equals(s.extraTag)) {
                 raidCount.addTo(s.baseId, placed);
             }
             materialized += placed;
             if (s.size() <= 0) {
-                it.remove();
+                if (!s.unit()) swarms.remove(s); // 部隊は空になっても残す(実物が戻る先・補充の先)
             } else if (placed == 0) {
                 s.failures++;
                 placeFailures++;
@@ -595,11 +801,19 @@ public final class VirtualHordes extends SavedData {
         double far = t.virtualDematerializeBlocks * t.virtualDematerializeBlocks;
         double keep = KEEP_NEAR_TARGET * KEEP_NEAR_TARGET, merge = MERGE_BLOCKS * MERGE_BLOCKS;
         List<Mob> back = new ArrayList<>();
+        List<Mob> residents = new ArrayList<>();
         for (Entity e : level.getAllEntities()) {
             if (!(e instanceof Mob m) || !m.isAlive() || !m.getTags().contains(TAG)) continue;
-            if (!marching(m) || m.hasCustomName() || m.isPassenger() || m.isVehicle()) continue;
-            if (m.getTarget() instanceof Player || m.getHealth() < m.getMaxHealth()) continue;
+            if (m.hasCustomName() || m.isPassenger() || m.isVehicle()) continue;
+            // 11-21 戻すのは戦っていない Mob だけ。傷は戻るときに治る(頭数だけ戻す。前は無傷のときだけ戻した)
+            if (m.getTarget() instanceof Player) continue;
             if (m.getLastHurtByMob() != null && m.tickCount - m.getLastHurtByMobTimestamp() < 200) continue;
+            // 前線の部隊の住人(守る・広げる・建てる)は行進していない。プレイヤーから遠ければ部隊へ戻す
+            if (m.getPersistentData().contains(UNIT_KEY) && !UnitPurpose.byName(m.getPersistentData().getString(PURPOSE_KEY)).marches) {
+                if (nearestPlayerSq(level, m.getX(), m.getZ()) > far) residents.add(m);
+                continue;
+            }
+            if (!marching(m)) continue;
             net.minecraft.world.phys.Vec3 tg = marchTarget(m);
             if (tg == null) continue;
             double dx = tg.x - m.getX(), dz = tg.z - m.getZ();
@@ -607,6 +821,7 @@ public final class VirtualHordes extends SavedData {
             if (nearestPlayerSq(level, m.getX(), m.getZ()) <= far) continue;
             back.add(m);
         }
+        for (Mob m : residents) returnToUnit(level, m);
         double raid = back.isEmpty() ? Double.NaN : liveRaid(level);
         for (Mob m : back) {
             net.minecraft.world.phys.Vec3 tg = marchTarget(m);
@@ -618,6 +833,10 @@ public final class VirtualHordes extends SavedData {
                 if (CrawlerPack.externalOf(m) != null) CrawlerPack.leaveExternal(level, m);
                 m.discard();
                 retreated++;
+                continue;
+            }
+            if (m.getPersistentData().contains(UNIT_KEY)) {
+                returnToUnit(level, m); // 前線の部隊(狩る・襲う)は元の部隊へ
                 continue;
             }
             Swarm into = null;
@@ -641,8 +860,33 @@ public final class VirtualHordes extends SavedData {
             m.discard(); // 死なせない(死の破裂で汚染を撒かない)
             dematerialized++;
         }
-        if (!back.isEmpty()) setDirty();
-        return back.size();
+        if (!back.isEmpty() || !residents.isEmpty()) setDirty();
+        return back.size() + residents.size();
+    }
+
+    /**
+     * 部隊から出た実物を、その部隊(群れの id)へ頭数として戻す(11-21)。部隊がもう無ければ、同じ前線・目的の部隊をその場に作り直す。
+     * 傷は数えない(戻ると治る)。払った額は部隊へ戻す。死なせずに消す(死の破裂で汚染を撒かない)。
+     */
+    void returnToUnit(ServerLevel level, Mob m) {
+        CompoundTag pd = m.getPersistentData();
+        Swarm s = byId(pd.getLong(UNIT_KEY));
+        if (s == null) {
+            s = new Swarm(nextId++, m.getX(), m.getY(), m.getZ(), DesignData.front().unitSpeed, -1, m.getX(), m.getZ(), "");
+            s.front = pd.getInt(FRONT_KEY);
+            s.purpose = UnitPurpose.byName(pd.getString(PURPOSE_KEY));
+            s.purposeSince = level.getGameTime();
+            s.arrivedAt = level.getGameTime();
+            swarms.add(s);
+        }
+        if (s.firstIndex > MAX_SWARM) s.firstIndex = 0;
+        if (s.size() < MAX_SWARM) {
+            s.add(BuiltInRegistries.ENTITY_TYPE.getKey(m.getType()), 1);
+            s.paid += com.yayuy.overgrownvegetation.director.ForestEconomy.paid(m);
+        }
+        if (CrawlerPack.externalOf(m) != null) CrawlerPack.leaveExternal(level, m);
+        m.discard();
+        dematerialized++;
     }
 
     /** 全部消す(確かめ用)。 */
@@ -684,6 +928,13 @@ public final class VirtualHordes extends SavedData {
             c.putDouble("OZ", s.originZ);
             c.putBoolean("Retreat", s.retreating);
             c.putInt("First", s.firstIndex);
+            if (s.unit()) {
+                c.putInt("Front", s.front);
+                c.putString("Purpose", s.purpose.name());
+                c.putDouble("Paid", s.paid);
+                c.putLong("Since", s.purposeSince);
+                if (s.hunt != null) c.putUUID("Hunt", s.hunt);
+            }
             ListTag counts = new ListTag();
             for (Map.Entry<ResourceLocation, Integer> e : s.counts.entrySet()) {
                 CompoundTag ct = new CompoundTag();
@@ -714,6 +965,13 @@ public final class VirtualHordes extends SavedData {
             }
             s.retreating = c.getBoolean("Retreat");
             s.firstIndex = Math.max(0, c.getInt("First"));
+            if (c.contains("Front")) {
+                s.front = c.getInt("Front");
+                s.purpose = UnitPurpose.byName(c.getString("Purpose"));
+                s.paid = Math.max(0.0D, c.getDouble("Paid"));
+                s.purposeSince = c.getLong("Since");
+                if (c.hasUUID("Hunt")) s.hunt = c.getUUID("Hunt");
+            }
             for (Tag ct : c.getList("Counts", Tag.TAG_COMPOUND)) {
                 CompoundTag cc = (CompoundTag) ct;
                 ResourceLocation id = ResourceLocation.tryParse(cc.getString("Type"));
@@ -721,7 +979,7 @@ public final class VirtualHordes extends SavedData {
                 int n = Math.max(0, Math.min(MAX_SWARM, cc.getInt("N")));
                 if (n > 0) s.add(id, n);
             }
-            if (s.size() > 0) h.swarms.add(s);
+            if (s.size() > 0 || s.unit()) h.swarms.add(s); // 部隊は空でも残す(実物が戻る先)
             h.nextId = Math.max(h.nextId, s.id + 1);
         }
         return h;

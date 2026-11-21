@@ -54,6 +54,8 @@ public final class DesignData {
     private static volatile SkyTable sky = SkyTable.DEFAULT;
     private static volatile PerfTable perf = PerfTable.DEFAULT;
     private static volatile NetherSpreadTable netherSpread = NetherSpreadTable.DEFAULT;
+    /** 前線と部隊(2026-11-21)。 */
+    private static volatile FrontTable front = FrontTable.DEFAULT;
 
     private static volatile DirectorTable director = DirectorTable.DEFAULT;
 
@@ -139,6 +141,11 @@ public final class DesignData {
     }
 
     /** ネザーの汚染の骨組みの設計値({@code nether_spread.json}、2026-11-11)。 */
+    /** 前線と部隊の設計値({@code front.json}、2026-11-21)。 */
+    public static FrontTable front() {
+        return front;
+    }
+
     public static NetherSpreadTable netherSpread() {
         return netherSpread;
     }
@@ -244,6 +251,7 @@ public final class DesignData {
         sky = SkyTable.fromJson(read(dir, "sky.json", SkyTable.Json.class));
         perf = PerfTable.fromJson(read(dir, "perf.json", PerfTable.Json.class));
         netherSpread = NetherSpreadTable.fromJson(read(dir, "nether_spread.json", NetherSpreadTable.Json.class));
+        front = FrontTable.fromJson(read(dir, "front.json", FrontTable.Json.class));
         director = DirectorTable.fromJson(read(dir, "director.json", DirectorTable.Json.class));
         spawns = com.yayuy.overgrownvegetation.spawn.SpawnTable.fromJson(read(dir, "spawns.json", com.yayuy.overgrownvegetation.spawn.SpawnTable.Json.class));
         ecosystem = com.yayuy.overgrownvegetation.ecosystem.EcoTable.fromJson(read(dir, "ecosystem.json", com.yayuy.overgrownvegetation.ecosystem.EcoTable.Json.class));

@@ -1,0 +1,21 @@
+{
+  "_comment": "前線と部隊(2026-11-21 ユーザー決定。正本は Vault「構想と進捗/前線と部隊(地図の上の森の軍勢)(11-21)」)。森の Mob を地図の上の部隊(仮想の群れの台帳)として持ち、巨大樹ごとの前線(序盤は汚染の発生源)から 守る・広げる・狩る・襲う に出す。ユーザーが決めた数: 1 部隊 10〜50 体(unitMin・unitMaxByPhase。フェーズで上限が上がる)・襲う・狩るは歩きの半分ほど(unitSpeed 0.06 ブロック/tick)・山の升は半分の速さ(mountainSpeedFactor)。ほかは全部【仮】: 前線 1 つが 1 秒に作れる体数 producePerFrontPerSecond・作るのは予算が上限の reserveCapShare より多い分だけ(残りは器官・巨大樹・進化)・作る中の G2 以降の割合 plantShareByPhase(F0〜F10。残りは段階 0 の感染 Mob)・守りの割合 静かな前線 defendShareQuiet / 攻められた前線 defendShareAttacked・静かな前線で広げるに出す割合 expandShareQuiet(残りは襲う)・攻められた = 最近倒された値段が前線の値段の attackedLossShare を超えた(最近 = attackDecayDays 日で半分に減る)・守りの持ち場は前線のまわり postRadiusChunks チャンクの過繁茂・広げる升は前線のまわり expandSearchChunks チャンクで探す・同じ目的の部隊は mergeBlocks で合わさる・割り振りは assignIntervalSeconds 秒ごと・広げる部隊は expandIntervalSeconds 秒ごとに升を食べる。",
+  "enabled": true,
+  "unitSpeed": 0.06,
+  "mountainSpeedFactor": 0.5,
+  "unitMin": 10,
+  "unitMaxByPhase": [10, 10, 15, 20, 25, 30, 40, 50, 50, 50, 50],
+  "producePerFrontPerSecond": 0.5,
+  "reserveCapShare": 0.2,
+  "plantShareByPhase": [0.0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6, 0.6],
+  "defendShareQuiet": 0.4,
+  "defendShareAttacked": 0.9,
+  "expandShareQuiet": 0.4,
+  "attackedLossShare": 0.15,
+  "attackDecayDays": 0.5,
+  "postRadiusChunks": 8,
+  "expandSearchChunks": 24,
+  "mergeBlocks": 24.0,
+  "assignIntervalSeconds": 10.0,
+  "expandIntervalSeconds": 20.0
+}
