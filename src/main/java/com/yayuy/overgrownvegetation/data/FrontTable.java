@@ -33,6 +33,9 @@ public final class FrontTable {
         public Integer treeClusterChunks, treeCellChunks;
         public Double raidCapStart, raidCapEnd, raidCapRampDays, raidCapMediumFactor;
         public Double raidRetryDays;
+        public Boolean awareEnabled, awareInsideNeedsNotice;
+        public Double awareThreshold, awareDecayPerSecond, awareFire, awareExplosion, awareExplosionBlocks, awareHitOrgan, awareHitTree, awareFightHit, awareFightKill,
+                awareRunPerSecond, awareEdgeFactor, awareFloorFactor, awareNearFactor, awareNearBlocks, awareNoticedSeconds, awareCalmSeconds, awareCalmFactor;
         public Integer raidRetryMax;
         public Double raidShareSmall, raidShareMedium, raidShareLarge, raidGatherBlocks, raidGatherMaxDays, raidRangeBlocks, repelGrowth, repelMaxFactor, raidLossRepelShare;
     }
@@ -82,6 +85,10 @@ public final class FrontTable {
     /** 11-22: 樹域から 1 体も出せなかった送り込み・貯めた襲撃は「送った」と数えず raidRetryDays 日後に試し直す(raidRetryMax 回まで。超えたら送ったと数える)。【仮】 */
     public final double raidRetryDays;
     public final int raidRetryMax;
+    /** 11-22 ユーザー決定 B 案: 森の中で気づかれる(ForestAwareness)。数は全部【仮】。awareInsideNeedsNotice = 狩りでは管理された森の中は視界で見つからず、気づきだけで見つかる。 */
+    public final boolean awareEnabled, awareInsideNeedsNotice;
+    public final double awareThreshold, awareDecayPerSecond, awareFire, awareExplosion, awareExplosionBlocks, awareHitOrgan, awareHitTree, awareFightHit, awareFightKill,
+            awareRunPerSecond, awareEdgeFactor, awareFloorFactor, awareNearFactor, awareNearBlocks, awareNoticedSeconds, awareCalmSeconds, awareCalmFactor;
     public final double raidShareSmall, raidShareMedium, raidShareLarge, raidGatherBlocks, raidGatherMaxDays, raidRangeBlocks, repelGrowth, repelMaxFactor, raidLossRepelShare;
 
     /** 送り込み(小)の上限(認識してからの日数 since。0 = 認識した日)。 */
@@ -130,6 +137,25 @@ public final class FrontTable {
         raidCapMediumFactor = Math.max(0.0D, nn(s.raidCapMediumFactor, 2.0D));
         raidRetryDays = Math.max(0.005D, nn(s.raidRetryDays, 0.1D));
         raidRetryMax = Math.max(0, s.raidRetryMax != null ? s.raidRetryMax : 3);
+        awareEnabled = s.awareEnabled == null || s.awareEnabled;
+        awareInsideNeedsNotice = s.awareInsideNeedsNotice == null || s.awareInsideNeedsNotice;
+        awareThreshold = Math.max(1.0D, nn(s.awareThreshold, 100.0D));
+        awareDecayPerSecond = Math.max(0.0D, nn(s.awareDecayPerSecond, 1.0D));
+        awareFire = Math.max(0.0D, nn(s.awareFire, 40.0D));
+        awareExplosion = Math.max(0.0D, nn(s.awareExplosion, 60.0D));
+        awareExplosionBlocks = Math.max(0.0D, nn(s.awareExplosionBlocks, 48.0D));
+        awareHitOrgan = Math.max(0.0D, nn(s.awareHitOrgan, 20.0D));
+        awareHitTree = Math.max(0.0D, nn(s.awareHitTree, 20.0D));
+        awareFightHit = Math.max(0.0D, nn(s.awareFightHit, 5.0D));
+        awareFightKill = Math.max(0.0D, nn(s.awareFightKill, 15.0D));
+        awareRunPerSecond = Math.max(0.0D, nn(s.awareRunPerSecond, 4.0D));
+        awareEdgeFactor = Math.max(0.0D, nn(s.awareEdgeFactor, 0.5D));
+        awareFloorFactor = Math.max(0.0D, nn(s.awareFloorFactor, 1.0D));
+        awareNearFactor = Math.max(0.0D, nn(s.awareNearFactor, 2.0D));
+        awareNearBlocks = Math.max(0.0D, nn(s.awareNearBlocks, 32.0D));
+        awareNoticedSeconds = Math.max(0.0D, nn(s.awareNoticedSeconds, 60.0D));
+        awareCalmSeconds = Math.max(0.0D, nn(s.awareCalmSeconds, 300.0D));
+        awareCalmFactor = Math.max(0.0D, nn(s.awareCalmFactor, 0.2D));
         raidShareSmall = Math.min(1.0D, nn(s.raidShareSmall, 0.3D));
         raidShareMedium = Math.min(1.0D, nn(s.raidShareMedium, 0.7D));
         raidShareLarge = Math.min(1.0D, nn(s.raidShareLarge, 1.0D));

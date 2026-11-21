@@ -71,7 +71,15 @@ public final class FrontHunts {
 
     public static boolean seen(ServerLevel level, ServerPlayer p) {
         if (seenForTests != null) return seenForTests.test(p);
-        return ForestVision.sees(level, p.blockPosition());
+        // 11-22 ユーザー決定 B 案: 森の中で行動して気づかれたら見つかる
+        if (ForestAwareness.noticed(level, p)) return true;
+        ForestVision.Why why = ForestVision.why(level, p.blockPosition());
+        // awareInsideNeedsNotice: 管理された森の中(過繁茂のチャンクの上)は森の縁の視界では見つからない(気づきだけ)。偵察・監視塔・地脈はそのまま
+        if (why == ForestVision.Why.FOREST && DesignData.front().awareInsideNeedsNotice
+                && com.yayuy.overgrownvegetation.phase.PhaseData.get(level).isOvergrownKey(net.minecraft.world.level.ChunkPos.asLong(p.getBlockX() >> 4, p.getBlockZ() >> 4))) {
+            return false;
+        }
+        return why != ForestVision.Why.NONE;
     }
 
     /** 1 回まわす(テストからも。players は狩りの的になる人)。 */
