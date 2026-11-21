@@ -4,10 +4,6 @@
     "default": "overgrown_vegetation:overgrown_tree_main",
     "features": [
       {
-        "chance": 0.0025,
-        "feature": "overgrown_vegetation:overgrown_tree_giant"
-      },
-      {
         "chance": 0.25,
         "feature": "overgrown_vegetation:sigillaria_tree"
       },

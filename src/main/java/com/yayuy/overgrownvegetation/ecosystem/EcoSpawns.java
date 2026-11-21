@@ -183,6 +183,7 @@ public final class EcoSpawns {
         if (!tickInGameTests && level.getServer() instanceof net.minecraft.gametest.framework.GameTestServer) return;
         EcoTable t = DesignData.ecosystem();
         if (!t.enabled) return;
+        if (com.yayuy.overgrownvegetation.front.FrontDirector.replacesOldSpawns(level)) return; // 11-21 前線と部隊: 森の中の湧きは守りの部隊の実物化に置き換え
         long time = level.getGameTime();
         if (time % SWEEP_INTERVAL == 0) sweep(level);
         boolean inner = time % t.innerInterval == 0, stub = DEV && time % t.stubInterval == 0;

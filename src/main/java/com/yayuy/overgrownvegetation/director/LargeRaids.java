@@ -236,6 +236,7 @@ public final class LargeRaids {
             end(level, day, "拠点を忘れた");
             return 0;
         }
+        if (com.yayuy.overgrownvegetation.front.FrontRaids.active(level)) return 0; // 11-21 前線と部隊: 大きな襲撃も湧かせない(部隊は FrontRaids が出す)
         if (!scaled(d)) return step0(level, random, d, b, day);
         // 11-19 襲撃の規模の「大」: 拠点の財布 → 森の予算 の順に払う(使い残しは財布に残り、後の送り込みへ)
         try (ForestDirector.PurseScope ignored = ForestDirector.openPurse(BaseMemory.get(level.getServer()), b, RaidScales.costFactor(RaidScales.RaidScale.LARGE))) {

@@ -61,6 +61,14 @@ public final class FrontDirector {
         return DesignData.front().enabled && DesignData.director().enabled && VirtualHordes.enabled();
     }
 
+    /**
+     * 縁・地下・森の中の湧きと、実物の G1 の進化・根付き・苗床を止めて前線の部隊に任せるか(11-21 区切り 6)。GameTest のサーバーでは、テストが前線を動かすときだけ。
+     */
+    public static boolean replacesOldSpawns(ServerLevel level) {
+        return enabled() && DesignData.front().replaceOldSpawns
+                && (tickInGameTests || !(level.getServer() instanceof net.minecraft.gametest.framework.GameTestServer));
+    }
+
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
         MinecraftServer server = event.getServer();
@@ -82,12 +90,16 @@ public final class FrontDirector {
         for (Fronts.Front f : new ArrayList<>(fronts.fronts())) {
             decayLosses(level, f, t);
             produce(level, fronts, hordes, f, seconds);
-            if (f.assignedAt == Long.MIN_VALUE || now - f.assignedAt >= (long) (t.assignIntervalSeconds * 20.0D)) {
+            // 前線ごとに見直す秒をずらす(全部の前線が同じ tick に重ならないように)。初回は前線の id で散らす
+            long interval = (long) (t.assignIntervalSeconds * 20.0D);
+            if (f.assignedAt == Long.MIN_VALUE) f.assignedAt = now - Math.floorMod(f.id * 7919L, Math.max(1L, interval / 20L)) * 20L;
+            if (now - f.assignedAt >= interval) {
                 f.assignedAt = now;
                 assign(level, hordes, f, real);
             }
         }
         expand(level, hordes, seconds);
+        if (replacesOldSpawns(level) && level.getGameTime() % 200L < 20L) absorbLoose(level, fronts, hordes);
         // 空の部隊(実物も残っていない)を片付ける
         for (VirtualHordes.Swarm s : new ArrayList<>(hordes.swarms())) {
             if (s.unit() && s.size() <= 0 && real.get(s.id()) <= 0) hordes.removeUnit(s);
@@ -219,7 +231,7 @@ public final class FrontDirector {
         return s != null ? s.entityType() : null;
     }
 
-    static boolean isG1(EntityType<?> type) {
+    public static boolean isG1(EntityType<?> type) {
         for (G1Species s : G1Species.values()) if (s.entityType() == type) return true;
         return false;
     }
@@ -288,7 +300,83 @@ public final class FrontDirector {
             s.assign(UnitPurpose.DEFEND, post[0], post[1], now);
             sentDefend++;
         }
+        evolve(level, hordes, f);
         mergeDefenders(level, hordes, f);
+    }
+
+    // ---------------------------------------------------------------- 部隊の中の進化(区切り 6。G1Fate の進化を置き換える)
+
+    public static long evolved;
+
+    /**
+     * 進化の道が開いていれば(F3 から)、前線の部隊の段階 0 を 1 回に evolvePerUnit 体まで 1 段目へ進化させる。値段は進化先の値段 − 段階 0
+     * (11-21 ユーザー決定)、維持費は差の分だけ増えるので 8 割の関所を通す。予算が上限の reserveCapShare より多い分だけ使う。
+     */
+    public static void evolve(ServerLevel level, VirtualHordes hordes, Fronts.Front f) {
+        FrontTable t = DesignData.front();
+        if (t.evolvePerUnit <= 0 || !DirectorGates.open(level, DirectorGates.Gate.EVOLVE)) return;
+        ForestDirector dir = ForestDirector.get(level);
+        double reserve = ForestDirector.cap(level) * t.reserveCapShare;
+        double stageZero = DesignData.director().largeRaid.costStageZero * com.yayuy.overgrownvegetation.director.ForestEconomy.priceFactor();
+        for (VirtualHordes.Swarm s : hordes.swarms()) {
+            if (s.front() != f.id || s.size() <= 0) continue;
+            int done = 0;
+            int devNow = 0;
+            for (var e : s.counts().entrySet()) {
+                if (com.yayuy.overgrownvegetation.entity.g1.G1Developed.of(BuiltInRegistries.ENTITY_TYPE.get(e.getKey())) != null) devNow += e.getValue();
+            }
+            int devMax = (int) Math.floor(t.evolveMaxShare * s.size());
+            for (var e : new ArrayList<>(s.counts().entrySet())) {
+                if (done >= t.evolvePerUnit) break;
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(e.getKey());
+                G1Species sp = null;
+                for (G1Species g : G1Species.values()) if (g.entityType() == type) sp = g;
+                if (sp == null) continue;
+                com.yayuy.overgrownvegetation.entity.g1.G1Developed dev = null;
+                for (var d : com.yayuy.overgrownvegetation.entity.g1.G1Developed.values()) if (d.base() == sp) dev = d;
+                if (dev == null) continue;
+                EntityType<?> devType = BuiltInRegistries.ENTITY_TYPE.get(OvergrownVegetation.id(dev.id()));
+                double devPrice = ForestUpkeep.unitPrice(devType, false);
+                double cost = Math.max(0.0D, devPrice - stageZero);
+                while (done < t.evolvePerUnit && devNow < devMax && s.counts().getOrDefault(e.getKey(), 0) > 0) {
+                    if (dir.available(level) - cost < reserve) return;
+                    if (!dir.tryPayUnit(level, cost, Math.max(0.0D, devPrice - stageZero), !s.purpose().marches)) return;
+                    s.takeHeadsOf(e.getKey(), 1);
+                    s.addHeads(BuiltInRegistries.ENTITY_TYPE.getKey(devType), 1, cost);
+                    done++;
+                    evolved++;
+                    devNow++;
+                }
+            }
+        }
+        hordes.touch();
+    }
+
+    // ---------------------------------------------------------------- 部隊に入っていない Mob を吸い込む(区切り 6)
+
+    public static long absorbed;
+
+    /**
+     * 前線の部隊に入っていない植物側の Mob(感染で起きた G1・古い湧きの残り)を、どのプレイヤーからも absorbBlocks より遠く、戦っていなければ、
+     * いちばん近い前線の作る途中の部隊へ吸い込む(感染で生産 → 部隊になる、の道。11-21)。名札・乗り物・偵察は除く。
+     */
+    public static void absorbLoose(ServerLevel level, Fronts fronts, VirtualHordes hordes) {
+        double far = DesignData.front().absorbBlocks;
+        int max = DesignData.front().unitMax(DirectorGates.phase(level));
+        List<Mob> loose = new ArrayList<>();
+        for (Entity e : level.getAllEntities()) {
+            if (!(e instanceof Mob m) || !m.isAlive() || m.getPersistentData().contains(VirtualHordes.UNIT_KEY) || m.getTags().contains(VirtualHordes.TAG)) continue;
+            if (!ForestUpkeep.army(m.getType()) || !VirtualHordes.allowed(m.getType()) || m.hasCustomName() || m.isPassenger() || m.isVehicle() || m.getTarget() != null) continue;
+            if (m instanceof com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster g && g.fate() != null && g.fate().scout().active()) continue;
+            if (level.getNearestPlayer(m.getX(), m.getY(), m.getZ(), far, false) != null) continue;
+            loose.add(m);
+        }
+        for (Mob m : loose) {
+            Fronts.Front f = fronts.nearest(m.getX(), m.getZ(), -1);
+            if (f == null) return;
+            VirtualHordes.Swarm s = formingUnit(level, hordes, f, max);
+            if (hordes.absorb(level, s, m)) absorbed++;
+        }
     }
 
     /** 守りの持ち場: 前線のまわり postRadiusChunks の過繁茂のチャンクから 1 つ(見つからなければ前線の真ん中の少し外)。 */
@@ -343,6 +431,22 @@ public final class FrontDirector {
         for (VirtualHordes.Swarm s : hordes.swarms()) {
             if (s.purpose() == UnitPurpose.EXPAND) taken.add(cellKey(s.tx(), s.tz()));
         }
+        // 11-21 ほかの感染系 MOD: 印の付いた升を先に(森の中でも・生き物の少ない升でも)
+        ForeignInfection foreign = ForeignInfection.get(level.getServer());
+        if (!foreign.marks().isEmpty()) {
+            long best = Long.MIN_VALUE;
+            double bd = Double.MAX_VALUE;
+            for (long k : foreign.marks().keySet()) {
+                int cx = ChunkPos.getX(k), cz = ChunkPos.getZ(k);
+                long key = ((long) cx << 32) | (cz & 0xFFFFFFFFL);
+                if (taken.contains(key)) continue;
+                double d = (double) (cx - fcx) * (cx - fcx) + (double) (cz - fcz) * (cz - fcz);
+                if (d > (double) rc * rc || d >= bd) continue;
+                bd = d;
+                best = key;
+            }
+            if (best != Long.MIN_VALUE) return best;
+        }
         for (int r = 1; r <= rc; r++) {
             long best = Long.MIN_VALUE;
             double bd = Double.MAX_VALUE;
@@ -365,6 +469,11 @@ public final class FrontDirector {
             if (best != Long.MIN_VALUE) return best;
         }
         return Long.MIN_VALUE;
+    }
+
+    /** テスト用: 前線 f の広げる升(無ければ Long.MIN_VALUE)。 */
+    public static long expandTargetForTests(ServerLevel level, VirtualHordes hordes, Fronts.Front f) {
+        return expandTarget(level, hordes, f);
     }
 
     static long cellKey(double x, double z) {
@@ -402,6 +511,9 @@ public final class FrontDirector {
                 expandInfected += r.infected();
                 addInfected(level, s, r.infected(), r.villagers());
             }
+            // 11-21 ほかの感染系 MOD の印: いる間は減らし、消えたら森で上書き。消えるまでは次へ行かない
+            ForeignInfection foreign = ForeignInfection.get(level.getServer());
+            if (foreign.mark(cx, cz) > 0.0D && !foreign.clean(level, cx, cz, s.size())) continue;
             CellLife.View v = CellLife.get().view(level, cx, cz);
             boolean done = r.nowOvergrown() || cellForest(pd, cx, cz) || v.sparse() || (CellLife.get() != CellLife.NONE && v.left() <= 0);
             if (!done) continue;

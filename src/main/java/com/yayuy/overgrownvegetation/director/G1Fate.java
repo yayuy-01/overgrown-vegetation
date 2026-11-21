@@ -165,6 +165,11 @@ public final class G1Fate {
             return;
         }
         if (now < nextVisit) return;
+        if (com.yayuy.overgrownvegetation.front.FrontDirector.replacesOldSpawns(level)) {
+            // 11-21 前線と部隊: 実物の進化・根付き・苗床は止め、部隊の中の進化(FrontDirector#evolve)に任せる
+            nextVisit = now + BUSY_WAIT * 6;
+            return;
+        }
         if (ForestDirector.hoarding()) {
             // 森が貯めている間は、見に来ても道を選ばない(第 3 段)。貯め終えたらまた見に来る
             nextVisit = now + BUSY_WAIT * 6;

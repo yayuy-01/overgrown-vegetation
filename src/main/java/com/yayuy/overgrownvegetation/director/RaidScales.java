@@ -275,6 +275,16 @@ public final class RaidScales {
 
     /** 段の作りで起こす。 */
     public static void start(ServerLevel level, BaseMemory.Base b, double day, RaidScale scale, net.minecraft.util.RandomSource random) {
+        // 11-21 前線と部隊: 湧かせず、前線から襲う部隊を出す(大は前触れの森の気分はそのまま使い、部隊は前触れの間に集まる所へ歩く)
+        if (com.yayuy.overgrownvegetation.front.FrontRaids.active(level)) {
+            if (scale == RaidScale.LARGE) {
+                double omen = omenDays(RaidScale.LARGE);
+                if (omen > 0.0D) LargeRaids.startScaledOmen(level, b, day, omen);
+                else LargeRaids.beginScaled(level, b, day);
+            }
+            com.yayuy.overgrownvegetation.front.FrontRaids.send(level, b, day, scale);
+            return;
+        }
         switch (scale) {
             case SMALL -> BaseRaids.sendWave(level, b, day, random);
             case MEDIUM -> HoardRaids.begin(level, b, day, random);

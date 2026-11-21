@@ -368,10 +368,22 @@ public final class ForestDirector extends SavedData implements ForestBudget {
     /** 毎秒の稼ぎ(森の健康・MOD の設定の倍率込み)。 */
     public static double incomePerSecond(ServerLevel level) {
         if (!DesignData.director().enabled) return 0.0D;
-        return incomePerDay(level) * com.yayuy.overgrownvegetation.ecosystem.Ecosystem.incomeFactor(level)
+        // 同じ tick の中は覚えておく(関所は 1 体出すたびに聞く。稼ぎの元は器官の一覧を数えるので、部隊を作る回に何百回も数え直さない)
+        long now = level.getGameTime();
+        Double o = ForestEconomy.incomeOverride();
+        if (now == incomeAt && java.util.Objects.equals(o, incomeOverrideAt)) return incomeCached;
+        incomeCached = incomePerDay(level) * com.yayuy.overgrownvegetation.ecosystem.Ecosystem.incomeFactor(level)
                 * com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.forestIncome(level.getServer())
                 / com.yayuy.overgrownvegetation.data.EconomyTable.SECONDS_PER_DAY;
+        incomeAt = now;
+        incomeOverrideAt = o;
+        return incomeCached;
     }
+
+    private static long incomeAt = Long.MIN_VALUE;
+    private static double incomeCached;
+    @Nullable
+    private static Double incomeOverrideAt;
 
     /** 維持費の上限(毎秒) = 稼ぎ × upkeepIncomeShare(8 割)。 */
     public static double upkeepLimitPerSecond(ServerLevel level) {

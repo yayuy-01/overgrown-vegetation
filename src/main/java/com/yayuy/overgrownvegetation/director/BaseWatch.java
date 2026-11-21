@@ -86,7 +86,7 @@ public final class BaseWatch {
             ScoutSearch.get(server).tick(level, day, BaseMemory.timeOfDay(server)); // 探りの偵察(11-20。手がかり A・B・殺された所・D 広がる探し方)
         }
         if (!omen && DirectorGates.open(level, DirectorGates.Gate.RAID)) BaseRaids.dispatch(level, memory, day);
-        if (!omen && DirectorGates.open(level, DirectorGates.Gate.LEARN)) DangerWatch.dispatch(level, day); // 学ぶ: 危ない所へ進化体(F3 から)
+        if (!omen && DirectorGates.open(level, DirectorGates.Gate.LEARN) && !com.yayuy.overgrownvegetation.front.FrontRaids.active(level)) DangerWatch.dispatch(level, day); // 11-21 前線と部隊の狩りに置き換え(前線が動いている間は送らない) // 学ぶ: 危ない所へ進化体(F3 から)
     }
 
     /**

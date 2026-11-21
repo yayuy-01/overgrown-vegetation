@@ -402,6 +402,17 @@ public final class BaseRaids {
                 if (HoardRaids.active() || ForestDirector.get(level).mood() != ForestDirector.Mood.NORMAL) break; // 中・大の間はほかの拠点も待つ
                 continue;
             }
+            if (com.yayuy.overgrownvegetation.front.FrontRaids.active(level)) {
+                // 11-21 前線と部隊: 最初の襲撃も前線から出す(出せる部隊が無ければ 0 = 試し直す)
+                int sent = com.yayuy.overgrownvegetation.front.FrontRaids.send(level, b, day, RaidScales.RaidScale.SMALL);
+                if (first && sent == 0) {
+                    memory.firstRaidRetry(b, day, DesignData.director().assault.firstRetryPoorDays, BaseMemory.timeOfDay(level.getServer()), level.getRandom().nextDouble());
+                    continue;
+                }
+                memory.waveSent(b, day, level.getRandom(), DirectorGates.strength(level, DirectorGates.Gate.RAID));
+                rescaleInterval(memory, b, day);
+                continue;
+            }
             Result r = sendWave(level, b, day, level.getRandom());
             // 見直し ②1: 最初の襲撃が 0 体なら「送った」と数えず、間を空けて試し直す(読み込まれていない / 予算が足りないで間を分ける。夜を過ぎたら次の夜)
             if (first && r.total() == 0) {

@@ -315,6 +315,18 @@ public final class VirtualHordes extends SavedData {
             return out;
         }
 
+        /** 種 type を n 体抜く(進化で入れ替えるとき)。払った額も比で抜く。抜いた数を返す。 */
+        public int takeHeadsOf(ResourceLocation type, int n) {
+            int have = counts.getOrDefault(type, 0);
+            int k = Math.min(have, Math.max(0, n));
+            if (k <= 0) return 0;
+            int total = size();
+            if (have - k <= 0) counts.remove(type);
+            else counts.put(type, have - k);
+            paid -= paid * k / (double) total;
+            return k;
+        }
+
         /** 目的と行き先を変える(着いた印・引き返しを外す)。 */
         public void assign(UnitPurpose p, double tx, double tz, long now) {
             if (p != purpose) purposeSince = now;
@@ -443,6 +455,18 @@ public final class VirtualHordes extends SavedData {
             return m;
         }
         return null;
+    }
+
+    /** 部隊に入っていない実物を部隊 s へ頭数として吸い込む(死なせずに消す)。吸い込めたら true。 */
+    public boolean absorb(ServerLevel level, Swarm s, Mob m) {
+        if (s.size() >= MAX_SWARM) return false;
+        s.add(BuiltInRegistries.ENTITY_TYPE.getKey(m.getType()), 1);
+        s.paid += com.yayuy.overgrownvegetation.director.ForestEconomy.paid(m);
+        m.getPersistentData().remove(com.yayuy.overgrownvegetation.director.ForestEconomy.PAID_KEY); // 消えたときの払い戻しを二重にしない
+        if (CrawlerPack.externalOf(m) != null) CrawlerPack.leaveExternal(level, m);
+        m.discard();
+        setDirty();
+        return true;
     }
 
     /** 部隊を消す(使い切った・合わさった)。 */

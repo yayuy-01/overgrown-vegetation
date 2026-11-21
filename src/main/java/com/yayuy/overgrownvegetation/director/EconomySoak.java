@@ -48,7 +48,7 @@ public final class EconomySoak {
     private static final Map<String, Double> SPENT = new TreeMap<>();
     private static double incForest, incLey, incTree;
     private static double base0Infect, base0Death, base0Despawn;
-    private static final long[] repelled = new long[4]; // 送り込み・貯めた・大きな・植物側の行進
+    private static final long[] repelled = new long[6]; // 送り込み・貯めた・大きな・植物側の行進・前線の襲う部隊・前線の狩る部隊(11-21)
     private static long tickSum, tickMax, tickCount, tickStart;
     private static Path dir;
     // 2 回目(11-21): 湧かせる所で弾いた数(理由ごと)・広げた段・流れ木もどき・襲撃の流れ(見送り・小・中・大)を日ごとに
@@ -220,7 +220,11 @@ public final class EconomySoak {
         AABB box = p.getBoundingBox().inflate(256.0D, 128.0D, 256.0D);
         for (Mob m : level.getEntitiesOfClass(Mob.class, box, Entity::isAlive)) {
             int kind = -1;
-            if (m.getTags().contains(LargeRaids.ATTACKER_TAG)) kind = 2;
+            String purpose = m.getPersistentData().getString("ov_unit_purpose");
+            if ("RAID".equals(purpose)) kind = 4;
+            else if ("HUNT".equals(purpose)) kind = 5;
+            else if (m.getPersistentData().contains(com.yayuy.overgrownvegetation.horde.VirtualHordes.UNIT_KEY)) kind = -1; // 前線の住人(守る・広げる・建てる)は撃退の数に入れない
+            else if (m.getTags().contains(LargeRaids.ATTACKER_TAG)) kind = 2;
             else if (m.getTags().contains(HoardRaids.TAG)) kind = 1;
             else if (m instanceof AbstractParasitizedMonster a && a.march() != null && a.march().active()) kind = 0;
             else if (com.yayuy.overgrownvegetation.spawn.PlantMarch.active(m)) kind = 3;
@@ -257,7 +261,23 @@ public final class EconomySoak {
         }
         int[] fis = new int[3];
         for (var fz : com.yayuy.overgrownvegetation.corruption.fissure.FissureData.get(level).fissures()) fis[fz.state.ordinal()]++;
-        String line = String.format(Locale.ROOT, "%d,%d,%s,%d,%d,%d,%d,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%d,%d,%.2f,%.1f,%d,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.2f,%d,%d,%d,\"%s\"%n",
+        // 11-21 前線と部隊: 前線の数・部隊の頭数(目的ごと)・維持費・作った数・襲撃・巨大樹
+        int[] heads = new int[com.yayuy.overgrownvegetation.horde.UnitPurpose.values().length];
+        int units = 0;
+        for (var sw : com.yayuy.overgrownvegetation.horde.VirtualHordes.get(level.getServer()).swarms()) {
+            if (!sw.unit()) continue;
+            units++;
+            heads[sw.purpose().ordinal()] += sw.size();
+        }
+        String front = String.format(Locale.ROOT, "%d,%d,%d,%d,%d,%d,%d,%.1f,%d,%d,%d,%d,%d,%d,%d,%d",
+                com.yayuy.overgrownvegetation.front.Fronts.get(level.getServer()).fronts().size(), units,
+                heads[com.yayuy.overgrownvegetation.horde.UnitPurpose.DEFEND.ordinal()], heads[com.yayuy.overgrownvegetation.horde.UnitPurpose.EXPAND.ordinal()],
+                heads[com.yayuy.overgrownvegetation.horde.UnitPurpose.HUNT.ordinal()], heads[com.yayuy.overgrownvegetation.horde.UnitPurpose.RAID.ordinal()],
+                heads[com.yayuy.overgrownvegetation.horde.UnitPurpose.BUILD.ordinal()], ForestUpkeep.perDay(level), ForestUpkeep.heads(level),
+                com.yayuy.overgrownvegetation.front.FrontDirector.produced, com.yayuy.overgrownvegetation.front.FrontRaids.raidsSent,
+                com.yayuy.overgrownvegetation.front.FrontRaids.headsSent, com.yayuy.overgrownvegetation.front.FrontRaids.repels,
+                com.yayuy.overgrownvegetation.front.FrontTrees.placed, repelled[4], repelled[5]);
+        String line = String.format(Locale.ROOT, "%d,%d,%s,%d,%d,%d,%d,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%d,%d,%.2f,%.1f,%d,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.2f,%d,%d,%d,%s,\"%s\"%n",
                 day, pd.getPhase(), pd.getStage().key(), pd.getPoints(), s.chunks(), s.leyBig() + s.leySmall(), s.giantTrees(),
                 pd.hiveNodeSnapshot().length,
                 incForest, incLey, incTree, ForestEconomy.gainedInfect - base0Infect, ForestEconomy.refundedDeath - base0Death,
@@ -268,12 +288,15 @@ public final class EconomySoak {
                 RaidSpawns.lastWidened[0] - base0Widen[0], RaidSpawns.lastWidened[1] - base0Widen[1], RaidSpawns.lastWidened[2] - base0Widen[2],
                 RaidSpawns.lastWidened[3] - base0Widen[3], com.yayuy.overgrownvegetation.drift.DriftRaids.ferried - base0Ferried,
                 decisions[0], decisions[1], decisions[2], decisions[3], decisions[4], maxSavedDays, largeOmen, largeBegun, LargeRaids.scaledTotal,
+                front,
                 spent);
         append("economy-days.csv",
                 "day,phase,stage,points,overgrownChunks,leyOrgans,giantTrees,hiveNodes,incForest,incLey,incTree,incInfect,refundDeath,refundDespawn,"
                         + "spentTotal,budget,cap,repelWave,repelHoard,repelLarge,repelPlantMarch,tickAvgMs,tickMaxMs,entities,organs(alive+growing),fissurePending,fissureOpen,fissureDead,"
                         + "missUnloaded,missGround,missSeen,foundSpread,found90,found360,foundNone,ferries,"
-                        + "skip,small,medium,large,introSmall,maxSavedDays,largeOmen,largeBegun,largeScaledTotal,spentByCaller\n", line);
+                        + "skip,small,medium,large,introSmall,maxSavedDays,largeOmen,largeBegun,largeScaledTotal,"
+                        + "fronts,units,headsDefend,headsExpand,headsHunt,headsRaid,headsBuild,upkeepPerDay,upkeepHeads,produced,frontRaids,frontRaidHeads,"
+                        + "frontRepels,treesPlaced,repelFrontRaid,repelHunt,spentByCaller\n", line);
     }
 
     private static int countEntities(ServerLevel level) {

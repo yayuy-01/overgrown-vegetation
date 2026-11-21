@@ -553,6 +553,7 @@ public final class EnemySpawns {
         long time = level.getGameTime();
         if (time % SWEEP_INTERVAL == 0) sweep(level);
         SpawnTable t = DesignData.spawns();
+        if (com.yayuy.overgrownvegetation.front.FrontDirector.replacesOldSpawns(level)) return; // 11-21 前線と部隊: 縁・地下の湧きは守りの部隊の実物化に置き換え
         if (time % t.intervalTicks != 0 || !allowed(level)) return;
         RandomSource random = level.getRandom();
         for (ServerPlayer p : level.players()) {

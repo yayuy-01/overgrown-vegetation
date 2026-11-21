@@ -102,6 +102,30 @@ public final class ForestUpkeepGameTests {
         }
     }
 
+    /** 仮想の部隊の段階 0 の G1 は、生産の値段(100)で維持費を払う(定価の 768 ではない)。森の外なので 1.5 倍。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void virtualStageZeroPaysProductionPrice(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        com.yayuy.overgrownvegetation.horde.VirtualHordes h = com.yayuy.overgrownvegetation.horde.VirtualHordes.get(level.getServer());
+        com.yayuy.overgrownvegetation.horde.VirtualHordes.Swarm s = null;
+        try {
+            ForestUpkeep.setForTests(null);
+            ForestUpkeep.invalidate();
+            double before = ForestUpkeep.perSecond(level);
+            s = h.newUnit(40_000_000, 64, 40_000_000, 9999, com.yayuy.overgrownvegetation.horde.UnitPurpose.DEFEND, level.getGameTime());
+            s.addHeads(net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(com.yayuy.overgrownvegetation.corpse.G1Species.ZOMBIE.entityType()), 10, 100.0D);
+            ForestUpkeep.invalidate();
+            double after = ForestUpkeep.perSecond(level);
+            double want = ForestEconomy.table().upkeepPerSecond(0.0D, 10 * DesignData.director().largeRaid.costStageZero);
+            helper.assertTrue(Math.abs((after - before) - want) < 1.0E-9D, "仮想の段階 0 の維持費が違う: +" + (after - before) + "(欲しい " + want + ")");
+            helper.succeed();
+        } finally {
+            if (s != null) h.removeUnit(s);
+            ForestUpkeep.invalidate();
+            ForestUpkeep.setForTests(0.0D);
+        }
+    }
+
     /** 妨害されたときだけ足りなくなる: 稼ぎが削られて維持費を下回ると、予算は減る(0 で止まる)。 */
     @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
     public static void budgetFallsOnlyWhenIncomeIsCut(GameTestHelper helper) {

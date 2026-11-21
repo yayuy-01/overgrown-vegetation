@@ -607,6 +607,11 @@ public final class PhaseData extends SavedData {
         setDirty();
     }
 
+    /** 倒された巨大樹を建て直した(11-21 前線と部隊: 止まった印を外し、胞子の生産を戻す)。 */
+    public void reviveGiantTree(long packedOrigin) {
+        if (deadGiantTrees.remove(packedOrigin)) setDirty();
+    }
+
     /** ハイヴノードを倒された巨大樹か(胞子の生産が止まっている)。 */
     public boolean isGiantTreeDead(long packedOrigin) {
         return deadGiantTrees.contains(packedOrigin);

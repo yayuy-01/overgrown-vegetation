@@ -192,7 +192,7 @@ public final class ForestUpkeep {
             boolean in = ForestEconomy.inForest(level, s.x(), s.z());
             for (var c : s.counts().entrySet()) {
                 EntityType<?> type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(c.getKey());
-                double p = unitPrice(type, false);
+                double p = unitPrice(type, com.yayuy.overgrownvegetation.front.FrontDirector.isG1(type)); // 段階 0 の G1 は生産の値段(100)
                 if (p > 0.0D && c.getValue() > 0) sink.add(p * c.getValue(), in);
             }
         }

@@ -22,6 +22,12 @@ public final class FrontTable {
         public int[] huntMaxByPhase;
         public Double huntRangeBlocks, huntCooldownSeconds, huntLostSeconds, huntSearchSeconds;
         public Boolean raidsFromFronts;
+        public Boolean treesByForest, treeVisionOnlyManaged;
+        public Boolean replaceOldSpawns;
+        public Integer evolvePerUnit, absorbBlocks;
+        public Double evolveMaxShare;
+        public Double treeManageBlocks, treeSpacingBlocks, treeCost, treeGrowDays, treeStopCooldownDays, treeCheckSeconds;
+        public Integer treeClusterChunks, treeCellChunks;
         public Double raidShareSmall, raidShareMedium, raidShareLarge, raidGatherBlocks, raidGatherMaxDays, raidRangeBlocks, repelGrowth, repelMaxFactor, raidLossRepelShare;
     }
 
@@ -49,6 +55,15 @@ public final class FrontTable {
     public final double huntRangeBlocks, huntCooldownSeconds, huntLostSeconds, huntSearchSeconds;
     /** 襲撃(区切り 3): 前線から襲う部隊を出す(切ると古い湧き)。出せる頭数のうち 小・中・大 で出す割合・集まる所の拠点からの距離・集まって待つ最長の日数・部隊を探す広さ・撃退 1 回で次を大きくする割合・その上限の倍率・撃退とみなす倒され方(出した頭数の割合)。 */
     public final boolean raidsFromFronts;
+    /** 巨大樹(区切り 4): 森が台帳の上で建てる(切ると古い苗木のくじ…ではなく、建てない)・森の視界の縁は巨大樹に管理された森だけ・管理の広さ(半径)・巨大樹どうしの間・建てる値段・育つ日数・育ち途中のノードを倒されたらその所を休む日数・見直す間(秒)・芽が出るかたまりのチャンク数・かたまりを数える升の一辺(チャンク)。 */
+    public final boolean treesByForest, treeVisionOnlyManaged;
+    /** 片付け(区切り 6): 縁・地下・森の中の湧きと、実物の G1 の進化・根付き・苗床を止め、前線の部隊に任せる・部隊の中で 1 回の見直しに進化させる頭数・前線の部隊に入っていない植物側の Mob をプレイヤーからこの距離より遠ければ部隊へ吸い込む。 */
+    public final boolean replaceOldSpawns;
+    public final int evolvePerUnit, absorbBlocks;
+    /** 1 部隊のうち進化体(1 段目)はこの割合まで【仮】。 */
+    public final double evolveMaxShare;
+    public final double treeManageBlocks, treeSpacingBlocks, treeCost, treeGrowDays, treeStopCooldownDays, treeCheckSeconds;
+    public final int treeClusterChunks, treeCellChunks;
     public final double raidShareSmall, raidShareMedium, raidShareLarge, raidGatherBlocks, raidGatherMaxDays, raidRangeBlocks, repelGrowth, repelMaxFactor, raidLossRepelShare;
 
     private FrontTable(Json j) {
@@ -68,7 +83,7 @@ public final class FrontTable {
         expandShareQuiet = Math.min(1.0D, nn(s.expandShareQuiet, 0.4D));
         attackedLossShare = nn(s.attackedLossShare, 0.15D);
         attackDecayDays = Math.max(0.01D, nn(s.attackDecayDays, 0.5D));
-        postRadiusChunks = Math.max(0, s.postRadiusChunks != null ? s.postRadiusChunks : 8);
+        postRadiusChunks = Math.max(0, s.postRadiusChunks != null ? s.postRadiusChunks : 12);
         expandSearchChunks = Math.max(1, s.expandSearchChunks != null ? s.expandSearchChunks : 24);
         mergeBlocks = nn(s.mergeBlocks, 24.0D);
         assignIntervalSeconds = Math.max(1.0D, nn(s.assignIntervalSeconds, 10.0D));
@@ -88,6 +103,20 @@ public final class FrontTable {
         repelGrowth = nn(s.repelGrowth, 0.25D);
         repelMaxFactor = Math.max(1.0D, nn(s.repelMaxFactor, 3.0D));
         raidLossRepelShare = Math.min(1.0D, nn(s.raidLossRepelShare, 0.6D));
+        treesByForest = s.treesByForest == null || s.treesByForest;
+        treeVisionOnlyManaged = s.treeVisionOnlyManaged == null || s.treeVisionOnlyManaged;
+        treeManageBlocks = nn(s.treeManageBlocks, 200.0D);
+        treeSpacingBlocks = nn(s.treeSpacingBlocks, 384.0D);
+        treeCost = nn(s.treeCost, 20000.0D);
+        treeGrowDays = nn(s.treeGrowDays, 1.5D);
+        treeStopCooldownDays = nn(s.treeStopCooldownDays, 3.0D);
+        treeCheckSeconds = Math.max(1.0D, nn(s.treeCheckSeconds, 60.0D));
+        treeClusterChunks = Math.max(1, s.treeClusterChunks != null ? s.treeClusterChunks : 64);
+        treeCellChunks = Math.max(4, s.treeCellChunks != null ? s.treeCellChunks : 12);
+        replaceOldSpawns = s.replaceOldSpawns == null || s.replaceOldSpawns;
+        evolvePerUnit = Math.max(0, s.evolvePerUnit != null ? s.evolvePerUnit : 2);
+        absorbBlocks = Math.max(32, s.absorbBlocks != null ? s.absorbBlocks : 128);
+        evolveMaxShare = Math.min(1.0D, nn(s.evolveMaxShare, 0.4D));
     }
 
     private static double nn(Double v, double fallback) {

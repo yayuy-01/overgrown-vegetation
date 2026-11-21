@@ -56,7 +56,10 @@ public final class ForestVision {
         VisionTable t = table();
         if (!t.enabled || !DesignData.director().enabled) return Why.OFF;
         if (level.dimension() != Level.OVERWORLD) return Why.NONE;
-        if (nearForest(level, pos.getX() + 0.5D, pos.getZ() + 0.5D, t.forestEdgeBlocks)) return Why.FOREST;
+        // 11-21 前線と部隊: 森の縁の視界は巨大樹に管理された森だけ(序盤は最初の巨大樹が育ち切るまで視界なし)
+        if (nearForest(level, pos.getX() + 0.5D, pos.getZ() + 0.5D, t.forestEdgeBlocks)
+                && (!com.yayuy.overgrownvegetation.front.FrontTrees.visionLimited(level)
+                || com.yayuy.overgrownvegetation.front.FrontTrees.managed(level, pos.getX() + 0.5D, pos.getZ() + 0.5D))) return Why.FOREST;
         if (nearScout(level, pos, t.scoutBlocks)) return Why.SCOUT;
         if (nearWatcher(level, pos, t.watcherBlocks)) return Why.WATCHER;
         if (underLeyLine(level, pos, t)) return Why.LEY;

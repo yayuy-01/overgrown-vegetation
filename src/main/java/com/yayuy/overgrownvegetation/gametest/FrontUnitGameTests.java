@@ -229,6 +229,38 @@ public final class FrontUnitGameTests {
         }
     }
 
+    /** 部隊の中の進化(区切り 6): F3 で、部隊 1 つにつき evolvePerUnit 体の段階 0 が 1 段目へ。値段は進化先 − 段階 0。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void unitEvolvesInLedger(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ForestDirector d = ForestDirector.get(level);
+        double budget = d.available(level);
+        Integer phase = DirectorGates.phaseOverride();
+        var stage = DirectorGates.stageOverride();
+        Fronts fronts = Fronts.load(new CompoundTag());
+        VirtualHordes h = VirtualHordes.load(new CompoundTag());
+        try {
+            DirectorGates.setPhaseForTests(3);
+            DirectorGates.setStageForTests(com.yayuy.overgrownvegetation.phase.PhaseStage.PEAK);
+            ForestUpkeep.setSampleForTests(0.0D, 0.0D);
+            d.setBudget(level, 1.0E9D);
+            Fronts.Front f = fronts.addSourceForTests(41_000_000.5D, 41_000_000.5D);
+            VirtualHordes.Swarm s = h.newUnit(41_000_000, 64, 41_000_000, f.id(), UnitPurpose.DEFEND, level.getGameTime());
+            s.addHeads(zombie(), 10, 100.0D);
+            FrontDirector.evolve(level, h, f);
+            int n = DesignData.front().evolvePerUnit;
+            ResourceLocation dev = OvergrownVegetation.id("developed_parasitized_zombie");
+            helper.assertTrue(s.counts().getOrDefault(dev, 0) == n && s.counts().getOrDefault(zombie(), 0) == 10 - n,
+                    "部隊の中で進化しない: " + s.counts());
+            helper.succeed();
+        } finally {
+            ForestUpkeep.setSampleForTests(null, null);
+            DirectorGates.setPhaseForTests(phase);
+            DirectorGates.setStageForTests(stage);
+            d.setBudget(level, budget);
+        }
+    }
+
     /** 広げる部隊は升の生き物を感染させ、稼ぎが入り、感染した数だけ部隊が太る。 */
     @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
     public static void expandUnitInfectsCellAndGrows(GameTestHelper helper) {

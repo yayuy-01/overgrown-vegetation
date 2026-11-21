@@ -135,7 +135,7 @@ public final class DirectorCommand {
                                         .then(Commands.literal("stop").executes(ctx -> say(ctx.getSource(), EconomySoak.stop())))
                                         .then(Commands.literal("status").executes(ctx -> say(ctx.getSource(), EconomySoak.status(ctx.getSource().getLevel())))))
                                 .then(Commands.literal("budget")
-                                        .then(Commands.argument("amount", DoubleArgumentType.doubleArg(0.0D, 1.0E6D))
+                                        .then(Commands.argument("amount", DoubleArgumentType.doubleArg(0.0D, 1.0E9D))
                                                 .executes(ctx -> budget(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "amount")))))
                                 .then(Commands.literal("visit")
                                         .executes(ctx -> visit(ctx.getSource(), 16))
