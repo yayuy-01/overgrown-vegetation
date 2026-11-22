@@ -21,7 +21,6 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.common.Tags;
-import net.neoforged.neoforge.common.util.TriState;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 
 import javax.annotation.Nullable;
@@ -53,7 +52,7 @@ public final class CoveredInteractions {
     /** 優先度を上げてあるのは、ほかの MOD が先に「使った」ことにしてしまう前に止めるため。 */
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getItemStack().is(Tags.Items.TOOLS_SHEAR)) {
+        if (event.getItemStack().is(Tags.Items.SHEARS)) {
             return;
         }
         Level level = event.getLevel();
@@ -67,7 +66,7 @@ public final class CoveredInteractions {
             return;
         }
         if (m == Movable.NOT) {
-            event.setUseBlock(TriState.FALSE);
+            event.setUseBlock(net.minecraftforge.eventbus.api.Event.Result.DENY);
             return;
         }
         if (level.isClientSide) {

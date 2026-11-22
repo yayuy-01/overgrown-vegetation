@@ -47,10 +47,7 @@ public final class WeaponClassifier {
             return null;
         }
 
-        ItemStack weapon = source.getWeaponItem();
-        if (weapon == null) {
-            weapon = ItemStack.EMPTY;
-        }
+        ItemStack weapon = weaponOf(source);
         Entity direct = source.getDirectEntity();
         ResourceLocation weaponId = weapon.isEmpty() ? null : BuiltInRegistries.ITEM.getKey(weapon.getItem());
         ResourceLocation directId = direct != null ? BuiltInRegistries.ENTITY_TYPE.getKey(direct.getType()) : null;
@@ -106,6 +103,26 @@ public final class WeaponClassifier {
             }
         }
         return false;
+    }
+
+    /**
+     * 1.20.1: DamageSource#getWeaponItem が無い。1.21 と同じく「直接当てた物」の武器:
+     * 生き物なら利き手の物。矢などの飛び道具なら、撃った者の手の弓・弩(利き手 → 逆の手。1.21 は撃った時の弓を覚えているが 1.20.1 は覚えないので、今持っている物)。
+     * 投げた三叉槍などは空(直接の物の種類 {@code directId} で数える)。
+     */
+    static ItemStack weaponOf(DamageSource source) {
+        Entity direct = source.getDirectEntity();
+        if (direct instanceof net.minecraft.world.entity.LivingEntity living) {
+            return living.getMainHandItem();
+        }
+        if (direct instanceof net.minecraft.world.entity.projectile.AbstractArrow arrow
+                && arrow.getOwner() instanceof net.minecraft.world.entity.LivingEntity owner) {
+            for (net.minecraft.world.InteractionHand hand : net.minecraft.world.InteractionHand.values()) {
+                ItemStack held = owner.getItemInHand(hand);
+                if (held.getItem() instanceof net.minecraft.world.item.ProjectileWeaponItem) return held;
+            }
+        }
+        return ItemStack.EMPTY;
     }
 
     private static boolean inNamespace(@Nullable ResourceLocation id, String namespace) {

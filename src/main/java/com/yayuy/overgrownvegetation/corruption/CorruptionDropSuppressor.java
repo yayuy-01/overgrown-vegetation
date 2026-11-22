@@ -3,7 +3,10 @@ package com.yayuy.overgrownvegetation.corruption;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.BlockDropsEvent;
+import net.minecraft.world.entity.ExperienceOrb;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 
 /**
  * 汚染の処理が<b>その場で</b>引き起こした破壊のドロップを消す(要望: 汚染でアイテムをばらまかない)。
@@ -12,8 +15,14 @@ import net.neoforged.neoforge.event.level.BlockDropsEvent;
  * バニラの {@code Level#markAndNotifyBlock} は形状更新の連鎖へ渡すフラグからこのビットを落とす
  * ({@code flags & -34})。そのため汚染の処理が隣を {@code UPDATE_ALL} で書き換えると、連鎖の先で支えを失った
  * バニラの植物は {@code Block#updateOrDestroy} → {@code Level#destroyBlock(pos, true)} でアイテムを落とす。
- * フラグでは届かないこの連鎖を、{@link #enter}〜{@link #exit} の間だけ {@link BlockDropsEvent} を
+ * フラグでは届かないこの連鎖を、{@link #enter}〜{@link #exit} の間だけ BlockDropsEvent を
  * 取り消すことで止める。
+ *
+ * <p>【1.20.1】Forge 1.20.1 には {@code BlockDropsEvent} が無いので、範囲の中で世界に入ろうとする {@link ItemEntity}・{@link ExperienceOrb}
+ * を {@link EntityJoinLevelEvent} で取り消す(ディスクから読んだ物は除く)。ブロックの落とし物に絞るため、呼び出しの列に
+ * {@link Block} のメソッド({@code dropResources}・{@code popResource}・{@code popExperience} は Block の static)があるときだけ消す
+ * (箱の中身のばらまき {@code Containers}・Mob の落とし物は消さない。名前は難読化で変わるのでクラスで見る)。
+ * {@code spawnAfterBreak}(シルバーフィッシュなど)は 1.20.1 では止まらない。
  *
  * <p>{@link CorruptionRegistry#placeCorrupted} 自身は {@code UPDATE_KNOWN_SHAPE} で形状更新の連鎖を
  * 打ち切るので、その中でこの範囲が効くのは近隣通知({@code neighborChanged})で壊れるもの
@@ -81,10 +90,18 @@ public final class CorruptionDropSuppressor {
     }
 
     @SubscribeEvent
-    public static void onBlockDrops(BlockDropsEvent event) {
-        if (isActive()) {
+    public static void onBlockDrops(EntityJoinLevelEvent event) {
+        if (isActive() && !event.loadedFromDisk() && !event.getLevel().isClientSide()
+                && (event.getEntity() instanceof ItemEntity || event.getEntity() instanceof ExperienceOrb) && fromBlockDrop()) {
             event.setCanceled(true);
         }
+    }
+
+    private static final StackWalker WALKER = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
+
+    /** 1.20.1: 今の呼び出しの列に {@link Block} 自身のメソッドがあるか(ブロックの落とし物の道)。範囲の中で落とし物が出た時だけ調べる。 */
+    private static boolean fromBlockDrop() {
+        return WALKER.walk(frames -> frames.limit(64).anyMatch(f -> f.getDeclaringClass() == Block.class));
     }
 
     private CorruptionDropSuppressor() {

@@ -16,9 +16,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.SpawnerBlockEntity;
-import net.minecraft.world.level.block.entity.TrialSpawnerBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.attachment.AttachmentHolder;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -61,15 +59,14 @@ public final class SpawnerCorruption {
 
     /** ふつうのスポナーで、湧く Mob の登録を持つ項目。 */
     private static final String[] SPAWNER_KEYS = {"SpawnData", "SpawnPotentials"};
-    /** 試練のスポナーで、湧く Mob の登録を持つ項目。 */
-    private static final String[] TRIAL_KEYS = {"normal_config", "ominous_config", "spawn_data"};
+    // 1.20.1: 試練のスポナーは無い(決定 1: ふつうのスポナーだけを汚染する)。本流の TRIAL_KEYS は外した。
 
     private SpawnerCorruption() {
     }
 
-    /** 汚染できるスポナーか(ふつうのスポナー・試練のスポナー)。 */
+    /** 汚染できるスポナーか(1.20.1 はふつうのスポナーだけ)。 */
     public static boolean isSpawner(BlockState state) {
-        return state.is(Blocks.SPAWNER) || state.is(Blocks.TRIAL_SPAWNER);
+        return state.is(Blocks.SPAWNER);
     }
 
     /** 覆った直後({@link OvergrownLayerData#cover})に呼ぶ。スポナーでなければ何もしない。 */
@@ -82,7 +79,7 @@ public final class SpawnerCorruption {
         if (keys == null || OvAttach.hasData(be, ModAttachments.SPAWNER_ORIGINAL)) {
             return;
         }
-        CompoundTag tag = be.saveWithoutMetadata(level.registryAccess());
+        CompoundTag tag = be.saveWithoutMetadata();
         CompoundTag original = new CompoundTag();
         for (String key : keys) {
             Tag value = tag.get(key);
@@ -116,7 +113,7 @@ public final class SpawnerCorruption {
         OvAttach.removeData(be, ModAttachments.SPAWNER_ORIGINAL);
         String[] keys = keysFor(be);
         if (keys != null) {
-            CompoundTag tag = be.saveWithoutMetadata(level.registryAccess());
+            CompoundTag tag = be.saveWithoutMetadata();
             for (String key : keys) {
                 Tag value = original.get(key);
                 if (value != null) {
@@ -135,15 +132,12 @@ public final class SpawnerCorruption {
         if (be instanceof SpawnerBlockEntity) {
             return SPAWNER_KEYS;
         }
-        if (be instanceof TrialSpawnerBlockEntity) {
-            return TRIAL_KEYS;
-        }
         return null;
     }
 
     private static void load(ServerLevel level, BlockPos pos, BlockEntity be, CompoundTag tag) {
-        tag.remove(AttachmentHolder.ATTACHMENTS_NBT_KEY);
-        be.loadWithComponents(tag, level.registryAccess());
+        tag.remove("ForgeCaps"); // 1.20.1: attachment は Forge の Capability の中(本流の AttachmentHolder.ATTACHMENTS_NBT_KEY)
+        be.load(tag);
         BlockState state = level.getBlockState(pos);
         // 中で回る Mob の模型を作り直させる(クライアントは更新の NBT を読み直すと表示用の Mob を作り直す)。
         level.sendBlockUpdated(pos, state, state, Block.UPDATE_ALL);

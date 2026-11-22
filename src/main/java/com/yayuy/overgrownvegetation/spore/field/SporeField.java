@@ -17,6 +17,56 @@ import java.util.List;
  * → 嵐なら上空へ持ち上げ。運搬は押し出し(隣の升へ割合で配る)なので量が保存される。
  */
 public final class SporeField {
+
+    // ── 1.20.1(Java 17): Float#floatToFloat16・float16ToFloat は Java 20 から。同じ式(IEEE 754 binary16・最近接偶数への丸め)をここに写す ──
+
+    static short toHalf(float f) {
+        int doppel = Float.floatToRawIntBits(f);
+        short signBit = (short) ((doppel & 0x8000_0000) >> 16);
+        if (Float.isNaN(f)) {
+            return (short) (signBit | 0x7c00 | (doppel & 0x007f_e000) >> 13 | (doppel & 0x0000_1ff0) >> 4 | (doppel & 0x0000_000f));
+        }
+        float abs = Math.abs(f);
+        if (abs >= (0x1.ffcp15f + 0x0.002p15f)) {
+            return (short) (signBit | 0x7c00);
+        }
+        if (abs <= 0x1.0p-24f * 0.5f) {
+            return signBit;
+        }
+        int exp = Math.getExponent(f);
+        int expdelta = 0;
+        int msb = 0;
+        if (exp < -14) {
+            expdelta = -14 - exp;
+            exp = -15;
+            msb = 0x0080_0000;
+        }
+        int fSignif = doppel & 0x007f_ffff | msb;
+        short signif = (short) (fSignif >> (13 + expdelta));
+        int lsb = fSignif & (1 << 13 + expdelta);
+        int round = fSignif & (1 << 12 + expdelta);
+        int sticky = fSignif & ((1 << 12 + expdelta) - 1);
+        if (round != 0 && ((lsb | sticky) != 0)) {
+            signif++;
+        }
+        return (short) (signBit | (((exp + 15) << 10) + signif));
+    }
+
+    static float fromHalf(short h) {
+        int signBit = 0x8000 & h;
+        int expBits = 0x7c00 & h;
+        int signif = 0x03ff & h;
+        float sign = signBit != 0 ? -1.0f : 1.0f;
+        int exp = (expBits >> 10) - 15;
+        if (exp == -15) {
+            return sign * (0x1p-24f * signif);
+        } else if (exp == 16) {
+            return signif == 0 ? sign * Float.POSITIVE_INFINITY
+                    : Float.intBitsToFloat((signBit << 16) | 0x7f80_0000 | (signif << 13));
+        }
+        return Float.intBitsToFloat((signBit << 16) | ((exp + 127) << 23) | (signif << 13));
+    }
+
     public static final int TB = 5, TS = 1 << TB, TN = TS * TS;
     static final long NOT = Long.MIN_VALUE;
     /** 土地の広がりの倍率の上限(刻みの計算に使う。2026-10-30 に湿った土地 ×3 に合わせて 2.5 → 3)。 */
@@ -1163,8 +1213,8 @@ public final class SporeField {
         if (p.half16 != 0) {
             for (Tile tl : tiles.values()) {
                 for (int i = 0; i < TN; i++) {
-                    tl.inAir[i] = Float.floatToFloat16(tl.inAirNext[i]);
-                    tl.inLow[i] = Float.floatToFloat16(tl.inLowNext[i]);
+                    tl.inAir[i] = toHalf(tl.inAirNext[i]);
+                    tl.inLow[i] = toHalf(tl.inLowNext[i]);
                 }
                 java.util.Arrays.fill(tl.inAirNext, 0f);
                 java.util.Arrays.fill(tl.inLowNext, 0f);
@@ -1562,8 +1612,8 @@ public final class SporeField {
                 if (tl.count[i] < p.maxSprouts) {
                     boolean first = sp == NOT;
                     // 16 ビットのときは 1 回の更新ぶん貯めた流入なので、この刻みの長さの割合だけ使う(10-23 の二重数えの直し)
-                    double inA = half ? Float.float16ToFloat(tl.inAir[i]) * (dtAir / full) : tl.inAirF == null ? 0 : tl.inAirF[i];
-                    double inL = half ? Float.float16ToFloat(tl.inLow[i]) * (dtLow / full) : tl.inLowF == null ? 0 : tl.inLowF[i];
+                    double inA = half ? fromHalf(tl.inAir[i]) * (dtAir / full) : tl.inAirF == null ? 0 : tl.inAirF[i];
+                    double inL = half ? fromHalf(tl.inLow[i]) * (dtLow / full) : tl.inLowF == null ? 0 : tl.inLowF[i];
                     // 汚染済みの升は自分の放出を数えず、隣から入ってきた分だけを降り積もらせる(【決定】10-22 追記 5)
                     double dd = tl.dep[i] * depKeep
                             + (first ? (doAir ? a * tDep : 0) + (lowHere ? lo * toDepLow : 0)

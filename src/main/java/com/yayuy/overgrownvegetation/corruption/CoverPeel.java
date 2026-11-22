@@ -66,13 +66,13 @@ public final class CoverPeel {
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
         ItemStack stack = event.getItemStack();
         Level level = event.getLevel();
-        if (!stack.is(Tags.Items.TOOLS_SHEAR) || !CoveredInteractions.covered(level, event.getPos(), level.getBlockState(event.getPos()))) {
+        if (!stack.is(Tags.Items.SHEARS) || !CoveredInteractions.covered(level, event.getPos(), level.getBlockState(event.getPos()))) {
             return;
         }
         event.setCanceled(true);
         event.setCancellationResult(InteractionResult.sidedSuccess(level.isClientSide));
         if (level instanceof ServerLevel server) {
-            peel(server, event.getPos(), stack, event.getEntity(), LivingEntity.getSlotForHand(event.getHand()));
+            peel(server, event.getPos(), stack, event.getEntity(), (event.getHand() == net.minecraft.world.InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND));
         }
     }
 
@@ -96,10 +96,12 @@ public final class CoverPeel {
         int damage = cd.peelDamage();
         if (damage > 0) {
             if (user != null) {
-                shears.hurtAndBreak(damage, user, slot);
+                shears.hurtAndBreak(damage, user, u -> u.broadcastBreakEvent(slot));
             } else {
-                shears.hurtAndBreak(damage, level, null, item -> {
-                });
+                if (shears.hurt(damage, level.random, null)) { // 1.20.1: 持ち主の無い hurtAndBreak が無い
+                    shears.shrink(1);
+                    shears.setDamageValue(0);
+                }
             }
         }
         level.playSound(null, pos, SoundEvents.GROWING_PLANT_CROP, SoundSource.BLOCKS, 1, 1);

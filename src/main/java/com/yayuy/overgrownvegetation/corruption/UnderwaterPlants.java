@@ -254,7 +254,7 @@ public final class UnderwaterPlants {
         }
         int height = meadow >= CHARA_TALL3 ? 3 : meadow >= CHARA_TALL2 ? 2 : 1;
         if (random.nextDouble() < 0.3) {
-            height = Math.clamp(height + (random.nextBoolean() ? 1 : -1), 1, 3);
+            height = net.minecraft.util.Mth.clamp(height + (random.nextBoolean() ? 1 : -1), 1, 3);
         }
         CharaBlock.Kind kind = noise(0xB0B, x / 4.0, z / 4.0) >= CHARA_B ? CharaBlock.Kind.B : CharaBlock.Kind.A;
         Block chara = ModBlocks.CHARA.get();

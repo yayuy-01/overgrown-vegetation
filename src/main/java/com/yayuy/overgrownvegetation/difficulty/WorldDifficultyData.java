@@ -8,7 +8,6 @@ import net.minecraft.nbt.NbtUtils;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.storage.DimensionDataStorage;
-import net.neoforged.neoforge.common.IOUtilities;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -40,7 +39,7 @@ public final class WorldDifficultyData extends OvSavedData {
     public static final String ID = "overgrown_vegetation_world_difficulty";
 
     private static final Factory<WorldDifficultyData> FACTORY =
-            new Factory<>(WorldDifficultyData::new, WorldDifficultyData::load);
+            new Factory<>(WorldDifficultyData::new, WorldDifficultyData::load, null);
 
     private final DifficultyValues values = new DifficultyValues();
 
@@ -283,6 +282,6 @@ public final class WorldDifficultyData extends OvSavedData {
         CompoundTag root = new CompoundTag();
         root.put("data", data.save(new CompoundTag(), RegistryAccess.EMPTY));
         NbtUtils.addCurrentDataVersion(root);
-        IOUtilities.writeNbtCompressed(root, dataFolder.resolve(ID + ".dat"));
+        net.minecraft.nbt.NbtIo.writeCompressed(root, dataFolder.resolve(ID + ".dat").toFile()); // 1.20.1: IOUtilities が無い(一時ファイルを経ない書き方)
     }
 }

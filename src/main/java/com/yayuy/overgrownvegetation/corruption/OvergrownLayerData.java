@@ -101,7 +101,7 @@ public final class OvergrownLayerData {
             return false;
         }
         ChunkAccess chunk = realLevel.getChunk(pos.getX() >> 4, pos.getZ() >> 4,
-                net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false);
+                net.minecraft.world.level.chunk.ChunkStatus.FULL, false);
         if (!(chunk instanceof LevelChunk levelChunk)) {
             return false;
         }

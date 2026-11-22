@@ -4,8 +4,8 @@ import com.yayuy.overgrownvegetation.organ.OrganBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.pathfinder.Node;
-import net.minecraft.world.level.pathfinder.PathType;
-import net.minecraft.world.level.pathfinder.PathfindingContext;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.pathfinder.BlockPathTypes;
 
 /**
  * 絡む根の縄を、植物側の Mob の経路に入れる(2026-11-20 ユーザー決定「縄を Mob の道として経路に入れる」。クモの壁登りと同じ考え方)。
@@ -21,6 +21,8 @@ import net.minecraft.world.level.pathfinder.PathfindingContext;
  *
  * <p>今は縄(絡む根)だけ。全面に張り付く移動(Vault「全面に張り付く移動」)の作り直しのときは、ここの「取り付ける面」を広げる形でつなぐ。
  */
+// 1.20.1: PathfindingContext(1.20.5)が無いので、探索の世界は BlockGetter(WalkNodeEvaluator の level = PathNavigationRegion)で受ける。
+// 呼ぶ側の mixin(G7 の WalkNodeEvaluatorRootMixin)は this.currentContext の代わりに this.level を渡す。PathType は BlockPathTypes。
 public final class RootPath {
     private RootPath() {
     }
@@ -37,7 +39,7 @@ public final class RootPath {
      * @param height 体の高さ(マス)
      * @param node   節を作る(NodeEvaluator#getNode)
      */
-    public static int addNeighbors(PathfindingContext ctx, Node from, Node[] out, int count, int height, NodeSource node) {
+    public static int addNeighbors(BlockGetter ctx, Node from, Node[] out, int count, int height, NodeSource node) {
         int added = 0;
         int x = from.x, y = from.y, z = from.z;
         if (!touchesRoot(ctx, x, y, z)) return 0;
@@ -93,8 +95,8 @@ public final class RootPath {
 
     private static int put(Node[] out, int i, Node n) {
         if (n == null || n.closed || i >= out.length) return 0;
-        if (n.type == PathType.BLOCKED || n.costMalus < 0.0F) {
-            n.type = PathType.OPEN;
+        if (n.type == BlockPathTypes.BLOCKED || n.costMalus < 0.0F) {
+            n.type = BlockPathTypes.OPEN;
             n.costMalus = 0.0F;
         }
         out[i] = n;
@@ -102,7 +104,7 @@ public final class RootPath {
     }
 
     /** 体の横(足元か腰の高さ)に絡む根があるか。 */
-    static boolean touchesRoot(PathfindingContext ctx, int x, int y, int z) {
+    static boolean touchesRoot(BlockGetter ctx, int x, int y, int z) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (int dy = 0; dy <= 1; dy++) {
             for (Direction d : Direction.Plane.HORIZONTAL) {
@@ -112,12 +114,12 @@ public final class RootPath {
         return false;
     }
 
-    static boolean solid(PathfindingContext ctx, BlockPos p) {
-        return !ctx.getBlockState(p).getCollisionShape(ctx.level(), p).isEmpty();
+    static boolean solid(BlockGetter ctx, BlockPos p) {
+        return !ctx.getBlockState(p).getCollisionShape(ctx, p).isEmpty();
     }
 
     /** (x, y, z) から上 height マスが、当たりの無いマスか。 */
-    static boolean passable(PathfindingContext ctx, int x, int y, int z, int height, BlockPos.MutableBlockPos p) {
+    static boolean passable(BlockGetter ctx, int x, int y, int z, int height, BlockPos.MutableBlockPos p) {
         for (int i = 0; i < Math.max(1, height); i++) {
             if (solid(ctx, p.set(x, y + i, z))) return false;
         }

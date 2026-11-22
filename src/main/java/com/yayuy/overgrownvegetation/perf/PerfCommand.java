@@ -245,7 +245,7 @@ public final class PerfCommand {
     private static int status(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack source = ctx.getSource();
         MinecraftServer server = source.getServer();
-        long[] times = server.getTickTimesNanos();
+        long[] times = server.tickTimes /* 1.20.1: getTickTimesNanos が無い */;
         int count = Math.min(TickBudget.WINDOW, Math.max(0, server.getTickCount() - 1));
         long[] recent = new long[count];
         for (int i = 0; i < count; i++) {
@@ -256,7 +256,7 @@ public final class PerfCommand {
         double avg = count == 0 ? 0.0D : Arrays.stream(recent).average().orElse(0.0D) / 1e6;
         double p95 = count == 0 ? 0.0D : sorted[Math.min(count - 1, (int) (count * 0.95D))] / 1e6;
         double max = count == 0 ? 0.0D : sorted[count - 1] / 1e6;
-        double tps = Math.min(server.tickRateManager().tickrate(), avg <= 0.0D ? 20.0D : 1000.0D / avg);
+        double tps = Math.min(20.0D /* 1.20.1: tick の速さの変更が無い */, avg <= 0.0D ? 20.0D : 1000.0D / avg);
         send(source, String.format(Locale.ROOT, "§a[性能]§r 直近 %d tick の 1 tick: 平均 %.1f ms / P95 %.1f ms / 最大 %.1f ms → TPS %.1f",
                 count, avg, p95, max, tps));
 

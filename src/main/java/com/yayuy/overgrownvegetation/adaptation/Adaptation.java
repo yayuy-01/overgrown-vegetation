@@ -28,7 +28,8 @@ import net.minecraftforge.event.entity.living.LivingDeathEvent;
  *     <li>耐性をプレイヤーに見せる手段は、今は用意していない(ユーザー指定)。</li>
  * </ul>
  *
- * <p>軽減は {@link LivingDamageEvent.Pre}(防具・耐性エフェクトの後、衝撃吸収の前)で掛ける。
+ * <p>軽減は {@code LivingDamageEvent.Pre}(防具・耐性エフェクトの後、衝撃吸収の前)で掛ける。
+ * 【1.20.1】Pre が無いので {@link LivingDamageEvent} で掛ける。こちらは<b>衝撃吸収の後</b>に来るので、衝撃吸収のある Mob では軽減が吸収を越えた分だけに効く。
  * 「被ダメージが 30% 減る」をそのまま実現するため。防具の前(素のダメージ)で掛けると、防具の軽減量が
  * ダメージ量で変わるぶん実際の減り方が 30% からずれる。
  *
@@ -75,14 +76,14 @@ public final class Adaptation {
     }
 
     @SubscribeEvent
-    public static void onDamagePre(LivingDamageEvent.Pre event) {
+    public static void onDamagePre(LivingDamageEvent event) {
         LivingEntity victim = event.getEntity();
         if (!(victim.level() instanceof ServerLevel level) || !isAdaptive(victim.getType())) {
             return;
         }
         double r = resistance(level.getServer(), victim.getType(), event.getSource());
         if (r > 0.0D) {
-            event.setNewDamage((float) (event.getNewDamage() * (1.0D - Math.min(1.0D, r))));
+            event.setAmount((float) (event.getAmount() * (1.0D - Math.min(1.0D, r))));
         }
     }
 

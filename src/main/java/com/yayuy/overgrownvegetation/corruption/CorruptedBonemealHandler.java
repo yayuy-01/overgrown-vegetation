@@ -29,18 +29,17 @@ public final class CorruptedBonemealHandler {
 
         Level level = event.getLevel();
         BlockPos pos = event.getPos();
-        BlockState state = event.getState();
+        BlockState state = event.getBlock();
         if (!state.is(ModTags.CORRUPTED) || !state.isCollisionShapeFullBlock(level, pos)) {
             return;
         }
 
         if (level instanceof ServerLevel serverLevel) {
             CorruptedBonemeal.apply(serverLevel, pos);
-            // バニラの草ブロックへの骨粉と同じく、成否にかかわらず 1 つ消費する
-            event.getStack().shrink(1);
+            // バニラの草ブロックへの骨粉と同じく、成否にかかわらず 1 つ消費する(1.20.1: ALLOW にすると Forge がサーバーで 1 つ減らす)
         }
         // client/server 両方で「骨粉が使われた」扱いにし、腕振り等の見た目を合わせる
-        event.setSuccessful(true);
+        event.setResult(net.minecraftforge.eventbus.api.Event.Result.ALLOW);
     }
 
     private CorruptedBonemealHandler() {

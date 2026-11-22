@@ -92,7 +92,7 @@ public final class DriftLaunches {
         DriftMimicEntity e = ModDrift.DRIFT_MIMIC.get().create(level);
         if (e == null) return null;
         e.moveTo(water.getX() + 0.5D, water.getY() + 0.6D, water.getZ() + 0.5D, level.getRandom().nextFloat() * 360.0F, 0.0F);
-        e.finalizeSpawn(level, level.getCurrentDifficultyAt(water), MobSpawnType.EVENT, null);
+        e.finalizeSpawn(level, level.getCurrentDifficultyAt(water), MobSpawnType.EVENT, null, null);
         e.born = level.getGameTime();
         level.addFreshEntity(e);
         return e;
@@ -175,7 +175,7 @@ public final class DriftLaunches {
         Mob m = type.create(level);
         if (m == null) return null;
         m.moveTo(at.getX() + 0.5D, at.getY() + 1.0D, at.getZ() + 0.5D, 0.0F, 0.0F);
-        m.finalizeSpawn(level, level.getCurrentDifficultyAt(at), MobSpawnType.EVENT, null);
+        m.finalizeSpawn(level, level.getCurrentDifficultyAt(at), MobSpawnType.EVENT, null, null);
         level.addFreshEntity(m);
         return m;
     }

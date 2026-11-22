@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.corruption.pushback;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.BlockParticleOption;
@@ -28,8 +27,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * 当たり判定は無い(レッドストーンの粉と同じく歩いて越えられる)。
  */
 public class AshLimeBandBlock extends Block {
-
-    public static final MapCodec<AshLimeBandBlock> CODEC = simpleCodec(AshLimeBandBlock::new);
     /** 止めた回数(すり減り)。 */
     public static final IntegerProperty WEAR = IntegerProperty.create("wear", 0, 15);
     /** くっついているブロックの向き(下 = 地面・上 = 天井・横 = 壁)。11-18 夜 ユーザー「壁とかブロックの底面にも設置できるように」。 */
@@ -45,27 +42,22 @@ public class AshLimeBandBlock extends Block {
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(WEAR, ATTACH);
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPES.get(state.getValue(ATTACH));
     }
 
     @Override
-    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return Shapes.empty();
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         Direction d = state.getValue(ATTACH);
         BlockPos support = pos.relative(d);
         return level.getBlockState(support).isFaceSturdy(level, support, d.getOpposite());
@@ -79,19 +71,19 @@ public class AshLimeBandBlock extends Block {
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction dir, BlockState neighbor, LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
+    public BlockState updateShape(BlockState state, Direction dir, BlockState neighbor, LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         return dir == state.getValue(ATTACH) && !canSurvive(state, level, pos) ? Blocks.AIR.defaultBlockState()
                 : super.updateShape(state, dir, neighbor, level, pos, neighborPos);
     }
 
     @Override
-    protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState old, boolean moved) {
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState old, boolean moved) {
         super.onPlace(state, level, pos, old, moved);
         if (level instanceof ServerLevel server && !old.is(this)) RingWards.addBand(server, pos, state.getValue(ATTACH));
     }
 
     @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState now, boolean moved) {
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState now, boolean moved) {
         if (level instanceof ServerLevel server && !now.is(this)) RingWards.removeBand(server, pos);
         super.onRemove(state, level, pos, now, moved);
     }

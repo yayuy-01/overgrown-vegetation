@@ -717,7 +717,7 @@ public final class FlowFields {
             return 1;
         }
         try {
-            java.nio.file.Path dir = src.getServer().getServerDirectory().resolve(OvergrownVegetation.MODID).resolve("perf");
+            java.nio.file.Path dir = src.getServer().getServerDirectory().toPath().resolve(OvergrownVegetation.MODID).resolve("perf");
             java.nio.file.Files.createDirectories(dir);
             trailOut = new java.io.PrintWriter(java.nio.file.Files.newBufferedWriter(dir.resolve("flow-trail-" + label + ".tsv")));
             trailOut.println("tick\tid\tx\ty\tz\tflow");

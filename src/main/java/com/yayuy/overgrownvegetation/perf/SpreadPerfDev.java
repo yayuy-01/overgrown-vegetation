@@ -152,7 +152,7 @@ final class SpreadPerfDev {
             Path tmp = Files.createTempFile("ov-phase-savetest", ".dat");
             CompoundTag root = new CompoundTag();
             root.put("data", tag);
-            NbtIo.writeCompressed(root, tmp);
+            NbtIo.writeCompressed(root, tmp.toFile());
             bytes = Files.size(tmp);
             Files.deleteIfExists(tmp);
         } catch (IOException e) {

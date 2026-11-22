@@ -62,7 +62,7 @@ public final class CoverLook {
 
     /** 面の下の高さ {@code minY}・上の高さ {@code maxY} のとき、覆いの上の端の高さ({@link #seeThroughMossHeight} の割合)。 */
     public static float clipTop(float minY, float maxY, float fraction) {
-        return minY + (maxY - minY) * Math.clamp(fraction, 0.0F, 1.0F);
+        return minY + (maxY - minY) * net.minecraft.util.Mth.clamp(fraction, 0.0F, 1.0F);
     }
 
     public static int index(int picked) {

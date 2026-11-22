@@ -233,12 +233,12 @@ public final class SporeExposureTracker {
         net.minecraft.world.entity.ai.attributes.AttributeInstance attr =
                 mob.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
         if (attr == null) return;
-        net.minecraft.world.entity.ai.attributes.AttributeModifier old = attr.getModifier(SPORE_SCAR_ID);
-        double already = old != null ? -old.amount() : 0.0D;
+        net.minecraft.world.entity.ai.attributes.AttributeModifier old = OvModifiers.get(attr, SPORE_SCAR_ID);
+        double already = old != null ? -old.getAmount() : 0.0D;
         double without = attr.getValue() + already; // この傷を除いた最大体力
         double total = Math.min(already + loss, Math.max(0.0D, without - 1.0D));
         if (total <= already) return;
-        attr.removeModifier(SPORE_SCAR_ID);
+        OvModifiers.remove(attr, SPORE_SCAR_ID);
         attr.addPermanentModifier(OvModifiers.create(SPORE_SCAR_ID, -total,
                 net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADDITION));
         if (mob.getHealth() > mob.getMaxHealth()) mob.setHealth(mob.getMaxHealth());

@@ -314,7 +314,7 @@ public final class PhaseData extends OvSavedData {
         if (ledgerKeys.length == ledgerTimes.length) {
             // 先に大きさを取る(2026-11-15): 保存の並びは表を舐めた順(hash の順)なので、小さい表へ順に入れると同じ所に固まって
             // 桁違いに遅くなる(600 万件で 81 秒)。初めから入る大きさにしておけば固まらない
-            data.overgrownSince.ensureCapacity(ledgerKeys.length);
+            LedgerStore.ensureCapacity(data.overgrownSince, ledgerKeys.length); // 1.20.1: fastutil の ensureCapacity が private
             for (int i = 0; i < ledgerKeys.length; i++) {
                 // 負の値は極相の印だった(極相は 2026-10-30 に消した)。過繁茂として、過繁茂になった時刻へ戻して読む
                 long t = ledgerTimes[i];

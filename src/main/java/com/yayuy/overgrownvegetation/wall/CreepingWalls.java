@@ -89,8 +89,7 @@ public final class CreepingWalls {
             boolean fire = held.is(net.minecraft.world.item.Items.FLINT_AND_STEEL) || held.is(net.minecraft.world.item.Items.FIRE_CHARGE)
                     || held.is(net.minecraft.world.item.Items.TORCH) || held.is(net.minecraft.world.item.Items.SOUL_TORCH)
                     || net.minecraft.world.item.enchantment.EnchantmentHelper.getItemEnchantmentLevel(
-                            level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT)
-                                    .getHolderOrThrow(net.minecraft.world.item.enchantment.Enchantments.FIRE_ASPECT), held) > 0;
+                            net.minecraft.world.item.enchantment.Enchantments.FIRE_ASPECT, held) > 0; // 1.20.1: エンチャントは登録の Holder ではない
             if (w.flinch(level.getGameTime(), fire ? WallTuning.flinchFireTicks : WallTuning.flinchTicks)) {
                 // 削れる(粒と音だけ。倒せない)
                 level.sendParticles(new net.minecraft.core.particles.BlockParticleOption(net.minecraft.core.particles.ParticleTypes.BLOCK,
@@ -145,7 +144,7 @@ public final class CreepingWalls {
         long p = BlockPos.asLong(Mth.floor(event.getX()), Mth.floor(event.getY()), Mth.floor(event.getZ()));
         for (CreepingWall w : list) {
             if (!w.isStopped() && w.filled.contains(p)) {
-                event.setResult(net.minecraftforge.event.entity.living.MobSpawnEvent.PositionCheck.Result.FAIL);
+                event.setResult(net.minecraftforge.eventbus.api.Event.Result.DENY); // 1.20.1: PositionCheck の結果は Event.Result
                 return;
             }
         }

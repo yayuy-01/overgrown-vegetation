@@ -3,7 +3,6 @@ package com.yayuy.overgrownvegetation.difficulty;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.phase.MobClassTable;
-import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -19,7 +18,7 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -121,22 +120,23 @@ public final class MobStrength {
     }
 
     /** 修飾を倍率 {@code multiplier} に合わせる。変えたら true。100% なら修飾を外す。 */
-    private static boolean put(Mob mob, Holder<Attribute> attribute, ResourceLocation modifierId, double multiplier) {
+    private static boolean put(Mob mob, Attribute attribute, ResourceLocation modifierId, double multiplier) {
         AttributeInstance inst = mob.getAttribute(attribute);
         if (inst == null) return false;
         double want = multiplier - 1.0D;
-        AttributeModifier now = inst.getModifier(modifierId);
+        AttributeModifier now = OvModifiers.get(inst, modifierId);
         if (Math.abs(want) < 1.0E-9D) {
-            return now != null && inst.removeModifier(modifierId);
+            return now != null && inst.removePermanentModifier(OvModifiers.uuid(modifierId));
         }
-        if (now != null && Math.abs(now.amount() - want) < 1.0E-9D) return false;
-        inst.addOrReplacePermanentModifier(OvModifiers.create(modifierId, want, AttributeModifier.Operation.MULTIPLY_TOTAL));
+        if (now != null && Math.abs(now.getAmount() - want) < 1.0E-9D) return false;
+        if (now != null) inst.removeModifier(now); // 1.20.1: addOrReplacePermanentModifier が無い
+        inst.addPermanentModifier(OvModifiers.create(modifierId, want, AttributeModifier.Operation.MULTIPLY_TOTAL));
         return true;
     }
 
     /** テスト用: 今付いている修飾の倍率(無ければ 1)。 */
     public static double appliedMultiplier(Mob mob, DifficultySetting stat) {
-        Holder<Attribute> attr = switch (stat) {
+        Attribute attr = switch (stat) {
             case MOB_HEALTH -> Attributes.MAX_HEALTH;
             case MOB_DEFENSE -> Attributes.ARMOR;
             case MOB_TOUGHNESS -> Attributes.ARMOR_TOUGHNESS;
@@ -145,14 +145,15 @@ public final class MobStrength {
         ResourceLocation id = stat == DifficultySetting.MOB_HEALTH ? HEALTH_ID
                 : stat == DifficultySetting.MOB_DEFENSE ? DEFENSE_ID : TOUGHNESS_ID;
         AttributeInstance inst = attr == null ? null : mob.getAttribute(attr);
-        AttributeModifier m = inst == null ? null : inst.getModifier(id);
-        return m == null ? 1.0D : 1.0D + m.amount();
+        AttributeModifier m = inst == null ? null : OvModifiers.get(inst, id);
+        return m == null ? 1.0D : 1.0D + m.getAmount();
     }
 
     // ------------------------------------------------------------------ 攻撃力
 
     @SubscribeEvent(priority = EventPriority.HIGH)
-    public static void onIncomingDamage(LivingIncomingDamageEvent event) {
+    // 1.20.1: LivingIncomingDamageEvent が無い。鎧の前に来る LivingHurtEvent で掛ける
+    public static void onIncomingDamage(LivingHurtEvent event) {
         if (!(event.getEntity().level() instanceof ServerLevel level)) return;
         Mob attacker = attackerOf(event.getSource().getEntity());
         if (attacker == null) return;

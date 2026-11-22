@@ -177,7 +177,7 @@ public final class SporeSweeping {
         if (drops > 0) Block.popResourceFromFace(level, pos, Direction.UP, new ItemStack(ModItems.SPORE.get(), drops));
         if (player != null) {
             level.playSound(null, pos, SoundEvents.SHOVEL_FLATTEN, SoundSource.BLOCKS, 1.0F, 1.0F);
-            stack.hurtAndBreak(1, player, slot);
+            stack.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(slot));
         }
         return true;
     }

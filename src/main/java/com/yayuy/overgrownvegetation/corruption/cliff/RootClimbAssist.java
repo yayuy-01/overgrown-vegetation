@@ -73,7 +73,7 @@ public final class RootClimbAssist {
         if (!PlantSideRules.isPlantSide(m)) return;
         net.minecraft.world.phys.Vec3 v = m.getDeltaMovement();
         double vy = v.y;
-        double climb = (RootClimb.riseFor(m) - m.getGravity()) * 0.98D;
+        double climb = (RootClimb.riseFor(m) - RootClimb.gravityOf(m)) * 0.98D;
         if (up) vy = Math.max(vy, climb);
         else if (!m.onGround()) vy = Math.max(vy, 0.0D); // 横の節: 縄に掴まったまま(滑り落ちない)
         double vx = v.x, vz = v.z;

@@ -29,7 +29,7 @@ public class WitherDraughtItem extends Item {
             level.addFreshEntity(e);
         }
         player.awardStat(Stats.ITEM_USED.get(this));
-        stack.consume(1, player);
+        if (!player.getAbilities().instabuild) stack.shrink(1); // 1.20.1: ItemStack#consume が無い
         return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
     }
 }

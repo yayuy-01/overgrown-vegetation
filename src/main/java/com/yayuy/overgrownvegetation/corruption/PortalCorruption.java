@@ -363,7 +363,8 @@ public final class PortalCorruption {
                 fromRect.minCorner.getZ() * scale);
         Direction.Axis axis = portalState.getValue(NetherPortalBlock.AXIS);
 
-        Optional<BlockPos> existing = to.getPortalForcer().findClosestPortalPosition(exitPos, toKey == Level.NETHER, border);
+        // 1.20.1: findClosestPortalPosition が無い。findPortalAround は門の区画を返し、門のチャンクに 300 tick の札(PORTAL)も付ける
+        Optional<BlockPos> existing = to.getPortalForcer().findPortalAround(exitPos, toKey == Level.NETHER, border).map(r -> r.minCorner);
         BlockUtil.FoundRectangle toRect;
         boolean created;
         if (existing.isPresent()) {

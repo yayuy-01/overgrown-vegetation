@@ -23,7 +23,8 @@ public final class OvergrownLayerInteraction {
 
     /** チャンクを見始めたプレイヤーへ、そのチャンクの記録をまるごと送る。 */
     @SubscribeEvent
-    public static void onChunkWatch(ChunkWatchEvent.Sent event) {
+    // 1.20.1: Sent が無い。Watch はチャンクの包みを送った直後に来る
+    public static void onChunkWatch(ChunkWatchEvent.Watch event) {
         ServerPlayer player = event.getPlayer();
         LevelChunk chunk = event.getChunk();
         OvergrownLayerData.sendAll(player, chunk);

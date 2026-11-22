@@ -170,7 +170,7 @@ public final class CorruptionRegistry {
 
         // --- 石系(専用テクスチャの無い種類だけ汎用の「苔石」にまとめる) ---
         put(exact, stone,
-                Blocks.STONE, Blocks.SMOOTH_STONE, Blocks.TUFF, Blocks.POLISHED_TUFF, Blocks.CALCITE,
+                Blocks.STONE, Blocks.SMOOTH_STONE, Blocks.TUFF, Blocks.CALCITE, // 1.20.1: POLISHED_TUFF は無い(決定 4)
                 Blocks.STONE_BRICKS, Blocks.MOSSY_STONE_BRICKS, Blocks.CRACKED_STONE_BRICKS,
                 Blocks.CHISELED_STONE_BRICKS);
 

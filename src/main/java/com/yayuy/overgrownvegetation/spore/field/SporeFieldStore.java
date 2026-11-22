@@ -113,7 +113,7 @@ final class SporeFieldStore {
         Path metaPath = dir.resolve("meta.dat");
         if (Files.isRegularFile(metaPath)) {
             try {
-                meta = NbtIo.readCompressed(metaPath, NbtAccounter.unlimitedHeap());
+                meta = NbtIo.readCompressed(metaPath.toFile());
             } catch (IOException | RuntimeException e) {
                 OvergrownVegetation.LOGGER.error("胞子の場の全体の値を読めませんでした: {}", metaPath, e);
             }
@@ -168,7 +168,7 @@ final class SporeFieldStore {
             try {
                 int tx = Integer.parseInt(parts[1]), tz = Integer.parseInt(parts[2]);
                 long r0 = System.nanoTime();
-                CompoundTag tag = NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap());
+                CompoundTag tag = NbtIo.readCompressed(p.toFile());
                 long r1 = System.nanoTime();
                 field.putLoadedTile(readTile(field, tx, tz, tag, nowSig));
                 devReadNanos += r1 - r0; // 計測(2026-11-15): ファイルを読む時間と、区画に組み立てる時間
@@ -185,7 +185,7 @@ final class SporeFieldStore {
 
     private static CompoundTag readRegion(Path p) {
         try {
-            return NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap());
+            return NbtIo.readCompressed(p.toFile());
         } catch (IOException | RuntimeException e) {
             OvergrownVegetation.LOGGER.error("胞子の場のファイルを読めませんでした: {}", p, e);
             return null;
@@ -657,12 +657,12 @@ final class SporeFieldStore {
             Files.createDirectories(dir);
             int tiles = 0;
             for (SporeField.Tile t : src.tilesView()) {
-                NbtIo.writeCompressed(tileTag(t, 0L), dir.resolve("t." + t.tx + "." + t.tz + ".dat"));
+                NbtIo.writeCompressed(tileTag(t, 0L), dir.resolve("t." + t.tx + "." + t.tz + ".dat").toFile());
                 tiles++;
             }
             CompoundTag meta = snapshot(src, 1234L, name).meta();
             meta.remove("format");
-            NbtIo.writeCompressed(meta, dir.resolve("meta.dat"));
+            NbtIo.writeCompressed(meta, dir.resolve("meta.dat").toFile());
             savedHash(name).clear();
             long[] clock = new long[1];
             SporeField b = fresh.get();

@@ -102,7 +102,7 @@ public final class TickBudget {
 
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
         active = cfg.tickBudgetEnabled.get() && !(server instanceof GameTestServer);
-        long[] times = server.getTickTimesNanos();
+        long[] times = server.tickTimes /* 1.20.1: getTickTimesNanos が無い */;
         int count = Math.min(AVERAGE_TICKS, tick - 1);
         if (count <= 0) {
             capNanos = Long.MAX_VALUE;

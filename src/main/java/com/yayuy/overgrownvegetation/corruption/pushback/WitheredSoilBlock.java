@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.corruption.pushback;
 
-import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import com.yayuy.overgrownvegetation.registry.ModPushBack;
@@ -21,19 +20,12 @@ import net.minecraft.world.level.block.state.properties.IntegerProperty;
  * 外れたチャンクも、胞子が溜まり直して発芽すればまた森になる(ユーザー「胞子が溜まって 1 日ほどで発芽すれば、すぐ戻る」)。
  */
 public class WitheredSoilBlock extends Block {
-
-    public static final MapCodec<WitheredSoilBlock> CODEC = simpleCodec(WitheredSoilBlock::new);
     /** 元の汚染の地面: 0 = 過繁茂の草・1 = 過繁茂の土・2 = 過繁茂のブロック。 */
     public static final IntegerProperty ORIGIN = IntegerProperty.create("origin", 0, 2);
 
     public WitheredSoilBlock(Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any().setValue(ORIGIN, 0));
-    }
-
-    @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
     }
 
     @Override
@@ -52,7 +44,7 @@ public class WitheredSoilBlock extends Block {
     }
 
     @Override
-    protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState old, boolean moved) {
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState old, boolean moved) {
         super.onPlace(state, level, pos, old, moved);
         if (!old.is(this) && level instanceof ServerLevel) {
             long ticks = Math.max(1L, (long) (com.yayuy.overgrownvegetation.data.DesignData.pushBack().spray.reviveDays * 24000L));
@@ -61,7 +53,7 @@ public class WitheredSoilBlock extends Block {
     }
 
     @Override
-    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         level.setBlock(pos, reviveTo(level, pos, state), Block.UPDATE_ALL);
     }
 

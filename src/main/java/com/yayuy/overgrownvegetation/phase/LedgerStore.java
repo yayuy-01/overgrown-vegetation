@@ -45,6 +45,34 @@ final class LedgerStore {
     private LedgerStore() {
     }
 
+    /**
+     * 1.20.1: 同梱の fastutil では {@code Long2LongOpenHashMap#ensureCapacity} が private。先に大きさを取らないと hash の順に入れたとき
+     * 固まって桁違いに遅くなる(PhaseData の注)ので、反射で呼ぶ(fastutil は難読化されないので名前で引ける)。呼べなければ何もしない。
+     */
+    static void ensureCapacity(Long2LongOpenHashMap map, int capacity) {
+        if (ENSURE_CAPACITY == null) return;
+        try {
+            ENSURE_CAPACITY.invoke(map, capacity);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            OvergrownVegetation.LOGGER.debug("Long2LongOpenHashMap#ensureCapacity を呼べない: {}", e.toString());
+        }
+    }
+
+    @org.jetbrains.annotations.Nullable
+    private static final java.lang.reflect.Method ENSURE_CAPACITY = findEnsureCapacity();
+
+    @org.jetbrains.annotations.Nullable
+    private static java.lang.reflect.Method findEnsureCapacity() {
+        try {
+            java.lang.reflect.Method m = Long2LongOpenHashMap.class.getDeclaredMethod("ensureCapacity", int.class);
+            m.setAccessible(true);
+            return m;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            OvergrownVegetation.LOGGER.warn("Long2LongOpenHashMap#ensureCapacity が無い(大きな台帳の読み込みが遅くなりうる): {}", e.toString());
+            return null;
+        }
+    }
+
     static long regionOf(long chunkKey) {
         return ChunkPos.asLong(ChunkPos.getX(chunkKey) >> SHIFT, ChunkPos.getZ(chunkKey) >> SHIFT);
     }
@@ -74,7 +102,7 @@ final class LedgerStore {
         // ファイルを並べて読む(1 つずつだと 300 万チャンク・1100 ファイルで 7 秒)。表へ入れるのは、先に大きさを取ってから 1 つのスレッドで
         List<long[][]> parts = paths.parallelStream().map(p -> {
             try {
-                CompoundTag tag = NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap());
+                CompoundTag tag = NbtIo.readCompressed(p.toFile());
                 long[] keys = tag.getLongArray("k");
                 long[] times = tag.getLongArray("t");
                 return keys.length == times.length ? new long[][] {keys, times} : null;
@@ -85,7 +113,7 @@ final class LedgerStore {
         }).filter(java.util.Objects::nonNull).toList();
         int n = 0;
         for (long[][] part : parts) n += part[0].length;
-        into.ensureCapacity(into.size() + n);
+        ensureCapacity(into, into.size() + n);
         for (long[][] part : parts) {
             for (int i = 0; i < part[0].length; i++) into.put(part[0][i], part[1][i]);
         }
@@ -193,7 +221,7 @@ final class LedgerStore {
                 tag.putLongArray("k", keys.get(i));
                 tag.putLongArray("t", times.get(i));
                 Path tmp = f.resolveSibling(f.getFileName() + ".tmp");
-                NbtIo.writeCompressed(tag, tmp);
+                NbtIo.writeCompressed(tag, tmp.toFile());
                 Files.move(tmp, f, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
             } catch (IOException e) {
                 OvergrownVegetation.LOGGER.error("台帳の区域 {} を書けませんでした", f, e);

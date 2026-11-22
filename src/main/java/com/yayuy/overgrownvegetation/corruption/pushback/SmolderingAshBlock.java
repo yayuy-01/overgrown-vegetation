@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.corruption.pushback;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -20,18 +19,11 @@ import net.minecraft.world.level.block.state.StateDefinition;
  * —— チャンクがまだ台帳に載っていれば元の汚染の地面へ、外れていればふつうの土・草へ({@link WitheredSoilBlock#reviveTo})。
  */
 public class SmolderingAshBlock extends FallingBlock {
-
-    public static final MapCodec<SmolderingAshBlock> CODEC = simpleCodec(SmolderingAshBlock::new);
     private static final int DUST_COLOR = 0xFF34352F;
 
     public SmolderingAshBlock(Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any().setValue(WitheredSoilBlock.ORIGIN, 0));
-    }
-
-    @Override
-    protected MapCodec<? extends FallingBlock> codec() {
-        return CODEC;
     }
 
     @Override
@@ -51,7 +43,7 @@ public class SmolderingAshBlock extends FallingBlock {
     }
 
     @Override
-    protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState old, boolean moved) {
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState old, boolean moved) {
         super.onPlace(state, level, pos, old, moved); // 落ちる見直しの予定もここ
         if (!old.is(this) && level instanceof ServerLevel server) {
             ReviveTimers.schedule(server, pos);
@@ -59,13 +51,13 @@ public class SmolderingAshBlock extends FallingBlock {
     }
 
     @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState now, boolean moved) {
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState now, boolean moved) {
         if (!now.is(this) && level instanceof ServerLevel server) ReviveTimers.forget(server, pos);
         super.onRemove(state, level, pos, now, moved);
     }
 
     @Override
-    protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         if (ReviveTimers.due(level, pos)) {
             level.setBlock(pos, WitheredSoilBlock.reviveTo(level, pos, state), Block.UPDATE_ALL);
         }

@@ -79,7 +79,7 @@ final class LedgerPendingStore {
         }
         return paths.parallelStream().map(p -> {
             try {
-                return NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap()).getLongArray("k");
+                return NbtIo.readCompressed(p.toFile()).getLongArray("k");
             } catch (IOException e) {
                 OvergrownVegetation.LOGGER.error("書き換え待ちの区域 {} を読めませんでした", p, e);
                 return null;
@@ -109,7 +109,7 @@ final class LedgerPendingStore {
                     CompoundTag tag = new CompoundTag();
                     tag.putLongArray("k", keys.get(i));
                     Path tmp = f.resolveSibling(f.getFileName() + ".tmp");
-                    NbtIo.writeCompressed(tag, tmp);
+                    NbtIo.writeCompressed(tag, tmp.toFile());
                     Files.move(tmp, f, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
                 } catch (IOException e) {
                     OvergrownVegetation.LOGGER.error("書き換え待ちの区域 {} を書けませんでした(次の保存で書き直す)", f, e);

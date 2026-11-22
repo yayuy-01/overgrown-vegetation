@@ -39,7 +39,7 @@ public final class CorruptionSwitch extends OvSavedData {
 
     public static final String ID = "overgrown_vegetation_corruption_switch";
 
-    private static final Factory<CorruptionSwitch> FACTORY = new Factory<>(CorruptionSwitch::new, CorruptionSwitch::load);
+    private static final Factory<CorruptionSwitch> FACTORY = new Factory<>(CorruptionSwitch::new, CorruptionSwitch::load, null);
 
     /** 今のワールドの値の写し(サーバーが無いとき・読み込む前はオン)。 */
     private static volatile boolean on = true;

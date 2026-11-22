@@ -2,7 +2,7 @@ package com.yayuy.overgrownvegetation.phase;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
-import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.DisplayInfo;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
@@ -35,15 +35,15 @@ public final class AdvancementPoints {
             return;
         }
 
-        AdvancementHolder advancement = event.getAdvancement();
-        Optional<DisplayInfo> display = advancement.value().display();
-        if (display.isEmpty() || display.get().isHidden()) {
+        Advancement advancement = event.getAdvancement(); // 1.20.1: AdvancementHolder が無い
+        DisplayInfo display = advancement.getDisplay();
+        if (display == null || display.isHidden()) {
             return;
         }
 
         PhaseData data = PhaseData.get(serverLevel);
         // フェーズ0→1 の実績ゲート(既定 6 種類)。フェーズ0 の間だけ数える。
-        data.recordStartAdvancement(serverLevel, advancement.id().toString());
+        data.recordStartAdvancement(serverLevel, advancement.getId().toString());
 
         int amount = com.yayuy.overgrownvegetation.data.DesignData.phases().pointsPerAdvancement();
         data.addPoints(serverLevel, amount);

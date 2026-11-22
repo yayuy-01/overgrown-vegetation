@@ -137,9 +137,9 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob, GeoEnti
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_FLAGS, (byte) 0);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_FLAGS, (byte) 0);
     }
 
     boolean flag(byte f) {
@@ -263,7 +263,17 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob, GeoEnti
         return new AABB(x - CULL_RADIUS, y - CULL_DOWN, z - CULL_RADIUS, x + CULL_RADIUS, y + CULL_UP, z + CULL_RADIUS);
     }
 
+    /**
+     * 1.20.1: 乗り手の位置の決め方(getPassengerAttachmentPoint)が無いので、positionRider で同じ所に置く。
+     * 乗り手の側の差し引き(1.20.5 の getVehicleAttachmentPoint)は、1.20.1 の {@code getMyRidingOffset} で近づける。
+     */
     @Override
+    protected void positionRider(Entity passenger, Entity.MoveFunction callback) {
+        if (!hasPassenger(passenger)) return;
+        Vec3 v = getPassengerAttachmentPoint(passenger, getDimensions(getPose()), 1.0F);
+        callback.accept(passenger, getX() + v.x, getY() + v.y + passenger.getMyRidingOffset(), getZ() + v.z);
+    }
+
     protected Vec3 getPassengerAttachmentPoint(Entity passenger, EntityDimensions dimensions, float partialTick) {
         int i = Math.max(0, getPassengers().indexOf(passenger)) % SEATS.length;
         double[] s = SEATS[i];
@@ -668,6 +678,12 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob, GeoEnti
         }
     }
 
+    /** 1.20.1: NbtUtils#readBlockPos(tag, key) が無い(1.20.1 の writeBlockPos は {X,Y,Z} の CompoundTag)。 */
+    @Nullable
+    private static BlockPos readPos(CompoundTag tag, String key) {
+        return tag.contains(key, net.minecraft.nbt.Tag.TAG_COMPOUND) ? NbtUtils.readBlockPos(tag.getCompound(key)) : null;
+    }
+
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
@@ -676,12 +692,12 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob, GeoEnti
         } catch (IllegalArgumentException e) {
             mode = Mode.DRIFT;
         }
-        target = NbtUtils.readBlockPos(tag, "DriftTarget").orElse(null);
+        target = readPos(tag, "DriftTarget");
         born = tag.contains("DriftBorn") ? tag.getLong("DriftBorn") : Long.MIN_VALUE;
         refused.clear();
         for (long k : tag.getLongArray("DriftRefused")) refused.add(k);
-        arrivalShore = NbtUtils.readBlockPos(tag, "DriftArrivalShore").orElse(null);
-        arrivalStand = arrivalShore == null ? null : NbtUtils.readBlockPos(tag, "DriftArrivalStand").orElse(null);
+        arrivalShore = readPos(tag, "DriftArrivalShore");
+        arrivalStand = arrivalShore == null ? null : readPos(tag, "DriftArrivalStand");
         arrivalTick = tag.getInt("DriftArrivalTick");
         if (arrivalStand != null) {
             // 見た目の印は保存しない(同期するだけ)ので、着いてからの tick から立て直す(11-22 見直し 15)。

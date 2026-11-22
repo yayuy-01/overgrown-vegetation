@@ -427,7 +427,7 @@ public final class FissureWorld {
         if (t.omen.rumbleVolume > 0.0F) {
             for (ServerPlayer p : level.players()) {
                 if (!underground(level, p) || p.distanceToSqr(floor.getX(), floor.getY(), floor.getZ()) > (double) t.omen.puffRange * t.omen.puffRange) continue;
-                p.connection.send(new net.minecraft.network.protocol.game.ClientboundSoundPacket(ModSounds.EARTHQUAKE_FISSURE, SoundSource.HOSTILE,
+                p.connection.send(new net.minecraft.network.protocol.game.ClientboundSoundPacket(ModSounds.EARTHQUAKE_FISSURE.getDelegate(), SoundSource.HOSTILE,
                         floor.getX() + 0.5D, floor.getY(), floor.getZ() + 0.5D, t.omen.rumbleVolume, 1.35F, level.getRandom().nextLong()));
             }
         }

@@ -316,7 +316,7 @@ public final class HordeMeter {
     static Path start(MinecraftServer server) {
         stop();
         try {
-            Path dir = server.getServerDirectory().resolve(OvergrownVegetation.MODID).resolve("perf");
+            Path dir = server.getServerDirectory().toPath().resolve(OvergrownVegetation.MODID).resolve("perf");
             Files.createDirectories(dir);
             file = dir.resolve("horde-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.ROOT)) + ".tsv");
             out = Files.newBufferedWriter(file, StandardCharsets.UTF_8);

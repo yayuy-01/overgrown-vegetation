@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.corruption.cliff;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -21,22 +20,14 @@ import net.minecraft.world.level.block.state.BlockState;
  * 生成・掃除の置き換え({@code setBlock})では割れない(プレイヤーの破壊と爆発だけ)。
  */
 public class CliffSacBlock extends Block {
-
-    public static final MapCodec<CliffSacBlock> CODEC = simpleCodec(CliffSacBlock::new);
-
     public CliffSacBlock(BlockBehaviour.Properties properties) {
         super(properties);
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
-    @Override
-    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+    public void playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
         if (level instanceof ServerLevel server) burst(server, pos);
-        return super.playerWillDestroy(level, pos, state, player);
+        super.playerWillDestroy(level, pos, state, player);
     }
 
     @Override

@@ -147,13 +147,13 @@ public final class MobInfection {
         net.minecraft.world.entity.ai.attributes.AttributeInstance attr =
                 entity.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
         if (attr == null) return;
-        net.minecraft.world.entity.ai.attributes.AttributeModifier old = attr.getModifier(WEAKNESS_ID);
+        net.minecraft.world.entity.ai.attributes.AttributeModifier old = OvModifiers.get(attr, WEAKNESS_ID);
         if (slowdown <= 0.0D) {
-            if (old != null) attr.removeModifier(WEAKNESS_ID);
+            if (old != null) OvModifiers.remove(attr, WEAKNESS_ID);
             return;
         }
-        if (old != null && Math.abs(old.amount() + slowdown) < 1.0E-9D) return;
-        attr.removeModifier(WEAKNESS_ID);
+        if (old != null && Math.abs(old.getAmount() + slowdown) < 1.0E-9D) return;
+        OvModifiers.remove(attr, WEAKNESS_ID);
         attr.addTransientModifier(OvModifiers.create(WEAKNESS_ID, -slowdown,
                 net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.MULTIPLY_TOTAL));
     }

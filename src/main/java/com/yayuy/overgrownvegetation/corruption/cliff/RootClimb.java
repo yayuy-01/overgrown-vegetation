@@ -70,7 +70,14 @@ public final class RootClimb {
 
     /** バニラの上りの縦 0.2 の代わり(正味の上りがはしごの {@link #multiplier} 倍になる値)。 */
     public static double riseFor(LivingEntity e) {
-        double g = e.getGravity();
+        double g = gravityOf(e);
         return g + (0.2D - g) * multiplier(e);
+    }
+
+    /** 1.20.1: Entity#getGravity が無い。1.20.5 と同じく、重力なしなら 0、ほかは重力の属性(Forge の ENTITY_GRAVITY)の値。 */
+    public static double gravityOf(LivingEntity e) {
+        if (e.isNoGravity()) return 0.0D;
+        net.minecraft.world.entity.ai.attributes.AttributeInstance a = e.getAttribute(net.minecraftforge.common.ForgeMod.ENTITY_GRAVITY.get());
+        return a != null ? a.getValue() : 0.08D;
     }
 }

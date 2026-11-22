@@ -72,7 +72,7 @@ public final class PerfRecorder {
         }
         MinecraftServer server = source.getServer();
         try {
-            Path dir = server.getServerDirectory().resolve(OvergrownVegetation.MODID).resolve("perf");
+            Path dir = server.getServerDirectory().toPath().resolve(OvergrownVegetation.MODID).resolve("perf");
             Files.createDirectories(dir);
             String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.ROOT));
             jfrFile = dir.resolve("perf-" + stamp + ".jfr");
@@ -92,7 +92,7 @@ public final class PerfRecorder {
         }
         requester = source;
         ticksLeft = seconds * 20;
-        serverThreadId = server.getRunningThread().threadId();
+        serverThreadId = server.getRunningThread().getId();
         TICK_TIMES.clear();
         return null;
     }
@@ -103,7 +103,7 @@ public final class PerfRecorder {
             return;
         }
         MinecraftServer server = event.getServer();
-        TICK_TIMES.add(server.getTickTimesNanos()[Math.floorMod(server.getTickCount(), TickBudget.WINDOW)]);
+        TICK_TIMES.add(server.tickTimes /* 1.20.1: getTickTimesNanos が無い */[Math.floorMod(server.getTickCount(), TickBudget.WINDOW)]);
         if (--ticksLeft > 0) {
             return;
         }

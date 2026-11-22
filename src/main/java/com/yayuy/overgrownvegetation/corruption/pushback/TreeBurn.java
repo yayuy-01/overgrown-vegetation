@@ -80,8 +80,37 @@ public final class TreeBurn {
             else if (s.is(com.yayuy.overgrownvegetation.ModTags.CLEARABLE_BRUSH)) burn = 15;
             else if (scorches(s)) burn = 5;
             else continue;
-            fire.setFlammable(b, 0, burn);
+            setFlammable(fire, b, 0, burn);
         }
+    }
+
+    /**
+     * 1.20.1: {@code FireBlock#setFlammable} は private。名前は難読化で変わるので、形(Block, int, int) → void の 1 つを探して呼ぶ。
+     */
+    private static void setFlammable(FireBlock fire, Block b, int encouragement, int flammability) {
+        if (SET_FLAMMABLE == null) return;
+        try {
+            SET_FLAMMABLE.invoke(fire, b, encouragement, flammability);
+        } catch (ReflectiveOperationException e) {
+            OvergrownVegetation.LOGGER.warn("[TreeBurn] FireBlock#setFlammable を呼べない: {}", e.toString());
+        }
+    }
+
+    @org.jetbrains.annotations.Nullable
+    private static final java.lang.reflect.Method SET_FLAMMABLE = findSetFlammable();
+
+    @org.jetbrains.annotations.Nullable
+    private static java.lang.reflect.Method findSetFlammable() {
+        for (java.lang.reflect.Method m : FireBlock.class.getDeclaredMethods()) {
+            Class<?>[] p = m.getParameterTypes();
+            if (m.getReturnType() == void.class && p.length == 3 && p[0] == Block.class && p[1] == int.class && p[2] == int.class
+                    && !java.lang.reflect.Modifier.isStatic(m.getModifiers())) {
+                m.setAccessible(true);
+                return m;
+            }
+        }
+        OvergrownVegetation.LOGGER.warn("[TreeBurn] FireBlock#setFlammable が見つからない(この MOD のブロックは燃えにくいまま)");
+        return null;
     }
 
     @SubscribeEvent

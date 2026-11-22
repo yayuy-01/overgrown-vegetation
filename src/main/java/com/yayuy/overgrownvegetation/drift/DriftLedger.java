@@ -161,7 +161,7 @@ public final class DriftLedger extends OvSavedData {
             if (rider == null) continue;
             rider.moveTo(r.x, r.wy + 1.0D, r.z, 0.0F, 0.0F);
             if (rider instanceof Mob m) {
-                m.finalizeSpawn(level, level.getCurrentDifficultyAt(rider.blockPosition()), MobSpawnType.EVENT, null);
+                m.finalizeSpawn(level, level.getCurrentDifficultyAt(rider.blockPosition()), MobSpawnType.EVENT, null, null);
                 m.setPersistenceRequired();
             }
             level.addFreshEntity(rider);

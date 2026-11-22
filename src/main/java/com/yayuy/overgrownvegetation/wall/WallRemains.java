@@ -7,7 +7,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -39,7 +38,7 @@ public final class WallRemains {
                         continue;
                     }
                     inv.setItem(i, ItemStack.EMPTY);
-                    if (EnchantmentHelper.has(stack, EnchantmentEffectComponents.PREVENT_EQUIPMENT_DROP)) {
+                    if (EnchantmentHelper.hasVanishingCurse(stack)) {
                         continue; // 消滅の呪い
                     }
                     if (!remains.add(stack)) {

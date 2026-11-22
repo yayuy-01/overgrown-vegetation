@@ -36,8 +36,9 @@ public final class OvergrownFrogs {
 
     /** 自然に出てくる分だけを止める。プレイヤーが出した分は止めない。 */
     @SubscribeEvent
-    public static void onFinalizeSpawn(net.neoforged.neoforge.event.entity.living.FinalizeSpawnEvent event) {
-        if (!isFrogKind(event.getEntity()) || !(event.getLevel().getLevel() instanceof ServerLevel level)) return;
+    public static void onFinalizeSpawn(net.minecraftforge.event.entity.living.MobSpawnEvent.FinalizeSpawn event) {
+        if (!isFrogKind(event.getEntity())) return;
+        ServerLevel level = event.getLevel().getLevel(); // 1.20.1: ServerLevelAccessor#getLevel は ServerLevel を返す
         switch (event.getSpawnType()) {
             case SPAWN_EGG, COMMAND, BUCKET, DISPENSER, TRIGGERED -> {
                 return;
