@@ -1,0 +1,11 @@
+{
+  "type": "overgrown_vegetation:decontamination",
+  "ingredient": {
+    "item": "overgrown_vegetation:overgrown_spider_eye"
+  },
+  "result": {
+    "item": "minecraft:spider_eye",
+    "count": 1
+  },
+  "spores": 0.5
+}

@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:overgrown_sapling",
+    "overgrown_vegetation:giant_overgrown_sapling"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "type": "overgrown_vegetation:decontamination",
+  "ingredient": {
+    "item": "overgrown_vegetation:overgrown_chicken"
+  },
+  "result": {
+    "item": "minecraft:chicken",
+    "count": 1
+  },
+  "spores": 0.5
+}

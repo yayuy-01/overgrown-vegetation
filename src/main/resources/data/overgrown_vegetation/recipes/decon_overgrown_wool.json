@@ -1,0 +1,11 @@
+{
+  "type": "overgrown_vegetation:decontamination",
+  "ingredient": {
+    "item": "overgrown_vegetation:overgrown_wool"
+  },
+  "result": {
+    "item": "minecraft:white_wool",
+    "count": 1
+  },
+  "spores": 1.0
+}

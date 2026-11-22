@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:blight_fern",
+    "overgrown_vegetation:pedicula",
+    "overgrown_vegetation:drift_mimic",
+    "overgrown_vegetation:phyllosens"
+  ]
+}

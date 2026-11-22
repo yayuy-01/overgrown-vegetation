@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "R": {
+      "item": "minecraft:redstone"
+    },
+    "L": {
+      "item": "minecraft:leather"
+    }
+  },
+  "pattern": [ " I ", "CRC", "CLC" ],
+  "result": {
+    "item": "overgrown_vegetation:ley_battery",
+    "count": 1
+  }
+}

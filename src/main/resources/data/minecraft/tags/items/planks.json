@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:overgrown_planks",
+    "overgrown_vegetation:cordaites_planks",
+    "overgrown_vegetation:sigillaria_planks",
+    "overgrown_vegetation:giant_bark_planks",
+    "overgrown_vegetation:giant_planks"
+  ]
+}

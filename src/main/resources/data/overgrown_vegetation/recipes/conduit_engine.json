@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [ "BPB", "AIA", "BPB" ],
+  "key": {
+    "P": {
+      "item": "overgrown_vegetation:conduit_plate"
+    },
+    "I": {
+      "item": "overgrown_vegetation:conduit_ingot"
+    },
+    "A": {
+      "item": "minecraft:iron_ingot"
+    },
+    "B": {
+      "item": "minecraft:redstone"
+    }
+  },
+  "result": {
+    "item": "overgrown_vegetation:conduit_engine",
+    "count": 1
+  }
+}

@@ -1,0 +1,113 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:grass",
+    "minecraft:tall_grass",
+    "minecraft:fern",
+    "minecraft:large_fern",
+    "minecraft:dead_bush",
+    "minecraft:vine",
+    "minecraft:cave_vines",
+    "minecraft:cave_vines_plant",
+    "minecraft:glow_lichen",
+    "minecraft:hanging_roots",
+    "minecraft:sweet_berry_bush",
+    "minecraft:cobweb",
+    {
+      "id": "overgrown_vegetation:overgrown_growth",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:overgrown_bush",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:overgrown_spore_bloom",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:overgrown_zenmai",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:undeveloped_bush",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:wall_fern",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:wall_fern_large",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:wall_spore_sacs",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:wall_lycopsid",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:hanging_moss",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:overgrown_weeping_tendril",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:overgrown_drip_moss",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:overgrown_spore_tendril",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:overgrown_tall_fern",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:overgrown_spore_reed",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:overgrown_curled_fern",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:lycopsid_upright",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:peat_sprouts",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:overgrown_glow_vines",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:overgrown_glow_vines_plant",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:pale_cave_fern",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:cave_horsetail",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:overgrown_liana",
+      "required": false
+    },
+    {
+      "id": "overgrown_vegetation:overgrown_leaves_tuft",
+      "required": false
+    }
+  ]
+}

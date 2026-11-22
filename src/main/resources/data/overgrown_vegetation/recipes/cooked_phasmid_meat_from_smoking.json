@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:smoking",
+  "category": "food",
+  "ingredient": {
+    "item": "overgrown_vegetation:phasmid_meat"
+  },
+  "result": "overgrown_vegetation:cooked_phasmid_meat",
+  "experience": 0.35,
+  "cookingtime": 100
+}

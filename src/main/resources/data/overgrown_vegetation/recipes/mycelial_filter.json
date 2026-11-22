@@ -1,0 +1,28 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "minecraft:paper"
+    },
+    {
+      "item": "minecraft:paper"
+    },
+    {
+      "item": "minecraft:charcoal"
+    },
+    {
+      "item": "overgrown_vegetation:spore_eater_mushroom"
+    },
+    {
+      "item": "overgrown_vegetation:spore_eater_mushroom"
+    },
+    {
+      "item": "overgrown_vegetation:hard_bark_shard"
+    }
+  ],
+  "result": {
+    "item": "overgrown_vegetation:mycelial_filter",
+    "count": 1
+  }
+}

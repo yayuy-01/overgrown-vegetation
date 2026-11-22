@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:overgrown_log",
+    "overgrown_vegetation:overgrown_branch",
+    "overgrown_vegetation:sigillaria_log",
+    "overgrown_vegetation:sigillaria_branch",
+    "overgrown_vegetation:overgrown_wood",
+    "overgrown_vegetation:overgrown_trunk_block",
+    "overgrown_vegetation:tree_fern_trunk",
+    "overgrown_vegetation:stigmaria",
+    "overgrown_vegetation:cordaites_buttress"
+  ]
+}

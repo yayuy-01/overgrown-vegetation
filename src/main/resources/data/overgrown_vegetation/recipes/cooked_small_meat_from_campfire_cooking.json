@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:campfire_cooking",
+  "category": "food",
+  "ingredient": {
+    "item": "overgrown_vegetation:small_meat"
+  },
+  "result": "overgrown_vegetation:cooked_small_meat",
+  "experience": 0.35,
+  "cookingtime": 600
+}

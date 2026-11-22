@@ -1,0 +1,61 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:dirt",
+    "#minecraft:base_stone_overworld",
+    "#minecraft:base_stone_nether",
+    "#minecraft:logs",
+    "#minecraft:leaves",
+    "#minecraft:flowers",
+    "#minecraft:saplings",
+    "#minecraft:ice",
+    "#minecraft:snow",
+    "#minecraft:sand",
+    "#minecraft:terracotta",
+    "#minecraft:nylium",
+    {
+      "id": "#forge:stone",
+      "required": false
+    },
+    {
+      "id": "#forge:ores",
+      "required": false
+    },
+    {
+      "id": "#forge:sand",
+      "required": false
+    },
+    {
+      "id": "#forge:gravel",
+      "required": false
+    },
+    {
+      "id": "#forge:netherrack",
+      "required": false
+    },
+    {
+      "id": "#forge:end_stones",
+      "required": false
+    },
+    {
+      "id": "#forge:obsidian",
+      "required": false
+    },
+    "minecraft:gravel",
+    "minecraft:clay",
+    "minecraft:sandstone",
+    "minecraft:red_sandstone",
+    "minecraft:moss_block",
+    "minecraft:mud",
+    "minecraft:calcite",
+    "minecraft:dripstone_block",
+    "minecraft:amethyst_block",
+    "minecraft:bedrock",
+    "minecraft:soul_sand",
+    "minecraft:soul_soil",
+    "minecraft:magma_block",
+    "overgrown_vegetation:overgrown_grass_block",
+    "overgrown_vegetation:overgrown_dirt",
+    "overgrown_vegetation:overgrown_block"
+  ]
+}

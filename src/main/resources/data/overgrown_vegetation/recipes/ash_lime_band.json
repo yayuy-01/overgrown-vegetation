@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "minecraft:charcoal"
+    },
+    {
+      "item": "overgrown_vegetation:lime"
+    }
+  ],
+  "result": {
+    "item": "overgrown_vegetation:ash_lime_band",
+    "count": 4
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:logs",
+    "#minecraft:leaves",
+    "#minecraft:saplings",
+    "overgrown_vegetation:overgrown_log",
+    "overgrown_vegetation:sigillaria_log",
+    "overgrown_vegetation:sigillaria_leaves",
+    "overgrown_vegetation:sigillaria_leaves_fringe",
+    "overgrown_vegetation:overgrown_leaves_tuft",
+    "overgrown_vegetation:tree_fern_trunk",
+    "overgrown_vegetation:tree_fern_leaves",
+    "overgrown_vegetation:tree_fern_frond",
+    "overgrown_vegetation:overgrown_wood",
+    "overgrown_vegetation:cordaites_buttress",
+    "overgrown_vegetation:stigmaria",
+    "overgrown_vegetation:overgrown_leaves",
+    "overgrown_vegetation:giant_canopy_leaves",
+    "overgrown_vegetation:overgrown_bush",
+    "overgrown_vegetation:giant_overgrown_log",
+    "overgrown_vegetation:root_arch_log",
+    "overgrown_vegetation:giant_overgrown_cambium",
+    "overgrown_vegetation:hardened_giant_trunk"
+  ]
+}

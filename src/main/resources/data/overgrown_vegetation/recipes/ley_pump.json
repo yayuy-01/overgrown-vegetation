@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "F": {
+      "item": "overgrown_vegetation:ley_flower"
+    },
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "B": {
+      "item": "minecraft:bucket"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    }
+  },
+  "pattern": [ " F ", "CBC", "ICI" ],
+  "result": {
+    "item": "overgrown_vegetation:ley_pump",
+    "count": 1
+  }
+}

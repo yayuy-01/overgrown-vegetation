@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "#overgrown_vegetation:critter_prey",
+    "#overgrown_vegetation:critter_hunter",
+    "overgrown_vegetation:blight_fern"
+  ]
+}

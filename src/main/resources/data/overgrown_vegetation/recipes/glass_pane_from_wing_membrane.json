@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "building",
+  "ingredients": [
+    {
+      "item": "overgrown_vegetation:wing_membrane"
+    },
+    {
+      "item": "overgrown_vegetation:wing_membrane"
+    }
+  ],
+  "result": {
+    "item": "minecraft:glass_pane",
+    "count": 2
+  }
+}

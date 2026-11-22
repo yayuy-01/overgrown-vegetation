@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [ "AAA" ],
+  "key": {
+    "A": {
+      "item": "overgrown_vegetation:overgrown_planks"
+    }
+  },
+  "result": {
+    "item": "overgrown_vegetation:overgrown_slab",
+    "count": 6
+  }
+}

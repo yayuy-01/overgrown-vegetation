@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [ "ABA", "ABA" ],
+  "key": {
+    "A": {
+      "item": "overgrown_vegetation:overgrown_planks"
+    },
+    "B": {
+      "item": "minecraft:stick"
+    }
+  },
+  "result": {
+    "item": "overgrown_vegetation:overgrown_fence",
+    "count": 3
+  }
+}

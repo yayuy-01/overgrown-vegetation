@@ -4,10 +4,10 @@
   "has_precipitation": true,
   "temperature": 2.0,
   "effects": {
-    "sky_color": 6589558,
-    "fog_color": 2969635,
-    "water_color": 6388580,
-    "water_fog_color": 2302743,
+    "sky_color": 8103167,
+    "fog_color": 12638463,
+    "water_color": 5925418,
+    "water_fog_color": 5933616,
     "grass_color": 2834696,
     "foliage_color": 1519105,
     "mood_sound": {
@@ -15,12 +15,6 @@
       "offset": 2.0,
       "sound": "minecraft:ambient.cave",
       "tick_delay": 6000
-    },
-    "particle": {
-      "probability": 0.02,
-      "options": {
-        "type": "minecraft:spore_blossom_air"
-      }
     }
   },
   "features": [

@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [ "BB", "BB" ],
+  "key": {
+    "B": {
+      "item": "overgrown_vegetation:hard_bark_shard"
+    }
+  },
+  "result": {
+    "item": "overgrown_vegetation:bark_plate",
+    "count": 1
+  }
+}

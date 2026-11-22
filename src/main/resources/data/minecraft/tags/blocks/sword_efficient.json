@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:overgrown_liana",
+    "overgrown_vegetation:overgrown_liana_segment",
+    "overgrown_vegetation:rootsilk_web"
+  ]
+}

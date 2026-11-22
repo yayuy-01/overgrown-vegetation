@@ -1,0 +1,11 @@
+{
+  "type": "overgrown_vegetation:decontamination",
+  "ingredient": {
+    "item": "overgrown_vegetation:overgrown_bone"
+  },
+  "result": {
+    "item": "minecraft:bone",
+    "count": 1
+  },
+  "spores": 0.25
+}

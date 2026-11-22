@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": {
+    "item": "overgrown_vegetation:overgrown_block"
+  },
+  "result": "overgrown_vegetation:overgrown_wall",
+  "count": 1
+}

@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:blasting",
+  "category": "misc",
+  "group": "overgrown_conduit_ingot",
+  "ingredient": {
+    "item": "overgrown_vegetation:overgrown_deepslate_conduit_ore"
+  },
+  "result": "overgrown_vegetation:overgrown_conduit_ingot",
+  "experience": 0.7,
+  "cookingtime": 100
+}

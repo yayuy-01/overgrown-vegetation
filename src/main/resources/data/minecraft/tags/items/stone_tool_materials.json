@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "overgrown_vegetation:overgrown_stone",
+    "overgrown_vegetation:overgrown_deepslate",
+    "overgrown_vegetation:overgrown_cobbled_deepslate"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "type": "overgrown_vegetation:decontamination",
+  "ingredient": {
+    "item": "overgrown_vegetation:overgrown_mutton"
+  },
+  "result": {
+    "item": "minecraft:mutton",
+    "count": 1
+  },
+  "spores": 0.5
+}

@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [ "WPW" ],
+  "key": {
+    "W": {
+      "tag": "minecraft:wool"
+    },
+    "P": {
+      "item": "overgrown_vegetation:conduit_plate"
+    }
+  },
+  "result": {
+    "item": "overgrown_vegetation:conduit_sash",
+    "count": 1
+  }
+}

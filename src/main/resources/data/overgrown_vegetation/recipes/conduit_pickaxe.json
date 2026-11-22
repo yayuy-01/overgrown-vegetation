@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [ "PBP", " A ", " S " ],
+  "key": {
+    "P": {
+      "item": "overgrown_vegetation:conduit_plate"
+    },
+    "S": {
+      "item": "minecraft:stick"
+    },
+    "A": {
+      "item": "overgrown_vegetation:conduit_engine"
+    },
+    "B": {
+      "item": "overgrown_vegetation:conduit_ingot"
+    }
+  },
+  "result": {
+    "item": "overgrown_vegetation:conduit_pickaxe",
+    "count": 1
+  }
+}

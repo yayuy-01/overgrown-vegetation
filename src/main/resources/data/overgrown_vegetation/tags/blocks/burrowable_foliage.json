@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:leaves",
+    "overgrown_vegetation:overgrown_leaves",
+    "overgrown_vegetation:giant_canopy_leaves",
+    "overgrown_vegetation:sigillaria_leaves"
+  ]
+}

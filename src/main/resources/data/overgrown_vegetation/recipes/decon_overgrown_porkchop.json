@@ -1,0 +1,11 @@
+{
+  "type": "overgrown_vegetation:decontamination",
+  "ingredient": {
+    "item": "overgrown_vegetation:overgrown_porkchop"
+  },
+  "result": {
+    "item": "minecraft:porkchop",
+    "count": 1
+  },
+  "spores": 0.5
+}

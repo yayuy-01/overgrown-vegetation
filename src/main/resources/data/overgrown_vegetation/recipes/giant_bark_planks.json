@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "building",
+  "group": "planks",
+  "ingredients": [
+    {
+      "item": "overgrown_vegetation:giant_overgrown_log"
+    }
+  ],
+  "result": {
+    "item": "overgrown_vegetation:giant_bark_planks",
+    "count": 4
+  }
+}
