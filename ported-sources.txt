@@ -3,6 +3,6 @@
 # 全部移し終えたら、このファイルと build.gradle の該当ブロックを消す。
 #
 # 2026-11-23: 起動クラス OvergrownVegetation.java は本流の形へ移した(本流のクラスを全部読む)ので、統合 I の段までここから外した。
-# いまコンパイルするのは互換の層だけ(port/ は本流のクラスに頼らない)。runClient・runGameTestServer で MOD は読み込まれない。
-# 統合 I は、ここを com/yayuy/overgrownvegetation/** にする(か、このブロックごと外す)。
+# いまコンパイルするのは互換の層だけ(port/ は本流のクラスに頼らない)と、ported-sources.d/F-dev.txt の仮の起動クラス(devport/)。
+# 統合 I は、ここを com/yayuy/overgrownvegetation/** にし(か、このブロックごと外す)、F-dev.txt と devport/ を消す。
 com/yayuy/overgrownvegetation/port/**

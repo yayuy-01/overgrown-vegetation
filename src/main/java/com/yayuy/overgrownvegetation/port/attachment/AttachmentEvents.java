@@ -10,7 +10,7 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 
 /**
- * 【1.20.1 だけの物・互換の層】attachment の入れ物({@link AttachmentStore})を Entity・LevelChunk・Level に付け、
+ * 【1.20.1 だけの物・互換の層】attachment の入れ物({@link AttachmentStore})を Entity・LevelChunk・Level・BlockEntity に付け、
  * プレイヤーの作り直しで引き継ぐ。{@code port.PortSetup} が起動のときに 1 回つなぐ。
  */
 public final class AttachmentEvents {
@@ -26,6 +26,10 @@ public final class AttachmentEvents {
                 e.addCapability(AttachmentStore.KEY, new AttachmentStore()));
         MinecraftForge.EVENT_BUS.addGenericListener(Level.class, (AttachCapabilitiesEvent<Level> e) ->
                 e.addCapability(AttachmentStore.KEY, new AttachmentStore()));
+        // 2026-11-23: ブロックエンティティも持ち主にする(本流の SpawnerCorruption がスポナーに付ける)
+        MinecraftForge.EVENT_BUS.addGenericListener(net.minecraft.world.level.block.entity.BlockEntity.class,
+                (AttachCapabilitiesEvent<net.minecraft.world.level.block.entity.BlockEntity> e) ->
+                        e.addCapability(AttachmentStore.KEY, new AttachmentStore()));
         MinecraftForge.EVENT_BUS.addListener(AttachmentEvents::onClone);
     }
 

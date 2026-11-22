@@ -1,0 +1,3 @@
+# F の開発用(統合 I の段まで)。互換の層だけで MOD を起動する仮の起動クラス。
+# 統合 I: ported-sources を全部にするとき、このファイルと src/main/java/com/yayuy/overgrownvegetation/devport/ を消す(本物の起動クラスとぶつかる)。
+com/yayuy/overgrownvegetation/devport/**

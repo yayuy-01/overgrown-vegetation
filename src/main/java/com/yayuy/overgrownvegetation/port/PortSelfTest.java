@@ -133,6 +133,13 @@ public final class PortSelfTest {
             chunk.setUnsaved(false);
             OvAttach.setData(chunk, T_INT, 5);
             check(chunk.isUnsaved() && OvAttach.getData(chunk, T_INT) == 5, "chunk attachment marks chunk dirty");
+            // 2b. ブロックエンティティ: 保存して読み戻す(Forge は ForgeCaps に書く)
+            var chest = new net.minecraft.world.level.block.entity.ChestBlockEntity(BlockPos.ZERO, net.minecraft.world.level.block.Blocks.CHEST.defaultBlockState());
+            OvAttach.setData(chest, T_INT, 77);
+            CompoundTag beTag = chest.saveWithFullMetadata();
+            var chest2 = new net.minecraft.world.level.block.entity.ChestBlockEntity(BlockPos.ZERO, net.minecraft.world.level.block.Blocks.CHEST.defaultBlockState());
+            chest2.load(beTag);
+            check(OvAttach.getData(chest2, T_INT) == 77, "block entity attachment survives save/load (got " + OvAttach.getData(chest2, T_INT) + ")");
             // 3. Level
             OvAttach.setData(level, T_INT, 11);
             check(OvAttach.getData(level, T_INT) == 11, "level attachment");

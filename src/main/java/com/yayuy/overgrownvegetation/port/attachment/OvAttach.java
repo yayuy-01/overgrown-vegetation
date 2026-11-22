@@ -21,9 +21,9 @@ import java.util.function.Supplier;
  * <p>本流の {@code x.getData(ModAttachments.T)} は {@code OvAttach.getData(x, ModAttachments.T)} に書き換える
  * (port-tools/port-rewrite.pl が機械的にやる。{@code setData}・{@code hasData}・{@code removeData}・{@code getExistingData} も同じ)。
  *
- * <p>持ち主になれる物: {@link Entity}(全部)・{@link LevelChunk}(と {@link ImposterProtoChunk} の中身)・{@code Level}。
+ * <p>持ち主になれる物: {@link Entity}(全部)・{@link LevelChunk}(と {@link ImposterProtoChunk} の中身)・{@code Level}・{@code BlockEntity}。
  * 生成中の {@code ProtoChunk} には Capability が無いので、その間の読み書きは保存されない(既定値が返り、書いた物は捨てる。ログに 1 回出す)。
- * チャンクへの {@code setData}・{@code removeData} はチャンクを「保存が要る」にする(Forge はしてくれない)。
+ * チャンク・ブロックエンティティへの {@code setData}・{@code removeData} は「保存が要る」にする(Forge はしてくれない)。
  */
 public final class OvAttach {
 
@@ -141,6 +141,8 @@ public final class OvAttach {
         Object h = holder instanceof ImposterProtoChunk imp ? imp.getWrapped() : holder;
         if (h instanceof LevelChunk chunk) {
             chunk.setUnsaved(true);
+        } else if (h instanceof net.minecraft.world.level.block.entity.BlockEntity be) {
+            be.setChanged();
         }
     }
 }
