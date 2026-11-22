@@ -4,6 +4,7 @@ import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.registry.ModDecon;
 import com.yayuy.overgrownvegetation.registry.ModLey;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -14,9 +15,14 @@ import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.Mirror;
+import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
@@ -24,7 +30,11 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -37,16 +47,28 @@ import org.jetbrains.annotations.Nullable;
  *     <li>素手でしゃがんで右クリック: 洗い上がりを全部取り出す(無ければ洗う前の物)。素手の右クリック・置いたとき: 状態の表示。</li>
  *     <li>上に立つと着ている装備を洗う(段 3b)。</li>
  * </ul>
- * 見た目【仮】: 鋳鉄の槽に真鍮の管、上面は格子(動いている間は水しぶきの絵)。
+ * 見た目(2026-11-22): ユーザーの手直し版 {@code デスクトップ\blockbench\ley_washer_yayuy.bbmodel} を GeckoLib で描く(描画 {@code client/decon/WasherRenderer})。
+ * 暗い木の槽を鉄の角金で留め、上は木のすのこ(高さ 12/16・すき間 1 画素)。前(扉)は置いた人の方を向く({@link #FACING})。
+ * 槽の中の水だけはブロックの地形の模型 {@code models/block/ley_washer.json}(本物の水と同じ {@code block/water_still} を半透明で、
+ * バイオームの水の色で染める)で描き、Sodium・自前のシェーダーを本物の水と同じように通す。
  */
 public class WasherBlock extends BaseEntityBlock {
 
     public static final MapCodec<WasherBlock> CODEC = simpleCodec(WasherBlock::new);
     public static final BooleanProperty RUNNING = BooleanProperty.create("running");
+    /** 前(扉 = 模型の北の面)の向き。置いた人の方を向く(2026-11-22)。 */
+    public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
+
+    // 形(北向き。模型の箱から): 足板 16 角 + 槽(すのこの上 12/16 まで)+ 後ろの立て管。外形にはすのこの上へ渡した噴き出し管も入れる
+    private static final VoxelShape[] COLLISION = rotations(Shapes.or(
+            box(0.0D, 0.0D, 0.0D, 16.0D, 2.0D, 16.0D), box(1.0D, 2.0D, 1.0D, 15.0D, 12.0D, 15.0D), box(7.0D, 2.0D, 15.0D, 9.0D, 16.0D, 16.0D)));
+    private static final VoxelShape[] OUTLINE = rotations(Shapes.or(
+            box(0.0D, 0.0D, 0.0D, 16.0D, 2.0D, 16.0D), box(1.0D, 2.0D, 1.0D, 15.0D, 12.0D, 15.0D), box(7.0D, 2.0D, 15.0D, 9.0D, 16.0D, 16.0D),
+            box(2.0D, 13.0D, 13.0D, 14.0D, 15.0D, 16.0D)));
 
     public WasherBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(RUNNING, false));
+        registerDefaultState(stateDefinition.any().setValue(RUNNING, false).setValue(FACING, Direction.NORTH));
     }
 
     @Override
@@ -56,12 +78,57 @@ public class WasherBlock extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(RUNNING);
+        builder.add(RUNNING, FACING);
+    }
+
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext ctx) {
+        return defaultBlockState().setValue(FACING, ctx.getHorizontalDirection().getOpposite());
+    }
+
+    @Override
+    protected BlockState rotate(BlockState state, Rotation rotation) {
+        return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
+    }
+
+    @Override
+    protected BlockState mirror(BlockState state, Mirror mirror) {
+        return state.rotate(mirror.getRotation(state.getValue(FACING)));
+    }
+
+    @Override
+    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return OUTLINE[state.getValue(FACING).get2DDataValue()];
+    }
+
+    @Override
+    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return COLLISION[state.getValue(FACING).get2DDataValue()];
+    }
+
+    /** 北向きの形を 4 つの向きへ回す(添え字は {@link Direction#get2DDataValue}: 南・西・北・東。GeckoLib の模型の回し方と同じ)。 */
+    static VoxelShape[] rotations(VoxelShape north) {
+        VoxelShape[] out = new VoxelShape[4];
+        for (Direction d : Direction.Plane.HORIZONTAL) {
+            VoxelShape[] acc = {Shapes.empty()};
+            north.forAllBoxes((x0, y0, z0, x1, y1, z1) -> {
+                double ax = x0, az = z0, bx = x1, bz = z1;
+                switch (d) {
+                    case SOUTH -> { ax = 1 - x1; bx = 1 - x0; az = 1 - z1; bz = 1 - z0; }
+                    case WEST -> { ax = z0; bx = z1; az = 1 - x1; bz = 1 - x0; }
+                    case EAST -> { ax = 1 - z1; bx = 1 - z0; az = x0; bz = x1; }
+                    default -> { }
+                }
+                acc[0] = Shapes.or(acc[0], Shapes.box(ax, y0, az, bx, y1, bz));
+            });
+            out[d.get2DDataValue()] = acc[0].optimize();
+        }
+        return out;
     }
 
     @Override
     protected RenderShape getRenderShape(BlockState state) {
-        return RenderShape.MODEL;
+        return RenderShape.MODEL; // 地形の模型は槽の水の面だけ。槽そのものは GeckoLib(WasherRenderer)が描く
     }
 
     @Override

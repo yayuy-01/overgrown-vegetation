@@ -410,4 +410,139 @@ public final class DeconGameTests {
         }
         helper.succeed();
     }
+
+    // ---------------------------------------------------------------- 洗い場の形(2026-11-22 ユーザーの手直し版の模型)
+
+    /** 形の (x, z) の柱の上端(当たる箱が無ければ 0)。 */
+    static double topAt(net.minecraft.world.phys.shapes.VoxelShape shape, double x, double z) {
+        double top = 0.0D;
+        for (net.minecraft.world.phys.AABB box : shape.toAabbs()) {
+            if (box.minX <= x && x <= box.maxX && box.minZ <= z && z <= box.maxZ) top = Math.max(top, box.maxY);
+        }
+        return top;
+    }
+
+    /**
+     * 前(扉)を置いた人へ向ける。当たり判定は真ん中・前がすのこの高さ 12/16 で、後ろの立て管だけ上まで(4 つの向きで回る)。
+     * すのこの上に立った人(足が 12/16)の装備を洗い、すのこの上(12/16)に置いた物を吸う。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 40)
+    public static void washerFacesPlacerAndWorksOnSlats(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos floorRel = new BlockPos(3, 1, 3);
+        BlockPos rel = floorRel.above();
+        BlockPos abs = helper.absolutePos(rel);
+        Player placer = helper.makeMockPlayer(GameType.SURVIVAL);
+        net.minecraft.world.phys.Vec3 standAt = net.minecraft.world.phys.Vec3.atBottomCenterOf(helper.absolutePos(rel.south(2)));
+        placer.moveTo(standAt.x, standAt.y, standAt.z, 180.0F, 30.0F); // 北を向く
+        ItemStack stack = new ItemStack(ModDecon.WASHER_ITEM.get());
+        placer.setItemInHand(InteractionHand.MAIN_HAND, stack);
+        net.minecraft.world.phys.BlockHitResult hit = new net.minecraft.world.phys.BlockHitResult(
+                net.minecraft.world.phys.Vec3.atCenterOf(helper.absolutePos(floorRel)).add(0.0D, 0.5D, 0.0D),
+                net.minecraft.core.Direction.UP, helper.absolutePos(floorRel), false);
+        var result = stack.useOn(new net.minecraft.world.item.context.UseOnContext(placer, InteractionHand.MAIN_HAND, hit));
+        var state = helper.getBlockState(rel);
+        if (!result.consumesAction() || !state.is(ModDecon.WASHER.get())
+                || state.getValue(com.yayuy.overgrownvegetation.survival.decon.WasherBlock.FACING) != net.minecraft.core.Direction.SOUTH) {
+            helper.fail("置いた洗い場の前が置いた人(南)を向かない: " + result + "・" + state);
+            return;
+        }
+        for (net.minecraft.core.Direction d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+            var c = state.setValue(com.yayuy.overgrownvegetation.survival.decon.WasherBlock.FACING, d).getCollisionShape(level, abs);
+            net.minecraft.core.Direction back = d.getOpposite();
+            double mid = topAt(c, 0.5D, 0.5D);
+            double front = topAt(c, 0.5D + 0.4D * d.getStepX(), 0.5D + 0.4D * d.getStepZ());
+            double pipe = topAt(c, 0.5D + 0.47D * back.getStepX(), 0.5D + 0.47D * back.getStepZ());
+            if (Math.abs(mid - 0.75D) > 1.0e-6 || Math.abs(front - 0.75D) > 1.0e-6 || Math.abs(pipe - 1.0D) > 1.0e-6) {
+                helper.fail(d + " 向きの当たり判定: 真ん中 " + mid + "・前 " + front + "・後ろの立て管 " + pipe + "(0.75・0.75・1 のはず)");
+                return;
+            }
+        }
+        WasherBlockEntity be = (WasherBlockEntity) level.getBlockEntity(abs);
+        be.energyPort().receiveEnergy(spec().machineEnergyBuffer(), false);
+
+        // すのこの上に立った人の装備を洗う: 立った人の体の箱(足 = 当たり判定の上端 12/16)が「上に立っている」と見る箱に重なる。
+        // 床に立って横から寄った人(となりの列)は重ならない。(ワールドに入れた偽プレイヤーは MOD の通信でサーバーを落とすので、箱で確かめる)
+        var standBox = com.yayuy.overgrownvegetation.survival.decon.GearShower.standBox(abs);
+        var dims = net.minecraft.world.entity.EntityType.PLAYER.getDimensions();
+        var onSlats = dims.makeBoundingBox(abs.getX() + 0.5D, abs.getY() + mid(state, level, abs), abs.getZ() + 0.5D);
+        var beside = dims.makeBoundingBox(abs.getX() + 0.5D, abs.getY(), abs.getZ() + 1.3D + 1.0e-3);
+        if (!onSlats.intersects(standBox) || beside.intersects(standBox)) {
+            helper.fail("上に立つ判定: すのこの上 " + onSlats.intersects(standBox) + "(true のはず)・横に立つ " + beside.intersects(standBox));
+            return;
+        }
+
+        // すのこの上に置いた物を吸う(落ちてくる途中ではなく、すのこの上に置いた位置から)
+        if (!spec().machinePickup()) {
+            helper.setBlock(rel, Blocks.AIR);
+            helper.succeed();
+            return;
+        }
+        ItemEntity bone = new ItemEntity(level, abs.getX() + 0.5D, abs.getY() + mid(state, level, abs), abs.getZ() + 0.5D,
+                new ItemStack(ModItems.OVERGROWN_BONE.get()));
+        bone.setNoPickUpDelay();
+        bone.setDeltaMovement(0.0D, 0.0D, 0.0D);
+        level.addFreshEntity(bone);
+        helper.runAfterDelay(12, () -> {
+            boolean inside = false;
+            for (int i = 0; i < WasherBlockEntity.INPUTS + WasherBlockEntity.OUTPUTS; i++) {
+                ItemStack s = be.items().getStackInSlot(i);
+                if (s.is(ModItems.OVERGROWN_BONE.get()) || s.is(Items.BONE)) inside = true;
+            }
+            if (bone.isAlive() || !inside) {
+                helper.fail("すのこの上の物を吸わない: 残る " + bone.isAlive() + "(高さ " + (bone.getY() - abs.getY()) + ")・中にある " + inside);
+                return;
+            }
+            helper.setBlock(rel, Blocks.AIR);
+            helper.succeed();
+        });
+    }
+
+    /** 真ん中のすのこの高さ(当たり判定から)。 */
+    private static double mid(net.minecraft.world.level.block.state.BlockState state, ServerLevel level, BlockPos abs) {
+        return topAt(state.getCollisionShape(level, abs), 0.5D, 0.5D);
+    }
+
+    /**
+     * 槽の中に描く物: 洗う前の枠の先頭から {@link WasherBlockEntity#SHOWN_MAX} 枠まで・1 つずつ。数が減るだけなら同じ顔ぶれ(送り直さない)。
+     * クライアントへ送る中身は描く物だけで、受け取った側の FE などを消さない。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void washerShowsUpToThreeItems(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        WasherBlockEntity be = placeWasher(helper, new BlockPos(3, 2, 3));
+        be.insert(new ItemStack(ModItems.OVERGROWN_LEATHER.get(), 5));
+        be.insert(new ItemStack(ModItems.OVERGROWN_BONE.get(), 2));
+        java.util.List<ItemStack> two = be.computeShown();
+        if (two.size() != 2 || two.get(0).getCount() != 1 || !two.get(0).is(ModItems.OVERGROWN_LEATHER.get())) {
+            helper.fail("描く物(2 枠): " + two);
+            return;
+        }
+        if (!WasherBlockEntity.sameItems(two, java.util.List.of(new ItemStack(ModItems.OVERGROWN_LEATHER.get(), 3), new ItemStack(ModItems.OVERGROWN_BONE.get(), 9)))
+                || WasherBlockEntity.sameItems(two, java.util.List.of(new ItemStack(ModItems.OVERGROWN_LEATHER.get()), new ItemStack(Items.BONE)))) {
+            helper.fail("顔ぶれの比べ方が違う(数は見ず、種類は見る)");
+            return;
+        }
+        be.items().setStackInSlot(2, new ItemStack(ModItems.OVERGROWN_WOOL.get(), 3));
+        be.items().setStackInSlot(3, usedFilter(9000));
+        java.util.List<ItemStack> shown = be.computeShown();
+        if (shown.size() != WasherBlockEntity.SHOWN_MAX) {
+            helper.fail("描く物は " + WasherBlockEntity.SHOWN_MAX + " つまでのはず: " + shown);
+            return;
+        }
+        CompoundTag tag = be.getUpdateTag(level.registryAccess());
+        if (tag.contains("energy") || tag.contains("items") || !tag.contains("shown")) {
+            helper.fail("クライアントへ描く物以外も送る: " + tag.getAllKeys());
+            return;
+        }
+        WasherBlockEntity copy = new WasherBlockEntity(be.getBlockPos(), be.getBlockState());
+        copy.energyPort().receiveEnergy(500, false);
+        copy.handleUpdateTag(tag, level.registryAccess());
+        if (copy.shown().size() != WasherBlockEntity.SHOWN_MAX || !WasherBlockEntity.sameItems(copy.shown(), shown) || copy.energy() != 500) {
+            helper.fail("受け取った側: 描く物 " + copy.shown() + "・FE " + copy.energy() + "(500 のまま のはず)");
+            return;
+        }
+        helper.setBlock(new BlockPos(3, 2, 3), Blocks.AIR);
+        helper.succeed();
+    }
 }

@@ -64,9 +64,12 @@ public final class ModDecon {
                     .mapColor(MapColor.COLOR_GRAY)
                     .strength(3.5F, 6.0F)
                     .requiresCorrectToolForDrops()
+                    .noOcclusion() // 2026-11-22 から 1 ブロックいっぱいの箱ではない(槽・すのこ)
                     .sound(SoundType.COPPER));
 
-    public static final DeferredItem<BlockItem> WASHER_ITEM = ModItems.ITEMS.registerSimpleBlockItem(WASHER);
+    /** 洗い場のアイテムは置いた洗い場と同じ GeckoLib の模型を描く(2026-11-22)。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.survival.decon.WasherBlockItem> WASHER_ITEM = ModItems.ITEMS.register(
+            "ley_washer", () -> new com.yayuy.overgrownvegetation.survival.decon.WasherBlockItem(WASHER.get(), new net.minecraft.world.item.Item.Properties()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WasherBlockEntity>> WASHER_BE =
             ModBlockEntities.BLOCK_ENTITY_TYPES.register("ley_washer", () -> BlockEntityType.Builder.of(

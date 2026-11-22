@@ -444,4 +444,38 @@ public final class LeyGameTests {
         clear(level, center, r + 1);
         helper.succeed();
     }
+
+    /**
+     * 柱の形(2026-11-22 ユーザーの手直し版の模型): 当たり判定の上端と線の付け根は、てっぺん(碍子のすその上)の 13/16。電池を掛けると南の面に箱が増える。
+     * 線の通り道も 13/16 の高さで見る(土の道 15/16 はふさぐ・下付きのハーフブロック 8/16 はふさがない)。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void pylonShapeAndAnchorMatchModel(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos o = far(helper, 7000);
+        BlockPos a = o;
+        BlockPos b = o.offset(4, 0, 0);
+        BlockPos mid = o.offset(2, 0, 0);
+        clear(level, mid, 4);
+        BlockState pylon = ModLey.PYLON.get().defaultBlockState();
+        place(level, a, pylon, LeyPylonBlockEntity.class);
+        place(level, b, pylon, LeyPylonBlockEntity.class);
+        double expect = 13.0 / 16.0;
+        var plain = level.getBlockState(a).getShape(level, a);
+        var withBattery = pylon.setValue(LeyBatteryHolder.BATTERY, true).getShape(level, a);
+        double top = plain.max(net.minecraft.core.Direction.Axis.Y);
+        helper.assertTrue(Math.abs(LeyWires.PYLON_ANCHOR_Y - expect) < 1.0e-9 && Math.abs(top - expect) < 1.0e-9,
+                "柱の上端 " + top + "・線の付け根 " + LeyWires.PYLON_ANCHOR_Y + "(13/16 のはず)");
+        double anchorY = LeyWires.anchor(level, a, b).y - a.getY();
+        helper.assertTrue(Math.abs(anchorY - expect) < 1.0e-9, "線の付け根の高さ " + anchorY);
+        helper.assertTrue(plain.max(net.minecraft.core.Direction.Axis.Z) < 0.7 && withBattery.max(net.minecraft.core.Direction.Axis.Z) > 0.9,
+                "電池の箱が南の面に無い: " + plain.bounds() + " → " + withBattery.bounds());
+        helper.assertTrue(LeyWires.clearPath(level, a, b), "間に何も無いのに通らない");
+        level.setBlock(mid, Blocks.DIRT_PATH.defaultBlockState(), 3);
+        helper.assertTrue(!LeyWires.clearPath(level, a, b), "土の道(15/16)を線が通り抜ける");
+        level.setBlock(mid, Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), 3);
+        helper.assertTrue(LeyWires.clearPath(level, a, b), "下付きのハーフブロック(8/16)で線がふさがる");
+        clear(level, mid, 4);
+        helper.succeed();
+    }
 }

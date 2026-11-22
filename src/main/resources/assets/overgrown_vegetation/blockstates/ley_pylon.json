@@ -1,6 +1,5 @@
 {
-  "multipart": [
-    { "apply": { "model": "overgrown_vegetation:block/ley_pylon" } },
-    { "when": { "battery": "true" }, "apply": { "model": "overgrown_vegetation:block/ley_pylon_battery" } }
-  ]
+  "variants": {
+    "": { "model": "overgrown_vegetation:block/ley_pylon" }
+  }
 }

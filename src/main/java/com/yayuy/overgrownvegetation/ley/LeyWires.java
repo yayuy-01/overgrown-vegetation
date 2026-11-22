@@ -33,6 +33,12 @@ public final class LeyWires {
         SAME, NOT_NODE, NO_PYLON, TOO_LONG, FULL, ALREADY, BLOCKED
     }
 
+    /**
+     * 柱の線の付け根の高さ(ブロックの下から。2026-11-22 ユーザーの手直し版の模型 {@code ley_pylon_yayuy.bbmodel} のてっぺん = 碍子のすその上 13/16)。
+     * 描画・線の通り道の判定・柱の当たり判定の上端で同じ値を使う。
+     */
+    public static final double PYLON_ANCHOR_Y = 13.0 / 16.0;
+
     private static LeySpec spec() {
         return DesignData.sporeField().ley();
     }
@@ -114,7 +120,7 @@ public final class LeyWires {
      */
     public static Vec3 anchor(Level level, BlockPos pos, BlockPos toward) {
         if (isPylon(level, pos)) {
-            return new Vec3(pos.getX() + 0.5, pos.getY() + 15.5 / 16.0, pos.getZ() + 0.5);
+            return new Vec3(pos.getX() + 0.5, pos.getY() + PYLON_ANCHOR_Y, pos.getZ() + 0.5);
         }
         Vec3 c = Vec3.atCenterOf(pos);
         Vec3 d = Vec3.atCenterOf(toward).subtract(c);

@@ -11,6 +11,10 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import software.bernie.geckolib.animatable.GeoBlockEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -23,7 +27,10 @@ import java.util.List;
  * 線の数を数えるのも、壊したときに線の巻きを返すのも「柱が持っている線の数」。相手が消えた線は {@link LeyGrid} が見つけて外す。
  * 線の先はクライアントにも送る(線の描画 {@code client/ley/LeyPylonRenderer})。
  */
-public class LeyPylonBlockEntity extends BlockEntity implements LeyBatteryHolder {
+public class LeyPylonBlockEntity extends BlockEntity implements LeyBatteryHolder, GeoBlockEntity {
+
+    /** GeckoLib の模型の入れ物(2026-11-22。動きは無い。電池の箱を見せるかは描画が状態の battery を読む)。 */
+    private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
     private final List<BlockPos> links = new ArrayList<>();
     private ItemStack battery = ItemStack.EMPTY;
@@ -115,6 +122,15 @@ public class LeyPylonBlockEntity extends BlockEntity implements LeyBatteryHolder
             links.add(BlockPos.of(l));
         }
         battery = LeyBatteryHolder.load(tag, registries);
+    }
+
+    @Override
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+    }
+
+    @Override
+    public AnimatableInstanceCache getAnimatableInstanceCache() {
+        return geoCache;
     }
 
     @Override

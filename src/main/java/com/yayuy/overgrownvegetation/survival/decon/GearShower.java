@@ -17,11 +17,19 @@ public final class GearShower {
     private GearShower() {
     }
 
+    /**
+     * 「上に立っている」と見る箱(足元のブロックの上 1.0〜1.6)。2026-11-22 から洗い場の当たり判定はすのこの高さ 12/16 なので、
+     * 立った人の足は 0.75 にあるが、体の箱(0.75〜2.55)がこの箱に重なるので今までどおり見つかる(GameTest で確かめる)。
+     */
+    public static AABB standBox(BlockPos pos) {
+        return new AABB(pos.getX(), pos.getY() + 1.0D, pos.getZ(), pos.getX() + 1.0D, pos.getY() + 1.6D, pos.getZ() + 1.0D);
+    }
+
     /** 上に立っている人の装備を少し洗う。洗ったら true(FE を使う)。 */
     static boolean washStanding(ServerLevel level, BlockPos pos, WasherBlockEntity be) {
         int amount = GearDirt.spec().showerPerTick();
         if (amount <= 0) return false;
-        AABB top = new AABB(pos.getX(), pos.getY() + 1.0D, pos.getZ(), pos.getX() + 1.0D, pos.getY() + 1.6D, pos.getZ() + 1.0D);
+        AABB top = standBox(pos);
         boolean washed = false;
         for (Player p : level.getEntitiesOfClass(Player.class, top, Player::isAlive)) {
             if (p.isSpectator()) continue;

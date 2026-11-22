@@ -6,6 +6,12 @@ import com.yayuy.overgrownvegetation.registry.ModDecon;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.network.Connection;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -19,6 +25,13 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import software.bernie.geckolib.animatable.GeoBlockEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.PlayState;
+import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.List;
 
@@ -34,7 +47,12 @@ import java.util.List;
  * </ul>
  * 中の FE・物・進みは保存する。
  */
-public class WasherBlockEntity extends BlockEntity {
+public class WasherBlockEntity extends BlockEntity implements GeoBlockEntity {
+
+    /** 動いている間のアニメ(はずみ車が回り、噴き出し管から水の筋が落ちる。2026-11-22 ユーザーの手直し版の模型)。 */
+    private static final RawAnimation RUN = RawAnimation.begin().thenLoop("animation.ley_washer.run");
+    /** 槽の中に描く洗う前の物の数【仮】。 */
+    public static final int SHOWN_MAX = 3;
 
     public static final int INPUTS = 9;
     public static final int OUTPUTS = 9;
@@ -43,11 +61,17 @@ public class WasherBlockEntity extends BlockEntity {
     private int energy;
     private int progress;
     private long lastRunTick = Long.MIN_VALUE;
+    private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
+    /** 槽の中に描く物(洗う前の枠の先頭から {@link #SHOWN_MAX} 枠ぶん、1 つずつ)。サーバーでは最後に送った物、クライアントでは受け取った物。 */
+    private List<ItemStack> shown = List.of();
 
     private final ItemStackHandler items = new ItemStackHandler(INPUTS + OUTPUTS) {
         @Override
         protected void onContentsChanged(int slot) {
             setChanged();
+            if (slot < INPUTS) {
+                refreshShown();
+            }
         }
     };
 
@@ -280,6 +304,96 @@ public class WasherBlockEntity extends BlockEntity {
         return Component.translatable("message.overgrown_vegetation.ley_washer." + state).copy()
                 .append(Component.translatable("message.overgrown_vegetation.ley_washer.info", in, out,
                         LeyText.fe(energy), LeyText.fe(spec().machineEnergyBuffer())));
+    }
+
+    // ---- 槽の中に描く物(2026-11-22。クライアントへは変わったときだけ送る) ----
+
+    /** 槽の中に描く物(クライアントの描画 {@code client/decon/WasherRenderer} から)。 */
+    public List<ItemStack> shown() {
+        return shown;
+    }
+
+    /** 今の洗う前の枠から、描く物を選ぶ(先頭から空でない枠を {@link #SHOWN_MAX} 個まで。数は見せないので 1 つずつ)。 */
+    public List<ItemStack> computeShown() {
+        List<ItemStack> out = new java.util.ArrayList<>(SHOWN_MAX);
+        for (int i = 0; i < INPUTS && out.size() < SHOWN_MAX; i++) {
+            ItemStack s = items.getStackInSlot(i);
+            if (!s.isEmpty()) out.add(s.copyWithCount(1));
+        }
+        return out;
+    }
+
+    /** 描く物の顔ぶれ(物の種類と中身。数は見ない)が変わったら、クライアントへ送り直す。洗うたびに数が減るだけなら送らない。 */
+    private void refreshShown() {
+        if (level == null || level.isClientSide) return;
+        List<ItemStack> now = computeShown();
+        if (sameItems(shown, now)) return;
+        shown = now;
+        level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
+    }
+
+    /** 描く物の顔ぶれが同じか(数は見ない。GameTest からも)。 */
+    public static boolean sameItems(List<ItemStack> a, List<ItemStack> b) {
+        if (a.size() != b.size()) return false;
+        for (int i = 0; i < a.size(); i++) {
+            if (!ItemStack.isSameItemSameComponents(a.get(i), b.get(i))) return false;
+        }
+        return true;
+    }
+
+    /** クライアントへ送る中身は描く物だけ(FE・枠の中身・進みは送らない)。 */
+    @Override
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        CompoundTag tag = new CompoundTag();
+        ListTag list = new ListTag();
+        List<ItemStack> now = level != null && !level.isClientSide ? computeShown() : shown;
+        for (ItemStack s : now) list.add(s.save(registries));
+        tag.put("shown", list);
+        return tag;
+    }
+
+    @Override
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    /** 受け取った描く物だけを読む(ふつうの読み込みに回すと、クライアントの FE などが 0 で上書きされる)。 */
+    @Override
+    public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider registries) {
+        readShown(tag, registries);
+    }
+
+    @Override
+    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt, HolderLookup.Provider registries) {
+        readShown(pkt.getTag(), registries);
+    }
+
+    private void readShown(CompoundTag tag, HolderLookup.Provider registries) {
+        if (!tag.contains("shown", Tag.TAG_LIST)) return;
+        ListTag list = tag.getList("shown", Tag.TAG_COMPOUND);
+        List<ItemStack> out = new java.util.ArrayList<>(list.size());
+        for (int i = 0; i < list.size() && out.size() < SHOWN_MAX; i++) {
+            ItemStack.parse(registries, list.getCompound(i)).ifPresent(out::add);
+        }
+        shown = List.copyOf(out);
+    }
+
+    // ---- GeckoLib ----
+
+    @Override
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        controllers.add(new AnimationController<>(this, "run", 0, state -> {
+            BlockState bs = getBlockState();
+            if (bs.hasProperty(WasherBlock.RUNNING) && bs.getValue(WasherBlock.RUNNING)) {
+                return state.setAndContinue(RUN);
+            }
+            return PlayState.STOP;
+        }));
+    }
+
+    @Override
+    public AnimatableInstanceCache getAnimatableInstanceCache() {
+        return geoCache;
     }
 
     @Override

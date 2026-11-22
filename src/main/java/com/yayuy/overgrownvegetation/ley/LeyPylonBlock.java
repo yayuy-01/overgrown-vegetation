@@ -22,6 +22,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
@@ -34,12 +35,16 @@ import java.util.HashSet;
  *     <li>電池を持って右クリック: 電池を掛ける(網の余りで充電し、足りない時は網へ出す)。素手でしゃがんで右クリック: 外す。</li>
  *     <li>壊すと、持っている線の数だけ線の巻きと、掛けた電池を落とす。相手の柱の線も外す。</li>
  * </ul>
- * 見た目【仮】: 1 ブロックの木の柱(上に腕木と碍子)。後でユーザーが描き直す。
+ * 見た目(2026-11-22): ユーザーの手直し版 {@code デスクトップ\blockbench\ley_pylon_yayuy.bbmodel} を GeckoLib で描く(描画 {@code client/ley/LeyPylonRenderer})。
+ * 暗い木の柱に鉄の帯金と頭の板、てっぺんに白い碍子のすそ(高さ 13/16 = 線の付け根 {@link LeyWires#PYLON_ANCHOR_Y})。電池を掛けている間は南の面に電池の箱(骨 {@code battery})。
  */
 public class LeyPylonBlock extends BaseEntityBlock {
 
     public static final MapCodec<LeyPylonBlock> CODEC = simpleCodec(LeyPylonBlock::new);
-    private static final VoxelShape SHAPE = box(6.0D, 0.0D, 6.0D, 10.0D, 16.0D, 10.0D);
+    /** 当たり判定(模型の帯金・頭の板の 6 角、上端は線の付け根と同じ 13/16)。 */
+    private static final VoxelShape SHAPE = box(5.0D, 0.0D, 5.0D, 11.0D, LeyWires.PYLON_ANCHOR_Y * 16.0D, 11.0D);
+    /** 電池を掛けた姿(南の面の電池の箱を足す)。 */
+    private static final VoxelShape SHAPE_BATTERY = Shapes.or(SHAPE, box(6.0D, 1.0D, 10.0D, 10.0D, 8.0D, 15.0D));
 
     public LeyPylonBlock(Properties properties) {
         super(properties);
@@ -58,12 +63,12 @@ public class LeyPylonBlock extends BaseEntityBlock {
 
     @Override
     protected RenderShape getRenderShape(BlockState state) {
-        return RenderShape.MODEL;
+        return RenderShape.ENTITYBLOCK_ANIMATED; // GeckoLib の模型(LeyPylonRenderer)が描く
     }
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return SHAPE;
+        return state.getValue(LeyBatteryHolder.BATTERY) ? SHAPE_BATTERY : SHAPE;
     }
 
     @Override

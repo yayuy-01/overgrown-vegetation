@@ -97,7 +97,9 @@ public final class ModLey {
 
     public static final DeferredItem<BlockItem> FLOWER_ITEM = ModItems.ITEMS.registerSimpleBlockItem(FLOWER);
     public static final DeferredItem<BlockItem> PUMP_ITEM = ModItems.ITEMS.registerSimpleBlockItem(PUMP);
-    public static final DeferredItem<BlockItem> PYLON_ITEM = ModItems.ITEMS.registerSimpleBlockItem(PYLON);
+    /** 柱のアイテムは置いた柱と同じ GeckoLib の模型を描く(2026-11-22)。 */
+    public static final DeferredItem<com.yayuy.overgrownvegetation.ley.LeyPylonItem> PYLON_ITEM = ModItems.ITEMS.register(
+            "ley_pylon", () -> new com.yayuy.overgrownvegetation.ley.LeyPylonItem(PYLON.get(), new Item.Properties()));
 
     public static final DeferredItem<LeyBatteryItem> BATTERY = ModItems.ITEMS.registerItem(
             "ley_battery", LeyBatteryItem::new, new Item.Properties().stacksTo(1));

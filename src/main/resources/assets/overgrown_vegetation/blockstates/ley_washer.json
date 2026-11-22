@@ -1,6 +1,5 @@
 {
   "variants": {
-    "running=false": { "model": "overgrown_vegetation:block/ley_washer" },
-    "running=true": { "model": "overgrown_vegetation:block/ley_washer_running" }
+    "": { "model": "overgrown_vegetation:block/ley_washer" }
   }
 }

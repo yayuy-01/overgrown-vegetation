@@ -8,7 +8,10 @@ import com.yayuy.overgrownvegetation.ley.LeyWires;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
+import com.yayuy.overgrownvegetation.ley.LeyBatteryHolder;
+import org.jetbrains.annotations.Nullable;
+import software.bernie.geckolib.cache.object.BakedGeoModel;
+import software.bernie.geckolib.renderer.GeoBlockRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -17,17 +20,37 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * 地脈の柱から張った線を描く(2026-11-13 サバイバルの背骨 段 2b)。端の点({@link LeyWires#anchor})どうしを、少したるんだ曲線(放物線。たるみは長さの 4% + 0.05【仮】)で結ぶ。
+ * 地脈の柱を描く(2026-11-22 から GeckoLib の模型 {@link LeyPylonModel}。電池を掛けている間だけ骨 {@code battery} を見せる)。
+ * その後で、柱から張った線を描く(2026-11-13 サバイバルの背骨 段 2b)。端の点({@link LeyWires#anchor})どうしを、少したるんだ曲線(放物線。たるみは長さの 4% + 0.05【仮】)で結ぶ。
  * 線は細い帯を 2 枚十字に組んだもの(どの向きから見ても太さがある)。柱どうしの線は座標の小さい方だけが描く(二重に描かない)。
  * 絵 {@code textures/block/ley_wire.png}(布巻きの銅線【仮】)。明るさは区間ごとにその場の光を読む。
  */
-public class LeyPylonRenderer implements BlockEntityRenderer<LeyPylonBlockEntity> {
+public class LeyPylonRenderer extends GeoBlockRenderer<LeyPylonBlockEntity> {
 
     private static final ResourceLocation TEXTURE = OvergrownVegetation.id("textures/block/ley_wire.png");
     private static final float HALF_WIDTH = 0.035F;
 
+    public LeyPylonRenderer() {
+        super(new LeyPylonModel<>());
+    }
+
+    @Override
+    public void preRender(PoseStack poseStack, LeyPylonBlockEntity animatable, BakedGeoModel model, @Nullable MultiBufferSource bufferSource,
+                          @Nullable VertexConsumer buffer, boolean isReRender, float partialTick, int packedLight, int packedOverlay, int colour) {
+        if (!isReRender) {
+            LeyPylonModel.showBattery(model, animatable.getBlockState().hasProperty(LeyBatteryHolder.BATTERY)
+                    && animatable.getBlockState().getValue(LeyBatteryHolder.BATTERY));
+        }
+        super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
+    }
+
     @Override
     public void render(LeyPylonBlockEntity be, float partialTick, PoseStack poseStack, MultiBufferSource buffers, int packedLight, int packedOverlay) {
+        super.render(be, partialTick, poseStack, buffers, packedLight, packedOverlay); // 柱の模型
+        renderWires(be, poseStack, buffers);
+    }
+
+    private static void renderWires(LeyPylonBlockEntity be, PoseStack poseStack, MultiBufferSource buffers) {
         Level level = be.getLevel();
         if (level == null || be.links().isEmpty()) {
             return;
