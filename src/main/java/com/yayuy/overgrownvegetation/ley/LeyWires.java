@@ -9,8 +9,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.neoforged.neoforge.capabilities.Capabilities;
+import com.yayuy.overgrownvegetation.port.capabilities.Capabilities;
 import net.minecraftforge.energy.IEnergyStorage;
+import com.yayuy.overgrownvegetation.port.capabilities.OvCaps;
 
 /**
  * 線を張る決まり(2026-11-13 サバイバルの背骨 段 2b、決定 13。数は {@code spore_field.json} の {@code ley.wire*}【仮】)。
@@ -49,16 +50,16 @@ public final class LeyWires {
 
     /** そのブロックの FE の口(向きを問わず、最初に見つかったもの)。柱には無い。 */
     public static IEnergyStorage energyAt(Level level, BlockPos pos, Direction preferred) {
-        IEnergyStorage s = level.getCapability(Capabilities.EnergyStorage.BLOCK, pos, preferred);
+        IEnergyStorage s = OvCaps.getCapability(level, Capabilities.EnergyStorage.BLOCK, pos, preferred);
         if (s != null) {
             return s;
         }
-        s = level.getCapability(Capabilities.EnergyStorage.BLOCK, pos, null);
+        s = OvCaps.getCapability(level, Capabilities.EnergyStorage.BLOCK, pos, null);
         if (s != null) {
             return s;
         }
         for (Direction d : Direction.values()) {
-            s = level.getCapability(Capabilities.EnergyStorage.BLOCK, pos, d);
+            s = OvCaps.getCapability(level, Capabilities.EnergyStorage.BLOCK, pos, d);
             if (s != null) {
                 return s;
             }

@@ -229,7 +229,7 @@ public final class CorruptionRegistry {
         // 大量の竹アイテムをドロップし下草だけが空中に取り残される。corruptsToAir 扱いにして
         // placeCorrupted 側で茎まるごとドロップ無しで消す(要望)。
         put(exact, growth,
-                Blocks.SHORT_GRASS, Blocks.TALL_GRASS, Blocks.FERN, Blocks.LARGE_FERN,
+                Blocks.GRASS, Blocks.TALL_GRASS, Blocks.FERN, Blocks.LARGE_FERN,
                 Blocks.DEAD_BUSH, Blocks.SWEET_BERRY_BUSH, Blocks.SUGAR_CANE,
                 Blocks.VINE, Blocks.GLOW_LICHEN, Blocks.MOSS_CARPET,
                 Blocks.SEAGRASS, Blocks.TALL_SEAGRASS, Blocks.KELP, Blocks.KELP_PLANT);

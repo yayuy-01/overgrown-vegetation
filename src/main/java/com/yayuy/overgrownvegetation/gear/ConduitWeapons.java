@@ -22,6 +22,7 @@ import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.entity.OvModifiers;
 
 /**
  * <b>導晶の武器</b>(グレード 1。2026-11-21 夜ユーザー決定「武器 = 導晶の剣 + 導晶機関で弦を巻く弩」)。
@@ -47,10 +48,10 @@ public final class ConduitWeapons {
         double damage = s.damage + (charged ? s.chargedBonus : 0.0F) - 1.0D;
         return ItemAttributeModifiers.builder()
                 .add(Attributes.ATTACK_DAMAGE,
-                        new AttributeModifier(Item.BASE_ATTACK_DAMAGE_ID, damage, AttributeModifier.Operation.ADD_VALUE),
+                        OvModifiers.create(Item.BASE_ATTACK_DAMAGE_ID, damage, AttributeModifier.Operation.ADDITION),
                         EquipmentSlotGroup.MAINHAND)
                 .add(Attributes.ATTACK_SPEED,
-                        new AttributeModifier(Item.BASE_ATTACK_SPEED_ID, s.attackSpeed - 4.0D, AttributeModifier.Operation.ADD_VALUE),
+                        OvModifiers.create(Item.BASE_ATTACK_SPEED_ID, s.attackSpeed - 4.0D, AttributeModifier.Operation.ADDITION),
                         EquipmentSlotGroup.MAINHAND)
                 .build();
     }

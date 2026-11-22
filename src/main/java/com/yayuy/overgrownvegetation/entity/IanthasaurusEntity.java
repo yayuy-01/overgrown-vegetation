@@ -7,6 +7,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
 
 /**
  * イアンタサウルス {@code ianthasaurus}(狩る側の環境生物・原生消費種。背に帆を持つ石炭紀の爬虫類。帆は今の大きさのまま = 10-10 の決定)。狩る側の環境生物はその環境に
@@ -44,7 +45,7 @@ public class IanthasaurusEntity extends SimpleLizard {
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        return MobStats.apply(Monster.createMonsterAttributes(), ID).add(Attributes.JUMP_STRENGTH, JUMP_STRENGTH);
+        return MobStats.apply(Monster.createMonsterAttributes(), ID).add(PortAttributes.JUMP_STRENGTH.get(), JUMP_STRENGTH);
     }
 
     @Override

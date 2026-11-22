@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import com.yayuy.overgrownvegetation.port.entity.OvModifiers;
 
 /**
  * MOD の設定の「Mob の強さ」(2026-11-19 ユーザー決定: 体力・攻撃力・防御力・強靭の 4 項目を全体の % と Mob ごとの詳細で)を
@@ -129,7 +130,7 @@ public final class MobStrength {
             return now != null && inst.removeModifier(modifierId);
         }
         if (now != null && Math.abs(now.amount() - want) < 1.0E-9D) return false;
-        inst.addOrReplacePermanentModifier(new AttributeModifier(modifierId, want, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+        inst.addOrReplacePermanentModifier(OvModifiers.create(modifierId, want, AttributeModifier.Operation.MULTIPLY_TOTAL));
         return true;
     }
 

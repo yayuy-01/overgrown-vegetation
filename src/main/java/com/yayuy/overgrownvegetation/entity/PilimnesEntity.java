@@ -19,6 +19,7 @@ import software.bernie.geckolib.core.animation.AnimationState;
 import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
 
 /**
  * ピリムネス {@code pilimnes}(G3・地上の遠距離。11-14 に本名。仮名ナゲトゲ、仮の id {@code g5_lancer}。pilum = 投槍)。
@@ -312,7 +313,7 @@ public class PilimnesEntity extends LizardRunner implements GeoEntity, Parasitiz
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        return MobStats.apply(Monster.createMonsterAttributes(), ID).add(Attributes.JUMP_STRENGTH, JUMP_STRENGTH);
+        return MobStats.apply(Monster.createMonsterAttributes(), ID).add(PortAttributes.JUMP_STRENGTH.get(), JUMP_STRENGTH);
     }
 
     // ------------------------------------------------------------------ 型の値

@@ -21,6 +21,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
+import com.yayuy.overgrownvegetation.port.entity.OvModifiers;
 
 /**
  * プレイヤーの「胞子感染」10 段階の付与と進行(2026-10-14 ユーザー指定、11-04 に parked から戻して書き直した)。
@@ -207,8 +208,8 @@ public final class SporeInfectionEffects {
             armor = spec.stage(amp + 1).armorReduction();
             maxHealth = spec.maxHealthPerStage() * amp;
         }
-        apply(entity, Attributes.ARMOR, ARMOR_ID, -armor, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
-        apply(entity, Attributes.MAX_HEALTH, MAX_HEALTH_ID, -maxHealth, AttributeModifier.Operation.ADD_VALUE);
+        apply(entity, Attributes.ARMOR, ARMOR_ID, -armor, AttributeModifier.Operation.MULTIPLY_TOTAL);
+        apply(entity, Attributes.MAX_HEALTH, MAX_HEALTH_ID, -maxHealth, AttributeModifier.Operation.ADDITION);
     }
 
     private static void apply(LivingEntity entity, Holder<Attribute> attribute, ResourceLocation id, double amount,
@@ -227,7 +228,7 @@ public final class SporeInfectionEffects {
         if (existing != null && Math.abs(existing.amount() - amount) < 1.0E-6D) {
             return;
         }
-        instance.addOrUpdateTransientModifier(new AttributeModifier(id, amount, operation));
+        instance.addOrUpdateTransientModifier(OvModifiers.create(id, amount, operation));
         if (attribute == Attributes.MAX_HEALTH && entity.getHealth() > entity.getMaxHealth()) {
             entity.setHealth(entity.getMaxHealth());
         }

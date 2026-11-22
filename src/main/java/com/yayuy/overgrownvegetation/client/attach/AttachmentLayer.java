@@ -13,7 +13,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.ItemContainerContents;
+import com.yayuy.overgrownvegetation.port.component.ItemContainerContents;
 
 import java.util.HashMap;
 import java.util.HashSet;

@@ -148,7 +148,7 @@ public final class CoveredSandGameTests {
         var dirt = ModBlocks.OVERGROWN_DIRT.get();
         BlockPos origin = helper.absolutePos(new BlockPos(1, SKY, 1));
         BlockState[] aboves = {Blocks.STONE.defaultBlockState(), Blocks.WATER.defaultBlockState(),
-                Blocks.GLASS.defaultBlockState(), Blocks.SHORT_GRASS.defaultBlockState()};
+                Blocks.GLASS.defaultBlockState(), Blocks.GRASS.defaultBlockState()};
         boolean[] expectDirt = {true, true, false, false};
         String[] names = {"石", "水", "ガラス", "草"};
         BlockPos coveredDirt = origin.south(3);

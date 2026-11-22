@@ -75,7 +75,7 @@ public final class OrganClearAttachedGameTests {
             level.setBlock(side, moss, 2);
             // 幹の根元のわきの林床の草(残る)
             BlockPos grass = a.atY(gy + 1).offset(1, 0, 0);
-            level.setBlock(grass, Blocks.SHORT_GRASS.defaultBlockState(), 2);
+            level.setBlock(grass, Blocks.GRASS.defaultBlockState(), 2);
             // C: 円の外の木(残る)。その葉の下の垂れ根も残る
             BlockPos f = c.offset(0, 0, -(r + 4));
             for (int y = 1; y <= 8; y++) level.setBlock(f.atY(gy + y), log, 2);
@@ -89,7 +89,7 @@ public final class OrganClearAttachedGameTests {
             helper.assertTrue(level.getBlockState(a.atY(gy + 4)).isAir(), "円の中の木の幹が残る");
             helper.assertTrue(level.getBlockState(h1).isAir() && level.getBlockState(h2).isAir(), "払った葉の下の垂れ根が浮いて残る: " + level.getBlockState(h1) + " / " + level.getBlockState(h2));
             helper.assertTrue(level.getBlockState(side).isAir(), "払った幹の横の苔が浮いて残る: " + level.getBlockState(side));
-            helper.assertTrue(level.getBlockState(grass).is(Blocks.SHORT_GRASS), "林床の草まで払った");
+            helper.assertTrue(level.getBlockState(grass).is(Blocks.GRASS), "林床の草まで払った");
             helper.assertTrue(level.getBlockState(f.atY(gy + 4)).is(ModBlocks.OVERGROWN_LOG.get()), "円の外の木まで払った");
             helper.assertTrue(!level.getBlockState(keep).isAir(), "残る木に付いた垂れ根まで払った");
             helper.succeed();

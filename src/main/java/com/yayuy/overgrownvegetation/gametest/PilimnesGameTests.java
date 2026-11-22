@@ -17,6 +17,7 @@ import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.event.RegisterGameTestsEvent;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
 
 /**
  * ピリムネスの段 1(2026-11-15): 「トカゲ型」の移動で歩くこと。体長 9.5 ブロックのうち地形とぶつかるのは芯(幅 1.3)だけなので、
@@ -73,8 +74,8 @@ public final class PilimnesGameTests {
             helper.fail("芯の大きさが 1.3 × 1.6 でない: " + v.getBbWidth() + " × " + v.getBbHeight());
             return;
         }
-        if (Math.abs(v.maxUpStep() - 1.0F) > 1e-3 || Math.abs(v.getAttributeValue(Attributes.JUMP_STRENGTH) - PilimnesEntity.JUMP_STRENGTH) > 1e-6) {
-            helper.fail("段差 " + v.maxUpStep() + "・跳ぶ力 " + v.getAttributeValue(Attributes.JUMP_STRENGTH) + " が決まり通りでない");
+        if (Math.abs(v.maxUpStep() - 1.0F) > 1e-3 || Math.abs(v.getAttributeValue(PortAttributes.JUMP_STRENGTH.get()) - PilimnesEntity.JUMP_STRENGTH) > 1e-6) {
+            helper.fail("段差 " + v.maxUpStep() + "・跳ぶ力 " + v.getAttributeValue(PortAttributes.JUMP_STRENGTH.get()) + " が決まり通りでない");
             return;
         }
         // 11-16: 弾きの射程 44(ユーザー「遠距離はもっと射程があっていい」で 2 倍)の相手を見つけられること

@@ -18,6 +18,7 @@ import net.minecraftforge.event.ItemStackedOnOtherEvent;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.entity.OvModifiers;
 
 /**
  * 付け物の働きのうち、イベントで足すもの(2026-11-21 夜【仮】)。
@@ -43,7 +44,7 @@ public final class AttachEffects {
         String part = ArmorAttachments.partOf(stack);
         if (bonus == 0.0D || part == null) return;
         event.addModifier(Attributes.ARMOR,
-                new AttributeModifier(OvergrownVegetation.id("armor_attachment." + part), bonus, AttributeModifier.Operation.ADD_VALUE),
+                OvModifiers.create(OvergrownVegetation.id("armor_attachment." + part), bonus, AttributeModifier.Operation.ADDITION),
                 EquipmentSlotGroup.bySlot(armor.getEquipmentSlot()));
     }
 

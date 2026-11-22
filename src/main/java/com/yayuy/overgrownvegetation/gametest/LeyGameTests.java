@@ -24,7 +24,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.capabilities.Capabilities;
+import com.yayuy.overgrownvegetation.port.capabilities.Capabilities;
 import net.minecraftforge.energy.EnergyStorage;
 import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.event.RegisterGameTestsEvent;
@@ -33,6 +33,7 @@ import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import java.util.HashSet;
 import com.yayuy.overgrownvegetation.port.component.OvItemData;
+import com.yayuy.overgrownvegetation.port.capabilities.OvCaps;
 
 /**
  * 地脈の最小限(2026-11-13 サバイバルの背骨 段 2b)。線の場・汲み上げ器の効率・電池・柱と線の網・線の決まり・保存・花の増え方。
@@ -204,7 +205,7 @@ public final class LeyGameTests {
     public static void batteryChargesAndDischarges(GameTestHelper helper) {
         LeySpec spec = spec();
         ItemStack battery = new ItemStack(ModLey.BATTERY.get());
-        IEnergyStorage cap = battery.getCapability(Capabilities.EnergyStorage.ITEM);
+        IEnergyStorage cap = OvCaps.getCapability(battery, Capabilities.EnergyStorage.ITEM);
         helper.assertTrue(cap != null, "電池に FE の口が無い");
         int in = cap.receiveEnergy(spec.batteryMaxTransfer() * 3, false);
         helper.assertTrue(in == spec.batteryMaxTransfer(), "1 回に入った量 " + in);
@@ -342,7 +343,7 @@ public final class LeyGameTests {
         grid.producers.add(pump.energyPort());
         grid.consumers.add(c1);
         grid.consumers.add(c2);
-        grid.buffers.add(battery.getCapability(Capabilities.EnergyStorage.ITEM));
+        grid.buffers.add(OvCaps.getCapability(battery, Capabilities.EnergyStorage.ITEM));
         int moved = grid.transfer();
         int fromPump = pumpBefore - pump.energy();
         int fromBattery = 50_000 - LeyBatteryItem.stored(battery);

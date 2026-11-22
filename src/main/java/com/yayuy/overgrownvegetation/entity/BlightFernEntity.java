@@ -33,6 +33,7 @@ import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
 
 /**
  * 巨大シダの寄生植物。動かないが、周囲を球状に侵食していく。
@@ -80,7 +81,7 @@ public class BlightFernEntity extends PathfinderMob implements GeoEntity {
 
     /** 段差 1 ブロックは歩いて登る(穴につっかえないように。2026-10-24 追記 18【決定】)。セーブの属性で戻らないよう読み込みの後にも。 */
     private void applyStepHeight() {
-        net.minecraft.world.entity.ai.attributes.AttributeInstance step = this.getAttribute(Attributes.STEP_HEIGHT);
+        net.minecraft.world.entity.ai.attributes.AttributeInstance step = this.getAttribute(PortAttributes.STEP_HEIGHT.get());
         if (step != null) step.setBaseValue(1.0D);
     }
 
@@ -578,9 +579,9 @@ public class BlightFernEntity extends PathfinderMob implements GeoEntity {
         spreader.load(tag);
         if (tag.contains("RootIn")) rootIn = tag.getInt("RootIn");
         // 10-23 より前の萌芽体は体格 2.5 が保存されている(属性は個体ごとに保存)。今の既定(1)へ戻す —— でないと 9 ブロックの背丈で描かれる
-        var scale = this.getAttribute(Attributes.SCALE);
+        var scale = this.getAttribute(PortAttributes.SCALE.get());
         if (scale != null) {
-            scale.setBaseValue(net.minecraft.world.entity.ai.attributes.DefaultAttributes.getSupplier(com.yayuy.overgrownvegetation.registry.ModEntities.BLIGHT_FERN.get()).getBaseValue(Attributes.SCALE));
+            scale.setBaseValue(net.minecraft.world.entity.ai.attributes.DefaultAttributes.getSupplier(com.yayuy.overgrownvegetation.registry.ModEntities.BLIGHT_FERN.get()).getBaseValue(PortAttributes.SCALE.get()));
         }
     }
 }

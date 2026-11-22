@@ -41,6 +41,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
 
 /**
  * 「ハイヴノード」({@code hive_node})。巨大樹の真下の「巣の球」
@@ -178,7 +179,7 @@ public class HiveNodeEntity extends PathfinderMob
     }
 
     /**
-     * 当たり判定を見た目どおりの球(既定 3×3)に固定する。{@code Attributes.SCALE} は
+     * 当たり判定を見た目どおりの球(既定 3×3)に固定する。{@code PortAttributes.SCALE.get()} は
      * {@code LivingEntity#getDimensions} の中で当たり判定にも掛かってしまうので、
      * {@link BlightFernEntity#getDefaultDimensions} と同じ手で打ち消す。
      */

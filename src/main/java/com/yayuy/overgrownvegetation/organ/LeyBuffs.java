@@ -20,6 +20,7 @@ import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.entity.OvModifiers;
 
 /**
  * 地脈を吸う根の働き(2026-11-17 ユーザー決定): 根 1 本につき、植物側の Mob 全部(ワールド全体)のステータスを 1 つ上げる。
@@ -37,11 +38,11 @@ public final class LeyBuffs {
     }
 
     public enum Stat {
-        HEALTH("体力", Attributes.MAX_HEALTH, AttributeModifier.Operation.ADD_MULTIPLIED_BASE, true),
-        ATTACK("攻撃力", Attributes.ATTACK_DAMAGE, AttributeModifier.Operation.ADD_MULTIPLIED_BASE, true),
-        ARMOR("防御力", Attributes.ARMOR, AttributeModifier.Operation.ADD_VALUE, false),
-        SPEED("移動速度", Attributes.MOVEMENT_SPEED, AttributeModifier.Operation.ADD_MULTIPLIED_BASE, true),
-        KNOCKBACK("ノックバック耐性", Attributes.KNOCKBACK_RESISTANCE, AttributeModifier.Operation.ADD_VALUE, false);
+        HEALTH("体力", Attributes.MAX_HEALTH, AttributeModifier.Operation.MULTIPLY_BASE, true),
+        ATTACK("攻撃力", Attributes.ATTACK_DAMAGE, AttributeModifier.Operation.MULTIPLY_BASE, true),
+        ARMOR("防御力", Attributes.ARMOR, AttributeModifier.Operation.ADDITION, false),
+        SPEED("移動速度", Attributes.MOVEMENT_SPEED, AttributeModifier.Operation.MULTIPLY_BASE, true),
+        KNOCKBACK("ノックバック耐性", Attributes.KNOCKBACK_RESISTANCE, AttributeModifier.Operation.ADDITION, false);
 
         public final String label;
         final Holder<Attribute> attribute;
@@ -139,7 +140,7 @@ public final class LeyBuffs {
                 double amount = s.percent ? v / 100.0D : v;
                 AttributeModifier cur = inst.getModifier(s.id);
                 if (cur != null && cur.amount() == amount && cur.operation() == s.op) continue;
-                inst.addOrReplacePermanentModifier(new AttributeModifier(s.id, amount, s.op));
+                inst.addOrReplacePermanentModifier(OvModifiers.create(s.id, amount, s.op));
             }
         }
         if (e.getHealth() > e.getMaxHealth()) e.setHealth(e.getMaxHealth());

@@ -73,6 +73,8 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
+import com.yayuy.overgrownvegetation.port.entity.OvModifiers;
 
 /**
  * G1 の 1 段目「発達した寄生された○○」(2026-11-12、第 1 段 → 同日 能力の第 1 回)。11 種とも 1 つのクラスで、種の値は {@link G1Developed}。
@@ -361,7 +363,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
                 .add(Attributes.MOVEMENT_SPEED, d.speed)
                 .add(Attributes.FOLLOW_RANGE, 35.0D);
         if (d == G1Developed.BABY_ZOMBIE) {
-            b.add(Attributes.STEP_HEIGHT, BABY_STEP_HEIGHT); // (b) 柵・塀を四つ足でよじ登る(1.5 ブロック【決定 11-09】)
+            b.add(PortAttributes.STEP_HEIGHT.get(), BABY_STEP_HEIGHT); // (b) 柵・塀を四つ足でよじ登る(1.5 ブロック【決定 11-09】)
         }
         return b;
     }
@@ -833,7 +835,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
         this.entityData.set(ANCHORED, true);
         AttributeInstance kb = getAttribute(Attributes.KNOCKBACK_RESISTANCE);
         if (kb != null && !kb.hasModifier(ANCHOR_KNOCKBACK_ID)) {
-            kb.addTransientModifier(new AttributeModifier(ANCHOR_KNOCKBACK_ID, 1.0D, AttributeModifier.Operation.ADD_VALUE));
+            kb.addTransientModifier(OvModifiers.create(ANCHOR_KNOCKBACK_ID, 1.0D, AttributeModifier.Operation.ADDITION));
         }
     }
 
@@ -1785,7 +1787,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
         if (!level().isClientSide() && dev() == G1Developed.PIG) {
             AttributeInstance speed = getAttribute(Attributes.MOVEMENT_SPEED);
             if (speed != null && !speed.hasModifier(CARRY_SPEED_ID)) {
-                speed.addTransientModifier(new AttributeModifier(CARRY_SPEED_ID, CARRY_SPEED_BONUS, AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
+                speed.addTransientModifier(OvModifiers.create(CARRY_SPEED_ID, CARRY_SPEED_BONUS, AttributeModifier.Operation.MULTIPLY_BASE));
             }
         }
     }

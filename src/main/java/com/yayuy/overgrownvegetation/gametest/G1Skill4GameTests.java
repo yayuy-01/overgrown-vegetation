@@ -39,6 +39,7 @@ import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
 
 /**
  * G1 の 1 段目の種の技(2026-11-13、能力の第 4 回 = クモ・エンダーマン)。技ごとに 1 本以上。見た目(アニメ・粒・巣の絵・抱えた土)はクライアントで確かめる。
@@ -210,19 +211,19 @@ public final class G1Skill4GameTests {
         Cow cow = spawnCow(helper, new Vec3(6.0, 2.0, 6.0));
         keepTarget(helper, spider, cow);
         spider.forceSkillsReady();
-        double jump = cow.getAttributeValue(Attributes.JUMP_STRENGTH);
+        double jump = cow.getAttributeValue(PortAttributes.JUMP_STRENGTH.get());
         boolean[] tangled = {false}, slow2 = {false}, released = {false};
         double[] dose = {0.0D}; // 暴露量は時間で減るので、いちばん多かった値で見る
         helper.onEachTick(() -> {
             dose[0] = Math.max(dose[0], SporeExposureTracker.dose(cow));
             if (!tangled[0] && G1Tangle.isTangled(cow)) {
-                tangled[0] = cow.getAttributeValue(Attributes.JUMP_STRENGTH) < 1.0E-6D;
+                tangled[0] = cow.getAttributeValue(PortAttributes.JUMP_STRENGTH.get()) < 1.0E-6D;
                 MobEffectInstance slow = cow.getEffect(MobEffects.MOVEMENT_SLOWDOWN);
                 slow2[0] = slow != null && slow.getAmplifier() == 1;
                 // ほどけるのを見るので、次の根糸を吐かせない
                 spider.goalSelector.removeAllGoals(g -> true);
             }
-            if (tangled[0] && !G1Tangle.isTangled(cow) && Math.abs(cow.getAttributeValue(Attributes.JUMP_STRENGTH) - jump) < 1.0E-6D) {
+            if (tangled[0] && !G1Tangle.isTangled(cow) && Math.abs(cow.getAttributeValue(PortAttributes.JUMP_STRENGTH.get()) - jump) < 1.0E-6D) {
                 released[0] = true;
             }
         });
@@ -326,7 +327,7 @@ public final class G1Skill4GameTests {
         helper.assertTrue(!G1Tangle.isTangled(shielded), "盾で受けたのに絡まった");
         helper.assertTrue(SporeExposureTracker.dose(shielded) < 1.0D, "盾で受けたのに暴露量が足された: " + SporeExposureTracker.dose(shielded));
         helper.assertTrue(G1Tangle.isTangled(bare), "盾なしの相手が絡まらない");
-        helper.assertTrue(bare.getAttributeValue(Attributes.JUMP_STRENGTH) < 1.0E-6D, "盾なしの相手が跳べる");
+        helper.assertTrue(bare.getAttributeValue(PortAttributes.JUMP_STRENGTH.get()) < 1.0E-6D, "盾なしの相手が跳べる");
         helper.assertTrue(SporeExposureTracker.dose(bare) >= 299.0D, "盾なしの相手に暴露量が足されない: " + SporeExposureTracker.dose(bare));
         G1Tangle.release(bare);
         helper.succeed();

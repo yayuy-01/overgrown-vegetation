@@ -28,6 +28,7 @@ import net.minecraftforge.event.server.ServerStoppedEvent;
 import java.util.HashMap;
 import java.util.Map;
 import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
+import com.yayuy.overgrownvegetation.port.entity.OvModifiers;
 
 /**
  * Mob の胞子感染と飛び火・動物が汚染から逃げる(2026-11-14 ユーザー決定。正本は Vault「フェーズの仕組み(ポイント・日数)」の F1、
@@ -153,8 +154,8 @@ public final class MobInfection {
         }
         if (old != null && Math.abs(old.amount() + slowdown) < 1.0E-9D) return;
         attr.removeModifier(WEAKNESS_ID);
-        attr.addTransientModifier(new net.minecraft.world.entity.ai.attributes.AttributeModifier(WEAKNESS_ID, -slowdown,
-                net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+        attr.addTransientModifier(OvModifiers.create(WEAKNESS_ID, -slowdown,
+                net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.MULTIPLY_TOTAL));
     }
 
     /** 逃げる側か: 動物・水の動物・村人と行商人【仮】(敵・ゴーレムは逃げない)。座っている飼い慣らした動物・つながれた Mob は逃げない。 */

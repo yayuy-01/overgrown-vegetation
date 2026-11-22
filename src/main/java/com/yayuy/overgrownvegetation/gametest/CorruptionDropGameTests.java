@@ -173,7 +173,7 @@ public final class CorruptionDropGameTests {
         helper.setBlock(FLOWER.below(), Blocks.GRASS_BLOCK.defaultBlockState());
         helper.setBlock(GRASS.below(), Blocks.GRASS_BLOCK.defaultBlockState());
         helper.setBlock(FLOWER, Blocks.DANDELION.defaultBlockState());
-        helper.setBlock(GRASS, Blocks.SHORT_GRASS.defaultBlockState());
+        helper.setBlock(GRASS, Blocks.GRASS.defaultBlockState());
 
         corruptGround(helper, FLOWER.below());
         corruptGround(helper, GRASS.below());
@@ -195,9 +195,9 @@ public final class CorruptionDropGameTests {
         // 形状更新を出さずに置く(出すと、後に置いた草の形状更新で先の花がその場で壊れてしまう)。
         int quiet = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
         helper.getLevel().setBlock(helper.absolutePos(FLOWER), Blocks.DANDELION.defaultBlockState(), quiet);
-        helper.getLevel().setBlock(helper.absolutePos(GRASS), Blocks.SHORT_GRASS.defaultBlockState(), quiet);
+        helper.getLevel().setBlock(helper.absolutePos(GRASS), Blocks.GRASS.defaultBlockState(), quiet);
         helper.assertBlockPresent(Blocks.DANDELION, FLOWER);
-        helper.assertBlockPresent(Blocks.SHORT_GRASS, GRASS);
+        helper.assertBlockPresent(Blocks.GRASS, GRASS);
         assertNoDrops(helper);
     }
 

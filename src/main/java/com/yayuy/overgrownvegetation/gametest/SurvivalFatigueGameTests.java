@@ -42,6 +42,7 @@ import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
 
 /**
  * サバイバルの背骨 段 1(2026-11-13): 疲労のたまり方 4 つ・約 2 日で限界・夜に寝ると全部戻る・昼の休みで少しずつ戻る・死亡で 0・
@@ -173,13 +174,13 @@ public final class SurvivalFatigueGameTests {
         FatigueSpec s = spec();
         try {
             double baseMove = p.getAttributeValue(Attributes.MOVEMENT_SPEED);
-            double baseMine = p.getAttributeValue(Attributes.BLOCK_BREAK_SPEED);
+            double baseMine = p.getAttributeValue(PortAttributes.BLOCK_BREAK_SPEED.get());
             double baseAttack = p.getAttributeValue(Attributes.ATTACK_SPEED);
             FatigueTracker.set(p, s.effectsFrom());
             check(helper, "しきい値で移動", p.getAttributeValue(Attributes.MOVEMENT_SPEED), baseMove);
             FatigueTracker.set(p, 100.0D);
             check(helper, "100% で移動", p.getAttributeValue(Attributes.MOVEMENT_SPEED), baseMove * (1.0D - s.moveSlow()));
-            check(helper, "100% で採掘", p.getAttributeValue(Attributes.BLOCK_BREAK_SPEED), baseMine * (1.0D - s.mineSlow()));
+            check(helper, "100% で採掘", p.getAttributeValue(PortAttributes.BLOCK_BREAK_SPEED.get()), baseMine * (1.0D - s.mineSlow()));
             check(helper, "100% で攻撃速度", p.getAttributeValue(Attributes.ATTACK_SPEED), baseAttack * (1.0D - s.attackSpeedSlow()));
             FatigueTracker.set(p, 0.0D);
             check(helper, "0 に戻して移動", p.getAttributeValue(Attributes.MOVEMENT_SPEED), baseMove);

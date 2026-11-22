@@ -36,7 +36,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.capabilities.Capabilities;
+import com.yayuy.overgrownvegetation.port.capabilities.Capabilities;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.common.util.FakePlayerFactory;
 import net.minecraftforge.energy.IEnergyStorage;
@@ -48,6 +48,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 import com.yayuy.overgrownvegetation.port.component.OvItemData;
+import com.yayuy.overgrownvegetation.port.capabilities.OvCaps;
 
 /**
  * 装備・鉱石: 菌集鉱のでき方(2026-11-17。本物の装飾の口を通す)と、グレード 1 の導晶(2026-11-21: 導晶鉱が地脈の近くにだけできる・
@@ -401,7 +402,7 @@ public final class GearTierGameTests {
             helper.fail("電池から移らない: 移った " + moved + "(期待 " + expect + ")・電池 " + com.yayuy.overgrownvegetation.ley.LeyBatteryItem.stored(battery));
             return;
         }
-        if (tool.getCapability(Capabilities.EnergyStorage.ITEM) == null) {
+        if (OvCaps.getCapability(tool, Capabilities.EnergyStorage.ITEM) == null) {
             helper.fail("道具に FE の口が無い");
             return;
         }

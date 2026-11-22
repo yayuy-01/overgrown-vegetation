@@ -7,6 +7,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
 
 /**
  * ペトロラコサウルス {@code petrolacosaurus}(狩る側の環境生物・原生消費種。石炭紀の小さな爬虫類。鞭のような長い尾)。狩る側の環境生物はその環境に生息しているだけの生き物
@@ -42,7 +43,7 @@ public class PetrolacosaurusEntity extends SimpleLizard {
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        return MobStats.apply(Monster.createMonsterAttributes(), ID).add(Attributes.JUMP_STRENGTH, JUMP_STRENGTH);
+        return MobStats.apply(Monster.createMonsterAttributes(), ID).add(PortAttributes.JUMP_STRENGTH.get(), JUMP_STRENGTH);
     }
 
     @Override

@@ -33,7 +33,7 @@ public final class ModMobDrops {
 
     private static DeferredItem<Item> food(String id, int nutrition, float saturation) {
         return ModItems.ITEMS.registerSimpleItem(id, new Item.Properties().food(new FoodProperties.Builder()
-                .nutrition(nutrition).saturationModifier(saturation).build()));
+                .nutrition(nutrition).saturationMod(saturation).build()));
     }
 
     // ---- 獲物の環境生物 ----

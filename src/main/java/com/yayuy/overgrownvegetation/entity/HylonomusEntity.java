@@ -7,6 +7,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
 
 /**
  * ヒロノムス {@code hylonomus}(狩る側の環境生物・原生消費種。石炭紀のいちばん小さな爬虫類)。狩る側の環境生物はその環境に生息しているだけの生き物(胞子を運ばない)。
@@ -40,7 +41,7 @@ public class HylonomusEntity extends SimpleLizard {
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        return MobStats.apply(Monster.createMonsterAttributes(), ID).add(Attributes.JUMP_STRENGTH, JUMP_STRENGTH);
+        return MobStats.apply(Monster.createMonsterAttributes(), ID).add(PortAttributes.JUMP_STRENGTH.get(), JUMP_STRENGTH);
     }
 
     @Override

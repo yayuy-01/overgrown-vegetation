@@ -14,8 +14,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.capabilities.Capabilities;
+import com.yayuy.overgrownvegetation.port.capabilities.Capabilities;
 import net.minecraftforge.energy.IEnergyStorage;
+import com.yayuy.overgrownvegetation.port.capabilities.OvCaps;
 
 /**
  * <b>地脈の汲み上げ器</b>の中身(2026-11-13 サバイバルの背骨 段 2b)。どこにでも置け、地脈の線に近いほど多く汲む(決定 20。効率は {@link LeyLines#efficiency})。
@@ -157,7 +158,7 @@ public class LeyPumpBlockEntity extends BlockEntity implements LeyBatteryHolder 
             if (energy <= 0 || budget <= 0) {
                 return;
             }
-            IEnergyStorage target = level.getCapability(Capabilities.EnergyStorage.BLOCK, worldPosition.relative(d), d.getOpposite());
+            IEnergyStorage target = OvCaps.getCapability(level, Capabilities.EnergyStorage.BLOCK, worldPosition.relative(d), d.getOpposite());
             if (target == null || !target.canReceive() || target == port) {
                 continue;
             }

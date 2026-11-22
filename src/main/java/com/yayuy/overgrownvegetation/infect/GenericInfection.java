@@ -35,6 +35,7 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import com.yayuy.overgrownvegetation.port.event.tick.EntityTickEvent;
 import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
+import com.yayuy.overgrownvegetation.port.entity.OvModifiers;
 
 /**
  * 汎用の感染体(2026-11-15 ユーザー決定。専用の G1 が無い生き物が、生きたまま植物側に変わる)の土台。
@@ -178,8 +179,8 @@ public final class GenericInfection {
             max.removeModifier(SporeExposureTracker.SPORE_SCAR_ID);
             max.removeModifier(BOSS_HEALTH_ID);
             if (boss && spec().bossMaxHealthFactor() < 1.0D) {
-                max.addPermanentModifier(new AttributeModifier(BOSS_HEALTH_ID, spec().bossMaxHealthFactor() - 1.0D,
-                        AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+                max.addPermanentModifier(OvModifiers.create(BOSS_HEALTH_ID, spec().bossMaxHealthFactor() - 1.0D,
+                        AttributeModifier.Operation.MULTIPLY_TOTAL));
             }
         }
         mob.setHealth(mob.getMaxHealth());

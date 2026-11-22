@@ -312,7 +312,7 @@ public final class OrganGameTests {
             BlockPos g = c.offset(0, 0, r - 1);
             for (int y = 1; y <= 6; y++) level.setBlock(g.atY(gy + y), com.yayuy.overgrownvegetation.registry.ModBlocks.GIANT_OVERGROWN_LOG.get().defaultBlockState(), 2);
             BlockPos grass = c.offset(-(r - 1), 1, 0);
-            level.setBlock(grass, Blocks.SHORT_GRASS.defaultBlockState(), 2);
+            level.setBlock(grass, Blocks.GRASS.defaultBlockState(), 2);
 
             helper.assertTrue(OrganClearing.groundY(level, a.getX(), a.getZ()) == gy, "幹の上を地面と数える: " + OrganClearing.groundY(level, a.getX(), a.getZ()) + "(地面 " + gy + ")");
             helper.assertTrue(OrganClearing.groundY(level, g.getX(), g.getZ()) == gy, "巨大樹の幹の上を地面と数える");
@@ -327,7 +327,7 @@ public final class OrganGameTests {
             helper.assertTrue(level.getBlockState(fOuter).is(Blocks.OAK_LEAVES), "円の外の木の円の外の葉まで払った");
             helper.assertTrue(level.getBlockState(fInner).isAir(), "円に差し掛かった葉が残る");
             helper.assertTrue(level.getBlockState(g.atY(gy + 3)).is(com.yayuy.overgrownvegetation.registry.ModBlocks.GIANT_OVERGROWN_LOG.get()), "巨大樹を払った");
-            helper.assertTrue(level.getBlockState(grass).is(Blocks.SHORT_GRASS), "地面の下草を払った");
+            helper.assertTrue(level.getBlockState(grass).is(Blocks.GRASS), "地面の下草を払った");
             helper.assertTrue(level.getBlockState(c.atY(gy)).is(com.yayuy.overgrownvegetation.registry.ModBlocks.OVERGROWN_GRASS_BLOCK.get()), "地面を払った");
 
             OrganWorld.buildNow(level, data, o);

@@ -26,6 +26,7 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
 
 /**
  * コエルロサウラウス {@code coelurosauravus}(狩る側の環境生物・原生消費種。ペルム紀の滑空する爬虫類。脇腹の骨の翼で木から木へ滑る)。
@@ -112,7 +113,7 @@ public class CoelurosauravusEntity extends SimpleLizard {
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        return MobStats.apply(Monster.createMonsterAttributes(), ID).add(Attributes.JUMP_STRENGTH, JUMP_STRENGTH);
+        return MobStats.apply(Monster.createMonsterAttributes(), ID).add(PortAttributes.JUMP_STRENGTH.get(), JUMP_STRENGTH);
     }
 
     @Override

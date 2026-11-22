@@ -29,6 +29,7 @@ import net.minecraftforge.common.util.FakePlayer;
 import com.yayuy.overgrownvegetation.port.event.tick.EntityTickEvent;
 import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
+import com.yayuy.overgrownvegetation.port.entity.OvModifiers;
 
 /**
  * 胞子の暴露量を積み、満ちたときの影響を起こす(2026-11-04 感染システムの第 1 段・第 2 段。数値は {@code spore_field.json} の exposure
@@ -238,8 +239,8 @@ public final class SporeExposureTracker {
         double total = Math.min(already + loss, Math.max(0.0D, without - 1.0D));
         if (total <= already) return;
         attr.removeModifier(SPORE_SCAR_ID);
-        attr.addPermanentModifier(new net.minecraft.world.entity.ai.attributes.AttributeModifier(SPORE_SCAR_ID, -total,
-                net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_VALUE));
+        attr.addPermanentModifier(OvModifiers.create(SPORE_SCAR_ID, -total,
+                net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADDITION));
         if (mob.getHealth() > mob.getMaxHealth()) mob.setHealth(mob.getMaxHealth());
     }
 

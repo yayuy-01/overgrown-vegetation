@@ -24,6 +24,7 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import java.util.Map;
 import java.util.WeakHashMap;
 import com.yayuy.overgrownvegetation.port.component.OvItemData;
+import com.yayuy.overgrownvegetation.port.entity.OvModifiers;
 
 /**
  * <b>装備の汚れ</b>(2026-11-14 サバイバルの背骨 段 3b、決定 32・33)。値は {@code spore_field.json} の {@code dirt}({@link DirtSpec})。
@@ -200,7 +201,7 @@ public final class GearDirt {
     static double itemValue(ItemStack stack, EquipmentSlot slot, Holder<Attribute> attr) {
         double[] sum = {0.0D};
         stack.forEachModifier(slot, (a, m) -> {
-            if (a.equals(attr) && m.operation() == AttributeModifier.Operation.ADD_VALUE) sum[0] += m.amount();
+            if (a.equals(attr) && m.operation() == AttributeModifier.Operation.ADDITION) sum[0] += m.amount();
         });
         return sum[0];
     }
@@ -215,7 +216,7 @@ public final class GearDirt {
         }
         if (old != null && Math.abs(old.amount() - amount) < 1.0E-6D) return;
         if (old != null) inst.removeModifier(id);
-        inst.addTransientModifier(new AttributeModifier(id, amount, AttributeModifier.Operation.ADD_VALUE));
+        inst.addTransientModifier(OvModifiers.create(id, amount, AttributeModifier.Operation.ADDITION));
     }
 
     /** 利き手の道具の掘る速さの倍率(1 = そのまま)。 */

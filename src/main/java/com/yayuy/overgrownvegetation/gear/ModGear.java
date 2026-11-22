@@ -35,6 +35,7 @@ import net.neoforged.neoforge.common.SimpleTier;
 import com.yayuy.overgrownvegetation.port.registries.DeferredBlock;
 import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
+import com.yayuy.overgrownvegetation.port.item.OvArmorMaterial;
 
 /**
  * 装備・鉱石の登録。数値は {@code gear_tiers.json}({@link GearTierTable})。正本は Vault「強くなる道(素材・装備・武器・探索)(11-17)」の 11-21 の節。
@@ -197,7 +198,7 @@ public final class ModGear {
                 defense.put(ArmorItem.Type.LEGGINGS, a.leggingsDefense);
                 defense.put(ArmorItem.Type.BOOTS, a.bootsDefense);
                 defense.put(ArmorItem.Type.BODY, a.chestplateDefense);
-                return new net.minecraft.world.item.ArmorMaterial(defense, a.enchantability,
+                return new OvArmorMaterial(defense, a.enchantability,
                         net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_IRON, () -> Ingredient.of(CONDUIT_PLATE.get()),
                         java.util.List.of(new net.minecraft.world.item.ArmorMaterial.Layer(OvergrownVegetation.id("conduit"))),
                         a.toughness, a.knockbackResistance);
@@ -226,9 +227,9 @@ public final class ModGear {
     @net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus.MOD)
     public static final class Capabilities {
         @net.minecraftforge.eventbus.api.SubscribeEvent
-        public static void register(net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent event) {
-            event.registerItem(net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.ITEM,
-                    (stack, ctx) -> new net.neoforged.neoforge.energy.ComponentEnergyStorage(stack, ModLey.ENERGY.get(),
+        public static void register(com.yayuy.overgrownvegetation.port.capabilities.RegisterCapabilitiesEvent event) {
+            event.registerItem(com.yayuy.overgrownvegetation.port.capabilities.Capabilities.EnergyStorage.ITEM,
+                    (stack, ctx) -> new com.yayuy.overgrownvegetation.port.energy.ComponentEnergyStorage(stack, ModLey.ENERGY.get(),
                             LeyCharge.capacity(stack), LeyCharge.maxReceive(), 0),
                     chargeables().stream().map(DeferredItem::get).toArray(Item[]::new));
         }

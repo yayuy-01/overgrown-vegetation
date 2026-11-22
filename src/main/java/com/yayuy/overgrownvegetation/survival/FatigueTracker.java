@@ -27,6 +27,8 @@ import com.yayuy.overgrownvegetation.port.event.tick.PlayerTickEvent;
 
 import java.lang.reflect.Field;
 import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
+import com.yayuy.overgrownvegetation.port.entity.OvModifiers;
 
 /**
  * 疲労(2026-11-13 サバイバルの背骨 段 1。数値は {@code spore_field.json} の fatigue = {@link FatigueSpec})。
@@ -157,7 +159,7 @@ public final class FatigueTracker {
         FatigueSpec s = spec();
         double t = on() && !player.isCreative() && !player.isSpectator() ? spec().effectStrength(value(player)) : 0.0D;
         apply(player, Attributes.MOVEMENT_SPEED, MOVE_ID, -s.moveSlow() * t);
-        apply(player, Attributes.BLOCK_BREAK_SPEED, MINE_ID, -s.mineSlow() * t);
+        apply(player, PortAttributes.BLOCK_BREAK_SPEED.get(), MINE_ID, -s.mineSlow() * t);
         apply(player, Attributes.ATTACK_SPEED, ATTACK_SPEED_ID, -s.attackSpeedSlow() * t);
     }
 
@@ -170,7 +172,7 @@ public final class FatigueTracker {
             return;
         }
         if (existing != null && Math.abs(existing.amount() - amount) < 1.0E-4D) return;
-        instance.addOrUpdateTransientModifier(new AttributeModifier(id, amount, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+        instance.addOrUpdateTransientModifier(OvModifiers.create(id, amount, AttributeModifier.Operation.MULTIPLY_TOTAL));
     }
 
     private static double clamp(double v) {

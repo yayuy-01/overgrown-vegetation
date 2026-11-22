@@ -16,7 +16,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.ItemContainerContents;
+import com.yayuy.overgrownvegetation.port.component.ItemContainerContents;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;

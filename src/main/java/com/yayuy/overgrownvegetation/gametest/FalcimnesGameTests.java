@@ -36,6 +36,7 @@ import net.minecraftforge.event.RegisterGameTestsEvent;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
 import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
 
 /**
  * ファルキムネス(グループ3)のテスト(2026-09-23)。
@@ -79,7 +80,7 @@ public final class FalcimnesGameTests {
      */
     private static FalcimnesEntity placeForGrab(GameTestHelper helper) {
         FalcimnesEntity f = placeAt(helper, 1);
-        f.getAttribute(Attributes.SCALE).setBaseValue(1.0D / FalcimnesEntity.BAKE); // 11-05: 描画倍率 1.8 を geo に焼き込んだので、焼き込む前の体格 1.0 = SCALE 1 / 1.8
+        f.getAttribute(PortAttributes.SCALE.get()).setBaseValue(1.0D / FalcimnesEntity.BAKE); // 11-05: 描画倍率 1.8 を geo に焼き込んだので、焼き込む前の体格 1.0 = SCALE 1 / 1.8
         return f;
     }
 
@@ -237,7 +238,7 @@ public final class FalcimnesGameTests {
     public static void cannotGrabPreyHeldByAnother(GameTestHelper helper) {
         FalcimnesEntity f1 = placeForGrab(helper);
         FalcimnesEntity f2 = placeAt(helper, 5);
-        f2.getAttribute(Attributes.SCALE).setBaseValue(1.0D / FalcimnesEntity.BAKE); // 11-05: 描画倍率 1.8 を geo に焼き込んだので、焼き込む前の体格 1.0 = SCALE 1 / 1.8
+        f2.getAttribute(PortAttributes.SCALE.get()).setBaseValue(1.0D / FalcimnesEntity.BAKE); // 11-05: 描画倍率 1.8 を geo に焼き込んだので、焼き込む前の体格 1.0 = SCALE 1 / 1.8
         Zombie z = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new BlockPos(3, 2, 4));
         if (!f1.grab(z)) {
             helper.fail("1 体目が掴めない");

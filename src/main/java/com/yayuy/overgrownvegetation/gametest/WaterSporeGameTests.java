@@ -30,6 +30,7 @@ import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.event.RegisterGameTestsEvent;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
 
 /**
  * 水中の汚染(2026-10-24 追記 18【決定】地上も海も見境なく広がる): 海のチャンクも降り積もりから発芽する・海の株は空気への放出が小さい・
@@ -262,7 +263,7 @@ public final class WaterSporeGameTests {
     @GameTest(template = "gametest_empty7", batch = "water_spore")
     public static void sproutlingStepsOneBlock(GameTestHelper helper) {
         BlightFernEntity fern = helper.spawnWithNoFreeWill(ModEntities.BLIGHT_FERN.get(), new BlockPos(3, 2, 3));
-        double step = fern.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.STEP_HEIGHT);
+        double step = fern.getAttributeValue(PortAttributes.STEP_HEIGHT.get());
         helper.assertTrue(Math.abs(step - 1.0D) < 1.0E-6D, "段差の高さが 1 でない: " + step);
         helper.succeed();
     }

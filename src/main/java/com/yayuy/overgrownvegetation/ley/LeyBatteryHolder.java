@@ -12,8 +12,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.neoforged.neoforge.capabilities.Capabilities;
+import com.yayuy.overgrownvegetation.port.capabilities.Capabilities;
 import net.minecraftforge.energy.IEnergyStorage;
+import com.yayuy.overgrownvegetation.port.capabilities.OvCaps;
 
 /**
  * 電池を 1 つ差しておける中身(汲み上げ器・柱)の共通の口。差す = 電池を持って右クリック、抜く = 素手でしゃがんで右クリック。
@@ -31,12 +32,12 @@ public interface LeyBatteryHolder {
     /** 差している電池の FE の口(無ければ null)。中身を変えたら呼び手が {@code setChanged} する。 */
     default IEnergyStorage batteryStorage() {
         ItemStack b = battery();
-        return b.isEmpty() ? null : b.getCapability(Capabilities.EnergyStorage.ITEM);
+        return b.isEmpty() ? null : OvCaps.getCapability(b, Capabilities.EnergyStorage.ITEM);
     }
 
     /** 差している物(電池・地脈の力をためる道具)のたまり具合 0〜1。 */
     static double fraction(ItemStack stack) {
-        IEnergyStorage s = stack.isEmpty() ? null : stack.getCapability(Capabilities.EnergyStorage.ITEM);
+        IEnergyStorage s = stack.isEmpty() ? null : OvCaps.getCapability(stack, Capabilities.EnergyStorage.ITEM);
         return s == null || s.getMaxEnergyStored() <= 0 ? 0.0D : s.getEnergyStored() / (double) s.getMaxEnergyStored();
     }
 

@@ -26,7 +26,7 @@ import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.neoforged.neoforge.capabilities.Capabilities;
+import com.yayuy.overgrownvegetation.port.capabilities.Capabilities;
 import net.minecraftforge.items.IItemHandler;
 
 import javax.annotation.Nullable;
@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import com.yayuy.overgrownvegetation.port.capabilities.OvCaps;
 
 /**
  * <b>覆われて動かなくなったブロック</b>(2026-09-22、要望)。
@@ -187,7 +188,7 @@ public class OvergrownHuskBlock extends Block implements EntityBlock {
             return out;
         }
         if (level instanceof Level realLevel) {
-            IItemHandler handler = realLevel.getCapability(Capabilities.ItemHandler.BLOCK, pos, null);
+            IItemHandler handler = OvCaps.getCapability(realLevel, Capabilities.ItemHandler.BLOCK, pos, null);
             if (handler != null) {
                 for (int i = 0; i < handler.getSlots(); i++) {
                     ItemStack taken = handler.extractItem(i, Integer.MAX_VALUE, false);

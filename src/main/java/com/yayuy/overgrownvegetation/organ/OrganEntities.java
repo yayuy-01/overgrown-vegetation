@@ -7,6 +7,7 @@ import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.eventbus.api.IEventBus;
 import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 import com.yayuy.overgrownvegetation.port.registries.DeferredRegister;
+import com.yayuy.overgrownvegetation.port.entity.OvEntityType;
 
 /** 森の器官の実体(2026-11-17)。共有の ModEntities を太らせないよう、ここに自分の登録の口を持つ({@link OrganBlocks#register} から)。 */
 public final class OrganEntities {
@@ -17,7 +18,7 @@ public final class OrganEntities {
 
     /** 動く蔦の触手。 */
     public static final DeferredHolder<EntityType<?>, EntityType<OrganTentacle>> TENTACLE = ENTITY_TYPES.register("organ_tentacle",
-            () -> EntityType.Builder.<OrganTentacle>of(OrganTentacle::new, MobCategory.MISC)
+            () -> OvEntityType.Builder.<OrganTentacle>of(OrganTentacle::new, MobCategory.MISC)
                     .sized(0.8F, 0.8F)
                     .clientTrackingRange(10)
                     .updateInterval(20)

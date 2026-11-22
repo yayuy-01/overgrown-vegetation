@@ -10,7 +10,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.ItemContainerContents;
+import com.yayuy.overgrownvegetation.port.component.ItemContainerContents;
 import org.jetbrains.annotations.Nullable;
 import com.yayuy.overgrownvegetation.port.component.OvItemData;
 

@@ -116,7 +116,7 @@ public final class ArmorAttachGameTests {
         var reg = h.getLevel().registryAccess();
         ItemStack legs = new ItemStack(Items.DIAMOND_LEGGINGS);
         ItemStack belt = new ItemStack(ModArmorAttach.STORAGE_BELT.get());
-        OvItemData.set(belt, ModArmorAttach.BELT_CONTENTS.get(), net.minecraft.world.item.component.ItemContainerContents.fromItems(
+        OvItemData.set(belt, ModArmorAttach.BELT_CONTENTS.get(), com.yayuy.overgrownvegetation.port.component.ItemContainerContents.fromItems(
                 java.util.List.of(new ItemStack(Items.TORCH, 12), ItemStack.EMPTY, new ItemStack(Items.BREAD, 3))));
         ArmorAttachments.attach(legs, 1, belt);
         ArmorAttachments.attach(legs, 2, bark());
@@ -530,7 +530,7 @@ public final class ArmorAttachGameTests {
         ArmorAttachments.attach(legs, 0, new ItemStack(ModArmorAttach.STORAGE_BELT.get()));
         ItemStack chest = new ItemStack(Items.CHEST);
         chest.set(net.minecraft.core.component.DataComponents.CONTAINER,
-                net.minecraft.world.item.component.ItemContainerContents.fromItems(java.util.List.of(legs)));
+                com.yayuy.overgrownvegetation.port.component.ItemContainerContents.fromItems(java.util.List.of(legs)));
         h.assertFalse(BeltPouchMenu.allowed(chest), "ベルトの付いた防具を入れた箱が小物入れに入る");
         ItemStack plainBundle = new ItemStack(Items.BUNDLE);
         plainBundle.set(net.minecraft.core.component.DataComponents.BUNDLE_CONTENTS,

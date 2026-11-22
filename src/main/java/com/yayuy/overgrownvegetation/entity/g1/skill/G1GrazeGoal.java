@@ -44,7 +44,7 @@ public class G1GrazeGoal extends G1TechniqueGoal {
     }
 
     private static boolean isGrassTuft(BlockState s) {
-        return s.is(Blocks.SHORT_GRASS) || s.is(Blocks.FERN);
+        return s.is(Blocks.GRASS) || s.is(Blocks.FERN);
     }
 
     /** 足元に食べられる草があるか。 */

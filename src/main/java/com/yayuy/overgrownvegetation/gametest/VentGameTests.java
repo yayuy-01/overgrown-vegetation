@@ -37,6 +37,7 @@ import net.minecraftforge.event.RegisterGameTestsEvent;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
 import com.yayuy.overgrownvegetation.port.component.OvItemData;
+import com.yayuy.overgrownvegetation.port.capabilities.OvCaps;
 
 /**
  * 換気の機械とフィルター(2026-11-14 サバイバルの背骨 段 2c)。場から上限つきで抜く・範囲の外は下げない・嵐で抜き切れない・
@@ -476,7 +477,7 @@ public final class VentGameTests {
             }
             // FE の口はどの部位からでも本体へ(線の端子の結晶は中の段)
             for (int i = 0; i < 3; i++) {
-                var cap = helper.getLevel().getCapability(net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.BLOCK,
+                var cap = OvCaps.getCapability(helper.getLevel(), com.yayuy.overgrownvegetation.port.capabilities.Capabilities.EnergyStorage.BLOCK,
                         helper.absolutePos(rel.above(i)), null);
                 int e0 = be.energy();
                 if (cap == null || cap.receiveEnergy(10, false) != 10 || be.energy() != e0 + 10) {

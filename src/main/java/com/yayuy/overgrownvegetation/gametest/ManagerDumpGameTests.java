@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
 
 /**
  * 新しい mod マネージャー({@code tools/mod-manager2})のための GameTest(2026-11-13)。
@@ -81,9 +82,9 @@ public final class ManagerDumpGameTests {
         ATTRIBUTES.put("armorToughness", Attributes.ARMOR_TOUGHNESS);
         ATTRIBUTES.put("knockbackResistance", Attributes.KNOCKBACK_RESISTANCE);
         ATTRIBUTES.put("followRange", Attributes.FOLLOW_RANGE);
-        ATTRIBUTES.put("stepHeight", Attributes.STEP_HEIGHT);
+        ATTRIBUTES.put("stepHeight", PortAttributes.STEP_HEIGHT.get());
         ATTRIBUTES.put("flyingSpeed", Attributes.FLYING_SPEED);
-        ATTRIBUTES.put("scale", Attributes.SCALE);
+        ATTRIBUTES.put("scale", PortAttributes.SCALE.get());
     }
 
     @GameTest(template = "gametest_empty7", timeoutTicks = 100)

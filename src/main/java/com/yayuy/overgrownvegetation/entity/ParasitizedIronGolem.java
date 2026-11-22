@@ -11,6 +11,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
 
 /**
  * 寄生されたアイアンゴーレム(G1 段階 0、2026-11-09 組み込み。仕様は Vault「G1 アイアンゴーレム(段階 0)」)。
@@ -34,7 +35,7 @@ public class ParasitizedIronGolem extends AbstractParasitizedMonster {
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D)
                 .add(Attributes.MOVEMENT_SPEED, 0.25D)
                 .add(Attributes.FOLLOW_RANGE, 35.0D)
-                .add(Attributes.STEP_HEIGHT, 1.0D);
+                .add(PortAttributes.STEP_HEIGHT.get(), 1.0D);
     }
 
     @Override

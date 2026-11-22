@@ -63,7 +63,7 @@ public final class GroundUnderPlantsGameTests {
                 floor(level, origin, x, z);
                 BlockPos plant = origin.offset(x, 2, z);
                 switch (z) {
-                    case 1 -> set(level, plant, Blocks.SHORT_GRASS.defaultBlockState());
+                    case 1 -> set(level, plant, Blocks.GRASS.defaultBlockState());
                     case 2 -> set(level, plant, Blocks.FERN.defaultBlockState());
                     case 3 -> tall(level, plant, Blocks.TALL_GRASS.defaultBlockState());
                     case 4 -> set(level, plant, Blocks.POPPY.defaultBlockState());
@@ -90,7 +90,7 @@ public final class GroundUnderPlantsGameTests {
                 switch (z) {
                     case 3 -> set(level, plant, CorruptionGrowth.randomTop(level.random));
                     case 4 -> tall(level, plant, ModBlocks.OVERGROWN_TALL_FERN.get().defaultBlockState());
-                    case 5 -> set(level, plant, Blocks.SHORT_GRASS.defaultBlockState());
+                    case 5 -> set(level, plant, Blocks.GRASS.defaultBlockState());
                     default -> { }
                 }
                 if (z != 3 && z != 4) {
@@ -135,7 +135,7 @@ public final class GroundUnderPlantsGameTests {
         for (int i = 0; i < floors.length; i++) {
             set(level, floors[i].below(), Blocks.STONE.defaultBlockState());
             set(level, floors[i], grounds[i].defaultBlockState());
-            set(level, floors[i].above(), Blocks.SHORT_GRASS.defaultBlockState());
+            set(level, floors[i].above(), Blocks.GRASS.defaultBlockState());
             set(level, floors[i].above(HIGH_CROWN), ModBlocks.OVERGROWN_LEAVES.get().defaultBlockState());
             set(level, floors[i].above(HIGH_CROWN + 1), ModBlocks.OVERGROWN_LEAVES.get().defaultBlockState());
         }
@@ -201,7 +201,7 @@ public final class GroundUnderPlantsGameTests {
                 }
                 BlockPos plant = origin.offset(x, 2, z);
                 switch ((x + z) % 3) {
-                    case 0 -> set(level, plant, Blocks.SHORT_GRASS.defaultBlockState());
+                    case 0 -> set(level, plant, Blocks.GRASS.defaultBlockState());
                     case 1 -> set(level, plant, Blocks.FERN.defaultBlockState());
                     default -> tall(level, plant, Blocks.TALL_GRASS.defaultBlockState());
                 }

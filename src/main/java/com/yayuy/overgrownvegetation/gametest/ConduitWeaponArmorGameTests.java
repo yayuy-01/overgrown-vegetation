@@ -32,7 +32,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.capabilities.Capabilities;
+import com.yayuy.overgrownvegetation.port.capabilities.Capabilities;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.common.util.FakePlayerFactory;
 import net.minecraftforge.energy.IEnergyStorage;
@@ -43,6 +43,7 @@ import net.minecraftforge.gametest.PrefixGameTestTemplate;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import com.yayuy.overgrownvegetation.port.component.OvItemData;
+import com.yayuy.overgrownvegetation.port.capabilities.OvCaps;
 
 /**
  * 導晶の武器と防具(2026-11-21 夜): 力の有無で剣の攻撃・弩の装填・防具の受ける傷が変わる、使うと力が減る、切れたらふつう、充電できる。
@@ -323,7 +324,7 @@ public final class ConduitWeaponArmorGameTests {
                 helper.fail(all[i] + " に電池から移らない: " + LeyCharge.stored(target) + "(期待 " + expect + ")");
                 return;
             }
-            IEnergyStorage cap1 = target.getCapability(Capabilities.EnergyStorage.ITEM);
+            IEnergyStorage cap1 = OvCaps.getCapability(target, Capabilities.EnergyStorage.ITEM);
             if (cap1 == null || cap1.getMaxEnergyStored() != cap[i] || OvItemData.getOrDefault(LeyCharge.full(new ItemStack(all[i])), ModLey.ENERGY.get(), 0) != cap[i]) {
                 helper.fail(all[i] + " の FE の口・満タンが合わない");
                 return;
