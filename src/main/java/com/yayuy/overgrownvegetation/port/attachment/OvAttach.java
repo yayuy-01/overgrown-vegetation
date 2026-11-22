@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.port.attachment;
 
-import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.port.PortConst;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.chunk.ImposterProtoChunk;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -107,7 +107,7 @@ public final class OvAttach {
             }
         }
         if (WARNED.add(h.getClass())) {
-            OvergrownVegetation.LOGGER.warn("[port] attachment の持ち主になれない物 {}(読み書きは保存されない)", h.getClass().getName());
+            PortConst.LOGGER.warn("[port] attachment の持ち主になれない物 {}(読み書きは保存されない)", h.getClass().getName());
         }
         return new AttachmentStore();
     }
@@ -132,7 +132,7 @@ public final class OvAttach {
             m.setAccessible(true);
             return m;
         } catch (ReflectiveOperationException | RuntimeException e) {
-            OvergrownVegetation.LOGGER.warn("[port] CapabilityProvider#getCapabilities が無い({})。取り除かれた Entity の attachment は読めない", e.toString());
+            PortConst.LOGGER.warn("[port] CapabilityProvider#getCapabilities が無い({})。取り除かれた Entity の attachment は読めない", e.toString());
             return null;
         }
     }

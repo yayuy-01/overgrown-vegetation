@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.port.component;
 
-import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.port.PortConst;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
@@ -39,7 +39,7 @@ public final class OvItemData {
             return null;
         }
         return type.codec.parse(NbtOps.INSTANCE, t)
-                .resultOrPartial(err -> OvergrownVegetation.LOGGER.warn("item data {} を読めない: {}", type.id(), err))
+                .resultOrPartial(err -> PortConst.LOGGER.warn("item data {} を読めない: {}", type.id(), err))
                 .orElse(null);
     }
 
@@ -76,7 +76,7 @@ public final class OvItemData {
             return prev;
         }
         type.codec.encodeStart(NbtOps.INSTANCE, value)
-                .resultOrPartial(err -> OvergrownVegetation.LOGGER.error("item data {} を書けない: {}", type.id(), err))
+                .resultOrPartial(err -> PortConst.LOGGER.error("item data {} を書けない: {}", type.id(), err))
                 .ifPresent(t -> stack.getOrCreateTag().put(type.key(), t));
         return prev;
     }

@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.port.capabilities;
 
-import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.port.PortConst;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.Item;
@@ -131,7 +131,7 @@ public final class OvCaps {
             return;
         }
         BlockEntity be = e.getObject();
-        e.addCapability(OvergrownVegetation.id("port_caps"), new net.minecraftforge.common.capabilities.ICapabilityProvider() {
+        e.addCapability(PortConst.id("port_caps"), new net.minecraftforge.common.capabilities.ICapabilityProvider() {
             @SuppressWarnings("unchecked")
             @Override
             public @NotNull <X> LazyOptional<X> getCapability(@NotNull Capability<X> forgeCap, @Nullable Direction side) {
@@ -152,7 +152,7 @@ public final class OvCaps {
             return;
         }
         ItemStack stack = e.getObject();
-        e.addCapability(OvergrownVegetation.id("port_caps"), new net.minecraftforge.common.capabilities.ICapabilityProvider() {
+        e.addCapability(PortConst.id("port_caps"), new net.minecraftforge.common.capabilities.ICapabilityProvider() {
             @SuppressWarnings("unchecked")
             @Override
             public @NotNull <X> LazyOptional<X> getCapability(@NotNull Capability<X> forgeCap, @Nullable Direction side) {

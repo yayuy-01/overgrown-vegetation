@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.port.entity;
 
-import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.port.PortConst;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -38,7 +38,7 @@ public final class PortAttributes {
     private PortAttributes() {
     }
 
-    private static final DeferredRegister<Attribute> ATTRIBUTES = DeferredRegister.create(Registries.ATTRIBUTE, OvergrownVegetation.MODID);
+    private static final DeferredRegister<Attribute> ATTRIBUTES = DeferredRegister.create(Registries.ATTRIBUTE, PortConst.MODID);
 
     public static final RegistryObject<Attribute> SCALE = ATTRIBUTES.register("generic.scale",
             () -> new RangedAttribute("attribute.name.generic.scale", 1.0D, 0.0625D, 16.0D).setSyncable(true));

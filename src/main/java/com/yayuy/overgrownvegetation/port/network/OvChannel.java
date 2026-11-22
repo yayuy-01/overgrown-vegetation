@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.port.network;
 
-import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.port.PortConst;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.RegistryAccess;
@@ -50,7 +50,7 @@ public final class OvChannel {
     private static volatile String protocol = "none";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.ChannelBuilder
-            .named(OvergrownVegetation.id("main"))
+            .named(PortConst.id("main"))
             .networkProtocolVersion(() -> protocol)
             .clientAcceptedVersions(v -> v.equals(protocol))
             .serverAcceptedVersions(v -> v.equals(protocol))
@@ -119,6 +119,30 @@ public final class OvChannel {
         }
     }
 
+    /** 確かめ用({@code port.PortSelfTest}): payload を書いて読み戻す(SimpleChannel に載せる形と同じ)。 */
+    @SuppressWarnings("unchecked")
+    public static <T extends CustomPacketPayload> T loopback(T payload, RegistryAccess access) {
+        FriendlyByteBuf out = new FriendlyByteBuf(Unpooled.buffer());
+        Registration<?> reg = BY_ID.get(payload.type().id());
+        if (reg == null) {
+            throw new IllegalStateException("payload not registered: " + payload.type().id());
+        }
+        out.writeResourceLocation(payload.type().id());
+        Packet.encode(reg, new RegistryFriendlyByteBuf(out, () -> access), payload);
+        Packet p = Packet.read(out);
+        try {
+            return (T) BY_ID.get(p.id()).codec().decode(new RegistryFriendlyByteBuf(p.raw(), () -> access));
+        } finally {
+            p.raw().release();
+            out.release();
+        }
+    }
+
+    /** 確かめ用: 今の通信路の版。 */
+    public static String protocolVersion() {
+        return protocol;
+    }
+
     private static RegistryAccess senderRegistryAccess() {
         if (EffectiveSide.get().isServer()) {
             var server = ServerLifecycleHooks.getCurrentServer();
@@ -136,11 +160,11 @@ public final class OvChannel {
         Registration<?> reg = BY_ID.get(packet.id());
         boolean toClient = ctx.getDirection() == NetworkDirection.PLAY_TO_CLIENT;
         if (reg == null) {
-            OvergrownVegetation.LOGGER.warn("[port] 知らない payload {} を捨てた", packet.id());
+            PortConst.LOGGER.warn("[port] 知らない payload {} を捨てた", packet.id());
             return;
         }
         if ((toClient && reg.flow() == Flow.TO_SERVER) || (!toClient && reg.flow() == Flow.TO_CLIENT)) {
-            OvergrownVegetation.LOGGER.warn("[port] 向きの違う payload {} を捨てた", packet.id());
+            PortConst.LOGGER.warn("[port] 向きの違う payload {} を捨てた", packet.id());
             return;
         }
         Supplier<RegistryAccess> access = toClient
@@ -149,7 +173,7 @@ public final class OvChannel {
         try {
             dispatch(reg, new RegistryFriendlyByteBuf(packet.raw(), access), ctx, toClient);
         } catch (RuntimeException e) {
-            OvergrownVegetation.LOGGER.error("[port] payload {} の処理で落ちた", packet.id(), e);
+            PortConst.LOGGER.error("[port] payload {} の処理で落ちた", packet.id(), e);
         } finally {
             packet.raw().release();
         }

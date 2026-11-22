@@ -1,7 +1,7 @@
 package com.yayuy.overgrownvegetation.port.attachment;
 
 import com.mojang.serialization.DataResult;
-import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.port.PortConst;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
@@ -30,7 +30,7 @@ public final class AttachmentStore implements ICapabilitySerializable<CompoundTa
 
     public static final Capability<AttachmentStore> CAPABILITY = CapabilityManager.get(new CapabilityToken<>() {
     });
-    public static final ResourceLocation KEY = OvergrownVegetation.id("attachments");
+    public static final ResourceLocation KEY = PortConst.id("attachments");
 
     private final Map<AttachmentType<?>, Object> values = new IdentityHashMap<>();
     @Nullable
@@ -114,7 +114,7 @@ public final class AttachmentStore implements ICapabilitySerializable<CompoundTa
             return;
         }
         type.codec.encodeStart(NbtOps.INSTANCE, (T) value)
-                .resultOrPartial(err -> OvergrownVegetation.LOGGER.error("attachment {} を保存できない: {}", type.id(), err))
+                .resultOrPartial(err -> PortConst.LOGGER.error("attachment {} を保存できない: {}", type.id(), err))
                 .ifPresent(t -> tag.put(type.id().toString(), t));
     }
 
@@ -138,7 +138,7 @@ public final class AttachmentStore implements ICapabilitySerializable<CompoundTa
 
     private <T> void read(AttachmentType<T> type, Tag t) {
         type.codec.parse(NbtOps.INSTANCE, t)
-                .resultOrPartial(err -> OvergrownVegetation.LOGGER.error("attachment {} を読めない: {}", type.id(), err))
+                .resultOrPartial(err -> PortConst.LOGGER.error("attachment {} を読めない: {}", type.id(), err))
                 .ifPresent(v -> values.put(type, v));
     }
 }
