@@ -28,6 +28,8 @@ public class OvergrownVegetation {
 
     public OvergrownVegetation(FMLJavaModLoadingContext context) {
         IEventBus modBus = context.getModEventBus();
+        // 互換の層(attachment・通信・tick のイベント)。ほかの登録より先に
+        com.yayuy.overgrownvegetation.port.PortSetup.init(modBus);
 
         LOGGER.info("OvergrownVegetation (Forge 1.20.1) loaded.");
     }

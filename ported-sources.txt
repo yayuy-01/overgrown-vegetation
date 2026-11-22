@@ -2,3 +2,4 @@
 # 1.21.1 のままのクラスは同じ場所に残っていてコンパイルされない。移したらここに足す(パッケージごとなら .../entity/** のように)。
 # 全部移し終えたら、このファイルと build.gradle の該当ブロックを消す。
 com/yayuy/overgrownvegetation/OvergrownVegetation.java
+com/yayuy/overgrownvegetation/port/**

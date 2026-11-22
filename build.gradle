@@ -89,13 +89,6 @@ repositories {
             includeGroup('com.eliotlash.mclib')
         }
     }
-    maven {
-        name = 'KosmX' // playerAnimator
-        url = 'https://maven.kosmx.dev/'
-        content {
-            includeGroup('dev.kosmx.player-anim')
-        }
-    }
 }
 
 dependencies {
@@ -103,8 +96,13 @@ dependencies {
 
     // mod の依存は SRG の名前で配られているので、mod〜 の構成で開発用の名前に直して読む(推移的には引かない)
     modImplementation "software.bernie.geckolib:geckolib-forge-${minecraft_version}:${geckolib_version}"
-    // プレイヤーの体を動かすアニメ(寄生植物装備の儀式)。1.21.1 版の PAL の代わり
-    modImplementation "dev.kosmx.player-anim:player-animation-lib-forge:${player_anim_version}"
+    // MixinExtras(@WrapOperation など。本流の mixin 27 個が使う)。1.20.1 の Forge には入っていないので jar に同梱する
+    compileOnly(annotationProcessor("io.github.llamalad7:mixinextras-common:${mixinextras_version}"))
+    implementation("io.github.llamalad7:mixinextras-forge:${mixinextras_version}")
+    jarJar("io.github.llamalad7:mixinextras-forge:${mixinextras_version}")
+    // @Nullable など(本流は NeoForge の推移的な依存で読めていた。1.20.1 の Forge の開発環境には入っていない)
+    compileOnly 'org.jetbrains:annotations:24.1.0'
+    // 2026-11-23: playerAnimator は外した(本流の Java から PAL が消えた。計画 §5 の 8)
 }
 
 // ── 素材を本流(1.21.1)から写す ──
@@ -112,11 +110,11 @@ dependencies {
 // 公開のための移植のときに、その時点の本流の素材を写す(写した後は本流を変えてもここは変わらない)。
 //   gradlew.bat syncAssetsFrom121
 // 素材のフォルダがまだ無いときだけは、ビルドの前に自動で写す。
-def assetDirs = ['textures', 'models', 'geo', 'animations', 'player_animations', 'sounds']
+def assetDirs = ['textures', 'models', 'geo', 'animations', 'sounds']
 def assetsHere = 'src/main/resources/assets/overgrown_vegetation'
 def syncAssets = tasks.register('syncAssetsFrom121', Sync) {
     group = 'overgrown'
-    description = '本流(1.21.1)の素材フォルダ 6 つを、このブランチの assets へ写す'
+    description = '本流(1.21.1)の素材フォルダ 5 つを、このブランチの assets へ写す'
     from(file("${ov121_dir}/src/main/resources/assets/overgrown_vegetation")) {
         include assetDirs.collect { "${it}/**" }
     }
