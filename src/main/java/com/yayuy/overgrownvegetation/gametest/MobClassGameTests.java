@@ -265,7 +265,7 @@ public final class MobClassGameTests {
     @GameTest(template = "gametest_empty7", batch = "mob_class_pure", timeoutTicks = 20)
     public static void phaseLengthsFollowRoles(GameTestHelper h) {
         var p = DesignData.phases();
-        long[] want = {0, 0, 22_000L, 90_000L, 700_000L, 5_200_000L, 56_000_000L, 36_000_000L};
+        long[] want = {0, 0, 52_000L, 5_300_000L, 40_000_000L, 140_000_000L, 700_000_000L, 380_000_000L}; // 11-22 C-1 で閾値を上げた(ユーザー決定)
         for (int n = 2; n <= 7; n++) check(h, p.pointsToAdvance(n) == want[n], "F" + n + " の閾値 " + p.pointsToAdvance(n) + "(案 " + want[n] + ")");
         check(h, p.pointsToAdvance(7) < p.pointsToAdvance(6), "F6(3〜6 日)が F5→F6 より短くなっていない");
         for (int n = 1; n <= 7; n++) {
