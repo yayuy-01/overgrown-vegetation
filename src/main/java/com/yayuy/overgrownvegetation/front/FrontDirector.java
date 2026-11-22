@@ -645,6 +645,8 @@ public final class FrontDirector {
     /** 樹域が最後に攻められた tick。 */
     private static final it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap ATTACKED_AT = new it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap();
     public static long reinforcedHeads, reinforcedUnits, reinforceReturned;
+    /** 増援を考えた回数と、止まった訳(縁が無い = 攻められたのが内側の樹域・近くに内側の樹域が無い・予備に空きが無い)。11-23 D4 で増援 0 の訳を見る用。 */
+    public static long reinforceCalls, reinforceNoEdge, reinforceNoInner, reinforceNoRoom;
 
     static boolean hasEdges(int front) {
         var e = EDGES.get(front);
@@ -708,7 +710,12 @@ public final class FrontDirector {
      */
     public static void reinforce(ServerLevel level, Fronts fronts, VirtualHordes hordes, Fronts.Front f, Long2IntOpenHashMap real) {
         FrontTable t = DesignData.front();
-        if (t.reinforceShare <= 0.0D || !hasEdges(f.id)) return;
+        if (t.reinforceShare <= 0.0D) return;
+        reinforceCalls++;
+        if (!hasEdges(f.id)) {
+            reinforceNoEdge++;
+            return;
+        }
         var edges = EDGES.get(f.id);
         double max2 = t.reinforceMaxBlocks * t.reinforceMaxBlocks;
         List<Fronts.Front> inner = new ArrayList<>();
@@ -716,7 +723,11 @@ public final class FrontDirector {
             double dx = g.x - f.x, dz = g.z - f.z;
             if (g.id != f.id && !hasEdges(g.id) && dx * dx + dz * dz <= max2) inner.add(g);
         }
-        if (inner.isEmpty()) return;
+        if (inner.isEmpty()) {
+            reinforceNoInner++;
+            return;
+        }
+        long sentBefore = reinforcedUnits;
         inner.sort(java.util.Comparator.comparingDouble(g -> (g.x - f.x) * (g.x - f.x) + (g.z - f.z) * (g.z - f.z)));
         long now = level.getGameTime();
         RandomSource random = level.getRandom();
@@ -749,6 +760,7 @@ public final class FrontDirector {
                 reinforcedUnits++;
             }
         }
+        if (reinforcedUnits == sentBefore) reinforceNoRoom++;
         hordes.setDirty();
     }
 
