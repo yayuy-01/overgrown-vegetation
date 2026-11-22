@@ -8,10 +8,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.ClientTickEvent;
 import org.joml.Vector3f;
 
 /**
@@ -157,8 +157,8 @@ public final class DenseFog {
      * (画面を描き先にしたまま、その奥行きは読めない)。シェーダーパック使用中・地下では掛けない。
      */
     @SubscribeEvent
-    public static void onRenderLevel(net.neoforged.neoforge.client.event.RenderLevelStageEvent event) {
-        if (event.getStage() != net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage.AFTER_LEVEL || seaBroken) {
+    public static void onRenderLevel(net.minecraftforge.client.event.RenderLevelStageEvent event) {
+        if (event.getStage() != net.minecraftforge.client.event.RenderLevelStageEvent.Stage.AFTER_LEVEL || seaBroken) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
@@ -241,7 +241,7 @@ public final class DenseFog {
      * ぼやけた丸い光を足す(加算。光の筋と同じ描き先)。真ん中が明るく、縁へ消える 2 重の丸。昼は暖かい白、夜(月)は青白く弱い。
      * {@link Atmosphere} の加算の光の所から呼ぶ。
      */
-    static void renderSun(net.neoforged.neoforge.client.event.RenderLevelStageEvent event) {
+    static void renderSun(net.minecraftforge.client.event.RenderLevelStageEvent event) {
         float a = amount();
         ClientLevel level = Minecraft.getInstance().level;
         if (a <= 0.01F || level == null) {

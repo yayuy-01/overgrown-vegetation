@@ -18,12 +18,13 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 import java.util.Arrays;
 import java.util.Locale;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * {@code /ov perf …} —— いまの重さを見る(OP、2026-10-06、ユーザー指定の ①「計測の常設」)。
@@ -33,7 +34,7 @@ import java.util.Locale;
  * </ul>
  * 出力は開発・調査用なので {@code Component.literal}(翻訳キーを作らない)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class PerfCommand {
 
     /** {@code record} の既定の長さ(秒)。 */
@@ -220,8 +221,8 @@ public final class PerfCommand {
         for (net.minecraft.world.entity.LivingEntity e : mobs) {
             double d = com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(e);
             if (d > 0.0D) exposed++;
-            if (e.hasData(com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_EXPOSURE)
-                    && e.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_EXPOSURE).reachedCount > 0) reached++;
+            if (OvAttach.hasData(e, com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_EXPOSURE)
+                    && OvAttach.getData(e, com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_EXPOSURE).reachedCount > 0) reached++;
             if (top == null || d > com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(top)) top = e;
         }
         int fExposed = exposed, fReached = reached;
@@ -236,8 +237,8 @@ public final class PerfCommand {
 
     private static String describeExposure(String who, net.minecraft.world.entity.LivingEntity e, com.yayuy.overgrownvegetation.data.SporeFieldTable t) {
         double d = com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(e);
-        int reached = e.hasData(com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_EXPOSURE)
-                ? e.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_EXPOSURE).reachedCount : 0;
+        int reached = OvAttach.hasData(e, com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_EXPOSURE)
+                ? OvAttach.getData(e, com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_EXPOSURE).reachedCount : 0;
         return String.format("%s: %.0f / %.0f %%秒(%.0f%%)・届いた回数 %d", who, d, t.infectDose(), d / t.infectDose() * 100.0D, reached);
     }
 

@@ -10,11 +10,11 @@ import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.network.chat.contents.TranslatableContents;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ScreenEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.client.event.ScreenEvent;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -28,7 +28,7 @@ import java.util.List;
  *     <li><b>見た目の設定</b>の「ゲーム内容…」— ワールドの中にいるときだけ({@link #request})。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class ClientWorldDifficulty {
 
     /** 返事を待っている画面。返事が来る前に閉じられていたら開かない。 */

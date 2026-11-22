@@ -5,18 +5,18 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.common.extensions.IBlockExtension;
+import net.minecraftforge.common.extensions.IForgeBlock;
 import org.spongepowered.asm.mixin.Mixin;
 
 /**
  * 汚染が座標の記録で覆った光源を暗くする(2026-10-05、{@link CoveredLight})。
  *
- * <p>NeoForge の明かりの計算は位置付きの {@code getLightEmission(state, level, pos)}({@link IBlockExtension} の既定の
+ * <p>NeoForge の明かりの計算は位置付きの {@code getLightEmission(state, level, pos)}({@link IForgeBlock} の既定の
  * 実装)を呼ぶので、それを {@link Block} で上書きする。バニラのブロックはこれを上書きしていないので全部に効く
  * (自分で上書きしている他 MOD のブロックには効かない)。光らないブロックはすぐ返すので、ふだんの重さは変わらない。
  */
 @Mixin(Block.class)
-public abstract class BlockCoveredLightMixin implements IBlockExtension {
+public abstract class BlockCoveredLightMixin implements IForgeBlock {
 
     @Override
     public int getLightEmission(BlockState state, BlockGetter level, BlockPos pos) {

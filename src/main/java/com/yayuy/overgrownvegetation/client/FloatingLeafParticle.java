@@ -14,8 +14,8 @@ import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * <b>水面に浮く落ち葉</b>(2026-11-13、密林の水辺 ②。ユーザー選択「水面に浮く落ち葉: 水面にちらほら浮かぶ葉。流れにゆっくり運ばれる」。

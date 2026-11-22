@@ -4,11 +4,11 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import net.minecraft.gametest.framework.GameTestServer;
 import net.minecraft.server.MinecraftServer;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
 
 /**
  * <b>予算の番人</b>と周期処理の<b>計測</b>(2026-10-06、ユーザー指定の ①②)。
@@ -45,7 +45,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  * </pre>
  * 入れ子にしないこと({@link PerfJob} の説明)。サーバースレッドからだけ呼ぶ。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class TickBudget {
 
     /** 計測の窓(tick)。サーバーの {@code tickTimesNanos} と同じ 100 にして、同じ添え字で並べる。 */

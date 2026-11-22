@@ -7,10 +7,10 @@ import com.yayuy.overgrownvegetation.data.AtmosphereEye;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.ShaderInstance;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 
 /**
  * <b>濡れた岩の照り</b>(2026-11-14 シェーダーの仕上げ F の 1。11-07 採用「地下モードの見え方」の 1 つ。ユーザー決定: 世界全体の洞窟)。

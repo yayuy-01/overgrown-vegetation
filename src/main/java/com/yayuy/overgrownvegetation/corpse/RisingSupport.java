@@ -2,7 +2,7 @@ package com.yayuy.overgrownvegetation.corpse;
 
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.world.entity.Mob;
-import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.core.animation.RawAnimation;
 
 import java.util.Map;
 import java.util.WeakHashMap;

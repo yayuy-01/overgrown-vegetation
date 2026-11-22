@@ -4,7 +4,7 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.survival.vent.VentBlock;
 import com.yayuy.overgrownvegetation.survival.vent.VentBlockEntity;
 import net.minecraft.resources.ResourceLocation;
-import software.bernie.geckolib.animatable.GeoAnimatable;
+import software.bernie.geckolib.core.animatable.GeoAnimatable;
 import software.bernie.geckolib.model.GeoModel;
 
 /**

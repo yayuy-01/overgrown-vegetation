@@ -19,10 +19,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.MultifaceBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.LevelEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.level.LevelEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -52,7 +52,7 @@ import java.util.List;
  * 未完成のまま止まるが、生成は数秒で終わるうえプレイヤーはその場で見ているので実害は小さい。
  * レベルのアンロード時にそのレベルのジョブは破棄する。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class GiantTreeGrowthQueue {
 
     /** {@link GiantTreeFeature} と同じ軽い設置フラグ(近傍更新・形状更新を省略)。 */

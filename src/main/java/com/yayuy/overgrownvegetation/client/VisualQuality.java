@@ -3,7 +3,7 @@ package com.yayuy.overgrownvegetation.client;
 import com.yayuy.overgrownvegetation.config.AtmosphereQuality;
 import com.yayuy.overgrownvegetation.config.CurledFernDetail;
 import com.yayuy.overgrownvegetation.config.OvergrownClientConfig;
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.common.ForgeConfigSpec;
 
 /**
  * クライアント設定の見た目の項目を、描く側が読む口(2026-10-23)。2026-10-30 夜に粒・光の筋・霧の板・雲の遠景・動く光・G1 の動きと
@@ -55,7 +55,7 @@ public final class VisualQuality {
     }
 
     /** 雰囲気の演出 1 つのオンオフ(2026-11-01)。親の {@link #atmosphere()} がオフなら、子はどれも偽。 */
-    private static boolean part(ModConfigSpec.BooleanValue value) {
+    private static boolean part(ForgeConfigSpec.BooleanValue value) {
         return atmosphere() && (loaded() ? value.get() : value.getDefault());
     }
 

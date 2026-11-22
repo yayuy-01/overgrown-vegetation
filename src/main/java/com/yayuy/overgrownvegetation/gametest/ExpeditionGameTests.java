@@ -34,19 +34,20 @@ import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.common.util.FakePlayerFactory;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.event.tick.PlayerTickEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.common.util.FakePlayerFactory;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.PlayerTickEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.UUID;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * サバイバルの背骨 段 4(2026-11-16): 濃い所の素材(胞子喰い茸の生える決まり・G3 の硬い樹皮片)・焼いた胞子・菌糸のフィルターの持ち・寝袋。
@@ -347,19 +348,19 @@ public final class ExpeditionGameTests {
         }
         // ふつうのフィルターを入れ直すとマスクの格は 0 に戻る
         AirFilters.copyState(new ItemStack(ModVent.AIR_FILTER.get()), mask);
-        if (AirFilters.grade(mask) != 0 || mask.has(ModExpedition.FILTER_GRADE)) {
+        if (AirFilters.grade(mask) != 0 || OvItemData.has(mask, ModExpedition.FILTER_GRADE)) {
             helper.fail("ふつうのフィルターに入れ替えても格が残る");
             return;
         }
         // 洗った後の容量 = 3 倍 × 傷み
         ItemStack washed = new ItemStack(ModExpedition.MYCELIAL_FILTER.get());
-        washed.set(ModVent.FILTER_WASHES, 1);
+        OvItemData.set(washed, ModVent.FILTER_WASHES, 1);
         double expect = AirFilters.baseCapacity() * mul * (1.0D - DesignData.sporeField().vent().filterWashWear());
         if (Math.abs(AirFilters.capacity(washed) - Math.max(0.0D, expect)) > EPS) {
             helper.fail("1 回洗った容量が違う: " + AirFilters.capacity(washed) + "(" + expect + " のはず)");
             return;
         }
-        if (!washed.has(ModVent.FILTER_WASHES) || plain.getOrDefault(ModDataComponents.MASK_FILTER_USED, 0) != plainCap) {
+        if (!OvItemData.has(washed, ModVent.FILTER_WASHES) || OvItemData.getOrDefault(plain, ModDataComponents.MASK_FILTER_USED, 0) != plainCap) {
             helper.fail("詰まり・洗った回数の欄が読めない");
             return;
         }

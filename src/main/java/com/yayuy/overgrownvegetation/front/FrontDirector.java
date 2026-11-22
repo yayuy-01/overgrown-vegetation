@@ -24,10 +24,10 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -45,7 +45,7 @@ import java.util.Locale;
  * </ol>
  * 狩る・襲うは区切り 3、建てる(巨大樹)は区切り 4。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class FrontDirector {
 
     /** テストで世界の tick から動かす(ふだんの GameTest のサーバーでは動かさない)。 */
@@ -687,7 +687,7 @@ public final class FrontDirector {
 
     /** 11-22 見直し: 起動の間だけの覚え(樹域の広さ・縁・駆けつけなど)を、サーバーが止まったら消す(別のワールドへ持ち越さない)。 */
     @SubscribeEvent
-    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+    public static void onServerStopped(net.minecraftforge.event.server.ServerStoppedEvent event) {
         TERRITORY.clear();
         HEADS.clear();
         territoryAt = Long.MIN_VALUE;

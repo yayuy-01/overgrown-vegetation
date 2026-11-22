@@ -5,10 +5,10 @@ import com.yayuy.overgrownvegetation.data.RaidScaleTable;
 import com.yayuy.overgrownvegetation.director.RaidScales;
 import com.yayuy.overgrownvegetation.director.RaidScales.RaidScale;
 import net.minecraft.server.MinecraftServer;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStartedEvent;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 
 /**
  * 設定のページの襲撃の項目(11-19 第 2 便)を、襲撃の規模の口 {@link RaidScales.Knobs}(raid-scale が作った)へ写す。
@@ -23,7 +23,7 @@ import net.neoforged.neoforge.event.server.ServerStoppedEvent;
  * </ul>
  * 前触れ・壁を壊すかは Knobs に口が無いので、読む所({@code RaidScales#omenDays}・{@code BreachGoal})が直に読む。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class RaidSettings {
 
     private RaidSettings() {

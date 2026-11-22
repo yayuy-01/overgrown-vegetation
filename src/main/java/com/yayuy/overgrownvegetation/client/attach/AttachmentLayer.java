@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * 着ている防具に付いた付け物を体の上に描く層(2026-11-21 夜)。プレイヤー(太い腕・細い腕)と防具立てに足す({@link AttachClient})。
@@ -43,7 +44,7 @@ public class AttachmentLayer<T extends LivingEntity, M extends HumanoidModel<T>>
             float partialTick, float ageInTicks, float netHeadYaw, float headPitch) {
         for (EquipmentSlot slot : SLOTS) {
             ItemStack armor = entity.getItemBySlot(slot);
-            ItemContainerContents c = armor.isEmpty() ? null : armor.get(ModArmorAttach.ATTACHMENTS.get());
+            ItemContainerContents c = armor.isEmpty() ? null : OvItemData.get(armor, ModArmorAttach.ATTACHMENTS.get());
             if (c == null) continue;
             Set<Item> drawn = new HashSet<>(4);
             for (ItemStack s : c.nonEmptyItems()) {

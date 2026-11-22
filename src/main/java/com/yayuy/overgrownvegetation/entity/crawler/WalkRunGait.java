@@ -1,8 +1,8 @@
 package com.yayuy.overgrownvegetation.entity.crawler;
 
 import net.minecraft.util.Mth;
-import software.bernie.geckolib.animatable.GeoAnimatable;
-import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.core.animatable.GeoAnimatable;
+import software.bernie.geckolib.core.animation.RawAnimation;
 
 /**
  * 「小さな地這いの虫」の歩き ⇄ 走り ⇄ 待機の選び方(2026-11-16 コードの見直し ①14 でグレガリア・ストロビラ・ヴェシカリアの写しをまとめた。

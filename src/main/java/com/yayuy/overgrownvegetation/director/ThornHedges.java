@@ -18,9 +18,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredRegister;
+import net.minecraftforge.eventbus.api.IEventBus;
+import com.yayuy.overgrownvegetation.port.registries.DeferredBlock;
+import com.yayuy.overgrownvegetation.port.registries.DeferredRegister;
 
 import java.util.ArrayList;
 import java.util.List;

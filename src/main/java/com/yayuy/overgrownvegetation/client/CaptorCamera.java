@@ -9,10 +9,10 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ViewportEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.client.event.ViewportEvent;
 
 /**
  * 捕まえて乗せる Mob に捕まった本人のカメラ(2026-11-16 コードの見直し ①14 で SaltimnesPinCamera・ClipeimnesHoldCamera をまとめた。数値は元のまま)。
@@ -24,7 +24,7 @@ import net.neoforged.neoforge.client.event.ViewportEvent;
  *   <li>噛まれる・締められるたびに画面を小さく揺らす({@link #SHAKE_TICKS} tick で収まる)【仮】。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class CaptorCamera {
 
     static final int SHAKE_TICKS = 6;

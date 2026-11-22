@@ -4,11 +4,11 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.network.EarthquakeShakePayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.ClientTickEvent;
 
 /**
  * 地割れ(地震)の画面揺れのクライアント側の状態。
@@ -26,7 +26,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
  * </ul>
  * さらに震央からの距離で減衰する(下限 0.3 倍 — 遠くのプレイヤーにも地震は伝わる)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class ClientEarthquake {
 
     /** 揺れが 0.30 → 最大 へ立ち上がるのにかける最大 tick 数(形成がこれより長くても、あとは最大維持)。 */

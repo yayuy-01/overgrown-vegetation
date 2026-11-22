@@ -10,9 +10,9 @@ import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 import java.util.Locale;
 import java.util.Random;
@@ -22,7 +22,7 @@ import java.util.Random;
  * (2026-11-20 建物用の器官 5 種類の形の撮影・確認用。{@link TakeoverShapes})。種類は phase / tower / sac / nursery / ley。
  * 面は建物のブロックの位置と、外への向き(-1・0・1)。OP 専用。計画にかかった時間とブロックの読みも返す。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class TakeoverShapeCommand {
     private TakeoverShapeCommand() {
     }

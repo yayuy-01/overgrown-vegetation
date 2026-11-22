@@ -2,8 +2,8 @@ package com.yayuy.overgrownvegetation.network;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import com.yayuy.overgrownvegetation.port.network.StreamCodec;
+import com.yayuy.overgrownvegetation.port.network.CustomPacketPayload;
 
 /**
  * サーバー → クライアントへ、HUD の 2 本のゲージの値(2026-11-13 サバイバルの背骨 段 1)。{@code survival.SurvivalSync} が値の刻みが

@@ -17,11 +17,11 @@ import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.boss.wither.WitherBoss;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStoppingEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStoppingEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,7 +38,7 @@ import java.util.Map;
  * </ol>
  * 保存しない。サーバーを止めると全部消える(その場で止まった扱い)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class CreepingWalls {
 
     private static final Map<ResourceKey<Level>, List<CreepingWall>> WALLS = new HashMap<>();
@@ -134,7 +134,7 @@ public final class CreepingWalls {
      * それを飲んで 2 分で 4236 体・止まるまでが 70 分を超えた)。湧きの場所の判定で断る(自然湧き・スポナー)。
      */
     @SubscribeEvent
-    public static void onSpawnCheck(net.neoforged.neoforge.event.entity.living.MobSpawnEvent.PositionCheck event) {
+    public static void onSpawnCheck(net.minecraftforge.event.entity.living.MobSpawnEvent.PositionCheck event) {
         if (!(event.getLevel() instanceof ServerLevel level)) {
             return;
         }
@@ -145,7 +145,7 @@ public final class CreepingWalls {
         long p = BlockPos.asLong(Mth.floor(event.getX()), Mth.floor(event.getY()), Mth.floor(event.getZ()));
         for (CreepingWall w : list) {
             if (!w.isStopped() && w.filled.contains(p)) {
-                event.setResult(net.neoforged.neoforge.event.entity.living.MobSpawnEvent.PositionCheck.Result.FAIL);
+                event.setResult(net.minecraftforge.event.entity.living.MobSpawnEvent.PositionCheck.Result.FAIL);
                 return;
             }
         }

@@ -1,7 +1,7 @@
 package com.yayuy.overgrownvegetation.entity;
 
-import software.bernie.geckolib.animatable.GeoAnimatable;
-import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.core.animatable.GeoAnimatable;
+import software.bernie.geckolib.core.animation.AnimationController;
 
 /**
  * 再生速度を毎フレーム変えても<b>位相が巻き戻らない</b> {@link AnimationController}(2026-09-24、スクティムネス・ファルキムネスで使う)。

@@ -15,10 +15,10 @@ import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 import javax.annotation.Nullable;
@@ -44,7 +44,7 @@ import java.util.Map;
  * <p>今いる Mob にも効かせる【仮: 効かせる。11-19】: ワールドに入るたび({@link EntityJoinLevelEvent})に今の値へ置き直し、
  * 設定のページで変えたときは読み込まれている Mob を全部置き直す({@link #reapplyAll})。体力はいつも割合を保つ(ふつうに湧いた Mob は満タンのまま、進化で出た Mob は減っていた割合のまま)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class MobStrength {
 
     private static final ResourceLocation HEALTH_ID = OvergrownVegetation.id("difficulty_health");

@@ -24,13 +24,13 @@ import net.minecraft.world.level.biome.Climate;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.material.Fluids;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.ChunkEvent;
-import net.neoforged.neoforge.event.level.LevelEvent;
-import net.neoforged.neoforge.event.server.ServerStartedEvent;
-import net.neoforged.neoforge.event.server.ServerStoppingEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.level.ChunkEvent;
+import net.minecraftforge.event.level.LevelEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -51,7 +51,7 @@ import java.util.function.Consumer;
  * </ul>
  * 保存は {@code data/overgrown_vegetation_spore_field_nether/}。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class NetherSporeFieldServer {
 
     private static final long SEED_SALT = 0x4E45544845524649L;
@@ -76,7 +76,7 @@ public final class NetherSporeFieldServer {
     }
 
     private static boolean live() {
-        MinecraftServer server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        MinecraftServer server = net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer();
         ServerLevel nether = server == null ? null : server.getLevel(Level.NETHER);
         return nether != null && com.yayuy.overgrownvegetation.corruption.NetherLedger.active(nether);
     }

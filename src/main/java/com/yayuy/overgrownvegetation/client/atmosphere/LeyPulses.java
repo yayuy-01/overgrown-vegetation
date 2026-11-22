@@ -9,7 +9,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 
 /**
  * <b>夜に巨大樹の幹を昇る地脈の光</b>(2026-11-06 巨大樹の改善案 ③、ユーザー採用。数は仮決め、節 {@code giantTree.leyPulse})。

@@ -3,8 +3,8 @@ package com.yayuy.overgrownvegetation.network;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import com.yayuy.overgrownvegetation.port.network.StreamCodec;
+import com.yayuy.overgrownvegetation.port.network.CustomPacketPayload;
 
 /**
  * クライアント → サーバーへ、研究の画面の操作(2026-11-17 研究台と研究ツリー)。サーバーは研究台のそばか・研究台があるかを確かめてから行う。

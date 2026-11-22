@@ -10,7 +10,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.energy.IEnergyStorage;
+import net.minecraftforge.energy.IEnergyStorage;
 
 /**
  * 線を張る決まり(2026-11-13 サバイバルの背骨 段 2b、決定 13。数は {@code spore_field.json} の {@code ley.wire*}【仮】)。

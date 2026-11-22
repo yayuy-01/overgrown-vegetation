@@ -35,11 +35,11 @@ public class ParasitizedBabyZombie extends AbstractParasitizedMonster {
         return G1Species.BABY_ZOMBIE;
     }
 
-    private static final software.bernie.geckolib.animation.RawAnimation RIDE = software.bernie.geckolib.animation.RawAnimation.begin().thenLoop("ride");
+    private static final software.bernie.geckolib.core.animation.RawAnimation RIDE = software.bernie.geckolib.core.animation.RawAnimation.begin().thenLoop("ride");
 
     /** 1 段目の豚の背にまたがって座る(アニメ ride、2026-11-13)。 */
     @Override
-    protected software.bernie.geckolib.animation.RawAnimation ridingAnimation() {
+    protected software.bernie.geckolib.core.animation.RawAnimation ridingAnimation() {
         return RIDE;
     }
 

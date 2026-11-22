@@ -15,11 +15,11 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.ChunkEvent;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.level.ChunkEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 /**
  * 洞窟の口の多さを測る(2026-11-04 暴露量ノート 追記 6【決定】「洞窟の口の多さ = 読み込んだチャンクで測る」)。
@@ -33,7 +33,7 @@ import net.neoforged.neoforge.event.tick.LevelTickEvent;
  * {@code remeasureTicks} ごとに 1 チャンクずつ測り直す(掘った穴も口になる)。どちらも {@link TickBudget} の予算の中で。
  * 答えは {@link SporeFieldServer#onMouthMeasured} で場へ(区画が無ければ捨てられる。作り直すときは既定値)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class CaveMouths {
 
     /** 読み込まれたチャンク → 測ってよい時刻(ゲーム時刻)。読み込まれた順 = 時刻の順。 */

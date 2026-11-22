@@ -28,15 +28,16 @@ import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>広げる部隊の現地の苗床</b>(2026-11-21 夜 ユーザー決定。依頼書 front-nursery-brief.md・正本は Vault「前線と部隊」の末尾)。
@@ -49,11 +50,11 @@ import java.util.UUID;
  *   <li>升が過繁茂になったら萌芽体は生まなくなり、前線の「出す所」(作る途中の部隊が生まれる所)として残る。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
-public final class FrontNurseries extends SavedData {
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
+public final class FrontNurseries extends OvSavedData {
 
     public static final String ID = OvergrownVegetation.MODID + "_front_nurseries";
-    public static final SavedData.Factory<FrontNurseries> FACTORY = new SavedData.Factory<>(FrontNurseries::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<FrontNurseries> FACTORY = new OvSavedData.Factory<>(FrontNurseries::new, (tag, registries) -> load(tag), null);
     /** 実物の苗床の印(エンティティの保存データ。升のキー)。 */
     public static final String KEY = "ov_front_nursery";
 
@@ -106,7 +107,7 @@ public final class FrontNurseries extends SavedData {
     public static double refillPaid;
 
     public static FrontNurseries get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     static {

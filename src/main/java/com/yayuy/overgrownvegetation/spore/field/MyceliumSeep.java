@@ -23,11 +23,12 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.ChunkEvent;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.level.ChunkEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 菌糸の染み下り(2026-11-07 ユーザー決定「過繁茂になった場所の地下を、地表から底まで 2〜3 日で、空気に面したブロックだけ汚染する」)。
@@ -45,7 +46,7 @@ import net.neoforged.neoforge.event.tick.LevelTickEvent;
  *
  * <p>置き換えたマスは {@code seepCreepSeedChance} の確率で {@link CaveWallCreep} の元に入る(洞窟のつながりで前線より少し先へ這う)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class MyceliumSeep {
 
     /** 割合の単位(attachment の整数 = 割合 × これ)。 */
@@ -211,7 +212,7 @@ public final class MyceliumSeep {
     /** このチャンクにやる板があれば作る({@code since} = 台帳に載った暦、-1 = 載っていない)。 */
     private static Job planJob(ServerLevel level, LevelChunk chunk, long since, long now, SporeFieldTable t) {
         if (since < 0L) return null; // 過繁茂でない地域の下はきれいなまま
-        int done = chunk.getExistingData(ModAttachments.MYCELIUM_SEEP.get()).orElse(0);
+        int done = OvAttach.getExistingData(chunk, ModAttachments.MYCELIUM_SEEP.get()).orElse(0);
         if (done >= SCALE) return null;
         ChunkPos pos = chunk.getPos();
         int target = targetPpm(now - since, t.seepDays() / speedOf(level, pos, t)); // 巨大樹の根のまわりは速い(2026-11-08)
@@ -314,7 +315,7 @@ public final class MyceliumSeep {
         }
         if (job.cursor >= 256) {
             if (job.measureTops) rememberTops(level, job);
-            area.chunk(pos.x, pos.z).setData(ModAttachments.MYCELIUM_SEEP.get(), job.toPpm);
+            OvAttach.setData(area.chunk(pos.x, pos.z), ModAttachments.MYCELIUM_SEEP.get(), job.toPpm);
             area.chunk(pos.x, pos.z).setUnsaved(true);
             current = null;
         }
@@ -606,7 +607,7 @@ public final class MyceliumSeep {
 
     /** 計測用: そのチャンクの進み(割合 × SCALE)。 */
     public static int progressPpm(LevelChunk chunk) {
-        return chunk.getExistingData(ModAttachments.MYCELIUM_SEEP.get()).orElse(0);
+        return OvAttach.getExistingData(chunk, ModAttachments.MYCELIUM_SEEP.get()).orElse(0);
     }
 
     /** 計測用: 列の地表のすぐ下の段。 */

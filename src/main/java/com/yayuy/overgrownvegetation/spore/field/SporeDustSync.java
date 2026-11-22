@@ -7,12 +7,13 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.neoforged.neoforge.network.PacketDistributor;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 胞子の粉の見た目を送る(2026-10-31 合間の小物 3。元は parked の同名のクラスから浮遊の濃度・巨大樹の梢・地割れの前線を落とした)。
@@ -49,7 +50,7 @@ final class SporeDustSync {
                         int i = dz * size + dx;
                         LevelChunk chunk = level.getChunkSource().getChunkNow(cx, cz);
                         levels[i] = (byte) v;
-                        masks[i] = chunk != null ? chunk.getData(ModAttachments.SWEPT_DUST) : 0;
+                        masks[i] = chunk != null ? OvAttach.getData(chunk, ModAttachments.SWEPT_DUST) : 0;
                     }
                 }
             }

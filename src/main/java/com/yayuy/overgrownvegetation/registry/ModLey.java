@@ -12,8 +12,8 @@ import com.yayuy.overgrownvegetation.ley.LeyPylonBlockEntity;
 import com.yayuy.overgrownvegetation.ley.LeyWireItem;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
-import net.minecraft.core.component.DataComponentType;
-import net.minecraft.network.codec.ByteBufCodecs;
+import com.yayuy.overgrownvegetation.port.component.DataComponentType;
+import com.yayuy.overgrownvegetation.port.network.ByteBufCodecs;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
@@ -24,14 +24,14 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.energy.ComponentEnergyStorage;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredItem;
+import com.yayuy.overgrownvegetation.port.registries.DeferredBlock;
+import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
+import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
 
 /**
  * <b>地脈の最小限</b>(2026-11-13 サバイバルの背骨 段 2b)の登録: 地脈の花・汲み上げ器・柱・電池・線の巻き。仕様の正本は Vault「サバイバルの背骨(籠城と遠征)」。

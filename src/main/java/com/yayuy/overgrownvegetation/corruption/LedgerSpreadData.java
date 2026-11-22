@@ -10,6 +10,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * 台帳の書き換え待ち({@link LedgerSpread})の保存データ。オーバーワールドに 1 つ。2026-10-30 に止まっていた「5 分おきの縁ぬり」の回の記録
@@ -26,14 +27,14 @@ import java.util.List;
  * <b>変わった区域だけ</b>を IO スレッドで書く。この保存データの中は {@code markedTotal} と形の印 {@code pendingFormat} だけ。
  * 前の形(中の {@code pending} の long 配列)のセーブは、読んだら全区域を書き直して移す。世界に付いていない写し(テスト)は前の形のまま中に入れる。
  */
-public final class LedgerSpreadData extends SavedData {
+public final class LedgerSpreadData extends OvSavedData {
 
     private static final String ID = "overgrown_vegetation_ledger_spread";
     /** 書き換え待ちを区域のファイルへ分けた形の印。 */
     static final int PENDING_FORMAT_REGIONS = 2;
 
-    public static final SavedData.Factory<LedgerSpreadData> FACTORY =
-            new SavedData.Factory<>(LedgerSpreadData::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<LedgerSpreadData> FACTORY =
+            new OvSavedData.Factory<>(LedgerSpreadData::new, (tag, registries) -> load(tag), null);
 
     private long markedTotal;
     /** 区域 → その区域の書き換え待ちのチャンク。 */
@@ -93,7 +94,7 @@ public final class LedgerSpreadData extends SavedData {
     }
 
     public static LedgerSpreadData get(MinecraftServer server) {
-        LedgerSpreadData data = server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        LedgerSpreadData data = server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
         if (data.server != server) data.attach(server);
         return data;
     }

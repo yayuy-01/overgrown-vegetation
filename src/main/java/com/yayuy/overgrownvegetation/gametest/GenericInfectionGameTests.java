@@ -17,11 +17,12 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.horse.Horse;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 汎用の感染体の区切り 1(印・保存・同期の中身・なれる種の判定。2026-11-15、{@link GenericInfection})。
@@ -63,7 +64,7 @@ public final class GenericInfectionGameTests {
             helper.fail("植物側の決まり(PlantSideRules.TRANSFORMED)に印が差し込まれていない");
             return;
         }
-        GenericInfected g = h.getData(ModAttachments.GENERIC_INFECTED);
+        GenericInfected g = OvAttach.getData(h, ModAttachments.GENERIC_INFECTED);
         if (g.transformTicks != GenericInfection.spec().transformTicks() || !GenericInfection.isTransforming(h) == (g.transformTicks > 0)) {
             helper.fail("変わる動きの長さが " + g.transformTicks + "(設計値 " + GenericInfection.spec().transformTicks() + ")");
             return;
@@ -391,7 +392,7 @@ public final class GenericInfectionGameTests {
             return;
         }
         attacker.setTarget(pig);
-        attacker.getData(ModAttachments.GENERIC_INFECTED).prey = pig;
+        OvAttach.getData(attacker, ModAttachments.GENERIC_INFECTED).prey = pig;
         helper.succeedWhen(() -> {
             if (!attacker.isAlive()) helper.fail(EntityType.getKey(type) + " が死んだ");
             if (pig.getHealth() >= pig.getMaxHealth()) {
@@ -680,7 +681,7 @@ public final class GenericInfectionGameTests {
     /** テスト用の印: この印を持つ Mob は胞子のダメージの種類を受け付けない(Cataclysm のコボレディエーター・ワジェットの代わり)。 */
     private static final String SPORE_IMMUNE_TAG = "ov_test_spore_immune";
 
-    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
     public static final class SporeImmunity {
         @SubscribeEvent
         public static void onIncoming(net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent event) {
@@ -722,7 +723,7 @@ public final class GenericInfectionGameTests {
             }
         }
         if (!GenericInfection.isTurned(immune)) {
-            helper.fail("耐性のある Mob が " + need + " 回の暴露で変わらない(数え " + immune.getData(ModAttachments.GENERIC_INFECTED).blockedDamage + ")");
+            helper.fail("耐性のある Mob が " + need + " 回の暴露で変わらない(数え " + OvAttach.getData(immune, ModAttachments.GENERIC_INFECTED).blockedDamage + ")");
             return;
         }
         if (GenericInfection.isTurned(invulnerable)) {
@@ -748,9 +749,9 @@ public final class GenericInfectionGameTests {
     public static void markSurvivesSaveAndLoad(GameTestHelper helper) {
         Horse h = helper.spawnWithNoFreeWill(EntityType.HORSE, new BlockPos(3, 2, 3));
         Horse plain = helper.spawnWithNoFreeWill(EntityType.HORSE, new BlockPos(5, 2, 5));
-        plain.getData(ModAttachments.GENERIC_INFECTED); // 添付だけ作る(turned = false)
+        OvAttach.getData(plain, ModAttachments.GENERIC_INFECTED); // 添付だけ作る(turned = false)
         GenericInfection.turn(h, false);
-        GenericInfected before = h.getData(ModAttachments.GENERIC_INFECTED);
+        GenericInfected before = OvAttach.getData(h, ModAttachments.GENERIC_INFECTED);
         CompoundTag tag = h.saveWithoutId(new CompoundTag());
         Horse copy = EntityType.HORSE.create(helper.getLevel());
         if (copy == null) {
@@ -758,7 +759,7 @@ public final class GenericInfectionGameTests {
             return;
         }
         copy.load(tag);
-        GenericInfected after = copy.getData(ModAttachments.GENERIC_INFECTED);
+        GenericInfected after = OvAttach.getData(copy, ModAttachments.GENERIC_INFECTED);
         if (!after.turned || after.seed != before.seed || after.startTick != before.startTick
                 || after.transformTicks != before.transformTicks || after.boss != before.boss) {
             helper.fail("読み直した印が違う: turned " + after.turned + " seed " + after.seed + "/" + before.seed);
@@ -782,7 +783,7 @@ public final class GenericInfectionGameTests {
         Horse h = helper.spawnWithNoFreeWill(EntityType.HORSE, new BlockPos(3, 2, 3));
         GenericInfection.turn(h, false);
         GenericInfectionPayload p = GenericInfection.payloadOf(h);
-        GenericInfected g = h.getData(ModAttachments.GENERIC_INFECTED);
+        GenericInfected g = OvAttach.getData(h, ModAttachments.GENERIC_INFECTED);
         if (!p.turned() || p.entityId() != h.getId() || p.seed() != g.seed || p.startTick() != g.startTick || p.transformTicks() != g.transformTicks) {
             helper.fail("中身が印と違う: " + p);
             return;
@@ -808,8 +809,8 @@ public final class GenericInfectionGameTests {
         LivingEntity wither = helper.spawnWithNoFreeWill(EntityType.WITHER, new BlockPos(3, 2, 3));
         Horse h = helper.spawnWithNoFreeWill(EntityType.HORSE, new BlockPos(1, 2, 1));
         boolean ok = GenericInfection.turn(wither, true) && GenericInfection.turn(h, true);
-        boolean witherBoss = wither.getData(ModAttachments.GENERIC_INFECTED).boss;
-        boolean horseBoss = h.getData(ModAttachments.GENERIC_INFECTED).boss;
+        boolean witherBoss = OvAttach.getData(wither, ModAttachments.GENERIC_INFECTED).boss;
+        boolean horseBoss = OvAttach.getData(h, ModAttachments.GENERIC_INFECTED).boss;
         wither.discard();
         if (!ok) {
             helper.fail("ウィザーか馬が変わらない");

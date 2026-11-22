@@ -6,16 +6,16 @@ import com.yayuy.overgrownvegetation.data.PhaseTable;
 import com.yayuy.overgrownvegetation.network.PhaseStatePayload;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 
 /**
  * 今のフェーズと小さな段をクライアントへ送る(2026-11-14)。送るのは、フェーズ・段が変わったとき({@link PhaseData} から)・
  * 進みが 1% 動いたとき({@link PhaseTicker} から 5 秒おきに見る)・ログインしたとき。毎 tick は送らない。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class PhaseSync {
 
     /** 最後に送った「フェーズ・段・進みの %」(変わったときだけ送る)。サーバーの起動ごとに最初の 1 回は必ず送る。 */

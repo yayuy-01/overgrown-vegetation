@@ -19,7 +19,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 
 /**
  * 蠢く壁の見た目(2026-11-16、Fable)。3 案を試作して比べ、ユーザーが案 B「飲まれた者たち」を選んだ(11-16 夜)。

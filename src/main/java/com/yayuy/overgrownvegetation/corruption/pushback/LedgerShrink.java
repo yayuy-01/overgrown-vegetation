@@ -21,16 +21,17 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.BlockEvent;
-import net.neoforged.neoforge.event.level.ExplosionEvent;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.level.BlockEvent;
+import net.minecraftforge.event.level.ExplosionEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * <b>森の面積が減る</b>(押し返し 2026-11-18 夜 ユーザー決定「チャンクの過繁茂の割合が 3 割【仮】を切ったら台帳から外し、面積の点を減らす。
@@ -49,7 +50,7 @@ import java.util.List;
  * </ul>
  * オーバーワールドだけ(台帳のキーは次元を持たない)。重さ: 印の付いたチャンクだけを 1 tick {@code chunksPerTick} 個まで、TickBudget の枠で。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class LedgerShrink {
 
     /** 何で外したか(焼けた荒地にするかの分かれ目)。 */
@@ -203,8 +204,8 @@ public final class LedgerShrink {
         if (!phase.forgetOvergrownChunk(pos)) return false; // 胞子の場の取り消しもここで
         LedgerSpreadData.get(level.getServer()).removePending(pos.toLong());
         com.yayuy.overgrownvegetation.spore.field.SporeSprouts.clearFresh(level, pos.toLong());
-        chunk.setData(ModAttachments.SPROUTS_PLACED, 0);
-        chunk.setData(ModAttachments.CAVE_SPROUTS_PLACED, 0);
+        OvAttach.setData(chunk, ModAttachments.SPROUTS_PLACED, 0);
+        OvAttach.setData(chunk, ModAttachments.CAVE_SPROUTS_PLACED, 0);
         boolean handled = false;
         for (Listener l : LISTENERS) handled |= l.onForgotten(level, chunk, cause);
         if (!handled) OvergrownBiomeConverter.restoreOriginal(level, chunk);

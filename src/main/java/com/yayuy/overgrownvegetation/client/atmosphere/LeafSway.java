@@ -6,7 +6,7 @@ import com.yayuy.overgrownvegetation.data.DesignData;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 
 /**
  * <b>風に揺れる葉と草</b>(2026-10-30 夜 第 2 段「動き」。元は parked の {@code LeafSway}、2026-10-15 夜 案 B)。過繁茂の葉・湿地の葉・茂み・

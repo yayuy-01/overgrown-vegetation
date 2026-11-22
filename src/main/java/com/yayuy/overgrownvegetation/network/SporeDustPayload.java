@@ -2,8 +2,8 @@ package com.yayuy.overgrownvegetation.network;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import com.yayuy.overgrownvegetation.port.network.StreamCodec;
+import com.yayuy.overgrownvegetation.port.network.CustomPacketPayload;
 
 /**
  * 胞子の粉の見た目(S2C、2026-10-31 合間の小物 3。元は 10-23 の同名の通信から粉の分だけを残した)。プレイヤーのまわり {@code size}×{@code size}

@@ -15,12 +15,12 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.LevelEvent;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.server.ServerStoppingEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.level.LevelEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayDeque;
@@ -44,7 +44,7 @@ import java.util.Map;
  *       (拡大種)の死亡時({@link #deathSphere})。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class NoisyCorruptionBurst {
 
     // ------------------------------------------------------------------------------------------
@@ -153,7 +153,7 @@ public final class NoisyCorruptionBurst {
      * 止める直前: 積み残しは作らず、胞子の場の降り積もりに替えて捨てる(2026-11-16 コードの見直し ③5: 前は全部その場で作り、
      * 1 万個なら約 2 秒止まっていた)。降り積もりは胞子の場の入力なので、場が写しを取る前に流れるよう優先度を高くする。
      */
-    @SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.HIGH)
+    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGH)
     public static void onServerStopping(ServerStoppingEvent event) {
         // キーの写しで回す
         for (ResourceKey<Level> dimension : new ArrayList<>(DEATH_BURSTS.keySet())) {

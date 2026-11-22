@@ -21,9 +21,9 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.ModList;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 
 import java.util.List;
@@ -51,8 +51,8 @@ import java.util.concurrent.CompletableFuture;
  * <p>シェーダーパック使用中は描かない(パックの雲に任せる。10-23 決定)。Distant Horizons があるときはバニラの雲の設定を見ない
  * (DH が自分のために切るので)。数値はユーザー指定の高さ以外すべて仮決め。
  */
-@net.neoforged.fml.common.EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.GAME,
-        value = net.neoforged.api.distmarker.Dist.CLIENT)
+@net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus.FORGE,
+        value = net.minecraftforge.api.distmarker.Dist.CLIENT)
 public final class VoxelClouds implements CloudRenderer {
 
     public static final VoxelClouds INSTANCE = new VoxelClouds();

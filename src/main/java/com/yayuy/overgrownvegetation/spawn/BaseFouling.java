@@ -13,9 +13,9 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 /**
  * 拠点を汚す(2026-11-16 F5 の襲撃。ユーザー決定: 拠点に着いた敵は拠点の中や周りに胞子を降らせ、籠城の空気を悪くする。1 体 1 分で空気 +1%・降り積もりは空気の 1/4)。
@@ -24,7 +24,7 @@ import net.neoforged.neoforge.event.tick.LevelTickEvent;
  * {@code foulIntervalTicks} ごとに数え、その個体のいる升の空気(浮遊)を {@link SporeFieldServer#emitPoint} で、地面を {@link SporeFieldServer#depositPoint} で上げる。
  * 量の単位: 空気 100% = 胞子の場の {@code fullAt}。倒したときの破裂(11-15)は別に足される。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class BaseFouling {
 
     private BaseFouling() {

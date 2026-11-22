@@ -20,13 +20,13 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.biome.Climate;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.common.Tags;
-import net.neoforged.neoforge.event.level.LevelEvent;
-import net.neoforged.neoforge.event.server.ServerStartedEvent;
-import net.neoforged.neoforge.event.server.ServerStoppingEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.common.Tags;
+import net.minecraftforge.event.level.LevelEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,7 +53,7 @@ import java.util.function.Consumer;
  * <p>止まるとき: {@code /ov corruption false}・フェーズ 0・フェーズの凍結・{@code spore_field.json} の enabled=false。
  * 止まっている間の時間は取り戻さない(台帳の広がりと同じ)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class SporeFieldServer {
 
     /**
@@ -212,7 +212,7 @@ public final class SporeFieldServer {
     private static final it.unimi.dsi.fastutil.longs.LongOpenHashSet WAITING = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
 
     @SubscribeEvent
-    public static void onChunkLoadRelease(net.neoforged.neoforge.event.level.ChunkEvent.Load event) {
+    public static void onChunkLoadRelease(net.minecraftforge.event.level.ChunkEvent.Load event) {
         if (WAITING.isEmpty() || !(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
         long key = event.getChunk().getPos().toLong();
         if (!WAITING.remove(key)) return;
@@ -234,7 +234,7 @@ public final class SporeFieldServer {
      * 区画が無ければ場は何もしない(区画を作るときは式の値)。チャンクを読み込み直すたびに同じ値が入るだけ。
      */
     @SubscribeEvent
-    public static void onChunkLoadHeight(net.neoforged.neoforge.event.level.ChunkEvent.Load event) {
+    public static void onChunkLoadHeight(net.minecraftforge.event.level.ChunkEvent.Load event) {
         if (field == null || !(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
         if (!(event.getChunk() instanceof net.minecraft.world.level.chunk.LevelChunk chunk)) return;
         float y = exactGroundY(chunk);
@@ -325,7 +325,7 @@ public final class SporeFieldServer {
 
     /** ログアウト: 粉の見た目の「前に送った物」を忘れる(入り直しで粉がすぐ見えるように。見直し第 2 回 ④2)。 */
     @SubscribeEvent
-    public static void onLogout(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
+    public static void onLogout(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
         SporeDustSync.forget(event.getEntity().getUUID());
     }
 

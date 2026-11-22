@@ -2,8 +2,8 @@ package com.yayuy.overgrownvegetation.network;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import com.yayuy.overgrownvegetation.port.network.StreamCodec;
+import com.yayuy.overgrownvegetation.port.network.CustomPacketPayload;
 
 /**
  * サーバー → クライアントへ、プレイヤーの所の胞子濃度(%、{@code SporeConcentration#percentAt}。地点の補正込み)を伝える S2C ペイロード

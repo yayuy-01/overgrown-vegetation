@@ -8,8 +8,8 @@ import net.minecraft.client.sounds.JOrbisAudioStream;
 import com.mojang.blaze3d.audio.SoundBuffer;
 import net.minecraft.client.sounds.SoundBufferLibrary;
 import net.minecraft.resources.ResourceLocation;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.Nullable;
 
 import javax.sound.sampled.AudioFormat;

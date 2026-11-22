@@ -19,14 +19,15 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.ChunkEvent;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.level.ChunkEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import java.util.HashMap;
 import java.util.Map;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * <b>覆った砂・砂利・砂岩は、時間がたつと過繁茂の草ブロックになる</b>(2026-11-01 ユーザー指定。砂岩は 11-02 ユーザー指定で追加)。
@@ -42,7 +43,7 @@ import java.util.Map;
  * </ul>
  * 覆った砂・砂利は落ちない({@code mixin/FallingBlockCoveredMixin})ので、待っている間に記録と砂が離れることはない。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class CoveredSandToGrass {
 
     private static final int SWEEP_TICKS = 20;
@@ -70,7 +71,7 @@ public final class CoveredSandToGrass {
     /** 置き換わる時刻を書く(テストからも呼ぶ)。 */
     public static void schedule(ServerLevel level, BlockPos pos, long dueTick) {
         LevelChunk chunk = level.getChunk(pos.getX() >> 4, pos.getZ() >> 4);
-        chunk.getData(ModAttachments.COVER_SETTLE.get()).put(pos.asLong(), dueTick);
+        OvAttach.getData(chunk, ModAttachments.COVER_SETTLE.get()).put(pos.asLong(), dueTick);
         chunk.setUnsaved(true);
         CHUNKS.computeIfAbsent(level.dimension(), k -> new LongOpenHashSet()).add(chunk.getPos().toLong());
     }
@@ -78,14 +79,14 @@ public final class CoveredSandToGrass {
     /** そのマスの記録(無ければ {@link Long#MIN_VALUE})。 */
     public static long dueTick(Level level, BlockPos pos) {
         LevelChunk chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
-        Long2LongOpenHashMap map = chunk == null ? null : chunk.getExistingData(ModAttachments.COVER_SETTLE.get()).orElse(null);
+        Long2LongOpenHashMap map = chunk == null ? null : OvAttach.getExistingData(chunk, ModAttachments.COVER_SETTLE.get()).orElse(null);
         return map == null ? Long.MIN_VALUE : map.getOrDefault(pos.asLong(), Long.MIN_VALUE);
     }
 
     /** そのマスの覆いが剥がされた({@link OvergrownLayerData#uncover} から)。 */
     static void onUncovered(ServerLevel level, BlockPos pos) {
         LevelChunk chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
-        Long2LongOpenHashMap map = chunk == null ? null : chunk.getExistingData(ModAttachments.COVER_SETTLE.get()).orElse(null);
+        Long2LongOpenHashMap map = chunk == null ? null : OvAttach.getExistingData(chunk, ModAttachments.COVER_SETTLE.get()).orElse(null);
         if (map != null && map.remove(pos.asLong()) != map.defaultReturnValue()) {
             chunk.setUnsaved(true);
         }
@@ -96,7 +97,7 @@ public final class CoveredSandToGrass {
         if (!(event.getLevel() instanceof ServerLevel level) || !(event.getChunk() instanceof LevelChunk chunk)) {
             return;
         }
-        if (chunk.getExistingData(ModAttachments.COVER_SETTLE.get()).map(m -> !m.isEmpty()).orElse(false)) {
+        if (OvAttach.getExistingData(chunk, ModAttachments.COVER_SETTLE.get()).map(m -> !m.isEmpty()).orElse(false)) {
             CHUNKS.computeIfAbsent(level.dimension(), k -> new LongOpenHashSet()).add(chunk.getPos().toLong());
         }
         if (OvergrownLayerData.size(chunk) > 0) {
@@ -121,7 +122,7 @@ public final class CoveredSandToGrass {
             long cp = queue.iterator().nextLong();
             queue.remove(cp);
             LevelChunk chunk = level.getChunkSource().getChunkNow(ChunkPos.getX(cp), ChunkPos.getZ(cp));
-            LongOpenHashSet covered = chunk == null ? null : chunk.getExistingData(ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
+            LongOpenHashSet covered = chunk == null ? null : OvAttach.getExistingData(chunk, ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
             if (covered == null || covered.isEmpty()) {
                 continue;
             }
@@ -132,7 +133,7 @@ public final class CoveredSandToGrass {
                     continue;
                 }
                 if (settle == null) {
-                    settle = chunk.getData(ModAttachments.COVER_SETTLE.get());
+                    settle = OvAttach.getData(chunk, ModAttachments.COVER_SETTLE.get());
                 }
                 if (!settle.containsKey(packed)) {
                     double seconds = design.settleMinSeconds() + level.random.nextDouble() * (design.settleMaxSeconds() - design.settleMinSeconds());
@@ -191,7 +192,7 @@ public final class CoveredSandToGrass {
         int converted = 0;
         for (long cp : set.toLongArray()) {
             LevelChunk chunk = level.getChunkSource().getChunkNow(ChunkPos.getX(cp), ChunkPos.getZ(cp));
-            Long2LongOpenHashMap map = chunk == null ? null : chunk.getExistingData(ModAttachments.COVER_SETTLE.get()).orElse(null);
+            Long2LongOpenHashMap map = chunk == null ? null : OvAttach.getExistingData(chunk, ModAttachments.COVER_SETTLE.get()).orElse(null);
             if (map == null || map.isEmpty()) {
                 set.remove(cp);
                 continue;

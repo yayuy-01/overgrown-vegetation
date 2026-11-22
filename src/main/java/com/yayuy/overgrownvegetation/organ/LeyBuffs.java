@@ -13,9 +13,9 @@ import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,7 +31,7 @@ import java.util.List;
  * 頭打ちになり、根の分だけ削られていた個体が満タンに戻っていた。保存すれば読むときの最大に根の分が入っている)。
  * 読み込まれたときにも今の値へ掛け直すので、外れている間に根が枯れても残らない。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class LeyBuffs {
     private LeyBuffs() {
     }

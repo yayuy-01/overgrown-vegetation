@@ -25,12 +25,12 @@ import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.animatable.GeoEntity;
-import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
-import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationController;
-import software.bernie.geckolib.animation.AnimationState;
-import software.bernie.geckolib.animation.PlayState;
-import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.core.animation.AnimatableManager;
+import software.bernie.geckolib.core.animation.AnimationController;
+import software.bernie.geckolib.core.animation.AnimationState;
+import software.bernie.geckolib.core.object.PlayState;
+import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.EnumSet;
@@ -369,14 +369,14 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
 
     /** 押さえ込む(相手を首の下に乗せる)。乗せられなければ false。 */
     boolean pin(LivingEntity prey) {
-        if (prey.getType().is(net.neoforged.neoforge.common.Tags.EntityTypes.BOSSES) || prey.getBbWidth() > 2.0F || prey.getBbHeight() > 3.0F
+        if (prey.getType().is(net.minecraftforge.common.Tags.EntityTypes.BOSSES) || prey.getBbWidth() > 2.0F || prey.getBbHeight() > 3.0F
                 || prey.isVehicle() || prey.isPassenger() || !this.getPassengers().isEmpty()) {
             return false;
         }
         if (!prey.startRiding(this, true)) return false;
         if (prey instanceof net.minecraft.server.level.ServerPlayer sp) {
             sp.setForcedPose(net.minecraft.world.entity.Pose.SWIMMING);   // 地面へ押し倒す(立たせると目が首の中に入る。11-15 テストクライアント)
-            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(com.yayuy.overgrownvegetation.network.CaptorPayload.START, this.getId()));
+            com.yayuy.overgrownvegetation.port.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(com.yayuy.overgrownvegetation.network.CaptorPayload.START, this.getId()));
         }
         this.setDeltaMovement(0.0D, this.getDeltaMovement().y, 0.0D);
         return true;
@@ -408,7 +408,7 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
     /** 噛む(押さえ込みの間)。 */
     void bite(LivingEntity v, float damage) {
         if (v instanceof net.minecraft.server.level.ServerPlayer sp) {
-            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(com.yayuy.overgrownvegetation.network.CaptorPayload.HIT, this.getId()));
+            com.yayuy.overgrownvegetation.port.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(com.yayuy.overgrownvegetation.network.CaptorPayload.HIT, this.getId()));
         }
         if (v.hurt(this.damageSources().mobAttack(this), damage)) this.setLastHurtMob(v);
         this.playSound(net.minecraft.sounds.SoundEvents.EVOKER_FANGS_ATTACK, 0.6F, 1.3F);
@@ -488,14 +488,14 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
         return this.getPassengers().isEmpty();
     }
 
-    @net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.GAME)
+    @net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus.FORGE)
     public static final class Events {
         private Events() {
         }
 
         /** 押さえ込まれた相手は自分から降りられず、ほかの乗り物にも乗れない(ファルキムネスと同じ。降車はサーバーでだけ止める)。 */
-        @net.neoforged.bus.api.SubscribeEvent
-        public static void onMount(net.neoforged.neoforge.event.entity.EntityMountEvent event) {
+        @net.minecraftforge.eventbus.api.SubscribeEvent
+        public static void onMount(net.minecraftforge.event.entity.EntityMountEvent event) {
             if (event.getLevel().isClientSide()) return;
             if (event.isDismounting()) {
                 if (event.getEntityBeingMounted() instanceof SaltimnesEntity s && s.isAlive() && !s.isRemoved() && !s.releasing && s.act() == ACT_PIN) {
@@ -505,7 +505,7 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
                         && event.getEntityMounting() instanceof net.minecraft.server.level.ServerPlayer sp) {
                     // 押し倒しを戻す(放した・サルティムネスが死んだ・消えた)。押し倒していなくても(読み込み直しで乗ったまま戻った等)知らせる
                     sp.setForcedPose(null);
-                    net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(com.yayuy.overgrownvegetation.network.CaptorPayload.END, s.getId()));
+                    com.yayuy.overgrownvegetation.port.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(com.yayuy.overgrownvegetation.network.CaptorPayload.END, s.getId()));
                 }
                 return;
             }
@@ -516,8 +516,8 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
         }
 
         /** 押さえ込まれたままログアウトしたら先に放す(放さないとプレイヤーの乗り物ごと保存されて世界から消える)。 */
-        @net.neoforged.bus.api.SubscribeEvent
-        public static void onLogout(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
+        @net.minecraftforge.eventbus.api.SubscribeEvent
+        public static void onLogout(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
             if (event.getEntity().getVehicle() instanceof SaltimnesEntity s && !s.level().isClientSide()) s.releasePin();
         }
     }

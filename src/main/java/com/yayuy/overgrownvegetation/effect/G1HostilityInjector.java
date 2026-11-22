@@ -7,9 +7,9 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 
 /**
  * 「G1〜G8・環境生物は、すべての Mob から平等に敵対される」(11-05 ユーザー、問い 12 への答え。鉄のゴーレムなども、元の Mob が何であっても G1 を狙う)。
@@ -21,7 +21,7 @@ import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
  *
  * <p>鉄のゴーレム・スノーゴーレムはこれが無くても G1 を狙う(G1 は Monster = {@code Enemy})。弓を持つスケルトンは自分の攻撃の Goal で撃つ。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class G1HostilityInjector {
 
     /** 足す Goal の優先度(バニラの標的の Goal は 1〜3。同じ優先度に複数あってよい)。 */

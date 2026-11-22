@@ -23,16 +23,16 @@ import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.Event;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.ModList;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.Event;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderFrameEvent;
-import net.neoforged.neoforge.client.event.RenderGuiEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
-import net.neoforged.neoforge.common.NeoForge;
+import net.minecraftforge.client.event.RenderGuiEvent;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.common.MinecraftForge;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
@@ -52,14 +52,14 @@ import org.lwjgl.opengl.GLCapabilities;
  *     1 フレーム数百個になり、測る側の重さで結果が狂う)。結果は {@link #SLOTS} フレーム遅れで読む(GPU を待たない)。</li>
  *     <li><b>見えないもの</b>: バニラのシェーダーを差し替えて地形の描画の中で効く演出(葉の揺れ・林冠の影など)や、uniform を渡すだけ・
  *     VBO を作るだけの受け手は、GPU の重さが地形の描画(バニラの残り)に入る。それは設定で切って {@code bench} を撮り比べる。
- *     手で {@code NeoForge.EVENT_BUS.addListener} した受け手・mixin も包まない。</li>
+ *     手で {@code MinecraftForge.EVENT_BUS.addListener} した受け手・mixin も包まない。</li>
  *     <li><b>決まった振り回し</b>({@code bench}): 時計で決めた向き(毎秒 150° で回りながら上下に ±30°)に毎フレーム視点を動かし、
  *     フレーム時間の平均・中央値・99 パーセンタイル・1% の遅い値(遅い方から 1% のフレームの平均)・最悪の 10 フレーム(その
  *     フレームでいちばん CPU を使った受け手つき)・GC の回数と時間・描画のスレッドが確保したメモリを {@code devbridge/bench-<名前>.txt} に書く。</li>
  *     <li><b>画面の表</b>({@code fxprof hud}): FPS・フレーム時間・直近の 1% の遅い値・GPU のフレーム時間と、重い順の受け手。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class FxProfiler {
     private static final boolean ENABLED = Boolean.getBoolean("ov.devbridge");
 
@@ -426,7 +426,7 @@ public final class FxProfiler {
                 continue;
             }
             EventBusSubscriber ann = c.getAnnotation(EventBusSubscriber.class);
-            if (ann == null || ann.bus() != EventBusSubscriber.Bus.GAME || !Arrays.asList(ann.value()).contains(Dist.CLIENT)) {
+            if (ann == null || ann.bus() != EventBusSubscriber.Bus.FORGE || !Arrays.asList(ann.value()).contains(Dist.CLIENT)) {
                 continue;
             }
             List<Method> subs = new ArrayList<>();
@@ -449,7 +449,7 @@ public final class FxProfiler {
             } catch (IllegalAccessException | RuntimeException e) {
                 continue; // 包めないクラスは元のまま
             }
-            NeoForge.EVENT_BUS.unregister(c);
+            MinecraftForge.EVENT_BUS.unregister(c);
             for (Object[] entry : plan) {
                 Method m = (Method) entry[0];
                 Listener l = (Listener) entry[1];
@@ -469,16 +469,16 @@ public final class FxProfiler {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static void addListener(EventPriority priority, boolean receiveCanceled, Class<?> type, Consumer<Event> consumer) {
-        NeoForge.EVENT_BUS.addListener(priority, receiveCanceled, (Class) type, (Consumer) consumer);
+        MinecraftForge.EVENT_BUS.addListener(priority, receiveCanceled, (Class) type, (Consumer) consumer);
     }
 
     private static String disable() {
         if (!on) return "もう off";
         for (Consumer<? extends Event> c : ADDED) {
-            NeoForge.EVENT_BUS.unregister(c);
+            MinecraftForge.EVENT_BUS.unregister(c);
         }
         for (Class<?> c : WRAPPED_CLASSES) {
-            NeoForge.EVENT_BUS.register(c);
+            MinecraftForge.EVENT_BUS.register(c);
         }
         int n = WRAPPED_CLASSES.size();
         ADDED.clear();
@@ -636,7 +636,7 @@ public final class FxProfiler {
     private static long gapTickPreNs;
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public static void onTickPreGap(net.neoforged.neoforge.client.event.ClientTickEvent.Pre event) {
+    public static void onTickPreGap(com.yayuy.overgrownvegetation.port.event.tick.ClientTickEvent.Pre event) {
         if (!ENABLED || gapPostNs == 0) return;
         long now = System.nanoTime();
         if (gapTickStartNs == 0) gapTickStartNs = now;
@@ -644,7 +644,7 @@ public final class FxProfiler {
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onTickPostGap(net.neoforged.neoforge.client.event.ClientTickEvent.Post event) {
+    public static void onTickPostGap(com.yayuy.overgrownvegetation.port.event.tick.ClientTickEvent.Post event) {
         if (!ENABLED || gapTickPreNs == 0) return;
         long now = System.nanoTime();
         gapTickSum += now - gapTickPreNs;

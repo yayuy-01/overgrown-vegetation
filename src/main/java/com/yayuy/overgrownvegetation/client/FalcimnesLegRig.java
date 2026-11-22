@@ -4,7 +4,7 @@ import com.yayuy.overgrownvegetation.entity.FalcimnesEntity;
 import com.yayuy.overgrownvegetation.entity.legs.FootPlanter;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
-import software.bernie.geckolib.animation.AnimationState;
+import software.bernie.geckolib.core.animation.AnimationState;
 import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.cache.object.GeoCube;
 import software.bernie.geckolib.cache.object.GeoQuad;

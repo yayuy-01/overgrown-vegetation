@@ -6,9 +6,9 @@ import com.yayuy.overgrownvegetation.spore.PlantSideRules;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
 
 
 /**
@@ -22,7 +22,7 @@ import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
  * 必ず {@link MobInfection#infect} で感染する(暴露量は減らず上がり続け、約 2 分で死ぬ)。ボス・ゴーレム・ほかの MOD の Mob も除かない
  * (ただし {@code spore_exposure_immune} のタグと植物側は感染の仕組みそのものが測らない)。G1 の 1 撃ごとの +300 の暴露は、これに置き換えた。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class ParasitizedAttackInfectionHandler {
 
     /**

@@ -11,9 +11,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 /**
  * {@code /ov nether …} — ネザーの汚染の骨組み(根の台帳と段階、2026-11-11)を見る・進める。OP 専用。どれもネザーにいるときだけ。
@@ -25,7 +25,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  *     <li>{@code /ov nether seed} 足元のチャンクから森を始める(ポータルの出口と同じ。最初の根も伸びる)</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class NetherCommand {
 
     private NetherCommand() {

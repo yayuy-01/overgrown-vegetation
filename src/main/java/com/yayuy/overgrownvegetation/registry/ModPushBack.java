@@ -12,13 +12,13 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredItem;
+import com.yayuy.overgrownvegetation.port.registries.DeferredBlock;
+import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
+import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
 
 /**
  * <b>押し返す用の道具と方法</b>(2026-11-18 夜)の登録: 灰と石灰の帯・地脈の杭・石灰。正本は Vault「汚染を押し返す手段(浄化)」の末尾の節。

@@ -2,8 +2,8 @@ package com.yayuy.overgrownvegetation.client.voice;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.client.sounds.AudioStream;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import org.lwjgl.BufferUtils;
 
 import javax.sound.sampled.AudioFormat;

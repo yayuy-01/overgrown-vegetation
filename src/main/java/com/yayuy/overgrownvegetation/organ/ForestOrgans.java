@@ -16,6 +16,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * 森の器官の記録(2026-11-17。オーバーワールドに 1 つ)。司令塔が予算を払って芽吹かせた器官の、種類・形・種・場所・芽吹いた時刻・
@@ -24,12 +25,12 @@ import java.util.List;
  * <p>育ち方は時計で決まる({@link PhaseData#clock} − 芽吹いた時刻)。読み込まれていない所でも育ち、役割も働く。
  * ブロックは読み込まれたときに追いつきで置く({@link OrganWorld})。
  */
-public final class ForestOrgans extends SavedData {
+public final class ForestOrgans extends OvSavedData {
 
     private static final String ID = "overgrown_vegetation_forest_organs";
 
-    public static final SavedData.Factory<ForestOrgans> FACTORY =
-            new SavedData.Factory<>(ForestOrgans::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<ForestOrgans> FACTORY =
+            new OvSavedData.Factory<>(ForestOrgans::new, (tag, registries) -> load(tag), null);
 
     public enum State {
         /** 芽吹いて育っている(役割はまだ)。 */
@@ -249,7 +250,7 @@ public final class ForestOrgans extends SavedData {
     }
 
     public static ForestOrgans get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     public static ForestOrgans get(ServerLevel level) {

@@ -4,9 +4,9 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredRegister;
+import net.minecraftforge.eventbus.api.IEventBus;
+import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
+import com.yayuy.overgrownvegetation.port.registries.DeferredRegister;
 
 /** 森の器官の実体(2026-11-17)。共有の ModEntities を太らせないよう、ここに自分の登録の口を持つ({@link OrganBlocks#register} から)。 */
 public final class OrganEntities {

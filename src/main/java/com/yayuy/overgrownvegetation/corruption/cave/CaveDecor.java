@@ -24,12 +24,13 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * 汚染された洞窟の飾り(2026-11-20 洞窟の作り。ユーザーが Fable の案から選んだ形): 柱1 ねじれた太い柱(編んだ蔦・登れない・水ぶくれが付く)・
@@ -41,7 +42,7 @@ import java.util.List;
  * ({@link OvergrownLayerData#isCorruptedCell})で決めるので、どの汚染の道でも同じに出る。地表から {@code surfaceKeep} より下だけ。
  * 押し返す道具の効く所・亀裂の芯のそばには出さない。置くのは {@link FissureLook} の置く列(1 tick の時間に上限)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class CaveDecor {
     private CaveDecor() {
     }
@@ -400,13 +401,13 @@ public final class CaveDecor {
 
     // ---------------------------------------------------------------- 済みの印
 
-    public static final class Data extends SavedData {
+    public static final class Data extends OvSavedData {
         static final String ID = "overgrown_vegetation_cave_decor";
-        static final SavedData.Factory<Data> FACTORY = new SavedData.Factory<>(Data::new, (tag, reg) -> load(tag), null);
+        static final OvSavedData.Factory<Data> FACTORY = new OvSavedData.Factory<>(Data::new, (tag, reg) -> load(tag), null);
         private final LongOpenHashSet done = new LongOpenHashSet();
 
         public static Data get(ServerLevel level) {
-            return level.getDataStorage().computeIfAbsent(FACTORY, ID);
+            return level.getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
         }
 
         boolean done(long chunk) {

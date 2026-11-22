@@ -43,7 +43,7 @@ public final class RaidChunkLoader {
      */
     public static long[] forceKeysWithoutLoading(ServerLevel level, long[] chunkKeys) {
         ForcedChunksSavedData data = level.getDataStorage()
-                .computeIfAbsent(ForcedChunksSavedData.factory(), ForcedChunksSavedData.FILE_ID);
+                .computeIfAbsent(ForcedChunksSavedData.factory().load(), ForcedChunksSavedData.factory().constructor(), ForcedChunksSavedData.FILE_ID);
         LongArrayList forced = new LongArrayList();
         for (long key : chunkKeys) {
             // setChunkForced(add = true) から getChunk だけを抜いたもの。既に固定済みなら何もしない(他人が固定したチャンクは記録しない)

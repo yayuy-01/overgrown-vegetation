@@ -18,7 +18,7 @@ import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 
 /**
  * <b>巨大樹の樹冠から昇る胞子の柱</b>(2026-11-06 巨大樹の改善案 ①、ユーザー採用。数は仮決め、節 {@code giantTree.sporeColumn})。

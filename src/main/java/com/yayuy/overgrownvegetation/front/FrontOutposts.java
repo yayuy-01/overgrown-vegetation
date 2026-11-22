@@ -29,16 +29,17 @@ import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
-import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>根付きの前哨</b>(2026-11-22 ユーザー決定「根付きは動けない前哨」)。根付いた個体は部隊から外し、その場に残る前哨として記録する
@@ -52,11 +53,11 @@ import java.util.UUID;
  *   <li>値段は根付きの姿の値段 − 段階 0(今までの根付きと同じ。取り置きを残して払う)。重砲兵(根付きの第二進化体)はまだ入れない。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
-public final class FrontOutposts extends SavedData {
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
+public final class FrontOutposts extends OvSavedData {
 
     public static final String ID = OvergrownVegetation.MODID + "_front_outposts";
-    public static final SavedData.Factory<FrontOutposts> FACTORY = new SavedData.Factory<>(FrontOutposts::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<FrontOutposts> FACTORY = new OvSavedData.Factory<>(FrontOutposts::new, (tag, registries) -> load(tag), null);
     /** 実物の印(エンティティの保存データ。台帳の番号)。 */
     public static final String KEY = "ov_front_outpost";
 
@@ -130,7 +131,7 @@ public final class FrontOutposts extends SavedData {
     }
 
     public static FrontOutposts get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     public List<Post> posts() {

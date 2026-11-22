@@ -27,14 +27,14 @@ public final class ClientVirtualHordes {
     }
 
     /** ログアウトで前のワールドの群れの絵と身代わりを捨てる(11-18 見直し ③7。次のワールドへ持ち越さない)。 */
-    @net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID,
-            value = net.neoforged.api.distmarker.Dist.CLIENT, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.GAME)
+    @net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID,
+            value = net.minecraftforge.api.distmarker.Dist.CLIENT, bus = net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus.FORGE)
     public static final class Logout {
         private Logout() {
         }
 
-        @net.neoforged.bus.api.SubscribeEvent
-        public static void onLoggingOut(net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
+        @net.minecraftforge.eventbus.api.SubscribeEvent
+        public static void onLoggingOut(net.minecraftforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
             SWARMS.clear();
             com.yayuy.overgrownvegetation.client.crowd.HordeImpostors.forgetLevel();
         }

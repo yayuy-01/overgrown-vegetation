@@ -17,11 +17,11 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import java.util.List;
 
@@ -82,7 +82,7 @@ public final class FissureGameTests {
         FissureData data = FissureData.get(level);
         FissurePlanner.testAnchors = List.of(new long[]{11_300_000L, 40_000L});
         // makeMockServerPlayerInLevel は通信の口が無く、ほかの仕組みの送信でサーバーが落ちる(11-20)。FakePlayer で動かす
-        ServerPlayer player = net.neoforged.neoforge.common.util.FakePlayerFactory.get(level, new com.mojang.authlib.GameProfile(java.util.UUID.fromString("0fe55a2e-0000-4000-8000-00000000f155"), "fissure_test"));
+        ServerPlayer player = net.minecraftforge.common.util.FakePlayerFactory.get(level, new com.mojang.authlib.GameProfile(java.util.UUID.fromString("0fe55a2e-0000-4000-8000-00000000f155"), "fissure_test"));
         try {
             int lineBlocks = DesignData.fissure().plan.lineBlocks;
             for (int s = 0; s < 20; s++) {

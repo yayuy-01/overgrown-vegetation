@@ -31,17 +31,18 @@ import net.minecraft.world.entity.vehicle.Boat;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.common.util.FakePlayerFactory;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.common.util.FakePlayerFactory;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * コードの見直し 第 2 回(11-18)の直し。正本は Vault「コードの見直し 第 2 回(11-18)」。器官の分は organ パッケージの
@@ -209,7 +210,7 @@ public final class CodeReview2GameTests {
         com.yayuy.overgrownvegetation.survival.FatigueTracker.set(p, 40.0D);
         for (int i = 0; i < 5; i++) com.yayuy.overgrownvegetation.survival.FatigueTracker.countAttack(p);
         com.yayuy.overgrownvegetation.survival.FatigueTracker.exempt(p);
-        var f = p.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.FATIGUE);
+        var f = OvAttach.getData(p, com.yayuy.overgrownvegetation.registry.ModAttachments.FATIGUE);
         boolean ok = f.attacks == 0.0D && Math.abs(com.yayuy.overgrownvegetation.survival.FatigueTracker.value(p) - 40.0D) < 1.0E-9D;
         com.yayuy.overgrownvegetation.survival.FatigueTracker.set(p, 0.0D);
         helper.assertTrue(ok, "数えかけが残る・疲労の値が変わった: 殴り " + f.attacks);

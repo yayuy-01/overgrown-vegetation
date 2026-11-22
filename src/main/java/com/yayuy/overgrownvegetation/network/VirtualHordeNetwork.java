@@ -1,10 +1,10 @@
 package com.yayuy.overgrownvegetation.network;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.network.RegisterPayloadHandlersEvent;
+import com.yayuy.overgrownvegetation.port.network.PayloadRegistrar;
 
 /**
  * 仮想の群れの通信(2026-11-18 大群の軽量化 A)。共有の {@code ModNetwork} とは別の登録にして、版を自分で持つ。

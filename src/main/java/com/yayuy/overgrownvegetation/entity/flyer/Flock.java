@@ -325,13 +325,13 @@ public final class Flock {
     }
 
     /** ワールドを閉じたら群れを忘れる(値が実体を持ち、実体が面を持つので WeakHashMap だけでは面が残る)。 */
-    @net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID)
+    @net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID)
     public static final class Unload {
         private Unload() {
         }
 
-        @net.neoforged.bus.api.SubscribeEvent
-        public static void onLevelUnload(net.neoforged.neoforge.event.level.LevelEvent.Unload event) {
+        @net.minecraftforge.eventbus.api.SubscribeEvent
+        public static void onLevelUnload(net.minecraftforge.event.level.LevelEvent.Unload event) {
             if (event.getLevel() instanceof ServerLevel sl) BY_LEVEL.remove(sl);
         }
 
@@ -340,8 +340,8 @@ public final class Flock {
          * 群れの片付けは群れの個体の tick が回すので、全員がチャンクの外へ出ると群れが台帳に残り続けていた。
          * 戻ってきた個体は保存された番号で群れに入り直す(群れが無ければ作り直す)。
          */
-        @net.neoforged.bus.api.SubscribeEvent
-        public static void onLeave(net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent event) {
+        @net.minecraftforge.eventbus.api.SubscribeEvent
+        public static void onLeave(net.minecraftforge.event.entity.EntityLeaveLevelEvent event) {
             // 外すのは本当に消えた個体だけ(チャンクの状態が変わっただけでも面から出た知らせが来て、個体はそのまま動き続ける。
             // それを外すと群れが空になって忘れられ、個体が古い群れの先導役 null を引いて落ちた。11-16 enemy-spawns の全体の GameTest)
             if (event.getEntity() instanceof SkyFlyer m && m.isRemoved() && m.flock != null && event.getLevel() instanceof ServerLevel sl) {

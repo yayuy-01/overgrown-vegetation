@@ -13,8 +13,8 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredHolder;
+import com.yayuy.overgrownvegetation.port.registries.DeferredBlock;
+import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 
 /**
  * 蠢く壁(2026-11-16 試作)の登録: 成れの果てのブロックとブロックエンティティ・ダメージの型。

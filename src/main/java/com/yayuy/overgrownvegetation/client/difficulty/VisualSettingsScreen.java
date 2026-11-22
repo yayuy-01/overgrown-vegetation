@@ -21,7 +21,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.common.ForgeConfigSpec;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -191,17 +191,17 @@ public final class VisualSettingsScreen extends Screen {
 
     /** オン・オフ(押すたびに切り替わるボタン)。 */
     private static final class Toggle extends Setting {
-        final ModConfigSpec.BooleanValue value;
+        final ForgeConfigSpec.BooleanValue value;
         /** 親のオンオフ(雰囲気の演出全体、霧の細部は霧)。親(とその親)が手元でオフの間はこの項目を押せない(値はそのまま)。 */
         @Nullable
         final Toggle parent;
         boolean current;
 
-        Toggle(String id, ModConfigSpec.BooleanValue value) {
+        Toggle(String id, ForgeConfigSpec.BooleanValue value) {
             this(id, value, null);
         }
 
-        Toggle(String id, ModConfigSpec.BooleanValue value, @Nullable Toggle parent) {
+        Toggle(String id, ForgeConfigSpec.BooleanValue value, @Nullable Toggle parent) {
             super(id);
             this.value = value;
             this.parent = parent;
@@ -250,22 +250,22 @@ public final class VisualSettingsScreen extends Screen {
 
     /** 割合(数字の入力欄。既定は 0〜100)。 */
     private static final class Percent extends Setting {
-        final ModConfigSpec.IntValue value;
+        final ForgeConfigSpec.IntValue value;
         final int min;
         final int max;
         /** 既定値の表示の後ろに付ける単位(既定は %)。 */
         final String unit;
         String text;
 
-        Percent(String id, ModConfigSpec.IntValue value) {
+        Percent(String id, ForgeConfigSpec.IntValue value) {
             this(id, value, 0, 100);
         }
 
-        Percent(String id, ModConfigSpec.IntValue value, int min, int max) {
+        Percent(String id, ForgeConfigSpec.IntValue value, int min, int max) {
             this(id, value, min, max, "%");
         }
 
-        Percent(String id, ModConfigSpec.IntValue value, int min, int max, String unit) {
+        Percent(String id, ForgeConfigSpec.IntValue value, int min, int max, String unit) {
             super(id);
             this.unit = unit;
             this.value = value;
@@ -326,11 +326,11 @@ public final class VisualSettingsScreen extends Screen {
 
     /** 選択肢を順に回すボタン。表示は {@code <KEY><id>.<選択肢の小文字>}(雰囲気の重さ・巻きシダ)。 */
     private static final class Choice<E extends Enum<E>> extends Setting {
-        final ModConfigSpec.EnumValue<E> value;
+        final ForgeConfigSpec.EnumValue<E> value;
         final E[] options;
         E current;
 
-        Choice(String id, ModConfigSpec.EnumValue<E> value, E[] options) {
+        Choice(String id, ForgeConfigSpec.EnumValue<E> value, E[] options) {
             super(id);
             this.value = value;
             this.options = options;

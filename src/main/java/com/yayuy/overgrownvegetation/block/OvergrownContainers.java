@@ -31,7 +31,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.ChestType;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
-import net.neoforged.neoforge.common.ItemAbilities;
+import net.minecraftforge.common.ToolActions;
 
 import javax.annotation.Nullable;
 
@@ -277,7 +277,7 @@ public final class OvergrownContainers {
      */
     public static ItemInteractionResult tryShear(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                                  Player player, InteractionHand hand, LevelSetter setter) {
-        if (!stack.canPerformAction(ItemAbilities.SHEARS_HARVEST) || !state.hasProperty(OVERGROWTH)) {
+        if (!stack.canPerformAction(ToolActions.SHEARS_HARVEST) || !state.hasProperty(OVERGROWTH)) {
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         }
         if (state.getValue(OVERGROWTH) <= 0) {

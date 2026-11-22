@@ -17,6 +17,7 @@ import net.minecraft.world.level.Level;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * 除染の中身(2026-11-14 サバイバルの背骨 段 3a、決定 30・31)。手洗い({@link HandWash})と地脈の洗い場({@link WasherBlockEntity})が同じ式を使う。
@@ -104,7 +105,7 @@ public final class Decon {
 
     /** フィルターを洗う: 詰まりを 0 にし、洗った回数を 1 増やす。 */
     public static void washFilter(ItemStack stack) {
-        stack.remove(ModDataComponents.MASK_FILTER_USED);
-        stack.set(ModVent.FILTER_WASHES, AirFilters.washes(stack) + 1);
+        OvItemData.remove(stack, ModDataComponents.MASK_FILTER_USED);
+        OvItemData.set(stack, ModVent.FILTER_WASHES, AirFilters.washes(stack) + 1);
     }
 }

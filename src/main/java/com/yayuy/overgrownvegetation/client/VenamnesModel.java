@@ -8,7 +8,7 @@ import com.yayuy.overgrownvegetation.entity.legs.FootPlanter;
 import com.yayuy.overgrownvegetation.entity.runner.GaitSway;
 import net.minecraft.util.Mth;
 import net.minecraft.resources.ResourceLocation;
-import software.bernie.geckolib.animation.AnimationState;
+import software.bernie.geckolib.core.animation.AnimationState;
 import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.model.GeoModel;
 

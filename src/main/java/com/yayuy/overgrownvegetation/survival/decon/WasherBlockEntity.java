@@ -21,16 +21,16 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
-import net.neoforged.neoforge.energy.IEnergyStorage;
-import net.neoforged.neoforge.items.IItemHandler;
-import net.neoforged.neoforge.items.ItemHandlerHelper;
-import net.neoforged.neoforge.items.ItemStackHandler;
+import net.minecraftforge.energy.IEnergyStorage;
+import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.ItemHandlerHelper;
+import net.minecraftforge.items.ItemStackHandler;
 import software.bernie.geckolib.animatable.GeoBlockEntity;
-import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
-import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationController;
-import software.bernie.geckolib.animation.PlayState;
-import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.core.animation.AnimatableManager;
+import software.bernie.geckolib.core.animation.AnimationController;
+import software.bernie.geckolib.core.object.PlayState;
+import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.List;
@@ -179,7 +179,7 @@ public class WasherBlockEntity extends BlockEntity implements GeoBlockEntity {
     /** 洗う前の枠へ入れる。入り切らなかった残りを返す。 */
     public ItemStack insert(ItemStack stack) {
         if (!accepts(stack)) return stack;
-        return ItemHandlerHelper.insertItemStacked(new net.neoforged.neoforge.items.wrapper.RangedWrapper(items, 0, INPUTS), stack, false);
+        return ItemHandlerHelper.insertItemStacked(new net.minecraftforge.items.wrapper.RangedWrapper(items, 0, INPUTS), stack, false);
     }
 
     /** 動いているか(直近 {@link #RUNNING_GRACE_TICKS} tick 以内に FE を使って洗った)。 */
@@ -257,7 +257,7 @@ public class WasherBlockEntity extends BlockEntity implements GeoBlockEntity {
     }
 
     private ItemStack moveToOutputs(ItemStack stack, boolean simulate) {
-        return ItemHandlerHelper.insertItemStacked(new net.neoforged.neoforge.items.wrapper.RangedWrapper(items, INPUTS, INPUTS + OUTPUTS),
+        return ItemHandlerHelper.insertItemStacked(new net.minecraftforge.items.wrapper.RangedWrapper(items, INPUTS, INPUTS + OUTPUTS),
                 stack, simulate);
     }
 

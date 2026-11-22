@@ -8,9 +8,9 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 /**
  * {@code /ov phase}(引数なし)— 現在のフェーズ/ポイント/凍結状態を表示する。
@@ -21,7 +21,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  *
  * <p>コマンド全体が OP 専用({@code hasPermission(2)})。</p>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class PhaseCommand {
 
     @SubscribeEvent

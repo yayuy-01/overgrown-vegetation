@@ -6,6 +6,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * 置いた太い蔦の組の記録(2026-11-07)。太い蔦は汚染された葉だけで作る(11-07 ユーザー決定)ので、木の葉と見分けがつかない。
@@ -13,14 +14,14 @@ import net.minecraft.world.level.saveddata.SavedData;
  *
  * <p>組を壊しても記録は残る(その近くには新しく出ない)。数が増えすぎないよう、古いものから捨てる({@link #MAX})。
  */
-public final class VineSpanRecord extends SavedData {
+public final class VineSpanRecord extends OvSavedData {
 
     private static final String ID = "overgrown_vegetation_vine_spans";
     /** 覚えておく組の数の上限(仮決め)。 */
     private static final int MAX = 4096;
 
-    public static final SavedData.Factory<VineSpanRecord> FACTORY =
-            new SavedData.Factory<>(VineSpanRecord::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<VineSpanRecord> FACTORY =
+            new OvSavedData.Factory<>(VineSpanRecord::new, (tag, registries) -> load(tag), null);
 
     /** a, b, a, b, ... の順。 */
     private final LongArrayList ends = new LongArrayList();
@@ -46,7 +47,7 @@ public final class VineSpanRecord extends SavedData {
     }
 
     public static VineSpanRecord get(ServerLevel level) {
-        return level.getDataStorage().computeIfAbsent(FACTORY, ID);
+        return level.getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     /** 組を 1 つ覚える。 */

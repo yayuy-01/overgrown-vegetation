@@ -20,10 +20,11 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.neoforge.network.PacketDistributor;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * フェーズ1開始演出「地割れ・胞子噴出」の進行状況(ワールド単位)を保持する {@link SavedData}。
@@ -45,12 +46,12 @@ import java.util.List;
  * </ul>
  * 進行は {@link EarthquakeTicker} が毎 tick 呼ぶ。発生は {@link EarthquakeEvent}。
  */
-public final class EarthquakeData extends SavedData {
+public final class EarthquakeData extends OvSavedData {
 
     private static final String ID = "overgrown_vegetation_earthquake";
 
-    public static final SavedData.Factory<EarthquakeData> FACTORY =
-            new SavedData.Factory<>(EarthquakeData::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<EarthquakeData> FACTORY =
+            new OvSavedData.Factory<>(EarthquakeData::new, (tag, registries) -> load(tag), null);
 
     /**
      * いずれかの地割れが「胞子噴出フェーズ」に入っているか(オーバーワールドの tick で毎回更新)。
@@ -64,13 +65,13 @@ public final class EarthquakeData extends SavedData {
     }
 
     /** 止めたら噴出の印を下ろす(次のワールドの最初の tick まで侵食が速いままにしない。11-18 見直し ⑤7)。 */
-    @net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.GAME)
+    @net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus.FORGE)
     public static final class StopEvents {
         private StopEvents() {
         }
 
-        @net.neoforged.bus.api.SubscribeEvent
-        public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+        @net.minecraftforge.eventbus.api.SubscribeEvent
+        public static void onServerStopped(net.minecraftforge.event.server.ServerStoppedEvent event) {
             eruptionActive = false;
         }
     }
@@ -174,7 +175,7 @@ public final class EarthquakeData extends SavedData {
     }
 
     public static EarthquakeData get(ServerLevel level) {
-        return level.getServer().overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return level.getServer().overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     private static EarthquakeData load(CompoundTag tag) {

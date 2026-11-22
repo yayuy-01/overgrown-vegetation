@@ -22,17 +22,19 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.neoforged.neoforge.common.EffectCures;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.common.util.FakePlayerFactory;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.common.util.FakePlayerFactory;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * プレイヤーの胞子感染 10 段階(2026-10-14 ユーザー指定)と、11-04 の作り直し(暴露量 1500 で感染1・濃度に比例する加速・
@@ -154,7 +156,7 @@ public final class SporeInfectionStageGameTests {
                 return;
             }
             SporeExposureTracker.tickWith(level, player, 20, 100.0D);
-            SporeExposure ex = player.getData(ModAttachments.SPORE_EXPOSURE);
+            SporeExposure ex = OvAttach.getData(player, ModAttachments.SPORE_EXPOSURE);
             if (SporeInfectionEffects.stageOf(player) != 1) {
                 helper.fail("1500 %秒で感染1 にならない: 段階 " + SporeInfectionEffects.stageOf(player) + "・暴露 " + ex.dose);
                 return;
@@ -195,7 +197,7 @@ public final class SporeInfectionStageGameTests {
             }
             // 下限未満の濃度に 100 秒: 育つ分だけ
             SporeInfectionEffects.setPlayerStage(player, 1);
-            player.getData(ModAttachments.SPORE_EXPOSURE).rateCarry = 0.0D;
+            OvAttach.getData(player, ModAttachments.SPORE_EXPOSURE).rateCarry = 0.0D;
             SporeExposureTracker.tickWith(helper.getLevel(), player, 2000, t.exposureMinPercent() - 0.5D);
             int grown = (int) Math.floor(spec.growPerSecond(1) * 100.0D + 1.0E-6D);
             if (Math.abs(SporeInfectionEffects.progressOf(player) - grown) > 1) {
@@ -247,7 +249,7 @@ public final class SporeInfectionStageGameTests {
             }
             // 残り 10 にする → この 1 秒は防ぐ(使い切る)・次の 1 秒から積む
             int cap = (int) Math.ceil(t.maskCapacity());
-            worn.set(ModDataComponents.MASK_FILTER_USED, cap - 10);
+            OvItemData.set(worn, ModDataComponents.MASK_FILTER_USED, cap - 10);
             SporeExposureTracker.tickWith(level, player, 20, 50.0D);
             if (SporeExposureTracker.dose(player) != 0.0D || ProtectiveMaskItem.used(worn) != cap
                     || ProtectiveMaskItem.isProtecting(player)) {
@@ -264,7 +266,7 @@ public final class SporeInfectionStageGameTests {
             SporeExposureTracker.setDose(player, 0.0D, 0L);
             player.setItemSlot(EquipmentSlot.HEAD, ItemStack.EMPTY);
             SporeInfectionEffects.startPlayer(player);
-            player.getData(ModAttachments.SPORE_EXPOSURE).rateCarry = 0.0D;
+            OvAttach.getData(player, ModAttachments.SPORE_EXPOSURE).rateCarry = 0.0D;
             player.setItemSlot(EquipmentSlot.HEAD, new ItemStack(ModItems.PROTECTIVE_MASK.get()));
             SporeExposureTracker.tickWith(level, player, 2000, 100.0D);
             int grown = (int) Math.floor(DesignData.effects().playerInfection().growPerSecond(1) * 100.0D + 1.0E-6D);

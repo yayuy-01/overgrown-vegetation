@@ -6,7 +6,7 @@ import com.llamalad7.mixinextras.sugar.Local;
 import com.yayuy.overgrownvegetation.perf.PartIndex;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
-import net.neoforged.neoforge.entity.PartEntity;
+import net.minecraftforge.entity.PartEntity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;

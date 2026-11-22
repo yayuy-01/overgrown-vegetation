@@ -15,17 +15,18 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * 地下の小さな亀裂の記録(2026-11-20。オーバーワールドに 1 つ)。司令塔が開いた亀裂ごとの場所・状態・根の道と進み、
  * それと森が知っている汲み上げ器の場所(読み込まれたときに覚える。読み込まれていない所の汲み上げ器も避けるため)。
  */
-public final class FissureData extends SavedData {
+public final class FissureData extends OvSavedData {
 
     private static final String ID = "overgrown_vegetation_fissures";
 
-    public static final SavedData.Factory<FissureData> FACTORY =
-            new SavedData.Factory<>(FissureData::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<FissureData> FACTORY =
+            new OvSavedData.Factory<>(FissureData::new, (tag, registries) -> load(tag), null);
 
     public enum State {
         /** 場所(x, z)は決めたが、まだ洞窟を見ていない(そのあたりが読み込まれるのを待つ)。 */
@@ -354,7 +355,7 @@ public final class FissureData extends SavedData {
     }
 
     public static FissureData get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     public static FissureData get(ServerLevel level) {

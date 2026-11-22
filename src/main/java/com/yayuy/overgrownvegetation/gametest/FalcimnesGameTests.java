@@ -30,11 +30,12 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * ファルキムネス(グループ3)のテスト(2026-09-23)。
@@ -203,16 +204,16 @@ public final class FalcimnesGameTests {
         helper.runAfterDelay(finishStart - 2L, () -> {
             // 11-15 から噛まれた Mob は傷の暴露で感染し、暴露量が満ちると胞子感染の 20 を受ける(設計どおり)。満ちる tick は暴露量の判定の
             // 周期しだいで、止めの前後どちらにも来る(11-18: 200 本中 33 本が止めの直後に受けて落ちていた)。受けた回数ぶんを差し引いて見る
-            float spore = golem.hasData(ModAttachments.SPORE_EXPOSURE)
-                    ? (float) (DesignData.sporeField().mobExposureDamage() * golem.getData(ModAttachments.SPORE_EXPOSURE).reachedCount) : 0.0F;
+            float spore = OvAttach.hasData(golem, ModAttachments.SPORE_EXPOSURE)
+                    ? (float) (DesignData.sporeField().mobExposureDamage() * OvAttach.getData(golem, ModAttachments.SPORE_EXPOSURE).reachedCount) : 0.0F;
             if (!golem.isAlive() || Math.abs(golem.getHealth() - (afterBites - spore)) > 0.01F) {
                 helper.fail("止めの前に体力 " + afterBites + "(胞子感染 " + spore + " を引いて " + (afterBites - spore) + ")のはずが " + golem.getHealth());
             }
         });
         helper.runAfterDelay(finishStart + 20L, () -> {
             float want = afterBites - (float) g.damage();
-            float spore = golem.hasData(ModAttachments.SPORE_EXPOSURE)
-                    ? (float) (DesignData.sporeField().mobExposureDamage() * golem.getData(ModAttachments.SPORE_EXPOSURE).reachedCount) : 0.0F;
+            float spore = OvAttach.hasData(golem, ModAttachments.SPORE_EXPOSURE)
+                    ? (float) (DesignData.sporeField().mobExposureDamage() * OvAttach.getData(golem, ModAttachments.SPORE_EXPOSURE).reachedCount) : 0.0F;
             want -= spore;
             if (!golem.isAlive() || Math.abs(golem.getHealth() - want) > 0.01F) {
                 helper.fail("止めの後の体力 " + want + "(胞子感染 " + spore + " を引いた値)のはずが " + golem.getHealth() + "(即死のまま?)");
@@ -1548,7 +1549,7 @@ public final class FalcimnesGameTests {
                 if (t > 3 && Math.abs(a[k] - prev[k]) > 10.5F) bad[0] = "1 tick に大きく変わった: " + java.util.Arrays.toString(prev) + " → " + java.util.Arrays.toString(a);
             }
             System.arraycopy(a, 0, prev, 0, 8);
-            for (var part : t < 2 ? new net.neoforged.neoforge.entity.PartEntity<?>[0] : f.getParts()) {   // 部位は最初の aiStep で置かれる
+            for (var part : t < 2 ? new net.minecraftforge.entity.PartEntity<?>[0] : f.getParts()) {   // 部位は最初の aiStep で置かれる
                 double dx = part.getX() - f.getX(), dz = part.getZ() - f.getZ();
                 if (dx * dx + dz * dz > 6.5D * 6.5D * f.getScale() * f.getScale()) bad[0] = "部位が芯から離れた: " + Math.sqrt(dx * dx + dz * dz);
             }

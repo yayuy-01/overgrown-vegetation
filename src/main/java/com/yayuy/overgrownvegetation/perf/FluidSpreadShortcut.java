@@ -2,10 +2,10 @@ package com.yayuy.overgrownvegetation.perf;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.gametest.framework.GameTestServer;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStartedEvent;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 
 /**
  * 水・溶岩の広がりの近道(2026-10-06 夜、ユーザーの質問「バニラの地形生成をどこまで軽くできるか」の試作。
@@ -28,7 +28,7 @@ import net.neoforged.neoforge.event.server.ServerStoppedEvent;
  * <p>GameTest のサーバーでは「検算」で動く: 省く判定をしたマスでも本来の計算をして、本当に流れ込めないかを確かめて数える
  * (返すのは本来の答えなので、テストの中の水はバニラそのもの)。食い違いがあれば {@link #mismatches()} に出る。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class FluidSpreadShortcut {
 
     /** 近道を使うか(既定は使う。{@code /ov perf fluid off} で切れる。保存しない)。 */

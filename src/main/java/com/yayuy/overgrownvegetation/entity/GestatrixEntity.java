@@ -34,10 +34,10 @@ import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.animatable.GeoEntity;
-import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
-import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationController;
-import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.core.animation.AnimatableManager;
+import software.bernie.geckolib.core.animation.AnimationController;
+import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 import javax.annotation.Nullable;
@@ -168,7 +168,7 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
     }
 
     @Override
-    public net.neoforged.neoforge.entity.PartEntity<?>[] getParts() {
+    public net.minecraftforge.entity.PartEntity<?>[] getParts() {
         return this.sacParts.parts();
     }
 
@@ -449,13 +449,13 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
         return table().broodCap - brood.size();
     }
 
-    @net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.GAME)
+    @net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus.FORGE)
     public static final class BroodEvents {
         private BroodEvents() {
         }
 
-        @net.neoforged.bus.api.SubscribeEvent
-        public static void onLeave(net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent event) {
+        @net.minecraftforge.eventbus.api.SubscribeEvent
+        public static void onLeave(net.minecraftforge.event.entity.EntityLeaveLevelEvent event) {
             onBroodLeave(event);
         }
     }
@@ -467,7 +467,7 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
      * 手先が死んだ・消えたら、読み込まれている親の数えから外す(11-18 見直し ①7)。チャンクと一緒に外れただけなら数えたまま。
      * 親が読み込まれていないときに死んだ手先は、親の数えに残る(親のまわりで上限が 1 つ減ったままになる。まれ)。
      */
-    public static void onBroodLeave(net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent event) {
+    public static void onBroodLeave(net.minecraftforge.event.entity.EntityLeaveLevelEvent event) {
         if (!(event.getLevel() instanceof ServerLevel level)) return;
         Entity e = event.getEntity();
         Entity.RemovalReason why = e.getRemovalReason();

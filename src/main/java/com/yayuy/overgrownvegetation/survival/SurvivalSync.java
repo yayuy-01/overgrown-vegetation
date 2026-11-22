@@ -8,8 +8,9 @@ import com.yayuy.overgrownvegetation.spore.SporeExposureTracker;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.common.util.FakePlayer;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * HUD の 2 本のゲージ(暴露量のバー・疲労の列)の値を作り、刻みが変わったときだけクライアントへ送る(2026-11-13 サバイバルの背骨 段 1)。
@@ -54,7 +55,7 @@ public final class SurvivalSync {
                 | ((long) Math.round(p.fatigue() * FATIGUE_STEPS) << 24)
                 | ((long) Math.min(255, p.stage()) << 36)
                 | ((long) Math.round(p.effectsFrom() * 100.0F) << 44);
-        Fatigue f = player.getData(ModAttachments.FATIGUE);
+        Fatigue f = OvAttach.getData(player, ModAttachments.FATIGUE);
         if (f.sentKey == key) return;
         f.sentKey = key;
         PacketDistributor.sendToPlayer(sp, p);

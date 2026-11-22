@@ -3,16 +3,16 @@ package com.yayuy.overgrownvegetation.phase;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 /**
  * オーバーワールドの tick から {@link PhaseData#tick(ServerLevel)} を定期的に呼び出す
  * (フェーズ0→1移行の時刻ゲートと、フェーズ1以降の時間経過ポイントの加算)。
  * 間引いて呼んでも、経過 tick 数分のポイントはまとめて加算されるので取りこぼしは無い。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class PhaseTicker {
 
     /** 何 tick おきに判定するか(100 tick = 5 秒)。日数境界を跨いだかどうかの判定だけなので粗くて構わない。 */
@@ -38,7 +38,7 @@ public final class PhaseTicker {
 
     /** サーバーを止めた後、台帳の書き出し(IO スレッド)が終わるのを待つ(見直し ②10)。 */
     @SubscribeEvent
-    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+    public static void onServerStopped(net.minecraftforge.event.server.ServerStoppedEvent event) {
         PhaseData.awaitLedgerWrites();
     }
 

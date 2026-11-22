@@ -13,15 +13,16 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>侵入を止める物</b>(押し返し 2026-11-18 夜 ユーザー決定 C。11-18 夜の直しで「帯 = 線・杭 = 範囲の場」に)。
@@ -42,8 +43,8 @@ import java.util.Map;
  * </ul>
  * 帯の座標は次元ごとの SavedData に持つ(中身の無いブロックなので)。杭は中身(FE)があるので、読み込まれて FE のある杭だけを覚える。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
-public final class RingWards extends SavedData {
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
+public final class RingWards extends OvSavedData {
 
     public static final String ID = "overgrown_vegetation_ring_wards";
     /** 「まだ数えていない」の時刻(引き算が桁あふれしない値)。 */
@@ -75,14 +76,14 @@ public final class RingWards extends SavedData {
 
     private static final ThreadLocal<BlockPos> SOURCE = new ThreadLocal<>();
 
-    public static final SavedData.Factory<RingWards> FACTORY = new SavedData.Factory<>(RingWards::new, RingWards::load, null);
+    public static final OvSavedData.Factory<RingWards> FACTORY = new OvSavedData.Factory<>(RingWards::new, RingWards::load, null);
 
     private static final Map<ResourceKey<Level>, RingWards> CACHE = new HashMap<>();
 
     public static RingWards get(ServerLevel level) {
         RingWards w = CACHE.get(level.dimension());
         if (w == null) {
-            w = level.getDataStorage().computeIfAbsent(FACTORY, ID);
+            w = level.getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
             CACHE.put(level.dimension(), w);
         }
         return w;

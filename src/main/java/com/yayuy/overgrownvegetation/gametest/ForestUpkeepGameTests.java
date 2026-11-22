@@ -10,8 +10,8 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 /**
  * 物差しを 100 倍・稼ぎと維持費を毎秒に(2026-11-21 前線と部隊 区切り 1)。
@@ -21,10 +21,10 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @PrefixGameTestTemplate(false)
 public final class ForestUpkeepGameTests {
 
-    @net.neoforged.fml.common.EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.MOD)
+    @net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus.MOD)
     public static final class Registration {
-        @net.neoforged.bus.api.SubscribeEvent
-        public static void onRegisterGameTests(net.neoforged.neoforge.event.RegisterGameTestsEvent event) {
+        @net.minecraftforge.eventbus.api.SubscribeEvent
+        public static void onRegisterGameTests(net.minecraftforge.event.RegisterGameTestsEvent event) {
             event.register(ForestUpkeepGameTests.class);
         }
 

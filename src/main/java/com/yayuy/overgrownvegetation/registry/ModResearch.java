@@ -10,13 +10,13 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredItem;
+import com.yayuy.overgrownvegetation.port.registries.DeferredBlock;
+import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
+import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
 
 /**
  * <b>研究台と研究ツリー</b>(2026-11-17 強くなる道 決定 20・22・23)の登録: 研究台・段 2 の器具(拡大鏡と蒸留器)・段 3 の器具(共鳴器)。

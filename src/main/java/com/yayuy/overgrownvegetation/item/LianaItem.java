@@ -19,6 +19,7 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * 「蔓」({@link com.yayuy.overgrownvegetation.registry.ModBlocks#OVERGROWN_LIANA})のアイテム。
@@ -71,7 +72,7 @@ public class LianaItem extends BlockItem {
 
         ItemStack stack = context.getItemInHand();
         BlockPos clicked = context.getClickedPos();
-        GlobalPos anchor = stack.get(ModDataComponents.LIANA_ANCHOR.get());
+        GlobalPos anchor = OvItemData.get(stack, ModDataComponents.LIANA_ANCHOR.get());
 
         // 覚えている始点が別の次元のものなら、無かったことにしてここを新しい始点にする。
         if (anchor != null && !anchor.dimension().equals(serverLevel.dimension())) {
@@ -88,7 +89,7 @@ public class LianaItem extends BlockItem {
         BlockPos source = anchor.pos();
         // 同じブロックをもう一度 / スニークしながら = 始点の取り消し。
         if (source.equals(clicked) || player.isShiftKeyDown()) {
-            stack.remove(ModDataComponents.LIANA_ANCHOR.get());
+            OvItemData.remove(stack, ModDataComponents.LIANA_ANCHOR.get());
             say(player, "message.overgrown_vegetation.liana.cancelled");
             return InteractionResult.CONSUME;
         }
@@ -115,7 +116,7 @@ public class LianaItem extends BlockItem {
             return InteractionResult.CONSUME;
         }
 
-        stack.remove(ModDataComponents.LIANA_ANCHOR.get());
+        OvItemData.remove(stack, ModDataComponents.LIANA_ANCHOR.get());
         if (!player.getAbilities().instabuild) {
             stack.shrink(1);
         }
@@ -126,7 +127,7 @@ public class LianaItem extends BlockItem {
 
     /** 始点を覚える。コンポーネントが載った時点で、このスタックは他の「蔓」とは混ざらなくなる。 */
     private static void setAnchor(ItemStack stack, ServerLevel level, BlockPos pos) {
-        stack.set(ModDataComponents.LIANA_ANCHOR.get(), GlobalPos.of(level.dimension(), pos));
+        OvItemData.set(stack, ModDataComponents.LIANA_ANCHOR.get(), GlobalPos.of(level.dimension(), pos));
     }
 
     private static void say(Player player, String key) {
@@ -144,7 +145,7 @@ public class LianaItem extends BlockItem {
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, context, tooltip, flag);
-        GlobalPos anchor = stack.get(ModDataComponents.LIANA_ANCHOR.get());
+        GlobalPos anchor = OvItemData.get(stack, ModDataComponents.LIANA_ANCHOR.get());
         if (anchor == null) {
             tooltip.add(Component.translatable("tooltip.overgrown_vegetation.liana.hint")
                     .withStyle(ChatFormatting.GRAY));
@@ -159,6 +160,6 @@ public class LianaItem extends BlockItem {
     /** 始点を持っている1個を手元で見分けられるようにエンチャント光沢を出す。 */
     @Override
     public boolean isFoil(ItemStack stack) {
-        return stack.has(ModDataComponents.LIANA_ANCHOR.get()) || super.isFoil(stack);
+        return OvItemData.has(stack, ModDataComponents.LIANA_ANCHOR.get()) || super.isFoil(stack);
     }
 }

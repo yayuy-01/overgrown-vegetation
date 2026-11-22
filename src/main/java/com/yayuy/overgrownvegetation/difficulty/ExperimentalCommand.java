@@ -5,16 +5,16 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 /**
  * {@code /ov experimental [on|off]}(2026-11-12 ユーザー決定「おすすめ通り」)。ワールドの「実験的要素」({@link DifficultySetting#EXPERIMENTAL})を
  * 見る・切り替える。op(権限 2)だけ。設定の画面が parked にあって、今はほかにオンにする手段が無いため。画面は 0.2.0 の設定の画面を作るときに戻す。
  * 今の実験的要素 = 新しいネザーの汚染({@link ExperimentalFeatures})。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class ExperimentalCommand {
 
     @SubscribeEvent

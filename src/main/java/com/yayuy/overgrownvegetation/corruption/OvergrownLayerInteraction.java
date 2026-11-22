@@ -4,10 +4,10 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.ChunkWatchEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.level.ChunkWatchEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 /**
  * 覆いの記録をクライアントへ送る口(チャンクを見始めたら全部・tick の終わりに差分。2026-09-22)。
@@ -15,7 +15,7 @@ import net.neoforged.neoforge.event.tick.LevelTickEvent;
  * <p>2026-10-30 まではここで覆われたマスの右クリックを全部止めていた。覆いの作り直しで、扉・ボタンなどが時々動かない作りと一緒に
  * {@link CoveredInteractions} へ移した(剥がすのは {@link CoverPeel})。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class OvergrownLayerInteraction {
 
     private OvergrownLayerInteraction() {

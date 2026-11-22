@@ -17,12 +17,13 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 
 import java.util.Map;
 import java.util.WeakHashMap;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * <b>装備の汚れ</b>(2026-11-14 サバイバルの背骨 段 3b、決定 32・33)。値は {@code spore_field.json} の {@code dirt}({@link DirtSpec})。
@@ -39,7 +40,7 @@ import java.util.WeakHashMap;
  * </ul>
  * 創造・観戦のプレイヤーは汚れない(手に持った物も)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class GearDirt {
 
     private GearDirt() {
@@ -61,7 +62,7 @@ public final class GearDirt {
 
     /** 汚れの量(0〜full)。 */
     public static int dirt(ItemStack stack) {
-        return stack.isEmpty() ? 0 : stack.getOrDefault(ModDecon.GEAR_DIRT.get(), 0);
+        return stack.isEmpty() ? 0 : OvItemData.getOrDefault(stack, ModDecon.GEAR_DIRT.get(), 0);
     }
 
     /** 汚れの見た目の段(0 = きれい、1〜3)。 */
@@ -71,8 +72,8 @@ public final class GearDirt {
 
     public static void setDirt(ItemStack stack, int value) {
         int v = Math.max(0, Math.min(spec().full(), value));
-        if (v <= 0) stack.remove(ModDecon.GEAR_DIRT.get());
-        else stack.set(ModDecon.GEAR_DIRT.get(), v);
+        if (v <= 0) OvItemData.remove(stack, ModDecon.GEAR_DIRT.get());
+        else OvItemData.set(stack, ModDecon.GEAR_DIRT.get(), v);
     }
 
     /** 汚れを {@code amount} 落とす。 */

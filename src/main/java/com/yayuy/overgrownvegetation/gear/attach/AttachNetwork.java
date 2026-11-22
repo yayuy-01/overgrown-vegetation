@@ -4,15 +4,15 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.registry.ModArmorAttach;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import com.yayuy.overgrownvegetation.port.network.StreamCodec;
+import com.yayuy.overgrownvegetation.port.network.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.EquipmentSlot;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.network.RegisterPayloadHandlersEvent;
+import com.yayuy.overgrownvegetation.port.network.PayloadRegistrar;
 
 /**
  * 防具の付け物の通信(2026-11-21 夜)。共有の通信とは別の登録で、版を自分で持つ。版 1: ベルトの小物入れを開く(C2S、中身なし)。

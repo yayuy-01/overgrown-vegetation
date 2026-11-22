@@ -12,7 +12,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 
 /**
  * <b>過繁茂の森の高さの霧</b>(2026-10-30 作り直しの第 3 段「霧」、方式 B の土台。一覧 11 二色の霧・12 朝霧・13 林冠の雲海)。

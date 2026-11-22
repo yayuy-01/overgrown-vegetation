@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>研究の進み</b>(2026-11-17 決定 23)。<b>世界で 1 つ</b>(オーバーワールドに保存。マルチでは仲間と分け合う)。
@@ -29,12 +30,12 @@ import java.util.Set;
  *     <li>今の研究(1 つだけ): 節・進み(tick)・どの研究台で回しているか・払った標本(やめたときに返す。決定 23)。</li>
  * </ul>
  */
-public final class ResearchData extends SavedData {
+public final class ResearchData extends OvSavedData {
 
     private static final String ID = "overgrown_vegetation_research";
 
-    public static final SavedData.Factory<ResearchData> FACTORY =
-            new SavedData.Factory<>(ResearchData::new, ResearchData::load, null);
+    public static final OvSavedData.Factory<ResearchData> FACTORY =
+            new OvSavedData.Factory<>(ResearchData::new, ResearchData::load, null);
 
     /** 今の研究。 */
     public static final class Active {
@@ -58,7 +59,7 @@ public final class ResearchData extends SavedData {
     }
 
     public static ResearchData get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     private static ResearchData load(CompoundTag tag, HolderLookup.Provider registries) {

@@ -6,12 +6,12 @@ import com.yayuy.overgrownvegetation.entity.SaltimnesEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.item.CreativeModeTab;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.common.DeferredSpawnEggItem;
-import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredItem;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.registries.DeferredSpawnEggItem;
+import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
+import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
+import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
 
 /**
  * 「跳ぶ型」の Mob の登録(2026-11-14。1 体目はサルティムネス)。共有の登録クラスは並行するセッションが同時に触るので、

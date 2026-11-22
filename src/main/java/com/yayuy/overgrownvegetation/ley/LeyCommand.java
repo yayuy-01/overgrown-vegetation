@@ -10,15 +10,15 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 /**
  * 開発用(2026-11-13 段 2b): {@code /ov perf ley} = 立っている所から地脈の線までの距離・汲み上げ器の効率・花の帯の中か。
  * {@code /ov perf ley near} = いちばん近い花の帯の中の地表へ飛ぶ(探すのは 256 ブロックまで、2 おきの輪)。プレイヤー向けの探し物の道具ではない。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class LeyCommand {
 
     private LeyCommand() {

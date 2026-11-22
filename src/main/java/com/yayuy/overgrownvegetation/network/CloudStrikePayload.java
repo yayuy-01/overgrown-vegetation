@@ -2,8 +2,8 @@ package com.yayuy.overgrownvegetation.network;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import com.yayuy.overgrownvegetation.port.network.StreamCodec;
+import com.yayuy.overgrownvegetation.port.network.CustomPacketPayload;
 
 /**
  * 積乱雲から地面への落雷(2026-11-16 weather-system、ユーザー決定「汚染の森への落雷は積乱雲の雷に合わせて森へも落とす」)。サーバー

@@ -13,11 +13,11 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
-import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 
 import java.util.Locale;
 
@@ -33,7 +33,7 @@ import java.util.Locale;
  *   <li><b>値段を軽く</b>({@link #priceFactor}): 苗床の群体は全体の Mob の値段を、Mob から苗床になった物はそこから孵す Mob の値段を軽くする。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class ForestEconomy {
 
     /** 払って出した Mob に付ける「払った額」(エンティティの保存データ)。戻すときに読み、戻したら消す。 */
@@ -208,7 +208,7 @@ public final class ForestEconomy {
 
     /** 全体の Mob の値段の倍率(苗床の群体で軽くなる)。サーバーがまだ無いときは 1。 */
     public static double priceFactor() {
-        net.minecraft.server.MinecraftServer server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        net.minecraft.server.MinecraftServer server = net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer();
         if (server == null) return 1.0D;
         return priceFactor(server.overworld());
     }

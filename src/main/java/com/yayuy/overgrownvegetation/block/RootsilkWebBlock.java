@@ -19,7 +19,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.common.ItemAbilities;
+import net.minecraftforge.common.ToolActions;
 
 /**
  * 根糸の巣(2026-11-13、能力の第 4 回。仕様 Vault「G1 クモ(1 段目)」3.1【決定 11-09: クモの巣の植物版・入れてよい】)。
@@ -102,7 +102,7 @@ public class RootsilkWebBlock extends Block {
     @Override
     protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
         float p = super.getDestroyProgress(state, player, level, pos);
-        return player.getMainHandItem().canPerformAction(ItemAbilities.SHEARS_DIG) ? p * SHEARS_SPEED : p;
+        return player.getMainHandItem().canPerformAction(ToolActions.SHEARS_DIG) ? p * SHEARS_SPEED : p;
     }
 
     @Override

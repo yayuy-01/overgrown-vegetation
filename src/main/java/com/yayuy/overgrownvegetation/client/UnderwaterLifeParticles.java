@@ -13,8 +13,8 @@ import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * 水中の生き物と落ち物の粒(2026-11-13、水まわり ⑥ の直し。ユーザー「ドットが浮いているだけに見える」→ 選択「形を付ける・水に溶かす・共通の流れ」)。

@@ -7,12 +7,12 @@ import com.yayuy.overgrownvegetation.entity.VenamnesEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.item.CreativeModeTab;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.common.DeferredSpawnEggItem;
-import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredItem;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.registries.DeferredSpawnEggItem;
+import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
+import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
+import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
 
 /**
  * 「② 大型の地上を走る型」の Mob の登録(2026-11-14。1 体目はヴェナムネス。次はクリペイムネス・スクティムネスの予定)。

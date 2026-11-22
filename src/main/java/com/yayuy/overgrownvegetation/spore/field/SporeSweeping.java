@@ -19,10 +19,11 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.common.ItemAbilities;
-import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.common.ToolActions;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * シャベルの右クリックで胞子の粉を払う(2026-10-23 胞子の場と風 第 2 段の追加。【決定】土ならしと同じ操作感・箒は作らない)。
@@ -33,7 +34,7 @@ import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
  * 「払った升でしばらく発芽しない」効果は無い(値を減らすだけ)。音・耐久はバニラの土ならしと同じ。
  * 払える升では土ならし(草 → 土の道)より先に払う(粉が無い・もう払った升では今までどおり土ならし)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class SporeSweeping {
 
     /** 印の付いた読み込み中のチャンク(印を消すかどうかを場の更新ごとに見る)。 */
@@ -48,9 +49,9 @@ public final class SporeSweeping {
 
     /** 印の付いたチャンクを読み込んだら見張りに入れる。 */
     @SubscribeEvent
-    public static void onChunkLoad(net.neoforged.neoforge.event.level.ChunkEvent.Load event) {
+    public static void onChunkLoad(net.minecraftforge.event.level.ChunkEvent.Load event) {
         if (event.getLevel() instanceof ServerLevel level && event.getChunk() instanceof LevelChunk chunk
-                && chunk.getData(ModAttachments.SWEPT_DUST) != 0) {
+                && OvAttach.getData(chunk, ModAttachments.SWEPT_DUST) != 0) {
             marked(level).add(chunk.getPos().toLong());
         }
     }
@@ -74,9 +75,9 @@ public final class SporeSweeping {
             SporeFieldServer.Cell c = SporeFieldServer.cell(level, cx, cz);
             if (c == null) continue; // 写しがまだ無い: 待つ
             // 「戻った」は払う直前の値を超えたとき(払った直後は写しがまだ古く同じ値なので、以上だとすぐ消えてしまう)
-            if (dustLevel(c) <= 0 || c.dep() > chunk.getData(ModAttachments.SWEPT_DUST_REFILL)) {
-                chunk.removeData(ModAttachments.SWEPT_DUST);
-                chunk.removeData(ModAttachments.SWEPT_DUST_REFILL);
+            if (dustLevel(c) <= 0 || c.dep() > OvAttach.getData(chunk, ModAttachments.SWEPT_DUST_REFILL)) {
+                OvAttach.removeData(chunk, ModAttachments.SWEPT_DUST);
+                OvAttach.removeData(chunk, ModAttachments.SWEPT_DUST_REFILL);
                 chunk.setUnsaved(true);
                 it.remove();
             }
@@ -106,7 +107,7 @@ public final class SporeSweeping {
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
         if (event.getFace() != Direction.UP) return;
         ItemStack stack = event.getItemStack();
-        if (!stack.canPerformAction(ItemAbilities.SHOVEL_FLATTEN)) return;
+        if (!stack.canPerformAction(ToolActions.SHOVEL_FLATTEN)) return;
         Level level = event.getLevel();
         BlockPos pos = event.getPos();
         if (level.dimension() == Level.NETHER) {
@@ -157,12 +158,12 @@ public final class SporeSweeping {
         if (chunk == null) return false;
         if (!dustSurface(level, chunk, pos)) return false; // 汚染済みの地面・過繁茂のチャンクには粉が無い(2026-10-24)
         int bit = 1 << square(pos);
-        int mask = chunk.getData(ModAttachments.SWEPT_DUST);
+        int mask = OvAttach.getData(chunk, ModAttachments.SWEPT_DUST);
         if ((mask & bit) != 0) return false;
         SporeFieldTable t = DesignData.sporeField();
-        chunk.setData(ModAttachments.SWEPT_DUST, mask | bit);
+        OvAttach.setData(chunk, ModAttachments.SWEPT_DUST, mask | bit);
         marked(level).add(chunk.getPos().toLong());
-        chunk.setData(ModAttachments.SWEPT_DUST_REFILL, (float) c.dep()); // ここまで戻ったら印を消す
+        OvAttach.setData(chunk, ModAttachments.SWEPT_DUST_REFILL, (float) c.dep()); // ここまで戻ったら印を消す
         chunk.setUnsaved(true);
         if (level.dimension() == Level.NETHER) {
             int scx = cx, scz = cz;

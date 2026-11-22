@@ -8,9 +8,9 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 
 import java.util.EnumSet;
 
@@ -22,7 +22,7 @@ import java.util.EnumSet;
  * <p>13 種のクラスには手を入れない: 入るときに外から Goal を 1 つ足す({@link #onJoin})。歩かせるのは表の「司令塔の口に入れる地上の種」だけ
  * (空の種は種ごとの移動の作りとぶつかるので、まだ入れない。11-15 全体管理)。行き先は個体の保存データに持つ(保存から戻っても続く)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class PlantMarch {
 
     private static final String KEY = "ov_plant_march";

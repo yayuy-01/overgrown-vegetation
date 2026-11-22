@@ -8,12 +8,12 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStoppingEvent;
-import net.neoforged.neoforge.event.tick.EntityTickEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStoppingEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.EntityTickEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -39,7 +39,7 @@ import java.util.Locale;
  * 同じ起動の中で設定を入り切りし、{@code tag} で窓に名前を付けて比べる(起動をまたぐと汚染の広がりで分母が変わる)。
  * 書き出す先は {@code <ゲームのフォルダ>/overgrown_vegetation/perf/horde-*.tsv}。止めている間は数えない(Mixin は真っ先に {@link #on} を見る)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class HordeMeter {
 
     /** 数えているか(Mixin が真っ先に見る。サーバースレッドだけが書く)。 */

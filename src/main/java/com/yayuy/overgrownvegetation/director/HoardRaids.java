@@ -9,9 +9,9 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import javax.annotation.Nullable;
 import java.util.LinkedHashMap;
@@ -31,7 +31,7 @@ import java.util.Map;
  * </ul>
  * 状態はサーバーの中だけに持つ(再起動で途中のものは終わる。出した個体は残る)【仮】。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class HoardRaids {
 
     /** 貯めた襲撃の個体の印。 */
@@ -103,7 +103,7 @@ public final class HoardRaids {
 
     /** サーバーを止めたら空にする(static なので、別のワールドを開くと続きが走っていた。見直し ②9)。 */
     @SubscribeEvent
-    public static void onServerStopping(net.neoforged.neoforge.event.server.ServerStoppingEvent event) {
+    public static void onServerStopping(net.minecraftforge.event.server.ServerStoppingEvent event) {
         RAIDS.clear();
     }
 

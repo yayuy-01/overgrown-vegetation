@@ -13,9 +13,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -34,7 +34,7 @@ import java.util.UUID;
  *   <li>同じプレイヤーには、狩りが終わってから huntCooldownSeconds あける。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class FrontHunts {
 
     /** プレイヤーごとの狩りの覚え(保存しない: 再起動すると狩る部隊は「見失った」扱いで戻る)。 */
@@ -65,7 +65,7 @@ public final class FrontHunts {
     }
 
     @SubscribeEvent
-    public static void onStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+    public static void onStopped(net.minecraftforge.event.server.ServerStoppedEvent event) {
         HUNTS.clear();
     }
 

@@ -4,7 +4,7 @@ import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.director.G1Fate;
 import com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster;
 import net.minecraft.util.Mth;
-import software.bernie.geckolib.animation.AnimationState;
+import software.bernie.geckolib.core.animation.AnimationState;
 import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.model.GeoModel;
 

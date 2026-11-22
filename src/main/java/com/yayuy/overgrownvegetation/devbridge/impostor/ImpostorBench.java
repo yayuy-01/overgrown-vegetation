@@ -31,9 +31,9 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
-import net.neoforged.neoforge.common.NeoForge;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.common.MinecraftForge;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
@@ -91,7 +91,7 @@ public final class ImpostorBench {
         mode = p[0].equalsIgnoreCase("sprite") ? Mode.SPRITE : p[0].equalsIgnoreCase("combo") ? Mode.COMBO : p[0].equalsIgnoreCase("fast") ? Mode.FAST : Mode.MODEL;
         place(mc.level, mc.player.position(), mc.player.getYRot(), n, near, far);
         if (!registered) {
-            NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, ImpostorBench::onStage);
+            MinecraftForge.EVENT_BUS.addListener(EventPriority.LOWEST, ImpostorBench::onStage);
             registered = true;
         }
         return "IMPOSTOR " + mode + " " + id + " " + count + " 体 " + near + "〜" + far;

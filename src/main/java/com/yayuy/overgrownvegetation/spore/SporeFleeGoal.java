@@ -14,6 +14,7 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.EnumSet;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 動物が汚染から逃げる(2026-11-14 ユーザー決定。{@link MobInfection})。向きは暴露量の判定のたびに {@link MobInfection#afterCheck} が決めて
@@ -71,7 +72,7 @@ public final class SporeFleeGoal extends Goal {
      * 向きを左右に wobbleDegrees まで乱し、1 回に infectedStepDistance だけ歩く(歩き直すまでの間が立ち止まりになる)。
      */
     private Vec3 pickTarget() {
-        SporeExposure ex = mob.getData(ModAttachments.SPORE_EXPOSURE);
+        SporeExposure ex = OvAttach.getData(mob, ModAttachments.SPORE_EXPOSURE);
         MobInfectionSpec s = DesignData.sporeField().mobInfection();
         boolean infected = ex.infected;
         int dist = infected ? s.infectedStepDistance() : s.fleeDistance();

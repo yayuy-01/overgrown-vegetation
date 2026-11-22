@@ -17,10 +17,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LayeredCauldronBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 
 import java.util.List;
 
@@ -31,7 +31,7 @@ import java.util.List;
  * <p>バニラの大釜の働き(染めた革の色落とし・旗の模様落とし)より先に受ける。汚れた染め革の防具は、まず汚れが落ち、もう一度で色が落ちる。
  * 水の減りは「洗いの重み」をプレイヤーごとに数え({@link #WORK_KEY}。大釜には持たせない)、{@code handWorkPerLevel} たまるごとに 1 段減らす。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class HandWash {
 
     /** プレイヤーの持続データに持つ洗いの重みの端数。 */

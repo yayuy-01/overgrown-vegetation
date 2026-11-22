@@ -8,10 +8,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.ClientTickEvent;
 
 /**
  * <b>林冠の影</b>(「美しいが怖い」D。2026-11-16。ユーザー決定: 昼の森で、林冠の上を大きな影が通り過ぎ、木漏れ日が一斉に消えて戻る。
@@ -167,13 +167,13 @@ public final class PassingShadow {
      * 影の濃さは影の形そのもの({@link #at})から出すので、雲の影の地図が無い日(雲を描かない設定)でも陰る。地下では掛けない。
      */
     @SubscribeEvent
-    public static void onRenderLevel(net.neoforged.neoforge.client.event.RenderLevelStageEvent event) {
-        if (event.getStage() == net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage.AFTER_SKY) {
+    public static void onRenderLevel(net.minecraftforge.client.event.RenderLevelStageEvent event) {
+        if (event.getStage() == net.minecraftforge.client.event.RenderLevelStageEvent.Stage.AFTER_SKY) {
             frameDim = 0.0F;
             return;
         }
         Pass p = pass;
-        if (event.getStage() != net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage.AFTER_LEVEL || p == null || dimBroken) {
+        if (event.getStage() != net.minecraftforge.client.event.RenderLevelStageEvent.Stage.AFTER_LEVEL || p == null || dimBroken) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();

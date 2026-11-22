@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.entity.g1.skill;
 
-import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.core.animation.RawAnimation;
 
 import javax.annotation.Nullable;
 

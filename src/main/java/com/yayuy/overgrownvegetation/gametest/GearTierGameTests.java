@@ -34,19 +34,20 @@ import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.common.util.FakePlayerFactory;
-import net.neoforged.neoforge.energy.IEnergyStorage;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.common.util.FakePlayerFactory;
+import net.minecraftforge.energy.IEnergyStorage;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * 装備・鉱石: 菌集鉱のでき方(2026-11-17。本物の装飾の口を通す)と、グレード 1 の導晶(2026-11-21: 導晶鉱が地脈の近くにだけできる・
@@ -391,7 +392,7 @@ public final class GearTierGameTests {
         // 電池から: 持ち物の画面で満ちた電池を重ねて右クリック
         ItemStack tool = new ItemStack(ModGear.CONDUIT_AXE.get());
         ItemStack battery = new ItemStack(ModLey.BATTERY.get());
-        battery.set(ModLey.ENERGY.get(), com.yayuy.overgrownvegetation.ley.LeyBatteryItem.capacity());
+        OvItemData.set(battery, ModLey.ENERGY.get(), com.yayuy.overgrownvegetation.ley.LeyBatteryItem.capacity());
         int batteryBefore = com.yayuy.overgrownvegetation.ley.LeyBatteryItem.stored(battery);
         boolean handled = LeyCharge.onStackedOn(tool, battery, net.minecraft.world.inventory.ClickAction.SECONDARY, player);
         int moved = LeyCharge.stored(tool);

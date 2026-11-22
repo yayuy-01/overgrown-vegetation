@@ -17,12 +17,12 @@ import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.common.Tags;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.common.Tags;
 import net.neoforged.neoforge.common.util.TriState;
-import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 
 import javax.annotation.Nullable;
 
@@ -44,7 +44,7 @@ import javax.annotation.Nullable;
  * Mob(村人・ゾンビ・襲撃者)が覆われた扉を開けるときも同じ割合で引っかかる({@code mixin/DoorSetOpenCoveredMixin} が
  * {@link #mobOpenBlocked} を引く)。<b>レッドストーンで動く分は止まらない</b>(覆われた扉がレバーで開く。ブロックを置き換えていないので)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class CoveredInteractions {
 
     private CoveredInteractions() {

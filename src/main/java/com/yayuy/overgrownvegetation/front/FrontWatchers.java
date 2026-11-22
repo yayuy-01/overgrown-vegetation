@@ -20,14 +20,15 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>前線のフィロセンス</b>(2026-11-22 ユーザー決定「巨大樹の管理できていない前線は、フィロセンスとかをちょっとずつ置いて視界を確保する」。
@@ -41,11 +42,11 @@ import java.util.UUID;
  *   ※ 拠点の見張りは、今は実物を植える口(Watchers.registerPlanter)が登録されておらず、記録も実物も出ない。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
-public final class FrontWatchers extends SavedData {
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
+public final class FrontWatchers extends OvSavedData {
 
     public static final String ID = OvergrownVegetation.MODID + "_front_watchers";
-    public static final SavedData.Factory<FrontWatchers> FACTORY = new SavedData.Factory<>(FrontWatchers::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<FrontWatchers> FACTORY = new OvSavedData.Factory<>(FrontWatchers::new, (tag, registries) -> load(tag), null);
     /** 実物の印(エンティティの保存データ。台帳の番号)。 */
     public static final String KEY = "ov_front_watcher";
 
@@ -87,7 +88,7 @@ public final class FrontWatchers extends SavedData {
     public static double paid;
 
     public static FrontWatchers get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     public List<Site> sites() {

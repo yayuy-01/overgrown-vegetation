@@ -4,9 +4,9 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.entity.CaptorMount;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 
@@ -15,7 +15,7 @@ import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
  * 全体管理経由のユーザー決定「降りられないのに案内が出るのはまぎらわしい」)。案内はバニラが乗った瞬間に画面の下の一行(overlay message)へ出すので、
  * 乗っている間はその一行を描かない(ほかの知らせもその間は出ない)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class CaptorMountHud {
 
     private CaptorMountHud() {

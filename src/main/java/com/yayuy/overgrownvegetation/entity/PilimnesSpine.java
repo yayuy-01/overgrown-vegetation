@@ -128,7 +128,7 @@ public class PilimnesSpine extends ThrowableProjectile {
     protected boolean canHitEntity(Entity target) {
         if (!super.canHitEntity(target) || target == this.getOwner()) return false;
         if (target instanceof Player p && (p.isSpectator() || p.isCreative())) return false;
-        if (target instanceof net.neoforged.neoforge.entity.PartEntity<?> part) {
+        if (target instanceof net.minecraftforge.entity.PartEntity<?> part) {
             Entity parent = part.getParent();
             return parent != this.getOwner() && !(parent instanceof LivingEntity pl && !AcumnesEntity.isPrey(null, pl));
         }

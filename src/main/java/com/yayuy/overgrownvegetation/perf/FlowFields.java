@@ -12,9 +12,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -39,7 +39,7 @@ import java.util.Arrays;
  * {@link Steer} を Goal ごとに 1 つ持ち、毎回 {@link Steer#steer} を呼ぶ。地図が無い・地図の外・道が無い・詰まった({@code stuckTicks} の間
  * ほとんど進まない)ときは false を返すので、呼んだ側は今までの経路探索をする。詰まった Mob は {@code fallbackTicks} の間は地図を使わない。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class FlowFields {
 
     /** 1 列に持つ床の数。 */
@@ -647,7 +647,7 @@ public final class FlowFields {
 
     /** {@code /ov perf flow [on|off]}: 入り切り(toml の値を書き換える。前後を同じ起動で比べる用)と、今の数。 */
     @SubscribeEvent
-    public static void onRegisterCommands(net.neoforged.neoforge.event.RegisterCommandsEvent event) {
+    public static void onRegisterCommands(net.minecraftforge.event.RegisterCommandsEvent event) {
         event.getDispatcher().register(net.minecraft.commands.Commands.literal("ov")
                 .then(net.minecraft.commands.Commands.literal("perf").requires(s -> s.hasPermission(2))
                         .then(net.minecraft.commands.Commands.literal("flow")
@@ -744,7 +744,7 @@ public final class FlowFields {
     }
 
     @SubscribeEvent
-    public static void onServerTick(net.neoforged.neoforge.event.tick.ServerTickEvent.Post event) {
+    public static void onServerTick(com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent.Post event) {
         if (trailOut == null || ++trailTicks % 10 != 0) return;
         ServerLevel level = event.getServer().overworld();
         long now = level.getGameTime();

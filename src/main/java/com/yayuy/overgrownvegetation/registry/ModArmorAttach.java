@@ -5,7 +5,7 @@ import com.yayuy.overgrownvegetation.gear.attach.AttachBenchBlock;
 import com.yayuy.overgrownvegetation.gear.attach.AttachBenchMenu;
 import com.yayuy.overgrownvegetation.gear.attach.BeltPouchMenu;
 import com.yayuy.overgrownvegetation.gear.attach.MouthClothItem;
-import net.minecraft.core.component.DataComponentType;
+import com.yayuy.overgrownvegetation.port.component.DataComponentType;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.BlockItem;
@@ -15,10 +15,10 @@ import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
-import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredItem;
+import net.minecraftforge.common.extensions.IForgeMenuType;
+import com.yayuy.overgrownvegetation.port.registries.DeferredBlock;
+import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
+import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
 
 /**
  * <b>防具の付け物</b>(2026-11-21 夜)の登録: 付け物の枠のコンポーネント・付け物 4 種・付け物の台・画面 2 つ。
@@ -83,7 +83,7 @@ public final class ModArmorAttach {
             "attachment_bench", () -> new MenuType<>(AttachBenchMenu::new, FeatureFlags.VANILLA_SET));
 
     public static final DeferredHolder<MenuType<?>, MenuType<BeltPouchMenu>> BELT_MENU = ModMenus.MENUS.register(
-            "belt_pouch", () -> IMenuTypeExtension.create(BeltPouchMenu::client));
+            "belt_pouch", () -> IForgeMenuType.create(BeltPouchMenu::client));
 
     /** 人類側のタブに並べる({@code ModCreativeTabs} から呼ぶ)。 */
     public static void acceptItems(CreativeModeTab.Output output) {

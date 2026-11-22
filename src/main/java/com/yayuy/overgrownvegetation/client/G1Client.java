@@ -3,10 +3,10 @@ package com.yayuy.overgrownvegetation.client;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.network.CorpseCollapsePayload;
 import com.yayuy.overgrownvegetation.registry.ModG1;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.client.event.EntityRenderersEvent;
 
 /**
  * G1 段階 0 のクライアントの登録(2026-11-08)。共有の {@code OvergrownVegetationClient} は並行するセッションも触るので、G1 の行はここに寄せた。
@@ -85,7 +85,7 @@ public final class G1Client {
 
     /** 風に乗る綿毛の粒(2026-11-13、羊の 1 段目の (c))。共有の {@code OvergrownVegetationClient} に足さず、G1 の行はここに寄せる。 */
     @SubscribeEvent
-    public static void registerParticleProviders(net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent event) {
+    public static void registerParticleProviders(net.minecraftforge.client.event.RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(ModG1.FLUFF.get(), G1FluffParticle.Provider::new);
     }
 

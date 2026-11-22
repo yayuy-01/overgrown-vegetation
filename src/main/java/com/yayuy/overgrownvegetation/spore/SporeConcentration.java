@@ -18,9 +18,9 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -39,7 +39,7 @@ import java.util.Map;
  * <p>2026-10-30: 場が止まっているとき(spore_field.json の enabled=false・それ以外の次元)の古い計算(過繁茂バイオームの割合と距離・
  * 汚染列の数・ペディキュラ・浸食度の持ち出し・装置の上乗せ)と、その設定項目を消した。場が回っていなければ 0%。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class SporeConcentration {
 
     /** percent = 地上の値、under = 地下の層の値(2026-11-04)。 */

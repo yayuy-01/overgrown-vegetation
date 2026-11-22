@@ -17,6 +17,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>森の知性(司令塔)</b> —— 世界に 1 つの「世界の意思」(2026-10-22 ユーザー決定。Mob ではなくワールドの保存データ)。
@@ -30,12 +31,12 @@ import java.util.Locale;
  * </ul>
  * 数はどれも {@link DirectorTable}({@code director.json})の【仮】。拠点の記憶・学ぶ・貯めて使う・弱い所を突くは第 2・3 段。
  */
-public final class ForestDirector extends SavedData implements ForestBudget {
+public final class ForestDirector extends OvSavedData implements ForestBudget {
 
     private static final String ID = "overgrown_vegetation_forest_director";
 
-    public static final SavedData.Factory<ForestDirector> FACTORY =
-            new SavedData.Factory<>(ForestDirector::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<ForestDirector> FACTORY =
+            new OvSavedData.Factory<>(ForestDirector::new, (tag, registries) -> load(tag), null);
 
     /** 司令塔が個体に決める道。保存は名前で。 */
     public enum Route {
@@ -155,7 +156,7 @@ public final class ForestDirector extends SavedData implements ForestBudget {
     }
 
     public static ForestDirector get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     public static ForestDirector get(ServerLevel level) {

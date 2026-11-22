@@ -6,9 +6,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.BonemealEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.player.BonemealEvent;
 
 /**
  * 「過繁茂した〇〇」系の汚染フルブロックに骨粉を使ったとき、バニラの草ブロックと同じように
@@ -18,7 +18,7 @@ import net.neoforged.neoforge.event.entity.player.BonemealEvent;
  * ここでイベントを乗っ取り、{@link BonemealEvent#setSuccessful(boolean)} で骨粉が
  * 使われた扱いにしたうえで骨粉を 1 つ消費する(バニラの草ブロックへの骨粉と同じ挙動)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class CorruptedBonemealHandler {
 
     @SubscribeEvent

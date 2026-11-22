@@ -16,6 +16,7 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * ポータルを越えた侵食の記録({@link PortalCorruption}、2026-10-02)。オーバーワールドの {@code data/} に 1 つ。
@@ -28,12 +29,12 @@ import java.util.Set;
  *     着いた時刻(ゲーム時刻)と、そのときエンドラが既に倒されていたかも残す。一度だけ。</li>
  * </ul>
  */
-public final class PortalCorruptionData extends SavedData {
+public final class PortalCorruptionData extends OvSavedData {
 
     private static final String ID = "overgrown_vegetation_portal_corruption";
 
-    public static final SavedData.Factory<PortalCorruptionData> FACTORY =
-            new SavedData.Factory<>(PortalCorruptionData::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<PortalCorruptionData> FACTORY =
+            new OvSavedData.Factory<>(PortalCorruptionData::new, (tag, registries) -> load(tag), null);
 
     private final Set<GlobalPos> infected = new LinkedHashSet<>();
     private boolean endReached;
@@ -109,7 +110,7 @@ public final class PortalCorruptionData extends SavedData {
     }
 
     public static PortalCorruptionData get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     public boolean isInfected(GlobalPos anchor) {

@@ -224,7 +224,7 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
 
     static boolean isShears(ItemStack stack) {
         return stack.getItem() instanceof ShearsItem
-                || stack.canPerformAction(net.neoforged.neoforge.common.ItemAbilities.SHEARS_DIG);
+                || stack.canPerformAction(net.minecraftforge.common.ToolActions.SHEARS_DIG);
     }
 
     // ---- ふつうに壊す(左クリック長押し。2026-11-08)----

@@ -59,7 +59,7 @@ public class VelophyllBomb extends ThrowableItemProjectile {
     @Override
     protected boolean canHitEntity(Entity target) {
         // 叩ける部位(翼など)は持ち主で見る(部位は植物側の印を持たないので、放した直後に自分の翼に当たって弾けていた。11-16)
-        Entity body = target instanceof net.neoforged.neoforge.entity.PartEntity<?> pe ? pe.getParent() : target;
+        Entity body = target instanceof net.minecraftforge.entity.PartEntity<?> pe ? pe.getParent() : target;
         return super.canHitEntity(target) && !StrobilaCone.passesThrough(this.oldAim ? target : body);
     }
 

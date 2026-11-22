@@ -15,7 +15,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.energy.IEnergyStorage;
+import net.minecraftforge.energy.IEnergyStorage;
 
 /**
  * <b>地脈の汲み上げ器</b>の中身(2026-11-13 サバイバルの背骨 段 2b)。どこにでも置け、地脈の線に近いほど多く汲む(決定 20。効率は {@link LeyLines#efficiency})。

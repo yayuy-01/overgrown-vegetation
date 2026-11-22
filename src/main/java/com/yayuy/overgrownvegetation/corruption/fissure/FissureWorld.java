@@ -33,11 +33,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.BlockEvent;
-import net.neoforged.neoforge.event.level.ChunkEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.level.BlockEvent;
+import net.minecraftforge.event.level.ChunkEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 import org.joml.Vector3f;
 
 import javax.annotation.Nullable;
@@ -62,7 +62,7 @@ import java.util.Locale;
  * 時計で決まるので、読み込まれていない間の分は読み込まれたときに追いつく。押し返す道具の効く所には根を伸ばさない(そこで止まる)。
  * 重さは {@link TickBudget} の {@link PerfJob#UNDERGROUND_FISSURE}。生成中のチャンクには触らない(getChunkNow で確かめる)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class FissureWorld {
     private FissureWorld() {
     }

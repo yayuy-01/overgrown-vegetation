@@ -2,8 +2,8 @@ package com.yayuy.overgrownvegetation.network;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import com.yayuy.overgrownvegetation.port.network.StreamCodec;
+import com.yayuy.overgrownvegetation.port.network.CustomPacketPayload;
 
 /**
  * 監視塔フィロセンスに見られている知らせ(S2C、2026-11-14。見られている本人だけへ)。画面の縁の効果({@code client/PhyllosensGazeEdge})の土台。

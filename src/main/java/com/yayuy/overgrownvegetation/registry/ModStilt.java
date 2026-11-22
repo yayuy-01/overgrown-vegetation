@@ -5,10 +5,10 @@ import com.yayuy.overgrownvegetation.data.MobStats;
 import com.yayuy.overgrownvegetation.entity.StiltPhyllosensEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
-import net.neoforged.neoforge.registries.DeferredHolder;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
+import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 
 /**
  * 竹馬型の Mob の登録(2026-11-10。1 体目はフィロセンスの竹馬の体)。共有の登録クラス(ModEntities・ModItems・ModEvents)は並行するセッションが

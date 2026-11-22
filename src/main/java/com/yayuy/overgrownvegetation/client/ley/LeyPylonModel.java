@@ -2,7 +2,7 @@ package com.yayuy.overgrownvegetation.client.ley;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.resources.ResourceLocation;
-import software.bernie.geckolib.animatable.GeoAnimatable;
+import software.bernie.geckolib.core.animatable.GeoAnimatable;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.model.GeoModel;
 

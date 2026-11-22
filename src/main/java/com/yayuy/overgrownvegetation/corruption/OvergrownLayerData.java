@@ -15,13 +15,14 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 
 import java.util.HashMap;
 import java.util.Map;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * <b>どのマスが植物に覆われたか</b>の記録(2026-09-22)。
@@ -53,7 +54,7 @@ import java.util.Map;
  * まだ覆われる資格があるか」を見直す</b>({@link #isCovered})。資格が無ければ覆われていない扱いにし、
  * サーバー側ではついでに記録も捨てる。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class OvergrownLayerData {
 
     /**
@@ -109,7 +110,7 @@ public final class OvergrownLayerData {
 
     /** チャンクを既に持っているとき用({@code 描画はこちらを使う})。 */
     public static boolean isCovered(LevelChunk chunk, BlockPos pos, BlockState state) {
-        LongOpenHashSet set = chunk.getExistingData(ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
+        LongOpenHashSet set = OvAttach.getExistingData(chunk, ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
         if (set == null || set.isEmpty() || !set.contains(pos.asLong())) {
             return false;
         }
@@ -178,7 +179,7 @@ public final class OvergrownLayerData {
             return false; // 帯の線の向こう・杭の範囲は覆わない(関門が断ったマスを穴として覆う道も止める。押し返し 11-18 夜)
         }
         LevelChunk chunk = level.getChunk(pos.getX() >> 4, pos.getZ() >> 4);
-        LongOpenHashSet set = chunk.getData(ModAttachments.OVERGROWN_LAYER.get());
+        LongOpenHashSet set = OvAttach.getData(chunk, ModAttachments.OVERGROWN_LAYER.get());
         if (!set.add(pos.asLong())) {
             return false;
         }
@@ -214,7 +215,7 @@ public final class OvergrownLayerData {
         if (chunk == null) {
             return false;
         }
-        LongOpenHashSet set = chunk.getExistingData(ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
+        LongOpenHashSet set = OvAttach.getExistingData(chunk, ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
         if (set == null || !set.remove(pos.asLong())) {
             return false;
         }
@@ -268,7 +269,7 @@ public final class OvergrownLayerData {
 
     /** そのチャンクを見始めたプレイヤーへ、記録をまるごと送る。 */
     public static void sendAll(ServerPlayer player, LevelChunk chunk) {
-        LongOpenHashSet set = chunk.getExistingData(ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
+        LongOpenHashSet set = OvAttach.getExistingData(chunk, ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
         if (set == null || set.isEmpty()) {
             return;
         }
@@ -280,7 +281,7 @@ public final class OvergrownLayerData {
 
     /** 届いた記録を取り込む。{@code replace} なら入れ替え、そうでなければ足す。 */
     public static void accept(LevelChunk chunk, long[] positions, boolean replace) {
-        LongOpenHashSet set = chunk.getData(ModAttachments.OVERGROWN_LAYER.get());
+        LongOpenHashSet set = OvAttach.getData(chunk, ModAttachments.OVERGROWN_LAYER.get());
         if (replace) {
             set.clear();
         }
@@ -291,7 +292,7 @@ public final class OvergrownLayerData {
 
     /** 記録の件数(コマンドの表示用)。 */
     public static int size(LevelChunk chunk) {
-        LongOpenHashSet set = chunk.getExistingData(ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
+        LongOpenHashSet set = OvAttach.getExistingData(chunk, ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
         return set == null ? 0 : set.size();
     }
 
@@ -316,7 +317,7 @@ public final class OvergrownLayerData {
      * ({@code BuildCorrosion})が、覆ったマスを見落とさないように。資格の見直しはしない(多めに「ある」に倒す)。
      */
     public static boolean hasAnyInSection(LevelChunk chunk, int sectionY) {
-        LongOpenHashSet set = chunk.getExistingData(ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
+        LongOpenHashSet set = OvAttach.getExistingData(chunk, ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
         if (set == null || set.isEmpty()) {
             return false;
         }
@@ -333,7 +334,7 @@ public final class OvergrownLayerData {
      * {@code BuildCorrosion} が 4096 マスの種類表へ「汚染済み」を書き足すため。
      */
     public static void forEachInSection(LevelChunk chunk, int sectionY, java.util.function.IntConsumer out) {
-        LongOpenHashSet set = chunk.getExistingData(ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
+        LongOpenHashSet set = OvAttach.getExistingData(chunk, ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
         if (set == null || set.isEmpty()) {
             return;
         }

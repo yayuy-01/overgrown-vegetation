@@ -25,16 +25,17 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.ChunkRenderTypeSet;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.client.ChunkRenderTypeSet;
 import net.neoforged.neoforge.client.event.AddSectionGeometryEvent;
-import net.neoforged.neoforge.client.model.data.ModelData;
+import net.minecraftforge.client.model.data.ModelData;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * <b>記録で覆ったマスに覆いの絵を貼る</b>(2026-10-30。作り直し側 overgrown_vegetation/mod の {@code CoverRenderer} = D2 を手本に、
@@ -55,7 +56,7 @@ import java.util.List;
  * 2026-10-31 から「記録が空で、かつ 1 ブロックの殻(下のセクションと横 4 つのチャンクの同じ高さ)にも覆われたマスが無い」に広げた
  * (這い上がる苔 = 覆われたマスに接する、覆われていないブロックの辺に覆いの絵の帯を描く。{@link CoverCreep}・{@link CreepModel})。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class CoverRenderer {
 
     /** 覆いを足す層。 */
@@ -89,7 +90,7 @@ public final class CoverRenderer {
         CoverTable design = DesignData.cover();
         // 這い上がる苔(28): 覆いに接して置かれたブロックの記録(2026-11-01 から。自然のブロックには出さない)
         it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap creepMap =
-                chunk.getExistingData(com.yayuy.overgrownvegetation.registry.ModAttachments.COVER_CREEP.get()).orElse(null);
+                OvAttach.getExistingData(chunk, com.yayuy.overgrownvegetation.registry.ModAttachments.COVER_CREEP.get()).orElse(null);
         int[][] creep = creepMap == null || creepMap.isEmpty() ? null : gatherCreep(level, chunk, origin, cx, sy, cz, cells, creepMap, design);
         if (cells == null && creep == null) {
             return; // このセクションには覆いも這い上がる苔も無い。追加の描画は登録しない。

@@ -89,7 +89,7 @@ final class CanopyDrips {
      * 大粒の滴を描く(縦に伸びた白い半透明の板をカメラへ向ける。長さは速さに比例)。色は白い雨の見え方と同じ不透明さ({@code rainLook.alpha})、
      * 明るさはその所の空の光。森の霞の分だけ薄める。
      */
-    static void render(net.neoforged.neoforge.client.event.RenderLevelStageEvent event) {
+    static void render(net.minecraftforge.client.event.RenderLevelStageEvent event) {
         if (DROPS.isEmpty()) {
             return;
         }

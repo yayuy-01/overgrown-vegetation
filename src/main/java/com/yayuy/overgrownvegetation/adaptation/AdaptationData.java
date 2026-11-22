@@ -10,6 +10,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>適応の台帳</b>(2026-09-23)。<b>ワールドに 1 つ</b>(オーバーワールドに保存)、中身は<b>種ごと</b>。
@@ -30,12 +31,12 @@ import java.util.TreeMap;
  * <p>上限は記憶線で上がる予定(量は未定)。記憶線が壊れて上限が下がったときに台帳を書き直さずに済むよう、
  * {@link #resistance} は<b>その時点の上限</b>で縮めた値を返す。積むときも同じ上限で縮める。
  */
-public final class AdaptationData extends SavedData {
+public final class AdaptationData extends OvSavedData {
 
     private static final String ID = "overgrown_vegetation_adaptation";
 
-    public static final SavedData.Factory<AdaptationData> FACTORY =
-            new SavedData.Factory<>(AdaptationData::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<AdaptationData> FACTORY =
+            new OvSavedData.Factory<>(AdaptationData::new, (tag, registries) -> load(tag), null);
 
     /** 種の id → 武器種 → 耐性。 */
     private final Map<String, Object2DoubleOpenHashMap<String>> species = new HashMap<>();
@@ -44,7 +45,7 @@ public final class AdaptationData extends SavedData {
     }
 
     public static AdaptationData get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     private static AdaptationData load(CompoundTag tag) {

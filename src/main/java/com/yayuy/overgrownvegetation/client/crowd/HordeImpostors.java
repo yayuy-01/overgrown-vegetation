@@ -201,17 +201,17 @@ public final class HordeImpostors {
             @SuppressWarnings({"unchecked", "rawtypes"})
             GeoModel model = geo.getGeoModel();
             @SuppressWarnings("unchecked")
-            ResourceLocation modelRes = model.getModelResource((software.bernie.geckolib.animatable.GeoAnimatable) (Object) sp.dummy);
+            ResourceLocation modelRes = model.getModelResource((software.bernie.geckolib.core.animatable.GeoAnimatable) (Object) sp.dummy);
             BakedGeoModel baked = model.getBakedModel(modelRes);
             if (baked != sp.baked) {
                 sp.baked = baked;
                 @SuppressWarnings("unchecked")
-                ResourceLocation tex = model.getTextureResource((software.bernie.geckolib.animatable.GeoAnimatable) (Object) sp.dummy);
+                ResourceLocation tex = model.getTextureResource((software.bernie.geckolib.core.animatable.GeoAnimatable) (Object) sp.dummy);
                 sp.texture = tex;
                 Entity dummy = sp.dummy;
                 @SuppressWarnings("unchecked")
-                java.util.function.Function<String, software.bernie.geckolib.animation.Animation> anims =
-                        name -> model.getAnimation((software.bernie.geckolib.animatable.GeoAnimatable) (Object) dummy, name);
+                java.util.function.Function<String, software.bernie.geckolib.core.animation.Animation> anims =
+                        name -> model.getAnimation((software.bernie.geckolib.core.animatable.GeoAnimatable) (Object) dummy, name);
                 sp.poses = new HordePoses(baked, anims);
                 sp.sheet = null;
                 sp.spriteType = null;

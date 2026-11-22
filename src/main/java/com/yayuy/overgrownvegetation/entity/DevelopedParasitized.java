@@ -65,10 +65,10 @@ import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationController;
-import software.bernie.geckolib.animation.PlayState;
-import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.core.animation.AnimatableManager;
+import software.bernie.geckolib.core.animation.AnimationController;
+import software.bernie.geckolib.core.object.PlayState;
+import software.bernie.geckolib.core.animation.RawAnimation;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -1272,7 +1272,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
     @Override
     protected net.minecraft.world.InteractionResult mobInteract(net.minecraft.world.entity.player.Player player, net.minecraft.world.InteractionHand hand) {
         net.minecraft.world.item.ItemStack stack = player.getItemInHand(hand);
-        if (dev() == G1Developed.SHEEP && isAlive() && fluff() > 0 && stack.canPerformAction(net.neoforged.neoforge.common.ItemAbilities.SHEARS_HARVEST)) {
+        if (dev() == G1Developed.SHEEP && isAlive() && fluff() > 0 && stack.canPerformAction(net.minecraftforge.common.ToolActions.SHEARS_HARVEST)) {
             if (level() instanceof ServerLevel) {
                 shear();
                 gameEvent(net.minecraft.world.level.gameevent.GameEvent.SHEAR, player);

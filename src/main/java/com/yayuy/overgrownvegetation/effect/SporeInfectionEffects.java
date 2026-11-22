@@ -20,6 +20,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * プレイヤーの「胞子感染」10 段階の付与と進行(2026-10-14 ユーザー指定、11-04 に parked から戻して書き直した)。
@@ -123,7 +124,7 @@ public final class SporeInfectionEffects {
     /** 段階を {@code stage}(1〜10。0 以下なら治す)にし、進みを 0 に戻す。 */
     public static void setPlayerStage(Player player, int stage) {
         EffectTable.PlayerInfectionSpec spec = DesignData.effects().playerInfection();
-        player.setData(ModAttachments.SPORE_STAGE_TICKS, 0);
+        OvAttach.setData(player, ModAttachments.SPORE_STAGE_TICKS, 0);
         if (stage <= 0) {
             player.removeEffect(ModMobEffects.SPORE_INFECTION);
             syncModifiers(player);
@@ -152,9 +153,9 @@ public final class SporeInfectionEffects {
             amount *= com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.infectionRate(player.getServer()); // MOD の設定「感染の進みやすさ」(11-19。難易度の段で変わる)
             if (!(amount > 0.0D)) return;
         }
-        SporeExposure ex = player.getData(ModAttachments.SPORE_EXPOSURE);
+        SporeExposure ex = OvAttach.getData(player, ModAttachments.SPORE_EXPOSURE);
         EffectTable.PlayerInfectionSpec spec = DesignData.effects().playerInfection();
-        double exact = player.getData(ModAttachments.SPORE_STAGE_TICKS) + ex.rateCarry + amount;
+        double exact = OvAttach.getData(player, ModAttachments.SPORE_STAGE_TICKS) + ex.rateCarry + amount;
         long whole = (long) Math.floor(exact);
         ex.rateCarry = exact - whole;
         // 1 段の量は今の段で決まる(後の段ほど多く要る、11-15)。上がるたびに次の段の量で比べ直す
@@ -163,13 +164,13 @@ public final class SporeInfectionEffects {
             raisePlayerStage(player); // 段階を上げると進みは 0 に戻るので、残りは下で書き直す
         }
         if (stageOf(player) > 0 && player.isAlive()) {
-            player.setData(ModAttachments.SPORE_STAGE_TICKS, (int) Math.min(Integer.MAX_VALUE, whole));
+            OvAttach.setData(player, ModAttachments.SPORE_STAGE_TICKS, (int) Math.min(Integer.MAX_VALUE, whole));
         }
     }
 
     /** 今の段階に入ってからたまった暴露量(%秒、整数)。 */
     public static int progressOf(Player player) {
-        return player.getData(ModAttachments.SPORE_STAGE_TICKS);
+        return OvAttach.getData(player, ModAttachments.SPORE_STAGE_TICKS);
     }
 
     /** 今の段階の進み(0〜1)。未感染は 0。暴露量のバー({@code survival/SurvivalSync})が塗る値。 */

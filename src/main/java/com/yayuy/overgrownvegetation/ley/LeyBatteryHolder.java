@@ -13,7 +13,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.energy.IEnergyStorage;
+import net.minecraftforge.energy.IEnergyStorage;
 
 /**
  * 電池を 1 つ差しておける中身(汲み上げ器・柱)の共通の口。差す = 電池を持って右クリック、抜く = 素手でしゃがんで右クリック。

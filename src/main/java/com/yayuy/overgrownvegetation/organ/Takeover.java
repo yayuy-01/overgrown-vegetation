@@ -23,9 +23,9 @@ import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -49,7 +49,7 @@ import java.util.Random;
  *   <li>器官はふつうの森の器官(種類はふつうの 5 種類からランダム、働きもそのとおり)。芯を壊すと枯れ、伸びた物は剥がれる。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class Takeover {
     private Takeover() {
     }
@@ -212,7 +212,7 @@ public final class Takeover {
     }
 
     @SubscribeEvent
-    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+    public static void onServerStopped(net.minecraftforge.event.server.ServerStoppedEvent event) {
         forgetFaces();
     }
 

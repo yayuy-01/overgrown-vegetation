@@ -16,7 +16,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 
 /**
  * <b>アーク雲と突風</b>(雷雨の強化の残り。2026-11-16。ユーザー決定: 雷雨の前に棚のような低い雲が押し寄せ、冷たい突風 → 大雨)。

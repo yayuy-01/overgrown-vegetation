@@ -15,9 +15,9 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -36,7 +36,7 @@ import java.util.List;
  * 2026-11-09 雲の段階 2a で parked から戻した(中身はそのまま。見に行く高さは雲の海が y 350 になったので 520 のまま)。
  * 見えるのは各プレイヤーの描画(ボクセルの雲の設定がオン、バニラの雲の設定がオフでない)のとき。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class StormCommand {
     /** 探す範囲(ブロック)。 */
     static final double RANGE = 8000.0;

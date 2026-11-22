@@ -12,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.saveddata.SavedData;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * MOD 全体の「フェーズ」進行状況(ワールド単位、次元をまたいで共通)を保持する {@link SavedData}。
@@ -44,12 +45,12 @@ import net.minecraft.world.level.saveddata.SavedData;
  * (プレイヤーが植物側の Mob を倒した。閾値の %・上限なし {@link #addKillPoints})・{@link PhaseTicker}(時間 + 今の面積)の 3 箇所。
  * 上の「既定の条件」の数は古い。今の式と閾値は {@link com.yayuy.overgrownvegetation.data.PhaseTable} の頭。
  */
-public final class PhaseData extends SavedData {
+public final class PhaseData extends OvSavedData {
 
     private static final String ID = "overgrown_vegetation_phase";
 
-    public static final SavedData.Factory<PhaseData> FACTORY =
-            new SavedData.Factory<>(PhaseData::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<PhaseData> FACTORY =
+            new OvSavedData.Factory<>(PhaseData::new, (tag, registries) -> load(tag), null);
 
     private int phase;
     private long points;
@@ -176,21 +177,21 @@ public final class PhaseData extends SavedData {
      * 全員への文・クライアントへの同期・地割れもしない。{@link #createDetachedForTests}。
      */
     @javax.annotation.Nullable
-    private java.util.function.Consumer<net.neoforged.bus.api.Event> detachedSink;
+    private java.util.function.Consumer<net.minecraftforge.eventbus.api.Event> detachedSink;
 
     private PhaseData() {
         overgrownSince.defaultReturnValue(-1L);
     }
 
     /** GameTest 用: ワールドに登録しない入れ物を作る(イベントは {@code sink} へ)。 */
-    public static PhaseData createDetachedForTests(java.util.function.Consumer<net.neoforged.bus.api.Event> sink) {
+    public static PhaseData createDetachedForTests(java.util.function.Consumer<net.minecraftforge.eventbus.api.Event> sink) {
         PhaseData data = new PhaseData();
         data.detachedSink = sink;
         return data;
     }
 
     /** GameTest 用: 保存した中身から読み直す(ワールドの本物には触らない)。 */
-    public static PhaseData loadDetachedForTests(CompoundTag tag, java.util.function.Consumer<net.neoforged.bus.api.Event> sink) {
+    public static PhaseData loadDetachedForTests(CompoundTag tag, java.util.function.Consumer<net.minecraftforge.eventbus.api.Event> sink) {
         PhaseData data = load(tag);
         data.detachedSink = sink;
         return data;
@@ -200,11 +201,11 @@ public final class PhaseData extends SavedData {
         return detachedSink == null;
     }
 
-    private void fire(net.neoforged.bus.api.Event event) {
+    private void fire(net.minecraftforge.eventbus.api.Event event) {
         if (detachedSink != null) {
             detachedSink.accept(event);
         } else {
-            net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(event);
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
         }
     }
 
@@ -675,7 +676,7 @@ public final class PhaseData extends SavedData {
      */
     public static PhaseData get(ServerLevel level) {
         ServerLevel overworld = level.getServer().overworld();
-        PhaseData data = overworld.getDataStorage().computeIfAbsent(FACTORY, ID);
+        PhaseData data = overworld.getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
         if (data.server != level.getServer()) data.attach(level.getServer());
         return data;
     }

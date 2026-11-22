@@ -6,9 +6,9 @@ import com.yayuy.overgrownvegetation.block.OvergrownBarrelBlockEntity;
 import com.yayuy.overgrownvegetation.block.OvergrownChestBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredRegister;
+import net.minecraftforge.eventbus.api.IEventBus;
+import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
+import com.yayuy.overgrownvegetation.port.registries.DeferredRegister;
 
 public final class ModBlockEntities {
 

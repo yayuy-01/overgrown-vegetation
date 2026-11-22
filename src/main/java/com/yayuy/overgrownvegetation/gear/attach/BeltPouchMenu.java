@@ -2,7 +2,7 @@ package com.yayuy.overgrownvegetation.gear.attach;
 
 import com.yayuy.overgrownvegetation.registry.ModArmorAttach;
 import net.minecraft.core.NonNullList;
-import net.minecraft.network.RegistryFriendlyByteBuf;
+import com.yayuy.overgrownvegetation.port.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Inventory;
@@ -12,6 +12,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemContainerContents;
 import org.jetbrains.annotations.Nullable;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * 収納付きベルトの小物入れ(2026-11-21 夜【仮】)。脚の防具にベルトが付いている間、キー(既定 B)で開く。枠の数は {@code beltSlots}。
@@ -57,7 +58,7 @@ public class BeltPouchMenu extends AbstractContainerMenu {
         };
         if (legs != null) {
             ItemStack belt = belt();
-            ItemContainerContents c = belt.get(ModArmorAttach.BELT_CONTENTS.get());
+            ItemContainerContents c = OvItemData.get(belt, ModArmorAttach.BELT_CONTENTS.get());
             if (c != null) {
                 NonNullList<ItemStack> items = NonNullList.withSize(size, ItemStack.EMPTY);
                 c.copyInto(items);
@@ -120,8 +121,8 @@ public class BeltPouchMenu extends AbstractContainerMenu {
         ItemStack belt = ArmorAttachments.get(legs, i);
         java.util.List<ItemStack> items = new java.util.ArrayList<>(size);
         for (int k = 0; k < size; k++) items.add(box.getItem(k));
-        if (items.stream().allMatch(ItemStack::isEmpty)) belt.remove(ModArmorAttach.BELT_CONTENTS.get());
-        else belt.set(ModArmorAttach.BELT_CONTENTS.get(), ItemContainerContents.fromItems(items));
+        if (items.stream().allMatch(ItemStack::isEmpty)) OvItemData.remove(belt, ModArmorAttach.BELT_CONTENTS.get());
+        else OvItemData.set(belt, ModArmorAttach.BELT_CONTENTS.get(), ItemContainerContents.fromItems(items));
         ArmorAttachments.replace(legs, i, belt);
     }
 

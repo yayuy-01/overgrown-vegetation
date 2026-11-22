@@ -10,11 +10,11 @@ import net.minecraft.world.Containers;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.energy.IEnergyStorage;
-import net.neoforged.neoforge.event.level.LevelEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.energy.IEnergyStorage;
+import net.minecraftforge.event.level.LevelEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -40,7 +40,7 @@ import java.util.WeakHashMap;
  * <p>網をたどるとき、相手の柱が線を持っていない(片方だけ残った)線・先のブロックが FE の口を失った線は外し、機械の側の線は線の巻きを柱の足元に落とす。
  * 読み込まれていないチャンクの先はその tick だけ飛ばす(外さない)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class LeyGrid {
 
     private static final Map<Level, Set<BlockPos>> LOADED = new WeakHashMap<>();

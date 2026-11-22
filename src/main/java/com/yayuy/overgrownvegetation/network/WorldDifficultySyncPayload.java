@@ -5,8 +5,8 @@ import com.yayuy.overgrownvegetation.difficulty.DifficultySetting;
 import com.yayuy.overgrownvegetation.difficulty.DifficultyValues;
 import io.netty.handler.codec.DecoderException;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import com.yayuy.overgrownvegetation.port.network.StreamCodec;
+import com.yayuy.overgrownvegetation.port.network.CustomPacketPayload;
 
 import java.util.ArrayList;
 import java.util.EnumMap;

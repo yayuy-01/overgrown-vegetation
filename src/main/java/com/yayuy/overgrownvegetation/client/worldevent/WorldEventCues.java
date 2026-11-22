@@ -7,11 +7,11 @@ import com.yayuy.overgrownvegetation.worldevent.WorldEventKind;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.ClientTickEvent;
 
 /**
  * <b>フェーズの合図の印 F3・F7 の受け側</b>(2026-11-16。ユーザー決定: F3 = その夜、胞子のオーロラが短く初めて現れる / F7 = 一夜だけ、森の方角の地平線に

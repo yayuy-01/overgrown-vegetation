@@ -11,13 +11,14 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 汎用の感染体の確かめ用の命令(2026-11-15、{@link GenericInfection})。{@code /ov perf infection} の下に足す(同じ枝に Brigadier がまとめる)。
@@ -27,7 +28,7 @@ import java.util.Locale;
  *     <li>{@code /ov perf infection list [半径]} — まわり(既定 32)の変わった Mob の一覧。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class GenericInfectionCommand {
 
     private GenericInfectionCommand() {
@@ -87,7 +88,7 @@ public final class GenericInfectionCommand {
                 sb.append("\n…ほか ").append(found.size() - 20).append(" 体");
                 break;
             }
-            GenericInfected g = e.getData(ModAttachments.GENERIC_INFECTED);
+            GenericInfected g = OvAttach.getData(e, ModAttachments.GENERIC_INFECTED);
             long age = now - g.startTick;
             sb.append(String.format(Locale.ROOT, "\n%s #%d %.0f,%.0f,%.0f 体力 %.1f/%.1f %s%s 種 %016x",
                     BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()), e.getId(), e.getX(), e.getY(), e.getZ(),

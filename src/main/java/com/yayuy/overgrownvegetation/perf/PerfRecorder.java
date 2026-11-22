@@ -12,10 +12,10 @@ import jdk.jfr.consumer.RecordingFile;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStoppingEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStoppingEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -45,7 +45,7 @@ import java.util.stream.Stream;
  * {@code tools/perf} で掘れる)を置く。古いものは {@value #KEEP_FILES} 組まで残して消す。集計は別のスレッドで行い、
  * 結果だけサーバースレッドへ戻す。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class PerfRecorder {
 
     /** 残す記録の組数(.jfr と .txt)。 */

@@ -1,8 +1,8 @@
 package com.yayuy.overgrownvegetation.corruption;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.neoforged.neoforge.event.level.BlockDropsEvent;
 
 /**
@@ -32,7 +32,7 @@ import net.neoforged.neoforge.event.level.BlockDropsEvent;
  * <p><b>必ず try/finally で対にする</b>(閉じ忘れるとそのスレッドのドロップがすべて消える)。
  * 手軽に包むなら {@link #run}。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class CorruptionDropSuppressor {
 
     /** 今の範囲の深さ(スレッドごと)。長さ 1 の配列にして、出入りのたびに箱詰めしない。 */

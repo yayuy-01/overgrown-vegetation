@@ -6,9 +6,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 
 /**
  * <b>フェーズが上がったときの合図</b>をクライアントへ送る係(2026-11-16。{@link PhaseEvents.PhaseChanged} の受け手)。
@@ -25,7 +25,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
  *     <li>F1 は地割れの音が鳴るので、地鳴りの音を重ねない({@code quiet})。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class PhaseCues {
 
     private PhaseCues() {

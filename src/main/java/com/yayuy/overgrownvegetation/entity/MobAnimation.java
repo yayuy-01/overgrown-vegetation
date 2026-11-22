@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.entity;
 
-import software.bernie.geckolib.animation.AnimationState;
+import software.bernie.geckolib.core.animation.AnimationState;
 
 /**
  * GeckoLib のアニメーション切り替えで使う「いま歩いているか / 走っているか」の判定。

@@ -13,6 +13,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.saveddata.SavedData;
 
 import java.util.Iterator;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>生態系の台帳</b>(2026-11-16 作り直し。正本は Vault「生態系の台帳(兵站・バイオマス)」。退避した旧版 {@code parked/ecosystem} は参考だけ)。
@@ -31,14 +32,14 @@ import java.util.Iterator;
  * <p>時計は {@link PhaseData#clock}(11-16「時計は 1 つ」。寝て飛ばした分も戻る)。
  * <p>保存: SavedData 1 つ(決定 E)。汚れの印は倒したときと升が戻って消えたときだけ。
  */
-public final class EcoLedger extends SavedData {
+public final class EcoLedger extends OvSavedData {
 
     private static final String ID = "overgrown_vegetation_ecosystem";
     /** 数え直しの間(tick)。 */
     static final long RECOUNT_TICKS = 20L;
 
-    public static final SavedData.Factory<EcoLedger> FACTORY =
-            new SavedData.Factory<>(EcoLedger::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<EcoLedger> FACTORY =
+            new OvSavedData.Factory<>(EcoLedger::new, (tag, registries) -> load(tag), null);
 
     /** 1 つの升(減った升だけ)。 */
     static final class Cell {
@@ -60,7 +61,7 @@ public final class EcoLedger extends SavedData {
     }
 
     public static EcoLedger get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     public static EcoLedger get(ServerLevel level) {

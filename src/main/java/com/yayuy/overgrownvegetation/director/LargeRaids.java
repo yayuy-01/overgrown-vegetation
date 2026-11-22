@@ -11,9 +11,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
 
 import javax.annotation.Nullable;
 import java.util.Locale;
@@ -35,7 +35,7 @@ import java.util.Locale;
  * </ul>
  * 湧かせる口({@link RaidSpawns})と送る口({@link G1March#beginFlank}・{@link BaseRaids})は、後の超大規模の襲撃からも呼べる。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class LargeRaids {
 
     /** 攻め手の印(数えるため)。 */
@@ -191,7 +191,7 @@ public final class LargeRaids {
      */
     public static int maxAlive() {
         // 11-19: 値はワールドごと(MOD の設定ページ)。ワールドの値が無ければ下の COMMON の設定・設計データ
-        net.minecraft.server.MinecraftServer server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        net.minecraft.server.MinecraftServer server = net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer();
         if (server != null) {
             return Math.max(MAX_ALIVE_MIN, Math.min(MAX_ALIVE_MAX,
                     com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.largeRaidMaxAlive(server)));

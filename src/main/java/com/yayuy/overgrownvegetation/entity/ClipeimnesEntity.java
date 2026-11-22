@@ -11,11 +11,11 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
 import software.bernie.geckolib.animatable.GeoEntity;
-import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
-import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationState;
-import software.bernie.geckolib.animation.PlayState;
-import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.core.animation.AnimatableManager;
+import software.bernie.geckolib.core.animation.AnimationState;
+import software.bernie.geckolib.core.object.PlayState;
+import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
@@ -415,7 +415,7 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
 
     /** 抱えられる相手か(ボス・大きすぎる・ほかに乗っている / 乗せている相手は抱えない)。 */
     static boolean canHold(net.minecraft.world.entity.LivingEntity prey) {
-        return !prey.getType().is(net.neoforged.neoforge.common.Tags.EntityTypes.BOSSES) && prey.getBbWidth() <= HOLD_MAX_WIDTH
+        return !prey.getType().is(net.minecraftforge.common.Tags.EntityTypes.BOSSES) && prey.getBbWidth() <= HOLD_MAX_WIDTH
                 && prey.getBbHeight() <= HOLD_MAX_HEIGHT && !prey.isVehicle() && !prey.isPassenger();
     }
 
@@ -424,7 +424,7 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
         if (!canHold(prey) || !this.getPassengers().isEmpty()) return false;
         if (!prey.startRiding(this, true)) return false;
         if (prey instanceof net.minecraft.server.level.ServerPlayer sp) {
-            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(
+            com.yayuy.overgrownvegetation.port.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(
                     com.yayuy.overgrownvegetation.network.CaptorPayload.START, this.getId()));
         }
         this.setDeltaMovement(0.0D, this.getDeltaMovement().y, 0.0D);
@@ -457,7 +457,7 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
     /** 締める(噛む)。 */
     void squeeze(net.minecraft.world.entity.LivingEntity v, float damage) {
         if (v instanceof net.minecraft.server.level.ServerPlayer sp) {
-            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(
+            com.yayuy.overgrownvegetation.port.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(
                     com.yayuy.overgrownvegetation.network.CaptorPayload.HIT, this.getId()));
         }
         if (v.hurt(this.damageSources().mobAttack(this), damage)) this.setLastHurtMob(v);
@@ -501,14 +501,14 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
         return this.getPassengers().isEmpty();
     }
 
-    @net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.GAME)
+    @net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus.FORGE)
     public static final class Events {
         private Events() {
         }
 
         /** 抱えられた相手は自分から降りられず、ほかの乗り物にも乗れない(降車はサーバーでだけ止める)。降りたら本人へ知らせる。 */
-        @net.neoforged.bus.api.SubscribeEvent
-        public static void onMount(net.neoforged.neoforge.event.entity.EntityMountEvent event) {
+        @net.minecraftforge.eventbus.api.SubscribeEvent
+        public static void onMount(net.minecraftforge.event.entity.EntityMountEvent event) {
             if (event.getLevel().isClientSide()) return;
             if (event.isDismounting()) {
                 if (event.getEntityBeingMounted() instanceof ClipeimnesEntity c && c.isAlive() && !c.isRemoved() && !c.releasing && c.act() == ACT_HOLD) {
@@ -516,7 +516,7 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
                     return;
                 }
                 if (event.getEntityBeingMounted() instanceof ClipeimnesEntity c && event.getEntityMounting() instanceof net.minecraft.server.level.ServerPlayer sp) {
-                    net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(
+                    com.yayuy.overgrownvegetation.port.network.PacketDistributor.sendToPlayer(sp, new com.yayuy.overgrownvegetation.network.CaptorPayload(
                             com.yayuy.overgrownvegetation.network.CaptorPayload.END, c.getId()));
                 }
                 return;
@@ -528,8 +528,8 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
         }
 
         /** 抱えられたままログアウトしたら先に放す(放さないとプレイヤーの乗り物ごと保存されて世界から消える)。 */
-        @net.neoforged.bus.api.SubscribeEvent
-        public static void onLogout(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
+        @net.minecraftforge.eventbus.api.SubscribeEvent
+        public static void onLogout(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
             if (event.getEntity().getVehicle() instanceof ClipeimnesEntity c && !c.level().isClientSide()) c.releaseHold(0.0D);
         }
     }
@@ -692,7 +692,7 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new GaitAnimationController<>(this, "main", 4, this::mainState));
         // 盾で詰める(guard_*)は上半身だけの重ね: main の後に登録する(後のコントローラが同じ骨を上書きする)
-        controllers.add(new software.bernie.geckolib.animation.AnimationController<>(this, "guard", 3, this::guardState));
+        controllers.add(new software.bernie.geckolib.core.animation.AnimationController<>(this, "guard", 3, this::guardState));
     }
 
     private static final RawAnimation GUARD_UP_ANIM = RawAnimation.begin().thenPlay("guard_windup").thenLoop("guard");

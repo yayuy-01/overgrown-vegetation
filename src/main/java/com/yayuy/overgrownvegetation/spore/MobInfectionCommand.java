@@ -9,9 +9,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 確かめ用の命令(2026-11-14、{@link MobInfection})。
@@ -21,7 +22,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  *     <li>{@code /ov perf infection show <対象>} — 1 体の暴露量・感染・逃げる向き。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class MobInfectionCommand {
 
     private MobInfectionCommand() {
@@ -75,10 +76,10 @@ public final class MobInfectionCommand {
         for (Entity e : targets) {
             if (!(e instanceof LivingEntity le)) continue;
             String msg;
-            if (!le.hasData(ModAttachments.SPORE_EXPOSURE)) {
+            if (!OvAttach.hasData(le, ModAttachments.SPORE_EXPOSURE)) {
                 msg = e.getName().getString() + ": 記録なし";
             } else {
-                SporeExposure ex = le.getData(ModAttachments.SPORE_EXPOSURE);
+                SporeExposure ex = OvAttach.getData(le, ModAttachments.SPORE_EXPOSURE);
                 msg = String.format("%s: 暴露 %.0f・感染 %s(%d tick 前)・数え %d tick・逃げる向き %.2f,%.2f・逃げる %s・体力 %.1f/%.1f",
                         e.getName().getString(), ex.dose, ex.infected,
                         ex.infectedGameTime < 0 ? -1 : source.getLevel().getGameTime() - ex.infectedGameTime,

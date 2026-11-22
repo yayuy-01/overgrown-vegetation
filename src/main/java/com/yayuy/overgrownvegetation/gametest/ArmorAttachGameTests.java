@@ -16,7 +16,7 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.Tag;
-import net.minecraft.network.RegistryFriendlyByteBuf;
+import com.yayuy.overgrownvegetation.port.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.monster.Husk;
@@ -30,11 +30,12 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.SmithingRecipeInput;
 import net.minecraft.world.level.GameType;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * 防具の付け物(2026-11-21 夜)の確かめ: 付けられる防具・部位と数・付け外し・保存と復元・樹皮の当て板の防御・
@@ -104,7 +105,7 @@ public final class ArmorAttachGameTests {
         h.assertTrue(ArmorAttachments.detach(legs, 0).isEmpty(), "空の枠から何か出た");
         ArmorAttachments.detach(legs, 1);
         ArmorAttachments.detach(legs, 2);
-        h.assertFalse(legs.has(ModArmorAttach.ATTACHMENTS.get()), "全部外してもコンポーネントが残る(素の防具と重ならない)");
+        h.assertFalse(OvItemData.has(legs, ModArmorAttach.ATTACHMENTS.get()), "全部外してもコンポーネントが残る(素の防具と重ならない)");
         h.assertTrue(ItemStack.isSameItemSameComponents(legs, new ItemStack(Items.IRON_LEGGINGS)), "外した防具が素の防具と同じにならない");
         h.succeed();
     }
@@ -115,7 +116,7 @@ public final class ArmorAttachGameTests {
         var reg = h.getLevel().registryAccess();
         ItemStack legs = new ItemStack(Items.DIAMOND_LEGGINGS);
         ItemStack belt = new ItemStack(ModArmorAttach.STORAGE_BELT.get());
-        belt.set(ModArmorAttach.BELT_CONTENTS.get(), net.minecraft.world.item.component.ItemContainerContents.fromItems(
+        OvItemData.set(belt, ModArmorAttach.BELT_CONTENTS.get(), net.minecraft.world.item.component.ItemContainerContents.fromItems(
                 java.util.List.of(new ItemStack(Items.TORCH, 12), ItemStack.EMPTY, new ItemStack(Items.BREAD, 3))));
         ArmorAttachments.attach(legs, 1, belt);
         ArmorAttachments.attach(legs, 2, bark());
@@ -127,7 +128,7 @@ public final class ArmorAttachGameTests {
         ItemStack net = ItemStack.STREAM_CODEC.decode(buf);
         h.assertTrue(ItemStack.isSameItemSameComponents(legs, net), "通信の往復で変わった");
         ItemStack belt2 = ArmorAttachments.get(back, 1);
-        var c = belt2.get(ModArmorAttach.BELT_CONTENTS.get());
+        var c = OvItemData.get(belt2, ModArmorAttach.BELT_CONTENTS.get());
         h.assertTrue(c != null && c.getStackInSlot(0).getCount() == 12 && c.getStackInSlot(2).is(Items.BREAD), "ベルトの中身が残らない");
         h.succeed();
     }
@@ -176,7 +177,7 @@ public final class ArmorAttachGameTests {
         ItemStack helmet = new ItemStack(Items.IRON_HELMET);
         h.assertFalse(FilterMask.isMask(helmet), "素の兜がフィルターを使う頭になった");
         ItemStack cloth = new ItemStack(ModArmorAttach.MOUTH_CLOTH.get());
-        cloth.set(ModDataComponents.MASK_FILTER_USED, 100); // 少し詰まった布
+        OvItemData.set(cloth, ModDataComponents.MASK_FILTER_USED, 100); // 少し詰まった布
         ArmorAttachments.attach(helmet, 0, cloth);
         h.assertTrue(FilterMask.isMask(helmet) && AirFilters.used(helmet) == 100, "布の詰まりが兜へ移らない: " + AirFilters.used(helmet));
         h.assertTrue(AirFilters.used(ArmorAttachments.get(helmet, 0)) == 0, "枠の中の布にも詰まりが残っている(二重に数える)");
@@ -191,11 +192,11 @@ public final class ArmorAttachGameTests {
         ItemStack back = ArmorAttachments.detach(player.getItemBySlot(EquipmentSlot.HEAD), 0);
         ItemStack head = player.getItemBySlot(EquipmentSlot.HEAD);
         h.assertTrue(AirFilters.used(back) >= used, "外した布に詰まりが戻らない: " + AirFilters.used(back));
-        h.assertFalse(head.has(ModDataComponents.MASK_FILTER_USED) || FilterMask.isMask(head), "外した後も兜にフィルターが残る");
+        h.assertFalse(OvItemData.has(head, ModDataComponents.MASK_FILTER_USED) || FilterMask.isMask(head), "外した後も兜にフィルターが残る");
         h.assertFalse(ProtectiveMaskItem.isProtecting(player), "布を外しても防いでいる");
         // 詰まり切った布は防がない
         ItemStack spent = back.copy();
-        spent.set(ModDataComponents.MASK_FILTER_USED, (int) Math.ceil(AirFilters.capacity(spent)));
+        OvItemData.set(spent, ModDataComponents.MASK_FILTER_USED, (int) Math.ceil(AirFilters.capacity(spent)));
         ArmorAttachments.attach(head, 0, spent);
         h.assertFalse(ProtectiveMaskItem.isProtecting(player), "詰まり切った布で防いでいる");
         h.succeed();
@@ -228,7 +229,7 @@ public final class ArmorAttachGameTests {
     @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
     public static void benchMenuAttachDetach(GameTestHelper h) {
         // 閉じたときに持ち物へ戻すのは ServerPlayer だけ(バニラの clearContainer)なので、偽の ServerPlayer で
-        Player player = net.neoforged.neoforge.common.util.FakePlayerFactory.get(h.getLevel(),
+        Player player = net.minecraftforge.common.util.FakePlayerFactory.get(h.getLevel(),
                 new com.mojang.authlib.GameProfile(java.util.UUID.nameUUIDFromBytes("ov_armor_attach_bench".getBytes()), "ov_armor_attach_bench"));
         player.getInventory().clearContent();
         var inv = player.getInventory();
@@ -270,7 +271,7 @@ public final class ArmorAttachGameTests {
         var inv = player.getInventory();
         ItemStack helmet = new ItemStack(Items.IRON_HELMET);
         ItemStack cloth = new ItemStack(ModArmorAttach.MOUTH_CLOTH.get());
-        cloth.set(ModDataComponents.MASK_FILTER_USED, 5000);
+        OvItemData.set(cloth, ModDataComponents.MASK_FILTER_USED, 5000);
         ArmorAttachments.attach(helmet, 0, cloth);
         inv.setItem(0, helmet);
         inv.setItem(1, bark());
@@ -309,7 +310,7 @@ public final class ArmorAttachGameTests {
         h.assertFalse(again.stillValid(player), "脚を替えても開いたまま");
         // 外したベルトは中身を持っている
         ItemStack belt = ArmorAttachments.detach(legs, 1);
-        var c = belt.get(ModArmorAttach.BELT_CONTENTS.get());
+        var c = OvItemData.get(belt, ModArmorAttach.BELT_CONTENTS.get());
         h.assertTrue(c != null && c.getStackInSlot(0).is(Items.TORCH), "外したベルトに中身が無い");
         h.succeed();
     }
@@ -325,7 +326,7 @@ public final class ArmorAttachGameTests {
         ItemStack helmet = new ItemStack(Items.IRON_HELMET);
         ArmorAttachments.attach(helmet, 0, new ItemStack(ModArmorAttach.MOUTH_CLOTH.get()));
         int cap = (int) Math.ceil(AirFilters.capacity(helmet));
-        helmet.set(ModDataComponents.MASK_FILTER_USED, cap); // 詰まり切った
+        OvItemData.set(helmet, ModDataComponents.MASK_FILTER_USED, cap); // 詰まり切った
         player.getInventory().setItem(9, helmet);
         menu.setCarried(new ItemStack(com.yayuy.overgrownvegetation.registry.ModVent.AIR_FILTER.get()));
         menu.clicked(9, 1, ClickType.PICKUP, player); // 兜の上で右クリック
@@ -338,7 +339,7 @@ public final class ArmorAttachGameTests {
         player.getInventory().setItem(10, plain);
         menu.setCarried(new ItemStack(com.yayuy.overgrownvegetation.registry.ModVent.AIR_FILTER.get()));
         menu.clicked(10, 1, ClickType.PICKUP, player);
-        h.assertFalse(player.getInventory().getItem(10).has(ModDataComponents.MASK_FILTER_USED) && player.getInventory().getItem(10).is(Items.IRON_HELMET)
+        h.assertFalse(OvItemData.has(player.getInventory().getItem(10), ModDataComponents.MASK_FILTER_USED) && player.getInventory().getItem(10).is(Items.IRON_HELMET)
                 && FilterMask.isMask(player.getInventory().getItem(10)), "布の無い兜がフィルターを使う頭になった");
         h.succeed();
     }
@@ -347,7 +348,7 @@ public final class ArmorAttachGameTests {
     @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
     public static void washableAndNoNestedBelt(GameTestHelper h) {
         ItemStack cloth = new ItemStack(ModArmorAttach.MOUTH_CLOTH.get());
-        cloth.set(ModDataComponents.MASK_FILTER_USED, 500);
+        OvItemData.set(cloth, ModDataComponents.MASK_FILTER_USED, 500);
         h.assertTrue(com.yayuy.overgrownvegetation.survival.decon.Decon.filterWashable(cloth), "詰まった布が洗えない");
         ItemStack helmet = new ItemStack(Items.IRON_HELMET);
         ArmorAttachments.attach(helmet, 0, cloth);
@@ -383,7 +384,7 @@ public final class ArmorAttachGameTests {
 
     private static ItemStack usedCloth(int used) {
         ItemStack c = new ItemStack(ModArmorAttach.MOUTH_CLOTH.get());
-        c.set(ModDataComponents.MASK_FILTER_USED, used);
+        OvItemData.set(c, ModDataComponents.MASK_FILTER_USED, used);
         return c;
     }
 
@@ -437,7 +438,7 @@ public final class ArmorAttachGameTests {
         h.assertTrue(out.is(Items.IRON_HELMET) && out.getDamageValue() < 100, "金床で直らない(前提): " + out);
         h.assertTrue(ArmorAttachments.count(out, ModArmorAttach.BARK_PLATE.get()) == 1 && ArmorAttachments.hasMouthCloth(out) && AirFilters.used(out) == 200,
                 "結果に付け物が載らない・布の詰まりが違う: " + ArmorAttachments.list(out) + " 詰まり " + AirFilters.used(out));
-        AttachEffects.onAnvilTake(new net.neoforged.neoforge.event.entity.player.AnvilRepairEvent(player, left, right, out));
+        AttachEffects.onAnvilTake(new net.minecraftforge.event.entity.player.AnvilRepairEvent(player, left, right, out));
         h.assertTrue(countIn(player, ModArmorAttach.BARK_PLATE.get()) == 1, "載らなかった 2 枚目の樹皮が持ち物へ返らない");
         h.succeed();
     }
@@ -455,7 +456,7 @@ public final class ArmorAttachGameTests {
         ItemStack out = menu.getSlot(2).getItem();
         h.assertTrue(out.is(Items.IRON_HELMET) && ArmorAttachments.count(out, ModArmorAttach.BARK_PLATE.get()) == 1 && ArmorAttachments.hasMouthCloth(out)
                 && AirFilters.used(out) == 200, "砥石の結果に付け物が載らない: " + out + " " + ArmorAttachments.list(out));
-        AttachEffects.onGrindstoneTake(new net.neoforged.neoforge.event.GrindstoneEvent.OnTakeItem(access, player, top, bottom, 0));
+        AttachEffects.onGrindstoneTake(new net.minecraftforge.event.GrindstoneEvent.OnTakeItem(access, player, top, bottom, 0));
         h.assertTrue(countIn(player, ModArmorAttach.BARK_PLATE.get()) == 1, "載らなかった樹皮が返らない");
         menu.getSlot(1).set(ItemStack.EMPTY);
         ItemStack single = menu.getSlot(2).getItem();
@@ -471,7 +472,7 @@ public final class ArmorAttachGameTests {
         grid.setItem(0, helmetWith(150, bark()));
         grid.setItem(1, helmetWith(150, bark(), usedCloth(50)));
         ItemStack out = new ItemStack(Items.IRON_HELMET);
-        AttachEffects.onCrafted(new net.neoforged.neoforge.event.entity.player.PlayerEvent.ItemCraftedEvent(player, out, grid));
+        AttachEffects.onCrafted(new net.minecraftforge.event.entity.player.PlayerEvent.ItemCraftedEvent(player, out, grid));
         h.assertTrue(ArmorAttachments.count(out, ModArmorAttach.BARK_PLATE.get()) == 1 && ArmorAttachments.hasMouthCloth(out) && AirFilters.used(out) == 50,
                 "作業台の修理の結果に付け物が載らない: " + ArmorAttachments.list(out));
         h.assertTrue(countIn(player, ModArmorAttach.BARK_PLATE.get()) == 1, "載らなかった樹皮が返らない");
@@ -482,7 +483,7 @@ public final class ArmorAttachGameTests {
         dye.setItem(0, leather);
         dye.setItem(1, new ItemStack(Items.RED_DYE));
         ItemStack dyed = leather.copy();
-        AttachEffects.onCrafted(new net.neoforged.neoforge.event.entity.player.PlayerEvent.ItemCraftedEvent(p2, dyed, dye));
+        AttachEffects.onCrafted(new net.minecraftforge.event.entity.player.PlayerEvent.ItemCraftedEvent(p2, dyed, dye));
         h.assertTrue(ArmorAttachments.count(dyed, ModArmorAttach.BARK_PLATE.get()) == 1 && countIn(p2, ModArmorAttach.BARK_PLATE.get()) == 0, "染め直しで樹皮が増えた");
         h.succeed();
     }
@@ -505,7 +506,7 @@ public final class ArmorAttachGameTests {
             h.assertTrue(ArmorAttachments.count(legs, ModArmorAttach.BARK_PLATE.get()) == 1, "書き換えで超えた所の樹皮が消えた");
             Player player = h.makeMockPlayer(GameType.SURVIVAL);
             player.getInventory().setItem(5, legs);
-            AttachEffects.onPlayerTick(new net.neoforged.neoforge.event.tick.PlayerTickEvent.Post(player));
+            AttachEffects.onPlayerTick(new com.yayuy.overgrownvegetation.port.event.tick.PlayerTickEvent.Post(player));
             h.assertTrue(countIn(player, ModArmorAttach.BARK_PLATE.get()) == 1, "超えた所の樹皮が持ち主へ返らない");
             ItemStack after = player.getInventory().getItem(5);
             h.assertTrue(ArmorAttachments.count(after, ModArmorAttach.BARK_PLATE.get()) == 0

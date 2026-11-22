@@ -4,8 +4,8 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.corruption.FilmTrails;
 import java.util.List;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import com.yayuy.overgrownvegetation.port.network.StreamCodec;
+import com.yayuy.overgrownvegetation.port.network.CustomPacketPayload;
 
 /**
  * 水面の膜を通った跡の新しい点(S2C、2026-11-13)。{@link FilmTrails} がその場所のチャンクを見ているプレイヤーへ送る。

@@ -16,16 +16,17 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.CanContinueSleepingEvent;
 import net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerWakeUpEvent;
-import net.neoforged.neoforge.event.level.BlockEvent;
-import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
+import net.minecraftforge.event.level.BlockEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.PlayerTickEvent;
 
 import java.lang.reflect.Field;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 疲労(2026-11-13 サバイバルの背骨 段 1。数値は {@code spore_field.json} の fatigue = {@link FatigueSpec})。
@@ -52,7 +53,7 @@ import java.lang.reflect.Field;
  *     夜の飛ばしの追いつき {@code LedgerSpread#onSleepFinished} も起きない。雷雨の昼はバニラでも眠れる(昼ではない)ので、そのまま夜と同じ。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class FatigueTracker {
 
     public static final ResourceLocation MOVE_ID = OvergrownVegetation.id("fatigue.move");
@@ -78,12 +79,12 @@ public final class FatigueTracker {
 
     /** 疲労(0〜100)。添付が無ければ 0(作らない)。 */
     public static double value(Player player) {
-        return player.hasData(ModAttachments.FATIGUE) ? player.getData(ModAttachments.FATIGUE).value : 0.0D;
+        return OvAttach.hasData(player, ModAttachments.FATIGUE) ? OvAttach.getData(player, ModAttachments.FATIGUE).value : 0.0D;
     }
 
     /** 確かめ用・コマンド用: 疲労を決めて効き目を張り直す。 */
     public static void set(Player player, double value) {
-        Fatigue f = player.getData(ModAttachments.FATIGUE);
+        Fatigue f = OvAttach.getData(player, ModAttachments.FATIGUE);
         f.value = clamp(value);
         f.clearPending();
         syncModifiers(player);
@@ -100,10 +101,10 @@ public final class FatigueTracker {
     public static double step(Player player, int interval, double percent, int stage, boolean masked) {
         FatigueSpec s = spec();
         if (!s.enabled() || !on()) {
-            if (player.hasData(ModAttachments.FATIGUE) && value(player) != 0.0D) set(player, 0.0D);
+            if (OvAttach.hasData(player, ModAttachments.FATIGUE) && value(player) != 0.0D) set(player, 0.0D);
             return 0.0D;
         }
-        Fatigue f = player.getData(ModAttachments.FATIGUE);
+        Fatigue f = OvAttach.getData(player, ModAttachments.FATIGUE);
         double seconds = interval / 20.0D;
         if (player.isSleeping()) {
             f.value = clamp(f.value - s.restPerSecond() * seconds);
@@ -124,7 +125,7 @@ public final class FatigueTracker {
 
     /** 夜を飛ばして起こされた: 全部戻る。 */
     public static void restoreFully(Player player) {
-        if (player.hasData(ModAttachments.FATIGUE)) set(player, 0.0D);
+        if (OvAttach.hasData(player, ModAttachments.FATIGUE)) set(player, 0.0D);
     }
 
     /** 効き目の強さ(0〜1)。 */
@@ -147,7 +148,7 @@ public final class FatigueTracker {
 
     /** 創造・観戦の間(11-18 見直し ⑤5): 数えかけを捨て、鈍りの修飾を外す。疲労の値は残す(戻ればまた効く)。 */
     public static void exempt(Player player) {
-        if (player.hasData(ModAttachments.FATIGUE)) player.getData(ModAttachments.FATIGUE).clearPending();
+        if (OvAttach.hasData(player, ModAttachments.FATIGUE)) OvAttach.getData(player, ModAttachments.FATIGUE).clearPending();
         syncModifiers(player);
     }
 
@@ -188,7 +189,7 @@ public final class FatigueTracker {
                     || com.yayuy.overgrownvegetation.survival.expedition.SleepingBagBlock.isInBag(player)) holdDayRest(player);
             return;
         }
-        if (player.isSprinting()) player.getData(ModAttachments.FATIGUE).sprintTicks++;
+        if (player.isSprinting()) OvAttach.getData(player, ModAttachments.FATIGUE).sprintTicks++;
     }
 
     @SubscribeEvent
@@ -215,12 +216,12 @@ public final class FatigueTracker {
 
     /** 溜めの割合 {@code weight}(0〜1)で殴った 1 回を数える。 */
     public static void countAttack(Player player, double weight) {
-        player.getData(ModAttachments.FATIGUE).attacks += Math.max(0.0D, Math.min(1.0D, weight));
+        OvAttach.getData(player, ModAttachments.FATIGUE).attacks += Math.max(0.0D, Math.min(1.0D, weight));
     }
 
     /** 壊した 1 つを数える(テストからも呼ぶ)。 */
     public static void countBreak(Player player) {
-        player.getData(ModAttachments.FATIGUE).breaks++;
+        OvAttach.getData(player, ModAttachments.FATIGUE).breaks++;
     }
 
     // ---- 眠る・休む ----

@@ -6,7 +6,7 @@ import com.yayuy.overgrownvegetation.client.lizard.SprawlLegRig;
 import com.yayuy.overgrownvegetation.client.runner.BodyBendRig;
 import com.yayuy.overgrownvegetation.entity.PilimnesEntity;
 import net.minecraft.resources.ResourceLocation;
-import software.bernie.geckolib.animation.AnimationState;
+import software.bernie.geckolib.core.animation.AnimationState;
 import software.bernie.geckolib.model.GeoModel;
 
 /**

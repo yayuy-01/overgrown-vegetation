@@ -1,7 +1,7 @@
 package com.yayuy.overgrownvegetation.client.shader;
 
 import com.yayuy.overgrownvegetation.client.VisualQuality;
-import net.neoforged.fml.ModList;
+import net.minecraftforge.fml.ModList;
 
 /**
  * Iris(Oculus)のシェーダーパックを使っているかの判定を 1 か所に(2026-10-23、10-30 作り直しで戻した)。

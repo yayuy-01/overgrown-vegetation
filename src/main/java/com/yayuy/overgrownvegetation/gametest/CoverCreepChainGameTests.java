@@ -14,11 +14,12 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 這い上がる苔の連鎖(2026-11-03 ユーザー指定): (a) 覆われた・汚染ブロックになったマスの上と横の<b>既にある</b>建築ブロックに記録が付く、
@@ -119,7 +120,7 @@ public final class CoverCreepChainGameTests {
             }
             // 猶予が過ぎた(剥がした時刻を昔にする)→ 付く
             var chunk = level.getChunkAt(b);
-            chunk.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.COVER_PEELED.get())
+            OvAttach.getData(chunk, com.yayuy.overgrownvegetation.registry.ModAttachments.COVER_PEELED.get())
                     .put(b.asLong(), level.getGameTime() - CoverCreepData.PEEL_GRACE_TICKS - 1);
             CoverCreepData.spreadFrom(level, a);
             long value = CoverCreepData.get(level, b);

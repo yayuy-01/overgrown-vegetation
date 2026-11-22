@@ -12,14 +12,15 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.ChunkEvent;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.level.ChunkEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import java.util.HashMap;
 import java.util.Map;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * <b>這い上がる苔が最終段を過ぎたら覆いにする</b>(2026-11-03 ユーザー指定)。記録({@link ModAttachments#COVER_CREEP}、{@link CoverCreepData})の
@@ -37,7 +38,7 @@ import java.util.Map;
  * 村 1 つで記録が数千あっても、毎秒舐めるのは段階が尽きたものがあるチャンクだけ。1 回に覆うのは {@value #COVERS_PER_SWEEP} マスまで
  * (残りは次の秒へ)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class CoverCreepChain {
 
     private static final int SWEEP_TICKS = 20;
@@ -67,7 +68,7 @@ public final class CoverCreepChain {
     @SubscribeEvent
     public static void onChunkLoad(ChunkEvent.Load event) {
         if (event.getLevel() instanceof ServerLevel level && event.getChunk() instanceof LevelChunk chunk
-                && chunk.getExistingData(ModAttachments.COVER_CREEP.get()).map(m -> !m.isEmpty()).orElse(false)) {
+                && OvAttach.getExistingData(chunk, ModAttachments.COVER_CREEP.get()).map(m -> !m.isEmpty()).orElse(false)) {
             // 読み込みの中では記録を舐めない。次の回にまとめて見る(本当の次の時刻はそこで決まる)
             track(level, chunk.getPos().toLong(), Long.MIN_VALUE);
         }
@@ -136,7 +137,7 @@ public final class CoverCreepChain {
             }
             next.remove(cp); // 覆うと同じチャンクに新しい記録が付き track が呼ばれる。その予定と下の予定の早い方が残る
             LevelChunk chunk = level.getChunkSource().getChunkNow(ChunkPos.getX(cp), ChunkPos.getZ(cp));
-            Long2LongOpenHashMap map = chunk == null ? null : chunk.getExistingData(ModAttachments.COVER_CREEP.get()).orElse(null);
+            Long2LongOpenHashMap map = chunk == null ? null : OvAttach.getExistingData(chunk, ModAttachments.COVER_CREEP.get()).orElse(null);
             if (map == null || map.isEmpty()) {
                 continue;
             }

@@ -27,20 +27,21 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.neoforged.neoforge.attachment.AttachmentInternals;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.common.util.FakePlayerFactory;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.common.util.FakePlayerFactory;
+import net.minecraftforge.event.RegisterGameTestsEvent;
 import net.neoforged.neoforge.event.entity.player.CanContinueSleepingEvent;
 import net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * サバイバルの背骨 段 1(2026-11-13): 疲労のたまり方 4 つ・約 2 日で限界・夜に寝ると全部戻る・昼の休みで少しずつ戻る・死亡で 0・
@@ -110,7 +111,7 @@ public final class SurvivalFatigueGameTests {
             check(helper, "濃い胞子のしきい値ちょうど", FatigueTracker.value(p), s.awakePerSecond() * 20.0D);
             // 3) 走る・戦う・掘る: 20 tick 走って 3 回殴って 5 個掘る
             FatigueTracker.set(p, 0.0D);
-            p.getData(ModAttachments.FATIGUE).sprintTicks = 20;
+            OvAttach.getData(p, ModAttachments.FATIGUE).sprintTicks = 20;
             for (int i = 0; i < 3; i++) FatigueTracker.countAttack(p);
             for (int i = 0; i < 5; i++) FatigueTracker.countBreak(p);
             FatigueTracker.step(p, 20, 0.0D, 0, false);
@@ -147,7 +148,7 @@ public final class SurvivalFatigueGameTests {
         try {
             int seconds = 0;
             while (FatigueTracker.value(p) < 100.0D - EPS && seconds < 48000) {
-                Fatigue f = p.getData(ModAttachments.FATIGUE);
+                Fatigue f = OvAttach.getData(p, ModAttachments.FATIGUE);
                 if (seconds % 5 == 0) f.sprintTicks = 20; // 5 秒のうち 1 秒走る = 2 割
                 if (seconds % 20 == 0) FatigueTracker.countAttack(p);
                 if (seconds % 5 == 0) FatigueTracker.countBreak(p);
@@ -207,12 +208,12 @@ public final class SurvivalFatigueGameTests {
             // 実際の進み: 胞子なしで 2000 tick
             SporeInfectionEffects.startPlayer(p);
             FatigueTracker.set(p, 0.0D);
-            SporeInfectionEffects.tickInfected(p, p.getData(ModAttachments.SPORE_EXPOSURE), 2000, 0.0D);
+            SporeInfectionEffects.tickInfected(p, OvAttach.getData(p, ModAttachments.SPORE_EXPOSURE), 2000, 0.0D);
             int rested = SporeInfectionEffects.progressOf(p);
             SporeInfectionEffects.setPlayerStage(p, 1);
-            p.getData(ModAttachments.SPORE_EXPOSURE).rateCarry = 0.0D;
+            OvAttach.getData(p, ModAttachments.SPORE_EXPOSURE).rateCarry = 0.0D;
             FatigueTracker.set(p, 100.0D);
-            SporeInfectionEffects.tickInfected(p, p.getData(ModAttachments.SPORE_EXPOSURE), 2000, 0.0D);
+            SporeInfectionEffects.tickInfected(p, OvAttach.getData(p, ModAttachments.SPORE_EXPOSURE), 2000, 0.0D);
             int tired = SporeInfectionEffects.progressOf(p);
             if (rested <= 0 || tired > rested * s.infectionMultiplierMax() + 1 || tired < rested * s.infectionMultiplierMax() - 1) {
                 helper.fail("疲労 0 の進み " + rested + "・100% の進み " + tired + "(期待 ×" + s.infectionMultiplierMax() + ")");
@@ -344,7 +345,7 @@ public final class SurvivalFatigueGameTests {
             check(helper, "死んで復活", FatigueTracker.value(died), 0.0D);
             AttachmentInternals.copyEntityAttachments(from, moved, false);
             check(helper, "死なずに作り直し(保存 → 読み込み)", FatigueTracker.value(moved), 73.5D);
-            Tag tag = Fatigue.CODEC.encodeStart(NbtOps.INSTANCE, from.getData(ModAttachments.FATIGUE)).getOrThrow();
+            Tag tag = Fatigue.CODEC.encodeStart(NbtOps.INSTANCE, OvAttach.getData(from, ModAttachments.FATIGUE)).getOrThrow();
             Fatigue back = Fatigue.CODEC.parse(NbtOps.INSTANCE, tag).getOrThrow();
             check(helper, "コーデック", back.value, 73.5D);
             helper.succeed();
@@ -375,7 +376,7 @@ public final class SurvivalFatigueGameTests {
             // 感染3・進み 1/4
             SporeInfectionEffects.setPlayerStage(p, 3);
             int stageTicks = SporeInfectionEffects.stageDoseOf(DesignData.effects().playerInfection(), 3); // 11-15: 進みは暴露量(段 3 の 1 段の量)
-            p.setData(ModAttachments.SPORE_STAGE_TICKS, stageTicks / 4);
+            OvAttach.setData(p, ModAttachments.SPORE_STAGE_TICKS, stageTicks / 4);
             SurvivalHudPayload b = SurvivalSync.payload(p);
             if (b.stage() != 3) {
                 helper.fail("感染3 の段階が " + b.stage());

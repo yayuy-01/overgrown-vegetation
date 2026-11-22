@@ -16,13 +16,14 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * 構造物の上の苗の木(段 2b)を置く手伝いと、段 2〜2d の構造物の木の置き残し。
@@ -30,8 +31,8 @@ import java.util.List;
  * <p>2026-11-19 夜 段 3「乗っ取り」への作り直しで、構造物の木(中から/てっぺんから)・中くらいの木・構造物に植える器官は消した
  * (ユーザー「構造物専用の動かし方はうまくいかない気がする」)。保存してある置きかけの木だけは、最後まで置く(新しくは積まない)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
-public final class StructureTrees extends SavedData {
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
+public final class StructureTrees extends OvSavedData {
     private static final String ID = OvergrownVegetation.MODID + "_structure_trees";
     private static final Factory<StructureTrees> FACTORY = new Factory<>(StructureTrees::new, (tag, registries) -> load(tag), null);
 
@@ -51,7 +52,7 @@ public final class StructureTrees extends SavedData {
     }
 
     public static StructureTrees get(ServerLevel level) {
-        return level.getDataStorage().computeIfAbsent(FACTORY, ID);
+        return level.getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     public int pendingJobs() {

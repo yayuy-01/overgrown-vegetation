@@ -10,8 +10,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.world.level.biome.Biome;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * <b>水中の浮遊粒</b>(W6、2026-11-01 夕方。ユーザー「水中のバニラの青紫の泡の粒は、黄緑の微粒(胞子・デトリタス)に」)。

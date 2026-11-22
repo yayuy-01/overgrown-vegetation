@@ -3,10 +3,10 @@ package com.yayuy.overgrownvegetation.data;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.loading.FMLEnvironment;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.fml.loading.FMLEnvironment;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 /**
  * {@code /ov design reload} —— 設計データ({@code config/overgrown_vegetation/*.json})を起動したまま読み直す
@@ -19,7 +19,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * すでに湧いている個体・描かれたチャンクも古いまま。クリエイティブタブの並びは、読み直した後にワールドへ入り直すと変わる(バニラがタブの中身を控えているため)。
  * ドロップとレシピはデータパックなのでバニラの {@code /reload}。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class DesignReloadCommand {
 
     private DesignReloadCommand() {

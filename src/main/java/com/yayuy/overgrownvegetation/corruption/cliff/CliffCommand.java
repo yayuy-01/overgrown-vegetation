@@ -11,16 +11,16 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 /**
  * {@code /ov perf cliff grow <半径チャンク> [ropes|sacs|both]} — 汚染の段に関係なく、まわりのチャンクの崖・急斜面に今すぐ生やす
  * (2026-11-20 崖の汚染の撮影・確認用。OP 専用)。生やしたチャンクには巡回の済みの印も付ける。
  * {@code /ov perf cliff info} — 今いるチャンクの段・印と、巡回の直近の結果。{@code mobs}・{@code target} は縄を登る Mob の調べと撮影用。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class CliffCommand {
     private CliffCommand() {
     }

@@ -6,8 +6,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.animal.frog.Frog;
 import net.minecraft.world.entity.animal.frog.Tadpole;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 
 /**
  * 過繁茂のバイオームではカエルが湧かない(2026-11-17 軽量化。ユーザー決定「過繁茂では湧かない」)。
@@ -20,7 +20,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
  * 既にいるカエルは消さない(11-17 ユーザー: 「カエルが多い状況は局所的な原因すぎるし、過繁茂になるにつれて数は減ると思う」。
  * 見ていない所で消す案は入れて外した)。繁茂の段階(過繁茂の手前)では今までどおり。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class OvergrownFrogs {
 
     private OvergrownFrogs() {

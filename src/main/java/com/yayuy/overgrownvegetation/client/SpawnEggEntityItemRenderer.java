@@ -17,11 +17,11 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.level.Level;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.event.level.LevelEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+import net.minecraftforge.event.level.LevelEvent;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
@@ -106,7 +106,7 @@ public class SpawnEggEntityItemRenderer extends BlockEntityWithoutLevelRenderer 
      * 描くまで、前のワールド(とそのチャンク・エンティティ)が丸ごと残っていた。統合サーバーのワールドの Unload は
      * サーバーのスレッドから来るので、クライアントのワールドのときだけ空にする。
      */
-    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
     public static final class ForgetLevel {
 
         @SubscribeEvent

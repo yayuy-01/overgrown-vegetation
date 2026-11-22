@@ -8,8 +8,8 @@ import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.particle.TextureSheetParticle;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.Mth;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * 泥煙(2026-11-13、水まわり ⑥ ユーザー選択「泥煙: 水底を歩く・泳ぐ・Mob が動くと、底の泥が舞い上がってしばらく濁る」)。

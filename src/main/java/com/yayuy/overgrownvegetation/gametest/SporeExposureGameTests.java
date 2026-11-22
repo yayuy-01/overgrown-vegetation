@@ -23,11 +23,12 @@ import net.minecraft.world.entity.monster.Spider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 胞子の暴露量(2026-11-04 感染システムの第 1 段)。場の値に頼らず、濃度を渡して積む口({@link SporeExposureTracker#tickWith}・
@@ -80,7 +81,7 @@ public final class SporeExposureGameTests {
         SporeFieldTable t = DesignData.sporeField();
         Cow c = cow(helper, 3, 3);
         SporeExposureTracker.accumulate(c, t.exposureMinPercent() - 0.1D, 1.0D, 200, helper.getLevel().getGameTime());
-        if (c.hasData(ModAttachments.SPORE_EXPOSURE) || SporeExposureTracker.dose(c) != 0.0D) {
+        if (OvAttach.hasData(c, ModAttachments.SPORE_EXPOSURE) || SporeExposureTracker.dose(c) != 0.0D) {
             helper.fail("下限未満で積まれた: " + SporeExposureTracker.dose(c));
             return;
         }
@@ -130,7 +131,7 @@ public final class SporeExposureGameTests {
         }
         SporeExposureTracker.tickWith(level, under, 20, 100.0D);
         SporeExposureTracker.tickWith(level, open, 20, 100.0D);
-        if (under.hasData(ModAttachments.SPORE_EXPOSURE) || SporeExposureTracker.dose(under) != 0.0D) {
+        if (OvAttach.hasData(under, ModAttachments.SPORE_EXPOSURE) || SporeExposureTracker.dose(under) != 0.0D) {
             helper.fail("屋根の下の Mob が積んだ: " + SporeExposureTracker.dose(under));
             return;
         }
@@ -167,7 +168,7 @@ public final class SporeExposureGameTests {
         g.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 2000, 4));
         float before = g.getHealth();
         SporeExposureTracker.tickWith(level, g, overDoseTicks(), 100.0D);
-        SporeExposure ex = g.getData(ModAttachments.SPORE_EXPOSURE);
+        SporeExposure ex = OvAttach.getData(g, ModAttachments.SPORE_EXPOSURE);
         if (Math.abs(g.getHealth() - (before - (float) t.mobExposureDamage())) > 1.0E-3F) {
             helper.fail("防御を無視した " + t.mobExposureDamage() + " ダメージにならない: " + before + " → " + g.getHealth());
             return;
@@ -233,7 +234,7 @@ public final class SporeExposureGameTests {
         z.setInvulnerable(true);
         float health = z.getHealth();
         SporeExposureTracker.tickWith(helper.getLevel(), z, overDoseTicks(), 100.0D);
-        SporeExposure ex = z.getData(ModAttachments.SPORE_EXPOSURE);
+        SporeExposure ex = OvAttach.getData(z, ModAttachments.SPORE_EXPOSURE);
         if (ex.dose != t.infectDose() || ex.reachedCount != 0 || z.getHealth() != health || z.getMaxHealth() != z.getAttribute(Attributes.MAX_HEALTH).getBaseValue()) {
             helper.fail("無敵の Mob: 暴露 " + ex.dose + "・回数 " + ex.reachedCount + "・体力 " + z.getHealth());
             return;

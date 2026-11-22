@@ -4,9 +4,9 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.core.registries.Registries;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredRegister;
+import net.minecraftforge.eventbus.api.IEventBus;
+import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
+import com.yayuy.overgrownvegetation.port.registries.DeferredRegister;
 
 /**
  * このMODの独自パーティクル。2026-10-30 に画面の演出と一緒に 5 種とも parked/ へ退避し、10-31 に萌芽体の噴き出し

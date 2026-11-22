@@ -27,15 +27,16 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LayeredCauldronBlock;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * 除染(2026-11-14 サバイバルの背骨 段 3a): 大釜の手洗い(水が減る)・洗い場(FE が無いと止まる・まとめて洗う・上に落ちた物を吸う)・
@@ -106,7 +107,7 @@ public final class DeconGameTests {
 
     static ItemStack usedFilter(int used) {
         ItemStack f = new ItemStack(ModVent.AIR_FILTER.get());
-        f.set(ModDataComponents.MASK_FILTER_USED, used);
+        OvItemData.set(f, ModDataComponents.MASK_FILTER_USED, used);
         return f;
     }
 
@@ -243,7 +244,7 @@ public final class DeconGameTests {
                 helper.fail("フィルターを洗っても水が減らない: " + before + " → " + waterLevel(helper, pos));
                 return;
             }
-            filter.set(ModDataComponents.MASK_FILTER_USED, 3000); // また使って汚れた
+            OvItemData.set(filter, ModDataComponents.MASK_FILTER_USED, 3000); // また使って汚れた
         }
         helper.setBlock(new BlockPos(3, 2, 3), Blocks.WATER_CAULDRON.defaultBlockState().setValue(LayeredCauldronBlock.LEVEL, 3));
         player.setItemInHand(InteractionHand.MAIN_HAND, filter);

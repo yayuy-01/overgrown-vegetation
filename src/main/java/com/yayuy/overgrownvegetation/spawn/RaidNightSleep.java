@@ -7,8 +7,8 @@ import com.yayuy.overgrownvegetation.director.HoardRaids;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent;
 
 /**
@@ -24,7 +24,7 @@ import net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent;
  * </ul>
  * ふつうの送り込みの夜は寝られる(ユーザーが挙げたのは上の 3 つ)。範囲 128 ブロックは【仮】(送り込みが個体を探す半径と同じ)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class RaidNightSleep {
 
     /** 拠点の真ん中からこの半径の中で寝ようとしたら見る(ブロック)【仮】。 */

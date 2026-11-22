@@ -11,9 +11,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 /**
  * 開発用(2026-11-14 サバイバルの背骨 段 3b・3c): {@code /ov perf spore dirt} = 着ている物・手の物の汚れの値と段・持っている汚れの点・
@@ -21,7 +21,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * {@code /ov perf spore dirt clearrooms} = この次元の部屋の汚れを全部消す。
  * ゲームの中では数字を見せない(決定 33)ので、値はこの命令でだけ見る。/ov の下の一覧はテストで決めてあるので perf spore の下に足す。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class DeconCommand {
 
     private DeconCommand() {

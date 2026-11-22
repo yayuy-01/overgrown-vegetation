@@ -2,7 +2,7 @@ package com.yayuy.overgrownvegetation.entity.parts;
 
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Mob;
-import net.neoforged.neoforge.entity.PartEntity;
+import net.minecraftforge.entity.PartEntity;
 
 /**
  * 本体 1 体ぶんの叩ける部位の並び(11-08、森の中を動く型 ② の段 1)。種によらない部品。

@@ -12,9 +12,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 /**
  * 蠢く壁を確かめるコマンド(OP 専用。2026-11-16 試作。手触り・速さ・枝分かれを見るため)。
@@ -25,7 +25,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  *     <li>{@code /ov wall status} — 升の数・残り時間・飲んだ数・重さ(ms/tick)・送った量</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class CreepingWallCommand {
 
     private CreepingWallCommand() {

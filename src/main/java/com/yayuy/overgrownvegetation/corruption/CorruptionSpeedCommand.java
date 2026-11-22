@@ -9,9 +9,9 @@ import com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 /**
  * {@code /ov corruption} — 汚染のオン・オフ({@link CorruptionSwitch})と侵食速度を表示する。
@@ -30,7 +30,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * {@code register} しているが、Brigadier は同名リテラルの子ノードをマージするため
  * {@code /ov phase} と {@code /ov corruption} は問題なく共存する。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class CorruptionSpeedCommand {
 
     @SubscribeEvent

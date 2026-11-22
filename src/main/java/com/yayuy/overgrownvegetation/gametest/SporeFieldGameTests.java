@@ -11,11 +11,12 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 胞子の場と風(2026-10-23 第 2 段 A〜C)。場と風の式は素の Java なのでほとんどはワールドを使わずに確かめ、
@@ -245,8 +246,8 @@ public final class SporeFieldGameTests {
                 f.clearDepositAround(cx, cz, 0.5D);
                 return null;
             });
-            chunk.removeData(com.yayuy.overgrownvegetation.registry.ModAttachments.SWEPT_DUST);
-            chunk.removeData(com.yayuy.overgrownvegetation.registry.ModAttachments.SWEPT_DUST_REFILL);
+            OvAttach.removeData(chunk, com.yayuy.overgrownvegetation.registry.ModAttachments.SWEPT_DUST);
+            OvAttach.removeData(chunk, com.yayuy.overgrownvegetation.registry.ModAttachments.SWEPT_DUST_REFILL);
             level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, new net.minecraft.world.phys.AABB(pos).inflate(3))
                     .forEach(net.minecraft.world.entity.Entity::discard);
         };
@@ -258,7 +259,7 @@ public final class SporeFieldGameTests {
         boolean swept = com.yayuy.overgrownvegetation.spore.field.SporeSweeping.sweep(level, pos, null,
                 net.minecraft.world.item.ItemStack.EMPTY, net.minecraft.world.entity.EquipmentSlot.MAINHAND);
         int bit = 1 << com.yayuy.overgrownvegetation.spore.field.SporeSweeping.square(pos);
-        int mask = chunk.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.SWEPT_DUST);
+        int mask = OvAttach.getData(chunk, com.yayuy.overgrownvegetation.registry.ModAttachments.SWEPT_DUST);
         int spores = level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, new net.minecraft.world.phys.AABB(pos).inflate(3),
                         e -> e.getItem().is(com.yayuy.overgrownvegetation.registry.ModItems.SPORE.get()))
                 .stream().mapToInt(e -> e.getItem().getCount()).sum();
@@ -274,7 +275,7 @@ public final class SporeFieldGameTests {
         });
         SporeFieldServer.catchUpForTests(level, ticks);
         SporeFieldServer.catchUpForTests(level, ticks); // 印を消すのは写しが新しくなった後の回
-        int maskAfter = chunk.getData(com.yayuy.overgrownvegetation.registry.ModAttachments.SWEPT_DUST);
+        int maskAfter = OvAttach.getData(chunk, com.yayuy.overgrownvegetation.registry.ModAttachments.SWEPT_DUST);
         cleanup.run();
         if (!swept || (mask & bit) == 0) {
             helper.fail("払えない・印が付かない: swept=" + swept + " mask=" + Integer.toBinaryString(mask));

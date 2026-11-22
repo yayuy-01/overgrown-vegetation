@@ -2,9 +2,9 @@ package com.yayuy.overgrownvegetation.client;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.client.difficulty.VisualSettingsScreen;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.Mod;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.ModContainer;
+import net.minecraftforge.fml.common.Mod;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 
 /**

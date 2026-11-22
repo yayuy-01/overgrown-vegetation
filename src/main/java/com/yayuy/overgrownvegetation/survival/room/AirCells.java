@@ -14,9 +14,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.TagsUpdatedEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.TagsUpdatedEvent;
 
 /**
  * 1 マスが空気を通すか(2026-11-13 段 2a)。ブロックの状態ごとに 1 バイトに縮めて覚える。
@@ -33,7 +33,7 @@ import net.neoforged.neoforge.event.TagsUpdatedEvent;
  * 自然の壁: タグ {@code overgrown_vegetation:room_natural_wall}(石・深層岩・鉱石・砂利・ネザーラックなど)に入るブロック。
  * 境界がこれだけの空間は部屋にしない(自然の洞窟の袋。{@link com.yayuy.overgrownvegetation.data.RoomSpec#requireBuiltWall})。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class AirCells {
 
     /** 東西(X)に沿った流れをふさぐ。 */

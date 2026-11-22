@@ -22,9 +22,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * 崖・急斜面の汚染の巡回(2026-11-20)。汚染の段が変わったときの呼び口は無いので、プレイヤーのまわりのチャンクを少しずつ見て、
@@ -38,7 +39,7 @@ import net.neoforged.neoforge.event.tick.LevelTickEvent;
  * </ul>
  * 一度生やしたチャンクは、その段ではもう見ない(押し返して取った根は生え直さない【仮】)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class CliffCorruption {
     private CliffCorruption() {
     }
@@ -124,14 +125,14 @@ public final class CliffCorruption {
     }
 
     /** 生やした段の印(チャンク → ビット: 1 = 縄・2 = 嚢)。オーバーワールドに保存。 */
-    public static final class Data extends SavedData {
+    public static final class Data extends OvSavedData {
         static final String ID = "overgrown_vegetation_cliff";
-        static final SavedData.Factory<Data> FACTORY = new SavedData.Factory<>(Data::new, (tag, reg) -> load(tag), null);
+        static final OvSavedData.Factory<Data> FACTORY = new OvSavedData.Factory<>(Data::new, (tag, reg) -> load(tag), null);
 
         final Long2ByteOpenHashMap done = new Long2ByteOpenHashMap();
 
         public static Data get(ServerLevel level) {
-            return level.getDataStorage().computeIfAbsent(FACTORY, ID);
+            return level.getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
         }
 
         byte get(ChunkPos c) {

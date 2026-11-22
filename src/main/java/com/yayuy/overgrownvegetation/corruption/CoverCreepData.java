@@ -16,14 +16,15 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.BlockEvent;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.level.BlockEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 
 import java.util.HashMap;
 import java.util.Map;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * <b>這い上がる苔の記録</b>(案 H の 28、2026-11-01 ユーザー指定)。帯が出るのは<b>覆われたマスに接して新しく置かれた</b>ブロックだけ
@@ -40,7 +41,7 @@ import java.util.Map;
  *     (入り直しても途中から続く)</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class CoverCreepData {
 
     /** 送り残し(次元 → チャンク → マス → 値。値が {@link #REMOVED_MARK} なら消す)。サーバーのスレッドだけが触る。 */
@@ -103,7 +104,7 @@ public final class CoverCreepData {
         }
         LevelChunk chunk = level.getChunk(pos.getX() >> 4, pos.getZ() >> 4);
         long value = level.getGameTime() << 6 | sides;
-        chunk.getData(ModAttachments.COVER_CREEP.get()).put(pos.asLong(), value);
+        OvAttach.getData(chunk, ModAttachments.COVER_CREEP.get()).put(pos.asLong(), value);
         chunk.setUnsaved(true);
         pending(level, chunk.getPos()).put(pos.asLong(), value);
         CoverCreepChain.track(level, chunk.getPos().toLong(), level.getGameTime() + CoverCreepChain.durationTicks());
@@ -144,7 +145,7 @@ public final class CoverCreepData {
                     || !CorruptionRegistry.canCorrupt(level, n, state)) {
                 continue;
             }
-            Long2LongOpenHashMap map = chunk.getData(ModAttachments.COVER_CREEP.get());
+            Long2LongOpenHashMap map = OvAttach.getData(chunk, ModAttachments.COVER_CREEP.get());
             long key = n.asLong();
             int bit = 1 << d.ordinal();
             long value;
@@ -170,7 +171,7 @@ public final class CoverCreepData {
         if (chunk == null) {
             return Long.MIN_VALUE;
         }
-        Long2LongOpenHashMap map = chunk.getExistingData(ModAttachments.COVER_CREEP.get()).orElse(null);
+        Long2LongOpenHashMap map = OvAttach.getExistingData(chunk, ModAttachments.COVER_CREEP.get()).orElse(null);
         return map == null ? Long.MIN_VALUE : map.getOrDefault(pos.asLong(), Long.MIN_VALUE);
     }
 
@@ -186,14 +187,14 @@ public final class CoverCreepData {
         remove(level, pos);
         LevelChunk chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
         if (chunk != null) {
-            chunk.getData(ModAttachments.COVER_PEELED.get()).put(pos.asLong(), level.getGameTime());
+            OvAttach.getData(chunk, ModAttachments.COVER_PEELED.get()).put(pos.asLong(), level.getGameTime());
             chunk.setUnsaved(true);
         }
     }
 
     /** 剥がしてから猶予の間か。過ぎた印はここで捨てる。 */
     public static boolean inPeelGrace(ServerLevel level, LevelChunk chunk, BlockPos pos) {
-        Long2LongOpenHashMap peeled = chunk.getExistingData(ModAttachments.COVER_PEELED.get()).orElse(null);
+        Long2LongOpenHashMap peeled = OvAttach.getExistingData(chunk, ModAttachments.COVER_PEELED.get()).orElse(null);
         if (peeled == null || !peeled.containsKey(pos.asLong())) {
             return false;
         }
@@ -208,7 +209,7 @@ public final class CoverCreepData {
     /** GameTest 用: そのマスの記録の時刻を {@code ticks} 前へずらし、次の {@link CoverCreepChain#sweep} で見させる(時間を進める代わり)。 */
     public static void ageForTest(ServerLevel level, BlockPos pos, long ticks) {
         LevelChunk chunk = level.getChunk(pos.getX() >> 4, pos.getZ() >> 4);
-        Long2LongOpenHashMap map = chunk.getData(ModAttachments.COVER_CREEP.get());
+        Long2LongOpenHashMap map = OvAttach.getData(chunk, ModAttachments.COVER_CREEP.get());
         if (map.containsKey(pos.asLong())) {
             long v = map.get(pos.asLong());
             map.put(pos.asLong(), (startTick(v) - ticks) << 6 | sides(v));
@@ -239,7 +240,7 @@ public final class CoverCreepData {
         if (chunk == null) {
             return;
         }
-        Long2LongOpenHashMap map = chunk.getExistingData(ModAttachments.COVER_CREEP.get()).orElse(null);
+        Long2LongOpenHashMap map = OvAttach.getExistingData(chunk, ModAttachments.COVER_CREEP.get()).orElse(null);
         if (map == null || !map.containsKey(pos.asLong())) {
             return;
         }
@@ -284,7 +285,7 @@ public final class CoverCreepData {
 
     /** そのチャンクを見始めたプレイヤーへ記録をまるごと送る。 */
     public static void sendAll(ServerPlayer player, LevelChunk chunk) {
-        Long2LongOpenHashMap map = chunk.getExistingData(ModAttachments.COVER_CREEP.get()).orElse(null);
+        Long2LongOpenHashMap map = OvAttach.getExistingData(chunk, ModAttachments.COVER_CREEP.get()).orElse(null);
         if (map == null || map.isEmpty()) {
             return;
         }
@@ -293,7 +294,7 @@ public final class CoverCreepData {
 
     /** 届いた記録をクライアントのチャンクへ取り込む。 */
     public static void accept(LevelChunk chunk, CoverCreepPayload p) {
-        Long2LongOpenHashMap map = chunk.getData(ModAttachments.COVER_CREEP.get());
+        Long2LongOpenHashMap map = OvAttach.getData(chunk, ModAttachments.COVER_CREEP.get());
         if (p.remove()) {
             for (long k : p.positions()) {
                 map.remove(k);

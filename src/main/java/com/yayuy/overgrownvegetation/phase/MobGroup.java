@@ -9,10 +9,10 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.TagsUpdatedEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.TagsUpdatedEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -187,7 +187,7 @@ public enum MobGroup {
      * クライアント側({@code CLIENT_PACKET_RECEIVED})でも、原因を問わず捨てる(余計に捨てても引き直すだけ)。
      * 優先度を最高にして、ほかの受け手がこのイベントの中で {@link #of(EntityType)} を引いても古い答えを見ないようにする。
      */
-    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
     public static final class Events {
         @SubscribeEvent(priority = EventPriority.HIGHEST)
         public static void onTagsUpdated(TagsUpdatedEvent event) {

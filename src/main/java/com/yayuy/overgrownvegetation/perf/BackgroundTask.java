@@ -3,11 +3,11 @@ package com.yayuy.overgrownvegetation.perf;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.gametest.framework.GameTestServer;
 import net.minecraft.server.MinecraftServer;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +38,7 @@ import java.util.function.Supplier;
  * <p>GameTest のサーバーでは<b>その場で</b>計算して当てはめる(別スレッドを待つとテストの判定がずれる)。
  * 別スレッドの道そのものは {@code PerfGameTests} が {@link #asyncEvenInTests} を付けた仕事で確かめる。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class BackgroundTask<R> {
 
     static final String THREAD_NAME = "Overgrown Vegetation background";

@@ -1,11 +1,11 @@
 package com.yayuy.overgrownvegetation.registry;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
-import net.neoforged.neoforge.items.wrapper.InvWrapper;
+import net.minecraftforge.items.wrapper.InvWrapper;
 
 /**
  * ブロックの能力(Capability)登録。ホッパー・ドロッパー・他 MOD のパイプ類は NeoForge の

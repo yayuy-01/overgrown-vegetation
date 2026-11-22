@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.config;
 
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.common.ForgeConfigSpec;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
@@ -8,36 +8,36 @@ import org.apache.commons.lang3.tuple.Pair;
  */
 public final class OvergrownVegetationConfig {
 
-    public static final ModConfigSpec SPEC;
+    public static final ForgeConfigSpec SPEC;
     public static final Common COMMON;
 
     static {
-        Pair<Common, ModConfigSpec> pair = new ModConfigSpec.Builder().configure(Common::new);
+        Pair<Common, ForgeConfigSpec> pair = new ForgeConfigSpec.Builder().configure(Common::new);
         COMMON = pair.getLeft();
         SPEC = pair.getRight();
     }
 
     public static final class Common {
         /** ゲーム内容: 大きな襲撃で、同時に出ている植物側の Mob の上限(−1 = 設計データ director.json の値を使う)。2026-11-14 ユーザー「mod の設定タブで変えれるように」。 */
-        public final ModConfigSpec.IntValue largeRaidMaxAlive;
+        public final ForgeConfigSpec.IntValue largeRaidMaxAlive;
         /** ゲーム内容: 蠢く壁の進む速さ(ブロック/秒)。2026-11-16 ユーザー「ちょっとだけ今より遅く」で 5.0(ダッシュ約 5.6 の 9 割)【仮】。どの向きの通路でも同じ速さ。 */
-        public final ModConfigSpec.DoubleValue creepingWallSpeed;
+        public final ForgeConfigSpec.DoubleValue creepingWallSpeed;
         /** 汚染が広がる半径(ブロック)。 */
-        public final ModConfigSpec.IntValue corruptionRadius;
+        public final ForgeConfigSpec.IntValue corruptionRadius;
         /** 1 回の処理で置き換える最大ブロック数(汚染が進むにつれてこの値から増えていく、開始値)。 */
-        public final ModConfigSpec.IntValue blocksPerCycle;
+        public final ForgeConfigSpec.IntValue blocksPerCycle;
         /**
          * {@code blocksPerCycle} が汚染の進行とともに増えていく上限値。
          * {@code blocksPerCycleGrowthPer} が 0 の場合はこの値まで増えず常に {@code blocksPerCycle} のまま。
          */
-        public final ModConfigSpec.IntValue blocksPerCycleMax;
+        public final ForgeConfigSpec.IntValue blocksPerCycleMax;
         /**
          * この個体(blight_fern・汚染死体ブロックそれぞれ)がこれまでに実際に汚染したブロック数が
          * この値だけ増えるたびに、1サイクルで置き換える最大ブロック数が1増える
          * ({@code blocksPerCycleMax} が上限)。汚染範囲が広がるほど同時に置き換わる数も増えていく効果。
          * 0 にすると無効(常に {@code blocksPerCycle} のまま増えない、旧仕様)。
          */
-        public final ModConfigSpec.IntValue blocksPerCycleGrowthPer;
+        public final ForgeConfigSpec.IntValue blocksPerCycleGrowthPer;
         /**
          * 実効 {@code blocksPerCycle}(上記の伸び分を含めた後)にさらに掛ける倍率の<b>全ワールド共通の既定値</b>。
          * 2026-09-25 から倍率はワールドごと(ワールドの難易度「汚染シダの汚染速度」、
@@ -47,17 +47,17 @@ public final class OvergrownVegetationConfig {
          * blight_fern・汚染死体ブロックの両方に効く({@link com.yayuy.overgrownvegetation.corruption.CorruptionSpreader#effectiveBlocksPerCycle}
          * で一括して掛かる)。1.0 で無効(旧仕様と同じ)。
          */
-        public final ModConfigSpec.DoubleValue corruptionSpeedMultiplier;
+        public final ForgeConfigSpec.DoubleValue corruptionSpeedMultiplier;
         /** 1 回の処理で調べる最大ブロック数(重い環境では下げる)。 */
-        public final ModConfigSpec.IntValue checksPerCycle;
+        public final ForgeConfigSpec.IntValue checksPerCycle;
         /** 何 tick おきに処理するか(20 = 1 秒)。 */
-        public final ModConfigSpec.IntValue tickInterval;
+        public final ForgeConfigSpec.IntValue tickInterval;
         /**
          * 汚染シダ(および汚染水草)が着地して静止している間、重力・摩擦・衝突の計算({@code travel})を
          * 飛ばすか。動かない植物なので結果は変わらず、1 体あたりの tick コストの大半が消える。
          * 足元のブロックが消えた・押された・水流に乗った tick は通常の物理に戻る。
          */
-        public final ModConfigSpec.BooleanValue blightFernDormantPhysics;
+        public final ForgeConfigSpec.BooleanValue blightFernDormantPhysics;
         /**
          * 露出面のあるブロックを置き換えたあと、そこから何ブロック奥(露出していない内部)まで
          * 置き換えるか(blight_fern が使う値)。0 なら露出面のあるブロックのみになる。
@@ -65,63 +65,63 @@ public final class OvergrownVegetationConfig {
          * 常に 0(露出面のみ)固定 — {@link com.yayuy.overgrownvegetation.corruption.CorruptionSpreader}
          * 参照。
          */
-        public final ModConfigSpec.IntValue blightFernInteriorDepth;
+        public final ForgeConfigSpec.IntValue blightFernInteriorDepth;
         /**
          * 起点(Mobの足元)を中心に、半径何ブロックを触手ではなく隙間なく塗りつぶすか
          * (木の根元が密集しているイメージ)。0なら無効(従来通り最初から触手だけで広がる)。
          * 汚染死体ブロックはこの設定を使わず常に0固定 — blight_fern だけが使う値。
          */
-        public final ModConfigSpec.IntValue tendrilCoreRadius;
+        public final ForgeConfigSpec.IntValue tendrilCoreRadius;
         /**
          * コア内部の起点(足元)セルだけが最初に同時分岐する方向の本数。コアの他のマスは
          * 常に1方向だけへ(1ブロックずつランダムな方向へ)進むので、この値がコア全体の
          * 「筋」の本数を事実上決める(値が大きいほど、起点から放射状に伸びる独立した筋が増える)。
          */
-        public final ModConfigSpec.IntValue coreInitialBranches;
+        public final ForgeConfigSpec.IntValue coreInitialBranches;
         /** 起点から最初に伸ばす触手(汚染の筋)の本数。コア(上記)が有効な場合はコアの縁から伸びる。 */
-        public final ModConfigSpec.IntValue tendrilInitialCount;
+        public final ForgeConfigSpec.IntValue tendrilInitialCount;
         /** 触手が1ブロック伸びるたびに、その場所から新しい触手が分岐する確率(0.0〜1.0)。 */
-        public final ModConfigSpec.DoubleValue tendrilBranchChance;
+        public final ForgeConfigSpec.DoubleValue tendrilBranchChance;
         /** 同時に存在できる触手の最大本数(分岐しすぎて重くなるのを防ぐ上限)。 */
-        public final ModConfigSpec.IntValue tendrilMaxActive;
+        public final ForgeConfigSpec.IntValue tendrilMaxActive;
         /** 触手が直前と同じ方向へまっすぐ伸び続けようとする確率(0.0〜1.0)。外れると横向きに曲がる。 */
-        public final ModConfigSpec.DoubleValue tendrilStraightChance;
+        public final ForgeConfigSpec.DoubleValue tendrilStraightChance;
         /**
          * 触手が行き止まりに達したとき、経路を何ブロック分まで後戻りして別方向を試せるか
          * (触手1本あたりの累計予算。後戻り自体は置き換えを起こさない)。0なら後戻りせず
          * 即座に消滅する(旧仕様)。大きすぎるとほぼ全域を塗りつぶすようになるため、
          * 「まばらな筋」を保ちたい場合は小さめの値を推奨。
          */
-        public final ModConfigSpec.IntValue tendrilBacktrackBudget;
+        public final ForgeConfigSpec.IntValue tendrilBacktrackBudget;
         /** チェストなどの BlockEntity を持つブロックも壊して汚染するか。 */
-        public final ModConfigSpec.BooleanValue corruptBlockEntities;
+        public final ForgeConfigSpec.BooleanValue corruptBlockEntities;
         /**
          * 過繫茂したドア/チェスト/樽が蔦・コケにびっしり覆われた状態(段階 3)のとき、開けようとして
          * 開けられない確率。段階 1・2 はこの 1/3・2/3。段階 0(ハサミで剥がした直後・置き直した直後)は必ず開く。
          */
-        public final ModConfigSpec.DoubleValue overgrownContainerStuckChanceAtMax;
+        public final ForgeConfigSpec.DoubleValue overgrownContainerStuckChanceAtMax;
         /** 過繫茂したドア/チェスト/樽の覆われ具合が、ランダムティックごとに 1 段階進む確率。 */
-        public final ModConfigSpec.DoubleValue overgrownContainerRegrowChance;
+        public final ForgeConfigSpec.DoubleValue overgrownContainerRegrowChance;
         /** 読み込まれていない間に育つはずだった汚染苗木を、チャンク読み込み時に追いつかせるか({@code worldgen/SaplingOfflineGrowth})。 */
-        public final ModConfigSpec.BooleanValue saplingOfflineGrowth;
+        public final ForgeConfigSpec.BooleanValue saplingOfflineGrowth;
         /** 追いつき成長: 設置からこの tick 数以上経った苗木を、チャンク読み込み時に育てる。 */
-        public final ModConfigSpec.IntValue saplingOfflineGrowthTicks;
+        public final ForgeConfigSpec.IntValue saplingOfflineGrowthTicks;
         /** 追いつき成長: 1 tick に育てる本数の上限。 */
-        public final ModConfigSpec.IntValue saplingOfflineGrowthPerTick;
+        public final ForgeConfigSpec.IntValue saplingOfflineGrowthPerTick;
         /**
          * 汚染が溶岩({@code minecraft:lava}。source / flowing の両方)に達したとき、
          * 玄武岩({@code minecraft:basalt})へ固めるか。false なら溶岩はこれまで通り
          * 汚染できない障害物として扱われ、そこで筋が途切れる。水その他の液体は常に対象外。
          */
-        public final ModConfigSpec.BooleanValue convertLavaToBasalt;
+        public final ForgeConfigSpec.BooleanValue convertLavaToBasalt;
         /** 置き換え時にパーティクル/音を出す確率(0.0〜1.0)。 */
-        public final ModConfigSpec.DoubleValue effectChance;
+        public final ForgeConfigSpec.DoubleValue effectChance;
         /**
          * ブロックを汚染する際、本来の対応表({@link com.yayuy.overgrownvegetation.corruption.CorruptionRegistry})の
          * 変換先を無視して、汎用の「汚染ブロック」({@link com.yayuy.overgrownvegetation.registry.ModBlocks#OVERGROWN_BLOCK})に
          * 差し替える確率(0.0〜1.0)。元がどんなブロックであっても対象になる。
          */
-        public final ModConfigSpec.DoubleValue randomBlockChance;
+        public final ForgeConfigSpec.DoubleValue randomBlockChance;
         /**
          * 石系ブロック(石・深層岩・安山岩・閃緑岩・花崗岩・丸石・鍾乳石ブロックなど。
          * {@link com.yayuy.overgrownvegetation.corruption.CorruptionRegistry} が {@code overgrown_stone} 系へ
@@ -129,244 +129,244 @@ public final class OvergrownVegetationConfig {
          * (過繁茂した草ブロック)へ差し替える確率(0.0〜1.0)。差し替わった場合、真上が空気なら
          * 露出面抽選の確率に関係なく必ず上面へ下草類を1つ生やす。
          */
-        public final ModConfigSpec.DoubleValue stoneToGrassChance;
+        public final ForgeConfigSpec.DoubleValue stoneToGrassChance;
         /**
          * 汚染された土({@code overgrown_dirt})が、隣に汚染された草ブロックが無くても、
          * ランダムティックのたびに自分から過繁茂した草ブロックへ変わる確率(0.0〜1.0)。
          * 0.0 にすると自発的な草化は起きず、隣接する草ブロックからの伝染でのみ草になる。
          */
-        public final ModConfigSpec.DoubleValue dirtToGrassChance;
+        public final ForgeConfigSpec.DoubleValue dirtToGrassChance;
         /**
          * 触手が次に進む方向を選ぶ際、隣に既存の木の原木({@code #minecraft:logs})があれば
          * その方向を最優先にするか。true にすると汚染が既存の木を優先的に飲み込んでいく
          * ({@link com.yayuy.overgrownvegetation.corruption.CorruptionSpreader} 参照)。
          */
-        public final ModConfigSpec.BooleanValue preferExistingTrees;
+        public final ForgeConfigSpec.BooleanValue preferExistingTrees;
         /**
          * 触手が既存の木の原木({@code #minecraft:logs})を汚染したとき、その木に繋がっていた
          * 自然生成の葉(手で置いていない葉)も枯らして消すか。true にすると「既存の木を丸ごと
          * 枯らして新しい木の土壌にする」という汚染の見た目になり、宙に浮いた葉が残らない。
          */
-        public final ModConfigSpec.BooleanValue decayCorruptedTreeLeaves;
+        public final ForgeConfigSpec.BooleanValue decayCorruptedTreeLeaves;
         /**
          * 汚染の筋(触手)が1ブロック汚染するたびに、そこから巨大樹の根と同じ形の「アーチ」
          * ({@code overgrown_log} の正弦カーブの橋)を1本生やす確率(0.0〜1.0)。0.0 で無効。
          * あくまで装飾なので低めに。
          */
-        public final ModConfigSpec.DoubleValue corruptionArchChance;
+        public final ForgeConfigSpec.DoubleValue corruptionArchChance;
         /** 装飾アーチ / 川の橋の水平方向の長さの最小値(ブロック)。実際の長さはこの範囲でランダムに変動する。 */
-        public final ModConfigSpec.IntValue corruptionArchMinLength;
+        public final ForgeConfigSpec.IntValue corruptionArchMinLength;
         /** 装飾アーチの水平方向の長さの最大値(ブロック)。 */
-        public final ModConfigSpec.IntValue corruptionArchMaxLength;
+        public final ForgeConfigSpec.IntValue corruptionArchMaxLength;
         /** アーチの各ステップで置く塊の半径の最小値(長さが最小のときの太さ)。0=1マス、1≒十字断面、2〜=太い根。 */
-        public final ModConfigSpec.IntValue corruptionArchMinThickness;
+        public final ForgeConfigSpec.IntValue corruptionArchMinThickness;
         /** アーチの各ステップで置く塊の半径の最大値(長さが最大のときの太さ)。太さはランダムではなくアーチの長さに比例して min〜max を取る。 */
-        public final ModConfigSpec.IntValue corruptionArchMaxThickness;
+        public final ForgeConfigSpec.IntValue corruptionArchMaxThickness;
         /** アーチの背を {@code overgrown_grass_block} に変えて草・下草・苗木を生やす、背の列1つあたりの確率。 */
-        public final ModConfigSpec.DoubleValue corruptionArchGrowthChance;
+        public final ForgeConfigSpec.DoubleValue corruptionArchGrowthChance;
         /** アーチの抽選のうち、溝(渓谷)をまたぐ上下逆のアーチを試す割合。溝が無ければ通常のアーチになる。 */
-        public final ModConfigSpec.DoubleValue corruptionRavineArchShare;
+        public final ForgeConfigSpec.DoubleValue corruptionRavineArchShare;
         /** 上下逆のアーチを架ける「溝」と認める深さ(縁から下へ、地面も液体も無い最小のマス数)。 */
-        public final ModConfigSpec.IntValue corruptionRavineArchMinDepth;
+        public final ForgeConfigSpec.IntValue corruptionRavineArchMinDepth;
         /**
          * 触手が水でブロックされたとき、対岸まで根のアーチと同じ形の橋を架けて渡ろうとする確率
          * (0.0〜1.0)。0.0 で無効(従来どおり水で止まる)。川で汚染が止まらないようにするための機能。
          */
-        public final ModConfigSpec.DoubleValue corruptionBridgeChance;
+        public final ForgeConfigSpec.DoubleValue corruptionBridgeChance;
         /** 橋で渡れる水面の最大の幅(ブロック)。これより広い水(海など)は渡らない。 */
-        public final ModConfigSpec.IntValue corruptionBridgeMaxLength;
+        public final ForgeConfigSpec.IntValue corruptionBridgeMaxLength;
         /** 1 個体(blight_fern・汚染死体ブロック)が架けられる橋の最大本数。水辺に橋が並びすぎないための上限。 */
-        public final ModConfigSpec.IntValue corruptionBridgeMaxCount;
+        public final ForgeConfigSpec.IntValue corruptionBridgeMaxCount;
         /**
          * 死に由来する汚染シダ(胞子感染死・G1 の過繁茂滞在死・胞子感染3 の期限切れで死んだプレイヤー)の
          * 間隔(2026-09-25、ユーザー承認の密度上限)。死んだ地点からこの距離(ブロック、箱)以内に
          * 汚染シダ / 汚染水草が 1 体でもいれば湧かせない。0 で無効。
          * {@link com.yayuy.overgrownvegetation.entity.BlightFernPlacement#spawnFromDeath} 参照。
          */
-        public final ModConfigSpec.IntValue blightFernDeathSpawnMinSeparation;
+        public final ForgeConfigSpec.IntValue blightFernDeathSpawnMinSeparation;
         /**
          * 死に由来する汚染シダの密度の上限。死んだ地点の周囲 {@link #blightFernDeathSpawnNearbyRadius}
          * 以内に既にこの数以上いれば湧かせない。0 で無効。
          */
-        public final ModConfigSpec.IntValue blightFernDeathSpawnMaxNearby;
+        public final ForgeConfigSpec.IntValue blightFernDeathSpawnMaxNearby;
         /** {@link #blightFernDeathSpawnMaxNearby} の判定に使う、死んだ地点からの半径(ブロック、箱)。 */
-        public final ModConfigSpec.IntValue blightFernDeathSpawnNearbyRadius;
+        public final ForgeConfigSpec.IntValue blightFernDeathSpawnNearbyRadius;
         /** 汚染時に露出面へシダ・苔・蔦などの装飾植物を生やすか。 */
-        public final ModConfigSpec.BooleanValue spawnGrowthPlants;
+        public final ForgeConfigSpec.BooleanValue spawnGrowthPlants;
         /** 露出面 1 つあたりに装飾植物を生やす確率(0.0〜1.0)。 */
-        public final ModConfigSpec.DoubleValue growthChance;
+        public final ForgeConfigSpec.DoubleValue growthChance;
         /** 上面に植物を生やすと決まった際、高さ2ブロックの植物にする確率(0.0〜1.0)。 */
-        public final ModConfigSpec.DoubleValue tallGrowthChance;
+        public final ForgeConfigSpec.DoubleValue tallGrowthChance;
         /** 汚染した草・土の露出した上面に、装飾植物の代わりに苗木を植えることがあるか。 */
-        public final ModConfigSpec.BooleanValue spawnTrees;
+        public final ForgeConfigSpec.BooleanValue spawnTrees;
         /** 上面が草・土だった場合に苗木を植える確率(0.0〜1.0)。growthChance にさらに掛かる。 */
-        public final ModConfigSpec.DoubleValue treeChance;
+        public final ForgeConfigSpec.DoubleValue treeChance;
         /**
          * 木の間隔(ブロック)。この大きさの格子 1 マスに木は 1 本まで(位置はシードで決まる)。0 で前の挙動(treeChance の確率だけ)。
          * {@link com.yayuy.overgrownvegetation.corruption.TreeSpacing}。
          */
-        public final ModConfigSpec.IntValue treeSpacing;
+        public final ForgeConfigSpec.IntValue treeSpacing;
         /** 格子のマスが木の無い空き地になる確率。 */
-        public final ModConfigSpec.DoubleValue treeClearingChance;
+        public final ForgeConfigSpec.DoubleValue treeClearingChance;
         /** 林冠の穴(木を植えない輪)を置く確率({@link com.yayuy.overgrownvegetation.corruption.TreeSpacing#inCanopyGap})。 */
-        public final ModConfigSpec.DoubleValue treeCanopyGapChance;
+        public final ForgeConfigSpec.DoubleValue treeCanopyGapChance;
         /** 樹冠の譲り合い(クラウン・シャイネス)の隙間(ブロック。0 で無し。{@link com.yayuy.overgrownvegetation.worldgen.ForcedTreeFeature}、2026-10-17)。 */
-        public final ModConfigSpec.IntValue crownShynessGap;
-        public final ModConfigSpec.IntValue crownShynessHeight;
-        public final ModConfigSpec.BooleanValue branchJointTaper;
-        public final ModConfigSpec.BooleanValue branchJointFill;
+        public final ForgeConfigSpec.IntValue crownShynessGap;
+        public final ForgeConfigSpec.IntValue crownShynessHeight;
+        public final ForgeConfigSpec.BooleanValue branchJointTaper;
+        public final ForgeConfigSpec.BooleanValue branchJointFill;
         /** 汚染した上面に「未発達の茂み」({@code undeveloped_bush})を生やすことがあるか。 */
-        public final ModConfigSpec.BooleanValue spawnUndevelopedBush;
+        public final ForgeConfigSpec.BooleanValue spawnUndevelopedBush;
         /** 上面に「未発達の茂み」を生やす確率(0.0〜1.0)。growthChance にさらに掛かる。 */
-        public final ModConfigSpec.DoubleValue undevelopedBushChance;
+        public final ForgeConfigSpec.DoubleValue undevelopedBushChance;
         /** 林床(2026-11-01、密林だけ): 下草の抽選の当たりのうち、小葉類の敷物を敷く割合。 */
-        public final ModConfigSpec.DoubleValue floorCarpetChance;
+        public final ForgeConfigSpec.DoubleValue floorCarpetChance;
         /** 林床: 敷物の上に小葉類の株(敷物付き)を立てる確率。 */
-        public final ModConfigSpec.DoubleValue floorCarpetPlantChance;
+        public final ForgeConfigSpec.DoubleValue floorCarpetPlantChance;
         /** 林床: 敷物にならなかった下草の抽選で、小葉類の株(敷物なし)を立てる確率。 */
-        public final ModConfigSpec.DoubleValue floorLycopsidChance;
+        public final ForgeConfigSpec.DoubleValue floorLycopsidChance;
         /** 林床: 小葉類の株のうち、2 段の立ち上がる小葉類にする割合。 */
-        public final ModConfigSpec.DoubleValue floorUprightShare;
+        public final ForgeConfigSpec.DoubleValue floorUprightShare;
         /** 林床: 下草の抽選でメドゥロサ(高さ 2〜3)を立てる確率。 */
-        public final ModConfigSpec.DoubleValue floorMedullosaChance;
+        public final ForgeConfigSpec.DoubleValue floorMedullosaChance;
         /** 林床: 1 チャンクの泥炭の斑の最大数(1〜この数。低地・水辺だけで実る)。 */
-        public final ModConfigSpec.IntValue floorPeatPatches;
+        public final ForgeConfigSpec.IntValue floorPeatPatches;
         /** 林床: 泥炭の斑の内側のマスを浅い水たまりにする確率。 */
-        public final ModConfigSpec.DoubleValue floorPeatPoolChance;
+        public final ForgeConfigSpec.DoubleValue floorPeatPoolChance;
         /** 林床: 倒木の枠(1 チャンクに 2 つ)それぞれに倒木を置く確率。 */
-        public final ModConfigSpec.DoubleValue floorFallenLogChance;
+        public final ForgeConfigSpec.DoubleValue floorFallenLogChance;
         /** 過繫茂した木の葉ブロック1個ごとに、真下へ「大きな未発達な果実」をぶら下げる確率。 */
-        public final ModConfigSpec.DoubleValue undevelopedFruitChance;
+        public final ForgeConfigSpec.DoubleValue undevelopedFruitChance;
         /** 巨大樹の葉ブロック1個ごとに、真下へ「大きな未発達な果実」をぶら下げる確率。 */
-        public final ModConfigSpec.DoubleValue giantTreeUndevelopedFruitChance;
+        public final ForgeConfigSpec.DoubleValue giantTreeUndevelopedFruitChance;
         /** 汚染時に {@code overgrown_bush}(過繁茂した茂み)のいびつな塊を生成するか。 */
-        public final ModConfigSpec.BooleanValue spawnLeafClumps;
+        public final ForgeConfigSpec.BooleanValue spawnLeafClumps;
         /** ブロックを1つ汚染するたびに茂みの塊を1つ生成する確率(0.0〜1.0)。 */
-        public final ModConfigSpec.DoubleValue leafClumpChance;
+        public final ForgeConfigSpec.DoubleValue leafClumpChance;
         /**
          * 壁面(側面の露出面)に汚染植物が生えるとき、そこに壁から突き出す茂みの塊も生成する確率
          * (0.0〜1.0)。地上の {@link #leafClumpChance} より低めにしておくことが前提
          * (壁面ではさらに growthChance の抽選にも通った面でしか呼ばれない)。
          */
-        public final ModConfigSpec.DoubleValue wallLeafClumpChance;
+        public final ForgeConfigSpec.DoubleValue wallLeafClumpChance;
         /**
          * {@code overgrown_bush}(過繁茂した茂み)の中に入っている間の水平移動速度の倍率
          * (0.0〜1.0)。小さいほど強く減速する。1.0 で減速なし。縦方向は 0.75 固定
          * (バニラのスイートベリーの茂みと同じ)。
          */
-        public final ModConfigSpec.DoubleValue bushSlowMultiplier;
+        public final ForgeConfigSpec.DoubleValue bushSlowMultiplier;
         /**
          * 生成した茂みの列(X/Z)ごとに、その上面に下草(汚染時の露出上面と同じ抽選、
          * {@link com.yayuy.overgrownvegetation.corruption.CorruptionGrowth#randomTop})を1つ生やす確率
          * (0.0〜1.0)。0.0 で茂みからは下草が生えなくなる。
          */
-        public final ModConfigSpec.DoubleValue bushUndergrowthChance;
+        public final ForgeConfigSpec.DoubleValue bushUndergrowthChance;
         /** 汚染で下面(天井)に垂れ植物を生やす際、{@code overgrown_glow_vines}(光るツタ)にすることがあるか。 */
-        public final ModConfigSpec.BooleanValue spawnGlowVines;
+        public final ForgeConfigSpec.BooleanValue spawnGlowVines;
         /** 下面に垂れ植物を生やす際、通常の垂れ蔦の代わりに光るツタの先端を生やす確率(0.0〜1.0)。 */
-        public final ModConfigSpec.DoubleValue glowVinesChance;
+        public final ForgeConfigSpec.DoubleValue glowVinesChance;
         /**
          * 地下(洞窟)で下面に垂れ植物を生やす際、{@code glowVinesChance} に掛ける倍率。
          * 光るツタは洞窟の明かりなので、地上よりかなり多くする(1.0 で地上と同じ)。
          */
-        public final ModConfigSpec.DoubleValue glowVinesCaveMultiplier;
+        public final ForgeConfigSpec.DoubleValue glowVinesCaveMultiplier;
         /** 汚染時に露出面(上面・側面・下面)へ、薄く広がる苔({@code overgrown_moss_layer})を生やすか。 */
-        public final ModConfigSpec.BooleanValue spawnMossLayer;
+        public final ForgeConfigSpec.BooleanValue spawnMossLayer;
         /**
          * 汚染された各露出面につき、薄く広がる苔({@code overgrown_moss_layer})を1面ぶん生やす確率
          * (0.0〜1.0)。多面ブロックなので、既に別方向の苔が付いているマスにも面を追加する。
          * 通常の下草・蔦の抽選とは独立(苔が付いても外れた面には別途通常の下草が抽選される)。
          */
-        public final ModConfigSpec.DoubleValue mossLayerChance;
+        public final ForgeConfigSpec.DoubleValue mossLayerChance;
         /** 水中を汚染したとき、露出した水の面へ水中の植物(シャジクモ・垂れる根・水面の膜・胞子昆布・浮き藻)を生やすか。 */
-        public final ModConfigSpec.BooleanValue spawnUnderwaterPlants;
+        public final ForgeConfigSpec.BooleanValue spawnUnderwaterPlants;
         /** 水に接した露出<b>上面</b> 1 つあたりにシャジクモ(川・池)を生やす確率(0.0〜1.0)。海の胞子昆布は格子の点だけ(UnderwaterPlants)。 */
-        public final ModConfigSpec.DoubleValue underwaterGrowthChance;
+        public final ForgeConfigSpec.DoubleValue underwaterGrowthChance;
         /** チャンクの地表が汚染ブロックだらけになったら、そのチャンクのバイオームを overgrown に書き換えるか。 */
-        public final ModConfigSpec.BooleanValue convertToOvergrownBiome;
+        public final ForgeConfigSpec.BooleanValue convertToOvergrownBiome;
         /** バイオームを書き換える閾値。チャンク地表(16x16=256列)のうち汚染ブロックが占める割合がこれ以上で書き換える。 */
-        public final ModConfigSpec.DoubleValue overgrownBiomeThreshold;
+        public final ForgeConfigSpec.DoubleValue overgrownBiomeThreshold;
         /**
          * バイオーム書き換えの縁を quart(4 ブロック)単位で塗り分け、隣接する別バイオームとの縫い目を
          * ノイズで波打たせて、チャンク境界に沿った直線・直角の階段を消すか。false ならチャンク単位の一括塗り。
          */
-        public final ModConfigSpec.BooleanValue overgrownBiomeEdgeSmoothing;
+        public final ForgeConfigSpec.BooleanValue overgrownBiomeEdgeSmoothing;
         /**
          * {@link #overgrownBiomeEdgeSmoothing} の波打ちの最大振幅(ブロック)。縫い目は 0〜この値ぶん
          * チャンクの内側へ後退する。大きいほど境界の凹凸が深くなる(4 で 1 quart 列、8 で 2 quart 列が対象)。
          */
-        public final ModConfigSpec.DoubleValue overgrownBiomeEdgeNoise;
+        public final ForgeConfigSpec.DoubleValue overgrownBiomeEdgeNoise;
 
         // ---- 環境の地域マップ({@link com.yayuy.overgrownvegetation.corruption.OvergrowthRegionMap})----
         /** 地域(密林 / 湿地 / 菌湿地帯のひとかたまり)の 1 辺の目安(ブロック)。 */
-        public final ModConfigSpec.IntValue overgrowthRegionSize;
+        public final ForgeConfigSpec.IntValue overgrowthRegionSize;
         /** 地域境界のうねりの強さ(地域サイズに対する割合)。 */
-        public final ModConfigSpec.DoubleValue overgrowthRegionWarp;
+        public final ForgeConfigSpec.DoubleValue overgrowthRegionWarp;
         /** ワールドスポーン周りを必ず密林にする半径(ブロック)。0 で無効。 */
-        public final ModConfigSpec.IntValue spawnJungleRadius;
+        public final ForgeConfigSpec.IntValue spawnJungleRadius;
         /** 地域の境目の移行帯の幅(ブロック)。木・泥・植物が両側の環境で混ざり合う範囲。 */
-        public final ModConfigSpec.IntValue overgrowthRegionBlend;
+        public final ForgeConfigSpec.IntValue overgrowthRegionBlend;
         /** 地域が密林になる重み。 */
-        public final ModConfigSpec.DoubleValue overgrowthVariantWeightJungle;
+        public final ForgeConfigSpec.DoubleValue overgrowthVariantWeightJungle;
         /** 地域が湿地になる重み。 */
-        public final ModConfigSpec.DoubleValue overgrowthVariantWeightSwamp;
+        public final ForgeConfigSpec.DoubleValue overgrowthVariantWeightSwamp;
         /** 地域が菌湿地帯になる重み。 */
-        public final ModConfigSpec.DoubleValue overgrowthVariantWeightFungalSwamp;
+        public final ForgeConfigSpec.DoubleValue overgrowthVariantWeightFungalSwamp;
 
         // ---- 湿地(地域は 10-23 から封印中。浸水・棚田の 23 項目は 2026-11-16 コードの見直しで parked の U11 へ退避した。残りは今も読まれている)----
         /** 湿地系の場所での汚染時の装飾植物(下草・蔦)の生成確率に掛ける倍率。 */
-        public final ModConfigSpec.DoubleValue swampGrowthChanceMultiplier;
+        public final ForgeConfigSpec.DoubleValue swampGrowthChanceMultiplier;
         /** 菌湿地帯での苗木の生成確率(treeChance)に掛ける倍率。 */
-        public final ModConfigSpec.DoubleValue fungalSwampTreeChanceMultiplier;
+        public final ForgeConfigSpec.DoubleValue fungalSwampTreeChanceMultiplier;
         /** 湿地系の場所で元の森の木(バニラの原木)が汚染されたとき、木ごと消滅 / 倒木にするか。 */
-        public final ModConfigSpec.BooleanValue swampTreeFall;
+        public final ForgeConfigSpec.BooleanValue swampTreeFall;
         /** 木を消滅させる代わりに切り株 + 倒木にする確率。 */
-        public final ModConfigSpec.DoubleValue swampFallenTreeChance;
+        public final ForgeConfigSpec.DoubleValue swampFallenTreeChance;
         /** 倒木の各原木の上に薄い苔が付く確率。 */
-        public final ModConfigSpec.DoubleValue swampFallenTreeMossChance;
+        public final ForgeConfigSpec.DoubleValue swampFallenTreeMossChance;
         /** 1 tick に処理する木の本数。 */
-        public final ModConfigSpec.IntValue swampTreeFallPerTick;
+        public final ForgeConfigSpec.IntValue swampTreeFallPerTick;
         /** 密林(従来の過繁茂バイオーム)になる場所でも元の木を倒木 / 消滅させるか。 */
-        public final ModConfigSpec.BooleanValue jungleTreeFall;
+        public final ForgeConfigSpec.BooleanValue jungleTreeFall;
         /** 密林で木を倒木にする確率(残りは消滅)。 */
-        public final ModConfigSpec.DoubleValue jungleFallenTreeChance;
+        public final ForgeConfigSpec.DoubleValue jungleFallenTreeChance;
         /** 湿地系の場所では茂み(overgrown_bush の塊)を生やさないか。 */
-        public final ModConfigSpec.BooleanValue swampNoBushes;
+        public final ForgeConfigSpec.BooleanValue swampNoBushes;
         /** 水中・水面をまたぐ根のアーチの生成確率に掛ける倍率(陸のアーチ = corruptionArchChance に対して)。 */
-        public final ModConfigSpec.DoubleValue waterArchChanceMultiplier;
+        public final ForgeConfigSpec.DoubleValue waterArchChanceMultiplier;
 
         // --- 洞窟の植物・構造物({@link com.yayuy.overgrownvegetation.corruption.CaveGrowth}) ---
         /** 洞窟専用の植物・構造物を有効にするか。 */
-        public final ModConfigSpec.BooleanValue caveGrowth;
+        public final ForgeConfigSpec.BooleanValue caveGrowth;
         /** 地表(葉を除く)よりこの深さ以上低い場所を「洞窟」とみなす。 */
-        public final ModConfigSpec.IntValue caveDepthMargin;
+        public final ForgeConfigSpec.IntValue caveDepthMargin;
         /** 洞窟の汚染ブロック 1 つあたりに構造物を 1 つ建てようとする確率。 */
-        public final ModConfigSpec.DoubleValue caveStructureChance;
+        public final ForgeConfigSpec.DoubleValue caveStructureChance;
         /** 構造物(天井の根 / 蔦のアーチ)の重み。0 で建てない。 */
-        public final ModConfigSpec.IntValue caveArchWeight;
+        public final ForgeConfigSpec.IntValue caveArchWeight;
         /** 密林(ジャングル)の洞窟にも天井のアーチ(根 / 蔦)を建てるか(湿地系の洞窟ではいつも建つ)。 */
-        public final ModConfigSpec.BooleanValue caveRootArchInJungle;
+        public final ForgeConfigSpec.BooleanValue caveRootArchInJungle;
         /** 建てた構造物(根 / 蔦のアーチ)の各ブロックの下面に垂れ植物を添える確率。 */
-        public final ModConfigSpec.DoubleValue caveStructurePlantChance;
+        public final ForgeConfigSpec.DoubleValue caveStructurePlantChance;
         /** 天井の根のアーチ: 水平の長さの下限・上限、垂れ下がり(長さに対する割合)、両端・中央の太さ(塊の半径)。 */
-        public final ModConfigSpec.IntValue caveArchMinSpan;
-        public final ModConfigSpec.IntValue caveArchMaxSpan;
-        public final ModConfigSpec.DoubleValue caveArchDip;
-        public final ModConfigSpec.IntValue caveArchMinThickness;
-        public final ModConfigSpec.IntValue caveArchMaxThickness;
+        public final ForgeConfigSpec.IntValue caveArchMinSpan;
+        public final ForgeConfigSpec.IntValue caveArchMaxSpan;
+        public final ForgeConfigSpec.DoubleValue caveArchDip;
+        public final ForgeConfigSpec.IntValue caveArchMinThickness;
+        public final ForgeConfigSpec.IntValue caveArchMaxThickness;
         /** 天井のアーチが根ではなく巨大な蔦(過繁茂した葉に包まれた蔓)になる割合と、その蔦のアーチの垂れ下がり・葉の厚み・葉の密度。 */
-        public final ModConfigSpec.DoubleValue caveVineArchShare;
-        public final ModConfigSpec.DoubleValue caveVineArchDip;
-        public final ModConfigSpec.IntValue caveVineArchLeafRadius;
-        public final ModConfigSpec.DoubleValue caveVineArchLeafChance;
+        public final ForgeConfigSpec.DoubleValue caveVineArchShare;
+        public final ForgeConfigSpec.DoubleValue caveVineArchDip;
+        public final ForgeConfigSpec.IntValue caveVineArchLeafRadius;
+        public final ForgeConfigSpec.DoubleValue caveVineArchLeafChance;
         /** 壁と壁の隙間に渡る太い蔦(2026-11-07、corruption/VineSpan): オン/オフ・汚染した壁 1 つあたりの確率・ほかの太い蔦との間隔・隙間の幅。 */
-        public final ModConfigSpec.BooleanValue vineSpan;
-        public final ModConfigSpec.DoubleValue vineSpanChance;
+        public final ForgeConfigSpec.BooleanValue vineSpan;
+        public final ForgeConfigSpec.DoubleValue vineSpanChance;
         /** 洞窟の壁を這う汚染(spore/field/CaveWallCreep)が汚染した壁 1 つあたりの確率(11-07 ユーザー決定「洞窟だけ確率を上げる」、仮 0.01)。 */
-        public final ModConfigSpec.DoubleValue vineSpanCaveChance;
-        public final ModConfigSpec.IntValue vineSpanSpacing;
-        public final ModConfigSpec.IntValue vineSpanMinGap;
-        public final ModConfigSpec.IntValue vineSpanMaxGap;
+        public final ForgeConfigSpec.DoubleValue vineSpanCaveChance;
+        public final ForgeConfigSpec.IntValue vineSpanSpacing;
+        public final ForgeConfigSpec.IntValue vineSpanMinGap;
+        public final ForgeConfigSpec.IntValue vineSpanMaxGap;
         /**
          * 地表の汚染割合が {@link #overgrownBiomeThreshold} に届く前でも、胞子濃度が 100% に達した
          * チャンクを「繁茂バイオーム」({@link com.yayuy.overgrownvegetation.registry.ModBiomes#OVERGROWTH})
@@ -374,17 +374,17 @@ public final class OvergrownVegetationConfig {
          * すべて過繁茂バイオームと同じで、実際の汚染が進んで {@link #overgrownBiomeThreshold} に達すると
          * 過繁茂バイオームへ昇格する。{@link #convertToOvergrownBiome} が false のときは無効。
          */
-        public final ModConfigSpec.BooleanValue convertToOvergrowthBiome;
+        public final ForgeConfigSpec.BooleanValue convertToOvergrowthBiome;
         /** 繁茂バイオーム化の判定間隔(tick)。 */
-        public final ModConfigSpec.IntValue overgrowthBiomeScanIntervalTicks;
+        public final ForgeConfigSpec.IntValue overgrowthBiomeScanIntervalTicks;
         /** 繁茂バイオーム化の判定対象にする、各プレイヤーからのチャンク半径。 */
-        public final ModConfigSpec.IntValue overgrowthBiomeScanRadiusChunks;
+        public final ForgeConfigSpec.IntValue overgrowthBiomeScanRadiusChunks;
         /** 繁茂バイオーム化の判定 1 回あたり、実際に書き換えを試みるチャンク数の上限。 */
-        public final ModConfigSpec.IntValue overgrowthBiomeMaxConvertsPerScan;
+        public final ForgeConfigSpec.IntValue overgrowthBiomeMaxConvertsPerScan;
         /** 繁茂 / 過繁茂バイオームになったチャンクを、次に再判定するまでの待ち時間(tick)。 */
-        public final ModConfigSpec.IntValue overgrowthBiomeRescanTicks;
+        public final ForgeConfigSpec.IntValue overgrowthBiomeRescanTicks;
         /** まだ繁茂系バイオームにならなかったチャンクを、次に再判定するまでの待ち時間(tick)。 */
-        public final ModConfigSpec.IntValue overgrowthBiomeMissRescanTicks;
+        public final ForgeConfigSpec.IntValue overgrowthBiomeMissRescanTicks;
         /**
          * 過繁茂バイオーム({@link com.yayuy.overgrownvegetation.registry.ModBiomes#OVERGROWN})の中に
          * 残った未汚染ブロックが、汚染シダが近くにいなくても時間経過で汚染されていくか。
@@ -396,144 +396,144 @@ public final class OvergrownVegetationConfig {
          * ({@link com.yayuy.overgrownvegetation.corruption.OvergrownBiomeCreep} 参照)。
          * チャンク単位で地表を一括で塗り潰すことはしないので、汚染が矩形に広がることはない。
          */
-        public final ModConfigSpec.BooleanValue overgrownBiomeCreep;
+        public final ForgeConfigSpec.BooleanValue overgrownBiomeCreep;
         /** {@link #overgrownBiomeCreep} の判定間隔(tick)。 */
-        public final ModConfigSpec.IntValue overgrownBiomeCreepIntervalTicks;
+        public final ForgeConfigSpec.IntValue overgrownBiomeCreepIntervalTicks;
         /** {@link #overgrownBiomeCreep} の縁のにじみ処理で、1 回あたり各プレイヤーの周囲で汚染を試みる回数。 */
-        public final ModConfigSpec.IntValue overgrownBiomeCreepAttempts;
+        public final ForgeConfigSpec.IntValue overgrownBiomeCreepAttempts;
         /** {@link #overgrownBiomeCreep} が対象にする、各プレイヤーからの水平半径(ブロック)。 */
-        public final ModConfigSpec.IntValue overgrownBiomeCreepRadius;
+        public final ForgeConfigSpec.IntValue overgrownBiomeCreepRadius;
         /** 過繁茂バイオームの縁から何ブロックぶんまで、バイオームの外へ汚染をはみ出させるか(チャンク境界を跨ぐ)。 */
-        public final ModConfigSpec.IntValue overgrownBiomeCreepMargin;
+        public final ForgeConfigSpec.IntValue overgrownBiomeCreepMargin;
         /** バイオーム内のフロンティア浸食で、1 回の判定につき処理するチャンク数の上限(0 で内部浸食無効)。 */
-        public final ModConfigSpec.IntValue overgrownBiomeCreepChunksPerTick;
+        public final ForgeConfigSpec.IntValue overgrownBiomeCreepChunksPerTick;
         /** フロンティア浸食で、1 チャンクを 1 回処理するときに汚染するブロック数の上限。 */
-        public final ModConfigSpec.IntValue overgrownBiomeCreepMaxConversionsPerChunk;
+        public final ForgeConfigSpec.IntValue overgrownBiomeCreepMaxConversionsPerChunk;
         /** フロンティア浸食で、各列の最上部から何ブロック下まで汚染/未汚染ブロックを探すか(汚染植物の下の地面を拾う)。 */
-        public final ModConfigSpec.IntValue overgrownBiomeCreepSurfaceDepth;
+        public final ForgeConfigSpec.IntValue overgrownBiomeCreepSurfaceDepth;
         /**
          * フロンティア浸食で、汚染源となる隣接ブロックがちょうど 1 つの未汚染ブロックを、
          * 1 回の走査で汚染する確率。低いほど汚染の縁がゆっくり・不規則に進む。
          */
-        public final ModConfigSpec.DoubleValue overgrownBiomeCreepFrontierBaseChance;
+        public final ForgeConfigSpec.DoubleValue overgrownBiomeCreepFrontierBaseChance;
         /**
          * 汚染源となる隣接ブロックが 1 つ増えるごとに {@link #overgrownBiomeCreepFrontierBaseChance} へ
          * 加算する値。汚染に囲まれた取りこぼしほど早く潰れ、平らな縁ほどゆっくり不規則に進む。
          */
-        public final ModConfigSpec.DoubleValue overgrownBiomeCreepFrontierChancePerNeighbor;
+        public final ForgeConfigSpec.DoubleValue overgrownBiomeCreepFrontierChancePerNeighbor;
         /** フロンティア浸食で実際に汚染が起きたチャンクを、次にまた処理するまでの間隔(tick)。 */
-        public final ModConfigSpec.IntValue overgrownBiomeCreepRescanTicks;
+        public final ForgeConfigSpec.IntValue overgrownBiomeCreepRescanTicks;
         /** フロンティア浸食で汚染すべきものが無かった(掃除済みの)チャンクを、次に再処理するまでの間隔(tick)。 */
-        public final ModConfigSpec.IntValue overgrownBiomeCreepCleanRescanTicks;
+        public final ForgeConfigSpec.IntValue overgrownBiomeCreepCleanRescanTicks;
         /**
          * 過繁茂バイオーム({@link com.yayuy.overgrownvegetation.registry.ModBiomes#isFullyOvergrown})の
          * チャンクを、時間経過で地表から下へ 1 層ずつ「深部浸食」し、最終的にチャンク内の全固体ブロックを
          * (地表より上の建築物・浮遊ブロック、地下深部の露出していない石・鉱石まで)汚染しきるか。
          * 地表のフロンティア浸食({@link #overgrownBiomeCreep})が済んだ列から順に、汚染が真下へ降りていく。
          */
-        public final ModConfigSpec.BooleanValue overgrownBiomeCreepDeepCorruption;
+        public final ForgeConfigSpec.BooleanValue overgrownBiomeCreepDeepCorruption;
         /** 深部浸食で、判定 1 回につき処理するチャンク数の上限。 */
-        public final ModConfigSpec.IntValue overgrownBiomeCreepDeepChunksPerTick;
+        public final ForgeConfigSpec.IntValue overgrownBiomeCreepDeepChunksPerTick;
         /** 深部浸食で、1 チャンクを 1 回処理するときに汚染するブロック数の上限。 */
-        public final ModConfigSpec.IntValue overgrownBiomeCreepDeepBlocksPerChunk;
+        public final ForgeConfigSpec.IntValue overgrownBiomeCreepDeepBlocksPerChunk;
         /** 深部浸食で、1 チャンクを 1 回処理するときに走査する Y 層数の上限(再起動直後の走査コスト上限)。 */
-        public final ModConfigSpec.IntValue overgrownBiomeCreepDeepLayersPerVisit;
+        public final ForgeConfigSpec.IntValue overgrownBiomeCreepDeepLayersPerVisit;
         /** 深部浸食で、条件を満たした 1 ブロックを 1 回の走査で汚染する確率。1.0 で層ごとに一括、下げるほど不規則に降りる。 */
-        public final ModConfigSpec.DoubleValue overgrownBiomeCreepDeepChance;
+        public final ForgeConfigSpec.DoubleValue overgrownBiomeCreepDeepChance;
         /** 深部浸食で、あるチャンクを処理してから次に処理するまでの間隔(tick)。 */
-        public final ModConfigSpec.IntValue overgrownBiomeCreepDeepRescanTicks;
+        public final ForgeConfigSpec.IntValue overgrownBiomeCreepDeepRescanTicks;
         /**
          * 建築浸食({@link com.yayuy.overgrownvegetation.corruption.BuildCorrosion}): 繁茂系バイオームの中に
          * 後から置かれたブロック(建築物など)を、既存の汚染に面したものから少しずつ汚染していくか。
          */
-        public final ModConfigSpec.BooleanValue buildCorrosion;
+        public final ForgeConfigSpec.BooleanValue buildCorrosion;
         /** 建築浸食の判定間隔(tick)。候補が残っているチャンクはこの間隔で続きを処理する。 */
-        public final ModConfigSpec.IntValue buildCorrosionIntervalTicks;
+        public final ForgeConfigSpec.IntValue buildCorrosionIntervalTicks;
         /** 建築浸食で、判定 1 回につき処理するチャンク数の上限。 */
-        public final ModConfigSpec.IntValue buildCorrosionChunksPerPass;
+        public final ForgeConfigSpec.IntValue buildCorrosionChunksPerPass;
         /** 建築浸食で、1 チャンクを 1 回処理するときに汚染するブロック数の上限。 */
-        public final ModConfigSpec.IntValue buildCorrosionBlocksPerChunk;
+        public final ForgeConfigSpec.IntValue buildCorrosionBlocksPerChunk;
         /** 建築浸食で、汚染に 1 面だけ接しているブロックを 1 回の判定で汚染する確率。 */
-        public final ModConfigSpec.DoubleValue buildCorrosionBaseChance;
+        public final ForgeConfigSpec.DoubleValue buildCorrosionBaseChance;
         /** 建築浸食で、汚染に接する面が 1 つ増えるごとに {@link #buildCorrosionBaseChance} へ加算する確率。 */
-        public final ModConfigSpec.DoubleValue buildCorrosionChancePerNeighbor;
+        public final ForgeConfigSpec.DoubleValue buildCorrosionChancePerNeighbor;
         /** 建築浸食で、汚染にまったく接していない建築(浮遊建築など)に「種」を 1 つ植える確率(チャンク 1 回の処理あたり)。 */
-        public final ModConfigSpec.DoubleValue buildCorrosionSeedChance;
+        public final ForgeConfigSpec.DoubleValue buildCorrosionSeedChance;
         /** 建築浸食で、空気に面していない(完全に埋まった)ブロックを候補にするのに必要な、汚染済み隣接面の数。 */
-        public final ModConfigSpec.IntValue buildCorrosionBuriedNeighbors;
+        public final ForgeConfigSpec.IntValue buildCorrosionBuriedNeighbors;
         /** 建築浸食で、候補が無かったチャンクを次に再走査するまでの間隔(tick)。 */
-        public final ModConfigSpec.IntValue buildCorrosionIdleRescanTicks;
+        public final ForgeConfigSpec.IntValue buildCorrosionIdleRescanTicks;
         /** 建築浸食を「繁茂」段階のバイオームでも走らせるか(既定は「過繁茂」のみ)。 */
-        public final ModConfigSpec.BooleanValue buildCorrosionInOvergrowthStage;
+        public final ForgeConfigSpec.BooleanValue buildCorrosionInOvergrowthStage;
         /** 木が生えたとき、近くの別の木との間を蔦(リアナ)で繋ぐか。 */
-        public final ModConfigSpec.BooleanValue spawnConnectingVines;
+        public final ForgeConfigSpec.BooleanValue spawnConnectingVines;
         /** 登る蔓(2026-11-03 採用、既定 true)。true なら幹どうしの掛け渡しの代わりに、地面から幹を登って隣の木へ渡る蔓を置く。 */
-        public final ModConfigSpec.BooleanValue vineClimb;
+        public final ForgeConfigSpec.BooleanValue vineClimb;
         /** 林冠の細い蔓(2026-11-03 採用)を付ける木の割合。登る蔓の vinePerTreeChance とは別の関門。 */
-        public final ModConfigSpec.DoubleValue canopyVineChance;
+        public final ForgeConfigSpec.DoubleValue canopyVineChance;
         /** 蔦(登る蔓・林冠の細い蔓・掛け渡し)を素手で壊すのにかかる秒数(2026-11-08、仮決め 1.2)。剣・急ぎ・水中などの倍率はバニラどおり掛かる。 */
-        public final ModConfigSpec.DoubleValue vineHandBreakSeconds;
+        public final ForgeConfigSpec.DoubleValue vineHandBreakSeconds;
         /** 蔦をハサミで壊すのにかかる秒数(2026-11-08、仮決め 0.15 = バニラの蔦をハサミで切るのと同じ 3 tick)。 */
-        public final ModConfigSpec.DoubleValue vineShearsBreakSeconds;
+        public final ForgeConfigSpec.DoubleValue vineShearsBreakSeconds;
         /**
          * 木が1本生えたとき、そもそも連結蔦の生成処理を試みる確率(0.0〜1.0)。
          * これに外れた木からは蔦が一切生えない(vineMinPerTree の下限保証よりも前に判定される)。
          * 全体の蔦の量がおよそこの確率倍に絞られる(既定 0.12 = 木の約12%だけが蔦を生成)。
          * 1.0 にすると従来どおり全ての木で生成を試みる。
          */
-        public final ModConfigSpec.DoubleValue vinePerTreeChance;
+        public final ForgeConfigSpec.DoubleValue vinePerTreeChance;
         /** 繋げる相手の木が見つかったとき、実際に蔦を張る確率(0.0〜1.0)。 */
-        public final ModConfigSpec.DoubleValue vineChance;
+        public final ForgeConfigSpec.DoubleValue vineChance;
         /**
          * 蔦の終点候補を探す際、見つかった候補ごとに、木の原木の代わりに近くの既存の蔦
          * (別の {@link com.yayuy.overgrownvegetation.block.CorruptedLianaBlockEntity} 主アンカー)
          * の曲線上のランダムな1点を終点候補として差し替える確率(0.0〜1.0)。
          */
-        public final ModConfigSpec.DoubleValue vineExistingVineTargetChance;
+        public final ForgeConfigSpec.DoubleValue vineExistingVineTargetChance;
         /**
          * 既存の蔦の曲線上に接続点を取る際、蔦の始点・終点それぞれからこの割合ぶんの区間は
          * 接続点の候補から除外する(0.0〜0.5)。既定 0.25 なら曲線の中央 50%(割合 0.25〜0.75)
          * だけが接続点になり、蔦の端(木の幹の近くや、ぶら下がり蔦の付け根)に新しい蔦が
          * 集中しなくなる。0.0 で従来どおり(端すれすれを除く曲線全体、割合 0.15〜0.85)。
          */
-        public final ModConfigSpec.DoubleValue vineExistingVineTargetEndMargin;
+        public final ForgeConfigSpec.DoubleValue vineExistingVineTargetEndMargin;
         /** 木が1本生えるたびに実際に張る蔦の本数(下限)。vineMaxPerTree との間からランダムに決まる。 */
-        public final ModConfigSpec.IntValue vineMinPerTree;
+        public final ForgeConfigSpec.IntValue vineMinPerTree;
         /** 蔦の最小の長さ(始点〜終点の直線距離、ブロック数)。これより近い木同士は繋がらない。 */
-        public final ModConfigSpec.IntValue vineMinLength;
+        public final ForgeConfigSpec.IntValue vineMinLength;
         /** 蔦の最大の長さ(始点〜終点の直線距離、ブロック数)。これより離れた木同士は繋がらない。 */
-        public final ModConfigSpec.IntValue vineMaxLength;
+        public final ForgeConfigSpec.IntValue vineMaxLength;
         /** プレイヤーが「蔓」アイテムで手で張れる蔦の最大の長さ(始点〜終点の直線距離、ブロック数)。 */
-        public final ModConfigSpec.IntValue vinePlaceMaxLength;
+        public final ForgeConfigSpec.IntValue vinePlaceMaxLength;
         /** 蔦の始点・終点の Y 座標の差の最大値(ブロック数)。これより高低差のある組み合わせは繋がらない。 */
-        public final ModConfigSpec.IntValue vineMaxHeightDiff;
+        public final ForgeConfigSpec.IntValue vineMaxHeightDiff;
         /** 蔦の始点・終点が地面(に類する何か)からこれ未満しか離れていない場合、その候補は使わない。 */
-        public final ModConfigSpec.IntValue vineMinGroundClearance;
+        public final ForgeConfigSpec.IntValue vineMinGroundClearance;
         /** 蔦の始点・終点が地面(に類する何か)からこれを超えて離れている場合、その候補は使わない。 */
-        public final ModConfigSpec.IntValue vineMaxGroundClearance;
+        public final ForgeConfigSpec.IntValue vineMaxGroundClearance;
         /**
          * 地面からの高さ帯を3段階(低・中・高)に分けて蔦の生える高さに偏りを持たせるための、
          * 「低」帯の上限(ブロック数、地面からの距離)。{@code vineMinGroundClearance}〜この値までが「低」帯。
          */
-        public final ModConfigSpec.IntValue vineHeightBandLowMax;
+        public final ForgeConfigSpec.IntValue vineHeightBandLowMax;
         /** 高さ帯「中」の上限(ブロック数)。「低」帯の上限〜この値までが「中」帯、この値を超え{@code vineMaxGroundClearance}までが「高」帯。 */
-        public final ModConfigSpec.IntValue vineHeightBandMidMax;
+        public final ForgeConfigSpec.IntValue vineHeightBandMidMax;
         /** 蔦の生える場所が高さ帯「低」に入る相対的な重み。「中」「高」との比で抽選される(合計が1.0である必要はない)。 */
-        public final ModConfigSpec.DoubleValue vineHeightWeightLow;
+        public final ForgeConfigSpec.DoubleValue vineHeightWeightLow;
         /** 蔦の生える場所が高さ帯「中」に入る相対的な重み。 */
-        public final ModConfigSpec.DoubleValue vineHeightWeightMid;
+        public final ForgeConfigSpec.DoubleValue vineHeightWeightMid;
         /** 蔦の生える場所が高さ帯「高」に入る相対的な重み。 */
-        public final ModConfigSpec.DoubleValue vineHeightWeightHigh;
+        public final ForgeConfigSpec.DoubleValue vineHeightWeightHigh;
         /**
          * 始点・終点の直線距離がこれを超える場合、1本だけでは頼りなく見えるため、
          * 同じ始点・終点の組み合わせに対して蔦を複数本重ねて生成する
          * ({@link #vineStackMinCount}〜{@link #vineStackMaxCount} 本、垂れ具合は必ず異なる値)。
          */
-        public final ModConfigSpec.IntValue vineStackLengthThreshold;
+        public final ForgeConfigSpec.IntValue vineStackLengthThreshold;
         /** 長距離接続(vineStackLengthThreshold 超)で重ねて生成する蔦の最小本数。 */
-        public final ModConfigSpec.IntValue vineStackMinCount;
+        public final ForgeConfigSpec.IntValue vineStackMinCount;
         /** 長距離接続(vineStackLengthThreshold 超)で重ねて生成する蔦の最大本数。 */
-        public final ModConfigSpec.IntValue vineStackMaxCount;
+        public final ForgeConfigSpec.IntValue vineStackMaxCount;
         /**
          * 重ねて生成する蔦の本数が {@code vineStackMinCount}(=2本)になる相対的な重み。
          * {@link #vineStackCountWeight3}〜{@link #vineStackCountWeight6} と合わせて
@@ -541,15 +541,15 @@ public final class OvergrownVegetationConfig {
          * 生成されにくくなる単調減少)。vineStackMaxCount を既定の6より大きくした場合、
          * 7本目以降は vineStackCountWeight6 と同じ重みが使い回される。
          */
-        public final ModConfigSpec.DoubleValue vineStackCountWeight2;
+        public final ForgeConfigSpec.DoubleValue vineStackCountWeight2;
         /** 重ねる本数が3本になる相対的な重み。 */
-        public final ModConfigSpec.DoubleValue vineStackCountWeight3;
+        public final ForgeConfigSpec.DoubleValue vineStackCountWeight3;
         /** 重ねる本数が4本になる相対的な重み。 */
-        public final ModConfigSpec.DoubleValue vineStackCountWeight4;
+        public final ForgeConfigSpec.DoubleValue vineStackCountWeight4;
         /** 重ねる本数が5本になる相対的な重み。 */
-        public final ModConfigSpec.DoubleValue vineStackCountWeight5;
+        public final ForgeConfigSpec.DoubleValue vineStackCountWeight5;
         /** 重ねる本数が6本(以上)になる相対的な重み。 */
-        public final ModConfigSpec.DoubleValue vineStackCountWeight6;
+        public final ForgeConfigSpec.DoubleValue vineStackCountWeight6;
         /**
          * 重複蔦(ぶら下がり蔦)を生成する際、両端を1つの親の曲線上に乗せる代わりに、
          * 既に生成済みの別の重複蔦(または主線)をまたぐように両端をそれぞれ別の曲線上から
@@ -559,21 +559,21 @@ public final class OvergrownVegetationConfig {
          * 決まる——「またぐ」判定はそれとは独立した別枠(2026-08-25 時点でユーザーの明示的な
          * 選択により両立させている)。
          */
-        public final ModConfigSpec.DoubleValue vineNestedCrossChance;
+        public final ForgeConfigSpec.DoubleValue vineNestedCrossChance;
         /**
          * 重複蔦のうち、始点を第一の蔦(主線)の実際の始点と共有する(=第一の蔦の始点から
          * そのまま生える)「第二の蔦」になる相対的な重み。{@link #vineSecondTierShareEndWeight}/
          * {@link #vineSecondTierFloatingWeight}/{@link #vineThirdTierWeight} と合わせて
          * 4択の比率を決める(2026-08-25、既定 15:15:50:20)。
          */
-        public final ModConfigSpec.DoubleValue vineSecondTierShareStartWeight;
+        public final ForgeConfigSpec.DoubleValue vineSecondTierShareStartWeight;
         /** 終点を第一の蔦の実際の終点と共有する「第二の蔦」になる相対的な重み。 */
-        public final ModConfigSpec.DoubleValue vineSecondTierShareEndWeight;
+        public final ForgeConfigSpec.DoubleValue vineSecondTierShareEndWeight;
         /**
          * 始点・終点のどちらも第一の蔦の曲線上の点(第一の蔦自身の実際の始点・終点そのものではない)
          * になる「第二の蔦」になる相対的な重み——これが従来からの既定の垂れ下がり方。
          */
-        public final ModConfigSpec.DoubleValue vineSecondTierFloatingWeight;
+        public final ForgeConfigSpec.DoubleValue vineSecondTierFloatingWeight;
         /**
          * 第一の蔦(主線)からではなく、既に配置済みの「第二の蔦」の曲線上から生える
          * 「第三の蔦」になる相対的な重み。{@link #vineThirdTierMinDuplicateCount} 未満の
@@ -581,16 +581,16 @@ public final class OvergrownVegetationConfig {
          * 除外される(残り3つの重みだけで抽選する)。第三の蔦からさらに孫(第四の蔦)が
          * 生えることはない(第三で打ち止め)。
          */
-        public final ModConfigSpec.DoubleValue vineThirdTierWeight;
+        public final ForgeConfigSpec.DoubleValue vineThirdTierWeight;
         /**
          * 第三の蔦が生成候補になるために必要な、この組み合わせ(束)における重複蔦の
          * 総本数(第一の蔦=主線を除く)の最小値。既定4は「重複蔦が3本以下の束では
          * 第三の蔦は生成されない」ことを意味する({@code vineStackMaxCount} が既定の6
          * (=重複蔦最大5本)であれば、5本重ねられた束(重複蔦4本)以上でこの条件を満たしうる)。
          */
-        public final ModConfigSpec.IntValue vineThirdTierMinDuplicateCount;
+        public final ForgeConfigSpec.IntValue vineThirdTierMinDuplicateCount;
         /** 木が1本生えるたびに実際に張る蔦の本数(上限)。vineMinPerTree との間からランダムに決まる。 */
-        public final ModConfigSpec.IntValue vineMaxPerTree;
+        public final ForgeConfigSpec.IntValue vineMaxPerTree;
         /**
          * 垂れ下がりの「一番少ない段階」の量(ブロック数、段階1)。
          * {@link #vineSagMax} と合わせて、垂れ具合の段階数
@@ -599,30 +599,30 @@ public final class OvergrownVegetationConfig {
          * これより多く重ねる場合は重複しない値が足りなくなるため、{@code SAG_TIERS} も
          * 合わせて引き上げる必要がある)ぶんに均等分割した範囲を決める。
          */
-        public final ModConfigSpec.IntValue vineSagMin;
+        public final ForgeConfigSpec.IntValue vineSagMin;
         /** 垂れ下がりの「一番多い段階」の量(ブロック数、最終段階)。実際の垂れ具合はこの範囲内の段階数からランダムに決まる。 */
-        public final ModConfigSpec.IntValue vineSagMax;
+        public final ForgeConfigSpec.IntValue vineSagMax;
         /**
          * 蔦の経路上に垂れ蔦(droop)が生成される際、通常の見た目(overgrown_liana_droop)の
          * 代わりに発光する見た目(overgrown_liana_droop_light)になる確率(0.0〜1.0)。
          * 発光する垂れ蔦は見た目だけでなく実際に vineDroopLightLevel の明るさの光源として機能する。
          */
-        public final ModConfigSpec.DoubleValue vineDroopLightChance;
+        public final ForgeConfigSpec.DoubleValue vineDroopLightChance;
         /** 発光する垂れ蔦(overgrown_liana_droop_light)が放つ光レベル(0〜15、バニラの光源ブロックと同じ尺度)。 */
-        public final ModConfigSpec.IntValue vineDroopLightLevel;
+        public final ForgeConfigSpec.IntValue vineDroopLightLevel;
         /**
          * 蔦から鉛直方向に垂れる蔦(droop)のうち発光していないものが、時間経過で発光した(=熟した)
          * 状態へ変わる判定を、蔦1本につき何 tick ごとに行うか(20 tick = 1 秒)。判定のたびに
          * {@link #vineFruitRipenChance} で1本だけ発光させる。発光した垂れ蔦は素手の右クリックで
          * 「蔦の実」を1個収穫でき、収穫すると発光しない状態へ戻る(この繰り返し)。
          */
-        public final ModConfigSpec.IntValue vineFruitRipenIntervalTicks;
+        public final ForgeConfigSpec.IntValue vineFruitRipenIntervalTicks;
         /**
          * {@link #vineFruitRipenIntervalTicks} ごとの判定で、発光していない垂れ蔦を1本
          * 発光(=熟した)状態にする確率(0.0〜1.0)。0.0 にすると垂れ蔦は生成時の状態から変化しなくなる
          * (時間経過で実がならなくなる)。
          */
-        public final ModConfigSpec.DoubleValue vineFruitRipenChance;
+        public final ForgeConfigSpec.DoubleValue vineFruitRipenChance;
 
         // 「胞子感染」デバフの設計値は config/overgrown_vegetation/effects.json へ移行
         // (infectionThresholdTicks / infectionDurationTicks / sporeInfectionPlayerDurationTicks /
@@ -688,12 +688,12 @@ public final class OvergrownVegetationConfig {
          * {@link #tendrilInitialCount} とは別の専用設定 — blight_fern 側だけ「3本の根+密な
          * 横広がり」に調整したので、汚染死体ブロックの見た目を変えないためにこちらを分けてある。
          */
-        public final ModConfigSpec.IntValue corpseTendrilInitialCount;
+        public final ForgeConfigSpec.IntValue corpseTendrilInitialCount;
         /**
          * 汚染死体ブロックの触手が同時に存在できる最大本数。blight_fern の
          * {@link #tendrilMaxActive} とは別の専用設定(理由は {@link #corpseTendrilInitialCount} 参照)。
          */
-        public final ModConfigSpec.IntValue corpseTendrilMaxActive;
+        public final ForgeConfigSpec.IntValue corpseTendrilMaxActive;
 
         /**
          * 巨大樹({@link com.yayuy.overgrownvegetation.worldgen.GiantTreeFeature})を1ゲームティックあたり
@@ -702,8 +702,8 @@ public final class OvergrownVegetationConfig {
          * 小さくすると1本あたりの生成が遅く(=ゆっくり生えて)なるが1ティックあたりの負荷は軽くなる。
          * 同時に複数本生成中の場合も、全部でこの数を超えないよう配分される。
          */
-        public final ModConfigSpec.IntValue giantTreeBlocksPerTick;
-        public final ModConfigSpec.BooleanValue giantTreeAsyncPlan;
+        public final ForgeConfigSpec.IntValue giantTreeBlocksPerTick;
+        public final ForgeConfigSpec.BooleanValue giantTreeAsyncPlan;
 
         /**
          * 巨大樹同士がこのブロック数(水平距離)より近くには生えないようにする。新しい巨大樹を生成
@@ -712,7 +712,7 @@ public final class OvergrownVegetationConfig {
          * 0 で無効(間隔チェックなし)。苗木から育てる場合も同じチェックが働き、近すぎる場合は苗木の
          * まま育たない。既存ワールドで導入前に生えていた巨大樹は記録されていないので対象外。
          */
-        public final ModConfigSpec.IntValue giantTreeMinSpacing;
+        public final ForgeConfigSpec.IntValue giantTreeMinSpacing;
 
         /**
          * クリエイティブ専用の「巨大樹の苗木」から育てるときは
@@ -720,61 +720,61 @@ public final class OvergrownVegetationConfig {
          * 生やすか。既定 true(好きな場所で試せるように)。false にすると自然生成と同じ扱いになり、
          * 既存の巨大樹の近くや屋根の下では苗木のまま育たなくなる。
          */
-        public final ModConfigSpec.BooleanValue giantTreeSaplingForceGrowth;
+        public final ForgeConfigSpec.BooleanValue giantTreeSaplingForceGrowth;
 
         /**
          * 巨大樹の幹の真下に、将来の mob「hive node」用の球状の空洞「巣の広間」を作るか
          * ({@link com.yayuy.overgrownvegetation.worldgen.GiantTreeFeature} の {@code buildHiveChamber})。
          */
-        public final ModConfigSpec.BooleanValue giantTreeHiveChamber;
+        public final ForgeConfigSpec.BooleanValue giantTreeHiveChamber;
 
         /** 「巣の広間」の半径(ブロック)。球の表面が殻、内側はすべて空気になる。 */
-        public final ModConfigSpec.IntValue giantTreeHiveChamberRadius;
+        public final ForgeConfigSpec.IntValue giantTreeHiveChamberRadius;
 
         /**
          * 「巣の広間」の球を、幹の裾の半径よりこのブロック数だけ必ず太くする(0 で無効 = 半径をそのまま使う)。
          * 幹の裾は木の大きさで半径 11〜18 まで変わるので、これが無いと球が幹の中に埋もれて外から見えない。
          */
-        public final ModConfigSpec.IntValue giantTreeHiveChamberTrunkMargin;
+        public final ForgeConfigSpec.IntValue giantTreeHiveChamberTrunkMargin;
 
         /** 「巣の広間」の中心を、巨大樹の根本の地面から何ブロック下に置くか(既定 0 = 球の上半分が地上に出る)。 */
-        public final ModConfigSpec.IntValue giantTreeHiveChamberDepth;
+        public final ForgeConfigSpec.IntValue giantTreeHiveChamberDepth;
 
         /** 「巣の広間」の球の外側を、巨大樹の原木で何層ぶん覆うか(0 で覆わない)。 */
-        public final ModConfigSpec.IntValue giantTreeHiveChamberBarkThickness;
+        public final ForgeConfigSpec.IntValue giantTreeHiveChamberBarkThickness;
 
         /** 「ハイヴノード」が鼓動する間隔(tick)。演出だけで、周囲には何の影響も与えない(2026-09-19)。 */
-        public final ModConfigSpec.IntValue hiveNodePulseIntervalTicks;
+        public final ForgeConfigSpec.IntValue hiveNodePulseIntervalTicks;
 
         /** 「ハイヴノード」を球の中心から何ブロック上にずらすか(0 = ちょうど中心)。 */
-        public final ModConfigSpec.IntValue hiveNodeHeightOffset;
+        public final ForgeConfigSpec.IntValue hiveNodeHeightOffset;
 
         /** 「巣の球」の中心に掘る、ハイヴノードの小部屋の半径(ブロック)。 */
-        public final ModConfigSpec.IntValue hiveNodeCavityRadius;
+        public final ForgeConfigSpec.IntValue hiveNodeCavityRadius;
 
         /** 小部屋の隣の「儀式の広間」の半幅(ブロック)。広間の幅は 2×半幅+1。 */
-        public final ModConfigSpec.IntValue hiveRitualChamberHalfWidth;
+        public final ForgeConfigSpec.IntValue hiveRitualChamberHalfWidth;
 
         /** 「儀式の広間」の高さ(ブロック)。演出の蔦は高さ 3 の空間を前提に作ってある。 */
-        public final ModConfigSpec.IntValue hiveRitualChamberHeight;
+        public final ForgeConfigSpec.IntValue hiveRitualChamberHeight;
 
         /** 広間から球面の出口へうねる通路の太さ(半径、ブロック)。 */
-        public final ModConfigSpec.DoubleValue hiveTunnelRadius;
+        public final ForgeConfigSpec.DoubleValue hiveTunnelRadius;
 
         /** 通路のうねりの強さ(0 = ほぼ直線、1 = 大きく蛇行)。半径と高さの揺れになる。 */
-        public final ModConfigSpec.DoubleValue hiveTunnelWinding;
+        public final ForgeConfigSpec.DoubleValue hiveTunnelWinding;
 
         /** 通路がハイヴノードの小部屋の周りを何周らせん状に回ってから出口に抜けるか(既定 1.5 周)。 */
-        public final ModConfigSpec.DoubleValue hiveTunnelTurns;
+        public final ForgeConfigSpec.DoubleValue hiveTunnelTurns;
 
         /** 通路・広間の壁面(巨大樹の幹)に下草・蔦・垂れ植物を生やす 1 面あたりの確率(0 で無し)。 */
-        public final ModConfigSpec.DoubleValue hiveTunnelGrassChance;
+        public final ForgeConfigSpec.DoubleValue hiveTunnelGrassChance;
 
         /** 通路の出口を開ける仰角の下限(度、0 = 球の赤道 = 地面の高さ)。 */
-        public final ModConfigSpec.IntValue hiveTunnelEntranceElevationMin;
+        public final ForgeConfigSpec.IntValue hiveTunnelEntranceElevationMin;
 
         /** 通路の出口を開ける仰角の上限(度)。 */
-        public final ModConfigSpec.IntValue hiveTunnelEntranceElevationMax;
+        public final ForgeConfigSpec.IntValue hiveTunnelEntranceElevationMax;
 
 
         /**
@@ -782,7 +782,7 @@ public final class OvergrownVegetationConfig {
          * (シダ・苔・蔦・垂れ植物)を生やす際の 1 面あたりの確率。0 で無効。
          * 通常の汚染({@link #growthChance})より低めにしておかないと 1 本で大量の植物が生えて重くなる。
          */
-        public final ModConfigSpec.DoubleValue giantTreePlantChance;
+        public final ForgeConfigSpec.DoubleValue giantTreePlantChance;
 
         /**
          * 巨大樹が生えきったあと、地表を這う<b>根のかまぼこ状の盛り上がりの頂上</b>に、汚染時と同じ
@@ -790,46 +790,46 @@ public final class OvergrownVegetationConfig {
          * {@link #giantTreePlantChance}(表面全体)より高めにできるので、根が地面と一体化して
          * 苔むして見えるようにするための専用ノブ。
          */
-        public final ModConfigSpec.DoubleValue giantTreeRootPlantChance;
+        public final ForgeConfigSpec.DoubleValue giantTreeRootPlantChance;
 
         /**
          * 巨大樹が生えきったあと、その表面(原木)の露出面にヒカリゴケ({@code minecraft:glow_lichen})を
          * 貼り付ける際の 1 面あたりの確率。0 で無効。ヒカリゴケは光源なので、上げすぎると光更新が
          * 大量に走って重くなる(1本の巨大樹に数百個貼られうる)。
          */
-        public final ModConfigSpec.DoubleValue giantTreeGlowLichenChance;
+        public final ForgeConfigSpec.DoubleValue giantTreeGlowLichenChance;
 
         /**
          * 巨大樹の幹の内側(形成層)に埋め込む「クロロフィライトの鉱石」の<b>鉱石ノード</b>の本数の
          * 最小値。1ノード = {@link #giantTreeChlorophylliteNodeRadius} の球状の塊。地中の鉱脈のように、
          * 形成層で埋まった空間のランダムな位置に配置される。
          */
-        public final ModConfigSpec.IntValue giantTreeChlorophylliteNodesMin;
+        public final ForgeConfigSpec.IntValue giantTreeChlorophylliteNodesMin;
 
         /** 「クロロフィライトの鉱石」ノードの本数の最大値(最小値との間でランダム)。 */
-        public final ModConfigSpec.IntValue giantTreeChlorophylliteNodesMax;
+        public final ForgeConfigSpec.IntValue giantTreeChlorophylliteNodesMax;
 
         /**
          * 「クロロフィライトの鉱石」ノード1個の塊の半径(球状)。大きいほど1ノードあたりの鉱石量が増える。
          * 小数で指定できる(整数刻みだと1段変えるだけで体積が倍近く変わってしまうため)。
          */
-        public final ModConfigSpec.DoubleValue giantTreeChlorophylliteNodeRadius;
+        public final ForgeConfigSpec.DoubleValue giantTreeChlorophylliteNodeRadius;
 
         /**
          * 巨大樹1本に「硬化樹液結晶の鉱石」ノードが<b>まったく生成されない</b>確率の裏返し。
          * この確率を引いたときだけ {@link #giantTreeHardenedSapCrystalNodesMin}〜Max 本の
          * ノードが追加で埋め込まれる(たまにしか出ないレア鉱石)。
          */
-        public final ModConfigSpec.DoubleValue giantTreeHardenedSapCrystalChance;
+        public final ForgeConfigSpec.DoubleValue giantTreeHardenedSapCrystalChance;
 
         /** 「硬化樹液結晶の鉱石」ノードが生成される場合の本数の最小値。 */
-        public final ModConfigSpec.IntValue giantTreeHardenedSapCrystalNodesMin;
+        public final ForgeConfigSpec.IntValue giantTreeHardenedSapCrystalNodesMin;
 
         /** 「硬化樹液結晶の鉱石」ノードが生成される場合の本数の最大値(最小値との間でランダム)。 */
-        public final ModConfigSpec.IntValue giantTreeHardenedSapCrystalNodesMax;
+        public final ForgeConfigSpec.IntValue giantTreeHardenedSapCrystalNodesMax;
 
         /** 「硬化樹液結晶の鉱石」ノード1個の塊の半径(球状)。小数可。 */
-        public final ModConfigSpec.DoubleValue giantTreeHardenedSapCrystalNodeRadius;
+        public final ForgeConfigSpec.DoubleValue giantTreeHardenedSapCrystalNodeRadius;
 
         // フェーズの昇格条件・内容は config/overgrown_vegetation/phases.json へ移行
         // (startWorldAgeTicks / startAdvancements / points.* / pointsToAdvance /
@@ -838,69 +838,69 @@ public final class OvergrownVegetationConfig {
 
         // --- 性能(2026-10-06、perf/) ---
         /** 予算の番人({@code perf/TickBudget})を使うか。 */
-        public final ModConfigSpec.BooleanValue tickBudgetEnabled;
+        public final ForgeConfigSpec.BooleanValue tickBudgetEnabled;
         /** 予算の番人が守る 1 tick の目標(ミリ秒)。 */
-        public final ModConfigSpec.DoubleValue tickBudgetTargetMspt;
+        public final ForgeConfigSpec.DoubleValue tickBudgetTargetMspt;
         /** 遠くの Mob の思考の間引き({@code perf/MobThinkThrottle})を使うか。 */
-        public final ModConfigSpec.BooleanValue mobThinkThrottleEnabled;
+        public final ForgeConfigSpec.BooleanValue mobThinkThrottleEnabled;
         /** 植物側の押し合いを間引く({@code perf/PlantPushThin})。試し。 */
-        public final ModConfigSpec.BooleanValue plantPushThinEnabled;
+        public final ForgeConfigSpec.BooleanValue plantPushThinEnabled;
         /** 流れの地図({@code perf/FlowFields})で行進と群れの後続を歩かせるか。11-18 大群の軽量化 A。 */
-        public final ModConfigSpec.BooleanValue flowFieldEnabled;
+        public final ForgeConfigSpec.BooleanValue flowFieldEnabled;
         /** 仮想の群れ({@code horde/VirtualHordes})を動かすか。11-18 大群の軽量化 A。 */
-        public final ModConfigSpec.BooleanValue virtualHordeEnabled;
+        public final ForgeConfigSpec.BooleanValue virtualHordeEnabled;
         /** 部位の升目の索引({@code perf/PartIndex})を使うか。 */
-        public final ModConfigSpec.BooleanValue partIndexEnabled;
+        public final ForgeConfigSpec.BooleanValue partIndexEnabled;
 
         // --- 地割れ(フェーズ1開始演出) ---
         /** フェーズ1開始時の「地割れ・胞子噴出」演出を有効にするか。 */
-        public final ModConfigSpec.BooleanValue quakeEnabled;
+        public final ForgeConfigSpec.BooleanValue quakeEnabled;
         /** 地割れの発生地点を、全プレイヤーからこの距離以上離す(ブロック)。 */
-        public final ModConfigSpec.IntValue quakeDistanceMin;
+        public final ForgeConfigSpec.IntValue quakeDistanceMin;
         /** 地割れの発生地点の、プレイヤーからの目標距離の上限(ブロック)。実際の距離は min〜max。 */
-        public final ModConfigSpec.IntValue quakeDistanceMax;
+        public final ForgeConfigSpec.IntValue quakeDistanceMax;
         /** 裂け目の長さ(長軸)の最小値(ブロック)。 */
-        public final ModConfigSpec.IntValue quakeFissureMinLength;
+        public final ForgeConfigSpec.IntValue quakeFissureMinLength;
         /** 裂け目の長さ(長軸)の最大値(ブロック)。 */
-        public final ModConfigSpec.IntValue quakeFissureMaxLength;
+        public final ForgeConfigSpec.IntValue quakeFissureMaxLength;
         /** 裂け目の幅(短軸)の最小値(ブロック)。 */
-        public final ModConfigSpec.IntValue quakeFissureMinWidth;
+        public final ForgeConfigSpec.IntValue quakeFissureMinWidth;
         /** 裂け目の幅(短軸)の最大値(ブロック)。 */
-        public final ModConfigSpec.IntValue quakeFissureMaxWidth;
+        public final ForgeConfigSpec.IntValue quakeFissureMaxWidth;
         /** 裂け目の最深部が到達する Y 座標の「浅い側」(小さい裂け目のとき)。 */
-        public final ModConfigSpec.IntValue quakeFissureMinFloorY;
+        public final ForgeConfigSpec.IntValue quakeFissureMinFloorY;
         /** 裂け目の最深部が到達する Y 座標の「深い側」(大きい裂け目のとき)。 */
-        public final ModConfigSpec.IntValue quakeFissureMaxFloorY;
+        public final ForgeConfigSpec.IntValue quakeFissureMaxFloorY;
         /** 裂け目が完成したとき周囲のチャンクを過繁茂バイオームへ変換するか。既定 false。 */
-        public final ModConfigSpec.BooleanValue quakeConvertBiome;
+        public final ForgeConfigSpec.BooleanValue quakeConvertBiome;
         /** ({@code quakeConvertBiome} が true のとき)胞子噴出点を中心にこのチャンク半径ぶんも変換する。 */
-        public final ModConfigSpec.IntValue quakeSporeZoneChunks;
+        public final ForgeConfigSpec.IntValue quakeSporeZoneChunks;
         /** 画面が揺れ始めて(効果音の再生開始)から、地面が裂け始めるまでの予兆(輪郭のみ)の時間(tick)。既定 120 = 6 秒。 */
-        public final ModConfigSpec.IntValue quakePreShakeTicks;
+        public final ForgeConfigSpec.IntValue quakePreShakeTicks;
         /** 画面の揺れ始め(効果音の再生開始)から裂け目の完成までの合計時間(tick)。既定 312 = 15.6 秒 = 土砂崩れ効果音の実尺。 */
-        public final ModConfigSpec.IntValue quakeFormTicks;
+        public final ForgeConfigSpec.IntValue quakeFormTicks;
         /** 裂け目が走り始めて(予兆の後)から、胞子噴出エフェクトが出現するまでの時間(tick)。既定 120 = 6 秒。 */
-        public final ModConfigSpec.IntValue quakeEruptStartTicks;
+        public final ForgeConfigSpec.IntValue quakeEruptStartTicks;
         /** 裂け目が完成してから、画面の揺れがゆっくり収まるまでの時間(tick)。既定 160 = 8 秒。 */
-        public final ModConfigSpec.IntValue quakeFadeOutTicks;
+        public final ForgeConfigSpec.IntValue quakeFadeOutTicks;
         /** 胞子を噴出し続ける時間(tick)。既定 3600 = 3 分(噴出開始からの時間)。 */
-        public final ModConfigSpec.IntValue quakeEruptDurationTicks;
+        public final ForgeConfigSpec.IntValue quakeEruptDurationTicks;
         /** 胞子噴出パーティクルを出す間隔(tick)。小さいほど濃い。既定 3。 */
-        public final ModConfigSpec.IntValue quakeEruptIntervalTicks;
+        public final ForgeConfigSpec.IntValue quakeEruptIntervalTicks;
         /** 胞子噴出中、噴出点からこのチャンク半径以内にランダムに汚染シダを湧かせる。0 で無効。 */
-        public final ModConfigSpec.IntValue quakeEruptHazardRadiusChunks;
+        public final ForgeConfigSpec.IntValue quakeEruptHazardRadiusChunks;
         /** 噴出点周囲にランダムな汚染シダを湧かせる処理の実行間隔(tick)。 */
-        public final ModConfigSpec.IntValue quakeEruptFernIntervalTicks;
+        public final ForgeConfigSpec.IntValue quakeEruptFernIntervalTicks;
         /** 上記1回あたりの汚染シダ出現の試行回数。 */
-        public final ModConfigSpec.IntValue quakeEruptFernAttemptsPerInterval;
+        public final ForgeConfigSpec.IntValue quakeEruptFernAttemptsPerInterval;
         /** 噴出点周囲(ハザード半径内)の汚染シダがこの数に達したら、それ以上は湧かせない。 */
-        public final ModConfigSpec.IntValue quakeEruptFernMaxNearby;
+        public final ForgeConfigSpec.IntValue quakeEruptFernMaxNearby;
         /** 胞子噴出エフェクトが出ている間、汚染シダなどによる侵食速度に掛かる倍率。 */
-        public final ModConfigSpec.DoubleValue quakeEruptionCorruptionMultiplier;
+        public final ForgeConfigSpec.DoubleValue quakeEruptionCorruptionMultiplier;
         /** (クライアント描画)画面の揺れの最大強度。0 で揺れなし、1.0 が既定。 */
-        public final ModConfigSpec.DoubleValue quakeShakeIntensity;
+        public final ForgeConfigSpec.DoubleValue quakeShakeIntensity;
         /** (クライアント描画)震央からこの距離(ブロック)離れるほど揺れが弱まる(下限あり)。既定 512。 */
-        public final ModConfigSpec.IntValue quakeShakeRadius;
+        public final ForgeConfigSpec.IntValue quakeShakeRadius;
 
         /**
          * (クライアント操作)剣・斧などの武器を持っている間、<b>当たり判定の無いブロック</b>
@@ -908,9 +908,9 @@ public final class OvergrownVegetationConfig {
          * ({@link com.yayuy.overgrownvegetation.client.SwingThroughFoliage})。
          * 照準の決定だけを差し替えるクライアント側の処理で、サーバーには影響しない。
          */
-        public final ModConfigSpec.BooleanValue swingThroughFoliage;
+        public final ForgeConfigSpec.BooleanValue swingThroughFoliage;
 
-        Common(ModConfigSpec.Builder b) {
+        Common(ForgeConfigSpec.Builder b) {
             b.comment("OvergrownVegetation — 侵食の設定").push("corruption");
 
             corruptionRadius = b

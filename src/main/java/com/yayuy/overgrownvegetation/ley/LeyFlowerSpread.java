@@ -11,16 +11,16 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 /**
  * 遊んでいる間に、地脈の線の上へ地脈の花が少しずつ増える(決定 25。今までのワールド = 花の世界生成より前に作ったチャンクにも出るように)。
  * オーバーワールドだけ【仮】。{@code flowerSpreadIntervalTicks} ごとに、プレイヤー 1 人のまわり {@code flowerSpreadRadius} の中で
  * {@code flowerSpreadTries} 回列を選び、線の帯の中・読み込み済み・草/土の上の空気・まわり {@code flowerCrowdRadius} の花が {@code flowerCrowdMax} 本未満なら 1 本置く。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class LeyFlowerSpread {
 
     private LeyFlowerSpread() {

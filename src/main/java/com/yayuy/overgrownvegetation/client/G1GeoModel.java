@@ -3,7 +3,7 @@ package com.yayuy.overgrownvegetation.client;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
-import software.bernie.geckolib.animatable.GeoAnimatable;
+import software.bernie.geckolib.core.animatable.GeoAnimatable;
 
 /**
  * G1 の感染体のモデル(2026-10-09 の作り直し)。geo・アニメ・絵は {@code <id>.geo.json}・{@code <id>.animation.json}・
@@ -47,7 +47,7 @@ public class G1GeoModel<T extends Entity & GeoAnimatable> extends LodGeoModel<T>
 
     /** 1 段目の手続きの骨(クリーパーの空の莢・据えたまま射るスケルトンの足の根。2026-11-13)。キーのアニメの後に重ねる。 */
     @Override
-    public void setCustomAnimations(T animatable, long instanceId, software.bernie.geckolib.animation.AnimationState<T> animationState) {
+    public void setCustomAnimations(T animatable, long instanceId, software.bernie.geckolib.core.animation.AnimationState<T> animationState) {
         super.setCustomAnimations(animatable, instanceId, animationState);
         if (animatable instanceof com.yayuy.overgrownvegetation.entity.DevelopedParasitized d) {
             G1DevelopedRig.apply(this, d, animationState);

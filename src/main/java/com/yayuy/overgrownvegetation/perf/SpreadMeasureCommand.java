@@ -19,9 +19,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 import java.util.List;
 
@@ -39,7 +39,7 @@ import java.util.List;
  *     <li>{@code lag} = 胞子の場の暦の遅れ(tick。早送りで場の計算が追いついているかの確かめ)。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class SpreadMeasureCommand {
 
     @SubscribeEvent
@@ -150,7 +150,7 @@ public final class SpreadMeasureCommand {
     private static int dump(CommandContext<CommandSourceStack> ctx) {
         ServerLevel level = ctx.getSource().getServer().overworld();
         Long2LongOpenHashMap ledger = PhaseData.get(level).snapshotLedger();
-        java.nio.file.Path out = net.neoforged.fml.loading.FMLPaths.GAMEDIR.get().resolve("ov-ledger-" + level.getGameTime() + ".tsv");
+        java.nio.file.Path out = net.minecraftforge.fml.loading.FMLPaths.GAMEDIR.get().resolve("ov-ledger-" + level.getGameTime() + ".tsv");
         StringBuilder sb = new StringBuilder("cx\tcz\tsince\n");
         for (Long2LongOpenHashMap.Entry e : ledger.long2LongEntrySet()) {
             sb.append(ChunkPos.getX(e.getLongKey())).append('\t').append(ChunkPos.getZ(e.getLongKey())).append('\t').append(e.getLongValue()).append('\n');

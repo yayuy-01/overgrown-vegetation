@@ -9,20 +9,21 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * 燻る灰ブロックの「見直す時刻」(次元ごと。汚染の暦)。燻る灰は砂のように落ちるので、予定 tick は落ちるのに使われていて 1 日先の予定を置けない。
  * 置かれたときに時刻を覚え、乱択の tick で期限を過ぎていたら見直す({@link SmolderingAshBlock})。覚えが無い灰(前の版・コマンドで置いた)は期限切れ扱い。
  */
-public final class ReviveTimers extends SavedData {
+public final class ReviveTimers extends OvSavedData {
 
     public static final String ID = "overgrown_vegetation_ash_timers";
-    public static final SavedData.Factory<ReviveTimers> FACTORY = new SavedData.Factory<>(ReviveTimers::new, (t, r) -> load(t), null);
+    public static final OvSavedData.Factory<ReviveTimers> FACTORY = new OvSavedData.Factory<>(ReviveTimers::new, (t, r) -> load(t), null);
 
     private final Long2LongOpenHashMap due = new Long2LongOpenHashMap();
 
     static ReviveTimers get(ServerLevel level) {
-        return level.getDataStorage().computeIfAbsent(FACTORY, ID);
+        return level.getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     private static ReviveTimers load(CompoundTag tag) {

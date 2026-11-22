@@ -8,9 +8,10 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * 卓越風の入力になる天気の印(2026-10-23 第 2 段 B)。直近 2 回の雨の始まりと終わり(オーバーワールドの {@code getDayTime})を覚え、
@@ -19,12 +20,12 @@ import net.neoforged.neoforge.event.tick.LevelTickEvent;
  *
  * <p>風の種({@link #windSeed})はワールドのシードそのものではなく、シードを混ぜた値(クライアントへシードを渡さない)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
-public final class WindWeatherData extends SavedData {
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
+public final class WindWeatherData extends OvSavedData {
 
     public static final String ID = "overgrown_vegetation_wind_weather";
-    public static final SavedData.Factory<WindWeatherData> FACTORY =
-            new SavedData.Factory<>(WindWeatherData::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<WindWeatherData> FACTORY =
+            new OvSavedData.Factory<>(WindWeatherData::new, (tag, registries) -> load(tag), null);
 
     private long lastRainStart = PrevailingWind.NONE, lastRainEnd = PrevailingWind.NONE;
     private long prevRainStart = PrevailingWind.NONE, prevRainEnd = PrevailingWind.NONE;
@@ -73,7 +74,7 @@ public final class WindWeatherData extends SavedData {
     }
 
     public static WindWeatherData get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     /** 風の種(シードを混ぜた値)。 */

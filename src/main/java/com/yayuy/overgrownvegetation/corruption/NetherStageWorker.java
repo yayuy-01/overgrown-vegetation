@@ -14,9 +14,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.ChunkEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.level.ChunkEvent;
 
 /**
  * <b>ネザーの段階を地面に当てはめる</b>(2026-11-11 骨組み)。前線が届いたチャンクのうち、<b>読み込まれていて周り 8 チャンクも読み込まれている</b>
@@ -32,7 +32,7 @@ import net.neoforged.neoforge.event.level.ChunkEvent;
  * </table>
  * 終わった段階は台帳({@code applied})に残るので、読み込み直しても続きから。殻と湖の輪は毎回世界を見て決めるので、途中で止まっても続きから進む。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class NetherStageWorker {
 
     /** 今進めているチャンク(読み込まれていて、まだやることがある)。 */

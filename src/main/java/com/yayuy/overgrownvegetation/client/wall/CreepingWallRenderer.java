@@ -2,7 +2,7 @@ package com.yayuy.overgrownvegetation.client.wall;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 
 /**
  * 蠢く壁の<b>描く側</b>(2026-11-16 試作)。本当の見た目(根と蔦の濁流・顔や手足・胞子嚢・光る筋)は後で Fable のセッションが作る。

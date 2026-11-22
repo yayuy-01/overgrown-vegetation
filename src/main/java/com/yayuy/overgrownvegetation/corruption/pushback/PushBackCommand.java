@@ -11,9 +11,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 import java.util.Locale;
 
@@ -21,7 +21,7 @@ import java.util.Locale;
  * 確かめ用(押し返し 2026-11-18 夜): {@code /ov perf pushback} = 今いるチャンクの地面の汚染の割合・台帳(載った日数)・焼けた荒地・杭の範囲・台帳の大きさ・外した数。
  * {@code /ov perf pushback grid <半径>} = まわりのチャンクの地面の割合の表(台帳に載っているものに *)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class PushBackCommand {
 
     private PushBackCommand() {

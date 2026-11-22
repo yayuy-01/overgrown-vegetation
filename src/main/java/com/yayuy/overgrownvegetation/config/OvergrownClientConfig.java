@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.config;
 
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.common.ForgeConfigSpec;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
@@ -13,76 +13,76 @@ import org.apache.commons.lang3.tuple.Pair;
  */
 public final class OvergrownClientConfig {
 
-    public static final ModConfigSpec SPEC;
+    public static final ForgeConfigSpec SPEC;
     public static final Client CLIENT;
 
     static {
-        Pair<Client, ModConfigSpec> pair = new ModConfigSpec.Builder().configure(Client::new);
+        Pair<Client, ForgeConfigSpec> pair = new ForgeConfigSpec.Builder().configure(Client::new);
         CLIENT = pair.getLeft();
         SPEC = pair.getRight();
     }
 
     public static final class Client {
         /** この MOD の植物を cutout_mipped の層へ寄せる(遠くの草のちらつきが減り、区画の層が 1 つ減る)。2026-10-23。 */
-        public final ModConfigSpec.BooleanValue plantMipmaps;
+        public final ForgeConfigSpec.BooleanValue plantMipmaps;
         /** 下草を地面へ縮めて描かなくなる距離(ブロック。半分の距離から縮み始める。0 = 縮めない)。2026-10-23。 */
-        public final ModConfigSpec.IntValue undergrowthDistance;
+        public final ForgeConfigSpec.IntValue undergrowthDistance;
         /** 巻きシダの立体モデルの精細さ(2026-10-23 に common から移した。ビデオ設定の「シダの葉を立体で描く」も同じ値)。 */
-        public final ModConfigSpec.EnumValue<CurledFernDetail> curledFernDetail;
+        public final ForgeConfigSpec.EnumValue<CurledFernDetail> curledFernDetail;
         /** 過繁茂の密林の雰囲気(林床の持ち上げ・林冠の影・光の筋・光る胞子・木漏れ日)を描くか。2026-10-30。 */
-        public final ModConfigSpec.BooleanValue atmosphereEnabled;
+        public final ForgeConfigSpec.BooleanValue atmosphereEnabled;
         /** 雰囲気の重さの段。2026-10-30。 */
-        public final ModConfigSpec.EnumValue<AtmosphereQuality> atmosphereQuality;
+        public final ForgeConfigSpec.EnumValue<AtmosphereQuality> atmosphereQuality;
         /** Iris のシェーダーパック使用中もこの MOD の演出を描くか(既定オフ。オンなら自前のシェーダーの書き込みの止めを外す)。2026-10-30 に戻した。 */
-        public final ModConfigSpec.BooleanValue effectsWithShaderPack;
+        public final ForgeConfigSpec.BooleanValue effectsWithShaderPack;
 
         // 演出 1 つずつのオンオフ(2026-11-01、ユーザー指定「環境音とシェーダー(光などの演出)をオンオフ」。分け方は仮決め)。
         // どれも atmosphereEnabled の子(親がオフなら全部オフ)。読み手は client/VisualQuality の同じ名前の口。
         /** 虫・爬虫類の声。 */
-        public final ModConfigSpec.BooleanValue ambientInsects;
+        public final ForgeConfigSpec.BooleanValue ambientInsects;
         /** 風の音。 */
-        public final ModConfigSpec.BooleanValue ambientWind;
+        public final ForgeConfigSpec.BooleanValue ambientWind;
         /** 地下の音(滴・根の軋み・胞子の溜まりのうなり。2026-11-01)。 */
-        public final ModConfigSpec.BooleanValue ambientCave;
+        public final ForgeConfigSpec.BooleanValue ambientCave;
         /** 水中の音(潜っている間のこもった低音と、過繁茂の水でバニラの水中の音を下げる。2026-11-01)。 */
-        public final ModConfigSpec.BooleanValue ambientUnderwater;
+        public final ForgeConfigSpec.BooleanValue ambientUnderwater;
         /** 光の筋と、その中を漂う粒。 */
-        public final ModConfigSpec.BooleanValue lightShafts;
+        public final ForgeConfigSpec.BooleanValue lightShafts;
         /** 木漏れ日。 */
-        public final ModConfigSpec.BooleanValue canopyDapple;
+        public final ForgeConfigSpec.BooleanValue canopyDapple;
         /** 林床の持ち上げ・緑の照り返し・林冠の影と色。 */
-        public final ModConfigSpec.BooleanValue canopyLight;
+        public final ForgeConfigSpec.BooleanValue canopyLight;
         /** 胞子の霧・朝霧(地形の霧・バニラの霧の上書き・Distant Horizons の霧の上書き・霧の向こうの巨大樹の影)。 */
-        public final ModConfigSpec.BooleanValue fog;
+        public final ForgeConfigSpec.BooleanValue fog;
         /** 霧の細部(レイマーチ。重さの段が高のときだけ描く)。 */
-        public final ModConfigSpec.BooleanValue fogDetail;
+        public final ForgeConfigSpec.BooleanValue fogDetail;
         /** 落ち葉・光る胞子・夕暮れの粒・雨上がりの滴・湯気。 */
-        public final ModConfigSpec.BooleanValue motes;
+        public final ForgeConfigSpec.BooleanValue motes;
         /** 羽虫・木の洞の虫と目。 */
-        public final ModConfigSpec.BooleanValue critters;
+        public final ForgeConfigSpec.BooleanValue critters;
         /** 葉と草の揺れ。 */
-        public final ModConfigSpec.BooleanValue leafSway;
+        public final ForgeConfigSpec.BooleanValue leafSway;
         /** 水面の輪と泡・濡れた照り(幹を伝う水は 2026-11-01 に退避)。 */
-        public final ModConfigSpec.BooleanValue waterLife;
+        public final ForgeConfigSpec.BooleanValue waterLife;
         /** 水中の光の網・光の筋・夜の光る藻。 */
-        public final ModConfigSpec.BooleanValue underwater;
+        public final ForgeConfigSpec.BooleanValue underwater;
         /** 地下モード(過繁茂の地下の黒い霧と植物の点光源・Mob の明るさ。11-01 試作)。 */
-        public final ModConfigSpec.BooleanValue caveLight;
-        public final ModConfigSpec.BooleanValue glowBloom;
-        public final ModConfigSpec.BooleanValue surfaceBump;
-        public final ModConfigSpec.BooleanValue simpleAo;
+        public final ForgeConfigSpec.BooleanValue caveLight;
+        public final ForgeConfigSpec.BooleanValue glowBloom;
+        public final ForgeConfigSpec.BooleanValue surfaceBump;
+        public final ForgeConfigSpec.BooleanValue simpleAo;
         /** 雲(ボクセルの雲・雲の影・薄明光線・高空の晴天。2026-11-08 雲の段階 1)。シェーダーパック使用中はパックの雲に任せて描かない。 */
-        public final ModConfigSpec.BooleanValue clouds;
+        public final ForgeConfigSpec.BooleanValue clouds;
         /** 監視塔フィロセンスに見られているときの画面の縁(2026-11-14。client/PhyllosensGazeEdge)の強さ: 目の数の倍率(%)・視界の内側に開く目・鼓動の縁。 */
-        public final ModConfigSpec.IntValue gazeEyeScale;
-        public final ModConfigSpec.BooleanValue gazeInnerEyes;
-        public final ModConfigSpec.BooleanValue gazePulse;
+        public final ForgeConfigSpec.IntValue gazeEyeScale;
+        public final ForgeConfigSpec.BooleanValue gazeInnerEyes;
+        public final ForgeConfigSpec.BooleanValue gazePulse;
         /** 大群の描画(2026-11-18 大群の軽量化 C。client/crowd): GPU スキニング + まとめ描き・遠くの群れの見た目・粗いモデルを描く遠さ。 */
-        public final ModConfigSpec.BooleanValue crowdGpuSkinning;
-        public final ModConfigSpec.EnumValue<com.yayuy.overgrownvegetation.client.crowd.HordeLook> hordeLook;
-        public final ModConfigSpec.IntValue hordeModelFarBlocks;
+        public final ForgeConfigSpec.BooleanValue crowdGpuSkinning;
+        public final ForgeConfigSpec.EnumValue<com.yayuy.overgrownvegetation.client.crowd.HordeLook> hordeLook;
+        public final ForgeConfigSpec.IntValue hordeModelFarBlocks;
 
-        Client(ModConfigSpec.Builder b) {
+        Client(ForgeConfigSpec.Builder b) {
             b.push("visual");
             plantMipmaps = b.comment("Draws this mod's plants with mipmaps (less shimmer on distant grass, one terrain layer less). Changing it reloads resources.")
                     .define("plantMipmaps", true);

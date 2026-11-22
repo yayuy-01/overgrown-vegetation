@@ -4,7 +4,7 @@ import com.yayuy.overgrownvegetation.registry.ModItems;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
-import net.neoforged.neoforge.registries.DeferredItem;
+import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
 
 import java.util.List;
 

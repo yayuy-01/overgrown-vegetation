@@ -14,7 +14,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 
 /**
  * <b>仮の</b>描き方(2026-11-16 試作。手触りを見るためだけ)。先頭の面を、苔の絵を貼った濃い茶緑の板で描く。

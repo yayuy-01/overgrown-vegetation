@@ -15,6 +15,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>倒された記録</b>(2026-11-14、司令塔 第 3 段 区切り 1「学ぶ」)。オーバーワールドに 1 つの保存データ。
@@ -24,12 +25,12 @@ import java.util.Locale;
  * (11-14 ユーザー「10〜13 体倒されれば」= 升ごとに 10〜13 のどれか。升の座標から決まり、変わらない)を超えたら「危ない所」。
  * 日はワールドの日付(拠点の記憶と同じ)。中身の計算は世界を見ない(テストは {@link #createForTests})。
  */
-public final class KillMemory extends SavedData {
+public final class KillMemory extends OvSavedData {
 
     private static final String ID = "overgrown_vegetation_kill_memory";
 
-    public static final SavedData.Factory<KillMemory> FACTORY =
-            new SavedData.Factory<>(KillMemory::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<KillMemory> FACTORY =
+            new OvSavedData.Factory<>(KillMemory::new, (tag, registries) -> load(tag), null);
 
     /** 1 つの升の記録。 */
     private static final class Cell {
@@ -48,7 +49,7 @@ public final class KillMemory extends SavedData {
     }
 
     public static KillMemory get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     public static KillMemory createForTests() {

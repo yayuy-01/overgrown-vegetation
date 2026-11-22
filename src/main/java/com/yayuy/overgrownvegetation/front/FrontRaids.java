@@ -22,10 +22,10 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>襲撃 = 前線から襲う部隊を出す</b>(2026-11-21 前線と部隊 区切り 3。正本は Vault「前線と部隊(地図の上の森の軍勢)(11-21)」の 8)。
@@ -50,11 +51,11 @@ import java.util.UUID;
  *   <li>拠点に着いた部隊は、読み込まれるまで拠点の前で待つ(戦いは読み込まれてから)。島の拠点で水に阻まれたら、流れ木もどきで運ぶ。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
-public final class FrontRaids extends SavedData {
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
+public final class FrontRaids extends OvSavedData {
 
     public static final String ID = OvergrownVegetation.MODID + "_front_raids";
-    public static final SavedData.Factory<FrontRaids> FACTORY = new SavedData.Factory<>(FrontRaids::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<FrontRaids> FACTORY = new OvSavedData.Factory<>(FrontRaids::new, (tag, registries) -> load(tag), null);
 
     /** 1 回の襲撃。 */
     public static final class Raid {
@@ -136,7 +137,7 @@ public final class FrontRaids extends SavedData {
     }
 
     public static FrontRaids get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     public List<Raid> raids() {

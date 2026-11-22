@@ -10,10 +10,10 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -32,7 +32,7 @@ import java.util.Map;
  * {@link #WAIT_LIMIT_TICKS}(仮決め 6000 = 5 分)待っても読み込まれなければ、その組の残りは捨てる(置いた所までが残る)。
  * 待ち行列は保存しない: サーバーを止めると置きかけの組は置いた所までで終わる(記録は残るので、そこへ新しい組は出ない)。仮決め。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class VineSpanPlacer {
 
     /** 1 tick に置くマスの上限と時間の上限(仮決め)。 */

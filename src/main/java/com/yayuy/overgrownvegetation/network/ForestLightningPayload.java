@@ -3,8 +3,8 @@ package com.yayuy.overgrownvegetation.network;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import com.yayuy.overgrownvegetation.port.network.StreamCodec;
+import com.yayuy.overgrownvegetation.port.network.CustomPacketPayload;
 
 /**
  * 汚染の森に雷が落ちた瞬間(2026-11-16 weather-system、雷雨の強化「落雷した汚染の森が光って胞子を吹き上げる」)。サーバーはその升の胞子を

@@ -28,13 +28,13 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.storage.DimensionDataStorage;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.common.util.FakePlayerFactory;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.common.util.FakePlayerFactory;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.UUID;
 import java.util.stream.Stream;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * MOD の設定ページ({@link WorldDifficultyData}・{@link DifficultyValues}・{@link ModDifficulty}・{@link MobStrength}、2026-11-19)のテスト。
@@ -461,19 +462,19 @@ public final class WorldDifficultyGameTests {
             data.replaceAll(new DifficultyValues());
             // オフ: 死んでも戻らない
             SporeInfectionEffects.setPlayerStage(player, 4);
-            player.setData(com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_STAGE_TICKS, 123);
+            OvAttach.setData(player, com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_STAGE_TICKS, 123);
             DamageSource src = level.damageSources().generic();
-            com.yayuy.overgrownvegetation.effect.InfectionOnDeath.onDeath(new net.neoforged.neoforge.event.entity.living.LivingDeathEvent(player, src));
+            com.yayuy.overgrownvegetation.effect.InfectionOnDeath.onDeath(new net.minecraftforge.event.entity.living.LivingDeathEvent(player, src));
             SporeInfectionEffects.setPlayerStage(player, 0); // 新しい体の代わり(感染は写らない)
-            com.yayuy.overgrownvegetation.effect.InfectionOnDeath.onRespawn(new net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerRespawnEvent(player, false));
+            com.yayuy.overgrownvegetation.effect.InfectionOnDeath.onRespawn(new net.minecraftforge.event.entity.player.PlayerEvent.PlayerRespawnEvent(player, false));
             check(helper, SporeInfectionEffects.stageOf(player) == 0, "オフなのに死んだ後も感染が戻った");
             // オン: 段階と進みが戻る
             data.set(DifficultySetting.KEEP_INFECTION, 1.0D);
             SporeInfectionEffects.setPlayerStage(player, 4);
-            player.setData(com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_STAGE_TICKS, 123);
-            com.yayuy.overgrownvegetation.effect.InfectionOnDeath.onDeath(new net.neoforged.neoforge.event.entity.living.LivingDeathEvent(player, src));
+            OvAttach.setData(player, com.yayuy.overgrownvegetation.registry.ModAttachments.SPORE_STAGE_TICKS, 123);
+            com.yayuy.overgrownvegetation.effect.InfectionOnDeath.onDeath(new net.minecraftforge.event.entity.living.LivingDeathEvent(player, src));
             SporeInfectionEffects.setPlayerStage(player, 0);
-            com.yayuy.overgrownvegetation.effect.InfectionOnDeath.onRespawn(new net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerRespawnEvent(player, false));
+            com.yayuy.overgrownvegetation.effect.InfectionOnDeath.onRespawn(new net.minecraftforge.event.entity.player.PlayerEvent.PlayerRespawnEvent(player, false));
             check(helper, SporeInfectionEffects.stageOf(player) == 4 && SporeInfectionEffects.progressOf(player) == 123,
                     "オンなのに死んだ後の感染が戻らない: 段階 " + SporeInfectionEffects.stageOf(player) + " 進み " + SporeInfectionEffects.progressOf(player));
 

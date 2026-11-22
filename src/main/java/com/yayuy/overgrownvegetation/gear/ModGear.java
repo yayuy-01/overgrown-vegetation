@@ -32,9 +32,9 @@ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConf
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
 import net.neoforged.neoforge.common.SimpleTier;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredItem;
+import com.yayuy.overgrownvegetation.port.registries.DeferredBlock;
+import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
+import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
 
 /**
  * 装備・鉱石の登録。数値は {@code gear_tiers.json}({@link GearTierTable})。正本は Vault「強くなる道(素材・装備・武器・探索)(11-17)」の 11-21 の節。
@@ -223,9 +223,9 @@ public final class ModGear {
             ModFeatures.FEATURES.register("conduit_ore", () -> new ConduitOre.Placer(NoneFeatureConfiguration.CODEC));
 
     /** 地脈の力の口(電池と同じ。受け取るだけで出さない = 鉄塔の網に吸い出されない)。 */
-    @net.neoforged.fml.common.EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.MOD)
+    @net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus.MOD)
     public static final class Capabilities {
-        @net.neoforged.bus.api.SubscribeEvent
+        @net.minecraftforge.eventbus.api.SubscribeEvent
         public static void register(net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent event) {
             event.registerItem(net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.ITEM,
                     (stack, ctx) -> new net.neoforged.neoforge.energy.ComponentEnergyStorage(stack, ModLey.ENERGY.get(),

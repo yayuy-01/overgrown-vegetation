@@ -6,9 +6,9 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ServerLevelData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 /**
  * バニラの雨・雷雨を雲の多い日に合わせる(2026-11-09 雲の段階 2a-5。ユーザー決定「バニラの雨を雲の多い日だけに合わせる・/weather はそのまま使える・
@@ -30,7 +30,7 @@ import net.neoforged.neoforge.event.tick.LevelTickEvent;
  * {@link CloudSky#coverage}・{@code client.sky.VoxelClouds#roughness})。予定で天気を決めている間だけ(手で変えた天気・{@code /weather clear} の間は前触れなし。
  * クライアントはサーバーから {@code CloudDriftPayload.weatherActive} で受ける)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class CloudWeather {
 
     /** 雨が降り始める時刻の幅(その日の何時から何時の間、時)・長さの幅(tick)・日をまたがない雨が止む時刻(日の変わり目の何 tick 前)。仮決め。 */
@@ -291,7 +291,7 @@ public final class CloudWeather {
     }
 
     @SubscribeEvent
-    public static void onServerStopping(net.neoforged.neoforge.event.server.ServerStoppingEvent event) {
+    public static void onServerStopping(net.minecraftforge.event.server.ServerStoppingEvent event) {
         reset();
     }
 

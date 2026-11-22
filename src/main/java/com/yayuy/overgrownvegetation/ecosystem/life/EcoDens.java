@@ -34,12 +34,13 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.phys.AABB;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * 棲み処と台帳からの自然湧き(2026-11-18、行動の段。全体管理 11-18 了承の ecosystem-plan.md)。サーバーで 2 秒おきに、プレイヤーごとに:
@@ -51,7 +52,7 @@ import java.util.List;
  * 生きている数の上限はプレイヤーのまわり 96 ブロックで獲物の環境生物 16・狩る側の環境生物 6 × 升の頭数 ÷ 満員【仮】。環境生物は F1 から湧く(11-18 ユーザー)。湧くのは過繁茂の内側(台帳に載り縁でない)だけ。
  * 入る・出る・遠くで消えるは台帳を減らさない(減るのはプレイヤーが倒したときだけ = {@link Ecosystem})。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class EcoDens {
 
     /** 洞・台帳から湧いた個体の印。 */
@@ -432,11 +433,11 @@ public final class EcoDens {
     }
 
     /** 後付けで見たチャンク(保存)。 */
-    public static final class Scanned extends SavedData {
+    public static final class Scanned extends OvSavedData {
         final LongOpenHashSet done = new LongOpenHashSet();
 
         static Scanned get(ServerLevel level) {
-            return level.getDataStorage().computeIfAbsent(new SavedData.Factory<>(Scanned::new, Scanned::load, null), "overgrown_vegetation_eco_dens");
+            return level.getDataStorage().computeIfAbsent(new OvSavedData.Factory<>(Scanned::new, Scanned::load, null), "overgrown_vegetation_eco_dens");
         }
 
         static Scanned load(CompoundTag tag, HolderLookup.Provider registries) {

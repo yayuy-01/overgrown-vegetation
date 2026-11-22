@@ -6,10 +6,10 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 
 /**
  * {@code /ov fx …} — 雰囲気の出来事を自分のゲームで確かめる(2026-11-08。G4 胞子の風・G5 光る胞子の夜)。見た目はクライアントだけなので、
@@ -20,7 +20,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
  *     <li>{@code /ov fx status} — 今の様子(チャット)。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class AtmosphereFxCommand {
 
     @SubscribeEvent

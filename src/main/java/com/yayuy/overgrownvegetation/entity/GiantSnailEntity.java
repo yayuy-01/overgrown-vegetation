@@ -41,10 +41,10 @@ public class GiantSnailEntity extends CrawlerCritter {
 
     private static final net.minecraft.network.syncher.EntityDataAccessor<Boolean> DATA_RETRACTED =
             net.minecraft.network.syncher.SynchedEntityData.defineId(GiantSnailEntity.class, net.minecraft.network.syncher.EntityDataSerializers.BOOLEAN);
-    private static final software.bernie.geckolib.animation.RawAnimation RETRACT =
-            software.bernie.geckolib.animation.RawAnimation.begin().thenPlay("retract").thenLoop("retract_hold");
-    private static final software.bernie.geckolib.animation.RawAnimation EMERGE =
-            software.bernie.geckolib.animation.RawAnimation.begin().thenPlay("retract_out");
+    private static final software.bernie.geckolib.core.animation.RawAnimation RETRACT =
+            software.bernie.geckolib.core.animation.RawAnimation.begin().thenPlay("retract").thenLoop("retract_hold");
+    private static final software.bernie.geckolib.core.animation.RawAnimation EMERGE =
+            software.bernie.geckolib.core.animation.RawAnimation.begin().thenPlay("retract_out");
     private static final net.minecraft.network.syncher.EntityDataAccessor<Boolean> DATA_EMERGING =
             net.minecraft.network.syncher.SynchedEntityData.defineId(GiantSnailEntity.class, net.minecraft.network.syncher.EntityDataSerializers.BOOLEAN);
     /** 頭を出すアニメ retract_out の長さ(tick)。出ている途中は止まったまま(這い出さない)。 */
@@ -150,10 +150,10 @@ public class GiantSnailEntity extends CrawlerCritter {
 
     /** 殻の層: 引っ込んでいる間は retract → retract_hold、出るときは retract_out で、歩き・待機の頭と殻を上書きする(後に登録 = 同じ骨は後が勝つ)。 */
     @Override
-    public void registerControllers(software.bernie.geckolib.animation.AnimatableManager.ControllerRegistrar controllers) {
+    public void registerControllers(software.bernie.geckolib.core.animation.AnimatableManager.ControllerRegistrar controllers) {
         super.registerControllers(controllers);
-        controllers.add(new software.bernie.geckolib.animation.AnimationController<>(this, "shell", 4,
-                s -> retracted() ? s.setAndContinue(RETRACT) : emerging() ? s.setAndContinue(EMERGE) : software.bernie.geckolib.animation.PlayState.STOP));
+        controllers.add(new software.bernie.geckolib.core.animation.AnimationController<>(this, "shell", 4,
+                s -> retracted() ? s.setAndContinue(RETRACT) : emerging() ? s.setAndContinue(EMERGE) : software.bernie.geckolib.core.object.PlayState.STOP));
     }
 
     public static AttributeSupplier.Builder createAttributes() {

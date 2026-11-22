@@ -10,10 +10,10 @@ import com.yayuy.overgrownvegetation.client.shader.ShaderPacks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.ShaderInstance;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
@@ -120,7 +120,7 @@ public final class CrowdDraw {
     }
 
     // 同じ段のほかの描画(光る藻など)より先に描く: 前の描画が残した GL の状態を引き継がない・半透明の上に後から重ねない
-    @SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.HIGHEST)
+    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST)
     public static void onRenderStage(RenderLevelStageEvent event) {
         RenderLevelStageEvent.Stage stage = event.getStage();
         if (stage == RenderLevelStageEvent.Stage.AFTER_CUTOUT_BLOCKS) {

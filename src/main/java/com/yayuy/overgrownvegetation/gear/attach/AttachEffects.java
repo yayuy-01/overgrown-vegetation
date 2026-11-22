@@ -11,11 +11,11 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.inventory.ClickAction;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.ItemAttributeModifierEvent;
-import net.neoforged.neoforge.event.ItemStackedOnOtherEvent;
-import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.ItemAttributeModifierEvent;
+import net.minecraftforge.event.ItemStackedOnOtherEvent;
+import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 
 import java.util.List;
 
@@ -29,7 +29,7 @@ import java.util.List;
  * </ul>
  * 導晶装飾の布(地脈の力の減り)は払う側から {@link ArmorAttachments#leyCostFactor} を読む。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class AttachEffects {
 
     private AttachEffects() {
@@ -64,7 +64,7 @@ public final class AttachEffects {
      * 付け物の無い物はコンポーネントを見るだけで終わる。
      */
     @SubscribeEvent
-    public static void onPlayerTick(net.neoforged.neoforge.event.tick.PlayerTickEvent.Post event) {
+    public static void onPlayerTick(com.yayuy.overgrownvegetation.port.event.tick.PlayerTickEvent.Post event) {
         var player = event.getEntity();
         if (player.level().isClientSide || player.tickCount % 40 != 0) return;
         var inv = player.getInventory();
@@ -81,14 +81,14 @@ public final class AttachEffects {
 
     /** 金床で受け取った(結果への引き継ぎは {@code AnvilAttachCarryMixin})。 */
     @SubscribeEvent
-    public static void onAnvilTake(net.neoforged.neoforge.event.entity.player.AnvilRepairEvent event) {
+    public static void onAnvilTake(net.minecraftforge.event.entity.player.AnvilRepairEvent event) {
         ItemStack scratch = event.getOutput().copy();
         ArmorAttachments.giveBack(event.getEntity(), ArmorAttachments.carryOver(scratch, event.getLeft(), event.getRight()));
     }
 
     /** 砥石で受け取った(結果への引き継ぎは {@code GrindstoneAttachCarryMixin})。 */
     @SubscribeEvent
-    public static void onGrindstoneTake(net.neoforged.neoforge.event.GrindstoneEvent.OnTakeItem event) {
+    public static void onGrindstoneTake(net.minecraftforge.event.GrindstoneEvent.OnTakeItem event) {
         ItemStack top = event.getTopItem(), bottom = event.getBottomItem();
         ItemStack scratch = new ItemStack(!top.isEmpty() ? top.getItem() : bottom.getItem());
         ArmorAttachments.giveBack(event.getPlayer(), ArmorAttachments.carryOver(scratch, top, bottom));
@@ -100,7 +100,7 @@ public final class AttachEffects {
      * シフトで受け取ったときは結果がもう持ち物へ移っているので、付け物は全部持ち主へ返る(消えはしない)。
      */
     @SubscribeEvent
-    public static void onCrafted(net.neoforged.neoforge.event.entity.player.PlayerEvent.ItemCraftedEvent event) {
+    public static void onCrafted(net.minecraftforge.event.entity.player.PlayerEvent.ItemCraftedEvent event) {
         var grid = event.getInventory();
         java.util.List<ItemStack> armors = new java.util.ArrayList<>();
         boolean any = false;

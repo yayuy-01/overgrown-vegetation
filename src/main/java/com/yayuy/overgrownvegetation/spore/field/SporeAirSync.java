@@ -8,11 +8,11 @@ import com.yayuy.overgrownvegetation.network.SporeAirPayload;
 import com.yayuy.overgrownvegetation.spore.SporeConcentration;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -86,7 +86,7 @@ public final class SporeAirSync {
 
     /** 抜けたプレイヤーを忘れる(入り直したら送り直す)。 */
     @SubscribeEvent
-    public static void onLoggedOut(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
+    public static void onLoggedOut(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
         LAST.remove(event.getEntity().getUUID());
     }
 

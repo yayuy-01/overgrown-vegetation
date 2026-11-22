@@ -15,10 +15,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
 
 import com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster;
 import net.minecraft.util.RandomSource;
@@ -36,7 +36,7 @@ import java.util.List;
  * <p>重さ: プレイヤー 1 人につき、その升の足元から上下 {@code scanHalfHeight} の区画のうち、タグの物を含みうる区画だけをなめる
  * (区画のパレットで先に弾く)。20 秒に 1 回。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class BaseWatch {
 
     private BaseWatch() {

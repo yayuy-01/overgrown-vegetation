@@ -13,6 +13,7 @@ import net.minecraft.world.inventory.ClickAction;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * <b>地脈の力をためる道具・武器・防具</b>(2026-11-21 グレード 1 の導晶。ユーザー決定「地脈の力をためると強くなる(案 b)」)。
@@ -80,11 +81,11 @@ public final class LeyCharge {
     }
 
     public static int stored(ItemStack stack) {
-        return Mth.clamp(stack.getOrDefault(ModLey.ENERGY.get(), 0), 0, capacity(stack));
+        return Mth.clamp(OvItemData.getOrDefault(stack, ModLey.ENERGY.get(), 0), 0, capacity(stack));
     }
 
     public static void set(ItemStack stack, int fe) {
-        stack.set(ModLey.ENERGY.get(), Mth.clamp(fe, 0, capacity(stack)));
+        OvItemData.set(stack, ModLey.ENERGY.get(), Mth.clamp(fe, 0, capacity(stack)));
     }
 
     /** 満たした物(創造モードのタブ・試す用)。 */
@@ -124,7 +125,7 @@ public final class LeyCharge {
         int move = Math.min(Math.min(room, LeyBatteryItem.stored(battery)), Math.max(0, c().pourPerClick));
         if (move <= 0) return 0;
         set(target, stored(target) + move);
-        battery.set(ModLey.ENERGY.get(), LeyBatteryItem.stored(battery) - move);
+        OvItemData.set(battery, ModLey.ENERGY.get(), LeyBatteryItem.stored(battery) - move);
         return move;
     }
 
@@ -141,8 +142,8 @@ public final class LeyCharge {
         if (!oldStack.is(newStack.getItem())) return false;
         ItemStack a = oldStack.copy();
         ItemStack b = newStack.copy();
-        a.remove(ModLey.ENERGY.get());
-        b.remove(ModLey.ENERGY.get());
+        OvItemData.remove(a, ModLey.ENERGY.get());
+        OvItemData.remove(b, ModLey.ENERGY.get());
         a.setDamageValue(0);
         b.setDamageValue(0);
         return ItemStack.isSameItemSameComponents(a, b);

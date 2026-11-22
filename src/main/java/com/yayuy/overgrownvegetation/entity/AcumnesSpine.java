@@ -101,7 +101,7 @@ public class AcumnesSpine extends ThrowableProjectile {
         if (!super.canHitEntity(target) || target == this.getOwner()) return false;
         if (target instanceof Player p && (p.isSpectator() || p.isCreative())) return false;
         // 叩ける部位(翅など)は持ち主で見る: 自分の部位・植物側の部位には当たらない
-        if (target instanceof net.neoforged.neoforge.entity.PartEntity<?> part) {
+        if (target instanceof net.minecraftforge.entity.PartEntity<?> part) {
             Entity parent = part.getParent();
             return parent != this.getOwner() && !(parent instanceof LivingEntity pl && !AcumnesEntity.isPrey(null, pl));
         }

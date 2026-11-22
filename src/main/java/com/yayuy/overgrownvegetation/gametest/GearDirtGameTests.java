@@ -29,11 +29,12 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LayeredCauldronBlock;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * 装備の汚れ(2026-11-14 サバイバルの背骨 段 3b): 濃い所で汚れる(薄い所・創造では汚れない)・汚れた装備で暴露量がたまる(マスクが効けばたまらない)・
@@ -295,7 +296,7 @@ public final class GearDirtGameTests {
         }
         // マスクを洗うと汚れもフィルターも洗われる
         ItemStack mask = new ItemStack(ModItems.PROTECTIVE_MASK.get());
-        mask.set(ModDataComponents.MASK_FILTER_USED, 5000);
+        OvItemData.set(mask, ModDataComponents.MASK_FILTER_USED, 5000);
         GearDirt.setDirt(mask, s.full());
         Decon.washOne(level, mask, level.random, GearDirt.machineStep());
         if (AirFilters.used(mask) != 0 || AirFilters.washes(mask) != 1 || GearDirt.dirt(mask) != 0) {

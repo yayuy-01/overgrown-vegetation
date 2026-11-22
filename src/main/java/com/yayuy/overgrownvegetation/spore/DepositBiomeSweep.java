@@ -16,10 +16,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -47,7 +47,7 @@ import java.util.Map;
  * ({@link ModBiomes#isOvergrownLike} の JavaDoc 参照)ので、繁茂 → 繁茂 と胞子濃度が
  * 際限なく外へ伝播することもない。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class DepositBiomeSweep {
 
     /** ディメンションごとの「チャンク → 次に判定してよくなるゲーム内時刻」。処理済みチャンクの再判定クールダウン。 */

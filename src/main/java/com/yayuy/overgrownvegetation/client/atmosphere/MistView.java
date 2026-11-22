@@ -14,7 +14,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.material.FogType;
-import net.neoforged.neoforge.client.event.ViewportEvent;
+import net.minecraftforge.client.event.ViewportEvent;
 
 /**
  * <b>バニラの霧と空</b>(第 3 段「霧」、10-30 夜。元は parked の {@code CorruptionAtmosphere} の朝霧の分)。

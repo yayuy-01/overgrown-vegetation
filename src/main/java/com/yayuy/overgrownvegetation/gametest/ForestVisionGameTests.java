@@ -21,11 +21,11 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -127,7 +127,7 @@ public final class ForestVisionGameTests {
         ForestDirector dir = ForestDirector.get(level);
         double before = dir.available(level);
         List<ChunkPos> forest = plantForest(level, FX, FZ, 1);
-        ServerPlayer killer = net.neoforged.neoforge.common.util.FakePlayerFactory.get(level,
+        ServerPlayer killer = net.minecraftforge.common.util.FakePlayerFactory.get(level,
                 new com.mojang.authlib.GameProfile(java.util.UUID.fromString("0fe55a2e-0000-4000-8000-00000000a1d0"), "vision_test"));
         try {
             AbstractParasitizedMonster m = (AbstractParasitizedMonster) helper.spawn(
@@ -166,7 +166,7 @@ public final class ForestVisionGameTests {
         BlockPos center = helper.absolutePos(new BlockPos(3, 1, 3));
         // 床の上に何も無い = 暗い(ブロックの光 0)
         helper.assertTrue(ScoutSearch.lightsAround(level, center, t, RandomSource.create(1)) == 0, "明かりが無いのに数えた");
-        ServerPlayer p = net.neoforged.neoforge.common.util.FakePlayerFactory.get(level,
+        ServerPlayer p = net.minecraftforge.common.util.FakePlayerFactory.get(level,
                 new com.mojang.authlib.GameProfile(java.util.UUID.fromString("0fe55a2e-0000-4000-8000-00000000a1d1"), "trail_test"));
         p.setItemSlot(EquipmentSlot.HEAD, ItemStack.EMPTY);
         p.setItemSlot(EquipmentSlot.CHEST, ItemStack.EMPTY);

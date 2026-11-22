@@ -12,13 +12,13 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredItem;
+import com.yayuy.overgrownvegetation.port.registries.DeferredBlock;
+import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
+import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
 
 /**
  * <b>除染</b>(2026-11-14 サバイバルの背骨 段 3a)の登録: 除染の変換表のレシピの種類・地脈の洗い場。仕様の正本は Vault「サバイバルの背骨(籠城と遠征)」。
@@ -51,10 +51,10 @@ public final class ModDecon {
      * 装備の汚れ(0〜{@code dirt.full})。着ている物・手の耐久のある物に付く。数字では見せず、絵(アイコンと体に着た姿)でだけ見せる(決定 33)。
      * クライアントへも送る(絵のため)。
      */
-    public static final DeferredHolder<net.minecraft.core.component.DataComponentType<?>, net.minecraft.core.component.DataComponentType<Integer>> GEAR_DIRT =
+    public static final DeferredHolder<com.yayuy.overgrownvegetation.port.component.DataComponentType<?>, com.yayuy.overgrownvegetation.port.component.DataComponentType<Integer>> GEAR_DIRT =
             ModDataComponents.COMPONENTS.registerComponentType("gear_dirt", b -> b
                     .persistent(com.mojang.serialization.Codec.INT)
-                    .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT));
+                    .networkSynchronized(com.yayuy.overgrownvegetation.port.network.ByteBufCodecs.VAR_INT));
 
     // ---- 地脈の洗い場 ----
 

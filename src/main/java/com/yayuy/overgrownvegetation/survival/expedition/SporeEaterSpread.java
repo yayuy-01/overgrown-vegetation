@@ -12,9 +12,9 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 /**
  * 胞子喰い茸が過繁茂の森の地面に少しずつ生える(2026-11-16 段 4)。地脈の花の {@code LeyFlowerSpread} と同じ作り:
@@ -22,7 +22,7 @@ import net.neoforged.neoforge.event.tick.LevelTickEvent;
  * 過繁茂のバイオーム・葉を除いた高さ地図の地面の上の空気・空の光 {@code mushroomMaxSkyLight} 以下(葉の下の暗がり)・
  * まわり {@code mushroomCrowdRadius} に {@code mushroomCrowdMax} 本未満なら 1 本置く。天井の無い次元だけ(ネザーは高さ地図が天井の上を答えるため、今は生えない)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class SporeEaterSpread {
 
     private SporeEaterSpread() {

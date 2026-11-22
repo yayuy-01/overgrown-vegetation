@@ -30,18 +30,19 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.common.util.FakePlayerFactory;
-import net.neoforged.neoforge.energy.IEnergyStorage;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.common.util.FakePlayerFactory;
+import net.minecraftforge.energy.IEnergyStorage;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * 導晶の武器と防具(2026-11-21 夜): 力の有無で剣の攻撃・弩の装填・防具の受ける傷が変わる、使うと力が減る、切れたらふつう、充電できる。
@@ -314,7 +315,7 @@ public final class ConduitWeaponArmorGameTests {
         for (int i = 0; i < all.length; i++) {
             ItemStack target = new ItemStack(all[i]);
             ItemStack battery = new ItemStack(ModLey.BATTERY.get());
-            battery.set(ModLey.ENERGY.get(), LeyBatteryItem.capacity());
+            OvItemData.set(battery, ModLey.ENERGY.get(), LeyBatteryItem.capacity());
             int batteryBefore = LeyBatteryItem.stored(battery);
             boolean handled = LeyCharge.onStackedOn(target, battery, ClickAction.SECONDARY, player);
             int expect = Math.min(Math.min(cap[i], batteryBefore), t().conduit.pourPerClick);
@@ -323,7 +324,7 @@ public final class ConduitWeaponArmorGameTests {
                 return;
             }
             IEnergyStorage cap1 = target.getCapability(Capabilities.EnergyStorage.ITEM);
-            if (cap1 == null || cap1.getMaxEnergyStored() != cap[i] || LeyCharge.full(new ItemStack(all[i])).getOrDefault(ModLey.ENERGY.get(), 0) != cap[i]) {
+            if (cap1 == null || cap1.getMaxEnergyStored() != cap[i] || OvItemData.getOrDefault(LeyCharge.full(new ItemStack(all[i])), ModLey.ENERGY.get(), 0) != cap[i]) {
                 helper.fail(all[i] + " の FE の口・満タンが合わない");
                 return;
             }

@@ -31,11 +31,12 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * 換気の機械とフィルター(2026-11-14 サバイバルの背骨 段 2c)。場から上限つきで抜く・範囲の外は下げない・嵐で抜き切れない・
@@ -227,7 +228,7 @@ public final class VentGameTests {
             return;
         }
         ItemStack clogged = freshFilter();
-        clogged.set(ModDataComponents.MASK_FILTER_USED, (int) Math.ceil(AirFilters.capacity(clogged)));
+        OvItemData.set(clogged, ModDataComponents.MASK_FILTER_USED, (int) Math.ceil(AirFilters.capacity(clogged)));
         vent.setFilter(clogged);
         if (vent.tickOnce() || vent.running()) {
             helper.fail("詰まったフィルターで動いた");
@@ -263,7 +264,7 @@ public final class VentGameTests {
             return;
         }
         ItemStack almost = freshFilter();
-        almost.set(ModDataComponents.MASK_FILTER_USED, (int) AirFilters.capacity(almost) - 100);
+        OvItemData.set(almost, ModDataComponents.MASK_FILTER_USED, (int) AirFilters.capacity(almost) - 100);
         vent.setFilter(almost);
         double b = vent.budgetUnits(60, t);
         if (Math.abs(b - 100.0D / per) > 1e-6) {
@@ -280,8 +281,8 @@ public final class VentGameTests {
         VentBlockEntity vent = placeVent(helper, new BlockPos(3, 2, 3));
         vent.energyPort().receiveEnergy(1234, false);
         ItemStack f = freshFilter();
-        f.set(ModDataComponents.MASK_FILTER_USED, 4321);
-        f.set(ModVent.FILTER_WASHES.get(), 2);
+        OvItemData.set(f, ModDataComponents.MASK_FILTER_USED, 4321);
+        OvItemData.set(f, ModVent.FILTER_WASHES.get(), 2);
         vent.setFilter(f);
         ServerLevel level = helper.getLevel();
         CompoundTag tag = vent.saveWithFullMetadata(level.registryAccess());
@@ -367,7 +368,7 @@ public final class VentGameTests {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         ItemStack mask = new ItemStack(ModItems.PROTECTIVE_MASK.get());
         int cap = (int) Math.ceil(AirFilters.capacity(mask));
-        mask.set(ModDataComponents.MASK_FILTER_USED, cap);
+        OvItemData.set(mask, ModDataComponents.MASK_FILTER_USED, cap);
         if (ProtectiveMaskItem.remaining(mask) > 0.0D) {
             helper.fail("前提: マスクが詰まっていない");
             return;
@@ -389,7 +390,7 @@ public final class VentGameTests {
             return;
         }
         // つかんでいるのが 1 枚: 手に古いフィルターが残る
-        mask.set(ModDataComponents.MASK_FILTER_USED, 777);
+        OvItemData.set(mask, ModDataComponents.MASK_FILTER_USED, 777);
         ProtectiveMaskItem.swapFilter(mask, hand[0], player, access);
         if (ProtectiveMaskItem.used(mask) != 0 || !AirFilters.isFilter(hand[0]) || AirFilters.used(hand[0]) != 777) {
             helper.fail("1 枚の入れ替えで手に古いフィルターが残らない: 手の詰まり " + AirFilters.used(hand[0]));

@@ -23,17 +23,18 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.ai.memory.MemoryStatus;
 import net.minecraft.world.entity.player.Player;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.common.Tags;
-import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
-import net.neoforged.neoforge.event.entity.living.LivingChangeTargetEvent;
-import net.neoforged.neoforge.event.entity.living.LivingConversionEvent;
-import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.event.tick.EntityTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.common.Tags;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.event.entity.living.LivingChangeTargetEvent;
+import net.minecraftforge.event.entity.living.LivingConversionEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.EntityTickEvent;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 汎用の感染体(2026-11-15 ユーザー決定。専用の G1 が無い生き物が、生きたまま植物側に変わる)の土台。
@@ -56,7 +57,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
  *     <li><b>変身しない</b>(★): バニラの変身(雷・ゾンビ化・溺れ)を止める。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class GenericInfection {
 
     private GenericInfection() {
@@ -71,13 +72,13 @@ public final class GenericInfection {
 
     /** 変わったか(変わっている途中も含む)。 */
     public static boolean isTurned(Entity entity) {
-        return entity.hasData(ModAttachments.GENERIC_INFECTED) && entity.getData(ModAttachments.GENERIC_INFECTED).turned;
+        return OvAttach.hasData(entity, ModAttachments.GENERIC_INFECTED) && OvAttach.getData(entity, ModAttachments.GENERIC_INFECTED).turned;
     }
 
     /** 変わる動きの途中か。 */
     public static boolean isTransforming(Entity entity) {
-        return entity.hasData(ModAttachments.GENERIC_INFECTED)
-                && entity.getData(ModAttachments.GENERIC_INFECTED).transforming(entity.level().getGameTime());
+        return OvAttach.hasData(entity, ModAttachments.GENERIC_INFECTED)
+                && OvAttach.getData(entity, ModAttachments.GENERIC_INFECTED).transforming(entity.level().getGameTime());
     }
 
     /**
@@ -145,7 +146,7 @@ public final class GenericInfection {
     }
 
     private static void doTurn(Mob mob, boolean instant) {
-        GenericInfected g = mob.getData(ModAttachments.GENERIC_INFECTED);
+        GenericInfected g = OvAttach.getData(mob, ModAttachments.GENERIC_INFECTED);
         g.turned = true;
         g.seed = mob.getRandom().nextLong();
         // 11-20 ユーザー決定: 感染体への変化で森にまとまったバイオマスが入る
@@ -158,7 +159,7 @@ public final class GenericInfection {
         g.boss = isBossType(mob);
         g.blockedDamage = 0.0F;
         // 感染の後始末: 暴露量・感染・逃げる向きを消し、弱りの修飾を外す(変わった Mob は植物側なので、もう測らない)
-        if (mob.hasData(ModAttachments.SPORE_EXPOSURE)) mob.getData(ModAttachments.SPORE_EXPOSURE).reset();
+        if (OvAttach.hasData(mob, ModAttachments.SPORE_EXPOSURE)) OvAttach.getData(mob, ModAttachments.SPORE_EXPOSURE).reset();
         AttributeInstance speed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
         if (speed != null) speed.removeModifier(MobInfection.WEAKNESS_ID);
         applyHealth(mob, g.boss);
@@ -187,7 +188,7 @@ public final class GenericInfection {
     /** 戻す(確かめ用)。変わっていなければ何もしない。ボスの体力の修飾は外す(胞子の傷は戻さない)。 */
     public static boolean revert(LivingEntity entity) {
         if (!isTurned(entity)) return false;
-        entity.getData(ModAttachments.GENERIC_INFECTED).clear();
+        OvAttach.getData(entity, ModAttachments.GENERIC_INFECTED).clear();
         AttributeInstance max = entity.getAttribute(Attributes.MAX_HEALTH);
         if (max != null && max.getModifier(BOSS_HEALTH_ID) != null) {
             max.removeModifier(BOSS_HEALTH_ID);
@@ -225,7 +226,7 @@ public final class GenericInfection {
      */
     public static boolean onSporeHitBlocked(ServerLevel level, LivingEntity entity, float amount) {
         if (entity.isInvulnerable() || level.getDifficulty() == Difficulty.PEACEFUL || !canTurn(entity)) return false;
-        GenericInfected g = entity.getData(ModAttachments.GENERIC_INFECTED);
+        GenericInfected g = OvAttach.getData(entity, ModAttachments.GENERIC_INFECTED);
         g.blockedDamage += amount;
         blockedCount++;
         if (g.blockedDamage >= entity.getHealth() + entity.getAbsorptionAmount()) doTurn((Mob) entity, false);
@@ -356,8 +357,8 @@ public final class GenericInfection {
     @SubscribeEvent
     public static void onTick(EntityTickEvent.Pre event) {
         Entity e = event.getEntity();
-        if (!(e instanceof Mob mob) || e.level().isClientSide() || !e.hasData(ModAttachments.GENERIC_INFECTED)) return;
-        GenericInfected g = e.getData(ModAttachments.GENERIC_INFECTED);
+        if (!(e instanceof Mob mob) || e.level().isClientSide() || !OvAttach.hasData(e, ModAttachments.GENERIC_INFECTED)) return;
+        GenericInfected g = OvAttach.getData(e, ModAttachments.GENERIC_INFECTED);
         if (!g.turned || !mob.isAlive()) return;
         long now = e.level().getGameTime();
         if (g.transforming(now)) {
@@ -381,7 +382,7 @@ public final class GenericInfection {
         long now = level.getGameTime();
         for (Mob m : level.getEntitiesOfClass(Mob.class, new net.minecraft.world.phys.AABB(at, at).inflate(radius, 64.0D, radius), GenericInfection::isTurned)) {
             if (!m.isAlive() || isTransforming(m) || m.distanceToSqr(at) > radius * radius) continue;
-            GenericInfected g = m.getData(ModAttachments.GENERIC_INFECTED);
+            GenericInfected g = OvAttach.getData(m, ModAttachments.GENERIC_INFECTED);
             g.callX = target.getX();
             g.callY = target.getY();
             g.callZ = target.getZ();
@@ -409,7 +410,7 @@ public final class GenericInfection {
 
     /** 呼び寄せに向かっている途中か(確かめ用)。 */
     public static boolean isCalled(Entity entity) {
-        return entity.hasData(ModAttachments.GENERIC_INFECTED) && entity.level().getGameTime() < entity.getData(ModAttachments.GENERIC_INFECTED).callUntil;
+        return OvAttach.hasData(entity, ModAttachments.GENERIC_INFECTED) && entity.level().getGameTime() < OvAttach.getData(entity, ModAttachments.GENERIC_INFECTED).callUntil;
     }
 
     /** 変わる間の止め: ナビ・狙い・水平の動き・Brain の歩く先と狙い(Brain は止める間だけ消す)。 */
@@ -436,7 +437,7 @@ public final class GenericInfection {
     /** 送る中身(変わっていなければ「消す」)。 */
     public static GenericInfectionPayload payloadOf(Entity entity) {
         if (!isTurned(entity)) return GenericInfectionPayload.removed(entity.getId());
-        GenericInfected g = entity.getData(ModAttachments.GENERIC_INFECTED);
+        GenericInfected g = OvAttach.getData(entity, ModAttachments.GENERIC_INFECTED);
         return new GenericInfectionPayload(entity.getId(), true, g.seed, g.startTick, g.transformTicks, g.boss);
     }
 
@@ -456,7 +457,7 @@ public final class GenericInfection {
     @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD)
     public static final class Setup {
         @SubscribeEvent
-        public static void onCommonSetup(net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent event) {
+        public static void onCommonSetup(net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent event) {
             // 共通の準備は並列のスレッドで走るので、ただの ArrayList への登録は主スレッドへ回す
             event.enqueueWork(() -> {
                 com.yayuy.overgrownvegetation.spore.PlantSideRules.TRANSFORMED = GenericInfection::isTurned;

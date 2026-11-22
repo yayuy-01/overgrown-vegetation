@@ -26,17 +26,18 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import java.util.EnumSet;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 監視塔フィロセンス(2026-11-14)のテスト。首の計算がアニメの数値表と合う・動かない・古い竹馬の個体は地面へ下りる・見張りで見つけて 2 秒で印・
@@ -535,7 +536,7 @@ public final class PhyllosensTowerGameTests {
             e.hitParts().part(0).hurt(a.level().damageSources().generic(), 1.0F);
         }, (a, e) -> {
         }, 90, (a, e) -> {
-            double bare = cows[0].getData(ModAttachments.SPORE_EXPOSURE).dose, masked = cows[1].getData(ModAttachments.SPORE_EXPOSURE).dose;
+            double bare = OvAttach.getData(cows[0], ModAttachments.SPORE_EXPOSURE).dose, masked = OvAttach.getData(cows[1], ModAttachments.SPORE_EXPOSURE).dose;
             float hp0 = cows[0].getHealth();
             for (Cow c : cows) c.discard();
             if (bare <= 0.0D) helper.fail("胞子で暴露量が上がらない: " + bare);

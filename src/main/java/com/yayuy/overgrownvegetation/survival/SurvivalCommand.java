@@ -10,16 +10,16 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 /**
  * 開発用: {@code /ov perf spore fatigue} = 自分の HUD のバーの値・疲労と効き目を見る、{@code /ov perf spore fatigue set <0〜100>} = 疲労を決める
  * (2026-11-13 サバイバルの背骨 段 1。暴露量は隣の {@code /ov perf spore exposure set} で決める。/ov の下の一覧はテスト CommandTreeGameTests で決めてあるので、
  * 新しい枝を作らず perf spore の下に足す)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class SurvivalCommand {
 
     private SurvivalCommand() {

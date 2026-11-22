@@ -11,7 +11,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.Block;
-import net.neoforged.neoforge.network.PacketDistributor;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 
 /**
  * 胞子感染で死んだバニラの Mob が、死体ブロックと同じ姿勢へ崩れ落ちてから死体になる(2026-10-09、ユーザー指定)。

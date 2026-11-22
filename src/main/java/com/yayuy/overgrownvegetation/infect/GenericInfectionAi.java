@@ -41,6 +41,7 @@ import net.minecraft.world.entity.monster.Shulker;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 汎用の感染体の動き(2026-11-15 ユーザー決定。{@link GenericInfection} から呼ぶ)。
@@ -76,7 +77,7 @@ public final class GenericInfectionAi {
     /** 変わった Mob の動きを付ける(変わったとき・読み直してワールドに入ったとき)。 */
     public static void install(Mob mob) {
         if (installed(mob)) return;
-        GenericInfected gi = mob.getData(ModAttachments.GENERIC_INFECTED);
+        GenericInfected gi = OvAttach.getData(mob, ModAttachments.GENERIC_INFECTED);
         boolean attackless = !hasOwnAttack(mob); // しぐさを外す前に見る(外すと攻撃の Goal の名前も消える)
         gi.attackless = attackless;
         List<WrappedGoal> targets = new ArrayList<>(mob.targetSelector.getAvailableGoals());
@@ -107,7 +108,7 @@ public final class GenericInfectionAi {
     public static void uninstall(Mob mob) {
         removeGoals(mob.goalSelector, g -> g instanceof FreezeGoal || g instanceof MeleeGoal || g instanceof AddedGoal);
         removeGoals(mob.targetSelector, g -> g instanceof PreyGoal || g instanceof HurtByTargetGoal);
-        GenericInfected gi = mob.getData(ModAttachments.GENERIC_INFECTED);
+        GenericInfected gi = OvAttach.getData(mob, ModAttachments.GENERIC_INFECTED);
         Removed r = gi.removedGoals instanceof Removed rr ? rr : null;
         gi.removedGoals = null;
         gi.prey = null;
@@ -190,8 +191,8 @@ public final class GenericInfectionAi {
      * </ul>
      */
     public static boolean hasOwnAttack(Mob mob) {
-        if (mob.hasData(ModAttachments.GENERIC_INFECTED)) {
-            Boolean a = mob.getData(ModAttachments.GENERIC_INFECTED).attackless;
+        if (OvAttach.hasData(mob, ModAttachments.GENERIC_INFECTED)) {
+            Boolean a = OvAttach.getData(mob, ModAttachments.GENERIC_INFECTED).attackless;
             if (a != null) return !a;
         }
         if (mob instanceof RangedAttackMob || mob instanceof Ghast || mob instanceof Shulker || mob instanceof EnderDragon) return true;
@@ -265,7 +266,7 @@ public final class GenericInfectionAi {
         @Override
         public void start() {
             super.start();
-            if (target != null) mob.getData(ModAttachments.GENERIC_INFECTED).prey = target;
+            if (target != null) OvAttach.getData(mob, ModAttachments.GENERIC_INFECTED).prey = target;
         }
 
         @Override
@@ -285,8 +286,8 @@ public final class GenericInfectionAi {
     }
 
     private static LivingEntity validPrey(Mob mob) {
-        if (!mob.hasData(ModAttachments.GENERIC_INFECTED)) return null;
-        GenericInfected g = mob.getData(ModAttachments.GENERIC_INFECTED);
+        if (!OvAttach.hasData(mob, ModAttachments.GENERIC_INFECTED)) return null;
+        GenericInfected g = OvAttach.getData(mob, ModAttachments.GENERIC_INFECTED);
         LivingEntity p = g.prey;
         if (p == null) return null;
         double r = range(mob, GenericInfection.spec()) * 1.5D;
@@ -481,7 +482,7 @@ public final class GenericInfectionAi {
     /** 今、近接で当てに行くか(近接だけの種か、予備に切り替わった)。 */
     public static boolean rammingNow(Mob mob) {
         if (usesRam(mob)) return true;
-        return mob.hasData(ModAttachments.GENERIC_INFECTED) && mob.getData(ModAttachments.GENERIC_INFECTED).fallbackOn;
+        return OvAttach.hasData(mob, ModAttachments.GENERIC_INFECTED) && OvAttach.getData(mob, ModAttachments.GENERIC_INFECTED).fallbackOn;
     }
 
     /**

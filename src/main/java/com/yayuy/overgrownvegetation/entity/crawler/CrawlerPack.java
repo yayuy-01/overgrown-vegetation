@@ -193,13 +193,13 @@ public final class CrawlerPack {
     }
 
     /** 群れのみんなを消す(ワールドが閉じたとき)。 */
-    @net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.GAME)
+    @net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus.FORGE)
     public static final class Unload {
         private Unload() {
         }
 
-        @net.neoforged.bus.api.SubscribeEvent
-        public static void onLevelUnload(net.neoforged.neoforge.event.level.LevelEvent.Unload event) {
+        @net.minecraftforge.eventbus.api.SubscribeEvent
+        public static void onLevelUnload(net.minecraftforge.event.level.LevelEvent.Unload event) {
             if (event.getLevel() instanceof ServerLevel sl) BY_LEVEL.remove(sl);
         }
 
@@ -208,8 +208,8 @@ public final class CrawlerPack {
          * (全員が一度に片付けられた・チャンクごと外れて戻らない)は空の群れを残し、消えた Mob 本体への強い参照も持ち続けていた。
          * prune は群れの表を回している最中にも呼ばれるので、そこでは消さずにここでまとめて消す。
          */
-        @net.neoforged.bus.api.SubscribeEvent
-        public static void onLevelTick(net.neoforged.neoforge.event.tick.LevelTickEvent.Post event) {
+        @net.minecraftforge.eventbus.api.SubscribeEvent
+        public static void onLevelTick(com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent.Post event) {
             if (!(event.getLevel() instanceof ServerLevel sl) || sl.getGameTime() % SWEEP_TICKS != 0) return;
             sweep(sl);
         }

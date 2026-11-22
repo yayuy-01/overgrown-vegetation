@@ -17,9 +17,9 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerAboutToStartEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -36,7 +36,7 @@ import java.util.List;
  * </ul>
  * 空の種(velophyll・seminaria・pedicula・acumnes)は表で {@code director: false}。最初は縁だけ(11-15 全体管理)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class DirectorHooks {
 
     private static boolean registered;

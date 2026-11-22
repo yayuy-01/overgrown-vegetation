@@ -17,12 +17,12 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
@@ -38,7 +38,7 @@ import java.util.Arrays;
  *   <li>天気とのつながり: 地平線を歩く影は濃霧({@link PrevailingWind#fogLevel})の日だけ。空のイベントは始まりに雨なら次の窓へ(【仮】)。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class WorldEvents {
 
     /** 送り直しの間隔(tick)。 */

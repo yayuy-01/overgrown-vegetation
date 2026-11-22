@@ -33,7 +33,7 @@ public class FalcimnesModel extends LodGeoModel<FalcimnesEntity> {
 
     /** 地形に合わせた足の置き方(2026-11-07)。キーのアニメの後に、胴の高さ・傾きと 4 本の脚の IK を重ねる。 */
     @Override
-    public void setCustomAnimations(FalcimnesEntity animatable, long instanceId, software.bernie.geckolib.animation.AnimationState<FalcimnesEntity> animationState) {
+    public void setCustomAnimations(FalcimnesEntity animatable, long instanceId, software.bernie.geckolib.core.animation.AnimationState<FalcimnesEntity> animationState) {
         super.setCustomAnimations(animatable, instanceId, animationState);
         FalcimnesPostureRig.apply(this, animatable, animationState);   // 段 3: 性格の構え(鎌・首の先・翅)
         FalcimnesShapeRig.apply(this, animatable, animationState);     // 森の中を動く型 ② 段 3: 狭い所の構え・首を下げる構え

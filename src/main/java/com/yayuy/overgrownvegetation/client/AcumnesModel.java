@@ -37,7 +37,7 @@ public class AcumnesModel extends GeoModel<AcumnesEntity> {
      * 書いた骨は resetStateChanges で印を下ろす(下ろさないと次のフレームで戻されず積み上がる。メモリ geckolib-custom-anim-and-easing-traps)。
      */
     @Override
-    public void setCustomAnimations(AcumnesEntity animatable, long instanceId, software.bernie.geckolib.animation.AnimationState<AcumnesEntity> animationState) {
+    public void setCustomAnimations(AcumnesEntity animatable, long instanceId, software.bernie.geckolib.core.animation.AnimationState<AcumnesEntity> animationState) {
         super.setCustomAnimations(animatable, instanceId, animationState);
         float pt = animationState.getPartialTick();
         software.bernie.geckolib.cache.object.GeoBone needle = getAnimationProcessor().getBone("needle_aim");

@@ -7,6 +7,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * 地図の上の生態系の台帳(2026-11-21)。オーバーワールドに 1 つの保存データ。升は生態系の台帳({@code EcoLedger})と同じ 4×4 チャンク。
@@ -16,12 +17,12 @@ import net.minecraft.world.level.saveddata.SavedData;
  * {@link MapTable#lackRecoveryDays} で戻る)・実物に反映済みの感染の数・過繁茂の状態。
  * 健康な数 = max(0, 満員 − 感染 − 欠け)。感染の割合 = 感染 ÷ 満員。
  */
-public final class MapLedger extends SavedData {
+public final class MapLedger extends OvSavedData {
 
     private static final String ID = "overgrown_vegetation_map_ecosystem";
 
-    public static final SavedData.Factory<MapLedger> FACTORY =
-            new SavedData.Factory<>(MapLedger::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<MapLedger> FACTORY =
+            new OvSavedData.Factory<>(MapLedger::new, (tag, registries) -> load(tag), null);
 
     /** 過繁茂の状態: まだ・印を付けた(全部)・一部が断られて試し直し中(知らせは出した)。 */
     public static final byte NONE = 0, DONE = 1, PARTIAL = 2;
@@ -49,7 +50,7 @@ public final class MapLedger extends SavedData {
     }
 
     public static MapLedger get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     /** 世界を持たない台帳(純粋な確かめ用)。 */

@@ -22,10 +22,10 @@ import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
@@ -46,7 +46,7 @@ import java.util.WeakHashMap;
  * </ul>
  * 数は {@code spawns.json} の {@code fogLurker}(どれも【仮】)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class FogLurkers {
 
     /** 立ち止まっている本物の印。 */
@@ -148,7 +148,7 @@ public final class FogLurkers {
 
     /** 保存から戻った、立ち止まっている本物も見回りに入れる。 */
     @SubscribeEvent
-    public static void onJoin(net.neoforged.neoforge.event.entity.EntityJoinLevelEvent event) {
+    public static void onJoin(net.minecraftforge.event.entity.EntityJoinLevelEvent event) {
         if (!event.getLevel().isClientSide() && event.getEntity() instanceof Mob m && m.getTags().contains(TAG)) LURKERS.add(m);
     }
 

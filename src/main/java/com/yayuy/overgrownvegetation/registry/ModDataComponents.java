@@ -3,12 +3,12 @@ package com.yayuy.overgrownvegetation.registry;
 import com.mojang.serialization.Codec;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.core.GlobalPos;
-import net.minecraft.core.component.DataComponentType;
+import com.yayuy.overgrownvegetation.port.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredRegister;
+import com.yayuy.overgrownvegetation.port.network.ByteBufCodecs;
+import net.minecraftforge.eventbus.api.IEventBus;
+import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
+import com.yayuy.overgrownvegetation.port.registries.DeferredRegister;
 
 /**
  * このMODが ItemStack に載せるデータコンポーネント。
@@ -74,7 +74,7 @@ public final class ModDataComponents {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Boolean>> LEY_COMPASS_CLEAN =
             COMPONENTS.registerComponentType("ley_compass_clean", builder -> builder
                     .persistent(com.mojang.serialization.Codec.BOOL)
-                    .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.BOOL));
+                    .networkSynchronized(com.yayuy.overgrownvegetation.port.network.ByteBufCodecs.BOOL));
 
     /** ⑩ 地脈渡りの石が帰る対の石(2026-10-16)。 */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<GlobalPos>> WAYSTONE_HOME =
@@ -86,7 +86,7 @@ public final class ModDataComponents {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> LANTERN_FUEL =
             COMPONENTS.registerComponentType("lantern_fuel", builder -> builder
                     .persistent(com.mojang.serialization.Codec.INT)
-                    .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT));
+                    .networkSynchronized(com.yayuy.overgrownvegetation.port.network.ByteBufCodecs.VAR_INT));
 
     /**
      * 防護マスクのフィルターが吸い取った胞子の量(%秒、2026-11-04)。無い = 新品。spore_field.json の exposure.maskCapacity に届くと
@@ -101,12 +101,12 @@ public final class ModDataComponents {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> BATTERY_CHARGE =
             COMPONENTS.registerComponentType("battery_charge", builder -> builder
                     .persistent(com.mojang.serialization.Codec.INT)
-                    .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT));
+                    .networkSynchronized(com.yayuy.overgrownvegetation.port.network.ByteBufCodecs.VAR_INT));
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Boolean>> LANTERN_LIT =
             COMPONENTS.registerComponentType("lantern_lit", builder -> builder
                     .persistent(com.mojang.serialization.Codec.BOOL)
-                    .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.BOOL));
+                    .networkSynchronized(com.yayuy.overgrownvegetation.port.network.ByteBufCodecs.BOOL));
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<GlobalPos>> CLAPPER_ROPE_ANCHOR =
             COMPONENTS.registerComponentType("clapper_rope_anchor", builder -> builder

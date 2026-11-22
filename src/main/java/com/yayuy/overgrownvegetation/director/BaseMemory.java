@@ -17,6 +17,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>拠点の記憶</b>(2026-11-14、司令塔 第 2 段 区切り 1。D-7・D-12)。オーバーワールドに 1 つの保存データ。
@@ -32,12 +33,12 @@ import java.util.Locale;
  * </ul>
  * 中身の計算は世界を見ない(GameTest は {@link #createForTests} の記憶に、自分で日付を渡して試す)。
  */
-public final class BaseMemory extends SavedData {
+public final class BaseMemory extends OvSavedData {
 
     private static final String ID = "overgrown_vegetation_base_memory";
 
-    public static final SavedData.Factory<BaseMemory> FACTORY =
-            new SavedData.Factory<>(BaseMemory::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<BaseMemory> FACTORY =
+            new OvSavedData.Factory<>(BaseMemory::new, (tag, registries) -> load(tag), null);
 
     /** 拠点の段。保存は名前で。 */
     public enum Stage {
@@ -282,7 +283,7 @@ public final class BaseMemory extends SavedData {
     }
 
     public static BaseMemory get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     /** テスト用: 世界に 1 つの記憶とは別の、空の記憶。 */

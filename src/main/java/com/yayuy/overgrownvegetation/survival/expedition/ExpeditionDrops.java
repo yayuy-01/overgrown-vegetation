@@ -13,9 +13,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.living.LivingDropsEvent;
 
 /**
  * 濃い所の素材のドロップ(2026-11-16 段 4、決定 39 の「倒す道」)。G2・G3 は種がこれからも増えるので、ルートテーブルではなくグループのタグ
@@ -25,7 +25,7 @@ import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
  *     <li>G2 → 休眠嚢 {@code cureDropChance} 25% + ドロップ増加 1 段ごとに {@code cureLootingBonus} 5%【仮】(11-16 夜ユーザー了承)</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class ExpeditionDrops {
 
     private ExpeditionDrops() {

@@ -16,10 +16,10 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -47,7 +47,7 @@ import java.util.WeakHashMap;
  * <b>{@code -Dov.devbridge}(Claude のクライアント)か GameTest のときだけ</b>(全体管理 11-16 決定 D: ふつうに遊ぶと紛らわしく、設定にも合わない)。
  * 升の頭数 ÷ 満員 の割合で湧きやすさが下がる(倒した升には湧きにくい)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class EcoSpawns {
 
     public static final String INNER_TAG = "ov_inner_spawn";

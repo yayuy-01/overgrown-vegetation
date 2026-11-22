@@ -6,10 +6,10 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -23,7 +23,7 @@ import java.util.UUID;
  * 仮想の群れをクライアントへ送る(2026-11-18 大群の軽量化 A)。{@value #INTERVAL} tick ごとに、プレイヤーから水平 {@value #RADIUS} ブロック以内の群れを
  * 近い順に {@link VirtualHordePayload#MAX_SWARMS} まで、差分なしで送る。前に送った相手で 0 になったら空を 1 回送る。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class VirtualHordeSync {
 
     static final int INTERVAL = 20;
@@ -37,12 +37,12 @@ public final class VirtualHordeSync {
 
     /** 抜けた人・止めたサーバーの印を捨てる(11-18 見直し ③7)。 */
     @SubscribeEvent
-    public static void onLogout(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
+    public static void onLogout(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
         SENT.remove(event.getEntity().getUUID());
     }
 
     @SubscribeEvent
-    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+    public static void onServerStopped(net.minecraftforge.event.server.ServerStoppedEvent event) {
         SENT.clear();
     }
 

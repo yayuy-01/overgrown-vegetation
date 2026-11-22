@@ -22,10 +22,10 @@ import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.end.EndDragonFight;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayDeque;
@@ -68,7 +68,7 @@ import java.util.function.Predicate;
  * どれも<b>読み込まれているチャンクでしか動かない</b>ので、誰もいないネザーでは止まっている
  * (オーバーワールドの留守中の広がり = 台帳の広がりはオーバーワールド専用)。エンドは本島だけを一度に塗る。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class PortalCorruption {
 
     /** ポータル本体の矩形を探す範囲(バニラの {@code NetherPortalBlock} と同じ 21)。 */
@@ -223,7 +223,7 @@ public final class PortalCorruption {
     private static final java.util.Map<java.util.UUID, Object[]> TRAVELING = new java.util.HashMap<>();
 
     @SubscribeEvent
-    public static void onTravel(net.neoforged.neoforge.event.entity.EntityTravelToDimensionEvent event) {
+    public static void onTravel(net.minecraftforge.event.entity.EntityTravelToDimensionEvent event) {
         if (!(event.getEntity().level() instanceof ServerLevel from)) return;
         ResourceKey<Level> to = event.getDimension();
         boolean owToNether = from.dimension() == Level.OVERWORLD && to == Level.NETHER;
@@ -236,7 +236,7 @@ public final class PortalCorruption {
     }
 
     @SubscribeEvent
-    public static void onArrive(net.neoforged.neoforge.event.entity.EntityJoinLevelEvent event) {
+    public static void onArrive(net.minecraftforge.event.entity.EntityJoinLevelEvent event) {
         if (TRAVELING.isEmpty() || !(event.getLevel() instanceof ServerLevel to)) return;
         Object[] t = TRAVELING.remove(event.getEntity().getUUID());
         if (t == null) return;

@@ -8,12 +8,12 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.ViewportEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.ClientTickEvent;
+import net.minecraftforge.client.event.ViewportEvent;
 
 /**
  * G1 の胞子の煙の中の「緑の霞み」(2026-11-12、能力の第 1 回。チビゾンビの 1 段目の (c)「目くらまし + 暴露量」11-09 ユーザー)。
@@ -21,7 +21,7 @@ import net.neoforged.neoforge.client.event.ViewportEvent;
  * (近くしか見えない。煙を出ればすぐ戻る)。作りは雲の中の霧({@code client/sky/CloudInterior})と同じ(霧の後段に入る)。
  * 数値は【仮】。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class G1SporeHaze {
 
     /** 中にいるとき見える距離(ブロック)。【仮】 */

@@ -36,7 +36,7 @@ public class StrobilaModel extends LodGeoModel<StrobilaEntity> {
     /** テストクライアント用: 名前に trace を含む個体が投げている間、tick ごとに球果の骨の大きさ・尾の付け根の角度・飛んでいる弾の数を書く(絵と弾の時刻を比べる)。 */
     @Override
     public void setCustomAnimations(StrobilaEntity animatable, long instanceId,
-                                    software.bernie.geckolib.animation.AnimationState<StrobilaEntity> animationState) {
+                                    software.bernie.geckolib.core.animation.AnimationState<StrobilaEntity> animationState) {
         super.setCustomAnimations(animatable, instanceId, animationState);
         if (!DEV_HOOKS || !animatable.isThrowing() || !animatable.hasCustomName() || !animatable.getCustomName().getString().contains("trace")) return;
         long t = animatable.level().getGameTime();

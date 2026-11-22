@@ -21,14 +21,15 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * 腫れた島(2026-11-20。Fable の案「島2 腫れた島」 = 模型 {@code sea-look-art/Sea.java} の {@code island(2)} を本物の島へ移した。芯なし)。
@@ -46,8 +47,8 @@ import java.util.Map;
  *   <li>枯れ木は汚染された丸太をそのまま使う(模型は暗く塗った丸太。枯れた丸太のブロックは無い)【仮】。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
-public final class SwollenIslands extends SavedData {
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
+public final class SwollenIslands extends OvSavedData {
 
     public static final String ID = "overgrown_vegetation_swollen_islands";
 
@@ -77,10 +78,10 @@ public final class SwollenIslands extends SavedData {
 
     final List<Island> islands = new ArrayList<>();
 
-    public static final SavedData.Factory<SwollenIslands> FACTORY = new SavedData.Factory<>(SwollenIslands::new, SwollenIslands::load, null);
+    public static final OvSavedData.Factory<SwollenIslands> FACTORY = new OvSavedData.Factory<>(SwollenIslands::new, SwollenIslands::load, null);
 
     public static SwollenIslands get(ServerLevel level) {
-        return level.getDataStorage().computeIfAbsent(FACTORY, ID);
+        return level.getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     /** 島を帳面に載せる(同じ島が載っていれば何もしない)。載せた島か、既にあった島を返す。上限を超えれば null。 */

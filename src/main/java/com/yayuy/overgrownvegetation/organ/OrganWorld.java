@@ -20,10 +20,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.MultifaceBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -42,7 +42,7 @@ import java.util.concurrent.Executors;
  * </ol>
  * 設計図は背景のスレッドで作り、メモリにだけ持つ。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class OrganWorld {
     private OrganWorld() {
     }
@@ -711,7 +711,7 @@ public final class OrganWorld {
 
     /** 守りが死んだ・消えたら器官の数えから外す(11-18 見直し ②4)。チャンクと一緒に外れただけなら数えたまま。 */
     @SubscribeEvent
-    public static void onGuardLeave(net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent event) {
+    public static void onGuardLeave(net.minecraftforge.event.entity.EntityLeaveLevelEvent event) {
         if (!(event.getLevel() instanceof ServerLevel level)) return;
         net.minecraft.world.entity.Entity e = event.getEntity();
         if (!e.getTags().contains(GUARD_TAG)) return;

@@ -6,21 +6,21 @@ import com.yayuy.overgrownvegetation.survival.vent.AirFilterItem;
 import com.yayuy.overgrownvegetation.survival.vent.VentBlock;
 import com.yayuy.overgrownvegetation.survival.vent.VentBlockEntity;
 import com.yayuy.overgrownvegetation.survival.vent.VentBlockItem;
-import net.minecraft.core.component.DataComponentType;
-import net.minecraft.network.codec.ByteBufCodecs;
+import com.yayuy.overgrownvegetation.port.component.DataComponentType;
+import com.yayuy.overgrownvegetation.port.network.ByteBufCodecs;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredItem;
+import com.yayuy.overgrownvegetation.port.registries.DeferredBlock;
+import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
+import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
 
 /**
  * <b>換気の機械とフィルター</b>(2026-11-14 サバイバルの背骨 段 2c)の登録: 地脈の換気機・フィルター。仕様の正本は Vault「サバイバルの背骨(籠城と遠征)」。

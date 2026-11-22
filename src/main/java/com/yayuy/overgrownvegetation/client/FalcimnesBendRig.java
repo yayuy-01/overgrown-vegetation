@@ -2,7 +2,7 @@ package com.yayuy.overgrownvegetation.client;
 
 import com.yayuy.overgrownvegetation.entity.FalcimnesEntity;
 import net.minecraft.util.Mth;
-import software.bernie.geckolib.animation.AnimationState;
+import software.bernie.geckolib.core.animation.AnimationState;
 import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.model.GeoModel;
 

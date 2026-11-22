@@ -11,8 +11,8 @@ import java.util.List;
 import java.util.Locale;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
-import net.neoforged.neoforge.common.NeoForge;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.common.MinecraftForge;
 
 /**
  * 雲の流れの計測(2026-11-12、ユーザー報告「雲と雲の影が数秒ごとに瞬間移動する」の切り分け)。開発用。
@@ -36,7 +36,7 @@ final class CloudProbe {
                 armed = true;
                 if (!registered) {
                     registered = true;
-                    NeoForge.EVENT_BUS.addListener(CloudProbe::onRender);
+                    MinecraftForge.EVENT_BUS.addListener(CloudProbe::onRender);
                 }
                 return "CLOUDPROBE 開始";
             }

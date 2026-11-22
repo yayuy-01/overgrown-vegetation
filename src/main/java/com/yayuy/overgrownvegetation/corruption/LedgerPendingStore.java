@@ -7,9 +7,9 @@ import net.minecraft.nbt.NbtIo;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.storage.LevelResource;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -29,7 +29,7 @@ import java.util.stream.Stream;
  * {@code <ワールド>/data/overgrown_vegetation_ledger_pending/r.<rx>.<rz>.dat}(圧縮 NBT、{@code k} = チャンクの鍵)へ分け、
  * <b>変わった区域だけ</b>を専用の IO スレッドで書く。サーバーを止めた後は書き終わるのを待つ。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 final class LedgerPendingStore {
 
     static final String DIR = "overgrown_vegetation_ledger_pending";

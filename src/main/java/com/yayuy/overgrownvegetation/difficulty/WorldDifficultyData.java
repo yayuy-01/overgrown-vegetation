@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.OptionalDouble;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * ワールドごとの設定(MOD の設定ページの値。2026-09-25 に難易度として始まり、11-19 に 1 つのページへまとめた)。
@@ -34,7 +35,7 @@ import java.util.OptionalDouble;
  *
  * <p>効かせる場所は下の static の口から読む。
  */
-public final class WorldDifficultyData extends SavedData {
+public final class WorldDifficultyData extends OvSavedData {
 
     public static final String ID = "overgrown_vegetation_world_difficulty";
 
@@ -73,7 +74,7 @@ public final class WorldDifficultyData extends SavedData {
 
     /** サーバーを引数で持たない所(static の口)から読むとき。動いているサーバーが無ければ既定値。 */
     public static double ofCurrent(DifficultySetting setting) {
-        MinecraftServer server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        MinecraftServer server = net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer();
         return server != null ? of(server, setting) : setting.defaultValue();
     }
 
@@ -98,7 +99,7 @@ public final class WorldDifficultyData extends SavedData {
 
     /** {@link #get} の中身。GameTest が作成画面の書いたファイルを別の置き場から読み直すのにも使う。 */
     public static WorldDifficultyData readFrom(DimensionDataStorage storage) {
-        return storage.computeIfAbsent(FACTORY, ID);
+        return storage.computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     // ------------------------------------------------------------------ 効かせる場所から読む口
@@ -133,7 +134,7 @@ public final class WorldDifficultyData extends SavedData {
      * サーバーを持たない static の口(換気機の詰まりの式)からも読むので、動いているサーバーが無ければ 1、並列スレッドからは覚えた値。
      */
     public static double pushbackEfficiency() {
-        MinecraftServer server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        MinecraftServer server = net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer();
         return server == null ? 1.0D : ofFromAnyThread(server, DifficultySetting.PUSHBACK_EFFICIENCY);
     }
 

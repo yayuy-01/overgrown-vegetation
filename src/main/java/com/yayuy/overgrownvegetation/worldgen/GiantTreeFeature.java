@@ -2691,8 +2691,8 @@ public class GiantTreeFeature extends Feature<GiantTreeFeature.Config> {
     public static boolean isRootTerrain(BlockState s) {
         return s.is(BlockTags.DIRT) || s.is(BlockTags.SAND) || s.is(BlockTags.BASE_STONE_OVERWORLD)
                 || s.is(BlockTags.BASE_STONE_NETHER) || s.is(BlockTags.TERRACOTTA) || s.is(BlockTags.NYLIUM)
-                || s.is(net.neoforged.neoforge.common.Tags.Blocks.ORES)
-                || s.is(net.neoforged.neoforge.common.Tags.Blocks.GRAVELS)
+                || s.is(net.minecraftforge.common.Tags.Blocks.ORES)
+                || s.is(net.minecraftforge.common.Tags.Blocks.GRAVELS)
                 || s.is(BlockTags.ICE) || s.is(BlockTags.SNOW)
                 || s.is(Blocks.CLAY) || s.is(Blocks.SANDSTONE) || s.is(Blocks.RED_SANDSTONE)
                 || s.is(Blocks.CALCITE) || s.is(Blocks.DRIPSTONE_BLOCK)

@@ -5,10 +5,10 @@ import com.yayuy.overgrownvegetation.research.Research;
 import com.yayuy.overgrownvegetation.research.ResearchBenchBlockEntity;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.network.RegisterPayloadHandlersEvent;
+import com.yayuy.overgrownvegetation.port.network.PayloadRegistrar;
 
 /**
  * 研究台と研究ツリーの通信(2026-11-17)。共有の {@code ModNetwork} とは別の登録にして、版を自分で持つ({@code SurvivalNetwork} と同じ作法)。

@@ -27,14 +27,15 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>ほかの感染系 MOD</b>(2026-11-21 ユーザー決定「全部敵。殲滅」。正本は Vault「前線と部隊」の 11-21 の節)。
@@ -45,11 +46,11 @@ import java.util.Locale;
  *   <li>植物側の Mob は、タグの Mob を見たら襲う。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
-public final class ForeignInfection extends SavedData {
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
+public final class ForeignInfection extends OvSavedData {
 
     public static final String ID = OvergrownVegetation.MODID + "_foreign_infection";
-    public static final SavedData.Factory<ForeignInfection> FACTORY = new SavedData.Factory<>(ForeignInfection::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<ForeignInfection> FACTORY = new OvSavedData.Factory<>(ForeignInfection::new, (tag, registries) -> load(tag), null);
 
     public static final TagKey<EntityType<?>> MOBS = TagKey.create(Registries.ENTITY_TYPE, OvergrownVegetation.id("foreign_infection"));
     public static final TagKey<Block> BLOCKS = TagKey.create(Registries.BLOCK, OvergrownVegetation.id("foreign_infection"));
@@ -65,7 +66,7 @@ public final class ForeignInfection extends SavedData {
     public static long found, cleared;
 
     public static ForeignInfection get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     public static long cellKey(int cellX, int cellZ) {

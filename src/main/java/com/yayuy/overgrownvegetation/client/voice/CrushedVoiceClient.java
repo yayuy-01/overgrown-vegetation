@@ -2,8 +2,8 @@ package com.yayuy.overgrownvegetation.client.voice;
 
 import com.yayuy.overgrownvegetation.network.CrushedVoicePayload;
 import net.minecraft.client.Minecraft;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /** 汚した声の知らせ(サーバー → クライアント)を受けて鳴らす。通信の登録は {@code network/VoiceNetwork}。 */
 @OnlyIn(Dist.CLIENT)

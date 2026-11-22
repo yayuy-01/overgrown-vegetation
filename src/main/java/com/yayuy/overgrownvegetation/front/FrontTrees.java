@@ -32,10 +32,10 @@ import net.minecraft.world.level.block.SaplingBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>巨大樹の建て方と建て直し</b>(2026-11-21 前線と部隊 区切り 4。正本は Vault「前線と部隊」の 11-21 の決定と「森の知性(司令塔)」の 11-21 の節)。
@@ -60,11 +61,11 @@ import java.util.UUID;
  *   <li>森の視界の縁(64)は巨大樹に管理された森(巨大樹から treeManageBlocks)だけ({@link #managed})。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
-public final class FrontTrees extends SavedData {
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
+public final class FrontTrees extends OvSavedData {
 
     public static final String ID = OvergrownVegetation.MODID + "_front_trees";
-    public static final SavedData.Factory<FrontTrees> FACTORY = new SavedData.Factory<>(FrontTrees::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<FrontTrees> FACTORY = new OvSavedData.Factory<>(FrontTrees::new, (tag, registries) -> load(tag), null);
     /** 育ち途中のハイヴノードの印(エンティティの保存データ。建てる所の id)。 */
     public static final String SITE_KEY = "ov_tree_site";
 
@@ -173,7 +174,7 @@ public final class FrontTrees extends SavedData {
     public static java.util.function.Consumer<Site> placeForTests;
 
     public static FrontTrees get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     public List<Site> sites() {

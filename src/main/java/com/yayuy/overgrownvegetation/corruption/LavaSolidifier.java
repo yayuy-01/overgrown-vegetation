@@ -11,9 +11,9 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 
 /**
  * <b>流れている溶岩に汚染が来たら、その流れの源泉を玄武岩へ固める</b>(2026-10-02 ユーザー指定)。
@@ -32,7 +32,7 @@ import net.neoforged.neoforge.event.server.ServerStoppedEvent;
  * <p>流れが消えるまでの数十 tick のあいだ、同じ流れに何度も汚染が来るので、
  * 一度辿ったマスは {@link #COOLDOWN_TICKS} のあいだ辿り直さない。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class LavaSolidifier {
 
     /** 1 回で辿るマスの上限(仮決め)。 */

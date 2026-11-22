@@ -3,9 +3,9 @@ package com.yayuy.overgrownvegetation.entity.parts;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.CriticalHitEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.player.CriticalHitEvent;
 
 /**
  * 叩ける部位でも会心(跳んで殴る)が出るようにする(11-08 ユーザー決定「部位でも出るようにする。自前で補ってよい」)。

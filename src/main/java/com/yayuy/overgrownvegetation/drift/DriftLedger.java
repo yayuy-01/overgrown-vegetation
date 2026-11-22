@@ -18,13 +18,14 @@ import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * 読み込みの外を流れている漂流する擬態 Mob の帳面(2026-11-20、オーバーワールドだけ)【仮・Claude】。
@@ -34,8 +35,8 @@ import java.util.List;
  * 姿に戻す。陸に着いたかは帳面の上では見ない(読み込まれていない所は読めない)—— 姿に戻ってから、岸を探して寄る・打ち上げられて根付く。
  * 乗せていた Mob は種類だけ覚え、戻すときに新しく出す。{@link DriftTable.Drift#lifetimeDays} を過ぎたら沈んで消える。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
-public final class DriftLedger extends SavedData {
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
+public final class DriftLedger extends OvSavedData {
 
     public static final String ID = "overgrown_vegetation_drift_ledger";
     /** 帳面の上限(超えたら姿のまま留まる)。 */
@@ -55,10 +56,10 @@ public final class DriftLedger extends SavedData {
 
     final List<Rec> recs = new ArrayList<>();
 
-    public static final SavedData.Factory<DriftLedger> FACTORY = new SavedData.Factory<>(DriftLedger::new, DriftLedger::load, null);
+    public static final OvSavedData.Factory<DriftLedger> FACTORY = new OvSavedData.Factory<>(DriftLedger::new, DriftLedger::load, null);
 
     public static DriftLedger get(ServerLevel level) {
-        return level.getServer().overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return level.getServer().overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     /** 帳面の上を流れている数。 */

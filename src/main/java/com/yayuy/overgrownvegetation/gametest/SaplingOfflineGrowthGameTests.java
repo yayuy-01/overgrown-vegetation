@@ -9,11 +9,12 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 苗木の追いつき成長({@link com.yayuy.overgrownvegetation.worldgen.SaplingOfflineGrowth})の記録部分のテスト:
@@ -41,13 +42,13 @@ public final class SaplingOfflineGrowthGameTests {
 
         BlockPos abs = helper.absolutePos(rel);
         LevelChunk chunk = helper.getLevel().getChunkAt(abs);
-        helper.assertTrue(chunk.hasData(ModAttachments.SAPLING_PLANTED), "no sapling record attachment after placing");
-        SaplingRecords records = chunk.getData(ModAttachments.SAPLING_PLANTED);
+        helper.assertTrue(OvAttach.hasData(chunk, ModAttachments.SAPLING_PLANTED), "no sapling record attachment after placing");
+        SaplingRecords records = OvAttach.getData(chunk, ModAttachments.SAPLING_PLANTED);
         helper.assertTrue(records.contains(abs), "sapling position not recorded");
 
         helper.setBlock(rel, Blocks.AIR);
-        helper.assertTrue(!chunk.hasData(ModAttachments.SAPLING_PLANTED)
-                        || !chunk.getData(ModAttachments.SAPLING_PLANTED).contains(abs),
+        helper.assertTrue(!OvAttach.hasData(chunk, ModAttachments.SAPLING_PLANTED)
+                        || !OvAttach.getData(chunk, ModAttachments.SAPLING_PLANTED).contains(abs),
                 "sapling record not forgotten after breaking");
         helper.succeed();
     }

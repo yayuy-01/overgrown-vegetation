@@ -433,7 +433,7 @@ public abstract class SkyFlyer extends Monster {
     }
 
     @Override
-    public net.neoforged.neoforge.entity.PartEntity<?>[] getParts() {
+    public net.minecraftforge.entity.PartEntity<?>[] getParts() {
         return this.hitParts.parts();
     }
 

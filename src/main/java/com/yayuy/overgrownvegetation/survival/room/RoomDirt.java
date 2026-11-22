@@ -17,11 +17,12 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>部屋に積もった汚れ</b>(2026-11-14 サバイバルの背骨 段 3c、決定 32 の 2)。次元ごとの保存データ。
@@ -33,7 +34,7 @@ import java.util.List;
  * <p>量は 1 秒ごとに半減期 {@code roomHalfLifeSeconds} で減る(持ち主が出ても、しばらく残る【仮】)。稼働中の換気機の範囲では
  * {@code roomVentHalfLifeSeconds} で速く減り、抜いた分だけその換気機のフィルターが詰まる(換気の機械で押し返せる)。
  */
-public final class RoomDirt extends SavedData {
+public final class RoomDirt extends OvSavedData {
 
     private static final String NAME = OvergrownVegetation.MODID + "_room_dirt";
     /** これより少ない量は消す(量は「% × マス」)。 */
@@ -46,7 +47,7 @@ public final class RoomDirt extends SavedData {
     private double filterCarry;
 
     public static RoomDirt get(ServerLevel level) {
-        return level.getDataStorage().computeIfAbsent(new SavedData.Factory<>(RoomDirt::new, RoomDirt::load, null), NAME);
+        return level.getDataStorage().computeIfAbsent(new OvSavedData.Factory<>(RoomDirt::new, RoomDirt::load, null), NAME);
     }
 
     /**
@@ -78,7 +79,7 @@ public final class RoomDirt extends SavedData {
 
     /** 読み込まずに、その次元に汚れがあるか(無ければ作らない)。 */
     static RoomDirt peek(ServerLevel level) {
-        return level.getDataStorage().get(new SavedData.Factory<>(RoomDirt::new, RoomDirt::load, null), NAME);
+        return level.getDataStorage().get(new OvSavedData.Factory<>(RoomDirt::new, RoomDirt::load, null), NAME);
     }
 
     static DirtSpec spec() {
@@ -248,7 +249,7 @@ public final class RoomDirt extends SavedData {
     }
 
     /** 1 秒ごとに減らす。 */
-    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
     public static final class Ticker {
         private Ticker() {
         }

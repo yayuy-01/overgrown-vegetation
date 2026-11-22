@@ -7,12 +7,12 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
-import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
+import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 
 /** 汎用の感染体の、クライアント側の後片付けと確かめ用の入口。 */
 public final class InfectClientEvents {
@@ -33,12 +33,12 @@ public final class InfectClientEvents {
     public static final class GameBus {
         /** ワールドの Mob を描く段の間は部品をため、描き終えた所でまとめて描く。 */
         @SubscribeEvent
-        public static void onRenderStage(net.neoforged.neoforge.client.event.RenderLevelStageEvent event) {
+        public static void onRenderStage(net.minecraftforge.client.event.RenderLevelStageEvent event) {
             var stage = event.getStage();
-            if (stage == net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage.AFTER_SKY) {
+            if (stage == net.minecraftforge.client.event.RenderLevelStageEvent.Stage.AFTER_SKY) {
                 InfectParts.discardQueue();
                 InfectParts.deferring = true;
-            } else if (stage == net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
+            } else if (stage == net.minecraftforge.client.event.RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
                 InfectParts.deferring = false;
                 InfectParts.flush(net.minecraft.client.Minecraft.getInstance().renderBuffers().bufferSource());
             }
@@ -51,7 +51,7 @@ public final class InfectClientEvents {
 
         /** 変わる動きの途中の個体を見て、植物が突き出る瞬間に 1 回だけ粒と音を出す(描画に入っていなくても鳴るよう tick で見る)。 */
         @SubscribeEvent
-        public static void onClientTick(net.neoforged.neoforge.client.event.ClientTickEvent.Post event) {
+        public static void onClientTick(com.yayuy.overgrownvegetation.port.event.tick.ClientTickEvent.Post event) {
             net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
             if (mc.level == null || mc.isPaused() || GenericInfectionClient.count() == 0) {
                 if (GenericInfectionClient.count() == 0) {

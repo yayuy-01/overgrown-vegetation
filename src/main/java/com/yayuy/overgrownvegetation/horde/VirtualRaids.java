@@ -27,7 +27,7 @@ import java.util.Map;
  *     maxAlive に空きがある分だけ({@link #room})。空きが無い間、群れは待つ。</li>
  * </ul>
  */
-@net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.GAME)
+@net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus.FORGE)
 public final class VirtualRaids {
 
     /** 確かめ用: 出した群れ・頭数。 */
@@ -38,8 +38,8 @@ public final class VirtualRaids {
     }
 
     /** サーバーを止めたら時刻を戻す(1 人用でほかのワールドへ持ち越さない。11-18 見直し ③2)。 */
-    @net.neoforged.bus.api.SubscribeEvent
-    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+    @net.minecraftforge.eventbus.api.SubscribeEvent
+    public static void onServerStopped(net.minecraftforge.event.server.ServerStoppedEvent event) {
         lastSend = -1_000_000_000L;
     }
 

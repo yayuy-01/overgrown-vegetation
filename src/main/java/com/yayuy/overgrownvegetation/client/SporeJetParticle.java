@@ -11,8 +11,8 @@ import net.minecraft.client.particle.TextureSheetParticle;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * 「噴き出す胞子」(2026-10-23、萌芽体の胞子嚢。ユーザー「大きな胞子 1 粒がポッと出るのは嫌。小さな粒子が一点から勢いよく噴き出す形に」)。

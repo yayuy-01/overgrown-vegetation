@@ -18,12 +18,12 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 /**
  * <b>管の樹</b>(2026-11-12 ネザー段階 2 の植物 1。正本は Vault「ネザーの環境の作り直し 2」の「植物の仕様」の「1 管の樹」)。
@@ -65,8 +65,8 @@ public final class NetherTubeTrees implements NetherFloraHooks.Flora {
     @SubscribeEvent
     public static void onCommonSetup(FMLCommonSetupEvent event) {
         NetherFloraHooks.register(INSTANCE);
-        NeoForge.EVENT_BUS.addListener(NetherTubeTrees::onLevelTick);
-        NeoForge.EVENT_BUS.addListener((ServerStoppedEvent e) -> {
+        MinecraftForge.EVENT_BUS.addListener(NetherTubeTrees::onLevelTick);
+        MinecraftForge.EVENT_BUS.addListener((ServerStoppedEvent e) -> {
             RETRACTED.clear();
             INSTANCE.nextScan.clear();
         });

@@ -3,9 +3,9 @@ package com.yayuy.overgrownvegetation.ecosystem.map;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.front.CellLife;
 import net.minecraft.server.level.ServerLevel;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 
 /**
  * 前線と部隊の口 {@link CellLife}(front/ にある。向こうのファイル)の中身(2026-11-21)。{@link MapEcology} をそのまま渡す。

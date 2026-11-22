@@ -6,8 +6,8 @@ import com.yayuy.overgrownvegetation.survival.expedition.CureDraughtItem;
 import com.yayuy.overgrownvegetation.survival.expedition.SleepingBagBlock;
 import com.yayuy.overgrownvegetation.survival.expedition.SporeEaterMushroomBlock;
 import com.yayuy.overgrownvegetation.survival.vent.AirFilterItem;
-import net.minecraft.core.component.DataComponentType;
-import net.minecraft.network.codec.ByteBufCodecs;
+import com.yayuy.overgrownvegetation.port.component.DataComponentType;
+import com.yayuy.overgrownvegetation.port.network.ByteBufCodecs;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
@@ -15,9 +15,9 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredItem;
+import com.yayuy.overgrownvegetation.port.registries.DeferredBlock;
+import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
+import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
 
 /**
  * <b>遠征の見返りと手当て</b>(2026-11-16 サバイバルの背骨 段 4)の登録: 焼いた胞子・胞子喰い茸・硬い樹皮片・菌糸のフィルター・寝袋。

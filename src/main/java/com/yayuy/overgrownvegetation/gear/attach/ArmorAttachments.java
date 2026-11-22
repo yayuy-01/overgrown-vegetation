@@ -21,6 +21,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Locale;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * <b>防具の付け物</b>(2026-11-21 夜 ユーザー「防具ごとに 3 つの枠があって」「すべての防具に付けれるように」「付け外しはできる」)。
@@ -119,7 +120,7 @@ public final class ArmorAttachments {
      * (11-22 見直し 16。{@link #takeOverflow})。書き戻しはいつもこちらから。
      */
     private static NonNullList<ItemStack> all(ItemStack armor) {
-        ItemContainerContents c = armor.get(ModArmorAttach.ATTACHMENTS.get());
+        ItemContainerContents c = OvItemData.get(armor, ModArmorAttach.ATTACHMENTS.get());
         NonNullList<ItemStack> out = NonNullList.withSize(Math.max(slotCount(), c == null ? 0 : c.getSlots()), ItemStack.EMPTY);
         if (c != null) c.copyInto(out);
         return out;
@@ -147,8 +148,8 @@ public final class ArmorAttachments {
     }
 
     private static void write(ItemStack armor, List<ItemStack> list) {
-        if (list.stream().allMatch(ItemStack::isEmpty)) armor.remove(ModArmorAttach.ATTACHMENTS.get());
-        else armor.set(ModArmorAttach.ATTACHMENTS.get(), ItemContainerContents.fromItems(list));
+        if (list.stream().allMatch(ItemStack::isEmpty)) OvItemData.remove(armor, ModArmorAttach.ATTACHMENTS.get());
+        else OvItemData.set(armor, ModArmorAttach.ATTACHMENTS.get(), ItemContainerContents.fromItems(list));
     }
 
     /** {@code attachment} の 1 つを {@code index} の枠に付ける(空いていて {@link #fits} なとき)。付けたら true。{@code attachment} は減らさない。 */
@@ -191,7 +192,7 @@ public final class ArmorAttachments {
 
     /** {@code armor} に何か付いているか。 */
     public static boolean hasAny(ItemStack armor) {
-        return !armor.isEmpty() && armor.has(ModArmorAttach.ATTACHMENTS.get());
+        return !armor.isEmpty() && OvItemData.has(armor, ModArmorAttach.ATTACHMENTS.get());
     }
 
     /** 付いている物を全部外して返す(口覆いの布はフィルターの状態を連れる)。防具が壊れたとき。 */
@@ -255,14 +256,14 @@ public final class ArmorAttachments {
     }
 
     private static void clearFilter(ItemStack stack) {
-        stack.remove(ModDataComponents.MASK_FILTER_USED);
-        stack.remove(ModVent.FILTER_WASHES);
-        stack.remove(ModExpedition.FILTER_GRADE);
+        OvItemData.remove(stack, ModDataComponents.MASK_FILTER_USED);
+        OvItemData.remove(stack, ModVent.FILTER_WASHES);
+        OvItemData.remove(stack, ModExpedition.FILTER_GRADE);
     }
 
     /** {@code armor} に {@code item} がいくつ付いているか。 */
     public static int count(ItemStack armor, Item item) {
-        ItemContainerContents c = armor.get(ModArmorAttach.ATTACHMENTS.get());
+        ItemContainerContents c = OvItemData.get(armor, ModArmorAttach.ATTACHMENTS.get());
         if (c == null) return 0;
         int n = 0;
         for (ItemStack s : c.nonEmptyItems()) {
@@ -284,7 +285,7 @@ public final class ArmorAttachments {
 
     /** 口覆いの布の付いた頭の防具か(フィルターを使う頭として扱う。{@link FilterMask#isMask})。 */
     public static boolean hasMouthCloth(ItemStack armor) {
-        return armor.has(ModArmorAttach.ATTACHMENTS.get()) && count(armor, ModArmorAttach.MOUTH_CLOTH.get()) > 0;
+        return OvItemData.has(armor, ModArmorAttach.ATTACHMENTS.get()) && count(armor, ModArmorAttach.MOUTH_CLOTH.get()) > 0;
     }
 
     /** 口覆いの布のフィルターの減りの倍率。 */
@@ -295,7 +296,7 @@ public final class ArmorAttachments {
 
     /** 防具に付いた物による防御の上乗せの合計(樹皮の当て板)。 */
     public static double armorBonus(ItemStack armor) {
-        ItemContainerContents c = armor.get(ModArmorAttach.ATTACHMENTS.get());
+        ItemContainerContents c = OvItemData.get(armor, ModArmorAttach.ATTACHMENTS.get());
         if (c == null) return 0.0D;
         double sum = 0.0D;
         for (ItemStack s : c.nonEmptyItems()) {
@@ -313,7 +314,7 @@ public final class ArmorAttachments {
         if (wearer == null) return 1.0D;
         double cut = 0.0D;
         for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
-            ItemContainerContents c = wearer.getItemBySlot(slot).get(ModArmorAttach.ATTACHMENTS.get());
+            ItemContainerContents c = OvItemData.get(wearer.getItemBySlot(slot), ModArmorAttach.ATTACHMENTS.get());
             if (c == null) continue;
             for (ItemStack s : c.nonEmptyItems()) {
                 AttachTable.Entry e = entry(s);

@@ -8,9 +8,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 /**
  * 開発用(2026-11-17 研究台と研究ツリー)。/ov の下の一覧はテストで決めてあるので {@code perf ley} の下に足す(研究は地脈技術)。
@@ -23,7 +23,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  *     <li>{@code /ov perf ley research reload} = {@code research_tree.json} を読み直す。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class ResearchCommand {
 
     private ResearchCommand() {

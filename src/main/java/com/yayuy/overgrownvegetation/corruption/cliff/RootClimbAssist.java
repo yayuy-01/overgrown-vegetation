@@ -5,9 +5,9 @@ import com.yayuy.overgrownvegetation.spore.PlantSideRules;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.EntityTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.EntityTickEvent;
 
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -21,7 +21,7 @@ import java.util.WeakHashMap;
  * 縄に取り付いている植物側の Mob では、その tick に外れた相手を戻す(相手が生きていて同じ次元にいる間)。
  * 地面に下りたら、ふつうの相手選びに戻る。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class RootClimbAssist {
     private RootClimbAssist() {
     }

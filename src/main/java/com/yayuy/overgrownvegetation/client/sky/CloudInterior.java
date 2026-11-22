@@ -8,12 +8,12 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.ViewportEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.ClientTickEvent;
+import net.minecraftforge.client.event.ViewportEvent;
 
 import java.util.List;
 
@@ -27,7 +27,7 @@ import java.util.List;
  * 判定は描いている形と同じ柱(谷のある雲の海は 24 ブロックの柱)で引く。出入りは {@link #SECONDS} 秒でならす。数値は前の版の値(32 ブロックは
  * 10-18 ユーザー調整)か仮決め。雲を描いていないときは何もしない。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class CloudInterior {
     /** 中にいるとき、霧で見えなくなる距離(ブロック)。前の版 LOW_FOG(10-18 ユーザー「ほんのちょっとだけ視界をよく」で 32)。 */
     public static final float FOG = 32.0F;

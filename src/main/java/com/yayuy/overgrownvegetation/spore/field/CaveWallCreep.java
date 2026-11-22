@@ -20,10 +20,10 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -43,7 +43,7 @@ import java.util.Map;
  * 毎回 {@code creepSamplesPerPass} 列ずつ見て汚染された床を拾う。読み込まれたチャンクだけで動く(読み込まれていない元は捨てる。拾い直す)。
  * 待ち行列は保存しない(仮決め)。重さは {@link TickBudget} の {@link PerfJob#CAVE_WALL_CREEP}。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class CaveWallCreep {
 
     private static final Map<ResourceKey<Level>, LongLinkedOpenHashSet> FRONTIER = new HashMap<>();

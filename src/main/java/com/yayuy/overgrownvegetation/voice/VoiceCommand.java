@@ -13,16 +13,16 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 /**
  * {@code /ov fx voice <sound_event> <版 0〜3> [mid|small] [強さ]} — 任意の SoundEvent を汚して、自分の 4 ブロック前で鳴らす(2026-11-14 試作。OP 専用)。
  * 版 0 = 加工なし(聞き比べ用)・1 = かすれ・2 = つぶれ・3 = つぶれ + 途切れ。small は小型の Mob の帯(鶏など)。強さ 1 = 試聴用と同じ。
  * 高さは試聴用と同じく、版 1〜3 は 0.92 倍(低め)、版 0 は 1 倍。周りのプレイヤーにも聞こえる({@link CrushedVoice})。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class VoiceCommand {
 
     private VoiceCommand() {

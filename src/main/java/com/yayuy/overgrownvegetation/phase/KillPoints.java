@@ -6,10 +6,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 
 /**
  * フェーズの撃破の点(2026-11-14 夕 ユーザー決定: 1 体で今のフェーズの閾値の %・上限なし。種類の分け方は【仮・Claude】)。
@@ -18,7 +18,7 @@ import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
  * G1 の 1 段目(発達した寄生体 {@code developed_*})= evolved、それ以外の G1(段階 0・根付き・苗床)= stage0、G2・G3・G4。
  * 環境生物(環境の生き物)と G5 以降は数えない。点は {@link PhaseData#addKillPoints}。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class KillPoints {
 
     @SubscribeEvent

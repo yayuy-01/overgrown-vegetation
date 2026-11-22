@@ -12,9 +12,9 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerLevel;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 import java.util.Locale;
 
@@ -29,7 +29,7 @@ import java.util.Locale;
  * フェーズの操作(set・止める・段)は {@code /ov phase} のまま。数字は役割の計算と同じ口({@link OrganRoles}・{@link LeyBuffs}・
  * {@link OrganWorld#sacHiveEquivalent})から読む。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class ForestCommand {
     private static final String K = "commands.overgrown_vegetation.forest.";
 

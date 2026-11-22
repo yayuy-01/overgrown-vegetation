@@ -4,10 +4,10 @@ import com.yayuy.overgrownvegetation.network.CloudDriftPayload;
 import com.yayuy.overgrownvegetation.sky.CloudField;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 
 /**
  * サーバーから届く雲を流した距離(2026-11-08 雲の段階 1「風を 1 つに」。{@link CloudDriftPayload}、元は {@code sky.CloudDrift})。
@@ -15,7 +15,7 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
  * (5 秒で風はほとんど変わらないので、ふつうは 1 ブロック未満)。届く前・この MOD の無いサーバーでは、前の時刻だけの風({@link CloudField#LEGACY})。
  * サーバーを抜けたら忘れる({@link #onLoggingOut}。次に入ったワールドに届かなければ、前の風へ戻る)。
  */
-@EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+@EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class CloudDriftClient implements CloudField.Drift {
 
     static final CloudDriftClient INSTANCE = new CloudDriftClient();

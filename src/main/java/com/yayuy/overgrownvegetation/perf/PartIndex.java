@@ -7,7 +7,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
-import net.neoforged.neoforge.entity.PartEntity;
+import net.minecraftforge.entity.PartEntity;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,18 +39,18 @@ public final class PartIndex {
      * 部位を持つエンティティが入った・出たら、次に探すときに作り直す(11-18 見直し ④6。前は数だけで見ていたので、同じ tick に
      * 1 つ消えて 1 つ増えると古い索引のままだった)。
      */
-    @net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.GAME)
+    @net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus.FORGE)
     public static final class Events {
         private Events() {
         }
 
-        @net.neoforged.bus.api.SubscribeEvent
-        public static void onJoin(net.neoforged.neoforge.event.entity.EntityJoinLevelEvent event) {
+        @net.minecraftforge.eventbus.api.SubscribeEvent
+        public static void onJoin(net.minecraftforge.event.entity.EntityJoinLevelEvent event) {
             if (event.getEntity().isMultipartEntity() && event.getLevel() instanceof Holder h) h.overgrown_vegetation$partIndex().dirty = true;
         }
 
-        @net.neoforged.bus.api.SubscribeEvent
-        public static void onLeave(net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent event) {
+        @net.minecraftforge.eventbus.api.SubscribeEvent
+        public static void onLeave(net.minecraftforge.event.entity.EntityLeaveLevelEvent event) {
             if (event.getEntity().isMultipartEntity() && event.getLevel() instanceof Holder h) h.overgrown_vegetation$partIndex().dirty = true;
         }
     }

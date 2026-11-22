@@ -13,9 +13,9 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -32,7 +32,7 @@ import java.util.List;
  * </ul>
  * 上がったときだけ(下げた・同じでは起きない)。一度に何段か上がったとき(コマンド)は、通ったフェーズの印を出す。数はどれも【仮】。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class PhaseOmens {
 
     public static final int SPROUT_RANGE_CHUNKS = 8;
@@ -112,7 +112,7 @@ public final class PhaseOmens {
 
     /** 止めたら芽吹きの待ち行列を空にする(次のワールドの同じチャンク番号を芽吹かせない。11-18 見直し ⑤7)。 */
     @SubscribeEvent
-    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+    public static void onServerStopped(net.minecraftforge.event.server.ServerStoppedEvent event) {
         SPROUT_QUEUE.clear();
     }
 

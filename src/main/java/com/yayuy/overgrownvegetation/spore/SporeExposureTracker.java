@@ -23,11 +23,12 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.event.tick.EntityTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.common.util.FakePlayer;
+import com.yayuy.overgrownvegetation.port.event.tick.EntityTickEvent;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 胞子の暴露量を積み、満ちたときの影響を起こす(2026-11-04 感染システムの第 1 段・第 2 段。数値は {@code spore_field.json} の exposure
@@ -54,7 +55,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
  *     <li>暴露量は保存する(プレイヤーも Mob も)。マスクの摩耗は Mob にも同じに掛ける。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class SporeExposureTracker {
 
     /** クライアントへ送る暴露量の刻み(1/32)。 */
@@ -72,7 +73,7 @@ public final class SporeExposureTracker {
         if (!entity.isAlive()) return;
         // 観戦・創造のプレイヤーは暴露量をためず、段も進まない(2026-11-16 コードの見直し ③9: 前は観戦だけ外し、創造ではたまっていた。傷・技の側とそろえる)
         if (player && (entity.isSpectator() || ((Player) entity).isCreative())) {
-            if (entity.hasData(ModAttachments.SPORE_EXPOSURE)) entity.getData(ModAttachments.SPORE_EXPOSURE).reset();
+            if (OvAttach.hasData(entity, ModAttachments.SPORE_EXPOSURE)) OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE).reset();
             // 疲労・装備の汚れの修飾を外し、数えかけを捨てる(値は残す。11-18 見直し ⑤5)
             com.yayuy.overgrownvegetation.survival.FatigueTracker.exempt((Player) entity);
             com.yayuy.overgrownvegetation.survival.decon.GearDirt.applyModifiers((Player) entity);
@@ -126,8 +127,8 @@ public final class SporeExposureTracker {
             MobInfection.countExposure(entity, protecting ? 0.0D : percent, interval, now); // 5 秒で感染(2026-11-14)
         }
         MobInfection.afterCheck(level, entity, percent, now);
-        if (entity.hasData(ModAttachments.SPORE_EXPOSURE)) {
-            SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
+        if (OvAttach.hasData(entity, ModAttachments.SPORE_EXPOSURE)) {
+            SporeExposure ex = OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE);
             if (wasFull || ex.dose >= DesignData.sporeField().infectDose()) {
                 hurtMob(level, entity, ex, now);
             }
@@ -137,7 +138,7 @@ public final class SporeExposureTracker {
     private static void tickPlayer(ServerLevel level, Player player, int interval, double percent, double roomSeepPerSecond, long now) {
         if (player.isCreative() || player.isSpectator()) {
             // 創造・観戦は外す(11-16 ③9。tick の入口と同じ。GameTest のように直に呼ばれたときも)
-            if (player.hasData(ModAttachments.SPORE_EXPOSURE)) player.getData(ModAttachments.SPORE_EXPOSURE).reset();
+            if (OvAttach.hasData(player, ModAttachments.SPORE_EXPOSURE)) OvAttach.getData(player, ModAttachments.SPORE_EXPOSURE).reset();
             // 疲労・装備の汚れの修飾を外し、数えかけ(殴った・壊した・走った)を捨てる。ためた値そのものは消さない
             // (11-18 見直し ⑤5。前はここで戻るので修飾が残り、創造の間の殴りがサバイバルに戻した瞬間に一度に乗った)
             com.yayuy.overgrownvegetation.survival.FatigueTracker.exempt(player);
@@ -145,15 +146,15 @@ public final class SporeExposureTracker {
             return;
         }
         SporeFieldTable t = DesignData.sporeField();
-        SporeExposure ex = player.getData(ModAttachments.SPORE_EXPOSURE);
+        SporeExposure ex = OvAttach.getData(player, ModAttachments.SPORE_EXPOSURE);
         boolean protecting = wearMask(player, percent, interval);
         double gear = 1.0D; // 段の防具の暴露の下げ(2026-11-17)は 11-21 に装備ごと消した。防具を作り直したらここへ
         int stage = SporeInfectionEffects.stageOf(player);
         if (stage == 0) {
             // 治った・死んだ後の残り(属性と進み)を片付ける
             SporeInfectionEffects.syncModifiers(player);
-            if (player.hasData(ModAttachments.SPORE_STAGE_TICKS) && player.getData(ModAttachments.SPORE_STAGE_TICKS) != 0) {
-                player.setData(ModAttachments.SPORE_STAGE_TICKS, 0);
+            if (OvAttach.hasData(player, ModAttachments.SPORE_STAGE_TICKS) && OvAttach.getData(player, ModAttachments.SPORE_STAGE_TICKS) != 0) {
+                OvAttach.setData(player, ModAttachments.SPORE_STAGE_TICKS, 0);
             }
             boolean wasFull = ex.dose >= t.infectDose(); // 減る前に満ちていた分も拾う
             double rate = com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.exposureRate(player.getServer()); // MOD の設定「暴露量のたまる速さ」(11-19。難易度の段で変わる)
@@ -252,7 +253,7 @@ public final class SporeExposureTracker {
         if (!com.yayuy.overgrownvegetation.gear.FilterMask.isMask(head) || ProtectiveMaskItem.remaining(head) <= 0.0D) return false;
         SporeFieldTable t = DesignData.sporeField();
         if (percent >= t.exposureMinPercent() && percent > 0.0D) {
-            SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
+            SporeExposure ex = OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE);
             // 段の頭はフィルターの減りが遅い(2026-11-17。防護マスクは 1 倍)
             double exact = percent * intervalTicks / 20.0D * com.yayuy.overgrownvegetation.gear.FilterMask.wearOf(head) + ex.maskCarry;
             int whole = (int) Math.floor(exact);
@@ -265,7 +266,7 @@ public final class SporeExposureTracker {
     /** にじみの強さを、変わったときだけクライアントへ送る(暴露量の 1/32 刻み)。 */
     private static void sendWarning(Player player) {
         if (!(player instanceof ServerPlayer sp) || player instanceof FakePlayer || sp.connection == null) return;
-        SporeExposure ex = player.getData(ModAttachments.SPORE_EXPOSURE);
+        SporeExposure ex = OvAttach.getData(player, ModAttachments.SPORE_EXPOSURE);
         int step = (int) Math.floor(fraction(player) * SEND_STEPS);
         if (step == ex.sentStep) return;
         ex.sentStep = step;
@@ -314,17 +315,17 @@ public final class SporeExposureTracker {
         double seconds = intervalTicks / 20.0D;
         double effective = percent * factor;
         if (effective >= t.exposureMinPercent() && effective > 0.0D) {
-            SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
+            SporeExposure ex = OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE);
             ex.dose = Math.min(t.infectDose(), ex.dose + effective * seconds * rate);
             return;
         }
         if (roomSeepPerSecond > 0.0D && factor > 0.0D) {
-            SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
+            SporeExposure ex = OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE);
             ex.dose = Math.min(t.infectDose(), ex.dose + roomSeepPerSecond * factor * seconds * rate);
             return;
         }
-        if (!entity.hasData(ModAttachments.SPORE_EXPOSURE)) return;
-        SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
+        if (!OvAttach.hasData(entity, ModAttachments.SPORE_EXPOSURE)) return;
+        SporeExposure ex = OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE);
         if (ex.dose > 0.0D) {
             // 疲労で抜けにくくなる(2026-11-13 サバイバル段 1。プレイヤーだけ、Mob は 1 倍)
             ex.dose *= Math.pow(0.5D, seconds / (t.exposureHalfLifeSeconds()
@@ -369,14 +370,14 @@ public final class SporeExposureTracker {
             amount *= com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.exposureRate(p.getServer()); // MOD の設定「暴露量のたまる速さ」(11-19)
             if (!(amount > 0.0D)) return false;
         }
-        SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
+        SporeExposure ex = OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE);
         ex.dose = Math.min(DesignData.sporeField().infectDose(), ex.dose + amount);
         return true;
     }
 
     /** 暴露量(%秒)。添付が無ければ 0(作らない)。 */
     public static double dose(LivingEntity entity) {
-        return entity.hasData(ModAttachments.SPORE_EXPOSURE) ? entity.getData(ModAttachments.SPORE_EXPOSURE).dose : 0.0D;
+        return OvAttach.hasData(entity, ModAttachments.SPORE_EXPOSURE) ? OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE).dose : 0.0D;
     }
 
     /** 暴露量の感染の量に対する割合(0〜1)。 */
@@ -387,10 +388,10 @@ public final class SporeExposureTracker {
     /** 確かめ用: 暴露量を決める(0 なら記録ごと消す)。感染の量にしたら、次の判定で満ちたときの影響が起きる。 */
     public static void setDose(LivingEntity entity, double dose, long gameTime) {
         if (dose <= 0.0D) {
-            if (entity.hasData(ModAttachments.SPORE_EXPOSURE)) entity.getData(ModAttachments.SPORE_EXPOSURE).reset();
+            if (OvAttach.hasData(entity, ModAttachments.SPORE_EXPOSURE)) OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE).reset();
             return;
         }
-        SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
+        SporeExposure ex = OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE);
         ex.dose = Math.min(DesignData.sporeField().infectDose(), dose);
         ex.atDose = false;
     }

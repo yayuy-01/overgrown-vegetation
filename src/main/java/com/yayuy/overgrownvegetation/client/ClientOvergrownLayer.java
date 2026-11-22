@@ -22,14 +22,15 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.ClientTickEvent;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 届いた「覆われたマス」の記録をクライアントのチャンクへ取り込む(2026-09-22)。
@@ -72,7 +73,7 @@ public final class ClientOvergrownLayer {
             return;
         }
         LevelChunk chunk = level.getChunk(payload.chunk().x, payload.chunk().z);
-        LongOpenHashSet before = chunk.getExistingData(ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
+        LongOpenHashSet before = OvAttach.getExistingData(chunk, ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
         if (payload.remove()) {
             // 剥がしたマス(2026-10-10 から。前は記録をまるごと送り直され、列のセクションを全部積み直していた)。
             // 写しは捨てて次に描くときに記録から作り直し、積み直すのは剥がしたマスのあるセクションだけ。
@@ -172,9 +173,9 @@ public final class ClientOvergrownLayer {
      * サーバーで記録が空になっていても前の記録が残る。Codex の指摘 11-01)。記録はこの後の {@code ChunkWatchEvent.Sent} でまるごと届く。
      */
     @SubscribeEvent
-    public static void onChunkLoad(net.neoforged.neoforge.event.level.ChunkEvent.Load event) {
+    public static void onChunkLoad(net.minecraftforge.event.level.ChunkEvent.Load event) {
         if (event.getLevel() instanceof ClientLevel && event.getChunk() instanceof LevelChunk chunk) {
-            chunk.getExistingData(com.yayuy.overgrownvegetation.registry.ModAttachments.COVER_CREEP.get()).ifPresent(java.util.Map::clear);
+            OvAttach.getExistingData(chunk, com.yayuy.overgrownvegetation.registry.ModAttachments.COVER_CREEP.get()).ifPresent(java.util.Map::clear);
         }
     }
 
@@ -251,7 +252,7 @@ public final class ClientOvergrownLayer {
      */
     @Nullable
     public static long[] coveredCells(LevelChunk chunk, int sectionY) {
-        LongOpenHashSet set = chunk.getExistingData(ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
+        LongOpenHashSet set = OvAttach.getExistingData(chunk, ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
         if (set == null || set.isEmpty()) {
             return null;
         }

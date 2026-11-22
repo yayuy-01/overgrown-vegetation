@@ -22,16 +22,17 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.energy.EnergyStorage;
-import net.neoforged.neoforge.energy.IEnergyStorage;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.energy.EnergyStorage;
+import net.minecraftforge.energy.IEnergyStorage;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import java.util.HashSet;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * 地脈の最小限(2026-11-13 サバイバルの背骨 段 2b)。線の場・汲み上げ器の効率・電池・柱と線の網・線の決まり・保存・花の増え方。
@@ -333,7 +334,7 @@ public final class LeyGameTests {
         fill(pump, spec.pumpBuffer());
         int pumpBefore = pump.energy();
         ItemStack battery = new ItemStack(ModLey.BATTERY.get());
-        battery.set(ModLey.ENERGY.get(), 50_000);
+        OvItemData.set(battery, ModLey.ENERGY.get(), 50_000);
         int perConsumer = spec.pumpMaxOutput();
         EnergyStorage c1 = new EnergyStorage(1_000_000, perConsumer, 0);
         EnergyStorage c2 = new EnergyStorage(1_000_000, perConsumer, 0);
@@ -382,10 +383,10 @@ public final class LeyGameTests {
                 LeyPumpBlockEntity.class);
         LeyWires.connect(level, o, o.offset(2, 0, 0));
         ItemStack b1 = new ItemStack(ModLey.BATTERY.get());
-        b1.set(ModLey.ENERGY.get(), 12345);
+        OvItemData.set(b1, ModLey.ENERGY.get(), 12345);
         pylon.setBatteryRaw(b1);
         ItemStack b2 = new ItemStack(ModLey.BATTERY.get());
-        b2.set(ModLey.ENERGY.get(), 777);
+        OvItemData.set(b2, ModLey.ENERGY.get(), 777);
         pump.setBatteryRaw(b2);
         fill(pump, 3000);
         int energy = pump.energy();

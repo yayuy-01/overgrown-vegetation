@@ -9,7 +9,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.energy.IEnergyStorage;
+import net.minecraftforge.energy.IEnergyStorage;
 
 /**
  * 地脈の杭の中身: FE をためて、立っているだけで {@code ring.stakeFePerTick} 使う。止めるたびに {@code ring.stakeFePerBlock}({@link #pay})。

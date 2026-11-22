@@ -5,9 +5,9 @@ import com.yayuy.overgrownvegetation.entity.crawler.CrawlerPack;
 import com.yayuy.overgrownvegetation.spawn.PlantMarch;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.pathfinder.Path;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
 import org.slf4j.Logger;
 
 import java.util.Locale;
@@ -22,7 +22,7 @@ import java.util.Locale;
  *     <li>ほか</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class PathSourceStats {
 
     private static final Logger LOGGER = com.mojang.logging.LogUtils.getLogger();

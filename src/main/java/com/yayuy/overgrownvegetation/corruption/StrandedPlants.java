@@ -33,9 +33,9 @@ import net.minecraft.world.level.block.WeepingVinesBlock;
 import net.minecraft.world.level.block.WeepingVinesPlantBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.TagsUpdatedEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.TagsUpdatedEvent;
 
 import java.util.ArrayDeque;
 import java.util.Map;
@@ -65,7 +65,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *     <li>サーバーのワールドだけ。生成中の領域({@code WorldGenRegion})では何もしない。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class StrandedPlants {
 
     /** 1 回の呼び出しで消すマスの上限(巨大なツタの網などで跳ねないため)。仮決め 2026-10-06。 */

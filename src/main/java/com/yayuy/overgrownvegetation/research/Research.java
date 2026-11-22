@@ -18,10 +18,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -44,7 +44,7 @@ import java.util.UUID;
  *     <li>開いた節の {@code unlocks} の作り方は作業台で作れるようになる({@code mixin.CraftingMenuResearchLockMixin})。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class Research {
 
     private Research() {
@@ -239,8 +239,8 @@ public final class Research {
      * 入ってきた人に、開いた節の作り方を覚えさせる(11-18 見直し ②8。前は開いたときにいた人だけが覚え、後から入った人の
      * レシピ本には出なかった。作るのはできた)。覚えている作り方は awardRecipes が飛ばす。
      */
-    @net.neoforged.bus.api.SubscribeEvent
-    public static void onLogin(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
+    @net.minecraftforge.eventbus.api.SubscribeEvent
+    public static void onLogin(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer p)) return;
         MinecraftServer server = p.server;
         ResearchTree tree = ResearchTree.get();
@@ -296,7 +296,7 @@ public final class Research {
 
     /** 止めたら画面を開いている人の表を空にする(次のワールドへ持ち越さない。11-18 見直し ②14)。 */
     @SubscribeEvent
-    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+    public static void onServerStopped(net.minecraftforge.event.server.ServerStoppedEvent event) {
         VIEWERS.clear();
     }
 

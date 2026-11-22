@@ -21,11 +21,11 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.ChunkPos;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,17 +59,17 @@ public final class ForestEconomyGameTests {
      * ほかのテストが成り立たない。GameTest のサーバーでは、前の形のテストのワールドの稼ぎ(F10 の 550 × 下限 0.3 = 1 日 165。11-21 に物差しを 100 倍にしたので 16500)に決め打ちにする。
      * 稼ぎそのものを見るテストは、自分の間だけ決め打ちを外す。
      */
-    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
     public static final class TestIncome {
         @SubscribeEvent
-        public static void onStarted(net.neoforged.neoforge.event.server.ServerStartedEvent event) {
+        public static void onStarted(net.minecraftforge.event.server.ServerStartedEvent event) {
             if (event.getServer() instanceof net.minecraft.gametest.framework.GameTestServer) ForestEconomy.setIncomeForTests(16500.0D);
             // 11-21 維持費: テストのワールドの Mob 全部に維持費が掛かると、時間をまたぐ予算のテストが成り立たない。0 に決め打ち(維持費のテストは自分の間だけ外す)
             if (event.getServer() instanceof net.minecraft.gametest.framework.GameTestServer) com.yayuy.overgrownvegetation.director.ForestUpkeep.setForTests(0.0D);
         }
 
         @SubscribeEvent
-        public static void onStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+        public static void onStopped(net.minecraftforge.event.server.ServerStoppedEvent event) {
             ForestEconomy.setIncomeForTests(null);
             com.yayuy.overgrownvegetation.director.ForestUpkeep.setForTests(null);
         }

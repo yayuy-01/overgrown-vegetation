@@ -3,12 +3,12 @@ package com.yayuy.overgrownvegetation.client.crowd;
 import com.yayuy.overgrownvegetation.client.LodGeoModel;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
-import software.bernie.geckolib.animatable.GeoAnimatable;
-import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationState;
+import software.bernie.geckolib.core.animatable.GeoAnimatable;
+import software.bernie.geckolib.core.animation.AnimatableManager;
+import software.bernie.geckolib.core.animation.AnimationState;
 import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.constant.DataTickets;
-import software.bernie.geckolib.constant.dataticket.DataTicket;
+import software.bernie.geckolib.core.object.DataTicket;
 
 import java.util.Collection;
 

@@ -1,8 +1,8 @@
 package com.yayuy.overgrownvegetation.entity.crawler;
 
-import software.bernie.geckolib.animatable.GeoAnimatable;
-import software.bernie.geckolib.animation.AnimationController;
-import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.core.animatable.GeoAnimatable;
+import software.bernie.geckolib.core.animation.AnimationController;
+import software.bernie.geckolib.core.animation.RawAnimation;
 
 /**
  * 歩き ⇄ 走りを<b>1 巡の中の位置を保ったまま</b>切り替える {@link AnimationController}(2026-11-15、グレガリアの run で足した)。

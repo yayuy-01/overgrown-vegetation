@@ -23,10 +23,10 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import software.bernie.geckolib.animatable.GeoBlockEntity;
-import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
-import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationController;
-import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.core.animation.AnimatableManager;
+import software.bernie.geckolib.core.animation.AnimationController;
+import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
@@ -329,7 +329,7 @@ public class CorruptedCorpseBlockEntity extends BlockEntity implements GeoBlockE
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(this, "corpse", 0, state -> {
             if (!burstDecided()) {
-                return software.bernie.geckolib.animation.PlayState.STOP; // 置かれた時刻がまだ届いていない
+                return software.bernie.geckolib.core.object.PlayState.STOP; // 置かれた時刻がまだ届いていない
             }
             return state.setAndContinue(burstStartClientTick != Long.MIN_VALUE ? BURST_THEN_IDLE : IDLE_ONLY);
         }));

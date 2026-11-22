@@ -14,15 +14,16 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.ChunkEvent;
-import net.neoforged.neoforge.event.level.LevelEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.level.ChunkEvent;
+import net.minecraftforge.event.level.LevelEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 読み込まれていない場所の汚染された苗木も育つようにする「追いつき成長」(2026-09-11)。
@@ -48,7 +49,7 @@ import java.util.List;
  * <p>閾値は「設置からの経過時間」なので、読み込んだままランダムティックで育つ前に一度アンロードされ、
  * 再読み込み時に閾値を超えていればそこで育つ(=どちらか早い方)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class SaplingOfflineGrowth {
 
     /** 育てる予定の苗木(次元 + 座標)。読み込みイベントで積み、tick で消化する。 */
@@ -81,7 +82,7 @@ public final class SaplingOfflineGrowth {
             return;
         }
         LevelChunk chunk = level.getChunkAt(pos);
-        SaplingRecords records = chunk.getData(ModAttachments.SAPLING_PLANTED);
+        SaplingRecords records = OvAttach.getData(chunk, ModAttachments.SAPLING_PLANTED);
         if (records.recordIfAbsent(pos, level.getGameTime())) {
             chunk.setUnsaved(true);
         }
@@ -93,7 +94,7 @@ public final class SaplingOfflineGrowth {
             return;
         }
         LevelChunk chunk = level.getChunkAt(pos);
-        if (chunk.hasData(ModAttachments.SAPLING_PLANTED) && chunk.getData(ModAttachments.SAPLING_PLANTED).contains(pos)) {
+        if (OvAttach.hasData(chunk, ModAttachments.SAPLING_PLANTED) && OvAttach.getData(chunk, ModAttachments.SAPLING_PLANTED).contains(pos)) {
             return;
         }
         record(level, pos);
@@ -102,13 +103,13 @@ public final class SaplingOfflineGrowth {
     /** 苗木が壊れた/育った。記録を消す。 */
     public static void forget(ServerLevel level, BlockPos pos) {
         LevelChunk chunk = level.getChunkAt(pos);
-        if (!chunk.hasData(ModAttachments.SAPLING_PLANTED)) {
+        if (!OvAttach.hasData(chunk, ModAttachments.SAPLING_PLANTED)) {
             return;
         }
-        SaplingRecords records = chunk.getData(ModAttachments.SAPLING_PLANTED);
+        SaplingRecords records = OvAttach.getData(chunk, ModAttachments.SAPLING_PLANTED);
         if (records.forget(pos)) {
             if (records.isEmpty()) {
-                chunk.removeData(ModAttachments.SAPLING_PLANTED);
+                OvAttach.removeData(chunk, ModAttachments.SAPLING_PLANTED);
             }
             chunk.setUnsaved(true);
         }
@@ -124,10 +125,10 @@ public final class SaplingOfflineGrowth {
             return;
         }
         ChunkAccess chunk = event.getChunk();
-        if (!(chunk instanceof LevelChunk levelChunk) || !levelChunk.hasData(ModAttachments.SAPLING_PLANTED) || !enabled()) {
+        if (!(chunk instanceof LevelChunk levelChunk) || !OvAttach.hasData(levelChunk, ModAttachments.SAPLING_PLANTED) || !enabled()) {
             return;
         }
-        SaplingRecords records = levelChunk.getData(ModAttachments.SAPLING_PLANTED);
+        SaplingRecords records = OvAttach.getData(levelChunk, ModAttachments.SAPLING_PLANTED);
         if (records.isEmpty()) {
             return;
         }

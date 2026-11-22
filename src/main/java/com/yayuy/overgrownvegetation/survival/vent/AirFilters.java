@@ -7,6 +7,7 @@ import com.yayuy.overgrownvegetation.registry.ModExpedition;
 import com.yayuy.overgrownvegetation.registry.ModVent;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * フィルターの状態の読み書き(2026-11-14 段 2c)。<b>マスクと換気の機械で同じフィルター</b>(決定 15)なので、
@@ -43,7 +44,7 @@ public final class AirFilters {
     public static int grade(ItemStack stack) {
         if (stack.is(ModExpedition.MYCELIAL_FILTER.get())) return 1;
         if (stack.is(ModVent.AIR_FILTER.get())) return 0;
-        return stack.getOrDefault(ModExpedition.FILTER_GRADE, 0);
+        return OvItemData.getOrDefault(stack, ModExpedition.FILTER_GRADE, 0);
     }
 
     /** 格の容量の倍率(菌糸のフィルターは {@code expedition.superiorFilterCapacity} 倍)。 */
@@ -53,12 +54,12 @@ public final class AirFilters {
 
     /** 吸い取った量(%秒)。 */
     public static int used(ItemStack stack) {
-        return stack.getOrDefault(ModDataComponents.MASK_FILTER_USED, 0);
+        return OvItemData.getOrDefault(stack, ModDataComponents.MASK_FILTER_USED, 0);
     }
 
     /** 洗った回数。 */
     public static int washes(ItemStack stack) {
-        return stack.getOrDefault(ModVent.FILTER_WASHES, 0);
+        return OvItemData.getOrDefault(stack, ModVent.FILTER_WASHES, 0);
     }
 
     /** あと何回洗えるか(段 3 で使う)。 */
@@ -91,20 +92,20 @@ public final class AirFilters {
     public static void absorb(ItemStack stack, int amount) {
         if (amount <= 0) return;
         int cap = (int) Math.ceil(capacity(stack));
-        stack.set(ModDataComponents.MASK_FILTER_USED, Math.min(cap, used(stack) + amount));
+        OvItemData.set(stack, ModDataComponents.MASK_FILTER_USED, Math.min(cap, used(stack) + amount));
     }
 
     /** {@code from} のフィルターの状態(詰まり・洗った回数)を {@code to} へ写す(無い欄は消す)。 */
     public static void copyState(ItemStack from, ItemStack to) {
         int u = used(from), w = washes(from);
-        if (u > 0) to.set(ModDataComponents.MASK_FILTER_USED, u);
-        else to.remove(ModDataComponents.MASK_FILTER_USED);
-        if (w > 0) to.set(ModVent.FILTER_WASHES, w);
-        else to.remove(ModVent.FILTER_WASHES);
+        if (u > 0) OvItemData.set(to, ModDataComponents.MASK_FILTER_USED, u);
+        else OvItemData.remove(to, ModDataComponents.MASK_FILTER_USED);
+        if (w > 0) OvItemData.set(to, ModVent.FILTER_WASHES, w);
+        else OvItemData.remove(to, ModVent.FILTER_WASHES);
         if (!isFilter(to)) { // マスクなどの入れ物は格を持つ(フィルターのアイテムは種類で決まる。2026-11-16 段 4)
             int g = grade(from);
-            if (g > 0) to.set(ModExpedition.FILTER_GRADE, g);
-            else to.remove(ModExpedition.FILTER_GRADE);
+            if (g > 0) OvItemData.set(to, ModExpedition.FILTER_GRADE, g);
+            else OvItemData.remove(to, ModExpedition.FILTER_GRADE);
         }
     }
 

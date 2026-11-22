@@ -49,11 +49,12 @@ import net.minecraft.world.level.levelgen.presets.WorldPresets;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.ClientTickEvent;
 import org.slf4j.Logger;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * Claude が自分で起動したクライアントを、外からファイルで操作する開発用の口(2026-10-02。ユーザーが
@@ -87,7 +88,7 @@ import org.slf4j.Logger;
  * </ul>
  * 状態が変わると {@code TITLE}(タイトル画面)・{@code READY}(ワールドが見えている)・{@code SCREEN}(画面の切り替わり)を書く。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class DevBridge {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final boolean ENABLED = Boolean.getBoolean("ov.devbridge");
@@ -1896,7 +1897,7 @@ public final class DevBridge {
                 if (mc.level == null || !(mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult bh)) return "照準の先にブロックが無い";
                 net.minecraft.core.BlockPos at = bh.getBlockPos();
                 var cchunk = mc.level.getChunkAt(at);
-                boolean clientCovered = cchunk.getExistingData(com.yayuy.overgrownvegetation.registry.ModAttachments.OVERGROWN_LAYER.get())
+                boolean clientCovered = OvAttach.getExistingData(cchunk, com.yayuy.overgrownvegetation.registry.ModAttachments.OVERGROWN_LAYER.get())
                         .map(s -> s.contains(at.asLong())).orElse(false);
                 long[] cells = com.yayuy.overgrownvegetation.client.ClientOvergrownLayer.coveredCells(cchunk, at.getY() >> 4);
                 int cell = ((at.getY() & 15) << 8) | ((at.getZ() & 15) << 4) | (at.getX() & 15);

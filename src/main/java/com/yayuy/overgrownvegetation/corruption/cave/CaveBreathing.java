@@ -25,12 +25,13 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.ChunkEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.level.ChunkEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import javax.annotation.Nullable;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * 洞窟が胞子を吸い込む・吐き出す(2026-11-20 ユーザー「胞子が吸い込むとか吐き出す仕組みを今作っちゃおう」)。設定: 洞窟は卓越風に合わせて息をする
@@ -49,7 +50,7 @@ import javax.annotation.Nullable;
  *     <li>押し返す道具の効く口は吸わない・吐かない。読み込まれていない口も時刻どおりに働く(口の記録と胞子の場は読み込みに関係しない)。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class CaveBreathing {
     private CaveBreathing() {
     }
@@ -267,9 +268,9 @@ public final class CaveBreathing {
 
     // ---------------------------------------------------------------- 記録
 
-    public static final class Data extends SavedData {
+    public static final class Data extends OvSavedData {
         static final String ID = "overgrown_vegetation_cave_breath";
-        static final SavedData.Factory<Data> FACTORY = new SavedData.Factory<>(Data::new, (tag, reg) -> load(tag), null);
+        static final OvSavedData.Factory<Data> FACTORY = new OvSavedData.Factory<>(Data::new, (tag, reg) -> load(tag), null);
         /** 測ったチャンク。 */
         final LongOpenHashSet measured = new LongOpenHashSet();
         /** 口のあるチャンク → 口のマス・外向き(NaN = 縦穴)。 */
@@ -277,7 +278,7 @@ public final class CaveBreathing {
         final Long2FloatOpenHashMap yaw = new Long2FloatOpenHashMap();
 
         public static Data get(ServerLevel level) {
-            return level.getDataStorage().computeIfAbsent(FACTORY, ID);
+            return level.getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
         }
 
         public int mouthCount() {

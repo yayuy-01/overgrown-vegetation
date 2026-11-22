@@ -7,11 +7,11 @@ import com.yayuy.overgrownvegetation.spore.field.PrevailingWind;
 import com.yayuy.overgrownvegetation.spore.field.SporeField;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 /**
  * 雨の種類と胞子(2026-11-12、ユーザー決定「雨が胞子を洗い落とす・湿った地面で発芽が速い・風で飛びにくい」「雷雨は巻き上げる」)。

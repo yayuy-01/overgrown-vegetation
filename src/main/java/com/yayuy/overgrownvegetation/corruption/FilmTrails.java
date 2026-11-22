@@ -23,10 +23,10 @@ import net.minecraft.world.entity.vehicle.Boat;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 
 /**
  * 水面の膜を通った跡の記録(サーバー。2026-11-13、ユーザー「水草が大量に浮いている所を人や動物が通ったとき、軌跡が少しだけ残る」)。
@@ -39,7 +39,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
  * クライアントはそれで膜を抜いて描く({@code client.atmosphere.FilmWakes})。見えている筋と、Mob が読む筋は同じもの。
  * 浮く落ち葉の跡はクライアントだけの見た目で、ここには入らない(Mob は追わない)。数値は 1 分(ユーザー指定)のほかは仮決め。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class FilmTrails {
 
     /** 跡が残る長さ(tick)。ユーザー指定 約 1 分。 */

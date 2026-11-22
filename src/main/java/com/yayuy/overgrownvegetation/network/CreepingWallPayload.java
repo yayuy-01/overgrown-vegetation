@@ -3,8 +3,8 @@ package com.yayuy.overgrownvegetation.network;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import com.yayuy.overgrownvegetation.port.network.StreamCodec;
+import com.yayuy.overgrownvegetation.port.network.CustomPacketPayload;
 
 /**
  * 蠢く壁の先頭の升(S2C、2026-11-16 試作。決定 その 7「先頭の升をサーバーから送る」)。

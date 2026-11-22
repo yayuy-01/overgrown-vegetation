@@ -6,17 +6,18 @@ import com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData;
 import com.yayuy.overgrownvegetation.registry.ModAttachments;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.player.Player;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 
 import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * 死んでも感染が残る(MOD の設定 {@link DifficultySetting#KEEP_INFECTION}。2026-11-19 第 3 便のユーザー決定。既定オフ、Nightmare でオン)。
@@ -28,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>覚えるのは死んだとき(トーテムで助かったときは LivingDeathEvent が来ない)。死んだ画面のまま抜けてサーバーが落ちたときのために、
  * 体の写し(Clone)の時点で元の体にまだ効果が残っていればそれも拾う。戻すのは復活の後(体が世界に入ってから。効果の表示を送るため)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class InfectionOnDeath {
 
     /** 死んだときの段階(1〜)と段階の進み。 */
@@ -79,7 +80,7 @@ public final class InfectionOnDeath {
     /** 覚えた感染を体に戻す(効果・防御と最大体力の修飾・段階の進み)。 */
     public static void restore(Player player, Kept kept) {
         SporeInfectionEffects.setPlayerStage(player, kept.stage());
-        player.setData(ModAttachments.SPORE_STAGE_TICKS, Math.max(0, kept.progress()));
+        OvAttach.setData(player, ModAttachments.SPORE_STAGE_TICKS, Math.max(0, kept.progress()));
     }
 
     private InfectionOnDeath() {

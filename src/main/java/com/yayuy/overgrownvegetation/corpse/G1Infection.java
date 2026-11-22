@@ -8,10 +8,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 
 /**
  * 感染の口(2026-11-08): 胞子に感染して死んだバニラの Mob を、崩れ落ち → 死体ブロックへつなぐ(Vault「G1 段階 0 の共通」5 節
@@ -30,7 +30,7 @@ import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
  * </ul>
  * 死体は Mob を消さずに置く(バニラの死の続き = ドロップ・経験値・倒した記録はそのまま。記憶 death-event-discard-skips-loot)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class G1Infection {
 
     private G1Infection() {
@@ -62,7 +62,7 @@ public final class G1Infection {
      * 崩れ落ちの印は死の知らせ(上)で付くので、ドロップの知らせの時には付いている。
      */
     @SubscribeEvent
-    public static void onLivingDrops(net.neoforged.neoforge.event.entity.living.LivingDropsEvent event) {
+    public static void onLivingDrops(net.minecraftforge.event.entity.living.LivingDropsEvent event) {
         if (!event.getEntity().level().isClientSide() && CorpseCollapse.isCollapsing(event.getEntity())) {
             event.setCanceled(true);
         }

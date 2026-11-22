@@ -11,12 +11,12 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import java.util.List;
 
@@ -54,17 +54,17 @@ public final class PhaseOmenGameTests {
             CloudWeather.clearForcedStorm();
             PhaseOmens.setCentersForTests(List.of(at));
             // 下げた・同じ: 何も起きない
-            NeoForge.EVENT_BUS.post(new PhaseEvents.PhaseChanged(level, 3, 1, false));
-            NeoForge.EVENT_BUS.post(new PhaseEvents.PhaseChanged(level, 5, 3, false));
+            MinecraftForge.EVENT_BUS.post(new PhaseEvents.PhaseChanged(level, 3, 1, false));
+            MinecraftForge.EVENT_BUS.post(new PhaseEvents.PhaseChanged(level, 5, 3, false));
             helper.assertTrue(PhaseOmens.queuedSprouts() == 0 && CloudWeather.forcedStorm() == null, "下げたのに芽吹き・嵐が起きた");
             // F1 → F2: 芽吹きだけ
-            NeoForge.EVENT_BUS.post(new PhaseEvents.PhaseChanged(level, 1, 2, false));
+            MinecraftForge.EVENT_BUS.post(new PhaseEvents.PhaseChanged(level, 1, 2, false));
             helper.assertTrue(PhaseOmens.queuedSprouts() >= 1, "F2 に上がっても、汚染域の芽吹きが並ばない");
             helper.assertTrue(CloudWeather.forcedStorm() == null, "F2 で嵐が来た");
             int before = PhaseOmens.queuedSprouts();
             helper.assertTrue(PhaseOmens.step(level, before) == before && PhaseOmens.queuedSprouts() == 0, "並べた芽吹きを走らせきれない");
             // F3 → F4: 嵐を 1 回だけ。少し後に始まり、雷の間は風が弱い
-            NeoForge.EVENT_BUS.post(new PhaseEvents.PhaseChanged(level, 3, 4, false));
+            MinecraftForge.EVENT_BUS.post(new PhaseEvents.PhaseChanged(level, 3, 4, false));
             CloudWeather.Rain storm = CloudWeather.forcedStorm();
             helper.assertTrue(storm != null && PhaseOmens.queuedSprouts() == 0, "F4 で嵐が差し込まれない・芽吹きが並んだ");
             long now = level.getDayTime();
@@ -73,7 +73,7 @@ public final class PhaseOmenGameTests {
             helper.assertTrue(CloudWeather.rainAt(storm.thunderFrom() + 1) == storm, "差し込んだ嵐が天気の予定に入っていない");
             // 1 つ飛ばしで上がる(コマンド): 通ったフェーズの印を出す
             CloudWeather.clearForcedStorm();
-            NeoForge.EVENT_BUS.post(new PhaseEvents.PhaseChanged(level, 1, 5, false));
+            MinecraftForge.EVENT_BUS.post(new PhaseEvents.PhaseChanged(level, 1, 5, false));
             helper.assertTrue(PhaseOmens.queuedSprouts() >= 1 && CloudWeather.forcedStorm() != null, "F1 → F5 で F2・F4 の印が出ない");
             helper.assertTrue(PhaseOmens.crossed(4, 5, 4) == false && PhaseOmens.crossed(3, 4, 4), "通ったかの判定が違う");
             helper.succeed();

@@ -6,9 +6,9 @@ import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.DisplayInfo;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.AdvancementEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.player.AdvancementEvent;
 
 import java.util.Optional;
 
@@ -25,7 +25,7 @@ import java.util.Optional;
  * 出すかどうかの判定({@code display != null && !display.isHidden()})と同じ条件で絞り込む
  * (実績ゲートの 10 個も同じ絞り込み後の実績を数える)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class AdvancementPoints {
 
     @SubscribeEvent

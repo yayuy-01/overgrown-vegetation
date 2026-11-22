@@ -3,10 +3,10 @@ package com.yayuy.overgrownvegetation.network;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.client.ClientEarthquake;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.network.RegisterPayloadHandlersEvent;
+import com.yayuy.overgrownvegetation.port.network.PayloadRegistrar;
 
 /**
  * このMODの独自ネットワークパケットの登録(版の歴史は register の中の注)。どの通信があるかは、この register と、

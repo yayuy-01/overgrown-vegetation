@@ -29,9 +29,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -40,6 +40,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>仮想の群れ</b>(2026-11-18 大群の軽量化 A。ユーザー決定: 遠くから来る群れは仮想で進め、読み込み範囲に入ったら本物に・0.2.0 に入れる。
@@ -67,8 +68,8 @@ import java.util.Map;
  * <p>入口は今のところ確かめの命令 {@code /ov perf virtual} と {@link #spawn} だけ。司令塔の襲撃へのつなぎは全体管理と相談してから(既定では呼ばれない)。
  * 空の種・G1 は入れない(地上の行進できる G2・G3 = {@link DirectorHooks#marchable} だけ)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
-public final class VirtualHordes extends SavedData {
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
+public final class VirtualHordes extends OvSavedData {
 
     public static final String ID = OvergrownVegetation.MODID + "_virtual_hordes";
     /** 仮想の群れから本物になった個体の印(戻すとき・本物の総数を数えるとき)。 */
@@ -116,7 +117,7 @@ public final class VirtualHordes extends SavedData {
     /** 群れ 1 つの頭数の上限(壊れたデータ・命令で巨大にしない)。 */
     public static final int MAX_SWARM = 512;
 
-    public static final SavedData.Factory<VirtualHordes> FACTORY = new SavedData.Factory<>(VirtualHordes::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<VirtualHordes> FACTORY = new OvSavedData.Factory<>(VirtualHordes::new, (tag, registries) -> load(tag), null);
 
     /** 確かめ用の数(保存しない)。 */
     /** テスト用: プレイヤーの代わりの位置 {x, z}(GameTest には本物のプレイヤーがいない。null で本物)。 */
@@ -361,7 +362,7 @@ public final class VirtualHordes extends SavedData {
     private long nextId = 1L;
 
     public static VirtualHordes get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     public List<Swarm> swarms() {

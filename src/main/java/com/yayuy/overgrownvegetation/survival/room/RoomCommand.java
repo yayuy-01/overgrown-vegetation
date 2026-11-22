@@ -11,16 +11,16 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterCommandsEvent;
 
 /**
  * 開発用: {@code /ov perf spore room} = 今立っている所が閉じた部屋か・大きさ・見つけたすき間の場所(2026-11-13 段 2a)。
  * すき間は全部集めてたどり直し(覚えは使わない)、その場所に光の粒を出す(後でプレイヤー向けの手がかりにも使える)。
  * {@code /ov perf spore room stats} = 覚えの測り(覚えから答えた回数・たどった回数と平均の時間・断った回数)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class RoomCommand {
 
     private RoomCommand() {

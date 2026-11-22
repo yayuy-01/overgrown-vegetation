@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * <b>汚染したスポナー</b>(2026-10-09、ユーザー指定)。
@@ -78,7 +79,7 @@ public final class SpawnerCorruption {
         }
         BlockEntity be = level.getBlockEntity(pos);
         String[] keys = keysFor(be);
-        if (keys == null || be.hasData(ModAttachments.SPAWNER_ORIGINAL)) {
+        if (keys == null || OvAttach.hasData(be, ModAttachments.SPAWNER_ORIGINAL)) {
             return;
         }
         CompoundTag tag = be.saveWithoutMetadata(level.registryAccess());
@@ -101,18 +102,18 @@ public final class SpawnerCorruption {
             load(level, pos, be, tag);
         }
         // 読み込みの後に付ける(読み込みでアタッチメントが書き換わらないよう、読み込む NBT からは外してある)。
-        be.setData(ModAttachments.SPAWNER_ORIGINAL, original);
+        OvAttach.setData(be, ModAttachments.SPAWNER_ORIGINAL, original);
         be.setChanged();
     }
 
     /** 覆いを剥がした直後({@link OvergrownLayerData#uncover})に呼ぶ。覚えた登録があれば戻す。 */
     static void onUncovered(ServerLevel level, BlockPos pos) {
         BlockEntity be = level.getBlockEntity(pos);
-        if (be == null || !be.hasData(ModAttachments.SPAWNER_ORIGINAL)) {
+        if (be == null || !OvAttach.hasData(be, ModAttachments.SPAWNER_ORIGINAL)) {
             return;
         }
-        CompoundTag original = be.getData(ModAttachments.SPAWNER_ORIGINAL);
-        be.removeData(ModAttachments.SPAWNER_ORIGINAL);
+        CompoundTag original = OvAttach.getData(be, ModAttachments.SPAWNER_ORIGINAL);
+        OvAttach.removeData(be, ModAttachments.SPAWNER_ORIGINAL);
         String[] keys = keysFor(be);
         if (keys != null) {
             CompoundTag tag = be.saveWithoutMetadata(level.registryAccess());

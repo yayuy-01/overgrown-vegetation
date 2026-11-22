@@ -7,9 +7,9 @@ import com.yayuy.overgrownvegetation.phase.PhaseData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.ServerTickEvent;
 
 /**
  * 貯蓄の上限からあふれたバイオマス(2026-11-22 ユーザー決定。正本は Vault「司令塔の調整の残り(alpha まで)(11-22)」)。
@@ -21,7 +21,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  * </ul>
  * どれも保存しない(再起動で 0 から。直近の量は数日で入れ替わるので)。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class StorageOverflow {
 
     /** これまで(保存しない): あふれた量・胞子に回した量(胞子の場の単位)。 */

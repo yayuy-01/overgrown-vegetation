@@ -2,11 +2,11 @@ package com.yayuy.overgrownvegetation.registry;
 
 import com.mojang.serialization.Codec;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.attachment.AttachmentType;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredRegister;
-import net.neoforged.neoforge.registries.NeoForgeRegistries;
+import net.minecraftforge.eventbus.api.IEventBus;
+import com.yayuy.overgrownvegetation.port.attachment.AttachmentType;
+import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
+import com.yayuy.overgrownvegetation.port.registries.DeferredRegister;
+import com.yayuy.overgrownvegetation.port.registries.NeoForgeRegistries;
 
 /**
  * エンティティに付随させる一時データ({@link net.neoforged.neoforge.attachment.IAttachmentHolder}経由)。

@@ -1,7 +1,7 @@
 package com.yayuy.overgrownvegetation.phase;
 
 import net.minecraft.server.level.ServerLevel;
-import net.neoforged.bus.api.Event;
+import net.minecraftforge.eventbus.api.Event;
 
 /**
  * フェーズ・小さな段が変わったときに {@code NeoForge.EVENT_BUS} へ流すイベント(2026-11-14)。

@@ -10,11 +10,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
-import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 
 /**
  * <b>グループ3(適応種)だけの特性</b> —— 同じ武器種で倒され続けると、その武器種への耐性が付く(2026-09-23)。
@@ -34,7 +34,7 @@ import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
  *
  * <p>グループ3の所属は {@code #overgrown_vegetation:group_3}。(2026-09-23 時点ではファルキムネスだけ。)
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class Adaptation {
 
     /** 適応する種か。 */

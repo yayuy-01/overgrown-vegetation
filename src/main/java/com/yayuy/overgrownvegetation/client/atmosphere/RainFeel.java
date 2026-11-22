@@ -7,10 +7,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.ClientTickEvent;
 
 /**
  * カメラの所の雨の強さ(2026-11-12、雨の種類。ユーザー選択「雨ごと + 真上の雲」「雨粒と水面・音・見通しと空」)。
@@ -23,7 +23,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
  * 水しぶきの数・雨の日の空の暗さ、この MOD の水面の雨の輪・霞などが一緒に強弱を持つ。雨音は {@code LevelRendererRainSoundMixin}、
  * 大雨の霞の上乗せは {@link MistView#aerial}、雲の暗さは {@code VoxelClouds#roughness}。数値はすべて仮決め。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class RainFeel {
 
     static final float UNDER_STORM = 1.35F;

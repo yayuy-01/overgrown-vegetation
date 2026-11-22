@@ -10,6 +10,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.component.OvItemData;
 
 /**
  * <b>地脈の電池</b>(2026-11-13 サバイバルの背骨 段 2b、決定 8「電池にためて電池で動かす」)。FE をためて持ち運ぶ。
@@ -35,7 +36,7 @@ public class LeyBatteryItem extends Item {
     }
 
     public static int stored(ItemStack stack) {
-        return Math.max(0, stack.getOrDefault(ModLey.ENERGY.get(), 0));
+        return Math.max(0, OvItemData.getOrDefault(stack, ModLey.ENERGY.get(), 0));
     }
 
     @Override

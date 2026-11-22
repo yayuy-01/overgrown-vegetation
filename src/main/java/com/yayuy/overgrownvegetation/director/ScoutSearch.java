@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>探りに出す偵察</b>(2026-11-20 ユーザー決定。戦場の霧で、森は見えない所の拠点を覚えられなくなった。偵察が見つける)。
@@ -55,12 +56,12 @@ import java.util.UUID;
  * </ul>
  * 数はどれも {@code director.json} の {@code vision} の【仮】。
  */
-public final class ScoutSearch extends SavedData {
+public final class ScoutSearch extends OvSavedData {
 
     private static final String ID = "overgrown_vegetation_scout_search";
 
-    public static final SavedData.Factory<ScoutSearch> FACTORY =
-            new SavedData.Factory<>(ScoutSearch::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<ScoutSearch> FACTORY =
+            new OvSavedData.Factory<>(ScoutSearch::new, (tag, registries) -> load(tag), null);
 
     public enum ClueKind {
         KILLED("偵察が殺された"), LIGHT("夜の明かり"), TRAIL("持ち帰りの汚れ"), SWEEP("広がる探し方");
@@ -140,7 +141,7 @@ public final class ScoutSearch extends SavedData {
     }
 
     public static ScoutSearch get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     public static VisionTable table() {

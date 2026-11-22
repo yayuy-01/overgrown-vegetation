@@ -7,9 +7,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.EntityTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.EntityTickEvent;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,7 +28,7 @@ import java.util.Map;
  * 全部の粒で、それより多い分は粒を {@link #REDUCED_DETAIL} 倍に減らす。音は {@link #SOUNDS_PER_TICK} 回まで。汚染の球は
  * {@code NoisyCorruptionBurst} の 1 tick 3 個の上限で順に作る(残りは次の tick へ回る)。升の浮遊はどれも同じ量を上げる。数はすべて【仮】。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class PlantSideBurst {
 
     /** 1 tick・1 次元あたり、全部の粒で破裂させる回数。【仮】 */
@@ -125,7 +125,7 @@ public final class PlantSideBurst {
      * 死んだまま消える瞬間(消える理由が KILLED)に破裂させる。読み込みの外へ出ただけ・コマンドで消した(DISCARDED)のは破裂しない。
      */
     @SubscribeEvent
-    public static void onLeave(net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent event) {
+    public static void onLeave(net.minecraftforge.event.entity.EntityLeaveLevelEvent event) {
         if (!(event.getEntity() instanceof LivingEntity living) || !(event.getLevel() instanceof ServerLevel level)) return;
         if (living.getRemovalReason() != Entity.RemovalReason.KILLED || !living.isDeadOrDying()) return;
         if (!PlantSideRules.burstsAtRemoval(living, PlantSideRules.isTransformed(living))) return;

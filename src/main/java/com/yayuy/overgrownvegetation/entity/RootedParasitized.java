@@ -43,10 +43,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.animatable.GeoEntity;
-import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
-import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationController;
-import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.core.animation.AnimatableManager;
+import software.bernie.geckolib.core.animation.AnimationController;
+import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 import javax.annotation.Nullable;
@@ -1429,7 +1429,7 @@ public class RootedParasitized extends Monster implements ParasitizedMob, GeoEnt
             int seed = seedState();
             if (seed == SEED_SHELL) return state.setAndContinue(hold("guardian_spawn"));
             if (seed == SEED_REGROW) return state.setAndContinue(once("guardian_regrow"));
-            return software.bernie.geckolib.animation.PlayState.STOP;
+            return software.bernie.geckolib.core.object.PlayState.STOP;
         }));
     }
 

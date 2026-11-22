@@ -19,14 +19,15 @@ import net.minecraft.world.entity.animal.WaterAnimal;
 import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
-import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 
 import java.util.HashMap;
 import java.util.Map;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * Mob の胞子感染と飛び火・動物が汚染から逃げる(2026-11-14 ユーザー決定。正本は Vault「フェーズの仕組み(ポイント・日数)」の F1、
@@ -46,7 +47,7 @@ import java.util.Map;
  *     感染した後はずっと逃げ、汚染の無い所では最後の向きのまま —— 結果として汚染を外へ運ぶ。</li>
  * </ol>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class MobInfection {
 
     private MobInfection() {
@@ -55,13 +56,13 @@ public final class MobInfection {
     // ---------------------------------------------------------------- 状態
 
     public static boolean isInfected(LivingEntity entity) {
-        return entity.hasData(ModAttachments.SPORE_EXPOSURE) && entity.getData(ModAttachments.SPORE_EXPOSURE).infected;
+        return OvAttach.hasData(entity, ModAttachments.SPORE_EXPOSURE) && OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE).infected;
     }
 
     /** 感染前に浴び続けている途中か(判定を細かくする)。 */
     public static boolean isCounting(LivingEntity entity) {
-        if (!entity.hasData(ModAttachments.SPORE_EXPOSURE)) return false;
-        SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
+        if (!OvAttach.hasData(entity, ModAttachments.SPORE_EXPOSURE)) return false;
+        SporeExposure ex = OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE);
         return !ex.infected && ex.exposedTicks > 0;
     }
 
@@ -74,7 +75,7 @@ public final class MobInfection {
     /** 感染させる(コマンド・テスト・G1 の口からも)。測る Mob だけ。 */
     public static void infect(LivingEntity entity, long now) {
         if (!SporeExposureTracker.isMeasuredMob(entity) || !entity.isAlive()) return;
-        SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
+        SporeExposure ex = OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE);
         if (ex.infected) return;
         ex.infected = true;
         ex.infectedGameTime = now;
@@ -95,11 +96,11 @@ public final class MobInfection {
         if (!s.enabled()) return;
         SporeFieldTable t = DesignData.sporeField();
         if (effectivePercent >= t.exposureMinPercent() && effectivePercent > 0.0D) {
-            SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
+            SporeExposure ex = OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE);
             ex.exposedTicks += ex.exposedTicks == 0 ? Math.min(interval, s.countStepTicks()) : interval;
             if (ex.exposedTicks >= Math.round(s.startSeconds() * 20.0D)) infect(entity, now);
-        } else if (entity.hasData(ModAttachments.SPORE_EXPOSURE)) {
-            entity.getData(ModAttachments.SPORE_EXPOSURE).exposedTicks = 0;
+        } else if (OvAttach.hasData(entity, ModAttachments.SPORE_EXPOSURE)) {
+            OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE).exposedTicks = 0;
         }
     }
 
@@ -107,7 +108,7 @@ public final class MobInfection {
     public static void grow(LivingEntity entity, int interval) {
         MobInfectionSpec s = DesignData.sporeField().mobInfection();
         if (!s.enabled()) return;
-        SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
+        SporeExposure ex = OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE);
         ex.dose = Math.min(DesignData.sporeField().infectDose(), ex.dose + s.growPerSecond() * interval / 20.0D);
     }
 
@@ -122,7 +123,7 @@ public final class MobInfection {
         if (s.fleeEnabled() && isFleer(entity)) {
             double start = s.fleeStartPercent() > 0.0D ? s.fleeStartPercent() : DesignData.sporeField().exposureMinPercent();
             if (infected || percent >= start) {
-                SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
+                SporeExposure ex = OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE);
                 if (percent >= start) ex.fleeUntil = now + s.fleeLingerTicks();
                 updateFleeDirection(level, entity, ex);
             }
@@ -166,8 +167,8 @@ public final class MobInfection {
 
     /** 逃げる途中か(感染していれば常に、そうでなければ濃い所を出てから少しの間)。 */
     public static boolean shouldFlee(LivingEntity entity, long now) {
-        if (!entity.hasData(ModAttachments.SPORE_EXPOSURE)) return false;
-        SporeExposure ex = entity.getData(ModAttachments.SPORE_EXPOSURE);
+        if (!OvAttach.hasData(entity, ModAttachments.SPORE_EXPOSURE)) return false;
+        SporeExposure ex = OvAttach.getData(entity, ModAttachments.SPORE_EXPOSURE);
         if (ex.fleeX == 0.0F && ex.fleeZ == 0.0F) return false;
         return ex.infected || now < ex.fleeUntil;
     }

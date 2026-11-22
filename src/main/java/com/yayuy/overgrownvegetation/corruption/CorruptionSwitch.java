@@ -7,10 +7,11 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.LevelEvent;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.level.LevelEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * 汚染のオン・オフ(2026-10-10、ユーザー指定)。{@code /ov corruption true|false}。
@@ -34,7 +35,7 @@ import net.neoforged.neoforge.event.server.ServerStoppedEvent;
  * <p>値はワールドごと(オーバーワールドの {@code data/})、<b>既定はオン</b>。画面には出さない(ユーザー指定: コマンドだけ)。
  * 汚染の処理はブロック 1 つごとに何千回も読むので、本体は static の写し {@link #isOn()}(別スレッドの台帳の計算からも読める)。
  */
-public final class CorruptionSwitch extends SavedData {
+public final class CorruptionSwitch extends OvSavedData {
 
     public static final String ID = "overgrown_vegetation_corruption_switch";
 
@@ -75,7 +76,7 @@ public final class CorruptionSwitch extends SavedData {
     }
 
     private static CorruptionSwitch get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     @Override
@@ -90,7 +91,7 @@ public final class CorruptionSwitch extends SavedData {
         return data;
     }
 
-    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
     public static final class Events {
 
         /** オーバーワールドの読み込みで写しを作る(スポーンのチャンクを作るより前)。 */

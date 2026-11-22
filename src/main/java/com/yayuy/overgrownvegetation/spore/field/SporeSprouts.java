@@ -25,15 +25,16 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.ChunkEvent;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.level.ChunkEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * ブロック汚染の「芽」と萌芽体の出し入れ(2026-10-23 胞子の場と風 第 2 段 E・F)。仕様は Vault「胞子濃度と暴露量(作り直し)」の
@@ -52,7 +53,7 @@ import java.util.List;
  * <p>2026-10-23 F からネザーでも同じ(相談セッションの答え: 芽の点と萌芽体を出す・前の床の這い出しは無し)。ネザーの点は
  * 空洞の床({@code NetherSurface})から選び、溶岩の上には置かない。走っている点・見直し待ちは次元ごとに持つ。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class SporeSprouts {
 
     private static final class Point {
@@ -136,7 +137,7 @@ public final class SporeSprouts {
         net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome> biome = level.getBiome(pos.getMiddleBlockPosition(level.getSeaLevel()));
         boolean wet = level.dimension() == Level.OVERWORLD && (biome.is(net.minecraft.tags.BiomeTags.IS_RIVER)
                 || biome.is(net.minecraft.tags.BiomeTags.IS_OCEAN) || biome.is(net.minecraft.tags.BiomeTags.IS_DEEP_OCEAN)) // 海も(2026-10-24 追記 18)
-                || biome.is(net.neoforged.neoforge.common.Tags.Biomes.IS_SWAMP);
+                || biome.is(net.minecraftforge.common.Tags.Biomes.IS_SWAMP);
         int n = (int) Math.round(t.sproutPoints() * (wet ? t.sproutWetMultiplier() : 1.0D));
         long now = level.getGameTime();
         List<BlockPos> surface = new ArrayList<>();
@@ -148,13 +149,13 @@ public final class SporeSprouts {
         }
         // 萌芽体
         int want = sproutCount(level, pos);
-        int placed = chunk.getData(ModAttachments.SPROUTS_PLACED);
+        int placed = OvAttach.getData(chunk, ModAttachments.SPROUTS_PLACED);
         for (int k = placed; k < want && !surface.isEmpty(); k++) {
             BlockPos at = surface.remove(random.nextInt(surface.size()));
             if (walkers) BlightFernPlacement.spawn(level, at, MobSpawnType.EVENT);
             else placeRooted(level, at);
         }
-        if (want > placed) chunk.setData(ModAttachments.SPROUTS_PLACED, want);
+        if (want > placed) OvAttach.setData(chunk, ModAttachments.SPROUTS_PLACED, want);
     }
 
     /** 2 体目の萌芽体が発芽した(場の答えから)。読み込まれていれば歩く萌芽体を出す。そうでなければ読み込んだときに根付いた姿で。 */
@@ -166,7 +167,7 @@ public final class SporeSprouts {
         BlockPos at = surfacePoint(level, chunk, level.random);
         if (at == null) return;
         if (BlightFernPlacement.spawn(level, at, MobSpawnType.EVENT) != null) {
-            chunk.setData(ModAttachments.SPROUTS_PLACED, chunk.getData(ModAttachments.SPROUTS_PLACED) + 1);
+            OvAttach.setData(chunk, ModAttachments.SPROUTS_PLACED, OvAttach.getData(chunk, ModAttachments.SPROUTS_PLACED) + 1);
         }
     }
 
@@ -620,20 +621,20 @@ public final class SporeSprouts {
             if (cell == null) continue;
             // 洞窟の床からの発芽(2026-11-04): 過繁茂かどうかに関わらず、場の回数より少なければ洞窟の床に芽の点を置く
             if (!nether) {
-                int cavePlaced = chunk.getData(ModAttachments.CAVE_SPROUTS_PLACED);
+                int cavePlaced = OvAttach.getData(chunk, ModAttachments.CAVE_SPROUTS_PLACED);
                 if (cell.caveCount() > cavePlaced) {
                     for (int k = cavePlaced; k < cell.caveCount(); k++) placeCavePoints(level, chunk);
-                    chunk.setData(ModAttachments.CAVE_SPROUTS_PLACED, cell.caveCount());
+                    OvAttach.setData(chunk, ModAttachments.CAVE_SPROUTS_PLACED, cell.caveCount());
                 }
             }
             if (!overgrown) continue;
-            int placed = chunk.getData(ModAttachments.SPROUTS_PLACED);
+            int placed = OvAttach.getData(chunk, ModAttachments.SPROUTS_PLACED);
             int want = Math.min(2, cell.count());
             for (int k = placed; k < want; k++) {
                 BlockPos at = surfacePoint(level, chunk, level.random);
                 if (at != null) placeRooted(level, at);
             }
-            if (want > placed) chunk.setData(ModAttachments.SPROUTS_PLACED, want);
+            if (want > placed) OvAttach.setData(chunk, ModAttachments.SPROUTS_PLACED, want);
         }
         if (retry != null) d.check.addAll(retry);
     }

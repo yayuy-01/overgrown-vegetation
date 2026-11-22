@@ -20,11 +20,12 @@ import net.minecraft.world.entity.animal.Cow;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.RegisterGameTestsEvent;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * Mob の胞子感染と飛び火(2026-11-14 ユーザー決定、{@link MobInfection})。濃度を渡して判定する口({@link SporeExposureTracker#tickWith})を直に叩く。
@@ -226,7 +227,7 @@ public final class MobInfectionGameTests {
         for (int i = 0; i < stepsToInfect() * 2; i++) SporeExposureTracker.tickWith(helper.getLevel(), p, spec().countStepTicks(), exposedPercent());
         LivingEntity plant = (LivingEntity) com.yayuy.overgrownvegetation.registry.ModEntities.BLIGHT_FERN.get().create(helper.getLevel());
         if (plant != null) MobInfection.infect(plant, helper.getLevel().getGameTime());
-        if (p.hasData(ModAttachments.SPORE_EXPOSURE) && p.getData(ModAttachments.SPORE_EXPOSURE).infected) {
+        if (OvAttach.hasData(p, ModAttachments.SPORE_EXPOSURE) && OvAttach.getData(p, ModAttachments.SPORE_EXPOSURE).infected) {
             helper.fail("プレイヤーが Mob の感染になった");
             return;
         }
@@ -275,7 +276,7 @@ public final class MobInfectionGameTests {
         Cow c = helper.spawnWithNoFreeWill(EntityType.COW, new BlockPos(3, 2, 3));
         c.setInvulnerable(true);
         MobInfection.infect(c, 1234L);
-        SporeExposure ex = c.getData(ModAttachments.SPORE_EXPOSURE);
+        SporeExposure ex = OvAttach.getData(c, ModAttachments.SPORE_EXPOSURE);
         ex.dose = 321.0D;
         ex.fleeX = 0.6F;
         ex.fleeZ = -0.8F;
@@ -283,7 +284,7 @@ public final class MobInfectionGameTests {
         c.saveWithoutId(saved);
         Cow copy = EntityType.COW.create(level);
         copy.load(saved);
-        SporeExposure ey = copy.hasData(ModAttachments.SPORE_EXPOSURE) ? copy.getData(ModAttachments.SPORE_EXPOSURE) : null;
+        SporeExposure ey = OvAttach.hasData(copy, ModAttachments.SPORE_EXPOSURE) ? OvAttach.getData(copy, ModAttachments.SPORE_EXPOSURE) : null;
         if (ey == null || !ey.infected || ey.infectedGameTime != 1234L || Math.abs(ey.dose - 321.0D) > 1.0E-6D
                 || Math.abs(ey.fleeX - 0.6F) > 1.0E-6F || Math.abs(ey.fleeZ + 0.8F) > 1.0E-6F) {
             helper.fail("読み直した感染: " + (ey == null ? "null" : ey.infected + "・" + ey.infectedGameTime + "・" + ey.dose + "・" + ey.fleeX + "," + ey.fleeZ));

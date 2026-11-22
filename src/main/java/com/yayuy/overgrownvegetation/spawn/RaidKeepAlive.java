@@ -7,8 +7,8 @@ import com.yayuy.overgrownvegetation.director.LargeRaids;
 import com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.MobDespawnEvent;
 
 /**
@@ -22,7 +22,7 @@ import net.neoforged.neoforge.event.entity.living.MobDespawnEvent;
  * </ul>
  * 襲撃が終わった後の個体は、ふだんどおり遠くで消える。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
 public final class RaidKeepAlive {
 
     private RaidKeepAlive() {

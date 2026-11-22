@@ -13,11 +13,12 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
+import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * 雲を流す風(2026-11-08 雲の段階 1「風を 1 つに」)。設定では世界に風は 1 つなので、雲も胞子と同じ卓越風
@@ -32,11 +33,11 @@ import net.neoforged.neoforge.network.PacketDistributor;
  * 地上の夜の凪では止まらないので下限を付けた(胞子の場の高い所の風 {@code highMinStrength} と同じ考え)。地上の突風
  * ({@code client.atmosphere.GustField})は地表の局地の風なので雲は動かさない。数値は仮決め。
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
-public final class CloudDrift extends SavedData {
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
+public final class CloudDrift extends OvSavedData {
 
     public static final String ID = "overgrown_vegetation_cloud_drift";
-    public static final SavedData.Factory<CloudDrift> FACTORY = new SavedData.Factory<>(CloudDrift::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<CloudDrift> FACTORY = new OvSavedData.Factory<>(CloudDrift::new, (tag, registries) -> load(tag), null);
 
     /** 風を引き直して積分する間(tick)と、クライアントへ送る間(tick)。 */
     static final int STEP = 20;
@@ -90,7 +91,7 @@ public final class CloudDrift extends SavedData {
     };
 
     public static CloudDrift get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     /**
@@ -163,7 +164,7 @@ public final class CloudDrift extends SavedData {
     }
 
     @SubscribeEvent
-    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+    public static void onServerStopped(net.minecraftforge.event.server.ServerStoppedEvent event) {
         active = null;
         CloudField.setServerDrift(null);
     }

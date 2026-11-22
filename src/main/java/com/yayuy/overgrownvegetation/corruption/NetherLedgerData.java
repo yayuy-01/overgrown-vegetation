@@ -9,6 +9,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>ネザーの根の台帳</b>(2026-11-11 骨組みで作り直し。前は 10-02 の「過繁茂チャンクの集合」)。{@link NetherLedger} が使う。
@@ -26,13 +27,13 @@ import net.minecraft.world.level.saveddata.SavedData;
  * </ul>
  * 保存先はネザーの {@code data/}。版 1(10-02〜11-11)の {@code overgrown} は、段階 3 に入った所として読み込む。
  */
-public final class NetherLedgerData extends SavedData {
+public final class NetherLedgerData extends OvSavedData {
 
     private static final String ID = "overgrown_vegetation_nether_ledger";
     private static final int VERSION = 2;
 
-    public static final SavedData.Factory<NetherLedgerData> FACTORY =
-            new SavedData.Factory<>(NetherLedgerData::new, (tag, registries) -> load(tag), null);
+    public static final OvSavedData.Factory<NetherLedgerData> FACTORY =
+            new OvSavedData.Factory<>(NetherLedgerData::new, (tag, registries) -> load(tag), null);
 
     final Long2LongOpenHashMap arrival = new Long2LongOpenHashMap();
     final Long2LongOpenHashMap frontier = new Long2LongOpenHashMap();
@@ -180,7 +181,7 @@ public final class NetherLedgerData extends SavedData {
 
     /** そのネザーの台帳(ネザーの {@code data/} に保存)。 */
     public static NetherLedgerData get(ServerLevel nether) {
-        return nether.getDataStorage().computeIfAbsent(FACTORY, ID);
+        return nether.getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     // ---- 読む口 ----

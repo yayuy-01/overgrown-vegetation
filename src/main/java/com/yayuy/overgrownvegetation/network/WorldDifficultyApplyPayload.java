@@ -3,8 +3,8 @@ package com.yayuy.overgrownvegetation.network;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.difficulty.DifficultyValues;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import com.yayuy.overgrownvegetation.port.network.StreamCodec;
+import com.yayuy.overgrownvegetation.port.network.CustomPacketPayload;
 
 /**
  * クライアント → サーバー。設定のページで「完了」が押された。<b>ワールドの値をまるごと</b>送る(入っていない項目は既定値に戻す)。

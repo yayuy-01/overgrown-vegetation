@@ -18,13 +18,14 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.ChunkEvent;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.level.ChunkEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import javax.annotation.Nullable;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>焼けた荒地</b>(10-08 のユーザー指定を 11-18 夜に胞子焼きの筒へ引き継いだ。前の版は parked/purify/BurntLand)。
@@ -37,8 +38,8 @@ import javax.annotation.Nullable;
  *   読み込まれていなければ台帳から消して「戻す待ち」へ(この時点で普通の土地 = また飲まれうる)、読み込まれたときに戻す。</li>
  * </ul>
  */
-@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
-public final class BurntLand extends SavedData {
+@EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
+public final class BurntLand extends OvSavedData {
 
     public static final String ID = "overgrown_vegetation_burnt_land";
     /** 元のバイオームに戻るまで(汚染の暦)。11-18 夜 ユーザー「散布と同じように 1 日」(10-08 の 3 日から。数は仮 = {@code fire.burntDays})。 */
@@ -47,7 +48,7 @@ public final class BurntLand extends SavedData {
     }
     private static final int CHECK_INTERVAL = 200;
 
-    public static final SavedData.Factory<BurntLand> FACTORY = new SavedData.Factory<>(BurntLand::new, (tag, r) -> load(tag), null);
+    public static final OvSavedData.Factory<BurntLand> FACTORY = new OvSavedData.Factory<>(BurntLand::new, (tag, r) -> load(tag), null);
 
     private final Long2LongOpenHashMap since = new Long2LongOpenHashMap();
     private final LongOpenHashSet pendingRevert = new LongOpenHashSet();
@@ -68,7 +69,7 @@ public final class BurntLand extends SavedData {
     public static BurntLand get(MinecraftServer server) {
         BurntLand d = cached;
         if (d != null && cachedServer == server) return d;
-        d = server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        d = server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
         cached = d;
         cachedServer = server;
         return d;

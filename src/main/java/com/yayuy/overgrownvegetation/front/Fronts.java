@@ -11,16 +11,17 @@ import net.minecraft.world.level.saveddata.SavedData;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.saved.OvSavedData;
 
 /**
  * <b>前線の台帳</b>(2026-11-21 前線と部隊。正本は Vault「前線と部隊(地図の上の森の軍勢)(11-21)」)。
  * 前線は巨大樹ごと。巨大樹がまだ無い序盤は、汚染の発生源が前線になる(生産の場所・視界なし)。最初の巨大樹ができたら、発生源の前線の部隊は引き継ぐ。
  * 部隊そのものは仮想の群れの台帳({@code horde/VirtualHordes})に置き、前線の id で結ぶ。ここは前線の場所・攻められた度合い・作る途中の端数だけ。
  */
-public final class Fronts extends SavedData {
+public final class Fronts extends OvSavedData {
 
     public static final String ID = OvergrownVegetation.MODID + "_fronts";
-    public static final SavedData.Factory<Fronts> FACTORY = new SavedData.Factory<>(Fronts::new, (tag, registries) -> {
+    public static final OvSavedData.Factory<Fronts> FACTORY = new OvSavedData.Factory<>(Fronts::new, (tag, registries) -> {
         Fronts f = load(tag);
         FrontDirector.loadState(tag); // 11-22 見直し: 駆けつけの記録と攻められた tick(テストの Fronts.load では読まない)
         return f;
@@ -87,7 +88,7 @@ public final class Fronts extends SavedData {
     private int nextId = 1;
 
     public static Fronts get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY.load(), FACTORY.constructor(), ID);
     }
 
     public List<Front> fronts() {

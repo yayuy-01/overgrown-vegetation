@@ -11,12 +11,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.material.FogType;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
-import net.neoforged.neoforge.client.event.ViewportEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import com.yayuy.overgrownvegetation.port.event.tick.ClientTickEvent;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.client.event.ViewportEvent;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -441,8 +441,8 @@ public final class Atmosphere {
      * ログアウトで、前のワールドの物を空にする(見直し 第 2 回 ④3・⑥3、11-18): 地脈の地図・卓越風・巨大樹の一覧・巨木の遠景が、前の ClientLevel を
      * static で持ったままタイトル画面の間メモリに残っていた。VBO を消すので、描画のスレッドで行う(違うスレッドなら描画の順番待ちへ回す)。
      */
-    @net.neoforged.bus.api.SubscribeEvent
-    public static void onLoggingOut(net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
+    @net.minecraftforge.eventbus.api.SubscribeEvent
+    public static void onLoggingOut(net.minecraftforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
         Runnable forget = () -> {
             LeyVeins.forget();
             PrevailingWindClient.forget();

@@ -2,12 +2,12 @@ package com.yayuy.overgrownvegetation.client.crowd;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
-import software.bernie.geckolib.animation.Animation;
-import software.bernie.geckolib.animation.EasingType;
-import software.bernie.geckolib.animation.keyframe.AnimationPoint;
-import software.bernie.geckolib.animation.keyframe.BoneAnimation;
-import software.bernie.geckolib.animation.keyframe.Keyframe;
-import software.bernie.geckolib.animation.keyframe.KeyframeStack;
+import software.bernie.geckolib.core.animation.Animation;
+import software.bernie.geckolib.core.animation.EasingType;
+import software.bernie.geckolib.core.keyframe.AnimationPoint;
+import software.bernie.geckolib.core.keyframe.BoneAnimation;
+import software.bernie.geckolib.core.keyframe.Keyframe;
+import software.bernie.geckolib.core.keyframe.KeyframeStack;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.loading.math.MathValue;

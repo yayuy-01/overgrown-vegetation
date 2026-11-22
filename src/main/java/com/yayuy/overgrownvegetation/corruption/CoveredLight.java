@@ -15,6 +15,7 @@ import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.block.state.BlockState;
 
 import javax.annotation.Nullable;
+import com.yayuy.overgrownvegetation.port.attachment.OvAttach;
 
 /**
  * <b>覆われた光源は暗くなる</b>(2026-10-05、ユーザー要望「光源を持つブロックが覆われた時、光源レベルを -60%」)。
@@ -56,7 +57,7 @@ public final class CoveredLight {
             if (chunk == null) {
                 return base;
             }
-            LongOpenHashSet set = chunk.getExistingData(ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
+            LongOpenHashSet set = OvAttach.getExistingData(chunk, ModAttachments.OVERGROWN_LAYER.get()).orElse(null);
             if (set == null || set.isEmpty() || !set.contains(pos.asLong())) {
                 return base;
             }

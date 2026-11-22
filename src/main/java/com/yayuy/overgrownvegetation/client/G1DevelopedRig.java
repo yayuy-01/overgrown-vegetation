@@ -4,7 +4,7 @@ import com.yayuy.overgrownvegetation.entity.DevelopedParasitized;
 import com.yayuy.overgrownvegetation.entity.g1.G1Developed;
 import com.yayuy.overgrownvegetation.entity.g1.skill.G1Move;
 import net.minecraft.util.Mth;
-import software.bernie.geckolib.animation.AnimationState;
+import software.bernie.geckolib.core.animation.AnimationState;
 import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.model.GeoModel;
 
@@ -47,7 +47,7 @@ final class G1DevelopedRig {
         float k = Mth.clamp(t / EVOLVE_BLEND_TICKS, 0.0F, 1.0F);
         k = k * k * (3.0F - 2.0F * k);
         for (software.bernie.geckolib.cache.object.GeoBone bone : model.getAnimationProcessor().getRegisteredBones()) {
-            software.bernie.geckolib.animation.state.BoneSnapshot init = bone.getInitialSnapshot();
+            software.bernie.geckolib.core.state.BoneSnapshot init = bone.getInitialSnapshot();
             bone.setRotX(Mth.lerp(k, init.getRotX(), bone.getRotX()));
             bone.setRotY(Mth.lerp(k, init.getRotY(), bone.getRotY()));
             bone.setRotZ(Mth.lerp(k, init.getRotZ(), bone.getRotZ()));
