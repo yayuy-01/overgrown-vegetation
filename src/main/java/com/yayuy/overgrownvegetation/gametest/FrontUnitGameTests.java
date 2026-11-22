@@ -60,6 +60,33 @@ public final class FrontUnitGameTests {
         return BuiltInRegistries.ENTITY_TYPE.getKey(G1Species.ZOMBIE.entityType());
     }
 
+    /** 11-23 ユーザー決定: 拠点を襲う部隊の実物が倒されても「攻められた」に数えない(守り・広げるの実物は数える)。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void raidLossesAreNotAttacks(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        VirtualHordes h = VirtualHordes.get(level.getServer());
+        long now = level.getGameTime();
+        VirtualHordes.Swarm raid = h.newUnit(0.5D, 64, 0.5D, 770_101, UnitPurpose.RAID, now);
+        VirtualHordes.Swarm defend = h.newUnit(0.5D, 64, 0.5D, 770_101, UnitPurpose.DEFEND, now);
+        try {
+            Mob a = net.minecraft.world.entity.EntityType.ZOMBIE.create(level);
+            Mob b = net.minecraft.world.entity.EntityType.ZOMBIE.create(level);
+            Mob c = net.minecraft.world.entity.EntityType.ZOMBIE.create(level);
+            a.getPersistentData().putLong(VirtualHordes.UNIT_KEY, raid.id());
+            b.getPersistentData().putLong(VirtualHordes.UNIT_KEY, defend.id());
+            // 部隊がもう無い: 生まれたときの役目の印で見る
+            c.getPersistentData().putLong(VirtualHordes.UNIT_KEY, -987_654L);
+            c.getPersistentData().putString("ov_unit_purpose", UnitPurpose.RAID.name());
+            helper.assertTrue(FrontDirector.raidLoss(level, a), "襲う部隊の死が攻められたに数えられる");
+            helper.assertTrue(!FrontDirector.raidLoss(level, b), "守りの部隊の死が攻められたに数えられない");
+            helper.assertTrue(FrontDirector.raidLoss(level, c), "部隊の無い襲う部隊の死が攻められたに数えられる");
+            helper.succeed();
+        } finally {
+            h.removeUnit(raid);
+            h.removeUnit(defend);
+        }
+    }
+
     /** 読み込まれていない所で進む・水は回り道・山は半分の速さ。 */
     @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
     public static void unitMovesOnMapAvoidingWater(GameTestHelper helper) {

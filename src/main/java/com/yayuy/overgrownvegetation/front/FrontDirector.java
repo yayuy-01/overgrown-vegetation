@@ -236,6 +236,11 @@ public final class FrontDirector {
         if (!(e.level() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
         if (!e.getPersistentData().contains(VirtualHordes.UNIT_KEY)) return;
         int fid = e.getPersistentData().getInt(VirtualHordes.FRONT_KEY);
+        // 11-23 ユーザー決定: 拠点への襲撃で倒された分は「攻められた」に数えない(守り・駆けつけは樹域の縁や巨大樹のまわりで倒されたときだけ)
+        if (raidLoss(level, e)) {
+            raidLossesSkipped++;
+            return;
+        }
         // 11-22 見直し: 駆けつけた予備が倒されたら、駆けつけた先の樹域が攻められたと数える(元の内側の樹域ではなく)
         int[] r = REINFORCING.get(e.getPersistentData().getLong(VirtualHordes.UNIT_KEY));
         if (r != null) fid = r[1];
@@ -244,6 +249,16 @@ public final class FrontDirector {
         decayLosses(level, f, DesignData.front());
         f.losses += Math.max(1.0D, ForestUpkeep.unitPrice(e));
         Fronts.get(level.getServer()).touch();
+    }
+
+    /** 「攻められた」に数えなかった襲撃の部隊の死(計測の確かめ用)。 */
+    public static long raidLossesSkipped;
+
+    /** 倒されたのが拠点を襲う部隊の実物か(今の部隊の役目。部隊がもう無ければ生まれたときの印)。 */
+    public static boolean raidLoss(ServerLevel level, LivingEntity e) {
+        VirtualHordes.Swarm s = VirtualHordes.get(level.getServer()).byId(e.getPersistentData().getLong(VirtualHordes.UNIT_KEY));
+        UnitPurpose p = s != null ? s.purpose() : UnitPurpose.byName(e.getPersistentData().getString("ov_unit_purpose"));
+        return p == UnitPurpose.RAID;
     }
 
     /** 前線が攻められているか(最近倒された値段が前線の値段の attackedLossShare を超えた)。 */
