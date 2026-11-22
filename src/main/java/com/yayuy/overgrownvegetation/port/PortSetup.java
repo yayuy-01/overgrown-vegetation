@@ -26,6 +26,9 @@ public final class PortSetup {
         com.yayuy.overgrownvegetation.port.entity.OvEntityType.init();
         com.yayuy.overgrownvegetation.port.entity.PortAttributes.init(modBus);
         PortSelfTest.init(modBus);
+        if (net.minecraftforge.fml.loading.FMLEnvironment.dist == net.minecraftforge.api.distmarker.Dist.CLIENT) {
+            com.yayuy.overgrownvegetation.port.dev.AutoQuit.init();
+        }
         // NeoForge の RegisterPayloadHandlersEvent の代わり。@EventBusSubscriber の受け手がつながった後(共通の準備)に 1 回投げる
         modBus.addListener((FMLCommonSetupEvent e) -> modBus.post(new RegisterPayloadHandlersEvent()));
     }

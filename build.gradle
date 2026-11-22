@@ -24,7 +24,9 @@ java {
 // このブランチの src/main/java には、まだ 1.21.1 のままのクラスも残っている(移植の元として同じ場所に置いてある)。
 // ported-sources.txt に書いたパス(Ant 形式。com/yayuy/... から)だけをコンパイルし、移植した分だけ増やす。
 // 全部を移し終えたら、このブロックとファイルを消す。
-def portedSources = file('ported-sources.txt').readLines('UTF-8')
+// 2026-11-23: 組ごとの一覧 ported-sources.d/*.txt も読む(統合のとき、組ごとに足していけるように。書き方は同じ)
+def portedSourceFiles = [file('ported-sources.txt')] + (file('ported-sources.d').listFiles()?.findAll { it.name.endsWith('.txt') }?.sort() ?: [])
+def portedSources = portedSourceFiles.collectMany { it.readLines('UTF-8') }
         .collect { it.trim() }
         .findAll { it && !it.startsWith('#') }
 sourceSets.main.java.include(portedSources)
@@ -51,11 +53,13 @@ legacyForge {
             type = "gameTestServer"
             systemProperty 'forge.enabledGameTestNamespaces', mod_id
         }
-        // Claude が自分で起動して確かめる用のクライアント。ゲームフォルダは runs/claude。
+        // Claude が自分で起動して確かめる用のクライアント。ゲームフォルダは runs/claude(環境変数 OV_CC_DIR で変えられる。本流と同じ)。
+        // ./gradlew runClaudeClient -Dov.autoQuit=title で、タイトル画面に着いたら自分で終わる(port/dev/AutoQuit。ユーザーの決定 12)
         claudeClient {
             client()
-            gameDirectory = project.file('runs/claude')
+            gameDirectory = project.file(System.getenv('OV_CC_DIR') ?: 'runs/claude')
             systemProperty 'ov.devbridge', 'true'
+            systemProperty 'ov.autoQuit', System.getProperty('ov.autoQuit', '')
             programArguments.addAll('--width', '1280', '--height', '720')
         }
         configureEach {
@@ -150,6 +154,10 @@ tasks.named('processResources', ProcessResources) {
     // data/ は 1.21.1 の書き方のまま(フォルダ名が単数形・レシピの result など)。
     // 1.20.1 の書き方へ直したものを入れるまで、jar にも runClient にも載せない。
     exclude 'data/**'
+
+    // 2026-11-23: バニラのシェーダーの上書き(assets/minecraft/shaders)は 1.21 の物のまま。1.20.1 では fog_distance の引数などが違い、
+    // 読み込むとクライアントが起動で落ちる。G6 が 1.20.1 の原本から作り直すまで jar・runClient に載せない(作り直したらこの行を外す)
+    exclude 'assets/minecraft/shaders/**'
 }
 
 tasks.withType(JavaCompile).configureEach {
