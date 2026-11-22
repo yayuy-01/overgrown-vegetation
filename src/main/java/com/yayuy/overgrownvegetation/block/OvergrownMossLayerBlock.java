@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -28,7 +27,6 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public class OvergrownMossLayerBlock extends MultifaceBlock implements BonemealableBlock {
 
-    public static final MapCodec<OvergrownMossLayerBlock> CODEC = simpleCodec(OvergrownMossLayerBlock::new);
 
     private final MultifaceSpreader spreader = new MultifaceSpreader(this);
 
@@ -37,17 +35,12 @@ public class OvergrownMossLayerBlock extends MultifaceBlock implements Bonemeala
     }
 
     @Override
-    public MapCodec<OvergrownMossLayerBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
     public MultifaceSpreader getSpreader() {
         return this.spreader;
     }
 
     @Override
-    public boolean isValidBonemealTarget(LevelReader level, BlockPos pos, BlockState state) {
+    public boolean isValidBonemealTarget(LevelReader level, BlockPos pos, BlockState state, boolean isClient) {
         return Direction.stream()
                 .anyMatch(direction -> this.spreader.canSpreadInAnyDirection(state, level, pos, direction.getOpposite()));
     }

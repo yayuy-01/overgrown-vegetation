@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.StringRepresentable;
@@ -23,7 +22,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class BeardLichenBlock extends Block {
 
-    public static final MapCodec<BeardLichenBlock> CODEC = simpleCodec(BeardLichenBlock::new);
 
     public enum Kind implements StringRepresentable {
         FINE("fine"), TUFT("tuft");
@@ -66,22 +64,17 @@ public class BeardLichenBlock extends Block {
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(KIND, PART);
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         BlockPos abovePos = pos.above();
         BlockState above = level.getBlockState(abovePos);
         if (state.getValue(PART) == Part.TIP) {
@@ -91,7 +84,7 @@ public class BeardLichenBlock extends Block {
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                      LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         if (direction == Direction.UP && !state.canSurvive(level, pos)) {
             return Blocks.AIR.defaultBlockState();

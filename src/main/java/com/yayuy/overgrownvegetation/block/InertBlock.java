@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.valueproviders.ConstantInt;
 import net.minecraft.util.valueproviders.IntProvider;
@@ -34,7 +33,6 @@ import javax.annotation.Nullable;
  */
 public class InertBlock extends Block {
 
-    public static final MapCodec<InertBlock> CODEC = simpleCodec(InertBlock::new);
 
     private final IntProvider xpRange;
 
@@ -48,18 +46,14 @@ public class InertBlock extends Block {
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected boolean isRandomlyTicking(BlockState state) {
+    public boolean isRandomlyTicking(BlockState state) {
         return false;
     }
 
     @Override
-    public int getExpDrop(BlockState state, LevelAccessor level, BlockPos pos, @Nullable BlockEntity blockEntity,
-            @Nullable Entity breaker, ItemStack tool) {
-        return this.xpRange.sample(level.getRandom());
+    public int getExpDrop(BlockState state, net.minecraft.world.level.LevelReader level, net.minecraft.util.RandomSource random, BlockPos pos,
+            int fortuneLevel, int silkTouchLevel) {
+        // 1.20.1: シルクタッチの 0 は自分で(1.21 はエンチャントの効果が 0 にする)
+        return silkTouchLevel == 0 ? this.xpRange.sample(random) : 0;
     }
 }

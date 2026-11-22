@@ -64,12 +64,12 @@ public class RootsilkWebBlock extends Block {
     }
 
     @Override
-    protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
+    public void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
         entity.makeStuckInBlock(state, new Vec3(STUCK_H, STUCK_V, STUCK_H));
     }
 
     @Override
-    protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
         super.onPlace(state, level, pos, oldState, movedByPiston);
         if (!level.isClientSide()) {
             level.scheduleTick(pos, this, WITHER_MIN + level.random.nextInt(WITHER_MAX - WITHER_MIN + 1));
@@ -77,7 +77,7 @@ public class RootsilkWebBlock extends Block {
     }
 
     @Override
-    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         if (onCorruption(level, pos)) {
             level.scheduleTick(pos, this, WITHER_MIN + random.nextInt(WITHER_MAX - WITHER_MIN + 1));
             return;
@@ -100,7 +100,7 @@ public class RootsilkWebBlock extends Block {
 
     /** ハサミで早く切れる(バニラのハサミの道具の決まりはクモの巣だけを名指しするので、ここで足す)。 */
     @Override
-    protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
+    public float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
         float p = super.getDestroyProgress(state, player, level, pos);
         return player.getMainHandItem().canPerformAction(ToolActions.SHEARS_DIG) ? p * SHEARS_SPEED : p;
     }

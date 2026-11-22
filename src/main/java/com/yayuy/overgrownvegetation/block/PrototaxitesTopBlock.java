@@ -17,8 +17,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class PrototaxitesTopBlock extends Block {
 
-    public static final MapCodec<PrototaxitesTopBlock> KNOB_CODEC = simpleCodec(p -> new PrototaxitesTopBlock(p, false));
-    public static final MapCodec<PrototaxitesTopBlock> CAP_CODEC = simpleCodec(p -> new PrototaxitesTopBlock(p, true));
     private static final VoxelShape KNOB_SHAPE = Shapes.or(Block.box(2, 0, 2, 14, 6, 14), Block.box(4, 6, 4, 12, 9, 12));
     /** 自分のマスの円盤だけ(はみ出した所は当たらない)。 */
     private static final VoxelShape CAP_SHAPE = Block.box(0, 0, 0, 16, 4, 16);
@@ -36,12 +34,7 @@ public class PrototaxitesTopBlock extends Block {
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return cap ? CAP_CODEC : KNOB_CODEC;
-    }
-
-    @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return cap ? CAP_SHAPE : KNOB_SHAPE;
     }
 }

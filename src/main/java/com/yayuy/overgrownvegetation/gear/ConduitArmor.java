@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.gear;
 
+import org.jetbrains.annotations.Nullable;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import net.minecraft.core.Holder;
@@ -44,8 +45,8 @@ public final class ConduitArmor {
     static final EquipmentSlot[] SLOTS = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
 
     public static final class Piece extends ArmorItem implements LeyCharge.Chargeable {
-        public Piece(Holder<ArmorMaterial> material, Type type, Properties p) {
-            super(material, type, p);
+        public Piece(java.util.function.Supplier<? extends ArmorMaterial> material, Type type, Properties p) { // 1.20.1: 防具の素材は登録物でない(port の DeferredHolder から取り出す)
+            super(material.get(), type, p);
         }
 
         @Override
@@ -69,7 +70,7 @@ public final class ConduitArmor {
         }
 
         @Override
-        public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.Level context, List<Component> tooltip, TooltipFlag flag) {
             LeyCharge.tooltip(stack, tooltip);
         }
     }
@@ -100,12 +101,13 @@ public final class ConduitArmor {
     }
 
     /** 防具・強度・エンチャントで減った後の傷にかける(無敵の間に弾かれた傷では呼ばれない)。 */
+    // 1.20.1: 1.21 の LivingDamageEvent.Pre の代わりに Forge の LivingDamageEvent(防具・吸収の後、体力を減らす直前)
     @SubscribeEvent
-    public static void onDamage(LivingDamageEvent.Pre event) {
+    public static void onDamage(LivingDamageEvent event) {
         LivingEntity entity = event.getEntity();
         if (entity.level().isClientSide) return;
-        float before = event.getNewDamage();
+        float before = event.getAmount();
         float after = reduce(entity, event.getSource(), before, true);
-        if (after != before) event.setNewDamage(after);
+        if (after != before) event.setAmount(after);
     }
 }

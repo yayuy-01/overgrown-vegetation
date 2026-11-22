@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -21,18 +20,12 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class DanglingRootsBlock extends GrowingPlantHeadBlock {
 
-    public static final MapCodec<DanglingRootsBlock> CODEC = simpleCodec(DanglingRootsBlock::new);
     private static final VoxelShape SHAPE = Block.box(4.0, 2.0, 4.0, 12.0, 16.0, 12.0);
     /** animateTick 1 回(バニラが近くのブロックをまばらに選んで呼ぶ)ごとに先から水滴が出る確率(仮決め 11-03。0.015 では撮影で 1 滴も見えなかった)。 */
     private static final float DRIP_CHANCE = 0.3F;
 
     public DanglingRootsBlock(BlockBehaviour.Properties properties) {
         super(properties, Direction.DOWN, SHAPE, false, 0.0);
-    }
-
-    @Override
-    public MapCodec<DanglingRootsBlock> codec() {
-        return CODEC;
     }
 
     @Override
@@ -51,12 +44,12 @@ public class DanglingRootsBlock extends GrowingPlantHeadBlock {
     }
 
     @Override
-    protected boolean isRandomlyTicking(BlockState state) {
+    public boolean isRandomlyTicking(BlockState state) {
         return false;
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         return hangsFrom(level, pos);
     }
 

@@ -216,7 +216,7 @@ public class OvergrownHuskBlock extends Block implements EntityBlock {
     // ticker は<b>絶対に付けない</b>。付けた瞬間「覆われているのに動くブロック」に逆戻りする。
 
     @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock())) {
             if (level.getBlockEntity(pos) instanceof OvergrownHuskBlockEntity husk) {
                 husk.dropSalvage(level, pos);
@@ -226,22 +226,22 @@ public class OvergrownHuskBlock extends Block implements EntityBlock {
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return borrowedShape(level, pos);
     }
 
     @Override
-    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return borrowedShape(level, pos);
     }
 
     @Override
-    protected VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
+    public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
         return borrowedShape(level, pos);
     }
 
     @Override
-    protected VoxelShape getVisualShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getVisualShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return borrowedShape(level, pos);
     }
 
@@ -272,12 +272,12 @@ public class OvergrownHuskBlock extends Block implements EntityBlock {
     }
 
     @Override
-    protected boolean isPathfindable(BlockState state, net.minecraft.world.level.pathfinder.PathComputationType type) {
+    public boolean isPathfindable(BlockState state, net.minecraft.world.level.BlockGetter level, net.minecraft.core.BlockPos pos, net.minecraft.world.level.pathfinder.PathComputationType type) {
         return false;
     }
 
     @Override
-    protected boolean skipRendering(BlockState state, BlockState adjacent, Direction direction) {
+    public boolean skipRendering(BlockState state, BlockState adjacent, Direction direction) {
         return false;
     }
 }

@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.StringRepresentable;
@@ -29,7 +28,6 @@ import java.util.Map;
  */
 public class CordaitesButtressBlock extends Block {
 
-    public static final MapCodec<CordaitesButtressBlock> CODEC = simpleCodec(CordaitesButtressBlock::new);
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
     public static final EnumProperty<Part> PART = EnumProperty.create("part", Part.class);
 
@@ -107,11 +105,6 @@ public class CordaitesButtressBlock extends Block {
     }
 
     @Override
-    protected MapCodec<? extends CordaitesButtressBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(FACING, PART);
     }
@@ -123,22 +116,22 @@ public class CordaitesButtressBlock extends Block {
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPES.get(state.getValue(FACING)).get(state.getValue(PART));
     }
 
     @Override
-    protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+    public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
         return true;
     }
 
     @Override
-    protected BlockState rotate(BlockState state, Rotation rotation) {
+    public BlockState rotate(BlockState state, Rotation rotation) {
         return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
     }
 
     @Override
-    protected BlockState mirror(BlockState state, Mirror mirror) {
+    public BlockState mirror(BlockState state, Mirror mirror) {
         return state.rotate(mirror.getRotation(state.getValue(FACING)));
     }
 }

@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.survival.vent;
 
-import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.registry.ModLey;
 import com.yayuy.overgrownvegetation.registry.ModVent;
 import net.minecraft.core.BlockPos;
@@ -11,7 +10,6 @@ import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -67,7 +65,6 @@ import java.util.Map;
  */
 public class VentBlock extends BaseEntityBlock {
 
-    public static final MapCodec<VentBlock> CODEC = simpleCodec(VentBlock::new);
     public static final BooleanProperty RUNNING = BooleanProperty.create("running");
     /** 正面の向き。GeckoLib の {@code GeoBlockRenderer#getFacing} がこの性質を読んで模型を回す。 */
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
@@ -134,11 +131,6 @@ public class VentBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(RUNNING, FACING, PART);
     }
@@ -149,12 +141,12 @@ public class VentBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected RenderShape getRenderShape(BlockState state) {
+    public RenderShape getRenderShape(BlockState state) {
         return state.getValue(PART) == Part.LOWER ? RenderShape.ENTITYBLOCK_ANIMATED : RenderShape.INVISIBLE;
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPES.get(state.getValue(PART)).get(state.getValue(FACING));
     }
 
@@ -191,7 +183,7 @@ public class VentBlock extends BaseEntityBlock {
 
     /** 本体が置かれたら上 2 つを付ける(サーバー側。走っている印の切り替えでは何もしない)。 */
     @Override
-    protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
         super.onPlace(state, level, pos, oldState, movedByPiston);
         if (oldState.is(this) || state.getValue(PART) != Part.LOWER) {
             return;
@@ -244,7 +236,7 @@ public class VentBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock())) {
             if (state.getValue(PART) == Part.LOWER && level.getBlockEntity(pos) instanceof VentBlockEntity be && !be.filter().isEmpty()) {
                 Containers.dropItemStack(level, pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D, be.filter());
@@ -273,33 +265,33 @@ public class VentBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected BlockState rotate(BlockState state, Rotation rotation) {
+    public BlockState rotate(BlockState state, Rotation rotation) {
         return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
     }
 
     @Override
-    protected BlockState mirror(BlockState state, Mirror mirror) {
+    public BlockState mirror(BlockState state, Mirror mirror) {
         return state.rotate(mirror.getRotation(state.getValue(FACING)));
     }
 
     // ---------------------------------------------------------------- さわる(どの部位からでも本体へ)
 
-    @Override
-    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
+    @Nullable
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
                                               InteractionHand hand, BlockHitResult hit) {
         if (stack.is(ModLey.WIRE.get())) {
-            return ItemInteractionResult.SKIP_DEFAULT_BLOCK_INTERACTION; // 線の巻きの側で扱う
+            return InteractionResult.PASS; // 線の巻きの側で扱う
         }
         BlockPos base = basePos(pos, state);
         if (!AirFilters.isFilter(stack) || !(level.getBlockEntity(base) instanceof VentBlockEntity be)) {
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return null;
         }
         if (AirFilters.clogged(stack)) {
             if (!level.isClientSide) {
                 player.displayClientMessage(net.minecraft.network.chat.Component.translatable(
                         "message.overgrown_vegetation.ley_ventilator.filter_clogged"), true);
             }
-            return ItemInteractionResult.sidedSuccess(level.isClientSide);
+            return InteractionResult.sidedSuccess(level.isClientSide);
         }
         if (!level.isClientSide) {
             ItemStack old = be.filter();
@@ -311,13 +303,12 @@ public class VentBlock extends BaseEntityBlock {
             if (!old.isEmpty() && !player.getInventory().add(old)) {
                 player.drop(old, false);
             }
-            level.playSound(null, base, SoundEvents.ARMOR_EQUIP_LEATHER.value(), SoundSource.BLOCKS, 0.8F, 1.1F);
+            level.playSound(null, base, SoundEvents.ARMOR_EQUIP_LEATHER, SoundSource.BLOCKS, 0.8F, 1.1F);
             player.displayClientMessage(be.info(), true);
         }
-        return ItemInteractionResult.sidedSuccess(level.isClientSide);
+        return InteractionResult.sidedSuccess(level.isClientSide);
     }
 
-    @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         BlockPos base = basePos(pos, state);
         if (!(level.getBlockEntity(base) instanceof VentBlockEntity be)) {
@@ -330,7 +321,7 @@ public class VentBlock extends BaseEntityBlock {
                 if (!player.getInventory().add(old)) {
                     player.drop(old, false);
                 }
-                level.playSound(null, base, SoundEvents.ARMOR_EQUIP_LEATHER.value(), SoundSource.BLOCKS, 0.8F, 0.9F);
+                level.playSound(null, base, SoundEvents.ARMOR_EQUIP_LEATHER, SoundSource.BLOCKS, 0.8F, 0.9F);
             }
             player.displayClientMessage(be.info(), true);
         }
@@ -343,5 +334,15 @@ public class VentBlock extends BaseEntityBlock {
         if (!level.isClientSide && placer instanceof Player player && level.getBlockEntity(pos) instanceof VentBlockEntity be) {
             player.displayClientMessage(be.info(), true);
         }
+    }
+
+    /** 1.20.1: 1.21 の useItemOn → useWithoutItem(主の手だけ)の順を use 1 つで呼ぶ。useItemOn の null = 1.21 の PASS_TO_DEFAULT_BLOCK_INTERACTION。 */
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        InteractionResult r = useItemOn(player.getItemInHand(hand), state, level, pos, player, hand, hitResult);
+        if (r != null) {
+            return r;
+        }
+        return hand == InteractionHand.MAIN_HAND ? useWithoutItem(state, level, pos, player, hitResult) : InteractionResult.PASS;
     }
 }

@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.LevelAccessor;
@@ -22,7 +21,6 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
  */
 public class AerialRootPillarBlock extends Block {
 
-    public static final MapCodec<AerialRootPillarBlock> CODEC = simpleCodec(AerialRootPillarBlock::new);
     public static final EnumProperty<AerialRootBlock.Kind> KIND = AerialRootBlock.KIND;
 
     public AerialRootPillarBlock(BlockBehaviour.Properties properties) {
@@ -31,24 +29,19 @@ public class AerialRootPillarBlock extends Block {
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(KIND);
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         BlockPos abovePos = pos.above();
         BlockState above = level.getBlockState(abovePos);
         return above.getBlock() instanceof AerialRootBlock || above.is(this) || above.isFaceSturdy(level, abovePos, Direction.DOWN);
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                      LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         if (direction == Direction.UP && !state.canSurvive(level, pos)) {
             return Blocks.AIR.defaultBlockState();

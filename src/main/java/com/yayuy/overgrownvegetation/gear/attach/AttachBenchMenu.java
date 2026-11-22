@@ -181,7 +181,7 @@ public class AttachBenchMenu extends AbstractContainerMenu {
         public void setItem(int slot, ItemStack stack) {
             if (armor().isEmpty()) return;
             ItemStack cur = ArmorAttachments.peek(armor(), slot);
-            if (!cur.isEmpty() && !stack.isEmpty() && ItemStack.isSameItemSameComponents(cur, stack)) return; // 変わらない
+            if (!cur.isEmpty() && !stack.isEmpty() && ItemStack.isSameItemSameTags(cur, stack)) return; // 変わらない
             if (!cur.isEmpty()) ArmorAttachments.detach(armor(), slot);
             if (!stack.isEmpty()) ArmorAttachments.attach(armor(), slot, stack);
             setChanged();

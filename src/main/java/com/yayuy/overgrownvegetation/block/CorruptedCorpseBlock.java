@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
@@ -29,19 +28,13 @@ import org.jetbrains.annotations.Nullable;
  */
 public class CorruptedCorpseBlock extends BaseEntityBlock {
 
-    public static final MapCodec<CorruptedCorpseBlock> CODEC = simpleCodec(CorruptedCorpseBlock::new);
 
     public CorruptedCorpseBlock(BlockBehaviour.Properties properties) {
         super(properties);
     }
 
     @Override
-    protected MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected RenderShape getRenderShape(BlockState state) {
+    public RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
     }
 
@@ -73,13 +66,13 @@ public class CorruptedCorpseBlock extends BaseEntityBlock {
             return;
         }
         g1.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D);
-        net.minecraft.world.level.storage.loot.LootTable table = server.getServer().reloadableRegistries().getLootTable(g1.getLootTable());
+        net.minecraft.world.level.storage.loot.LootTable table = server.getServer().getLootData().getLootTable(g1.getLootTable());
         net.minecraft.world.level.storage.loot.LootParams params = new net.minecraft.world.level.storage.loot.LootParams.Builder(server)
                 .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.THIS_ENTITY, g1)
                 .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.atCenterOf(pos))
                 .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.DAMAGE_SOURCE, server.damageSources().playerAttack(player))
-                .withOptionalParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ATTACKING_ENTITY, player)
-                .withOptionalParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.DIRECT_ATTACKING_ENTITY, player)
+                .withOptionalParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.KILLER_ENTITY, player)
+                .withOptionalParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.DIRECT_KILLER_ENTITY, player)
                 .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.LAST_DAMAGE_PLAYER, player)
                 .withLuck(player.getLuck())
                 .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.ENTITY);

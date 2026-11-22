@@ -27,7 +27,7 @@ public class OvergrownTrunkBlock extends Block {
     }
 
     @Override
-    public ItemStack getCloneItemStack(LevelReader level, BlockPos pos, BlockState state) {
+    public ItemStack getCloneItemStack(net.minecraft.world.level.BlockGetter level, BlockPos pos, BlockState state) {
         return new ItemStack(ModBlocks.OVERGROWN_BLOCK.get());
     }
 }

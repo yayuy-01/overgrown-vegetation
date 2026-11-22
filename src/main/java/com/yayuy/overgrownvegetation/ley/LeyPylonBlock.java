@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.ley;
 
-import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.registry.ModLey;
 import net.minecraft.core.BlockPos;
@@ -9,7 +8,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
@@ -40,7 +38,6 @@ import java.util.HashSet;
  */
 public class LeyPylonBlock extends BaseEntityBlock {
 
-    public static final MapCodec<LeyPylonBlock> CODEC = simpleCodec(LeyPylonBlock::new);
     /** 当たり判定(模型の帯金・頭の板の 6 角、上端は線の付け根と同じ 13/16)。 */
     private static final VoxelShape SHAPE = box(5.0D, 0.0D, 5.0D, 11.0D, LeyWires.PYLON_ANCHOR_Y * 16.0D, 11.0D);
     /** 電池を掛けた姿(南の面の電池の箱を足す)。 */
@@ -52,22 +49,17 @@ public class LeyPylonBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(LeyBatteryHolder.BATTERY);
     }
 
     @Override
-    protected RenderShape getRenderShape(BlockState state) {
+    public RenderShape getRenderShape(BlockState state) {
         return RenderShape.ENTITYBLOCK_ANIMATED; // GeckoLib の模型(LeyPylonRenderer)が描く
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return state.getValue(LeyBatteryHolder.BATTERY) ? SHAPE_BATTERY : SHAPE;
     }
 
@@ -76,19 +68,18 @@ public class LeyPylonBlock extends BaseEntityBlock {
         return new LeyPylonBlockEntity(pos, state);
     }
 
-    @Override
-    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
+    @Nullable
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
                                               InteractionHand hand, BlockHitResult hit) {
         if (stack.is(ModLey.WIRE.get())) {
-            return ItemInteractionResult.SKIP_DEFAULT_BLOCK_INTERACTION; // 線の巻きの側で扱う
+            return InteractionResult.PASS; // 線の巻きの側で扱う
         }
         if (level.getBlockEntity(pos) instanceof LeyPylonBlockEntity be && LeyBatteryHolder.insert(level, pos, state, player, stack, be)) {
-            return ItemInteractionResult.sidedSuccess(level.isClientSide);
+            return InteractionResult.sidedSuccess(level.isClientSide);
         }
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return null;
     }
 
-    @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         if (!(level.getBlockEntity(pos) instanceof LeyPylonBlockEntity be)) {
             return InteractionResult.PASS;
@@ -115,7 +106,7 @@ public class LeyPylonBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock()) && level.getBlockEntity(pos) instanceof LeyPylonBlockEntity be) {
             LeyBatteryHolder.drop(level, pos, be);
             int wires = be.links().size();
@@ -131,5 +122,15 @@ public class LeyPylonBlock extends BaseEntityBlock {
             }
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+
+    /** 1.20.1: 1.21 の useItemOn → useWithoutItem(主の手だけ)の順を use 1 つで呼ぶ。useItemOn の null = 1.21 の PASS_TO_DEFAULT_BLOCK_INTERACTION。 */
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        InteractionResult r = useItemOn(player.getItemInHand(hand), state, level, pos, player, hand, hitResult);
+        if (r != null) {
+            return r;
+        }
+        return hand == InteractionHand.MAIN_HAND ? useWithoutItem(state, level, pos, player, hitResult) : InteractionResult.PASS;
     }
 }

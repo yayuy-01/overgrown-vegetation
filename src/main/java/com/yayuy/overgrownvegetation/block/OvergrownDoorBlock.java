@@ -5,7 +5,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -37,7 +36,7 @@ import javax.annotation.Nullable;
 public class OvergrownDoorBlock extends DoorBlock {
 
     public OvergrownDoorBlock(Properties properties) {
-        super(BlockSetType.OAK, properties);
+        super(properties, BlockSetType.OAK);
         registerDefaultState(defaultBlockState().setValue(OvergrownContainers.OVERGROWTH, OvergrownContainers.MAX_LEVEL));
     }
 
@@ -55,7 +54,6 @@ public class OvergrownDoorBlock extends DoorBlock {
         return state == null ? null : state.setValue(OvergrownContainers.OVERGROWTH, 0);
     }
 
-    @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
         boolean opening = !state.getValue(OPEN);
         if (opening && state.getValue(OvergrownContainers.OVERGROWTH) > 0) {
@@ -66,7 +64,7 @@ public class OvergrownDoorBlock extends DoorBlock {
                 return InteractionResult.CONSUME;
             }
         }
-        return super.useWithoutItem(state, level, pos, player, hitResult);
+        return super.use(state, level, pos, player, InteractionHand.MAIN_HAND, hitResult);
     }
 
     @Override
@@ -79,19 +77,19 @@ public class OvergrownDoorBlock extends DoorBlock {
         super.setOpen(entity, level, state, pos, open);
     }
 
-    @Override
-    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+    @Nullable
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                               Player player, InteractionHand hand, BlockHitResult hitResult) {
-        ItemInteractionResult sheared = OvergrownContainers.tryShear(stack, state, level, pos, player, hand,
+        InteractionResult sheared = OvergrownContainers.tryShear(stack, state, level, pos, player, hand,
                 OvergrownDoorBlock::setBothHalves);
-        if (sheared != ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION) {
+        if (sheared != null) {
             return sheared;
         }
-        return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+        return null;
     }
 
     @Override
-    protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         // 上下どちらのマスがランダムティックを受けても再繁茂が進む(段階は両方揃える)。
         OvergrownContainers.regrow(state, level, pos, random, OvergrownDoorBlock::setBothHalves);
     }
@@ -108,5 +106,15 @@ public class OvergrownDoorBlock extends DoorBlock {
                 && other.getValue(OvergrownContainers.OVERGROWTH) != overgrowth) {
             level.setBlock(otherPos, other.setValue(OvergrownContainers.OVERGROWTH, overgrowth), Block.UPDATE_ALL);
         }
+    }
+
+    /** 1.20.1: 1.21 の useItemOn → useWithoutItem(主の手だけ)の順を use 1 つで呼ぶ。useItemOn の null = 1.21 の PASS_TO_DEFAULT_BLOCK_INTERACTION。 */
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        InteractionResult r = useItemOn(player.getItemInHand(hand), state, level, pos, player, hand, hitResult);
+        if (r != null) {
+            return r;
+        }
+        return hand == InteractionHand.MAIN_HAND ? useWithoutItem(state, level, pos, player, hitResult) : InteractionResult.PASS;
     }
 }

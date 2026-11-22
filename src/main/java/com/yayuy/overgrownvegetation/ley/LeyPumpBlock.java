@@ -1,11 +1,9 @@
 package com.yayuy.overgrownvegetation.ley;
 
-import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.registry.ModLey;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -31,16 +29,10 @@ import org.jetbrains.annotations.Nullable;
  */
 public class LeyPumpBlock extends BaseEntityBlock {
 
-    public static final MapCodec<LeyPumpBlock> CODEC = simpleCodec(LeyPumpBlock::new);
 
     public LeyPumpBlock(Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any().setValue(LeyBatteryHolder.BATTERY, false));
-    }
-
-    @Override
-    protected MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
     }
 
     @Override
@@ -49,7 +41,7 @@ public class LeyPumpBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected RenderShape getRenderShape(BlockState state) {
+    public RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
     }
 
@@ -63,19 +55,18 @@ public class LeyPumpBlock extends BaseEntityBlock {
         return level.isClientSide ? null : createTickerHelper(type, ModLey.PUMP_BE.get(), LeyPumpBlockEntity::serverTick);
     }
 
-    @Override
-    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
+    @Nullable
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
                                               InteractionHand hand, BlockHitResult hit) {
         if (stack.is(ModLey.WIRE.get())) {
-            return ItemInteractionResult.SKIP_DEFAULT_BLOCK_INTERACTION; // 線の巻きの側で扱う
+            return InteractionResult.PASS; // 線の巻きの側で扱う
         }
         if (level.getBlockEntity(pos) instanceof LeyPumpBlockEntity be && LeyBatteryHolder.insert(level, pos, state, player, stack, be)) {
-            return ItemInteractionResult.sidedSuccess(level.isClientSide);
+            return InteractionResult.sidedSuccess(level.isClientSide);
         }
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return null;
     }
 
-    @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         if (!(level.getBlockEntity(pos) instanceof LeyPumpBlockEntity be)) {
             return InteractionResult.PASS;
@@ -98,10 +89,20 @@ public class LeyPumpBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock()) && level.getBlockEntity(pos) instanceof LeyPumpBlockEntity be) {
             LeyBatteryHolder.drop(level, pos, be);
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+
+    /** 1.20.1: 1.21 の useItemOn → useWithoutItem(主の手だけ)の順を use 1 つで呼ぶ。useItemOn の null = 1.21 の PASS_TO_DEFAULT_BLOCK_INTERACTION。 */
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        InteractionResult r = useItemOn(player.getItemInHand(hand), state, level, pos, player, hand, hitResult);
+        if (r != null) {
+            return r;
+        }
+        return hand == InteractionHand.MAIN_HAND ? useWithoutItem(state, level, pos, player, hitResult) : InteractionResult.PASS;
     }
 }

@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -27,15 +26,9 @@ import org.jetbrains.annotations.Nullable;
  */
 public class SporeKelpFrondBlock extends SigillariaFringeBlock implements LiquidBlockContainer {
 
-    public static final MapCodec<SporeKelpFrondBlock> CODEC = simpleCodec(SporeKelpFrondBlock::new);
 
     public SporeKelpFrondBlock(BlockBehaviour.Properties properties) {
         super(properties);
-    }
-
-    @Override
-    protected MapCodec<? extends SigillariaFringeBlock> codec() {
-        return CODEC;
     }
 
     @Nullable
@@ -46,7 +39,7 @@ public class SporeKelpFrondBlock extends SigillariaFringeBlock implements Liquid
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         Direction facing = state.getValue(FACING);
         BlockState core = level.getBlockState(pos.relative(facing));
         if (core.getBlock() instanceof SporeKelpStalkBlock) {
@@ -56,7 +49,7 @@ public class SporeKelpFrondBlock extends SigillariaFringeBlock implements Liquid
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                      LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         if (!state.canSurvive(level, pos)) {
             level.scheduleTick(pos, this, 1);
@@ -65,19 +58,19 @@ public class SporeKelpFrondBlock extends SigillariaFringeBlock implements Liquid
     }
 
     @Override
-    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         if (!state.canSurvive(level, pos)) {
             level.destroyBlock(pos, true);
         }
     }
 
     @Override
-    protected FluidState getFluidState(BlockState state) {
+    public FluidState getFluidState(BlockState state) {
         return Fluids.WATER.getSource(false);
     }
 
     @Override
-    public boolean canPlaceLiquid(@Nullable Player player, BlockGetter level, BlockPos pos, BlockState state, Fluid fluid) {
+    public boolean canPlaceLiquid(BlockGetter level, BlockPos pos, BlockState state, Fluid fluid) {
         return false;
     }
 

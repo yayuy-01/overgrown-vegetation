@@ -47,7 +47,9 @@ public interface LeyBatteryHolder {
             return false;
         }
         if (!level.isClientSide) {
-            holder.setBatteryRaw(held.consumeAndReturn(1, player));
+            ItemStack one = held.copyWithCount(1); // 1.20.1: consumeAndReturn は無い(創造では減らさない)
+            if (!player.getAbilities().instabuild) held.shrink(1);
+            holder.setBatteryRaw(one);
             level.setBlock(pos, state.setValue(BATTERY, true), 3);
             level.playSound(null, pos, SoundEvents.COPPER_PLACE, SoundSource.BLOCKS, 0.8F, 1.3F);
         }
@@ -79,13 +81,13 @@ public interface LeyBatteryHolder {
         }
     }
 
-    static void save(CompoundTag tag, HolderLookup.Provider registries, ItemStack battery) {
+    static void save(CompoundTag tag, ItemStack battery) {
         if (!battery.isEmpty()) {
-            tag.put("battery", battery.save(registries));
+            tag.put("battery", battery.save(new CompoundTag()));
         }
     }
 
-    static ItemStack load(CompoundTag tag, HolderLookup.Provider registries) {
-        return tag.contains("battery") ? ItemStack.parseOptional(registries, tag.getCompound("battery")) : ItemStack.EMPTY;
+    static ItemStack load(CompoundTag tag) {
+        return tag.contains("battery") ? ItemStack.of(tag.getCompound("battery")) : ItemStack.EMPTY;
     }
 }

@@ -48,17 +48,8 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public class GiantOvergrownSaplingBlock extends CorruptedSaplingBlock {
 
-    public static final MapCodec<GiantOvergrownSaplingBlock> CODEC = RecordCodecBuilder.mapCodec(instance ->
-            instance.group(TreeGrower.CODEC.fieldOf("tree").forGetter(block -> block.treeGrower), propertiesCodec())
-                    .apply(instance, GiantOvergrownSaplingBlock::new));
-
     public GiantOvergrownSaplingBlock(TreeGrower treeGrower, BlockBehaviour.Properties properties) {
         super(treeGrower, properties);
-    }
-
-    @Override
-    public MapCodec<? extends SaplingBlock> codec() {
-        return CODEC;
     }
 
     @Override

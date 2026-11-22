@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
@@ -22,7 +21,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class CorruptedGroundGrowthBlock extends BushBlock {
 
-    public static final MapCodec<CorruptedGroundGrowthBlock> CODEC = simpleCodec(CorruptedGroundGrowthBlock::new);
 
     private static final VoxelShape SHAPE = Block.box(2.0, 0.0, 2.0, 14.0, 14.0, 14.0);
 
@@ -31,12 +29,7 @@ public class CorruptedGroundGrowthBlock extends BushBlock {
     }
 
     @Override
-    protected MapCodec<? extends BushBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
     }
 

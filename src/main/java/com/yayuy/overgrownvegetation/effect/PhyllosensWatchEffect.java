@@ -23,15 +23,15 @@ public class PhyllosensWatchEffect extends MobEffect {
     }
 
     @Override
-    public boolean shouldApplyEffectTickThisTick(int duration, int amplifier) {
+    public boolean isDurationEffectTick(int duration, int amplifier) {
         return false;
     }
 
     /** 印を付ける / 付け直す(残りが 1 秒以上減ってから。通信を毎 tick 出さない)。 */
     public static void mark(LivingEntity target) {
-        MobEffectInstance cur = target.getEffect(ModPhyllosens.PHYLLOSENS_WATCH);
+        MobEffectInstance cur = target.getEffect(ModPhyllosens.PHYLLOSENS_WATCH.get());
         if (cur == null || cur.getDuration() < TICKS - 20) {
-            target.addEffect(new MobEffectInstance(ModPhyllosens.PHYLLOSENS_WATCH, TICKS, 0, true, false, true));
+            target.addEffect(new MobEffectInstance(ModPhyllosens.PHYLLOSENS_WATCH.get(), TICKS, 0, true, false, true));
         }
     }
 }

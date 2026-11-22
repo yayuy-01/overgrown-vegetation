@@ -4,7 +4,6 @@ import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.level.block.Block;
 import software.bernie.geckolib.animatable.GeoItem;
-import software.bernie.geckolib.animatable.client.GeoRenderProvider;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.util.GeckoLibUtil;
@@ -23,13 +22,14 @@ public class LeyPylonItem extends BlockItem implements GeoItem {
         super(block, properties);
     }
 
+    // 1.20.1: GeckoLib 4.8.4 は GeoRenderProvider を持たない。Forge の IClientItemExtensions で描き手を渡す
     @Override
-    public void createGeoRenderer(Consumer<GeoRenderProvider> consumer) {
-        consumer.accept(new GeoRenderProvider() {
+    public void initializeClient(Consumer<net.minecraftforge.client.extensions.common.IClientItemExtensions> consumer) {
+        consumer.accept(new net.minecraftforge.client.extensions.common.IClientItemExtensions() {
             private BlockEntityWithoutLevelRenderer renderer;
 
             @Override
-            public BlockEntityWithoutLevelRenderer getGeoItemRenderer() {
+            public BlockEntityWithoutLevelRenderer getCustomRenderer() {
                 if (renderer == null) {
                     renderer = new com.yayuy.overgrownvegetation.client.ley.LeyPylonItemRenderer();
                 }

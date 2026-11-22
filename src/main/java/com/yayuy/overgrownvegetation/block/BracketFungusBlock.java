@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
@@ -32,7 +31,6 @@ import java.util.Map;
  */
 public class BracketFungusBlock extends HorizontalDirectionalBlock {
 
-    public static final MapCodec<BracketFungusBlock> CODEC = simpleCodec(BracketFungusBlock::new);
 
     /**
      * 笠の左下の角 (x, y)。北向き(壁は南 z 14〜16)で、笠は x..x+4・y..y+1・z 14..16、柄は笠の真ん中の下 y-0.5..y・z 15..16。
@@ -82,11 +80,6 @@ public class BracketFungusBlock extends HorizontalDirectionalBlock {
     }
 
     @Override
-    protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(FACING, LAYOUT);
     }
@@ -109,14 +102,14 @@ public class BracketFungusBlock extends HorizontalDirectionalBlock {
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         Direction facing = state.getValue(FACING);
         BlockPos wall = pos.relative(facing.getOpposite());
         return level.getBlockState(wall).isFaceSturdy(level, wall, facing);
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighbor, LevelAccessor level,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighbor, LevelAccessor level,
                                      BlockPos pos, BlockPos neighborPos) {
         if (direction == state.getValue(FACING).getOpposite() && !state.canSurvive(level, pos)) {
             return Blocks.AIR.defaultBlockState();
@@ -125,12 +118,12 @@ public class BracketFungusBlock extends HorizontalDirectionalBlock {
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPES.get(state.getValue(FACING))[state.getValue(LAYOUT)];
     }
 
     @Override
-    protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+    public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
         return true;
     }
 }

@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
@@ -23,7 +22,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class FloatingFilmBlock extends Block {
 
-    public static final MapCodec<FloatingFilmBlock> CODEC = simpleCodec(FloatingFilmBlock::new);
 
     private static final VoxelShape SHAPE = Block.box(0.0, 0.0, 0.0, 16.0, 1.0, 16.0);
 
@@ -32,23 +30,18 @@ public class FloatingFilmBlock extends Block {
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         FluidState below = level.getFluidState(pos.below());
         return below.is(Fluids.WATER) && below.isSource() && level.getFluidState(pos).isEmpty();
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                      LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         return !state.canSurvive(level, pos)
                 ? Blocks.AIR.defaultBlockState()

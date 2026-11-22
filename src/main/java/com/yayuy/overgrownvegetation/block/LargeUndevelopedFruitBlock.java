@@ -44,9 +44,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class LargeUndevelopedFruitBlock extends Block {
 
-    public static final MapCodec<LargeUndevelopedFruitBlock> CODEC =
-            simpleCodec(LargeUndevelopedFruitBlock::new);
-
     /** 見た目どおり、マスいっぱいに近い大きさ。選択枠の形であり、矢にとっての当たり判定でもある。 */
     private static final VoxelShape SHAPE = Block.box(1.0, 0.0, 1.0, 15.0, 16.0, 15.0);
 
@@ -55,12 +52,7 @@ public class LargeUndevelopedFruitBlock extends Block {
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
     }
 
@@ -77,7 +69,7 @@ public class LargeUndevelopedFruitBlock extends Block {
      * 「プレイヤーも Mob もすり抜けるが、矢だけは当たる」を両立できる。
      */
     @Override
-    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         if (context instanceof EntityCollisionContext entityContext
                 && entityContext.getEntity() instanceof AbstractArrow) {
             return SHAPE;
@@ -99,7 +91,7 @@ public class LargeUndevelopedFruitBlock extends Block {
      * —— 切られていると実を採る方法が無くなってしまう。
      */
     @Override
-    protected void onProjectileHit(Level level, BlockState state, BlockHitResult hit, Projectile projectile) {
+    public void onProjectileHit(Level level, BlockState state, BlockHitResult hit, Projectile projectile) {
         if (level.isClientSide() || !(projectile instanceof AbstractArrow)) {
             return;
         }
@@ -110,7 +102,7 @@ public class LargeUndevelopedFruitBlock extends Block {
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         BlockPos abovePos = pos.above();
         BlockState above = level.getBlockState(abovePos);
         return above.is(BlockTags.LEAVES)
@@ -119,7 +111,7 @@ public class LargeUndevelopedFruitBlock extends Block {
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
             LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         if (direction == Direction.UP && !state.canSurvive(level, pos)) {
             return Blocks.AIR.defaultBlockState();

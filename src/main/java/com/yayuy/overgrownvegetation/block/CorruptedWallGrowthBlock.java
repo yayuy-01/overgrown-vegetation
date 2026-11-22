@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -29,7 +28,6 @@ import javax.annotation.Nullable;
  */
 public class CorruptedWallGrowthBlock extends HorizontalDirectionalBlock {
 
-    public static final MapCodec<CorruptedWallGrowthBlock> CODEC = simpleCodec(CorruptedWallGrowthBlock::new);
 
     // サンゴの壁面ファン(BaseCoralWallFanBlock)と同じ当たり判定。
     private static final VoxelShape NORTH_SHAPE = Block.box(0.0, 4.0, 5.0, 16.0, 12.0, 16.0);
@@ -43,12 +41,7 @@ public class CorruptedWallGrowthBlock extends HorizontalDirectionalBlock {
     }
 
     @Override
-    protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return switch (state.getValue(FACING)) {
             case SOUTH -> SOUTH_SHAPE;
             case WEST -> WEST_SHAPE;
@@ -62,13 +55,13 @@ public class CorruptedWallGrowthBlock extends HorizontalDirectionalBlock {
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         Direction facing = state.getValue(FACING);
         return canAttachTo(level, pos.relative(facing.getOpposite()), facing);
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                       LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         return direction.getOpposite() == state.getValue(FACING) && !state.canSurvive(level, pos)
                 ? Blocks.AIR.defaultBlockState()

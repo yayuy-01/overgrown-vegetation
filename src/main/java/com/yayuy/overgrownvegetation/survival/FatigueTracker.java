@@ -19,8 +19,8 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
-import net.neoforged.neoforge.event.entity.player.CanContinueSleepingEvent;
-import net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent;
+import net.minecraftforge.event.entity.player.SleepingTimeCheckEvent;
+import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
 import net.minecraftforge.event.level.BlockEvent;
 import com.yayuy.overgrownvegetation.port.event.tick.PlayerTickEvent;
@@ -163,16 +163,17 @@ public final class FatigueTracker {
         apply(player, Attributes.ATTACK_SPEED, ATTACK_SPEED_ID, -s.attackSpeedSlow() * t);
     }
 
-    private static void apply(LivingEntity entity, Holder<Attribute> attribute, ResourceLocation id, double amount) {
+    private static void apply(LivingEntity entity, Attribute attribute, ResourceLocation id, double amount) {
         AttributeInstance instance = entity.getAttribute(attribute);
         if (instance == null) return;
-        AttributeModifier existing = instance.getModifier(id);
+        AttributeModifier existing = OvModifiers.get(instance, id);
         if (Math.abs(amount) < 1.0E-4D) {
-            if (existing != null) instance.removeModifier(id);
+            if (existing != null) OvModifiers.remove(instance, id);
             return;
         }
-        if (existing != null && Math.abs(existing.amount() - amount) < 1.0E-4D) return;
-        instance.addOrUpdateTransientModifier(OvModifiers.create(id, amount, AttributeModifier.Operation.MULTIPLY_TOTAL));
+        if (existing != null && Math.abs(existing.getAmount() - amount) < 1.0E-4D) return;
+        OvModifiers.remove(instance, id);
+        instance.addTransientModifier(OvModifiers.create(id, amount, AttributeModifier.Operation.MULTIPLY_TOTAL));
     }
 
     private static double clamp(double v) {
@@ -233,25 +234,16 @@ public final class FatigueTracker {
         return level.isDay();
     }
 
-    /** 昼でもベッドに横になれる(夜しか眠れない、だけを外す)。敵がまわりにいれば夜と同じく横になれない。 */
+    /**
+     * 昼でもベッドに横になれる(夜しか眠れない、だけを外す)。昼になっても(昼の休みでも)ベッドから追い出さない。
+     * 1.20.1: 1.21 の CanPlayerSleepEvent・CanContinueSleepingEvent の代わりに、Forge の時間の判定 1 つ(横になる時と眠り続ける時の両方で呼ばれる)。
+     * 敵がまわりにいれば横になれないのは、バニラの判定(時間の判定の後・創造は除く・同じ 8×5 の箱)がそのまま行う
+     * (1.20.1 では {@code dayRestNeedsSafety} が false でもバニラの判定は残る)。
+     */
     @SubscribeEvent
-    public static void onCanSleep(CanPlayerSleepEvent event) {
-        if (event.getProblem() != Player.BedSleepingProblem.NOT_POSSIBLE_NOW || !on()) return;
-        if (sleepCounterField() == null) return; // 夜まで飛ぶのを止められないなら、昼の休みは入れない
-        Player player = event.getEntity();
-        if (spec().dayRestNeedsSafety() && !player.isCreative() && monstersNear(player, event.getPos())) {
-            event.setProblem(Player.BedSleepingProblem.NOT_SAFE);
-            return;
-        }
-        event.setProblem(null);
-    }
-
-    /** 昼になっても(昼の休みでも)ベッドから追い出さない。プレイヤーだけ。 */
-    @SubscribeEvent
-    public static void onCanContinueSleeping(CanContinueSleepingEvent event) {
-        if (event.getEntity() instanceof Player && event.getProblem() == Player.BedSleepingProblem.NOT_POSSIBLE_NOW
-                && on() && sleepCounterField() != null) {
-            event.setContinueSleeping(true);
+    public static void onSleepingTimeCheck(SleepingTimeCheckEvent event) {
+        if (on() && sleepCounterField() != null) { // 夜まで飛ぶのを止められないなら、昼の休みは入れない
+            event.setResult(Event.Result.ALLOW);
         }
     }
 

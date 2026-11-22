@@ -6,7 +6,6 @@ import net.minecraft.stats.Stats;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.monster.piglin.PiglinAi;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -51,7 +50,6 @@ public class OvergrownBarrelBlock extends BarrelBlock {
         return new OvergrownBarrelBlockEntity(pos, state);
     }
 
-    @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
         if (level.isClientSide) {
             return InteractionResult.SUCCESS;
@@ -68,26 +66,36 @@ public class OvergrownBarrelBlock extends BarrelBlock {
     }
 
     @Override
-    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         // バニラの BarrelBlock#tick は BarrelBlockEntity にしか反応しないので、こちらの BlockEntity 用に置き換える。
         if (level.getBlockEntity(pos) instanceof OvergrownBarrelBlockEntity barrel) {
             barrel.recheckOpen();
         }
     }
 
-    @Override
-    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+    @Nullable
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                               Player player, InteractionHand hand, BlockHitResult hitResult) {
-        ItemInteractionResult sheared = OvergrownContainers.tryShear(stack, state, level, pos, player, hand,
+        InteractionResult sheared = OvergrownContainers.tryShear(stack, state, level, pos, player, hand,
                 OvergrownContainers::setSingle);
-        if (sheared != ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION) {
+        if (sheared != null) {
             return sheared;
         }
-        return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+        return null;
     }
 
     @Override
-    protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         OvergrownContainers.regrow(state, level, pos, random, OvergrownContainers::setSingle);
+    }
+
+    /** 1.20.1: 1.21 の useItemOn → useWithoutItem(主の手だけ)の順を use 1 つで呼ぶ。useItemOn の null = 1.21 の PASS_TO_DEFAULT_BLOCK_INTERACTION。 */
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        InteractionResult r = useItemOn(player.getItemInHand(hand), state, level, pos, player, hand, hitResult);
+        if (r != null) {
+            return r;
+        }
+        return hand == InteractionHand.MAIN_HAND ? useWithoutItem(state, level, pos, player, hitResult) : InteractionResult.PASS;
     }
 }

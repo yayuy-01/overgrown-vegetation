@@ -15,7 +15,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -224,7 +224,7 @@ public final class Research {
         ResearchTree.Node n = tree.node(nodeId);
         if (n == null) return;
         ResearchData.get(server).markDone(nodeId);
-        List<RecipeHolder<?>> recipes = new ArrayList<>();
+        List<Recipe<?>> recipes = new ArrayList<>(); // 1.20.1: RecipeHolder は無い(レシピそのもの)
         for (ResourceLocation id : n.unlocks()) server.getRecipeManager().byKey(id).ifPresent(recipes::add);
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
             if (!recipes.isEmpty()) p.awardRecipes(recipes);
@@ -244,7 +244,7 @@ public final class Research {
         if (!(event.getEntity() instanceof ServerPlayer p)) return;
         MinecraftServer server = p.server;
         ResearchTree tree = ResearchTree.get();
-        List<RecipeHolder<?>> recipes = new ArrayList<>();
+        List<Recipe<?>> recipes = new ArrayList<>(); // 1.20.1: RecipeHolder は無い(レシピそのもの)
         for (String id : ResearchData.get(server).done()) {
             ResearchTree.Node n = tree.node(id);
             if (n == null) continue;

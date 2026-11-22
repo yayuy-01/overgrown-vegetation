@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
@@ -18,7 +17,6 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public class OvergrownLeavesBlock extends InertBlock {
 
-    public static final MapCodec<OvergrownLeavesBlock> CODEC = simpleCodec(OvergrownLeavesBlock::new);
 
     /** 0 = 全部描く・1 = 葉どうしの面を省く・2 = 奥にもう 1 枚葉があるときだけ省く(既定、10-24 ユーザー決定: 描画設定によらず常にオン)。開発用 {@code leafcull}。 */
     public static volatile int faceCull = 2;
@@ -27,14 +25,9 @@ public class OvergrownLeavesBlock extends InertBlock {
         super(properties);
     }
 
-    @Override
-    protected MapCodec<? extends OvergrownLeavesBlock> codec() {
-        return CODEC;
-    }
-
     /** 芯の葉が消えたら、それを斜めの芯にしている角の板の葉に知らせる(面で接しないので updateShape が届かない。2026-11-03)。 */
     @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!level.isClientSide && !newState.is(state.getBlock())) {
             SigillariaFringeBlock.checkCorners(level, pos);
         }
@@ -48,7 +41,7 @@ public class OvergrownLeavesBlock extends InertBlock {
     }
 
     @Override
-    protected boolean skipRendering(BlockState state, BlockState adjacent, Direction direction) {
+    public boolean skipRendering(BlockState state, BlockState adjacent, Direction direction) {
         return faceCull == 1 && adjacent.getBlock() == this || super.skipRendering(state, adjacent, direction);
     }
 

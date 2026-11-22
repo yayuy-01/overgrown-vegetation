@@ -3,11 +3,9 @@ package com.yayuy.overgrownvegetation.gear.client;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.gear.ModGear;
 import net.minecraft.client.renderer.item.ItemProperties;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.ChargedProjectiles;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
@@ -29,16 +27,16 @@ public final class ConduitClient {
             var bow = ModGear.CONDUIT_CROSSBOW.get();
             ItemProperties.register(bow, ResourceLocation.withDefaultNamespace("pull"), (stack, level, entity, seed) -> {
                 if (entity == null || CrossbowItem.isCharged(stack)) return 0.0F;
-                return (float) (stack.getUseDuration(entity) - entity.getUseItemRemainingTicks())
-                        / (float) CrossbowItem.getChargeDuration(stack, entity);
+                return (float) (stack.getUseDuration() - entity.getUseItemRemainingTicks())
+                        / (float) CrossbowItem.getChargeDuration(stack);
             });
             ItemProperties.register(bow, ResourceLocation.withDefaultNamespace("pulling"), (stack, level, entity, seed) ->
                     entity != null && entity.isUsingItem() && entity.getUseItem() == stack && !CrossbowItem.isCharged(stack) ? 1.0F : 0.0F);
             ItemProperties.register(bow, ResourceLocation.withDefaultNamespace("charged"), (stack, level, entity, seed) ->
                     CrossbowItem.isCharged(stack) ? 1.0F : 0.0F);
             ItemProperties.register(bow, ResourceLocation.withDefaultNamespace("firework"), (stack, level, entity, seed) -> {
-                ChargedProjectiles p = stack.get(DataComponents.CHARGED_PROJECTILES);
-                return p != null && p.contains(Items.FIREWORK_ROCKET) ? 1.0F : 0.0F;
+                // 1.20.1: 込めた矢は NBT(ChargedProjectiles)
+                return CrossbowItem.isCharged(stack) && CrossbowItem.containsChargedProjectile(stack, Items.FIREWORK_ROCKET) ? 1.0F : 0.0F;
             });
         });
     }

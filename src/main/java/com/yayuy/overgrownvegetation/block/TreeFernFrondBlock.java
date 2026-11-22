@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
@@ -13,15 +12,9 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public class TreeFernFrondBlock extends SigillariaFringeBlock {
 
-    public static final MapCodec<TreeFernFrondBlock> CODEC = simpleCodec(TreeFernFrondBlock::new);
 
     public TreeFernFrondBlock(BlockBehaviour.Properties properties) {
         super(properties);
-    }
-
-    @Override
-    protected MapCodec<? extends SigillariaFringeBlock> codec() {
-        return CODEC;
     }
 
     @Override

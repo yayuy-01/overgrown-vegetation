@@ -141,7 +141,7 @@ public class GrammarStructureFeature extends Feature<GrammarStructureFeature.Con
 
     private void placeTemplates(WorldGenLevel level, RandomSource random, BlockPos origin,
                                 int shiftX, int shiftZ, ResourceLocation grammarId, GrammarEngine.Result result) {
-        if (result.placements.isEmpty() || !(level.getLevel() instanceof ServerLevel serverLevel)) {
+        if (result.placements.isEmpty() || !((Object) level.getLevel() instanceof ServerLevel serverLevel)) {
             if (!result.placements.isEmpty()) {
                 OvergrownVegetation.LOGGER.warn("grammar_structure {}: place_nbt は ServerLevel でのみ動作します", grammarId);
             }

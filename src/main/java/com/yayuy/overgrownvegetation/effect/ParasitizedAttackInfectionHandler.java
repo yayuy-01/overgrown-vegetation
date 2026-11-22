@@ -29,16 +29,18 @@ public final class ParasitizedAttackInfectionHandler {
      * 攻撃の元は {@code getSource().getEntity()}(飛び道具なら撃った Mob、爆発なら爆ぜた Mob)で見る。直に当たった物(矢・火の玉)は見ない。
      * 傷が付いた(防具・吸収を引いたあとのダメージが 0 より大きい)ときだけ。盾で防いだ撃ちはこの知らせが来ない。
      */
-    @SubscribeEvent
-    public static void onLivingDamage(LivingDamageEvent.Post event) {
+    // 1.20.1: 1.21 の LivingDamageEvent.Post(体力を減らした後)は無い。Forge の LivingDamageEvent を一番後ろで受け、
+    // この傷で死ぬ時は 1.21 の「もう生きていない」と同じく何もしない。
+    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
+    public static void onLivingDamage(LivingDamageEvent event) {
         LivingEntity victim = event.getEntity();
-        if (!(victim.level() instanceof ServerLevel level) || !victim.isAlive()) {
+        if (!(victim.level() instanceof ServerLevel level) || !victim.isAlive() || victim.getHealth() - event.getAmount() <= 0.0F) {
             return;
         }
         if (!(event.getSource().getEntity() instanceof LivingEntity attacker) || attacker == victim) {
             return;
         }
-        handle(level, victim, attacker, event.getNewDamage());
+        handle(level, victim, attacker, event.getAmount());
     }
 
     /** テスト用: 傷 {@code newDamage} を付けられたことにして、入口の中身を通す。 */

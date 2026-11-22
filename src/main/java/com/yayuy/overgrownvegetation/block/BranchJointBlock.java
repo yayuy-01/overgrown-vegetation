@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.ModTags;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -38,7 +37,6 @@ import java.util.Map;
  */
 public class BranchJointBlock extends Block implements SimpleWaterloggedBlock {
 
-    public static final MapCodec<BranchJointBlock> CODEC = simpleCodec(BranchJointBlock::new);
     public static final BooleanProperty NORTH = PipeBlock.NORTH;
     public static final BooleanProperty EAST = PipeBlock.EAST;
     public static final BooleanProperty SOUTH = PipeBlock.SOUTH;
@@ -59,11 +57,6 @@ public class BranchJointBlock extends Block implements SimpleWaterloggedBlock {
                 .setValue(NORTH, false).setValue(EAST, false).setValue(SOUTH, false)
                 .setValue(WEST, false).setValue(UP, false).setValue(DOWN, false)
                 .setValue(THICK, true).setValue(WATERLOGGED, false));
-    }
-
-    @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
     }
 
     @Override
@@ -93,7 +86,7 @@ public class BranchJointBlock extends Block implements SimpleWaterloggedBlock {
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor level,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor level,
             BlockPos pos, BlockPos neighborPos) {
         if (state.getValue(WATERLOGGED)) {
             level.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
@@ -106,22 +99,22 @@ public class BranchJointBlock extends Block implements SimpleWaterloggedBlock {
     }
 
     @Override
-    protected FluidState getFluidState(BlockState state) {
+    public FluidState getFluidState(BlockState state) {
         return state.getValue(WATERLOGGED) ? Fluids.WATER.getSource(false) : super.getFluidState(state);
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return shapeOf(state);
     }
 
     @Override
-    protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+    public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
         return !state.getValue(WATERLOGGED);
     }
 
     @Override
-    protected boolean isPathfindable(BlockState state, PathComputationType type) {
+    public boolean isPathfindable(BlockState state, net.minecraft.world.level.BlockGetter level, net.minecraft.core.BlockPos pos, PathComputationType type) {
         return false;
     }
 

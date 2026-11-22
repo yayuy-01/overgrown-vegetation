@@ -93,8 +93,8 @@ public class BlightFernRootedBlockEntity extends BlockEntity implements GeoBlock
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
         if (!Float.isNaN(this.yaw)) {
             tag.putFloat("Yaw", this.yaw);
         }
@@ -107,16 +107,16 @@ public class BlightFernRootedBlockEntity extends BlockEntity implements GeoBlock
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void load(CompoundTag tag) {
+        super.load(tag);
         this.yaw = tag.contains("Yaw") ? tag.getFloat("Yaw") : Float.NaN;
         this.plantedAt = tag.getLong("PlantedAt");
         this.spreadDone = tag.getBoolean("SpreadDone");
     }
 
     @Override
-    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-        return this.saveWithoutMetadata(registries);
+    public CompoundTag getUpdateTag() {
+        return this.saveWithoutMetadata();
     }
 
     @Override

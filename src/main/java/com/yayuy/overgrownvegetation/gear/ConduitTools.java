@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.gear;
 
+import org.jetbrains.annotations.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
@@ -43,7 +44,7 @@ public final class ConduitTools {
 
     public static final class Pickaxe extends PickaxeItem implements LeyCharge.Chargeable {
         public Pickaxe(Tier tier, Properties p) {
-            super(tier, p);
+            super(tier, 1, -2.8F, p);
         }
 
         @Override
@@ -68,14 +69,14 @@ public final class ConduitTools {
         }
 
         @Override
-        public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.Level context, List<Component> tooltip, TooltipFlag flag) {
             LeyCharge.tooltip(stack, tooltip);
         }
     }
 
     public static final class Axe extends AxeItem implements LeyCharge.Chargeable {
         public Axe(Tier tier, Properties p) {
-            super(tier, p);
+            super(tier, 5.0F, -3.0F, p);
         }
 
         @Override
@@ -100,14 +101,14 @@ public final class ConduitTools {
         }
 
         @Override
-        public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.Level context, List<Component> tooltip, TooltipFlag flag) {
             LeyCharge.tooltip(stack, tooltip);
         }
     }
 
     public static final class Shovel extends ShovelItem implements LeyCharge.Chargeable {
         public Shovel(Tier tier, Properties p) {
-            super(tier, p);
+            super(tier, 1.5F, -3.0F, p);
         }
 
         @Override
@@ -132,14 +133,14 @@ public final class ConduitTools {
         }
 
         @Override
-        public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.Level context, List<Component> tooltip, TooltipFlag flag) {
             LeyCharge.tooltip(stack, tooltip);
         }
     }
 
     public static final class Hoe extends HoeItem implements LeyCharge.Chargeable {
         public Hoe(Tier tier, Properties p) {
-            super(tier, p);
+            super(tier, -3, 0.0F, p);
         }
 
         @Override
@@ -164,7 +165,7 @@ public final class ConduitTools {
         }
 
         @Override
-        public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.Level context, List<Component> tooltip, TooltipFlag flag) {
             LeyCharge.tooltip(stack, tooltip);
         }
     }

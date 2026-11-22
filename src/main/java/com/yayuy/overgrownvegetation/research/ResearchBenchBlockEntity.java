@@ -135,15 +135,15 @@ public class ResearchBenchBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
         tag.putInt("energy", energy);
         if (lastTick != Long.MIN_VALUE) tag.putLong("last_tick", lastTick);
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void load(CompoundTag tag) {
+        super.load(tag);
         energy = tag.getInt("energy");
         lastTick = tag.contains("last_tick") ? tag.getLong("last_tick") : Long.MIN_VALUE;
     }

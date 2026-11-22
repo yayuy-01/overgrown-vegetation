@@ -239,9 +239,9 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
         for (int i = lo; i <= hi; i++) {
             heights.add(i);
         }
-        net.minecraft.Util.shuffle(heights, random);
+        shuffle(heights, random);
         List<Direction> dirs = new ArrayList<>(List.of(Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST));
-        net.minecraft.Util.shuffle(dirs, random);
+        shuffle(dirs, random);
         List<Integer> usedHeights = new ArrayList<>();
         List<Direction> usedDirs = new ArrayList<>();
         LongOpenHashSet tuftCells = new LongOpenHashSet();
@@ -430,7 +430,7 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
         }
         int length = Math.max(1, config.rootLength());
         List<Direction> faces = new ArrayList<>(List.of(Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST));
-        net.minecraft.Util.shuffle(faces, random);
+        shuffle(faces, random);
         BlockState base = ModBlocks.CORDAITES_BUTTRESS.get().defaultBlockState();
         for (int i = 0; i < count; i++) {
             Direction face = faces.get(i);
@@ -705,7 +705,7 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
             return;
         }
         List<Direction> sides = new ArrayList<>(List.of(Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST));
-        net.minecraft.Util.shuffle(sides, random);
+        shuffle(sides, random);
         for (Direction d : sides) {
             if (level.getBlockState(pos.relative(d)).isAir()) {
                 level.setBlock(pos, state.setValue(com.yayuy.overgrownvegetation.block.OvergrownLogBlock.HOLLOW,
@@ -808,5 +808,13 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
                         BlockState.CODEC.optionalFieldOf("glow_lichen_state", Blocks.AIR.defaultBlockState())
                                 .forGetter(Config::glowLichenState))
                 .apply(instance, Config::new));
+    }
+
+    /** 1.20.1: 1.21 の {@code Util.shuffle(List, RandomSource)} と同じ(1.20.1 は ObjectArrayList だけ)。乱数の引き方も同じにする。 */
+    static <T> void shuffle(java.util.List<T> list, net.minecraft.util.RandomSource random) {
+        for (int j = list.size(); j > 1; j--) {
+            int k = random.nextInt(j);
+            list.set(j - 1, list.set(k, list.get(j - 1)));
+        }
     }
 }

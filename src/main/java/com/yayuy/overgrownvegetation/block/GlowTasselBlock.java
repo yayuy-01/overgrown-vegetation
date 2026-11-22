@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -19,16 +18,10 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class GlowTasselBlock extends GrowingPlantHeadBlock {
 
-    public static final MapCodec<GlowTasselBlock> CODEC = simpleCodec(GlowTasselBlock::new);
     private static final VoxelShape SHAPE = Block.box(4.0, 4.0, 4.0, 12.0, 16.0, 12.0);
 
     public GlowTasselBlock(BlockBehaviour.Properties properties) {
         super(properties, Direction.DOWN, SHAPE, false, 0.0);
-    }
-
-    @Override
-    public MapCodec<GlowTasselBlock> codec() {
-        return CODEC;
     }
 
     @Override
@@ -47,12 +40,12 @@ public class GlowTasselBlock extends GrowingPlantHeadBlock {
     }
 
     @Override
-    protected boolean isRandomlyTicking(BlockState state) {
+    public boolean isRandomlyTicking(BlockState state) {
         return false;
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         return hangsFrom(level, pos);
     }
 

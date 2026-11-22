@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.player.Player;
@@ -26,15 +25,9 @@ import org.jetbrains.annotations.Nullable;
  */
 public class SporeKelpStalkBlock extends Block implements LiquidBlockContainer {
 
-    public static final MapCodec<SporeKelpStalkBlock> CODEC = simpleCodec(SporeKelpStalkBlock::new);
 
     public SporeKelpStalkBlock(BlockBehaviour.Properties properties) {
         super(properties);
-    }
-
-    @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
     }
 
     @Nullable
@@ -45,7 +38,7 @@ public class SporeKelpStalkBlock extends Block implements LiquidBlockContainer {
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         BlockPos below = pos.below();
         BlockState under = level.getBlockState(below);
         if (under.is(this) || under.isFaceSturdy(level, below, Direction.UP) && !(under.getBlock() instanceof SporeKelpFrondBlock)) {
@@ -62,7 +55,7 @@ public class SporeKelpStalkBlock extends Block implements LiquidBlockContainer {
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                      LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         if (!state.canSurvive(level, pos)) {
             level.scheduleTick(pos, this, 1);
@@ -71,19 +64,19 @@ public class SporeKelpStalkBlock extends Block implements LiquidBlockContainer {
     }
 
     @Override
-    protected void tick(BlockState state, net.minecraft.server.level.ServerLevel level, BlockPos pos, net.minecraft.util.RandomSource random) {
+    public void tick(BlockState state, net.minecraft.server.level.ServerLevel level, BlockPos pos, net.minecraft.util.RandomSource random) {
         if (!state.canSurvive(level, pos)) {
             level.destroyBlock(pos, true);
         }
     }
 
     @Override
-    protected FluidState getFluidState(BlockState state) {
+    public FluidState getFluidState(BlockState state) {
         return Fluids.WATER.getSource(false);
     }
 
     @Override
-    public boolean canPlaceLiquid(@Nullable Player player, BlockGetter level, BlockPos pos, BlockState state, Fluid fluid) {
+    public boolean canPlaceLiquid(BlockGetter level, BlockPos pos, BlockState state, Fluid fluid) {
         return false;
     }
 

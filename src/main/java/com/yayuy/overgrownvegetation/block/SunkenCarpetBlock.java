@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.player.Player;
@@ -28,7 +27,6 @@ import org.jetbrains.annotations.Nullable;
  */
 public class SunkenCarpetBlock extends Block implements LiquidBlockContainer {
 
-    public static final MapCodec<SunkenCarpetBlock> CODEC = simpleCodec(SunkenCarpetBlock::new);
 
     private static final VoxelShape SHAPE = Block.box(0.0, 0.0, 0.0, 16.0, 1.0, 16.0);
 
@@ -37,12 +35,7 @@ public class SunkenCarpetBlock extends Block implements LiquidBlockContainer {
     }
 
     @Override
-    protected MapCodec<? extends SunkenCarpetBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
     }
 
@@ -54,13 +47,13 @@ public class SunkenCarpetBlock extends Block implements LiquidBlockContainer {
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         BlockPos below = pos.below();
         return level.getBlockState(below).isFaceSturdy(level, below, Direction.UP);
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                      LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         // 崩れるときは空気ではなく水へ戻す(水中に空気の穴を作らない)。
         return !state.canSurvive(level, pos)
@@ -69,12 +62,12 @@ public class SunkenCarpetBlock extends Block implements LiquidBlockContainer {
     }
 
     @Override
-    protected FluidState getFluidState(BlockState state) {
+    public FluidState getFluidState(BlockState state) {
         return Fluids.WATER.getSource(false);
     }
 
     @Override
-    public boolean canPlaceLiquid(@Nullable Player player, BlockGetter level, BlockPos pos, BlockState state, Fluid fluid) {
+    public boolean canPlaceLiquid(BlockGetter level, BlockPos pos, BlockState state, Fluid fluid) {
         return false;
     }
 

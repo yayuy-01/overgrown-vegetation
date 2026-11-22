@@ -223,20 +223,20 @@ public class VentBlockEntity extends BlockEntity implements GeoBlockEntity {
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
         tag.putInt("energy", energy);
         if (!filter.isEmpty()) {
-            tag.put("filter", filter.save(registries));
+            tag.put("filter", filter.save(new CompoundTag()));
         }
         tag.putDouble("loadCarry", loadCarry);
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void load(CompoundTag tag) {
+        super.load(tag);
         energy = Math.max(0, tag.getInt("energy"));
-        filter = tag.contains("filter") ? ItemStack.parseOptional(registries, tag.getCompound("filter")) : ItemStack.EMPTY;
+        filter = tag.contains("filter") ? ItemStack.of(tag.getCompound("filter")) : ItemStack.EMPTY;
         loadCarry = tag.getDouble("loadCarry");
     }
 

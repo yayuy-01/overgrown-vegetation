@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.corruption.NetherTubeTrees;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
@@ -61,7 +60,6 @@ public class TubeTreePlumeBlock extends Block implements SimpleWaterloggedBlock 
         }
     }
 
-    public static final MapCodec<TubeTreePlumeBlock> CODEC = simpleCodec(TubeTreePlumeBlock::new);
     public static final EnumProperty<Pose> POSE = EnumProperty.create("pose", Pose.class);
     public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
     /** 開いた羽根の光(仮。光と霧の段 C で見直す)。 */
@@ -81,17 +79,12 @@ public class TubeTreePlumeBlock extends Block implements SimpleWaterloggedBlock 
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(POSE, WATERLOGGED);
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return switch (state.getValue(POSE)) {
             case OPEN, SPITTING -> OPEN_SHAPE;
             case CLOSED -> CLOSED_SHAPE;
@@ -101,17 +94,17 @@ public class TubeTreePlumeBlock extends Block implements SimpleWaterloggedBlock 
 
     /** 羽根は柔らかいので通り抜けられる(管の口の縁だけ当たる)。 */
     @Override
-    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return state.getValue(POSE) == Pose.RETRACTED ? RETRACTED_SHAPE : Shapes.empty();
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         return level.getBlockState(pos.below()).is(ModBlocks.TUBE_TREE_STEM.get());
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction dir, BlockState neighbor, LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
+    public BlockState updateShape(BlockState state, Direction dir, BlockState neighbor, LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         if (state.getValue(WATERLOGGED)) level.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
         if (dir == Direction.DOWN && !canSurvive(state, level, pos)) {
             return state.getValue(WATERLOGGED) ? Blocks.WATER.defaultBlockState() : Blocks.AIR.defaultBlockState();
@@ -120,23 +113,23 @@ public class TubeTreePlumeBlock extends Block implements SimpleWaterloggedBlock 
     }
 
     @Override
-    protected FluidState getFluidState(BlockState state) {
+    public FluidState getFluidState(BlockState state) {
         return state.getValue(WATERLOGGED) ? Fluids.WATER.getSource(false) : super.getFluidState(state);
     }
 
     @Override
-    protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+    public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
         return !state.getValue(WATERLOGGED);
     }
 
     @Override
-    protected boolean isRandomlyTicking(BlockState state) {
+    public boolean isRandomlyTicking(BlockState state) {
         return true;
     }
 
     /** 今の時刻(地上の時計)の姿に合わせる。プレイヤーが近い間は引っ込んだまま。 */
     @Override
-    protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         NetherTubeTrees.settle(level, pos, state);
     }
 

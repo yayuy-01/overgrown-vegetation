@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -36,7 +35,6 @@ import javax.annotation.Nullable;
  */
 public class SigillariaFringeBlock extends OvergrownLeavesBlock {
 
-    public static final MapCodec<SigillariaFringeBlock> CODEC = simpleCodec(SigillariaFringeBlock::new);
     public static final DirectionProperty FACING = BlockStateProperties.FACING;
     /**
      * 芯の角(平面で見て斜めの位置)に付く葉。芯は {@link #FACING} とその左隣の向きの間の斜め(north なら北西)にあり、
@@ -58,11 +56,6 @@ public class SigillariaFringeBlock extends OvergrownLeavesBlock {
     }
 
     @Override
-    protected MapCodec<? extends SigillariaFringeBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(FACING, CORNER);
     }
@@ -74,7 +67,7 @@ public class SigillariaFringeBlock extends OvergrownLeavesBlock {
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return switch (state.getValue(FACING)) {
             case UP -> UP_SHAPE;
             case NORTH -> NORTH_SHAPE;
@@ -93,13 +86,13 @@ public class SigillariaFringeBlock extends OvergrownLeavesBlock {
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         BlockState core = level.getBlockState(supportPos(state, pos));
         return !core.isAir() && !(core.getBlock() instanceof LiquidBlock);
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                      LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         // どの向きの更新でも見る(角の葉の芯は面で接しないので、芯の横の板が消えた知らせでも確かめる)
         if (!state.canSurvive(level, pos)) {
@@ -109,7 +102,7 @@ public class SigillariaFringeBlock extends OvergrownLeavesBlock {
     }
 
     @Override
-    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         if (!state.canSurvive(level, pos)) {
             level.destroyBlock(pos, true);
         }
@@ -128,7 +121,7 @@ public class SigillariaFringeBlock extends OvergrownLeavesBlock {
     }
 
     @Override
-    protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+    public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
         return true;
     }
 

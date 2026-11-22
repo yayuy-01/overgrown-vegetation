@@ -146,7 +146,7 @@ public final class LeyCharge {
         OvItemData.remove(b, ModLey.ENERGY.get());
         a.setDamageValue(0);
         b.setDamageValue(0);
-        return ItemStack.isSameItemSameComponents(a, b);
+        return ItemStack.isSameItemSameTags(a, b);
     }
 
     public static void tooltip(ItemStack stack, List<Component> tooltip) {

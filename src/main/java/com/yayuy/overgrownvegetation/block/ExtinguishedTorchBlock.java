@@ -23,7 +23,7 @@ import javax.annotation.Nullable;
 public class ExtinguishedTorchBlock extends TorchBlock {
 
     public ExtinguishedTorchBlock(Properties properties) {
-        super(ParticleTypes.SMOKE, properties);
+        super(properties, ParticleTypes.SMOKE);
     }
 
     @Override
@@ -35,7 +35,7 @@ public class ExtinguishedTorchBlock extends TorchBlock {
     public static class Wall extends WallTorchBlock {
 
         public Wall(Properties properties) {
-            super(ParticleTypes.SMOKE, properties);
+            super(properties, ParticleTypes.SMOKE);
         }
 
         @Override

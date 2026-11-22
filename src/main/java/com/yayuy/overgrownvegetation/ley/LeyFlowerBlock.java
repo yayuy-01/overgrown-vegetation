@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.ley;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.BushBlock;
@@ -18,7 +17,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class LeyFlowerBlock extends BushBlock {
 
-    public static final MapCodec<LeyFlowerBlock> CODEC = simpleCodec(LeyFlowerBlock::new);
     private static final VoxelShape SHAPE = box(5.0D, 0.0D, 5.0D, 11.0D, 10.0D, 11.0D);
 
     public LeyFlowerBlock(Properties properties) {
@@ -26,12 +24,7 @@ public class LeyFlowerBlock extends BushBlock {
     }
 
     @Override
-    protected MapCodec<? extends BushBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         Vec3 offset = state.getOffset(level, pos);
         return SHAPE.move(offset.x, offset.y, offset.z);
     }

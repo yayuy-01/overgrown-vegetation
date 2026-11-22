@@ -336,14 +336,14 @@ public class WasherBlockEntity extends BlockEntity implements GeoBlockEntity {
     public static boolean sameItems(List<ItemStack> a, List<ItemStack> b) {
         if (a.size() != b.size()) return false;
         for (int i = 0; i < a.size(); i++) {
-            if (!ItemStack.isSameItemSameComponents(a.get(i), b.get(i))) return false;
+            if (!ItemStack.isSameItemSameTags(a.get(i), b.get(i))) return false;
         }
         return true;
     }
 
     /** クライアントへ送る中身は描く物だけ(FE・枠の中身・進みは送らない)。 */
     @Override
-    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+    public CompoundTag getUpdateTag() {
         CompoundTag tag = new CompoundTag();
         ListTag list = new ListTag();
         List<ItemStack> now = shown;
@@ -353,7 +353,7 @@ public class WasherBlockEntity extends BlockEntity implements GeoBlockEntity {
             now = computeShown();
             shown = now;
         }
-        for (ItemStack s : now) list.add(s.save(registries));
+        for (ItemStack s : now) list.add(s.save(new CompoundTag()));
         tag.put("shown", list);
         return tag;
     }
@@ -365,21 +365,21 @@ public class WasherBlockEntity extends BlockEntity implements GeoBlockEntity {
 
     /** 受け取った描く物だけを読む(ふつうの読み込みに回すと、クライアントの FE などが 0 で上書きされる)。 */
     @Override
-    public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider registries) {
-        readShown(tag, registries);
+    public void handleUpdateTag(CompoundTag tag) {
+        readShown(tag);
     }
 
     @Override
-    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt, HolderLookup.Provider registries) {
-        readShown(pkt.getTag(), registries);
+    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt) {
+        readShown(pkt.getTag());
     }
 
-    private void readShown(CompoundTag tag, HolderLookup.Provider registries) {
+    private void readShown(CompoundTag tag) {
         if (!tag.contains("shown", Tag.TAG_LIST)) return;
         ListTag list = tag.getList("shown", Tag.TAG_COMPOUND);
         List<ItemStack> out = new java.util.ArrayList<>(list.size());
         for (int i = 0; i < list.size() && out.size() < SHOWN_MAX; i++) {
-            ItemStack.parse(registries, list.getCompound(i)).ifPresent(out::add);
+            java.util.Optional.of(ItemStack.of(list.getCompound(i))).filter(s -> !s.isEmpty()).ifPresent(out::add);
         }
         shown = List.copyOf(out);
     }
@@ -403,18 +403,18 @@ public class WasherBlockEntity extends BlockEntity implements GeoBlockEntity {
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
         tag.putInt("energy", energy);
         tag.putInt("progress", progress);
-        tag.put("items", items.serializeNBT(registries));
+        tag.put("items", items.serializeNBT());
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void load(CompoundTag tag) {
+        super.load(tag);
         energy = Math.max(0, tag.getInt("energy"));
         progress = Math.max(0, tag.getInt("progress"));
-        if (tag.contains("items")) items.deserializeNBT(registries, tag.getCompound("items"));
+        if (tag.contains("items")) items.deserializeNBT(tag.getCompound("items"));
     }
 }

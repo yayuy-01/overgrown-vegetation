@@ -74,7 +74,7 @@ public final class ResearchData extends OvSavedData {
                 List<ItemStack> paid = new ArrayList<>();
                 ListTag items = a.getList("paid", Tag.TAG_COMPOUND);
                 for (int i = 0; i < items.size(); i++) {
-                    ItemStack.parse(registries, items.getCompound(i)).ifPresent(paid::add);
+                    java.util.Optional.of(ItemStack.of(items.getCompound(i))).filter(s -> !s.isEmpty()).ifPresent(paid::add);
                 }
                 d.active = new Active(a.getString("node"), pos, paid, a.getInt("progress"));
             }
@@ -95,7 +95,7 @@ public final class ResearchData extends OvSavedData {
             a.putInt("progress", active.progress);
             ListTag items = new ListTag();
             for (ItemStack s : active.paid) {
-                if (!s.isEmpty()) items.add(s.save(registries));
+                if (!s.isEmpty()) items.add(s.save(new CompoundTag()));
             }
             a.put("paid", items);
             tag.put("active", a);

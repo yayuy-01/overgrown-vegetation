@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.block;
 
+import net.minecraft.world.InteractionResult;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.corruption.CorruptionRegistry;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
@@ -15,8 +16,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
-import net.minecraft.world.RandomizableContainer;
+import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -190,11 +190,11 @@ public final class OvergrownContainers {
         BlockEntity old = level.getBlockEntity(pos);
         CompoundTag saved = null;
         if (old != null) {
-            saved = old.saveWithoutMetadata(level.registryAccess());
-            if (old instanceof RandomizableContainer randomizable) {
+            saved = old.saveWithoutMetadata();
+            if (old instanceof RandomizableContainerBlockEntity randomizable) {
                 // 先にルートテーブルを外す。これをしないと下の clearContent 後の onRemove(dropContents → getItem)で
                 // 旧チェストがルートを展開してドロップし、新チェストと二重になる。
-                randomizable.setLootTable(null);
+                randomizable.setLootTable(null, 0L);
             }
             if (old instanceof net.minecraft.world.Container container) {
                 container.clearContent();
@@ -203,7 +203,7 @@ public final class OvergrownContainers {
         level.setBlock(pos, replacement, flags);
         BlockEntity fresh = level.getBlockEntity(pos);
         if (saved != null && fresh != null) {
-            fresh.loadWithComponents(saved, level.registryAccess());
+            fresh.load(saved);
             fresh.setChanged();
         }
     }
@@ -271,25 +271,26 @@ public final class OvergrownContainers {
 
     /**
      * ハサミで右クリックされたときの処理({@code useItemOn} から)。ハサミでなければ
-     * {@link ItemInteractionResult#PASS_TO_DEFAULT_BLOCK_INTERACTION}(通常の開閉へ)。
+     * {@code null}(通常の開閉へ)。
      * ハサミなら段階を 0 に戻し、ハサミの耐久を 1 減らし、音とパーティクルを出す。
      * 既に段階 0 なら何もしない(ハサミの消費も無し)。
      */
-    public static ItemInteractionResult tryShear(ItemStack stack, BlockState state, Level level, BlockPos pos,
+    @Nullable
+    public static InteractionResult tryShear(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                                  Player player, InteractionHand hand, LevelSetter setter) {
         if (!stack.canPerformAction(ToolActions.SHEARS_HARVEST) || !state.hasProperty(OVERGROWTH)) {
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return null;
         }
         if (state.getValue(OVERGROWTH) <= 0) {
             // 剥がすものが無い。ハサミを構えたまま普通に開けられるよう、通常の操作へ流す。
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return null;
         }
         if (level.isClientSide) {
-            return ItemInteractionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
         setter.set(level, pos, state, 0);
         shearEffects(stack, level, pos, player, hand);
-        return ItemInteractionResult.CONSUME;
+        return InteractionResult.CONSUME;
     }
 
     /**
@@ -297,7 +298,7 @@ public final class OvergrownContainers {
      * 覆われた扉などを元のブロックへ戻すとき(2026-10-05 夜〜10-30 の covered/CoveredInteractables。今は corruption/CoverPeel が自前で出す)も同じものを出した。
      */
     public static void shearEffects(ItemStack stack, Level level, BlockPos pos, Player player, InteractionHand hand) {
-        stack.hurtAndBreak(1, player, LivingEntity.getSlotForHand(hand));
+        stack.hurtAndBreak(1, player, broken -> broken.broadcastBreakEvent((hand == net.minecraft.world.InteractionHand.MAIN_HAND ? net.minecraft.world.entity.EquipmentSlot.MAINHAND : net.minecraft.world.entity.EquipmentSlot.OFFHAND)));
         level.playSound(null, pos, SoundEvents.GROWING_PLANT_CROP, SoundSource.BLOCKS, 1.0F, 1.0F);
         if (level instanceof ServerLevel serverLevel) {
             serverLevel.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.MOSS_BLOCK.defaultBlockState()),

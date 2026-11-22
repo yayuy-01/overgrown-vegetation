@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.item;
 
+import org.jetbrains.annotations.Nullable;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.registry.ModDataComponents;
 import com.yayuy.overgrownvegetation.worldgen.TreeVineConnector;
@@ -143,7 +144,7 @@ public class LianaItem extends BlockItem {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.Level context, List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, context, tooltip, flag);
         GlobalPos anchor = OvItemData.get(stack, ModDataComponents.LIANA_ANCHOR.get());
         if (anchor == null) {

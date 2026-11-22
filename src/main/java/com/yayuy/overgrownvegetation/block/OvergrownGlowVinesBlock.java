@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
+import net.minecraft.world.InteractionHand;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import com.yayuy.overgrownvegetation.registry.ModItems;
 import net.minecraft.core.BlockPos;
@@ -27,7 +27,6 @@ import net.minecraft.world.phys.BlockHitResult;
  */
 public class OvergrownGlowVinesBlock extends GrowingPlantHeadBlock implements BonemealableBlock, OvergrownGlowVines {
 
-    public static final MapCodec<OvergrownGlowVinesBlock> CODEC = simpleCodec(OvergrownGlowVinesBlock::new);
 
     private static final float CHANCE_OF_BERRIES_ON_GROWTH = 0.11F;
 
@@ -36,11 +35,6 @@ public class OvergrownGlowVinesBlock extends GrowingPlantHeadBlock implements Bo
         this.registerDefaultState(this.stateDefinition.any()
                 .setValue(AGE, 0)
                 .setValue(BERRIES, Boolean.FALSE));
-    }
-
-    @Override
-    public MapCodec<OvergrownGlowVinesBlock> codec() {
-        return CODEC;
     }
 
     @Override
@@ -70,11 +64,10 @@ public class OvergrownGlowVinesBlock extends GrowingPlantHeadBlock implements Bo
     }
 
     @Override
-    public ItemStack getCloneItemStack(LevelReader level, BlockPos pos, BlockState state) {
+    public ItemStack getCloneItemStack(net.minecraft.world.level.BlockGetter level, BlockPos pos, BlockState state) {
         return new ItemStack(ModItems.OVERGROWN_GLOWBERRY.get());
     }
 
-    @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
         return OvergrownGlowVines.use(player, state, level, pos);
     }
@@ -86,7 +79,7 @@ public class OvergrownGlowVinesBlock extends GrowingPlantHeadBlock implements Bo
     }
 
     @Override
-    public boolean isValidBonemealTarget(LevelReader level, BlockPos pos, BlockState state) {
+    public boolean isValidBonemealTarget(LevelReader level, BlockPos pos, BlockState state, boolean isClient) {
         return !state.getValue(BERRIES);
     }
 
@@ -98,5 +91,11 @@ public class OvergrownGlowVinesBlock extends GrowingPlantHeadBlock implements Bo
     @Override
     public void performBonemeal(ServerLevel level, RandomSource random, BlockPos pos, BlockState state) {
         level.setBlock(pos, state.setValue(BERRIES, Boolean.TRUE), Block.UPDATE_CLIENTS);
+    }
+
+    /** 1.20.1: 1.21 の useItemOn → useWithoutItem(主の手だけ)の順を use 1 つで呼ぶ。useItemOn の null = 1.21 の PASS_TO_DEFAULT_BLOCK_INTERACTION。 */
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        return hand == InteractionHand.MAIN_HAND ? useWithoutItem(state, level, pos, player, hitResult) : InteractionResult.PASS;
     }
 }

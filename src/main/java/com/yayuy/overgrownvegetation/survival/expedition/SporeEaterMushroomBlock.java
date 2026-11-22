@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.survival.expedition;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
@@ -19,16 +18,10 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class SporeEaterMushroomBlock extends BushBlock {
 
-    public static final MapCodec<SporeEaterMushroomBlock> CODEC = simpleCodec(SporeEaterMushroomBlock::new);
     private static final VoxelShape SHAPE = box(4.0D, 0.0D, 4.0D, 12.0D, 8.0D, 12.0D);
 
     public SporeEaterMushroomBlock(Properties properties) {
         super(properties);
-    }
-
-    @Override
-    protected MapCodec<? extends BushBlock> codec() {
-        return CODEC;
     }
 
     /** 上の面がしっかりしたブロックなら何の上でも(覆われた土・苔・石など、汚染の地面は種類が多い)。 */
@@ -38,7 +31,7 @@ public class SporeEaterMushroomBlock extends BushBlock {
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         Vec3 offset = state.getOffset(level, pos);
         return SHAPE.move(offset.x, offset.y, offset.z);
     }

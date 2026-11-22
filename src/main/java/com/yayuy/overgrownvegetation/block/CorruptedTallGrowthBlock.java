@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
@@ -18,15 +17,9 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public class CorruptedTallGrowthBlock extends DoublePlantBlock {
 
-    public static final MapCodec<CorruptedTallGrowthBlock> CODEC = simpleCodec(CorruptedTallGrowthBlock::new);
 
     public CorruptedTallGrowthBlock(BlockBehaviour.Properties properties) {
         super(properties);
-    }
-
-    @Override
-    public MapCodec<CorruptedTallGrowthBlock> codec() {
-        return CODEC;
     }
 
     @Override

@@ -150,7 +150,7 @@ public class CorruptedCorpseBlockEntity extends BlockEntity implements GeoBlockE
             BlightFernPlacement.spawn(level, pos, MobSpawnType.MOB_SUMMONED);
             return;
         }
-        AbstractParasitizedMonster mob = species.entityType().create(level, null, pos, MobSpawnType.MOB_SUMMONED, false, false);
+        AbstractParasitizedMonster mob = species.entityType().create(level, null, null, pos, MobSpawnType.MOB_SUMMONED, false, false);
         if (mob == null) {
             return;
         }
@@ -262,17 +262,17 @@ public class CorruptedCorpseBlockEntity extends BlockEntity implements GeoBlockE
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
         spreader.save(tag);
         tag.putBoolean("Risen", risen);
         tag.putInt("CorpseAge", age);
-        savePlacement(tag, registries);
+        savePlacement(tag);
     }
 
-    private void savePlacement(CompoundTag tag, HolderLookup.Provider registries) {
+    private void savePlacement(CompoundTag tag) {
         if (!heldItem.isEmpty()) {
-            tag.put("Held", heldItem.save(registries));
+            tag.put("Held", heldItem.save(new CompoundTag()));
         }
         tag.putFloat("CorpseYaw", yaw);
         if (exactOffset) {
@@ -289,8 +289,8 @@ public class CorruptedCorpseBlockEntity extends BlockEntity implements GeoBlockE
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void load(CompoundTag tag) {
+        super.load(tag);
         spreader.load(tag);
         risen = tag.getBoolean("Risen");
         age = tag.getInt("CorpseAge");
@@ -305,14 +305,14 @@ public class CorruptedCorpseBlockEntity extends BlockEntity implements GeoBlockE
         }
         placedGameTime = tag.contains("PlacedAt") ? tag.getLong("PlacedAt") : Long.MIN_VALUE;
         woolColor = tag.contains("WoolColor") ? tag.getInt("WoolColor") : -1;
-        heldItem = tag.contains("Held") ? net.minecraft.world.item.ItemStack.parseOptional(registries, tag.getCompound("Held")) : net.minecraft.world.item.ItemStack.EMPTY;
+        heldItem = tag.contains("Held") ? net.minecraft.world.item.ItemStack.of(tag.getCompound("Held")) : net.minecraft.world.item.ItemStack.EMPTY;
     }
 
     /** 見ている人へは向き・位置・置かれた時刻・毛の色だけ送る(侵食の状態はクライアントに要らない)。 */
     @Override
-    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+    public CompoundTag getUpdateTag() {
         CompoundTag tag = new CompoundTag();
-        savePlacement(tag, registries);
+        savePlacement(tag);
         return tag;
     }
 

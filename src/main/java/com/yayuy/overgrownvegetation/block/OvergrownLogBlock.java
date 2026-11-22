@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
@@ -25,18 +24,12 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
  */
 public class OvergrownLogBlock extends RotatedPillarBlock {
 
-    public static final MapCodec<OvergrownLogBlock> CODEC = simpleCodec(OvergrownLogBlock::new);
     public static final BooleanProperty SKIRT = BooleanProperty.create("skirt");
     public static final EnumProperty<Hollow> HOLLOW = EnumProperty.create("hollow", Hollow.class);
 
     public OvergrownLogBlock(BlockBehaviour.Properties properties) {
         super(properties);
         registerDefaultState(defaultBlockState().setValue(SKIRT, false).setValue(HOLLOW, Hollow.NONE));
-    }
-
-    @Override
-    public MapCodec<? extends RotatedPillarBlock> codec() {
-        return CODEC;
     }
 
     @Override
@@ -47,7 +40,7 @@ public class OvergrownLogBlock extends RotatedPillarBlock {
 
     /** 構造物の回転で洞の向きも回す(軸は親が回す)。 */
     @Override
-    protected BlockState rotate(BlockState state, net.minecraft.world.level.block.Rotation rotation) {
+    public BlockState rotate(BlockState state, net.minecraft.world.level.block.Rotation rotation) {
         BlockState out = super.rotate(state, rotation);
         Hollow hollow = state.getValue(HOLLOW);
         return hollow == Hollow.NONE ? out : out.setValue(HOLLOW, Hollow.of(rotation.rotate(hollow.facing())));

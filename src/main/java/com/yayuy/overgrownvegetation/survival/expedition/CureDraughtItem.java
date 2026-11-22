@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.survival.expedition;
 
+import org.jetbrains.annotations.Nullable;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.effect.SporeInfectionEffects;
 import com.yayuy.overgrownvegetation.spore.SporeExposureTracker;
@@ -60,7 +61,7 @@ public class CureDraughtItem extends Item {
             apply(player);
             if (player instanceof ServerPlayer sp) sp.awardStat(Stats.ITEM_USED.get(this));
         }
-        if (entity instanceof Player player && player.hasInfiniteMaterials()) return stack;
+        if (entity instanceof Player player && player.getAbilities().instabuild) return stack;
         stack.shrink(1);
         if (stack.isEmpty()) return new ItemStack(Items.GLASS_BOTTLE);
         if (entity instanceof Player player && !player.getInventory().add(new ItemStack(Items.GLASS_BOTTLE))) {
@@ -84,7 +85,7 @@ public class CureDraughtItem extends Item {
     }
 
     @Override
-    public int getUseDuration(ItemStack stack, LivingEntity entity) {
+    public int getUseDuration(ItemStack stack) {
         return DRINK_TICKS;
     }
 
@@ -94,7 +95,7 @@ public class CureDraughtItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.Level context, List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.translatable("item.overgrown_vegetation.cure_draught.desc").withStyle(ChatFormatting.GRAY));
     }
 }

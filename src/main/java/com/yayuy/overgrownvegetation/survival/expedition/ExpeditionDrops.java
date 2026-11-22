@@ -60,7 +60,6 @@ public final class ExpeditionDrops {
 
     private static int looting(ServerLevel level, LivingDropsEvent event) {
         if (!(event.getSource().getEntity() instanceof LivingEntity killer)) return 0;
-        var holder = level.registryAccess().registryOrThrow(Registries.ENCHANTMENT).getHolder(Enchantments.LOOTING);
-        return holder.map(h -> EnchantmentHelper.getEnchantmentLevel(h, killer)).orElse(0);
+        return event.getLootingLevel(); // 1.20.1: Forge の知らせが倒した物のドロップ増加を持つ
     }
 }

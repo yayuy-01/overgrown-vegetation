@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.research;
 
-import com.mojang.serialization.MapCodec;
+import net.minecraft.world.InteractionHand;
 import com.yayuy.overgrownvegetation.registry.ModResearch;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
@@ -24,19 +24,13 @@ import javax.annotation.Nullable;
  */
 public class ResearchBenchBlock extends BaseEntityBlock {
 
-    public static final MapCodec<ResearchBenchBlock> CODEC = simpleCodec(ResearchBenchBlock::new);
 
     public ResearchBenchBlock(Properties properties) {
         super(properties);
     }
 
     @Override
-    protected MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected RenderShape getRenderShape(BlockState state) {
+    public RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
     }
 
@@ -50,7 +44,6 @@ public class ResearchBenchBlock extends BaseEntityBlock {
         return level.isClientSide ? null : createTickerHelper(type, ModResearch.BENCH_BE.get(), ResearchBenchBlockEntity::serverTick);
     }
 
-    @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         if (!level.isClientSide && player instanceof ServerPlayer sp) {
             Research.openScreen(sp, pos);
@@ -59,7 +52,7 @@ public class ResearchBenchBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock()) && level instanceof ServerLevel server) {
             ResearchData.Active a = ResearchData.get(server.getServer()).active();
             if (a != null && a.bench.equals(GlobalPos.of(server.dimension(), pos))) {
@@ -67,5 +60,11 @@ public class ResearchBenchBlock extends BaseEntityBlock {
             }
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+
+    /** 1.20.1: 1.21 の useItemOn → useWithoutItem(主の手だけ)の順を use 1 つで呼ぶ。useItemOn の null = 1.21 の PASS_TO_DEFAULT_BLOCK_INTERACTION。 */
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        return hand == InteractionHand.MAIN_HAND ? useWithoutItem(state, level, pos, player, hitResult) : InteractionResult.PASS;
     }
 }

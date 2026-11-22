@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -41,7 +40,6 @@ import javax.annotation.Nullable;
  */
 public class LavaFernMatBlock extends Block implements LiquidBlockContainer {
 
-    public static final MapCodec<LavaFernMatBlock> CODEC = simpleCodec(LavaFernMatBlock::new);
 
     /** none = 平ら / unstable = 乗られて傾きかけ(まだ立てる)/ full = 沈んで当たり判定なし。partial は使わない。 */
     public static final net.minecraft.world.level.block.state.properties.EnumProperty<Tilt> TILT = BlockStateProperties.TILT;
@@ -59,22 +57,17 @@ public class LavaFernMatBlock extends Block implements LiquidBlockContainer {
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(TILT);
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return OUTLINE;
     }
 
     @Override
-    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return state.getValue(TILT) == Tilt.FULL ? Shapes.empty() : SHAPE;
     }
 
@@ -87,12 +80,12 @@ public class LavaFernMatBlock extends Block implements LiquidBlockContainer {
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         return level.getFluidState(pos).isEmpty() && canStandOn(level, pos.below());
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                      LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         return direction == Direction.DOWN && !state.canSurvive(level, pos)
                 ? Blocks.AIR.defaultBlockState()
@@ -102,7 +95,7 @@ public class LavaFernMatBlock extends Block implements LiquidBlockContainer {
     // ---- 溶岩が流れ込めない(流れに壊されない) ----
 
     @Override
-    public boolean canPlaceLiquid(@Nullable Player player, BlockGetter level, BlockPos pos, BlockState state, Fluid fluid) {
+    public boolean canPlaceLiquid(BlockGetter level, BlockPos pos, BlockState state, Fluid fluid) {
         return false;
     }
 
@@ -114,7 +107,7 @@ public class LavaFernMatBlock extends Block implements LiquidBlockContainer {
     // ---- 乗ると沈む ----
 
     @Override
-    protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
+    public void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
         if (level.isClientSide || state.getValue(TILT) != Tilt.NONE) return;
         if (!entity.onGround() || entity.position().y < pos.getY() + 0.03) return; // 上に立っている物だけ
         level.setBlock(pos, state.setValue(TILT, Tilt.UNSTABLE), Block.UPDATE_CLIENTS);
@@ -122,7 +115,7 @@ public class LavaFernMatBlock extends Block implements LiquidBlockContainer {
     }
 
     @Override
-    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         Tilt tilt = state.getValue(TILT);
         if (tilt == Tilt.UNSTABLE) {
             level.setBlock(pos, state.setValue(TILT, Tilt.FULL), Block.UPDATE_CLIENTS);

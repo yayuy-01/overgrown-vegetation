@@ -51,8 +51,8 @@ public final class AttachNetwork {
             return false;
         }
         int size = BeltPouchMenu.configuredSize();
-        player.openMenu(new SimpleMenuProvider((id, inv, p) -> BeltPouchMenu.server(id, inv, p),
-                Component.translatable("container.overgrown_vegetation.belt_pouch")), buf -> buf.writeVarInt(size));
+        net.minecraftforge.network.NetworkHooks.openScreen(player, new SimpleMenuProvider((id, inv, p) -> BeltPouchMenu.server(id, inv, p),
+                Component.translatable("container.overgrown_vegetation.belt_pouch")), buf -> buf.writeVarInt(size)); // 1.20.1: 付け足しの中身を送る開き方は Forge の NetworkHooks
         return true;
     }
 }

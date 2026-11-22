@@ -95,7 +95,7 @@ public class SigillariaTreeFeature extends Feature<SigillariaTreeFeature.Config>
             return;
         }
         List<Integer> dirs = new ArrayList<>(List.of(0, 1, 2, 3, 4, 5, 6, 7));
-        net.minecraft.Util.shuffle(dirs, random);
+        ForcedTreeFeature.shuffle(dirs, random);
         BlockState base = ModBlocks.STIGMARIA.get().defaultBlockState();
         for (int i = 0; i < count; i++) {
             int d = dirs.get(i);

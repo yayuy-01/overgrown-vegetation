@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
@@ -17,7 +16,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class SmallWallGrowthBlock extends CorruptedWallGrowthBlock {
 
-    public static final MapCodec<SmallWallGrowthBlock> CODEC = simpleCodec(SmallWallGrowthBlock::new);
 
     private static final VoxelShape NORTH = Block.box(1, 1, 12, 15, 15, 16);
     private static final VoxelShape SOUTH = Block.box(1, 1, 0, 15, 15, 4);
@@ -29,12 +27,7 @@ public class SmallWallGrowthBlock extends CorruptedWallGrowthBlock {
     }
 
     @Override
-    protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return switch (state.getValue(FACING)) {
             case SOUTH -> SOUTH;
             case WEST -> WEST;

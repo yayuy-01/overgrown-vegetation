@@ -101,10 +101,18 @@ public class BeltPouchMenu extends AbstractContainerMenu {
         if (stack.isEmpty()) return false;
         if (stack.is(ModArmorAttach.STORAGE_BELT.get()) || ArmorAttachments.count(stack, ModArmorAttach.STORAGE_BELT.get()) > 0) return true;
         if (depth <= 0) return false;
-        ItemContainerContents box = stack.get(net.minecraft.core.component.DataComponents.CONTAINER);
-        if (box != null) for (ItemStack s : box.nonEmptyItems()) if (holdsBelt(s, depth - 1)) return true;
-        net.minecraft.world.item.component.BundleContents bundle = stack.get(net.minecraft.core.component.DataComponents.BUNDLE_CONTENTS);
-        if (bundle != null) for (ItemStack s : bundle.items()) if (holdsBelt(s, depth - 1)) return true;
+        // 1.20.1: 入れ物の中身は NBT(シュルカー箱は BlockEntityTag.Items、袋は Items)
+        net.minecraft.nbt.CompoundTag tag = stack.getTag();
+        if (tag != null) {
+            if (tag.contains("BlockEntityTag", net.minecraft.nbt.Tag.TAG_COMPOUND)) {
+                net.minecraft.nbt.ListTag items = tag.getCompound("BlockEntityTag").getList("Items", net.minecraft.nbt.Tag.TAG_COMPOUND);
+                for (int i = 0; i < items.size(); i++) if (holdsBelt(ItemStack.of(items.getCompound(i)), depth - 1)) return true;
+            }
+            if (stack.getItem() instanceof net.minecraft.world.item.BundleItem) {
+                net.minecraft.nbt.ListTag items = tag.getList("Items", net.minecraft.nbt.Tag.TAG_COMPOUND);
+                for (int i = 0; i < items.size(); i++) if (holdsBelt(ItemStack.of(items.getCompound(i)), depth - 1)) return true;
+            }
+        }
         return false;
     }
 

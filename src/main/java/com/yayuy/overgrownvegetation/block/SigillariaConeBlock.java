@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.DustParticleOptions;
@@ -38,7 +37,6 @@ import javax.annotation.Nullable;
  */
 public class SigillariaConeBlock extends HorizontalDirectionalBlock {
 
-    public static final MapCodec<SigillariaConeBlock> CODEC = simpleCodec(SigillariaConeBlock::new);
 
     /** ランダムティックのうち胞子の場へ放出する割合(1/n。仮決め)。 */
     static final int EMIT_ONE_IN = 3;
@@ -61,12 +59,7 @@ public class SigillariaConeBlock extends HorizontalDirectionalBlock {
     }
 
     @Override
-    protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return switch (state.getValue(FACING)) {
             case SOUTH -> SOUTH_SHAPE;
             case WEST -> WEST_SHAPE;
@@ -77,12 +70,12 @@ public class SigillariaConeBlock extends HorizontalDirectionalBlock {
 
     /** 背中側が原木({@code #logs})なら付いていられる(仮決め: 封印木の原木に限らない)。 */
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         return level.getBlockState(pos.relative(state.getValue(FACING).getOpposite())).is(BlockTags.LOGS);
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                       LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         return direction.getOpposite() == state.getValue(FACING) && !state.canSurvive(level, pos)
                 ? Blocks.AIR.defaultBlockState()
@@ -105,7 +98,7 @@ public class SigillariaConeBlock extends HorizontalDirectionalBlock {
     }
 
     @Override
-    protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         if (random.nextInt(EMIT_ONE_IN) == 0 && !com.yayuy.overgrownvegetation.corruption.CorruptionSwitch.isOff()) {
             com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.emitPoint(level, pos, EMIT_AMOUNT);
         }

@@ -709,8 +709,8 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
         if (sourcePos != null) {
             tag.put("Source", NbtUtils.writeBlockPos(sourcePos));
         }
@@ -788,12 +788,12 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void load(CompoundTag tag) {
+        super.load(tag);
         renderBoxCache = null;
         shapeCache = null;
-        sourcePos = NbtUtils.readBlockPos(tag, "Source").orElse(null);
-        targetPos = NbtUtils.readBlockPos(tag, "Target").orElse(null);
+        sourcePos = (tag.contains("Source", net.minecraft.nbt.Tag.TAG_COMPOUND) ? java.util.Optional.of(NbtUtils.readBlockPos(tag.getCompound("Source"))) : java.util.Optional.<net.minecraft.core.BlockPos>empty()).orElse(null);
+        targetPos = (tag.contains("Target", net.minecraft.nbt.Tag.TAG_COMPOUND) ? java.util.Optional.of(NbtUtils.readBlockPos(tag.getCompound("Target"))) : java.util.Optional.<net.minecraft.core.BlockPos>empty()).orElse(null);
         sag = tag.getFloat("Sag");
         if (tag.contains("SwagStartX")) {
             swagStart = new Vec3(tag.getDouble("SwagStartX"), tag.getDouble("SwagStartY"), tag.getDouble("SwagStartZ"));
@@ -802,7 +802,7 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
             swagStart = null;
             swagEnd = null;
         }
-        primaryPos = NbtUtils.readBlockPos(tag, "Primary").orElse(null);
+        primaryPos = (tag.contains("Primary", net.minecraft.nbt.Tag.TAG_COMPOUND) ? java.util.Optional.of(NbtUtils.readBlockPos(tag.getCompound("Primary"))) : java.util.Optional.<net.minecraft.core.BlockPos>empty()).orElse(null);
         secondaryPositions = readPositionList(tag, "Secondaries");
         parentPositions = readPositionList(tag, "Parents");
         childPositions = readPositionList(tag, "Children");
@@ -864,8 +864,8 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
      * クライアントの {@link #loadAdditional} では抜いたキーが空の一覧になるだけ。
      */
     @Override
-    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-        CompoundTag tag = saveWithoutMetadata(registries);
+    public CompoundTag getUpdateTag() {
+        CompoundTag tag = saveWithoutMetadata();
         tag.remove("Secondaries");
         tag.remove("Parents");
         tag.remove("Children");

@@ -33,7 +33,7 @@ public class HardenedGiantTrunkBlock extends Block {
     }
 
     @Override
-    protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
+    public float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
         if (!player.getMainHandItem().isCorrectToolForDrops(state)) {
             return 0.0F;
         }

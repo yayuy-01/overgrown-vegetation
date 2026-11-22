@@ -3,8 +3,12 @@ package com.yayuy.overgrownvegetation.gear;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EquipmentSlotGroup;
+import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.Multimap;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -17,12 +21,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
-import com.yayuy.overgrownvegetation.port.entity.OvModifiers;
 
 /**
  * <b>導晶の武器</b>(グレード 1。2026-11-21 夜ユーザー決定「武器 = 導晶の剣 + 導晶機関で弦を巻く弩」)。
@@ -42,18 +44,13 @@ public final class ConduitWeapons {
         return DesignData.gearTiers().crossbow;
     }
 
-    /** 剣の攻撃と振り(力の有無で 2 通り)。素手の 1 と振り 4 はプレイヤーの基礎の値なので引く。 */
-    public static ItemAttributeModifiers swordAttributes(boolean charged) {
-        GearTierTable.Sword s = sword();
-        double damage = s.damage + (charged ? s.chargedBonus : 0.0F) - 1.0D;
-        return ItemAttributeModifiers.builder()
-                .add(Attributes.ATTACK_DAMAGE,
-                        OvModifiers.create(Item.BASE_ATTACK_DAMAGE_ID, damage, AttributeModifier.Operation.ADDITION),
-                        EquipmentSlotGroup.MAINHAND)
-                .add(Attributes.ATTACK_SPEED,
-                        OvModifiers.create(Item.BASE_ATTACK_SPEED_ID, s.attackSpeed - 4.0D, AttributeModifier.Operation.ADDITION),
-                        EquipmentSlotGroup.MAINHAND)
-                .build();
+    /**
+     * 剣の攻撃と振り(力の有無で 2 通り)。素手の 1 と振り 4 はプレイヤーの基礎の値なので引く。
+     * 1.20.1: 1.21 の ItemAttributeModifiers の代わりに利き手の Multimap。修飾子の UUID はバニラの手持ちの攻撃の物
+     * (説明の数にプレイヤーの基礎が足される。UUID は Item の protected なので {@link Sword} の中で作る)。
+     */
+    public static Multimap<Attribute, AttributeModifier> swordAttributes(boolean charged) {
+        return Sword.attributes(charged);
     }
 
     /**
@@ -69,7 +66,19 @@ public final class ConduitWeapons {
     /** 導晶の剣(鉄の剣と同じ攻撃 6・振り 1.6。力がある間は +2)。 */
     public static final class Sword extends SwordItem implements LeyCharge.Chargeable {
         public Sword(Tier tier, Properties p) {
-            super(tier, p);
+            // 1.20.1: 剣の構築子は攻撃・振りを取る。力の無い時の値を渡す(Mob の武器選びの getDamage が見る。効く値は下の getAttributeModifiers)
+            super(tier, (int) Math.round(sword().damage - 1.0D - tier.getAttackDamageBonus()), (float) (sword().attackSpeed - 4.0D), p);
+        }
+
+        static Multimap<Attribute, AttributeModifier> attributes(boolean charged) {
+            GearTierTable.Sword s = sword();
+            double damage = s.damage + (charged ? s.chargedBonus : 0.0F) - 1.0D;
+            return ImmutableMultimap.<Attribute, AttributeModifier>builder()
+                    .put(Attributes.ATTACK_DAMAGE, new AttributeModifier(BASE_ATTACK_DAMAGE_UUID, "Weapon modifier", damage,
+                            AttributeModifier.Operation.ADDITION))
+                    .put(Attributes.ATTACK_SPEED, new AttributeModifier(BASE_ATTACK_SPEED_UUID, "Weapon modifier", s.attackSpeed - 4.0D,
+                            AttributeModifier.Operation.ADDITION))
+                    .build();
         }
 
         @Override
@@ -89,8 +98,8 @@ public final class ConduitWeapons {
 
         /** 部品の攻撃の値を持たせず、ここで力の有無を見て返す(説明の攻撃の数も力に合わせて変わる)。 */
         @Override
-        public ItemAttributeModifiers getDefaultAttributeModifiers(ItemStack stack) {
-            return swordAttributes(LeyCharge.charged(stack));
+        public Multimap<Attribute, AttributeModifier> getAttributeModifiers(EquipmentSlot slot, ItemStack stack) {
+            return slot == EquipmentSlot.MAINHAND ? swordAttributes(LeyCharge.charged(stack)) : ImmutableMultimap.of();
         }
 
         @Override
@@ -110,7 +119,7 @@ public final class ConduitWeapons {
         }
 
         @Override
-        public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.Level context, List<Component> tooltip, TooltipFlag flag) {
             LeyCharge.tooltip(stack, tooltip);
         }
     }
@@ -136,15 +145,19 @@ public final class ConduitWeapons {
             return "item.overgrown_vegetation.ley_charge.hint_crossbow";
         }
 
-        /** 撃ったら 1 回分の力を使う(込めた矢が出たときだけ。サーバーだけ)。 */
+        /**
+         * 撃ったら 1 回分の力を使う(込めた矢が出たときだけ。サーバーだけ)。
+         * 1.20.1: performShooting は static で上書きできないので、プレイヤーが撃つ use の後で見る(Mob が撃つ時は力を使わない)。
+         */
         @Override
-        public void performShooting(Level level, LivingEntity shooter, InteractionHand hand, ItemStack weapon, float velocity, float inaccuracy,
-                                    @Nullable LivingEntity target) {
+        public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+            ItemStack weapon = player.getItemInHand(hand);
             boolean loaded = isCharged(weapon);
-            super.performShooting(level, shooter, hand, weapon, velocity, inaccuracy, target);
+            InteractionResultHolder<ItemStack> r = super.use(level, player, hand);
             if (!level.isClientSide && loaded && !isCharged(weapon)) {
-                LeyCharge.spend(weapon, shooter instanceof Player p ? p : null);
+                LeyCharge.spend(weapon, player);
             }
+            return r;
         }
 
         @Override
@@ -158,7 +171,7 @@ public final class ConduitWeapons {
         }
 
         @Override
-        public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.Level context, List<Component> tooltip, TooltipFlag flag) {
             super.appendHoverText(stack, context, tooltip, flag);
             LeyCharge.tooltip(stack, tooltip);
         }

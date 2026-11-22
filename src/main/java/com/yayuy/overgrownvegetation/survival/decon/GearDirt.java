@@ -198,24 +198,24 @@ public final class GearDirt {
     }
 
     /** その物がその場所で足す属性の値(足し算の修飾の和)。 */
-    static double itemValue(ItemStack stack, EquipmentSlot slot, Holder<Attribute> attr) {
+    static double itemValue(ItemStack stack, EquipmentSlot slot, Attribute attr) {
         double[] sum = {0.0D};
-        stack.forEachModifier(slot, (a, m) -> {
-            if (a.equals(attr) && m.operation() == AttributeModifier.Operation.ADDITION) sum[0] += m.amount();
+        stack.getAttributeModifiers(slot).forEach((a, m) -> {
+            if (a.equals(attr) && m.getOperation() == AttributeModifier.Operation.ADDITION) sum[0] += m.getAmount();
         });
         return sum[0];
     }
 
-    private static void setModifier(Player player, Holder<Attribute> attr, ResourceLocation id, double amount) {
+    private static void setModifier(Player player, Attribute attr, ResourceLocation id, double amount) {
         AttributeInstance inst = player.getAttribute(attr);
         if (inst == null) return;
-        AttributeModifier old = inst.getModifier(id);
+        AttributeModifier old = OvModifiers.get(inst, id);
         if (Math.abs(amount) < 1.0E-6D) {
-            if (old != null) inst.removeModifier(id);
+            if (old != null) OvModifiers.remove(inst, id);
             return;
         }
-        if (old != null && Math.abs(old.amount() - amount) < 1.0E-6D) return;
-        if (old != null) inst.removeModifier(id);
+        if (old != null && Math.abs(old.getAmount() - amount) < 1.0E-6D) return;
+        if (old != null) OvModifiers.remove(inst, id);
         inst.addTransientModifier(OvModifiers.create(id, amount, AttributeModifier.Operation.ADDITION));
     }
 

@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -26,7 +25,6 @@ import javax.annotation.Nullable;
  */
 public class CaveSheetBlock extends Block {
 
-    public static final MapCodec<CaveSheetBlock> CODEC = simpleCodec(CaveSheetBlock::new);
     public static final DirectionProperty FACING = BlockStateProperties.FACING;
 
     private static final VoxelShape UP_SHAPE = Block.box(0.0, 15.0, 0.0, 16.0, 16.0, 16.0);
@@ -42,11 +40,6 @@ public class CaveSheetBlock extends Block {
     }
 
     @Override
-    protected MapCodec<? extends CaveSheetBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(FACING);
     }
@@ -58,7 +51,7 @@ public class CaveSheetBlock extends Block {
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         return canAttach(level, pos, state.getValue(FACING));
     }
 
@@ -70,7 +63,7 @@ public class CaveSheetBlock extends Block {
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor level, BlockPos pos,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor level, BlockPos pos,
                                      BlockPos neighborPos) {
         if (direction == state.getValue(FACING) && !state.canSurvive(level, pos)) {
             return Blocks.AIR.defaultBlockState();
@@ -79,7 +72,7 @@ public class CaveSheetBlock extends Block {
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return switch (state.getValue(FACING)) {
             case DOWN -> DOWN_SHAPE;
             case NORTH -> NORTH_SHAPE;
@@ -91,7 +84,7 @@ public class CaveSheetBlock extends Block {
     }
 
     @Override
-    protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+    public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
         return true;
     }
 }

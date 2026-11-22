@@ -47,7 +47,7 @@ public final class RoomDirt extends OvSavedData {
     private double filterCarry;
 
     public static RoomDirt get(ServerLevel level) {
-        return level.getDataStorage().computeIfAbsent(new OvSavedData.Factory<>(RoomDirt::new, RoomDirt::load, null), NAME);
+        return OvSavedData.computeIfAbsent(level.getDataStorage(), new OvSavedData.Factory<>(RoomDirt::new, RoomDirt::load, null), NAME);
     }
 
     /**
@@ -79,7 +79,7 @@ public final class RoomDirt extends OvSavedData {
 
     /** 読み込まずに、その次元に汚れがあるか(無ければ作らない)。 */
     static RoomDirt peek(ServerLevel level) {
-        return level.getDataStorage().get(new OvSavedData.Factory<>(RoomDirt::new, RoomDirt::load, null), NAME);
+        return level.getDataStorage().get(new OvSavedData.Factory<>(RoomDirt::new, RoomDirt::load, null).load(), NAME);
     }
 
     static DirtSpec spec() {

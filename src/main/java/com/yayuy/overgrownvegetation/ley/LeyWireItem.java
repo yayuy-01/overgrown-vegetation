@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.ley;
 
+import org.jetbrains.annotations.Nullable;
 import com.yayuy.overgrownvegetation.registry.ModLey;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -92,7 +93,7 @@ public class LeyWireItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.Level context, List<Component> tooltip, TooltipFlag flag) {
         GlobalPos start = OvItemData.get(stack, ModLey.WIRE_START.get());
         if (start != null) {
             BlockPos p = start.pos();

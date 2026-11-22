@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -27,7 +26,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class SporeSacBlock extends Block {
 
-    public static final MapCodec<SporeSacBlock> CODEC = simpleCodec(SporeSacBlock::new);
 
     public enum Stage implements StringRepresentable {
         SMALL("small"), LARGE("large"), BURST("burst");
@@ -57,40 +55,35 @@ public class SporeSacBlock extends Block {
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(STAGE);
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return state.getValue(STAGE) == Stage.SMALL ? SMALL_SHAPE : LARGE_SHAPE;
     }
 
     @Override
-    protected boolean isRandomlyTicking(BlockState state) {
+    public boolean isRandomlyTicking(BlockState state) {
         return state.getValue(STAGE) == Stage.SMALL;
     }
 
     @Override
-    protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         if (state.getValue(STAGE) == Stage.SMALL && random.nextFloat() < GROW_CHANCE) {
             level.setBlock(pos, state.setValue(STAGE, Stage.LARGE), Block.UPDATE_CLIENTS);
         }
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         BlockPos abovePos = pos.above();
         return level.getBlockState(abovePos).isFaceSturdy(level, abovePos, Direction.DOWN);
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                      LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         if (direction == Direction.UP && !state.canSurvive(level, pos)) {
             return Blocks.AIR.defaultBlockState();

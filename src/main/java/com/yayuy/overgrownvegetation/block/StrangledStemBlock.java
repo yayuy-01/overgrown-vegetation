@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
@@ -19,15 +18,9 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public class StrangledStemBlock extends RotatedPillarBlock {
 
-    public static final MapCodec<StrangledStemBlock> CODEC = simpleCodec(StrangledStemBlock::new);
 
     public StrangledStemBlock(BlockBehaviour.Properties properties) {
         super(properties);
-    }
-
-    @Override
-    public MapCodec<? extends RotatedPillarBlock> codec() {
-        return CODEC;
     }
 
     @Override

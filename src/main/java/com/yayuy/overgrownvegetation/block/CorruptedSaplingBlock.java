@@ -57,17 +57,8 @@ import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
  */
 public class CorruptedSaplingBlock extends SaplingBlock {
 
-    public static final MapCodec<CorruptedSaplingBlock> CODEC = RecordCodecBuilder.mapCodec(instance ->
-            instance.group(TreeGrower.CODEC.fieldOf("tree").forGetter(block -> block.treeGrower), propertiesCodec())
-                    .apply(instance, CorruptedSaplingBlock::new));
-
     public CorruptedSaplingBlock(TreeGrower treeGrower, BlockBehaviour.Properties properties) {
         super(treeGrower, properties);
-    }
-
-    @Override
-    public MapCodec<? extends SaplingBlock> codec() {
-        return CODEC;
     }
 
     @Override
@@ -94,7 +85,7 @@ public class CorruptedSaplingBlock extends SaplingBlock {
      * 2 段(STAGE 0 → 1 → 木)なので、木になるまで平均 3.5 回 ≒ 4 分(前は 7 回 ≒ 8 分)。
      */
     @Override
-    protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         // この機能より前から生えていた苗木も、ランダムティックを受けた時点で設置時刻を記録する
         // (追いつき成長 SaplingOfflineGrowth 用。記録済みなら map の参照 1 回で終わる)。
         SaplingOfflineGrowth.ensureRecorded(level, pos);
@@ -112,7 +103,7 @@ public class CorruptedSaplingBlock extends SaplingBlock {
     }
 
     @Override
-    protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
         super.onPlace(state, level, pos, oldState, movedByPiston);
         // 苗木が新しく置かれた(STAGE の書き換えなど同じブロック同士の更新は除く)→ 設置時刻を記録。
         if (!oldState.is(this) && level instanceof ServerLevel serverLevel) {
@@ -121,7 +112,7 @@ public class CorruptedSaplingBlock extends SaplingBlock {
     }
 
     @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         // 壊された/育った → 記録を消す。
         if (!newState.is(this) && level instanceof ServerLevel serverLevel) {
             SaplingOfflineGrowth.forget(serverLevel, pos);

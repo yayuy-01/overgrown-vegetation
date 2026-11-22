@@ -1,20 +1,20 @@
 package com.yayuy.overgrownvegetation.survival.decon;
 
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.MapCodec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.yayuy.overgrownvegetation.registry.ModDecon;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
-import com.yayuy.overgrownvegetation.port.network.RegistryFriendlyByteBuf;
-import com.yayuy.overgrownvegetation.port.network.ByteBufCodecs;
-import com.yayuy.overgrownvegetation.port.network.StreamCodec;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.GsonHelper;
+import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.SingleRecipeInput;
+import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.level.Level;
 
 /**
@@ -24,17 +24,20 @@ import net.minecraft.world.level.Level;
  * <p>データパックのレシピ(種類 {@code overgrown_vegetation:decontamination})なので、mod マネージャー 2 の作り方の画面と
  * バニラの {@code /reload} で変えられる。レシピの本には出さない({@link #isSpecial})。
  * <pre>{"type": "overgrown_vegetation:decontamination", "ingredient": {"item": "overgrown_vegetation:overgrown_beef"},
- *  "result": {"id": "minecraft:beef", "count": 1}, "spores": 0.5}</pre>
+ *  "result": {"item": "minecraft:beef", "count": 1}, "spores": 0.5}</pre>
+ *
+ * <p>1.20.1: レシピは自分の id を持つ(RecipeHolder が無い)。材料は 1 枠の {@link Container}(1.21 の SingleRecipeInput の代わり。
+ * 0 番の枠を見る)。読み書きは Codec でなく json と通信の手書き(D の DataPort が出す {@code "result": {"item", "count"}} の形)。
  */
-public record DeconRecipe(Ingredient ingredient, ItemStack result, float spores) implements Recipe<SingleRecipeInput> {
+public record DeconRecipe(ResourceLocation id, Ingredient ingredient, ItemStack result, float spores) implements Recipe<Container> {
 
     @Override
-    public boolean matches(SingleRecipeInput input, Level level) {
-        return ingredient.test(input.item());
+    public boolean matches(Container input, Level level) {
+        return ingredient.test(input.getItem(0));
     }
 
     @Override
-    public ItemStack assemble(SingleRecipeInput input, HolderLookup.Provider registries) {
+    public ItemStack assemble(Container input, RegistryAccess registries) {
         return result.copy();
     }
 
@@ -44,8 +47,13 @@ public record DeconRecipe(Ingredient ingredient, ItemStack result, float spores)
     }
 
     @Override
-    public ItemStack getResultItem(HolderLookup.Provider registries) {
+    public ItemStack getResultItem(RegistryAccess registries) {
         return result;
+    }
+
+    @Override
+    public ResourceLocation getId() {
+        return id;
     }
 
     @Override
@@ -70,26 +78,37 @@ public record DeconRecipe(Ingredient ingredient, ItemStack result, float spores)
 
     public static final class Serializer implements RecipeSerializer<DeconRecipe> {
 
-        private static final MapCodec<DeconRecipe> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
-                Ingredient.CODEC_NONEMPTY.fieldOf("ingredient").forGetter(DeconRecipe::ingredient),
-                ItemStack.STRICT_CODEC.fieldOf("result").forGetter(DeconRecipe::result),
-                Codec.floatRange(0.0F, 64.0F).optionalFieldOf("spores", 0.0F).forGetter(DeconRecipe::spores)
-        ).apply(i, DeconRecipe::new));
-
-        private static final StreamCodec<RegistryFriendlyByteBuf, DeconRecipe> STREAM_CODEC = StreamCodec.composite(
-                Ingredient.CONTENTS_STREAM_CODEC, DeconRecipe::ingredient,
-                ItemStack.STREAM_CODEC, DeconRecipe::result,
-                ByteBufCodecs.FLOAT, DeconRecipe::spores,
-                DeconRecipe::new);
-
+        /** 1.21 の Codec と同じ決まり: 材料は空でない・結果は空でない・胞子は 0〜64(省けば 0)。 */
         @Override
-        public MapCodec<DeconRecipe> codec() {
-            return CODEC;
+        public DeconRecipe fromJson(ResourceLocation id, JsonObject json) {
+            Ingredient ingredient = Ingredient.fromJson(GsonHelper.getNonNull(json, "ingredient"), false);
+            if (ingredient.isEmpty()) {
+                throw new JsonParseException("decontamination " + id + ": ingredient is empty");
+            }
+            ItemStack result = ShapedRecipe.itemStackFromJson(GsonHelper.getAsJsonObject(json, "result"));
+            if (result.isEmpty()) {
+                throw new JsonParseException("decontamination " + id + ": result is empty");
+            }
+            float spores = GsonHelper.getAsFloat(json, "spores", 0.0F);
+            if (!(spores >= 0.0F && spores <= 64.0F)) {
+                throw new JsonParseException("decontamination " + id + ": spores out of range 0..64: " + spores);
+            }
+            return new DeconRecipe(id, ingredient, result, spores);
         }
 
         @Override
-        public StreamCodec<RegistryFriendlyByteBuf, DeconRecipe> streamCodec() {
-            return STREAM_CODEC;
+        public DeconRecipe fromNetwork(ResourceLocation id, FriendlyByteBuf buf) {
+            Ingredient ingredient = Ingredient.fromNetwork(buf);
+            ItemStack result = buf.readItem();
+            float spores = buf.readFloat();
+            return new DeconRecipe(id, ingredient, result, spores);
+        }
+
+        @Override
+        public void toNetwork(FriendlyByteBuf buf, DeconRecipe recipe) {
+            recipe.ingredient().toNetwork(buf);
+            buf.writeItem(recipe.result());
+            buf.writeFloat(recipe.spores());
         }
     }
 }

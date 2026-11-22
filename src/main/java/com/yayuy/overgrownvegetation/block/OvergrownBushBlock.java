@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
@@ -30,7 +29,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class OvergrownBushBlock extends Block {
 
-    public static final MapCodec<OvergrownBushBlock> CODEC = simpleCodec(OvergrownBushBlock::new);
 
     /** 縦方向の減速率(バニラのスイートベリーの茂みと同じ 0.75 固定)。 */
     private static final double VERTICAL_MULTIPLIER = 0.75D;
@@ -40,18 +38,13 @@ public class OvergrownBushBlock extends Block {
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected VoxelShape getBlockSupportShape(BlockState state, BlockGetter level, BlockPos pos) {
+    public VoxelShape getBlockSupportShape(BlockState state, BlockGetter level, BlockPos pos) {
         // noCollission() で空になる支持面を復活させ、茂みの上に下草が置けるようにする。
         return Shapes.block();
     }
 
     @Override
-    protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
+    public void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
         if (!(entity instanceof LivingEntity living)) {
             return;
         }

@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -19,19 +18,13 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public class GeoCorruptedCorpseBlock extends CorruptedCorpseBlock {
 
-    public static final MapCodec<GeoCorruptedCorpseBlock> CODEC = simpleCodec(GeoCorruptedCorpseBlock::new);
 
     public GeoCorruptedCorpseBlock(BlockBehaviour.Properties properties) {
         super(properties);
     }
 
     @Override
-    protected MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected RenderShape getRenderShape(BlockState state) {
+    public RenderShape getRenderShape(BlockState state) {
         // 実際の描画は GeoBlockRenderer が行うので、通常のブロックモデル描画はしない。
         return RenderShape.INVISIBLE;
     }

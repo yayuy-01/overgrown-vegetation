@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -24,7 +23,6 @@ import org.jetbrains.annotations.Nullable;
  */
 public class CaveMyceliumBlock extends MultifaceBlock {
 
-    public static final MapCodec<CaveMyceliumBlock> CODEC = simpleCodec(CaveMyceliumBlock::new);
 
     /** 下地(絵の組)。 */
     public enum Ground implements StringRepresentable {
@@ -54,11 +52,6 @@ public class CaveMyceliumBlock extends MultifaceBlock {
     }
 
     @Override
-    protected MapCodec<? extends CaveMyceliumBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         super.createBlockStateDefinition(builder);
         builder.add(GROUND);
@@ -80,7 +73,7 @@ public class CaveMyceliumBlock extends MultifaceBlock {
     }
 
     @Override
-    protected boolean canBeReplaced(BlockState state, BlockPlaceContext context) {
+    public boolean canBeReplaced(BlockState state, BlockPlaceContext context) {
         return !context.getItemInHand().is(this.asItem()) || super.canBeReplaced(state, context);
     }
 

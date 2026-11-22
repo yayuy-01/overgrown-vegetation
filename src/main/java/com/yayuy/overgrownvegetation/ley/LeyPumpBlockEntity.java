@@ -211,16 +211,16 @@ public class LeyPumpBlockEntity extends BlockEntity implements LeyBatteryHolder 
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
         tag.putInt("energy", energy);
-        LeyBatteryHolder.save(tag, registries, battery);
+        LeyBatteryHolder.save(tag, battery);
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void load(CompoundTag tag) {
+        super.load(tag);
         energy = Math.max(0, tag.getInt("energy"));
-        battery = LeyBatteryHolder.load(tag, registries);
+        battery = LeyBatteryHolder.load(tag);
     }
 }

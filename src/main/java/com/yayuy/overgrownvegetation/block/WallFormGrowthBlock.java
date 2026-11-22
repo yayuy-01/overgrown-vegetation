@@ -49,16 +49,8 @@ public class WallFormGrowthBlock extends CorruptedWallGrowthBlock {
         return new WallFormGrowthBlock(Shape.HANGING, properties);
     }
 
-    public static final MapCodec<WallFormGrowthBlock> FLUSH_CODEC = simpleCodec(WallFormGrowthBlock::flush);
-    public static final MapCodec<WallFormGrowthBlock> HANGING_CODEC = simpleCodec(WallFormGrowthBlock::hanging);
-
     @Override
-    protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-        return shape == Shape.FLUSH ? FLUSH_CODEC : HANGING_CODEC;
-    }
-
-    @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         VoxelShape[] s = shape == Shape.FLUSH ? FLUSH_SHAPES : HANGING_SHAPES;
         return switch (state.getValue(FACING)) {
             case SOUTH -> s[1];

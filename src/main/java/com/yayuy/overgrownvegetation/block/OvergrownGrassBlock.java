@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.corruption.CorruptionDropSuppressor;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
@@ -28,19 +27,13 @@ import net.minecraft.world.level.lighting.LightEngine;
  */
 public class OvergrownGrassBlock extends Block {
 
-    public static final MapCodec<OvergrownGrassBlock> CODEC = simpleCodec(OvergrownGrassBlock::new);
 
     public OvergrownGrassBlock(BlockBehaviour.Properties properties) {
         super(properties);
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         if (!canStayGrass(level, pos)) {
             // 上がふさがった(11-02)。広がりの明るさの判定より前に置く(ふさがった所は暗いのでそこで帰ってしまう)
             level.setBlockAndUpdate(pos, ModBlocks.OVERGROWN_DIRT.get().defaultBlockState());

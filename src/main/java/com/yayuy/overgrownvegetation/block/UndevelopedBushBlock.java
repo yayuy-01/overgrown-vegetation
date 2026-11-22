@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
+import net.minecraft.world.InteractionHand;
 import com.yayuy.overgrownvegetation.registry.ModItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -39,7 +39,6 @@ import net.minecraft.world.phys.BlockHitResult;
  */
 public class UndevelopedBushBlock extends BushBlock {
 
-    public static final MapCodec<UndevelopedBushBlock> CODEC = simpleCodec(UndevelopedBushBlock::new);
 
     /** 実が付いているか(バニラの甘いベリー等と同じ {@code berries} プロパティを流用)。 */
     public static final BooleanProperty BERRIES = BlockStateProperties.BERRIES;
@@ -57,17 +56,12 @@ public class UndevelopedBushBlock extends BushBlock {
     }
 
     @Override
-    protected MapCodec<? extends BushBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(BERRIES);
     }
 
     @Override
-    protected net.minecraft.world.phys.shapes.VoxelShape getShape(BlockState state,
+    public net.minecraft.world.phys.shapes.VoxelShape getShape(BlockState state,
             net.minecraft.world.level.BlockGetter level, BlockPos pos,
             net.minecraft.world.phys.shapes.CollisionContext context) {
         return SHAPE;
@@ -80,19 +74,18 @@ public class UndevelopedBushBlock extends BushBlock {
 
     /** 実が無いあいだだけランダムティックを待つ(付いていれば何もしない)。 */
     @Override
-    protected boolean isRandomlyTicking(BlockState state) {
+    public boolean isRandomlyTicking(BlockState state) {
         return !state.getValue(BERRIES);
     }
 
     @Override
-    protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         if (!state.getValue(BERRIES) && random.nextFloat() < BERRY_GROWTH_CHANCE) {
             level.setBlock(pos, state.setValue(BERRIES, Boolean.TRUE), Block.UPDATE_CLIENTS);
         }
     }
 
     /** 実が付いていれば 1 個収穫して実の無い状態に戻す(光るツタの収穫と同じ流れ)。 */
-    @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
             BlockHitResult hitResult) {
         if (!state.getValue(BERRIES)) {
@@ -109,7 +102,13 @@ public class UndevelopedBushBlock extends BushBlock {
 
     /** ピック(中クリック)では実ではなく茂みそのものを取る。 */
     @Override
-    public ItemStack getCloneItemStack(LevelReader level, BlockPos pos, BlockState state) {
+    public ItemStack getCloneItemStack(net.minecraft.world.level.BlockGetter level, BlockPos pos, BlockState state) {
         return new ItemStack(this);
+    }
+
+    /** 1.20.1: 1.21 の useItemOn → useWithoutItem(主の手だけ)の順を use 1 つで呼ぶ。useItemOn の null = 1.21 の PASS_TO_DEFAULT_BLOCK_INTERACTION。 */
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        return hand == InteractionHand.MAIN_HAND ? useWithoutItem(state, level, pos, player, hitResult) : InteractionResult.PASS;
     }
 }

@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
@@ -23,7 +22,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class StigmariaBlock extends Block {
 
-    public static final MapCodec<StigmariaBlock> CODEC = simpleCodec(StigmariaBlock::new);
     public static final IntegerProperty DIRECTION = IntegerProperty.create("direction", 0, 7);
     public static final IntegerProperty STAGE = IntegerProperty.create("stage", 0, 2);
     /**
@@ -67,11 +65,6 @@ public class StigmariaBlock extends Block {
     }
 
     @Override
-    protected MapCodec<? extends StigmariaBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(DIRECTION, STAGE, DROP);
     }
@@ -107,17 +100,17 @@ public class StigmariaBlock extends Block {
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPES[state.getValue(DIRECTION)][state.getValue(STAGE)][state.getValue(DROP) ? 1 : 0];
     }
 
     @Override
-    protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+    public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
         return true;
     }
 
     @Override
-    protected BlockState rotate(BlockState state, Rotation rotation) {
+    public BlockState rotate(BlockState state, Rotation rotation) {
         int quarter = switch (rotation) {
             case CLOCKWISE_90 -> 1;
             case CLOCKWISE_180 -> 2;
@@ -128,7 +121,7 @@ public class StigmariaBlock extends Block {
     }
 
     @Override
-    protected BlockState mirror(BlockState state, Mirror mirror) {
+    public BlockState mirror(BlockState state, Mirror mirror) {
         int d = state.getValue(DIRECTION);
         return switch (mirror) {
             case LEFT_RIGHT -> state.setValue(DIRECTION, (12 - d) % 8); // 南北を入れ替える

@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.survival.expedition;
 
-import com.mojang.serialization.MapCodec;
+import net.minecraft.world.InteractionHand;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.data.ExpeditionSpec;
 import com.yayuy.overgrownvegetation.spore.PlantSideRules;
@@ -44,18 +44,12 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class SleepingBagBlock extends HorizontalDirectionalBlock {
 
-    public static final MapCodec<SleepingBagBlock> CODEC = simpleCodec(SleepingBagBlock::new);
     public static final BooleanProperty OCCUPIED = BlockStateProperties.OCCUPIED;
     private static final VoxelShape SHAPE = box(0.0D, 0.0D, 0.0D, 16.0D, 3.0D, 16.0D);
 
     public SleepingBagBlock(Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any().setValue(FACING, net.minecraft.core.Direction.NORTH).setValue(OCCUPIED, false));
-    }
-
-    @Override
-    protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-        return CODEC;
     }
 
     @Override
@@ -69,17 +63,17 @@ public class SleepingBagBlock extends HorizontalDirectionalBlock {
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         return level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), net.minecraft.core.Direction.UP);
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, net.minecraft.core.Direction dir, BlockState neighbor,
+    public BlockState updateShape(BlockState state, net.minecraft.core.Direction dir, BlockState neighbor,
                                      net.minecraft.world.level.LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         return dir == net.minecraft.core.Direction.DOWN && !canSurvive(state, level, pos)
                 ? net.minecraft.world.level.block.Blocks.AIR.defaultBlockState()
@@ -87,11 +81,10 @@ public class SleepingBagBlock extends HorizontalDirectionalBlock {
     }
 
     @Override
-    public boolean isBed(BlockState state, BlockGetter level, BlockPos pos, LivingEntity sleeper) {
+    public boolean isBed(BlockState state, BlockGetter level, BlockPos pos, @org.jetbrains.annotations.Nullable net.minecraft.world.entity.Entity sleeper) {
         return true;
     }
 
-    @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         if (level.isClientSide()) return InteractionResult.CONSUME;
         return tryLieDown(player, pos) ? InteractionResult.SUCCESS : InteractionResult.CONSUME;
@@ -135,5 +128,11 @@ public class SleepingBagBlock extends HorizontalDirectionalBlock {
         AABB box = new AABB(c.x - radius, c.y - 5.0D, c.z - radius, c.x + radius, c.y + 5.0D, c.z + radius);
         return !player.level().getEntitiesOfClass(LivingEntity.class, box, e -> e.isAlive()
                 && ((e instanceof Monster m && m.isPreventingPlayerRest(player)) || PlantSideRules.isInfector(e))).isEmpty();
+    }
+
+    /** 1.20.1: 1.21 の useItemOn → useWithoutItem(主の手だけ)の順を use 1 つで呼ぶ。useItemOn の null = 1.21 の PASS_TO_DEFAULT_BLOCK_INTERACTION。 */
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        return hand == InteractionHand.MAIN_HAND ? useWithoutItem(state, level, pos, player, hitResult) : InteractionResult.PASS;
     }
 }

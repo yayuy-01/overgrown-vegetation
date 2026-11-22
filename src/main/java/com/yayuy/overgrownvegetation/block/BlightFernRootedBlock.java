@@ -52,23 +52,23 @@ public class BlightFernRootedBlock extends Block implements net.minecraft.world.
     }
 
     @Override
-    protected net.minecraft.world.level.material.FluidState getFluidState(BlockState state) {
+    public net.minecraft.world.level.material.FluidState getFluidState(BlockState state) {
         return state.getValue(WATERLOGGED) ? net.minecraft.world.level.material.Fluids.WATER.getSource(false) : super.getFluidState(state);
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         BlockPos below = pos.below();
         return level.getBlockState(below).isFaceSturdy(level, below, Direction.UP);
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction facing, BlockState facingState, LevelAccessor level,
+    public BlockState updateShape(BlockState state, Direction facing, BlockState facingState, LevelAccessor level,
                                      BlockPos pos, BlockPos facingPos) {
         if (state.getValue(WATERLOGGED)) {
             level.scheduleTick(pos, net.minecraft.world.level.material.Fluids.WATER, net.minecraft.world.level.material.Fluids.WATER.getTickDelay(level));
@@ -85,12 +85,12 @@ public class BlightFernRootedBlock extends Block implements net.minecraft.world.
     }
 
     @Override
-    protected void tick(BlockState state, ServerLevel level, BlockPos pos, net.minecraft.util.RandomSource random) {
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, net.minecraft.util.RandomSource random) {
         SporeSprouts.resettleRooted(level, pos);
     }
 
     @Override
-    protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
         super.onPlace(state, level, pos, oldState, movedByPiston);
         if (level instanceof ServerLevel server && !oldState.is(this)) {
             SporeSprouts.addRootedPoint(server, pos);
@@ -102,11 +102,11 @@ public class BlightFernRootedBlock extends Block implements net.minecraft.world.
      * 根付いた萌芽体のまわりは自分の根で汚染されるので、書き換えで消えるたびに減ると数がすぐ 0 になる。テストクライアントで確認)。
      */
     @Override
-    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, net.minecraft.world.entity.player.Player player) {
+    public void playerWillDestroy(Level level, BlockPos pos, BlockState state, net.minecraft.world.entity.player.Player player) {
         if (!level.isClientSide) {
             SporeFieldServer.onSproutRemoved(pos);
         }
-        return super.playerWillDestroy(level, pos, state, player);
+        super.playerWillDestroy(level, pos, state, player);
     }
 
     // 胞子の噴き出しは胞子嚢がしぼむ瞬間に描画側から(BlightFernRootedPuffs。10-30 に parked/ へ退避、10-31 に戻した)
@@ -117,7 +117,7 @@ public class BlightFernRootedBlock extends Block implements net.minecraft.world.
     }
 
     @Override
-    protected net.minecraft.world.level.block.RenderShape getRenderShape(BlockState state) {
+    public net.minecraft.world.level.block.RenderShape getRenderShape(BlockState state) {
         return net.minecraft.world.level.block.RenderShape.ENTITYBLOCK_ANIMATED;
     }
 }

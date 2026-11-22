@@ -61,17 +61,17 @@ public class WallRemainsBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        ContainerHelper.saveAllItems(tag, items, registries);
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
+        ContainerHelper.saveAllItems(tag, items);
         tag.putString("Owner", ownerName);
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void load(CompoundTag tag) {
+        super.load(tag);
         items.clear();
-        ContainerHelper.loadAllItems(tag, items, registries);
+        ContainerHelper.loadAllItems(tag, items);
         ownerName = tag.getString("Owner");
     }
 }

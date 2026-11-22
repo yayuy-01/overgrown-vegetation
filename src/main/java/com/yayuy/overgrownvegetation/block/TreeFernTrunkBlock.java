@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
@@ -17,17 +16,11 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
  */
 public class TreeFernTrunkBlock extends RotatedPillarBlock {
 
-    public static final MapCodec<TreeFernTrunkBlock> CODEC = simpleCodec(TreeFernTrunkBlock::new);
     public static final BooleanProperty BASE = BooleanProperty.create("base");
 
     public TreeFernTrunkBlock(Properties properties) {
         super(properties);
         this.registerDefaultState(this.defaultBlockState().setValue(BASE, false));
-    }
-
-    @Override
-    public MapCodec<? extends RotatedPillarBlock> codec() {
-        return CODEC;
     }
 
     @Override

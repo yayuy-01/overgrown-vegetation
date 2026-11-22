@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.BushBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -14,17 +13,11 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
  */
 public class FoxfireBlock extends CorruptedGroundGrowthBlock {
 
-    public static final MapCodec<FoxfireBlock> CODEC = simpleCodec(FoxfireBlock::new);
     public static final BooleanProperty WOOD = BooleanProperty.create("wood");
 
     public FoxfireBlock(BlockBehaviour.Properties properties) {
         super(properties);
         this.registerDefaultState(this.stateDefinition.any().setValue(WOOD, false));
-    }
-
-    @Override
-    protected MapCodec<? extends BushBlock> codec() {
-        return CODEC;
     }
 
     @Override

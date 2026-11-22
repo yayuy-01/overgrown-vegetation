@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.gear.attach;
 
+import org.jetbrains.annotations.Nullable;
 import com.yayuy.overgrownvegetation.gear.FilterMask;
 import com.yayuy.overgrownvegetation.item.ProtectiveMaskItem;
 import com.yayuy.overgrownvegetation.survival.vent.AirFilters;
@@ -55,12 +56,12 @@ public class MouthClothItem extends ArmorAttachmentItem implements FilterMask {
             return false;
         }
         ProtectiveMaskItem.swapFilter(cloth, other, player, access);
-        player.playSound(net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.8F, 1.2F);
+        player.playSound(net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_LEATHER, 0.8F, 1.2F);
         return true;
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.Level context, List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, context, tooltip, flag);
         filterLine(stack, tooltip);
     }

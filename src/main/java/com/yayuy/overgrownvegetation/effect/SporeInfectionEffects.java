@@ -44,7 +44,7 @@ public final class SporeInfectionEffects {
 
     /** 今の amplifier。未感染なら -1。 */
     public static int levelOf(LivingEntity entity) {
-        MobEffectInstance current = entity.getEffect(ModMobEffects.SPORE_INFECTION);
+        MobEffectInstance current = entity.getEffect(ModMobEffects.SPORE_INFECTION.get());
         return current == null ? -1 : current.getAmplifier();
     }
 
@@ -127,15 +127,15 @@ public final class SporeInfectionEffects {
         EffectTable.PlayerInfectionSpec spec = DesignData.effects().playerInfection();
         OvAttach.setData(player, ModAttachments.SPORE_STAGE_TICKS, 0);
         if (stage <= 0) {
-            player.removeEffect(ModMobEffects.SPORE_INFECTION);
+            player.removeEffect(ModMobEffects.SPORE_INFECTION.get());
             syncModifiers(player);
             return;
         }
         int clamped = Math.min(stage, spec.maxStage());
-        MobEffectInstance current = player.getEffect(ModMobEffects.SPORE_INFECTION);
+        MobEffectInstance current = player.getEffect(ModMobEffects.SPORE_INFECTION.get());
         if (current == null || current.getAmplifier() != clamped - 1) {
-            player.removeEffect(ModMobEffects.SPORE_INFECTION);
-            player.addEffect(new MobEffectInstance(ModMobEffects.SPORE_INFECTION, MobEffectInstance.INFINITE_DURATION,
+            player.removeEffect(ModMobEffects.SPORE_INFECTION.get());
+            player.addEffect(new MobEffectInstance(ModMobEffects.SPORE_INFECTION.get(), MobEffectInstance.INFINITE_DURATION,
                     clamped - 1, false, true, true));
         }
         syncModifiers(player);
@@ -212,23 +212,24 @@ public final class SporeInfectionEffects {
         apply(entity, Attributes.MAX_HEALTH, MAX_HEALTH_ID, -maxHealth, AttributeModifier.Operation.ADDITION);
     }
 
-    private static void apply(LivingEntity entity, Holder<Attribute> attribute, ResourceLocation id, double amount,
+    private static void apply(LivingEntity entity, Attribute attribute, ResourceLocation id, double amount,
                               AttributeModifier.Operation operation) {
         AttributeInstance instance = entity.getAttribute(attribute);
         if (instance == null) {
             return;
         }
-        AttributeModifier existing = instance.getModifier(id);
+        AttributeModifier existing = OvModifiers.get(instance, id);
         if (Math.abs(amount) < 1.0E-6D) {
             if (existing != null) {
-                instance.removeModifier(id);
+                OvModifiers.remove(instance, id);
             }
             return;
         }
-        if (existing != null && Math.abs(existing.amount() - amount) < 1.0E-6D) {
+        if (existing != null && Math.abs(existing.getAmount() - amount) < 1.0E-6D) {
             return;
         }
-        instance.addOrUpdateTransientModifier(OvModifiers.create(id, amount, operation));
+        OvModifiers.remove(instance, id);
+        instance.addTransientModifier(OvModifiers.create(id, amount, operation));
         if (attribute == Attributes.MAX_HEALTH && entity.getHealth() > entity.getMaxHealth()) {
             entity.setHealth(entity.getMaxHealth());
         }

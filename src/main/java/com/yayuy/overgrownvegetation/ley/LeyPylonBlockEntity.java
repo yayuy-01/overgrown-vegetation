@@ -104,24 +104,24 @@ public class LeyPylonBlockEntity extends BlockEntity implements LeyBatteryHolder
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
         long[] arr = new long[links.size()];
         for (int i = 0; i < arr.length; i++) {
             arr[i] = links.get(i).asLong();
         }
         tag.put("links", new LongArrayTag(arr));
-        LeyBatteryHolder.save(tag, registries, battery);
+        LeyBatteryHolder.save(tag, battery);
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void load(CompoundTag tag) {
+        super.load(tag);
         links.clear();
         for (long l : tag.getLongArray("links")) {
             links.add(BlockPos.of(l));
         }
-        battery = LeyBatteryHolder.load(tag, registries);
+        battery = LeyBatteryHolder.load(tag);
     }
 
     @Override
@@ -134,9 +134,9 @@ public class LeyPylonBlockEntity extends BlockEntity implements LeyBatteryHolder
     }
 
     @Override
-    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+    public CompoundTag getUpdateTag() {
         CompoundTag tag = new CompoundTag();
-        saveAdditional(tag, registries);
+        saveAdditional(tag);
         return tag;
     }
 

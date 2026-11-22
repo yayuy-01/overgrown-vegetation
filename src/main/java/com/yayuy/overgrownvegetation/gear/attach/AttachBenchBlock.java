@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.gear.attach;
 
-import com.mojang.serialization.MapCodec;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
@@ -22,17 +22,11 @@ import net.minecraft.world.item.context.BlockPlaceContext;
  */
 public class AttachBenchBlock extends HorizontalDirectionalBlock {
 
-    public static final MapCodec<AttachBenchBlock> CODEC = simpleCodec(AttachBenchBlock::new);
     private static final Component TITLE = Component.translatable("container.overgrown_vegetation.attachment_bench");
 
     public AttachBenchBlock(Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any().setValue(FACING, net.minecraft.core.Direction.NORTH));
-    }
-
-    @Override
-    protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-        return CODEC;
     }
 
     @Override
@@ -45,7 +39,6 @@ public class AttachBenchBlock extends HorizontalDirectionalBlock {
         return defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
     }
 
-    @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         if (level.isClientSide) return InteractionResult.SUCCESS;
         player.openMenu(state.getMenuProvider(level, pos));
@@ -53,7 +46,13 @@ public class AttachBenchBlock extends HorizontalDirectionalBlock {
     }
 
     @Override
-    protected MenuProvider getMenuProvider(BlockState state, Level level, BlockPos pos) {
+    public MenuProvider getMenuProvider(BlockState state, Level level, BlockPos pos) {
         return new SimpleMenuProvider((id, inv, p) -> new AttachBenchMenu(id, inv, ContainerLevelAccess.create(level, pos)), TITLE);
+    }
+
+    /** 1.20.1: 1.21 の useItemOn → useWithoutItem(主の手だけ)の順を use 1 つで呼ぶ。useItemOn の null = 1.21 の PASS_TO_DEFAULT_BLOCK_INTERACTION。 */
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        return hand == InteractionHand.MAIN_HAND ? useWithoutItem(state, level, pos, player, hitResult) : InteractionResult.PASS;
     }
 }

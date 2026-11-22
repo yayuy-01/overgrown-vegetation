@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.item;
 
+import org.jetbrains.annotations.Nullable;
 import com.yayuy.overgrownvegetation.infect.InfectionProbe;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -42,7 +43,7 @@ public class InfectionProbeItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.Level context, List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.translatable("item.overgrown_vegetation.infection_probe.tooltip.hit").withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.translatable("item.overgrown_vegetation.infection_probe.tooltip.sneak").withStyle(ChatFormatting.GRAY));
     }

@@ -10,8 +10,7 @@ import com.yayuy.overgrownvegetation.registry.ModVent;
 import com.yayuy.overgrownvegetation.survival.vent.AirFilters;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.item.crafting.SingleRecipeInput;
+import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
@@ -47,9 +46,10 @@ public final class Decon {
         return DesignData.sporeField().decon();
     }
 
-    public static Optional<RecipeHolder<DeconRecipe>> recipe(Level level, ItemStack stack) {
+    /** 1.20.1: レシピは RecipeHolder に包まれない(1.21 は {@code Optional<RecipeHolder<DeconRecipe>>})。 */
+    public static Optional<DeconRecipe> recipe(Level level, ItemStack stack) {
         if (stack.isEmpty()) return Optional.empty();
-        return level.getRecipeManager().getRecipeFor(ModDecon.RECIPE_TYPE.get(), new SingleRecipeInput(stack), level);
+        return level.getRecipeManager().getRecipeFor(ModDecon.RECIPE_TYPE.get(), new SimpleContainer(stack), level);
     }
 
     /** フィルターを持つ物(フィルターそのもの・防護マスク)。 */
@@ -81,10 +81,10 @@ public final class Decon {
      */
     public static List<ItemStack> washOne(Level level, ItemStack one, RandomSource random, int dirtStep) {
         List<ItemStack> out = new ArrayList<>(2);
-        Optional<RecipeHolder<DeconRecipe>> r = recipe(level, one);
+        Optional<DeconRecipe> r = recipe(level, one);
         if (r.isPresent()) {
-            DeconRecipe recipe = r.get().value();
-            out.add(recipe.assemble(new SingleRecipeInput(one), level.registryAccess()));
+            DeconRecipe recipe = r.get();
+            out.add(recipe.assemble(new SimpleContainer(one), level.registryAccess()));
             int spores = sporeCount(recipe.spores(), random);
             if (spores > 0) out.add(new ItemStack(ModItems.SPORE.get(), spores));
             return out;

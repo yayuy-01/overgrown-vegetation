@@ -59,7 +59,7 @@ public final class ArmorAttachments {
 
     /** {@code item} が名前空間 {@code namespace} の防具として付け物を付けられるか。 */
     public static boolean canHold(Item item, String namespace) {
-        if (!(item instanceof ArmorItem a) || a.getType() == ArmorItem.Type.BODY) return false;
+        if (!(item instanceof ArmorItem)) return false; // 1.20.1: 体の鎧(BODY = 狼の鎧)は無い
         return "minecraft".equals(namespace) || OvergrownVegetation.MODID.equals(namespace);
     }
 

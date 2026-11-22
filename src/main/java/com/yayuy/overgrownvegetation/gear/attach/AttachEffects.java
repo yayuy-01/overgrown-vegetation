@@ -5,7 +5,6 @@ import com.yayuy.overgrownvegetation.item.ProtectiveMaskItem;
 import com.yayuy.overgrownvegetation.survival.vent.AirFilters;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.inventory.ClickAction;
@@ -40,12 +39,12 @@ public final class AttachEffects {
     public static void onItemAttributes(ItemAttributeModifierEvent event) {
         ItemStack stack = event.getItemStack();
         if (!(stack.getItem() instanceof ArmorItem armor)) return;
+        if (event.getSlotType() != armor.getEquipmentSlot()) return; // 1.20.1: 知らせは枠ごとに来る(1.21 は 1 回で枠の組を指す)
         double bonus = ArmorAttachments.armorBonus(stack);
         String part = ArmorAttachments.partOf(stack);
         if (bonus == 0.0D || part == null) return;
         event.addModifier(Attributes.ARMOR,
-                OvModifiers.create(OvergrownVegetation.id("armor_attachment." + part), bonus, AttributeModifier.Operation.ADDITION),
-                EquipmentSlotGroup.bySlot(armor.getEquipmentSlot()));
+                OvModifiers.create(OvergrownVegetation.id("armor_attachment." + part), bonus, AttributeModifier.Operation.ADDITION));
     }
 
     @SubscribeEvent
@@ -56,7 +55,7 @@ public final class AttachEffects {
         if (!ArmorAttachments.hasMouthCloth(target) || !AirFilters.isFilter(carried) || AirFilters.clogged(carried)) return;
         if (!event.getSlot().allowModification(event.getPlayer())) return;
         ProtectiveMaskItem.swapFilter(target, carried, event.getPlayer(), event.getCarriedSlotAccess());
-        event.getPlayer().playSound(net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.8F, 1.2F);
+        event.getPlayer().playSound(net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_LEATHER, 0.8F, 1.2F);
         event.setCanceled(true);
     }
 
@@ -92,7 +91,23 @@ public final class AttachEffects {
     public static void onGrindstoneTake(net.minecraftforge.event.GrindstoneEvent.OnTakeItem event) {
         ItemStack top = event.getTopItem(), bottom = event.getBottomItem();
         ItemStack scratch = new ItemStack(!top.isEmpty() ? top.getItem() : bottom.getItem());
-        ArmorAttachments.giveBack(event.getPlayer(), ArmorAttachments.carryOver(scratch, top, bottom));
+        net.minecraft.world.entity.player.Player player = grindstoneUser(top, bottom); // 1.20.1: この知らせはプレイヤーを持たない
+        if (player == null) return;
+        ArmorAttachments.giveBack(player, ArmorAttachments.carryOver(scratch, top, bottom));
+    }
+
+    /** 1.20.1: 砥石を開いていて、入れる所にこの 2 つ(同じ物)を置いているプレイヤー。知らせはサーバーで、入れる所を空にする前に来る。 */
+    @org.jetbrains.annotations.Nullable
+    private static net.minecraft.world.entity.player.Player grindstoneUser(ItemStack top, ItemStack bottom) {
+        var server = net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer();
+        if (server == null) return null;
+        for (net.minecraft.server.level.ServerPlayer p : server.getPlayerList().getPlayers()) {
+            if (p.containerMenu instanceof net.minecraft.world.inventory.GrindstoneMenu menu
+                    && menu.getSlot(0).getItem() == top && menu.getSlot(1).getItem() == bottom) {
+                return p;
+            }
+        }
+        return null;
     }
 
     /**

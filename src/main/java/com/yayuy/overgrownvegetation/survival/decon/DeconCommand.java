@@ -36,7 +36,7 @@ public final class DeconCommand {
                                 .then(Commands.literal("dirt")
                                         .executes(DeconCommand::show)
                                         .then(Commands.literal("clearrooms").executes(ctx -> {
-                                            if (!(ctx.getSource().getLevel() instanceof ServerLevel level)) return 0;
+                                            if (!((Object) ctx.getSource().getLevel() instanceof ServerLevel level)) return 0;
                                             com.yayuy.overgrownvegetation.survival.room.RoomDirt.get(level).clearAll();
                                             ctx.getSource().sendSuccess(() -> Component.literal("この次元の部屋の汚れを消した"), false);
                                             return 1;

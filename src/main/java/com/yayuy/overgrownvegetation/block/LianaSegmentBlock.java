@@ -1,13 +1,12 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
+import org.jetbrains.annotations.Nullable;
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
@@ -41,7 +40,6 @@ import java.util.List;
  */
 public class LianaSegmentBlock extends Block {
 
-    public static final MapCodec<LianaSegmentBlock> CODEC = simpleCodec(LianaSegmentBlock::new);
 
     /** 各軸の区間: 0 = [0, 1/3]・1 = [1/3, 2/3]・2 = [2/3, 1]・3 = [0, 2/3]・4 = [1/3, 1]・5 = [0, 1]。 */
     public static final IntegerProperty X = IntegerProperty.create("x", 0, 5);
@@ -74,33 +72,28 @@ public class LianaSegmentBlock extends Block {
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(X, Y, Z);
     }
 
     @Override
-    protected RenderShape getRenderShape(BlockState state) {
+    public RenderShape getRenderShape(BlockState state) {
         return RenderShape.INVISIBLE;
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return shape(state.getValue(X), state.getValue(Y), state.getValue(Z));
     }
 
     /** 光を遮らない(狙いの箱がマス全体になる状態でも、見えないブロックが林床を暗くしないように)。 */
     @Override
-    protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+    public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
         return true;
     }
 
     @Override
-    protected int getLightBlock(BlockState state, BlockGetter level, BlockPos pos) {
+    public int getLightBlock(BlockState state, BlockGetter level, BlockPos pos) {
         return 0;
     }
 
@@ -111,29 +104,28 @@ public class LianaSegmentBlock extends Block {
     // ---- 壊す・切る(主アンカーと同じ入り口)----
 
     @Override
-    protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
+    public float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
         return CorruptedLianaBlock.destroyProgress(state, player);
     }
 
     @Override
-    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+    public void playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
         CorruptedLianaBlock.removeRestOfVine(level, pos);
-        return super.playerWillDestroy(level, pos, state, player);
+        super.playerWillDestroy(level, pos, state, player);
     }
 
     @Override
-    protected void attack(BlockState state, Level level, BlockPos pos, Player player) {
+    public void attack(BlockState state, Level level, BlockPos pos, Player player) {
         CorruptedLianaBlock.attackCut(state, level, pos, player);
     }
 
-    @Override
-    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+    @Nullable
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
             Player player, InteractionHand hand, BlockHitResult hitResult) {
-        ItemInteractionResult r = CorruptedLianaBlock.shearCut(stack, state, level, pos, player, hand);
-        return r != null ? r : super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+        InteractionResult r = CorruptedLianaBlock.shearCut(stack, state, level, pos, player, hand);
+        return r != null ? r : null;
     }
 
-    @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
             BlockHitResult hitResult) {
         return CorruptedLianaBlock.harvest(level, pos, hitResult);
@@ -273,5 +265,15 @@ public class LianaSegmentBlock extends Block {
 
     private static double sq(double v) {
         return v * v;
+    }
+
+    /** 1.20.1: 1.21 の useItemOn → useWithoutItem(主の手だけ)の順を use 1 つで呼ぶ。useItemOn の null = 1.21 の PASS_TO_DEFAULT_BLOCK_INTERACTION。 */
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        InteractionResult r = useItemOn(player.getItemInHand(hand), state, level, pos, player, hand, hitResult);
+        if (r != null) {
+            return r;
+        }
+        return hand == InteractionHand.MAIN_HAND ? useWithoutItem(state, level, pos, player, hitResult) : InteractionResult.PASS;
     }
 }

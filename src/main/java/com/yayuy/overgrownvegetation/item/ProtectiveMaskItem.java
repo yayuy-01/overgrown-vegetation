@@ -20,7 +20,6 @@ import net.minecraft.world.inventory.Slot;
 import com.yayuy.overgrownvegetation.survival.vent.AirFilters;
 import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.animatable.GeoItem;
-import software.bernie.geckolib.animatable.client.GeoRenderProvider;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.util.GeckoLibUtil;
@@ -57,7 +56,7 @@ public class ProtectiveMaskItem extends ArmorItem implements GeoItem, com.yayuy.
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
     public ProtectiveMaskItem(Properties properties) {
-        super(ModArmorMaterials.PROTECTIVE_MASK, Type.HELMET, properties);
+        super(ModArmorMaterials.PROTECTIVE_MASK.get(), Type.HELMET, properties);
     }
 
     /** {@code entity} が防護マスク(か、フィルターを使う段の頭。2026-11-17)を被っているか(フィルターの残りを問わない)。 */
@@ -112,7 +111,7 @@ public class ProtectiveMaskItem extends ArmorItem implements GeoItem, com.yayuy.
             return false;
         }
         swapFilter(mask, other, player, access);
-        player.playSound(net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.8F, 1.2F);
+        player.playSound(net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_LEATHER, 0.8F, 1.2F);
         return true;
     }
 
@@ -131,7 +130,7 @@ public class ProtectiveMaskItem extends ArmorItem implements GeoItem, com.yayuy.
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.Level context, List<Component> tooltip, TooltipFlag flag) {
         if (AirFilters.clogged(stack)) {
             tooltip.add(Component.translatable("item.overgrown_vegetation.protective_mask.spent").withStyle(ChatFormatting.RED));
         } else {
@@ -141,15 +140,16 @@ public class ProtectiveMaskItem extends ArmorItem implements GeoItem, com.yayuy.
         tooltip.add(Component.translatable("item.overgrown_vegetation.protective_mask.swap_hint").withStyle(ChatFormatting.DARK_GRAY));
     }
 
+    // 1.20.1: GeckoLib 4.8.4 は GeoRenderProvider を持たない。Forge の IClientItemExtensions で描き手を渡す
     @Override
-    public void createGeoRenderer(Consumer<GeoRenderProvider> consumer) {
-        consumer.accept(new GeoRenderProvider() {
-            private HumanoidModel<?> renderer;
+    public void initializeClient(Consumer<net.minecraftforge.client.extensions.common.IClientItemExtensions> consumer) {
+        consumer.accept(new net.minecraftforge.client.extensions.common.IClientItemExtensions() {
+            private com.yayuy.overgrownvegetation.client.ProtectiveMaskArmorRenderer renderer;
             private BlockEntityWithoutLevelRenderer itemRenderer;
 
             /** インベントリ/手持ちのアイコンも、着用時と同じ立体モデルで描く。 */
             @Override
-            public BlockEntityWithoutLevelRenderer getGeoItemRenderer() {
+            public BlockEntityWithoutLevelRenderer getCustomRenderer() {
                 if (this.itemRenderer == null) {
                     this.itemRenderer = new com.yayuy.overgrownvegetation.client.ProtectiveMaskItemRenderer();
                 }
@@ -157,11 +157,13 @@ public class ProtectiveMaskItem extends ArmorItem implements GeoItem, com.yayuy.
             }
 
             @Override
-            public <T extends LivingEntity> HumanoidModel<?> getGeoArmorRenderer(@Nullable T livingEntity, ItemStack itemStack,
-                    @Nullable EquipmentSlot equipmentSlot, @Nullable HumanoidModel<T> original) {
+            public HumanoidModel<?> getHumanoidArmorModel(LivingEntity livingEntity, ItemStack itemStack, EquipmentSlot equipmentSlot,
+                    HumanoidModel<?> original) {
                 if (this.renderer == null) {
                     this.renderer = new com.yayuy.overgrownvegetation.client.ProtectiveMaskArmorRenderer();
                 }
+                // 1.20.1: 4.8.4 は描く前の用意を自分で呼ぶ(1.21 の GeckoLib は内で呼ぶ)
+                this.renderer.prepForRender(livingEntity, itemStack, equipmentSlot, original);
                 return this.renderer;
             }
         });

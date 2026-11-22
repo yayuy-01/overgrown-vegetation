@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.player.Player;
@@ -30,7 +29,6 @@ import org.jetbrains.annotations.Nullable;
  */
 public class WaterRootsBlock extends Block implements LiquidBlockContainer {
 
-    public static final MapCodec<WaterRootsBlock> CODEC = simpleCodec(WaterRootsBlock::new);
     public static final BooleanProperty TIP = BooleanProperty.create("tip");
 
     private static final VoxelShape SHAPE = Block.box(3.0, 0.0, 3.0, 13.0, 16.0, 13.0);
@@ -41,17 +39,12 @@ public class WaterRootsBlock extends Block implements LiquidBlockContainer {
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(TIP);
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
     }
 
@@ -67,7 +60,7 @@ public class WaterRootsBlock extends Block implements LiquidBlockContainer {
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         return isSupported(level, pos, this);
     }
 
@@ -88,7 +81,7 @@ public class WaterRootsBlock extends Block implements LiquidBlockContainer {
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                      LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         if (!state.canSurvive(level, pos)) {
             return Blocks.WATER.defaultBlockState();
@@ -100,12 +93,12 @@ public class WaterRootsBlock extends Block implements LiquidBlockContainer {
     }
 
     @Override
-    protected FluidState getFluidState(BlockState state) {
+    public FluidState getFluidState(BlockState state) {
         return Fluids.WATER.getSource(false);
     }
 
     @Override
-    public boolean canPlaceLiquid(@Nullable Player player, BlockGetter level, BlockPos pos, BlockState state, Fluid fluid) {
+    public boolean canPlaceLiquid(BlockGetter level, BlockPos pos, BlockState state, Fluid fluid) {
         return false;
     }
 

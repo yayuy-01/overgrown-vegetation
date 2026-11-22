@@ -9,7 +9,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.event.EventHooks;
+import net.minecraftforge.event.ForgeEventFactory;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -53,7 +53,7 @@ public class CorruptedEggBlock extends Block {
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return state.getValue(EGGS) > 1 ? MULTIPLE_EGGS : ONE_EGG;
     }
 
@@ -76,7 +76,7 @@ public class CorruptedEggBlock extends Block {
     public static boolean tramples(Level level, Entity entity) {
         if (!(entity instanceof LivingEntity living) || !living.isAlive() || living.isSpectator()) return false;
         if (SporeExposureTracker.isPlantSide(living)) return false;
-        return living instanceof Player || EventHooks.canEntityGrief(level, living);
+        return living instanceof Player || ForgeEventFactory.getMobGriefingEvent(level, living);
     }
 
     /** その升に卵を置ける・足せるか(空いた升で下が固い、または卵が {@value #MAX_EGGS} 個未満)。水の中には置かない。 */

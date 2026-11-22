@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.block.Block;
@@ -20,18 +19,12 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
  */
 public class FallenLogBlock extends Block {
 
-    public static final MapCodec<FallenLogBlock> CODEC = simpleCodec(FallenLogBlock::new);
     public static final EnumProperty<Direction.Axis> AXIS = BlockStateProperties.HORIZONTAL_AXIS;
     public static final BooleanProperty ROOT = BooleanProperty.create("root");
 
     public FallenLogBlock(BlockBehaviour.Properties properties) {
         super(properties);
         this.registerDefaultState(this.stateDefinition.any().setValue(AXIS, Direction.Axis.X).setValue(ROOT, false));
-    }
-
-    @Override
-    protected MapCodec<? extends FallenLogBlock> codec() {
-        return CODEC;
     }
 
     @Override
@@ -46,7 +39,7 @@ public class FallenLogBlock extends Block {
     }
 
     @Override
-    protected BlockState rotate(BlockState state, Rotation rotation) {
+    public BlockState rotate(BlockState state, Rotation rotation) {
         if (rotation == Rotation.CLOCKWISE_90 || rotation == Rotation.COUNTERCLOCKWISE_90) {
             return state.setValue(AXIS, state.getValue(AXIS) == Direction.Axis.X ? Direction.Axis.Z : Direction.Axis.X);
         }

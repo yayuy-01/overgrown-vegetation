@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.registry.ModBlockEntities;
 import com.yayuy.overgrownvegetation.registry.ModItems;
 import net.minecraft.core.BlockPos;
@@ -10,7 +9,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -87,7 +85,6 @@ import java.util.Set;
  */
 public class CorruptedLianaBlock extends BaseEntityBlock {
 
-    public static final MapCodec<CorruptedLianaBlock> CODEC = simpleCodec(CorruptedLianaBlock::new);
 
     /** 見えないマーカーなので当たり判定は小さめだが、クリックしやすいよう少し余裕を持たせてある。 */
     private static final VoxelShape SHAPE = Block.box(4.0, 4.0, 4.0, 12.0, 12.0, 12.0);
@@ -97,12 +94,7 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         // 登る蔓の主アンカーは、そのマスの中を通る蔓の所だけ(2026-11-08。前の 8/16 の箱は幹から 4/16 離れていて、幹沿いの蔓に当たらなかった)
         if (level.getBlockEntity(pos) instanceof CorruptedLianaBlockEntity liana && liana.hasClimb()) {
             VoxelShape s = liana.getShapeCache();
@@ -121,12 +113,12 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
 
     /** 光を遮らない(経路から求めた箱がマス全体になっても、見えない印が林床を暗くしないように。2026-11-08)。 */
     @Override
-    protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+    public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
         return true;
     }
 
     @Override
-    protected int getLightBlock(BlockState state, BlockGetter level, BlockPos pos) {
+    public int getLightBlock(BlockState state, BlockGetter level, BlockPos pos) {
         return 0;
     }
 
@@ -162,7 +154,6 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
      * その垂れ蔦を発光しない状態へ戻す(バニラのグロウベリーと同じ流れ)。発光中の垂れ蔦が
      * 近くに無ければ何もしない({@link InteractionResult#PASS})。
      */
-    @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
             BlockHitResult hitResult) {
         return harvest(level, pos, hitResult);
@@ -192,7 +183,7 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
 
     /** 剣で殴った(左クリックした)瞬間、通常の採掘進捗を待たずに即座に切る。 */
     @Override
-    protected void attack(BlockState state, Level level, BlockPos pos, Player player) {
+    public void attack(BlockState state, Level level, BlockPos pos, Player player) {
         attackCut(state, level, pos, player);
     }
 
@@ -204,20 +195,20 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
     }
 
     /** ハサミを持って右クリックした瞬間、即座に切る。 */
-    @Override
-    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+    @Nullable
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
             Player player, InteractionHand hand, BlockHitResult hitResult) {
-        ItemInteractionResult r = shearCut(stack, state, level, pos, player, hand);
-        return r != null ? r : super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+        InteractionResult r = shearCut(stack, state, level, pos, player, hand);
+        return r != null ? r : null;
     }
 
     /** ハサミなら切って結果を返す。ハサミでなければ null。 */
     @Nullable
-    static ItemInteractionResult shearCut(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
+    static InteractionResult shearCut(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
             InteractionHand hand) {
         if (isShears(stack)) {
-            cut(state, level, pos, player, stack, LivingEntity.getSlotForHand(hand));
-            return ItemInteractionResult.sidedSuccess(level.isClientSide());
+            cut(state, level, pos, player, stack, (hand == net.minecraft.world.InteractionHand.MAIN_HAND ? net.minecraft.world.entity.EquipmentSlot.MAINHAND : net.minecraft.world.entity.EquipmentSlot.OFFHAND));
+            return InteractionResult.sidedSuccess(level.isClientSide());
         }
         return null;
     }
@@ -236,7 +227,7 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
      * ハサミのツールルールは {@code Blocks.VINE} を名指しで、タグで足せない(ModBlocks の蔦の注を参照)ので、ここで秒数から決める。
      */
     @Override
-    protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
+    public float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
         return destroyProgress(state, player);
     }
 
@@ -255,9 +246,9 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
      * 副アンカーなら曲線が残っていた)。叩いた 1 マスはバニラが壊してルート(ハサミ・シルクタッチなら蔦)を落とす。
      */
     @Override
-    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+    public void playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
         removeRestOfVine(level, pos);
-        return super.playerWillDestroy(level, pos, state, player);
+        super.playerWillDestroy(level, pos, state, player);
     }
 
     /** {@code pos}(主アンカー・副アンカー・{@link LianaSegmentBlock})を含む蔦 1 本の、{@code pos} 以外の全部を静かに消す。サーバー側だけ。 */
@@ -388,7 +379,7 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
         level.levelEvent(player, 2001, pos, Block.getId(state));
         Block.dropResources(state, level, pos, blockEntity, player, tool);
         level.removeBlock(pos, false);
-        tool.hurtAndBreak(1, player, slot);
+        tool.hurtAndBreak(1, player, broken -> broken.broadcastBreakEvent(slot));
     }
 
     /**
@@ -467,5 +458,15 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
                 level.removeBlock(childPos, false);
             }
         }
+    }
+
+    /** 1.20.1: 1.21 の useItemOn → useWithoutItem(主の手だけ)の順を use 1 つで呼ぶ。useItemOn の null = 1.21 の PASS_TO_DEFAULT_BLOCK_INTERACTION。 */
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        InteractionResult r = useItemOn(player.getItemInHand(hand), state, level, pos, player, hand, hitResult);
+        if (r != null) {
+            return r;
+        }
+        return hand == InteractionHand.MAIN_HAND ? useWithoutItem(state, level, pos, player, hitResult) : InteractionResult.PASS;
     }
 }

@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -32,7 +31,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class HorsetailBlock extends Block implements SimpleWaterloggedBlock {
 
-    public static final MapCodec<HorsetailBlock> CODEC = simpleCodec(HorsetailBlock::new);
     public static final EnumProperty<Part> PART = EnumProperty.create("part", Part.class);
     public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
 
@@ -59,11 +57,6 @@ public class HorsetailBlock extends Block implements SimpleWaterloggedBlock {
     }
 
     @Override
-    protected MapCodec<? extends HorsetailBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(PART, WATERLOGGED);
     }
@@ -81,7 +74,7 @@ public class HorsetailBlock extends Block implements SimpleWaterloggedBlock {
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         Vec3 offset = state.getOffset(level, pos);
         return SHAPE.move(offset.x, offset.y, offset.z);
     }
@@ -96,7 +89,7 @@ public class HorsetailBlock extends Block implements SimpleWaterloggedBlock {
 
     /** 根元は塞がった上面の上、中・先は下のトクサ(先でない)の上。 */
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         BlockPos below = pos.below();
         BlockState under = level.getBlockState(below);
         if (state.getValue(PART) == Part.BOTTOM) {
@@ -106,7 +99,7 @@ public class HorsetailBlock extends Block implements SimpleWaterloggedBlock {
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighbor, LevelAccessor level,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighbor, LevelAccessor level,
                                      BlockPos pos, BlockPos neighborPos) {
         if (state.getValue(WATERLOGGED)) {
             level.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
@@ -127,19 +120,19 @@ public class HorsetailBlock extends Block implements SimpleWaterloggedBlock {
     }
 
     @Override
-    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         if (!state.canSurvive(level, pos)) {
             level.destroyBlock(pos, true);
         }
     }
 
     @Override
-    protected FluidState getFluidState(BlockState state) {
+    public FluidState getFluidState(BlockState state) {
         return state.getValue(WATERLOGGED) ? Fluids.WATER.getSource(false) : super.getFluidState(state);
     }
 
     @Override
-    protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+    public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
         return !state.getValue(WATERLOGGED);
     }
 }

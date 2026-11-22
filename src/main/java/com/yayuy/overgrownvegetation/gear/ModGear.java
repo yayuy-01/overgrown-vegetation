@@ -31,7 +31,6 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
-import net.neoforged.neoforge.common.SimpleTier;
 import com.yayuy.overgrownvegetation.port.registries.DeferredBlock;
 import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
@@ -63,7 +62,7 @@ public final class ModGear {
 
     /** 菌集鉱(過繁茂の石から)。 */
     public static final DeferredBlock<DropExperienceBlock> FUNGAL_ORE = ModBlocks.BLOCKS.registerBlock(
-            "fungal_ore", p -> new DropExperienceBlock(ConstantInt.of(0), p),
+            "fungal_ore", p -> new DropExperienceBlock(p, ConstantInt.of(0)),
             BlockBehaviour.Properties.of()
                     .mapColor(MapColor.STONE)
                     .instrument(NoteBlockInstrument.BASEDRUM)
@@ -72,7 +71,7 @@ public final class ModGear {
 
     /** 菌集鉱(過繁茂の深層岩から)。 */
     public static final DeferredBlock<DropExperienceBlock> DEEPSLATE_FUNGAL_ORE = ModBlocks.BLOCKS.registerBlock(
-            "deepslate_fungal_ore", p -> new DropExperienceBlock(ConstantInt.of(0), p),
+            "deepslate_fungal_ore", p -> new DropExperienceBlock(p, ConstantInt.of(0)),
             BlockBehaviour.Properties.of()
                     .mapColor(MapColor.DEEPSLATE)
                     .instrument(NoteBlockInstrument.BASEDRUM)
@@ -91,7 +90,7 @@ public final class ModGear {
 
     /** 導晶鉱(石の版)。色は地脈と同じ黄緑。 */
     public static final DeferredBlock<DropExperienceBlock> CONDUIT_ORE = ModBlocks.BLOCKS.registerBlock(
-            "conduit_ore", p -> new DropExperienceBlock(UniformInt.of(0, 2), p),
+            "conduit_ore", p -> new DropExperienceBlock(p, UniformInt.of(0, 2)),
             BlockBehaviour.Properties.of()
                     .mapColor(MapColor.STONE)
                     .instrument(NoteBlockInstrument.BASEDRUM)
@@ -100,7 +99,7 @@ public final class ModGear {
 
     /** 導晶鉱(深層岩の版)。 */
     public static final DeferredBlock<DropExperienceBlock> DEEPSLATE_CONDUIT_ORE = ModBlocks.BLOCKS.registerBlock(
-            "deepslate_conduit_ore", p -> new DropExperienceBlock(UniformInt.of(0, 2), p),
+            "deepslate_conduit_ore", p -> new DropExperienceBlock(p, UniformInt.of(0, 2)),
             BlockBehaviour.Properties.of()
                     .mapColor(MapColor.DEEPSLATE)
                     .instrument(NoteBlockInstrument.BASEDRUM)
@@ -110,7 +109,7 @@ public final class ModGear {
 
     /** 汚染に飲み込まれた導晶鉱(石)。変質はしない(菌集鉱にはならない)。緑に変わり、落とすのは黄緑の導晶の原石(11-21 夜)。表面に小さな根晶が生える。 */
     public static final DeferredBlock<DropExperienceBlock> OVERGROWN_CONDUIT_ORE = ModBlocks.BLOCKS.registerBlock(
-            "overgrown_conduit_ore", p -> new DropExperienceBlock(UniformInt.of(0, 2), p),
+            "overgrown_conduit_ore", p -> new DropExperienceBlock(p, UniformInt.of(0, 2)),
             BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_GREEN)
                     .instrument(NoteBlockInstrument.BASEDRUM)
@@ -119,7 +118,7 @@ public final class ModGear {
 
     /** 汚染に飲み込まれた導晶鉱(深層岩)。 */
     public static final DeferredBlock<DropExperienceBlock> OVERGROWN_DEEPSLATE_CONDUIT_ORE = ModBlocks.BLOCKS.registerBlock(
-            "overgrown_deepslate_conduit_ore", p -> new DropExperienceBlock(UniformInt.of(0, 2), p),
+            "overgrown_deepslate_conduit_ore", p -> new DropExperienceBlock(p, UniformInt.of(0, 2)),
             BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_GREEN)
                     .instrument(NoteBlockInstrument.BASEDRUM)
@@ -129,7 +128,7 @@ public final class ModGear {
 
     /** 小さな根晶(飲み込まれた導晶鉱の表面に生える。掘ると 25% で根晶 = ルートテーブル)。 */
     public static final DeferredBlock<AmethystClusterBlock> SMALL_ROOT_CRYSTAL = ModBlocks.BLOCKS.registerBlock(
-            "small_root_crystal", p -> new AmethystClusterBlock(3.0F, 4.0F, p),
+            "small_root_crystal", p -> new AmethystClusterBlock(3, 4, p),
             BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_LIGHT_GREEN)
                     .forceSolidOn()
@@ -158,34 +157,37 @@ public final class ModGear {
     /** 黄緑の導晶の地金(作業台で導晶の板にもなる = 道具は青・黄緑のどちらからでも作れる。黄緑だけの使い道は後で決める)。 */
     public static final DeferredItem<Item> OVERGROWN_CONDUIT_INGOT = ModItems.ITEMS.registerSimpleItem("overgrown_conduit_ingot", new Item.Properties());
 
-    /** 導晶の道具の格(硬さはダイヤと同じ)。壊れにくさ・速さは登録の時に読む(変えたら再起動)。 */
-    public static final Tier CONDUIT_TIER = new SimpleTier(BlockTags.INCORRECT_FOR_DIAMOND_TOOL,
-            DesignData.gearTiers().conduit.durability, DesignData.gearTiers().conduit.speed,
-            DesignData.gearTiers().conduit.attackBonus, DesignData.gearTiers().conduit.enchantability,
-            () -> Ingredient.of(ModGear.CONDUIT_PLATE.get()));
+    /**
+     * 導晶の道具の格(硬さはダイヤと同じ)。壊れにくさ・速さは登録の時に読む(変えたら再起動)。
+     * 1.20.1(決定 4): 1.21 の {@code SimpleTier(INCORRECT_FOR_DIAMOND_TOOL, …)} の代わりに、格 3(ダイヤ)の {@code ForgeTier} を
+     * {@code TierSortingRegistry} でダイヤの直後・ネザライトの前に並べる。自分のタグは持たない(null)ので、ダイヤの道具の掘れる物は変わらない。
+     */
+    public static final Tier CONDUIT_TIER = net.minecraftforge.common.TierSortingRegistry.registerTier(
+            new net.minecraftforge.common.ForgeTier(net.minecraft.world.item.Tiers.DIAMOND.getLevel(),
+                    DesignData.gearTiers().conduit.durability, DesignData.gearTiers().conduit.speed,
+                    DesignData.gearTiers().conduit.attackBonus, DesignData.gearTiers().conduit.enchantability,
+                    null, () -> Ingredient.of(ModGear.CONDUIT_PLATE.get())),
+            OvergrownVegetation.id("conduit"),
+            java.util.List.of(net.minecraft.world.item.Tiers.DIAMOND), java.util.List.of(net.minecraft.world.item.Tiers.NETHERITE));
 
+    // 1.20.1: 攻撃の値は Item.Properties#attributes ではなく道具の構築子に渡す(ConduitTools の中。値は 1.21 の createAttributes と同じ)
     public static final DeferredItem<ConduitTools.Pickaxe> CONDUIT_PICKAXE = ModItems.ITEMS.registerItem("conduit_pickaxe",
-            p -> new ConduitTools.Pickaxe(CONDUIT_TIER, p),
-            new Item.Properties().attributes(PickaxeItem.createAttributes(CONDUIT_TIER, 1.0F, -2.8F)));
+            p -> new ConduitTools.Pickaxe(CONDUIT_TIER, p), new Item.Properties());
     public static final DeferredItem<ConduitTools.Axe> CONDUIT_AXE = ModItems.ITEMS.registerItem("conduit_axe",
-            p -> new ConduitTools.Axe(CONDUIT_TIER, p),
-            new Item.Properties().attributes(AxeItem.createAttributes(CONDUIT_TIER, 5.0F, -3.0F)));
+            p -> new ConduitTools.Axe(CONDUIT_TIER, p), new Item.Properties());
     public static final DeferredItem<ConduitTools.Shovel> CONDUIT_SHOVEL = ModItems.ITEMS.registerItem("conduit_shovel",
-            p -> new ConduitTools.Shovel(CONDUIT_TIER, p),
-            new Item.Properties().attributes(ShovelItem.createAttributes(CONDUIT_TIER, 1.5F, -3.0F)));
+            p -> new ConduitTools.Shovel(CONDUIT_TIER, p), new Item.Properties());
     public static final DeferredItem<ConduitTools.Hoe> CONDUIT_HOE = ModItems.ITEMS.registerItem("conduit_hoe",
-            p -> new ConduitTools.Hoe(CONDUIT_TIER, p),
-            new Item.Properties().attributes(HoeItem.createAttributes(CONDUIT_TIER, -3.0F, 0.0F)));
+            p -> new ConduitTools.Hoe(CONDUIT_TIER, p), new Item.Properties());
 
     // ---- 導晶の武器(11-21 夜。剣と、導晶機関で弦を巻く弩) ----
-    /** 導晶の剣(攻撃は力の有無で変わるので、部品の攻撃の値は持たせない = {@link ConduitWeapons.Sword#getDefaultAttributeModifiers})。 */
+    /** 導晶の剣(攻撃は力の有無で変わるので、部品の攻撃の値は持たせない = {@link ConduitWeapons.Sword#getAttributeModifiers})。 */
     public static final DeferredItem<ConduitWeapons.Sword> CONDUIT_SWORD = ModItems.ITEMS.registerItem("conduit_sword",
             p -> new ConduitWeapons.Sword(CONDUIT_TIER, p), new Item.Properties());
     public static final DeferredItem<ConduitWeapons.Crossbow> CONDUIT_CROSSBOW = ModItems.ITEMS.registerItem("conduit_crossbow",
             ConduitWeapons.Crossbow::new,
-            new Item.Properties().stacksTo(1).durability(DesignData.gearTiers().crossbow.durability)
-                    .component(net.minecraft.core.component.DataComponents.CHARGED_PROJECTILES,
-                            net.minecraft.world.item.component.ChargedProjectiles.EMPTY));
+            // 1.20.1: 装填の中身は NBT(ChargedProjectiles)なので、既定のコンポーネントは要らない
+            new Item.Properties().stacksTo(1).durability(DesignData.gearTiers().crossbow.durability));
 
     // ---- 導晶の防具(11-21 夜。兜は防護マスクと一体にしない) ----
     /** 導晶の防具の素材(防御・強度・エンチャントは登録の時に読む)。体の絵は {@code textures/models/armor/conduit_layer_1・2}。 */
@@ -197,10 +199,10 @@ public final class ModGear {
                 defense.put(ArmorItem.Type.CHESTPLATE, a.chestplateDefense);
                 defense.put(ArmorItem.Type.LEGGINGS, a.leggingsDefense);
                 defense.put(ArmorItem.Type.BOOTS, a.bootsDefense);
-                defense.put(ArmorItem.Type.BODY, a.chestplateDefense);
+                // 1.20.1: ArmorItem.Type.BODY(狼の鎧)は無い
                 return new OvArmorMaterial(defense, a.enchantability,
                         net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_IRON, () -> Ingredient.of(CONDUIT_PLATE.get()),
-                        java.util.List.of(new net.minecraft.world.item.ArmorMaterial.Layer(OvergrownVegetation.id("conduit"))),
+                        java.util.List.of(new OvArmorMaterial.Layer(OvergrownVegetation.id("conduit"))),
                         a.toughness, a.knockbackResistance);
             });
     public static final DeferredItem<ConduitArmor.Piece> CONDUIT_HELMET = armorPiece("conduit_helmet", ArmorItem.Type.HELMET);
@@ -210,7 +212,18 @@ public final class ModGear {
 
     private static DeferredItem<ConduitArmor.Piece> armorPiece(String name, ArmorItem.Type type) {
         return ModItems.ITEMS.registerItem(name, p -> new ConduitArmor.Piece(CONDUIT_ARMOR_MATERIAL, type, p),
-                new Item.Properties().durability(type.getDurability(DesignData.gearTiers().armor.durabilityMultiplier)));
+                new Item.Properties().durability(armorDurability(type, DesignData.gearTiers().armor.durabilityMultiplier)));
+    }
+
+    /** 1.20.5 の {@code ArmorItem.Type#getDurability} と同じ(兜 11・胴 16・脚 15・靴 13 に倍率を掛ける)。1.20.1 の Type には無い。 */
+    private static int armorDurability(ArmorItem.Type type, int multiplier) {
+        int base = switch (type) {
+            case HELMET -> 11;
+            case CHESTPLATE -> 16;
+            case LEGGINGS -> 15;
+            case BOOTS -> 13;
+        };
+        return base * multiplier;
     }
 
     /** 地脈の力をためる導晶の物すべて(口の登録・タブ・試験で使う)。 */

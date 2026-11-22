@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.ley;
 
+import org.jetbrains.annotations.Nullable;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.registry.ModLey;
 import net.minecraft.ChatFormatting;
@@ -55,7 +56,7 @@ public class LeyBatteryItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.Level context, List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.translatable("item.overgrown_vegetation.ley_battery.charge",
                 LeyText.fe(stored(stack)), LeyText.fe(capacity())).withStyle(ChatFormatting.GRAY));
     }

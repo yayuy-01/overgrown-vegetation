@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.corruption.CorruptionDropSuppressor;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
@@ -31,19 +30,13 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public class OvergrownDirtBlock extends Block {
 
-    public static final MapCodec<OvergrownDirtBlock> CODEC = simpleCodec(OvergrownDirtBlock::new);
 
     public OvergrownDirtBlock(BlockBehaviour.Properties properties) {
         super(properties);
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         if (!level.isAreaLoaded(pos, 1)) {
             return;
         }

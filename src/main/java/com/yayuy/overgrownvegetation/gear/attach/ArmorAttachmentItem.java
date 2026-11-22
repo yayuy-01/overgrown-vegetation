@@ -1,5 +1,6 @@
 package com.yayuy.overgrownvegetation.gear.attach;
 
+import org.jetbrains.annotations.Nullable;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
@@ -27,7 +28,7 @@ public class ArmorAttachmentItem extends Item implements GeoItem {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.Level context, List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.translatable(getDescriptionId() + ".desc").withStyle(ChatFormatting.GRAY));
         AttachTable.Entry e = ArmorAttachments.entry(stack);
         if (e != null) {

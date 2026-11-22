@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
@@ -15,17 +14,11 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
  */
 public class LycopsidPlantBlock extends CorruptedGroundGrowthBlock {
 
-    public static final MapCodec<LycopsidPlantBlock> CODEC = simpleCodec(LycopsidPlantBlock::new);
     public static final BooleanProperty CARPET = BooleanProperty.create("carpet");
 
     public LycopsidPlantBlock(BlockBehaviour.Properties properties) {
         super(properties);
         this.registerDefaultState(this.stateDefinition.any().setValue(CARPET, false));
-    }
-
-    @Override
-    protected MapCodec<LycopsidPlantBlock> codec() {
-        return CODEC;
     }
 
     @Override

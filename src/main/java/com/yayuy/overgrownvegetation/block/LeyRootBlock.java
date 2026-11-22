@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.Direction;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.level.block.Block;
@@ -16,7 +15,6 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
  */
 public class LeyRootBlock extends CaveSheetBlock {
 
-    public static final MapCodec<LeyRootBlock> CODEC = simpleCodec(LeyRootBlock::new);
 
     /** 地脈からの近さ。 */
     public enum Glow implements StringRepresentable {
@@ -41,11 +39,6 @@ public class LeyRootBlock extends CaveSheetBlock {
     public LeyRootBlock(BlockBehaviour.Properties properties) {
         super(properties);
         this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH).setValue(GLOW, Glow.NONE));
-    }
-
-    @Override
-    protected MapCodec<? extends LeyRootBlock> codec() {
-        return CODEC;
     }
 
     @Override

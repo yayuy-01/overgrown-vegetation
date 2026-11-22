@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.block;
 
-import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -26,7 +25,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class MedullosaBlock extends Block {
 
-    public static final MapCodec<MedullosaBlock> CODEC = simpleCodec(MedullosaBlock::new);
     public static final BooleanProperty FLAG = BooleanProperty.create("flag");
 
     private static final VoxelShape TRUNK = Block.box(5.0, 0.0, 5.0, 11.0, 16.0, 11.0);
@@ -35,11 +33,6 @@ public class MedullosaBlock extends Block {
     public MedullosaBlock(BlockBehaviour.Properties properties) {
         super(properties);
         this.registerDefaultState(this.stateDefinition.any().setValue(FLAG, false));
-    }
-
-    @Override
-    protected MapCodec<? extends MedullosaBlock> codec() {
-        return CODEC;
     }
 
     @Override
@@ -52,13 +45,13 @@ public class MedullosaBlock extends Block {
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return isCrown() ? CROWN : TRUNK;
     }
 
     /** 幹は塞がった上面か幹の上、冠は幹の上だけ。 */
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         BlockPos below = pos.below();
         BlockState under = level.getBlockState(below);
         if (under.is(ModBlocks.MEDULLOSA_TRUNK.get())) {
@@ -68,7 +61,7 @@ public class MedullosaBlock extends Block {
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighbor, LevelAccessor level,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighbor, LevelAccessor level,
                                      BlockPos pos, BlockPos neighborPos) {
         if (direction == Direction.DOWN && !state.canSurvive(level, pos)) {
             level.scheduleTick(pos, this, 1);
@@ -77,14 +70,14 @@ public class MedullosaBlock extends Block {
     }
 
     @Override
-    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         if (!state.canSurvive(level, pos)) {
             level.destroyBlock(pos, true);
         }
     }
 
     @Override
-    protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+    public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
         return true;
     }
 }

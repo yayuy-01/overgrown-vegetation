@@ -135,26 +135,26 @@ public class OvergrownHuskBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void load(CompoundTag tag) {
+        super.load(tag);
         if (tag.contains("Mimic", Tag.TAG_COMPOUND)) {
             // MOD を外していると元のブロックが引けない。そのときは空気が返るので、
             // 模型は予備の見た目に落ちる(クラッシュはしない)。
-            mimic = NbtUtils.readBlockState(registries.lookupOrThrow(Registries.BLOCK), tag.getCompound("Mimic"));
+            mimic = NbtUtils.readBlockState(net.minecraft.core.registries.BuiltInRegistries.BLOCK.asLookup(), tag.getCompound("Mimic"));
         } else {
             mimic = Blocks.AIR.defaultBlockState();
         }
         contents.clear();
         ListTag list = tag.getList("Contents", Tag.TAG_COMPOUND);
         for (int i = 0; i < list.size() && contents.size() < MAX_CONTENTS; i++) {
-            ItemStack.parse(registries, list.getCompound(i)).ifPresent(contents::add);
+            java.util.Optional.of(ItemStack.of(list.getCompound(i))).filter(s -> !s.isEmpty()).ifPresent(contents::add);
         }
         refreshModel();
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
         if (!mimic.isAir()) {
             tag.put("Mimic", NbtUtils.writeBlockState(mimic));
         }
@@ -162,7 +162,7 @@ public class OvergrownHuskBlockEntity extends BlockEntity {
             ListTag list = new ListTag();
             for (ItemStack stack : contents) {
                 if (!stack.isEmpty()) {
-                    list.add(stack.save(registries));
+                    list.add(stack.save(new CompoundTag()));
                 }
             }
             tag.put("Contents", list);
@@ -174,7 +174,7 @@ public class OvergrownHuskBlockEntity extends BlockEntity {
      * 見た目に関係しないうえ、倉庫を覆ったときに大量のアイテム NBT を配ることになる。
      */
     @Override
-    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+    public CompoundTag getUpdateTag() {
         CompoundTag tag = new CompoundTag();
         if (!mimic.isAir()) {
             tag.put("Mimic", NbtUtils.writeBlockState(mimic));
@@ -188,14 +188,14 @@ public class OvergrownHuskBlockEntity extends BlockEntity {
     }
 
     @Override
-    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket packet, HolderLookup.Provider registries) {
-        super.onDataPacket(net, packet, registries);
+    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket packet) {
+        super.onDataPacket(net, packet);
         refreshModel();
     }
 
     @Override
-    public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider registries) {
-        super.handleUpdateTag(tag, registries);
+    public void handleUpdateTag(CompoundTag tag) {
+        super.handleUpdateTag(tag);
         refreshModel();
     }
 
