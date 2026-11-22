@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [ "AAA", "AVA", "AAA" ],
+  "key": {
+    "A": {
+      "item": "minecraft:arrow"
+    },
+    "V": {
+      "item": "overgrown_vegetation:venom_gland"
+    }
+  },
+  "result": {
+    "item": "minecraft:tipped_arrow",
+    "count": 8,
+    "nbt": {
+      "Potion": "minecraft:poison"
+    }
+  }
+}
